@@ -28,6 +28,9 @@ import {
 } from "@/constants";
 import { usePageConfig } from "@/hooks/use-page-config";
 import { useUrlFilters, useUrlTab } from "@/hooks/use-url-filters";
+import { useCan } from "@/lib/auth/components/Can";
+import { STATUS_LABEL_VI } from "@/lib/status-map";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ListStatsPanel } from "@/components/shared/ListStatsPanel";
 import {
@@ -40,7 +43,6 @@ import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { numberCell, moneyCell, statusCell, textCell } from "@/components/shared/column-helpers";
-import { STATUS_LABEL_VI } from "@/lib/status-map";
 import {
   computeProductStats as computeProductStatsSelector,
   computeSkuStats as computeSkuStatsSelector,
@@ -216,6 +218,7 @@ function mergeStoredConfig(
 
 export function ProductList() {
   const router = useRouter();
+  const canCreateProduct = useCan("product.create");
   const [activeTab, setActiveTab] = useUrlTab("tab", ["products", "skus"] as const, "products");
   const productFilters = useUrlFilters(PRODUCT_STATUSES, {
     keys: { q: "productQ", status: "productStatus" },
@@ -239,6 +242,7 @@ export function ProductList() {
   const rawSkus = useMemo(() => skusQuery.data?.items ?? [], [skusQuery.data]);
   const categories = useMemo(() => categoriesQuery.data?.items ?? [], [categoriesQuery.data]);
   const isLoading = productsQuery.isLoading || skusQuery.isLoading || categoriesQuery.isLoading;
+  const loadError = productsQuery.error ?? skusQuery.error ?? categoriesQuery.error;
 
   const productConfig = useMemo<ProductsPageConfig["products"]>(
     () => ({
@@ -1021,6 +1025,34 @@ export function ProductList() {
     return <PageSkeleton variant="list" />;
   }
 
+  if (loadError) {
+    return (
+      <>
+        <PageHeader title="Sản phẩm & SKU" subtitle="Quản lý sản phẩm, biến thể và SKU bán hàng." />
+        <EmptyState
+          icon={<XCircle className="size-8" />}
+          title="Không tải được dữ liệu sản phẩm"
+          description="Load error khác với danh sách trống. Hãy thử tải lại hoặc kiểm tra kết nối API."
+          action={
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                void productsQuery.refetch();
+                void skusQuery.refetch();
+                void categoriesQuery.refetch();
+              }}
+              className="rounded-[var(--r-sm)]"
+            >
+              Thử lại
+            </Button>
+          }
+        />
+      </>
+    );
+  }
+
   return (
     <>
       <PageHeader
@@ -1060,7 +1092,11 @@ export function ProductList() {
                 variant="default"
                 type="button"
                 size="sm"
-                onClick={() => router.push(ADMIN_ROUTES.products.create)}
+                onClick={() => canCreateProduct && router.push(ADMIN_ROUTES.products.create)}
+                disabled={!canCreateProduct}
+                title={
+                  canCreateProduct ? "Tạo sản phẩm" : "Role hiện tại không có quyền product.create"
+                }
                 className="bg-brand !text-ink-inverse hover:bg-brand-hover hover:!text-ink-inverse rounded-[var(--r-sm)]"
               >
                 <Plus className="size-3.5" />
@@ -1115,20 +1151,62 @@ export function ProductList() {
             gridClassName="lg:grid-cols-4 xl:grid-cols-7"
           />
           {renderToolbar()}
-          <DataTable
-            data={filteredProducts}
-            columns={productColumns.filter((column) =>
-              productConfig.visibleColumns.includes(column.key),
-            )}
-            rowKey={(row) => row.productId}
-            caption={`Hiển thị ${filteredProducts.length} sản phẩm`}
-            flagRow={shouldFlagProductRow}
-            onRowClick={navigateToDetail}
-            selectable
-            selectedKeys={prodSelectedKeys}
-            onSelectionChange={setProdSelectedKeys}
-            pageSize={15}
-          />
+          {filteredProducts.length > 0 ? (
+            <DataTable
+              data={filteredProducts}
+              columns={productColumns.filter((column) =>
+                productConfig.visibleColumns.includes(column.key),
+              )}
+              rowKey={(row) => row.productId}
+              caption={`Hiển thị ${filteredProducts.length} sản phẩm`}
+              flagRow={shouldFlagProductRow}
+              onRowClick={navigateToDetail}
+              selectable
+              selectedKeys={prodSelectedKeys}
+              onSelectionChange={setProdSelectedKeys}
+              pageSize={15}
+            />
+          ) : rawProducts.length === 0 ? (
+            <EmptyState
+              icon={<Package className="size-8" />}
+              title="Chưa có sản phẩm"
+              description="Môi trường hiện tại chưa có Product record nào. Đây là trạng thái dữ liệu trống, không phải lỗi tải."
+              action={
+                canCreateProduct ? (
+                  <Button
+                    type="button"
+                    variant="default"
+                    size="sm"
+                    onClick={() => router.push(ADMIN_ROUTES.products.create)}
+                    className="bg-brand !text-ink-inverse hover:bg-brand-hover hover:!text-ink-inverse rounded-[var(--r-sm)]"
+                  >
+                    <Plus className="size-3.5" />
+                    Tạo sản phẩm đầu tiên
+                  </Button>
+                ) : undefined
+              }
+            />
+          ) : (
+            <EmptyState
+              icon={<Package className="size-8" />}
+              title="Không tìm thấy kết quả"
+              description="Có dữ liệu sản phẩm, nhưng bộ lọc hoặc từ khoá hiện tại không khớp bản ghi nào."
+              action={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    updateProductsConfig(() => DEFAULT_CONFIG.products);
+                    productFilters.reset();
+                  }}
+                  className="rounded-[var(--r-sm)]"
+                >
+                  Bỏ bộ lọc
+                </Button>
+              }
+            />
+          )}
         </>
       ) : (
         <>
@@ -1138,18 +1216,46 @@ export function ProductList() {
             gridClassName="lg:grid-cols-4 xl:grid-cols-7"
           />
           {renderToolbar()}
-          <DataTable
-            data={filteredSkus}
-            columns={skuColumns.filter((column) => skuConfig.visibleColumns.includes(column.key))}
-            rowKey={(row) => row.skuId}
-            caption={`Hiển thị ${filteredSkus.length} SKU`}
-            flagRow={shouldFlagSkuRow}
-            onRowClick={navigateToSkuDetail}
-            selectable
-            selectedKeys={skuSelectedKeys}
-            onSelectionChange={setSkuSelectedKeys}
-            pageSize={15}
-          />
+          {filteredSkus.length > 0 ? (
+            <DataTable
+              data={filteredSkus}
+              columns={skuColumns.filter((column) => skuConfig.visibleColumns.includes(column.key))}
+              rowKey={(row) => row.skuId}
+              caption={`Hiển thị ${filteredSkus.length} SKU`}
+              flagRow={shouldFlagSkuRow}
+              onRowClick={navigateToSkuDetail}
+              selectable
+              selectedKeys={skuSelectedKeys}
+              onSelectionChange={setSkuSelectedKeys}
+              pageSize={15}
+            />
+          ) : rawSkus.length === 0 ? (
+            <EmptyState
+              icon={<Barcode className="size-8" />}
+              title="Chưa có SKU"
+              description="Môi trường hiện tại chưa có SKU nào. SKU được sinh từ tổ hợp biến thể khi tạo sản phẩm."
+            />
+          ) : (
+            <EmptyState
+              icon={<Barcode className="size-8" />}
+              title="Không tìm thấy SKU"
+              description="Có dữ liệu SKU, nhưng bộ lọc hoặc từ khoá hiện tại không khớp bản ghi nào."
+              action={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    updateSkusConfig(() => DEFAULT_CONFIG.skus);
+                    skuFilters.reset();
+                  }}
+                  className="rounded-[var(--r-sm)]"
+                >
+                  Bỏ bộ lọc
+                </Button>
+              }
+            />
+          )}
         </>
       )}
     </>
