@@ -9,6 +9,36 @@
 
 import { registerMockRoute, paginate } from "./mock-adapter";
 
+import type {
+  PrintArea,
+  PrintTechnique,
+  Product,
+  ProductAttribute,
+  ProductType,
+  Uom,
+} from "@/lib/mock-data";
+
+interface CreateProductMockBody {
+  productId?: unknown;
+  code?: unknown;
+  name?: unknown;
+  nameEn?: unknown;
+  type?: unknown;
+  categoryId?: unknown;
+  description?: unknown;
+  descriptionEn?: unknown;
+  images?: unknown;
+  model3dUrl?: unknown;
+  basePrice?: unknown;
+  attributes?: unknown;
+  printAreas?: unknown;
+  taxClass?: unknown;
+  uom?: unknown;
+  brand?: unknown;
+}
+
+const createdProducts: Product[] = [];
+
 export function registerAllMockRoutes(): void {
   /* ====================================================================
    * Module 01 — Products / SKUs / Categories / Suppliers
@@ -23,7 +53,7 @@ export function registerAllMockRoutes(): void {
     const q = params.get("q")?.toLowerCase();
     const status = params.getAll("status");
 
-    let filtered = [...products];
+    let filtered = [...products, ...createdProducts];
     if (q)
       filtered = filtered.filter(
         (p) => p.name.toLowerCase().includes(q) || p.productId.toLowerCase().includes(q),
@@ -37,9 +67,102 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("GET", "/products/:id", async (config) => {
     const { products } = await import("@/lib/mock-data");
     const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
-    const product = products.find((p) => p.productId === id);
+    const product = [...products, ...createdProducts].find((p) => p.productId === id);
     if (!product) return { status: 404, data: { message: "Product not found" }, headers: {} };
     return { status: 200, data: product, headers: {} };
+  });
+
+  // POST /products
+  registerMockRoute("POST", "/products", async (config) => {
+    const { categories, products } = await import("@/lib/mock-data");
+    const body = parseCreateProductBody(config.data);
+    const productId = readString(body.productId) || readString(body.code);
+    const fieldErrors: Record<string, string> = {};
+
+    if (!productId) fieldErrors.productId = "Nhập mã sản phẩm";
+    if (!readString(body.name)) fieldErrors.name = "Nhập tên sản phẩm";
+    if (!readString(body.brand)) fieldErrors.brand = "Nhập thương hiệu";
+    if (!readString(body.categoryId)) fieldErrors.categoryId = "Chọn danh mục";
+    if (readProductAttributes(body.attributes).length === 0) {
+      fieldErrors.attributes = "Cần ít nhất 1 thuộc tính biến thể";
+    }
+    if (
+      body.type === "Customizable" &&
+      !readPrintAreas(body.printAreas, productId || "PRD-DRAFT")
+    ) {
+      fieldErrors.printAreas = "Sản phẩm tùy chỉnh cần ít nhất 1 vùng in";
+    }
+
+    if (Object.keys(fieldErrors).length > 0) {
+      return {
+        status: 422,
+        data: {
+          code: "VALIDATION_FAILED",
+          message: "Dữ liệu sản phẩm chưa hợp lệ.",
+          fieldErrors,
+        },
+        headers: {},
+      };
+    }
+
+    const duplicated = [...products, ...createdProducts].some(
+      (product) => product.productId === productId,
+    );
+    if (duplicated) {
+      return {
+        status: 409,
+        data: {
+          code: "PRODUCT_CODE_ALREADY_EXISTS",
+          message: "Mã sản phẩm đã tồn tại.",
+          fieldErrors: {
+            code: "Mã sản phẩm đã tồn tại.",
+          },
+        },
+        headers: {},
+      };
+    }
+
+    const categoryId = readString(body.categoryId);
+    const categoryExists = categories.some((category) => category.categoryId === categoryId);
+    if (!categoryExists) {
+      return {
+        status: 404,
+        data: {
+          code: "CATEGORY_NOT_FOUND",
+          message: "Danh mục đã chọn không tồn tại.",
+          fieldErrors: {
+            categoryId: "Danh mục đã bị xoá hoặc không còn khả dụng.",
+          },
+        },
+        headers: {},
+      };
+    }
+
+    const now = new Date().toISOString();
+    const product: Product = {
+      productId,
+      name: readString(body.name),
+      nameEn: readString(body.nameEn) || readString(body.name),
+      slug: slugify(readString(body.name) || productId),
+      type: readProductType(body.type),
+      categoryId,
+      status: "Draft",
+      description: readString(body.description),
+      descriptionEn: readString(body.descriptionEn),
+      images: readStringArray(body.images),
+      model3dUrl: readOptionalString(body.model3dUrl),
+      basePrice: readNumber(body.basePrice),
+      attributes: readProductAttributes(body.attributes),
+      printAreas: readPrintAreas(body.printAreas, productId),
+      taxClass: readTaxClass(body.taxClass),
+      uom: readUom(body.uom),
+      brand: readString(body.brand),
+      createdAt: now,
+      createdBy: "Mock API",
+    };
+
+    createdProducts.push(product);
+    return { status: 201, data: product, headers: {} };
   });
 
   // GET /skus
@@ -489,4 +612,150 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("POST", "/auth/logout", async () => {
     return { status: 200, data: { message: "Logged out" }, headers: {} };
   });
+}
+
+function parseCreateProductBody(data: unknown): CreateProductMockBody {
+  if (typeof data === "string") {
+    try {
+      const parsed: unknown = JSON.parse(data);
+      return isRecord(parsed) ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+  return isRecord(data) ? data : {};
+}
+
+function readString(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function readOptionalString(value: unknown): string | undefined {
+  const text = readString(value);
+  return text ? text : undefined;
+}
+
+function readNumber(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function readStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+}
+
+function readProductType(value: unknown): ProductType {
+  return value === "Customizable" ? "Customizable" : "Standard";
+}
+
+function readUom(value: unknown): Uom {
+  return isUom(value) ? value : "pcs";
+}
+
+function readTaxClass(value: unknown): Product["taxClass"] {
+  return value === "reduced" || value === "exempt" ? value : "standard";
+}
+
+function readProductAttributes(value: unknown): ProductAttribute[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(isProductAttribute);
+}
+
+function readPrintAreas(value: unknown, productId: string): PrintArea[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const printAreas = value.filter(isPrintAreaInput).map((area) => ({
+    printAreaId: area.printAreaId,
+    productId,
+    name: area.name,
+    position: area.position,
+    widthMm: area.widthMm,
+    heightMm: area.heightMm,
+    minDpi: area.minDpi,
+    bleedMm: area.bleedMm,
+    safeMarginMm: area.safeMarginMm,
+    allowedTechniques: area.allowedTechniques,
+  }));
+  return printAreas.length ? printAreas : undefined;
+}
+
+function isProductAttribute(value: unknown): value is ProductAttribute {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.attributeId === "string" &&
+    isBilingualLabel(value.name) &&
+    Array.isArray(value.values) &&
+    value.values.every((item) => typeof item === "string")
+  );
+}
+
+function isPrintAreaInput(value: unknown): value is PrintArea {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.printAreaId === "string" &&
+    isBilingualLabel(value.name) &&
+    isPrintAreaPosition(value.position) &&
+    typeof value.widthMm === "number" &&
+    typeof value.heightMm === "number" &&
+    typeof value.minDpi === "number" &&
+    typeof value.bleedMm === "number" &&
+    typeof value.safeMarginMm === "number" &&
+    Array.isArray(value.allowedTechniques) &&
+    value.allowedTechniques.every(isPrintTechnique)
+  );
+}
+
+function isBilingualLabel(value: unknown): value is ProductAttribute["name"] {
+  return (
+    isRecord(value) &&
+    typeof value.vi === "string" &&
+    value.vi.trim().length > 0 &&
+    typeof value.en === "string" &&
+    value.en.trim().length > 0
+  );
+}
+
+function isPrintAreaPosition(value: unknown): value is PrintArea["position"] {
+  return (
+    value === "front" ||
+    value === "back" ||
+    value === "left-sleeve" ||
+    value === "right-sleeve" ||
+    value === "full"
+  );
+}
+
+function isPrintTechnique(value: unknown): value is PrintTechnique {
+  return (
+    value === "DTG" ||
+    value === "DTF" ||
+    value === "Screen" ||
+    value === "Embroidery" ||
+    value === "Sublimation"
+  );
+}
+
+function isUom(value: unknown): value is Uom {
+  return (
+    value === "pcs" ||
+    value === "box" ||
+    value === "kg" ||
+    value === "m" ||
+    value === "ream" ||
+    value === "set"
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function slugify(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
