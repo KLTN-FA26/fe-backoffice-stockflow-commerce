@@ -21,6 +21,3 @@ export const ROLES = [
   "Sales Staff",
   "Order Coordinator",
 ] as const;
-
-/** Customer is storefront-only, not in backoffice ROLES. */
-export const CUSTOMER_ROLE = "Customer" as const;

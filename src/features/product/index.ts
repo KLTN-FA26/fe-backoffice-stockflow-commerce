@@ -79,6 +79,13 @@ export {
 } from "./selectors";
 export type { ProductListStats } from "./selectors";
 
+export { buildCreateProductInput, mapCreateProductError } from "./create-product-form";
+export type {
+  CreateProductServerField,
+  CreateProductServerErrors,
+  ProductCreateFormSnapshot,
+} from "./create-product-form";
+
 export {
   categoryKeys,
   productKeys,

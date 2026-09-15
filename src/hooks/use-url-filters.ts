@@ -8,28 +8,47 @@
 "use client";
 
 import {
-  useQueryState,
-  parseAsString,
-  parseAsInteger,
   parseAsArrayOf,
+  parseAsInteger,
+  parseAsString,
   parseAsStringLiteral,
+  useQueryState,
 } from "nuqs";
 import { useDebouncedValue } from "./use-debounced-value";
+
+interface UrlFilterKeys {
+  page?: string;
+  q?: string;
+  sort?: string;
+  status?: string;
+}
+
+interface UrlFilterOptions {
+  keys?: UrlFilterKeys;
+}
 
 /**
  * Generic list filters hook.
  *
  * @param statusEnum — readonly array of allowed status values (e.g. PO_STATUSES)
  */
-export function useUrlFilters<S extends string>(statusEnum: readonly S[]) {
+export function useUrlTab<T extends string>(key: string, values: readonly T[], defaultValue: T) {
+  return useQueryState(key, parseAsStringLiteral(values).withDefault(defaultValue));
+}
+
+export function useUrlFilters<S extends string>(
+  statusEnum: readonly S[],
+  options: UrlFilterOptions = {},
+) {
+  const keys = options.keys ?? {};
   const [status, setStatus] = useQueryState(
-    "status",
+    keys.status ?? "status",
     parseAsArrayOf(parseAsStringLiteral(statusEnum)).withDefault([]),
   );
 
-  const [q, setQ] = useQueryState("q", parseAsString.withDefault(""));
-  const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
-  const [sort, setSort] = useQueryState("sort", parseAsString.withDefault(""));
+  const [q, setQ] = useQueryState(keys.q ?? "q", parseAsString.withDefault(""));
+  const [page, setPage] = useQueryState(keys.page ?? "page", parseAsInteger.withDefault(1));
+  const [sort, setSort] = useQueryState(keys.sort ?? "sort", parseAsString.withDefault(""));
 
   const debouncedQ = useDebouncedValue(q, 300);
 

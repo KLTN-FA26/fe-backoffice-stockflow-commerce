@@ -1,20 +1,13 @@
 /**
- * Auth API — calls to Spring Boot auth endpoints.
+ * Auth API — login, refresh, logout, and mock-login support.
  *
- * These are raw axios calls (not through the main `api` instance)
- * because the auth interceptor depends on the auth store.
+ * All requests use the canonical API client so mock mode stays behind the
+ * adapter boundary and production requests share the same error handling.
  */
 
-import axios from "axios";
+import { api } from "@/lib/api/client";
+
 import type { AuthUser } from "./auth-store";
-
-const authApi = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL ?? "/api",
-  timeout: 15_000,
-  headers: { "Content-Type": "application/json" },
-});
-
-/* ── Types ───────────────────────────────────────────────────────────── */
 
 export interface LoginRequest {
   email: string;
@@ -32,47 +25,39 @@ export interface RefreshResponse {
   refreshToken: string;
 }
 
-/* ── API calls ───────────────────────────────────────────────────────── */
+export interface MockLoginUser {
+  userId: string;
+  fullName: string;
+  email: string;
+  roles: string[];
+}
 
 export async function loginApi(credentials: LoginRequest): Promise<LoginResponse> {
-  const { data } = await authApi.post<LoginResponse>("/auth/login", credentials);
+  const { data } = await api.post<LoginResponse>("/auth/login", credentials);
   return data;
 }
 
 export async function refreshTokenApi(refreshToken: string): Promise<RefreshResponse> {
-  const { data } = await authApi.post<RefreshResponse>("/auth/refresh", { refreshToken });
+  const { data } = await api.post<RefreshResponse>("/auth/refresh", { refreshToken });
   return data;
 }
 
 export async function logoutApi(refreshToken: string): Promise<void> {
   try {
-    await authApi.post("/auth/logout", { refreshToken });
+    await api.post("/auth/logout", { refreshToken });
   } catch {
-    // Ignore logout errors — token will expire anyway
+    // Local logout must still complete when the server is unavailable.
   }
 }
 
-/* ── Mock login (NEXT_PUBLIC_USE_MOCK=true) ───────────────────────────── */
-
 export async function mockLoginApi(userId: string): Promise<LoginResponse> {
-  // Dynamic import to avoid bundling mock-data in production
-  const { staffUsers } = await import("@/lib/mock-data");
-  const user = staffUsers.find((u) => u.userId === userId);
+  const { data } = await api.post<LoginResponse>("/auth/login", { userId });
+  return data;
+}
 
-  if (!user) throw new Error(`User ${userId} not found in mock data`);
-
-  // Simulate delay
-  await new Promise((r) => setTimeout(r, 300));
-
-  return {
-    accessToken: `mock-access-${user.userId}-${Date.now()}`,
-    refreshToken: `mock-refresh-${user.userId}-${Date.now()}`,
-    user: {
-      userId: user.userId,
-      fullName: user.fullName,
-      email: user.email,
-      roles: user.roles,
-      warehouseIds: user.warehouseIds,
-    },
-  };
+export async function getMockLoginUsersApi(): Promise<MockLoginUser[]> {
+  const { data } = await api.get<{ items: MockLoginUser[] }>("/staff-users");
+  // Guard against an unexpected response shape (contract mismatch) so callers
+  // never receive `undefined` — always a real array, even if empty.
+  return Array.isArray(data?.items) ? data.items : [];
 }

@@ -1,0 +1,31 @@
+prefix_rule(
+    pattern = ["pnpm", ["run", "exec", "dlx"]],
+    decision = "allow",
+    justification = "StockFlow uses pnpm for project scripts and tooling.",
+    match = ["pnpm run validate", "pnpm exec vitest related --run", "pnpm dlx shadcn@latest add button"],
+    not_match = ["npm run validate", "yarn test"],
+)
+
+prefix_rule(
+    pattern = ["git", ["status", "diff", "log", "show", "branch", "stash"]],
+    decision = "allow",
+    justification = "These Git commands support inspection or the documented baseline comparison workflow.",
+    match = ["git status --short", "git diff --stat", "git stash list"],
+    not_match = ["git commit -m test", "git reset --hard"],
+)
+
+prefix_rule(
+    pattern = ["npm", ["install", "i", "add", "ci"]],
+    decision = "forbidden",
+    justification = "Use pnpm install or pnpm add; this repository is managed by pnpm.",
+    match = ["npm install", "npm ci", "npm add zod"],
+    not_match = ["pnpm install"],
+)
+
+prefix_rule(
+    pattern = [["yarn", "bun"]],
+    decision = "forbidden",
+    justification = "Use pnpm; this repository is managed by pnpm.",
+    match = ["yarn test", "bun install"],
+    not_match = ["pnpm run test"],
+)

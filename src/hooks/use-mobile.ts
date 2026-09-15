@@ -1,23 +1,19 @@
-import * as React from "react";
+/**
+ * Mobile breakpoint hook — usehooks-ts wrapper.
+ *
+ * Giữ nguyên contract cũ: trả về `boolean`, breakpoint 768px.
+ * `initializeWithValue: false` để tránh hydration mismatch trong SSR (App Router).
+ */
+
+"use client";
+
+import { useMediaQuery } from "usehooks-ts";
 
 const MOBILE_BREAKPOINT = 768;
 
-function getIsMobile() {
-  if (typeof window === "undefined") return false;
-  return window.innerWidth < MOBILE_BREAKPOINT;
-}
-
-export function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState(getIsMobile);
-
-  React.useEffect(() => {
-    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
-    const onChange = () => {
-      setIsMobile(getIsMobile());
-    };
-    mql.addEventListener("change", onChange);
-    return () => mql.removeEventListener("change", onChange);
-  }, []);
-
-  return isMobile;
+export function useIsMobile(): boolean {
+  return useMediaQuery(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`, {
+    defaultValue: false,
+    initializeWithValue: false,
+  });
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback } from "react";
 import Link from "next/link";
 import { cn } from "cn";
 import {
@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { ADMIN_ROUTES, PAGE_SIZE, STORAGE_KEYS } from "@/constants";
+import { usePageConfig } from "@/hooks/use-page-config";
 import { attributesForProducts, useProducts } from "@/features/product";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { ListStatsPanel } from "@/components/shared/ListStatsPanel";
@@ -33,7 +34,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
+import { PageSkeleton } from "@/components/shared/PageSkeleton";
 
 /* -------------------------------------------------------------------------- */
 /*  Aggregate unique attributes from all products                             */
@@ -77,20 +78,15 @@ const SEARCH_FIELDS: {
   { label: "Giá trị", value: "values", getValue: (attr) => attr.values.join(" ") },
 ];
 
-function readInitialConfig(): VariantsPageConfig {
-  if (typeof window === "undefined") return DEFAULT_CONFIG;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEYS.adminVariantsConfig);
-    if (!raw) return DEFAULT_CONFIG;
-    const stored = JSON.parse(raw) as Partial<VariantsPageConfig>;
-    return {
-      ...DEFAULT_CONFIG,
-      ...stored,
-      globalSearch: { ...DEFAULT_CONFIG.globalSearch, ...stored.globalSearch },
-    };
-  } catch {
-    return DEFAULT_CONFIG;
-  }
+function mergeStoredConfig(
+  stored: Partial<VariantsPageConfig>,
+  fallback: VariantsPageConfig,
+): VariantsPageConfig {
+  return {
+    ...fallback,
+    ...stored,
+    globalSearch: { ...fallback.globalSearch, ...stored.globalSearch },
+  };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -125,7 +121,11 @@ export function VariantAttributes() {
   const [addedValues, setAddedValues] = useState<Map<string, string[]>>(new Map());
   const [removedValues, setRemovedValues] = useState<Map<string, Set<string>>>(new Map());
 
-  const [config, setConfig] = useState<VariantsPageConfig>(readInitialConfig);
+  const { config, updateConfig } = usePageConfig<VariantsPageConfig>(
+    STORAGE_KEYS.adminVariantsConfig,
+    DEFAULT_CONFIG,
+    mergeStoredConfig,
+  );
 
   /* Create dialog */
   const [createOpen, setCreateOpen] = useState(false);
@@ -136,13 +136,6 @@ export function VariantAttributes() {
 
   /* Delete dialog */
   const [deleteTarget, setDeleteTarget] = useState<AggregatedAttribute | null>(null);
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEYS.adminVariantsConfig, JSON.stringify(config));
-  }, [config]);
-
-  const updateConfig = (updater: (current: VariantsPageConfig) => VariantsPageConfig) =>
-    setConfig((current) => updater(current));
 
   const toggleSearchField = (field: VariantSearchField) => {
     updateConfig((current) => {
@@ -301,18 +294,14 @@ export function VariantAttributes() {
   );
 
   if (productsQuery.isLoading) {
-    return <Skeleton className="h-[620px] rounded-[var(--card-radius)]" />;
+    return <PageSkeleton variant="list" />;
   }
 
   return (
     <>
       <PageHeader
         title="Thuộc tính biến thể"
-        breadcrumbs={[
-          { label: "Back-office", href: ADMIN_ROUTES.home },
-          { label: "Sản phẩm", href: ADMIN_ROUTES.products.list },
-          { label: "Thuộc tính biến thể" },
-        ]}
+        subtitle="Quản lý danh mục thuộc tính (Size, Color…) và giá trị dùng để sinh SKU."
         actions={
           <div className="flex items-center gap-2">
             <Button
@@ -325,7 +314,7 @@ export function VariantAttributes() {
               className={cn(
                 "rounded-[var(--r-sm)]",
                 config.showStats &&
-                  "border-accent bg-accent/10 text-accent hover:bg-accent/10 hover:text-accent border",
+                  "border-brand bg-brand/10 text-brand hover:bg-brand/10 hover:text-brand border",
               )}
             >
               <BarChart3 className="size-3.5" />
@@ -383,7 +372,7 @@ export function VariantAttributes() {
           )
         }
         summaryItems={summaryItems}
-        onResetAll={() => setConfig(DEFAULT_CONFIG)}
+        onResetAll={() => updateConfig(() => DEFAULT_CONFIG)}
         resetDisabled={!hasAnyConfig}
       />
 
@@ -577,7 +566,7 @@ export function VariantAttributes() {
                 value={newNameVi}
                 onChange={(e) => setNewNameVi(e.target.value)}
                 placeholder="Chất liệu"
-                className="border-border-default bg-bg-surface text-ink-primary placeholder:text-ink-tertiary focus-visible:border-accent focus-visible:ring-accent/20 h-9 rounded-[var(--r-sm)] text-[0.8125rem] shadow-none"
+                className="border-border-default bg-bg-surface text-ink-primary placeholder:text-ink-tertiary focus-visible:border-brand focus-visible:ring-brand/20 h-9 rounded-[var(--r-sm)] text-[0.8125rem] shadow-none"
               />
             </div>
             <div>
@@ -593,7 +582,7 @@ export function VariantAttributes() {
                 value={newNameEn}
                 onChange={(e) => setNewNameEn(e.target.value)}
                 placeholder="Material"
-                className="border-border-default bg-bg-surface text-ink-primary placeholder:text-ink-tertiary focus-visible:border-accent focus-visible:ring-accent/20 h-9 rounded-[var(--r-sm)] text-[0.8125rem] shadow-none"
+                className="border-border-default bg-bg-surface text-ink-primary placeholder:text-ink-tertiary focus-visible:border-brand focus-visible:ring-brand/20 h-9 rounded-[var(--r-sm)] text-[0.8125rem] shadow-none"
               />
             </div>
             <div>
@@ -609,7 +598,7 @@ export function VariantAttributes() {
                 value={newValues}
                 onChange={(e) => setNewValues(e.target.value)}
                 placeholder="Cotton, Polyester, Linen"
-                className="border-border-default bg-bg-surface text-ink-primary placeholder:text-ink-tertiary focus-visible:border-accent focus-visible:ring-accent/20 h-9 rounded-[var(--r-sm)] text-[0.8125rem] shadow-none"
+                className="border-border-default bg-bg-surface text-ink-primary placeholder:text-ink-tertiary focus-visible:border-brand focus-visible:ring-brand/20 h-9 rounded-[var(--r-sm)] text-[0.8125rem] shadow-none"
               />
             </div>
             <label className="text-ink-secondary flex items-center gap-2 text-[0.8125rem]">

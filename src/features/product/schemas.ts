@@ -109,6 +109,7 @@ export const categorySchema = z.object({
 
 export const createProductSchema = z
   .object({
+    productId: z.string().min(1, "Nhập mã sản phẩm"),
     name: z.string().min(1, "Nhập tên sản phẩm"),
     nameEn: z.string().min(1, "Nhập tên tiếng Anh"),
     type: productTypeSchema,

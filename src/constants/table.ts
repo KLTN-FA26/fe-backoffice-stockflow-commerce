@@ -16,6 +16,16 @@ export const PO_COLUMNS = {
   WAREHOUSE: "warehouse",
 } as const;
 
+export const RECEIPT_COLUMNS = {
+  ACTIONS: "actions",
+  LINE_COUNT: "lineCount",
+  PO_REFERENCE: "poReference",
+  RECEIPT_NUMBER: "receiptNumber",
+  STATUS: "status",
+  SUPPLIER: "supplier",
+  WAREHOUSE: "warehouse",
+} as const;
+
 export const PRODUCT_COLUMNS = {
   ACTIONS: "actions",
   CATEGORY: "category",
@@ -38,6 +48,17 @@ export const SKU_COLUMNS = {
   STOCK_ON_HAND: "stockOnHand",
   UOM: "uom",
   VARIANT_LABEL: "variantLabel",
+} as const;
+
+export const INVOICE_COLUMNS = {
+  ACTIONS: "actions",
+  DUE_DATE: "dueDate",
+  GRAND_TOTAL: "grandTotal",
+  INVOICE_DATE: "invoiceDate",
+  INVOICE_NUMBER: "invoiceNumber",
+  PO_REFERENCE: "poReference",
+  STATUS: "status",
+  SUPPLIER: "supplier",
 } as const;
 
 export const VARIANT_COLUMNS = {

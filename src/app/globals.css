@@ -7,32 +7,33 @@
 /* ============================================================================
    STOCKFLOW DESIGN TOKENS — nguồn sự thật: FRONTEND-AI-RULES.md §3
    Port y hệt từ components-preview.html <style> §token.
-   4 scope: A-light / A-dark / B-light / B-dark.
+   Back-office light / dark.
    ==========================================================================*/
 
 /* Mode A · Light (mặc định) */
 :root {
   color-scheme: light;
-  --bg-base: #F3F4F6;
-  --bg-surface: #FFFFFF;
-  --bg-subtle: #F7F8FA;
-  --bg-muted: #EEF0F3;
-  --border-default: #DADDE1;
-  --border-strong: #C5CAD1;
-  --ink-primary: #1A1B18;
-  --ink-secondary: #5C5E58;
-  --ink-tertiary: #8A8C85;
-  --ink-inverse: #FFFFFF;
-  --brand: #1A1B18;
+  --bg-base: #f3f4f6;
+  --bg-surface: #ffffff;
+  --bg-subtle: #f7f8fa;
+  --bg-muted: #eef0f3;
+  --border-default: #dadde1;
+  --border-strong: #c5cad1;
+  --ink-primary: #1a1b18;
+  --ink-secondary: #5c5e58;
+  --ink-tertiary: #8a8c85;
+  --ink-inverse: #ffffff;
+  --brand: #1a1b18;
   --brand-hover: #000000;
-  --accent: #1E88E5;
-  --positive: #1F9D55;
-  --info: #2B7FC4;
-  --warning: #D98207;
-  --danger: #D23B3B;
-  --neutral: #6B6E68;
-  --muted: #9A9C95;
-  --special: #7C5CBF;
+  --accent: #1e88e5;
+  --scene-accent: #0891b2;
+  --positive: #1f9d55;
+  --info: #2b7fc4;
+  --warning: #d98207;
+  --danger: #d23b3b;
+  --neutral: #6b6e68;
+  --muted: #9a9c95;
+  --special: #7c5cbf;
   --r-sm: 4px;
   --r-md: 8px;
   --r-lg: 12px;
@@ -51,58 +52,20 @@
 /* Mode A · Dark */
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg-base: #0E0F11;
-  --bg-surface: #17181B;
-  --bg-subtle: #1F2124;
-  --bg-muted: #2A2C30;
-  --border-default: #2E3034;
-  --border-strong: #3D4045;
-  --ink-primary: #F4F4F1;
-  --ink-secondary: #A8AAA3;
-  --ink-tertiary: #76786F;
-  --ink-inverse: #1A1B18;
-  --brand: #F4F4F1;
-  --brand-hover: #FFFFFF;
-  --accent: #4EA6F0;
-}
-
-/* Mode B · Light */
-:root[data-mode="B"] {
-  --bg-base: #F7F2EB;
-  --bg-surface: #FFFDFB;
-  --bg-subtle: #F2E9DC;
-  --bg-muted: #EADFCF;
-  --border-default: #E6DCCC;
-  --border-strong: #D6C6AE;
-  --ink-primary: #2A211A;
-  --ink-secondary: #6E6055;
-  --ink-tertiary: #9C8C7C;
-  --ink-inverse: #FFFFFF;
-  --brand: #A9682F;
-  --brand-hover: #8C5526;
-  --accent: #A9682F;
-  --card-pad: 24px;
-  --card-radius: var(--r-lg);
-  --el-gap: 12px;
-  --card-shadow: var(--sh-md);
-  --card-border: 1px solid var(--border-default);
-}
-
-/* Mode B · Dark */
-:root[data-mode="B"][data-theme="dark"] {
-  --bg-base: #17130F;
-  --bg-surface: #211A14;
-  --bg-subtle: #2A211A;
-  --bg-muted: #322820;
-  --border-default: #322820;
-  --border-strong: #443727;
-  --ink-primary: #F3EBE1;
-  --ink-secondary: #BBA996;
-  --ink-tertiary: #8A7866;
-  --ink-inverse: #1A1B18;
-  --brand: #C98D4E;
-  --brand-hover: #D89E60;
-  --accent: #C98D4E;
+  --bg-base: #0e0f11;
+  --bg-surface: #17181b;
+  --bg-subtle: #1f2124;
+  --bg-muted: #2a2c30;
+  --border-default: #2e3034;
+  --border-strong: #3d4045;
+  --ink-primary: #f4f4f1;
+  --ink-secondary: #a8aaa3;
+  --ink-tertiary: #76786f;
+  --ink-inverse: #1a1b18;
+  --brand: #f4f4f1;
+  --brand-hover: #ffffff;
+  --accent: #4ea6f0;
+  --scene-accent: #22d3ee;
 }
 
 /* ============================================================================
@@ -141,6 +104,7 @@
   --color-brand: var(--brand);
   --color-brand-hover: var(--brand-hover);
   --color-accent: var(--accent);
+  --color-home-accent: var(--scene-accent);
 
   /* Colors — 7 semantic status tones */
   --color-positive: var(--positive);
@@ -169,7 +133,7 @@
   --destructive: var(--danger);
   --border: var(--border-default);
   --input: var(--border-default);
-  --ring: var(--accent);
+  --ring: var(--brand);
   --sidebar: var(--bg-subtle);
   --sidebar-foreground: var(--ink-secondary);
   --sidebar-primary: var(--brand);
@@ -215,7 +179,7 @@
 
 @layer base {
   * {
-    @apply border-border-default outline-accent/50;
+    @apply border-border-default outline-brand/50;
   }
   body {
     @apply bg-bg-base text-ink-primary antialiased;
@@ -227,12 +191,14 @@
     scroll-behavior: smooth;
   }
   :focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--brand);
     outline-offset: 2px;
     border-radius: 2px;
   }
   @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
+    *,
+    *::before,
+    *::after {
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
@@ -240,7 +206,10 @@
     }
   }
   /* Tắt mọi transition khi chuyển theme — tránh lag hàng trăm element animate cùng lúc */
-  .no-transitions, .no-transitions *, .no-transitions *::before, .no-transitions *::after {
+  .no-transitions,
+  .no-transitions *,
+  .no-transitions *::before,
+  .no-transitions *::after {
     transition-duration: 0s !important;
     transition-delay: 0s !important;
   }

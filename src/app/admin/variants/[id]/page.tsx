@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { DataTable, type ColumnDef } from "@/components/shared/DataTable";
-import { StatusBadge } from "@/components/shared/StatusBadge";
+import { StatusDot } from "@/components/shared/StatusDot";
 import { toast } from "@/components/shared/Toast";
 import { products, skus, type Product } from "@/lib/mock-data";
 
@@ -161,13 +161,8 @@ export default function VariantDetailPage() {
     return (
       <>
         <PageHeader
-          title="Không tìm thấy"
-          breadcrumbs={[
-            { label: "Back-office", href: "/admin" },
-            { label: "Sản phẩm", href: "/admin/products" },
-            { label: "Thuộc tính biến thể", href: "/admin/variants" },
-            { label: attrId },
-          ]}
+          title="Không tìm thấy thuộc tính"
+          subtitle="Thuộc tính biến thể không tồn tại hoặc đã bị xoá khỏi dữ liệu mock."
         />
         <div className="text-ink-tertiary flex flex-col items-center justify-center py-20">
           <Box className="mb-3 size-12 opacity-40" />
@@ -220,7 +215,7 @@ export default function VariantDetailPage() {
     {
       key: "status",
       header: "Trạng thái",
-      cell: (row) => <StatusBadge domain="product" status={row.status} size="sm" withIcon />,
+      cell: (row) => <StatusDot domain="product" status={row.status} size="sm" withIcon />,
     },
     {
       key: "valuesUsed",
@@ -255,12 +250,6 @@ export default function VariantDetailPage() {
       <PageHeader
         title={baseAttr.name.vi}
         subtitle={`${baseAttr.name.en} · ${baseAttr.attributeId}`}
-        breadcrumbs={[
-          { label: "Back-office", href: "/admin" },
-          { label: "Sản phẩm", href: "/admin/products" },
-          { label: "Thuộc tính biến thể", href: "/admin/variants" },
-          { label: baseAttr.name.vi },
-        ]}
         actions={
           <div className="flex items-center gap-2">
             <Button

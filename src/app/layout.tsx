@@ -1,9 +1,16 @@
-import type { Metadata } from "next";
 import { Inter, Inter_Tight, JetBrains_Mono } from "next/font/google";
-import "./globals.css";
-import { ThemeProvider } from "@/components/theme-provider";
+
+import { BRAND } from "@/constants";
+
+import { IS_MOCK } from "@/lib/config";
+
 import { ToastProvider } from "@/components/shared/Toast";
+import { ThemeProvider } from "@/components/theme-provider";
 import { AppProviders } from "@/providers/app-providers";
+
+import type { Metadata } from "next";
+
+import "./globals.css";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -25,8 +32,17 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "StockFlowCommerce — Back-office",
-  description: "UI/UX demo — Kho vận & Sàn TMĐT",
+  title: {
+    default: `${BRAND.name} — Back-office`,
+    template: `%s — ${BRAND.name}`,
+  },
+  description: "Hệ thống quản lý kho vận StockFlowCommerce",
+  applicationName: BRAND.name,
+  icons: {
+    icon: [{ url: BRAND.iconSrc, type: "image/png" }],
+    shortcut: [{ url: BRAND.iconSrc, type: "image/png" }],
+    apple: [{ url: BRAND.iconSrc, type: "image/png" }],
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -36,11 +52,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${inter.variable} ${interTight.variable} ${jetbrainsMono.variable} h-full`}
       suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col">
+      <body className="flex min-h-full flex-col">
         <ThemeProvider>
-          <AppProviders>
-            {children}
-          </AppProviders>
+          <AppProviders isMock={IS_MOCK}>{children}</AppProviders>
           <ToastProvider />
         </ThemeProvider>
       </body>

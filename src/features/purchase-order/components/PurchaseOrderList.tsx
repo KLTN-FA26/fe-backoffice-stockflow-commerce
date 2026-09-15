@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { parseAsArrayOf, parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
 import {
   BarChart3,
   CheckCircle,
@@ -18,6 +17,8 @@ import {
 } from "lucide-react";
 import { cn } from "cn";
 import { ADMIN_ROUTES, PAGE_SIZE, PO_COLUMNS, PO_STATUSES, STORAGE_KEYS } from "@/constants";
+import { usePageConfig } from "@/hooks/use-page-config";
+import { useUrlFilters } from "@/hooks/use-url-filters";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ListStatsPanel } from "@/components/shared/ListStatsPanel";
 import {
@@ -28,7 +29,7 @@ import {
 import { DataTable, type ColumnDef } from "@/components/shared/DataTable";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { dateCell, statusCell, textCell } from "@/components/shared/column-helpers";
 import { STATUS_LABEL_VI } from "@/lib/status-map";
 import {
@@ -107,36 +108,27 @@ function normalize(value: string) {
   return value.trim().toLowerCase();
 }
 
-function readInitialConfig(): PurchaseOrdersPageConfig {
-  if (typeof window === "undefined") return DEFAULT_CONFIG;
-
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEYS.adminPurchaseOrdersConfig);
-    if (!raw) return DEFAULT_CONFIG;
-
-    const stored = JSON.parse(raw) as Partial<PurchaseOrdersPageConfig>;
-    return {
-      ...DEFAULT_CONFIG,
-      ...stored,
-      globalSearch: { ...DEFAULT_CONFIG.globalSearch, ...stored.globalSearch },
-      columnSearch: stored.columnSearch ?? {},
-      visibleColumns: stored.visibleColumns?.length
-        ? stored.visibleColumns
-        : DEFAULT_VISIBLE_COLUMNS,
-    };
-  } catch {
-    return DEFAULT_CONFIG;
-  }
+function mergeStoredConfig(
+  stored: Partial<PurchaseOrdersPageConfig>,
+  fallback: PurchaseOrdersPageConfig,
+): PurchaseOrdersPageConfig {
+  return {
+    ...fallback,
+    ...stored,
+    globalSearch: { ...fallback.globalSearch, ...stored.globalSearch },
+    columnSearch: stored.columnSearch ?? {},
+    visibleColumns: stored.visibleColumns?.length ? stored.visibleColumns : DEFAULT_VISIBLE_COLUMNS,
+  };
 }
 
 export function PurchaseOrderList() {
   const router = useRouter();
-  const [poQ, setPoQ] = useQueryState("poQ", parseAsString.withDefault(""));
-  const [poStatuses, setPoStatuses] = useQueryState(
-    "poStatus",
-    parseAsArrayOf(parseAsStringLiteral(PO_STATUSES)).withDefault([]),
+  const filters = useUrlFilters(PO_STATUSES);
+  const { config, updateConfig } = usePageConfig<PurchaseOrdersPageConfig>(
+    STORAGE_KEYS.adminPurchaseOrdersConfig,
+    DEFAULT_CONFIG,
+    mergeStoredConfig,
   );
-  const [config, setConfig] = useState<PurchaseOrdersPageConfig>(readInitialConfig);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
 
   const purchaseOrdersQuery = usePurchaseOrders({ page: 1, pageSize: PAGE_SIZE.masterData });
@@ -174,30 +166,24 @@ export function PurchaseOrderList() {
   const pageConfig = useMemo<PurchaseOrdersPageConfig>(
     () => ({
       ...config,
-      statuses: poStatuses.length > 0 ? poStatuses : ["all"],
-      globalSearch: { ...config.globalSearch, query: poQ },
+      statuses: filters.status.length > 0 ? filters.status : ["all"],
+      globalSearch: { ...config.globalSearch, query: filters.q },
     }),
-    [config, poQ, poStatuses],
+    [config, filters.q, filters.status],
   );
 
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEYS.adminPurchaseOrdersConfig, JSON.stringify(config));
-  }, [config]);
-
-  const updateConfig = (updater: (current: PurchaseOrdersPageConfig) => PurchaseOrdersPageConfig) =>
-    setConfig((current) => updater(current));
   const navigateToDetail = (po: PurchaseOrder) =>
     router.push(ADMIN_ROUTES.purchaseOrders.detail(po.poId));
 
   const toggleStatus = (status: PoStatusFilter) => {
     if (status === "all") {
-      setPoStatuses([]);
+      filters.setStatus([]);
       return;
     }
-    const next = poStatuses.includes(status)
-      ? poStatuses.filter((item) => item !== status)
-      : [...poStatuses, status];
-    setPoStatuses(next);
+    const next = filters.status.includes(status)
+      ? filters.status.filter((item) => item !== status)
+      : [...filters.status, status];
+    filters.setStatus(next);
   };
 
   const toggleSearchField = (field: PoSearchField) => {
@@ -231,9 +217,8 @@ export function PurchaseOrderList() {
     }));
   const clearColumnSearch = () => updateConfig((current) => ({ ...current, columnSearch: {} }));
   const resetAll = () => {
-    setConfig(DEFAULT_CONFIG);
-    setPoQ("");
-    setPoStatuses([]);
+    updateConfig(() => DEFAULT_CONFIG);
+    filters.reset();
   };
 
   const filtered = useMemo(() => {
@@ -417,13 +402,13 @@ export function PurchaseOrderList() {
         .map((status) => STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status)
         .join(", "),
       active: hasStatusFilter,
-      onClear: () => setPoStatuses([]),
+      onClear: () => filters.setStatus([]),
     },
     {
       label: "Search chính",
       value: hasGlobalSearch ? `“${pageConfig.globalSearch.query}”` : "Chưa dùng",
       active: hasGlobalSearch,
-      onClear: () => setPoQ(""),
+      onClear: () => filters.setQ(""),
     },
     {
       label: "Trường search",
@@ -458,14 +443,14 @@ export function PurchaseOrderList() {
   ];
 
   if (isLoading) {
-    return <Skeleton className="h-[640px] rounded-[var(--card-radius)]" />;
+    return <PageSkeleton variant="list" />;
   }
 
   return (
     <>
       <PageHeader
         title="Đơn đặt NCC"
-        breadcrumbs={[{ label: "Back-office", href: ADMIN_ROUTES.home }, { label: "Đơn đặt NCC" }]}
+        subtitle="Theo dõi vòng đời PO, nhà cung cấp, giá trị và tiến độ nhận hàng."
         actions={
           <div className="flex items-center gap-2">
             <Button
@@ -478,7 +463,7 @@ export function PurchaseOrderList() {
               className={cn(
                 "rounded-[var(--r-sm)]",
                 pageConfig.showStats &&
-                  "border-accent bg-accent/10 text-accent hover:bg-accent/10 hover:text-accent border",
+                  "border-brand bg-brand/10 text-brand hover:bg-brand/10 hover:text-brand border",
               )}
             >
               <BarChart3 className="size-3.5" />
@@ -506,12 +491,12 @@ export function PurchaseOrderList() {
 
       <ListToolbar
         search={pageConfig.globalSearch.query}
-        onSearchChange={setPoQ}
+        onSearchChange={filters.setQ}
         searchPlaceholder="Tìm PO theo mã, NCC, kho..."
         statusOptions={STATUS_OPTIONS}
         selectedStatuses={pageConfig.statuses}
         onToggleStatus={toggleStatus}
-        onClearStatuses={() => setPoStatuses([])}
+        onClearStatuses={() => filters.setStatus([])}
         hasStatusFilter={hasStatusFilter}
         fieldOptions={searchFields}
         selectedFields={pageConfig.globalSearch.fields}
