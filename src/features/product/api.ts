@@ -1,6 +1,9 @@
 import { api } from "@/lib/api/client";
 
+import { productSchema } from "./schemas";
+
 import type { PaginatedResponse } from "@/lib/api/query-factory";
+import type { CreateProductInput } from "./schemas";
 import type { Category, Product, Sku } from "./types";
 
 export interface ListProductsParams {
@@ -20,27 +23,6 @@ export interface ListSkusParams {
   productId?: string;
   sort?: string;
   [key: string]: unknown;
-}
-
-export interface CreateProductInput {
-  name: string;
-  nameEn: string;
-  type: string;
-  categoryId: string;
-  description: string;
-  descriptionEn: string;
-  images: string[];
-  model3dUrl?: string;
-  basePrice: number;
-  attributes: {
-    attributeId: string;
-    name: { vi: string; en: string };
-    values: string[];
-    swatch?: Record<string, string>;
-  }[];
-  taxClass: string;
-  uom: string;
-  brand: string;
 }
 
 export interface TransitionProductInput {
@@ -75,7 +57,7 @@ export async function getProduct(id: string, signal?: AbortSignal): Promise<Prod
 
 export async function createProduct(input: CreateProductInput): Promise<Product> {
   const { data } = await api.post<Product>("/products", input);
-  return data;
+  return productSchema.parse(data);
 }
 
 export async function updateProduct(

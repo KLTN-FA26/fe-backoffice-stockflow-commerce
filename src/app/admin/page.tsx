@@ -79,27 +79,23 @@ interface ActivityItem {
 
 function computeKpis() {
   const ordersPending = orders.filter((o) =>
-    ["Pending Payment", "Confirmed", "In Production", "Ready to Fulfill"].includes(o.status)
+    ["Pending Payment", "Confirmed", "In Production", "Ready to Fulfill"].includes(o.status),
   ).length;
 
-  const poPendingApproval = purchaseOrders.filter(
-    (po) => po.status === "Pending Approval"
-  ).length;
+  const poPendingApproval = purchaseOrders.filter((po) => po.status === "Pending Approval").length;
 
   const receiptsProcessing = receipts.filter((r) =>
-    ["Draft", "Confirmed", "In Putaway"].includes(r.status)
+    ["Draft", "Confirmed", "In Putaway"].includes(r.status),
   ).length;
 
-  const pickAttention = pickTasks.filter((pk) =>
-    ["Short", "On Hold"].includes(pk.status)
-  ).length;
+  const pickAttention = pickTasks.filter((pk) => ["Short", "On Hold"].includes(pk.status)).length;
 
   const shipmentExceptions = shipments.filter((sh) =>
-    ["Exception", "Delivery Failed", "Returning"].includes(sh.status)
+    ["Exception", "Delivery Failed", "Returning"].includes(sh.status),
   ).length;
 
   const transfersInTransit = transferOrders.filter(
-    (to) => to.status === "In Transit" || to.status === "Partially Received"
+    (to) => to.status === "In Transit" || to.status === "Partially Received",
   ).length;
 
   return [
@@ -108,14 +104,14 @@ function computeKpis() {
       value: ordersPending,
       icon: ClipboardList,
       delta: `${orders.length} tổng đơn`,
-      deltaDirection: ordersPending > 3 ? "down" as const : "up" as const,
+      deltaDirection: ordersPending > 3 ? ("down" as const) : ("up" as const),
     },
     {
       label: "PO chờ duyệt",
       value: poPendingApproval,
       icon: ShoppingCart,
       delta: `${purchaseOrders.length} PO tổng`,
-      deltaDirection: poPendingApproval > 0 ? "down" as const : "up" as const,
+      deltaDirection: poPendingApproval > 0 ? ("down" as const) : ("up" as const),
     },
     {
       label: "Phiếu nhận đang xử lý",
@@ -129,14 +125,14 @@ function computeKpis() {
       value: pickAttention,
       icon: PackageCheck,
       delta: `${pickTasks.length} pick tổng`,
-      deltaDirection: pickAttention > 0 ? "down" as const : "up" as const,
+      deltaDirection: pickAttention > 0 ? ("down" as const) : ("up" as const),
     },
     {
       label: "Vận đơn ngoại lệ",
       value: shipmentExceptions,
       icon: Truck,
       delta: `${shipments.length} vận đơn tổng`,
-      deltaDirection: shipmentExceptions > 0 ? "down" as const : "up" as const,
+      deltaDirection: shipmentExceptions > 0 ? ("down" as const) : ("up" as const),
     },
     {
       label: "Chuyển kho đang vận chuyển",
@@ -168,7 +164,7 @@ function collectWarningItems(): WarningItem[] {
         description: po.notes || "Chờ duyệt",
         date: po.orderDate,
         href: "/admin/purchase-orders",
-      })
+      }),
     );
 
   // Invoice: Exception, Disputed
@@ -184,7 +180,7 @@ function collectWarningItems(): WarningItem[] {
         description: inv.disputeNote || "Lỗi đối chiếu",
         date: inv.invoiceDate,
         href: "/admin/invoices",
-      })
+      }),
     );
 
   // Pick: Short, On Hold
@@ -197,18 +193,15 @@ function collectWarningItems(): WarningItem[] {
         module: "Lấy hàng",
         status: pk.status,
         domain: "pick",
-        description:
-          pk.lines[0]?.shortReason || "Cần xử lý",
+        description: pk.lines[0]?.shortReason || "Cần xử lý",
         date: pk.createdAt.split("T")[0]!,
         href: "/admin/picking",
-      })
+      }),
     );
 
   // Packing: Verification Failed, On Hold
   packingTasks
-    .filter((pa: PackingTask) =>
-      ["Verification Failed", "On Hold"].includes(pa.status)
-    )
+    .filter((pa: PackingTask) => ["Verification Failed", "On Hold"].includes(pa.status))
     .forEach((pa: PackingTask) =>
       items.push({
         id: pa.taskId,
@@ -219,14 +212,12 @@ function collectWarningItems(): WarningItem[] {
         description: pa.verificationNote || "Cần xử lý",
         date: pa.createdAt.split("T")[0]!,
         href: "/admin/packing",
-      })
+      }),
     );
 
   // Shipment: Exception, Delivery Failed
   shipments
-    .filter((sh: Shipment) =>
-      ["Exception", "Delivery Failed"].includes(sh.status)
-    )
+    .filter((sh: Shipment) => ["Exception", "Delivery Failed"].includes(sh.status))
     .forEach((sh: Shipment) =>
       items.push({
         id: sh.shipmentId,
@@ -234,12 +225,10 @@ function collectWarningItems(): WarningItem[] {
         module: "Vận đơn",
         status: sh.status,
         domain: "shipment",
-        description:
-          sh.trackingEvents[sh.trackingEvents.length - 1]?.note ||
-          "Ngoại lệ vận chuyển",
+        description: sh.trackingEvents[sh.trackingEvents.length - 1]?.note || "Ngoại lệ vận chuyển",
         date: sh.createdAt.split("T")[0]!,
         href: "/admin/shipments",
-      })
+      }),
     );
 
   // Transfer: Partially Received
@@ -255,7 +244,7 @@ function collectWarningItems(): WarningItem[] {
         description: to.reason,
         date: to.createdAt.split("T")[0]!,
         href: "/admin/transfers",
-      })
+      }),
     );
 
   // Putaway: On Hold
@@ -271,7 +260,7 @@ function collectWarningItems(): WarningItem[] {
         description: pt.holdReason || "Tạm dừng",
         date: pt.createdAt.split("T")[0]!,
         href: "/admin/putaway",
-      })
+      }),
     );
 
   // Move: On Hold, Discrepancy
@@ -287,7 +276,7 @@ function collectWarningItems(): WarningItem[] {
         description: mv.discrepancyNote || "Cần xử lý",
         date: mv.createdAt.split("T")[0]!,
         href: "/admin/moves",
-      })
+      }),
     );
 
   return items.slice(0, 10);
@@ -319,9 +308,7 @@ function collectActivities(): ActivityItem[] {
   }
 
   // Sort by timestamp desc, take 8
-  activities.sort(
-    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-  );
+  activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   return activities.slice(0, 8);
 }
 
@@ -349,7 +336,13 @@ function computeWarehouseStats() {
 const warningColumns = [
   codeCell<WarningItem>("document", "Mã chứng từ", (row) => row.document),
   textCell<WarningItem>("module", "Module", (row) => row.module),
-  statusCell<WarningItem>("status", "Trạng thái", (row) => row.status, (row) => row.domain, { withIcon: true }),
+  statusCell<WarningItem>(
+    "status",
+    "Trạng thái",
+    (row) => row.status,
+    (row) => row.domain,
+    { withIcon: true },
+  ),
   textCell<WarningItem>("description", "Mô tả", (row) => row.description, { lineClamp: true }),
   dateCell<WarningItem>("date", "Ngày", (row) => row.date),
 ];
@@ -361,9 +354,21 @@ const warningColumns = [
 const replenishmentColumns = [
   codeCell<(typeof replenishmentProposals)[number]>("proposalId", "Mã", (row) => row.proposalId),
   subCodeCell<(typeof replenishmentProposals)[number]>("skuId", "SKU", (row) => row.skuId),
-  numberCell<(typeof replenishmentProposals)[number]>("suggestedQty", "SL đề xuất", (row) => row.suggestedQty),
-  statusCell<(typeof replenishmentProposals)[number]>("status", "Trạng thái", (row) => row.status, "proposal"),
-  textCell<(typeof replenishmentProposals)[number]>("reason", "Lý do", (row) => row.reason, { color: "secondary", lineClamp: true }),
+  numberCell<(typeof replenishmentProposals)[number]>(
+    "suggestedQty",
+    "SL đề xuất",
+    (row) => row.suggestedQty,
+  ),
+  statusCell<(typeof replenishmentProposals)[number]>(
+    "status",
+    "Trạng thái",
+    (row) => row.status,
+    "proposal",
+  ),
+  textCell<(typeof replenishmentProposals)[number]>("reason", "Lý do", (row) => row.reason, {
+    color: "secondary",
+    lineClamp: true,
+  }),
 ];
 
 /* -------------------------------------------------------------------------- */
@@ -378,7 +383,7 @@ export default function AdminDashboardPage() {
 
   return (
     <>
-      <PageHeader title="Tổng quan" />
+      <PageHeader title="Tổng quan" subtitle="Theo dõi vận hành kho, đơn hàng và tồn kho." />
 
       {/* ================================================================ */}
       {/* Row 1: KPI StatTiles                                             */}
@@ -401,14 +406,12 @@ export default function AdminDashboardPage() {
       {/* ================================================================ */}
       <div className="mb-6 grid gap-4 lg:grid-cols-[2fr_1fr]">
         {/* Warning table */}
-        <div className="rounded-[var(--card-radius)] border border-border-default bg-bg-surface p-[var(--card-pad)] shadow-[var(--card-shadow)]">
+        <div className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-[var(--card-shadow)]">
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <AlertTriangle className="size-4 text-warning" />
-              <h2 className="text-[0.875rem] font-semibold text-ink-primary">
-                Cần xử lý ngay
-              </h2>
-              <span className="rounded-full bg-warning/12 px-2 py-0.5 text-[0.625rem] font-bold tabular-nums text-warning">
+              <AlertTriangle className="text-warning size-4" />
+              <h2 className="text-ink-primary text-[0.875rem] font-semibold">Cần xử lý ngay</h2>
+              <span className="bg-warning/12 text-warning rounded-full px-2 py-0.5 text-[0.625rem] font-bold tabular-nums">
                 {warningItems.length}
               </span>
             </div>
@@ -420,9 +423,13 @@ export default function AdminDashboardPage() {
               rowKey={(row) => row.id}
               caption={`${warningItems.length} mục cần xử lý`}
               flagRow={(row) =>
-                ["Exception", "Delivery Failed", "Short", "Verification Failed", "Discrepancy"].includes(
-                  row.status
-                )
+                [
+                  "Exception",
+                  "Delivery Failed",
+                  "Short",
+                  "Verification Failed",
+                  "Discrepancy",
+                ].includes(row.status)
               }
               pageSize={10}
             />
@@ -435,32 +442,30 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Activity timeline */}
-        <div className="rounded-[var(--card-radius)] border border-border-default bg-bg-surface p-[var(--card-pad)] shadow-[var(--card-shadow)]">
+        <div className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-[var(--card-shadow)]">
           <div className="mb-3 flex items-center gap-2">
-            <Clock className="size-4 text-info" />
-            <h2 className="text-[0.875rem] font-semibold text-ink-primary">
-              Hoạt động gần đây
-            </h2>
+            <Clock className="text-info size-4" />
+            <h2 className="text-ink-primary text-[0.875rem] font-semibold">Hoạt động gần đây</h2>
           </div>
           {activities.length > 0 ? (
             <div className="relative pl-6">
               {/* Vertical line: left 6px, w 2px → center 7px */}
-              <div className="absolute left-[6px] top-1 bottom-1 w-0.5 bg-border-default" />
+              <div className="bg-border-default absolute top-1 bottom-1 left-[6px] w-0.5" />
               {activities.map((act) => (
                 <div key={act.id} className="relative pb-4 last:pb-0">
                   {/* Dot: 11px, center must be 7px from container → left from child = -(24-1.5) = -22.5px */}
                   <div
                     className={cn(
-                      "absolute -left-[22.5px] top-[4px] size-[11px] rounded-full border-2 border-bg-surface",
+                      "border-bg-surface absolute top-[4px] -left-[22.5px] size-[11px] rounded-full border-2",
                       act.type === "warning" && "bg-warning",
                       act.type === "success" && "bg-positive",
-                      act.type === "info" && "bg-info"
+                      act.type === "info" && "bg-info",
                     )}
                   />
-                  <div className="text-[0.8125rem] leading-snug text-ink-primary">
+                  <div className="text-ink-primary text-[0.8125rem] leading-snug">
                     {act.description}
                   </div>
-                  <div className="mt-0.5 text-xs tabular-nums text-ink-tertiary">
+                  <div className="text-ink-tertiary mt-0.5 text-xs tabular-nums">
                     {new Date(act.timestamp).toLocaleString("vi-VN")}
                   </div>
                 </div>
@@ -480,17 +485,17 @@ export default function AdminDashboardPage() {
       {/* ================================================================ */}
       <div className="mb-6 grid gap-4 lg:grid-cols-[1fr_1fr]">
         {/* Warehouse performance */}
-        <div className="rounded-[var(--card-radius)] border border-border-default bg-bg-surface p-[var(--card-pad)] shadow-[var(--card-shadow)]">
+        <div className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-[var(--card-shadow)]">
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Warehouse className="size-4 text-accent" />
-              <h2 className="text-[0.875rem] font-semibold text-ink-primary">
+              <Warehouse className="text-accent size-4" />
+              <h2 className="text-ink-primary text-[0.875rem] font-semibold">
                 Hiệu suất kho hôm nay
               </h2>
             </div>
             <Link
               href="/admin/warehouse-map"
-              className="flex items-center gap-1 text-xs font-medium text-accent hover:underline"
+              className="text-accent flex items-center gap-1 text-xs font-medium hover:underline"
             >
               Xem chi tiết <ArrowRight className="size-3" />
             </Link>
@@ -506,13 +511,13 @@ export default function AdminDashboardPage() {
               return (
                 <div
                   key={wh.warehouseId}
-                  className="rounded-[var(--r-sm)] border border-border-default p-3"
+                  className="border-border-default rounded-[var(--r-sm)] border p-3"
                 >
                   <div className="mb-2 flex items-center justify-between">
-                    <span className="font-[family-name:var(--font-mono)] text-[0.8125rem] font-semibold text-ink-primary">
+                    <span className="text-ink-primary font-[family-name:var(--font-mono)] text-[0.8125rem] font-semibold">
                       {whName}
                     </span>
-                    <span className="text-xs text-ink-tertiary">
+                    <span className="text-ink-tertiary text-xs">
                       Sử dụng{" "}
                       <span
                         className={cn(
@@ -521,7 +526,7 @@ export default function AdminDashboardPage() {
                             ? "text-danger"
                             : wh.utilization > 60
                               ? "text-warning"
-                              : "text-positive"
+                              : "text-positive",
                         )}
                       >
                         {wh.utilization}%
@@ -529,7 +534,7 @@ export default function AdminDashboardPage() {
                     </span>
                   </div>
                   {/* Progress bar */}
-                  <div className="mb-2 h-1.5 w-full overflow-hidden rounded-full bg-bg-subtle">
+                  <div className="bg-bg-subtle mb-2 h-1.5 w-full overflow-hidden rounded-full">
                     <div
                       className={cn(
                         "h-full rounded-full transition-all",
@@ -537,7 +542,7 @@ export default function AdminDashboardPage() {
                           ? "bg-danger"
                           : wh.utilization > 60
                             ? "bg-warning"
-                            : "bg-positive"
+                            : "bg-positive",
                       )}
                       style={{ width: `${wh.utilization}%` }}
                     />
@@ -545,7 +550,7 @@ export default function AdminDashboardPage() {
                   <div className="grid grid-cols-3 gap-2 text-xs">
                     <div>
                       <span className="text-ink-tertiary">Trống</span>
-                      <span className="ml-1 font-semibold tabular-nums text-ink-primary">
+                      <span className="text-ink-primary ml-1 font-semibold tabular-nums">
                         {wh.empty}
                       </span>
                     </div>
@@ -554,7 +559,7 @@ export default function AdminDashboardPage() {
                       <span
                         className={cn(
                           "ml-1 font-semibold tabular-nums",
-                          wh.overloaded > 0 ? "text-danger" : "text-ink-primary"
+                          wh.overloaded > 0 ? "text-danger" : "text-ink-primary",
                         )}
                       >
                         {wh.overloaded}
@@ -565,7 +570,7 @@ export default function AdminDashboardPage() {
                       <span
                         className={cn(
                           "ml-1 font-semibold tabular-nums",
-                          wh.blocked > 0 ? "text-warning" : "text-ink-primary"
+                          wh.blocked > 0 ? "text-warning" : "text-ink-primary",
                         )}
                       >
                         {wh.blocked}
@@ -575,19 +580,19 @@ export default function AdminDashboardPage() {
                   <div className="mt-1 grid grid-cols-3 gap-2 text-xs">
                     <div>
                       <span className="text-ink-tertiary">Chờ cất</span>
-                      <span className="ml-1 font-semibold tabular-nums text-ink-primary">
+                      <span className="text-ink-primary ml-1 font-semibold tabular-nums">
                         {wh.pendingPutaway}
                       </span>
                     </div>
                     <div>
                       <span className="text-ink-tertiary">Pick mở</span>
-                      <span className="ml-1 font-semibold tabular-nums text-ink-primary">
+                      <span className="text-ink-primary ml-1 font-semibold tabular-nums">
                         {wh.openPicks}
                       </span>
                     </div>
                     <div>
                       <span className="text-ink-tertiary">Honeycombing</span>
-                      <span className="ml-1 font-semibold tabular-nums text-ink-primary">
+                      <span className="text-ink-primary ml-1 font-semibold tabular-nums">
                         {wh.honeycombing}%
                       </span>
                     </div>
@@ -599,20 +604,18 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Replenishment preview */}
-        <div className="rounded-[var(--card-radius)] border border-border-default bg-bg-surface p-[var(--card-pad)] shadow-[var(--card-shadow)]">
+        <div className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-[var(--card-shadow)]">
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <ShoppingCart className="size-4 text-accent" />
-              <h2 className="text-[0.875rem] font-semibold text-ink-primary">
-                Đề xuất nhập hàng
-              </h2>
-              <span className="rounded-full bg-accent/12 px-2 py-0.5 text-[0.625rem] font-bold tabular-nums text-accent">
+              <ShoppingCart className="text-accent size-4" />
+              <h2 className="text-ink-primary text-[0.875rem] font-semibold">Đề xuất nhập hàng</h2>
+              <span className="bg-accent/12 text-accent rounded-full px-2 py-0.5 text-[0.625rem] font-bold tabular-nums">
                 {replenishmentProposals.length}
               </span>
             </div>
             <Link
               href="/admin/replenishment"
-              className="flex items-center gap-1 text-xs font-medium text-accent hover:underline"
+              className="text-accent flex items-center gap-1 text-xs font-medium hover:underline"
             >
               Xem tất cả <ArrowRight className="size-3" />
             </Link>

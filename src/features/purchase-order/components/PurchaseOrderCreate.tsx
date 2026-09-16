@@ -31,7 +31,7 @@ import { useSkus } from "@/features/product";
 import { Card } from "@/components/shared/Card";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { StatusBadge } from "@/components/shared/StatusBadge";
+import { StatusDot } from "@/components/shared/StatusDot";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,7 +44,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
+import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Textarea } from "@/components/ui/textarea";
 
 import type { Currency, Supplier, Warehouse } from "@/features/purchase-order";
@@ -366,7 +366,7 @@ export function PurchaseOrderCreate() {
   };
 
   if (isLoading) {
-    return <Skeleton className="h-[680px] rounded-[var(--card-radius)]" />;
+    return <PageSkeleton variant="form" />;
   }
 
   return (
@@ -374,11 +374,6 @@ export function PurchaseOrderCreate() {
       <PageHeader
         title="Tạo đơn đặt hàng"
         subtitle="Khai báo Purchase Order từ nhà cung cấp, thêm dòng SKU và gửi vào luồng duyệt."
-        breadcrumbs={[
-          { label: "Back-office", href: ADMIN_ROUTES.home },
-          { label: "Đơn đặt NCC", href: ADMIN_ROUTES.purchaseOrders.list },
-          { label: "Tạo đơn đặt hàng" },
-        ]}
         actions={
           <Link
             href={ADMIN_ROUTES.purchaseOrders.list}
@@ -397,7 +392,7 @@ export function PurchaseOrderCreate() {
               Quy trình
             </div>
             <div className="mt-1 flex items-center gap-2">
-              <StatusBadge
+              <StatusDot
                 domain="po"
                 status={submitted ? "Pending Approval" : "Draft"}
                 size="sm"
@@ -1101,7 +1096,7 @@ function ReviewStep({
               Lifecycle
             </div>
             <div className="mt-1 flex items-center gap-2">
-              <StatusBadge domain="po" status={submitted ? "Pending Approval" : "Draft"} withIcon />
+              <StatusDot domain="po" status={submitted ? "Pending Approval" : "Draft"} withIcon />
             </div>
           </div>
           <Settings2 className="text-accent size-5" />

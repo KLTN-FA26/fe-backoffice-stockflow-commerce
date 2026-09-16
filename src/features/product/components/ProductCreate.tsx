@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { cn } from "cn";
 import {
   ArrowLeft,
@@ -24,13 +25,30 @@ import {
   Warehouse,
   X,
 } from "lucide-react";
+
 import { ADMIN_ROUTES, PAGE_SIZE } from "@/constants";
-import { attributesForProducts, useCategories, useProducts, useSkus } from "@/features/product";
+import { ApiError } from "@/lib/api";
+import { useCan } from "@/lib/auth/components/Can";
+
+import {
+  attributesForProducts,
+  buildCreateProductInput,
+  mapCreateProductError,
+  useCategories,
+  useCreateProduct,
+  useProducts,
+  useSkus,
+  type CreateProductServerField,
+  type CreateProductServerErrors,
+  type ProductCreateFormSnapshot,
+} from "@/features/product";
+
 import { Card } from "@/components/shared/Card";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { DataTable, type ColumnDef } from "@/components/shared/DataTable";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { StatusBadge } from "@/components/shared/StatusBadge";
+import { StatusDot } from "@/components/shared/StatusDot";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -44,7 +62,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
+import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Textarea } from "@/components/ui/textarea";
 
 import type { Category, ProductAttribute, ProductType, Sku, Uom } from "@/features/product";
@@ -58,17 +76,7 @@ type StepKey =
 
 type TaxClass = "standard" | "reduced" | "exempt";
 
-type FormState = {
-  productCode: string;
-  name: string;
-  nameEn: string;
-  type: ProductType;
-  categoryId: string;
-  brand: string;
-  taxClass: TaxClass;
-  uom: Uom;
-  description: string;
-  descriptionEn: string;
+type FormState = ProductCreateFormSnapshot & {
   selectedAttributeIds: string[];
   selectedValues: Record<string, string[]>;
   disabledSkuKeys: string[];
@@ -84,11 +92,7 @@ type FormState = {
   expiryTracking: boolean;
   reorderPoint: string;
   maxStock: string;
-  printAreas: PrintAreaDraft[];
-  model3dUrl: string;
   templateName: string;
-  allowedTechniques: string[];
-  imageUrls: string;
   seoTitle: string;
   seoDescription: string;
   catalogVisible: boolean;
@@ -128,7 +132,7 @@ const STEPS: { key: StepKey; label: string; icon: typeof Box }[] = [
   { key: "inventory", label: "Tồn kho", icon: Warehouse },
   { key: "customization", label: "Tùy chỉnh", icon: Printer },
   { key: "catalog", label: "TMĐT", icon: ImageIcon },
-  { key: "review", label: "Gửi duyệt", icon: ClipboardCheck },
+  { key: "review", label: "Rà soát", icon: ClipboardCheck },
 ];
 
 const PRINT_POSITIONS = [
@@ -229,7 +233,7 @@ function parseNonNegativeNumber(value: string) {
 
 function fieldClass(hasError = false) {
   return cn(
-    "w-full rounded-[var(--r-sm)] border-border-default bg-bg-surface text-[0.8125rem] text-ink-primary shadow-none placeholder:text-ink-tertiary focus-visible:border-accent focus-visible:ring-accent/20",
+    "w-full rounded-[var(--r-sm)] border-border-default bg-bg-surface text-[0.8125rem] text-ink-primary shadow-none placeholder:text-ink-tertiary focus-visible:border-brand focus-visible:ring-brand/20",
     hasError && "border-danger focus-visible:border-danger focus-visible:ring-danger/20",
   );
 }
@@ -237,6 +241,33 @@ function fieldClass(hasError = false) {
 function FieldError({ children }: { children?: string }) {
   if (!children) return null;
   return <p className="text-danger mt-1 text-xs">{children}</p>;
+}
+
+function serverFieldForFormKey(key: keyof FormState): CreateProductServerField | null {
+  switch (key) {
+    case "allowedTechniques":
+    case "printAreas":
+      return "printAreas";
+    case "imageUrls":
+      return "images";
+    case "selectedAttributeIds":
+    case "selectedValues":
+      return "attributes";
+    case "brand":
+    case "categoryId":
+    case "description":
+    case "descriptionEn":
+    case "model3dUrl":
+    case "name":
+    case "nameEn":
+    case "productCode":
+    case "taxClass":
+    case "type":
+    case "uom":
+      return key;
+    default:
+      return null;
+  }
 }
 
 function SectionTitle({ title, description }: { title: string; description: string }) {
@@ -255,6 +286,8 @@ function SectionTitle({ title, description }: { title: string; description: stri
 /* -------------------------------------------------------------------------- */
 
 export function ProductCreate() {
+  const router = useRouter();
+  const canCreateProduct = useCan("product.create");
   const productsQuery = useProducts({ page: 1, pageSize: PAGE_SIZE.masterData });
   const skusQuery = useSkus({ page: 1, pageSize: PAGE_SIZE.masterData });
   const categoriesQuery = useCategories({});
@@ -269,9 +302,48 @@ export function ProductCreate() {
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [createdProductId, setCreatedProductId] = useState<string | null>(null);
+  const [serverErrors, setServerErrors] = useState<CreateProductServerErrors>({});
+  const [serverMessage, setServerMessage] = useState<string | null>(null);
+
+  const createProductMutation = useCreateProduct({
+    onSuccess: (product) => {
+      setSubmitted(true);
+      setCreatedProductId(product.productId);
+      setServerErrors({});
+      setServerMessage(null);
+      setConfirmOpen(false);
+      setCurrentStep("review");
+    },
+    onError: (error) => {
+      const apiError =
+        error instanceof ApiError
+          ? error
+          : new ApiError(0, "UNKNOWN_ERROR", "Không tạo được sản phẩm.");
+      const mapped = mapCreateProductError(apiError);
+      setServerErrors(mapped.fieldErrors);
+      setServerMessage(mapped.message);
+      setConfirmOpen(false);
+      setSubmitAttempted(true);
+      if (mapped.fieldErrors.productCode || mapped.fieldErrors.name || mapped.fieldErrors.brand) {
+        setCurrentStep("draft");
+      } else if (mapped.fieldErrors.categoryId) {
+        setCurrentStep("draft");
+      } else if (mapped.fieldErrors.attributes) {
+        setCurrentStep("variants");
+      } else if (mapped.fieldErrors.printAreas) {
+        setCurrentStep("customization");
+      }
+    },
+  });
 
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+    const serverField = serverFieldForFormKey(key);
+    if (serverField) {
+      setServerErrors((prev) => ({ ...prev, [serverField]: undefined }));
+    }
+    if (serverMessage) setServerMessage(null);
   };
 
   const selectedEntries = useMemo(
@@ -340,10 +412,7 @@ export function ProductCreate() {
   };
 
   const handleConfirmSubmit = () => {
-    setSubmitted(true);
-    setConfirmOpen(false);
-    setCurrentStep("review");
-    toast.success("Đã gửi duyệt", "Sản phẩm mock đã chuyển sang Pending Approval trong UI.");
+    createProductMutation.mutate(buildCreateProductInput(form, selectedEntries));
   };
 
   const stepStatus = (step: StepKey) => {
@@ -354,19 +423,49 @@ export function ProductCreate() {
   };
 
   if (isLoading) {
-    return <Skeleton className="h-[720px] rounded-[var(--card-radius)]" />;
+    return <PageSkeleton variant="form" />;
+  }
+
+  if (!canCreateProduct) {
+    return (
+      <>
+        <PageHeader
+          title="Tạo sản phẩm"
+          subtitle="Khai báo product master data, sinh SKU từ biến thể và lưu bản nháp."
+          actions={
+            <Link
+              href={ADMIN_ROUTES.products.list}
+              className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary inline-flex items-center gap-1.5 rounded-[var(--r-sm)] border px-3 py-1.5 text-[0.8125rem] font-medium transition-colors"
+            >
+              <ArrowLeft className="size-3.5" />
+              Quay lại danh sách
+            </Link>
+          }
+        />
+        <EmptyState
+          title="Bạn không có quyền tạo sản phẩm"
+          description="Tài khoản hiện tại không có quyền product.create. Hãy đổi role phù hợp hoặc quay lại danh sách."
+          action={
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => router.push(ADMIN_ROUTES.products.list)}
+              className="rounded-[var(--r-sm)]"
+            >
+              Quay lại danh sách
+            </Button>
+          }
+        />
+      </>
+    );
   }
 
   return (
     <>
       <PageHeader
         title="Tạo sản phẩm"
-        subtitle="Khai báo product master data, sinh SKU từ biến thể và gửi vào luồng duyệt."
-        breadcrumbs={[
-          { label: "Back-office", href: ADMIN_ROUTES.home },
-          { label: "Sản phẩm", href: ADMIN_ROUTES.products.list },
-          { label: "Tạo sản phẩm" },
-        ]}
+        subtitle="Khai báo product master data, sinh SKU từ biến thể và lưu bản nháp."
         actions={
           <Link
             href={ADMIN_ROUTES.products.list}
@@ -385,12 +484,7 @@ export function ProductCreate() {
               Quy trình
             </div>
             <div className="mt-1 flex items-center gap-2">
-              <StatusBadge
-                domain="product"
-                status={submitted ? "Pending Approval" : "Draft"}
-                size="sm"
-                withIcon
-              />
+              <StatusDot domain="product" status="Draft" size="sm" withIcon />
               <span className="text-ink-tertiary text-xs">{enabledSkuRows.length} SKU preview</span>
             </div>
           </div>
@@ -428,9 +522,16 @@ export function ProductCreate() {
         </Card>
 
         <div className="min-w-0 space-y-4 pb-24">
+          {serverMessage && (
+            <div className="border-danger/30 bg-danger/5 text-danger rounded-[var(--r-sm)] border px-4 py-3 text-[0.8125rem]">
+              <div className="font-semibold">Không tạo được sản phẩm</div>
+              <div className="mt-1">{serverMessage}</div>
+            </div>
+          )}
+
           {showErrors && currentStepIssues.length > 0 && (
             <div className="border-danger/30 bg-danger/5 text-danger rounded-[var(--r-sm)] border px-4 py-3 text-[0.8125rem]">
-              <div className="font-semibold">Cần xử lý trước khi gửi duyệt</div>
+              <div className="font-semibold">Cần xử lý trước khi tạo bản nháp</div>
               <ul className="mt-1 list-disc space-y-0.5 pl-4">
                 {currentStepIssues.map((issue) => (
                   <li key={issue}>{issue}</li>
@@ -445,6 +546,7 @@ export function ProductCreate() {
               update={update}
               showErrors={showErrors}
               categories={categories}
+              serverErrors={serverErrors}
             />
           )}
           {currentStep === "variants" && (
@@ -472,6 +574,8 @@ export function ProductCreate() {
               skuRows={enabledSkuRows}
               issuesByStep={issuesByStep}
               submitted={submitted}
+              createdProductId={createdProductId}
+              isSubmitting={createProductMutation.isPending}
               onSubmit={handleSubmitAttempt}
             />
           )}
@@ -489,11 +593,9 @@ export function ProductCreate() {
               variant="outline"
               size="sm"
               onClick={() => {
-                toast.success(
-                  "Đã lưu nháp",
-                  "Dữ liệu mock được giữ trong phiên làm việc hiện tại.",
-                );
+                handleSubmitAttempt();
               }}
+              disabled={createProductMutation.isPending || submitted}
               className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary inline-flex items-center gap-1.5 rounded-[var(--r-sm)] border px-3 py-1.5 text-[0.8125rem] font-medium transition-colors"
             >
               <Save className="size-3.5" />
@@ -526,10 +628,11 @@ export function ProductCreate() {
                 type="button"
                 size="sm"
                 onClick={handleSubmitAttempt}
+                disabled={createProductMutation.isPending}
                 className="bg-brand !text-ink-inverse hover:bg-brand-hover hover:!text-ink-inverse inline-flex items-center gap-1.5 rounded-[var(--r-sm)] px-3 py-1.5 text-[0.8125rem] font-medium transition-colors"
               >
                 <Send className="size-3.5" />
-                Gửi duyệt
+                Tạo bản nháp
               </Button>
             )}
           </div>
@@ -539,9 +642,9 @@ export function ProductCreate() {
       <ConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
-        title="Gửi duyệt sản phẩm"
-        description={`Xác nhận gửi ${form.name || "sản phẩm mới"} với ${enabledSkuRows.length} SKU vào hàng chờ duyệt?`}
-        confirmLabel="Gửi duyệt"
+        title="Tạo bản nháp sản phẩm"
+        description={`Xác nhận tạo bản nháp ${form.name || "sản phẩm mới"} với ${enabledSkuRows.length} SKU preview?`}
+        confirmLabel={createProductMutation.isPending ? "Đang tạo..." : "Tạo bản nháp"}
         variant="default"
         onConfirm={handleConfirmSubmit}
       />
@@ -554,11 +657,13 @@ function DraftStep({
   update,
   showErrors,
   categories,
+  serverErrors,
 }: {
   form: FormState;
   update: <K extends keyof FormState>(key: K, value: FormState[K]) => void;
   showErrors: boolean;
   categories: Category[];
+  serverErrors: CreateProductServerErrors;
 }) {
   return (
     <Card>
@@ -580,10 +685,11 @@ function DraftStep({
             value={form.name}
             onChange={(e) => update("name", e.target.value)}
             placeholder="Áo thun cotton cao cấp"
-            className={fieldClass(showErrors && !form.name.trim())}
+            className={fieldClass(Boolean(serverErrors.name) || (showErrors && !form.name.trim()))}
           />
           <FieldError>
-            {showErrors && !form.name.trim() ? "Tên sản phẩm là bắt buộc." : undefined}
+            {serverErrors.name ??
+              (showErrors && !form.name.trim() ? "Tên sản phẩm là bắt buộc." : undefined)}
           </FieldError>
         </div>
         <div>
@@ -615,10 +721,13 @@ function DraftStep({
             value={form.productCode}
             onChange={(e) => update("productCode", normalizeCode(e.target.value))}
             placeholder="TEE-COTTON"
-            className={fieldClass(showErrors && !form.productCode.trim())}
+            className={fieldClass(
+              Boolean(serverErrors.productCode) || (showErrors && !form.productCode.trim()),
+            )}
           />
           <FieldError>
-            {showErrors && !form.productCode.trim() ? "Mã sản phẩm là bắt buộc." : undefined}
+            {serverErrors.productCode ??
+              (showErrors && !form.productCode.trim() ? "Mã sản phẩm là bắt buộc." : undefined)}
           </FieldError>
         </div>
         <div>
@@ -629,7 +738,9 @@ function DraftStep({
             <SelectTrigger
               size="default"
               aria-label="Danh mục"
-              className={fieldClass(showErrors && !form.categoryId)}
+              className={fieldClass(
+                Boolean(serverErrors.categoryId) || (showErrors && !form.categoryId),
+              )}
             >
               <SelectValue placeholder="Chọn danh mục" />
             </SelectTrigger>
@@ -646,7 +757,8 @@ function DraftStep({
             </SelectContent>
           </Select>
           <FieldError>
-            {showErrors && !form.categoryId ? "Danh mục là bắt buộc." : undefined}
+            {serverErrors.categoryId ??
+              (showErrors && !form.categoryId ? "Danh mục là bắt buộc." : undefined)}
           </FieldError>
         </div>
         <div>
@@ -662,10 +774,13 @@ function DraftStep({
             value={form.brand}
             onChange={(e) => update("brand", e.target.value)}
             placeholder="StockFlow Basics"
-            className={fieldClass(showErrors && !form.brand.trim())}
+            className={fieldClass(
+              Boolean(serverErrors.brand) || (showErrors && !form.brand.trim()),
+            )}
           />
           <FieldError>
-            {showErrors && !form.brand.trim() ? "Thương hiệu là bắt buộc." : undefined}
+            {serverErrors.brand ??
+              (showErrors && !form.brand.trim() ? "Thương hiệu là bắt buộc." : undefined)}
           </FieldError>
         </div>
         <div>
@@ -834,7 +949,7 @@ function VariantStep({
                         className={cn(
                           "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs transition-colors",
                           checked
-                            ? "border-accent bg-accent/10 text-accent"
+                            ? "border-brand bg-brand/10 text-brand"
                             : "border-border-default bg-bg-subtle text-ink-secondary hover:bg-bg-muted",
                         )}
                       >
@@ -936,7 +1051,7 @@ function SkuStep({
     {
       key: "status",
       header: "Trạng thái",
-      cell: () => <StatusBadge domain="sku" status="Active" size="sm" />,
+      cell: () => <StatusDot domain="sku" status="Active" size="sm" />,
     },
     {
       key: "cost",
@@ -1382,7 +1497,7 @@ function CustomizationStep({
                   className={cn(
                     "rounded-full px-2 py-0.5 text-xs",
                     active
-                      ? "border-accent bg-accent/10 text-accent hover:bg-accent/10 hover:text-accent"
+                      ? "border-brand bg-brand/10 text-brand hover:bg-brand/10 hover:text-brand"
                       : "border-border-default bg-bg-subtle text-ink-secondary hover:bg-bg-muted",
                   )}
                 >
@@ -1470,12 +1585,16 @@ function ReviewStep({
   skuRows,
   issuesByStep,
   submitted,
+  createdProductId,
+  isSubmitting,
   onSubmit,
 }: {
   form: FormState;
   skuRows: SkuPreviewRow[];
   issuesByStep: Map<StepKey, string[]>;
   submitted: boolean;
+  createdProductId: string | null;
+  isSubmitting: boolean;
   onSubmit: () => void;
 }) {
   return (
@@ -1537,28 +1656,26 @@ function ReviewStep({
               Lifecycle
             </div>
             <div className="mt-1">
-              <StatusBadge
-                domain="product"
-                status={submitted ? "Pending Approval" : "Draft"}
-                withIcon
-              />
+              <StatusDot domain="product" status="Draft" withIcon />
             </div>
           </div>
           <Settings2 className="text-accent size-5" />
         </div>
         <p className="text-ink-secondary text-[0.8125rem] leading-relaxed">
-          `Gửi duyệt` chỉ cập nhật trạng thái preview trong UI. Không có API call và không thêm
-          record vào mock data.
+          {submitted
+            ? `Đã tạo bản nháp ${createdProductId ?? form.productCode}. Danh sách sản phẩm sẽ được làm mới qua React Query.`
+            : "Tạo bản nháp sẽ gọi API Product qua mutation, giữ lỗi từ backend tại đúng field và không xoá dữ liệu đang nhập khi thất bại."}
         </p>
         <Button
           variant="default"
           type="button"
           size="sm"
           onClick={onSubmit}
+          disabled={isSubmitting || submitted}
           className="bg-brand !text-ink-inverse hover:bg-brand-hover hover:!text-ink-inverse mt-4 w-full rounded-[var(--r-sm)]"
         >
           <Send className="size-3.5" />
-          Gửi duyệt
+          {isSubmitting ? "Đang tạo..." : submitted ? "Đã tạo bản nháp" : "Tạo bản nháp"}
         </Button>
       </Card>
     </div>
@@ -1594,6 +1711,8 @@ function validateForm(
   if (!form.categoryId) issues.push({ step: "draft", message: "Danh mục là bắt buộc." });
   if (!form.brand.trim()) issues.push({ step: "draft", message: "Thương hiệu là bắt buộc." });
 
+  if (selectedEntries.length === 0)
+    issues.push({ step: "variants", message: "Cần chọn ít nhất một thuộc tính biến thể." });
   for (const entry of selectedEntries) {
     if (entry.values.length === 0)
       issues.push({

@@ -1,17 +1,17 @@
 import { cn } from "cn";
 
-type SkeletonProps = React.ComponentProps<"div">;
+import { Skeleton as ShadcnSkeleton } from "@/components/ui/skeleton";
 
-/**
- * Shimmer skeleton — dùng thay cho ui/skeleton khi cần shimmer gradient
- * theo design system (preview .sk class). Tôn trọng prefers-reduced-motion.
- */
+import type { ComponentProps } from "react";
+
+type SkeletonProps = ComponentProps<"div">;
+
+/** StockFlow skin for the canonical shadcn skeleton primitive. */
 export function Skeleton({ className, ...props }: SkeletonProps) {
   return (
-    <div
+    <ShadcnSkeleton
       className={cn(
-        "animate-shimmer rounded-[var(--r-sm)] bg-[linear-gradient(90deg,var(--bg-muted)_25%,var(--bg-subtle)_37%,var(--bg-muted)_63%)] bg-[length:400%_100%]",
-        "motion-reduce:bg-bg-muted motion-reduce:animate-none",
+        "bg-bg-subtle ring-border-default/70 dark:bg-bg-muted/80 rounded-[var(--r-sm)] ring-1 ring-inset",
         className,
       )}
       {...props}

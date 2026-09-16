@@ -21,13 +21,13 @@ export function SearchBar({
 }: SearchBarProps) {
   return (
     <div className={cn("relative flex min-w-[200px] flex-1 items-center", className)}>
-      <SearchIcon className="pointer-events-none absolute left-[11px] size-4 text-ink-tertiary" />
+      <SearchIcon className="text-ink-tertiary pointer-events-none absolute left-[11px] size-4" />
       <Input
         type="search"
         value={value}
         onChange={(e) => onChange?.(e.target.value)}
         placeholder={placeholder}
-        className="h-9 rounded-[var(--r-sm)] border-border-default bg-bg-surface pl-[34px] pr-3 text-[0.875rem] text-ink-primary shadow-none placeholder:text-ink-tertiary hover:border-border-strong focus-visible:border-accent focus-visible:ring-[3px] focus-visible:ring-accent/20"
+        className="border-border-default bg-bg-surface text-ink-primary placeholder:text-ink-tertiary hover:border-border-strong focus-visible:border-brand focus-visible:ring-brand/20 h-9 rounded-[var(--r-sm)] pr-3 pl-[34px] text-[0.875rem] shadow-none focus-visible:ring-[3px]"
         {...props}
       />
     </div>

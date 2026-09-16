@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Barcode, Weight, Package, RotateCcw, Layers } from "lucide-react";
 import { cn } from "cn";
 import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/components/shared/StatusBadge";
+import { StatusDot } from "@/components/shared/StatusDot";
 import { formatVND, type Sku, type SkuStatus } from "@/lib/mock-data";
 
 /* -------------------------------------------------------------------------- */
@@ -104,7 +104,7 @@ export function SkuDetailPanel({ sku, open, onClose, onStatusChange }: SkuDetail
                 <p className="text-ink-secondary mt-0.5 truncate text-xs">{sku.variantLabel}</p>
               </div>
               <div className="flex items-center gap-2">
-                <StatusBadge domain="sku" status={sku.status} size="sm" withIcon />
+                <StatusDot domain="sku" status={sku.status} size="sm" withIcon />
                 <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Đóng">
                   <X className="size-4" />
                 </Button>

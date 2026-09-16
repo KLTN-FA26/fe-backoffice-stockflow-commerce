@@ -1,7 +1,8 @@
 /**
  * RoleSwitcher — dev/demo toolbar for impersonating roles.
  *
- * Only visible when NEXT_PUBLIC_USE_MOCK=true.
+ * Only visible when the app is running in mock mode (server-derived flag,
+ * see `useIsMock` in `providers/app-providers.tsx`).
  * Renders a floating dropdown in the bottom-right corner.
  * Uses auth-store impersonatedRole to override effective roles.
  */
@@ -9,6 +10,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useIsMock } from "@/providers/app-providers";
 import { useAuthStore } from "../auth-store";
 import { ROLES, type RoleName } from "../roles";
 
@@ -27,6 +29,7 @@ const ROLE_LABELS: Record<RoleName, string> = {
 
 export function RoleSwitcher() {
   const [open, setOpen] = useState(false);
+  const isMock = useIsMock();
 
   const user = useAuthStore((s) => s.user);
   const impersonatedRole = useAuthStore((s) => s.impersonatedRole);
@@ -34,7 +37,7 @@ export function RoleSwitcher() {
   const effectiveRoles = useAuthStore((s) => s.effectiveRoles);
 
   // Only show in mock mode
-  if (process.env.NEXT_PUBLIC_USE_MOCK !== "true") return null;
+  if (!isMock) return null;
   if (!user) return null;
 
   const currentRoles = effectiveRoles();

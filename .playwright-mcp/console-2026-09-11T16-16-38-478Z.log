@@ -1,0 +1,4 @@
+[     234ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/05gb_next_dist_0pl1yi2._.js:776
+[     307ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/05gb_next_dist_0pl1yi2._.js:776
+[     397ms] [INFO] [mock-adapter] Activated — all API calls will be served from mock-data.ts @ http://localhost:3000/_next/static/chunks/05gb_next_dist_0pl1yi2._.js:776
+[     628ms] [WARNING] THREE.Clock: This module has been deprecated. Please use THREE.Timer instead. @ http://localhost:3000/_next/static/chunks/05gb_next_dist_0pl1yi2._.js:776

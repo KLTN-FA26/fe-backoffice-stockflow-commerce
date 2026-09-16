@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 256 256" fill="none" role="img" aria-labelledby="iconTitle iconDescription">
+  <title id="iconTitle">StockFlowCommerce icon</title>
+  <desc id="iconDescription">A package connected to a smooth S-shaped flow arrow on a teal-to-blue rounded square.</desc>
+
+  <defs>
+    <linearGradient id="sfcIconBg" x1="35" y1="34" x2="226" y2="229" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F766E"/>
+      <stop offset="0.48" stop-color="#0891B2"/>
+      <stop offset="1" stop-color="#2563EB"/>
+    </linearGradient>
+    <linearGradient id="sfcIconFlow" x1="63" y1="64" x2="187" y2="226" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#E0F2FE"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded app tile -->
+  <rect x="20" y="20" width="216" height="216" rx="58" fill="url(#sfcIconBg)"/>
+  <path d="M46 55C75 30 121 21 163 32C198 41 222 65 236 94V78C236 46 210 20 178 20H78C46 20 20 46 20 78V117C24 91 32 70 46 55Z" fill="#FFFFFF" fill-opacity="0.09"/>
+
+  <!-- Package -->
+  <path d="M54 69.5L81 55.5L108 69.5L81 83.5L54 69.5Z" fill="#FFFFFF"/>
+  <path d="M54 69.5L81 83.5V113.5L54 99.5V69.5Z" fill="#E0F2FE"/>
+  <path d="M108 69.5L81 83.5V113.5L108 99.5V69.5Z" fill="#BAE6FD"/>
+  <path d="M81 55.5V83.5" stroke="#0E7490" stroke-width="3" stroke-linecap="round"/>
+  <path d="M67.5 62.5L94.5 76.5" stroke="#0E7490" stroke-width="3" stroke-linecap="round" opacity="0.62"/>
+
+  <!-- Continuous flow -->
+  <path d="M114 76H150C172 76 189 93 189 114C189 135 172 152 150 152H101C83 152 69 165 69 181C69 197 83 210 101 210H175" stroke="url(#sfcIconFlow)" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M158 194L175 210L158 226" stroke="#FFFFFF" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Subtle movement node -->
+  <circle cx="150" cy="114" r="5" fill="#FFFFFF" fill-opacity="0.42"/>
+</svg>

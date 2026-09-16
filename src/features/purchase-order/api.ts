@@ -1,7 +1,7 @@
 /**
  * Purchase Order — API layer.
  *
- * Thin wrappers around axios calls. When NEXT_PUBLIC_USE_MOCK=true the
+ * Thin wrappers around axios calls. When USE_MOCK=true the
  * mock adapter intercepts these and returns data from mock-data.ts.
  */
 

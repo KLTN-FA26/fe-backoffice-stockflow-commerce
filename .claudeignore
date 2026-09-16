@@ -1,0 +1,35 @@
+# File Claude không nên đọc — tiết kiệm context và tránh lộ bí mật.
+# Cú pháp giống .gitignore.
+
+# Bí mật
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Dependency & build output
+node_modules/
+.next/
+out/
+build/
+coverage/
+.vercel/
+
+# Lockfile — 352KB, không có giá trị đọc
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Build cache
+*.tsbuildinfo
+next-env.d.ts
+
+# Log
+*.log
+npm-debug.log*
+.pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db

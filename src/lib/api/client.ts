@@ -5,16 +5,20 @@
  *  - Request: attach JWT token (Authorization: Bearer) + warehouse header.
  *  - Response: normalise errors into ApiError. On 401 → try refresh → logout.
  *
- * When NEXT_PUBLIC_USE_MOCK=true the mock adapter (mock-adapter.ts) replaces
+ * When USE_MOCK=true the mock adapter (mock-adapter.ts) replaces
  * the default adapter so every call resolves against mock-data — component
  * code stays identical.
+ *
+ * Base URL is always same-origin "/api" — the real backend URL (API_URL) is
+ * server-only and never inlined into the client bundle. next.config.ts
+ * rewrites "/api/:path*" to the real backend on the server side.
  */
 
 import axios, { type AxiosError } from "axios";
 import { ApiError, type ApiErrorBody } from "./error";
 
 export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL ?? "/api",
+  baseURL: "/api",
   timeout: 15_000,
   headers: { "Content-Type": "application/json" },
 });

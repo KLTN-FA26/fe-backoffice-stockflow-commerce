@@ -1,0 +1,58 @@
+{
+  "description": "StockFlow safeguards, focused formatting, and validation reminders.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^apply_patch$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/guard-protected-files.mjs\"",
+            "commandWindows": "powershell.exe -NoProfile -Command \"$root = git rev-parse --show-toplevel; node (Join-Path $root '.codex/hooks/guard-protected-files.mjs')\"",
+            "timeout": 10,
+            "statusMessage": "Kiểm tra file được bảo vệ"
+          }
+        ]
+      },
+      {
+        "matcher": "^Bash$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/guard-package-manager.mjs\"",
+            "commandWindows": "powershell.exe -NoProfile -Command \"$root = git rev-parse --show-toplevel; node (Join-Path $root '.codex/hooks/guard-package-manager.mjs')\"",
+            "timeout": 10,
+            "statusMessage": "Kiểm tra package manager"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "^apply_patch$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/format-changed-files.mjs\"",
+            "commandWindows": "powershell.exe -NoProfile -Command \"$root = git rev-parse --show-toplevel; node (Join-Path $root '.codex/hooks/format-changed-files.mjs')\"",
+            "timeout": 90,
+            "statusMessage": "Format file vừa sửa"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.codex/hooks/remind-validate.mjs\"",
+            "commandWindows": "powershell.exe -NoProfile -Command \"$root = git rev-parse --show-toplevel; node (Join-Path $root '.codex/hooks/remind-validate.mjs')\"",
+            "timeout": 20,
+            "statusMessage": "Kiểm tra quy trình verify"
+          }
+        ]
+      }
+    ]
+  }
+}

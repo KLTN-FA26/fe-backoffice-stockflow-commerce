@@ -1,6 +1,6 @@
 "use client";
 
-import { StatusBadge } from "@/components/shared/StatusBadge";
+import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
 import type { StatusDomain } from "@/lib/mock-data";
 import type { ColumnDef } from "@/components/shared/DataTable";
@@ -158,7 +158,7 @@ export function numberCell<T>(
   };
 }
 
-/** Cột StatusBadge — domain cố định hoặc lấy từ row */
+/** Cột StatusDot — domain cố định hoặc lấy từ row */
 export function statusCell<T>(
   key: string,
   header: string,
@@ -173,7 +173,7 @@ export function statusCell<T>(
     compare: opts?.compare,
     cell: (row) => {
       const d = typeof domain === "function" ? domain(row) : domain;
-      return <StatusBadge domain={d} status={getStatus(row)} size="sm" withIcon={opts?.withIcon} />;
+      return <StatusDot domain={d} status={getStatus(row)} size="sm" withIcon={opts?.withIcon} />;
     },
   };
 }

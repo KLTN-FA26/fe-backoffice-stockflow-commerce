@@ -1,6 +1,13 @@
-import { Receipt } from "lucide-react";
-import { ComingSoonPage } from "@/components/shared/ComingSoonPage";
+import { Suspense } from "react";
+
+import { InvoiceList } from "@/features/invoice/components/InvoiceList";
+
+import { PageSkeleton } from "@/components/shared/PageSkeleton";
 
 export default function InvoicesPage() {
-  return <ComingSoonPage title="Hoá đơn NCC" icon={Receipt} />;
+  return (
+    <Suspense fallback={<PageSkeleton variant="list" />}>
+      <InvoiceList />
+    </Suspense>
+  );
 }

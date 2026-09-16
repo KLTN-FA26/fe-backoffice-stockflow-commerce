@@ -1,8 +1,8 @@
 /**
- * Next.js middleware — route protection.
+ * Next.js proxy — route protection.
  *
  * Checks for JWT token in localStorage via cookie (or header).
- * Since middleware runs on the Edge, we can't access localStorage directly.
+ * Since proxy runs on the server, we can't access localStorage directly.
  * Instead we check for the auth cookie set by the client.
  *
  * Strategy:
@@ -29,7 +29,7 @@ function isStaticAsset(pathname: string): boolean {
   );
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Skip static assets

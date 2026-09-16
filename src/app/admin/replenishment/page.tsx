@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRightCircle,
@@ -30,6 +30,7 @@ import {
   type ReplenishmentProposal,
 } from "@/lib/mock-data";
 import { STATUS_LABEL_VI } from "@/lib/status-map";
+import { usePageConfig } from "@/hooks/use-page-config";
 
 type ProposalStatusFilter = "all" | ReplenishmentProposal["status"];
 type ProposalSearchField = "proposalId" | "skuId" | "variantLabel" | "reason";
@@ -74,6 +75,19 @@ const DEFAULT_CONFIG: ReplenishmentPageConfig = {
   columnSearch: {},
   visibleColumns: DEFAULT_VISIBLE_COLUMNS,
 };
+
+function mergeStoredConfig(
+  stored: Partial<ReplenishmentPageConfig>,
+  fallback: ReplenishmentPageConfig,
+): ReplenishmentPageConfig {
+  return {
+    ...fallback,
+    ...stored,
+    globalSearch: { ...fallback.globalSearch, ...stored.globalSearch },
+    columnSearch: stored.columnSearch ?? {},
+    visibleColumns: stored.visibleColumns?.length ? stored.visibleColumns : DEFAULT_VISIBLE_COLUMNS,
+  };
+}
 
 const STATUS_OPTIONS = ["all", "Draft Proposal", "Reviewed", "Converted"].map((value) => ({
   label: value === "all" ? "Tất cả" : (STATUS_LABEL_VI[value] ?? value),
@@ -153,40 +167,15 @@ function shouldFlag(row: ReplenishmentProposal): boolean {
   return sku.stockOnHand === 0 || sku.stockAvailable < sku.reorderPoint;
 }
 
-function readInitialConfig(): ReplenishmentPageConfig {
-  if (typeof window === "undefined") return DEFAULT_CONFIG;
-
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_CONFIG;
-
-    const stored = JSON.parse(raw) as Partial<ReplenishmentPageConfig>;
-    return {
-      ...DEFAULT_CONFIG,
-      ...stored,
-      globalSearch: { ...DEFAULT_CONFIG.globalSearch, ...stored.globalSearch },
-      columnSearch: stored.columnSearch ?? {},
-      visibleColumns: stored.visibleColumns?.length
-        ? stored.visibleColumns
-        : DEFAULT_VISIBLE_COLUMNS,
-    };
-  } catch {
-    return DEFAULT_CONFIG;
-  }
-}
-
 export default function ReplenishmentPage() {
-  const [config, setConfig] = useState<ReplenishmentPageConfig>(readInitialConfig);
+  const { config, setConfig, updateConfig } = usePageConfig<ReplenishmentPageConfig>(
+    STORAGE_KEY,
+    DEFAULT_CONFIG,
+    mergeStoredConfig,
+  );
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [convertTarget, setConvertTarget] = useState<ReplenishmentProposal | null>(null);
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
-  }, [config]);
-
-  const updateConfig = (updater: (current: ReplenishmentPageConfig) => ReplenishmentPageConfig) =>
-    setConfig((current) => updater(current));
 
   const toggleStatus = (status: ProposalStatusFilter) => {
     updateConfig((current) => {
@@ -490,7 +479,7 @@ export default function ReplenishmentPage() {
     <>
       <PageHeader
         title="Đề xuất nhập hàng"
-        breadcrumbs={[{ label: "Back-office", href: "/admin" }, { label: "Đề xuất nhập hàng" }]}
+        subtitle="Theo dõi SKU dưới reorder point, hàng đang về và số lượng cần bổ sung."
         actions={
           <Button
             type="button"
@@ -502,7 +491,7 @@ export default function ReplenishmentPage() {
             className={cn(
               "rounded-[var(--r-sm)]",
               config.showStats &&
-                "border-accent bg-accent/10 text-accent hover:bg-accent/10 hover:text-accent border",
+                "border-brand bg-brand/10 text-brand hover:bg-brand/10 hover:text-brand border",
             )}
           >
             <BarChart3 className="size-3.5" />

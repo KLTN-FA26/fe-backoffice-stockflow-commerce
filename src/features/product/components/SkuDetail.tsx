@@ -18,10 +18,10 @@ import { ADMIN_ROUTES } from "@/constants";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { allowedSkuActions, formatVnd, useProduct, useSku } from "@/features/product";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { StatusBadge } from "@/components/shared/StatusBadge";
+import { StatusDot } from "@/components/shared/StatusDot";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { PageSkeleton } from "@/components/shared/PageSkeleton";
 
 import type { Sku, SkuStatus } from "@/features/product";
 
@@ -106,7 +106,7 @@ export function SkuDetail({ params }: { params: Promise<{ id: string }> }) {
   );
 
   if (isLoading) {
-    return <Skeleton className="h-[520px] rounded-[var(--card-radius)]" />;
+    return <PageSkeleton variant="detail" />;
   }
 
   /* 404 */
@@ -115,11 +115,7 @@ export function SkuDetail({ params }: { params: Promise<{ id: string }> }) {
       <>
         <PageHeader
           title="Không tìm thấy SKU"
-          breadcrumbs={[
-            { label: "Back-office", href: ADMIN_ROUTES.home },
-            { label: "Sản phẩm", href: ADMIN_ROUTES.products.list },
-            { label: skuId },
-          ]}
+          subtitle="SKU không tồn tại hoặc đã bị xoá khỏi dữ liệu mock."
         />
         <div className="text-ink-tertiary flex flex-col items-center justify-center py-20">
           <Box className="mb-3 size-12 opacity-40" />
@@ -143,19 +139,6 @@ export function SkuDetail({ params }: { params: Promise<{ id: string }> }) {
       <PageHeader
         title={sku.skuId}
         subtitle={sku.variantLabel}
-        breadcrumbs={[
-          { label: "Back-office", href: ADMIN_ROUTES.home },
-          { label: "Sản phẩm", href: ADMIN_ROUTES.products.list },
-          ...(parentProduct
-            ? [
-                {
-                  label: parentProduct.name,
-                  href: ADMIN_ROUTES.products.detail(parentProduct.productId),
-                },
-              ]
-            : []),
-          { label: sku.skuId },
-        ]}
         actions={
           <div className="flex items-center gap-2">
             <Button
@@ -181,7 +164,7 @@ export function SkuDetail({ params }: { params: Promise<{ id: string }> }) {
       {/* Status action bar */}
       {actions.length > 0 && (
         <div className="border-border-default bg-bg-subtle mb-5 flex flex-wrap items-center gap-3 rounded-[var(--r-sm)] border px-4 py-3">
-          <StatusBadge domain="sku" status={sku.status} size="md" withIcon />
+          <StatusDot domain="sku" status={sku.status} size="md" withIcon />
           <span className="text-ink-tertiary text-xs">→</span>
           {actions.map((act) => (
             <Button
@@ -250,7 +233,7 @@ export function SkuDetail({ params }: { params: Promise<{ id: string }> }) {
               </InfoRow>
               <InfoRow label="Đơn vị tính">{sku.uom}</InfoRow>
               <InfoRow label="Trạng thái">
-                <StatusBadge domain="sku" status={sku.status} size="sm" withIcon />
+                <StatusDot domain="sku" status={sku.status} size="sm" withIcon />
               </InfoRow>
             </div>
           </Section>

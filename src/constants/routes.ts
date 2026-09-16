@@ -1,5 +1,10 @@
 const ADMIN_BASE = "/admin";
 
+export const APP_ROUTES = {
+  home: "/",
+  login: "/login",
+} as const;
+
 export const ADMIN_ROUTES = {
   home: ADMIN_BASE,
   products: {
@@ -12,6 +17,14 @@ export const ADMIN_ROUTES = {
     create: `${ADMIN_BASE}/purchase-orders/create`,
     detail: (id: string) => `${ADMIN_BASE}/purchase-orders/${id}`,
     list: `${ADMIN_BASE}/purchase-orders`,
+  },
+  invoices: {
+    detail: (id: string) => `${ADMIN_BASE}/invoices/${id}`,
+    list: `${ADMIN_BASE}/invoices`,
+  },
+  receipts: {
+    detail: (id: string) => `${ADMIN_BASE}/receipts/${id}`,
+    list: `${ADMIN_BASE}/receipts`,
   },
   replenishment: {
     list: `${ADMIN_BASE}/replenishment`,

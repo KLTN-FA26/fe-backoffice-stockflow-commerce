@@ -15,10 +15,10 @@ import {
 import { ADMIN_ROUTES, PAGE_SIZE, PO_STATUS } from "@/constants";
 import { DataTable, type ColumnDef } from "@/components/shared/DataTable";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { StatusBadge } from "@/components/shared/StatusBadge";
+import { StatusDot } from "@/components/shared/StatusDot";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import {
   allowedPoActions,
@@ -156,7 +156,7 @@ export function PurchaseOrderDetail({ params }: { params: Promise<{ id: string }
   );
 
   if (isLoading) {
-    return <Skeleton className="h-[680px] rounded-[var(--card-radius)]" />;
+    return <PageSkeleton variant="detail" />;
   }
 
   /* ---- Not found ---- */
@@ -165,11 +165,7 @@ export function PurchaseOrderDetail({ params }: { params: Promise<{ id: string }
       <>
         <PageHeader
           title="Không tìm thấy PO"
-          breadcrumbs={[
-            { label: "Back-office", href: ADMIN_ROUTES.home },
-            { label: "Đơn đặt NCC", href: ADMIN_ROUTES.purchaseOrders.list },
-            { label: id },
-          ]}
+          subtitle="Đơn đặt NCC không tồn tại hoặc đã bị xoá khỏi dữ liệu mock."
         />
         <div className="text-ink-tertiary flex flex-col items-center justify-center py-20">
           <FileText className="mb-3 size-12 opacity-40" />
@@ -290,11 +286,6 @@ export function PurchaseOrderDetail({ params }: { params: Promise<{ id: string }
       <PageHeader
         title={po.poNumber}
         subtitle={`Đơn đặt NCC — ${supplier?.name ?? po.supplierId}`}
-        breadcrumbs={[
-          { label: "Back-office", href: ADMIN_ROUTES.home },
-          { label: "Đơn đặt NCC", href: ADMIN_ROUTES.purchaseOrders.list },
-          { label: po.poNumber },
-        ]}
         actions={
           <Link
             href={ADMIN_ROUTES.purchaseOrders.list}
@@ -322,7 +313,7 @@ export function PurchaseOrderDetail({ params }: { params: Promise<{ id: string }
               <div>
                 <InfoRow label="Số PO" value={po.poNumber} mono />
                 <InfoRow label="Trạng thái">
-                  <StatusBadge domain="po" status={po.status} size="sm" withIcon />
+                  <StatusDot domain="po" status={po.status} size="sm" withIcon />
                 </InfoRow>
                 <InfoRow label="Ngày đặt" value={po.orderDate} mono />
                 <InfoRow label="Ngày giao DK" value={po.expectedDate} mono />
@@ -499,7 +490,7 @@ export function PurchaseOrderDetail({ params }: { params: Promise<{ id: string }
           {/* ---- Action Card ---- */}
           <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
             <div className="mb-4 flex justify-center">
-              <StatusBadge domain="po" status={po.status} size="md" withIcon />
+              <StatusDot domain="po" status={po.status} size="md" withIcon />
             </div>
 
             {actions.length > 0 && (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { cn } from "cn";
@@ -25,6 +25,7 @@ import {
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatTile } from "@/components/shared/StatTile";
 import { DataTable, type ColumnDef } from "@/components/shared/DataTable";
+import { StatusDot } from "@/components/shared/StatusDot";
 import { toast } from "@/components/shared/Toast";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,6 +49,7 @@ import {
 } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { suppliers, type Supplier } from "@/lib/mock-data";
+import { usePageConfig } from "@/hooks/use-page-config";
 
 type SupplierStatusFilter = "all" | "active" | "inactive";
 type SupplierSearchField =
@@ -101,6 +103,19 @@ const DEFAULT_CONFIG: SupplierPageConfig = {
   columnSearch: {},
   visibleColumns: DEFAULT_VISIBLE_COLUMNS,
 };
+
+function mergeStoredConfig(
+  stored: Partial<SupplierPageConfig>,
+  fallback: SupplierPageConfig,
+): SupplierPageConfig {
+  return {
+    ...fallback,
+    ...stored,
+    globalSearch: { ...fallback.globalSearch, ...stored.globalSearch },
+    columnSearch: stored.columnSearch ?? {},
+    visibleColumns: stored.visibleColumns?.length ? stored.visibleColumns : DEFAULT_VISIBLE_COLUMNS,
+  };
+}
 
 const STATUS_OPTIONS: { label: string; value: SupplierStatusFilter }[] = [
   { label: "Tất cả", value: "all" },
@@ -177,6 +192,41 @@ function fieldLabel(field: SupplierSearchField) {
   return SEARCH_FIELDS.find((option) => option.value === field)?.label ?? field;
 }
 
+// Giữ lại cho toolbar sắp dùng — chưa reference nhưng không xoá.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function ToolbarButton({
+  label,
+  active = false,
+  children,
+  onClick,
+}: {
+  label: string;
+  active?: boolean;
+  children: React.ReactNode;
+  onClick?: () => void;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          onClick={onClick}
+          aria-label={label}
+          className={cn(
+            "border-positive/20 bg-positive/5 text-positive hover:bg-positive/10 hover:text-positive rounded-[var(--r-sm)]",
+            active && "border-positive bg-positive/10",
+          )}
+        >
+          {children}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 function ColumnFilterButton({
   value,
   label,
@@ -230,43 +280,17 @@ function ColumnFilterButton({
   );
 }
 
-function readInitialConfig(): SupplierPageConfig {
-  if (typeof window === "undefined") return DEFAULT_CONFIG;
-
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_CONFIG;
-
-    const stored = JSON.parse(raw) as Partial<SupplierPageConfig>;
-    return {
-      ...DEFAULT_CONFIG,
-      ...stored,
-      globalSearch: { ...DEFAULT_CONFIG.globalSearch, ...stored.globalSearch },
-      columnSearch: stored.columnSearch ?? {},
-      visibleColumns: stored.visibleColumns?.length
-        ? stored.visibleColumns
-        : DEFAULT_VISIBLE_COLUMNS,
-    };
-  } catch {
-    return DEFAULT_CONFIG;
-  }
-}
-
 export default function SuppliersPage() {
   const router = useRouter();
-  const [config, setConfig] = useState<SupplierPageConfig>(readInitialConfig);
+  const { config, setConfig, updateConfig } = usePageConfig<SupplierPageConfig>(
+    STORAGE_KEY,
+    DEFAULT_CONFIG,
+    mergeStoredConfig,
+  );
   const [statusPopoverOpen, setStatusPopoverOpen] = useState(false);
   const [searchPopoverOpen, setSearchPopoverOpen] = useState(false);
   const [columnsPopoverOpen, setColumnsPopoverOpen] = useState(false);
   const [selectedSupplierKeys, setSelectedSupplierKeys] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
-  }, [config]);
-
-  const updateConfig = (updater: (current: SupplierPageConfig) => SupplierPageConfig) => {
-    setConfig((current) => updater(current));
-  };
 
   const toggleStatus = (status: SupplierStatusFilter) => {
     updateConfig((current) => {
@@ -514,16 +538,7 @@ export default function SuppliersPage() {
       sortable: true,
       compare: (a, b) => Number(a.active) - Number(b.active),
       cell: (row) => (
-        <span
-          className={
-            row.active
-              ? "border-positive/25 bg-positive/10 text-positive inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium"
-              : "border-muted-tone/25 bg-muted-tone/10 text-muted-tone inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium"
-          }
-        >
-          <span className="size-1.5 rounded-full bg-current" />
-          {row.active ? "Đang hoạt động" : "Tạm ngưng"}
-        </span>
+        <StatusDot domain="product" status={row.active ? "Active" : "Inactive"} size="sm" />
       ),
     },
     {
@@ -551,7 +566,6 @@ export default function SuppliersPage() {
       <PageHeader
         title="Nhà cung cấp"
         subtitle="Quản lý hồ sơ NCC dùng cho Replenishment, Purchase Order và Supplier Invoice."
-        breadcrumbs={[{ label: "Back-office", href: "/admin" }, { label: "Nhà cung cấp" }]}
         actions={
           <div className="flex items-center gap-2">
             <Button
@@ -564,7 +578,7 @@ export default function SuppliersPage() {
               className={cn(
                 "rounded-[var(--r-sm)]",
                 config.showStats &&
-                  "border-accent bg-accent/10 text-accent hover:bg-accent/10 hover:text-accent border",
+                  "border-brand bg-brand/10 text-brand hover:bg-brand/10 hover:text-brand border",
               )}
             >
               <BarChart3 className="size-3.5" />
@@ -574,7 +588,8 @@ export default function SuppliersPage() {
               type="button"
               size="sm"
               onClick={() => router.push("/admin/suppliers/create")}
-              className="bg-brand text-ink-inverse hover:bg-brand hover:text-ink-inverse rounded-[var(--r-sm)]"
+              variant="default"
+              className="bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse rounded-[var(--r-sm)]"
             >
               <Plus className="size-3.5" />
               Tạo nhà cung cấp
@@ -615,33 +630,26 @@ export default function SuppliersPage() {
                   }))
                 }
                 placeholder="Tìm nhà cung cấp theo mã, tên, MST..."
-                className="border-border-default bg-bg-surface focus-visible:border-accent focus-visible:ring-accent/20 h-9 rounded-[var(--r-sm)] pl-9 text-[0.8125rem] shadow-none"
+                className="border-border-default bg-bg-surface focus-visible:border-brand focus-visible:ring-brand/20 h-9 rounded-[var(--r-sm)] pl-9 text-[0.8125rem] shadow-none"
               />
             </div>
             <div className="flex items-center gap-2">
               <Popover open={statusPopoverOpen} onOpenChange={setStatusPopoverOpen}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <PopoverTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        aria-label="Lọc trạng thái"
-                        className={cn(
-                          "border-border-default bg-bg-surface text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary rounded-[var(--r-sm)] focus-visible:ring-0",
-                          hasStatusFilter &&
-                            "border-info bg-info/10 text-info hover:bg-info/10 hover:text-info",
-                        )}
-                      >
-                        <Filter
-                          className={cn("text-info size-4", hasStatusFilter && "text-current")}
-                        />
-                      </Button>
-                    </PopoverTrigger>
-                  </TooltipTrigger>
-                  <TooltipContent>Lọc trạng thái</TooltipContent>
-                </Tooltip>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    aria-label="Lọc trạng thái"
+                    className={cn(
+                      "border-border-default bg-bg-surface text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary rounded-[var(--r-sm)] focus-visible:ring-0",
+                      hasStatusFilter &&
+                        "border-info bg-info/10 text-info hover:bg-info/10 hover:text-info",
+                    )}
+                  >
+                    <Filter className={cn("text-info size-4", hasStatusFilter && "text-current")} />
+                  </Button>
+                </PopoverTrigger>
                 <PopoverContent align="end" className="w-80 p-0">
                   <PopoverHeader className="border-border-default border-b p-3">
                     <PopoverTitle>Lọc trạng thái NCC</PopoverTitle>
@@ -690,28 +698,23 @@ export default function SuppliersPage() {
               </Popover>
 
               <Popover open={searchPopoverOpen} onOpenChange={setSearchPopoverOpen}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <PopoverTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        aria-label="Chọn trường search"
-                        className={cn(
-                          "border-border-default bg-bg-surface text-ink-tertiary hover:bg-special/5 hover:text-special focus-visible:border-border-default data-[state=open]:border-border-default data-[state=open]:bg-bg-surface data-[state=open]:text-ink-tertiary rounded-[var(--r-sm)] focus-visible:ring-0",
-                          hasFieldConfig &&
-                            "border-special bg-special/10 text-special hover:border-special hover:bg-special/10 hover:text-special data-[state=open]:border-special data-[state=open]:bg-special/10 data-[state=open]:text-special",
-                        )}
-                      >
-                        <ListFilter
-                          className={cn("text-special size-4", hasFieldConfig && "text-current")}
-                        />
-                      </Button>
-                    </PopoverTrigger>
-                  </TooltipTrigger>
-                  <TooltipContent>Trường tìm kiếm</TooltipContent>
-                </Tooltip>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    aria-label="Chọn trường search"
+                    className={cn(
+                      "border-border-default bg-bg-surface text-ink-tertiary hover:bg-special/5 hover:text-special focus-visible:border-border-default data-[state=open]:border-border-default data-[state=open]:bg-bg-surface data-[state=open]:text-ink-tertiary rounded-[var(--r-sm)] focus-visible:ring-0",
+                      hasFieldConfig &&
+                        "border-special bg-special/10 text-special hover:border-special hover:bg-special/10 hover:text-special data-[state=open]:border-special data-[state=open]:bg-special/10 data-[state=open]:text-special",
+                    )}
+                  >
+                    <ListFilter
+                      className={cn("text-special size-4", hasFieldConfig && "text-current")}
+                    />
+                  </Button>
+                </PopoverTrigger>
                 <PopoverContent align="end" className="w-[25rem] p-0">
                   <PopoverHeader className="border-border-default border-b p-3">
                     <PopoverTitle>Trường tìm kiếm</PopoverTitle>
@@ -785,28 +788,23 @@ export default function SuppliersPage() {
               </Popover>
 
               <Popover open={columnsPopoverOpen} onOpenChange={setColumnsPopoverOpen}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <PopoverTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        aria-label="Ẩn hiện cột"
-                        className={cn(
-                          "border-border-default bg-bg-surface text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary rounded-[var(--r-sm)] focus-visible:ring-0",
-                          hasColumnConfig &&
-                            "border-warning bg-warning/10 text-warning hover:bg-warning/10 hover:text-warning",
-                        )}
-                      >
-                        <Columns3
-                          className={cn("text-warning size-4", hasColumnConfig && "text-current")}
-                        />
-                      </Button>
-                    </PopoverTrigger>
-                  </TooltipTrigger>
-                  <TooltipContent>Ẩn hiện cột</TooltipContent>
-                </Tooltip>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    aria-label="Ẩn hiện cột"
+                    className={cn(
+                      "border-border-default bg-bg-surface text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary rounded-[var(--r-sm)] focus-visible:ring-0",
+                      hasColumnConfig &&
+                        "border-warning bg-warning/10 text-warning hover:bg-warning/10 hover:text-warning",
+                    )}
+                  >
+                    <Columns3
+                      className={cn("text-warning size-4", hasColumnConfig && "text-current")}
+                    />
+                  </Button>
+                </PopoverTrigger>
                 <PopoverContent align="end" className="w-80 p-0">
                   <PopoverHeader className="border-border-default border-b p-3">
                     <PopoverTitle>Ẩn hiện cột</PopoverTitle>

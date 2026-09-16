@@ -27,7 +27,7 @@ import {
   type Currency,
   CURRENCY_SYMBOL,
 } from "@/lib/mock-data";
-import { StatusBadge } from "@/components/shared/StatusBadge";
+import { StatusDot } from "@/components/shared/StatusDot";
 
 /* -------------------------------------------------------------------------- */
 /*  Helpers                                                                   */
@@ -143,7 +143,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
     {
       key: "status",
       header: "Trạng thái",
-      cell: (row) => <StatusBadge domain="po" status={row.status} withIcon />,
+      cell: (row) => <StatusDot domain="po" status={row.status} withIcon />,
     },
   ];
 
@@ -152,11 +152,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
       <>
         <PageHeader
           title="Không tìm thấy NCC"
-          breadcrumbs={[
-            { label: "Back-office", href: "/admin" },
-            { label: "Nhà cung cấp", href: "/admin/suppliers" },
-            { label: "Chi tiết" },
-          ]}
+          subtitle="Nhà cung cấp không tồn tại hoặc đã bị xoá khỏi dữ liệu mock."
         />
         <div className="text-ink-tertiary flex flex-col items-center justify-center py-20">
           <Building2 className="mb-3 size-12 opacity-40" />
@@ -184,11 +180,6 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
       <PageHeader
         title={supplier.name}
         subtitle={`Mã NCC: ${supplier.supplierId} · MST: ${supplier.taxCode}`}
-        breadcrumbs={[
-          { label: "Back-office", href: "/admin" },
-          { label: "Nhà cung cấp", href: "/admin/suppliers" },
-          { label: supplier.supplierId },
-        ]}
         actions={
           <Link
             href="/admin/suppliers"
@@ -215,16 +206,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
                 <InfoRow label="Tên NCC" value={supplier.name} />
                 <InfoRow label="MST" value={supplier.taxCode} mono />
                 <InfoRow label="Trạng thái">
-                  <span
-                    className={
-                      supplier.active
-                        ? "border-positive/25 bg-positive/10 text-positive inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium"
-                        : "border-muted-tone/25 bg-muted-tone/10 text-muted-tone inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium"
-                    }
-                  >
-                    <span className="size-1.5 rounded-full bg-current" />
-                    {supplier.active ? "Đang hoạt động" : "Tạm ngưng"}
-                  </span>
+                  <StatusDot domain="product" status={supplier.active ? "Active" : "Inactive"} />
                 </InfoRow>
               </div>
             </section>
@@ -299,17 +281,12 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
         <div className="space-y-5">
           {/* Action Card */}
           <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
-            <div className="mb-4 text-center">
-              <span
-                className={
-                  supplier.active
-                    ? "border-positive/25 bg-positive/10 text-positive inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium"
-                    : "border-muted-tone/25 bg-muted-tone/10 text-muted-tone inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium"
-                }
-              >
-                <span className="size-2 rounded-full bg-current" />
-                {supplier.active ? "Đang hoạt động" : "Tạm ngưng"}
-              </span>
+            <div className="mb-4 flex justify-center">
+              <StatusDot
+                domain="product"
+                status={supplier.active ? "Active" : "Inactive"}
+                size="md"
+              />
             </div>
             <div className="space-y-2">
               <Button

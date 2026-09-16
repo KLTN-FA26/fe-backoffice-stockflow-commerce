@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   BarChart3,
@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { dateCell, moneyCell, statusCell } from "@/components/shared/column-helpers";
 import { orders, orderEvents, formatVND, type Order } from "@/lib/mock-data";
 import { STATUS_LABEL_VI } from "@/lib/status-map";
+import { usePageConfig } from "@/hooks/use-page-config";
 
 type OrderStatusFilter = "all" | Order["status"];
 type OrderSearchField = "orderNumber" | "recipientName" | "recipientPhone" | "orderId";
@@ -62,6 +63,19 @@ const DEFAULT_CONFIG: OrdersPageConfig = {
   columnSearch: {},
   visibleColumns: DEFAULT_VISIBLE_COLUMNS,
 };
+
+function mergeStoredConfig(
+  stored: Partial<OrdersPageConfig>,
+  fallback: OrdersPageConfig,
+): OrdersPageConfig {
+  return {
+    ...fallback,
+    ...stored,
+    globalSearch: { ...fallback.globalSearch, ...stored.globalSearch },
+    columnSearch: stored.columnSearch ?? {},
+    visibleColumns: stored.visibleColumns?.length ? stored.visibleColumns : DEFAULT_VISIBLE_COLUMNS,
+  };
+}
 
 const STATUS_OPTIONS = [
   "all",
@@ -159,40 +173,15 @@ function shouldFlag(row: Order): boolean {
   );
 }
 
-function readInitialConfig(): OrdersPageConfig {
-  if (typeof window === "undefined") return DEFAULT_CONFIG;
-
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_CONFIG;
-
-    const stored = JSON.parse(raw) as Partial<OrdersPageConfig>;
-    return {
-      ...DEFAULT_CONFIG,
-      ...stored,
-      globalSearch: { ...DEFAULT_CONFIG.globalSearch, ...stored.globalSearch },
-      columnSearch: stored.columnSearch ?? {},
-      visibleColumns: stored.visibleColumns?.length
-        ? stored.visibleColumns
-        : DEFAULT_VISIBLE_COLUMNS,
-    };
-  } catch {
-    return DEFAULT_CONFIG;
-  }
-}
-
 export default function OrdersPage() {
-  const [config, setConfig] = useState<OrdersPageConfig>(readInitialConfig);
+  const { config, setConfig, updateConfig } = usePageConfig<OrdersPageConfig>(
+    STORAGE_KEY,
+    DEFAULT_CONFIG,
+    mergeStoredConfig,
+  );
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
-  }, [config]);
-
-  const updateConfig = (updater: (current: OrdersPageConfig) => OrdersPageConfig) =>
-    setConfig((current) => updater(current));
 
   const toggleStatus = (status: OrderStatusFilter) => {
     updateConfig((current) => {
@@ -432,7 +421,7 @@ export default function OrdersPage() {
     <>
       <PageHeader
         title="Đơn hàng"
-        breadcrumbs={[{ label: "Back-office", href: "/admin" }, { label: "Đơn hàng" }]}
+        subtitle="Theo dõi đơn bán, trạng thái xử lý và các ngoại lệ cần thao tác."
         actions={
           <Button
             type="button"
@@ -444,7 +433,7 @@ export default function OrdersPage() {
             className={cn(
               "rounded-[var(--r-sm)]",
               config.showStats &&
-                "border-accent bg-accent/10 text-accent hover:bg-accent/10 hover:text-accent border",
+                "border-brand bg-brand/10 text-brand hover:bg-brand/10 hover:text-brand border",
             )}
           >
             <BarChart3 className="size-3.5" />

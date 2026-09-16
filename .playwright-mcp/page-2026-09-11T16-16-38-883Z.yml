@@ -1,0 +1,38 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - link "StockFlowCommerce — trang chủ" [ref=e5] [cursor=pointer]:
+          - /url: /
+          - img "StockFlowCommerce" [ref=e6]
+        - generic [ref=e7]:
+          - button "Chuyển sang Dark" [ref=e8]
+          - link "Đăng nhập" [ref=e9] [cursor=pointer]:
+            - /url: /login
+    - main [ref=e10]:
+      - generic [ref=e11]:
+        - generic [ref=e12]:
+          - generic [ref=e13]: Cổng vận hành nội bộ
+          - heading "Kiểm soát dòng hàng từ nhập kho đến bàn giao." [level=1] [ref=e17]
+          - paragraph [ref=e18]: StockFlowCommerce tập trung dữ liệu mua hàng, tồn kho và hoàn tất đơn vào một không gian làm việc nhất quán cho đội ngũ vận hành.
+          - generic [ref=e19]:
+            - link "Vào hệ thống" [ref=e20] [cursor=pointer]:
+              - /url: /login
+            - generic [ref=e21]: Dành cho nhân sự được cấp quyền
+        - img "Minh hoạ kệ kho nhiều tầng" [ref=e23]
+      - list [ref=e37]:
+        - listitem [ref=e38]:
+          - heading "Nhập hàng có kiểm soát" [level=2] [ref=e44]
+          - paragraph [ref=e45]: Theo dõi đơn đặt nhà cung cấp, phiếu nhận, kiểm tra và cất hàng trên một luồng.
+        - listitem [ref=e46]:
+          - heading "Tồn kho theo vị trí" [level=2] [ref=e58]
+          - paragraph [ref=e59]: Quan sát sức chứa, điều chuyển và bổ sung hàng theo từng khu vực kho.
+        - listitem [ref=e60]:
+          - heading "Hoàn tất đơn chính xác" [level=2] [ref=e67]
+          - paragraph [ref=e68]: Điều phối lấy hàng, đóng gói và bàn giao vận chuyển với trạng thái rõ ràng.
+    - contentinfo [ref=e69]:
+      - generic [ref=e70]:
+        - generic [ref=e71]: © 2026 StockFlowCommerce
+        - generic [ref=e72]: Hệ thống quản lý vận hành kho
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e78] [cursor=pointer]

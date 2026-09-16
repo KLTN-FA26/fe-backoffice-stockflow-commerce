@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { parseAsArrayOf, parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
 import { cn } from "cn";
 import {
   BarChart3,
@@ -27,6 +26,11 @@ import {
   SKU_STATUSES,
   STORAGE_KEYS,
 } from "@/constants";
+import { usePageConfig } from "@/hooks/use-page-config";
+import { useUrlFilters, useUrlTab } from "@/hooks/use-url-filters";
+import { useCan } from "@/lib/auth/components/Can";
+import { STATUS_LABEL_VI } from "@/lib/status-map";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ListStatsPanel } from "@/components/shared/ListStatsPanel";
 import {
@@ -37,9 +41,8 @@ import {
 import { DataTable, type ColumnDef } from "@/components/shared/DataTable";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { numberCell, moneyCell, statusCell, textCell } from "@/components/shared/column-helpers";
-import { STATUS_LABEL_VI } from "@/lib/status-map";
 import {
   computeProductStats as computeProductStatsSelector,
   computeSkuStats as computeSkuStatsSelector,
@@ -187,56 +190,47 @@ function categoryName(categoryId: string, categories: readonly Category[]): stri
   return categories.find((category) => category.categoryId === categoryId)?.name.vi ?? "";
 }
 
-function readInitialConfig(): ProductsPageConfig {
-  if (typeof window === "undefined") return DEFAULT_CONFIG;
-
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEYS.adminProductsConfig);
-    if (!raw) return DEFAULT_CONFIG;
-
-    const stored = JSON.parse(raw) as Partial<ProductsPageConfig>;
-    return {
-      products: {
-        ...DEFAULT_CONFIG.products,
-        ...stored.products,
-        globalSearch: { ...DEFAULT_CONFIG.products.globalSearch, ...stored.products?.globalSearch },
-        columnSearch: stored.products?.columnSearch ?? {},
-        visibleColumns: stored.products?.visibleColumns?.length
-          ? stored.products.visibleColumns
-          : PRODUCT_DEFAULT_COLUMNS,
-      },
-      skus: {
-        ...DEFAULT_CONFIG.skus,
-        ...stored.skus,
-        globalSearch: { ...DEFAULT_CONFIG.skus.globalSearch, ...stored.skus?.globalSearch },
-        columnSearch: stored.skus?.columnSearch ?? {},
-        visibleColumns: stored.skus?.visibleColumns?.length
-          ? stored.skus.visibleColumns
-          : SKU_DEFAULT_COLUMNS,
-      },
-    };
-  } catch {
-    return DEFAULT_CONFIG;
-  }
+function mergeStoredConfig(
+  stored: Partial<ProductsPageConfig>,
+  fallback: ProductsPageConfig,
+): ProductsPageConfig {
+  return {
+    products: {
+      ...fallback.products,
+      ...stored.products,
+      globalSearch: { ...fallback.products.globalSearch, ...stored.products?.globalSearch },
+      columnSearch: stored.products?.columnSearch ?? {},
+      visibleColumns: stored.products?.visibleColumns?.length
+        ? stored.products.visibleColumns
+        : PRODUCT_DEFAULT_COLUMNS,
+    },
+    skus: {
+      ...fallback.skus,
+      ...stored.skus,
+      globalSearch: { ...fallback.skus.globalSearch, ...stored.skus?.globalSearch },
+      columnSearch: stored.skus?.columnSearch ?? {},
+      visibleColumns: stored.skus?.visibleColumns?.length
+        ? stored.skus.visibleColumns
+        : SKU_DEFAULT_COLUMNS,
+    },
+  };
 }
 
 export function ProductList() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useQueryState(
-    "tab",
-    parseAsStringLiteral(["products", "skus"] as const).withDefault("products"),
+  const canCreateProduct = useCan("product.create");
+  const [activeTab, setActiveTab] = useUrlTab("tab", ["products", "skus"] as const, "products");
+  const productFilters = useUrlFilters(PRODUCT_STATUSES, {
+    keys: { q: "productQ", status: "productStatus" },
+  });
+  const skuFilters = useUrlFilters(SKU_STATUSES, {
+    keys: { q: "skuQ", status: "skuStatus" },
+  });
+  const { config, setConfig } = usePageConfig<ProductsPageConfig>(
+    STORAGE_KEYS.adminProductsConfig,
+    DEFAULT_CONFIG,
+    mergeStoredConfig,
   );
-  const [productQ, setProductQ] = useQueryState("productQ", parseAsString.withDefault(""));
-  const [skuQ, setSkuQ] = useQueryState("skuQ", parseAsString.withDefault(""));
-  const [productStatuses, setProductStatuses] = useQueryState(
-    "productStatus",
-    parseAsArrayOf(parseAsStringLiteral(PRODUCT_STATUSES)).withDefault([]),
-  );
-  const [skuStatuses, setSkuStatuses] = useQueryState(
-    "skuStatus",
-    parseAsArrayOf(parseAsStringLiteral(SKU_STATUSES)).withDefault([]),
-  );
-  const [config, setConfig] = useState<ProductsPageConfig>(readInitialConfig);
   const [prodSelectedKeys, setProdSelectedKeys] = useState<Set<string>>(new Set());
   const [skuSelectedKeys, setSkuSelectedKeys] = useState<Set<string>>(new Set());
 
@@ -248,23 +242,24 @@ export function ProductList() {
   const rawSkus = useMemo(() => skusQuery.data?.items ?? [], [skusQuery.data]);
   const categories = useMemo(() => categoriesQuery.data?.items ?? [], [categoriesQuery.data]);
   const isLoading = productsQuery.isLoading || skusQuery.isLoading || categoriesQuery.isLoading;
+  const loadError = productsQuery.error ?? skusQuery.error ?? categoriesQuery.error;
 
   const productConfig = useMemo<ProductsPageConfig["products"]>(
     () => ({
       ...config.products,
-      statuses: productStatuses.length > 0 ? productStatuses : ["all"],
-      globalSearch: { ...config.products.globalSearch, query: productQ },
+      statuses: productFilters.status.length > 0 ? productFilters.status : ["all"],
+      globalSearch: { ...config.products.globalSearch, query: productFilters.q },
     }),
-    [config.products, productQ, productStatuses],
+    [config.products, productFilters.q, productFilters.status],
   );
 
   const skuConfig = useMemo<ProductsPageConfig["skus"]>(
     () => ({
       ...config.skus,
-      statuses: skuStatuses.length > 0 ? skuStatuses : ["all"],
-      globalSearch: { ...config.skus.globalSearch, query: skuQ },
+      statuses: skuFilters.status.length > 0 ? skuFilters.status : ["all"],
+      globalSearch: { ...config.skus.globalSearch, query: skuFilters.q },
     }),
-    [config.skus, skuQ, skuStatuses],
+    [config.skus, skuFilters.q, skuFilters.status],
   );
 
   const productNameMap = useMemo(
@@ -303,10 +298,6 @@ export function ProductList() {
     ],
     [productNameMap],
   );
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEYS.adminProductsConfig, JSON.stringify(config));
-  }, [config]);
 
   const updateProductsConfig = (
     updater: (current: ProductsPageConfig["products"]) => ProductsPageConfig["products"],
@@ -423,23 +414,23 @@ export function ProductList() {
 
   const toggleProductStatus = (status: ProductStatusFilter) => {
     if (status === "all") {
-      setProductStatuses([]);
+      productFilters.setStatus([]);
       return;
     }
-    const next = productStatuses.includes(status)
-      ? productStatuses.filter((item) => item !== status)
-      : [...productStatuses, status];
-    setProductStatuses(next);
+    const next = productFilters.status.includes(status)
+      ? productFilters.status.filter((item) => item !== status)
+      : [...productFilters.status, status];
+    productFilters.setStatus(next);
   };
   const toggleSkuStatus = (status: SkuStatusFilter) => {
     if (status === "all") {
-      setSkuStatuses([]);
+      skuFilters.setStatus([]);
       return;
     }
-    const next = skuStatuses.includes(status)
-      ? skuStatuses.filter((item) => item !== status)
-      : [...skuStatuses, status];
-    setSkuStatuses(next);
+    const next = skuFilters.status.includes(status)
+      ? skuFilters.status.filter((item) => item !== status)
+      : [...skuFilters.status, status];
+    skuFilters.setStatus(next);
   };
 
   const productColumns: (ColumnDef<Product> & { key: ProductTableColumnKey })[] = [
@@ -723,13 +714,13 @@ export function ProductList() {
             )
             .join(", "),
           active: hasStatusFilter,
-          onClear: () => setProductStatuses([]),
+          onClear: () => productFilters.setStatus([]),
         },
         {
           label: "Search chính",
           value: hasGlobalSearch ? `“${pageConfig.globalSearch.query}”` : "Chưa dùng",
           active: hasGlobalSearch,
-          onClear: () => setProductQ(""),
+          onClear: () => productFilters.setQ(""),
         },
         {
           label: "Trường search",
@@ -777,12 +768,12 @@ export function ProductList() {
       return (
         <ListToolbar
           search={pageConfig.globalSearch.query}
-          onSearchChange={setProductQ}
+          onSearchChange={productFilters.setQ}
           searchPlaceholder="Tìm sản phẩm theo mã, tên, danh mục..."
           statusOptions={PRODUCT_STATUS_OPTIONS}
           selectedStatuses={pageConfig.statuses}
           onToggleStatus={toggleProductStatus}
-          onClearStatuses={() => setProductStatuses([])}
+          onClearStatuses={() => productFilters.setStatus([])}
           hasStatusFilter={hasStatusFilter}
           fieldOptions={productSearchFields}
           selectedFields={pageConfig.globalSearch.fields}
@@ -858,8 +849,7 @@ export function ProductList() {
           summaryItems={summaryItems}
           onResetAll={() => {
             updateProductsConfig(() => DEFAULT_CONFIG.products);
-            setProductQ("");
-            setProductStatuses([]);
+            productFilters.reset();
           }}
           resetDisabled={!hasAnyConfig}
         />
@@ -899,13 +889,13 @@ export function ProductList() {
           )
           .join(", "),
         active: hasStatusFilter,
-        onClear: () => setSkuStatuses([]),
+        onClear: () => skuFilters.setStatus([]),
       },
       {
         label: "Search chính",
         value: hasGlobalSearch ? `“${pageConfig.globalSearch.query}”` : "Chưa dùng",
         active: hasGlobalSearch,
-        onClear: () => setSkuQ(""),
+        onClear: () => skuFilters.setQ(""),
       },
       {
         label: "Trường search",
@@ -949,12 +939,12 @@ export function ProductList() {
     return (
       <ListToolbar
         search={pageConfig.globalSearch.query}
-        onSearchChange={setSkuQ}
+        onSearchChange={skuFilters.setQ}
         searchPlaceholder="Tìm SKU theo mã, biến thể, barcode..."
         statusOptions={SKU_STATUS_OPTIONS}
         selectedStatuses={pageConfig.statuses}
         onToggleStatus={toggleSkuStatus}
-        onClearStatuses={() => setSkuStatuses([])}
+        onClearStatuses={() => skuFilters.setStatus([])}
         hasStatusFilter={hasStatusFilter}
         fieldOptions={skuSearchFields}
         selectedFields={pageConfig.globalSearch.fields}
@@ -1024,8 +1014,7 @@ export function ProductList() {
         summaryItems={summaryItems}
         onResetAll={() => {
           updateSkusConfig(() => DEFAULT_CONFIG.skus);
-          setSkuQ("");
-          setSkuStatuses([]);
+          skuFilters.reset();
         }}
         resetDisabled={!hasAnyConfig}
       />
@@ -1033,14 +1022,42 @@ export function ProductList() {
   };
 
   if (isLoading) {
-    return <Skeleton className="h-[640px] rounded-[var(--card-radius)]" />;
+    return <PageSkeleton variant="list" />;
+  }
+
+  if (loadError) {
+    return (
+      <>
+        <PageHeader title="Sản phẩm & SKU" subtitle="Quản lý sản phẩm, biến thể và SKU bán hàng." />
+        <EmptyState
+          icon={<XCircle className="size-8" />}
+          title="Không tải được dữ liệu sản phẩm"
+          description="Load error khác với danh sách trống. Hãy thử tải lại hoặc kiểm tra kết nối API."
+          action={
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                void productsQuery.refetch();
+                void skusQuery.refetch();
+                void categoriesQuery.refetch();
+              }}
+              className="rounded-[var(--r-sm)]"
+            >
+              Thử lại
+            </Button>
+          }
+        />
+      </>
+    );
   }
 
   return (
     <>
       <PageHeader
         title="Sản phẩm & SKU"
-        breadcrumbs={[{ label: "Back-office", href: ADMIN_ROUTES.home }, { label: "Sản phẩm" }]}
+        subtitle="Quản lý sản phẩm, biến thể và SKU bán hàng."
         actions={
           <div className="flex items-center gap-2">
             <Button
@@ -1062,7 +1079,7 @@ export function ProductList() {
               className={cn(
                 "rounded-[var(--r-sm)]",
                 (activeTab === "products" ? productConfig.showStats : skuConfig.showStats) &&
-                  "border-accent bg-accent/10 text-accent hover:bg-accent/10 hover:text-accent border",
+                  "border-brand bg-brand/10 text-brand hover:bg-brand/10 hover:text-brand border",
               )}
             >
               <BarChart3 className="size-3.5" />
@@ -1075,7 +1092,11 @@ export function ProductList() {
                 variant="default"
                 type="button"
                 size="sm"
-                onClick={() => router.push(ADMIN_ROUTES.products.create)}
+                onClick={() => canCreateProduct && router.push(ADMIN_ROUTES.products.create)}
+                disabled={!canCreateProduct}
+                title={
+                  canCreateProduct ? "Tạo sản phẩm" : "Role hiện tại không có quyền product.create"
+                }
                 className="bg-brand !text-ink-inverse hover:bg-brand-hover hover:!text-ink-inverse rounded-[var(--r-sm)]"
               >
                 <Plus className="size-3.5" />
@@ -1103,7 +1124,7 @@ export function ProductList() {
               className={cn(
                 "hover:bg-bg-muted/60 h-auto rounded-none border-b-2 bg-transparent px-4 py-2 text-[0.8125rem] font-medium transition-colors",
                 isActive
-                  ? "border-accent text-accent hover:text-accent"
+                  ? "border-brand text-brand hover:text-brand"
                   : "text-ink-tertiary hover:text-ink-primary border-transparent",
               )}
             >
@@ -1112,7 +1133,7 @@ export function ProductList() {
               <span
                 className={cn(
                   "ml-1 rounded-full px-1.5 py-0.5 text-[0.625rem] font-semibold tabular-nums",
-                  isActive ? "bg-accent/10 text-accent" : "bg-bg-muted text-ink-tertiary",
+                  isActive ? "bg-brand text-ink-inverse" : "bg-bg-muted text-ink-tertiary",
                 )}
               >
                 {tab.key === "products" ? rawProducts.length : rawSkus.length}
@@ -1130,20 +1151,62 @@ export function ProductList() {
             gridClassName="lg:grid-cols-4 xl:grid-cols-7"
           />
           {renderToolbar()}
-          <DataTable
-            data={filteredProducts}
-            columns={productColumns.filter((column) =>
-              productConfig.visibleColumns.includes(column.key),
-            )}
-            rowKey={(row) => row.productId}
-            caption={`Hiển thị ${filteredProducts.length} sản phẩm`}
-            flagRow={shouldFlagProductRow}
-            onRowClick={navigateToDetail}
-            selectable
-            selectedKeys={prodSelectedKeys}
-            onSelectionChange={setProdSelectedKeys}
-            pageSize={15}
-          />
+          {filteredProducts.length > 0 ? (
+            <DataTable
+              data={filteredProducts}
+              columns={productColumns.filter((column) =>
+                productConfig.visibleColumns.includes(column.key),
+              )}
+              rowKey={(row) => row.productId}
+              caption={`Hiển thị ${filteredProducts.length} sản phẩm`}
+              flagRow={shouldFlagProductRow}
+              onRowClick={navigateToDetail}
+              selectable
+              selectedKeys={prodSelectedKeys}
+              onSelectionChange={setProdSelectedKeys}
+              pageSize={15}
+            />
+          ) : rawProducts.length === 0 ? (
+            <EmptyState
+              icon={<Package className="size-8" />}
+              title="Chưa có sản phẩm"
+              description="Môi trường hiện tại chưa có Product record nào. Đây là trạng thái dữ liệu trống, không phải lỗi tải."
+              action={
+                canCreateProduct ? (
+                  <Button
+                    type="button"
+                    variant="default"
+                    size="sm"
+                    onClick={() => router.push(ADMIN_ROUTES.products.create)}
+                    className="bg-brand !text-ink-inverse hover:bg-brand-hover hover:!text-ink-inverse rounded-[var(--r-sm)]"
+                  >
+                    <Plus className="size-3.5" />
+                    Tạo sản phẩm đầu tiên
+                  </Button>
+                ) : undefined
+              }
+            />
+          ) : (
+            <EmptyState
+              icon={<Package className="size-8" />}
+              title="Không tìm thấy kết quả"
+              description="Có dữ liệu sản phẩm, nhưng bộ lọc hoặc từ khoá hiện tại không khớp bản ghi nào."
+              action={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    updateProductsConfig(() => DEFAULT_CONFIG.products);
+                    productFilters.reset();
+                  }}
+                  className="rounded-[var(--r-sm)]"
+                >
+                  Bỏ bộ lọc
+                </Button>
+              }
+            />
+          )}
         </>
       ) : (
         <>
@@ -1153,18 +1216,46 @@ export function ProductList() {
             gridClassName="lg:grid-cols-4 xl:grid-cols-7"
           />
           {renderToolbar()}
-          <DataTable
-            data={filteredSkus}
-            columns={skuColumns.filter((column) => skuConfig.visibleColumns.includes(column.key))}
-            rowKey={(row) => row.skuId}
-            caption={`Hiển thị ${filteredSkus.length} SKU`}
-            flagRow={shouldFlagSkuRow}
-            onRowClick={navigateToSkuDetail}
-            selectable
-            selectedKeys={skuSelectedKeys}
-            onSelectionChange={setSkuSelectedKeys}
-            pageSize={15}
-          />
+          {filteredSkus.length > 0 ? (
+            <DataTable
+              data={filteredSkus}
+              columns={skuColumns.filter((column) => skuConfig.visibleColumns.includes(column.key))}
+              rowKey={(row) => row.skuId}
+              caption={`Hiển thị ${filteredSkus.length} SKU`}
+              flagRow={shouldFlagSkuRow}
+              onRowClick={navigateToSkuDetail}
+              selectable
+              selectedKeys={skuSelectedKeys}
+              onSelectionChange={setSkuSelectedKeys}
+              pageSize={15}
+            />
+          ) : rawSkus.length === 0 ? (
+            <EmptyState
+              icon={<Barcode className="size-8" />}
+              title="Chưa có SKU"
+              description="Môi trường hiện tại chưa có SKU nào. SKU được sinh từ tổ hợp biến thể khi tạo sản phẩm."
+            />
+          ) : (
+            <EmptyState
+              icon={<Barcode className="size-8" />}
+              title="Không tìm thấy SKU"
+              description="Có dữ liệu SKU, nhưng bộ lọc hoặc từ khoá hiện tại không khớp bản ghi nào."
+              action={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    updateSkusConfig(() => DEFAULT_CONFIG.skus);
+                    skuFilters.reset();
+                  }}
+                  className="rounded-[var(--r-sm)]"
+                >
+                  Bỏ bộ lọc
+                </Button>
+              }
+            />
+          )}
         </>
       )}
     </>

@@ -1,6 +1,13 @@
-import { FileText } from "lucide-react";
-import { ComingSoonPage } from "@/components/shared/ComingSoonPage";
+import { Suspense } from "react";
+
+import { ReceiptList } from "@/features/receipt/components/ReceiptList";
+
+import { PageSkeleton } from "@/components/shared/PageSkeleton";
 
 export default function ReceiptsPage() {
-  return <ComingSoonPage title="Phiếu nhận" icon={FileText} />;
+  return (
+    <Suspense fallback={<PageSkeleton variant="list" />}>
+      <ReceiptList />
+    </Suspense>
+  );
 }

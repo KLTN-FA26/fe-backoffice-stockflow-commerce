@@ -2,7 +2,16 @@
 
 import type { ReactNode } from "react";
 import { cn } from "cn";
-import { Columns3, FileDown, Filter, ListFilter, RotateCcw, Search, Settings2, X } from "lucide-react";
+import {
+  Columns3,
+  FileDown,
+  Filter,
+  ListFilter,
+  RotateCcw,
+  Search,
+  Settings2,
+  X,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -38,7 +47,11 @@ export interface ListSummaryItem {
   clearLabel?: string;
 }
 
-export interface ListToolbarProps<Status extends string, Field extends string, Column extends string> {
+export interface ListToolbarProps<
+  Status extends string,
+  Field extends string,
+  Column extends string,
+> {
   search: string;
   onSearchChange: (value: string) => void;
   searchPlaceholder: string;
@@ -115,15 +128,15 @@ export function ListToolbar<Status extends string, Field extends string, Column 
 
   return (
     <TooltipProvider>
-      <div className="mb-3 rounded-[var(--r-sm)] border border-border-default bg-bg-surface px-3 py-2 shadow-[var(--card-shadow)]">
+      <div className="border-border-default bg-bg-surface mb-3 rounded-[var(--r-sm)] border px-3 py-2 shadow-[var(--card-shadow)]">
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-[280px] flex-1 lg:max-w-xl">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-accent" />
+            <Search className="text-accent pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
             <Input
               value={search}
               onChange={(event) => onSearchChange(event.target.value)}
               placeholder={searchPlaceholder}
-              className="h-9 rounded-[var(--r-sm)] border-border-default bg-bg-surface pl-9 text-[0.8125rem] shadow-none focus-visible:border-accent focus-visible:ring-accent/20"
+              className="border-border-default bg-bg-surface focus-visible:border-brand focus-visible:ring-brand/20 h-9 rounded-[var(--r-sm)] pl-9 text-[0.8125rem] shadow-none"
             />
           </div>
 
@@ -139,18 +152,21 @@ export function ListToolbar<Status extends string, Field extends string, Column 
                         size="icon"
                         aria-label="Lọc trạng thái"
                         className={cn(
-                          "rounded-[var(--r-sm)] border-border-default bg-bg-surface text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary focus-visible:ring-0",
-                          hasStatusFilter && "border-info bg-info/10 text-info hover:bg-info/10 hover:text-info"
+                          "border-border-default bg-bg-surface text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary rounded-[var(--r-sm)] focus-visible:ring-0",
+                          hasStatusFilter &&
+                            "border-info bg-info/10 text-info hover:bg-info/10 hover:text-info",
                         )}
                       >
-                        <Filter className={cn("size-4 text-info", hasStatusFilter && "text-current")} />
+                        <Filter
+                          className={cn("text-info size-4", hasStatusFilter && "text-current")}
+                        />
                       </Button>
                     </PopoverTrigger>
                   </TooltipTrigger>
                   <TooltipContent>Lọc trạng thái</TooltipContent>
                 </Tooltip>
                 <PopoverContent align="end" className="w-80 p-0">
-                  <PopoverHeader className="border-b border-border-default p-3">
+                  <PopoverHeader className="border-border-default border-b p-3">
                     <PopoverTitle>Lọc trạng thái</PopoverTitle>
                     <PopoverDescription>Search và chọn trạng thái cần hiển thị.</PopoverDescription>
                   </PopoverHeader>
@@ -173,7 +189,7 @@ export function ListToolbar<Status extends string, Field extends string, Column 
                       </CommandGroup>
                     </CommandList>
                   </Command>
-                  <div className="flex justify-between gap-2 border-t border-border-default p-2">
+                  <div className="border-border-default flex justify-between gap-2 border-t p-2">
                     <Button type="button" variant="outline" size="sm" onClick={onClearStatuses}>
                       Xoá lọc
                     </Button>
@@ -193,18 +209,21 @@ export function ListToolbar<Status extends string, Field extends string, Column 
                         size="icon"
                         aria-label="Chọn trường search"
                         className={cn(
-                          "rounded-[var(--r-sm)] border-border-default bg-bg-surface text-ink-tertiary hover:bg-special/5 hover:text-special focus-visible:border-border-default focus-visible:ring-0 data-[state=open]:border-border-default data-[state=open]:bg-bg-surface data-[state=open]:text-ink-tertiary",
-                          hasFieldConfig && "border-special bg-special/10 text-special hover:border-special hover:bg-special/10 hover:text-special data-[state=open]:border-special data-[state=open]:bg-special/10 data-[state=open]:text-special"
+                          "border-border-default bg-bg-surface text-ink-tertiary hover:bg-special/5 hover:text-special focus-visible:border-border-default data-[state=open]:border-border-default data-[state=open]:bg-bg-surface data-[state=open]:text-ink-tertiary rounded-[var(--r-sm)] focus-visible:ring-0",
+                          hasFieldConfig &&
+                            "border-special bg-special/10 text-special hover:border-special hover:bg-special/10 hover:text-special data-[state=open]:border-special data-[state=open]:bg-special/10 data-[state=open]:text-special",
                         )}
                       >
-                        <ListFilter className={cn("size-4 text-special", hasFieldConfig && "text-current")} />
+                        <ListFilter
+                          className={cn("text-special size-4", hasFieldConfig && "text-current")}
+                        />
                       </Button>
                     </PopoverTrigger>
                   </TooltipTrigger>
                   <TooltipContent>Trường tìm kiếm</TooltipContent>
                 </Tooltip>
                 <PopoverContent align="end" className="w-[25rem] p-0">
-                  <PopoverHeader className="border-b border-border-default p-3">
+                  <PopoverHeader className="border-border-default border-b p-3">
                     <PopoverTitle>Trường tìm kiếm</PopoverTitle>
                     <PopoverDescription>Chọn fields cho thanh search chính.</PopoverDescription>
                   </PopoverHeader>
@@ -227,8 +246,14 @@ export function ListToolbar<Status extends string, Field extends string, Column 
                       </CommandGroup>
                     </CommandList>
                   </Command>
-                  <div className="flex justify-between gap-2 border-t border-border-default p-2">
-                    <Button type="button" variant="outline" size="sm" onClick={onResetFields} disabled={defaultFields.length === 0}>
+                  <div className="border-border-default flex justify-between gap-2 border-t p-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={onResetFields}
+                      disabled={defaultFields.length === 0}
+                    >
                       Mặc định
                     </Button>
                     <Button type="button" variant="outline" size="sm" onClick={onSelectAllFields}>
@@ -250,18 +275,21 @@ export function ListToolbar<Status extends string, Field extends string, Column 
                         size="icon"
                         aria-label="Ẩn hiện cột"
                         className={cn(
-                          "rounded-[var(--r-sm)] border-border-default bg-bg-surface text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary focus-visible:ring-0",
-                          hasColumnConfig && "border-warning bg-warning/10 text-warning hover:bg-warning/10 hover:text-warning"
+                          "border-border-default bg-bg-surface text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary rounded-[var(--r-sm)] focus-visible:ring-0",
+                          hasColumnConfig &&
+                            "border-warning bg-warning/10 text-warning hover:bg-warning/10 hover:text-warning",
                         )}
                       >
-                        <Columns3 className={cn("size-4 text-warning", hasColumnConfig && "text-current")} />
+                        <Columns3
+                          className={cn("text-warning size-4", hasColumnConfig && "text-current")}
+                        />
                       </Button>
                     </PopoverTrigger>
                   </TooltipTrigger>
                   <TooltipContent>Ẩn hiện cột</TooltipContent>
                 </Tooltip>
                 <PopoverContent align="end" className="w-80 p-0">
-                  <PopoverHeader className="border-b border-border-default p-3">
+                  <PopoverHeader className="border-border-default border-b p-3">
                     <PopoverTitle>Ẩn hiện cột</PopoverTitle>
                     <PopoverDescription>Chọn các cột muốn thấy trên table.</PopoverDescription>
                   </PopoverHeader>
@@ -273,7 +301,9 @@ export function ListToolbar<Status extends string, Field extends string, Column 
                         {columnOptions!.map((option) => {
                           const locked = lockedColumns.includes(option.value);
                           const checked = selectedColumns.includes(option.value);
-                          const disabled = locked || (checked && (visibleColumnCount ?? selectedColumns.length) <= 1);
+                          const disabled =
+                            locked ||
+                            (checked && (visibleColumnCount ?? selectedColumns.length) <= 1);
                           return (
                             <CommandItem
                               key={option.value}
@@ -290,8 +320,14 @@ export function ListToolbar<Status extends string, Field extends string, Column 
                       </CommandGroup>
                     </CommandList>
                   </Command>
-                  <div className="flex justify-between gap-2 border-t border-border-default p-2">
-                    <Button type="button" variant="outline" size="sm" onClick={onResetColumns} disabled={defaultColumns.length === 0}>
+                  <div className="border-border-default flex justify-between gap-2 border-t p-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={onResetColumns}
+                      disabled={defaultColumns.length === 0}
+                    >
                       Hiện tất cả
                     </Button>
                   </div>
@@ -307,7 +343,7 @@ export function ListToolbar<Status extends string, Field extends string, Column 
                 variant="outline"
                 size="sm"
                 onClick={onBulkDelete}
-                className="rounded-[var(--r-sm)] border-danger/20 bg-danger/5 text-danger hover:bg-danger/10 hover:text-danger"
+                className="border-danger/20 bg-danger/5 text-danger hover:bg-danger/10 hover:text-danger rounded-[var(--r-sm)]"
               >
                 <X className="size-4" />
                 {bulkDeleteLabel}
@@ -318,7 +354,7 @@ export function ListToolbar<Status extends string, Field extends string, Column 
               variant="outline"
               size="sm"
               onClick={onExport}
-              className="rounded-[var(--r-sm)] border-positive/20 bg-positive/5 text-positive hover:bg-positive/10 hover:text-positive"
+              className="border-positive/20 bg-positive/5 text-positive hover:bg-positive/10 hover:text-positive rounded-[var(--r-sm)]"
             >
               <FileDown className="size-4" />
               {exportLabel}
@@ -327,14 +363,18 @@ export function ListToolbar<Status extends string, Field extends string, Column 
         </div>
       </div>
 
-      <div className="mb-4 flex flex-wrap items-center gap-2 rounded-[var(--r-sm)] border border-border-default bg-bg-subtle/70 px-3 py-2 text-[0.8125rem]">
-        <div className="mr-1 flex items-center gap-2 font-medium text-ink-primary">
-          <Settings2 className="size-3.5 text-accent" />
+      <div className="border-border-default bg-bg-subtle/70 mb-4 flex flex-wrap items-center gap-2 rounded-[var(--r-sm)] border px-3 py-2 text-[0.8125rem]">
+        <div className="text-ink-primary mr-1 flex items-center gap-2 font-medium">
+          <Settings2 className="text-accent size-3.5" />
           Cấu hình
         </div>
         <div className="flex min-w-0 flex-1 flex-wrap gap-2">
           {summaryItems.map((item) => (
-            <Badge key={item.label} variant="outline" className="gap-1 bg-bg-subtle text-ink-secondary">
+            <Badge
+              key={item.label}
+              variant="outline"
+              className="bg-bg-subtle text-ink-secondary gap-1"
+            >
               {item.label}: {item.value}
               {item.active && item.onClear && (
                 <Button
@@ -343,7 +383,7 @@ export function ListToolbar<Status extends string, Field extends string, Column 
                   size="icon-xs"
                   onClick={item.onClear}
                   aria-label={item.clearLabel ?? `Xoá ${item.label}`}
-                  className="size-4 rounded-full p-0 text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary"
+                  className="text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary size-4 rounded-full p-0"
                 >
                   <X className="size-3" />
                 </Button>
@@ -357,7 +397,7 @@ export function ListToolbar<Status extends string, Field extends string, Column 
           size="xs"
           onClick={onResetAll}
           disabled={resetDisabled}
-          className="ml-auto rounded-[var(--r-sm)] text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary"
+          className="text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary ml-auto rounded-[var(--r-sm)]"
         >
           <RotateCcw className="size-3" />
           Đặt lại
@@ -374,7 +414,12 @@ interface ColumnFilterButtonProps {
   onChange: (value: string) => void;
 }
 
-export function ColumnFilterButton({ value, label, placeholder, onChange }: ColumnFilterButtonProps) {
+export function ColumnFilterButton({
+  value,
+  label,
+  placeholder,
+  onChange,
+}: ColumnFilterButtonProps) {
   const active = Boolean(value.trim());
 
   return (
@@ -386,23 +431,29 @@ export function ColumnFilterButton({ value, label, placeholder, onChange }: Colu
           size="icon-xs"
           aria-label={`Lọc ${label}`}
           className={cn(
-            "size-6 rounded-[var(--r-sm)] text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary focus-visible:ring-0",
-            active && "bg-info/10 text-info hover:bg-info/10 hover:text-info"
+            "text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary size-6 rounded-[var(--r-sm)] focus-visible:ring-0",
+            active && "bg-info/10 text-info hover:bg-info/10 hover:text-info",
           )}
         >
           <Filter className="size-3.5" />
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-64 p-3">
-        <div className="mb-2 text-xs font-medium text-ink-primary">Lọc {label}</div>
+        <div className="text-ink-primary mb-2 text-xs font-medium">Lọc {label}</div>
         <Input
           value={value}
           placeholder={placeholder}
           onChange={(event) => onChange(event.target.value)}
-          className="h-8 rounded-[var(--r-sm)] bg-bg-surface text-[0.75rem]"
+          className="bg-bg-surface h-8 rounded-[var(--r-sm)] text-[0.75rem]"
         />
         <div className="mt-2 flex justify-end">
-          <Button type="button" variant="outline" size="xs" onClick={() => onChange("")} disabled={!active}>
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            onClick={() => onChange("")}
+            disabled={!active}
+          >
             Xoá
           </Button>
         </div>
