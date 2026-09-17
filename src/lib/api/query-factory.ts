@@ -150,6 +150,8 @@ export interface MutationFactoryOptions<TInput, TResult> {
   invalidate?: readonly (readonly unknown[])[];
   /** Toast message on success. */
   successMessage?: string;
+  /** Show the default error toast. Disable when a screen maps field errors inline. */
+  showErrorToast?: boolean;
   /** Additional onSuccess handler. */
   onSuccess?: (data: TResult, variables: TInput) => void;
   /** Additional onError handler. */
@@ -225,13 +227,15 @@ export function createMutation<TInput, TResult = void>(
       },
 
       onError: (error, variables, context) => {
-        // Toast error — dynamic require to avoid circular import
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-require-imports
-          const { toast } = require("@/components/shared/Toast");
-          toast.error(error.message);
-        } catch {
-          /* Toast not available */
+        if (factoryOpts.showErrorToast !== false) {
+          // Toast error — dynamic require to avoid circular import
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            const { toast } = require("@/components/shared/Toast");
+            toast.error(error.message);
+          } catch {
+            /* Toast not available */
+          }
         }
 
         // Custom factory-level handler

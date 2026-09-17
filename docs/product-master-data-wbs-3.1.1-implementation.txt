@@ -1,0 +1,121 @@
+Ghi chú triển khai Product Master Data Management - WBS 3.1.1
+
+Phạm vi
+-------
+Thay đổi này nối wizard tạo Product hiện có với data layer của feature Product. Trang vẫn dùng
+wizard ProductCreate hiện tại, nhưng thao tác tạo sản phẩm không còn chỉ là UI giả lập: hành động
+cuối cùng hiện gọi Product mutation, mutation gọi Product API, và API này được mock adapter xử lý
+khi bật NEXT_PUBLIC_USE_MOCK.
+
+Các file đã thay đổi
+--------------------
+src/features/product/components/ProductCreate.tsx
+- Dùng useCreateProduct() thay cho trạng thái cục bộ chỉ đánh dấu đã submit.
+- Dùng buildCreateProductInput() để chuyển trạng thái của wizard thành CreateProductInput.
+- Dùng mapCreateProductError() để ánh xạ ApiError.fieldErrors sang các field đang hiển thị trên form.
+- Hiển thị lỗi backend ngay cạnh tên sản phẩm, mã sản phẩm, danh mục và thương hiệu.
+- Giữ nguyên dữ liệu form khi tạo sản phẩm thất bại.
+- Chỉ hiển thị panel lỗi chung như ngữ cảnh hỗ trợ; lỗi theo từng field vẫn nằm cạnh field tương ứng.
+- Chặn truy cập trực tiếp vào trang tạo bằng useCan("product.create").
+- Đổi ngôn ngữ hành động tạo thành "Tạo bản nháp" vì thao tác create trả về Product ở trạng thái Draft.
+
+src/features/product/components/ProductList.tsx
+- Dùng useCan("product.create") để vô hiệu hóa hành động Create đối với role không có quyền.
+- Thêm trạng thái lỗi tải dữ liệu, hiển thị khác rõ với trạng thái không có dữ liệu.
+- Thêm trạng thái rỗng khi hệ thống có 0 product hoặc 0 SKU.
+- Thêm trạng thái không có kết quả khi bộ lọc đang bật nhưng không khớp bản ghi nào.
+
+src/features/product/create-product-form.ts
+- File helper thuần mới dành cho wizard tạo product.
+- buildCreateProductInput(form, selectedEntries)
+  Chuyển trạng thái UI thành payload tạo product cho API. Hàm này chuẩn hóa productCode thành
+  productId, trim các field dạng text, dùng nameEn/descriptionEn làm fallback khi cần, chuyển danh
+  sách URL ảnh theo từng dòng thành array, ánh xạ các thuộc tính đã chọn sang dạng ProductAttribute
+  DTO, và ánh xạ các vùng in của sản phẩm Customizable sang object print area của API.
+- mapCreateProductError(error)
+  Chuyển ApiError từ API layer thành lỗi UI theo từng field. Hàm này ánh xạ lỗi code/productId từ
+  backend sang field productCode, ánh xạ CATEGORY_NOT_FOUND sang categoryId, giữ nguyên
+  fieldErrors từ server, và chuyển lỗi 403 thành thông báo quyền hạn rõ ràng.
+
+src/features/product/api.ts
+- Tái sử dụng CreateProductInput từ schemas.ts thay vì tự viết một interface trùng lặp.
+- Parse response của createProduct() bằng productSchema tại ranh giới API.
+
+src/features/product/schemas.ts
+- Thêm productId vào createProductSchema để mã sản phẩm nội bộ từ UI trở thành một phần của hợp đồng input khi tạo product.
+
+src/features/product/mutations.ts
+- Giữ useCreateProduct() invalidate productKeys và skuKeys sau khi mutation thành công.
+- Tắt toast lỗi mặc định của mutation createProduct vì màn hình này tự ánh xạ lỗi theo từng field ngay trong form.
+
+src/lib/api/query-factory.ts
+- Thêm tùy chọn showErrorToast?: boolean cho createMutation.
+- Các mutation hiện có vẫn hiển thị toast lỗi mặc định trừ khi chúng đặt showErrorToast: false.
+
+src/lib/api/mock-adapter.ts
+- Chuyển các mock response không thuộc nhóm 2xx thành AxiosError để interceptor axios hiện có có thể chuẩn hóa chúng thành ApiError.
+- Nhờ vậy, các response mock 409, 404, 422, 403 và 500 hoạt động giống lỗi backend thật.
+
+src/lib/api/mock-routes.ts
+- Thêm hỗ trợ POST /products trong bộ nhớ, không chỉnh sửa src/lib/mock-data.ts.
+- GET /products và GET /products/:id bao gồm cả các product được tạo trong mock session hiện tại.
+- POST /products trả về:
+  - 422 VALIDATION_FAILED kèm fieldErrors khi thiếu productId/name/brand/category/attributes.
+  - 409 PRODUCT_CODE_ALREADY_EXISTS kèm lỗi field code.
+  - 404 CATEGORY_NOT_FOUND kèm lỗi field categoryId.
+  - 201 kèm một Draft Product khi tạo thành công.
+
+src/features/product/create-product-form.test.ts
+- Test mapping thuần từ trạng thái wizard sang CreateProductInput.
+- Test mapping lỗi cho PRODUCT_CODE_ALREADY_EXISTS và CATEGORY_NOT_FOUND.
+
+src/features/product/lifecycle.test.ts
+- Thêm kiểm tra quyền product.create cho ba role:
+  E-commerce Admin có thể tạo, Warehouse Manager không thể tạo, System Admin có thể tạo.
+
+Cách các hàm tương tác với nhau
+-------------------------------
+1. ProductCreate giữ dữ liệu form của wizard trong local state.
+2. Khi người dùng bấm "Tạo bản nháp", handleSubmitAttempt() chạy validation cục bộ.
+3. Nếu validation cục bộ hợp lệ, ConfirmDialog được mở.
+4. ConfirmDialog gọi handleConfirmSubmit().
+5. handleConfirmSubmit() gọi:
+   createProductMutation.mutate(buildCreateProductInput(form, selectedEntries))
+6. useCreateProduct() gọi createProduct(input).
+7. createProduct(input) gửi POST /products qua axios client dùng chung.
+8. Trong mock mode, mock-adapter định tuyến POST /products sang mock-routes.ts.
+9. mock-routes.ts trả về Draft Product hoặc lỗi có cấu trúc giống ApiResponse.
+10. mock-adapter chuyển mock response không thuộc nhóm 2xx thành AxiosError.
+11. api/client.ts chuyển AxiosError thành ApiError.
+12. useCreateProduct() trả ApiError về ProductCreate mà không hiển thị toast lỗi chung.
+13. ProductCreate gọi mapCreateProductError(error).
+14. ProductCreate lưu các lỗi field đã được ánh xạ vào serverErrors.
+15. DraftStep đọc serverErrors và render thông báo lỗi cạnh đúng input tương ứng.
+
+Hành vi quan trọng
+------------------
+- Mã sản phẩm bị trùng hiển thị cạnh field "Mã sản phẩm nội bộ".
+- Danh mục đã cũ hoặc đã bị xóa hiển thị cạnh bộ chọn danh mục.
+- Tên hoặc thương hiệu bị thiếu hiển thị cạnh đúng input tương ứng.
+- Form không bị xóa khi thao tác tạo thất bại.
+- Người dùng không có quyền product.create không thể dùng route tạo hoặc nút tạo.
+- Trạng thái 0 product, không có kết quả sau khi lọc, và lỗi tải dữ liệu hiện dùng các UI state khác nhau.
+
+Trạng thái kiểm chứng
+---------------------
+Dependencies đã được cài từ pnpm lockfile đóng băng thông qua Corepack để có thể chạy validation.
+Quá trình cài đặt tải dependencies thành công, nhưng package prepare script (`husky`) thoát với
+mã -2 sau khi cài đặt.
+
+Đã pass:
+- `pnpm run typecheck`
+- `pnpm run lint`
+- `pnpm run test` (5 files, 23 tests)
+- `pnpm exec next build --webpack`
+
+Ghi chú:
+- `next typegen` đã được chạy trước typecheck vì các route helper của Next 16, ví dụ LayoutProps,
+  là generated types.
+- `next build` với đường dẫn Turbopack mặc định thất bại trong môi trường này do Turbopack panic
+  khi xử lý `src/app/globals.css`: việc tạo process mới và bind vào một port bị OS sandbox từ chối.
+  Cùng production build đó đã pass khi chạy bằng chế độ build `--webpack` của Next.

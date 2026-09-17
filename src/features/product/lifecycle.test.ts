@@ -7,6 +7,8 @@ import {
   nextSkuStatuses,
 } from "./lifecycle";
 
+import { can } from "@/lib/auth/permissions";
+
 import type { ProductStatus, SkuStatus } from "./types";
 
 describe("product lifecycle", () => {
@@ -29,5 +31,11 @@ describe("product lifecycle", () => {
       "block",
       "obsolete",
     ]);
+  });
+
+  it("gates product creation permission across admin, warehouse, and system roles", () => {
+    expect(can("E-commerce Admin", "product.create")).toBe(true);
+    expect(can("Warehouse Manager", "product.create")).toBe(false);
+    expect(can("System Admin", "product.create")).toBe(true);
   });
 });

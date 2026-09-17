@@ -3,11 +3,13 @@ import { createMutation, createTransitionMutation } from "@/lib/api/query-factor
 import { createProduct, transitionProduct, transitionSku, updateProduct } from "./api";
 import { productKeys, skuKeys } from "./queries";
 
+import type { CreateProductInput } from "./schemas";
 import type { Product, Sku } from "./types";
-import type { CreateProductInput, TransitionProductInput, TransitionSkuInput } from "./api";
+import type { TransitionProductInput, TransitionSkuInput } from "./api";
 
 export const useCreateProduct = createMutation<CreateProductInput, Product>(createProduct, {
   invalidate: [productKeys.all, skuKeys.all],
+  showErrorToast: false,
   successMessage: "Tạo sản phẩm thành công",
 });
 

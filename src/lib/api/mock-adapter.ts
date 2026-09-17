@@ -12,7 +12,12 @@
  * **Only this file may import mock-data.ts** — enforced by CI grep.
  */
 
-import type { AxiosRequestConfig } from "axios";
+import {
+  AxiosError,
+  type AxiosRequestConfig,
+  type AxiosResponse,
+  type InternalAxiosRequestConfig,
+} from "axios";
 import { api } from "./client";
 
 /* ── Types ───────────────────────────────────────────────────────────── */
@@ -21,6 +26,7 @@ interface MockResponse<T = unknown> {
   status: number;
   data: T;
   headers: Record<string, string>;
+  statusText?: string;
 }
 
 type RouteHandler = (config: AxiosRequestConfig) => Promise<MockResponse> | MockResponse;
@@ -84,7 +90,7 @@ function matchRoute(
  */
 let routesReady: Promise<void> | undefined;
 
-async function mockAdapter(config: AxiosRequestConfig): Promise<MockResponse> {
+async function mockAdapter(config: InternalAxiosRequestConfig): Promise<AxiosResponse> {
   if (routesReady) await routesReady;
 
   const url = config.url ?? "/";
@@ -93,7 +99,7 @@ async function mockAdapter(config: AxiosRequestConfig): Promise<MockResponse> {
   const matched = matchRoute(method, url);
   if (!matched) {
     console.warn(`[mock-adapter] No handler for ${method} ${url}`);
-    return { status: 404, data: { message: "Not found" }, headers: {} };
+    return settleMockResponse({ status: 404, data: { message: "Not found" }, headers: {} }, config);
   }
 
   // Simulate latency
@@ -101,22 +107,60 @@ async function mockAdapter(config: AxiosRequestConfig): Promise<MockResponse> {
 
   // 5% random server error for resilience testing
   if (Math.random() < 0.05) {
-    return {
-      status: 500,
-      data: {
-        code: "MOCK_RANDOM_ERROR",
-        message: "Lỗi ngẫu nhiên từ mock server (5% chance)",
-        traceId: `mock-${Date.now()}`,
+    return settleMockResponse(
+      {
+        status: 500,
+        data: {
+          code: "MOCK_RANDOM_ERROR",
+          message: "Lỗi ngẫu nhiên từ mock server (5% chance)",
+          traceId: `mock-${Date.now()}`,
+        },
+        headers: {},
       },
-      headers: {},
-    };
+      config,
+    );
   }
 
   // Inject URL params into config for handlers to use
   (config as AxiosRequestConfig & { _mockParams: Record<string, string> })._mockParams =
     matched.params;
 
-  return matched.handler(config);
+  return settleMockResponse(await matched.handler(config), config);
+}
+
+function settleMockResponse(response: MockResponse, config: AxiosRequestConfig): AxiosResponse {
+  const axiosResponse: AxiosResponse = {
+    data: response.data,
+    status: response.status,
+    statusText: response.statusText ?? String(response.status),
+    headers: response.headers,
+    config: config as InternalAxiosRequestConfig,
+    request: undefined,
+  };
+  const validateStatus =
+    config.validateStatus ?? ((status: number) => status >= 200 && status < 300);
+  if (!validateStatus(response.status)) {
+    throw new AxiosError(
+      getMockErrorMessage(response.data),
+      undefined,
+      config as InternalAxiosRequestConfig,
+      undefined,
+      axiosResponse,
+    );
+  }
+  return axiosResponse;
+}
+
+function getMockErrorMessage(data: unknown): string {
+  if (
+    typeof data === "object" &&
+    data !== null &&
+    "message" in data &&
+    typeof data.message === "string"
+  ) {
+    return data.message;
+  }
+  return "Mock request failed";
 }
 
 /* ── Activate ────────────────────────────────────────────────────────── */
@@ -130,7 +174,6 @@ export function activateMockAdapter(): void {
     registerAllMockRoutes();
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (api.defaults as any).adapter = mockAdapter;
+  api.defaults.adapter = mockAdapter;
   console.info("[mock-adapter] Activated — all API calls will be served from mock-data.ts");
 }
