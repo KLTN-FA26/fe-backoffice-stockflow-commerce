@@ -68,14 +68,17 @@ export function createQueryKeys<TParams = Record<string, unknown>>(
 
 export interface PaginatedResponse<T> {
   items: T[];
-  total: number;
-  page: number;
-  pageSize: number;
+  page: number; // 0-based index
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
 }
 
 export interface ListQueryParams {
-  page?: number;
-  pageSize?: number;
+  page?: number; // 0-based
+  size?: number;
   sort?: string;
   q?: string;
   [key: string]: unknown;
