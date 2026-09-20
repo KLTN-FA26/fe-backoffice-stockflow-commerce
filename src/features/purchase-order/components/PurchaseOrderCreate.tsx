@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { cn } from "cn";
 import {
   ArrowLeft,
@@ -23,6 +24,7 @@ import {
 import { ADMIN_ROUTES, PAGE_SIZE } from "@/constants";
 import {
   formatMoney,
+  useCreatePo,
   usePoSuppliers,
   usePoWarehouses,
   usePurchaseOrders,
@@ -239,12 +241,14 @@ function isExpectedDatePast(expectedDate: string) {
 /* -------------------------------------------------------------------------- */
 
 export function PurchaseOrderCreate() {
+  const router = useRouter();
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [currentStep, setCurrentStep] = useState<StepKey>("info");
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
+  const createPo = useCreatePo();
   const suppliersQuery = usePoSuppliers({});
   const warehousesQuery = usePoWarehouses({});
   const skusQuery = useSkus({ page: 1, pageSize: PAGE_SIZE.masterData });
@@ -352,10 +356,42 @@ export function PurchaseOrderCreate() {
   };
 
   const handleConfirmSubmit = () => {
-    setSubmitted(true);
     setConfirmOpen(false);
-    setCurrentStep("review");
-    toast.success("Đã gửi duyệt", "PO mock đã chuyển sang Pending Approval trong UI.");
+
+    createPo.mutate(
+      {
+        supplierId: form.supplierId,
+        warehouseId: form.warehouseId,
+        currency: form.currency || selectedSupplier?.currency || "VND",
+        expectedDate: form.expectedDate,
+        notes: form.notes || undefined,
+        lines: form.lines.map((line) => ({
+          skuId: line.skuId,
+          orderedQty: Number(line.orderedQty) || 0,
+          unitPrice: Number(line.unitPrice) || 0,
+          taxRate: Number(line.taxRate) || 0,
+          discountRate: Number(line.discountRate) || 0,
+          uom: line.uom || "pcs",
+        })),
+      },
+      {
+        onSuccess: (created) => {
+          setSubmitted(true);
+          setCurrentStep("review");
+
+          // BR-PO-003: possibleDuplicate is a warning, not a blocking error.
+          if (created.possibleDuplicate) {
+            toast.warning(
+              "Có thể trùng lặp",
+              `PO ${created.poNumber} có cùng NCC + danh mục SKU với đơn gần đây (BR-PO-003). Vui lòng kiểm tra trước khi duyệt.`,
+            );
+          }
+
+          toast.success("Đã tạo PO", `PO ${created.poNumber} đã được tạo ở trạng thái Draft.`);
+          router.push(ADMIN_ROUTES.purchaseOrders.detail(created.poId));
+        },
+      },
+    );
   };
 
   const stepStatus = (step: StepKey) => {

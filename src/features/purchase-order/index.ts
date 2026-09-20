@@ -90,4 +90,4 @@ export {
 export { useCreatePo, useTransitionPo, useUpdatePo } from "./mutations";
 
 // API (for direct use in non-hook contexts)
-export type { ListPoParams } from "./api";
+export type { CreatePoResult, ListPoParams } from "./api";

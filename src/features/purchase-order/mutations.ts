@@ -10,6 +10,7 @@ import {
   updatePurchaseOrder,
   transitionPurchaseOrder,
   type CreatePoInput,
+  type CreatePoResult,
   type TransitionPoInput,
 } from "./api";
 import { poKeys, replenishmentKeys } from "./queries";
@@ -17,7 +18,7 @@ import type { PurchaseOrder } from "./types";
 
 /* ── Create ──────────────────────────────────────────────────────────── */
 
-export const useCreatePo = createMutation<CreatePoInput, PurchaseOrder>(createPurchaseOrder, {
+export const useCreatePo = createMutation<CreatePoInput, CreatePoResult>(createPurchaseOrder, {
   invalidate: [poKeys.all],
   successMessage: "Tạo đơn đặt hàng thành công",
 });

@@ -60,8 +60,13 @@ export interface CreatePoInput {
   fromProposalId?: string;
 }
 
-export async function createPurchaseOrder(input: CreatePoInput): Promise<PurchaseOrder> {
-  const { data } = await api.post<PurchaseOrder>("/purchase-orders", input);
+/** BR-PO-003: response may carry `possibleDuplicate` flag alongside the PO. */
+export interface CreatePoResult extends PurchaseOrder {
+  possibleDuplicate?: boolean;
+}
+
+export async function createPurchaseOrder(input: CreatePoInput): Promise<CreatePoResult> {
+  const { data } = await api.post<CreatePoResult>("/purchase-orders", input);
   return data;
 }
 

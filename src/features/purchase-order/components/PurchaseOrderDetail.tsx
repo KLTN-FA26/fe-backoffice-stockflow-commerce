@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import { cn } from "cn";
 import {
@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { ADMIN_ROUTES, PAGE_SIZE, PO_STATUS } from "@/constants";
 import { DataTable, type ColumnDef } from "@/components/shared/DataTable";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusDot } from "@/components/shared/StatusDot";
 import { toast } from "@/components/shared/Toast";
@@ -31,10 +32,11 @@ import {
   usePoWarehouses,
   usePurchaseOrder,
   usePurchaseOrders,
+  useTransitionPo,
 } from "@/features/purchase-order";
 import { useSkus } from "@/features/product";
 
-import type { PoLine, PoStatus } from "@/features/purchase-order";
+import type { PoAction, PoLine, PoStatus } from "@/features/purchase-order";
 
 /* -------------------------------------------------------------------------- */
 /*  Helpers                                                                   */
@@ -154,6 +156,63 @@ export function PurchaseOrderDetail({ params }: { params: Promise<{ id: string }
     () => (po ? (purchaseOrders.find((p) => p.revisionOf === po.poId) ?? null) : null),
     [po, purchaseOrders],
   );
+
+  /* ---- Transition action state ---- */
+  const transitionPo = useTransitionPo();
+  const [pendingAction, setPendingAction] = useState<PoAction | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [conflictError, setConflictError] = useState<string | null>(null);
+
+  const handleAction = (act: PoAction) => {
+    setConflictError(null);
+    // Reject (≈ đưa về Draft) và Huỷ PO require a reason — open confirm dialog.
+    if (act.destructive) {
+      setPendingAction(act);
+      setConfirmOpen(true);
+      return;
+    }
+    runTransition(act, undefined);
+  };
+
+  const runTransition = (act: PoAction, reason?: string) => {
+    if (!po) return;
+    const targetStatus = act.targetStatus;
+    if (!targetStatus) return;
+
+    transitionPo.mutate(
+      { id: po.poId, targetStatus, reason },
+      {
+        onSuccess: () => {
+          toast.success(act.label, `PO đã chuyển sang "${targetStatus}".`);
+          setConfirmOpen(false);
+          setPendingAction(null);
+        },
+        onError: (error) => {
+          setConfirmOpen(false);
+          setPendingAction(null);
+          // 409 INVALID_PURCHASE_ORDER_TRANSITION → specific conflict message
+          if (error.status === 409 && error.code === "INVALID_PURCHASE_ORDER_TRANSITION") {
+            setConflictError(error.message);
+            toast.error("Không thể chuyển trạng thái", error.message);
+            return;
+          }
+          if (error.status === 404) {
+            setConflictError("Đơn đặt hàng không tồn tại hoặc đã bị xoá.");
+            toast.error("Không tìm thấy PO", "Đơn đặt hàng không tồn tại hoặc đã bị xoá.");
+            return;
+          }
+          setConflictError(error.message);
+          toast.error("Lỗi khi chuyển trạng thái", error.message);
+        },
+      },
+    );
+  };
+
+  const handleConfirm = (reason?: string) => {
+    if (!pendingAction) return;
+    // Destructive actions (reject/cancel) carry the reason from ConfirmDialog.
+    runTransition(pendingAction, reason);
+  };
 
   if (isLoading) {
     return <PageSkeleton variant="detail" />;
@@ -276,10 +335,6 @@ export function PurchaseOrderDetail({ params }: { params: Promise<{ id: string }
       ),
     },
   ];
-
-  const handleAction = () => {
-    toast.success("Mock action", "Hành động UI-only, không có API call.");
-  };
 
   return (
     <>
@@ -495,6 +550,11 @@ export function PurchaseOrderDetail({ params }: { params: Promise<{ id: string }
 
             {actions.length > 0 && (
               <div className="space-y-2">
+                {conflictError && (
+                  <div className="border-danger/30 bg-danger/5 text-danger rounded-[var(--r-sm)] border px-3 py-2 text-[0.8125rem]">
+                    {conflictError}
+                  </div>
+                )}
                 {actions.map((act) => (
                   <Button
                     key={act.code}
@@ -502,7 +562,8 @@ export function PurchaseOrderDetail({ params }: { params: Promise<{ id: string }
                     variant="outline"
                     size="sm"
                     aria-label={act.label}
-                    onClick={handleAction}
+                    disabled={transitionPo.isPending}
+                    onClick={() => handleAction(act)}
                     className={cn(
                       "w-full rounded-[var(--r-sm)] border px-3 py-2 text-[0.8125rem] font-medium transition-colors",
                       act.destructive
@@ -590,6 +651,30 @@ export function PurchaseOrderDetail({ params }: { params: Promise<{ id: string }
           </section>
         </div>
       </div>
+
+      {/* ---- Destructive action confirm (reject / cancel) -- */}
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={pendingAction ? pendingAction.label : "Xác nhận"}
+        description={pendingAction ? actionDescription(pendingAction, po.status) : ""}
+        confirmLabel={pendingAction ? pendingAction.label : "Xác nhận"}
+        variant="danger"
+        requireReason
+        reasonLabel="Lý do (bắt buộc)"
+        onConfirm={handleConfirm}
+      />
     </>
   );
+}
+
+function actionDescription(act: PoAction, currentStatus: PoStatus): string {
+  switch (act.code) {
+    case "reject":
+      return `Từ chối PO — đơn sẽ quay về trạng thái "Draft" từ "${currentStatus}". Lý do từ chối sẽ được lưu cùng PO.`;
+    case "cancel":
+      return `Huỷ PO — đơn sẽ chuyển sang "Cancelled" từ "${currentStatus}". Hành động này không thể khôi phục.`;
+    default:
+      return `Xác nhận thực hiện "${act.label}".`;
+  }
 }

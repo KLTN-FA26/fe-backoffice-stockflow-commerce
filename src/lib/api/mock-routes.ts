@@ -10,12 +10,16 @@
 import { registerMockRoute, paginate } from "./mock-adapter";
 
 import type {
+  Currency,
   PrintArea,
   PrintTechnique,
   Product,
   ProductAttribute,
   ProductType,
+  PoStatus,
+  PurchaseOrder,
   Uom,
+  WarehouseId,
 } from "@/lib/mock-data";
 
 interface CreateProductMockBody {
@@ -230,6 +234,16 @@ export function registerAllMockRoutes(): void {
    * Module 02 — Purchase Orders / Replenishment
    * ==================================================================*/
 
+  // Session store: created POs + PATCHED copies. PATCH pushes an updated
+  // copy which shadows the seed row by ID (createdPos wins in allPos).
+  const createdPos: PurchaseOrder[] = [];
+
+  function allPos(purchaseOrders: PurchaseOrder[]): PurchaseOrder[] {
+    const byId = new Map<string, PurchaseOrder>();
+    for (const po of [...createdPos, ...purchaseOrders]) byId.set(po.poId, po);
+    return [...byId.values()];
+  }
+
   // GET /purchase-orders
   registerMockRoute("GET", "/purchase-orders", async (config) => {
     const { purchaseOrders } = await import("@/lib/mock-data");
@@ -239,7 +253,7 @@ export function registerAllMockRoutes(): void {
     const q = params.get("q")?.toLowerCase();
     const status = params.getAll("status");
 
-    let filtered = [...purchaseOrders];
+    let filtered = allPos(purchaseOrders);
     if (q)
       filtered = filtered.filter(
         (po) => po.poNumber.toLowerCase().includes(q) || po.poId.toLowerCase().includes(q),
@@ -253,9 +267,149 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("GET", "/purchase-orders/:id", async (config) => {
     const { purchaseOrders } = await import("@/lib/mock-data");
     const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
-    const po = purchaseOrders.find((p) => p.poId === id || p.poNumber === id);
+    const po = allPos(purchaseOrders).find((p) => p.poId === id || p.poNumber === id);
     if (!po) return { status: 404, data: { message: "PO not found" }, headers: {} };
     return { status: 200, data: po, headers: {} };
+  });
+
+  // POST /purchase-orders — create
+  registerMockRoute("POST", "/purchase-orders", async (config) => {
+    const { purchaseOrders } = await import("@/lib/mock-data");
+    const body = parseJsonBody(config.data);
+
+    const supplierId = readString(body.supplierId);
+    const rawWarehouseId = readString(body.warehouseId);
+    const expectedDate = readString(body.expectedDate);
+    const lines = Array.isArray(body.lines) ? body.lines : [];
+
+    // BR-01 (02-purchase-order): PO phải có ít nhất 1 dòng hàng (docs §3 Input)
+    const fieldErrors: Record<string, string> = {};
+    if (!supplierId) fieldErrors.supplierId = "Chọn nhà cung cấp";
+    if (!rawWarehouseId) fieldErrors.warehouseId = "Chọn kho nhận";
+    if (!expectedDate) fieldErrors.expectedDate = "Nhập ngày giao dự kiến";
+    if (lines.length === 0) fieldErrors.lines = "Phải có ít nhất 1 dòng hàng";
+
+    if (Object.keys(fieldErrors).length > 0) {
+      return {
+        status: 422,
+        data: { code: "VALIDATION_FAILED", message: "Dữ liệu chưa hợp lệ.", fieldErrors },
+        headers: {},
+      };
+    }
+
+    // Narrow after validation (values are present — fallbacks never used)
+    const warehouseId = readWarehouseId(rawWarehouseId);
+    const currency = readCurrency(body.currency);
+
+    // BR-PO-003: same supplier + same SKU set in last 7 days → warn flag, not error
+    const inputSkuIds = lines
+      .map((l: { skuId?: unknown }) => readString(l.skuId))
+      .filter(Boolean)
+      .sort();
+    const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).getTime();
+    const possibleDuplicate = allPos(purchaseOrders).some((existing) => {
+      if (existing.supplierId !== supplierId) return false;
+      if (new Date(existing.orderDate).getTime() <= cutoff) return false;
+      const existingSkus = existing.lines.map((l) => l.skuId).sort();
+      return JSON.stringify(existingSkus) === JSON.stringify(inputSkuIds);
+    });
+
+    const poId = `PO-2026-${String(allPos(purchaseOrders).length + 1).padStart(4, "0")}`;
+    const now = new Date().toISOString().slice(0, 10);
+
+    // Build lines with computed totals
+    const poLines = lines.map((l: Record<string, unknown>, idx: number) => {
+      const orderedQty = Math.max(1, Math.trunc(Number(l.orderedQty) || 1));
+      const unitPrice = Math.max(0, Number(l.unitPrice) || 0);
+      const taxRate = Math.min(1, Math.max(0, Number(l.taxRate) || 0));
+      const discountRate = Math.min(1, Math.max(0, Number(l.discountRate) || 0));
+      const lineTotal = orderedQty * unitPrice * (1 - discountRate);
+      return {
+        lineId: `${poId}-${idx + 1}`,
+        poId,
+        skuId: readString(l.skuId) || `SKU-${idx + 1}`,
+        orderedQty,
+        receivedQty: 0,
+        unitPrice,
+        currency,
+        taxRate,
+        discountRate,
+        uom: readUom(l.uom),
+        lineTotal,
+      };
+    });
+
+    const subtotal = poLines.reduce((sum, l) => sum + l.lineTotal, 0);
+    const taxTotal = poLines.reduce((sum, l) => sum + l.lineTotal * l.taxRate, 0);
+
+    const po: PurchaseOrder = {
+      poId,
+      poNumber: poId,
+      supplierId,
+      warehouseId,
+      status: "Draft",
+      currency,
+      orderDate: now,
+      expectedDate,
+      createdBy: "Mock User",
+      subtotal,
+      taxTotal,
+      grandTotal: subtotal + taxTotal,
+      lines: poLines,
+      notes: readString(body.notes) || undefined,
+      fromProposalId: readString(body.fromProposalId) || undefined,
+    };
+
+    createdPos.push(po);
+
+    // BR-PO-003: surface as body flag — UI shows warning, not blocking error
+    return { status: 201, data: { ...po, possibleDuplicate }, headers: {} };
+  });
+
+  // PATCH /purchase-orders/:id/status — status transition
+  registerMockRoute("PATCH", "/purchase-orders/:id/status", async (config) => {
+    const { purchaseOrders } = await import("@/lib/mock-data");
+    const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
+    const body = parseJsonBody(config.data);
+    const targetStatus = readString(body.targetStatus);
+    const reason = readString(body.reason);
+
+    const source = allPos(purchaseOrders).find((p) => p.poId === id || p.poNumber === id);
+    if (!source) return { status: 404, data: { message: "PO not found" }, headers: {} };
+
+    // Lifecycle gate — mirrors canTransition(PO_TRANSITIONS, ...) (docs §5)
+    const { PO_TRANSITIONS } = await import("@/lib/domain/lifecycle");
+    const validTargets = PO_TRANSITIONS[source.status];
+    if (!validTargets || !validTargets.includes(targetStatus as PoStatus)) {
+      return {
+        status: 409,
+        data: {
+          code: "INVALID_PURCHASE_ORDER_TRANSITION",
+          message: `Không thể chuyển từ "${source.status}" sang "${targetStatus}" (trạng thái hợp lệ: ${(validTargets ?? []).join(", ") || "không — trạng thái kết thúc"}).`,
+          currentStatus: source.status,
+          targetStatus,
+          validTargets: validTargets ?? [],
+        },
+        headers: {},
+      };
+    }
+
+    const updated: PurchaseOrder = {
+      ...source,
+      status: targetStatus as PoStatus,
+      approvalNote: targetStatus === "Approved" ? reason || undefined : source.approvalNote,
+      approvedBy: targetStatus === "Approved" ? "Mock Approver" : source.approvedBy,
+      rejectionReason:
+        targetStatus === "Draft" || targetStatus === "Cancelled"
+          ? reason || source.rejectionReason
+          : source.rejectionReason,
+    };
+
+    const createdIndex = createdPos.findIndex((p) => p.poId === id || p.poNumber === id);
+    if (createdIndex === -1) createdPos.push(updated);
+    else createdPos[createdIndex] = updated;
+
+    return { status: 200, data: updated, headers: {} };
   });
 
   // GET /replenishment-proposals
@@ -624,6 +778,31 @@ function parseCreateProductBody(data: unknown): CreateProductMockBody {
     }
   }
   return isRecord(data) ? data : {};
+}
+
+/** Parse an axios request body (string JSON or already-parsed object). */
+function parseJsonBody(data: unknown): Record<string, unknown> {
+  if (typeof data === "string") {
+    try {
+      const parsed: unknown = JSON.parse(data);
+      return isRecord(parsed) ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+  return isRecord(data) ? data : {};
+}
+
+/* Narrowing helpers for literal union types (mock bodies are `unknown`). */
+
+const WAREHOUSE_ID_SET: readonly WarehouseId[] = ["WH-HN-01", "WH-HCM-01", "WH-DN-01"];
+
+function readCurrency(value: unknown, fallback: Currency = "VND"): Currency {
+  return value === "VND" || value === "USD" || value === "CNY" ? value : fallback;
+}
+
+function readWarehouseId(value: unknown, fallback: WarehouseId = "WH-HN-01"): WarehouseId {
+  return WAREHOUSE_ID_SET.find((w) => w === value) ?? fallback;
 }
 
 function readString(value: unknown): string {
