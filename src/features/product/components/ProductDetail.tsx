@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { ADMIN_ROUTES, PAGE_SIZE, PRODUCT_STATUS } from "@/constants";
 import { useAuthStore } from "@/lib/auth/auth-store";
+import { useCan } from "@/lib/auth/components/Can";
 import {
   allowedProductActions,
   categoryName,
@@ -134,6 +135,7 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id: productId } = React.use(params);
   const roles = useAuthStore((state) => state.effectiveRoles());
   const currentRole = roles[0];
+  const canEditProduct = useCan("product.edit");
 
   // Mock status override
   const [statusOverride, setStatusOverride] = useState<ProductStatus | null>(null);
@@ -152,6 +154,7 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
       baseProduct && statusOverride ? { ...baseProduct, status: statusOverride } : baseProduct,
     [baseProduct, statusOverride],
   );
+  const canEditDraft = canEditProduct && product?.status === PRODUCT_STATUS.DRAFT;
 
   const productSkus = useMemo(
     () => (product ? skusForProduct(product.productId, skus) : []),
@@ -319,15 +322,14 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
         subtitle={product.nameEn}
         actions={
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              type="button"
-              onClick={() => toast.info("Chỉnh sửa sản phẩm", "Chức năng đang phát triển.")}
-              className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary inline-flex items-center gap-1.5 rounded-[var(--r-sm)] border px-3 py-1.5 text-[0.8125rem] font-medium transition-colors"
-            >
-              <Pencil className="size-3.5" />
-              Chỉnh sửa
-            </Button>
+            {canEditDraft && (
+              <Button asChild variant="outline" size="sm">
+                <Link href={ADMIN_ROUTES.products.edit(product.productId)}>
+                  <Pencil className="size-3.5" />
+                  Chỉnh sửa
+                </Link>
+              </Button>
+            )}
             <Link
               href={ADMIN_ROUTES.products.list}
               className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary inline-flex items-center gap-1.5 rounded-[var(--r-sm)] border px-3 py-1.5 text-[0.8125rem] font-medium transition-colors"
@@ -374,20 +376,26 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
             title="Thông tin chung"
             icon={Layers}
             actions={
-              <Button
-                variant="ghost"
-                type="button"
-                onClick={() => toast.info("Chỉnh sửa thông tin", "Chức năng đang phát triển.")}
-                className="border-border-default text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary rounded-[var(--r-sm)] border px-2 py-0.5 text-xs"
-              >
-                <Pencil className="inline size-3" />
-              </Button>
+              canEditDraft ? (
+                <Button
+                  asChild
+                  variant="ghost"
+                  className="border-border-default text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary rounded-[var(--r-sm)] border px-2 py-0.5 text-xs"
+                >
+                  <Link
+                    href={ADMIN_ROUTES.products.edit(product.productId)}
+                    aria-label="Chỉnh sửa thông tin sản phẩm"
+                  >
+                    <Pencil className="inline size-3" />
+                  </Link>
+                </Button>
+              ) : undefined
             }
           >
             <div className="divide-border-default divide-y">
               <InfoRow label="Mã sản phẩm">
                 <span className="text-accent font-[family-name:var(--font-mono)] font-medium">
-                  {product.productId}
+                  {product.code ?? product.productId}
                 </span>
               </InfoRow>
               <InfoRow label="Loại">

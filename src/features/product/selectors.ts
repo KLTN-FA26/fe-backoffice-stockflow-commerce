@@ -27,7 +27,8 @@ export interface SkuListStats {
   lowStock: number;
 }
 
-export function categoryName(categoryId: string, categories: readonly Category[]): string {
+export function categoryName(categoryId: string | null, categories: readonly Category[]): string {
+  if (categoryId === null) return "Chưa chọn danh mục";
   return categories.find((category) => category.categoryId === categoryId)?.name.vi ?? "—";
 }
 

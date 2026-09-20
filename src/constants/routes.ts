@@ -10,6 +10,7 @@ export const ADMIN_ROUTES = {
   products: {
     create: `${ADMIN_BASE}/products/create`,
     detail: (id: string) => `${ADMIN_BASE}/products/${id}`,
+    edit: (id: string) => `${ADMIN_BASE}/products/${id}/edit`,
     list: `${ADMIN_BASE}/products`,
     skuDetail: (id: string) => `${ADMIN_BASE}/products/sku/${id}`,
   },

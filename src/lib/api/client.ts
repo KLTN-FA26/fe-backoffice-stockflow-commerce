@@ -57,7 +57,19 @@ function onTokenRefreshed(token: string) {
 }
 
 api.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    const body: unknown = res.data;
+    if (
+      typeof body === "object" &&
+      body !== null &&
+      "success" in body &&
+      body.success === true &&
+      "data" in body
+    ) {
+      return { ...res, data: body.data };
+    }
+    return res;
+  },
   async (err: AxiosError<ApiErrorBody>) => {
     const originalRequest = err.config;
 
