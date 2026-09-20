@@ -86,9 +86,18 @@ export const INVOICE_STATUS = {
   PAID: "Paid",
 } as const satisfies Record<string, InvoiceStatus>;
 
+/** Nhà cung cấp (module 01) — BE: ACTIVE/INACTIVE (SCRUM-118). */
+export const SUPPLIER_STATUSES = ["Active", "Inactive"] as const;
+
+export const SUPPLIER_STATUS = {
+  ACTIVE: "Active",
+  INACTIVE: "Inactive",
+} as const satisfies Record<string, SupplierStatus>;
+
 export type PoStatus = (typeof PO_STATUSES)[number];
 export type ReceiptStatus = (typeof RECEIPT_STATUSES)[number];
 export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
 export type ProposalStatus = (typeof PROPOSAL_STATUSES)[number];
 export type SkuStatus = (typeof SKU_STATUSES)[number];
 export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
+export type SupplierStatus = (typeof SUPPLIER_STATUSES)[number];
