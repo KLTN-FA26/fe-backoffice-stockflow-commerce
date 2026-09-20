@@ -32,7 +32,7 @@ import { useIsMock } from "@/providers/app-providers";
 import { ProductMasterFields } from "./ProductMasterFields";
 import { ProductFormBackLink, ProductFormForbidden } from "./ProductFormNavigation";
 
-import type { ProductDraftFormValues } from "@/features/product";
+import type { Product, ProductDraftFormValues } from "@/features/product";
 
 export function ProductCreate({ productId }: { productId?: string }) {
   const isEditing = Boolean(productId);
@@ -47,12 +47,13 @@ export function ProductCreate({ productId }: { productId?: string }) {
     defaultValues: PRODUCT_DRAFT_FORM_DEFAULTS,
     resolver: zodResolver(productDraftFormSchema),
   });
+  const { isDirty } = form.formState;
 
   useEffect(() => {
     const product = productQuery.data;
-    if (!product) return;
+    if (!product || isDirty) return;
     form.reset(productToDraftForm(product));
-  }, [form, productQuery.data]);
+  }, [form, isDirty, productQuery.data]);
 
   const handleError = (error: unknown) => {
     const apiError =
@@ -69,8 +70,9 @@ export function ProductCreate({ productId }: { productId?: string }) {
     setServerMessage(mapped.message);
   };
 
-  const onSuccess = (saved: { productId: string }) => {
+  const onSuccess = (saved: Product) => {
     setServerMessage(undefined);
+    form.reset(productToDraftForm(saved));
     router.push(ADMIN_ROUTES.products.detail(saved.productId));
   };
   const createMutation = useCreateProduct({ onError: handleError, onSuccess });
