@@ -253,10 +253,10 @@ export function PurchaseOrderList() {
     return [
       { label: "Tổng PO", value: poStats.total.toString(), icon: ShoppingCart },
       { label: "Nháp", value: poStats.draft.toString(), icon: Clock },
-      { label: "Chờ duyệt", value: poStats.pendingApproval.toString(), icon: ClipboardCheck },
-      { label: "Đã xác nhận", value: poStats.confirmed.toString(), icon: CheckCircle },
-      { label: "Đang nhận", value: poStats.partiallyReceived.toString(), icon: Truck },
-      { label: "Đã nhận", value: poStats.received.toString(), icon: PackageCheck },
+      { label: "Đã duyệt", value: poStats.approved.toString(), icon: ClipboardCheck },
+      { label: "Đã gửi", value: poStats.sent.toString(), icon: CheckCircle },
+      { label: "Nhận một phần", value: poStats.partiallyReceived.toString(), icon: Truck },
+      { label: "Đã đóng", value: String(poStats.closed + poStats.closedShort), icon: PackageCheck },
       { label: "Tổng giá trị", value: formatCompactVND(poStats.totalValueVND), icon: ReceiptText },
     ];
   }, [filtered]);

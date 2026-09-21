@@ -77,6 +77,7 @@ type PoLineDraft = {
   taxRate: string;
   discountRate: string;
   uom: string;
+  description: string;
 };
 
 type ValidationIssue = {
@@ -99,7 +100,7 @@ const STEPS: { key: StepKey; label: string; icon: typeof FileText }[] = [
   { key: "info", label: "Thông tin PO", icon: FileText },
   { key: "lines", label: "Dòng hàng", icon: Layers },
   { key: "totals", label: "Tổng cộng", icon: Package },
-  { key: "review", label: "Gửi duyệt", icon: ClipboardCheck },
+  { key: "review", label: "Tạo PO", icon: ClipboardCheck },
 ];
 
 const INITIAL_FORM: FormState = {
@@ -159,6 +160,7 @@ function createEmptyLine(): PoLineDraft {
     taxRate: "0.08",
     discountRate: "0",
     uom: "",
+    description: "",
   };
 }
 
@@ -196,10 +198,8 @@ function calculateTotals(lines: PoLineDraft[]): Totals {
 function validateForm(form: FormState): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
 
+  // BE CreatePurchaseOrderRequest: supplierId required; expectedAt is nullable; currency + lines required
   if (!form.supplierId) issues.push({ step: "info", message: "Nhà cung cấp là bắt buộc." });
-  if (!form.warehouseId) issues.push({ step: "info", message: "Kho nhận là bắt buộc." });
-  if (!form.orderDate) issues.push({ step: "info", message: "Ngày đặt là bắt buộc." });
-  if (!form.expectedDate) issues.push({ step: "info", message: "Ngày giao dự kiến là bắt buộc." });
 
   if (form.lines.length === 0) {
     issues.push({ step: "lines", message: "Cần ít nhất một dòng hàng." });
@@ -246,8 +246,6 @@ export function PurchaseOrderCreate() {
   const [currentStep, setCurrentStep] = useState<StepKey>("info");
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-
   const createPo = useCreatePo();
   const suppliersQuery = usePoSuppliers({});
   const warehousesQuery = usePoWarehouses({});
@@ -349,7 +347,7 @@ export function PurchaseOrderCreate() {
     if (validationIssues.length > 0) {
       const first = validationIssues[0]!;
       setCurrentStep(first.step);
-      toast.error("Chưa thể gửi duyệt", first.message);
+      toast.error("Chưa thể tạo PO", first.message);
       return;
     }
     setConfirmOpen(true);
@@ -361,34 +359,43 @@ export function PurchaseOrderCreate() {
     createPo.mutate(
       {
         supplierId: form.supplierId,
-        warehouseId: form.warehouseId,
         currency: form.currency || selectedSupplier?.currency || "VND",
-        expectedDate: form.expectedDate,
-        notes: form.notes || undefined,
+        expectedAt: form.expectedDate || null,
+        expectedDate: form.expectedDate || undefined,
         lines: form.lines.map((line) => ({
-          skuId: line.skuId,
-          orderedQty: Number(line.orderedQty) || 0,
+          sku: line.skuId,
+          description: line.description || null,
+          quantityOrdered: Number(line.orderedQty) || 0,
           unitPrice: Number(line.unitPrice) || 0,
-          taxRate: Number(line.taxRate) || 0,
-          discountRate: Number(line.discountRate) || 0,
-          uom: line.uom || "pcs",
         })),
-      },
+      } as never,
       {
         onSuccess: (created) => {
-          setSubmitted(true);
-          setCurrentStep("review");
-
-          // BR-PO-003: possibleDuplicate is a warning, not a blocking error.
-          if (created.possibleDuplicate) {
+          const dup = (created as { possibleDuplicate?: boolean }).possibleDuplicate;
+          if (dup) {
             toast.warning(
               "Có thể trùng lặp",
-              `PO ${created.poNumber} có cùng NCC + danh mục SKU với đơn gần đây (BR-PO-003). Vui lòng kiểm tra trước khi duyệt.`,
+              `PO ${created.poNumber} có cùng NCC + SKU với đơn cùng ngày giao (BR-PO-003). Kiểm tra trước khi duyệt.`,
             );
+          } else {
+            toast.success("Đã tạo PO", `PO ${created.poNumber} đã được tạo ở trạng thái DRAFT.`);
           }
-
-          toast.success("Đã tạo PO", `PO ${created.poNumber} đã được tạo ở trạng thái Draft.`);
-          router.push(ADMIN_ROUTES.purchaseOrders.detail(created.poId));
+          router.push(
+            `${ADMIN_ROUTES.purchaseOrders.detail(created.poId)}${dup ? "?duplicate=1" : ""}`,
+          );
+        },
+        onError: (err: unknown) => {
+          const e = err as {
+            fieldErrors?: Record<string, string>;
+            message?: string;
+            status?: number;
+          };
+          if (e.fieldErrors && Object.keys(e.fieldErrors).length) {
+            const first = Object.entries(e.fieldErrors)[0]!;
+            toast.error("Dữ liệu chưa hợp lệ", `${first[0]}: ${first[1]}`);
+            return;
+          }
+          toast.error("Không thể tạo PO", e.message ?? "Vui lòng thử lại.");
         },
       },
     );
@@ -396,7 +403,7 @@ export function PurchaseOrderCreate() {
 
   const stepStatus = (step: StepKey) => {
     if ((issuesByStep.get(step) ?? []).length > 0 && submitAttempted) return "error";
-    if (STEPS.findIndex((s) => s.key === step) < currentStepIndex || submitted) return "done";
+    if (STEPS.findIndex((s) => s.key === step) < currentStepIndex) return "done";
     if (step === currentStep) return "active";
     return "idle";
   };
@@ -428,12 +435,7 @@ export function PurchaseOrderCreate() {
               Quy trình
             </div>
             <div className="mt-1 flex items-center gap-2">
-              <StatusDot
-                domain="po"
-                status={submitted ? "Pending Approval" : "Draft"}
-                size="sm"
-                withIcon
-              />
+              <StatusDot domain="po" status="DRAFT" size="sm" withIcon />
               <span className="text-ink-tertiary text-xs">{form.lines.length} dòng hàng</span>
             </div>
           </div>
@@ -470,7 +472,7 @@ export function PurchaseOrderCreate() {
         <div className="min-w-0 space-y-4 pb-24">
           {showErrors && currentStepIssues.length > 0 && (
             <div className="border-danger/30 bg-danger/5 text-danger rounded-[var(--r-sm)] border px-4 py-3 text-[0.8125rem]">
-              <div className="font-semibold">Cần xử lý trước khi gửi duyệt</div>
+              <div className="font-semibold">Cần xử lý trước khi tạo PO</div>
               <ul className="mt-1 list-disc space-y-0.5 pl-4">
                 {currentStepIssues.map((issue) => (
                   <li key={issue}>{issue}</li>
@@ -513,7 +515,6 @@ export function PurchaseOrderCreate() {
               totals={totals}
               currency={displayCurrency}
               issuesByStep={issuesByStep}
-              submitted={submitted}
               purchaseOrders={purchaseOrders}
               onSubmit={handleSubmitAttempt}
             />
@@ -572,7 +573,7 @@ export function PurchaseOrderCreate() {
                 className="bg-brand !text-ink-inverse hover:bg-brand-hover hover:!text-ink-inverse inline-flex items-center gap-1.5 rounded-[var(--r-sm)] px-3 py-1.5 text-[0.8125rem] font-medium transition-colors"
               >
                 <Send className="size-3.5" />
-                Gửi duyệt
+                Tạo PO
               </Button>
             )}
           </div>
@@ -582,9 +583,9 @@ export function PurchaseOrderCreate() {
       <ConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
-        title="Gửi duyệt đơn đặt hàng"
-        description={`Xác nhận gửi PO với ${form.lines.length} dòng hàng, tổng ${formatMoney(totals.grandTotal, displayCurrency)} vào hàng chờ duyệt?`}
-        confirmLabel="Gửi duyệt"
+        title="Tạo đơn đặt hàng"
+        description={`Xác nhận tạo PO với ${form.lines.length} dòng hàng, tổng ${formatMoney(totals.grandTotal, displayCurrency)}? PO sẽ được tạo ở trạng thái DRAFT.`}
+        confirmLabel="Tạo PO"
         variant="default"
         onConfirm={handleConfirmSubmit}
       />
@@ -613,7 +614,7 @@ function InfoStep({
     <Card>
       <SectionTitle
         title="Thông tin PO"
-        description="Chọn nhà cung cấp, kho nhận, ngày chứng từ và điều khoản thanh toán."
+        description="Chọn nhà cung cấp và ngày giao dự kiến (expectedAt). Kho/điều khoản chỉ hiển thị, không gửi BE."
       />
       <div className="grid gap-4 lg:grid-cols-2">
         <div>
@@ -644,15 +645,9 @@ function InfoStep({
           </FieldError>
         </div>
         <div>
-          <label className="text-ink-secondary mb-1 block text-xs font-medium">
-            Kho nhận <span className="text-danger">*</span>
-          </label>
+          <label className="text-ink-secondary mb-1 block text-xs font-medium">Kho nhận</label>
           <Select value={form.warehouseId} onValueChange={(value) => update("warehouseId", value)}>
-            <SelectTrigger
-              size="default"
-              aria-label="Kho nhận"
-              className={fieldClass(showErrors && !form.warehouseId)}
-            >
+            <SelectTrigger size="default" aria-label="Kho nhận" className={fieldClass()}>
               <SelectValue placeholder="Chọn kho nhận" />
             </SelectTrigger>
             <SelectContent align="start">
@@ -666,37 +661,28 @@ function InfoStep({
               </SelectGroup>
             </SelectContent>
           </Select>
-          <FieldError>
-            {showErrors && !form.warehouseId ? "Kho nhận là bắt buộc." : undefined}
-          </FieldError>
+          <p className="text-ink-tertiary mt-1 text-[0.625rem]">Không gửi lên BE — chỉ hiển thị</p>
         </div>
         <div>
-          <label className="text-ink-secondary mb-1 block text-xs font-medium">
-            Ngày đặt <span className="text-danger">*</span>
-          </label>
+          <label className="text-ink-secondary mb-1 block text-xs font-medium">Ngày đặt</label>
           <Input
             type="date"
             value={form.orderDate}
             onChange={(e) => update("orderDate", e.target.value)}
-            className={fieldClass(showErrors && !form.orderDate)}
+            className={fieldClass()}
           />
-          <FieldError>
-            {showErrors && !form.orderDate ? "Ngày đặt là bắt buộc." : undefined}
-          </FieldError>
         </div>
         <div>
           <label className="text-ink-secondary mb-1 block text-xs font-medium">
-            Ngày giao dự kiến <span className="text-danger">*</span>
+            Ngày giao dự kiến
           </label>
           <Input
             type="date"
             value={form.expectedDate}
             onChange={(e) => update("expectedDate", e.target.value)}
-            className={fieldClass(showErrors && !form.expectedDate)}
+            className={fieldClass()}
           />
-          <FieldError>
-            {showErrors && !form.expectedDate ? "Ngày giao dự kiến là bắt buộc." : undefined}
-          </FieldError>
+
           {isExpectedDatePast(form.expectedDate) && (
             <div className="border-warning/30 bg-warning/10 text-warning mt-2 rounded-[var(--r-sm)] border px-3 py-2 text-xs">
               Ngày giao dự kiến đang nằm trước ngày đặt. Cảnh báo này không chặn gửi duyệt.
@@ -868,6 +854,17 @@ function LinesStep({
                       </SelectContent>
                     </Select>
                     {hasDuplicate && <FieldError>SKU bị trùng trong PO.</FieldError>}
+                  </div>
+                  <div className="md:col-span-2 xl:col-span-1">
+                    <label className="text-ink-secondary mb-1 block text-xs font-medium">
+                      Mô tả dòng
+                    </label>
+                    <Input
+                      value={line.description}
+                      onChange={(e) => updateLine(line.id, { description: e.target.value })}
+                      placeholder="Mô tả (tuỳ chọn)"
+                      className={fieldClass()}
+                    />
                   </div>
                   <div>
                     <label className="text-ink-secondary mb-1 block text-xs font-medium">
@@ -1056,7 +1053,6 @@ function ReviewStep({
   totals,
   currency,
   issuesByStep,
-  submitted,
   purchaseOrders,
   onSubmit,
 }: {
@@ -1066,7 +1062,6 @@ function ReviewStep({
   totals: Totals;
   currency: Currency;
   issuesByStep: Map<StepKey, string[]>;
-  submitted: boolean;
   purchaseOrders: readonly { poNumber: string }[];
   onSubmit: () => void;
 }) {
@@ -1076,8 +1071,8 @@ function ReviewStep({
     <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
       <Card>
         <SectionTitle
-          title="Rà soát trước khi gửi duyệt"
-          description="Tổng hợp PO và checklist validation trước khi chuyển sang Pending Approval."
+          title="Rà soát trước khi tạo PO"
+          description="Tổng hợp PO và checklist validation trước khi tạo."
         />
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <SummaryItem label="Nhà cung cấp" value={selectedSupplier?.name ?? "—"} />
@@ -1132,7 +1127,7 @@ function ReviewStep({
               Lifecycle
             </div>
             <div className="mt-1 flex items-center gap-2">
-              <StatusDot domain="po" status={submitted ? "Pending Approval" : "Draft"} withIcon />
+              <StatusDot domain="po" status="DRAFT" withIcon />
             </div>
           </div>
           <Settings2 className="text-accent size-5" />
@@ -1140,10 +1135,10 @@ function ReviewStep({
         <div className="border-border-default bg-bg-subtle text-ink-secondary rounded-[var(--r-sm)] border px-3 py-2 text-[0.8125rem]">
           <div className="text-ink-primary mb-1 flex items-center gap-2 font-medium">
             <ShoppingCart className="text-accent size-3.5" />
-            Draft → Pending Approval
+            Tạo PO → DRAFT
           </div>
-          `Gửi duyệt` chỉ cập nhật trạng thái preview trong UI. Không có API call và không thêm
-          record vào mock data.
+          Nhấn &quot;Tạo PO&quot; để gọi POST /purchase-orders. PO được tạo ở DRAFT; duyệt ở màn chi
+          tiết.
         </div>
         <Button
           variant="default"
@@ -1153,7 +1148,7 @@ function ReviewStep({
           className="bg-brand !text-ink-inverse hover:bg-brand-hover hover:!text-ink-inverse mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-[var(--r-sm)] px-3 py-2 text-[0.8125rem] font-medium transition-colors"
         >
           <Send className="size-3.5" />
-          Gửi duyệt
+          Tạo PO
         </Button>
       </Card>
     </div>

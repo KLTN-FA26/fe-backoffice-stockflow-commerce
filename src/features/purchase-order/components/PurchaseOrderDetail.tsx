@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { cn } from "cn";
 import {
   ArrowLeft,
@@ -32,48 +33,45 @@ import {
   usePoWarehouses,
   usePurchaseOrder,
   usePurchaseOrders,
-  useTransitionPo,
+  useApprovePo,
+  useSendPo,
+  useCancelPo,
+  useCloseShortPo,
 } from "@/features/purchase-order";
 import { useSkus } from "@/features/product";
 
 import type { PoAction, PoLine, PoStatus } from "@/features/purchase-order";
 
-/* -------------------------------------------------------------------------- */
-/*  Helpers                                                                   */
-/* -------------------------------------------------------------------------- */
-
-/** PO lifecycle progression order */
+/** BE 7-state lifecycle — no Pending Approval/Confirmed/Received (BE simplified scope). */
 const PO_LIFECYCLE: PoStatus[] = [
   PO_STATUS.DRAFT,
-  PO_STATUS.PENDING_APPROVAL,
   PO_STATUS.APPROVED,
-  PO_STATUS.CONFIRMED,
+  PO_STATUS.SENT,
   PO_STATUS.PARTIALLY_RECEIVED,
-  PO_STATUS.RECEIVED,
   PO_STATUS.CLOSED,
 ];
 
-/** Determine lifecycle step states based on current PO status */
 function getLifecycleSteps(status: PoStatus) {
   if (status === PO_STATUS.CANCELLED) {
-    // Cancelled is terminal — show all steps as not done, mark Cancelled separately
-    return PO_LIFECYCLE.map((step) => ({
-      label: step,
-      done: false,
-      current: false,
+    return PO_LIFECYCLE.map((step) => ({ label: step as string, done: false, current: false }));
+  }
+  if (status === PO_STATUS.CLOSED_SHORT) {
+    // Closed-short branches off PARTIALLY_RECEIVED — show linear up to it
+    return [...PO_LIFECYCLE, PO_STATUS.CLOSED_SHORT].map((step) => ({
+      label: step as string,
+      done: step !== PO_STATUS.CLOSED,
+      current: step === PO_STATUS.CLOSED_SHORT,
     }));
   }
   const idx = PO_LIFECYCLE.indexOf(status);
+  if (idx === -1)
+    return PO_LIFECYCLE.map((s) => ({ label: s as string, done: false, current: false }));
   return PO_LIFECYCLE.map((step, i) => ({
-    label: step,
+    label: step as string,
     done: i <= idx,
     current: i === idx,
   }));
 }
-
-/* -------------------------------------------------------------------------- */
-/*  InfoRow                                                                   */
-/* -------------------------------------------------------------------------- */
 
 function InfoRow({
   label,
@@ -108,12 +106,10 @@ function InfoRow({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*  Page                                                                      */
-/* -------------------------------------------------------------------------- */
-
 export function PurchaseOrderDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = React.use(params);
+  const searchParams = useSearchParams();
+  const isDuplicate = searchParams.get("duplicate") === "1";
   const roles = useAuthStore((state) => state.effectiveRoles());
   const currentRole = roles[0];
 
@@ -142,89 +138,83 @@ export function PurchaseOrderDetail({ params }: { params: Promise<{ id: string }
     () => (po ? suppliers.find((s) => s.supplierId === po.supplierId) : null),
     [po, suppliers],
   );
-
   const warehouse = useMemo(
     () => (po ? warehouses.find((w) => w.warehouseId === po.warehouseId) : null),
     [po, warehouses],
   );
 
   const lifecycleSteps = useMemo(() => (po ? getLifecycleSteps(po.status) : []), [po]);
-
   const actions = po && currentRole ? allowedPoActions(po.status, currentRole) : [];
-
   const revisionPo = useMemo(
     () => (po ? (purchaseOrders.find((p) => p.revisionOf === po.poId) ?? null) : null),
     [po, purchaseOrders],
   );
 
-  /* ---- Transition action state ---- */
-  const transitionPo = useTransitionPo();
+  const approvePo = useApprovePo();
+  const sendPo = useSendPo();
+  const cancelPo = useCancelPo();
+  const closeShortPo = useCloseShortPo();
+  const isMutating =
+    approvePo.isPending || sendPo.isPending || cancelPo.isPending || closeShortPo.isPending;
+
   const [pendingAction, setPendingAction] = useState<PoAction | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [conflictError, setConflictError] = useState<string | null>(null);
 
   const handleAction = (act: PoAction) => {
     setConflictError(null);
-    // Reject (≈ đưa về Draft) và Huỷ PO require a reason — open confirm dialog.
-    if (act.destructive) {
+    if (act.requiresReason) {
       setPendingAction(act);
       setConfirmOpen(true);
       return;
     }
-    runTransition(act, undefined);
+    runAction(act, undefined);
   };
 
-  const runTransition = (act: PoAction, reason?: string) => {
+  const runAction = (act: PoAction, reason?: string) => {
     if (!po) return;
-    const targetStatus = act.targetStatus;
-    if (!targetStatus) return;
-
-    transitionPo.mutate(
-      { id: po.poId, targetStatus, reason },
-      {
-        onSuccess: () => {
-          toast.success(act.label, `PO đã chuyển sang "${targetStatus}".`);
-          setConfirmOpen(false);
-          setPendingAction(null);
-        },
-        onError: (error) => {
-          setConfirmOpen(false);
-          setPendingAction(null);
-          // 409 INVALID_PURCHASE_ORDER_TRANSITION → specific conflict message
-          if (error.status === 409 && error.code === "INVALID_PURCHASE_ORDER_TRANSITION") {
-            setConflictError(error.message);
-            toast.error("Không thể chuyển trạng thái", error.message);
-            return;
-          }
-          if (error.status === 404) {
-            setConflictError("Đơn đặt hàng không tồn tại hoặc đã bị xoá.");
-            toast.error("Không tìm thấy PO", "Đơn đặt hàng không tồn tại hoặc đã bị xoá.");
-            return;
-          }
-          setConflictError(error.message);
-          toast.error("Lỗi khi chuyển trạng thái", error.message);
-        },
-      },
-    );
+    const onSuccess = () => {
+      toast.success(act.label, `PO đã chuyển sang "${act.targetStatus ?? act.code}".`);
+      setConfirmOpen(false);
+      setPendingAction(null);
+    };
+    const onError = (error: { status?: number; code?: string; message: string }) => {
+      setConfirmOpen(false);
+      setPendingAction(null);
+      if (error.status === 409 && error.code === "INVALID_PURCHASE_ORDER_TRANSITION") {
+        setConflictError(error.message);
+        toast.error("Không thể chuyển trạng thái", error.message);
+        return;
+      }
+      if (error.status === 404) {
+        setConflictError("Đơn đặt hàng không tồn tại hoặc đã bị xoá.");
+        toast.error("Không tìm thấy PO", "Đơn đặt hàng không tồn tại hoặc đã bị xoá.");
+        return;
+      }
+      setConflictError(error.message);
+      toast.error("Lỗi khi chuyển trạng thái", error.message);
+    };
+    if (act.code === "approve") approvePo.mutate({ id: po.poId }, { onSuccess, onError });
+    else if (act.code === "send") sendPo.mutate({ id: po.poId }, { onSuccess, onError });
+    else if (act.code === "cancel")
+      cancelPo.mutate({ id: po.poId, reason: reason ?? "" }, { onSuccess, onError });
+    else if (act.code === "closeShort")
+      closeShortPo.mutate({ id: po.poId, reason: reason ?? "" }, { onSuccess, onError });
   };
 
   const handleConfirm = (reason?: string) => {
     if (!pendingAction) return;
-    // Destructive actions (reject/cancel) carry the reason from ConfirmDialog.
-    runTransition(pendingAction, reason);
+    runAction(pendingAction, reason);
   };
 
-  if (isLoading) {
-    return <PageSkeleton variant="detail" />;
-  }
+  if (isLoading) return <PageSkeleton variant="detail" />;
 
-  /* ---- Not found ---- */
   if (!po) {
     return (
       <>
         <PageHeader
           title="Không tìm thấy PO"
-          subtitle="Đơn đặt NCC không tồn tại hoặc đã bị xoá khỏi dữ liệu mock."
+          subtitle="Đơn đặt NCC không tồn tại hoặc đã bị xoá."
         />
         <div className="text-ink-tertiary flex flex-col items-center justify-center py-20">
           <FileText className="mb-3 size-12 opacity-40" />
@@ -244,7 +234,6 @@ export function PurchaseOrderDetail({ params }: { params: Promise<{ id: string }
     );
   }
 
-  /* ---- PO Lines columns ---- */
   const lineColumns: ColumnDef<PoLine>[] = [
     {
       key: "skuId",
@@ -352,14 +341,19 @@ export function PurchaseOrderDetail({ params }: { params: Promise<{ id: string }
         }
       />
 
+      {isDuplicate && (
+        <div className="border-warning/30 bg-warning/10 text-warning mb-5 rounded-[var(--r-sm)] border px-4 py-3 text-[0.8125rem]">
+          <div className="font-semibold">Cảnh báo trùng lặp (BR-PO-003)</div>
+          <p className="text-ink-secondary mt-1 text-xs">
+            PO này có cùng NCC + ngày giao dự kiến + SKU với một đơn mở khác. Vui lòng rà soát trước
+            khi duyệt.
+          </p>
+        </div>
+      )}
+
       <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
-        {/* ================================================================ */}
-        {/*  LEFT COLUMN                                                     */}
-        {/* ================================================================ */}
         <div className="space-y-5">
-          {/* ---- Header info: 2-column grid ---- */}
           <div className="grid gap-5 md:grid-cols-2">
-            {/* Card 1: Thông tin chung */}
             <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
               <h2 className="text-ink-primary mb-3 flex items-center gap-2 text-[0.9375rem] font-semibold">
                 <FileText className="text-accent size-4" />
@@ -376,12 +370,11 @@ export function PurchaseOrderDetail({ params }: { params: Promise<{ id: string }
                 <InfoRow label="Người duyệt" value={po.approvedBy ?? "—"} />
                 {po.notes && <InfoRow label="Ghi chú" value={po.notes} />}
                 {po.rejectionReason && (
-                  <InfoRow label="Lý do từ chối" value={po.rejectionReason} danger />
+                  <InfoRow label="Lý do huỷ/đóng" value={po.rejectionReason} danger />
                 )}
               </div>
             </section>
 
-            {/* Card 2: Nhà cung cấp & Kho */}
             <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
               <h2 className="text-ink-primary mb-3 flex items-center gap-2 text-[0.9375rem] font-semibold">
                 <Truck className="text-accent size-4" />
@@ -398,7 +391,6 @@ export function PurchaseOrderDetail({ params }: { params: Promise<{ id: string }
             </section>
           </div>
 
-          {/* ---- PO Lines DataTable ---- */}
           <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
             <h2 className="text-ink-primary mb-3 flex items-center gap-2 text-[0.9375rem] font-semibold">
               <Package className="text-accent size-4" />
@@ -413,7 +405,6 @@ export function PurchaseOrderDetail({ params }: { params: Promise<{ id: string }
             />
           </section>
 
-          {/* ---- Totals Card ---- */}
           <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
             <h2 className="text-ink-primary mb-3 flex items-center gap-2 text-[0.9375rem] font-semibold">
               <ClipboardCheck className="text-accent size-4" />
@@ -441,7 +432,6 @@ export function PurchaseOrderDetail({ params }: { params: Promise<{ id: string }
             </div>
           </section>
 
-          {/* ---- PO Timeline ---- */}
           <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
             <h2 className="text-ink-primary mb-4 flex items-center gap-2 text-[0.9375rem] font-semibold">
               <CircleDot className="text-accent size-4" />
@@ -482,13 +472,11 @@ export function PurchaseOrderDetail({ params }: { params: Promise<{ id: string }
                   </div>
                 </div>
               ))}
-
-              {/* Show Cancelled as separate terminal step if applicable */}
-              {po.status === "Cancelled" && (
+              {(po.status as string) === "CANCELLED" && (
                 <div className="relative pb-0">
                   <div className="border-bg-surface bg-danger ring-danger/30 absolute top-[4px] -left-[22.5px] size-[11px] rounded-full border-2 ring-2" />
                   <div className="flex items-center gap-2">
-                    <span className="text-danger text-[0.8125rem] font-medium">Cancelled</span>
+                    <span className="text-danger text-[0.8125rem] font-medium">CANCELLED</span>
                     <span className="bg-danger/10 text-danger rounded-full px-2 py-0.5 text-[0.625rem] font-semibold">
                       Hiện tại
                     </span>
@@ -498,7 +486,6 @@ export function PurchaseOrderDetail({ params }: { params: Promise<{ id: string }
             </div>
           </section>
 
-          {/* ---- PO Revision (conditional) ---- */}
           {po.revisionOf && (
             <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
               <h2 className="text-ink-primary mb-3 flex items-center gap-2 text-[0.9375rem] font-semibold">
@@ -513,11 +500,10 @@ export function PurchaseOrderDetail({ params }: { params: Promise<{ id: string }
                 >
                   {po.revisionOf}
                 </Link>
-                . Nội dung PO gốc đã được thay thế.
+                .
               </p>
             </section>
           )}
-
           {revisionPo && (
             <section className="border-warning/30 bg-warning/5 rounded-[var(--card-radius)] border p-[var(--card-pad)]">
               <h2 className="text-ink-primary mb-3 flex items-center gap-2 text-[0.9375rem] font-semibold">
@@ -538,16 +524,11 @@ export function PurchaseOrderDetail({ params }: { params: Promise<{ id: string }
           )}
         </div>
 
-        {/* ================================================================ */}
-        {/*  RIGHT COLUMN (sidebar)                                          */}
-        {/* ================================================================ */}
         <div className="space-y-5">
-          {/* ---- Action Card ---- */}
           <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
             <div className="mb-4 flex justify-center">
               <StatusDot domain="po" status={po.status} size="md" withIcon />
             </div>
-
             {actions.length > 0 && (
               <div className="space-y-2">
                 {conflictError && (
@@ -562,7 +543,7 @@ export function PurchaseOrderDetail({ params }: { params: Promise<{ id: string }
                     variant="outline"
                     size="sm"
                     aria-label={act.label}
-                    disabled={transitionPo.isPending}
+                    disabled={isMutating}
                     onClick={() => handleAction(act)}
                     className={cn(
                       "w-full rounded-[var(--r-sm)] border px-3 py-2 text-[0.8125rem] font-medium transition-colors",
@@ -576,15 +557,15 @@ export function PurchaseOrderDetail({ params }: { params: Promise<{ id: string }
                 ))}
               </div>
             )}
-
-            {(po.status === "Closed" || po.status === "Cancelled") && (
+            {((po.status as string) === "CLOSED" ||
+              (po.status as string) === "CLOSED_SHORT" ||
+              (po.status as string) === "CANCELLED") && (
               <p className="text-ink-tertiary text-center text-xs">
                 Trạng thái kết thúc — không có hành động khả dụng.
               </p>
             )}
           </section>
 
-          {/* ---- From Proposal (conditional) ---- */}
           {po.fromProposalId && (
             <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
               <h2 className="text-ink-primary mb-2 text-[0.9375rem] font-semibold">Nguồn gốc</h2>
@@ -600,7 +581,6 @@ export function PurchaseOrderDetail({ params }: { params: Promise<{ id: string }
             </section>
           )}
 
-          {/* ---- Quick stats ---- */}
           <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
             <h2 className="text-ink-primary mb-3 text-[0.9375rem] font-semibold">Tổng quan</h2>
             <div className="space-y-2">
@@ -652,7 +632,6 @@ export function PurchaseOrderDetail({ params }: { params: Promise<{ id: string }
         </div>
       </div>
 
-      {/* ---- Destructive action confirm (reject / cancel) -- */}
       <ConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
@@ -669,12 +648,9 @@ export function PurchaseOrderDetail({ params }: { params: Promise<{ id: string }
 }
 
 function actionDescription(act: PoAction, currentStatus: PoStatus): string {
-  switch (act.code) {
-    case "reject":
-      return `Từ chối PO — đơn sẽ quay về trạng thái "Draft" từ "${currentStatus}". Lý do từ chối sẽ được lưu cùng PO.`;
-    case "cancel":
-      return `Huỷ PO — đơn sẽ chuyển sang "Cancelled" từ "${currentStatus}". Hành động này không thể khôi phục.`;
-    default:
-      return `Xác nhận thực hiện "${act.label}".`;
-  }
+  if (act.code === "cancel")
+    return `Huỷ PO — đơn sẽ chuyển sang "CANCELLED" từ "${currentStatus}". Không thể khôi phục.`;
+  if (act.code === "closeShort")
+    return `Đóng thiếu — PO sẽ chuyển sang "CLOSED_SHORT". Phần còn lại được ghi nhận thiếu.`;
+  return `Xác nhận thực hiện "${act.label}".`;
 }

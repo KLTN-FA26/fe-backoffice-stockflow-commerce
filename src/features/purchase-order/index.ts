@@ -87,7 +87,15 @@ export {
 } from "./queries";
 
 // Mutation hooks
-export { useCreatePo, useTransitionPo, useUpdatePo } from "./mutations";
+export {
+  useApprovePo,
+  useCancelPo,
+  useCloseShortPo,
+  useCreatePo,
+  useReceiveGoodsPo,
+  useSendPo,
+  useTransitionPo,
+} from "./mutations";
 
 // API (for direct use in non-hook contexts)
 export type { CreatePoResult, ListPoParams } from "./api";

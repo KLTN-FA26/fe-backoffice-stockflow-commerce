@@ -4,7 +4,9 @@
  * Re-exports transition table from domain/lifecycle.ts (single source of truth).
  * Adds `allowedPoActions()` for UI action-gating per status + role.
  *
- * Source: docs/warehouse/02-purchase-order §5 + §6.
+ * Source: BE PurchaseOrderStatus.java + PurchaseOrder aggregate (7-state).
+ * Full 10-state is docs/warehouse/02-purchase-order §5; BE deliberately narrows
+ * (SCRUM-113/116) — FE mirrors BE so permissions gate correctly.
  */
 
 import {
@@ -39,88 +41,65 @@ export interface PoAction {
   readonly targetStatus?: PoStatus;
   /** Destructive action styling. */
   readonly destructive?: boolean;
+  /** Whether reason is required (BE cancel/closeShort need {reason}). */
+  readonly requiresReason?: boolean;
 }
 
 /**
- * All PO actions, derived from docs §4 + §5.
+ * PO actions — one entry per BE endpoint (PurchaseOrderController.java).
+ * - approve:    DRAFT -> APPROVED   (permission po.approve)
+ * - send:       APPROVED -> SENT    (permission po.update — see ticket note on sends)
+ * - cancel:     DRAFT/APPROVED/SENT -> CANCELLED, needs reason (po.update)
+ * - closeShort: PARTIALLY_RECEIVED -> CLOSED_SHORT, needs reason
+ * - receive:    SENT/PARTIALLY_RECEIVED -> PARTIALLY_RECEIVED|CLOSED (not via canTransitionTo)
  *
- * Each action maps to a permission from permissions.ts and a set of
- * source statuses from the transition table.
+ * Removed vs old docs 10-state: submit/submit-auto-approve/pendingApproval,
+ * approve->Draft rejection, confirm/close/force-close variants that BE dropped.
  */
 export const PO_ACTIONS: readonly PoAction[] = [
-  // docs §4.3: Procurement tạo Draft
   {
     code: "edit",
     label: "Chỉnh sửa",
     permission: "po.create",
-    fromStatuses: ["Draft"],
+    fromStatuses: ["DRAFT"],
   },
-  // docs §4.7: Submit — vượt hạn mức → Pending Approval; dưới hạn mức → Approved
-  {
-    code: "submit",
-    label: "Gửi duyệt",
-    permission: "po.create",
-    fromStatuses: ["Draft"],
-    targetStatus: "Pending Approval",
-  },
-  // docs §4.7: Submit dưới hạn mức → tự Approved
-  {
-    code: "submit-auto-approve",
-    label: "Phê duyệt & gửi",
-    permission: "po.create",
-    fromStatuses: ["Draft"],
-    targetStatus: "Approved",
-  },
-  // docs §4.8: Approver duyệt
   {
     code: "approve",
     label: "Phê duyệt",
     permission: "po.approve",
-    fromStatuses: ["Pending Approval"],
-    targetStatus: "Approved",
+    fromStatuses: ["DRAFT"],
+    targetStatus: "APPROVED",
   },
-  // docs §4.8: Approver từ chối → về Draft
   {
-    code: "reject",
-    label: "Từ chối",
-    permission: "po.approve",
-    fromStatuses: ["Pending Approval"],
-    targetStatus: "Draft",
-    destructive: true,
+    code: "send",
+    label: "Gửi NCC",
+    permission: "po.update",
+    fromStatuses: ["APPROVED"],
+    targetStatus: "SENT",
   },
-  // docs §4.9: Procurement chốt PO
-  {
-    code: "confirm",
-    label: "Chốt PO",
-    permission: "po.confirm",
-    fromStatuses: ["Approved"],
-    targetStatus: "Confirmed",
-  },
-  // docs §4.14: Đóng PO (normal close)
-  {
-    code: "close",
-    label: "Đóng PO",
-    permission: "po.confirm",
-    fromStatuses: ["Received"],
-    targetStatus: "Closed",
-  },
-  // docs §4.14: Force close (short-close)
-  {
-    code: "force-close",
-    label: "Đóng sớm",
-    permission: "po.confirm",
-    fromStatuses: ["Confirmed", "Partially Received"],
-    targetStatus: "Closed",
-  },
-  // docs §4.15: Huỷ PO
-  // BR-05 (02-purchase-order): PO không thể Cancelled khi đã có Receipt
   {
     code: "cancel",
     label: "Huỷ PO",
-    permission: "po.cancel",
-    fromStatuses: ["Draft", "Approved", "Confirmed"],
-    targetStatus: "Cancelled",
+    permission: "po.update",
+    fromStatuses: ["DRAFT", "APPROVED", "SENT"],
+    targetStatus: "CANCELLED",
     destructive: true,
+    requiresReason: true,
+  },
+  {
+    code: "closeShort",
+    label: "Đóng thiếu",
+    permission: "po.update",
+    fromStatuses: ["PARTIALLY_RECEIVED"],
+    targetStatus: "CLOSED_SHORT",
+    destructive: true,
+    requiresReason: true,
+  },
+  {
+    code: "receive",
+    label: "Nhận hàng",
+    permission: "po.update",
+    fromStatuses: ["SENT", "PARTIALLY_RECEIVED"],
   },
 ] as const;
 
@@ -136,29 +115,18 @@ export const PO_ACTIONS: readonly PoAction[] = [
  */
 export function allowedPoActions(status: PoStatus, role: RoleName): readonly PoAction[] {
   return PO_ACTIONS.filter((action) => {
-    // 1. Status gate
     if (!action.fromStatuses.includes(status)) return false;
-
-    // 2. Transition gate (skip for non-transition actions like "edit")
     if (action.targetStatus && !canTransition(PO_TRANSITIONS, status, action.targetStatus)) {
       return false;
     }
-
-    // 3. Permission gate
     return can(role, action.permission);
   });
 }
 
-/**
- * Check if the PO is in a terminal (final) state.
- */
 export function isPoTerminal(status: PoStatus): boolean {
   return isTerminal(PO_TRANSITIONS, status);
 }
 
-/**
- * Get allowed next statuses from the transition table.
- */
 export function nextPoStatuses(status: PoStatus): readonly PoStatus[] {
   return allowedTransitions(PO_TRANSITIONS, status);
 }

@@ -1,13 +1,18 @@
 /**
  * Purchase Order — mutation hooks.
  *
- * Uses createMutation / createTransitionMutation factories.
+ * One hook per BE endpoint (PurchaseOrderController.java):
+ * approval / sending / cancellation / closure-short / receipts.
  */
 
-import { createMutation, createTransitionMutation } from "@/lib/api/query-factory";
+import { createMutation } from "@/lib/api/query-factory";
 import {
+  approvePurchaseOrder,
+  cancelPurchaseOrder,
+  closeShortPurchaseOrder,
   createPurchaseOrder,
-  updatePurchaseOrder,
+  receiveGoods,
+  sendPurchaseOrder,
   transitionPurchaseOrder,
   type CreatePoInput,
   type CreatePoResult,
@@ -23,21 +28,53 @@ export const useCreatePo = createMutation<CreatePoInput, CreatePoResult>(createP
   successMessage: "Tạo đơn đặt hàng thành công",
 });
 
-/* ── Update ──────────────────────────────────────────────────────────── */
+/* ── Per-action transitions ──────────────────────────────────────────── */
 
-export const useUpdatePo = createMutation<{ id: string } & Partial<CreatePoInput>, PurchaseOrder>(
-  updatePurchaseOrder,
+export const useApprovePo = createMutation<{ id: string }, PurchaseOrder>(
+  ({ id }) => approvePurchaseOrder(id),
   {
-    invalidate: [poKeys.all],
-    successMessage: "Cập nhật đơn đặt hàng thành công",
+    invalidate: [poKeys.all, replenishmentKeys.all],
+    successMessage: "Phê duyệt thành công",
   },
 );
 
-/* ── Status transition ───────────────────────────────────────────────── */
+export const useSendPo = createMutation<{ id: string }, PurchaseOrder>(
+  ({ id }) => sendPurchaseOrder(id),
+  {
+    invalidate: [poKeys.all],
+    successMessage: "Đã gửi tới NCC",
+  },
+);
 
-export const useTransitionPo = createTransitionMutation<TransitionPoInput, PurchaseOrder>(
+export const useCancelPo = createMutation<{ id: string; reason: string }, PurchaseOrder>(
+  ({ id, reason }) => cancelPurchaseOrder(id, reason),
+  {
+    invalidate: [poKeys.all],
+    successMessage: "Đã huỷ PO",
+  },
+);
+
+export const useCloseShortPo = createMutation<{ id: string; reason: string }, PurchaseOrder>(
+  ({ id, reason }) => closeShortPurchaseOrder(id, reason),
+  {
+    invalidate: [poKeys.all],
+    successMessage: "Đã đóng thiếu",
+  },
+);
+
+export const useReceiveGoodsPo = createMutation<
+  { id: string; lines: { lineId: string; quantity: number }[] },
+  PurchaseOrder
+>(({ id, lines }) => receiveGoods(id, lines), {
+  invalidate: [poKeys.all],
+  successMessage: "Đã ghi nhận nhận hàng",
+});
+
+/* Compat — delegates to per-action endpoints (new code should use the hooks above). */
+export const useTransitionPo = createMutation<TransitionPoInput, PurchaseOrder>(
   transitionPurchaseOrder,
-  poKeys,
-  [replenishmentKeys.all], // cross-module invalidation
-  "Chuyển trạng thái thành công",
+  {
+    invalidate: [poKeys.all, replenishmentKeys.all],
+    successMessage: "Chuyển trạng thái thành công",
+  },
 );
