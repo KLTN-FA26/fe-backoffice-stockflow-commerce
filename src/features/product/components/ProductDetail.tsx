@@ -26,6 +26,8 @@ import {
   categoryName,
   computeSkuStats,
   formatVnd,
+  isCapabilityUnavailable,
+  productUnitLabel,
   skusForProduct,
   useCategories,
   useProduct,
@@ -38,6 +40,7 @@ import { StatusDot } from "@/components/shared/StatusDot";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { textCell, numberCell, moneyCell, statusCell } from "@/components/shared/column-helpers";
 import type { PrintArea, Product, ProductStatus, Sku, SkuStatus } from "@/features/product";
 
@@ -147,7 +150,7 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
   const baseProduct = productQuery.data ?? null;
   const skus = useMemo(() => skusQuery.data?.items ?? [], [skusQuery.data]);
   const categories = useMemo(() => categoriesQuery.data?.items ?? [], [categoriesQuery.data]);
-  const isLoading = productQuery.isLoading || skusQuery.isLoading || categoriesQuery.isLoading;
+  const isLoading = productQuery.isLoading;
 
   const product: Product | null = useMemo(
     () =>
@@ -401,9 +404,19 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
               <InfoRow label="Loại">
                 {product.type === "Customizable" ? "Tùy chỉnh / In ấn" : "Tiêu chuẩn"}
               </InfoRow>
-              <InfoRow label="Danh mục">{categoryName(product.categoryId, categories)}</InfoRow>
+              <InfoRow label="Danh mục">
+                {product.categoryId === null
+                  ? categoryName(product.categoryId, categories)
+                  : categoriesQuery.isLoading
+                    ? "Đang tải danh mục..."
+                    : categoriesQuery.error
+                      ? isCapabilityUnavailable(categoriesQuery.error)
+                        ? "Danh mục chưa được backend hỗ trợ"
+                        : "Không tải được danh mục"
+                      : categoryName(product.categoryId, categories)}
+              </InfoRow>
               <InfoRow label="Thương hiệu">{product.brand}</InfoRow>
-              <InfoRow label="Đơn vị tính">{product.uom}</InfoRow>
+              <InfoRow label="Đơn vị tính">{productUnitLabel(product.uom)}</InfoRow>
               <InfoRow label="Thuế">{product.taxClass}</InfoRow>
               <InfoRow label="Trạng thái">
                 <StatusDot domain="product" status={product.status} size="sm" withIcon />
@@ -434,50 +447,58 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
           </Section>
 
           {/* Thuộc tính biến thể */}
-          {product.attributes.length > 0 && (
-            <Section
-              title="Thuộc tính biến thể"
-              icon={Palette}
-              actions={
-                <Link
-                  href={ADMIN_ROUTES.variants.list}
-                  className="border-border-default text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary inline-flex items-center gap-1 rounded-[var(--r-sm)] border px-2 py-0.5 text-xs"
-                >
-                  Quản lý biến thể →
-                </Link>
-              }
-            >
-              <div className="space-y-3">
-                {product.attributes.map((attr) => (
-                  <div key={attr.attributeId}>
-                    <div className="text-ink-tertiary mb-1.5 text-xs font-medium">
-                      {attr.name.vi} <span className="opacity-60">({attr.name.en})</span>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {attr.values.map((val) => (
-                        <span
-                          key={val}
-                          className="border-border-default bg-bg-subtle text-ink-secondary inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium"
-                        >
-                          {attr.swatch?.[val] && (
-                            <span
-                              className="border-border-default size-3 rounded-full border"
-                              style={{ backgroundColor: attr.swatch[val] }}
-                            />
-                          )}
-                          {val}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
+          {product.attributes === undefined ? (
+            <Section title="Thuộc tính biến thể" icon={Palette}>
+              <p className="text-ink-secondary text-[0.8125rem]">
+                Backend hiện chưa cung cấp dữ liệu thuộc tính sản phẩm.
+              </p>
             </Section>
+          ) : (
+            product.attributes.length > 0 && (
+              <Section
+                title="Thuộc tính biến thể"
+                icon={Palette}
+                actions={
+                  <Link
+                    href={ADMIN_ROUTES.variants.list}
+                    className="border-border-default text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary inline-flex items-center gap-1 rounded-[var(--r-sm)] border px-2 py-0.5 text-xs"
+                  >
+                    Quản lý biến thể →
+                  </Link>
+                }
+              >
+                <div className="space-y-3">
+                  {product.attributes.map((attr) => (
+                    <div key={attr.attributeId}>
+                      <div className="text-ink-tertiary mb-1.5 text-xs font-medium">
+                        {attr.name.vi} <span className="opacity-60">({attr.name.en})</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {attr.values.map((val) => (
+                          <span
+                            key={val}
+                            className="border-border-default bg-bg-subtle text-ink-secondary inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium"
+                          >
+                            {attr.swatch?.[val] && (
+                              <span
+                                className="border-border-default size-3 rounded-full border"
+                                style={{ backgroundColor: attr.swatch[val] }}
+                              />
+                            )}
+                            {val}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Section>
+            )
           )}
 
           {/* Bảng SKU */}
           <Section
-            title={`SKU (${productSkus.length})`}
+            title={`SKU (${skusQuery.error ? "—" : productSkus.length})`}
             icon={Tag}
             actions={
               <Link
@@ -488,7 +509,29 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
               </Link>
             }
           >
-            {productSkus.length > 0 ? (
+            {skusQuery.isLoading ? (
+              <div role="status" className="text-ink-tertiary py-10 text-center text-[0.8125rem]">
+                Đang tải SKU...
+              </div>
+            ) : skusQuery.error ? (
+              <EmptyState
+                title={
+                  isCapabilityUnavailable(skusQuery.error)
+                    ? "SKU chưa được backend hỗ trợ"
+                    : "Không tải được SKU"
+                }
+                description={
+                  isCapabilityUnavailable(skusQuery.error)
+                    ? "Backend hiện chưa có API đọc SKU cho sản phẩm này."
+                    : "Không thể tải dữ liệu SKU của sản phẩm."
+                }
+                action={
+                  <Button type="button" variant="outline" onClick={() => void skusQuery.refetch()}>
+                    Thử lại
+                  </Button>
+                }
+              />
+            ) : productSkus.length > 0 ? (
               <DataTable
                 data={effectiveSkus}
                 columns={skuColumns}

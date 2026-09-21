@@ -66,12 +66,15 @@ export const productSchema = z.object({
   descriptionEn: z.string(),
   images: z.array(z.string()),
   model3dUrl: z.string().optional(),
-  basePrice: z.number().min(0),
+  // Legacy/mock-only product field. Real ProductResponse does not provide it.
+  basePrice: z.number().min(0).optional().nullable(),
   pricingFormula: pricingFormulaSchema.optional(),
-  attributes: z.array(productAttributeSchema),
+  // Undefined means the backend did not provide product attributes; [] means genuinely empty.
+  attributes: z.array(productAttributeSchema).optional(),
   printAreas: z.array(printAreaSchema).optional(),
   taxClass: z.enum(["standard", "reduced", "exempt"]),
-  uom: uomSchema,
+  // Legacy/mock-only product field. Real ProductResponse does not provide it.
+  uom: uomSchema.optional().nullable(),
   brand: z.string(),
   createdAt: z.string(),
   createdBy: z.string(),

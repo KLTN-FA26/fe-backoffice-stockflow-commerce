@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 /* -------------------------------------------------------------------------- */
 /*  Aggregate unique attributes from all products                             */
@@ -96,11 +97,15 @@ function mergeStoredConfig(
 export function VariantAttributes() {
   const productsQuery = useProducts({ page: 1, pageSize: PAGE_SIZE.masterData });
   const products = useMemo(() => productsQuery.data?.items ?? [], [productsQuery.data]);
+  const attributesUnavailable = useMemo(
+    () => products.length > 0 && products.some((product) => product.attributes === undefined),
+    [products],
+  );
   const baseAttributes = useMemo<AggregatedAttribute[]>(
     () =>
       attributesForProducts(products).map((attr) => {
         const usedByProducts = products.filter((product) =>
-          product.attributes.some((item) => item.attributeId === attr.attributeId),
+          product.attributes?.some((item) => item.attributeId === attr.attributeId),
         );
 
         return {
@@ -377,7 +382,12 @@ export function VariantAttributes() {
       />
 
       {/* Attribute cards */}
-      {filtered.length === 0 ? (
+      {attributesUnavailable ? (
+        <EmptyState
+          title="Thuộc tính chưa được backend hỗ trợ"
+          description="Backend hiện chưa cung cấp dữ liệu thuộc tính sản phẩm để tổng hợp."
+        />
+      ) : filtered.length === 0 ? (
         <div className="border-border-default bg-bg-surface text-ink-tertiary flex flex-col items-center justify-center rounded-[var(--card-radius)] border py-16">
           <Palette className="mb-3 size-10 opacity-40" />
           <p className="text-[0.9375rem]">Không tìm thấy thuộc tính nào.</p>

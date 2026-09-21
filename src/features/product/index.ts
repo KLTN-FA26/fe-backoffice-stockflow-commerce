@@ -79,6 +79,7 @@ export {
   productAvailableStock,
   productName,
   productSkuCount,
+  productUnitLabel,
   shouldFlagProductRow,
   shouldFlagSkuRow,
   skusForProduct,
@@ -115,4 +116,5 @@ export {
   useUpdateProduct,
 } from "./mutations";
 
+export { isCapabilityUnavailable } from "./api";
 export type { ListProductsParams, ListSkusParams } from "./api";
