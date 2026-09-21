@@ -55,27 +55,35 @@ export const printAreaSchema = z.object({
 
 export const productSchema = z.object({
   productId: z.string(),
+  code: z.string().optional(),
   name: z.string().min(1),
   nameEn: z.string().min(1),
   slug: z.string().min(1),
   type: productTypeSchema,
-  categoryId: z.string().min(1),
+  categoryId: z.string().min(1).nullable(),
   status: productStatusSchema,
   description: z.string(),
   descriptionEn: z.string(),
   images: z.array(z.string()),
   model3dUrl: z.string().optional(),
-  basePrice: z.number().min(0),
+  // Legacy/mock-only product field. Real ProductResponse does not provide it.
+  basePrice: z.number().min(0).optional().nullable(),
   pricingFormula: pricingFormulaSchema.optional(),
-  attributes: z.array(productAttributeSchema),
+  // Undefined means the backend did not provide product attributes; [] means genuinely empty.
+  attributes: z.array(productAttributeSchema).optional(),
   printAreas: z.array(printAreaSchema).optional(),
   taxClass: z.enum(["standard", "reduced", "exempt"]),
-  uom: uomSchema,
+  // Legacy/mock-only product field. Real ProductResponse does not provide it.
+  uom: uomSchema.optional().nullable(),
   brand: z.string(),
   createdAt: z.string(),
   createdBy: z.string(),
   approvedBy: z.string().optional(),
   approvedAt: z.string().optional(),
+  weightKg: z.number().positive().nullable().optional(),
+  lengthCm: z.number().positive().nullable().optional(),
+  widthCm: z.number().positive().nullable().optional(),
+  heightCm: z.number().positive().nullable().optional(),
 });
 
 export const skuSchema = z.object({
@@ -107,38 +115,81 @@ export const categorySchema = z.object({
   slug: z.string(),
 });
 
-export const createProductSchema = z
-  .object({
-    productId: z.string().min(1, "Nhập mã sản phẩm"),
-    name: z.string().min(1, "Nhập tên sản phẩm"),
-    nameEn: z.string().min(1, "Nhập tên tiếng Anh"),
-    type: productTypeSchema,
-    categoryId: z.string().min(1, "Chọn danh mục"),
-    description: z.string(),
-    descriptionEn: z.string(),
-    images: z.array(z.string()),
-    model3dUrl: z.string().optional(),
-    basePrice: z.number().min(0, "Giá không âm"),
-    pricingFormula: pricingFormulaSchema.optional(),
-    attributes: z
-      .array(productAttributeSchema)
-      // BR-03 (01-product-creation): thuộc tính biến thể bắt buộc để sinh ít nhất 1 SKU.
-      .min(1, "Cần ít nhất 1 thuộc tính biến thể"),
-    printAreas: z.array(printAreaSchema).optional(),
-    taxClass: z.enum(["standard", "reduced", "exempt"]),
-    uom: uomSchema,
-    brand: z.string().min(1, "Nhập thương hiệu"),
-  })
-  // BR-05 (01-product-creation): sản phẩm in ấn phải có print area trước khi Published.
-  .superRefine((value, ctx) => {
-    if (value.type === "Customizable" && (!value.printAreas || value.printAreas.length === 0)) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["printAreas"],
-        message: "Sản phẩm tùy chỉnh cần ít nhất 1 vùng in",
-      });
-    }
-  });
+const optionalPositiveNumber = z.number().positive("Giá trị phải lớn hơn 0").nullable();
+
+export const productMasterDtoSchema = z.object({
+  productId: z.string().uuid(),
+  code: z.string(),
+  name: z.string(),
+  nameEn: z.string(),
+  categoryId: z.string().uuid().nullish(),
+  description: z.string().nullish(),
+  descriptionEn: z.string().nullish(),
+  brand: z.string(),
+  taxClass: z.enum(["STANDARD", "REDUCED", "EXEMPT"]),
+  customizable: z.boolean(),
+  images: z.array(z.string()),
+  status: z.enum(["DRAFT", "PENDING_APPROVAL", "APPROVED", "PUBLISHED", "DISCONTINUED"]),
+  createdAt: z.string(),
+  createdBy: z.string().nullish(),
+  submittedBy: z.string().uuid().nullish(),
+  submittedAt: z.string().nullish(),
+  approvedBy: z.string().uuid().nullish(),
+  approvedAt: z.string().nullish(),
+  rejectionReason: z.string().nullish(),
+  weightKg: optionalPositiveNumber.optional(),
+  lengthCm: optionalPositiveNumber.optional(),
+  widthCm: optionalPositiveNumber.optional(),
+  heightCm: optionalPositiveNumber.optional(),
+});
+
+export const createProductSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .min(2, "Nhập mã sản phẩm")
+    .max(64, "Mã sản phẩm tối đa 64 ký tự")
+    .regex(/^[A-Za-z0-9-]+$/, "Mã chỉ gồm chữ, số và dấu gạch ngang"),
+  name: z.string().trim().min(1, "Nhập tên sản phẩm"),
+  nameEn: z.string().trim().min(1, "Nhập tên tiếng Anh"),
+  // docs 01 §3 requires category at product creation. The backend accepts null for a draft,
+  // but the admin workflow deliberately enforces the stricter business source of truth.
+  categoryId: z.string().trim().min(1, "Chọn danh mục"),
+  description: z.string(),
+  descriptionEn: z.string(),
+  brand: z.string().trim().min(1, "Nhập thương hiệu"),
+  taxClass: z.enum(["STANDARD", "REDUCED", "EXEMPT"]),
+  customizable: z.boolean(),
+  images: z.array(z.string()),
+  // BR-03 (docs 01 §6): logistics fields are required before Receipt/Putaway, not while saving Draft.
+  weightKg: optionalPositiveNumber,
+  lengthCm: optionalPositiveNumber,
+  widthCm: optionalPositiveNumber,
+  heightCm: optionalPositiveNumber,
+});
+
+export const updateProductSchema = createProductSchema.omit({ code: true });
+
+const optionalPositiveText = z
+  .string()
+  .refine((value) => value.trim() === "" || Number(value) > 0, "Giá trị phải lớn hơn 0");
+
+export const productDraftFormSchema = z.object({
+  productCode: createProductSchema.shape.code,
+  name: createProductSchema.shape.name,
+  nameEn: createProductSchema.shape.nameEn,
+  categoryId: createProductSchema.shape.categoryId,
+  description: z.string(),
+  descriptionEn: z.string(),
+  brand: createProductSchema.shape.brand,
+  taxClass: createProductSchema.shape.taxClass,
+  customizable: z.boolean(),
+  imageUrls: z.string(),
+  weightKg: optionalPositiveText,
+  lengthCm: optionalPositiveText,
+  widthCm: optionalPositiveText,
+  heightCm: optionalPositiveText,
+});
 
 export const transitionProductSchema = z.object({
   id: z.string(),
@@ -156,6 +207,9 @@ export type ProductStatusValue = z.infer<typeof productStatusSchema>;
 export type SkuStatusValue = z.infer<typeof skuStatusSchema>;
 export type ProductTypeValue = z.infer<typeof productTypeSchema>;
 export type CreateProductInput = z.infer<typeof createProductSchema>;
+export type UpdateProductInput = z.infer<typeof updateProductSchema>;
+export type ProductMasterDto = z.infer<typeof productMasterDtoSchema>;
+export type ProductDraftFormValues = z.infer<typeof productDraftFormSchema>;
 export type ProductDto = z.infer<typeof productSchema>;
 export type SkuDto = z.infer<typeof skuSchema>;
 export type CategoryDto = z.infer<typeof categorySchema>;

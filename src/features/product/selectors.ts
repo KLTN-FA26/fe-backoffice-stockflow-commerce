@@ -27,8 +27,13 @@ export interface SkuListStats {
   lowStock: number;
 }
 
-export function categoryName(categoryId: string, categories: readonly Category[]): string {
+export function categoryName(categoryId: string | null, categories: readonly Category[]): string {
+  if (categoryId === null) return "Chưa chọn danh mục";
   return categories.find((category) => category.categoryId === categoryId)?.name.vi ?? "—";
+}
+
+export function productUnitLabel(uom: Product["uom"]): string {
+  return uom ?? "Chưa được backend cung cấp";
 }
 
 export function productName(productId: string, products: readonly Product[]): string {
@@ -42,7 +47,7 @@ export function skusForProduct(productId: string, skus: readonly Sku[]): Sku[] {
 export function attributesForProducts(products: readonly Product[]): ProductAttribute[] {
   const byId = new Map<string, ProductAttribute>();
   for (const product of products) {
-    for (const attribute of product.attributes) {
+    for (const attribute of product.attributes ?? []) {
       byId.set(attribute.attributeId, attribute);
     }
   }
