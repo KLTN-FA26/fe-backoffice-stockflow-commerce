@@ -244,22 +244,99 @@ export function registerAllMockRoutes(): void {
     return [...byId.values()];
   }
 
-  // GET /purchase-orders
+  // GET /purchase-orders — supports both BE contract (page 0-based, size, status, sort) and legacy (q, pageSize)
   registerMockRoute("GET", "/purchase-orders", async (config) => {
     const { purchaseOrders } = await import("@/lib/mock-data");
-    const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
-    const q = params.get("q")?.toLowerCase();
-    const status = params.getAll("status");
+    // Axios appends query via config.params; reconstruct URLSearchParams from both sources
+    const rawUrl = config.url ?? "";
+    const qsFromUrl = rawUrl.split("?")[1] ?? "";
+    const params = new URLSearchParams(qsFromUrl);
+    // Merge axios params object if present
+    const axParams = (config as unknown as { params?: Record<string, unknown> }).params;
+    const appendAx = (k: string, v: unknown) => {
+      if (v == null || v === "") return;
+      if (Array.isArray(v)) v.forEach((item) => params.append(k, String(item)));
+      else params.set(k, String(v));
+    };
+    if (axParams) {
+      // Handle both `size` (BE) and `pageSize` (legacy)
+      if (axParams.size != null) appendAx("size", axParams.size);
+      if (axParams.pageSize != null) appendAx("pageSize", axParams.pageSize);
+      if (axParams.page != null) {
+        // Overwrite page from axParams (BE 0-based intent)
+        params.set("page", String(axParams.page));
+      }
+      if (axParams.supplierId) appendAx("supplierId", axParams.supplierId);
+      if (axParams.status) appendAx("status", axParams.status);
+      if (axParams.q) appendAx("q", axParams.q);
+      if (axParams.sort) appendAx("sort", axParams.sort);
+    }
 
     let filtered = allPos(purchaseOrders);
+    const supplierId = params.get("supplierId");
+    if (supplierId) filtered = filtered.filter((po) => po.supplierId === supplierId);
+    const q = params.get("q")?.toLowerCase();
     if (q)
       filtered = filtered.filter(
         (po) => po.poNumber.toLowerCase().includes(q) || po.poId.toLowerCase().includes(q),
       );
-    if (status.length) filtered = filtered.filter((po) => status.includes(po.status));
+    const statuses = params
+      .getAll("status")
+      .flatMap((v) => v.split(","))
+      .filter(Boolean);
+    if (statuses.length) filtered = filtered.filter((po) => statuses.includes(po.status));
 
+    // Sort — BE whitelist: poNumber, expectedAt, createdAt (-> orderDate), lastModifiedAt
+    const sortRaw = params.get("sort");
+    if (sortRaw) {
+      const clauses = sortRaw
+        .split(";")
+        .map((c) => c.trim())
+        .filter(Boolean);
+      // Apply last clause as primary (BE precedence)
+      for (let i = clauses.length - 1; i >= 0; i--) {
+        const [propRaw, dirRaw] = clauses[i].split(",").map((s) => s.trim());
+        const dir = dirRaw?.toLowerCase() === "desc" ? -1 : 1;
+        const getter: Record<string, (po: PurchaseOrder) => string> = {
+          poNumber: (po) => po.poNumber,
+          expectedAt: (po) => po.expectedDate ?? "",
+          createdAt: (po) => po.orderDate,
+          lastModifiedAt: (po) => po.expectedDate ?? po.orderDate,
+          status: (po) => po.status,
+        };
+        const get = getter[propRaw];
+        if (get) filtered = [...filtered].sort((a, b) => get(a).localeCompare(get(b)) * dir);
+      }
+    }
+
+    // Pagination — detect BE (0-based page + size) vs legacy (1-based page + pageSize)
+    const hasBeSize = params.has("size");
+    if (hasBeSize) {
+      const page0 = Math.max(0, Number(params.get("page")) || 0);
+      const size = Math.max(1, Number(params.get("size")) || 15);
+      const totalElements = filtered.length;
+      const totalPages = Math.ceil(totalElements / size);
+      const start = page0 * size;
+      const items = filtered.slice(start, start + size);
+      return {
+        status: 200,
+        data: {
+          items,
+          page: page0,
+          size,
+          totalElements,
+          totalPages,
+          hasNext: page0 + 1 < totalPages,
+          hasPrevious: page0 > 0,
+          // Compat extras for any client still reading paginate shape
+          total: totalElements,
+          pageSize: size,
+        },
+        headers: {},
+      };
+    }
+    const page = Math.max(1, Number(params.get("page")) || 1);
+    const pageSize = Math.max(1, Number(params.get("pageSize") || params.get("size")) || 15);
     return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
   });
 

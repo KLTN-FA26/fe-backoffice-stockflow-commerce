@@ -9,6 +9,7 @@ import {
   ArrowRight,
   Check,
   CheckCircle,
+  ChevronsUpDown,
   ClipboardCheck,
   FileText,
   Layers,
@@ -26,7 +27,6 @@ import {
   formatMoney,
   useCreatePo,
   usePoSuppliers,
-  usePoWarehouses,
   usePurchaseOrders,
 } from "@/features/purchase-order";
 import { useSkus } from "@/features/product";
@@ -37,19 +37,19 @@ import { StatusDot } from "@/components/shared/StatusDot";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 
-import type { Currency, Supplier, Warehouse } from "@/features/purchase-order";
+import type { Currency, Supplier } from "@/features/purchase-order";
 import type { Sku } from "@/features/product";
 
 /* -------------------------------------------------------------------------- */
@@ -60,7 +60,6 @@ type StepKey = "info" | "lines" | "totals" | "review";
 
 type FormState = {
   supplierId: string;
-  warehouseId: string;
   orderDate: string;
   expectedDate: string;
   currency: Currency;
@@ -105,7 +104,6 @@ const STEPS: { key: StepKey; label: string; icon: typeof FileText }[] = [
 
 const INITIAL_FORM: FormState = {
   supplierId: "",
-  warehouseId: "",
   orderDate: "2026-06-10",
   expectedDate: "",
   currency: "VND",
@@ -130,7 +128,7 @@ function parseNonNegativeRate(value: string) {
 
 function fieldClass(hasError = false) {
   return cn(
-    "w-full rounded-[var(--r-sm)] border bg-bg-surface px-3 py-1.5 text-[0.8125rem] text-ink-primary outline-none transition-colors placeholder:text-ink-tertiary disabled:bg-bg-muted disabled:text-ink-tertiary",
+    "h-8 w-full rounded-[var(--r-sm)] border bg-bg-surface px-2.5 text-[0.8125rem] text-ink-primary outline-none transition-colors placeholder:text-ink-tertiary disabled:bg-bg-muted disabled:text-ink-tertiary",
     hasError ? "border-danger focus:border-danger" : "border-border-default focus:border-accent",
   );
 }
@@ -148,6 +146,137 @@ function SectionTitle({ title, description }: { title: string; description: stri
       </h2>
       <p className="text-ink-secondary mt-1 text-[0.8125rem]">{description}</p>
     </div>
+  );
+}
+
+function SupplierCombobox({
+  value,
+  onChange,
+  suppliers,
+  hasError,
+  placeholder = "Chọn nhà cung cấp",
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  suppliers: Supplier[];
+  hasError?: boolean;
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = suppliers.find((s) => s.supplierId === value);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          aria-label="Nhà cung cấp"
+          className={cn(
+            "h-8 w-full justify-between px-2.5 text-left text-[0.8125rem] font-normal",
+            !value && "text-ink-tertiary",
+            hasError ? "border-danger focus-visible:border-danger" : "border-border-default",
+          )}
+        >
+          <span className="truncate">{selected ? selected.name : placeholder}</span>
+          <ChevronsUpDown className="ml-2 size-3.5 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Tìm NCC..." />
+          <CommandList>
+            <CommandEmpty>Không tìm thấy NCC.</CommandEmpty>
+            <CommandGroup>
+              {suppliers.map((s) => (
+                <CommandItem
+                  key={s.supplierId}
+                  value={`${s.supplierId} ${s.name}`}
+                  onSelect={() => {
+                    onChange(s.supplierId);
+                    setOpen(false);
+                  }}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 size-4",
+                      value === s.supplierId ? "opacity-100" : "opacity-0",
+                    )}
+                  />
+                  {s.name}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function SkuCombobox({
+  value,
+  onChange,
+  skus,
+  hasError,
+  ariaLabel,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  skus: Sku[];
+  hasError?: boolean;
+  ariaLabel?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = skus.find((s) => s.skuId === value);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          aria-label={ariaLabel}
+          className={cn(
+            "h-8 w-full justify-between px-2.5 text-left text-[0.8125rem] font-normal",
+            !value && "text-ink-tertiary",
+            hasError ? "border-danger focus-visible:border-danger" : "border-border-default",
+          )}
+        >
+          <span className="truncate">
+            {selected ? `${selected.skuId} — ${selected.variantLabel}` : "Chọn SKU"}
+          </span>
+          <ChevronsUpDown className="ml-2 size-3.5 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Tìm SKU (mã / biến thể / barcode)..." />
+          <CommandList>
+            <CommandEmpty>Không tìm thấy SKU.</CommandEmpty>
+            <CommandGroup>
+              {skus.map((sku) => (
+                <CommandItem
+                  key={sku.skuId}
+                  value={`${sku.skuId} ${sku.variantLabel} ${sku.barcode}`}
+                  onSelect={() => {
+                    onChange(sku.skuId);
+                    setOpen(false);
+                  }}
+                >
+                  <Check
+                    className={cn("mr-2 size-4", value === sku.skuId ? "opacity-100" : "opacity-0")}
+                  />
+                  {sku.skuId} — {sku.variantLabel}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -248,40 +377,27 @@ export function PurchaseOrderCreate() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const createPo = useCreatePo();
   const suppliersQuery = usePoSuppliers({});
-  const warehousesQuery = usePoWarehouses({});
   const skusQuery = useSkus({ page: 1, pageSize: PAGE_SIZE.masterData });
   const purchaseOrdersQuery = usePurchaseOrders({ page: 1, pageSize: PAGE_SIZE.masterData });
 
   const suppliers = useMemo(() => suppliersQuery.data?.items ?? [], [suppliersQuery.data]);
-  const warehouses = useMemo(() => warehousesQuery.data?.items ?? [], [warehousesQuery.data]);
   const skus = useMemo(() => skusQuery.data?.items ?? [], [skusQuery.data]);
   const purchaseOrders = useMemo(
     () => purchaseOrdersQuery.data?.items ?? [],
     [purchaseOrdersQuery.data],
   );
   const isLoading =
-    suppliersQuery.isLoading ||
-    warehousesQuery.isLoading ||
-    skusQuery.isLoading ||
-    purchaseOrdersQuery.isLoading;
+    suppliersQuery.isLoading || skusQuery.isLoading || purchaseOrdersQuery.isLoading;
 
   const activeSuppliers = useMemo(
     () => suppliers.filter((supplier) => supplier.active),
     [suppliers],
-  );
-  const activeWarehouses = useMemo(
-    () => warehouses.filter((warehouse) => warehouse.active),
-    [warehouses],
   );
   const activeSkus = useMemo(() => skus.filter((sku) => sku.status === "Active"), [skus]);
 
   const selectedSupplier = useMemo(
     () => suppliers.find((supplier) => supplier.supplierId === form.supplierId),
     [form.supplierId, suppliers],
-  );
-  const selectedWarehouse = useMemo(
-    () => warehouses.find((warehouse) => warehouse.warehouseId === form.warehouseId),
-    [form.warehouseId, warehouses],
   );
   const totals = useMemo(() => calculateTotals(form.lines), [form.lines]);
   const validationIssues = useMemo(() => validateForm(form), [form]);
@@ -485,7 +601,6 @@ export function PurchaseOrderCreate() {
             <InfoStep
               form={form}
               activeSuppliers={activeSuppliers}
-              activeWarehouses={activeWarehouses}
               selectedSupplier={selectedSupplier}
               showErrors={showErrors}
               onSupplierChange={handleSupplierChange}
@@ -511,7 +626,6 @@ export function PurchaseOrderCreate() {
             <ReviewStep
               form={form}
               selectedSupplier={selectedSupplier}
-              selectedWarehouse={selectedWarehouse}
               totals={totals}
               currency={displayCurrency}
               issuesByStep={issuesByStep}
@@ -596,7 +710,6 @@ export function PurchaseOrderCreate() {
 function InfoStep({
   form,
   activeSuppliers,
-  activeWarehouses,
   selectedSupplier,
   showErrors,
   onSupplierChange,
@@ -604,7 +717,6 @@ function InfoStep({
 }: {
   form: FormState;
   activeSuppliers: Supplier[];
-  activeWarehouses: Warehouse[];
   selectedSupplier?: Supplier;
   showErrors: boolean;
   onSupplierChange: (supplierId: string) => void;
@@ -614,54 +726,22 @@ function InfoStep({
     <Card>
       <SectionTitle
         title="Thông tin PO"
-        description="Chọn nhà cung cấp và ngày giao dự kiến (expectedAt). Kho/điều khoản chỉ hiển thị, không gửi BE."
+        description="Chọn nhà cung cấp và ngày giao dự kiến (expectedAt)."
       />
       <div className="grid gap-4 lg:grid-cols-2">
         <div>
           <label className="text-ink-secondary mb-1 block text-xs font-medium">
             Nhà cung cấp <span className="text-danger">*</span>
           </label>
-          <Select value={form.supplierId} onValueChange={onSupplierChange}>
-            <SelectTrigger
-              size="default"
-              aria-label="Nhà cung cấp"
-              className={fieldClass(showErrors && !form.supplierId)}
-            >
-              <SelectValue placeholder="Chọn nhà cung cấp" />
-            </SelectTrigger>
-            <SelectContent align="start">
-              <SelectGroup>
-                <SelectLabel>Nhà cung cấp</SelectLabel>
-                {activeSuppliers.map((supplier) => (
-                  <SelectItem key={supplier.supplierId} value={supplier.supplierId}>
-                    {supplier.name}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+          <SupplierCombobox
+            value={form.supplierId}
+            onChange={onSupplierChange}
+            suppliers={activeSuppliers}
+            hasError={showErrors && !form.supplierId}
+          />
           <FieldError>
             {showErrors && !form.supplierId ? "Nhà cung cấp là bắt buộc." : undefined}
           </FieldError>
-        </div>
-        <div>
-          <label className="text-ink-secondary mb-1 block text-xs font-medium">Kho nhận</label>
-          <Select value={form.warehouseId} onValueChange={(value) => update("warehouseId", value)}>
-            <SelectTrigger size="default" aria-label="Kho nhận" className={fieldClass()}>
-              <SelectValue placeholder="Chọn kho nhận" />
-            </SelectTrigger>
-            <SelectContent align="start">
-              <SelectGroup>
-                <SelectLabel>Kho nhận</SelectLabel>
-                {activeWarehouses.map((warehouse) => (
-                  <SelectItem key={warehouse.warehouseId} value={warehouse.warehouseId}>
-                    {warehouse.name}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-          <p className="text-ink-tertiary mt-1 text-[0.625rem]">Không gửi lên BE — chỉ hiển thị</p>
         </div>
         <div>
           <label className="text-ink-secondary mb-1 block text-xs font-medium">Ngày đặt</label>
@@ -826,142 +906,125 @@ function LinesStep({
                     <Trash2 className="size-3.5" />
                   </Button>
                 </div>
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(260px,1.4fr)_100px_130px_100px_120px_80px_140px]">
-                  <div>
-                    <label className="text-ink-secondary mb-1 block text-xs font-medium">
-                      SKU <span className="text-danger">*</span>
-                    </label>
-                    <Select
-                      value={line.skuId}
-                      onValueChange={(value) => onSkuChange(line.id, value)}
-                    >
-                      <SelectTrigger
-                        size="default"
-                        aria-label={`SKU dòng ${index + 1}`}
-                        className={fieldClass(showErrors && (!line.skuId || hasDuplicate))}
-                      >
-                        <SelectValue placeholder="Chọn SKU" />
-                      </SelectTrigger>
-                      <SelectContent align="start">
-                        <SelectGroup>
-                          <SelectLabel>SKU dòng {index + 1}</SelectLabel>
-                          {activeSkus.map((sku) => (
-                            <SelectItem key={sku.skuId} value={sku.skuId}>
-                              {sku.skuId} — {sku.variantLabel}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                    {hasDuplicate && <FieldError>SKU bị trùng trong PO.</FieldError>}
+                <div className="grid gap-2.5">
+                  <div className="grid gap-2.5 sm:grid-cols-[1.5fr_1fr]">
+                    <div className="min-w-0">
+                      <label className="text-ink-secondary mb-0.5 block text-[11px] leading-4 font-medium">
+                        SKU <span className="text-danger">*</span>
+                      </label>
+                      <SkuCombobox
+                        value={line.skuId}
+                        onChange={(value) => onSkuChange(line.id, value)}
+                        skus={activeSkus}
+                        hasError={showErrors && (!line.skuId || hasDuplicate)}
+                        ariaLabel={`SKU dòng ${index + 1}`}
+                      />
+                      {hasDuplicate && <FieldError>SKU bị trùng trong PO.</FieldError>}
+                    </div>
+                    <div className="min-w-0">
+                      <label className="text-ink-secondary mb-0.5 block text-[11px] leading-4 font-medium">
+                        Mô tả dòng
+                      </label>
+                      <Input
+                        value={line.description}
+                        onChange={(e) => updateLine(line.id, { description: e.target.value })}
+                        placeholder="Mô tả (tuỳ chọn)"
+                        className={fieldClass()}
+                      />
+                    </div>
                   </div>
-                  <div className="md:col-span-2 xl:col-span-1">
-                    <label className="text-ink-secondary mb-1 block text-xs font-medium">
-                      Mô tả dòng
-                    </label>
-                    <Input
-                      value={line.description}
-                      onChange={(e) => updateLine(line.id, { description: e.target.value })}
-                      placeholder="Mô tả (tuỳ chọn)"
-                      className={fieldClass()}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-ink-secondary mb-1 block text-xs font-medium">
-                      SL đặt <span className="text-danger">*</span>
-                    </label>
-                    <Input
-                      value={line.orderedQty}
-                      onChange={(e) => updateLine(line.id, { orderedQty: e.target.value })}
-                      type="number"
-                      min={1}
-                      inputMode="numeric"
-                      className={cn(
-                        fieldClass(showErrors && !parsePositiveNumber(line.orderedQty)),
-                        "text-right tabular-nums",
-                      )}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-ink-secondary mb-1 block text-xs font-medium">
-                      Đơn giá <span className="text-danger">*</span>
-                    </label>
-                    <Input
-                      value={line.unitPrice}
-                      onChange={(e) => updateLine(line.id, { unitPrice: e.target.value })}
-                      type="number"
-                      min={1}
-                      inputMode="decimal"
-                      className={cn(
-                        fieldClass(showErrors && !parsePositiveNumber(line.unitPrice)),
-                        "text-right tabular-nums",
-                      )}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-ink-secondary mb-1 block text-xs font-medium">
-                      Thuế (%)
-                    </label>
-                    <Input
-                      value={String((Number(line.taxRate) || 0) * 100)}
-                      onChange={(e) =>
-                        updateLine(line.id, {
-                          taxRate: String((Number(e.target.value) || 0) / 100),
-                        })
-                      }
-                      type="number"
-                      min={0}
-                      inputMode="decimal"
-                      className={cn(
-                        fieldClass(!parseNonNegativeRate(line.taxRate)),
-                        "text-right tabular-nums",
-                      )}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-ink-secondary mb-1 block text-xs font-medium">
-                      Chiết khấu (%)
-                    </label>
-                    <Input
-                      value={String((Number(line.discountRate) || 0) * 100)}
-                      onChange={(e) =>
-                        updateLine(line.id, {
-                          discountRate: String((Number(e.target.value) || 0) / 100),
-                        })
-                      }
-                      type="number"
-                      min={0}
-                      inputMode="decimal"
-                      className={cn(
-                        fieldClass(!parseNonNegativeRate(line.discountRate)),
-                        "text-right tabular-nums",
-                      )}
-                    />
-                  </div>
-                  <div>
-                    <label
-                      htmlFor="poc-uom"
-                      className="text-ink-secondary mb-1 block text-xs font-medium"
-                    >
-                      UoM
-                    </label>
-
-                    <Input id="poc-uom" value={line.uom} readOnly className={fieldClass()} />
-                  </div>
-                  <div>
-                    <label
-                      htmlFor="poc-th-nh-ti-n"
-                      className="text-ink-secondary mb-1 block text-xs font-medium"
-                    >
-                      Thành tiền
-                    </label>
-
-                    <Input
-                      id="poc-th-nh-ti-n"
-                      value={formatMoney(lineTotal(line), currency)}
-                      readOnly
-                      className={cn(fieldClass(), "text-right tabular-nums")}
-                    />
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+                    <div>
+                      <label className="text-ink-secondary mb-0.5 block text-[11px] leading-4 font-medium">
+                        SL đặt <span className="text-danger">*</span>
+                      </label>
+                      <Input
+                        value={line.orderedQty}
+                        onChange={(e) => updateLine(line.id, { orderedQty: e.target.value })}
+                        type="number"
+                        min={1}
+                        inputMode="numeric"
+                        className={cn(
+                          fieldClass(showErrors && !parsePositiveNumber(line.orderedQty)),
+                          "text-right tabular-nums",
+                        )}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-ink-secondary mb-0.5 block text-[11px] leading-4 font-medium">
+                        Đơn giá <span className="text-danger">*</span>
+                      </label>
+                      <Input
+                        value={line.unitPrice}
+                        onChange={(e) => updateLine(line.id, { unitPrice: e.target.value })}
+                        type="number"
+                        min={1}
+                        inputMode="decimal"
+                        className={cn(
+                          fieldClass(showErrors && !parsePositiveNumber(line.unitPrice)),
+                          "text-right tabular-nums",
+                        )}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-ink-secondary mb-0.5 block text-[11px] leading-4 font-medium">
+                        Thuế (%)
+                      </label>
+                      <Input
+                        value={String((Number(line.taxRate) || 0) * 100)}
+                        onChange={(e) =>
+                          updateLine(line.id, {
+                            taxRate: String((Number(e.target.value) || 0) / 100),
+                          })
+                        }
+                        type="number"
+                        min={0}
+                        inputMode="decimal"
+                        className={cn(
+                          fieldClass(!parseNonNegativeRate(line.taxRate)),
+                          "text-right tabular-nums",
+                        )}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-ink-secondary mb-0.5 block text-[11px] leading-4 font-medium">
+                        Chiết khấu (%)
+                      </label>
+                      <Input
+                        value={String((Number(line.discountRate) || 0) * 100)}
+                        onChange={(e) =>
+                          updateLine(line.id, {
+                            discountRate: String((Number(e.target.value) || 0) / 100),
+                          })
+                        }
+                        type="number"
+                        min={0}
+                        inputMode="decimal"
+                        className={cn(
+                          fieldClass(!parseNonNegativeRate(line.discountRate)),
+                          "text-right tabular-nums",
+                        )}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-ink-secondary mb-0.5 block text-[11px] leading-4 font-medium">
+                        UoM
+                      </label>
+                      <Input value={line.uom} readOnly className={fieldClass()} />
+                    </div>
+                    <div>
+                      <label className="text-ink-secondary mb-0.5 block text-[11px] leading-4 font-medium">
+                        Thành tiền
+                      </label>
+                      <Input
+                        value={formatMoney(lineTotal(line), currency)}
+                        readOnly
+                        className={cn(
+                          fieldClass(),
+                          "bg-bg-muted text-ink-secondary text-right tabular-nums",
+                        )}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1049,7 +1112,6 @@ function TotalsStep({
 function ReviewStep({
   form,
   selectedSupplier,
-  selectedWarehouse,
   totals,
   currency,
   issuesByStep,
@@ -1058,7 +1120,6 @@ function ReviewStep({
 }: {
   form: FormState;
   selectedSupplier?: Supplier;
-  selectedWarehouse?: Warehouse;
   totals: Totals;
   currency: Currency;
   issuesByStep: Map<StepKey, string[]>;
@@ -1076,7 +1137,6 @@ function ReviewStep({
         />
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <SummaryItem label="Nhà cung cấp" value={selectedSupplier?.name ?? "—"} />
-          <SummaryItem label="Kho nhận" value={selectedWarehouse?.name ?? "—"} />
           <SummaryItem label="Ngày đặt" value={form.orderDate || "—"} mono />
           <SummaryItem label="Ngày giao dự kiến" value={form.expectedDate || "—"} mono />
           <SummaryItem label="Điều khoản" value={form.paymentTerms || "—"} />

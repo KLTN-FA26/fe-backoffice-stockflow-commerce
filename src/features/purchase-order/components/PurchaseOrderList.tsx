@@ -131,7 +131,14 @@ export function PurchaseOrderList() {
   );
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
 
-  const purchaseOrdersQuery = usePurchaseOrders({ page: 1, pageSize: PAGE_SIZE.masterData });
+  // BE: GET /purchase-orders?page(0-based)&size&supplierId&status&sort -> PageResponse inside ApiResponse
+  // listPurchaseOrders maps page 1-based -> 0-based. Fetch with URL filters so link chia sẻ được.
+  const purchaseOrdersQuery = usePurchaseOrders({
+    page: filters.page,
+    pageSize: PAGE_SIZE.md,
+    status: filters.status.length ? (filters.status as string[]) : undefined,
+    sort: filters.sort || undefined,
+  });
   const suppliersQuery = usePoSuppliers({});
   const warehousesQuery = usePoWarehouses({});
 
