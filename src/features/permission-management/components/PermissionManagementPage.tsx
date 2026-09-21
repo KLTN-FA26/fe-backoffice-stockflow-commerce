@@ -38,13 +38,14 @@ function RetryState({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-function UnauthorizedState() {
-  return (
-    <EmptyState
-      title="Không có quyền xem ma trận phân quyền"
-      description="Bạn không có quyền xem ma trận phân quyền của vai trò này."
-    />
-  );
+function UnauthorizedState({
+  title = "Không có quyền xem ma trận phân quyền",
+  description = "Bạn không có quyền xem ma trận phân quyền của vai trò này.",
+}: {
+  title?: string;
+  description?: string;
+}) {
+  return <EmptyState title={title} description={description} />;
 }
 
 function NotFoundState() {
@@ -96,7 +97,14 @@ export function PermissionManagementPage() {
 
   if (rolesQuery.isPending) return <PageSkeleton variant="list" />;
   const rolesErrorStatus = errorStatus(rolesQuery.error);
-  if (rolesErrorStatus === 403) return <UnauthorizedState />;
+  if (rolesErrorStatus === 403) {
+    return (
+      <UnauthorizedState
+        title="Không có quyền xem danh sách vai trò"
+        description="Bạn không có quyền xem danh sách vai trò và ma trận phân quyền."
+      />
+    );
+  }
   if (rolesQuery.isError) return <RetryState onRetry={() => void rolesQuery.refetch()} />;
   if (roles.length === 0) {
     return (

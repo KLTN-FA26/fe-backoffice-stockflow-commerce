@@ -61,7 +61,7 @@ const matrix = (roleCode: string, roleLabel = roleCode): RoleMatrix => ({
           totalCount: 2,
           actions: [
             { action: "READ", label: "Read data", granted: true, sensitive: false },
-            { action: "EXPORT", label: "Export", granted: false, sensitive: true },
+            { action: "APPROVE", label: "Approve", granted: false, sensitive: true },
           ],
         },
       ],
@@ -99,6 +99,32 @@ describe("PermissionManagementPage", () => {
     useMatrixMock.mockImplementation((roleCode: string) => matrixQuery(matrix(roleCode)));
   });
 
+  it("renders a dedicated unauthorized state when the role list is forbidden", () => {
+    useRolesMock.mockReturnValue(
+      rolesQuery({
+        data: undefined,
+        isPending: false,
+        isError: true,
+        error: new ApiError(403, "FORBIDDEN", "backend message is not used"),
+      }),
+    );
+
+    render(<PermissionManagementPage />);
+
+    expect(screen.getByText("Không có quyền xem danh sách vai trò")).toBeInTheDocument();
+    expect(
+      screen.getByText("Bạn không có quyền xem danh sách vai trò và ma trận phân quyền."),
+    ).toBeInTheDocument();
+  });
+
+  it("renders an accessible loading state while the role list is pending", () => {
+    useRolesMock.mockReturnValue(rolesQuery({ data: undefined, isPending: true }));
+
+    render(<PermissionManagementPage />);
+
+    expect(screen.getByRole("status", { name: "Đang tải nội dung" })).toBeInTheDocument();
+  });
+
   it("renders roles and selects the first valid role initially", async () => {
     render(<PermissionManagementPage />);
 
@@ -129,6 +155,16 @@ describe("PermissionManagementPage", () => {
     view.rerender(<PermissionManagementPage />);
     expect(await screen.findByText("Label ROLE_B")).toBeInTheDocument();
     expect(useMatrixMock).toHaveBeenLastCalledWith("ROLE_B");
+  });
+
+  it("renders a dedicated loading state while the selected matrix is pending", async () => {
+    useMatrixMock.mockReturnValue(
+      matrixQuery(matrix("ROLE_A"), { data: undefined, isPending: true }),
+    );
+
+    render(<PermissionManagementPage />);
+
+    expect(await screen.findByText("Đang tải ma trận của vai trò...")).toBeInTheDocument();
   });
 
   it("renders dynamic groups, resources, granted, non-granted, sensitive, and system states", async () => {
@@ -242,5 +278,40 @@ describe("PermissionManagementPage", () => {
     render(<PermissionManagementPage />);
 
     expect(await screen.findByText("Create dynamically")).toBeInTheDocument();
+  });
+
+  it("falls back to a valid role when a refetch removes the selected role", async () => {
+    let currentRoles = roles;
+    useRolesMock.mockImplementation(() => rolesQuery({ data: currentRoles }));
+    const user = userEvent.setup();
+
+    const view = render(<PermissionManagementPage />);
+    const selector = await screen.findByLabelText("Chọn vai trò để xem ma trận quyền");
+    await user.selectOptions(selector, "ROLE_B");
+    expect(selector).toHaveValue("ROLE_B");
+
+    const firstRole = roles[0];
+    if (!firstRole) throw new Error("Fixture must include an initial role");
+    currentRoles = [firstRole];
+    view.rerender(<PermissionManagementPage />);
+
+    await waitFor(() => expect(selector).toHaveValue("ROLE_A"));
+    expect(useMatrixMock).toHaveBeenLastCalledWith("ROLE_A");
+  });
+
+  it("renders zero counters without deriving or crashing", async () => {
+    useMatrixMock.mockReturnValue(
+      matrixQuery({
+        ...matrix("ROLE_A"),
+        grantedCount: 0,
+        totalCount: 0,
+        groups: [],
+      }),
+    );
+
+    render(<PermissionManagementPage />);
+
+    expect(await screen.findByText("0/0 quyền được cấp")).toBeInTheDocument();
+    expect(screen.getByText("Chưa có nhóm quyền")).toBeInTheDocument();
   });
 });
