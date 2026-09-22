@@ -78,7 +78,7 @@ export function LinesStep({
           Chưa có dòng hàng. Cần ít nhất một dòng trước khi gửi duyệt.
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="max-h-[min(58vh,520px)] space-y-3 overflow-y-auto pr-1">
           {form.lines.map((line, index) => (
             <PoLineCard
               key={line.id}
@@ -96,7 +96,7 @@ export function LinesStep({
         </div>
       )}
 
-      <div className="border-border-default mt-4 grid gap-3 border-t pt-4 sm:grid-cols-3">
+      <div className="bg-bg-surface border-border-default sticky bottom-0 mt-4 grid gap-3 border-t pt-4 sm:grid-cols-3">
         <SummaryItem label="Số dòng" value={String(form.lines.length)} mono />
         <SummaryItem label="Tạm tính" value={formatMoney(totals.subtotal, currency)} mono />
         <SummaryItem label="Tổng dòng hàng" value={formatMoney(totals.grandTotal, currency)} mono />

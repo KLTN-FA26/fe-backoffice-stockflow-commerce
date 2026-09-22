@@ -148,13 +148,14 @@ export async function listPurchaseOrders(
   signal?: AbortSignal,
 ): Promise<PaginatedResponse<PurchaseOrder>> {
   const page1 = params.page ?? 1;
-  const size = params.pageSize;
+  const size = params.pageSize ?? PAGE_SIZE.md;
   const beParams: Record<string, unknown> = {
     page: Math.max(0, page1 - 1),
     size,
     supplierId: params.supplierId,
     status: params.status,
     sort: params.sort,
+    q: params.q,
   };
   const { data } = await api.get<
     BePageResponse<BePurchaseOrder> | PaginatedResponse<PurchaseOrder>
@@ -164,7 +165,19 @@ export async function listPurchaseOrders(
     typeof data === "object" &&
     "totalElements" in (data as unknown as Record<string, unknown>)
   ) {
-    return mapBePage(data as BePageResponse<BePurchaseOrder>, mapBePoToFe, page1);
+    const bePage = data as BePageResponse<BePurchaseOrder>;
+    const first = bePage.items?.[0] as unknown as Record<string, unknown> | undefined;
+    const isBeShape = !!first && "purchaseOrderId" in first;
+    if (isBeShape) {
+      return mapBePage(bePage, mapBePoToFe, page1);
+    }
+    // Mock adapter returns BE page envelope but FE items (has poId, not purchaseOrderId)
+    return {
+      items: (bePage.items as unknown as PurchaseOrder[]).slice(),
+      total: bePage.totalElements,
+      page: page1,
+      pageSize: bePage.size,
+    };
   }
   return data as PaginatedResponse<PurchaseOrder>;
 }
@@ -370,4 +383,69 @@ export async function listPoWarehouses(
     signal,
   });
   return data;
+}
+
+/* ── Dashboard — GET /purchase-orders/reports/status-dashboard ─────── */
+
+export interface PoStatusCount {
+  status: string;
+  count: number;
+}
+
+export async function fetchPoStatusDashboard(signal?: AbortSignal): Promise<PoStatusCount[]> {
+  const { data } = await api.get<PoStatusCount[] | BePageResponse<PoStatusCount>>(
+    "/purchase-orders/reports/status-dashboard",
+    { signal },
+  );
+  if (Array.isArray(data)) return data;
+  // Defensive: if wrapped differently, extract items
+  if (data && typeof data === "object" && "items" in (data as unknown as Record<string, unknown>)) {
+    return (data as unknown as { items: PoStatusCount[] }).items;
+  }
+  return [];
+}
+
+/* ── Reports — GET /purchase-orders/reports/supplier-spend ────────────── */
+
+export interface SupplierSpendRow {
+  supplierId: string;
+  supplierCode: string;
+  supplierName: string;
+  totalSpend: number | string;
+  purchaseOrderCount: number;
+}
+
+export interface SupplierSpendParams {
+  page?: number;
+  pageSize?: number;
+  supplierId?: string;
+  expectedAtFrom?: string;
+  expectedAtTo?: string;
+  [key: string]: unknown;
+}
+
+export async function listSupplierSpend(
+  params: SupplierSpendParams = {},
+  signal?: AbortSignal,
+): Promise<PaginatedResponse<SupplierSpendRow>> {
+  const page1 = params.page ?? 1;
+  const beParams: Record<string, unknown> = {
+    page: Math.max(0, page1 - 1),
+    size: params.pageSize ?? PAGE_SIZE.md,
+    supplierId: params.supplierId,
+    expectedAtFrom: params.expectedAtFrom,
+    expectedAtTo: params.expectedAtTo,
+  };
+  const { data } = await api.get<
+    BePageResponse<SupplierSpendRow> | PaginatedResponse<SupplierSpendRow>
+  >("/purchase-orders/reports/supplier-spend", { params: beParams, signal });
+  if (
+    data &&
+    typeof data === "object" &&
+    "totalElements" in (data as unknown as Record<string, unknown>)
+  ) {
+    const be = data as BePageResponse<SupplierSpendRow>;
+    return { items: be.items ?? [], total: be.totalElements, page: page1, pageSize: be.size };
+  }
+  return data as PaginatedResponse<SupplierSpendRow>;
 }

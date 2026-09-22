@@ -92,7 +92,7 @@ export function PoLineFields({
         <label className="text-ink-secondary mb-0.5 block text-[11px] leading-4 font-medium">
           UoM
         </label>
-        <Input value={line.uom} readOnly className={fieldClass()} />
+        <Input value={line.uom} disabled className={fieldClass()} />
       </div>
       <div>
         <label className="text-ink-secondary mb-0.5 block text-[11px] leading-4 font-medium">

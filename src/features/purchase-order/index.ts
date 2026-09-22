@@ -75,15 +75,19 @@ export type { PoListStats } from "./selectors";
 
 // Query hooks
 export {
+  poDashboardKeys,
   poKeys,
   poSupplierKeys,
   poWarehouseKeys,
   replenishmentKeys,
+  supplierSpendKeys,
+  usePoStatusDashboard,
   usePoSuppliers,
   usePoWarehouses,
   usePurchaseOrder,
   usePurchaseOrders,
   useReplenishmentProposals,
+  useSupplierSpend,
 } from "./queries";
 
 // Mutation hooks
@@ -98,4 +102,4 @@ export {
 } from "./mutations";
 
 // API (for direct use in non-hook contexts)
-export type { CreatePoResult, ListPoParams } from "./api";
+export type { CreatePoResult, ListPoParams, PoStatusCount } from "./api";

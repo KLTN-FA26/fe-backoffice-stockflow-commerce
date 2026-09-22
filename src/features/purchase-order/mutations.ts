@@ -18,13 +18,13 @@ import {
   type CreatePoResult,
   type TransitionPoInput,
 } from "./api";
-import { poKeys, replenishmentKeys } from "./queries";
+import { poKeys, poDashboardKeys, replenishmentKeys, supplierSpendKeys } from "./queries";
 import type { PurchaseOrder } from "./types";
 
 /* ── Create ──────────────────────────────────────────────────────────── */
 
 export const useCreatePo = createMutation<CreatePoInput, CreatePoResult>(createPurchaseOrder, {
-  invalidate: [poKeys.all],
+  invalidate: [poKeys.all, poDashboardKeys.all, supplierSpendKeys.all],
   successMessage: "Tạo đơn đặt hàng thành công",
 });
 
@@ -33,7 +33,7 @@ export const useCreatePo = createMutation<CreatePoInput, CreatePoResult>(createP
 export const useApprovePo = createMutation<{ id: string }, PurchaseOrder>(
   ({ id }) => approvePurchaseOrder(id),
   {
-    invalidate: [poKeys.all, replenishmentKeys.all],
+    invalidate: [poKeys.all, poDashboardKeys.all, supplierSpendKeys.all, replenishmentKeys.all],
     successMessage: "Phê duyệt thành công",
   },
 );
@@ -41,7 +41,7 @@ export const useApprovePo = createMutation<{ id: string }, PurchaseOrder>(
 export const useSendPo = createMutation<{ id: string }, PurchaseOrder>(
   ({ id }) => sendPurchaseOrder(id),
   {
-    invalidate: [poKeys.all],
+    invalidate: [poKeys.all, poDashboardKeys.all, supplierSpendKeys.all],
     successMessage: "Đã gửi tới NCC",
   },
 );
@@ -49,7 +49,7 @@ export const useSendPo = createMutation<{ id: string }, PurchaseOrder>(
 export const useCancelPo = createMutation<{ id: string; reason: string }, PurchaseOrder>(
   ({ id, reason }) => cancelPurchaseOrder(id, reason),
   {
-    invalidate: [poKeys.all],
+    invalidate: [poKeys.all, poDashboardKeys.all, supplierSpendKeys.all],
     successMessage: "Đã huỷ PO",
   },
 );
@@ -57,7 +57,7 @@ export const useCancelPo = createMutation<{ id: string; reason: string }, Purcha
 export const useCloseShortPo = createMutation<{ id: string; reason: string }, PurchaseOrder>(
   ({ id, reason }) => closeShortPurchaseOrder(id, reason),
   {
-    invalidate: [poKeys.all],
+    invalidate: [poKeys.all, poDashboardKeys.all, supplierSpendKeys.all],
     successMessage: "Đã đóng thiếu",
   },
 );
@@ -66,7 +66,7 @@ export const useReceiveGoodsPo = createMutation<
   { id: string; lines: { lineId: string; quantity: number }[] },
   PurchaseOrder
 >(({ id, lines }) => receiveGoods(id, lines), {
-  invalidate: [poKeys.all],
+  invalidate: [poKeys.all, poDashboardKeys.all, supplierSpendKeys.all],
   successMessage: "Đã ghi nhận nhận hàng",
 });
 
@@ -74,7 +74,7 @@ export const useReceiveGoodsPo = createMutation<
 export const useTransitionPo = createMutation<TransitionPoInput, PurchaseOrder>(
   transitionPurchaseOrder,
   {
-    invalidate: [poKeys.all, replenishmentKeys.all],
+    invalidate: [poKeys.all, poDashboardKeys.all, supplierSpendKeys.all, replenishmentKeys.all],
     successMessage: "Chuyển trạng thái thành công",
   },
 );

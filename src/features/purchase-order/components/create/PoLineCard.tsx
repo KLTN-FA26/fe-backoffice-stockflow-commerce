@@ -6,8 +6,10 @@ import { cn } from "cn";
 import type { Currency } from "@/features/purchase-order";
 import type { Sku } from "@/features/product";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 import { FieldError } from "./CreateFormPrimitives";
+import { fieldClass } from "./helpers";
 import { PoLineFields } from "./PoLineFields";
 import { SkuCombobox } from "./SkuCombobox";
 import type { PoLineDraft } from "./types";
@@ -85,11 +87,12 @@ export function PoLineCard({
             <label className="text-ink-secondary mb-0.5 block text-[11px] leading-4 font-medium">
               Mô tả dòng
             </label>
-            <input
+            <Textarea
               value={line.description}
               onChange={(e) => onUpdate(line.id, { description: e.target.value })}
               placeholder="Mô tả (tuỳ chọn)"
-              className="border-border-default bg-bg-surface h-8 w-full rounded-[var(--r-sm)] border px-2.5 text-[0.8125rem] outline-none"
+              rows={2}
+              className={fieldClass().replace("h-8 ", "") + " min-h-[56px] resize-y py-2"}
             />
           </div>
         </div>

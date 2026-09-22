@@ -6,7 +6,12 @@ import { useRouter } from "next/navigation";
 import { PAGE_SIZE, PO_COLUMNS, PO_STATUSES, STORAGE_KEYS } from "@/constants";
 import { usePageConfig } from "@/hooks/use-page-config";
 import { useUrlFilters } from "@/hooks/use-url-filters";
-import { usePoSuppliers, usePoWarehouses, usePurchaseOrders } from "@/features/purchase-order";
+import {
+  usePoStatusDashboard,
+  usePoSuppliers,
+  usePoWarehouses,
+  usePurchaseOrders,
+} from "@/features/purchase-order";
 
 import type { PurchaseOrder } from "@/features/purchase-order";
 import { DEFAULT_CONFIG } from "./config";
@@ -29,15 +34,18 @@ export function usePoListController() {
     DEFAULT_CONFIG,
     mergeStoredConfig,
   );
+  const [pageSize, setPageSize] = useState<number>(PAGE_SIZE.md);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const poQ = usePurchaseOrders({
     page: filters.page,
-    pageSize: PAGE_SIZE.md,
+    pageSize,
     status: filters.status.length ? (filters.status as string[]) : undefined,
     sort: filters.sort || undefined,
+    q: filters.debouncedQ || undefined,
   });
   const supQ = usePoSuppliers({});
   const whQ = usePoWarehouses({});
+  const dashboardQ = usePoStatusDashboard();
   const purchaseOrders = useMemo(() => poQ.data?.items ?? [], [poQ.data]);
   const suppliers = useMemo(() => supQ.data?.items ?? [], [supQ.data]);
   const warehouses = useMemo(() => whQ.data?.items ?? [], [whQ.data]);
@@ -67,7 +75,7 @@ export function usePoListController() {
     [config, filters.q, filters.status],
   );
   const filtered = usePoFiltered(purchaseOrders, pageConfig, searchFields, suppliers, warehouses);
-  const stats = usePoStats(filtered);
+  const stats = usePoStats(dashboardQ.data);
 
   const toggleStatus = (s: string) => {
     if (s === "all") {
@@ -103,6 +111,10 @@ export function usePoListController() {
 
   return {
     router,
+    total: poQ.data?.total ?? 0,
+    page: filters.page,
+    pageSize,
+    setPageSize,
     filters,
     config: pageConfig,
     updateConfig,

@@ -2,30 +2,32 @@
 
 import { useMemo } from "react";
 
-import { computePoStats, formatCompactVND } from "@/features/purchase-order";
+import { PO_STATUS } from "@/constants";
 
-import type { PurchaseOrder } from "@/features/purchase-order";
+import type { PoStatusCount } from "@/features/purchase-order/api";
+
 import {
   CheckCircle,
   ClipboardCheck,
   Clock,
   PackageCheck,
   ReceiptText,
-  ShoppingCart,
   Truck,
+  XCircle,
 } from "lucide-react";
 
-export function usePoStats(filtered: readonly PurchaseOrder[]) {
+export function usePoStats(counts: readonly PoStatusCount[] | undefined) {
   return useMemo(() => {
-    const s = computePoStats(filtered);
+    const byStatus = new Map((counts ?? []).map((r) => [r.status, r.count] as const));
+    const n = (k: string) => String(byStatus.get(k) ?? 0);
     return [
-      { label: "Tổng PO", value: String(s.total), icon: ShoppingCart },
-      { label: "Nháp", value: String(s.draft), icon: Clock },
-      { label: "Đã duyệt", value: String(s.approved), icon: ClipboardCheck },
-      { label: "Đã gửi", value: String(s.sent), icon: CheckCircle },
-      { label: "Nhận một phần", value: String(s.partiallyReceived), icon: Truck },
-      { label: "Đã đóng", value: String(s.closed + s.closedShort), icon: PackageCheck },
-      { label: "Tổng giá trị", value: formatCompactVND(s.totalValueVND), icon: ReceiptText },
+      { label: "Nháp", value: n(PO_STATUS.DRAFT), icon: Clock },
+      { label: "Đã duyệt", value: n(PO_STATUS.APPROVED), icon: ClipboardCheck },
+      { label: "Đã gửi", value: n(PO_STATUS.SENT), icon: CheckCircle },
+      { label: "Nhận một phần", value: n(PO_STATUS.PARTIALLY_RECEIVED), icon: Truck },
+      { label: "Đã đóng", value: n(PO_STATUS.CLOSED), icon: PackageCheck },
+      { label: "Đóng thiếu", value: n(PO_STATUS.CLOSED_SHORT), icon: ReceiptText },
+      { label: "Đã huỷ", value: n(PO_STATUS.CANCELLED), icon: XCircle },
     ];
-  }, [filtered]);
+  }, [counts]);
 }

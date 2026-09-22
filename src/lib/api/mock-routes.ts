@@ -349,6 +349,80 @@ export function registerAllMockRoutes(): void {
     return { status: 200, data: po, headers: {} };
   });
 
+  // GET /purchase-orders/reports/status-dashboard — mock: counts per status (BE always returns every status)
+  registerMockRoute("GET", "/purchase-orders/reports/status-dashboard", async () => {
+    const { purchaseOrders } = await import("@/lib/mock-data");
+    const all = allPos(purchaseOrders);
+    const counts = new Map<string, number>();
+    for (const po of all) counts.set(po.status, (counts.get(po.status) ?? 0) + 1);
+    // Return every PO_STATUSES value so dashboard never omits an empty bucket (BE contract)
+    const { PO_STATUSES } = await import("@/constants/statuses");
+    const rows = (PO_STATUSES as readonly string[]).map((status) => ({
+      status,
+      count: counts.get(status) ?? 0,
+    }));
+    return { status: 200, data: rows, headers: {} };
+  });
+
+  // GET /purchase-orders/reports/supplier-spend — mock: rank by totalSpend (exclude DRAFT+CANCELLED, like BE)
+  registerMockRoute("GET", "/purchase-orders/reports/supplier-spend", async (config) => {
+    const { purchaseOrders, suppliers } = await import("@/lib/mock-data");
+    const params = new URLSearchParams((config.url ?? "").split("?")[1] ?? "");
+    const axParams = (config as unknown as { params?: Record<string, unknown> }).params;
+    if (axParams) {
+      for (const [k, v] of Object.entries(axParams))
+        if (v != null && v !== "") params.set(k, Array.isArray(v) ? String(v[0]) : String(v));
+    }
+    const page0 = Math.max(0, Number(params.get("page")) || 0);
+    const size = Math.max(1, Number(params.get("size")) || 20);
+    const supplierIdFilter = params.get("supplierId")?.trim() ?? "";
+    const from = params.get("expectedAtFrom")?.trim() ?? "";
+    const to = params.get("expectedAtTo")?.trim() ?? "";
+    const excluded: readonly string[] = ["DRAFT", "CANCELLED", "Draft", "Cancelled"];
+    let rows = allPos(purchaseOrders).filter((po) => !excluded.includes(po.status));
+    if (supplierIdFilter) rows = rows.filter((po) => po.supplierId === supplierIdFilter);
+    if (from) rows = rows.filter((po) => (po.expectedDate ?? "") >= from);
+    if (to) rows = rows.filter((po) => (po.expectedDate ?? "") <= to);
+    const bySupplier = new Map<string, { totalSpend: number; count: number }>();
+    for (const po of rows) {
+      const cur = bySupplier.get(po.supplierId) ?? { totalSpend: 0, count: 0 };
+      cur.totalSpend += po.grandTotal ?? po.subtotal ?? 0;
+      cur.count += 1;
+      bySupplier.set(po.supplierId, cur);
+    }
+    const supById = new Map(suppliers.map((s) => [s.supplierId, s] as const));
+    const items = [...bySupplier.entries()]
+      .map(([supplierId, agg]) => {
+        const s = supById.get(supplierId);
+        return {
+          supplierId,
+          supplierCode: s?.supplierId ?? supplierId,
+          supplierName: s?.name ?? supplierId,
+          totalSpend: agg.totalSpend,
+          purchaseOrderCount: agg.count,
+        };
+      })
+      .sort((a, b) => b.totalSpend - a.totalSpend);
+    const totalElements = items.length;
+    const totalPages = Math.ceil(totalElements / size);
+    const slice = items.slice(page0 * size, page0 * size + size);
+    return {
+      status: 200,
+      data: {
+        items: slice,
+        page: page0,
+        size,
+        totalElements,
+        totalPages,
+        hasNext: page0 + 1 < totalPages,
+        hasPrevious: page0 > 0,
+        total: totalElements,
+        pageSize: size,
+      },
+      headers: {},
+    };
+  });
+
   // POST /purchase-orders — create (BE: CreatePurchaseOrderRequest)
   registerMockRoute("POST", "/purchase-orders", async (config) => {
     const { purchaseOrders, suppliers } = await import("@/lib/mock-data");

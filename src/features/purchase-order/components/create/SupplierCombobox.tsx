@@ -42,9 +42,11 @@ export function SupplierCombobox({
           aria-expanded={open}
           aria-label="Nhà cung cấp"
           className={cn(
-            "h-8 w-full justify-between px-2.5 text-left text-[0.8125rem] font-normal",
+            "bg-bg-surface hover:bg-bg-surface hover:text-ink-primary h-8 w-full justify-between rounded-[var(--r-sm)] border px-2.5 text-left text-[0.8125rem] font-normal shadow-none",
             !value && "text-ink-tertiary",
-            hasError ? "border-danger focus-visible:border-danger" : "border-border-default",
+            hasError
+              ? "border-danger focus-visible:border-danger focus-visible:ring-danger/20"
+              : "border-border-default focus-visible:border-brand focus-visible:ring-brand/20",
           )}
         >
           <span className="truncate">{selected ? selected.name : placeholder}</span>
@@ -61,6 +63,7 @@ export function SupplierCombobox({
                 <CommandItem
                   key={s.supplierId}
                   value={`${s.supplierId} ${s.name}`}
+                  className="data-selected:text-ink-secondary hover:bg-bg-muted/60 hover:text-ink-primary data-selected:hover:bg-bg-muted/60 data-selected:bg-transparent"
                   onSelect={() => {
                     onChange(s.supplierId);
                     setOpen(false);

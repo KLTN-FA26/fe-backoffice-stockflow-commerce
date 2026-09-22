@@ -25,6 +25,11 @@ export function PoListTable({
   onRowClick,
   selectedKeys,
   onSelectionChange,
+  total,
+  page,
+  pageSize,
+  onPageChange,
+  onPageSizeChange,
 }: {
   search: string;
   onSearchChange: (v: string) => void;
@@ -65,6 +70,11 @@ export function PoListTable({
   onRowClick: (r: PurchaseOrder) => void;
   selectedKeys: Set<string>;
   onSelectionChange: (s: Set<string>) => void;
+  total: number;
+  page: number;
+  pageSize: number;
+  onPageChange: (p: number) => void;
+  onPageSizeChange?: (s: number) => void;
 }) {
   return (
     <>
@@ -103,13 +113,17 @@ export function PoListTable({
         data={filtered as never}
         columns={visibleColumns as never}
         rowKey={(r: PurchaseOrder) => r.poId}
-        caption={`Hiển thị ${filtered.length} đơn đặt hàng`}
+        caption={`Hiển thị ${filtered.length} / ${total} đơn đặt hàng`}
         flagRow={shouldFlagPoRow as never}
         onRowClick={onRowClick as never}
         selectable
         selectedKeys={selectedKeys}
         onSelectionChange={onSelectionChange}
-        pageSize={15}
+        pageSize={pageSize}
+        total={total}
+        page={page}
+        onPageChange={onPageChange}
+        onPageSizeChange={onPageSizeChange}
       />
     </>
   );
