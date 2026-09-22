@@ -1,7 +1,7 @@
 /**
  * Supplier — inferred types from zod schemas.
  *
- * Source: docs/01-product-master-data/supplier (MOCK-UP-01).
+ * Source: docs/warehouse/02-purchase-order (supplier master data phục vụ PO).
  * Status is canonical from this module; PO feature reuses it.
  */
 

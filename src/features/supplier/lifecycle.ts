@@ -18,7 +18,9 @@ export const SUPPLIER_TRANSITIONS: Record<SupplierStatus, SupplierStatus[]> = {
 /**
  * Actions exposed to UI for a given status.
  * No role gating for supplier master data — any logged-in back-office user
- * can manage suppliers (mode A operational spirit).
+ * can manage suppliers (mode A operational spirit). `role` param kept for
+ * API parity with `allowedPoActions(status, role)` so call sites can switch
+ * to permission-gated later without changing signatures.
  */
 export interface SupplierActionDescriptor {
   key: "activate" | "deactivate";
@@ -26,16 +28,35 @@ export interface SupplierActionDescriptor {
   targetStatus: SupplierStatus;
 }
 
-export function allowedSupplierActions(statuses: SupplierStatus[]): SupplierActionDescriptor[] {
-  const result: SupplierActionDescriptor[] = [];
-  for (const status of statuses) {
-    for (const next of SUPPLIER_TRANSITIONS[status] ?? []) {
-      result.push({
-        key: next === "Inactive" ? "deactivate" : "activate",
-        label: next === "Inactive" ? "Vô hiệu hoá" : "Kích hoạt",
-        targetStatus: next,
-      });
-    }
-  }
-  return result;
+function actionsForOne(status: SupplierStatus): SupplierActionDescriptor[] {
+  const next = SUPPLIER_TRANSITIONS[status];
+  if (!next) return [];
+  return next.map((s) => ({
+    key: s === "Inactive" ? "deactivate" : "activate",
+    label: s === "Inactive" ? "Vô hiệu hoá" : "Kích hoạt",
+    targetStatus: s,
+  }));
 }
+
+/** Single-status form — preferred; mirrors `allowedPoActions(status, role)`. */
+export function allowedSupplierActionsForStatus(
+  status: SupplierStatus,
+  _role?: unknown,
+): SupplierActionDescriptor[] {
+  return actionsForOne(status);
+}
+
+/**
+ * Multi-status form — collects actions for a set of selected statuses.
+ * Kept for list/bulk contexts; prefer `allowedSupplierActionsForStatus` in
+ * detail views.
+ */
+export function allowedSupplierActions(
+  statuses: SupplierStatus[],
+  _role?: unknown,
+): SupplierActionDescriptor[] {
+  return statuses.flatMap((s) => actionsForOne(s));
+}
+
+/** Alias matching `feature-architecture.md` naming (`allowedActions`). */
+export const allowedActions = allowedSupplierActionsForStatus;

@@ -2,6 +2,8 @@
  * Supplier — pure selectors for stats & derived states.
  */
 
+import { getSupplierName } from "@/lib/references";
+
 import type { SupplierDto } from "./types";
 
 /* ── Stats ───────────────────────────────────────────────────────────── */
@@ -25,10 +27,21 @@ export function computeSupplierStats(list: SupplierDto[]): SupplierStats {
   };
 }
 
-/* ── Lookup NAME for usage in list table ─────────────────────────────── */
+/* ── Lookup NAME — delegate to lib/references (cached Map, O(1)) ───────
+ * Giữ helper có tham số `list` để test/list-local không phụ thuộc Map
+ * global; khi có list truyền vào sẽ build Map một lần, không .find() mỗi
+ * render. Khi list rỗng hoặc id không có trong list, fallback
+ * getSupplierName (cache toàn cục).
+ */
 
 export function supplierNameById(list: SupplierDto[], id: string): string {
-  return list.find((s) => s.supplierId === id)?.name ?? id;
+  if (list.length > 0) {
+    const map = new Map(list.map((s) => [s.supplierId, s.name] as const));
+    const hit = map.get(id);
+    if (hit !== undefined) return hit;
+  }
+  const global = getSupplierName(id);
+  return global !== "—" ? global : id;
 }
 
 /* ── Multi-status filter helper for the list table ───────────────────── */

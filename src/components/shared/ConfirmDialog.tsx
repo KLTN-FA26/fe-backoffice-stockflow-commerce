@@ -25,6 +25,7 @@ interface ConfirmDialogProps {
   reasonLabel?: string;
   onConfirm: (reason?: string) => void;
   variant?: "danger" | "default";
+  loading?: boolean;
 }
 
 export function ConfirmDialog({
@@ -38,9 +39,10 @@ export function ConfirmDialog({
   reasonLabel = "Lý do",
   onConfirm,
   variant = "danger",
+  loading = false,
 }: ConfirmDialogProps) {
   const [reason, setReason] = useState("");
-  const canConfirm = !requireReason || reason.trim().length > 0;
+  const canConfirm = (!requireReason || reason.trim().length > 0) && !loading;
 
   const handleConfirm = () => {
     if (!canConfirm) return;
@@ -50,25 +52,31 @@ export function ConfirmDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) setReason(""); onOpenChange(v); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) setReason("");
+        onOpenChange(v);
+      }}
+    >
       <DialogContent
         showCloseButton={false}
-        className="gap-0 sm:max-w-[440px] rounded-[var(--r-xl)] border border-border-default bg-bg-surface p-0 shadow-[var(--sh-lg)] ring-0"
+        className="border-border-default bg-bg-surface gap-0 rounded-[var(--r-xl)] border p-0 shadow-[var(--sh-lg)] ring-0 sm:max-w-[440px]"
       >
-        <DialogHeader className="border-b border-border-default px-[18px] py-4">
-          <DialogTitle className="font-[family-name:var(--font-display)] text-[1.05rem] font-semibold leading-tight text-ink-primary">
+        <DialogHeader className="border-border-default border-b px-[18px] py-4">
+          <DialogTitle className="text-ink-primary font-[family-name:var(--font-display)] text-[1.05rem] leading-tight font-semibold">
             {title}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="px-[18px] py-[18px] space-y-3">
-          <DialogDescription className="text-[0.875rem] leading-relaxed text-ink-secondary">
+        <div className="space-y-3 px-[18px] py-[18px]">
+          <DialogDescription className="text-ink-secondary text-[0.875rem] leading-relaxed">
             {description}
           </DialogDescription>
 
           {requireReason && (
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="confirm-reason" className="text-xs font-medium text-ink-secondary">
+              <Label htmlFor="confirm-reason" className="text-ink-secondary text-xs font-medium">
                 {reasonLabel} <span className="text-danger">*</span>
               </Label>
               <Input
@@ -83,28 +91,33 @@ export function ConfirmDialog({
           )}
         </div>
 
-        <DialogFooter className="mx-0 mb-0 rounded-b-[var(--r-xl)] border-t border-border-default bg-bg-subtle px-[18px] py-[14px]">
+        <DialogFooter className="border-border-default bg-bg-subtle mx-0 mb-0 rounded-b-[var(--r-xl)] border-t px-[18px] py-[14px]">
           <Button
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => { setReason(""); onOpenChange(false); }}
-            className="rounded-[var(--r-sm)] border-border-strong bg-bg-surface text-ink-primary hover:bg-bg-muted"
+            disabled={loading}
+            onClick={() => {
+              setReason("");
+              onOpenChange(false);
+            }}
+            className="border-border-strong bg-bg-surface text-ink-primary hover:bg-bg-muted rounded-[var(--r-sm)]"
           >
             {cancelLabel}
           </Button>
-          <Button variant="ghost"
+          <Button
+            variant="ghost"
             type="button"
             size="sm"
             disabled={!canConfirm}
             onClick={handleConfirm}
             className={
               variant === "danger"
-                ? "rounded-[var(--r-sm)] bg-danger text-white hover:bg-danger/90 disabled:opacity-50"
-                : "rounded-[var(--r-sm)] bg-brand !text-ink-inverse hover:bg-brand-hover hover:!text-ink-inverse disabled:opacity-50"
+                ? "bg-danger hover:bg-danger/90 rounded-[var(--r-sm)] text-white disabled:opacity-50"
+                : "bg-brand !text-ink-inverse hover:bg-brand-hover hover:!text-ink-inverse rounded-[var(--r-sm)] disabled:opacity-50"
             }
           >
-            {confirmLabel}
+            {loading ? "Đang xử lý..." : confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

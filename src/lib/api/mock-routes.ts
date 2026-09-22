@@ -9,6 +9,8 @@
 
 import { registerMockRoute, paginate } from "./mock-adapter";
 
+import { PO_STATUSES } from "@/constants/statuses";
+
 import type {
   PrintArea,
   PrintTechnique,
@@ -40,22 +42,35 @@ interface CreateProductMockBody {
 }
 
 const createdProducts: Product[] = [];
+const createdSuppliers: Supplier[] = [];
 
-const OPEN_PO_STATUSES = [
-  "Draft",
-  "Pending Approval",
-  "Approved",
-  "Confirmed",
-  "Partially Received",
-  "Received",
-] as const;
+function parseJsonBody(data: unknown): Record<string, unknown> {
+  if (typeof data === "string") {
+    try {
+      const v: unknown = JSON.parse(data);
+      return typeof v === "object" && v !== null ? (v as Record<string, unknown>) : {};
+    } catch {
+      return {};
+    }
+  }
+  return typeof data === "object" && data !== null ? (data as Record<string, unknown>) : {};
+}
+
+function allSuppliersView(suppliers: Supplier[]): Supplier[] {
+  return [...suppliers, ...createdSuppliers];
+}
+
+// Mở = mọi PO chưa Closed/Cancelled — suy từ PO_STATUSES để không lệch enum BE (SCRUM-118)
+const OPEN_PO_STATUSES: readonly string[] = PO_STATUSES.filter(
+  (s) => s !== "Closed" && s !== "Cancelled",
+);
 
 function toSupplierDto(s: Supplier, purchaseOrders?: PurchaseOrder[]) {
   const openPoCount = purchaseOrders
     ? purchaseOrders.filter(
         (po) =>
           po.supplierId === s.supplierId &&
-          OPEN_PO_STATUSES.includes(po.status as (typeof OPEN_PO_STATUSES)[number]),
+          (OPEN_PO_STATUSES as readonly string[]).includes(po.status),
       ).length
     : 0;
   return {
@@ -238,7 +253,8 @@ export function registerAllMockRoutes(): void {
 
   // GET /suppliers
   registerMockRoute("GET", "/suppliers", async (config) => {
-    const { suppliers, purchaseOrders } = await import("@/lib/mock-data");
+    const { suppliers: seedSuppliers, purchaseOrders } = await import("@/lib/mock-data");
+    const suppliers = allSuppliersView(seedSuppliers);
     const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
     const page = Number(params.get("page")) || 1;
     const pageSize = Number(params.get("pageSize")) || 15;
@@ -263,19 +279,34 @@ export function registerAllMockRoutes(): void {
 
   // GET /suppliers/:id
   registerMockRoute("GET", "/suppliers/:id", async (config) => {
-    const { suppliers, purchaseOrders } = await import("@/lib/mock-data");
+    const { suppliers: seedSuppliers, purchaseOrders } = await import("@/lib/mock-data");
+    const suppliers = allSuppliersView(seedSuppliers);
     const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
     const supplier = suppliers.find((s) => s.supplierId === id);
     if (!supplier) return { status: 404, data: { message: "Supplier not found" }, headers: {} };
     return { status: 200, data: toSupplierDto(supplier, purchaseOrders), headers: {} };
   });
 
-  // POST /suppliers — create; duplicate taxCode → inline field error
+  // POST /suppliers — create; duplicate taxCode/code → inline field error
   registerMockRoute("POST", "/suppliers", async (config) => {
-    const { suppliers, purchaseOrders } = await import("@/lib/mock-data");
-    const body = JSON.parse(config.data ?? "{}");
+    const { suppliers: seedSuppliers, purchaseOrders } = await import("@/lib/mock-data");
+    const suppliers = allSuppliersView(seedSuppliers);
+    const body = parseJsonBody(config.data);
     const taxCode = String(body.taxCode ?? "").trim();
+    const inputCode = String(body.code ?? "").trim();
 
+    // BE code unique (SCRUM-118, procurement.supplier.code UK) — mock: nạp từ supplierId
+    if (inputCode && suppliers.some((s) => (s.supplierId ?? "").trim() === inputCode)) {
+      return {
+        status: 409,
+        data: {
+          code: "SUPPLIER_CODE_ALREADY_EXISTS",
+          message: "Mã nhà cung cấp đã tồn tại",
+          fieldErrors: { code: "Mã nhà cung cấp đã tồn tại — không thể lưu trùng." },
+        },
+        headers: {},
+      };
+    }
     if (suppliers.some((s) => s.taxCode.trim() === taxCode)) {
       return {
         status: 409,
@@ -303,19 +334,42 @@ export function registerAllMockRoutes(): void {
       rating: 3.5,
       active: true,
     };
-    suppliers.push(created);
-    return { status: 201, data: toSupplierDto(created, purchaseOrders), headers: {} };
+    createdSuppliers.push(created as Supplier);
+    return { status: 201, data: toSupplierDto(created as Supplier, purchaseOrders), headers: {} };
   });
 
-  // PUT /suppliers/:id — edit; duplicate taxCode on another supplier → inline error
+  // PUT /suppliers/:id — edit; duplicate taxCode/code on another supplier → inline error
   registerMockRoute("PUT", "/suppliers/:id", async (config) => {
-    const { suppliers, purchaseOrders } = await import("@/lib/mock-data");
+    const { suppliers: seedSuppliers, purchaseOrders } = await import("@/lib/mock-data");
+    const suppliers = allSuppliersView(seedSuppliers);
     const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
-    const body = JSON.parse(config.data ?? "{}");
-    const idx = suppliers.findIndex((s) => s.supplierId === id);
+    const body = parseJsonBody(config.data);
+    let idx = seedSuppliers.findIndex((s) => s.supplierId === id);
+    let isCreated = false;
+    if (idx === -1) {
+      idx = createdSuppliers.findIndex((s) => s.supplierId === id);
+      isCreated = true;
+    }
     if (idx === -1) return { status: 404, data: { message: "Supplier not found" }, headers: {} };
 
     const taxCode = String(body.taxCode ?? "").trim();
+    const inputCodeOnPut = String(body.code ?? "").trim();
+    if (inputCodeOnPut) {
+      const codeDup = suppliers.find(
+        (s) => s.supplierId !== id && (s.supplierId ?? "").trim() === inputCodeOnPut,
+      );
+      if (codeDup) {
+        return {
+          status: 409,
+          data: {
+            code: "SUPPLIER_CODE_ALREADY_EXISTS",
+            message: "Mã nhà cung cấp đã thuộc bản ghi khác",
+            fieldErrors: { code: "Mã nhà cung cấp đã thuộc bản ghi khác." },
+          },
+          headers: {},
+        };
+      }
+    }
     const dup = suppliers.find((s) => s.supplierId !== id && s.taxCode.trim() === taxCode);
     if (dup) {
       return {
@@ -329,29 +383,55 @@ export function registerAllMockRoutes(): void {
       };
     }
 
-    suppliers[idx] = { ...suppliers[idx]!, ...body };
-    return { status: 200, data: toSupplierDto(suppliers[idx]!, purchaseOrders), headers: {} };
+    // whitelist — never allow id/status overwrite via PUT
+    const patch: Partial<Supplier> = {};
+    for (const k of [
+      "name",
+      "taxCode",
+      "contactName",
+      "contactEmail",
+      "contactPhone",
+      "address",
+      "paymentTerms",
+      "currency",
+      "leadTimeDays",
+      "rating",
+    ] as const) {
+      if (k in body) (patch as Record<string, unknown>)[k] = body[k];
+    }
+    if (isCreated) createdSuppliers[idx] = { ...createdSuppliers[idx]!, ...patch } as Supplier;
+    else seedSuppliers[idx] = { ...seedSuppliers[idx]!, ...patch } as Supplier;
+    const updated = isCreated ? createdSuppliers[idx]! : seedSuppliers[idx]!;
+    return { status: 200, data: toSupplierDto(updated, purchaseOrders), headers: {} };
   });
 
   // PATCH /suppliers/:id/status — block deactivating a supplier with open PO
   registerMockRoute("PATCH", "/suppliers/:id/status", async (config) => {
-    const { suppliers, purchaseOrders } = await import("@/lib/mock-data");
+    const { suppliers: seedSuppliers, purchaseOrders } = await import("@/lib/mock-data");
     const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
-    const body = JSON.parse(config.data ?? "{}");
-    const idx = suppliers.findIndex((s) => s.supplierId === id);
+    const body = parseJsonBody(config.data);
+    let idx = seedSuppliers.findIndex((s) => s.supplierId === id);
+    let isCreated = false;
+    if (idx === -1) {
+      idx = createdSuppliers.findIndex((s) => s.supplierId === id);
+      isCreated = true;
+    }
     if (idx === -1) return { status: 404, data: { message: "Supplier not found" }, headers: {} };
 
-    const target = body.status;
-    const OPEN_PO_STATUSES = [
-      "Draft",
-      "Pending Approval",
-      "Approved",
-      "Confirmed",
-      "Partially Received",
-      "Received",
-    ];
+    const target = String(body.status ?? "");
+    if (target !== "Active" && target !== "Inactive") {
+      return {
+        status: 422,
+        data: {
+          code: "VALIDATION_FAILED",
+          message: "Trang thai khong hop le",
+          fieldErrors: { status: "Trang thai phai la Active hoac Inactive" },
+        },
+        headers: {},
+      };
+    }
     const openPos = purchaseOrders.filter(
-      (po) => po.supplierId === id && OPEN_PO_STATUSES.includes(po.status),
+      (po) => po.supplierId === id && (OPEN_PO_STATUSES as readonly string[]).includes(po.status),
     );
 
     if (target === "Inactive" && openPos.length > 0) {
@@ -366,8 +446,14 @@ export function registerAllMockRoutes(): void {
       };
     }
 
-    suppliers[idx] = { ...suppliers[idx]!, active: target === "Active" };
-    return { status: 200, data: toSupplierDto(suppliers[idx]!, purchaseOrders), headers: {} };
+    if (isCreated)
+      createdSuppliers[idx] = {
+        ...createdSuppliers[idx]!,
+        active: target === "Active",
+      } as Supplier;
+    else seedSuppliers[idx] = { ...seedSuppliers[idx]!, active: target === "Active" } as Supplier;
+    const patched = isCreated ? createdSuppliers[idx]! : seedSuppliers[idx]!;
+    return { status: 200, data: toSupplierDto(patched, purchaseOrders), headers: {} };
   });
 
   /* ====================================================================
