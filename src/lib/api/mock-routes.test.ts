@@ -46,7 +46,7 @@ function findOrder(predicate: (order: Order) => boolean): Order {
   return found;
 }
 
-const CANCELLABLE = ["Draft", "Pending Payment", "Confirmed", "Ready to Fulfill"];
+const CANCELLABLE = ["Draft", "Pending Payment", "Confirmed", "Ready to Fulfill", "On Hold"];
 
 describe("POST /orders/:id/admin-cancellation (mock)", () => {
   beforeAll(() => {
@@ -87,7 +87,7 @@ describe("POST /orders/:id/admin-cancellation (mock)", () => {
     expect((res.data as ErrorBody).code).toBe("VALIDATION_FAILED");
   });
 
-  it("BR-031: huỷ đơn đã Shipped → 409 CONFLICT", async () => {
+  it("BE BR-031; docs BR-03: huỷ đơn đã Shipped → 409 CONFLICT", async () => {
     const order = track(findOrder((o) => o.status === "Shipped"));
     const res = await postAdminCancel(order.orderId, { reason: "khách yêu cầu" });
     expect(res.status).toBe(409);
@@ -95,7 +95,7 @@ describe("POST /orders/:id/admin-cancellation (mock)", () => {
     expect(order.status).toBe("Shipped");
   });
 
-  it("BR-031: huỷ đơn đã Delivered → 409 CONFLICT", async () => {
+  it("BE BR-031; docs BR-03: huỷ đơn đã Delivered → 409 CONFLICT", async () => {
     const order = track(findOrder((o) => o.status === "Delivered"));
     const res = await postAdminCancel(order.orderId, { reason: "khách yêu cầu" });
     expect(res.status).toBe(409);

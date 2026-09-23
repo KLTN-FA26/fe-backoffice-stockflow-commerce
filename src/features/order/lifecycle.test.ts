@@ -28,16 +28,25 @@ describe("ORDER_TRANSITIONS (docs 17-order §5)", () => {
     ] satisfies OrderStatus[]);
   });
 
-  it("Confirmed → Ready to Fulfill / Cancelled", () => {
+  it("Confirmed → Ready to Fulfill / On Hold / Cancelled (BE PAID→IN_FULFILMENT/ON_HOLD)", () => {
     expect(nextOrderStatuses("Confirmed")).toEqual([
       "Ready to Fulfill",
+      "On Hold",
       "Cancelled",
     ] satisfies OrderStatus[]);
   });
 
-  it("Ready to Fulfill → Shipped / Cancelled", () => {
+  it("Ready to Fulfill → Shipped / On Hold / Cancelled (BE IN_FULFILMENT)", () => {
     expect(nextOrderStatuses("Ready to Fulfill")).toEqual([
       "Shipped",
+      "On Hold",
+      "Cancelled",
+    ] satisfies OrderStatus[]);
+  });
+
+  it("On Hold → Ready to Fulfill / Cancelled (BE ON_HOLD)", () => {
+    expect(nextOrderStatuses("On Hold")).toEqual([
+      "Ready to Fulfill",
       "Cancelled",
     ] satisfies OrderStatus[]);
   });

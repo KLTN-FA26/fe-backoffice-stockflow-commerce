@@ -1,16 +1,18 @@
 "use client";
 
-import { ArrowLeft, Box } from "lucide-react";
+import { ArrowLeft, Box, WifiOff } from "lucide-react";
 import Link from "next/link";
 import { use, useState } from "react";
 
 import { ADMIN_ROUTES } from "@/constants";
+import { ApiError } from "@/lib/api/error";
 import { useAuthStore } from "@/lib/auth/auth-store";
-import { toast } from "@/components/shared/Toast";
+import { formatDateTime } from "@/lib/format/date";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { StatusDot } from "@/components/shared/StatusDot";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 
 import { adminCancelErrorView } from "../errors";
@@ -42,13 +44,79 @@ export function OrderDetail({ params }: OrderDetailProps) {
 
   if (query.isLoading) return <PageSkeleton variant="detail" />;
 
+  if (query.isError) {
+    const err = query.error as ApiError;
+    const isNotFound = err.code === "NOT_FOUND" || err.status === 404;
+    const isNetwork = err.code === "NETWORK_ERROR" || err.status === 0;
+
+    if (isNetwork) {
+      return (
+        <>
+          <PageHeader
+            title="Mất kết nối"
+            subtitle="Không kết nối được máy chủ. Vui lòng kiểm tra mạng và thử lại."
+          />
+          <div className="text-ink-tertiary flex flex-col items-center justify-center py-20">
+            <WifiOff className="mb-3 size-12 opacity-40" />
+            <p className="text-[0.9375rem]">{err.message}</p>
+            {err.traceId && (
+              <p className="text-ink-tertiary mt-1 font-[family-name:var(--font-mono)] text-xs">
+                traceId: {err.traceId}
+              </p>
+            )}
+            <Button variant="outline" size="sm" className="mt-4" onClick={() => query.refetch()}>
+              Thử lại
+            </Button>
+          </div>
+        </>
+      );
+    }
+
+    if (isNotFound) {
+      return (
+        <>
+          <PageHeader title="Không tìm thấy đơn hàng" subtitle="Đơn hàng không tồn tại." />
+          <div className="text-ink-tertiary flex flex-col items-center justify-center py-20">
+            <Box className="mb-3 size-12 opacity-40" />
+            <p className="text-[0.9375rem]">
+              Đơn hàng <code className="text-accent font-[family-name:var(--font-mono)]">{id}</code>{" "}
+              không tồn tại.
+            </p>
+            <Link
+              href={ADMIN_ROUTES.orders.list}
+              className="text-accent mt-4 text-[0.8125rem] hover:underline"
+            >
+              Quay lại danh sách
+            </Link>
+          </div>
+        </>
+      );
+    }
+
+    return (
+      <>
+        <PageHeader title="Không tải được đơn hàng" subtitle={err.message} />
+        <div className="text-ink-tertiary flex flex-col items-center justify-center py-20">
+          <Box className="mb-3 size-12 opacity-40" />
+          <p className="text-[0.9375rem]">Đã xảy ra lỗi khi tải đơn hàng.</p>
+          {err.traceId && (
+            <p className="text-ink-tertiary mt-1 font-[family-name:var(--font-mono)] text-xs">
+              traceId: {err.traceId}
+            </p>
+          )}
+          <Button variant="outline" size="sm" className="mt-4" onClick={() => query.refetch()}>
+            Thử lại
+          </Button>
+        </div>
+      </>
+    );
+  }
+
+  // Guard defensif: isError đã xử lý ở trên; nếu vẫn không có data (edge)
   if (!query.data) {
     return (
       <>
-        <PageHeader
-          title="Không tìm thấy đơn hàng"
-          subtitle="Đơn hàng không tồn tại hoặc đã bị xoá khỏi dữ liệu mock."
-        />
+        <PageHeader title="Không tìm thấy đơn hàng" subtitle="Đơn hàng không tồn tại." />
         <div className="text-ink-tertiary flex flex-col items-center justify-center py-20">
           <Box className="mb-3 size-12 opacity-40" />
           <p className="text-[0.9375rem]">
@@ -75,7 +143,7 @@ export function OrderDetail({ params }: OrderDetailProps) {
     <>
       <PageHeader
         title={order.orderNumber}
-        subtitle={`${order.recipientName} · ${new Date(order.placedAt).toLocaleString("vi-VN")}`}
+        subtitle={`${order.recipientName} · ${formatDateTime(order.placedAt)}`}
         actions={
           <div className="flex items-center gap-2">
             {canCancel && (

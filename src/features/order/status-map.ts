@@ -1,7 +1,7 @@
 /**
  * Order — BE→FE status mapping.
  *
- * BE OrderStatus wire value (order/internal/domain/OrderStatus.java, 9 giá trị)
+ * BE OrderStatus wire value (order/internal/domain/OrderStatus.java, 10 giá trị)
  * → FE OrderStatus (21-value union, @/constants/statuses). Một chiều — FE có
  * nhiều state hiển thị mà BE không bao giờ trả (mock-only states).
  */
@@ -13,6 +13,7 @@ export type BackendOrderStatus =
   | "PENDING_PAYMENT"
   | "PAID"
   | "IN_FULFILMENT"
+  | "ON_HOLD"
   | "SHIPPED"
   | "DELIVERED"
   | "COMPLETED"
@@ -35,6 +36,8 @@ export function mapBackendOrderStatus(beStatus: BackendOrderStatus): OrderStatus
       return "Confirmed"; // ASSUMPTION (open-question Tú)
     case "IN_FULFILMENT":
       return "Ready to Fulfill"; // ASSUMPTION (open-question Tú)
+    case "ON_HOLD":
+      return "On Hold";
     case "SHIPPED":
       return "Shipped";
     case "DELIVERED":

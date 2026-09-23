@@ -215,23 +215,25 @@ export const MOVE_TRANSITIONS: Record<MoveTaskStatus, readonly MoveTaskStatus[]>
 
 /* ── Module 14: Order ────────────────────────────────────────────────── */
 
-// BE-aligned subset — order/internal/domain/OrderStatus.java (9 giá trị).
-// 12 state còn lại chỉ tồn tại trong mock (BE không bao giờ trả về) → terminal
-// để `Record` total.
+// BE OrderStatus.java 10 giá trị (docs 17 §5 = 20). FE union 21 giá trị = 10 BE
+// + 1 Draft mới + 10 mock-only hiển thị. Mapping BE→FE: xem status-map.ts
+// (PAID→"Confirmed", IN_FULFILMENT→"Ready to Fulfill" — ASSUMPTION open-question Tú).
+// Mock-only states để terminal (BE không bao giờ trả), trừ "On Hold" khớp BE ON_HOLD.
 export const ORDER_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
   Draft: ["Pending Payment", "Cancelled"],
-  // ASSUMPTION (open-question Tú): BE PAID → "Confirmed"
+  // BE: PENDING_PAYMENT → PAID / CANCELLED  (PAID→FE "Confirmed")
   "Pending Payment": ["Confirmed", "Cancelled"],
-  // ASSUMPTION (open-question Tú): BE IN_FULFILMENT → "Ready to Fulfill"
-  Confirmed: ["Ready to Fulfill", "Cancelled"],
-  "Ready to Fulfill": ["Shipped", "Cancelled"],
+  // BE: PAID → IN_FULFILMENT / ON_HOLD / CANCELLED  (IN_FULFILMENT→FE "Ready to Fulfill")
+  Confirmed: ["Ready to Fulfill", "On Hold", "Cancelled"],
+  // BE: IN_FULFILMENT → SHIPPED / ON_HOLD / CANCELLED
+  "Ready to Fulfill": ["Shipped", "On Hold", "Cancelled"],
   // BE BR-031 (Order.java / OrderStatus.java); docs 17 BR-03 (§6 / §4.5): hàng đã bàn giao vận chuyển — không còn Cancelled từ đây
   Shipped: ["Delivered"],
   Delivered: ["Completed", "Returned"],
   Completed: [],
   Cancelled: [],
   Returned: [],
-  // Mock-only states:
+  // Mock-only states (BE không trả) — terminal để Record total
   "Payment Failed": [],
   "In Production": [],
   Picking: [],
@@ -239,7 +241,8 @@ export const ORDER_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
   "In Transit": [],
   Refunded: [],
   "Partially Refunded": [],
-  "On Hold": [],
+  // BE ON_HOLD → IN_FULFILMENT / CANCELLED  (IN_FULFILMENT→FE "Ready to Fulfill")
+  "On Hold": ["Ready to Fulfill", "Cancelled"],
   "Partially Fulfilled": [],
   "Delivery Failed": [],
   "Return Requested": [],

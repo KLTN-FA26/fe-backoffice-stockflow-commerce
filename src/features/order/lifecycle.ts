@@ -51,7 +51,7 @@ export const ORDER_ACTIONS: readonly OrderAction[] = [
     code: "admin-cancel",
     label: "Huỷ đơn",
     permission: "order.cancel",
-    fromStatuses: ["Draft", "Pending Payment", "Confirmed", "Ready to Fulfill"],
+    fromStatuses: ["Draft", "Pending Payment", "Confirmed", "Ready to Fulfill", "On Hold"],
     targetStatus: "Cancelled",
     destructive: true,
   },

@@ -1,3 +1,5 @@
+import { formatDateTime } from "@/lib/format/date";
+
 import type { OrderEvent } from "../types";
 
 interface OrderEventTimelineProps {
@@ -23,7 +25,7 @@ export function OrderEventTimeline({ events }: OrderEventTimelineProps) {
             />
             <div className="text-ink-primary text-[0.875rem] font-semibold">{ev.description}</div>
             <div className="text-ink-tertiary text-xs tabular-nums">
-              {new Date(ev.createdAt).toLocaleString("vi-VN")} · {ev.actor}
+              {formatDateTime(ev.createdAt)} · {ev.actor}
             </div>
           </div>
         ))}
