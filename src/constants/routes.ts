@@ -22,6 +22,10 @@ export const ADMIN_ROUTES = {
     detail: (id: string) => `${ADMIN_BASE}/invoices/${id}`,
     list: `${ADMIN_BASE}/invoices`,
   },
+  orders: {
+    detail: (id: string) => `${ADMIN_BASE}/orders/${id}`,
+    list: `${ADMIN_BASE}/orders`,
+  },
   receipts: {
     detail: (id: string) => `${ADMIN_BASE}/receipts/${id}`,
     list: `${ADMIN_BASE}/receipts`,

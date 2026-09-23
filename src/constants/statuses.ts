@@ -86,9 +86,53 @@ export const INVOICE_STATUS = {
   PAID: "Paid",
 } as const satisfies Record<string, InvoiceStatus>;
 
+/**
+ * Order — superset 21 giá trị. "Draft" là MỚI (BE DRAFT), mock-data.ts hiện chưa
+ * có giá trị này trong union nội bộ của nó (union đó chỉ có 20). Union này dùng
+ * cho zod enum / lifecycle table / filter UI — không sửa mock-data.ts.
+ */
+export const ORDER_STATUSES = [
+  "Draft",
+  "Pending Payment",
+  "Payment Failed",
+  "Confirmed",
+  "In Production",
+  "Ready to Fulfill",
+  "Picking",
+  "Packed",
+  "Shipped",
+  "In Transit",
+  "Delivered",
+  "Completed",
+  "Cancelled",
+  "Returned",
+  "Refunded",
+  "Partially Refunded",
+  "On Hold",
+  "Partially Fulfilled",
+  "Delivery Failed",
+  "Return Requested",
+  "Closed",
+] as const;
+
+// Chỉ đặt tên hằng cho 9 giá trị BE (order/internal/domain/OrderStatus.java) dùng
+// tới; các giá trị mock-only còn lại giữ string literal ở nơi dùng.
+export const ORDER_STATUS = {
+  DRAFT: "Draft",
+  PENDING_PAYMENT: "Pending Payment",
+  CONFIRMED: "Confirmed",
+  READY_TO_FULFILL: "Ready to Fulfill",
+  SHIPPED: "Shipped",
+  DELIVERED: "Delivered",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
+  RETURNED: "Returned",
+} as const;
+
 export type PoStatus = (typeof PO_STATUSES)[number];
 export type ReceiptStatus = (typeof RECEIPT_STATUSES)[number];
 export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
 export type ProposalStatus = (typeof PROPOSAL_STATUSES)[number];
 export type SkuStatus = (typeof SKU_STATUSES)[number];
 export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
+export type OrderStatus = (typeof ORDER_STATUSES)[number];

@@ -39,6 +39,20 @@ interface CreateProductMockBody {
 
 const createdProducts: Product[] = [];
 
+/**
+ * BE BR-031 (Order.java / OrderStatus.java); docs 17 BR-03 (§6 / §4.5): không cho
+ * huỷ từ khi hàng đã bàn giao vận chuyển — đúng process là flow trả hàng.
+ * Mirror BE OrderStatus#canTransitionTo.
+ */
+const NON_CANCELLABLE_ORDER_STATUSES: readonly string[] = [
+  "Shipped",
+  "In Transit",
+  "Delivered",
+  "Completed",
+  "Cancelled",
+  "Returned",
+];
+
 export function registerAllMockRoutes(): void {
   /* ====================================================================
    * Module 01 — Products / SKUs / Categories / Suppliers
@@ -48,8 +62,8 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("GET", "/products", async (config) => {
     const { products } = await import("@/lib/mock-data");
     const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
+    const page = Number(params.get("page")) || 0;
+    const size = Number(params.get("size")) || 15;
     const q = params.get("q")?.toLowerCase();
     const status = params.getAll("status");
 
@@ -60,7 +74,7 @@ export function registerAllMockRoutes(): void {
       );
     if (status.length) filtered = filtered.filter((p) => status.includes(p.status));
 
-    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
+    return { status: 200, data: paginate(filtered, page, size), headers: {} };
   });
 
   // GET /products/:id
@@ -169,8 +183,8 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("GET", "/skus", async (config) => {
     const { skus } = await import("@/lib/mock-data");
     const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
+    const page = Number(params.get("page")) || 0;
+    const size = Number(params.get("size")) || 15;
     const q = params.get("q")?.toLowerCase();
 
     let filtered = [...skus];
@@ -182,7 +196,7 @@ export function registerAllMockRoutes(): void {
           s.barcode.toLowerCase().includes(q),
       );
 
-    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
+    return { status: 200, data: paginate(filtered, page, size), headers: {} };
   });
 
   // GET /skus/:id
@@ -204,8 +218,8 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("GET", "/suppliers", async (config) => {
     const { suppliers } = await import("@/lib/mock-data");
     const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
+    const page = Number(params.get("page")) || 0;
+    const size = Number(params.get("size")) || 15;
     const q = params.get("q")?.toLowerCase();
 
     let filtered = [...suppliers];
@@ -214,7 +228,7 @@ export function registerAllMockRoutes(): void {
         (s) => s.name.toLowerCase().includes(q) || s.supplierId.toLowerCase().includes(q),
       );
 
-    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
+    return { status: 200, data: paginate(filtered, page, size), headers: {} };
   });
 
   // GET /suppliers/:id
@@ -234,8 +248,8 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("GET", "/purchase-orders", async (config) => {
     const { purchaseOrders } = await import("@/lib/mock-data");
     const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
+    const page = Number(params.get("page")) || 0;
+    const size = Number(params.get("size")) || 15;
     const q = params.get("q")?.toLowerCase();
     const status = params.getAll("status");
 
@@ -246,7 +260,7 @@ export function registerAllMockRoutes(): void {
       );
     if (status.length) filtered = filtered.filter((po) => status.includes(po.status));
 
-    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
+    return { status: 200, data: paginate(filtered, page, size), headers: {} };
   });
 
   // GET /purchase-orders/:id
@@ -262,10 +276,10 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("GET", "/replenishment-proposals", async (config) => {
     const { replenishmentProposals } = await import("@/lib/mock-data");
     const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
+    const page = Number(params.get("page")) || 0;
+    const size = Number(params.get("size")) || 15;
 
-    return { status: 200, data: paginate(replenishmentProposals, page, pageSize), headers: {} };
+    return { status: 200, data: paginate(replenishmentProposals, page, size), headers: {} };
   });
 
   /* ====================================================================
@@ -276,14 +290,14 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("GET", "/receipts", async (config) => {
     const { receipts } = await import("@/lib/mock-data");
     const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
+    const page = Number(params.get("page")) || 0;
+    const size = Number(params.get("size")) || 15;
     const status = params.getAll("status");
 
     let filtered = [...receipts];
     if (status.length) filtered = filtered.filter((r) => status.includes(r.status));
 
-    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
+    return { status: 200, data: paginate(filtered, page, size), headers: {} };
   });
 
   // GET /receipts/:id
@@ -299,10 +313,10 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("GET", "/lots", async (config) => {
     const { lots } = await import("@/lib/mock-data");
     const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
+    const page = Number(params.get("page")) || 0;
+    const size = Number(params.get("size")) || 15;
 
-    return { status: 200, data: paginate(lots, page, pageSize), headers: {} };
+    return { status: 200, data: paginate(lots, page, size), headers: {} };
   });
 
   /* ====================================================================
@@ -312,14 +326,14 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("GET", "/invoices", async (config) => {
     const { invoices } = await import("@/lib/mock-data");
     const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
+    const page = Number(params.get("page")) || 0;
+    const size = Number(params.get("size")) || 15;
     const status = params.getAll("status");
 
     let filtered = [...invoices];
     if (status.length) filtered = filtered.filter((i) => status.includes(i.status));
 
-    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
+    return { status: 200, data: paginate(filtered, page, size), headers: {} };
   });
 
   registerMockRoute("GET", "/invoices/:id", async (config) => {
@@ -337,14 +351,14 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("GET", "/putaway-tasks", async (config) => {
     const { putawayTasks } = await import("@/lib/mock-data");
     const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
+    const page = Number(params.get("page")) || 0;
+    const size = Number(params.get("size")) || 15;
     const status = params.getAll("status");
 
     let filtered = [...putawayTasks];
     if (status.length) filtered = filtered.filter((t) => status.includes(t.status));
 
-    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
+    return { status: 200, data: paginate(filtered, page, size), headers: {} };
   });
 
   registerMockRoute("GET", "/putaway-tasks/:id", async (config) => {
@@ -380,10 +394,10 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("GET", "/locations", async (config) => {
     const { locations } = await import("@/lib/mock-data");
     const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 50;
+    const page = Number(params.get("page")) || 0;
+    const size = Number(params.get("size")) || 50;
 
-    return { status: 200, data: paginate(locations, page, pageSize), headers: {} };
+    return { status: 200, data: paginate(locations, page, size), headers: {} };
   });
 
   registerMockRoute("GET", "/slotting-suggestions", async () => {
@@ -411,14 +425,14 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("GET", "/pick-tasks", async (config) => {
     const { pickTasks } = await import("@/lib/mock-data");
     const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
+    const page = Number(params.get("page")) || 0;
+    const size = Number(params.get("size")) || 15;
     const status = params.getAll("status");
 
     let filtered = [...pickTasks];
     if (status.length) filtered = filtered.filter((t) => status.includes(t.status));
 
-    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
+    return { status: 200, data: paginate(filtered, page, size), headers: {} };
   });
 
   registerMockRoute("GET", "/pick-tasks/:id", async (config) => {
@@ -436,14 +450,14 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("GET", "/packing-tasks", async (config) => {
     const { packingTasks } = await import("@/lib/mock-data");
     const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
+    const page = Number(params.get("page")) || 0;
+    const size = Number(params.get("size")) || 15;
     const status = params.getAll("status");
 
     let filtered = [...packingTasks];
     if (status.length) filtered = filtered.filter((t) => status.includes(t.status));
 
-    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
+    return { status: 200, data: paginate(filtered, page, size), headers: {} };
   });
 
   registerMockRoute("GET", "/packing-tasks/:id", async (config) => {
@@ -461,14 +475,14 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("GET", "/shipments", async (config) => {
     const { shipments } = await import("@/lib/mock-data");
     const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
+    const page = Number(params.get("page")) || 0;
+    const size = Number(params.get("size")) || 15;
     const status = params.getAll("status");
 
     let filtered = [...shipments];
     if (status.length) filtered = filtered.filter((s) => status.includes(s.status));
 
-    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
+    return { status: 200, data: paginate(filtered, page, size), headers: {} };
   });
 
   registerMockRoute("GET", "/shipments/:id", async (config) => {
@@ -491,14 +505,14 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("GET", "/transfer-orders", async (config) => {
     const { transferOrders } = await import("@/lib/mock-data");
     const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
+    const page = Number(params.get("page")) || 0;
+    const size = Number(params.get("size")) || 15;
     const status = params.getAll("status");
 
     let filtered = [...transferOrders];
     if (status.length) filtered = filtered.filter((t) => status.includes(t.status));
 
-    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
+    return { status: 200, data: paginate(filtered, page, size), headers: {} };
   });
 
   registerMockRoute("GET", "/transfer-orders/:id", async (config) => {
@@ -516,14 +530,14 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("GET", "/move-tasks", async (config) => {
     const { moveTasks } = await import("@/lib/mock-data");
     const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
+    const page = Number(params.get("page")) || 0;
+    const size = Number(params.get("size")) || 15;
     const status = params.getAll("status");
 
     let filtered = [...moveTasks];
     if (status.length) filtered = filtered.filter((t) => status.includes(t.status));
 
-    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
+    return { status: 200, data: paginate(filtered, page, size), headers: {} };
   });
 
   registerMockRoute("GET", "/move-tasks/:id", async (config) => {
@@ -541,14 +555,23 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("GET", "/orders", async (config) => {
     const { orders } = await import("@/lib/mock-data");
     const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
+    const page = Number(params.get("page")) || 0;
+    const size = Number(params.get("size")) || 15;
+    const q = params.get("q")?.toLowerCase();
     const status = params.getAll("status");
 
     let filtered = [...orders];
     if (status.length) filtered = filtered.filter((o) => status.includes(o.status));
+    // Prefilter rộng trên mọi field search được; trang list còn thu hẹp lại theo
+    // "Trường search" (pref cục bộ của người dùng, server không biết).
+    if (q)
+      filtered = filtered.filter((o) =>
+        [o.orderNumber, o.recipientName, o.recipientPhone, o.orderId].some((value) =>
+          value.toLowerCase().includes(q),
+        ),
+      );
 
-    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
+    return { status: 200, data: paginate(filtered, page, size), headers: {} };
   });
 
   registerMockRoute("GET", "/orders/:id", async (config) => {
@@ -557,6 +580,70 @@ export function registerAllMockRoutes(): void {
     const order = orders.find((o) => o.orderId === id);
     if (!order) return { status: 404, data: { message: "Order not found" }, headers: {} };
     return { status: 200, data: order, headers: {} };
+  });
+
+  // GET /orders/:id/events — timeline "Lịch sử sự kiện" của trang detail.
+  // BE chưa có endpoint tương ứng trong nhánh SCRUM-242/245; route này để trang
+  // detail không phải import `mock-data.ts` trực tiếp (luật CI grep).
+  // ASSUMPTION (open-question Tú): path/shape cần xác nhận khi BE bổ sung endpoint.
+  registerMockRoute("GET", "/orders/:id/events", async (config) => {
+    const { orderEvents } = await import("@/lib/mock-data");
+    const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
+    return {
+      status: 200,
+      data: orderEvents.filter((event) => event.orderId === id),
+      headers: {},
+    };
+  });
+
+  // POST /orders/:id/admin-cancellation — BE: OrderController#adminCancel, scope ALL.
+  //
+  // GHI CHÚ (gap có sẵn, KHÔNG sửa trong task này): envelope lỗi thật của BE dùng
+  // `errorCode` / `fieldErrors: List<{field,message,code}>` / `correlationId`, còn
+  // `lib/api/error.ts` hiện parse `code` / `fieldErrors: Record<string,string>` /
+  // `traceId`. Route mock dưới đây viết theo shape mà `ApiError.from()` HIỆN TẠI đọc
+  // được, để pipeline lỗi chạy đúng ngay. Cần task riêng "Align ApiError với BE
+  // ApiResponse envelope" trước khi cắt sang API thật.
+  registerMockRoute("POST", "/orders/:id/admin-cancellation", async (config) => {
+    const { orders } = await import("@/lib/mock-data");
+    const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
+    const order = orders.find((o) => o.orderId === id);
+    // 404 chứ không 403 — không tiết lộ đơn có tồn tại hay không (BE findByIdInScope).
+    if (!order) {
+      return {
+        status: 404,
+        data: { code: "NOT_FOUND", message: "Không tìm thấy đơn hàng" },
+        headers: {},
+      };
+    }
+
+    const body = parseCancelBody(config.data);
+    if (!body.reason?.trim()) {
+      return {
+        status: 400,
+        data: {
+          code: "VALIDATION_FAILED",
+          message: "Lý do huỷ là bắt buộc",
+          fieldErrors: { reason: "Lý do huỷ là bắt buộc" },
+        },
+        headers: {},
+      };
+    }
+
+    // BE BR-031 (Order.java / OrderStatus.java); docs 17 BR-03 (§6 / §4.5): hàng đã bàn giao vận chuyển — phải đi flow trả hàng.
+    if (NON_CANCELLABLE_ORDER_STATUSES.includes(order.status)) {
+      return {
+        status: 409,
+        data: {
+          code: "CONFLICT",
+          message: "Đơn đã bàn giao vận chuyển — không thể huỷ (BR-031)",
+        },
+        headers: {},
+      };
+    }
+
+    order.status = "Cancelled";
+    return { status: 200, data: null, headers: {} };
   });
 
   /* ====================================================================
@@ -612,6 +699,23 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("POST", "/auth/logout", async () => {
     return { status: 200, data: { message: "Logged out" }, headers: {} };
   });
+}
+
+interface CancelOrderMockBody {
+  reason?: unknown;
+}
+
+function parseCancelBody(data: unknown): { reason?: string } {
+  let parsed: unknown = data;
+  if (typeof data === "string") {
+    try {
+      parsed = JSON.parse(data);
+    } catch {
+      parsed = {};
+    }
+  }
+  const body: CancelOrderMockBody = isRecord(parsed) ? parsed : {};
+  return { reason: typeof body.reason === "string" ? body.reason : undefined };
 }
 
 function parseCreateProductBody(data: unknown): CreateProductMockBody {
