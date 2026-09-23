@@ -42,7 +42,7 @@ describe("ORDER_TRANSITIONS (docs 17-order §5)", () => {
     ] satisfies OrderStatus[]);
   });
 
-  it("BR-031: Shipped chỉ còn Delivered — không còn Cancelled", () => {
+  it("BE BR-031; docs BR-03: Shipped chỉ còn Delivered — không còn Cancelled", () => {
     expect(nextOrderStatuses("Shipped")).toEqual(["Delivered"] satisfies OrderStatus[]);
     expect(nextOrderStatuses("Shipped")).not.toContain("Cancelled");
   });
@@ -105,7 +105,7 @@ describe("allowedOrderActions — action-gating theo status + role", () => {
     ]);
   });
 
-  it("BR-031: từ Shipped trở đi không role nào thấy nút huỷ", () => {
+  it("BE BR-031; docs BR-03: từ Shipped trở đi không role nào thấy nút huỷ", () => {
     const roles = ["Sales Staff", "Order Coordinator", "System Admin", "Warehouse Staff"] as const;
     for (const role of roles) {
       expect(allowedOrderActions("Shipped", role)).toEqual([]);

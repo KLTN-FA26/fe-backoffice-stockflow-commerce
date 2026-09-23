@@ -42,9 +42,10 @@ export interface OrderAction {
 }
 
 export const ORDER_ACTIONS: readonly OrderAction[] = [
-  // BR-031 (docs 17-order §5): huỷ bị chặn từ "Shipped" trở đi — hàng đã bàn giao
-  // vận chuyển, phải đi qua flow trả hàng. `fromStatuses` vì vậy không chứa
-  // "Shipped"/"In Transit"/"Delivered" và các state sau đó.
+  // BE BR-031 (Order.java / OrderStatus.java); docs 17 BR-03 (§6 / §4.5):
+  // huỷ sau khi có tác vụ kho phải đảo ngược có kiểm soát — từ "Shipped" trở
+  // đi hàng đã bàn giao vận chuyển, phải đi qua flow trả hàng. `fromStatuses`
+  // vì vậy không chứa "Shipped"/"In Transit"/"Delivered" và các state sau đó.
   // Endpoint: POST /api/v1/orders/{orderId}/admin-cancellation (scope ALL).
   {
     code: "admin-cancel",
@@ -66,7 +67,7 @@ export const ORDER_ACTIONS: readonly OrderAction[] = [
  * 2. If action has `targetStatus`, the transition table allows it.
  * 3. User's role has the required permission.
  *
- * UI-only gating — Backend phải re-check (BR-031).
+ * UI-only gating — Backend phải re-check (BE BR-031; docs BR-03).
  */
 export function allowedOrderActions(
   status: OrderStatus,

@@ -40,8 +40,9 @@ interface CreateProductMockBody {
 const createdProducts: Product[] = [];
 
 /**
- * BR-031 (docs 17-order §5): không cho huỷ từ khi hàng đã bàn giao vận chuyển —
- * đúng process là flow trả hàng. Mirror BE OrderStatus#canTransitionTo.
+ * BE BR-031 (Order.java / OrderStatus.java); docs 17 BR-03 (§6 / §4.5): không cho
+ * huỷ từ khi hàng đã bàn giao vận chuyển — đúng process là flow trả hàng.
+ * Mirror BE OrderStatus#canTransitionTo.
  */
 const NON_CANCELLABLE_ORDER_STATUSES: readonly string[] = [
   "Shipped",
@@ -629,7 +630,7 @@ export function registerAllMockRoutes(): void {
       };
     }
 
-    // BR-031 (docs 17-order §5): hàng đã bàn giao vận chuyển — phải đi flow trả hàng.
+    // BE BR-031 (Order.java / OrderStatus.java); docs 17 BR-03 (§6 / §4.5): hàng đã bàn giao vận chuyển — phải đi flow trả hàng.
     if (NON_CANCELLABLE_ORDER_STATUSES.includes(order.status)) {
       return {
         status: 409,

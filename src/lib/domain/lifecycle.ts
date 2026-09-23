@@ -225,7 +225,7 @@ export const ORDER_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
   // ASSUMPTION (open-question Tú): BE IN_FULFILMENT → "Ready to Fulfill"
   Confirmed: ["Ready to Fulfill", "Cancelled"],
   "Ready to Fulfill": ["Shipped", "Cancelled"],
-  // BR-031 (docs 17-order §5): hàng đã bàn giao vận chuyển — không còn Cancelled từ đây
+  // BE BR-031 (Order.java / OrderStatus.java); docs 17 BR-03 (§6 / §4.5): hàng đã bàn giao vận chuyển — không còn Cancelled từ đây
   Shipped: ["Delivered"],
   Delivered: ["Completed", "Returned"],
   Completed: [],

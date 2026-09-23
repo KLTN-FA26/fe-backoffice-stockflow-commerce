@@ -20,12 +20,16 @@ export function adminCancelErrorView(error: ApiError): OrderErrorView {
         title: "Không huỷ được đơn",
         detail: error.fieldErrors?.reason ?? "Lý do huỷ là bắt buộc",
       };
-    // BR-031 (docs 17-order §5): hàng đã bàn giao vận chuyển — phải đi flow trả hàng.
-    // Nút lẽ ra đã ẩn qua allowedOrderActions; đây là lớp phòng hộ khi state đã cũ.
+    // BE BR-031 (Order.java / OrderStatus.java); docs 17 BR-03 (§6 / §4.5):
+    // hàng đã bàn giao vận chuyển — phải đi flow trả hàng. Nút lẽ ra đã ẩn qua
+    // allowedOrderActions; đây là lớp phòng hộ khi state đã cũ. BE hotfix #35
+    // (đã merge vào develop) đổi lỗi sai trạng thái từ 400 → 409 CONFLICT nên
+    // nhánh này giờ chạy đúng với API thật.
     case "CONFLICT":
       return {
         title: "Đơn không còn huỷ được",
-        detail: "Đơn đã bàn giao vận chuyển. Vui lòng xử lý qua luồng trả hàng (BR-031).",
+        detail:
+          "Đơn đã bàn giao vận chuyển. Vui lòng xử lý qua luồng trả hàng (BE BR-031; docs BR-03).",
       };
     // 404 dùng chung cho "không tồn tại" và "ngoài phạm vi" — BE chủ đích không
     // tiết lộ đơn có tồn tại hay không, UI không bao giờ nói "không có quyền".
