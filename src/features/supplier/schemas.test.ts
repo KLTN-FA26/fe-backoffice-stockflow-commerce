@@ -6,6 +6,15 @@ import {
   supplierDtoSchema,
 } from "./schemas";
 
+const validAddress = {
+  street: "123 Nguyen Hue",
+  ward: "Ben Nghe",
+  district: "Quan 1",
+  province: "TP.HCM",
+  postalCode: "700000",
+  country: "VN" as const,
+};
+
 describe("supplier schemas", () => {
   it("rejects invalid taxCode format", () => {
     expect(() =>
@@ -15,6 +24,7 @@ describe("supplier schemas", () => {
         contactName: "B",
         contactEmail: "a@b.vn",
         contactPhone: "0901234567",
+        address: validAddress,
       }),
     ).toThrow();
     expect(
@@ -24,6 +34,7 @@ describe("supplier schemas", () => {
         contactName: "B",
         contactEmail: "a@b.vn",
         contactPhone: "0901234567",
+        address: validAddress,
       }).success,
     ).toBe(true);
     expect(
@@ -33,12 +44,19 @@ describe("supplier schemas", () => {
         contactName: "B",
         contactEmail: "a@b.vn",
         contactPhone: "0901234567",
+        address: validAddress,
       }).success,
     ).toBe(true);
   });
 
   it("rejects invalid phone", () => {
-    const base = { name: "A", taxCode: "0301234567", contactName: "B", contactEmail: "a@b.vn" };
+    const base = {
+      name: "A",
+      taxCode: "0301234567",
+      contactName: "B",
+      contactEmail: "a@b.vn",
+      address: validAddress,
+    };
     expect(supplierCreateInputSchema.safeParse({ ...base, contactPhone: "123" }).success).toBe(
       false,
     );
@@ -60,6 +78,26 @@ describe("supplier schemas", () => {
         currency: "CNY",
       }).success,
     ).toBe(true);
+  });
+
+  it("rejects empty address field", () => {
+    expect(
+      supplierCreateInputSchema.safeParse({
+        name: "A",
+        taxCode: "0301234567",
+        contactName: "B",
+        contactEmail: "a@b.vn",
+        contactPhone: "0901234567",
+        address: {
+          street: "",
+          ward: "Ben Nghe",
+          district: "Quan 1",
+          province: "TP.HCM",
+          postalCode: "700000",
+          country: "VN" as const,
+        },
+      }).success,
+    ).toBe(false);
   });
 
   it("validates paginated wrapper at the boundary", () => {

@@ -6,12 +6,12 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
 import { ADMIN_ROUTES } from "@/constants";
+import { useSupplier, useToggleSupplierStatus } from "@/features/supplier";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
-import { EmptyState } from "@/components/shared/EmptyState";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Button } from "@/components/ui/button";
-import { useSupplier, useToggleSupplierStatus } from "@/features/supplier";
 
 import { ContactAddressCard } from "./supplier-detail/ContactAddressCard";
 import { GeneralInfoCard } from "./supplier-detail/GeneralInfoCard";
@@ -39,7 +39,11 @@ export function SupplierDetail({ params }: { params: Promise<{ id: string }> }) 
           title="Không tìm thấy nhà cung cấp"
           description="Mã nhà cung cấp không tồn tại hoặc đã bị xoá."
           action={
-            <Button variant="outline" size="sm" onClick={() => router.push(ADMIN_ROUTES.suppliers)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.push(ADMIN_ROUTES.suppliers.list)}
+            >
               Về danh sách
             </Button>
           }
@@ -66,7 +70,7 @@ export function SupplierDetail({ params }: { params: Promise<{ id: string }> }) 
         subtitle={`${supplier.supplierId}${supplier.code ? ` · ${supplier.code}` : ""} — hồ sơ nhà cung cấp`}
         actions={
           <Link
-            href={ADMIN_ROUTES.suppliers}
+            href={ADMIN_ROUTES.suppliers.list}
             className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary inline-flex items-center gap-1.5 rounded-[var(--r-sm)] border px-3 py-1.5 text-[0.8125rem] font-medium transition-colors"
           >
             <ArrowLeft className="size-3.5" /> Quay lại

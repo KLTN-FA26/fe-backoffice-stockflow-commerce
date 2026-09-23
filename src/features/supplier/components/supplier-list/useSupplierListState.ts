@@ -33,7 +33,7 @@ export function useSupplierListState() {
   );
 
   const navigateToDetail = useCallback(
-    (s: SupplierDto) => router.push(`${ADMIN_ROUTES.suppliers}/${s.supplierId}`),
+    (s: SupplierDto) => router.push(ADMIN_ROUTES.suppliers.detail(s.supplierId)),
     [router],
   );
   const toggleStatus = useCallback(

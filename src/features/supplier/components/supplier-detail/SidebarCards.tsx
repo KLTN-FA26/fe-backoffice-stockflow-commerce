@@ -3,6 +3,7 @@ import { Landmark, Pencil, Power, RotateCcw, Star, Truck } from "lucide-react";
 import { cn } from "cn";
 
 import { ADMIN_ROUTES } from "@/constants";
+import { allowedSupplierActionsForStatus } from "@/features/supplier/lifecycle";
 import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
 
@@ -10,16 +11,18 @@ import type { SupplierDto } from "@/features/supplier/types";
 
 export function ActionCard({
   supplier,
-  isActive,
   isToggling,
   onConfirm,
 }: {
   supplier: SupplierDto;
-  isActive: boolean;
+  isActive?: boolean;
   isToggling: boolean;
   onConfirm: (k: "activate" | "deactivate") => void;
 }) {
   const router = useRouter();
+  const actions = allowedSupplierActionsForStatus(supplier.status);
+  const primary = actions[0];
+  const isInactive = supplier.status === "Inactive";
   return (
     <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
       <div className="mb-4 flex justify-center">
@@ -30,36 +33,34 @@ export function ActionCard({
           type="button"
           variant="outline"
           size="sm"
-          onClick={() => router.push(`${ADMIN_ROUTES.suppliers}/create`)}
+          onClick={() => router.push(ADMIN_ROUTES.suppliers.edit(supplier.supplierId))}
           className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted w-full rounded-[var(--r-sm)] border px-3 py-2 text-[0.8125rem] font-medium"
         >
           <Pencil className="size-3.5" /> Chỉnh sửa hồ sơ
         </Button>
-        {isActive ? (
+        {primary ? (
           <Button
             type="button"
             variant="outline"
             size="sm"
             disabled={isToggling}
-            onClick={() => onConfirm("deactivate")}
-            className="border-danger text-danger hover:bg-danger/10 w-full rounded-[var(--r-sm)] border bg-transparent px-3 py-2 text-[0.8125rem] font-medium"
+            onClick={() => onConfirm(primary.key)}
+            className={
+              primary.key === "deactivate"
+                ? "border-danger text-danger hover:bg-danger/10 w-full rounded-[var(--r-sm)] border bg-transparent px-3 py-2 text-[0.8125rem] font-medium"
+                : "border-border-default bg-brand text-ink-inverse hover:bg-brand-hover w-full rounded-[var(--r-sm)] border px-3 py-2 text-[0.8125rem] font-medium"
+            }
           >
-            <Power className="size-3.5" /> Vô hiệu hoá
+            {primary.key === "deactivate" ? (
+              <Power className="size-3.5" />
+            ) : (
+              <RotateCcw className="size-3.5" />
+            )}{" "}
+            {primary.label}
           </Button>
-        ) : (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={isToggling}
-            onClick={() => onConfirm("activate")}
-            className="border-border-default bg-brand text-ink-inverse hover:bg-brand-hover w-full rounded-[var(--r-sm)] border px-3 py-2 text-[0.8125rem] font-medium"
-          >
-            <RotateCcw className="size-3.5" /> Kích hoạt
-          </Button>
-        )}
+        ) : null}
       </div>
-      {!isActive && (
+      {isInactive && (
         <p className="text-ink-tertiary mt-3 text-center text-xs">
           NCC đang ngừng hoạt động — không xuất hiện khi tạo PO.
         </p>

@@ -9,7 +9,7 @@
 
 import { registerMockRoute, paginate } from "./mock-adapter";
 
-import { PO_STATUSES } from "@/constants/statuses";
+import { PO_STATUSES, SUPPLIER_STATUS } from "@/constants/statuses";
 
 import type {
   PrintArea,
@@ -60,6 +60,26 @@ function allSuppliersView(suppliers: Supplier[]): Supplier[] {
   return [...suppliers, ...createdSuppliers];
 }
 
+function findSupplierIndex(
+  suppliers: Supplier[],
+  created: Supplier[],
+  id: string,
+): { idx: number; isCreated: boolean } {
+  const idx = suppliers.findIndex((s) => s.supplierId === id);
+  if (idx !== -1) return { idx, isCreated: false };
+  return { idx: created.findIndex((s) => s.supplierId === id), isCreated: true };
+}
+
+function isDuplicateCode(suppliers: Supplier[], id: string | null, code: string): boolean {
+  if (!code) return false;
+  return suppliers.some((s) => s.supplierId !== id && (s.supplierId ?? "").trim() === code);
+}
+
+function isDuplicateTaxCode(suppliers: Supplier[], id: string | null, taxCode: string): boolean {
+  if (!taxCode) return false;
+  return suppliers.some((s) => s.supplierId !== id && s.taxCode.trim() === taxCode);
+}
+
 // Mở = mọi PO chưa Closed/Cancelled — suy từ PO_STATUSES để không lệch enum BE (SCRUM-118)
 const OPEN_PO_STATUSES: readonly string[] = PO_STATUSES.filter(
   (s) => s !== "Closed" && s !== "Cancelled",
@@ -85,7 +105,7 @@ function toSupplierDto(s: Supplier, purchaseOrders?: PurchaseOrder[]) {
     currency: s.currency,
     leadTimeDays: s.leadTimeDays,
     rating: s.rating,
-    status: (s.active ? "Active" : "Inactive") as "Active" | "Inactive",
+    status: (s.active ? SUPPLIER_STATUS.ACTIVE : SUPPLIER_STATUS.INACTIVE) as "Active" | "Inactive",
     openPoCount,
   };
 }
@@ -271,7 +291,9 @@ export function registerAllMockRoutes(): void {
           s.contactEmail.toLowerCase().includes(q),
       );
     if (status.length)
-      filtered = filtered.filter((s) => status.includes(s.active ? "Active" : "Inactive"));
+      filtered = filtered.filter((s) =>
+        status.includes(s.active ? SUPPLIER_STATUS.ACTIVE : SUPPLIER_STATUS.INACTIVE),
+      );
 
     const dtoList = filtered.map((s) => toSupplierDto(s, purchaseOrders));
     return { status: 200, data: paginate(dtoList, page, pageSize), headers: {} };
@@ -295,8 +317,7 @@ export function registerAllMockRoutes(): void {
     const taxCode = String(body.taxCode ?? "").trim();
     const inputCode = String(body.code ?? "").trim();
 
-    // BE code unique (SCRUM-118, procurement.supplier.code UK) — mock: nạp từ supplierId
-    if (inputCode && suppliers.some((s) => (s.supplierId ?? "").trim() === inputCode)) {
+    if (isDuplicateCode(suppliers, null, inputCode)) {
       return {
         status: 409,
         data: {
@@ -307,7 +328,7 @@ export function registerAllMockRoutes(): void {
         headers: {},
       };
     }
-    if (suppliers.some((s) => s.taxCode.trim() === taxCode)) {
+    if (isDuplicateTaxCode(suppliers, null, taxCode)) {
       return {
         status: 409,
         data: {
@@ -344,34 +365,23 @@ export function registerAllMockRoutes(): void {
     const suppliers = allSuppliersView(seedSuppliers);
     const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
     const body = parseJsonBody(config.data);
-    let idx = seedSuppliers.findIndex((s) => s.supplierId === id);
-    let isCreated = false;
-    if (idx === -1) {
-      idx = createdSuppliers.findIndex((s) => s.supplierId === id);
-      isCreated = true;
-    }
+    const { idx, isCreated } = findSupplierIndex(seedSuppliers, createdSuppliers, id);
     if (idx === -1) return { status: 404, data: { message: "Supplier not found" }, headers: {} };
 
     const taxCode = String(body.taxCode ?? "").trim();
     const inputCodeOnPut = String(body.code ?? "").trim();
-    if (inputCodeOnPut) {
-      const codeDup = suppliers.find(
-        (s) => s.supplierId !== id && (s.supplierId ?? "").trim() === inputCodeOnPut,
-      );
-      if (codeDup) {
-        return {
-          status: 409,
-          data: {
-            code: "SUPPLIER_CODE_ALREADY_EXISTS",
-            message: "Mã nhà cung cấp đã thuộc bản ghi khác",
-            fieldErrors: { code: "Mã nhà cung cấp đã thuộc bản ghi khác." },
-          },
-          headers: {},
-        };
-      }
+    if (isDuplicateCode(suppliers, id, inputCodeOnPut)) {
+      return {
+        status: 409,
+        data: {
+          code: "SUPPLIER_CODE_ALREADY_EXISTS",
+          message: "Mã nhà cung cấp đã thuộc bản ghi khác",
+          fieldErrors: { code: "Mã nhà cung cấp đã thuộc bản ghi khác." },
+        },
+        headers: {},
+      };
     }
-    const dup = suppliers.find((s) => s.supplierId !== id && s.taxCode.trim() === taxCode);
-    if (dup) {
+    if (isDuplicateTaxCode(suppliers, id, taxCode)) {
       return {
         status: 409,
         data: {
@@ -410,16 +420,11 @@ export function registerAllMockRoutes(): void {
     const { suppliers: seedSuppliers, purchaseOrders } = await import("@/lib/mock-data");
     const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
     const body = parseJsonBody(config.data);
-    let idx = seedSuppliers.findIndex((s) => s.supplierId === id);
-    let isCreated = false;
-    if (idx === -1) {
-      idx = createdSuppliers.findIndex((s) => s.supplierId === id);
-      isCreated = true;
-    }
+    const { idx, isCreated } = findSupplierIndex(seedSuppliers, createdSuppliers, id);
     if (idx === -1) return { status: 404, data: { message: "Supplier not found" }, headers: {} };
 
     const target = String(body.status ?? "");
-    if (target !== "Active" && target !== "Inactive") {
+    if (target !== SUPPLIER_STATUS.ACTIVE && target !== SUPPLIER_STATUS.INACTIVE) {
       return {
         status: 422,
         data: {
@@ -434,7 +439,7 @@ export function registerAllMockRoutes(): void {
       (po) => po.supplierId === id && (OPEN_PO_STATUSES as readonly string[]).includes(po.status),
     );
 
-    if (target === "Inactive" && openPos.length > 0) {
+    if (target === SUPPLIER_STATUS.INACTIVE && openPos.length > 0) {
       // SCRUM-118: BE chọn chặn (block) thay vì cảnh báo.
       return {
         status: 409,
@@ -449,9 +454,13 @@ export function registerAllMockRoutes(): void {
     if (isCreated)
       createdSuppliers[idx] = {
         ...createdSuppliers[idx]!,
-        active: target === "Active",
+        active: target === SUPPLIER_STATUS.ACTIVE,
       } as Supplier;
-    else seedSuppliers[idx] = { ...seedSuppliers[idx]!, active: target === "Active" } as Supplier;
+    else
+      seedSuppliers[idx] = {
+        ...seedSuppliers[idx]!,
+        active: target === SUPPLIER_STATUS.ACTIVE,
+      } as Supplier;
     const patched = isCreated ? createdSuppliers[idx]! : seedSuppliers[idx]!;
     return { status: 200, data: toSupplierDto(patched, purchaseOrders), headers: {} };
   });

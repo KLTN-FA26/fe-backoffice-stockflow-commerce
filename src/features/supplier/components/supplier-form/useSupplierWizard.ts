@@ -66,7 +66,7 @@ export function useSupplierWizard(existingSupplier?: SupplierDto) {
         },
   });
 
-  const { register, handleSubmit, setValue, setError, control, formState, trigger } = form;
+  const { register, handleSubmit, setValue, setError, control, formState } = form;
   const { errors } = formState;
   const watchedValues = useWatch({ control }) as SupplierCreateInput;
   const currentStepIndex = STEPS.findIndex((s) => s.key === currentStep);
@@ -109,7 +109,7 @@ export function useSupplierWizard(existingSupplier?: SupplierDto) {
       updateSupplier(
         { ...data, id: existingSupplier.supplierId },
         {
-          onSuccess: () => router.push(`${ADMIN_ROUTES.suppliers}/${existingSupplier.supplierId}`),
+          onSuccess: () => router.push(ADMIN_ROUTES.suppliers.detail(existingSupplier.supplierId)),
         },
       );
     } else {
@@ -118,7 +118,7 @@ export function useSupplierWizard(existingSupplier?: SupplierDto) {
           setSubmitted(true);
           setConfirmOpen(false);
           toast.success("Đã tạo nhà cung cấp", `${created.supplierId} — ${created.name}`);
-          router.push(`${ADMIN_ROUTES.suppliers}/${created.supplierId}`);
+          router.push(ADMIN_ROUTES.suppliers.detail(created.supplierId));
         },
         onError: (err) => {
           if (!err.fieldErrors) return;
@@ -140,22 +140,70 @@ export function useSupplierWizard(existingSupplier?: SupplierDto) {
     }
   };
 
-  const handleReviewSubmit = async () => {
+  const handleReviewSubmit = () => {
     setSubmitAttempted(true);
-    const valid = await trigger();
-    if (!valid) {
-      const firstErrorStep = STEPS.find((s) => (validationByStep.get(s.key) ?? []).length > 0);
-      if (firstErrorStep) {
-        setCurrentStep(firstErrorStep.key);
-        toast.error(
-          "Chưa thể lưu",
-          (validationByStep.get(firstErrorStep.key) ?? ["Kiểm tra lại biểu mẫu"])[0]!,
+    const mapErrorsToStep = (errs: typeof errors): StepKey | undefined => {
+      if (errs.name || errs.taxCode || errs.code) return "profile";
+      if (errs.contactName || errs.contactPhone || errs.contactEmail) return "contact";
+      if (
+        errs.address?.street ||
+        errs.address?.ward ||
+        errs.address?.district ||
+        errs.address?.province ||
+        errs.address?.postalCode
+      )
+        return "address";
+      if (errs.paymentTerms || errs.leadTimeDays || errs.currency) return "terms";
+      if (errs.address) return "address";
+      return undefined;
+    };
+    const firstMessage = (errs: typeof errors, step: StepKey): string => {
+      const m = validationByStep.get(step)?.[0];
+      if (m) return m;
+      // Fallback đọc trực tiếp từ errs (tươi từ onInvalid)
+      if (step === "profile")
+        return (
+          errs.name?.message ?? errs.taxCode?.message ?? errs.code?.message ?? "Kiểm tra lại hồ sơ"
         );
-      }
-      return;
-    }
-    if (isEdit) void handleSubmit(onSubmit)();
-    else setConfirmOpen(true);
+      if (step === "contact")
+        return (
+          errs.contactName?.message ??
+          errs.contactPhone?.message ??
+          errs.contactEmail?.message ??
+          "Kiểm tra lại liên hệ"
+        );
+      if (step === "address")
+        return (
+          errs.address?.street?.message ??
+          errs.address?.ward?.message ??
+          errs.address?.district?.message ??
+          errs.address?.province?.message ??
+          errs.address?.postalCode?.message ??
+          "Kiểm tra lại địa chỉ"
+        );
+      return (
+        errs.paymentTerms?.message ??
+        errs.leadTimeDays?.message ??
+        errs.currency?.message ??
+        "Kiểm tra lại điều khoản"
+      );
+    };
+    void handleSubmit(
+      (data) => {
+        if (isEdit) onSubmit(data);
+        else setConfirmOpen(true);
+      },
+      (errs) => {
+        const step = mapErrorsToStep(errs as typeof errors);
+        if (step) {
+          setCurrentStep(step);
+          toast.error("Chưa thể lưu", firstMessage(errs as typeof errors, step));
+        } else {
+          // Fallback: nếu không map được, vẫn báo chung
+          toast.error("Chưa thể lưu", "Kiểm tra lại biểu mẫu");
+        }
+      },
+    )();
   };
 
   const handleConfirmCreate = () => void handleSubmit(onSubmit)();

@@ -38,7 +38,7 @@ export function buildSupplierColumns({
       ),
       cell: (row) => (
         <Link
-          href={`${ADMIN_ROUTES.suppliers}/${row.supplierId}`}
+          href={ADMIN_ROUTES.suppliers.detail(row.supplierId)}
           className="text-accent font-[family-name:var(--font-mono)] text-[0.8125rem] font-medium hover:underline"
           onClick={(event) => {
             event.preventDefault();

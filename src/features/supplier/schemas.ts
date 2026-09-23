@@ -20,11 +20,11 @@ export const supplierStatusSchema = z.enum(supplierStatusValues);
 /* ── Address VN 3 cấp (ASSUMPTION — FE-only, BE chưa trả; giữ để demo) ─ */
 
 export const addressVNSchema = z.object({
-  street: z.string(),
-  ward: z.string(),
-  district: z.string(),
-  province: z.string(),
-  postalCode: z.string(),
+  street: z.string().trim().min(1, "Số nhà / Đường không được để trống"),
+  ward: z.string().trim().min(1, "Phường / Xã không được để trống"),
+  district: z.string().trim().min(1, "Quận / Huyện không được để trống"),
+  province: z.string().trim().min(1, "Tỉnh / TP không được để trống"),
+  postalCode: z.string().trim().min(1, "Mã bưu chính không được để trống"),
   country: z.literal("VN"),
 });
 
@@ -86,8 +86,8 @@ export const supplierCreateInputSchema = z
       .trim()
       .min(1, "Số điện thoại không được để trống")
       .pipe(phonePrimitive),
-    // FE-only — optional để khớp BE gầy
-    address: addressVNSchema.optional(),
+    // FE-only — bắt buộc (theo feedback; BE gầy chưa trả thì DTO vẫn optional)
+    address: addressVNSchema,
     paymentTerms: z.string().trim().min(1, "Điều khoản thanh toán không được để trống").optional(),
     currency: currencySchema.optional(),
     leadTimeDays: z.number().int().min(0, "Thời gian giao không âm").optional(),
