@@ -33,4 +33,10 @@ export const ADMIN_ROUTES = {
     detail: (id: string) => `${ADMIN_BASE}/variants/${id}`,
     list: `${ADMIN_BASE}/variants`,
   },
+  suppliers: {
+    list: `${ADMIN_BASE}/suppliers`,
+    create: `${ADMIN_BASE}/suppliers/create`,
+    detail: (id: string) => `${ADMIN_BASE}/suppliers/${id}`,
+    edit: (id: string) => `${ADMIN_BASE}/suppliers/${id}/edit`,
+  },
 } as const;

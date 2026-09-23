@@ -22,6 +22,8 @@ export {
   RECEIPT_STATUSES,
   SKU_STATUS,
   SKU_STATUSES,
+  SUPPLIER_STATUS,
+  SUPPLIER_STATUSES,
 } from "./statuses";
 export type {
   InvoiceStatus,
@@ -30,4 +32,5 @@ export type {
   ProposalStatus,
   ReceiptStatus,
   SkuStatus,
+  SupplierStatus,
 } from "./statuses";
