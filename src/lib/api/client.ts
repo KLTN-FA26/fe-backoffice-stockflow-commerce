@@ -56,8 +56,25 @@ function onTokenRefreshed(token: string) {
   refreshSubscribers = [];
 }
 
+function isApiResponseEnvelope(
+  v: unknown,
+): v is { success: boolean; data: unknown; errorCode?: string; message?: string } {
+  return typeof v === "object" && v !== null && "success" in (v as Record<string, unknown>);
+}
+
 api.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    const body = res.data as unknown;
+    if (
+      isApiResponseEnvelope(body) &&
+      body.success === true &&
+      "data" in (body as Record<string, unknown>)
+    ) {
+      // Unwrap BE ApiResponse<T> -> T so feature/api.ts stays typed as T
+      res.data = (body as { data: unknown }).data;
+    }
+    return res;
+  },
   async (err: AxiosError<ApiErrorBody>) => {
     const originalRequest = err.config;
 

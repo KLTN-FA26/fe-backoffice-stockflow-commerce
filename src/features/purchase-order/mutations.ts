@@ -1,42 +1,86 @@
 /**
  * Purchase Order — mutation hooks.
  *
- * Uses createMutation / createTransitionMutation factories.
+ * One hook per BE endpoint (PurchaseOrderController.java):
+ * approval / sending / cancellation / closure-short / receipts.
  */
 
-import { createMutation, createTransitionMutation } from "@/lib/api/query-factory";
+import { createMutation } from "@/lib/api/query-factory";
 import {
+  approvePurchaseOrder,
+  cancelPurchaseOrder,
+  closeShortPurchaseOrder,
   createPurchaseOrder,
-  updatePurchaseOrder,
+  receiveGoods,
+  sendPurchaseOrder,
   transitionPurchaseOrder,
   type CreatePoInput,
+  type CreatePoResult,
   type TransitionPoInput,
 } from "./api";
-import { poKeys, replenishmentKeys } from "./queries";
+import { poKeys, poDashboardKeys, replenishmentKeys, supplierSpendKeys } from "./queries";
 import type { PurchaseOrder } from "./types";
 
 /* ── Create ──────────────────────────────────────────────────────────── */
 
-export const useCreatePo = createMutation<CreatePoInput, PurchaseOrder>(createPurchaseOrder, {
-  invalidate: [poKeys.all],
-  successMessage: "Tạo đơn đặt hàng thành công",
+export const useCreatePo = createMutation<CreatePoInput, CreatePoResult>(createPurchaseOrder, {
+  invalidate: [poKeys.all, poDashboardKeys.all, supplierSpendKeys.all],
+  showErrorToast: false,
 });
 
-/* ── Update ──────────────────────────────────────────────────────────── */
+/* ── Per-action transitions ──────────────────────────────────────────── */
 
-export const useUpdatePo = createMutation<{ id: string } & Partial<CreatePoInput>, PurchaseOrder>(
-  updatePurchaseOrder,
+export const useApprovePo = createMutation<{ id: string }, PurchaseOrder>(
+  ({ id }) => approvePurchaseOrder(id),
   {
-    invalidate: [poKeys.all],
-    successMessage: "Cập nhật đơn đặt hàng thành công",
+    invalidate: [poKeys.all, poDashboardKeys.all, supplierSpendKeys.all, replenishmentKeys.all],
+    showErrorToast: false,
+    successMessage: "Phê duyệt thành công",
   },
 );
 
-/* ── Status transition ───────────────────────────────────────────────── */
+export const useSendPo = createMutation<{ id: string }, PurchaseOrder>(
+  ({ id }) => sendPurchaseOrder(id),
+  {
+    invalidate: [poKeys.all, poDashboardKeys.all, supplierSpendKeys.all],
+    showErrorToast: false,
+    successMessage: "Đã gửi tới NCC",
+  },
+);
 
-export const useTransitionPo = createTransitionMutation<TransitionPoInput, PurchaseOrder>(
+export const useCancelPo = createMutation<{ id: string; reason: string }, PurchaseOrder>(
+  ({ id, reason }) => cancelPurchaseOrder(id, reason),
+  {
+    invalidate: [poKeys.all, poDashboardKeys.all, supplierSpendKeys.all],
+    showErrorToast: false,
+    successMessage: "Đã huỷ PO",
+  },
+);
+
+export const useCloseShortPo = createMutation<{ id: string; reason: string }, PurchaseOrder>(
+  ({ id, reason }) => closeShortPurchaseOrder(id, reason),
+  {
+    invalidate: [poKeys.all, poDashboardKeys.all, supplierSpendKeys.all],
+    showErrorToast: false,
+    successMessage: "Đã đóng thiếu",
+  },
+);
+
+export const useReceiveGoodsPo = createMutation<
+  { id: string; lines: { lineId: string; quantity: number }[] },
+  PurchaseOrder
+>(({ id, lines }) => receiveGoods(id, lines), {
+  invalidate: [poKeys.all, poDashboardKeys.all, supplierSpendKeys.all],
+  showErrorToast: false,
+  successMessage: "Đã ghi nhận nhận hàng",
+});
+
+/* Compat — delegates to per-action endpoints (new code should use the hooks above). */
+export const useTransitionPo = createMutation<TransitionPoInput, PurchaseOrder>(
   transitionPurchaseOrder,
-  poKeys,
-  [replenishmentKeys.all], // cross-module invalidation
-  "Chuyển trạng thái thành công",
+  {
+    invalidate: [poKeys.all, poDashboardKeys.all, supplierSpendKeys.all, replenishmentKeys.all],
+    showErrorToast: false,
+    successMessage: "Chuyển trạng thái thành công",
+  },
 );

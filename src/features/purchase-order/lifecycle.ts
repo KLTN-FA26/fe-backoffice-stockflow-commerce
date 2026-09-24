@@ -4,7 +4,9 @@
  * Re-exports transition table from domain/lifecycle.ts (single source of truth).
  * Adds `allowedPoActions()` for UI action-gating per status + role.
  *
- * Source: docs/warehouse/02-purchase-order §5 + §6.
+ * Source: BE PurchaseOrderStatus.java + PurchaseOrder aggregate (7-state).
+ * Full 10-state is docs/warehouse/02-purchase-order §5; BE deliberately narrows
+ * (SCRUM-113/116) — FE mirrors BE so permissions gate correctly.
  */
 
 import {
@@ -39,88 +41,59 @@ export interface PoAction {
   readonly targetStatus?: PoStatus;
   /** Destructive action styling. */
   readonly destructive?: boolean;
+  /** Whether reason is required (BE cancel/closeShort need {reason}). */
+  readonly requiresReason?: boolean;
 }
 
 /**
- * All PO actions, derived from docs §4 + §5.
+ * PO actions — one entry per BE endpoint (PurchaseOrderController.java).
+ * - approve:    DRAFT -> APPROVED   (permission po.approve)
+ * - send:       APPROVED -> SENT    (permission po.update — see ticket note on sends)
+ * - cancel:     DRAFT/APPROVED/SENT -> CANCELLED, needs reason (po.update)
+ * - closeShort: PARTIALLY_RECEIVED -> CLOSED_SHORT, needs reason
+ * - receive:    SENT/PARTIALLY_RECEIVED -> PARTIALLY_RECEIVED|CLOSED (not via canTransitionTo)
  *
- * Each action maps to a permission from permissions.ts and a set of
- * source statuses from the transition table.
+ * Removed vs old docs 10-state: submit/submit-auto-approve/pendingApproval,
+ * approve->Draft rejection, confirm/close/force-close variants that BE dropped.
  */
 export const PO_ACTIONS: readonly PoAction[] = [
-  // docs §4.3: Procurement tạo Draft
-  {
-    code: "edit",
-    label: "Chỉnh sửa",
-    permission: "po.create",
-    fromStatuses: ["Draft"],
-  },
-  // docs §4.7: Submit — vượt hạn mức → Pending Approval; dưới hạn mức → Approved
-  {
-    code: "submit",
-    label: "Gửi duyệt",
-    permission: "po.create",
-    fromStatuses: ["Draft"],
-    targetStatus: "Pending Approval",
-  },
-  // docs §4.7: Submit dưới hạn mức → tự Approved
-  {
-    code: "submit-auto-approve",
-    label: "Phê duyệt & gửi",
-    permission: "po.create",
-    fromStatuses: ["Draft"],
-    targetStatus: "Approved",
-  },
-  // docs §4.8: Approver duyệt
   {
     code: "approve",
     label: "Phê duyệt",
     permission: "po.approve",
-    fromStatuses: ["Pending Approval"],
-    targetStatus: "Approved",
+    fromStatuses: ["DRAFT"],
+    targetStatus: "APPROVED",
   },
-  // docs §4.8: Approver từ chối → về Draft
   {
-    code: "reject",
-    label: "Từ chối",
-    permission: "po.approve",
-    fromStatuses: ["Pending Approval"],
-    targetStatus: "Draft",
-    destructive: true,
+    code: "send",
+    label: "Gửi NCC",
+    permission: "po.update",
+    fromStatuses: ["APPROVED"],
+    targetStatus: "SENT",
   },
-  // docs §4.9: Procurement chốt PO
-  {
-    code: "confirm",
-    label: "Chốt PO",
-    permission: "po.confirm",
-    fromStatuses: ["Approved"],
-    targetStatus: "Confirmed",
-  },
-  // docs §4.14: Đóng PO (normal close)
-  {
-    code: "close",
-    label: "Đóng PO",
-    permission: "po.confirm",
-    fromStatuses: ["Received"],
-    targetStatus: "Closed",
-  },
-  // docs §4.14: Force close (short-close)
-  {
-    code: "force-close",
-    label: "Đóng sớm",
-    permission: "po.confirm",
-    fromStatuses: ["Confirmed", "Partially Received"],
-    targetStatus: "Closed",
-  },
-  // docs §4.15: Huỷ PO
-  // BR-05 (02-purchase-order): PO không thể Cancelled khi đã có Receipt
   {
     code: "cancel",
     label: "Huỷ PO",
-    permission: "po.cancel",
-    fromStatuses: ["Draft", "Approved", "Confirmed"],
-    targetStatus: "Cancelled",
+    permission: "po.update",
+    fromStatuses: ["DRAFT", "APPROVED", "SENT"],
+    targetStatus: "CANCELLED",
     destructive: true,
+    requiresReason: true,
+  },
+  {
+    code: "closeShort",
+    label: "Đóng thiếu",
+    permission: "po.update",
+    fromStatuses: ["PARTIALLY_RECEIVED"],
+    targetStatus: "CLOSED_SHORT",
+    destructive: true,
+    requiresReason: true,
+  },
+  {
+    code: "receive",
+    label: "Nhận hàng",
+    permission: "po.update",
+    fromStatuses: ["SENT", "PARTIALLY_RECEIVED"],
   },
 ] as const;
 
@@ -134,31 +107,88 @@ export const PO_ACTIONS: readonly PoAction[] = [
  * 2. If action has `targetStatus`, the transition table allows it.
  * 3. User's role has the required permission.
  */
+/**
+ * Return the list of actions available for a given PO status + user role.
+ *
+ * **Normalize trước khi gate:** `status` có thể là Title Case legacy từ mock
+ * (`MockPurchaseOrder.status = "Draft" | "Confirmed" | ...` trong
+ * `src/lib/mock-data.ts`) hoặc SCREAMING_SNAKE từ BE (`PoStatus = "DRAFT" |
+ * "SENT" | ...` trong `src/constants/statuses.ts`). `PO_ACTIONS.fromStatuses`
+ * và `PO_TRANSITIONS` chỉ chứa key BE, nên phải normalize về BE trước khi
+ * `includes()` / `canTransition()`, nếu không action sẽ bị ẩn sai hoặc crash
+ * ở tầng dưới (đã từng gây `isTerminal(undefined.length)` ở detail).
+ *
+ * Checks:
+ * 1. Action's `fromStatuses` includes normalized status.
+ * 2. If action has `targetStatus`, the transition table allows it.
+ * 3. User's role has the required permission.
+ */
 export function allowedPoActions(status: PoStatus, role: RoleName): readonly PoAction[] {
+  const normalized = normalizePoStatus(status);
   return PO_ACTIONS.filter((action) => {
-    // 1. Status gate
-    if (!action.fromStatuses.includes(status)) return false;
-
-    // 2. Transition gate (skip for non-transition actions like "edit")
-    if (action.targetStatus && !canTransition(PO_TRANSITIONS, status, action.targetStatus)) {
+    if (!action.fromStatuses.includes(normalized)) return false;
+    if (action.targetStatus && !canTransition(PO_TRANSITIONS, normalized, action.targetStatus)) {
       return false;
     }
-
-    // 3. Permission gate
     return can(role, action.permission);
   });
 }
 
 /**
- * Check if the PO is in a terminal (final) state.
+ * PO có đang ở trạng thái kết thúc (không còn transition) không.
+ *
+ * Delegate qua `isTerminal()` nhưng phải normalize trước vì lý do dual-source
+ * như trên. Nếu không normalize, `isTerminal(PO_TRANSITIONS, "Draft")` sẽ tra
+ * `table["Draft"] === undefined` và (trước fix) crash `undefined.length`.
+ * Sau fix `isTerminal` đã guard `undefined → true`, nhưng vẫn cần normalize
+ * để `"Draft"` được tính đúng là `"DRAFT"` (non-terminal) thay vì terminal giả.
  */
 export function isPoTerminal(status: PoStatus): boolean {
-  return isTerminal(PO_TRANSITIONS, status);
+  return isTerminal(PO_TRANSITIONS, normalizePoStatus(status));
 }
 
 /**
- * Get allowed next statuses from the transition table.
+ * Các trạng thái kề tiếp được phép từ `status` (dùng cho gợi ý/validate).
+ *
+ * Normalize tương tự `isPoTerminal` — nếu `status` là Title Case thì
+ * `allowedTransitions(PO_TRANSITIONS, "Draft")` sẽ ra `[]` sai, nên phải
+ * đổi về `"DRAFT"` trước.
  */
 export function nextPoStatuses(status: PoStatus): readonly PoStatus[] {
-  return allowedTransitions(PO_TRANSITIONS, status);
+  return allowedTransitions(PO_TRANSITIONS, normalizePoStatus(status));
+}
+
+/**
+ * Chuẩn hóa status PO về canonical BE (SCREAMING_SNAKE).
+ *
+ * **Tại sao cần:** FE tồn tại 2 hệ status song song:
+ * - Mock seed `src/lib/mock-data.ts: PoStatus = "Draft" | "Approved" | "Confirmed"
+ *   | "Partially Received" | "Received" | ...` — giữ nguyên để không sửa mock-data
+ *   (hook `guard-protected-files.mjs` chặn).
+ * - BE contract `PurchaseOrderStatus.java` + `src/constants/statuses.ts`:
+ *   `PoStatus = "DRAFT" | "APPROVED" | "SENT" | "PARTIALLY_RECEIVED" | "CLOSED" | ...`
+ *   Đây là canonical type mà `features/purchase-order/types.ts` re-export.
+ *
+ * `PurchaseOrder = Omit<MockPurchaseOrder,"status"> & {status: BEPoStatus}` đã ép
+ * type, nhưng runtime mock-adapter vẫn trả về Title Case. Nếu không normalize,
+ * `isPoTerminal("Draft")` / `allowedPoActions("Confirmed", role)` sẽ sai.
+ *
+ * **Cách làm:** thử `status` nguyên văn trước (đã là BE thì giữ), rồi `toUpperCase +
+ * replace space/- → _`, rồi tra `legacyMap` cho các trường hợp BE đã đổi tên
+ * semantics (ví dụ mock `Confirmed` ≈ BE `SENT`, mock `Received` ≈ BE `CLOSED`,
+ * theo BE narrowed 7-state SCRUM-113/116). Unknown giữ nguyên `upper` — tầng dưới
+ * `isTerminal` đã guard `undefined → true` nên không crash.
+ */
+function normalizePoStatus(status: string): PoStatus {
+  if ((status as string) in PO_TRANSITIONS) return status as PoStatus;
+  const upper = status.toUpperCase().replace(/[\s-]+/g, "_");
+  if ((upper as string) in PO_TRANSITIONS) return upper as PoStatus;
+  // Map legacy gaps: mock "Confirmed" ≈ SENT (BE narrowed Received semantics),
+  // "Received" ≈ CLOSED. Unknown → treat as-is (isTerminal will guard).
+  const legacyMap: Record<string, PoStatus> = {
+    CONFIRMED: "SENT",
+    RECEIVED: "CLOSED",
+    PENDING_APPROVAL: "APPROVED",
+  };
+  return (legacyMap[upper] as PoStatus | undefined) ?? (upper as PoStatus);
 }

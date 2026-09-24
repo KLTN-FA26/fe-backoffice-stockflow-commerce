@@ -1,23 +1,21 @@
 export const PO_STATUSES = [
-  "Draft",
-  "Pending Approval",
-  "Approved",
-  "Confirmed",
-  "Partially Received",
-  "Received",
-  "Closed",
-  "Cancelled",
+  "DRAFT",
+  "APPROVED",
+  "SENT",
+  "PARTIALLY_RECEIVED",
+  "CLOSED",
+  "CLOSED_SHORT",
+  "CANCELLED",
 ] as const;
 
 export const PO_STATUS = {
-  APPROVED: "Approved",
-  CANCELLED: "Cancelled",
-  CLOSED: "Closed",
-  CONFIRMED: "Confirmed",
-  DRAFT: "Draft",
-  PARTIALLY_RECEIVED: "Partially Received",
-  PENDING_APPROVAL: "Pending Approval",
-  RECEIVED: "Received",
+  DRAFT: "DRAFT",
+  APPROVED: "APPROVED",
+  SENT: "SENT",
+  PARTIALLY_RECEIVED: "PARTIALLY_RECEIVED",
+  CLOSED: "CLOSED",
+  CLOSED_SHORT: "CLOSED_SHORT",
+  CANCELLED: "CANCELLED",
 } as const satisfies Record<string, PoStatus>;
 
 export const PROPOSAL_STATUSES = ["Draft Proposal", "Reviewed", "Converted"] as const;
