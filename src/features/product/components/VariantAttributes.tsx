@@ -94,13 +94,14 @@ function mergeStoredConfig(
 /* -------------------------------------------------------------------------- */
 
 export function VariantAttributes() {
-  const productsQuery = useProducts({ page: 1, pageSize: PAGE_SIZE.masterData });
+  const productsQuery = useProducts({ page: 0, size: PAGE_SIZE.masterData });
   const products = useMemo(() => productsQuery.data?.items ?? [], [productsQuery.data]);
   const baseAttributes = useMemo<AggregatedAttribute[]>(
     () =>
       attributesForProducts(products).map((attr) => {
-        const usedByProducts = products.filter((product) =>
-          product.attributes.some((item) => item.attributeId === attr.attributeId),
+        const usedByProducts = products.filter(
+          (product) =>
+            product.attributes?.some((item) => item.attributeId === attr.attributeId) ?? false,
         );
 
         return {

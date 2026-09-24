@@ -1,6 +1,13 @@
 import { createMutation, createTransitionMutation } from "@/lib/api/query-factory";
 
-import { createProduct, transitionProduct, transitionSku, updateProduct } from "./api";
+import {
+  createProduct,
+  publishProduct,
+  transitionProduct,
+  transitionSku,
+  unpublishProduct,
+  updateProduct,
+} from "./api";
 import { productKeys, skuKeys } from "./queries";
 
 import type { CreateProductInput, UpdateProductInput } from "./schemas";
@@ -22,12 +29,26 @@ export const useUpdateProduct = createMutation<{ id: string } & UpdateProductInp
   },
 );
 
-export const useTransitionProduct = createTransitionMutation<TransitionProductInput, Product>(
+export const useTransitionProduct = createMutation<TransitionProductInput, Product>(
   transitionProduct,
-  productKeys,
-  [skuKeys.all],
-  "Chuyển trạng thái sản phẩm thành công",
+  {
+    invalidate: [productKeys.all, skuKeys.all],
+    showErrorToast: false,
+    successMessage: "Chuyển trạng thái sản phẩm thành công",
+  },
 );
+
+export const usePublishProduct = createMutation<string, void>(publishProduct, {
+  invalidate: [productKeys.all],
+  showErrorToast: false,
+  successMessage: "Xuất bản sản phẩm thành công",
+});
+
+export const useUnpublishProduct = createMutation<string, void>(unpublishProduct, {
+  invalidate: [productKeys.all],
+  showErrorToast: false,
+  successMessage: "Gỡ xuất bản sản phẩm thành công",
+});
 
 export const useTransitionSku = createTransitionMutation<TransitionSkuInput, Sku>(
   transitionSku,

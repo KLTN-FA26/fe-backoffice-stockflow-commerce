@@ -47,8 +47,9 @@ import {
 } from "@/features/product";
 import { PRODUCT_LIST_FILTER_STATUSES, type ProductListFilterStatus } from "@/features/product/api";
 import { getProductListEmptyState } from "@/features/product/product-list-state";
+import { toProductApiPage, toProductUiPage } from "@/features/product/pagination";
 
-import type { Category, Product, Sku } from "@/features/product";
+import type { Product, Sku } from "@/features/product";
 
 type TabKey = "products" | "skus";
 type ProductStatusFilter = "all" | ProductListFilterStatus;
@@ -178,9 +179,9 @@ function productCode(product: Product): string {
   return product.code ?? product.productId;
 }
 
-function categoryName(categoryId: string | null, categories: readonly Category[]): string {
+function categoryName(categoryId: string | null, categories: ReadonlyMap<string, string>): string {
   if (categoryId === null) return "Chưa chọn danh mục";
-  return categories.find((category) => category.categoryId === categoryId)?.name.vi ?? "";
+  return categories.get(categoryId) ?? "";
 }
 
 function mergeStoredConfig(
@@ -227,12 +228,18 @@ export function ProductList() {
   const [prodSelectedKeys, setProdSelectedKeys] = useState<Set<string>>(new Set());
   const [skuSelectedKeys, setSkuSelectedKeys] = useState<Set<string>>(new Set());
   const [productPageSize, setProductPageSize] = useState<number>(PAGE_SIZE.md);
+  const [productSort, setProductSort] = useState<{
+    key: "code" | "name" | "status";
+    direction: "asc" | "desc";
+  }>({ key: "code", direction: "asc" });
 
   const productsQuery = useProducts({
-    page: Math.max(1, productFilters.page),
-    pageSize: productPageSize,
+    // URL pages are human-facing/one-based; the shared API contract is backend/zero-based.
+    page: toProductApiPage(productFilters.page),
+    size: productPageSize,
     q: productFilters.debouncedQ.trim() || undefined,
     status: productFilters.status.length > 0 ? productFilters.status : undefined,
+    sort: `${productSort.key},${productSort.direction}`,
   });
   const skusQuery = useSkus({ page: 1, pageSize: PAGE_SIZE.masterData });
   const categoriesQuery = useCategories({});
@@ -248,7 +255,7 @@ export function ProductList() {
 
   useEffect(() => {
     if (!productPage) return;
-    const lastPage = Math.max(1, productPage.totalPages ?? 1);
+    const lastPage = Math.max(1, productPage.totalPages);
     if (productPageNumber > lastPage) void setProductPage(lastPage);
   }, [productPage, productPageNumber, setProductPage]);
 
@@ -273,6 +280,10 @@ export function ProductList() {
   const productNameMap = useMemo(
     () => new Map<string, string>(rawProducts.map((product) => [product.productId, product.name])),
     [rawProducts],
+  );
+  const categoryNameMap = useMemo(
+    () => new Map(categories.map((category) => [category.categoryId, category.name.vi])),
+    [categories],
   );
 
   const skuSearchFields = useMemo(
@@ -339,11 +350,11 @@ export function ProductList() {
     () => [
       {
         label: "Tổng kết quả",
-        value: (productPage?.total ?? 0).toLocaleString("vi-VN"),
+        value: (productPage?.totalElements ?? 0).toLocaleString("vi-VN"),
         icon: Package,
       },
     ],
-    [productPage?.total],
+    [productPage?.totalElements],
   );
 
   const skuStats = useMemo(() => {
@@ -362,7 +373,7 @@ export function ProductList() {
 
   const productEmptyState = getProductListEmptyState({
     itemCount: rawProducts.length,
-    total: productPage?.total ?? 0,
+    total: productPage?.totalElements ?? 0,
     search: productFilters.q,
     statusCount: productFilters.status.length,
   });
@@ -423,13 +434,8 @@ export function ProductList() {
       ...textCell<Product>(
         "category",
         "Danh mục",
-        (row) => categoryName(row.categoryId, categories) || "—",
+        (row) => categoryName(row.categoryId, categoryNameMap) || "—",
         {
-          sortable: true,
-          compare: (a, b) =>
-            categoryName(a.categoryId, categories).localeCompare(
-              categoryName(b.categoryId, categories),
-            ),
           color: "secondary",
         },
       ),
@@ -438,8 +444,6 @@ export function ProductList() {
     {
       key: "type",
       header: "Loại",
-      sortable: true,
-      compare: (a, b) => a.type.localeCompare(b.type),
       cell: (row) => (
         <span className="text-ink-secondary text-[0.8125rem]">
           {row.type === "Customizable" ? "Tùy chỉnh" : "Tiêu chuẩn"}
@@ -450,9 +454,6 @@ export function ProductList() {
       key: "skuCount",
       header: "SKU",
       align: "right",
-      sortable: true,
-      compare: (a, b) =>
-        productSkuCount(a.productId, rawSkus) - productSkuCount(b.productId, rawSkus),
       cell: (row) => (
         <span className="text-ink-primary font-[family-name:var(--font-mono)] text-[0.8125rem] font-medium tabular-nums">
           {productSkuCount(row.productId, rawSkus)}
@@ -973,7 +974,7 @@ export function ProductList() {
                   isActive ? "bg-brand text-ink-inverse" : "bg-bg-muted text-ink-tertiary",
                 )}
               >
-                {tab.key === "products" ? (productPage?.total ?? 0) : rawSkus.length}
+                {tab.key === "products" ? (productPage?.totalElements ?? 0) : rawSkus.length}
               </span>
             </Button>
           );
@@ -1003,16 +1004,27 @@ export function ProductList() {
               onSelectionChange={setProdSelectedKeys}
               pageSize={productPageSize}
               serverPagination={{
-                page: productPage?.page ?? productFilters.page,
-                pageSize: productPage?.pageSize ?? productPageSize,
-                total: productPage?.total ?? 0,
+                page: productPage?.page ?? toProductApiPage(productFilters.page),
+                size: productPage?.size ?? productPageSize,
+                totalElements: productPage?.totalElements ?? 0,
                 totalPages: productPage?.totalPages ?? 0,
                 hasNext: productPage?.hasNext ?? false,
                 hasPrevious: productPage?.hasPrevious ?? false,
-                onPageChange: (page) => void productFilters.setPage(page),
+                onPageChange: (page) => void productFilters.setPage(toProductUiPage(page)),
                 onPageSizeChange: (pageSize) => {
                   setProductPageSize(pageSize);
                   void productFilters.setPage(1);
+                },
+              }}
+              serverSorting={{
+                key: productSort.key === "code" ? "productId" : productSort.key,
+                direction: productSort.direction,
+                onChange: (key, direction) => {
+                  const backendKey = key === "productId" ? "code" : key;
+                  if (backendKey === "code" || backendKey === "name" || backendKey === "status") {
+                    setProductSort({ key: backendKey, direction });
+                    void productFilters.setPage(1);
+                  }
                 },
               }}
             />

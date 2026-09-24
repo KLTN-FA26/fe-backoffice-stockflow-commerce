@@ -40,6 +40,7 @@ interface CreateProductMockBody {
   lengthCm?: unknown;
   widthCm?: unknown;
   heightCm?: unknown;
+  reason?: unknown;
 }
 
 type MockProduct = Product & {
@@ -51,6 +52,8 @@ type MockProduct = Product & {
 
 const createdProducts: MockProduct[] = [];
 const productOverrides = new Map<string, MockProduct>();
+const MOCK_SUBMITTER_ID = "11111111-1111-4111-8111-111111111111";
+const MOCK_APPROVER_ID = "22222222-2222-4222-8222-222222222222";
 
 export function registerAllMockRoutes(): void {
   /* ====================================================================
@@ -68,6 +71,9 @@ export function registerAllMockRoutes(): void {
       .getAll("status")
       .map(readProductStatus)
       .filter((status): status is Product["status"] => status !== null);
+    const [sortField = "code", sortDirection = "asc"] = (params.get("sort") ?? "code,asc").split(
+      ",",
+    );
 
     let filtered = [...products, ...createdProducts].map(
       (product) => productOverrides.get(product.productId) ?? product,
@@ -77,6 +83,15 @@ export function registerAllMockRoutes(): void {
         (p) => p.name.toLowerCase().includes(q) || p.productId.toLowerCase().includes(q),
       );
     if (statuses.length) filtered = filtered.filter((p) => statuses.includes(p.status));
+    if (sortField === "code" || sortField === "name" || sortField === "status") {
+      filtered.sort((left, right) => {
+        const leftValue = sortField === "code" ? left.productId : left[sortField];
+        const rightValue = sortField === "code" ? right.productId : right[sortField];
+        return sortDirection === "desc"
+          ? rightValue.localeCompare(leftValue)
+          : leftValue.localeCompare(rightValue);
+      });
+    }
 
     const totalElements = filtered.length;
     const totalPages = Math.ceil(totalElements / pageSize);
@@ -234,6 +249,8 @@ export function registerAllMockRoutes(): void {
     productOverrides.set(id, updated);
     return { status: 200, data: updated, headers: {} };
   });
+
+  registerProductTransitionRoutes();
 
   // GET /skus
   registerMockRoute("GET", "/skus", async (config) => {
@@ -682,6 +699,95 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("POST", "/auth/logout", async () => {
     return { status: 200, data: { message: "Logged out" }, headers: {} };
   });
+}
+
+function registerProductTransitionRoutes(): void {
+  registerProductTransition("submission", ["Draft"], "Pending Approval", (product) => ({
+    ...product,
+    submittedBy: MOCK_SUBMITTER_ID,
+    submittedAt: new Date().toISOString(),
+  }));
+  registerProductTransition("approval", ["Pending Approval"], "Approved", (product) => ({
+    ...product,
+    approvedBy: MOCK_APPROVER_ID,
+    approvedAt: new Date().toISOString(),
+  }));
+  registerProductTransition("discontinuation", ["Approved", "Published"], "Discontinued");
+  registerProductTransition("unpublication", ["Published"], "Approved", undefined, true);
+  registerProductTransition("publication", ["Approved"], "Published", undefined, true);
+
+  registerMockRoute("POST", "/v1/products/:id/rejection", async (config) => {
+    const body = parseCreateProductBody(config.data);
+    if (!readString(body.reason)) {
+      return mockValidationError("reason", "Lý do từ chối là bắt buộc.");
+    }
+    return transitionMockProduct(config, ["Pending Approval"], "Draft", (product) => ({
+      ...product,
+      submittedBy: undefined,
+      submittedAt: undefined,
+    }));
+  });
+}
+
+function registerProductTransition(
+  suffix: string,
+  fromStatuses: Product["status"][],
+  targetStatus: Product["status"],
+  enrich?: (product: MockProduct) => MockProduct,
+  voidResponse = false,
+): void {
+  registerMockRoute("POST", `/v1/products/:id/${suffix}`, (config) =>
+    transitionMockProduct(config, fromStatuses, targetStatus, enrich, voidResponse),
+  );
+}
+
+async function transitionMockProduct(
+  config: import("axios").AxiosRequestConfig,
+  fromStatuses: Product["status"][],
+  targetStatus: Product["status"],
+  enrich?: (product: MockProduct) => MockProduct,
+  voidResponse = false,
+) {
+  const { products } = await import("@/lib/mock-data");
+  const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
+  const current =
+    productOverrides.get(id) ??
+    [...products, ...createdProducts].find((item) => item.productId === id);
+  if (!current) {
+    return {
+      status: 404,
+      data: { errorCode: "PRODUCT_NOT_FOUND", message: "Product not found" },
+      headers: {},
+    };
+  }
+  if (!fromStatuses.includes(current.status)) {
+    return {
+      status: 409,
+      data: {
+        errorCode: "INVALID_PRODUCT_STATUS_TRANSITION",
+        message: "This product cannot move to that status right now",
+      },
+      headers: {},
+    };
+  }
+  const transitioned = enrich?.({ ...current, status: targetStatus }) ?? {
+    ...current,
+    status: targetStatus,
+  };
+  productOverrides.set(id, transitioned);
+  return { status: 200, data: voidResponse ? null : transitioned, headers: {} };
+}
+
+function mockValidationError(field: string, message: string) {
+  return {
+    status: 400,
+    data: {
+      errorCode: "VALIDATION_FAILED",
+      message: "Dữ liệu không hợp lệ.",
+      fieldErrors: [{ field, message, code: "NotBlank" }],
+    },
+    headers: {},
+  };
 }
 
 function parseCreateProductBody(data: unknown): CreateProductMockBody {

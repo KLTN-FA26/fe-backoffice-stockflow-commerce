@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { createDetailQuery, createListQuery, createQueryKeys } from "@/lib/api/query-factory";
+import type { LegacyPaginatedResponse } from "@/lib/api/query-factory";
 
 import { getProduct, getSku, listCategories, listProducts, listSkus } from "./api";
 
@@ -15,7 +16,10 @@ export const useProducts = createListQuery<Product, ListProductsParams>(productK
 
 export const useProduct = createDetailQuery<Product>(productKeys, getProduct);
 
-export const useSkus = createListQuery<Sku, ListSkusParams>(skuKeys, listSkus);
+export const useSkus = createListQuery<Sku, ListSkusParams, LegacyPaginatedResponse<Sku>>(
+  skuKeys,
+  listSkus,
+);
 
 export const useSku = createDetailQuery<Sku>(skuKeys, getSku);
 

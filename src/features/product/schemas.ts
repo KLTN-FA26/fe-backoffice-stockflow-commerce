@@ -58,7 +58,8 @@ export const productSchema = z.object({
   code: z.string().optional(),
   name: z.string().min(1),
   nameEn: z.string().min(1),
-  slug: z.string().min(1),
+  /** Legacy/mock catalog fields. ProductResponse does not provide these in real mode. */
+  slug: z.string().min(1).optional(),
   type: productTypeSchema,
   categoryId: z.string().min(1).nullable(),
   status: productStatusSchema,
@@ -66,15 +67,17 @@ export const productSchema = z.object({
   descriptionEn: z.string(),
   images: z.array(z.string()),
   model3dUrl: z.string().optional(),
-  basePrice: z.number().min(0),
+  basePrice: z.number().min(0).optional(),
   pricingFormula: pricingFormulaSchema.optional(),
-  attributes: z.array(productAttributeSchema),
+  attributes: z.array(productAttributeSchema).optional(),
   printAreas: z.array(printAreaSchema).optional(),
   taxClass: z.enum(["standard", "reduced", "exempt"]),
-  uom: uomSchema,
+  uom: uomSchema.optional(),
   brand: z.string(),
   createdAt: z.string(),
   createdBy: z.string(),
+  submittedBy: z.string().uuid().optional(),
+  submittedAt: z.string().optional(),
   approvedBy: z.string().optional(),
   approvedAt: z.string().optional(),
   weightKg: z.number().positive().nullable().optional(),
@@ -188,11 +191,16 @@ export const productDraftFormSchema = z.object({
   heightCm: optionalPositiveText,
 });
 
-export const transitionProductSchema = z.object({
-  id: z.string(),
-  targetStatus: productStatusSchema,
-  reason: z.string().optional(),
-});
+export const transitionProductSchema = z
+  .object({
+    id: z.string(),
+    action: z.enum(["submit", "approve", "reject", "discontinue"]),
+    reason: z.string().optional(),
+  })
+  .refine((value) => value.action !== "reject" || Boolean(value.reason?.trim()), {
+    path: ["reason"],
+    message: "Lý do từ chối là bắt buộc",
+  });
 
 export const transitionSkuSchema = z.object({
   id: z.string(),
