@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { ADMIN_ROUTES, PAGE_SIZE, PRODUCT_STATUS } from "@/constants";
 import { useAuthStore } from "@/lib/auth/auth-store";
+import { useCan } from "@/lib/auth/components/Can";
+import { ApiError } from "@/lib/api";
 import {
   allowedProductActions,
   categoryName,
@@ -27,8 +29,14 @@ import {
   formatVnd,
   skusForProduct,
   useCategories,
+  usePublishProduct,
   useProduct,
   useSkus,
+  useTransitionProduct,
+  useUnpublishProduct,
+  productTransitionErrorMessage,
+  isSelfApproval,
+  productUomLabel,
 } from "@/features/product";
 import { SkuDetailPanel } from "@/components/backoffice/SkuDetailPanel";
 import { DataTable, type ColumnDef } from "@/components/shared/DataTable";
@@ -38,7 +46,7 @@ import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { textCell, numberCell, moneyCell, statusCell } from "@/components/shared/column-helpers";
-import type { PrintArea, Product, ProductStatus, Sku, SkuStatus } from "@/features/product";
+import type { PrintArea, ProductAction, ProductStatus, Sku, SkuStatus } from "@/features/product";
 
 /* -------------------------------------------------------------------------- */
 /*  Helpers                                                                   */
@@ -48,9 +56,7 @@ const LIFECYCLE_ORDER: ProductStatus[] = [
   PRODUCT_STATUS.DRAFT,
   PRODUCT_STATUS.PENDING_APPROVAL,
   PRODUCT_STATUS.APPROVED,
-  PRODUCT_STATUS.ACTIVE,
   PRODUCT_STATUS.PUBLISHED,
-  PRODUCT_STATUS.INACTIVE,
   PRODUCT_STATUS.DISCONTINUED,
 ];
 
@@ -133,10 +139,9 @@ function InfoRow({ label, children }: { label: string; children: React.ReactNode
 export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id: productId } = React.use(params);
   const roles = useAuthStore((state) => state.effectiveRoles());
+  const currentUserId = useAuthStore((state) => state.user?.userId);
   const currentRole = roles[0];
-
-  // Mock status override
-  const [statusOverride, setStatusOverride] = useState<ProductStatus | null>(null);
+  const canEditProduct = useCan("product.edit");
 
   const productQuery = useProduct(productId);
   const skusQuery = useSkus({ page: 1, pageSize: PAGE_SIZE.masterData, productId });
@@ -147,11 +152,8 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
   const categories = useMemo(() => categoriesQuery.data?.items ?? [], [categoriesQuery.data]);
   const isLoading = productQuery.isLoading || skusQuery.isLoading || categoriesQuery.isLoading;
 
-  const product: Product | null = useMemo(
-    () =>
-      baseProduct && statusOverride ? { ...baseProduct, status: statusOverride } : baseProduct,
-    [baseProduct, statusOverride],
-  );
+  const product = baseProduct;
+  const canEditDraft = canEditProduct && product?.status === PRODUCT_STATUS.DRAFT;
 
   const productSkus = useMemo(
     () => (product ? skusForProduct(product.productId, skus) : []),
@@ -168,14 +170,56 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
     }));
   }, [product]);
 
-  const actions = product && currentRole ? allowedProductActions(product.status, currentRole) : [];
+  const transitionMutation = useTransitionProduct();
+  const publishMutation = usePublishProduct();
+  const unpublishMutation = useUnpublishProduct();
+  const isTransitionPending =
+    transitionMutation.isPending || publishMutation.isPending || unpublishMutation.isPending;
+  const actions = useMemo(
+    () =>
+      product && currentRole
+        ? allowedProductActions(product.status, currentRole).filter(
+            (action) =>
+              action.transition &&
+              !(
+                action.transition === "approve" &&
+                isSelfApproval(product.submittedBy, currentUserId)
+              ),
+          )
+        : [],
+    [currentRole, currentUserId, product],
+  );
 
   const handleStatusChange = useCallback(
-    (newStatus: ProductStatus) => {
-      setStatusOverride(newStatus);
-      toast.success("Cập nhật trạng thái", `${productId} chuyển sang ${newStatus}.`);
+    async (action: ProductAction) => {
+      if (!action.transition) return;
+      let reason: string | undefined;
+      if (action.transition === "reject") {
+        reason = window.prompt("Nhập lý do từ chối")?.trim();
+        if (!reason) {
+          toast.error("Chưa thể từ chối", "Lý do từ chối là bắt buộc.");
+          return;
+        }
+      }
+      try {
+        if (action.transition === "publish") await publishMutation.mutateAsync(productId);
+        else if (action.transition === "unpublish") await unpublishMutation.mutateAsync(productId);
+        else
+          await transitionMutation.mutateAsync({
+            id: productId,
+            action: action.transition,
+            reason,
+          });
+      } catch (error: unknown) {
+        toast.error(
+          "Không thể cập nhật trạng thái",
+          error instanceof ApiError
+            ? productTransitionErrorMessage(error)
+            : "Đã xảy ra lỗi không xác định.",
+        );
+      }
     },
-    [productId],
+    [productId, publishMutation, transitionMutation, unpublishMutation],
   );
 
   /* SKU panel state */
@@ -319,15 +363,14 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
         subtitle={product.nameEn}
         actions={
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              type="button"
-              onClick={() => toast.info("Chỉnh sửa sản phẩm", "Chức năng đang phát triển.")}
-              className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary inline-flex items-center gap-1.5 rounded-[var(--r-sm)] border px-3 py-1.5 text-[0.8125rem] font-medium transition-colors"
-            >
-              <Pencil className="size-3.5" />
-              Chỉnh sửa
-            </Button>
+            {canEditDraft && (
+              <Button asChild variant="outline" size="sm">
+                <Link href={ADMIN_ROUTES.products.edit(product.productId)}>
+                  <Pencil className="size-3.5" />
+                  Chỉnh sửa
+                </Link>
+              </Button>
+            )}
             <Link
               href={ADMIN_ROUTES.products.list}
               className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary inline-flex items-center gap-1.5 rounded-[var(--r-sm)] border px-3 py-1.5 text-[0.8125rem] font-medium transition-colors"
@@ -349,8 +392,8 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
               variant="ghost"
               key={act.code}
               type="button"
-              onClick={() => act.targetStatus && handleStatusChange(act.targetStatus)}
-              disabled={!act.targetStatus}
+              onClick={() => void handleStatusChange(act)}
+              disabled={isTransitionPending}
               className={cn(
                 "rounded-[var(--r-sm)] border px-3 py-1.5 text-[0.8125rem] font-medium transition-colors",
                 act.destructive
@@ -374,20 +417,26 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
             title="Thông tin chung"
             icon={Layers}
             actions={
-              <Button
-                variant="ghost"
-                type="button"
-                onClick={() => toast.info("Chỉnh sửa thông tin", "Chức năng đang phát triển.")}
-                className="border-border-default text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary rounded-[var(--r-sm)] border px-2 py-0.5 text-xs"
-              >
-                <Pencil className="inline size-3" />
-              </Button>
+              canEditDraft ? (
+                <Button
+                  asChild
+                  variant="ghost"
+                  className="border-border-default text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary rounded-[var(--r-sm)] border px-2 py-0.5 text-xs"
+                >
+                  <Link
+                    href={ADMIN_ROUTES.products.edit(product.productId)}
+                    aria-label="Chỉnh sửa thông tin sản phẩm"
+                  >
+                    <Pencil className="inline size-3" />
+                  </Link>
+                </Button>
+              ) : undefined
             }
           >
             <div className="divide-border-default divide-y">
               <InfoRow label="Mã sản phẩm">
                 <span className="text-accent font-[family-name:var(--font-mono)] font-medium">
-                  {product.productId}
+                  {product.code ?? product.productId}
                 </span>
               </InfoRow>
               <InfoRow label="Loại">
@@ -395,7 +444,7 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
               </InfoRow>
               <InfoRow label="Danh mục">{categoryName(product.categoryId, categories)}</InfoRow>
               <InfoRow label="Thương hiệu">{product.brand}</InfoRow>
-              <InfoRow label="Đơn vị tính">{product.uom}</InfoRow>
+              <InfoRow label="Đơn vị tính">{productUomLabel(product)}</InfoRow>
               <InfoRow label="Thuế">{product.taxClass}</InfoRow>
               <InfoRow label="Trạng thái">
                 <StatusDot domain="product" status={product.status} size="sm" withIcon />
@@ -406,7 +455,11 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
                   {new Date(product.createdAt).toLocaleDateString("vi-VN")}
                 </span>
               </InfoRow>
-              {product.approvedBy && <InfoRow label="Người duyệt">{product.approvedBy}</InfoRow>}
+              {product.approvedBy && (
+                <InfoRow label="ID người duyệt">
+                  <span className="font-[family-name:var(--font-mono)]">{product.approvedBy}</span>
+                </InfoRow>
+              )}
               {product.approvedAt && (
                 <InfoRow label="Ngày duyệt">
                   <span className="tabular-nums">
@@ -426,7 +479,7 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
           </Section>
 
           {/* Thuộc tính biến thể */}
-          {product.attributes.length > 0 && (
+          {product.attributes && product.attributes.length > 0 && (
             <Section
               title="Thuộc tính biến thể"
               icon={Palette}

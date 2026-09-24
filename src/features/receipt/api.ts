@@ -2,7 +2,7 @@ import { PAGE_SIZE } from "@/constants";
 
 import { api } from "@/lib/api/client";
 
-import type { PaginatedResponse } from "@/lib/api/query-factory";
+import type { LegacyPaginatedResponse as PaginatedResponse } from "@/lib/api/query-factory";
 import type { Lot, Receipt } from "./types";
 
 export interface ListReceiptParams {

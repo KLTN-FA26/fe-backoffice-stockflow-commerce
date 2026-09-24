@@ -68,14 +68,32 @@ export function createQueryKeys<TParams = Record<string, unknown>>(
 
 export interface PaginatedResponse<T> {
   items: T[];
+  /** Zero-based page number, matching the backend PageResponse contract. */
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
+}
+
+/**
+ * Temporary compatibility shape for mock-only/legacy modules that have not migrated to the
+ * backend PageResponse contract yet. New backend integrations must use PaginatedResponse.
+ */
+export interface LegacyPaginatedResponse<T> {
+  items: T[];
   total: number;
   page: number;
   pageSize: number;
+  totalPages?: number;
+  hasNext?: boolean;
+  hasPrevious?: boolean;
 }
 
 export interface ListQueryParams {
-  page?: number;
-  pageSize?: number;
+  page?: number; // zero-based
+  size?: number;
   sort?: string;
   q?: string;
   [key: string]: unknown;
@@ -90,16 +108,20 @@ export interface ListQueryParams {
  *     (params, signal) => listPurchaseOrders(params, signal),
  *   );
  *
- *   // In component:
- *   const { data, isLoading } = usePurchaseOrders({ page: 1, status: ["Draft"] });
+ *   // In component (canonical backend pages are zero-based):
+ *   const { data, isLoading } = usePurchaseOrders({ page: 0, status: ["Draft"] });
  */
-export function createListQuery<TItem, TParams extends ListQueryParams = ListQueryParams>(
+export function createListQuery<
+  TItem,
+  TParams extends ListQueryParams = ListQueryParams,
+  TResponse extends { items: TItem[] } = PaginatedResponse<TItem>,
+>(
   keys: QueryKeys<TParams>,
-  fetcher: (params: TParams, signal?: AbortSignal) => Promise<PaginatedResponse<TItem>>,
-  defaultOptions?: Partial<UseQueryOptions<PaginatedResponse<TItem>>>,
+  fetcher: (params: TParams, signal?: AbortSignal) => Promise<TResponse>,
+  defaultOptions?: Partial<UseQueryOptions<TResponse>>,
 ) {
   return function useListQuery(params: TParams) {
-    return useQuery<PaginatedResponse<TItem>>({
+    return useQuery<TResponse>({
       queryKey: keys.list(params) as QueryKey,
       queryFn: ({ signal }) => fetcher(params, signal),
       placeholderData: keepPreviousData, // No flash when changing filters

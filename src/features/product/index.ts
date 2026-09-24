@@ -20,6 +20,8 @@ export {
   printTechniqueValues,
   pricingFormulaSchema,
   productAttributeSchema,
+  productDraftFormSchema,
+  productMasterDtoSchema,
   productSchema,
   productStatusSchema,
   productStatusValues,
@@ -30,12 +32,15 @@ export {
   skuStatusValues,
   transitionProductSchema,
   transitionSkuSchema,
+  updateProductSchema,
   uomSchema,
   uomValues,
 } from "./schemas";
 export type {
   CategoryDto,
   CreateProductInput,
+  ProductDraftFormValues,
+  ProductMasterDto,
   ProductDto,
   ProductStatusValue,
   ProductTypeValue,
@@ -43,6 +48,7 @@ export type {
   SkuStatusValue,
   TransitionProductInput,
   TransitionSkuInput,
+  UpdateProductInput,
 } from "./schemas";
 
 export {
@@ -55,6 +61,7 @@ export {
   allowedTransitions,
   canTransition,
   isProductTerminal,
+  isSelfApproval,
   isSkuTerminal,
   isTerminal,
   nextProductStatuses,
@@ -73,13 +80,19 @@ export {
   productAvailableStock,
   productName,
   productSkuCount,
+  productUomLabel,
   shouldFlagProductRow,
   shouldFlagSkuRow,
   skusForProduct,
 } from "./selectors";
 export type { ProductListStats } from "./selectors";
 
-export { buildCreateProductInput, mapCreateProductError } from "./create-product-form";
+export {
+  PRODUCT_DRAFT_FORM_DEFAULTS,
+  buildCreateProductInput,
+  mapCreateProductError,
+  productToDraftForm,
+} from "./create-product-form";
 export type {
   CreateProductServerField,
   CreateProductServerErrors,
@@ -98,10 +111,15 @@ export {
 } from "./queries";
 
 export {
+  usePublishProduct,
   useCreateProduct,
   useTransitionProduct,
   useTransitionSku,
   useUpdateProduct,
+  useUnpublishProduct,
 } from "./mutations";
+
+export { productTransitionErrorMessage } from "./transition-errors";
+export { toProductApiPage, toProductUiPage } from "./pagination";
 
 export type { ListProductsParams, ListSkusParams } from "./api";

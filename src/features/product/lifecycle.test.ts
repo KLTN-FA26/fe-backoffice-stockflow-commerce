@@ -5,6 +5,7 @@ import {
   allowedSkuActions,
   nextProductStatuses,
   nextSkuStatuses,
+  isSelfApproval,
 } from "./lifecycle";
 
 import { can } from "@/lib/auth/permissions";
@@ -24,6 +25,19 @@ describe("product lifecycle", () => {
     expect(
       allowedProductActions("Pending Approval", "E-commerce Admin").map((action) => action.code),
     ).toEqual(["approve", "reject"]);
+  });
+
+  it("matches self approval only by the authenticated user UUID", () => {
+    const userId = "11111111-1111-4111-8111-111111111111";
+    expect(isSelfApproval(userId, userId)).toBe(true);
+    expect(isSelfApproval(userId, "22222222-2222-4222-8222-222222222222")).toBe(false);
+    expect(isSelfApproval(undefined, userId)).toBe(false);
+  });
+
+  it("uses the exact backend publication and discontinuation transitions", () => {
+    expect(nextProductStatuses("Approved")).toEqual(["Published", "Discontinued"]);
+    expect(nextProductStatuses("Published")).toEqual(["Approved", "Discontinued"]);
+    expect(nextProductStatuses("Active")).toEqual([]);
   });
 
   it("gates Active SKU actions by E-commerce Admin role", () => {
