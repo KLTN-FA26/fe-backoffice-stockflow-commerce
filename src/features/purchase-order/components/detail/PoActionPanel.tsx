@@ -5,7 +5,8 @@ import { cn } from "cn";
 import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
 
-import type { PoAction } from "@/features/purchase-order";
+import type { PoAction, PoStatus } from "@/features/purchase-order";
+import { isPoTerminal } from "@/features/purchase-order/lifecycle";
 
 export function PoActionPanel({
   status,
@@ -20,7 +21,7 @@ export function PoActionPanel({
   conflictError: string | null;
   onAction: (act: PoAction) => void;
 }) {
-  const terminal = status === "CLOSED" || status === "CLOSED_SHORT" || status === "CANCELLED";
+  const terminal = isPoTerminal(status as PoStatus);
   return (
     <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
       <div className="mb-4 flex justify-center">
@@ -68,5 +69,6 @@ export function actionDescription(act: PoAction, currentStatus: string): string 
     return `Huỷ PO — đơn sẽ chuyển sang "CANCELLED" từ "${currentStatus}". Không thể khôi phục.`;
   if (act.code === "closeShort")
     return `Đóng thiếu — PO sẽ chuyển sang "CLOSED_SHORT". Phần còn lại được ghi nhận thiếu.`;
+  if (act.code === "receive") return `Nhận hàng — ghi nhận số lượng đã nhận cho từng dòng.`;
   return `Xác nhận thực hiện "${act.label}".`;
 }

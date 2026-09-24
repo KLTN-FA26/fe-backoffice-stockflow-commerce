@@ -19,8 +19,6 @@ export type PoLineDraft = {
   skuId: string;
   orderedQty: string;
   unitPrice: string;
-  taxRate: string;
-  discountRate: string;
   uom: string;
   description: string;
 };
@@ -32,8 +30,6 @@ export type ValidationIssue = {
 
 export type Totals = {
   subtotal: number;
-  taxTotal: number;
-  discountTotal: number;
   grandTotal: number;
 };
 
@@ -64,8 +60,6 @@ export const INITIAL_FORM: FormState = {
       skuId: "d0000005-0000-4000-8000-000000000001", // SOFA-3S-GREY
       orderedQty: "10",
       unitPrice: "5000000",
-      taxRate: "0",
-      discountRate: "0",
       uom: "EACH",
       description: "3 Seater Sofa - Grey Fabric",
     },
@@ -74,8 +68,6 @@ export const INITIAL_FORM: FormState = {
       skuId: "d0000005-0000-4000-8000-000000000002", // TABLE-OAK-160
       orderedQty: "5",
       unitPrice: "8000000",
-      taxRate: "0",
-      discountRate: "0",
       uom: "EACH",
       description: "Oak Dining Table 160cm - Natural Oak",
     },

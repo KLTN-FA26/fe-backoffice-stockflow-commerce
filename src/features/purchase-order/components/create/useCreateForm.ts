@@ -72,7 +72,8 @@ export function useCreateForm() {
   const handleSubmitAttempt = () => {
     setSubmitAttempted(true);
     if (validationIssues.length > 0) {
-      toast.error("Chưa thể tạo PO", validationIssues[0]!.message);
+      const firstIssue = validationIssues[0];
+      if (firstIssue) toast.error("Chưa thể tạo PO", firstIssue.message);
       return false;
     }
     setConfirmOpen(true);
@@ -110,7 +111,9 @@ export function useCreateForm() {
         onError: (err: unknown) => {
           const e = err as { fieldErrors?: Record<string, string>; message?: string };
           if (e.fieldErrors && Object.keys(e.fieldErrors).length) {
-            const [k, v] = Object.entries(e.fieldErrors)[0]!;
+            const firstEntry = Object.entries(e.fieldErrors)[0];
+            if (!firstEntry) return;
+            const [k, v] = firstEntry;
             toast.error("Dữ liệu chưa hợp lệ", `${k}: ${v}`);
             return;
           }

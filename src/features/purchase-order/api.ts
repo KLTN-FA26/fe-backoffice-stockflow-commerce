@@ -94,11 +94,17 @@ export function mapBePoToFe(be: BePurchaseOrder): PurchaseOrder {
     return { ...m, currency } as PurchaseOrder["lines"][number];
   });
   const total = toNumber(be.totalAmount);
+  // Normalize ngay tại biên API — mock-adapter có thể trả về Title Case
+  // legacy ("Draft", "Confirmed", "Partially Received") trong khi FE canonical
+  // là SCREAMING_SNAKE ("DRAFT", "SENT", ...). Không normalize ở đây thì mọi
+  // consumer (detail timeline, action-gating, status badge) đều phải tự normalize
+  // và dễ sót, từng gây crash `isTerminal(undefined.length)` ở detail.
+  const normalizedStatus = normalizeApiStatus(be.status);
   return {
     poId,
     poNumber: be.poNumber,
     supplierId: be.supplierId,
-    status: be.status as PurchaseOrder["status"],
+    status: normalizedStatus as unknown as PurchaseOrder["status"],
     warehouseId: "WH-HN-01" as PurchaseOrder["warehouseId"],
     currency,
     orderDate: be.createdAt ? be.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
@@ -116,6 +122,36 @@ export function mapBePoToFe(be: BePurchaseOrder): PurchaseOrder {
     fromProposalId: undefined,
     revisionOf: undefined,
   } as PurchaseOrder;
+}
+
+/**
+ * Chuẩn hóa status từ wire (BE hoặc mock-adapter) về canonical BE.
+ *
+ * Dual-source giống `normalizePoStatus()` trong `lifecycle.ts` nhưng đặt ở
+ * tầng API để FE còn lại chỉ làm việc với SCREAMING_SNAKE:
+ * - BE thật đã trả SCREAMING_SNAKE → `upper` giữ nguyên, `legacyMap[upper]`
+ *   thường là identity (giữ nguyên).
+ * - Mock adapter trả Title Case (`Draft`, `Approved`, `Confirmed`, `Received`) →
+ *   `toUpperCase + replace` đổi về `DRAFT`/`APPROVED`/`CONFIRMED`/..., rồi
+ *   `legacyMap` xử lý các trường hợp BE đã đổi semantics (mock `Confirmed`
+ *   ≈ BE `SENT`, mock `Received` ≈ BE `CLOSED`, theo narrowed 7-state
+ *   SCRUM-113/116). Empty string → `DRAFT` để không trả về `""` cho UI.
+ */
+function normalizeApiStatus(status: string): string {
+  if (!status) return "DRAFT";
+  const upper = status.toUpperCase().replace(/[\s-]+/g, "_");
+  // Legacy mock Title Case → BE screaming snake
+  const legacyMap: Record<string, string> = {
+    DRAFT: "DRAFT",
+    PENDING_APPROVAL: "APPROVED",
+    APPROVED: "APPROVED",
+    CONFIRMED: "SENT",
+    PARTIALLY_RECEIVED: "PARTIALLY_RECEIVED",
+    RECEIVED: "CLOSED",
+    CLOSED: "CLOSED",
+    CANCELLED: "CANCELLED",
+  };
+  return legacyMap[upper] ?? upper;
 }
 
 function mapBePage<T, U>(

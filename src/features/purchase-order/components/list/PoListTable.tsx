@@ -125,6 +125,10 @@ export function PoListTable({
         onPageChange={onPageChange}
         onPageSizeChange={onPageSizeChange}
       />
+      <p className="text-ink-tertiary mt-2 text-[0.6875rem]">
+        Tìm theo cột hiện chỉ lọc trên trang đã tải (UI-only, chưa gọi API) — BE chưa hỗ trợ filter
+        riêng theo cột; dùng ô Tìm kiếm chung để lọc server.
+      </p>
     </>
   );
 }

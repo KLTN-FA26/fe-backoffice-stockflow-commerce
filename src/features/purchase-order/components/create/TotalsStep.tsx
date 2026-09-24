@@ -22,16 +22,14 @@ export function TotalsStep({
     <Card>
       <SectionTitle
         title="Tổng cộng"
-        description="Tổng giá trị PO được tính từ số lượng, đơn giá, thuế và chiết khấu của các dòng hàng."
+        description="Tổng giá trị PO = Σ (số lượng × đơn giá) — khớp cách BE tính totalAmount."
       />
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 md:grid-cols-2">
         <SummaryItem
           label="Tạm tính (Subtotal)"
           value={formatMoney(totals.subtotal, currency)}
           mono
         />
-        <SummaryItem label="Thuế" value={formatMoney(totals.taxTotal, currency)} mono />
-        <SummaryItem label="Chiết khấu" value={formatMoney(totals.discountTotal, currency)} mono />
         <div className="border-accent/40 bg-accent/5 rounded-[var(--r-sm)] border px-3 py-2">
           <div className="text-ink-tertiary text-xs">Tổng giá trị PO</div>
           <div className="text-accent mt-1 truncate font-[family-name:var(--font-mono)] text-[1rem] font-semibold tabular-nums">
@@ -54,10 +52,7 @@ export function TotalsStep({
                 <div className="text-ink-primary truncate font-medium">
                   {line.skuId || "Chưa chọn SKU"}
                 </div>
-                <div className="text-ink-tertiary text-xs">
-                  Thuế {(Number(line.taxRate) * 100).toFixed(0)}% · CK{" "}
-                  {(Number(line.discountRate) * 100).toFixed(0)}%
-                </div>
+                <div className="text-ink-tertiary truncate text-xs">{line.description || "—"}</div>
               </div>
               <div className="text-ink-secondary text-right font-[family-name:var(--font-mono)] tabular-nums">
                 {line.orderedQty || "0"} {line.uom}

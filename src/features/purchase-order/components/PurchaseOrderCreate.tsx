@@ -35,7 +35,8 @@ export function PurchaseOrderCreate() {
   const onSubmitAttempt = () => {
     f.setSubmitAttempted(true);
     if (f.validationIssues.length > 0) {
-      f.setCurrentStep(f.validationIssues[0]!.step);
+      const firstIssue = f.validationIssues[0];
+      if (firstIssue) f.setCurrentStep(firstIssue.step);
       return;
     }
     f.handleSubmitAttempt();

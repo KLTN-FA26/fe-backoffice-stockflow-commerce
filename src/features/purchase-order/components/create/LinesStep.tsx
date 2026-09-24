@@ -51,7 +51,7 @@ export function LinesStep({
             Dòng hàng
           </h2>
           <p className="text-ink-secondary mt-1 text-[0.8125rem]">
-            Thêm SKU Active, số lượng đặt, đơn giá, thuế và chiết khấu theo từng dòng.
+            Thêm SKU Active, số lượng đặt và đơn giá — tổng = số lượng × đơn giá.
           </p>
         </div>
         <Button

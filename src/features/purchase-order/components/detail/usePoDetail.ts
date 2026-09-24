@@ -10,6 +10,7 @@ import {
   useApprovePo,
   useCancelPo,
   useCloseShortPo,
+  useReceiveGoodsPo,
   usePoSuppliers,
   usePoWarehouses,
   usePurchaseOrder,
@@ -24,7 +25,7 @@ export function usePoDetail(id: string) {
   const searchParams = useSearchParams();
   const isDuplicate = searchParams.get("duplicate") === "1";
   const roles = useAuthStore((s) => s.effectiveRoles());
-  const currentRole = roles[0];
+  const currentRole = roles[0] ?? null;
 
   const poQuery = usePurchaseOrder(id);
   const posQuery = usePurchaseOrders({ page: 1, pageSize: PAGE_SIZE.masterData });
@@ -57,10 +58,16 @@ export function usePoDetail(id: string) {
   const sendPo = useSendPo();
   const cancelPo = useCancelPo();
   const closeShortPo = useCloseShortPo();
+  const receivePo = useReceiveGoodsPo();
   const isMutating =
-    approvePo.isPending || sendPo.isPending || cancelPo.isPending || closeShortPo.isPending;
+    approvePo.isPending ||
+    sendPo.isPending ||
+    cancelPo.isPending ||
+    closeShortPo.isPending ||
+    receivePo.isPending;
   const [pendingAction, setPendingAction] = useState<PoAction | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [receiveOpen, setReceiveOpen] = useState(false);
   const [conflictError, setConflictError] = useState<string | null>(null);
 
   const isLoading =
@@ -84,11 +91,14 @@ export function usePoDetail(id: string) {
     sendPo,
     cancelPo,
     closeShortPo,
+    receivePo,
     isMutating,
     pendingAction,
     setPendingAction,
     confirmOpen,
     setConfirmOpen,
+    receiveOpen,
+    setReceiveOpen,
     conflictError,
     setConflictError,
     isLoading,

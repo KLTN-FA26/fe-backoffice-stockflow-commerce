@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { PAGE_SIZE } from "@/constants";
 import { formatMoney } from "@/lib/format/money";
@@ -26,15 +26,10 @@ export function SupplierSpendSection() {
     expectedAtFrom: applied.from || undefined,
     expectedAtTo: applied.to || undefined,
   });
-  const chartQ = useSupplierSpend({
-    page: 1,
-    pageSize: 20,
-    expectedAtFrom: applied.from || undefined,
-    expectedAtTo: applied.to || undefined,
-  });
+  // Single query — chart derived from same data (top 20 of current page). Avoids double aggregation on BE.
+  const chartRows = useMemo(() => (spendQ.data?.items ?? []).slice(0, 20), [spendQ.data]);
   const items = spendQ.data?.items ?? [];
   const total = spendQ.data?.total ?? 0;
-  const chartRows = chartQ.data?.items ?? [];
   const loading = spendQ.isLoading;
 
   const apply = () => {
@@ -104,7 +99,7 @@ export function SupplierSpendSection() {
         </div>
       </Card>
 
-      {chartQ.isLoading ? (
+      {spendQ.isLoading ? (
         <div className="bg-bg-surface border-border-default text-ink-tertiary rounded-[var(--r-sm)] border p-8 text-center text-sm">
           Đang tải biểu đồ...
         </div>

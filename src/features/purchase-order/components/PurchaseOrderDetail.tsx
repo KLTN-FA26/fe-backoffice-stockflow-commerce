@@ -18,6 +18,7 @@ import { PoLifecycleTimeline } from "./detail/PoLifecycleTimeline";
 import { PoNotFound } from "./detail/PoNotFound";
 import { PoOverview } from "./detail/PoOverview";
 import { PoRevisions, PoSource } from "./detail/PoRevisions";
+import { PoReceiveDialog } from "./detail/PoReceiveDialog";
 import { PoSupplierWarehouse } from "./detail/PoSupplierWarehouse";
 import { PoTotals } from "./detail/PoTotals";
 import { usePoDetail } from "./detail/usePoDetail";
@@ -112,6 +113,10 @@ export function PurchaseOrderDetail({ params }: { params: Promise<{ id: string }
             conflictError={d.conflictError}
             onAction={(a) => {
               d.setConflictError(null);
+              if (a.code === "receive") {
+                d.setReceiveOpen(true);
+                return;
+              }
               if (a.requiresReason) {
                 d.setPendingAction(a);
                 d.setConfirmOpen(true);
@@ -124,6 +129,29 @@ export function PurchaseOrderDetail({ params }: { params: Promise<{ id: string }
           <PoOverview po={d.po} />
         </div>
       </div>
+      <PoReceiveDialog
+        open={d.receiveOpen}
+        onOpenChange={d.setReceiveOpen}
+        po={d.po}
+        isPending={d.receivePo.isPending}
+        onConfirm={(lines) => {
+          const poId = d.po?.poId;
+          if (!poId) return;
+          d.receivePo.mutate(
+            { id: poId, lines },
+            {
+              onSuccess: () => {
+                toast.success("Đã ghi nhận nhận hàng");
+                d.setReceiveOpen(false);
+              },
+              onError: (e: unknown) => {
+                const err = e as { message?: string };
+                toast.error("Không thể nhận hàng", err.message ?? "Vui lòng thử lại.");
+              },
+            },
+          );
+        }}
+      />
       <ConfirmDialog
         open={d.confirmOpen}
         onOpenChange={d.setConfirmOpen}

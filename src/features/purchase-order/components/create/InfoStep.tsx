@@ -80,7 +80,7 @@ export function InfoStep({
               onChange={(e) => update("expectedDate", e.target.value)}
               className={fieldClass()}
             />
-            {isExpectedDatePast(form.expectedDate) && (
+            {isExpectedDatePast(form.expectedDate, form.orderDate) && (
               <div className="border-warning/30 bg-warning/10 text-warning mt-2 rounded-[var(--r-sm)] border px-3 py-2 text-xs">
                 Ngày giao dự kiến đang nằm trước ngày đặt. Cảnh báo này không chặn gửi duyệt.
               </div>

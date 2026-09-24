@@ -1,16 +1,15 @@
 import { cn } from "cn";
 
-import {
-  INITIAL_FORM,
-  type FormState,
-  type PoLineDraft,
-  type Totals,
-  type ValidationIssue,
-} from "./types";
+import type { FormState, PoLineDraft, Totals, ValidationIssue } from "./types";
 
 export function parsePositiveNumber(value: string): boolean {
   const n = Number(value);
   return Number.isFinite(n) && n > 0;
+}
+
+export function parseNonNegativeNumber(value: string): boolean {
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0;
 }
 
 export function parseNonNegativeRate(value: string): boolean {
@@ -31,8 +30,6 @@ export function createEmptyLine(): PoLineDraft {
     skuId: "",
     orderedQty: "1",
     unitPrice: "",
-    taxRate: "0.08",
-    discountRate: "0",
     uom: "",
     description: "",
   };
@@ -44,29 +41,13 @@ export function lineSubtotal(line: PoLineDraft): number {
   return qty * price;
 }
 
-export function lineTax(line: PoLineDraft): number {
-  return lineSubtotal(line) * (Number(line.taxRate) || 0);
-}
-
-export function lineDiscount(line: PoLineDraft): number {
-  return lineSubtotal(line) * (Number(line.discountRate) || 0);
-}
-
 export function lineTotal(line: PoLineDraft): number {
-  return lineSubtotal(line) - lineDiscount(line) + lineTax(line);
+  return lineSubtotal(line);
 }
 
 export function calculateTotals(lines: PoLineDraft[]): Totals {
-  return lines.reduce<Totals>(
-    (acc, line) => {
-      acc.subtotal += lineSubtotal(line);
-      acc.taxTotal += lineTax(line);
-      acc.discountTotal += lineDiscount(line);
-      acc.grandTotal += lineTotal(line);
-      return acc;
-    },
-    { subtotal: 0, taxTotal: 0, discountTotal: 0, grandTotal: 0 },
-  );
+  const subtotal = lines.reduce((acc, line) => acc + lineSubtotal(line), 0);
+  return { subtotal, grandTotal: subtotal };
 }
 
 export function validateForm(form: FormState): ValidationIssue[] {
@@ -88,19 +69,14 @@ export function validateForm(form: FormState): ValidationIssue[] {
     if (!parsePositiveNumber(line.orderedQty)) {
       issues.push({ step: "lines", message: `SKU ${line.skuId}: SL đặt phải lớn hơn 0.` });
     }
-    if (!parsePositiveNumber(line.unitPrice)) {
-      issues.push({ step: "lines", message: `SKU ${line.skuId}: Đơn giá phải lớn hơn 0.` });
-    }
-    if (!parseNonNegativeRate(line.taxRate)) {
-      issues.push({ step: "lines", message: `SKU ${line.skuId}: Thuế không được âm.` });
-    }
-    if (!parseNonNegativeRate(line.discountRate)) {
-      issues.push({ step: "lines", message: `SKU ${line.skuId}: Chiết khấu không được âm.` });
+    // BE @PositiveOrZero — allow 0 for promo/free line. BR: unitPrice >= 0
+    if (!parseNonNegativeNumber(line.unitPrice)) {
+      issues.push({ step: "lines", message: `SKU ${line.skuId}: Đơn giá không được âm.` });
     }
   }
   return issues;
 }
 
-export function isExpectedDatePast(expectedDate: string): boolean {
-  return expectedDate !== "" && expectedDate < INITIAL_FORM.orderDate;
+export function isExpectedDatePast(expectedDate: string, orderDate: string): boolean {
+  return expectedDate !== "" && orderDate !== "" && expectedDate < orderDate;
 }

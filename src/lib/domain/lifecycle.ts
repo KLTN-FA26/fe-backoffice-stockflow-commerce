@@ -12,23 +12,60 @@
 
 /* ── Generic helpers ─────────────────────────────────────────────────── */
 
+/**
+ * Kiểm tra transition `from` → `to` có được phép theo bảng `table` hay không.
+ *
+ * Guard `table[from] ?? undefined` là bắt buộc vì FE có 2 nguồn status song song:
+ * - BE contract `PurchaseOrderStatus.java` (SCREAMING_SNAKE: `DRAFT`, `SENT`, `PARTIALLY_RECEIVED`)
+ *   Đây là canonical type `PoStatus` (từ `src/constants/statuses.ts`).
+ * - Mock seed `src/lib/mock-data.ts` vẫn dùng Title Case legacy (`Draft`, `Confirmed`,
+ *   `Partially Received`, `Pending Approval`) để giữ nguyên docs cũ.
+ *
+ * Khi `from` là Title Case mà `table` chỉ có key SCREAMING_SNAKE thì `table[from]`
+ * là `undefined`. Không guard sẽ crash ở caller `isTerminal` (`undefined.length`) hoặc
+ * trả về kết quả sai. Vì lỗi này đã gây crash thực tế ở `/admin/purchase-orders/[id]`
+ * (stack `isTerminal → isPoTerminal → getLifecycleSteps → PoLifecycleTimeline`),
+ * helper phải chịu được `undefined` và trả về `false` (không cho chuyển).
+ */
 export function canTransition<S extends string>(
   table: Record<S, readonly S[]>,
   from: S,
   to: S,
 ): boolean {
-  return (table[from] as readonly string[]).includes(to);
+  return !!(table[from] as unknown as readonly string[] | undefined)?.includes(to);
 }
 
+/**
+ * Trạng thái có phải terminal (không còn transition nào) hay không.
+ *
+ * - `table[status] === undefined` → coi như terminal và return `true` để không crash.
+ *   Trường hợp này xảy ra khi `status` là Title Case legacy chưa được normalize
+ *   (ví dụ `Draft`, `Confirmed`). Caller đúng ra phải normalize trước qua
+ *   `normalizePoStatus()` (trong `features/purchase-order/lifecycle.ts`) hoặc
+ *   `normalizeApiStatus()` (trong `features/purchase-order/api.ts`), nhưng helper
+ *   vẫn phải tự bảo vệ để một record lẻ không làm sập cả trang detail.
+ * - `table[status].length === 0` → terminal thật (BE: `CLOSED`, `CLOSED_SHORT`, `CANCELLED`).
+ */
 export function isTerminal<S extends string>(table: Record<S, readonly S[]>, status: S): boolean {
-  return table[status].length === 0;
+  const next = table[status] as unknown as readonly unknown[] | undefined;
+  if (!next) return true;
+  return next.length === 0;
 }
 
+/**
+ * Lấy danh sách trạng thái kề tiếp được phép từ `from`.
+ *
+ * Guard `?? []` để caller như `nextPoStatuses()` / `getLifecycleSteps()` luôn nhận
+ * về mảng (có thể rỗng) thay vì `undefined`, tránh phải check null ở từng component.
+ * Nếu `from` là Title Case chưa normalize, kết quả là `[]` — caller sẽ render timeline
+ * ở trạng thái rỗng an toàn thay vì crash. Normalize đúng vẫn là trách nhiệm của
+ * `features/purchase-order/lifecycle.ts` và `api.ts`.
+ */
 export function allowedTransitions<S extends string>(
   table: Record<S, readonly S[]>,
   from: S,
 ): readonly S[] {
-  return table[from];
+  return (table[from] as readonly S[] | undefined) ?? ([] as unknown as readonly S[]);
 }
 
 /* ── Types from mock-data ────────────────────────────────────────────── */
