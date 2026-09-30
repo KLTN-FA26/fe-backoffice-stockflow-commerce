@@ -15,11 +15,11 @@ export const permissionActionSchema = z.enum([
 export const roleResponseSchema = z.object({
   code: z.string(),
   name: z.string(),
-  description: z.string().nullable(),
+  description: z.string().nullish(),
   createdAt: z.string(),
-  createdBy: z.string().nullable(),
-  lastModifiedAt: z.string().nullable(),
-  lastModifiedBy: z.string().nullable(),
+  createdBy: z.string().nullish(),
+  lastModifiedAt: z.string().nullish(),
+  lastModifiedBy: z.string().nullish(),
 });
 
 export const roleMatrixActionSchema = z.object({

@@ -7,6 +7,26 @@ import { getRolePermissionMatrix, listRoles } from "./api";
 afterEach(() => vi.restoreAllMocks());
 
 describe("permission management API", () => {
+  it("parses roles when nullable audit fields are omitted by the backend", async () => {
+    vi.spyOn(api, "get").mockResolvedValueOnce({
+      data: [
+        {
+          code: "ECOMMERCE_ADMIN",
+          name: "E-commerce Admin",
+          createdAt: "2026-09-03T00:00:00Z",
+        },
+      ],
+    });
+
+    await expect(listRoles()).resolves.toEqual([
+      {
+        code: "ECOMMERCE_ADMIN",
+        name: "E-commerce Admin",
+        createdAt: "2026-09-03T00:00:00Z",
+      },
+    ]);
+  });
+
   it("parses role audit metadata and nullable fields", async () => {
     vi.spyOn(api, "get").mockResolvedValueOnce({
       data: [
