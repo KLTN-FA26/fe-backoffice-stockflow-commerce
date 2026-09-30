@@ -2,16 +2,13 @@
 
 import { useState, use } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
 import { ADMIN_ROUTES } from "@/constants";
 import { useSupplier, useToggleSupplierStatus } from "@/features/supplier";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
-import { Button } from "@/components/ui/button";
 
 import { ContactAddressCard } from "./supplier-detail/ContactAddressCard";
 import { GeneralInfoCard } from "./supplier-detail/GeneralInfoCard";
@@ -19,37 +16,17 @@ import { LifecycleSection } from "./supplier-detail/LifecycleSection";
 import { OpenPoSection } from "./supplier-detail/OpenPoSection";
 import { ActionCard, OverviewCard } from "./supplier-detail/SidebarCards";
 import { TermsOpsCard } from "./supplier-detail/TermsOpsCard";
+import { SupplierLoadError } from "./SupplierLoadError";
 
 export function SupplierDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id: supplierId } = use(params);
-  const router = useRouter();
   const [confirming, setConfirming] = useState<"activate" | "deactivate" | null>(null);
-  const { data: supplier, isLoading, isError } = useSupplier(supplierId);
+  const { data: supplier, isLoading, isError, error, refetch } = useSupplier(supplierId);
   const { mutate: toggleStatus, isPending: isToggling } = useToggleSupplierStatus();
 
   if (isLoading) return <PageSkeleton variant="detail" />;
   if (isError || !supplier) {
-    return (
-      <>
-        <PageHeader
-          title="Không tìm thấy nhà cung cấp"
-          subtitle="Mã nhà cung cấp không tồn tại hoặc đã bị xoá."
-        />
-        <EmptyState
-          title="Không tìm thấy nhà cung cấp"
-          description="Mã nhà cung cấp không tồn tại hoặc đã bị xoá."
-          action={
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => router.push(ADMIN_ROUTES.suppliers.list)}
-            >
-              Về danh sách
-            </Button>
-          }
-        />
-      </>
-    );
+    return <SupplierLoadError error={error} onRetry={() => void refetch()} />;
   }
 
   const openPoCount = supplier.openPoCount ?? 0;

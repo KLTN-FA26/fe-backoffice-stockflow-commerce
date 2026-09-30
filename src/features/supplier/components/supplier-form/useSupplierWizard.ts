@@ -5,36 +5,24 @@ import { useForm, useWatch } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-import { ADMIN_ROUTES } from "@/constants";
-import { toast } from "@/components/shared/Toast";
-import { supplierCreateInputSchema } from "@/features/supplier/schemas";
+import { ADMIN_ROUTES, TOAST_MESSAGES } from "@/constants";
 import { useCreateSupplier, useUpdateSupplier } from "@/features/supplier/mutations";
+import { supplierCreateInputSchema } from "@/features/supplier/schemas";
+import { toast } from "@/components/shared/Toast";
 
 import { STEPS } from "./wizard-constants";
 import {
-  FIELD_ALIAS,
   FIELD_STEP_MAP,
   firstMessageForStep,
+  messageAt,
+  resolveServerFieldErrors,
   stepForErrors,
 } from "./wizard-field-map";
 
 import type { FieldErrors } from "react-hook-form";
+import type { ApiError } from "@/lib/api/error";
 import type { SupplierCreateInput, SupplierDto } from "@/features/supplier/types";
 import type { StepKey } from "./wizard-constants";
-
-function messageAt(errs: FieldErrors<SupplierCreateInput>, path: string): string | undefined {
-  const parts = path.split(".");
-  let cur: unknown = errs;
-  for (const part of parts) {
-    if (!cur || typeof cur !== "object") return undefined;
-    cur = (cur as Record<string, unknown>)[part];
-  }
-  if (cur && typeof cur === "object" && "message" in (cur as Record<string, unknown>)) {
-    const m = (cur as Record<string, unknown>).message;
-    return typeof m === "string" ? m : undefined;
-  }
-  return undefined;
-}
 
 export function useSupplierWizard(existingSupplier?: SupplierDto) {
   const router = useRouter();
@@ -52,6 +40,8 @@ export function useSupplierWizard(existingSupplier?: SupplierDto) {
     resolver: zodResolver(supplierCreateInputSchema),
     defaultValues: isEdit
       ? {
+          // BE code; mock dùng supplierId làm code (xem comment supplierDtoSchema)
+          code: existingSupplier?.code ?? existingSupplier?.supplierId,
           name: existingSupplier?.name ?? "",
           taxCode: existingSupplier?.taxCode ?? "",
           contactName: existingSupplier?.contactName ?? "",
@@ -113,15 +103,12 @@ export function useSupplierWizard(existingSupplier?: SupplierDto) {
     return "idle";
   };
 
-  const applyFieldErrors = (fieldErrors: Record<string, string>) => {
-    for (const [field, message] of Object.entries(fieldErrors)) {
-      const mapped = (FIELD_ALIAS[field] ?? field) as keyof SupplierCreateInput;
-      if (mapped in supplierCreateInputSchema.shape || field in FIELD_ALIAS) {
-        setError(mapped, { type: "server", message });
-        const step = FIELD_STEP_MAP[mapped as string] ?? FIELD_STEP_MAP[field];
-        if (step) setCurrentStep(step);
-      }
-    }
+  // Lỗi server (409 trùng code/taxCode…) → inline ở ô + nhảy về bước sớm nhất (SCRUM-389)
+  const applyServerErrors = (err: ApiError) => {
+    if (!err.fieldErrors) return;
+    const { fields, step } = resolveServerFieldErrors(err.fieldErrors);
+    for (const { path, message } of fields) setError(path, { type: "server", message });
+    if (step) setCurrentStep(step);
   };
 
   const onSubmit = (data: SupplierCreateInput) => {
@@ -130,10 +117,7 @@ export function useSupplierWizard(existingSupplier?: SupplierDto) {
         { ...data, id: existingSupplier.supplierId },
         {
           onSuccess: () => router.push(ADMIN_ROUTES.suppliers.detail(existingSupplier.supplierId)),
-          onError: (err) => {
-            if (!err.fieldErrors) return;
-            applyFieldErrors(err.fieldErrors);
-          },
+          onError: applyServerErrors,
         },
       );
     } else {
@@ -144,10 +128,7 @@ export function useSupplierWizard(existingSupplier?: SupplierDto) {
           toast.success("Đã tạo nhà cung cấp", `${created.supplierId} — ${created.name}`);
           router.push(ADMIN_ROUTES.suppliers.detail(created.supplierId));
         },
-        onError: (err) => {
-          if (!err.fieldErrors) return;
-          applyFieldErrors(err.fieldErrors);
-        },
+        onError: applyServerErrors,
       });
     }
   };
@@ -164,9 +145,9 @@ export function useSupplierWizard(existingSupplier?: SupplierDto) {
         const step = stepForErrors(typed);
         if (step) {
           setCurrentStep(step);
-          toast.error("Chưa thể lưu", firstMessageForStep(typed, step));
+          toast.error(TOAST_MESSAGES.form.saveBlocked, firstMessageForStep(typed, step));
         } else {
-          toast.error("Chưa thể lưu", "Kiểm tra lại biểu mẫu");
+          toast.error(TOAST_MESSAGES.form.saveBlocked, TOAST_MESSAGES.form.checkForm);
         }
       },
     )();

@@ -1,4 +1,5 @@
 export { BRAND, BRAND_ASPECT } from "./brand";
+export { TOAST_MESSAGES, UI_LABELS } from "./labels";
 export { ADMIN_ROUTES, APP_ROUTES } from "./routes";
 export { STORAGE_KEYS } from "./storage-keys";
 export {
