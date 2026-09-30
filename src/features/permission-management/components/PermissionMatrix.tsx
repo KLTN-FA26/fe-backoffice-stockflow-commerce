@@ -1,5 +1,7 @@
 import { LockKeyhole } from "lucide-react";
 
+import { EmptyState } from "@/components/shared/EmptyState";
+
 import { Badge } from "@/components/ui/badge";
 
 import { PermissionGroup } from "./PermissionGroup";
@@ -38,17 +40,10 @@ export function PermissionMatrix({ matrix }: { matrix: RoleMatrix }) {
       {matrix.groups.length > 0 ? (
         matrix.groups.map((group, index) => <PermissionGroup key={index} group={group} />)
       ) : (
-        <div data-testid="permission-matrix-empty">
-          <p className="sr-only">Ma trận không có dữ liệu</p>
-          <div className="border-border-default bg-bg-surface rounded-[var(--r-sm)] border">
-            <div className="p-4 text-center">
-              <p className="text-ink-primary font-semibold">Chưa có nhóm quyền</p>
-              <p className="text-ink-secondary mt-1 text-sm">
-                Vai trò này chưa có dữ liệu ma trận để hiển thị.
-              </p>
-            </div>
-          </div>
-        </div>
+        <EmptyState
+          title="Chưa có nhóm quyền"
+          description="Vai trò này chưa có dữ liệu ma trận để hiển thị."
+        />
       )}
     </div>
   );

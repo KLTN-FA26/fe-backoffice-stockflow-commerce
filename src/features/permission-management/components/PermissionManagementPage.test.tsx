@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "@/lib/api/error";
 
@@ -17,6 +17,20 @@ vi.mock("../queries", () => ({
 }));
 
 import { PermissionManagementPage } from "./PermissionManagementPage";
+
+const originalScrollIntoView = Element.prototype.scrollIntoView;
+
+beforeAll(() => {
+  Element.prototype.scrollIntoView = vi.fn();
+});
+
+afterAll(() => {
+  if (originalScrollIntoView) {
+    Element.prototype.scrollIntoView = originalScrollIntoView;
+  } else {
+    Reflect.deleteProperty(Element.prototype, "scrollIntoView");
+  }
+});
 
 const roles: RoleResponse[] = [
   {
@@ -129,7 +143,10 @@ describe("PermissionManagementPage", () => {
     render(<PermissionManagementPage />);
 
     const selector = await screen.findByLabelText("Chọn vai trò để xem ma trận quyền");
-    await waitFor(() => expect(selector).toHaveValue("ROLE_A"));
+    await waitFor(() => expect(selector).toHaveTextContent(/^Role A$/));
+    selector.focus();
+    await userEvent.setup().keyboard("{ArrowDown}");
+    expect(screen.getByRole("option", { name: "Role A" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Role B" })).toBeInTheDocument();
   });
 
@@ -144,10 +161,12 @@ describe("PermissionManagementPage", () => {
 
     const view = render(<PermissionManagementPage />);
     const selector = await screen.findByLabelText("Chọn vai trò để xem ma trận quyền");
-    await waitFor(() => expect(selector).toHaveValue("ROLE_A"));
+    await waitFor(() => expect(selector).toHaveTextContent(/^Role A$/));
 
     pendingRole = "ROLE_B";
-    await user.selectOptions(selector, "ROLE_B");
+    selector.focus();
+    await user.keyboard("{ArrowDown}{ArrowDown}{Enter}");
+    expect(selector).toHaveTextContent(/^Role B$/);
     expect(screen.getByText("Đang tải ma trận của vai trò...")).toBeInTheDocument();
     expect(screen.queryByText("Label ROLE_A")).not.toBeInTheDocument();
 
@@ -316,15 +335,16 @@ describe("PermissionManagementPage", () => {
 
     const view = render(<PermissionManagementPage />);
     const selector = await screen.findByLabelText("Chọn vai trò để xem ma trận quyền");
-    await user.selectOptions(selector, "ROLE_B");
-    expect(selector).toHaveValue("ROLE_B");
+    selector.focus();
+    await user.keyboard("{ArrowDown}{ArrowDown}{Enter}");
+    expect(selector).toHaveTextContent(/^Role B$/);
 
     const firstRole = roles[0];
     if (!firstRole) throw new Error("Fixture must include an initial role");
     currentRoles = [firstRole];
     view.rerender(<PermissionManagementPage />);
 
-    await waitFor(() => expect(selector).toHaveValue("ROLE_A"));
+    await waitFor(() => expect(selector).toHaveTextContent(/^Role A$/));
     expect(useMatrixMock).toHaveBeenLastCalledWith("ROLE_A");
   });
 
@@ -342,5 +362,6 @@ describe("PermissionManagementPage", () => {
 
     expect(await screen.findByText("0/0 quyền được cấp")).toBeInTheDocument();
     expect(screen.getByText("Chưa có nhóm quyền")).toBeInTheDocument();
+    expect(screen.getByText("Vai trò này chưa có dữ liệu ma trận để hiển thị.")).toBeInTheDocument();
   });
 });

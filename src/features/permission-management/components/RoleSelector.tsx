@@ -1,4 +1,11 @@
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import type { RoleResponse } from "../types";
 
@@ -15,19 +22,22 @@ export function RoleSelector({ roles, value, onChange }: RoleSelectorProps) {
         Vai trò
       </Label>
       <p className="text-ink-secondary mt-1 text-xs">Chọn vai trò để xem ma trận quyền.</p>
-      <select
-        id="permission-role"
-        aria-label="Chọn vai trò để xem ma trận quyền"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="border-border-default bg-bg-surface text-ink-primary focus:border-brand focus:ring-brand mt-3 h-9 w-full rounded-[var(--r-sm)] border px-2.5 text-sm outline-none focus:ring-2 sm:max-w-md"
-      >
-        {roles.map((role) => (
-          <option key={role.code} value={role.code}>
-            {role.name}
-          </option>
-        ))}
-      </select>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger
+          id="permission-role"
+          aria-label="Chọn vai trò để xem ma trận quyền"
+          className="mt-3 w-full sm:max-w-md"
+        >
+          <SelectValue placeholder="Chọn vai trò" />
+        </SelectTrigger>
+        <SelectContent>
+          {roles.map((role) => (
+            <SelectItem key={role.code} value={role.code}>
+              {role.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }
