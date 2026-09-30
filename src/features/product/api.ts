@@ -3,7 +3,7 @@ import { ApiError } from "@/lib/api/error";
 
 import { productMasterDtoSchema, productSchema } from "./schemas";
 
-import type { PaginatedResponse } from "@/lib/api/query-factory";
+import type { LegacyPaginatedResponse, PaginatedResponse } from "@/lib/api/query-factory";
 import type { CreateProductInput, ProductMasterDto, UpdateProductInput } from "./schemas";
 import type { Category, Product, Sku } from "./types";
 
@@ -27,7 +27,7 @@ const PRODUCT_LIST_API_STATUS: Record<ProductListFilterStatus, ProductMasterDto[
 
 export interface ListProductsParams {
   page?: number;
-  pageSize?: number;
+  size?: number;
   q?: string;
   status?: ProductListFilterStatus[];
   sort?: string;
@@ -51,7 +51,7 @@ export function isCapabilityUnavailable(error: unknown): boolean {
 
 export interface TransitionProductInput {
   id: string;
-  targetStatus: string;
+  action: "submit" | "approve" | "reject" | "discontinue";
   reason?: string;
 }
 
@@ -65,10 +65,10 @@ export async function listProducts(
   params: ListProductsParams,
   signal?: AbortSignal,
 ): Promise<PaginatedResponse<Product>> {
-  const { page = 1, pageSize = 15, q, status, sort } = params;
+  const { page = 0, size = 15, q, status, sort } = params;
   const query = new URLSearchParams({
-    page: String(Math.max(0, page - 1)),
-    size: String(pageSize),
+    page: String(Math.max(0, page)),
+    size: String(size),
   });
   if (q?.trim()) query.set("q", q.trim());
   for (const value of status ?? []) query.append("status", PRODUCT_LIST_API_STATUS[value]);
@@ -100,20 +100,31 @@ export async function updateProduct(input: { id: string } & UpdateProductInput):
 }
 
 export async function transitionProduct(input: TransitionProductInput): Promise<Product> {
-  const { id, targetStatus, reason } = input;
-  const suffix = transitionSuffix(targetStatus);
+  const { id, action, reason } = input;
+  if (action === "reject" && !reason?.trim()) {
+    throw new Error("Rejection reason is required");
+  }
+  const suffix = transitionSuffix(action);
   const { data } = await api.post<unknown>(
     `/v1/products/${id}/${suffix}`,
-    suffix === "rejection" ? { reason } : undefined,
+    suffix === "rejection" ? { reason: reason?.trim() } : undefined,
   );
   return parseProduct(data);
+}
+
+export async function publishProduct(id: string): Promise<void> {
+  await api.post(`/v1/products/${id}/publication`);
+}
+
+export async function unpublishProduct(id: string): Promise<void> {
+  await api.post(`/v1/products/${id}/unpublication`);
 }
 
 export async function listSkus(
   params: ListSkusParams,
   signal?: AbortSignal,
-): Promise<PaginatedResponse<Sku>> {
-  const { data } = await api.get<PaginatedResponse<Sku>>("/skus", { params, signal });
+): Promise<LegacyPaginatedResponse<Sku>> {
+  const { data } = await api.get<LegacyPaginatedResponse<Sku>>("/skus", { params, signal });
   return data;
 }
 
@@ -130,8 +141,10 @@ export async function transitionSku(input: TransitionSkuInput): Promise<Sku> {
   return data;
 }
 
-export async function listCategories(signal?: AbortSignal): Promise<PaginatedResponse<Category>> {
-  const { data } = await api.get<PaginatedResponse<Category>>("/categories", { signal });
+export async function listCategories(
+  signal?: AbortSignal,
+): Promise<LegacyPaginatedResponse<Category>> {
+  const { data } = await api.get<LegacyPaginatedResponse<Category>>("/categories", { signal });
   return data;
 }
 
@@ -149,22 +162,12 @@ function parseProductPage(value: unknown): PaginatedResponse<Product> {
   const items = Array.isArray(page.items) ? page.items.map(parseProduct) : [];
   return {
     items,
-    page: typeof page.page === "number" ? page.page + ("size" in page ? 1 : 0) : 1,
-    pageSize:
-      typeof page.size === "number"
-        ? page.size
-        : typeof page.pageSize === "number"
-          ? page.pageSize
-          : items.length,
-    total:
-      typeof page.totalElements === "number"
-        ? page.totalElements
-        : typeof page.total === "number"
-          ? page.total
-          : items.length,
-    totalPages: typeof page.totalPages === "number" ? page.totalPages : undefined,
-    hasNext: typeof page.hasNext === "boolean" ? page.hasNext : undefined,
-    hasPrevious: typeof page.hasPrevious === "boolean" ? page.hasPrevious : undefined,
+    page: requireNumber(page.page, "page"),
+    size: requireNumber(page.size, "size"),
+    totalElements: requireNumber(page.totalElements, "totalElements"),
+    totalPages: requireNumber(page.totalPages, "totalPages"),
+    hasNext: requireBoolean(page.hasNext, "hasNext"),
+    hasPrevious: requireBoolean(page.hasPrevious, "hasPrevious"),
   };
 }
 
@@ -182,7 +185,6 @@ function toProduct(dto: ProductMasterDto): Product {
     code: dto.code,
     name: dto.name,
     nameEn: dto.nameEn,
-    slug: dto.code.toLowerCase(),
     type: dto.customizable ? "Customizable" : "Standard",
     categoryId: dto.categoryId ?? null,
     status,
@@ -193,6 +195,8 @@ function toProduct(dto: ProductMasterDto): Product {
     brand: dto.brand,
     createdAt: dto.createdAt,
     createdBy: dto.createdBy ?? "—",
+    submittedBy: dto.submittedBy ?? undefined,
+    submittedAt: dto.submittedAt ?? undefined,
     approvedBy: dto.approvedBy ?? undefined,
     approvedAt: dto.approvedAt ?? undefined,
     weightKg: dto.weightKg,
@@ -202,17 +206,25 @@ function toProduct(dto: ProductMasterDto): Product {
   });
 }
 
-function transitionSuffix(targetStatus: string): string {
-  switch (targetStatus) {
-    case "Pending Approval":
+function transitionSuffix(action: TransitionProductInput["action"]): string {
+  switch (action) {
+    case "submit":
       return "submission";
-    case "Approved":
+    case "approve":
       return "approval";
-    case "Draft":
+    case "reject":
       return "rejection";
-    case "Discontinued":
+    case "discontinue":
       return "discontinuation";
-    default:
-      throw new Error(`Backend does not implement transition to ${targetStatus}`);
   }
+}
+
+function requireNumber(value: unknown, field: string): number {
+  if (typeof value !== "number") throw new Error(`Product page ${field} is malformed`);
+  return value;
+}
+
+function requireBoolean(value: unknown, field: string): boolean {
+  if (typeof value !== "boolean") throw new Error(`Product page ${field} is malformed`);
+  return value;
 }

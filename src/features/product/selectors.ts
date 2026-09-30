@@ -32,8 +32,8 @@ export function categoryName(categoryId: string | null, categories: readonly Cat
   return categories.find((category) => category.categoryId === categoryId)?.name.vi ?? "—";
 }
 
-export function productUnitLabel(uom: Product["uom"]): string {
-  return uom ?? "Chưa được backend cung cấp";
+export function productUomLabel(product: Product): string {
+  return product.uom ?? "Không có trong Product Master API";
 }
 
 export function productName(productId: string, products: readonly Product[]): string {

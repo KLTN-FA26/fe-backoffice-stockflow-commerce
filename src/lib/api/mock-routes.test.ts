@@ -1,6 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { createProduct, getProduct, updateProduct } from "@/features/product/api";
+import {
+  createProduct,
+  getProduct,
+  publishProduct,
+  transitionProduct,
+  unpublishProduct,
+  updateProduct,
+} from "@/features/product/api";
 import { api } from "@/lib/api/client";
 
 import { activateMockAdapter } from "./mock-adapter";
@@ -94,5 +101,37 @@ describe("product mock logistics round-trip", () => {
       widthCm: 30.75,
       heightCm: 20.5,
     });
+  });
+});
+
+describe("product mock lifecycle contract", () => {
+  it("mirrors data-returning and void backend transitions", async () => {
+    const created = await createProduct({
+      code: `MOCK-LIFECYCLE-${Date.now()}`,
+      name: "Mock lifecycle",
+      nameEn: "Mock lifecycle",
+      categoryId,
+      description: "",
+      descriptionEn: "",
+      brand: "StockFlow",
+      taxClass: "STANDARD",
+      customizable: false,
+      images: [],
+      weightKg: null,
+      lengthCm: null,
+      widthCm: null,
+      heightCm: null,
+    });
+
+    const submitted = await transitionProduct({ id: created.productId, action: "submit" });
+    expect(submitted.status).toBe("Pending Approval");
+    expect(submitted.submittedBy).toBeTruthy();
+
+    const approved = await transitionProduct({ id: created.productId, action: "approve" });
+    expect(approved.status).toBe("Approved");
+    await expect(publishProduct(created.productId)).resolves.toBeUndefined();
+    expect((await getProduct(created.productId)).status).toBe("Published");
+    await expect(unpublishProduct(created.productId)).resolves.toBeUndefined();
+    expect((await getProduct(created.productId)).status).toBe("Approved");
   });
 });

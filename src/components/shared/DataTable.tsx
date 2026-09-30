@@ -71,14 +71,20 @@ interface DataTableProps<T> {
   pageSize?: number;
   pageSizeOptions?: number[];
   serverPagination?: {
+    /** Zero-based, matching the shared/backend PageResponse contract. */
     page: number;
-    pageSize: number;
-    total: number;
+    size: number;
+    totalElements: number;
     totalPages: number;
     hasNext: boolean;
     hasPrevious: boolean;
     onPageChange: (page: number) => void;
-    onPageSizeChange: (pageSize: number) => void;
+    onPageSizeChange: (size: number) => void;
+  };
+  serverSorting?: {
+    key: string | null;
+    direction: SortDir;
+    onChange: (key: string, direction: SortDir) => void;
   };
   className?: string;
 }
@@ -98,6 +104,7 @@ export function DataTable<T>({
   pageSize = 10,
   pageSizeOptions = [10, 15, 20, 50],
   serverPagination,
+  serverSorting,
   className,
 }: DataTableProps<T>) {
   const [sortKey, setSortKey] = useState<string | null>(null);
@@ -106,24 +113,26 @@ export function DataTable<T>({
   const [currentPageSize, setCurrentPageSize] = useState(pageSize);
 
   // Sort
+  const activeSortKey = serverSorting ? serverSorting.key : sortKey;
+  const activeSortDir = serverSorting ? serverSorting.direction : sortDir;
   const sorted = useMemo(() => {
-    if (!sortKey) return data;
-    const col = columns.find((c) => c.key === sortKey);
+    if (serverSorting || !activeSortKey) return data;
+    const col = columns.find((c) => c.key === activeSortKey);
     if (!col?.sortable) return data;
     const arr = [...data];
     if (col.compare) {
-      arr.sort((a, b) => (sortDir === "asc" ? col.compare!(a, b) : col.compare!(b, a)));
+      arr.sort((a, b) => (activeSortDir === "asc" ? col.compare!(a, b) : col.compare!(b, a)));
     }
     return arr;
-  }, [data, columns, sortKey, sortDir]);
+  }, [data, columns, activeSortKey, activeSortDir, serverSorting]);
 
   // Paginate
-  const effectivePageSize = serverPagination?.pageSize ?? currentPageSize;
+  const effectivePageSize = serverPagination?.size ?? currentPageSize;
   const totalPages = serverPagination
     ? serverPagination.totalPages
     : Math.max(1, Math.ceil(sorted.length / currentPageSize));
   const safePage = serverPagination
-    ? Math.max(0, serverPagination.page - 1)
+    ? Math.max(0, serverPagination.page)
     : Math.min(page, totalPages - 1);
   const pageData = serverPagination
     ? sorted
@@ -131,7 +140,12 @@ export function DataTable<T>({
   const shouldScroll = pageData.length > 10;
 
   const handleSort = (key: string) => {
-    if (sortKey === key) {
+    if (serverSorting) {
+      serverSorting.onChange(
+        key,
+        serverSorting.key === key && serverSorting.direction === "asc" ? "desc" : "asc",
+      );
+    } else if (sortKey === key) {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     } else {
       setSortKey(key);
@@ -151,7 +165,7 @@ export function DataTable<T>({
 
   const handlePageChange = (nextPage: number) => {
     if (serverPagination) {
-      serverPagination.onPageChange(nextPage + 1);
+      serverPagination.onPageChange(nextPage);
       return;
     }
     setPage(nextPage);
@@ -228,8 +242,8 @@ export function DataTable<T>({
                       <span className="truncate">{col.header}</span>
                       {col.sortable && (
                         <span className="text-ink-tertiary shrink-0">
-                          {sortKey === col.key ? (
-                            sortDir === "asc" ? (
+                          {activeSortKey === col.key ? (
+                            activeSortDir === "asc" ? (
                               <ChevronUp className="size-3" />
                             ) : (
                               <ChevronDown className="size-3" />
@@ -329,7 +343,9 @@ export function DataTable<T>({
             </div>
             <span>
               {serverPagination
-                ? `Hiển thị ${safePage * effectivePageSize + 1}–${safePage * effectivePageSize + pageData.length} / ${serverPagination.total}`
+                ? serverPagination.totalElements === 0
+                  ? "Hiển thị 0 / 0"
+                  : `Hiển thị ${safePage * effectivePageSize + 1}–${safePage * effectivePageSize + pageData.length} / ${serverPagination.totalElements}`
                 : totalPages > 1
                   ? `Hiển thị ${safePage * currentPageSize + 1}–${Math.min((safePage + 1) * currentPageSize, sorted.length)} / ${sorted.length}`
                   : (caption ?? `Hiển thị ${sorted.length} / ${sorted.length}`)}
@@ -348,24 +364,35 @@ export function DataTable<T>({
               >
                 ‹
               </Button>
-              {Array.from({ length: totalPages }, (_, i) => (
-                <Button
-                  key={i}
-                  type="button"
-                  variant="outline"
-                  size="icon-sm"
-                  aria-current={i === safePage ? "true" : undefined}
-                  onClick={() => handlePageChange(i)}
-                  className={cn(
-                    "min-w-7 rounded-[var(--r-sm)] border text-xs",
-                    i === safePage
-                      ? "border-brand bg-brand text-ink-inverse hover:bg-brand hover:text-ink-inverse font-medium"
-                      : "border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary",
-                  )}
-                >
-                  {i + 1}
-                </Button>
-              ))}
+              {getPaginationItems(totalPages, safePage).map((item) =>
+                typeof item === "number" ? (
+                  <Button
+                    key={item}
+                    type="button"
+                    variant="outline"
+                    size="icon-sm"
+                    aria-current={item === safePage ? "true" : undefined}
+                    aria-label={`Trang ${item + 1}`}
+                    onClick={() => handlePageChange(item)}
+                    className={cn(
+                      "min-w-7 rounded-[var(--r-sm)] border text-xs",
+                      item === safePage
+                        ? "border-brand bg-brand text-ink-inverse hover:bg-brand hover:text-ink-inverse font-medium"
+                        : "border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary",
+                    )}
+                  >
+                    {item + 1}
+                  </Button>
+                ) : (
+                  <span
+                    key={item}
+                    aria-hidden="true"
+                    className="text-ink-tertiary inline-flex min-w-7 items-center justify-center"
+                  >
+                    …
+                  </span>
+                ),
+              )}
               <Button
                 type="button"
                 variant="outline"
@@ -383,4 +410,33 @@ export function DataTable<T>({
       )}
     </div>
   );
+}
+
+type PaginationItem = number | "ellipsis-start" | "ellipsis-end";
+
+/** Returns a bounded pager while retaining the first, current neighbourhood, and last page. */
+export function getPaginationItems(totalPages: number, currentPage: number): PaginationItem[] {
+  if (totalPages <= 7) return Array.from({ length: Math.max(0, totalPages) }, (_, index) => index);
+  const safeCurrent = Math.min(Math.max(currentPage, 0), totalPages - 1);
+  if (safeCurrent <= 3) return [0, 1, 2, 3, 4, "ellipsis-end", totalPages - 1];
+  if (safeCurrent >= totalPages - 4) {
+    return [
+      0,
+      "ellipsis-start",
+      totalPages - 5,
+      totalPages - 4,
+      totalPages - 3,
+      totalPages - 2,
+      totalPages - 1,
+    ];
+  }
+  return [
+    0,
+    "ellipsis-start",
+    safeCurrent - 1,
+    safeCurrent,
+    safeCurrent + 1,
+    "ellipsis-end",
+    totalPages - 1,
+  ];
 }

@@ -61,6 +61,7 @@ export {
   allowedTransitions,
   canTransition,
   isProductTerminal,
+  isSelfApproval,
   isSkuTerminal,
   isTerminal,
   nextProductStatuses,
@@ -79,7 +80,7 @@ export {
   productAvailableStock,
   productName,
   productSkuCount,
-  productUnitLabel,
+  productUomLabel,
   shouldFlagProductRow,
   shouldFlagSkuRow,
   skusForProduct,
@@ -110,11 +111,16 @@ export {
 } from "./queries";
 
 export {
+  usePublishProduct,
   useCreateProduct,
   useTransitionProduct,
   useTransitionSku,
   useUpdateProduct,
+  useUnpublishProduct,
 } from "./mutations";
 
 export { isCapabilityUnavailable } from "./api";
+export { productTransitionErrorMessage } from "./transition-errors";
+export { toProductApiPage, toProductUiPage } from "./pagination";
+
 export type { ListProductsParams, ListSkusParams } from "./api";

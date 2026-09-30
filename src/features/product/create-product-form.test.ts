@@ -58,7 +58,21 @@ describe("create product form helpers", () => {
 
     expect(result.fieldErrors).toMatchObject({
       imageUrls: "URL ảnh không hợp lệ",
-      weightKg: "Khối lượng phải lớn hơn 0",
+      weightKg: "Khối lượng phải lớn hơn 0.",
+    });
+  });
+
+  it("localizes recognized validation fields without branching on translated messages", () => {
+    const result = mapCreateProductError(
+      new ApiError(400, "VALIDATION_FAILED", "Validation failed", {
+        name: "must not be blank",
+        brand: "ne doit pas être vide",
+      }),
+    );
+
+    expect(result.fieldErrors).toMatchObject({
+      name: "Tên sản phẩm không hợp lệ.",
+      brand: "Thương hiệu không hợp lệ.",
     });
   });
 });

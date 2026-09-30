@@ -76,6 +76,7 @@ export function mapCreateProductError(error: ApiError): {
   status?: ProductStatus;
 } {
   const fieldErrors = normalizeFieldErrors(error.fieldErrors ?? {});
+  if (error.code === "VALIDATION_FAILED") localizeKnownValidationFields(fieldErrors);
   if (error.code === "PRODUCT_CODE_ALREADY_EXISTS" && !fieldErrors.productCode) {
     fieldErrors.productCode = "Mã sản phẩm đã tồn tại.";
   }
@@ -93,6 +94,23 @@ export function mapCreateProductError(error: ApiError): {
     fieldErrors,
     message: error.message,
   };
+}
+
+function localizeKnownValidationFields(fieldErrors: CreateProductServerErrors): void {
+  const messages: Partial<Record<CreateProductServerField, string>> = {
+    productCode: "Mã sản phẩm không hợp lệ.",
+    name: "Tên sản phẩm không hợp lệ.",
+    nameEn: "Tên tiếng Anh không hợp lệ.",
+    brand: "Thương hiệu không hợp lệ.",
+    categoryId: "Danh mục không hợp lệ.",
+    weightKg: "Khối lượng phải lớn hơn 0.",
+    lengthCm: "Chiều dài phải lớn hơn 0.",
+    widthCm: "Chiều rộng phải lớn hơn 0.",
+    heightCm: "Chiều cao phải lớn hơn 0.",
+  };
+  for (const field of Object.keys(fieldErrors) as CreateProductServerField[]) {
+    if (messages[field]) fieldErrors[field] = messages[field];
+  }
 }
 
 function normalizeFieldErrors(fieldErrors: Record<string, string>): CreateProductServerErrors {
