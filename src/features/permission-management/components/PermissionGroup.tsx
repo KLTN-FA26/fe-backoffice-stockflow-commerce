@@ -1,3 +1,5 @@
+import { useId } from "react";
+
 import { EmptyState } from "@/components/shared/EmptyState";
 
 import { PermissionResourceCard } from "./PermissionResourceCard";
@@ -5,10 +7,12 @@ import { PermissionResourceCard } from "./PermissionResourceCard";
 import type { RoleMatrixGroup } from "../types";
 
 export function PermissionGroup({ group }: { group: RoleMatrixGroup }) {
+  const headingId = useId();
+
   return (
-    <section aria-labelledby={`permission-group-${group.name}`}>
+    <section aria-labelledby={headingId}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 id={`permission-group-${group.name}`} className="text-ink-primary text-base font-bold">
+        <h2 id={headingId} className="text-ink-primary text-base font-bold">
           {group.name}
         </h2>
         <span className="text-ink-secondary text-xs tabular-nums">

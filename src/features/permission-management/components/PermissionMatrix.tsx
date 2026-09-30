@@ -36,7 +36,7 @@ export function PermissionMatrix({ matrix }: { matrix: RoleMatrix }) {
       </section>
 
       {matrix.groups.length > 0 ? (
-        matrix.groups.map((group) => <PermissionGroup key={group.name} group={group} />)
+        matrix.groups.map((group, index) => <PermissionGroup key={index} group={group} />)
       ) : (
         <div data-testid="permission-matrix-empty">
           <p className="sr-only">Ma trận không có dữ liệu</p>

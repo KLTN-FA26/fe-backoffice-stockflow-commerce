@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -177,6 +177,35 @@ describe("PermissionManagementPage", () => {
     expect(screen.getByText("Nhạy cảm")).toBeInTheDocument();
     expect(screen.getByText("System role · chỉ xem")).toBeInTheDocument();
     expect(screen.getByText("Phạm vi dữ liệu: ALL")).toBeInTheDocument();
+  });
+
+  it("keeps headings and regions distinct when groups share a name", () => {
+    const first = matrix("ROLE_A").groups[0];
+    if (!first) throw new Error("Fixture must include a group");
+    const duplicate = {
+      ...first,
+      resources: first.resources.map((resource) => ({
+        ...resource,
+        code: "second-resource",
+        label: "Second resource",
+      })),
+    };
+    useMatrixMock.mockReturnValue(matrixQuery({ ...matrix("ROLE_A"), groups: [first, duplicate] }));
+
+    render(<PermissionManagementPage />);
+
+    const regions = screen.getAllByRole("region", { name: "Dynamic Group" });
+    const headings = regions.map((region) =>
+      within(region).getByRole("heading", { name: "Dynamic Group" }),
+    );
+    expect(regions).toHaveLength(2);
+    expect(headings[0]?.id).toBeTruthy();
+    expect(headings[1]?.id).toBeTruthy();
+    expect(headings[0]?.id).not.toBe(headings[1]?.id);
+    expect(regions[0]).toHaveAttribute("aria-labelledby", headings[0]?.id);
+    expect(regions[1]).toHaveAttribute("aria-labelledby", headings[1]?.id);
+    expect(within(regions[0]).getByText("Unknown resource")).toBeInTheDocument();
+    expect(within(regions[1]).getByText("Second resource")).toBeInTheDocument();
   });
 
   it("renders an empty role list distinctly", () => {
