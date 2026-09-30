@@ -1,5 +1,9 @@
 import { ClipboardCheck, FileText, Layers, Package } from "lucide-react";
 
+import { toLocalIsoDate } from "@/lib/format";
+
+import { createEmptyLine } from "./helpers";
+
 import type { Currency } from "@/features/purchase-order";
 
 export type StepKey = "info" | "lines" | "totals" | "review";
@@ -40,36 +44,18 @@ export const STEPS: { key: StepKey; label: string; icon: typeof FileText }[] = [
   { key: "review", label: "Tạo PO", icon: ClipboardCheck },
 ];
 
-/** Seed khớp migration BE (supplier d0000001-… + SKU SOFA/TABLE) để test BE ngay — đổi sang rỗng khi không cần nữa. */
-function demoDate(offsetDays: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + offsetDays);
-  return d.toISOString().slice(0, 10);
+/**
+ * Empty form — no hardcoded supplier/SKU ids. Suppliers and SKUs are picked from the
+ * (FE-only, mock-served) master data lists; see features/purchase-order/api.ts.
+ */
+export function createInitialForm(): FormState {
+  return {
+    supplierId: "",
+    orderDate: toLocalIsoDate(new Date().toISOString()),
+    expectedDate: "",
+    currency: "VND",
+    paymentTerms: "",
+    notes: "",
+    lines: [createEmptyLine()],
+  };
 }
-
-export const INITIAL_FORM: FormState = {
-  supplierId: "d0000001-0000-4000-8000-000000000001", // Acme Supplies (SUP-001)
-  orderDate: demoDate(0),
-  expectedDate: demoDate(7),
-  currency: "VND",
-  paymentTerms: "NET30",
-  notes: "PO demo — seed BE (Acme + SOFA-3S-GREY / TABLE-OAK-160)",
-  lines: [
-    {
-      id: "seed-line-1",
-      skuId: "d0000005-0000-4000-8000-000000000001", // SOFA-3S-GREY
-      orderedQty: "10",
-      unitPrice: "5000000",
-      uom: "EACH",
-      description: "3 Seater Sofa - Grey Fabric",
-    },
-    {
-      id: "seed-line-2",
-      skuId: "d0000005-0000-4000-8000-000000000002", // TABLE-OAK-160
-      orderedQty: "5",
-      unitPrice: "8000000",
-      uom: "EACH",
-      description: "Oak Dining Table 160cm - Natural Oak",
-    },
-  ],
-};

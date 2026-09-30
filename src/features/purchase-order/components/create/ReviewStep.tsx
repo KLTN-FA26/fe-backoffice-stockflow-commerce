@@ -20,7 +20,6 @@ export function ReviewStep({
   totals,
   currency,
   issuesByStep,
-  purchaseOrders,
   onSubmit,
 }: {
   form: FormState;
@@ -28,10 +27,8 @@ export function ReviewStep({
   totals: Totals;
   currency: Currency;
   issuesByStep: Map<StepKey, string[]>;
-  purchaseOrders: readonly { poNumber: string }[];
   onSubmit: () => void;
 }) {
-  const duplicatePoNumber = purchaseOrders.some((po) => po.poNumber === "PO-NEW-DRAFT");
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
       <Card>
@@ -47,11 +44,7 @@ export function ReviewStep({
           <SummaryItem label="Số dòng" value={String(form.lines.length)} mono />
           <SummaryItem label="Tiền tệ" value={currency} mono />
           <SummaryItem label="Tổng PO" value={formatMoney(totals.grandTotal, currency)} mono />
-          <SummaryItem
-            label="PO number preview"
-            value={duplicatePoNumber ? "PO-NEW-DRAFT trùng" : "PO-NEW-DRAFT"}
-            mono
-          />
+          <SummaryItem label="Số PO" value="BE cấp khi tạo (PO-YYYYMMDD-xxxxxx)" mono />
         </div>
         <div className="border-border-default mt-5 rounded-[var(--r-sm)] border">
           {STEPS.map((step) => {
@@ -106,7 +99,7 @@ export function ReviewStep({
           type="button"
           size="sm"
           onClick={onSubmit}
-          className="bg-brand !text-ink-inverse hover:bg-brand-hover hover:!text-ink-inverse mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-[var(--r-sm)] px-3 py-2 text-[0.8125rem] font-medium transition-colors"
+          className="bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-[var(--r-sm)] px-3 py-2 text-[0.8125rem] font-medium transition-colors"
         >
           <Send className="size-3.5" />
           Tạo PO

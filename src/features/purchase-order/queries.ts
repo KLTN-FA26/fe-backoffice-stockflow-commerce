@@ -5,21 +5,22 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
+
 import { QUERY_TIMES } from "@/lib/api/query-client";
-import { createQueryKeys, createListQuery, createDetailQuery } from "@/lib/api/query-factory";
+import { createDetailQuery, createListQuery, createQueryKeys } from "@/lib/api/query-factory";
+
 import {
   fetchPoStatusDashboard,
-  listPurchaseOrders,
   getPurchaseOrder,
   listPoSuppliers,
   listPoWarehouses,
+  listPurchaseOrders,
   listReplenishmentProposals,
   listSupplierSpend,
-  type ListPoParams,
-  type PoStatusCount,
-  type SupplierSpendParams,
-  type SupplierSpendRow,
 } from "./api";
+
+import type { ListPoParams, SupplierSpendParams } from "./api";
+import type { PoStatusCount, SupplierSpendRow } from "./schemas";
 import type { PurchaseOrder, ReplenishmentProposal, Supplier, Warehouse } from "./types";
 
 /* ── Query keys ──────────────────────────────────────────────────────── */
@@ -62,7 +63,7 @@ export const usePoWarehouses = createListQuery<Warehouse, Record<string, unknown
 
 export function usePoStatusDashboard() {
   return useQuery<PoStatusCount[]>({
-    queryKey: poDashboardKeys.list({}) as never,
+    queryKey: poDashboardKeys.list({}),
     queryFn: ({ signal }) => fetchPoStatusDashboard(signal),
     ...QUERY_TIMES.list,
   });

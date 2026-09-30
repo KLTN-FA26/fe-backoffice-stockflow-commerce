@@ -4,7 +4,7 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 
 import { formatMoney } from "@/lib/format/money";
 
-import type { SupplierSpendRow } from "@/features/purchase-order/api";
+import type { SupplierSpendRow } from "@/features/purchase-order";
 
 function compactVnd(n: number): string {
   if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}B`;

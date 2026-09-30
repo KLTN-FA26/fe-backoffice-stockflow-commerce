@@ -66,8 +66,9 @@ export function validateForm(form: FormState): ValidationIssue[] {
       issues.push({ step: "lines", message: `SKU ${line.skuId} bị trùng trong PO.` });
     }
     seenSkuIds.add(line.skuId);
-    if (!parsePositiveNumber(line.orderedQty)) {
-      issues.push({ step: "lines", message: `SKU ${line.skuId}: SL đặt phải lớn hơn 0.` });
+    // BE CreatePOLineRequest: `int quantityOrdered` @Positive — must be a whole number.
+    if (!parsePositiveNumber(line.orderedQty) || !Number.isInteger(Number(line.orderedQty))) {
+      issues.push({ step: "lines", message: `SKU ${line.skuId}: SL đặt phải là số nguyên > 0.` });
     }
     // BE @PositiveOrZero — allow 0 for promo/free line. BR: unitPrice >= 0
     if (!parseNonNegativeNumber(line.unitPrice)) {
@@ -77,6 +78,7 @@ export function validateForm(form: FormState): ValidationIssue[] {
   return issues;
 }
 
+/** BR-06 (docs 02 §6): ngày giao dự kiến trong quá khứ → chỉ CẢNH BÁO, không chặn submit. */
 export function isExpectedDatePast(expectedDate: string, orderDate: string): boolean {
   return expectedDate !== "" && orderDate !== "" && expectedDate < orderDate;
 }

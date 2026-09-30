@@ -6,66 +6,47 @@
  * tables.  When docs change, update here + tests in one commit.
  *
  * Usage:
- *   canTransition(PO_TRANSITIONS, "Draft", "Pending Approval") // true
- *   isTerminal(PO_TRANSITIONS, "Closed")                       // true
+ *   canTransition(PO_TRANSITIONS, "DRAFT", "APPROVED") // true
+ *   isTerminal(PO_TRANSITIONS, "CLOSED")               // true
  */
 
 /* ── Generic helpers ─────────────────────────────────────────────────── */
 
 /**
- * Kiểm tra transition `from` → `to` có được phép theo bảng `table` hay không.
+ * Next states of `from`, or `undefined` when `from` is not a key of the table.
  *
- * Guard `table[from] ?? undefined` là bắt buộc vì FE có 2 nguồn status song song:
- * - BE contract `PurchaseOrderStatus.java` (SCREAMING_SNAKE: `DRAFT`, `SENT`, `PARTIALLY_RECEIVED`)
- *   Đây là canonical type `PoStatus` (từ `src/constants/statuses.ts`).
- * - Mock seed `src/lib/mock-data.ts` vẫn dùng Title Case legacy (`Draft`, `Confirmed`,
- *   `Partially Received`, `Pending Approval`) để giữ nguyên docs cũ.
- *
- * Khi `from` là Title Case mà `table` chỉ có key SCREAMING_SNAKE thì `table[from]`
- * là `undefined`. Không guard sẽ crash ở caller `isTerminal` (`undefined.length`) hoặc
- * trả về kết quả sai. Vì lỗi này đã gây crash thực tế ở `/admin/purchase-orders/[id]`
- * (stack `isTerminal → isPoTerminal → getLifecycleSteps → PoLifecycleTimeline`),
- * helper phải chịu được `undefined` và trả về `false` (không cho chuyển).
+ * Statuses reaching the UI are zod-parsed at the API boundary, so this should never be
+ * `undefined` in practice. The guard is defensive only: a status outside the table must
+ * render as "no actions" rather than crash a page with `undefined.length`
+ * (regression locked by `lifecycle.test.ts`).
  */
+function nextOf<S extends string>(
+  table: Record<S, readonly S[]>,
+  from: S,
+): readonly S[] | undefined {
+  return Object.prototype.hasOwnProperty.call(table, from) ? table[from] : undefined;
+}
+
+/** Is `from → to` allowed by `table`? Unknown `from` → false. */
 export function canTransition<S extends string>(
   table: Record<S, readonly S[]>,
   from: S,
   to: S,
 ): boolean {
-  return !!(table[from] as unknown as readonly string[] | undefined)?.includes(to);
+  return nextOf(table, from)?.includes(to) ?? false;
 }
 
-/**
- * Trạng thái có phải terminal (không còn transition nào) hay không.
- *
- * - `table[status] === undefined` → coi như terminal và return `true` để không crash.
- *   Trường hợp này xảy ra khi `status` là Title Case legacy chưa được normalize
- *   (ví dụ `Draft`, `Confirmed`). Caller đúng ra phải normalize trước qua
- *   `normalizePoStatus()` (trong `features/purchase-order/lifecycle.ts`) hoặc
- *   `normalizeApiStatus()` (trong `features/purchase-order/api.ts`), nhưng helper
- *   vẫn phải tự bảo vệ để một record lẻ không làm sập cả trang detail.
- * - `table[status].length === 0` → terminal thật (BE: `CLOSED`, `CLOSED_SHORT`, `CANCELLED`).
- */
+/** No outgoing transition. Unknown status is treated as terminal (no mutating action). */
 export function isTerminal<S extends string>(table: Record<S, readonly S[]>, status: S): boolean {
-  const next = table[status] as unknown as readonly unknown[] | undefined;
-  if (!next) return true;
-  return next.length === 0;
+  return (nextOf(table, status) ?? []).length === 0;
 }
 
-/**
- * Lấy danh sách trạng thái kề tiếp được phép từ `from`.
- *
- * Guard `?? []` để caller như `nextPoStatuses()` / `getLifecycleSteps()` luôn nhận
- * về mảng (có thể rỗng) thay vì `undefined`, tránh phải check null ở từng component.
- * Nếu `from` là Title Case chưa normalize, kết quả là `[]` — caller sẽ render timeline
- * ở trạng thái rỗng an toàn thay vì crash. Normalize đúng vẫn là trách nhiệm của
- * `features/purchase-order/lifecycle.ts` và `api.ts`.
- */
+/** Statuses reachable in one step from `from` (empty for terminal / unknown). */
 export function allowedTransitions<S extends string>(
   table: Record<S, readonly S[]>,
   from: S,
 ): readonly S[] {
-  return (table[from] as readonly S[] | undefined) ?? ([] as unknown as readonly S[]);
+  return nextOf(table, from) ?? [];
 }
 
 /* ── Types from mock-data ────────────────────────────────────────────── */
@@ -106,17 +87,25 @@ export const SKU_TRANSITIONS: Record<SkuStatus, readonly SkuStatus[]> = {
 
 /* ── Module 02: Purchase Order ───────────────────────────────────────── */
 
-// BE: PurchaseOrderStatus.java — simplified 7-state of docs 02 §5.
-// Full docs ten-state is wider; BE deliberately narrows to this scope
-// (SCRUM-113/116). FE now mirrors BE so roles/permissions gate correctly.
+// docs 02-purchase-order §5 — bảng "Chuyển tiếp cho phép", thu hẹp theo BE
+// PurchaseOrderStatus.java (SCRUM-113/116). FE mirror BE vì BE mới là nơi thực thi;
+// ánh xạ docs → BE:
+//   Draft → Pending Approval / Approved   ⇒ DRAFT → APPROVED (BE gộp submit+approve)
+//   Approved → Confirmed                  ⇒ APPROVED → SENT
+//   Confirmed / Partially Received → Received → Closed ⇒ receiveGoods tự đóng CLOSED
+//     khi hết open qty (không qua PO_TRANSITIONS — xem PO_ACTIONS "receive")
+//   Partially Received → Closed (short-close) ⇒ PARTIALLY_RECEIVED → CLOSED_SHORT
+// ASSUMPTION (open-question A2): BE chưa có Pending Approval / hạn mức duyệt (BR-PO-002).
 export const PO_TRANSITIONS: Record<PoStatus, readonly PoStatus[]> = {
   DRAFT: ["APPROVED", "CANCELLED"],
   APPROVED: ["SENT", "CANCELLED"],
+  // BR-05 (docs 02 §6): chỉ huỷ được khi CHƯA nhận hàng — SENT chưa có receipt nào.
   SENT: ["CANCELLED"],
+  // BR-05 (docs 02 §6): đã nhận một phần ⇒ không còn CANCELLED, chỉ short-close.
   PARTIALLY_RECEIVED: ["CLOSED_SHORT"],
-  CLOSED: [],
-  CLOSED_SHORT: [],
-  CANCELLED: [],
+  CLOSED: [], // terminal
+  CLOSED_SHORT: [], // terminal
+  CANCELLED: [], // terminal
 };
 
 /* ── Module 03: Receipt ──────────────────────────────────────────────── */

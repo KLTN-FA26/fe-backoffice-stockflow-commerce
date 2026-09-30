@@ -3,37 +3,48 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { PAGE_SIZE } from "@/constants";
-import { useCreatePo, usePoSuppliers, usePurchaseOrders } from "@/features/purchase-order";
+import { ADMIN_ROUTES, PAGE_SIZE } from "@/constants";
+import { createPoSchema, useCreatePo, usePoSuppliers } from "@/features/purchase-order";
 import { useSkus } from "@/features/product";
 import { toast } from "@/components/shared/Toast";
-import { ADMIN_ROUTES } from "@/constants";
 
 import { calculateTotals, createEmptyLine, validateForm } from "./helpers";
-import { INITIAL_FORM, type FormState, type PoLineDraft, type StepKey } from "./types";
+import { createInitialForm } from "./types";
+
+import type { ApiError } from "@/lib/api/error";
+import type { CreatePoInput } from "@/features/purchase-order";
+import type { FormState, PoLineDraft, StepKey } from "./types";
+
+function toCreateInput(form: FormState): CreatePoInput {
+  return {
+    supplierId: form.supplierId,
+    currency: form.currency,
+    expectedAt: form.expectedDate || null,
+    lines: form.lines.map((l) => ({
+      sku: l.skuId,
+      description: l.description || null,
+      quantityOrdered: Number(l.orderedQty),
+      unitPrice: Number(l.unitPrice),
+    })),
+  };
+}
 
 export function useCreateForm() {
   const router = useRouter();
-  const [form, setForm] = useState<FormState>(INITIAL_FORM);
+  const [form, setForm] = useState<FormState>(createInitialForm);
   const [currentStep, setCurrentStep] = useState<StepKey>("info");
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const createPo = useCreatePo();
+  // FE-only master data (BE has no /suppliers or /skus yet — see api.ts).
   const suppliersQuery = usePoSuppliers({});
   const skusQuery = useSkus({ page: 1, pageSize: PAGE_SIZE.masterData });
-  const posQuery = usePurchaseOrders({ page: 1, pageSize: PAGE_SIZE.masterData });
 
   const suppliers = useMemo(() => suppliersQuery.data?.items ?? [], [suppliersQuery.data]);
   const skus = useMemo(() => skusQuery.data?.items ?? [], [skusQuery.data]);
-  const purchaseOrders = useMemo(() => posQuery.data?.items ?? [], [posQuery.data]);
-  const isLoading = suppliersQuery.isLoading || skusQuery.isLoading || posQuery.isLoading;
-
   const activeSuppliers = useMemo(() => suppliers.filter((s) => s.active), [suppliers]);
   const activeSkus = useMemo(() => skus.filter((s) => s.status === "Active"), [skus]);
-  const selectedSupplier = useMemo(
-    () => suppliers.find((s) => s.supplierId === form.supplierId),
-    [form.supplierId, suppliers],
-  );
+  const selectedSupplier = suppliers.find((s) => s.supplierId === form.supplierId);
   const totals = useMemo(() => calculateTotals(form.lines), [form.lines]);
   const validationIssues = useMemo(() => validateForm(form), [form]);
   const issuesByStep = useMemo(() => {
@@ -54,7 +65,8 @@ export function useCreateForm() {
     setForm((p) => ({
       ...p,
       supplierId,
-      currency: sup?.currency ?? "VND",
+      // BR-07 (docs 02): PO currency follows the supplier's currency.
+      currency: sup?.currency ?? p.currency,
       paymentTerms: sup?.paymentTerms ?? "",
     }));
   };
@@ -71,56 +83,39 @@ export function useCreateForm() {
 
   const handleSubmitAttempt = () => {
     setSubmitAttempted(true);
-    if (validationIssues.length > 0) {
-      const firstIssue = validationIssues[0];
-      if (firstIssue) toast.error("Chưa thể tạo PO", firstIssue.message);
-      return false;
+    const firstIssue = validationIssues[0];
+    if (firstIssue) {
+      toast.error("Chưa thể tạo PO", firstIssue.message);
+      return;
     }
     setConfirmOpen(true);
-    return true;
   };
-  const handleConfirmSubmit = (onDup: (dup: boolean) => void) => {
+
+  const handleConfirmSubmit = () => {
     setConfirmOpen(false);
-    createPo.mutate(
-      {
-        supplierId: form.supplierId,
-        currency: form.currency || selectedSupplier?.currency || "VND",
-        expectedAt: form.expectedDate || null,
-        expectedDate: form.expectedDate || undefined,
-        lines: form.lines.map((l) => ({
-          sku: l.skuId,
-          description: l.description || null,
-          quantityOrdered: Number(l.orderedQty) || 0,
-          unitPrice: Number(l.unitPrice) || 0,
-        })),
-      } as never,
-      {
-        onSuccess: (created: { poId: string; poNumber: string; possibleDuplicate?: boolean }) => {
-          const dup = Boolean((created as { possibleDuplicate?: boolean }).possibleDuplicate);
-          if (dup)
-            toast.warning(
-              "Có thể trùng lặp",
-              `PO ${created.poNumber} có cùng NCC + SKU với đơn cùng ngày giao (BR-PO-003).`,
-            );
-          else toast.success("Đã tạo PO", `PO ${created.poNumber} đã được tạo ở trạng thái DRAFT.`);
-          router.push(
-            `${ADMIN_ROUTES.purchaseOrders.detail(created.poId)}${dup ? "?duplicate=1" : ""}`,
+    // Input schema = last guard before the wire (same rules as BE CreatePurchaseOrderRequest).
+    const parsed = createPoSchema.safeParse(toCreateInput(form));
+    if (!parsed.success) {
+      toast.error("Dữ liệu chưa hợp lệ", parsed.error.issues[0]?.message ?? "");
+      return;
+    }
+    createPo.mutate(parsed.data, {
+      onSuccess: (created) => {
+        if (created.possibleDuplicate)
+          toast.warning(
+            "Có thể trùng lặp",
+            `PO ${created.poNumber} có cùng NCC + SKU với đơn cùng ngày giao (BR-PO-003).`,
           );
-          onDup(dup);
-        },
-        onError: (err: unknown) => {
-          const e = err as { fieldErrors?: Record<string, string>; message?: string };
-          if (e.fieldErrors && Object.keys(e.fieldErrors).length) {
-            const firstEntry = Object.entries(e.fieldErrors)[0];
-            if (!firstEntry) return;
-            const [k, v] = firstEntry;
-            toast.error("Dữ liệu chưa hợp lệ", `${k}: ${v}`);
-            return;
-          }
-          toast.error("Không thể tạo PO", e.message ?? "Vui lòng thử lại.");
-        },
+        else toast.success("Đã tạo PO", `PO ${created.poNumber} đã được tạo ở trạng thái DRAFT.`);
+        const query = created.possibleDuplicate ? "?duplicate=1" : "";
+        router.push(`${ADMIN_ROUTES.purchaseOrders.detail(created.poId)}${query}`);
       },
-    );
+      onError: (e: ApiError) => {
+        const [field, message] = Object.entries(e.fieldErrors ?? {})[0] ?? [];
+        if (field) toast.error("Dữ liệu chưa hợp lệ", `${field}: ${message}`);
+        else toast.error("Không thể tạo PO", e.message);
+      },
+    });
   };
 
   return {
@@ -137,10 +132,9 @@ export function useCreateForm() {
     setSubmitAttempted,
     confirmOpen,
     setConfirmOpen,
-    suppliers,
-    skus,
-    purchaseOrders,
-    isLoading,
+    isSubmitting: createPo.isPending,
+    isLoading: suppliersQuery.isLoading || skusQuery.isLoading,
+    masterDataError: suppliersQuery.isError || skusQuery.isError,
     activeSuppliers,
     activeSkus,
     selectedSupplier,

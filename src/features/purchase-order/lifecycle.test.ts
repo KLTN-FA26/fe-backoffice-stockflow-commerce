@@ -1,52 +1,96 @@
 import { describe, expect, it } from "vitest";
 
-import { allowedPoActions, nextPoStatuses } from "./lifecycle";
+import { PO_STATUSES } from "@/constants";
+import { allowedTransitions, canTransition, isTerminal } from "@/lib/domain/lifecycle";
 
+import { PO_TRANSITIONS, allowedPoActions, isPoTerminal, nextPoStatuses } from "./lifecycle";
+
+import type { RoleName } from "@/lib/auth/roles";
 import type { PoStatus } from "./types";
 
-describe("purchase-order lifecycle (BE 7-state)", () => {
-  it("allows DRAFT -> APPROVED | CANCELLED", () => {
-    expect(nextPoStatuses("DRAFT" as PoStatus)).toEqual([
-      "APPROVED",
-      "CANCELLED",
-    ] satisfies PoStatus[]);
+const codes = (status: PoStatus, roles: RoleName[]) =>
+  allowedPoActions(status, roles).map((a) => a.code);
+const MUTATING = ["approve", "send", "cancel", "closeShort", "receive"];
+
+describe("PO_TRANSITIONS (BE PurchaseOrderStatus#canTransitionTo, 7-state)", () => {
+  it("has an entry for every BE status", () => {
+    expect(Object.keys(PO_TRANSITIONS).sort()).toEqual([...PO_STATUSES].sort());
   });
 
-  it("does not allow terminal statuses to transition", () => {
-    expect(nextPoStatuses("CLOSED" as PoStatus)).toEqual([]);
-    expect(nextPoStatuses("CANCELLED" as PoStatus)).toEqual([]);
-    expect(nextPoStatuses("CLOSED_SHORT" as PoStatus)).toEqual([]);
+  it("DRAFT → APPROVED | CANCELLED", () => {
+    expect(nextPoStatuses("DRAFT")).toEqual(["APPROVED", "CANCELLED"]);
   });
 
-  it("allows APPROVED -> SENT | CANCELLED", () => {
-    expect(nextPoStatuses("APPROVED" as PoStatus)).toEqual([
-      "SENT",
-      "CANCELLED",
-    ] satisfies PoStatus[]);
+  it("APPROVED → SENT | CANCELLED", () => {
+    expect(nextPoStatuses("APPROVED")).toEqual(["SENT", "CANCELLED"]);
   });
 
-  it("gates DRAFT approve by Warehouse Manager (po.approve)", () => {
-    expect(allowedPoActions("DRAFT" as PoStatus, "Warehouse Manager").map((a) => a.code)).toContain(
-      "approve",
-    );
+  it("BR-05 (docs 02 §6): PARTIALLY_RECEIVED không thể CANCELLED — chỉ short-close", () => {
+    expect(nextPoStatuses("PARTIALLY_RECEIVED")).toEqual(["CLOSED_SHORT"]);
   });
 
-  it("does not allow Procurement Staff to approve DRAFT", () => {
-    expect(
-      allowedPoActions("DRAFT" as PoStatus, "Procurement Staff").map((a) => a.code),
-    ).not.toContain("approve");
+  it.each(["CLOSED", "CLOSED_SHORT", "CANCELLED"] as const)("%s is terminal", (s) => {
+    expect(PO_TRANSITIONS[s]).toEqual([]);
+    expect(isPoTerminal(s)).toBe(true);
+  });
+});
+
+describe("generic lifecycle helpers — unknown status must not crash", () => {
+  // Regression: `isTerminal(table, undefined-key)` used to throw `undefined.length`
+  // and took down /admin/purchase-orders/[id].
+  const table: Record<string, readonly string[]> = PO_TRANSITIONS;
+
+  it("isTerminal treats an unknown status as terminal", () => {
+    expect(isTerminal(table, "Draft")).toBe(true);
   });
 
-  it("gates SENT cancel by po.update", () => {
-    expect(allowedPoActions("SENT" as PoStatus, "Procurement Staff").map((a) => a.code)).toContain(
-      "cancel",
-    );
+  it("canTransition returns false for an unknown status", () => {
+    expect(canTransition(table, "Draft", "APPROVED")).toBe(false);
   });
 
-  it("terminal CLOSED has no mutating actions", () => {
-    const codes = allowedPoActions("CLOSED" as PoStatus, "Warehouse Manager").map((a) => a.code);
-    expect(codes.filter((c) => ["approve", "send", "cancel", "closeShort"].includes(c))).toEqual(
-      [],
-    );
+  it("allowedTransitions returns [] for an unknown status", () => {
+    expect(allowedTransitions(table, "Draft")).toEqual([]);
   });
+});
+
+describe("allowedPoActions (action-gating by status + roles)", () => {
+  it("DRAFT + Warehouse Manager → can approve", () => {
+    expect(codes("DRAFT", ["Warehouse Manager"])).toContain("approve");
+  });
+
+  it("DRAFT + Procurement Staff → cannot approve (po.approve)", () => {
+    expect(codes("DRAFT", ["Procurement Staff"])).not.toContain("approve");
+    expect(codes("DRAFT", ["Procurement Staff"])).toContain("cancel");
+  });
+
+  it("BR-03: SENT (≙ Confirmed) + Procurement Staff → cancel và receive", () => {
+    expect(codes("SENT", ["Procurement Staff"])).toEqual(["cancel", "receive"]);
+  });
+
+  it("BR-03 + BR-05: PARTIALLY_RECEIVED → closeShort và receive, không có cancel", () => {
+    expect(codes("PARTIALLY_RECEIVED", ["Procurement Staff"])).toEqual(["closeShort", "receive"]);
+  });
+
+  it("Accountant (view only) sees no mutating action", () => {
+    expect(codes("DRAFT", ["Accountant"])).toEqual([]);
+  });
+
+  it("uses ALL roles — Procurement Staff + Warehouse Manager can approve", () => {
+    expect(codes("DRAFT", ["Procurement Staff", "Warehouse Manager"])).toContain("approve");
+  });
+
+  it.each(["DRAFT", "APPROVED"] as const)("BR-03: %s chưa chốt → không có receive", (s) => {
+    expect(codes(s, ["System Admin"])).not.toContain("receive");
+  });
+
+  it("no role → no action", () => {
+    expect(codes("DRAFT", [])).toEqual([]);
+  });
+
+  it.each(["CLOSED", "CLOSED_SHORT", "CANCELLED"] as const)(
+    "%s renders no mutating action even for System Admin",
+    (s) => {
+      expect(codes(s, ["System Admin"]).filter((c) => MUTATING.includes(c))).toEqual([]);
+    },
+  );
 });

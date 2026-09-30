@@ -2,6 +2,8 @@
 
 import { cn } from "cn";
 
+import { PAGE_SIZE } from "@/constants";
+
 import { DataTable, type ColumnDef } from "@/components/shared/DataTable";
 import { formatMoney, openQuantity } from "@/features/purchase-order";
 
@@ -9,6 +11,7 @@ import type { PoLine } from "@/features/purchase-order";
 import type { Sku } from "@/features/product";
 
 export function PoLinesTable({ lines, skus }: { lines: PoLine[]; skus: readonly Sku[] }) {
+  const skuLabels = new Map(skus.map((s) => [s.skuId, s.variantLabel] as const));
   const cols: ColumnDef<PoLine>[] = [
     {
       key: "skuId",
@@ -23,10 +26,10 @@ export function PoLinesTable({ lines, skus }: { lines: PoLine[]; skus: readonly 
     },
     {
       key: "skuName",
-      header: "Tên SKU",
+      header: "Mô tả",
       cell: (r) => (
         <span className="text-ink-primary text-[0.8125rem]">
-          {skus.find((s) => s.skuId === r.skuId)?.variantLabel ?? r.skuId}
+          {r.description ?? skuLabels.get(r.skuId) ?? "—"}
         </span>
       ),
     },
@@ -105,7 +108,7 @@ export function PoLinesTable({ lines, skus }: { lines: PoLine[]; skus: readonly 
       columns={cols}
       rowKey={(r) => r.lineId}
       caption={`${lines.length} dòng hàng`}
-      pageSize={50}
+      pageSize={PAGE_SIZE.xl}
     />
   );
 }

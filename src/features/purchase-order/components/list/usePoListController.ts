@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { PAGE_SIZE, PO_COLUMNS, PO_STATUSES, STORAGE_KEYS } from "@/constants";
+import { PO_COLUMNS, PO_STATUSES, STORAGE_KEYS } from "@/constants";
 import { usePageConfig } from "@/hooks/use-page-config";
 import { useUrlFilters } from "@/hooks/use-url-filters";
 import {
@@ -13,18 +13,25 @@ import {
   usePurchaseOrders,
 } from "@/features/purchase-order";
 
-import type { PurchaseOrder } from "@/features/purchase-order";
 import { DEFAULT_CONFIG } from "./config";
 import { mergeStoredConfig, supplierName, warehouseName } from "./helpers";
 import { usePoFiltered } from "./usePoFiltered";
 import { usePoStats } from "./usePoStats";
 
+import type { PoStatus, PurchaseOrder } from "@/features/purchase-order";
 import type {
   PoColumnSearchKey,
   PoSearchField,
+  PoStatusFilter,
   PoTableColumnKey,
   PurchaseOrdersPageConfig,
 } from "./config";
+
+export interface PoSearchFieldOption {
+  label: string;
+  value: PoSearchField;
+  getValue: (po: PurchaseOrder) => string;
+}
 
 export function usePoListController() {
   const router = useRouter();
@@ -34,14 +41,14 @@ export function usePoListController() {
     DEFAULT_CONFIG,
     mergeStoredConfig,
   );
-  const [pageSize, setPageSize] = useState<number>(PAGE_SIZE.md);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  // BE list supports page/size/status/supplierId/sort only — no free-text `q`, so the main
+  // search and the column search both filter the loaded page (see note under the table).
   const poQ = usePurchaseOrders({
     page: filters.page,
-    pageSize,
-    status: filters.status.length ? (filters.status as string[]) : undefined,
+    pageSize: config.pageSize,
+    status: filters.status.length ? filters.status : undefined,
     sort: filters.sort || undefined,
-    q: filters.debouncedQ || undefined,
   });
   const supQ = usePoSuppliers({});
   const whQ = usePoWarehouses({});
@@ -49,27 +56,27 @@ export function usePoListController() {
   const purchaseOrders = useMemo(() => poQ.data?.items ?? [], [poQ.data]);
   const suppliers = useMemo(() => supQ.data?.items ?? [], [supQ.data]);
   const warehouses = useMemo(() => whQ.data?.items ?? [], [whQ.data]);
-  const searchFields = useMemo(
+  const searchFields = useMemo<PoSearchFieldOption[]>(
     () => [
-      { label: "Mã PO", value: PO_COLUMNS.PO_NUMBER, getValue: (po: PurchaseOrder) => po.poNumber },
+      { label: "Mã PO", value: PO_COLUMNS.PO_NUMBER, getValue: (po) => po.poNumber },
       {
         label: "Nhà cung cấp",
         value: PO_COLUMNS.SUPPLIER,
-        getValue: (po: PurchaseOrder) => supplierName(po, suppliers),
+        getValue: (po) => supplierName(po, suppliers),
       },
       {
         label: "Kho nhận",
         value: PO_COLUMNS.WAREHOUSE,
-        getValue: (po: PurchaseOrder) => warehouseName(po, warehouses),
+        getValue: (po) => warehouseName(po, warehouses),
       },
-      { label: "PO ID", value: "poId" as const, getValue: (po: PurchaseOrder) => po.poId },
+      { label: "PO ID", value: "poId", getValue: (po) => po.poId },
     ],
     [suppliers, warehouses],
   );
   const pageConfig = useMemo<PurchaseOrdersPageConfig>(
     () => ({
       ...config,
-      statuses: filters.status.length ? (filters.status as never) : ["all"],
+      statuses: filters.status.length ? filters.status : ["all"],
       globalSearch: { ...config.globalSearch, query: filters.q },
     }),
     [config, filters.q, filters.status],
@@ -77,14 +84,11 @@ export function usePoListController() {
   const filtered = usePoFiltered(purchaseOrders, pageConfig, searchFields, suppliers, warehouses);
   const stats = usePoStats(dashboardQ.data);
 
-  const toggleStatus = (s: string) => {
-    if (s === "all") {
-      filters.setStatus([]);
-      return;
-    }
-    const next = filters.status.includes(s as never)
+  const toggleStatus = (s: PoStatusFilter) => {
+    if (s === "all") return filters.setStatus([]);
+    const next: PoStatus[] = filters.status.includes(s)
       ? filters.status.filter((i) => i !== s)
-      : [...filters.status, s as never];
+      : [...filters.status, s];
     filters.setStatus(next);
   };
   const toggleSearchField = (f: PoSearchField) =>
@@ -108,12 +112,17 @@ export function usePoListController() {
   };
   const updateColumnSearch = (k: PoColumnSearchKey, v: string) =>
     updateConfig((c) => ({ ...c, columnSearch: { ...c.columnSearch, [k]: v } }));
+  // data-table-mode-a §5: changing page size goes back to the first page.
+  const setPageSize = (pageSize: number) => {
+    updateConfig((c) => ({ ...c, pageSize }));
+    filters.setPage(1);
+  };
 
   return {
     router,
     total: poQ.data?.total ?? 0,
     page: filters.page,
-    pageSize,
+    pageSize: config.pageSize,
     setPageSize,
     filters,
     config: pageConfig,
@@ -121,10 +130,9 @@ export function usePoListController() {
     selectedKeys,
     setSelectedKeys,
     poQ,
-    supQ,
-    whQ,
     suppliers,
     warehouses,
+    masterDataError: supQ.isError || whQ.isError,
     searchFields,
     filtered,
     stats,
@@ -132,6 +140,7 @@ export function usePoListController() {
     toggleSearchField,
     toggleTableColumn,
     updateColumnSearch,
-    isLoading: poQ.isLoading || supQ.isLoading || whQ.isLoading,
+    // Only the PO list gates the skeleton — FE-only master data may 404 on the real BE.
+    isLoading: poQ.isLoading,
   };
 }

@@ -17,7 +17,7 @@ export function PoGeneralInfo({ po }: { po: PurchaseOrder }) {
       <div>
         <InfoRow label="Số PO" value={po.poNumber} mono />
         <InfoRow label="Trạng thái">
-          <StatusDot domain="po" status={po.status as never} size="sm" withIcon />
+          <StatusDot domain="po" status={po.status} size="sm" withIcon />
         </InfoRow>
         <InfoRow label="Ngày đặt" value={po.orderDate} mono />
         <InfoRow label="Ngày giao DK" value={po.expectedDate} mono />

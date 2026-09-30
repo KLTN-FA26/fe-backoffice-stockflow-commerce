@@ -4,7 +4,7 @@ import { useMemo } from "react";
 
 import { PO_STATUS } from "@/constants";
 
-import type { PoStatusCount } from "@/features/purchase-order/api";
+import type { PoStatus, PoStatusCount } from "@/features/purchase-order";
 
 import {
   CheckCircle,
@@ -19,7 +19,7 @@ import {
 export function usePoStats(counts: readonly PoStatusCount[] | undefined) {
   return useMemo(() => {
     const byStatus = new Map((counts ?? []).map((r) => [r.status, r.count] as const));
-    const n = (k: string) => String(byStatus.get(k) ?? 0);
+    const n = (k: PoStatus) => String(byStatus.get(k) ?? 0);
     return [
       { label: "Nháp", value: n(PO_STATUS.DRAFT), icon: Clock },
       { label: "Đã duyệt", value: n(PO_STATUS.APPROVED), icon: ClipboardCheck },

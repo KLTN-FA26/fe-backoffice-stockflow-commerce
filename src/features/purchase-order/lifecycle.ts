@@ -75,6 +75,7 @@ export const PO_ACTIONS: readonly PoAction[] = [
     code: "cancel",
     label: "Huỷ PO",
     permission: "po.update",
+    // BR-05 (docs 02 §6): không huỷ khi đã có receipt — PARTIALLY_RECEIVED bị loại.
     fromStatuses: ["DRAFT", "APPROVED", "SENT"],
     targetStatus: "CANCELLED",
     destructive: true,
@@ -93,6 +94,7 @@ export const PO_ACTIONS: readonly PoAction[] = [
     code: "receive",
     label: "Nhận hàng",
     permission: "po.update",
+    // BR-03 (docs 02 §6): chỉ nhận khi PO đã chốt (Confirmed ≙ BE SENT) hoặc Partially Received.
     fromStatuses: ["SENT", "PARTIALLY_RECEIVED"],
   },
 ] as const;
@@ -100,95 +102,36 @@ export const PO_ACTIONS: readonly PoAction[] = [
 /* ── Action gating ───────────────────────────────────────────────────── */
 
 /**
- * Return the list of actions available for a given PO status + user role.
+ * Actions available for a PO status + the user's roles (all of them — a user may hold
+ * several roles, and `can()` grants if ANY role has the permission).
  *
- * Checks:
- * 1. Action's `fromStatuses` includes current status.
- * 2. If action has `targetStatus`, the transition table allows it.
- * 3. User's role has the required permission.
+ * 1. Action's `fromStatuses` includes the current status.
+ * 2. If the action has a `targetStatus`, `PO_TRANSITIONS` allows it.
+ * 3. One of the roles has the required permission.
+ *
+ * `status` is always one of the 7 BE values: the API layer zod-parses every response and
+ * the mock adapter speaks the BE vocabulary, so no normalisation is needed here.
+ * UI-only gate — backend re-checks permission (@RequiresPermission) and transition (409).
  */
-/**
- * Return the list of actions available for a given PO status + user role.
- *
- * **Normalize trước khi gate:** `status` có thể là Title Case legacy từ mock
- * (`MockPurchaseOrder.status = "Draft" | "Confirmed" | ...` trong
- * `src/lib/mock-data.ts`) hoặc SCREAMING_SNAKE từ BE (`PoStatus = "DRAFT" |
- * "SENT" | ...` trong `src/constants/statuses.ts`). `PO_ACTIONS.fromStatuses`
- * và `PO_TRANSITIONS` chỉ chứa key BE, nên phải normalize về BE trước khi
- * `includes()` / `canTransition()`, nếu không action sẽ bị ẩn sai hoặc crash
- * ở tầng dưới (đã từng gây `isTerminal(undefined.length)` ở detail).
- *
- * Checks:
- * 1. Action's `fromStatuses` includes normalized status.
- * 2. If action has `targetStatus`, the transition table allows it.
- * 3. User's role has the required permission.
- */
-export function allowedPoActions(status: PoStatus, role: RoleName): readonly PoAction[] {
-  const normalized = normalizePoStatus(status);
+export function allowedPoActions(
+  status: PoStatus,
+  roles: readonly RoleName[],
+): readonly PoAction[] {
   return PO_ACTIONS.filter((action) => {
-    if (!action.fromStatuses.includes(normalized)) return false;
-    if (action.targetStatus && !canTransition(PO_TRANSITIONS, normalized, action.targetStatus)) {
-      return false;
-    }
-    return can(role, action.permission);
+    const allowedByTable =
+      !action.targetStatus || canTransition(PO_TRANSITIONS, status, action.targetStatus);
+    return (
+      action.fromStatuses.includes(status) && allowedByTable && can([...roles], action.permission)
+    );
   });
 }
 
-/**
- * PO có đang ở trạng thái kết thúc (không còn transition) không.
- *
- * Delegate qua `isTerminal()` nhưng phải normalize trước vì lý do dual-source
- * như trên. Nếu không normalize, `isTerminal(PO_TRANSITIONS, "Draft")` sẽ tra
- * `table["Draft"] === undefined` và (trước fix) crash `undefined.length`.
- * Sau fix `isTerminal` đã guard `undefined → true`, nhưng vẫn cần normalize
- * để `"Draft"` được tính đúng là `"DRAFT"` (non-terminal) thay vì terminal giả.
- */
+/** True when the PO has no outgoing transition (CLOSED / CLOSED_SHORT / CANCELLED). */
 export function isPoTerminal(status: PoStatus): boolean {
-  return isTerminal(PO_TRANSITIONS, normalizePoStatus(status));
+  return isTerminal(PO_TRANSITIONS, status);
 }
 
-/**
- * Các trạng thái kề tiếp được phép từ `status` (dùng cho gợi ý/validate).
- *
- * Normalize tương tự `isPoTerminal` — nếu `status` là Title Case thì
- * `allowedTransitions(PO_TRANSITIONS, "Draft")` sẽ ra `[]` sai, nên phải
- * đổi về `"DRAFT"` trước.
- */
+/** Statuses reachable in one step from `status`. */
 export function nextPoStatuses(status: PoStatus): readonly PoStatus[] {
-  return allowedTransitions(PO_TRANSITIONS, normalizePoStatus(status));
-}
-
-/**
- * Chuẩn hóa status PO về canonical BE (SCREAMING_SNAKE).
- *
- * **Tại sao cần:** FE tồn tại 2 hệ status song song:
- * - Mock seed `src/lib/mock-data.ts: PoStatus = "Draft" | "Approved" | "Confirmed"
- *   | "Partially Received" | "Received" | ...` — giữ nguyên để không sửa mock-data
- *   (hook `guard-protected-files.mjs` chặn).
- * - BE contract `PurchaseOrderStatus.java` + `src/constants/statuses.ts`:
- *   `PoStatus = "DRAFT" | "APPROVED" | "SENT" | "PARTIALLY_RECEIVED" | "CLOSED" | ...`
- *   Đây là canonical type mà `features/purchase-order/types.ts` re-export.
- *
- * `PurchaseOrder = Omit<MockPurchaseOrder,"status"> & {status: BEPoStatus}` đã ép
- * type, nhưng runtime mock-adapter vẫn trả về Title Case. Nếu không normalize,
- * `isPoTerminal("Draft")` / `allowedPoActions("Confirmed", role)` sẽ sai.
- *
- * **Cách làm:** thử `status` nguyên văn trước (đã là BE thì giữ), rồi `toUpperCase +
- * replace space/- → _`, rồi tra `legacyMap` cho các trường hợp BE đã đổi tên
- * semantics (ví dụ mock `Confirmed` ≈ BE `SENT`, mock `Received` ≈ BE `CLOSED`,
- * theo BE narrowed 7-state SCRUM-113/116). Unknown giữ nguyên `upper` — tầng dưới
- * `isTerminal` đã guard `undefined → true` nên không crash.
- */
-function normalizePoStatus(status: string): PoStatus {
-  if ((status as string) in PO_TRANSITIONS) return status as PoStatus;
-  const upper = status.toUpperCase().replace(/[\s-]+/g, "_");
-  if ((upper as string) in PO_TRANSITIONS) return upper as PoStatus;
-  // Map legacy gaps: mock "Confirmed" ≈ SENT (BE narrowed Received semantics),
-  // "Received" ≈ CLOSED. Unknown → treat as-is (isTerminal will guard).
-  const legacyMap: Record<string, PoStatus> = {
-    CONFIRMED: "SENT",
-    RECEIVED: "CLOSED",
-    PENDING_APPROVAL: "APPROVED",
-  };
-  return (legacyMap[upper] as PoStatus | undefined) ?? (upper as PoStatus);
+  return allowedTransitions(PO_TRANSITIONS, status);
 }

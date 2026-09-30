@@ -3,7 +3,8 @@ import { DEFAULT_VISIBLE_COLUMNS, type PurchaseOrdersPageConfig } from "./config
 import type { PurchaseOrder, Supplier, Warehouse } from "@/features/purchase-order";
 
 export function supplierName(po: PurchaseOrder, suppliers: readonly Supplier[]): string {
-  return suppliers.find((s) => s.supplierId === po.supplierId)?.name ?? "";
+  // Unknown supplier (FE-only master data missing on real BE) → show the id, not a blank.
+  return suppliers.find((s) => s.supplierId === po.supplierId)?.name ?? po.supplierId;
 }
 
 export function warehouseName(po: PurchaseOrder, warehouses: readonly Warehouse[]): string {

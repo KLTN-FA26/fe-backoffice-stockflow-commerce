@@ -58,7 +58,7 @@ export function CreateBottomBar({
               type="button"
               size="sm"
               onClick={onNext}
-              className="bg-brand !text-ink-inverse hover:bg-brand-hover hover:!text-ink-inverse inline-flex items-center gap-1.5 rounded-[var(--r-sm)] px-3 py-1.5 text-[0.8125rem] font-medium transition-colors"
+              className="bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse inline-flex items-center gap-1.5 rounded-[var(--r-sm)] px-3 py-1.5 text-[0.8125rem] font-medium transition-colors"
             >
               Tiếp tục
               <ArrowRight className="size-3.5" />
@@ -69,7 +69,7 @@ export function CreateBottomBar({
               type="button"
               size="sm"
               onClick={onSubmit}
-              className="bg-brand !text-ink-inverse hover:bg-brand-hover hover:!text-ink-inverse inline-flex items-center gap-1.5 rounded-[var(--r-sm)] px-3 py-1.5 text-[0.8125rem] font-medium transition-colors"
+              className="bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse inline-flex items-center gap-1.5 rounded-[var(--r-sm)] px-3 py-1.5 text-[0.8125rem] font-medium transition-colors"
             >
               <Send className="size-3.5" />
               Tạo PO

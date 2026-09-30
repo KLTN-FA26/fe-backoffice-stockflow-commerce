@@ -9,8 +9,9 @@
 
 import { registerMockRoute, paginate } from "./mock-adapter";
 
+import type { AxiosRequestConfig } from "axios";
+
 import type {
-  Currency,
   PrintArea,
   PrintTechnique,
   Product,
@@ -19,7 +20,6 @@ import type {
   PoStatus,
   PurchaseOrder,
   Uom,
-  WarehouseId,
 } from "@/lib/mock-data";
 
 interface CreateProductMockBody {
@@ -169,6 +169,9 @@ export function registerAllMockRoutes(): void {
     return { status: 201, data: product, headers: {} };
   });
 
+  // FE-only (no BE endpoint yet — BE has no GET /api/v1/skus). The PO screens
+  // (create form / list / detail) read this master data from the mock so the
+  // "Tạo PO" flow can be exercised end-to-end; swap for the real API once BE ships it.
   // GET /skus
   registerMockRoute("GET", "/skus", async (config) => {
     const { skus } = await import("@/lib/mock-data");
@@ -204,6 +207,9 @@ export function registerAllMockRoutes(): void {
     return { status: 200, data: { items: categories, total: categories.length }, headers: {} };
   });
 
+  // FE-only (no BE endpoint yet — BE has no GET /api/v1/suppliers). The PO screens
+  // (create form / list / detail) read this master data from the mock so the
+  // "Tạo PO" flow can be exercised end-to-end; swap for the real API once BE ships it.
   // GET /suppliers
   registerMockRoute("GET", "/suppliers", async (config) => {
     const { suppliers } = await import("@/lib/mock-data");
@@ -234,523 +240,11 @@ export function registerAllMockRoutes(): void {
    * Module 02 — Purchase Orders / Replenishment
    * ==================================================================*/
 
-  // Session store: created POs + PATCHED copies. PATCH pushes an updated
-  // copy which shadows the seed row by ID (createdPos wins in allPos).
-  const createdPos: PurchaseOrder[] = [];
+  registerPurchaseOrderMockRoutes();
 
-  function allPos(purchaseOrders: PurchaseOrder[]): PurchaseOrder[] {
-    const byId = new Map<string, PurchaseOrder>();
-    for (const po of [...createdPos, ...purchaseOrders]) byId.set(po.poId, po);
-    return [...byId.values()];
-  }
-
-  // GET /purchase-orders — supports both BE contract (page 0-based, size, status, sort) and legacy (q, pageSize)
-  registerMockRoute("GET", "/purchase-orders", async (config) => {
-    const { purchaseOrders } = await import("@/lib/mock-data");
-    // Axios appends query via config.params; reconstruct URLSearchParams from both sources
-    const rawUrl = config.url ?? "";
-    const qsFromUrl = rawUrl.split("?")[1] ?? "";
-    const params = new URLSearchParams(qsFromUrl);
-    // Merge axios params object if present
-    const axParams = (config as unknown as { params?: Record<string, unknown> }).params;
-    const appendAx = (k: string, v: unknown) => {
-      if (v == null || v === "") return;
-      if (Array.isArray(v)) v.forEach((item) => params.append(k, String(item)));
-      else params.set(k, String(v));
-    };
-    if (axParams) {
-      // Handle both `size` (BE) and `pageSize` (legacy)
-      if (axParams.size != null) appendAx("size", axParams.size);
-      if (axParams.pageSize != null) appendAx("pageSize", axParams.pageSize);
-      if (axParams.page != null) {
-        // Overwrite page from axParams (BE 0-based intent)
-        params.set("page", String(axParams.page));
-      }
-      if (axParams.supplierId) appendAx("supplierId", axParams.supplierId);
-      if (axParams.status) appendAx("status", axParams.status);
-      if (axParams.q) appendAx("q", axParams.q);
-      if (axParams.sort) appendAx("sort", axParams.sort);
-    }
-
-    let filtered = allPos(purchaseOrders);
-    const supplierId = params.get("supplierId");
-    if (supplierId) filtered = filtered.filter((po) => po.supplierId === supplierId);
-    const q = params.get("q")?.toLowerCase();
-    if (q)
-      filtered = filtered.filter(
-        (po) => po.poNumber.toLowerCase().includes(q) || po.poId.toLowerCase().includes(q),
-      );
-    const statuses = params
-      .getAll("status")
-      .flatMap((v) => v.split(","))
-      .filter(Boolean);
-    if (statuses.length) filtered = filtered.filter((po) => statuses.includes(po.status));
-
-    // Sort — BE whitelist: poNumber, expectedAt, createdAt (-> orderDate), lastModifiedAt
-    const sortRaw = params.get("sort");
-    if (sortRaw) {
-      const clauses = sortRaw
-        .split(";")
-        .map((c) => c.trim())
-        .filter(Boolean);
-      // Apply last clause as primary (BE precedence)
-      for (let i = clauses.length - 1; i >= 0; i--) {
-        const [propRaw, dirRaw] = clauses[i].split(",").map((s) => s.trim());
-        const dir = dirRaw?.toLowerCase() === "desc" ? -1 : 1;
-        const getter: Record<string, (po: PurchaseOrder) => string> = {
-          poNumber: (po) => po.poNumber,
-          expectedAt: (po) => po.expectedDate ?? "",
-          createdAt: (po) => po.orderDate,
-          lastModifiedAt: (po) => po.expectedDate ?? po.orderDate,
-          status: (po) => po.status,
-        };
-        const get = getter[propRaw];
-        if (get) filtered = [...filtered].sort((a, b) => get(a).localeCompare(get(b)) * dir);
-      }
-    }
-
-    // Pagination — detect BE (0-based page + size) vs legacy (1-based page + pageSize)
-    const hasBeSize = params.has("size");
-    if (hasBeSize) {
-      const page0 = Math.max(0, Number(params.get("page")) || 0);
-      const size = Math.max(1, Number(params.get("size")) || 15);
-      const totalElements = filtered.length;
-      const totalPages = Math.ceil(totalElements / size);
-      const start = page0 * size;
-      const items = filtered.slice(start, start + size);
-      return {
-        status: 200,
-        data: {
-          items,
-          page: page0,
-          size,
-          totalElements,
-          totalPages,
-          hasNext: page0 + 1 < totalPages,
-          hasPrevious: page0 > 0,
-          // Compat extras for any client still reading paginate shape
-          total: totalElements,
-          pageSize: size,
-        },
-        headers: {},
-      };
-    }
-    const page = Math.max(1, Number(params.get("page")) || 1);
-    const pageSize = Math.max(1, Number(params.get("pageSize") || params.get("size")) || 15);
-    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
-  });
-
-  // GET /purchase-orders/:id
-  registerMockRoute("GET", "/purchase-orders/:id", async (config) => {
-    const { purchaseOrders } = await import("@/lib/mock-data");
-    const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
-    const po = allPos(purchaseOrders).find((p) => p.poId === id || p.poNumber === id);
-    if (!po) return { status: 404, data: { message: "PO not found" }, headers: {} };
-    return { status: 200, data: po, headers: {} };
-  });
-
-  // GET /purchase-orders/reports/status-dashboard — mock: counts per status (BE always returns every status)
-  registerMockRoute("GET", "/purchase-orders/reports/status-dashboard", async () => {
-    const { purchaseOrders } = await import("@/lib/mock-data");
-    const all = allPos(purchaseOrders);
-    const counts = new Map<string, number>();
-    for (const po of all) counts.set(po.status, (counts.get(po.status) ?? 0) + 1);
-    // Return every PO_STATUSES value so dashboard never omits an empty bucket (BE contract)
-    const { PO_STATUSES } = await import("@/constants/statuses");
-    const rows = (PO_STATUSES as readonly string[]).map((status) => ({
-      status,
-      count: counts.get(status) ?? 0,
-    }));
-    return { status: 200, data: rows, headers: {} };
-  });
-
-  // GET /purchase-orders/reports/supplier-spend — mock: rank by totalSpend (exclude DRAFT+CANCELLED, like BE)
-  registerMockRoute("GET", "/purchase-orders/reports/supplier-spend", async (config) => {
-    const { purchaseOrders, suppliers } = await import("@/lib/mock-data");
-    const params = new URLSearchParams((config.url ?? "").split("?")[1] ?? "");
-    const axParams = (config as unknown as { params?: Record<string, unknown> }).params;
-    if (axParams) {
-      for (const [k, v] of Object.entries(axParams))
-        if (v != null && v !== "") params.set(k, Array.isArray(v) ? String(v[0]) : String(v));
-    }
-    const page0 = Math.max(0, Number(params.get("page")) || 0);
-    const size = Math.max(1, Number(params.get("size")) || 20);
-    const supplierIdFilter = params.get("supplierId")?.trim() ?? "";
-    const from = params.get("expectedAtFrom")?.trim() ?? "";
-    const to = params.get("expectedAtTo")?.trim() ?? "";
-    const excluded: readonly string[] = ["DRAFT", "CANCELLED", "Draft", "Cancelled"];
-    let rows = allPos(purchaseOrders).filter((po) => !excluded.includes(po.status));
-    if (supplierIdFilter) rows = rows.filter((po) => po.supplierId === supplierIdFilter);
-    if (from) rows = rows.filter((po) => (po.expectedDate ?? "") >= from);
-    if (to) rows = rows.filter((po) => (po.expectedDate ?? "") <= to);
-    const bySupplier = new Map<string, { totalSpend: number; count: number }>();
-    for (const po of rows) {
-      const cur = bySupplier.get(po.supplierId) ?? { totalSpend: 0, count: 0 };
-      cur.totalSpend += po.grandTotal ?? po.subtotal ?? 0;
-      cur.count += 1;
-      bySupplier.set(po.supplierId, cur);
-    }
-    const supById = new Map(suppliers.map((s) => [s.supplierId, s] as const));
-    const items = [...bySupplier.entries()]
-      .map(([supplierId, agg]) => {
-        const s = supById.get(supplierId);
-        return {
-          supplierId,
-          supplierCode: s?.supplierId ?? supplierId,
-          supplierName: s?.name ?? supplierId,
-          totalSpend: agg.totalSpend,
-          purchaseOrderCount: agg.count,
-        };
-      })
-      .sort((a, b) => b.totalSpend - a.totalSpend);
-    const totalElements = items.length;
-    const totalPages = Math.ceil(totalElements / size);
-    const slice = items.slice(page0 * size, page0 * size + size);
-    return {
-      status: 200,
-      data: {
-        items: slice,
-        page: page0,
-        size,
-        totalElements,
-        totalPages,
-        hasNext: page0 + 1 < totalPages,
-        hasPrevious: page0 > 0,
-        total: totalElements,
-        pageSize: size,
-      },
-      headers: {},
-    };
-  });
-
-  // POST /purchase-orders — create (BE: CreatePurchaseOrderRequest)
-  registerMockRoute("POST", "/purchase-orders", async (config) => {
-    const { purchaseOrders, suppliers } = await import("@/lib/mock-data");
-    const body = parseJsonBody(config.data);
-
-    // Accept BE shape (supplierId, currency, expectedAt, lines:[{sku, quantityOrdered, unitPrice}])
-    // and legacy FE alias shape compat
-    const supplierId = readString(body.supplierId);
-    const currency = readCurrency(body.currency);
-    const expectedAt = readString(body.expectedAt ?? body.expectedDate);
-    const rawLines: unknown[] = Array.isArray(body.lines) ? body.lines : [];
-
-    const fieldErrors: Record<string, string> = {};
-    if (!supplierId) fieldErrors.supplierId = "Chọn nhà cung cấp";
-    if (rawLines.length === 0) fieldErrors.lines = "Phải có ít nhất 1 dòng hàng";
-
-    // Per-line validation — return 422 with fieldErrors (don't coerce)
-    rawLines.forEach((raw, idx) => {
-      const r = isRecord(raw) ? raw : {};
-      const sku = readString(r.sku ?? r.skuId);
-      const qtyRaw = r.quantityOrdered ?? r.orderedQty;
-      const priceRaw = r.unitPrice;
-      if (!sku) fieldErrors[`lines[${idx}].sku`] = "SKU là bắt buộc";
-      const qty = Number(qtyRaw);
-      if (!Number.isFinite(qty) || qty <= 0 || !Number.isInteger(qty)) {
-        fieldErrors[`lines[${idx}].quantityOrdered`] = "Số lượng phải là số nguyên > 0";
-      }
-      const price = Number(priceRaw);
-      if (priceRaw !== undefined && (!Number.isFinite(price) || price < 0)) {
-        fieldErrors[`lines[${idx}].unitPrice`] = "Đơn giá không âm";
-      }
-    });
-    // Supplier existence / active check mirrors BE ProcurementServiceImpl
-    if (supplierId && !fieldErrors.supplierId) {
-      const sup = suppliers.find((s) => s.supplierId === supplierId);
-      if (!sup) {
-        return {
-          status: 404,
-          data: { code: "SUPPLIER_NOT_FOUND", message: `No supplier with id ${supplierId}` },
-          headers: {},
-        };
-      }
-      if (!sup.active) {
-        return {
-          status: 409,
-          data: { code: "SUPPLIER_INACTIVE", message: `Supplier ${supplierId} is INACTIVE` },
-          headers: {},
-        };
-      }
-    }
-    if (Object.keys(fieldErrors).length > 0) {
-      return {
-        status: 422,
-        data: { code: "VALIDATION_FAILED", message: "Dữ liệu chưa hợp lệ.", fieldErrors },
-        headers: {},
-      };
-    }
-
-    // BR-PO-003 (BE): same supplier + same expectedAt + any overlapping SKU among open POs → warning flag
-    const inputSkus = rawLines
-      .map((l) =>
-        readString((l as Record<string, unknown>).sku ?? (l as Record<string, unknown>).skuId),
-      )
-      .filter(Boolean);
-    const inputSkuSet = new Set(inputSkus);
-    const openStatuses: readonly string[] = [
-      "DRAFT",
-      "APPROVED",
-      "SENT",
-      "PARTIALLY_RECEIVED",
-      "Draft",
-      "Approved",
-      "Confirmed",
-      "Partially Received",
-    ];
-    const possibleDuplicate =
-      expectedAt !== "" &&
-      allPos(purchaseOrders).some((existing) => {
-        if (existing.supplierId !== supplierId) return false;
-        if (existing.expectedDate !== expectedAt) return false;
-        if (!openStatuses.includes(existing.status)) return false;
-        return existing.lines.some((l) => inputSkuSet.has(l.skuId));
-      });
-
-    // ID: avoid collision with non-contiguous seed (use max suffix)
-    const maxSuffix = allPos(purchaseOrders).reduce((m, po) => {
-      const n = Number(String(po.poId).replace(/.*-/, ""));
-      return Number.isFinite(n) ? Math.max(m, n) : m;
-    }, 0);
-    const poId = `PO-2026-${String(maxSuffix + 1).padStart(4, "0")}`;
-    const now = new Date().toISOString().slice(0, 10);
-
-    const poLines = (rawLines as Record<string, unknown>[]).map((l, idx) => {
-      const sku = readString(l.sku ?? l.skuId) || `SKU-${idx + 1}`;
-      const orderedQty = Math.trunc(Number(l.quantityOrdered ?? l.orderedQty) || 0);
-      const unitPrice = Number(l.unitPrice) || 0;
-      const lineTotal = orderedQty * unitPrice;
-      return {
-        lineId: `${poId}-${idx + 1}`,
-        poId,
-        skuId: sku,
-        orderedQty,
-        receivedQty: 0,
-        unitPrice,
-        currency,
-        taxRate: 0,
-        discountRate: 0,
-        uom: "pcs" as const,
-        lineTotal,
-      };
-    });
-
-    const subtotal = poLines.reduce((sum, l) => sum + l.lineTotal, 0);
-
-    const po: PurchaseOrder = {
-      poId,
-      poNumber: poId,
-      supplierId,
-      warehouseId: readWarehouseId(body.warehouseId),
-      status: "DRAFT" as unknown as PoStatus,
-      currency,
-      orderDate: now,
-      expectedDate: expectedAt,
-      createdBy: "Mock User",
-      subtotal,
-      taxTotal: 0,
-      grandTotal: subtotal,
-      lines: poLines,
-      notes: readString(body.notes) || undefined,
-      fromProposalId: readString(body.fromProposalId) || undefined,
-    };
-
-    createdPos.push(po);
-
-    return { status: 201, data: { ...po, possibleDuplicate }, headers: {} };
-  });
-
-  function applyPoStatusTransition(
-    source: PurchaseOrder,
-    targetStatus: string,
-    reason?: string,
-  ): { ok: true; updated: PurchaseOrder } | { ok: false; status: number; data: unknown } {
-    // Mirrors BE PO_TRANSITIONS + reasons for cancel/closeShort
-    const needsReason = targetStatus === "CANCELLED" || targetStatus === "CLOSED_SHORT";
-    if (needsReason && !readString(reason)) {
-      return {
-        ok: false,
-        status: 400,
-        data: {
-          code: "VALIDATION_FAILED",
-          message: "Lý do là bắt buộc.",
-          fieldErrors: { reason: "Nhập lý do" },
-        },
-      };
-    }
-    return {
-      ok: true,
-      updated: {
-        ...source,
-        status: targetStatus as PoStatus,
-        rejectionReason:
-          targetStatus === "CANCELLED" || targetStatus === "CLOSED_SHORT"
-            ? readString(reason) || source.rejectionReason
-            : source.rejectionReason,
-      },
-    };
-  }
-
-  // BE — per-action endpoints (PurchaseOrderController.java)
-  const poAction =
-    (action: "APPROVED" | "SENT" | "CANCELLED" | "CLOSED_SHORT", needsReason: boolean) =>
-    async (config: unknown) => {
-      const { purchaseOrders } = await import("@/lib/mock-data");
-      const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
-      const body = parseJsonBody((config as { data?: unknown }).data);
-      const reason = readString(body.reason);
-      const source = allPos(purchaseOrders).find((p) => p.poId === id || p.poNumber === id);
-      if (!source) return { status: 404, data: { message: "PO not found" }, headers: {} };
-      const { PO_TRANSITIONS } = await import("@/lib/domain/lifecycle");
-      const valid = (PO_TRANSITIONS as Record<string, readonly string[]>)[
-        source.status as string
-      ] as readonly string[] | undefined;
-      if (!valid?.includes(action)) {
-        return {
-          status: 409,
-          data: {
-            code: "INVALID_PURCHASE_ORDER_TRANSITION",
-            message: `Không thể chuyển từ "${source.status}" sang "${action}".`,
-            currentStatus: source.status,
-            targetStatus: action,
-            validTargets: valid ?? [],
-          },
-          headers: {},
-        };
-      }
-      if (needsReason && !reason) {
-        return {
-          status: 400,
-          data: {
-            code: "VALIDATION_FAILED",
-            message: "Lý do là bắt buộc.",
-            fieldErrors: { reason: "Nhập lý do" },
-          },
-          headers: {},
-        };
-      }
-      const result = applyPoStatusTransition(source, action, reason);
-      if (!result.ok) return { status: result.status, data: result.data, headers: {} };
-      const idx = createdPos.findIndex((p) => p.poId === id || p.poNumber === id);
-      if (idx === -1) createdPos.push(result.updated);
-      else createdPos[idx] = result.updated;
-      return { status: 200, data: result.updated, headers: {} };
-    };
-
-  registerMockRoute("POST", "/purchase-orders/:id/approval", poAction("APPROVED", false));
-  registerMockRoute("POST", "/purchase-orders/:id/sending", poAction("SENT", false));
-  registerMockRoute("POST", "/purchase-orders/:id/cancellation", poAction("CANCELLED", true));
-  registerMockRoute("POST", "/purchase-orders/:id/closure-short", poAction("CLOSED_SHORT", true));
-  registerMockRoute("POST", "/purchase-orders/:id/receipts", async (config) => {
-    const { purchaseOrders } = await import("@/lib/mock-data");
-    const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
-    const body = parseJsonBody((config as { data?: unknown }).data);
-    const lines: unknown[] = Array.isArray(body.lines) ? body.lines : [];
-    const source = allPos(purchaseOrders).find((p) => p.poId === id || p.poNumber === id);
-    if (!source) return { status: 404, data: { message: "PO not found" }, headers: {} };
-    if (
-      (source.status as string) !== "SENT" &&
-      (source.status as string) !== "PARTIALLY_RECEIVED"
-    ) {
-      return {
-        status: 409,
-        data: {
-          code: "INVALID_PURCHASE_ORDER_TRANSITION",
-          message: `cannot receive goods while ${source.status} (must be SENT or PARTIALLY_RECEIVED)`,
-        },
-        headers: {},
-      };
-    }
-    const byId = new Map(source.lines.map((l) => [l.lineId, l]));
-    for (const raw of lines as Record<string, unknown>[]) {
-      const lineId = readString(raw.lineId);
-      const qty = Number(raw.quantity);
-      if (!byId.has(lineId)) {
-        return {
-          status: 400,
-          data: { code: "VALIDATION_FAILED", message: `Line ${lineId} is not on PO ${id}` },
-          headers: {},
-        };
-      }
-      if (!Number.isFinite(qty) || qty <= 0) {
-        return {
-          status: 422,
-          data: {
-            code: "VALIDATION_FAILED",
-            message: "quantity must be > 0",
-            fieldErrors: { quantity: "quantity must be > 0" },
-          },
-          headers: {},
-        };
-      }
-    }
-    const updatedLines = source.lines.map((l) => {
-      const match = (lines as Record<string, unknown>[]).find(
-        (r) => readString(r.lineId) === l.lineId,
-      );
-      if (!match) return l;
-      return { ...l, receivedQty: l.receivedQty + Number(match.quantity) };
-    });
-    const fullyReceived = updatedLines.every((l) => l.receivedQty >= l.orderedQty);
-    const updated: PurchaseOrder = {
-      ...source,
-      status: (fullyReceived ? "CLOSED" : "PARTIALLY_RECEIVED") as unknown as PoStatus,
-      lines: updatedLines,
-    };
-    const idx = createdPos.findIndex((p) => p.poId === id || p.poNumber === id);
-    if (idx === -1) createdPos.push(updated);
-    else createdPos[idx] = updated;
-    return { status: 200, data: updated, headers: {} };
-  });
-
-  // Compat — old generic endpoint (keep for any stray FE code)
-  registerMockRoute("PATCH", "/purchase-orders/:id/status", async (config) => {
-    const { purchaseOrders } = await import("@/lib/mock-data");
-    const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
-    const body = parseJsonBody(config.data);
-    const targetStatus = readString(body.targetStatus);
-    const reason = readString(body.reason);
-
-    const source = allPos(purchaseOrders).find((p) => p.poId === id || p.poNumber === id);
-    if (!source) return { status: 404, data: { message: "PO not found" }, headers: {} };
-
-    // Lifecycle gate — mirrors canTransition(PO_TRANSITIONS, ...) (docs §5)
-    const { PO_TRANSITIONS } = await import("@/lib/domain/lifecycle");
-    const validTargets = (PO_TRANSITIONS as Record<string, readonly string[]>)[
-      source.status as string
-    ];
-    if (!validTargets || !validTargets.includes(targetStatus as PoStatus)) {
-      return {
-        status: 409,
-        data: {
-          code: "INVALID_PURCHASE_ORDER_TRANSITION",
-          message: `Không thể chuyển từ "${source.status}" sang "${targetStatus}" (trạng thái hợp lệ: ${(validTargets ?? []).join(", ") || "không — trạng thái kết thúc"}).`,
-          currentStatus: source.status,
-          targetStatus,
-          validTargets: validTargets ?? [],
-        },
-        headers: {},
-      };
-    }
-
-    const updated: PurchaseOrder = {
-      ...source,
-      status: targetStatus as PoStatus,
-      approvalNote: targetStatus === "Approved" ? reason || undefined : source.approvalNote,
-      approvedBy: targetStatus === "Approved" ? "Mock Approver" : source.approvedBy,
-      rejectionReason:
-        targetStatus === "Draft" || targetStatus === "Cancelled"
-          ? reason || source.rejectionReason
-          : source.rejectionReason,
-    };
-
-    const createdIndex = createdPos.findIndex((p) => p.poId === id || p.poNumber === id);
-    if (createdIndex === -1) createdPos.push(updated);
-    else createdPos[createdIndex] = updated;
-
-    return { status: 200, data: updated, headers: {} };
-  });
-
+  // FE-only (no BE endpoint yet — BE has no GET /api/v1/replenishment-proposals). The PO screens
+  // (create form / list / detail) read this master data from the mock so the
+  // "Tạo PO" flow can be exercised end-to-end; swap for the real API once BE ships it.
   // GET /replenishment-proposals
   registerMockRoute("GET", "/replenishment-proposals", async (config) => {
     const { replenishmentProposals } = await import("@/lib/mock-data");
@@ -852,6 +346,8 @@ export function registerAllMockRoutes(): void {
    * Module 06 — Warehouses / Zones / Locations / Slotting
    * ==================================================================*/
 
+  // FE-only (BE WarehouseController is still a stub with no endpoints). The PO list and
+  // detail read warehouse names from here; swap for the real API once BE ships it.
   registerMockRoute("GET", "/warehouses", async () => {
     const { warehouses } = await import("@/lib/mock-data");
     return { status: 200, data: { items: warehouses, total: warehouses.length }, headers: {} };
@@ -1134,16 +630,6 @@ function parseJsonBody(data: unknown): Record<string, unknown> {
 
 /* Narrowing helpers for literal union types (mock bodies are `unknown`). */
 
-const WAREHOUSE_ID_SET: readonly WarehouseId[] = ["WH-HN-01", "WH-HCM-01", "WH-DN-01"];
-
-function readCurrency(value: unknown, fallback: Currency = "VND"): Currency {
-  return value === "VND" || value === "USD" || value === "CNY" ? value : fallback;
-}
-
-function readWarehouseId(value: unknown, fallback: WarehouseId = "WH-HN-01"): WarehouseId {
-  return WAREHOUSE_ID_SET.find((w) => w === value) ?? fallback;
-}
-
 function readString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -1276,4 +762,527 @@ function slugify(value: string): string {
     .replace(/đ/g, "d")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+/* ======================================================================
+ * Module 02 — Purchase Orders: mock mirrors BE PurchaseOrderController
+ *
+ * Wire shape = BE `PurchaseOrderResponse` / `POLineResponse` (UUID ids, SCREAMING_SNAKE
+ * status, `totalAmount`, `openQuantity`), errors = BE `ApiResponse` failure envelope
+ * `{success:false, errorCode, message, fieldErrors:[{field,message}]}`. Because the mock
+ * speaks exactly the BE contract, `features/purchase-order/api.ts` has ONE code path and
+ * never needs to know whether it talks to the mock or the real backend.
+ * ====================================================================*/
+
+/** BE `PurchaseOrderStatus.java` — 7 states. */
+const BE_PO_STATUSES = [
+  "DRAFT",
+  "APPROVED",
+  "SENT",
+  "PARTIALLY_RECEIVED",
+  "CLOSED",
+  "CLOSED_SHORT",
+  "CANCELLED",
+] as const;
+type BePoStatus = (typeof BE_PO_STATUSES)[number];
+
+/**
+ * Seed `mock-data.ts` still uses the docs-02 Title Case vocabulary (10-state machine) and
+ * cannot be edited (protected file). This is the ONLY place that vocabulary is translated —
+ * nothing outside the mock ever sees Title Case.
+ *
+ * BE narrows the machine (javadoc `PurchaseOrderStatus`, SCRUM-113/116):
+ * - `Pending Approval` → `DRAFT`: BE merged submit+approve into `approve()`, so an order
+ *   waiting for approval is a DRAFT that has not been approved yet (NOT `APPROVED`).
+ * - `Confirmed` → `SENT`: no separate "supplier acknowledged" step.
+ * - `Received` → `CLOSED`: reaching zero open quantity closes the PO directly.
+ */
+const LEGACY_PO_STATUS: Record<PoStatus, BePoStatus> = {
+  Draft: "DRAFT",
+  "Pending Approval": "DRAFT",
+  Approved: "APPROVED",
+  Confirmed: "SENT",
+  "Partially Received": "PARTIALLY_RECEIVED",
+  Received: "CLOSED",
+  Closed: "CLOSED",
+  Cancelled: "CANCELLED",
+};
+
+/** BE `PurchaseOrderStatus#canTransitionTo` — single-edge transitions (receive is separate). */
+const BE_PO_TRANSITIONS: Record<BePoStatus, readonly BePoStatus[]> = {
+  DRAFT: ["APPROVED", "CANCELLED"],
+  APPROVED: ["SENT", "CANCELLED"],
+  SENT: ["CANCELLED"],
+  PARTIALLY_RECEIVED: ["CLOSED_SHORT"],
+  CLOSED: [],
+  CLOSED_SHORT: [],
+  CANCELLED: [],
+};
+
+/** BE `ProcurementServiceImpl.SORT` whitelist. */
+const PO_SORT_WHITELIST = ["poNumber", "expectedAt", "createdAt", "lastModifiedAt", "status"];
+/** BE `Pages.MAX_PAGE_SIZE` / `Pages.DEFAULT_PAGE_SIZE`. */
+const BE_MAX_PAGE_SIZE = 200;
+const BE_DEFAULT_PAGE_SIZE = 20;
+/** BE `common.domain.Sku` — code is trimmed, upper-cased, then must match this. */
+const BE_SKU_PATTERN = /^[A-Z0-9-]{3,64}$/;
+/** BE `ErrorCode.VALIDATION_FAILED` generic message (IllegalArgumentException handler). */
+const BE_GENERIC_VALIDATION_MESSAGE = "Invalid request data";
+
+interface MockBePoLine {
+  lineId: string;
+  sku: string;
+  description: string | null;
+  quantityOrdered: number;
+  quantityReceived: number;
+  openQuantity: number;
+  unitPrice: number;
+}
+
+interface MockBePo {
+  purchaseOrderId: string;
+  poNumber: string;
+  supplierId: string;
+  status: BePoStatus;
+  currency: string;
+  totalAmount: number;
+  expectedAt: string | null;
+  lines: MockBePoLine[];
+  createdAt: string;
+  createdBy: string;
+  lastModifiedAt: string;
+  lastModifiedBy: string;
+  possibleDuplicate: boolean;
+  cancellationReason: string | null;
+  closeShortReason: string | null;
+}
+
+interface MockFieldError {
+  field: string;
+  message: string;
+}
+
+const MOCK_PO_ACTOR = "mock-user";
+
+let poStore: Map<string, MockBePo> | null = null;
+const poNumberSequence = new Map<string, number>();
+
+async function getPoStore(): Promise<Map<string, MockBePo>> {
+  if (!poStore) {
+    const { purchaseOrders } = await import("@/lib/mock-data");
+    poStore = new Map(purchaseOrders.map((po) => [po.poId, seedToBePo(po)]));
+  }
+  return poStore;
+}
+
+function seedToBePo(po: PurchaseOrder): MockBePo {
+  const lines: MockBePoLine[] = po.lines.map((l) => ({
+    lineId: l.lineId,
+    sku: l.skuId,
+    description: null,
+    quantityOrdered: l.orderedQty,
+    quantityReceived: l.receivedQty,
+    openQuantity: Math.max(0, l.orderedQty - l.receivedQty),
+    unitPrice: l.unitPrice,
+  }));
+  const status = LEGACY_PO_STATUS[po.status];
+  // Seed only has a calendar date; midnight VN time keeps the same date in Asia/Ho_Chi_Minh.
+  const createdAt = `${po.orderDate}T00:00:00+07:00`;
+  return {
+    purchaseOrderId: po.poId,
+    poNumber: po.poNumber,
+    supplierId: po.supplierId,
+    status,
+    currency: po.currency,
+    totalAmount: sumLines(lines),
+    expectedAt: po.expectedDate || null,
+    lines,
+    createdAt,
+    createdBy: po.createdBy,
+    lastModifiedAt: createdAt,
+    lastModifiedBy: po.createdBy,
+    possibleDuplicate: false,
+    cancellationReason: status === "CANCELLED" ? (po.rejectionReason ?? null) : null,
+    closeShortReason: null,
+  };
+}
+
+/** BE `PurchaseOrder#totalAmount` — Σ quantityOrdered × unitPrice (no tax/discount). */
+function sumLines(lines: readonly MockBePoLine[]): number {
+  return lines.reduce((sum, l) => sum + l.quantityOrdered * l.unitPrice, 0);
+}
+
+function beOk(data: unknown, status = 200) {
+  return { status, data, headers: {} };
+}
+
+function beError(
+  status: number,
+  errorCode: string,
+  message: string,
+  fieldErrors?: MockFieldError[],
+) {
+  return {
+    status,
+    data: { success: false, errorCode, message, fieldErrors: fieldErrors ?? [] },
+    headers: {},
+  };
+}
+
+function bePage<T>(all: readonly T[], page: number, size: number) {
+  const totalElements = all.length;
+  const totalPages = Math.ceil(totalElements / size);
+  return {
+    items: all.slice(page * size, page * size + size),
+    page,
+    size,
+    totalElements,
+    totalPages,
+    hasNext: page + 1 < totalPages,
+    hasPrevious: page > 0,
+  };
+}
+
+/** axios keeps query params in `config.params` (not in `config.url`) until its real adapter runs. */
+function readParams(config: AxiosRequestConfig): Record<string, unknown> {
+  const params: unknown = config.params;
+  return isRecord(params) ? params : {};
+}
+
+function readInt(value: unknown, fallback: number): number {
+  const n = typeof value === "string" ? Number(value) : value;
+  return typeof n === "number" && Number.isInteger(n) ? n : fallback;
+}
+
+function readRouteId(config: AxiosRequestConfig): string {
+  const params: unknown = (config as Record<string, unknown>)._mockParams;
+  return isRecord(params) ? readString(params.id) : "";
+}
+
+function isBePoStatus(value: string): value is BePoStatus {
+  return (BE_PO_STATUSES as readonly string[]).includes(value);
+}
+
+function toArray(value: unknown): unknown[] {
+  if (value == null || value === "") return [];
+  return Array.isArray(value) ? value : [value];
+}
+
+/** BE `SortWhitelist#parse` — "prop,dir;prop2,dir2". Returns null for a non-whitelisted prop. */
+function parseSort(raw: string): { prop: keyof MockBePo; desc: boolean }[] | null {
+  const clauses = raw
+    .split(";")
+    .map((c) => c.trim())
+    .filter(Boolean);
+  const out: { prop: keyof MockBePo; desc: boolean }[] = [];
+  for (const clause of clauses) {
+    const [prop = "", dir = ""] = clause.split(",").map((s) => s.trim());
+    if (!PO_SORT_WHITELIST.includes(prop)) return null;
+    out.push({ prop: prop as keyof MockBePo, desc: dir.toLowerCase() === "desc" });
+  }
+  return out.length ? out : [{ prop: "lastModifiedAt", desc: true }];
+}
+
+function comparePo(a: MockBePo, b: MockBePo, order: { prop: keyof MockBePo; desc: boolean }[]) {
+  for (const { prop, desc } of order) {
+    const cmp = String(a[prop] ?? "").localeCompare(String(b[prop] ?? ""));
+    if (cmp !== 0) return desc ? -cmp : cmp;
+  }
+  return 0;
+}
+
+function nextPoNumber(): string {
+  const now = new Date();
+  const ymd = now.toISOString().slice(0, 10).replace(/-/g, "");
+  const seq = (poNumberSequence.get(ymd) ?? 0) + 1;
+  poNumberSequence.set(ymd, seq);
+  return `PO-${ymd}-${String(seq).padStart(6, "0")}`;
+}
+
+function touch(po: MockBePo, patch: Partial<MockBePo>): MockBePo {
+  return {
+    ...po,
+    ...patch,
+    lastModifiedAt: new Date().toISOString(),
+    lastModifiedBy: MOCK_PO_ACTOR,
+  };
+}
+
+function registerPurchaseOrderMockRoutes(): void {
+  // GET /purchase-orders — BE: page (0-based), size, supplierId, status (repeatable), sort.
+  // BE has no free-text `q` — the mock ignores it too so both behave the same.
+  registerMockRoute("GET", "/purchase-orders", async (config) => {
+    const store = await getPoStore();
+    const p = readParams(config);
+    const page = readInt(p.page, 0);
+    const size = readInt(p.size, BE_DEFAULT_PAGE_SIZE);
+    if (page < 0 || size < 1 || size > BE_MAX_PAGE_SIZE) {
+      return beError(400, "VALIDATION_FAILED", `Page size must not exceed ${BE_MAX_PAGE_SIZE}`);
+    }
+    const statuses = toArray(p.status).map(String);
+    // BE: PurchaseOrderStatus::valueOf → IllegalArgumentException → generic 400.
+    if (statuses.some((s) => !isBePoStatus(s))) {
+      return beError(400, "VALIDATION_FAILED", BE_GENERIC_VALIDATION_MESSAGE);
+    }
+    const order = parseSort(readString(p.sort));
+    if (!order) {
+      return beError(
+        400,
+        "UNSUPPORTED_PARAMETER",
+        `Cannot sort by '${readString(p.sort)}'. Allowed: ${PO_SORT_WHITELIST.join(", ")}`,
+      );
+    }
+    const supplierId = readString(p.supplierId);
+    const rows = [...store.values()]
+      .filter((po) => !supplierId || po.supplierId === supplierId)
+      .filter((po) => statuses.length === 0 || statuses.includes(po.status))
+      .sort((a, b) => comparePo(a, b, order))
+      // BE: `lines` is empty on a list row (PurchaseOrderSearchRepository).
+      .map((po) => ({ ...po, lines: [] }));
+    return beOk(bePage(rows, page, size));
+  });
+
+  // GET /purchase-orders/:id
+  registerMockRoute("GET", "/purchase-orders/:id", async (config) => {
+    const id = readRouteId(config);
+    const po = (await getPoStore()).get(id);
+    if (!po) {
+      return beError(404, "PURCHASE_ORDER_NOT_FOUND", `No purchase order with id ${id}`);
+    }
+    return beOk(po);
+  });
+
+  // GET /purchase-orders/reports/status-dashboard — BE returns every status, even empty ones.
+  registerMockRoute("GET", "/purchase-orders/reports/status-dashboard", async () => {
+    const all = [...(await getPoStore()).values()];
+    return beOk(
+      BE_PO_STATUSES.map((status) => ({
+        status,
+        count: all.filter((po) => po.status === status).length,
+      })),
+    );
+  });
+
+  // GET /purchase-orders/reports/supplier-spend — Σ totalAmount excluding DRAFT + CANCELLED.
+  registerMockRoute("GET", "/purchase-orders/reports/supplier-spend", async (config) => {
+    const { suppliers } = await import("@/lib/mock-data");
+    const p = readParams(config);
+    const page = readInt(p.page, 0);
+    const size = readInt(p.size, BE_DEFAULT_PAGE_SIZE);
+    const supplierIdFilter = readString(p.supplierId);
+    const from = readString(p.expectedAtFrom);
+    const to = readString(p.expectedAtTo);
+    const bySupplier = new Map<string, { totalSpend: number; count: number }>();
+    for (const po of (await getPoStore()).values()) {
+      if (po.status === "DRAFT" || po.status === "CANCELLED") continue;
+      if (supplierIdFilter && po.supplierId !== supplierIdFilter) continue;
+      if (from && (po.expectedAt ?? "") < from) continue;
+      if (to && (po.expectedAt ?? "") > to) continue;
+      const cur = bySupplier.get(po.supplierId) ?? { totalSpend: 0, count: 0 };
+      bySupplier.set(po.supplierId, {
+        totalSpend: cur.totalSpend + po.totalAmount,
+        count: cur.count + 1,
+      });
+    }
+    const supById = new Map(suppliers.map((s) => [s.supplierId, s] as const));
+    const rows = [...bySupplier.entries()]
+      .map(([supplierId, agg]) => ({
+        supplierId,
+        supplierCode: supplierId,
+        supplierName: supById.get(supplierId)?.name ?? supplierId,
+        totalSpend: agg.totalSpend,
+        purchaseOrderCount: agg.count,
+      }))
+      .sort((a, b) => b.totalSpend - a.totalSpend);
+    return beOk(bePage(rows, page, size));
+  });
+
+  // POST /purchase-orders — BE CreatePurchaseOrderRequest + ProcurementServiceImpl.create.
+  registerMockRoute("POST", "/purchase-orders", async (config) => {
+    const { suppliers } = await import("@/lib/mock-data");
+    const body = parseJsonBody(config.data);
+    const supplierId = readString(body.supplierId);
+    const currency = readString(body.currency);
+    const expectedAt = readString(body.expectedAt) || null;
+    const rawLines = Array.isArray(body.lines) ? body.lines : [];
+
+    const fieldErrors: MockFieldError[] = [];
+    if (!supplierId) fieldErrors.push({ field: "supplierId", message: "supplierId is required" });
+    if (!/^[A-Z]{3}$/.test(currency)) {
+      fieldErrors.push({ field: "currency", message: "currency must be a 3-letter ISO code" });
+    }
+    if (rawLines.length === 0) {
+      fieldErrors.push({ field: "lines", message: "at least one line is required" });
+    }
+    const lines: MockBePoLine[] = rawLines.map((raw: unknown, idx) => {
+      const r = isRecord(raw) ? raw : {};
+      const sku = readString(r.sku).toUpperCase();
+      const qty = r.quantityOrdered;
+      const price = r.unitPrice;
+      if (!BE_SKU_PATTERN.test(sku)) {
+        fieldErrors.push({ field: `lines[${idx}].sku`, message: "sku is required" });
+      }
+      if (typeof qty !== "number" || !Number.isInteger(qty) || qty <= 0) {
+        fieldErrors.push({
+          field: `lines[${idx}].quantityOrdered`,
+          message: "quantityOrdered must be positive",
+        });
+      }
+      if (typeof price !== "number" || !Number.isFinite(price) || price < 0) {
+        fieldErrors.push({
+          field: `lines[${idx}].unitPrice`,
+          message: "unitPrice must not be negative",
+        });
+      }
+      const quantityOrdered = typeof qty === "number" ? qty : 0;
+      return {
+        lineId: crypto.randomUUID(),
+        sku,
+        description: readString(r.description) || null,
+        quantityOrdered,
+        quantityReceived: 0,
+        openQuantity: quantityOrdered,
+        unitPrice: typeof price === "number" ? price : 0,
+      };
+    });
+    if (fieldErrors.length > 0) {
+      return beError(400, "VALIDATION_FAILED", BE_GENERIC_VALIDATION_MESSAGE, fieldErrors);
+    }
+    const supplier = suppliers.find((s) => s.supplierId === supplierId);
+    if (!supplier) {
+      return beError(404, "SUPPLIER_NOT_FOUND", `No supplier with id ${supplierId}`);
+    }
+    if (!supplier.active) {
+      return beError(409, "SUPPLIER_INACTIVE", `Supplier ${supplierId} is INACTIVE`);
+    }
+
+    const store = await getPoStore();
+    // BR-PO-003 (BE isPossibleDuplicate): another non-terminal PO, same supplier + expectedAt,
+    // at least one overlapping SKU → warning flag, not a rejection.
+    const skuSet = new Set(lines.map((l) => l.sku));
+    const possibleDuplicate =
+      expectedAt !== null &&
+      [...store.values()].some(
+        (po) =>
+          po.supplierId === supplierId &&
+          po.expectedAt === expectedAt &&
+          po.status !== "CANCELLED" &&
+          po.status !== "CLOSED" &&
+          po.status !== "CLOSED_SHORT" &&
+          po.lines.some((l) => skuSet.has(l.sku)),
+      );
+    const now = new Date().toISOString();
+    const po: MockBePo = {
+      purchaseOrderId: crypto.randomUUID(),
+      poNumber: nextPoNumber(),
+      supplierId,
+      status: "DRAFT",
+      currency,
+      totalAmount: sumLines(lines),
+      expectedAt,
+      lines,
+      createdAt: now,
+      createdBy: MOCK_PO_ACTOR,
+      lastModifiedAt: now,
+      lastModifiedBy: MOCK_PO_ACTOR,
+      possibleDuplicate: false,
+      cancellationReason: null,
+      closeShortReason: null,
+    };
+    store.set(po.purchaseOrderId, po);
+    return beOk({ ...po, possibleDuplicate }, 201);
+  });
+
+  // Single-edge transitions — one endpoint per action (BE splits them for permission).
+  const transition =
+    (target: BePoStatus, reasonField?: "cancellationReason" | "closeShortReason") =>
+    async (config: AxiosRequestConfig) => {
+      const id = readRouteId(config);
+      const store = await getPoStore();
+      const po = store.get(id);
+      if (!po) return beError(404, "PURCHASE_ORDER_NOT_FOUND", `No purchase order with id ${id}`);
+      const reason = readString(parseJsonBody(config.data).reason);
+      if (reasonField && !reason) {
+        return beError(400, "VALIDATION_FAILED", BE_GENERIC_VALIDATION_MESSAGE, [
+          { field: "reason", message: "reason is required" },
+        ]);
+      }
+      if (!BE_PO_TRANSITIONS[po.status].includes(target)) {
+        return beError(
+          409,
+          "INVALID_PURCHASE_ORDER_TRANSITION",
+          `Purchase order ${id} cannot move from ${po.status} to ${target}`,
+        );
+      }
+      const patch: Partial<MockBePo> = { status: target };
+      if (reasonField) patch[reasonField] = reason;
+      const updated = touch(po, patch);
+      store.set(id, updated);
+      return beOk(updated);
+    };
+
+  registerMockRoute("POST", "/purchase-orders/:id/approval", transition("APPROVED"));
+  registerMockRoute("POST", "/purchase-orders/:id/sending", transition("SENT"));
+  registerMockRoute(
+    "POST",
+    "/purchase-orders/:id/cancellation",
+    transition("CANCELLED", "cancellationReason"),
+  );
+  registerMockRoute(
+    "POST",
+    "/purchase-orders/:id/closure-short",
+    transition("CLOSED_SHORT", "closeShortReason"),
+  );
+
+  // POST /purchase-orders/:id/receipts — BE PurchaseOrder#receiveGoods + PoLine#receive.
+  registerMockRoute("POST", "/purchase-orders/:id/receipts", async (config) => {
+    const id = readRouteId(config);
+    const store = await getPoStore();
+    const po = store.get(id);
+    if (!po) return beError(404, "PURCHASE_ORDER_NOT_FOUND", `No purchase order with id ${id}`);
+    const body = parseJsonBody(config.data);
+    const requested = Array.isArray(body.lines) ? body.lines : [];
+    if (requested.length === 0) {
+      return beError(400, "VALIDATION_FAILED", BE_GENERIC_VALIDATION_MESSAGE, [
+        { field: "lines", message: "at least one line is required" },
+      ]);
+    }
+    if (po.status !== "SENT" && po.status !== "PARTIALLY_RECEIVED") {
+      return beError(
+        409,
+        "INVALID_PURCHASE_ORDER_TRANSITION",
+        `cannot receive goods while ${po.status} (must be SENT or PARTIALLY_RECEIVED)`,
+      );
+    }
+    const received = new Map<string, number>();
+    for (const raw of requested) {
+      const r = isRecord(raw) ? raw : {};
+      const lineId = readString(r.lineId);
+      const qty = r.quantity;
+      const line = po.lines.find((l) => l.lineId === lineId);
+      // BE: unknown line / qty ≤ 0 / qty > openQuantity are IllegalArgumentException →
+      // generic 400 without fieldErrors — the FE dialog must validate before sending.
+      if (!line || typeof qty !== "number" || !Number.isInteger(qty) || qty <= 0) {
+        return beError(400, "VALIDATION_FAILED", BE_GENERIC_VALIDATION_MESSAGE);
+      }
+      if (qty > line.openQuantity) {
+        return beError(400, "VALIDATION_FAILED", BE_GENERIC_VALIDATION_MESSAGE);
+      }
+      received.set(lineId, qty);
+    }
+    const lines = po.lines.map((l) => {
+      const qty = received.get(l.lineId) ?? 0;
+      return {
+        ...l,
+        quantityReceived: l.quantityReceived + qty,
+        openQuantity: l.openQuantity - qty,
+      };
+    });
+    const status: BePoStatus = lines.every((l) => l.openQuantity === 0)
+      ? "CLOSED"
+      : "PARTIALLY_RECEIVED";
+    const updated = touch(po, { lines, status });
+    store.set(id, updated);
+    return beOk(updated);
+  });
 }

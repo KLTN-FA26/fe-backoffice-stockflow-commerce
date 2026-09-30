@@ -2,7 +2,7 @@
  * Purchase Order — feature public API.
  *
  * Template for all feature modules. Other modules follow this pattern:
- *   types.ts    → re-export types from mock-data
+ *   types.ts    → z.infer types from schemas.ts
  *   api.ts      → axios calls (list, detail, create, update, transition)
  *   queries.ts  → React Query hooks using factory (createListQuery, createDetailQuery)
  *   mutations.ts → mutation hooks using factory (createMutation, createTransitionMutation)
@@ -31,18 +31,21 @@ export {
   proposalStatusSchema,
   proposalStatusValues,
   purchaseOrderSchema,
+  receiveGoodsInputSchema,
+  receiveGoodsLineInputSchema,
   replenishmentProposalSchema,
-  transitionPoSchema,
 } from "./schemas";
 export type {
   CreatePoInput,
   PoLineDto,
   PoLineInput,
+  PoStatusCount,
   PoStatusValue,
   ProposalStatusValue,
   PurchaseOrderDto,
+  ReceiveGoodsInput,
   ReplenishmentProposalDto,
-  TransitionPoInput,
+  SupplierSpendRow,
 } from "./schemas";
 
 // Lifecycle
@@ -60,18 +63,15 @@ export type { PoAction } from "./lifecycle";
 
 // Selectors
 export {
-  computePoStats,
-  formatCompactVND,
   formatMoney,
-  isLineFullyReceived,
   openQuantity,
-  receivedPercent,
   shouldFlagPoRow,
   totalOpenQuantity,
   totalOrderedQuantity,
   totalReceivedQuantity,
+  validateReceiveDraft,
 } from "./selectors";
-export type { PoListStats } from "./selectors";
+export type { ReceiveDraftResult } from "./selectors";
 
 // Query hooks
 export {
@@ -98,8 +98,7 @@ export {
   useCreatePo,
   useReceiveGoodsPo,
   useSendPo,
-  useTransitionPo,
 } from "./mutations";
 
 // API (for direct use in non-hook contexts)
-export type { CreatePoResult, ListPoParams, PoStatusCount } from "./api";
+export type { CreatePoResult, ListPoParams, ReceiveLineInput } from "./api";

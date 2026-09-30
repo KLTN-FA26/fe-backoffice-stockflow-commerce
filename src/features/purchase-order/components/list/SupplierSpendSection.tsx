@@ -1,9 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import { PAGE_SIZE } from "@/constants";
-import { formatMoney } from "@/lib/format/money";
 import { Card } from "@/components/shared/Card";
 import { DataTable } from "@/components/shared/DataTable";
 import { Button } from "@/components/ui/button";
@@ -13,11 +12,14 @@ import { Label } from "@/components/ui/label";
 import { useSupplierSpend } from "@/features/purchase-order";
 
 import { SupplierSpendChart } from "./SupplierSpendChart";
+import { SPEND_COLUMNS } from "./supplierSpendColumns";
+
+const DATE_INPUT_CLASS = "bg-bg-surface h-8 w-[160px] rounded-[var(--r-sm)] text-[0.8125rem]";
 
 export function SupplierSpendSection() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [applied, setApplied] = useState<{ from: string; to: string }>({ from: "", to: "" });
+  const [applied, setApplied] = useState({ from: "", to: "" });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(PAGE_SIZE.md);
   const spendQ = useSupplierSpend({
@@ -26,20 +28,11 @@ export function SupplierSpendSection() {
     expectedAtFrom: applied.from || undefined,
     expectedAtTo: applied.to || undefined,
   });
-  // Single query — chart derived from same data (top 20 of current page). Avoids double aggregation on BE.
-  const chartRows = useMemo(() => (spendQ.data?.items ?? []).slice(0, 20), [spendQ.data]);
+  // One query feeds both chart and table (chart = top 20 of the current page).
   const items = spendQ.data?.items ?? [];
-  const total = spendQ.data?.total ?? 0;
-  const loading = spendQ.isLoading;
 
-  const apply = () => {
-    setApplied({ from, to });
-    setPage(1);
-  };
-  const clear = () => {
-    setFrom("");
-    setTo("");
-    setApplied({ from: "", to: "" });
+  const applyRange = (range: { from: string; to: string }) => {
+    setApplied(range);
     setPage(1);
   };
 
@@ -63,7 +56,7 @@ export function SupplierSpendSection() {
                 type="date"
                 value={from}
                 onChange={(e) => setFrom(e.target.value)}
-                className="bg-bg-surface h-8 w-[160px] rounded-[var(--r-sm)] text-[0.8125rem]"
+                className={DATE_INPUT_CLASS}
               />
             </div>
             <div className="grid gap-1">
@@ -75,13 +68,13 @@ export function SupplierSpendSection() {
                 type="date"
                 value={to}
                 onChange={(e) => setTo(e.target.value)}
-                className="bg-bg-surface h-8 w-[160px] rounded-[var(--r-sm)] text-[0.8125rem]"
+                className={DATE_INPUT_CLASS}
               />
             </div>
             <Button
               type="button"
               size="sm"
-              onClick={apply}
+              onClick={() => applyRange({ from, to })}
               className="bg-brand text-ink-inverse hover:bg-brand-hover h-8 rounded-[var(--r-sm)]"
             >
               Lọc
@@ -90,7 +83,11 @@ export function SupplierSpendSection() {
               type="button"
               variant="outline"
               size="sm"
-              onClick={clear}
+              onClick={() => {
+                setFrom("");
+                setTo("");
+                applyRange({ from: "", to: "" });
+              }}
               className="border-border-default bg-bg-surface h-8 rounded-[var(--r-sm)]"
             >
               Xoá lọc
@@ -100,67 +97,32 @@ export function SupplierSpendSection() {
       </Card>
 
       {spendQ.isLoading ? (
-        <div className="bg-bg-surface border-border-default text-ink-tertiary rounded-[var(--r-sm)] border p-8 text-center text-sm">
-          Đang tải biểu đồ...
+        <div className="bg-bg-surface border-border-default text-ink-tertiary rounded-[var(--r-sm)] border py-8 text-center text-sm">
+          Đang tải...
         </div>
-      ) : chartRows.length > 0 ? (
-        <SupplierSpendChart rows={chartRows} />
-      ) : null}
-
-      <div>
-        {loading ? (
-          <div className="bg-bg-surface border-border-default text-ink-tertiary rounded-[var(--r-sm)] border py-8 text-center text-sm">
-            Đang tải...
-          </div>
-        ) : (
+      ) : (
+        <>
+          <SupplierSpendChart rows={items.slice(0, 20)} />
           <DataTable
-            data={items as never}
-            columns={
-              [
-                {
-                  key: "supplierCode",
-                  header: "Mã NCC",
-                  cell: (r: { supplierCode: string }) => (
-                    <span className="font-mono text-[0.8125rem] tabular-nums">
-                      {r.supplierCode}
-                    </span>
-                  ),
-                },
-                {
-                  key: "supplierName",
-                  header: "Nhà cung cấp",
-                  cell: (r: { supplierName: string }) => r.supplierName,
-                },
-                {
-                  key: "totalSpend",
-                  header: "Tổng chi",
-                  align: "right",
-                  cell: (r: { totalSpend: number | string }) => (
-                    <span className="tabular-nums">{formatMoney(Number(r.totalSpend), "VND")}</span>
-                  ),
-                },
-                {
-                  key: "purchaseOrderCount",
-                  header: "Số PO",
-                  align: "right",
-                  cell: (r: { purchaseOrderCount: number }) => (
-                    <span className="tabular-nums">{r.purchaseOrderCount}</span>
-                  ),
-                },
-              ] as never
-            }
-            rowKey={(r: { supplierId: string }) => r.supplierId}
+            data={items}
+            columns={SPEND_COLUMNS}
+            rowKey={(r) => r.supplierId}
             pageSize={pageSize}
-            total={total}
+            total={spendQ.data?.total ?? 0}
             page={page}
             onPageChange={setPage}
-            onPageSizeChange={(v: number) => setPageSize(v)}
+            onPageSizeChange={(v) => {
+              setPageSize(v);
+              setPage(1); // data-table-mode-a §5: new page size → back to page 1
+            }}
           />
-        )}
-        {!loading && spendQ.isError && (
-          <p className="text-status-danger mt-2 text-sm">Không tải được báo cáo chi tiêu.</p>
-        )}
-      </div>
+        </>
+      )}
+      {spendQ.isError && (
+        <p role="alert" className="text-danger text-sm">
+          Không tải được báo cáo chi tiêu.
+        </p>
+      )}
     </div>
   );
 }

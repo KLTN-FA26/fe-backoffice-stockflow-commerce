@@ -25,8 +25,8 @@ export function PoSupplierWarehouse({
         <InfoRow label="Mã NCC" value={po.supplierId} mono />
         <InfoRow label="Điều khoản" value={supplier?.paymentTerms ?? "—"} />
         <InfoRow label="Đơn vị tiền tệ" value={po.currency} />
-        <InfoRow label="Kho nhận" value={warehouse?.name ?? po.warehouseId} />
-        <InfoRow label="Mã kho" value={po.warehouseId} mono />
+        <InfoRow label="Kho nhận" value={warehouse?.name ?? "—"} />
+        <InfoRow label="Mã kho" value={po.warehouseId ?? "— (BE chưa có)"} mono />
       </div>
     </section>
   );

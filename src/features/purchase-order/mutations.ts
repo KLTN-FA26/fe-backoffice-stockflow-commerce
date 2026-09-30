@@ -3,9 +3,14 @@
  *
  * One hook per BE endpoint (PurchaseOrderController.java):
  * approval / sending / cancellation / closure-short / receipts.
+ *
+ * The success toast comes from `successMessage` here — components must NOT toast success
+ * again. Errors are handled by the caller (`showErrorToast: false`) so 409/400 can be mapped
+ * to a precise message instead of the generic factory toast.
  */
 
 import { createMutation } from "@/lib/api/query-factory";
+
 import {
   approvePurchaseOrder,
   cancelPurchaseOrder,
@@ -13,27 +18,25 @@ import {
   createPurchaseOrder,
   receiveGoods,
   sendPurchaseOrder,
-  transitionPurchaseOrder,
-  type CreatePoInput,
-  type CreatePoResult,
-  type TransitionPoInput,
 } from "./api";
-import { poKeys, poDashboardKeys, replenishmentKeys, supplierSpendKeys } from "./queries";
+import { poDashboardKeys, poKeys, replenishmentKeys, supplierSpendKeys } from "./queries";
+
+import type { CreatePoResult, ReceiveLineInput } from "./api";
+import type { CreatePoInput } from "./schemas";
 import type { PurchaseOrder } from "./types";
 
-/* ── Create ──────────────────────────────────────────────────────────── */
+/** Every PO transition changes the list, the status dashboard and the spend report. */
+const PO_INVALIDATE = [poKeys.all, poDashboardKeys.all, supplierSpendKeys.all] as const;
 
 export const useCreatePo = createMutation<CreatePoInput, CreatePoResult>(createPurchaseOrder, {
-  invalidate: [poKeys.all, poDashboardKeys.all, supplierSpendKeys.all],
+  invalidate: PO_INVALIDATE,
   showErrorToast: false,
 });
-
-/* ── Per-action transitions ──────────────────────────────────────────── */
 
 export const useApprovePo = createMutation<{ id: string }, PurchaseOrder>(
   ({ id }) => approvePurchaseOrder(id),
   {
-    invalidate: [poKeys.all, poDashboardKeys.all, supplierSpendKeys.all, replenishmentKeys.all],
+    invalidate: [...PO_INVALIDATE, replenishmentKeys.all],
     showErrorToast: false,
     successMessage: "Phê duyệt thành công",
   },
@@ -41,46 +44,24 @@ export const useApprovePo = createMutation<{ id: string }, PurchaseOrder>(
 
 export const useSendPo = createMutation<{ id: string }, PurchaseOrder>(
   ({ id }) => sendPurchaseOrder(id),
-  {
-    invalidate: [poKeys.all, poDashboardKeys.all, supplierSpendKeys.all],
-    showErrorToast: false,
-    successMessage: "Đã gửi tới NCC",
-  },
+  { invalidate: PO_INVALIDATE, showErrorToast: false, successMessage: "Đã gửi tới NCC" },
 );
 
 export const useCancelPo = createMutation<{ id: string; reason: string }, PurchaseOrder>(
   ({ id, reason }) => cancelPurchaseOrder(id, reason),
-  {
-    invalidate: [poKeys.all, poDashboardKeys.all, supplierSpendKeys.all],
-    showErrorToast: false,
-    successMessage: "Đã huỷ PO",
-  },
+  { invalidate: PO_INVALIDATE, showErrorToast: false, successMessage: "Đã huỷ PO" },
 );
 
 export const useCloseShortPo = createMutation<{ id: string; reason: string }, PurchaseOrder>(
   ({ id, reason }) => closeShortPurchaseOrder(id, reason),
-  {
-    invalidate: [poKeys.all, poDashboardKeys.all, supplierSpendKeys.all],
-    showErrorToast: false,
-    successMessage: "Đã đóng thiếu",
-  },
+  { invalidate: PO_INVALIDATE, showErrorToast: false, successMessage: "Đã đóng thiếu" },
 );
 
 export const useReceiveGoodsPo = createMutation<
-  { id: string; lines: { lineId: string; quantity: number }[] },
+  { id: string; lines: ReceiveLineInput[] },
   PurchaseOrder
 >(({ id, lines }) => receiveGoods(id, lines), {
-  invalidate: [poKeys.all, poDashboardKeys.all, supplierSpendKeys.all],
+  invalidate: PO_INVALIDATE,
   showErrorToast: false,
   successMessage: "Đã ghi nhận nhận hàng",
 });
-
-/* Compat — delegates to per-action endpoints (new code should use the hooks above). */
-export const useTransitionPo = createMutation<TransitionPoInput, PurchaseOrder>(
-  transitionPurchaseOrder,
-  {
-    invalidate: [poKeys.all, poDashboardKeys.all, supplierSpendKeys.all, replenishmentKeys.all],
-    showErrorToast: false,
-    successMessage: "Chuyển trạng thái thành công",
-  },
-);

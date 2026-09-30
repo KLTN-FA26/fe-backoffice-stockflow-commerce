@@ -15,25 +15,28 @@ export function PoActionPanel({
   conflictError,
   onAction,
 }: {
-  status: string;
+  status: PoStatus;
   actions: readonly PoAction[];
   isMutating: boolean;
   conflictError: string | null;
   onAction: (act: PoAction) => void;
 }) {
-  const terminal = isPoTerminal(status as PoStatus);
+  const terminal = isPoTerminal(status);
   return (
     <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
       <div className="mb-4 flex justify-center">
-        <StatusDot domain="po" status={status as never} size="md" withIcon />
+        <StatusDot domain="po" status={status} size="md" withIcon />
       </div>
+      {conflictError && (
+        <div
+          role="alert"
+          className="border-danger/30 bg-danger/5 text-danger mb-2 rounded-[var(--r-sm)] border px-3 py-2 text-[0.8125rem]"
+        >
+          {conflictError}
+        </div>
+      )}
       {actions.length > 0 && (
         <div className="space-y-2">
-          {conflictError && (
-            <div className="border-danger/30 bg-danger/5 text-danger rounded-[var(--r-sm)] border px-3 py-2 text-[0.8125rem]">
-              {conflictError}
-            </div>
-          )}
           {actions.map((act) => (
             <Button
               key={act.code}
@@ -64,7 +67,7 @@ export function PoActionPanel({
   );
 }
 
-export function actionDescription(act: PoAction, currentStatus: string): string {
+export function actionDescription(act: PoAction, currentStatus: PoStatus): string {
   if (act.code === "cancel")
     return `Huỷ PO — đơn sẽ chuyển sang "CANCELLED" từ "${currentStatus}". Không thể khôi phục.`;
   if (act.code === "closeShort")

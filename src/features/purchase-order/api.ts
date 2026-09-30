@@ -2,179 +2,58 @@
  * Purchase Order — API layer.
  *
  * Contract: BE Procurement (PurchaseOrderController.java + DTOs).
- * - POST   /purchase-orders                          {supplierId:UUID, currency, expectedAt, lines:[{sku,description,quantityOrdered,unitPrice}]}
- * - GET    /purchase-orders?page=&size=&supplierId=&status=&sort=  (PageResponse, page 0-based)
- * - GET    /purchase-orders/{purchaseOrderId:UUID}
- * - POST   /purchase-orders/{id}/approval
- * - POST   /purchase-orders/{id}/sending
- * - POST   /purchase-orders/{id}/cancellation        {reason}
- * - POST   /purchase-orders/{id}/closure-short       {reason}
- * - POST   /purchase-orders/{id}/receipts            {lines:[{lineId:UUID, quantity}]}
+ * - POST /purchase-orders                    {supplierId:UUID, currency, expectedAt, lines:[{sku,description,quantityOrdered,unitPrice}]}
+ * - GET  /purchase-orders?page=&size=&supplierId=&status=&sort=   (PageResponse, page 0-based)
+ * - GET  /purchase-orders/{purchaseOrderId}
+ * - POST /purchase-orders/{id}/approval | /sending | /cancellation {reason} | /closure-short {reason}
+ * - POST /purchase-orders/{id}/receipts      {lines:[{lineId:UUID, quantity}]}
+ * - GET  /purchase-orders/reports/status-dashboard | /reports/supplier-spend
  *
- * BE wraps every response in ApiResponse {success, data, ...} — unwrapped in lib/api/client.ts.
+ * Paths carry NO `/v1`: axios `baseURL` is "/api" and next.config rewrites it to
+ * `${API_URL}`, where API_URL already ends in `/api/v1`.
+ *
+ * BE wraps every response in ApiResponse {success, data} — unwrapped in lib/api/client.ts.
+ * Every PO response is zod-parsed here, once, then mapped (mappers.ts). The mock adapter
+ * returns the exact BE wire shape, so there is a single code path for mock and real BE.
  */
 
 import { PAGE_SIZE } from "@/constants";
 import { api } from "@/lib/api/client";
+import { parseResponse } from "@/lib/api/parse";
+
+import { mapBePoToFe } from "./mappers";
+import {
+  bePageSchema,
+  bePoStatusCountSchema,
+  bePurchaseOrderSchema,
+  beSupplierSpendSchema,
+} from "./schemas";
+
 import type { PaginatedResponse } from "@/lib/api/query-factory";
+import type { CreatePoInput, PoStatusCount, SupplierSpendRow } from "./schemas";
+import type { PoStatus, PurchaseOrder, ReplenishmentProposal, Supplier, Warehouse } from "./types";
 
-import type { PurchaseOrder, ReplenishmentProposal, Supplier, Warehouse } from "./types";
+const PO_PATH = "/purchase-orders";
+const bePoPageSchema = bePageSchema(bePurchaseOrderSchema);
+const beSpendPageSchema = bePageSchema(beSupplierSpendSchema);
 
-/* ── BE wire types ─────────────────────────────────────────────────── */
+/** Spring binds `@RequestParam List<String> status` from `status=A&status=B`, not `status[]=`. */
+const REPEAT_ARRAY_PARAMS = { indexes: null } as const;
 
-export interface BePOLine {
-  lineId: string;
-  sku: string;
-  description?: string | null;
-  quantityOrdered: number;
-  quantityReceived: number;
-  openQuantity: number;
-  unitPrice: number | string;
-}
-
-export interface BePurchaseOrder {
-  purchaseOrderId: string;
-  poNumber: string;
-  supplierId: string;
-  status: string;
-  currency: string;
-  totalAmount: number | string;
-  expectedAt: string | null;
-  lines: BePOLine[];
-  createdAt: string;
-  createdBy: string;
-  lastModifiedAt: string;
-  lastModifiedBy: string;
-  possibleDuplicate: boolean;
-  cancellationReason?: string | null;
-  closeShortReason?: string | null;
-}
-
-export interface BePageResponse<T> {
-  items: T[];
-  page: number;
-  size: number;
-  totalElements: number;
-  totalPages: number;
-  hasNext: boolean;
-  hasPrevious: boolean;
-}
-
-/* ── FE helpers ────────────────────────────────────────────────────── */
-
-function toNumber(v: number | string | null | undefined): number {
-  if (typeof v === "number") return v;
-  if (typeof v === "string") return Number(v) || 0;
-  return 0;
-}
-
-function mapBeLine(be: BePOLine, poId: string): PurchaseOrder["lines"][number] {
-  return {
-    lineId: be.lineId,
-    poId,
-    skuId: be.sku,
-    orderedQty: be.quantityOrdered,
-    receivedQty: be.quantityReceived,
-    unitPrice: toNumber(be.unitPrice),
-    currency: "VND" as PurchaseOrder["lines"][number]["currency"],
-    taxRate: 0,
-    discountRate: 0,
-    uom: "pcs",
-    lineTotal: be.quantityOrdered * toNumber(be.unitPrice),
-  } as PurchaseOrder["lines"][number];
-}
-
-export function mapBePoToFe(be: BePurchaseOrder): PurchaseOrder {
-  const poId = be.purchaseOrderId;
-  const currency = (
-    be.currency === "VND" || be.currency === "USD" || be.currency === "CNY" ? be.currency : "VND"
-  ) as PurchaseOrder["currency"];
-  const lines = (be.lines ?? []).map((l) => {
-    const m = mapBeLine(l, poId);
-    return { ...m, currency } as PurchaseOrder["lines"][number];
-  });
-  const total = toNumber(be.totalAmount);
-  // Normalize ngay tại biên API — mock-adapter có thể trả về Title Case
-  // legacy ("Draft", "Confirmed", "Partially Received") trong khi FE canonical
-  // là SCREAMING_SNAKE ("DRAFT", "SENT", ...). Không normalize ở đây thì mọi
-  // consumer (detail timeline, action-gating, status badge) đều phải tự normalize
-  // và dễ sót, từng gây crash `isTerminal(undefined.length)` ở detail.
-  const normalizedStatus = normalizeApiStatus(be.status);
-  return {
-    poId,
-    poNumber: be.poNumber,
-    supplierId: be.supplierId,
-    status: normalizedStatus as unknown as PurchaseOrder["status"],
-    warehouseId: "WH-HN-01" as PurchaseOrder["warehouseId"],
-    currency,
-    orderDate: be.createdAt ? be.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
-    expectedDate: be.expectedAt ?? "",
-    createdBy: be.createdBy ?? "",
-    approvedBy: undefined,
-    approvalNote: undefined,
-    rejectionReason: (be.cancellationReason ?? be.closeShortReason ?? undefined) as
-      string | undefined,
-    subtotal: total,
-    taxTotal: 0,
-    grandTotal: total,
-    lines,
-    notes: undefined,
-    fromProposalId: undefined,
-    revisionOf: undefined,
-  } as PurchaseOrder;
-}
-
-/**
- * Chuẩn hóa status từ wire (BE hoặc mock-adapter) về canonical BE.
- *
- * Dual-source giống `normalizePoStatus()` trong `lifecycle.ts` nhưng đặt ở
- * tầng API để FE còn lại chỉ làm việc với SCREAMING_SNAKE:
- * - BE thật đã trả SCREAMING_SNAKE → `upper` giữ nguyên, `legacyMap[upper]`
- *   thường là identity (giữ nguyên).
- * - Mock adapter trả Title Case (`Draft`, `Approved`, `Confirmed`, `Received`) →
- *   `toUpperCase + replace` đổi về `DRAFT`/`APPROVED`/`CONFIRMED`/..., rồi
- *   `legacyMap` xử lý các trường hợp BE đã đổi semantics (mock `Confirmed`
- *   ≈ BE `SENT`, mock `Received` ≈ BE `CLOSED`, theo narrowed 7-state
- *   SCRUM-113/116). Empty string → `DRAFT` để không trả về `""` cho UI.
- */
-function normalizeApiStatus(status: string): string {
-  if (!status) return "DRAFT";
-  const upper = status.toUpperCase().replace(/[\s-]+/g, "_");
-  // Legacy mock Title Case → BE screaming snake
-  const legacyMap: Record<string, string> = {
-    DRAFT: "DRAFT",
-    PENDING_APPROVAL: "APPROVED",
-    APPROVED: "APPROVED",
-    CONFIRMED: "SENT",
-    PARTIALLY_RECEIVED: "PARTIALLY_RECEIVED",
-    RECEIVED: "CLOSED",
-    CLOSED: "CLOSED",
-    CANCELLED: "CANCELLED",
-  };
-  return legacyMap[upper] ?? upper;
-}
-
-function mapBePage<T, U>(
-  be: BePageResponse<T>,
-  mapItem: (t: T) => U,
-  page1Based: number,
-): PaginatedResponse<U> {
-  return {
-    items: (be.items ?? []).map(mapItem),
-    total: be.totalElements,
-    page: page1Based,
-    pageSize: be.size,
-  };
+async function postPo(path: string, body?: unknown): Promise<PurchaseOrder> {
+  const { data } = await api.post<unknown>(path, body);
+  return mapBePoToFe(parseResponse(bePurchaseOrderSchema, data, `POST ${path}`));
 }
 
 /* ── List ────────────────────────────────────────────────────────────── */
 
 export interface ListPoParams {
+  /** 1-based (UI); converted to BE 0-based. */
   page?: number;
   pageSize?: number;
-  q?: string;
-  status?: string[];
+  status?: PoStatus[];
   supplierId?: string;
+  /** BE SortWhitelist format: "prop,dir;prop2,dir2". */
   sort?: string;
   [key: string]: unknown;
 }
@@ -183,272 +62,61 @@ export async function listPurchaseOrders(
   params: ListPoParams,
   signal?: AbortSignal,
 ): Promise<PaginatedResponse<PurchaseOrder>> {
-  const page1 = params.page ?? 1;
-  const size = params.pageSize ?? PAGE_SIZE.md;
-  const beParams: Record<string, unknown> = {
-    page: Math.max(0, page1 - 1),
-    size,
-    supplierId: params.supplierId,
-    status: params.status,
-    sort: params.sort,
-    q: params.q,
-  };
-  const { data } = await api.get<
-    BePageResponse<BePurchaseOrder> | PaginatedResponse<PurchaseOrder>
-  >("/purchase-orders", { params: beParams, signal });
-  if (
-    data &&
-    typeof data === "object" &&
-    "totalElements" in (data as unknown as Record<string, unknown>)
-  ) {
-    const bePage = data as BePageResponse<BePurchaseOrder>;
-    const first = bePage.items?.[0] as unknown as Record<string, unknown> | undefined;
-    const isBeShape = !!first && "purchaseOrderId" in first;
-    if (isBeShape) {
-      return mapBePage(bePage, mapBePoToFe, page1);
-    }
-    // Mock adapter returns BE page envelope but FE items (has poId, not purchaseOrderId)
-    return {
-      items: (bePage.items as unknown as PurchaseOrder[]).slice(),
-      total: bePage.totalElements,
-      page: page1,
-      pageSize: bePage.size,
-    };
-  }
-  return data as PaginatedResponse<PurchaseOrder>;
-}
-
-/* ── Detail ──────────────────────────────────────────────────────────── */
-
-export async function getPurchaseOrder(id: string, signal?: AbortSignal): Promise<PurchaseOrder> {
-  const { data } = await api.get<BePurchaseOrder | PurchaseOrder>(`/purchase-orders/${id}`, {
+  const page = params.page ?? 1;
+  const { data } = await api.get<unknown>(PO_PATH, {
+    params: {
+      page: Math.max(0, page - 1),
+      size: params.pageSize ?? PAGE_SIZE.md,
+      supplierId: params.supplierId,
+      status: params.status,
+      sort: params.sort,
+    },
+    paramsSerializer: REPEAT_ARRAY_PARAMS,
     signal,
   });
-  if (
-    data &&
-    typeof data === "object" &&
-    "purchaseOrderId" in (data as unknown as Record<string, unknown>)
-  ) {
-    return mapBePoToFe(data as BePurchaseOrder);
-  }
-  return data as PurchaseOrder;
+  const be = parseResponse(bePoPageSchema, data, `GET ${PO_PATH}`);
+  return { items: be.items.map(mapBePoToFe), total: be.totalElements, page, pageSize: be.size };
 }
 
-/* ── Create ──────────────────────────────────────────────────────────── */
+/* ── Detail / create / lifecycle ─────────────────────────────────────── */
 
-export interface CreatePoInput {
-  supplierId: string;
-  currency: string;
-  expectedAt: string;
-  lines: {
-    sku: string;
-    description?: string;
-    quantityOrdered: number;
-    unitPrice: number;
-  }[];
-  warehouseId?: string;
-  expectedDate?: string;
-  notes?: string;
-  fromProposalId?: string;
+export async function getPurchaseOrder(id: string, signal?: AbortSignal): Promise<PurchaseOrder> {
+  const { data } = await api.get<unknown>(`${PO_PATH}/${id}`, { signal });
+  return mapBePoToFe(parseResponse(bePurchaseOrderSchema, data, `GET ${PO_PATH}/{id}`));
 }
 
 export interface CreatePoResult extends PurchaseOrder {
-  possibleDuplicate?: boolean;
-}
-
-function toBeCreateBody(input: CreatePoInput): Record<string, unknown> {
-  const lines = (input.lines ?? []).map((l) => {
-    const raw = l as unknown as Record<string, unknown>;
-    const sku = (raw.sku as string) ?? (raw.skuId as string) ?? "";
-    const qty = (raw.quantityOrdered as number) ?? (raw.orderedQty as number) ?? 0;
-    return {
-      sku,
-      description: (raw.description as string) ?? null,
-      quantityOrdered: qty,
-      unitPrice: (raw.unitPrice as number) ?? 0,
-    };
-  });
-  return {
-    supplierId: input.supplierId,
-    currency: input.currency,
-    expectedAt: input.expectedAt ?? input.expectedDate ?? null,
-    lines,
-  };
+  /** BR-PO-003: warning only — another open PO with same supplier + expectedAt + SKU exists. */
+  possibleDuplicate: boolean;
 }
 
 export async function createPurchaseOrder(input: CreatePoInput): Promise<CreatePoResult> {
-  const body = toBeCreateBody(input);
-  const { data } = await api.post<BePurchaseOrder | CreatePoResult>("/purchase-orders", body);
-  if (
-    data &&
-    typeof data === "object" &&
-    "purchaseOrderId" in (data as unknown as Record<string, unknown>)
-  ) {
-    const be = data as BePurchaseOrder;
-    const fe = mapBePoToFe(be);
-    return { ...fe, possibleDuplicate: be.possibleDuplicate } as CreatePoResult;
-  }
-  return data as CreatePoResult;
+  const { data } = await api.post<unknown>(PO_PATH, input);
+  const be = parseResponse(bePurchaseOrderSchema, data, `POST ${PO_PATH}`);
+  return { ...mapBePoToFe(be), possibleDuplicate: be.possibleDuplicate };
 }
 
-/* ── Lifecycle — one endpoint per action (BE split for permission) ── */
+export const approvePurchaseOrder = (id: string) => postPo(`${PO_PATH}/${id}/approval`);
+export const sendPurchaseOrder = (id: string) => postPo(`${PO_PATH}/${id}/sending`);
+export const cancelPurchaseOrder = (id: string, reason: string) =>
+  postPo(`${PO_PATH}/${id}/cancellation`, { reason });
+export const closeShortPurchaseOrder = (id: string, reason: string) =>
+  postPo(`${PO_PATH}/${id}/closure-short`, { reason });
 
-export async function approvePurchaseOrder(id: string): Promise<PurchaseOrder> {
-  const { data } = await api.post<BePurchaseOrder | PurchaseOrder>(
-    `/purchase-orders/${id}/approval`,
-  );
-  if (
-    data &&
-    typeof data === "object" &&
-    "purchaseOrderId" in (data as unknown as Record<string, unknown>)
-  ) {
-    return mapBePoToFe(data as BePurchaseOrder);
-  }
-  return data as PurchaseOrder;
+export interface ReceiveLineInput {
+  lineId: string;
+  quantity: number;
 }
 
-export async function sendPurchaseOrder(id: string): Promise<PurchaseOrder> {
-  const { data } = await api.post<BePurchaseOrder | PurchaseOrder>(
-    `/purchase-orders/${id}/sending`,
-  );
-  if (
-    data &&
-    typeof data === "object" &&
-    "purchaseOrderId" in (data as unknown as Record<string, unknown>)
-  ) {
-    return mapBePoToFe(data as BePurchaseOrder);
-  }
-  return data as PurchaseOrder;
-}
+export const receiveGoods = (id: string, lines: ReceiveLineInput[]) =>
+  postPo(`${PO_PATH}/${id}/receipts`, { lines });
 
-export async function cancelPurchaseOrder(id: string, reason: string): Promise<PurchaseOrder> {
-  const { data } = await api.post<BePurchaseOrder | PurchaseOrder>(
-    `/purchase-orders/${id}/cancellation`,
-    { reason },
-  );
-  if (
-    data &&
-    typeof data === "object" &&
-    "purchaseOrderId" in (data as unknown as Record<string, unknown>)
-  ) {
-    return mapBePoToFe(data as BePurchaseOrder);
-  }
-  return data as PurchaseOrder;
-}
-
-export async function closeShortPurchaseOrder(id: string, reason: string): Promise<PurchaseOrder> {
-  const { data } = await api.post<BePurchaseOrder | PurchaseOrder>(
-    `/purchase-orders/${id}/closure-short`,
-    { reason },
-  );
-  if (
-    data &&
-    typeof data === "object" &&
-    "purchaseOrderId" in (data as unknown as Record<string, unknown>)
-  ) {
-    return mapBePoToFe(data as BePurchaseOrder);
-  }
-  return data as PurchaseOrder;
-}
-
-export async function receiveGoods(
-  id: string,
-  lines: { lineId: string; quantity: number }[],
-): Promise<PurchaseOrder> {
-  const { data } = await api.post<BePurchaseOrder | PurchaseOrder>(
-    `/purchase-orders/${id}/receipts`,
-    { lines },
-  );
-  if (
-    data &&
-    typeof data === "object" &&
-    "purchaseOrderId" in (data as unknown as Record<string, unknown>)
-  ) {
-    return mapBePoToFe(data as BePurchaseOrder);
-  }
-  return data as PurchaseOrder;
-}
-
-/* Deprecated compat — delegates to per-action endpoints */
-export interface TransitionPoInput {
-  id: string;
-  action: "approve" | "send" | "cancel" | "closeShort";
-  reason?: string;
-}
-
-export async function transitionPurchaseOrder(input: TransitionPoInput): Promise<PurchaseOrder> {
-  switch (input.action) {
-    case "approve":
-      return approvePurchaseOrder(input.id);
-    case "send":
-      return sendPurchaseOrder(input.id);
-    case "cancel":
-      return cancelPurchaseOrder(input.id, input.reason ?? "");
-    case "closeShort":
-      return closeShortPurchaseOrder(input.id, input.reason ?? "");
-    default:
-      throw new Error(`Unknown PO action: ${(input as { action: string }).action}`);
-  }
-}
-
-/* ── Replenishment ───────────────────────────────────────────────────── */
-
-export async function listReplenishmentProposals(
-  params: { page?: number; pageSize?: number },
-  signal?: AbortSignal,
-): Promise<PaginatedResponse<ReplenishmentProposal>> {
-  const { data } = await api.get<PaginatedResponse<ReplenishmentProposal>>(
-    "/replenishment-proposals",
-    { params, signal },
-  );
-  return data;
-}
-
-export async function listPoSuppliers(signal?: AbortSignal): Promise<PaginatedResponse<Supplier>> {
-  const { data } = await api.get<PaginatedResponse<Supplier>>("/suppliers", {
-    params: { pageSize: PAGE_SIZE.masterData },
-    signal,
-  });
-  return data;
-}
-
-export async function listPoWarehouses(
-  signal?: AbortSignal,
-): Promise<PaginatedResponse<Warehouse>> {
-  const { data } = await api.get<PaginatedResponse<Warehouse>>("/warehouses", {
-    signal,
-  });
-  return data;
-}
-
-/* ── Dashboard — GET /purchase-orders/reports/status-dashboard ─────── */
-
-export interface PoStatusCount {
-  status: string;
-  count: number;
-}
+/* ── Reports ─────────────────────────────────────────────────────────── */
 
 export async function fetchPoStatusDashboard(signal?: AbortSignal): Promise<PoStatusCount[]> {
-  const { data } = await api.get<PoStatusCount[] | BePageResponse<PoStatusCount>>(
-    "/purchase-orders/reports/status-dashboard",
-    { signal },
-  );
-  if (Array.isArray(data)) return data;
-  // Defensive: if wrapped differently, extract items
-  if (data && typeof data === "object" && "items" in (data as unknown as Record<string, unknown>)) {
-    return (data as unknown as { items: PoStatusCount[] }).items;
-  }
-  return [];
-}
-
-/* ── Reports — GET /purchase-orders/reports/supplier-spend ────────────── */
-
-export interface SupplierSpendRow {
-  supplierId: string;
-  supplierCode: string;
-  supplierName: string;
-  totalSpend: number | string;
-  purchaseOrderCount: number;
+  const path = `${PO_PATH}/reports/status-dashboard`;
+  const { data } = await api.get<unknown>(path, { signal });
+  return parseResponse(bePoStatusCountSchema.array(), data, `GET ${path}`);
 }
 
 export interface SupplierSpendParams {
@@ -464,24 +132,52 @@ export async function listSupplierSpend(
   params: SupplierSpendParams = {},
   signal?: AbortSignal,
 ): Promise<PaginatedResponse<SupplierSpendRow>> {
-  const page1 = params.page ?? 1;
-  const beParams: Record<string, unknown> = {
-    page: Math.max(0, page1 - 1),
-    size: params.pageSize ?? PAGE_SIZE.md,
-    supplierId: params.supplierId,
-    expectedAtFrom: params.expectedAtFrom,
-    expectedAtTo: params.expectedAtTo,
-  };
-  const { data } = await api.get<
-    BePageResponse<SupplierSpendRow> | PaginatedResponse<SupplierSpendRow>
-  >("/purchase-orders/reports/supplier-spend", { params: beParams, signal });
-  if (
-    data &&
-    typeof data === "object" &&
-    "totalElements" in (data as unknown as Record<string, unknown>)
-  ) {
-    const be = data as BePageResponse<SupplierSpendRow>;
-    return { items: be.items ?? [], total: be.totalElements, page: page1, pageSize: be.size };
-  }
-  return data as PaginatedResponse<SupplierSpendRow>;
+  const path = `${PO_PATH}/reports/supplier-spend`;
+  const page = params.page ?? 1;
+  const { data } = await api.get<unknown>(path, {
+    params: {
+      page: Math.max(0, page - 1),
+      size: params.pageSize ?? PAGE_SIZE.md,
+      supplierId: params.supplierId,
+      expectedAtFrom: params.expectedAtFrom,
+      expectedAtTo: params.expectedAtTo,
+    },
+    signal,
+  });
+  const be = parseResponse(beSpendPageSchema, data, `GET ${path}`);
+  return { items: be.items, total: be.totalElements, page, pageSize: be.size };
+}
+
+/* ── Master data — FE-ONLY ─────────────────────────────────────────────
+ * BE has no GET /api/v1/suppliers, /warehouses (WarehouseController is a stub) or
+ * /replenishment-proposals yet. These calls are served by the mock adapter
+ * (lib/api/mock-routes.ts) so the PO create/list/detail screens can run end-to-end.
+ * Against the real BE they 404 and the screens show an inline "không tải được" notice
+ * instead of an empty select. Replace with the real endpoints once BE ships them.
+ */
+
+export async function listPoSuppliers(signal?: AbortSignal): Promise<PaginatedResponse<Supplier>> {
+  const { data } = await api.get<PaginatedResponse<Supplier>>("/suppliers", {
+    params: { pageSize: PAGE_SIZE.masterData },
+    signal,
+  });
+  return data;
+}
+
+export async function listPoWarehouses(
+  signal?: AbortSignal,
+): Promise<PaginatedResponse<Warehouse>> {
+  const { data } = await api.get<PaginatedResponse<Warehouse>>("/warehouses", { signal });
+  return data;
+}
+
+export async function listReplenishmentProposals(
+  params: { page?: number; pageSize?: number },
+  signal?: AbortSignal,
+): Promise<PaginatedResponse<ReplenishmentProposal>> {
+  const { data } = await api.get<PaginatedResponse<ReplenishmentProposal>>(
+    "/replenishment-proposals",
+    { params, signal },
+  );
+  return data;
 }

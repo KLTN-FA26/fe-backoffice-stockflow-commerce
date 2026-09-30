@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { ADMIN_ROUTES } from "@/constants";
 import { formatMoney } from "@/features/purchase-order";
+import { Alert } from "@/components/shared/Alert";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
@@ -24,8 +25,12 @@ export function PurchaseOrderCreate() {
   const curIssues = f.issuesByStep.get(f.currentStep) ?? [];
   const showErrors = f.submitAttempted || f.currentStep === "review";
   const displayCurrency = f.form.currency || f.selectedSupplier?.currency || "VND";
-  const goNext = () => f.setCurrentStep(STEPS[Math.min(idx + 1, STEPS.length - 1)]!.key);
-  const goBack = () => f.setCurrentStep(STEPS[Math.max(idx - 1, 0)]!.key);
+  const goTo = (i: number) => {
+    const step = STEPS[Math.min(Math.max(i, 0), STEPS.length - 1)];
+    if (step) f.setCurrentStep(step.key);
+  };
+  const goNext = () => goTo(idx + 1);
+  const goBack = () => goTo(idx - 1);
   const stepStatus = (k: (typeof STEPS)[number]["key"]) => {
     if ((f.issuesByStep.get(k) ?? []).length > 0 && f.submitAttempted) return "error" as const;
     if (STEPS.findIndex((s) => s.key === k) < idx) return "done" as const;
@@ -33,6 +38,7 @@ export function PurchaseOrderCreate() {
     return "idle" as const;
   };
   const onSubmitAttempt = () => {
+    if (f.isSubmitting) return; // block double-submit while POST /purchase-orders is pending
     f.setSubmitAttempted(true);
     if (f.validationIssues.length > 0) {
       const firstIssue = f.validationIssues[0];
@@ -65,6 +71,12 @@ export function PurchaseOrderCreate() {
           onStepChange={f.setCurrentStep}
         />
         <div className="min-w-0 space-y-4 pb-24">
+          {f.masterDataError && (
+            <Alert tone="warning" title="Không tải được danh sách NCC / SKU">
+              BE chưa có API danh mục (/suppliers, /skus) — danh sách này hiện được mô phỏng ở FE
+              qua mock adapter. Chạy với USE_MOCK=true để thử luồng tạo PO.
+            </Alert>
+          )}
           {showErrors && curIssues.length > 0 && (
             <div className="border-danger/30 bg-danger/5 text-danger rounded-[var(--r-sm)] border px-4 py-3 text-[0.8125rem]">
               <div className="font-semibold">Cần xử lý trước khi tạo PO</div>
@@ -107,7 +119,6 @@ export function PurchaseOrderCreate() {
               totals={f.totals}
               currency={displayCurrency}
               issuesByStep={f.issuesByStep}
-              purchaseOrders={f.purchaseOrders}
               onSubmit={onSubmitAttempt}
             />
           )}
@@ -127,7 +138,7 @@ export function PurchaseOrderCreate() {
         description={`Xác nhận tạo PO với ${f.form.lines.length} dòng hàng, tổng ${formatMoney(f.totals.grandTotal, displayCurrency)}? PO sẽ được tạo ở trạng thái DRAFT.`}
         confirmLabel="Tạo PO"
         variant="default"
-        onConfirm={() => f.handleConfirmSubmit(() => {})}
+        onConfirm={f.handleConfirmSubmit}
       />
     </>
   );

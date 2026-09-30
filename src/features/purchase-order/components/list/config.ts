@@ -1,4 +1,4 @@
-import { PO_COLUMNS, PO_STATUSES } from "@/constants";
+import { PAGE_SIZE, PO_COLUMNS, PO_STATUSES } from "@/constants";
 import { STATUS_LABEL_VI } from "@/lib/status-map";
 
 import type { PurchaseOrder } from "@/features/purchase-order";
@@ -19,6 +19,8 @@ export interface PurchaseOrdersPageConfig {
   globalSearch: { query: string; fields: PoSearchField[] };
   columnSearch: Partial<Record<PoColumnSearchKey, string>>;
   visibleColumns: PoTableColumnKey[];
+  /** Personal display preference → localStorage (state-persistence.md), not URL. */
+  pageSize: number;
 }
 
 export const DEFAULT_VISIBLE_COLUMNS: PoTableColumnKey[] = [
@@ -37,6 +39,7 @@ export const DEFAULT_CONFIG: PurchaseOrdersPageConfig = {
   globalSearch: { query: "", fields: [PO_COLUMNS.PO_NUMBER, PO_COLUMNS.SUPPLIER] },
   columnSearch: {},
   visibleColumns: DEFAULT_VISIBLE_COLUMNS,
+  pageSize: PAGE_SIZE.md,
 };
 
 export const STATUS_OPTIONS = ["all", ...PO_STATUSES].map((value) => ({

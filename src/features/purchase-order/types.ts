@@ -1,24 +1,23 @@
 /**
  * Purchase Order — types.
  *
- * BE contract (PurchaseOrderStatus.java): 7-state SCREAMING_SNAKE.
- * Mock seed (mock-data.ts) still uses legacy Title Case for demo;
- * the FE canonical PoStatus is BE (from constants). Mappers bridge the gap.
+ * PO types are inferred from the zod schemas (never declared by hand). Master data
+ * (Supplier / Warehouse / ReplenishmentProposal) still comes from the FE-only mock
+ * because BE has no endpoint for it yet — see `api.ts`.
  */
 
-import type { PoStatus as BEPoStatus } from "@/constants";
 import type {
   Currency,
-  PoLine as MockPoLine,
-  PurchaseOrder as MockPurchaseOrder,
   ProposalStatus,
   ReplenishmentProposal,
   Supplier,
   Warehouse,
 } from "@/lib/mock-data";
 
-export type PoStatus = BEPoStatus;
-export type PoLine = MockPoLine;
-export type PurchaseOrder = Omit<MockPurchaseOrder, "status"> & { status: PoStatus };
+import type { PoLineDto, PoStatusValue, PurchaseOrderDto } from "./schemas";
+
+export type PoStatus = PoStatusValue;
+export type PoLine = PoLineDto;
+export type PurchaseOrder = PurchaseOrderDto;
 
 export type { Currency, ProposalStatus, ReplenishmentProposal, Supplier, Warehouse };

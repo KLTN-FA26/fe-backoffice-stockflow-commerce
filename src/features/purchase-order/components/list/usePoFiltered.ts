@@ -13,17 +13,17 @@ export function usePoFiltered(
   searchFields: readonly { value: string; getValue: (po: PurchaseOrder) => string }[],
   suppliers: readonly Supplier[],
   warehouses: readonly Warehouse[],
-): readonly PurchaseOrder[] {
+): PurchaseOrder[] {
   return useMemo(() => {
-    let list: readonly PurchaseOrder[] = purchaseOrders;
+    let list = [...purchaseOrders];
     if (!pageConfig.statuses.includes("all"))
-      list = list.filter((po) => (pageConfig.statuses as string[]).includes(po.status));
+      list = list.filter((po) => pageConfig.statuses.includes(po.status));
     const q = normalize(pageConfig.globalSearch.query);
     if (q && pageConfig.globalSearch.fields.length > 0) {
       const fieldMap = new Map(searchFields.map((f) => [f.value, f.getValue]));
       list = list.filter((po) =>
         pageConfig.globalSearch.fields.some((field) =>
-          normalize(fieldMap.get(field as string)?.(po) ?? "").includes(q),
+          normalize(fieldMap.get(field)?.(po) ?? "").includes(q),
         ),
       );
     }

@@ -9,21 +9,23 @@ import {
 import type { PoColumnSearchKey, PurchaseOrdersPageConfig } from "./config";
 import type { ListSummaryItem } from "@/components/shared/ListToolbar";
 
+export interface PoSummaryHandlers {
+  onClearStatus: () => void;
+  onClearQ: () => void;
+  onClearFields: () => void;
+  onClearColumnSearch: () => void;
+  onClearColumns: () => void;
+}
+
 export function buildPoSummaryItems(
   pageConfig: PurchaseOrdersPageConfig,
   searchFields: readonly { value: string; label: string }[],
-  hasStatusFilter: boolean,
-  hasGlobalSearch: boolean,
-  hasFieldConfig: boolean,
-  activeColumnSearch: [string, string][],
-  visibleColumnCount: number,
-  hasColumnConfig: boolean,
-  onClearStatus: () => void,
-  onClearQ: () => void,
-  onClearFields: () => void,
-  onClearColumnSearch: () => void,
-  onClearColumns: () => void,
+  flags: ReturnType<typeof poListFlags>,
+  handlers: PoSummaryHandlers,
 ): ListSummaryItem[] {
+  const { hasStatusFilter, hasGlobalSearch, hasFieldConfig, activeColumnSearch } = flags;
+  const { visibleColumnCount, hasColumnConfig } = flags;
+  const { onClearStatus, onClearQ, onClearFields, onClearColumnSearch, onClearColumns } = handlers;
   return [
     { label: "Stats", value: pageConfig.showStats ? "Đang hiện" : "Đang ẩn" },
     {
@@ -76,9 +78,7 @@ export function poListFlags(pageConfig: PurchaseOrdersPageConfig) {
   ) as [string, string][];
   const hasFieldConfig =
     pageConfig.globalSearch.fields.length !== DEFAULT_CONFIG.globalSearch.fields.length ||
-    pageConfig.globalSearch.fields.some(
-      (f) => !DEFAULT_CONFIG.globalSearch.fields.includes(f as never),
-    );
+    pageConfig.globalSearch.fields.some((f) => !DEFAULT_CONFIG.globalSearch.fields.includes(f));
   const visibleColumnCount = pageConfig.visibleColumns.filter((c) => c !== "actions").length;
   const hasColumnConfig = visibleColumnCount !== DEFAULT_VISIBLE_COLUMNS.length - 1;
   const hasAnyConfig =

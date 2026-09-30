@@ -1,133 +1,118 @@
 "use client";
 
+import { ADMIN_ROUTES } from "@/constants";
 import { DataTable } from "@/components/shared/DataTable";
 import { ListToolbar } from "@/components/shared/ListToolbar";
+import { toast } from "@/components/shared/Toast";
 import { shouldFlagPoRow } from "@/features/purchase-order";
 
+import {
+  DEFAULT_CONFIG,
+  DEFAULT_VISIBLE_COLUMNS,
+  STATUS_OPTIONS,
+  TABLE_COLUMN_LABELS,
+} from "./config";
+import { buildPoSummaryItems, poListFlags } from "./poSummary";
+
+import type { ColumnDef } from "@/components/shared/DataTable";
 import type { PurchaseOrder } from "@/features/purchase-order";
-import type { STATUS_OPTIONS } from "./config";
-import type { ListSummaryItem } from "@/components/shared/ListToolbar";
+import type { PoTableColumnKey } from "./config";
+import type { usePoListController } from "./usePoListController";
+
+const COLUMN_OPTIONS = DEFAULT_VISIBLE_COLUMNS.map((col) => ({
+  label: TABLE_COLUMN_LABELS[col],
+  value: col,
+}));
+const LOCKED_COLUMNS: PoTableColumnKey[] = ["actions"];
 
 export function PoListTable({
-  search,
-  onSearchChange,
-  statusProps,
-  fieldProps,
-  columnProps,
-  selectedCount,
-  onBulkDelete,
-  onExport,
-  summaryItems,
-  onResetAll,
-  resetDisabled,
-  filtered,
-  visibleColumns,
-  onRowClick,
-  selectedKeys,
-  onSelectionChange,
-  total,
-  page,
-  pageSize,
-  onPageChange,
-  onPageSizeChange,
+  c,
+  columns,
 }: {
-  search: string;
-  onSearchChange: (v: string) => void;
-  statusProps: {
-    options: typeof STATUS_OPTIONS;
-    selected: readonly string[];
-    onToggle: (v: string) => void;
-    onClear: () => void;
-    hasFilter: boolean;
-  };
-  fieldProps: {
-    options: readonly never[] | readonly { label: string; value: string }[];
-    selected: readonly string[];
-    defaults: readonly string[];
-    onToggle: (v: string) => void;
-    onReset: () => void;
-    onSelectAll: () => void;
-    hasConfig: boolean;
-  };
-  columnProps: {
-    options: readonly { label: string; value: string }[];
-    selected: readonly string[];
-    defaults: readonly string[];
-    locked: readonly string[];
-    count: number;
-    onToggle: (v: string) => void;
-    onReset: () => void;
-    hasConfig: boolean;
-  };
-  selectedCount: number;
-  onBulkDelete: () => void;
-  onExport: () => void;
-  summaryItems: readonly ListSummaryItem[];
-  onResetAll: () => void;
-  resetDisabled: boolean;
-  filtered: readonly PurchaseOrder[];
-  visibleColumns: readonly never[] | readonly { key: string }[];
-  onRowClick: (r: PurchaseOrder) => void;
-  selectedKeys: Set<string>;
-  onSelectionChange: (s: Set<string>) => void;
-  total: number;
-  page: number;
-  pageSize: number;
-  onPageChange: (p: number) => void;
-  onPageSizeChange?: (s: number) => void;
+  c: ReturnType<typeof usePoListController>;
+  columns: ColumnDef<PurchaseOrder>[];
 }) {
+  const flags = poListFlags(c.config);
+  const resetFields = () =>
+    c.updateConfig((x) => ({
+      ...x,
+      globalSearch: { ...x.globalSearch, fields: DEFAULT_CONFIG.globalSearch.fields },
+    }));
+  const resetColumns = () =>
+    c.updateConfig((x) => ({ ...x, visibleColumns: DEFAULT_VISIBLE_COLUMNS }));
+  const summaryItems = buildPoSummaryItems(c.config, c.searchFields, flags, {
+    onClearStatus: () => c.filters.setStatus([]),
+    onClearQ: () => c.filters.setQ(""),
+    onClearFields: resetFields,
+    onClearColumnSearch: () => c.updateConfig((x) => ({ ...x, columnSearch: {} })),
+    onClearColumns: resetColumns,
+  });
+
   return (
     <>
       <ListToolbar
-        search={search}
-        onSearchChange={onSearchChange}
+        search={c.config.globalSearch.query}
+        onSearchChange={c.filters.setQ}
         searchPlaceholder="Tìm PO theo mã, NCC, kho..."
-        statusOptions={statusProps.options as never}
-        selectedStatuses={statusProps.selected as never}
-        onToggleStatus={statusProps.onToggle as never}
-        onClearStatuses={statusProps.onClear}
-        hasStatusFilter={statusProps.hasFilter}
-        fieldOptions={fieldProps.options as never}
-        selectedFields={fieldProps.selected as never}
-        defaultFields={fieldProps.defaults as never}
-        onToggleField={fieldProps.onToggle as never}
-        onResetFields={fieldProps.onReset}
-        onSelectAllFields={fieldProps.onSelectAll}
-        hasFieldConfig={fieldProps.hasConfig}
-        columnOptions={columnProps.options as never}
-        selectedColumns={columnProps.selected as never}
-        defaultColumns={columnProps.defaults as never}
-        lockedColumns={columnProps.locked as never}
-        visibleColumnCount={columnProps.count}
-        onToggleColumn={columnProps.onToggle as never}
-        onResetColumns={columnProps.onReset}
-        hasColumnConfig={columnProps.hasConfig}
-        selectedCount={selectedCount}
-        onBulkDelete={onBulkDelete}
-        onExport={onExport}
-        summaryItems={summaryItems as never}
-        onResetAll={onResetAll}
-        resetDisabled={resetDisabled}
+        statusOptions={STATUS_OPTIONS}
+        selectedStatuses={c.config.statuses}
+        onToggleStatus={c.toggleStatus}
+        onClearStatuses={() => c.filters.setStatus([])}
+        hasStatusFilter={flags.hasStatusFilter}
+        fieldOptions={c.searchFields}
+        selectedFields={c.config.globalSearch.fields}
+        defaultFields={DEFAULT_CONFIG.globalSearch.fields}
+        onToggleField={c.toggleSearchField}
+        onResetFields={resetFields}
+        onSelectAllFields={() =>
+          c.updateConfig((x) => ({
+            ...x,
+            globalSearch: { ...x.globalSearch, fields: c.searchFields.map((f) => f.value) },
+          }))
+        }
+        hasFieldConfig={flags.hasFieldConfig}
+        columnOptions={COLUMN_OPTIONS}
+        selectedColumns={c.config.visibleColumns}
+        defaultColumns={DEFAULT_VISIBLE_COLUMNS}
+        lockedColumns={LOCKED_COLUMNS}
+        visibleColumnCount={flags.visibleColumnCount}
+        onToggleColumn={c.toggleTableColumn}
+        onResetColumns={resetColumns}
+        hasColumnConfig={flags.hasColumnConfig}
+        selectedCount={c.selectedKeys.size}
+        onBulkDelete={() => {
+          toast.info("Xoá PO", `Đã chọn ${c.selectedKeys.size} đơn. Chức năng UI-only.`);
+          c.setSelectedKeys(new Set());
+        }}
+        onExport={() =>
+          toast.success("Xuất file mock", `Sẵn sàng xuất ${c.filtered.length} đơn đang hiển thị.`)
+        }
+        summaryItems={summaryItems}
+        onResetAll={() => {
+          c.updateConfig(() => DEFAULT_CONFIG);
+          c.filters.reset();
+        }}
+        resetDisabled={!flags.hasAnyConfig}
       />
       <DataTable
-        data={filtered as never}
-        columns={visibleColumns as never}
-        rowKey={(r: PurchaseOrder) => r.poId}
-        caption={`Hiển thị ${filtered.length} / ${total} đơn đặt hàng`}
-        flagRow={shouldFlagPoRow as never}
-        onRowClick={onRowClick as never}
+        data={c.filtered}
+        columns={columns}
+        rowKey={(r) => r.poId}
+        caption={`Hiển thị ${c.filtered.length} / ${c.total} đơn đặt hàng`}
+        flagRow={shouldFlagPoRow}
+        onRowClick={(r) => c.router.push(ADMIN_ROUTES.purchaseOrders.detail(r.poId))}
         selectable
-        selectedKeys={selectedKeys}
-        onSelectionChange={onSelectionChange}
-        pageSize={pageSize}
-        total={total}
-        page={page}
-        onPageChange={onPageChange}
-        onPageSizeChange={onPageSizeChange}
+        selectedKeys={c.selectedKeys}
+        onSelectionChange={c.setSelectedKeys}
+        pageSize={c.pageSize}
+        total={c.total}
+        page={c.page}
+        onPageChange={c.filters.setPage}
+        onPageSizeChange={c.setPageSize}
       />
       <p className="text-ink-tertiary mt-2 text-[0.6875rem]">
-        Tìm theo cột hiện chỉ lọc trên trang đã tải (UI-only, chưa gọi API) — BE chưa hỗ trợ filter
-        riêng theo cột; dùng ô Tìm kiếm chung để lọc server.
+        Tìm kiếm chung và tìm theo cột chỉ lọc trên trang đã tải — BE chưa hỗ trợ tìm kiếm tự do
+        (API list chỉ lọc theo trạng thái / NCC). Lọc trạng thái được thực hiện ở server.
       </p>
     </>
   );

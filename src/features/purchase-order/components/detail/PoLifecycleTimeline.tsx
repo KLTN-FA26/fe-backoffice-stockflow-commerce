@@ -3,6 +3,8 @@
 import { cn } from "cn";
 import { CircleDot } from "lucide-react";
 
+import { PO_STATUS } from "@/constants";
+
 import { getLifecycleSteps } from "./lifecycle-helpers";
 
 import type { PoStatus } from "@/features/purchase-order";
@@ -50,11 +52,13 @@ export function PoLifecycleTimeline({ status }: { status: PoStatus }) {
             </div>
           </div>
         ))}
-        {(status as string) === "CANCELLED" && (
+        {status === PO_STATUS.CANCELLED && (
           <div className="relative pb-0">
             <div className="border-bg-surface bg-danger ring-danger/30 absolute top-[4px] -left-[22.5px] size-[11px] rounded-full border-2 ring-2" />
             <div className="flex items-center gap-2">
-              <span className="text-danger text-[0.8125rem] font-medium">CANCELLED</span>
+              <span className="text-danger text-[0.8125rem] font-medium">
+                {PO_STATUS.CANCELLED}
+              </span>
               <span className="bg-danger/10 text-danger rounded-full px-2 py-0.5 text-[0.625rem] font-semibold">
                 Hiện tại
               </span>
