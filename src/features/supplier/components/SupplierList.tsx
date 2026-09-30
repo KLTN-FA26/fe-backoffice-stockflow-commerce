@@ -165,12 +165,13 @@ export function SupplierList() {
         pageSize={15}
         pageSizeOptions={[10, 15, 20, 50]}
       />
+      {/* TODO(BE bulk endpoint): hiện lại bulk action khi BE hỗ trợ xoá hàng loạt */}
       <ConfirmDialog
         open={bulkConfirmOpen}
         onOpenChange={setBulkConfirmOpen}
-        title="Xoá nhà cung cấp đã chọn?"
-        description={`Đã chọn ${selectedKeys.size} nhà cung cấp. Thao tác này chưa được hỗ trợ qua API.`}
-        confirmLabel="Xác nhận"
+        title="Chưa hỗ trợ xoá hàng loạt"
+        description={`Đã chọn ${selectedKeys.size} nhà cung cấp. Thao tác này chưa có API — vui lòng xoá từng nhà cung cấp.`}
+        confirmLabel="Đã hiểu"
         variant="danger"
         onConfirm={() => {
           setBulkConfirmOpen(false);

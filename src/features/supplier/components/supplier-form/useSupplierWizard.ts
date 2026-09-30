@@ -10,8 +10,31 @@ import { toast } from "@/components/shared/Toast";
 import { supplierCreateInputSchema } from "@/features/supplier/schemas";
 import { useCreateSupplier, useUpdateSupplier } from "@/features/supplier/mutations";
 
+import { STEPS } from "./wizard-constants";
+import {
+  FIELD_ALIAS,
+  FIELD_STEP_MAP,
+  firstMessageForStep,
+  stepForErrors,
+} from "./wizard-field-map";
+
+import type { FieldErrors } from "react-hook-form";
 import type { SupplierCreateInput, SupplierDto } from "@/features/supplier/types";
-import { STEPS, type StepKey } from "./wizard-constants";
+import type { StepKey } from "./wizard-constants";
+
+function messageAt(errs: FieldErrors<SupplierCreateInput>, path: string): string | undefined {
+  const parts = path.split(".");
+  let cur: unknown = errs;
+  for (const part of parts) {
+    if (!cur || typeof cur !== "object") return undefined;
+    cur = (cur as Record<string, unknown>)[part];
+  }
+  if (cur && typeof cur === "object" && "message" in (cur as Record<string, unknown>)) {
+    const m = (cur as Record<string, unknown>).message;
+    return typeof m === "string" ? m : undefined;
+  }
+  return undefined;
+}
 
 export function useSupplierWizard(existingSupplier?: SupplierDto) {
   const router = useRouter();
@@ -29,12 +52,12 @@ export function useSupplierWizard(existingSupplier?: SupplierDto) {
     resolver: zodResolver(supplierCreateInputSchema),
     defaultValues: isEdit
       ? {
-          name: existingSupplier!.name,
-          taxCode: existingSupplier!.taxCode,
-          contactName: existingSupplier!.contactName,
-          contactEmail: existingSupplier!.contactEmail,
-          contactPhone: existingSupplier!.contactPhone,
-          address: existingSupplier!.address ?? {
+          name: existingSupplier?.name ?? "",
+          taxCode: existingSupplier?.taxCode ?? "",
+          contactName: existingSupplier?.contactName ?? "",
+          contactEmail: existingSupplier?.contactEmail ?? "",
+          contactPhone: existingSupplier?.contactPhone ?? "",
+          address: existingSupplier?.address ?? {
             street: "",
             ward: "",
             district: "",
@@ -42,9 +65,9 @@ export function useSupplierWizard(existingSupplier?: SupplierDto) {
             postalCode: "",
             country: "VN" as const,
           },
-          paymentTerms: existingSupplier!.paymentTerms,
-          currency: existingSupplier!.currency,
-          leadTimeDays: existingSupplier!.leadTimeDays,
+          paymentTerms: existingSupplier?.paymentTerms,
+          currency: existingSupplier?.currency,
+          leadTimeDays: existingSupplier?.leadTimeDays,
         }
       : {
           name: "",
@@ -74,24 +97,10 @@ export function useSupplierWizard(existingSupplier?: SupplierDto) {
   const validationByStep = useMemo(() => {
     const map = new Map<StepKey, string[]>();
     const add = (step: StepKey, msg: string) => map.set(step, [...(map.get(step) ?? []), msg]);
-    if (errors.name) add("profile", errors.name.message ?? "Tên NCC không hợp lệ.");
-    if (errors.taxCode) add("profile", errors.taxCode.message ?? "MST không hợp lệ.");
-    if (errors.code) add("profile", errors.code.message ?? "Mã NCC không hợp lệ.");
-    if (errors.contactName) add("contact", errors.contactName.message ?? "Người liên hệ bắt buộc.");
-    if (errors.contactPhone) add("contact", errors.contactPhone.message ?? "SĐT không hợp lệ.");
-    if (errors.contactEmail) add("contact", errors.contactEmail.message ?? "Email không hợp lệ.");
-    if (errors.address?.street) add("address", errors.address.street.message ?? "Đường bắt buộc.");
-    if (errors.address?.ward) add("address", errors.address.ward.message ?? "Phường/Xã bắt buộc.");
-    if (errors.address?.district)
-      add("address", errors.address.district.message ?? "Quận/Huyện bắt buộc.");
-    if (errors.address?.province)
-      add("address", errors.address.province.message ?? "Tỉnh/TP bắt buộc.");
-    if (errors.address?.postalCode)
-      add("address", errors.address.postalCode.message ?? "Mã bưu chính bắt buộc.");
-    if (errors.paymentTerms)
-      add("terms", errors.paymentTerms.message ?? "Điều khoản không hợp lệ.");
-    if (errors.leadTimeDays) add("terms", errors.leadTimeDays.message ?? "Lead time không hợp lệ.");
-    if (errors.currency) add("terms", errors.currency.message ?? "Tiền tệ không hợp lệ.");
+    for (const [field, step] of Object.entries(FIELD_STEP_MAP)) {
+      const msg = messageAt(errors, field);
+      if (msg) add(step, msg);
+    }
     return map;
   }, [errors]);
 
@@ -104,12 +113,27 @@ export function useSupplierWizard(existingSupplier?: SupplierDto) {
     return "idle";
   };
 
+  const applyFieldErrors = (fieldErrors: Record<string, string>) => {
+    for (const [field, message] of Object.entries(fieldErrors)) {
+      const mapped = (FIELD_ALIAS[field] ?? field) as keyof SupplierCreateInput;
+      if (mapped in supplierCreateInputSchema.shape || field in FIELD_ALIAS) {
+        setError(mapped, { type: "server", message });
+        const step = FIELD_STEP_MAP[mapped as string] ?? FIELD_STEP_MAP[field];
+        if (step) setCurrentStep(step);
+      }
+    }
+  };
+
   const onSubmit = (data: SupplierCreateInput) => {
     if (isEdit && existingSupplier) {
       updateSupplier(
         { ...data, id: existingSupplier.supplierId },
         {
           onSuccess: () => router.push(ADMIN_ROUTES.suppliers.detail(existingSupplier.supplierId)),
+          onError: (err) => {
+            if (!err.fieldErrors) return;
+            applyFieldErrors(err.fieldErrors);
+          },
         },
       );
     } else {
@@ -122,19 +146,7 @@ export function useSupplierWizard(existingSupplier?: SupplierDto) {
         },
         onError: (err) => {
           if (!err.fieldErrors) return;
-          const alias: Record<string, keyof SupplierCreateInput> = {
-            email: "contactEmail",
-            phone: "contactPhone",
-          };
-          for (const [field, message] of Object.entries(err.fieldErrors)) {
-            const mapped = (alias[field] ?? field) as keyof SupplierCreateInput;
-            if (mapped in supplierCreateInputSchema.shape || field in alias) {
-              setError(mapped, { type: "server", message });
-              if (["contactEmail", "contactPhone", "contactName"].includes(mapped))
-                setCurrentStep("contact");
-              else if (["name", "taxCode", "code"].includes(mapped)) setCurrentStep("profile");
-            }
-          }
+          applyFieldErrors(err.fieldErrors);
         },
       });
     }
@@ -142,64 +154,18 @@ export function useSupplierWizard(existingSupplier?: SupplierDto) {
 
   const handleReviewSubmit = () => {
     setSubmitAttempted(true);
-    const mapErrorsToStep = (errs: typeof errors): StepKey | undefined => {
-      if (errs.name || errs.taxCode || errs.code) return "profile";
-      if (errs.contactName || errs.contactPhone || errs.contactEmail) return "contact";
-      if (
-        errs.address?.street ||
-        errs.address?.ward ||
-        errs.address?.district ||
-        errs.address?.province ||
-        errs.address?.postalCode
-      )
-        return "address";
-      if (errs.paymentTerms || errs.leadTimeDays || errs.currency) return "terms";
-      if (errs.address) return "address";
-      return undefined;
-    };
-    const firstMessage = (errs: typeof errors, step: StepKey): string => {
-      const m = validationByStep.get(step)?.[0];
-      if (m) return m;
-      // Fallback đọc trực tiếp từ errs (tươi từ onInvalid)
-      if (step === "profile")
-        return (
-          errs.name?.message ?? errs.taxCode?.message ?? errs.code?.message ?? "Kiểm tra lại hồ sơ"
-        );
-      if (step === "contact")
-        return (
-          errs.contactName?.message ??
-          errs.contactPhone?.message ??
-          errs.contactEmail?.message ??
-          "Kiểm tra lại liên hệ"
-        );
-      if (step === "address")
-        return (
-          errs.address?.street?.message ??
-          errs.address?.ward?.message ??
-          errs.address?.district?.message ??
-          errs.address?.province?.message ??
-          errs.address?.postalCode?.message ??
-          "Kiểm tra lại địa chỉ"
-        );
-      return (
-        errs.paymentTerms?.message ??
-        errs.leadTimeDays?.message ??
-        errs.currency?.message ??
-        "Kiểm tra lại điều khoản"
-      );
-    };
     void handleSubmit(
       (data) => {
         if (isEdit) onSubmit(data);
         else setConfirmOpen(true);
       },
       (errs) => {
-        const step = mapErrorsToStep(errs as typeof errors);
+        const typed = errs as FieldErrors<SupplierCreateInput>;
+        const step = stepForErrors(typed);
         if (step) {
           setCurrentStep(step);
-          toast.error("Chưa thể lưu", firstMessage(errs as typeof errors, step));
+          toast.error("Chưa thể lưu", firstMessageForStep(typed, step));
         } else {
-          // Fallback: nếu không map được, vẫn báo chung
           toast.error("Chưa thể lưu", "Kiểm tra lại biểu mẫu");
         }
       },
