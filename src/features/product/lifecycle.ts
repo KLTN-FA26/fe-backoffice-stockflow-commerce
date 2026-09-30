@@ -6,7 +6,6 @@
 
 import { can } from "@/lib/auth/permissions";
 import {
-  PRODUCT_TRANSITIONS,
   SKU_TRANSITIONS,
   allowedTransitions,
   canTransition,
@@ -17,7 +16,18 @@ import type { Permission } from "@/lib/auth/permissions";
 import type { RoleName } from "@/lib/auth/roles";
 import type { ProductStatus, SkuStatus } from "./types";
 
-export { PRODUCT_TRANSITIONS, SKU_TRANSITIONS, allowedTransitions, canTransition, isTerminal };
+export { SKU_TRANSITIONS, allowedTransitions, canTransition, isTerminal };
+
+export type BackendProductStatus = Exclude<ProductStatus, "Active" | "Inactive">;
+
+/** Exact ProductStatus state machine from backend develop. */
+export const PRODUCT_TRANSITIONS: Record<BackendProductStatus, readonly BackendProductStatus[]> = {
+  Draft: ["Pending Approval"],
+  "Pending Approval": ["Approved", "Draft"],
+  Approved: ["Published", "Discontinued"],
+  Published: ["Approved", "Discontinued"],
+  Discontinued: [],
+};
 
 export interface ProductAction {
   readonly code: string;
@@ -25,6 +35,7 @@ export interface ProductAction {
   readonly permission: Permission;
   readonly fromStatuses: readonly ProductStatus[];
   readonly targetStatus?: ProductStatus;
+  readonly transition?: "submit" | "approve" | "reject" | "discontinue" | "publish" | "unpublish";
   readonly destructive?: boolean;
 }
 
@@ -42,7 +53,7 @@ export const PRODUCT_ACTIONS: readonly ProductAction[] = [
     code: "edit",
     label: "Chỉnh sửa",
     permission: "product.edit",
-    fromStatuses: ["Draft", "Approved", "Active", "Published", "Inactive"],
+    fromStatuses: ["Draft"],
   },
   // docs §4.8: Submit for review → Pending Approval.
   {
@@ -51,6 +62,7 @@ export const PRODUCT_ACTIONS: readonly ProductAction[] = [
     permission: "product.edit",
     fromStatuses: ["Draft"],
     targetStatus: "Pending Approval",
+    transition: "submit",
   },
   // docs §4.9: Approve → Approved; reject returns Draft.
   {
@@ -59,6 +71,7 @@ export const PRODUCT_ACTIONS: readonly ProductAction[] = [
     permission: "product.approve",
     fromStatuses: ["Pending Approval"],
     targetStatus: "Approved",
+    transition: "approve",
   },
   {
     code: "reject",
@@ -66,40 +79,32 @@ export const PRODUCT_ACTIONS: readonly ProductAction[] = [
     permission: "product.approve",
     fromStatuses: ["Pending Approval"],
     targetStatus: "Draft",
+    transition: "reject",
     destructive: true,
   },
-  // docs §4.10: Approved → Active.
-  {
-    code: "activate",
-    label: "Kích hoạt",
-    permission: "product.approve",
-    fromStatuses: ["Approved", "Inactive", "Published"],
-    targetStatus: "Active",
-  },
-  // BR-04 (01-product-creation): chỉ Published mới hiển thị trên catalog.
-  // BR-05 (01-product-creation): Customizable phải có print area trước khi Published.
   {
     code: "publish",
     label: "Xuất bản",
     permission: "product.approve",
-    fromStatuses: ["Active"],
+    fromStatuses: ["Approved"],
     targetStatus: "Published",
+    transition: "publish",
   },
   {
-    code: "deactivate",
-    label: "Tạm ngừng",
-    permission: "product.edit",
-    fromStatuses: ["Active", "Published"],
-    targetStatus: "Inactive",
-    destructive: true,
+    code: "unpublish",
+    label: "Gỡ xuất bản",
+    permission: "product.approve",
+    fromStatuses: ["Published"],
+    targetStatus: "Approved",
+    transition: "unpublish",
   },
-  // BR-02 (01-product-creation): không xoá product/SKU có tham chiếu; chỉ Inactive/Discontinued.
   {
     code: "discontinue",
     label: "Ngừng kinh doanh",
-    permission: "product.edit",
-    fromStatuses: ["Inactive"],
+    permission: "product.approve",
+    fromStatuses: ["Approved", "Published"],
     targetStatus: "Discontinued",
+    transition: "discontinue",
     destructive: true,
   },
 ] as const;
@@ -136,11 +141,20 @@ export function allowedProductActions(
 ): readonly ProductAction[] {
   return PRODUCT_ACTIONS.filter((action) => {
     if (!action.fromStatuses.includes(status)) return false;
-    if (action.targetStatus && !canTransition(PRODUCT_TRANSITIONS, status, action.targetStatus)) {
+    if (!isBackendProductStatus(status)) return false;
+    if (
+      action.targetStatus &&
+      (!isBackendProductStatus(action.targetStatus) ||
+        !canTransition(PRODUCT_TRANSITIONS, status, action.targetStatus))
+    ) {
       return false;
     }
     return can(role, action.permission);
   });
+}
+
+export function isSelfApproval(submittedBy: string | undefined, currentUserId: string | undefined) {
+  return Boolean(submittedBy && currentUserId && submittedBy === currentUserId);
 }
 
 export function allowedSkuActions(status: SkuStatus, role: RoleName): readonly SkuAction[] {
@@ -154,7 +168,7 @@ export function allowedSkuActions(status: SkuStatus, role: RoleName): readonly S
 }
 
 export function isProductTerminal(status: ProductStatus): boolean {
-  return isTerminal(PRODUCT_TRANSITIONS, status);
+  return isBackendProductStatus(status) ? isTerminal(PRODUCT_TRANSITIONS, status) : false;
 }
 
 export function isSkuTerminal(status: SkuStatus): boolean {
@@ -162,7 +176,11 @@ export function isSkuTerminal(status: SkuStatus): boolean {
 }
 
 export function nextProductStatuses(status: ProductStatus): readonly ProductStatus[] {
-  return allowedTransitions(PRODUCT_TRANSITIONS, status);
+  return isBackendProductStatus(status) ? allowedTransitions(PRODUCT_TRANSITIONS, status) : [];
+}
+
+function isBackendProductStatus(status: ProductStatus): status is BackendProductStatus {
+  return status !== "Active" && status !== "Inactive";
 }
 
 export function nextSkuStatuses(status: SkuStatus): readonly SkuStatus[] {

@@ -1,103 +1,72 @@
 import { PRODUCT_STATUS } from "@/constants";
 import { ApiError } from "@/lib/api";
 
-import type { CreateProductInput } from "./schemas";
-import type { ProductAttribute, ProductStatus, PrintTechnique } from "./types";
+import type { CreateProductInput, ProductDraftFormValues } from "./schemas";
+import type { Product, ProductStatus } from "./types";
 
-export type CreateProductServerField =
-  | "attributes"
-  | "brand"
-  | "categoryId"
-  | "description"
-  | "descriptionEn"
-  | "images"
-  | "model3dUrl"
-  | "name"
-  | "nameEn"
-  | "printAreas"
-  | "productCode"
-  | "productId"
-  | "taxClass"
-  | "type"
-  | "uom";
+export type CreateProductServerField = keyof ProductDraftFormValues;
 
 export type CreateProductServerErrors = Partial<Record<CreateProductServerField, string>>;
 
-export interface ProductCreateFormSnapshot {
-  productCode: string;
-  name: string;
-  nameEn: string;
-  type: CreateProductInput["type"];
-  categoryId: string;
-  brand: string;
-  taxClass: CreateProductInput["taxClass"];
-  uom: CreateProductInput["uom"];
-  description: string;
-  descriptionEn: string;
-  imageUrls: string;
-  model3dUrl: string;
-  printAreas: {
-    id: string;
-    name: string;
-    position: "front" | "back" | "left-sleeve" | "right-sleeve" | "full";
-    widthMm: string;
-    heightMm: string;
-    minDpi: string;
-  }[];
-  allowedTechniques: string[];
+export type ProductCreateFormSnapshot = ProductDraftFormValues;
+
+export const PRODUCT_DRAFT_FORM_DEFAULTS: ProductDraftFormValues = {
+  brand: "",
+  categoryId: "",
+  customizable: false,
+  description: "",
+  descriptionEn: "",
+  heightCm: "",
+  imageUrls: "",
+  lengthCm: "",
+  name: "",
+  nameEn: "",
+  productCode: "",
+  taxClass: "STANDARD",
+  weightKg: "",
+  widthCm: "",
+};
+
+export function productToDraftForm(product: Product): ProductDraftFormValues {
+  return {
+    brand: product.brand,
+    categoryId: product.categoryId ?? "",
+    customizable: product.type === "Customizable",
+    description: product.description,
+    descriptionEn: product.descriptionEn,
+    heightCm: numberText(product.heightCm),
+    imageUrls: product.images.join("\n"),
+    lengthCm: numberText(product.lengthCm),
+    name: product.name,
+    nameEn: product.nameEn,
+    productCode: product.code ?? product.productId,
+    taxClass: product.taxClass.toUpperCase() as ProductDraftFormValues["taxClass"],
+    weightKg: numberText(product.weightKg),
+    widthCm: numberText(product.widthCm),
+  };
 }
 
-export interface SelectedProductAttribute {
-  attr: ProductAttribute;
-  values: string[];
-}
-
-export function buildCreateProductInput(
-  form: ProductCreateFormSnapshot,
-  selectedEntries: readonly SelectedProductAttribute[],
-): CreateProductInput {
-  const productId = form.productCode.trim();
+export function buildCreateProductInput(form: ProductCreateFormSnapshot): CreateProductInput {
   const images = form.imageUrls
     .split(/\r?\n/)
     .map((url) => url.trim())
     .filter(Boolean);
-  const allowedTechniques = normalizePrintTechniques(form.allowedTechniques);
 
   return {
-    productId,
+    code: form.productCode.trim(),
     name: form.name.trim(),
-    nameEn: form.nameEn.trim() || form.name.trim(),
-    type: form.type,
-    categoryId: form.categoryId,
+    nameEn: form.nameEn.trim(),
+    categoryId: form.categoryId.trim(),
     description: form.description.trim(),
-    descriptionEn: form.descriptionEn.trim() || form.description.trim(),
-    images,
-    model3dUrl: optionalTrim(form.model3dUrl),
-    basePrice: 0,
-    attributes: selectedEntries.map(({ attr, values }) => ({
-      attributeId: attr.attributeId,
-      name: attr.name,
-      values,
-      swatch: attr.swatch,
-    })),
-    printAreas:
-      form.type === "Customizable"
-        ? form.printAreas.map((area) => ({
-            printAreaId: area.id,
-            productId,
-            name: { vi: area.name.trim(), en: area.name.trim() },
-            position: area.position,
-            widthMm: Number(area.widthMm),
-            heightMm: Number(area.heightMm),
-            minDpi: Number(area.minDpi),
-            bleedMm: 0,
-            safeMarginMm: 0,
-            allowedTechniques,
-          }))
-        : undefined,
-    taxClass: form.taxClass,
-    uom: form.uom,
+    descriptionEn: form.descriptionEn.trim(),
     brand: form.brand.trim(),
+    taxClass: form.taxClass,
+    customizable: form.customizable,
+    images,
+    weightKg: optionalNumber(form.weightKg),
+    lengthCm: optionalNumber(form.lengthCm),
+    widthCm: optionalNumber(form.widthCm),
+    heightCm: optionalNumber(form.heightCm),
   };
 }
 
@@ -107,6 +76,7 @@ export function mapCreateProductError(error: ApiError): {
   status?: ProductStatus;
 } {
   const fieldErrors = normalizeFieldErrors(error.fieldErrors ?? {});
+  if (error.code === "VALIDATION_FAILED") localizeKnownValidationFields(fieldErrors);
   if (error.code === "PRODUCT_CODE_ALREADY_EXISTS" && !fieldErrors.productCode) {
     fieldErrors.productCode = "Mã sản phẩm đã tồn tại.";
   }
@@ -126,6 +96,23 @@ export function mapCreateProductError(error: ApiError): {
   };
 }
 
+function localizeKnownValidationFields(fieldErrors: CreateProductServerErrors): void {
+  const messages: Partial<Record<CreateProductServerField, string>> = {
+    productCode: "Mã sản phẩm không hợp lệ.",
+    name: "Tên sản phẩm không hợp lệ.",
+    nameEn: "Tên tiếng Anh không hợp lệ.",
+    brand: "Thương hiệu không hợp lệ.",
+    categoryId: "Danh mục không hợp lệ.",
+    weightKg: "Khối lượng phải lớn hơn 0.",
+    lengthCm: "Chiều dài phải lớn hơn 0.",
+    widthCm: "Chiều rộng phải lớn hơn 0.",
+    heightCm: "Chiều cao phải lớn hơn 0.",
+  };
+  for (const field of Object.keys(fieldErrors) as CreateProductServerField[]) {
+    if (messages[field]) fieldErrors[field] = messages[field];
+  }
+}
+
 function normalizeFieldErrors(fieldErrors: Record<string, string>): CreateProductServerErrors {
   const normalized: CreateProductServerErrors = {};
   for (const [field, message] of Object.entries(fieldErrors)) {
@@ -141,33 +128,32 @@ function normalizeFieldName(field: string): CreateProductServerField | null {
     case "productCode":
     case "productId":
       return "productCode";
-    case "attributes":
+    case "images":
+      return "imageUrls";
     case "brand":
     case "categoryId":
+    case "customizable":
     case "description":
     case "descriptionEn":
-    case "images":
-    case "model3dUrl":
+    case "heightCm":
+    case "imageUrls":
+    case "lengthCm":
     case "name":
     case "nameEn":
-    case "printAreas":
     case "taxClass":
-    case "type":
-    case "uom":
+    case "weightKg":
+    case "widthCm":
       return field;
     default:
       return null;
   }
 }
 
-function normalizePrintTechniques(values: readonly string[]): PrintTechnique[] {
-  const techniques = values.filter((value): value is PrintTechnique =>
-    ["DTG", "DTF", "Screen", "Embroidery", "Sublimation"].includes(value),
-  );
-  return techniques.length ? techniques : ["DTG"];
+function optionalNumber(value: string): number | null {
+  const trimmed = value.trim();
+  return trimmed ? Number(trimmed) : null;
 }
 
-function optionalTrim(value: string): string | undefined {
-  const trimmed = value.trim();
-  return trimmed ? trimmed : undefined;
+function numberText(value: number | null | undefined): string {
+  return value == null ? "" : String(value);
 }

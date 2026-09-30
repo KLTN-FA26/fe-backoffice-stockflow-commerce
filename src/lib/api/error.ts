@@ -11,10 +11,18 @@
 
 import { type AxiosError } from "axios";
 
+export interface ApiFieldErrorBody {
+  code?: string;
+  field: string;
+  message: string;
+}
+
 export interface ApiErrorBody {
   code?: string;
+  errorCode?: string;
   message?: string;
-  fieldErrors?: Record<string, string>;
+  fieldErrors?: ApiFieldErrorBody[] | Record<string, string>;
+  correlationId?: string;
   traceId?: string;
 }
 
@@ -55,10 +63,10 @@ export class ApiError extends Error {
 
     return new ApiError(
       status,
-      data?.code ?? `HTTP_${status}`,
+      data?.errorCode ?? data?.code ?? `HTTP_${status}`,
       data?.message ?? err.message ?? "Đã xảy ra lỗi",
-      data?.fieldErrors,
-      data?.traceId,
+      normalizeFieldErrors(data?.fieldErrors),
+      data?.correlationId ?? data?.traceId,
     );
   }
 
@@ -66,4 +74,17 @@ export class ApiError extends Error {
   get isClientError(): boolean {
     return this.status >= 400 && this.status < 500;
   }
+}
+
+function normalizeFieldErrors(
+  errors: ApiErrorBody["fieldErrors"],
+): Record<string, string> | undefined {
+  if (!errors) return undefined;
+  if (!Array.isArray(errors)) return errors;
+
+  const normalized: Record<string, string> = {};
+  for (const error of errors) {
+    if (!(error.field in normalized)) normalized[error.field] = error.message;
+  }
+  return Object.keys(normalized).length > 0 ? normalized : undefined;
 }
