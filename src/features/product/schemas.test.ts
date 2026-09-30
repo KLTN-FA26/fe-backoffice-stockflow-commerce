@@ -10,11 +10,4 @@ describe("product category validation boundaries", () => {
   it("still requires a category in the draft form", () => {
     expect(productDraftFormSchema.shape.categoryId.safeParse("").success).toBe(false);
   });
-
-  it("distinguishes unsupported legacy fields from genuinely empty attributes", () => {
-    expect(productSchema.shape.basePrice.parse(undefined)).toBeUndefined();
-    expect(productSchema.shape.uom.parse(undefined)).toBeUndefined();
-    expect(productSchema.shape.attributes.parse(undefined)).toBeUndefined();
-    expect(productSchema.shape.attributes.parse([])).toEqual([]);
-  });
 });

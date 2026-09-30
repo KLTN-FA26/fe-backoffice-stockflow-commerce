@@ -44,11 +44,6 @@ export interface ListSkusParams {
   [key: string]: unknown;
 }
 
-/** A list endpoint 404 means the optional capability is not available, not that it is empty. */
-export function isCapabilityUnavailable(error: unknown): boolean {
-  return error instanceof ApiError && error.status === 404;
-}
-
 export interface TransitionProductInput {
   id: string;
   action: "submit" | "approve" | "reject" | "discontinue";
@@ -124,8 +119,15 @@ export async function listSkus(
   params: ListSkusParams,
   signal?: AbortSignal,
 ): Promise<LegacyPaginatedResponse<Sku>> {
-  const { data } = await api.get<LegacyPaginatedResponse<Sku>>("/skus", { params, signal });
-  return data;
+  try {
+    const { data } = await api.get<LegacyPaginatedResponse<Sku>>("/skus", { params, signal });
+    return data;
+  } catch (error: unknown) {
+    // Backend gap (SCRUM-44): no SKU read API exists yet. Keep Product master usable without
+    // presenting that missing adjacent resource as a Product load failure.
+    if (error instanceof ApiError && error.status === 404) return emptyPage(params.pageSize);
+    throw error;
+  }
 }
 
 export async function getSku(id: string, signal?: AbortSignal): Promise<Sku> {
@@ -144,8 +146,18 @@ export async function transitionSku(input: TransitionSkuInput): Promise<Sku> {
 export async function listCategories(
   signal?: AbortSignal,
 ): Promise<LegacyPaginatedResponse<Category>> {
-  const { data } = await api.get<LegacyPaginatedResponse<Category>>("/categories", { signal });
-  return data;
+  try {
+    const { data } = await api.get<LegacyPaginatedResponse<Category>>("/categories", { signal });
+    return data;
+  } catch (error: unknown) {
+    // Backend gap (SCRUM-44): category persistence exists but there is no list endpoint yet.
+    if (error instanceof ApiError && error.status === 404) return emptyPage();
+    throw error;
+  }
+}
+
+function emptyPage<T>(pageSize = 15): LegacyPaginatedResponse<T> {
+  return { items: [], page: 1, pageSize, total: 0 };
 }
 
 function parseProduct(value: unknown): Product {

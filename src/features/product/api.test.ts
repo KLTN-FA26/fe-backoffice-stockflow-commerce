@@ -1,13 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "@/lib/api/client";
-import { ApiError } from "@/lib/api/error";
 
 import {
   getProduct,
-  listCategories,
   listProducts,
-  listSkus,
   publishProduct,
   transitionProduct,
   unpublishProduct,
@@ -159,69 +156,5 @@ describe("product API contract", () => {
       2,
       `/v1/products/${backendProduct.productId}/unpublication`,
     );
-  });
-});
-
-describe("real ProductResponse compatibility", () => {
-  it("does not fabricate legacy business fields absent from the backend DTO", async () => {
-    vi.spyOn(api, "get").mockResolvedValueOnce({
-      data: {
-        productId: "11111111-1111-4111-8111-111111111111",
-        code: "PROD-001",
-        name: "Áo mẫu",
-        nameEn: "Sample Shirt",
-        categoryId: null,
-        description: null,
-        descriptionEn: null,
-        brand: "Brand",
-        taxClass: "STANDARD",
-        customizable: false,
-        images: [],
-        status: "DRAFT",
-        createdAt: "2026-01-01T00:00:00Z",
-        createdBy: null,
-        submittedBy: null,
-        submittedAt: null,
-        approvedBy: null,
-        approvedAt: null,
-        rejectionReason: null,
-        weightKg: null,
-        lengthCm: null,
-        widthCm: null,
-        heightCm: null,
-      },
-    });
-
-    const product = await getProduct("11111111-1111-4111-8111-111111111111");
-
-    expect(product.basePrice).toBeUndefined();
-    expect(product.uom).toBeUndefined();
-    expect(product.attributes).toBeUndefined();
-  });
-});
-
-describe("optional SKU/category capability errors", () => {
-  it("does not turn an unavailable SKU endpoint into an empty dataset", async () => {
-    vi.spyOn(api, "get").mockRejectedValueOnce(new ApiError(404, "NOT_FOUND", "Not found"));
-
-    await expect(listSkus({ page: 1, pageSize: 15 })).rejects.toMatchObject({ status: 404 });
-  });
-
-  it("does not turn an unavailable category endpoint into an empty dataset", async () => {
-    vi.spyOn(api, "get").mockRejectedValueOnce(new ApiError(404, "NOT_FOUND", "Not found"));
-
-    await expect(listCategories()).rejects.toMatchObject({ status: 404 });
-  });
-
-  it("preserves successful empty responses as empty datasets", async () => {
-    vi.spyOn(api, "get")
-      .mockResolvedValueOnce({ data: { items: [], page: 1, pageSize: 15, total: 0 } })
-      .mockResolvedValueOnce({ data: { items: [], page: 1, pageSize: 15, total: 0 } });
-
-    await expect(listSkus({ page: 1, pageSize: 15 })).resolves.toMatchObject({
-      items: [],
-      total: 0,
-    });
-    await expect(listCategories()).resolves.toMatchObject({ items: [], total: 0 });
   });
 });

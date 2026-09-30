@@ -38,7 +38,6 @@ import { numberCell, moneyCell, statusCell, textCell } from "@/components/shared
 import {
   computeSkuStats as computeSkuStatsSelector,
   formatVnd,
-  isCapabilityUnavailable,
   productSkuCount,
   shouldFlagProductRow,
   shouldFlagSkuRow,
@@ -185,22 +184,6 @@ function categoryName(categoryId: string | null, categories: ReadonlyMap<string,
   return categories.get(categoryId) ?? "";
 }
 
-function categoryDisplay(
-  categoryId: string | null,
-  categories: ReadonlyMap<string, string>,
-  isLoading: boolean,
-  error: unknown,
-): string {
-  if (categoryId === null) return "Chưa chọn danh mục";
-  if (isLoading) return "Đang tải danh mục...";
-  if (error) {
-    return isCapabilityUnavailable(error)
-      ? "Danh mục chưa được backend hỗ trợ"
-      : "Không tải được danh mục";
-  }
-  return categoryName(categoryId, categories) || "Không rõ danh mục";
-}
-
 function mergeStoredConfig(
   stored: Partial<ProductsPageConfig>,
   fallback: ProductsPageConfig,
@@ -264,9 +247,8 @@ export function ProductList() {
   const rawProducts = useMemo(() => productsQuery.data?.items ?? [], [productsQuery.data]);
   const rawSkus = useMemo(() => skusQuery.data?.items ?? [], [skusQuery.data]);
   const categories = useMemo(() => categoriesQuery.data?.items ?? [], [categoriesQuery.data]);
-  const isLoading = productsQuery.isLoading;
-  const loadError = productsQuery.error;
-  const skuUnavailable = Boolean(skusQuery.error);
+  const isLoading = productsQuery.isLoading || skusQuery.isLoading || categoriesQuery.isLoading;
+  const loadError = productsQuery.error ?? skusQuery.error ?? categoriesQuery.error;
   const productPage = productsQuery.data;
   const productPageNumber = productFilters.page;
   const setProductPage = productFilters.setPage;
@@ -376,9 +358,6 @@ export function ProductList() {
   );
 
   const skuStats = useMemo(() => {
-    if (skuUnavailable) {
-      return [{ label: "SKU", value: "Chưa khả dụng", icon: Barcode }];
-    }
     const stats = computeSkuStatsSelector(filteredSkus);
 
     return [
@@ -390,7 +369,7 @@ export function ProductList() {
       { label: "Khả dụng", value: stats.available.toLocaleString("vi-VN"), icon: ShoppingBag },
       { label: "Sắp hết", value: stats.lowStock.toString(), icon: Clock },
     ];
-  }, [filteredSkus, skuUnavailable]);
+  }, [filteredSkus]);
 
   const productEmptyState = getProductListEmptyState({
     itemCount: rawProducts.length,
@@ -455,13 +434,7 @@ export function ProductList() {
       ...textCell<Product>(
         "category",
         "Danh mục",
-        (row) =>
-          categoryDisplay(
-            row.categoryId,
-            categoryNameMap,
-            categoriesQuery.isLoading,
-            categoriesQuery.error,
-          ),
+        (row) => categoryName(row.categoryId, categoryNameMap) || "—",
         {
           color: "secondary",
         },
@@ -483,7 +456,7 @@ export function ProductList() {
       align: "right",
       cell: (row) => (
         <span className="text-ink-primary font-[family-name:var(--font-mono)] text-[0.8125rem] font-medium tabular-nums">
-          {skuUnavailable ? "—" : productSkuCount(row.productId, rawSkus)}
+          {productSkuCount(row.productId, rawSkus)}
         </span>
       ),
     },
@@ -874,12 +847,7 @@ export function ProductList() {
           setSkuSelectedKeys(new Set());
         }}
         onExport={() =>
-          skuUnavailable
-            ? toast.info("Xuất SKU", "Dữ liệu SKU chưa được backend hỗ trợ.")
-            : toast.success(
-                "Xuất file mock",
-                `Sẵn sàng xuất ${filteredSkus.length} SKU đang hiển thị.`,
-              )
+          toast.success("Xuất file mock", `Sẵn sàng xuất ${filteredSkus.length} SKU đang hiển thị.`)
         }
         summaryItems={summaryItems}
         onResetAll={() => {
@@ -1006,11 +974,7 @@ export function ProductList() {
                   isActive ? "bg-brand text-ink-inverse" : "bg-bg-muted text-ink-tertiary",
                 )}
               >
-                {tab.key === "products"
-                  ? (productPage?.totalElements ?? 0)
-                  : skuUnavailable
-                    ? "—"
-                    : rawSkus.length}
+                {tab.key === "products" ? (productPage?.totalElements ?? 0) : rawSkus.length}
               </span>
             </Button>
           );
@@ -1131,25 +1095,7 @@ export function ProductList() {
             gridClassName="lg:grid-cols-4 xl:grid-cols-7"
           />
           {renderToolbar()}
-          {skusQuery.error ? (
-            <EmptyState
-              title={
-                isCapabilityUnavailable(skusQuery.error)
-                  ? "SKU chưa được backend hỗ trợ"
-                  : "Không tải được SKU"
-              }
-              description={
-                isCapabilityUnavailable(skusQuery.error)
-                  ? "Backend hiện chưa có API đọc SKU."
-                  : "Không thể tải dữ liệu SKU."
-              }
-              action={
-                <Button type="button" variant="outline" onClick={() => void skusQuery.refetch()}>
-                  Thử lại
-                </Button>
-              }
-            />
-          ) : filteredSkus.length > 0 ? (
+          {filteredSkus.length > 0 ? (
             <DataTable
               data={filteredSkus}
               columns={skuColumns.filter((column) => skuConfig.visibleColumns.includes(column.key))}

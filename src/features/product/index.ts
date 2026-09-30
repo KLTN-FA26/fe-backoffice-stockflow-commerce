@@ -119,7 +119,6 @@ export {
   useUnpublishProduct,
 } from "./mutations";
 
-export { isCapabilityUnavailable } from "./api";
 export { productTransitionErrorMessage } from "./transition-errors";
 export { toProductApiPage, toProductUiPage } from "./pagination";
 
