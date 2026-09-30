@@ -1,6 +1,14 @@
 import type { ApiError } from "@/lib/api";
 
 export function productTransitionErrorMessage(error: ApiError): string {
+  if (
+    error.status === 409 &&
+    error.code === "CONFLICT" &&
+    error.message === "Approve a non-empty product gallery before publishing the product"
+  ) {
+    return "Cần duyệt ít nhất một ảnh trong gallery trước khi xuất bản sản phẩm.";
+  }
+
   switch (error.code) {
     case "SELF_APPROVAL_NOT_ALLOWED":
       return "Bạn không thể phê duyệt sản phẩm do chính mình gửi duyệt.";
