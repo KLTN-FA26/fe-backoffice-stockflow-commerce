@@ -17,6 +17,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Receipt,
+  ShieldCheck,
   Settings,
   ShoppingCart,
   Sun,
@@ -150,6 +151,17 @@ const NAV_GROUPS: NavGroup[] = [
         icon: Palette,
       },
       { label: "Nhà cung cấp", tooltip: "Suppliers", href: "/admin/suppliers", icon: Users },
+    ],
+  },
+  {
+    title: "PLATFORM",
+    items: [
+      {
+        label: "Phân quyền",
+        tooltip: "Permission management",
+        href: ADMIN_ROUTES.permissions,
+        icon: ShieldCheck,
+      },
     ],
   },
   {

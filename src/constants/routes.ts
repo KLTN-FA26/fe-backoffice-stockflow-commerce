@@ -7,6 +7,7 @@ export const APP_ROUTES = {
 
 export const ADMIN_ROUTES = {
   home: ADMIN_BASE,
+  permissions: `${ADMIN_BASE}/permissions`,
   products: {
     create: `${ADMIN_BASE}/products/create`,
     detail: (id: string) => `${ADMIN_BASE}/products/${id}`,
