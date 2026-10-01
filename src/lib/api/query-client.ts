@@ -12,15 +12,39 @@
  * override via their own options.
  */
 
-import { QueryClient } from "@tanstack/react-query";
+import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
+
+import { meKeys } from "@/lib/auth/me-permissions";
+
 import { ApiError } from "./error";
 
+import type { QueryKey } from "@tanstack/react-query";
+
+function isMyPermissionsKey(key: QueryKey): boolean {
+  const prefix = meKeys.permissions();
+  return prefix.every((part, i) => key[i] === part);
+}
+
 export function makeQueryClient(): QueryClient {
-  return new QueryClient({
+  // 403 = quyền đã đổi (admin vừa bỏ tick trên màn Phân quyền) → tải lại /me/permissions
+  // để nút tương ứng biến mất (BE PR #39). Bỏ qua lỗi của chính query quyền để không lặp vô hạn.
+  const refreshPermissionsOnForbidden = (error: unknown, key?: QueryKey) => {
+    if (!(error instanceof ApiError) || error.status !== 403) return;
+    if (key && isMyPermissionsKey(key)) return;
+    void client.invalidateQueries({ queryKey: meKeys.permissions() });
+  };
+
+  const client: QueryClient = new QueryClient({
+    queryCache: new QueryCache({
+      onError: (error, query) => refreshPermissionsOnForbidden(error, query.queryKey),
+    }),
+    mutationCache: new MutationCache({
+      onError: (error) => refreshPermissionsOnForbidden(error),
+    }),
     defaultOptions: {
       queries: {
-        staleTime: 30_000,          // 30s — matches "List chứng từ"
-        gcTime: 5 * 60_000,         // 5m
+        staleTime: 30_000, // 30s — matches "List chứng từ"
+        gcTime: 5 * 60_000, // 5m
         refetchOnWindowFocus: true,
         retry: (failureCount, error) => {
           // Never retry 4xx (client errors).
@@ -33,6 +57,7 @@ export function makeQueryClient(): QueryClient {
       },
     },
   });
+  return client;
 }
 
 /* ── Preset stale/gc times (import in feature queries) ───────────────── */
