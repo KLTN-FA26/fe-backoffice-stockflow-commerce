@@ -362,6 +362,8 @@ describe("PermissionManagementPage", () => {
 
     expect(await screen.findByText("0/0 quyền được cấp")).toBeInTheDocument();
     expect(screen.getByText("Chưa có nhóm quyền")).toBeInTheDocument();
-    expect(screen.getByText("Vai trò này chưa có dữ liệu ma trận để hiển thị.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Vai trò này chưa có dữ liệu ma trận để hiển thị."),
+    ).toBeInTheDocument();
   });
 });

@@ -61,7 +61,7 @@ export function registerAllMockRoutes(): void {
    * ==================================================================*/
 
   // GET /products
-  registerMockRoute("GET", "/v1/products", async (config) => {
+  registerMockRoute("GET", "/products", async (config) => {
     const { products } = await import("@/lib/mock-data");
     const params = readRequestSearchParams(config);
     const page = Math.max(0, Number(params.get("page")) || 0);
@@ -112,7 +112,7 @@ export function registerAllMockRoutes(): void {
   });
 
   // GET /products/:id
-  registerMockRoute("GET", "/v1/products/:id", async (config) => {
+  registerMockRoute("GET", "/products/:id", async (config) => {
     const { products } = await import("@/lib/mock-data");
     const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
     const product =
@@ -122,7 +122,7 @@ export function registerAllMockRoutes(): void {
   });
 
   // POST /products
-  registerMockRoute("POST", "/v1/products", async (config) => {
+  registerMockRoute("POST", "/products", async (config) => {
     const { categories, products } = await import("@/lib/mock-data");
     const body = parseCreateProductBody(config.data);
     const productId = readString(body.code) || readString(body.productId);
@@ -216,7 +216,7 @@ export function registerAllMockRoutes(): void {
     return { status: 201, data: product, headers: {} };
   });
 
-  registerMockRoute("PUT", "/v1/products/:id", async (config) => {
+  registerMockRoute("PUT", "/products/:id", async (config) => {
     const { products } = await import("@/lib/mock-data");
     const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
     const current =
@@ -287,31 +287,7 @@ export function registerAllMockRoutes(): void {
     return { status: 200, data: { items: categories, total: categories.length }, headers: {} };
   });
 
-  // GET /suppliers
-  registerMockRoute("GET", "/suppliers", async (config) => {
-    const { suppliers } = await import("@/lib/mock-data");
-    const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
-    const q = params.get("q")?.toLowerCase();
-
-    let filtered = [...suppliers];
-    if (q)
-      filtered = filtered.filter(
-        (s) => s.name.toLowerCase().includes(q) || s.supplierId.toLowerCase().includes(q),
-      );
-
-    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
-  });
-
-  // GET /suppliers/:id
-  registerMockRoute("GET", "/suppliers/:id", async (config) => {
-    const { suppliers } = await import("@/lib/mock-data");
-    const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
-    const supplier = suppliers.find((s) => s.supplierId === id);
-    if (!supplier) return { status: 404, data: { message: "Supplier not found" }, headers: {} };
-    return { status: 200, data: supplier, headers: {} };
-  });
+  // Suppliers: xem mock-routes-suppliers.ts (đăng ký trong mock-adapter.ts)
 
   /* ====================================================================
    * Module 02 — Purchase Orders / Replenishment
@@ -659,11 +635,11 @@ export function registerAllMockRoutes(): void {
    * Permission management (read-only phase)
    * ==================================================================*/
 
-  registerMockRoute("GET", "/v1/identity/roles", async () => {
+  registerMockRoute("GET", "/identity/roles", async () => {
     return { status: 200, data: mockRoles, headers: {} };
   });
 
-  registerMockRoute("GET", "/v1/identity/roles/:roleCode/permissions", async (config) => {
+  registerMockRoute("GET", "/identity/roles/:roleCode/permissions", async (config) => {
     const { roleCode } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
 
     if (roleCode === "FORBIDDEN") {
@@ -847,7 +823,7 @@ function registerProductTransitionRoutes(): void {
   registerProductTransition("unpublication", ["Published"], "Approved", undefined, true);
   registerProductTransition("publication", ["Approved"], "Published", undefined, true);
 
-  registerMockRoute("POST", "/v1/products/:id/rejection", async (config) => {
+  registerMockRoute("POST", "/products/:id/rejection", async (config) => {
     const body = parseCreateProductBody(config.data);
     if (!readString(body.reason)) {
       return mockValidationError("reason", "Lý do từ chối là bắt buộc.");
@@ -867,7 +843,7 @@ function registerProductTransition(
   enrich?: (product: MockProduct) => MockProduct,
   voidResponse = false,
 ): void {
-  registerMockRoute("POST", `/v1/products/:id/${suffix}`, (config) =>
+  registerMockRoute("POST", `/products/:id/${suffix}`, (config) =>
     transitionMockProduct(config, fromStatuses, targetStatus, enrich, voidResponse),
   );
 }

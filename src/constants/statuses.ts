@@ -86,9 +86,26 @@ export const INVOICE_STATUS = {
   PAID: "Paid",
 } as const satisfies Record<string, InvoiceStatus>;
 
+/** Nhà cung cấp (module 01) — BE: ACTIVE/INACTIVE (SCRUM-118). */
+export const SUPPLIER_STATUSES = ["Active", "Inactive"] as const;
+
+export const SUPPLIER_STATUS = {
+  ACTIVE: "Active",
+  INACTIVE: "Inactive",
+} as const satisfies Record<string, SupplierStatus>;
+
+/** Giá trị status trên wire của BE (SaveSupplierRequest/SupplierResponse — BE PR #36). */
+export const SUPPLIER_API_STATUSES = ["ACTIVE", "INACTIVE"] as const;
+
+/** Kênh gửi PO cho NCC — BE `communicationChannel` (EMAIL|API, BE PR #36). */
+export const SUPPLIER_CHANNELS = ["EMAIL", "API"] as const;
+
 export type PoStatus = (typeof PO_STATUSES)[number];
 export type ReceiptStatus = (typeof RECEIPT_STATUSES)[number];
 export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
 export type ProposalStatus = (typeof PROPOSAL_STATUSES)[number];
 export type SkuStatus = (typeof SKU_STATUSES)[number];
 export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
+export type SupplierStatus = (typeof SUPPLIER_STATUSES)[number];
+export type SupplierApiStatus = (typeof SUPPLIER_API_STATUSES)[number];
+export type SupplierChannel = (typeof SUPPLIER_CHANNELS)[number];

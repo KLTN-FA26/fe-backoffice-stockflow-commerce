@@ -22,3 +22,4 @@ export {
 } from "./column-helpers";
 export { PageContainer } from "./PageContainer";
 export { Logo } from "./Logo";
+export { RefetchBar } from "./RefetchBar";

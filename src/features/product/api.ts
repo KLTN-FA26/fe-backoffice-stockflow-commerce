@@ -69,7 +69,7 @@ export async function listProducts(
   for (const value of status ?? []) query.append("status", PRODUCT_LIST_API_STATUS[value]);
   if (sort?.trim()) query.set("sort", sort.trim());
 
-  const { data } = await api.get<unknown>("/v1/products", {
+  const { data } = await api.get<unknown>("/products", {
     params: query,
     signal,
   });
@@ -77,20 +77,20 @@ export async function listProducts(
 }
 
 export async function getProduct(id: string, signal?: AbortSignal): Promise<Product> {
-  const { data } = await api.get<unknown>(`/v1/products/${id}`, {
+  const { data } = await api.get<unknown>(`/products/${id}`, {
     signal,
   });
   return parseProduct(data);
 }
 
 export async function createProduct(input: CreateProductInput): Promise<Product> {
-  const { data } = await api.post<unknown>("/v1/products", input);
+  const { data } = await api.post<unknown>("/products", input);
   return parseProduct(data);
 }
 
 export async function updateProduct(input: { id: string } & UpdateProductInput): Promise<Product> {
   const { id, ...body } = input;
-  const { data } = await api.put<unknown>(`/v1/products/${id}`, body);
+  const { data } = await api.put<unknown>(`/products/${id}`, body);
   return parseProduct(data);
 }
 
@@ -101,18 +101,18 @@ export async function transitionProduct(input: TransitionProductInput): Promise<
   }
   const suffix = transitionSuffix(action);
   const { data } = await api.post<unknown>(
-    `/v1/products/${id}/${suffix}`,
+    `/products/${id}/${suffix}`,
     suffix === "rejection" ? { reason: reason?.trim() } : undefined,
   );
   return parseProduct(data);
 }
 
 export async function publishProduct(id: string): Promise<void> {
-  await api.post(`/v1/products/${id}/publication`);
+  await api.post(`/products/${id}/publication`);
 }
 
 export async function unpublishProduct(id: string): Promise<void> {
-  await api.post(`/v1/products/${id}/unpublication`);
+  await api.post(`/products/${id}/unpublication`);
 }
 
 export async function listSkus(

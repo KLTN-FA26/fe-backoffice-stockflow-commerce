@@ -1,28 +1,32 @@
 /**
  * <Can> — declarative permission gate.
  *
- * Renders children only when the current user has the required permission.
- * Uses `effectiveRoles()` from auth-store (respects impersonation).
+ * Nhận hai loại quyền:
+ *  - Mã quyền thật của BE `<resource>:<ACTION>` (vd "procurement-suppliers:CREATE") — đọc từ
+ *    `GET /identity/me/permissions` (BE PR #39). Dùng cho module mới.
+ *  - Quyền cũ `<module>.<action>` (vd "product.create") — bảng cứng theo vai trò trong
+ *    `permissions.ts`. Giữ để không đổi hành vi module cũ; chuyển dần sang mã quyền thật.
  *
  * @example
- *   <Can permission="po.create">
- *     <Button>Tạo đơn đặt hàng</Button>
- *   </Can>
- *
- *   <Can permission="po.approve" fallback={<Tooltip content="Không có quyền"><Button disabled>Duyệt</Button></Tooltip>}>
- *     <Button onClick={handleApprove}>Duyệt</Button>
+ *   <Can permission="procurement-suppliers:CREATE">
+ *     <Button>Thêm nhà cung cấp</Button>
  *   </Can>
  */
 
 "use client";
 
 import React from "react";
+
 import { useAuthStore } from "../auth-store";
-import { can, type Permission } from "../permissions";
+import { hasPermission, isPermissionCode, useMyPermissions } from "../me-permissions";
+import { can } from "../permissions";
+
+import type { PermissionCode } from "../me-permissions";
+import type { Permission } from "../permissions";
 
 interface CanProps {
-  /** Permission string to check (e.g. "po.create"). */
-  permission: Permission;
+  /** Mã quyền BE ("procurement-suppliers:CREATE") hoặc quyền cũ ("po.create"). */
+  permission: Permission | PermissionCode;
   /** Fallback UI when permission is denied. Defaults to null (render nothing). */
   fallback?: React.ReactNode;
   /** Children to render when permission is granted. */
@@ -30,12 +34,7 @@ interface CanProps {
 }
 
 export function Can({ permission, fallback = null, children }: CanProps) {
-  const effectiveRoles = useAuthStore((s) => s.effectiveRoles);
-  const roles = effectiveRoles();
-
-  // Grant if any of the user's effective roles has the permission
-  const allowed = roles.some((role) => can(role, permission));
-
+  const allowed = useCan(permission);
   if (!allowed) return <>{fallback}</>;
   return <>{children}</>;
 }
@@ -44,11 +43,19 @@ export function Can({ permission, fallback = null, children }: CanProps) {
  * Hook version — use when you need the boolean in logic, not just rendering.
  *
  * @example
- *   const canCreate = useCan("po.create");
- *   if (canCreate) { ... }
+ *   const canCreate = useCan("procurement-suppliers:CREATE");
  */
-export function useCan(permission: Permission): boolean {
+export function useCan(permission: Permission | PermissionCode): boolean {
   const effectiveRoles = useAuthStore((s) => s.effectiveRoles);
-  const roles = effectiveRoles();
-  return roles.some((role) => can(role, permission));
+  const isCode = isPermissionCode(permission);
+  // Chỉ gọi /me/permissions khi dùng mã quyền thật — quyền cũ không cần request
+  const { data } = useMyPermissions(isCode);
+  if (isCode) return hasPermission(data, permission);
+  return effectiveRoles().some((role) => can(role, permission as Permission));
+}
+
+/** Trả hàm `(code) => boolean` để truyền vào logic thuần (vd `allowedSupplierActions`). */
+export function usePermissionChecker(): (code: PermissionCode) => boolean {
+  const { data } = useMyPermissions();
+  return (code) => hasPermission(data, code);
 }

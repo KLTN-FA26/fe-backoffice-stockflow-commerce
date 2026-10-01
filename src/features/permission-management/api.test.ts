@@ -110,7 +110,7 @@ describe("permission management API", () => {
 
     await getRolePermissionMatrix("ROLE/ONE");
 
-    expect(get).toHaveBeenCalledWith("/v1/identity/roles/ROLE%2FONE/permissions", {
+    expect(get).toHaveBeenCalledWith("/identity/roles/ROLE%2FONE/permissions", {
       signal: undefined,
     });
   });

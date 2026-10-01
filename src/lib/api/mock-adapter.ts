@@ -170,9 +170,17 @@ export function activateMockAdapter(): void {
   // import is async even though the module is already bundled, so the
   // adapter must await `routesReady` (set below) rather than assume routes
   // exist by the time the first request arrives.
-  routesReady = import("./mock-routes").then(({ registerAllMockRoutes }) => {
-    registerAllMockRoutes();
-  });
+  routesReady = Promise.all([
+    import("./mock-routes"),
+    import("./mock-routes-suppliers"),
+    import("./mock-routes-me"),
+  ]).then(
+    ([{ registerAllMockRoutes }, { registerSupplierMockRoutes }, { registerMeMockRoutes }]) => {
+      registerAllMockRoutes();
+      registerSupplierMockRoutes();
+      registerMeMockRoutes();
+    },
+  );
 
   api.defaults.adapter = mockAdapter;
   console.info("[mock-adapter] Activated — all API calls will be served from mock-data.ts");
