@@ -115,7 +115,7 @@ describe("product API contract", () => {
 
     await transitionProduct({ id: backendProduct.productId, action: "reject", reason: "Fix copy" });
 
-    expect(post).toHaveBeenCalledWith(`/v1/products/${backendProduct.productId}/rejection`, {
+    expect(post).toHaveBeenCalledWith(`/products/${backendProduct.productId}/rejection`, {
       reason: "Fix copy",
     });
     await expect(
@@ -134,10 +134,7 @@ describe("product API contract", () => {
 
     const result = await transitionProduct({ id: backendProduct.productId, action });
 
-    expect(post).toHaveBeenCalledWith(
-      `/v1/products/${backendProduct.productId}/${suffix}`,
-      undefined,
-    );
+    expect(post).toHaveBeenCalledWith(`/products/${backendProduct.productId}/${suffix}`, undefined);
     expect(result.status).toBe(
       { PENDING_APPROVAL: "Pending Approval", APPROVED: "Approved", DISCONTINUED: "Discontinued" }[
         status
@@ -151,10 +148,7 @@ describe("product API contract", () => {
     await expect(publishProduct(backendProduct.productId)).resolves.toBeUndefined();
     await expect(unpublishProduct(backendProduct.productId)).resolves.toBeUndefined();
 
-    expect(post).toHaveBeenNthCalledWith(1, `/v1/products/${backendProduct.productId}/publication`);
-    expect(post).toHaveBeenNthCalledWith(
-      2,
-      `/v1/products/${backendProduct.productId}/unpublication`,
-    );
+    expect(post).toHaveBeenNthCalledWith(1, `/products/${backendProduct.productId}/publication`);
+    expect(post).toHaveBeenNthCalledWith(2, `/products/${backendProduct.productId}/unpublication`);
   });
 });
