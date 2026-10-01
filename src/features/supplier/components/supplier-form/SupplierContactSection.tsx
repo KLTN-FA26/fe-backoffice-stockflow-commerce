@@ -4,17 +4,17 @@ import { Contact } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 
-import { FieldError, Label, inputCls } from "./fields";
+import { FieldError, FieldHint, Label, fieldA11y, fieldId, inputCls } from "./fields";
 
 import type { FieldErrors, UseFormRegister } from "react-hook-form";
-import type { SupplierCreateInput } from "../../types";
+import type { SupplierFormValues } from "../../types";
 
 export function SupplierContactSection({
   register,
   errors,
 }: {
-  register: UseFormRegister<SupplierCreateInput>;
-  errors: FieldErrors<SupplierCreateInput>;
+  register: UseFormRegister<SupplierFormValues>;
+  errors: FieldErrors<SupplierFormValues>;
 }) {
   return (
     <section className="bg-bg-surface border-border-default rounded-[var(--r-sm)] border p-4">
@@ -23,24 +23,36 @@ export function SupplierContactSection({
       </h2>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1">
-          <Label required>Người liên hệ</Label>
-          <Input {...register("contactName")} placeholder="Họ tên" className={inputCls} />
-          <FieldError message={errors.contactName?.message} />
+          <Label htmlFor={fieldId("contactName")}>Người liên hệ</Label>
+          <Input
+            {...register("contactName")}
+            {...fieldA11y("contactName", errors.contactName?.message)}
+            placeholder="Họ tên"
+            className={inputCls}
+          />
+          <FieldError name="contactName" message={errors.contactName?.message} />
         </div>
         <div className="space-y-1">
-          <Label required>Số điện thoại</Label>
-          <Input {...register("contactPhone")} placeholder="0912 345 678" className={inputCls} />
-          <FieldError message={errors.contactPhone?.message} />
+          <Label htmlFor={fieldId("phone")}>Số điện thoại</Label>
+          <Input
+            {...register("phone")}
+            {...fieldA11y("phone", errors.phone?.message)}
+            placeholder="0912 345 678 hoặc +86 20 1234 5678"
+            className={inputCls}
+          />
+          <FieldError name="phone" message={errors.phone?.message} />
         </div>
         <div className="space-y-1 sm:col-span-2">
-          <Label required>Email</Label>
+          <Label htmlFor={fieldId("email")}>Email</Label>
           <Input
-            {...register("contactEmail")}
+            {...register("email")}
+            {...fieldA11y("email", errors.email?.message)}
             type="email"
             placeholder="email@congty.vn"
             className={inputCls}
           />
-          <FieldError message={errors.contactEmail?.message} />
+          <FieldError name="email" message={errors.email?.message} />
+          <FieldHint>Bắt buộc khi gửi PO qua kênh Email (bước Điều khoản).</FieldHint>
         </div>
       </div>
     </section>

@@ -1,183 +1,107 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { BarChart3, Plus, Star, Trash2, Truck, Users } from "lucide-react";
-import { cn } from "cn";
+import Link from "next/link";
+import { Plus } from "lucide-react";
 
-import { ADMIN_ROUTES } from "@/constants";
-import { computeSupplierStats } from "@/features/supplier";
+import { ADMIN_ROUTES, SUPPLIER_PERMISSIONS } from "@/constants";
+import { useCan } from "@/lib/auth";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { DataTable } from "@/components/shared/DataTable";
-import { ListStatsPanel, type ListStatItem } from "@/components/shared/ListStatsPanel";
 import { ListToolbar } from "@/components/shared/ListToolbar";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 
 import { buildSupplierColumns } from "./supplier-list/columns";
-import {
-  COLUMN_LABELS,
-  DEFAULT_COLUMNS,
-  DEFAULT_CONFIG,
-  SEARCH_FIELDS,
-  STATUS_OPTIONS,
-} from "./supplier-list/constants";
+import { COLUMN_LABELS, DEFAULT_COLUMNS, STATUS_OPTIONS } from "./supplier-list/constants";
+import { SupplierListBody } from "./supplier-list/SupplierListBody";
 import { buildSummaryItems } from "./supplier-list/summary";
 import { useSupplierListState } from "./supplier-list/useSupplierListState";
+import { SupplierPermissionGate } from "./SupplierPermissionGate";
 
-export function SupplierList() {
-  const router = useRouter();
+const COLUMN_OPTIONS = DEFAULT_COLUMNS.filter((c) => c !== "actions").map((c) => ({
+  label: COLUMN_LABELS[c] ?? c,
+  value: c,
+}));
+
+function SupplierListContent() {
+  const s = useSupplierListState();
+  const canCreate = useCan(SUPPLIER_PERMISSIONS.create);
+  // Ngừng hợp tác = DELETE → chọn nhiều dòng chỉ có ý nghĩa với người có quyền DELETE
+  const canDelete = useCan(SUPPLIER_PERMISSIONS.delete);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
-  const {
-    suppliersQuery,
-    pageConfig,
-    filtered,
-    flags,
-    filters,
-    updateConfig,
-    navigateToDetail,
-    toggleStatus,
-    toggleSearchField,
-    toggleTableColumn,
-    updateColumnSearch,
-    clearColumnSearch,
-  } = useSupplierListState();
-  const stats = useMemo(() => {
-    const s = computeSupplierStats(filtered);
-    return [
-      { label: "Tổng NCC", value: String(s.total), icon: Users },
-      { label: "Đang hoạt động", value: String(s.active), icon: Truck },
-      { label: "Ngừng hoạt động", value: String(s.inactive), icon: BarChart3 },
-      { label: "Tỷ lệ hoạt động", value: `${s.activeRate}%`, icon: Star },
-    ] as ListStatItem[];
-  }, [filtered]);
-  const columns = useMemo(
-    () =>
-      buildSupplierColumns({
-        columnSearch: pageConfig.columnSearch,
-        updateColumnSearch,
-        navigateToDetail,
-      }),
-    [pageConfig.columnSearch, updateColumnSearch, navigateToDetail],
-  );
-  const visibleColumns = columns.filter((c) => pageConfig.visibleColumns.includes(c.key));
-  const columnOptions = DEFAULT_COLUMNS.filter((c) => c !== "actions").map((c) => ({
-    label: COLUMN_LABELS[c],
-    value: c,
-  }));
-  const summaryItems = useMemo(
-    () => buildSummaryItems({ pageConfig, flags, filters, updateConfig, clearColumnSearch }),
-    [pageConfig, flags, filters, updateConfig, clearColumnSearch],
-  );
-  if (suppliersQuery.isLoading) return <PageSkeleton variant="list" />;
+
+  const columns = useMemo(() => buildSupplierColumns(s.navigateToDetail), [s.navigateToDetail]);
+  const visibleColumns = columns.filter((c) => s.config.visibleColumns.includes(c.key));
+  const { filters } = s;
+
   return (
     <>
       <PageHeader
         title="Quản lý nhà cung cấp"
-        subtitle="Hồ sơ nhà cung cấp, mã thuế, điều khoản và trạng thái hoạt động."
+        subtitle="Hồ sơ nhà cung cấp, mã số thuế, điều khoản và kênh gửi đơn đặt hàng."
         actions={
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant={pageConfig.showStats ? "secondary" : "outline"}
-              size="sm"
-              onClick={() => updateConfig((c) => ({ ...c, showStats: !c.showStats }))}
-              className={cn(
-                "rounded-[var(--r-sm)]",
-                pageConfig.showStats &&
-                  "border-brand bg-brand/10 text-brand hover:bg-brand/10 hover:text-brand border",
-              )}
-            >
-              <BarChart3 className="size-3.5" />
-              {pageConfig.showStats ? "Ẩn thống kê" : "Hiện thống kê"}
+          canCreate ? (
+            <Button asChild size="sm" className="rounded-[var(--r-sm)]">
+              <Link href={ADMIN_ROUTES.suppliers.create}>
+                <Plus className="size-3.5" /> Thêm nhà cung cấp
+              </Link>
             </Button>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => router.push(ADMIN_ROUTES.suppliers.create)}
-              className="rounded-[var(--r-sm)]"
-            >
-              <Plus className="size-3.5" /> Thêm nhà cung cấp
-            </Button>
-          </div>
+          ) : undefined
         }
       />
-      <ListStatsPanel open={pageConfig.showStats} stats={stats} />
       <ListToolbar
         search={filters.q}
-        onSearchChange={(v) => filters.setQ(v)}
-        searchPlaceholder="Tìm NCC theo mã, tên, mã thuế..."
+        onSearchChange={(v) => void filters.setQ(v)}
+        searchPlaceholder="Tìm theo mã NCC, tên, mã số thuế..."
         statusOptions={STATUS_OPTIONS}
         selectedStatuses={filters.status}
-        onToggleStatus={toggleStatus}
-        onClearStatuses={() => filters.setStatus([])}
-        hasStatusFilter={flags.hasStatusFilter}
-        fieldOptions={SEARCH_FIELDS.map(({ label, value }) => ({ label, value }))}
-        selectedFields={pageConfig.globalSearch.fields}
-        defaultFields={DEFAULT_CONFIG.globalSearch.fields}
-        onToggleField={toggleSearchField}
-        hasFieldConfig={flags.hasFieldConfig}
-        columnOptions={columnOptions}
-        selectedColumns={pageConfig.visibleColumns}
+        onToggleStatus={s.toggleStatus}
+        onClearStatuses={() => void filters.setStatus([])}
+        hasStatusFilter={filters.status.length > 0}
+        columnOptions={COLUMN_OPTIONS}
+        selectedColumns={s.config.visibleColumns}
         defaultColumns={DEFAULT_COLUMNS}
         lockedColumns={["actions"]}
-        visibleColumnCount={flags.visibleColumnCount}
-        onToggleColumn={toggleTableColumn}
-        onResetColumns={() => updateConfig((c) => ({ ...c, visibleColumns: DEFAULT_COLUMNS }))}
-        hasColumnConfig={flags.hasColumnConfig}
-        onExport={() => toast.info("Tính năng đang phát triển")}
-        summaryItems={summaryItems}
-        onResetAll={() => {
-          updateConfig(() => DEFAULT_CONFIG);
-          filters.reset();
-        }}
-        resetDisabled={!flags.hasAny}
+        visibleColumnCount={s.visibleColumnCount}
+        onToggleColumn={s.toggleColumn}
+        onResetColumns={() => s.updateConfig((c) => ({ ...c, visibleColumns: DEFAULT_COLUMNS }))}
+        hasColumnConfig={s.hasColumnConfig}
+        selectedCount={canDelete ? selectedKeys.size : 0}
+        bulkDeleteLabel="Ngừng hợp tác đã chọn"
+        onBulkDelete={canDelete ? () => setBulkConfirmOpen(true) : undefined}
+        onExport={() => toast.info("Xuất Excel chưa có API — sẽ nối khi BE hỗ trợ")}
+        summaryItems={buildSummaryItems(s)}
+        onResetAll={s.resetAll}
+        resetDisabled={!s.hasFilters && !s.hasColumnConfig && s.sort.key === null}
       />
-      {selectedKeys.size > 0 && (
-        <div className="border-border-default bg-bg-subtle mb-3 flex items-center justify-between rounded-[var(--r-sm)] border px-3 py-2">
-          <span className="text-ink-secondary text-[0.8125rem]">
-            Đã chọn {selectedKeys.size} nhà cung cấp
-          </span>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setBulkConfirmOpen(true)}
-            className="border-danger text-danger hover:bg-danger/10 rounded-[var(--r-sm)] border bg-transparent text-xs"
-          >
-            <Trash2 className="size-3.5" /> Xoá đã chọn
-          </Button>
-        </div>
-      )}
-      <DataTable
+      <SupplierListBody
+        s={s}
         columns={visibleColumns}
-        data={filtered}
-        rowKey={(s) => s.supplierId}
-        caption={`Hiển thị ${filtered.length} nhà cung cấp`}
-        flagRow={(s) => s.status === "Inactive"}
-        onRowClick={navigateToDetail}
-        selectable
+        canCreate={canCreate}
+        selectable={canDelete}
         selectedKeys={selectedKeys}
         onSelectionChange={setSelectedKeys}
-        pageSize={15}
-        pageSizeOptions={[10, 15, 20, 50]}
       />
-      {/* TODO(BE bulk endpoint): hiện lại bulk action khi BE hỗ trợ xoá hàng loạt */}
+      {/* Base UI: BE chỉ có DELETE từng NCC, chưa có endpoint hàng loạt — nối khi BE hỗ trợ */}
       <ConfirmDialog
         open={bulkConfirmOpen}
         onOpenChange={setBulkConfirmOpen}
-        title="Chưa hỗ trợ xoá hàng loạt"
-        description={`Đã chọn ${selectedKeys.size} nhà cung cấp. Thao tác này chưa có API — vui lòng xoá từng nhà cung cấp.`}
+        title="Chưa hỗ trợ ngừng hợp tác hàng loạt"
+        description={`Đã chọn ${selectedKeys.size} nhà cung cấp. Hệ thống chưa có API thao tác hàng loạt — vui lòng ngừng hợp tác từng nhà cung cấp trong trang chi tiết.`}
         confirmLabel="Đã hiểu"
-        variant="danger"
-        onConfirm={() => {
-          setBulkConfirmOpen(false);
-          toast.info("Tính năng đang phát triển");
-        }}
+        variant="default"
+        onConfirm={() => setBulkConfirmOpen(false)}
       />
     </>
+  );
+}
+
+export function SupplierList() {
+  return (
+    <SupplierPermissionGate permission={SUPPLIER_PERMISSIONS.read} variant="list">
+      <SupplierListContent />
+    </SupplierPermissionGate>
   );
 }

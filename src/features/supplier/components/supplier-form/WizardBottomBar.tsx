@@ -1,7 +1,6 @@
-import { ArrowRight, Save, Send } from "lucide-react";
+import { ArrowRight, Send } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { toast } from "@/components/shared/Toast";
 
 import type { StepKey } from "./wizard-constants";
 import type { STEPS as StepsType } from "./wizard-constants";
@@ -32,15 +31,6 @@ export function WizardBottomBar({
           Bước {currentStepIndex + 1}/{steps.length} · {steps[currentStepIndex]?.label}
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => toast.success("Đã lưu nháp", "Dữ liệu mock giữ trong phiên hiện tại.")}
-            className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted rounded-[var(--r-sm)] border px-3 py-1.5 text-[0.8125rem] font-medium"
-          >
-            <Save className="size-3.5" /> Lưu nháp
-          </Button>
           <Button
             type="button"
             variant="outline"

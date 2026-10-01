@@ -1,68 +1,66 @@
-import type { SupplierDto, SupplierStatus } from "@/features/supplier/types";
+import { PAGE_SIZE } from "@/constants";
+import { STATUS_LABEL_VI } from "@/lib/status-map";
 
+import type { SupplierStatus } from "@/features/supplier/types";
+
+/** Sở thích hiển thị của page (localStorage qua usePageConfig) — filter/search/sort/page nằm trên URL. */
 export interface SupplierPageConfig {
-  showStats: boolean;
-  statuses: SupplierStatus[];
-  globalSearch: { query: string; fields: string[] };
-  columnSearch: Partial<Record<"supplierId" | "name" | "taxCode", string>>;
   visibleColumns: string[];
+  pageSize: number;
 }
 
 export const DEFAULT_COLUMNS = [
-  "supplierId",
+  "code",
   "name",
   "taxCode",
   "contact",
+  "paymentTermDays",
   "leadTimeDays",
-  "rating",
+  "channel",
   "status",
   "actions",
 ];
 
+export const PAGE_SIZE_OPTIONS: number[] = [PAGE_SIZE.sm, PAGE_SIZE.md, PAGE_SIZE.lg, PAGE_SIZE.xl];
+
 export const DEFAULT_CONFIG: SupplierPageConfig = {
-  showStats: false,
-  statuses: [],
-  globalSearch: { query: "", fields: ["supplierId", "name"] },
-  columnSearch: {},
   visibleColumns: DEFAULT_COLUMNS,
+  pageSize: PAGE_SIZE.md,
 };
 
-export const SEARCH_FIELDS = [
-  { label: "Mã NCC", value: "supplierId", getValue: (s: SupplierDto) => s.supplierId },
-  { label: "Tên", value: "name", getValue: (s: SupplierDto) => s.name },
-  { label: "Mã thuế", value: "taxCode", getValue: (s: SupplierDto) => s.taxCode },
-  { label: "Email", value: "contactEmail", getValue: (s: SupplierDto) => s.contactEmail },
-];
+/** Cột được sort phía server — BE SortWhitelist: code/name/status/createdAt/lastModifiedAt (PR #36). */
+export const SERVER_SORT_FIELDS = ["code", "name", "status"] as const;
+export type ServerSortField = (typeof SERVER_SORT_FIELDS)[number];
+
+/** BE search quét cố định 3 trường này (SupplierRepositoryAdapter, PR #36). */
+export const SEARCH_SCOPE_LABEL = "Mã NCC, tên, mã số thuế";
 
 export const COLUMN_LABELS: Record<string, string> = {
-  supplierId: "Mã NCC",
+  code: "Mã NCC",
   name: "Tên nhà cung cấp",
-  taxCode: "Mã thuế",
+  taxCode: "Mã số thuế",
   contact: "Liên hệ",
-  leadTimeDays: "Lead time",
-  rating: "Đánh giá",
+  paymentTermDays: "Thanh toán",
+  leadTimeDays: "Giao hàng",
+  channel: "Kênh gửi PO",
   status: "Trạng thái",
   actions: "Thao tác",
 };
 
-export const STATUS_LABELS: Record<SupplierStatus, string> = {
-  Active: "Đang hoạt động",
-  Inactive: "Ngừng hoạt động",
-};
-
-export const STATUS_OPTIONS: { label: string; value: SupplierStatus }[] = Object.entries(
-  STATUS_LABELS,
-).map(([value, label]) => ({ label, value: value as SupplierStatus }));
+export const STATUS_OPTIONS: { label: string; value: SupplierStatus }[] = (
+  ["Active", "Inactive"] as const
+).map((value) => ({ label: STATUS_LABEL_VI[value] ?? value, value }));
 
 export function mergeStoredConfig(
   stored: Partial<SupplierPageConfig>,
   fallback: SupplierPageConfig,
 ): SupplierPageConfig {
+  const visibleColumns = (stored.visibleColumns ?? []).filter((c) => DEFAULT_COLUMNS.includes(c));
   return {
-    ...fallback,
-    ...stored,
-    globalSearch: { ...fallback.globalSearch, ...stored.globalSearch },
-    columnSearch: stored.columnSearch ?? {},
-    visibleColumns: stored.visibleColumns?.length ? stored.visibleColumns : DEFAULT_COLUMNS,
+    visibleColumns: visibleColumns.length ? visibleColumns : fallback.visibleColumns,
+    pageSize:
+      stored.pageSize && PAGE_SIZE_OPTIONS.includes(stored.pageSize)
+        ? stored.pageSize
+        : fallback.pageSize,
   };
 }

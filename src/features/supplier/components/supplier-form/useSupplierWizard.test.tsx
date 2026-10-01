@@ -3,9 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "@/lib/api/error";
 
+import { foreignSupplier, supplier } from "../../__fixtures__/supplier";
 import { useSupplierWizard } from "./useSupplierWizard";
-
-import type { SupplierDto } from "@/features/supplier/types";
 
 type MutateOpts = { onSuccess?: (d: unknown) => void; onError?: (e: ApiError) => void };
 
@@ -23,107 +22,109 @@ vi.mock("@/features/supplier/mutations", () => ({
   useUpdateSupplier: () => ({ mutate: updateMutate, isPending: false }),
 }));
 
-const address = {
-  street: "12 Lê Lợi",
-  ward: "Bến Nghé",
-  district: "Quận 1",
-  province: "TP.HCM",
-  postalCode: "700000",
-  country: "VN" as const,
-};
+type Wizard = { current: ReturnType<typeof useSupplierWizard> };
 
-const supplier: SupplierDto = {
-  supplierId: "SUP-001",
-  name: "Công ty A",
-  taxCode: "0301234567",
-  contactName: "Nguyễn Văn B",
-  contactEmail: "b@a.vn",
-  contactPhone: "0901234567",
-  address,
-  paymentTerms: "Net 30",
-  currency: "VND",
-  leadTimeDays: 7,
-  status: "Active",
-};
-
-async function submitReview(result: { current: ReturnType<typeof useSupplierWizard> }) {
-  await act(async () => {
-    result.current.setCurrentStep("terms");
-  });
-  await act(async () => {
-    result.current.handleReviewSubmit();
-  });
+async function goToTermsAndSubmit(result: Wizard) {
+  await act(async () => result.current.goToStep("terms"));
+  await act(async () => result.current.handleReviewSubmit());
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe("useSupplierWizard", () => {
-  it("tạo mới, tên trống → nhảy về profile + toast ngay lần lưu đầu", async () => {
+describe("useSupplierWizard — tạo mới", () => {
+  it("bấm Tiếp khi bước Hồ sơ còn trống → không chuyển bước, không có dấu ✓", async () => {
     const { result } = renderHook(() => useSupplierWizard());
-    await submitReview(result);
+
+    await act(async () => result.current.goNext());
 
     expect(result.current.currentStep).toBe("profile");
-    expect(toastError).toHaveBeenCalledWith("Chưa thể lưu", "Tên nhà cung cấp không được để trống");
-    expect(createMutate).not.toHaveBeenCalled();
+    expect(result.current.stepStatus("profile")).toBe("error");
+    expect(result.current.errors.code?.message).toBe("Mã nhà cung cấp không được để trống");
+    expect(result.current.canGoTo("contact")).toBe(false);
   });
 
-  it("sửa NCC không có địa chỉ → nhảy sang bước address", async () => {
-    const { result } = renderHook(() => useSupplierWizard({ ...supplier, address: undefined }));
-    await submitReview(result);
-
-    expect(result.current.currentStep).toBe("address");
-    expect(toastError).toHaveBeenCalledWith("Chưa thể lưu", "Số nhà / Đường không được để trống");
-    expect(updateMutate).not.toHaveBeenCalled();
-  });
-
-  it("sửa: prefill code từ supplierId và gửi PUT với id", async () => {
-    const { result } = renderHook(() => useSupplierWizard(supplier));
-    await submitReview(result);
-
-    expect(updateMutate).toHaveBeenCalledTimes(1);
-    expect(updateMutate.mock.calls[0]?.[0]).toMatchObject({ id: "SUP-001", code: "SUP-001" });
-  });
-
-  it("sửa: 409 trùng taxCode → lỗi inline ở ô taxCode, về bước profile, không điều hướng", async () => {
-    updateMutate.mockImplementation((_input, opts) => {
-      opts.onError?.(
-        new ApiError(409, "SUPPLIER_CODE_ALREADY_EXISTS", "Trùng MST", {
-          taxCode: "Mã số thuế đã thuộc nhà cung cấp khác.",
-        }),
-      );
+  it("bước hợp lệ → chuyển bước và bước trước được đánh ✓", async () => {
+    const { result } = renderHook(() => useSupplierWizard());
+    await act(async () => {
+      result.current.setValue("code", "SUP-100");
+      result.current.setValue("name", "Công ty mới");
     });
+
+    await act(async () => result.current.goNext());
+
+    expect(result.current.currentStep).toBe("contact");
+    expect(result.current.stepStatus("profile")).toBe("done");
+    expect(result.current.stepStatus("terms")).toBe("idle");
+  });
+
+  it("không nhảy cóc tới bước chưa tới lượt qua sidebar", async () => {
+    const { result } = renderHook(() => useSupplierWizard());
+    await act(async () => result.current.goToStep("terms"));
+    expect(result.current.currentStep).toBe("profile");
+  });
+});
+
+describe("useSupplierWizard — sửa", () => {
+  it("NCC nước ngoài (MST chữ-số) mở sửa rồi lưu không đổi gì → gửi PUT", async () => {
+    const { result } = renderHook(() => useSupplierWizard(foreignSupplier));
+    await goToTermsAndSubmit(result);
+
+    expect(toastError).not.toHaveBeenCalled();
+    expect(updateMutate).toHaveBeenCalledTimes(1);
+    expect(updateMutate.mock.calls[0]?.[0]).toMatchObject({
+      id: foreignSupplier.supplierId,
+      status: "Active",
+      values: { code: "SUP-002", taxCode: "91440101MA5XXXXX" },
+    });
+  });
+
+  it("409 trùng MST (BE không kèm fieldErrors) → lỗi tiếng Việt ở ô taxCode, về bước Hồ sơ", async () => {
+    updateMutate.mockImplementation((_input, opts) =>
+      opts.onError?.(
+        new ApiError(
+          409,
+          "SUPPLIER_TAX_CODE_ALREADY_EXISTS",
+          "A supplier with this tax code exists",
+        ),
+      ),
+    );
     const { result } = renderHook(() => useSupplierWizard(supplier));
-    await submitReview(result);
+    await goToTermsAndSubmit(result);
 
     expect(result.current.currentStep).toBe("profile");
-    expect(result.current.errors.taxCode?.message).toBe("Mã số thuế đã thuộc nhà cung cấp khác.");
+    expect(result.current.errors.taxCode?.message).toBe("Mã số thuế đã thuộc nhà cung cấp khác");
     expect(push).not.toHaveBeenCalled();
   });
 
-  it("sửa: lỗi server nhiều bước → chọn bước sớm nhất, map alias email", async () => {
-    updateMutate.mockImplementation((_input, opts) => {
+  it("deliveryContactValid từ BE → ô email (kênh EMAIL), về bước Liên hệ", async () => {
+    updateMutate.mockImplementation((_input, opts) =>
       opts.onError?.(
-        new ApiError(422, "VALIDATION", "Sai", {
-          "address.street": "Thiếu đường",
-          email: "Email trùng",
-        }),
-      );
-    });
+        new ApiError(400, "VALIDATION_FAILED", "invalid", { deliveryContactValid: "invalid" }),
+      ),
+    );
     const { result } = renderHook(() => useSupplierWizard(supplier));
-    await submitReview(result);
+    await goToTermsAndSubmit(result);
 
     expect(result.current.currentStep).toBe("contact");
-    expect(result.current.errors.contactEmail?.message).toBe("Email trùng");
-    expect(result.current.errors.address?.street?.message).toBe("Thiếu đường");
+    expect(result.current.errors.email?.message).toBe("Kênh Email cần có email liên hệ");
   });
 
-  it("sửa thành công → điều hướng về trang chi tiết", async () => {
+  it("sửa thành công → về trang chi tiết", async () => {
     updateMutate.mockImplementation((_input, opts) => opts.onSuccess?.(supplier));
     const { result } = renderHook(() => useSupplierWizard(supplier));
-    await submitReview(result);
+    await goToTermsAndSubmit(result);
 
-    expect(push).toHaveBeenCalledWith("/admin/suppliers/SUP-001");
+    expect(push).toHaveBeenCalledWith(`/admin/suppliers/${supplier.supplierId}`);
+  });
+
+  it("dữ liệu sửa không hợp lệ → nhảy về bước lỗi sớm nhất + toast tiếng Việt", async () => {
+    const { result } = renderHook(() => useSupplierWizard({ ...supplier, email: null }));
+    await goToTermsAndSubmit(result);
+
+    expect(result.current.currentStep).toBe("contact");
+    expect(toastError).toHaveBeenCalledWith("Chưa thể lưu", "Kênh Email cần có email liên hệ");
+    expect(updateMutate).not.toHaveBeenCalled();
   });
 });

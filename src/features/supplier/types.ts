@@ -1,25 +1,21 @@
 /**
- * Supplier — inferred types from zod schemas.
- *
- * Source: docs/warehouse/02-purchase-order (supplier master data phục vụ PO).
- * Status is canonical from this module; PO feature reuses it.
+ * Supplier — kiểu suy ra từ zod schemas (không khai báo tay).
  */
 
 import type { z } from "zod";
 
 import type {
-  supplierStatusSchema,
+  supplierApiDtoSchema,
+  supplierChannelSchema,
   supplierDtoSchema,
-  supplierCreateInputSchema,
+  supplierFormSchema,
+  supplierStatusSchema,
   supplierUpdateInputSchema,
-  supplierToggleStatusSchema,
 } from "./schemas";
 
 export type SupplierStatus = z.infer<typeof supplierStatusSchema>;
+export type SupplierChannel = z.infer<typeof supplierChannelSchema>;
+export type SupplierApiDto = z.infer<typeof supplierApiDtoSchema>;
 export type SupplierDto = z.infer<typeof supplierDtoSchema>;
-export type SupplierCreateInput = z.infer<typeof supplierCreateInputSchema>;
+export type SupplierFormValues = z.infer<typeof supplierFormSchema>;
 export type SupplierUpdateInput = z.infer<typeof supplierUpdateInputSchema>;
-export type SupplierToggleStatusInput = z.infer<typeof supplierToggleStatusSchema>;
-
-/** Re-export as "Supplier" alias for backward compatibility with PO feature import. */
-export type { SupplierDto as Supplier };

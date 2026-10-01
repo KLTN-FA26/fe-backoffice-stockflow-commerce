@@ -1,76 +1,41 @@
-import {
-  COLUMN_LABELS,
-  DEFAULT_COLUMNS,
-  DEFAULT_CONFIG,
-  SEARCH_FIELDS,
-  STATUS_LABELS,
-} from "./constants";
+import { COLUMN_LABELS, DEFAULT_COLUMNS, SEARCH_SCOPE_LABEL, STATUS_OPTIONS } from "./constants";
 
 import type { ListSummaryItem } from "@/components/shared/ListToolbar";
-import type { SupplierStatus } from "@/features/supplier/types";
-import type { SupplierPageConfig } from "./constants";
-import type { FilterFlags } from "./helpers";
+import type { SupplierListState } from "./useSupplierListState";
 
-interface BuildSummaryArgs {
-  pageConfig: SupplierPageConfig;
-  flags: FilterFlags;
-  filters: { setStatus: (v: SupplierStatus[]) => void; setQ: (v: string) => void };
-  updateConfig: (fn: (c: SupplierPageConfig) => SupplierPageConfig) => void;
-  clearColumnSearch: () => void;
-}
-
-export function buildSummaryItems({
-  pageConfig,
-  flags,
-  filters,
-  updateConfig,
-  clearColumnSearch,
-}: BuildSummaryArgs): ListSummaryItem[] {
+/** Thanh "Cấu hình" dưới toolbar (data-table-mode-a §3). Không có "Search trong cột" vì BE không hỗ trợ. */
+export function buildSummaryItems(s: SupplierListState): ListSummaryItem[] {
+  const { filters } = s;
+  const statusLabel = filters.status
+    .map((v) => STATUS_OPTIONS.find((o) => o.value === v)?.label ?? v)
+    .join(", ");
   return [
-    { label: "Stats", value: pageConfig.showStats ? "Đang hiện" : "Đang ẩn" },
-    {
-      label: "Trạng thái",
-      value:
-        pageConfig.statuses
-          .map((s) => STATUS_LABELS[s as keyof typeof STATUS_LABELS] ?? s)
-          .join(", ") || "Tất cả",
-      active: flags.hasStatusFilter,
-      onClear: () => filters.setStatus([]),
-    },
     {
       label: "Search chính",
-      value: flags.hasGlobalSearch ? "“" + pageConfig.globalSearch.query + "”" : "Chưa dùng",
-      active: flags.hasGlobalSearch,
-      onClear: () => filters.setQ(""),
+      value: filters.q.trim() ? `“${filters.q}”` : "Chưa dùng",
+      active: filters.q.trim() !== "",
+      onClear: () => void filters.setQ(""),
+    },
+    { label: "Trường search", value: SEARCH_SCOPE_LABEL },
+    {
+      label: "Trạng thái",
+      value: statusLabel || "Tất cả",
+      active: filters.status.length > 0,
+      onClear: () => void filters.setStatus([]),
     },
     {
-      label: "Trường search",
-      value:
-        pageConfig.globalSearch.fields
-          .map((f) => SEARCH_FIELDS.find((o) => o.value === f)?.label ?? f)
-          .join(", ") || "Chưa chọn",
-      active: flags.hasFieldConfig,
-      onClear: () =>
-        updateConfig((c) => ({
-          ...c,
-          globalSearch: { ...c.globalSearch, fields: DEFAULT_CONFIG.globalSearch.fields },
-        })),
-    },
-    {
-      label: "Search trong cột",
-      value: flags.activeColumnSearch.length
-        ? flags.activeColumnSearch
-            .map(([k, v]) => (COLUMN_LABELS[k] ?? k) + ' "' + v + '"')
-            .join(", ")
-        : "Chưa dùng",
-      active: flags.activeColumnSearch.length > 0,
-      onClear: clearColumnSearch,
+      label: "Sắp xếp",
+      value: s.sort.key
+        ? `${COLUMN_LABELS[s.sort.key]} (${s.sort.direction === "asc" ? "tăng" : "giảm"})`
+        : "Mặc định (cập nhật mới nhất)",
+      active: s.sort.key !== null,
+      onClear: () => void filters.setSort(""),
     },
     {
       label: "Cột hiển thị",
-      value: flags.visibleColumnCount + "/" + (DEFAULT_COLUMNS.length - 1),
-      active: flags.hasColumnConfig,
-      onClear: () => updateConfig((c) => ({ ...c, visibleColumns: DEFAULT_COLUMNS })),
+      value: `${s.visibleColumnCount}/${DEFAULT_COLUMNS.length - 1}`,
+      active: s.hasColumnConfig,
+      onClear: () => s.updateConfig((c) => ({ ...c, visibleColumns: DEFAULT_COLUMNS })),
     },
   ];
 }

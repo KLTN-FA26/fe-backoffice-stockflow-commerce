@@ -1,108 +1,171 @@
 /**
- * Supplier — zod schemas + BR traceability.
+ * Supplier — zod schemas, khớp hợp đồng BE PR #36 (SupplierController).
  *
- * Nguồn: docs/warehouse/02-purchase-order (supplier master data phục vụ PO).
- * BE source: procurement.supplier (SCRUM-118) — columns: code / name / email / phone / taxCode / status (ACTIVE/INACTIVE).
- * FE-only giả định (chưa có ở BE, giữ để demo PO currency/lead-time — SCRUM-118 In Progress):
- *   address, paymentTerms, currency, leadTimeDays, rating — đánh dấu ASSUMPTION bên dưới.
+ * Hai lớp (api-conventions §3.1):
+ *  - DTO: `supplierApiDtoSchema` = đúng `SupplierResponse` trên wire; `supplierDtoSchema` = model FE
+ *    (chỉ khác `status` hiển thị Active/Inactive, map ở api.ts).
+ *  - Input: `supplierFormSchema` = dữ liệu form, mô phỏng ràng buộc `SaveSupplierRequest`.
+ *
+ * BE không có address/rating/currency/openPoCount → FE không giữ các field này.
  */
 
 import { z } from "zod";
 
-import { SUPPLIER_STATUSES } from "@/constants";
-import { currencySchema, phone as phonePrimitive } from "@/lib/validation/primitives";
+import {
+  SUPPLIER_API_STATUSES,
+  SUPPLIER_CHANNELS,
+  SUPPLIER_ERROR_MESSAGES,
+  SUPPLIER_STATUSES,
+} from "@/constants";
 
-/* ── Status enum ─────────────────────────────────────────────────────── */
+/* ── Enums ───────────────────────────────────────────────────────────── */
 
-export const supplierStatusValues = SUPPLIER_STATUSES;
-export const supplierStatusSchema = z.enum(supplierStatusValues);
+export const supplierStatusSchema = z.enum(SUPPLIER_STATUSES);
+export const supplierApiStatusSchema = z.enum(SUPPLIER_API_STATUSES);
+export const supplierChannelSchema = z.enum(SUPPLIER_CHANNELS);
 
-/* ── Address VN 3 cấp (ASSUMPTION — FE-only, BE chưa trả; giữ để demo) ─ */
+/* ── DTO (response từ BE) ────────────────────────────────────────────── */
 
-export const addressVNSchema = z.object({
-  street: z.string().trim().min(1, "Số nhà / Đường không được để trống"),
-  ward: z.string().trim().min(1, "Phường / Xã không được để trống"),
-  district: z.string().trim().min(1, "Quận / Huyện không được để trống"),
-  province: z.string().trim().min(1, "Tỉnh / TP không được để trống"),
-  postalCode: z.string().trim().min(1, "Mã bưu chính không được để trống"),
-  country: z.literal("VN"),
-});
-
-/* ── DTO (response from backend) ────────────────────────────────────── */
-
-export const supplierDtoSchema = z.object({
-  supplierId: z.string(),
-  // BE: code (procurement.supplier.code, UK). FE alias = supplierId trong mock; khi BE sẵn sàng, map code ↔ supplierId ở api layer.
-  code: z.string().optional(),
+/** BE `SupplierResponse` (PR #36). Field tuỳ chọn trả `null` khi trống. */
+export const supplierApiDtoSchema = z.object({
+  supplierId: z.string().min(1),
+  code: z.string(),
   name: z.string(),
-  taxCode: z.string(),
-  contactName: z.string(),
-  contactEmail: z.string(),
-  contactPhone: z.string(),
-  // ASSUMPTION (FE-only, BE chưa có): giữ optional để contract khớp BE gầy hơn khi tắt mock
-  address: addressVNSchema.optional(),
-  paymentTerms: z.string().optional(),
-  // BR-07 (docs/warehouse/02-purchase-order §4 — PO currency cố định theo NCC): currency của PO lấy từ NCC
-  currency: currencySchema.optional(),
-  leadTimeDays: z.number().int().min(0).optional(),
-  rating: z.number().min(0).max(5).optional(),
+  contactName: z.string().nullish(),
+  email: z.string().nullish(),
+  phone: z.string().nullish(),
+  taxCode: z.string().nullish(),
+  status: supplierApiStatusSchema,
+  paymentTermDays: z.number().int(),
+  leadTimeDays: z.number().int(),
+  communicationChannel: supplierChannelSchema,
+  apiEndpoint: z.string().nullish(),
+  createdAt: z.string().nullish(),
+  lastModifiedAt: z.string().nullish(),
+});
+
+/** BE `PageResponse` — trang đánh số từ 0. */
+export const supplierPageSchema = z.object({
+  items: z.array(supplierApiDtoSchema),
+  page: z.number().int().nonnegative(),
+  size: z.number().int().positive(),
+  totalElements: z.number().int().nonnegative(),
+  totalPages: z.number().int().nonnegative(),
+  hasNext: z.boolean(),
+  hasPrevious: z.boolean(),
+});
+
+/** Model FE: giữ nguyên field BE, chỉ đổi status sang nhãn hiển thị. */
+export const supplierDtoSchema = supplierApiDtoSchema.extend({
   status: supplierStatusSchema,
-  /**
-   * Số PO chưa đóng của NCC này. BE (SCRUM-118) trả kèm khi GET detail để
-   * UI cảnh báo trước khi vô hiệu hoá NCC còn đơn mở. Optional vì list
-   * endpoint có thể không trả field này.
-   */
-  openPoCount: z.number().int().nonnegative().optional(),
 });
 
-/** Paginated supplier list — parse tại biên (api-conventions §3.2). */
-export const paginatedSupplierDtoSchema = z.object({
-  items: z.array(supplierDtoSchema),
-  total: z.number().int().nonnegative(),
-  page: z.number().int().positive(),
-  pageSize: z.number().int().positive(),
-});
+/* ── Input (form gửi đi) — ràng buộc theo BE SaveSupplierRequest (PR #36) ─ */
 
-// MST VN: 10 số (DN) hoặc 13 số (10 số + "-" + 3 số chi nhánh) — chuẩn Tổng cục Thuế
-const taxCodeRegex = /^\d{10}(-\d{3})?$/;
+// BE: @Pattern("[A-Za-z0-9._-]+") @Size(max = 64) — BE không tự sinh mã
+const CODE_REGEX = /^[A-Za-z0-9._-]+$/;
+// BE: chữ-số 8–32 ký tự, có ít nhất 1 chữ số — chấp nhận MST nước ngoài (BR-07 docs 02: PO bằng USD)
+const TAX_CODE_REGEX = /^(?=.*[0-9])[0-9A-Za-z][0-9A-Za-z-]{6,30}[0-9A-Za-z]$/;
+// BE: @Pattern("^\+?[0-9](?:[0-9 .()-]*[0-9])?$") + isPhoneDigitsValid (8–15 chữ số)
+const PHONE_REGEX = /^\+?[0-9](?:[0-9 .()-]*[0-9])?$/;
+const PHONE_MIN_DIGITS = 8;
+const PHONE_MAX_DIGITS = 15;
+const TERM_DAYS_MAX = 365;
+const HTTPS_PORT = "443";
 
-/* ── Create input ────────────────────────────────────────────────────── */
+function countDigits(value: string): number {
+  return value.replace(/\D/g, "").length;
+}
 
-export const supplierCreateInputSchema = z
+/** BE `isDeliveryContactValid` cho kênh API: https, có host, không userinfo/query/fragment, cổng 443. */
+export function isValidApiEndpoint(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "https:" &&
+      url.hostname !== "" &&
+      url.username === "" &&
+      url.password === "" &&
+      url.search === "" &&
+      url.hash === "" &&
+      (url.port === "" || url.port === HTTPS_PORT)
+    );
+  } catch {
+    return false;
+  }
+}
+
+const termDays = (label: string) =>
+  z
+    .number({ error: `${label} phải là số` })
+    .int(`${label} phải là số nguyên`)
+    .min(0, `${label} không được âm`)
+    .max(TERM_DAYS_MAX, `${label} tối đa ${TERM_DAYS_MAX} ngày`);
+
+export const supplierFormSchema = z
   .object({
-    // BE code (unique) — FE gửi kèm; nếu BE chưa nhận thì bỏ qua, không chặn
-    code: z.string().trim().min(1, "Mã nhà cung cấp không được để trống").optional(),
-    name: z.string().trim().min(1, "Tên nhà cung cấp không được để trống"),
-    // BR: taxCode unique + đúng định dạng MST VN 10/13 số (SCRUM-389 yêu cầu inline duplicate)
+    code: z
+      .string()
+      .trim()
+      .min(1, "Mã nhà cung cấp không được để trống")
+      .max(64, "Mã nhà cung cấp tối đa 64 ký tự")
+      .regex(CODE_REGEX, "Mã chỉ gồm chữ, số, dấu chấm, gạch ngang, gạch dưới"),
+    name: z
+      .string()
+      .trim()
+      .min(1, "Tên nhà cung cấp không được để trống")
+      .max(200, "Tên nhà cung cấp tối đa 200 ký tự"),
     taxCode: z
       .string()
       .trim()
-      .min(1, "Mã số thuế không được để trống")
-      .regex(taxCodeRegex, "Mã số thuế phải 10 số (VD 0301234567) hoặc 13 số 0301234567-001"),
-    contactName: z.string().trim().min(1, "Tên liên hệ không được để trống"),
-    contactEmail: z.string().trim().email("Email không hợp lệ"),
-    contactPhone: z
+      .refine(
+        (v) => v === "" || TAX_CODE_REGEX.test(v),
+        "Mã số thuế gồm 8–32 ký tự chữ/số, có ít nhất 1 chữ số",
+      ),
+    contactName: z.string().trim().max(200, "Tên người liên hệ tối đa 200 ký tự"),
+    email: z
       .string()
       .trim()
-      .min(1, "Số điện thoại không được để trống")
-      .pipe(phonePrimitive),
-    // FE-only — bắt buộc (theo feedback; BE gầy chưa trả thì DTO vẫn optional)
-    address: addressVNSchema,
-    paymentTerms: z.string().trim().min(1, "Điều khoản thanh toán không được để trống").optional(),
-    currency: currencySchema.optional(),
-    leadTimeDays: z.number().int().min(0, "Thời gian giao không âm").optional(),
+      .max(320, "Email tối đa 320 ký tự")
+      .refine((v) => v === "" || z.email().safeParse(v).success, "Email không hợp lệ"),
+    phone: z
+      .string()
+      .trim()
+      .max(32, "Số điện thoại tối đa 32 ký tự")
+      .refine((v) => v === "" || PHONE_REGEX.test(v), "Số điện thoại không hợp lệ")
+      .refine((v) => {
+        if (v === "") return true;
+        const digits = countDigits(v);
+        return digits >= PHONE_MIN_DIGITS && digits <= PHONE_MAX_DIGITS;
+      }, SUPPLIER_ERROR_MESSAGES.invalidPhoneDigits),
+    paymentTermDays: termDays("Số ngày thanh toán"),
+    leadTimeDays: termDays("Thời gian giao hàng"),
+    communicationChannel: supplierChannelSchema,
+    apiEndpoint: z.string().trim().max(500, "Endpoint tối đa 500 ký tự"),
   })
-  .strict();
+  .superRefine((v, ctx) => {
+    // BE SaveSupplierRequest.isDeliveryContactValid (PR #36): kênh EMAIL cần email, kênh API cần endpoint https
+    if (v.communicationChannel === "EMAIL" && v.email === "") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["email"],
+        message: SUPPLIER_ERROR_MESSAGES.emailRequiredForEmailChannel,
+      });
+    }
+    if (v.communicationChannel === "API" && !isValidApiEndpoint(v.apiEndpoint)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["apiEndpoint"],
+        message: SUPPLIER_ERROR_MESSAGES.invalidApiEndpoint,
+      });
+    }
+  });
 
-/* ── Update input ────────────────────────────────────────────────────── */
+/* ── Mutation inputs ─────────────────────────────────────────────────── */
 
-export const supplierUpdateInputSchema = supplierCreateInputSchema.partial().extend({
+/** PUT là thay toàn bộ (BE PR #36) → luôn gửi đủ form + status hiện tại. */
+export const supplierUpdateInputSchema = z.object({
   id: z.string().min(1),
-});
-
-/* ── Toggle status ───────────────────────────────────────────────────── */
-
-export const supplierToggleStatusSchema = z.object({
-  id: z.string().min(1),
+  values: supplierFormSchema,
   status: supplierStatusSchema,
 });

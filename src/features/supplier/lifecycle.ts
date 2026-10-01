@@ -1,62 +1,50 @@
 /**
- * Supplier — lifecycle & status transition rules.
+ * Supplier — vòng đời trạng thái + action-gating theo mã quyền thật.
  *
- * Supplier status is simple master-data lifecycle (Active ↔ Inactive) — 2-way.
- * The "block vs warn" policy for deactivating a supplier with open PO is a
- * BACKEND decision (SCRUM-118); UI mirrors the returned ApiError instead of
- * pre-validating client-side.
+ * Trạng thái NCC: Active ↔ Inactive (BE SupplierStatus ACTIVE/INACTIVE, PR #36).
+ *  - Kích hoạt lại = PUT có status ACTIVE → cần `procurement-suppliers:UPDATE`.
+ *  - Ngừng hợp tác = DELETE → cần `procurement-suppliers:DELETE`; còn PO mở BE trả 409.
+ * Quyền lấy từ `/identity/me/permissions` (BE PR #39), không theo tên vai trò.
+ * UI-only: chỉ ẩn/hiện nút. // Backend phải re-check (BE @RequiresPermission + open-PO guard)
  */
 
+import { SUPPLIER_PERMISSIONS } from "@/constants";
+
+import type { PermissionCode } from "@/lib/auth";
 import type { SupplierStatus } from "./types";
 
-/** Transitions allowed per supplier status. */
 export const SUPPLIER_TRANSITIONS: Record<SupplierStatus, SupplierStatus[]> = {
   Active: ["Inactive"],
   Inactive: ["Active"],
 };
 
-/**
- * Actions exposed to UI for a given status.
- * No role gating for supplier master data — any logged-in back-office user
- * can manage suppliers (mode A operational spirit). `role` param kept for
- * API parity with `allowedPoActions(status, role)` so call sites can switch
- * to permission-gated later without changing signatures.
- */
+export type SupplierActionKey = "activate" | "deactivate";
+
 export interface SupplierActionDescriptor {
-  key: "activate" | "deactivate";
+  key: SupplierActionKey;
   label: string;
   targetStatus: SupplierStatus;
+  permission: PermissionCode;
 }
 
-function actionsForOne(status: SupplierStatus): SupplierActionDescriptor[] {
-  const next = SUPPLIER_TRANSITIONS[status];
-  if (!next) return [];
-  return next.map((s) => ({
-    key: s === "Inactive" ? "deactivate" : "activate",
-    label: s === "Inactive" ? "Vô hiệu hoá" : "Kích hoạt",
-    targetStatus: s,
-  }));
-}
+const ACTION_BY_TARGET: Record<SupplierStatus, Omit<SupplierActionDescriptor, "targetStatus">> = {
+  Active: { key: "activate", label: "Kích hoạt lại", permission: SUPPLIER_PERMISSIONS.update },
+  Inactive: {
+    key: "deactivate",
+    label: "Ngừng hợp tác",
+    permission: SUPPLIER_PERMISSIONS.delete,
+  },
+};
 
-/** Single-status form — preferred; mirrors `allowedPoActions(status, role)`. */
-export function allowedSupplierActionsForStatus(
-  status: SupplierStatus,
-  _role?: unknown,
-): SupplierActionDescriptor[] {
-  return actionsForOne(status);
-}
-
-/**
- * Multi-status form — collects actions for a set of selected statuses.
- * Kept for list/bulk contexts; prefer `allowedSupplierActionsForStatus` in
- * detail views.
- */
+/** Hành động hợp lệ theo trạng thái **và** quyền. `can` = hàm kiểm tra mã quyền. */
 export function allowedSupplierActions(
-  statuses: SupplierStatus[],
-  _role?: unknown,
+  status: SupplierStatus,
+  can: (code: PermissionCode) => boolean,
 ): SupplierActionDescriptor[] {
-  return statuses.flatMap((s) => actionsForOne(s));
+  return SUPPLIER_TRANSITIONS[status]
+    .map((target) => ({ ...ACTION_BY_TARGET[target], targetStatus: target }))
+    .filter((action) => can(action.permission));
 }
 
-/** Alias matching `feature-architecture.md` naming (`allowedActions`). */
-export const allowedActions = allowedSupplierActionsForStatus;
+/** Alias theo tên chuẩn của feature-architecture.md. */
+export const allowedActions = allowedSupplierActions;

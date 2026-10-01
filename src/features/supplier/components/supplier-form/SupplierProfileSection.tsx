@@ -4,17 +4,19 @@ import { Building2 } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 
-import { FieldError, Label, inputCls } from "./fields";
+import { FieldError, FieldHint, Label, fieldA11y, fieldId, inputCls } from "./fields";
 
 import type { FieldErrors, UseFormRegister } from "react-hook-form";
-import type { SupplierCreateInput } from "../../types";
+import type { SupplierFormValues } from "../../types";
 
 export function SupplierProfileSection({
   register,
   errors,
+  isEdit,
 }: {
-  register: UseFormRegister<SupplierCreateInput>;
-  errors: FieldErrors<SupplierCreateInput>;
+  register: UseFormRegister<SupplierFormValues>;
+  errors: FieldErrors<SupplierFormValues>;
+  isEdit: boolean;
 }) {
   return (
     <section className="bg-bg-surface border-border-default rounded-[var(--r-sm)] border p-4">
@@ -23,23 +25,46 @@ export function SupplierProfileSection({
       </h2>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1">
-          <Label>Mã NCC (BE code)</Label>
+          <Label htmlFor={fieldId("code")} required>
+            Mã nhà cung cấp
+          </Label>
+          {/* BE: mã NCC không được đổi sau khi tạo (PR #36) */}
           <Input
             {...register("code")}
-            placeholder="SUP-001 (để trống = tự sinh)"
+            {...fieldA11y("code", errors.code?.message)}
+            readOnly={isEdit}
+            placeholder="VD: SUP-001"
             className={inputCls}
           />
-          <FieldError message={errors.code?.message} />
+          <FieldError name="code" message={errors.code?.message} />
+          <FieldHint>
+            {isEdit
+              ? "Mã nhà cung cấp không thể thay đổi sau khi tạo."
+              : "Chữ, số, dấu chấm, gạch ngang hoặc gạch dưới; tối đa 64 ký tự."}
+          </FieldHint>
         </div>
         <div className="space-y-1">
-          <Label required>Tên nhà cung cấp</Label>
-          <Input {...register("name")} placeholder="Tên công ty" className={inputCls} />
-          <FieldError message={errors.name?.message} />
+          <Label htmlFor={fieldId("name")} required>
+            Tên nhà cung cấp
+          </Label>
+          <Input
+            {...register("name")}
+            {...fieldA11y("name", errors.name?.message)}
+            placeholder="Tên công ty"
+            className={inputCls}
+          />
+          <FieldError name="name" message={errors.name?.message} />
         </div>
         <div className="space-y-1">
-          <Label required>Mã số thuế</Label>
-          <Input {...register("taxCode")} placeholder="0123456789" className={inputCls} />
-          <FieldError message={errors.taxCode?.message} />
+          <Label htmlFor={fieldId("taxCode")}>Mã số thuế</Label>
+          <Input
+            {...register("taxCode")}
+            {...fieldA11y("taxCode", errors.taxCode?.message)}
+            placeholder="VD: 0301234567 hoặc 91440101MA5XXXXX"
+            className={inputCls}
+          />
+          <FieldError name="taxCode" message={errors.taxCode?.message} />
+          <FieldHint>Nhận cả mã số thuế nước ngoài: 8–32 ký tự chữ/số.</FieldHint>
         </div>
       </div>
     </section>

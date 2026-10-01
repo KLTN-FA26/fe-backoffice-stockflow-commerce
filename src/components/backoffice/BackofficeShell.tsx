@@ -30,10 +30,11 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
-import { ADMIN_ROUTES, APP_ROUTES, BRAND } from "@/constants";
+import { ADMIN_ROUTES, APP_ROUTES, BRAND, SUPPLIER_PERMISSIONS } from "@/constants";
 
 import { logoutApi } from "@/lib/auth/auth-api";
 import { useAuthStore } from "@/lib/auth/auth-store";
+import { hasPermission, useMyPermissions } from "@/lib/auth/me-permissions";
 import {
   invoices,
   moveTasks,
@@ -69,6 +70,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 import type { LucideIcon } from "lucide-react";
+import type { PermissionCode } from "@/lib/auth/me-permissions";
 import type { Warehouse } from "@/lib/mock-data";
 /* -------------------------------------------------------------------------- */
 /*  Warning dot counts — computed from mock data                             */
@@ -123,6 +125,8 @@ interface NavItem {
   tooltip: string;
   href: string;
   icon: LucideIcon;
+  /** Mã quyền BE cần có để thấy menu (đọc từ /identity/me/permissions). Không khai báo = luôn hiện. */
+  permission?: PermissionCode;
 }
 
 interface NavGroup {
@@ -150,7 +154,13 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/admin/variants",
         icon: Palette,
       },
-      { label: "Nhà cung cấp", tooltip: "Suppliers", href: "/admin/suppliers", icon: Users },
+      {
+        label: "Nhà cung cấp",
+        tooltip: "Suppliers",
+        href: "/admin/suppliers",
+        icon: Users,
+        permission: SUPPLIER_PERMISSIONS.viewPage,
+      },
     ],
   },
   {
@@ -243,6 +253,9 @@ interface BreadcrumbItem {
   href?: string;
 }
 
+const EDIT_SEGMENT = "edit";
+const EDIT_LABEL = "Chỉnh sửa";
+
 const DETAIL_LABEL_BY_ROUTE: Record<string, string> = {
   "/admin/products/create": "Tạo sản phẩm",
   "/admin/purchase-orders/create": "Tạo đơn đặt hàng",
@@ -255,7 +268,7 @@ function findNavItem(pathname: string): NavItem | undefined {
     .sort((a, b) => b.href.length - a.href.length)[0];
 }
 
-function buildBreadcrumbItems(pathname: string): BreadcrumbItem[] {
+export function buildBreadcrumbItems(pathname: string): BreadcrumbItem[] {
   const items: BreadcrumbItem[] = [{ label: "Back-office", href: ADMIN_ROUTES.home }];
   if (pathname === ADMIN_ROUTES.home) return items;
 
@@ -266,11 +279,22 @@ function buildBreadcrumbItems(pathname: string): BreadcrumbItem[] {
   items.push({ label: navItem.label, href: isListPage ? undefined : navItem.href });
 
   if (!isListPage) {
-    items.push({
-      label:
-        DETAIL_LABEL_BY_ROUTE[pathname] ??
-        decodeURIComponent(pathname.split("/").at(-1) ?? "Chi tiết"),
-    });
+    const rest = pathname
+      .slice(navItem.href.length + 1)
+      .split("/")
+      .filter(Boolean);
+    // `/<module>/<id>/edit` → "… / <id> / Chỉnh sửa" thay vì chữ "edit"
+    if (rest.length >= 2 && rest.at(-1) === EDIT_SEGMENT) {
+      const id = rest.slice(0, -1).join("/");
+      items.push({ label: decodeURIComponent(id), href: `${navItem.href}/${id}` });
+      items.push({ label: EDIT_LABEL });
+    } else {
+      items.push({
+        label:
+          DETAIL_LABEL_BY_ROUTE[pathname] ??
+          decodeURIComponent(pathname.split("/").at(-1) ?? "Chi tiết"),
+      });
+    }
   }
 
   return items;
@@ -383,6 +407,10 @@ function BackofficeSidebar() {
   const collapsed = state === "collapsed";
 
   const warningCounts = useMemo(() => computeWarningCounts(), []);
+  const { data: myPermissions, isSuccess: permissionsLoaded } = useMyPermissions();
+  // Chỉ ẩn menu khi đã tải xong quyền và thiếu mã — tránh nháy menu lúc đang tải
+  const canSeeItem = (item: NavItem) =>
+    !item.permission || !permissionsLoaded || hasPermission(myPermissions, item.permission);
 
   return (
     <Sidebar
@@ -430,7 +458,7 @@ function BackofficeSidebar() {
 
             <SidebarGroupContent>
               <SidebarMenu className={cn("gap-0.5", collapsed && "items-center")}>
-                {group.items.map((item) => {
+                {group.items.filter(canSeeItem).map((item) => {
                   const isActive =
                     item.href === "/admin"
                       ? pathname === "/admin"

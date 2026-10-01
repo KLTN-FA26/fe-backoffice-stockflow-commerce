@@ -26,8 +26,8 @@ export function SupplierForm({ existingSupplier }: { existingSupplier?: Supplier
         title={w.isEdit ? `Chỉnh sửa NCC — ${existingSupplier?.name}` : "Tạo nhà cung cấp mới"}
         subtitle={
           w.isEdit
-            ? `${existingSupplier?.supplierId} — hồ sơ nhà cung cấp`
-            : "Khai báo hồ sơ NCC, liên hệ, địa chỉ VN và điều khoản thanh toán."
+            ? `${existingSupplier?.code} — hồ sơ nhà cung cấp`
+            : "Khai báo hồ sơ NCC, liên hệ, điều khoản và kênh gửi đơn đặt hàng."
         }
         actions={
           <Link
@@ -53,10 +53,9 @@ export function SupplierForm({ existingSupplier }: { existingSupplier?: Supplier
             </div>
           </div>
           <WizardSidebar
-            currentStep={w.currentStep}
-            currentStepIndex={w.currentStepIndex}
             stepStatus={w.stepStatus}
-            onStepChange={w.setCurrentStep}
+            canGoTo={w.canGoTo}
+            onStepChange={w.goToStep}
             isEdit={w.isEdit}
           />
         </Card>
@@ -84,10 +83,8 @@ export function SupplierForm({ existingSupplier }: { existingSupplier?: Supplier
         steps={STEPS}
         isPending={w.isPending}
         isEdit={w.isEdit}
-        onBack={() => w.setCurrentStep(STEPS[Math.max(w.currentStepIndex - 1, 0)]!.key)}
-        onNext={() =>
-          w.setCurrentStep(STEPS[Math.min(w.currentStepIndex + 1, STEPS.length - 1)]!.key)
-        }
+        onBack={w.goBack}
+        onNext={() => void w.goNext()}
         onSubmit={w.handleReviewSubmit}
       />
 
@@ -96,7 +93,7 @@ export function SupplierForm({ existingSupplier }: { existingSupplier?: Supplier
           open={w.confirmOpen}
           onOpenChange={w.setConfirmOpen}
           title="Tạo nhà cung cấp?"
-          description={`Xác nhận tạo NCC "${w.watchedValues.name || "(chưa đặt tên)"}" với MST ${w.watchedValues.taxCode || "—"}?`}
+          description={`Xác nhận tạo NCC "${w.watchedValues.name || "(chưa đặt tên)"}" (mã ${w.watchedValues.code || "—"}, MST ${w.watchedValues.taxCode || "—"})?`}
           confirmLabel="Tạo nhà cung cấp"
           variant="default"
           loading={w.isPending}

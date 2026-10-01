@@ -1,13 +1,12 @@
-import { Building2, Contact, Landmark, MapPin } from "lucide-react";
+import { Building2, Contact, Landmark } from "lucide-react";
 import { cn } from "cn";
 
-export type StepKey = "profile" | "contact" | "address" | "terms";
+export type StepKey = "profile" | "contact" | "terms";
 
 export const STEPS: { key: StepKey; label: string; icon: typeof Building2 }[] = [
   { key: "profile", label: "Hồ sơ NCC", icon: Building2 },
   { key: "contact", label: "Liên hệ", icon: Contact },
-  { key: "address", label: "Địa chỉ", icon: MapPin },
-  { key: "terms", label: "Điều khoản & Rà soát", icon: Landmark },
+  { key: "terms", label: "Điều khoản & kênh gửi PO", icon: Landmark },
 ];
 
 export function SectionTitle({ title, description }: { title: string; description: string }) {

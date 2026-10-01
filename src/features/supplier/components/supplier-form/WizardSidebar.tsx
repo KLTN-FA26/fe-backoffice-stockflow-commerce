@@ -3,23 +3,22 @@ import { cn } from "cn";
 
 import { Button } from "@/components/ui/button";
 
-import { STEPS, type StepKey } from "./wizard-constants";
+import { STEPS } from "./wizard-constants";
+
+import type { StepStatus } from "./useSupplierWizard";
+import type { StepKey } from "./wizard-constants";
 
 export function WizardSidebar({
-  currentStep,
-  currentStepIndex: _currentStepIndex,
   stepStatus,
+  canGoTo,
   onStepChange,
   isEdit,
 }: {
-  currentStep: StepKey;
-  currentStepIndex: number;
-  stepStatus: (step: StepKey) => string;
+  stepStatus: (step: StepKey) => StepStatus;
+  canGoTo: (step: StepKey) => boolean;
   onStepChange: (step: StepKey) => void;
   isEdit: boolean;
 }) {
-  void _currentStepIndex;
-  void currentStep;
   return (
     <div className="p-2">
       {STEPS.map((step, index) => {
@@ -31,6 +30,8 @@ export function WizardSidebar({
             type="button"
             variant="ghost"
             onClick={() => onStepChange(step.key)}
+            disabled={!canGoTo(step.key)}
+            aria-current={status === "active" ? "step" : undefined}
             className={cn(
               "mb-1 flex w-full justify-start gap-2 rounded-[var(--r-sm)] px-2.5 py-2 text-left text-[0.8125rem] transition-colors",
               status === "active" &&

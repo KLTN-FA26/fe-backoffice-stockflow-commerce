@@ -1,12 +1,5 @@
-import { Suspense } from "react";
+import { CreateSupplierPage } from "@/features/supplier/components/CreateSupplierPage";
 
-import { PageSkeleton } from "@/components/shared/PageSkeleton";
-import { SupplierForm } from "@/features/supplier/components/SupplierForm";
-
-export default function CreateSupplierPage() {
-  return (
-    <Suspense fallback={<PageSkeleton />}>
-      <SupplierForm />
-    </Suspense>
-  );
+export default function Page() {
+  return <CreateSupplierPage />;
 }

@@ -1,9 +1,5 @@
 import { cn } from "cn";
 
-import type { SupplierDto } from "@/features/supplier/types";
-
-import { AddressBlock } from "./DetailBlocks";
-
 export function InfoRow({
   label,
   value,
@@ -36,6 +32,3 @@ export function InfoRow({
     </div>
   );
 }
-
-export { AddressBlock };
-export type { SupplierDto };

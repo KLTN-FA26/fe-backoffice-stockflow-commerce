@@ -1,50 +1,58 @@
 "use client";
 
-import { useState, use } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
-import { ADMIN_ROUTES } from "@/constants";
-import { useSupplier, useToggleSupplierStatus } from "@/features/supplier";
+import { ADMIN_ROUTES, SUPPLIER_PERMISSIONS } from "@/constants";
+import { usePermissionChecker } from "@/lib/auth";
+import { useActivateSupplier, useDeactivateSupplier, useSupplier } from "@/features/supplier";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 
-import { ContactAddressCard } from "./supplier-detail/ContactAddressCard";
+import { ContactChannelCard } from "./supplier-detail/ContactChannelCard";
 import { GeneralInfoCard } from "./supplier-detail/GeneralInfoCard";
 import { LifecycleSection } from "./supplier-detail/LifecycleSection";
-import { OpenPoSection } from "./supplier-detail/OpenPoSection";
+import { PurchaseOrdersSection } from "./supplier-detail/PurchaseOrdersSection";
 import { ActionCard, OverviewCard } from "./supplier-detail/SidebarCards";
 import { TermsOpsCard } from "./supplier-detail/TermsOpsCard";
 import { SupplierLoadError } from "./SupplierLoadError";
+import { SupplierPermissionGate } from "./SupplierPermissionGate";
 
-export function SupplierDetail({ params }: { params: Promise<{ id: string }> }) {
-  const { id: supplierId } = use(params);
-  const [confirming, setConfirming] = useState<"activate" | "deactivate" | null>(null);
-  const { data: supplier, isLoading, isError, error, refetch } = useSupplier(supplierId);
-  const { mutate: toggleStatus, isPending: isToggling } = useToggleSupplierStatus();
+import type { SupplierActionKey } from "@/features/supplier/lifecycle";
 
-  if (isLoading) return <PageSkeleton variant="detail" />;
-  if (isError || !supplier) {
-    return <SupplierLoadError error={error} onRetry={() => void refetch()} />;
+function SupplierDetailContent({ supplierId }: { supplierId: string }) {
+  const [confirming, setConfirming] = useState<SupplierActionKey | null>(null);
+  const query = useSupplier(supplierId);
+  const can = usePermissionChecker();
+  const activate = useActivateSupplier();
+  const deactivate = useDeactivateSupplier();
+  const isToggling = activate.isPending || deactivate.isPending;
+
+  if (query.isError) {
+    return <SupplierLoadError error={query.error} onRetry={() => void query.refetch()} />;
+  }
+  if (query.isPending) {
+    // Offline → query bị pause; đang retry → vẫn là skeleton. Chỉ 404 mới là "không tìm thấy".
+    if (query.fetchStatus === "paused") {
+      return <SupplierLoadError error={null} kind="network" onRetry={() => void query.refetch()} />;
+    }
+    return <PageSkeleton variant="detail" />;
   }
 
-  const openPoCount = supplier.openPoCount ?? 0;
-  const isActive = supplier.status === "Active";
+  const supplier = query.data;
   const deactivating = confirming === "deactivate";
-  const handleConfirmToggle = () => {
-    if (!confirming || !supplier) return;
-    toggleStatus(
-      { id: supplier.supplierId, status: confirming === "activate" ? "Active" : "Inactive" },
-      { onSuccess: () => setConfirming(null) },
-    );
+  const handleConfirm = () => {
+    const mutation = deactivating ? deactivate : activate;
+    mutation.mutate(supplier, { onSettled: () => setConfirming(null) });
   };
 
   return (
     <>
       <PageHeader
         title={supplier.name}
-        subtitle={`${supplier.supplierId}${supplier.code ? ` · ${supplier.code}` : ""} — hồ sơ nhà cung cấp`}
+        subtitle={`${supplier.code} — hồ sơ nhà cung cấp`}
         actions={
           <Link
             href={ADMIN_ROUTES.suppliers.list}
@@ -59,40 +67,45 @@ export function SupplierDetail({ params }: { params: Promise<{ id: string }> }) 
         <div className="space-y-5">
           <div className="grid gap-5 md:grid-cols-2">
             <GeneralInfoCard supplier={supplier} />
-            <ContactAddressCard supplier={supplier} />
+            <ContactChannelCard supplier={supplier} />
           </div>
           <TermsOpsCard supplier={supplier} />
-          <OpenPoSection openPoCount={openPoCount} isActive={isActive} />
-          <LifecycleSection isActive={isActive} />
+          <PurchaseOrdersSection supplierId={supplier.supplierId} />
+          <LifecycleSection status={supplier.status} />
         </div>
-
         <div className="space-y-5">
           <ActionCard
             supplier={supplier}
-            isActive={isActive}
+            can={can}
             isToggling={isToggling}
             onConfirm={setConfirming}
           />
-          <OverviewCard supplier={supplier} openPoCount={openPoCount} />
+          <OverviewCard supplier={supplier} />
         </div>
       </div>
 
       <ConfirmDialog
         open={confirming !== null}
         onOpenChange={(open) => !open && setConfirming(null)}
-        title={deactivating ? "Vô hiệu hoá nhà cung cấp?" : "Kích hoạt nhà cung cấp?"}
+        title={deactivating ? "Ngừng hợp tác với nhà cung cấp?" : "Kích hoạt lại nhà cung cấp?"}
         description={
           deactivating
-            ? openPoCount > 0
-              ? `Có ${openPoCount} đơn đặt hàng đang mở. Nếu backend chặn, thao tác sẽ báo lỗi — hãy đọc kỹ thông báo.`
-              : "Nhà cung cấp sẽ ngừng xuất hiện trong bộ chọn khi tạo đơn mới."
-            : "Nhà cung cấp sẽ hoạt động trở lại và xuất hiện trong bộ chọn đơn hàng."
+            ? "NCC sẽ không xuất hiện khi tạo PO mới. Nếu NCC còn đơn đặt hàng đang mở, hệ thống sẽ từ chối."
+            : "Nhà cung cấp sẽ hoạt động trở lại và xuất hiện trong bộ chọn khi tạo PO."
         }
-        confirmLabel={deactivating ? "Vô hiệu hoá" : "Kích hoạt"}
+        confirmLabel={deactivating ? "Ngừng hợp tác" : "Kích hoạt lại"}
         variant={deactivating ? "danger" : "default"}
         loading={isToggling}
-        onConfirm={handleConfirmToggle}
+        onConfirm={handleConfirm}
       />
     </>
+  );
+}
+
+export function SupplierDetail({ id }: { id: string }) {
+  return (
+    <SupplierPermissionGate permission={SUPPLIER_PERMISSIONS.read}>
+      <SupplierDetailContent supplierId={id} />
+    </SupplierPermissionGate>
   );
 }

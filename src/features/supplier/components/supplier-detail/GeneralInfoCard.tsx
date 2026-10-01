@@ -13,15 +13,11 @@ export function GeneralInfoCard({ supplier }: { supplier: SupplierDto }) {
         <Building2 className="text-accent size-4" /> Thông tin chung
       </h2>
       <div>
-        <InfoRow label="Mã NCC" value={supplier.supplierId} mono />
-        {supplier.code && <InfoRow label="Mã BE" value={supplier.code} mono />}
+        <InfoRow label="Mã NCC" value={supplier.code} mono />
         <InfoRow label="Trạng thái">
           <StatusDot domain="sku" status={supplier.status} size="sm" withIcon />
         </InfoRow>
-        <InfoRow label="Mã số thuế" value={supplier.taxCode} mono />
-        {supplier.rating != null && (
-          <InfoRow label="Đánh giá" value={`${supplier.rating.toFixed(1)} / 5`} />
-        )}
+        <InfoRow label="Mã số thuế" value={supplier.taxCode ?? "—"} mono />
       </div>
     </section>
   );
