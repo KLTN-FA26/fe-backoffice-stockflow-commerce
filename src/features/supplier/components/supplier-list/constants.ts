@@ -1,4 +1,4 @@
-import { PAGE_SIZE } from "@/constants";
+import { PAGE_SIZE, SUPPLIER_FIELD_LABELS } from "@/constants";
 import { STATUS_LABEL_VI } from "@/lib/status-map";
 
 import type { SupplierStatus } from "@/features/supplier/types";
@@ -35,15 +35,18 @@ export type ServerSortField = (typeof SERVER_SORT_FIELDS)[number];
 /** BE search quét cố định 3 trường này (SupplierRepositoryAdapter, PR #36). */
 export const SEARCH_SCOPE_LABEL = "Mã NCC, tên, mã số thuế";
 
+const F = SUPPLIER_FIELD_LABELS;
+
+/** Tiêu đề cột — dùng chung cho bảng, popover ẩn/hiện cột và thanh Cấu hình. */
 export const COLUMN_LABELS: Record<string, string> = {
-  code: "Mã NCC",
-  name: "Tên nhà cung cấp",
-  taxCode: "Mã số thuế",
+  code: F.codeShort,
+  name: F.name,
+  taxCode: F.taxCode,
   contact: "Liên hệ",
   paymentTermDays: "Thanh toán",
   leadTimeDays: "Giao hàng",
-  channel: "Kênh gửi PO",
-  status: "Trạng thái",
+  channel: F.communicationChannel,
+  status: F.status,
   actions: "Thao tác",
 };
 

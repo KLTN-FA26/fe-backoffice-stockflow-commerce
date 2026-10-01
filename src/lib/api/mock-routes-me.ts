@@ -11,12 +11,13 @@ import { SUPPLIER_PERMISSIONS } from "@/constants/permissions";
 import { registerMockRoute } from "./mock-adapter";
 
 const ALL_SUPPLIER = Object.values(SUPPLIER_PERMISSIONS);
-const { viewPage, read, create, update } = SUPPLIER_PERMISSIONS;
+const { viewPage, read, create, update, export: exportCode } = SUPPLIER_PERMISSIONS;
 
 const MOCK_PERMISSIONS_BY_ROLE: Record<string, readonly string[]> = {
   "System Admin": ALL_SUPPLIER,
   "E-commerce Admin": ALL_SUPPLIER,
-  "Procurement Staff": [viewPage, read, create, update],
+  // Seed BE: PROCUREMENT_STAFF có VIEW_PAGE, READ, CREATE, UPDATE, EXPORT (không DELETE)
+  "Procurement Staff": [viewPage, read, create, update, exportCode],
   Accountant: [viewPage, read],
 };
 

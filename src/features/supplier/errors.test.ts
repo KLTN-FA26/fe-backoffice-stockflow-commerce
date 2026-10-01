@@ -23,6 +23,25 @@ describe("supplierErrorMessage — mọi lỗi hiển thị tiếng Việt", () 
     ).toBe(expected);
   });
 
+  it("400 VALIDATION_FAILED có fieldErrors → nêu rõ trường sai bằng tiếng Việt (vd kích hoạt NCC seed sai MST)", () => {
+    const err = apiError(400, "VALIDATION_FAILED", "Dữ liệu không hợp lệ", {
+      taxCode: "sai định dạng",
+    });
+    expect(supplierErrorMessage(err)).toBe(
+      "Mã số thuế: sai định dạng — cập nhật hồ sơ nhà cung cấp rồi thử lại",
+    );
+  });
+
+  it("nhiều trường sai, kể cả trường ảo của BE → ghép từng trường", () => {
+    const err = apiError(400, "VALIDATION_FAILED", "x", {
+      taxCode: "sai định dạng",
+      deliveryContactValid: "invalid",
+    });
+    expect(supplierErrorMessage(err)).toBe(
+      "Mã số thuế: sai định dạng; Kênh gửi PO: Thông tin kênh gửi PO không hợp lệ — cập nhật hồ sơ nhà cung cấp rồi thử lại",
+    );
+  });
+
   it("lỗi không rõ, không phải ApiError → câu chung", () => {
     expect(supplierErrorMessage(new Error("boom"))).toBe("Dữ liệu không hợp lệ");
   });

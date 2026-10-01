@@ -64,6 +64,26 @@ describe("useSupplierWizard — tạo mới", () => {
     await act(async () => result.current.goToStep("terms"));
     expect(result.current.currentStep).toBe("profile");
   });
+
+  it("quay lại sửa bước đã ✓ thành sai → không nhảy tiếp được tới bước sau qua sidebar", async () => {
+    const { result } = renderHook(() => useSupplierWizard());
+    await act(async () => {
+      result.current.setValue("code", "SUP-100");
+      result.current.setValue("name", "Công ty mới");
+    });
+    await act(async () => result.current.goNext());
+    expect(result.current.currentStep).toBe("contact");
+
+    await act(async () => result.current.goBack());
+    await act(async () => {
+      result.current.setValue("code", "", { shouldValidate: true });
+    });
+    expect(result.current.errors.code).toBeDefined();
+
+    expect(result.current.canGoTo("contact")).toBe(false);
+    await act(async () => result.current.goToStep("contact"));
+    expect(result.current.currentStep).toBe("profile");
+  });
 });
 
 describe("useSupplierWizard — sửa", () => {

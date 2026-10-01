@@ -3,7 +3,7 @@
 import { Landmark } from "lucide-react";
 import { useWatch } from "react-hook-form";
 
-import { SUPPLIER_CHANNELS } from "@/constants";
+import { SUPPLIER_CHANNEL_LABELS, SUPPLIER_CHANNELS, SUPPLIER_FIELD_LABELS } from "@/constants";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -19,11 +19,12 @@ import { FieldError, FieldHint, Label, fieldA11y, fieldId, inputCls } from "./fi
 import type { Control, FieldErrors, UseFormRegister, UseFormSetValue } from "react-hook-form";
 import type { SupplierChannel, SupplierFormValues } from "../../types";
 
-const CHANNEL_LABEL: Record<SupplierChannel, string> = {
-  EMAIL: "Email — gửi PO tới email liên hệ",
-  API: "API — gửi PO tới endpoint của NCC",
+const CHANNEL_HINT: Record<SupplierChannel, string> = {
+  EMAIL: "gửi PO tới email liên hệ",
+  API: "gửi PO tới endpoint của NCC",
 };
 
+const L = SUPPLIER_FIELD_LABELS;
 const numberCls = `${inputCls} text-right tabular-nums`;
 
 function isChannel(value: string): value is SupplierChannel {
@@ -51,7 +52,7 @@ export function SupplierTermsSection({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1">
           <Label htmlFor={fieldId("paymentTermDays")} required>
-            Thời hạn thanh toán (ngày)
+            {L.paymentTermDays} (ngày)
           </Label>
           <Input
             type="number"
@@ -65,7 +66,7 @@ export function SupplierTermsSection({
         </div>
         <div className="space-y-1">
           <Label htmlFor={fieldId("leadTimeDays")} required>
-            Thời gian giao hàng (ngày)
+            {L.leadTimeDays} (ngày)
           </Label>
           <Input
             type="number"
@@ -79,7 +80,7 @@ export function SupplierTermsSection({
         </div>
         <div className="space-y-1">
           <Label htmlFor={fieldId("communicationChannel")} required>
-            Kênh gửi PO
+            {L.communicationChannel}
           </Label>
           <Select
             value={channel}
@@ -97,7 +98,7 @@ export function SupplierTermsSection({
               <SelectGroup>
                 {SUPPLIER_CHANNELS.map((c) => (
                   <SelectItem key={c} value={c}>
-                    {CHANNEL_LABEL[c]}
+                    {SUPPLIER_CHANNEL_LABELS[c]} — {CHANNEL_HINT[c]}
                   </SelectItem>
                 ))}
               </SelectGroup>
@@ -108,7 +109,7 @@ export function SupplierTermsSection({
         {channel === "API" && (
           <div className="space-y-1">
             <Label htmlFor={fieldId("apiEndpoint")} required>
-              API endpoint
+              {L.apiEndpoint}
             </Label>
             <Input
               {...register("apiEndpoint")}

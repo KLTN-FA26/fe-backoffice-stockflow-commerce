@@ -35,6 +35,7 @@ import { ADMIN_ROUTES, APP_ROUTES, BRAND, SUPPLIER_PERMISSIONS } from "@/constan
 import { logoutApi } from "@/lib/auth/auth-api";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { hasPermission, useMyPermissions } from "@/lib/auth/me-permissions";
+import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
 import {
   invoices,
   moveTasks,
@@ -262,13 +263,24 @@ const DETAIL_LABEL_BY_ROUTE: Record<string, string> = {
   "/admin/suppliers/create": "Tạo nhà cung cấp",
 };
 
+/** Chỉ ẩn khi đã tải xong quyền và thiếu mã — tránh nháy menu lúc đang tải. */
+function useCanSeeNavItem(): (item: NavItem) => boolean {
+  const { data, isSuccess } = useMyPermissions();
+  return (item) => !item.permission || !isSuccess || hasPermission(data, item.permission);
+}
+
 function findNavItem(pathname: string): NavItem | undefined {
   return NAV_GROUPS.flatMap((group) => group.items)
     .filter((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))
     .sort((a, b) => b.href.length - a.href.length)[0];
 }
 
-export function buildBreadcrumbItems(pathname: string): BreadcrumbItem[] {
+export function buildBreadcrumbItems(
+  pathname: string,
+  canSeeItem: (item: NavItem) => boolean = () => true,
+  /** Nhãn thay cho id trong URL (vd UUID → mã NCC). Không có → hiện id. */
+  labelFor: (id: string) => string | undefined = () => undefined,
+): BreadcrumbItem[] {
   const items: BreadcrumbItem[] = [{ label: "Back-office", href: ADMIN_ROUTES.home }];
   if (pathname === ADMIN_ROUTES.home) return items;
 
@@ -276,7 +288,9 @@ export function buildBreadcrumbItems(pathname: string): BreadcrumbItem[] {
   if (!navItem) return items;
 
   const isListPage = pathname === navItem.href;
-  items.push({ label: navItem.label, href: isListPage ? undefined : navItem.href });
+  // Thiếu quyền vào menu này → chỉ hiện chữ, không dẫn tới trang sẽ bị chặn
+  const linkable = canSeeItem(navItem);
+  items.push({ label: navItem.label, href: isListPage || !linkable ? undefined : navItem.href });
 
   if (!isListPage) {
     const rest = pathname
@@ -286,13 +300,18 @@ export function buildBreadcrumbItems(pathname: string): BreadcrumbItem[] {
     // `/<module>/<id>/edit` → "… / <id> / Chỉnh sửa" thay vì chữ "edit"
     if (rest.length >= 2 && rest.at(-1) === EDIT_SEGMENT) {
       const id = rest.slice(0, -1).join("/");
-      items.push({ label: decodeURIComponent(id), href: `${navItem.href}/${id}` });
+      items.push({
+        label: labelFor(id) ?? decodeURIComponent(id),
+        href: linkable ? `${navItem.href}/${id}` : undefined,
+      });
       items.push({ label: EDIT_LABEL });
     } else {
+      const last = pathname.split("/").at(-1) ?? "";
       items.push({
         label:
           DETAIL_LABEL_BY_ROUTE[pathname] ??
-          decodeURIComponent(pathname.split("/").at(-1) ?? "Chi tiết"),
+          labelFor(last) ??
+          (last ? decodeURIComponent(last) : "Chi tiết"),
       });
     }
   }
@@ -407,10 +426,7 @@ function BackofficeSidebar() {
   const collapsed = state === "collapsed";
 
   const warningCounts = useMemo(() => computeWarningCounts(), []);
-  const { data: myPermissions, isSuccess: permissionsLoaded } = useMyPermissions();
-  // Chỉ ẩn menu khi đã tải xong quyền và thiếu mã — tránh nháy menu lúc đang tải
-  const canSeeItem = (item: NavItem) =>
-    !item.permission || !permissionsLoaded || hasPermission(myPermissions, item.permission);
+  const canSeeItem = useCanSeeNavItem();
 
   return (
     <Sidebar
@@ -531,7 +547,9 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
     return wh ? wh.code : selectedWarehouse;
   }, [selectedWarehouse]);
 
-  const breadcrumbItems = buildBreadcrumbItems(pathname);
+  const canSeeItem = useCanSeeNavItem();
+  const breadcrumbLabels = useBreadcrumbLabelStore((s) => s.labels);
+  const breadcrumbItems = buildBreadcrumbItems(pathname, canSeeItem, (id) => breadcrumbLabels[id]);
   const currentUserName = currentUser?.fullName ?? "Người dùng";
 
   async function handleLogout() {

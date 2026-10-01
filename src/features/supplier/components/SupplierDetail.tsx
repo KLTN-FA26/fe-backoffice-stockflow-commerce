@@ -6,6 +6,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { ADMIN_ROUTES, SUPPLIER_PERMISSIONS } from "@/constants";
 import { usePermissionChecker } from "@/lib/auth";
+import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { useActivateSupplier, useDeactivateSupplier, useSupplier } from "@/features/supplier";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -24,12 +25,17 @@ import type { SupplierActionKey } from "@/features/supplier/lifecycle";
 
 function SupplierDetailContent({ supplierId }: { supplierId: string }) {
   const [confirming, setConfirming] = useState<SupplierActionKey | null>(null);
-  const query = useSupplier(supplierId);
   const can = usePermissionChecker();
+  // READ = đọc dữ liệu (tách khỏi VIEW_PAGE mở trang — BE ADR-0004): thiếu thì không gọi API
+  const canRead = can(SUPPLIER_PERMISSIONS.read);
+  const query = useSupplier(supplierId, { enabled: canRead });
+  // Breadcrumb hiện mã NCC thay vì supplierId (UUID của BE)
+  useBreadcrumbLabel(supplierId, query.data?.code);
   const activate = useActivateSupplier();
   const deactivate = useDeactivateSupplier();
   const isToggling = activate.isPending || deactivate.isPending;
 
+  if (!canRead) return <SupplierLoadError error={null} kind="no-read" />;
   if (query.isError) {
     return <SupplierLoadError error={query.error} onRetry={() => void query.refetch()} />;
   }
@@ -104,7 +110,7 @@ function SupplierDetailContent({ supplierId }: { supplierId: string }) {
 
 export function SupplierDetail({ id }: { id: string }) {
   return (
-    <SupplierPermissionGate permission={SUPPLIER_PERMISSIONS.read}>
+    <SupplierPermissionGate permissions={[SUPPLIER_PERMISSIONS.viewPage]}>
       <SupplierDetailContent supplierId={id} />
     </SupplierPermissionGate>
   );

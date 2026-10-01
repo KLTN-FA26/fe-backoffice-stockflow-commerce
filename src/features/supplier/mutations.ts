@@ -4,6 +4,7 @@
  * Toast lỗi tự hiển thị tiếng Việt qua `supplierErrorMessage` (không dùng message thô).
  */
 
+import { TOAST_MESSAGES } from "@/constants";
 import { createMutation } from "@/lib/api/query-factory";
 import { supplierOptionKeys } from "@/lib/references/supplier-options";
 import { toast } from "@/components/shared/Toast";
@@ -20,28 +21,28 @@ function toastError(error: unknown) {
 
 export const useCreateSupplier = createMutation<SupplierFormValues, SupplierDto>(createSupplier, {
   invalidate: [supplierKeys.all, supplierOptionKeys.all],
-  successMessage: "Tạo nhà cung cấp thành công",
+  successMessage: TOAST_MESSAGES.supplier.created,
   showErrorToast: false,
   onError: toastError,
 });
 
 export const useUpdateSupplier = createMutation<SupplierUpdateInput, SupplierDto>(updateSupplier, {
   invalidate: [supplierKeys.all, supplierOptionKeys.all],
-  successMessage: "Cập nhật nhà cung cấp thành công",
+  successMessage: TOAST_MESSAGES.supplier.updated,
   showErrorToast: false,
   onError: toastError,
 });
 
 export const useActivateSupplier = createMutation<SupplierDto, SupplierDto>(activateSupplier, {
   invalidate: [supplierKeys.all, supplierOptionKeys.all],
-  successMessage: "Đã kích hoạt lại nhà cung cấp",
+  successMessage: TOAST_MESSAGES.supplier.activated,
   showErrorToast: false,
   onError: toastError,
 });
 
 export const useDeactivateSupplier = createMutation<SupplierDto, void>(deactivateSupplier, {
   invalidate: [supplierKeys.all, supplierOptionKeys.all],
-  successMessage: "Đã ngừng hợp tác với nhà cung cấp",
+  successMessage: TOAST_MESSAGES.supplier.deactivated,
   showErrorToast: false,
   onError: toastError,
 });

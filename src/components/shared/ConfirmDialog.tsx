@@ -55,6 +55,8 @@ export function ConfirmDialog({
     <Dialog
       open={open}
       onOpenChange={(v) => {
+        // Đang xử lý → không cho đóng bằng ESC/overlay, tránh dialog biến mất khi thao tác còn chạy
+        if (!v && loading) return;
         if (!v) setReason("");
         onOpenChange(v);
       }}

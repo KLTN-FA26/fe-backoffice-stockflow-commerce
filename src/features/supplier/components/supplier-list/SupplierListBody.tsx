@@ -7,6 +7,7 @@ import { ADMIN_ROUTES } from "@/constants";
 import { DataTable } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
+import { RefetchBar } from "@/components/shared/RefetchBar";
 import { Button } from "@/components/ui/button";
 
 import { SupplierLoadError } from "../SupplierLoadError";
@@ -37,6 +38,8 @@ export function SupplierListBody({
 }) {
   const { query, filters } = s;
 
+  // Thiếu READ: query đã tắt (không gọi API) — báo rõ thay vì skeleton vô hạn
+  if (!s.canRead) return <SupplierLoadError inline error={null} kind="no-read" />;
   if (query.isError) {
     return <SupplierLoadError inline error={query.error} onRetry={() => void query.refetch()} />;
   }
@@ -98,29 +101,33 @@ export function SupplierListBody({
 
   const page = query.data;
   return (
-    <DataTable
-      columns={columns}
-      data={page.items}
-      rowKey={(row) => row.supplierId}
-      caption={`Hiển thị ${page.items.length} / ${page.totalElements} nhà cung cấp`}
-      flagRow={(row) => row.status === "Inactive"}
-      onRowClick={s.navigateToDetail}
-      selectable={selectable}
-      selectedKeys={selectedKeys}
-      onSelectionChange={onSelectionChange}
-      pageSize={s.config.pageSize}
-      pageSizeOptions={PAGE_SIZE_OPTIONS}
-      serverPagination={{
-        page: page.page,
-        size: page.size,
-        totalElements: page.totalElements,
-        totalPages: page.totalPages,
-        hasNext: page.hasNext,
-        hasPrevious: page.hasPrevious,
-        onPageChange: (p) => void filters.setPage(p + 1),
-        onPageSizeChange: s.changePageSize,
-      }}
-      serverSorting={{ key: s.sort.key, direction: s.sort.direction, onChange: s.changeSort }}
-    />
+    <>
+      {/* Đổi trang/lọc: giữ dữ liệu cũ (keepPreviousData) + thanh mảnh báo đang tải lại (§8) */}
+      <RefetchBar active={query.isFetching} label="Đang tải lại danh sách nhà cung cấp" />
+      <DataTable
+        columns={columns}
+        data={page.items}
+        rowKey={(row) => row.supplierId}
+        caption={`Hiển thị ${page.items.length} / ${page.totalElements} nhà cung cấp`}
+        flagRow={(row) => row.status === "Inactive"}
+        onRowClick={s.navigateToDetail}
+        selectable={selectable}
+        selectedKeys={selectedKeys}
+        onSelectionChange={onSelectionChange}
+        pageSize={s.config.pageSize}
+        pageSizeOptions={PAGE_SIZE_OPTIONS}
+        serverPagination={{
+          page: page.page,
+          size: page.size,
+          totalElements: page.totalElements,
+          totalPages: page.totalPages,
+          hasNext: page.hasNext,
+          hasPrevious: page.hasPrevious,
+          onPageChange: (p) => void filters.setPage(p + 1),
+          onPageSizeChange: s.changePageSize,
+        }}
+        serverSorting={{ key: s.sort.key, direction: s.sort.direction, onChange: s.changeSort }}
+      />
+    </>
   );
 }

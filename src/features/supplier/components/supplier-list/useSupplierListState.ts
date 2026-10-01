@@ -34,7 +34,7 @@ function parseSort(raw: string): { key: ServerSortField | null; direction: SortD
  * State trang danh sách NCC — filter/search/status/sort/page trên URL (nuqs), cột + số dòng
  * trong localStorage (state-persistence.md). Phân trang/lọc/sắp xếp phía server (BE PR #36).
  */
-export function useSupplierListState() {
+export function useSupplierListState(canRead = true) {
   const router = useRouter();
   const filters = useUrlFilters(SUPPLIER_STATUSES);
   const { config, updateConfig } = usePageConfig<SupplierPageConfig>(
@@ -43,13 +43,16 @@ export function useSupplierListState() {
     mergeStoredConfig,
   );
   const sort = parseSort(filters.sort);
-  const query = useSuppliers({
-    page: Math.max(0, filters.page - 1),
-    size: config.pageSize,
-    search: filters.debouncedQ,
-    status: filters.status,
-    sort: sort.key ? `${sort.key},${sort.direction}` : undefined,
-  });
+  const query = useSuppliers(
+    {
+      page: Math.max(0, filters.page - 1),
+      size: config.pageSize,
+      search: filters.debouncedQ,
+      status: filters.status,
+      sort: sort.key ? `${sort.key},${sort.direction}` : undefined,
+    },
+    { enabled: canRead },
+  );
 
   const hasFilters = filters.q.trim() !== "" || filters.status.length > 0;
   const page = query.data;
@@ -104,6 +107,7 @@ export function useSupplierListState() {
   const visibleColumnCount = config.visibleColumns.filter((c) => c !== "actions").length;
 
   return {
+    canRead,
     query,
     config,
     filters,

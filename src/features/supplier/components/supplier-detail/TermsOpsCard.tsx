@@ -1,5 +1,7 @@
 import { Landmark } from "lucide-react";
 
+import { SUPPLIER_FIELD_LABELS } from "@/constants";
+
 import type { SupplierDto } from "@/features/supplier/types";
 
 function TermTile({ label, days }: { label: string; days: number }) {
@@ -20,8 +22,8 @@ export function TermsOpsCard({ supplier }: { supplier: SupplierDto }) {
         <Landmark className="text-accent size-4" /> Điều khoản thương mại
       </h2>
       <div className="grid gap-4 sm:grid-cols-2">
-        <TermTile label="Thời hạn thanh toán" days={supplier.paymentTermDays} />
-        <TermTile label="Thời gian giao hàng" days={supplier.leadTimeDays} />
+        <TermTile label={SUPPLIER_FIELD_LABELS.paymentTermDays} days={supplier.paymentTermDays} />
+        <TermTile label={SUPPLIER_FIELD_LABELS.leadTimeDays} days={supplier.leadTimeDays} />
       </div>
     </section>
   );

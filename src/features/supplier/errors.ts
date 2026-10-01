@@ -5,7 +5,7 @@
  * map theo errorCode. Lỗi validate dùng tên trường ảo `deliveryContactValid`/`phoneDigitsValid`.
  */
 
-import { SUPPLIER_ERROR_MESSAGES } from "@/constants";
+import { SUPPLIER_ERROR_HINTS, SUPPLIER_ERROR_MESSAGES, SUPPLIER_FIELD_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
 import type { SupplierChannel, SupplierFormValues } from "./types";
@@ -31,10 +31,35 @@ function isKnownErrorCode(code: string): code is KnownErrorCode {
   return code in SUPPLIER_ERROR_MESSAGES;
 }
 
+function isLabelledField(name: string): name is keyof typeof SUPPLIER_FIELD_LABELS {
+  return name in SUPPLIER_FIELD_LABELS;
+}
+
+/** Message tiếng Việt cho một lỗi theo trường; trường ảo của BE dùng câu của FE. */
+function fieldErrorText(name: string, message: string): string {
+  if (name === "deliveryContactValid") return SUPPLIER_ERROR_HINTS.invalidDeliveryContact;
+  if (name === "phoneDigitsValid") return SUPPLIER_ERROR_MESSAGES.invalidPhoneDigits;
+  return message;
+}
+
+/**
+ * "Mã số thuế: sai định dạng — cập nhật hồ sơ nhà cung cấp rồi thử lại". Dùng khi BE từ chối
+ * dữ liệu đang lưu mà không có form để gắn lỗi (vd kích hoạt lại NCC seed có MST sai).
+ */
+function fieldErrorsSummary(fieldErrors: Record<string, string>): string | undefined {
+  const parts = Object.entries(fieldErrors).map(([name, message]) => {
+    const label = isLabelledField(name) ? SUPPLIER_FIELD_LABELS[name] : name;
+    return `${label}: ${fieldErrorText(name, message)}`;
+  });
+  return parts.length ? `${parts.join("; ")} — ${SUPPLIER_ERROR_HINTS.fixProfile}` : undefined;
+}
+
 /** Câu tiếng Việt cho một lỗi bất kỳ khi thao tác với NCC. */
 export function supplierErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
     if (isKnownErrorCode(error.code)) return SUPPLIER_ERROR_MESSAGES[error.code];
+    const summary = error.fieldErrors ? fieldErrorsSummary(error.fieldErrors) : undefined;
+    if (summary) return summary;
     // BE: "Supplier code is immutable" trả errorCode CONFLICT chung
     if (error.code === "CONFLICT") return SUPPLIER_ERROR_MESSAGES.CODE_IMMUTABLE;
     // BE đã dịch message sang tiếng Việt cho các lỗi còn lại

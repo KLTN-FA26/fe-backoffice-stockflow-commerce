@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { Eye } from "lucide-react";
 
-import { ADMIN_ROUTES } from "@/constants";
+import { ADMIN_ROUTES, SUPPLIER_CHANNEL_LABELS } from "@/constants";
 import { statusCell, textCell } from "@/components/shared/column-helpers";
 import { Button } from "@/components/ui/button";
+
+import { COLUMN_LABELS } from "./constants";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { SupplierDto } from "@/features/supplier/types";
@@ -34,7 +36,7 @@ export function buildSupplierColumns(
   return [
     {
       key: "code",
-      header: "Mã NCC",
+      header: COLUMN_LABELS.code,
       sortable: true,
       cell: (row) => (
         <Link
@@ -47,7 +49,7 @@ export function buildSupplierColumns(
       ),
     },
     {
-      ...textCell<SupplierDto>("name", "Tên nhà cung cấp", (row) => row.name, {
+      ...textCell<SupplierDto>("name", COLUMN_LABELS.name, (row) => row.name, {
         sortable: true,
         color: "primary",
       }),
@@ -55,7 +57,7 @@ export function buildSupplierColumns(
     },
     {
       key: "taxCode",
-      header: "Mã số thuế",
+      header: COLUMN_LABELS.taxCode,
       cell: (row) => (
         <span className="font-[family-name:var(--font-mono)] tabular-nums">
           {row.taxCode ?? "—"}
@@ -64,7 +66,7 @@ export function buildSupplierColumns(
     },
     {
       key: "contact",
-      header: "Liên hệ",
+      header: COLUMN_LABELS.contact,
       cell: (row) => (
         <div className="text-[0.8125rem]">
           <div className="text-ink-primary">{row.contactName ?? "—"}</div>
@@ -72,14 +74,18 @@ export function buildSupplierColumns(
         </div>
       ),
     },
-    daysCell("paymentTermDays", "Thanh toán", (row) => row.paymentTermDays),
-    daysCell("leadTimeDays", "Giao hàng", (row) => row.leadTimeDays),
+    daysCell("paymentTermDays", COLUMN_LABELS.paymentTermDays, (row) => row.paymentTermDays),
+    daysCell("leadTimeDays", COLUMN_LABELS.leadTimeDays, (row) => row.leadTimeDays),
     {
       key: "channel",
-      header: "Kênh gửi PO",
-      cell: (row) => <span className="text-[0.8125rem]">{row.communicationChannel}</span>,
+      header: COLUMN_LABELS.channel,
+      cell: (row) => (
+        <span className="text-[0.8125rem]">
+          {SUPPLIER_CHANNEL_LABELS[row.communicationChannel]}
+        </span>
+      ),
     },
-    statusCell<SupplierDto>("status", "Trạng thái", (row) => row.status, "sku", {
+    statusCell<SupplierDto>("status", COLUMN_LABELS.status, (row) => row.status, "sku", {
       sortable: true,
       withIcon: true,
     }) as SupplierColumn,

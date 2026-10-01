@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 
-import { ADMIN_ROUTES, SUPPLIER_PERMISSIONS } from "@/constants";
+import { ADMIN_ROUTES, SUPPLIER_PERMISSIONS, TOAST_MESSAGES } from "@/constants";
 import { useCan } from "@/lib/auth";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { ListToolbar } from "@/components/shared/ListToolbar";
@@ -25,10 +25,14 @@ const COLUMN_OPTIONS = DEFAULT_COLUMNS.filter((c) => c !== "actions").map((c) =>
 }));
 
 function SupplierListContent() {
-  const s = useSupplierListState();
+  // READ = đọc dữ liệu (tách khỏi VIEW_PAGE mở trang — BE ADR-0004): thiếu thì không gọi API
+  const canRead = useCan(SUPPLIER_PERMISSIONS.read);
+  const s = useSupplierListState(canRead);
   const canCreate = useCan(SUPPLIER_PERMISSIONS.create);
   // Ngừng hợp tác = DELETE → chọn nhiều dòng chỉ có ý nghĩa với người có quyền DELETE
   const canDelete = useCan(SUPPLIER_PERMISSIONS.delete);
+  // Xuất dữ liệu cần quyền EXPORT riêng (BE coi là nhạy cảm, tách khỏi READ)
+  const canExport = useCan(SUPPLIER_PERMISSIONS.export);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
 
@@ -51,31 +55,37 @@ function SupplierListContent() {
           ) : undefined
         }
       />
-      <ListToolbar
-        search={filters.q}
-        onSearchChange={(v) => void filters.setQ(v)}
-        searchPlaceholder="Tìm theo mã NCC, tên, mã số thuế..."
-        statusOptions={STATUS_OPTIONS}
-        selectedStatuses={filters.status}
-        onToggleStatus={s.toggleStatus}
-        onClearStatuses={() => void filters.setStatus([])}
-        hasStatusFilter={filters.status.length > 0}
-        columnOptions={COLUMN_OPTIONS}
-        selectedColumns={s.config.visibleColumns}
-        defaultColumns={DEFAULT_COLUMNS}
-        lockedColumns={["actions"]}
-        visibleColumnCount={s.visibleColumnCount}
-        onToggleColumn={s.toggleColumn}
-        onResetColumns={() => s.updateConfig((c) => ({ ...c, visibleColumns: DEFAULT_COLUMNS }))}
-        hasColumnConfig={s.hasColumnConfig}
-        selectedCount={canDelete ? selectedKeys.size : 0}
-        bulkDeleteLabel="Ngừng hợp tác đã chọn"
-        onBulkDelete={canDelete ? () => setBulkConfirmOpen(true) : undefined}
-        onExport={() => toast.info("Xuất Excel chưa có API — sẽ nối khi BE hỗ trợ")}
-        summaryItems={buildSummaryItems(s)}
-        onResetAll={s.resetAll}
-        resetDisabled={!s.hasFilters && !s.hasColumnConfig && s.sort.key === null}
-      />
+      {/* Thiếu READ: không có dữ liệu để tìm/lọc → ẩn cả toolbar và thanh Cấu hình */}
+      {canRead && (
+        <ListToolbar
+          search={filters.q}
+          onSearchChange={(v) => void filters.setQ(v)}
+          searchPlaceholder="Tìm theo mã NCC, tên, mã số thuế..."
+          statusOptions={STATUS_OPTIONS}
+          selectedStatuses={filters.status}
+          onToggleStatus={s.toggleStatus}
+          onClearStatuses={() => void filters.setStatus([])}
+          hasStatusFilter={filters.status.length > 0}
+          columnOptions={COLUMN_OPTIONS}
+          selectedColumns={s.config.visibleColumns}
+          defaultColumns={DEFAULT_COLUMNS}
+          lockedColumns={["actions"]}
+          visibleColumnCount={s.visibleColumnCount}
+          onToggleColumn={s.toggleColumn}
+          onResetColumns={() => s.updateConfig((c) => ({ ...c, visibleColumns: DEFAULT_COLUMNS }))}
+          hasColumnConfig={s.hasColumnConfig}
+          selectedCount={canDelete ? selectedKeys.size : 0}
+          bulkDeleteLabel="Ngừng hợp tác đã chọn"
+          onBulkDelete={canDelete ? () => setBulkConfirmOpen(true) : undefined}
+          // Base UI: BE chưa có endpoint xuất — nối khi BE hỗ trợ
+          onExport={
+            canExport ? () => toast.info(TOAST_MESSAGES.supplier.exportNotAvailable) : undefined
+          }
+          summaryItems={buildSummaryItems(s)}
+          onResetAll={s.resetAll}
+          resetDisabled={!s.hasFilters && !s.hasColumnConfig && s.sort.key === null}
+        />
+      )}
       <SupplierListBody
         s={s}
         columns={visibleColumns}
@@ -100,7 +110,7 @@ function SupplierListContent() {
 
 export function SupplierList() {
   return (
-    <SupplierPermissionGate permission={SUPPLIER_PERMISSIONS.read} variant="list">
+    <SupplierPermissionGate permissions={[SUPPLIER_PERMISSIONS.viewPage]} variant="list">
       <SupplierListContent />
     </SupplierPermissionGate>
   );

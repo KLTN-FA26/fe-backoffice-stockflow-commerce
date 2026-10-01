@@ -19,6 +19,9 @@ const { viewPage, read, create, update } = SUPPLIER_PERMISSIONS;
 
 export const PERMISSION_SETS = {
   none: [],
+  // VIEW_PAGE = được mở trang (menu + route); READ = được đọc dữ liệu (BE ADR-0004)
+  viewOnly: [viewPage],
+  readNoPage: [read],
   readOnly: [viewPage, read],
   editor: [viewPage, read, create, update],
   full: Object.values(SUPPLIER_PERMISSIONS),

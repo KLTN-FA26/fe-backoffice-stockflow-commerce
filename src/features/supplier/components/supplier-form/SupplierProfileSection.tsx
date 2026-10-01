@@ -2,12 +2,15 @@
 
 import { Building2 } from "lucide-react";
 
+import { SUPPLIER_FIELD_LABELS } from "@/constants";
 import { Input } from "@/components/ui/input";
 
 import { FieldError, FieldHint, Label, fieldA11y, fieldId, inputCls } from "./fields";
 
 import type { FieldErrors, UseFormRegister } from "react-hook-form";
 import type { SupplierFormValues } from "../../types";
+
+const L = SUPPLIER_FIELD_LABELS;
 
 export function SupplierProfileSection({
   register,
@@ -26,7 +29,7 @@ export function SupplierProfileSection({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1">
           <Label htmlFor={fieldId("code")} required>
-            Mã nhà cung cấp
+            {L.code}
           </Label>
           {/* BE: mã NCC không được đổi sau khi tạo (PR #36) */}
           <Input
@@ -45,7 +48,7 @@ export function SupplierProfileSection({
         </div>
         <div className="space-y-1">
           <Label htmlFor={fieldId("name")} required>
-            Tên nhà cung cấp
+            {L.name}
           </Label>
           <Input
             {...register("name")}
@@ -56,7 +59,7 @@ export function SupplierProfileSection({
           <FieldError name="name" message={errors.name?.message} />
         </div>
         <div className="space-y-1">
-          <Label htmlFor={fieldId("taxCode")}>Mã số thuế</Label>
+          <Label htmlFor={fieldId("taxCode")}>{L.taxCode}</Label>
           <Input
             {...register("taxCode")}
             {...fieldA11y("taxCode", errors.taxCode?.message)}

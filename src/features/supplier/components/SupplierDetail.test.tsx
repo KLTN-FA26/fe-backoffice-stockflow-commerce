@@ -53,6 +53,20 @@ describe("SupplierDetail — action-gating theo mã quyền", () => {
     expect(screen.queryByText("Inactive")).not.toBeInTheDocument();
   });
 
+  it("kênh gửi PO hiện nhãn 'Email', không hiện enum thô EMAIL", async () => {
+    renderDetail(PERMISSION_SETS.readOnly, () => apiSupplier);
+    await screen.findByRole("heading", { name: apiSupplier.name });
+    expect(screen.getAllByText("Email").length).toBeGreaterThan(0);
+    expect(screen.queryByText("EMAIL")).not.toBeInTheDocument();
+  });
+
+  it("chưa sửa lần nào (lastModifiedAt null) → hiện 'Tạo lúc' thay vì '—'", async () => {
+    renderDetail(PERMISSION_SETS.readOnly, () => ({ ...apiSupplier, lastModifiedAt: null }));
+    await screen.findByRole("heading", { name: apiSupplier.name });
+    expect(screen.getByText("Tạo lúc")).toBeInTheDocument();
+    expect(screen.queryByText("Cập nhật lần cuối")).not.toBeInTheDocument();
+  });
+
   it("link PO lọc theo NCC", async () => {
     renderDetail(PERMISSION_SETS.readOnly, () => apiSupplier);
     const link = await screen.findByRole("link", { name: /Xem đơn đặt hàng của nhà cung cấp này/ });
@@ -60,6 +74,24 @@ describe("SupplierDetail — action-gating theo mã quyền", () => {
       "href",
       `/admin/purchase-orders?supplierId=${apiSupplier.supplierId}`,
     );
+  });
+});
+
+describe("SupplierDetail — VIEW_PAGE tách khỏi READ", () => {
+  it("chỉ VIEW_PAGE → báo không có quyền xem dữ liệu, KHÔNG gọi API chi tiết", async () => {
+    const get = mockApiGet(PERMISSION_SETS.viewOnly, { [DETAIL_PATH]: () => apiSupplier });
+    renderSupplierScreen(<SupplierDetail id={apiSupplier.supplierId} />);
+
+    expect(await screen.findByText("Bạn không có quyền xem dữ liệu")).toBeInTheDocument();
+    expect(get.mock.calls.some(([url]) => url === DETAIL_PATH)).toBe(false);
+  });
+
+  it("chỉ READ (thiếu VIEW_PAGE) → bị chặn route", async () => {
+    const get = mockApiGet(PERMISSION_SETS.readNoPage, { [DETAIL_PATH]: () => apiSupplier });
+    renderSupplierScreen(<SupplierDetail id={apiSupplier.supplierId} />);
+
+    expect(await screen.findByText("Bạn không có quyền")).toBeInTheDocument();
+    expect(get.mock.calls.some(([url]) => url === DETAIL_PATH)).toBe(false);
   });
 });
 

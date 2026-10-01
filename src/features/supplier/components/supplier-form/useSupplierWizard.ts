@@ -71,10 +71,15 @@ export function useSupplierWizard(existingSupplier?: SupplierDto) {
     return "idle";
   };
 
-  /** Chỉ cho nhảy tới bước đã xong, bước hiện tại, hoặc bước kế ngay sau các bước đã xong. */
+  /**
+   * Chỉ cho nhảy tới bước X khi mọi bước trước X đã qua "Tiếp" VÀ hiện không có lỗi — quay lại
+   * sửa một bước đã ✓ thành sai thì phải sửa xong mới đi tiếp được.
+   */
   const canGoTo = (step: StepKey): boolean => {
     const target = STEPS.findIndex((s) => s.key === step);
-    return STEPS.slice(0, target).every((s) => completedSteps.has(s.key));
+    return STEPS.slice(0, target).every(
+      (s) => completedSteps.has(s.key) && (validationByStep.get(s.key) ?? []).length === 0,
+    );
   };
 
   const goToStep = (step: StepKey) => {

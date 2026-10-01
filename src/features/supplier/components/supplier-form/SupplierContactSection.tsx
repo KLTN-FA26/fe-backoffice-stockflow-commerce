@@ -2,12 +2,15 @@
 
 import { Contact } from "lucide-react";
 
+import { SUPPLIER_FIELD_LABELS } from "@/constants";
 import { Input } from "@/components/ui/input";
 
 import { FieldError, FieldHint, Label, fieldA11y, fieldId, inputCls } from "./fields";
 
 import type { FieldErrors, UseFormRegister } from "react-hook-form";
 import type { SupplierFormValues } from "../../types";
+
+const L = SUPPLIER_FIELD_LABELS;
 
 export function SupplierContactSection({
   register,
@@ -23,7 +26,7 @@ export function SupplierContactSection({
       </h2>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1">
-          <Label htmlFor={fieldId("contactName")}>Người liên hệ</Label>
+          <Label htmlFor={fieldId("contactName")}>{L.contactName}</Label>
           <Input
             {...register("contactName")}
             {...fieldA11y("contactName", errors.contactName?.message)}
@@ -33,7 +36,7 @@ export function SupplierContactSection({
           <FieldError name="contactName" message={errors.contactName?.message} />
         </div>
         <div className="space-y-1">
-          <Label htmlFor={fieldId("phone")}>Số điện thoại</Label>
+          <Label htmlFor={fieldId("phone")}>{L.phone}</Label>
           <Input
             {...register("phone")}
             {...fieldA11y("phone", errors.phone?.message)}
@@ -43,7 +46,7 @@ export function SupplierContactSection({
           <FieldError name="phone" message={errors.phone?.message} />
         </div>
         <div className="space-y-1 sm:col-span-2">
-          <Label htmlFor={fieldId("email")}>Email</Label>
+          <Label htmlFor={fieldId("email")}>{L.email}</Label>
           <Input
             {...register("email")}
             {...fieldA11y("email", errors.email?.message)}

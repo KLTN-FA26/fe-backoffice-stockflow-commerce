@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 
-import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
+import { ADMIN_ROUTES, SUPPLIER_PERMISSIONS, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
+import { useCan } from "@/lib/auth";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -17,12 +18,17 @@ const { common, loadError, supplier } = UI_LABELS;
 const COPY: Record<LoadErrorKind, { title: string; description: string }> = {
   "not-found": { title: supplier.notFoundTitle, description: supplier.notFoundDescription },
   forbidden: { title: loadError.forbiddenTitle, description: supplier.forbiddenDescription },
+  "no-read": { title: loadError.noReadTitle, description: supplier.noReadDescription },
   "invalid-data": {
     title: loadError.invalidDataTitle,
     description: loadError.invalidDataDescription,
   },
   network: { title: loadError.networkTitle, description: loadError.networkDescription },
   server: { title: loadError.serverTitle, description: loadError.serverDescription },
+  permissions: {
+    title: loadError.permissionsTitle,
+    description: loadError.permissionsDescription,
+  },
 };
 
 interface SupplierLoadErrorProps {
@@ -46,8 +52,16 @@ export function SupplierLoadError({
   const copy = COPY[kind];
   const apiErr = error instanceof ApiError ? error : undefined;
   const description = kind === "server" && apiErr?.message ? apiErr.message : copy.description;
-  const canRetry =
-    onRetry !== undefined && (kind === "network" || kind === "server" || kind === "invalid-data");
+  const isPermissionKind = kind === "forbidden" || kind === "no-read";
+  const canRetry = onRetry !== undefined && kind !== "not-found" && !isPermissionKind;
+  // Danh sách chỉ xem được khi có cả VIEW_PAGE (mở trang) lẫn READ (đọc dữ liệu); thiếu thì
+  // "Về danh sách" chỉ dẫn tới một màn bị chặn khác → về trang tổng quan
+  const canOpenList = useCan(SUPPLIER_PERMISSIONS.viewPage);
+  const canReadList = useCan(SUPPLIER_PERMISSIONS.read);
+  const back =
+    isPermissionKind && !(canOpenList && canReadList)
+      ? { href: ADMIN_ROUTES.home, label: common.backToHome }
+      : { href: ADMIN_ROUTES.suppliers.list, label: common.backToList };
 
   return (
     <>
@@ -64,7 +78,7 @@ export function SupplierLoadError({
             ) : null}
             {!inline && (
               <Button variant="outline" size="sm" asChild>
-                <Link href={ADMIN_ROUTES.suppliers.list}>{common.backToList}</Link>
+                <Link href={back.href}>{back.label}</Link>
               </Button>
             )}
           </div>

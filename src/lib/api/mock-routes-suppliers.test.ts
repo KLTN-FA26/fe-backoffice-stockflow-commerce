@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { activateMockAdapter } from "./mock-adapter";
 import { resetSupplierMockStore } from "./mock-routes-suppliers";
@@ -27,7 +27,13 @@ const validBody = {
   email: "a@b.vn",
 };
 
-beforeEach(() => resetSupplierMockStore());
+beforeEach(() => {
+  resetSupplierMockStore();
+  // Tắt "lỗi ngẫu nhiên 5%" của mock adapter để test xác định (giống mock-routes.test.ts)
+  vi.spyOn(Math, "random").mockReturnValue(0.5);
+});
+
+afterEach(() => vi.restoreAllMocks());
 
 describe("mock /suppliers — đúng hợp đồng BE PR #36", () => {
   it("GET list trả PageResponse 0-based, status ACTIVE/INACTIVE, không có field ngoài hợp đồng", async () => {

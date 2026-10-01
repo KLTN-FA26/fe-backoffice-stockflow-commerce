@@ -69,5 +69,9 @@ export function useMyPermissions(enabled = true) {
     queryFn: ({ signal }) => fetchMyPermissions(signal),
     enabled: enabled && userId !== null,
     staleTime: MY_PERMISSIONS_STALE_MS,
+    // Query lỗi (vd BE chưa có endpoint → 404) KHÔNG tự refetch khi có component mới mount.
+    // Nếu không: gate render màn lỗi → màn lỗi gọi useCan (observer mới) → refetch reset về
+    // pending → gate về skeleton → lỗi lại → vòng lặp hàng trăm request/giây.
+    retryOnMount: false,
   });
 }

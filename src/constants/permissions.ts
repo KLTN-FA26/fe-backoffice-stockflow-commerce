@@ -13,4 +13,6 @@ export const SUPPLIER_PERMISSIONS = {
   update: "procurement-suppliers:UPDATE",
   // Ngừng hợp tác = DELETE
   delete: "procurement-suppliers:DELETE",
+  // Xuất dữ liệu hàng loạt — BE coi là quyền nhạy cảm, tách khỏi READ (Action.EXPORT)
+  export: "procurement-suppliers:EXPORT",
 } as const;

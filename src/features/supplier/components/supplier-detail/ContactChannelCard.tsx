@@ -1,10 +1,10 @@
 import { Contact } from "lucide-react";
 
+import { SUPPLIER_CHANNEL_LABELS, SUPPLIER_FIELD_LABELS } from "@/constants";
+
 import { InfoRow } from "./InfoRow";
 
 import type { SupplierDto } from "@/features/supplier/types";
-
-const CHANNEL_LABEL = { EMAIL: "Email", API: "API" } as const;
 
 export function ContactChannelCard({ supplier }: { supplier: SupplierDto }) {
   return (
@@ -13,12 +13,19 @@ export function ContactChannelCard({ supplier }: { supplier: SupplierDto }) {
         <Contact className="text-accent size-4" /> Liên hệ & kênh gửi PO
       </h2>
       <div>
-        <InfoRow label="Người liên hệ" value={supplier.contactName ?? "—"} />
-        <InfoRow label="Email" value={supplier.email ?? "—"} />
-        <InfoRow label="Điện thoại" value={supplier.phone ?? "—"} mono />
-        <InfoRow label="Kênh gửi PO" value={CHANNEL_LABEL[supplier.communicationChannel]} />
+        <InfoRow label={SUPPLIER_FIELD_LABELS.contactName} value={supplier.contactName ?? "—"} />
+        <InfoRow label={SUPPLIER_FIELD_LABELS.email} value={supplier.email ?? "—"} />
+        <InfoRow label={SUPPLIER_FIELD_LABELS.phone} value={supplier.phone ?? "—"} mono />
+        <InfoRow
+          label={SUPPLIER_FIELD_LABELS.communicationChannel}
+          value={SUPPLIER_CHANNEL_LABELS[supplier.communicationChannel]}
+        />
         {supplier.communicationChannel === "API" && (
-          <InfoRow label="API endpoint" value={supplier.apiEndpoint ?? "—"} mono />
+          <InfoRow
+            label={SUPPLIER_FIELD_LABELS.apiEndpoint}
+            value={supplier.apiEndpoint ?? "—"}
+            mono
+          />
         )}
       </div>
     </section>

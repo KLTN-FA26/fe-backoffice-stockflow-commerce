@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Clock, Pencil, Power, RotateCcw, Send } from "lucide-react";
 
-import { ADMIN_ROUTES, SUPPLIER_PERMISSIONS } from "@/constants";
+import { ADMIN_ROUTES, SUPPLIER_CHANNEL_LABELS, SUPPLIER_PERMISSIONS } from "@/constants";
 import { formatDateTime } from "@/lib/format/date";
 import { allowedSupplierActions } from "@/features/supplier/lifecycle";
 import { StatusDot } from "@/components/shared/StatusDot";
@@ -85,6 +85,12 @@ export function ActionCard({
 }
 
 export function OverviewCard({ supplier }: { supplier: SupplierDto }) {
+  // Bản ghi chưa sửa lần nào: BE trả lastModifiedAt null → hiện thời điểm tạo
+  const timestamp = supplier.lastModifiedAt
+    ? { label: "Cập nhật lần cuối", value: supplier.lastModifiedAt }
+    : supplier.createdAt
+      ? { label: "Tạo lúc", value: supplier.createdAt }
+      : null;
   return (
     <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
       <h2 className="text-ink-primary mb-3 text-[0.9375rem] font-semibold">Tổng quan</h2>
@@ -93,14 +99,16 @@ export function OverviewCard({ supplier }: { supplier: SupplierDto }) {
           <span className="text-ink-secondary flex items-center gap-1.5">
             <Send className="size-3.5" /> Kênh gửi PO
           </span>
-          <span className="text-ink-primary font-medium">{supplier.communicationChannel}</span>
+          <span className="text-ink-primary font-medium">
+            {SUPPLIER_CHANNEL_LABELS[supplier.communicationChannel]}
+          </span>
         </div>
         <div className="flex justify-between">
           <span className="text-ink-secondary flex items-center gap-1.5">
-            <Clock className="size-3.5" /> Cập nhật lần cuối
+            <Clock className="size-3.5" /> {timestamp?.label ?? "Cập nhật lần cuối"}
           </span>
           <span className="text-ink-primary font-[family-name:var(--font-mono)] tabular-nums">
-            {supplier.lastModifiedAt ? formatDateTime(supplier.lastModifiedAt) : "—"}
+            {timestamp ? formatDateTime(timestamp.value) : "—"}
           </span>
         </div>
       </div>

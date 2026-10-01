@@ -15,6 +15,7 @@ import {
   SUPPLIER_API_STATUSES,
   SUPPLIER_CHANNELS,
   SUPPLIER_ERROR_MESSAGES,
+  SUPPLIER_FIELD_LABELS,
   SUPPLIER_STATUSES,
 } from "@/constants";
 
@@ -68,10 +69,23 @@ const CODE_REGEX = /^[A-Za-z0-9._-]+$/;
 const TAX_CODE_REGEX = /^(?=.*[0-9])[0-9A-Za-z][0-9A-Za-z-]{6,30}[0-9A-Za-z]$/;
 // BE: @Pattern("^\+?[0-9](?:[0-9 .()-]*[0-9])?$") + isPhoneDigitsValid (8–15 chữ số)
 const PHONE_REGEX = /^\+?[0-9](?:[0-9 .()-]*[0-9])?$/;
-const PHONE_MIN_DIGITS = 8;
-const PHONE_MAX_DIGITS = 15;
-const TERM_DAYS_MAX = 365;
 const HTTPS_PORT = "443";
+
+/** Giới hạn theo BE SaveSupplierRequest (PR #36): @Size / @Min / @Max / isPhoneDigitsValid. */
+export const SUPPLIER_LIMITS = {
+  codeMax: 64,
+  nameMax: 200,
+  contactNameMax: 200,
+  emailMax: 320,
+  phoneMax: 32,
+  phoneDigitsMin: 8,
+  phoneDigitsMax: 15,
+  apiEndpointMax: 500,
+  termDaysMax: 365,
+} as const;
+
+const L = SUPPLIER_FIELD_LABELS;
+const tooLong = (label: string, max: number) => `${label} tối đa ${max} ký tự`;
 
 function countDigits(value: string): number {
   return value.replace(/\D/g, "").length;
@@ -100,48 +114,54 @@ const termDays = (label: string) =>
     .number({ error: `${label} phải là số` })
     .int(`${label} phải là số nguyên`)
     .min(0, `${label} không được âm`)
-    .max(TERM_DAYS_MAX, `${label} tối đa ${TERM_DAYS_MAX} ngày`);
+    .max(SUPPLIER_LIMITS.termDaysMax, `${label} tối đa ${SUPPLIER_LIMITS.termDaysMax} ngày`);
 
 export const supplierFormSchema = z
   .object({
     code: z
       .string()
       .trim()
-      .min(1, "Mã nhà cung cấp không được để trống")
-      .max(64, "Mã nhà cung cấp tối đa 64 ký tự")
+      .min(1, `${L.code} không được để trống`)
+      .max(SUPPLIER_LIMITS.codeMax, tooLong(L.code, SUPPLIER_LIMITS.codeMax))
       .regex(CODE_REGEX, "Mã chỉ gồm chữ, số, dấu chấm, gạch ngang, gạch dưới"),
     name: z
       .string()
       .trim()
-      .min(1, "Tên nhà cung cấp không được để trống")
-      .max(200, "Tên nhà cung cấp tối đa 200 ký tự"),
+      .min(1, `${L.name} không được để trống`)
+      .max(SUPPLIER_LIMITS.nameMax, tooLong(L.name, SUPPLIER_LIMITS.nameMax)),
     taxCode: z
       .string()
       .trim()
       .refine(
         (v) => v === "" || TAX_CODE_REGEX.test(v),
-        "Mã số thuế gồm 8–32 ký tự chữ/số, có ít nhất 1 chữ số",
+        `${L.taxCode} gồm 8–32 ký tự chữ/số, có ít nhất 1 chữ số`,
       ),
-    contactName: z.string().trim().max(200, "Tên người liên hệ tối đa 200 ký tự"),
+    contactName: z
+      .string()
+      .trim()
+      .max(SUPPLIER_LIMITS.contactNameMax, tooLong(L.contactName, SUPPLIER_LIMITS.contactNameMax)),
     email: z
       .string()
       .trim()
-      .max(320, "Email tối đa 320 ký tự")
+      .max(SUPPLIER_LIMITS.emailMax, tooLong(L.email, SUPPLIER_LIMITS.emailMax))
       .refine((v) => v === "" || z.email().safeParse(v).success, "Email không hợp lệ"),
     phone: z
       .string()
       .trim()
-      .max(32, "Số điện thoại tối đa 32 ký tự")
-      .refine((v) => v === "" || PHONE_REGEX.test(v), "Số điện thoại không hợp lệ")
+      .max(SUPPLIER_LIMITS.phoneMax, tooLong(L.phone, SUPPLIER_LIMITS.phoneMax))
+      .refine((v) => v === "" || PHONE_REGEX.test(v), `${L.phone} không hợp lệ`)
       .refine((v) => {
         if (v === "") return true;
         const digits = countDigits(v);
-        return digits >= PHONE_MIN_DIGITS && digits <= PHONE_MAX_DIGITS;
+        return digits >= SUPPLIER_LIMITS.phoneDigitsMin && digits <= SUPPLIER_LIMITS.phoneDigitsMax;
       }, SUPPLIER_ERROR_MESSAGES.invalidPhoneDigits),
-    paymentTermDays: termDays("Số ngày thanh toán"),
-    leadTimeDays: termDays("Thời gian giao hàng"),
+    paymentTermDays: termDays(L.paymentTermDays),
+    leadTimeDays: termDays(L.leadTimeDays),
     communicationChannel: supplierChannelSchema,
-    apiEndpoint: z.string().trim().max(500, "Endpoint tối đa 500 ký tự"),
+    apiEndpoint: z
+      .string()
+      .trim()
+      .max(SUPPLIER_LIMITS.apiEndpointMax, tooLong(L.apiEndpoint, SUPPLIER_LIMITS.apiEndpointMax)),
   })
   .superRefine((v, ctx) => {
     // BE SaveSupplierRequest.isDeliveryContactValid (PR #36): kênh EMAIL cần email, kênh API cần endpoint https

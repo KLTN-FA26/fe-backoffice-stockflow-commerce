@@ -7,7 +7,9 @@ import { SupplierPermissionGate } from "./SupplierPermissionGate";
 
 export function CreateSupplierPage() {
   return (
-    <SupplierPermissionGate permission={SUPPLIER_PERMISSIONS.create}>
+    <SupplierPermissionGate
+      permissions={[SUPPLIER_PERMISSIONS.viewPage, SUPPLIER_PERMISSIONS.create]}
+    >
       <SupplierForm />
     </SupplierPermissionGate>
   );

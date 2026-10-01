@@ -2,7 +2,16 @@ import { ZodError } from "zod";
 
 import { ApiError } from "@/lib/api/error";
 
-export type LoadErrorKind = "not-found" | "forbidden" | "invalid-data" | "network" | "server";
+export type LoadErrorKind =
+  | "not-found"
+  | "forbidden"
+  // Có VIEW_PAGE (mở trang) nhưng thiếu READ (đọc dữ liệu) — chỉ ép từ trang, không suy từ lỗi
+  | "no-read"
+  | "invalid-data"
+  | "network"
+  | "server"
+  // Không tải được /identity/me/permissions — chỉ ép từ gate, classifyLoadError không trả loại này
+  | "permissions";
 
 /**
  * Phân loại lỗi khi tải 1 record (§8): chỉ 404 mới là "không tìm thấy".

@@ -46,7 +46,8 @@ export function WizardBottomBar({
               type="button"
               size="sm"
               onClick={onNext}
-              className="bg-brand !text-ink-inverse hover:bg-brand-hover rounded-[var(--r-sm)] px-3 py-1.5 text-[0.8125rem] font-medium"
+              // Variant mặc định = --primary (brand) + --primary-foreground (ink-inverse): không cần !important
+              className="rounded-[var(--r-sm)] px-3 py-1.5 text-[0.8125rem] font-medium"
             >
               Tiếp tục <ArrowRight className="size-3.5" />
             </Button>
@@ -56,7 +57,7 @@ export function WizardBottomBar({
               size="sm"
               onClick={onSubmit}
               disabled={isPending}
-              className="bg-brand !text-ink-inverse hover:bg-brand-hover rounded-[var(--r-sm)] px-3 py-1.5 text-[0.8125rem] font-medium disabled:opacity-40"
+              className="rounded-[var(--r-sm)] px-3 py-1.5 text-[0.8125rem] font-medium disabled:opacity-40"
             >
               <Send className="size-3.5" />{" "}
               {isPending ? "Đang lưu..." : isEdit ? "Lưu thay đổi" : "Tạo nhà cung cấp"}

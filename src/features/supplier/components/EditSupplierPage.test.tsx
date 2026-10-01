@@ -2,6 +2,7 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { SUPPLIER_PERMISSIONS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
 import { apiSupplier } from "../__fixtures__/supplier";
@@ -30,6 +31,18 @@ afterEach(() => vi.restoreAllMocks());
 describe("EditSupplierPage", () => {
   it("thiếu UPDATE → 'Bạn không có quyền', không tải NCC", async () => {
     const get = renderEdit(PERMISSION_SETS.readOnly, () => apiSupplier);
+    expect(await screen.findByText("Bạn không có quyền")).toBeInTheDocument();
+    expect(get.mock.calls.some(([url]) => url === DETAIL_PATH)).toBe(false);
+    // Có quyền xem → vẫn quay về danh sách được
+    expect(screen.getByRole("link", { name: "Về danh sách" })).toHaveAttribute(
+      "href",
+      "/admin/suppliers",
+    );
+  });
+
+  it("có UPDATE + READ nhưng thiếu VIEW_PAGE → bị chặn route", async () => {
+    const { read, update } = SUPPLIER_PERMISSIONS;
+    const get = renderEdit([read, update], () => apiSupplier);
     expect(await screen.findByText("Bạn không có quyền")).toBeInTheDocument();
     expect(get.mock.calls.some(([url]) => url === DETAIL_PATH)).toBe(false);
   });
