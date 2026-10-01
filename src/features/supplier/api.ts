@@ -9,7 +9,7 @@
  */
 
 import { api } from "@/lib/api/client";
-import type { ListQueryParams, PaginatedResponse } from "@/lib/api/query-factory";
+import type { LegacyPaginatedResponse, ListQueryParams } from "@/lib/api/query-factory";
 
 import { paginatedSupplierDtoSchema, supplierDtoSchema } from "./schemas";
 
@@ -29,8 +29,8 @@ export interface ListSupplierParams extends ListQueryParams {
 export async function listSuppliers(
   params: ListSupplierParams,
   signal?: AbortSignal,
-): Promise<PaginatedResponse<SupplierDto>> {
-  const { data } = await api.get<PaginatedResponse<SupplierDto>>("/suppliers", {
+): Promise<LegacyPaginatedResponse<SupplierDto>> {
+  const { data } = await api.get<LegacyPaginatedResponse<SupplierDto>>("/suppliers", {
     params,
     signal,
   });
