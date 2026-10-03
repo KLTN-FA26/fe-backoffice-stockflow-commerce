@@ -1,5 +1,6 @@
 "use client";
 
+import { UI_LABELS } from "@/constants";
 import { Input } from "@/components/ui/input";
 
 import type { PoLine } from "@/features/purchase-order";
@@ -38,7 +39,7 @@ export function ReceiveLineRow({
           min={1}
           max={line.openQuantity}
           step={1}
-          placeholder="SL nhận"
+          placeholder={UI_LABELS.purchaseOrder.receivedQty}
           autoFocus={autoFocus}
           value={value}
           aria-invalid={error ? true : undefined}

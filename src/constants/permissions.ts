@@ -1,0 +1,33 @@
+/**
+ * Mã quyền thật của BE (`<resource>:<ACTION>`), đọc từ `GET /identity/me/permissions`
+ * (BE PR #39). Không gắn cứng theo tên vai trò — admin đổi quyền trên màn Phân quyền là
+ * có hiệu lực ngay.
+ */
+
+/** Màn NCC — resource `procurement-suppliers` (BE SupplierController, PR #36). */
+export const SUPPLIER_PERMISSIONS = {
+  viewPage: "procurement-suppliers:VIEW_PAGE",
+  read: "procurement-suppliers:READ",
+  create: "procurement-suppliers:CREATE",
+  // Sửa và đổi trạng thái qua PUT có `status`
+  update: "procurement-suppliers:UPDATE",
+  // Ngừng hợp tác = DELETE
+  delete: "procurement-suppliers:DELETE",
+  // Xuất dữ liệu hàng loạt — BE coi là quyền nhạy cảm, tách khỏi READ (Action.EXPORT)
+  export: "procurement-suppliers:EXPORT",
+} as const;
+
+/**
+ * Màn Đơn đặt NCC — resource `procurement-purchase-orders` (BE PurchaseOrderController).
+ * VIEW_PAGE chỉ dùng cho menu + chặn route; mọi API đọc cần READ (BE Action.java, ADR-0004).
+ */
+export const PO_PERMISSIONS = {
+  viewPage: "procurement-purchase-orders:VIEW_PAGE",
+  read: "procurement-purchase-orders:READ",
+  create: "procurement-purchase-orders:CREATE",
+  // Gửi NCC, huỷ, nhận hàng, đóng thiếu, ghi nhận NCC phản hồi
+  update: "procurement-purchase-orders:UPDATE",
+  // Phê duyệt + khôi phục gửi NCC (`/delivery-recovery`)
+  approve: "procurement-purchase-orders:APPROVE",
+  export: "procurement-purchase-orders:EXPORT",
+} as const;

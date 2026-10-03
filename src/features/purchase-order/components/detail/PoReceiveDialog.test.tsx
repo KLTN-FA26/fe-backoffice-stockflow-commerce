@@ -10,13 +10,16 @@ const PO: PurchaseOrder = {
   poId: "po-1",
   poNumber: "PO-20260930-000001",
   supplierId: "sup-1",
-  warehouseId: null,
   status: "PARTIALLY_RECEIVED",
   currency: "VND",
   orderDate: "2026-09-30",
   expectedDate: "2026-10-07",
   createdBy: "tester",
   grandTotal: 2000,
+  paymentTermDays: 30,
+  leadTimeDays: 7,
+  supplierConfirmationStatus: "CONFIRMED",
+  deliveryStatus: "DELIVERED",
   lines: [
     {
       lineId: "l-1",

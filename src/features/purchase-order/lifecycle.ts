@@ -1,137 +1,179 @@
 /**
  * Purchase Order — lifecycle & action-gating.
  *
- * Re-exports transition table from domain/lifecycle.ts (single source of truth).
- * Adds `allowedPoActions()` for UI action-gating per status + role.
- *
- * Source: BE PurchaseOrderStatus.java + PurchaseOrder aggregate (7-state).
- * Full 10-state is docs/warehouse/02-purchase-order §5; BE deliberately narrows
- * (SCRUM-113/116) — FE mirrors BE so permissions gate correctly.
+ * Quyền: mã quyền thật `procurement-purchase-orders:*` đọc từ `/identity/me/permissions`
+ * (BE #39) — KHÔNG gắn cứng theo tên vai trò.
+ * UI-only — Backend phải re-check (@RequiresPermission + 409 INVALID_PURCHASE_ORDER_TRANSITION).
  */
 
 import {
-  PO_TRANSITIONS,
-  canTransition,
-  isTerminal,
-  allowedTransitions,
-} from "@/lib/domain/lifecycle";
-import { can } from "@/lib/auth/permissions";
+  PO_DELIVERY_STATUS,
+  PO_PERMISSIONS,
+  PO_STATUS,
+  PO_STATUSES,
+  SUPPLIER_CONFIRMATION_STATUS,
+  UI_LABELS,
+} from "@/constants";
 
-import type { PoStatus } from "./types";
-import type { RoleName } from "@/lib/auth/roles";
-import type { Permission } from "@/lib/auth/permissions";
-
-/* ── Re-exports ──────────────────────────────────────────────────────── */
-
-export { PO_TRANSITIONS, canTransition, isTerminal, allowedTransitions };
-
-/* ── Action definitions ──────────────────────────────────────────────── */
-
-/** Actions the UI can gate per status + role. */
-export interface PoAction {
-  /** Unique action code. */
-  readonly code: string;
-  /** Button label. */
-  readonly label: string;
-  /** Permission required. */
-  readonly permission: Permission;
-  /** Statuses where this action is available. */
-  readonly fromStatuses: readonly PoStatus[];
-  /** Target status after action (undefined = non-transition action like "edit"). */
-  readonly targetStatus?: PoStatus;
-  /** Destructive action styling. */
-  readonly destructive?: boolean;
-  /** Whether reason is required (BE cancel/closeShort need {reason}). */
-  readonly requiresReason?: boolean;
-}
+import type { PermissionCode } from "@/lib/auth";
+import type { PoStatus, PurchaseOrder } from "./types";
 
 /**
- * PO actions — one entry per BE endpoint (PurchaseOrderController.java).
- * - approve:    DRAFT -> APPROVED   (permission po.approve)
- * - send:       APPROVED -> SENT    (permission po.update — see ticket note on sends)
- * - cancel:     DRAFT/APPROVED/SENT -> CANCELLED, needs reason (po.update)
- * - closeShort: PARTIALLY_RECEIVED -> CLOSED_SHORT, needs reason
- * - receive:    SENT/PARTIALLY_RECEIVED -> PARTIALLY_RECEIVED|CLOSED (not via canTransitionTo)
- *
- * Removed vs old docs 10-state: submit/submit-auto-approve/pendingApproval,
- * approve->Draft rejection, confirm/close/force-close variants that BE dropped.
+ * docs 02-purchase-order §5 — bảng "Chuyển tiếp cho phép", thu hẹp theo BE
+ * `PurchaseOrderStatus#canTransitionTo` (SCRUM-113/116). Đặt trong feature (không dùng bảng
+ * Title Case của `lib/domain/lifecycle.ts`) vì PO đã chạy theo 7 mã trạng thái BE. Ánh xạ:
+ *   Draft → Pending Approval / Approved   ⇒ DRAFT → APPROVED (BE gộp submit+approve)
+ *   Approved → Confirmed                  ⇒ APPROVED → SENT
+ *   Confirmed / Partially Received → Received → Closed ⇒ receiveGoods tự đóng CLOSED khi hết
+ *     open qty (không qua bảng này — xem action "receive")
+ *   Partially Received → Closed (short-close) ⇒ PARTIALLY_RECEIVED → CLOSED_SHORT
+ * ASSUMPTION (open-question A2): BE chưa có Pending Approval / hạn mức duyệt (BR-PO-002).
  */
+export const PO_TRANSITIONS: Readonly<Record<PoStatus, readonly PoStatus[]>> = {
+  DRAFT: [PO_STATUS.APPROVED, PO_STATUS.CANCELLED],
+  APPROVED: [PO_STATUS.SENT, PO_STATUS.CANCELLED],
+  // BR-05 (docs 02 §6): chỉ huỷ được khi CHƯA nhận hàng — SENT chưa có receipt nào.
+  SENT: [PO_STATUS.CANCELLED],
+  // BR-05 (docs 02 §6): đã nhận một phần ⇒ không còn CANCELLED, chỉ short-close.
+  PARTIALLY_RECEIVED: [PO_STATUS.CLOSED_SHORT],
+  CLOSED: [], // terminal
+  CLOSED_SHORT: [], // terminal
+  CANCELLED: [], // terminal
+};
+
+/**
+ * Trạng thái kế tiếp; `undefined` nếu `status` nằm ngoài bảng. Status đã qua zod nên lẽ ra không
+ * xảy ra — guard chỉ để một giá trị lạ hiện "không có thao tác" thay vì sập trang
+ * (`undefined.length`, regression khoá trong lifecycle.test.ts).
+ */
+function nextOf(status: string): readonly PoStatus[] | undefined {
+  return isPoStatus(status) ? PO_TRANSITIONS[status] : undefined;
+}
+
+function isPoStatus(value: string): value is PoStatus {
+  return (PO_STATUSES as readonly string[]).includes(value);
+}
+
+export type PoActionCode =
+  | "approve"
+  | "send"
+  | "cancel"
+  | "closeShort"
+  | "receive"
+  | "recoverDelivery"
+  | "recordConfirmation";
+
+export interface PoAction {
+  readonly code: PoActionCode;
+  readonly label: string;
+  /** Mã quyền BE guard endpoint này (PurchaseOrderController @RequiresPermission). */
+  readonly permission: PermissionCode;
+  readonly fromStatuses: readonly PoStatus[];
+  /** Trạng thái đích nếu là chuyển một bước (receive/khôi phục/xác nhận không có). */
+  readonly targetStatus?: PoStatus;
+  /** Điều kiện ngoài trạng thái PO (giao NCC / NCC phản hồi) — đúng domain rule BE. */
+  readonly when?: (po: PoGateState) => boolean;
+  readonly destructive?: boolean;
+}
+
+export type PoGateState = Pick<
+  PurchaseOrder,
+  "status" | "supplierConfirmationStatus" | "deliveryStatus"
+>;
+
 export const PO_ACTIONS: readonly PoAction[] = [
   {
     code: "approve",
-    label: "Phê duyệt",
-    permission: "po.approve",
-    fromStatuses: ["DRAFT"],
-    targetStatus: "APPROVED",
+    label: UI_LABELS.purchaseOrder.action.approve,
+    permission: PO_PERMISSIONS.approve,
+    fromStatuses: [PO_STATUS.DRAFT],
+    targetStatus: PO_STATUS.APPROVED,
   },
   {
     code: "send",
-    label: "Gửi NCC",
-    permission: "po.update",
-    fromStatuses: ["APPROVED"],
-    targetStatus: "SENT",
-  },
-  {
-    code: "cancel",
-    label: "Huỷ PO",
-    permission: "po.update",
-    // BR-05 (docs 02 §6): không huỷ khi đã có receipt — PARTIALLY_RECEIVED bị loại.
-    fromStatuses: ["DRAFT", "APPROVED", "SENT"],
-    targetStatus: "CANCELLED",
-    destructive: true,
-    requiresReason: true,
-  },
-  {
-    code: "closeShort",
-    label: "Đóng thiếu",
-    permission: "po.update",
-    fromStatuses: ["PARTIALLY_RECEIVED"],
-    targetStatus: "CLOSED_SHORT",
-    destructive: true,
-    requiresReason: true,
+    label: UI_LABELS.purchaseOrder.action.send,
+    permission: PO_PERMISSIONS.update,
+    fromStatuses: [PO_STATUS.APPROVED],
+    targetStatus: PO_STATUS.SENT,
   },
   {
     code: "receive",
-    label: "Nhận hàng",
-    permission: "po.update",
+    label: UI_LABELS.purchaseOrder.action.receive,
+    permission: PO_PERMISSIONS.update,
     // BR-03 (docs 02 §6): chỉ nhận khi PO đã chốt (Confirmed ≙ BE SENT) hoặc Partially Received.
-    fromStatuses: ["SENT", "PARTIALLY_RECEIVED"],
+    fromStatuses: [PO_STATUS.SENT, PO_STATUS.PARTIALLY_RECEIVED],
+    // BE receiveGoods: NCC đã từ chối thì không nhận — huỷ và tạo PO thay thế.
+    when: (po) => po.supplierConfirmationStatus !== SUPPLIER_CONFIRMATION_STATUS.REJECTED,
   },
-] as const;
-
-/* ── Action gating ───────────────────────────────────────────────────── */
+  {
+    code: "recordConfirmation",
+    label: UI_LABELS.purchaseOrder.action.recordConfirmation,
+    permission: PO_PERMISSIONS.update,
+    fromStatuses: [
+      PO_STATUS.SENT,
+      PO_STATUS.PARTIALLY_RECEIVED,
+      PO_STATUS.CLOSED,
+      PO_STATUS.CLOSED_SHORT,
+    ],
+    // BE recordSupplierConfirmation: chỉ khi đang chờ NCC phản hồi.
+    when: (po) => po.supplierConfirmationStatus === SUPPLIER_CONFIRMATION_STATUS.PENDING,
+  },
+  {
+    code: "recoverDelivery",
+    label: UI_LABELS.purchaseOrder.action.recoverDelivery,
+    permission: PO_PERMISSIONS.approve,
+    fromStatuses: [PO_STATUS.SENT],
+    // BE requireDeliveryRecovery: SENT + chờ NCC phản hồi + lần gửi cuối thất bại hẳn.
+    when: (po) =>
+      po.supplierConfirmationStatus === SUPPLIER_CONFIRMATION_STATUS.PENDING &&
+      po.deliveryStatus === PO_DELIVERY_STATUS.FAILED,
+  },
+  {
+    code: "closeShort",
+    label: UI_LABELS.purchaseOrder.action.closeShort,
+    permission: PO_PERMISSIONS.update,
+    fromStatuses: [PO_STATUS.PARTIALLY_RECEIVED],
+    targetStatus: PO_STATUS.CLOSED_SHORT,
+    destructive: true,
+  },
+  {
+    code: "cancel",
+    label: UI_LABELS.purchaseOrder.action.cancel,
+    permission: PO_PERMISSIONS.update,
+    // BR-05 (docs 02 §6): không huỷ khi đã có receipt — PARTIALLY_RECEIVED bị loại.
+    fromStatuses: [PO_STATUS.DRAFT, PO_STATUS.APPROVED, PO_STATUS.SENT],
+    targetStatus: PO_STATUS.CANCELLED,
+    destructive: true,
+  },
+];
 
 /**
- * Actions available for a PO status + the user's roles (all of them — a user may hold
- * several roles, and `can()` grants if ANY role has the permission).
- *
- * 1. Action's `fromStatuses` includes the current status.
- * 2. If the action has a `targetStatus`, `PO_TRANSITIONS` allows it.
- * 3. One of the roles has the required permission.
- *
- * `status` is always one of the 7 BE values: the API layer zod-parses every response and
- * the mock adapter speaks the BE vocabulary, so no normalisation is needed here.
- * UI-only gate — backend re-checks permission (@RequiresPermission) and transition (409).
+ * Action khả dụng cho PO hiện tại + bộ quyền của người dùng (`can` từ `usePermissionChecker`).
+ * 1. Trạng thái nằm trong `fromStatuses`.  2. Bảng chuyển trạng thái cho phép (nếu có đích).
+ * 3. Điều kiện giao NCC / NCC phản hồi.  4. Có mã quyền BE guard endpoint đó.
  */
 export function allowedPoActions(
-  status: PoStatus,
-  roles: readonly RoleName[],
+  po: PoGateState,
+  can: (code: PermissionCode) => boolean,
 ): readonly PoAction[] {
   return PO_ACTIONS.filter((action) => {
     const allowedByTable =
-      !action.targetStatus || canTransition(PO_TRANSITIONS, status, action.targetStatus);
+      !action.targetStatus || (nextOf(po.status)?.includes(action.targetStatus) ?? false);
     return (
-      action.fromStatuses.includes(status) && allowedByTable && can([...roles], action.permission)
+      action.fromStatuses.includes(po.status) &&
+      allowedByTable &&
+      (action.when?.(po) ?? true) &&
+      can(action.permission)
     );
   });
 }
 
-/** True when the PO has no outgoing transition (CLOSED / CLOSED_SHORT / CANCELLED). */
-export function isPoTerminal(status: PoStatus): boolean {
-  return isTerminal(PO_TRANSITIONS, status);
+/** Không còn chuyển tiếp (CLOSED / CLOSED_SHORT / CANCELLED). */
+export function isPoTerminal(status: string): boolean {
+  return (nextOf(status) ?? []).length === 0;
 }
 
-/** Statuses reachable in one step from `status`. */
-export function nextPoStatuses(status: PoStatus): readonly PoStatus[] {
-  return allowedTransitions(PO_TRANSITIONS, status);
+/** Trạng thái kế tiếp một bước từ `status`. */
+export function nextPoStatuses(status: string): readonly PoStatus[] {
+  return nextOf(status) ?? [];
 }

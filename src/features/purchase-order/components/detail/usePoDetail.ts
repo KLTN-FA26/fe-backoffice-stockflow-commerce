@@ -1,56 +1,54 @@
 "use client";
 
-import { useMemo } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { parseAsString, useQueryState } from "nuqs";
 
-import { PAGE_SIZE } from "@/constants";
-import { useAuthStore } from "@/lib/auth/auth-store";
-import {
-  allowedPoActions,
-  usePoSuppliers,
-  usePoWarehouses,
-  usePurchaseOrder,
-} from "@/features/purchase-order";
-import { useSkus } from "@/features/product";
+import { PO_PERMISSIONS, UI_LABELS } from "@/constants";
+import { useCan, usePermissionChecker } from "@/lib/auth";
+import { useSupplierRef } from "@/lib/references/supplier-lookup";
+import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
+import { allowedPoActions, usePurchaseOrder } from "@/features/purchase-order";
 
 import { usePoActions } from "./usePoActions";
 
-import type { PoAction } from "@/features/purchase-order";
-
 export function usePoDetail(id: string) {
-  const searchParams = useSearchParams();
-  const isDuplicate = searchParams.get("duplicate") === "1";
-  const roles = useAuthStore((s) => s.effectiveRoles());
+  // `?duplicate=1` do form tạo gắn khi BE báo possibleDuplicate (BR-PO-003). BE chỉ tính cờ này
+  // lúc tạo đơn → giữ cảnh báo cho lần xem này rồi xoá khỏi URL (history replace), để F5 / gửi
+  // link không còn báo trùng mãi.
+  const [duplicate, setDuplicate] = useQueryState("duplicate", parseAsString.withDefault(""));
+  const [isDuplicate] = useState(() => duplicate === "1");
+  useEffect(() => {
+    if (duplicate) void setDuplicate(null);
+  }, [duplicate, setDuplicate]);
+  // READ = có được gọi API dữ liệu PO không (VIEW_PAGE đã được gate ở trang).
+  const canRead = useCan(PO_PERMISSIONS.read);
+  const can = usePermissionChecker();
 
-  const poQuery = usePurchaseOrder(id);
-  // FE-only master data (see api.ts) — a failure here must not block the PO itself.
-  const suppliersQuery = usePoSuppliers({});
-  const warehousesQuery = usePoWarehouses({});
-  const skusQuery = useSkus({ page: 1, pageSize: PAGE_SIZE.masterData });
-
+  const poQuery = usePurchaseOrder(id, { enabled: canRead });
   const po = poQuery.data ?? null;
-  const skus = useMemo(() => skusQuery.data?.items ?? [], [skusQuery.data]);
-  const supplier = useMemo(
-    () => suppliersQuery.data?.items.find((s) => s.supplierId === po?.supplierId) ?? null,
-    [po, suppliersQuery.data],
-  );
-  const warehouse = useMemo(
-    () => warehousesQuery.data?.items.find((w) => w.warehouseId === po?.warehouseId) ?? null,
-    [po, warehousesQuery.data],
-  );
-  // All roles, not roles[0]: a user holding several roles gets the union of permissions.
-  const actions: readonly PoAction[] = po ? allowedPoActions(po.status, roles) : [];
+  // BE PurchaseOrderResponse không có tên/mã NCC — tra theo id (cả NCC đã ngừng hợp tác).
+  const supplierQuery = useSupplierRef(po?.supplierId);
+  // Breadcrumb hiện số PO thay vì UUID.
+  useBreadcrumbLabel(id, po?.poNumber);
+
+  const actions = po ? allowedPoActions(po, can) : [];
   const poActions = usePoActions(po, () => void poQuery.refetch());
 
+  // Tên NCC hiện ở tiêu đề, link NCC và dialog Gửi NCC — không lộ UUID khi chưa tra được.
+  const supplierName =
+    supplierQuery.data?.name ??
+    (supplierQuery.isError
+      ? UI_LABELS.purchaseOrder.supplierUnavailable
+      : UI_LABELS.purchaseOrder.supplierLoading);
+
   return {
+    canRead,
     isDuplicate,
     poQuery,
     po,
-    skus,
-    supplier,
-    warehouse,
+    supplier: supplierQuery.data ?? null,
+    supplierName,
     actions,
-    masterDataError: suppliersQuery.isError || warehousesQuery.isError || skusQuery.isError,
     ...poActions,
   };
 }

@@ -1,5 +1,5 @@
 export const PAGE_SIZE = {
-  masterData: 500,
+  masterData: 200,
   sm: 10,
   md: 15,
   lg: 25,
@@ -13,7 +13,6 @@ export const PO_COLUMNS = {
   PO_NUMBER: "poNumber",
   STATUS: "status",
   SUPPLIER: "supplier",
-  WAREHOUSE: "warehouse",
 } as const;
 
 export const RECEIPT_COLUMNS = {

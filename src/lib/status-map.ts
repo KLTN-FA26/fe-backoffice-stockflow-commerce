@@ -13,6 +13,8 @@ export type { SemanticTone };
 
 const TONE: Record<SemanticTone, readonly string[]> = {
   positive: [
+    "DELIVERED",
+    "CONFIRMED",
     "Confirmed",
     "Approved",
     "APPROVED",
@@ -44,6 +46,7 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Allocated",
   ],
   info: [
+    "QUEUED",
     "SENT",
     "In Progress",
     "In Transit",
@@ -66,6 +69,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Initiated",
   ],
   warning: [
+    "RETRYING",
+    "PENDING",
     "PARTIALLY_RECEIVED",
     "Pending Approval",
     "On Hold",
@@ -91,6 +96,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Draft Proposal",
   ],
   danger: [
+    "FAILED",
+    "REJECTED",
     "CANCELLED",
     "Cancelled",
     "Rejected",
@@ -108,6 +115,7 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Timeout",
   ],
   neutral: [
+    "NOT_SENT",
     "DRAFT",
     "Draft",
     "Created",
@@ -119,6 +127,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Requested",
   ],
   muted: [
+    "UNKNOWN",
+    "SUPPRESSED",
     "CLOSED",
     "CLOSED_SHORT",
     "Closed",
@@ -168,6 +178,18 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   CLOSED: "Đã đóng",
   CLOSED_SHORT: "Đóng thiếu",
   CANCELLED: "Đã huỷ",
+  // PO — trạng thái gửi NCC (BE deliveryStatus / DeliveryAttempt.status) + NCC phản hồi
+  // (BE supplierConfirmationStatus). PENDING dùng chung cho "chờ gửi" và "chờ NCC phản hồi".
+  NOT_SENT: "Chưa gửi",
+  QUEUED: "Đang chờ gửi",
+  RETRYING: "Đang gửi lại",
+  FAILED: "Gửi thất bại",
+  DELIVERED: "Đã gửi tới NCC",
+  UNKNOWN: "Không rõ",
+  SUPPRESSED: "Đã chặn gửi",
+  PENDING: "Đang chờ",
+  CONFIRMED: "NCC đã xác nhận",
+  REJECTED: "NCC từ chối",
   // Positive
   Confirmed: "Đã xác nhận",
   Approved: "Đã duyệt",

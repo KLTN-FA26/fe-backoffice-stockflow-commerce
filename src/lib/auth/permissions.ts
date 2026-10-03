@@ -41,7 +41,6 @@ export const PERMISSIONS = {
   ] as RoleName[],
   "po.create": ["Procurement Staff"] as RoleName[],
   "po.approve": ["Warehouse Manager"] as RoleName[],
-  "po.update": ["Procurement Staff", "Warehouse Manager"] as RoleName[],
   "po.confirm": ["Procurement Staff"] as RoleName[],
   "po.cancel": ["Procurement Staff", "Warehouse Manager"] as RoleName[],
 

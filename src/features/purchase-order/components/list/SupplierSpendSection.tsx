@@ -1,127 +1,109 @@
 "use client";
 
-import { useState } from "react";
-
-import { PAGE_SIZE } from "@/constants";
-import { Card } from "@/components/shared/Card";
-import { DataTable } from "@/components/shared/DataTable";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import dynamic from "next/dynamic";
 
 import { useSupplierSpend } from "@/features/purchase-order";
+import { DataTable } from "@/components/shared/DataTable";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { Skeleton } from "@/components/shared/Skeleton";
+import { Button } from "@/components/ui/button";
 
-import { SupplierSpendChart } from "./SupplierSpendChart";
-import { SPEND_COLUMNS } from "./supplierSpendColumns";
+import { PoLoadError } from "../PoLoadError";
+import { PAGE_SIZE_OPTIONS } from "./config";
+import { SupplierSpendFilters } from "./SupplierSpendFilters";
+import { spendColumns } from "./supplierSpendColumns";
+import { useSupplierSpendFilters } from "./useSupplierSpendFilters";
 
-const DATE_INPUT_CLASS = "bg-bg-surface h-8 w-[160px] rounded-[var(--r-sm)] text-[0.8125rem]";
+// Chart nặng (recharts) → tách chunk, chỉ tải khi mở tab (api-conventions §9).
+const SupplierSpendChart = dynamic(() => import("./SupplierSpendChart"), {
+  ssr: false,
+  loading: () => <Skeleton className="h-[320px] w-full" />,
+});
 
-export function SupplierSpendSection() {
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  const [applied, setApplied] = useState({ from: "", to: "" });
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<number>(PAGE_SIZE.md);
-  const spendQ = useSupplierSpend({
-    page,
-    pageSize,
-    expectedAtFrom: applied.from || undefined,
-    expectedAtTo: applied.to || undefined,
-  });
-  // One query feeds both chart and table (chart = top 20 of the current page).
-  const items = spendQ.data?.items ?? [];
+/**
+ * Chi tiêu theo NCC (`GET /purchase-orders/reports/supplier-spend`). BE #40 tách theo tiền tệ:
+ * luôn lọc MỘT tiền tệ để bảng + biểu đồ không cộng/so lẫn VND với USD.
+ */
+export function SupplierSpendSection({ canRead }: { canRead: boolean }) {
+  const f = useSupplierSpendFilters();
+  const currency = f.currency;
+  const spendQ = useSupplierSpend(
+    {
+      page: f.page,
+      size: f.size,
+      currency,
+      expectedAtFrom: f.range.from || undefined,
+      expectedAtTo: f.range.to || undefined,
+    },
+    { enabled: canRead },
+  );
+  const data = spendQ.data;
 
-  const applyRange = (range: { from: string; to: string }) => {
-    setApplied(range);
-    setPage(1);
-  };
+  const hasRange = f.range.from !== "" || f.range.to !== "";
+
+  if (!canRead) return <PoLoadError error={null} kind="no-read" inline />;
 
   return (
     <div className="space-y-4">
-      <Card className="p-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h3 className="text-ink-primary text-sm font-semibold">Chi tiêu theo nhà cung cấp</h3>
-            <p className="text-ink-secondary mt-1 text-xs">
-              Tổng tiền (loại DRAFT/CANCELLED) — xếp giảm dần. Lọc theo ngày giao dự kiến.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-end gap-2">
-            <div className="grid gap-1">
-              <Label htmlFor="spend-from" className="text-ink-secondary text-xs">
-                Từ ngày (expectedAt)
-              </Label>
-              <Input
-                id="spend-from"
-                type="date"
-                value={from}
-                onChange={(e) => setFrom(e.target.value)}
-                className={DATE_INPUT_CLASS}
-              />
-            </div>
-            <div className="grid gap-1">
-              <Label htmlFor="spend-to" className="text-ink-secondary text-xs">
-                Đến ngày
-              </Label>
-              <Input
-                id="spend-to"
-                type="date"
-                value={to}
-                onChange={(e) => setTo(e.target.value)}
-                className={DATE_INPUT_CLASS}
-              />
-            </div>
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => applyRange({ from, to })}
-              className="bg-brand text-ink-inverse hover:bg-brand-hover h-8 rounded-[var(--r-sm)]"
-            >
-              Lọc
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setFrom("");
-                setTo("");
-                applyRange({ from: "", to: "" });
-              }}
-              className="border-border-default bg-bg-surface h-8 rounded-[var(--r-sm)]"
-            >
-              Xoá lọc
-            </Button>
-          </div>
-        </div>
-      </Card>
+      {/* key theo khoảng đang áp dụng: bỏ lọc từ EmptyState thì ô ngày nháp cũng reset. */}
+      <SupplierSpendFilters
+        key={`${f.range.from}|${f.range.to}`}
+        currency={currency}
+        range={f.range}
+        onCurrencyChange={f.setCurrency}
+        onApplyRange={f.setRange}
+      />
 
-      {spendQ.isLoading ? (
-        <div className="bg-bg-surface border-border-default text-ink-tertiary rounded-[var(--r-sm)] border py-8 text-center text-sm">
-          Đang tải...
-        </div>
+      {spendQ.isError ? (
+        <PoLoadError error={spendQ.error} onRetry={() => void spendQ.refetch()} inline />
+      ) : !data ? (
+        <Skeleton className="h-[320px] w-full" />
+      ) : data.totalElements === 0 ? (
+        // §8: hai loại rỗng khác nhau — lọc ngày không ra kết quả ≠ chưa có chi tiêu.
+        hasRange ? (
+          <EmptyState
+            title="Không có chi tiêu trong khoảng ngày đã chọn"
+            description={`Không có đơn ${currency} nào có ngày giao dự kiến trong khoảng này.`}
+            action={
+              <Button variant="outline" size="sm" onClick={() => f.setRange({ from: "", to: "" })}>
+                Bỏ lọc ngày
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState
+            title={`Chưa có chi tiêu bằng ${currency}`}
+            description="Chỉ tính đơn đã duyệt trở đi (bỏ Nháp / Đã huỷ). Thử chọn tiền tệ khác."
+          />
+        )
       ) : (
         <>
-          <SupplierSpendChart rows={items.slice(0, 20)} />
+          {data.items.length > 0 && (
+            <SupplierSpendChart
+              rows={data.items}
+              currency={currency}
+              rankStart={data.page * data.size + 1}
+              total={data.totalElements}
+            />
+          )}
           <DataTable
-            data={items}
-            columns={SPEND_COLUMNS}
-            rowKey={(r) => r.supplierId}
-            pageSize={pageSize}
-            total={spendQ.data?.total ?? 0}
-            page={page}
-            onPageChange={setPage}
-            onPageSizeChange={(v) => {
-              setPageSize(v);
-              setPage(1); // data-table-mode-a §5: new page size → back to page 1
+            data={data.items}
+            columns={spendColumns(currency)}
+            rowKey={(r) => `${r.supplierId}|${r.currency ?? currency}`}
+            pageSize={f.size}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
+            serverPagination={{
+              page: data.page,
+              size: data.size,
+              totalElements: data.totalElements,
+              totalPages: data.totalPages,
+              hasNext: data.hasNext,
+              hasPrevious: data.hasPrevious,
+              onPageChange: f.setPage,
+              onPageSizeChange: f.setSize,
             }}
           />
         </>
-      )}
-      {spendQ.isError && (
-        <p role="alert" className="text-danger text-sm">
-          Không tải được báo cáo chi tiêu.
-        </p>
       )}
     </div>
   );

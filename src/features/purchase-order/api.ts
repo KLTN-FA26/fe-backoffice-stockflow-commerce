@@ -1,28 +1,19 @@
 /**
- * Purchase Order — API layer.
+ * Purchase Order — API layer (BE `PurchaseOrderController` + `PurchaseOrderDeliveryController`,
+ * nhánh BE `test`). Path KHÔNG ghi `/v1`: axios `baseURL: "/api"`, next.config rewrite sang
+ * `${API_URL}` (đã gồm `/api/v1`). BE bọc ApiResponse — đã bóc ở `lib/api/client.ts`.
  *
- * Contract: BE Procurement (PurchaseOrderController.java + DTOs).
- * - POST /purchase-orders                    {supplierId:UUID, currency, expectedAt, lines:[{sku,description,quantityOrdered,unitPrice}]}
- * - GET  /purchase-orders?page=&size=&supplierId=&status=&sort=   (PageResponse, page 0-based)
- * - GET  /purchase-orders/{purchaseOrderId}
- * - POST /purchase-orders/{id}/approval | /sending | /cancellation {reason} | /closure-short {reason}
- * - POST /purchase-orders/{id}/receipts      {lines:[{lineId:UUID, quantity}]}
- * - GET  /purchase-orders/reports/status-dashboard | /reports/supplier-spend
- *
- * Paths carry NO `/v1`: axios `baseURL` is "/api" and next.config rewrites it to
- * `${API_URL}`, where API_URL already ends in `/api/v1`.
- *
- * BE wraps every response in ApiResponse {success, data} — unwrapped in lib/api/client.ts.
- * Every PO response is zod-parsed here, once, then mapped (mappers.ts). The mock adapter
- * returns the exact BE wire shape, so there is a single code path for mock and real BE.
+ * Mọi response được zod `.parse` MỘT lần ở đây (sai hợp đồng → ZodError → "invalid-data"),
+ * rồi map sang FE view (`mappers.ts`). Mock adapter trả đúng hình BE nên chỉ có một luồng.
  */
 
 import { PAGE_SIZE } from "@/constants";
 import { api } from "@/lib/api/client";
-import { parseResponse } from "@/lib/api/parse";
 
 import { mapBePoToFe } from "./mappers";
 import {
+  beDeliveryAttemptSchema,
+  beDeliveryDecisionSchema,
   bePageSchema,
   bePoStatusCountSchema,
   bePurchaseOrderSchema,
@@ -30,30 +21,41 @@ import {
 } from "./schemas";
 
 import type { PaginatedResponse } from "@/lib/api/query-factory";
-import type { CreatePoInput, PoStatusCount, SupplierSpendRow } from "./schemas";
-import type { PoStatus, PurchaseOrder, ReplenishmentProposal, Supplier, Warehouse } from "./types";
+import type {
+  CreatePoInput,
+  DeliveryAttempt,
+  DeliveryDecision,
+  PoStatusCount,
+  RecoverDeliveryInput,
+  SendPoInput,
+  SupplierConfirmationInput,
+  SupplierSpendRow,
+} from "./schemas";
+import type { PoStatus, PurchaseOrder } from "./types";
 
 const PO_PATH = "/purchase-orders";
-const bePoPageSchema = bePageSchema(bePurchaseOrderSchema);
-const beSpendPageSchema = bePageSchema(beSupplierSpendSchema);
+const poPageSchema = bePageSchema(bePurchaseOrderSchema);
+const spendPageSchema = bePageSchema(beSupplierSpendSchema);
+const deliveryPageSchema = bePageSchema(beDeliveryAttemptSchema);
+const decisionPageSchema = bePageSchema(beDeliveryDecisionSchema);
 
-/** Spring binds `@RequestParam List<String> status` from `status=A&status=B`, not `status[]=`. */
+/** Spring bind `@RequestParam List<String> status` từ `status=A&status=B`, không phải `status[]=`. */
 const REPEAT_ARRAY_PARAMS = { indexes: null } as const;
 
 async function postPo(path: string, body?: unknown): Promise<PurchaseOrder> {
   const { data } = await api.post<unknown>(path, body);
-  return mapBePoToFe(parseResponse(bePurchaseOrderSchema, data, `POST ${path}`));
+  return mapBePoToFe(bePurchaseOrderSchema.parse(data));
 }
 
-/* ── List ────────────────────────────────────────────────────────────── */
+/* ── List / detail ───────────────────────────────────────────────────── */
 
 export interface ListPoParams {
-  /** 1-based (UI); converted to BE 0-based. */
+  /** Trang từ 0 (BE PageResponse). */
   page?: number;
-  pageSize?: number;
+  size?: number;
   status?: PoStatus[];
   supplierId?: string;
-  /** BE SortWhitelist format: "prop,dir;prop2,dir2". */
+  /** BE SortWhitelist: "prop,dir;prop2,dir2". */
   sort?: string;
   [key: string]: unknown;
 }
@@ -62,11 +64,10 @@ export async function listPurchaseOrders(
   params: ListPoParams,
   signal?: AbortSignal,
 ): Promise<PaginatedResponse<PurchaseOrder>> {
-  const page = params.page ?? 1;
   const { data } = await api.get<unknown>(PO_PATH, {
     params: {
-      page: Math.max(0, page - 1),
-      size: params.pageSize ?? PAGE_SIZE.md,
+      page: params.page ?? 0,
+      size: params.size ?? PAGE_SIZE.md,
       supplierId: params.supplierId,
       status: params.status,
       sort: params.sort,
@@ -74,34 +75,75 @@ export async function listPurchaseOrders(
     paramsSerializer: REPEAT_ARRAY_PARAMS,
     signal,
   });
-  const be = parseResponse(bePoPageSchema, data, `GET ${PO_PATH}`);
-  return { items: be.items.map(mapBePoToFe), total: be.totalElements, page, pageSize: be.size };
+  const page = poPageSchema.parse(data);
+  return { ...page, items: page.items.map(mapBePoToFe) };
 }
-
-/* ── Detail / create / lifecycle ─────────────────────────────────────── */
 
 export async function getPurchaseOrder(id: string, signal?: AbortSignal): Promise<PurchaseOrder> {
   const { data } = await api.get<unknown>(`${PO_PATH}/${id}`, { signal });
-  return mapBePoToFe(parseResponse(bePurchaseOrderSchema, data, `GET ${PO_PATH}/{id}`));
+  return mapBePoToFe(bePurchaseOrderSchema.parse(data));
 }
 
+export interface PoHistoryParams {
+  /** Trang từ 0 (BE PageResponse). */
+  page: number;
+  size: number;
+}
+
+export async function listPoDeliveries(
+  id: string,
+  params: PoHistoryParams,
+  signal?: AbortSignal,
+): Promise<PaginatedResponse<DeliveryAttempt>> {
+  const { data } = await api.get<unknown>(`${PO_PATH}/${id}/deliveries`, { params, signal });
+  return deliveryPageSchema.parse(data);
+}
+
+/** Ai cho phép gửi lần đầu / khôi phục gửi, đổi ngày giao, lý do (`/delivery-decisions`). */
+export async function listPoDeliveryDecisions(
+  id: string,
+  params: PoHistoryParams,
+  signal?: AbortSignal,
+): Promise<PaginatedResponse<DeliveryDecision>> {
+  const { data } = await api.get<unknown>(`${PO_PATH}/${id}/delivery-decisions`, {
+    params,
+    signal,
+  });
+  return decisionPageSchema.parse(data);
+}
+
+/* ── Create / lifecycle ──────────────────────────────────────────────── */
+
 export interface CreatePoResult extends PurchaseOrder {
-  /** BR-PO-003: warning only — another open PO with same supplier + expectedAt + SKU exists. */
+  /** BR-PO-003: chỉ cảnh báo — có PO mở khác cùng NCC + ngày giao + SKU. */
   possibleDuplicate: boolean;
 }
 
 export async function createPurchaseOrder(input: CreatePoInput): Promise<CreatePoResult> {
   const { data } = await api.post<unknown>(PO_PATH, input);
-  const be = parseResponse(bePurchaseOrderSchema, data, `POST ${PO_PATH}`);
+  const be = bePurchaseOrderSchema.parse(data);
   return { ...mapBePoToFe(be), possibleDuplicate: be.possibleDuplicate };
 }
 
 export const approvePurchaseOrder = (id: string) => postPo(`${PO_PATH}/${id}/approval`);
-export const sendPurchaseOrder = (id: string) => postPo(`${PO_PATH}/${id}/sending`);
+/** BE: chỉ gửi `reason` khi đổi ngày giao; body rỗng cũng hợp lệ. */
+export const sendPurchaseOrder = (id: string, input: SendPoInput) =>
+  postPo(`${PO_PATH}/${id}/sending`, {
+    expectedAt: input.expectedAt,
+    reason: input.reason || undefined,
+  });
 export const cancelPurchaseOrder = (id: string, reason: string) =>
   postPo(`${PO_PATH}/${id}/cancellation`, { reason });
 export const closeShortPurchaseOrder = (id: string, reason: string) =>
   postPo(`${PO_PATH}/${id}/closure-short`, { reason });
+export const recoverPoDelivery = (id: string, input: RecoverDeliveryInput) =>
+  postPo(`${PO_PATH}/${id}/delivery-recovery`, input);
+export const recordSupplierConfirmation = (id: string, input: SupplierConfirmationInput) =>
+  postPo(`${PO_PATH}/${id}/supplier-confirmation`, {
+    status: input.status,
+    supplierReference: input.supplierReference || undefined,
+    note: input.note || undefined,
+  });
 
 export interface ReceiveLineInput {
   lineId: string;
@@ -114,70 +156,35 @@ export const receiveGoods = (id: string, lines: ReceiveLineInput[]) =>
 /* ── Reports ─────────────────────────────────────────────────────────── */
 
 export async function fetchPoStatusDashboard(signal?: AbortSignal): Promise<PoStatusCount[]> {
-  const path = `${PO_PATH}/reports/status-dashboard`;
-  const { data } = await api.get<unknown>(path, { signal });
-  return parseResponse(bePoStatusCountSchema.array(), data, `GET ${path}`);
+  const { data } = await api.get<unknown>(`${PO_PATH}/reports/status-dashboard`, { signal });
+  return bePoStatusCountSchema.array().parse(data);
 }
 
 export interface SupplierSpendParams {
   page?: number;
-  pageSize?: number;
+  size?: number;
   supplierId?: string;
+  /** BE #40: lọc một tiền tệ (nhánh BE chưa có #40 bỏ qua param này). */
+  currency?: string;
   expectedAtFrom?: string;
   expectedAtTo?: string;
   [key: string]: unknown;
 }
 
 export async function listSupplierSpend(
-  params: SupplierSpendParams = {},
+  params: SupplierSpendParams,
   signal?: AbortSignal,
 ): Promise<PaginatedResponse<SupplierSpendRow>> {
-  const path = `${PO_PATH}/reports/supplier-spend`;
-  const page = params.page ?? 1;
-  const { data } = await api.get<unknown>(path, {
+  const { data } = await api.get<unknown>(`${PO_PATH}/reports/supplier-spend`, {
     params: {
-      page: Math.max(0, page - 1),
-      size: params.pageSize ?? PAGE_SIZE.md,
+      page: params.page ?? 0,
+      size: params.size ?? PAGE_SIZE.md,
       supplierId: params.supplierId,
+      currency: params.currency,
       expectedAtFrom: params.expectedAtFrom,
       expectedAtTo: params.expectedAtTo,
     },
     signal,
   });
-  const be = parseResponse(beSpendPageSchema, data, `GET ${path}`);
-  return { items: be.items, total: be.totalElements, page, pageSize: be.size };
-}
-
-/* ── Master data — FE-ONLY ─────────────────────────────────────────────
- * BE has no GET /api/v1/suppliers, /warehouses (WarehouseController is a stub) or
- * /replenishment-proposals yet. These calls are served by the mock adapter
- * (lib/api/mock-routes.ts) so the PO create/list/detail screens can run end-to-end.
- * Against the real BE they 404 and the screens show an inline "không tải được" notice
- * instead of an empty select. Replace with the real endpoints once BE ships them.
- */
-
-export async function listPoSuppliers(signal?: AbortSignal): Promise<PaginatedResponse<Supplier>> {
-  const { data } = await api.get<PaginatedResponse<Supplier>>("/suppliers", {
-    params: { pageSize: PAGE_SIZE.masterData },
-    signal,
-  });
-  return data;
-}
-
-export async function listPoWarehouses(
-  signal?: AbortSignal,
-): Promise<PaginatedResponse<Warehouse>> {
-  const { data } = await api.get<PaginatedResponse<Warehouse>>("/warehouses", { signal });
-  return data;
-}
-
-export async function listReplenishmentProposals(
-  params: { page?: number; pageSize?: number },
-  signal?: AbortSignal,
-): Promise<PaginatedResponse<ReplenishmentProposal>> {
-  const { data } = await api.get<PaginatedResponse<ReplenishmentProposal>>(
-    "/replenishment-proposals",
-    { params, signal },
-  );
-  return data;
+  return spendPageSchema.parse(data);
 }

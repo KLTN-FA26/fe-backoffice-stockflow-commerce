@@ -1,4 +1,10 @@
-export { formatMoney, formatCompact, formatVND } from "./money";
+export {
+  currencyFractionDigits,
+  fitsCurrencyScale,
+  formatCompact,
+  formatMoney,
+  formatVND,
+} from "./money";
 export {
   formatDate,
   formatDateTime,

@@ -4,6 +4,7 @@ import { cn } from "cn";
 import { CircleDot } from "lucide-react";
 
 import { PO_STATUS } from "@/constants";
+import { STATUS_LABEL_VI } from "@/lib/domain/status-map";
 
 import { getLifecycleSteps } from "./lifecycle-helpers";
 
@@ -28,7 +29,9 @@ export function PoLifecycleTimeline({ status }: { status: PoStatus }) {
                   ? "bg-accent ring-accent/30 ring-2"
                   : step.done
                     ? "bg-positive"
-                    : "bg-bg-muted",
+                    : step.optional
+                      ? "border-border-strong bg-bg-surface border-dashed"
+                      : "bg-bg-muted",
               )}
             />
             <div className="flex items-center gap-2">
@@ -42,13 +45,14 @@ export function PoLifecycleTimeline({ status }: { status: PoStatus }) {
                       : "text-ink-tertiary",
                 )}
               >
-                {step.label}
+                {STATUS_LABEL_VI[step.label] ?? step.label}
               </span>
               {step.current && (
                 <span className="bg-accent/10 text-accent rounded-full px-2 py-0.5 text-[0.625rem] font-semibold">
                   Hiện tại
                 </span>
               )}
+              {step.optional && <span className="text-ink-tertiary text-[0.6875rem]">tuỳ đơn</span>}
             </div>
           </div>
         ))}
@@ -57,7 +61,7 @@ export function PoLifecycleTimeline({ status }: { status: PoStatus }) {
             <div className="border-bg-surface bg-danger ring-danger/30 absolute top-[4px] -left-[22.5px] size-[11px] rounded-full border-2 ring-2" />
             <div className="flex items-center gap-2">
               <span className="text-danger text-[0.8125rem] font-medium">
-                {PO_STATUS.CANCELLED}
+                {STATUS_LABEL_VI[PO_STATUS.CANCELLED]}
               </span>
               <span className="bg-danger/10 text-danger rounded-full px-2 py-0.5 text-[0.625rem] font-semibold">
                 Hiện tại

@@ -1,23 +1,16 @@
 /**
- * Purchase Order — BE wire DTO → FE view model. Pure, no I/O.
+ * Purchase Order — BE wire DTO → FE view model. Thuần, không I/O.
  *
- * Input is already zod-parsed (`bePurchaseOrderSchema`), so the status is guaranteed to be
- * one of the 7 BE values — no normalisation / legacy vocabulary lives here.
+ * Đầu vào đã qua zod (`bePurchaseOrderSchema`) nên status chắc chắn là 1 trong 7 mã BE.
+ * Tiền tệ giữ NGUYÊN mã BE trả (vd EUR) — không âm thầm đổi thành VND.
  */
 
 import { toLocalIsoDate } from "@/lib/format";
 
 import type { BePoLineDto, BePurchaseOrderDto } from "./schemas";
-import type { Currency, PoLine, PurchaseOrder } from "./types";
+import type { PoLine, PurchaseOrder } from "./types";
 
-const SUPPORTED_CURRENCIES: readonly Currency[] = ["VND", "USD", "CNY"];
-
-function toCurrency(code: string): Currency {
-  // formatMoney only knows these three; BE accepts any ISO code (PO may be USD — BR-07 docs 02).
-  return SUPPORTED_CURRENCIES.find((c) => c === code) ?? "VND";
-}
-
-function mapLine(be: BePoLineDto, poId: string, currency: Currency): PoLine {
+function mapLine(be: BePoLineDto, poId: string, currency: string): PoLine {
   return {
     lineId: be.lineId,
     poId,
@@ -33,19 +26,25 @@ function mapLine(be: BePoLineDto, poId: string, currency: Currency): PoLine {
 }
 
 export function mapBePoToFe(be: BePurchaseOrderDto): PurchaseOrder {
-  const currency = toCurrency(be.currency);
   return {
     poId: be.purchaseOrderId,
     poNumber: be.poNumber,
     supplierId: be.supplierId,
-    warehouseId: null,
     status: be.status,
-    currency,
+    currency: be.currency,
     orderDate: toLocalIsoDate(be.createdAt),
     expectedDate: be.expectedAt ?? "",
     createdBy: be.createdBy ?? "",
     rejectionReason: be.cancellationReason ?? be.closeShortReason ?? undefined,
     grandTotal: be.totalAmount,
-    lines: be.lines.map((l) => mapLine(l, be.purchaseOrderId, currency)),
+    paymentTermDays: be.paymentTermDays,
+    leadTimeDays: be.leadTimeDays,
+    sentAt: be.sentAt ?? undefined,
+    supplierConfirmationStatus: be.supplierConfirmationStatus,
+    supplierRespondedAt: be.supplierRespondedAt ?? undefined,
+    supplierReference: be.supplierReference ?? undefined,
+    supplierResponseNote: be.supplierResponseNote ?? undefined,
+    deliveryStatus: be.deliveryStatus,
+    lines: be.lines.map((l) => mapLine(l, be.purchaseOrderId, be.currency)),
   };
 }

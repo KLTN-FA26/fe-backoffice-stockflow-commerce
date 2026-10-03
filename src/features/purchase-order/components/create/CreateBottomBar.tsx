@@ -1,8 +1,8 @@
 "use client";
 
-import { ArrowRight, Save, Send } from "lucide-react";
+import { ArrowRight, Send } from "lucide-react";
 
-import { toast } from "@/components/shared/Toast";
+import { UI_LABELS } from "@/constants";
 import { Button } from "@/components/ui/button";
 
 import { STEPS, type StepKey } from "./types";
@@ -10,12 +10,14 @@ import { STEPS, type StepKey } from "./types";
 export function CreateBottomBar({
   currentStep,
   currentStepIndex,
+  isPending,
   onBack,
   onNext,
   onSubmit,
 }: {
   currentStep: StepKey;
   currentStepIndex: number;
+  isPending: boolean;
   onBack: () => void;
   onNext: () => void;
   onSubmit: () => void;
@@ -27,21 +29,6 @@ export function CreateBottomBar({
           Bước {currentStepIndex + 1}/{STEPS.length} · {STEPS[currentStepIndex]?.label}
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              toast.success(
-                "Đã lưu nháp",
-                "Dữ liệu PO mock được giữ trong phiên làm việc hiện tại.",
-              )
-            }
-            className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary inline-flex items-center gap-1.5 rounded-[var(--r-sm)] border px-3 py-1.5 text-[0.8125rem] font-medium transition-colors"
-          >
-            <Save className="size-3.5" />
-            Lưu nháp
-          </Button>
           <Button
             type="button"
             variant="outline"
@@ -69,10 +56,11 @@ export function CreateBottomBar({
               type="button"
               size="sm"
               onClick={onSubmit}
+              disabled={isPending}
               className="bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse inline-flex items-center gap-1.5 rounded-[var(--r-sm)] px-3 py-1.5 text-[0.8125rem] font-medium transition-colors"
             >
               <Send className="size-3.5" />
-              Tạo PO
+              {isPending ? "Đang tạo..." : UI_LABELS.purchaseOrder.createAction}
             </Button>
           )}
         </div>

@@ -1,61 +1,32 @@
 import { ClipboardCheck, FileText, Layers, Package } from "lucide-react";
 
-import { toLocalIsoDate } from "@/lib/format";
+import { UI_LABELS } from "@/constants";
 
-import { createEmptyLine } from "./helpers";
-
-import type { Currency } from "@/features/purchase-order";
+import type { PoCreateFormValues } from "@/features/purchase-order";
 
 export type StepKey = "info" | "lines" | "totals" | "review";
 
-export type FormState = {
-  supplierId: string;
-  orderDate: string;
-  expectedDate: string;
-  currency: Currency;
-  paymentTerms: string;
-  notes: string;
-  lines: PoLineDraft[];
-};
-
-export type PoLineDraft = {
-  id: string;
-  skuId: string;
-  orderedQty: string;
-  unitPrice: string;
-  uom: string;
-  description: string;
-};
-
-export type ValidationIssue = {
-  step: StepKey;
-  message: string;
-};
+/** Trạng thái một bước trên stepper — cùng nghĩa với wizard NCC. */
+export type StepStatus = "active" | "done" | "error" | "idle";
 
 export type Totals = {
-  subtotal: number;
   grandTotal: number;
 };
 
 export const STEPS: { key: StepKey; label: string; icon: typeof FileText }[] = [
   { key: "info", label: "Thông tin PO", icon: FileText },
-  { key: "lines", label: "Dòng hàng", icon: Layers },
-  { key: "totals", label: "Tổng cộng", icon: Package },
-  { key: "review", label: "Tạo PO", icon: ClipboardCheck },
+  { key: "lines", label: UI_LABELS.purchaseOrder.lines, icon: Layers },
+  { key: "totals", label: UI_LABELS.purchaseOrder.totals, icon: Package },
+  { key: "review", label: UI_LABELS.purchaseOrder.createAction, icon: ClipboardCheck },
 ];
 
 /**
- * Empty form — no hardcoded supplier/SKU ids. Suppliers and SKUs are picked from the
- * (FE-only, mock-served) master data lists; see features/purchase-order/api.ts.
+ * Form rỗng — CHỈ các trường BE `CreatePurchaseOrderRequest` lưu (supplierId, currency,
+ * expectedAt, lines). Không điền sẵn id NCC/SKU nào (không bịa dữ liệu).
  */
-export function createInitialForm(): FormState {
-  return {
-    supplierId: "",
-    orderDate: toLocalIsoDate(new Date().toISOString()),
-    expectedDate: "",
-    currency: "VND",
-    paymentTerms: "",
-    notes: "",
-    lines: [createEmptyLine()],
-  };
-}
+export const PO_CREATE_DEFAULTS: PoCreateFormValues = {
+  supplierId: "",
+  currency: "VND",
+  expectedDate: "",
+  lines: [{ skuId: "", description: "", orderedQty: "1", unitPrice: "" }],
+};

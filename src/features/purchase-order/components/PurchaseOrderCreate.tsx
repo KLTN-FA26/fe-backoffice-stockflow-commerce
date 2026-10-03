@@ -3,57 +3,42 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
-import { ADMIN_ROUTES } from "@/constants";
+import { ADMIN_ROUTES, PO_PERMISSIONS, UI_LABELS } from "@/constants";
 import { formatMoney } from "@/features/purchase-order";
 import { Alert } from "@/components/shared/Alert";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
+import { Button } from "@/components/ui/button";
 
 import { CreateBottomBar } from "./create/CreateBottomBar";
+import { StepIssues } from "./create/CreateFormPrimitives";
 import { CreateStepper } from "./create/CreateStepper";
 import { InfoStep } from "./create/InfoStep";
 import { LinesStep } from "./create/LinesStep";
 import { ReviewStep } from "./create/ReviewStep";
 import { TotalsStep } from "./create/TotalsStep";
-import { STEPS } from "./create/types";
 import { useCreateForm } from "./create/useCreateForm";
+import { PoPermissionGate } from "./PoPermissionGate";
 
 export function PurchaseOrderCreate() {
-  const f = useCreateForm();
-  const idx = STEPS.findIndex((s) => s.key === f.currentStep);
-  const curIssues = f.issuesByStep.get(f.currentStep) ?? [];
-  const showErrors = f.submitAttempted || f.currentStep === "review";
-  const displayCurrency = f.form.currency || f.selectedSupplier?.currency || "VND";
-  const goTo = (i: number) => {
-    const step = STEPS[Math.min(Math.max(i, 0), STEPS.length - 1)];
-    if (step) f.setCurrentStep(step.key);
-  };
-  const goNext = () => goTo(idx + 1);
-  const goBack = () => goTo(idx - 1);
-  const stepStatus = (k: (typeof STEPS)[number]["key"]) => {
-    if ((f.issuesByStep.get(k) ?? []).length > 0 && f.submitAttempted) return "error" as const;
-    if (STEPS.findIndex((s) => s.key === k) < idx) return "done" as const;
-    if (k === f.currentStep) return "active" as const;
-    return "idle" as const;
-  };
-  const onSubmitAttempt = () => {
-    if (f.isSubmitting) return; // block double-submit while POST /purchase-orders is pending
-    f.setSubmitAttempted(true);
-    if (f.validationIssues.length > 0) {
-      const firstIssue = f.validationIssues[0];
-      if (firstIssue) f.setCurrentStep(firstIssue.step);
-      return;
-    }
-    f.handleSubmitAttempt();
-  };
+  return (
+    <PoPermissionGate permissions={[PO_PERMISSIONS.viewPage, PO_PERMISSIONS.create]} variant="form">
+      <PurchaseOrderCreateBody />
+    </PoPermissionGate>
+  );
+}
 
-  if (f.isLoading) return <PageSkeleton variant="form" />;
+/** Cùng bố cục + luồng wizard tạo NCC (`SupplierForm`): stepper trái, nội dung bước, thanh dưới. */
+function PurchaseOrderCreateBody() {
+  const w = useCreateForm();
+
+  if (w.suppliersQuery.isPending) return <PageSkeleton variant="form" />;
   return (
     <>
       <PageHeader
-        title="Tạo đơn đặt hàng"
-        subtitle="Khai báo Purchase Order từ nhà cung cấp, thêm dòng SKU và gửi vào luồng duyệt."
+        title={UI_LABELS.purchaseOrder.createAction}
+        subtitle="Chọn nhà cung cấp, thêm dòng SKU — PO được tạo ở trạng thái Nháp, duyệt ở màn chi tiết."
         actions={
           <Link
             href={ADMIN_ROUTES.purchaseOrders.list}
@@ -66,79 +51,67 @@ export function PurchaseOrderCreate() {
       />
       <div className="grid gap-4 xl:grid-cols-[260px_1fr]">
         <CreateStepper
-          stepStatus={stepStatus}
-          lineCount={f.form.lines.length}
-          onStepChange={f.setCurrentStep}
+          stepStatus={w.stepStatus}
+          canGoTo={w.canGoTo}
+          lineCount={w.values.lines.length}
+          onStepChange={w.goToStep}
         />
         <div className="min-w-0 space-y-4 pb-24">
-          {f.masterDataError && (
-            <Alert tone="warning" title="Không tải được danh sách NCC / SKU">
-              BE chưa có API danh mục (/suppliers, /skus) — danh sách này hiện được mô phỏng ở FE
-              qua mock adapter. Chạy với USE_MOCK=true để thử luồng tạo PO.
+          {w.suppliersQuery.isError && (
+            <Alert tone="danger" title="Không tải được danh sách nhà cung cấp">
+              Cần quyền xem nhà cung cấp để chọn NCC cho đơn.{" "}
+              <Button variant="link" size="sm" onClick={() => void w.suppliersQuery.refetch()}>
+                {UI_LABELS.common.retry}
+              </Button>
             </Alert>
           )}
-          {showErrors && curIssues.length > 0 && (
-            <div className="border-danger/30 bg-danger/5 text-danger rounded-[var(--r-sm)] border px-4 py-3 text-[0.8125rem]">
-              <div className="font-semibold">Cần xử lý trước khi tạo PO</div>
-              <ul className="mt-1 list-disc space-y-0.5 pl-4">
-                {curIssues.map((m) => (
-                  <li key={m}>{m}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {f.currentStep === "info" && (
-            <InfoStep
-              form={f.form}
-              activeSuppliers={f.activeSuppliers}
-              selectedSupplier={f.selectedSupplier ?? undefined}
-              showErrors={showErrors}
-              onSupplierChange={f.handleSupplierChange}
-              update={f.update}
-            />
-          )}
-          {f.currentStep === "lines" && (
-            <LinesStep
-              form={f.form}
-              activeSkus={f.activeSkus}
-              showErrors={showErrors}
-              currency={displayCurrency}
-              onAddLine={f.addLine}
-              onRemoveLine={f.removeLine}
-              onSkuChange={f.handleSkuChange}
-              updateLine={f.updateLine}
-            />
-          )}
-          {f.currentStep === "totals" && (
-            <TotalsStep totals={f.totals} currency={displayCurrency} lines={f.form.lines} />
-          )}
-          {f.currentStep === "review" && (
-            <ReviewStep
-              form={f.form}
-              selectedSupplier={f.selectedSupplier ?? undefined}
-              totals={f.totals}
-              currency={displayCurrency}
-              issuesByStep={f.issuesByStep}
-              onSubmit={onSubmitAttempt}
-            />
-          )}
+          {w.showErrors && <StepIssues issues={w.currentStepIssues} />}
+          {/* Enter trong ô nhập = "Tiếp tục" (mode-a: Enter submit) — không gửi thẳng lên BE. */}
+          <form
+            noValidate
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (w.currentStep === "review") w.handleReviewSubmit();
+              else void w.goNext();
+            }}
+            className="space-y-4"
+          >
+            {w.currentStep === "info" && <InfoStep w={w} />}
+            {w.currentStep === "lines" && <LinesStep w={w} />}
+            {w.currentStep === "totals" && (
+              <TotalsStep totals={w.totals} currency={w.values.currency} lines={w.values.lines} />
+            )}
+            {w.currentStep === "review" && (
+              <ReviewStep
+                form={w.values}
+                suggestedDate={w.suggestedDate}
+                selectedSupplier={w.selectedSupplier}
+                totals={w.totals}
+                currency={w.values.currency}
+                issuesByStep={w.validationByStep}
+                onSubmit={w.handleReviewSubmit}
+              />
+            )}
+          </form>
         </div>
       </div>
       <CreateBottomBar
-        currentStep={f.currentStep}
-        currentStepIndex={idx}
-        onBack={goBack}
-        onNext={goNext}
-        onSubmit={onSubmitAttempt}
+        currentStep={w.currentStep}
+        currentStepIndex={w.currentStepIndex}
+        isPending={w.isSubmitting}
+        onBack={w.goBack}
+        onNext={() => void w.goNext()}
+        onSubmit={w.handleReviewSubmit}
       />
       <ConfirmDialog
-        open={f.confirmOpen}
-        onOpenChange={f.setConfirmOpen}
-        title="Tạo đơn đặt hàng"
-        description={`Xác nhận tạo PO với ${f.form.lines.length} dòng hàng, tổng ${formatMoney(f.totals.grandTotal, displayCurrency)}? PO sẽ được tạo ở trạng thái DRAFT.`}
-        confirmLabel="Tạo PO"
+        open={w.confirmOpen}
+        onOpenChange={w.setConfirmOpen}
+        title={UI_LABELS.purchaseOrder.createAction}
+        description={`Xác nhận tạo PO với ${w.values.lines.length} dòng hàng, tổng ${formatMoney(w.totals.grandTotal, w.values.currency)}? PO được tạo ở trạng thái Nháp.`}
+        confirmLabel={UI_LABELS.purchaseOrder.createAction}
         variant="default"
-        onConfirm={f.handleConfirmSubmit}
+        loading={w.isSubmitting}
+        onConfirm={w.handleConfirmCreate}
       />
     </>
   );

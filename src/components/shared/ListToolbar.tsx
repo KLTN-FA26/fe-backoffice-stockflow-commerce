@@ -79,7 +79,8 @@ export interface ListToolbarProps<
   bulkDeleteLabel?: string;
   onBulkDelete?: () => void;
   exportLabel?: string;
-  onExport: () => void;
+  /** Không truyền → ẩn nút xuất (vd người dùng thiếu quyền xuất dữ liệu). */
+  onExport?: () => void;
   summaryItems: ListSummaryItem[];
   onResetAll: () => void;
   resetDisabled?: boolean;
@@ -349,16 +350,18 @@ export function ListToolbar<Status extends string, Field extends string, Column 
                 {bulkDeleteLabel}
               </Button>
             )}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onExport}
-              className="border-positive/20 bg-positive/5 text-positive hover:bg-positive/10 hover:text-positive rounded-[var(--r-sm)]"
-            >
-              <FileDown className="size-4" />
-              {exportLabel}
-            </Button>
+            {onExport && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onExport}
+                className="border-positive/20 bg-positive/5 text-positive hover:bg-positive/10 hover:text-positive rounded-[var(--r-sm)]"
+              >
+                <FileDown className="size-4" />
+                {exportLabel}
+              </Button>
+            )}
           </div>
         </div>
       </div>

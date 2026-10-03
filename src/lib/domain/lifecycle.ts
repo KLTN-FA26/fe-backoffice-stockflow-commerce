@@ -6,55 +6,37 @@
  * tables.  When docs change, update here + tests in one commit.
  *
  * Usage:
- *   canTransition(PO_TRANSITIONS, "DRAFT", "APPROVED") // true
- *   isTerminal(PO_TRANSITIONS, "CLOSED")               // true
+ *   canTransition(PO_TRANSITIONS, "Draft", "Pending Approval") // true
+ *   isTerminal(PO_TRANSITIONS, "Closed")                       // true
  */
 
 /* ── Generic helpers ─────────────────────────────────────────────────── */
 
-/**
- * Next states of `from`, or `undefined` when `from` is not a key of the table.
- *
- * Statuses reaching the UI are zod-parsed at the API boundary, so this should never be
- * `undefined` in practice. The guard is defensive only: a status outside the table must
- * render as "no actions" rather than crash a page with `undefined.length`
- * (regression locked by `lifecycle.test.ts`).
- */
-function nextOf<S extends string>(
-  table: Record<S, readonly S[]>,
-  from: S,
-): readonly S[] | undefined {
-  return Object.prototype.hasOwnProperty.call(table, from) ? table[from] : undefined;
-}
-
-/** Is `from → to` allowed by `table`? Unknown `from` → false. */
 export function canTransition<S extends string>(
   table: Record<S, readonly S[]>,
   from: S,
   to: S,
 ): boolean {
-  return nextOf(table, from)?.includes(to) ?? false;
+  return (table[from] as readonly string[]).includes(to);
 }
 
-/** No outgoing transition. Unknown status is treated as terminal (no mutating action). */
 export function isTerminal<S extends string>(table: Record<S, readonly S[]>, status: S): boolean {
-  return (nextOf(table, status) ?? []).length === 0;
+  return table[status].length === 0;
 }
 
-/** Statuses reachable in one step from `from` (empty for terminal / unknown). */
 export function allowedTransitions<S extends string>(
   table: Record<S, readonly S[]>,
   from: S,
 ): readonly S[] {
-  return nextOf(table, from) ?? [];
+  return table[from];
 }
 
 /* ── Types from mock-data ────────────────────────────────────────────── */
 
-import type { PoStatus } from "@/constants";
 import type {
   ProductStatus,
   SkuStatus,
+  PoStatus,
   ReceiptStatus,
   QcStatus,
   InvoiceStatus,
@@ -87,25 +69,16 @@ export const SKU_TRANSITIONS: Record<SkuStatus, readonly SkuStatus[]> = {
 
 /* ── Module 02: Purchase Order ───────────────────────────────────────── */
 
-// docs 02-purchase-order §5 — bảng "Chuyển tiếp cho phép", thu hẹp theo BE
-// PurchaseOrderStatus.java (SCRUM-113/116). FE mirror BE vì BE mới là nơi thực thi;
-// ánh xạ docs → BE:
-//   Draft → Pending Approval / Approved   ⇒ DRAFT → APPROVED (BE gộp submit+approve)
-//   Approved → Confirmed                  ⇒ APPROVED → SENT
-//   Confirmed / Partially Received → Received → Closed ⇒ receiveGoods tự đóng CLOSED
-//     khi hết open qty (không qua PO_TRANSITIONS — xem PO_ACTIONS "receive")
-//   Partially Received → Closed (short-close) ⇒ PARTIALLY_RECEIVED → CLOSED_SHORT
-// ASSUMPTION (open-question A2): BE chưa có Pending Approval / hạn mức duyệt (BR-PO-002).
+// docs/warehouse/02-purchase-order §5
 export const PO_TRANSITIONS: Record<PoStatus, readonly PoStatus[]> = {
-  DRAFT: ["APPROVED", "CANCELLED"],
-  APPROVED: ["SENT", "CANCELLED"],
-  // BR-05 (docs 02 §6): chỉ huỷ được khi CHƯA nhận hàng — SENT chưa có receipt nào.
-  SENT: ["CANCELLED"],
-  // BR-05 (docs 02 §6): đã nhận một phần ⇒ không còn CANCELLED, chỉ short-close.
-  PARTIALLY_RECEIVED: ["CLOSED_SHORT"],
-  CLOSED: [], // terminal
-  CLOSED_SHORT: [], // terminal
-  CANCELLED: [], // terminal
+  Draft: ["Pending Approval", "Approved", "Cancelled"],
+  "Pending Approval": ["Approved", "Draft"],
+  Approved: ["Confirmed", "Cancelled"],
+  Confirmed: ["Partially Received", "Received", "Cancelled", "Closed"],
+  "Partially Received": ["Received", "Closed"],
+  Received: ["Closed"],
+  Closed: [],
+  Cancelled: [],
 };
 
 /* ── Module 03: Receipt ──────────────────────────────────────────────── */

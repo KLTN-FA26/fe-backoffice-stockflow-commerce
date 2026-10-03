@@ -1,36 +1,33 @@
 "use client";
 
+import { Controller } from "react-hook-form";
+
+import { UI_LABELS } from "@/constants";
+import { formatDate } from "@/lib/format";
+import { isExpectedDatePast } from "@/features/purchase-order";
 import { Card } from "@/components/shared/Card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 
-import type { Supplier } from "@/features/purchase-order";
-
-import { FieldError, SectionTitle } from "./CreateFormPrimitives";
+import { CurrencyField } from "./CurrencyField";
+import { FieldError, SectionTitle, SummaryItem } from "./CreateFormPrimitives";
+import { fieldClass } from "./helpers";
 import { SupplierCombobox } from "./SupplierCombobox";
-import { fieldClass, isExpectedDatePast } from "./helpers";
-import type { FormState } from "./types";
 
-export function InfoStep({
-  form,
-  activeSuppliers,
-  selectedSupplier,
-  showErrors,
-  onSupplierChange,
-  update,
-}: {
-  form: FormState;
-  activeSuppliers: Supplier[];
-  selectedSupplier?: Supplier;
-  showErrors: boolean;
-  onSupplierChange: (supplierId: string) => void;
-  update: <K extends keyof FormState>(key: K, value: FormState[K]) => void;
-}) {
+import type { CreatePoWizard } from "./useCreateForm";
+
+const L = UI_LABELS.purchaseOrder;
+
+/** Bước 1 — NCC, tiền tệ, ngày giao. Lỗi (client + server) hiện inline ngay dưới ô. */
+export function InfoStep({ w }: { w: CreatePoWizard }) {
+  const { control, register, setValue } = w.form;
+  const { errors, values, selectedSupplier, suggestedDate } = w;
+
   return (
     <Card>
       <SectionTitle
         title="Thông tin PO"
-        description="Chọn nhà cung cấp và ngày giao dự kiến (expectedAt)."
+        description="Chọn nhà cung cấp đang hợp tác, tiền tệ của đơn và ngày giao dự kiến."
       />
       <div className="space-y-4">
         <div className="grid gap-4 lg:grid-cols-2">
@@ -38,77 +35,68 @@ export function InfoStep({
             <label className="text-ink-secondary mb-1 block text-xs font-medium">
               Nhà cung cấp <span className="text-danger">*</span>
             </label>
-            <SupplierCombobox
-              value={form.supplierId}
-              onChange={onSupplierChange}
-              suppliers={activeSuppliers}
-              hasError={showErrors && !form.supplierId}
+            <Controller
+              control={control}
+              name="supplierId"
+              render={({ field }) => (
+                <SupplierCombobox
+                  value={field.value}
+                  onChange={(id) => {
+                    field.onChange(id);
+                    field.onBlur();
+                  }}
+                  suppliers={w.suppliers}
+                  hasError={!!errors.supplierId}
+                  describedBy="po-supplier-error"
+                />
+              )}
             />
-            <FieldError>
-              {showErrors && !form.supplierId ? "Nhà cung cấp là bắt buộc." : undefined}
-            </FieldError>
+            <FieldError id="po-supplier-error">{errors.supplierId?.message}</FieldError>
           </div>
-          <div>
-            <label className="text-ink-secondary mb-1 block text-xs font-medium">
-              Điều khoản thanh toán
-            </label>
-            <Input
-              value={form.paymentTerms}
-              onChange={(e) => update("paymentTerms", e.target.value)}
-              placeholder="Net 30"
-              className={fieldClass()}
-            />
-          </div>
+          <CurrencyField w={w} />
         </div>
         <div className="grid gap-4 lg:grid-cols-3">
           <div>
-            <label className="text-ink-secondary mb-1 block text-xs font-medium">Ngày đặt</label>
-            <Input
-              type="date"
-              value={form.orderDate}
-              onChange={(e) => update("orderDate", e.target.value)}
-              className={fieldClass()}
-            />
-          </div>
-          <div>
-            <label className="text-ink-secondary mb-1 block text-xs font-medium">
+            <label
+              htmlFor="po-expected"
+              className="text-ink-secondary mb-1 block text-xs font-medium"
+            >
               Ngày giao dự kiến
             </label>
             <Input
+              id="po-expected"
               type="date"
-              value={form.expectedDate}
-              onChange={(e) => update("expectedDate", e.target.value)}
-              className={fieldClass()}
+              aria-invalid={errors.expectedDate ? true : undefined}
+              aria-describedby={errors.expectedDate ? "po-expected-error" : undefined}
+              {...register("expectedDate")}
+              className={fieldClass(!!errors.expectedDate)}
             />
-            {isExpectedDatePast(form.expectedDate, form.orderDate) && (
+            <FieldError id="po-expected-error">{errors.expectedDate?.message}</FieldError>
+            {/* BR-06 (docs 02 §6): so với HÔM NAY — chỉ cảnh báo, không chặn tạo PO. */}
+            {isExpectedDatePast(values.expectedDate, w.today) && (
               <div className="border-warning/30 bg-warning/10 text-warning mt-2 rounded-[var(--r-sm)] border px-3 py-2 text-xs">
-                Ngày giao dự kiến đang nằm trước ngày đặt. Cảnh báo này không chặn gửi duyệt.
+                Ngày giao dự kiến đã qua. Vẫn tạo được PO, nhưng phải đổi ngày trước khi gửi NCC.
               </div>
             )}
+            {suggestedDate && suggestedDate !== values.expectedDate && (
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="mt-1 h-auto px-0 text-xs"
+                onClick={() => setValue("expectedDate", suggestedDate, { shouldDirty: true })}
+              >
+                Dùng gợi ý theo thời gian giao của NCC: {formatDate(suggestedDate)}
+              </Button>
+            )}
           </div>
-          <div>
-            <label
-              htmlFor="poc-n-v-ti-n-t"
-              className="text-ink-secondary mb-1 block text-xs font-medium"
-            >
-              Đơn vị tiền tệ
-            </label>
-            <Input
-              id="poc-n-v-ti-n-t"
-              value={form.currency || selectedSupplier?.currency || "VND"}
-              readOnly
-              className={fieldClass()}
-            />
-          </div>
-        </div>
-        <div>
-          <label className="text-ink-secondary mb-1 block text-xs font-medium">Ghi chú</label>
-          <Textarea
-            value={form.notes}
-            onChange={(e) => update("notes", e.target.value)}
-            rows={6}
-            placeholder="Ghi chú nội bộ cho buyer / approver..."
-            className={fieldClass().replace("h-8 ", "") + " min-h-[120px] py-2"}
+          <SummaryItem
+            label={L.paymentTermDays}
+            value={selectedSupplier ? `${selectedSupplier.paymentTermDays} ${L.days}` : "—"}
+          />
+          <SummaryItem
+            label={L.leadTimeDays}
+            value={selectedSupplier ? `${selectedSupplier.leadTimeDays} ${L.days}` : "—"}
           />
         </div>
       </div>

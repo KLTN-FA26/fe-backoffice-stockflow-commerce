@@ -1,23 +1,26 @@
 "use client";
 
-import { ADMIN_ROUTES } from "@/constants";
+import { ADMIN_ROUTES, TOAST_MESSAGES } from "@/constants";
+import { shouldFlagPoRow } from "@/features/purchase-order";
 import { DataTable } from "@/components/shared/DataTable";
 import { ListToolbar } from "@/components/shared/ListToolbar";
+import { RefetchBar } from "@/components/shared/RefetchBar";
 import { toast } from "@/components/shared/Toast";
-import { shouldFlagPoRow } from "@/features/purchase-order";
 
 import {
   DEFAULT_CONFIG,
   DEFAULT_VISIBLE_COLUMNS,
+  PAGE_SIZE_OPTIONS,
   STATUS_OPTIONS,
   TABLE_COLUMN_LABELS,
 } from "./config";
 import { buildPoSummaryItems, poListFlags } from "./poSummary";
 
-import type { ColumnDef } from "@/components/shared/DataTable";
+import type { PaginatedResponse } from "@/lib/api/query-factory";
 import type { PurchaseOrder } from "@/features/purchase-order";
+import type { ColumnDef } from "@/components/shared/DataTable";
 import type { PoTableColumnKey } from "./config";
-import type { usePoListController } from "./usePoListController";
+import type { PoListController } from "./usePoListController";
 
 const COLUMN_OPTIONS = DEFAULT_VISIBLE_COLUMNS.map((col) => ({
   label: TABLE_COLUMN_LABELS[col],
@@ -25,12 +28,20 @@ const COLUMN_OPTIONS = DEFAULT_VISIBLE_COLUMNS.map((col) => ({
 }));
 const LOCKED_COLUMNS: PoTableColumnKey[] = ["actions"];
 
+/**
+ * Toolbar luôn hiện (để đổi bộ lọc kể cả khi rỗng); thân là `body` (trạng thái rỗng/lỗi)
+ * hoặc bảng phân trang + sắp xếp phía server.
+ */
 export function PoListTable({
   c,
+  page,
   columns,
+  body,
 }: {
-  c: ReturnType<typeof usePoListController>;
+  c: PoListController;
+  page: PaginatedResponse<PurchaseOrder> | undefined;
   columns: ColumnDef<PurchaseOrder>[];
+  body?: React.ReactNode;
 }) {
   const flags = poListFlags(c.config);
   const resetFields = () =>
@@ -44,7 +55,7 @@ export function PoListTable({
     onClearStatus: () => c.filters.setStatus([]),
     onClearQ: () => c.filters.setQ(""),
     onClearFields: resetFields,
-    onClearColumnSearch: () => c.updateConfig((x) => ({ ...x, columnSearch: {} })),
+    onClearColumnSearch: c.clearColumnSearch,
     onClearColumns: resetColumns,
   });
 
@@ -53,7 +64,8 @@ export function PoListTable({
       <ListToolbar
         search={c.config.globalSearch.query}
         onSearchChange={c.filters.setQ}
-        searchPlaceholder="Tìm PO theo mã, NCC, kho..."
+        // BE GET /purchase-orders không có tham số tìm kiếm tự do → ô tìm chỉ lọc trang đang xem.
+        searchPlaceholder="Tìm PO theo mã, NCC trên trang đang xem..."
         statusOptions={STATUS_OPTIONS}
         selectedStatuses={c.config.statuses}
         onToggleStatus={c.toggleStatus}
@@ -79,41 +91,48 @@ export function PoListTable({
         onToggleColumn={c.toggleTableColumn}
         onResetColumns={resetColumns}
         hasColumnConfig={flags.hasColumnConfig}
-        selectedCount={c.selectedKeys.size}
-        onBulkDelete={() => {
-          toast.info("Xoá PO", `Đã chọn ${c.selectedKeys.size} đơn. Chức năng UI-only.`);
-          c.setSelectedKeys(new Set());
-        }}
-        onExport={() =>
-          toast.success("Xuất file mock", `Sẵn sàng xuất ${c.filtered.length} đơn đang hiển thị.`)
-        }
+        // BE chưa có endpoint xuất PO (Action.EXPORT khai báo nhưng chưa dùng)
+        onExport={() => toast.info(TOAST_MESSAGES.purchaseOrder.exportNotAvailable)}
         summaryItems={summaryItems}
         onResetAll={() => {
           c.updateConfig(() => DEFAULT_CONFIG);
           c.filters.reset();
+          c.clearColumnSearch();
+          c.setSupplierId("");
         }}
-        resetDisabled={!flags.hasAnyConfig}
+        resetDisabled={!flags.hasAnyConfig && !c.supplierId}
       />
-      <DataTable
-        data={c.filtered}
-        columns={columns}
-        rowKey={(r) => r.poId}
-        caption={`Hiển thị ${c.filtered.length} / ${c.total} đơn đặt hàng`}
-        flagRow={shouldFlagPoRow}
-        onRowClick={(r) => c.router.push(ADMIN_ROUTES.purchaseOrders.detail(r.poId))}
-        selectable
-        selectedKeys={c.selectedKeys}
-        onSelectionChange={c.setSelectedKeys}
-        pageSize={c.pageSize}
-        total={c.total}
-        page={c.page}
-        onPageChange={c.filters.setPage}
-        onPageSizeChange={c.setPageSize}
-      />
-      <p className="text-ink-tertiary mt-2 text-[0.6875rem]">
-        Tìm kiếm chung và tìm theo cột chỉ lọc trên trang đã tải — BE chưa hỗ trợ tìm kiếm tự do
-        (API list chỉ lọc theo trạng thái / NCC). Lọc trạng thái được thực hiện ở server.
-      </p>
+      {body ??
+        (page && (
+          <>
+            <RefetchBar active={c.poQ.isFetching} label="Đang tải lại danh sách đơn đặt hàng" />
+            <DataTable
+              data={c.filtered}
+              columns={columns}
+              rowKey={(r) => r.poId}
+              caption={`Hiển thị ${c.filtered.length} / ${page.totalElements} đơn đặt hàng`}
+              flagRow={shouldFlagPoRow}
+              onRowClick={(r) => c.router.push(ADMIN_ROUTES.purchaseOrders.detail(r.poId))}
+              pageSize={c.config.pageSize}
+              pageSizeOptions={PAGE_SIZE_OPTIONS}
+              serverPagination={{
+                page: page.page,
+                size: page.size,
+                totalElements: page.totalElements,
+                totalPages: page.totalPages,
+                hasNext: page.hasNext,
+                hasPrevious: page.hasPrevious,
+                onPageChange: (p) => void c.filters.setPage(p + 1),
+                onPageSizeChange: c.setPageSize,
+              }}
+              serverSorting={{
+                key: c.sort.key,
+                direction: c.sort.direction,
+                onChange: c.changeSort,
+              }}
+            />
+          </>
+        ))}
     </>
   );
 }

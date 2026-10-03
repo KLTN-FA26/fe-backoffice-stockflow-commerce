@@ -3,6 +3,7 @@
 import { BarChart3, FileText, Plus, Wallet } from "lucide-react";
 import { cn } from "cn";
 
+import { UI_LABELS } from "@/constants";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 
@@ -23,7 +24,8 @@ export function PoListHeader({
   showStats: boolean;
   showStatsToggle: boolean;
   onToggleStats: () => void;
-  onCreate: () => void;
+  /** Chỉ truyền khi có quyền CREATE — không có thì ẩn nút tạo. */
+  onCreate?: () => void;
 }) {
   return (
     <PageHeader
@@ -47,15 +49,17 @@ export function PoListHeader({
               {showStats ? "Ẩn thống kê" : "Hiện thống kê"}
             </Button>
           )}
-          <Button
-            type="button"
-            size="sm"
-            onClick={onCreate}
-            className="bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse rounded-[var(--r-sm)]"
-          >
-            <Plus className="size-3.5" />
-            Tạo đơn đặt hàng
-          </Button>
+          {onCreate && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={onCreate}
+              className="bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse rounded-[var(--r-sm)]"
+            >
+              <Plus className="size-3.5" />
+              {UI_LABELS.purchaseOrder.createAction}
+            </Button>
+          )}
         </div>
       }
     />

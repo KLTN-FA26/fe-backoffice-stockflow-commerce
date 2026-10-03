@@ -9,16 +9,12 @@
 
 import { registerMockRoute, paginate } from "./mock-adapter";
 
-import type { AxiosRequestConfig } from "axios";
-
 import type {
   PrintArea,
   PrintTechnique,
   Product,
   ProductAttribute,
   ProductType,
-  PoStatus,
-  PurchaseOrder,
   Uom,
 } from "@/lib/mock-data";
 
@@ -39,9 +35,25 @@ interface CreateProductMockBody {
   taxClass?: unknown;
   uom?: unknown;
   brand?: unknown;
+  customizable?: unknown;
+  weightKg?: unknown;
+  lengthCm?: unknown;
+  widthCm?: unknown;
+  heightCm?: unknown;
+  reason?: unknown;
 }
 
-const createdProducts: Product[] = [];
+type MockProduct = Product & {
+  weightKg?: number | null;
+  lengthCm?: number | null;
+  widthCm?: number | null;
+  heightCm?: number | null;
+};
+
+const createdProducts: MockProduct[] = [];
+const productOverrides = new Map<string, MockProduct>();
+const MOCK_SUBMITTER_ID = "11111111-1111-4111-8111-111111111111";
+const MOCK_APPROVER_ID = "22222222-2222-4222-8222-222222222222";
 
 export function registerAllMockRoutes(): void {
   /* ====================================================================
@@ -51,27 +63,60 @@ export function registerAllMockRoutes(): void {
   // GET /products
   registerMockRoute("GET", "/products", async (config) => {
     const { products } = await import("@/lib/mock-data");
-    const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
-    const q = params.get("q")?.toLowerCase();
-    const status = params.getAll("status");
+    const params = readRequestSearchParams(config);
+    const page = Math.max(0, Number(params.get("page")) || 0);
+    const pageSize = Math.max(1, Number(params.get("size")) || 15);
+    const q = params.get("q")?.trim().toLowerCase();
+    const statuses = params
+      .getAll("status")
+      .map(readProductStatus)
+      .filter((status): status is Product["status"] => status !== null);
+    const [sortField = "code", sortDirection = "asc"] = (params.get("sort") ?? "code,asc").split(
+      ",",
+    );
 
-    let filtered = [...products, ...createdProducts];
+    let filtered = [...products, ...createdProducts].map(
+      (product) => productOverrides.get(product.productId) ?? product,
+    );
     if (q)
       filtered = filtered.filter(
         (p) => p.name.toLowerCase().includes(q) || p.productId.toLowerCase().includes(q),
       );
-    if (status.length) filtered = filtered.filter((p) => status.includes(p.status));
+    if (statuses.length) filtered = filtered.filter((p) => statuses.includes(p.status));
+    if (sortField === "code" || sortField === "name" || sortField === "status") {
+      filtered.sort((left, right) => {
+        const leftValue = sortField === "code" ? left.productId : left[sortField];
+        const rightValue = sortField === "code" ? right.productId : right[sortField];
+        return sortDirection === "desc"
+          ? rightValue.localeCompare(leftValue)
+          : leftValue.localeCompare(rightValue);
+      });
+    }
 
-    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
+    const totalElements = filtered.length;
+    const totalPages = Math.ceil(totalElements / pageSize);
+    const start = page * pageSize;
+    return {
+      status: 200,
+      data: {
+        items: filtered.slice(start, start + pageSize),
+        page,
+        size: pageSize,
+        totalElements,
+        totalPages,
+        hasNext: page + 1 < totalPages,
+        hasPrevious: page > 0,
+      },
+      headers: {},
+    };
   });
 
   // GET /products/:id
   registerMockRoute("GET", "/products/:id", async (config) => {
     const { products } = await import("@/lib/mock-data");
     const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
-    const product = [...products, ...createdProducts].find((p) => p.productId === id);
+    const product =
+      productOverrides.get(id) ?? [...products, ...createdProducts].find((p) => p.productId === id);
     if (!product) return { status: 404, data: { message: "Product not found" }, headers: {} };
     return { status: 200, data: product, headers: {} };
   });
@@ -80,30 +125,24 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("POST", "/products", async (config) => {
     const { categories, products } = await import("@/lib/mock-data");
     const body = parseCreateProductBody(config.data);
-    const productId = readString(body.productId) || readString(body.code);
+    const productId = readString(body.code) || readString(body.productId);
     const fieldErrors: Record<string, string> = {};
 
     if (!productId) fieldErrors.productId = "Nhập mã sản phẩm";
     if (!readString(body.name)) fieldErrors.name = "Nhập tên sản phẩm";
     if (!readString(body.brand)) fieldErrors.brand = "Nhập thương hiệu";
     if (!readString(body.categoryId)) fieldErrors.categoryId = "Chọn danh mục";
-    if (readProductAttributes(body.attributes).length === 0) {
-      fieldErrors.attributes = "Cần ít nhất 1 thuộc tính biến thể";
-    }
-    if (
-      body.type === "Customizable" &&
-      !readPrintAreas(body.printAreas, productId || "PRD-DRAFT")
-    ) {
-      fieldErrors.printAreas = "Sản phẩm tùy chỉnh cần ít nhất 1 vùng in";
-    }
-
     if (Object.keys(fieldErrors).length > 0) {
       return {
         status: 422,
         data: {
-          code: "VALIDATION_FAILED",
+          errorCode: "VALIDATION_FAILED",
           message: "Dữ liệu sản phẩm chưa hợp lệ.",
-          fieldErrors,
+          fieldErrors: Object.entries(fieldErrors).map(([field, message]) => ({
+            field,
+            message,
+            code: "NotBlank",
+          })),
         },
         headers: {},
       };
@@ -116,11 +155,9 @@ export function registerAllMockRoutes(): void {
       return {
         status: 409,
         data: {
-          code: "PRODUCT_CODE_ALREADY_EXISTS",
+          errorCode: "PRODUCT_CODE_ALREADY_EXISTS",
           message: "Mã sản phẩm đã tồn tại.",
-          fieldErrors: {
-            code: "Mã sản phẩm đã tồn tại.",
-          },
+          fieldErrors: [{ field: "code", message: "Mã sản phẩm đã tồn tại.", code: "Unique" }],
         },
         headers: {},
       };
@@ -132,23 +169,27 @@ export function registerAllMockRoutes(): void {
       return {
         status: 404,
         data: {
-          code: "CATEGORY_NOT_FOUND",
+          errorCode: "CATEGORY_NOT_FOUND",
           message: "Danh mục đã chọn không tồn tại.",
-          fieldErrors: {
-            categoryId: "Danh mục đã bị xoá hoặc không còn khả dụng.",
-          },
+          fieldErrors: [
+            {
+              field: "categoryId",
+              message: "Danh mục đã bị xoá hoặc không còn khả dụng.",
+              code: "Exists",
+            },
+          ],
         },
         headers: {},
       };
     }
 
     const now = new Date().toISOString();
-    const product: Product = {
+    const product: MockProduct = {
       productId,
       name: readString(body.name),
       nameEn: readString(body.nameEn) || readString(body.name),
       slug: slugify(readString(body.name) || productId),
-      type: readProductType(body.type),
+      type: body.customizable === true ? "Customizable" : readProductType(body.type),
       categoryId,
       status: "Draft",
       description: readString(body.description),
@@ -158,20 +199,59 @@ export function registerAllMockRoutes(): void {
       basePrice: readNumber(body.basePrice),
       attributes: readProductAttributes(body.attributes),
       printAreas: readPrintAreas(body.printAreas, productId),
-      taxClass: readTaxClass(body.taxClass),
+      taxClass: readTaxClass(
+        typeof body.taxClass === "string" ? body.taxClass.toLowerCase() : body.taxClass,
+      ),
       uom: readUom(body.uom),
       brand: readString(body.brand),
       createdAt: now,
       createdBy: "Mock API",
+      weightKg: readNullableNumber(body.weightKg),
+      lengthCm: readNullableNumber(body.lengthCm),
+      widthCm: readNullableNumber(body.widthCm),
+      heightCm: readNullableNumber(body.heightCm),
     };
 
     createdProducts.push(product);
     return { status: 201, data: product, headers: {} };
   });
 
-  // FE-only (no BE endpoint yet — BE has no GET /api/v1/skus). The PO screens
-  // (create form / list / detail) read this master data from the mock so the
-  // "Tạo PO" flow can be exercised end-to-end; swap for the real API once BE ships it.
+  registerMockRoute("PUT", "/products/:id", async (config) => {
+    const { products } = await import("@/lib/mock-data");
+    const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
+    const current =
+      productOverrides.get(id) ?? [...products, ...createdProducts].find((p) => p.productId === id);
+    if (!current)
+      return {
+        status: 404,
+        data: { errorCode: "PRODUCT_NOT_FOUND", message: "Product not found" },
+        headers: {},
+      };
+    const body = parseCreateProductBody(config.data);
+    const updated: MockProduct = {
+      ...current,
+      name: readString(body.name),
+      nameEn: readString(body.nameEn),
+      categoryId: readString(body.categoryId),
+      description: readString(body.description),
+      descriptionEn: readString(body.descriptionEn),
+      brand: readString(body.brand),
+      images: readStringArray(body.images),
+      type: body.customizable === true ? "Customizable" : "Standard",
+      taxClass: readTaxClass(
+        typeof body.taxClass === "string" ? body.taxClass.toLowerCase() : body.taxClass,
+      ),
+      weightKg: readNullableNumber(body.weightKg),
+      lengthCm: readNullableNumber(body.lengthCm),
+      widthCm: readNullableNumber(body.widthCm),
+      heightCm: readNullableNumber(body.heightCm),
+    };
+    productOverrides.set(id, updated);
+    return { status: 200, data: updated, headers: {} };
+  });
+
+  registerProductTransitionRoutes();
+
   // GET /skus
   registerMockRoute("GET", "/skus", async (config) => {
     const { skus } = await import("@/lib/mock-data");
@@ -207,44 +287,15 @@ export function registerAllMockRoutes(): void {
     return { status: 200, data: { items: categories, total: categories.length }, headers: {} };
   });
 
-  // FE-only (no BE endpoint yet — BE has no GET /api/v1/suppliers). The PO screens
-  // (create form / list / detail) read this master data from the mock so the
-  // "Tạo PO" flow can be exercised end-to-end; swap for the real API once BE ships it.
-  // GET /suppliers
-  registerMockRoute("GET", "/suppliers", async (config) => {
-    const { suppliers } = await import("@/lib/mock-data");
-    const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
-    const q = params.get("q")?.toLowerCase();
-
-    let filtered = [...suppliers];
-    if (q)
-      filtered = filtered.filter(
-        (s) => s.name.toLowerCase().includes(q) || s.supplierId.toLowerCase().includes(q),
-      );
-
-    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
-  });
-
-  // GET /suppliers/:id
-  registerMockRoute("GET", "/suppliers/:id", async (config) => {
-    const { suppliers } = await import("@/lib/mock-data");
-    const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
-    const supplier = suppliers.find((s) => s.supplierId === id);
-    if (!supplier) return { status: 404, data: { message: "Supplier not found" }, headers: {} };
-    return { status: 200, data: supplier, headers: {} };
-  });
+  // Suppliers: xem mock-routes-suppliers.ts (đăng ký trong mock-adapter.ts)
 
   /* ====================================================================
    * Module 02 — Purchase Orders / Replenishment
    * ==================================================================*/
 
-  registerPurchaseOrderMockRoutes();
+  // Purchase orders: mock-routes-purchase-orders.ts (BE PurchaseOrderController contract).
 
-  // FE-only (no BE endpoint yet — BE has no GET /api/v1/replenishment-proposals). The PO screens
-  // (create form / list / detail) read this master data from the mock so the
-  // "Tạo PO" flow can be exercised end-to-end; swap for the real API once BE ships it.
+  // FE-only: BE has no GET /api/v1/replenishment-proposals yet.
   // GET /replenishment-proposals
   registerMockRoute("GET", "/replenishment-proposals", async (config) => {
     const { replenishmentProposals } = await import("@/lib/mock-data");
@@ -346,8 +397,6 @@ export function registerAllMockRoutes(): void {
    * Module 06 — Warehouses / Zones / Locations / Slotting
    * ==================================================================*/
 
-  // FE-only (BE WarehouseController is still a stub with no endpoints). The PO list and
-  // detail read warehouse names from here; swap for the real API once BE ships it.
   registerMockRoute("GET", "/warehouses", async () => {
     const { warehouses } = await import("@/lib/mock-data");
     return { status: 200, data: { items: warehouses, total: warehouses.length }, headers: {} };
@@ -558,6 +607,37 @@ export function registerAllMockRoutes(): void {
   });
 
   /* ====================================================================
+   * Permission management (read-only phase)
+   * ==================================================================*/
+
+  registerMockRoute("GET", "/identity/roles", async () => {
+    return { status: 200, data: mockRoles, headers: {} };
+  });
+
+  registerMockRoute("GET", "/identity/roles/:roleCode/permissions", async (config) => {
+    const { roleCode } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
+
+    if (roleCode === "FORBIDDEN") {
+      return {
+        status: 403,
+        data: { errorCode: "FORBIDDEN", message: "Bạn không có quyền đọc ma trận quyền." },
+        headers: {},
+      };
+    }
+
+    const fixture = mockRoleMatrices[roleCode];
+    if (!fixture) {
+      return {
+        status: 404,
+        data: { errorCode: "ROLE_NOT_FOUND", message: "Không tìm thấy role." },
+        headers: {},
+      };
+    }
+
+    return { status: 200, data: fixture, headers: {} };
+  });
+
+  /* ====================================================================
    * Auth routes (handled by auth-api.ts, registered here for completeness)
    * ==================================================================*/
 
@@ -603,6 +683,195 @@ export function registerAllMockRoutes(): void {
   });
 }
 
+const mockRoles = [
+  {
+    code: "ECOMMERCE_ADMIN",
+    name: "E-commerce Admin",
+    description: "Catalog and platform administration",
+    createdAt: "2026-09-03T00:00:00Z",
+    createdBy: "flyway",
+    lastModifiedAt: null,
+    lastModifiedBy: null,
+  },
+  {
+    code: "WAREHOUSE_MANAGER",
+    name: "Warehouse Manager",
+    description: null,
+    createdAt: "2026-09-03T00:00:00Z",
+    createdBy: null,
+    lastModifiedAt: "2026-09-04T00:00:00Z",
+    lastModifiedBy: "admin@example.com",
+  },
+];
+
+const normalRoleMatrix = {
+  roleCode: "ECOMMERCE_ADMIN",
+  roleLabel: "E-commerce Admin",
+  systemRole: true,
+  dataScope: "ALL",
+  grantedCount: 2,
+  totalCount: 3,
+  groups: [
+    {
+      name: "Platform",
+      grantedCount: 2,
+      totalCount: 3,
+      resources: [
+        {
+          code: "identity-rbac",
+          label: "Permission matrix",
+          route: "/admin/permissions",
+          apiPath: "/api/v1/identity/rbac",
+          grantedCount: 2,
+          totalCount: 3,
+          actions: [
+            { action: "VIEW_PAGE", label: "Open page", granted: true, sensitive: false },
+            { action: "READ", label: "Read data", granted: true, sensitive: false },
+            { action: "APPROVE", label: "Approve", granted: false, sensitive: true },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
+const mockRoleMatrices: Record<string, typeof normalRoleMatrix> = {
+  ECOMMERCE_ADMIN: normalRoleMatrix,
+  EMPTY_GROUPS: {
+    roleCode: "EMPTY_GROUPS",
+    roleLabel: "Empty Groups Fixture",
+    systemRole: true,
+    dataScope: "ALL",
+    grantedCount: 0,
+    totalCount: 0,
+    groups: [],
+  },
+  EMPTY_RESOURCES: {
+    roleCode: "EMPTY_RESOURCES",
+    roleLabel: "Empty Resources Fixture",
+    systemRole: true,
+    dataScope: "OWN",
+    grantedCount: 0,
+    totalCount: 0,
+    groups: [{ name: "Empty Group", grantedCount: 0, totalCount: 0, resources: [] }],
+  },
+  EMPTY_ACTIONS: {
+    roleCode: "EMPTY_ACTIONS",
+    roleLabel: "Empty Actions Fixture",
+    systemRole: true,
+    dataScope: "WAREHOUSE",
+    grantedCount: 0,
+    totalCount: 0,
+    groups: [
+      {
+        name: "Empty Actions Group",
+        grantedCount: 0,
+        totalCount: 0,
+        resources: [
+          {
+            code: "empty-resource",
+            label: "Empty Resource",
+            route: "/admin/empty",
+            apiPath: "/api/v1/empty",
+            grantedCount: 0,
+            totalCount: 0,
+            actions: [],
+          },
+        ],
+      },
+    ],
+  },
+} as const;
+
+function registerProductTransitionRoutes(): void {
+  registerProductTransition("submission", ["Draft"], "Pending Approval", (product) => ({
+    ...product,
+    submittedBy: MOCK_SUBMITTER_ID,
+    submittedAt: new Date().toISOString(),
+  }));
+  registerProductTransition("approval", ["Pending Approval"], "Approved", (product) => ({
+    ...product,
+    approvedBy: MOCK_APPROVER_ID,
+    approvedAt: new Date().toISOString(),
+  }));
+  registerProductTransition("discontinuation", ["Approved", "Published"], "Discontinued");
+  registerProductTransition("unpublication", ["Published"], "Approved", undefined, true);
+  registerProductTransition("publication", ["Approved"], "Published", undefined, true);
+
+  registerMockRoute("POST", "/products/:id/rejection", async (config) => {
+    const body = parseCreateProductBody(config.data);
+    if (!readString(body.reason)) {
+      return mockValidationError("reason", "Lý do từ chối là bắt buộc.");
+    }
+    return transitionMockProduct(config, ["Pending Approval"], "Draft", (product) => ({
+      ...product,
+      submittedBy: undefined,
+      submittedAt: undefined,
+    }));
+  });
+}
+
+function registerProductTransition(
+  suffix: string,
+  fromStatuses: Product["status"][],
+  targetStatus: Product["status"],
+  enrich?: (product: MockProduct) => MockProduct,
+  voidResponse = false,
+): void {
+  registerMockRoute("POST", `/products/:id/${suffix}`, (config) =>
+    transitionMockProduct(config, fromStatuses, targetStatus, enrich, voidResponse),
+  );
+}
+
+async function transitionMockProduct(
+  config: import("axios").AxiosRequestConfig,
+  fromStatuses: Product["status"][],
+  targetStatus: Product["status"],
+  enrich?: (product: MockProduct) => MockProduct,
+  voidResponse = false,
+) {
+  const { products } = await import("@/lib/mock-data");
+  const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
+  const current =
+    productOverrides.get(id) ??
+    [...products, ...createdProducts].find((item) => item.productId === id);
+  if (!current) {
+    return {
+      status: 404,
+      data: { errorCode: "PRODUCT_NOT_FOUND", message: "Product not found" },
+      headers: {},
+    };
+  }
+  if (!fromStatuses.includes(current.status)) {
+    return {
+      status: 409,
+      data: {
+        errorCode: "INVALID_PRODUCT_STATUS_TRANSITION",
+        message: "This product cannot move to that status right now",
+      },
+      headers: {},
+    };
+  }
+  const transitioned = enrich?.({ ...current, status: targetStatus }) ?? {
+    ...current,
+    status: targetStatus,
+  };
+  productOverrides.set(id, transitioned);
+  return { status: 200, data: voidResponse ? null : transitioned, headers: {} };
+}
+
+function mockValidationError(field: string, message: string) {
+  return {
+    status: 400,
+    data: {
+      errorCode: "VALIDATION_FAILED",
+      message: "Dữ liệu không hợp lệ.",
+      fieldErrors: [{ field, message, code: "NotBlank" }],
+    },
+    headers: {},
+  };
+}
+
 function parseCreateProductBody(data: unknown): CreateProductMockBody {
   if (typeof data === "string") {
     try {
@@ -615,21 +884,6 @@ function parseCreateProductBody(data: unknown): CreateProductMockBody {
   return isRecord(data) ? data : {};
 }
 
-/** Parse an axios request body (string JSON or already-parsed object). */
-function parseJsonBody(data: unknown): Record<string, unknown> {
-  if (typeof data === "string") {
-    try {
-      const parsed: unknown = JSON.parse(data);
-      return isRecord(parsed) ? parsed : {};
-    } catch {
-      return {};
-    }
-  }
-  return isRecord(data) ? data : {};
-}
-
-/* Narrowing helpers for literal union types (mock bodies are `unknown`). */
-
 function readString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -641,6 +895,32 @@ function readOptionalString(value: unknown): string | undefined {
 
 function readNumber(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function readRequestSearchParams(config: { url?: string; params?: unknown }): URLSearchParams {
+  if (config.params instanceof URLSearchParams) return new URLSearchParams(config.params);
+  return new URLSearchParams(config.url?.split("?")[1] ?? "");
+}
+
+function readProductStatus(value: string): Product["status"] | null {
+  switch (value) {
+    case "DRAFT":
+      return "Draft";
+    case "PENDING_APPROVAL":
+      return "Pending Approval";
+    case "APPROVED":
+      return "Approved";
+    case "PUBLISHED":
+      return "Published";
+    case "DISCONTINUED":
+      return "Discontinued";
+    default:
+      return null;
+  }
+}
+
+function readNullableNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 function readStringArray(value: unknown): string[] {
@@ -762,527 +1042,4 @@ function slugify(value: string): string {
     .replace(/đ/g, "d")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-}
-
-/* ======================================================================
- * Module 02 — Purchase Orders: mock mirrors BE PurchaseOrderController
- *
- * Wire shape = BE `PurchaseOrderResponse` / `POLineResponse` (UUID ids, SCREAMING_SNAKE
- * status, `totalAmount`, `openQuantity`), errors = BE `ApiResponse` failure envelope
- * `{success:false, errorCode, message, fieldErrors:[{field,message}]}`. Because the mock
- * speaks exactly the BE contract, `features/purchase-order/api.ts` has ONE code path and
- * never needs to know whether it talks to the mock or the real backend.
- * ====================================================================*/
-
-/** BE `PurchaseOrderStatus.java` — 7 states. */
-const BE_PO_STATUSES = [
-  "DRAFT",
-  "APPROVED",
-  "SENT",
-  "PARTIALLY_RECEIVED",
-  "CLOSED",
-  "CLOSED_SHORT",
-  "CANCELLED",
-] as const;
-type BePoStatus = (typeof BE_PO_STATUSES)[number];
-
-/**
- * Seed `mock-data.ts` still uses the docs-02 Title Case vocabulary (10-state machine) and
- * cannot be edited (protected file). This is the ONLY place that vocabulary is translated —
- * nothing outside the mock ever sees Title Case.
- *
- * BE narrows the machine (javadoc `PurchaseOrderStatus`, SCRUM-113/116):
- * - `Pending Approval` → `DRAFT`: BE merged submit+approve into `approve()`, so an order
- *   waiting for approval is a DRAFT that has not been approved yet (NOT `APPROVED`).
- * - `Confirmed` → `SENT`: no separate "supplier acknowledged" step.
- * - `Received` → `CLOSED`: reaching zero open quantity closes the PO directly.
- */
-const LEGACY_PO_STATUS: Record<PoStatus, BePoStatus> = {
-  Draft: "DRAFT",
-  "Pending Approval": "DRAFT",
-  Approved: "APPROVED",
-  Confirmed: "SENT",
-  "Partially Received": "PARTIALLY_RECEIVED",
-  Received: "CLOSED",
-  Closed: "CLOSED",
-  Cancelled: "CANCELLED",
-};
-
-/** BE `PurchaseOrderStatus#canTransitionTo` — single-edge transitions (receive is separate). */
-const BE_PO_TRANSITIONS: Record<BePoStatus, readonly BePoStatus[]> = {
-  DRAFT: ["APPROVED", "CANCELLED"],
-  APPROVED: ["SENT", "CANCELLED"],
-  SENT: ["CANCELLED"],
-  PARTIALLY_RECEIVED: ["CLOSED_SHORT"],
-  CLOSED: [],
-  CLOSED_SHORT: [],
-  CANCELLED: [],
-};
-
-/** BE `ProcurementServiceImpl.SORT` whitelist. */
-const PO_SORT_WHITELIST = ["poNumber", "expectedAt", "createdAt", "lastModifiedAt", "status"];
-/** BE `Pages.MAX_PAGE_SIZE` / `Pages.DEFAULT_PAGE_SIZE`. */
-const BE_MAX_PAGE_SIZE = 200;
-const BE_DEFAULT_PAGE_SIZE = 20;
-/** BE `common.domain.Sku` — code is trimmed, upper-cased, then must match this. */
-const BE_SKU_PATTERN = /^[A-Z0-9-]{3,64}$/;
-/** BE `ErrorCode.VALIDATION_FAILED` generic message (IllegalArgumentException handler). */
-const BE_GENERIC_VALIDATION_MESSAGE = "Invalid request data";
-
-interface MockBePoLine {
-  lineId: string;
-  sku: string;
-  description: string | null;
-  quantityOrdered: number;
-  quantityReceived: number;
-  openQuantity: number;
-  unitPrice: number;
-}
-
-interface MockBePo {
-  purchaseOrderId: string;
-  poNumber: string;
-  supplierId: string;
-  status: BePoStatus;
-  currency: string;
-  totalAmount: number;
-  expectedAt: string | null;
-  lines: MockBePoLine[];
-  createdAt: string;
-  createdBy: string;
-  lastModifiedAt: string;
-  lastModifiedBy: string;
-  possibleDuplicate: boolean;
-  cancellationReason: string | null;
-  closeShortReason: string | null;
-}
-
-interface MockFieldError {
-  field: string;
-  message: string;
-}
-
-const MOCK_PO_ACTOR = "mock-user";
-
-let poStore: Map<string, MockBePo> | null = null;
-const poNumberSequence = new Map<string, number>();
-
-async function getPoStore(): Promise<Map<string, MockBePo>> {
-  if (!poStore) {
-    const { purchaseOrders } = await import("@/lib/mock-data");
-    poStore = new Map(purchaseOrders.map((po) => [po.poId, seedToBePo(po)]));
-  }
-  return poStore;
-}
-
-function seedToBePo(po: PurchaseOrder): MockBePo {
-  const lines: MockBePoLine[] = po.lines.map((l) => ({
-    lineId: l.lineId,
-    sku: l.skuId,
-    description: null,
-    quantityOrdered: l.orderedQty,
-    quantityReceived: l.receivedQty,
-    openQuantity: Math.max(0, l.orderedQty - l.receivedQty),
-    unitPrice: l.unitPrice,
-  }));
-  const status = LEGACY_PO_STATUS[po.status];
-  // Seed only has a calendar date; midnight VN time keeps the same date in Asia/Ho_Chi_Minh.
-  const createdAt = `${po.orderDate}T00:00:00+07:00`;
-  return {
-    purchaseOrderId: po.poId,
-    poNumber: po.poNumber,
-    supplierId: po.supplierId,
-    status,
-    currency: po.currency,
-    totalAmount: sumLines(lines),
-    expectedAt: po.expectedDate || null,
-    lines,
-    createdAt,
-    createdBy: po.createdBy,
-    lastModifiedAt: createdAt,
-    lastModifiedBy: po.createdBy,
-    possibleDuplicate: false,
-    cancellationReason: status === "CANCELLED" ? (po.rejectionReason ?? null) : null,
-    closeShortReason: null,
-  };
-}
-
-/** BE `PurchaseOrder#totalAmount` — Σ quantityOrdered × unitPrice (no tax/discount). */
-function sumLines(lines: readonly MockBePoLine[]): number {
-  return lines.reduce((sum, l) => sum + l.quantityOrdered * l.unitPrice, 0);
-}
-
-function beOk(data: unknown, status = 200) {
-  return { status, data, headers: {} };
-}
-
-function beError(
-  status: number,
-  errorCode: string,
-  message: string,
-  fieldErrors?: MockFieldError[],
-) {
-  return {
-    status,
-    data: { success: false, errorCode, message, fieldErrors: fieldErrors ?? [] },
-    headers: {},
-  };
-}
-
-function bePage<T>(all: readonly T[], page: number, size: number) {
-  const totalElements = all.length;
-  const totalPages = Math.ceil(totalElements / size);
-  return {
-    items: all.slice(page * size, page * size + size),
-    page,
-    size,
-    totalElements,
-    totalPages,
-    hasNext: page + 1 < totalPages,
-    hasPrevious: page > 0,
-  };
-}
-
-/** axios keeps query params in `config.params` (not in `config.url`) until its real adapter runs. */
-function readParams(config: AxiosRequestConfig): Record<string, unknown> {
-  const params: unknown = config.params;
-  return isRecord(params) ? params : {};
-}
-
-function readInt(value: unknown, fallback: number): number {
-  const n = typeof value === "string" ? Number(value) : value;
-  return typeof n === "number" && Number.isInteger(n) ? n : fallback;
-}
-
-function readRouteId(config: AxiosRequestConfig): string {
-  const params: unknown = (config as Record<string, unknown>)._mockParams;
-  return isRecord(params) ? readString(params.id) : "";
-}
-
-function isBePoStatus(value: string): value is BePoStatus {
-  return (BE_PO_STATUSES as readonly string[]).includes(value);
-}
-
-function toArray(value: unknown): unknown[] {
-  if (value == null || value === "") return [];
-  return Array.isArray(value) ? value : [value];
-}
-
-/** BE `SortWhitelist#parse` — "prop,dir;prop2,dir2". Returns null for a non-whitelisted prop. */
-function parseSort(raw: string): { prop: keyof MockBePo; desc: boolean }[] | null {
-  const clauses = raw
-    .split(";")
-    .map((c) => c.trim())
-    .filter(Boolean);
-  const out: { prop: keyof MockBePo; desc: boolean }[] = [];
-  for (const clause of clauses) {
-    const [prop = "", dir = ""] = clause.split(",").map((s) => s.trim());
-    if (!PO_SORT_WHITELIST.includes(prop)) return null;
-    out.push({ prop: prop as keyof MockBePo, desc: dir.toLowerCase() === "desc" });
-  }
-  return out.length ? out : [{ prop: "lastModifiedAt", desc: true }];
-}
-
-function comparePo(a: MockBePo, b: MockBePo, order: { prop: keyof MockBePo; desc: boolean }[]) {
-  for (const { prop, desc } of order) {
-    const cmp = String(a[prop] ?? "").localeCompare(String(b[prop] ?? ""));
-    if (cmp !== 0) return desc ? -cmp : cmp;
-  }
-  return 0;
-}
-
-function nextPoNumber(): string {
-  const now = new Date();
-  const ymd = now.toISOString().slice(0, 10).replace(/-/g, "");
-  const seq = (poNumberSequence.get(ymd) ?? 0) + 1;
-  poNumberSequence.set(ymd, seq);
-  return `PO-${ymd}-${String(seq).padStart(6, "0")}`;
-}
-
-function touch(po: MockBePo, patch: Partial<MockBePo>): MockBePo {
-  return {
-    ...po,
-    ...patch,
-    lastModifiedAt: new Date().toISOString(),
-    lastModifiedBy: MOCK_PO_ACTOR,
-  };
-}
-
-function registerPurchaseOrderMockRoutes(): void {
-  // GET /purchase-orders — BE: page (0-based), size, supplierId, status (repeatable), sort.
-  // BE has no free-text `q` — the mock ignores it too so both behave the same.
-  registerMockRoute("GET", "/purchase-orders", async (config) => {
-    const store = await getPoStore();
-    const p = readParams(config);
-    const page = readInt(p.page, 0);
-    const size = readInt(p.size, BE_DEFAULT_PAGE_SIZE);
-    if (page < 0 || size < 1 || size > BE_MAX_PAGE_SIZE) {
-      return beError(400, "VALIDATION_FAILED", `Page size must not exceed ${BE_MAX_PAGE_SIZE}`);
-    }
-    const statuses = toArray(p.status).map(String);
-    // BE: PurchaseOrderStatus::valueOf → IllegalArgumentException → generic 400.
-    if (statuses.some((s) => !isBePoStatus(s))) {
-      return beError(400, "VALIDATION_FAILED", BE_GENERIC_VALIDATION_MESSAGE);
-    }
-    const order = parseSort(readString(p.sort));
-    if (!order) {
-      return beError(
-        400,
-        "UNSUPPORTED_PARAMETER",
-        `Cannot sort by '${readString(p.sort)}'. Allowed: ${PO_SORT_WHITELIST.join(", ")}`,
-      );
-    }
-    const supplierId = readString(p.supplierId);
-    const rows = [...store.values()]
-      .filter((po) => !supplierId || po.supplierId === supplierId)
-      .filter((po) => statuses.length === 0 || statuses.includes(po.status))
-      .sort((a, b) => comparePo(a, b, order))
-      // BE: `lines` is empty on a list row (PurchaseOrderSearchRepository).
-      .map((po) => ({ ...po, lines: [] }));
-    return beOk(bePage(rows, page, size));
-  });
-
-  // GET /purchase-orders/:id
-  registerMockRoute("GET", "/purchase-orders/:id", async (config) => {
-    const id = readRouteId(config);
-    const po = (await getPoStore()).get(id);
-    if (!po) {
-      return beError(404, "PURCHASE_ORDER_NOT_FOUND", `No purchase order with id ${id}`);
-    }
-    return beOk(po);
-  });
-
-  // GET /purchase-orders/reports/status-dashboard — BE returns every status, even empty ones.
-  registerMockRoute("GET", "/purchase-orders/reports/status-dashboard", async () => {
-    const all = [...(await getPoStore()).values()];
-    return beOk(
-      BE_PO_STATUSES.map((status) => ({
-        status,
-        count: all.filter((po) => po.status === status).length,
-      })),
-    );
-  });
-
-  // GET /purchase-orders/reports/supplier-spend — Σ totalAmount excluding DRAFT + CANCELLED.
-  registerMockRoute("GET", "/purchase-orders/reports/supplier-spend", async (config) => {
-    const { suppliers } = await import("@/lib/mock-data");
-    const p = readParams(config);
-    const page = readInt(p.page, 0);
-    const size = readInt(p.size, BE_DEFAULT_PAGE_SIZE);
-    const supplierIdFilter = readString(p.supplierId);
-    const from = readString(p.expectedAtFrom);
-    const to = readString(p.expectedAtTo);
-    const bySupplier = new Map<string, { totalSpend: number; count: number }>();
-    for (const po of (await getPoStore()).values()) {
-      if (po.status === "DRAFT" || po.status === "CANCELLED") continue;
-      if (supplierIdFilter && po.supplierId !== supplierIdFilter) continue;
-      if (from && (po.expectedAt ?? "") < from) continue;
-      if (to && (po.expectedAt ?? "") > to) continue;
-      const cur = bySupplier.get(po.supplierId) ?? { totalSpend: 0, count: 0 };
-      bySupplier.set(po.supplierId, {
-        totalSpend: cur.totalSpend + po.totalAmount,
-        count: cur.count + 1,
-      });
-    }
-    const supById = new Map(suppliers.map((s) => [s.supplierId, s] as const));
-    const rows = [...bySupplier.entries()]
-      .map(([supplierId, agg]) => ({
-        supplierId,
-        supplierCode: supplierId,
-        supplierName: supById.get(supplierId)?.name ?? supplierId,
-        totalSpend: agg.totalSpend,
-        purchaseOrderCount: agg.count,
-      }))
-      .sort((a, b) => b.totalSpend - a.totalSpend);
-    return beOk(bePage(rows, page, size));
-  });
-
-  // POST /purchase-orders — BE CreatePurchaseOrderRequest + ProcurementServiceImpl.create.
-  registerMockRoute("POST", "/purchase-orders", async (config) => {
-    const { suppliers } = await import("@/lib/mock-data");
-    const body = parseJsonBody(config.data);
-    const supplierId = readString(body.supplierId);
-    const currency = readString(body.currency);
-    const expectedAt = readString(body.expectedAt) || null;
-    const rawLines = Array.isArray(body.lines) ? body.lines : [];
-
-    const fieldErrors: MockFieldError[] = [];
-    if (!supplierId) fieldErrors.push({ field: "supplierId", message: "supplierId is required" });
-    if (!/^[A-Z]{3}$/.test(currency)) {
-      fieldErrors.push({ field: "currency", message: "currency must be a 3-letter ISO code" });
-    }
-    if (rawLines.length === 0) {
-      fieldErrors.push({ field: "lines", message: "at least one line is required" });
-    }
-    const lines: MockBePoLine[] = rawLines.map((raw: unknown, idx) => {
-      const r = isRecord(raw) ? raw : {};
-      const sku = readString(r.sku).toUpperCase();
-      const qty = r.quantityOrdered;
-      const price = r.unitPrice;
-      if (!BE_SKU_PATTERN.test(sku)) {
-        fieldErrors.push({ field: `lines[${idx}].sku`, message: "sku is required" });
-      }
-      if (typeof qty !== "number" || !Number.isInteger(qty) || qty <= 0) {
-        fieldErrors.push({
-          field: `lines[${idx}].quantityOrdered`,
-          message: "quantityOrdered must be positive",
-        });
-      }
-      if (typeof price !== "number" || !Number.isFinite(price) || price < 0) {
-        fieldErrors.push({
-          field: `lines[${idx}].unitPrice`,
-          message: "unitPrice must not be negative",
-        });
-      }
-      const quantityOrdered = typeof qty === "number" ? qty : 0;
-      return {
-        lineId: crypto.randomUUID(),
-        sku,
-        description: readString(r.description) || null,
-        quantityOrdered,
-        quantityReceived: 0,
-        openQuantity: quantityOrdered,
-        unitPrice: typeof price === "number" ? price : 0,
-      };
-    });
-    if (fieldErrors.length > 0) {
-      return beError(400, "VALIDATION_FAILED", BE_GENERIC_VALIDATION_MESSAGE, fieldErrors);
-    }
-    const supplier = suppliers.find((s) => s.supplierId === supplierId);
-    if (!supplier) {
-      return beError(404, "SUPPLIER_NOT_FOUND", `No supplier with id ${supplierId}`);
-    }
-    if (!supplier.active) {
-      return beError(409, "SUPPLIER_INACTIVE", `Supplier ${supplierId} is INACTIVE`);
-    }
-
-    const store = await getPoStore();
-    // BR-PO-003 (BE isPossibleDuplicate): another non-terminal PO, same supplier + expectedAt,
-    // at least one overlapping SKU → warning flag, not a rejection.
-    const skuSet = new Set(lines.map((l) => l.sku));
-    const possibleDuplicate =
-      expectedAt !== null &&
-      [...store.values()].some(
-        (po) =>
-          po.supplierId === supplierId &&
-          po.expectedAt === expectedAt &&
-          po.status !== "CANCELLED" &&
-          po.status !== "CLOSED" &&
-          po.status !== "CLOSED_SHORT" &&
-          po.lines.some((l) => skuSet.has(l.sku)),
-      );
-    const now = new Date().toISOString();
-    const po: MockBePo = {
-      purchaseOrderId: crypto.randomUUID(),
-      poNumber: nextPoNumber(),
-      supplierId,
-      status: "DRAFT",
-      currency,
-      totalAmount: sumLines(lines),
-      expectedAt,
-      lines,
-      createdAt: now,
-      createdBy: MOCK_PO_ACTOR,
-      lastModifiedAt: now,
-      lastModifiedBy: MOCK_PO_ACTOR,
-      possibleDuplicate: false,
-      cancellationReason: null,
-      closeShortReason: null,
-    };
-    store.set(po.purchaseOrderId, po);
-    return beOk({ ...po, possibleDuplicate }, 201);
-  });
-
-  // Single-edge transitions — one endpoint per action (BE splits them for permission).
-  const transition =
-    (target: BePoStatus, reasonField?: "cancellationReason" | "closeShortReason") =>
-    async (config: AxiosRequestConfig) => {
-      const id = readRouteId(config);
-      const store = await getPoStore();
-      const po = store.get(id);
-      if (!po) return beError(404, "PURCHASE_ORDER_NOT_FOUND", `No purchase order with id ${id}`);
-      const reason = readString(parseJsonBody(config.data).reason);
-      if (reasonField && !reason) {
-        return beError(400, "VALIDATION_FAILED", BE_GENERIC_VALIDATION_MESSAGE, [
-          { field: "reason", message: "reason is required" },
-        ]);
-      }
-      if (!BE_PO_TRANSITIONS[po.status].includes(target)) {
-        return beError(
-          409,
-          "INVALID_PURCHASE_ORDER_TRANSITION",
-          `Purchase order ${id} cannot move from ${po.status} to ${target}`,
-        );
-      }
-      const patch: Partial<MockBePo> = { status: target };
-      if (reasonField) patch[reasonField] = reason;
-      const updated = touch(po, patch);
-      store.set(id, updated);
-      return beOk(updated);
-    };
-
-  registerMockRoute("POST", "/purchase-orders/:id/approval", transition("APPROVED"));
-  registerMockRoute("POST", "/purchase-orders/:id/sending", transition("SENT"));
-  registerMockRoute(
-    "POST",
-    "/purchase-orders/:id/cancellation",
-    transition("CANCELLED", "cancellationReason"),
-  );
-  registerMockRoute(
-    "POST",
-    "/purchase-orders/:id/closure-short",
-    transition("CLOSED_SHORT", "closeShortReason"),
-  );
-
-  // POST /purchase-orders/:id/receipts — BE PurchaseOrder#receiveGoods + PoLine#receive.
-  registerMockRoute("POST", "/purchase-orders/:id/receipts", async (config) => {
-    const id = readRouteId(config);
-    const store = await getPoStore();
-    const po = store.get(id);
-    if (!po) return beError(404, "PURCHASE_ORDER_NOT_FOUND", `No purchase order with id ${id}`);
-    const body = parseJsonBody(config.data);
-    const requested = Array.isArray(body.lines) ? body.lines : [];
-    if (requested.length === 0) {
-      return beError(400, "VALIDATION_FAILED", BE_GENERIC_VALIDATION_MESSAGE, [
-        { field: "lines", message: "at least one line is required" },
-      ]);
-    }
-    if (po.status !== "SENT" && po.status !== "PARTIALLY_RECEIVED") {
-      return beError(
-        409,
-        "INVALID_PURCHASE_ORDER_TRANSITION",
-        `cannot receive goods while ${po.status} (must be SENT or PARTIALLY_RECEIVED)`,
-      );
-    }
-    const received = new Map<string, number>();
-    for (const raw of requested) {
-      const r = isRecord(raw) ? raw : {};
-      const lineId = readString(r.lineId);
-      const qty = r.quantity;
-      const line = po.lines.find((l) => l.lineId === lineId);
-      // BE: unknown line / qty ≤ 0 / qty > openQuantity are IllegalArgumentException →
-      // generic 400 without fieldErrors — the FE dialog must validate before sending.
-      if (!line || typeof qty !== "number" || !Number.isInteger(qty) || qty <= 0) {
-        return beError(400, "VALIDATION_FAILED", BE_GENERIC_VALIDATION_MESSAGE);
-      }
-      if (qty > line.openQuantity) {
-        return beError(400, "VALIDATION_FAILED", BE_GENERIC_VALIDATION_MESSAGE);
-      }
-      received.set(lineId, qty);
-    }
-    const lines = po.lines.map((l) => {
-      const qty = received.get(l.lineId) ?? 0;
-      return {
-        ...l,
-        quantityReceived: l.quantityReceived + qty,
-        openQuantity: l.openQuantity - qty,
-      };
-    });
-    const status: BePoStatus = lines.every((l) => l.openQuantity === 0)
-      ? "CLOSED"
-      : "PARTIALLY_RECEIVED";
-    const updated = touch(po, { lines, status });
-    store.set(id, updated);
-    return beOk(updated);
-  });
 }

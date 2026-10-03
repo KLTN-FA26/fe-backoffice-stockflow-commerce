@@ -1,14 +1,12 @@
 /**
- * Purchase Order — mutation hooks.
+ * Purchase Order — mutation hooks, mỗi hook một endpoint BE.
  *
- * One hook per BE endpoint (PurchaseOrderController.java):
- * approval / sending / cancellation / closure-short / receipts.
- *
- * The success toast comes from `successMessage` here — components must NOT toast success
- * again. Errors are handled by the caller (`showErrorToast: false`) so 409/400 can be mapped
- * to a precise message instead of the generic factory toast.
+ * Toast thành công đến từ `successMessage` — component KHÔNG toast lần nữa. Lỗi do nơi gọi
+ * xử lý (`showErrorToast: false`) để map `errorCode` sang câu tiếng Việt (`errors.ts`).
+ * Gửi NCC / khôi phục không có successMessage: kết quả giao thật nằm ở `deliveryStatus`.
  */
 
+import { TOAST_MESSAGES } from "@/constants";
 import { createMutation } from "@/lib/api/query-factory";
 
 import {
@@ -17,16 +15,25 @@ import {
   closeShortPurchaseOrder,
   createPurchaseOrder,
   receiveGoods,
+  recordSupplierConfirmation,
+  recoverPoDelivery,
   sendPurchaseOrder,
 } from "./api";
-import { poDashboardKeys, poKeys, replenishmentKeys, supplierSpendKeys } from "./queries";
+import { poDashboardKeys, poDeliveryKeys, poKeys, supplierSpendKeys } from "./queries";
 
 import type { CreatePoResult, ReceiveLineInput } from "./api";
-import type { CreatePoInput } from "./schemas";
+import type {
+  CreatePoInput,
+  RecoverDeliveryInput,
+  SendPoInput,
+  SupplierConfirmationInput,
+} from "./schemas";
 import type { PurchaseOrder } from "./types";
 
-/** Every PO transition changes the list, the status dashboard and the spend report. */
+const MSG = TOAST_MESSAGES.purchaseOrder;
+/** Mọi chuyển trạng thái PO đổi danh sách, dashboard trạng thái và báo cáo chi tiêu. */
 const PO_INVALIDATE = [poKeys.all, poDashboardKeys.all, supplierSpendKeys.all] as const;
+const DELIVERY_INVALIDATE = [poKeys.all, poDeliveryKeys.all] as const;
 
 export const useCreatePo = createMutation<CreatePoInput, CreatePoResult>(createPurchaseOrder, {
   invalidate: PO_INVALIDATE,
@@ -35,26 +42,22 @@ export const useCreatePo = createMutation<CreatePoInput, CreatePoResult>(createP
 
 export const useApprovePo = createMutation<{ id: string }, PurchaseOrder>(
   ({ id }) => approvePurchaseOrder(id),
-  {
-    invalidate: [...PO_INVALIDATE, replenishmentKeys.all],
-    showErrorToast: false,
-    successMessage: "Phê duyệt thành công",
-  },
+  { invalidate: PO_INVALIDATE, showErrorToast: false, successMessage: MSG.approved },
 );
 
-export const useSendPo = createMutation<{ id: string }, PurchaseOrder>(
-  ({ id }) => sendPurchaseOrder(id),
-  { invalidate: PO_INVALIDATE, showErrorToast: false, successMessage: "Đã gửi tới NCC" },
+export const useSendPo = createMutation<{ id: string; input: SendPoInput }, PurchaseOrder>(
+  ({ id, input }) => sendPurchaseOrder(id, input),
+  { invalidate: [...PO_INVALIDATE, poDeliveryKeys.all], showErrorToast: false },
 );
 
 export const useCancelPo = createMutation<{ id: string; reason: string }, PurchaseOrder>(
   ({ id, reason }) => cancelPurchaseOrder(id, reason),
-  { invalidate: PO_INVALIDATE, showErrorToast: false, successMessage: "Đã huỷ PO" },
+  { invalidate: PO_INVALIDATE, showErrorToast: false, successMessage: MSG.cancelled },
 );
 
 export const useCloseShortPo = createMutation<{ id: string; reason: string }, PurchaseOrder>(
   ({ id, reason }) => closeShortPurchaseOrder(id, reason),
-  { invalidate: PO_INVALIDATE, showErrorToast: false, successMessage: "Đã đóng thiếu" },
+  { invalidate: PO_INVALIDATE, showErrorToast: false, successMessage: MSG.closedShort },
 );
 
 export const useReceiveGoodsPo = createMutation<
@@ -63,5 +66,23 @@ export const useReceiveGoodsPo = createMutation<
 >(({ id, lines }) => receiveGoods(id, lines), {
   invalidate: PO_INVALIDATE,
   showErrorToast: false,
-  successMessage: "Đã ghi nhận nhận hàng",
+  successMessage: MSG.received,
+});
+
+export const useRecoverPoDelivery = createMutation<
+  { id: string; input: RecoverDeliveryInput },
+  PurchaseOrder
+>(({ id, input }) => recoverPoDelivery(id, input), {
+  invalidate: DELIVERY_INVALIDATE,
+  showErrorToast: false,
+  successMessage: MSG.deliveryRecovered,
+});
+
+export const useRecordSupplierConfirmation = createMutation<
+  { id: string; input: SupplierConfirmationInput },
+  PurchaseOrder
+>(({ id, input }) => recordSupplierConfirmation(id, input), {
+  invalidate: [poKeys.all],
+  showErrorToast: false,
+  successMessage: MSG.confirmationRecorded,
 });

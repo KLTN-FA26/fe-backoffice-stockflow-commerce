@@ -1,5 +1,7 @@
 "use client";
 
+import { UI_LABELS } from "@/constants";
+
 import {
   COLUMN_SEARCH_LABELS,
   DEFAULT_CONFIG,
@@ -29,7 +31,7 @@ export function buildPoSummaryItems(
   return [
     { label: "Stats", value: pageConfig.showStats ? "Đang hiện" : "Đang ẩn" },
     {
-      label: "Trạng thái",
+      label: UI_LABELS.purchaseOrder.status,
       value: pageConfig.statuses
         .map((s) => STATUS_OPTIONS.find((o) => o.value === s)?.label ?? s)
         .join(", "),
@@ -38,7 +40,9 @@ export function buildPoSummaryItems(
     },
     {
       label: "Search chính",
-      value: hasGlobalSearch ? `“${pageConfig.globalSearch.query}”` : "Chưa dùng",
+      value: hasGlobalSearch
+        ? `“${pageConfig.globalSearch.query}”`
+        : UI_LABELS.purchaseOrder.notUsed,
       active: hasGlobalSearch,
       onClear: onClearQ,
     },
@@ -57,7 +61,7 @@ export function buildPoSummaryItems(
         ? activeColumnSearch
             .map(([k, v]) => `${COLUMN_SEARCH_LABELS[k as PoColumnSearchKey]} “${v}”`)
             .join(", ")
-        : "Chưa dùng",
+        : UI_LABELS.purchaseOrder.notUsed,
       active: activeColumnSearch.length > 0,
       onClear: onClearColumnSearch,
     },

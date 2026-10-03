@@ -5,7 +5,7 @@
  * plus list-stats derived from BE 7-state.
  */
 
-import { PO_STATUS } from "@/constants";
+import { PO_DELIVERY_STATUS, PO_STATUS } from "@/constants";
 import { formatMoney } from "@/lib/format";
 
 import { receiveGoodsLineInputSchema } from "./schemas";
@@ -29,6 +29,55 @@ export function totalOrderedQuantity(po: PurchaseOrder): number {
 
 export function totalReceivedQuantity(po: PurchaseOrder): number {
   return po.lines.reduce((sum, line) => sum + line.receivedQty, 0);
+}
+
+/**
+ * BR-06 (docs 02 §6): ngày giao dự kiến đã qua → chỉ CẢNH BÁO, không chặn.
+ * So với HÔM NAY theo Asia/Ho_Chi_Minh (`today` = `toLocalIsoDate(now)`), không so với ngày đặt.
+ */
+export function isExpectedDatePast(expectedDate: string, today: string): boolean {
+  return expectedDate !== "" && expectedDate < today;
+}
+
+/** Gợi ý ngày giao = hôm nay + `leadTimeDays` của NCC (BE SupplierResponse.leadTimeDays). */
+export function suggestExpectedDate(today: string, leadTimeDays: number): string {
+  const [y = 0, m = 1, d = 1] = today.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d + leadTimeDays));
+  return date.toISOString().slice(0, 10);
+}
+
+/**
+ * Lượt gửi NCC. BE đánh `generation` từ 0: gửi lần đầu = 0, mỗi lần khôi phục gửi +1
+ * (BE `NotificationServiceImpl.prepareSupplierDelivery`, `po_delivery_control.generation DEFAULT 0`).
+ */
+export function isFirstDelivery(generation: number): boolean {
+  return generation === 0;
+}
+
+/** Số lượt hiển thị cho người dùng, đếm từ 1. */
+export function deliveryRound(generation: number): number {
+  return generation + 1;
+}
+
+/**
+ * `failure` của lần gửi BE có dạng `"purchase-order:<uuid>: <TênException>"`
+ * (BE `DeliveryAttemptRecorder.failed`) — chỉ giữ tên lỗi, không lộ UUID ra UI.
+ */
+export function deliveryFailureName(failure: string | null | undefined): string | null {
+  if (!failure) return null;
+  const name = failure.slice(failure.lastIndexOf(":") + 1).trim();
+  return name || null;
+}
+
+/**
+ * Lần gửi gần nhất chưa tới được NCC: BE `deliveryStatus` RETRYING (đang thử lại) hoặc FAILED
+ * (hết lượt thử — người có quyền duyệt khôi phục được). Dùng cho cảnh báo + toast sau khi gửi.
+ */
+export function isDeliveryFailing(po: Pick<PurchaseOrder, "deliveryStatus">): boolean {
+  return (
+    po.deliveryStatus === PO_DELIVERY_STATUS.FAILED ||
+    po.deliveryStatus === PO_DELIVERY_STATUS.RETRYING
+  );
 }
 
 /** Statuses that should flag a row in the list table. */

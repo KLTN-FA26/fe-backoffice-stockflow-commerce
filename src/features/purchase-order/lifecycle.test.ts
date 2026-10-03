@@ -1,27 +1,43 @@
 import { describe, expect, it } from "vitest";
 
 import { PO_STATUSES } from "@/constants";
-import { allowedTransitions, canTransition, isTerminal } from "@/lib/domain/lifecycle";
 
+import { PO_PERMISSION_SETS } from "./__fixtures__/render";
 import { PO_TRANSITIONS, allowedPoActions, isPoTerminal, nextPoStatuses } from "./lifecycle";
 
-import type { RoleName } from "@/lib/auth/roles";
+import type { PermissionCode } from "@/lib/auth";
+import type { PoGateState } from "./lifecycle";
 import type { PoStatus } from "./types";
 
-const codes = (status: PoStatus, roles: RoleName[]) =>
-  allowedPoActions(status, roles).map((a) => a.code);
-const MUTATING = ["approve", "send", "cancel", "closeShort", "receive"];
+type SetName = keyof typeof PO_PERMISSION_SETS;
 
-describe("PO_TRANSITIONS (BE PurchaseOrderStatus#canTransitionTo, 7-state)", () => {
-  it("has an entry for every BE status", () => {
+const gate = (status: PoStatus, extra: Partial<PoGateState> = {}): PoGateState => ({
+  status,
+  supplierConfirmationStatus: "NOT_SENT",
+  deliveryStatus: "NOT_SENT",
+  ...extra,
+});
+const codes = (po: PoGateState, set: SetName) => {
+  const perms: readonly PermissionCode[] = PO_PERMISSION_SETS[set];
+  return allowedPoActions(po, (code) => perms.includes(code)).map((a) => a.code);
+};
+const MUTATING = [
+  "approve",
+  "send",
+  "cancel",
+  "closeShort",
+  "receive",
+  "recoverDelivery",
+  "recordConfirmation",
+];
+
+describe("PO_TRANSITIONS (docs 02 §5 thu hẹp theo BE PurchaseOrderStatus, 7 trạng thái)", () => {
+  it("có đủ 7 mã trạng thái BE", () => {
     expect(Object.keys(PO_TRANSITIONS).sort()).toEqual([...PO_STATUSES].sort());
   });
 
-  it("DRAFT → APPROVED | CANCELLED", () => {
+  it("DRAFT → APPROVED | CANCELLED; APPROVED → SENT | CANCELLED", () => {
     expect(nextPoStatuses("DRAFT")).toEqual(["APPROVED", "CANCELLED"]);
-  });
-
-  it("APPROVED → SENT | CANCELLED", () => {
     expect(nextPoStatuses("APPROVED")).toEqual(["SENT", "CANCELLED"]);
   });
 
@@ -29,68 +45,75 @@ describe("PO_TRANSITIONS (BE PurchaseOrderStatus#canTransitionTo, 7-state)", () 
     expect(nextPoStatuses("PARTIALLY_RECEIVED")).toEqual(["CLOSED_SHORT"]);
   });
 
-  it.each(["CLOSED", "CLOSED_SHORT", "CANCELLED"] as const)("%s is terminal", (s) => {
+  it.each(["CLOSED", "CLOSED_SHORT", "CANCELLED"] as const)("%s là terminal (=== [])", (s) => {
     expect(PO_TRANSITIONS[s]).toEqual([]);
     expect(isPoTerminal(s)).toBe(true);
   });
-});
 
-describe("generic lifecycle helpers — unknown status must not crash", () => {
-  // Regression: `isTerminal(table, undefined-key)` used to throw `undefined.length`
-  // and took down /admin/purchase-orders/[id].
-  const table: Record<string, readonly string[]> = PO_TRANSITIONS;
-
-  it("isTerminal treats an unknown status as terminal", () => {
-    expect(isTerminal(table, "Draft")).toBe(true);
-  });
-
-  it("canTransition returns false for an unknown status", () => {
-    expect(canTransition(table, "Draft", "APPROVED")).toBe(false);
-  });
-
-  it("allowedTransitions returns [] for an unknown status", () => {
-    expect(allowedTransitions(table, "Draft")).toEqual([]);
+  it("regression: trạng thái lạ không làm sập trang — coi như terminal, không có bước kế", () => {
+    expect(isPoTerminal("Draft")).toBe(true);
+    expect(nextPoStatuses("Draft")).toEqual([]);
   });
 });
 
-describe("allowedPoActions (action-gating by status + roles)", () => {
-  it("DRAFT + Warehouse Manager → can approve", () => {
-    expect(codes("DRAFT", ["Warehouse Manager"])).toContain("approve");
+describe("allowedPoActions — gate theo MÃ QUYỀN (/identity/me/permissions), không theo vai trò", () => {
+  it("chỉ xem (VIEW_PAGE + READ): không có thao tác nào", () => {
+    expect(codes(gate("DRAFT"), "readOnly")).toEqual([]);
+    expect(codes(gate("SENT", { supplierConfirmationStatus: "PENDING" }), "readOnly")).toEqual([]);
   });
 
-  it("DRAFT + Procurement Staff → cannot approve (po.approve)", () => {
-    expect(codes("DRAFT", ["Procurement Staff"])).not.toContain("approve");
-    expect(codes("DRAFT", ["Procurement Staff"])).toContain("cancel");
+  it("thiếu APPROVE (procurement): DRAFT không có Phê duyệt, vẫn được Huỷ", () => {
+    expect(codes(gate("DRAFT"), "procurement")).toEqual(["cancel"]);
   });
 
-  it("BR-03: SENT (≙ Confirmed) + Procurement Staff → cancel và receive", () => {
-    expect(codes("SENT", ["Procurement Staff"])).toEqual(["cancel", "receive"]);
+  it("có APPROVE (approver, BE #40): DRAFT chỉ có Phê duyệt (không có UPDATE để huỷ)", () => {
+    expect(codes(gate("DRAFT"), "approver")).toEqual(["approve"]);
   });
 
-  it("BR-03 + BR-05: PARTIALLY_RECEIVED → closeShort và receive, không có cancel", () => {
-    expect(codes("PARTIALLY_RECEIVED", ["Procurement Staff"])).toEqual(["closeShort", "receive"]);
+  it("APPROVED + UPDATE → Gửi NCC; approver không gửi được", () => {
+    expect(codes(gate("APPROVED"), "procurement")).toEqual(["send", "cancel"]);
+    expect(codes(gate("APPROVED"), "approver")).toEqual([]);
   });
 
-  it("Accountant (view only) sees no mutating action", () => {
-    expect(codes("DRAFT", ["Accountant"])).toEqual([]);
+  it("BR-03: SENT chờ NCC phản hồi → nhận hàng, ghi nhận phản hồi, huỷ", () => {
+    const po = gate("SENT", { supplierConfirmationStatus: "PENDING", deliveryStatus: "DELIVERED" });
+    expect(codes(po, "procurement")).toEqual(["receive", "recordConfirmation", "cancel"]);
   });
 
-  it("uses ALL roles — Procurement Staff + Warehouse Manager can approve", () => {
-    expect(codes("DRAFT", ["Procurement Staff", "Warehouse Manager"])).toContain("approve");
+  it.each(["DRAFT", "APPROVED"] as const)("BR-03: %s chưa chốt → không có Nhận hàng", (s) => {
+    expect(codes(gate(s), "full")).not.toContain("receive");
   });
 
-  it.each(["DRAFT", "APPROVED"] as const)("BR-03: %s chưa chốt → không có receive", (s) => {
-    expect(codes(s, ["System Admin"])).not.toContain("receive");
+  it("BE: NCC đã từ chối → không cho nhận hàng (huỷ và tạo PO thay thế)", () => {
+    const po = gate("SENT", { supplierConfirmationStatus: "REJECTED" });
+    expect(codes(po, "full")).toEqual(["cancel"]);
   });
 
-  it("no role → no action", () => {
-    expect(codes("DRAFT", [])).toEqual([]);
+  it("khôi phục gửi: chỉ khi SENT + chờ NCC + lần gửi FAILED, và cần APPROVE", () => {
+    const failed = gate("SENT", {
+      supplierConfirmationStatus: "PENDING",
+      deliveryStatus: "FAILED",
+    });
+    expect(codes(failed, "approver")).toEqual(["recoverDelivery"]);
+    expect(codes(failed, "procurement")).not.toContain("recoverDelivery");
+    const delivered = { ...failed, deliveryStatus: "DELIVERED" as const };
+    expect(codes(delivered, "full")).not.toContain("recoverDelivery");
+  });
+
+  it("BR-03 + BR-05: PARTIALLY_RECEIVED → nhận tiếp, đóng thiếu; không có huỷ", () => {
+    const po = gate("PARTIALLY_RECEIVED", { supplierConfirmationStatus: "CONFIRMED" });
+    expect(codes(po, "procurement")).toEqual(["receive", "closeShort"]);
+  });
+
+  it("không có quyền nào → không có thao tác", () => {
+    expect(codes(gate("DRAFT"), "none")).toEqual([]);
   });
 
   it.each(["CLOSED", "CLOSED_SHORT", "CANCELLED"] as const)(
-    "%s renders no mutating action even for System Admin",
+    "%s (terminal, NCC đã phản hồi): không có nút mutating kể cả đủ quyền",
     (s) => {
-      expect(codes(s, ["System Admin"]).filter((c) => MUTATING.includes(c))).toEqual([]);
+      const po = gate(s, { supplierConfirmationStatus: "CONFIRMED" });
+      expect(codes(po, "full").filter((c) => MUTATING.includes(c))).toEqual([]);
     },
   );
 });

@@ -3,44 +3,39 @@
 import { Trash2 } from "lucide-react";
 import { cn } from "cn";
 
-import type { Currency } from "@/features/purchase-order";
-import type { Sku } from "@/features/product";
+import { PO_LIMITS, UI_LABELS } from "@/constants";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 import { FieldError } from "./CreateFormPrimitives";
-import { fieldClass } from "./helpers";
+import { fieldClass, normalizeSkuCode } from "./helpers";
 import { PoLineFields } from "./PoLineFields";
-import { SkuCombobox } from "./SkuCombobox";
-import type { PoLineDraft } from "./types";
 
+import type { CreatePoWizard } from "./useCreateForm";
+
+/** Một dòng hàng — mọi ô `register` vào react-hook-form, lỗi (client + server) hiện inline. */
 export function PoLineCard({
-  line,
+  w,
   index,
-  activeSkus,
-  showErrors,
-  hasDuplicate,
-  currency,
-  onSkuChange,
   onRemove,
-  onUpdate,
 }: {
-  line: PoLineDraft;
+  w: CreatePoWizard;
   index: number;
-  activeSkus: Sku[];
-  showErrors: boolean;
-  hasDuplicate: boolean;
-  currency: Currency;
-  onSkuChange: (lineId: string, skuId: string) => void;
-  onRemove: (lineId: string) => void;
-  onUpdate: (lineId: string, patch: Partial<PoLineDraft>) => void;
+  onRemove: () => void;
 }) {
-  const selectedSku = activeSkus.find((s) => s.skuId === line.skuId);
+  const { register } = w.form;
+  const line = w.values.lines[index];
+  const errors = w.errors.lines?.[index];
+  const sku = register(`lines.${index}.skuId`);
+  const skuErrorId = `po-line-${index}-sku-error`;
+  const descErrorId = `po-line-${index}-desc-error`;
+
   return (
     <div
       className={cn(
         "bg-bg-subtle rounded-[var(--r-sm)] border p-3",
-        hasDuplicate ? "border-danger/30" : "border-border-default",
+        errors ? "border-danger/30" : "border-border-default",
       )}
     >
       <div className="mb-3 flex items-center justify-between gap-3">
@@ -53,7 +48,7 @@ export function PoLineCard({
               Dòng hàng {index + 1}
             </div>
             <div className="text-ink-tertiary text-xs">
-              {selectedSku?.variantLabel ?? "Chưa chọn SKU"}
+              {line?.skuId || UI_LABELS.purchaseOrder.skuMissing}
             </div>
           </div>
         </div>
@@ -61,9 +56,9 @@ export function PoLineCard({
           type="button"
           variant="outline"
           size="icon"
-          onClick={() => onRemove(line.id)}
+          onClick={onRemove}
           className="border-danger/30 text-danger hover:bg-danger/10 flex size-8 items-center justify-center rounded-[var(--r-sm)] border transition-colors"
-          aria-label="Xóa dòng hàng"
+          aria-label={`Xóa dòng hàng ${index + 1}`}
         >
           <Trash2 className="size-3.5" />
         </Button>
@@ -74,29 +69,58 @@ export function PoLineCard({
             <label className="text-ink-secondary mb-0.5 block text-[11px] leading-4 font-medium">
               SKU <span className="text-danger">*</span>
             </label>
-            <SkuCombobox
-              value={line.skuId}
-              onChange={(v) => onSkuChange(line.id, v)}
-              skus={activeSkus}
-              hasError={showErrors && (!line.skuId || hasDuplicate)}
-              ariaLabel={`SKU dòng ${index + 1}`}
+            {/* TODO(SKU combobox): ô nhập TẠM vì BE chưa có API danh mục SKU (BR-01 /
+                open-question C12) — BE chỉ có `GET /products/{id}/skus/{sku}/base-price`.
+                Khi BE có API liệt kê SKU Active (lọc theo NCC nếu có), thay Input này bằng
+                combobox chọn SKU, cùng kiểu `SupplierCombobox` (bọc bằng `Controller`):
+                  1. Thêm query vào `lib/references` (không gọi chéo `features/product`).
+                  2. Chọn SKU → điền `skuId` + `description`; vẫn KHÔNG tự điền đơn giá trừ khi
+                     giá trả về cùng tiền tệ với PO (lỗi VND → $ cũ).
+                  3. Bỏ `normalizeSkuCode` ở ô này (mã lấy từ danh mục, không gõ tay).
+                Combobox cũ (dữ liệu mock) có ở git: `git show 16d63a2:src/features/purchase-order/components/create/SkuCombobox.tsx`.
+                Hiện tại: nhập mã đúng định dạng BE `common.domain.Sku`. */}
+            <Input
+              {...sku}
+              onChange={(e) => {
+                // BE `common.domain.Sku` trim + upper-case — hiện đúng dạng sẽ lưu ngay khi gõ.
+                e.target.value = normalizeSkuCode(e.target.value);
+                void sku.onChange(e);
+              }}
+              placeholder="VD: SOFA-3S-GREY"
+              aria-label={`SKU dòng ${index + 1}`}
+              aria-invalid={errors?.skuId ? true : undefined}
+              aria-describedby={errors?.skuId ? skuErrorId : undefined}
+              className={cn(fieldClass(!!errors?.skuId), "font-[family-name:var(--font-mono)]")}
             />
-            {hasDuplicate && <FieldError>SKU bị trùng trong PO.</FieldError>}
+            <FieldError id={skuErrorId}>{errors?.skuId?.message}</FieldError>
           </div>
           <div className="min-w-0">
-            <label className="text-ink-secondary mb-0.5 block text-[11px] leading-4 font-medium">
+            <label
+              htmlFor={`po-line-${index}-desc`}
+              className="text-ink-secondary mb-0.5 block text-[11px] leading-4 font-medium"
+            >
               Mô tả dòng
             </label>
             <Textarea
-              value={line.description}
-              onChange={(e) => onUpdate(line.id, { description: e.target.value })}
+              id={`po-line-${index}-desc`}
+              {...register(`lines.${index}.description`)}
               placeholder="Mô tả (tuỳ chọn)"
               rows={2}
-              className={fieldClass().replace("h-8 ", "") + " min-h-[56px] resize-y py-2"}
+              maxLength={PO_LIMITS.lineDescriptionMax}
+              aria-invalid={errors?.description ? true : undefined}
+              aria-describedby={errors?.description ? descErrorId : undefined}
+              className={cn(
+                fieldClass(!!errors?.description).replace("h-8", ""),
+                "min-h-[56px] resize-y py-2",
+              )}
             />
+            <p className="text-ink-tertiary mt-0.5 text-right text-[11px] tabular-nums">
+              {line?.description.length ?? 0}/{PO_LIMITS.lineDescriptionMax}
+            </p>
+            <FieldError id={descErrorId}>{errors?.description?.message}</FieldError>
           </div>
         </div>
-        <PoLineFields line={line} currency={currency} showErrors={showErrors} onUpdate={onUpdate} />
+        <PoLineFields w={w} index={index} />
       </div>
     </div>
   );

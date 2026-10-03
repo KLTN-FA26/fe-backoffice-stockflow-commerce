@@ -7,6 +7,8 @@ import {
   totalReceivedQuantity,
 } from "@/features/purchase-order";
 import { cn } from "cn";
+
+import { UI_LABELS } from "@/constants";
 import type { PurchaseOrder } from "@/features/purchase-order";
 
 export function PoOverview({ po }: { po: PurchaseOrder }) {
@@ -51,7 +53,9 @@ export function PoOverview({ po }: { po: PurchaseOrder }) {
             </span>
           </div>
           <div className="mt-1 flex justify-between text-[0.8125rem]">
-            <span className="text-ink-primary font-medium">Tổng giá trị</span>
+            <span className="text-ink-primary font-medium">
+              {UI_LABELS.purchaseOrder.grandTotal}
+            </span>
             <span className="text-ink-primary font-[family-name:var(--font-mono)] font-bold">
               {formatMoney(po.grandTotal, po.currency)}
             </span>

@@ -1,147 +1,198 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useFieldArray, useForm, useWatch } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 
-import { ADMIN_ROUTES, PAGE_SIZE } from "@/constants";
-import { createPoSchema, useCreatePo, usePoSuppliers } from "@/features/purchase-order";
-import { useSkus } from "@/features/product";
+import { ADMIN_ROUTES, TOAST_MESSAGES } from "@/constants";
+import { toLocalIsoDate } from "@/lib/format";
+import { useSupplierOptions } from "@/lib/references/supplier-options";
+import {
+  createPoSchema,
+  poCreateFieldErrors,
+  poCreateFormSchema,
+  poErrorMessage,
+  suggestExpectedDate,
+  useCreatePo,
+} from "@/features/purchase-order";
 import { toast } from "@/components/shared/Toast";
 
-import { calculateTotals, createEmptyLine, validateForm } from "./helpers";
-import { createInitialForm } from "./types";
+import { calculateTotals } from "./helpers";
+import { PO_CREATE_DEFAULTS, STEPS } from "./types";
+import { earliestStep, fieldsOfStep, issuesByStep, stepForErrors } from "./wizard-field-map";
 
+import type { FieldErrors } from "react-hook-form";
 import type { ApiError } from "@/lib/api/error";
-import type { CreatePoInput } from "@/features/purchase-order";
-import type { FormState, PoLineDraft, StepKey } from "./types";
+import type { CreatePoInput, PoCreateFormValues } from "@/features/purchase-order";
+import type { StepKey, StepStatus } from "./types";
 
-function toCreateInput(form: FormState): CreatePoInput {
+const MSG = TOAST_MESSAGES.purchaseOrder;
+const ALL_STEPS = new Set<StepKey>(STEPS.map((s) => s.key));
+
+function toCreateInput(v: PoCreateFormValues): CreatePoInput {
   return {
-    supplierId: form.supplierId,
-    currency: form.currency,
-    expectedAt: form.expectedDate || null,
-    lines: form.lines.map((l) => ({
+    supplierId: v.supplierId,
+    currency: v.currency,
+    expectedAt: v.expectedDate || null,
+    lines: v.lines.map((l) => ({
       sku: l.skuId,
-      description: l.description || null,
+      description: l.description.trim() || null,
       quantityOrdered: Number(l.orderedQty),
       unitPrice: Number(l.unitPrice),
     })),
   };
 }
 
+/**
+ * Wizard tạo PO — cùng cơ chế wizard NCC (`useSupplierWizard`): react-hook-form + zodResolver,
+ * "Tiếp tục" chỉ đi khi các ô của bước hợp lệ, không nhảy cóc bước, lỗi BE hiện inline ở ô.
+ */
 export function useCreateForm() {
   const router = useRouter();
-  const [form, setForm] = useState<FormState>(createInitialForm);
+  const createPo = useCreatePo();
+  // Nguồn NCC chung (lib/references): chỉ NCC ACTIVE, đã lọc ở server (BE #36).
+  const suppliersQuery = useSupplierOptions();
+  const suppliers = suppliersQuery.data ?? [];
+
   const [currentStep, setCurrentStep] = useState<StepKey>("info");
+  // Bước đã qua "Tiếp tục" hợp lệ.
+  const [completedSteps, setCompletedSteps] = useState<Set<StepKey>>(new Set());
+  const [attemptedSteps, setAttemptedSteps] = useState<Set<StepKey>>(new Set());
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const createPo = useCreatePo();
-  // FE-only master data (BE has no /suppliers or /skus yet — see api.ts).
-  const suppliersQuery = usePoSuppliers({});
-  const skusQuery = useSkus({ page: 1, pageSize: PAGE_SIZE.masterData });
 
-  const suppliers = useMemo(() => suppliersQuery.data?.items ?? [], [suppliersQuery.data]);
-  const skus = useMemo(() => skusQuery.data?.items ?? [], [skusQuery.data]);
-  const activeSuppliers = useMemo(() => suppliers.filter((s) => s.active), [suppliers]);
-  const activeSkus = useMemo(() => skus.filter((s) => s.status === "Active"), [skus]);
-  const selectedSupplier = suppliers.find((s) => s.supplierId === form.supplierId);
-  const totals = useMemo(() => calculateTotals(form.lines), [form.lines]);
-  const validationIssues = useMemo(() => validateForm(form), [form]);
-  const issuesByStep = useMemo(() => {
-    const m = new Map<StepKey, string[]>();
-    for (const i of validationIssues) m.set(i.step, [...(m.get(i.step) ?? []), i.message]);
-    return m;
-  }, [validationIssues]);
+  const form = useForm<PoCreateFormValues>({
+    resolver: zodResolver(poCreateFormSchema),
+    mode: "onTouched",
+    defaultValues: PO_CREATE_DEFAULTS,
+  });
+  const { control, handleSubmit, setError, trigger, formState } = form;
+  const lines = useFieldArray({ control, name: "lines" });
+  // `useWatch` để re-render khi giá trị đổi; `getValues()` cho đủ kiểu (không cần ép `as`).
+  useWatch({ control });
+  const values = form.getValues();
+  const currentStepIndex = STEPS.findIndex((s) => s.key === currentStep);
 
-  const update = <K extends keyof FormState>(key: K, value: FormState[K]) =>
-    setForm((p) => ({ ...p, [key]: value }));
-  const updateLine = (lineId: string, patch: Partial<PoLineDraft>) =>
-    setForm((p) => ({
-      ...p,
-      lines: p.lines.map((l) => (l.id === lineId ? { ...l, ...patch } : l)),
-    }));
-  const handleSupplierChange = (supplierId: string) => {
-    const sup = suppliers.find((s) => s.supplierId === supplierId);
-    setForm((p) => ({
-      ...p,
-      supplierId,
-      // BR-07 (docs 02): PO currency follows the supplier's currency.
-      currency: sup?.currency ?? p.currency,
-      paymentTerms: sup?.paymentTerms ?? "",
-    }));
+  const validationByStep = issuesByStep(formState.errors);
+  const currentStepIssues = validationByStep.get(currentStep) ?? [];
+  const showErrors = submitAttempted || attemptedSteps.has(currentStep);
+
+  const stepStatus = (step: StepKey): StepStatus => {
+    const hasIssues = (validationByStep.get(step) ?? []).length > 0;
+    if (hasIssues && (submitAttempted || attemptedSteps.has(step))) return "error";
+    if (step === currentStep) return "active";
+    if (completedSteps.has(step) && !hasIssues) return "done";
+    return "idle";
   };
-  const handleSkuChange = (lineId: string, skuId: string) => {
-    const sku = skus.find((s) => s.skuId === skuId);
-    updateLine(lineId, { skuId, unitPrice: sku ? String(sku.cost) : "", uom: sku?.uom ?? "" });
-  };
-  const addLine = () => update("lines", [...form.lines, createEmptyLine()]);
-  const removeLine = (id: string) =>
-    update(
-      "lines",
-      form.lines.filter((l) => l.id !== id),
+
+  /** Chỉ nhảy tới bước X khi mọi bước trước X đã qua "Tiếp tục" VÀ hiện không có lỗi. */
+  const canGoTo = (step: StepKey): boolean => {
+    const target = STEPS.findIndex((s) => s.key === step);
+    return STEPS.slice(0, target).every(
+      (s) => completedSteps.has(s.key) && (validationByStep.get(s.key) ?? []).length === 0,
     );
-
-  const handleSubmitAttempt = () => {
-    setSubmitAttempted(true);
-    const firstIssue = validationIssues[0];
-    if (firstIssue) {
-      toast.error("Chưa thể tạo PO", firstIssue.message);
-      return;
-    }
-    setConfirmOpen(true);
+  };
+  const goToStep = (step: StepKey) => {
+    if (canGoTo(step)) setCurrentStep(step);
+  };
+  const goBack = () => setCurrentStep(STEPS[Math.max(currentStepIndex - 1, 0)]?.key ?? "info");
+  const goNext = async () => {
+    setAttemptedSteps((prev) => new Set(prev).add(currentStep));
+    const fields = fieldsOfStep(currentStep);
+    const valid = fields.length === 0 || (await trigger(fields));
+    if (!valid) return;
+    setCompletedSteps((prev) => new Set(prev).add(currentStep));
+    const next = STEPS[currentStepIndex + 1];
+    if (next) setCurrentStep(next.key);
   };
 
-  const handleConfirmSubmit = () => {
-    setConfirmOpen(false);
-    // Input schema = last guard before the wire (same rules as BE CreatePurchaseOrderRequest).
-    const parsed = createPoSchema.safeParse(toCreateInput(form));
+  // Lỗi server → inline ở ô + về bước sớm nhất (như wizard NCC). Lỗi không gắn được ô → toast.
+  const applyServerErrors = (err: ApiError) => {
+    const fieldErrors = poCreateFieldErrors(err);
+    for (const { field, message } of fieldErrors) setError(field, { type: "server", message });
+    const step = earliestStep(fieldErrors.map((f) => f.field));
+    if (step) {
+      setAttemptedSteps((prev) => new Set(prev).add(step));
+      setCurrentStep(step);
+    }
+    toast.error(MSG.actionFailed, fieldErrors[0]?.message ?? poErrorMessage(err));
+  };
+
+  const onCreate = (v: PoCreateFormValues) => {
+    // Payload BE = chốt chặn cuối (cùng ràng buộc CreatePurchaseOrderRequest).
+    const parsed = createPoSchema.safeParse(toCreateInput(v));
     if (!parsed.success) {
-      toast.error("Dữ liệu chưa hợp lệ", parsed.error.issues[0]?.message ?? "");
+      setConfirmOpen(false);
+      toast.error(TOAST_MESSAGES.form.checkForm, parsed.error.issues[0]?.message ?? "");
       return;
     }
     createPo.mutate(parsed.data, {
       onSuccess: (created) => {
-        if (created.possibleDuplicate)
-          toast.warning(
-            "Có thể trùng lặp",
-            `PO ${created.poNumber} có cùng NCC + SKU với đơn cùng ngày giao (BR-PO-003).`,
-          );
-        else toast.success("Đã tạo PO", `PO ${created.poNumber} đã được tạo ở trạng thái DRAFT.`);
+        setConfirmOpen(false);
+        if (created.possibleDuplicate) toast.warning(MSG.possibleDuplicate, created.poNumber);
+        else toast.success(MSG.created, created.poNumber);
         const query = created.possibleDuplicate ? "?duplicate=1" : "";
         router.push(`${ADMIN_ROUTES.purchaseOrders.detail(created.poId)}${query}`);
       },
-      onError: (e: ApiError) => {
-        const [field, message] = Object.entries(e.fieldErrors ?? {})[0] ?? [];
-        if (field) toast.error("Dữ liệu chưa hợp lệ", `${field}: ${message}`);
-        else toast.error("Không thể tạo PO", e.message);
+      onError: (err) => {
+        setConfirmOpen(false);
+        applyServerErrors(err);
       },
     });
   };
 
+  const handleReviewSubmit = () => {
+    if (createPo.isPending) return; // chặn double-submit
+    setSubmitAttempted(true);
+    void handleSubmit(
+      () => {
+        setCompletedSteps(new Set(ALL_STEPS));
+        setConfirmOpen(true);
+      },
+      (errs: FieldErrors<PoCreateFormValues>) => {
+        const step = stepForErrors(errs);
+        if (step) setCurrentStep(step);
+        const first = step ? issuesByStep(errs).get(step)?.[0] : undefined;
+        toast.error(TOAST_MESSAGES.form.saveBlocked, first ?? TOAST_MESSAGES.form.checkForm);
+      },
+    )();
+  };
+  const handleConfirmCreate = () => void handleSubmit(onCreate)();
+
+  const selectedSupplier = suppliers.find((s) => s.supplierId === values.supplierId);
+  const today = toLocalIsoDate(new Date().toISOString());
+
   return {
     form,
-    update,
-    updateLine,
-    handleSupplierChange,
-    handleSkuChange,
-    addLine,
-    removeLine,
+    lines,
+    values,
+    errors: formState.errors,
+    isSubmitting: createPo.isPending,
     currentStep,
-    setCurrentStep,
-    submitAttempted,
-    setSubmitAttempted,
+    currentStepIndex,
+    canGoTo,
+    goToStep,
+    goBack,
+    goNext,
+    stepStatus,
+    showErrors,
+    currentStepIssues,
+    validationByStep,
     confirmOpen,
     setConfirmOpen,
-    isSubmitting: createPo.isPending,
-    isLoading: suppliersQuery.isLoading || skusQuery.isLoading,
-    masterDataError: suppliersQuery.isError || skusQuery.isError,
-    activeSuppliers,
-    activeSkus,
+    handleReviewSubmit,
+    handleConfirmCreate,
+    suppliersQuery,
+    suppliers,
     selectedSupplier,
-    totals,
-    validationIssues,
-    issuesByStep,
-    handleSubmitAttempt,
-    handleConfirmSubmit,
+    today,
+    suggestedDate: selectedSupplier
+      ? suggestExpectedDate(today, selectedSupplier.leadTimeDays)
+      : null,
+    hasPrices: values.lines.some((l) => l.unitPrice.trim() !== ""),
+    totals: calculateTotals(values.lines),
   };
 }
+
+export type CreatePoWizard = ReturnType<typeof useCreateForm>;

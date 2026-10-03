@@ -1,43 +1,50 @@
 "use client";
 
-import React from "react";
 import Link from "next/link";
 import { ArrowLeft, Package } from "lucide-react";
 
-import { ADMIN_ROUTES } from "@/constants";
-import { ApiError } from "@/lib/api/error";
+import { ADMIN_ROUTES, PO_PERMISSIONS } from "@/constants";
 import { Alert } from "@/components/shared/Alert";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 
-import { PoActionPanel, actionDescription } from "./detail/PoActionPanel";
+import { PoActionPanel } from "./detail/PoActionPanel";
+import { PoDeliveryCard } from "./detail/PoDeliveryCard";
+import { PoDetailDialogs } from "./detail/PoDetailDialogs";
 import { PoGeneralInfo } from "./detail/PoGeneralInfo";
 import { PoLifecycleTimeline } from "./detail/PoLifecycleTimeline";
 import { PoLinesTable } from "./detail/PoLinesTable";
-import { PoLoadError } from "./detail/PoLoadError";
 import { PoOverview } from "./detail/PoOverview";
-import { PoReceiveDialog } from "./detail/PoReceiveDialog";
-import { PoSupplierWarehouse } from "./detail/PoSupplierWarehouse";
+import { PoSupplierInfo } from "./detail/PoSupplierInfo";
 import { PoTotals } from "./detail/PoTotals";
 import { usePoDetail } from "./detail/usePoDetail";
+import { PoLoadError } from "./PoLoadError";
+import { PoPermissionGate } from "./PoPermissionGate";
 
-export function PurchaseOrderDetail({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = React.use(params);
+export function PurchaseOrderDetail({ id }: { id: string }) {
+  return (
+    <PoPermissionGate permissions={[PO_PERMISSIONS.viewPage]}>
+      <PurchaseOrderDetailBody id={id} />
+    </PoPermissionGate>
+  );
+}
+
+function PurchaseOrderDetailBody({ id }: { id: string }) {
   const d = usePoDetail(id);
 
-  if (d.poQuery.isLoading) return <PageSkeleton variant="detail" />;
+  if (!d.canRead) return <PoLoadError error={null} kind="no-read" />;
+  if (d.poQuery.isPending) return <PageSkeleton variant="detail" />;
   if (!d.po) {
-    const error = d.poQuery.error instanceof ApiError ? d.poQuery.error : null;
-    return <PoLoadError id={id} error={error} onRetry={() => void d.poQuery.refetch()} />;
+    return <PoLoadError error={d.poQuery.error} onRetry={() => void d.poQuery.refetch()} />;
   }
   const po = d.po;
+  const supplierName = d.supplierName;
 
   return (
     <>
       <PageHeader
         title={po.poNumber}
-        subtitle={`Đơn đặt NCC — ${d.supplier?.name ?? po.supplierId}`}
+        subtitle={`Đơn đặt NCC — ${supplierName}`}
         actions={
           <Link
             href={ADMIN_ROUTES.purchaseOrders.list}
@@ -53,26 +60,22 @@ export function PurchaseOrderDetail({ params }: { params: Promise<{ id: string }
           PO này có cùng NCC + ngày giao dự kiến + SKU với một đơn mở khác.
         </Alert>
       )}
-      {d.masterDataError && (
-        <Alert tone="info" className="mb-5">
-          Không tải được tên NCC/kho/SKU (BE chưa có API danh mục) — đang hiển thị mã.
-        </Alert>
-      )}
       <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
         <div className="space-y-5">
           <div className="grid gap-5 md:grid-cols-2">
             <PoGeneralInfo po={po} />
-            <PoSupplierWarehouse po={po} supplier={d.supplier} warehouse={d.warehouse} />
+            <PoSupplierInfo po={po} supplier={d.supplier} supplierName={supplierName} />
           </div>
           <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
             <h2 className="text-ink-primary mb-3 flex items-center gap-2 text-[0.9375rem] font-semibold">
               <Package className="text-accent size-4" />
-              Dòng hàng (PO Lines)
+              Dòng hàng
             </h2>
-            <PoLinesTable lines={po.lines} skus={d.skus} />
+            <PoLinesTable lines={po.lines} />
           </section>
+          {/* Lịch sử gửi NCC nhiều thông tin → cột chính (rộng) */}
+          <PoDeliveryCard po={po} />
           <PoTotals po={po} />
-          <PoLifecycleTimeline status={po.status} />
         </div>
         <div className="space-y-5">
           <PoActionPanel
@@ -80,30 +83,13 @@ export function PurchaseOrderDetail({ params }: { params: Promise<{ id: string }
             actions={d.actions}
             isMutating={d.isMutating}
             conflictError={d.conflictError}
-            onAction={d.onAction}
+            onAction={(act) => d.open(act.code)}
           />
           <PoOverview po={po} />
+          <PoLifecycleTimeline status={po.status} />
         </div>
       </div>
-      <PoReceiveDialog
-        open={d.receiveOpen}
-        onOpenChange={d.setReceiveOpen}
-        po={po}
-        isPending={d.isReceiving}
-        serverError={d.receiveError}
-        onConfirm={d.confirmReceive}
-      />
-      <ConfirmDialog
-        open={d.pendingAction !== null}
-        onOpenChange={(open) => !open && d.closeReasonDialog()}
-        title={d.pendingAction?.label ?? "Xác nhận"}
-        description={d.pendingAction ? actionDescription(d.pendingAction, po.status) : ""}
-        confirmLabel={d.pendingAction?.label ?? "Xác nhận"}
-        variant="danger"
-        requireReason
-        reasonLabel="Lý do (bắt buộc)"
-        onConfirm={(reason) => d.confirmReason(reason ?? "")}
-      />
+      <PoDetailDialogs po={po} supplierName={supplierName} a={d} />
     </>
   );
 }

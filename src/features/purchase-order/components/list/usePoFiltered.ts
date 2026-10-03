@@ -2,22 +2,24 @@
 
 import { useMemo } from "react";
 
-import type { PurchaseOrder, Supplier, Warehouse } from "@/features/purchase-order";
+import { normalize, supplierLabel } from "./helpers";
 
-import { normalize, supplierName, warehouseName } from "./helpers";
+import type { SupplierRef } from "@/lib/references/supplier-lookup";
+import type { PurchaseOrder } from "@/features/purchase-order";
 import type { PurchaseOrdersPageConfig } from "./config";
 
+/**
+ * Lọc tìm kiếm trên TRANG ĐÃ TẢI. BE `GET /purchase-orders` không có tham số tìm kiếm tự do
+ * (chỉ status / supplierId / sort / page) — trạng thái đã lọc ở server, phần này chỉ lọc chữ.
+ */
 export function usePoFiltered(
   purchaseOrders: readonly PurchaseOrder[],
   pageConfig: PurchaseOrdersPageConfig,
   searchFields: readonly { value: string; getValue: (po: PurchaseOrder) => string }[],
-  suppliers: readonly Supplier[],
-  warehouses: readonly Warehouse[],
+  supplierRefs: ReadonlyMap<string, SupplierRef>,
 ): PurchaseOrder[] {
   return useMemo(() => {
     let list = [...purchaseOrders];
-    if (!pageConfig.statuses.includes("all"))
-      list = list.filter((po) => pageConfig.statuses.includes(po.status));
     const q = normalize(pageConfig.globalSearch.query);
     if (q && pageConfig.globalSearch.fields.length > 0) {
       const fieldMap = new Map(searchFields.map((f) => [f.value, f.getValue]));
@@ -30,9 +32,7 @@ export function usePoFiltered(
     const poQ = normalize(pageConfig.columnSearch.poNumber ?? "");
     if (poQ) list = list.filter((po) => normalize(po.poNumber).includes(poQ));
     const supQ = normalize(pageConfig.columnSearch.supplier ?? "");
-    if (supQ) list = list.filter((po) => normalize(supplierName(po, suppliers)).includes(supQ));
-    const whQ = normalize(pageConfig.columnSearch.warehouse ?? "");
-    if (whQ) list = list.filter((po) => normalize(warehouseName(po, warehouses)).includes(whQ));
+    if (supQ) list = list.filter((po) => normalize(supplierLabel(po, supplierRefs)).includes(supQ));
     return list;
-  }, [pageConfig, purchaseOrders, searchFields, suppliers, warehouses]);
+  }, [pageConfig, purchaseOrders, searchFields, supplierRefs]);
 }

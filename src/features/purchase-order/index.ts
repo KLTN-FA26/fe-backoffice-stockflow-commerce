@@ -1,71 +1,66 @@
 /**
- * Purchase Order — feature public API.
- *
- * Template for all feature modules. Other modules follow this pattern:
- *   types.ts    → z.infer types from schemas.ts
- *   api.ts      → axios calls (list, detail, create, update, transition)
- *   queries.ts  → React Query hooks using factory (createListQuery, createDetailQuery)
- *   mutations.ts → mutation hooks using factory (createMutation, createTransitionMutation)
- *   index.ts    → barrel export
+ * Purchase Order — public API của feature (docs 02-purchase-order ↔ BE PurchaseOrderController).
  */
 
 // Types
 export type {
-  Currency,
-  PurchaseOrder,
+  DeliveryAttempt,
+  DeliveryDecision,
+  PoDeliveryStatus,
   PoLine,
   PoStatus,
-  ProposalStatus,
-  ReplenishmentProposal,
-  Supplier,
-  Warehouse,
+  PurchaseOrder,
+  SupplierConfirmationStatus,
 } from "./types";
 
 // Schemas
 export {
+  PO_DELIVERY_STATUSES,
+  PO_INPUT_CURRENCIES,
+  PO_REASON_MAX,
+  SUPPLIER_CONFIRMATION_STATUSES,
   createPoSchema,
-  poLineInputSchema,
-  poLineSchema,
-  poStatusSchema,
-  poStatusValues,
-  proposalStatusSchema,
-  proposalStatusValues,
-  purchaseOrderSchema,
   receiveGoodsInputSchema,
-  receiveGoodsLineInputSchema,
-  replenishmentProposalSchema,
+  recoverDeliveryInputSchema,
+  sendPoInputSchema,
+  supplierConfirmationInputSchema,
 } from "./schemas";
 export type {
   CreatePoInput,
-  PoLineDto,
-  PoLineInput,
   PoStatusCount,
-  PoStatusValue,
-  ProposalStatusValue,
-  PurchaseOrderDto,
-  ReceiveGoodsInput,
-  ReplenishmentProposalDto,
+  RecoverDeliveryInput,
+  SendPoInput,
+  SupplierConfirmationInput,
   SupplierSpendRow,
 } from "./schemas";
+
+// Form tạo PO (react-hook-form) — schema chuỗi + map lỗi BE vào ô
+export { poCreateFormSchema } from "./create-form-schema";
+export type { PoCreateFormLine, PoCreateFormValues } from "./create-form-schema";
+export { poCreateFieldErrors } from "./create-form-errors";
+export type { PoCreateFieldError, PoCreateFieldPath } from "./create-form-errors";
 
 // Lifecycle
 export {
   PO_ACTIONS,
   PO_TRANSITIONS,
   allowedPoActions,
-  allowedTransitions,
-  canTransition,
   isPoTerminal,
-  isTerminal,
   nextPoStatuses,
 } from "./lifecycle";
-export type { PoAction } from "./lifecycle";
+export type { PoAction, PoActionCode, PoGateState } from "./lifecycle";
 
 // Selectors
 export {
+  deliveryFailureName,
+  isDeliveryFailing,
+  deliveryRound,
   formatMoney,
+  isExpectedDatePast,
+  isFirstDelivery,
   openQuantity,
   shouldFlagPoRow,
+  suggestExpectedDate,
   totalOpenQuantity,
   totalOrderedQuantity,
   totalReceivedQuantity,
@@ -73,20 +68,18 @@ export {
 } from "./selectors";
 export type { ReceiveDraftResult } from "./selectors";
 
+// Errors
+export { isStalePoError, poErrorMessage } from "./errors";
+export type { PoErrorContext } from "./errors";
+
 // Query hooks
 export {
-  poDashboardKeys,
   poKeys,
-  poSupplierKeys,
-  poWarehouseKeys,
-  replenishmentKeys,
-  supplierSpendKeys,
+  usePoDeliveries,
+  usePoDeliveryDecisions,
   usePoStatusDashboard,
-  usePoSuppliers,
-  usePoWarehouses,
   usePurchaseOrder,
   usePurchaseOrders,
-  useReplenishmentProposals,
   useSupplierSpend,
 } from "./queries";
 
@@ -97,8 +90,10 @@ export {
   useCloseShortPo,
   useCreatePo,
   useReceiveGoodsPo,
+  useRecordSupplierConfirmation,
+  useRecoverPoDelivery,
   useSendPo,
 } from "./mutations";
 
-// API (for direct use in non-hook contexts)
-export type { CreatePoResult, ListPoParams, ReceiveLineInput } from "./api";
+// API types
+export type { PoHistoryParams, ReceiveLineInput } from "./api";

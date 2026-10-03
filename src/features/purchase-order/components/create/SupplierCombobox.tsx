@@ -4,6 +4,7 @@ import { useState } from "react";
 import { cn } from "cn";
 import { Check, ChevronsUpDown } from "lucide-react";
 
+import { UI_LABELS } from "@/constants";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -15,19 +16,22 @@ import {
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-import type { Supplier } from "@/features/purchase-order";
+import type { SupplierOption } from "@/lib/references/supplier-options";
 
 export function SupplierCombobox({
   value,
   onChange,
   suppliers,
   hasError,
-  placeholder = "Chọn nhà cung cấp",
+  describedBy,
+  placeholder = UI_LABELS.purchaseOrder.validation.supplierRequired,
 }: {
   value: string;
   onChange: (v: string) => void;
-  suppliers: Supplier[];
+  suppliers: readonly SupplierOption[];
   hasError?: boolean;
+  /** id của dòng lỗi inline — để screen reader đọc lỗi khi focus vào combobox. */
+  describedBy?: string;
   placeholder?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -40,7 +44,9 @@ export function SupplierCombobox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          aria-label="Nhà cung cấp"
+          aria-label={UI_LABELS.purchaseOrder.supplier}
+          aria-invalid={hasError ? true : undefined}
+          aria-describedby={hasError ? describedBy : undefined}
           className={cn(
             "bg-bg-surface hover:bg-bg-surface hover:text-ink-primary h-8 w-full justify-between rounded-[var(--r-sm)] border px-2.5 text-left text-[0.8125rem] font-normal shadow-none",
             !value && "text-ink-tertiary",
@@ -49,7 +55,9 @@ export function SupplierCombobox({
               : "border-border-default focus-visible:border-brand focus-visible:ring-brand/20",
           )}
         >
-          <span className="truncate">{selected ? selected.name : placeholder}</span>
+          <span className="truncate">
+            {selected ? `${selected.code} — ${selected.name}` : placeholder}
+          </span>
           <ChevronsUpDown className="ml-2 size-3.5 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -62,7 +70,7 @@ export function SupplierCombobox({
               {suppliers.map((s) => (
                 <CommandItem
                   key={s.supplierId}
-                  value={`${s.supplierId} ${s.name}`}
+                  value={`${s.code} ${s.name}`}
                   className="data-selected:text-ink-secondary hover:bg-bg-muted/60 hover:text-ink-primary data-selected:hover:bg-bg-muted/60 data-selected:bg-transparent"
                   onSelect={() => {
                     onChange(s.supplierId);
@@ -75,7 +83,8 @@ export function SupplierCombobox({
                       value === s.supplierId ? "opacity-100" : "opacity-0",
                     )}
                   />
-                  {s.name}
+                  <span className="font-[family-name:var(--font-mono)] text-xs">{s.code}</span>
+                  <span className="ml-2 truncate">{s.name}</span>
                 </CommandItem>
               ))}
             </CommandGroup>

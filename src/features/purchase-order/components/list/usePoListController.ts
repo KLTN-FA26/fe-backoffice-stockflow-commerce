@@ -1,20 +1,22 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { parseAsString, useQueryState, useQueryStates } from "nuqs";
 
-import { PO_COLUMNS, PO_STATUSES, STORAGE_KEYS } from "@/constants";
+import { PO_COLUMNS, PO_STATUSES, STORAGE_KEYS, UI_LABELS } from "@/constants";
 import { usePageConfig } from "@/hooks/use-page-config";
 import { useUrlFilters } from "@/hooks/use-url-filters";
-import {
-  usePoStatusDashboard,
-  usePoSuppliers,
-  usePoWarehouses,
-  usePurchaseOrders,
-} from "@/features/purchase-order";
+import { useSupplierRef, useSupplierRefs } from "@/lib/references/supplier-lookup";
+import { usePoStatusDashboard, usePurchaseOrders } from "@/features/purchase-order";
 
-import { DEFAULT_CONFIG } from "./config";
-import { mergeStoredConfig, supplierName, warehouseName } from "./helpers";
+import {
+  COLUMN_SEARCH_URL_KEYS,
+  DEFAULT_CONFIG,
+  SERVER_SORT_BY_COLUMN,
+  mergeStoredConfig,
+} from "./config";
+import { supplierLabel } from "./helpers";
 import { usePoFiltered } from "./usePoFiltered";
 import { usePoStats } from "./usePoStats";
 
@@ -27,61 +29,86 @@ import type {
   PurchaseOrdersPageConfig,
 } from "./config";
 
+type SortDir = "asc" | "desc";
+
 export interface PoSearchFieldOption {
   label: string;
   value: PoSearchField;
   getValue: (po: PurchaseOrder) => string;
 }
 
-export function usePoListController() {
+/** URL `sort=expectedAt,desc` → khoá cột cho DataTable.serverSorting. */
+function parseSort(raw: string): { key: string | null; direction: SortDir } {
+  const [prop = "", dir] = raw.split(",");
+  const column = Object.entries(SERVER_SORT_BY_COLUMN).find(([, be]) => be === prop)?.[0];
+  return { key: column ?? null, direction: dir === "desc" ? "desc" : "asc" };
+}
+
+/** Search trong cột là filter → URL (state-persistence.md), không localStorage. */
+const COLUMN_SEARCH_PARSERS = {
+  poNumber: parseAsString.withDefault(""),
+  supplier: parseAsString.withDefault(""),
+};
+
+/**
+ * State danh sách PO — status / supplierId / search trong cột / sort / page trên URL (nuqs),
+ * cột + số dòng trong localStorage. Phân trang + lọc trạng thái/NCC + sắp xếp ở server (BE trang từ 0, URL từ 1).
+ */
+export function usePoListController(canRead: boolean) {
   const router = useRouter();
   const filters = useUrlFilters(PO_STATUSES);
+  const [supplierId, setSupplierIdRaw] = useQueryState("supplierId", parseAsString.withDefault(""));
   const { config, updateConfig } = usePageConfig<PurchaseOrdersPageConfig>(
     STORAGE_KEYS.adminPurchaseOrdersConfig,
     DEFAULT_CONFIG,
     mergeStoredConfig,
   );
-  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
-  // BE list supports page/size/status/supplierId/sort only — no free-text `q`, so the main
-  // search and the column search both filter the loaded page (see note under the table).
-  const poQ = usePurchaseOrders({
-    page: filters.page,
-    pageSize: config.pageSize,
-    status: filters.status.length ? filters.status : undefined,
-    sort: filters.sort || undefined,
+  const [columnSearch, setColumnSearch] = useQueryStates(COLUMN_SEARCH_PARSERS, {
+    urlKeys: COLUMN_SEARCH_URL_KEYS,
   });
-  const supQ = usePoSuppliers({});
-  const whQ = usePoWarehouses({});
-  const dashboardQ = usePoStatusDashboard();
+  const sort = parseSort(filters.sort);
+  const poQ = usePurchaseOrders(
+    {
+      page: Math.max(0, filters.page - 1),
+      size: config.pageSize,
+      status: filters.status.length ? filters.status : undefined,
+      supplierId: supplierId || undefined,
+      sort: filters.sort || undefined,
+    },
+    { enabled: canRead },
+  );
+  const dashboardQ = usePoStatusDashboard({ enabled: canRead });
   const purchaseOrders = useMemo(() => poQ.data?.items ?? [], [poQ.data]);
-  const suppliers = useMemo(() => supQ.data?.items ?? [], [supQ.data]);
-  const warehouses = useMemo(() => whQ.data?.items ?? [], [whQ.data]);
+  const supplierRefs = useSupplierRefs(purchaseOrders.map((po) => po.supplierId));
+  const filterSupplierQ = useSupplierRef(supplierId || null);
+  // Badge lọc NCC: tên NCC, hoặc nhãn đang tải / không tải được — không hiện UUID.
+  const filterSupplierLabel = filterSupplierQ.data
+    ? `${filterSupplierQ.data.code} — ${filterSupplierQ.data.name}`
+    : filterSupplierQ.isError
+      ? UI_LABELS.purchaseOrder.supplierUnavailable
+      : UI_LABELS.purchaseOrder.supplierLoading;
   const searchFields = useMemo<PoSearchFieldOption[]>(
     () => [
       { label: "Mã PO", value: PO_COLUMNS.PO_NUMBER, getValue: (po) => po.poNumber },
       {
-        label: "Nhà cung cấp",
+        label: UI_LABELS.purchaseOrder.supplier,
         value: PO_COLUMNS.SUPPLIER,
-        getValue: (po) => supplierName(po, suppliers),
-      },
-      {
-        label: "Kho nhận",
-        value: PO_COLUMNS.WAREHOUSE,
-        getValue: (po) => warehouseName(po, warehouses),
+        getValue: (po) => supplierLabel(po, supplierRefs),
       },
       { label: "PO ID", value: "poId", getValue: (po) => po.poId },
     ],
-    [suppliers, warehouses],
+    [supplierRefs],
   );
   const pageConfig = useMemo<PurchaseOrdersPageConfig>(
     () => ({
       ...config,
       statuses: filters.status.length ? filters.status : ["all"],
       globalSearch: { ...config.globalSearch, query: filters.q },
+      columnSearch,
     }),
-    [config, filters.q, filters.status],
+    [config, filters.q, filters.status, columnSearch],
   );
-  const filtered = usePoFiltered(purchaseOrders, pageConfig, searchFields, suppliers, warehouses);
+  const filtered = usePoFiltered(purchaseOrders, pageConfig, searchFields, supplierRefs);
   const stats = usePoStats(dashboardQ.data);
 
   const toggleStatus = (s: PoStatusFilter) => {
@@ -90,6 +117,10 @@ export function usePoListController() {
       ? filters.status.filter((i) => i !== s)
       : [...filters.status, s];
     filters.setStatus(next);
+  };
+  const setSupplierId = (id: string) => {
+    void setSupplierIdRaw(id || null);
+    void filters.setPage(1);
   };
   const toggleSearchField = (f: PoSearchField) =>
     updateConfig((c) => {
@@ -111,28 +142,33 @@ export function usePoListController() {
     });
   };
   const updateColumnSearch = (k: PoColumnSearchKey, v: string) =>
-    updateConfig((c) => ({ ...c, columnSearch: { ...c.columnSearch, [k]: v } }));
-  // data-table-mode-a §5: changing page size goes back to the first page.
+    void setColumnSearch({ [k]: v || null });
+  const clearColumnSearch = () => void setColumnSearch(null);
+  const changeSort = (key: string, direction: SortDir) => {
+    const be = Object.entries(SERVER_SORT_BY_COLUMN).find(([col]) => col === key)?.[1];
+    if (!be) return;
+    void filters.setSort(`${be},${direction}`);
+    void filters.setPage(1);
+  };
+  // data-table-mode-a §5: đổi số dòng → về trang đầu.
   const setPageSize = (pageSize: number) => {
     updateConfig((c) => ({ ...c, pageSize }));
-    filters.setPage(1);
+    void filters.setPage(1);
   };
 
   return {
     router,
-    total: poQ.data?.total ?? 0,
-    page: filters.page,
-    pageSize: config.pageSize,
-    setPageSize,
+    canRead,
+    poQ,
+    page: poQ.data,
     filters,
+    sort,
+    supplierId,
+    filterSupplierLabel,
+    setSupplierId,
     config: pageConfig,
     updateConfig,
-    selectedKeys,
-    setSelectedKeys,
-    poQ,
-    suppliers,
-    warehouses,
-    masterDataError: supQ.isError || whQ.isError,
+    supplierRefs,
     searchFields,
     filtered,
     stats,
@@ -140,7 +176,10 @@ export function usePoListController() {
     toggleSearchField,
     toggleTableColumn,
     updateColumnSearch,
-    // Only the PO list gates the skeleton — FE-only master data may 404 on the real BE.
-    isLoading: poQ.isLoading,
+    clearColumnSearch,
+    changeSort,
+    setPageSize,
   };
 }
+
+export type PoListController = ReturnType<typeof usePoListController>;

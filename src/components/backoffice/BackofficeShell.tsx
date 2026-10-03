@@ -17,6 +17,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Receipt,
+  ShieldCheck,
   Settings,
   ShoppingCart,
   Sun,
@@ -29,10 +30,12 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
-import { ADMIN_ROUTES, APP_ROUTES, BRAND } from "@/constants";
+import { ADMIN_ROUTES, APP_ROUTES, BRAND, PO_PERMISSIONS, SUPPLIER_PERMISSIONS } from "@/constants";
 
 import { logoutApi } from "@/lib/auth/auth-api";
 import { useAuthStore } from "@/lib/auth/auth-store";
+import { hasPermission, useMyPermissions } from "@/lib/auth/me-permissions";
+import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
 import {
   invoices,
   moveTasks,
@@ -68,6 +71,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 import type { LucideIcon } from "lucide-react";
+import type { PermissionCode } from "@/lib/auth/me-permissions";
 import type { Warehouse } from "@/lib/mock-data";
 /* -------------------------------------------------------------------------- */
 /*  Warning dot counts — computed from mock data                             */
@@ -122,6 +126,8 @@ interface NavItem {
   tooltip: string;
   href: string;
   icon: LucideIcon;
+  /** Mã quyền BE cần có để thấy menu (đọc từ /identity/me/permissions). Không khai báo = luôn hiện. */
+  permission?: PermissionCode;
 }
 
 interface NavGroup {
@@ -149,7 +155,24 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/admin/variants",
         icon: Palette,
       },
-      { label: "Nhà cung cấp", tooltip: "Suppliers", href: "/admin/suppliers", icon: Users },
+      {
+        label: "Nhà cung cấp",
+        tooltip: "Suppliers",
+        href: "/admin/suppliers",
+        icon: Users,
+        permission: SUPPLIER_PERMISSIONS.viewPage,
+      },
+    ],
+  },
+  {
+    title: "PLATFORM",
+    items: [
+      {
+        label: "Phân quyền",
+        tooltip: "Permission management",
+        href: ADMIN_ROUTES.permissions,
+        icon: ShieldCheck,
+      },
     ],
   },
   {
@@ -166,6 +189,7 @@ const NAV_GROUPS: NavGroup[] = [
         tooltip: "Purchase Orders",
         href: "/admin/purchase-orders",
         icon: ShoppingCart,
+        permission: PO_PERMISSIONS.viewPage,
       },
       {
         label: "Hoá đơn NCC",
@@ -231,11 +255,20 @@ interface BreadcrumbItem {
   href?: string;
 }
 
+const EDIT_SEGMENT = "edit";
+const EDIT_LABEL = "Chỉnh sửa";
+
 const DETAIL_LABEL_BY_ROUTE: Record<string, string> = {
   "/admin/products/create": "Tạo sản phẩm",
   "/admin/purchase-orders/create": "Tạo đơn đặt hàng",
   "/admin/suppliers/create": "Tạo nhà cung cấp",
 };
+
+/** Chỉ ẩn khi đã tải xong quyền và thiếu mã — tránh nháy menu lúc đang tải. */
+function useCanSeeNavItem(): (item: NavItem) => boolean {
+  const { data, isSuccess } = useMyPermissions();
+  return (item) => !item.permission || !isSuccess || hasPermission(data, item.permission);
+}
 
 function findNavItem(pathname: string): NavItem | undefined {
   return NAV_GROUPS.flatMap((group) => group.items)
@@ -243,7 +276,12 @@ function findNavItem(pathname: string): NavItem | undefined {
     .sort((a, b) => b.href.length - a.href.length)[0];
 }
 
-function buildBreadcrumbItems(pathname: string): BreadcrumbItem[] {
+export function buildBreadcrumbItems(
+  pathname: string,
+  canSeeItem: (item: NavItem) => boolean = () => true,
+  /** Nhãn thay cho id trong URL (vd UUID → mã NCC). Không có → hiện id. */
+  labelFor: (id: string) => string | undefined = () => undefined,
+): BreadcrumbItem[] {
   const items: BreadcrumbItem[] = [{ label: "Back-office", href: ADMIN_ROUTES.home }];
   if (pathname === ADMIN_ROUTES.home) return items;
 
@@ -251,14 +289,32 @@ function buildBreadcrumbItems(pathname: string): BreadcrumbItem[] {
   if (!navItem) return items;
 
   const isListPage = pathname === navItem.href;
-  items.push({ label: navItem.label, href: isListPage ? undefined : navItem.href });
+  // Thiếu quyền vào menu này → chỉ hiện chữ, không dẫn tới trang sẽ bị chặn
+  const linkable = canSeeItem(navItem);
+  items.push({ label: navItem.label, href: isListPage || !linkable ? undefined : navItem.href });
 
   if (!isListPage) {
-    items.push({
-      label:
-        DETAIL_LABEL_BY_ROUTE[pathname] ??
-        decodeURIComponent(pathname.split("/").at(-1) ?? "Chi tiết"),
-    });
+    const rest = pathname
+      .slice(navItem.href.length + 1)
+      .split("/")
+      .filter(Boolean);
+    // `/<module>/<id>/edit` → "… / <id> / Chỉnh sửa" thay vì chữ "edit"
+    if (rest.length >= 2 && rest.at(-1) === EDIT_SEGMENT) {
+      const id = rest.slice(0, -1).join("/");
+      items.push({
+        label: labelFor(id) ?? decodeURIComponent(id),
+        href: linkable ? `${navItem.href}/${id}` : undefined,
+      });
+      items.push({ label: EDIT_LABEL });
+    } else {
+      const last = pathname.split("/").at(-1) ?? "";
+      items.push({
+        label:
+          DETAIL_LABEL_BY_ROUTE[pathname] ??
+          labelFor(last) ??
+          (last ? decodeURIComponent(last) : "Chi tiết"),
+      });
+    }
   }
 
   return items;
@@ -371,6 +427,7 @@ function BackofficeSidebar() {
   const collapsed = state === "collapsed";
 
   const warningCounts = useMemo(() => computeWarningCounts(), []);
+  const canSeeItem = useCanSeeNavItem();
 
   return (
     <Sidebar
@@ -418,7 +475,7 @@ function BackofficeSidebar() {
 
             <SidebarGroupContent>
               <SidebarMenu className={cn("gap-0.5", collapsed && "items-center")}>
-                {group.items.map((item) => {
+                {group.items.filter(canSeeItem).map((item) => {
                   const isActive =
                     item.href === "/admin"
                       ? pathname === "/admin"
@@ -491,7 +548,9 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
     return wh ? wh.code : selectedWarehouse;
   }, [selectedWarehouse]);
 
-  const breadcrumbItems = buildBreadcrumbItems(pathname);
+  const canSeeItem = useCanSeeNavItem();
+  const breadcrumbLabels = useBreadcrumbLabelStore((s) => s.labels);
+  const breadcrumbItems = buildBreadcrumbItems(pathname, canSeeItem, (id) => breadcrumbLabels[id]);
   const currentUserName = currentUser?.fullName ?? "Người dùng";
 
   async function handleLogout() {

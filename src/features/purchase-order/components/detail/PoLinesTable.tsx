@@ -2,20 +2,19 @@
 
 import { cn } from "cn";
 
-import { PAGE_SIZE } from "@/constants";
-
+import { PAGE_SIZE, UI_LABELS } from "@/constants";
 import { DataTable, type ColumnDef } from "@/components/shared/DataTable";
+
+import { PAGE_SIZE_OPTIONS } from "../list/config";
 import { formatMoney, openQuantity } from "@/features/purchase-order";
 
 import type { PoLine } from "@/features/purchase-order";
-import type { Sku } from "@/features/product";
 
-export function PoLinesTable({ lines, skus }: { lines: PoLine[]; skus: readonly Sku[] }) {
-  const skuLabels = new Map(skus.map((s) => [s.skuId, s.variantLabel] as const));
+export function PoLinesTable({ lines }: { lines: PoLine[] }) {
   const cols: ColumnDef<PoLine>[] = [
     {
       key: "skuId",
-      header: "Mã SKU",
+      header: UI_LABELS.purchaseOrder.sku,
       sortable: true,
       compare: (a, b) => a.skuId.localeCompare(b.skuId),
       cell: (r) => (
@@ -28,14 +27,12 @@ export function PoLinesTable({ lines, skus }: { lines: PoLine[]; skus: readonly 
       key: "skuName",
       header: "Mô tả",
       cell: (r) => (
-        <span className="text-ink-primary text-[0.8125rem]">
-          {r.description ?? skuLabels.get(r.skuId) ?? "—"}
-        </span>
+        <span className="text-ink-primary text-[0.8125rem]">{r.description ?? "—"}</span>
       ),
     },
     {
       key: "orderedQty",
-      header: "SL đặt",
+      header: UI_LABELS.purchaseOrder.orderedQty,
       align: "right",
       sortable: true,
       compare: (a, b) => a.orderedQty - b.orderedQty,
@@ -47,7 +44,7 @@ export function PoLinesTable({ lines, skus }: { lines: PoLine[]; skus: readonly 
     },
     {
       key: "unitPrice",
-      header: "Đơn giá",
+      header: UI_LABELS.purchaseOrder.unitPrice,
       align: "right",
       sortable: true,
       compare: (a, b) => a.unitPrice - b.unitPrice,
@@ -71,7 +68,7 @@ export function PoLinesTable({ lines, skus }: { lines: PoLine[]; skus: readonly 
     },
     {
       key: "openQty",
-      header: "Open qty",
+      header: UI_LABELS.purchaseOrder.openQty,
       align: "right",
       sortable: true,
       compare: (a, b) => openQuantity(a) - openQuantity(b),
@@ -107,8 +104,13 @@ export function PoLinesTable({ lines, skus }: { lines: PoLine[]; skus: readonly 
       data={lines}
       columns={cols}
       rowKey={(r) => r.lineId}
-      caption={`${lines.length} dòng hàng`}
-      pageSize={PAGE_SIZE.xl}
+      // Cùng định dạng range với 2 bảng lịch sử gửi (phân trang server) trong PO detail.
+      // DataTable chỉ dùng caption khi vừa 1 trang, nên range luôn là 1–n / n.
+      caption={
+        lines.length === 0 ? "Hiển thị 0 / 0" : `Hiển thị 1–${lines.length} / ${lines.length}`
+      }
+      pageSize={PAGE_SIZE.md}
+      pageSizeOptions={PAGE_SIZE_OPTIONS}
     />
   );
 }

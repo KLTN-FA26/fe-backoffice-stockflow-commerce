@@ -1,18 +1,13 @@
 import { describe, expect, it } from "vitest";
 
+import { bePo } from "./__fixtures__/render";
 import { mapBePoToFe } from "./mappers";
-import { bePurchaseOrderSchema } from "./schemas";
+import { beDeliveryDecisionSchema, bePurchaseOrderSchema, beSupplierSpendSchema } from "./schemas";
 
-/** Shape of BE PurchaseOrderResponse as serialised by Jackson (BigDecimal → number). */
+/** PurchaseOrderResponse của BE (Jackson: BigDecimal → số, có thể là chuỗi). */
 function beResponse(overrides: Record<string, unknown> = {}) {
-  return {
-    purchaseOrderId: "11111111-1111-4111-8111-111111111111",
-    poNumber: "PO-20260930-000001",
-    supplierId: "22222222-2222-4222-8222-222222222222",
+  return bePo({
     status: "PARTIALLY_RECEIVED",
-    currency: "VND",
-    totalAmount: 1000000,
-    expectedAt: "2026-10-07",
     lines: [
       {
         lineId: "33333333-3333-4333-8333-333333333333",
@@ -24,39 +19,47 @@ function beResponse(overrides: Record<string, unknown> = {}) {
         unitPrice: "100000.00",
       },
     ],
-    // 17:30 UTC = 00:30 next day in Asia/Ho_Chi_Minh
+    // 17:30 UTC = 00:30 hôm sau theo Asia/Ho_Chi_Minh
     createdAt: "2026-09-29T17:30:00Z",
-    createdBy: "procurement@stockflow.local",
-    lastModifiedAt: "2026-09-29T17:30:00Z",
-    lastModifiedBy: "procurement@stockflow.local",
-    possibleDuplicate: false,
-    cancellationReason: null,
-    closeShortReason: null,
+    sentAt: "2026-09-30T02:00:00Z",
+    supplierConfirmationStatus: "CONFIRMED",
+    deliveryStatus: "DELIVERED",
     ...overrides,
-  };
+  });
 }
 
-describe("bePurchaseOrderSchema (parse at the API boundary)", () => {
-  it("accepts the BE response and coerces BigDecimal strings", () => {
-    const parsed = bePurchaseOrderSchema.parse(beResponse());
-    expect(parsed.lines[0]?.unitPrice).toBe(100000);
+describe("bePurchaseOrderSchema (parse tại biên API)", () => {
+  it("nhận response BE và đổi BigDecimal dạng chuỗi thành số", () => {
+    expect(bePurchaseOrderSchema.parse(beResponse()).lines[0]?.unitPrice).toBe(100000);
   });
 
-  it("rejects a status outside the 7 BE values (legacy Title Case never gets through)", () => {
+  it("chặn status ngoài 7 mã BE (không để từ vựng Title Case lọt qua)", () => {
     expect(
       bePurchaseOrderSchema.safeParse(beResponse({ status: "Pending Approval" })).success,
     ).toBe(false);
   });
 
-  it("rejects a non-numeric amount instead of silently turning it into 0", () => {
+  it("chặn số tiền không phải số thay vì âm thầm đổi thành 0", () => {
     expect(bePurchaseOrderSchema.safeParse(beResponse({ totalAmount: "abc" })).success).toBe(false);
+  });
+
+  it("deliveryStatus BE mới chưa biết → UNKNOWN (không làm hỏng cả trang)", () => {
+    expect(
+      bePurchaseOrderSchema.parse(beResponse({ deliveryStatus: "BOUNCED" })).deliveryStatus,
+    ).toBe("UNKNOWN");
+  });
+
+  it("chặn supplierConfirmationStatus ngoài hợp đồng", () => {
+    expect(
+      bePurchaseOrderSchema.safeParse(beResponse({ supplierConfirmationStatus: "MAYBE" })).success,
+    ).toBe(false);
   });
 });
 
 describe("mapBePoToFe", () => {
   const po = mapBePoToFe(bePurchaseOrderSchema.parse(beResponse()));
 
-  it("keeps openQuantity and description from the BE line", () => {
+  it("giữ openQuantity và description của dòng BE", () => {
     expect(po.lines[0]).toMatchObject({
       skuId: "SOFA-3S-GREY",
       description: "3 Seater Sofa",
@@ -67,19 +70,28 @@ describe("mapBePoToFe", () => {
     });
   });
 
-  it("uses BE totalAmount as grand total", () => {
-    expect(po.grandTotal).toBe(1000000);
+  it("dùng totalAmount của BE làm tổng, kèm điều khoản + trạng thái gửi NCC", () => {
+    expect(po).toMatchObject({
+      grandTotal: 1000000,
+      paymentTermDays: 30,
+      leadTimeDays: 7,
+      deliveryStatus: "DELIVERED",
+      supplierConfirmationStatus: "CONFIRMED",
+      sentAt: "2026-09-30T02:00:00Z",
+    });
   });
 
-  it("derives orderDate in Asia/Ho_Chi_Minh, not UTC", () => {
+  it("orderDate tính theo Asia/Ho_Chi_Minh, không theo UTC", () => {
     expect(po.orderDate).toBe("2026-09-30");
   });
 
-  it("does not invent a warehouse (BE PO has none yet)", () => {
-    expect(po.warehouseId).toBeNull();
+  it("giữ NGUYÊN tiền tệ BE trả (EUR không bị đổi thành VND)", () => {
+    const eur = mapBePoToFe(bePurchaseOrderSchema.parse(beResponse({ currency: "EUR" })));
+    expect(eur.currency).toBe("EUR");
+    expect(eur.lines[0]?.currency).toBe("EUR");
   });
 
-  it("surfaces the close-short reason", () => {
+  it("trả lý do đóng thiếu", () => {
     const closed = mapBePoToFe(
       bePurchaseOrderSchema.parse(
         beResponse({ status: "CLOSED_SHORT", closeShortReason: "NCC hết hàng" }),
@@ -88,12 +100,56 @@ describe("mapBePoToFe", () => {
     expect(closed.rejectionReason).toBe("NCC hết hàng");
   });
 
-  it("handles nullable BE fields and an unsupported currency", () => {
+  it("chịu được field BE null", () => {
     const po2 = mapBePoToFe(
       bePurchaseOrderSchema.parse(
-        beResponse({ currency: "EUR", expectedAt: null, createdBy: null, lines: [] }),
+        beResponse({ expectedAt: null, createdBy: null, sentAt: null, lines: [] }),
       ),
     );
-    expect(po2).toMatchObject({ currency: "VND", expectedDate: "", createdBy: "" });
+    expect(po2).toMatchObject({ expectedDate: "", createdBy: "", sentAt: undefined });
+  });
+});
+
+describe("beSupplierSpendSchema (BE #40: theo tiền tệ)", () => {
+  const row = {
+    supplierId: "s-1",
+    supplierCode: "GOHOAPHAT",
+    supplierName: "Gỗ Hòa Phát",
+    totalSpend: "2500.50",
+    purchaseOrderCount: 2,
+  };
+
+  it("có field currency (BE #40)", () => {
+    expect(beSupplierSpendSchema.parse({ ...row, currency: "USD" }).currency).toBe("USD");
+  });
+
+  it("vẫn nhận response BE cũ chưa có currency", () => {
+    expect(beSupplierSpendSchema.parse(row).totalSpend).toBe(2500.5);
+  });
+});
+
+describe("beDeliveryDecisionSchema (BE PurchaseOrderDeliveryDecisionResponse)", () => {
+  const decision = {
+    id: "dec-1",
+    generation: 0,
+    previousExpectedAt: null,
+    expectedAt: "2026-10-09",
+    reason: null,
+    reconciled: false,
+    acknowledgePastDue: false,
+    channel: "EMAIL",
+    recipient: "po@ncc.vn",
+    actor: "procurement",
+    requestedAt: "2026-10-01T03:00:00Z",
+  };
+
+  it("nhận quyết định gửi lần đầu (không lý do, chưa có ngày cũ)", () => {
+    expect(beDeliveryDecisionSchema.parse(decision).generation).toBe(0);
+  });
+
+  it("chặn response thiếu cờ đối chiếu (sai hợp đồng)", () => {
+    const { reconciled: _omit, ...broken } = decision;
+    void _omit;
+    expect(beDeliveryDecisionSchema.safeParse(broken).success).toBe(false);
   });
 });

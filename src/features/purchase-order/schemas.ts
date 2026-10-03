@@ -1,37 +1,41 @@
 /**
  * Purchase Order — zod schemas.
  *
- * Two layers, never mixed (api-conventions §3.1):
- * - `Be*Dto`  — wire shape the BE returns (PurchaseOrderResponse / POLineResponse …).
- *              Parsed ONCE in `api.ts` right after the response arrives (§3.2).
- * - FE view   — what components consume (`purchaseOrderSchema`), produced by `mappers.ts`.
- * - Input     — what the create form sends (CreatePurchaseOrderRequest).
- *
- * DTO = shape only (no BR). Business rules live in the Input layer, each with a
- * `BR-xx (docs 02 §6)` cite; assumptions not settled by docs are marked
- * `ASSUMPTION (open-question Xn)` (docs/open-questions). Contract: BE Procurement
- * (PurchaseOrderController + DTOs), which narrows docs 02 (SCRUM-113/116).
+ * Hai lớp, không trộn (api-conventions §3.1):
+ * - `be*Schema` — hình dạng BE trả về (nhánh BE `test`: PurchaseOrderResponse, POLineResponse,
+ *   DeliveryAttemptResponse, SupplierSpendResponse…). Parse MỘT lần trong `api.ts` (§3.2).
+ *   DTO chỉ kiểm hình dạng, không chứa BR.
+ * - FE view (`purchaseOrderSchema`) — thứ component dùng, do `mappers.ts` tạo ra.
+ * Input schema (form gửi đi, có BR + cite docs) nằm ở `input-schemas.ts`.
  */
 
 import { z } from "zod";
 
-import { PO_STATUSES, PROPOSAL_STATUSES } from "@/constants";
 import {
-  currencySchema,
-  intQty,
-  isoDate,
-  money,
-  requiredString,
-} from "@/lib/validation/primitives";
+  PO_DELIVERY_ATTEMPT_STATUSES,
+  PO_DELIVERY_STATUS,
+  PO_DELIVERY_STATUSES,
+  PO_STATUSES,
+  SUPPLIER_CONFIRMATION_STATUSES,
+} from "@/constants";
+
+import type { PoDeliveryStatus, SupplierConfirmationStatus } from "@/constants";
+
+export * from "./input-schemas";
 
 /* ── Status enums ────────────────────────────────────────────────────── */
 
 export const poStatusValues = PO_STATUSES;
 export const poStatusSchema = z.enum(poStatusValues);
-export const proposalStatusValues = PROPOSAL_STATUSES;
-export const proposalStatusSchema = z.enum(proposalStatusValues);
 
-/** BE serialises BigDecimal as a JSON number; accept a numeric string too, reject NaN. */
+// Bộ mã trạng thái sống ở `constants/statuses.ts` (nguồn chung cho zod enum + status-map).
+export { PO_DELIVERY_STATUSES, SUPPLIER_CONFIRMATION_STATUSES };
+
+const confirmationStatusSchema = z.enum(SUPPLIER_CONFIRMATION_STATUSES);
+// Giá trị BE mới chưa biết → UNKNOWN thay vì làm hỏng cả trang (BE ghi rõ danh sách có thể mở rộng).
+const deliveryStatusSchema = z.enum(PO_DELIVERY_STATUSES).catch(PO_DELIVERY_STATUS.UNKNOWN);
+
+/** BE serialise BigDecimal thành số JSON; nhận cả chuỗi số, chặn NaN. */
 const beDecimal = z.union([z.number(), z.string()]).transform(Number).pipe(z.number());
 
 /* ── BE wire DTOs ────────────────────────────────────────────────────── */
@@ -54,7 +58,7 @@ export const bePurchaseOrderSchema = z.object({
   currency: z.string(),
   totalAmount: beDecimal,
   expectedAt: z.string().nullish(),
-  // BE: empty on a list row (PurchaseOrderSearchRepository), filled on detail/mutations.
+  // BE: rỗng ở list row (PurchaseOrderSearchRepository), đầy đủ ở detail/mutation.
   lines: z.array(bePoLineSchema),
   createdAt: z.string(),
   createdBy: z.string().nullish(),
@@ -63,15 +67,26 @@ export const bePurchaseOrderSchema = z.object({
   possibleDuplicate: z.boolean(),
   cancellationReason: z.string().nullish(),
   closeShortReason: z.string().nullish(),
+  paymentTermDays: z.number().int().min(0),
+  leadTimeDays: z.number().int().min(0),
+  sentAt: z.string().nullish(),
+  supplierConfirmationStatus: confirmationStatusSchema,
+  supplierRespondedAt: z.string().nullish(),
+  supplierReference: z.string().nullish(),
+  supplierResponseNote: z.string().nullish(),
+  deliveryStatus: deliveryStatusSchema,
 });
 
-/** BE `PageResponse<T>`. */
+/** BE `PageResponse<T>` (trang từ 0). */
 export function bePageSchema<T extends z.ZodType>(item: T) {
   return z.object({
     items: z.array(item),
-    page: z.number().int(),
-    size: z.number().int(),
-    totalElements: z.number().int(),
+    page: z.number().int().min(0),
+    size: z.number().int().positive(),
+    totalElements: z.number().int().min(0),
+    totalPages: z.number().int().min(0),
+    hasNext: z.boolean(),
+    hasPrevious: z.boolean(),
   });
 }
 
@@ -84,8 +99,39 @@ export const beSupplierSpendSchema = z.object({
   supplierId: z.string(),
   supplierCode: z.string(),
   supplierName: z.string(),
+  // BE #40: một dòng / cặp NCC + tiền tệ. Nhánh `test` cũ chưa có field → optional.
+  currency: z.string().optional(),
   totalSpend: beDecimal,
   purchaseOrderCount: z.number().int().min(0),
+});
+
+/** BE `DeliveryAttemptResponse` — status thô của notification. */
+export const beDeliveryAttemptSchema = z.object({
+  id: z.string(),
+  channel: z.string(),
+  // BE notification `DeliveryStatus` PENDING | SENT | FAILED — enum để so sánh không gõ sai.
+  status: z.enum(PO_DELIVERY_ATTEMPT_STATUSES),
+  attemptedAt: z.string(),
+  sentAt: z.string().nullish(),
+  failure: z.string().nullish(),
+  generation: z.number().int(),
+  recipient: z.string().nullish(),
+});
+
+/** BE `PurchaseOrderDeliveryDecisionResponse` — ai cho phép gửi / khôi phục, vì sao. */
+export const beDeliveryDecisionSchema = z.object({
+  id: z.string(),
+  // BE đếm từ 0: 0 = gửi lần đầu, ≥ 1 = khôi phục gửi (xem `isFirstDelivery` trong selectors.ts)
+  generation: z.number().int(),
+  previousExpectedAt: z.string().nullish(),
+  expectedAt: z.string().nullish(),
+  reason: z.string().nullish(),
+  reconciled: z.boolean(),
+  acknowledgePastDue: z.boolean(),
+  channel: z.string(),
+  recipient: z.string().nullish(),
+  actor: z.string().nullish(),
+  requestedAt: z.string(),
 });
 
 /* ── FE view (output of mappers.ts) ──────────────────────────────────── */
@@ -97,10 +143,11 @@ export const poLineSchema = z.object({
   description: z.string().optional(),
   orderedQty: z.number().int().positive(),
   receivedQty: z.number().int().min(0),
-  /** From BE `openQuantity` — never recomputed on the FE. */
+  /** BE `openQuantity` — không tự tính lại ở FE. */
   openQuantity: z.number().int().min(0),
   unitPrice: z.number().min(0),
-  currency: currencySchema,
+  /** Mã ISO đúng như BE trả (PO có thể là EUR) — không ép về VND. */
+  currency: z.string(),
   lineTotal: z.number().min(0),
 });
 
@@ -108,93 +155,36 @@ export const purchaseOrderSchema = z.object({
   poId: z.string(),
   poNumber: z.string(),
   supplierId: z.string(),
-  // BE PurchaseOrder has no receiving warehouse yet — null until BE adds it (no fake default).
-  warehouseId: z.string().nullable(),
   status: poStatusSchema,
-  currency: currencySchema,
-  /** Calendar date of `createdAt` in Asia/Ho_Chi_Minh (YYYY-MM-DD). */
+  currency: z.string(),
+  /** Ngày của `createdAt` theo Asia/Ho_Chi_Minh (YYYY-MM-DD). */
   orderDate: z.string(),
   expectedDate: z.string(),
   createdBy: z.string(),
-  approvedBy: z.string().optional(),
-  notes: z.string().optional(),
-  /** `cancellationReason` or `closeShortReason` from BE. */
+  /** `cancellationReason` hoặc `closeShortReason` của BE. */
   rejectionReason: z.string().optional(),
-  /** BE `totalAmount` = Σ quantityOrdered × unitPrice (no tax/discount on BE yet). */
+  /** BE `totalAmount` = Σ SL đặt × đơn giá (BE chưa có thuế/chiết khấu). */
   grandTotal: z.number(),
+  paymentTermDays: z.number().int(),
+  leadTimeDays: z.number().int(),
+  sentAt: z.string().optional(),
+  supplierConfirmationStatus: confirmationStatusSchema,
+  supplierRespondedAt: z.string().optional(),
+  supplierReference: z.string().optional(),
+  supplierResponseNote: z.string().optional(),
+  deliveryStatus: z.enum(PO_DELIVERY_STATUSES),
   lines: z.array(poLineSchema),
-});
-
-/* ── Create PO input — BE CreatePurchaseOrderRequest ─────────────────── */
-
-export const poLineInputSchema = z.object({
-  // BR-01 (docs 02 §6): chỉ SKU `Active` — form chỉ cho chọn trong `activeSkus`.
-  // ASSUMPTION (open-question C12): BE chưa kiểm SKU tồn tại/Active, chỉ kiểm định dạng mã.
-  sku: requiredString("Chọn SKU"),
-  description: z.string().nullable().optional(),
-  // BE CreatePOLineRequest: `int quantityOrdered` @Positive.
-  quantityOrdered: intQty("Số lượng phải là số nguyên > 0"),
-  // BE @PositiveOrZero — 0 allowed (promo/free line).
-  unitPrice: money("Đơn giá không âm"),
-});
-
-export const createPoSchema = z
-  .object({
-    supplierId: requiredString("Chọn nhà cung cấp"), // UUID validated server-side
-    // BR-07 (docs 02 §6): tiền tệ cố định theo NCC, không trộn trong 1 PO — currency chỉ
-    // tồn tại ở cấp PO (dòng không có currency riêng); BE cũng chặn line ≠ order currency.
-    // ASSUMPTION (open-question A4): FE chỉ hỗ trợ VND / USD / CNY.
-    currency: currencySchema,
-    // BR-06 (docs 02 §6): ngày giao trong quá khứ chỉ CẢNH BÁO (`isExpectedDatePast`),
-    // cố ý không refine chặn ở đây.
-    expectedAt: isoDate.nullable(),
-    lines: z.array(poLineInputSchema).min(1, "Phải có ít nhất 1 dòng hàng"),
-  })
-  // ASSUMPTION (chưa có open-question): docs không nói về SKU trùng trong cùng PO và BE cho
-  // phép; FE chặn để tránh 2 dòng cùng SKU khó đối chiếu khi nhận hàng (BR-04).
-  .refine((po) => new Set(po.lines.map((l) => l.sku)).size === po.lines.length, {
-    message: "SKU bị trùng trong PO",
-    path: ["lines"],
-  });
-
-/* ── Receive goods input — BE ReceiveGoodsRequest ──────────────────────── */
-
-export const receiveGoodsLineInputSchema = z.object({
-  lineId: requiredString("Thiếu dòng PO"),
-  // BE ReceiveGoodsLineRequest: `int quantity` @Positive. Upper bound (BR-04) needs the
-  // line's openQuantity — checked in `validateReceiveDraft` (selectors.ts).
-  quantity: intQty("SL nhận phải là số nguyên > 0"),
-});
-
-export const receiveGoodsInputSchema = z.object({
-  lines: z.array(receiveGoodsLineInputSchema).min(1, "Nhập SL nhận cho ít nhất một dòng"),
-});
-
-/* ── Replenishment Proposal ──────────────────────────────────────────── */
-
-export const replenishmentProposalSchema = z.object({
-  proposalId: z.string(),
-  skuId: z.string(),
-  warehouseId: z.string(),
-  suggestedQty: z.number().int().positive(),
-  reason: z.string(),
-  status: proposalStatusSchema,
-  createdAt: z.string(),
-  reviewedBy: z.string().optional(),
-  convertedToPoId: z.string().optional(),
 });
 
 /* ── Inferred types ──────────────────────────────────────────────────── */
 
 export type PoStatusValue = z.infer<typeof poStatusSchema>;
-export type ProposalStatusValue = z.infer<typeof proposalStatusSchema>;
+export type { PoDeliveryStatus, SupplierConfirmationStatus };
 export type BePoLineDto = z.infer<typeof bePoLineSchema>;
 export type BePurchaseOrderDto = z.infer<typeof bePurchaseOrderSchema>;
 export type PoStatusCount = z.infer<typeof bePoStatusCountSchema>;
 export type SupplierSpendRow = z.infer<typeof beSupplierSpendSchema>;
+export type DeliveryAttempt = z.infer<typeof beDeliveryAttemptSchema>;
+export type DeliveryDecision = z.infer<typeof beDeliveryDecisionSchema>;
 export type PoLineDto = z.infer<typeof poLineSchema>;
 export type PurchaseOrderDto = z.infer<typeof purchaseOrderSchema>;
-export type CreatePoInput = z.infer<typeof createPoSchema>;
-export type PoLineInput = z.infer<typeof poLineInputSchema>;
-export type ReceiveGoodsInput = z.infer<typeof receiveGoodsInputSchema>;
-export type ReplenishmentProposalDto = z.infer<typeof replenishmentProposalSchema>;

@@ -56,22 +56,17 @@ function onTokenRefreshed(token: string) {
   refreshSubscribers = [];
 }
 
-function isApiResponseEnvelope(
-  v: unknown,
-): v is { success: boolean; data: unknown; errorCode?: string; message?: string } {
-  return typeof v === "object" && v !== null && "success" in (v as Record<string, unknown>);
-}
-
 api.interceptors.response.use(
   (res) => {
-    const body = res.data as unknown;
+    const body: unknown = res.data;
     if (
-      isApiResponseEnvelope(body) &&
+      typeof body === "object" &&
+      body !== null &&
+      "success" in body &&
       body.success === true &&
-      "data" in (body as Record<string, unknown>)
+      "data" in body
     ) {
-      // Unwrap BE ApiResponse<T> -> T so feature/api.ts stays typed as T
-      res.data = (body as { data: unknown }).data;
+      return { ...res, data: body.data };
     }
     return res;
   },

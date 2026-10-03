@@ -2,35 +2,38 @@
 
 import { useState } from "react";
 
+import { TOAST_MESSAGES } from "@/constants";
 import {
+  isDeliveryFailing,
+  isStalePoError,
+  poErrorMessage,
   useApprovePo,
   useCancelPo,
   useCloseShortPo,
   useReceiveGoodsPo,
+  useRecordSupplierConfirmation,
+  useRecoverPoDelivery,
   useSendPo,
 } from "@/features/purchase-order";
 import { toast } from "@/components/shared/Toast";
 
 import type { ApiError } from "@/lib/api/error";
-import type { PoAction, PurchaseOrder } from "@/features/purchase-order";
+import type {
+  PoActionCode,
+  PoErrorContext,
+  PurchaseOrder,
+  ReceiveLineInput,
+  RecoverDeliveryInput,
+  SendPoInput,
+  SupplierConfirmationInput,
+} from "@/features/purchase-order";
 
-/** User-facing message for a failed PO mutation (the factory toast is disabled for PO). */
-export function describePoError(e: ApiError): string {
-  if (e.status === 409)
-    return `PO đã thay đổi trạng thái — đã tải lại dữ liệu mới nhất. (${e.message})`;
-  if (e.status === 403) return "Bạn không có quyền thực hiện thao tác này.";
-  if (e.status === 404) return "Đơn đặt hàng không tồn tại hoặc đã bị xoá.";
-  return e.message;
-}
-
-/** Receiving is rejected with a generic 400 (BE IllegalArgumentException) — say what to check. */
-const RECEIVE_REJECTED =
-  "BE từ chối số lượng nhận. Kiểm tra SL không vượt “Còn nhận được” — dữ liệu PO đã được tải lại.";
+const MSG = TOAST_MESSAGES.purchaseOrder;
 
 /**
- * Detail-page action handling: approve / send / cancel / closeShort / receive.
- * On 409 (someone else moved the PO) or a rejected receipt the PO is refetched, so the
- * status and the buttons shown never stay stale.
+ * Xử lý hành động trên trang chi tiết PO. Mọi action đi qua một dialog (Duyệt / Gửi NCC cũng
+ * phải xác nhận — gửi NCC là gửi email ra ngoài, không thu hồi được).
+ * 409 / 400 không có field = dữ liệu trên màn đã cũ → tải lại PO để trạng thái + nút không sai.
  */
 export function usePoActions(po: PurchaseOrder | null, refetchPo: () => void) {
   const approvePo = useApprovePo();
@@ -38,79 +41,82 @@ export function usePoActions(po: PurchaseOrder | null, refetchPo: () => void) {
   const cancelPo = useCancelPo();
   const closeShortPo = useCloseShortPo();
   const receivePo = useReceiveGoodsPo();
-  const [pendingAction, setPendingAction] = useState<PoAction | null>(null);
-  const [receiveOpen, setReceiveOpen] = useState(false);
-  const [receiveError, setReceiveError] = useState<string | null>(null);
+  const recoverPo = useRecoverPoDelivery();
+  const confirmPo = useRecordSupplierConfirmation();
+  const [dialog, setDialog] = useState<PoActionCode | null>(null);
+  const [dialogError, setDialogError] = useState<string | null>(null);
   const [conflictError, setConflictError] = useState<string | null>(null);
-  const isMutating =
-    approvePo.isPending ||
-    sendPo.isPending ||
-    cancelPo.isPending ||
-    closeShortPo.isPending ||
-    receivePo.isPending;
+  const isMutating = [
+    approvePo,
+    sendPo,
+    cancelPo,
+    closeShortPo,
+    receivePo,
+    recoverPo,
+    confirmPo,
+  ].some((m) => m.isPending);
+  const id = po?.poId ?? "";
 
-  const run = (act: PoAction, reason = "") => {
-    if (!po) return;
-    const id = po.poId;
-    const callbacks = {
-      onSuccess: () => setPendingAction(null),
-      onError: (e: ApiError) => {
-        setPendingAction(null);
-        if (e.status === 409) refetchPo();
-        const message = describePoError(e);
-        setConflictError(message);
-        toast.error(`Không thể ${act.label.toLowerCase()}`, message);
-      },
-    };
-    if (act.code === "approve") approvePo.mutate({ id }, callbacks);
-    else if (act.code === "send") sendPo.mutate({ id }, callbacks);
-    else if (act.code === "cancel") cancelPo.mutate({ id, reason }, callbacks);
-    else if (act.code === "closeShort") closeShortPo.mutate({ id, reason }, callbacks);
+  const close = () => {
+    setDialog(null);
+    setDialogError(null);
   };
-
-  const onAction = (act: PoAction) => {
+  const open = (code: PoActionCode) => {
     setConflictError(null);
-    if (act.code === "receive") {
-      setReceiveError(null);
-      setReceiveOpen(true);
-    } else if (act.requiresReason) {
-      setPendingAction(act);
-    } else {
-      run(act);
-    }
+    setDialogError(null);
+    setDialog(code);
   };
 
-  const confirmReceive = (lines: { lineId: string; quantity: number }[]) => {
-    if (!po) return;
-    setReceiveError(null);
-    receivePo.mutate(
-      { id: po.poId, lines },
-      {
-        onSuccess: () => setReceiveOpen(false),
-        onError: (e: ApiError) => {
-          if (e.status === 400 || e.status === 409) refetchPo();
-          if (e.status === 409) {
-            setReceiveOpen(false);
-            setConflictError(describePoError(e));
-            return;
-          }
-          setReceiveError(e.status === 400 ? RECEIVE_REJECTED : describePoError(e));
-        },
-      },
-    );
+  /** `keepDialog`: lỗi hiện ngay trong dialog (form còn nguyên); ngược lại hiện ở panel + toast. */
+  const onError = (context: PoErrorContext, keepDialog: boolean) => (e: ApiError) => {
+    if (isStalePoError(e)) refetchPo();
+    const message = poErrorMessage(e, context);
+    if (keepDialog && e.status !== 409) {
+      setDialogError(message);
+      return;
+    }
+    close();
+    setConflictError(message);
+    toast.error(MSG.actionFailed, message);
   };
+  const callbacks = (context: PoErrorContext, keepDialog: boolean) => ({
+    onSuccess: close,
+    onError: onError(context, keepDialog),
+  });
 
   return {
     isMutating,
-    isReceiving: receivePo.isPending,
-    pendingAction,
-    closeReasonDialog: () => setPendingAction(null),
-    confirmReason: (reason: string) => pendingAction && run(pendingAction, reason),
-    receiveOpen,
-    setReceiveOpen,
-    receiveError,
+    dialog,
+    dialogError,
     conflictError,
-    onAction,
-    confirmReceive,
+    open,
+    close,
+    approve: () => approvePo.mutate({ id }, callbacks("default", false)),
+    cancel: (reason: string) => cancelPo.mutate({ id, reason }, callbacks("default", false)),
+    closeShort: (reason: string) =>
+      closeShortPo.mutate({ id, reason }, callbacks("default", false)),
+    receive: (lines: ReceiveLineInput[]) =>
+      receivePo.mutate({ id, lines }, callbacks("receive", true)),
+    recover: (input: RecoverDeliveryInput) =>
+      recoverPo.mutate({ id, input }, callbacks("default", true)),
+    confirm: (input: SupplierConfirmationInput) =>
+      confirmPo.mutate({ id, input }, callbacks("default", true)),
+    send: (input: SendPoInput) =>
+      sendPo.mutate(
+        { id, input },
+        {
+          ...callbacks("send", true),
+          // BE xếp hàng gửi (outbox): kết quả giao thật nằm ở `deliveryStatus`, không báo
+          // "Đã gửi NCC" khi lần gửi đã thất bại.
+          onSuccess: (updated) => {
+            close();
+            if (isDeliveryFailing(updated)) {
+              toast.warning(MSG.deliveryFailed);
+            } else {
+              toast.success(MSG.sent);
+            }
+          },
+        },
+      ),
   };
 }

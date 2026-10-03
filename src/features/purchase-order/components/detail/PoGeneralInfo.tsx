@@ -2,10 +2,13 @@
 
 import { FileText } from "lucide-react";
 
+import { UI_LABELS } from "@/constants";
+import { formatDate } from "@/lib/format";
 import { StatusDot } from "@/components/shared/StatusDot";
-import type { PurchaseOrder } from "@/features/purchase-order";
 
 import { InfoRow } from "./InfoRow";
+
+import type { PurchaseOrder } from "@/features/purchase-order";
 
 export function PoGeneralInfo({ po }: { po: PurchaseOrder }) {
   return (
@@ -16,14 +19,15 @@ export function PoGeneralInfo({ po }: { po: PurchaseOrder }) {
       </h2>
       <div>
         <InfoRow label="Số PO" value={po.poNumber} mono />
-        <InfoRow label="Trạng thái">
+        <InfoRow label={UI_LABELS.purchaseOrder.status}>
           <StatusDot domain="po" status={po.status} size="sm" withIcon />
         </InfoRow>
-        <InfoRow label="Ngày đặt" value={po.orderDate} mono />
-        <InfoRow label="Ngày giao DK" value={po.expectedDate} mono />
-        <InfoRow label="Người tạo" value={po.createdBy} />
-        <InfoRow label="Người duyệt" value={po.approvedBy ?? "—"} />
-        {po.notes && <InfoRow label="Ghi chú" value={po.notes} />}
+        <InfoRow label="Ngày tạo" value={formatDate(po.orderDate)} />
+        <InfoRow
+          label={UI_LABELS.purchaseOrder.expectedDate}
+          value={po.expectedDate ? formatDate(po.expectedDate) : "—"}
+        />
+        <InfoRow label="Người tạo" value={po.createdBy || "—"} />
         {po.rejectionReason && <InfoRow label="Lý do huỷ/đóng" value={po.rejectionReason} danger />}
       </div>
     </section>

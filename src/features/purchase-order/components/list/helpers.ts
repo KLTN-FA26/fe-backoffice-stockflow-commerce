@@ -1,29 +1,15 @@
-import { DEFAULT_VISIBLE_COLUMNS, type PurchaseOrdersPageConfig } from "./config";
+import type { SupplierRef } from "@/lib/references/supplier-lookup";
+import type { PurchaseOrder } from "@/features/purchase-order";
 
-import type { PurchaseOrder, Supplier, Warehouse } from "@/features/purchase-order";
-
-export function supplierName(po: PurchaseOrder, suppliers: readonly Supplier[]): string {
-  // Unknown supplier (FE-only master data missing on real BE) → show the id, not a blank.
-  return suppliers.find((s) => s.supplierId === po.supplierId)?.name ?? po.supplierId;
-}
-
-export function warehouseName(po: PurchaseOrder, warehouses: readonly Warehouse[]): string {
-  return warehouses.find((w) => w.warehouseId === po.warehouseId)?.name ?? "";
+/** "GOHOAPHAT — Gỗ Hòa Phát"; đang tải / không tra được NCC → "—" (không hiện UUID ra UI). */
+export function supplierLabel(
+  po: Pick<PurchaseOrder, "supplierId">,
+  refs: ReadonlyMap<string, SupplierRef>,
+): string {
+  const ref = refs.get(po.supplierId);
+  return ref ? `${ref.code} — ${ref.name}` : "—";
 }
 
 export function normalize(value: string): string {
   return value.trim().toLowerCase();
-}
-
-export function mergeStoredConfig(
-  stored: Partial<PurchaseOrdersPageConfig>,
-  fallback: PurchaseOrdersPageConfig,
-): PurchaseOrdersPageConfig {
-  return {
-    ...fallback,
-    ...stored,
-    globalSearch: { ...fallback.globalSearch, ...stored.globalSearch },
-    columnSearch: stored.columnSearch ?? {},
-    visibleColumns: stored.visibleColumns?.length ? stored.visibleColumns : DEFAULT_VISIBLE_COLUMNS,
-  };
 }
