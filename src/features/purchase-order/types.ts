@@ -1,17 +1,19 @@
 /**
- * Purchase Order — types re-exported from mock-data.
- *
- * When backend is ready, these become the zod-inferred types from schemas.ts.
- * For now they reference mock-data types to stay in sync.
+ * Purchase Order — types. Chỉ `z.infer` từ schemas, không khai báo type tay.
  */
 
-export type {
-  Currency,
-  PurchaseOrder,
-  PoLine,
-  PoStatus,
-  ProposalStatus,
-  ReplenishmentProposal,
-  Supplier,
-  Warehouse,
-} from "@/lib/mock-data";
+import type {
+  DeliveryAttempt,
+  DeliveryDecision,
+  PoDeliveryStatus,
+  PoLineDto,
+  PoStatusValue,
+  PurchaseOrderDto,
+  SupplierConfirmationStatus,
+} from "./schemas";
+
+export type PoStatus = PoStatusValue;
+export type PoLine = PoLineDto;
+export type PurchaseOrder = PurchaseOrderDto;
+
+export type { DeliveryAttempt, DeliveryDecision, PoDeliveryStatus, SupplierConfirmationStatus };

@@ -174,11 +174,18 @@ export function activateMockAdapter(): void {
     import("./mock-routes"),
     import("./mock-routes-suppliers"),
     import("./mock-routes-me"),
+    import("./mock-routes-purchase-orders"),
   ]).then(
-    ([{ registerAllMockRoutes }, { registerSupplierMockRoutes }, { registerMeMockRoutes }]) => {
+    ([
+      { registerAllMockRoutes },
+      { registerSupplierMockRoutes },
+      { registerMeMockRoutes },
+      { registerPurchaseOrderMockRoutes },
+    ]) => {
       registerAllMockRoutes();
       registerSupplierMockRoutes();
       registerMeMockRoutes();
+      registerPurchaseOrderMockRoutes();
     },
   );
 

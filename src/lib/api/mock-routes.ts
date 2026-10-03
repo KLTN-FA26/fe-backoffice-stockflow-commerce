@@ -293,34 +293,9 @@ export function registerAllMockRoutes(): void {
    * Module 02 — Purchase Orders / Replenishment
    * ==================================================================*/
 
-  // GET /purchase-orders
-  registerMockRoute("GET", "/purchase-orders", async (config) => {
-    const { purchaseOrders } = await import("@/lib/mock-data");
-    const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
-    const q = params.get("q")?.toLowerCase();
-    const status = params.getAll("status");
+  // Purchase orders: mock-routes-purchase-orders.ts (BE PurchaseOrderController contract).
 
-    let filtered = [...purchaseOrders];
-    if (q)
-      filtered = filtered.filter(
-        (po) => po.poNumber.toLowerCase().includes(q) || po.poId.toLowerCase().includes(q),
-      );
-    if (status.length) filtered = filtered.filter((po) => status.includes(po.status));
-
-    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
-  });
-
-  // GET /purchase-orders/:id
-  registerMockRoute("GET", "/purchase-orders/:id", async (config) => {
-    const { purchaseOrders } = await import("@/lib/mock-data");
-    const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
-    const po = purchaseOrders.find((p) => p.poId === id || p.poNumber === id);
-    if (!po) return { status: 404, data: { message: "PO not found" }, headers: {} };
-    return { status: 200, data: po, headers: {} };
-  });
-
+  // FE-only: BE has no GET /api/v1/replenishment-proposals yet.
   // GET /replenishment-proposals
   registerMockRoute("GET", "/replenishment-proposals", async (config) => {
     const { replenishmentProposals } = await import("@/lib/mock-data");

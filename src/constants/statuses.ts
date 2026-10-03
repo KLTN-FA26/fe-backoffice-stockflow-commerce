@@ -1,24 +1,67 @@
 export const PO_STATUSES = [
-  "Draft",
-  "Pending Approval",
-  "Approved",
-  "Confirmed",
-  "Partially Received",
-  "Received",
-  "Closed",
-  "Cancelled",
+  "DRAFT",
+  "APPROVED",
+  "SENT",
+  "PARTIALLY_RECEIVED",
+  "CLOSED",
+  "CLOSED_SHORT",
+  "CANCELLED",
 ] as const;
 
 export const PO_STATUS = {
-  APPROVED: "Approved",
-  CANCELLED: "Cancelled",
-  CLOSED: "Closed",
-  CONFIRMED: "Confirmed",
-  DRAFT: "Draft",
-  PARTIALLY_RECEIVED: "Partially Received",
-  PENDING_APPROVAL: "Pending Approval",
-  RECEIVED: "Received",
+  DRAFT: "DRAFT",
+  APPROVED: "APPROVED",
+  SENT: "SENT",
+  PARTIALLY_RECEIVED: "PARTIALLY_RECEIVED",
+  CLOSED: "CLOSED",
+  CLOSED_SHORT: "CLOSED_SHORT",
+  CANCELLED: "CANCELLED",
 } as const satisfies Record<string, PoStatus>;
+
+/** BE `SupplierConfirmationStatus` — NCC đã phản hồi PO chưa. */
+export const SUPPLIER_CONFIRMATION_STATUSES = [
+  "NOT_SENT",
+  "PENDING",
+  "CONFIRMED",
+  "REJECTED",
+] as const;
+
+export const SUPPLIER_CONFIRMATION_STATUS = {
+  NOT_SENT: "NOT_SENT",
+  PENDING: "PENDING",
+  CONFIRMED: "CONFIRMED",
+  REJECTED: "REJECTED",
+} as const satisfies Record<string, SupplierConfirmationStatus>;
+
+/** BE `PurchaseOrderController.deliveryStatus` — gom từ notification log (BE #36). */
+export const PO_DELIVERY_STATUSES = [
+  "NOT_SENT",
+  "QUEUED",
+  "UNKNOWN",
+  "RETRYING",
+  "FAILED",
+  "DELIVERED",
+  "SUPPRESSED",
+] as const;
+
+export const PO_DELIVERY_STATUS = {
+  NOT_SENT: "NOT_SENT",
+  QUEUED: "QUEUED",
+  UNKNOWN: "UNKNOWN",
+  RETRYING: "RETRYING",
+  FAILED: "FAILED",
+  DELIVERED: "DELIVERED",
+  SUPPRESSED: "SUPPRESSED",
+} as const satisfies Record<string, PoDeliveryStatus>;
+
+/** BE notification `DeliveryStatus` — kết quả từng lần gửi (`GET …/deliveries`). */
+export const PO_DELIVERY_ATTEMPT_STATUSES = ["PENDING", "SENT", "FAILED"] as const;
+
+export const PO_DELIVERY_ATTEMPT_STATUS = {
+  PENDING: "PENDING",
+  SENT: "SENT",
+  FAILED: "FAILED",
+} as const satisfies Record<string, PoDeliveryAttemptStatus>;
 
 export const PROPOSAL_STATUSES = ["Draft Proposal", "Reviewed", "Converted"] as const;
 
@@ -101,6 +144,9 @@ export const SUPPLIER_API_STATUSES = ["ACTIVE", "INACTIVE"] as const;
 export const SUPPLIER_CHANNELS = ["EMAIL", "API"] as const;
 
 export type PoStatus = (typeof PO_STATUSES)[number];
+export type SupplierConfirmationStatus = (typeof SUPPLIER_CONFIRMATION_STATUSES)[number];
+export type PoDeliveryStatus = (typeof PO_DELIVERY_STATUSES)[number];
+export type PoDeliveryAttemptStatus = (typeof PO_DELIVERY_ATTEMPT_STATUSES)[number];
 export type ReceiptStatus = (typeof RECEIPT_STATUSES)[number];
 export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
 export type ProposalStatus = (typeof PROPOSAL_STATUSES)[number];

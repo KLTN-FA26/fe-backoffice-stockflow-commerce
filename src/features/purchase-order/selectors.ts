@@ -1,40 +1,24 @@
 /**
  * Purchase Order — selectors (pure derivations).
  *
- * Mọi tính toán KPI / join lookup / filter / format sống ở đây.
- * Component chỉ gọi selector, không .filter()/.reduce() inline.
- *
- * Source: docs/warehouse/02-purchase-order §3 (Output), §4 (open quantity).
+ * Source: BE PurchaseOrder aggregate (open quantity semantics),
+ * plus list-stats derived from BE 7-state.
  */
 
-import { PO_STATUS } from "@/constants";
-import { formatCompact, formatMoney } from "@/lib/format";
+import { PO_DELIVERY_STATUS, PO_STATUS } from "@/constants";
+import { formatMoney } from "@/lib/format";
+
+import { receiveGoodsLineInputSchema } from "./schemas";
 
 import type { PurchaseOrder, PoLine, PoStatus } from "./types";
 
 export { formatMoney };
-export { formatCompact as formatCompactVND };
 
-/* ── Single-record helpers ───────────────────────────────────────────── */
-
-/**
- * Open quantity = ordered − received.
- * docs §3: "Số lượng còn chờ nhận (open quantity) tính theo từng dòng"
- */
+/** BE `POLineResponse.openQuantity` — the BE is the source of truth, never recomputed here. */
 export function openQuantity(line: PoLine): number {
-  return Math.max(0, line.orderedQty - line.receivedQty);
+  return line.openQuantity;
 }
 
-/**
- * Whether a PO line is fully received.
- */
-export function isLineFullyReceived(line: PoLine): boolean {
-  return line.receivedQty >= line.orderedQty;
-}
-
-/**
- * Total open quantity across all lines of a PO.
- */
 export function totalOpenQuantity(po: PurchaseOrder): number {
   return po.lines.reduce((sum, line) => sum + openQuantity(line), 0);
 }
@@ -48,84 +32,98 @@ export function totalReceivedQuantity(po: PurchaseOrder): number {
 }
 
 /**
- * Percentage received for a PO (0–100).
+ * BR-06 (docs 02 §6): ngày giao dự kiến đã qua → chỉ CẢNH BÁO, không chặn.
+ * So với HÔM NAY theo Asia/Ho_Chi_Minh (`today` = `toLocalIsoDate(now)`), không so với ngày đặt.
  */
-export function receivedPercent(po: PurchaseOrder): number {
-  const totalOrdered = po.lines.reduce((sum, line) => sum + line.orderedQty, 0);
-  if (totalOrdered === 0) return 0;
-  const totalReceived = po.lines.reduce((sum, line) => sum + line.receivedQty, 0);
-  return Math.round((totalReceived / totalOrdered) * 100);
+export function isExpectedDatePast(expectedDate: string, today: string): boolean {
+  return expectedDate !== "" && expectedDate < today;
 }
 
-/* ── List-level stats ────────────────────────────────────────────────── */
-
-export interface PoListStats {
-  total: number;
-  draft: number;
-  pendingApproval: number;
-  confirmed: number;
-  partiallyReceived: number;
-  received: number;
-  closed: number;
-  cancelled: number;
-  totalValueVND: number;
+/** Gợi ý ngày giao = hôm nay + `leadTimeDays` của NCC (BE SupplierResponse.leadTimeDays). */
+export function suggestExpectedDate(today: string, leadTimeDays: number): string {
+  const [y = 0, m = 1, d = 1] = today.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d + leadTimeDays));
+  return date.toISOString().slice(0, 10);
 }
 
 /**
- * Compute stats from a list of POs.
- * Pure function — used by PurchaseOrderList component.
+ * Lượt gửi NCC. BE đánh `generation` từ 0: gửi lần đầu = 0, mỗi lần khôi phục gửi +1
+ * (BE `NotificationServiceImpl.prepareSupplierDelivery`, `po_delivery_control.generation DEFAULT 0`).
  */
-export function computePoStats(list: readonly PurchaseOrder[]): PoListStats {
-  const result: PoListStats = {
-    total: list.length,
-    draft: 0,
-    pendingApproval: 0,
-    confirmed: 0,
-    partiallyReceived: 0,
-    received: 0,
-    closed: 0,
-    cancelled: 0,
-    totalValueVND: 0,
-  };
-
-  for (const po of list) {
-    switch (po.status) {
-      case PO_STATUS.DRAFT:
-        result.draft++;
-        break;
-      case PO_STATUS.PENDING_APPROVAL:
-        result.pendingApproval++;
-        break;
-      case PO_STATUS.CONFIRMED:
-        result.confirmed++;
-        break;
-      case PO_STATUS.PARTIALLY_RECEIVED:
-        result.partiallyReceived++;
-        break;
-      case PO_STATUS.RECEIVED:
-        result.received++;
-        break;
-      case PO_STATUS.CLOSED:
-        result.closed++;
-        break;
-      case PO_STATUS.CANCELLED:
-        result.cancelled++;
-        break;
-    }
-
-    if (po.currency === "VND") {
-      result.totalValueVND += po.grandTotal;
-    }
-  }
-
-  return result;
+export function isFirstDelivery(generation: number): boolean {
+  return generation === 0;
 }
 
-/* ── Row-level UI helpers ────────────────────────────────────────────── */
+/** Số lượt hiển thị cho người dùng, đếm từ 1. */
+export function deliveryRound(generation: number): number {
+  return generation + 1;
+}
+
+/**
+ * `failure` của lần gửi BE có dạng `"purchase-order:<uuid>: <TênException>"`
+ * (BE `DeliveryAttemptRecorder.failed`) — chỉ giữ tên lỗi, không lộ UUID ra UI.
+ */
+export function deliveryFailureName(failure: string | null | undefined): string | null {
+  if (!failure) return null;
+  const name = failure.slice(failure.lastIndexOf(":") + 1).trim();
+  return name || null;
+}
+
+/**
+ * Lần gửi gần nhất chưa tới được NCC: BE `deliveryStatus` RETRYING (đang thử lại) hoặc FAILED
+ * (hết lượt thử — người có quyền duyệt khôi phục được). Dùng cho cảnh báo + toast sau khi gửi.
+ */
+export function isDeliveryFailing(po: Pick<PurchaseOrder, "deliveryStatus">): boolean {
+  return (
+    po.deliveryStatus === PO_DELIVERY_STATUS.FAILED ||
+    po.deliveryStatus === PO_DELIVERY_STATUS.RETRYING
+  );
+}
 
 /** Statuses that should flag a row in the list table. */
-const FLAGGED_STATUSES: readonly PoStatus[] = [PO_STATUS.PENDING_APPROVAL, PO_STATUS.CANCELLED];
+const FLAGGED_STATUSES: readonly PoStatus[] = [PO_STATUS.CANCELLED];
 
 export function shouldFlagPoRow(po: PurchaseOrder): boolean {
   return FLAGGED_STATUSES.includes(po.status);
+}
+
+/* ── Receive goods draft ─────────────────────────────────────────────── */
+
+export interface ReceiveDraftResult {
+  /** Valid lines, ready for POST /receipts. */
+  lines: { lineId: string; quantity: number }[];
+  /** Inline error per lineId. */
+  errors: Record<string, string>;
+}
+
+/**
+ * Validate the "Nhận hàng" form before it reaches the BE.
+ *
+ * BR-04 (docs 02 §6): tổng SL nhận của một dòng ≤ SL đặt × (1 + dung sai nhận vượt).
+ * ASSUMPTION (open-question C9): dung sai chưa chốt/chưa có cấu hình — BE `PoLine#receive`
+ * đang dùng dung sai = 0 (qty ≤ openQuantity), FE mirror đúng giới hạn đó.
+ * Vi phạm ở BE là IllegalArgumentException → 400 chung không có field, nên FE phải tự báo lý do.
+ * Empty inputs are skipped (not every line has to be received in one go).
+ */
+export function validateReceiveDraft(
+  poLines: readonly PoLine[],
+  draft: Readonly<Record<string, string>>,
+): ReceiveDraftResult {
+  const result: ReceiveDraftResult = { lines: [], errors: {} };
+  for (const line of poLines) {
+    const raw = (draft[line.lineId] ?? "").trim();
+    if (raw === "") continue;
+    const parsed = receiveGoodsLineInputSchema.shape.quantity.safeParse(Number(raw));
+    if (!parsed.success) {
+      result.errors[line.lineId] = parsed.error.issues[0]?.message ?? "SL nhận không hợp lệ";
+      continue;
+    }
+    const quantity = parsed.data;
+    if (quantity > line.openQuantity) {
+      result.errors[line.lineId] = `Vượt SL còn nhận được (${line.openQuantity})`;
+    } else {
+      result.lines.push({ lineId: line.lineId, quantity });
+    }
+  }
+  return result;
 }

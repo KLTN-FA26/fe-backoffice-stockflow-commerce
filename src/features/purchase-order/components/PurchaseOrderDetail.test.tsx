@@ -1,0 +1,231 @@
+import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { ApiError } from "@/lib/api/error";
+
+import {
+  PO_PERMISSION_SETS,
+  SUPPLIER_REF,
+  bePage,
+  bePo,
+  mockApi,
+  pickSelectOption,
+  renderPoScreen,
+} from "../__fixtures__/render";
+import { PurchaseOrderDetail } from "./PurchaseOrderDetail";
+
+import type { PermissionCode } from "@/lib/auth";
+
+const PO_ID = "11111111-1111-4111-8111-111111111111";
+const routesFor = (po: Record<string, unknown>) => ({
+  [`/purchase-orders/${PO_ID}`]: () => po,
+  [`/suppliers/${SUPPLIER_REF.supplierId}`]: () => SUPPLIER_REF,
+  [`/purchase-orders/${PO_ID}/delivery-decisions`]: () =>
+    bePage([
+      {
+        id: "dec-1",
+        generation: 0,
+        previousExpectedAt: "2026-10-05",
+        expectedAt: "2026-10-09",
+        reason: "NCC dời lịch giao",
+        reconciled: false,
+        acknowledgePastDue: false,
+        channel: "EMAIL",
+        recipient: "po@gohoaphat.vn",
+        actor: "procurement.staff",
+        requestedAt: "2026-10-01T02:59:00Z",
+      },
+    ]),
+  [`/purchase-orders/${PO_ID}/deliveries`]: () =>
+    bePage([
+      {
+        id: "d-1",
+        channel: "EMAIL",
+        status: "FAILED",
+        attemptedAt: "2026-10-01T03:00:00Z",
+        sentAt: null,
+        failure: `purchase-order:${PO_ID}: MailSendException`,
+        generation: 0,
+        recipient: "po@gohoaphat.vn",
+      },
+    ]),
+});
+
+function renderDetail(permissions: readonly PermissionCode[], po = bePo()) {
+  const spies = mockApi(permissions, routesFor(po), {
+    [`/purchase-orders/${PO_ID}/approval`]: () => ({ ...po, status: "APPROVED" }),
+  });
+  renderPoScreen(<PurchaseOrderDetail id={PO_ID} />);
+  return spies;
+}
+
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+
+afterEach(() => vi.restoreAllMocks());
+
+describe("PurchaseOrderDetail — gate theo mã quyền", () => {
+  it("thiếu VIEW_PAGE → màn không có quyền, không gọi API PO", async () => {
+    const { get } = renderDetail(PO_PERMISSION_SETS.none);
+    expect(await screen.findByText("Bạn không có quyền")).toBeInTheDocument();
+    expect(get).not.toHaveBeenCalledWith(`/purchase-orders/${PO_ID}`, expect.anything());
+  });
+
+  it("có VIEW_PAGE nhưng thiếu READ → 'không có quyền xem dữ liệu'", async () => {
+    renderDetail(PO_PERMISSION_SETS.viewOnly);
+    expect(await screen.findByText("Bạn không có quyền xem dữ liệu")).toBeInTheDocument();
+  });
+
+  it("procurement (không APPROVE): DRAFT không có nút Phê duyệt; hiện mã + tên NCC", async () => {
+    renderDetail(PO_PERMISSION_SETS.procurement);
+    expect(await screen.findByRole("button", { name: "Huỷ PO" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Phê duyệt" })).not.toBeInTheDocument();
+    expect(await screen.findByText("GOHOAPHAT")).toBeInTheDocument();
+  });
+
+  it("approver: Phê duyệt phải qua dialog xác nhận rồi mới gọi API", async () => {
+    const user = userEvent.setup();
+    const { post } = renderDetail(PO_PERMISSION_SETS.approver);
+    await user.click(await screen.findByRole("button", { name: "Phê duyệt" }));
+    expect(post).not.toHaveBeenCalled();
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent("Đã duyệt");
+    await user.click(screen.getAllByRole("button", { name: "Phê duyệt" }).at(-1) ?? dialog);
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(`/purchase-orders/${PO_ID}/approval`, undefined),
+    );
+  });
+});
+
+describe("PurchaseOrderDetail — giao NCC (BE #36)", () => {
+  it("deliveryStatus FAILED → cảnh báo + lịch sử gửi có lỗi; không hiện mã enum thô", async () => {
+    renderDetail(
+      PO_PERMISSION_SETS.procurement,
+      bePo({ status: "SENT", supplierConfirmationStatus: "PENDING", deliveryStatus: "FAILED" }),
+    );
+    expect(await screen.findByText(/Lần gửi gần nhất chưa tới được NCC/)).toBeInTheDocument();
+    // Bảng lần gửi không có cột lỗi kỹ thuật (đã có cột Kết quả)
+    expect(await screen.findByRole("columnheader", { name: "Kết quả" })).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: /Lỗi/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/MailSendException/)).not.toBeInTheDocument();
+    expect(screen.queryByText("FAILED")).not.toBeInTheDocument();
+  });
+
+  it("lịch sử gửi: 2 tab bảng — lần gửi (/deliveries) và quyết định gửi (/delivery-decisions)", async () => {
+    const user = userEvent.setup();
+    renderDetail(
+      PO_PERMISSION_SETS.procurement,
+      bePo({ status: "SENT", supplierConfirmationStatus: "PENDING", deliveryStatus: "FAILED" }),
+    );
+    const decisionsTab = await screen.findByRole("tab", { name: /Quyết định gửi\s*1/ });
+    expect(screen.getByRole("tab", { name: /Lần gửi\s*1/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await user.click(decisionsTab);
+    // ai cho gửi, ngày giao cũ → mới (lý do xem trong panel chi tiết)
+    expect(await screen.findByText("Gửi lần đầu")).toBeInTheDocument();
+    expect(screen.getByText("procurement.staff")).toBeInTheDocument();
+    expect(screen.getByText(/→/)).toBeInTheDocument();
+    expect(screen.queryByText("Khôi phục gửi")).not.toBeInTheDocument();
+  });
+
+  it("bấm một dòng lịch sử → panel chi tiết hiện đủ field (trừ id), Esc để đóng", async () => {
+    const user = userEvent.setup();
+    renderDetail(
+      PO_PERMISSION_SETS.procurement,
+      bePo({ status: "SENT", supplierConfirmationStatus: "PENDING", deliveryStatus: "FAILED" }),
+    );
+    await user.click(await screen.findByText("po@gohoaphat.vn"));
+    const panel = await screen.findByRole("dialog", { name: "Lần gửi · lượt 1" });
+    // failure BE "purchase-order:<uuid>: X" → chỉ hiện tên lỗi, không lộ UUID
+    expect(within(panel).getByText("MailSendException")).toBeInTheDocument();
+    expect(within(panel).queryByText(new RegExp(PO_ID))).not.toBeInTheDocument();
+    expect(within(panel).getByText("po@gohoaphat.vn")).toBeInTheDocument();
+    expect(within(panel).queryByText("d-1")).not.toBeInTheDocument();
+    // Khớp OrderDetailPanel/SkuDetailPanel: rộng max-w-md, lớp drawer 1100 (design-tokens)
+    expect(panel).toHaveClass("max-w-md", "z-[1100]");
+    // Radix Dialog: focus chuyển vào panel, không lọt ra nội dung phía sau
+    await waitFor(() => expect(panel.contains(document.activeElement)).toBe(true));
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    await user.click(screen.getByRole("tab", { name: /Quyết định gửi/ }));
+    await user.click(await screen.findByText("procurement.staff"));
+    const decision = await screen.findByRole("dialog", { name: "Quyết định gửi · lượt 1" });
+    expect(within(decision).getByText("NCC dời lịch giao")).toBeInTheDocument();
+    expect(within(decision).getByText("Đã đối chiếu với NCC")).toBeInTheDocument();
+    expect(within(decision).getByText("procurement.staff")).toBeInTheDocument();
+  });
+
+  it("không tra được NCC (vd thiếu quyền xem NCC) → nhãn tiếng Việt, không lộ UUID NCC", async () => {
+    const po = bePo();
+    mockApi(PO_PERMISSION_SETS.procurement, {
+      ...routesFor(po),
+      [`/suppliers/${SUPPLIER_REF.supplierId}`]: () => {
+        throw new ApiError(403, "FORBIDDEN", "Forbidden");
+      },
+    });
+    renderPoScreen(<PurchaseOrderDetail id={PO_ID} />);
+    expect(await screen.findByRole("link", { name: "Không tải được tên NCC" })).toBeInTheDocument();
+    expect(screen.queryByText(new RegExp(SUPPLIER_REF.supplierId))).not.toBeInTheDocument();
+  });
+
+  it("lịch sử gửi lỗi 5xx → báo lỗi + nút Thử lại (không im lặng)", async () => {
+    const po = bePo({
+      status: "SENT",
+      supplierConfirmationStatus: "PENDING",
+      deliveryStatus: "FAILED",
+    });
+    mockApi(PO_PERMISSION_SETS.procurement, {
+      ...routesFor(po),
+      [`/purchase-orders/${PO_ID}/deliveries`]: () => {
+        throw new ApiError(500, "INTERNAL_ERROR", "boom");
+      },
+    });
+    renderPoScreen(<PurchaseOrderDetail id={PO_ID} />);
+    expect(await screen.findByRole("button", { name: "Thử lại" })).toBeInTheDocument();
+  });
+
+  it("?duplicate=1 → hiện cảnh báo trùng (BR-PO-003) cho lần xem này", async () => {
+    mockApi(PO_PERMISSION_SETS.readOnly, routesFor(bePo()));
+    renderPoScreen(<PurchaseOrderDetail id={PO_ID} />, "?duplicate=1");
+    expect(await screen.findByText(/Cảnh báo trùng lặp/)).toBeInTheDocument();
+    // URL đã xoá cờ nhưng cảnh báo vẫn giữ trong lần xem hiện tại
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.getByText(/Cảnh báo trùng lặp/)).toBeInTheDocument();
+  });
+
+  it("ghi nhận NCC phản hồi: chọn 'NCC từ chối' trong Select → bắt buộc ghi chú, khoá nút", async () => {
+    const user = userEvent.setup();
+    renderDetail(
+      PO_PERMISSION_SETS.procurement,
+      bePo({ status: "SENT", supplierConfirmationStatus: "PENDING", deliveryStatus: "DELIVERED" }),
+    );
+    await user.click(await screen.findByRole("button", { name: /Ghi nhận NCC phản hồi/ }));
+    const dialog = await screen.findByRole("dialog");
+    await pickSelectOption(user, /Phản hồi/, "NCC từ chối");
+    expect(within(dialog).getByRole("button", { name: "Ghi nhận" })).toBeDisabled();
+    await user.type(within(dialog).getByLabelText(/Ghi chú/), "Hết hàng");
+    expect(within(dialog).getByRole("button", { name: "Ghi nhận" })).toBeEnabled();
+  });
+
+  it("409 khi duyệt → câu tiếng Việt, không lộ message tiếng Anh của BE", async () => {
+    const user = userEvent.setup();
+    const po = bePo();
+    mockApi(PO_PERMISSION_SETS.approver, routesFor(po), {
+      [`/purchase-orders/${PO_ID}/approval`]: () => {
+        throw new ApiError(
+          409,
+          "INVALID_PURCHASE_ORDER_TRANSITION",
+          `Purchase order ${PO_ID} cannot move from CANCELLED to APPROVED`,
+        );
+      },
+    });
+    renderPoScreen(<PurchaseOrderDetail id={PO_ID} />);
+    await user.click(await screen.findByRole("button", { name: "Phê duyệt" }));
+    await user.click(screen.getAllByRole("button", { name: "Phê duyệt" }).at(-1) ?? document.body);
+    expect(await screen.findByRole("alert")).toHaveTextContent("đã đổi trạng thái");
+    expect(screen.queryByText(/cannot move/)).not.toBeInTheDocument();
+  });
+});

@@ -31,6 +31,113 @@ export const UI_LABELS = {
     noReadDescription:
       "Bạn được mở trang nhưng chưa được cấp quyền xem dữ liệu nhà cung cấp. Liên hệ quản trị để được cấp.",
   },
+  purchaseOrder: {
+    pageTitle: "Đơn đặt NCC",
+    notFoundTitle: "Không tìm thấy đơn đặt hàng",
+    notFoundDescription: "Đơn đặt hàng không tồn tại hoặc đã bị xoá.",
+    forbiddenDescription: "Tài khoản của bạn chưa được cấp quyền thao tác này với đơn đặt hàng.",
+    noReadDescription:
+      "Bạn được mở trang nhưng chưa được cấp quyền xem dữ liệu đơn đặt hàng. Liên hệ quản trị để được cấp.",
+    supplierFilter: "Đang lọc theo NCC",
+    clearSupplierFilter: "Bỏ lọc NCC",
+    createAction: "Tạo đơn đặt hàng",
+    paymentTermDays: "Thời hạn thanh toán",
+    leadTimeDays: "Thời gian giao hàng",
+    days: "ngày",
+    supplierLoading: "Đang tải NCC…",
+    invalidSupplierFilterTitle: "Bộ lọc nhà cung cấp không hợp lệ",
+    invalidSupplierFilterDescription:
+      "Mã nhà cung cấp trên đường dẫn không đúng. Bỏ lọc để xem toàn bộ đơn đặt hàng.",
+    supplierUnavailable: "Không tải được tên NCC",
+    // Nhãn dùng lại ≥2 chỗ trong module (CLAUDE.md: dùng lại ≥2 lần → constants).
+    supplier: "Nhà cung cấp",
+    supplierCode: "Mã NCC",
+    currency: "Tiền tệ",
+    status: "Trạng thái",
+    expectedDate: "Ngày giao dự kiến",
+    expectedDateShort: "Ngày giao DK",
+    lines: "Dòng hàng",
+    lineCount: "Số dòng",
+    sku: "Mã SKU",
+    skuMissing: "Chưa nhập SKU",
+    orderedQty: "SL đặt",
+    receivedQty: "SL nhận",
+    openQty: "SL còn lại",
+    unitPrice: "Đơn giá",
+    grandTotal: "Tổng giá trị",
+    totalAmount: "Tổng tiền",
+    totals: "Tổng cộng",
+    supplierResponse: "Phản hồi",
+    supplierReference: "Mã tham chiếu NCC",
+    notUsed: "Chưa dùng",
+    /** Cột bảng + panel chi tiết lịch sử gửi NCC. */
+    delivery: {
+      attemptedAt: "Thời điểm gửi",
+      recipient: "Người nhận",
+      result: "Kết quả",
+      deliveredAt: "Tới NCC lúc",
+      actor: "Người cho phép",
+      requestedAt: "Thời điểm",
+    },
+    /** Tên thao tác — nút ở panel hành động và tiêu đề dialog dùng chung. */
+    action: {
+      approve: "Phê duyệt",
+      send: "Gửi NCC",
+      receive: "Nhận hàng",
+      recordConfirmation: "Ghi nhận NCC phản hồi",
+      recoverDelivery: "Khôi phục gửi NCC",
+      closeShort: "Đóng thiếu",
+      cancel: "Huỷ PO",
+    },
+    validation: {
+      supplierRequired: "Chọn nhà cung cấp",
+      skuRequired: "Nhập mã SKU",
+      skuDuplicate: "SKU bị trùng trong PO",
+    },
+  },
+} as const;
+
+/**
+ * BE `errorCode` (ErrorCode.java, nhánh BE `test`) → câu tiếng Việt cho màn PO.
+ * Không hiển thị message thô tiếng Anh của BE (có thể chứa UUID).
+ */
+/** Lỗi BE của form tạo PO (fieldErrors theo tên field BE) → câu tiếng Việt hiện inline dưới ô. */
+export const PO_CREATE_FIELD_MESSAGES = {
+  supplierId: "Nhà cung cấp không hợp lệ",
+  currency: "Tiền tệ không hợp lệ",
+  expectedDate: "Ngày giao dự kiến không hợp lệ",
+  lines: "Cần ít nhất một dòng hàng",
+  skuId: "Mã SKU không hợp lệ",
+  description: "Mô tả không hợp lệ",
+  orderedQty: "SL đặt không hợp lệ",
+  unitPrice: "Đơn giá không hợp lệ",
+} as const;
+
+export const PO_ERROR_MESSAGES = {
+  INVALID_PURCHASE_ORDER_TRANSITION:
+    "Đơn đặt hàng đã đổi trạng thái nên không thể thực hiện thao tác này. Dữ liệu đã được tải lại.",
+  PURCHASE_ORDER_NOT_FOUND: "Không tìm thấy đơn đặt hàng",
+  SUPPLIER_NOT_FOUND: "Không tìm thấy nhà cung cấp",
+  SUPPLIER_INACTIVE: "Nhà cung cấp đã ngừng hợp tác, không thể tạo đơn mới",
+  CONFLICT: "Yêu cầu xung đột với dữ liệu hiện tại",
+  VALIDATION_FAILED: "Dữ liệu không hợp lệ",
+  FORBIDDEN: "Bạn không có quyền thực hiện thao tác này",
+  OUT_OF_DATA_SCOPE: "Đơn đặt hàng này nằm ngoài phạm vi dữ liệu của bạn",
+  OPTIMISTIC_LOCK: "Đơn vừa được người khác cập nhật. Dữ liệu đã được tải lại, hãy thử lại.",
+  LOCK_TIMEOUT: "Đơn đang được xử lý ở nơi khác, thử lại sau ít giây",
+  IDEMPOTENT_REQUEST_IN_PROGRESS: "Yêu cầu trước đó vẫn đang xử lý",
+  EXTERNAL_SERVICE_ERROR: "Dịch vụ gửi NCC đang gặp lỗi, thử lại sau",
+  AUTHORIZATION_UNAVAILABLE: "Chưa kiểm tra được quyền truy cập, thử lại sau",
+  NETWORK_ERROR: "Không kết nối được máy chủ",
+  CONTRACT_MISMATCH: "Dữ liệu trả về không đúng định dạng",
+  // Nhận hàng bị BE từ chối bằng 400 chung (IllegalArgumentException, không có field)
+  receiveRejected:
+    "Máy chủ từ chối số lượng nhận. Kiểm tra SL không vượt “Còn nhận được” — dữ liệu đơn đã được tải lại.",
+  // Gửi NCC bị 409 CONFLICT: ngày giao trống/đã qua (PurchaseOrder#confirmDeliveryDate) hoặc
+  // NCC ngừng hợp tác / thiếu email-API nhận PO (ProcurementServiceImpl#publishDelivery)
+  sendDateInvalid:
+    "Chưa gửi được NCC: ngày giao dự kiến phải từ hôm nay trở đi và NCC phải đang hợp tác, có email/API nhận PO",
+  generic: "Không thực hiện được thao tác. Vui lòng thử lại.",
 } as const;
 
 /**
@@ -94,6 +201,20 @@ export const TOAST_MESSAGES = {
     activated: "Đã kích hoạt lại nhà cung cấp",
     deactivated: "Đã ngừng hợp tác với nhà cung cấp",
     // Base UI: BE chưa có endpoint xuất dữ liệu NCC
+    exportNotAvailable: "Xuất Excel chưa có API — sẽ nối khi BE hỗ trợ",
+  },
+  purchaseOrder: {
+    created: "Đã tạo đơn đặt hàng",
+    possibleDuplicate: "Có thể trùng đơn (BR-PO-003)",
+    approved: "Đã phê duyệt đơn",
+    sent: "Đã đưa đơn vào hàng đợi gửi NCC",
+    deliveryFailed: "Gửi NCC chưa thành công — kiểm tra lịch sử gửi",
+    cancelled: "Đã huỷ đơn",
+    closedShort: "Đã đóng thiếu đơn",
+    received: "Đã ghi nhận nhận hàng",
+    deliveryRecovered: "Đã gửi lại đơn cho NCC",
+    confirmationRecorded: "Đã ghi nhận phản hồi của NCC",
+    actionFailed: "Không thực hiện được thao tác",
     exportNotAvailable: "Xuất Excel chưa có API — sẽ nối khi BE hỗ trợ",
   },
 } as const;
