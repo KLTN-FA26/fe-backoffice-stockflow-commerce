@@ -1,111 +1,137 @@
-/**
- * Mock route tests — POST /orders/:id/admin-cancellation.
- *
- * Gọi handler trực tiếp qua `resolveMockRoute` thay vì qua axios: adapter thật có
- * delay 200–500ms và 5% lỗi 500 ngẫu nhiên (mock-adapter.ts) → test sẽ flaky.
- *
- * File này nằm ở `src/lib/api/` (không phải `src/features/`) vì cần import
- * `mock-data.ts` để dựng fixture — CI grep chặn import đó trong
- * `src/app|components|features`.
- */
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import {
+  createProduct,
+  getProduct,
+  publishProduct,
+  transitionProduct,
+  unpublishProduct,
+  updateProduct,
+} from "@/features/product/api";
+import { api } from "@/lib/api/client";
 
-import { orders } from "@/lib/mock-data";
+import { activateMockAdapter } from "./mock-adapter";
 
-import { resolveMockRoute } from "./mock-adapter";
-import { registerAllMockRoutes } from "./mock-routes";
+const originalAdapter = api.defaults.adapter;
+let categoryId: string;
 
-import type { AxiosRequestConfig } from "axios";
-import type { Order } from "@/lib/mock-data";
+beforeAll(async () => {
+  vi.spyOn(Math, "random").mockReturnValue(0.05);
+  activateMockAdapter();
 
-const PATH = (id: string) => `/orders/${id}/admin-cancellation`;
+  const response = await api.get<{ items: Array<{ categoryId: string }> }>("/categories");
+  categoryId = response.data.items[0]?.categoryId ?? "";
+  expect(categoryId).not.toBe("");
+});
 
-interface ErrorBody {
-  code?: string;
-  message?: string;
-  fieldErrors?: Record<string, string>;
-}
+afterAll(() => {
+  api.defaults.adapter = originalAdapter;
+  vi.restoreAllMocks();
+});
 
-async function postAdminCancel(id: string, body?: unknown) {
-  const matched = resolveMockRoute("POST", PATH(id));
-  if (!matched) throw new Error(`No mock route for POST ${PATH(id)}`);
-  const config = {
-    url: PATH(id),
-    method: "POST",
-    data: body === undefined ? undefined : JSON.stringify(body),
-    _mockParams: matched.params,
-  } as AxiosRequestConfig;
-  return matched.handler(config);
-}
+describe("product mock logistics round-trip", () => {
+  it("returns all logistics fields from GET after create", async () => {
+    const created = await createProduct({
+      code: `MOCK-LOG-CREATE-${Date.now()}`,
+      name: "Mock logistics create",
+      nameEn: "Mock logistics create",
+      categoryId,
+      description: "",
+      descriptionEn: "",
+      brand: "StockFlow",
+      taxClass: "STANDARD",
+      customizable: false,
+      images: [],
+      weightKg: 1.25,
+      lengthCm: 31.5,
+      widthCm: 22.25,
+      heightCm: 9.75,
+    });
 
-/** Đơn đầu tiên ở trạng thái huỷ được / không huỷ được, lấy từ chính mock-data. */
-function findOrder(predicate: (order: Order) => boolean): Order {
-  const found = orders.find(predicate);
-  if (!found) throw new Error("Fixture không tìm thấy trong mock-data");
-  return found;
-}
+    const loaded = await getProduct(created.productId);
 
-const CANCELLABLE = ["Draft", "Pending Payment", "Confirmed", "Ready to Fulfill", "On Hold"];
-
-describe("POST /orders/:id/admin-cancellation (mock)", () => {
-  beforeAll(() => {
-    registerAllMockRoutes();
+    expect(loaded).toMatchObject({
+      weightKg: 1.25,
+      lengthCm: 31.5,
+      widthCm: 22.25,
+      heightCm: 9.75,
+    });
   });
 
-  // Handler mutate `order.status` trên module state dùng chung → restore sau mỗi test.
-  const touched: { order: Order; status: Order["status"] }[] = [];
-  const track = (order: Order) => {
-    touched.push({ order, status: order.status });
-    return order;
-  };
-  afterEach(() => {
-    for (const { order, status } of touched) order.status = status;
-    touched.length = 0;
-  });
+  it("returns updated logistics fields from GET after update", async () => {
+    const created = await createProduct({
+      code: `MOCK-LOG-UPDATE-${Date.now()}`,
+      name: "Mock logistics before update",
+      nameEn: "Mock logistics before update",
+      categoryId,
+      description: "",
+      descriptionEn: "",
+      brand: "StockFlow",
+      taxClass: "STANDARD",
+      customizable: false,
+      images: [],
+      weightKg: 1,
+      lengthCm: 2,
+      widthCm: 3,
+      heightCm: 4,
+    });
 
-  it("id không tồn tại → 404 NOT_FOUND, không tiết lộ đơn có tồn tại hay không", async () => {
-    const res = await postAdminCancel("ORD-KHONG-TON-TAI", { reason: "test" });
-    expect(res.status).toBe(404);
-    expect((res.data as ErrorBody).code).toBe("NOT_FOUND");
-  });
+    await updateProduct({
+      id: created.productId,
+      name: "Mock logistics after update",
+      nameEn: "Mock logistics after update",
+      categoryId,
+      description: "",
+      descriptionEn: "",
+      brand: "StockFlow",
+      taxClass: "STANDARD",
+      customizable: false,
+      images: [],
+      weightKg: 4.5,
+      lengthCm: 40.25,
+      widthCm: 30.75,
+      heightCm: 20.5,
+    });
 
-  it("reason rỗng → 400 VALIDATION_FAILED + fieldErrors.reason", async () => {
-    const order = track(findOrder((o) => CANCELLABLE.includes(o.status)));
-    const res = await postAdminCancel(order.orderId, { reason: "   " });
-    expect(res.status).toBe(400);
-    const body = res.data as ErrorBody;
-    expect(body.code).toBe("VALIDATION_FAILED");
-    expect(body.fieldErrors?.reason).toBe("Lý do huỷ là bắt buộc");
-    expect(order.status).not.toBe("Cancelled");
-  });
+    const loaded = await getProduct(created.productId);
 
-  it("body thiếu hẳn → 400 VALIDATION_FAILED", async () => {
-    const order = track(findOrder((o) => CANCELLABLE.includes(o.status)));
-    const res = await postAdminCancel(order.orderId);
-    expect(res.status).toBe(400);
-    expect((res.data as ErrorBody).code).toBe("VALIDATION_FAILED");
+    expect(loaded).toMatchObject({
+      weightKg: 4.5,
+      lengthCm: 40.25,
+      widthCm: 30.75,
+      heightCm: 20.5,
+    });
   });
+});
 
-  it("BE BR-031; docs BR-03: huỷ đơn đã Shipped → 409 CONFLICT", async () => {
-    const order = track(findOrder((o) => o.status === "Shipped"));
-    const res = await postAdminCancel(order.orderId, { reason: "khách yêu cầu" });
-    expect(res.status).toBe(409);
-    expect((res.data as ErrorBody).code).toBe("CONFLICT");
-    expect(order.status).toBe("Shipped");
-  });
+describe("product mock lifecycle contract", () => {
+  it("mirrors data-returning and void backend transitions", async () => {
+    const created = await createProduct({
+      code: `MOCK-LIFECYCLE-${Date.now()}`,
+      name: "Mock lifecycle",
+      nameEn: "Mock lifecycle",
+      categoryId,
+      description: "",
+      descriptionEn: "",
+      brand: "StockFlow",
+      taxClass: "STANDARD",
+      customizable: false,
+      images: [],
+      weightKg: null,
+      lengthCm: null,
+      widthCm: null,
+      heightCm: null,
+    });
 
-  it("BE BR-031; docs BR-03: huỷ đơn đã Delivered → 409 CONFLICT", async () => {
-    const order = track(findOrder((o) => o.status === "Delivered"));
-    const res = await postAdminCancel(order.orderId, { reason: "khách yêu cầu" });
-    expect(res.status).toBe(409);
-    expect((res.data as ErrorBody).code).toBe("CONFLICT");
-  });
+    const submitted = await transitionProduct({ id: created.productId, action: "submit" });
+    expect(submitted.status).toBe("Pending Approval");
+    expect(submitted.submittedBy).toBeTruthy();
 
-  it("happy path: đơn huỷ được + có reason → 200 và status thành Cancelled", async () => {
-    const order = track(findOrder((o) => CANCELLABLE.includes(o.status)));
-    const res = await postAdminCancel(order.orderId, { reason: "khách đổi ý" });
-    expect(res.status).toBe(200);
-    expect(order.status).toBe("Cancelled");
+    const approved = await transitionProduct({ id: created.productId, action: "approve" });
+    expect(approved.status).toBe("Approved");
+    await expect(publishProduct(created.productId)).resolves.toBeUndefined();
+    expect((await getProduct(created.productId)).status).toBe("Published");
+    await expect(unpublishProduct(created.productId)).resolves.toBeUndefined();
+    expect((await getProduct(created.productId)).status).toBe("Approved");
   });
 });

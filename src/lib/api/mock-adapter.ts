@@ -20,6 +20,8 @@ import {
 } from "axios";
 import { api } from "./client";
 
+import type { LegacyPaginatedResponse, PaginatedResponse } from "./query-factory";
+
 /* ── Types ───────────────────────────────────────────────────────────── */
 
 interface MockResponse<T = unknown> {
@@ -47,20 +49,23 @@ export function registerMockRoute(method: string, pattern: string, handler: Rout
 const delay = (ms?: number) =>
   new Promise<void>((r) => setTimeout(r, ms ?? 200 + Math.random() * 300));
 
-/** Paginate an array server-style. */
-export function paginate<T>(
-  items: T[],
-  page = 0,
-  size = 15,
-): {
-  items: T[];
-  totalElements: number;
-  page: number;
-  size: number;
-  totalPages: number;
-  hasNext: boolean;
-  hasPrevious: boolean;
-} {
+/**
+ * Paginate an array server-style — LEGACY 1-based (`page`, `pageSize`).
+ * Các màn mock-only cũ (SKU, PO, receipt…) vẫn gửi `page=1&pageSize=`; đổi chữ ký
+ * hàm này sẽ làm rỗng các list đó. Route đã khớp BE PageResponse dùng `paginatePage`.
+ */
+export function paginate<T>(items: T[], page = 1, pageSize = 15): LegacyPaginatedResponse<T> {
+  const start = (page - 1) * pageSize;
+  return {
+    items: items.slice(start, start + pageSize),
+    total: items.length,
+    page,
+    pageSize,
+  };
+}
+
+/** Paginate theo BE PageResponse — `page` đánh số từ 0, `size`. */
+export function paginatePage<T>(items: T[], page = 0, size = 15): PaginatedResponse<T> {
   const start = page * size;
   const totalElements = items.length;
   const totalPages = size <= 0 ? 0 : Math.ceil(totalElements / size);
@@ -234,9 +239,17 @@ export function activateMockAdapter(): void {
   // import is async even though the module is already bundled, so the
   // adapter must await `routesReady` (set below) rather than assume routes
   // exist by the time the first request arrives.
-  routesReady = import("./mock-routes").then(({ registerAllMockRoutes }) => {
-    registerAllMockRoutes();
-  });
+  routesReady = Promise.all([
+    import("./mock-routes"),
+    import("./mock-routes-suppliers"),
+    import("./mock-routes-me"),
+  ]).then(
+    ([{ registerAllMockRoutes }, { registerSupplierMockRoutes }, { registerMeMockRoutes }]) => {
+      registerAllMockRoutes();
+      registerSupplierMockRoutes();
+      registerMeMockRoutes();
+    },
+  );
 
   api.defaults.adapter = mockAdapter;
   console.info("[mock-adapter] Activated — all API calls will be served from mock-data.ts");

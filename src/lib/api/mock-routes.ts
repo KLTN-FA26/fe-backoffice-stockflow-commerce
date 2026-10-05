@@ -35,9 +35,25 @@ interface CreateProductMockBody {
   taxClass?: unknown;
   uom?: unknown;
   brand?: unknown;
+  customizable?: unknown;
+  weightKg?: unknown;
+  lengthCm?: unknown;
+  widthCm?: unknown;
+  heightCm?: unknown;
+  reason?: unknown;
 }
 
-const createdProducts: Product[] = [];
+type MockProduct = Product & {
+  weightKg?: number | null;
+  lengthCm?: number | null;
+  widthCm?: number | null;
+  heightCm?: number | null;
+};
+
+const createdProducts: MockProduct[] = [];
+const productOverrides = new Map<string, MockProduct>();
+const MOCK_SUBMITTER_ID = "11111111-1111-4111-8111-111111111111";
+const MOCK_APPROVER_ID = "22222222-2222-4222-8222-222222222222";
 
 /**
  * BE BR-031 (Order.java / OrderStatus.java); docs 17 BR-03 (§6 / §4.5): không cho
@@ -61,27 +77,60 @@ export function registerAllMockRoutes(): void {
   // GET /products
   registerMockRoute("GET", "/products", async (config) => {
     const { products } = await import("@/lib/mock-data");
-    const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 0;
-    const size = Number(params.get("size")) || 15;
-    const q = params.get("q")?.toLowerCase();
-    const status = params.getAll("status");
+    const params = readRequestSearchParams(config);
+    const page = Math.max(0, Number(params.get("page")) || 0);
+    const pageSize = Math.max(1, Number(params.get("size")) || 15);
+    const q = params.get("q")?.trim().toLowerCase();
+    const statuses = params
+      .getAll("status")
+      .map(readProductStatus)
+      .filter((status): status is Product["status"] => status !== null);
+    const [sortField = "code", sortDirection = "asc"] = (params.get("sort") ?? "code,asc").split(
+      ",",
+    );
 
-    let filtered = [...products, ...createdProducts];
+    let filtered = [...products, ...createdProducts].map(
+      (product) => productOverrides.get(product.productId) ?? product,
+    );
     if (q)
       filtered = filtered.filter(
         (p) => p.name.toLowerCase().includes(q) || p.productId.toLowerCase().includes(q),
       );
-    if (status.length) filtered = filtered.filter((p) => status.includes(p.status));
+    if (statuses.length) filtered = filtered.filter((p) => statuses.includes(p.status));
+    if (sortField === "code" || sortField === "name" || sortField === "status") {
+      filtered.sort((left, right) => {
+        const leftValue = sortField === "code" ? left.productId : left[sortField];
+        const rightValue = sortField === "code" ? right.productId : right[sortField];
+        return sortDirection === "desc"
+          ? rightValue.localeCompare(leftValue)
+          : leftValue.localeCompare(rightValue);
+      });
+    }
 
-    return { status: 200, data: paginate(filtered, page, size), headers: {} };
+    const totalElements = filtered.length;
+    const totalPages = Math.ceil(totalElements / pageSize);
+    const start = page * pageSize;
+    return {
+      status: 200,
+      data: {
+        items: filtered.slice(start, start + pageSize),
+        page,
+        size: pageSize,
+        totalElements,
+        totalPages,
+        hasNext: page + 1 < totalPages,
+        hasPrevious: page > 0,
+      },
+      headers: {},
+    };
   });
 
   // GET /products/:id
   registerMockRoute("GET", "/products/:id", async (config) => {
     const { products } = await import("@/lib/mock-data");
     const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
-    const product = [...products, ...createdProducts].find((p) => p.productId === id);
+    const product =
+      productOverrides.get(id) ?? [...products, ...createdProducts].find((p) => p.productId === id);
     if (!product) return { status: 404, data: { message: "Product not found" }, headers: {} };
     return { status: 200, data: product, headers: {} };
   });
@@ -90,30 +139,24 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("POST", "/products", async (config) => {
     const { categories, products } = await import("@/lib/mock-data");
     const body = parseCreateProductBody(config.data);
-    const productId = readString(body.productId) || readString(body.code);
+    const productId = readString(body.code) || readString(body.productId);
     const fieldErrors: Record<string, string> = {};
 
     if (!productId) fieldErrors.productId = "Nhập mã sản phẩm";
     if (!readString(body.name)) fieldErrors.name = "Nhập tên sản phẩm";
     if (!readString(body.brand)) fieldErrors.brand = "Nhập thương hiệu";
     if (!readString(body.categoryId)) fieldErrors.categoryId = "Chọn danh mục";
-    if (readProductAttributes(body.attributes).length === 0) {
-      fieldErrors.attributes = "Cần ít nhất 1 thuộc tính biến thể";
-    }
-    if (
-      body.type === "Customizable" &&
-      !readPrintAreas(body.printAreas, productId || "PRD-DRAFT")
-    ) {
-      fieldErrors.printAreas = "Sản phẩm tùy chỉnh cần ít nhất 1 vùng in";
-    }
-
     if (Object.keys(fieldErrors).length > 0) {
       return {
         status: 422,
         data: {
-          code: "VALIDATION_FAILED",
+          errorCode: "VALIDATION_FAILED",
           message: "Dữ liệu sản phẩm chưa hợp lệ.",
-          fieldErrors,
+          fieldErrors: Object.entries(fieldErrors).map(([field, message]) => ({
+            field,
+            message,
+            code: "NotBlank",
+          })),
         },
         headers: {},
       };
@@ -126,11 +169,9 @@ export function registerAllMockRoutes(): void {
       return {
         status: 409,
         data: {
-          code: "PRODUCT_CODE_ALREADY_EXISTS",
+          errorCode: "PRODUCT_CODE_ALREADY_EXISTS",
           message: "Mã sản phẩm đã tồn tại.",
-          fieldErrors: {
-            code: "Mã sản phẩm đã tồn tại.",
-          },
+          fieldErrors: [{ field: "code", message: "Mã sản phẩm đã tồn tại.", code: "Unique" }],
         },
         headers: {},
       };
@@ -142,23 +183,27 @@ export function registerAllMockRoutes(): void {
       return {
         status: 404,
         data: {
-          code: "CATEGORY_NOT_FOUND",
+          errorCode: "CATEGORY_NOT_FOUND",
           message: "Danh mục đã chọn không tồn tại.",
-          fieldErrors: {
-            categoryId: "Danh mục đã bị xoá hoặc không còn khả dụng.",
-          },
+          fieldErrors: [
+            {
+              field: "categoryId",
+              message: "Danh mục đã bị xoá hoặc không còn khả dụng.",
+              code: "Exists",
+            },
+          ],
         },
         headers: {},
       };
     }
 
     const now = new Date().toISOString();
-    const product: Product = {
+    const product: MockProduct = {
       productId,
       name: readString(body.name),
       nameEn: readString(body.nameEn) || readString(body.name),
       slug: slugify(readString(body.name) || productId),
-      type: readProductType(body.type),
+      type: body.customizable === true ? "Customizable" : readProductType(body.type),
       categoryId,
       status: "Draft",
       description: readString(body.description),
@@ -168,23 +213,65 @@ export function registerAllMockRoutes(): void {
       basePrice: readNumber(body.basePrice),
       attributes: readProductAttributes(body.attributes),
       printAreas: readPrintAreas(body.printAreas, productId),
-      taxClass: readTaxClass(body.taxClass),
+      taxClass: readTaxClass(
+        typeof body.taxClass === "string" ? body.taxClass.toLowerCase() : body.taxClass,
+      ),
       uom: readUom(body.uom),
       brand: readString(body.brand),
       createdAt: now,
       createdBy: "Mock API",
+      weightKg: readNullableNumber(body.weightKg),
+      lengthCm: readNullableNumber(body.lengthCm),
+      widthCm: readNullableNumber(body.widthCm),
+      heightCm: readNullableNumber(body.heightCm),
     };
 
     createdProducts.push(product);
     return { status: 201, data: product, headers: {} };
   });
 
+  registerMockRoute("PUT", "/products/:id", async (config) => {
+    const { products } = await import("@/lib/mock-data");
+    const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
+    const current =
+      productOverrides.get(id) ?? [...products, ...createdProducts].find((p) => p.productId === id);
+    if (!current)
+      return {
+        status: 404,
+        data: { errorCode: "PRODUCT_NOT_FOUND", message: "Product not found" },
+        headers: {},
+      };
+    const body = parseCreateProductBody(config.data);
+    const updated: MockProduct = {
+      ...current,
+      name: readString(body.name),
+      nameEn: readString(body.nameEn),
+      categoryId: readString(body.categoryId),
+      description: readString(body.description),
+      descriptionEn: readString(body.descriptionEn),
+      brand: readString(body.brand),
+      images: readStringArray(body.images),
+      type: body.customizable === true ? "Customizable" : "Standard",
+      taxClass: readTaxClass(
+        typeof body.taxClass === "string" ? body.taxClass.toLowerCase() : body.taxClass,
+      ),
+      weightKg: readNullableNumber(body.weightKg),
+      lengthCm: readNullableNumber(body.lengthCm),
+      widthCm: readNullableNumber(body.widthCm),
+      heightCm: readNullableNumber(body.heightCm),
+    };
+    productOverrides.set(id, updated);
+    return { status: 200, data: updated, headers: {} };
+  });
+
+  registerProductTransitionRoutes();
+
   // GET /skus
   registerMockRoute("GET", "/skus", async (config) => {
     const { skus } = await import("@/lib/mock-data");
     const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 0;
-    const size = Number(params.get("size")) || 15;
+    const page = Number(params.get("page")) || 1;
+    const pageSize = Number(params.get("pageSize")) || 15;
     const q = params.get("q")?.toLowerCase();
 
     let filtered = [...skus];
@@ -196,7 +283,7 @@ export function registerAllMockRoutes(): void {
           s.barcode.toLowerCase().includes(q),
       );
 
-    return { status: 200, data: paginate(filtered, page, size), headers: {} };
+    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
   });
 
   // GET /skus/:id
@@ -214,31 +301,7 @@ export function registerAllMockRoutes(): void {
     return { status: 200, data: { items: categories, total: categories.length }, headers: {} };
   });
 
-  // GET /suppliers
-  registerMockRoute("GET", "/suppliers", async (config) => {
-    const { suppliers } = await import("@/lib/mock-data");
-    const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 0;
-    const size = Number(params.get("size")) || 15;
-    const q = params.get("q")?.toLowerCase();
-
-    let filtered = [...suppliers];
-    if (q)
-      filtered = filtered.filter(
-        (s) => s.name.toLowerCase().includes(q) || s.supplierId.toLowerCase().includes(q),
-      );
-
-    return { status: 200, data: paginate(filtered, page, size), headers: {} };
-  });
-
-  // GET /suppliers/:id
-  registerMockRoute("GET", "/suppliers/:id", async (config) => {
-    const { suppliers } = await import("@/lib/mock-data");
-    const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
-    const supplier = suppliers.find((s) => s.supplierId === id);
-    if (!supplier) return { status: 404, data: { message: "Supplier not found" }, headers: {} };
-    return { status: 200, data: supplier, headers: {} };
-  });
+  // Suppliers: xem mock-routes-suppliers.ts (đăng ký trong mock-adapter.ts)
 
   /* ====================================================================
    * Module 02 — Purchase Orders / Replenishment
@@ -248,8 +311,8 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("GET", "/purchase-orders", async (config) => {
     const { purchaseOrders } = await import("@/lib/mock-data");
     const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 0;
-    const size = Number(params.get("size")) || 15;
+    const page = Number(params.get("page")) || 1;
+    const pageSize = Number(params.get("pageSize")) || 15;
     const q = params.get("q")?.toLowerCase();
     const status = params.getAll("status");
 
@@ -260,7 +323,7 @@ export function registerAllMockRoutes(): void {
       );
     if (status.length) filtered = filtered.filter((po) => status.includes(po.status));
 
-    return { status: 200, data: paginate(filtered, page, size), headers: {} };
+    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
   });
 
   // GET /purchase-orders/:id
@@ -276,10 +339,10 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("GET", "/replenishment-proposals", async (config) => {
     const { replenishmentProposals } = await import("@/lib/mock-data");
     const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 0;
-    const size = Number(params.get("size")) || 15;
+    const page = Number(params.get("page")) || 1;
+    const pageSize = Number(params.get("pageSize")) || 15;
 
-    return { status: 200, data: paginate(replenishmentProposals, page, size), headers: {} };
+    return { status: 200, data: paginate(replenishmentProposals, page, pageSize), headers: {} };
   });
 
   /* ====================================================================
@@ -290,14 +353,14 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("GET", "/receipts", async (config) => {
     const { receipts } = await import("@/lib/mock-data");
     const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 0;
-    const size = Number(params.get("size")) || 15;
+    const page = Number(params.get("page")) || 1;
+    const pageSize = Number(params.get("pageSize")) || 15;
     const status = params.getAll("status");
 
     let filtered = [...receipts];
     if (status.length) filtered = filtered.filter((r) => status.includes(r.status));
 
-    return { status: 200, data: paginate(filtered, page, size), headers: {} };
+    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
   });
 
   // GET /receipts/:id
@@ -313,10 +376,10 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("GET", "/lots", async (config) => {
     const { lots } = await import("@/lib/mock-data");
     const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 0;
-    const size = Number(params.get("size")) || 15;
+    const page = Number(params.get("page")) || 1;
+    const pageSize = Number(params.get("pageSize")) || 15;
 
-    return { status: 200, data: paginate(lots, page, size), headers: {} };
+    return { status: 200, data: paginate(lots, page, pageSize), headers: {} };
   });
 
   /* ====================================================================
@@ -326,14 +389,14 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("GET", "/invoices", async (config) => {
     const { invoices } = await import("@/lib/mock-data");
     const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 0;
-    const size = Number(params.get("size")) || 15;
+    const page = Number(params.get("page")) || 1;
+    const pageSize = Number(params.get("pageSize")) || 15;
     const status = params.getAll("status");
 
     let filtered = [...invoices];
     if (status.length) filtered = filtered.filter((i) => status.includes(i.status));
 
-    return { status: 200, data: paginate(filtered, page, size), headers: {} };
+    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
   });
 
   registerMockRoute("GET", "/invoices/:id", async (config) => {
@@ -351,14 +414,14 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("GET", "/putaway-tasks", async (config) => {
     const { putawayTasks } = await import("@/lib/mock-data");
     const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 0;
-    const size = Number(params.get("size")) || 15;
+    const page = Number(params.get("page")) || 1;
+    const pageSize = Number(params.get("pageSize")) || 15;
     const status = params.getAll("status");
 
     let filtered = [...putawayTasks];
     if (status.length) filtered = filtered.filter((t) => status.includes(t.status));
 
-    return { status: 200, data: paginate(filtered, page, size), headers: {} };
+    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
   });
 
   registerMockRoute("GET", "/putaway-tasks/:id", async (config) => {
@@ -394,10 +457,10 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("GET", "/locations", async (config) => {
     const { locations } = await import("@/lib/mock-data");
     const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 0;
-    const size = Number(params.get("size")) || 50;
+    const page = Number(params.get("page")) || 1;
+    const pageSize = Number(params.get("pageSize")) || 50;
 
-    return { status: 200, data: paginate(locations, page, size), headers: {} };
+    return { status: 200, data: paginate(locations, page, pageSize), headers: {} };
   });
 
   registerMockRoute("GET", "/slotting-suggestions", async () => {
@@ -425,14 +488,14 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("GET", "/pick-tasks", async (config) => {
     const { pickTasks } = await import("@/lib/mock-data");
     const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 0;
-    const size = Number(params.get("size")) || 15;
+    const page = Number(params.get("page")) || 1;
+    const pageSize = Number(params.get("pageSize")) || 15;
     const status = params.getAll("status");
 
     let filtered = [...pickTasks];
     if (status.length) filtered = filtered.filter((t) => status.includes(t.status));
 
-    return { status: 200, data: paginate(filtered, page, size), headers: {} };
+    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
   });
 
   registerMockRoute("GET", "/pick-tasks/:id", async (config) => {
@@ -450,14 +513,14 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("GET", "/packing-tasks", async (config) => {
     const { packingTasks } = await import("@/lib/mock-data");
     const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 0;
-    const size = Number(params.get("size")) || 15;
+    const page = Number(params.get("page")) || 1;
+    const pageSize = Number(params.get("pageSize")) || 15;
     const status = params.getAll("status");
 
     let filtered = [...packingTasks];
     if (status.length) filtered = filtered.filter((t) => status.includes(t.status));
 
-    return { status: 200, data: paginate(filtered, page, size), headers: {} };
+    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
   });
 
   registerMockRoute("GET", "/packing-tasks/:id", async (config) => {
@@ -475,14 +538,14 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("GET", "/shipments", async (config) => {
     const { shipments } = await import("@/lib/mock-data");
     const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 0;
-    const size = Number(params.get("size")) || 15;
+    const page = Number(params.get("page")) || 1;
+    const pageSize = Number(params.get("pageSize")) || 15;
     const status = params.getAll("status");
 
     let filtered = [...shipments];
     if (status.length) filtered = filtered.filter((s) => status.includes(s.status));
 
-    return { status: 200, data: paginate(filtered, page, size), headers: {} };
+    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
   });
 
   registerMockRoute("GET", "/shipments/:id", async (config) => {
@@ -505,14 +568,14 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("GET", "/transfer-orders", async (config) => {
     const { transferOrders } = await import("@/lib/mock-data");
     const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 0;
-    const size = Number(params.get("size")) || 15;
+    const page = Number(params.get("page")) || 1;
+    const pageSize = Number(params.get("pageSize")) || 15;
     const status = params.getAll("status");
 
     let filtered = [...transferOrders];
     if (status.length) filtered = filtered.filter((t) => status.includes(t.status));
 
-    return { status: 200, data: paginate(filtered, page, size), headers: {} };
+    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
   });
 
   registerMockRoute("GET", "/transfer-orders/:id", async (config) => {
@@ -530,14 +593,14 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("GET", "/move-tasks", async (config) => {
     const { moveTasks } = await import("@/lib/mock-data");
     const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 0;
-    const size = Number(params.get("size")) || 15;
+    const page = Number(params.get("page")) || 1;
+    const pageSize = Number(params.get("pageSize")) || 15;
     const status = params.getAll("status");
 
     let filtered = [...moveTasks];
     if (status.length) filtered = filtered.filter((t) => status.includes(t.status));
 
-    return { status: 200, data: paginate(filtered, page, size), headers: {} };
+    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
   });
 
   registerMockRoute("GET", "/move-tasks/:id", async (config) => {
@@ -555,8 +618,8 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("GET", "/orders", async (config) => {
     const { orders } = await import("@/lib/mock-data");
     const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 0;
-    const size = Number(params.get("size")) || 15;
+    const page = Number(params.get("page")) || 1;
+    const pageSize = Number(params.get("pageSize")) || 15;
     const q = params.get("q")?.toLowerCase();
     const status = params.getAll("status");
 
@@ -571,7 +634,7 @@ export function registerAllMockRoutes(): void {
         ),
       );
 
-    return { status: 200, data: paginate(filtered, page, size), headers: {} };
+    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
   });
 
   registerMockRoute("GET", "/orders/:id", async (config) => {
@@ -656,6 +719,37 @@ export function registerAllMockRoutes(): void {
   });
 
   /* ====================================================================
+   * Permission management (read-only phase)
+   * ==================================================================*/
+
+  registerMockRoute("GET", "/identity/roles", async () => {
+    return { status: 200, data: mockRoles, headers: {} };
+  });
+
+  registerMockRoute("GET", "/identity/roles/:roleCode/permissions", async (config) => {
+    const { roleCode } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
+
+    if (roleCode === "FORBIDDEN") {
+      return {
+        status: 403,
+        data: { errorCode: "FORBIDDEN", message: "Bạn không có quyền đọc ma trận quyền." },
+        headers: {},
+      };
+    }
+
+    const fixture = mockRoleMatrices[roleCode];
+    if (!fixture) {
+      return {
+        status: 404,
+        data: { errorCode: "ROLE_NOT_FOUND", message: "Không tìm thấy role." },
+        headers: {},
+      };
+    }
+
+    return { status: 200, data: fixture, headers: {} };
+  });
+
+  /* ====================================================================
    * Auth routes (handled by auth-api.ts, registered here for completeness)
    * ==================================================================*/
 
@@ -718,6 +812,195 @@ function parseCancelBody(data: unknown): { reason?: string } {
   return { reason: typeof body.reason === "string" ? body.reason : undefined };
 }
 
+const mockRoles = [
+  {
+    code: "ECOMMERCE_ADMIN",
+    name: "E-commerce Admin",
+    description: "Catalog and platform administration",
+    createdAt: "2026-09-03T00:00:00Z",
+    createdBy: "flyway",
+    lastModifiedAt: null,
+    lastModifiedBy: null,
+  },
+  {
+    code: "WAREHOUSE_MANAGER",
+    name: "Warehouse Manager",
+    description: null,
+    createdAt: "2026-09-03T00:00:00Z",
+    createdBy: null,
+    lastModifiedAt: "2026-09-04T00:00:00Z",
+    lastModifiedBy: "admin@example.com",
+  },
+];
+
+const normalRoleMatrix = {
+  roleCode: "ECOMMERCE_ADMIN",
+  roleLabel: "E-commerce Admin",
+  systemRole: true,
+  dataScope: "ALL",
+  grantedCount: 2,
+  totalCount: 3,
+  groups: [
+    {
+      name: "Platform",
+      grantedCount: 2,
+      totalCount: 3,
+      resources: [
+        {
+          code: "identity-rbac",
+          label: "Permission matrix",
+          route: "/admin/permissions",
+          apiPath: "/api/v1/identity/rbac",
+          grantedCount: 2,
+          totalCount: 3,
+          actions: [
+            { action: "VIEW_PAGE", label: "Open page", granted: true, sensitive: false },
+            { action: "READ", label: "Read data", granted: true, sensitive: false },
+            { action: "APPROVE", label: "Approve", granted: false, sensitive: true },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
+const mockRoleMatrices: Record<string, typeof normalRoleMatrix> = {
+  ECOMMERCE_ADMIN: normalRoleMatrix,
+  EMPTY_GROUPS: {
+    roleCode: "EMPTY_GROUPS",
+    roleLabel: "Empty Groups Fixture",
+    systemRole: true,
+    dataScope: "ALL",
+    grantedCount: 0,
+    totalCount: 0,
+    groups: [],
+  },
+  EMPTY_RESOURCES: {
+    roleCode: "EMPTY_RESOURCES",
+    roleLabel: "Empty Resources Fixture",
+    systemRole: true,
+    dataScope: "OWN",
+    grantedCount: 0,
+    totalCount: 0,
+    groups: [{ name: "Empty Group", grantedCount: 0, totalCount: 0, resources: [] }],
+  },
+  EMPTY_ACTIONS: {
+    roleCode: "EMPTY_ACTIONS",
+    roleLabel: "Empty Actions Fixture",
+    systemRole: true,
+    dataScope: "WAREHOUSE",
+    grantedCount: 0,
+    totalCount: 0,
+    groups: [
+      {
+        name: "Empty Actions Group",
+        grantedCount: 0,
+        totalCount: 0,
+        resources: [
+          {
+            code: "empty-resource",
+            label: "Empty Resource",
+            route: "/admin/empty",
+            apiPath: "/api/v1/empty",
+            grantedCount: 0,
+            totalCount: 0,
+            actions: [],
+          },
+        ],
+      },
+    ],
+  },
+} as const;
+
+function registerProductTransitionRoutes(): void {
+  registerProductTransition("submission", ["Draft"], "Pending Approval", (product) => ({
+    ...product,
+    submittedBy: MOCK_SUBMITTER_ID,
+    submittedAt: new Date().toISOString(),
+  }));
+  registerProductTransition("approval", ["Pending Approval"], "Approved", (product) => ({
+    ...product,
+    approvedBy: MOCK_APPROVER_ID,
+    approvedAt: new Date().toISOString(),
+  }));
+  registerProductTransition("discontinuation", ["Approved", "Published"], "Discontinued");
+  registerProductTransition("unpublication", ["Published"], "Approved", undefined, true);
+  registerProductTransition("publication", ["Approved"], "Published", undefined, true);
+
+  registerMockRoute("POST", "/products/:id/rejection", async (config) => {
+    const body = parseCreateProductBody(config.data);
+    if (!readString(body.reason)) {
+      return mockValidationError("reason", "Lý do từ chối là bắt buộc.");
+    }
+    return transitionMockProduct(config, ["Pending Approval"], "Draft", (product) => ({
+      ...product,
+      submittedBy: undefined,
+      submittedAt: undefined,
+    }));
+  });
+}
+
+function registerProductTransition(
+  suffix: string,
+  fromStatuses: Product["status"][],
+  targetStatus: Product["status"],
+  enrich?: (product: MockProduct) => MockProduct,
+  voidResponse = false,
+): void {
+  registerMockRoute("POST", `/products/:id/${suffix}`, (config) =>
+    transitionMockProduct(config, fromStatuses, targetStatus, enrich, voidResponse),
+  );
+}
+
+async function transitionMockProduct(
+  config: import("axios").AxiosRequestConfig,
+  fromStatuses: Product["status"][],
+  targetStatus: Product["status"],
+  enrich?: (product: MockProduct) => MockProduct,
+  voidResponse = false,
+) {
+  const { products } = await import("@/lib/mock-data");
+  const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
+  const current =
+    productOverrides.get(id) ??
+    [...products, ...createdProducts].find((item) => item.productId === id);
+  if (!current) {
+    return {
+      status: 404,
+      data: { errorCode: "PRODUCT_NOT_FOUND", message: "Product not found" },
+      headers: {},
+    };
+  }
+  if (!fromStatuses.includes(current.status)) {
+    return {
+      status: 409,
+      data: {
+        errorCode: "INVALID_PRODUCT_STATUS_TRANSITION",
+        message: "This product cannot move to that status right now",
+      },
+      headers: {},
+    };
+  }
+  const transitioned = enrich?.({ ...current, status: targetStatus }) ?? {
+    ...current,
+    status: targetStatus,
+  };
+  productOverrides.set(id, transitioned);
+  return { status: 200, data: voidResponse ? null : transitioned, headers: {} };
+}
+
+function mockValidationError(field: string, message: string) {
+  return {
+    status: 400,
+    data: {
+      errorCode: "VALIDATION_FAILED",
+      message: "Dữ liệu không hợp lệ.",
+      fieldErrors: [{ field, message, code: "NotBlank" }],
+    },
+    headers: {},
+  };
+}
+
 function parseCreateProductBody(data: unknown): CreateProductMockBody {
   if (typeof data === "string") {
     try {
@@ -741,6 +1024,32 @@ function readOptionalString(value: unknown): string | undefined {
 
 function readNumber(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function readRequestSearchParams(config: { url?: string; params?: unknown }): URLSearchParams {
+  if (config.params instanceof URLSearchParams) return new URLSearchParams(config.params);
+  return new URLSearchParams(config.url?.split("?")[1] ?? "");
+}
+
+function readProductStatus(value: string): Product["status"] | null {
+  switch (value) {
+    case "DRAFT":
+      return "Draft";
+    case "PENDING_APPROVAL":
+      return "Pending Approval";
+    case "APPROVED":
+      return "Approved";
+    case "PUBLISHED":
+      return "Published";
+    case "DISCONTINUED":
+      return "Discontinued";
+    default:
+      return null;
+  }
+}
+
+function readNullableNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 function readStringArray(value: unknown): string[] {

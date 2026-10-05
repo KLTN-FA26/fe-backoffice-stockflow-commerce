@@ -7,9 +7,11 @@ export const APP_ROUTES = {
 
 export const ADMIN_ROUTES = {
   home: ADMIN_BASE,
+  permissions: `${ADMIN_BASE}/permissions`,
   products: {
     create: `${ADMIN_BASE}/products/create`,
     detail: (id: string) => `${ADMIN_BASE}/products/${id}`,
+    edit: (id: string) => `${ADMIN_BASE}/products/${id}/edit`,
     list: `${ADMIN_BASE}/products`,
     skuDetail: (id: string) => `${ADMIN_BASE}/products/sku/${id}`,
   },
@@ -36,5 +38,14 @@ export const ADMIN_ROUTES = {
   variants: {
     detail: (id: string) => `${ADMIN_BASE}/variants/${id}`,
     list: `${ADMIN_BASE}/variants`,
+  },
+  suppliers: {
+    list: `${ADMIN_BASE}/suppliers`,
+    create: `${ADMIN_BASE}/suppliers/create`,
+    detail: (id: string) => `${ADMIN_BASE}/suppliers/${id}`,
+    edit: (id: string) => `${ADMIN_BASE}/suppliers/${id}/edit`,
+    /** Danh sách PO lọc theo NCC — BE PO list hỗ trợ `?supplierId=` (BE PR #36). */
+    purchaseOrders: (id: string) =>
+      `${ADMIN_BASE}/purchase-orders?supplierId=${encodeURIComponent(id)}`,
   },
 } as const;

@@ -5,6 +5,7 @@
  */
 
 import { createQueryKeys, createListQuery, createDetailQuery } from "@/lib/api/query-factory";
+import type { LegacyPaginatedResponse } from "@/lib/api/query-factory";
 import {
   listPurchaseOrders,
   getPurchaseOrder,
@@ -29,25 +30,29 @@ export const poWarehouseKeys = createQueryKeys<Record<string, unknown>>("po-ware
 
 /* ── List hooks ──────────────────────────────────────────────────────── */
 
-export const usePurchaseOrders = createListQuery<PurchaseOrder, ListPoParams>(
-  poKeys,
-  listPurchaseOrders,
-);
+export const usePurchaseOrders = createListQuery<
+  PurchaseOrder,
+  ListPoParams,
+  LegacyPaginatedResponse<PurchaseOrder>
+>(poKeys, listPurchaseOrders);
 
 export const useReplenishmentProposals = createListQuery<
   ReplenishmentProposal,
-  { page?: number; pageSize?: number }
+  { page?: number; pageSize?: number },
+  LegacyPaginatedResponse<ReplenishmentProposal>
 >(replenishmentKeys, listReplenishmentProposals);
 
-export const usePoSuppliers = createListQuery<Supplier, Record<string, unknown>>(
-  poSupplierKeys,
-  (_, signal) => listPoSuppliers(signal),
-);
+export const usePoSuppliers = createListQuery<
+  Supplier,
+  Record<string, unknown>,
+  LegacyPaginatedResponse<Supplier>
+>(poSupplierKeys, (_, signal) => listPoSuppliers(signal));
 
-export const usePoWarehouses = createListQuery<Warehouse, Record<string, unknown>>(
-  poWarehouseKeys,
-  (_, signal) => listPoWarehouses(signal),
-);
+export const usePoWarehouses = createListQuery<
+  Warehouse,
+  Record<string, unknown>,
+  LegacyPaginatedResponse<Warehouse>
+>(poWarehouseKeys, (_, signal) => listPoWarehouses(signal));
 
 /* ── Detail hooks ────────────────────────────────────────────────────── */
 
