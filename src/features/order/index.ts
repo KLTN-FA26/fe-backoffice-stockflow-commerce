@@ -1,27 +1,26 @@
 /**
  * Order — feature public API.
  *
- * types.ts    → re-export types from mock-data + constants/statuses
- * schemas.ts  → zod (admin-cancel input)
+ * types.ts    → z.infer từ schemas + OrderStatus từ constants/statuses
+ * schemas.ts  → zod DTO (BE OrderResponse) + model FE + admin-cancel input
  * status-map.ts → BE→FE status mapping
  * api.ts      → axios calls (list, detail, admin-cancel)
  * queries.ts  → React Query hooks
  * mutations.ts → mutation hooks
  * lifecycle.ts → transition table + action-gating
- * selectors.ts → pure stats/flag derivations
+ * selectors.ts → pure flag derivations
  * index.ts    → barrel export
  */
 
 // Types
-export type { Order, OrderEvent, OrderLine, OrderStatus } from "./types";
+export type { BackendOrderStatus, Order, OrderDto, OrderLine, OrderStatus } from "./types";
 
 // Schemas
-export { adminCancelOrderSchema } from "./schemas";
+export { adminCancelOrderSchema, orderDtoSchema, orderPageDtoSchema } from "./schemas";
 export type { AdminCancelOrderInput as AdminCancelOrderFormInput } from "./schemas";
 
 // Status mapping
-export { mapBackendOrderStatus } from "./status-map";
-export type { BackendOrderStatus } from "./status-map";
+export { mapBackendOrderStatus, toBackendOrderStatuses } from "./status-map";
 
 // Lifecycle
 export {
@@ -37,11 +36,10 @@ export {
 export type { OrderAction } from "./lifecycle";
 
 // Selectors
-export { computeOrderStats, formatCompactVND, formatMoney, shouldFlagOrderRow } from "./selectors";
-export type { OrderListStats } from "./selectors";
+export { shouldFlagOrderRow } from "./selectors";
 
 // Query hooks
-export { orderKeys, useOrder, useOrderEvents, useOrders } from "./queries";
+export { orderKeys, useOrder, useOrders } from "./queries";
 
 // Error mapping
 export { adminCancelErrorView } from "./errors";
@@ -52,25 +50,6 @@ export { useAdminCancelOrder } from "./mutations";
 
 // API (for direct use in non-hook contexts)
 export type { AdminCancelOrderInput, ListOrderParams } from "./api";
-
-// List page config (display prefs, not shareable — see state-persistence.md)
-export {
-  DEFAULT_ORDERS_CONFIG,
-  DEFAULT_SEARCH_FIELDS,
-  DEFAULT_VISIBLE_COLUMNS,
-  mergeOrdersConfig,
-  ORDER_COLUMN_SEARCH_LABELS,
-  ORDER_SEARCH_FIELDS,
-  ORDER_TABLE_COLUMN_LABELS,
-  orderStatTiles,
-  ORDERS_STORAGE_KEY,
-} from "./list-config";
-export type {
-  OrderColumnSearchKey,
-  OrdersPageConfig,
-  OrderSearchField,
-  OrderTableColumnKey,
-} from "./list-config";
 
 // Components
 export { OrderDetail } from "./components/OrderDetail";

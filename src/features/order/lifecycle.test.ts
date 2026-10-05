@@ -7,119 +7,114 @@ import {
   nextOrderStatuses,
 } from "./lifecycle";
 
+import type { PermissionCode } from "@/lib/auth";
 import type { OrderStatus } from "./types";
 
 /**
- * Nguồn: docs/ecommerce/17-order §5 + BE order/internal/domain/OrderStatus.java (9 giá trị).
- * 12 giá trị mock-only còn lại là terminal có chủ đích (BE không transition vào/ra).
+ * Nguồn: BE order/api/OrderStatus.java#canTransitionTo (10 giá trị, ON_HOLD từ BE commit
+ * 2e9c4df). FE khớp BE 1-1 — xem QUYẾT ĐỊNH ở ORDER_STATUSES.
  */
-describe("ORDER_TRANSITIONS (docs 17-order §5)", () => {
-  it("Draft → Pending Payment / Cancelled", () => {
-    expect(nextOrderStatuses("Draft")).toEqual([
-      "Pending Payment",
-      "Cancelled",
-    ] satisfies OrderStatus[]);
+describe("ORDER_TRANSITIONS (BE OrderStatus#canTransitionTo)", () => {
+  it.each<[OrderStatus, OrderStatus[]]>([
+    ["Draft", ["Pending Payment", "Cancelled"]],
+    ["Pending Payment", ["Paid", "Cancelled"]],
+    ["Paid", ["In Fulfilment", "On Hold", "Cancelled"]],
+    ["In Fulfilment", ["Shipped", "On Hold", "Cancelled"]],
+    ["On Hold", ["In Fulfilment", "Cancelled"]],
+    ["Shipped", ["Delivered"]],
+    ["Delivered", ["Completed", "Returned"]],
+  ])("%s → %j", (from, to) => {
+    expect(nextOrderStatuses(from)).toEqual(to);
   });
 
-  it("Pending Payment → Confirmed / Cancelled", () => {
-    expect(nextOrderStatuses("Pending Payment")).toEqual([
-      "Confirmed",
-      "Cancelled",
-    ] satisfies OrderStatus[]);
-  });
-
-  it("Confirmed → Ready to Fulfill / On Hold / Cancelled (BE PAID→IN_FULFILMENT/ON_HOLD)", () => {
-    expect(nextOrderStatuses("Confirmed")).toEqual([
-      "Ready to Fulfill",
-      "On Hold",
-      "Cancelled",
-    ] satisfies OrderStatus[]);
-  });
-
-  it("Ready to Fulfill → Shipped / On Hold / Cancelled (BE IN_FULFILMENT)", () => {
-    expect(nextOrderStatuses("Ready to Fulfill")).toEqual([
-      "Shipped",
-      "On Hold",
-      "Cancelled",
-    ] satisfies OrderStatus[]);
-  });
-
-  it("On Hold → Ready to Fulfill / Cancelled (BE ON_HOLD)", () => {
-    expect(nextOrderStatuses("On Hold")).toEqual([
-      "Ready to Fulfill",
-      "Cancelled",
-    ] satisfies OrderStatus[]);
-  });
-
-  it("BE BR-031; docs BR-03: Shipped chỉ còn Delivered — không còn Cancelled", () => {
-    expect(nextOrderStatuses("Shipped")).toEqual(["Delivered"] satisfies OrderStatus[]);
-    expect(nextOrderStatuses("Shipped")).not.toContain("Cancelled");
-  });
-
-  it("Delivered → Completed / Returned", () => {
-    expect(nextOrderStatuses("Delivered")).toEqual([
-      "Completed",
-      "Returned",
-    ] satisfies OrderStatus[]);
-  });
-
-  it("Completed / Cancelled / Returned là terminal — không transition nào", () => {
-    expect(ORDER_TRANSITIONS.Completed).toEqual([]);
-    expect(ORDER_TRANSITIONS.Cancelled).toEqual([]);
-    expect(ORDER_TRANSITIONS.Returned).toEqual([]);
-    expect(isOrderTerminal("Completed")).toBe(true);
-    expect(isOrderTerminal("Cancelled")).toBe(true);
-    expect(isOrderTerminal("Returned")).toBe(true);
-  });
-
-  it("phủ đủ 9 state BE trong bảng transition", () => {
-    const beStates: OrderStatus[] = [
-      "Draft",
-      "Pending Payment",
-      "Confirmed",
-      "Ready to Fulfill",
-      "Shipped",
-      "Delivered",
-      "Completed",
-      "Cancelled",
-      "Returned",
-    ];
-    for (const state of beStates) {
-      expect(ORDER_TRANSITIONS[state]).toBeDefined();
+  it("BE BR-031; docs BR-03: từ Shipped trở đi không còn Cancelled", () => {
+    for (const status of ["Shipped", "Delivered"] as const) {
+      expect(nextOrderStatuses(status)).not.toContain("Cancelled");
     }
+  });
+
+  it("Completed / Cancelled / Returned là terminal (OrderStatus#isTerminal)", () => {
+    for (const status of ["Completed", "Cancelled", "Returned"] as const) {
+      expect(ORDER_TRANSITIONS[status]).toEqual([]);
+      expect(isOrderTerminal(status)).toBe(true);
+    }
+  });
+
+  it("bảng có đúng 10 trạng thái BE, không thêm trạng thái docs nào", () => {
+    expect(Object.keys(ORDER_TRANSITIONS).sort()).toEqual(
+      [
+        "Cancelled",
+        "Completed",
+        "Delivered",
+        "Draft",
+        "In Fulfilment",
+        "On Hold",
+        "Paid",
+        "Pending Payment",
+        "Returned",
+        "Shipped",
+      ].sort(),
+    );
   });
 });
 
-describe("allowedOrderActions — action-gating theo status + role", () => {
-  it("Sales Staff huỷ được đơn Pending Payment", () => {
-    expect(allowedOrderActions("Pending Payment", "Sales Staff").map((a) => a.code)).toEqual([
-      "admin-cancel",
-    ]);
+/**
+ * Bộ mã quyền `sales-orders` theo seed BE (V20260903000100__identity_seed_roles_permissions.sql):
+ * ORDER_COORDINATOR có APPROVE; SALES_STAFF chỉ VIEW_PAGE/READ/CREATE/UPDATE; WAREHOUSE_STAFF
+ * không có quyền nào trên `sales-orders`.
+ */
+const ROLE_PERMISSIONS: Record<string, readonly PermissionCode[]> = {
+  ORDER_COORDINATOR: [
+    "sales-orders:VIEW_PAGE",
+    "sales-orders:READ",
+    "sales-orders:CREATE",
+    "sales-orders:UPDATE",
+    "sales-orders:APPROVE",
+    "sales-orders:EXPORT",
+  ],
+  SALES_STAFF: [
+    "sales-orders:VIEW_PAGE",
+    "sales-orders:READ",
+    "sales-orders:CREATE",
+    "sales-orders:UPDATE",
+  ],
+  WAREHOUSE_STAFF: [],
+};
+
+function checkerFor(role: keyof typeof ROLE_PERMISSIONS) {
+  const granted = ROLE_PERMISSIONS[role] ?? [];
+  return (code: PermissionCode) => granted.includes(code);
+}
+
+const codes = (status: OrderStatus, role: keyof typeof ROLE_PERMISSIONS) =>
+  allowedOrderActions(status, checkerFor(role)).map((a) => a.code);
+
+describe("allowedOrderActions — action-gating theo status + mã quyền BE", () => {
+  it("ORDER_COORDINATOR (có sales-orders:APPROVE) huỷ được đơn Pending Payment / Paid", () => {
+    expect(codes("Pending Payment", "ORDER_COORDINATOR")).toEqual(["admin-cancel"]);
+    expect(codes("Paid", "ORDER_COORDINATOR")).toEqual(["admin-cancel"]);
   });
 
-  it("Order Coordinator huỷ được đơn Confirmed", () => {
-    expect(allowedOrderActions("Confirmed", "Order Coordinator").map((a) => a.code)).toEqual([
-      "admin-cancel",
-    ]);
+  it("SALES_STAFF không có APPROVE → không thấy nút huỷ (BE sẽ trả 403)", () => {
+    expect(codes("Pending Payment", "SALES_STAFF")).toEqual([]);
+    expect(codes("Paid", "SALES_STAFF")).toEqual([]);
   });
 
-  it("Warehouse Staff không có order.cancel → không thấy action nào", () => {
-    expect(allowedOrderActions("Pending Payment", "Warehouse Staff")).toEqual([]);
-    expect(allowedOrderActions("Confirmed", "Warehouse Staff")).toEqual([]);
+  it("WAREHOUSE_STAFF không có quyền sales-orders → không thấy action nào", () => {
+    expect(codes("Pending Payment", "WAREHOUSE_STAFF")).toEqual([]);
   });
 
-  it("System Admin huỷ được (short-circuit toàn quyền)", () => {
-    expect(allowedOrderActions("Draft", "System Admin").map((a) => a.code)).toEqual([
-      "admin-cancel",
-    ]);
+  it("In Fulfilment (BE IN_FULFILMENT → CANCELLED) — ORDER_COORDINATOR thấy nút huỷ", () => {
+    expect(codes("In Fulfilment", "ORDER_COORDINATOR")).toEqual(["admin-cancel"]);
   });
 
-  it("BE BR-031; docs BR-03: từ Shipped trở đi không role nào thấy nút huỷ", () => {
-    const roles = ["Sales Staff", "Order Coordinator", "System Admin", "Warehouse Staff"] as const;
-    for (const role of roles) {
-      expect(allowedOrderActions("Shipped", role)).toEqual([]);
-      expect(allowedOrderActions("Delivered", role)).toEqual([]);
-      expect(allowedOrderActions("Completed", role)).toEqual([]);
+  it("On Hold (BE ON_HOLD → CANCELLED) — ORDER_COORDINATOR thấy nút huỷ", () => {
+    expect(codes("On Hold", "ORDER_COORDINATOR")).toEqual(["admin-cancel"]);
+  });
+
+  it("BE BR-031; docs BR-03: từ Shipped trở đi không ai thấy nút huỷ, kể cả có APPROVE", () => {
+    for (const status of ["Shipped", "Delivered", "Completed", "Cancelled"] as const) {
+      expect(codes(status, "ORDER_COORDINATOR")).toEqual([]);
     }
   });
 });

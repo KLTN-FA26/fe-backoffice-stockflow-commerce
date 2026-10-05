@@ -1,14 +1,17 @@
-import { Package } from "lucide-react";
+import { Box, Package } from "lucide-react";
 
 import { formatMoney } from "@/lib/format";
 
-import type { OrderLine } from "../types";
+import type { Order, OrderLine } from "../types";
+
+type Currency = Order["currency"];
 
 interface OrderLinesProps {
   lines: readonly OrderLine[];
+  currency: Currency;
 }
 
-export function OrderLines({ lines }: OrderLinesProps) {
+export function OrderLines({ lines, currency }: OrderLinesProps) {
   return (
     <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
       <h2 className="text-ink-primary mb-3 flex items-center gap-2 text-[0.9375rem] font-semibold">
@@ -21,19 +24,21 @@ export function OrderLines({ lines }: OrderLinesProps) {
             key={line.lineId}
             className="border-border-default flex gap-3 rounded-[var(--r-sm)] border p-3"
           >
-            <div className="bg-bg-subtle text-ink-tertiary flex size-10 shrink-0 items-center justify-center rounded-[var(--r-sm)] text-lg">
-              📦
+            {/* BE OrderResponse.Line không có ảnh sản phẩm — icon giữ chỗ, chỉ trang trí */}
+            <div className="bg-bg-subtle text-ink-tertiary flex size-10 shrink-0 items-center justify-center rounded-[var(--r-sm)]">
+              <Box className="size-4" aria-hidden="true" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-ink-primary truncate text-[0.875rem] font-semibold">
-                {line.productName}
+              <div className="text-ink-primary truncate font-[family-name:var(--font-mono)] text-[0.875rem] font-semibold">
+                {line.sku}
               </div>
-              <div className="text-ink-tertiary truncate text-xs">{line.variantLabel}</div>
               <div className="text-ink-secondary mt-1 flex items-center gap-3 text-xs">
                 <span className="tabular-nums">×{line.quantity}</span>
-                <span className="font-mono tabular-nums">{formatMoney(line.unitPrice)}</span>
+                <span className="font-mono tabular-nums">
+                  {formatMoney(line.unitPrice, currency)}
+                </span>
                 <span className="text-ink-primary ml-auto font-mono font-medium tabular-nums">
-                  {formatMoney(line.lineTotal)}
+                  {formatMoney(line.lineTotal, currency)}
                 </span>
               </div>
             </div>

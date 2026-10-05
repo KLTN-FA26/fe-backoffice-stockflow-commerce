@@ -55,20 +55,6 @@ const productOverrides = new Map<string, MockProduct>();
 const MOCK_SUBMITTER_ID = "11111111-1111-4111-8111-111111111111";
 const MOCK_APPROVER_ID = "22222222-2222-4222-8222-222222222222";
 
-/**
- * BE BR-031 (Order.java / OrderStatus.java); docs 17 BR-03 (§6 / §4.5): không cho
- * huỷ từ khi hàng đã bàn giao vận chuyển — đúng process là flow trả hàng.
- * Mirror BE OrderStatus#canTransitionTo.
- */
-const NON_CANCELLABLE_ORDER_STATUSES: readonly string[] = [
-  "Shipped",
-  "In Transit",
-  "Delivered",
-  "Completed",
-  "Cancelled",
-  "Returned",
-];
-
 export function registerAllMockRoutes(): void {
   /* ====================================================================
    * Module 01 — Products / SKUs / Categories / Suppliers
@@ -612,104 +598,6 @@ export function registerAllMockRoutes(): void {
   });
 
   /* ====================================================================
-   * Module 14 — Orders
-   * ==================================================================*/
-
-  registerMockRoute("GET", "/orders", async (config) => {
-    const { orders } = await import("@/lib/mock-data");
-    const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
-    const q = params.get("q")?.toLowerCase();
-    const status = params.getAll("status");
-
-    let filtered = [...orders];
-    if (status.length) filtered = filtered.filter((o) => status.includes(o.status));
-    // Prefilter rộng trên mọi field search được; trang list còn thu hẹp lại theo
-    // "Trường search" (pref cục bộ của người dùng, server không biết).
-    if (q)
-      filtered = filtered.filter((o) =>
-        [o.orderNumber, o.recipientName, o.recipientPhone, o.orderId].some((value) =>
-          value.toLowerCase().includes(q),
-        ),
-      );
-
-    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
-  });
-
-  registerMockRoute("GET", "/orders/:id", async (config) => {
-    const { orders } = await import("@/lib/mock-data");
-    const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
-    const order = orders.find((o) => o.orderId === id);
-    if (!order) return { status: 404, data: { message: "Order not found" }, headers: {} };
-    return { status: 200, data: order, headers: {} };
-  });
-
-  // GET /orders/:id/events — timeline "Lịch sử sự kiện" của trang detail.
-  // BE chưa có endpoint tương ứng trong nhánh SCRUM-242/245; route này để trang
-  // detail không phải import `mock-data.ts` trực tiếp (luật CI grep).
-  // ASSUMPTION (open-question Tú): path/shape cần xác nhận khi BE bổ sung endpoint.
-  registerMockRoute("GET", "/orders/:id/events", async (config) => {
-    const { orderEvents } = await import("@/lib/mock-data");
-    const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
-    return {
-      status: 200,
-      data: orderEvents.filter((event) => event.orderId === id),
-      headers: {},
-    };
-  });
-
-  // POST /orders/:id/admin-cancellation — BE: OrderController#adminCancel, scope ALL.
-  //
-  // GHI CHÚ (gap có sẵn, KHÔNG sửa trong task này): envelope lỗi thật của BE dùng
-  // `errorCode` / `fieldErrors: List<{field,message,code}>` / `correlationId`, còn
-  // `lib/api/error.ts` hiện parse `code` / `fieldErrors: Record<string,string>` /
-  // `traceId`. Route mock dưới đây viết theo shape mà `ApiError.from()` HIỆN TẠI đọc
-  // được, để pipeline lỗi chạy đúng ngay. Cần task riêng "Align ApiError với BE
-  // ApiResponse envelope" trước khi cắt sang API thật.
-  registerMockRoute("POST", "/orders/:id/admin-cancellation", async (config) => {
-    const { orders } = await import("@/lib/mock-data");
-    const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
-    const order = orders.find((o) => o.orderId === id);
-    // 404 chứ không 403 — không tiết lộ đơn có tồn tại hay không (BE findByIdInScope).
-    if (!order) {
-      return {
-        status: 404,
-        data: { code: "NOT_FOUND", message: "Không tìm thấy đơn hàng" },
-        headers: {},
-      };
-    }
-
-    const body = parseCancelBody(config.data);
-    if (!body.reason?.trim()) {
-      return {
-        status: 400,
-        data: {
-          code: "VALIDATION_FAILED",
-          message: "Lý do huỷ là bắt buộc",
-          fieldErrors: { reason: "Lý do huỷ là bắt buộc" },
-        },
-        headers: {},
-      };
-    }
-
-    // BE BR-031 (Order.java / OrderStatus.java); docs 17 BR-03 (§6 / §4.5): hàng đã bàn giao vận chuyển — phải đi flow trả hàng.
-    if (NON_CANCELLABLE_ORDER_STATUSES.includes(order.status)) {
-      return {
-        status: 409,
-        data: {
-          code: "CONFLICT",
-          message: "Đơn đã bàn giao vận chuyển — không thể huỷ (BR-031)",
-        },
-        headers: {},
-      };
-    }
-
-    order.status = "Cancelled";
-    return { status: 200, data: null, headers: {} };
-  });
-
-  /* ====================================================================
    * Staff Users (for admin user management)
    * ==================================================================*/
 
@@ -793,23 +681,6 @@ export function registerAllMockRoutes(): void {
   registerMockRoute("POST", "/auth/logout", async () => {
     return { status: 200, data: { message: "Logged out" }, headers: {} };
   });
-}
-
-interface CancelOrderMockBody {
-  reason?: unknown;
-}
-
-function parseCancelBody(data: unknown): { reason?: string } {
-  let parsed: unknown = data;
-  if (typeof data === "string") {
-    try {
-      parsed = JSON.parse(data);
-    } catch {
-      parsed = {};
-    }
-  }
-  const body: CancelOrderMockBody = isRecord(parsed) ? parsed : {};
-  return { reason: typeof body.reason === "string" ? body.reason : undefined };
 }
 
 const mockRoles = [

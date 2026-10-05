@@ -47,8 +47,8 @@ import type {
   TransferOrderStatus,
   MoveTaskStatus,
 } from "@/lib/mock-data";
-// OrderStatus lấy từ constants/statuses.ts (không phải mock-data) — đây là superset
-// 21 giá trị (20 giá trị mock cũ + "Draft" mới) dùng cho zod enum / lifecycle / filter UI.
+// OrderStatus lấy từ constants/statuses.ts (không phải mock-data) — đúng 10 trạng thái BE
+// (OrderStatus.java), dùng cho zod enum / lifecycle / filter UI.
 import type { OrderStatus } from "@/constants/statuses";
 
 /* ── Module 01: Product ──────────────────────────────────────────────── */
@@ -215,36 +215,27 @@ export const MOVE_TRANSITIONS: Record<MoveTaskStatus, readonly MoveTaskStatus[]>
 
 /* ── Module 14: Order ────────────────────────────────────────────────── */
 
-// BE OrderStatus.java 10 giá trị (docs 17 §5 = 20). FE union 21 giá trị = 10 BE
-// + 1 Draft mới + 10 mock-only hiển thị. Mapping BE→FE: xem status-map.ts
-// (PAID→"Confirmed", IN_FULFILMENT→"Ready to Fulfill" — ASSUMPTION open-question Tú).
-// Mock-only states để terminal (BE không bao giờ trả), trừ "On Hold" khớp BE ON_HOLD.
+// Chép nguyên BE `order/api/OrderStatus.java#canTransitionTo` (10 trạng thái, ON_HOLD có từ BE
+// commit 2e9c4df) — FE khớp BE, không dựng theo docs 17 (xem QUYẾT ĐỊNH ở ORDER_STATUSES).
+// Mã wire ↔ nhãn FE: features/order/status-map.ts (PAID ↔ "Paid", IN_FULFILMENT ↔ "In Fulfilment").
 export const ORDER_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
+  // DRAFT → PENDING_PAYMENT / CANCELLED
   Draft: ["Pending Payment", "Cancelled"],
-  // BE: PENDING_PAYMENT → PAID / CANCELLED  (PAID→FE "Confirmed")
-  "Pending Payment": ["Confirmed", "Cancelled"],
-  // BE: PAID → IN_FULFILMENT / ON_HOLD / CANCELLED  (IN_FULFILMENT→FE "Ready to Fulfill")
-  Confirmed: ["Ready to Fulfill", "On Hold", "Cancelled"],
-  // BE: IN_FULFILMENT → SHIPPED / ON_HOLD / CANCELLED
-  "Ready to Fulfill": ["Shipped", "On Hold", "Cancelled"],
-  // BE BR-031 (Order.java / OrderStatus.java); docs 17 BR-03 (§6 / §4.5): hàng đã bàn giao vận chuyển — không còn Cancelled từ đây
+  // PENDING_PAYMENT → PAID / CANCELLED
+  "Pending Payment": ["Paid", "Cancelled"],
+  // PAID → IN_FULFILMENT / ON_HOLD / CANCELLED
+  Paid: ["In Fulfilment", "On Hold", "Cancelled"],
+  // IN_FULFILMENT → SHIPPED / ON_HOLD / CANCELLED
+  "In Fulfilment": ["Shipped", "On Hold", "Cancelled"],
+  // ON_HOLD → IN_FULFILMENT / CANCELLED
+  "On Hold": ["In Fulfilment", "Cancelled"],
+  // BE BR-031 (OrderStatus#canTransitionTo); docs 17 BR-03 (§6 / §4.5): từ SHIPPED hàng đã ở
+  // chỗ hãng vận chuyển — không còn Cancelled, phải đi flow trả hàng.
   Shipped: ["Delivered"],
+  // DELIVERED → COMPLETED / RETURNED
   Delivered: ["Completed", "Returned"],
+  // Terminal (OrderStatus#isTerminal)
   Completed: [],
   Cancelled: [],
   Returned: [],
-  // Mock-only states (BE không trả) — terminal để Record total
-  "Payment Failed": [],
-  "In Production": [],
-  Picking: [],
-  Packed: [],
-  "In Transit": [],
-  Refunded: [],
-  "Partially Refunded": [],
-  // BE ON_HOLD → IN_FULFILMENT / CANCELLED  (IN_FULFILMENT→FE "Ready to Fulfill")
-  "On Hold": ["Ready to Fulfill", "Cancelled"],
-  "Partially Fulfilled": [],
-  "Delivery Failed": [],
-  "Return Requested": [],
-  Closed: [],
 };

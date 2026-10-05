@@ -2,12 +2,13 @@
  * Order — lifecycle & action-gating.
  *
  * Re-exports transition table from domain/lifecycle.ts (single source of truth).
- * Adds `allowedOrderActions()` for UI action-gating per status + role.
+ * Adds `allowedOrderActions()` for UI action-gating per status + mã quyền BE
+ * (`/identity/me/permissions`), như `allowedSupplierActions`.
  *
- * Source: docs/ecommerce/17-order §5 + BE order/internal/domain/OrderStatus.java.
+ * Source: BE order/api/OrderStatus.java (FE khớp BE — xem ORDER_STATUSES).
  */
 
-import { can } from "@/lib/auth/permissions";
+import { ORDER_PERMISSIONS } from "@/constants";
 import {
   ORDER_TRANSITIONS,
   allowedTransitions,
@@ -15,8 +16,7 @@ import {
   isTerminal,
 } from "@/lib/domain/lifecycle";
 
-import type { Permission } from "@/lib/auth/permissions";
-import type { RoleName } from "@/lib/auth/roles";
+import type { PermissionCode } from "@/lib/auth";
 import type { OrderStatus } from "./types";
 
 /* ── Re-exports ──────────────────────────────────────────────────────── */
@@ -25,14 +25,14 @@ export { ORDER_TRANSITIONS, allowedTransitions, canTransition, isTerminal };
 
 /* ── Action definitions ──────────────────────────────────────────────── */
 
-/** Actions the UI can gate per status + role. */
+/** Actions the UI can gate per status + permission code. */
 export interface OrderAction {
   /** Unique action code. */
   readonly code: string;
   /** Button label. */
   readonly label: string;
-  /** Permission required. */
-  readonly permission: Permission;
+  /** Mã quyền BE cần có. */
+  readonly permission: PermissionCode;
   /** Statuses where this action is available. */
   readonly fromStatuses: readonly OrderStatus[];
   /** Target status after action (undefined = non-transition action). */
@@ -42,16 +42,15 @@ export interface OrderAction {
 }
 
 export const ORDER_ACTIONS: readonly OrderAction[] = [
-  // BE BR-031 (Order.java / OrderStatus.java); docs 17 BR-03 (§6 / §4.5):
-  // huỷ sau khi có tác vụ kho phải đảo ngược có kiểm soát — từ "Shipped" trở
-  // đi hàng đã bàn giao vận chuyển, phải đi qua flow trả hàng. `fromStatuses`
-  // vì vậy không chứa "Shipped"/"In Transit"/"Delivered" và các state sau đó.
-  // Endpoint: POST /api/v1/orders/{orderId}/admin-cancellation (scope ALL).
+  // BE BR-031 (order/api/OrderStatus.java#canTransitionTo); docs 17 BR-03 (§6 / §4.5):
+  // từ "Shipped" trở đi hàng đã bàn giao vận chuyển, phải đi qua flow trả hàng. `fromStatuses`
+  // = các trạng thái BE cho → CANCELLED (DRAFT, PENDING_PAYMENT, PAID, IN_FULFILMENT, ON_HOLD).
+  // Endpoint: POST /orders/{orderId}/admin-cancellation (BE sales-orders:APPROVE, scope ALL).
   {
     code: "admin-cancel",
     label: "Huỷ đơn",
-    permission: "order.cancel",
-    fromStatuses: ["Draft", "Pending Payment", "Confirmed", "Ready to Fulfill", "On Hold"],
+    permission: ORDER_PERMISSIONS.cancel,
+    fromStatuses: ["Draft", "Pending Payment", "Paid", "In Fulfilment", "On Hold"],
     targetStatus: "Cancelled",
     destructive: true,
   },
@@ -60,18 +59,18 @@ export const ORDER_ACTIONS: readonly OrderAction[] = [
 /* ── Action gating ───────────────────────────────────────────────────── */
 
 /**
- * Return the list of actions available for a given order status + user role.
+ * Return the list of actions available for a given order status + permission checker.
  *
  * Checks:
  * 1. Action's `fromStatuses` includes current status.
  * 2. If action has `targetStatus`, the transition table allows it.
- * 3. User's role has the required permission.
+ * 3. Người dùng có mã quyền BE yêu cầu (`can` = `usePermissionChecker()` ở component).
  *
- * UI-only gating — Backend phải re-check (BE BR-031; docs BR-03).
+ * UI-only gating — Backend phải re-check (BE BR-031 + @RequiresPermission APPROVE/ALL; docs BR-03).
  */
 export function allowedOrderActions(
   status: OrderStatus,
-  role: RoleName | RoleName[],
+  can: (code: PermissionCode) => boolean,
 ): readonly OrderAction[] {
   return ORDER_ACTIONS.filter((action) => {
     // 1. Status gate
@@ -83,7 +82,7 @@ export function allowedOrderActions(
     }
 
     // 3. Permission gate
-    return can(role, action.permission);
+    return can(action.permission);
   });
 }
 

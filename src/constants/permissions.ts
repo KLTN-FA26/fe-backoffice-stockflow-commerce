@@ -16,3 +16,12 @@ export const SUPPLIER_PERMISSIONS = {
   // Xuất dữ liệu hàng loạt — BE coi là quyền nhạy cảm, tách khỏi READ (Action.EXPORT)
   export: "procurement-suppliers:EXPORT",
 } as const;
+
+/**
+ * Đơn hàng — resource `sales-orders` (BE `OrderResources.ORDERS`). Huỷ đơn phía admin
+ * (`POST /orders/{id}/admin-cancellation`) yêu cầu APPROVE scope ALL; seed BE chỉ cấp cho
+ * ORDER_COORDINATOR (SALES_STAFF chỉ có VIEW_PAGE/READ/CREATE/UPDATE).
+ */
+export const ORDER_PERMISSIONS = {
+  cancel: "sales-orders:APPROVE",
+} as const;

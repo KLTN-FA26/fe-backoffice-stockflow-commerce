@@ -87,47 +87,27 @@ export const INVOICE_STATUS = {
 } as const satisfies Record<string, InvoiceStatus>;
 
 /**
- * Order — superset 21 giá trị. "Draft" là MỚI (BE DRAFT), mock-data.ts hiện chưa
- * có giá trị này trong union nội bộ của nó (union đó chỉ có 20). Union này dùng
- * cho zod enum / lifecycle table / filter UI — không sửa mock-data.ts.
+ * Order — đúng 10 trạng thái của BE `order/api/OrderStatus.java`, ánh xạ 1-1 với mã wire
+ * (PENDING_PAYMENT ↔ "Pending Payment"…, xem features/order/status-map.ts).
+ *
+ * QUYẾT ĐỊNH (lệch quy tắc "docs thắng" của CLAUDE.md, chủ đích cho module order): FE khớp BE,
+ * KHÔNG dựng theo 20 trạng thái của docs 17 §5 — docs tách nhiều bước (Picking, Packed,
+ * In Production…) mà BE không có, hiển thị chúng là hứa trạng thái BE không bao giờ trả.
+ * mock-data.ts vẫn dùng 20 trạng thái docs; route mock gộp về 10 trạng thái BE trước khi trả.
  */
 export const ORDER_STATUSES = [
   "Draft",
   "Pending Payment",
-  "Payment Failed",
-  "Confirmed",
-  "In Production",
-  "Ready to Fulfill",
-  "Picking",
-  "Packed",
+  "Paid",
+  "In Fulfilment",
+  "On Hold",
   "Shipped",
-  "In Transit",
   "Delivered",
   "Completed",
   "Cancelled",
   "Returned",
-  "Refunded",
-  "Partially Refunded",
-  "On Hold",
-  "Partially Fulfilled",
-  "Delivery Failed",
-  "Return Requested",
-  "Closed",
 ] as const;
 
-// Chỉ đặt tên hằng cho các giá trị FE ứng với BE (order/api/OrderStatus.java) dùng
-// tới; các giá trị mock-only còn lại giữ string literal ở nơi dùng.
-export const ORDER_STATUS = {
-  DRAFT: "Draft",
-  PENDING_PAYMENT: "Pending Payment",
-  CONFIRMED: "Confirmed",
-  READY_TO_FULFILL: "Ready to Fulfill",
-  SHIPPED: "Shipped",
-  DELIVERED: "Delivered",
-  COMPLETED: "Completed",
-  CANCELLED: "Cancelled",
-  RETURNED: "Returned",
-} as const;
 /** Nhà cung cấp (module 01) — BE: ACTIVE/INACTIVE (SCRUM-118). */
 export const SUPPLIER_STATUSES = ["Active", "Inactive"] as const;
 

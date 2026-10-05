@@ -7,7 +7,8 @@ export {
   TOAST_MESSAGES,
   UI_LABELS,
 } from "./labels";
-export { SUPPLIER_PERMISSIONS } from "./permissions";
+export { ORDER_LIMITS } from "./numbers";
+export { ORDER_PERMISSIONS, SUPPLIER_PERMISSIONS } from "./permissions";
 export { ADMIN_ROUTES, APP_ROUTES } from "./routes";
 export { STORAGE_KEYS } from "./storage-keys";
 export {
@@ -22,7 +23,6 @@ export {
 export {
   INVOICE_STATUS,
   INVOICE_STATUSES,
-  ORDER_STATUS,
   ORDER_STATUSES,
   PO_STATUS,
   PO_STATUSES,

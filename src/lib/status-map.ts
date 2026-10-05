@@ -11,6 +11,8 @@ import type { SemanticTone } from "@/lib/mock-data";
 
 export type { SemanticTone };
 
+// Bảng tra cứu viết dồn dòng có chủ đích — không để Prettier xếp mỗi giá trị một dòng.
+// prettier-ignore
 const TONE: Record<SemanticTone, readonly string[]> = {
   positive: [
     "Confirmed", "Approved", "Completed", "Delivered", "Packed", "Received",
@@ -24,6 +26,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Published", "In Putaway", "Partially Fulfilled", "Partially Completed",
     "Out for Delivery", "Pending (COD)", "Reserved", "Ready", "Locked",
     "Handed Over", "Queued", "Approved for Payment", "Initiated",
+    // Order — BE IN_FULFILMENT (picking/packing/sản xuất gộp làm 1). FE order khớp BE.
+    "In Fulfilment",
   ],
   warning: [
     "Pending Approval", "On Hold", "Exception", "Short", "Discrepancy",
@@ -51,6 +55,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
 };
 
 /** Thứ tự ưu tiên khi status trùng nhiều tone (CLAUDE.md). */
+// Bảng tra cứu viết dồn dòng có chủ đích — không để Prettier xếp mỗi giá trị một dòng.
+// prettier-ignore
 const PRIORITY: readonly SemanticTone[] = [
   "special", "danger", "positive", "warning", "info", "muted", "neutral",
 ];
@@ -64,6 +70,8 @@ export function toneOf(status: string): SemanticTone {
 }
 
 /** Nhãn tiếng Việt cho status (song ngữ hiển thị trong tooltip/title). */
+// Bảng tra cứu viết dồn dòng có chủ đích — không để Prettier xếp mỗi giá trị một dòng.
+// prettier-ignore
 export const STATUS_LABEL_VI: Record<string, string> = {
   // Positive
   Confirmed: "Đã xác nhận", Approved: "Đã duyệt", Completed: "Hoàn tất",
@@ -86,6 +94,7 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   Ready: "Sẵn sàng", Locked: "Đã khóa", "Handed Over": "Đã bàn giao",
   Queued: "Trong hàng đợi", "Approved for Payment": "Duyệt thanh toán",
   Initiated: "Đã khởi tạo", "In Production": "Đang sản xuất",
+  "In Fulfilment": "Đang xử lý kho",
   // Warning
   "Pending Approval": "Chờ duyệt", "On Hold": "Tạm giữ", Exception: "Ngoại lệ",
   Short: "Thiếu", Discrepancy: "Chênh lệch", Quarantine: "Cách ly",

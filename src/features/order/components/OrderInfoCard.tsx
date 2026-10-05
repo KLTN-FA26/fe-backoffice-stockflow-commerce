@@ -1,8 +1,12 @@
+import { formatDate } from "@/lib/format/date";
+
 import type { Order } from "../types";
 
 interface OrderInfoCardProps {
   order: Order;
 }
+
+const EMPTY = "—";
 
 export function OrderInfoCard({ order }: OrderInfoCardProps) {
   return (
@@ -14,22 +18,16 @@ export function OrderInfoCard({ order }: OrderInfoCardProps) {
           {order.orderNumber}
         </dd>
         <dt className="text-ink-secondary">Ngày đặt</dt>
-        <dd className="text-ink-primary tabular-nums">
-          {new Date(order.placedAt).toLocaleDateString("vi-VN")}
-        </dd>
-        <dt className="text-ink-secondary">Thanh toán</dt>
-        <dd className="text-ink-primary">{order.paymentMethodType}</dd>
-        <dt className="text-ink-secondary">Kho xử lý</dt>
-        <dd className="text-ink-primary font-mono">{order.fulfillmentWarehouseId}</dd>
-        <dt className="text-ink-secondary">Địa chỉ giao</dt>
-        <dd className="text-ink-primary">
-          {order.shippingAddress.street}, {order.shippingAddress.ward},{" "}
-          {order.shippingAddress.district}, {order.shippingAddress.province}
-        </dd>
+        <dd className="text-ink-primary tabular-nums">{formatDate(order.placedAt)}</dd>
         <dt className="text-ink-secondary">Người nhận</dt>
         <dd className="text-ink-primary">
-          {order.recipientName} · {order.recipientPhone}
+          {order.recipientName || EMPTY}
+          {order.recipientPhone && ` · ${order.recipientPhone}`}
         </dd>
+        <dt className="text-ink-secondary">Email</dt>
+        <dd className="text-ink-primary">{order.contactEmail ?? EMPTY}</dd>
+        <dt className="text-ink-secondary">Địa chỉ giao</dt>
+        <dd className="text-ink-primary">{order.shippingAddressText ?? EMPTY}</dd>
       </dl>
     </section>
   );

@@ -1,111 +1,162 @@
 /**
- * Mock route tests — POST /orders/:id/admin-cancellation.
+ * Mock routes đơn hàng — chạy qua axios thật + `features/order/api.ts`, nên kiểm luôn:
+ * mock trả đúng hình BE (envelope, OrderResponse, PageResponse trang 0, lỗi `errorCode`)
+ * và lớp api parse/map được. `Math.random` cố định 0.05 → không dính lỗi 500 ngẫu nhiên.
  *
- * Gọi handler trực tiếp qua `resolveMockRoute` thay vì qua axios: adapter thật có
- * delay 200–500ms và 5% lỗi 500 ngẫu nhiên (mock-adapter.ts) → test sẽ flaky.
- *
- * File này nằm ở `src/lib/api/` (không phải `src/features/`) vì cần import
- * `mock-data.ts` để dựng fixture — CI grep chặn import đó trong
- * `src/app|components|features`.
+ * File nằm ở `src/lib/api/` vì cần `mock-data.ts` để chọn fixture — CI grep chặn import
+ * đó trong `src/app|components|features`.
  */
 
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { adminCancelOrder, getOrder, listOrders } from "@/features/order/api";
+import { api } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/error";
 import { orders } from "@/lib/mock-data";
 
-import { resolveMockRoute } from "./mock-adapter";
-import { registerAllMockRoutes } from "./mock-routes";
+import { activateMockAdapter } from "./mock-adapter";
+import { resetOrderMockStore } from "./mock-routes-orders";
 
-import type { AxiosRequestConfig } from "axios";
-import type { Order } from "@/lib/mock-data";
+const originalAdapter = api.defaults.adapter;
 
-const PATH = (id: string) => `/orders/${id}/admin-cancellation`;
-
-interface ErrorBody {
-  code?: string;
-  message?: string;
-  fieldErrors?: Record<string, string>;
+function firstOrderWith(status: string) {
+  const order = orders.find((o) => o.status === status);
+  if (!order) throw new Error(`mock-data không có đơn "${status}"`);
+  return order;
 }
 
-async function postAdminCancel(id: string, body?: unknown) {
-  const matched = resolveMockRoute("POST", PATH(id));
-  if (!matched) throw new Error(`No mock route for POST ${PATH(id)}`);
-  const config = {
-    url: PATH(id),
-    method: "POST",
-    data: body === undefined ? undefined : JSON.stringify(body),
-    _mockParams: matched.params,
-  } as AxiosRequestConfig;
-  return matched.handler(config);
+async function captureError(promise: Promise<unknown>): Promise<ApiError> {
+  try {
+    await promise;
+  } catch (error: unknown) {
+    if (error instanceof ApiError) return error;
+    throw error;
+  }
+  throw new Error("Expected request to fail");
 }
 
-/** Đơn đầu tiên ở trạng thái huỷ được / không huỷ được, lấy từ chính mock-data. */
-function findOrder(predicate: (order: Order) => boolean): Order {
-  const found = orders.find(predicate);
-  if (!found) throw new Error("Fixture không tìm thấy trong mock-data");
-  return found;
-}
+beforeAll(() => {
+  vi.spyOn(Math, "random").mockReturnValue(0.05);
+  activateMockAdapter();
+});
 
-const CANCELLABLE = ["Draft", "Pending Payment", "Confirmed", "Ready to Fulfill", "On Hold"];
+afterEach(() => resetOrderMockStore());
 
-describe("POST /orders/:id/admin-cancellation (mock)", () => {
-  beforeAll(() => {
-    registerAllMockRoutes();
+afterAll(() => {
+  api.defaults.adapter = originalAdapter;
+  vi.restoreAllMocks();
+});
+
+describe("GET /orders — PageResponse trang từ 0", () => {
+  it("page=0&size=5 trả 5 đơn đầu, đã map status BE → FE", async () => {
+    const page = await listOrders({ page: 0, size: 5 });
+
+    expect(page.page).toBe(0);
+    expect(page.size).toBe(5);
+    expect(page.items).toHaveLength(Math.min(5, orders.length));
+    expect(page.totalElements).toBe(orders.length);
+    expect(page.hasPrevious).toBe(false);
+    for (const order of page.items) expect(order.status).not.toMatch(/^[A-Z_]+$/);
   });
 
-  // Handler mutate `order.status` trên module state dùng chung → restore sau mỗi test.
-  const touched: { order: Order; status: Order["status"] }[] = [];
-  const track = (order: Order) => {
-    touched.push({ order, status: order.status });
-    return order;
-  };
-  afterEach(() => {
-    for (const { order, status } of touched) order.status = status;
-    touched.length = 0;
+  it("lọc status: nhãn FE được dịch sang BE trước khi gửi", async () => {
+    const page = await listOrders({ page: 0, size: 200, status: ["Pending Payment"] });
+
+    expect(page.items.length).toBeGreaterThan(0);
+    expect(page.items.every((o) => o.status === "Pending Payment")).toBe(true);
   });
 
-  it("id không tồn tại → 404 NOT_FOUND, không tiết lộ đơn có tồn tại hay không", async () => {
-    const res = await postAdminCancel("ORD-KHONG-TON-TAI", { reason: "test" });
-    expect(res.status).toBe(404);
-    expect((res.data as ErrorBody).code).toBe("NOT_FOUND");
+  it("trang 2 (page=1) nối tiếp trang 1, không trùng đơn", async () => {
+    const first = await listOrders({ page: 0, size: 5 });
+    const second = await listOrders({ page: 1, size: 5 });
+
+    expect(second.page).toBe(1);
+    expect(second.hasPrevious).toBe(true);
+    const firstIds = new Set(first.items.map((o) => o.orderId));
+    expect(second.items.some((o) => firstIds.has(o.orderId))).toBe(false);
   });
 
-  it("reason rỗng → 400 VALIDATION_FAILED + fieldErrors.reason", async () => {
-    const order = track(findOrder((o) => CANCELLABLE.includes(o.status)));
-    const res = await postAdminCancel(order.orderId, { reason: "   " });
-    expect(res.status).toBe(400);
-    const body = res.data as ErrorBody;
-    expect(body.code).toBe("VALIDATION_FAILED");
-    expect(body.fieldErrors?.reason).toBe("Lý do huỷ là bắt buộc");
-    expect(order.status).not.toBe("Cancelled");
+  it("mặc định sắp xếp đơn mới đặt trước; sort=placedAt,asc đảo lại", async () => {
+    const desc = await listOrders({ page: 0, size: 200 });
+    const asc = await listOrders({ page: 0, size: 200, sort: "placedAt,asc" });
+    const times = (list: typeof desc.items) => list.map((o) => new Date(o.placedAt).getTime());
+
+    expect(times(desc.items)).toEqual([...times(desc.items)].sort((a, b) => b - a));
+    expect(times(asc.items)).toEqual([...times(asc.items)].sort((a, b) => a - b));
   });
 
-  it("body thiếu hẳn → 400 VALIDATION_FAILED", async () => {
-    const order = track(findOrder((o) => CANCELLABLE.includes(o.status)));
-    const res = await postAdminCancel(order.orderId);
-    expect(res.status).toBe(400);
-    expect((res.data as ErrorBody).code).toBe("VALIDATION_FAILED");
+  it("search theo mã đơn lọc phía server, totalElements theo kết quả lọc", async () => {
+    const source = orders[0];
+    if (!source) throw new Error("mock-data rỗng");
+
+    const page = await listOrders({ page: 0, size: 15, search: source.orderNumber });
+
+    expect(page.items.map((o) => o.orderNumber)).toContain(source.orderNumber);
+    expect(page.totalElements).toBe(page.items.length);
+    expect(page.totalElements).toBeLessThan(orders.length);
+  });
+});
+
+describe("GET /orders/:id — OrderResponse", () => {
+  it("map người nhận + địa chỉ từ shippingAddress, tiền theo currency", async () => {
+    const source = orders[0];
+    if (!source) throw new Error("mock-data rỗng");
+
+    const order = await getOrder(source.orderId);
+
+    expect(order).toMatchObject({
+      orderId: source.orderId,
+      orderNumber: source.orderNumber,
+      totalAmount: source.grandTotal,
+      currency: source.currency,
+      recipientName: source.recipientName,
+      recipientPhone: source.recipientPhone,
+    });
+    expect(order.shippingAddressText).toContain(source.shippingAddress.province);
+    expect(order.lines[0]?.sku).toBe(source.lines[0]?.skuId);
   });
 
-  it("BE BR-031; docs BR-03: huỷ đơn đã Shipped → 409 CONFLICT", async () => {
-    const order = track(findOrder((o) => o.status === "Shipped"));
-    const res = await postAdminCancel(order.orderId, { reason: "khách yêu cầu" });
-    expect(res.status).toBe(409);
-    expect((res.data as ErrorBody).code).toBe("CONFLICT");
-    expect(order.status).toBe("Shipped");
+  it("đơn không tồn tại → ApiError NOT_FOUND kèm traceId", async () => {
+    const error = await captureError(getOrder("ORD-KHONG-TON-TAI"));
+    expect(error.status).toBe(404);
+    expect(error.code).toBe("NOT_FOUND");
+    expect(error.traceId).toBeTruthy();
+  });
+});
+
+describe("POST /orders/:id/admin-cancellation", () => {
+  it("huỷ hợp lệ → thành công; huỷ lần 2 → CONFLICT", async () => {
+    const order = firstOrderWith("Pending Payment");
+
+    await expect(adminCancelOrder({ id: order.orderId, reason: "Khách đổi ý" })).resolves.toBe(
+      undefined,
+    );
+    expect((await getOrder(order.orderId)).status).toBe("Cancelled");
+
+    const error = await captureError(adminCancelOrder({ id: order.orderId, reason: "Lần 2" }));
+    expect(error.status).toBe(409);
+    expect(error.code).toBe("CONFLICT");
   });
 
-  it("BE BR-031; docs BR-03: huỷ đơn đã Delivered → 409 CONFLICT", async () => {
-    const order = track(findOrder((o) => o.status === "Delivered"));
-    const res = await postAdminCancel(order.orderId, { reason: "khách yêu cầu" });
-    expect(res.status).toBe(409);
-    expect((res.data as ErrorBody).code).toBe("CONFLICT");
+  it("thiếu lý do → VALIDATION_FAILED, fieldErrors.reason", async () => {
+    const order = firstOrderWith("Pending Payment");
+    const error = await captureError(adminCancelOrder({ id: order.orderId, reason: "  " }));
+
+    expect(error.status).toBe(400);
+    expect(error.code).toBe("VALIDATION_FAILED");
+    expect(error.fieldErrors?.reason).toBeTruthy();
   });
 
-  it("happy path: đơn huỷ được + có reason → 200 và status thành Cancelled", async () => {
-    const order = track(findOrder((o) => CANCELLABLE.includes(o.status)));
-    const res = await postAdminCancel(order.orderId, { reason: "khách đổi ý" });
-    expect(res.status).toBe(200);
-    expect(order.status).toBe("Cancelled");
+  it("BE BR-031; docs BR-03: đơn Shipped → CONFLICT", async () => {
+    const order = firstOrderWith("Shipped");
+    const error = await captureError(adminCancelOrder({ id: order.orderId, reason: "Thử" }));
+
+    expect(error.status).toBe(409);
+    expect(error.code).toBe("CONFLICT");
+  });
+
+  it("đơn không tồn tại → NOT_FOUND (không tiết lộ quyền)", async () => {
+    const error = await captureError(adminCancelOrder({ id: "ORD-KHONG-TON-TAI", reason: "Thử" }));
+    expect(error.code).toBe("NOT_FOUND");
   });
 });

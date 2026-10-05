@@ -100,11 +100,6 @@ export const PERMISSIONS = {
   "move.view": ["Warehouse Staff", "Warehouse Manager"] as RoleName[],
   "move.execute": ["Warehouse Staff"] as RoleName[],
 
-  // ── Module 17: Order ─────────────────────────────────────────────
-  // BE actor cho admin-cancellation là "admin/sales" (scope ALL).
-  "order.view": ["Sales Staff", "Order Coordinator", "E-commerce Admin"] as RoleName[],
-  "order.cancel": ["Sales Staff", "Order Coordinator"] as RoleName[],
-
   // ── Cross-cutting ────────────────────────────────────────────────
   "dashboard.view": [
     "Warehouse Manager",
