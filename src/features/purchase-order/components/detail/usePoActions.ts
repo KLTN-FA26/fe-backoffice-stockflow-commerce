@@ -98,7 +98,7 @@ export function usePoActions(po: PurchaseOrder | null, refetchPo: () => void) {
     receive: (lines: ReceiveLineInput[]) =>
       receivePo.mutate({ id, lines }, callbacks("receive", true)),
     recover: (input: RecoverDeliveryInput) =>
-      recoverPo.mutate({ id, input }, callbacks("default", true)),
+      recoverPo.mutate({ id, input }, callbacks("recover", true)),
     confirm: (input: SupplierConfirmationInput) =>
       confirmPo.mutate({ id, input }, callbacks("default", true)),
     send: (input: SendPoInput) =>

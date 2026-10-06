@@ -9,11 +9,11 @@ import { PO_ERROR_MESSAGES, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
 /** Ngữ cảnh thao tác — cùng một `errorCode` có thể cần câu giải thích khác nhau. */
-export type PoErrorContext = "send" | "receive" | "default";
+export type PoErrorContext = "send" | "recover" | "receive" | "default";
 
 type KnownErrorCode = Exclude<
   keyof typeof PO_ERROR_MESSAGES,
-  "receiveRejected" | "sendSupplierUnavailable" | "generic"
+  "receiveRejected" | "sendSupplierUnavailable" | "recoverConflict" | "generic"
 >;
 
 /** Tên trường BE (CreatePurchaseOrderRequest…) → nhãn tiếng Việt. */
@@ -55,6 +55,8 @@ export function poErrorMessage(error: unknown, context: PoErrorContext = "defaul
   if (context === "send" && error.code === "CONFLICT") {
     return PO_ERROR_MESSAGES.sendSupplierUnavailable;
   }
+  // BE `requireDeliveryRecovery` + `publishDelivery`: 409 CONFLICT chung khi khôi phục gửi.
+  if (context === "recover" && error.code === "CONFLICT") return PO_ERROR_MESSAGES.recoverConflict;
   if (isKnownErrorCode(error.code)) return PO_ERROR_MESSAGES[error.code];
   if (error.status === 403) return PO_ERROR_MESSAGES.FORBIDDEN;
   if (error.status === 404) return PO_ERROR_MESSAGES.PURCHASE_ORDER_NOT_FOUND;

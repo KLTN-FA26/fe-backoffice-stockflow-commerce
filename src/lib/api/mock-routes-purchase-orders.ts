@@ -19,16 +19,19 @@ import {
   beError,
   beOk,
   bePage,
+  getDeliveries,
   getPoStore,
   invalidTransition,
   isRecord,
   notFound,
   parseJsonBody,
+  queueOutbox,
   readInt,
   readParams,
   readRouteId,
   readString,
   sumLines,
+  suppressQueuedDelivery,
   touch,
 } from "./mock-routes-purchase-orders-store";
 import { findMockSupplier } from "./mock-routes-suppliers";
@@ -193,6 +196,16 @@ async function createPurchaseOrder(config: AxiosRequestConfig) {
   return beOk({ ...po, possibleDuplicate }, 201);
 }
 
+function queueCancellationNotice(poId: string): void {
+  const previous = getDeliveries(poId)[0];
+  queueOutbox(poId, {
+    channel: previous?.channel ?? "EMAIL",
+    recipient: previous?.recipient ?? "",
+    generation: 0,
+    templateCode: "purchase-order.cancelled",
+  });
+}
+
 /** Chuyển trạng thái một bước (approval / cancellation / closure-short). */
 const transition =
   (target: BePoStatus, reasonField?: "cancellationReason" | "closeShortReason") =>
@@ -212,10 +225,15 @@ const transition =
     }
     const patch: Partial<MockBePo> = { status: target };
     if (reasonField) patch[reasonField] = reason;
-    // BE #36: huỷ PO đã gửi NCC → xếp hàng gửi thông báo huỷ cho NCC.
-    if (target === "CANCELLED" && po.sentAt) patch.cancellationDeliveryStatus = "QUEUED";
+    // BE #36 `ProcurementServiceImpl#cancel`: chỉ PO đang SENT mới gửi thư báo huỷ cho NCC,
+    // tới đúng nơi đã nhận đơn (kênh/người nhận của lần gửi trước), generation 0.
+    const wasSent = target === "CANCELLED" && po.status === "SENT";
+    // BE cancel → suppressSupplierDelivery: thư gửi đơn còn chờ thì không gửi nữa.
+    if (target === "CANCELLED") Object.assign(patch, suppressQueuedDelivery(po));
+    if (wasSent) patch.cancellationDeliveryStatus = "QUEUED";
     const updated = touch(po, patch);
     store.set(id, updated);
+    if (wasSent) queueCancellationNotice(id);
     return beOk(updated);
   };
 

@@ -5,12 +5,17 @@
  * plus list-stats derived from BE 7-state.
  */
 
-import { PO_CANCELLATION_DELIVERY_STATUS, PO_DELIVERY_STATUS, PO_STATUS } from "@/constants";
+import {
+  PO_CANCELLATION_DELIVERY_STATUS,
+  PO_DELIVERY_STATUS,
+  PO_STATUS,
+  SUPPLIER_CONFIRMATION_STATUS,
+} from "@/constants";
 import { formatMoney } from "@/lib/format";
 
 import { receiveGoodsLineInputSchema } from "./schemas";
 
-import type { PurchaseOrder, PoLine, PoStatus } from "./types";
+import type { PurchaseOrder, PoLine } from "./types";
 
 export { formatMoney };
 
@@ -81,6 +86,17 @@ export function isDeliveryFailing(po: Pick<PurchaseOrder, "deliveryStatus">): bo
 }
 
 /**
+ * Cảnh báo thẻ Gửi NCC. BE chỉ cho khôi phục khi PO SENT, NCC chưa phản hồi và lần gửi thất bại
+ * hẳn (`requireDeliveryRecovery` + `prepareSupplierDelivery`); RETRYING = BE đang tự gửi lại.
+ */
+export function deliveryAlert(po: PoGateState): "recoverable" | "retrying" | null {
+  if (po.status !== PO_STATUS.SENT) return null;
+  if (po.deliveryStatus === PO_DELIVERY_STATUS.RETRYING) return "retrying";
+  const pending = po.supplierConfirmationStatus === SUPPLIER_CONFIRMATION_STATUS.PENDING;
+  return pending && po.deliveryStatus === PO_DELIVERY_STATUS.FAILED ? "recoverable" : null;
+}
+
+/**
  * Dòng chưa có mô tả sản phẩm. BE #36 (9fbb90f) khi gửi NCC lấy mô tả của dòng, thiếu thì lấy tên
  * theo SKU trong danh mục; không có nữa → 400 `PO_LINE_DESCRIPTION_REQUIRED` và PO kẹt ở APPROVED.
  */
@@ -88,14 +104,20 @@ export function linesMissingDescription(po: Pick<PurchaseOrder, "lines">): Purch
   return po.lines.filter((line) => !line.description?.trim());
 }
 
+const IN_FLIGHT: readonly string[] = [PO_DELIVERY_STATUS.QUEUED, PO_DELIVERY_STATUS.RETRYING];
+
 /**
- * Đang gửi NCC — BE chưa có kết quả cuối (QUEUED: chờ worker, RETRYING: đang thử lại).
+ * Đang gửi thư tới NCC — BE chưa có kết quả cuối (QUEUED: chờ worker, RETRYING: đang thử lại),
+ * cho thư gửi đơn (`deliveryStatus`) lẫn thư báo huỷ (`cancellationDeliveryStatus`, BE #36).
  * Màn chi tiết tự tải lại trong lúc này để không phải F5 (re-review PR #14, mục 3).
  */
-export function isDeliveryInFlight(po: Pick<PurchaseOrder, "deliveryStatus"> | undefined): boolean {
+export function isDeliveryInFlight(
+  po: Pick<PurchaseOrder, "deliveryStatus" | "cancellationDeliveryStatus"> | undefined,
+): boolean {
+  if (!po) return false;
   return (
-    po?.deliveryStatus === PO_DELIVERY_STATUS.QUEUED ||
-    po?.deliveryStatus === PO_DELIVERY_STATUS.RETRYING
+    IN_FLIGHT.includes(po.deliveryStatus) ||
+    (!!po.cancellationDeliveryStatus && IN_FLIGHT.includes(po.cancellationDeliveryStatus))
   );
 }
 
@@ -115,11 +137,24 @@ export function showsCancellationNotice(
   );
 }
 
-/** Statuses that should flag a row in the list table. */
-const FLAGGED_STATUSES: readonly PoStatus[] = [PO_STATUS.CANCELLED];
+export type PoAttentionReason = "deliveryFailed" | "supplierRejected";
+type PoGateState = Pick<PurchaseOrder, "status" | "deliveryStatus" | "supplierConfirmationStatus">;
+
+/**
+ * Đơn cần xử lý (danh sách) — chỉ khi PO đang SENT: gửi thất bại hẳn → khôi phục; NCC từ chối →
+ * huỷ, tạo đơn mới. Đơn đã huỷ/đóng là kết thúc, không cần chú ý (data-table-mode-a §1).
+ */
+export function poAttentionReason(po: PoGateState): PoAttentionReason | null {
+  if (po.status !== PO_STATUS.SENT) return null;
+  if (po.supplierConfirmationStatus === SUPPLIER_CONFIRMATION_STATUS.REJECTED) {
+    return "supplierRejected";
+  }
+  if (po.deliveryStatus === PO_DELIVERY_STATUS.FAILED) return "deliveryFailed";
+  return null;
+}
 
 export function shouldFlagPoRow(po: PurchaseOrder): boolean {
-  return FLAGGED_STATUSES.includes(po.status);
+  return poAttentionReason(po) !== null;
 }
 
 /* ── Receive goods draft ─────────────────────────────────────────────── */

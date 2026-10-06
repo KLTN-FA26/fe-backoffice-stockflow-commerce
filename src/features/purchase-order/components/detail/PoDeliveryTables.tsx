@@ -4,7 +4,11 @@ import { useState } from "react";
 import { cn } from "cn";
 
 import { PAGE_SIZE, PO_DELIVERY_ATTEMPT_STATUS } from "@/constants";
-import { usePoDeliveries, usePoDeliveryDecisions } from "@/features/purchase-order";
+import {
+  usePoDeliveries,
+  usePoDeliveryDecisions,
+  useRefreshDeliveriesOnSettle,
+} from "@/features/purchase-order";
 import { Button } from "@/components/ui/button";
 
 import { ATTEMPT_COLUMNS, DECISION_COLUMNS } from "./deliveryColumns";
@@ -30,6 +34,7 @@ export function PoDeliveryTables({ poId, poll = false }: { poId: string; poll?: 
   const [decisionParams, setDecisionParams] = useState(FIRST_PAGE);
   const [detail, setDetail] = useState<DeliveryDetail | null>(null);
   const attemptsQ = usePoDeliveries(poId, attemptParams, { poll });
+  useRefreshDeliveriesOnSettle(poId, poll);
   const decisionsQ = usePoDeliveryDecisions(poId, decisionParams);
 
   const tabs: { key: Tab; label: string; count?: number }[] = [

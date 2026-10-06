@@ -5,6 +5,7 @@ import { Controller } from "react-hook-form";
 import { UI_LABELS } from "@/constants";
 import { formatDate } from "@/lib/format";
 import { isExpectedDatePast } from "@/features/purchase-order";
+import { Alert } from "@/components/shared/Alert";
 import { Card } from "@/components/shared/Card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,9 +75,9 @@ export function InfoStep({ w }: { w: CreatePoWizard }) {
             <FieldError id="po-expected-error">{errors.expectedDate?.message}</FieldError>
             {/* BR-06 (docs 02 §6): so với HÔM NAY — chỉ cảnh báo, không chặn tạo PO. */}
             {isExpectedDatePast(values.expectedDate, w.today) && (
-              <div className="border-warning/30 bg-warning/10 text-warning mt-2 rounded-[var(--r-sm)] border px-3 py-2 text-xs">
-                Ngày giao dự kiến đã qua. Vẫn tạo được PO, nhưng phải đổi ngày trước khi gửi NCC.
-              </div>
+              <Alert tone="warning" className="mt-2">
+                {L.deliveryDateInPast}
+              </Alert>
             )}
             {suggestedDate && suggestedDate !== values.expectedDate && (
               <Button

@@ -3,7 +3,8 @@
  * Mọi hook nhận `{ enabled }` để trang tắt gọi API khi thiếu quyền READ.
  */
 
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 
 import { PO_LIMITS } from "@/constants";
 
@@ -30,6 +31,7 @@ export const poDashboardKeys = createQueryKeys<Record<string, never>>("po-status
 export const supplierSpendKeys = createQueryKeys<SupplierSpendParams>("po-supplier-spend");
 export const poDeliveryKeys = {
   all: ["po-deliveries"] as const,
+  forPo: (poId: string) => ["po-deliveries", poId] as const,
   // Cùng prefix `po-deliveries` → mutation gửi / khôi phục (đã invalidate `all`) làm mới cả hai bảng.
   attempts: (poId: string, params: PoHistoryParams) =>
     ["po-deliveries", poId, "attempts", params] as const,
@@ -77,6 +79,23 @@ export function usePoDeliveries(
     refetchInterval: options?.poll ? PO_LIMITS.deliveryPollMs : false,
     enabled: !!poId && options?.enabled !== false,
   });
+}
+
+/**
+ * PO vừa hết "đang gửi" (QUEUED/RETRYING → kết quả cuối) → tải lại lịch sử gửi MỘT lần.
+ * BE chỉ ghi dòng lần gửi sau khi worker gửi xong (SENT/FAILED), và PO + bảng tải lại theo hai
+ * chu kỳ riêng: lần tải cuối của bảng có thể trước lúc có dòng → không có bước này bảng sẽ thiếu
+ * dòng vừa gửi tới khi F5.
+ */
+export function useRefreshDeliveriesOnSettle(poId: string, inFlight: boolean) {
+  const queryClient = useQueryClient();
+  const wasInFlight = useRef(inFlight);
+  useEffect(() => {
+    if (wasInFlight.current && !inFlight) {
+      void queryClient.invalidateQueries({ queryKey: poDeliveryKeys.forPo(poId) });
+    }
+    wasInFlight.current = inFlight;
+  }, [poId, inFlight, queryClient]);
 }
 
 /** Quyết định gửi NCC của một PO (`GET /purchase-orders/{id}/delivery-decisions`). */

@@ -25,7 +25,8 @@ export const BE_PO_STATUSES = [
 ] as const;
 export type BePoStatus = (typeof BE_PO_STATUSES)[number];
 export type ConfirmationStatus = "NOT_SENT" | "PENDING" | "CONFIRMED" | "REJECTED";
-export type PoDeliveryStatus = "NOT_SENT" | "QUEUED" | "RETRYING" | "FAILED" | "DELIVERED";
+export type PoDeliveryStatus =
+  "NOT_SENT" | "QUEUED" | "RETRYING" | "FAILED" | "DELIVERED" | "SUPPRESSED";
 
 /**
  * Seed `mock-data.ts` dùng từ vựng Title Case của docs 02 (không được sửa file seed). Đây là
@@ -110,6 +111,23 @@ export interface MockDeliveryAttempt {
   failure: string | null;
   generation: number;
   recipient: string;
+  /** BE #36 (9fbb90f): thư gửi đơn hay thư báo huỷ. */
+  templateCode: MockTemplateCode;
+}
+
+export type MockTemplateCode = "purchase-order.sent" | "purchase-order.cancelled";
+
+/**
+ * Thư đang chờ worker gửi. BE KHÔNG có dòng lần gửi PENDING: `notification_delivery_log` chỉ được
+ * ghi sau khi gửi (SENT — `PurchaseOrderNotificationListener`, FAILED — `DeliveryAttemptRecorder`).
+ * Nên mock giữ thư chờ ở đây, tới lúc "gửi xong" mới thêm dòng vào lịch sử.
+ */
+interface MockOutboxEntry {
+  channel: "EMAIL" | "API";
+  recipient: string;
+  generation: number;
+  templateCode: MockTemplateCode;
+  queuedAt: number;
 }
 
 /** BE `PurchaseOrderDeliveryDecisionResponse` — ai cho phép gửi / khôi phục, vì sao. */
@@ -135,6 +153,7 @@ export interface MockFieldError {
 let poStore: Map<string, MockBePo> | null = null;
 const deliveryStore = new Map<string, MockDeliveryAttempt[]>();
 const decisionStore = new Map<string, MockDeliveryDecision[]>();
+const outbox = new Map<string, MockOutboxEntry[]>();
 
 export async function getPoStore(): Promise<Map<string, MockBePo>> {
   if (!poStore) {
@@ -172,15 +191,60 @@ const MOCK_TRANSPORT_DELAY_MS = 3000;
 
 function settleQueuedDeliveries(store: Map<string, MockBePo>): void {
   const now = Date.now();
-  for (const [poId, attempts] of deliveryStore) {
-    const latest = attempts[0];
-    if (!latest || latest.status !== "PENDING") continue;
-    const sentAt = Date.parse(latest.attemptedAt) + MOCK_TRANSPORT_DELAY_MS;
-    if (sentAt > now) continue;
-    attempts[0] = { ...latest, status: "SENT", sentAt: new Date(sentAt).toISOString() };
-    const po = store.get(poId);
-    if (po?.deliveryStatus === "QUEUED") store.set(poId, { ...po, deliveryStatus: "DELIVERED" });
+  for (const [poId, entries] of outbox) {
+    const due = entries.filter((e) => e.queuedAt + MOCK_TRANSPORT_DELAY_MS <= now);
+    if (due.length === 0) continue;
+    outbox.set(
+      poId,
+      entries.filter((e) => !due.includes(e)),
+    );
+    for (const entry of due) {
+      const sentAt = new Date(entry.queuedAt + MOCK_TRANSPORT_DELAY_MS).toISOString();
+      addDelivery(poId, {
+        id: crypto.randomUUID(),
+        channel: entry.channel,
+        status: "SENT",
+        attemptedAt: sentAt,
+        sentAt,
+        failure: null,
+        generation: entry.generation,
+        recipient: entry.recipient,
+        templateCode: entry.templateCode,
+      });
+      const po = store.get(poId);
+      if (!po) continue;
+      // Thư báo huỷ → `cancellationDeliveryStatus`; thư gửi đơn → `deliveryStatus`.
+      if (entry.templateCode === "purchase-order.cancelled") {
+        if (po.cancellationDeliveryStatus === "QUEUED") {
+          store.set(poId, { ...po, cancellationDeliveryStatus: "DELIVERED" });
+        }
+      } else if (po.deliveryStatus === "QUEUED") {
+        store.set(poId, { ...po, deliveryStatus: "DELIVERED" });
+      }
+    }
   }
+}
+
+/** Xếp một thư vào hàng chờ gửi (gửi đơn / khôi phục gửi / báo huỷ). */
+export function queueOutbox(poId: string, entry: Omit<MockOutboxEntry, "queuedAt">): void {
+  outbox.set(poId, [...(outbox.get(poId) ?? []), { ...entry, queuedAt: Date.now() }]);
+}
+
+/**
+ * BE `NotificationServiceImpl#suppressSupplierDelivery` (huỷ PO / NCC đã phản hồi): thư gửi đơn
+ * đang chờ không gửi nữa → PO `deliveryStatus` SUPPRESSED (nếu chưa gửi thành công).
+ */
+export function suppressQueuedDelivery(po: MockBePo): Partial<MockBePo> {
+  const entries = outbox.get(po.purchaseOrderId) ?? [];
+  const pending = entries.filter((e) => e.templateCode === "purchase-order.sent");
+  if (pending.length === 0) return {};
+  outbox.set(
+    po.purchaseOrderId,
+    entries.filter((e) => !pending.includes(e)),
+  );
+  return po.deliveryStatus === "QUEUED" || po.deliveryStatus === "RETRYING"
+    ? { deliveryStatus: "SUPPRESSED" }
+    : {};
 }
 
 /**
@@ -214,6 +278,7 @@ export function resetPoMockStore(): void {
   poStore = null;
   deliveryStore.clear();
   decisionStore.clear();
+  outbox.clear();
 }
 
 async function seedToBePo(po: PurchaseOrder): Promise<MockBePo> {
@@ -259,6 +324,7 @@ async function seedToBePo(po: PurchaseOrder): Promise<MockBePo> {
       failure: deliveryFailed ? `purchase-order:${po.poId}: MailSendException` : null,
       generation: 0,
       recipient: supplier?.code ?? po.supplierId,
+      templateCode: "purchase-order.sent",
     });
   }
   return {

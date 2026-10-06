@@ -11,7 +11,6 @@ import {
   BE_PO_TRANSITIONS,
   MOCK_PO_ACTOR,
   addDecision,
-  addDelivery,
   catalogNameForSku,
   beError,
   beOk,
@@ -25,7 +24,9 @@ import {
   readInt,
   readParams,
   readRouteId,
+  queueOutbox,
   readString,
+  suppressQueuedDelivery,
   todayVn,
   touch,
 } from "./mock-routes-purchase-orders-store";
@@ -64,10 +65,9 @@ async function queueDelivery(po: MockBePo, decision: DecisionInput) {
   }
   // BE NotificationServiceImpl.prepareSupplierDelivery: gửi lần đầu = generation 0,
   // mỗi lần khôi phục gửi +1.
-  const generation = getDeliveries(po.purchaseOrderId).reduce(
-    (m, d) => Math.max(m, d.generation + 1),
-    0,
-  );
+  const generation = getDeliveries(po.purchaseOrderId)
+    .filter((d) => d.templateCode === "purchase-order.sent")
+    .reduce((m, d) => Math.max(m, d.generation + 1), 0);
   const now = new Date().toISOString();
   addDecision(po.purchaseOrderId, {
     id: crypto.randomUUID(),
@@ -78,15 +78,12 @@ async function queueDelivery(po: MockBePo, decision: DecisionInput) {
     actor: MOCK_PO_ACTOR,
     requestedAt: now,
   });
-  addDelivery(po.purchaseOrderId, {
-    id: crypto.randomUUID(),
+  // Chưa có dòng lần gửi: BE chỉ ghi lịch sử sau khi worker gửi xong (SENT / FAILED).
+  queueOutbox(po.purchaseOrderId, {
     channel: "EMAIL",
-    status: "PENDING",
-    attemptedAt: now,
-    sentAt: null,
-    failure: null,
-    generation,
     recipient: supplier.code,
+    generation,
+    templateCode: "purchase-order.sent",
   });
   return null;
 }
@@ -157,7 +154,7 @@ async function recoverDelivery(config: AxiosRequestConfig) {
   if ((!po.expectedAt || po.expectedAt < todayVn()) && body.acknowledgePastDue !== true) {
     return conflict("Explicitly acknowledge the original overdue or unknown delivery date");
   }
-  const last = getDeliveries(id)[0];
+  const last = getDeliveries(id).find((d) => d.templateCode === "purchase-order.sent");
   if (!last || last.status !== "FAILED") {
     return conflict("Only a delivery that ended in a terminal failure can be recovered");
   }
@@ -205,7 +202,9 @@ async function recordConfirmation(config: AxiosRequestConfig) {
   if (po.supplierConfirmationStatus !== "PENDING") {
     return invalidTransition("supplier response is already final");
   }
+  // BE recordSupplierConfirmation → suppressSupplierDelivery: NCC đã phản hồi thì không gửi nữa.
   const updated = touch(po, {
+    ...suppressQueuedDelivery(po),
     supplierConfirmationStatus: response,
     supplierRespondedAt: new Date().toISOString(),
     supplierReference: reference,

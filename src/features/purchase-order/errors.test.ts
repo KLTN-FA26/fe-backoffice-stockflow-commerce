@@ -65,6 +65,19 @@ describe("poErrorMessage — mã lỗi nghiệp vụ BE #36 (9fbb90f)", () => {
       PO_ERROR_MESSAGES.sendSupplierUnavailable,
     );
   });
+
+  it("khôi phục gửi 409 CONFLICT → câu riêng của khôi phục, không phải câu xung đột chung", () => {
+    const err = new ApiError(
+      409,
+      "CONFLICT",
+      "An active supplier with a delivery contact is required",
+    );
+    expect(poErrorMessage(err, "recover")).toBe(PO_ERROR_MESSAGES.recoverConflict);
+    // Mã cụ thể vẫn thắng ngữ cảnh
+    expect(poErrorMessage(new ApiError(400, "PO_REASON_REQUIRED", "x"), "recover")).toBe(
+      PO_ERROR_MESSAGES.PO_REASON_REQUIRED,
+    );
+  });
 });
 
 describe("isStalePoError — dữ liệu trên màn đã cũ, cần tải lại PO", () => {

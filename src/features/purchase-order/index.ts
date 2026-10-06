@@ -54,6 +54,7 @@ export type { PoAction, PoActionCode, PoGateState } from "./lifecycle";
 export {
   deliveryFailureName,
   hasDeliveryDateWarning,
+  deliveryAlert,
   isDeliveryFailing,
   isDeliveryInFlight,
   linesMissingDescription,
@@ -63,6 +64,7 @@ export {
   isExpectedDatePast,
   isFirstDelivery,
   openQuantity,
+  poAttentionReason,
   shouldFlagPoRow,
   suggestExpectedDate,
   totalOpenQuantity,
@@ -80,6 +82,7 @@ export type { PoErrorContext } from "./errors";
 export {
   poKeys,
   usePoDeliveries,
+  useRefreshDeliveriesOnSettle,
   usePoDeliveryDecisions,
   usePoStatusDashboard,
   usePurchaseOrder,

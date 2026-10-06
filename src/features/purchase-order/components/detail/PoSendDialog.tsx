@@ -10,6 +10,7 @@ import {
   linesMissingDescription,
   sendPoInputSchema,
 } from "@/features/purchase-order";
+import { Alert } from "@/components/shared/Alert";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -86,20 +87,18 @@ function SendForm({
         )}
         {/* BR-06 (docs 02 §6): ngày đã qua chỉ cảnh báo, vẫn gửi được. */}
         {isExpectedDatePast(expectedAt, today) && (
-          <p className="text-warning text-xs">
-            Ngày giao dự kiến đã qua — vẫn gửi được, nên đổi ngày hoặc thống nhất lại với nhà cung
-            cấp.
-          </p>
+          <Alert tone="warning" className="mt-1">
+            {UI_LABELS.purchaseOrder.deliveryDateInPast}
+          </Alert>
         )}
       </div>
       {missingDescription > 0 && (
-        <p
-          role="alert"
-          className="border-warning/30 bg-warning/10 text-warning rounded-[var(--r-sm)] border px-3 py-2 text-xs"
-        >
-          {missingDescription} dòng chưa có mô tả sản phẩm. Nếu SKU không có trong danh mục, hệ
-          thống sẽ từ chối gửi — khi đó cần huỷ PO và tạo lại kèm mô tả.
-        </p>
+        <div role="alert">
+          <Alert tone="warning">
+            {missingDescription} dòng chưa có mô tả sản phẩm. Nếu SKU không có trong danh mục, hệ
+            thống sẽ từ chối gửi — khi đó cần huỷ PO và tạo lại kèm mô tả.
+          </Alert>
+        </div>
       )}
       {dateChanged && (
         <div className="grid gap-1.5">

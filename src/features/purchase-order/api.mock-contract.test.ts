@@ -110,9 +110,34 @@ describe("PO mock ↔ hợp đồng BE", () => {
       deliveryStatus: "QUEUED",
       supplierConfirmationStatus: "PENDING",
     });
-    expect((await listPoDeliveries(created.poId, HISTORY_PAGE)).items[0]?.status).toBe("PENDING");
+    // BE chỉ ghi dòng lần gửi sau khi worker gửi xong → lúc QUEUED lịch sử gửi còn trống.
+    expect((await listPoDeliveries(created.poId, HISTORY_PAGE)).items).toHaveLength(0);
     const [first] = (await listPoDeliveryDecisions(created.poId, HISTORY_PAGE)).items;
     expect(first).toMatchObject({ generation: 0, reconciled: false, expectedAt: FUTURE });
+  });
+
+  it("NCC phản hồi khi thư gửi đơn còn chờ → chặn gửi (deliveryStatus SUPPRESSED)", async () => {
+    const created = await createPurchaseOrder({
+      supplierId: "SUP-001",
+      currency: "VND",
+      expectedAt: FUTURE,
+      lines: [{ sku: "SKU-NEW-7", description: "Kệ sách", quantityOrdered: 1, unitPrice: 1 }],
+    });
+    await approvePurchaseOrder(created.poId);
+    await sendPurchaseOrder(created.poId, { expectedAt: FUTURE, reason: "" });
+    const confirmed = await recordSupplierConfirmation(created.poId, {
+      status: "CONFIRMED",
+      supplierReference: "",
+      note: "",
+    });
+    expect(confirmed.deliveryStatus).toBe("SUPPRESSED");
+    const realNow = Date.now();
+    const clock = vi.spyOn(Date, "now").mockReturnValue(realNow + 60_000);
+    try {
+      expect((await listPoDeliveries(created.poId, HISTORY_PAGE)).items).toHaveLength(0);
+    } finally {
+      clock.mockRestore();
+    }
   });
 
   it("sau thời gian vận chuyển giả lập: lần gửi SENT, PO deliveryStatus DELIVERED", async () => {
@@ -176,7 +201,33 @@ describe("PO mock ↔ hợp đồng BE", () => {
     await approvePurchaseOrder(created.poId);
     await sendPurchaseOrder(created.poId, { expectedAt: FUTURE, reason: "" });
     const cancelled = await cancelPurchaseOrder(created.poId, "NCC hết hàng");
-    expect(cancelled.cancellationDeliveryStatus).toBe("QUEUED");
+    // BE cancel → suppressSupplierDelivery: thư gửi đơn còn chờ không gửi nữa; thư báo huỷ xếp hàng.
+    expect(cancelled).toMatchObject({
+      deliveryStatus: "SUPPRESSED",
+      cancellationDeliveryStatus: "QUEUED",
+    });
+    const realNow = Date.now();
+    const clock = vi.spyOn(Date, "now").mockReturnValue(realNow + 60_000);
+    try {
+      expect((await getPurchaseOrder(created.poId)).cancellationDeliveryStatus).toBe("DELIVERED");
+      const { items } = await listPoDeliveries(created.poId, HISTORY_PAGE);
+      expect(items).toHaveLength(1);
+      expect(items[0]).toMatchObject({ status: "SENT", templateCode: "purchase-order.cancelled" });
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  it("huỷ PO chưa gửi NCC → không cần thư báo huỷ", async () => {
+    const created = await createPurchaseOrder({
+      supplierId: "SUP-001",
+      currency: "VND",
+      expectedAt: FUTURE,
+      lines: [{ sku: "SKU-NEW-6", description: "Bàn trà", quantityOrdered: 1, unitPrice: 1 }],
+    });
+    const cancelled = await cancelPurchaseOrder(created.poId, "Đặt nhầm");
+    expect(cancelled.cancellationDeliveryStatus).toBe("NOT_REQUIRED");
+    expect((await listPoDeliveries(created.poId, HISTORY_PAGE)).items).toHaveLength(0);
   });
 
   it("khôi phục gửi sau lần gửi FAILED (seed SENT): trạng thái gửi về QUEUED", async () => {

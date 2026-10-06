@@ -97,12 +97,25 @@ export const UI_LABELS = {
     },
     /** BE #36 `cancellationDeliveryStatus` / `warnings` / `templateCode`. */
     cancellationNotice: "Thông báo huỷ tới NCC",
-    deliveryDateInPast: "Ngày giao dự kiến đã qua — nên đổi ngày hoặc thống nhất lại với NCC.",
+    deliveryDateInPast:
+      "Ngày giao dự kiến đã qua — vẫn tạo và gửi được, nên đổi ngày hoặc thống nhất lại với NCC.",
     template: {
       "purchase-order.sent": "Gửi đơn đặt hàng",
       "purchase-order.cancelled": "Thông báo huỷ",
     },
     templateLabel: "Loại thư",
+    /** Cảnh báo thẻ Gửi NCC (`deliveryAlert`). */
+    deliveryAlert: {
+      recoverable:
+        "Lần gửi gần nhất chưa tới được NCC. Kiểm tra lịch sử gửi; người có quyền duyệt có thể khôi phục gửi.",
+      retrying:
+        "Lần gửi trước chưa tới được NCC — hệ thống đang tự gửi lại, trạng thái sẽ tự cập nhật.",
+    },
+    /** Lý do một đơn trong danh sách cần xử lý (`poAttentionReason`). */
+    attention: {
+      deliveryFailed: "Gửi NCC thất bại — cần khôi phục gửi",
+      supplierRejected: "NCC từ chối — huỷ và tạo đơn mới",
+    },
   },
 } as const;
 
@@ -161,6 +174,9 @@ export const PO_ERROR_MESSAGES = {
   // (BE #36 9fbb90f: chỉ cảnh báo qua `warnings` — BR-06).
   sendSupplierUnavailable:
     "Chưa gửi được nhà cung cấp: nhà cung cấp phải đang hợp tác và có email/API nhận PO, hoặc đơn đã được gửi thành công trước đó.",
+  // Khôi phục gửi bị 409 CONFLICT (BE PurchaseOrder#requireDeliveryRecovery + publishDelivery).
+  recoverConflict:
+    "Chưa gửi lại được: chỉ gửi lại khi lần gửi trước đã thất bại hẳn; nhà cung cấp phải đang hợp tác và có email/API nhận PO. Dữ liệu đã được tải lại.",
   generic: "Không thực hiện được thao tác. Vui lòng thử lại.",
 } as const;
 

@@ -5,7 +5,7 @@ import { Eye } from "lucide-react";
 
 import { ADMIN_ROUTES, PO_COLUMNS, UI_LABELS } from "@/constants";
 import { formatDate } from "@/lib/format";
-import { formatMoney } from "@/features/purchase-order";
+import { formatMoney, poAttentionReason } from "@/features/purchase-order";
 import { ColumnFilterButton } from "@/components/shared/ListToolbar";
 import { statusCell } from "@/components/shared/column-helpers";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,14 @@ import type { ColumnDef } from "@/components/shared/DataTable";
 import type { PoColumnSearchKey, PoTableColumnKey } from "./config";
 
 type PoColumn = ColumnDef<PurchaseOrder> & { key: PoTableColumnKey };
+
+const statusColumn = statusCell<PurchaseOrder>(
+  PO_COLUMNS.STATUS,
+  UI_LABELS.purchaseOrder.status,
+  (r) => r.status,
+  "po",
+  { sortable: true, withIcon: true },
+);
 
 /**
  * Cột bảng PO. Sắp xếp do BE làm (`serverSorting`) nên chỉ cột có trong whitelist sort của BE
@@ -94,17 +102,22 @@ export function usePoListColumns({
       ),
     },
     {
-      ...statusCell<PurchaseOrder>(
-        PO_COLUMNS.STATUS,
-        UI_LABELS.purchaseOrder.status,
-        (r) => r.status,
-        "po",
-        {
-          sortable: true,
-          withIcon: true,
-        },
-      ),
+      ...statusColumn,
       key: PO_COLUMNS.STATUS,
+      // Đơn cần xử lý: viền trái (flagRow) + một dòng lý do để biết vì sao bị đánh dấu.
+      cell: (row) => {
+        const reason = poAttentionReason(row);
+        return (
+          <div className="flex flex-col items-start gap-0.5">
+            {statusColumn.cell(row)}
+            {reason && (
+              <span className="text-warning text-xs">
+                {UI_LABELS.purchaseOrder.attention[reason]}
+              </span>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: PO_COLUMNS.ACTIONS,

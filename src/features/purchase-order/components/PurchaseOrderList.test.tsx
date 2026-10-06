@@ -116,6 +116,34 @@ describe("PurchaseOrderList", () => {
     expect(screen.queryByText(/Đang lọc theo NCC/)).not.toBeInTheDocument();
   });
 
+  it("đơn cần xử lý (gửi NCC thất bại / NCC từ chối) hiện lý do; đơn đã huỷ thì không", async () => {
+    renderList(PO_PERMISSION_SETS.readOnly, "", [
+      bePo({
+        purchaseOrderId: "11111111-1111-4111-8111-111111111111",
+        poNumber: "PO-FAILED",
+        status: "SENT",
+        supplierConfirmationStatus: "PENDING",
+        deliveryStatus: "FAILED",
+      }),
+      bePo({
+        purchaseOrderId: "22222222-2222-4222-8222-222222222222",
+        poNumber: "PO-REJECTED",
+        status: "SENT",
+        supplierConfirmationStatus: "REJECTED",
+        deliveryStatus: "DELIVERED",
+      }),
+      bePo({
+        purchaseOrderId: "33333333-3333-4333-8333-333333333333",
+        poNumber: "PO-CANCELLED",
+        status: "CANCELLED",
+        deliveryStatus: "FAILED",
+      }),
+    ]);
+    expect(await screen.findByText("Gửi NCC thất bại — cần khôi phục gửi")).toBeInTheDocument();
+    expect(screen.getByText("NCC từ chối — huỷ và tạo đơn mới")).toBeInTheDocument();
+    expect(screen.getAllByText(/Gửi NCC thất bại|NCC từ chối —/)).toHaveLength(2);
+  });
+
   it("tiền hiện theo tiền tệ của PO (EUR không thành ₫)", async () => {
     renderList(PO_PERMISSION_SETS.readOnly);
     const cell = await screen.findByText(/750/);

@@ -1,9 +1,11 @@
 import { Check } from "lucide-react";
 
-import { SUPPLIER_CHANNEL_LABELS, UI_LABELS } from "@/constants";
+import { UI_LABELS } from "@/constants";
 import { formatDate, formatDateTime } from "@/lib/format";
-import { deliveryRound, isFirstDelivery } from "@/features/purchase-order";
+import { deliveryRound } from "@/features/purchase-order";
 import { StatusDot } from "@/components/shared/StatusDot";
+
+import { attemptResult, channelLabel, decisionTypeLabel, templateLabel } from "./delivery-labels";
 
 import type { DeliveryAttempt, DeliveryDecision } from "@/features/purchase-order";
 import type { ColumnDef } from "@/components/shared/DataTable";
@@ -12,8 +14,6 @@ const NUM = "tabular-nums";
 /** Số (lượt) được dùng font mono; ngày giờ thì không — khó đọc. */
 const MONO_NUM = "font-[family-name:var(--font-mono)] tabular-nums";
 const MUTED = "text-ink-tertiary";
-
-const channelLabel = (c: string) => (c === "EMAIL" || c === "API" ? SUPPLIER_CHANNEL_LABELS[c] : c);
 
 /** Ô chữ dài (người nhận, lý do, lỗi): cắt 1 dòng, hover xem đủ. */
 function Truncate({
@@ -38,12 +38,6 @@ const Yes = ({ value }: { value: boolean }) =>
     <span className={MUTED}>—</span>
   );
 
-/** Loại quyết định suy từ lượt (BE: generation 0 = gửi lần đầu, ≥1 = khôi phục gửi). */
-export const decisionTypeLabel = (generation: number) =>
-  isFirstDelivery(generation) ? "Gửi lần đầu" : "Khôi phục gửi";
-
-export { channelLabel };
-
 const generationCell = <T extends { generation: number }>(): ColumnDef<T> => ({
   key: "generation",
   header: "Lượt",
@@ -54,6 +48,12 @@ const generationCell = <T extends { generation: number }>(): ColumnDef<T> => ({
 /** `/deliveries` — từng lần hệ thống gửi email/API tới NCC. */
 export const ATTEMPT_COLUMNS: ColumnDef<DeliveryAttempt>[] = [
   generationCell<DeliveryAttempt>(),
+  {
+    key: "templateCode",
+    header: UI_LABELS.purchaseOrder.templateLabel,
+    cell: (r) =>
+      r.templateCode ? templateLabel(r.templateCode) : <span className={MUTED}>—</span>,
+  },
   {
     key: "attemptedAt",
     header: UI_LABELS.purchaseOrder.delivery.attemptedAt,
@@ -68,7 +68,7 @@ export const ATTEMPT_COLUMNS: ColumnDef<DeliveryAttempt>[] = [
   {
     key: "status",
     header: UI_LABELS.purchaseOrder.delivery.result,
-    cell: (r) => <StatusDot domain="po" status={r.status} size="sm" withIcon />,
+    cell: (r) => <StatusDot domain="po" status={attemptResult(r.status)} size="sm" withIcon />,
   },
   {
     key: "sentAt",

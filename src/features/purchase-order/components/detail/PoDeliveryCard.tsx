@@ -5,10 +5,11 @@ import { Send } from "lucide-react";
 import { PO_DELIVERY_STATUS, UI_LABELS } from "@/constants";
 import { formatDateTime } from "@/lib/format";
 import {
-  isDeliveryFailing,
+  deliveryAlert,
   isDeliveryInFlight,
   showsCancellationNotice,
 } from "@/features/purchase-order";
+import { Alert } from "@/components/shared/Alert";
 import { StatusDot } from "@/components/shared/StatusDot";
 
 import { InfoRow } from "./InfoRow";
@@ -25,7 +26,7 @@ import type { PurchaseOrder } from "@/features/purchase-order";
 export function PoDeliveryCard({ po }: { po: PurchaseOrder }) {
   const sent = po.deliveryStatus !== PO_DELIVERY_STATUS.NOT_SENT || !!po.sentAt;
   if (!sent) return null;
-  const failed = isDeliveryFailing(po);
+  const alert = deliveryAlert(po);
 
   return (
     <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
@@ -33,14 +34,12 @@ export function PoDeliveryCard({ po }: { po: PurchaseOrder }) {
         <Send className="text-accent size-4" />
         Gửi nhà cung cấp
       </h2>
-      {failed && (
-        <p
-          role="alert"
-          className="border-warning/30 bg-warning/10 text-warning mb-3 rounded-[var(--r-sm)] border px-3 py-2 text-[0.8125rem]"
-        >
-          Lần gửi gần nhất chưa tới được NCC. Kiểm tra lịch sử gửi; người có quyền duyệt có thể khôi
-          phục gửi.
-        </p>
+      {alert && (
+        <div role={alert === "recoverable" ? "alert" : "status"} className="mb-3">
+          <Alert tone={alert === "recoverable" ? "warning" : "info"}>
+            {UI_LABELS.purchaseOrder.deliveryAlert[alert]}
+          </Alert>
+        </div>
       )}
       {/* Mỗi cột là một danh sách riêng: InfoRow bỏ kẻ ngang ở dòng cuối của TỪNG cột
           (last:border-b-0), nên hai cột luôn kẻ ngang đối xứng. */}

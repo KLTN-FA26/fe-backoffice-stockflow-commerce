@@ -13,6 +13,7 @@ import {
 import { PO_STATUS } from "@/constants";
 import { STATUS_LABEL_VI } from "@/lib/domain/status-map";
 import { isPoTerminal } from "@/features/purchase-order";
+import { Alert } from "@/components/shared/Alert";
 import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
 
@@ -70,11 +71,8 @@ export function PoActionPanel({
         <StatusDot domain="po" status={status} size="md" withIcon />
       </div>
       {conflictError && (
-        <div
-          role="alert"
-          className="border-danger/30 bg-danger/5 text-danger mb-2 rounded-[var(--r-sm)] border px-3 py-2 text-[0.8125rem]"
-        >
-          {conflictError}
+        <div role="alert" className="mb-2">
+          <Alert tone="danger">{conflictError}</Alert>
         </div>
       )}
       {actions.length > 0 && (

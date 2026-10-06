@@ -3,11 +3,14 @@ import { describe, expect, it } from "vitest";
 import {
   deliveryFailureName,
   linesMissingDescription,
+  deliveryAlert,
   isDeliveryFailing,
+  isDeliveryInFlight,
   deliveryRound,
   isFirstDelivery,
   isExpectedDatePast,
   openQuantity,
+  poAttentionReason,
   shouldFlagPoRow,
   suggestExpectedDate,
   totalOpenQuantity,
@@ -90,9 +93,22 @@ describe("PO quantity selectors", () => {
     expect(totalOpenQuantity(po)).toBe(6);
   });
 
-  it("flags only CANCELLED rows", () => {
-    expect(shouldFlagPoRow({ ...po, status: "CANCELLED" })).toBe(true);
-    expect(shouldFlagPoRow(po)).toBe(false);
+  it("đánh dấu đơn cần xử lý: gửi NCC thất bại / NCC từ chối (chỉ khi còn SENT)", () => {
+    const sent = { ...po, status: "SENT" as const, supplierConfirmationStatus: "PENDING" as const };
+    expect(poAttentionReason({ ...sent, deliveryStatus: "FAILED" })).toBe("deliveryFailed");
+    expect(
+      poAttentionReason({
+        ...sent,
+        deliveryStatus: "DELIVERED",
+        supplierConfirmationStatus: "REJECTED",
+      }),
+    ).toBe("supplierRejected");
+    expect(shouldFlagPoRow({ ...sent, deliveryStatus: "FAILED" })).toBe(true);
+    // Đang thử lại / đã gửi → chưa cần người xử lý
+    expect(shouldFlagPoRow({ ...sent, deliveryStatus: "RETRYING" })).toBe(false);
+    expect(shouldFlagPoRow({ ...sent, deliveryStatus: "DELIVERED" })).toBe(false);
+    // Đã huỷ là kết thúc — không đánh dấu, kể cả lần gửi từng thất bại
+    expect(shouldFlagPoRow({ ...po, status: "CANCELLED", deliveryStatus: "FAILED" })).toBe(false);
   });
 });
 
@@ -141,6 +157,21 @@ describe('deliveryFailureName (failure BE: "<reference>: <Exception>")', () => {
   });
 });
 
+describe("deliveryAlert — cảnh báo thẻ Gửi NCC theo điều kiện khôi phục của BE", () => {
+  const sent = { status: "SENT", supplierConfirmationStatus: "PENDING" } as const;
+  it("thất bại hẳn + còn khôi phục được → recoverable; BE đang tự gửi lại → retrying", () => {
+    expect(deliveryAlert({ ...sent, deliveryStatus: "FAILED" })).toBe("recoverable");
+    expect(deliveryAlert({ ...sent, deliveryStatus: "RETRYING" })).toBe("retrying");
+    expect(deliveryAlert({ ...sent, deliveryStatus: "DELIVERED" })).toBeNull();
+  });
+  it("không còn khôi phục được (đã huỷ / NCC đã phản hồi) → không cảnh báo", () => {
+    expect(deliveryAlert({ ...sent, status: "CANCELLED", deliveryStatus: "FAILED" })).toBeNull();
+    expect(
+      deliveryAlert({ ...sent, supplierConfirmationStatus: "CONFIRMED", deliveryStatus: "FAILED" }),
+    ).toBeNull();
+  });
+});
+
 describe("isDeliveryFailing (BE deliveryStatus)", () => {
   it("RETRYING / FAILED là chưa tới NCC; các trạng thái khác thì không", () => {
     expect(isDeliveryFailing({ deliveryStatus: "FAILED" })).toBe(true);
@@ -158,5 +189,20 @@ describe("linesMissingDescription (BE #36 PO_LINE_DESCRIPTION_REQUIRED khi gửi
       { ...line("c", 1), description: undefined },
     ];
     expect(linesMissingDescription({ lines }).map((l) => l.lineId)).toEqual(["b", "c"]);
+  });
+});
+
+describe("isDeliveryInFlight (tự tải lại khi đang gửi)", () => {
+  it("thư gửi đơn hoặc thư báo huỷ đang QUEUED/RETRYING → đang gửi", () => {
+    expect(isDeliveryInFlight({ deliveryStatus: "QUEUED" })).toBe(true);
+    expect(isDeliveryInFlight({ deliveryStatus: "RETRYING" })).toBe(true);
+    expect(
+      isDeliveryInFlight({ deliveryStatus: "DELIVERED", cancellationDeliveryStatus: "QUEUED" }),
+    ).toBe(true);
+    expect(
+      isDeliveryInFlight({ deliveryStatus: "DELIVERED", cancellationDeliveryStatus: "DELIVERED" }),
+    ).toBe(false);
+    expect(isDeliveryInFlight({ deliveryStatus: "FAILED" })).toBe(false);
+    expect(isDeliveryInFlight(undefined)).toBe(false);
   });
 });

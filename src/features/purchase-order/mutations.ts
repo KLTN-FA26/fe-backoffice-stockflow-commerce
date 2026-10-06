@@ -52,7 +52,12 @@ export const useSendPo = createMutation<{ id: string; input: SendPoInput }, Purc
 
 export const useCancelPo = createMutation<{ id: string; reason: string }, PurchaseOrder>(
   ({ id, reason }) => cancelPurchaseOrder(id, reason),
-  { invalidate: PO_INVALIDATE, showErrorToast: false, successMessage: MSG.cancelled },
+  // BE #36: huỷ PO đã gửi → chặn lần gửi đang chờ + xếp thư báo huỷ → bảng lần gửi đổi.
+  {
+    invalidate: [...PO_INVALIDATE, poDeliveryKeys.all],
+    showErrorToast: false,
+    successMessage: MSG.cancelled,
+  },
 );
 
 export const useCloseShortPo = createMutation<{ id: string; reason: string }, PurchaseOrder>(
@@ -82,7 +87,8 @@ export const useRecordSupplierConfirmation = createMutation<
   { id: string; input: SupplierConfirmationInput },
   PurchaseOrder
 >(({ id, input }) => recordSupplierConfirmation(id, input), {
-  invalidate: [poKeys.all],
+  // BE `suppressSupplierDelivery`: NCC đã phản hồi → lần gửi đang chờ bị chặn (SUPPRESSED).
+  invalidate: DELIVERY_INVALIDATE,
   showErrorToast: false,
   successMessage: MSG.confirmationRecorded,
 });

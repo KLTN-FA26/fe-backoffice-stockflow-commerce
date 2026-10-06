@@ -137,6 +137,9 @@ describe("PurchaseOrderDetail — giao NCC (BE #36)", () => {
       PO_PERMISSION_SETS.procurement,
       bePo({ status: "SENT", supplierConfirmationStatus: "PENDING", deliveryStatus: "FAILED" }),
     );
+    // BE #36: bảng phân biệt thư gửi đơn với thư báo huỷ ngay trên dòng (templateCode)
+    expect(await screen.findByRole("columnheader", { name: "Loại thư" })).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "Gửi đơn đặt hàng" })).toBeInTheDocument();
     await user.click(await screen.findByText("po@gohoaphat.vn"));
     const panel = await screen.findByRole("dialog", { name: "Lần gửi · lượt 1" });
     // failure BE "purchase-order:<uuid>: X" → chỉ hiện tên lỗi, không lộ UUID
@@ -251,6 +254,78 @@ describe("PurchaseOrderDetail — giao NCC (BE #36)", () => {
     }
   });
 
+  it("đang gửi → tự tải lại; có kết quả → lịch sử có dòng vừa gửi, rồi dừng tải lại", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      let poCalls = 0;
+      let attemptCalls = 0;
+      let servedSentRow = false;
+      const sent = {
+        status: "SENT",
+        supplierConfirmationStatus: "PENDING",
+        sentAt: "2026-10-01T03:00:00Z",
+      };
+      mockApi(PO_PERMISSION_SETS.procurement, {
+        ...routesFor(bePo()),
+        [`/purchase-orders/${PO_ID}`]: () =>
+          bePo({ ...sent, deliveryStatus: ++poCalls === 1 ? "QUEUED" : "DELIVERED" }),
+        // BE chỉ ghi dòng lần gửi sau khi gửi xong: lúc PO còn QUEUED thì lịch sử trống.
+        [`/purchase-orders/${PO_ID}/deliveries`]: () => {
+          attemptCalls += 1;
+          if (poCalls < 2) return bePage([]);
+          servedSentRow = true;
+          return bePage([
+            {
+              id: "d-1",
+              channel: "EMAIL",
+              status: "SENT",
+              attemptedAt: "2026-10-01T03:00:01Z",
+              sentAt: "2026-10-01T03:00:01Z",
+              failure: null,
+              generation: 0,
+              recipient: "po@gohoaphat.vn",
+              templateCode: "purchase-order.sent",
+            },
+          ]);
+        },
+      });
+      renderPoScreen(<PurchaseOrderDetail id={PO_ID} />);
+      expect(await screen.findByText("Đang chờ gửi")).toBeInTheDocument();
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(servedSentRow).toBe(true);
+      // Thẻ (deliveryStatus DELIVERED) + dòng lần gửi SENT dùng cùng một nhãn
+      await waitFor(() => expect(screen.getAllByText("Đã gửi tới NCC")).toHaveLength(2));
+      // Đã có kết quả cuối → dừng tải lại
+      const after = attemptCalls;
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(attemptCalls).toBe(after);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("BE đang tự gửi lại (RETRYING) → báo đang gửi lại, không khuyên khôi phục gửi", async () => {
+    renderDetail(
+      PO_PERMISSION_SETS.procurement,
+      bePo({ status: "SENT", supplierConfirmationStatus: "PENDING", deliveryStatus: "RETRYING" }),
+    );
+    expect(await screen.findByText(/hệ thống đang tự gửi lại/)).toBeInTheDocument();
+    expect(screen.queryByText(/có thể khôi phục gửi/)).not.toBeInTheDocument();
+  });
+
+  it("PO đã huỷ dù lần gửi từng FAILED → không còn cảnh báo khôi phục gửi", async () => {
+    renderDetail(
+      PO_PERMISSION_SETS.procurement,
+      bePo({
+        status: "CANCELLED",
+        supplierConfirmationStatus: "PENDING",
+        deliveryStatus: "FAILED",
+      }),
+    );
+    expect(await screen.findByText("Gửi nhà cung cấp")).toBeInTheDocument();
+    expect(screen.queryByText(/chưa tới được NCC/)).not.toBeInTheDocument();
+  });
+
   it("BE #36: cảnh báo ngày giao đã qua (warnings) + trạng thái thông báo huỷ tới NCC", async () => {
     renderDetail(
       PO_PERMISSION_SETS.readOnly,
@@ -263,7 +338,9 @@ describe("PurchaseOrderDetail — giao NCC (BE #36)", () => {
         warnings: ["DELIVERY_DATE_IN_PAST"],
       }),
     );
-    expect(await screen.findByText(/Ngày giao dự kiến đã qua — nên đổi ngày/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Ngày giao dự kiến đã qua — vẫn tạo và gửi được/),
+    ).toBeInTheDocument();
     expect(screen.getByText("Thông báo huỷ tới NCC")).toBeInTheDocument();
   });
 
