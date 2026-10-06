@@ -48,6 +48,7 @@ const routesFor = (po: Record<string, unknown>) => ({
         failure: `purchase-order:${PO_ID}: MailSendException`,
         generation: 0,
         recipient: "po@gohoaphat.vn",
+        templateCode: "purchase-order.sent",
       },
     ]),
 });
@@ -142,6 +143,7 @@ describe("PurchaseOrderDetail — giao NCC (BE #36)", () => {
     expect(within(panel).getByText("MailSendException")).toBeInTheDocument();
     expect(within(panel).queryByText(new RegExp(PO_ID))).not.toBeInTheDocument();
     expect(within(panel).getByText("po@gohoaphat.vn")).toBeInTheDocument();
+    expect(within(panel).getByText("Gửi đơn đặt hàng")).toBeInTheDocument();
     expect(within(panel).queryByText("d-1")).not.toBeInTheDocument();
     // Khớp OrderDetailPanel/SkuDetailPanel: rộng max-w-md, lớp drawer 1100 (design-tokens)
     expect(panel).toHaveClass("max-w-md", "z-[1100]");
@@ -208,6 +210,61 @@ describe("PurchaseOrderDetail — giao NCC (BE #36)", () => {
     expect(within(dialog).getByRole("button", { name: "Ghi nhận" })).toBeDisabled();
     await user.type(within(dialog).getByLabelText(/Ghi chú/), "Hết hàng");
     expect(within(dialog).getByRole("button", { name: "Ghi nhận" })).toBeEnabled();
+  });
+
+  it("dialog Gửi NCC: PO cũ thiếu mô tả + ngày đã qua → cảnh báo, vẫn cho gửi (BR-06)", async () => {
+    const user = userEvent.setup();
+    const base = bePo({ status: "APPROVED", expectedAt: "2020-01-01" });
+    const po = { ...base, lines: base.lines.map((l) => ({ ...l, description: "" })) };
+    renderDetail(PO_PERMISSION_SETS.procurement, po);
+    await user.click(await screen.findByRole("button", { name: /Gửi NCC/ }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/1 dòng chưa có mô tả sản phẩm/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Ngày giao dự kiến đã qua/)).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Gửi NCC" })).toBeEnabled();
+  });
+
+  it("đang gửi NCC (QUEUED) → tự tải lại, chuyển sang 'Đã gửi tới NCC' không cần F5", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      let calls = 0;
+      const sent = {
+        status: "SENT",
+        supplierConfirmationStatus: "PENDING",
+        sentAt: "2026-10-01T03:00:00Z",
+      };
+      mockApi(PO_PERMISSION_SETS.procurement, {
+        ...routesFor(bePo()),
+        [`/purchase-orders/${PO_ID}`]: () =>
+          bePo({ ...sent, deliveryStatus: ++calls === 1 ? "QUEUED" : "DELIVERED" }),
+      });
+      renderPoScreen(<PurchaseOrderDetail id={PO_ID} />);
+      expect(await screen.findByText("Đang chờ gửi")).toBeInTheDocument();
+      await vi.advanceTimersByTimeAsync(3500);
+      expect(await screen.findByText("Đã gửi tới NCC")).toBeInTheDocument();
+      // Đã có kết quả cuối → dừng tải lại
+      const after = calls;
+      await vi.advanceTimersByTimeAsync(7000);
+      expect(calls).toBe(after);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("BE #36: cảnh báo ngày giao đã qua (warnings) + trạng thái thông báo huỷ tới NCC", async () => {
+    renderDetail(
+      PO_PERMISSION_SETS.readOnly,
+      bePo({
+        status: "CANCELLED",
+        sentAt: "2026-10-01T03:00:00Z",
+        supplierConfirmationStatus: "PENDING",
+        deliveryStatus: "DELIVERED",
+        cancellationDeliveryStatus: "QUEUED",
+        warnings: ["DELIVERY_DATE_IN_PAST"],
+      }),
+    );
+    expect(await screen.findByText(/Ngày giao dự kiến đã qua — nên đổi ngày/)).toBeInTheDocument();
+    expect(screen.getByText("Thông báo huỷ tới NCC")).toBeInTheDocument();
   });
 
   it("409 khi duyệt → câu tiếng Việt, không lộ message tiếng Anh của BE", async () => {

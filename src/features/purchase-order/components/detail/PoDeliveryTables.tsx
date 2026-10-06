@@ -24,12 +24,12 @@ const FIRST_PAGE: PoHistoryParams = { page: 0, size: PAGE_SIZE.md };
  * Cả hai query chạy ngay để tab hiện số đếm mà không cần bấm vào.
  * Bấm một dòng → panel trượt phải hiện đủ field của dòng đó.
  */
-export function PoDeliveryTables({ poId }: { poId: string }) {
+export function PoDeliveryTables({ poId, poll = false }: { poId: string; poll?: boolean }) {
   const [tab, setTab] = useState<Tab>("attempts");
   const [attemptParams, setAttemptParams] = useState(FIRST_PAGE);
   const [decisionParams, setDecisionParams] = useState(FIRST_PAGE);
   const [detail, setDetail] = useState<DeliveryDetail | null>(null);
-  const attemptsQ = usePoDeliveries(poId, attemptParams);
+  const attemptsQ = usePoDeliveries(poId, attemptParams, { poll });
   const decisionsQ = usePoDeliveryDecisions(poId, decisionParams);
 
   const tabs: { key: Tab; label: string; count?: number }[] = [

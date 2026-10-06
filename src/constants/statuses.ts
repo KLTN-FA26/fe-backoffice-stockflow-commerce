@@ -54,6 +54,28 @@ export const PO_DELIVERY_STATUS = {
   SUPPRESSED: "SUPPRESSED",
 } as const satisfies Record<string, PoDeliveryStatus>;
 
+/**
+ * BE #36 (9fbb90f) `PurchaseOrderResponse.cancellationDeliveryStatus` — thông báo huỷ gửi tới NCC
+ * khi PO đã gửi rồi mới huỷ. NOT_REQUIRED: huỷ trước khi gửi, không cần báo.
+ */
+export const PO_CANCELLATION_DELIVERY_STATUSES = [
+  "NOT_REQUIRED",
+  "UNKNOWN",
+  "QUEUED",
+  "RETRYING",
+  "FAILED",
+  "DELIVERED",
+] as const;
+
+export const PO_CANCELLATION_DELIVERY_STATUS = {
+  NOT_REQUIRED: "NOT_REQUIRED",
+  UNKNOWN: "UNKNOWN",
+  QUEUED: "QUEUED",
+  RETRYING: "RETRYING",
+  FAILED: "FAILED",
+  DELIVERED: "DELIVERED",
+} as const satisfies Record<string, PoCancellationDeliveryStatus>;
+
 /** BE notification `DeliveryStatus` — kết quả từng lần gửi (`GET …/deliveries`). */
 export const PO_DELIVERY_ATTEMPT_STATUSES = ["PENDING", "SENT", "FAILED"] as const;
 
@@ -146,6 +168,7 @@ export const SUPPLIER_CHANNELS = ["EMAIL", "API"] as const;
 export type PoStatus = (typeof PO_STATUSES)[number];
 export type SupplierConfirmationStatus = (typeof SUPPLIER_CONFIRMATION_STATUSES)[number];
 export type PoDeliveryStatus = (typeof PO_DELIVERY_STATUSES)[number];
+export type PoCancellationDeliveryStatus = (typeof PO_CANCELLATION_DELIVERY_STATUSES)[number];
 export type PoDeliveryAttemptStatus = (typeof PO_DELIVERY_ATTEMPT_STATUSES)[number];
 export type ReceiptStatus = (typeof RECEIPT_STATUSES)[number];
 export type ProductStatus = (typeof PRODUCT_STATUSES)[number];

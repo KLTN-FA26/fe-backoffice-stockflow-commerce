@@ -4,7 +4,11 @@ import { Send } from "lucide-react";
 
 import { PO_DELIVERY_STATUS, UI_LABELS } from "@/constants";
 import { formatDateTime } from "@/lib/format";
-import { isDeliveryFailing } from "@/features/purchase-order";
+import {
+  isDeliveryFailing,
+  isDeliveryInFlight,
+  showsCancellationNotice,
+} from "@/features/purchase-order";
 import { StatusDot } from "@/components/shared/StatusDot";
 
 import { InfoRow } from "./InfoRow";
@@ -65,11 +69,17 @@ export function PoDeliveryCard({ po }: { po: PurchaseOrder }) {
           {po.supplierResponseNote && (
             <InfoRow label="Ghi chú NCC" value={po.supplierResponseNote} />
           )}
+          {/* BE #36: PO đã gửi rồi mới huỷ → BE gửi thông báo huỷ cho NCC. */}
+          {showsCancellationNotice(po) && po.cancellationDeliveryStatus && (
+            <InfoRow label={UI_LABELS.purchaseOrder.cancellationNotice}>
+              <StatusDot domain="po" status={po.cancellationDeliveryStatus} size="sm" withIcon />
+            </InfoRow>
+          )}
         </div>
       </div>
 
       <h3 className="text-ink-secondary mt-4 mb-2 text-xs font-semibold">Lịch sử gửi</h3>
-      <PoDeliveryTables poId={po.poId} />
+      <PoDeliveryTables poId={po.poId} poll={isDeliveryInFlight(po)} />
     </section>
   );
 }

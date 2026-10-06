@@ -13,14 +13,16 @@ export function InfoRow({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="border-border-default flex items-baseline justify-between border-b py-2 last:border-b-0">
-      <span className="text-ink-tertiary text-xs font-medium">{label}</span>
+    <div className="border-border-default flex items-baseline justify-between gap-3 border-b py-2 last:border-b-0">
+      <span className="text-ink-tertiary shrink-0 text-xs font-medium">{label}</span>
       {children ? (
-        <span className="text-ink-primary text-[0.8125rem]">{children}</span>
+        <span className="text-ink-primary min-w-0 text-right text-[0.8125rem] break-words">
+          {children}
+        </span>
       ) : (
         <span
           className={cn(
-            "text-[0.8125rem]",
+            "min-w-0 text-right text-[0.8125rem] break-words",
             danger ? "text-danger font-medium" : "text-ink-primary",
             mono && "font-[family-name:var(--font-mono)] tabular-nums",
           )}

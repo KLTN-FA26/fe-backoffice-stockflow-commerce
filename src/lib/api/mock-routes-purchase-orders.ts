@@ -186,6 +186,8 @@ async function createPurchaseOrder(config: AxiosRequestConfig) {
     supplierReference: null,
     supplierResponseNote: null,
     deliveryStatus: "NOT_SENT",
+    cancellationDeliveryStatus: "NOT_REQUIRED",
+    warnings: [],
   };
   store.set(po.purchaseOrderId, po);
   return beOk({ ...po, possibleDuplicate }, 201);
@@ -210,6 +212,8 @@ const transition =
     }
     const patch: Partial<MockBePo> = { status: target };
     if (reasonField) patch[reasonField] = reason;
+    // BE #36: huỷ PO đã gửi NCC → xếp hàng gửi thông báo huỷ cho NCC.
+    if (target === "CANCELLED" && po.sentAt) patch.cancellationDeliveryStatus = "QUEUED";
     const updated = touch(po, patch);
     store.set(id, updated);
     return beOk(updated);

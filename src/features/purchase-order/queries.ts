@@ -5,6 +5,8 @@
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
+import { PO_LIMITS } from "@/constants";
+
 import { QUERY_TIMES } from "@/lib/api/query-client";
 import { createDetailQuery, createListQuery, createQueryKeys } from "@/lib/api/query-factory";
 
@@ -16,6 +18,7 @@ import {
   listPurchaseOrders,
   listSupplierSpend,
 } from "./api";
+import { isDeliveryInFlight } from "./selectors";
 
 import type { PaginatedResponse } from "@/lib/api/query-factory";
 import type { ListPoParams, PoHistoryParams, SupplierSpendParams } from "./api";
@@ -39,7 +42,11 @@ export const usePurchaseOrders = createListQuery<PurchaseOrder, ListPoParams>(
   listPurchaseOrders,
 );
 
-export const usePurchaseOrder = createDetailQuery<PurchaseOrder>(poKeys, getPurchaseOrder);
+/** Chi tiết PO — tự tải lại khi đang gửi NCC (`isDeliveryInFlight`), dừng khi có kết quả. */
+export const usePurchaseOrder = createDetailQuery<PurchaseOrder>(poKeys, getPurchaseOrder, {
+  refetchInterval: (query) =>
+    isDeliveryInFlight(query.state.data) ? PO_LIMITS.deliveryPollMs : false,
+});
 
 export const useSupplierSpend = createListQuery<SupplierSpendRow, SupplierSpendParams>(
   supplierSpendKeys,
@@ -59,13 +66,15 @@ export function usePoStatusDashboard(options?: { enabled?: boolean }) {
 export function usePoDeliveries(
   poId: string,
   params: PoHistoryParams,
-  options?: { enabled?: boolean },
+  /** `poll`: PO đang gửi NCC → tải lại bảng lần gửi theo chu kỳ (lần gửi được ghi bất đồng bộ). */
+  options?: { enabled?: boolean; poll?: boolean },
 ) {
   return useQuery<PaginatedResponse<DeliveryAttempt>>({
     queryKey: poDeliveryKeys.attempts(poId, params),
     queryFn: ({ signal }) => listPoDeliveries(poId, params, signal),
     placeholderData: keepPreviousData,
     ...QUERY_TIMES.detail,
+    refetchInterval: options?.poll ? PO_LIMITS.deliveryPollMs : false,
     enabled: !!poId && options?.enabled !== false,
   });
 }

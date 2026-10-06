@@ -22,9 +22,14 @@ export const poCreateFormLineSchema = z.object({
     .string()
     .min(1, UI_LABELS.purchaseOrder.validation.skuRequired)
     .regex(SKU_CODE_PATTERN, "Mã SKU chỉ gồm chữ in hoa, số, dấu gạch ngang; 3–64 ký tự"),
+  // BE #36 (9fbb90f) ProcurementServiceImpl#description: khi gửi NCC, dòng phải có mô tả — thiếu thì
+  // BE lấy tên theo SKU trong danh mục, không có → 400 PO_LINE_DESCRIPTION_REQUIRED và PO kẹt.
+  // Chưa có API danh mục SKU (open-question C12) nên FE BẮT BUỘC mô tả ngay từ lúc tạo.
   // BE `po_line.description VARCHAR(300)`.
   description: z
     .string()
+    .trim()
+    .min(1, UI_LABELS.purchaseOrder.validation.descriptionRequired)
     .max(PO_LIMITS.lineDescriptionMax, `Mô tả tối đa ${PO_LIMITS.lineDescriptionMax} ký tự`),
   // BE `int quantityOrdered` @Positive.
   orderedQty: z.string().superRefine((raw, ctx) => {

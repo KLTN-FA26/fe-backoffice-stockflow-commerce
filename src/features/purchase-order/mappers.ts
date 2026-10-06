@@ -45,6 +45,8 @@ export function mapBePoToFe(be: BePurchaseOrderDto): PurchaseOrder {
     supplierReference: be.supplierReference ?? undefined,
     supplierResponseNote: be.supplierResponseNote ?? undefined,
     deliveryStatus: be.deliveryStatus,
+    cancellationDeliveryStatus: be.cancellationDeliveryStatus,
+    warnings: be.warnings,
     lines: be.lines.map((l) => mapLine(l, be.purchaseOrderId, be.currency)),
   };
 }

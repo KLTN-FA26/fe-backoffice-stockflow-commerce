@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   deliveryFailureName,
+  linesMissingDescription,
   isDeliveryFailing,
   deliveryRound,
   isFirstDelivery,
@@ -75,6 +76,7 @@ describe("PO quantity selectors", () => {
     leadTimeDays: 7,
     supplierConfirmationStatus: "CONFIRMED",
     deliveryStatus: "DELIVERED",
+    warnings: [],
     lines: [line("a", 6), line("b", 0)],
   };
 
@@ -145,5 +147,16 @@ describe("isDeliveryFailing (BE deliveryStatus)", () => {
     expect(isDeliveryFailing({ deliveryStatus: "RETRYING" })).toBe(true);
     expect(isDeliveryFailing({ deliveryStatus: "QUEUED" })).toBe(false);
     expect(isDeliveryFailing({ deliveryStatus: "DELIVERED" })).toBe(false);
+  });
+});
+
+describe("linesMissingDescription (BE #36 PO_LINE_DESCRIPTION_REQUIRED khi gửi)", () => {
+  it("chỉ trả các dòng mô tả trống / toàn khoảng trắng", () => {
+    const lines: PoLine[] = [
+      { ...line("a", 1), description: "Sofa" },
+      { ...line("b", 1), description: "  " },
+      { ...line("c", 1), description: undefined },
+    ];
+    expect(linesMissingDescription({ lines }).map((l) => l.lineId)).toEqual(["b", "c"]);
   });
 });

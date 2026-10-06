@@ -22,6 +22,9 @@ const dateTime = (v: string | null | undefined) =>
   v ? <span className={NUM}>{formatDateTime(v)}</span> : EMPTY;
 const date = (v: string | null | undefined) =>
   v ? <span className={NUM}>{formatDate(v)}</span> : EMPTY;
+const TEMPLATES: Record<string, string> = UI_LABELS.purchaseOrder.template;
+/** BE #36 `templateCode` → nhãn; mã lạ hiện nguyên văn. */
+const templateLabel = (code: string) => TEMPLATES[code] ?? code;
 const yesNo = (v: boolean) => (v ? "Có" : "Không");
 
 /** Chi tiết 1 dòng lịch sử gửi NCC — đủ mọi field BE trả, trừ `id`. */
@@ -75,6 +78,9 @@ function AttemptRows({ row }: { row: DeliveryAttempt }) {
       <Row label={UI_LABELS.purchaseOrder.delivery.result}>
         <StatusDot domain="po" status={row.status} size="sm" withIcon />
       </Row>
+      {row.templateCode && (
+        <Row label={UI_LABELS.purchaseOrder.templateLabel}>{templateLabel(row.templateCode)}</Row>
+      )}
       <Row label="Kênh">{channelLabel(row.channel)}</Row>
       <Row label={UI_LABELS.purchaseOrder.delivery.recipient}>{orEmpty(row.recipient)}</Row>
       <Row label={UI_LABELS.purchaseOrder.delivery.attemptedAt}>{dateTime(row.attemptedAt)}</Row>

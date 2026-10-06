@@ -13,8 +13,8 @@ const validPo = {
   currency: "VND",
   expectedAt: "2026-10-07",
   lines: [
-    { sku: "SKU-001", description: null, quantityOrdered: 10, unitPrice: 50000 },
-    { sku: "SKU-002", description: null, quantityOrdered: 5, unitPrice: 0 },
+    { sku: "SKU-001", description: "Sofa 3 chỗ", quantityOrdered: 10, unitPrice: 50000 },
+    { sku: "SKU-002", description: "Sofa 3 chỗ", quantityOrdered: 5, unitPrice: 0 },
   ],
 };
 
@@ -41,17 +41,24 @@ describe("createPoSchema — Input (BE CreatePurchaseOrderRequest)", () => {
     const withPrice = (currency: string, unitPrice: number) => ({
       ...validPo,
       currency,
-      lines: [{ sku: "SKU-001", description: null, quantityOrdered: 1, unitPrice }],
+      lines: [{ sku: "SKU-001", description: "Sofa 3 chỗ", quantityOrdered: 1, unitPrice }],
     });
     expect(issuePaths(withPrice("VND", 1000.5))).toContain("lines.0.unitPrice");
     expect(createPoSchema.safeParse(withPrice("USD", 12.5)).success).toBe(true);
     expect(issuePaths(withPrice("USD", 12.345))).toContain("lines.0.unitPrice");
   });
 
+  it("mô tả dòng bắt buộc (BE #36 PO_LINE_DESCRIPTION_REQUIRED khi gửi NCC)", () => {
+    const line = { sku: "SKU-001", description: "   ", quantityOrdered: 1, unitPrice: 1 };
+    expect(issuePaths({ ...validPo, lines: [line] })).toContain("lines.0.description");
+  });
+
   it("giới hạn BE: mô tả dòng ≤ 300 ký tự (VARCHAR(300)), SL đặt ≤ Java int", () => {
     const withLine = (line: Record<string, unknown>) => ({
       ...validPo,
-      lines: [{ sku: "SKU-001", description: null, quantityOrdered: 1, unitPrice: 1, ...line }],
+      lines: [
+        { sku: "SKU-001", description: "Sofa 3 chỗ", quantityOrdered: 1, unitPrice: 1, ...line },
+      ],
     });
     expect(issuePaths(withLine({ description: "a".repeat(301) }))).toContain("lines.0.description");
     expect(createPoSchema.safeParse(withLine({ description: "a".repeat(300) })).success).toBe(true);
@@ -101,25 +108,27 @@ describe("receiveGoodsInputSchema (BE ReceiveGoodsRequest)", () => {
   });
 });
 
-describe("sendPoInputSchema (BE PurchaseOrder#confirmDeliveryDate)", () => {
-  const today = "2026-10-02";
-
+describe("sendPoInputSchema (BE PurchaseOrder#confirmDeliveryDate, #36 9fbb90f)", () => {
   it("giữ nguyên ngày giao đang lưu → không cần lý do", () => {
-    const schema = sendPoInputSchema("2026-10-09", today);
+    const schema = sendPoInputSchema("2026-10-09");
     expect(schema.safeParse({ expectedAt: "2026-10-09", reason: "" }).success).toBe(true);
   });
 
-  it("ngày giao trước hôm nay bị chặn (BE 409 CONFLICT)", () => {
-    const schema = sendPoInputSchema("2026-09-20", today);
-    expect(pathsOf(schema.safeParse({ expectedAt: "2026-09-20", reason: "" }))).toContain(
+  it("BR-06: ngày giao đã qua KHÔNG bị chặn (BE chỉ cảnh báo qua warnings)", () => {
+    const schema = sendPoInputSchema("2020-09-20");
+    expect(schema.safeParse({ expectedAt: "2020-09-20", reason: "" }).success).toBe(true);
+  });
+
+  it("thiếu ngày giao → lỗi ô ngày (BE PO_DELIVERY_DATE_REQUIRED)", () => {
+    expect(pathsOf(sendPoInputSchema(null).safeParse({ expectedAt: "", reason: "" }))).toContain(
       "expectedAt",
     );
   });
 
-  it("đổi ngày giao bắt buộc lý do", () => {
-    const schema = sendPoInputSchema("2026-09-20", today);
-    expect(pathsOf(schema.safeParse({ expectedAt: "2026-10-05", reason: "" }))).toContain("reason");
-    expect(schema.safeParse({ expectedAt: "2026-10-05", reason: "NCC dời lịch" }).success).toBe(
+  it("đổi ngày giao bắt buộc lý do (BE PO_REASON_REQUIRED)", () => {
+    const schema = sendPoInputSchema("2026-10-09");
+    expect(pathsOf(schema.safeParse({ expectedAt: "2026-10-12", reason: "" }))).toContain("reason");
+    expect(schema.safeParse({ expectedAt: "2026-10-12", reason: "NCC dời lịch" }).success).toBe(
       true,
     );
   });

@@ -9,7 +9,7 @@ const valid = {
   supplierId: "22222222-2222-4222-8222-222222222222",
   currency: "VND" as const,
   expectedDate: "",
-  lines: [{ skuId: "SKU-001", description: "", orderedQty: "2", unitPrice: "1000" }],
+  lines: [{ skuId: "SKU-001", description: "Sofa 3 chỗ", orderedQty: "2", unitPrice: "1000" }],
 };
 const paths = (input: unknown) => {
   const r = poCreateFormSchema.safeParse(input);
@@ -26,6 +26,12 @@ describe("poCreateFormSchema — lỗi gắn đúng path ô form", () => {
     expect(paths({ ...valid, lines: [line, line] })).toContain("lines.1.skuId");
     expect(paths({ ...valid, lines: [{ ...line, unitPrice: "10.5" }] })).toContain(
       "lines.0.unitPrice",
+    );
+  });
+
+  it("thiếu mô tả dòng → lỗi ở ô mô tả (BE #36 PO_LINE_DESCRIPTION_REQUIRED)", () => {
+    expect(paths({ ...valid, lines: [{ ...valid.lines[0], description: "  " }] })).toContain(
+      "lines.0.description",
     );
   });
 

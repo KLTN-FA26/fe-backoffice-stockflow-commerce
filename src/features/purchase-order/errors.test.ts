@@ -27,7 +27,7 @@ describe("poErrorMessage — lỗi BE → câu tiếng Việt", () => {
 
   it("gửi NCC bị 409 CONFLICT → giải thích ngày giao / NCC", () => {
     const err = new ApiError(409, "CONFLICT", "Confirm a delivery date…");
-    expect(poErrorMessage(err, "send")).toBe(PO_ERROR_MESSAGES.sendDateInvalid);
+    expect(poErrorMessage(err, "send")).toBe(PO_ERROR_MESSAGES.sendSupplierUnavailable);
     expect(poErrorMessage(err)).toBe(PO_ERROR_MESSAGES.CONFLICT);
   });
 
@@ -39,6 +39,31 @@ describe("poErrorMessage — lỗi BE → câu tiếng Việt", () => {
       PO_ERROR_MESSAGES.PURCHASE_ORDER_NOT_FOUND,
     );
     expect(poErrorMessage(new ApiError(500, "SOMETHING_NEW", "x"))).toBe(PO_ERROR_MESSAGES.generic);
+  });
+});
+
+describe("poErrorMessage — mã lỗi nghiệp vụ BE #36 (9fbb90f)", () => {
+  const codes = [
+    ["PO_DELIVERY_DATE_REQUIRED", 400],
+    ["PO_REASON_REQUIRED", 400],
+    ["PO_SUPPLIER_RESPONSE_INVALID", 400],
+    ["PO_COMMUNICATION_NOT_CONFIGURED", 409],
+    ["PO_LINE_DESCRIPTION_REQUIRED", 400],
+    ["SUPPLIER_DELIVERY_CONTACT_INVALID", 400],
+    ["SUPPLIER_PROFILE_INVALID", 400],
+    ["INVALID_SUPPLIER_CONFIRMATION", 409],
+  ] as const;
+
+  it.each(codes)("%s → câu riêng, không rơi vào câu chung 'thử lại'", (code, status) => {
+    const message = poErrorMessage(new ApiError(status, code, "x"), "send");
+    expect(message).toBe(PO_ERROR_MESSAGES[code]);
+    expect(message).not.toBe(PO_ERROR_MESSAGES.generic);
+  });
+
+  it("gửi NCC 409 CONFLICT chung (không phải mã cụ thể) → câu NCC không nhận được PO", () => {
+    expect(poErrorMessage(new ApiError(409, "CONFLICT", "x"), "send")).toBe(
+      PO_ERROR_MESSAGES.sendSupplierUnavailable,
+    );
   });
 });
 

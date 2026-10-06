@@ -99,12 +99,12 @@ export function PoLineCard({
               htmlFor={`po-line-${index}-desc`}
               className="text-ink-secondary mb-0.5 block text-[11px] leading-4 font-medium"
             >
-              Mô tả dòng
+              Mô tả sản phẩm <span className="text-danger">*</span>
             </label>
             <Textarea
               id={`po-line-${index}-desc`}
               {...register(`lines.${index}.description`)}
-              placeholder="Mô tả (tuỳ chọn)"
+              placeholder="VD: Sofa 3 chỗ, vải xám"
               rows={2}
               maxLength={PO_LIMITS.lineDescriptionMax}
               aria-invalid={errors?.description ? true : undefined}

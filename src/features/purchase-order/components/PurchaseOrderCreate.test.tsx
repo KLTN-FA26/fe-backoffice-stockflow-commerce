@@ -58,6 +58,7 @@ async function fillAndCreate(user: User) {
   await pickSupplier(user);
   await next(user);
   await user.type(await screen.findByLabelText("SKU dòng 1"), "SKU-001");
+  await user.type(screen.getByLabelText(/Mô tả sản phẩm/), "Sofa 3 chỗ");
   await user.type(screen.getByLabelText(/Đơn giá/), "1000");
   await next(user);
   await next(user);
@@ -110,6 +111,7 @@ describe("PurchaseOrderCreate", () => {
     await user.click(screen.getByRole("button", { name: /Tiếp tục/ }));
 
     await user.type(await screen.findByLabelText("SKU dòng 1"), "sofa-3s-grey");
+    await user.type(screen.getByLabelText(/Mô tả sản phẩm/), "  Sofa 3 chỗ xám ");
     const [qty, price] = screen.getAllByRole("spinbutton");
     if (!qty || !price) throw new Error("thiếu ô SL / đơn giá");
     expect(price).toHaveValue(null); // không tự điền đơn giá
@@ -134,7 +136,14 @@ describe("PurchaseOrderCreate", () => {
         supplierId: SUPPLIER_REF.supplierId,
         currency: "USD",
         expectedAt: "2099-01-01",
-        lines: [{ sku: "SOFA-3S-GREY", description: null, quantityOrdered: 3, unitPrice: 250 }],
+        lines: [
+          {
+            sku: "SOFA-3S-GREY",
+            description: "Sofa 3 chỗ xám",
+            quantityOrdered: 3,
+            unitPrice: 250,
+          },
+        ],
       }),
     );
     // Đi hết wizard 3 bước bằng userEvent: chạy song song cả bộ test thì vượt 5s mặc định.
@@ -166,6 +175,8 @@ describe("PurchaseOrderCreate", () => {
     expect(sku).toHaveAttribute("aria-invalid", "true");
     expect(screen.getAllByText(/Mã SKU chỉ gồm chữ in hoa/)).not.toHaveLength(0);
     expect(screen.getAllByText("Nhập đơn giá (không âm)")).not.toHaveLength(0);
+    // Mô tả bắt buộc (BE #36 cần khi gửi NCC)
+    expect(screen.getAllByText("Nhập mô tả sản phẩm")).not.toHaveLength(0);
     expect(screen.queryByText("Tổng giá trị PO")).not.toBeInTheDocument();
   });
 

@@ -2,9 +2,8 @@
  * Purchase Order — zod schemas.
  *
  * Hai lớp, không trộn (api-conventions §3.1):
- * - `be*Schema` — hình dạng BE trả về (nhánh BE `test`: PurchaseOrderResponse, POLineResponse,
- *   DeliveryAttemptResponse, SupplierSpendResponse…). Parse MỘT lần trong `api.ts` (§3.2).
- *   DTO chỉ kiểm hình dạng, không chứa BR.
+ * - `be*Schema` — hình dạng BE trả về (PurchaseOrderResponse, DeliveryAttemptResponse…), parse
+ *   MỘT lần trong `api.ts` (§3.2); chỉ kiểm hình dạng, không chứa BR.
  * - FE view (`purchaseOrderSchema`) — thứ component dùng, do `mappers.ts` tạo ra.
  * Input schema (form gửi đi, có BR + cite docs) nằm ở `input-schemas.ts`.
  */
@@ -12,6 +11,8 @@
 import { z } from "zod";
 
 import {
+  PO_CANCELLATION_DELIVERY_STATUS,
+  PO_CANCELLATION_DELIVERY_STATUSES,
   PO_DELIVERY_ATTEMPT_STATUSES,
   PO_DELIVERY_STATUS,
   PO_DELIVERY_STATUSES,
@@ -25,11 +26,9 @@ export * from "./input-schemas";
 
 /* ── Status enums ────────────────────────────────────────────────────── */
 
-export const poStatusValues = PO_STATUSES;
-export const poStatusSchema = z.enum(poStatusValues);
+export const poStatusSchema = z.enum(PO_STATUSES);
 
-// Bộ mã trạng thái sống ở `constants/statuses.ts` (nguồn chung cho zod enum + status-map).
-export { PO_DELIVERY_STATUSES, SUPPLIER_CONFIRMATION_STATUSES };
+export { PO_DELIVERY_STATUSES, SUPPLIER_CONFIRMATION_STATUSES }; // nguồn: constants/statuses.ts
 
 const confirmationStatusSchema = z.enum(SUPPLIER_CONFIRMATION_STATUSES);
 // Giá trị BE mới chưa biết → UNKNOWN thay vì làm hỏng cả trang (BE ghi rõ danh sách có thể mở rộng).
@@ -75,6 +74,12 @@ export const bePurchaseOrderSchema = z.object({
   supplierReference: z.string().nullish(),
   supplierResponseNote: z.string().nullish(),
   deliveryStatus: deliveryStatusSchema,
+  // BE #36 (9fbb90f). Optional: BE chưa có #36 không trả field; giá trị lạ → UNKNOWN.
+  cancellationDeliveryStatus: z
+    .enum(PO_CANCELLATION_DELIVERY_STATUSES)
+    .optional()
+    .catch(PO_CANCELLATION_DELIVERY_STATUS.UNKNOWN),
+  warnings: z.array(z.string()).default([]), // vd DELIVERY_DATE_IN_PAST — BR-06 (docs 02 §6)
 });
 
 /** BE `PageResponse<T>` (trang từ 0). */
@@ -116,6 +121,8 @@ export const beDeliveryAttemptSchema = z.object({
   failure: z.string().nullish(),
   generation: z.number().int(),
   recipient: z.string().nullish(),
+  // BE #36 (9fbb90f): purchase-order.sent | purchase-order.cancelled
+  templateCode: z.string().nullish(),
 });
 
 /** BE `PurchaseOrderDeliveryDecisionResponse` — ai cho phép gửi / khôi phục, vì sao. */
@@ -173,6 +180,8 @@ export const purchaseOrderSchema = z.object({
   supplierReference: z.string().optional(),
   supplierResponseNote: z.string().optional(),
   deliveryStatus: z.enum(PO_DELIVERY_STATUSES),
+  cancellationDeliveryStatus: z.enum(PO_CANCELLATION_DELIVERY_STATUSES).optional(),
+  warnings: z.array(z.string()),
   lines: z.array(poLineSchema),
 });
 

@@ -34,12 +34,15 @@ export const poLineInputSchema = z.object({
     SKU_CODE_PATTERN,
     "Mã SKU không đúng định dạng",
   ),
-  // BE `po_line.description VARCHAR(300)` — request chưa có @Size nên FE chặn trước.
+  // BE #36 (9fbb90f) ProcurementServiceImpl#description: khi gửi NCC, dòng phải có mô tả — thiếu thì
+  // BE lấy tên theo SKU trong danh mục, không có → 400 PO_LINE_DESCRIPTION_REQUIRED và PO kẹt.
+  // Chưa có API danh mục SKU (open-question C12) nên FE BẮT BUỘC mô tả ngay từ lúc tạo.
+  // BE `po_line.description VARCHAR(300)`.
   description: z
     .string()
-    .max(PO_LIMITS.lineDescriptionMax, `Mô tả tối đa ${PO_LIMITS.lineDescriptionMax} ký tự`)
-    .nullable()
-    .optional(),
+    .trim()
+    .min(1, UI_LABELS.purchaseOrder.validation.descriptionRequired)
+    .max(PO_LIMITS.lineDescriptionMax, `Mô tả tối đa ${PO_LIMITS.lineDescriptionMax} ký tự`),
   // BE CreatePOLineRequest: `int quantityOrdered` @Positive.
   quantityOrdered: intQty("Số lượng phải là số nguyên > 0").max(
     PO_LIMITS.quantityMax,
@@ -103,16 +106,14 @@ export const receiveGoodsInputSchema = z.object({
 /* ── Gửi NCC — BE SendPurchaseOrderRequest + PurchaseOrder#confirmDeliveryDate ── */
 
 /**
- * `currentExpectedAt` = ngày giao đang lưu trên PO; `today` = hôm nay theo Asia/Ho_Chi_Minh.
- * BE: ngày giao phải có và ≥ hôm nay; đổi ngày thì bắt buộc lý do (1..1000).
+ * `currentExpectedAt` = ngày giao đang lưu trên PO.
+ * BE `PurchaseOrder#confirmDeliveryDate` (#36 9fbb90f): ngày giao phải CÓ (thiếu →
+ * `PO_DELIVERY_DATE_REQUIRED`); đổi ngày thì bắt buộc lý do 1..1000 (`PO_REASON_REQUIRED`).
+ * BR-06 (docs 02 §6): ngày đã qua chỉ CẢNH BÁO — BE không chặn nữa, trả `warnings`.
  */
-export function sendPoInputSchema(currentExpectedAt: string | null, today: string) {
+export function sendPoInputSchema(currentExpectedAt: string | null) {
   return z
     .object({ expectedAt: isoDate, reason: z.string().trim().max(PO_REASON_MAX) })
-    .refine((v) => v.expectedAt >= today, {
-      message: "Ngày giao dự kiến phải từ hôm nay trở đi",
-      path: ["expectedAt"],
-    })
     .refine((v) => v.expectedAt === currentExpectedAt || v.reason.length > 0, {
       message: "Đổi ngày giao cần ghi lý do",
       path: ["reason"],

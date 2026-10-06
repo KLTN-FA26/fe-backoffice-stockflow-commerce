@@ -83,10 +83,10 @@ export function InfoStep({ w }: { w: CreatePoWizard }) {
                 type="button"
                 variant="link"
                 size="sm"
-                className="mt-1 h-auto px-0 text-xs"
+                className="mt-1 h-auto px-0 text-left text-xs whitespace-normal"
                 onClick={() => setValue("expectedDate", suggestedDate, { shouldDirty: true })}
               >
-                Dùng gợi ý theo thời gian giao của NCC: {formatDate(suggestedDate)}
+                Dùng gợi ý: {formatDate(suggestedDate)} (theo thời gian giao của NCC)
               </Button>
             )}
           </div>

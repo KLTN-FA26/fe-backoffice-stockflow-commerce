@@ -4,7 +4,12 @@ import { useState } from "react";
 
 import { UI_LABELS } from "@/constants";
 import { toLocalIsoDate } from "@/lib/format";
-import { PO_REASON_MAX, sendPoInputSchema } from "@/features/purchase-order";
+import {
+  PO_REASON_MAX,
+  isExpectedDatePast,
+  linesMissingDescription,
+  sendPoInputSchema,
+} from "@/features/purchase-order";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -24,8 +29,8 @@ interface PoSendDialogProps {
 
 /**
  * Xác nhận trước khi gửi NCC — gửi email/API ra ngoài, không thu hồi được.
- * BE `PurchaseOrder#confirmDeliveryDate`: ngày giao phải có và ≥ hôm nay (giờ VN); đổi ngày
- * thì bắt buộc lý do.
+ * BE `PurchaseOrder#confirmDeliveryDate` (#36 9fbb90f): ngày giao phải có; đổi ngày thì bắt buộc
+ * lý do. Ngày đã qua chỉ cảnh báo (BR-06). Dòng thiếu mô tả có thể bị BE từ chối khi gửi.
  */
 export function PoSendDialog({ open, onOpenChange, ...formProps }: PoSendDialogProps) {
   return (
@@ -45,9 +50,10 @@ function SendForm({
 }: Omit<PoSendDialogProps, "open" | "onOpenChange"> & { onCancel: () => void }) {
   const today = toLocalIsoDate(new Date().toISOString());
   const current = po.expectedDate || null;
-  const [expectedAt, setExpectedAt] = useState(current && current >= today ? current : "");
+  const [expectedAt, setExpectedAt] = useState(current ?? "");
   const [reason, setReason] = useState("");
-  const parsed = sendPoInputSchema(current, today).safeParse({ expectedAt, reason });
+  const parsed = sendPoInputSchema(current).safeParse({ expectedAt, reason });
+  const missingDescription = linesMissingDescription(po).length;
   const errorOf = (field: "expectedAt" | "reason") =>
     parsed.success ? undefined : parsed.error.issues.find((i) => i.path[0] === field)?.message;
   const dateChanged = expectedAt !== "" && expectedAt !== current;
@@ -70,7 +76,6 @@ function SendForm({
         <Input
           id="po-send-date"
           type="date"
-          min={today}
           value={expectedAt}
           autoFocus
           aria-invalid={expectedAt !== "" && !!errorOf("expectedAt")}
@@ -79,12 +84,23 @@ function SendForm({
         {expectedAt !== "" && errorOf("expectedAt") && (
           <p className="text-danger text-xs">{errorOf("expectedAt")}</p>
         )}
-        {current && current < today && (
+        {/* BR-06 (docs 02 §6): ngày đã qua chỉ cảnh báo, vẫn gửi được. */}
+        {isExpectedDatePast(expectedAt, today) && (
           <p className="text-warning text-xs">
-            Ngày giao đang lưu đã qua — chọn ngày mới từ hôm nay trở đi.
+            Ngày giao dự kiến đã qua — vẫn gửi được, nên đổi ngày hoặc thống nhất lại với nhà cung
+            cấp.
           </p>
         )}
       </div>
+      {missingDescription > 0 && (
+        <p
+          role="alert"
+          className="border-warning/30 bg-warning/10 text-warning rounded-[var(--r-sm)] border px-3 py-2 text-xs"
+        >
+          {missingDescription} dòng chưa có mô tả sản phẩm. Nếu SKU không có trong danh mục, hệ
+          thống sẽ từ chối gửi — khi đó cần huỷ PO và tạo lại kèm mô tả.
+        </p>
+      )}
       {dateChanged && (
         <div className="grid gap-1.5">
           <Label htmlFor="po-send-reason" className="text-ink-secondary text-xs font-medium">

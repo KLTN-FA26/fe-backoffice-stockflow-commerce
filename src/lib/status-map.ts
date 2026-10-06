@@ -129,6 +129,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
   muted: [
     "UNKNOWN",
     "SUPPRESSED",
+    // BE #36 cancellationDeliveryStatus: PO huỷ trước khi gửi NCC → không cần báo huỷ.
+    "NOT_REQUIRED",
     "CLOSED",
     "CLOSED_SHORT",
     "Closed",
@@ -187,6 +189,7 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   DELIVERED: "Đã gửi tới NCC",
   UNKNOWN: "Không rõ",
   SUPPRESSED: "Đã chặn gửi",
+  NOT_REQUIRED: "Không cần báo huỷ",
   PENDING: "Đang chờ",
   CONFIRMED: "NCC đã xác nhận",
   REJECTED: "NCC từ chối",

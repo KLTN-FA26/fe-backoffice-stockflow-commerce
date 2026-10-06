@@ -53,7 +53,11 @@ export type { PoAction, PoActionCode, PoGateState } from "./lifecycle";
 // Selectors
 export {
   deliveryFailureName,
+  hasDeliveryDateWarning,
   isDeliveryFailing,
+  isDeliveryInFlight,
+  linesMissingDescription,
+  showsCancellationNotice,
   deliveryRound,
   formatMoney,
   isExpectedDatePast,

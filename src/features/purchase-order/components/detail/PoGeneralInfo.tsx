@@ -4,6 +4,7 @@ import { FileText } from "lucide-react";
 
 import { UI_LABELS } from "@/constants";
 import { formatDate } from "@/lib/format";
+import { hasDeliveryDateWarning } from "@/features/purchase-order";
 import { StatusDot } from "@/components/shared/StatusDot";
 
 import { InfoRow } from "./InfoRow";
@@ -30,6 +31,12 @@ export function PoGeneralInfo({ po }: { po: PurchaseOrder }) {
         <InfoRow label="Người tạo" value={po.createdBy || "—"} />
         {po.rejectionReason && <InfoRow label="Lý do huỷ/đóng" value={po.rejectionReason} danger />}
       </div>
+      {/* BR-06 (docs 02 §6): BE #36 trả `warnings` DELIVERY_DATE_IN_PAST — chỉ cảnh báo. */}
+      {hasDeliveryDateWarning(po) && (
+        <p role="status" className="text-warning mt-2 text-xs">
+          {UI_LABELS.purchaseOrder.deliveryDateInPast}
+        </p>
+      )}
     </section>
   );
 }

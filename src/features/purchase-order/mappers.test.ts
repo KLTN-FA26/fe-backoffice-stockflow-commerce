@@ -153,3 +153,27 @@ describe("beDeliveryDecisionSchema (BE PurchaseOrderDeliveryDecisionResponse)", 
     expect(beDeliveryDecisionSchema.safeParse(broken).success).toBe(false);
   });
 });
+
+describe("field mới của BE #36 (9fbb90f)", () => {
+  it("cancellationDeliveryStatus + warnings được parse và map", () => {
+    const po = mapBePoToFe(
+      bePurchaseOrderSchema.parse(
+        beResponse({ cancellationDeliveryStatus: "QUEUED", warnings: ["DELIVERY_DATE_IN_PAST"] }),
+      ),
+    );
+    expect(po).toMatchObject({
+      cancellationDeliveryStatus: "QUEUED",
+      warnings: ["DELIVERY_DATE_IN_PAST"],
+    });
+  });
+
+  it("BE chưa có #36 (thiếu field) vẫn chạy; giá trị lạ → UNKNOWN", () => {
+    const old = mapBePoToFe(bePurchaseOrderSchema.parse(beResponse()));
+    expect(old.cancellationDeliveryStatus).toBeUndefined();
+    expect(old.warnings).toEqual([]);
+    expect(
+      bePurchaseOrderSchema.parse(beResponse({ cancellationDeliveryStatus: "BOUNCED" }))
+        .cancellationDeliveryStatus,
+    ).toBe("UNKNOWN");
+  });
+});

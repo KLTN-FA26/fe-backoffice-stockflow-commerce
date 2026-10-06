@@ -94,6 +94,10 @@ export interface MockBePo {
   supplierReference: string | null;
   supplierResponseNote: string | null;
   deliveryStatus: PoDeliveryStatus;
+  /** BE #36 (9fbb90f): thông báo huỷ tới NCC — NOT_REQUIRED khi huỷ trước lúc gửi. */
+  cancellationDeliveryStatus: "NOT_REQUIRED" | "QUEUED" | "DELIVERED";
+  /** BE #36: cảnh báo không chặn — tính lại mỗi lần đọc store (`refreshWarnings`). */
+  warnings: string[];
 }
 
 /** BE `DeliveryAttemptResponse` (status thô của notification: PENDING | SENT | FAILED). */
@@ -139,7 +143,24 @@ export async function getPoStore(): Promise<Map<string, MockBePo>> {
     poStore = new Map(seeded.map((po) => [po.purchaseOrderId, po]));
   }
   settleQueuedDeliveries(poStore);
+  refreshWarnings(poStore);
   return poStore;
+}
+
+/**
+ * BE `PurchaseOrderController#response`: `warnings` có DELIVERY_DATE_IN_PAST khi ngày giao trước
+ * hôm nay (giờ VN) và PO chưa kết thúc (BR-06 — chỉ cảnh báo).
+ */
+const TERMINAL_FOR_WARNINGS: readonly BePoStatus[] = ["CANCELLED", "CLOSED", "CLOSED_SHORT"];
+
+function refreshWarnings(store: Map<string, MockBePo>): void {
+  const today = todayVn();
+  for (const [id, po] of store) {
+    const past =
+      !!po.expectedAt && po.expectedAt < today && !TERMINAL_FOR_WARNINGS.includes(po.status);
+    const warnings = past ? ["DELIVERY_DATE_IN_PAST"] : [];
+    if (warnings.join() !== po.warnings.join()) store.set(id, { ...po, warnings });
+  }
 }
 
 /**
@@ -160,6 +181,15 @@ function settleQueuedDeliveries(store: Map<string, MockBePo>): void {
     const po = store.get(poId);
     if (po?.deliveryStatus === "QUEUED") store.set(poId, { ...po, deliveryStatus: "DELIVERED" });
   }
+}
+
+/**
+ * Giả lập BE `ProductService#nameForSku`: tên hiển thị của SKU trong danh mục, không có → null.
+ * BE dùng làm mô tả dòng khi gửi NCC nếu dòng không có mô tả (#36 9fbb90f).
+ */
+export async function catalogNameForSku(sku: string): Promise<string | null> {
+  const { skus } = await import("@/lib/mock-data");
+  return skus.find((s) => s.skuId === sku)?.variantLabel ?? null;
 }
 
 export function getDeliveries(poId: string): MockDeliveryAttempt[] {
@@ -256,6 +286,8 @@ async function seedToBePo(po: PurchaseOrder): Promise<MockBePo> {
     supplierReference: null,
     supplierResponseNote: null,
     deliveryStatus: !wasSent ? "NOT_SENT" : deliveryFailed ? "FAILED" : "DELIVERED",
+    cancellationDeliveryStatus: "NOT_REQUIRED",
+    warnings: [],
   };
 }
 

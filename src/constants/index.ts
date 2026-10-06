@@ -25,6 +25,8 @@ export {
 export {
   INVOICE_STATUS,
   INVOICE_STATUSES,
+  PO_CANCELLATION_DELIVERY_STATUS,
+  PO_CANCELLATION_DELIVERY_STATUSES,
   PO_DELIVERY_ATTEMPT_STATUS,
   PO_DELIVERY_ATTEMPT_STATUSES,
   PO_DELIVERY_STATUS,
@@ -47,6 +49,7 @@ export {
 } from "./statuses";
 export type {
   InvoiceStatus,
+  PoCancellationDeliveryStatus,
   PoDeliveryAttemptStatus,
   PoDeliveryStatus,
   PoStatus,

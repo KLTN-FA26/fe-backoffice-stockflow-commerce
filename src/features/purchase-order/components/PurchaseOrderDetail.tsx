@@ -60,13 +60,14 @@ function PurchaseOrderDetailBody({ id }: { id: string }) {
           PO này có cùng NCC + ngày giao dự kiến + SKU với một đơn mở khác.
         </Alert>
       )}
-      <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
-        <div className="space-y-5">
-          <div className="grid gap-5 md:grid-cols-2">
+      {/* min-w-0: cột lưới không giãn theo nội dung (bảng, tên NCC dài) → hết tràn ngang < 1280px. */}
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="min-w-0 space-y-5">
+          <div className="grid gap-5 md:grid-cols-2 [&>*]:min-w-0">
             <PoGeneralInfo po={po} />
             <PoSupplierInfo po={po} supplier={d.supplier} supplierName={supplierName} />
           </div>
-          <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
+          <section className="border-border-default bg-bg-surface min-w-0 rounded-[var(--card-radius)] border p-[var(--card-pad)]">
             <h2 className="text-ink-primary mb-3 flex items-center gap-2 text-[0.9375rem] font-semibold">
               <Package className="text-accent size-4" />
               Dòng hàng
@@ -77,7 +78,7 @@ function PurchaseOrderDetailBody({ id }: { id: string }) {
           <PoDeliveryCard po={po} />
           <PoTotals po={po} />
         </div>
-        <div className="space-y-5">
+        <div className="min-w-0 space-y-5">
           <PoActionPanel
             status={po.status}
             actions={d.actions}

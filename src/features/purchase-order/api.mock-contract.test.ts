@@ -11,6 +11,7 @@ import { resetSupplierMockStore } from "@/lib/api/mock-routes-suppliers";
 
 import {
   approvePurchaseOrder,
+  cancelPurchaseOrder,
   createPurchaseOrder,
   fetchPoStatusDashboard,
   getPurchaseOrder,
@@ -77,7 +78,9 @@ describe("PO mock ↔ hợp đồng BE", () => {
       supplierId: "SUP-001",
       currency: "USD",
       expectedAt: FUTURE,
-      lines: [{ sku: "SKU-NEW-1", description: null, quantityOrdered: 3, unitPrice: 250 }],
+      lines: [
+        { sku: "SKU-NEW-1", description: "Sofa 3 chỗ xám", quantityOrdered: 3, unitPrice: 250 },
+      ],
     });
     expect(created).toMatchObject({ status: "DRAFT", currency: "USD", grandTotal: 750 });
     expect(created.paymentTermDays).toBeGreaterThan(0);
@@ -96,7 +99,9 @@ describe("PO mock ↔ hợp đồng BE", () => {
       supplierId: "SUP-001",
       currency: "VND",
       expectedAt: FUTURE,
-      lines: [{ sku: "SKU-NEW-2", description: null, quantityOrdered: 2, unitPrice: 1000 }],
+      lines: [
+        { sku: "SKU-NEW-2", description: "Sofa 3 chỗ xám", quantityOrdered: 2, unitPrice: 1000 },
+      ],
     });
     await approvePurchaseOrder(created.poId);
     const sent = await sendPurchaseOrder(created.poId, { expectedAt: FUTURE, reason: "" });
@@ -115,7 +120,9 @@ describe("PO mock ↔ hợp đồng BE", () => {
       supplierId: "SUP-001",
       currency: "VND",
       expectedAt: FUTURE,
-      lines: [{ sku: "SKU-NEW-4", description: null, quantityOrdered: 1, unitPrice: 1000 }],
+      lines: [
+        { sku: "SKU-NEW-4", description: "Sofa 3 chỗ xám", quantityOrdered: 1, unitPrice: 1000 },
+      ],
     });
     await approvePurchaseOrder(created.poId);
     await sendPurchaseOrder(created.poId, { expectedAt: FUTURE, reason: "" });
@@ -131,19 +138,45 @@ describe("PO mock ↔ hợp đồng BE", () => {
     }
   });
 
-  it("gửi NCC với ngày giao đã qua → 409 CONFLICT", async () => {
+  it("BR-06: gửi NCC với ngày giao đã qua vẫn được (BE #36 9fbb90f chỉ cảnh báo)", async () => {
     const created = await createPurchaseOrder({
       supplierId: "SUP-001",
       currency: "VND",
       expectedAt: "2020-01-01",
-      lines: [{ sku: "SKU-NEW-3", description: null, quantityOrdered: 1, unitPrice: 1 }],
+      lines: [{ sku: "SKU-NEW-3", description: "Ghế gỗ", quantityOrdered: 1, unitPrice: 1 }],
+    });
+    await approvePurchaseOrder(created.poId);
+    const sent = await sendPurchaseOrder(created.poId, { expectedAt: "2020-01-01", reason: "" });
+    expect(sent.status).toBe("SENT");
+  });
+
+  it("dòng không có mô tả và SKU không có trong danh mục → 400 PO_LINE_DESCRIPTION_REQUIRED", async () => {
+    const created = await createPurchaseOrder({
+      supplierId: "SUP-001",
+      currency: "VND",
+      expectedAt: FUTURE,
+      lines: [{ sku: "SKU-NOT-IN-CATALOG", description: "", quantityOrdered: 1, unitPrice: 1 }],
     });
     await approvePurchaseOrder(created.poId);
     await expectApiError(
-      sendPurchaseOrder(created.poId, { expectedAt: "2020-01-01", reason: "" }),
-      409,
-      "CONFLICT",
+      sendPurchaseOrder(created.poId, { expectedAt: FUTURE, reason: "" }),
+      400,
+      "PO_LINE_DESCRIPTION_REQUIRED",
     );
+  });
+
+  it("huỷ PO đã gửi NCC → xếp hàng thông báo huỷ (cancellationDeliveryStatus QUEUED)", async () => {
+    const created = await createPurchaseOrder({
+      supplierId: "SUP-001",
+      currency: "VND",
+      expectedAt: FUTURE,
+      lines: [{ sku: "SKU-NEW-5", description: "Bàn trà", quantityOrdered: 1, unitPrice: 1 }],
+    });
+    expect(created.cancellationDeliveryStatus).toBe("NOT_REQUIRED");
+    await approvePurchaseOrder(created.poId);
+    await sendPurchaseOrder(created.poId, { expectedAt: FUTURE, reason: "" });
+    const cancelled = await cancelPurchaseOrder(created.poId, "NCC hết hàng");
+    expect(cancelled.cancellationDeliveryStatus).toBe("QUEUED");
   });
 
   it("khôi phục gửi sau lần gửi FAILED (seed SENT): trạng thái gửi về QUEUED", async () => {

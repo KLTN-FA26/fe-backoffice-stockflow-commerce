@@ -37,7 +37,7 @@ function toCreateInput(v: PoCreateFormValues): CreatePoInput {
     expectedAt: v.expectedDate || null,
     lines: v.lines.map((l) => ({
       sku: l.skuId,
-      description: l.description.trim() || null,
+      description: l.description.trim(),
       quantityOrdered: Number(l.orderedQty),
       unitPrice: Number(l.unitPrice),
     })),

@@ -8,11 +8,11 @@
 import { registerMockRoute } from "./mock-adapter";
 import {
   BE_DEFAULT_PAGE_SIZE,
-  BE_GENERIC_VALIDATION_MESSAGE,
   BE_PO_TRANSITIONS,
   MOCK_PO_ACTOR,
   addDecision,
   addDelivery,
+  catalogNameForSku,
   beError,
   beOk,
   bePage,
@@ -36,10 +36,9 @@ import type { MockBePo } from "./mock-routes-purchase-orders-store";
 
 const MAX_REASON = 1000;
 
+/** BE #36 (9fbb90f) `PurchaseOrder#requireRecoveryReason` → BusinessException, không có field. */
 function reasonError() {
-  return beError(400, "VALIDATION_FAILED", BE_GENERIC_VALIDATION_MESSAGE, [
-    { field: "reason", message: "A reason of 1..1000 characters is required" },
-  ]);
+  return beError(400, "PO_REASON_REQUIRED", "A reason of 1..1000 characters is required");
 }
 
 function conflict(message: string) {
@@ -105,12 +104,22 @@ async function send(config: AxiosRequestConfig) {
   const replacement = readString(body.expectedAt) || null;
   const reason = readString(body.reason);
   const candidate = replacement ?? po.expectedAt;
-  // BE confirmDeliveryDate: ngày giao phải có và ≥ hôm nay (giờ VN); đổi ngày phải có lý do.
-  if (!candidate || candidate < todayVn()) {
-    return conflict("Confirm a delivery date on or after today's Vietnam date before sending");
+  // BE confirmDeliveryDate (#36 9fbb90f): ngày giao phải có; ngày đã qua KHÔNG chặn (BR-06).
+  if (!candidate) {
+    return beError(400, "PO_DELIVERY_DATE_REQUIRED", "A delivery date is required before sending");
   }
   if (replacement && replacement !== po.expectedAt && (!reason || reason.length > MAX_REASON)) {
     return reasonError();
+  }
+  // BE ProcurementServiceImpl#description: mô tả dòng, thiếu thì tên theo SKU trong danh mục.
+  for (const line of po.lines) {
+    if (!line.description?.trim() && !(await catalogNameForSku(line.sku))) {
+      return beError(
+        400,
+        "PO_LINE_DESCRIPTION_REQUIRED",
+        `Missing product description for SKU ${line.sku}`,
+      );
+    }
   }
   const queued = await queueDelivery(po, {
     previousExpectedAt: po.expectedAt,
@@ -176,15 +185,13 @@ async function recordConfirmation(config: AxiosRequestConfig) {
   const reference = readString(body.supplierReference) || null;
   const note = readString(body.note) || null;
   if (response !== "CONFIRMED" && response !== "REJECTED") {
-    return beError(400, "VALIDATION_FAILED", BE_GENERIC_VALIDATION_MESSAGE, [
-      { field: "status", message: "status must be CONFIRMED or REJECTED" },
-    ]);
+    return beError(
+      400,
+      "PO_SUPPLIER_RESPONSE_INVALID",
+      "Supplier response must be CONFIRMED or REJECTED",
+    );
   }
-  if (response === "REJECTED" && !note) {
-    return beError(400, "VALIDATION_FAILED", BE_GENERIC_VALIDATION_MESSAGE, [
-      { field: "note", message: "A supplier rejection requires a reason" },
-    ]);
-  }
+  if (response === "REJECTED" && !note) return reasonError();
   if (!["SENT", "PARTIALLY_RECEIVED", "CLOSED", "CLOSED_SHORT"].includes(po.status)) {
     return invalidTransition("A supplier response needs a purchase order that has been sent");
   }

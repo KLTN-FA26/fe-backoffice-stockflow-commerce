@@ -5,7 +5,7 @@
  * plus list-stats derived from BE 7-state.
  */
 
-import { PO_DELIVERY_STATUS, PO_STATUS } from "@/constants";
+import { PO_CANCELLATION_DELIVERY_STATUS, PO_DELIVERY_STATUS, PO_STATUS } from "@/constants";
 import { formatMoney } from "@/lib/format";
 
 import { receiveGoodsLineInputSchema } from "./schemas";
@@ -77,6 +77,41 @@ export function isDeliveryFailing(po: Pick<PurchaseOrder, "deliveryStatus">): bo
   return (
     po.deliveryStatus === PO_DELIVERY_STATUS.FAILED ||
     po.deliveryStatus === PO_DELIVERY_STATUS.RETRYING
+  );
+}
+
+/**
+ * Dòng chưa có mô tả sản phẩm. BE #36 (9fbb90f) khi gửi NCC lấy mô tả của dòng, thiếu thì lấy tên
+ * theo SKU trong danh mục; không có nữa → 400 `PO_LINE_DESCRIPTION_REQUIRED` và PO kẹt ở APPROVED.
+ */
+export function linesMissingDescription(po: Pick<PurchaseOrder, "lines">): PurchaseOrder["lines"] {
+  return po.lines.filter((line) => !line.description?.trim());
+}
+
+/**
+ * Đang gửi NCC — BE chưa có kết quả cuối (QUEUED: chờ worker, RETRYING: đang thử lại).
+ * Màn chi tiết tự tải lại trong lúc này để không phải F5 (re-review PR #14, mục 3).
+ */
+export function isDeliveryInFlight(po: Pick<PurchaseOrder, "deliveryStatus"> | undefined): boolean {
+  return (
+    po?.deliveryStatus === PO_DELIVERY_STATUS.QUEUED ||
+    po?.deliveryStatus === PO_DELIVERY_STATUS.RETRYING
+  );
+}
+
+/** BE cảnh báo ngày giao đã qua (`warnings` có DELIVERY_DATE_IN_PAST — BR-06, chỉ cảnh báo). */
+export function hasDeliveryDateWarning(po: Pick<PurchaseOrder, "warnings">): boolean {
+  return po.warnings.includes("DELIVERY_DATE_IN_PAST");
+}
+
+/** Thông báo huỷ tới NCC có cần hiện không (PO đã gửi rồi mới huỷ). */
+export function showsCancellationNotice(
+  po: Pick<PurchaseOrder, "status" | "cancellationDeliveryStatus">,
+): boolean {
+  return (
+    po.status === PO_STATUS.CANCELLED &&
+    po.cancellationDeliveryStatus !== undefined &&
+    po.cancellationDeliveryStatus !== PO_CANCELLATION_DELIVERY_STATUS.NOT_REQUIRED
   );
 }
 

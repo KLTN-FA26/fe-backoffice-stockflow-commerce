@@ -93,7 +93,16 @@ export const UI_LABELS = {
       supplierRequired: "Chọn nhà cung cấp",
       skuRequired: "Nhập mã SKU",
       skuDuplicate: "SKU bị trùng trong PO",
+      descriptionRequired: "Nhập mô tả sản phẩm",
     },
+    /** BE #36 `cancellationDeliveryStatus` / `warnings` / `templateCode`. */
+    cancellationNotice: "Thông báo huỷ tới NCC",
+    deliveryDateInPast: "Ngày giao dự kiến đã qua — nên đổi ngày hoặc thống nhất lại với NCC.",
+    template: {
+      "purchase-order.sent": "Gửi đơn đặt hàng",
+      "purchase-order.cancelled": "Thông báo huỷ",
+    },
+    templateLabel: "Loại thư",
   },
 } as const;
 
@@ -130,13 +139,28 @@ export const PO_ERROR_MESSAGES = {
   AUTHORIZATION_UNAVAILABLE: "Chưa kiểm tra được quyền truy cập, thử lại sau",
   NETWORK_ERROR: "Không kết nối được máy chủ",
   CONTRACT_MISMATCH: "Dữ liệu trả về không đúng định dạng",
+  // BE #36 (9fbb90f) — mã lỗi nghiệp vụ PO/NCC. Câu nói rõ cách xử lý: thử lại thường không giúp.
+  PO_DELIVERY_DATE_REQUIRED: "Cần ngày giao dự kiến trước khi gửi nhà cung cấp",
+  PO_REASON_REQUIRED: "Cần nhập lý do (1–1000 ký tự)",
+  PO_SUPPLIER_RESPONSE_INVALID: "Phản hồi của nhà cung cấp phải là Xác nhận hoặc Từ chối",
+  PO_COMMUNICATION_NOT_CONFIGURED:
+    "Chưa gửi được: hệ thống chưa cấu hình thông tin bên mua (công ty, người liên hệ, địa chỉ kho nhận). Liên hệ quản trị hệ thống — thử lại sẽ không được.",
+  PO_LINE_DESCRIPTION_REQUIRED:
+    "Có dòng hàng chưa có mô tả sản phẩm nên không gửi được nhà cung cấp. Huỷ PO này và tạo lại, nhập mô tả cho mọi dòng.",
+  SUPPLIER_DELIVERY_CONTACT_INVALID:
+    "Email/API nhận PO của nhà cung cấp không hợp lệ hoặc chưa được cho phép. Cập nhật hồ sơ nhà cung cấp rồi gửi lại.",
+  SUPPLIER_PROFILE_INVALID:
+    "Hồ sơ hoặc điều khoản của nhà cung cấp không hợp lệ. Cập nhật hồ sơ nhà cung cấp rồi thử lại.",
+  INVALID_SUPPLIER_CONFIRMATION:
+    "Không ghi nhận được phản hồi này của nhà cung cấp (đã ghi nhận trước đó hoặc trạng thái không cho phép). Dữ liệu đã được tải lại.",
   // Nhận hàng bị BE từ chối bằng 400 chung (IllegalArgumentException, không có field)
   receiveRejected:
     "Máy chủ từ chối số lượng nhận. Kiểm tra SL không vượt “Còn nhận được” — dữ liệu đơn đã được tải lại.",
-  // Gửi NCC bị 409 CONFLICT: ngày giao trống/đã qua (PurchaseOrder#confirmDeliveryDate) hoặc
-  // NCC ngừng hợp tác / thiếu email-API nhận PO (ProcurementServiceImpl#publishDelivery)
-  sendDateInvalid:
-    "Chưa gửi được NCC: ngày giao dự kiến phải từ hôm nay trở đi và NCC phải đang hợp tác, có email/API nhận PO",
+  // Gửi NCC bị 409 CONFLICT (BE ProcurementServiceImpl#publishDelivery): NCC ngừng hợp tác / thiếu
+  // email-API nhận PO, hoặc lần gửi đã thành công / bị chặn. Ngày giao đã qua KHÔNG còn bị chặn
+  // (BE #36 9fbb90f: chỉ cảnh báo qua `warnings` — BR-06).
+  sendSupplierUnavailable:
+    "Chưa gửi được nhà cung cấp: nhà cung cấp phải đang hợp tác và có email/API nhận PO, hoặc đơn đã được gửi thành công trước đó.",
   generic: "Không thực hiện được thao tác. Vui lòng thử lại.",
 } as const;
 

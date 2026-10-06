@@ -13,7 +13,7 @@ export type PoErrorContext = "send" | "receive" | "default";
 
 type KnownErrorCode = Exclude<
   keyof typeof PO_ERROR_MESSAGES,
-  "receiveRejected" | "sendDateInvalid" | "generic"
+  "receiveRejected" | "sendSupplierUnavailable" | "generic"
 >;
 
 /** Tên trường BE (CreatePurchaseOrderRequest…) → nhãn tiếng Việt. */
@@ -51,8 +51,10 @@ export function poErrorMessage(error: unknown, context: PoErrorContext = "defaul
   if (firstField) return `${PO_ERROR_MESSAGES.VALIDATION_FAILED}: ${fieldLabel(firstField)}`;
   // BE: nhận vượt "còn nhận được" là IllegalArgumentException → 400 chung, không có field.
   if (context === "receive" && error.status === 400) return PO_ERROR_MESSAGES.receiveRejected;
-  // BE confirmDeliveryDate: 409 CONFLICT khi ngày giao trống / đã qua.
-  if (context === "send" && error.code === "CONFLICT") return PO_ERROR_MESSAGES.sendDateInvalid;
+  // BE publishDelivery: 409 CONFLICT chung khi NCC không nhận được PO (mã cụ thể đi nhánh dưới).
+  if (context === "send" && error.code === "CONFLICT") {
+    return PO_ERROR_MESSAGES.sendSupplierUnavailable;
+  }
   if (isKnownErrorCode(error.code)) return PO_ERROR_MESSAGES[error.code];
   if (error.status === 403) return PO_ERROR_MESSAGES.FORBIDDEN;
   if (error.status === 404) return PO_ERROR_MESSAGES.PURCHASE_ORDER_NOT_FOUND;

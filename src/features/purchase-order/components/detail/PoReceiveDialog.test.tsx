@@ -20,6 +20,7 @@ const PO: PurchaseOrder = {
   leadTimeDays: 7,
   supplierConfirmationStatus: "CONFIRMED",
   deliveryStatus: "DELIVERED",
+  warnings: [],
   lines: [
     {
       lineId: "l-1",
