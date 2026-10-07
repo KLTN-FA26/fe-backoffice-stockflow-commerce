@@ -9,8 +9,8 @@ export {
   TOAST_MESSAGES,
   UI_LABELS,
 } from "./labels";
-export { PO_LIMITS } from "./numbers";
-export { PO_PERMISSIONS, SUPPLIER_PERMISSIONS } from "./permissions";
+export { ORDER_LIMITS, PO_LIMITS } from "./numbers";
+export { ORDER_PERMISSIONS, PO_PERMISSIONS, SUPPLIER_PERMISSIONS } from "./permissions";
 export { ADMIN_ROUTES, APP_ROUTES } from "./routes";
 export { STORAGE_KEYS } from "./storage-keys";
 export {
@@ -25,6 +25,7 @@ export {
 export {
   INVOICE_STATUS,
   INVOICE_STATUSES,
+  ORDER_STATUSES,
   PO_CANCELLATION_DELIVERY_STATUS,
   PO_CANCELLATION_DELIVERY_STATUSES,
   PO_DELIVERY_ATTEMPT_STATUS,
@@ -49,6 +50,7 @@ export {
 } from "./statuses";
 export type {
   InvoiceStatus,
+  OrderStatus,
   PoCancellationDeliveryStatus,
   PoDeliveryAttemptStatus,
   PoDeliveryStatus,

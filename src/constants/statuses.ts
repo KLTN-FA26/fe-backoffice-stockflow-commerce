@@ -151,6 +151,28 @@ export const INVOICE_STATUS = {
   PAID: "Paid",
 } as const satisfies Record<string, InvoiceStatus>;
 
+/**
+ * Order — đúng 10 trạng thái của BE `order/api/OrderStatus.java`, ánh xạ 1-1 với mã wire
+ * (PENDING_PAYMENT ↔ "Pending Payment"…, xem features/order/status-map.ts).
+ *
+ * QUYẾT ĐỊNH (lệch quy tắc "docs thắng" của CLAUDE.md, chủ đích cho module order): FE khớp BE,
+ * KHÔNG dựng theo 20 trạng thái của docs 17 §5 — docs tách nhiều bước (Picking, Packed,
+ * In Production…) mà BE không có, hiển thị chúng là hứa trạng thái BE không bao giờ trả.
+ * mock-data.ts vẫn dùng 20 trạng thái docs; route mock gộp về 10 trạng thái BE trước khi trả.
+ */
+export const ORDER_STATUSES = [
+  "Draft",
+  "Pending Payment",
+  "Paid",
+  "In Fulfilment",
+  "On Hold",
+  "Shipped",
+  "Delivered",
+  "Completed",
+  "Cancelled",
+  "Returned",
+] as const;
+
 /** Nhà cung cấp (module 01) — BE: ACTIVE/INACTIVE (SCRUM-118). */
 export const SUPPLIER_STATUSES = ["Active", "Inactive"] as const;
 
@@ -175,6 +197,7 @@ export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
 export type ProposalStatus = (typeof PROPOSAL_STATUSES)[number];
 export type SkuStatus = (typeof SKU_STATUSES)[number];
 export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
+export type OrderStatus = (typeof ORDER_STATUSES)[number];
 export type SupplierStatus = (typeof SUPPLIER_STATUSES)[number];
 export type SupplierApiStatus = (typeof SUPPLIER_API_STATUSES)[number];
 export type SupplierChannel = (typeof SUPPLIER_CHANNELS)[number];

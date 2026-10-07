@@ -67,6 +67,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Queued",
     "Approved for Payment",
     "Initiated",
+    // Order — BE IN_FULFILMENT (picking/packing/sản xuất gộp làm 1). FE order khớp BE.
+    "In Fulfilment",
   ],
   warning: [
     "RETRYING",
@@ -243,6 +245,7 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   "Approved for Payment": "Duyệt thanh toán",
   Initiated: "Đã khởi tạo",
   "In Production": "Đang sản xuất",
+  "In Fulfilment": "Đang xử lý kho",
   // Warning
   "Pending Approval": "Chờ duyệt",
   "On Hold": "Tạm giữ",

@@ -573,31 +573,6 @@ export function registerAllMockRoutes(): void {
   });
 
   /* ====================================================================
-   * Module 14 — Orders
-   * ==================================================================*/
-
-  registerMockRoute("GET", "/orders", async (config) => {
-    const { orders } = await import("@/lib/mock-data");
-    const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
-    const status = params.getAll("status");
-
-    let filtered = [...orders];
-    if (status.length) filtered = filtered.filter((o) => status.includes(o.status));
-
-    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
-  });
-
-  registerMockRoute("GET", "/orders/:id", async (config) => {
-    const { orders } = await import("@/lib/mock-data");
-    const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
-    const order = orders.find((o) => o.orderId === id);
-    if (!order) return { status: 404, data: { message: "Order not found" }, headers: {} };
-    return { status: 200, data: order, headers: {} };
-  });
-
-  /* ====================================================================
    * Staff Users (for admin user management)
    * ==================================================================*/
 

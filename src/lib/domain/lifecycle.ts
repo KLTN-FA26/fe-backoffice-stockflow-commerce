@@ -50,6 +50,9 @@ import type {
   TransferOrderStatus,
   MoveTaskStatus,
 } from "@/lib/mock-data";
+// OrderStatus lấy từ constants/statuses.ts (không phải mock-data) — đúng 10 trạng thái BE
+// (OrderStatus.java), dùng cho zod enum / lifecycle / filter UI.
+import type { OrderStatus } from "@/constants/statuses";
 
 /* ── Module 01: Product ──────────────────────────────────────────────── */
 
@@ -211,4 +214,31 @@ export const MOVE_TRANSITIONS: Record<MoveTaskStatus, readonly MoveTaskStatus[]>
   "Completed":    [],
   "Cancelled":    [],
   "Rejected":     [],
+};
+
+/* ── Module 14: Order ────────────────────────────────────────────────── */
+
+// Chép nguyên BE `order/api/OrderStatus.java#canTransitionTo` (10 trạng thái, ON_HOLD có từ BE
+// commit 2e9c4df) — FE khớp BE, không dựng theo docs 17 (xem QUYẾT ĐỊNH ở ORDER_STATUSES).
+// Mã wire ↔ nhãn FE: features/order/status-map.ts (PAID ↔ "Paid", IN_FULFILMENT ↔ "In Fulfilment").
+export const ORDER_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
+  // DRAFT → PENDING_PAYMENT / CANCELLED
+  Draft: ["Pending Payment", "Cancelled"],
+  // PENDING_PAYMENT → PAID / CANCELLED
+  "Pending Payment": ["Paid", "Cancelled"],
+  // PAID → IN_FULFILMENT / ON_HOLD / CANCELLED
+  Paid: ["In Fulfilment", "On Hold", "Cancelled"],
+  // IN_FULFILMENT → SHIPPED / ON_HOLD / CANCELLED
+  "In Fulfilment": ["Shipped", "On Hold", "Cancelled"],
+  // ON_HOLD → IN_FULFILMENT / CANCELLED
+  "On Hold": ["In Fulfilment", "Cancelled"],
+  // BE BR-031 (OrderStatus#canTransitionTo); docs 17 BR-03 (§6 / §4.5): từ SHIPPED hàng đã ở
+  // chỗ hãng vận chuyển — không còn Cancelled, phải đi flow trả hàng.
+  Shipped: ["Delivered"],
+  // DELIVERED → COMPLETED / RETURNED
+  Delivered: ["Completed", "Returned"],
+  // Terminal (OrderStatus#isTerminal)
+  Completed: [],
+  Cancelled: [],
+  Returned: [],
 };

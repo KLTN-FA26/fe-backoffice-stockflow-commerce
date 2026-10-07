@@ -18,6 +18,19 @@ export const SUPPLIER_PERMISSIONS = {
 } as const;
 
 /**
+ * Đơn hàng — resource `sales-orders` (BE `OrderResources.ORDERS`). Huỷ đơn phía admin
+ * (`POST /orders/{id}/admin-cancellation`) yêu cầu APPROVE scope ALL; seed BE chỉ cấp cho
+ * ORDER_COORDINATOR (SALES_STAFF chỉ có VIEW_PAGE/READ/CREATE/UPDATE).
+ */
+export const ORDER_PERMISSIONS = {
+  // Mở trang (menu + chặn route) — BE Action.VIEW_PAGE, ADR-0004
+  viewPage: "sales-orders:VIEW_PAGE",
+  // Đọc dữ liệu (GET /orders, /orders/{id}) — seed BE: SALES_STAFF, ORDER_COORDINATOR
+  read: "sales-orders:READ",
+  cancel: "sales-orders:APPROVE",
+} as const;
+
+/**
  * Màn Đơn đặt NCC — resource `procurement-purchase-orders` (BE PurchaseOrderController).
  * VIEW_PAGE chỉ dùng cho menu + chặn route; mọi API đọc cần READ (BE Action.java, ADR-0004).
  */

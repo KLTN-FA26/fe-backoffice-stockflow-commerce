@@ -7,7 +7,7 @@
  * phục vụ demo/mock — code FE đọc quyền qua `/me/permissions`, không đọc bảng này.
  */
 
-import { PO_PERMISSIONS, SUPPLIER_PERMISSIONS } from "@/constants/permissions";
+import { ORDER_PERMISSIONS, PO_PERMISSIONS, SUPPLIER_PERMISSIONS } from "@/constants/permissions";
 
 import { registerMockRoute } from "./mock-adapter";
 
@@ -16,9 +16,17 @@ const ALL_PO = Object.values(PO_PERMISSIONS);
 const { viewPage, read, create, update, export: exportCode } = SUPPLIER_PERMISSIONS;
 const PO = PO_PERMISSIONS;
 
+// Seed BE V20260903000100: chỉ ORDER_COORDINATOR có sales-orders:APPROVE ("System Admin" là
+// role mock-only, được toàn quyền như NCC).
+// SALES_STAFF: VIEW_PAGE/READ/CREATE/UPDATE; ORDER_COORDINATOR: thêm APPROVE (huỷ đơn admin).
+const ORDER_VIEW = [ORDER_PERMISSIONS.viewPage, ORDER_PERMISSIONS.read];
+const ORDER_ALL = Object.values(ORDER_PERMISSIONS);
+
 const MOCK_PERMISSIONS_BY_ROLE: Record<string, readonly string[]> = {
-  "System Admin": [...ALL_SUPPLIER, ...ALL_PO],
+  "System Admin": [...ALL_SUPPLIER, ...ALL_PO, ...ORDER_ALL],
   "E-commerce Admin": ALL_SUPPLIER,
+  "Order Coordinator": ORDER_ALL,
+  "Sales Staff": ORDER_VIEW,
   // Seed BE: PROCUREMENT_STAFF — NCC: VIEW_PAGE, READ, CREATE, UPDATE, EXPORT (không DELETE);
   // PO: VIEW_PAGE, READ, CREATE, UPDATE, EXPORT (không APPROVE).
   "Procurement Staff": [

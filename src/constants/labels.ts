@@ -23,6 +23,15 @@ export const UI_LABELS = {
     permissionsDescription:
       "Máy chủ chưa trả được danh sách quyền của tài khoản. Thử lại sau hoặc liên hệ quản trị.",
   },
+  order: {
+    pageTitle: "Đơn hàng",
+    cancelFailedTitle: "Không huỷ được đơn",
+    notFoundTitle: "Không tìm thấy đơn hàng",
+    notFoundDescription: "Đơn hàng không tồn tại hoặc đường dẫn không hợp lệ.",
+    forbiddenDescription: "Tài khoản của bạn chưa được cấp quyền truy cập đơn hàng.",
+    noReadDescription:
+      "Bạn được mở trang nhưng chưa được cấp quyền xem dữ liệu đơn hàng. Liên hệ quản trị để được cấp.",
+  },
   supplier: {
     pageTitle: "Nhà cung cấp",
     notFoundTitle: "Không tìm thấy nhà cung cấp",
