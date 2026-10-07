@@ -35,6 +35,7 @@ import {
   APP_ROUTES,
   BRAND,
   ORDER_PERMISSIONS,
+  PO_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
 } from "@/constants";
 
@@ -195,6 +196,7 @@ const NAV_GROUPS: NavGroup[] = [
         tooltip: "Purchase Orders",
         href: "/admin/purchase-orders",
         icon: ShoppingCart,
+        permission: PO_PERMISSIONS.viewPage,
       },
       {
         label: "Hoá đơn NCC",

@@ -84,6 +84,19 @@ async function getStore(): Promise<MockSupplierRecord[]> {
   return store;
 }
 
+/**
+ * Tra một NCC trong store mock — dùng chung cho mock PO (`mock-routes-purchase-orders.ts`) để
+ * tên/mã/điều khoản NCC của PO khớp đúng NCC mock đang hiển thị ở trang NCC.
+ */
+export async function findMockSupplier(
+  supplierId: string,
+): Promise<Pick<
+  MockSupplierRecord,
+  "supplierId" | "code" | "name" | "status" | "paymentTermDays" | "leadTimeDays"
+> | null> {
+  return (await getStore()).find((s) => s.supplierId === supplierId) ?? null;
+}
+
 /** Chỉ dùng trong test: đưa store về dữ liệu gốc. */
 export function resetSupplierMockStore(): void {
   store = null;
