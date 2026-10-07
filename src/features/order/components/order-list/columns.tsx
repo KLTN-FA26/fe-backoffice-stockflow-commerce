@@ -5,7 +5,8 @@ import { Eye } from "lucide-react";
 
 import { ADMIN_ROUTES } from "@/constants";
 import { formatMoney } from "@/lib/format";
-import { dateCell, statusCell } from "@/components/shared/column-helpers";
+import { formatDate } from "@/lib/format/date";
+import { statusCell } from "@/components/shared/column-helpers";
 import { Button } from "@/components/ui/button";
 
 import { COLUMN_LABELS } from "./constants";
@@ -46,11 +47,17 @@ export function buildOrderColumns(): OrderColumn[] {
         </div>
       ),
     },
+    // Không dùng dateCell: nó dùng toLocaleDateString không timezone ("12/6/2026"); formatDate
+    // có Asia/Ho_Chi_Minh và cùng định dạng với trang chi tiết (api-conventions §10).
     {
-      ...dateCell<Order>("placedAt", COLUMN_LABELS.placedAt, (row) => row.placedAt, {
-        sortable: true,
-      }),
       key: "placedAt",
+      header: COLUMN_LABELS.placedAt,
+      sortable: true,
+      cell: (row) => (
+        <span className="text-ink-secondary text-[0.8125rem] tabular-nums">
+          {formatDate(row.placedAt)}
+        </span>
+      ),
     },
     // Không dùng moneyCell: tiền tệ lấy từ `currency` của từng đơn (api-conventions §10).
     {

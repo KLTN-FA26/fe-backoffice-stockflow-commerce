@@ -2,21 +2,24 @@
 
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { onlineManager } from "@tanstack/react-query";
 import { use } from "react";
 
-import { ADMIN_ROUTES } from "@/constants";
+import { ADMIN_ROUTES, ORDER_PERMISSIONS } from "@/constants";
 import { usePermissionChecker } from "@/lib/auth";
 import { formatDateTime } from "@/lib/format/date";
+import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { PageSkeleton } from "@/components/shared/PageSkeleton";
 
 import { useOrder } from "../queries";
 
 import { OrderActionCard } from "./OrderActionCard";
-import { OrderDetailErrorState } from "./OrderDetailErrorState";
 import { OrderFinanceCard } from "./OrderFinanceCard";
 import { OrderInfoCard } from "./OrderInfoCard";
 import { OrderLines } from "./OrderLines";
+import { OrderLoadError } from "./OrderLoadError";
+import { OrderPermissionGate } from "./OrderPermissionGate";
+import { OrderDetailSkeleton } from "./OrderSkeletons";
 
 interface OrderDetailProps {
   params: Promise<{ id: string }>;
@@ -24,19 +27,34 @@ interface OrderDetailProps {
 
 export function OrderDetail({ params }: OrderDetailProps) {
   const { id } = use(params);
+  return (
+    <OrderPermissionGate permissions={[ORDER_PERMISSIONS.viewPage]}>
+      <OrderDetailContent id={id} />
+    </OrderPermissionGate>
+  );
+}
+
+function OrderDetailContent({ id }: { id: string }) {
   const can = usePermissionChecker();
-  const query = useOrder(id);
+  // READ = đọc dữ liệu (tách khỏi VIEW_PAGE mở trang — BE ADR-0004): thiếu thì không gọi API
+  const canRead = can(ORDER_PERMISSIONS.read);
+  const query = useOrder(id, { enabled: canRead });
+  // Breadcrumb hiện mã đơn (SO-…) thay vì orderId (UUID của BE), như NCC
+  useBreadcrumbLabel(id, query.data?.orderNumber);
 
-  if (query.isLoading) return <PageSkeleton variant="detail" />;
+  if (!canRead) return <OrderLoadError error={null} kind="no-read" />;
 
-  if (query.isError || !query.data) {
-    return (
-      <OrderDetailErrorState
-        id={id}
-        error={query.isError ? query.error : null}
-        onRetry={() => query.refetch()}
-      />
-    );
+  // isPending (không dùng isLoading): retry bị tạm dừng khi cửa sổ mất focus → query vẫn pending
+  // nhưng fetchStatus "paused"; dùng isLoading sẽ rơi xuống nhánh lỗi và hiện nhầm "không tìm thấy".
+  if (query.isPending) {
+    if (query.fetchStatus === "paused" && !onlineManager.isOnline()) {
+      return <OrderLoadError error={null} kind="network" onRetry={() => void query.refetch()} />;
+    }
+    return <OrderDetailSkeleton />;
+  }
+
+  if (query.isError) {
+    return <OrderLoadError error={query.error} onRetry={() => void query.refetch()} />;
   }
 
   const order = query.data;

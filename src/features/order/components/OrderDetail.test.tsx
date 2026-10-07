@@ -2,10 +2,12 @@ import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { UI_LABELS } from "@/constants";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
+import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
 
-import { apiOrder } from "../__fixtures__/order";
+import { apiGuestOrder, apiOrder } from "../__fixtures__/order";
 import { ORDER_PERMISSION_SETS, mockOrderApiGet, renderOrderScreen } from "../__fixtures__/render";
 import { OrderDetail } from "./OrderDetail";
 
@@ -58,12 +60,42 @@ describe("OrderDetail — action-gating theo mã quyền + trạng thái BE", ()
     expect(screen.queryByRole("button", { name: "Huỷ đơn" })).not.toBeInTheDocument();
   });
 
+  it("breadcrumb dùng mã đơn (SO-…) thay vì orderId UUID", async () => {
+    await renderDetail(ORDER_PERMISSION_SETS.salesStaff, () => apiOrder);
+
+    await screen.findByRole("heading", { name: apiOrder.orderNumber });
+    expect(useBreadcrumbLabelStore.getState().labels[apiOrder.orderId]).toBe(apiOrder.orderNumber);
+  });
+
   it("hiện nhãn trạng thái tiếng Việt từ mã BE (IN_FULFILMENT → Đang xử lý kho)", async () => {
     await renderDetail(ORDER_PERMISSION_SETS.salesStaff, () => withStatus("IN_FULFILMENT"));
 
     await screen.findByRole("heading", { name: apiOrder.orderNumber });
     expect(screen.getByText("Đang xử lý kho")).toBeInTheDocument();
     expect(screen.queryByText("IN_FULFILMENT")).not.toBeInTheDocument();
+  });
+
+  it("đơn guest (JSON thật, không có key customerId) → mở được chi tiết", async () => {
+    mockOrderApiGet(ORDER_PERMISSION_SETS.coordinator, {
+      [`/orders/${apiGuestOrder.orderId}`]: () => apiGuestOrder,
+    });
+    await act(async () => {
+      renderOrderScreen(<OrderDetail params={Promise.resolve({ id: apiGuestOrder.orderId })} />);
+    });
+
+    expect(
+      await screen.findByRole("heading", { name: apiGuestOrder.orderNumber }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Không tìm thấy đơn hàng")).not.toBeInTheDocument();
+  });
+
+  it("response sai hợp đồng → 'Dữ liệu trả về không đúng định dạng', không retry", async () => {
+    await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => ({ orderId: "x" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "Dữ liệu trả về không đúng định dạng" }),
+    ).toBeInTheDocument();
+    expect(vi.mocked(api.get).mock.calls.filter(([url]) => url === DETAIL_PATH)).toHaveLength(1);
   });
 
   it("đơn không tồn tại (404) → màn Không tìm thấy đơn hàng", async () => {
@@ -142,5 +174,33 @@ describe("OrderDetail — luồng huỷ đơn", () => {
     await waitFor(() =>
       expect(vi.mocked(api.get).mock.calls.filter(([url]) => url === DETAIL_PATH)).toHaveLength(2),
     );
+  });
+});
+
+describe("OrderDetail — kiểm quyền trước khi gọi API", () => {
+  it("WAREHOUSE_STAFF (không có sales-orders) → 'Bạn không có quyền', không gọi GET /orders/{id}", async () => {
+    await renderDetail(ORDER_PERMISSION_SETS.none, () => apiOrder);
+
+    expect(await screen.findByText("Bạn không có quyền")).toBeInTheDocument();
+    expect(vi.mocked(api.get).mock.calls.some(([url]) => url === DETAIL_PATH)).toBe(false);
+  });
+
+  it("chỉ VIEW_PAGE (thiếu READ) → không gọi GET /orders/{id}", async () => {
+    await renderDetail(ORDER_PERMISSION_SETS.viewOnly, () => apiOrder);
+
+    expect(
+      await screen.findByRole("heading", { name: UI_LABELS.loadError.noReadTitle }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Thử lại" })).not.toBeInTheDocument();
+    expect(vi.mocked(api.get).mock.calls.some(([url]) => url === DETAIL_PATH)).toBe(false);
+  });
+
+  it("BE trả 403 → câu giải thích chỉ hiện 1 lần (không lặp header + thân)", async () => {
+    await renderDetail(ORDER_PERMISSION_SETS.salesStaff, () => {
+      throw new ApiError(403, "FORBIDDEN", "Not authorised");
+    });
+
+    await screen.findByRole("heading", { name: UI_LABELS.loadError.forbiddenTitle });
+    expect(screen.getAllByText(UI_LABELS.order.forbiddenDescription)).toHaveLength(1);
   });
 });

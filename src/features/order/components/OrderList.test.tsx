@@ -2,13 +2,16 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { UI_LABELS } from "@/constants";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
+import { formatDate } from "@/lib/format/date";
 
 import { apiOrder, apiOrderPage } from "../__fixtures__/order";
 import { ORDER_PERMISSION_SETS, mockOrderApiGet, renderOrderScreen } from "../__fixtures__/render";
 import { OrderList } from "./OrderList";
 
+import type { PermissionCode } from "@/lib/auth";
 import type { RouteHandler } from "../__fixtures__/render";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
@@ -44,6 +47,8 @@ describe("OrderList — phân trang/lọc phía server", () => {
     // Footer phân trang server: "Hiển thị x–y / tổng" lấy totalElements từ BE
     expect(screen.getByText("Hiển thị 1–2 / 2")).toBeInTheDocument();
     expect(screen.queryByText("PENDING_PAYMENT")).not.toBeInTheDocument();
+    // Ngày cùng định dạng với trang chi tiết (formatDate, Asia/Ho_Chi_Minh), không "7/9/2026"
+    expect(screen.getAllByText(formatDate(apiOrder.placedAt)).length).toBeGreaterThan(0);
   });
 
   it("URL ?status=Paid&q=SO-2026&page=2 → gửi status=PAID, search, page=1 (BE đánh số từ 0)", async () => {
@@ -57,6 +62,29 @@ describe("OrderList — phân trang/lọc phía server", () => {
 });
 
 describe("OrderList — 4 trạng thái màn hình (api-conventions §8)", () => {
+  it("đang tải → giữ header thật, skeleton bảng hiện bên dưới", async () => {
+    // Dựng mock TRƯỚC khi render: /identity/me trả quyền, /orders treo (không bao giờ trả) để
+    // giữ trạng thái đang tải — không phụ thuộc thứ tự request.
+    vi.spyOn(api, "get").mockImplementation((url: string) => {
+      if (url === "/identity/me/permissions") {
+        return Promise.resolve({
+          data: {
+            roles: ["TEST"],
+            permissions: ORDER_PERMISSION_SETS.salesStaff,
+            dataScope: "ALL",
+          },
+        });
+      }
+      return new Promise(() => {});
+    });
+    renderOrderScreen(<OrderList />);
+
+    // Quyền tải xong → header thật hiện; /orders còn treo → skeleton bảng bên dưới
+    expect(await screen.findByRole("heading", { name: "Đơn hàng" })).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "Đang tải nội dung" })).toBeInTheDocument();
+    expect(screen.getAllByRole("heading")).toHaveLength(1);
+  });
+
   it("chưa có đơn nào → 'Chưa có đơn hàng'", async () => {
     renderList(() => apiOrderPage([]));
     expect(await screen.findByText("Chưa có đơn hàng")).toBeInTheDocument();
@@ -75,14 +103,19 @@ describe("OrderList — 4 trạng thái màn hình (api-conventions §8)", () =>
       throw new ApiError(500, "INTERNAL_ERROR", "boom", undefined, "corr-9");
     });
 
-    expect(await screen.findByText("Không tải được danh sách đơn hàng")).toBeInTheDocument();
-    expect(screen.getByText(/traceId: corr-9/)).toBeInTheDocument();
+    expect(await screen.findByText(UI_LABELS.loadError.serverTitle)).toBeInTheDocument();
+    // Lỗi server hiện câu tiếng Việt chung, không hiện message BE ("boom")
+    expect(screen.getByText(UI_LABELS.loadError.serverDescription)).toBeInTheDocument();
+    expect(screen.queryByText("boom")).not.toBeInTheDocument();
+    expect(screen.getByText("corr-9")).toBeInTheDocument();
     expect(screen.queryByText("Chưa có đơn hàng")).not.toBeInTheDocument();
 
+    // 5xx là lỗi tạm thời: hook tự retry 2 lần (tổng 3 lần gọi) trước khi hiện màn lỗi
+    const listCalls = () => vi.mocked(api.get).mock.calls.filter(([url]) => url === "/orders");
+    expect(listCalls()).toHaveLength(3);
+
     await userEvent.click(screen.getByRole("button", { name: "Thử lại" }));
-    await waitFor(() =>
-      expect(vi.mocked(api.get).mock.calls.filter(([url]) => url === "/orders")).toHaveLength(2),
-    );
+    await waitFor(() => expect(listCalls().length).toBeGreaterThan(3));
   });
 
   it("403 → 'Bạn không có quyền', không có nút Thử lại", async () => {
@@ -97,5 +130,35 @@ describe("OrderList — 4 trạng thái màn hình (api-conventions §8)", () =>
   it("response sai hợp đồng (parse fail) → 'Dữ liệu trả về không đúng định dạng'", async () => {
     renderList(() => ({ items: [{ orderId: "x" }] }));
     expect(await screen.findByText("Dữ liệu trả về không đúng định dạng")).toBeInTheDocument();
+  });
+});
+
+describe("OrderList — kiểm quyền trước khi gọi API", () => {
+  function renderWith(permissions: readonly PermissionCode[]) {
+    mockOrderApiGet(permissions, { "/orders": () => apiOrderPage([apiOrder]) });
+    return renderOrderScreen(<OrderList />);
+  }
+
+  it("WAREHOUSE_STAFF (không có sales-orders) → 'Bạn không có quyền', không gọi GET /orders", async () => {
+    renderWith(ORDER_PERMISSION_SETS.none);
+
+    // Màn chặn cả trang có tiêu đề trang (h1) + đường về, cùng kiểu màn lỗi chi tiết
+    expect(
+      await screen.findByRole("heading", { name: UI_LABELS.loadError.forbiddenTitle }),
+    ).toBeInTheDocument();
+    // Cùng bố cục màn lỗi NCC: PageHeader (h1) là tên trang
+    expect(
+      screen.getByRole("heading", { level: 1, name: UI_LABELS.order.pageTitle }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Về trang tổng quan" })).toBeInTheDocument();
+    expect(vi.mocked(api.get).mock.calls.some(([url]) => url === "/orders")).toBe(false);
+  });
+
+  it("chỉ VIEW_PAGE (thiếu READ) → mở được trang nhưng không gọi GET /orders, không hiện toolbar", async () => {
+    renderWith(ORDER_PERMISSION_SETS.viewOnly);
+
+    expect(await screen.findByText(UI_LABELS.order.noReadDescription)).toBeInTheDocument();
+    expect(vi.mocked(api.get).mock.calls.some(([url]) => url === "/orders")).toBe(false);
+    expect(screen.queryByPlaceholderText(/Tìm theo mã đơn/)).not.toBeInTheDocument();
   });
 });

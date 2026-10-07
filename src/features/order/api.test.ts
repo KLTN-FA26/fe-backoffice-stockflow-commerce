@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { api } from "@/lib/api/client";
 
 import { getOrder, listOrders, toOrder } from "./api";
+import { apiGuestOrder } from "./__fixtures__/order";
 import { orderDtoSchema } from "./schemas";
 
 /** Hình dạng `OrderResponse` BE (develop) sau khi interceptor bóc envelope. */
@@ -82,6 +83,27 @@ describe("order API contract (BE OrderResponse)", () => {
         lineTotal: 350000,
       },
     ]);
+  });
+
+  it("đơn guest (BE bỏ hẳn key customerId vì non_null) vẫn parse được", () => {
+    expect("customerId" in apiGuestOrder).toBe(false);
+    const order = toOrder(orderDtoSchema.parse(apiGuestOrder));
+
+    expect(order.customerId).toBeNull();
+    expect(order.status).toBe("Paid");
+    expect(order.recipientName).toBe("Nguyễn Văn A");
+    expect(order.shippingAddressText).toBe("123 Nguyễn Huệ, Phường Bến Nghé, TP. Hồ Chí Minh");
+  });
+
+  it("địa chỉ thiếu recipientName/phone/line1 (key vắng) → vẫn parse, fallback contact*", () => {
+    const order = toOrder(
+      orderDtoSchema.parse({
+        ...apiGuestOrder,
+        shippingAddress: { wardName: "Phường Bến Nghé", provinceName: "TP. Hồ Chí Minh" },
+      }),
+    );
+    expect(order.recipientName).toBe("Nguyễn Văn A");
+    expect(order.recipientPhone).toBe("+84900000001");
   });
 
   it("không có shippingAddress → fallback contact*, địa chỉ null", () => {

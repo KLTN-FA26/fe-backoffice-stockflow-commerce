@@ -55,3 +55,37 @@ export function apiOrderPage(items: OrderDto[], page = 0, size = 15): OrderPageD
     hasPrevious: page > 0,
   };
 }
+
+/**
+ * Đơn guest checkout — đúng hình JSON BE trả: Jackson `non_null` BỎ HẲN các key null, nên không
+ * có `customerId`, `billingAddress`, `createdBy`… (không phải `customerId: null`).
+ */
+export const apiGuestOrder = {
+  orderId: "7e1d2c3b-9a8f-4e6d-8c5b-1a2b3c4d5e6f",
+  orderNumber: "SO-20261002-000002",
+  status: "PAID",
+  totalAmount: 30000000,
+  currency: "VND",
+  lines: [
+    {
+      lineId: "2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e",
+      sku: "SOFA-3S-GREY",
+      quantity: 2,
+      unitPrice: 15000000,
+      lineTotal: 30000000,
+      reservationIds: [],
+    },
+  ],
+  placedAt: "2026-10-02T10:38:00Z",
+  contactName: "Nguyễn Văn A",
+  contactEmail: "guest@example.com",
+  contactPhone: "+84900000001",
+  shippingAddress: {
+    recipientName: "Nguyễn Văn A",
+    phone: "+84900000001",
+    line1: "123 Nguyễn Huệ",
+    wardName: "Phường Bến Nghé",
+    provinceName: "TP. Hồ Chí Minh",
+    countryCode: "VN",
+  },
+};

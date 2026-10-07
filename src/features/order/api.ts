@@ -30,7 +30,7 @@ export function toOrder(dto: OrderDto): Order {
   return {
     orderId: dto.orderId,
     orderNumber: dto.orderNumber,
-    customerId: dto.customerId,
+    customerId: dto.customerId ?? null,
     status: mapBackendOrderStatus(dto.status),
     totalAmount: dto.totalAmount,
     currency: dto.currency,

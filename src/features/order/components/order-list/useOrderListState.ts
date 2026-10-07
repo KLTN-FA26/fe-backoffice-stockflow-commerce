@@ -35,7 +35,7 @@ function parseSort(raw: string): { key: ServerSortField | null; direction: SortD
  * State trang danh sách đơn — filter/search/status/sort/page trên URL (nuqs), cột + số dòng
  * trong localStorage (state-persistence.md). Phân trang/lọc/sắp xếp phía server, như NCC.
  */
-export function useOrderListState() {
+export function useOrderListState(canRead = true) {
   const router = useRouter();
   const filters = useUrlFilters(ORDER_STATUSES);
   const { config, updateConfig } = usePageConfig<OrderPageConfig>(
@@ -44,14 +44,17 @@ export function useOrderListState() {
     mergeStoredConfig,
   );
   const sort = parseSort(filters.sort);
-  const query = useOrders({
-    // URL đánh số trang từ 1, BE PageResponse từ 0
-    page: Math.max(0, filters.page - 1),
-    size: config.pageSize,
-    search: filters.debouncedQ,
-    status: filters.status,
-    sort: sort.key ? `${sort.key},${sort.direction}` : undefined,
-  });
+  const query = useOrders(
+    {
+      // URL đánh số trang từ 1, BE PageResponse từ 0
+      page: Math.max(0, filters.page - 1),
+      size: config.pageSize,
+      search: filters.debouncedQ,
+      status: filters.status,
+      sort: sort.key ? `${sort.key},${sort.direction}` : undefined,
+    },
+    { enabled: canRead },
+  );
 
   const hasFilters = filters.q.trim() !== "" || filters.status.length > 0;
   const page = query.data;
@@ -106,6 +109,7 @@ export function useOrderListState() {
   const visibleColumnCount = config.visibleColumns.filter((c) => c !== "actions").length;
 
   return {
+    canRead,
     query,
     config,
     filters,

@@ -40,18 +40,24 @@ export const BACKEND_ORDER_STATUSES = [
 
 export const orderStatusDtoSchema = z.enum(BACKEND_ORDER_STATUSES);
 
-/** BE `OrderResponse.Address` — mọi field có thể null (đơn guest/địa chỉ thiếu). */
+/**
+ * Field có thể null dùng `.nullish()` (cho phép vắng key): BE bật Jackson
+ * `default-property-inclusion: non_null` (application.yml) nên field null bị BỎ HẲN khỏi JSON
+ * (vd đơn guest không có key `customerId`). Chỉ cho null mà bắt buộc có key → parse fail.
+ */
+
+/** BE `OrderResponse.Address` — mọi field có thể vắng (đơn guest/địa chỉ thiếu). */
 export const orderAddressDtoSchema = z.object({
-  recipientName: z.string().nullable(),
-  phone: z.string().nullable(),
-  line1: z.string().nullable(),
-  line2: z.string().nullable().optional(),
-  wardCode: z.string().nullable().optional(),
-  wardName: z.string().nullable().optional(),
-  provinceCode: z.string().nullable().optional(),
-  provinceName: z.string().nullable().optional(),
-  countryCode: z.string().nullable().optional(),
-  postalCode: z.string().nullable().optional(),
+  recipientName: z.string().nullish(),
+  phone: z.string().nullish(),
+  line1: z.string().nullish(),
+  line2: z.string().nullish(),
+  wardCode: z.string().nullish(),
+  wardName: z.string().nullish(),
+  provinceCode: z.string().nullish(),
+  provinceName: z.string().nullish(),
+  countryCode: z.string().nullish(),
+  postalCode: z.string().nullish(),
 });
 
 /** BE `OrderResponse.Line` — tiền là BigDecimal, JSON ra number. */
@@ -62,27 +68,27 @@ export const orderLineDtoSchema = z.object({
   unitPrice: z.number(),
   lineTotal: z.number(),
   reservationIds: z.array(z.string()).default([]),
-  designSnapshotId: z.string().nullable().optional(),
-  designChecksum: z.string().nullable().optional(),
+  designSnapshotId: z.string().nullish(),
+  designChecksum: z.string().nullish(),
 });
 
 export const orderDtoSchema = z.object({
   orderId: z.string(),
   orderNumber: z.string(),
-  customerId: z.string().nullable(),
+  customerId: z.string().nullish(),
   status: orderStatusDtoSchema,
   totalAmount: z.number(),
   currency: currencyCode,
   lines: z.array(orderLineDtoSchema),
   placedAt: z.string(),
-  createdBy: z.string().nullable().optional(),
-  lastModifiedAt: z.string().nullable().optional(),
-  lastModifiedBy: z.string().nullable().optional(),
-  contactName: z.string().nullable().optional(),
-  contactEmail: z.string().nullable().optional(),
-  contactPhone: z.string().nullable().optional(),
-  shippingAddress: orderAddressDtoSchema.nullable().optional(),
-  billingAddress: orderAddressDtoSchema.nullable().optional(),
+  createdBy: z.string().nullish(),
+  lastModifiedAt: z.string().nullish(),
+  lastModifiedBy: z.string().nullish(),
+  contactName: z.string().nullish(),
+  contactEmail: z.string().nullish(),
+  contactPhone: z.string().nullish(),
+  shippingAddress: orderAddressDtoSchema.nullish(),
+  billingAddress: orderAddressDtoSchema.nullish(),
 });
 
 /** BE `PageResponse<OrderResponse>` — trang đánh số từ 0. */

@@ -1,21 +1,6 @@
-import { Box } from "lucide-react";
-import Link from "next/link";
+import { OrderLoadError } from "@/features/order";
 
-import { ADMIN_ROUTES } from "@/constants";
-import { EmptyState } from "@/components/shared/EmptyState";
-import { Button } from "@/components/ui/button";
-
+/** Đường dẫn trong /admin/orders không tồn tại — cùng màn "không tìm thấy" của chi tiết đơn. */
 export default function OrdersNotFound() {
-  return (
-    <EmptyState
-      icon={<Box className="size-8" />}
-      title="Không tìm thấy trang đơn hàng"
-      description="Đường dẫn không tồn tại hoặc đã bị thay đổi."
-      action={
-        <Button asChild variant="outline" size="sm" className="rounded-[var(--r-sm)]">
-          <Link href={ADMIN_ROUTES.orders.list}>Quay lại danh sách</Link>
-        </Button>
-      }
-    />
-  );
+  return <OrderLoadError error={null} kind="not-found" />;
 }

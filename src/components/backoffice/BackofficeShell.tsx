@@ -30,7 +30,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
-import { ADMIN_ROUTES, APP_ROUTES, BRAND, SUPPLIER_PERMISSIONS } from "@/constants";
+import {
+  ADMIN_ROUTES,
+  APP_ROUTES,
+  BRAND,
+  ORDER_PERMISSIONS,
+  SUPPLIER_PERMISSIONS,
+} from "@/constants";
 
 import { logoutApi } from "@/lib/auth/auth-api";
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -237,7 +243,13 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: "THỰC HIỆN ĐƠN",
     items: [
-      { label: "Đơn hàng", tooltip: "Orders", href: "/admin/orders", icon: ClipboardList },
+      {
+        label: "Đơn hàng",
+        tooltip: "Orders",
+        href: ADMIN_ROUTES.orders.list,
+        icon: ClipboardList,
+        permission: ORDER_PERMISSIONS.viewPage,
+      },
       { label: "Lấy hàng", tooltip: "Picking", href: "/admin/picking", icon: WarehouseIcon },
       { label: "Đóng gói", tooltip: "Packing", href: "/admin/packing", icon: PackageCheck },
       { label: "Vận đơn", tooltip: "Shipments", href: "/admin/shipments", icon: Truck },

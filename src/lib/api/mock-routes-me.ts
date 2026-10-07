@@ -15,12 +15,15 @@ const { viewPage, read, create, update, export: exportCode } = SUPPLIER_PERMISSI
 
 // Seed BE V20260903000100: chỉ ORDER_COORDINATOR có sales-orders:APPROVE ("System Admin" là
 // role mock-only, được toàn quyền như NCC).
-const ORDER_CANCEL = ORDER_PERMISSIONS.cancel;
+// SALES_STAFF: VIEW_PAGE/READ/CREATE/UPDATE; ORDER_COORDINATOR: thêm APPROVE (huỷ đơn admin).
+const ORDER_VIEW = [ORDER_PERMISSIONS.viewPage, ORDER_PERMISSIONS.read];
+const ORDER_ALL = Object.values(ORDER_PERMISSIONS);
 
 const MOCK_PERMISSIONS_BY_ROLE: Record<string, readonly string[]> = {
-  "System Admin": [...ALL_SUPPLIER, ORDER_CANCEL],
+  "System Admin": [...ALL_SUPPLIER, ...ORDER_ALL],
   "E-commerce Admin": ALL_SUPPLIER,
-  "Order Coordinator": [ORDER_CANCEL],
+  "Order Coordinator": ORDER_ALL,
+  "Sales Staff": ORDER_VIEW,
   // Seed BE: PROCUREMENT_STAFF có VIEW_PAGE, READ, CREATE, UPDATE, EXPORT (không DELETE)
   "Procurement Staff": [viewPage, read, create, update, exportCode],
   Accountant: [viewPage, read],

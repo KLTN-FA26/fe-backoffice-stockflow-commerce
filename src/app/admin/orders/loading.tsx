@@ -1,5 +1,5 @@
-import { PageSkeleton } from "@/components/shared/PageSkeleton";
+import { OrderListPageSkeleton } from "@/features/order";
 
 export default function Loading() {
-  return <PageSkeleton variant="list" />;
+  return <OrderListPageSkeleton />;
 }

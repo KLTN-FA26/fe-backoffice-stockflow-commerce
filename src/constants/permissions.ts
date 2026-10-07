@@ -23,5 +23,9 @@ export const SUPPLIER_PERMISSIONS = {
  * ORDER_COORDINATOR (SALES_STAFF chỉ có VIEW_PAGE/READ/CREATE/UPDATE).
  */
 export const ORDER_PERMISSIONS = {
+  // Mở trang (menu + chặn route) — BE Action.VIEW_PAGE, ADR-0004
+  viewPage: "sales-orders:VIEW_PAGE",
+  // Đọc dữ liệu (GET /orders, /orders/{id}) — seed BE: SALES_STAFF, ORDER_COORDINATOR
+  read: "sales-orders:READ",
   cancel: "sales-orders:APPROVE",
 } as const;

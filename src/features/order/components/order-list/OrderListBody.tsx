@@ -4,14 +4,14 @@ import { ClipboardList } from "lucide-react";
 
 import { DataTable } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { RefetchBar } from "@/components/shared/RefetchBar";
 import { Button } from "@/components/ui/button";
 
 import { shouldFlagOrderRow } from "../../selectors";
+import { OrderLoadError } from "../OrderLoadError";
+import { OrderTableSkeleton } from "../OrderSkeletons";
 
 import { PAGE_SIZE_OPTIONS } from "./constants";
-import { loadErrorView } from "./load-error";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { Order } from "../../types";
@@ -24,26 +24,12 @@ import type { OrderListState } from "./useOrderListState";
 export function OrderListBody({ s, columns }: { s: OrderListState; columns: ColumnDef<Order>[] }) {
   const { query, filters } = s;
 
+  // Thiếu READ: query đã tắt (không gọi API) — báo rõ thay vì skeleton vô hạn
+  if (!s.canRead) return <OrderLoadError inline error={null} kind="no-read" />;
   if (query.isError) {
-    const view = loadErrorView(query.error);
-    return (
-      <EmptyState
-        icon={<view.icon className="size-8" />}
-        title={view.title}
-        description={
-          view.traceId ? `${view.description} (traceId: ${view.traceId})` : view.description
-        }
-        action={
-          view.retryable ? (
-            <Button type="button" variant="outline" size="sm" onClick={() => void query.refetch()}>
-              Thử lại
-            </Button>
-          ) : undefined
-        }
-      />
-    );
+    return <OrderLoadError inline error={query.error} onRetry={() => void query.refetch()} />;
   }
-  if (query.isPending) return <PageSkeleton variant="list" />;
+  if (query.isPending) return <OrderTableSkeleton />;
 
   if (s.emptyState === "no-orders") {
     return (

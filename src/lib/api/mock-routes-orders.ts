@@ -120,8 +120,23 @@ function toOrderResponse(order: Order) {
   };
 }
 
+/**
+ * Bỏ mọi key có giá trị null (đệ quy) — giống BE Jackson `default-property-inclusion: non_null`
+ * (application.yml). Không bỏ thì mock trả `null` tường minh và che lỗi schema đòi bắt buộc có key
+ * (vd đơn guest: BE không gửi `customerId`).
+ */
+function withoutNulls(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(withoutNulls);
+  if (typeof value !== "object" || value === null) return value;
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([, v]) => v !== null)
+      .map(([k, v]) => [k, withoutNulls(v)]),
+  );
+}
+
 function ok(data: unknown) {
-  return { status: 200, data: { success: true, data }, headers: {} };
+  return { status: 200, data: withoutNulls({ success: true, data }), headers: {} };
 }
 
 function error(status: number, errorCode: string, message: string, fieldErrors?: unknown[]) {
