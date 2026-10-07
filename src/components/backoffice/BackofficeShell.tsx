@@ -30,7 +30,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
-import { ADMIN_ROUTES, APP_ROUTES, BRAND, SUPPLIER_PERMISSIONS } from "@/constants";
+import { ADMIN_ROUTES, APP_ROUTES, BRAND, PO_PERMISSIONS, SUPPLIER_PERMISSIONS } from "@/constants";
 
 import { logoutApi } from "@/lib/auth/auth-api";
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -189,6 +189,7 @@ const NAV_GROUPS: NavGroup[] = [
         tooltip: "Purchase Orders",
         href: "/admin/purchase-orders",
         icon: ShoppingCart,
+        permission: PO_PERMISSIONS.viewPage,
       },
       {
         label: "Hoá đơn NCC",

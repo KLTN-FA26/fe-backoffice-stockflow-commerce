@@ -23,6 +23,8 @@ interface ConfirmDialogProps {
   /** Nếu true, hiện ô nhập lý do bắt buộc trước khi cho confirm. */
   requireReason?: boolean;
   reasonLabel?: string;
+  /** Giới hạn độ dài lý do (vd cột DB phía BE). Không truyền = không giới hạn. */
+  reasonMaxLength?: number;
   onConfirm: (reason?: string) => void;
   variant?: "danger" | "default";
   loading?: boolean;
@@ -37,6 +39,7 @@ export function ConfirmDialog({
   cancelLabel = "Quay lại",
   requireReason = false,
   reasonLabel = "Lý do",
+  reasonMaxLength,
   onConfirm,
   variant = "danger",
   loading = false,
@@ -85,6 +88,7 @@ export function ConfirmDialog({
                 id="confirm-reason"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
+                maxLength={reasonMaxLength}
                 placeholder="Nhập lý do…"
                 autoFocus
                 className="border-border-default bg-bg-surface text-ink-primary placeholder:text-ink-tertiary focus:border-accent"

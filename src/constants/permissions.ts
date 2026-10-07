@@ -16,3 +16,18 @@ export const SUPPLIER_PERMISSIONS = {
   // Xuất dữ liệu hàng loạt — BE coi là quyền nhạy cảm, tách khỏi READ (Action.EXPORT)
   export: "procurement-suppliers:EXPORT",
 } as const;
+
+/**
+ * Màn Đơn đặt NCC — resource `procurement-purchase-orders` (BE PurchaseOrderController).
+ * VIEW_PAGE chỉ dùng cho menu + chặn route; mọi API đọc cần READ (BE Action.java, ADR-0004).
+ */
+export const PO_PERMISSIONS = {
+  viewPage: "procurement-purchase-orders:VIEW_PAGE",
+  read: "procurement-purchase-orders:READ",
+  create: "procurement-purchase-orders:CREATE",
+  // Gửi NCC, huỷ, nhận hàng, đóng thiếu, ghi nhận NCC phản hồi
+  update: "procurement-purchase-orders:UPDATE",
+  // Phê duyệt + khôi phục gửi NCC (`/delivery-recovery`)
+  approve: "procurement-purchase-orders:APPROVE",
+  export: "procurement-purchase-orders:EXPORT",
+} as const;

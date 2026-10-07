@@ -13,7 +13,6 @@ export const PO_COLUMNS = {
   PO_NUMBER: "poNumber",
   STATUS: "status",
   SUPPLIER: "supplier",
-  WAREHOUSE: "warehouse",
 } as const;
 
 export const RECEIPT_COLUMNS = {
