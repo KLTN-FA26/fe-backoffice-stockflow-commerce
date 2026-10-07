@@ -6,9 +6,11 @@ import { UI_LABELS } from "@/constants";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
+import { toast } from "@/components/shared/Toast";
 
 import { apiGuestOrder, apiOrder } from "../__fixtures__/order";
 import { ORDER_PERMISSION_SETS, mockOrderApiGet, renderOrderScreen } from "../__fixtures__/render";
+
 import { OrderDetail } from "./OrderDetail";
 
 import type { PermissionCode } from "@/lib/auth";
@@ -157,6 +159,25 @@ describe("OrderDetail — luồng huỷ đơn", () => {
 
     await waitFor(() => expect(api.post).toHaveBeenCalled());
     expect(screen.getByLabelText(/Lý do huỷ/)).toHaveValue("Khách đổi ý");
+  });
+
+  it("lỗi có traceId → toast dùng nhãn chung 'TraceId', tiêu đề 'Không huỷ được đơn'", async () => {
+    await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => apiOrder);
+    const toastError = vi.spyOn(toast, "error");
+    vi.spyOn(api, "post").mockRejectedValue(
+      new ApiError(500, "INTERNAL_ERROR", "boom", undefined, "corr-77"),
+    );
+
+    await userEvent.click(await screen.findByRole("button", { name: "Huỷ đơn" }));
+    await userEvent.type(
+      screen.getByLabelText(/Lý do huỷ/),
+      "Khách đổi ý{Control>}{Enter}{/Control}",
+    );
+
+    await waitFor(() => expect(toastError).toHaveBeenCalled());
+    const [title, detail] = toastError.mock.calls[0] ?? [];
+    expect(title).toBe(UI_LABELS.order.cancelFailedTitle);
+    expect(detail).toContain(`${UI_LABELS.common.traceId}: corr-77`);
   });
 
   it("CONFLICT (đơn đã đổi trạng thái) → đóng dialog và tải lại đơn", async () => {

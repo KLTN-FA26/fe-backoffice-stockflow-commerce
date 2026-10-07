@@ -16,7 +16,7 @@ export interface OrderErrorView {
   traceId?: string;
 }
 
-const CANCEL_FAILED = "Không huỷ được đơn";
+const CANCEL_FAILED = UI_LABELS.order.cancelFailedTitle;
 
 /** Message cho lỗi admin-cancel (POST /orders/:id/admin-cancellation). */
 export function adminCancelErrorView(error: ApiError): OrderErrorView {

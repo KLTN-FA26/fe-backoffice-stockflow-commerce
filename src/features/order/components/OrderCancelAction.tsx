@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Ban } from "lucide-react";
 import { useState } from "react";
 
-import { ORDER_LIMITS } from "@/constants";
+import { ORDER_LIMITS, UI_LABELS } from "@/constants";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
@@ -42,7 +42,9 @@ export function OrderCancelAction({ order }: OrderCancelActionProps) {
       const view = adminCancelErrorView(error);
       toast.error(
         view.title,
-        view.traceId ? `${view.detail} (traceId: ${view.traceId})` : view.detail,
+        view.traceId
+          ? `${view.detail} (${UI_LABELS.common.traceId}: ${view.traceId})`
+          : view.detail,
       );
     },
   });
@@ -75,7 +77,7 @@ export function OrderCancelAction({ order }: OrderCancelActionProps) {
           // Validate bằng Input schema (trim, bắt buộc, ≤ 500) trước khi gửi
           const parsed = adminCancelOrderSchema.safeParse({ reason });
           if (!parsed.success) {
-            toast.error("Không huỷ được đơn", parsed.error.issues[0]?.message);
+            toast.error(UI_LABELS.order.cancelFailedTitle, parsed.error.issues[0]?.message);
             return;
           }
           adminCancel(

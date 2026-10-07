@@ -25,6 +25,7 @@ export const UI_LABELS = {
   },
   order: {
     pageTitle: "Đơn hàng",
+    cancelFailedTitle: "Không huỷ được đơn",
     notFoundTitle: "Không tìm thấy đơn hàng",
     notFoundDescription: "Đơn hàng không tồn tại hoặc đường dẫn không hợp lệ.",
     forbiddenDescription: "Tài khoản của bạn chưa được cấp quyền truy cập đơn hàng.",
