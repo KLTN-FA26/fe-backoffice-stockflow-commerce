@@ -8,6 +8,7 @@ import type { AtpLookupInput } from "./types";
 const keys = createQueryKeys("inventory-ui-preview");
 const stockItemKeys = createQueryKeys("inventory-ui-stock-items");
 const atpKeys = createQueryKeys("inventory-ui-atp");
+const reservationKeys = createQueryKeys("inventory-ui-reservations");
 export function useInventoryPreview(service: InventoryService) {
   return useQuery({
     queryKey: keys.list({ source: service.cacheKey }),
@@ -34,6 +35,14 @@ export function useInventoryAtp(service: InventoryService, input: AtpLookupInput
     queryKey: atpKeys.list({ source: service.cacheKey, input }),
     queryFn: ({ signal }) => (input ? service.lookupAtp(input, signal) : Promise.resolve(null)),
     enabled: input !== null,
+    retry: false,
+  });
+}
+
+export function useInventoryReservations(service: InventoryService) {
+  return useQuery({
+    queryKey: reservationKeys.list({ source: service.cacheKey }),
+    queryFn: ({ signal }) => service.loadReservations(signal),
     retry: false,
   });
 }

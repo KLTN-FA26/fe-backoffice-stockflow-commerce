@@ -90,6 +90,18 @@ export function createInventoryFixture(): InventoryPreview {
         expiresAt: "2026-10-08T02:30:00Z",
         status: null,
       },
+      {
+        ...context,
+        id: "demo-reservation-2",
+        sku: "DEMO-SKU-002",
+        productName: "Sản phẩm minh họa 2",
+        orderReference: "DEMO-ORDER-002",
+        quantity: 2,
+        location: null,
+        reservedAt: null,
+        expiresAt: null,
+        status: "Trạng thái mẫu",
+      },
     ],
     atp: { sku: context.sku, warehouseCode: context.warehouse.code, quantity: 20 },
   };

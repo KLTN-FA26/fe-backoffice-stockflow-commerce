@@ -1,4 +1,10 @@
-import type { AtpLookupInput, AtpLookupResult, InventoryPreview, StockItemRow } from "./types";
+import type {
+  AtpLookupInput,
+  AtpLookupResult,
+  InventoryPreview,
+  ReservationRow,
+  StockItemRow,
+} from "./types";
 
 /** UI data-source port. No HTTP endpoint, query parameters, or pagination contract. */
 export interface InventoryService {
@@ -7,6 +13,7 @@ export interface InventoryService {
   loadPreview(signal?: AbortSignal): Promise<InventoryPreview>;
   loadStockItems(sku: string, warehouseCode: string, signal?: AbortSignal): Promise<StockItemRow[]>;
   lookupAtp(input: AtpLookupInput, signal?: AbortSignal): Promise<AtpLookupResult | null>;
+  loadReservations(signal?: AbortSignal): Promise<ReservationRow[]>;
 }
 
 // TODO(contract): real adapter maps DTOs to view-models after BE confirmation.
@@ -14,4 +21,5 @@ export interface InventoryService {
 // TODO(business): subcontract-blank identification and ATP exclusion belong upstream.
 // TODO(business): low-stock threshold/metric and near-expiry window remain undecided.
 // TODO(contract): reservation expiry semantics; status versus condition mapping.
+// TODO(contract): GET reservations endpoint, list scope and response shape are not confirmed.
 // TODO(contract): warehouse authorization, VIEW_PAGE/READ gating and list/search pagination.

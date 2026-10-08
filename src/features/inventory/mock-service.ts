@@ -23,5 +23,9 @@ export function createInventoryMockService(): InventoryService {
       );
       return row ? { sku: row.sku, warehouseCode: row.warehouse.code, quantity: row.atp } : null;
     },
+    async loadReservations(signal) {
+      signal?.throwIfAborted();
+      return createInventoryFixture().reservations;
+    },
   };
 }

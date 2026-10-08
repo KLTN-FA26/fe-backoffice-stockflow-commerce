@@ -19,6 +19,12 @@ export const INVENTORY_COPY = {
   atpError: "Không tra được ATP minh họa",
   atpNotFound: "Không tìm thấy kết quả cho SKU và kho này",
   atpZero: "ATP bằng 0",
+  reservationError: "Không tải được reservation minh họa",
+  noReservations: "Chưa có reservation",
+  noLocation: "Chưa có vị trí",
+  noReservedAt: "Chưa có thời điểm giữ",
+  noReservationExpiry: "Chưa có thời điểm hết hạn",
+  unknownReservationStatus: "Chưa có trạng thái",
   sections: [
     { id: "stock-levels", title: "Stock Levels" },
     { id: "stock-items", title: "Stock Items" },
