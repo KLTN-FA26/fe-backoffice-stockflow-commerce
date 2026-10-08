@@ -11,6 +11,24 @@ export function createInventoryFixture(): InventoryPreview {
   return {
     stockLevels: [
       { ...context, id: "demo-level-1", onHand: 24, reserved: 4, available: 24, atp: 20 },
+      ...Array.from({ length: 23 }, (_, index) => {
+        const number = index + 2;
+        const warehouse = [
+          { code: "DEMO-WH", name: "Kho minh họa" },
+          { code: "DEMO-NORTH", name: "Kho miền Bắc" },
+          { code: "DEMO-SOUTH", name: "Kho miền Nam" },
+        ][index % 3];
+        return {
+          id: `demo-level-${number}`,
+          sku: `DEMO-SKU-${String(number).padStart(3, "0")}`,
+          productName: `Sản phẩm minh họa ${number}`,
+          warehouse,
+          onHand: 10 + number,
+          reserved: number % 4,
+          available: 8 + number,
+          atp: 7 + number,
+        };
+      }),
     ],
     // Dated lots first, null expiry last: fixture presentation, not an allocation rule.
     stockItems: [

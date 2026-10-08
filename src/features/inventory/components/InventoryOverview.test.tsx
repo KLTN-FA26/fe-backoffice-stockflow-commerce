@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "@/lib/api/client";
@@ -18,9 +19,11 @@ afterEach(() => {
 function renderOverview(service: InventoryService) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <QueryClientProvider client={client}>
-      <InventoryOverview service={service} />
-    </QueryClientProvider>,
+    <NuqsTestingAdapter>
+      <QueryClientProvider client={client}>
+        <InventoryOverview service={service} />
+      </QueryClientProvider>
+    </NuqsTestingAdapter>,
   );
 }
 
@@ -29,7 +32,7 @@ describe("Inventory foundation", () => {
     const get = vi.spyOn(api, "get").mockRejectedValue(new Error("Unexpected HTTP"));
     renderOverview(createInventoryMockService());
     const levels = await screen.findByRole("region", { name: "Stock Levels" });
-    expect(within(levels).getByText("DEMO-SKU-001")).toBeInTheDocument();
+    expect(within(levels).getByRole("button", { name: "DEMO-SKU-001" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Stock Items" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "ATP Lookup" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Reservations" })).toBeInTheDocument();
@@ -69,5 +72,27 @@ describe("Inventory foundation", () => {
       }),
     });
     expect(await screen.findByText("Chưa có dữ liệu mẫu")).toBeInTheDocument();
+  });
+
+  it("filters mock stock rows and reveals the selected row context", async () => {
+    const user = userEvent.setup();
+    renderOverview(createInventoryMockService());
+    const levels = await screen.findByRole("region", { name: "Stock Levels" });
+    await user.type(
+      within(levels).getByRole("searchbox", { name: "Tìm SKU hoặc sản phẩm" }),
+      "DEMO-SKU-024",
+    );
+    expect(within(levels).getByRole("button", { name: "DEMO-SKU-024" })).toBeInTheDocument();
+    expect(within(levels).queryByRole("button", { name: "DEMO-SKU-001" })).not.toBeInTheDocument();
+    await user.click(within(levels).getByRole("button", { name: "DEMO-SKU-024" }));
+    expect(within(levels).getByRole("status")).toHaveTextContent("DEMO-SKU-024");
+  });
+
+  it("pages through mock rows", async () => {
+    const user = userEvent.setup();
+    renderOverview(createInventoryMockService());
+    const levels = await screen.findByRole("region", { name: "Stock Levels" });
+    await user.click(within(levels).getByRole("button", { name: "Sau" }));
+    expect(within(levels).getByRole("button", { name: "DEMO-SKU-011" })).toBeInTheDocument();
   });
 });

@@ -5,19 +5,14 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
 
 import { INVENTORY_COPY } from "../constants";
+import { StockLevelsPanel } from "./StockLevelsPanel";
 
 import type { InventoryPreview } from "../types";
 import type { ReactNode } from "react";
 
-/** Foundation preview only; tables, drill-down and lookup interaction follow in later steps. */
+/** Mock-backed overview. Remaining sections become interactive in later steps. */
 export function InventoryOverviewView({ data }: { data: InventoryPreview }) {
   const previews: ReactNode[] = [
-    data.stockLevels.map((row) => (
-      <p key={row.id}>
-        <span className="font-mono">{row.sku}</span> · {row.productName} ·{" "}
-        {row.warehouse.name ?? row.warehouse.code}
-      </p>
-    )),
     data.stockItems.map((row) => (
       <div key={row.id} className="flex flex-wrap gap-[var(--el-gap)]">
         <span className="font-mono">{row.location}</span>
@@ -39,8 +34,9 @@ export function InventoryOverviewView({ data }: { data: InventoryPreview }) {
   return (
     <div className="space-y-[var(--card-pad)]">
       <PageHeader title={INVENTORY_COPY.title} subtitle={INVENTORY_COPY.subtitle} />
+      <StockLevelsPanel rows={data.stockLevels} />
       <div className="grid gap-[var(--card-pad)] lg:grid-cols-2">
-        {INVENTORY_COPY.sections.map((section, index) => {
+        {INVENTORY_COPY.sections.slice(1).map((section, index) => {
           const preview = previews[index];
           const empty = preview === null || (Array.isArray(preview) && preview.length === 0);
           return (
