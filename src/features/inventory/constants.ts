@@ -13,6 +13,12 @@ export const INVENTORY_COPY = {
   fefoDisplayNote: "Hạn dùng sớm hiển thị trước; chưa có hạn dùng ở cuối",
   unknownStatus: "Chưa có trạng thái",
   unknownCondition: "Chưa có tình trạng",
+  lookupAtp: "Tra ATP",
+  atpPrompt: "Nhập SKU và chọn kho để tra ATP minh họa",
+  atpLoading: "Đang tra ATP",
+  atpError: "Không tra được ATP minh họa",
+  atpNotFound: "Không tìm thấy kết quả cho SKU và kho này",
+  atpZero: "ATP bằng 0",
   sections: [
     { id: "stock-levels", title: "Stock Levels" },
     { id: "stock-items", title: "Stock Items" },

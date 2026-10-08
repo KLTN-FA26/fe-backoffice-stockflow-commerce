@@ -33,7 +33,10 @@ export const reservationRowSchema = stockContext.extend({
   expiresAt: z.string().nullable(),
   status: z.string().nullable(),
 });
-export const atpLookupInputSchema = z.object({ sku: z.string(), warehouseCode: z.string() });
+export const atpLookupInputSchema = z.object({
+  sku: z.string().trim().min(1, "Nhập SKU"),
+  warehouseCode: z.string().trim().min(1, "Chọn kho"),
+});
 export const atpLookupResultSchema = atpLookupInputSchema.extend({ quantity: z.number() });
 export const inventoryPreviewSchema = z.object({
   stockLevels: z.array(stockLevelRowSchema),

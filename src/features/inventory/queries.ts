@@ -3,9 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { createQueryKeys } from "@/lib/api/query-factory";
 
 import type { InventoryService } from "./service";
+import type { AtpLookupInput } from "./types";
 
 const keys = createQueryKeys("inventory-ui-preview");
 const stockItemKeys = createQueryKeys("inventory-ui-stock-items");
+const atpKeys = createQueryKeys("inventory-ui-atp");
 export function useInventoryPreview(service: InventoryService) {
   return useQuery({
     queryKey: keys.list({ source: service.cacheKey }),
@@ -23,6 +25,15 @@ export function useInventoryStockItems(
     queryKey: stockItemKeys.list({ source: service.cacheKey, sku, warehouseCode }),
     queryFn: ({ signal }) => service.loadStockItems(sku ?? "", warehouseCode ?? "", signal),
     enabled: Boolean(sku && warehouseCode),
+    retry: false,
+  });
+}
+
+export function useInventoryAtp(service: InventoryService, input: AtpLookupInput | null) {
+  return useQuery({
+    queryKey: atpKeys.list({ source: service.cacheKey, input }),
+    queryFn: ({ signal }) => (input ? service.lookupAtp(input, signal) : Promise.resolve(null)),
+    enabled: input !== null,
     retry: false,
   });
 }

@@ -1,4 +1,4 @@
-import type { InventoryPreview, StockItemRow } from "./types";
+import type { AtpLookupInput, AtpLookupResult, InventoryPreview, StockItemRow } from "./types";
 
 /** UI data-source port. No HTTP endpoint, query parameters, or pagination contract. */
 export interface InventoryService {
@@ -6,9 +6,11 @@ export interface InventoryService {
   readonly cacheKey: string;
   loadPreview(signal?: AbortSignal): Promise<InventoryPreview>;
   loadStockItems(sku: string, warehouseCode: string, signal?: AbortSignal): Promise<StockItemRow[]>;
+  lookupAtp(input: AtpLookupInput, signal?: AbortSignal): Promise<AtpLookupResult | null>;
 }
 
 // TODO(contract): real adapter maps DTOs to view-models after BE confirmation.
+// TODO(contract): map BE's unknown-pair response to null without conflating it with ATP zero.
 // TODO(business): subcontract-blank identification and ATP exclusion belong upstream.
 // TODO(business): low-stock threshold/metric and near-expiry window remain undecided.
 // TODO(contract): reservation expiry semantics; status versus condition mapping.

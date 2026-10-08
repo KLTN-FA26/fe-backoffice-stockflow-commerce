@@ -11,12 +11,22 @@ export function createInventoryFixture(): InventoryPreview {
   return {
     stockLevels: [
       { ...context, id: "demo-level-1", onHand: 24, reserved: 4, available: 24, atp: 20 },
-      ...Array.from({ length: 23 }, (_, index) => {
-        const number = index + 2;
+      {
+        ...context,
+        id: "demo-level-2",
+        sku: "DEMO-SKU-002",
+        productName: "Sản phẩm minh họa 2",
+        onHand: 12,
+        reserved: 2,
+        available: 10,
+        atp: 0,
+      },
+      ...Array.from({ length: 22 }, (_, index) => {
+        const number = index + 3;
         const warehouse = [
-          { code: "DEMO-WH", name: "Kho minh họa" },
           { code: "DEMO-NORTH", name: "Kho miền Bắc" },
           { code: "DEMO-SOUTH", name: "Kho miền Nam" },
+          { code: "DEMO-WH", name: "Kho minh họa" },
         ][index % 3];
         return {
           id: `demo-level-${number}`,
