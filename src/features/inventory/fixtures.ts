@@ -10,7 +10,16 @@ export function createInventoryFixture(): InventoryPreview {
   };
   return {
     stockLevels: [
-      { ...context, id: "demo-level-1", onHand: 24, reserved: 4, available: 24, atp: 20 },
+      {
+        ...context,
+        id: "demo-level-1",
+        onHand: 24,
+        reserved: 4,
+        available: 24,
+        atp: 20,
+        lowStockHighlight: null,
+        availabilityHighlight: null,
+      },
       {
         ...context,
         id: "demo-level-2",
@@ -20,6 +29,8 @@ export function createInventoryFixture(): InventoryPreview {
         reserved: 2,
         available: 10,
         atp: 0,
+        lowStockHighlight: null,
+        availabilityHighlight: { severity: "critical", label: "Không khả dụng (minh họa)" },
       },
       ...Array.from({ length: 22 }, (_, index) => {
         const number = index + 3;
@@ -37,6 +48,10 @@ export function createInventoryFixture(): InventoryPreview {
           reserved: number % 4,
           available: 8 + number,
           atp: 7 + number,
+          // Synthetic hints are assigned to known demo records, never calculated from quantities.
+          lowStockHighlight:
+            number === 3 ? { severity: "warning" as const, label: "Tồn thấp (minh họa)" } : null,
+          availabilityHighlight: null,
         };
       }),
     ],
@@ -47,12 +62,14 @@ export function createInventoryFixture(): InventoryPreview {
         id: "demo-item-1",
         location: "DEMO-WH-A",
         lot: "DEMO-LOT-1",
-        expiry: "2027-01-15",
+        expiry: "2026-10-12",
         onHand: 6,
         reserved: 4,
         available: 2,
         status: "Trạng thái mẫu A",
         condition: "Tình trạng mẫu B",
+        nearExpiryHighlight: { severity: "warning", label: "Gần hết hạn (minh họa)" },
+        availabilityHighlight: null,
       },
       {
         ...context,
@@ -65,6 +82,8 @@ export function createInventoryFixture(): InventoryPreview {
         available: 6,
         status: null,
         condition: null,
+        nearExpiryHighlight: null,
+        availabilityHighlight: { severity: "critical", label: "Không bán được (minh họa)" },
       },
       {
         ...context,
@@ -77,6 +96,8 @@ export function createInventoryFixture(): InventoryPreview {
         available: 12,
         status: null,
         condition: null,
+        nearExpiryHighlight: null,
+        availabilityHighlight: null,
       },
     ],
     reservations: [

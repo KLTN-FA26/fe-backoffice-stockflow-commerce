@@ -28,6 +28,58 @@ function renderOverview(service: InventoryService) {
 }
 
 describe("Inventory foundation", () => {
+  it("shows supplied highlights without inferring warnings from ATP or expiry", async () => {
+    const user = userEvent.setup();
+    renderOverview(createInventoryMockService());
+    const levels = await screen.findByRole("region", { name: "Stock Levels" });
+    const zeroAtp = within(levels).getByRole("row", { name: /DEMO-SKU-002/ });
+    expect(within(zeroAtp).getByText("Không khả dụng (minh họa)")).toBeInTheDocument();
+    const lowStock = within(levels).getByRole("row", { name: /DEMO-SKU-003/ });
+    expect(within(lowStock).getByText("Tồn thấp (minh họa)")).toBeInTheDocument();
+    const unflagged = within(levels).getByRole("row", { name: /DEMO-SKU-001/ });
+    expect(within(unflagged).queryByText(/Tồn thấp/)).not.toBeInTheDocument();
+
+    await user.click(within(levels).getByRole("button", { name: "DEMO-SKU-001" }));
+    const items = await screen.findByRole("region", { name: "Stock Items" });
+    const expiring = within(items).getByRole("row", { name: /DEMO-LOT-1/ });
+    expect(within(expiring).getByText("Gần hết hạn (minh họa)")).toBeInTheDocument();
+    const later = within(items).getByRole("row", { name: /DEMO-LOT-2/ });
+    expect(within(later).queryByText(/Gần hết hạn/)).not.toBeInTheDocument();
+    expect(within(later).getByText("Không bán được (minh họa)")).toBeInTheDocument();
+  });
+
+  it("does not derive alerts when an adapter leaves highlight fields empty", async () => {
+    const user = userEvent.setup();
+    const mock = createInventoryMockService();
+    const service: InventoryService = {
+      ...mock,
+      loadPreview: async (signal) => {
+        const preview = await mock.loadPreview(signal);
+        return {
+          ...preview,
+          stockLevels: preview.stockLevels.map((row) =>
+            row.sku === "DEMO-SKU-002" ? { ...row, availabilityHighlight: null } : row,
+          ),
+        };
+      },
+      loadStockItems: async (sku, warehouseCode, signal) =>
+        (await mock.loadStockItems(sku, warehouseCode, signal)).map((row) => ({
+          ...row,
+          nearExpiryHighlight: null,
+        })),
+    };
+    renderOverview(service);
+    const levels = await screen.findByRole("region", { name: "Stock Levels" });
+    const zeroAtp = within(levels).getByRole("row", { name: /DEMO-SKU-002/ });
+    expect(within(zeroAtp).getByRole("cell", { name: "0" })).toBeInTheDocument();
+    expect(within(zeroAtp).queryByText(/Không khả dụng/)).not.toBeInTheDocument();
+
+    await user.click(within(levels).getByRole("button", { name: "DEMO-SKU-001" }));
+    const items = await screen.findByRole("region", { name: "Stock Items" });
+    const expiring = within(items).getByRole("row", { name: /DEMO-LOT-1/ });
+    expect(within(expiring).queryByText(/Gần hết hạn/)).not.toBeInTheDocument();
+  });
+
   it("renders four mock-backed sections without inventory HTTP requests", async () => {
     const get = vi.spyOn(api, "get").mockRejectedValue(new Error("Unexpected HTTP"));
     renderOverview(createInventoryMockService());

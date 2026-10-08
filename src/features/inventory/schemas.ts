@@ -8,11 +8,18 @@ const stockContext = z.object({
   productName: z.string().nullable(),
   warehouse: reference,
 });
+// Presentation hints supplied by the adapter; no client-side threshold or status inference.
+export const inventoryHighlightSchema = z.object({
+  severity: z.enum(["warning", "critical"]),
+  label: z.string(),
+});
 export const stockLevelRowSchema = stockContext.extend({
   onHand: z.number(),
   reserved: z.number(),
   available: z.number(),
   atp: z.number(),
+  lowStockHighlight: inventoryHighlightSchema.nullable(),
+  availabilityHighlight: inventoryHighlightSchema.nullable(),
 });
 export const stockItemRowSchema = stockContext.extend({
   location: z.string(),
@@ -24,6 +31,8 @@ export const stockItemRowSchema = stockContext.extend({
   // Separate presentation values: no assumption that status implies condition.
   status: z.string().nullable(),
   condition: z.string().nullable(),
+  nearExpiryHighlight: inventoryHighlightSchema.nullable(),
+  availabilityHighlight: inventoryHighlightSchema.nullable(),
 });
 export const reservationRowSchema = stockContext.extend({
   orderReference: z.string(),

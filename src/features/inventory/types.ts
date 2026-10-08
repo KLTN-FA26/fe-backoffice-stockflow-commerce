@@ -3,6 +3,7 @@ import type { z } from "zod";
 import type {
   atpLookupInputSchema,
   atpLookupResultSchema,
+  inventoryHighlightSchema,
   inventoryPreviewSchema,
   reservationRowSchema,
   stockItemRowSchema,
@@ -10,6 +11,7 @@ import type {
 } from "./schemas";
 
 export type StockLevelRow = z.infer<typeof stockLevelRowSchema>;
+export type InventoryHighlight = z.infer<typeof inventoryHighlightSchema>;
 export type StockItemRow = z.infer<typeof stockItemRowSchema>;
 export type ReservationRow = z.infer<typeof reservationRowSchema>;
 export type AtpLookupInput = z.infer<typeof atpLookupInputSchema>;

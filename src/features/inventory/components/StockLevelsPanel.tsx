@@ -3,7 +3,6 @@
 import { useMemo } from "react";
 import { parseAsInteger, parseAsString, useQueryState } from "nuqs";
 
-import { codeCell, numberCell, textCell } from "@/components/shared/column-helpers";
 import { DataTable } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { SearchBar } from "@/components/shared/SearchBar";
@@ -19,8 +18,8 @@ import { PAGE_SIZE } from "@/constants/table";
 
 import { INVENTORY_COPY } from "../constants";
 import { selectStockLevels } from "../stock-levels";
+import { stockLevelColumns } from "./stock-level-columns";
 
-import type { ColumnDef } from "@/components/shared/DataTable";
 import type { StockLevelRow } from "../types";
 
 export function StockLevelsPanel({
@@ -55,17 +54,6 @@ export function StockLevelsPanel({
       }),
     [rows, query, warehouseCode, page, size],
   );
-  const columns: ColumnDef<StockLevelRow>[] = [
-    codeCell<StockLevelRow>("sku", "SKU", (row) => row.sku, {
-      onClick: onSelect,
-    }),
-    textCell("product", "Sản phẩm", (row) => row.productName ?? "—", { color: "primary" }),
-    textCell("warehouse", "Kho", (row) => row.warehouse.name ?? row.warehouse.code),
-    numberCell("onHand", "Tồn thực tế", (row) => row.onHand),
-    numberCell("reserved", "Đã giữ", (row) => row.reserved),
-    numberCell("available", "Khả dụng", (row) => row.available),
-    numberCell("atp", "ATP", (row) => row.atp),
-  ];
   const clearFilters = () => {
     void setQuery("");
     void setWarehouseCode("all");
@@ -125,7 +113,7 @@ export function StockLevelsPanel({
         <div className="overflow-x-auto">
           <DataTable
             data={result.rows}
-            columns={columns}
+            columns={stockLevelColumns(onSelect)}
             rowKey={(row) => row.id}
             onRowClick={onSelect}
             serverPagination={{

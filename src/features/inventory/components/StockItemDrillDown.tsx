@@ -12,6 +12,7 @@ import { formatDate } from "@/lib/format/date";
 import { INVENTORY_COPY } from "../constants";
 import { useInventoryStockItems } from "../queries";
 import { orderStockItemsByExpiry } from "../stock-items";
+import { InventoryHighlights } from "./InventoryHighlights";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { InventoryService } from "../service";
@@ -35,6 +36,13 @@ const columns: ColumnDef<StockItemRow>[] = [
   numberCell("available", "Khả dụng", (row) => row.available),
   textCell("status", "Trạng thái", (row) => row.status ?? INVENTORY_COPY.unknownStatus),
   textCell("condition", "Tình trạng", (row) => row.condition ?? INVENTORY_COPY.unknownCondition),
+  {
+    key: "highlights",
+    header: "Lưu ý",
+    cell: (row) => (
+      <InventoryHighlights highlights={[row.nearExpiryHighlight, row.availabilityHighlight]} />
+    ),
+  },
 ];
 
 export function StockItemDrillDown({
