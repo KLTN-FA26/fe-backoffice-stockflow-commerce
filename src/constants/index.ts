@@ -7,7 +7,7 @@ export {
   TOAST_MESSAGES,
   UI_LABELS,
 } from "./labels";
-export { SUPPLIER_PERMISSIONS } from "./permissions";
+export { INVENTORY_PERMISSIONS, SUPPLIER_PERMISSIONS } from "./permissions";
 export { ADMIN_ROUTES, APP_ROUTES } from "./routes";
 export { STORAGE_KEYS } from "./storage-keys";
 export {

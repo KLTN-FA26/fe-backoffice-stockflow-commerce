@@ -17,9 +17,11 @@ import type { InventoryPreview, StockLevelRow } from "../types";
 export function InventoryOverviewView({
   data,
   service,
+  showReservations,
 }: {
   data: InventoryPreview;
   service: InventoryService;
+  showReservations: boolean;
 }) {
   const [selected, setSelected] = useState<StockLevelRow | null>(null);
   return (
@@ -29,7 +31,7 @@ export function InventoryOverviewView({
       <StockItemDrillDown selected={selected} service={service} />
       <div className="grid gap-[var(--card-pad)] lg:grid-cols-2">
         <AtpLookupPanel rows={data.stockLevels} service={service} />
-        <ReservationsPanel service={service} />
+        {showReservations && <ReservationsPanel service={service} />}
       </div>
     </div>
   );

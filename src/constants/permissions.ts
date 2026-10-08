@@ -16,3 +16,15 @@ export const SUPPLIER_PERMISSIONS = {
   // Xuất dữ liệu hàng loạt — BE coi là quyền nhạy cảm, tách khỏi READ (Action.EXPORT)
   export: "procurement-suppliers:EXPORT",
 } as const;
+
+/** BE InventoryResources on develop: stock and reservations have separate resources. */
+export const INVENTORY_PERMISSIONS = {
+  stock: {
+    viewPage: "inventory-stock-items:VIEW_PAGE",
+    read: "inventory-stock-items:READ",
+  },
+  reservations: {
+    viewPage: "inventory-reservations:VIEW_PAGE",
+    read: "inventory-reservations:READ",
+  },
+} as const;

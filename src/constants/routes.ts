@@ -7,6 +7,8 @@ export const APP_ROUTES = {
 
 export const ADMIN_ROUTES = {
   home: ADMIN_BASE,
+  // FE back-office convention. TODO(contract): BE catalog route currently says /inventory/stock.
+  inventory: `${ADMIN_BASE}/inventory`,
   permissions: `${ADMIN_BASE}/permissions`,
   products: {
     create: `${ADMIN_BASE}/products/create`,

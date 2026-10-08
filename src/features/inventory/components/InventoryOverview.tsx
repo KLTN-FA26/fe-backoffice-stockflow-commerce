@@ -11,7 +11,13 @@ import { InventoryOverviewView } from "./InventoryOverviewView";
 import type { InventoryService } from "../service";
 
 /** Explicit injection: mounting this component never silently selects a real API. */
-export function InventoryOverview({ service }: { service: InventoryService }) {
+export function InventoryOverview({
+  service,
+  showReservations = true,
+}: {
+  service: InventoryService;
+  showReservations?: boolean;
+}) {
   const query = useInventoryPreview(service);
   if (query.isPending) return <PageSkeleton variant="detail" />;
   if (query.isError)
@@ -21,5 +27,11 @@ export function InventoryOverview({ service }: { service: InventoryService }) {
         action={<Button onClick={() => void query.refetch()}>{INVENTORY_COPY.retry}</Button>}
       />
     );
-  return <InventoryOverviewView data={query.data} service={service} />;
+  return (
+    <InventoryOverviewView
+      data={query.data}
+      service={service}
+      showReservations={showReservations}
+    />
+  );
 }

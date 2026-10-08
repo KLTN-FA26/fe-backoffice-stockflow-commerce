@@ -3,6 +3,7 @@
 import { cn } from "cn";
 import {
   ArrowRightLeft,
+  Boxes,
   ClipboardList,
   FileText,
   LayoutDashboard,
@@ -30,7 +31,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
-import { ADMIN_ROUTES, APP_ROUTES, BRAND, SUPPLIER_PERMISSIONS } from "@/constants";
+import {
+  ADMIN_ROUTES,
+  APP_ROUTES,
+  BRAND,
+  INVENTORY_PERMISSIONS,
+  SUPPLIER_PERMISSIONS,
+} from "@/constants";
 
 import { logoutApi } from "@/lib/auth/auth-api";
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -208,6 +215,13 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: "KHO",
     items: [
+      {
+        label: "Tổng quan tồn kho",
+        tooltip: "Inventory Overview",
+        href: ADMIN_ROUTES.inventory,
+        icon: Boxes,
+        permission: INVENTORY_PERMISSIONS.stock.viewPage,
+      },
       {
         label: "Kho map & slotting",
         tooltip: "Warehouse Map",
