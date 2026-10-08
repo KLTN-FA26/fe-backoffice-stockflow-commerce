@@ -3,7 +3,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeAll, vi, describe, expect, it } from "vitest";
 
-import { createInventoryFixture } from "../fixtures";
+import { createStockLevelsFixture } from "../fixtures";
 import { createInventoryMockService } from "../mock-service";
 import { AtpLookupPanel } from "./AtpLookupPanel";
 
@@ -18,7 +18,7 @@ function renderLookup(service: InventoryService) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <AtpLookupPanel rows={createInventoryFixture().stockLevels} service={service} />
+      <AtpLookupPanel rows={createStockLevelsFixture()} service={service} />
     </QueryClientProvider>,
   );
 }

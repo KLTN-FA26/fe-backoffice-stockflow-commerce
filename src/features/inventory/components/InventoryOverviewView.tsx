@@ -11,15 +11,15 @@ import { StockItemDrillDown } from "./StockItemDrillDown";
 import { StockLevelsPanel } from "./StockLevelsPanel";
 
 import type { InventoryService } from "../service";
-import type { InventoryPreview, StockLevelRow } from "../types";
+import type { InventoryOverviewData, StockLevelRow } from "../types";
 
-/** Mock-backed overview. Remaining sections become interactive in later steps. */
+/** Stock-level data comes from the overview; each other panel owns its query. */
 export function InventoryOverviewView({
   data,
   service,
   showReservations,
 }: {
-  data: InventoryPreview;
+  data: InventoryOverviewData;
   service: InventoryService;
   showReservations: boolean;
 }) {

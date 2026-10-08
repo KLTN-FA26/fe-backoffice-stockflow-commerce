@@ -11,6 +11,7 @@ export { INVENTORY_PERMISSIONS, SUPPLIER_PERMISSIONS } from "./permissions";
 export { ADMIN_ROUTES, APP_ROUTES } from "./routes";
 export { STORAGE_KEYS } from "./storage-keys";
 export {
+  DEFAULT_PAGE_SIZE_OPTIONS,
   INVOICE_COLUMNS,
   PAGE_SIZE,
   PO_COLUMNS,

@@ -53,8 +53,8 @@ describe("Inventory foundation", () => {
     const mock = createInventoryMockService();
     const service: InventoryService = {
       ...mock,
-      loadPreview: async (signal) => {
-        const preview = await mock.loadPreview(signal);
+      loadOverview: async (signal) => {
+        const preview = await mock.loadOverview(signal);
         return {
           ...preview,
           stockLevels: preview.stockLevels.map((row) =>
@@ -114,10 +114,10 @@ describe("Inventory foundation", () => {
     const mock = createInventoryMockService();
     const service: InventoryService = {
       ...mock,
-      loadPreview: vi
+      loadOverview: vi
         .fn()
         .mockRejectedValueOnce(new Error("Fixture failure"))
-        .mockImplementation((signal) => mock.loadPreview(signal)),
+        .mockImplementation((signal) => mock.loadOverview(signal)),
     };
     renderOverview(service);
     expect(screen.getByRole("status")).toBeInTheDocument();
@@ -129,8 +129,8 @@ describe("Inventory foundation", () => {
     const mock = createInventoryMockService();
     renderOverview({
       ...mock,
-      loadPreview: async (signal) => ({
-        ...(await mock.loadPreview(signal)),
+      loadOverview: async (signal) => ({
+        ...(await mock.loadOverview(signal)),
         stockLevels: [],
       }),
     });

@@ -1,7 +1,7 @@
 import type {
   AtpLookupInput,
   AtpLookupResult,
-  InventoryPreview,
+  InventoryOverviewData,
   ReservationRow,
   StockItemRow,
 } from "./types";
@@ -10,7 +10,7 @@ import type {
 export interface InventoryService {
   /** Adapter namespace: keep future real data separate from demo cache. */
   readonly cacheKey: string;
-  loadPreview(signal?: AbortSignal): Promise<InventoryPreview>;
+  loadOverview(signal?: AbortSignal): Promise<InventoryOverviewData>;
   loadStockItems(sku: string, warehouseCode: string, signal?: AbortSignal): Promise<StockItemRow[]>;
   lookupAtp(input: AtpLookupInput, signal?: AbortSignal): Promise<AtpLookupResult | null>;
   loadReservations(signal?: AbortSignal): Promise<ReservationRow[]>;

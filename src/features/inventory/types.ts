@@ -4,7 +4,7 @@ import type {
   atpLookupInputSchema,
   atpLookupResultSchema,
   inventoryHighlightSchema,
-  inventoryPreviewSchema,
+  inventoryOverviewSchema,
   reservationRowSchema,
   stockItemRowSchema,
   stockLevelRowSchema,
@@ -16,4 +16,4 @@ export type StockItemRow = z.infer<typeof stockItemRowSchema>;
 export type ReservationRow = z.infer<typeof reservationRowSchema>;
 export type AtpLookupInput = z.infer<typeof atpLookupInputSchema>;
 export type AtpLookupResult = z.infer<typeof atpLookupResultSchema>;
-export type InventoryPreview = z.infer<typeof inventoryPreviewSchema>;
+export type InventoryOverviewData = z.infer<typeof inventoryOverviewSchema>;

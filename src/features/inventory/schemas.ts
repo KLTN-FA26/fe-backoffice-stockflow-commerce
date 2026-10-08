@@ -47,9 +47,6 @@ export const atpLookupInputSchema = z.object({
   warehouseCode: z.string().trim().min(1, "Chọn kho"),
 });
 export const atpLookupResultSchema = atpLookupInputSchema.extend({ quantity: z.number() });
-export const inventoryPreviewSchema = z.object({
+export const inventoryOverviewSchema = z.object({
   stockLevels: z.array(stockLevelRowSchema),
-  stockItems: z.array(stockItemRowSchema),
-  reservations: z.array(reservationRowSchema),
-  atp: atpLookupResultSchema.nullable(),
 });

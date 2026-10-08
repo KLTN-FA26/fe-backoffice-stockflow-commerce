@@ -29,7 +29,7 @@ function renderAccess(permissions: PermissionCode[]) {
     data: { roles: [], permissions, dataScope: "ALL" },
   });
   const service = createInventoryMockService();
-  const loadPreview = vi.spyOn(service, "loadPreview");
+  const loadOverview = vi.spyOn(service, "loadOverview");
   const loadReservations = vi.spyOn(service, "loadReservations");
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
@@ -39,7 +39,7 @@ function renderAccess(permissions: PermissionCode[]) {
       </NuqsTestingAdapter>
     </QueryClientProvider>,
   );
-  return { loadPreview, loadReservations };
+  return { loadOverview, loadReservations };
 }
 
 describe("Inventory route permissions", () => {
@@ -48,14 +48,14 @@ describe("Inventory route permissions", () => {
   it("blocks route access without stock VIEW_PAGE, even with READ", async () => {
     const service = renderAccess([stock.read]);
     expect(await screen.findByText("Bạn không có quyền")).toBeInTheDocument();
-    expect(service.loadPreview).not.toHaveBeenCalled();
+    expect(service.loadOverview).not.toHaveBeenCalled();
   });
 
   it("opens the page without stock data when READ is missing", async () => {
     const service = renderAccess([stock.viewPage]);
     expect(await screen.findByText("Bạn không có quyền xem dữ liệu")).toBeInTheDocument();
     expect(screen.getByText("Tổng quan tồn kho")).toBeInTheDocument();
-    expect(service.loadPreview).not.toHaveBeenCalled();
+    expect(service.loadOverview).not.toHaveBeenCalled();
   });
 
   it("shows stock but does not load reservations without their own permissions", async () => {

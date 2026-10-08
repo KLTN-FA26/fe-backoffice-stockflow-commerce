@@ -5,7 +5,7 @@ import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
 
 import { INVENTORY_COPY } from "../constants";
-import { useInventoryPreview } from "../queries";
+import { useInventoryOverviewData } from "../queries";
 import { InventoryOverviewView } from "./InventoryOverviewView";
 
 import type { InventoryService } from "../service";
@@ -18,7 +18,7 @@ export function InventoryOverview({
   service: InventoryService;
   showReservations?: boolean;
 }) {
-  const query = useInventoryPreview(service);
+  const query = useInventoryOverviewData(service);
   if (query.isPending) return <PageSkeleton variant="detail" />;
   if (query.isError)
     return (

@@ -6,6 +6,8 @@ export const PAGE_SIZE = {
   xl: 50,
 } as const;
 
+export const DEFAULT_PAGE_SIZE_OPTIONS: number[] = [PAGE_SIZE.sm, PAGE_SIZE.md, 20, PAGE_SIZE.xl];
+
 export const PO_COLUMNS = {
   ACTIONS: "actions",
   EXPECTED_DATE: "expectedDate",

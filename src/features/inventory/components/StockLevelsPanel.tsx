@@ -1,7 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
 import { parseAsInteger, parseAsString, useQueryState } from "nuqs";
+import { useMemo } from "react";
+
+import { STORAGE_KEYS } from "@/constants/storage-keys";
+
+import { usePageConfig } from "@/hooks/use-page-config";
 
 import { DataTable } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -14,9 +18,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PAGE_SIZE } from "@/constants/table";
 
 import { INVENTORY_COPY } from "../constants";
+import { DEFAULT_INVENTORY_PAGE_CONFIG, mergeInventoryPageConfig } from "../page-config";
 import { selectStockLevels } from "../stock-levels";
 import { stockLevelColumns } from "./stock-level-columns";
 
@@ -35,10 +39,12 @@ export function StockLevelsPanel({
     parseAsString.withDefault("all"),
   );
   const [page, setPage] = useQueryState("inventoryPage", parseAsInteger.withDefault(1));
-  const [size, setSize] = useQueryState(
-    "inventoryPageSize",
-    parseAsInteger.withDefault(PAGE_SIZE.sm),
+  const { config, updateConfig } = usePageConfig(
+    STORAGE_KEYS.adminInventoryConfig,
+    DEFAULT_INVENTORY_PAGE_CONFIG,
+    mergeInventoryPageConfig,
   );
+  const size = config.pageSize;
 
   const warehouses = useMemo(
     () => Array.from(new Map(rows.map((row) => [row.warehouse.code, row.warehouse])).values()),
@@ -50,7 +56,7 @@ export function StockLevelsPanel({
         query,
         warehouseCode,
         page,
-        size: [10, 15, 20, 50].includes(size) ? size : PAGE_SIZE.sm,
+        size,
       }),
     [rows, query, warehouseCode, page, size],
   );
@@ -118,14 +124,14 @@ export function StockLevelsPanel({
             onRowClick={onSelect}
             serverPagination={{
               page: result.page - 1,
-              size: [10, 15, 20, 50].includes(size) ? size : PAGE_SIZE.sm,
+              size,
               totalElements: result.totalElements,
               totalPages: result.totalPages,
               hasNext: result.page < result.totalPages,
               hasPrevious: result.page > 1,
               onPageChange: (nextPage) => void setPage(nextPage + 1),
               onPageSizeChange: (nextSize) => {
-                void setSize(nextSize);
+                updateConfig((current) => ({ ...current, pageSize: nextSize }));
                 void setPage(1);
               },
             }}

@@ -8,5 +8,5 @@ export type {
   ReservationRow,
   AtpLookupInput,
   AtpLookupResult,
-  InventoryPreview,
+  InventoryOverviewData,
 } from "./types";

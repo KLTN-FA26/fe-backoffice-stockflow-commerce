@@ -5,14 +5,14 @@ import { createQueryKeys } from "@/lib/api/query-factory";
 import type { InventoryService } from "./service";
 import type { AtpLookupInput } from "./types";
 
-const keys = createQueryKeys("inventory-ui-preview");
+const keys = createQueryKeys("inventory-ui-overview");
 const stockItemKeys = createQueryKeys("inventory-ui-stock-items");
 const atpKeys = createQueryKeys("inventory-ui-atp");
 const reservationKeys = createQueryKeys("inventory-ui-reservations");
-export function useInventoryPreview(service: InventoryService) {
+export function useInventoryOverviewData(service: InventoryService) {
   return useQuery({
     queryKey: keys.list({ source: service.cacheKey }),
-    queryFn: ({ signal }) => service.loadPreview(signal),
+    queryFn: ({ signal }) => service.loadOverview(signal),
     retry: false,
   });
 }

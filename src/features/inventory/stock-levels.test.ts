@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { createInventoryFixture } from "./fixtures";
+import { createStockLevelsFixture } from "./fixtures";
 import { selectStockLevels } from "./stock-levels";
 
-const rows = createInventoryFixture().stockLevels;
+const rows = createStockLevelsFixture();
 
 describe("mock stock-level projection", () => {
   it("matches SKU or product name and warehouse without changing quantity values", () => {

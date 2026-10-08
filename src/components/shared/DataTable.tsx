@@ -1,7 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
 import { cn } from "cn";
+import { ChevronDown, ChevronsUpDown, ChevronUp } from "lucide-react";
+import { useMemo, useState } from "react";
+
+import { DEFAULT_PAGE_SIZE_OPTIONS, PAGE_SIZE } from "@/constants/table";
+
 import {
   Table,
   TableHeader,
@@ -21,7 +25,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import type { ReactNode } from "react";
 
 /* -------------------------------------------------------------------------- */
@@ -101,8 +104,8 @@ export function DataTable<T>({
   selectable = false,
   selectedKeys,
   onSelectionChange,
-  pageSize = 10,
-  pageSizeOptions = [10, 15, 20, 50],
+  pageSize = PAGE_SIZE.sm,
+  pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
   serverPagination,
   serverSorting,
   className,

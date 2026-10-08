@@ -9,6 +9,8 @@ export const INVENTORY_COPY = {
   mockTableNote: "Tìm kiếm, lọc và phân trang trên dữ liệu minh họa",
   selectStockLevel: "Chọn một dòng tồn kho để xem stock item",
   stockItemError: "Không tải được stock item minh họa",
+  stockItemsPaused: "Tạm dừng tải stock item · Đang chờ kết nối trở lại",
+  stockItemsFetching: "Đang tải lại stock item",
   noStockItems: "Chưa có stock item cho SKU và kho này",
   fefoDisplayNote: "Hạn dùng sớm hiển thị trước; chưa có hạn dùng ở cuối",
   unknownStatus: "Chưa có trạng thái",

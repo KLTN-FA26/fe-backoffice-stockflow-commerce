@@ -2,12 +2,14 @@
 
 import { useMemo } from "react";
 
+import { formatDate } from "@/lib/format/date";
+
 import { numberCell, subCodeCell, textCell } from "@/components/shared/column-helpers";
 import { DataTable } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
+import { RefetchBar } from "@/components/shared/RefetchBar";
 import { Button } from "@/components/ui/button";
-import { formatDate } from "@/lib/format/date";
 
 import { INVENTORY_COPY } from "../constants";
 import { useInventoryStockItems } from "../queries";
@@ -72,16 +74,28 @@ export function StockItemDrillDown({
         )}
         <p className="text-ink-tertiary text-xs">{INVENTORY_COPY.fefoDisplayNote}</p>
       </div>
+      {selected && query.fetchStatus === "paused" && (
+        <p role="status" className="text-warning text-sm">
+          {INVENTORY_COPY.stockItemsPaused}
+        </p>
+      )}
+      {selected && !query.isPending && (
+        <RefetchBar active={query.isFetching} label={INVENTORY_COPY.stockItemsFetching} />
+      )}
       {!selected ? (
         <EmptyState title={INVENTORY_COPY.selectStockLevel} />
-      ) : query.isPending ? (
+      ) : query.isLoading ? (
         <PageSkeleton variant="list" />
       ) : query.isError ? (
         <EmptyState
           title={INVENTORY_COPY.stockItemError}
-          action={<Button onClick={() => void query.refetch()}>{INVENTORY_COPY.retry}</Button>}
+          action={
+            <Button onClick={() => void query.refetch()} disabled={query.isFetching}>
+              {INVENTORY_COPY.retry}
+            </Button>
+          }
         />
-      ) : ordered.length === 0 ? (
+      ) : !query.isSuccess ? null : ordered.length === 0 ? (
         <EmptyState title={INVENTORY_COPY.noStockItems} />
       ) : (
         <div className="overflow-x-auto">
