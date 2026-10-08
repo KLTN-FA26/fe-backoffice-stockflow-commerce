@@ -1,25 +1,30 @@
-import { formatDate } from "@/lib/format/date";
+"use client";
+
+import { useState } from "react";
+
 import { formatNumber } from "@/lib/format/number";
 
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
 
 import { INVENTORY_COPY } from "../constants";
+import { StockItemDrillDown } from "./StockItemDrillDown";
 import { StockLevelsPanel } from "./StockLevelsPanel";
 
-import type { InventoryPreview } from "../types";
+import type { InventoryService } from "../service";
+import type { InventoryPreview, StockLevelRow } from "../types";
 import type { ReactNode } from "react";
 
 /** Mock-backed overview. Remaining sections become interactive in later steps. */
-export function InventoryOverviewView({ data }: { data: InventoryPreview }) {
+export function InventoryOverviewView({
+  data,
+  service,
+}: {
+  data: InventoryPreview;
+  service: InventoryService;
+}) {
+  const [selected, setSelected] = useState<StockLevelRow | null>(null);
   const previews: ReactNode[] = [
-    data.stockItems.map((row) => (
-      <div key={row.id} className="flex flex-wrap gap-[var(--el-gap)]">
-        <span className="font-mono">{row.location}</span>
-        <span>{row.lot ?? INVENTORY_COPY.noLot}</span>
-        <span>{row.expiry ? formatDate(row.expiry) : INVENTORY_COPY.noExpiry}</span>
-      </div>
-    )),
     data.atp ? (
       <p className="font-mono tabular-nums">
         {data.atp.sku} · {data.atp.warehouseCode} · ATP: {formatNumber(data.atp.quantity)}
@@ -34,9 +39,10 @@ export function InventoryOverviewView({ data }: { data: InventoryPreview }) {
   return (
     <div className="space-y-[var(--card-pad)]">
       <PageHeader title={INVENTORY_COPY.title} subtitle={INVENTORY_COPY.subtitle} />
-      <StockLevelsPanel rows={data.stockLevels} />
+      <StockLevelsPanel rows={data.stockLevels} onSelect={setSelected} />
+      <StockItemDrillDown selected={selected} service={service} />
       <div className="grid gap-[var(--card-pad)] lg:grid-cols-2">
-        {INVENTORY_COPY.sections.slice(1).map((section, index) => {
+        {INVENTORY_COPY.sections.slice(2).map((section, index) => {
           const preview = previews[index];
           const empty = preview === null || (Array.isArray(preview) && preview.length === 0);
           return (

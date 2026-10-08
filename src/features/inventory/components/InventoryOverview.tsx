@@ -21,5 +21,5 @@ export function InventoryOverview({ service }: { service: InventoryService }) {
         action={<Button onClick={() => void query.refetch()}>{INVENTORY_COPY.retry}</Button>}
       />
     );
-  return <InventoryOverviewView data={query.data} />;
+  return <InventoryOverviewView data={query.data} service={service} />;
 }

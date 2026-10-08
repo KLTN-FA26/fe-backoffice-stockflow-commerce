@@ -30,7 +30,7 @@ export function createInventoryFixture(): InventoryPreview {
         };
       }),
     ],
-    // Dated lots first, null expiry last: fixture presentation, not an allocation rule.
+    // Earliest expiry first, null last: fixture presentation, not an allocation rule.
     stockItems: [
       {
         ...context,
@@ -38,15 +38,27 @@ export function createInventoryFixture(): InventoryPreview {
         location: "DEMO-WH-A",
         lot: "DEMO-LOT-1",
         expiry: "2027-01-15",
-        onHand: 12,
+        onHand: 6,
         reserved: 4,
-        available: 8,
+        available: 2,
+        status: "Trạng thái mẫu A",
+        condition: "Tình trạng mẫu B",
+      },
+      {
+        ...context,
+        id: "demo-item-2",
+        location: "DEMO-WH-C",
+        lot: "DEMO-LOT-2",
+        expiry: "2027-03-15",
+        onHand: 6,
+        reserved: 0,
+        available: 6,
         status: null,
         condition: null,
       },
       {
         ...context,
-        id: "demo-item-2",
+        id: "demo-item-3",
         location: "DEMO-WH-B",
         lot: null,
         expiry: null,

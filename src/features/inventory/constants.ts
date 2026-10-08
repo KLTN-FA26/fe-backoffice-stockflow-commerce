@@ -7,7 +7,12 @@ export const INVENTORY_COPY = {
   noResults: "Không tìm thấy tồn kho phù hợp",
   clearFilters: "Xóa bộ lọc",
   mockTableNote: "Tìm kiếm, lọc và phân trang trên dữ liệu minh họa",
-  drillDownNext: "Chi tiết stock item sẽ có ở Step 3",
+  selectStockLevel: "Chọn một dòng tồn kho để xem stock item",
+  stockItemError: "Không tải được stock item minh họa",
+  noStockItems: "Chưa có stock item cho SKU và kho này",
+  fefoDisplayNote: "Hạn dùng sớm hiển thị trước; chưa có hạn dùng ở cuối",
+  unknownStatus: "Chưa có trạng thái",
+  unknownCondition: "Chưa có tình trạng",
   sections: [
     { id: "stock-levels", title: "Stock Levels" },
     { id: "stock-items", title: "Stock Items" },

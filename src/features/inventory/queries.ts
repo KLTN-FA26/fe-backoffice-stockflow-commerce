@@ -5,10 +5,24 @@ import { createQueryKeys } from "@/lib/api/query-factory";
 import type { InventoryService } from "./service";
 
 const keys = createQueryKeys("inventory-ui-preview");
+const stockItemKeys = createQueryKeys("inventory-ui-stock-items");
 export function useInventoryPreview(service: InventoryService) {
   return useQuery({
     queryKey: keys.list({ source: service.cacheKey }),
     queryFn: ({ signal }) => service.loadPreview(signal),
+    retry: false,
+  });
+}
+
+export function useInventoryStockItems(
+  service: InventoryService,
+  sku: string | undefined,
+  warehouseCode: string | undefined,
+) {
+  return useQuery({
+    queryKey: stockItemKeys.list({ source: service.cacheKey, sku, warehouseCode }),
+    queryFn: ({ signal }) => service.loadStockItems(sku ?? "", warehouseCode ?? "", signal),
+    enabled: Boolean(sku && warehouseCode),
     retry: false,
   });
 }

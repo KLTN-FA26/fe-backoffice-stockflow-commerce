@@ -1,10 +1,11 @@
-import type { InventoryPreview } from "./types";
+import type { InventoryPreview, StockItemRow } from "./types";
 
 /** UI data-source port. No HTTP endpoint, query parameters, or pagination contract. */
 export interface InventoryService {
   /** Adapter namespace: keep future real data separate from demo cache. */
   readonly cacheKey: string;
   loadPreview(signal?: AbortSignal): Promise<InventoryPreview>;
+  loadStockItems(sku: string, warehouseCode: string, signal?: AbortSignal): Promise<StockItemRow[]>;
 }
 
 // TODO(contract): real adapter maps DTOs to view-models after BE confirmation.

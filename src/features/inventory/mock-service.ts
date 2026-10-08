@@ -10,5 +10,11 @@ export function createInventoryMockService(): InventoryService {
       signal?.throwIfAborted();
       return createInventoryFixture();
     },
+    async loadStockItems(sku, warehouseCode, signal) {
+      signal?.throwIfAborted();
+      return createInventoryFixture().stockItems.filter(
+        (item) => item.sku === sku && item.warehouse.code === warehouseCode,
+      );
+    },
   };
 }

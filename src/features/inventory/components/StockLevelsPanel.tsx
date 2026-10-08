@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { parseAsInteger, parseAsString, useQueryState } from "nuqs";
 
 import { codeCell, numberCell, textCell } from "@/components/shared/column-helpers";
@@ -23,7 +23,13 @@ import { selectStockLevels } from "../stock-levels";
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { StockLevelRow } from "../types";
 
-export function StockLevelsPanel({ rows }: { rows: StockLevelRow[] }) {
+export function StockLevelsPanel({
+  rows,
+  onSelect,
+}: {
+  rows: StockLevelRow[];
+  onSelect: (row: StockLevelRow) => void;
+}) {
   const [query, setQuery] = useQueryState("inventoryQ", parseAsString.withDefault(""));
   const [warehouseCode, setWarehouseCode] = useQueryState(
     "inventoryWarehouse",
@@ -34,7 +40,6 @@ export function StockLevelsPanel({ rows }: { rows: StockLevelRow[] }) {
     "inventoryPageSize",
     parseAsInteger.withDefault(PAGE_SIZE.sm),
   );
-  const [selected, setSelected] = useState<StockLevelRow | null>(null);
 
   const warehouses = useMemo(
     () => Array.from(new Map(rows.map((row) => [row.warehouse.code, row.warehouse])).values()),
@@ -52,7 +57,7 @@ export function StockLevelsPanel({ rows }: { rows: StockLevelRow[] }) {
   );
   const columns: ColumnDef<StockLevelRow>[] = [
     codeCell<StockLevelRow>("sku", "SKU", (row) => row.sku, {
-      onClick: (row) => setSelected(row),
+      onClick: onSelect,
     }),
     textCell("product", "Sản phẩm", (row) => row.productName ?? "—", { color: "primary" }),
     textCell("warehouse", "Kho", (row) => row.warehouse.name ?? row.warehouse.code),
@@ -122,7 +127,7 @@ export function StockLevelsPanel({ rows }: { rows: StockLevelRow[] }) {
             data={result.rows}
             columns={columns}
             rowKey={(row) => row.id}
-            onRowClick={setSelected}
+            onRowClick={onSelect}
             serverPagination={{
               page: result.page - 1,
               size: [10, 15, 20, 50].includes(size) ? size : PAGE_SIZE.sm,
@@ -137,16 +142,6 @@ export function StockLevelsPanel({ rows }: { rows: StockLevelRow[] }) {
               },
             }}
           />
-        </div>
-      )}
-      {selected && (
-        <div
-          role="status"
-          className="border-border-default bg-bg-subtle rounded-[var(--r-sm)] border p-3 text-sm"
-        >
-          <span className="font-mono font-medium">{selected.sku}</span> ·{" "}
-          {selected.warehouse.name ?? selected.warehouse.code}
-          <span className="text-ink-tertiary ml-2">{INVENTORY_COPY.drillDownNext}</span>
         </div>
       )}
     </section>
