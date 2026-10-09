@@ -20,13 +20,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState, useTransition } from "react";
 
 import { ADMIN_ROUTES, APP_ROUTES } from "@/constants";
+import { AUTH_UI } from "@/constants/auth";
 
-import {
-  completeAuthentication,
-  getMockLoginUsersApi,
-  loginApi,
-  mockLoginApi,
-} from "@/lib/auth/auth-api";
+import { getMockLoginUsersApi, loginApi, mockLoginApi } from "@/lib/auth/auth-api";
+import { useAuthLifecycle } from "@/lib/auth/use-auth-lifecycle";
 
 import { useIsMock } from "@/providers/app-providers";
 
@@ -73,6 +70,11 @@ function LoginForm() {
     ? requestedCallback
     : ADMIN_ROUTES.home;
   const isMock = useIsMock();
+  const { status, isAuthenticated, bootstrapError, retry } = useAuthLifecycle();
+
+  useEffect(() => {
+    if (isAuthenticated) router.replace(callbackUrl);
+  }, [callbackUrl, isAuthenticated, router]);
 
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -110,8 +112,7 @@ function LoginForm() {
     };
   }, [isMock]);
 
-  async function completeLogin(response: Awaited<ReturnType<typeof loginApi>>) {
-    await completeAuthentication(response);
+  function completeLogin() {
     router.replace(callbackUrl);
     router.refresh();
   }
@@ -122,7 +123,8 @@ function LoginForm() {
 
     startTransition(async () => {
       try {
-        await completeLogin(await mockLoginApi(selectedUserId));
+        await mockLoginApi(selectedUserId);
+        completeLogin();
       } catch (loginError: unknown) {
         setError(loginError instanceof Error ? loginError.message : "Đăng nhập thất bại.");
       }
@@ -136,12 +138,24 @@ function LoginForm() {
 
     startTransition(async () => {
       try {
-        await completeLogin(await loginApi({ username, password }));
+        await loginApi({ username, password });
+        completeLogin();
       } catch (loginError: unknown) {
         setError(loginError instanceof Error ? loginError.message : "Đăng nhập thất bại.");
       }
     });
   }
+
+  if (status === "unknown" && bootstrapError)
+    return (
+      <main className="bg-bg-base flex min-h-screen items-center justify-center">
+        <div role="alert">
+          {bootstrapError}
+          <Button onClick={retry}>{AUTH_UI.retry}</Button>
+        </div>
+      </main>
+    );
+  if (status === "unknown" || isAuthenticated) return <LoginPageFallback />;
 
   const selectedUser = mockUsers.find((user) => user.userId === selectedUserId);
 

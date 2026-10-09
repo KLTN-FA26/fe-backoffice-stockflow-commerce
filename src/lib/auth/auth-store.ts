@@ -1,128 +1,88 @@
-/** Access-token auth state. logout() is force-local; user logout uses logoutApi(). */
+/** UI state only. Authentication is established by the server session endpoint. */
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
-import { z } from "zod";
 
-import { AUTH_STORAGE_KEY, AUTH_STORAGE_VERSION } from "@/constants/auth";
+import { AUTH_STORAGE_KEY } from "@/constants/auth";
 
-import { removeAuthCookie, setAuthCookie } from "./auth-cookie";
-import { authTokensSchema, authUserSchema } from "./auth-schemas";
+import { publishAuthEvent } from "./auth-events";
+import { authUserSchema } from "./auth-schemas";
 import { ROLES } from "./roles";
 
-import type { AuthTokens, AuthUser } from "./auth-schemas";
+import type { AuthUser } from "./auth-schemas";
 import type { RoleName } from "./roles";
 
-export type { AuthTokens, AuthUser } from "./auth-schemas";
+export type { AuthUser } from "./auth-schemas";
+export type AuthStatus = "unknown" | "authenticated" | "unauthenticated";
+/** Discard obsolete persistence on any browser entry point, never restore it. */
+export function discardLegacyAuthState() {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+  } catch {
+    /* Storage may be disabled. */
+  }
+}
+discardLegacyAuthState();
 
-const signedOutState = { user: null, tokens: null, isAuthenticated: false };
-const persistedAuthSchema = z.object({
-  user: authUserSchema,
-  tokens: authTokensSchema,
-  isAuthenticated: z.literal(true),
-});
+let revision = 0;
+export const getAuthRevision = () => revision;
 
 interface AuthState {
-  /* ── Data ────────────────────────────────────────────────────────── */
   user: AuthUser | null;
-  tokens: AuthTokens | null;
+  status: AuthStatus;
+  bootstrapError: string | null;
+  authorizationVersion: number;
   isAuthenticated: boolean;
-
-  /* ── Role impersonation (dev/demo only) ─────────────────────────── */
   impersonatedRole: RoleName | null;
-  setImpersonatedRole: (r: RoleName | null) => void;
-
-  /* ── Effective roles (respects impersonation) ───────────────────── */
+  setImpersonatedRole: (role: RoleName | null) => void;
   effectiveRoles: () => RoleName[];
-
-  /* ── Actions ────────────────────────────────────────────────────── */
-  login: (user: AuthUser, tokens: AuthTokens) => void;
-  establishTokens: (tokens: AuthTokens) => void;
-  logout: () => void;
+  login: (user: AuthUser, notify?: boolean) => void;
+  logout: (notify?: boolean) => void;
+  beginBootstrap: () => void;
+  failBootstrap: (message: string) => void;
 }
 
-/* ── Store ────────────────────────────────────────────────────────────── */
-
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set, get) => ({
-      user: null,
-      tokens: null,
-      isAuthenticated: false,
-
+export const useAuthStore = create<AuthState>((set, get) => ({
+  user: null,
+  status: "unknown",
+  bootstrapError: null,
+  authorizationVersion: 0,
+  isAuthenticated: false,
+  impersonatedRole: null,
+  setImpersonatedRole: (role) => set({ impersonatedRole: role }),
+  effectiveRoles: () => {
+    const { user, impersonatedRole } = get();
+    if (!user) return [];
+    if (impersonatedRole) return [impersonatedRole];
+    return ROLES.filter((role) => user.roles.includes(role));
+  },
+  login: (user, notify = true) => {
+    discardLegacyAuthState();
+    const identity = authUserSchema.parse(user);
+    revision++;
+    set({
+      authorizationVersion: get().authorizationVersion + 1,
+      user: identity,
+      status: "authenticated",
+      isAuthenticated: true,
+      bootstrapError: null,
       impersonatedRole: null,
-      setImpersonatedRole: (r) => set({ impersonatedRole: r }),
-
-      effectiveRoles: () => {
-        const { user, impersonatedRole } = get();
-        if (!user) return [];
-        if (impersonatedRole) return [impersonatedRole];
-        return ROLES.filter((role) => user.roles.includes(role));
-      },
-
-      login: (user, tokens) => {
-        setAuthCookie(tokens.accessToken);
-        set({ user, tokens, isAuthenticated: true, impersonatedRole: null });
-      },
-
-      establishTokens: (tokens) => {
-        removeAuthCookie();
-        set({ tokens, user: null, isAuthenticated: false, impersonatedRole: null });
-      },
-
-      logout: () => {
-        removeAuthCookie();
-        set({
-          user: null,
-          tokens: null,
-          isAuthenticated: false,
-          impersonatedRole: null,
-        });
-      },
-    }),
-    {
-      name: AUTH_STORAGE_KEY,
-      version: AUTH_STORAGE_VERSION,
-      // Old sessions cannot establish identity under the new contract. Require login again.
-      migrate: () => {
-        removeAuthCookie();
-        return signedOutState;
-      },
-      merge: (persisted: unknown, current) => {
-        const result = persistedAuthSchema.safeParse(persisted);
-        if (!result.success) {
-          removeAuthCookie();
-          return { ...current, ...signedOutState, impersonatedRole: null };
-        }
-        return { ...current, ...result.data, impersonatedRole: null };
-      },
-      onRehydrateStorage: () => (_state, error) => {
-        if (error) removeAuthCookie();
-      },
-      storage: createJSONStorage(() => ({
-        getItem: (name) => {
-          if (typeof window === "undefined") return null;
-          try {
-            const raw = localStorage.getItem(name);
-            if (raw !== null) JSON.parse(raw);
-            return raw;
-          } catch {
-            removeAuthCookie();
-            return null;
-          }
-        },
-        setItem: (name, value) => {
-          if (typeof window !== "undefined") localStorage.setItem(name, value);
-        },
-        removeItem: (name) => {
-          if (typeof window !== "undefined") localStorage.removeItem(name);
-        },
-      })),
-      partialize: (state) => ({
-        ...(state.isAuthenticated
-          ? { user: state.user, tokens: state.tokens, isAuthenticated: true }
-          : signedOutState),
-        // Don't persist impersonatedRole — reset on page refresh
-      }),
-    },
-  ),
-);
+    });
+    if (notify) publishAuthEvent("session-changed");
+  },
+  logout: (notify = true) => {
+    discardLegacyAuthState();
+    revision++;
+    set({
+      authorizationVersion: get().authorizationVersion + 1,
+      user: null,
+      status: "unauthenticated",
+      isAuthenticated: false,
+      bootstrapError: null,
+      impersonatedRole: null,
+    });
+    if (notify) publishAuthEvent("logout");
+  },
+  beginBootstrap: () =>
+    set({ user: null, status: "unknown", isAuthenticated: false, bootstrapError: null }),
+  failBootstrap: (message) => set({ bootstrapError: message }),
+}));

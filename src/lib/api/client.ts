@@ -1,23 +1,9 @@
-/**
- * Axios HTTP client — single instance for the entire app.
- *
- * Interceptors:
- *  - Request: attach JWT token (Authorization: Bearer) + warehouse header.
- *  - Response: normalise errors into ApiError. On 401 → local logout and redirect.
- *
- * When USE_MOCK=true the mock adapter (mock-adapter.ts) replaces
- * the default adapter so every call resolves against mock-data — component
- * code stays identical.
- *
- * Base URL is always same-origin "/api" — the real backend URL (API_URL) is
- * server-only and never inlined into the client bundle. next.config.ts
- * rewrites "/api/:path*" to the real backend on the server side.
- */
+/** Same-origin BFF client: credentials are transported exclusively by Next.js. */
 
 import axios from "axios";
 
 import { APP_ROUTES } from "@/constants";
-import { AUTH_PATHS } from "@/constants/auth";
+import { AUTH_PATHS, BROWSER_API_BASE } from "@/constants/auth";
 
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useAppStore } from "@/lib/store/use-app-store";
@@ -28,7 +14,7 @@ import type { AxiosError } from "axios";
 import type { ApiErrorBody } from "./error";
 
 export const api = axios.create({
-  baseURL: "/api",
+  baseURL: BROWSER_API_BASE,
   timeout: 15_000,
   headers: { "Content-Type": "application/json" },
 });
@@ -36,10 +22,7 @@ export const api = axios.create({
 /* ── Request interceptor ─────────────────────────────────────────────── */
 
 api.interceptors.request.use((cfg) => {
-  const tokens = useAuthStore.getState().tokens;
-  if (tokens?.accessToken && cfg.url !== AUTH_PATHS.login) {
-    cfg.headers.set("Authorization", `Bearer ${tokens.accessToken}`);
-  }
+  cfg.headers.delete("Authorization");
   const wh = useAppStore.getState().warehouseId;
   if (wh) cfg.headers.set("X-Warehouse-Id", wh);
   return cfg;
@@ -62,7 +45,7 @@ api.interceptors.response.use(
     return res;
   },
   (err: AxiosError<ApiErrorBody>) => {
-    if (err.response?.status === 401) {
+    if (err.response?.status === 401 && err.config?.url !== AUTH_PATHS.me) {
       useAuthStore.getState().logout();
       // Failed login stays on the form so it can display the normalized error.
       if (
