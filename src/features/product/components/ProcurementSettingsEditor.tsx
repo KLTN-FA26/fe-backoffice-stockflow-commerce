@@ -13,6 +13,10 @@ import {
   toProcurementDraft,
 } from "../procurement-settings/form-model";
 import {
+  invalidProcurementNumberFields,
+  PROCUREMENT_NUMERIC_ERRORS,
+} from "../procurement-settings/numeric-input";
+import {
   readProcurementSupplierChoices,
   saveProcurementSettings,
 } from "../procurement-settings/service";
@@ -61,7 +65,20 @@ export function ProcurementSettingsEditor({
   }
   return (
     <form
-      onSubmit={(event) => void form.handleSubmit(submit)(event)}
+      onSubmit={(event) => {
+        event.preventDefault();
+        const invalid = invalidProcurementNumberFields(event.currentTarget);
+        if (invalid.length > 0) {
+          for (const name of invalid) {
+            form.setError(name, {
+              type: "validate",
+              message: PROCUREMENT_NUMERIC_ERRORS.malformed,
+            });
+          }
+          return;
+        }
+        void form.handleSubmit(submit)(event);
+      }}
       noValidate
       aria-label="Chỉnh sửa cài đặt mua hàng"
       aria-busy={isSubmitting}

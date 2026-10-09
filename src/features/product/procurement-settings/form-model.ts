@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { inspectProcurementQuantity, PROCUREMENT_NUMERIC_ERRORS } from "./numeric-input";
+
 import type { SkuProcurementSettingsView } from "./view-model";
 
 export const PROCUREMENT_LABELS = {
@@ -12,25 +14,43 @@ export const PROCUREMENT_LABELS = {
   orderMultiple: "Bội số đặt hàng",
 } as const;
 
-// Generic numeric correctness only: empty means unknown; no integer/domain limits implied.
-const optionalQuantity = z
-  .string()
-  .refine(
-    (value) => value.trim() === "" || (Number.isFinite(Number(value)) && Number(value) >= 0),
-    "Số không âm hợp lệ",
-  );
+// Generic representation checks only: optional blanks and fractional values remain valid.
+const optionalQuantity = z.string().superRefine((value, context) => {
+  const integrity = inspectProcurementQuantity(value);
+  if (integrity !== "blank" && integrity !== "valid") {
+    context.addIssue({ code: "custom", message: PROCUREMENT_NUMERIC_ERRORS[integrity] });
+  }
+});
 export const procurementDraftSchema = z.object({
   defaultSupplierId: z.string(),
   reorderPoint: optionalQuantity,
-  suppliers: z.array(
-    z.object({
-      supplierId: z.string().min(1, "Chọn nhà cung cấp"),
-      supplierItemCode: z.string(),
-      leadTimeDays: optionalQuantity,
-      moq: optionalQuantity,
-      orderMultiple: optionalQuantity,
+  suppliers: z
+    .array(
+      z.object({
+        supplierId: z.string().min(1, "Chọn nhà cung cấp"),
+        supplierItemCode: z.string(),
+        leadTimeDays: optionalQuantity,
+        moq: optionalQuantity,
+        orderMultiple: optionalQuantity,
+      }),
+    )
+    .superRefine((suppliers, context) => {
+      // Task 4A Step 3: draft integrity for the schema's unique supplier/item pair.
+      // This neither synchronizes default suppliers nor defines future HTTP error semantics.
+      const counts = new Map<string, number>();
+      for (const { supplierId } of suppliers) {
+        if (supplierId) counts.set(supplierId, (counts.get(supplierId) ?? 0) + 1);
+      }
+      suppliers.forEach(({ supplierId }, index) => {
+        if ((counts.get(supplierId) ?? 0) > 1) {
+          context.addIssue({
+            code: "custom",
+            path: [index, "supplierId"],
+            message: "Nhà cung cấp đã được chọn ở dòng khác",
+          });
+        }
+      });
     }),
-  ),
 });
 export type ProcurementDraft = z.infer<typeof procurementDraftSchema>;
 export type ProcurementSupplierChoice = Pick<

@@ -64,13 +64,16 @@ export function ProcurementSettingsSection({
             <dl className="border-border-default mb-4 grid gap-3 border-b pb-3 text-[0.8125rem] sm:grid-cols-2">
               <div>
                 <dt className="text-ink-tertiary text-xs">{PROCUREMENT_LABELS.defaultSupplier}</dt>
-                <dd className="text-ink-primary mt-1">
+                <dd className="text-ink-primary mt-1 wrap-anywhere">
                   {saved.defaultSupplierName ?? saved.defaultSupplierId ?? PROCUREMENT_MISSING}
                 </dd>
               </div>
               <div>
                 <dt className="text-ink-tertiary text-xs">{PROCUREMENT_LABELS.reorderPoint}</dt>
-                <dd className="text-ink-primary mt-1 tabular-nums">
+                <dd
+                  className="text-ink-primary mt-1 tabular-nums"
+                  title={saved.reorderPoint?.toString()}
+                >
                   {showProcurementNumber(saved.reorderPoint)}
                 </dd>
               </div>

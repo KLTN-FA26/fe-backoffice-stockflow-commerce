@@ -193,7 +193,7 @@ export function SkuDetail({ params }: { params: Promise<{ id: string }> }) {
         {/* ============================================================== */}
         {/*  LEFT COLUMN                                                   */}
         {/* ============================================================== */}
-        <div className="space-y-5">
+        <div className="min-w-0 space-y-5">
           {/* Thông tin chung */}
           <Section
             title="Thông tin chung"

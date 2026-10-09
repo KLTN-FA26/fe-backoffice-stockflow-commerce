@@ -6,10 +6,21 @@
   not a production authorization decision. The Step 2 permission/HTTP blockers remain.
 - React Hook Form, zodResolver, ProductFormField, shared Input/Button and the existing
   supplier table provide the editable workflow. Only existing mapping rows are edited.
-- Blank numeric inputs stay `null`. Validation checks finite, nonnegative numbers only;
-  it does not assert integer quantities, upper limits, divisibility or purchasing rules.
+- Genuinely blank numeric inputs stay `null`; native browser `badInput` cannot clear values.
+  Validation checks numeric syntax, finite/nonnegative values and safe integer representation.
+  Decimals remain allowed; these checks impose no purchasing limits or quantity rules.
+- Read-only numbers have no fixed fractional cutoff. Machine-precision display simplifications
+  carry an approximation marker and expose the original stored number in the title; saved data
+  is never rounded by the formatter.
 - Supplier choices contain existing fixture identities, not master purchasing terms.
   The default supplier is an independent reference, including suppliers outside the rows.
+- Duplicate supplier selections in mapping rows prevent Save and show an inline error on each
+  affected row. Options remain selectable, no other row is modified, and correcting the draft
+  permits Save. This is draft integrity for one SKU, not a future HTTP error contract; the
+  independent default supplier does not participate in the duplicate check.
+- Procurement's fixed-layout table reuses the shared horizontal scroll container on narrow
+  screens. Supplier names and item codes wrap without trimming stored text; the SKU column
+  can shrink so long content does not widen its surrounding grid. Editing keeps full values.
 - `saveProcurementSettings` is a **mock interaction contract**, not a backend DTO or
   atomic backend save. The Inventory and Procurement write boundaries remain unresolved.
 - Mock persistence is per SKU, in memory, and resets on page reload. Read/save return

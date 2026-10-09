@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table";
 
 import { PROCUREMENT_LABELS } from "../procurement-settings/form-model";
+import { formatProcurementNumber } from "../procurement-settings/number-display";
 import { ProcurementSupplierSelect } from "./ProcurementSupplierSelect";
 
 import type { FieldErrors, UseFormRegister } from "react-hook-form";
@@ -26,7 +27,7 @@ import type { SkuProcurementSettingsView } from "../procurement-settings/view-mo
 
 export const PROCUREMENT_MISSING = "Chưa có dữ liệu";
 export function showProcurementNumber(value: number | null, suffix = "") {
-  return value === null ? PROCUREMENT_MISSING : `${value.toLocaleString("vi-VN")}${suffix}`;
+  return value === null ? PROCUREMENT_MISSING : `${formatProcurementNumber(value)}${suffix}`;
 }
 const TERM_FIELDS = ["supplierItemCode", "leadTimeDays", "moq", "orderMultiple"] as const;
 
@@ -50,11 +51,13 @@ export function ProcurementSupplierTable({
       />
     );
   return (
-    <Table>
+    <Table className="min-w-[48rem] table-fixed">
       <TableCaption>Nhà cung cấp liên kết với SKU {settings.skuId}</TableCaption>
       <TableHeader>
         <TableRow>
-          <TableHead scope="col">{PROCUREMENT_LABELS.supplierId}</TableHead>
+          <TableHead scope="col" className="w-1/3">
+            {PROCUREMENT_LABELS.supplierId}
+          </TableHead>
           {TERM_FIELDS.map((field) => (
             <TableHead key={field} scope="col">
               {PROCUREMENT_LABELS[field]}
@@ -75,13 +78,13 @@ export function ProcurementSupplierTable({
               ) : (
                 <Link
                   href={ADMIN_ROUTES.suppliers.detail(supplier.supplierId)}
-                  className="text-accent hover:underline"
+                  className="text-accent block wrap-anywhere whitespace-normal hover:underline"
                 >
                   {supplier.supplierName}
                 </Link>
               )}
               {editing?.errors.suppliers?.[index]?.supplierId?.message && (
-                <p role="alert" className="text-danger text-xs">
+                <p role="alert" className="text-danger text-xs break-words whitespace-normal">
                   {editing.errors.suppliers[index]?.supplierId?.message}
                 </p>
               )}
@@ -99,12 +102,22 @@ export function ProcurementSupplierTable({
                       {...editing.register(`suppliers.${index}.${field}`)}
                     />
                   ) : field === "supplierItemCode" ? (
-                    (supplier[field] ?? PROCUREMENT_MISSING)
+                    <span className="block break-all whitespace-normal">
+                      {supplier[field] ?? PROCUREMENT_MISSING}
+                    </span>
                   ) : (
-                    showProcurementNumber(supplier[field], field === "leadTimeDays" ? " ngày" : "")
+                    <span
+                      className="block wrap-anywhere whitespace-normal"
+                      title={supplier[field]?.toString()}
+                    >
+                      {showProcurementNumber(
+                        supplier[field],
+                        field === "leadTimeDays" ? " ngày" : "",
+                      )}
+                    </span>
                   )}
                   {error && (
-                    <p role="alert" className="text-danger text-xs">
+                    <p role="alert" className="text-danger text-xs break-words whitespace-normal">
                       {error}
                     </p>
                   )}
