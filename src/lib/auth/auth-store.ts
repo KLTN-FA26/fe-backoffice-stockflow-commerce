@@ -1,36 +1,25 @@
-/**
- * Auth store — zustand with persist.
- *
- * Stores JWT tokens received from Spring Boot backend.
- * Token is attached to every axios request via interceptor in client.ts.
- *
- * Flow:
- *   1. User submits credentials → POST /api/auth/login (Spring Boot)
- *   2. Spring Boot returns { accessToken, refreshToken, user }
- *   3. FE stores tokens here → axios interceptor attaches Authorization header
- *   4. On 401 → try refresh token → if fail → logout + redirect /login
- *   5. Next.js middleware checks token existence → redirect if missing
- */
-
+/** Access-token auth state. logout() is force-local; user logout uses logoutApi(). */
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
+import { z } from "zod";
+
+import { AUTH_STORAGE_KEY, AUTH_STORAGE_VERSION } from "@/constants/auth";
+
+import { removeAuthCookie, setAuthCookie } from "./auth-cookie";
+import { authTokensSchema, authUserSchema } from "./auth-schemas";
+import { ROLES } from "./roles";
+
+import type { AuthTokens, AuthUser } from "./auth-schemas";
 import type { RoleName } from "./roles";
-import { setAuthCookie, removeAuthCookie } from "./auth-cookie";
 
-/* ── Types ───────────────────────────────────────────────────────────── */
+export type { AuthTokens, AuthUser } from "./auth-schemas";
 
-export interface AuthUser {
-  userId: string;
-  fullName: string;
-  email: string;
-  roles: RoleName[];
-  warehouseIds: string[];
-}
-
-export interface AuthTokens {
-  accessToken: string;
-  refreshToken: string;
-}
+const signedOutState = { user: null, tokens: null, isAuthenticated: false };
+const persistedAuthSchema = z.object({
+  user: authUserSchema,
+  tokens: authTokensSchema,
+  isAuthenticated: z.literal(true),
+});
 
 interface AuthState {
   /* ── Data ────────────────────────────────────────────────────────── */
@@ -47,7 +36,7 @@ interface AuthState {
 
   /* ── Actions ────────────────────────────────────────────────────── */
   login: (user: AuthUser, tokens: AuthTokens) => void;
-  updateTokens: (tokens: AuthTokens) => void;
+  establishTokens: (tokens: AuthTokens) => void;
   logout: () => void;
 }
 
@@ -67,7 +56,7 @@ export const useAuthStore = create<AuthState>()(
         const { user, impersonatedRole } = get();
         if (!user) return [];
         if (impersonatedRole) return [impersonatedRole];
-        return user.roles;
+        return ROLES.filter((role) => user.roles.includes(role));
       },
 
       login: (user, tokens) => {
@@ -75,9 +64,9 @@ export const useAuthStore = create<AuthState>()(
         set({ user, tokens, isAuthenticated: true, impersonatedRole: null });
       },
 
-      updateTokens: (tokens) => {
-        setAuthCookie(tokens.accessToken);
-        set({ tokens });
+      establishTokens: (tokens) => {
+        removeAuthCookie();
+        set({ tokens, user: null, isAuthenticated: false, impersonatedRole: null });
       },
 
       logout: () => {
@@ -91,16 +80,47 @@ export const useAuthStore = create<AuthState>()(
       },
     }),
     {
-      name: "stockflow-auth",
-      storage: createJSONStorage(() =>
-        typeof window !== "undefined"
-          ? localStorage
-          : { getItem: () => null, setItem: () => {}, removeItem: () => {} },
-      ),
+      name: AUTH_STORAGE_KEY,
+      version: AUTH_STORAGE_VERSION,
+      // Old sessions cannot establish identity under the new contract. Require login again.
+      migrate: () => {
+        removeAuthCookie();
+        return signedOutState;
+      },
+      merge: (persisted: unknown, current) => {
+        const result = persistedAuthSchema.safeParse(persisted);
+        if (!result.success) {
+          removeAuthCookie();
+          return { ...current, ...signedOutState, impersonatedRole: null };
+        }
+        return { ...current, ...result.data, impersonatedRole: null };
+      },
+      onRehydrateStorage: () => (_state, error) => {
+        if (error) removeAuthCookie();
+      },
+      storage: createJSONStorage(() => ({
+        getItem: (name) => {
+          if (typeof window === "undefined") return null;
+          try {
+            const raw = localStorage.getItem(name);
+            if (raw !== null) JSON.parse(raw);
+            return raw;
+          } catch {
+            removeAuthCookie();
+            return null;
+          }
+        },
+        setItem: (name, value) => {
+          if (typeof window !== "undefined") localStorage.setItem(name, value);
+        },
+        removeItem: (name) => {
+          if (typeof window !== "undefined") localStorage.removeItem(name);
+        },
+      })),
       partialize: (state) => ({
-        user: state.user,
-        tokens: state.tokens,
-        isAuthenticated: state.isAuthenticated,
+        ...(state.isAuthenticated
+          ? { user: state.user, tokens: state.tokens, isAuthenticated: true }
+          : signedOutState),
         // Don't persist impersonatedRole — reset on page refresh
       }),
     },

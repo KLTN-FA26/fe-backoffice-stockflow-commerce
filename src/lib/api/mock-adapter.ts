@@ -243,6 +243,7 @@ export function activateMockAdapter(): void {
     import("./mock-routes"),
     import("./mock-routes-suppliers"),
     import("./mock-routes-me"),
+    import("./mock-routes-auth"),
     import("./mock-routes-purchase-orders"),
     import("./mock-routes-orders"),
   ]).then(
@@ -250,12 +251,14 @@ export function activateMockAdapter(): void {
       { registerAllMockRoutes },
       { registerSupplierMockRoutes },
       { registerMeMockRoutes },
+      { registerAuthMockRoutes },
       { registerPurchaseOrderMockRoutes },
       { registerOrderMockRoutes },
     ]) => {
       registerAllMockRoutes();
       registerSupplierMockRoutes();
       registerMeMockRoutes();
+      registerAuthMockRoutes();
       registerPurchaseOrderMockRoutes();
       registerOrderMockRoutes();
     },
@@ -263,4 +266,10 @@ export function activateMockAdapter(): void {
 
   api.defaults.adapter = mockAdapter;
   console.info("[mock-adapter] Activated — all API calls will be served from mock-data.ts");
+}
+
+/** Auth mocks obtain staff data only through the adapter boundary. */
+export async function getMockStaffUsers() {
+  const { staffUsers } = await import("@/lib/mock-data");
+  return staffUsers;
 }
