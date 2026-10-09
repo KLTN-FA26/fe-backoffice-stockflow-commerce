@@ -14,14 +14,13 @@ import {
   cancelPurchaseOrder,
   closeShortPurchaseOrder,
   createPurchaseOrder,
-  receiveGoods,
   recordSupplierConfirmation,
   recoverPoDelivery,
   sendPurchaseOrder,
 } from "./api";
 import { poDashboardKeys, poDeliveryKeys, poKeys, supplierSpendKeys } from "./queries";
 
-import type { CreatePoResult, ReceiveLineInput } from "./api";
+import type { CreatePoResult } from "./api";
 import type {
   CreatePoInput,
   RecoverDeliveryInput,
@@ -64,15 +63,6 @@ export const useCloseShortPo = createMutation<{ id: string; reason: string }, Pu
   ({ id, reason }) => closeShortPurchaseOrder(id, reason),
   { invalidate: PO_INVALIDATE, showErrorToast: false, successMessage: MSG.closedShort },
 );
-
-export const useReceiveGoodsPo = createMutation<
-  { id: string; lines: ReceiveLineInput[] },
-  PurchaseOrder
->(({ id, lines }) => receiveGoods(id, lines), {
-  invalidate: PO_INVALIDATE,
-  showErrorToast: false,
-  successMessage: MSG.received,
-});
 
 export const useRecoverPoDelivery = createMutation<
   { id: string; input: RecoverDeliveryInput },

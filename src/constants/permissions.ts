@@ -31,6 +31,28 @@ export const ORDER_PERMISSIONS = {
 } as const;
 
 /**
+ * Phiếu nhận hàng — resource `procurement-goods-receipts` (BE GoodsReceiptController, PR #62).
+ * Kiểm đếm, xác nhận, huỷ DRAFT và chuyển hàng sang khu QC đều là UPDATE.
+ */
+export const GOODS_RECEIPT_PERMISSIONS = {
+  viewPage: "procurement-goods-receipts:VIEW_PAGE",
+  read: "procurement-goods-receipts:READ",
+  create: "procurement-goods-receipts:CREATE",
+  update: "procurement-goods-receipts:UPDATE",
+  approve: "procurement-goods-receipts:APPROVE",
+} as const;
+
+/**
+ * Kết luận QC dòng nhận — resource `procurement-qc-tasks` (BE `POST …/lines/{id}/inspection`,
+ * PR #62). Tách khỏi quyền phiếu nhận: NV QC kết luận, NV kho không (docs 03 §2).
+ */
+export const QC_TASK_PERMISSIONS = {
+  viewPage: "procurement-qc-tasks:VIEW_PAGE",
+  read: "procurement-qc-tasks:READ",
+  approve: "procurement-qc-tasks:APPROVE",
+} as const;
+
+/**
  * Màn Đơn đặt NCC — resource `procurement-purchase-orders` (BE PurchaseOrderController).
  * VIEW_PAGE chỉ dùng cho menu + chặn route; mọi API đọc cần READ (BE Action.java, ADR-0004).
  */

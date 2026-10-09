@@ -145,14 +145,6 @@ export const recordSupplierConfirmation = (id: string, input: SupplierConfirmati
     note: input.note || undefined,
   });
 
-export interface ReceiveLineInput {
-  lineId: string;
-  quantity: number;
-}
-
-export const receiveGoods = (id: string, lines: ReceiveLineInput[]) =>
-  postPo(`${PO_PATH}/${id}/receipts`, { lines });
-
 /* ── Reports ─────────────────────────────────────────────────────────── */
 
 export async function fetchPoStatusDashboard(signal?: AbortSignal): Promise<PoStatusCount[]> {

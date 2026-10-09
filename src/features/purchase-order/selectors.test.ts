@@ -16,7 +16,6 @@ import {
   totalOpenQuantity,
   totalOrderedQuantity,
   totalReceivedQuantity,
-  validateReceiveDraft,
 } from "./selectors";
 
 import type { PoLine, PurchaseOrder } from "./types";
@@ -34,35 +33,6 @@ function line(lineId: string, openQuantity: number): PoLine {
     lineTotal: 10000,
   };
 }
-
-describe("validateReceiveDraft — BR-04 (docs 02 §6), dung sai = 0 theo BE (open-question C9)", () => {
-  const lines = [line("a", 6), line("b", 3)];
-
-  it("keeps valid lines and skips empty inputs", () => {
-    expect(validateReceiveDraft(lines, { a: "4", b: "" })).toEqual({
-      lines: [{ lineId: "a", quantity: 4 }],
-      errors: {},
-    });
-  });
-
-  it("accepts exactly the open quantity", () => {
-    expect(validateReceiveDraft(lines, { a: "6" }).lines).toEqual([{ lineId: "a", quantity: 6 }]);
-  });
-
-  it("BR-04: SL nhận vượt openQuantity bị chặn, có lỗi inline", () => {
-    const result = validateReceiveDraft(lines, { a: "20" });
-    expect(result.lines).toEqual([]);
-    expect(result.errors.a).toContain("6");
-  });
-
-  it.each(["0", "-1", "1.5", "abc"])("rejects %s", (raw) => {
-    expect(validateReceiveDraft(lines, { b: raw }).errors.b).toBeDefined();
-  });
-
-  it("returns nothing to send when every input is empty", () => {
-    expect(validateReceiveDraft(lines, {})).toEqual({ lines: [], errors: {} });
-  });
-});
 
 describe("PO quantity selectors", () => {
   const po: PurchaseOrder = {

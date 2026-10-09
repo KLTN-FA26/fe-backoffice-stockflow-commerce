@@ -10,7 +10,6 @@ import {
   useApprovePo,
   useCancelPo,
   useCloseShortPo,
-  useReceiveGoodsPo,
   useRecordSupplierConfirmation,
   useRecoverPoDelivery,
   useSendPo,
@@ -22,7 +21,6 @@ import type {
   PoActionCode,
   PoErrorContext,
   PurchaseOrder,
-  ReceiveLineInput,
   RecoverDeliveryInput,
   SendPoInput,
   SupplierConfirmationInput,
@@ -40,21 +38,14 @@ export function usePoActions(po: PurchaseOrder | null, refetchPo: () => void) {
   const sendPo = useSendPo();
   const cancelPo = useCancelPo();
   const closeShortPo = useCloseShortPo();
-  const receivePo = useReceiveGoodsPo();
   const recoverPo = useRecoverPoDelivery();
   const confirmPo = useRecordSupplierConfirmation();
   const [dialog, setDialog] = useState<PoActionCode | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [conflictError, setConflictError] = useState<string | null>(null);
-  const isMutating = [
-    approvePo,
-    sendPo,
-    cancelPo,
-    closeShortPo,
-    receivePo,
-    recoverPo,
-    confirmPo,
-  ].some((m) => m.isPending);
+  const isMutating = [approvePo, sendPo, cancelPo, closeShortPo, recoverPo, confirmPo].some(
+    (m) => m.isPending,
+  );
   const id = po?.poId ?? "";
 
   const close = () => {
@@ -95,8 +86,6 @@ export function usePoActions(po: PurchaseOrder | null, refetchPo: () => void) {
     cancel: (reason: string) => cancelPo.mutate({ id, reason }, callbacks("default", false)),
     closeShort: (reason: string) =>
       closeShortPo.mutate({ id, reason }, callbacks("default", false)),
-    receive: (lines: ReceiveLineInput[]) =>
-      receivePo.mutate({ id, lines }, callbacks("receive", true)),
     recover: (input: RecoverDeliveryInput) =>
       recoverPo.mutate({ id, input }, callbacks("recover", true)),
     confirm: (input: SupplierConfirmationInput) =>

@@ -6,7 +6,6 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 import { actionDescription } from "./PoActionPanel";
 import { PoConfirmationDialog } from "./PoConfirmationDialog";
-import { PoReceiveDialog } from "./PoReceiveDialog";
 import { PoRecoverDialog } from "./PoRecoverDialog";
 import { PoSendDialog } from "./PoSendDialog";
 
@@ -80,7 +79,6 @@ export function PoDetailDialogs({
         onConfirm={a.send}
         {...shared}
       />
-      <PoReceiveDialog open={isOpen("receive")} onConfirm={a.receive} {...shared} />
       <PoRecoverDialog open={isOpen("recoverDelivery")} onConfirm={a.recover} {...shared} />
       <PoConfirmationDialog open={isOpen("recordConfirmation")} onConfirm={a.confirm} {...shared} />
     </>

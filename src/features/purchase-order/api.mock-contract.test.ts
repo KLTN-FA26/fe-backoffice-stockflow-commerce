@@ -19,7 +19,6 @@ import {
   listPoDeliveryDecisions,
   listPurchaseOrders,
   listSupplierSpend,
-  receiveGoods,
   recordSupplierConfirmation,
   recoverPoDelivery,
   sendPurchaseOrder,
@@ -246,20 +245,6 @@ describe("PO mock ↔ hợp đồng BE", () => {
       reconciled: true,
       acknowledgePastDue: true,
     });
-  });
-
-  it("nhận vượt SL còn mở → 400 VALIDATION_FAILED; nhận một phần → PARTIALLY_RECEIVED", async () => {
-    const po = await getPurchaseOrder("PO-2026-0012");
-    const line = po.lines[0];
-    if (!line) throw new Error("seed PO không có dòng");
-    await expectApiError(
-      receiveGoods(po.poId, [{ lineId: line.lineId, quantity: line.openQuantity + 1 }]),
-      400,
-      "VALIDATION_FAILED",
-    );
-    const updated = await receiveGoods(po.poId, [{ lineId: line.lineId, quantity: 1 }]);
-    expect(updated.status).toBe("PARTIALLY_RECEIVED");
-    expect(updated.lines[0]?.openQuantity).toBe(line.openQuantity - 1);
   });
 
   it("NCC xác nhận ghi một lần; ghi đè phản hồi khác → 409", async () => {

@@ -307,43 +307,6 @@ export function registerAllMockRoutes(): void {
   });
 
   /* ====================================================================
-   * Module 03 — Receipts / Lots
-   * ==================================================================*/
-
-  // GET /receipts
-  registerMockRoute("GET", "/receipts", async (config) => {
-    const { receipts } = await import("@/lib/mock-data");
-    const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
-    const status = params.getAll("status");
-
-    let filtered = [...receipts];
-    if (status.length) filtered = filtered.filter((r) => status.includes(r.status));
-
-    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
-  });
-
-  // GET /receipts/:id
-  registerMockRoute("GET", "/receipts/:id", async (config) => {
-    const { receipts } = await import("@/lib/mock-data");
-    const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
-    const receipt = receipts.find((r) => r.receiptId === id);
-    if (!receipt) return { status: 404, data: { message: "Receipt not found" }, headers: {} };
-    return { status: 200, data: receipt, headers: {} };
-  });
-
-  // GET /lots
-  registerMockRoute("GET", "/lots", async (config) => {
-    const { lots } = await import("@/lib/mock-data");
-    const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
-
-    return { status: 200, data: paginate(lots, page, pageSize), headers: {} };
-  });
-
-  /* ====================================================================
    * Module 04 — Invoices
    * ==================================================================*/
 

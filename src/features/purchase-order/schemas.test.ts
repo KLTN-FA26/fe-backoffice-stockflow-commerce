@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   createPoSchema,
-  receiveGoodsInputSchema,
   recoverDeliveryInputSchema,
   sendPoInputSchema,
   supplierConfirmationInputSchema,
@@ -90,21 +89,6 @@ describe("createPoSchema — Input (BE CreatePurchaseOrderRequest)", () => {
   it("ASSUMPTION: SKU trùng trong một PO bị chặn", () => {
     const lines = [validPo.lines[0], { ...validPo.lines[0], quantityOrdered: 1 }];
     expect(issuePaths({ ...validPo, lines })).toContain("lines");
-  });
-});
-
-describe("receiveGoodsInputSchema (BE ReceiveGoodsRequest)", () => {
-  it("nhận SL nguyên dương; chặn phiếu rỗng (BE @NotEmpty)", () => {
-    expect(
-      receiveGoodsInputSchema.safeParse({ lines: [{ lineId: "l", quantity: 3 }] }).success,
-    ).toBe(true);
-    expect(receiveGoodsInputSchema.safeParse({ lines: [] }).success).toBe(false);
-  });
-
-  it.each([0, 2.5])("chặn SL %s", (quantity) => {
-    expect(receiveGoodsInputSchema.safeParse({ lines: [{ lineId: "l", quantity }] }).success).toBe(
-      false,
-    );
   });
 });
 

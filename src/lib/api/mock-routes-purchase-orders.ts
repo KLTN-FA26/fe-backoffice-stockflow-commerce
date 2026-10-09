@@ -237,56 +237,6 @@ const transition =
     return beOk(updated);
   };
 
-/** BE `PurchaseOrder#receiveGoods` + `PoLine#receive`. */
-async function receiveGoods(config: AxiosRequestConfig) {
-  const id = readRouteId(config);
-  const store = await getPoStore();
-  const po = store.get(id);
-  if (!po) return notFound(id);
-  const body = parseJsonBody(config.data);
-  const requested: unknown[] = Array.isArray(body.lines) ? body.lines : [];
-  if (requested.length === 0) {
-    return beError(400, "VALIDATION_FAILED", BE_GENERIC_VALIDATION_MESSAGE, [
-      { field: "lines", message: "at least one line is required" },
-    ]);
-  }
-  if (po.status !== "SENT" && po.status !== "PARTIALLY_RECEIVED") {
-    return invalidTransition(`cannot receive goods while ${po.status}`);
-  }
-  if (po.supplierConfirmationStatus === "REJECTED") {
-    return invalidTransition(
-      "Cannot receive a rejected purchase order; cancel it and create a replacement",
-    );
-  }
-  const received = new Map<string, number>();
-  for (const raw of requested) {
-    const r = isRecord(raw) ? raw : {};
-    const line = po.lines.find((l) => l.lineId === readString(r.lineId));
-    const qty = r.quantity;
-    // BE: dòng lạ / qty ≤ 0 / qty > openQuantity là IllegalArgumentException → 400 chung.
-    if (
-      !line ||
-      typeof qty !== "number" ||
-      !Number.isInteger(qty) ||
-      qty <= 0 ||
-      qty > line.openQuantity
-    ) {
-      return beError(400, "VALIDATION_FAILED", BE_GENERIC_VALIDATION_MESSAGE);
-    }
-    received.set(line.lineId, qty);
-  }
-  const lines = po.lines.map((l) => {
-    const qty = received.get(l.lineId) ?? 0;
-    return { ...l, quantityReceived: l.quantityReceived + qty, openQuantity: l.openQuantity - qty };
-  });
-  const status: BePoStatus = lines.every((l) => l.openQuantity === 0)
-    ? "CLOSED"
-    : "PARTIALLY_RECEIVED";
-  const updated = touch(po, { lines, status });
-  store.set(id, updated);
-  return beOk(updated);
-}
-
 /** GET /reports/supplier-spend — BE #40: một dòng cho mỗi cặp NCC + tiền tệ. */
 async function supplierSpend(config: AxiosRequestConfig) {
   const p = readParams(config);
@@ -392,6 +342,5 @@ export function registerPurchaseOrderMockRoutes(): void {
     "/purchase-orders/:id/closure-short",
     transition("CLOSED_SHORT", "closeShortReason"),
   );
-  registerMockRoute("POST", "/purchase-orders/:id/receipts", receiveGoods);
   registerPoDeliveryMockRoutes();
 }

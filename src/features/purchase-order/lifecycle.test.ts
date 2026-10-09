@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { PO_STATUSES } from "@/constants";
+import { GOODS_RECEIPT_PERMISSIONS, PO_STATUSES } from "@/constants";
 
 import { PO_PERMISSION_SETS } from "./__fixtures__/render";
 import { PO_TRANSITIONS, allowedPoActions, isPoTerminal, nextPoStatuses } from "./lifecycle";
@@ -80,11 +80,20 @@ describe("allowedPoActions — gate theo MÃ QUYỀN (/identity/me/permissions),
     expect(codes(po, "procurement")).toEqual(["receive", "recordConfirmation", "cancel"]);
   });
 
+  it("Nhận hàng mở màn tạo phiếu nhận → cần goods-receipts CREATE + VIEW_PAGE", () => {
+    const po = gate("SENT", { supplierConfirmationStatus: "PENDING" });
+    const withoutViewPage: readonly PermissionCode[] = PO_PERMISSION_SETS.procurement.filter(
+      (code) => code !== GOODS_RECEIPT_PERMISSIONS.viewPage,
+    );
+    const actions = allowedPoActions(po, (code) => withoutViewPage.includes(code));
+    expect(actions.map((a) => a.code)).not.toContain("receive");
+  });
+
   it.each(["DRAFT", "APPROVED"] as const)("BR-03: %s chưa chốt → không có Nhận hàng", (s) => {
     expect(codes(gate(s), "full")).not.toContain("receive");
   });
 
-  it("BE: NCC đã từ chối → không cho nhận hàng (huỷ và tạo PO thay thế)", () => {
+  it("NCC đã từ chối → không cho nhận hàng (PO không bao giờ CONFIRMED, BE receipt từ chối)", () => {
     const po = gate("SENT", { supplierConfirmationStatus: "REJECTED" });
     expect(codes(po, "full")).toEqual(["cancel"]);
   });

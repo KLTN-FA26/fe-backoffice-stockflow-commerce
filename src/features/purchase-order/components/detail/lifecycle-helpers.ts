@@ -18,7 +18,7 @@ export interface LifecycleStep {
   done: boolean;
   current: boolean;
   /**
-   * Bước có thể không xảy ra: BE `receiveGoods` đóng thẳng SENT → CLOSED khi nhận đủ một lần,
+   * Bước có thể không xảy ra: một phiếu nhận xác nhận đủ SL một lần thì PO đi thẳng sang đã nhận đủ,
    * nên "Nhận một phần" chỉ chắc chắn đã qua khi PO đang/đã ở PARTIALLY_RECEIVED hoặc CLOSED_SHORT.
    */
   optional: boolean;

@@ -15,14 +15,15 @@ export const PO_COLUMNS = {
   SUPPLIER: "supplier",
 } as const;
 
+/** Cột danh sách phiếu nhận — chỉ field có trong BE `GoodsReceiptRowResponse` (PR #62). */
 export const RECEIPT_COLUMNS = {
   ACTIONS: "actions",
-  LINE_COUNT: "lineCount",
-  PO_REFERENCE: "poReference",
-  RECEIPT_NUMBER: "receiptNumber",
+  CONFIRMED_AT: "confirmedAt",
+  DELIVERY_NOTE: "deliveryNote",
+  NUMBER: "number",
+  PURCHASE_ORDER: "purchaseOrder",
+  RECEIVED_AT: "receivedAt",
   STATUS: "status",
-  SUPPLIER: "supplier",
-  WAREHOUSE: "warehouse",
 } as const;
 
 export const PRODUCT_COLUMNS = {

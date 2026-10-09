@@ -90,19 +90,6 @@ export function unitPriceScaleMessage(currency: string): string {
     : `Đơn giá ${currency} tối đa ${digits} chữ số thập phân`;
 }
 
-/* ── Nhận hàng — BE ReceiveGoodsRequest ──────────────────────────────── */
-
-export const receiveGoodsLineInputSchema = z.object({
-  lineId: requiredString("Thiếu dòng PO"),
-  // BE ReceiveGoodsLineRequest: `int quantity` @Positive. Cận trên (BR-04) cần openQuantity
-  // của dòng — kiểm trong `validateReceiveDraft` (selectors.ts).
-  quantity: intQty("SL nhận phải là số nguyên > 0"),
-});
-
-export const receiveGoodsInputSchema = z.object({
-  lines: z.array(receiveGoodsLineInputSchema).min(1, "Nhập SL nhận cho ít nhất một dòng"),
-});
-
 /* ── Gửi NCC — BE SendPurchaseOrderRequest + PurchaseOrder#confirmDeliveryDate ── */
 
 /**
@@ -161,7 +148,6 @@ export const supplierConfirmationInputSchema = z
 
 export type CreatePoInput = z.infer<typeof createPoSchema>;
 export type PoLineInput = z.infer<typeof poLineInputSchema>;
-export type ReceiveGoodsInput = z.infer<typeof receiveGoodsInputSchema>;
 export type SendPoInput = z.infer<ReturnType<typeof sendPoInputSchema>>;
 export type RecoverDeliveryInput = z.infer<ReturnType<typeof recoverDeliveryInputSchema>>;
 export type SupplierConfirmationInput = z.infer<typeof supplierConfirmationInputSchema>;

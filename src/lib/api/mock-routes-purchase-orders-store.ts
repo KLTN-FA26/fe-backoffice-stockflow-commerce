@@ -148,6 +148,8 @@ export interface MockDeliveryDecision {
 export interface MockFieldError {
   field: string;
   message: string;
+  /** BE `FieldError.code` — tên constraint (NotBlank, Positive…). */
+  code?: string;
 }
 
 let poStore: Map<string, MockBePo> | null = null;

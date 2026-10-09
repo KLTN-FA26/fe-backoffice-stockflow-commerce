@@ -7,6 +7,7 @@
  */
 
 import {
+  GOODS_RECEIPT_PERMISSIONS,
   PO_DELIVERY_STATUS,
   PO_PERMISSIONS,
   PO_STATUS,
@@ -24,8 +25,8 @@ import type { PoStatus, PurchaseOrder } from "./types";
  * Title Case của `lib/domain/lifecycle.ts`) vì PO đã chạy theo 7 mã trạng thái BE. Ánh xạ:
  *   Draft → Pending Approval / Approved   ⇒ DRAFT → APPROVED (BE gộp submit+approve)
  *   Approved → Confirmed                  ⇒ APPROVED → SENT
- *   Confirmed / Partially Received → Received → Closed ⇒ receiveGoods tự đóng CLOSED khi hết
- *     open qty (không qua bảng này — xem action "receive")
+ *   Confirmed / Partially Received → Received → Closed ⇒ do phiếu nhận ghi tiến độ khi xác nhận
+ *     (POST /goods-receipts/{id}/confirmation, BE PR #62), không qua bảng này — xem action "receive"
  *   Partially Received → Closed (short-close) ⇒ PARTIALLY_RECEIVED → CLOSED_SHORT
  * ASSUMPTION (open-question A2): BE chưa có Pending Approval / hạn mức duyệt (BR-PO-002).
  */
@@ -68,6 +69,8 @@ export interface PoAction {
   readonly label: string;
   /** Mã quyền BE guard endpoint này (PurchaseOrderController @RequiresPermission). */
   readonly permission: PermissionCode;
+  /** Quyền phải có thêm khi action mở sang màn khác (vd quyền mở trang đích). */
+  readonly extraPermissions?: readonly PermissionCode[];
   readonly fromStatuses: readonly PoStatus[];
   /** Trạng thái đích nếu là chuyển một bước (receive/khôi phục/xác nhận không có). */
   readonly targetStatus?: PoStatus;
@@ -99,10 +102,15 @@ export const PO_ACTIONS: readonly PoAction[] = [
   {
     code: "receive",
     label: UI_LABELS.purchaseOrder.action.receive,
-    permission: PO_PERMISSIONS.update,
+    // SCRUM-436: "Nhận hàng" mở màn tạo phiếu nhận (POST /goods-receipts, BE PR #62) — quyền của
+    // phiếu nhận, không phải PO:UPDATE. Màn PO đã cần purchase-orders:READ.
+    permission: GOODS_RECEIPT_PERMISSIONS.create,
+    // Màn tạo phiếu nhận gate thêm VIEW_PAGE — thiếu thì bấm vào sẽ bị chặn trang
+    extraPermissions: [GOODS_RECEIPT_PERMISSIONS.viewPage],
     // BR-03 (docs 02 §6): chỉ nhận khi PO đã chốt (Confirmed ≙ BE SENT) hoặc Partially Received.
     fromStatuses: [PO_STATUS.SENT, PO_STATUS.PARTIALLY_RECEIVED],
-    // BE receiveGoods: NCC đã từ chối thì không nhận — huỷ và tạo PO thay thế.
+    // NCC đã từ chối thì không nhận — huỷ và tạo PO thay thế. Bảng PO mới (C4) chỉ CONFIRMED khi
+    // NCC đã xác nhận, nên BE receipt cũng trả PURCHASE_ORDER_NOT_RECEIVABLE (BR-01 docs 03).
     when: (po) => po.supplierConfirmationStatus !== SUPPLIER_CONFIRMATION_STATUS.REJECTED,
   },
   {
@@ -163,7 +171,8 @@ export function allowedPoActions(
       action.fromStatuses.includes(po.status) &&
       allowedByTable &&
       (action.when?.(po) ?? true) &&
-      can(action.permission)
+      can(action.permission) &&
+      (action.extraPermissions ?? []).every(can)
     );
   });
 }
