@@ -28,7 +28,8 @@ describe("ProcurementSettingsSection", () => {
       "href",
       ADMIN_ROUTES.suppliers.detail("SUP-004"),
     );
-    expect(screen.queryByRole("button", { name: /Lưu|Chỉnh sửa/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Lưu" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Chỉnh sửa" })).toBeInTheDocument();
   });
 
   it("shows an empty state for an SKU without a mock mapping", () => {

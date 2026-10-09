@@ -6,6 +6,14 @@ const DEFAULT_SUPPLIER_EXAMPLE = {
   supplierName: "Công ty TNHH Dệt may Thành Công",
 };
 
+/** Existing supplier identities only; master purchasing terms are deliberately absent. */
+export const PROCUREMENT_SUPPLIER_CHOICES = [
+  DEFAULT_SUPPLIER_EXAMPLE,
+  { supplierId: "SUP-002", supplierName: "Guangzhou Print Supplies Co., Ltd" },
+  { supplierId: "SUP-003", supplierName: "Công ty CP Gốm sứ Minh Long" },
+  { supplierId: "SUP-004", supplierName: "Công ty TNHH May mặc Việt Thắng" },
+];
+
 /**
  * UI-only examples using supplier/SKU records already present in mock-data.ts.
  * Their association and default choice are illustrative, not preferred-supplier semantics.

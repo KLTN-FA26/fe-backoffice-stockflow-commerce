@@ -1,4 +1,4 @@
-/** FE display model only. No backend DTO or validation semantics are implied. */
+/** FE display/edit model only. No backend DTO or purchasing rules are implied. */
 export interface ProcurementSupplierView {
   supplierId: string;
   supplierName: string;
