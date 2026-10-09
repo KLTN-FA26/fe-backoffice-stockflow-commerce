@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { AUTH_STORAGE_KEY, AUTH_STORAGE_VERSION } from "@/constants/auth";
 
-import { removeAuthCookie, setAuthCookie } from "./auth-cookie";
+import { getAuthCookie, removeAuthCookie, setAuthCookie } from "./auth-cookie";
 import { authTokensSchema, authUserSchema } from "./auth-schemas";
 import { ROLES } from "./roles";
 
@@ -38,6 +38,7 @@ interface AuthState {
   login: (user: AuthUser, tokens: AuthTokens) => void;
   establishTokens: (tokens: AuthTokens) => void;
   logout: () => void;
+  synchronizeCookie: () => void;
 }
 
 /* ── Store ────────────────────────────────────────────────────────────── */
@@ -69,6 +70,15 @@ export const useAuthStore = create<AuthState>()(
         set({ tokens, user: null, isAuthenticated: false, impersonatedRole: null });
       },
 
+      synchronizeCookie: () => {
+        const { user, tokens, isAuthenticated } = get();
+        if (!isAuthenticated || !user || !tokens?.accessToken) {
+          removeAuthCookie();
+        } else if (getAuthCookie() !== tokens.accessToken) {
+          setAuthCookie(tokens.accessToken);
+        }
+      },
+
       logout: () => {
         removeAuthCookie();
         set({
@@ -82,6 +92,8 @@ export const useAuthStore = create<AuthState>()(
     {
       name: AUTH_STORAGE_KEY,
       version: AUTH_STORAGE_VERSION,
+      // Hydrate after client mount so SSR and the first client render both wait.
+      skipHydration: true,
       // Old sessions cannot establish identity under the new contract. Require login again.
       migrate: () => {
         removeAuthCookie();
@@ -97,6 +109,7 @@ export const useAuthStore = create<AuthState>()(
       },
       onRehydrateStorage: () => (_state, error) => {
         if (error) removeAuthCookie();
+        else _state?.synchronizeCookie();
       },
       storage: createJSONStorage(() => ({
         getItem: (name) => {

@@ -1,8 +1,12 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { AUTH_STORAGE_KEY, AUTH_STORAGE_VERSION } from "@/constants/auth";
 
 import { completeAuthentication, loginApi } from "@/lib/auth/auth-api";
+import { getAuthCookie, removeAuthCookie } from "@/lib/auth/auth-cookie";
+import { useAuthStore } from "@/lib/auth/auth-store";
 
 import LoginPage from "./page";
 
@@ -20,7 +24,15 @@ vi.mock("@/lib/auth/auth-api", () => ({
   getMockLoginUsersApi: vi.fn(),
 }));
 
-afterEach(() => vi.clearAllMocks());
+beforeEach(async () => {
+  useAuthStore.getState().logout();
+  localStorage.clear();
+  await useAuthStore.persist.rehydrate();
+});
+afterEach(() => {
+  useAuthStore.getState().logout();
+  vi.clearAllMocks();
+});
 
 const tokens = { accessToken: "issued", tokenType: "Bearer" as const, expiresInSeconds: 28800 };
 
@@ -56,5 +68,45 @@ describe("real login form", () => {
     await submitCredentials();
     expect(await screen.findByText("Không thể tải tài khoản")).toBeInTheDocument();
     expect(replace).not.toHaveBeenCalled();
+  });
+});
+
+describe("restored login-page auth", () => {
+  it("window focus does not discard temporary tokens during /me bootstrap", () => {
+    render(<LoginPage />);
+    act(() => useAuthStore.getState().establishTokens(tokens));
+    act(() => window.dispatchEvent(new Event("focus")));
+    expect(useAuthStore.getState().tokens).toEqual(tokens);
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("repairs a missing cookie and routes hydrated local auth to the callback", async () => {
+    localStorage.setItem(
+      AUTH_STORAGE_KEY,
+      JSON.stringify({
+        version: AUTH_STORAGE_VERSION,
+        state: {
+          user: {
+            userId: "login-user",
+            username: "staff",
+            email: "staff@example.com",
+            fullName: null,
+            status: "ACTIVE",
+            roles: [],
+            lastLoginAt: null,
+          },
+          tokens,
+          isAuthenticated: true,
+        },
+      }),
+    );
+    removeAuthCookie();
+    await useAuthStore.persist.rehydrate();
+    render(<LoginPage />);
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/admin/products"));
+    expect(getAuthCookie()).toBe(tokens.accessToken);
+    expect(screen.queryByLabelText("Tên đăng nhập")).not.toBeInTheDocument();
+    expect(loginApi).not.toHaveBeenCalled();
   });
 });

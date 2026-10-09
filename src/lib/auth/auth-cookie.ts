@@ -1,9 +1,9 @@
 /**
  * Auth cookie — bridges zustand (localStorage) ↔ Next.js middleware (cookies).
  *
- * Middleware runs on the Edge and cannot read localStorage.
+ * The Next.js proxy runs on the server and cannot read localStorage.
  * On login we set a simple cookie with the access token so the middleware
- * can verify auth state. The cookie is HttpOnly=false so JS can set it,
+ * can use its presence as a routing hint. The cookie is HttpOnly=false so JS can set it,
  * but it's NOT used for API auth — that goes through the Authorization header.
  */
 
@@ -26,5 +26,10 @@ export function removeAuthCookie(): void {
 export function getAuthCookie(): string | null {
   if (typeof document === "undefined") return null;
   const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${COOKIE_NAME}=([^;]*)`));
-  return match ? decodeURIComponent(match[1]) : null;
+  if (!match) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return null;
+  }
 }

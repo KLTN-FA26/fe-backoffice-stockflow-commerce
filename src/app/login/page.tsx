@@ -27,6 +27,7 @@ import {
   loginApi,
   mockLoginApi,
 } from "@/lib/auth/auth-api";
+import { useAuthLifecycle } from "@/lib/auth/use-auth-lifecycle";
 
 import { useIsMock } from "@/providers/app-providers";
 
@@ -73,6 +74,11 @@ function LoginForm() {
     ? requestedCallback
     : ADMIN_ROUTES.home;
   const isMock = useIsMock();
+  const { hasHydrated, isAuthenticated } = useAuthLifecycle();
+
+  useEffect(() => {
+    if (hasHydrated && isAuthenticated) router.replace(callbackUrl);
+  }, [callbackUrl, hasHydrated, isAuthenticated, router]);
 
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -142,6 +148,8 @@ function LoginForm() {
       }
     });
   }
+
+  if (!hasHydrated || isAuthenticated) return <LoginPageFallback />;
 
   const selectedUser = mockUsers.find((user) => user.userId === selectedUserId);
 
