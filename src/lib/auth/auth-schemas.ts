@@ -5,13 +5,6 @@ export const loginRequestSchema = z.object({
   password: z.string().min(1),
 });
 
-// BE develop: identity/internal/controller/dto/AuthTokenResponse.java.
-export const authTokensSchema = z.object({
-  accessToken: z.string().min(1),
-  tokenType: z.literal("Bearer"),
-  expiresInSeconds: z.number().int().positive(),
-});
-
 // BE develop: identity/internal/controller/dto/MeResponse.java and MeController.me.
 // fullName and lastLoginAt are nullable in V20260902001200__identity_users_roles.sql.
 // Keep role authorities verbatim; the legacy UI role registry is a separate concern.
@@ -26,6 +19,5 @@ export const authUserSchema = z.object({
 });
 
 export type LoginRequest = z.infer<typeof loginRequestSchema>;
-export type AuthTokens = z.infer<typeof authTokensSchema>;
 export type AuthUser = z.infer<typeof authUserSchema>;
-export type LoginResponse = AuthTokens;
+export type LoginResponse = AuthUser;

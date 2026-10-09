@@ -1,8 +1,8 @@
-import { AUTH_PATHS, MOCK_LOGIN_PASSWORD } from "@/constants/auth";
+import { AUTH_API_BASE, AUTH_PATHS, MOCK_LOGIN_PASSWORD } from "@/constants/auth";
 
 import { api } from "@/lib/api/client";
 
-import { authTokensSchema, authUserSchema, loginRequestSchema } from "./auth-schemas";
+import { authUserSchema, loginRequestSchema } from "./auth-schemas";
 import { useAuthStore } from "./auth-store";
 
 import type { AuthUser, LoginRequest, LoginResponse } from "./auth-schemas";
@@ -17,36 +17,25 @@ export interface MockLoginUser {
 }
 
 export async function loginApi(credentials: LoginRequest): Promise<LoginResponse> {
-  const { data } = await api.post<unknown>(AUTH_PATHS.login, loginRequestSchema.parse(credentials));
-  return authTokensSchema.parse(data);
+  const { data } = await api.post<unknown>(
+    AUTH_PATHS.login,
+    loginRequestSchema.parse(credentials),
+    { baseURL: AUTH_API_BASE },
+  );
+  const user = authUserSchema.parse(data);
+  useAuthStore.getState().login(user);
+  return user;
 }
 
 export async function getCurrentUserApi(): Promise<AuthUser> {
-  const { data } = await api.get<unknown>(AUTH_PATHS.me);
+  const { data } = await api.get<unknown>(AUTH_PATHS.me, { baseURL: AUTH_API_BASE });
   return authUserSchema.parse(data);
 }
 
-/** Establish the bearer before /me; only a validated identity completes login. */
-export async function completeAuthentication(tokens: LoginResponse): Promise<void> {
-  const store = useAuthStore.getState();
-  store.establishTokens(tokens);
-  try {
-    const user = await getCurrentUserApi();
-    // A concurrent 401/logout must not resurrect a revoked session.
-    if (useAuthStore.getState().tokens !== tokens) {
-      throw new Error("Phiên đăng nhập đã kết thúc.");
-    }
-    store.login(user, tokens);
-  } catch (error: unknown) {
-    store.logout();
-    throw error;
-  }
-}
-
-/** User-triggered logout: send the bearer first, always clear local state afterwards. */
+/** User-triggered logout: ask the server to revoke first, always clear local state afterwards. */
 export async function logoutApi(): Promise<void> {
   try {
-    await api.post(AUTH_PATHS.logout);
+    await api.post(AUTH_PATHS.logout, undefined, { baseURL: AUTH_API_BASE });
   } catch {
     // Logout deliberately tolerates a revoked session or unavailable server.
   } finally {
