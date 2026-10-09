@@ -42,4 +42,16 @@ describe("ProcurementSettingsSection", () => {
     expect(screen.getByText("Chưa có nhà cung cấp liên kết")).toBeInTheDocument();
     expect(screen.getByText("60")).toBeInTheDocument();
   });
+
+  it("displays a default supplier reference independently of supplier mappings", () => {
+    const settings = {
+      ...readMockSkuProcurementSettings("SKU-001-BLK-L", 60),
+      defaultSupplierName: null,
+      suppliers: [],
+    };
+    render(<ProcurementSettingsSection settings={settings} isMock />);
+
+    expect(screen.getByText("SUP-001")).toBeInTheDocument();
+    expect(screen.getByText("Chưa có nhà cung cấp liên kết")).toBeInTheDocument();
+  });
 });

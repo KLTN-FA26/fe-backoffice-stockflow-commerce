@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ADMIN_ROUTES } from "@/constants";
@@ -77,13 +77,16 @@ describe("SKU detail procurement navigation", () => {
     );
   });
 
-  it("keeps illustrative mappings out of a non-mock session", async () => {
+  it("keeps illustrative mappings and the legacy reorder point out of non-mock settings", async () => {
     useIsMockMock.mockReturnValue(false);
     useSkuMock.mockReturnValue({ data: sku, isLoading: false });
     await renderSkuDetail();
 
     expect(await screen.findByRole("heading", { name: "Cài đặt mua hàng" })).toBeInTheDocument();
     expect(screen.getByText("Chưa có nhà cung cấp liên kết")).toBeInTheDocument();
+    const settings = within(screen.getByRole("region", { name: "Cài đặt mua hàng" }));
+    expect(settings.queryByText(String(sku.reorderPoint))).not.toBeInTheDocument();
+    expect(settings.getAllByText("Chưa có dữ liệu")).toHaveLength(2);
     expect(
       screen.queryByRole("link", { name: "Công ty TNHH Dệt may Thành Công" }),
     ).not.toBeInTheDocument();

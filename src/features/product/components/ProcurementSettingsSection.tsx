@@ -30,10 +30,6 @@ export function ProcurementSettingsSection({
   settings: SkuProcurementSettingsView;
   isMock: boolean;
 }) {
-  const defaultSupplier = settings.suppliers.find(
-    (supplier) => supplier.supplierId === settings.defaultSupplierId,
-  );
-
   return (
     <section aria-labelledby="procurement-settings-heading">
       <Card>
@@ -50,7 +46,9 @@ export function ProcurementSettingsSection({
         <dl className="border-border-default mb-4 grid gap-3 border-b pb-3 text-[0.8125rem] sm:grid-cols-2">
           <div>
             <dt className="text-ink-tertiary text-xs">Nhà cung cấp mặc định</dt>
-            <dd className="text-ink-primary mt-1">{defaultSupplier?.supplierName ?? MISSING}</dd>
+            <dd className="text-ink-primary mt-1">
+              {settings.defaultSupplierName ?? settings.defaultSupplierId ?? MISSING}
+            </dd>
           </div>
           <div>
             <dt className="text-ink-tertiary text-xs">Điểm đặt hàng lại</dt>
