@@ -37,6 +37,7 @@ export {
   uomValues,
 } from "./schemas";
 export type {
+  BrandDto,
   CategoryDto,
   CreateProductInput,
   ProductDraftFormValues,
@@ -100,9 +101,11 @@ export type {
 } from "./create-product-form";
 
 export {
+  brandKeys,
   categoryKeys,
   productKeys,
   skuKeys,
+  useBrands,
   useCategories,
   useProduct,
   useProducts,

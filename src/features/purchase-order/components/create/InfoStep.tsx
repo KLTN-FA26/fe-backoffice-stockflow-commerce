@@ -14,6 +14,7 @@ import { CurrencyField } from "./CurrencyField";
 import { FieldError, SectionTitle, SummaryItem } from "./CreateFormPrimitives";
 import { fieldClass } from "./helpers";
 import { SupplierCombobox } from "./SupplierCombobox";
+import { WarehouseField } from "./WarehouseField";
 
 import type { CreatePoWizard } from "./useCreateForm";
 
@@ -28,7 +29,7 @@ export function InfoStep({ w }: { w: CreatePoWizard }) {
     <Card>
       <SectionTitle
         title="Thông tin PO"
-        description="Chọn nhà cung cấp đang hợp tác, tiền tệ của đơn và ngày giao dự kiến."
+        description="Chọn nhà cung cấp đang hợp tác, kho nhận hàng, tiền tệ của đơn và ngày giao dự kiến."
       />
       <div className="space-y-4">
         <div className="grid gap-4 lg:grid-cols-2">
@@ -54,6 +55,9 @@ export function InfoStep({ w }: { w: CreatePoWizard }) {
             />
             <FieldError id="po-supplier-error">{errors.supplierId?.message}</FieldError>
           </div>
+          <WarehouseField w={w} />
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
           <CurrencyField w={w} />
         </div>
         <div className="grid gap-4 lg:grid-cols-3">

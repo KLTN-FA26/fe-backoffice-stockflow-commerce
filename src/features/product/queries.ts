@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createDetailQuery, createListQuery, createQueryKeys } from "@/lib/api/query-factory";
 import type { LegacyPaginatedResponse } from "@/lib/api/query-factory";
 
-import { getProduct, getSku, listCategories, listProducts, listSkus } from "./api";
+import { getProduct, getSku, listBrands, listCategories, listProducts, listSkus } from "./api";
 
 import type { Product, Sku } from "./types";
 import type { ListProductsParams, ListSkusParams } from "./api";
@@ -11,6 +11,7 @@ import type { ListProductsParams, ListSkusParams } from "./api";
 export const productKeys = createQueryKeys<ListProductsParams>("products");
 export const skuKeys = createQueryKeys<ListSkusParams>("skus");
 export const categoryKeys = createQueryKeys<Record<string, unknown>>("categories");
+export const brandKeys = createQueryKeys<Record<string, unknown>>("brands");
 
 export const useProducts = createListQuery<Product, ListProductsParams>(productKeys, listProducts);
 
@@ -28,5 +29,14 @@ export function useCategories(enabled: boolean | Record<string, unknown> = true)
     queryKey: categoryKeys.list({}),
     queryFn: ({ signal }) => listCategories(signal),
     enabled: typeof enabled === "boolean" ? enabled : true,
+  });
+}
+
+/** Thương hiệu đang dùng (BE PR #71 `GET /brands`) cho ô chọn trên form sản phẩm. */
+export function useBrands(enabled = true) {
+  return useQuery({
+    queryKey: brandKeys.list({}),
+    queryFn: ({ signal }) => listBrands(signal),
+    enabled,
   });
 }

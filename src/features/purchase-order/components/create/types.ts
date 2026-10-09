@@ -21,11 +21,12 @@ export const STEPS: { key: StepKey; label: string; icon: typeof FileText }[] = [
 ];
 
 /**
- * Form rỗng — CHỈ các trường BE `CreatePurchaseOrderRequest` lưu (supplierId, currency,
- * expectedAt, lines). Không điền sẵn id NCC/SKU nào (không bịa dữ liệu).
+ * Form rỗng — CHỈ các trường BE `CreatePurchaseOrderRequest` lưu (supplierId, warehouseId,
+ * currency, expectedAt, lines). Không điền sẵn id NCC/SKU nào (không bịa dữ liệu).
  */
 export const PO_CREATE_DEFAULTS: PoCreateFormValues = {
   supplierId: "",
+  warehouseId: "",
   currency: "VND",
   expectedDate: "",
   lines: [{ skuId: "", description: "", orderedQty: "1", unitPrice: "" }],

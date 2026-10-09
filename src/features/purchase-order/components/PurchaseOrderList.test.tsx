@@ -20,11 +20,12 @@ const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "obj
 
 const DASHBOARD = [
   "DRAFT",
+  "PENDING_APPROVAL",
   "APPROVED",
-  "SENT",
+  "CONFIRMED",
   "PARTIALLY_RECEIVED",
+  "RECEIVED",
   "CLOSED",
-  "CLOSED_SHORT",
   "CANCELLED",
 ].map((status) => ({ status, count: 0 }));
 
@@ -121,14 +122,14 @@ describe("PurchaseOrderList", () => {
       bePo({
         purchaseOrderId: "11111111-1111-4111-8111-111111111111",
         poNumber: "PO-FAILED",
-        status: "SENT",
+        status: "CONFIRMED",
         supplierConfirmationStatus: "PENDING",
         deliveryStatus: "FAILED",
       }),
       bePo({
         purchaseOrderId: "22222222-2222-4222-8222-222222222222",
         poNumber: "PO-REJECTED",
-        status: "SENT",
+        status: "CONFIRMED",
         supplierConfirmationStatus: "REJECTED",
         deliveryStatus: "DELIVERED",
       }),

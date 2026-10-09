@@ -7,6 +7,7 @@ import { poCreateFormSchema } from "./create-form-schema";
 
 const valid = {
   supplierId: "22222222-2222-4222-8222-222222222222",
+  warehouseId: "d99123fd-2997-4751-6bb9-e10a2e6d9949",
   currency: "VND" as const,
   expectedDate: "",
   lines: [{ skuId: "SKU-001", description: "Sofa 3 chỗ", orderedQty: "2", unitPrice: "1000" }],
@@ -29,9 +30,20 @@ describe("poCreateFormSchema — lỗi gắn đúng path ô form", () => {
     );
   });
 
-  it("thiếu mô tả dòng → lỗi ở ô mô tả (BE #36 PO_LINE_DESCRIPTION_REQUIRED)", () => {
-    expect(paths({ ...valid, lines: [{ ...valid.lines[0], description: "  " }] })).toContain(
-      "lines.0.description",
+  it("chưa chọn kho nhận → lỗi ở ô kho (SCRUM-390)", () => {
+    expect(paths({ ...valid, warehouseId: "" })).toContain("warehouseId");
+  });
+
+  it("mô tả dòng để trống được (BE PR #71 lấy tên sản phẩm); quá 255 ký tự → lỗi ở ô mô tả", () => {
+    expect(paths({ ...valid, lines: [{ ...valid.lines[0], description: "  " }] })).toEqual([]);
+    expect(
+      paths({ ...valid, lines: [{ ...valid.lines[0], description: "a".repeat(256) }] }),
+    ).toContain("lines.0.description");
+  });
+
+  it("đơn giá 0 → lỗi ở ô đơn giá (BE > 0)", () => {
+    expect(paths({ ...valid, lines: [{ ...valid.lines[0], unitPrice: "0" }] })).toContain(
+      "lines.0.unitPrice",
     );
   });
 

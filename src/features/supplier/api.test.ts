@@ -5,6 +5,7 @@ import { api } from "@/lib/api/client";
 import { apiPage, apiSupplier, supplier, validFormValues } from "./__fixtures__/supplier";
 import {
   activateSupplier,
+  blacklistSupplier,
   deactivateSupplier,
   getSupplier,
   listSuppliers,
@@ -70,7 +71,38 @@ describe("supplier API — hợp đồng BE PR #36", () => {
       leadTimeDays: 7,
       communicationChannel: "EMAIL",
       apiEndpoint: null,
+      overReceiptTolerancePercent: null,
+      printSubcontractor: false,
+      lossTolerancePercent: null,
     });
+  });
+
+  it("PUT luôn gửi lại dung sai + NCC in gia công (BE PR #71 thay toàn bộ, thiếu = bị xoá)", async () => {
+    const put = vi.spyOn(api, "put").mockResolvedValueOnce({ data: apiSupplier });
+    await updateSupplier({
+      id: supplier.supplierId,
+      values: {
+        ...validFormValues,
+        overReceiptTolerancePercent: 5,
+        printSubcontractor: true,
+        lossTolerancePercent: 2.5,
+      },
+      status: "Active",
+    });
+    expect(put.mock.calls[0]?.[1]).toMatchObject({
+      overReceiptTolerancePercent: 5,
+      printSubcontractor: true,
+      lossTolerancePercent: 2.5,
+    });
+  });
+
+  it("đưa vào danh sách đen = PUT với status BLACKLISTED, giữ nguyên các field khác", async () => {
+    const put = vi.spyOn(api, "put").mockResolvedValueOnce({
+      data: { ...apiSupplier, status: "BLACKLISTED" },
+    });
+    const result = await blacklistSupplier(supplier);
+    expect(put.mock.calls[0]?.[1]).toMatchObject({ code: "SUP-001", status: "BLACKLISTED" });
+    expect(result.status).toBe("Blacklisted");
   });
 
   it("kích hoạt lại = PUT với status ACTIVE (không dùng PATCH /status)", async () => {

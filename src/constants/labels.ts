@@ -90,16 +90,19 @@ export const UI_LABELS = {
     },
     /** Tên thao tác — nút ở panel hành động và tiêu đề dialog dùng chung. */
     action: {
+      submit: "Gửi duyệt",
       approve: "Phê duyệt",
-      send: "Gửi NCC",
-      receive: "Nhận hàng",
+      reject: "Từ chối duyệt",
+      send: "Xác nhận & gửi NCC",
       recordConfirmation: "Ghi nhận NCC phản hồi",
       recoverDelivery: "Khôi phục gửi NCC",
       closeShort: "Đóng thiếu",
+      close: "Đóng đơn",
       cancel: "Huỷ PO",
     },
     validation: {
       supplierRequired: "Chọn nhà cung cấp",
+      warehouseRequired: "Chọn kho nhận hàng",
       skuRequired: "Nhập mã SKU",
       skuDuplicate: "SKU bị trùng trong PO",
       descriptionRequired: "Nhập mô tả sản phẩm",
@@ -175,9 +178,12 @@ export const PO_ERROR_MESSAGES = {
     "Hồ sơ hoặc điều khoản của nhà cung cấp không hợp lệ. Cập nhật hồ sơ nhà cung cấp rồi thử lại.",
   INVALID_SUPPLIER_CONFIRMATION:
     "Không ghi nhận được phản hồi này của nhà cung cấp (đã ghi nhận trước đó hoặc trạng thái không cho phép). Dữ liệu đã được tải lại.",
-  // Nhận hàng bị BE từ chối bằng 400 chung (IllegalArgumentException, không có field)
-  receiveRejected:
-    "Máy chủ từ chối số lượng nhận. Kiểm tra SL không vượt “Còn nhận được” — dữ liệu đơn đã được tải lại.",
+  // BE PR #71 — luồng duyệt D4, kho nhận, dòng theo inventory item.
+  SELF_APPROVAL_NOT_ALLOWED:
+    "Bạn đã gửi duyệt đơn này nên không tự duyệt được — cần người khác phê duyệt.",
+  INVENTORY_ITEM_NOT_FOUND:
+    "Có SKU chưa có dữ liệu kho (inventory item). Kiểm tra lại mã SKU của sản phẩm.",
+  WAREHOUSE_NOT_FOUND: "Không tìm thấy kho nhận hàng",
   // Gửi NCC bị 409 CONFLICT (BE ProcurementServiceImpl#publishDelivery): NCC ngừng hợp tác / thiếu
   // email-API nhận PO, hoặc lần gửi đã thành công / bị chặn. Ngày giao đã qua KHÔNG còn bị chặn
   // (BE #36 9fbb90f: chỉ cảnh báo qua `warnings` — BR-06).
@@ -222,6 +228,9 @@ export const SUPPLIER_FIELD_LABELS = {
   leadTimeDays: "Thời gian giao hàng",
   communicationChannel: "Kênh gửi PO",
   apiEndpoint: "API endpoint",
+  overReceiptTolerancePercent: "Dung sai nhận vượt",
+  printSubcontractor: "NCC in gia công",
+  lossTolerancePercent: "Dung sai hao hụt gia công",
   // Trường ảo của BE SaveSupplierRequest (PR #36)
   deliveryContactValid: "Kênh gửi PO",
   phoneDigitsValid: "Số điện thoại",
@@ -249,18 +258,21 @@ export const TOAST_MESSAGES = {
     updated: "Cập nhật nhà cung cấp thành công",
     activated: "Đã kích hoạt lại nhà cung cấp",
     deactivated: "Đã ngừng hợp tác với nhà cung cấp",
+    blacklisted: "Đã đưa nhà cung cấp vào danh sách đen",
     // Base UI: BE chưa có endpoint xuất dữ liệu NCC
     exportNotAvailable: "Xuất Excel chưa có API — sẽ nối khi BE hỗ trợ",
   },
   purchaseOrder: {
     created: "Đã tạo đơn đặt hàng",
     possibleDuplicate: "Có thể trùng đơn (BR-PO-003)",
+    submitted: "Đã gửi duyệt đơn",
     approved: "Đã phê duyệt đơn",
-    sent: "Đã đưa đơn vào hàng đợi gửi NCC",
+    rejected: "Đã trả đơn về nháp",
+    sent: "Đã xác nhận đơn và đưa vào hàng đợi gửi NCC",
     deliveryFailed: "Gửi NCC chưa thành công — kiểm tra lịch sử gửi",
     cancelled: "Đã huỷ đơn",
     closedShort: "Đã đóng thiếu đơn",
-    received: "Đã ghi nhận nhận hàng",
+    closed: "Đã đóng đơn",
     deliveryRecovered: "Đã gửi lại đơn cho NCC",
     confirmationRecorded: "Đã ghi nhận phản hồi của NCC",
     actionFailed: "Không thực hiện được thao tác",

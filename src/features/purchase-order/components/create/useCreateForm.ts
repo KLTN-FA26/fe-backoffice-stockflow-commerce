@@ -8,6 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ADMIN_ROUTES, TOAST_MESSAGES } from "@/constants";
 import { toLocalIsoDate } from "@/lib/format";
 import { useSupplierOptions } from "@/lib/references/supplier-options";
+import { useWarehouseOptions } from "@/lib/references/warehouse-options";
 import {
   createPoSchema,
   poCreateFieldErrors,
@@ -33,6 +34,7 @@ const ALL_STEPS = new Set<StepKey>(STEPS.map((s) => s.key));
 function toCreateInput(v: PoCreateFormValues): CreatePoInput {
   return {
     supplierId: v.supplierId,
+    warehouseId: v.warehouseId,
     currency: v.currency,
     expectedAt: v.expectedDate || null,
     lines: v.lines.map((l) => ({
@@ -54,6 +56,9 @@ export function useCreateForm() {
   // Nguồn NCC chung (lib/references): chỉ NCC ACTIVE, đã lọc ở server (BE #36).
   const suppliersQuery = useSupplierOptions();
   const suppliers = suppliersQuery.data ?? [];
+  // Kho nhận bắt buộc (SCRUM-390, BE PR #71): chỉ kho ACTIVE.
+  const warehousesQuery = useWarehouseOptions();
+  const warehouses = warehousesQuery.data ?? [];
 
   const [currentStep, setCurrentStep] = useState<StepKey>("info");
   // Bước đã qua "Tiếp tục" hợp lệ.
@@ -185,6 +190,8 @@ export function useCreateForm() {
     handleConfirmCreate,
     suppliersQuery,
     suppliers,
+    warehousesQuery,
+    warehouses,
     selectedSupplier,
     today,
     suggestedDate: selectedSupplier

@@ -19,25 +19,24 @@ import type { PermissionCode } from "@/lib/auth";
 import type { PoStatus, PurchaseOrder } from "./types";
 
 /**
- * docs 02-purchase-order §5 — bảng "Chuyển tiếp cho phép", thu hẹp theo BE
- * `PurchaseOrderStatus#canTransitionTo` (SCRUM-113/116). Đặt trong feature (không dùng bảng
- * Title Case của `lib/domain/lifecycle.ts`) vì PO đã chạy theo 7 mã trạng thái BE. Ánh xạ:
- *   Draft → Pending Approval / Approved   ⇒ DRAFT → APPROVED (BE gộp submit+approve)
- *   Approved → Confirmed                  ⇒ APPROVED → SENT
- *   Confirmed / Partially Received → Received → Closed ⇒ receiveGoods tự đóng CLOSED khi hết
- *     open qty (không qua bảng này — xem action "receive")
- *   Partially Received → Closed (short-close) ⇒ PARTIALLY_RECEIVED → CLOSED_SHORT
- * ASSUMPTION (open-question A2): BE chưa có Pending Approval / hạn mức duyệt (BR-PO-002).
+ * docs 02-purchase-order §5 — bảng "Chuyển tiếp cho phép", đúng BE `PurchaseOrderStatus#canTransitionTo`
+ * (quyết định D4, BE PR #71):
+ *   DRAFT → PENDING_APPROVAL (gửi duyệt) → APPROVED (duyệt 4 mắt, BR-PO-002) | DRAFT (từ chối)
+ *   APPROVED → CONFIRMED (chốt = gửi NCC)
+ *   CONFIRMED / PARTIALLY_RECEIVED → … → RECEIVED: do phiếu nhận hàng (`/goods-receipts`), không qua bảng này
+ *   PARTIALLY_RECEIVED → CLOSED (đóng thiếu) · RECEIVED → CLOSED (đóng đơn)
+ *   DRAFT / PENDING_APPROVAL / APPROVED / CONFIRMED → CANCELLED (BR-05: chưa nhận hàng)
  */
 export const PO_TRANSITIONS: Readonly<Record<PoStatus, readonly PoStatus[]>> = {
-  DRAFT: [PO_STATUS.APPROVED, PO_STATUS.CANCELLED],
-  APPROVED: [PO_STATUS.SENT, PO_STATUS.CANCELLED],
-  // BR-05 (docs 02 §6): chỉ huỷ được khi CHƯA nhận hàng — SENT chưa có receipt nào.
-  SENT: [PO_STATUS.CANCELLED],
-  // BR-05 (docs 02 §6): đã nhận một phần ⇒ không còn CANCELLED, chỉ short-close.
-  PARTIALLY_RECEIVED: [PO_STATUS.CLOSED_SHORT],
+  DRAFT: [PO_STATUS.PENDING_APPROVAL, PO_STATUS.CANCELLED],
+  PENDING_APPROVAL: [PO_STATUS.APPROVED, PO_STATUS.DRAFT, PO_STATUS.CANCELLED],
+  APPROVED: [PO_STATUS.CONFIRMED, PO_STATUS.CANCELLED],
+  // BR-05 (docs 02 §6): chỉ huỷ được khi CHƯA nhận hàng.
+  CONFIRMED: [PO_STATUS.CANCELLED],
+  // BR-05 (docs 02 §6): đã nhận một phần ⇒ không còn CANCELLED, chỉ đóng thiếu.
+  PARTIALLY_RECEIVED: [PO_STATUS.CLOSED],
+  RECEIVED: [PO_STATUS.CLOSED],
   CLOSED: [], // terminal
-  CLOSED_SHORT: [], // terminal
   CANCELLED: [], // terminal
 };
 
@@ -55,11 +54,13 @@ function isPoStatus(value: string): value is PoStatus {
 }
 
 export type PoActionCode =
+  | "submit"
   | "approve"
+  | "reject"
   | "send"
   | "cancel"
   | "closeShort"
-  | "receive"
+  | "close"
   | "recoverDelivery"
   | "recordConfirmation";
 
@@ -69,7 +70,7 @@ export interface PoAction {
   /** Mã quyền BE guard endpoint này (PurchaseOrderController @RequiresPermission). */
   readonly permission: PermissionCode;
   readonly fromStatuses: readonly PoStatus[];
-  /** Trạng thái đích nếu là chuyển một bước (receive/khôi phục/xác nhận không có). */
+  /** Trạng thái đích nếu là chuyển một bước (khôi phục/xác nhận NCC không có). */
   readonly targetStatus?: PoStatus;
   /** Điều kiện ngoài trạng thái PO (giao NCC / NCC phản hồi) — đúng domain rule BE. */
   readonly when?: (po: PoGateState) => boolean;
@@ -83,37 +84,44 @@ export type PoGateState = Pick<
 
 export const PO_ACTIONS: readonly PoAction[] = [
   {
+    code: "submit",
+    label: UI_LABELS.purchaseOrder.action.submit,
+    permission: PO_PERMISSIONS.update,
+    fromStatuses: [PO_STATUS.DRAFT],
+    targetStatus: PO_STATUS.PENDING_APPROVAL,
+  },
+  {
     code: "approve",
     label: UI_LABELS.purchaseOrder.action.approve,
     permission: PO_PERMISSIONS.approve,
-    fromStatuses: [PO_STATUS.DRAFT],
+    // BR-PO-002 (docs 02 §6): người duyệt khác người gửi — BE trả 409 SELF_APPROVAL_NOT_ALLOWED.
+    fromStatuses: [PO_STATUS.PENDING_APPROVAL],
     targetStatus: PO_STATUS.APPROVED,
+  },
+  {
+    code: "reject",
+    label: UI_LABELS.purchaseOrder.action.reject,
+    permission: PO_PERMISSIONS.approve,
+    fromStatuses: [PO_STATUS.PENDING_APPROVAL],
+    targetStatus: PO_STATUS.DRAFT,
+    destructive: true,
   },
   {
     code: "send",
     label: UI_LABELS.purchaseOrder.action.send,
     permission: PO_PERMISSIONS.update,
     fromStatuses: [PO_STATUS.APPROVED],
-    targetStatus: PO_STATUS.SENT,
-  },
-  {
-    code: "receive",
-    label: UI_LABELS.purchaseOrder.action.receive,
-    permission: PO_PERMISSIONS.update,
-    // BR-03 (docs 02 §6): chỉ nhận khi PO đã chốt (Confirmed ≙ BE SENT) hoặc Partially Received.
-    fromStatuses: [PO_STATUS.SENT, PO_STATUS.PARTIALLY_RECEIVED],
-    // BE receiveGoods: NCC đã từ chối thì không nhận — huỷ và tạo PO thay thế.
-    when: (po) => po.supplierConfirmationStatus !== SUPPLIER_CONFIRMATION_STATUS.REJECTED,
+    targetStatus: PO_STATUS.CONFIRMED,
   },
   {
     code: "recordConfirmation",
     label: UI_LABELS.purchaseOrder.action.recordConfirmation,
     permission: PO_PERMISSIONS.update,
     fromStatuses: [
-      PO_STATUS.SENT,
+      PO_STATUS.CONFIRMED,
       PO_STATUS.PARTIALLY_RECEIVED,
+      PO_STATUS.RECEIVED,
       PO_STATUS.CLOSED,
-      PO_STATUS.CLOSED_SHORT,
     ],
     // BE recordSupplierConfirmation: chỉ khi đang chờ NCC phản hồi.
     when: (po) => po.supplierConfirmationStatus === SUPPLIER_CONFIRMATION_STATUS.PENDING,
@@ -122,8 +130,8 @@ export const PO_ACTIONS: readonly PoAction[] = [
     code: "recoverDelivery",
     label: UI_LABELS.purchaseOrder.action.recoverDelivery,
     permission: PO_PERMISSIONS.approve,
-    fromStatuses: [PO_STATUS.SENT],
-    // BE requireDeliveryRecovery: SENT + chờ NCC phản hồi + lần gửi cuối thất bại hẳn.
+    fromStatuses: [PO_STATUS.CONFIRMED],
+    // BE requireDeliveryRecovery: CONFIRMED + chờ NCC phản hồi + lần gửi cuối thất bại hẳn.
     when: (po) =>
       po.supplierConfirmationStatus === SUPPLIER_CONFIRMATION_STATUS.PENDING &&
       po.deliveryStatus === PO_DELIVERY_STATUS.FAILED,
@@ -133,15 +141,27 @@ export const PO_ACTIONS: readonly PoAction[] = [
     label: UI_LABELS.purchaseOrder.action.closeShort,
     permission: PO_PERMISSIONS.update,
     fromStatuses: [PO_STATUS.PARTIALLY_RECEIVED],
-    targetStatus: PO_STATUS.CLOSED_SHORT,
+    targetStatus: PO_STATUS.CLOSED,
     destructive: true,
+  },
+  {
+    code: "close",
+    label: UI_LABELS.purchaseOrder.action.close,
+    permission: PO_PERMISSIONS.update,
+    fromStatuses: [PO_STATUS.RECEIVED],
+    targetStatus: PO_STATUS.CLOSED,
   },
   {
     code: "cancel",
     label: UI_LABELS.purchaseOrder.action.cancel,
     permission: PO_PERMISSIONS.update,
-    // BR-05 (docs 02 §6): không huỷ khi đã có receipt — PARTIALLY_RECEIVED bị loại.
-    fromStatuses: [PO_STATUS.DRAFT, PO_STATUS.APPROVED, PO_STATUS.SENT],
+    // BR-05 (docs 02 §6): không huỷ khi đã có phiếu nhận — PARTIALLY_RECEIVED bị loại.
+    fromStatuses: [
+      PO_STATUS.DRAFT,
+      PO_STATUS.PENDING_APPROVAL,
+      PO_STATUS.APPROVED,
+      PO_STATUS.CONFIRMED,
+    ],
     targetStatus: PO_STATUS.CANCELLED,
     destructive: true,
   },
@@ -168,7 +188,7 @@ export function allowedPoActions(
   });
 }
 
-/** Không còn chuyển tiếp (CLOSED / CLOSED_SHORT / CANCELLED). */
+/** Không còn chuyển tiếp (CLOSED / CANCELLED). */
 export function isPoTerminal(status: string): boolean {
   return (nextOf(status) ?? []).length === 0;
 }

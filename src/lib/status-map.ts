@@ -15,6 +15,7 @@ const TONE: Record<SemanticTone, readonly string[]> = {
   positive: [
     "DELIVERED",
     "CONFIRMED",
+    "RECEIVED",
     "Confirmed",
     "Approved",
     "APPROVED",
@@ -74,6 +75,7 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "RETRYING",
     "PENDING",
     "PARTIALLY_RECEIVED",
+    "PENDING_APPROVAL",
     "Pending Approval",
     "On Hold",
     "Exception",
@@ -98,6 +100,7 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Draft Proposal",
   ],
   danger: [
+    "Blacklisted",
     "FAILED",
     "REJECTED",
     "CANCELLED",
@@ -174,14 +177,17 @@ export function toneOf(status: string): SemanticTone {
 
 /** Nhãn tiếng Việt cho status (song ngữ hiển thị trong tooltip/title). */
 export const STATUS_LABEL_VI: Record<string, string> = {
-  // PO — BE 7-state
+  // PO — BE D4 (PR #71). CONFIRMED = đã chốt và gửi NCC; dùng chung nhãn với phản hồi NCC.
   DRAFT: "Nháp",
+  PENDING_APPROVAL: "Chờ duyệt",
   APPROVED: "Đã duyệt",
-  SENT: "Đã gửi NCC",
   PARTIALLY_RECEIVED: "Nhận một phần",
+  RECEIVED: "Đã nhận đủ",
   CLOSED: "Đã đóng",
-  CLOSED_SHORT: "Đóng thiếu",
   CANCELLED: "Đã huỷ",
+  // Lần gửi NCC (DeliveryAttempt.status) và trạng thái PO cũ — giữ nhãn cho dữ liệu lịch sử.
+  SENT: "Đã gửi NCC",
+  CLOSED_SHORT: "Đóng thiếu",
   // PO — trạng thái gửi NCC (BE deliveryStatus / DeliveryAttempt.status) + NCC phản hồi
   // (BE supplierConfirmationStatus). PENDING dùng chung cho "chờ gửi" và "chờ NCC phản hồi".
   NOT_SENT: "Chưa gửi",
@@ -193,7 +199,7 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   SUPPRESSED: "Đã chặn gửi",
   NOT_REQUIRED: "Không cần báo huỷ",
   PENDING: "Đang chờ",
-  CONFIRMED: "NCC đã xác nhận",
+  CONFIRMED: "Đã xác nhận",
   REJECTED: "NCC từ chối",
   // Positive
   Confirmed: "Đã xác nhận",
@@ -296,6 +302,7 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   // Muted
   Closed: "Đã đóng",
   Inactive: "Không hoạt động",
+  Blacklisted: "Danh sách đen",
   Hidden: "Ẩn",
   Unpublished: "Chưa xuất bản",
   Anonymized: "Đã ẩn danh",

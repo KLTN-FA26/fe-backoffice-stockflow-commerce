@@ -30,6 +30,7 @@ vi.mock("@/features/product", async () => {
     ...actual,
     useProduct: useProductMock,
     useCategories: () => ({ data: { items: [] }, isLoading: false }),
+    useBrands: () => ({ data: [], isLoading: false }),
     useCreateProduct: () => ({ isPending: false, mutate: vi.fn() }),
     useUpdateProduct: useUpdateProductMock,
   };
