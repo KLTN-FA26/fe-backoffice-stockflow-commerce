@@ -557,8 +557,6 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
   const currentUser = useAuthStore((state) => state.user);
-  const logout = useAuthStore((state) => state.logout);
-  const refreshToken = useAuthStore((state) => state.tokens?.refreshToken);
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>("all");
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
@@ -576,9 +574,8 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
   async function handleLogout() {
     setUserMenuOpen(false);
     try {
-      if (refreshToken) await logoutApi(refreshToken);
+      await logoutApi();
     } finally {
-      logout();
       router.replace(APP_ROUTES.login);
       router.refresh();
     }

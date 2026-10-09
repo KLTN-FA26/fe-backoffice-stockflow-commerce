@@ -28,7 +28,15 @@ function mockPermissions(permissions: unknown) {
 
 beforeEach(() => {
   useAuthStore.setState({
-    user: { userId: "u1", fullName: "U", email: "u@u.vn", roles: [], warehouseIds: [] },
+    user: {
+      userId: "u1",
+      fullName: "U",
+      email: "u@u.vn",
+      roles: [],
+      username: "test",
+      status: "ACTIVE",
+      lastLoginAt: null,
+    },
     impersonatedRole: null,
   });
 });

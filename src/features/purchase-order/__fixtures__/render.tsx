@@ -74,7 +74,15 @@ export function mockApi(
 
 export function renderPoScreen(ui: React.ReactElement, searchParams = "") {
   useAuthStore.setState({
-    user: { userId: "u-test", fullName: "Test", email: "t@t.vn", roles: [], warehouseIds: [] },
+    user: {
+      userId: "u-test",
+      fullName: "Test",
+      email: "t@t.vn",
+      roles: [],
+      username: "test",
+      status: "ACTIVE",
+      lastLoginAt: null,
+    },
     isAuthenticated: true,
     impersonatedRole: null,
   });

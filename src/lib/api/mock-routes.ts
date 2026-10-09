@@ -591,51 +591,6 @@ export function registerAllMockRoutes(): void {
 
     return { status: 200, data: fixture, headers: {} };
   });
-
-  /* ====================================================================
-   * Auth routes (handled by auth-api.ts, registered here for completeness)
-   * ==================================================================*/
-
-  registerMockRoute("POST", "/auth/login", async (config) => {
-    const { staffUsers } = await import("@/lib/mock-data");
-    const body = typeof config.data === "string" ? JSON.parse(config.data) : config.data;
-    const user = staffUsers.find((u) => u.userId === body?.userId || u.email === body?.email);
-
-    if (!user) {
-      return { status: 401, data: { message: "Email hoặc mật khẩu không đúng" }, headers: {} };
-    }
-
-    return {
-      status: 200,
-      data: {
-        accessToken: `mock-access-${user.userId}-${Date.now()}`,
-        refreshToken: `mock-refresh-${user.userId}-${Date.now()}`,
-        user: {
-          userId: user.userId,
-          fullName: user.fullName,
-          email: user.email,
-          roles: user.roles,
-          warehouseIds: user.warehouseIds,
-        },
-      },
-      headers: {},
-    };
-  });
-
-  registerMockRoute("POST", "/auth/refresh", async () => {
-    return {
-      status: 200,
-      data: {
-        accessToken: `mock-access-refreshed-${Date.now()}`,
-        refreshToken: `mock-refresh-refreshed-${Date.now()}`,
-      },
-      headers: {},
-    };
-  });
-
-  registerMockRoute("POST", "/auth/logout", async () => {
-    return { status: 200, data: { message: "Logged out" }, headers: {} };
-  });
 }
 
 const mockRoles = [
