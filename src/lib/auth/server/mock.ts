@@ -7,6 +7,7 @@ import { getMockStaffUsers } from "@/lib/api/mock-adapter";
 import { loginRequestSchema } from "@/lib/auth/auth-schemas";
 
 import { BACKEND_AUTH_PATHS } from "./backend";
+import { mockRbacBackend } from "./mock-rbac";
 import { mockSessionPermissions } from "./mock-permissions";
 
 type MockSession = { userId: string; expiresAt: number };
@@ -43,6 +44,18 @@ export async function mockAuthBackend(path: string, init: RequestInit): Promise<
   if (path === BACKEND_AUTH_PATHS.logout && init.method === "POST") {
     sessions.delete(token);
     return new Response(null, { status: 204 });
+  }
+  if (path === "identity/roles" || path.startsWith("identity/roles/")) {
+    const user = (await getMockStaffUsers()).find(
+      (candidate) => candidate.userId === session.userId,
+    );
+    if (!user) return Response.json({}, { status: 401 });
+    const response = await mockRbacBackend(
+      path,
+      init,
+      mockSessionPermissions(user.userId, user.roles).permissions,
+    );
+    if (response) return response;
   }
   if (path === PERMISSION_QUERY.path.slice(1) && init.method === "GET") {
     const user = (await getMockStaffUsers()).find(
