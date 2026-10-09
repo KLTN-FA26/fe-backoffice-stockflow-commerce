@@ -58,6 +58,7 @@ export const PRODUCT_PERMISSIONS = {
 export const IDENTITY_PERMISSIONS = {
   rolesRead: "identity-roles:READ",
   rbacRead: "identity-rbac:READ",
+  rbacApprove: "identity-rbac:APPROVE",
 } as const;
 
 export const PERMISSION_QUERY = {

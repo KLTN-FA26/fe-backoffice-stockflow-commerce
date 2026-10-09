@@ -163,7 +163,9 @@ async function mockAdapter(config: InternalAxiosRequestConfig): Promise<AxiosRes
   if (
     (config.baseURL === AUTH_API_BASE &&
       Object.values(AUTH_PATHS).some((path) => path === config.url)) ||
-    config.url === PERMISSION_QUERY.path
+    config.url === PERMISSION_QUERY.path ||
+    config.url === "/identity/roles" ||
+    config.url?.startsWith("/identity/roles/")
   )
     return networkAdapter(config);
   if (routesReady) await routesReady;
