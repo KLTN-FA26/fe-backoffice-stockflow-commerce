@@ -1,250 +1,207 @@
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
-import { AxiosError } from "axios";
-import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AUTH_STORAGE_KEY, AUTH_STORAGE_VERSION } from "@/constants/auth";
+import { AUTH_EVENT_STORAGE_KEY, AUTH_STORAGE_KEY } from "@/constants/auth";
 
-import { api } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/error";
 
-import { getAuthCookie, setAuthCookie } from "../auth-cookie";
+import { getCurrentUserApi } from "../auth-api";
+import { publishAuthEvent } from "../auth-events";
+import { bootstrapSession } from "../auth-session";
 import { useAuthStore } from "../auth-store";
-
 import { AuthGuard } from "./AuthGuard";
 
-const { replace, cookieAtRedirect } = vi.hoisted(() => ({
-  replace: vi.fn(),
-  cookieAtRedirect: vi.fn(),
-}));
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({
-    replace: (path: string) => {
-      cookieAtRedirect(document.cookie);
-      replace(path);
-    },
-  }),
-}));
-
-const tokens = {
-  accessToken: "guard-token",
-  tokenType: "Bearer" as const,
-  expiresInSeconds: 28800,
-};
+const { replace } = vi.hoisted(() => ({ replace: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ replace }) }));
+vi.mock("../auth-api", () => ({ getCurrentUserApi: vi.fn() }));
 const user = {
-  userId: "guard-user",
+  userId: "staff",
   username: "staff",
   email: "staff@example.com",
-  fullName: "Staff",
+  fullName: null,
   status: "ACTIVE",
   roles: [],
   lastLoginAt: null,
 };
-const persisted = () => ({
-  version: AUTH_STORAGE_VERSION,
-  state: { user, tokens, isAuthenticated: true },
-});
-const originalStorage = useAuthStore.persist.getOptions().storage;
-const originalAdapter = api.defaults.adapter;
-
-function renderGuard() {
-  return render(
+const rejected = () => Promise.reject(new ApiError(401, "UNAUTHENTICATED", "Signed out"));
+const mount = () =>
+  render(
     <AuthGuard>
       <div>Protected admin</div>
     </AuthGuard>,
   );
-}
-function storageEvent(key: string | null, storageArea = localStorage) {
-  act(() => window.dispatchEvent(new StorageEvent("storage", { key, storageArea })));
-}
 
-beforeEach(async () => {
-  useAuthStore.persist.setOptions({ storage: originalStorage });
-  useAuthStore.getState().logout();
+beforeEach(() => {
+  vi.stubGlobal("BroadcastChannel", undefined);
+  useAuthStore.getState().beginBootstrap();
   localStorage.clear();
-  await useAuthStore.persist.rehydrate();
+  vi.mocked(getCurrentUserApi).mockReset();
   replace.mockReset();
-  cookieAtRedirect.mockReset();
 });
-afterEach(() => {
+afterEach(async () => {
   cleanup();
-  useAuthStore.persist.setOptions({ storage: originalStorage });
-  api.defaults.adapter = originalAdapter;
-  useAuthStore.getState().logout();
-  vi.restoreAllMocks();
+  await bootstrapSession();
+  useAuthStore.getState().logout(false);
+  vi.unstubAllGlobals();
 });
 
-describe("admin auth lifecycle", () => {
-  it("does not server-render protected UI even when client state is authenticated", () => {
-    useAuthStore.getState().login(user, tokens);
-    const html = renderToString(
-      <AuthGuard>
-        <div>Protected admin</div>
-      </AuthGuard>,
+describe("server session AuthGuard", () => {
+  it("does not render or redirect until /auth/me finishes, then renders a verified user", async () => {
+    let finish: ((value: typeof user) => void) | undefined;
+    vi.mocked(getCurrentUserApi).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
     );
-    expect(html).not.toContain("Protected admin");
-    expect(html).toContain('role="status"');
-  });
-
-  it("repairs malformed cookie encoding from valid local auth", () => {
-    useAuthStore.getState().login(user, tokens);
-    document.cookie = "stockflow-auth-token=%E0%A4%A; path=/";
-    renderGuard();
-    expect(getAuthCookie()).toBe(tokens.accessToken);
-    expect(screen.getByText("Protected admin")).toBeInTheDocument();
-  });
-
-  it("malformed cross-tab persistence replaces stale authenticated memory", async () => {
-    useAuthStore.getState().login(user, tokens);
-    renderGuard();
-    localStorage.setItem(AUTH_STORAGE_KEY, "{broken");
-    storageEvent(AUTH_STORAGE_KEY);
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/login"));
-    expect(useAuthStore.getState().user).toBeNull();
-    expect(getAuthCookie()).toBeNull();
-  });
-
-  it("waits for delayed F5 hydration without rendering admin or redirecting", async () => {
-    let finish: ((value: ReturnType<typeof persisted>) => void) | undefined;
-    const pending = new Promise<ReturnType<typeof persisted>>((resolve) => {
-      finish = resolve;
-    });
-    useAuthStore.persist.setOptions({
-      storage: {
-        getItem: () => pending,
-        setItem: () => {},
-        removeItem: () => {},
-      },
-    });
-    setAuthCookie(tokens.accessToken);
-    void useAuthStore.persist.rehydrate();
-    renderGuard();
+    mount();
     expect(screen.queryByText("Protected admin")).not.toBeInTheDocument();
-    expect(screen.getByRole("status")).toBeInTheDocument();
     expect(replace).not.toHaveBeenCalled();
-    expect(getAuthCookie()).toBe(tokens.accessToken);
     await act(async () => {
-      finish?.(persisted());
-      await pending;
+      finish?.(user);
     });
-    expect(await screen.findByText("Protected admin")).toBeInTheDocument();
-    expect(replace).not.toHaveBeenCalled();
+    expect(screen.getByText("Protected admin")).toBeInTheDocument();
+    expect(getCurrentUserApi).toHaveBeenCalledTimes(1);
+    vi.mocked(getCurrentUserApi).mockResolvedValue(user);
   });
-
-  it.each([null, "stale-token"])(
-    "restores authenticated local state and repairs cookie %s",
-    async (cookie) => {
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(persisted()));
-      if (cookie) setAuthCookie(cookie);
-      await useAuthStore.persist.rehydrate();
-      renderGuard();
-      expect(screen.getByText("Protected admin")).toBeInTheDocument();
-      expect(getAuthCookie()).toBe(tokens.accessToken);
-      expect(replace).not.toHaveBeenCalled();
-    },
-  );
-
-  it("removes an orphan cookie before navigating to login, breaking the proxy loop", () => {
-    setAuthCookie("orphan");
-    renderGuard();
+  it("failed session bootstrap redirects without protected content", async () => {
+    vi.mocked(getCurrentUserApi).mockImplementation(rejected);
+    mount();
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/login"));
     expect(screen.queryByText("Protected admin")).not.toBeInTheDocument();
-    expect(replace).toHaveBeenCalledWith("/login");
-    expect(cookieAtRedirect).toHaveBeenCalledWith("");
-    expect(getAuthCookie()).toBeNull();
   });
-
+  it("network/server failure stays unknown and offers retry, avoiding a cookie redirect loop", async () => {
+    vi.mocked(getCurrentUserApi).mockRejectedValue(new ApiError(502, "UPSTREAM", "Unavailable"));
+    mount();
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Thử lại" })).toBeInTheDocument();
+    expect(replace).not.toHaveBeenCalled();
+    expect(screen.queryByText("Protected admin")).not.toBeInTheDocument();
+  });
   it.each([
-    "{broken",
-    JSON.stringify({ version: AUTH_STORAGE_VERSION, state: { isAuthenticated: true, tokens } }),
-  ])("malformed persistence cannot authenticate: %s", async (raw) => {
-    localStorage.setItem(AUTH_STORAGE_KEY, raw);
-    setAuthCookie("orphan");
-    await useAuthStore.persist.rehydrate();
-    renderGuard();
-    expect(screen.queryByText("Protected admin")).not.toBeInTheDocument();
-    expect(getAuthCookie()).toBeNull();
-    expect(replace).toHaveBeenCalledWith("/login");
-  });
-
-  it.each(["remove", "clear", "signed-out"])(
-    "reconciles stale memory when another tab performs %s",
-    async (operation) => {
-      useAuthStore.getState().login(user, tokens);
-      renderGuard();
-      expect(screen.getByText("Protected admin")).toBeInTheDocument();
-      if (operation === "clear") localStorage.clear();
-      else if (operation === "remove") localStorage.removeItem(AUTH_STORAGE_KEY);
-      else
-        localStorage.setItem(
-          AUTH_STORAGE_KEY,
-          JSON.stringify({
-            version: AUTH_STORAGE_VERSION,
-            state: { user: null, tokens: null, isAuthenticated: false },
-          }),
-        );
-      expect(useAuthStore.getState().isAuthenticated).toBe(true);
-      storageEvent(operation === "clear" ? null : AUTH_STORAGE_KEY);
-      await waitFor(() => expect(replace).toHaveBeenCalledWith("/login"));
-      expect(useAuthStore.getState().tokens).toBeNull();
-      expect(getAuthCookie()).toBeNull();
-      expect(screen.queryByText("Protected admin")).not.toBeInTheDocument();
-    },
-  );
-
-  it("reconciles cross-tab account/token changes from persistence", async () => {
-    useAuthStore.getState().login(user, tokens);
-    renderGuard();
-    const changed = {
-      ...persisted(),
+    JSON.stringify({
       state: {
-        ...persisted().state,
-        user: { ...user, userId: "other-user" },
-        tokens: { ...tokens, accessToken: "other-token" },
+        user,
+        tokens: { accessToken: "legacy", refreshToken: "obsolete" },
+        isAuthenticated: true,
       },
-    };
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(changed));
-    storageEvent(AUTH_STORAGE_KEY);
-    await waitFor(() => expect(useAuthStore.getState().user?.userId).toBe("other-user"));
-    expect(getAuthCookie()).toBe("other-token");
+    }),
+    "{broken",
+  ])("discards legacy persistence without restoring identity: %s", async (persisted) => {
+    localStorage.setItem(AUTH_STORAGE_KEY, persisted);
+    vi.mocked(getCurrentUserApi).mockImplementation(rejected);
+    mount();
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/login"));
+    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBeNull();
+    expect(useAuthStore.getState().user).toBeNull();
+    expect(useAuthStore.getState()).not.toHaveProperty("tokens");
+  });
+  it("cross-tab fallback events revalidate stale in-memory auth against the BFF", async () => {
+    useAuthStore.getState().login(user, false);
+    vi.mocked(getCurrentUserApi).mockImplementation(rejected);
+    mount();
+    expect(screen.getByText("Protected admin")).toBeInTheDocument();
+    act(() =>
+      window.dispatchEvent(
+        new StorageEvent("storage", {
+          key: AUTH_EVENT_STORAGE_KEY,
+          newValue: JSON.stringify({ event: "logout", nonce: "event" }),
+        }),
+      ),
+    );
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/login"));
+    expect(getCurrentUserApi).toHaveBeenCalledTimes(1);
+    expect(useAuthStore.getState().user).toBeNull();
+  });
+  it("unrelated storage events do not affect the session", () => {
+    useAuthStore.getState().login(user, false);
+    vi.mocked(getCurrentUserApi).mockResolvedValue(user);
+    mount();
+    act(() =>
+      window.dispatchEvent(new StorageEvent("storage", { key: "unrelated", newValue: "changed" })),
+    );
+    expect(getCurrentUserApi).not.toHaveBeenCalled();
     expect(screen.getByText("Protected admin")).toBeInTheDocument();
   });
-
-  it("ignores unrelated keys and sessionStorage events", () => {
-    useAuthStore.getState().login(user, tokens);
-    renderGuard();
-    localStorage.removeItem(AUTH_STORAGE_KEY);
-    storageEvent("unrelated-preference");
-    storageEvent(AUTH_STORAGE_KEY, sessionStorage);
-    expect(screen.getByText("Protected admin")).toBeInTheDocument();
-    expect(useAuthStore.getState().isAuthenticated).toBe(true);
-    expect(replace).not.toHaveBeenCalled();
-  });
-
-  it("reconciles same-tab storage removal when the window regains focus", async () => {
-    useAuthStore.getState().login(user, tokens);
-    renderGuard();
-    localStorage.removeItem(AUTH_STORAGE_KEY);
+  it("focus revalidates a session changed while the tab was inactive", async () => {
+    useAuthStore.getState().login(user, false);
+    vi.mocked(getCurrentUserApi).mockImplementation(rejected);
+    mount();
     act(() => window.dispatchEvent(new Event("focus")));
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/login"));
-    expect(getAuthCookie()).toBeNull();
   });
-
-  it("existing API 401 removes the cookie and protected UI", async () => {
-    useAuthStore.getState().login(user, tokens);
-    renderGuard();
-    api.defaults.adapter = async (config) => {
-      throw new AxiosError("revoked", undefined, config, undefined, {
-        config,
-        status: 401,
-        statusText: "",
-        headers: {},
-        data: { message: "revoked" },
-      });
-    };
+  it("a pending bootstrap cannot resurrect a newer local logout", async () => {
+    let finish: ((value: typeof user) => void) | undefined;
+    vi.mocked(getCurrentUserApi).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    mount();
+    act(() => useAuthStore.getState().logout(false));
     await act(async () => {
-      await expect(api.get("/protected")).rejects.toMatchObject({ status: 401 });
+      finish?.(user);
     });
-    expect(getAuthCookie()).toBeNull();
+    expect(useAuthStore.getState().status).toBe("unauthenticated");
+    vi.mocked(getCurrentUserApi).mockImplementation(rejected);
+  });
+  it("session-change notification supersedes an older bootstrap response", async () => {
+    let finish: ((value: typeof user) => void) | undefined;
+    vi.mocked(getCurrentUserApi)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      )
+      .mockImplementation(rejected);
+    mount();
+    act(() =>
+      window.dispatchEvent(
+        new StorageEvent("storage", {
+          key: AUTH_EVENT_STORAGE_KEY,
+          newValue: JSON.stringify({ event: "session-changed" }),
+        }),
+      ),
+    );
+    await act(async () => {
+      finish?.(user);
+    });
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/login"));
+    expect(getCurrentUserApi).toHaveBeenCalledTimes(2);
     expect(screen.queryByText("Protected admin")).not.toBeInTheDocument();
-    expect(replace).toHaveBeenCalledWith("/login");
+  });
+  it("BroadcastChannel sends only an event and receiving tabs revalidate", async () => {
+    const channels: {
+      onmessage: ((message: MessageEvent<unknown>) => void) | null;
+      postMessage: ReturnType<typeof vi.fn>;
+      close: ReturnType<typeof vi.fn>;
+    }[] = [];
+    class Channel {
+      onmessage: ((message: MessageEvent<unknown>) => void) | null = null;
+      postMessage = vi.fn();
+      close = vi.fn();
+      constructor() {
+        channels.push(this);
+      }
+    }
+    vi.stubGlobal("BroadcastChannel", Channel);
+    useAuthStore.getState().login(user, false);
+    vi.mocked(getCurrentUserApi).mockImplementation(rejected);
+    mount();
+    publishAuthEvent("logout");
+    expect(channels[1].postMessage).toHaveBeenCalledExactlyOnceWith("logout");
+    act(() => channels[0].onmessage?.(new MessageEvent("message", { data: "session-changed" })));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/login"));
+    expect(localStorage.getItem(AUTH_EVENT_STORAGE_KEY)).toBeNull();
+  });
+  it("storage fallback notification contains only event and nonce", () => {
+    publishAuthEvent("session-changed");
+    expect(Object.keys(JSON.parse(localStorage.getItem(AUTH_EVENT_STORAGE_KEY) ?? "{}"))).toEqual([
+      "event",
+      "nonce",
+    ]);
+    vi.mocked(getCurrentUserApi).mockImplementation(rejected);
   });
 });

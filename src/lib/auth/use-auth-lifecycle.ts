@@ -1,56 +1,37 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect } from "react";
 
-import { AUTH_STORAGE_KEY } from "@/constants/auth";
+import { subscribeAuthEvents } from "./auth-events";
+import { bootstrapSession } from "./auth-session";
+import { discardLegacyAuthState, useAuthStore } from "./auth-store";
 
-import { useAuthStore } from "./auth-store";
-
-function subscribeHydration(notify: () => void) {
-  const unsubscribeStart = useAuthStore.persist.onHydrate(notify);
-  const unsubscribeFinish = useAuthStore.persist.onFinishHydration(notify);
-  return () => {
-    unsubscribeStart();
-    unsubscribeFinish();
-  };
-}
-
-/** Shared by admin and login. Persist owns parsing; cookie never supplies identity. */
+/** Every fresh browser session is verified by the BFF, never by a cached identity. */
 export function useAuthLifecycle() {
-  const hasHydrated = useSyncExternalStore(
-    subscribeHydration,
-    useAuthStore.persist.hasHydrated,
-    () => false,
-  );
+  const status = useAuthStore((state) => state.status);
   const isAuthenticated = useAuthStore(
-    (state) => state.isAuthenticated && state.user !== null && Boolean(state.tokens?.accessToken),
+    (state) => state.status === "authenticated" && state.user !== null,
   );
-
+  const bootstrapError = useAuthStore((state) => state.bootstrapError);
   useEffect(() => {
+    discardLegacyAuthState();
     const reconcile = () => {
-      void useAuthStore.persist.rehydrate();
+      void bootstrapSession(true);
     };
-    const onStorage = (event: StorageEvent) => {
-      if (event.key !== AUTH_STORAGE_KEY && event.key !== null) return;
-      if (event.storageArea !== null && event.storageArea !== localStorage) return;
-      reconcile();
-    };
-    const onFocus = () => {
-      const state = useAuthStore.getState();
-      // A live /me bootstrap has temporary tokens but deliberately no persisted session yet.
-      if (state.tokens && !state.isAuthenticated) return;
-      reconcile();
-    };
-    window.addEventListener("storage", onStorage);
-    // Reconcile changes made while this tab was inactive, including manual storage/cookie edits.
-    window.addEventListener("focus", onFocus);
-    if (!useAuthStore.persist.hasHydrated()) reconcile();
-    else useAuthStore.getState().synchronizeCookie();
+    const unsubscribe = subscribeAuthEvents(reconcile);
+    window.addEventListener("focus", reconcile);
+    if (useAuthStore.getState().status === "unknown") void bootstrapSession();
     return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("focus", onFocus);
+      unsubscribe();
+      window.removeEventListener("focus", reconcile);
     };
   }, []);
-
-  return { hasHydrated, isAuthenticated };
+  return {
+    status,
+    isAuthenticated,
+    bootstrapError,
+    retry: () => {
+      void bootstrapSession(true);
+    },
+  };
 }

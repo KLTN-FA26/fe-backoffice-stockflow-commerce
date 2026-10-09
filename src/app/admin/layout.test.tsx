@@ -17,14 +17,13 @@ vi.mock("@/lib/auth/components/RoleSwitcher", () => ({
 }));
 
 beforeEach(async () => {
-  useAuthStore.getState().logout();
+  useAuthStore.getState().logout(false);
   localStorage.clear();
-  await useAuthStore.persist.rehydrate();
   replace.mockReset();
 });
 afterEach(() => {
   cleanup();
-  useAuthStore.getState().logout();
+  useAuthStore.getState().logout(false);
 });
 
 describe("admin layout auth boundary", () => {
@@ -40,7 +39,7 @@ describe("admin layout auth boundary", () => {
     expect(replace).toHaveBeenCalledWith("/login");
   });
 
-  it("renders the whole admin layout for hydrated client auth", () => {
+  it("renders the whole admin layout for server-verified client auth", () => {
     useAuthStore.getState().login(
       {
         userId: "layout-user",
@@ -51,7 +50,7 @@ describe("admin layout auth boundary", () => {
         roles: [],
         lastLoginAt: null,
       },
-      { accessToken: "layout-token", tokenType: "Bearer", expiresInSeconds: 28800 },
+      false,
     );
     render(
       <AdminLayout>
