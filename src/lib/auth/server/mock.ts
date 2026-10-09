@@ -1,11 +1,13 @@
 import "server-only";
 
 import { MOCK_AUTH_EXPIRES_SECONDS, MOCK_LOGIN_PASSWORD } from "@/constants/auth";
+import { PERMISSION_QUERY } from "@/constants/permissions";
 
 import { getMockStaffUsers } from "@/lib/api/mock-adapter";
 import { loginRequestSchema } from "@/lib/auth/auth-schemas";
 
 import { BACKEND_AUTH_PATHS } from "./backend";
+import { mockSessionPermissions } from "./mock-permissions";
 
 type MockSession = { userId: string; expiresAt: number };
 // Route bundles share demo sessions within the same server process; never browser state.
@@ -41,6 +43,13 @@ export async function mockAuthBackend(path: string, init: RequestInit): Promise<
   if (path === BACKEND_AUTH_PATHS.logout && init.method === "POST") {
     sessions.delete(token);
     return new Response(null, { status: 204 });
+  }
+  if (path === PERMISSION_QUERY.path.slice(1) && init.method === "GET") {
+    const user = (await getMockStaffUsers()).find(
+      (candidate) => candidate.userId === session.userId,
+    );
+    if (!user) return Response.json({}, { status: 401 });
+    return Response.json(mockSessionPermissions(user.userId, user.roles));
   }
   if (path === BACKEND_AUTH_PATHS.me && init.method === "GET") {
     const users = await getMockStaffUsers();

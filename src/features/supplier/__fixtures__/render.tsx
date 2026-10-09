@@ -59,6 +59,7 @@ export function renderSupplierScreen(ui: React.ReactElement, searchParams = "") 
       lastLoginAt: null,
     },
     isAuthenticated: true,
+    status: "authenticated",
     impersonatedRole: null,
   });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });

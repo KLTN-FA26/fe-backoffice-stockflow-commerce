@@ -15,6 +15,7 @@
 import axios, { AxiosError } from "axios";
 
 import { AUTH_API_BASE, AUTH_PATHS } from "@/constants/auth";
+import { PERMISSION_QUERY } from "@/constants/permissions";
 
 import { api } from "./client";
 
@@ -160,8 +161,9 @@ const networkAdapter = axios.getAdapter(api.defaults.adapter);
 async function mockAdapter(config: InternalAxiosRequestConfig): Promise<AxiosResponse> {
   // Mock identity uses the same HttpOnly BFF boundary as production.
   if (
-    config.baseURL === AUTH_API_BASE &&
-    Object.values(AUTH_PATHS).some((path) => path === config.url)
+    (config.baseURL === AUTH_API_BASE &&
+      Object.values(AUTH_PATHS).some((path) => path === config.url)) ||
+    config.url === PERMISSION_QUERY.path
   )
     return networkAdapter(config);
   if (routesReady) await routesReady;
@@ -248,7 +250,6 @@ export function activateMockAdapter(): void {
   routesReady = Promise.all([
     import("./mock-routes"),
     import("./mock-routes-suppliers"),
-    import("./mock-routes-me"),
     import("./mock-routes-purchase-orders"),
     import("./mock-routes-orders"),
     import("./mock-routes-goods-receipts"),
@@ -257,7 +258,6 @@ export function activateMockAdapter(): void {
     ([
       { registerAllMockRoutes },
       { registerSupplierMockRoutes },
-      { registerMeMockRoutes },
       { registerPurchaseOrderMockRoutes },
       { registerOrderMockRoutes },
       { registerGoodsReceiptMockRoutes },
@@ -265,7 +265,6 @@ export function activateMockAdapter(): void {
     ]) => {
       registerAllMockRoutes();
       registerSupplierMockRoutes();
-      registerMeMockRoutes();
       registerPurchaseOrderMockRoutes();
       registerOrderMockRoutes();
       registerGoodsReceiptMockRoutes();

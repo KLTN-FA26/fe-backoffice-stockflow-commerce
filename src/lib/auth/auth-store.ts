@@ -30,6 +30,7 @@ interface AuthState {
   user: AuthUser | null;
   status: AuthStatus;
   bootstrapError: string | null;
+  authorizationVersion: number;
   isAuthenticated: boolean;
   impersonatedRole: RoleName | null;
   setImpersonatedRole: (role: RoleName | null) => void;
@@ -44,6 +45,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   status: "unknown",
   bootstrapError: null,
+  authorizationVersion: 0,
   isAuthenticated: false,
   impersonatedRole: null,
   setImpersonatedRole: (role) => set({ impersonatedRole: role }),
@@ -58,6 +60,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const identity = authUserSchema.parse(user);
     revision++;
     set({
+      authorizationVersion: get().authorizationVersion + 1,
       user: identity,
       status: "authenticated",
       isAuthenticated: true,
@@ -70,6 +73,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     discardLegacyAuthState();
     revision++;
     set({
+      authorizationVersion: get().authorizationVersion + 1,
       user: null,
       status: "unauthenticated",
       isAuthenticated: false,
