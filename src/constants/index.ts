@@ -64,3 +64,5 @@ export type {
   SupplierConfirmationStatus,
   SupplierStatus,
 } from "./statuses";
+
+export { IDENTITY_PERMISSIONS, PRODUCT_PERMISSIONS } from "./permissions";

@@ -51,6 +51,7 @@ interface SkuDetailPanelProps {
   sku: Sku | null;
   open: boolean;
   onClose: () => void;
+  canUpdate?: boolean;
   onStatusChange?: (skuId: string, newStatus: SkuStatus) => void;
 }
 
@@ -58,7 +59,13 @@ interface SkuDetailPanelProps {
 /*  Panel                                                                     */
 /* -------------------------------------------------------------------------- */
 
-export function SkuDetailPanel({ sku, open, onClose, onStatusChange }: SkuDetailPanelProps) {
+export function SkuDetailPanel({
+  sku,
+  open,
+  onClose,
+  canUpdate = false,
+  onStatusChange,
+}: SkuDetailPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Close on Escape
@@ -71,7 +78,7 @@ export function SkuDetailPanel({ sku, open, onClose, onStatusChange }: SkuDetail
     return () => window.removeEventListener("keydown", handler);
   }, [open, onClose]);
 
-  const actions = sku ? (SKU_STATUS_ACTIONS[sku.status] ?? []) : [];
+  const actions = sku && canUpdate && onStatusChange ? (SKU_STATUS_ACTIONS[sku.status] ?? []) : [];
 
   return (
     <AnimatePresence>

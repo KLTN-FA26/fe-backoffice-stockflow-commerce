@@ -44,3 +44,31 @@ export const PO_PERMISSIONS = {
   approve: "procurement-purchase-orders:APPROVE",
   export: "procurement-purchase-orders:EXPORT",
 } as const;
+
+/** BE develop ProductResources / ProductController and product seed catalog. */
+export const PRODUCT_PERMISSIONS = {
+  viewPage: "product-products:VIEW_PAGE",
+  read: "product-products:READ",
+  create: "product-products:CREATE",
+  update: "product-products:UPDATE",
+  approve: "product-products:APPROVE",
+} as const;
+
+/** BE develop IdentityResources / IdentityController: read-only RBAC screen APIs. */
+export const IDENTITY_PERMISSIONS = {
+  rolesRead: "identity-roles:READ",
+  rbacRead: "identity-rbac:READ",
+} as const;
+
+export const PERMISSION_QUERY = {
+  path: "/identity/me/permissions",
+  staleTime: 30_000,
+} as const;
+export const PERMISSION_UI = {
+  deniedTitle: "Không có quyền truy cập",
+  deniedDescription: "Bạn không có quyền mở trang này.",
+  errorTitle: "Không thể tải quyền truy cập",
+  retry: "Thử lại",
+  productCreateDenied: "Bạn không có quyền tạo sản phẩm.",
+  demoContext: "Chỉ đổi nhãn vai trò demo; quyền vẫn lấy từ phiên đăng nhập.",
+} as const;

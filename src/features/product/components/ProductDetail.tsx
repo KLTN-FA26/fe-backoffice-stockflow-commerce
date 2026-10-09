@@ -18,9 +18,9 @@ import {
   Pencil,
   Plus,
 } from "lucide-react";
-import { ADMIN_ROUTES, PAGE_SIZE, PRODUCT_STATUS } from "@/constants";
+import { ADMIN_ROUTES, PAGE_SIZE, PRODUCT_STATUS, PRODUCT_PERMISSIONS } from "@/constants";
 import { useAuthStore } from "@/lib/auth/auth-store";
-import { useCan } from "@/lib/auth/components/Can";
+import { useCan, usePermissionChecker } from "@/lib/auth/components/Can";
 import { ApiError } from "@/lib/api";
 import {
   allowedProductActions,
@@ -138,10 +138,9 @@ function InfoRow({ label, children }: { label: string; children: React.ReactNode
 
 export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id: productId } = React.use(params);
-  const roles = useAuthStore((state) => state.effectiveRoles());
+  const can = usePermissionChecker();
   const currentUserId = useAuthStore((state) => state.user?.userId);
-  const currentRole = roles[0];
-  const canEditProduct = useCan("product.edit");
+  const canEditProduct = useCan(PRODUCT_PERMISSIONS.update);
 
   const productQuery = useProduct(productId);
   const skusQuery = useSkus({ page: 1, pageSize: PAGE_SIZE.masterData, productId });
@@ -177,8 +176,8 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
     transitionMutation.isPending || publishMutation.isPending || unpublishMutation.isPending;
   const actions = useMemo(
     () =>
-      product && currentRole
-        ? allowedProductActions(product.status, currentRole).filter(
+      product
+        ? allowedProductActions(product.status, can).filter(
             (action) =>
               action.transition &&
               !(
@@ -187,7 +186,7 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
               ),
           )
         : [],
-    [currentRole, currentUserId, product],
+    [can, currentUserId, product],
   );
 
   const handleStatusChange = useCallback(
@@ -241,17 +240,21 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
     setSkuPanelOpen(false);
   }, []);
 
-  const handleSkuStatusChange = useCallback((skuId: string, newStatus: SkuStatus) => {
-    setSkuOverrides((prev) => {
-      const next = new Map(prev);
-      next.set(skuId, newStatus);
-      return next;
-    });
-    setSelectedSku((prev) =>
-      prev && prev.skuId === skuId ? { ...prev, status: newStatus } : prev,
-    );
-    toast.success("Cập nhật SKU", `${skuId} chuyển sang ${newStatus}.`);
-  }, []);
+  const handleSkuStatusChange = useCallback(
+    (skuId: string, newStatus: SkuStatus) => {
+      if (!canEditProduct) return;
+      setSkuOverrides((prev) => {
+        const next = new Map(prev);
+        next.set(skuId, newStatus);
+        return next;
+      });
+      setSelectedSku((prev) =>
+        prev && prev.skuId === skuId ? { ...prev, status: newStatus } : prev,
+      );
+      toast.success("Cập nhật SKU", `${skuId} chuyển sang ${newStatus}.`);
+    },
+    [canEditProduct],
+  );
 
   /** SKUs with status overrides applied */
   const effectiveSkus = useMemo(() => {
@@ -777,6 +780,7 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
         sku={selectedSku}
         open={skuPanelOpen}
         onClose={closeSkuPanel}
+        canUpdate={canEditProduct}
         onStatusChange={handleSkuStatusChange}
       />
     </>

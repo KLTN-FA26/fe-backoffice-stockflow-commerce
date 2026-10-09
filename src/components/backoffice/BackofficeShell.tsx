@@ -34,6 +34,7 @@ import {
   ADMIN_ROUTES,
   APP_ROUTES,
   BRAND,
+  IDENTITY_PERMISSIONS,
   ORDER_PERMISSIONS,
   PO_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
@@ -41,7 +42,7 @@ import {
 
 import { logoutApi } from "@/lib/auth/auth-api";
 import { useAuthStore } from "@/lib/auth/auth-store";
-import { hasPermission, useMyPermissions } from "@/lib/auth/me-permissions";
+import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
 import {
   invoices,
@@ -142,7 +143,7 @@ interface NavGroup {
   items: NavItem[];
 }
 
-const NAV_GROUPS: NavGroup[] = [
+export const NAV_GROUPS: NavGroup[] = [
   {
     title: "TỔNG QUAN",
     items: [{ label: "Tổng quan", tooltip: "Dashboard", href: "/admin", icon: LayoutDashboard }],
@@ -179,6 +180,7 @@ const NAV_GROUPS: NavGroup[] = [
         tooltip: "Permission management",
         href: ADMIN_ROUTES.permissions,
         icon: ShieldCheck,
+        permission: IDENTITY_PERMISSIONS.rbacRead,
       },
     ],
   },
@@ -277,10 +279,10 @@ const DETAIL_LABEL_BY_ROUTE: Record<string, string> = {
   "/admin/suppliers/create": "Tạo nhà cung cấp",
 };
 
-/** Chỉ ẩn khi đã tải xong quyền và thiếu mã — tránh nháy menu lúc đang tải. */
-function useCanSeeNavItem(): (item: NavItem) => boolean {
-  const { data, isSuccess } = useMyPermissions();
-  return (item) => !item.permission || !isSuccess || hasPermission(data, item.permission);
+/** Required capabilities fail closed; unassigned items remain visible. */
+export function useCanSeeNavItem(): (item: NavItem) => boolean {
+  const can = usePermissionChecker();
+  return (item) => !item.permission || can(item.permission);
 }
 
 function findNavItem(pathname: string): NavItem | undefined {

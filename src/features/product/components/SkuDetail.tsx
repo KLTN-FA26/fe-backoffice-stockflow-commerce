@@ -15,7 +15,7 @@ import {
   Tag,
 } from "lucide-react";
 import { ADMIN_ROUTES } from "@/constants";
-import { useAuthStore } from "@/lib/auth/auth-store";
+import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { allowedSkuActions, formatVnd, useProduct, useSku } from "@/features/product";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusDot } from "@/components/shared/StatusDot";
@@ -78,8 +78,7 @@ function Section({
 
 export function SkuDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id: skuId } = React.use(params);
-  const roles = useAuthStore((state) => state.effectiveRoles());
-  const currentRole = roles[0];
+  const can = usePermissionChecker();
 
   const [statusOverride, setStatusOverride] = useState<SkuStatus | null>(null);
 
@@ -95,7 +94,7 @@ export function SkuDetail({ params }: { params: Promise<{ id: string }> }) {
   const parentProduct = sku ? (productQuery.data ?? null) : null;
   const isLoading = skuQuery.isLoading || (sku ? productQuery.isLoading : false);
 
-  const actions = sku && currentRole ? allowedSkuActions(sku.status, currentRole) : [];
+  const actions = sku ? allowedSkuActions(sku.status, can) : [];
 
   const handleStatusChange = useCallback(
     (newStatus: SkuStatus) => {

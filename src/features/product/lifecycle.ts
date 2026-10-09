@@ -4,7 +4,8 @@
  * Source: docs/warehouse/01-product-creation §5 + §6.
  */
 
-import { can } from "@/lib/auth/permissions";
+import { PRODUCT_PERMISSIONS } from "@/constants/permissions";
+
 import {
   SKU_TRANSITIONS,
   allowedTransitions,
@@ -12,8 +13,7 @@ import {
   isTerminal,
 } from "@/lib/domain/lifecycle";
 
-import type { Permission } from "@/lib/auth/permissions";
-import type { RoleName } from "@/lib/auth/roles";
+import type { PermissionCode } from "@/lib/auth/me-permissions";
 import type { ProductStatus, SkuStatus } from "./types";
 
 export { SKU_TRANSITIONS, allowedTransitions, canTransition, isTerminal };
@@ -32,7 +32,7 @@ export const PRODUCT_TRANSITIONS: Record<BackendProductStatus, readonly BackendP
 export interface ProductAction {
   readonly code: string;
   readonly label: string;
-  readonly permission: Permission;
+  readonly permission: PermissionCode;
   readonly fromStatuses: readonly ProductStatus[];
   readonly targetStatus?: ProductStatus;
   readonly transition?: "submit" | "approve" | "reject" | "discontinue" | "publish" | "unpublish";
@@ -42,7 +42,7 @@ export interface ProductAction {
 export interface SkuAction {
   readonly code: string;
   readonly label: string;
-  readonly permission: Permission;
+  readonly permission: PermissionCode;
   readonly fromStatuses: readonly SkuStatus[];
   readonly targetStatus?: SkuStatus;
   readonly destructive?: boolean;
@@ -52,14 +52,14 @@ export const PRODUCT_ACTIONS: readonly ProductAction[] = [
   {
     code: "edit",
     label: "Chỉnh sửa",
-    permission: "product.edit",
+    permission: PRODUCT_PERMISSIONS.update,
     fromStatuses: ["Draft"],
   },
   // docs §4.8: Submit for review → Pending Approval.
   {
     code: "submit",
     label: "Gửi duyệt",
-    permission: "product.edit",
+    permission: PRODUCT_PERMISSIONS.update,
     fromStatuses: ["Draft"],
     targetStatus: "Pending Approval",
     transition: "submit",
@@ -68,7 +68,7 @@ export const PRODUCT_ACTIONS: readonly ProductAction[] = [
   {
     code: "approve",
     label: "Phê duyệt",
-    permission: "product.approve",
+    permission: PRODUCT_PERMISSIONS.approve,
     fromStatuses: ["Pending Approval"],
     targetStatus: "Approved",
     transition: "approve",
@@ -76,7 +76,7 @@ export const PRODUCT_ACTIONS: readonly ProductAction[] = [
   {
     code: "reject",
     label: "Từ chối",
-    permission: "product.approve",
+    permission: PRODUCT_PERMISSIONS.approve,
     fromStatuses: ["Pending Approval"],
     targetStatus: "Draft",
     transition: "reject",
@@ -85,7 +85,7 @@ export const PRODUCT_ACTIONS: readonly ProductAction[] = [
   {
     code: "publish",
     label: "Xuất bản",
-    permission: "product.approve",
+    permission: PRODUCT_PERMISSIONS.approve,
     fromStatuses: ["Approved"],
     targetStatus: "Published",
     transition: "publish",
@@ -93,7 +93,7 @@ export const PRODUCT_ACTIONS: readonly ProductAction[] = [
   {
     code: "unpublish",
     label: "Gỡ xuất bản",
-    permission: "product.approve",
+    permission: PRODUCT_PERMISSIONS.approve,
     fromStatuses: ["Published"],
     targetStatus: "Approved",
     transition: "unpublish",
@@ -101,7 +101,7 @@ export const PRODUCT_ACTIONS: readonly ProductAction[] = [
   {
     code: "discontinue",
     label: "Ngừng kinh doanh",
-    permission: "product.approve",
+    permission: PRODUCT_PERMISSIONS.approve,
     fromStatuses: ["Approved", "Published"],
     targetStatus: "Discontinued",
     transition: "discontinue",
@@ -113,7 +113,7 @@ export const SKU_ACTIONS: readonly SkuAction[] = [
   {
     code: "block",
     label: "Khoá SKU",
-    permission: "product.edit",
+    permission: PRODUCT_PERMISSIONS.update,
     fromStatuses: ["Active"],
     targetStatus: "Blocked",
     destructive: true,
@@ -121,14 +121,14 @@ export const SKU_ACTIONS: readonly SkuAction[] = [
   {
     code: "unblock",
     label: "Mở khoá SKU",
-    permission: "product.edit",
+    permission: PRODUCT_PERMISSIONS.update,
     fromStatuses: ["Blocked"],
     targetStatus: "Active",
   },
   {
     code: "obsolete",
     label: "Ngừng dùng SKU",
-    permission: "product.edit",
+    permission: PRODUCT_PERMISSIONS.update,
     fromStatuses: ["Active", "Blocked"],
     targetStatus: "Obsolete",
     destructive: true,
@@ -137,7 +137,7 @@ export const SKU_ACTIONS: readonly SkuAction[] = [
 
 export function allowedProductActions(
   status: ProductStatus,
-  role: RoleName,
+  can: (permission: PermissionCode) => boolean,
 ): readonly ProductAction[] {
   return PRODUCT_ACTIONS.filter((action) => {
     if (!action.fromStatuses.includes(status)) return false;
@@ -149,7 +149,7 @@ export function allowedProductActions(
     ) {
       return false;
     }
-    return can(role, action.permission);
+    return can(action.permission);
   });
 }
 
@@ -157,13 +157,16 @@ export function isSelfApproval(submittedBy: string | undefined, currentUserId: s
   return Boolean(submittedBy && currentUserId && submittedBy === currentUserId);
 }
 
-export function allowedSkuActions(status: SkuStatus, role: RoleName): readonly SkuAction[] {
+export function allowedSkuActions(
+  status: SkuStatus,
+  can: (permission: PermissionCode) => boolean,
+): readonly SkuAction[] {
   return SKU_ACTIONS.filter((action) => {
     if (!action.fromStatuses.includes(status)) return false;
     if (action.targetStatus && !canTransition(SKU_TRANSITIONS, status, action.targetStatus)) {
       return false;
     }
-    return can(role, action.permission);
+    return can(action.permission);
   });
 }
 

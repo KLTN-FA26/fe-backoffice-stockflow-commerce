@@ -17,7 +17,14 @@ import {
   Tag,
   Barcode,
 } from "lucide-react";
-import { ADMIN_ROUTES, PAGE_SIZE, SKU_STATUSES, STORAGE_KEYS } from "@/constants";
+import {
+  ADMIN_ROUTES,
+  PAGE_SIZE,
+  SKU_STATUSES,
+  STORAGE_KEYS,
+  PRODUCT_PERMISSIONS,
+} from "@/constants";
+import { PERMISSION_UI } from "@/constants/permissions";
 import { usePageConfig } from "@/hooks/use-page-config";
 import { useUrlFilters, useUrlTab } from "@/hooks/use-url-filters";
 import { useCan } from "@/lib/auth/components/Can";
@@ -212,7 +219,7 @@ function mergeStoredConfig(
 
 export function ProductList() {
   const router = useRouter();
-  const canCreateProduct = useCan("product.create");
+  const canCreateProduct = useCan(PRODUCT_PERMISSIONS.create);
   const [activeTab, setActiveTab] = useUrlTab("tab", ["products", "skus"] as const, "products");
   const productFilters = useUrlFilters(PRODUCT_LIST_FILTER_STATUSES, {
     keys: { page: "productPage", q: "productQ", status: "productStatus" },
@@ -932,9 +939,7 @@ export function ProductList() {
                 size="sm"
                 onClick={() => canCreateProduct && router.push(ADMIN_ROUTES.products.create)}
                 disabled={!canCreateProduct}
-                title={
-                  canCreateProduct ? "Tạo sản phẩm" : "Role hiện tại không có quyền product.create"
-                }
+                title={canCreateProduct ? "Tạo sản phẩm" : PERMISSION_UI.productCreateDenied}
                 className="bg-brand !text-ink-inverse hover:bg-brand-hover hover:!text-ink-inverse rounded-[var(--r-sm)]"
               >
                 <Plus className="size-3.5" />
