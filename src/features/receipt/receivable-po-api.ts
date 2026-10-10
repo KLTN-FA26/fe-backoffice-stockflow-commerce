@@ -1,9 +1,8 @@
 /**
  * PO để nhận hàng — đọc qua API PO hiện có `GET /purchase-orders` (người dùng chốt 2026-10-09).
  *
- * Receipt BE (PR #62) kiểm `purchaseOrderId` / `purchaseOrderLineId` trên bảng PO mới; API PO hiện
- * đọc bảng cũ. Theo C4 plan BE giữ URL, chỉ chuyển logic sang bảng mới — FE không phải đổi.
- * Trước C4, môi trường test cần PO trùng id (PO + dòng) ở hai bảng.
+ * Receipt BE (PR #62) kiểm `purchaseOrderId` / `purchaseOrderLineId` trên `purchase_orders` /
+ * `purchase_order_lines`; từ BE PR #71 API PO cũng đọc đúng các bảng đó (bảng cũ đã bỏ).
  * Không import `features/purchase-order` (import boundary) — parse bằng schema nhỏ của receipt.
  */
 
@@ -19,11 +18,10 @@ import type { ReceivablePo } from "./types";
 const PO_PATH = "/purchase-orders";
 
 /**
- * BR-01 (docs 03 §6): chỉ nhận cho PO đã chốt hoặc đang nhận dở.
- * Bảng PO cũ gọi "đã chốt" là SENT; BE PO chưa nhận CONFIRMED (enum cũ → 400).
- * Khi C4 đổi enum PO sang CONFIRMED thì chỉ sửa danh sách này.
+ * BR-01 (docs 03 §6): chỉ nhận cho PO đã chốt (CONFIRMED, BE PR #71 D4 — trước đây SENT) hoặc
+ * đang nhận dở. Gửi `status=SENT` cho BE mới là 400 (enum không còn giá trị đó).
  */
-export const RECEIVABLE_PO_API_STATUSES = ["SENT", "PARTIALLY_RECEIVED"] as const;
+export const RECEIVABLE_PO_API_STATUSES = ["CONFIRMED", "PARTIALLY_RECEIVED"] as const;
 
 export interface ListReceivablePoParams extends ListQueryParams {
   page?: number;

@@ -2,7 +2,7 @@
 
 import { FileText } from "lucide-react";
 
-import { UI_LABELS } from "@/constants";
+import { PO_CLOSE_KIND, UI_LABELS } from "@/constants";
 import { formatDate } from "@/lib/format";
 import { hasDeliveryDateWarning } from "@/features/purchase-order";
 import { Alert } from "@/components/shared/Alert";
@@ -11,6 +11,13 @@ import { StatusDot } from "@/components/shared/StatusDot";
 import { InfoRow } from "./InfoRow";
 
 import type { PurchaseOrder } from "@/features/purchase-order";
+
+/** BE PR #71 `closeKind`: trước đây đóng thiếu là trạng thái riêng `CLOSED_SHORT`. */
+const CLOSE_KIND_LABEL: Record<string, string> = {
+  [PO_CLOSE_KIND.NORMAL]: "Nhận đủ rồi đóng",
+  [PO_CLOSE_KIND.SHORT_CLOSE]: "Đóng thiếu",
+  [PO_CLOSE_KIND.FORCE_CLOSE]: "Đóng bắt buộc",
+};
 
 export function PoGeneralInfo({ po }: { po: PurchaseOrder }) {
   return (
@@ -24,12 +31,17 @@ export function PoGeneralInfo({ po }: { po: PurchaseOrder }) {
         <InfoRow label={UI_LABELS.purchaseOrder.status}>
           <StatusDot domain="po" status={po.status} size="sm" withIcon />
         </InfoRow>
-        <InfoRow label="Ngày tạo" value={formatDate(po.orderDate)} />
+        {po.closeKind && (
+          <InfoRow label="Kiểu đóng" value={CLOSE_KIND_LABEL[po.closeKind] ?? po.closeKind} />
+        )}
+        <InfoRow label="Kho nhận" value={po.warehouseName ?? "—"} />
+        <InfoRow label="Ngày đặt" value={formatDate(po.orderDate)} />
         <InfoRow
           label={UI_LABELS.purchaseOrder.expectedDate}
           value={po.expectedDate ? formatDate(po.expectedDate) : "—"}
         />
         <InfoRow label="Người tạo" value={po.createdBy || "—"} />
+        {po.note && <InfoRow label="Ghi chú" value={po.note} />}
         {po.rejectionReason && <InfoRow label="Lý do huỷ/đóng" value={po.rejectionReason} danger />}
       </div>
       {/* BR-06 (docs 02 §6): BE #36 trả `warnings` DELIVERY_DATE_IN_PAST — chỉ cảnh báo. */}

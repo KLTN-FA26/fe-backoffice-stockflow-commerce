@@ -22,66 +22,79 @@ const codes = (po: PoGateState, set: SetName) => {
   return allowedPoActions(po, (code) => perms.includes(code)).map((a) => a.code);
 };
 const MUTATING = [
+  "submit",
   "approve",
+  "reject",
   "send",
   "cancel",
   "closeShort",
-  "receive",
+  "close",
   "recoverDelivery",
   "recordConfirmation",
 ];
 
-describe("PO_TRANSITIONS (docs 02 §5 thu hẹp theo BE PurchaseOrderStatus, 7 trạng thái)", () => {
-  it("có đủ 7 mã trạng thái BE", () => {
+describe("PO_TRANSITIONS (docs 02 §5, BE PurchaseOrderStatus D4 — 8 trạng thái)", () => {
+  it("có đủ 8 mã trạng thái BE", () => {
     expect(Object.keys(PO_TRANSITIONS).sort()).toEqual([...PO_STATUSES].sort());
+    expect(PO_STATUSES).toHaveLength(8);
   });
 
-  it("DRAFT → APPROVED | CANCELLED; APPROVED → SENT | CANCELLED", () => {
-    expect(nextPoStatuses("DRAFT")).toEqual(["APPROVED", "CANCELLED"]);
-    expect(nextPoStatuses("APPROVED")).toEqual(["SENT", "CANCELLED"]);
+  it("DRAFT → PENDING_APPROVAL → APPROVED | DRAFT (từ chối); APPROVED → CONFIRMED", () => {
+    expect(nextPoStatuses("DRAFT")).toEqual(["PENDING_APPROVAL", "CANCELLED"]);
+    expect(nextPoStatuses("PENDING_APPROVAL")).toEqual(["APPROVED", "DRAFT", "CANCELLED"]);
+    expect(nextPoStatuses("APPROVED")).toEqual(["CONFIRMED", "CANCELLED"]);
+    expect(nextPoStatuses("CONFIRMED")).toEqual(["CANCELLED"]);
   });
 
-  it("BR-05 (docs 02 §6): PARTIALLY_RECEIVED không thể CANCELLED — chỉ short-close", () => {
-    expect(nextPoStatuses("PARTIALLY_RECEIVED")).toEqual(["CLOSED_SHORT"]);
+  it("BR-05 (docs 02 §6): đã nhận hàng thì không huỷ được — chỉ đóng", () => {
+    expect(nextPoStatuses("PARTIALLY_RECEIVED")).toEqual(["CLOSED"]);
+    expect(nextPoStatuses("RECEIVED")).toEqual(["CLOSED"]);
   });
 
-  it.each(["CLOSED", "CLOSED_SHORT", "CANCELLED"] as const)("%s là terminal (=== [])", (s) => {
+  it.each(["CLOSED", "CANCELLED"] as const)("%s là terminal (=== [])", (s) => {
     expect(PO_TRANSITIONS[s]).toEqual([]);
     expect(isPoTerminal(s)).toBe(true);
   });
 
   it("regression: trạng thái lạ không làm sập trang — coi như terminal, không có bước kế", () => {
     expect(isPoTerminal("Draft")).toBe(true);
-    expect(nextPoStatuses("Draft")).toEqual([]);
+    expect(nextPoStatuses("SENT")).toEqual([]);
   });
 });
 
 describe("allowedPoActions — gate theo MÃ QUYỀN (/identity/me/permissions), không theo vai trò", () => {
   it("chỉ xem (VIEW_PAGE + READ): không có thao tác nào", () => {
     expect(codes(gate("DRAFT"), "readOnly")).toEqual([]);
-    expect(codes(gate("SENT", { supplierConfirmationStatus: "PENDING" }), "readOnly")).toEqual([]);
+    expect(codes(gate("CONFIRMED", { supplierConfirmationStatus: "PENDING" }), "readOnly")).toEqual(
+      [],
+    );
   });
 
-  it("thiếu APPROVE (procurement): DRAFT không có Phê duyệt, vẫn được Huỷ", () => {
-    expect(codes(gate("DRAFT"), "procurement")).toEqual(["cancel"]);
+  it("DRAFT + UPDATE (procurement): Gửi duyệt, Huỷ — không có Phê duyệt", () => {
+    expect(codes(gate("DRAFT"), "procurement")).toEqual(["submit", "cancel"]);
+    expect(codes(gate("DRAFT"), "approver")).toEqual([]);
   });
 
-  it("có APPROVE (approver, BE #40): DRAFT chỉ có Phê duyệt (không có UPDATE để huỷ)", () => {
-    expect(codes(gate("DRAFT"), "approver")).toEqual(["approve"]);
+  it("PENDING_APPROVAL: người có APPROVE được Duyệt / Từ chối; procurement chỉ Huỷ", () => {
+    expect(codes(gate("PENDING_APPROVAL"), "approver")).toEqual(["approve", "reject"]);
+    expect(codes(gate("PENDING_APPROVAL"), "procurement")).toEqual(["cancel"]);
   });
 
-  it("APPROVED + UPDATE → Gửi NCC; approver không gửi được", () => {
+  it("APPROVED + UPDATE → Xác nhận & gửi NCC; approver không gửi được", () => {
     expect(codes(gate("APPROVED"), "procurement")).toEqual(["send", "cancel"]);
     expect(codes(gate("APPROVED"), "approver")).toEqual([]);
   });
 
-  it("BR-03: SENT chờ NCC phản hồi → nhận hàng, ghi nhận phản hồi, huỷ", () => {
-    const po = gate("SENT", { supplierConfirmationStatus: "PENDING", deliveryStatus: "DELIVERED" });
+  it("CONFIRMED chờ NCC phản hồi → nhận hàng (mở phiếu nhập), ghi nhận phản hồi, huỷ", () => {
+    const po = gate("CONFIRMED", {
+      supplierConfirmationStatus: "PENDING",
+      deliveryStatus: "DELIVERED",
+    });
     expect(codes(po, "procurement")).toEqual(["receive", "recordConfirmation", "cancel"]);
   });
 
   it("Nhận hàng mở màn tạo phiếu nhận → cần goods-receipts CREATE + VIEW_PAGE", () => {
-    const po = gate("SENT", { supplierConfirmationStatus: "PENDING" });
+    const po = gate("CONFIRMED", { supplierConfirmationStatus: "PENDING" });
     const withoutViewPage: readonly PermissionCode[] = PO_PERMISSION_SETS.procurement.filter(
       (code) => code !== GOODS_RECEIPT_PERMISSIONS.viewPage,
     );
@@ -89,17 +102,20 @@ describe("allowedPoActions — gate theo MÃ QUYỀN (/identity/me/permissions),
     expect(actions.map((a) => a.code)).not.toContain("receive");
   });
 
-  it.each(["DRAFT", "APPROVED"] as const)("BR-03: %s chưa chốt → không có Nhận hàng", (s) => {
-    expect(codes(gate(s), "full")).not.toContain("receive");
-  });
+  it.each(["DRAFT", "PENDING_APPROVAL", "APPROVED"] as const)(
+    "BR-03: %s chưa chốt → không có Nhận hàng",
+    (s) => {
+      expect(codes(gate(s), "full")).not.toContain("receive");
+    },
+  );
 
-  it("NCC đã từ chối → không cho nhận hàng (PO không bao giờ CONFIRMED, BE receipt từ chối)", () => {
-    const po = gate("SENT", { supplierConfirmationStatus: "REJECTED" });
+  it("NCC đã từ chối → không nhận hàng, chỉ còn huỷ (rồi tạo PO thay thế)", () => {
+    const po = gate("CONFIRMED", { supplierConfirmationStatus: "REJECTED" });
     expect(codes(po, "full")).toEqual(["cancel"]);
   });
 
-  it("khôi phục gửi: chỉ khi SENT + chờ NCC + lần gửi FAILED, và cần APPROVE", () => {
-    const failed = gate("SENT", {
+  it("khôi phục gửi: chỉ khi CONFIRMED + chờ NCC + lần gửi FAILED, và cần APPROVE", () => {
+    const failed = gate("CONFIRMED", {
       supplierConfirmationStatus: "PENDING",
       deliveryStatus: "FAILED",
     });
@@ -109,16 +125,18 @@ describe("allowedPoActions — gate theo MÃ QUYỀN (/identity/me/permissions),
     expect(codes(delivered, "full")).not.toContain("recoverDelivery");
   });
 
-  it("BR-03 + BR-05: PARTIALLY_RECEIVED → nhận tiếp, đóng thiếu; không có huỷ", () => {
-    const po = gate("PARTIALLY_RECEIVED", { supplierConfirmationStatus: "CONFIRMED" });
-    expect(codes(po, "procurement")).toEqual(["receive", "closeShort"]);
+  it("BR-05: PARTIALLY_RECEIVED → nhận tiếp / đóng thiếu; RECEIVED → đóng đơn; không có huỷ", () => {
+    const partial = gate("PARTIALLY_RECEIVED", { supplierConfirmationStatus: "CONFIRMED" });
+    expect(codes(partial, "procurement")).toEqual(["receive", "closeShort"]);
+    const received = gate("RECEIVED", { supplierConfirmationStatus: "CONFIRMED" });
+    expect(codes(received, "procurement")).toEqual(["close"]);
   });
 
   it("không có quyền nào → không có thao tác", () => {
     expect(codes(gate("DRAFT"), "none")).toEqual([]);
   });
 
-  it.each(["CLOSED", "CLOSED_SHORT", "CANCELLED"] as const)(
+  it.each(["CLOSED", "CANCELLED"] as const)(
     "%s (terminal, NCC đã phản hồi): không có nút mutating kể cả đủ quyền",
     (s) => {
       const po = gate(s, { supplierConfirmationStatus: "CONFIRMED" });

@@ -234,21 +234,22 @@ async function seedSpecs(): Promise<SeedSpec[]> {
   for (const po of pos) {
     const policies = await Promise.all(po.lines.map((line) => itemPolicy(line.sku)));
     const received = po.lines.map((line) => line.quantityReceived);
+    // D4: PO nhận đủ là RECEIVED, rồi CLOSED khi đóng đơn.
+    const fullyReceived = po.status === "RECEIVED" || po.status === "CLOSED";
     if (received.some((qty) => qty > 0)) {
       const waves = received.map((qty) => split(qty, 3));
       // Phiếu In QC là một phần SL PO đã nhận (không cộng thêm vào PO): lấy 2 đơn vị của đợt cuối
-      const qcIndex =
-        po.status === "CLOSED"
-          ? -1
-          : po.lines.findIndex(
-              (_, i) => (policies[i]?.qcRequired ?? false) && (waves[i]?.[2] ?? 0) >= 3,
-            );
+      const qcIndex = fullyReceived
+        ? -1
+        : po.lines.findIndex(
+            (_, i) => (policies[i]?.qcRequired ?? false) && (waves[i]?.[2] ?? 0) >= 3,
+          );
       const lastWave = waves[qcIndex];
       if (lastWave) lastWave[2] = (lastWave[2] ?? 0) - 2;
       [0, 1, 2].forEach((wave) => {
         specs.push({
           po,
-          status: wave < 2 || po.status === "CLOSED" ? "CLOSED" : "IN_PUTAWAY",
+          status: wave < 2 || fullyReceived ? "CLOSED" : "IN_PUTAWAY",
           ageDays: 30 - wave * 7,
           lines: po.lines
             .map((_, index) => [index, waves[index]?.[wave] ?? 0, "auto"] as const)
@@ -265,7 +266,7 @@ async function seedSpecs(): Promise<SeedSpec[]> {
         specs.push({ po, status: "IN_QC", ageDays: 2, lines: [[qcIndex, 1, "IN_QC_AREA"]] });
       }
     }
-    if (po.status !== "SENT" && po.status !== "PARTIALLY_RECEIVED") continue;
+    if (po.status !== "CONFIRMED" && po.status !== "PARTIALLY_RECEIVED") continue;
     const openIndex = po.lines.findIndex((line) => line.openQuantity > 0);
     specs.push({ po, status: "CANCELLED", ageDays: 6, lines: [] });
     specs.push({ po, status: "DRAFT", ageDays: 0, lines: [] });
@@ -277,8 +278,9 @@ async function seedSpecs(): Promise<SeedSpec[]> {
 }
 
 /**
- * BE `ReceivingPurchaseOrderAdapter#recordProgress` khi xác nhận phiếu: SL đã nhận / còn mở của
- * dòng PO và trạng thái PO (PARTIALLY_RECEIVED, hoặc CLOSED khi mọi dòng nhận đủ).
+ * BE `ReceivingPurchaseOrderAdapter#recordProgress` khi xác nhận phiếu: SL đã nhận / còn mở và
+ * trạng thái của dòng PO, trạng thái PO (PARTIALLY_RECEIVED, hoặc RECEIVED khi mọi dòng nhận đủ —
+ * BE PR #71 D4; đóng đơn là bước riêng `/closure`).
  */
 export async function recordPoProgress(receipt: MockReceipt): Promise<void> {
   const poStore = await getPoStore();
@@ -289,13 +291,22 @@ export async function recordPoProgress(receipt: MockReceipt): Promise<void> {
       .filter((l) => l.purchaseOrderLineId === line.lineId)
       .reduce((sum, l) => sum + l.quantity, 0);
     const quantityReceived = line.quantityReceived + added;
+    const openQuantity = Math.max(0, line.quantityOrdered - quantityReceived);
+    const open = line.status === "OPEN" || line.status === "PARTIALLY_RECEIVED";
     return {
       ...line,
       quantityReceived,
-      openQuantity: Math.max(0, line.quantityOrdered - quantityReceived),
+      openQuantity,
+      status: !open
+        ? line.status
+        : openQuantity === 0
+          ? ("RECEIVED" as const)
+          : quantityReceived > 0
+            ? ("PARTIALLY_RECEIVED" as const)
+            : ("OPEN" as const),
     };
   });
-  const status = lines.every((line) => line.openQuantity === 0) ? "CLOSED" : "PARTIALLY_RECEIVED";
+  const status = lines.every((line) => line.openQuantity === 0) ? "RECEIVED" : "PARTIALLY_RECEIVED";
   poStore.set(po.purchaseOrderId, { ...po, lines, status });
 }
 

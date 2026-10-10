@@ -1,22 +1,45 @@
+/**
+ * BE `PurchaseOrderStatus` (quyết định D4, BE PR #71): gửi duyệt → duyệt (4 mắt) → xác nhận
+ * (= chốt và gửi NCC) → nhận hàng qua phiếu nhận → đóng. `SENT` cũ là `CONFIRMED`;
+ * `CLOSED_SHORT` cũ là `CLOSED` + `closeKind = SHORT_CLOSE`.
+ */
 export const PO_STATUSES = [
   "DRAFT",
+  "PENDING_APPROVAL",
   "APPROVED",
-  "SENT",
+  "CONFIRMED",
   "PARTIALLY_RECEIVED",
+  "RECEIVED",
   "CLOSED",
-  "CLOSED_SHORT",
   "CANCELLED",
 ] as const;
 
 export const PO_STATUS = {
   DRAFT: "DRAFT",
+  PENDING_APPROVAL: "PENDING_APPROVAL",
   APPROVED: "APPROVED",
-  SENT: "SENT",
+  CONFIRMED: "CONFIRMED",
   PARTIALLY_RECEIVED: "PARTIALLY_RECEIVED",
+  RECEIVED: "RECEIVED",
   CLOSED: "CLOSED",
-  CLOSED_SHORT: "CLOSED_SHORT",
   CANCELLED: "CANCELLED",
 } as const satisfies Record<string, PoStatus>;
+
+/** BE `purchase_order_lines.status`. */
+export const PO_LINE_STATUSES = [
+  "OPEN",
+  "PARTIALLY_RECEIVED",
+  "RECEIVED",
+  "CLOSED",
+  "CANCELLED",
+] as const;
+
+/** BE `closeKind` của PO đã đóng. */
+export const PO_CLOSE_KIND = {
+  NORMAL: "NORMAL",
+  SHORT_CLOSE: "SHORT_CLOSE",
+  FORCE_CLOSE: "FORCE_CLOSE",
+} as const;
 
 /** BE `SupplierConfirmationStatus` — NCC đã phản hồi PO chưa. */
 export const SUPPLIER_CONFIRMATION_STATUSES = [
@@ -235,15 +258,19 @@ export const ORDER_STATUSES = [
 ] as const;
 
 /** Nhà cung cấp (module 01) — BE: ACTIVE/INACTIVE (SCRUM-118). */
-export const SUPPLIER_STATUSES = ["Active", "Inactive"] as const;
+export const SUPPLIER_STATUSES = ["Active", "Inactive", "Blacklisted"] as const;
 
 export const SUPPLIER_STATUS = {
   ACTIVE: "Active",
   INACTIVE: "Inactive",
+  BLACKLISTED: "Blacklisted",
 } as const satisfies Record<string, SupplierStatus>;
 
-/** Giá trị status trên wire của BE (SaveSupplierRequest/SupplierResponse — BE PR #36). */
-export const SUPPLIER_API_STATUSES = ["ACTIVE", "INACTIVE"] as const;
+/**
+ * Giá trị status trên wire của BE (SaveSupplierRequest/SupplierResponse). BE PR #71 thêm
+ * BLACKLISTED = ngừng hợp tác có lý do không đặt lại (không nhận PO mới như INACTIVE).
+ */
+export const SUPPLIER_API_STATUSES = ["ACTIVE", "INACTIVE", "BLACKLISTED"] as const;
 
 /** Kênh gửi PO cho NCC — BE `communicationChannel` (EMAIL|API, BE PR #36). */
 export const SUPPLIER_CHANNELS = ["EMAIL", "API"] as const;

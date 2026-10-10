@@ -9,8 +9,10 @@ type TopField = keyof PoCreateFormValues;
 /** Single source of truth: field → bước wizard (theo mẫu wizard NCC). */
 const FIELD_STEP: Record<TopField, StepKey> = {
   supplierId: "info",
+  warehouseId: "info",
   currency: "info",
   expectedDate: "info",
+  note: "info",
   lines: "lines",
 };
 
@@ -49,7 +51,7 @@ export function issuesByStep(errs: FieldErrors<PoCreateFormValues>): Map<StepKey
   const push = (step: StepKey, message: string) =>
     map.set(step, [...(map.get(step) ?? []), message]);
 
-  for (const field of ["supplierId", "currency", "expectedDate"] as const) {
+  for (const field of ["supplierId", "warehouseId", "currency", "expectedDate"] as const) {
     const message = messageOf(errs[field]);
     if (message) push(FIELD_STEP[field], message);
   }

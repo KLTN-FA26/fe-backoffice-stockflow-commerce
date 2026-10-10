@@ -46,8 +46,8 @@ const SORTABLE: Record<string, (r: MockReceipt) => string> = {
   receiptNumber: (r) => r.number,
   status: (r) => r.status,
 };
-// Mock: PO "đã chốt" của bảng cũ là SENT (≙ CONFIRMED của bảng mới, BR-01)
-const RECEIVABLE_PO = ["SENT", "PARTIALLY_RECEIVED"];
+// BR-01: chỉ nhận cho PO đã chốt (CONFIRMED, BE PR #71 D4) hoặc đang nhận dở.
+const RECEIVABLE_PO = ["CONFIRMED", "PARTIALLY_RECEIVED"];
 
 /** BE `receipts.receivedOnOtherReceipts`: mọi phiếu chưa huỷ, trừ phiếu đang xét. */
 async function receivedElsewhere(poLineId: string, receiptId: string): Promise<number> {

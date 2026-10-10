@@ -13,24 +13,27 @@ import {
 
 import { ProductDescriptionFields } from "./ProductDescriptionFields";
 import { ProductFormField } from "./ProductFormField";
-import { ProductLogisticsFields } from "./ProductLogisticsFields";
 
 import type { UseFormReturn } from "react-hook-form";
-import type { ProductDraftFormValues } from "../schemas";
+import type { BrandDto, ProductDraftFormValues } from "../schemas";
 import type { Category } from "../types";
 
 interface ProductMasterFieldsProps {
+  brands: readonly BrandDto[];
   categories: readonly Category[];
   form: UseFormReturn<ProductDraftFormValues>;
   isEditing: boolean;
-  isMock: boolean;
 }
 
+/** Thụt lề theo cấp để cây danh mục đọc được trong một ô chọn phẳng. */
+const categoryLabel = (category: Category) =>
+  `${"\u00a0\u00a0".repeat(category.level - 1)}${category.name.vi}`;
+
 export function ProductMasterFields({
+  brands,
   categories,
   form,
   isEditing,
-  isMock,
 }: ProductMasterFieldsProps) {
   const {
     control,
@@ -62,16 +65,28 @@ export function ProductMasterFields({
             />
           </ProductFormField>
           <ProductFormField
-            htmlFor="brand"
+            htmlFor="brand-id"
             label="Thương hiệu"
-            error={errors.brand?.message}
+            error={errors.brandId?.message}
             required
           >
-            <Input
-              {...register("brand")}
-              id="brand"
-              autoFocus={isEditing}
-              aria-invalid={Boolean(errors.brand)}
+            <Controller
+              control={control}
+              name="brandId"
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger id="brand-id" aria-invalid={Boolean(errors.brandId)}>
+                    <SelectValue placeholder="Chọn thương hiệu" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {brands.map((brand) => (
+                      <SelectItem key={brand.brandId} value={brand.brandId}>
+                        {brand.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             />
           </ProductFormField>
           <ProductFormField
@@ -96,33 +111,24 @@ export function ProductMasterFields({
             error={errors.categoryId?.message}
             required
           >
-            {isMock ? (
-              <Controller
-                control={control}
-                name="categoryId"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger id="category-id" aria-invalid={Boolean(errors.categoryId)}>
-                      <SelectValue placeholder="Chọn danh mục" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category.categoryId} value={category.categoryId}>
-                          {category.name.vi}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            ) : (
-              <Input
-                {...register("categoryId")}
-                id="category-id"
-                aria-invalid={Boolean(errors.categoryId)}
-                placeholder="UUID danh mục"
-              />
-            )}
+            <Controller
+              control={control}
+              name="categoryId"
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger id="category-id" aria-invalid={Boolean(errors.categoryId)}>
+                    <SelectValue placeholder="Chọn danh mục" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((category) => (
+                      <SelectItem key={category.categoryId} value={category.categoryId}>
+                        {categoryLabel(category)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
           </ProductFormField>
           <ProductFormField
             htmlFor="tax-class"
@@ -159,7 +165,6 @@ export function ProductMasterFields({
       </section>
 
       <ProductDescriptionFields form={form} />
-      <ProductLogisticsFields form={form} />
     </div>
   );
 }

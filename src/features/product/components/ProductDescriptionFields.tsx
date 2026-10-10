@@ -15,23 +15,22 @@ export function ProductDescriptionFields({
   const { register } = form;
   return (
     <section className="border-border-default bg-bg-surface rounded-[var(--r-sm)] border p-4">
-      <h2 className="text-ink-primary text-sm font-semibold">Mô tả và hình ảnh</h2>
+      <h2 className="text-ink-primary text-sm font-semibold">Mô tả</h2>
+      <p className="text-ink-secondary mt-1 text-xs">
+        Hình ảnh quản lý theo từng biến thể; kích thước, khối lượng theo từng SKU.
+      </p>
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <div className="lg:col-span-2">
+          <ProductFormField htmlFor="short-description" label="Mô tả ngắn">
+            <Textarea {...register("shortDescription")} id="short-description" rows={2} />
+          </ProductFormField>
+        </div>
         <ProductFormField htmlFor="description" label="Mô tả tiếng Việt">
           <Textarea {...register("description")} id="description" rows={4} />
         </ProductFormField>
         <ProductFormField htmlFor="description-en" label="Mô tả tiếng Anh">
           <Textarea {...register("descriptionEn")} id="description-en" rows={4} />
         </ProductFormField>
-        <div className="lg:col-span-2">
-          <ProductFormField
-            htmlFor="image-urls"
-            label="URL hình ảnh"
-            hint="Mỗi dòng một URL, giữ nguyên thứ tự gallery."
-          >
-            <Textarea {...register("imageUrls")} id="image-urls" rows={3} />
-          </ProductFormField>
-        </div>
       </div>
     </section>
   );

@@ -19,6 +19,8 @@ type KnownErrorCode = Exclude<
 /** Tên trường BE (CreatePurchaseOrderRequest…) → nhãn tiếng Việt. */
 const FIELD_LABELS: Record<string, string> = {
   supplierId: UI_LABELS.purchaseOrder.supplier,
+  warehouseId: UI_LABELS.purchaseOrder.validation.warehouseRequired,
+  taxRate: "Thuế suất",
   currency: UI_LABELS.purchaseOrder.currency,
   expectedAt: UI_LABELS.purchaseOrder.expectedDate,
   lines: UI_LABELS.purchaseOrder.lines,
@@ -48,7 +50,6 @@ export function poErrorMessage(error: unknown, context: PoErrorContext = "defaul
   if (!(error instanceof ApiError)) return PO_ERROR_MESSAGES.generic;
   const firstField = Object.keys(error.fieldErrors ?? {})[0];
   if (firstField) return `${PO_ERROR_MESSAGES.VALIDATION_FAILED}: ${fieldLabel(firstField)}`;
-  // BE: nhận vượt "còn nhận được" là IllegalArgumentException → 400 chung, không có field.
   // BE publishDelivery: 409 CONFLICT chung khi NCC không nhận được PO (mã cụ thể đi nhánh dưới).
   if (context === "send" && error.code === "CONFLICT") {
     return PO_ERROR_MESSAGES.sendSupplierUnavailable;

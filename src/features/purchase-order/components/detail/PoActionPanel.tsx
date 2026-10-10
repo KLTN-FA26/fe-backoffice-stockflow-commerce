@@ -1,12 +1,15 @@
 "use client";
 
 import {
+  Archive,
   CheckCircle2,
   ClipboardCheck,
+  FileCheck2,
   PackageCheck,
   PackageX,
   RotateCcw,
   Send,
+  Undo2,
   XCircle,
 } from "lucide-react";
 
@@ -35,12 +38,15 @@ const STYLE_OF = {
 } as const;
 
 const ACTION_ICON: Record<PoActionCode, LucideIcon> = {
+  submit: FileCheck2,
   approve: CheckCircle2,
+  reject: Undo2,
   send: Send,
-  receive: PackageCheck,
+  close: Archive,
   recordConfirmation: ClipboardCheck,
   recoverDelivery: RotateCcw,
   closeShort: PackageX,
+  receive: PackageCheck,
   cancel: XCircle,
 };
 
@@ -108,14 +114,26 @@ export function PoActionPanel({
 
 /** Mô tả dialog xác nhận — nhãn tiếng Việt, không hiện mã enum thô. */
 export function actionDescription(act: PoAction, current: PoStatus): string {
+  if (act.code === "submit") {
+    return `Gửi duyệt — đơn chuyển sang "${label(PO_STATUS.PENDING_APPROVAL)}" và được chụp lại nội dung. Người duyệt phải là người khác.`;
+  }
   if (act.code === "approve") {
-    return `Phê duyệt đơn — chuyển từ "${label(current)}" sang "${label(PO_STATUS.APPROVED)}". Sau khi duyệt mới gửi được NCC.`;
+    return `Phê duyệt đơn — chuyển từ "${label(current)}" sang "${label(PO_STATUS.APPROVED)}". Sau khi duyệt mới xác nhận & gửi được NCC. Không duyệt được đơn do chính mình gửi.`;
+  }
+  if (act.code === "reject") {
+    return `Từ chối duyệt — đơn trở về "${label(PO_STATUS.DRAFT)}" để sửa rồi gửi duyệt lại.`;
+  }
+  if (act.code === "close") {
+    return `Đóng đơn — đã nhận đủ hàng, đơn chuyển sang "${label(PO_STATUS.CLOSED)}".`;
   }
   if (act.code === "cancel") {
     return `Huỷ đơn — chuyển từ "${label(current)}" sang "${label(PO_STATUS.CANCELLED)}". Không thể khôi phục.`;
   }
+  if (act.code === "receive") {
+    return "Nhận hàng — mở phiếu nhận cho đơn này; SL đã nhận và trạng thái đơn cập nhật khi phiếu được xác nhận.";
+  }
   if (act.code === "closeShort") {
-    return `Đóng thiếu — đơn chuyển sang "${label(PO_STATUS.CLOSED_SHORT)}", phần chưa nhận được ghi nhận thiếu.`;
+    return `Đóng thiếu — đơn chuyển sang "${label(PO_STATUS.CLOSED)}", phần chưa nhận được ghi nhận thiếu.`;
   }
   return `Xác nhận "${act.label}".`;
 }

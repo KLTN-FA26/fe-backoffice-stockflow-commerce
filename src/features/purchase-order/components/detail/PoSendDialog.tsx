@@ -53,7 +53,7 @@ function SendForm({
   const current = po.expectedDate || null;
   const [expectedAt, setExpectedAt] = useState(current ?? "");
   const [reason, setReason] = useState("");
-  const parsed = sendPoInputSchema(current).safeParse({ expectedAt, reason });
+  const parsed = sendPoInputSchema(current, po.orderDate).safeParse({ expectedAt, reason });
   const missingDescription = linesMissingDescription(po).length;
   const errorOf = (field: "expectedAt" | "reason") =>
     parsed.success ? undefined : parsed.error.issues.find((i) => i.path[0] === field)?.message;

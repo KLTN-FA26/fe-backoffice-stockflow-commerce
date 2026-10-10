@@ -23,6 +23,7 @@ import { DataTable, type ColumnDef } from "@/components/shared/DataTable";
 import { StatusDot } from "@/components/shared/StatusDot";
 import { toast } from "@/components/shared/Toast";
 import { products, skus, type Product } from "@/lib/mock-data";
+import { VariantAttributesGate } from "@/features/product/components/VariantAttributesGate";
 
 /* -------------------------------------------------------------------------- */
 /*  Aggregate attribute from all products                                     */
@@ -109,6 +110,14 @@ function findAttribute(attrId: string): AggregatedAttribute | null {
 /* -------------------------------------------------------------------------- */
 
 export default function VariantDetailPage() {
+  return (
+    <VariantAttributesGate>
+      <VariantDetailContent />
+    </VariantAttributesGate>
+  );
+}
+
+function VariantDetailContent() {
   const params = useParams<{ id: string }>();
   const attrId = params.id;
 

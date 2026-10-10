@@ -9,10 +9,13 @@ import {
   poErrorMessage,
   useApprovePo,
   useCancelPo,
+  useClosePo,
   useCloseShortPo,
   useRecordSupplierConfirmation,
   useRecoverPoDelivery,
+  useRejectPo,
   useSendPo,
+  useSubmitPo,
 } from "@/features/purchase-order";
 import { toast } from "@/components/shared/Toast";
 
@@ -34,18 +37,29 @@ const MSG = TOAST_MESSAGES.purchaseOrder;
  * 409 / 400 không có field = dữ liệu trên màn đã cũ → tải lại PO để trạng thái + nút không sai.
  */
 export function usePoActions(po: PurchaseOrder | null, refetchPo: () => void) {
+  const submitPo = useSubmitPo();
   const approvePo = useApprovePo();
+  const rejectPo = useRejectPo();
   const sendPo = useSendPo();
   const cancelPo = useCancelPo();
   const closeShortPo = useCloseShortPo();
+  const closePo = useClosePo();
   const recoverPo = useRecoverPoDelivery();
   const confirmPo = useRecordSupplierConfirmation();
   const [dialog, setDialog] = useState<PoActionCode | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [conflictError, setConflictError] = useState<string | null>(null);
-  const isMutating = [approvePo, sendPo, cancelPo, closeShortPo, recoverPo, confirmPo].some(
-    (m) => m.isPending,
-  );
+  const isMutating = [
+    submitPo,
+    approvePo,
+    rejectPo,
+    sendPo,
+    cancelPo,
+    closeShortPo,
+    closePo,
+    recoverPo,
+    confirmPo,
+  ].some((m) => m.isPending);
   const id = po?.poId ?? "";
 
   const close = () => {
@@ -82,7 +96,10 @@ export function usePoActions(po: PurchaseOrder | null, refetchPo: () => void) {
     conflictError,
     open,
     close,
+    submit: () => submitPo.mutate({ id }, callbacks("default", false)),
     approve: () => approvePo.mutate({ id }, callbacks("default", false)),
+    reject: (reason: string) => rejectPo.mutate({ id, reason }, callbacks("default", false)),
+    closePo: () => closePo.mutate({ id }, callbacks("default", false)),
     cancel: (reason: string) => cancelPo.mutate({ id, reason }, callbacks("default", false)),
     closeShort: (reason: string) =>
       closeShortPo.mutate({ id, reason }, callbacks("default", false)),

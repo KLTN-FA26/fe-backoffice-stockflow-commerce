@@ -17,6 +17,7 @@ import {
   PRODUCT_DRAFT_FORM_DEFAULTS,
   productDraftFormSchema,
   productToDraftForm,
+  useBrands,
   useCategories,
   useCreateProduct,
   useProduct,
@@ -27,7 +28,6 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
-import { useIsMock } from "@/providers/app-providers";
 
 import { ProductMasterFields } from "./ProductMasterFields";
 import { ProductFormBackLink, ProductFormForbidden } from "./ProductFormNavigation";
@@ -37,11 +37,12 @@ import type { Product, ProductDraftFormValues } from "@/features/product";
 export function ProductCreate({ productId }: { productId?: string }) {
   const isEditing = Boolean(productId);
   const router = useRouter();
-  const isMock = useIsMock();
   const canSave = useCan(isEditing ? "product.edit" : "product.create");
   const productQuery = useProduct(productId);
-  const categoriesQuery = useCategories(isMock);
+  const categoriesQuery = useCategories();
   const categories = categoriesQuery.data?.items ?? [];
+  const brandsQuery = useBrands();
+  const brands = brandsQuery.data ?? [];
   const [serverMessage, setServerMessage] = useState<string>();
   const form = useForm<ProductDraftFormValues>({
     defaultValues: PRODUCT_DRAFT_FORM_DEFAULTS,
@@ -90,7 +91,7 @@ export function ProductCreate({ productId }: { productId?: string }) {
     }
   });
 
-  if ((isEditing && productQuery.isLoading) || (isMock && categoriesQuery.isLoading)) {
+  if ((isEditing && productQuery.isLoading) || categoriesQuery.isLoading || brandsQuery.isLoading) {
     return <PageSkeleton variant="form" />;
   }
   if (!canSave) return <ProductFormForbidden isEditing={isEditing} />;
@@ -130,10 +131,10 @@ export function ProductCreate({ productId }: { productId?: string }) {
           </div>
         )}
         <ProductMasterFields
+          brands={brands}
           categories={categories}
           form={form}
           isEditing={isEditing}
-          isMock={isMock}
         />
         <div className="border-border-default bg-bg-subtle sticky bottom-0 flex justify-end border-t p-3">
           <Button

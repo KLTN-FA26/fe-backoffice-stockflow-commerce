@@ -27,16 +27,53 @@ export function PoDetailDialogs({
   const isOpen = (code: PoActionCode) => a.dialog === code;
   const onOpenChange = (open: boolean) => !open && a.close();
   const shared = { po, isPending: a.isMutating, serverError: a.dialogError, onOpenChange };
-  const confirmFor = (code: "approve" | "cancel" | "closeShort") => {
+  const confirmFor = (
+    code: "submit" | "approve" | "reject" | "close" | "cancel" | "closeShort",
+  ) => {
     const act = PO_ACTIONS.find((x) => x.code === code);
     return act ? { title: act.label, description: actionDescription(act, po.status) } : null;
   };
+  const submit = confirmFor("submit");
   const approve = confirmFor("approve");
+  const reject = confirmFor("reject");
+  const closeOrder = confirmFor("close");
   const cancel = confirmFor("cancel");
   const closeShort = confirmFor("closeShort");
 
   return (
     <>
+      {submit && (
+        <ConfirmDialog
+          open={isOpen("submit")}
+          onOpenChange={onOpenChange}
+          {...submit}
+          confirmLabel={submit.title}
+          variant="default"
+          onConfirm={a.submit}
+        />
+      )}
+      {reject && (
+        <ConfirmDialog
+          open={isOpen("reject")}
+          onOpenChange={onOpenChange}
+          {...reject}
+          confirmLabel={reject.title}
+          requireReason
+          reasonMaxLength={PO_LIMITS.rejectReasonMax}
+          reasonLabel="Lý do từ chối (bắt buộc)"
+          onConfirm={(reason) => a.reject(reason ?? "")}
+        />
+      )}
+      {closeOrder && (
+        <ConfirmDialog
+          open={isOpen("close")}
+          onOpenChange={onOpenChange}
+          {...closeOrder}
+          confirmLabel={closeOrder.title}
+          variant="default"
+          onConfirm={a.closePo}
+        />
+      )}
       {approve && (
         <ConfirmDialog
           open={isOpen("approve")}
@@ -48,7 +85,7 @@ export function PoDetailDialogs({
         />
       )}
       {/* Huỷ / Đóng thiếu bắt buộc lý do: BE CancelPurchaseOrderRequest / CloseShortRequest
-          `reason` @NotBlank, tối đa VARCHAR(1000). */}
+          `reason` @NotBlank, tối đa VARCHAR(255) (BE PR #71). */}
       {cancel && (
         <ConfirmDialog
           open={isOpen("cancel")}
@@ -56,7 +93,7 @@ export function PoDetailDialogs({
           {...cancel}
           confirmLabel={cancel.title}
           requireReason
-          reasonMaxLength={PO_LIMITS.reasonMax}
+          reasonMaxLength={PO_LIMITS.closeReasonMax}
           reasonLabel="Lý do huỷ (bắt buộc)"
           onConfirm={(reason) => a.cancel(reason ?? "")}
         />
@@ -68,7 +105,7 @@ export function PoDetailDialogs({
           {...closeShort}
           confirmLabel={closeShort.title}
           requireReason
-          reasonMaxLength={PO_LIMITS.reasonMax}
+          reasonMaxLength={PO_LIMITS.closeReasonMax}
           reasonLabel="Lý do đóng thiếu (bắt buộc)"
           onConfirm={(reason) => a.closeShort(reason ?? "")}
         />

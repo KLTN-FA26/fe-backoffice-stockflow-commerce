@@ -5,6 +5,7 @@ import {
   CheckCircle,
   ClipboardCheck,
   Clock,
+  Hourglass,
   PackageCheck,
   ReceiptText,
   Truck,
@@ -24,15 +25,20 @@ export function usePoStats(counts: readonly PoStatusCount[] | undefined) {
     const lbl = (k: PoStatus) => STATUS_LABEL_VI[k] ?? k;
     return [
       { label: lbl(PO_STATUS.DRAFT), value: n(PO_STATUS.DRAFT), icon: Clock },
+      {
+        label: lbl(PO_STATUS.PENDING_APPROVAL),
+        value: n(PO_STATUS.PENDING_APPROVAL),
+        icon: Hourglass,
+      },
       { label: lbl(PO_STATUS.APPROVED), value: n(PO_STATUS.APPROVED), icon: ClipboardCheck },
-      { label: lbl(PO_STATUS.SENT), value: n(PO_STATUS.SENT), icon: CheckCircle },
+      { label: lbl(PO_STATUS.CONFIRMED), value: n(PO_STATUS.CONFIRMED), icon: CheckCircle },
       {
         label: lbl(PO_STATUS.PARTIALLY_RECEIVED),
         value: n(PO_STATUS.PARTIALLY_RECEIVED),
         icon: Truck,
       },
+      { label: lbl(PO_STATUS.RECEIVED), value: n(PO_STATUS.RECEIVED), icon: ReceiptText },
       { label: lbl(PO_STATUS.CLOSED), value: n(PO_STATUS.CLOSED), icon: PackageCheck },
-      { label: lbl(PO_STATUS.CLOSED_SHORT), value: n(PO_STATUS.CLOSED_SHORT), icon: ReceiptText },
       { label: lbl(PO_STATUS.CANCELLED), value: n(PO_STATUS.CANCELLED), icon: XCircle },
     ];
   }, [counts]);

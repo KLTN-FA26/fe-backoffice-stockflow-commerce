@@ -16,37 +16,33 @@ import {
   ChevronRight,
   ChevronDown,
   Pencil,
-  Plus,
 } from "lucide-react";
-import { ADMIN_ROUTES, PAGE_SIZE, PRODUCT_STATUS } from "@/constants";
+import { ADMIN_ROUTES, PRODUCT_PERMISSIONS, PRODUCT_STATUS } from "@/constants";
 import { useAuthStore } from "@/lib/auth/auth-store";
-import { useCan } from "@/lib/auth/components/Can";
+import { useCan, usePermissionChecker } from "@/lib/auth/components/Can";
 import { ApiError } from "@/lib/api";
 import {
   allowedProductActions,
   categoryName,
-  computeSkuStats,
+  countVariantsByStatus,
   formatVnd,
-  skusForProduct,
   useCategories,
   usePublishProduct,
   useProduct,
-  useSkus,
   useTransitionProduct,
   useUnpublishProduct,
+  useVariants,
   productTransitionErrorMessage,
   isSelfApproval,
-  productUomLabel,
 } from "@/features/product";
-import { SkuDetailPanel } from "@/components/backoffice/SkuDetailPanel";
-import { DataTable, type ColumnDef } from "@/components/shared/DataTable";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusDot } from "@/components/shared/StatusDot";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
-import { textCell, numberCell, moneyCell, statusCell } from "@/components/shared/column-helpers";
-import type { PrintArea, ProductAction, ProductStatus, Sku, SkuStatus } from "@/features/product";
+import { VariantMediaGallery } from "./variants/VariantMediaGallery";
+import { VariantsSection } from "./variants/VariantsSection";
+import type { PrintArea, ProductAction, ProductStatus } from "@/features/product";
 
 /* -------------------------------------------------------------------------- */
 /*  Helpers                                                                   */
@@ -143,22 +139,22 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
   const currentRole = roles[0];
   const canEditProduct = useCan("product.edit");
 
+  const can = usePermissionChecker();
+
   const productQuery = useProduct(productId);
-  const skusQuery = useSkus({ page: 1, pageSize: PAGE_SIZE.masterData, productId });
+  const variantsQuery = useVariants(productId);
   const categoriesQuery = useCategories({});
 
   const baseProduct = productQuery.data ?? null;
-  const skus = useMemo(() => skusQuery.data?.items ?? [], [skusQuery.data]);
+  const variants = useMemo(() => variantsQuery.data ?? [], [variantsQuery.data]);
   const categories = useMemo(() => categoriesQuery.data?.items ?? [], [categoriesQuery.data]);
-  const isLoading = productQuery.isLoading || skusQuery.isLoading || categoriesQuery.isLoading;
+  const isLoading = productQuery.isLoading || categoriesQuery.isLoading;
 
   const product = baseProduct;
   const canEditDraft = canEditProduct && product?.status === PRODUCT_STATUS.DRAFT;
-
-  const productSkus = useMemo(
-    () => (product ? skusForProduct(product.productId, skus) : []),
-    [product, skus],
-  );
+  // BE PR #71: ảnh thuộc biến thể — thẻ bên phải xem ảnh của biến thể mặc định.
+  const defaultVariant = variants.find((v) => v.defaultVariant) ?? variants[0];
+  const variantCounts = useMemo(() => countVariantsByStatus(variants), [variants]);
 
   const lifecycleSteps = useMemo(() => {
     if (!product) return [];
@@ -222,48 +218,6 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
     [productId, publishMutation, transitionMutation, unpublishMutation],
   );
 
-  /* SKU panel state */
-  const [selectedSku, setSelectedSku] = useState<Sku | null>(null);
-  const [skuPanelOpen, setSkuPanelOpen] = useState(false);
-  const [skuOverrides, setSkuOverrides] = useState<Map<string, SkuStatus>>(new Map());
-
-  const openSkuPanel = useCallback(
-    (sku: Sku) => {
-      // Apply override if exists
-      const override = skuOverrides.get(sku.skuId);
-      setSelectedSku(override ? { ...sku, status: override } : sku);
-      setSkuPanelOpen(true);
-    },
-    [skuOverrides],
-  );
-
-  const closeSkuPanel = useCallback(() => {
-    setSkuPanelOpen(false);
-  }, []);
-
-  const handleSkuStatusChange = useCallback((skuId: string, newStatus: SkuStatus) => {
-    setSkuOverrides((prev) => {
-      const next = new Map(prev);
-      next.set(skuId, newStatus);
-      return next;
-    });
-    setSelectedSku((prev) =>
-      prev && prev.skuId === skuId ? { ...prev, status: newStatus } : prev,
-    );
-    toast.success("Cập nhật SKU", `${skuId} chuyển sang ${newStatus}.`);
-  }, []);
-
-  /** SKUs with status overrides applied */
-  const effectiveSkus = useMemo(() => {
-    if (skuOverrides.size === 0) return productSkus;
-    return productSkus.map((s) => {
-      const override = skuOverrides.get(s.skuId);
-      return override ? { ...s, status: override } : s;
-    });
-  }, [productSkus, skuOverrides]);
-
-  const skuStats = useMemo(() => computeSkuStats(effectiveSkus), [effectiveSkus]);
-
   if (isLoading) {
     return <PageSkeleton variant="detail" />;
   }
@@ -293,68 +247,6 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
       </>
     );
   }
-
-  /* SKU columns */
-  const skuColumns: ColumnDef<Sku>[] = [
-    {
-      key: "skuId",
-      header: "Mã SKU",
-      sortable: true,
-      compare: (a, b) => a.skuId.localeCompare(b.skuId),
-      cell: (row) => (
-        <Button
-          type="button"
-          variant="link"
-          onClick={(e) => {
-            e.stopPropagation();
-            openSkuPanel(row);
-          }}
-          className="text-accent h-auto p-0 font-[family-name:var(--font-mono)] text-[0.8125rem] font-medium hover:underline"
-        >
-          {row.skuId}
-        </Button>
-      ),
-    },
-    textCell<Sku>("variantLabel", "Biến thể", (row) => row.variantLabel, {
-      sortable: true,
-      compare: (a, b) => a.variantLabel.localeCompare(b.variantLabel),
-      color: "primary",
-    }),
-    textCell<Sku>("uom", "UoM", (row) => row.uom, { color: "secondary" }),
-    {
-      key: "weightKg",
-      header: "Trọng lượng",
-      align: "right",
-      sortable: true,
-      compare: (a, b) => a.weightKg - b.weightKg,
-      cell: (row) => (
-        <span className="text-ink-secondary font-[family-name:var(--font-mono)] text-[0.8125rem] tabular-nums">
-          {row.weightKg} kg
-        </span>
-      ),
-    },
-    numberCell<Sku>("stockOnHand", "Tồn kho", (row) => row.stockOnHand, {
-      sortable: true,
-      compare: (a, b) => a.stockOnHand - b.stockOnHand,
-    }),
-    numberCell<Sku>("stockReserved", "Đã đặt", (row) => row.stockReserved, {
-      sortable: true,
-      compare: (a, b) => a.stockReserved - b.stockReserved,
-    }),
-    numberCell<Sku>("stockAvailable", "Khả dụng", (row) => row.stockAvailable, {
-      sortable: true,
-      compare: (a, b) => a.stockAvailable - b.stockAvailable,
-    }),
-    moneyCell<Sku>("cost", "Giá vốn", (row) => row.cost, formatVnd, {
-      sortable: true,
-      compare: (a, b) => a.cost - b.cost,
-    }),
-    statusCell<Sku>("status", "Trạng thái", (row) => row.status, "sku", {
-      sortable: true,
-      compare: (a, b) => a.status.localeCompare(b.status),
-      withIcon: true,
-    }),
-  ];
 
   return (
     <>
@@ -444,7 +336,6 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
               </InfoRow>
               <InfoRow label="Danh mục">{categoryName(product.categoryId, categories)}</InfoRow>
               <InfoRow label="Thương hiệu">{product.brand}</InfoRow>
-              <InfoRow label="Đơn vị tính">{productUomLabel(product)}</InfoRow>
               <InfoRow label="Thuế">{product.taxClass}</InfoRow>
               <InfoRow label="Trạng thái">
                 <StatusDot domain="product" status={product.status} size="sm" withIcon />
@@ -520,33 +411,16 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
             </Section>
           )}
 
-          {/* Bảng SKU */}
-          <Section
-            title={`SKU (${productSkus.length})`}
-            icon={Tag}
-            actions={
-              <Link
-                href={`${ADMIN_ROUTES.products.list}?tab=skus`}
-                className="border-border-default text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary inline-flex items-center gap-1 rounded-[var(--r-sm)] border px-2 py-0.5 text-xs"
-              >
-                Quản lý SKU →
-              </Link>
-            }
-          >
-            {productSkus.length > 0 ? (
-              <DataTable
-                data={effectiveSkus}
-                columns={skuColumns}
-                rowKey={(row) => row.skuId}
-                caption={`${effectiveSkus.length} SKU thuộc ${product.productId}`}
-                onRowClick={openSkuPanel}
-                pageSize={10}
-              />
-            ) : (
-              <div className="border-border-default text-ink-tertiary rounded-[var(--r-sm)] border py-10 text-center text-[0.8125rem]">
-                Chưa có SKU nào
-              </div>
-            )}
+          {/* Biến thể — BE PR #71 */}
+          <Section title={`Biến thể (${variants.length})`} icon={Tag}>
+            <VariantsSection
+              productId={product.productId}
+              productApproved={
+                product.status === PRODUCT_STATUS.APPROVED ||
+                product.status === PRODUCT_STATUS.PUBLISHED
+              }
+              query={variantsQuery}
+            />
           </Section>
 
           {/* Cấu hình tùy chỉnh */}
@@ -698,87 +572,57 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
             </div>
           </section>
 
-          {/* Hình ảnh */}
+          {/* Hình ảnh — của biến thể mặc định; quản lý trong panel từng biến thể */}
           <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-ink-primary text-[0.9375rem] font-semibold">
-                Hình ảnh ({product.images.length})
-              </h2>
-              <Button
-                variant="ghost"
-                type="button"
-                onClick={() => toast.info("Thêm hình ảnh", "Chức năng đang phát triển.")}
-                className="border-border-default text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary inline-flex items-center gap-1 rounded-[var(--r-sm)] border px-2 py-0.5 text-xs"
-              >
-                <Plus className="size-3" />
-                Thêm
-              </Button>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              {product.images.map((img, i) => (
-                <div
-                  key={i}
-                  className="group border-border-default bg-bg-subtle text-ink-tertiary hover:border-accent/40 hover:bg-accent/5 relative flex aspect-square cursor-pointer items-center justify-center rounded-[var(--r-sm)] border text-xs transition-colors"
-                >
-                  {img.split("/").pop()}
-                </div>
-              ))}
-            </div>
+            <h2 className="text-ink-primary mb-1 text-[0.9375rem] font-semibold">Hình ảnh</h2>
+            <p className="text-ink-tertiary mb-3 text-xs">
+              {defaultVariant
+                ? `Biến thể mặc định ${defaultVariant.sku}. Tải lên và xuất bản ảnh trong từng biến thể.`
+                : "Sản phẩm chưa có biến thể."}
+            </p>
+            {defaultVariant && (
+              <VariantMediaGallery
+                productId={product.productId}
+                variantId={defaultVariant.variantId}
+                canUpload={can(PRODUCT_PERMISSIONS.update)}
+                canPublish={can(PRODUCT_PERMISSIONS.approve)}
+                compact
+              />
+            )}
           </section>
 
           {/* Quick stats */}
           <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
-            <h2 className="text-ink-primary mb-3 text-[0.9375rem] font-semibold">Tổng quan SKU</h2>
+            <h2 className="text-ink-primary mb-3 text-[0.9375rem] font-semibold">
+              Tổng quan biến thể
+            </h2>
             <div className="space-y-2">
-              <div className="flex justify-between text-[0.8125rem]">
-                <span className="text-ink-secondary">Tổng SKU</span>
-                <span className="text-ink-primary font-[family-name:var(--font-mono)] font-medium">
-                  {effectiveSkus.length}
-                </span>
-              </div>
-              <div className="flex justify-between text-[0.8125rem]">
-                <span className="text-ink-secondary">Active</span>
-                <span className="text-positive font-[family-name:var(--font-mono)] font-medium">
-                  {skuStats.active}
-                </span>
-              </div>
-              <div className="flex justify-between text-[0.8125rem]">
-                <span className="text-ink-secondary">Blocked</span>
-                <span className="text-warning font-[family-name:var(--font-mono)] font-medium">
-                  {skuStats.blocked}
-                </span>
-              </div>
-              <div className="flex justify-between text-[0.8125rem]">
-                <span className="text-ink-secondary">Obsolete</span>
-                <span className="text-danger font-[family-name:var(--font-mono)] font-medium">
-                  {skuStats.obsolete}
-                </span>
-              </div>
-              <div className="border-border-default border-t pt-2">
-                <div className="flex justify-between text-[0.8125rem]">
-                  <span className="text-ink-secondary">Tổng tồn kho</span>
-                  <span className="text-ink-primary font-[family-name:var(--font-mono)] font-medium">
-                    {skuStats.totalStock.toLocaleString("vi-VN")}
-                  </span>
-                </div>
-                <div className="flex justify-between text-[0.8125rem]">
-                  <span className="text-ink-secondary">Khả dụng</span>
-                  <span className="text-positive font-[family-name:var(--font-mono)] font-medium">
-                    {skuStats.available.toLocaleString("vi-VN")}
-                  </span>
-                </div>
-              </div>
+              <StatRow label="Tổng biến thể" value={variants.length} />
+              <StatRow label="Nháp" value={variantCounts.DRAFT} />
+              <StatRow label="Đang dùng" value={variantCounts.ACTIVE} tone="text-positive" />
+              <StatRow label="Tạm chặn" value={variantCounts.BLOCKED} tone="text-warning" />
+              <StatRow label="Ngừng dùng" value={variantCounts.OBSOLETE} tone="text-danger" />
             </div>
           </section>
         </div>
       </div>
-
-      <SkuDetailPanel
-        sku={selectedSku}
-        open={skuPanelOpen}
-        onClose={closeSkuPanel}
-        onStatusChange={handleSkuStatusChange}
-      />
     </>
+  );
+}
+
+function StatRow({
+  label,
+  value,
+  tone = "text-ink-primary",
+}: {
+  label: string;
+  value: number;
+  tone?: string;
+}) {
+  return (
+    <div className="flex justify-between text-[0.8125rem]">
+      <span className="text-ink-secondary">{label}</span>
+      <span className={cn("font-[family-name:var(--font-mono)] font-medium", tone)}>{value}</span>
+    </div>
   );
 }
