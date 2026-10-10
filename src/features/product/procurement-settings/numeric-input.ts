@@ -6,8 +6,7 @@ export const PROCUREMENT_NUMERIC_ERRORS = {
 } as const;
 
 type QuantityIntegrity = "blank" | "valid" | keyof typeof PROCUREMENT_NUMERIC_ERRORS;
-type QuantityField =
-  "reorderPoint" | `suppliers.${number}.${"leadTimeDays" | "moq" | "orderMultiple"}`;
+type QuantityField = `suppliers.${number}.${"leadTimeDays" | "moq" | "orderMultiple"}`;
 
 const DECIMAL_NUMBER = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;
 
@@ -24,7 +23,7 @@ export function inspectProcurementQuantity(raw: string): QuantityIntegrity {
 }
 
 function isQuantityField(name: string): name is QuantityField {
-  return name === "reorderPoint" || /^suppliers\.\d+\.(leadTimeDays|moq|orderMultiple)$/.test(name);
+  return /^suppliers\.\d+\.(leadTimeDays|moq|orderMultiple)$/.test(name);
 }
 
 /**

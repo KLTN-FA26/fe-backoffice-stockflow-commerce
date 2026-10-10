@@ -9,7 +9,7 @@ const ITEM_CODE = "SKU-001-BLK-L".repeat(20).slice(0, 240);
 const LONG_NAME = "Công ty TNHH Dệt may Thành Công".repeat(8);
 
 function setup() {
-  const fixture = readMockSkuProcurementSettings("SKU-001-BLK-L", 60);
+  const fixture = readMockSkuProcurementSettings("SKU-001-BLK-L");
   render(
     <ProcurementSettingsSection
       isMock

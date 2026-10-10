@@ -10,25 +10,17 @@ describe("procurement workflow service boundary", () => {
     const user = userEvent.setup();
     const skuId = "SKU-001-BLK-M";
     const view = render(
-      <ProcurementSettingsSection
-        settings={readSkuProcurementSettingsView(skuId, 60, true)}
-        isMock
-      />,
+      <ProcurementSettingsSection settings={readSkuProcurementSettingsView(skuId, true)} isMock />,
     );
     await user.click(screen.getByRole("button", { name: "Chỉnh sửa" }));
-    await user.clear(screen.getByLabelText("Điểm đặt hàng lại"));
-    await user.type(screen.getByLabelText("Điểm đặt hàng lại"), "75");
     await user.selectOptions(screen.getByLabelText("Nhà cung cấp mặc định"), "SUP-003");
     await user.click(screen.getByRole("button", { name: "Lưu" }));
     expect(await screen.findByRole("button", { name: "Chỉnh sửa" })).toBeInTheDocument();
     view.unmount();
     render(
-      <ProcurementSettingsSection
-        settings={readSkuProcurementSettingsView(skuId, 60, true)}
-        isMock
-      />,
+      <ProcurementSettingsSection settings={readSkuProcurementSettingsView(skuId, true)} isMock />,
     );
-    expect(screen.getByText("75")).toBeInTheDocument();
+    expect(readSkuProcurementSettingsView(skuId, true)).not.toHaveProperty("reorderPoint");
     expect(screen.getByText("Công ty CP Gốm sứ Minh Long")).toBeInTheDocument();
     expect(screen.getByText("Chưa có nhà cung cấp liên kết")).toBeInTheDocument();
   });
@@ -36,7 +28,7 @@ describe("procurement workflow service boundary", () => {
   it("does not offer mock editing when real mode has no contract", () => {
     render(
       <ProcurementSettingsSection
-        settings={readSkuProcurementSettingsView("SKU-001-BLK-L", 60, false)}
+        settings={readSkuProcurementSettingsView("SKU-001-BLK-L", false)}
         isMock={false}
       />,
     );

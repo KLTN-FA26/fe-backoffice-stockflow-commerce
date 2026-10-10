@@ -15,7 +15,15 @@ async function setup() {
     .mockImplementation(async (value) => value);
   render(
     <ProcurementSettingsSection
-      settings={readMockSkuProcurementSettings("SKU-001-BLK-L", 60)}
+      settings={{
+        ...readMockSkuProcurementSettings("SKU-001-BLK-L"),
+        suppliers: readMockSkuProcurementSettings("SKU-001-BLK-L").suppliers.map((supplier) => ({
+          ...supplier,
+          leadTimeDays: 7,
+          moq: 7,
+          orderMultiple: 7,
+        })),
+      }}
       isMock
     />,
   );
@@ -24,7 +32,7 @@ async function setup() {
 }
 
 describe("procurement numeric submission", () => {
-  it.each(["Điểm đặt hàng lại", "Thời gian giao · 1", "MOQ · 1", "Bội số đặt hàng · 1"])(
+  it.each(["Thời gian giao · 1", "MOQ · 1", "Bội số đặt hàng · 1"])(
     "does not save browser badInput as an unknown value for %s",
     async (label) => {
       const { user, save } = await setup();
@@ -40,7 +48,8 @@ describe("procurement numeric submission", () => {
       expect(screen.getByRole("button", { name: "Huỷ" })).toBeInTheDocument();
       invalid.mockRestore();
       await user.click(screen.getByRole("button", { name: "Huỷ" }));
-      expect(screen.getByText("60")).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Chỉnh sửa" }));
+      expect(screen.getByRole("spinbutton", { name: label })).toHaveValue(7);
     },
   );
 
@@ -51,17 +60,22 @@ describe("procurement numeric submission", () => {
     ["9007199254740991", Number.MAX_SAFE_INTEGER],
   ])("saves valid input %j without changing its numeric meaning", async (text, expected) => {
     const { user, save } = await setup();
-    const input = screen.getByRole("spinbutton", { name: "Điểm đặt hàng lại" });
+    const input = screen.getByRole("spinbutton", { name: "MOQ · 1" });
     await user.clear(input);
     if (text) await user.type(input, text);
     await user.click(screen.getByRole("button", { name: "Lưu" }));
     expect(await screen.findByRole("button", { name: "Chỉnh sửa" })).toBeInTheDocument();
-    expect(save).toHaveBeenCalledWith(expect.objectContaining({ reorderPoint: expected }), true);
+    expect(save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        suppliers: expect.arrayContaining([expect.objectContaining({ moq: expected })]),
+      }),
+      true,
+    );
   });
 
   it("rejects unsafe integer conversion and preserves the draft for correction", async () => {
     const { user, save } = await setup();
-    const input = screen.getByRole("spinbutton", { name: "Điểm đặt hàng lại" });
+    const input = screen.getByRole("spinbutton", { name: "MOQ · 1" });
     await user.clear(input);
     // userEvent coerces long number strings; native Chromium retains this raw value.
     fireEvent.change(input, { target: { value: "9007199254740993" } });
@@ -76,12 +90,17 @@ describe("procurement numeric submission", () => {
     await user.type(input, "75");
     await user.click(screen.getByRole("button", { name: "Lưu" }));
     expect(await screen.findByRole("button", { name: "Chỉnh sửa" })).toBeInTheDocument();
-    expect(save).toHaveBeenCalledWith(expect.objectContaining({ reorderPoint: 75 }), true);
+    expect(save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        suppliers: expect.arrayContaining([expect.objectContaining({ moq: 75 })]),
+      }),
+      true,
+    );
   });
 
   it("allows a corrected browser-invalid field to save", async () => {
     const { user, save } = await setup();
-    const input = screen.getByRole("spinbutton", { name: "Điểm đặt hàng lại" });
+    const input = screen.getByRole("spinbutton", { name: "MOQ · 1" });
     if (!(input instanceof HTMLInputElement)) throw new Error("Expected number input");
     await user.clear(input);
     const invalid = vi.spyOn(input.validity, "badInput", "get").mockReturnValue(true);
@@ -92,6 +111,11 @@ describe("procurement numeric submission", () => {
     await user.type(input, "75");
     await user.click(screen.getByRole("button", { name: "Lưu" }));
     expect(await screen.findByRole("button", { name: "Chỉnh sửa" })).toBeInTheDocument();
-    expect(save).toHaveBeenCalledWith(expect.objectContaining({ reorderPoint: 75 }), true);
+    expect(save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        suppliers: expect.arrayContaining([expect.objectContaining({ moq: 75 })]),
+      }),
+      true,
+    );
   });
 });

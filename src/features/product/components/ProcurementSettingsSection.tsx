@@ -8,11 +8,7 @@ import { Button } from "@/components/ui/button";
 
 import { PROCUREMENT_LABELS } from "../procurement-settings/form-model";
 import { ProcurementSettingsEditor } from "./ProcurementSettingsEditor";
-import {
-  PROCUREMENT_MISSING,
-  ProcurementSupplierTable,
-  showProcurementNumber,
-} from "./ProcurementSupplierTable";
+import { PROCUREMENT_MISSING, ProcurementSupplierTable } from "./ProcurementSupplierTable";
 
 import type { SkuProcurementSettingsView } from "../procurement-settings/view-model";
 
@@ -66,15 +62,6 @@ export function ProcurementSettingsSection({
                 <dt className="text-ink-tertiary text-xs">{PROCUREMENT_LABELS.defaultSupplier}</dt>
                 <dd className="text-ink-primary mt-1 wrap-anywhere">
                   {saved.defaultSupplierName ?? saved.defaultSupplierId ?? PROCUREMENT_MISSING}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-ink-tertiary text-xs">{PROCUREMENT_LABELS.reorderPoint}</dt>
-                <dd
-                  className="text-ink-primary mt-1 tabular-nums"
-                  title={saved.reorderPoint?.toString()}
-                >
-                  {showProcurementNumber(saved.reorderPoint)}
                 </dd>
               </div>
             </dl>

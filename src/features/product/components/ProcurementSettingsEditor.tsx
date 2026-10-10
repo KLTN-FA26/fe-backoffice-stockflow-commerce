@@ -4,7 +4,6 @@ import { useRef, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 
 import {
   fromProcurementDraft,
@@ -93,20 +92,6 @@ export function ProcurementSettingsEditor({
               choices={choices}
               id="procurement-default-supplier"
               {...form.register("defaultSupplierId")}
-            />
-          </ProductFormField>
-          <ProductFormField
-            label={PROCUREMENT_LABELS.reorderPoint}
-            htmlFor="procurement-reorder-point"
-            error={errors.reorderPoint?.message}
-          >
-            <Input
-              autoFocus
-              id="procurement-reorder-point"
-              type="number"
-              step="any"
-              aria-invalid={Boolean(errors.reorderPoint)}
-              {...form.register("reorderPoint")}
             />
           </ProductFormField>
         </div>

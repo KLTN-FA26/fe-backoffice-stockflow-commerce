@@ -39,15 +39,11 @@ const SUPPLIER_EXAMPLES: Record<string, SkuProcurementSettingsView["suppliers"]>
   ],
 };
 
-export function readMockSkuProcurementSettings(
-  skuId: string,
-  reorderPoint: number,
-): SkuProcurementSettingsView {
+export function readMockSkuProcurementSettings(skuId: string): SkuProcurementSettingsView {
   return {
     skuId,
     defaultSupplierId: skuId === MAPPED_SKU_ID ? DEFAULT_SUPPLIER_EXAMPLE.supplierId : null,
     defaultSupplierName: skuId === MAPPED_SKU_ID ? DEFAULT_SUPPLIER_EXAMPLE.supplierName : null,
-    reorderPoint,
     suppliers: SUPPLIER_EXAMPLES[skuId] ?? [],
   };
 }

@@ -10,7 +10,7 @@ import type { SkuProcurementSettingsView } from "../procurement-settings/view-mo
 
 function setup() {
   const user = userEvent.setup();
-  const settings = readMockSkuProcurementSettings("SKU-001-BLK-L", 60);
+  const settings = readMockSkuProcurementSettings("SKU-001-BLK-L");
   render(<ProcurementSettingsSection settings={settings} isMock />);
   return { user, settings };
 }
@@ -24,11 +24,27 @@ async function edit() {
 describe("procurement settings editing", () => {
   beforeEach(() => vi.restoreAllMocks());
 
+  it("never presents or saves Inventory Control's reorder point", async () => {
+    const save = vi
+      .spyOn(service, "saveProcurementSettings")
+      .mockImplementation(async (value) => value);
+    const { user, settings } = setup();
+    expect(settings).not.toHaveProperty("reorderPoint");
+    expect(screen.queryByText("Điểm đặt hàng lại")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Chỉnh sửa" }));
+    expect(screen.queryByLabelText("Điểm đặt hàng lại")).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText("Mã hàng NCC · 1"), "SKU-001-BLK-L");
+    await user.click(screen.getByRole("button", { name: "Lưu" }));
+    expect(await screen.findByRole("button", { name: "Chỉnh sửa" })).toBeInTheDocument();
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(save.mock.calls[0]?.[0]).not.toHaveProperty("reorderPoint");
+  });
+
   it("starts read-only and explicitly enters edit mode", async () => {
     const { user } = setup();
     expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Chỉnh sửa" }));
-    expect(screen.getByRole("spinbutton", { name: "Điểm đặt hàng lại" })).toHaveValue(60);
+    expect(screen.getByRole("spinbutton", { name: "MOQ · 1" })).toHaveValue(null);
     expect(screen.getByRole("button", { name: "Lưu" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Huỷ" })).toBeInTheDocument();
   });
@@ -38,8 +54,6 @@ describe("procurement settings editing", () => {
       .spyOn(service, "saveProcurementSettings")
       .mockImplementation(async (value) => value);
     const { user } = await edit();
-    await user.clear(screen.getByLabelText("Điểm đặt hàng lại"));
-    await user.type(screen.getByLabelText("Điểm đặt hàng lại"), "75");
     await user.selectOptions(screen.getByLabelText("Nhà cung cấp mặc định"), "SUP-003");
     await user.selectOptions(screen.getByLabelText("Nhà cung cấp · 1"), "SUP-002");
     await user.type(screen.getByLabelText("Mã hàng NCC · 1"), "SKU-001-BLK-L");
@@ -52,7 +66,6 @@ describe("procurement settings editing", () => {
     );
     expect(save).toHaveBeenCalledWith(
       expect.objectContaining({
-        reorderPoint: 75,
         defaultSupplierId: "SUP-003",
         suppliers: expect.arrayContaining([
           expect.objectContaining({
@@ -66,24 +79,23 @@ describe("procurement settings editing", () => {
       }),
       true,
     );
-    expect(screen.getByText("75")).toBeInTheDocument();
     expect(screen.getByText("5 ngày")).toBeInTheDocument();
   });
 
   it("cancel restores the last successful save, not the initial fixture", async () => {
     vi.spyOn(service, "saveProcurementSettings").mockImplementation(async (value) => value);
     const { user } = await edit();
-    const field = screen.getByLabelText("Điểm đặt hàng lại");
+    const field = screen.getByLabelText("MOQ · 1");
     await user.clear(field);
     await user.type(field, "75");
     await user.click(screen.getByRole("button", { name: "Lưu" }));
     await user.click(await screen.findByRole("button", { name: "Chỉnh sửa" }));
-    await user.clear(screen.getByLabelText("Điểm đặt hàng lại"));
-    await user.type(screen.getByLabelText("Điểm đặt hàng lại"), "90");
+    await user.clear(screen.getByLabelText("MOQ · 1"));
+    await user.type(screen.getByLabelText("MOQ · 1"), "90");
     await user.click(screen.getByRole("button", { name: "Huỷ" }));
     expect(screen.getByText("75")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Chỉnh sửa" }));
-    expect(screen.getByLabelText("Điểm đặt hàng lại")).toHaveValue(75);
+    expect(screen.getByLabelText("MOQ · 1")).toHaveValue(75);
   });
 
   it("disables inputs and actions while saving and prevents duplicate submissions", async () => {
@@ -98,7 +110,7 @@ describe("procurement settings editing", () => {
     await user.dblClick(screen.getByRole("button", { name: "Lưu" }));
     expect(screen.getByRole("button", { name: "Đang lưu…" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Huỷ" })).toBeDisabled();
-    expect(screen.getByLabelText("Điểm đặt hàng lại")).toBeDisabled();
+    expect(screen.getByLabelText("MOQ · 1")).toBeDisabled();
     expect(save).toHaveBeenCalledTimes(1);
     await act(async () => {
       finish?.(settings);

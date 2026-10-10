@@ -16,6 +16,5 @@ export interface SkuProcurementSettingsView {
   defaultSupplierId: string | null;
   /** Display lookup for that reference, independent of membership in suppliers. */
   defaultSupplierName: string | null;
-  reorderPoint: number | null;
   suppliers: readonly ProcurementSupplierView[];
 }

@@ -246,7 +246,7 @@ export function SkuDetail({ params }: { params: Promise<{ id: string }> }) {
           <ProcurementSettingsSection
             key={`${sku.skuId}:${isMock}`}
             isMock={isMock}
-            settings={readSkuProcurementSettingsView(sku.skuId, sku.reorderPoint, isMock)}
+            settings={readSkuProcurementSettingsView(sku.skuId, isMock)}
           />
 
           {/* Tổ hợp biến thể */}

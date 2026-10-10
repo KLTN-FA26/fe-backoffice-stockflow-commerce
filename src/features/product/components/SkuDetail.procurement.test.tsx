@@ -71,6 +71,10 @@ describe("SKU detail procurement navigation", () => {
 
     expect(await screen.findByRole("heading", { name: "Cài đặt mua hàng" })).toBeInTheDocument();
     expect(useSkuMock).toHaveBeenCalledWith(sku.skuId);
+    const settings = within(screen.getByRole("region", { name: "Cài đặt mua hàng" }));
+    expect(settings.queryByText("Điểm đặt hàng lại")).not.toBeInTheDocument();
+    expect(settings.queryByText(String(sku.reorderPoint))).not.toBeInTheDocument();
+    expect(screen.getByText("Điểm đặt lại (reorder)")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Công ty TNHH Dệt may Thành Công" })).toHaveAttribute(
       "href",
       ADMIN_ROUTES.suppliers.detail("SUP-001"),
@@ -86,7 +90,7 @@ describe("SKU detail procurement navigation", () => {
     expect(screen.getByText("Chưa có nhà cung cấp liên kết")).toBeInTheDocument();
     const settings = within(screen.getByRole("region", { name: "Cài đặt mua hàng" }));
     expect(settings.queryByText(String(sku.reorderPoint))).not.toBeInTheDocument();
-    expect(settings.getAllByText("Chưa có dữ liệu")).toHaveLength(2);
+    expect(settings.getAllByText("Chưa có dữ liệu")).toHaveLength(1);
     expect(
       screen.queryByRole("link", { name: "Công ty TNHH Dệt may Thành Công" }),
     ).not.toBeInTheDocument();

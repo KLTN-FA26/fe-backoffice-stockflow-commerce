@@ -7,12 +7,12 @@ import { readMockSkuProcurementSettings } from "../procurement-settings/mock-fix
 import { ProcurementSettingsSection } from "./ProcurementSettingsSection";
 
 describe("ProcurementSettingsSection", () => {
-  it("shows the SKU's illustrative mapped suppliers and all requested fields", () => {
-    const settings = readMockSkuProcurementSettings("SKU-001-BLK-L", 60);
+  it("shows the SKU's illustrative mapped suppliers and Procurement-owned fields", () => {
+    const settings = readMockSkuProcurementSettings("SKU-001-BLK-L");
     render(<ProcurementSettingsSection settings={settings} isMock />);
 
     expect(screen.getByRole("heading", { name: "Cài đặt mua hàng" })).toBeInTheDocument();
-    expect(screen.getByText("60")).toBeInTheDocument();
+    expect(screen.queryByText("Điểm đặt hàng lại")).not.toBeInTheDocument();
     expect(screen.getByText("Dữ liệu minh hoạ · Chỉ xem")).toBeInTheDocument();
     expect(screen.getByText("Nhà cung cấp mặc định")).toBeInTheDocument();
     expect(screen.getAllByText("Công ty TNHH Dệt may Thành Công")).toHaveLength(2);
@@ -35,18 +35,18 @@ describe("ProcurementSettingsSection", () => {
   it("shows an empty state for an SKU without a mock mapping", () => {
     render(
       <ProcurementSettingsSection
-        settings={readMockSkuProcurementSettings("SKU-001-BLK-M", 60)}
+        settings={readMockSkuProcurementSettings("SKU-001-BLK-M")}
         isMock
       />,
     );
 
     expect(screen.getByText("Chưa có nhà cung cấp liên kết")).toBeInTheDocument();
-    expect(screen.getByText("60")).toBeInTheDocument();
+    expect(screen.queryByText("Điểm đặt hàng lại")).not.toBeInTheDocument();
   });
 
   it("displays a default supplier reference independently of supplier mappings", () => {
     const settings = {
-      ...readMockSkuProcurementSettings("SKU-001-BLK-L", 60),
+      ...readMockSkuProcurementSettings("SKU-001-BLK-L"),
       defaultSupplierName: null,
       suppliers: [],
     };

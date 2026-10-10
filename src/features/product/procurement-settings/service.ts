@@ -4,21 +4,18 @@ import { procurementMockService } from "./mock-service";
 import type { SkuProcurementSettingsView } from "./view-model";
 
 /**
- * FE read composition only, not an atomic write aggregate. BE develop c716da2 has no
- * inventory-item/supplier-item Java or HTTP contracts; their tables have separate owners.
+ * FE Procurement composition only, not an atomic write aggregate. Default-supplier and
+ * supplier-item contracts remain unresolved. Inventory Control owns reorder point separately.
  */
 export function readSkuProcurementSettingsView(
   skuId: string,
-  reorderPoint: number,
   isMock: boolean,
 ): SkuProcurementSettingsView {
-  if (isMock) return procurementMockService.read(skuId, reorderPoint);
-  // The legacy SKU value is usable for mock display only, not a BE inventory-item read contract.
+  if (isMock) return procurementMockService.read(skuId);
   return {
     skuId,
     defaultSupplierId: null,
     defaultSupplierName: null,
-    reorderPoint: null,
     suppliers: [],
   };
 }

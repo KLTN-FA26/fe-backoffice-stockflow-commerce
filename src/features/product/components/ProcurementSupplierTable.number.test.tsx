@@ -30,13 +30,12 @@ describe("procurement numeric display", () => {
   });
 
   it("retains stored precision in read-only settings and mapping fields", () => {
-    const fixture = readMockSkuProcurementSettings("SKU-001-BLK-L", 60);
+    const fixture = readMockSkuProcurementSettings("SKU-001-BLK-L");
     render(
       <ProcurementSettingsSection
         isMock
         settings={{
           ...fixture,
-          reorderPoint: 0.0001,
           suppliers: fixture.suppliers.map((supplier) => ({
             ...supplier,
             leadTimeDays: 0.0001,
@@ -46,7 +45,7 @@ describe("procurement numeric display", () => {
         }}
       />,
     );
-    expect(screen.getAllByText("0,0001")).toHaveLength(3);
+    expect(screen.getAllByText("0,0001")).toHaveLength(2);
     expect(screen.getAllByText("0,0001 ngày")).toHaveLength(2);
     for (const displayed of screen.getAllByText("≈ 0,3")) {
       expect(displayed).toHaveAttribute("title", "0.30000000000000004");
@@ -61,16 +60,21 @@ describe("procurement numeric display", () => {
     render(
       <ProcurementSettingsSection
         isMock
-        settings={readMockSkuProcurementSettings("SKU-001-BLK-L", 60)}
+        settings={readMockSkuProcurementSettings("SKU-001-BLK-L")}
       />,
     );
     await user.click(screen.getByRole("button", { name: "Chỉnh sửa" }));
-    const input = screen.getByRole("spinbutton", { name: "Điểm đặt hàng lại" });
+    const input = screen.getByRole("spinbutton", { name: "MOQ · 1" });
     await user.clear(input);
     await user.type(input, "0.0001");
     await user.click(screen.getByRole("button", { name: "Lưu" }));
     expect(await screen.findByRole("button", { name: "Chỉnh sửa" })).toBeInTheDocument();
     expect(screen.getByText("0,0001")).toBeInTheDocument();
-    expect(save).toHaveBeenCalledWith(expect.objectContaining({ reorderPoint: 0.0001 }), true);
+    expect(save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        suppliers: expect.arrayContaining([expect.objectContaining({ moq: 0.0001 })]),
+      }),
+      true,
+    );
   });
 });

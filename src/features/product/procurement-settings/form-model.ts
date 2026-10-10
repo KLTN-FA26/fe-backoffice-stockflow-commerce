@@ -6,7 +6,6 @@ import type { SkuProcurementSettingsView } from "./view-model";
 
 export const PROCUREMENT_LABELS = {
   defaultSupplier: "Nhà cung cấp mặc định",
-  reorderPoint: "Điểm đặt hàng lại",
   supplierId: "Nhà cung cấp",
   supplierItemCode: "Mã hàng NCC",
   leadTimeDays: "Thời gian giao",
@@ -23,7 +22,6 @@ const optionalQuantity = z.string().superRefine((value, context) => {
 });
 export const procurementDraftSchema = z.object({
   defaultSupplierId: z.string(),
-  reorderPoint: optionalQuantity,
   suppliers: z
     .array(
       z.object({
@@ -61,7 +59,6 @@ export type ProcurementSupplierChoice = Pick<
 export function toProcurementDraft(settings: SkuProcurementSettingsView): ProcurementDraft {
   return {
     defaultSupplierId: settings.defaultSupplierId ?? "",
-    reorderPoint: settings.reorderPoint?.toString() ?? "",
     suppliers: settings.suppliers.map((supplier) => ({
       supplierId: supplier.supplierId,
       supplierItemCode: supplier.supplierItemCode ?? "",
@@ -84,7 +81,6 @@ export function fromProcurementDraft(
     skuId: current.skuId,
     defaultSupplierId: draft.defaultSupplierId || null,
     defaultSupplierName: names.get(draft.defaultSupplierId) ?? null,
-    reorderPoint: quantity(draft.reorderPoint),
     suppliers: draft.suppliers.map((supplier) => ({
       supplierId: supplier.supplierId,
       supplierName: names.get(supplier.supplierId) ?? supplier.supplierId,

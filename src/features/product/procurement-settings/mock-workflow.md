@@ -3,12 +3,17 @@
 `SkuDetail → ProcurementSettingsSection / Editor → FE draft / view model → service → mock service`
 
 - Read-only by default; Edit is available only in mock mode. This is demo availability,
-  not a production authorization decision. The Step 2 permission/HTTP blockers remain.
+  not a production authorization decision. Procurement's supplier/default-supplier
+  permission and HTTP gaps remain; Inventory Control now has a separate BE contract.
+- Inventory Control exclusively owns `reorderPoint`. Procurement's view/draft/save
+  models and mock store do not contain it, and the section does not display or edit it.
+  The reader accepts only SKU identity and mock mode, never a legacy SKU threshold.
 - React Hook Form, zodResolver, ProductFormField, shared Input/Button and the existing
   supplier table provide the editable workflow. Only existing mapping rows are edited.
 - Genuinely blank numeric inputs stay `null`; native browser `badInput` cannot clear values.
   Validation checks numeric syntax, finite/nonnegative values and safe integer representation.
-  Decimals remain allowed; these checks impose no purchasing limits or quantity rules.
+  Decimals remain allowed for the supplier-row FE fields; these checks impose no
+  purchasing limits or quantity rules and do not define Inventory Policy validation.
 - Read-only numbers have no fixed fractional cutoff. Machine-precision display simplifications
   carry an approximation marker and expose the original stored number in the title; saved data
   is never rounded by the formatter.
@@ -34,7 +39,12 @@
   field. No `pack_size` adapter, `isPreferred`, default/preferred synchronization, version
   header or conflict behavior exists.
 
-Before a real adapter: finalize inventory-item identity/provisioning; Java/HTTP read and
-write contracts; separate versus coordinated saves; supplier mapping identity and required
+Before a real Procurement adapter: finalize resolution of canonical inventory-item identity;
+default-supplier and supplier-item Java/HTTP read and write contracts; separate versus
+coordinated saves; supplier mapping identity and required
 creation fields; default/preferred authority; order-multiple meaning; numeric/null rules;
 permission/resource/scope association and concurrency/failure handling. See `contract-audit.md`.
+
+The current Inventory Control endpoint enforces Product READ/UPDATE despite separate
+Inventory Item permission seeds. That authorization mismatch remains a Task 4B blocker;
+this ownership correction does not resolve it or add Inventory Control UI/integration.

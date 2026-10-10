@@ -10,7 +10,7 @@ afterEach(() => vi.restoreAllMocks());
 
 async function setup() {
   const user = userEvent.setup();
-  const settings = readMockSkuProcurementSettings("SKU-001-BLK-L", 60);
+  const settings = readMockSkuProcurementSettings("SKU-001-BLK-L");
   const save = vi
     .spyOn(service, "saveProcurementSettings")
     .mockImplementation(async (value) => value);

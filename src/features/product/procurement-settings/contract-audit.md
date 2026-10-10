@@ -5,7 +5,45 @@ Audited remote BE `develop` at `c716da2a45e54f489ca2c9b526059918d532e08a`
 temporary checkout of the verified remote revision. Findings describe source,
 not a deployed database or running API.
 
-## Domain trace
+## Current ownership correction — Task 4B Step 2
+
+The sections below preserve the historical Task 4A audit at `c716da2`. They are
+not a description of today's BE develop. Task 4B audited develop at
+`11320add6d20a0088ca364bd97c28758ac2f07b8` and found a separate implemented
+Inventory Control contract:
+
+- Inventory owns one global policy per SKU in `inventory.inventory_items`.
+  Its editable fields are `reorderPoint`, `safetyStock`, `removalStrategy`,
+  `trackingMode`, `expiryTracked`, and `maxShelfLifeDays`.
+- [InventoryControlController][current-inventory-control] exposes GET and PUT at
+  `/api/v1/products/{productId}/skus/{skuId}/inventory-control`. `skuId` is the
+  canonical variant UUID. PUT replaces the full policy using inventory-item
+  `version`; nullable integer thresholds can be cleared.
+- The [canonical migration][current-canonical-migration] now maps policy into
+  inventory items and provisions an item for each canonical variant. The older
+  absence-of-Java/HTTP/provisioning findings below no longer apply to this policy.
+- Inventory Control is the sole editor/owner of `reorderPoint`. Procurement
+  Settings no longer displays, drafts, validates, saves, or mock-persists it.
+  Legacy read-only SKU stock presentation remains separate pending Task 4B;
+  it is not connected to the policy endpoint by this correction.
+- Default-supplier and supplier-item read/write contracts remain unresolved.
+  The separate Inventory Control API does not expose those fields. No composite
+  Procurement save, preferred/default synchronization, lead-time fallback, or
+  order-multiple/pack-size mapping is established.
+- Supplier master lead time now exists in Java/HTTP; this does not establish
+  supplier-item lead-time fallback or an item-mapping contract.
+- Inventory Control GET/PUT currently enforce `product-products:READ` and
+  `product-products:UPDATE` with default ALL scope. Inventory Item permissions
+  are separately seeded. This backend/product authorization mismatch remains
+  outstanding; no FE permission behavior is changed here.
+
+Remaining Procurement adapter blockers concern default supplier, mapping
+identity/read/write and creation requirements, order-multiple meaning, quantity
+semantics, coordinated writes, permissions, and concurrency. Policy versioning
+does not resolve those separate contracts. Do not reuse the historical reorder
+point MISSING rows below as a current API-readiness conclusion.
+
+## Historical domain trace — c716da2
 
 - [Inventory schema][inventory-schema]: `inventory.inventory_items` is unique by
   SKU, with a FK to `product.variants.sku`. It owns `reorder_point` and
@@ -70,7 +108,7 @@ reject them), and consistency between default supplier and mappings. A composite
 read also has no current snapshot-consistency contract. SQL constraints alone do
 not define version preconditions, conflict responses, or rollback behavior.
 
-## Existing HTTP contract matrix
+## Historical HTTP contract matrix — c716da2
 
 All current controllers and DTOs were searched, including Product, Inventory,
 Procurement, and other modules. Existing stock endpoints return quantities;
@@ -109,7 +147,7 @@ The live `product-products` resource associates `/admin/products` with
 `/api/v1/products`; Product READ/UPDATE cannot establish authorization to edit
 the Inventory/Procurement data merely because the FE section appears under a SKU.
 
-## FE audit and remaining blockers
+## Historical FE audit and remaining blockers — c716da2
 
 Corrected the default supplier lookup so it does not require membership in mapping
 rows. Added an independent display name with ID fallback. Non-mock settings now
@@ -138,3 +176,5 @@ No price derivation or identity conversion is assumed by the FE fixture layer.
 [supplier-entity]: https://github.com/KLTN-FA26/be-backoffice-stockflow-commerce/blob/c716da2a45e54f489ca2c9b526059918d532e08a/src/main/java/com/stockflow/procurement/internal/entity/SupplierJpaEntity.java
 [po-service]: https://github.com/KLTN-FA26/be-backoffice-stockflow-commerce/blob/c716da2a45e54f489ca2c9b526059918d532e08a/src/main/java/com/stockflow/procurement/internal/service/ProcurementServiceImpl.java
 [permissions]: https://github.com/KLTN-FA26/be-backoffice-stockflow-commerce/blob/c716da2a45e54f489ca2c9b526059918d532e08a/src/main/resources/db/migration/V20260928006000__permissions_new_resources.sql
+[current-inventory-control]: https://github.com/KLTN-FA26/be-backoffice-stockflow-commerce/blob/11320add6d20a0088ca364bd97c28758ac2f07b8/src/main/java/com/stockflow/product/internal/controller/InventoryControlController.java
+[current-canonical-migration]: https://github.com/KLTN-FA26/be-backoffice-stockflow-commerce/blob/11320add6d20a0088ca364bd97c28758ac2f07b8/src/main/resources/db/migration/V20261008000100__canonical_inventory_and_ecommerce.sql

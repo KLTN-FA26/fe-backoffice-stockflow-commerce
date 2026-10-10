@@ -6,7 +6,7 @@ import { readProcurementSupplierChoices } from "./service";
 
 describe("FE procurement draft conversions", () => {
   it.each([0, 1])("rejects duplicate suppliers when row %i changes", (changedIndex) => {
-    const draft = toProcurementDraft(readMockSkuProcurementSettings("SKU-001-BLK-L", 60));
+    const draft = toProcurementDraft(readMockSkuProcurementSettings("SKU-001-BLK-L"));
     const other = draft.suppliers[1 - changedIndex];
     draft.suppliers = draft.suppliers.map((supplier, index) =>
       index === changedIndex && other ? { ...supplier, supplierId: other.supplierId } : supplier,
@@ -23,7 +23,7 @@ describe("FE procurement draft conversions", () => {
   });
 
   it("does not count the independent default supplier as a duplicate mapping", () => {
-    const draft = toProcurementDraft(readMockSkuProcurementSettings("SKU-001-BLK-L", 60));
+    const draft = toProcurementDraft(readMockSkuProcurementSettings("SKU-001-BLK-L"));
     expect(procurementDraftSchema.safeParse(draft).success).toBe(true);
   });
 
@@ -38,8 +38,7 @@ describe("FE procurement draft conversions", () => {
     ["9007199254740991", true],
     ["-1", false],
   ])("checks numeric integrity for %j across every quantity field", (value, success) => {
-    const draft = toProcurementDraft(readMockSkuProcurementSettings("SKU-001-BLK-L", 60));
-    draft.reorderPoint = value;
+    const draft = toProcurementDraft(readMockSkuProcurementSettings("SKU-001-BLK-L"));
     draft.suppliers = draft.suppliers.map((supplier) => ({
       ...supplier,
       leadTimeDays: value,
@@ -50,7 +49,7 @@ describe("FE procurement draft conversions", () => {
   });
 
   it("round-trips unknown item terms without default/preferred or pack-size semantics", () => {
-    const current = readMockSkuProcurementSettings("SKU-001-BLK-L", 60);
+    const current = readMockSkuProcurementSettings("SKU-001-BLK-L");
     const result = fromProcurementDraft(
       toProcurementDraft(current),
       current,
@@ -62,28 +61,35 @@ describe("FE procurement draft conversions", () => {
   });
 
   it("clears persisted numeric values to unknown rather than zero or fallback", () => {
-    const current = readMockSkuProcurementSettings("SKU-001-BLK-L", 60);
+    const current = readMockSkuProcurementSettings("SKU-001-BLK-L");
     const draft = toProcurementDraft(current);
-    draft.reorderPoint = "";
     draft.defaultSupplierId = "";
     const result = fromProcurementDraft(draft, current, readProcurementSupplierChoices(true));
-    expect(result.reorderPoint).toBeNull();
+    expect(draft).not.toHaveProperty("reorderPoint");
+    expect(procurementDraftSchema.shape).not.toHaveProperty("reorderPoint");
+    expect(result).not.toHaveProperty("reorderPoint");
     expect(result.defaultSupplierId).toBeNull();
     expect(result.defaultSupplierName).toBeNull();
     expect(result.suppliers[0]?.leadTimeDays).toBeNull();
   });
 
   it("accepts zero and decimals but rejects negative or nonfinite quantities", () => {
-    const draft = toProcurementDraft(readMockSkuProcurementSettings("SKU-001-BLK-L", 60));
+    const draft = toProcurementDraft(readMockSkuProcurementSettings("SKU-001-BLK-L"));
     for (const value of ["", "0", "2.5"]) {
-      expect(procurementDraftSchema.safeParse({ ...draft, reorderPoint: value }).success).toBe(
-        true,
-      );
+      expect(
+        procurementDraftSchema.safeParse({
+          ...draft,
+          suppliers: draft.suppliers.map((supplier) => ({ ...supplier, moq: value })),
+        }).success,
+      ).toBe(true);
     }
     for (const value of ["-1", "Infinity", "NaN", "not a number"]) {
-      expect(procurementDraftSchema.safeParse({ ...draft, reorderPoint: value }).success).toBe(
-        false,
-      );
+      expect(
+        procurementDraftSchema.safeParse({
+          ...draft,
+          suppliers: draft.suppliers.map((supplier) => ({ ...supplier, moq: value })),
+        }).success,
+      ).toBe(false);
     }
   });
 });
