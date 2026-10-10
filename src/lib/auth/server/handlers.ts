@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { authUserSchema, loginRequestSchema } from "@/lib/auth/auth-schemas";
 
 import { BACKEND_AUTH_PATHS, backendFetch, backendTokensSchema, unwrapBackend } from "./backend";
+import { readBoundedBody, requestBodyLimit } from "./body-limit";
 import { loginClientIpHeaders } from "./client-ip";
 import { readLoginFailure } from "./login-error";
 import {
@@ -176,6 +177,17 @@ export async function backendProxyHandler(
     return bffError(400, "INVALID_BACKEND_PATH");
   const token = readSessionToken(request);
   if (!token) return expireSessionCookie(bffError(401, "UNAUTHENTICATED"));
+  // Bounded read after CSRF/path/session checks and before Spring; a request problem (413/400),
+  // not an upstream failure, and never a reason to drop the session.
+  let body: Uint8Array<ArrayBuffer> | undefined;
+  if (!["GET", "HEAD"].includes(request.method)) {
+    const read = await readBoundedBody(request, requestBodyLimit(request.method, paths));
+    if (!read.ok)
+      return read.reason === "too-large"
+        ? bffError(413, "PAYLOAD_TOO_LARGE")
+        : bffError(400, "MALFORMED_REQUEST");
+    body = read.body;
+  }
   let upstreamStatus: number | undefined;
   try {
     const headers = new Headers();
@@ -184,7 +196,6 @@ export async function backendProxyHandler(
       if (value) headers.set(name, value);
     }
     headers.set("Authorization", `Bearer ${token}`);
-    const body = ["GET", "HEAD"].includes(request.method) ? undefined : await request.arrayBuffer();
     const upstream = await backendFetch(
       paths.map(encodeURIComponent).join("/"),
       { method: request.method, headers, body },

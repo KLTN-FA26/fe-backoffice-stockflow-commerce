@@ -43,10 +43,14 @@ export async function mockRbacBackend(
   if (init.method === "GET") return Response.json(matrix);
   if (init.method !== "PUT") return failure(405, "METHOD_NOT_ALLOWED");
   if (!matrix.editable) return failure(409, RBAC_ERRORS.notEditable);
+  const raw = init.body;
+  // The proxy forwards its bounded read as a Uint8Array; accept any byte view, like Spring would.
   const text =
-    typeof init.body === "string"
-      ? init.body
-      : new TextDecoder().decode(init.body instanceof ArrayBuffer ? init.body : new ArrayBuffer(0));
+    typeof raw === "string"
+      ? raw
+      : new TextDecoder().decode(
+          raw instanceof ArrayBuffer || ArrayBuffer.isView(raw) ? raw : new ArrayBuffer(0),
+        );
   let body: unknown;
   try {
     body = JSON.parse(text);
