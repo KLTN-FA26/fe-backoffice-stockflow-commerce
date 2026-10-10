@@ -46,6 +46,9 @@ import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { textCell, numberCell, moneyCell, statusCell } from "@/components/shared/column-helpers";
+
+import { CanonicalVariantsSection } from "./CanonicalVariantsSection";
+
 import type { PrintArea, ProductAction, ProductStatus, Sku, SkuStatus } from "@/features/product";
 
 /* -------------------------------------------------------------------------- */
@@ -520,7 +523,9 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
             </Section>
           )}
 
-          {/* Bảng SKU */}
+          <CanonicalVariantsSection productId={product.productId} />
+
+          {/* Bảng SKU legacy — canonical navigation remains a separate read contract. */}
           <Section
             title={`SKU (${productSkus.length})`}
             icon={Tag}

@@ -52,6 +52,19 @@ function backendPage() {
 }
 
 describe("product API contract", () => {
+  it("preserves the canonical Product UUID on the unmerged PIM read contract", async () => {
+    const { brand, customizable, images, ...fields } = backendProduct;
+    const canonical = Object.fromEntries(
+      Object.entries(fields).filter(([, value]) => value !== null),
+    );
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { ...canonical, kind: customizable ? "CUSTOMIZABLE" : "STANDARD", brandName: brand },
+    });
+    const product = await getProduct(backendProduct.productId);
+    expect(product.productId).toBe(backendProduct.productId);
+    expect(product.images).toEqual(images);
+    expect(product.type).toBe("Standard");
+  });
   it("uses the backend zero-based pagination contract without hidden conversion", async () => {
     const get = vi.spyOn(api, "get").mockResolvedValueOnce({ data: backendPage() });
 

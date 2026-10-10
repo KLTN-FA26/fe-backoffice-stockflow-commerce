@@ -1,6 +1,7 @@
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 
+import { canonicalProductReadSchema } from "./canonical-product-schema";
 import { productMasterDtoSchema, productSchema } from "./schemas";
 
 import type { LegacyPaginatedResponse, PaginatedResponse } from "@/lib/api/query-factory";
@@ -161,6 +162,17 @@ function emptyPage<T>(pageSize = 15): LegacyPaginatedResponse<T> {
 }
 
 function parseProduct(value: unknown): Product {
+  if (typeof value === "object" && value !== null && "kind" in value) {
+    const dto = canonicalProductReadSchema.parse(value);
+    return toProduct({
+      ...dto,
+      nameEn: dto.nameEn ?? "",
+      brand: dto.brandName ?? "",
+      customizable: dto.kind === "CUSTOMIZABLE",
+      // Canonical ProductResponse has no gallery; do not query media to obtain identity.
+      images: [],
+    });
+  }
   const legacy = productSchema.safeParse(value);
   if (legacy.success) return legacy.data;
   return toProduct(productMasterDtoSchema.parse(value));

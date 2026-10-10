@@ -1,3 +1,7 @@
+export type { CanonicalVariant, CanonicalVariantIdentity } from "./variant-schemas";
+export { getCanonicalVariant, listCanonicalVariants } from "./variant-api";
+export { canonicalVariantKeys, useCanonicalVariant, useCanonicalVariants } from "./variant-queries";
+
 export type {
   Category,
   PrintArea,

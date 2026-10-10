@@ -16,6 +16,8 @@ export const ADMIN_ROUTES = {
     edit: (id: string) => `${ADMIN_BASE}/products/${id}/edit`,
     list: `${ADMIN_BASE}/products`,
     skuDetail: (id: string) => `${ADMIN_BASE}/products/sku/${id}`,
+    canonicalSkuDetail: (productId: string, variantId: string) =>
+      `${ADMIN_BASE}/products/${encodeURIComponent(productId)}/skus/${encodeURIComponent(variantId)}`,
   },
   purchaseOrders: {
     create: `${ADMIN_BASE}/purchase-orders/create`,
