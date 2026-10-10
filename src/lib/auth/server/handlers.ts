@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { authUserSchema, loginRequestSchema } from "@/lib/auth/auth-schemas";
 
 import { BACKEND_AUTH_PATHS, backendFetch, backendTokensSchema, unwrapBackend } from "./backend";
+import { loginClientIpHeaders } from "./client-ip";
 import {
   expireLegacyCookie,
   expireSessionCookie,
@@ -62,7 +63,11 @@ export async function loginHandler(request: NextRequest): Promise<NextResponse> 
     if (!credentials.success) return bffError(400, "INVALID_CREDENTIALS");
     const login = await backendFetch(BACKEND_AUTH_PATHS.login, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      headers: {
+        ...loginClientIpHeaders(request.headers),
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
       body: JSON.stringify(credentials.data),
     });
     if (!login.ok) return expireSessionCookie(bffError(login.status, "LOGIN_FAILED"));
