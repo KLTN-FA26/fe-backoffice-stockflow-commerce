@@ -33,3 +33,19 @@ export const ORDER_LIMITS = {
    */
   cancelReasonMax: 500,
 } as const;
+
+/** Giới hạn phiếu nhận — đúng ràng buộc request BE goods receipt (PR #62, SCRUM-435). */
+export const RECEIPT_LIMITS = {
+  /** `ReceiptLinesRequest.lines` @Size(max = 200). */
+  linesMax: 200,
+  /** `ReceiptLinesRequest.Line.lotNumber` / `locationCode` @Size(max = 64); `MoveToQcRequest`. */
+  codeMax: 64,
+  /** `ReceiptLinesRequest.Line.note` @Size(max = 255). */
+  lineNoteMax: 255,
+  /** `CreateGoodsReceiptRequest.deliveryNote` @Size(max = 100). */
+  deliveryNoteMax: 100,
+  /** `CreateGoodsReceiptRequest.note` @Size(max = 2000). */
+  noteMax: 2000,
+  /** `QcDecisionRequest.Part.reason` @Size(max = 500). */
+  qcReasonMax: 500,
+} as const;

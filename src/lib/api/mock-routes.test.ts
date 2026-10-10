@@ -98,8 +98,9 @@ describe("product mock lifecycle contract", () => {
 // Regression review PR #12: màn legacy gửi `page=1&pageSize=` — paginate() dùng chung
 // không được đổi sang 0-based, nếu không các list này rỗng ở chế độ mock.
 // `/purchase-orders` không còn ở đây: PR #14 đã chuyển sang route mock khớp BE PageResponse.
+// `/receipts` cũng vậy: SCRUM-436 bỏ màn mock, phiếu nhận dùng `/goods-receipts` khớp BE PR #62.
 describe("legacy mock lists vẫn có dữ liệu với page=1&pageSize=500", () => {
-  it.each(["/receipts", "/invoices"])("%s", async (path) => {
+  it.each(["/invoices"])("%s", async (path) => {
     const response = await api.get<{ items: unknown[]; total: number }>(path, {
       params: { page: 1, pageSize: 500 },
     });

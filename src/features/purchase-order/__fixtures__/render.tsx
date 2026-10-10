@@ -10,7 +10,7 @@ import { render, screen } from "@testing-library/react";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { vi } from "vitest";
 
-import { PO_PERMISSIONS, SUPPLIER_PERMISSIONS } from "@/constants";
+import { GOODS_RECEIPT_PERMISSIONS, PO_PERMISSIONS, SUPPLIER_PERMISSIONS } from "@/constants";
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
@@ -23,11 +23,26 @@ export const PO_PERMISSION_SETS = {
   // VIEW_PAGE = mở trang; READ = được gọi API dữ liệu (BE Action.java, ADR-0004)
   viewOnly: [P.viewPage],
   readOnly: [P.viewPage, P.read],
-  // Seed BE PROCUREMENT_STAFF: tạo + gửi/huỷ/nhận/đóng thiếu, không duyệt
-  procurement: [P.viewPage, P.read, P.create, P.update, P.export, SUPPLIER_PERMISSIONS.read],
+  // Seed BE PROCUREMENT_STAFF: tạo + gửi/huỷ/đóng thiếu, không duyệt; tạo được phiếu nhận
+  procurement: [
+    P.viewPage,
+    P.read,
+    P.create,
+    P.update,
+    P.export,
+    SUPPLIER_PERMISSIONS.read,
+    // Seed BE PROCUREMENT_STAFF: goods-receipts VIEW_PAGE/READ/CREATE/UPDATE
+    GOODS_RECEIPT_PERMISSIONS.viewPage,
+    GOODS_RECEIPT_PERMISSIONS.create,
+  ],
   // BE #40 WAREHOUSE_MANAGER: chỉ duyệt
   approver: [P.viewPage, P.read, P.approve],
-  full: [...Object.values(P), SUPPLIER_PERMISSIONS.read],
+  full: [
+    ...Object.values(P),
+    SUPPLIER_PERMISSIONS.read,
+    GOODS_RECEIPT_PERMISSIONS.viewPage,
+    GOODS_RECEIPT_PERMISSIONS.create,
+  ],
 } satisfies Record<string, PermissionCode[]>;
 
 /** Handler theo path: trả data, hoặc throw (vd ApiError) để giả lập lỗi. */

@@ -27,7 +27,6 @@ const FIELD_LABELS: Record<string, string> = {
   sku: UI_LABELS.purchaseOrder.sku,
   quantityOrdered: UI_LABELS.purchaseOrder.orderedQty,
   unitPrice: UI_LABELS.purchaseOrder.unitPrice,
-  quantity: UI_LABELS.purchaseOrder.receivedQty,
   reason: "Lý do",
   note: "Ghi chú",
   status: UI_LABELS.purchaseOrder.supplierResponse,

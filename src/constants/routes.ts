@@ -28,6 +28,10 @@ export const ADMIN_ROUTES = {
     list: `${ADMIN_BASE}/orders`,
   },
   receipts: {
+    create: `${ADMIN_BASE}/receipts/create`,
+    // Tạo phiếu từ một PO đã chọn sẵn (vd nút "Nhận hàng" ở màn PO)
+    createFromPo: (poId: string) =>
+      `${ADMIN_BASE}/receipts/create?poId=${encodeURIComponent(poId)}`,
     detail: (id: string) => `${ADMIN_BASE}/receipts/${id}`,
     list: `${ADMIN_BASE}/receipts`,
   },

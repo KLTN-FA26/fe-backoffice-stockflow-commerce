@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   ClipboardCheck,
   FileCheck2,
+  PackageCheck,
   PackageX,
   RotateCcw,
   Send,
@@ -45,6 +46,7 @@ const ACTION_ICON: Record<PoActionCode, LucideIcon> = {
   recordConfirmation: ClipboardCheck,
   recoverDelivery: RotateCcw,
   closeShort: PackageX,
+  receive: PackageCheck,
   cancel: XCircle,
 };
 
@@ -126,6 +128,9 @@ export function actionDescription(act: PoAction, current: PoStatus): string {
   }
   if (act.code === "cancel") {
     return `Huỷ đơn — chuyển từ "${label(current)}" sang "${label(PO_STATUS.CANCELLED)}". Không thể khôi phục.`;
+  }
+  if (act.code === "receive") {
+    return "Nhận hàng — mở phiếu nhận cho đơn này; SL đã nhận và trạng thái đơn cập nhật khi phiếu được xác nhận.";
   }
   if (act.code === "closeShort") {
     return `Đóng thiếu — đơn chuyển sang "${label(PO_STATUS.CLOSED)}", phần chưa nhận được ghi nhận thiếu.`;

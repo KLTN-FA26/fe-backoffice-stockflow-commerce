@@ -7,6 +7,7 @@
  */
 
 import {
+  GOODS_RECEIPT_PERMISSIONS,
   PO_DELIVERY_STATUS,
   PO_PERMISSIONS,
   PO_STATUS,
@@ -23,7 +24,8 @@ import type { PoStatus, PurchaseOrder } from "./types";
  * (quyết định D4, BE PR #71):
  *   DRAFT → PENDING_APPROVAL (gửi duyệt) → APPROVED (duyệt 4 mắt, BR-PO-002) | DRAFT (từ chối)
  *   APPROVED → CONFIRMED (chốt = gửi NCC)
- *   CONFIRMED / PARTIALLY_RECEIVED → … → RECEIVED: do phiếu nhận hàng (`/goods-receipts`), không qua bảng này
+ *   CONFIRMED / PARTIALLY_RECEIVED → … → RECEIVED: do phiếu nhận ghi tiến độ khi xác nhận
+ *     (POST /goods-receipts/{id}/confirmation), không qua bảng này — xem action "receive"
  *   PARTIALLY_RECEIVED → CLOSED (đóng thiếu) · RECEIVED → CLOSED (đóng đơn)
  *   DRAFT / PENDING_APPROVAL / APPROVED / CONFIRMED → CANCELLED (BR-05: chưa nhận hàng)
  */
@@ -62,13 +64,16 @@ export type PoActionCode =
   | "closeShort"
   | "close"
   | "recoverDelivery"
-  | "recordConfirmation";
+  | "recordConfirmation"
+  | "receive";
 
 export interface PoAction {
   readonly code: PoActionCode;
   readonly label: string;
   /** Mã quyền BE guard endpoint này (PurchaseOrderController @RequiresPermission). */
   readonly permission: PermissionCode;
+  /** Quyền phải có thêm khi action mở sang màn khác (vd quyền mở trang đích). */
+  readonly extraPermissions?: readonly PermissionCode[];
   readonly fromStatuses: readonly PoStatus[];
   /** Trạng thái đích nếu là chuyển một bước (khôi phục/xác nhận NCC không có). */
   readonly targetStatus?: PoStatus;
@@ -112,6 +117,19 @@ export const PO_ACTIONS: readonly PoAction[] = [
     permission: PO_PERMISSIONS.update,
     fromStatuses: [PO_STATUS.APPROVED],
     targetStatus: PO_STATUS.CONFIRMED,
+  },
+  {
+    code: "receive",
+    label: UI_LABELS.purchaseOrder.action.receive,
+    // SCRUM-436: "Nhận hàng" mở màn tạo phiếu nhận (POST /goods-receipts) — quyền của phiếu nhận,
+    // không phải PO:UPDATE. Màn PO đã cần purchase-orders:READ.
+    permission: GOODS_RECEIPT_PERMISSIONS.create,
+    // Màn tạo phiếu nhận gate thêm VIEW_PAGE — thiếu thì bấm vào sẽ bị chặn trang
+    extraPermissions: [GOODS_RECEIPT_PERMISSIONS.viewPage],
+    // BR-03 (docs 02 §6) + BE PR #71 BR-01: chỉ nhận khi PO đã chốt (CONFIRMED) hoặc đang nhận dở.
+    fromStatuses: [PO_STATUS.CONFIRMED, PO_STATUS.PARTIALLY_RECEIVED],
+    // NCC đã từ chối thì không nhận — huỷ và tạo PO thay thế (BE PURCHASE_ORDER_NOT_RECEIVABLE).
+    when: (po) => po.supplierConfirmationStatus !== SUPPLIER_CONFIRMATION_STATUS.REJECTED,
   },
   {
     code: "recordConfirmation",
@@ -183,7 +201,8 @@ export function allowedPoActions(
       action.fromStatuses.includes(po.status) &&
       allowedByTable &&
       (action.when?.(po) ?? true) &&
-      can(action.permission)
+      can(action.permission) &&
+      (action.extraPermissions ?? []).every(can)
     );
   });
 }

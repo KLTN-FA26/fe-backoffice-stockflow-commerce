@@ -34,6 +34,7 @@ import {
   ADMIN_ROUTES,
   APP_ROUTES,
   BRAND,
+  GOODS_RECEIPT_PERMISSIONS,
   ORDER_PERMISSIONS,
   PO_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
@@ -209,7 +210,13 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: "NHẬP HÀNG",
     items: [
-      { label: "Phiếu nhận", tooltip: "Receipts", href: "/admin/receipts", icon: FileText },
+      {
+        label: "Phiếu nhận",
+        tooltip: "Goods receipts",
+        href: ADMIN_ROUTES.receipts.list,
+        icon: FileText,
+        permission: GOODS_RECEIPT_PERMISSIONS.viewPage,
+      },
       { label: "Cất hàng", tooltip: "Putaway", href: "/admin/putaway", icon: PackageCheck },
     ],
   },

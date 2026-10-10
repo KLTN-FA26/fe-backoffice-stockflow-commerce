@@ -110,9 +110,11 @@ export const PO_DELIVERY_ATTEMPT_STATUS = {
 
 export const PROPOSAL_STATUSES = ["Draft Proposal", "Reviewed", "Converted"] as const;
 
+/** Trạng thái phiếu nhận — nguyên văn docs 03 §5.1 (6 trạng thái, thứ tự vòng đời). */
 export const RECEIPT_STATUSES = [
   "Draft",
   "Confirmed",
+  "In QC",
   "In Putaway",
   "Closed",
   "Cancelled",
@@ -124,7 +126,66 @@ export const RECEIPT_STATUS = {
   CONFIRMED: "Confirmed",
   DRAFT: "Draft",
   IN_PUTAWAY: "In Putaway",
+  IN_QC: "In QC",
 } as const satisfies Record<string, ReceiptStatus>;
+
+/** Mã trạng thái BE `GoodsReceiptStatus` (PR #62, SCRUM-435) — map 1-1 với `RECEIPT_STATUSES`. */
+export const RECEIPT_API_STATUSES = [
+  "DRAFT",
+  "CONFIRMED",
+  "IN_QC",
+  "IN_PUTAWAY",
+  "CLOSED",
+  "CANCELLED",
+] as const;
+
+/** BE ↔ FE cho trạng thái phiếu nhận. Đảo chiều qua `RECEIPT_API_STATUS_BY_STATUS`. */
+export const RECEIPT_STATUS_BY_API = {
+  DRAFT: "Draft",
+  CONFIRMED: "Confirmed",
+  IN_QC: "In QC",
+  IN_PUTAWAY: "In Putaway",
+  CLOSED: "Closed",
+  CANCELLED: "Cancelled",
+} as const satisfies Record<ReceiptApiStatus, ReceiptStatus>;
+
+export const RECEIPT_API_STATUS_BY_STATUS = {
+  Draft: "DRAFT",
+  Confirmed: "CONFIRMED",
+  "In QC": "IN_QC",
+  "In Putaway": "IN_PUTAWAY",
+  Closed: "CLOSED",
+  Cancelled: "CANCELLED",
+} as const satisfies Record<ReceiptStatus, ReceiptApiStatus>;
+
+/**
+ * Tiến độ QC của một dòng nhận — BE `GoodsReceipts.QcProgress` (luồng 3 bước, docs 03 §5.2).
+ * Docs gộp AWAITING_MOVE_TO_QC + IN_QC_AREA thành `Pending`; FE giữ mã BE để gate action dòng.
+ */
+export const RECEIPT_QC_PROGRESS_API = [
+  "NOT_REQUIRED",
+  "AWAITING_MOVE_TO_QC",
+  "IN_QC_AREA",
+  "INSPECTED",
+] as const;
+
+/** Nhãn hiển thị (nguyên văn docs 03 §5.2) cho tiến độ QC chưa có kết luận. */
+export const RECEIPT_QC_PROGRESS_STATUS = {
+  NOT_REQUIRED: "Not Required",
+  AWAITING_MOVE_TO_QC: "Pending",
+  IN_QC_AREA: "Pending",
+} as const satisfies Partial<Record<ReceiptQcProgressApi, string>>;
+
+/** Kết luận QC — BE `QcOutcome` ↔ docs 03 §5.2. */
+export const QC_OUTCOME_API = ["ACCEPTED", "QUARANTINE", "REJECTED"] as const;
+
+export const QC_OUTCOME_STATUSES = ["Accepted", "Quarantine", "Rejected"] as const;
+
+export const QC_OUTCOME_BY_API = {
+  ACCEPTED: "Accepted",
+  QUARANTINE: "Quarantine",
+  REJECTED: "Rejected",
+} as const satisfies Record<QcOutcomeApi, QcOutcomeStatus>;
 
 export const PRODUCT_STATUSES = [
   "Draft",
@@ -220,6 +281,10 @@ export type PoDeliveryStatus = (typeof PO_DELIVERY_STATUSES)[number];
 export type PoCancellationDeliveryStatus = (typeof PO_CANCELLATION_DELIVERY_STATUSES)[number];
 export type PoDeliveryAttemptStatus = (typeof PO_DELIVERY_ATTEMPT_STATUSES)[number];
 export type ReceiptStatus = (typeof RECEIPT_STATUSES)[number];
+export type ReceiptApiStatus = (typeof RECEIPT_API_STATUSES)[number];
+export type ReceiptQcProgressApi = (typeof RECEIPT_QC_PROGRESS_API)[number];
+export type QcOutcomeApi = (typeof QC_OUTCOME_API)[number];
+export type QcOutcomeStatus = (typeof QC_OUTCOME_STATUSES)[number];
 export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
 export type ProposalStatus = (typeof PROPOSAL_STATUSES)[number];
 export type SkuStatus = (typeof SKU_STATUSES)[number];

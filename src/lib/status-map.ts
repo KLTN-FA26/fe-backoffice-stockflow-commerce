@@ -101,6 +101,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Return Requested",
     "Pending Verification",
     "Draft Proposal",
+    // Receipt — còn dòng cần QC chưa kết luận, chặn putaway (docs 03 §5.1)
+    "In QC",
   ],
   danger: [
     "Blacklisted",
@@ -155,6 +157,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Archived",
     "Discontinued",
     "Abandoned",
+    // QC dòng nhận — SKU không bật cờ Yêu cầu QC, đi luồng 2 bước (docs 03 §5.2)
+    "Not Required",
   ],
   special: ["Refunded", "Partially Refunded", "In Production"],
 };
@@ -243,6 +247,8 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   Released: "Đã release",
   Published: "Đã xuất bản",
   "In Putaway": "Đang cất",
+  "In QC": "Đang kiểm QC",
+  "Not Required": "Không cần QC",
   "Partially Fulfilled": "Thực hiện một phần",
   "Partially Completed": "Hoàn thành một phần",
   "Out for Delivery": "Đang giao",

@@ -7,7 +7,13 @@
  * phục vụ demo/mock — code FE đọc quyền qua `/me/permissions`, không đọc bảng này.
  */
 
-import { ORDER_PERMISSIONS, PO_PERMISSIONS, SUPPLIER_PERMISSIONS } from "@/constants/permissions";
+import {
+  GOODS_RECEIPT_PERMISSIONS,
+  ORDER_PERMISSIONS,
+  PO_PERMISSIONS,
+  QC_TASK_PERMISSIONS,
+  SUPPLIER_PERMISSIONS,
+} from "@/constants/permissions";
 
 import { registerMockRoute } from "./mock-adapter";
 
@@ -22,8 +28,16 @@ const PO = PO_PERMISSIONS;
 const ORDER_VIEW = [ORDER_PERMISSIONS.viewPage, ORDER_PERMISSIONS.read];
 const ORDER_ALL = Object.values(ORDER_PERMISSIONS);
 
+// Seed BE V20260903000100: goods-receipts VIEW_PAGE/READ/CREATE/UPDATE cho WAREHOUSE_STAFF,
+// WAREHOUSE_MANAGER, PROCUREMENT_STAFF; QC_STAFF chỉ VIEW_PAGE/READ + qc-tasks:APPROVE.
+// WAREHOUSE_STAFF KHÔNG có purchase-orders:READ (đã chốt giữ nguyên seed, SCRUM-436).
+const GR = GOODS_RECEIPT_PERMISSIONS;
+const QC = QC_TASK_PERMISSIONS;
+const GR_WORK = [GR.viewPage, GR.read, GR.create, GR.update];
+const ALL_GR_QC = [...Object.values(GR), ...Object.values(QC)];
+
 const MOCK_PERMISSIONS_BY_ROLE: Record<string, readonly string[]> = {
-  "System Admin": [...ALL_SUPPLIER, ...ALL_PO, ...ORDER_ALL],
+  "System Admin": [...ALL_SUPPLIER, ...ALL_PO, ...ORDER_ALL, ...ALL_GR_QC],
   "E-commerce Admin": ALL_SUPPLIER,
   "Order Coordinator": ORDER_ALL,
   "Sales Staff": ORDER_VIEW,
@@ -40,9 +54,14 @@ const MOCK_PERMISSIONS_BY_ROLE: Record<string, readonly string[]> = {
     PO.create,
     PO.update,
     PO.export,
+    ...GR_WORK,
+    QC.viewPage,
+    QC.read,
   ],
   // BE #40: WAREHOUSE_MANAGER duyệt PO (VIEW_PAGE, READ, APPROVE); không có quyền NCC.
-  "Warehouse Manager": [PO.viewPage, PO.read, PO.approve],
+  "Warehouse Manager": [PO.viewPage, PO.read, PO.approve, ...GR_WORK],
+  "Warehouse Staff": GR_WORK,
+  "QC Staff": [GR.viewPage, GR.read, QC.viewPage, QC.read, QC.approve],
   Accountant: [viewPage, read],
 };
 

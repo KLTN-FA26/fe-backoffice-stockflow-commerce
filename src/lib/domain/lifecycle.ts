@@ -20,10 +20,7 @@ export function canTransition<S extends string>(
   return (table[from] as readonly string[]).includes(to);
 }
 
-export function isTerminal<S extends string>(
-  table: Record<S, readonly S[]>,
-  status: S,
-): boolean {
+export function isTerminal<S extends string>(table: Record<S, readonly S[]>, status: S): boolean {
   return table[status].length === 0;
 }
 
@@ -40,7 +37,6 @@ import type {
   ProductStatus,
   SkuStatus,
   PoStatus,
-  ReceiptStatus,
   QcStatus,
   InvoiceStatus,
   PutawayStatus,
@@ -52,58 +48,63 @@ import type {
 } from "@/lib/mock-data";
 // OrderStatus lấy từ constants/statuses.ts (không phải mock-data) — đúng 10 trạng thái BE
 // (OrderStatus.java), dùng cho zod enum / lifecycle / filter UI.
-import type { OrderStatus } from "@/constants/statuses";
+// ReceiptStatus cũng vậy — 6 trạng thái docs 03 §5.1 (mock-data chỉ có 5, thiếu "In QC").
+import type { OrderStatus, ReceiptStatus } from "@/constants/statuses";
 
 /* ── Module 01: Product ──────────────────────────────────────────────── */
 
 // docs/warehouse/01-product-creation §5
 export const PRODUCT_TRANSITIONS: Record<ProductStatus, readonly ProductStatus[]> = {
-  "Draft":              ["Pending Approval"],
-  "Pending Approval":   ["Approved", "Draft"],
-  "Approved":           ["Active"],
-  "Active":             ["Published", "Inactive"],
-  "Published":          ["Active", "Inactive"],
-  "Inactive":           ["Active", "Discontinued"],
-  "Discontinued":       [],
+  Draft: ["Pending Approval"],
+  "Pending Approval": ["Approved", "Draft"],
+  Approved: ["Active"],
+  Active: ["Published", "Inactive"],
+  Published: ["Active", "Inactive"],
+  Inactive: ["Active", "Discontinued"],
+  Discontinued: [],
 };
 
 export const SKU_TRANSITIONS: Record<SkuStatus, readonly SkuStatus[]> = {
-  "Active":   ["Blocked", "Obsolete"],
-  "Blocked":  ["Active", "Obsolete"],
-  "Obsolete": [],
+  Active: ["Blocked", "Obsolete"],
+  Blocked: ["Active", "Obsolete"],
+  Obsolete: [],
 };
 
 /* ── Module 02: Purchase Order ───────────────────────────────────────── */
 
 // docs/warehouse/02-purchase-order §5
 export const PO_TRANSITIONS: Record<PoStatus, readonly PoStatus[]> = {
-  "Draft":               ["Pending Approval", "Approved", "Cancelled"],
-  "Pending Approval":    ["Approved", "Draft"],
-  "Approved":            ["Confirmed", "Cancelled"],
-  "Confirmed":           ["Partially Received", "Received", "Cancelled", "Closed"],
-  "Partially Received":  ["Received", "Closed"],
-  "Received":            ["Closed"],
-  "Closed":              [],
-  "Cancelled":           [],
+  Draft: ["Pending Approval", "Approved", "Cancelled"],
+  "Pending Approval": ["Approved", "Draft"],
+  Approved: ["Confirmed", "Cancelled"],
+  Confirmed: ["Partially Received", "Received", "Cancelled", "Closed"],
+  "Partially Received": ["Received", "Closed"],
+  Received: ["Closed"],
+  Closed: [],
+  Cancelled: [],
 };
 
 /* ── Module 03: Receipt ──────────────────────────────────────────────── */
 
-// ReceiptStatus = "Draft" | "Confirmed" | "In Putaway" | "Closed" | "Cancelled"
-// docs/warehouse/03-receipt §5
+// ReceiptStatus = "Draft" | "Confirmed" | "In QC" | "In Putaway" | "Closed" | "Cancelled"
+// docs/warehouse/03-receipt §5.1 — bảng "Chuyển tiếp"; BE GoodsReceiptStatus (PR #62)
 export const RECEIPT_TRANSITIONS: Record<ReceiptStatus, readonly ReceiptStatus[]> = {
-  "Draft":       ["Confirmed"],
-  "Confirmed":   ["In Putaway", "Closed"],
-  "In Putaway":  ["Closed"],
-  "Closed":      [],
-  "Cancelled":   [],
+  // BR-05: chỉ huỷ được khi chưa Confirmed; đã Confirmed thì sửa bằng điều chỉnh tồn
+  Draft: ["Confirmed", "Cancelled"],
+  // Có dòng cần QC → In QC, không có → In Putaway (BR-07)
+  Confirmed: ["In QC", "In Putaway"],
+  // Hết phần Accepted phải putaway → đi thẳng Closed
+  "In QC": ["In Putaway", "Closed"],
+  "In Putaway": ["Closed"],
+  Closed: [],
+  Cancelled: [],
 };
 
 // QcStatus = "Accepted" | "Quarantine" | "Rejected"
 export const QC_TRANSITIONS: Record<QcStatus, readonly QcStatus[]> = {
-  "Accepted":   [],
-  "Quarantine": ["Accepted", "Rejected"],
-  "Rejected":   [],
+  Accepted: [],
+  Quarantine: ["Accepted", "Rejected"],
+  Rejected: [],
 };
 
 /* ── Module 04: Invoice ──────────────────────────────────────────────── */
@@ -111,13 +112,13 @@ export const QC_TRANSITIONS: Record<QcStatus, readonly QcStatus[]> = {
 // InvoiceStatus = "Draft" | "Matched" | "Exception" | "Disputed" | "Approved for Payment" | "Paid" | "Cancelled"
 // docs/warehouse/04-invoice §5
 export const INVOICE_TRANSITIONS: Record<InvoiceStatus, readonly InvoiceStatus[]> = {
-  "Draft":                ["Matched", "Exception"],
-  "Matched":              ["Approved for Payment"],
-  "Exception":            ["Disputed", "Matched", "Cancelled"],
-  "Disputed":             ["Matched", "Cancelled"],
+  Draft: ["Matched", "Exception"],
+  Matched: ["Approved for Payment"],
+  Exception: ["Disputed", "Matched", "Cancelled"],
+  Disputed: ["Matched", "Cancelled"],
   "Approved for Payment": ["Paid"],
-  "Paid":                 [],
-  "Cancelled":            [],
+  Paid: [],
+  Cancelled: [],
 };
 
 /* ── Module 05: Putaway ──────────────────────────────────────────────── */
@@ -125,13 +126,13 @@ export const INVOICE_TRANSITIONS: Record<InvoiceStatus, readonly InvoiceStatus[]
 // PutawayStatus = "Pending" | "Assigned" | "In Progress" | "Partially Completed" | "On Hold" | "Completed" | "Cancelled"
 // docs/warehouse/05-putaway §5
 export const PUTAWAY_TRANSITIONS: Record<PutawayStatus, readonly PutawayStatus[]> = {
-  "Pending":              ["Assigned"],
-  "Assigned":             ["In Progress"],
-  "In Progress":          ["Completed", "Partially Completed", "On Hold"],
-  "Partially Completed":  ["In Progress", "Completed"],
-  "On Hold":              ["In Progress", "Cancelled"],
-  "Completed":            [],
-  "Cancelled":            [],
+  Pending: ["Assigned"],
+  Assigned: ["In Progress"],
+  "In Progress": ["Completed", "Partially Completed", "On Hold"],
+  "Partially Completed": ["In Progress", "Completed"],
+  "On Hold": ["In Progress", "Cancelled"],
+  Completed: [],
+  Cancelled: [],
 };
 
 /* ── Module 07: Picking ──────────────────────────────────────────────── */
@@ -139,14 +140,14 @@ export const PUTAWAY_TRANSITIONS: Record<PutawayStatus, readonly PutawayStatus[]
 // PickStatus = "Created" | "Released" | "Assigned" | "In Progress" | "Short" | "On Hold" | "Completed" | "Cancelled"
 // docs/warehouse/07-picking §5
 export const PICK_TRANSITIONS: Record<PickStatus, readonly PickStatus[]> = {
-  "Created":     ["Released"],
-  "Released":    ["Assigned"],
-  "Assigned":    ["In Progress"],
+  Created: ["Released"],
+  Released: ["Assigned"],
+  Assigned: ["In Progress"],
   "In Progress": ["Completed", "Short", "On Hold"],
-  "Short":       [],
-  "On Hold":     ["In Progress", "Cancelled"],
-  "Completed":   [],
-  "Cancelled":   [],
+  Short: [],
+  "On Hold": ["In Progress", "Cancelled"],
+  Completed: [],
+  Cancelled: [],
 };
 
 /* ── Module 08: Packing ──────────────────────────────────────────────── */
@@ -154,13 +155,13 @@ export const PICK_TRANSITIONS: Record<PickStatus, readonly PickStatus[]> = {
 // PackStatus = "Pending" | "In Progress" | "Verification Failed" | "On Hold" | "Packed" | "Handed to Shipping" | "Cancelled"
 // docs/warehouse/08-packing §5
 export const PACK_TRANSITIONS: Record<PackStatus, readonly PackStatus[]> = {
-  "Pending":              ["In Progress"],
-  "In Progress":          ["Packed", "Verification Failed", "On Hold"],
-  "Verification Failed":  ["In Progress"],
-  "On Hold":              ["In Progress", "Cancelled"],
-  "Packed":               ["Handed to Shipping"],
-  "Handed to Shipping":   [],
-  "Cancelled":            [],
+  Pending: ["In Progress"],
+  "In Progress": ["Packed", "Verification Failed", "On Hold"],
+  "Verification Failed": ["In Progress"],
+  "On Hold": ["In Progress", "Cancelled"],
+  Packed: ["Handed to Shipping"],
+  "Handed to Shipping": [],
+  Cancelled: [],
 };
 
 /* ── Module 09: Shipping ─────────────────────────────────────────────── */
@@ -169,17 +170,17 @@ export const PACK_TRANSITIONS: Record<PackStatus, readonly PackStatus[]> = {
 //   | "Out for Delivery" | "Delivery Failed" | "Returning" | "Delivered" | "Returned" | "Exception" | "Cancelled"
 // docs/warehouse/09-shipping §5
 export const SHIPMENT_TRANSITIONS: Record<ShipmentStatus, readonly ShipmentStatus[]> = {
-  "Label Created":      ["Ready to Dispatch"],
-  "Ready to Dispatch":  ["Handed Over"],
-  "Handed Over":        ["In Transit"],
-  "In Transit":         ["Out for Delivery", "Exception"],
-  "Out for Delivery":   ["Delivered", "Delivery Failed"],
-  "Delivery Failed":    ["Out for Delivery", "Returning"],
-  "Returning":          ["Returned"],
-  "Delivered":          [],
-  "Returned":           [],
-  "Exception":          ["In Transit", "Returning"],
-  "Cancelled":          [],
+  "Label Created": ["Ready to Dispatch"],
+  "Ready to Dispatch": ["Handed Over"],
+  "Handed Over": ["In Transit"],
+  "In Transit": ["Out for Delivery", "Exception"],
+  "Out for Delivery": ["Delivered", "Delivery Failed"],
+  "Delivery Failed": ["Out for Delivery", "Returning"],
+  Returning: ["Returned"],
+  Delivered: [],
+  Returned: [],
+  Exception: ["In Transit", "Returning"],
+  Cancelled: [],
 };
 
 /* ── Module 10: Inter-warehouse Transfer ─────────────────────────────── */
@@ -188,15 +189,15 @@ export const SHIPMENT_TRANSITIONS: Record<ShipmentStatus, readonly ShipmentStatu
 //   | "In Transit" | "Partially Received" | "Received" | "Completed" | "Cancelled"
 // docs/warehouse/10-transfer §5
 export const TRANSFER_TRANSITIONS: Record<TransferOrderStatus, readonly TransferOrderStatus[]> = {
-  "Draft":              ["Pending Approval"],
-  "Pending Approval":   ["Approved", "Cancelled"],
-  "Approved":           ["Picking"],
-  "Picking":            ["In Transit"],
-  "In Transit":         ["Partially Received", "Received"],
+  Draft: ["Pending Approval"],
+  "Pending Approval": ["Approved", "Cancelled"],
+  Approved: ["Picking"],
+  Picking: ["In Transit"],
+  "In Transit": ["Partially Received", "Received"],
   "Partially Received": ["Received"],
-  "Received":           ["Completed"],
-  "Completed":          [],
-  "Cancelled":          [],
+  Received: ["Completed"],
+  Completed: [],
+  Cancelled: [],
 };
 
 /* ── Module 11: Intra-warehouse Move ─────────────────────────────────── */
@@ -205,15 +206,15 @@ export const TRANSFER_TRANSITIONS: Record<TransferOrderStatus, readonly Transfer
 //   | "Discrepancy" | "Completed" | "Cancelled" | "Rejected"
 // docs/warehouse/11-moves §5
 export const MOVE_TRANSITIONS: Record<MoveTaskStatus, readonly MoveTaskStatus[]> = {
-  "Suggested":    ["Pending", "Rejected"],
-  "Pending":      ["Assigned"],
-  "Assigned":     ["In Progress"],
-  "In Progress":  ["Completed", "Discrepancy", "On Hold"],
-  "On Hold":      ["In Progress", "Cancelled"],
-  "Discrepancy":  ["In Progress", "Cancelled"],
-  "Completed":    [],
-  "Cancelled":    [],
-  "Rejected":     [],
+  Suggested: ["Pending", "Rejected"],
+  Pending: ["Assigned"],
+  Assigned: ["In Progress"],
+  "In Progress": ["Completed", "Discrepancy", "On Hold"],
+  "On Hold": ["In Progress", "Cancelled"],
+  Discrepancy: ["In Progress", "Cancelled"],
+  Completed: [],
+  Cancelled: [],
+  Rejected: [],
 };
 
 /* ── Module 14: Order ────────────────────────────────────────────────── */

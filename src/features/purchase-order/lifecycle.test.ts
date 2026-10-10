@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { PO_STATUSES } from "@/constants";
+import { GOODS_RECEIPT_PERMISSIONS, PO_STATUSES } from "@/constants";
 
 import { PO_PERMISSION_SETS } from "./__fixtures__/render";
 import { PO_TRANSITIONS, allowedPoActions, isPoTerminal, nextPoStatuses } from "./lifecycle";
@@ -85,15 +85,31 @@ describe("allowedPoActions — gate theo MÃ QUYỀN (/identity/me/permissions),
     expect(codes(gate("APPROVED"), "approver")).toEqual([]);
   });
 
-  it("CONFIRMED chờ NCC phản hồi → ghi nhận phản hồi, huỷ (nhận hàng qua phiếu nhập)", () => {
+  it("CONFIRMED chờ NCC phản hồi → nhận hàng (mở phiếu nhập), ghi nhận phản hồi, huỷ", () => {
     const po = gate("CONFIRMED", {
       supplierConfirmationStatus: "PENDING",
       deliveryStatus: "DELIVERED",
     });
-    expect(codes(po, "procurement")).toEqual(["recordConfirmation", "cancel"]);
+    expect(codes(po, "procurement")).toEqual(["receive", "recordConfirmation", "cancel"]);
   });
 
-  it("NCC đã từ chối → chỉ còn huỷ (rồi tạo PO thay thế)", () => {
+  it("Nhận hàng mở màn tạo phiếu nhận → cần goods-receipts CREATE + VIEW_PAGE", () => {
+    const po = gate("CONFIRMED", { supplierConfirmationStatus: "PENDING" });
+    const withoutViewPage: readonly PermissionCode[] = PO_PERMISSION_SETS.procurement.filter(
+      (code) => code !== GOODS_RECEIPT_PERMISSIONS.viewPage,
+    );
+    const actions = allowedPoActions(po, (code) => withoutViewPage.includes(code));
+    expect(actions.map((a) => a.code)).not.toContain("receive");
+  });
+
+  it.each(["DRAFT", "PENDING_APPROVAL", "APPROVED"] as const)(
+    "BR-03: %s chưa chốt → không có Nhận hàng",
+    (s) => {
+      expect(codes(gate(s), "full")).not.toContain("receive");
+    },
+  );
+
+  it("NCC đã từ chối → không nhận hàng, chỉ còn huỷ (rồi tạo PO thay thế)", () => {
     const po = gate("CONFIRMED", { supplierConfirmationStatus: "REJECTED" });
     expect(codes(po, "full")).toEqual(["cancel"]);
   });
@@ -109,9 +125,9 @@ describe("allowedPoActions — gate theo MÃ QUYỀN (/identity/me/permissions),
     expect(codes(delivered, "full")).not.toContain("recoverDelivery");
   });
 
-  it("BR-05: PARTIALLY_RECEIVED → chỉ đóng thiếu; RECEIVED → đóng đơn; không có huỷ", () => {
+  it("BR-05: PARTIALLY_RECEIVED → nhận tiếp / đóng thiếu; RECEIVED → đóng đơn; không có huỷ", () => {
     const partial = gate("PARTIALLY_RECEIVED", { supplierConfirmationStatus: "CONFIRMED" });
-    expect(codes(partial, "procurement")).toEqual(["closeShort"]);
+    expect(codes(partial, "procurement")).toEqual(["receive", "closeShort"]);
     const received = gate("RECEIVED", { supplierConfirmationStatus: "CONFIRMED" });
     expect(codes(received, "procurement")).toEqual(["close"]);
   });

@@ -154,5 +154,3 @@ export function poAttentionReason(po: PoGateState): PoAttentionReason | null {
 export function shouldFlagPoRow(po: PurchaseOrder): boolean {
   return poAttentionReason(po) !== null;
 }
-
-/* ── Receive goods draft ─────────────────────────────────────────────── */
