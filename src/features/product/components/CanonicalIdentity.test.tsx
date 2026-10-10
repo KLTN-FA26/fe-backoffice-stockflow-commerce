@@ -17,6 +17,8 @@ import type { ReactNode } from "react";
 const access = vi.hoisted(() => ({ allowed: true, mock: false }));
 vi.mock("@/lib/auth", () => ({ useCan: () => access.allowed }));
 vi.mock("@/providers/app-providers", () => ({ useIsMock: () => access.mock }));
+// Variant/navigation tests are isolated; InventoryControlSection.test covers the full route.
+vi.mock("./InventoryControlSection", () => ({ InventoryControlSection: () => null }));
 
 const productId = "11111111-1111-4111-8111-111111111111";
 const variantId = "22222222-2222-4222-8222-222222222222";

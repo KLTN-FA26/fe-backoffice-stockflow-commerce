@@ -15,6 +15,7 @@ import {
 import { useCanonicalVariant } from "../variant-queries";
 import { canonicalVariantRouteSchema } from "../variant-schemas";
 import { CanonicalVariantFeedback } from "./CanonicalVariantFeedback";
+import { InventoryControlSection } from "./InventoryControlSection";
 
 import type { CanonicalVariant } from "../variant-schemas";
 
@@ -83,6 +84,7 @@ export function CanonicalSkuPresentation({
           ))}
         </dl>
       </section>
+      <InventoryControlSection identity={identity} />
     </div>
   );
 }
