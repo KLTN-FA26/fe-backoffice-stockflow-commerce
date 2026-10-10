@@ -6,6 +6,7 @@ import { authUserSchema, loginRequestSchema } from "@/lib/auth/auth-schemas";
 
 import { BACKEND_AUTH_PATHS, backendFetch, backendTokensSchema, unwrapBackend } from "./backend";
 import { loginClientIpHeaders } from "./client-ip";
+import { readLoginFailure } from "./login-error";
 import {
   expireLegacyCookie,
   expireSessionCookie,
@@ -70,7 +71,12 @@ export async function loginHandler(request: NextRequest): Promise<NextResponse> 
       },
       body: JSON.stringify(credentials.data),
     });
-    if (!login.ok) return expireSessionCookie(bffError(login.status, "LOGIN_FAILED"));
+    if (!login.ok) {
+      const { code, retryAfter } = await readLoginFailure(login);
+      const failure = bffError(login.status, code);
+      if (retryAfter) failure.headers.set("Retry-After", retryAfter);
+      return expireSessionCookie(failure);
+    }
     const tokens = backendTokensSchema.parse(await unwrapBackend(login));
     accessToken = tokens.accessToken;
     const me = await backendFetch(BACKEND_AUTH_PATHS.me, {

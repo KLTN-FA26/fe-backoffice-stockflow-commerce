@@ -76,6 +76,27 @@ describe("safe browser auth contract", () => {
     expect(redirect).toHaveBeenCalledWith("/login");
     expect(requests.map((request) => request.url)).toEqual(["/products"]);
   });
+  it("failed login 401 keeps the BFF code and never triggers the expired-session redirect", async () => {
+    // Pathname outside /login proves the exemption is the login URL itself.
+    vi.stubGlobal("window", { location: { pathname: "/admin/products", replace: redirect } });
+    api.defaults.adapter = async (config) => {
+      requests.push(config);
+      const response = {
+        config,
+        status: 401,
+        statusText: "",
+        headers: {},
+        data: { code: "UNAUTHORIZED", message: "Không thể hoàn tất yêu cầu." },
+      };
+      throw new AxiosError("Rejected", undefined, config, undefined, response);
+    };
+    await expect(loginApi({ username: "staff", password: "wrong" })).rejects.toMatchObject({
+      status: 401,
+      code: "UNAUTHORIZED",
+    });
+    expect(redirect).not.toHaveBeenCalled();
+    expect(requests).toHaveLength(1);
+  });
   it.each([200, 500])("logout clears UI even when server status is %s", async (responseStatus) => {
     useAuthStore.getState().login(user, false);
     status = responseStatus;

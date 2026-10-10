@@ -45,4 +45,19 @@ describe("mock BFF contract", () => {
       401,
     );
   });
+  it("wrong password yields the same UNAUTHORIZED code as Spring, with no session", async () => {
+    const staff = (await getMockStaffUsers()).find((candidate) => candidate.active);
+    if (!staff) throw new Error("No active mock staff");
+    const origin = "http://localhost:3000";
+    const response = await loginHandler(
+      new NextRequest(`${origin}/api/auth/login`, {
+        method: "POST",
+        headers: { Origin: origin, "Content-Type": "application/json" },
+        body: JSON.stringify({ username: staff.email, password: "wrong-password" }),
+      }),
+    );
+    expect(response.status).toBe(401);
+    expect(await response.json()).toMatchObject({ code: "UNAUTHORIZED" });
+    expect(response.cookies.get(AUTH_COOKIE_NAME)?.value ?? "").toBe("");
+  });
 });

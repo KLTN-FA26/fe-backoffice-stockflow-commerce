@@ -25,7 +25,12 @@ export async function mockAuthBackend(path: string, init: RequestInit): Promise<
       parsed.success && parsed.data.password === MOCK_LOGIN_PASSWORD
         ? users.find((candidate) => candidate.active && candidate.email === parsed.data.username)
         : undefined;
-    if (!user) return Response.json({ message: "Đăng nhập thất bại." }, { status: 401 });
+    // Same envelope as Spring (ApiResponse): the BFF reads errorCode, never the message.
+    if (!user)
+      return Response.json(
+        { success: false, errorCode: "UNAUTHORIZED", message: "Đăng nhập thất bại." },
+        { status: 401 },
+      );
     const accessToken = crypto.randomUUID();
     sessions.set(accessToken, {
       userId: user.userId,

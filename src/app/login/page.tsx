@@ -23,6 +23,7 @@ import { ADMIN_ROUTES, APP_ROUTES } from "@/constants";
 import { AUTH_UI } from "@/constants/auth";
 
 import { getMockLoginUsersApi, loginApi, mockLoginApi } from "@/lib/auth/auth-api";
+import { loginErrorMessage } from "@/lib/auth/login-error";
 import { useAuthLifecycle } from "@/lib/auth/use-auth-lifecycle";
 
 import { useIsMock } from "@/providers/app-providers";
@@ -126,7 +127,7 @@ function LoginForm() {
         await mockLoginApi(selectedUserId);
         completeLogin();
       } catch (loginError: unknown) {
-        setError(loginError instanceof Error ? loginError.message : "Đăng nhập thất bại.");
+        setError(loginErrorMessage(loginError));
       }
     });
   }
@@ -141,7 +142,7 @@ function LoginForm() {
         await loginApi({ username, password });
         completeLogin();
       } catch (loginError: unknown) {
-        setError(loginError instanceof Error ? loginError.message : "Đăng nhập thất bại.");
+        setError(loginErrorMessage(loginError));
       }
     });
   }
