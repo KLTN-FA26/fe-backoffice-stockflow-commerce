@@ -271,35 +271,6 @@ export function registerAllMockRoutes(): void {
 
   registerProductTransitionRoutes();
 
-  // GET /skus
-  registerMockRoute("GET", "/skus", async (config) => {
-    const { skus } = await import("@/lib/mock-data");
-    const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
-    const q = params.get("q")?.toLowerCase();
-
-    let filtered = [...skus];
-    if (q)
-      filtered = filtered.filter(
-        (s) =>
-          s.skuId.toLowerCase().includes(q) ||
-          s.variantLabel.toLowerCase().includes(q) ||
-          s.barcode.toLowerCase().includes(q),
-      );
-
-    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
-  });
-
-  // GET /skus/:id
-  registerMockRoute("GET", "/skus/:id", async (config) => {
-    const { skus } = await import("@/lib/mock-data");
-    const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
-    const sku = skus.find((s) => s.skuId === id);
-    if (!sku) return { status: 404, data: { message: "SKU not found" }, headers: {} };
-    return { status: 200, data: sku, headers: {} };
-  });
-
   // GET /categories — BE PR #71 PageResponse<CategoryResponse>
   registerMockRoute("GET", "/categories", async () => {
     const { categories } = await import("@/lib/mock-data");

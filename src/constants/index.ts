@@ -10,7 +10,12 @@ export {
   UI_LABELS,
 } from "./labels";
 export { ORDER_LIMITS, PO_LIMITS } from "./numbers";
-export { ORDER_PERMISSIONS, PO_PERMISSIONS, SUPPLIER_PERMISSIONS } from "./permissions";
+export {
+  ORDER_PERMISSIONS,
+  PO_PERMISSIONS,
+  PRODUCT_PERMISSIONS,
+  SUPPLIER_PERMISSIONS,
+} from "./permissions";
 export { ADMIN_ROUTES, APP_ROUTES } from "./routes";
 export { STORAGE_KEYS } from "./storage-keys";
 export {

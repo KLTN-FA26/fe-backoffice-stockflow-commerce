@@ -9,7 +9,10 @@ export type StepKey = "info" | "lines" | "totals" | "review";
 /** Trạng thái một bước trên stepper — cùng nghĩa với wizard NCC. */
 export type StepStatus = "active" | "done" | "error" | "idle";
 
+/** BE PR #71: tạm tính (Σ SL × đơn giá), thuế (Σ thuế từng dòng), tổng = hai cái cộng lại. */
 export type Totals = {
+  subtotal: number;
+  taxTotal: number;
   grandTotal: number;
 };
 
@@ -29,5 +32,6 @@ export const PO_CREATE_DEFAULTS: PoCreateFormValues = {
   warehouseId: "",
   currency: "VND",
   expectedDate: "",
-  lines: [{ skuId: "", description: "", orderedQty: "1", unitPrice: "" }],
+  note: "",
+  lines: [{ skuId: "", description: "", orderedQty: "1", unitPrice: "", taxRate: "" }],
 };

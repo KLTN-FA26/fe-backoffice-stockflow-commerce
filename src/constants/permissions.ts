@@ -44,3 +44,17 @@ export const PO_PERMISSIONS = {
   approve: "procurement-purchase-orders:APPROVE",
   export: "procurement-purchase-orders:EXPORT",
 } as const;
+
+/**
+ * Sản phẩm, biến thể, logistics theo SKU, ảnh theo biến thể — resource `product-products`
+ * (BE ProductResources.PRODUCTS, PR #71).
+ */
+export const PRODUCT_PERMISSIONS = {
+  viewPage: "product-products:VIEW_PAGE",
+  read: "product-products:READ",
+  create: "product-products:CREATE",
+  // Sửa nháp, thêm / sửa / chặn biến thể, logistics, tải ảnh lên
+  update: "product-products:UPDATE",
+  // Duyệt (bốn mắt), kích hoạt / ngừng biến thể, xuất bản ảnh
+  approve: "product-products:APPROVE",
+} as const;

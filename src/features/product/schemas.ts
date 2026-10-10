@@ -6,17 +6,15 @@
 
 import { z } from "zod";
 
-import { PRODUCT_STATUSES, SKU_STATUSES } from "@/constants";
+import { PRODUCT_STATUSES } from "@/constants";
 
 export const productStatusValues = PRODUCT_STATUSES;
 
-export const skuStatusValues = SKU_STATUSES;
 export const productTypeValues = ["Standard", "Customizable"] as const;
 export const uomValues = ["pcs", "box", "kg", "m", "ream", "set"] as const;
 export const printTechniqueValues = ["DTG", "DTF", "Screen", "Embroidery", "Sublimation"] as const;
 
 export const productStatusSchema = z.enum(productStatusValues);
-export const skuStatusSchema = z.enum(skuStatusValues);
 export const productTypeSchema = z.enum(productTypeValues);
 export const uomSchema = z.enum(uomValues);
 export const printTechniqueSchema = z.enum(printTechniqueValues);
@@ -89,27 +87,6 @@ export const productSchema = z.object({
   lengthCm: z.number().positive().nullable().optional(),
   widthCm: z.number().positive().nullable().optional(),
   heightCm: z.number().positive().nullable().optional(),
-});
-
-export const skuSchema = z.object({
-  skuId: z.string(),
-  productId: z.string(),
-  barcode: z.string(),
-  variantLabel: z.string(),
-  attributes: z.record(z.string(), z.string()),
-  status: skuStatusSchema,
-  uom: uomSchema,
-  price: z.number().min(0),
-  cost: z.number().min(0),
-  weightKg: z.number().positive(),
-  lotTracking: z.boolean(),
-  serialTracking: z.boolean(),
-  expiryTracking: z.boolean(),
-  stockOnHand: z.number().int().min(0),
-  stockReserved: z.number().int().min(0),
-  stockAvailable: z.number().int(),
-  reorderPoint: z.number().int().min(0),
-  imageUrl: z.string().optional(),
 });
 
 export const categorySchema = z.object({
@@ -227,23 +204,14 @@ export const transitionProductSchema = z
     message: "Lý do từ chối là bắt buộc",
   });
 
-export const transitionSkuSchema = z.object({
-  id: z.string(),
-  targetStatus: skuStatusSchema,
-  reason: z.string().optional(),
-});
-
 export type ProductStatusValue = z.infer<typeof productStatusSchema>;
-export type SkuStatusValue = z.infer<typeof skuStatusSchema>;
 export type ProductTypeValue = z.infer<typeof productTypeSchema>;
 export type CreateProductInput = z.infer<typeof createProductSchema>;
 export type UpdateProductInput = z.infer<typeof updateProductSchema>;
 export type ProductMasterDto = z.infer<typeof productMasterDtoSchema>;
 export type ProductDraftFormValues = z.infer<typeof productDraftFormSchema>;
 export type ProductDto = z.infer<typeof productSchema>;
-export type SkuDto = z.infer<typeof skuSchema>;
 export type CategoryDto = z.infer<typeof categorySchema>;
 export type BeCategoryDto = z.infer<typeof beCategorySchema>;
 export type BrandDto = z.infer<typeof beBrandSchema>;
 export type TransitionProductInput = z.infer<typeof transitionProductSchema>;
-export type TransitionSkuInput = z.infer<typeof transitionSkuSchema>;

@@ -138,13 +138,16 @@ export const UI_LABELS = {
 /** Lỗi BE của form tạo PO (fieldErrors theo tên field BE) → câu tiếng Việt hiện inline dưới ô. */
 export const PO_CREATE_FIELD_MESSAGES = {
   supplierId: "Nhà cung cấp không hợp lệ",
+  warehouseId: "Kho nhận không hợp lệ",
   currency: "Tiền tệ không hợp lệ",
   expectedDate: "Ngày giao dự kiến không hợp lệ",
+  note: "Ghi chú không hợp lệ",
   lines: "Cần ít nhất một dòng hàng",
   skuId: "Mã SKU không hợp lệ",
   description: "Mô tả không hợp lệ",
   orderedQty: "SL đặt không hợp lệ",
   unitPrice: "Đơn giá không hợp lệ",
+  taxRate: "Thuế suất không hợp lệ",
 } as const;
 
 export const PO_ERROR_MESSAGES = {

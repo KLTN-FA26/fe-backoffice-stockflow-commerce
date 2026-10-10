@@ -37,11 +37,13 @@ function toCreateInput(v: PoCreateFormValues): CreatePoInput {
     warehouseId: v.warehouseId,
     currency: v.currency,
     expectedAt: v.expectedDate || null,
+    note: v.note.trim() || undefined,
     lines: v.lines.map((l) => ({
       sku: l.skuId,
       description: l.description.trim(),
       quantityOrdered: Number(l.orderedQty),
       unitPrice: Number(l.unitPrice),
+      taxRate: l.taxRate.trim() === "" ? undefined : Number(l.taxRate),
     })),
   };
 }

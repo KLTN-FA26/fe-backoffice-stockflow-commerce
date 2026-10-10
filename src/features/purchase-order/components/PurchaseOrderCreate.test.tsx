@@ -116,9 +116,9 @@ describe("PurchaseOrderCreate", () => {
     await pickSupplier(user);
     expect(screen.getByText("30 ngày")).toBeInTheDocument();
     expect(screen.getByText("7 ngày")).toBeInTheDocument();
-    // BE không lưu ngày đặt / điều khoản tự nhập / ghi chú → form không có các ô đó
+    // BE không lưu ngày đặt / điều khoản tự nhập → form không có các ô đó; ghi chú thì có (BE PR #71)
     expect(screen.queryByText("Ngày đặt")).not.toBeInTheDocument();
-    expect(screen.queryByText("Ghi chú")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Ghi chú")).toBeInTheDocument();
   });
 
   it("BR-06: ngày giao đã qua chỉ cảnh báo (so với hôm nay)", async () => {
@@ -134,16 +134,18 @@ describe("PurchaseOrderCreate", () => {
     await pickSupplier(user);
     await pickSelectOption(user, /Tiền tệ của PO/, "USD");
     await user.type(screen.getByLabelText("Ngày giao dự kiến"), "2099-01-01");
+    await user.type(screen.getByLabelText("Ghi chú"), " Giao trước 10h ");
     await user.click(screen.getByRole("button", { name: /Tiếp tục/ }));
 
     await user.type(await screen.findByLabelText("SKU dòng 1"), "sofa-3s-grey");
     await user.type(screen.getByLabelText(/Mô tả sản phẩm/), "  Sofa 3 chỗ xám ");
-    const [qty, price] = screen.getAllByRole("spinbutton");
-    if (!qty || !price) throw new Error("thiếu ô SL / đơn giá");
+    const [qty, price, tax] = screen.getAllByRole("spinbutton");
+    if (!qty || !price || !tax) throw new Error("thiếu ô SL / đơn giá / thuế");
     expect(price).toHaveValue(null); // không tự điền đơn giá
     await user.clear(qty);
     await user.type(qty, "3");
     await user.type(price, "250");
+    await user.type(tax, "10");
 
     await user.click(screen.getByRole("button", { name: /Tiếp tục/ }));
     await user.click(screen.getByRole("button", { name: /Tiếp tục/ }));
@@ -163,12 +165,14 @@ describe("PurchaseOrderCreate", () => {
         warehouseId: WAREHOUSE_REF.id,
         currency: "USD",
         expectedAt: "2099-01-01",
+        note: "Giao trước 10h",
         lines: [
           {
             sku: "SOFA-3S-GREY",
             description: "Sofa 3 chỗ xám",
             quantityOrdered: 3,
             unitPrice: 250,
+            taxRate: 10,
           },
         ],
       }),

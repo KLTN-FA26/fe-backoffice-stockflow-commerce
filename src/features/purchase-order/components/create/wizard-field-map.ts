@@ -12,6 +12,7 @@ const FIELD_STEP: Record<TopField, StepKey> = {
   warehouseId: "info",
   currency: "info",
   expectedDate: "info",
+  note: "info",
   lines: "lines",
 };
 

@@ -9,6 +9,7 @@ import { Alert } from "@/components/shared/Alert";
 import { Card } from "@/components/shared/Card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 import { CurrencyField } from "./CurrencyField";
 import { FieldError, SectionTitle, SummaryItem } from "./CreateFormPrimitives";
@@ -20,7 +21,7 @@ import type { CreatePoWizard } from "./useCreateForm";
 
 const L = UI_LABELS.purchaseOrder;
 
-/** Bước 1 — NCC, tiền tệ, ngày giao. Lỗi (client + server) hiện inline ngay dưới ô. */
+/** Bước 1 — NCC, kho nhận, tiền tệ, ghi chú, ngày giao. Lỗi (client + server) hiện inline dưới ô. */
 export function InfoStep({ w }: { w: CreatePoWizard }) {
   const { control, register, setValue } = w.form;
   const { errors, values, selectedSupplier, suggestedDate } = w;
@@ -59,6 +60,19 @@ export function InfoStep({ w }: { w: CreatePoWizard }) {
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
           <CurrencyField w={w} />
+          <div>
+            <label htmlFor="po-note" className="text-ink-secondary mb-1 block text-xs font-medium">
+              Ghi chú
+            </label>
+            <Textarea
+              id="po-note"
+              rows={2}
+              aria-invalid={errors.note ? true : undefined}
+              aria-describedby={errors.note ? "po-note-error" : undefined}
+              {...register("note")}
+            />
+            <FieldError id="po-note-error">{errors.note?.message}</FieldError>
+          </div>
         </div>
         <div className="grid gap-4 lg:grid-cols-3">
           <div>

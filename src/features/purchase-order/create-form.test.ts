@@ -10,7 +10,16 @@ const valid = {
   warehouseId: "d99123fd-2997-4751-6bb9-e10a2e6d9949",
   currency: "VND" as const,
   expectedDate: "",
-  lines: [{ skuId: "SKU-001", description: "Sofa 3 chỗ", orderedQty: "2", unitPrice: "1000" }],
+  note: "",
+  lines: [
+    {
+      skuId: "SKU-001",
+      description: "Sofa 3 chỗ",
+      orderedQty: "2",
+      unitPrice: "1000",
+      taxRate: "",
+    },
+  ],
 };
 const paths = (input: unknown) => {
   const r = poCreateFormSchema.safeParse(input);
@@ -45,6 +54,13 @@ describe("poCreateFormSchema — lỗi gắn đúng path ô form", () => {
     expect(paths({ ...valid, lines: [{ ...valid.lines[0], unitPrice: "0" }] })).toContain(
       "lines.0.unitPrice",
     );
+  });
+
+  it("thuế suất ngoài 0–100 → lỗi ở ô thuế; để trống được (= 0)", () => {
+    expect(paths({ ...valid, lines: [{ ...valid.lines[0], taxRate: "101" }] })).toContain(
+      "lines.0.taxRate",
+    );
+    expect(paths({ ...valid, lines: [{ ...valid.lines[0], taxRate: "8" }] })).toEqual([]);
   });
 
   it("SL không phải số nguyên dương → lỗi ở ô SL", () => {

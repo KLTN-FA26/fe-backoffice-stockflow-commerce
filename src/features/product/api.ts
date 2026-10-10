@@ -1,5 +1,4 @@
 import { api } from "@/lib/api/client";
-import { ApiError } from "@/lib/api/error";
 
 import { PAGE_SIZE } from "@/constants";
 
@@ -13,7 +12,7 @@ import type {
   ProductMasterDto,
   UpdateProductInput,
 } from "./schemas";
-import type { Category, Product, Sku } from "./types";
+import type { Category, Product } from "./types";
 
 export const PRODUCT_LIST_FILTER_STATUSES = [
   "Draft",
@@ -42,25 +41,9 @@ export interface ListProductsParams {
   [key: string]: unknown;
 }
 
-export interface ListSkusParams {
-  page?: number;
-  pageSize?: number;
-  q?: string;
-  status?: string[];
-  productId?: string;
-  sort?: string;
-  [key: string]: unknown;
-}
-
 export interface TransitionProductInput {
   id: string;
   action: "submit" | "approve" | "reject" | "discontinue";
-  reason?: string;
-}
-
-export interface TransitionSkuInput {
-  id: string;
-  targetStatus: string;
   reason?: string;
 }
 
@@ -133,34 +116,6 @@ export async function unpublishProduct(id: string): Promise<void> {
   await api.post(`/products/${id}/unpublication`);
 }
 
-export async function listSkus(
-  params: ListSkusParams,
-  signal?: AbortSignal,
-): Promise<LegacyPaginatedResponse<Sku>> {
-  try {
-    const { data } = await api.get<LegacyPaginatedResponse<Sku>>("/skus", { params, signal });
-    return data;
-  } catch (error: unknown) {
-    // Backend gap (SCRUM-44): no SKU read API exists yet. Keep Product master usable without
-    // presenting that missing adjacent resource as a Product load failure.
-    if (error instanceof ApiError && error.status === 404) return emptyPage(params.pageSize);
-    throw error;
-  }
-}
-
-export async function getSku(id: string, signal?: AbortSignal): Promise<Sku> {
-  const { data } = await api.get<Sku>(`/skus/${id}`, {
-    signal,
-  });
-  return data;
-}
-
-export async function transitionSku(input: TransitionSkuInput): Promise<Sku> {
-  const { id, ...body } = input;
-  const { data } = await api.patch<Sku>(`/skus/${id}/status`, body);
-  return data;
-}
-
 /** BE PR #71 `GET /categories` — PageResponse<CategoryResponse>, chỉ danh mục đang dùng. */
 export async function listCategories(
   signal?: AbortSignal,
@@ -206,10 +161,6 @@ function toCategory(dto: BeCategoryDto): Category {
     level: Math.min(3, dto.depth + 1) as Category["level"],
     slug: dto.slug,
   };
-}
-
-function emptyPage<T>(pageSize = 15): LegacyPaginatedResponse<T> {
-  return { items: [], page: 1, pageSize, total: 0 };
 }
 
 function parseProduct(value: unknown): Product {

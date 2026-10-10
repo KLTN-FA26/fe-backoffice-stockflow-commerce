@@ -99,7 +99,7 @@ describe("product mock lifecycle contract", () => {
 // không được đổi sang 0-based, nếu không các list này rỗng ở chế độ mock.
 // `/purchase-orders` không còn ở đây: PR #14 đã chuyển sang route mock khớp BE PageResponse.
 describe("legacy mock lists vẫn có dữ liệu với page=1&pageSize=500", () => {
-  it.each(["/skus", "/receipts", "/invoices"])("%s", async (path) => {
+  it.each(["/receipts", "/invoices"])("%s", async (path) => {
     const response = await api.get<{ items: unknown[]; total: number }>(path, {
       params: { page: 1, pageSize: 500 },
     });

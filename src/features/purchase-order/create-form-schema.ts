@@ -44,6 +44,12 @@ export const poCreateFormLineSchema = z.object({
     const n = toNumber(raw);
     return Number.isFinite(n) && n > 0;
   }, "Nhập đơn giá (lớn hơn 0)"),
+  // BE PR #71: thuế suất % của dòng, 0–100; để trống = 0.
+  taxRate: z.string().refine((raw) => {
+    if (raw.trim() === "") return true;
+    const n = Number(raw);
+    return Number.isFinite(n) && n >= 0 && n <= 100;
+  }, "Thuế suất 0–100%"),
 });
 
 export const poCreateFormSchema = z
@@ -55,6 +61,8 @@ export const poCreateFormSchema = z
     currency: z.enum(PO_INPUT_CURRENCIES),
     // BR-06 (docs 02 §6): ngày đã qua chỉ CẢNH BÁO; trống → BE tự đặt hôm nay + leadTimeDays.
     expectedDate: z.string(),
+    // BE PR #71 `purchase_orders.note` (text) — FE giới hạn như `createPoSchema`.
+    note: z.string().max(PO_LIMITS.noteMax, `Ghi chú tối đa ${PO_LIMITS.noteMax} ký tự`),
     lines: z.array(poCreateFormLineSchema).min(1, "Cần ít nhất một dòng hàng"),
   })
   .superRefine((form, ctx) => {
