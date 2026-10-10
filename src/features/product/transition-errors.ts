@@ -1,15 +1,11 @@
 import type { ApiError } from "@/lib/api";
 
+/** Branches on the stable BE errorCode only; the server message is a display fallback. */
 export function productTransitionErrorMessage(error: ApiError): string {
-  if (
-    error.status === 409 &&
-    error.code === "CONFLICT" &&
-    error.message === "Approve a non-empty product gallery before publishing the product"
-  ) {
-    return "Cần duyệt ít nhất một ảnh trong gallery trước khi xuất bản sản phẩm.";
-  }
-
   switch (error.code) {
+    // BE ProductPublicationAdapter.publish: no approved image in the variant galleries (409).
+    case "PRODUCT_GALLERY_REQUIRED":
+      return "Cần duyệt ít nhất một ảnh trong gallery trước khi xuất bản sản phẩm.";
     case "SELF_APPROVAL_NOT_ALLOWED":
       return "Bạn không thể phê duyệt sản phẩm do chính mình gửi duyệt.";
     case "INVALID_PRODUCT_STATUS_TRANSITION":
