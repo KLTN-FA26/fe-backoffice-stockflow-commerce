@@ -77,16 +77,21 @@ describe("PurchaseOrderDetail — gate theo mã quyền", () => {
     expect(await screen.findByText("Bạn không có quyền xem dữ liệu")).toBeInTheDocument();
   });
 
-  it("procurement (không APPROVE): DRAFT không có nút Phê duyệt; hiện mã + tên NCC", async () => {
+  it("procurement (không APPROVE): DRAFT có Gửi duyệt, không có Phê duyệt; hiện mã + tên NCC", async () => {
     renderDetail(PO_PERMISSION_SETS.procurement);
     expect(await screen.findByRole("button", { name: "Huỷ PO" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Gửi duyệt" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Phê duyệt" })).not.toBeInTheDocument();
     expect(await screen.findByText("GOHOAPHAT")).toBeInTheDocument();
   });
 
-  it("approver: Phê duyệt phải qua dialog xác nhận rồi mới gọi API", async () => {
+  it("approver: PENDING_APPROVAL → Phê duyệt phải qua dialog xác nhận rồi mới gọi API", async () => {
     const user = userEvent.setup();
-    const { post } = renderDetail(PO_PERMISSION_SETS.approver);
+    const { post } = renderDetail(
+      PO_PERMISSION_SETS.approver,
+      bePo({ status: "PENDING_APPROVAL", submittedBy: "procurement.staff" }),
+    );
+    expect(await screen.findByRole("button", { name: "Từ chối duyệt" })).toBeInTheDocument();
     await user.click(await screen.findByRole("button", { name: "Phê duyệt" }));
     expect(post).not.toHaveBeenCalled();
     const dialog = await screen.findByRole("dialog");
@@ -102,7 +107,11 @@ describe("PurchaseOrderDetail — giao NCC (BE #36)", () => {
   it("deliveryStatus FAILED → cảnh báo + lịch sử gửi có lỗi; không hiện mã enum thô", async () => {
     renderDetail(
       PO_PERMISSION_SETS.procurement,
-      bePo({ status: "SENT", supplierConfirmationStatus: "PENDING", deliveryStatus: "FAILED" }),
+      bePo({
+        status: "CONFIRMED",
+        supplierConfirmationStatus: "PENDING",
+        deliveryStatus: "FAILED",
+      }),
     );
     expect(await screen.findByText(/Lần gửi gần nhất chưa tới được NCC/)).toBeInTheDocument();
     // Bảng lần gửi không có cột lỗi kỹ thuật (đã có cột Kết quả)
@@ -116,7 +125,11 @@ describe("PurchaseOrderDetail — giao NCC (BE #36)", () => {
     const user = userEvent.setup();
     renderDetail(
       PO_PERMISSION_SETS.procurement,
-      bePo({ status: "SENT", supplierConfirmationStatus: "PENDING", deliveryStatus: "FAILED" }),
+      bePo({
+        status: "CONFIRMED",
+        supplierConfirmationStatus: "PENDING",
+        deliveryStatus: "FAILED",
+      }),
     );
     const decisionsTab = await screen.findByRole("tab", { name: /Quyết định gửi\s*1/ });
     expect(screen.getByRole("tab", { name: /Lần gửi\s*1/ })).toHaveAttribute(
@@ -135,7 +148,11 @@ describe("PurchaseOrderDetail — giao NCC (BE #36)", () => {
     const user = userEvent.setup();
     renderDetail(
       PO_PERMISSION_SETS.procurement,
-      bePo({ status: "SENT", supplierConfirmationStatus: "PENDING", deliveryStatus: "FAILED" }),
+      bePo({
+        status: "CONFIRMED",
+        supplierConfirmationStatus: "PENDING",
+        deliveryStatus: "FAILED",
+      }),
     );
     // BE #36: bảng phân biệt thư gửi đơn với thư báo huỷ ngay trên dòng (templateCode)
     expect(await screen.findByRole("columnheader", { name: "Loại thư" })).toBeInTheDocument();
@@ -178,7 +195,7 @@ describe("PurchaseOrderDetail — giao NCC (BE #36)", () => {
 
   it("lịch sử gửi lỗi 5xx → báo lỗi + nút Thử lại (không im lặng)", async () => {
     const po = bePo({
-      status: "SENT",
+      status: "CONFIRMED",
       supplierConfirmationStatus: "PENDING",
       deliveryStatus: "FAILED",
     });
@@ -205,7 +222,11 @@ describe("PurchaseOrderDetail — giao NCC (BE #36)", () => {
     const user = userEvent.setup();
     renderDetail(
       PO_PERMISSION_SETS.procurement,
-      bePo({ status: "SENT", supplierConfirmationStatus: "PENDING", deliveryStatus: "DELIVERED" }),
+      bePo({
+        status: "CONFIRMED",
+        supplierConfirmationStatus: "PENDING",
+        deliveryStatus: "DELIVERED",
+      }),
     );
     await user.click(await screen.findByRole("button", { name: /Ghi nhận NCC phản hồi/ }));
     const dialog = await screen.findByRole("dialog");
@@ -217,14 +238,14 @@ describe("PurchaseOrderDetail — giao NCC (BE #36)", () => {
 
   it("dialog Gửi NCC: PO cũ thiếu mô tả + ngày đã qua → cảnh báo, vẫn cho gửi (BR-06)", async () => {
     const user = userEvent.setup();
-    const base = bePo({ status: "APPROVED", expectedAt: "2020-01-01" });
+    const base = bePo({ status: "APPROVED", orderDate: "2019-12-20", expectedAt: "2020-01-01" });
     const po = { ...base, lines: base.lines.map((l) => ({ ...l, description: "" })) };
     renderDetail(PO_PERMISSION_SETS.procurement, po);
-    await user.click(await screen.findByRole("button", { name: /Gửi NCC/ }));
+    await user.click(await screen.findByRole("button", { name: "Xác nhận & gửi NCC" }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText(/1 dòng chưa có mô tả sản phẩm/)).toBeInTheDocument();
     expect(within(dialog).getByText(/Ngày giao dự kiến đã qua/)).toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "Gửi NCC" })).toBeEnabled();
+    expect(within(dialog).getByRole("button", { name: "Xác nhận & gửi NCC" })).toBeEnabled();
   });
 
   it("đang gửi NCC (QUEUED) → tự tải lại, chuyển sang 'Đã gửi tới NCC' không cần F5", async () => {
@@ -232,7 +253,7 @@ describe("PurchaseOrderDetail — giao NCC (BE #36)", () => {
     try {
       let calls = 0;
       const sent = {
-        status: "SENT",
+        status: "CONFIRMED",
         supplierConfirmationStatus: "PENDING",
         sentAt: "2026-10-01T03:00:00Z",
       };
@@ -261,7 +282,7 @@ describe("PurchaseOrderDetail — giao NCC (BE #36)", () => {
       let attemptCalls = 0;
       let servedSentRow = false;
       const sent = {
-        status: "SENT",
+        status: "CONFIRMED",
         supplierConfirmationStatus: "PENDING",
         sentAt: "2026-10-01T03:00:00Z",
       };
@@ -307,7 +328,11 @@ describe("PurchaseOrderDetail — giao NCC (BE #36)", () => {
   it("BE đang tự gửi lại (RETRYING) → báo đang gửi lại, không khuyên khôi phục gửi", async () => {
     renderDetail(
       PO_PERMISSION_SETS.procurement,
-      bePo({ status: "SENT", supplierConfirmationStatus: "PENDING", deliveryStatus: "RETRYING" }),
+      bePo({
+        status: "CONFIRMED",
+        supplierConfirmationStatus: "PENDING",
+        deliveryStatus: "RETRYING",
+      }),
     );
     expect(await screen.findByText(/hệ thống đang tự gửi lại/)).toBeInTheDocument();
     expect(screen.queryByText(/có thể khôi phục gửi/)).not.toBeInTheDocument();
@@ -346,7 +371,7 @@ describe("PurchaseOrderDetail — giao NCC (BE #36)", () => {
 
   it("409 khi duyệt → câu tiếng Việt, không lộ message tiếng Anh của BE", async () => {
     const user = userEvent.setup();
-    const po = bePo();
+    const po = bePo({ status: "PENDING_APPROVAL", submittedBy: "procurement.staff" });
     mockApi(PO_PERMISSION_SETS.approver, routesFor(po), {
       [`/purchase-orders/${PO_ID}/approval`]: () => {
         throw new ApiError(

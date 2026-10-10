@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Clock, Pencil, Power, RotateCcw, Send } from "lucide-react";
+import { Ban, Clock, Pencil, Power, RotateCcw, Send } from "lucide-react";
 
 import { ADMIN_ROUTES, SUPPLIER_CHANNEL_LABELS, SUPPLIER_PERMISSIONS } from "@/constants";
 import { formatDateTime } from "@/lib/format/date";
@@ -10,6 +10,12 @@ import { Button } from "@/components/ui/button";
 import type { PermissionCode } from "@/lib/auth";
 import type { SupplierActionKey } from "@/features/supplier/lifecycle";
 import type { SupplierDto } from "@/features/supplier/types";
+
+const ACTION_ICON: Record<SupplierActionKey, React.ReactNode> = {
+  activate: <RotateCcw className="size-3.5" />,
+  deactivate: <Power className="size-3.5" />,
+  blacklist: <Ban className="size-3.5" />,
+};
 
 const BUTTON_BASE = "w-full rounded-[var(--r-sm)] border px-3 py-2 text-[0.8125rem] font-medium";
 
@@ -27,7 +33,7 @@ export function ActionCard({
   // Gate theo trạng thái + mã quyền (lifecycle.ts). Backend phải re-check.
   const actions = allowedSupplierActions(supplier.status, can);
   const canEdit = can(SUPPLIER_PERMISSIONS.update);
-  const isInactive = supplier.status === "Inactive";
+  const isInactive = supplier.status !== "Active";
 
   return (
     <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
@@ -56,17 +62,12 @@ export function ActionCard({
             disabled={isToggling}
             onClick={() => onConfirm(action.key)}
             className={
-              action.key === "deactivate"
-                ? `border-danger text-danger hover:bg-danger/10 bg-transparent ${BUTTON_BASE}`
-                : `border-border-default bg-brand text-ink-inverse hover:bg-brand-hover ${BUTTON_BASE}`
+              action.key === "activate"
+                ? `border-border-default bg-brand text-ink-inverse hover:bg-brand-hover ${BUTTON_BASE}`
+                : `border-danger text-danger hover:bg-danger/10 bg-transparent ${BUTTON_BASE}`
             }
           >
-            {action.key === "deactivate" ? (
-              <Power className="size-3.5" />
-            ) : (
-              <RotateCcw className="size-3.5" />
-            )}{" "}
-            {action.label}
+            {ACTION_ICON[action.key]} {action.label}
           </Button>
         ))}
         {!canEdit && actions.length === 0 && (
@@ -77,7 +78,9 @@ export function ActionCard({
       </div>
       {isInactive && (
         <p className="text-ink-tertiary mt-3 text-center text-xs">
-          NCC đã ngừng hợp tác — không xuất hiện khi tạo PO.
+          {supplier.status === "Blacklisted"
+            ? "NCC nằm trong danh sách đen — không xuất hiện khi tạo PO."
+            : "NCC đã ngừng hợp tác — không xuất hiện khi tạo PO."}
         </p>
       )}
     </section>

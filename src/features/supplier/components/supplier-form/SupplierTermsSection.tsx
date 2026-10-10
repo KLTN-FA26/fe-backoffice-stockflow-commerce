@@ -27,6 +27,9 @@ const CHANNEL_HINT: Record<SupplierChannel, string> = {
 const L = SUPPLIER_FIELD_LABELS;
 const numberCls = `${inputCls} text-right tabular-nums`;
 
+/** Ô % để trống = null (BE dùng mặc định hệ thống), không phải NaN. */
+const percentValue = (v: unknown) => (v === "" || v == null ? null : Number(v));
+
 function isChannel(value: string): value is SupplierChannel {
   return (SUPPLIER_CHANNELS as readonly string[]).includes(value);
 }
@@ -43,6 +46,7 @@ export function SupplierTermsSection({
   errors: FieldErrors<SupplierFormValues>;
 }) {
   const channel = useWatch({ control, name: "communicationChannel" });
+  const printSubcontractor = useWatch({ control, name: "printSubcontractor" });
 
   return (
     <section className="bg-bg-surface border-border-default rounded-[var(--r-sm)] border p-4">
@@ -119,6 +123,59 @@ export function SupplierTermsSection({
             />
             <FieldError name="apiEndpoint" message={errors.apiEndpoint?.message} />
             <FieldHint>Chỉ nhận https, không kèm query hoặc #fragment.</FieldHint>
+          </div>
+        )}
+        <div className="space-y-1">
+          <Label htmlFor={fieldId("overReceiptTolerancePercent")}>
+            {L.overReceiptTolerancePercent} (%)
+          </Label>
+          <Input
+            type="number"
+            {...register("overReceiptTolerancePercent", { setValueAs: percentValue })}
+            {...fieldA11y(
+              "overReceiptTolerancePercent",
+              errors.overReceiptTolerancePercent?.message,
+            )}
+            min={0}
+            max={100}
+            step="0.01"
+            placeholder="Theo mặc định"
+            className={numberCls}
+          />
+          <FieldError
+            name="overReceiptTolerancePercent"
+            message={errors.overReceiptTolerancePercent?.message}
+          />
+          <FieldHint>Phần trăm được nhận vượt số lượng đặt khi nhập kho.</FieldHint>
+        </div>
+        <div className="space-y-1 sm:col-span-2">
+          <label className="text-ink-secondary flex items-center gap-2 text-xs font-medium">
+            <input
+              type="checkbox"
+              {...register("printSubcontractor")}
+              id={fieldId("printSubcontractor")}
+              className="border-border-strong accent-brand size-4 rounded-[var(--r-sm)]"
+            />
+            {L.printSubcontractor} — nhận in theo đơn gia công
+          </label>
+        </div>
+        {printSubcontractor && (
+          <div className="space-y-1">
+            <Label htmlFor={fieldId("lossTolerancePercent")}>{L.lossTolerancePercent} (%)</Label>
+            <Input
+              type="number"
+              {...register("lossTolerancePercent", { setValueAs: percentValue })}
+              {...fieldA11y("lossTolerancePercent", errors.lossTolerancePercent?.message)}
+              min={0}
+              max={100}
+              step="0.01"
+              placeholder="Theo mặc định"
+              className={numberCls}
+            />
+            <FieldError
+              name="lossTolerancePercent"
+              message={errors.lossTolerancePercent?.message}
+            />
           </div>
         )}
       </div>

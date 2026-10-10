@@ -11,62 +11,49 @@ export type CreateProductServerErrors = Partial<Record<CreateProductServerField,
 export type ProductCreateFormSnapshot = ProductDraftFormValues;
 
 export const PRODUCT_DRAFT_FORM_DEFAULTS: ProductDraftFormValues = {
-  brand: "",
+  brandId: "",
   categoryId: "",
   customizable: false,
   description: "",
   descriptionEn: "",
-  heightCm: "",
-  imageUrls: "",
-  lengthCm: "",
   name: "",
   nameEn: "",
   productCode: "",
+  shortDescription: "",
   taxClass: "STANDARD",
-  weightKg: "",
-  widthCm: "",
 };
 
 export function productToDraftForm(product: Product): ProductDraftFormValues {
   return {
-    brand: product.brand,
+    brandId: product.brandId ?? "",
     categoryId: product.categoryId ?? "",
     customizable: product.type === "Customizable",
     description: product.description,
     descriptionEn: product.descriptionEn,
-    heightCm: numberText(product.heightCm),
-    imageUrls: product.images.join("\n"),
-    lengthCm: numberText(product.lengthCm),
     name: product.name,
     nameEn: product.nameEn,
     productCode: product.code ?? product.productId,
+    shortDescription: product.shortDescription ?? "",
     taxClass: product.taxClass.toUpperCase() as ProductDraftFormValues["taxClass"],
-    weightKg: numberText(product.weightKg),
-    widthCm: numberText(product.widthCm),
   };
 }
 
+/**
+ * Payload BE PR #71 `CreateProductRequest`. Ảnh (theo biến thể) và kích thước / khối lượng (theo
+ * SKU) không còn đi cùng sản phẩm — BE tạo sẵn một biến thể mặc định có SKU = mã sản phẩm.
+ */
 export function buildCreateProductInput(form: ProductCreateFormSnapshot): CreateProductInput {
-  const images = form.imageUrls
-    .split(/\r?\n/)
-    .map((url) => url.trim())
-    .filter(Boolean);
-
   return {
     code: form.productCode.trim(),
     name: form.name.trim(),
     nameEn: form.nameEn.trim(),
     categoryId: form.categoryId.trim(),
+    brandId: form.brandId.trim(),
+    shortDescription: form.shortDescription.trim(),
     description: form.description.trim(),
     descriptionEn: form.descriptionEn.trim(),
-    brand: form.brand.trim(),
     taxClass: form.taxClass,
-    customizable: form.customizable,
-    images,
-    weightKg: optionalNumber(form.weightKg),
-    lengthCm: optionalNumber(form.lengthCm),
-    widthCm: optionalNumber(form.widthCm),
-    heightCm: optionalNumber(form.heightCm),
+    kind: form.customizable ? "CUSTOMIZABLE" : "STANDARD",
   };
 }
 
@@ -82,6 +69,9 @@ export function mapCreateProductError(error: ApiError): {
   }
   if (error.code === "CATEGORY_NOT_FOUND" && !fieldErrors.categoryId) {
     fieldErrors.categoryId = "Danh mục đã bị xoá hoặc không còn khả dụng.";
+  }
+  if (error.code === "BRAND_NOT_FOUND" && !fieldErrors.brandId) {
+    fieldErrors.brandId = "Thương hiệu đã bị xoá hoặc không còn khả dụng.";
   }
   if (error.status === 403) {
     return {
@@ -101,12 +91,8 @@ function localizeKnownValidationFields(fieldErrors: CreateProductServerErrors): 
     productCode: "Mã sản phẩm không hợp lệ.",
     name: "Tên sản phẩm không hợp lệ.",
     nameEn: "Tên tiếng Anh không hợp lệ.",
-    brand: "Thương hiệu không hợp lệ.",
+    brandId: "Thương hiệu không hợp lệ.",
     categoryId: "Danh mục không hợp lệ.",
-    weightKg: "Khối lượng phải lớn hơn 0.",
-    lengthCm: "Chiều dài phải lớn hơn 0.",
-    widthCm: "Chiều rộng phải lớn hơn 0.",
-    heightCm: "Chiều cao phải lớn hơn 0.",
   };
   for (const field of Object.keys(fieldErrors) as CreateProductServerField[]) {
     if (messages[field]) fieldErrors[field] = messages[field];
@@ -128,32 +114,19 @@ function normalizeFieldName(field: string): CreateProductServerField | null {
     case "productCode":
     case "productId":
       return "productCode";
-    case "images":
-      return "imageUrls";
-    case "brand":
+    case "kind":
+      return "customizable";
+    case "brandId":
     case "categoryId":
     case "customizable":
     case "description":
     case "descriptionEn":
-    case "heightCm":
-    case "imageUrls":
-    case "lengthCm":
     case "name":
     case "nameEn":
+    case "shortDescription":
     case "taxClass":
-    case "weightKg":
-    case "widthCm":
       return field;
     default:
       return null;
   }
-}
-
-function optionalNumber(value: string): number | null {
-  const trimmed = value.trim();
-  return trimmed ? Number(trimmed) : null;
-}
-
-function numberText(value: number | null | undefined): string {
-  return value == null ? "" : String(value);
 }

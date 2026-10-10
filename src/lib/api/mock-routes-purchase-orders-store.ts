@@ -13,14 +13,15 @@ import { findMockSupplier } from "./mock-routes-suppliers";
 import type { AxiosRequestConfig } from "axios";
 import type { PoStatus, PurchaseOrder } from "@/lib/mock-data";
 
-/** BE `PurchaseOrderStatus.java` — 7 trạng thái. */
+/** BE `PurchaseOrderStatus.java` — 8 trạng thái D4 (BE PR #71). */
 export const BE_PO_STATUSES = [
   "DRAFT",
+  "PENDING_APPROVAL",
   "APPROVED",
-  "SENT",
+  "CONFIRMED",
   "PARTIALLY_RECEIVED",
+  "RECEIVED",
   "CLOSED",
-  "CLOSED_SHORT",
   "CANCELLED",
 ] as const;
 export type BePoStatus = (typeof BE_PO_STATUSES)[number];
@@ -30,28 +31,28 @@ export type PoDeliveryStatus =
 
 /**
  * Seed `mock-data.ts` dùng từ vựng Title Case của docs 02 (không được sửa file seed). Đây là
- * chỗ DUY NHẤT dịch sang mã BE. BE gộp submit+approve nên `Pending Approval` = DRAFT chưa
- * duyệt; `Confirmed` ≙ SENT; `Received` ≙ CLOSED (javadoc `PurchaseOrderStatus`).
+ * chỗ DUY NHẤT dịch sang mã BE — BE D4 (PR #71) có đủ các bước nên ánh xạ một-một.
  */
 const LEGACY_PO_STATUS: Record<PoStatus, BePoStatus> = {
   Draft: "DRAFT",
-  "Pending Approval": "DRAFT",
+  "Pending Approval": "PENDING_APPROVAL",
   Approved: "APPROVED",
-  Confirmed: "SENT",
+  Confirmed: "CONFIRMED",
   "Partially Received": "PARTIALLY_RECEIVED",
-  Received: "CLOSED",
+  Received: "RECEIVED",
   Closed: "CLOSED",
   Cancelled: "CANCELLED",
 };
 
-/** BE `PurchaseOrderStatus#canTransitionTo`. */
+/** BE `PurchaseOrderStatus#canTransitionTo` (D4). */
 export const BE_PO_TRANSITIONS: Record<BePoStatus, readonly BePoStatus[]> = {
-  DRAFT: ["APPROVED", "CANCELLED"],
-  APPROVED: ["SENT", "CANCELLED"],
-  SENT: ["CANCELLED"],
-  PARTIALLY_RECEIVED: ["CLOSED_SHORT"],
+  DRAFT: ["PENDING_APPROVAL", "CANCELLED"],
+  PENDING_APPROVAL: ["APPROVED", "DRAFT", "CANCELLED"],
+  APPROVED: ["CONFIRMED", "CANCELLED"],
+  CONFIRMED: ["CANCELLED"],
+  PARTIALLY_RECEIVED: ["CLOSED"],
+  RECEIVED: ["CLOSED"],
   CLOSED: [],
-  CLOSED_SHORT: [],
   CANCELLED: [],
 };
 
@@ -63,21 +64,38 @@ export const MOCK_PO_ACTOR = "mock-user";
 
 export interface MockBePoLine {
   lineId: string;
+  lineNo: number;
+  inventoryItemId: string;
   sku: string;
   description: string | null;
+  uom: string;
   quantityOrdered: number;
   quantityReceived: number;
   openQuantity: number;
   unitPrice: number;
+  taxRate: number;
+  lineTotal: number;
+  status: "OPEN" | "PARTIALLY_RECEIVED" | "RECEIVED" | "CLOSED" | "CANCELLED";
 }
 
 export interface MockBePo {
   purchaseOrderId: string;
   poNumber: string;
+  type: "STANDARD" | "SUBCONTRACT";
+  productionOrderId: string | null;
   supplierId: string;
+  supplierCode: string | null;
+  supplierName: string | null;
+  warehouseId: string;
+  warehouseCode: string | null;
+  warehouseName: string | null;
   status: BePoStatus;
   currency: string;
+  orderDate: string;
+  subtotal: number;
+  taxTotal: number;
   totalAmount: number;
+  note: string | null;
   expectedAt: string | null;
   lines: MockBePoLine[];
   createdAt: string;
@@ -85,8 +103,17 @@ export interface MockBePo {
   lastModifiedAt: string;
   lastModifiedBy: string;
   possibleDuplicate: boolean;
+  revisionNo: number;
+  submittedBy: string | null;
+  submittedAt: string | null;
+  approvedBy: string | null;
+  approvedAt: string | null;
+  confirmedBy: string | null;
+  confirmedAt: string | null;
+  closedAt: string | null;
+  closeKind: "NORMAL" | "SHORT_CLOSE" | "FORCE_CLOSE" | null;
+  closeReason: string | null;
   cancellationReason: string | null;
-  closeShortReason: string | null;
   paymentTermDays: number;
   leadTimeDays: number;
   sentAt: string | null;
@@ -170,7 +197,7 @@ export async function getPoStore(): Promise<Map<string, MockBePo>> {
  * BE `PurchaseOrderController#response`: `warnings` có DELIVERY_DATE_IN_PAST khi ngày giao trước
  * hôm nay (giờ VN) và PO chưa kết thúc (BR-06 — chỉ cảnh báo).
  */
-const TERMINAL_FOR_WARNINGS: readonly BePoStatus[] = ["CANCELLED", "CLOSED", "CLOSED_SHORT"];
+const TERMINAL_FOR_WARNINGS: readonly BePoStatus[] = ["CANCELLED", "CLOSED", "RECEIVED"];
 
 function refreshWarnings(store: Map<string, MockBePo>): void {
   const today = todayVn();
@@ -282,23 +309,31 @@ export function resetPoMockStore(): void {
 }
 
 async function seedToBePo(po: PurchaseOrder): Promise<MockBePo> {
-  const lines: MockBePoLine[] = po.lines.map((l) => ({
+  const status = LEGACY_PO_STATUS[po.status];
+  const lines: MockBePoLine[] = po.lines.map((l, i) => ({
     lineId: l.lineId,
+    lineNo: i + 1,
+    inventoryItemId: `item-${l.skuId}`,
     sku: l.skuId,
     description: null,
+    uom: "EACH",
     quantityOrdered: l.orderedQty,
     quantityReceived: l.receivedQty,
     openQuantity: Math.max(0, l.orderedQty - l.receivedQty),
     unitPrice: l.unitPrice,
+    taxRate: 0,
+    lineTotal: l.orderedQty * l.unitPrice,
+    status: lineStatusFor(status, l.orderedQty, l.receivedQty),
   }));
-  const status = LEGACY_PO_STATUS[po.status];
   const supplier = await findMockSupplier(po.supplierId);
   // Seed chỉ có ngày; 00:00 giờ VN giữ nguyên ngày theo Asia/Ho_Chi_Minh.
   const createdAt = `${po.orderDate}T00:00:00+07:00`;
-  const wasSent = status !== "DRAFT" && status !== "APPROVED" && status !== "CANCELLED";
-  // ASSUMPTION (mock demo): PO seed còn ở SENT có lần gửi FAILED để demo được luồng
+  const wasSent = !["DRAFT", "PENDING_APPROVAL", "APPROVED", "CANCELLED"].includes(status);
+  // ASSUMPTION (mock demo): PO seed còn ở CONFIRMED có lần gửi FAILED để demo được luồng
   // "gửi lỗi → khôi phục gửi"; các PO seed đã nhận hàng có lần gửi thành công.
-  const deliveryFailed = status === "SENT";
+  const deliveryFailed = status === "CONFIRMED";
+  const submitted = !["DRAFT", "CANCELLED"].includes(status);
+  const approved = submitted && status !== "PENDING_APPROVAL";
   if (wasSent) {
     addDecision(po.poId, {
       id: `${po.poId}-decision-0`,
@@ -330,10 +365,21 @@ async function seedToBePo(po: PurchaseOrder): Promise<MockBePo> {
   return {
     purchaseOrderId: po.poId,
     poNumber: po.poNumber,
+    type: "STANDARD",
+    productionOrderId: null,
     supplierId: po.supplierId,
+    supplierCode: supplier?.code ?? null,
+    supplierName: supplier?.name ?? null,
+    warehouseId: MOCK_WAREHOUSE.id,
+    warehouseCode: MOCK_WAREHOUSE.prefix,
+    warehouseName: MOCK_WAREHOUSE.name,
     status,
     currency: po.currency,
+    orderDate: po.orderDate,
+    subtotal: sumLines(lines),
+    taxTotal: 0,
     totalAmount: sumLines(lines),
+    note: null,
     expectedAt: po.expectedDate || null,
     lines,
     createdAt,
@@ -341,14 +387,28 @@ async function seedToBePo(po: PurchaseOrder): Promise<MockBePo> {
     lastModifiedAt: createdAt,
     lastModifiedBy: po.createdBy,
     possibleDuplicate: false,
-    cancellationReason: status === "CANCELLED" ? (po.rejectionReason ?? null) : null,
-    closeShortReason: null,
+    revisionNo: 0,
+    submittedBy: submitted ? MOCK_SUBMITTER : null,
+    submittedAt: submitted ? createdAt : null,
+    approvedBy: approved ? MOCK_APPROVER : null,
+    approvedAt: approved ? createdAt : null,
+    confirmedBy: wasSent ? MOCK_SUBMITTER : null,
+    confirmedAt: wasSent ? createdAt : null,
+    closedAt: status === "CLOSED" ? createdAt : null,
+    closeKind: status === "CLOSED" ? "NORMAL" : null,
+    closeReason: null,
+    // BE: mọi PO đã huỷ đều có lý do (`ck_purchase_orders_cancel_reason`).
+    cancellationReason: status === "CANCELLED" ? (po.rejectionReason ?? "Đã huỷ") : null,
     paymentTermDays: supplier?.paymentTermDays ?? 0,
     leadTimeDays: supplier?.leadTimeDays ?? 0,
     sentAt: wasSent ? createdAt : null,
-    // Seed đã nhận hàng ⇒ NCC đã xác nhận; seed SENT còn chờ NCC phản hồi.
-    supplierConfirmationStatus: !wasSent ? "NOT_SENT" : status === "SENT" ? "PENDING" : "CONFIRMED",
-    supplierRespondedAt: wasSent && status !== "SENT" ? createdAt : null,
+    // Seed đã nhận hàng ⇒ NCC đã xác nhận; seed CONFIRMED còn chờ NCC phản hồi.
+    supplierConfirmationStatus: !wasSent
+      ? "NOT_SENT"
+      : status === "CONFIRMED"
+        ? "PENDING"
+        : "CONFIRMED",
+    supplierRespondedAt: wasSent && status !== "CONFIRMED" ? createdAt : null,
     supplierReference: null,
     supplierResponseNote: null,
     deliveryStatus: !wasSent ? "NOT_SENT" : deliveryFailed ? "FAILED" : "DELIVERED",
@@ -357,9 +417,38 @@ async function seedToBePo(po: PurchaseOrder): Promise<MockBePo> {
   };
 }
 
-/** BE `PurchaseOrder#totalAmount` — Σ quantityOrdered × unitPrice. */
+/** BE `PurchaseOrder#subtotal` — Σ quantityOrdered × unitPrice (trước thuế). */
 export function sumLines(lines: readonly MockBePoLine[]): number {
   return lines.reduce((sum, l) => sum + l.quantityOrdered * l.unitPrice, 0);
+}
+
+/** BE `PurchaseOrder#taxTotal` — Σ thuế từng dòng, làm tròn 2 chữ số. */
+export function sumTax(lines: readonly MockBePoLine[]): number {
+  return lines.reduce(
+    (sum, l) => sum + Math.round(l.quantityOrdered * l.unitPrice * l.taxRate) / 100,
+    0,
+  );
+}
+
+/** Kho nhận của PO mock — trùng kho HCM của seed BE demo. */
+export const MOCK_WAREHOUSE = {
+  id: "d99123fd-2997-4751-6bb9-e10a2e6d9949",
+  prefix: "HCM",
+  name: "Kho Hồ Chí Minh",
+} as const;
+/** Người gửi duyệt / người duyệt của seed — hai người khác nhau (BR-PO-002 bốn mắt). */
+export const MOCK_SUBMITTER = "00000000-0000-4000-8000-0000000000a1";
+export const MOCK_APPROVER = "00000000-0000-4000-8000-0000000000a2";
+
+function lineStatusFor(
+  status: BePoStatus,
+  ordered: number,
+  received: number,
+): MockBePoLine["status"] {
+  if (status === "CANCELLED") return "CANCELLED";
+  if (status === "CLOSED") return received >= ordered ? "RECEIVED" : "CLOSED";
+  if (received >= ordered) return "RECEIVED";
+  return received > 0 ? "PARTIALLY_RECEIVED" : "OPEN";
 }
 
 export function touch(po: MockBePo, patch: Partial<MockBePo>): MockBePo {

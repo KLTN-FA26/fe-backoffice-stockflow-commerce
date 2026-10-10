@@ -86,6 +86,9 @@ function PurchaseOrderCreateBody() {
                 form={w.values}
                 suggestedDate={w.suggestedDate}
                 selectedSupplier={w.selectedSupplier}
+                warehouseName={
+                  w.warehouses.find((wh) => wh.warehouseId === w.values.warehouseId)?.name
+                }
                 totals={w.totals}
                 currency={w.values.currency}
                 issuesByStep={w.validationByStep}

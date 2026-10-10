@@ -1,22 +1,17 @@
 /**
  * Product — lifecycle & action-gating.
  *
- * Source: docs/warehouse/01-product-creation §5 + §6.
+ * Source: docs/warehouse/01-product-creation §5 + §6. Biến thể: `variant-lifecycle.ts` (BE PR #71).
  */
 
 import { can } from "@/lib/auth/permissions";
-import {
-  SKU_TRANSITIONS,
-  allowedTransitions,
-  canTransition,
-  isTerminal,
-} from "@/lib/domain/lifecycle";
+import { allowedTransitions, canTransition, isTerminal } from "@/lib/domain/lifecycle";
 
 import type { Permission } from "@/lib/auth/permissions";
 import type { RoleName } from "@/lib/auth/roles";
-import type { ProductStatus, SkuStatus } from "./types";
+import type { ProductStatus } from "./types";
 
-export { SKU_TRANSITIONS, allowedTransitions, canTransition, isTerminal };
+export { allowedTransitions, canTransition, isTerminal };
 
 export type BackendProductStatus = Exclude<ProductStatus, "Active" | "Inactive">;
 
@@ -36,15 +31,6 @@ export interface ProductAction {
   readonly fromStatuses: readonly ProductStatus[];
   readonly targetStatus?: ProductStatus;
   readonly transition?: "submit" | "approve" | "reject" | "discontinue" | "publish" | "unpublish";
-  readonly destructive?: boolean;
-}
-
-export interface SkuAction {
-  readonly code: string;
-  readonly label: string;
-  readonly permission: Permission;
-  readonly fromStatuses: readonly SkuStatus[];
-  readonly targetStatus?: SkuStatus;
   readonly destructive?: boolean;
 }
 
@@ -109,32 +95,6 @@ export const PRODUCT_ACTIONS: readonly ProductAction[] = [
   },
 ] as const;
 
-export const SKU_ACTIONS: readonly SkuAction[] = [
-  {
-    code: "block",
-    label: "Khoá SKU",
-    permission: "product.edit",
-    fromStatuses: ["Active"],
-    targetStatus: "Blocked",
-    destructive: true,
-  },
-  {
-    code: "unblock",
-    label: "Mở khoá SKU",
-    permission: "product.edit",
-    fromStatuses: ["Blocked"],
-    targetStatus: "Active",
-  },
-  {
-    code: "obsolete",
-    label: "Ngừng dùng SKU",
-    permission: "product.edit",
-    fromStatuses: ["Active", "Blocked"],
-    targetStatus: "Obsolete",
-    destructive: true,
-  },
-] as const;
-
 export function allowedProductActions(
   status: ProductStatus,
   role: RoleName,
@@ -157,22 +117,8 @@ export function isSelfApproval(submittedBy: string | undefined, currentUserId: s
   return Boolean(submittedBy && currentUserId && submittedBy === currentUserId);
 }
 
-export function allowedSkuActions(status: SkuStatus, role: RoleName): readonly SkuAction[] {
-  return SKU_ACTIONS.filter((action) => {
-    if (!action.fromStatuses.includes(status)) return false;
-    if (action.targetStatus && !canTransition(SKU_TRANSITIONS, status, action.targetStatus)) {
-      return false;
-    }
-    return can(role, action.permission);
-  });
-}
-
 export function isProductTerminal(status: ProductStatus): boolean {
   return isBackendProductStatus(status) ? isTerminal(PRODUCT_TRANSITIONS, status) : false;
-}
-
-export function isSkuTerminal(status: SkuStatus): boolean {
-  return isTerminal(SKU_TRANSITIONS, status);
 }
 
 export function nextProductStatuses(status: ProductStatus): readonly ProductStatus[] {
@@ -181,8 +127,4 @@ export function nextProductStatuses(status: ProductStatus): readonly ProductStat
 
 function isBackendProductStatus(status: ProductStatus): status is BackendProductStatus {
   return status !== "Active" && status !== "Inactive";
-}
-
-export function nextSkuStatuses(status: SkuStatus): readonly SkuStatus[] {
-  return allowedTransitions(SKU_TRANSITIONS, status);
 }

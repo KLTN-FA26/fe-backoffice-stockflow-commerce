@@ -15,6 +15,7 @@ const TONE: Record<SemanticTone, readonly string[]> = {
   positive: [
     "DELIVERED",
     "CONFIRMED",
+    "RECEIVED",
     "Confirmed",
     "Approved",
     "APPROVED",
@@ -23,6 +24,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Packed",
     "Received",
     "Active",
+    // Biến thể (BE VariantStatus, PR #71)
+    "ACTIVE",
     "Paid",
     "Matched",
     "Accepted",
@@ -74,6 +77,7 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "RETRYING",
     "PENDING",
     "PARTIALLY_RECEIVED",
+    "PENDING_APPROVAL",
     "Pending Approval",
     "On Hold",
     "Exception",
@@ -81,6 +85,7 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Discrepancy",
     "Quarantine",
     "Blocked",
+    "BLOCKED",
     "Low stock",
     "Awaiting Confirmation",
     "Verification Failed",
@@ -98,6 +103,7 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Draft Proposal",
   ],
   danger: [
+    "Blacklisted",
     "FAILED",
     "REJECTED",
     "CANCELLED",
@@ -112,6 +118,7 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Out of stock",
     "Fail",
     "Obsolete",
+    "OBSOLETE",
     "Payment Failed",
     "Unpaid",
     "Timeout",
@@ -134,7 +141,6 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     // BE #36 cancellationDeliveryStatus: PO huỷ trước khi gửi NCC → không cần báo huỷ.
     "NOT_REQUIRED",
     "CLOSED",
-    "CLOSED_SHORT",
     "Closed",
     "Inactive",
     "Hidden",
@@ -174,14 +180,17 @@ export function toneOf(status: string): SemanticTone {
 
 /** Nhãn tiếng Việt cho status (song ngữ hiển thị trong tooltip/title). */
 export const STATUS_LABEL_VI: Record<string, string> = {
-  // PO — BE 7-state
+  // PO — BE D4 (PR #71). CONFIRMED = đã chốt và gửi NCC; dùng chung nhãn với phản hồi NCC.
   DRAFT: "Nháp",
+  PENDING_APPROVAL: "Chờ duyệt",
   APPROVED: "Đã duyệt",
-  SENT: "Đã gửi NCC",
   PARTIALLY_RECEIVED: "Nhận một phần",
+  RECEIVED: "Đã nhận đủ",
   CLOSED: "Đã đóng",
-  CLOSED_SHORT: "Đóng thiếu",
   CANCELLED: "Đã huỷ",
+  // Lần gửi NCC (DeliveryAttempt.status). Trạng thái PO cũ (SENT, CLOSED_SHORT) BE PR #71 đã
+  // chuyển sang D4 cả trong lịch sử — đóng thiếu là CLOSED + closeKind SHORT_CLOSE.
+  SENT: "Đã gửi NCC",
   // PO — trạng thái gửi NCC (BE deliveryStatus / DeliveryAttempt.status) + NCC phản hồi
   // (BE supplierConfirmationStatus). PENDING dùng chung cho "chờ gửi" và "chờ NCC phản hồi".
   NOT_SENT: "Chưa gửi",
@@ -193,7 +202,7 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   SUPPRESSED: "Đã chặn gửi",
   NOT_REQUIRED: "Không cần báo huỷ",
   PENDING: "Đang chờ",
-  CONFIRMED: "NCC đã xác nhận",
+  CONFIRMED: "Đã xác nhận",
   REJECTED: "NCC từ chối",
   // Positive
   Confirmed: "Đã xác nhận",
@@ -203,6 +212,7 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   Packed: "Đã đóng gói",
   Received: "Đã nhận",
   Active: "Hoạt động",
+  ACTIVE: "Đang dùng",
   Paid: "Đã thanh toán",
   Matched: "Khớp",
   Accepted: "Chấp nhận",
@@ -254,6 +264,7 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   Discrepancy: "Chênh lệch",
   Quarantine: "Cách ly",
   Blocked: "Bị chặn",
+  BLOCKED: "Tạm chặn",
   "Low stock": "Sắp hết hàng",
   "Awaiting Confirmation": "Chờ xác nhận",
   "Verification Failed": "Xác minh thất bại",
@@ -281,6 +292,7 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   "Out of stock": "Hết hàng",
   Fail: "Không đạt",
   Obsolete: "Lỗi thời",
+  OBSOLETE: "Ngừng dùng",
   "Payment Failed": "Thanh toán thất bại",
   Unpaid: "Chưa thanh toán",
   Timeout: "Hết thời gian",
@@ -296,6 +308,7 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   // Muted
   Closed: "Đã đóng",
   Inactive: "Không hoạt động",
+  Blacklisted: "Danh sách đen",
   Hidden: "Ẩn",
   Unpublished: "Chưa xuất bản",
   Anonymized: "Đã ẩn danh",
