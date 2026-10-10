@@ -2,6 +2,8 @@ import "server-only";
 
 import { z } from "zod";
 
+import { BFF_UPSTREAM_TIMEOUT_MS } from "@/constants/auth";
+
 import { IS_MOCK } from "@/lib/config";
 
 export const BACKEND_AUTH_PATHS = {
@@ -43,7 +45,7 @@ export async function backendFetch(path: string, init: RequestInit, query = ""):
     ...init,
     cache: "no-store",
     redirect: "manual",
-    signal: AbortSignal.timeout(15_000),
+    signal: AbortSignal.timeout(BFF_UPSTREAM_TIMEOUT_MS),
   });
 }
 export async function unwrapBackend(response: Response): Promise<unknown> {

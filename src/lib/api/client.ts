@@ -3,7 +3,7 @@
 import axios from "axios";
 
 import { APP_ROUTES } from "@/constants";
-import { AUTH_PATHS, BROWSER_API_BASE } from "@/constants/auth";
+import { AUTH_PATHS, BROWSER_API_BASE, BROWSER_API_TIMEOUT_MS } from "@/constants/auth";
 
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useAppStore } from "@/lib/store/use-app-store";
@@ -15,7 +15,7 @@ import type { ApiErrorBody } from "./error";
 
 export const api = axios.create({
   baseURL: BROWSER_API_BASE,
-  timeout: 15_000,
+  timeout: BROWSER_API_TIMEOUT_MS,
   headers: { "Content-Type": "application/json" },
 });
 

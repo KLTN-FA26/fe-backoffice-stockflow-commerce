@@ -1,6 +1,6 @@
 import "server-only";
 
-import { LOGIN_ERROR_CODES, LOGIN_FAILED_CODE } from "@/constants/auth";
+import { AUTH_ERROR_CODES, LOGIN_ERROR_CODES } from "@/constants/auth";
 
 const SAFE_LOGIN_ERROR_CODES: ReadonlySet<string> = new Set(LOGIN_ERROR_CODES);
 // RateLimitInterceptor publishes whole seconds; anything else (dates, junk) is dropped.
@@ -17,7 +17,7 @@ export interface LoginFailure {
  * is never forwarded - the login page owns the wording.
  */
 export async function readLoginFailure(upstream: Response): Promise<LoginFailure> {
-  let code: string = LOGIN_FAILED_CODE;
+  let code: string = AUTH_ERROR_CODES.loginFailed;
   try {
     const body: unknown = await upstream.json();
     if (

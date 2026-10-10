@@ -2,6 +2,8 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 
+import { AUTH_ERROR_CODES, BFF_ERROR_MESSAGE, PROXY_ERROR_CODES } from "@/constants/auth";
+
 import { authUserSchema, loginRequestSchema } from "@/lib/auth/auth-schemas";
 
 import { BACKEND_AUTH_PATHS, backendFetch, backendTokensSchema, unwrapBackend } from "./backend";
@@ -19,10 +21,7 @@ import type { NextRequest } from "next/server";
 
 const NO_STORE = { "Cache-Control": "no-store" };
 export const bffError = (status: number, code: string) =>
-  NextResponse.json(
-    { code, message: "Không thể hoàn tất yêu cầu." },
-    { status, headers: NO_STORE },
-  );
+  NextResponse.json({ code, message: BFF_ERROR_MESSAGE }, { status, headers: NO_STORE });
 // A configured canonical origin supports reverse proxies without trusting forwarded headers.
 // Without it, use Next's request origin; the ingress must enforce the canonical Host.
 export function isSameOrigin(request: NextRequest): boolean {
@@ -58,17 +57,18 @@ const safeUser = async (response: Response, token: string) => {
 };
 
 export async function loginHandler(request: NextRequest): Promise<NextResponse> {
-  if (!isSameOrigin(request)) return bffError(403, "CSRF_REJECTED");
+  if (!isSameOrigin(request)) return bffError(403, AUTH_ERROR_CODES.csrfRejected);
   // A bad browser body is a 400, not an upstream failure: parse it outside the Spring try. Like
   // every failed login, it leaves no session behind.
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return expireSessionCookie(bffError(400, "INVALID_CREDENTIALS"));
+    return expireSessionCookie(bffError(400, AUTH_ERROR_CODES.invalidCredentials));
   }
   const credentials = loginRequestSchema.safeParse(body);
-  if (!credentials.success) return expireSessionCookie(bffError(400, "INVALID_CREDENTIALS"));
+  if (!credentials.success)
+    return expireSessionCookie(bffError(400, AUTH_ERROR_CODES.invalidCredentials));
   let accessToken: string | undefined;
   try {
     const login = await backendFetch(BACKEND_AUTH_PATHS.login, {
@@ -93,7 +93,9 @@ export async function loginHandler(request: NextRequest): Promise<NextResponse> 
       headers: bearer(accessToken),
     });
     if (!me.ok) {
-      const failure = expireSessionCookie(bffError(me.status, "SESSION_BOOTSTRAP_FAILED"));
+      const failure = expireSessionCookie(
+        bffError(me.status, AUTH_ERROR_CODES.sessionBootstrapFailed),
+      );
       try {
         await backendFetch(BACKEND_AUTH_PATHS.logout, {
           method: "POST",
@@ -121,25 +123,25 @@ export async function loginHandler(request: NextRequest): Promise<NextResponse> 
         /* Best-effort session revocation. */
       }
     }
-    return expireSessionCookie(bffError(502, "AUTH_UPSTREAM_FAILURE"));
+    return expireSessionCookie(bffError(502, AUTH_ERROR_CODES.authUpstreamFailure));
   }
 }
 export async function meHandler(request: NextRequest): Promise<NextResponse> {
   const token = readSessionToken(request);
-  if (!token) return expireSessionCookie(bffError(401, "UNAUTHENTICATED"));
+  if (!token) return expireSessionCookie(bffError(401, AUTH_ERROR_CODES.unauthenticated));
   try {
     const me = await backendFetch(BACKEND_AUTH_PATHS.me, { method: "GET", headers: bearer(token) });
     if (!me.ok) {
-      const error = bffError(me.status, "SESSION_BOOTSTRAP_FAILED");
+      const error = bffError(me.status, AUTH_ERROR_CODES.sessionBootstrapFailed);
       return me.status === 401 ? expireSessionCookie(error) : expireLegacyCookie(error);
     }
     return expireLegacyCookie(NextResponse.json(await safeUser(me, token), { headers: NO_STORE }));
   } catch {
-    return expireLegacyCookie(bffError(502, "AUTH_UPSTREAM_FAILURE"));
+    return expireLegacyCookie(bffError(502, AUTH_ERROR_CODES.authUpstreamFailure));
   }
 }
 export async function logoutHandler(request: NextRequest): Promise<NextResponse> {
-  if (!isSameOrigin(request)) return bffError(403, "CSRF_REJECTED");
+  if (!isSameOrigin(request)) return bffError(403, AUTH_ERROR_CODES.csrfRejected);
   const token = readSessionToken(request);
   try {
     if (token)
@@ -168,15 +170,15 @@ export async function backendProxyHandler(
   paths: string[],
 ): Promise<NextResponse> {
   if (!["GET", "HEAD"].includes(request.method) && !isSameOrigin(request))
-    return bffError(403, "CSRF_REJECTED");
+    return bffError(403, AUTH_ERROR_CODES.csrfRejected);
   if (
     !paths.length ||
     paths.some((part) => !/^[a-zA-Z0-9_@+.-]+$/.test(part) || part === "." || part === "..") ||
     paths.slice(0, 2).join("/").toLowerCase() === "identity/auth"
   )
-    return bffError(400, "INVALID_BACKEND_PATH");
+    return bffError(400, PROXY_ERROR_CODES.invalidBackendPath);
   const token = readSessionToken(request);
-  if (!token) return expireSessionCookie(bffError(401, "UNAUTHENTICATED"));
+  if (!token) return expireSessionCookie(bffError(401, AUTH_ERROR_CODES.unauthenticated));
   // Bounded read after CSRF/path/session checks and before Spring; a request problem (413/400),
   // not an upstream failure, and never a reason to drop the session.
   let body: Uint8Array<ArrayBuffer> | undefined;
@@ -184,8 +186,8 @@ export async function backendProxyHandler(
     const read = await readBoundedBody(request, requestBodyLimit(request.method, paths));
     if (!read.ok)
       return read.reason === "too-large"
-        ? bffError(413, "PAYLOAD_TOO_LARGE")
-        : bffError(400, "MALFORMED_REQUEST");
+        ? bffError(413, PROXY_ERROR_CODES.payloadTooLarge)
+        : bffError(400, PROXY_ERROR_CODES.malformedRequest);
     body = read.body;
   }
   let upstreamStatus: number | undefined;
@@ -221,14 +223,20 @@ export async function backendProxyHandler(
         /* Non-JSON responses retain their content type. */
       }
       if (unsafe) {
-        const failure = bffError(upstream.status === 401 ? 401 : 502, "UNSAFE_UPSTREAM_RESPONSE");
+        const failure = bffError(
+          upstream.status === 401 ? 401 : 502,
+          PROXY_ERROR_CODES.unsafeUpstreamResponse,
+        );
         return upstream.status === 401 ? expireSessionCookie(failure) : failure;
       }
     }
     const response = new NextResponse(bytes, { status: upstream.status, headers: responseHeaders });
     return upstream.status === 401 ? expireSessionCookie(response) : expireLegacyCookie(response);
   } catch {
-    const failure = bffError(upstreamStatus === 401 ? 401 : 502, "BACKEND_UNAVAILABLE");
+    const failure = bffError(
+      upstreamStatus === 401 ? 401 : 502,
+      PROXY_ERROR_CODES.backendUnavailable,
+    );
     return upstreamStatus === 401 ? expireSessionCookie(failure) : failure;
   }
 }
