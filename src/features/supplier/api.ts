@@ -26,11 +26,13 @@ const SUPPLIERS_PATH = "/suppliers";
 const API_STATUS: Record<SupplierStatus, SupplierApiStatus> = {
   Active: "ACTIVE",
   Inactive: "INACTIVE",
+  Blacklisted: "BLACKLISTED",
 };
 
 const FE_STATUS: Record<SupplierApiStatus, SupplierStatus> = {
   ACTIVE: "Active",
   INACTIVE: "Inactive",
+  BLACKLISTED: "Blacklisted",
 };
 
 function toSupplierDto(dto: SupplierApiDto): SupplierDto {
@@ -56,6 +58,10 @@ export function toSaveSupplierRequest(values: SupplierFormValues, status: Suppli
     communicationChannel: values.communicationChannel,
     // Kênh EMAIL không dùng endpoint
     apiEndpoint: values.communicationChannel === "API" ? emptyToNull(values.apiEndpoint) : null,
+    // PUT thay toàn bộ: bỏ field = BE xoá giá trị cũ, nên luôn gửi lại.
+    overReceiptTolerancePercent: values.overReceiptTolerancePercent,
+    printSubcontractor: values.printSubcontractor,
+    lossTolerancePercent: values.printSubcontractor ? values.lossTolerancePercent : null,
   };
 }
 
@@ -78,7 +84,7 @@ export async function listSuppliers(
   const { page = 0, size = PAGE_SIZE.md, search, status, sort } = params;
   const query = new URLSearchParams({ page: String(Math.max(0, page)), size: String(size) });
   if (search?.trim()) query.set("search", search.trim());
-  // BE nhận đúng 1 status; chọn cả hai trạng thái = không lọc
+  // BE nhận đúng 1 status; chọn nhiều trạng thái = không lọc
   const onlyStatus = status?.length === 1 ? status[0] : undefined;
   if (onlyStatus) query.set("status", API_STATUS[onlyStatus]);
   if (sort?.trim()) query.set("sort", sort.trim());
@@ -124,6 +130,15 @@ export function activateSupplier(supplier: SupplierDto): Promise<SupplierDto> {
     id: supplier.supplierId,
     values: supplierToFormValues(supplier),
     status: "Active",
+  });
+}
+
+/** Đưa vào danh sách đen = PUT đủ field hiện có + status BLACKLISTED (BE PR #71). */
+export function blacklistSupplier(supplier: SupplierDto): Promise<SupplierDto> {
+  return updateSupplier({
+    id: supplier.supplierId,
+    values: supplierToFormValues(supplier),
+    status: "Blacklisted",
   });
 }
 

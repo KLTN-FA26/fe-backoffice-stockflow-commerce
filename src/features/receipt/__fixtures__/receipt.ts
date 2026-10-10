@@ -16,7 +16,7 @@ export const receivablePo: ReceivablePo = {
   purchaseOrderId: PO_ID,
   poNumber: "PO-HCM-DEMO-0002",
   supplierId: "be4cc8dd-0883-65f5-d979-488ffe0c14b6",
-  status: "SENT",
+  status: "CONFIRMED",
   expectedAt: "2026-10-15",
   lines: [
     {

@@ -16,6 +16,9 @@ export const SUPPLIER_FORM_DEFAULTS: SupplierFormValues = {
   leadTimeDays: 7,
   communicationChannel: "EMAIL",
   apiEndpoint: "",
+  overReceiptTolerancePercent: null,
+  printSubcontractor: false,
+  lossTolerancePercent: null,
 };
 
 /** DTO → giá trị form (dùng cho trang sửa và cho PUT kích hoạt lại). */
@@ -31,5 +34,8 @@ export function supplierToFormValues(supplier: SupplierDto): SupplierFormValues 
     leadTimeDays: supplier.leadTimeDays,
     communicationChannel: supplier.communicationChannel,
     apiEndpoint: supplier.apiEndpoint ?? "",
+    overReceiptTolerancePercent: supplier.overReceiptTolerancePercent ?? null,
+    printSubcontractor: supplier.printSubcontractor,
+    lossTolerancePercent: supplier.lossTolerancePercent ?? null,
   };
 }

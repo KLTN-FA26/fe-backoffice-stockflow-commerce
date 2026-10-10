@@ -9,11 +9,12 @@ import {
 
 const validPo = {
   supplierId: "22222222-2222-4222-8222-222222222222",
+  warehouseId: "d99123fd-2997-4751-6bb9-e10a2e6d9949",
   currency: "VND",
   expectedAt: "2026-10-07",
   lines: [
     { sku: "SKU-001", description: "Sofa 3 chỗ", quantityOrdered: 10, unitPrice: 50000 },
-    { sku: "SKU-002", description: "Sofa 3 chỗ", quantityOrdered: 5, unitPrice: 0 },
+    { sku: "SKU-002", description: "", quantityOrdered: 5, unitPrice: 1, taxRate: 10 },
   ],
 };
 
@@ -22,12 +23,13 @@ const pathsOf = (r: { success: boolean; error?: { issues: { path: PropertyKey[] 
 const issuePaths = (input: unknown) => pathsOf(createPoSchema.safeParse(input));
 
 describe("createPoSchema — Input (BE CreatePurchaseOrderRequest)", () => {
-  it("nhận PO hợp lệ (đơn giá 0 được phép — BE @PositiveOrZero)", () => {
+  it("nhận PO hợp lệ (mô tả dòng để trống được — BE lấy tên sản phẩm)", () => {
     expect(createPoSchema.safeParse(validPo).success).toBe(true);
   });
 
-  it("bắt buộc chọn NCC và ít nhất 1 dòng (BE @NotNull / @NotEmpty)", () => {
+  it("bắt buộc chọn NCC, kho nhận và ít nhất 1 dòng (BE @NotNull / @NotEmpty)", () => {
     expect(issuePaths({ ...validPo, supplierId: "  " })).toContain("supplierId");
+    expect(issuePaths({ ...validPo, warehouseId: "" })).toContain("warehouseId");
     expect(issuePaths({ ...validPo, lines: [] })).toContain("lines");
   });
 
@@ -47,28 +49,34 @@ describe("createPoSchema — Input (BE CreatePurchaseOrderRequest)", () => {
     expect(issuePaths(withPrice("USD", 12.345))).toContain("lines.0.unitPrice");
   });
 
-  it("mô tả dòng bắt buộc (BE #36 PO_LINE_DESCRIPTION_REQUIRED khi gửi NCC)", () => {
-    const line = { sku: "SKU-001", description: "   ", quantityOrdered: 1, unitPrice: 1 };
-    expect(issuePaths({ ...validPo, lines: [line] })).toContain("lines.0.description");
+  it("thuế suất dòng 0..100%", () => {
+    const lines = [{ ...validPo.lines[0], taxRate: 101 }];
+    expect(issuePaths({ ...validPo, lines })).toContain("lines.0.taxRate");
   });
 
-  it("giới hạn BE: mô tả dòng ≤ 300 ký tự (VARCHAR(300)), SL đặt ≤ Java int", () => {
+  it("giới hạn BE: mô tả dòng ≤ 255 ký tự (VARCHAR(255)), SL đặt ≤ Java int", () => {
     const withLine = (line: Record<string, unknown>) => ({
       ...validPo,
       lines: [
         { sku: "SKU-001", description: "Sofa 3 chỗ", quantityOrdered: 1, unitPrice: 1, ...line },
       ],
     });
-    expect(issuePaths(withLine({ description: "a".repeat(301) }))).toContain("lines.0.description");
-    expect(createPoSchema.safeParse(withLine({ description: "a".repeat(300) })).success).toBe(true);
+    expect(issuePaths(withLine({ description: "a".repeat(256) }))).toContain("lines.0.description");
+    expect(createPoSchema.safeParse(withLine({ description: "a".repeat(255) })).success).toBe(true);
     expect(issuePaths(withLine({ quantityOrdered: 2_147_483_648 }))).toContain(
       "lines.0.quantityOrdered",
     );
   });
 
-  it("mã SKU theo định dạng BE `common.domain.Sku` (A-Z, 0-9, '-', 3–64 ký tự)", () => {
-    const lines = [{ ...validPo.lines[0], sku: "ab" }];
-    expect(issuePaths({ ...validPo, lines })).toContain("lines.0.sku");
+  it("mã SKU theo định dạng BE `ck_variants_sku` (A-Z, 0-9, '.', '_', '-', ≤ 64 ký tự)", () => {
+    expect(issuePaths({ ...validPo, lines: [{ ...validPo.lines[0], sku: "ab" }] })).toContain(
+      "lines.0.sku",
+    );
+    expect(issuePaths({ ...validPo, lines: [{ ...validPo.lines[0], sku: "-AB" }] })).toContain(
+      "lines.0.sku",
+    );
+    const dotted = [{ ...validPo.lines[0], sku: "CUP.12_OZ" }];
+    expect(createPoSchema.safeParse({ ...validPo, lines: dotted }).success).toBe(true);
   });
 
   it.each([0, -1, 1.5])("SL đặt %s bị chặn (BE int @Positive)", (q) => {
@@ -76,8 +84,8 @@ describe("createPoSchema — Input (BE CreatePurchaseOrderRequest)", () => {
     expect(issuePaths({ ...validPo, lines })).toContain("lines.0.quantityOrdered");
   });
 
-  it("đơn giá âm bị chặn", () => {
-    const lines = [{ ...validPo.lines[0], unitPrice: -1 }];
+  it.each([0, -1])("đơn giá %s bị chặn (BE `ck_purchase_order_lines_price` > 0)", (unitPrice) => {
+    const lines = [{ ...validPo.lines[0], unitPrice }];
     expect(issuePaths({ ...validPo, lines })).toContain("lines.0.unitPrice");
   });
 
@@ -92,7 +100,15 @@ describe("createPoSchema — Input (BE CreatePurchaseOrderRequest)", () => {
   });
 });
 
-describe("sendPoInputSchema (BE PurchaseOrder#confirmDeliveryDate, #36 9fbb90f)", () => {
+describe("sendPoInputSchema (BE PurchaseOrder#confirm, PR #71)", () => {
+  it("ngày giao trước ngày đặt → chặn ở ô ngày (BE 400)", () => {
+    const schema = sendPoInputSchema("2026-10-09", "2026-10-05");
+    expect(pathsOf(schema.safeParse({ expectedAt: "2026-10-04", reason: "dời" }))).toContain(
+      "expectedAt",
+    );
+    expect(schema.safeParse({ expectedAt: "2026-10-05", reason: "dời" }).success).toBe(true);
+  });
+
   it("giữ nguyên ngày giao đang lưu → không cần lý do", () => {
     const schema = sendPoInputSchema("2026-10-09");
     expect(schema.safeParse({ expectedAt: "2026-10-09", reason: "" }).success).toBe(true);

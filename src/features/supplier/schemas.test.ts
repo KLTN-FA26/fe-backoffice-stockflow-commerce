@@ -30,7 +30,7 @@ describe("supplierFormSchema — ràng buộc BE SaveSupplierRequest (PR #36)", 
   });
 
   it("MST sai định dạng thì báo lỗi tiếng Việt; để trống thì hợp lệ", () => {
-    expect(errorsOf({ ...validFormValues, taxCode: "123" }).taxCode).toMatch(/8–32 ký tự/);
+    expect(errorsOf({ ...validFormValues, taxCode: "123" }).taxCode).toMatch(/8–30 ký tự/);
     expect(errorsOf({ ...validFormValues, taxCode: "" })).toEqual({});
   });
 

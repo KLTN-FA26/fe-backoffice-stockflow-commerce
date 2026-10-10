@@ -9,49 +9,84 @@
 
 import { registerMockRoute, paginate } from "./mock-adapter";
 
-import type {
-  PrintArea,
-  PrintTechnique,
-  Product,
-  ProductAttribute,
-  ProductType,
-  Uom,
-} from "@/lib/mock-data";
+import type { Product } from "@/lib/mock-data";
 
+/** BE PR #71 `CreateProductRequest` / `UpdateProductRequest` (+ `reason` của rejection). */
 interface CreateProductMockBody {
   productId?: unknown;
   code?: unknown;
   name?: unknown;
   nameEn?: unknown;
-  type?: unknown;
+  brandId?: unknown;
   categoryId?: unknown;
+  shortDescription?: unknown;
   description?: unknown;
   descriptionEn?: unknown;
-  images?: unknown;
-  model3dUrl?: unknown;
-  basePrice?: unknown;
-  attributes?: unknown;
-  printAreas?: unknown;
   taxClass?: unknown;
-  uom?: unknown;
-  brand?: unknown;
-  customizable?: unknown;
-  weightKg?: unknown;
-  lengthCm?: unknown;
-  widthCm?: unknown;
-  heightCm?: unknown;
+  kind?: unknown;
   reason?: unknown;
 }
 
 type MockProduct = Product & {
-  weightKg?: number | null;
-  lengthCm?: number | null;
-  widthCm?: number | null;
-  heightCm?: number | null;
+  brandId?: string | null;
+  shortDescription?: string;
 };
 
 const createdProducts: MockProduct[] = [];
 const productOverrides = new Map<string, MockProduct>();
+
+/** BE PR #71 `BrandResponse` — thương hiệu của seed mock (theo tên `brand` trong mock-data). */
+const MOCK_BRANDS = [
+  { brandId: "BRD-SFB", code: "SFB", name: "StockFlow Basics", slug: "stockflow-basics" },
+  { brandId: "BRD-GILDAN", code: "GILDAN", name: "Gildan", slug: "gildan" },
+].map((brand) => ({ ...brand, logoUrl: null, active: true, version: 0 }));
+
+/** Seed mock chỉ có tên thương hiệu; BE PR #71 trả kèm `brandId`. */
+function withBrandId(product: MockProduct): MockProduct {
+  if (product.brandId) return product;
+  return {
+    ...product,
+    brandId: MOCK_BRANDS.find((b) => b.name === product.brand)?.brandId ?? null,
+  };
+}
+
+function mockPage<T>(items: T[]) {
+  return {
+    items,
+    page: 0,
+    size: Math.max(items.length, 1),
+    totalElements: items.length,
+    totalPages: items.length ? 1 : 0,
+    hasNext: false,
+    hasPrevious: false,
+  };
+}
+
+function validationFailed(fieldErrors: Record<string, string>) {
+  return {
+    status: 422,
+    data: {
+      errorCode: "VALIDATION_FAILED",
+      message: "Dữ liệu sản phẩm chưa hợp lệ.",
+      fieldErrors: Object.entries(fieldErrors).map(([field, message]) => ({
+        field,
+        message,
+        code: "NotBlank",
+      })),
+    },
+    headers: {},
+  };
+}
+
+const brandNotFound = () => ({
+  status: 404,
+  data: {
+    errorCode: "BRAND_NOT_FOUND",
+    message: "Thương hiệu đã chọn không tồn tại.",
+    fieldErrors: [{ field: "brandId", message: "Thương hiệu không còn khả dụng.", code: "Exists" }],
+  },
+  headers: {},
+});
 const MOCK_SUBMITTER_ID = "11111111-1111-4111-8111-111111111111";
 const MOCK_APPROVER_ID = "22222222-2222-4222-8222-222222222222";
 
@@ -75,8 +110,8 @@ export function registerAllMockRoutes(): void {
       ",",
     );
 
-    let filtered = [...products, ...createdProducts].map(
-      (product) => productOverrides.get(product.productId) ?? product,
+    let filtered = [...products, ...createdProducts].map((product) =>
+      withBrandId(productOverrides.get(product.productId) ?? product),
     );
     if (q)
       filtered = filtered.filter(
@@ -118,7 +153,7 @@ export function registerAllMockRoutes(): void {
     const product =
       productOverrides.get(id) ?? [...products, ...createdProducts].find((p) => p.productId === id);
     if (!product) return { status: 404, data: { message: "Product not found" }, headers: {} };
-    return { status: 200, data: product, headers: {} };
+    return { status: 200, data: withBrandId(product), headers: {} };
   });
 
   // POST /products
@@ -130,23 +165,11 @@ export function registerAllMockRoutes(): void {
 
     if (!productId) fieldErrors.productId = "Nhập mã sản phẩm";
     if (!readString(body.name)) fieldErrors.name = "Nhập tên sản phẩm";
-    if (!readString(body.brand)) fieldErrors.brand = "Nhập thương hiệu";
+    if (!readString(body.nameEn)) fieldErrors.nameEn = "Nhập tên tiếng Anh";
     if (!readString(body.categoryId)) fieldErrors.categoryId = "Chọn danh mục";
-    if (Object.keys(fieldErrors).length > 0) {
-      return {
-        status: 422,
-        data: {
-          errorCode: "VALIDATION_FAILED",
-          message: "Dữ liệu sản phẩm chưa hợp lệ.",
-          fieldErrors: Object.entries(fieldErrors).map(([field, message]) => ({
-            field,
-            message,
-            code: "NotBlank",
-          })),
-        },
-        headers: {},
-      };
-    }
+    if (Object.keys(fieldErrors).length > 0) return validationFailed(fieldErrors);
+    const brand = MOCK_BRANDS.find((b) => b.brandId === readString(body.brandId));
+    if (readString(body.brandId) && !brand) return brandNotFound();
 
     const duplicated = [...products, ...createdProducts].some(
       (product) => product.productId === productId,
@@ -189,27 +212,24 @@ export function registerAllMockRoutes(): void {
       name: readString(body.name),
       nameEn: readString(body.nameEn) || readString(body.name),
       slug: slugify(readString(body.name) || productId),
-      type: body.customizable === true ? "Customizable" : readProductType(body.type),
+      // BE PR #71: `kind` thay `customizable`; ảnh theo biến thể, logistics theo SKU.
+      type: body.kind === "CUSTOMIZABLE" ? "Customizable" : "Standard",
       categoryId,
       status: "Draft",
+      shortDescription: readString(body.shortDescription) || undefined,
       description: readString(body.description),
       descriptionEn: readString(body.descriptionEn),
-      images: readStringArray(body.images),
-      model3dUrl: readOptionalString(body.model3dUrl),
-      basePrice: readNumber(body.basePrice),
-      attributes: readProductAttributes(body.attributes),
-      printAreas: readPrintAreas(body.printAreas, productId),
+      images: [],
+      basePrice: 0,
+      attributes: [],
       taxClass: readTaxClass(
         typeof body.taxClass === "string" ? body.taxClass.toLowerCase() : body.taxClass,
       ),
-      uom: readUom(body.uom),
-      brand: readString(body.brand),
+      uom: "pcs",
+      brand: brand?.name ?? "",
+      brandId: brand?.brandId ?? null,
       createdAt: now,
       createdBy: "Mock API",
-      weightKg: readNullableNumber(body.weightKg),
-      lengthCm: readNullableNumber(body.lengthCm),
-      widthCm: readNullableNumber(body.widthCm),
-      heightCm: readNullableNumber(body.heightCm),
     };
 
     createdProducts.push(product);
@@ -228,23 +248,22 @@ export function registerAllMockRoutes(): void {
         headers: {},
       };
     const body = parseCreateProductBody(config.data);
+    const brand = MOCK_BRANDS.find((b) => b.brandId === readString(body.brandId));
+    if (readString(body.brandId) && !brand) return brandNotFound();
     const updated: MockProduct = {
       ...current,
       name: readString(body.name),
       nameEn: readString(body.nameEn),
       categoryId: readString(body.categoryId),
+      shortDescription: readString(body.shortDescription) || undefined,
       description: readString(body.description),
       descriptionEn: readString(body.descriptionEn),
-      brand: readString(body.brand),
-      images: readStringArray(body.images),
-      type: body.customizable === true ? "Customizable" : "Standard",
+      brand: brand?.name ?? "",
+      brandId: brand?.brandId ?? null,
+      type: body.kind === "CUSTOMIZABLE" ? "Customizable" : "Standard",
       taxClass: readTaxClass(
         typeof body.taxClass === "string" ? body.taxClass.toLowerCase() : body.taxClass,
       ),
-      weightKg: readNullableNumber(body.weightKg),
-      lengthCm: readNullableNumber(body.lengthCm),
-      widthCm: readNullableNumber(body.widthCm),
-      heightCm: readNullableNumber(body.heightCm),
     };
     productOverrides.set(id, updated);
     return { status: 200, data: updated, headers: {} };
@@ -252,40 +271,38 @@ export function registerAllMockRoutes(): void {
 
   registerProductTransitionRoutes();
 
-  // GET /skus
-  registerMockRoute("GET", "/skus", async (config) => {
-    const { skus } = await import("@/lib/mock-data");
-    const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
-    const q = params.get("q")?.toLowerCase();
-
-    let filtered = [...skus];
-    if (q)
-      filtered = filtered.filter(
-        (s) =>
-          s.skuId.toLowerCase().includes(q) ||
-          s.variantLabel.toLowerCase().includes(q) ||
-          s.barcode.toLowerCase().includes(q),
-      );
-
-    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
-  });
-
-  // GET /skus/:id
-  registerMockRoute("GET", "/skus/:id", async (config) => {
-    const { skus } = await import("@/lib/mock-data");
-    const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
-    const sku = skus.find((s) => s.skuId === id);
-    if (!sku) return { status: 404, data: { message: "SKU not found" }, headers: {} };
-    return { status: 200, data: sku, headers: {} };
-  });
-
-  // GET /categories
+  // GET /categories — BE PR #71 PageResponse<CategoryResponse>
   registerMockRoute("GET", "/categories", async () => {
     const { categories } = await import("@/lib/mock-data");
-    return { status: 200, data: { items: categories, total: categories.length }, headers: {} };
+    const pathOf = (id: string | null): string => {
+      const node = categories.find((c) => c.categoryId === id);
+      return node ? `${pathOf(node.parentId)}/${node.categoryId}` : "";
+    };
+    const rows = categories.map((c, i) => ({
+      categoryId: c.categoryId,
+      parentId: c.parentId,
+      code: c.categoryId,
+      name: c.name.vi,
+      slug: c.slug,
+      path: pathOf(c.categoryId),
+      depth: c.level - 1,
+      sortOrder: i,
+      imageUrl: null,
+      seoTitle: null,
+      seoDescription: null,
+      active: true,
+      version: 0,
+    }));
+    rows.sort((a, b) => a.path.localeCompare(b.path));
+    return { status: 200, data: mockPage(rows), headers: {} };
   });
+
+  // GET /brands — BE PR #71 PageResponse<BrandResponse>
+  registerMockRoute("GET", "/brands", async () => ({
+    status: 200,
+    data: mockPage([...MOCK_BRANDS].sort((a, b) => a.name.localeCompare(b.name))),
+    headers: {},
+  }));
 
   // Suppliers: xem mock-routes-suppliers.ts (đăng ký trong mock-adapter.ts)
 
@@ -826,15 +843,6 @@ function readString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function readOptionalString(value: unknown): string | undefined {
-  const text = readString(value);
-  return text ? text : undefined;
-}
-
-function readNumber(value: unknown): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : 0;
-}
-
 function readRequestSearchParams(config: { url?: string; params?: unknown }): URLSearchParams {
   if (config.params instanceof URLSearchParams) return new URLSearchParams(config.params);
   return new URLSearchParams(config.url?.split("?")[1] ?? "");
@@ -857,114 +865,8 @@ function readProductStatus(value: string): Product["status"] | null {
   }
 }
 
-function readNullableNumber(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
-function readStringArray(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
-}
-
-function readProductType(value: unknown): ProductType {
-  return value === "Customizable" ? "Customizable" : "Standard";
-}
-
-function readUom(value: unknown): Uom {
-  return isUom(value) ? value : "pcs";
-}
-
 function readTaxClass(value: unknown): Product["taxClass"] {
   return value === "reduced" || value === "exempt" ? value : "standard";
-}
-
-function readProductAttributes(value: unknown): ProductAttribute[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter(isProductAttribute);
-}
-
-function readPrintAreas(value: unknown, productId: string): PrintArea[] | undefined {
-  if (!Array.isArray(value)) return undefined;
-  const printAreas = value.filter(isPrintAreaInput).map((area) => ({
-    printAreaId: area.printAreaId,
-    productId,
-    name: area.name,
-    position: area.position,
-    widthMm: area.widthMm,
-    heightMm: area.heightMm,
-    minDpi: area.minDpi,
-    bleedMm: area.bleedMm,
-    safeMarginMm: area.safeMarginMm,
-    allowedTechniques: area.allowedTechniques,
-  }));
-  return printAreas.length ? printAreas : undefined;
-}
-
-function isProductAttribute(value: unknown): value is ProductAttribute {
-  if (!isRecord(value)) return false;
-  return (
-    typeof value.attributeId === "string" &&
-    isBilingualLabel(value.name) &&
-    Array.isArray(value.values) &&
-    value.values.every((item) => typeof item === "string")
-  );
-}
-
-function isPrintAreaInput(value: unknown): value is PrintArea {
-  if (!isRecord(value)) return false;
-  return (
-    typeof value.printAreaId === "string" &&
-    isBilingualLabel(value.name) &&
-    isPrintAreaPosition(value.position) &&
-    typeof value.widthMm === "number" &&
-    typeof value.heightMm === "number" &&
-    typeof value.minDpi === "number" &&
-    typeof value.bleedMm === "number" &&
-    typeof value.safeMarginMm === "number" &&
-    Array.isArray(value.allowedTechniques) &&
-    value.allowedTechniques.every(isPrintTechnique)
-  );
-}
-
-function isBilingualLabel(value: unknown): value is ProductAttribute["name"] {
-  return (
-    isRecord(value) &&
-    typeof value.vi === "string" &&
-    value.vi.trim().length > 0 &&
-    typeof value.en === "string" &&
-    value.en.trim().length > 0
-  );
-}
-
-function isPrintAreaPosition(value: unknown): value is PrintArea["position"] {
-  return (
-    value === "front" ||
-    value === "back" ||
-    value === "left-sleeve" ||
-    value === "right-sleeve" ||
-    value === "full"
-  );
-}
-
-function isPrintTechnique(value: unknown): value is PrintTechnique {
-  return (
-    value === "DTG" ||
-    value === "DTF" ||
-    value === "Screen" ||
-    value === "Embroidery" ||
-    value === "Sublimation"
-  );
-}
-
-function isUom(value: unknown): value is Uom {
-  return (
-    value === "pcs" ||
-    value === "box" ||
-    value === "kg" ||
-    value === "m" ||
-    value === "ream" ||
-    value === "set"
-  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

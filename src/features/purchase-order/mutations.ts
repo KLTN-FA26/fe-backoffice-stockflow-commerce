@@ -12,11 +12,14 @@ import { createMutation } from "@/lib/api/query-factory";
 import {
   approvePurchaseOrder,
   cancelPurchaseOrder,
+  closePurchaseOrder,
   closeShortPurchaseOrder,
   createPurchaseOrder,
   recordSupplierConfirmation,
   recoverPoDelivery,
+  rejectPurchaseOrder,
   sendPurchaseOrder,
+  submitPurchaseOrder,
 } from "./api";
 import { poDashboardKeys, poDeliveryKeys, poKeys, supplierSpendKeys } from "./queries";
 
@@ -38,6 +41,21 @@ export const useCreatePo = createMutation<CreatePoInput, CreatePoResult>(createP
   invalidate: PO_INVALIDATE,
   showErrorToast: false,
 });
+
+export const useSubmitPo = createMutation<{ id: string }, PurchaseOrder>(
+  ({ id }) => submitPurchaseOrder(id),
+  { invalidate: PO_INVALIDATE, showErrorToast: false, successMessage: MSG.submitted },
+);
+
+export const useRejectPo = createMutation<{ id: string; reason: string }, PurchaseOrder>(
+  ({ id, reason }) => rejectPurchaseOrder(id, reason),
+  { invalidate: PO_INVALIDATE, showErrorToast: false, successMessage: MSG.rejected },
+);
+
+export const useClosePo = createMutation<{ id: string }, PurchaseOrder>(
+  ({ id }) => closePurchaseOrder(id),
+  { invalidate: PO_INVALIDATE, showErrorToast: false, successMessage: MSG.closed },
+);
 
 export const useApprovePo = createMutation<{ id: string }, PurchaseOrder>(
   ({ id }) => approvePurchaseOrder(id),

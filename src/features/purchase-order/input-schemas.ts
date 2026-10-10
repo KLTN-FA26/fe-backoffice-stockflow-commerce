@@ -12,8 +12,8 @@ import { intQty, isoDate, money, requiredString } from "@/lib/validation/primiti
 
 /** BR-07 / ASSUMPTION (open-question A4): FE hỗ trợ VND / USD / CNY cho PO mới. */
 export const PO_INPUT_CURRENCIES = ["VND", "USD", "CNY"] as const;
-/** BE `common.domain.Sku`: mã được trim + upper-case rồi phải khớp mẫu này. */
-export const SKU_CODE_PATTERN = /^[A-Z0-9-]{3,64}$/;
+/** BE `product.variants.sku` (`ck_variants_sku`): mã được trim + upper-case rồi phải khớp mẫu này. */
+export const SKU_CODE_PATTERN = /^[A-Z0-9][A-Z0-9._-]{0,63}$/;
 /** BE: lý do khôi phục / đổi ngày giao 1..1000 ký tự. */
 export const PO_REASON_MAX = PO_LIMITS.reasonMax;
 
@@ -26,35 +26,39 @@ const reason = z
 /* ── Tạo PO — BE CreatePurchaseOrderRequest ─────────────────────────── */
 
 export const poLineInputSchema = z.object({
-  // BR-01 (docs 02 §6): chỉ SKU `Active`. ASSUMPTION (open-question C12): BE chưa có API
-  // danh mục SKU và không kiểm SKU tồn tại — FE chỉ kiểm định dạng mã giống BE.
-  // TODO(SKU combobox): khi có API danh mục, form chuyển sang chọn SKU (xem PoLineCard.tsx);
-  // regex này vẫn giữ làm chốt chặn cuối khớp BE.
+  // BR-01 (docs 02 §6): SKU phải có inventory item — BE trả 404 INVENTORY_ITEM_NOT_FOUND (PR #71).
+  // FE kiểm định dạng mã giống BE; danh mục SKU: `GET /products/{id}/variants`.
   sku: requiredString(UI_LABELS.purchaseOrder.validation.skuRequired).regex(
     SKU_CODE_PATTERN,
     "Mã SKU không đúng định dạng",
   ),
-  // BE #36 (9fbb90f) ProcurementServiceImpl#description: khi gửi NCC, dòng phải có mô tả — thiếu thì
-  // BE lấy tên theo SKU trong danh mục, không có → 400 PO_LINE_DESCRIPTION_REQUIRED và PO kẹt.
-  // Chưa có API danh mục SKU (open-question C12) nên FE BẮT BUỘC mô tả ngay từ lúc tạo.
-  // BE `po_line.description VARCHAR(300)`.
+  // BE PR #71: bỏ trống thì BE lấy tên sản phẩm của SKU (SKU luôn thuộc một sản phẩm).
+  // BE `purchase_order_lines.note VARCHAR(255)`.
   description: z
     .string()
     .trim()
-    .min(1, UI_LABELS.purchaseOrder.validation.descriptionRequired)
     .max(PO_LIMITS.lineDescriptionMax, `Mô tả tối đa ${PO_LIMITS.lineDescriptionMax} ký tự`),
   // BE CreatePOLineRequest: `int quantityOrdered` @Positive.
   quantityOrdered: intQty("Số lượng phải là số nguyên > 0").max(
     PO_LIMITS.quantityMax,
     "Số lượng vượt giới hạn cho phép",
   ),
-  // BE @PositiveOrZero — cho phép 0 (dòng khuyến mãi/tặng).
-  unitPrice: money("Đơn giá không âm"),
+  // BE PR #71 `ck_purchase_order_lines_price`: đơn giá > 0.
+  unitPrice: money("Đơn giá phải lớn hơn 0").refine((v) => v > 0, "Đơn giá phải lớn hơn 0"),
+  // BE PR #71: thuế suất % theo dòng (0..100), bỏ trống = 0.
+  taxRate: z.number().min(0, "Thuế suất 0–100%").max(100, "Thuế suất 0–100%").nullable().optional(),
 });
 
 export const createPoSchema = z
   .object({
     supplierId: requiredString(UI_LABELS.purchaseOrder.validation.supplierRequired), // UUID — BE kiểm
+    // SCRUM-390 (docs 02 §3): kho nhận bắt buộc, cố định sau khi tạo.
+    warehouseId: requiredString(UI_LABELS.purchaseOrder.validation.warehouseRequired),
+    note: z
+      .string()
+      .trim()
+      .max(PO_LIMITS.noteMax, `Ghi chú tối đa ${PO_LIMITS.noteMax} ký tự`)
+      .optional(),
     // BR-07 (docs 02 §6): một PO một loại tiền — `currency` chỉ ở cấp PO; BE chặn
     // line ≠ order currency. NCC không còn mang tiền tệ (BE #36) nên chọn trên form.
     currency: z.enum(PO_INPUT_CURRENCIES),
@@ -90,7 +94,21 @@ export function unitPriceScaleMessage(currency: string): string {
     : `Đơn giá ${currency} tối đa ${digits} chữ số thập phân`;
 }
 
-/* ── Gửi NCC — BE SendPurchaseOrderRequest + PurchaseOrder#confirmDeliveryDate ── */
+/* ── Huỷ / đóng thiếu / từ chối duyệt ────────────────────────────────── */
+
+export const closeReasonInputSchema = z
+  .string()
+  .trim()
+  .min(1, "Nhập lý do")
+  .max(PO_LIMITS.closeReasonMax, `Lý do tối đa ${PO_LIMITS.closeReasonMax} ký tự`);
+
+export const rejectReasonInputSchema = z
+  .string()
+  .trim()
+  .min(1, "Nhập lý do từ chối")
+  .max(PO_LIMITS.rejectReasonMax, `Lý do tối đa ${PO_LIMITS.rejectReasonMax} ký tự`);
+
+/* ── Xác nhận = gửi NCC — BE SendPurchaseOrderRequest + PurchaseOrder#confirm ── */
 
 /**
  * `currentExpectedAt` = ngày giao đang lưu trên PO.
@@ -98,13 +116,21 @@ export function unitPriceScaleMessage(currency: string): string {
  * `PO_DELIVERY_DATE_REQUIRED`); đổi ngày thì bắt buộc lý do 1..1000 (`PO_REASON_REQUIRED`).
  * BR-06 (docs 02 §6): ngày đã qua chỉ CẢNH BÁO — BE không chặn nữa, trả `warnings`.
  */
-export function sendPoInputSchema(currentExpectedAt: string | null) {
-  return z
-    .object({ expectedAt: isoDate, reason: z.string().trim().max(PO_REASON_MAX) })
-    .refine((v) => v.expectedAt === currentExpectedAt || v.reason.length > 0, {
-      message: "Đổi ngày giao cần ghi lý do",
-      path: ["reason"],
-    });
+export function sendPoInputSchema(currentExpectedAt: string | null, orderDate?: string) {
+  return (
+    z
+      .object({ expectedAt: isoDate, reason: z.string().trim().max(PO_REASON_MAX) })
+      .refine((v) => v.expectedAt === currentExpectedAt || v.reason.length > 0, {
+        message: "Đổi ngày giao cần ghi lý do",
+        path: ["reason"],
+      })
+      // BE PR #71 `PurchaseOrder#confirm`: ngày giao không được trước ngày đặt (400). Đã qua so
+      // với HÔM NAY nhưng sau ngày đặt thì vẫn chỉ cảnh báo (BR-06).
+      .refine((v) => !orderDate || v.expectedAt >= orderDate, {
+        message: "Ngày giao không được trước ngày đặt hàng",
+        path: ["expectedAt"],
+      })
+  );
 }
 
 /* ── Khôi phục gửi NCC — BE RecoverPurchaseOrderDeliveryRequest ─────── */

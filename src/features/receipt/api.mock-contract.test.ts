@@ -211,6 +211,34 @@ describe("goods receipt mock ↔ hợp đồng BE PR #62", () => {
     ).toBe("INVALID_RECEIPT_TRANSITION");
   });
 
+  it(
+    "BE PR #71 D4: nhận một phần → PARTIALLY_RECEIVED; nhận nốt → RECEIVED (đóng đơn là bước riêng)",
+    async () => {
+      const page = await listReceivablePurchaseOrders({});
+      // Đơn luồng trên đã nhận một phần (CONFIRMED → PARTIALLY_RECEIVED); nhận nốt phần còn mở.
+      const target = page.items.find((po) => po.status === "PARTIALLY_RECEIVED");
+      if (!target) throw new Error("mock has no partially received PO");
+      const po = await getReceivablePurchaseOrder(target.purchaseOrderId);
+      const created = await createGoodsReceipt({
+        purchaseOrderId: po.purchaseOrderId,
+        deliveryNote: "",
+        note: "",
+      });
+      const lines = await Promise.all(
+        po.lines
+          .map((line, i) => [line, i] as const)
+          .filter(([line]) => line.openQuantity > 0)
+          .map(([line, i]) => validLine(po, i, line.openQuantity)),
+      );
+      await replaceReceiptLines({ receiptId: created.id, lines });
+      await confirmGoodsReceipt(created.id);
+      const after = await getReceivablePurchaseOrder(po.purchaseOrderId);
+      expect(after.status).toBe("RECEIVED");
+      expect(after.lines.every((line) => line.openQuantity === 0)).toBe(true);
+    },
+    FLOW_TIMEOUT_MS,
+  );
+
   it("phiếu không tồn tại → 404 GOODS_RECEIPT_NOT_FOUND", async () => {
     expect(await codeOf(getGoodsReceipt("missing"))).toBe("GOODS_RECEIPT_NOT_FOUND");
   });

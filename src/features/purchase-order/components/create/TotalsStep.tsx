@@ -29,10 +29,21 @@ export function TotalsStep({
     <Card>
       <SectionTitle
         title={UI_LABELS.purchaseOrder.totals}
-        description="Tổng giá trị PO = Σ (số lượng × đơn giá), chưa gồm thuế và chiết khấu."
+        description="Tổng giá trị PO = tạm tính (Σ số lượng × đơn giá) + thuế từng dòng; chưa gồm chiết khấu."
       />
-      {/* BE chưa có thuế / chiết khấu → tạm tính = tổng, chỉ hiện một số. */}
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-3">
+        <div className="border-border-default rounded-[var(--r-sm)] border px-3 py-2">
+          <div className="text-ink-tertiary text-xs">Tạm tính</div>
+          <div className="text-ink-primary mt-1 truncate font-[family-name:var(--font-mono)] text-[1rem] font-semibold tabular-nums">
+            {formatMoney(totals.subtotal, currency)}
+          </div>
+        </div>
+        <div className="border-border-default rounded-[var(--r-sm)] border px-3 py-2">
+          <div className="text-ink-tertiary text-xs">Thuế</div>
+          <div className="text-ink-primary mt-1 truncate font-[family-name:var(--font-mono)] text-[1rem] font-semibold tabular-nums">
+            {formatMoney(totals.taxTotal, currency)}
+          </div>
+        </div>
         <div className="border-accent/40 bg-accent/5 rounded-[var(--r-sm)] border px-3 py-2">
           <div className="text-ink-tertiary text-xs">Tổng giá trị PO</div>
           <div className="text-accent mt-1 truncate font-[family-name:var(--font-mono)] text-[1rem] font-semibold tabular-nums">

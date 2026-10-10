@@ -132,7 +132,7 @@ describe("goods receipt API — hợp đồng BE PR #62", () => {
 });
 
 describe("PO chờ nhận — dùng lại API /purchase-orders", () => {
-  it("chỉ hỏi PO SENT / PARTIALLY_RECEIVED (BR-01)", async () => {
+  it("chỉ hỏi PO CONFIRMED / PARTIALLY_RECEIVED (BR-01, BE PR #71 D4)", async () => {
     const page = {
       items: [receivablePo],
       page: 0,
@@ -146,7 +146,7 @@ describe("PO chờ nhận — dùng lại API /purchase-orders", () => {
     await listReceivablePurchaseOrders({});
     expect(get.mock.calls[0]?.[0]).toBe("/purchase-orders");
     expect(get.mock.calls[0]?.[1]?.params).toMatchObject({
-      status: ["SENT", "PARTIALLY_RECEIVED"],
+      status: ["CONFIRMED", "PARTIALLY_RECEIVED"],
     });
   });
 

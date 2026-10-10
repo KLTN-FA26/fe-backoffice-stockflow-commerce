@@ -55,6 +55,10 @@ export interface ListPoParams {
   size?: number;
   status?: PoStatus[];
   supplierId?: string;
+  /** Kho nhận (BE PR #71). */
+  warehouseId?: string;
+  /** Tìm theo số PO. */
+  q?: string;
   /** BE SortWhitelist: "prop,dir;prop2,dir2". */
   sort?: string;
   [key: string]: unknown;
@@ -69,7 +73,9 @@ export async function listPurchaseOrders(
       page: params.page ?? 0,
       size: params.size ?? PAGE_SIZE.md,
       supplierId: params.supplierId,
+      warehouseId: params.warehouseId,
       status: params.status,
+      q: params.q,
       sort: params.sort,
     },
     paramsSerializer: REPEAT_ARRAY_PARAMS,
@@ -120,15 +126,30 @@ export interface CreatePoResult extends PurchaseOrder {
 }
 
 export async function createPurchaseOrder(input: CreatePoInput): Promise<CreatePoResult> {
-  const { data } = await api.post<unknown>(PO_PATH, input);
+  const body = {
+    ...input,
+    note: input.note || undefined,
+    lines: input.lines.map((line) => ({
+      ...line,
+      description: line.description || undefined,
+      taxRate: line.taxRate ?? undefined,
+    })),
+  };
+  const { data } = await api.post<unknown>(PO_PATH, body);
   const be = bePurchaseOrderSchema.parse(data);
   return { ...mapBePoToFe(be), possibleDuplicate: be.possibleDuplicate };
 }
 
+/** DRAFT → PENDING_APPROVAL; BE chụp revision (BE PR #71). */
+export const submitPurchaseOrder = (id: string) => postPo(`${PO_PATH}/${id}/submission`);
+/** PENDING_APPROVAL → APPROVED — người duyệt phải khác người gửi (409 SELF_APPROVAL_NOT_ALLOWED). */
 export const approvePurchaseOrder = (id: string) => postPo(`${PO_PATH}/${id}/approval`);
-/** BE: chỉ gửi `reason` khi đổi ngày giao; body rỗng cũng hợp lệ. */
+/** PENDING_APPROVAL → DRAFT kèm lý do. */
+export const rejectPurchaseOrder = (id: string, reason: string) =>
+  postPo(`${PO_PATH}/${id}/rejection`, { reason });
+/** APPROVED → CONFIRMED (= gửi NCC). BE: chỉ gửi `reason` khi đổi ngày giao; body rỗng cũng hợp lệ. */
 export const sendPurchaseOrder = (id: string, input: SendPoInput) =>
-  postPo(`${PO_PATH}/${id}/sending`, {
+  postPo(`${PO_PATH}/${id}/confirmation`, {
     expectedAt: input.expectedAt,
     reason: input.reason || undefined,
   });
@@ -136,6 +157,8 @@ export const cancelPurchaseOrder = (id: string, reason: string) =>
   postPo(`${PO_PATH}/${id}/cancellation`, { reason });
 export const closeShortPurchaseOrder = (id: string, reason: string) =>
   postPo(`${PO_PATH}/${id}/closure-short`, { reason });
+/** RECEIVED → CLOSED. */
+export const closePurchaseOrder = (id: string) => postPo(`${PO_PATH}/${id}/closure`);
 export const recoverPoDelivery = (id: string, input: RecoverDeliveryInput) =>
   postPo(`${PO_PATH}/${id}/delivery-recovery`, input);
 export const recordSupplierConfirmation = (id: string, input: SupplierConfirmationInput) =>

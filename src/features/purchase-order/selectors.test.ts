@@ -30,7 +30,10 @@ function line(lineId: string, openQuantity: number): PoLine {
     openQuantity,
     unitPrice: 1000,
     currency: "VND",
+    uom: "EACH",
+    taxRate: 0,
     lineTotal: 10000,
+    status: openQuantity === 0 ? "RECEIVED" : "PARTIALLY_RECEIVED",
   };
 }
 
@@ -38,7 +41,12 @@ describe("PO quantity selectors", () => {
   const po: PurchaseOrder = {
     poId: "po-1",
     poNumber: "PO-1",
+    type: "STANDARD",
     supplierId: "sup-1",
+    warehouseId: "wh-1",
+    revisionNo: 0,
+    subtotal: 20000,
+    taxTotal: 0,
     status: "PARTIALLY_RECEIVED",
     currency: "VND",
     orderDate: "2026-09-30",
@@ -63,8 +71,12 @@ describe("PO quantity selectors", () => {
     expect(totalOpenQuantity(po)).toBe(6);
   });
 
-  it("đánh dấu đơn cần xử lý: gửi NCC thất bại / NCC từ chối (chỉ khi còn SENT)", () => {
-    const sent = { ...po, status: "SENT" as const, supplierConfirmationStatus: "PENDING" as const };
+  it("đánh dấu đơn cần xử lý: gửi NCC thất bại / NCC từ chối (chỉ khi còn CONFIRMED)", () => {
+    const sent = {
+      ...po,
+      status: "CONFIRMED" as const,
+      supplierConfirmationStatus: "PENDING" as const,
+    };
     expect(poAttentionReason({ ...sent, deliveryStatus: "FAILED" })).toBe("deliveryFailed");
     expect(
       poAttentionReason({
@@ -128,7 +140,7 @@ describe('deliveryFailureName (failure BE: "<reference>: <Exception>")', () => {
 });
 
 describe("deliveryAlert — cảnh báo thẻ Gửi NCC theo điều kiện khôi phục của BE", () => {
-  const sent = { status: "SENT", supplierConfirmationStatus: "PENDING" } as const;
+  const sent = { status: "CONFIRMED", supplierConfirmationStatus: "PENDING" } as const;
   it("thất bại hẳn + còn khôi phục được → recoverable; BE đang tự gửi lại → retrying", () => {
     expect(deliveryAlert({ ...sent, deliveryStatus: "FAILED" })).toBe("recoverable");
     expect(deliveryAlert({ ...sent, deliveryStatus: "RETRYING" })).toBe("retrying");

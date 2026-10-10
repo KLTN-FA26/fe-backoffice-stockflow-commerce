@@ -46,7 +46,7 @@ describe("ReceiptCreate — tạo phiếu nhận từ PO (BR-01)", () => {
     expect((await screen.findAllByText("SOFA-3S-GREY")).length).toBeGreaterThan(0);
     // Chỉ hỏi PO đã chốt / đang nhận dở
     const list = get.mock.calls.find(([url]) => url === "/purchase-orders");
-    expect(list?.[1]?.params).toMatchObject({ status: ["SENT", "PARTIALLY_RECEIVED"] });
+    expect(list?.[1]?.params).toMatchObject({ status: ["CONFIRMED", "PARTIALLY_RECEIVED"] });
     await user.type(screen.getByLabelText("Số phiếu giao"), "DN-001");
     await user.click(screen.getByRole("button", { name: "Tạo phiếu nhận" }));
     await waitFor(() =>

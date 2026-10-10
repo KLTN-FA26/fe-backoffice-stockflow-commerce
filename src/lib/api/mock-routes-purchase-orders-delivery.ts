@@ -1,6 +1,6 @@
 /**
  * Mock routes — giao tiếp NCC của PO (BE #36 `PurchaseOrderController` + `PurchaseOrderDeliveryController`):
- * gửi NCC (`/sending`), khôi phục gửi (`/delivery-recovery`), ghi nhận NCC phản hồi
+ * gửi NCC (`/confirmation`, alias cũ `/sending`), khôi phục gửi (`/delivery-recovery`), ghi nhận NCC phản hồi
  * (`/supplier-confirmation`) và lịch sử gửi (`GET /deliveries`). Luật lấy đúng từ
  * `PurchaseOrder#confirmDeliveryDate / requireDeliveryRecovery / recordSupplierConfirmation`.
  */
@@ -88,14 +88,14 @@ async function queueDelivery(po: MockBePo, decision: DecisionInput) {
   return null;
 }
 
-/** POST /{id}/sending — body tuỳ chọn `{ expectedAt, reason }` (UPDATE). */
+/** POST /{id}/confirmation (alias `/sending`) — APPROVED → CONFIRMED, body tuỳ chọn `{ expectedAt, reason }`. */
 async function send(config: AxiosRequestConfig) {
   const id = readRouteId(config);
   const store = await getPoStore();
   const po = store.get(id);
   if (!po) return notFound(id);
-  if (!BE_PO_TRANSITIONS[po.status].includes("SENT")) {
-    return invalidTransition(`Purchase order ${id} cannot move from ${po.status} to SENT`);
+  if (!BE_PO_TRANSITIONS[po.status].includes("CONFIRMED")) {
+    return invalidTransition(`Purchase order ${id} cannot move from ${po.status} to CONFIRMED`);
   }
   const body = parseJsonBody(config.data);
   const replacement = readString(body.expectedAt) || null;
@@ -104,6 +104,13 @@ async function send(config: AxiosRequestConfig) {
   // BE confirmDeliveryDate (#36 9fbb90f): ngày giao phải có; ngày đã qua KHÔNG chặn (BR-06).
   if (!candidate) {
     return beError(400, "PO_DELIVERY_DATE_REQUIRED", "A delivery date is required before sending");
+  }
+  if (candidate < po.orderDate) {
+    return beError(
+      400,
+      "VALIDATION_FAILED",
+      "The expected delivery date cannot be before the order date",
+    );
   }
   if (replacement && replacement !== po.expectedAt && (!reason || reason.length > MAX_REASON)) {
     return reasonError();
@@ -126,10 +133,13 @@ async function send(config: AxiosRequestConfig) {
     acknowledgePastDue: false,
   });
   if (queued) return queued;
+  const now = new Date().toISOString();
   const updated = touch(po, {
-    status: "SENT",
+    status: "CONFIRMED",
     expectedAt: candidate,
-    sentAt: new Date().toISOString(),
+    confirmedBy: MOCK_PO_ACTOR,
+    confirmedAt: now,
+    sentAt: now,
     supplierConfirmationStatus: "PENDING",
     deliveryStatus: "QUEUED",
   });
@@ -143,8 +153,10 @@ async function recoverDelivery(config: AxiosRequestConfig) {
   const store = await getPoStore();
   const po = store.get(id);
   if (!po) return notFound(id);
-  if (po.status !== "SENT" || po.supplierConfirmationStatus !== "PENDING") {
-    return invalidTransition("Delivery recovery requires SENT with a pending supplier response");
+  if (po.status !== "CONFIRMED" || po.supplierConfirmationStatus !== "PENDING") {
+    return invalidTransition(
+      "Delivery recovery requires CONFIRMED with a pending supplier response",
+    );
   }
   const body = parseJsonBody(config.data);
   const reason = readString(body.reason);
@@ -189,10 +201,13 @@ async function recordConfirmation(config: AxiosRequestConfig) {
     );
   }
   if (response === "REJECTED" && !note) return reasonError();
-  if (!["SENT", "PARTIALLY_RECEIVED", "CLOSED", "CLOSED_SHORT"].includes(po.status)) {
-    return invalidTransition("A supplier response needs a purchase order that has been sent");
+  if (!["CONFIRMED", "PARTIALLY_RECEIVED", "RECEIVED", "CLOSED"].includes(po.status)) {
+    return invalidTransition("supplier response requires a confirmed purchase order");
   }
-  if (response === "REJECTED" && po.status !== "SENT") {
+  if (po.status === "CLOSED" && po.supplierConfirmationStatus === "NOT_SENT") {
+    return invalidTransition("supplier response requires a sent purchase order");
+  }
+  if (response === "REJECTED" && po.status !== "CONFIRMED") {
     return invalidTransition("Cannot reject a purchase order after receipt");
   }
   if (po.supplierConfirmationStatus === response) {
@@ -215,6 +230,7 @@ async function recordConfirmation(config: AxiosRequestConfig) {
 }
 
 export function registerPoDeliveryMockRoutes(): void {
+  registerMockRoute("POST", "/purchase-orders/:id/confirmation", send);
   registerMockRoute("POST", "/purchase-orders/:id/sending", send);
   registerMockRoute("POST", "/purchase-orders/:id/delivery-recovery", recoverDelivery);
   registerMockRoute("POST", "/purchase-orders/:id/supplier-confirmation", recordConfirmation);

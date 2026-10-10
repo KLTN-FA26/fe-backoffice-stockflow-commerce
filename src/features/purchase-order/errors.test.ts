@@ -19,6 +19,11 @@ describe("poErrorMessage — lỗi BE → câu tiếng Việt", () => {
     expect(poErrorMessage(err)).toBe(`${PO_ERROR_MESSAGES.VALIDATION_FAILED}: Dòng 2 — SL đặt`);
   });
 
+  it("duyệt chính đơn mình gửi → 409 SELF_APPROVAL_NOT_ALLOWED có câu riêng (BR-PO-002)", () => {
+    const err = new ApiError(409, "SELF_APPROVAL_NOT_ALLOWED", "x");
+    expect(poErrorMessage(err)).toBe(PO_ERROR_MESSAGES.SELF_APPROVAL_NOT_ALLOWED);
+  });
+
   it("gửi NCC bị 409 CONFLICT → giải thích ngày giao / NCC", () => {
     const err = new ApiError(409, "CONFLICT", "Confirm a delivery date…");
     expect(poErrorMessage(err, "send")).toBe(PO_ERROR_MESSAGES.sendSupplierUnavailable);

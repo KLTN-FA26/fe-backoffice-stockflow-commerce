@@ -91,11 +91,14 @@ export {
 export {
   useApprovePo,
   useCancelPo,
+  useClosePo,
   useCloseShortPo,
   useCreatePo,
   useRecordSupplierConfirmation,
   useRecoverPoDelivery,
+  useRejectPo,
   useSendPo,
+  useSubmitPo,
 } from "./mutations";
 
 // API types

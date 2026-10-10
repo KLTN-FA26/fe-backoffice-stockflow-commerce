@@ -54,10 +54,10 @@ function ConfirmationForm({
   onConfirm,
   onCancel,
 }: Omit<PoConfirmationDialogProps, "open" | "onOpenChange"> & { onCancel: () => void }) {
-  // BE: chỉ từ chối được khi PO còn SENT.
+  // BE: chỉ từ chối được khi PO còn CONFIRMED (chưa nhận hàng).
   const options: { value: Response; label: string }[] = [
     { value: SUPPLIER_CONFIRMATION_STATUS.CONFIRMED, label: "NCC xác nhận" },
-    ...(po.status === PO_STATUS.SENT
+    ...(po.status === PO_STATUS.CONFIRMED
       ? [{ value: SUPPLIER_CONFIRMATION_STATUS.REJECTED, label: "NCC từ chối" }]
       : []),
   ];

@@ -84,11 +84,11 @@ export function isDeliveryFailing(po: Pick<PurchaseOrder, "deliveryStatus">): bo
 }
 
 /**
- * Cảnh báo thẻ Gửi NCC. BE chỉ cho khôi phục khi PO SENT, NCC chưa phản hồi và lần gửi thất bại
+ * Cảnh báo thẻ Gửi NCC. BE chỉ cho khôi phục khi PO CONFIRMED, NCC chưa phản hồi và lần gửi thất bại
  * hẳn (`requireDeliveryRecovery` + `prepareSupplierDelivery`); RETRYING = BE đang tự gửi lại.
  */
 export function deliveryAlert(po: PoGateState): "recoverable" | "retrying" | null {
-  if (po.status !== PO_STATUS.SENT) return null;
+  if (po.status !== PO_STATUS.CONFIRMED) return null;
   if (po.deliveryStatus === PO_DELIVERY_STATUS.RETRYING) return "retrying";
   const pending = po.supplierConfirmationStatus === SUPPLIER_CONFIRMATION_STATUS.PENDING;
   return pending && po.deliveryStatus === PO_DELIVERY_STATUS.FAILED ? "recoverable" : null;
@@ -139,11 +139,11 @@ export type PoAttentionReason = "deliveryFailed" | "supplierRejected";
 type PoGateState = Pick<PurchaseOrder, "status" | "deliveryStatus" | "supplierConfirmationStatus">;
 
 /**
- * Đơn cần xử lý (danh sách) — chỉ khi PO đang SENT: gửi thất bại hẳn → khôi phục; NCC từ chối →
+ * Đơn cần xử lý (danh sách) — chỉ khi PO đang CONFIRMED (đã gửi NCC): gửi thất bại hẳn → khôi phục; NCC từ chối →
  * huỷ, tạo đơn mới. Đơn đã huỷ/đóng là kết thúc, không cần chú ý (data-table-mode-a §1).
  */
 export function poAttentionReason(po: PoGateState): PoAttentionReason | null {
-  if (po.status !== PO_STATUS.SENT) return null;
+  if (po.status !== PO_STATUS.CONFIRMED) return null;
   if (po.supplierConfirmationStatus === SUPPLIER_CONFIRMATION_STATUS.REJECTED) {
     return "supplierRejected";
   }

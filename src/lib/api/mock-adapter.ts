@@ -51,7 +51,7 @@ const delay = (ms?: number) =>
 
 /**
  * Paginate an array server-style — LEGACY 1-based (`page`, `pageSize`).
- * Các màn mock-only cũ (SKU, PO, receipt…) vẫn gửi `page=1&pageSize=`; đổi chữ ký
+ * Các màn mock-only cũ (receipt, invoice…) vẫn gửi `page=1&pageSize=`; đổi chữ ký
  * hàm này sẽ làm rỗng các list đó. Route đã khớp BE PageResponse dùng `paginatePage`.
  */
 export function paginate<T>(items: T[], page = 1, pageSize = 15): LegacyPaginatedResponse<T> {
@@ -246,6 +246,7 @@ export function activateMockAdapter(): void {
     import("./mock-routes-purchase-orders"),
     import("./mock-routes-orders"),
     import("./mock-routes-goods-receipts"),
+    import("./mock-routes-variants"),
   ]).then(
     ([
       { registerAllMockRoutes },
@@ -254,6 +255,7 @@ export function activateMockAdapter(): void {
       { registerPurchaseOrderMockRoutes },
       { registerOrderMockRoutes },
       { registerGoodsReceiptMockRoutes },
+      { registerVariantMockRoutes },
     ]) => {
       registerAllMockRoutes();
       registerSupplierMockRoutes();
@@ -261,6 +263,7 @@ export function activateMockAdapter(): void {
       registerPurchaseOrderMockRoutes();
       registerOrderMockRoutes();
       registerGoodsReceiptMockRoutes();
+      registerVariantMockRoutes();
     },
   );
 
