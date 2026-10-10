@@ -34,7 +34,7 @@ export function CanonicalSkuDetail({
   if (!valid) return <p role="alert">{text.invalid}</p>;
   if (isMock) return <p role="status">{text.mockUnavailable}</p>;
   if (!canRead) return <p role="alert">{text.denied}</p>;
-  if (query.isError)
+  if (query.isError && !query.data)
     return (
       <CanonicalVariantFeedback
         error={query.error}
@@ -42,9 +42,21 @@ export function CanonicalSkuDetail({
         fetching={query.isFetching}
       />
     );
-  if (query.fetchStatus === "paused") return <p role="status">{text.paused}</p>;
+  if (query.fetchStatus === "paused" && !query.data) return <p role="status">{text.paused}</p>;
   if (!query.data) return <PageSkeleton variant="detail" />;
-  return <CanonicalSkuPresentation variant={query.data} refreshing={query.isFetching} />;
+  return (
+    <div className="min-w-0 space-y-4">
+      {query.isError && (
+        <CanonicalVariantFeedback
+          error={query.error}
+          retry={() => void query.refetch()}
+          fetching={query.isFetching}
+        />
+      )}
+      {query.fetchStatus === "paused" && <p role="status">{text.paused}</p>}
+      <CanonicalSkuPresentation variant={query.data} refreshing={query.isFetching} />
+    </div>
+  );
 }
 
 /** Only confirmed canonical data, with the validated identity available to future features. */

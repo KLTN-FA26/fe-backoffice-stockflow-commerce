@@ -2,6 +2,9 @@ export const INVENTORY_CONTROL_TEXT = {
   edit: "Chỉnh sửa",
   save: "Lưu",
   saving: "Đang lưu…",
+  savePausedLabel: "Chờ kết nối…",
+  savePaused:
+    "Đang ngoại tuyến — yêu cầu lưu đang chờ kết nối và sẽ tự tiếp tục khi có mạng. Bản nháp được giữ nguyên; không thể huỷ khi yêu cầu vẫn đang chờ.",
   cancel: "Huỷ",
   editor: "Chỉnh sửa chính sách tồn kho",
   reload: "Tải lại chính sách (thay thế bản nháp)",

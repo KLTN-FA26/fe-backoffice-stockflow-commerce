@@ -43,7 +43,9 @@ export function InventoryControlEditor({
   const [failure, setFailure] = useState<unknown>(null);
   const [reloading, setReloading] = useState(false);
   const [reloadFailed, setReloadFailed] = useState(false);
-  const saving = form.formState.isSubmitting || mutation.isPending;
+  const savePending = form.formState.isSubmitting || mutation.isPending;
+  const paused = mutation.isPending && mutation.isPaused;
+  const saving = savePending && !paused;
   async function save(draft: InventoryPolicyDraft) {
     if (busy.current || !canEdit) return;
     busy.current = true;
@@ -87,16 +89,24 @@ export function InventoryControlEditor({
     <form
       noValidate
       aria-label={text.editor}
-      aria-busy={saving || reloading}
+      aria-busy={savePending || reloading}
       onSubmit={(event) => {
         void form.handleSubmit(save)(event);
       }}
     >
-      <fieldset disabled={saving || reloading || !canEdit} className="min-w-0 space-y-3">
+      <fieldset disabled={savePending || reloading || !canEdit} className="min-w-0 space-y-3">
         <InventoryControlFields form={form} />
       </fieldset>
+      {paused && (
+        <p
+          role="status"
+          className="text-ink-secondary min-w-0 text-sm wrap-anywhere whitespace-pre-wrap"
+        >
+          {text.savePaused}
+        </p>
+      )}
       {failure !== null && (
-        <p role="alert" className="text-danger text-sm">
+        <p role="alert" className="text-danger min-w-0 text-sm wrap-anywhere whitespace-pre-wrap">
           {inventoryPolicyError(failure)}
         </p>
       )}
@@ -110,17 +120,23 @@ export function InventoryControlEditor({
           <Button
             type="button"
             variant="outline"
-            disabled={saving || reloading}
+            disabled={savePending || reloading}
             onClick={() => void reloadBase()}
           >
             {reloading ? text.reloading : text.reload}
           </Button>
         )}
-        <Button type="button" variant="outline" disabled={saving || reloading} onClick={onCancel}>
+        {/* A queued TanStack mutation is not cancelled by closing this editor. */}
+        <Button
+          type="button"
+          variant="outline"
+          disabled={savePending || reloading}
+          onClick={onCancel}
+        >
           {text.cancel}
         </Button>
-        <Button type="submit" disabled={saving || reloading || !canEdit}>
-          {saving ? text.saving : text.save}
+        <Button type="submit" disabled={savePending || reloading || !canEdit}>
+          {paused ? text.savePausedLabel : saving ? text.saving : text.save}
         </Button>
       </div>
     </form>
