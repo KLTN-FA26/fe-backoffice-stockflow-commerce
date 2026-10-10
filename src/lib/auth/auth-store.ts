@@ -26,6 +26,15 @@ discardLegacyAuthState();
 let revision = 0;
 export const getAuthRevision = () => revision;
 
+const sameProfile = (a: AuthUser, b: AuthUser) =>
+  a.username === b.username &&
+  a.email === b.email &&
+  a.fullName === b.fullName &&
+  a.status === b.status &&
+  a.lastLoginAt === b.lastLoginAt &&
+  a.roles.length === b.roles.length &&
+  a.roles.every((role, index) => role === b.roles[index]);
+
 interface AuthState {
   user: AuthUser | null;
   status: AuthStatus;
@@ -37,6 +46,7 @@ interface AuthState {
   effectiveRoles: () => RoleName[];
   login: (user: AuthUser, notify?: boolean) => void;
   logout: (notify?: boolean) => void;
+  reconcileSession: (user: AuthUser) => void;
   beginBootstrap: () => void;
   failBootstrap: (message: string) => void;
 }
@@ -82,6 +92,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     });
     if (notify) publishAuthEvent("logout");
   },
+  /**
+   * Background /me success. The same user is the same session: refresh profile fields only, with
+   * no revision, authorizationVersion or event - a routine focus check must not reset permission
+   * queries or ping other tabs. A different (or newly discovered) user is a real session change
+   * and goes through a silent login, which retires the previous identity's authorization.
+   */
+  reconcileSession: (user) => {
+    const identity = authUserSchema.parse(user);
+    const { user: current, status } = get();
+    if (status === "authenticated" && current?.userId === identity.userId) {
+      if (!sameProfile(current, identity)) set({ user: identity });
+      return;
+    }
+    get().login(identity, false);
+  },
+  /** Foreground only: no verified session exists yet, so protected UI may not render. */
   beginBootstrap: () =>
     set({ user: null, status: "unknown", isAuthenticated: false, bootstrapError: null }),
   failBootstrap: (message) => set({ bootstrapError: message }),
