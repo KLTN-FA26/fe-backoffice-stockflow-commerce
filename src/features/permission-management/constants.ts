@@ -11,6 +11,7 @@ export const RBAC_EDITOR = {
   unknown:
     "Danh mục quyền không còn khớp với máy chủ. Bản nháp được giữ lại; hãy kiểm tra hoặc tải lại.",
   forbidden: "Bạn không còn quyền lưu thay đổi. Đang cập nhật quyền hiện tại.",
+  privilegeEscalation: "Bạn không thể cấp hoặc quản lý quyền mà tài khoản của mình không có.",
   failed: "Không lưu được thay đổi. Bản nháp được giữ lại.",
   refetchFailed: "Không tải lại được ma trận. Bản nháp được giữ lại.",
   reloadTitle: "Bỏ thay đổi và tải lại?",
@@ -28,4 +29,6 @@ export const RBAC_ERRORS = {
   notEditable: "ROLE_NOT_EDITABLE",
   lockout: "RBAC_LOCKOUT",
   unknown: "UNKNOWN_PERMISSION",
+  // BE PrivilegeGuard (403): granting a permission the caller does not hold.
+  privilegeEscalation: "PRIVILEGE_ESCALATION",
 } as const;

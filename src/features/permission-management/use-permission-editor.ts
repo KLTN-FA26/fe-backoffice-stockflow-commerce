@@ -29,6 +29,8 @@ function saveError(error: unknown): string {
       return RBAC_EDITOR.lockout;
     case RBAC_ERRORS.unknown:
       return RBAC_EDITOR.unknown;
+    case RBAC_ERRORS.privilegeEscalation:
+      return RBAC_EDITOR.privilegeEscalation;
     default:
       return error.status === 403 ? RBAC_EDITOR.forbidden : RBAC_EDITOR.failed;
   }

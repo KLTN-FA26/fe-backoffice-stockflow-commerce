@@ -137,6 +137,7 @@ describe("RBAC snapshot and replacement contract", () => {
     [RBAC_ERRORS.conflict, 409, RBAC_EDITOR.changed],
     [RBAC_ERRORS.lockout, 409, RBAC_EDITOR.lockout],
     [RBAC_ERRORS.unknown, 400, RBAC_EDITOR.unknown],
+    [RBAC_ERRORS.privilegeEscalation, 403, RBAC_EDITOR.privilegeEscalation],
   ])("%s preserves dirty version/grants and never retries", async (code, status, message) => {
     const put = vi
       .spyOn(api, "put")
