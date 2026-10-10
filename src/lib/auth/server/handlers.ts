@@ -58,10 +58,18 @@ const safeUser = async (response: Response, token: string) => {
 
 export async function loginHandler(request: NextRequest): Promise<NextResponse> {
   if (!isSameOrigin(request)) return bffError(403, "CSRF_REJECTED");
+  // A bad browser body is a 400, not an upstream failure: parse it outside the Spring try. Like
+  // every failed login, it leaves no session behind.
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return expireSessionCookie(bffError(400, "INVALID_CREDENTIALS"));
+  }
+  const credentials = loginRequestSchema.safeParse(body);
+  if (!credentials.success) return expireSessionCookie(bffError(400, "INVALID_CREDENTIALS"));
   let accessToken: string | undefined;
   try {
-    const credentials = loginRequestSchema.safeParse(await request.json());
-    if (!credentials.success) return bffError(400, "INVALID_CREDENTIALS");
     const login = await backendFetch(BACKEND_AUTH_PATHS.login, {
       method: "POST",
       headers: {
