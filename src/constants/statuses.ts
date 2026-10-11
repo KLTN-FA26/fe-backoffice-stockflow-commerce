@@ -187,6 +187,66 @@ export const QC_OUTCOME_BY_API = {
   REJECTED: "Rejected",
 } as const satisfies Record<QcOutcomeApi, QcOutcomeStatus>;
 
+/**
+ * Trạng thái lấy hàng của task xuất kho — nhãn nguyên văn docs 07 §5.1, chỉ gồm các trạng thái BE
+ * `PickStatus` phát ra được. BE không có Created / Released / On Hold: task tạo ra là đã gán.
+ * Lấy xong hiện `Picked` (docs 07 §5.2 "đã lấy khỏi vị trí") thay cho `Completed` của §5.1: trên cùng một
+ * task còn bước đóng gói, "Hoàn tất" ở cột lấy hàng dễ bị đọc nhầm là cả task đã xong.
+ */
+export const PICK_STATUSES = ["Assigned", "In Progress", "Short", "Picked", "Cancelled"] as const;
+
+export const PICK_STATUS = {
+  ASSIGNED: "Assigned",
+  CANCELLED: "Cancelled",
+  IN_PROGRESS: "In Progress",
+  PICKED: "Picked",
+  SHORT: "Short",
+} as const satisfies Record<string, PickStatus>;
+
+/** BE `fulfillment/internal/domain/PickStatus.java`. `SHORT` có trong enum, chưa code nào set. */
+export const PICK_API_STATUSES = ["PENDING", "PICKING", "PICKED", "SHORT", "CANCELLED"] as const;
+
+export const PICK_STATUS_BY_API = {
+  PENDING: "Assigned",
+  PICKING: "In Progress",
+  PICKED: "Picked",
+  SHORT: "Short",
+  CANCELLED: "Cancelled",
+} as const satisfies Record<PickApiStatus, PickStatus>;
+
+/** Trạng thái đóng gói — nhãn nguyên văn docs 08 §5, theo BE `PackStatus`. */
+export const PACK_STATUSES = ["Pending", "In Progress", "On Hold", "Packed", "Cancelled"] as const;
+
+export const PACK_STATUS = {
+  CANCELLED: "Cancelled",
+  IN_PROGRESS: "In Progress",
+  ON_HOLD: "On Hold",
+  PACKED: "Packed",
+  PENDING: "Pending",
+} as const satisfies Record<string, PackStatus>;
+
+/** BE `fulfillment/internal/domain/PackStatus.java`. `PACKING` có trong enum, chưa code nào set. */
+export const PACK_API_STATUSES = ["PENDING", "PACKING", "ON_HOLD", "PACKED", "CANCELLED"] as const;
+
+export const PACK_STATUS_BY_API = {
+  PENDING: "Pending",
+  PACKING: "In Progress",
+  ON_HOLD: "On Hold",
+  PACKED: "Packed",
+  CANCELLED: "Cancelled",
+} as const satisfies Record<PackApiStatus, PackStatus>;
+
+/** BE `design/api/DesignArtifactRole.java` — vai trò file trong bundle thiết kế đã khoá. */
+export const DESIGN_ARTIFACT_ROLES = [
+  "CUSTOMER_PREVIEW",
+  "TECHNICAL_SPEC",
+  "PRINT_READY",
+  "PRODUCTION_INSTRUCTION",
+] as const;
+
+/** Trạng thái đơn BE cho phép tạo task xuất kho (FulfillmentServiceImpl#createTask). */
+export const FULFILLABLE_ORDER_API_STATUSES = ["CONFIRMED", "READY_TO_FULFILL"] as const;
+
 export const PRODUCT_STATUSES = [
   "Draft",
   "Pending Approval",
@@ -285,6 +345,11 @@ export type ReceiptApiStatus = (typeof RECEIPT_API_STATUSES)[number];
 export type ReceiptQcProgressApi = (typeof RECEIPT_QC_PROGRESS_API)[number];
 export type QcOutcomeApi = (typeof QC_OUTCOME_API)[number];
 export type QcOutcomeStatus = (typeof QC_OUTCOME_STATUSES)[number];
+export type PickStatus = (typeof PICK_STATUSES)[number];
+export type PickApiStatus = (typeof PICK_API_STATUSES)[number];
+export type PackStatus = (typeof PACK_STATUSES)[number];
+export type PackApiStatus = (typeof PACK_API_STATUSES)[number];
+export type DesignArtifactRole = (typeof DESIGN_ARTIFACT_ROLES)[number];
 export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
 export type ProposalStatus = (typeof PROPOSAL_STATUSES)[number];
 export type SkuStatus = (typeof SKU_STATUSES)[number];

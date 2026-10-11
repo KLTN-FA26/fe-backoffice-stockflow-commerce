@@ -40,8 +40,6 @@ import type {
   QcStatus,
   InvoiceStatus,
   PutawayStatus,
-  PickStatus,
-  PackStatus,
   ShipmentStatus,
   TransferOrderStatus,
   MoveTaskStatus,
@@ -49,7 +47,8 @@ import type {
 // OrderStatus lấy từ constants/statuses.ts (không phải mock-data) — đúng 10 trạng thái BE
 // (OrderStatus.java), dùng cho zod enum / lifecycle / filter UI.
 // ReceiptStatus cũng vậy — 6 trạng thái docs 03 §5.1 (mock-data chỉ có 5, thiếu "In QC").
-import type { OrderStatus, ReceiptStatus } from "@/constants/statuses";
+// PickStatus / PackStatus: các trạng thái BE `/fulfillment/tasks` phát ra được (SCRUM-437).
+import type { OrderStatus, PackStatus, PickStatus, ReceiptStatus } from "@/constants/statuses";
 
 /* ── Module 01: Product ──────────────────────────────────────────────── */
 
@@ -137,30 +136,28 @@ export const PUTAWAY_TRANSITIONS: Record<PutawayStatus, readonly PutawayStatus[]
 
 /* ── Module 07: Picking ──────────────────────────────────────────────── */
 
-// PickStatus = "Created" | "Released" | "Assigned" | "In Progress" | "Short" | "On Hold" | "Completed" | "Cancelled"
-// docs/warehouse/07-picking §5
+// docs/warehouse/07-picking §5.1, thu theo BE `PickJpaEntity` (start / complete / cancel):
+// task tạo ra là đã gán (BE PENDING = "Assigned"); không có Created / Released / On Hold.
+// "→ Cancelled" do đơn bị huỷ (BE OrderCancellationListener), không phải thao tác trên task.
+// `Short` có trong enum BE nhưng chưa có luồng nào đưa vào hay ra.
 export const PICK_TRANSITIONS: Record<PickStatus, readonly PickStatus[]> = {
-  Created: ["Released"],
-  Released: ["Assigned"],
-  Assigned: ["In Progress"],
-  "In Progress": ["Completed", "Short", "On Hold"],
+  Assigned: ["In Progress", "Cancelled"],
+  "In Progress": ["Picked", "Cancelled"],
   Short: [],
-  "On Hold": ["In Progress", "Cancelled"],
-  Completed: [],
+  Picked: [],
   Cancelled: [],
 };
 
 /* ── Module 08: Packing ──────────────────────────────────────────────── */
 
-// PackStatus = "Pending" | "In Progress" | "Verification Failed" | "On Hold" | "Packed" | "Handed to Shipping" | "Cancelled"
-// docs/warehouse/08-packing §5
+// docs/warehouse/08-packing §5, thu theo BE `PackJpaEntity` (complete / hold / cancel).
+// BR-01/BR-02 (docs 08 §6) + BR-DSG-003: thiết kế lệch checksum → `On Hold`, chỉ ra `Packed` khi
+// kiểm tra lại khớp (flow X-CHK). `Packed` là cuối ở BE hiện tại (chưa có Handed to Shipping).
 export const PACK_TRANSITIONS: Record<PackStatus, readonly PackStatus[]> = {
-  Pending: ["In Progress"],
-  "In Progress": ["Packed", "Verification Failed", "On Hold"],
-  "Verification Failed": ["In Progress"],
-  "On Hold": ["In Progress", "Cancelled"],
-  Packed: ["Handed to Shipping"],
-  "Handed to Shipping": [],
+  Pending: ["Packed", "On Hold", "Cancelled"],
+  "In Progress": ["Packed", "On Hold", "Cancelled"],
+  "On Hold": ["Packed", "Cancelled"],
+  Packed: [],
   Cancelled: [],
 };
 

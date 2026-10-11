@@ -178,6 +178,119 @@ export const UI_LABELS = {
     linesCancelledDescription: "Phiếu đã huỷ trước khi xác nhận — không nhập kho, chỉ còn xem.",
     dateRangeInvalid: "Ngày bắt đầu sau ngày kết thúc — không có phiếu nào khớp.",
   },
+  fulfillment: {
+    pickingTitle: "Lấy hàng",
+    pickingSubtitle: "Task xuất kho theo đơn: gán nhân viên, bắt đầu và hoàn tất lấy hàng.",
+    packingTitle: "Đóng gói",
+    packingSubtitle:
+      "Đối chiếu thiết kế đã khoá, xác nhận đóng gói và xử lý kiện bị giữ do lệch checksum.",
+    notFoundTitle: "Không tìm thấy task xuất kho",
+    // BE trả 404 (không phải 403) khi task không được gán cho người gọi
+    notFoundDescription: "Task không tồn tại, hoặc không được gán cho bạn nên bạn không xem được.",
+    forbiddenDescription: "Tài khoản của bạn chưa được cấp quyền mở màn hình này.",
+    noReadDescription:
+      "Bạn được mở trang nhưng chưa được cấp quyền xem task xuất kho. Liên hệ quản trị để được cấp.",
+    action: {
+      create: "Tạo task lấy hàng",
+      assign: "Gán lại",
+      startPicking: "Bắt đầu lấy hàng",
+      completePicking: "Hoàn tất lấy hàng",
+      completePacking: "Xác nhận đóng gói",
+      reverify: "Kiểm tra lại thiết kế",
+      openPacking: "Mở trạm đóng gói",
+      openPicking: "Xem lấy hàng",
+    },
+    // Thiếu quyền đọc dữ liệu phụ trợ của module khác (seed BE chưa cấp cho vai trò kho)
+    noOrderReadTitle: "Chưa đủ quyền xem dòng đơn hàng",
+    noOrderReadDescription:
+      "Danh sách SKU cần lấy đọc từ đơn hàng. Tài khoản chưa được cấp quyền xem đơn hàng — liên hệ quản trị để được cấp.",
+    noUserReadTitle: "Chưa đủ quyền xem danh sách nhân viên",
+    noUserReadDescription:
+      "Gán task cần đọc danh sách nhân viên kho. Tài khoản chưa được cấp quyền xem tài khoản nhân viên — liên hệ quản trị để được cấp.",
+    // Flow X-CHK (BR-DSG-003): lệch checksum là lỗi phải chặn, không có nút bỏ qua
+    holdTitle: "Kiện đang bị giữ do lệch thiết kế.",
+    holdDescription:
+      "Checksum file thiết kế không khớp bản khách đã chốt nên chưa được đóng gói. QC hoặc quản lý kho khôi phục đúng file rồi bấm Kiểm tra lại thiết kế; không có thao tác bỏ qua.",
+    stillOnHold: "Thiết kế vẫn lệch checksum — kiện tiếp tục bị giữ",
+    alreadyAssigned: "Task đang được gán cho người này — chọn người khác để gán lại.",
+    artifactDisclaimer:
+      "File tải về từ bundle đã khoá; đường dẫn chỉ dùng được trong thời gian ngắn.",
+    noDesignLines: "Đơn không có dòng tuỳ chỉnh — không cần đối chiếu thiết kế.",
+    noActions: {
+      viewOnly: "Bạn chỉ có quyền xem task này.",
+      notAssignee: "Chỉ nhân viên được gán mới thao tác được trên task này.",
+      waitingPick: "Chưa lấy hàng xong nên chưa đóng gói được.",
+    },
+    self: "Tôi",
+    // Nhãn trường dùng chung giữa cột danh sách, thẻ thông tin và form
+    field: {
+      task: "Mã task",
+      order: "Đơn hàng",
+      assignee: "Người được gán",
+      pick: "Lấy hàng",
+      pack: "Đóng gói",
+      assignedAt: "Ngày gán",
+      packedAt: "Đóng gói xong",
+    },
+    // Kết quả đối chiếu checksum thiết kế (cột danh sách, thẻ dòng, lịch sử)
+    integrity: {
+      unverified: "Chưa đối chiếu",
+      match: "Khớp",
+      mismatch: "Lệch checksum",
+    },
+  },
+} as const;
+
+/** Nhãn vai trò file thiết kế (BE `DesignArtifactRole`) — không hiện enum thô. */
+export const DESIGN_ARTIFACT_ROLE_LABELS = {
+  CUSTOMER_PREVIEW: "Bản xem trước",
+  TECHNICAL_SPEC: "Thông số kỹ thuật",
+  PRINT_READY: "File in",
+  PRODUCTION_INSTRUCTION: "Hướng dẫn sản xuất",
+} as const;
+
+/**
+ * Lỗi task xuất kho → câu tiếng Việt. BE (FulfillmentServiceImpl) chỉ ném mã chung
+ * `NOT_FOUND` / `CONFLICT` / `VALIDATION_FAILED` kèm message tiếng Anh, không có mã riêng — nên
+ * câu hiển thị chọn theo NGỮ CẢNH thao tác (xem `features/fulfillment/errors.ts`).
+ */
+export const FULFILLMENT_ERROR_MESSAGES = {
+  // 404 ở thao tác: task không có hoặc người gọi không phải người được gán
+  notAssignee: "Task không tồn tại hoặc không được gán cho bạn. Dữ liệu đã được tải lại.",
+  // 409 chung: pick/pack/đơn đã đổi trạng thái ở nơi khác (hoặc đơn đã huỷ → task đóng)
+  stale:
+    "Task hoặc đơn hàng đã đổi trạng thái nên không thực hiện được thao tác này. Dữ liệu đã được tải lại.",
+  createConflict:
+    "Chỉ đơn đã xác nhận hoặc đã release mới đưa vào xuất kho; đơn có dòng in phải release sản xuất trước.",
+  orderNotFound: "Không tìm thấy đơn hàng",
+  assignConflict: "Chỉ gán lại được khi task chưa bắt đầu lấy hàng. Dữ liệu đã được tải lại.",
+  assigneeInvalid: "Người được gán phải là nhân viên kho hoặc quản lý kho đang hoạt động",
+  // BE trả cùng mã 409 cho "pack không còn ON_HOLD" và "đơn đã rời khâu xuất kho"
+  reverifyConflict:
+    "Kiện không còn bị giữ, hoặc đơn hàng không còn ở khâu xuất kho. Dữ liệu đã được tải lại.",
+  artifactMissing: "Bundle thiết kế đã chốt không có file này",
+  // 409 khi task CHƯA bị giữ: BE dùng cùng mã cho "lệch checksum" và "đơn không còn ở khâu xuất kho"
+  artifactUnavailable:
+    "Không lấy được file thiết kế: đơn hàng không còn ở khâu xuất kho, hoặc file không khớp checksum đã chốt.",
+  popupBlocked:
+    "Trình duyệt đã chặn tab mới — cho phép mở cửa sổ bật lên cho trang này rồi tải lại.",
+  artifactMismatch:
+    "File thiết kế trong kho lưu trữ không khớp checksum đã chốt — không tải được. Báo QC kiểm tra.",
+  VALIDATION_FAILED: "Dữ liệu không hợp lệ",
+  FORBIDDEN: "Bạn không có quyền thực hiện thao tác này",
+  OPTIMISTIC_LOCK: "Task vừa được người khác cập nhật. Dữ liệu đã được tải lại, hãy thử lại.",
+  LOCK_TIMEOUT: "Task đang được người khác thao tác. Thử lại sau giây lát.",
+  STORAGE_ERROR: "Kho lưu trữ file thiết kế đang không truy cập được. Thử lại sau.",
+  NETWORK_ERROR: "Không kết nối được máy chủ",
+  generic: "Không thực hiện được thao tác. Vui lòng thử lại.",
+} as const;
+
+/** Lỗi validate form task xuất kho (zod Input) — hiện inline dưới ô. */
+export const FULFILLMENT_FIELD_MESSAGES = {
+  orderRequired: "Chọn đơn hàng",
+  assigneeRequired: "Chọn nhân viên được gán",
+  resolutionNoteRequired: "Nhập cách đã xử lý",
+  resolutionNoteTooLong: "Tối đa 1000 ký tự",
 } as const;
 
 /**
@@ -389,5 +502,16 @@ export const TOAST_MESSAGES = {
     cancelled: "Đã huỷ phiếu nhận",
     movedToQc: "Đã chuyển hàng sang khu QC",
     inspected: "Đã ghi nhận kết luận QC",
+  },
+  fulfillment: {
+    created: "Đã tạo task lấy hàng",
+    // BE trả lại task đã có của đơn (vẫn 201) thay vì tạo mới
+    alreadyExists: "Đơn này đã có task và đang gán cho người khác — không tạo task mới",
+    assigned: "Đã gán task",
+    pickingStarted: "Đã bắt đầu lấy hàng",
+    pickingCompleted: "Đã hoàn tất lấy hàng",
+    packed: "Đã xác nhận đóng gói",
+    held: "Lệch checksum thiết kế — kiện bị giữ, chờ QC kiểm tra lại",
+    reverified: "Thiết kế khớp — đã gỡ giữ và đóng gói",
   },
 } as const;

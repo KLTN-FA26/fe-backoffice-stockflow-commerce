@@ -80,3 +80,43 @@ export const PRODUCT_PERMISSIONS = {
   // Duyệt (bốn mắt), kích hoạt / ngừng biến thể, xuất bản ảnh
   approve: "product-products:APPROVE",
 } as const;
+
+/**
+ * Task xuất kho — resource `fulfillment-pick-lists` (BE FulfillmentController, SCRUM-43).
+ * Tạo task, gán, bắt đầu / hoàn tất lấy hàng đều là UPDATE (không có CREATE).
+ */
+export const FULFILLMENT_PICK_PERMISSIONS = {
+  viewPage: "fulfillment-pick-lists:VIEW_PAGE",
+  read: "fulfillment-pick-lists:READ",
+  update: "fulfillment-pick-lists:UPDATE",
+} as const;
+
+/**
+ * Đóng gói — resource `fulfillment-packages` (BE FulfillmentResources.PACKAGES). READ = tải
+ * artifact thiết kế; CREATE = xác nhận đóng gói và kiểm tra lại thiết kế (flow X-CHK).
+ */
+export const FULFILLMENT_PACKAGE_PERMISSIONS = {
+  viewPage: "fulfillment-packages:VIEW_PAGE",
+  read: "fulfillment-packages:READ",
+  create: "fulfillment-packages:CREATE",
+} as const;
+
+/** Danh sách tài khoản nhân viên — `GET /identity/users` (BE UserManagementController). */
+export const IDENTITY_USER_PERMISSIONS = {
+  read: "identity-users:READ",
+} as const;
+
+/**
+ * Mã vai trò BE (`common/security/Roles.java`), trả trong `/identity/me/permissions.roles`.
+ * Chỉ dùng ở nơi BE gate kép bằng `@PreAuthorize` theo vai trò (FulfillmentController) — các
+ * màn khác gate theo mã quyền.
+ */
+export const STAFF_ROLE = {
+  ORDER_COORDINATOR: "ORDER_COORDINATOR",
+  QC_STAFF: "QC_STAFF",
+  SYSTEM_ADMIN: "SYSTEM_ADMIN",
+  WAREHOUSE_MANAGER: "WAREHOUSE_MANAGER",
+  WAREHOUSE_STAFF: "WAREHOUSE_STAFF",
+} as const;
+
+export type StaffRole = (typeof STAFF_ROLE)[keyof typeof STAFF_ROLE];
