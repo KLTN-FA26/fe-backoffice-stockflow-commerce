@@ -59,8 +59,10 @@ describe("Credit hold — danh sách (SCRUM-427)", () => {
   it("ACCOUNTANT (APPROVE) thấy Duyệt / Từ chối; mã đơn không là link (không có quyền sales-orders)", async () => {
     renderList(ORDER_PERMISSION_SETS.accountant);
 
-    expect(await screen.findByRole("button", { name: "Duyệt vượt hạn mức" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Từ chối" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: /^Duyệt vượt hạn mức đơn/ }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Từ chối vượt hạn mức đơn/ })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: apiOrder.orderNumber })).not.toBeInTheDocument();
   });
 
@@ -68,7 +70,7 @@ describe("Credit hold — danh sách (SCRUM-427)", () => {
     renderList(ORDER_PERMISSION_SETS.coordinator);
 
     expect(await screen.findByRole("link", { name: apiOrder.orderNumber })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Duyệt vượt hạn mức" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Duyệt vượt hạn mức/ })).not.toBeInTheDocument();
   });
 
   it("không có quyền sales-order-credit-holds → 'Bạn không có quyền', không gọi API", async () => {
@@ -93,7 +95,7 @@ describe("Credit hold — duyệt / từ chối", { timeout: DIALOG_FLOW_TIMEOUT
       .spyOn(api, "post")
       .mockResolvedValue({ data: { ...heldOrder, status: "CONFIRMED" } });
 
-    await user.click(await screen.findByRole("button", { name: "Duyệt vượt hạn mức" }));
+    await user.click(await screen.findByRole("button", { name: /^Duyệt vượt hạn mức đơn/ }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByRole("button", { name: "Duyệt" })).toBeDisabled();
     await user.type(within(dialog).getByLabelText(/Ghi chú duyệt/), "  Khách đã cam kết  ");
@@ -111,7 +113,7 @@ describe("Credit hold — duyệt / từ chối", { timeout: DIALOG_FLOW_TIMEOUT
       data: { ...heldOrder, status: "PENDING_PAYMENT", paymentTerm: "DEPOSIT" },
     });
 
-    await user.click(await screen.findByRole("button", { name: "Từ chối" }));
+    await user.click(await screen.findByRole("button", { name: /^Từ chối vượt hạn mức đơn/ }));
     await pickOrderSelectOption(user, /Cách xử lý/, "Chuyển sang đặt cọc");
     const dialog = screen.getByRole("dialog");
     await user.type(within(dialog).getByLabelText(/Ghi chú/), "Chuyển cọc");
@@ -140,7 +142,7 @@ describe("Credit hold — duyệt / từ chối", { timeout: DIALOG_FLOW_TIMEOUT
     renderList(ORDER_PERMISSION_SETS.accountant);
     vi.spyOn(api, "post").mockRejectedValue(new ApiError(409, "PAYMENT_TERM_NOT_ALLOWED", "x"));
 
-    await user.click(await screen.findByRole("button", { name: "Từ chối" }));
+    await user.click(await screen.findByRole("button", { name: /^Từ chối vượt hạn mức đơn/ }));
     await pickOrderSelectOption(user, /Cách xử lý/, "Chuyển sang trả trước 100%");
     const dialog = screen.getByRole("dialog");
     await user.type(within(dialog).getByLabelText(/Ghi chú/), "Thử");
@@ -155,7 +157,7 @@ describe("Credit hold — duyệt / từ chối", { timeout: DIALOG_FLOW_TIMEOUT
     const get = renderList(ORDER_PERMISSION_SETS.accountant);
     vi.spyOn(api, "post").mockRejectedValue(new ApiError(409, "ORDER_NOT_ON_CREDIT_HOLD", "x"));
 
-    await user.click(await screen.findByRole("button", { name: "Duyệt vượt hạn mức" }));
+    await user.click(await screen.findByRole("button", { name: /^Duyệt vượt hạn mức đơn/ }));
     await user.type(await screen.findByLabelText(/Ghi chú duyệt/), "Ok");
     const before = get.mock.calls.filter(([url]) => url === "/orders/credit-holds").length;
     await user.click(screen.getByRole("button", { name: "Duyệt" }));

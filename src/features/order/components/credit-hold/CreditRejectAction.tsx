@@ -1,12 +1,15 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import { XCircle } from "lucide-react";
 import { useState } from "react";
+import { Controller, useForm, useWatch } from "react-hook-form";
 
 import {
   CREDIT_REJECTION_ACTION_LABELS,
   CREDIT_REJECTION_ACTIONS,
   ORDER_LIMITS,
+  UI_LABELS,
 } from "@/constants";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { Button } from "@/components/ui/button";
@@ -20,25 +23,26 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
-import { creditRejectionSchema } from "../../action-schemas";
+import { creditDecisionErrorView } from "../../errors";
+import { CREDIT_REJECTION_FORM_DEFAULTS, creditRejectionFormSchema } from "../../form-schemas";
 import { useRejectCreditHold } from "../../mutations";
+import { DANGER_OUTLINE_BUTTON } from "../button-styles";
+import { FormFieldError, RequiredMark } from "../FormFieldError";
 import { OrderRefusalAlert } from "../OrderRefusalAlert";
+import { STALE_CODES, useOrderActionErrors } from "../useOrderActionErrors";
 
 import { DepositPercentField } from "./DepositPercentField";
-import { useCreditDecisionErrorHandler } from "./useCreditDecisionErrorHandler";
 
-import type { CreditRejectionAction } from "@/constants";
+import type { CreditRejectionFormValues } from "../../form-schemas";
+import type { CreditRejectionInput } from "../../types";
 import type { CreditHoldTarget } from "./types";
 
 const LABEL = "text-ink-secondary text-xs font-medium";
 
-function isAction(value: string): value is CreditRejectionAction {
-  return (CREDIT_REJECTION_ACTIONS as readonly string[]).includes(value);
-}
-
 /**
  * Từ chối vượt hạn mức (SCRUM-427, docs 15 §4.3): huỷ đơn (CREDIT_REJECTED) hoặc chuyển khách
- * sang trả trước / đặt cọc → đơn về Chờ thanh toán. Huỷ là thao tác phá huỷ → nút đỏ.
+ * sang trả trước / đặt cọc → đơn về Chờ thanh toán. UI-only gate — Backend phải re-check
+ * (CreditHoldController @RequiresPermission sales-order-credit-holds:APPROVE).
  */
 export function CreditRejectAction({
   order,
@@ -48,16 +52,18 @@ export function CreditRejectAction({
   compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const label = UI_LABELS.order.actions.creditReject;
   return (
     <>
       <Button
         type="button"
         variant="outline"
         size="sm"
-        className={`border-danger text-danger hover:bg-danger/10 rounded-[var(--r-sm)] bg-transparent ${compact ? "" : "w-full"}`}
+        aria-label={compact ? `${label} vượt hạn mức đơn ${order.orderNumber}` : undefined}
+        className={`${DANGER_OUTLINE_BUTTON} ${compact ? "" : "w-full"}`}
         onClick={() => setOpen(true)}
       >
-        <XCircle className="size-3.5" /> Từ chối
+        <XCircle className="size-3.5" /> {label}
       </Button>
       <FormDialog open={open} onOpenChange={setOpen}>
         <RejectForm order={order} onClose={() => setOpen(false)} />
@@ -67,18 +73,24 @@ export function CreditRejectAction({
 }
 
 function RejectForm({ order, onClose }: { order: CreditHoldTarget; onClose: () => void }) {
-  const [action, setAction] = useState<CreditRejectionAction | "">("");
-  const [depositPercent, setDepositPercent] = useState("");
-  const [note, setNote] = useState("");
-  const { refusal, setRefusal, onError } = useCreditDecisionErrorHandler(onClose);
+  const { refusal, clearRefusal, onError } = useOrderActionErrors(
+    creditDecisionErrorView,
+    STALE_CODES.credit,
+    onClose,
+  );
   const { mutate: reject, isPending } = useRejectCreditHold();
-  const parsed = creditRejectionSchema.safeParse({
-    action: action || undefined,
-    // Bỏ trống → BE dùng % cọc mặc định của hồ sơ công nợ khách
-    depositPercent: depositPercent.trim() === "" ? undefined : Number(depositPercent),
-    note,
+  const form = useForm<CreditRejectionFormValues, unknown, CreditRejectionInput>({
+    resolver: zodResolver(creditRejectionFormSchema),
+    mode: "onChange",
+    defaultValues: CREDIT_REJECTION_FORM_DEFAULTS,
   });
-  const percentError = parsed.error?.issues.find((i) => i.path[0] === "depositPercent")?.message;
+  const action = useWatch({ control: form.control, name: "action" });
+  const { errors } = form.formState;
+
+  const submit = form.handleSubmit((input) => {
+    clearRefusal();
+    reject({ id: order.orderId, ...input }, { onSuccess: onClose, onError });
+  });
 
   return (
     <FormDialogBody
@@ -86,51 +98,60 @@ function RejectForm({ order, onClose }: { order: CreditHoldTarget; onClose: () =
       description={`Chọn cách xử lý đơn ${order.orderNumber} khi không duyệt vượt hạn mức.`}
       submitLabel="Từ chối"
       danger={action === "CANCEL"}
-      canSubmit={parsed.success}
+      canSubmit={form.formState.isValid}
       isPending={isPending}
       error={null}
-      onSubmit={() => {
-        if (!parsed.success) return;
-        setRefusal(null);
-        reject({ id: order.orderId, ...parsed.data }, { onSuccess: onClose, onError });
-      }}
+      onSubmit={() => void submit()}
       onCancel={onClose}
     >
       <div className="grid gap-1.5">
         <Label htmlFor="credit-reject-action" className={LABEL}>
-          Cách xử lý <span className="text-danger">*</span>
+          Cách xử lý <RequiredMark />
         </Label>
-        <Select value={action} onValueChange={(v) => setAction(isAction(v) ? v : "")}>
-          <SelectTrigger id="credit-reject-action" autoFocus className="w-full">
-            <SelectValue placeholder="Chọn cách xử lý" />
-          </SelectTrigger>
-          <SelectContent>
-            {CREDIT_REJECTION_ACTIONS.map((a) => (
-              <SelectItem key={a} value={a}>
-                {CREDIT_REJECTION_ACTION_LABELS[a]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Controller
+          control={form.control}
+          name="action"
+          render={({ field }) => (
+            <Select value={field.value} onValueChange={field.onChange}>
+              <SelectTrigger
+                id="credit-reject-action"
+                autoFocus
+                aria-required="true"
+                className="w-full"
+              >
+                <SelectValue placeholder="Chọn cách xử lý" />
+              </SelectTrigger>
+              <SelectContent>
+                {CREDIT_REJECTION_ACTIONS.map((a) => (
+                  <SelectItem key={a} value={a}>
+                    {CREDIT_REJECTION_ACTION_LABELS[a]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
       </div>
       {action === "SWITCH_TO_DEPOSIT" && (
         <DepositPercentField
-          value={depositPercent}
-          error={percentError}
-          onChange={setDepositPercent}
+          registration={form.register("depositPercent")}
+          error={errors.depositPercent?.message}
         />
       )}
       <div className="grid gap-1.5">
         <Label htmlFor="credit-reject-note" className={LABEL}>
-          Ghi chú <span className="text-danger">*</span>
+          Ghi chú <RequiredMark />
         </Label>
         <Textarea
           id="credit-reject-note"
-          value={note}
           maxLength={ORDER_LIMITS.creditNoteMax}
           rows={3}
-          onChange={(event) => setNote(event.target.value)}
+          aria-required="true"
+          aria-invalid={errors.note ? true : undefined}
+          aria-describedby={errors.note ? "credit-reject-note-error" : undefined}
+          {...form.register("note")}
         />
+        <FormFieldError id="credit-reject-note-error" message={errors.note?.message} />
       </div>
       {refusal && <OrderRefusalAlert view={refusal} />}
     </FormDialogBody>

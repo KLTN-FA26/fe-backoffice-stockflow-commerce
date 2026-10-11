@@ -43,7 +43,6 @@ export {
   PRODUCT_PERMISSIONS,
   QC_TASK_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
-  WAREHOUSE_PERMISSIONS,
 } from "./permissions";
 export { ADMIN_ROUTES, APP_ROUTES } from "./routes";
 export { STORAGE_KEYS } from "./storage-keys";

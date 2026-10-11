@@ -8,7 +8,7 @@
  * Source: BE order/api/OrderStatus.java (FE khớp BE — xem ORDER_STATUSES).
  */
 
-import { CREDIT_HOLD_PERMISSIONS, ORDER_PERMISSIONS } from "@/constants";
+import { CREDIT_HOLD_PERMISSIONS, ORDER_PERMISSIONS, UI_LABELS } from "@/constants";
 import {
   ORDER_TRANSITIONS,
   allowedTransitions,
@@ -61,7 +61,7 @@ export const ORDER_ACTIONS: readonly OrderAction[] = [
   // Endpoint: POST /orders/{id}/release (BE sales-orders:APPROVE — chỉ ORDER_COORDINATOR).
   {
     code: "release",
-    label: "Release đơn",
+    label: UI_LABELS.order.actions.release,
     permission: ORDER_PERMISSIONS.release,
     fromStatuses: ["Confirmed"],
     targetStatuses: ["In Production", "Ready to Fulfill"],
@@ -70,7 +70,7 @@ export const ORDER_ACTIONS: readonly OrderAction[] = [
   // POST /orders/{id}/credit-approval (sales-order-credit-holds:APPROVE — ACCOUNTANT).
   {
     code: "credit-approve",
-    label: "Duyệt vượt hạn mức",
+    label: UI_LABELS.order.actions.creditApprove,
     permission: CREDIT_HOLD_PERMISSIONS.approve,
     fromStatuses: ["On Hold"],
     targetStatuses: ["Confirmed"],
@@ -79,7 +79,7 @@ export const ORDER_ACTIONS: readonly OrderAction[] = [
   // docs 15 §4.3: từ chối → huỷ, hoặc chuyển sang trả trước / đặt cọc (về Pending Payment).
   {
     code: "credit-reject",
-    label: "Từ chối vượt hạn mức",
+    label: UI_LABELS.order.actions.creditReject,
     permission: CREDIT_HOLD_PERMISSIONS.approve,
     fromStatuses: ["On Hold"],
     targetStatuses: ["Cancelled", "Pending Payment"],
@@ -92,7 +92,7 @@ export const ORDER_ACTIONS: readonly OrderAction[] = [
   // Endpoint: POST /orders/{orderId}/admin-cancellation (BE sales-order-cancellations:UPDATE).
   {
     code: "admin-cancel",
-    label: "Huỷ đơn",
+    label: UI_LABELS.order.actions.cancel,
     permission: ORDER_PERMISSIONS.cancel,
     fromStatuses: [
       "Draft",

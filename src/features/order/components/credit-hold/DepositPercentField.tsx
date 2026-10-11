@@ -1,14 +1,17 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+import { FormFieldError } from "../FormFieldError";
+
+import type { UseFormRegisterReturn } from "react-hook-form";
+
 interface DepositPercentFieldProps {
-  value: string;
+  registration: UseFormRegisterReturn;
   error: string | undefined;
-  onChange: (value: string) => void;
 }
 
 /** Tỷ lệ cọc khi chuyển đơn sang đặt cọc — BE CreditRefusalRequest.depositPercent (0, 100). */
-export function DepositPercentField({ value, error, onChange }: DepositPercentFieldProps) {
+export function DepositPercentField({ registration, error }: DepositPercentFieldProps) {
   return (
     <div className="grid gap-1.5">
       <Label htmlFor="credit-reject-deposit" className="text-ink-secondary text-xs font-medium">
@@ -18,17 +21,12 @@ export function DepositPercentField({ value, error, onChange }: DepositPercentFi
         id="credit-reject-deposit"
         type="number"
         inputMode="decimal"
-        value={value}
-        aria-invalid={!!error || undefined}
+        aria-invalid={error ? true : undefined}
         aria-describedby={error ? "credit-reject-deposit-error" : undefined}
-        onChange={(event) => onChange(event.target.value)}
         className="w-32 tabular-nums"
+        {...registration}
       />
-      {error && (
-        <p id="credit-reject-deposit-error" className="text-danger text-xs">
-          {error}
-        </p>
-      )}
+      <FormFieldError id="credit-reject-deposit-error" message={error} />
     </div>
   );
 }

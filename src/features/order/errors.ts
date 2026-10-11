@@ -84,7 +84,7 @@ export function adminCancelErrorView(error: ApiError): OrderErrorView {
 
 /* ── Release (SCRUM-423) ─────────────────────────────────────────────── */
 
-const RELEASE_REFUSED = "Không release được đơn";
+const RELEASE_REFUSED = UI_LABELS.order.releaseRefusedTitle;
 
 /** Thứ tự kiểm ở BE: kho → mẫu duyệt → công nợ quá hạn → cọc → trạng thái (OrderReleaseService). */
 export function releaseErrorView(error: ApiError): OrderErrorView {
@@ -143,7 +143,7 @@ export function releaseErrorView(error: ApiError): OrderErrorView {
 
 /* ── Credit hold (SCRUM-427) ─────────────────────────────────────────── */
 
-const CREDIT_FAILED = "Không xử lý được đơn vượt hạn mức";
+const CREDIT_FAILED = UI_LABELS.order.creditFailedTitle;
 
 export function creditDecisionErrorView(error: ApiError): OrderErrorView {
   const traceId = error.traceId;
@@ -174,7 +174,11 @@ export function creditDecisionErrorView(error: ApiError): OrderErrorView {
 
 /* ── Lệnh sản xuất (CONTRACT PENDING) ───────────────────────────────── */
 
-/** BE chưa có endpoint → 404 (không route) / 405. Phân biệt với lỗi thật để UI báo trung thực. */
+/**
+ * BE chưa có endpoint → 404 (không route) / 405. Phân biệt với lỗi thật để UI báo trung thực.
+ * Chỉ gọi sau khi `GET /orders/{id}` đã thành công (đơn tồn tại, trong phạm vi) nên 404 ở đây là
+ * "không có route". Khi BE thêm endpoint (trả 404 NOT_FOUND cho đơn ngoài phạm vi) cần xem lại.
+ */
 export function isProductionApiUnavailable(error: ApiError): boolean {
   return error.status === 404 || error.status === 405 || error.status === 501;
 }

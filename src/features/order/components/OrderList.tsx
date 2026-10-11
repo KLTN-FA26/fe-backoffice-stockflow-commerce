@@ -1,9 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { ShieldAlert } from "lucide-react";
 
-import { ADMIN_ROUTES, CREDIT_HOLD_PERMISSIONS, ORDER_PERMISSIONS } from "@/constants";
+import { ADMIN_ROUTES, CREDIT_HOLD_PERMISSIONS, ORDER_PERMISSIONS, UI_LABELS } from "@/constants";
 import { useCan } from "@/lib/auth";
 
 import { ListToolbar } from "@/components/shared/ListToolbar";
@@ -11,6 +10,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 
 import { buildOrderColumns } from "./order-list/columns";
 import { COLUMN_LABELS, DEFAULT_COLUMNS, STATUS_OPTIONS } from "./order-list/constants";
+import { HeaderLink } from "./HeaderLink";
 import { OrderListBody } from "./order-list/OrderListBody";
 import { OrderListFilters } from "./order-list/OrderListFilters";
 import { buildSummaryItems } from "./order-list/summary";
@@ -37,6 +37,7 @@ export function OrderList() {
 function OrderListContent() {
   // READ = đọc dữ liệu (tách khỏi VIEW_PAGE mở trang — BE ADR-0004): thiếu thì không gọi API
   const canRead = useCan(ORDER_PERMISSIONS.read);
+  // UI-only — Backend phải re-check (@RequiresPermission trên OrderController / CreditHoldController)
   const canSeeCreditHolds = useCan(CREDIT_HOLD_PERMISSIONS.viewPage);
   const s = useOrderListState(canRead);
   const columns = buildOrderColumns(s.extra.setCustomerId);
@@ -50,12 +51,10 @@ function OrderListContent() {
         subtitle="Theo dõi đơn bán, trạng thái xử lý và các ngoại lệ cần thao tác."
         actions={
           canSeeCreditHolds && (
-            <Link
-              href={ADMIN_ROUTES.orders.creditHolds}
-              className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary inline-flex items-center gap-1.5 rounded-[var(--r-sm)] border px-3 py-1.5 text-[0.8125rem] font-medium transition-colors"
-            >
-              <ShieldAlert className="text-warning size-3.5" /> Đơn vượt hạn mức
-            </Link>
+            <HeaderLink href={ADMIN_ROUTES.orders.creditHolds}>
+              <ShieldAlert className="text-warning size-3.5" aria-hidden="true" />
+              {UI_LABELS.order.creditHoldsTitle}
+            </HeaderLink>
           )
         }
       />

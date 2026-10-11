@@ -40,7 +40,8 @@ function noActionReason(order: Order, can: OrderActionCardProps["can"]): string 
 export function OrderActionCard({ order, can }: OrderActionCardProps) {
   const actions = allowedOrderActions(order.status, can, { paymentTerm: order.paymentTerm });
   const has = (code: OrderActionCode) => actions.some((a) => a.code === code);
-  // Lý do chưa release biết trước — chỉ cho người có quyền release (Coordinator)
+  // Lý do chưa release biết trước — chỉ cho người có quyền release (Coordinator). UI-only —
+  // Backend phải re-check (OrderReleaseService: BR-PRD-08/09, công nợ quá hạn).
   const blockers = can(ORDER_PERMISSIONS.release) ? releaseBlockers(order) : [];
 
   return (

@@ -1,7 +1,6 @@
 "use client";
 
 import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
 import { onlineManager } from "@tanstack/react-query";
 import { use } from "react";
 
@@ -15,6 +14,7 @@ import { useOrder, useOrderProductionOrders } from "../queries";
 import { customLineCount, groupProductionOrdersByLine } from "../selectors";
 
 import { OrderActionCard } from "./OrderActionCard";
+import { HeaderLink } from "./HeaderLink";
 import { OrderFinanceCard } from "./OrderFinanceCard";
 import { OrderInfoCard } from "./OrderInfoCard";
 import { OrderLines } from "./OrderLines";
@@ -40,6 +40,7 @@ export function OrderDetail({ params }: OrderDetailProps) {
 function OrderDetailContent({ id }: { id: string }) {
   const can = usePermissionChecker();
   // READ = đọc dữ liệu (tách khỏi VIEW_PAGE mở trang — BE ADR-0004): thiếu thì không gọi API
+  // UI-only — Backend phải re-check (@RequiresPermission sales-orders:READ trên OrderController)
   const canRead = can(ORDER_PERMISSIONS.read);
   const query = useOrder(id, { enabled: canRead });
   // Lệnh sản xuất chỉ có với dòng in (docs 19 BR-01) — đơn chỉ hàng sẵn không gọi API
@@ -80,12 +81,9 @@ function OrderDetailContent({ id }: { id: string }) {
         title={order.orderNumber}
         subtitle={subtitle}
         actions={
-          <Link
-            href={ADMIN_ROUTES.orders.list}
-            className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary inline-flex items-center gap-1.5 rounded-[var(--r-sm)] border px-3 py-1.5 text-[0.8125rem] font-medium transition-colors"
-          >
+          <HeaderLink href={ADMIN_ROUTES.orders.list}>
             <ArrowLeft className="size-3.5" /> Quay lại
-          </Link>
+          </HeaderLink>
         }
       />
 

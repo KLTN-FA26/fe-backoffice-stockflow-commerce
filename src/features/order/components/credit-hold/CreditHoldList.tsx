@@ -1,7 +1,6 @@
 "use client";
 
 import { ArrowLeft, ShieldAlert } from "lucide-react";
-import Link from "next/link";
 import { parseAsInteger, useQueryState } from "nuqs";
 
 import {
@@ -10,6 +9,7 @@ import {
   ORDER_PERMISSIONS,
   PAGE_SIZE,
   STORAGE_KEYS,
+  UI_LABELS,
 } from "@/constants";
 import { usePageConfig } from "@/hooks/use-page-config";
 import { usePermissionChecker } from "@/lib/auth";
@@ -24,6 +24,7 @@ import { useCreditHolds } from "../../queries";
 import { OrderLoadError } from "../OrderLoadError";
 import { OrderPermissionGate } from "../OrderPermissionGate";
 import { OrderTableSkeleton } from "../OrderSkeletons";
+import { HeaderLink } from "../HeaderLink";
 
 import { buildCreditHoldColumns } from "./columns";
 import { CreditApproveAction } from "./CreditApproveAction";
@@ -31,7 +32,7 @@ import { CreditRejectAction } from "./CreditRejectAction";
 
 import type { CreditHold } from "../../types";
 
-const TITLE = "Đơn vượt hạn mức công nợ";
+const TITLE = UI_LABELS.order.creditHoldsTitle;
 const PAGE_SIZE_OPTIONS: number[] = [PAGE_SIZE.sm, PAGE_SIZE.md, PAGE_SIZE.lg, PAGE_SIZE.xl];
 interface CreditHoldPageConfig {
   pageSize: number;
@@ -66,6 +67,7 @@ export function CreditHoldList() {
 
 function CreditHoldListContent() {
   const can = usePermissionChecker();
+  // UI-only — Backend phải re-check (CreditHoldController @RequiresPermission READ / APPROVE)
   const canRead = can(CREDIT_HOLD_PERMISSIONS.read);
   // Trang trên URL (nuqs); số dòng/trang là sở thích cá nhân → localStorage (state-persistence)
   const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
@@ -97,12 +99,9 @@ function CreditHoldListContent() {
         title={TITLE}
         subtitle="Đơn công nợ có dư nợ + giá trị đơn vượt hạn mức tín dụng, chờ người có quyền duyệt."
         actions={
-          <Link
-            href={ADMIN_ROUTES.orders.list}
-            className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary inline-flex items-center gap-1.5 rounded-[var(--r-sm)] border px-3 py-1.5 text-[0.8125rem] font-medium transition-colors"
-          >
-            <ArrowLeft className="size-3.5" /> Đơn hàng
-          </Link>
+          <HeaderLink href={ADMIN_ROUTES.orders.list}>
+            <ArrowLeft className="size-3.5" /> {UI_LABELS.order.pageTitle}
+          </HeaderLink>
         }
       />
       {!canRead ? (
@@ -124,6 +123,8 @@ function CreditHoldListContent() {
             columns={columns}
             data={query.data.items}
             rowKey={(row) => row.order.orderId}
+            // Mọi đơn trong hàng đợi đều On Hold — viền cảnh báo như danh sách đơn (data-table-mode-a)
+            flagRow={() => true}
             caption={`Hiển thị ${query.data.items.length} / ${query.data.totalElements} đơn`}
             pageSize={config.pageSize}
             pageSizeOptions={PAGE_SIZE_OPTIONS}

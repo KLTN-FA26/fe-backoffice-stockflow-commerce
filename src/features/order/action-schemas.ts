@@ -6,8 +6,8 @@
 
 import { z } from "zod";
 
-import { CREDIT_REJECTION_ACTIONS, ORDER_CANCELLATION_REASON_CODES } from "@/constants/orders";
 import { ORDER_LIMITS } from "@/constants/numbers";
+import { CREDIT_REJECTION_ACTIONS, ORDER_CANCELLATION_REASON_CODES } from "@/constants/orders";
 
 /* ── Release (SCRUM-423) ─────────────────────────────────────────────── */
 
@@ -38,7 +38,7 @@ export const creditApprovalSchema = z.object({ note: creditNote });
  */
 export const creditRejectionSchema = z
   .object({
-    action: z.enum(CREDIT_REJECTION_ACTIONS),
+    action: z.enum(CREDIT_REJECTION_ACTIONS, { error: "Chọn cách xử lý" }),
     depositPercent: z.number().optional(),
     note: creditNote,
   })

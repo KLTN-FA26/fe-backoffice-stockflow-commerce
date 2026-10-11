@@ -2,12 +2,17 @@ import { formatMoney } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+import { FormFieldError } from "./FormFieldError";
+
+import type { UseFormRegisterReturn } from "react-hook-form";
+
 interface RetainedPercentFieldProps {
+  registration: UseFormRegisterReturn;
+  /** Giá trị hiện tại (useWatch) — để xem trước số tiền. */
   value: string;
   paidAmount: number;
   currency: string;
   error: string | undefined;
-  onChange: (value: string) => void;
 }
 
 /**
@@ -16,11 +21,11 @@ interface RetainedPercentFieldProps {
  * BE tính `retainedAmount` thật.
  */
 export function RetainedPercentField({
+  registration,
   value,
   paidAmount,
   currency,
   error,
-  onChange,
 }: RetainedPercentFieldProps) {
   const percent = Number(value);
   const preview = value.trim() !== "" && !error && Number.isFinite(percent);
@@ -34,12 +39,11 @@ export function RetainedPercentField({
           id="cancel-retained"
           type="number"
           inputMode="decimal"
-          value={value}
           placeholder="0"
-          aria-invalid={!!error || undefined}
+          aria-invalid={error ? true : undefined}
           aria-describedby={error ? "cancel-retained-error" : undefined}
-          onChange={(event) => onChange(event.target.value)}
           className="w-28 tabular-nums"
+          {...registration}
         />
         {preview && (
           <span className="text-ink-secondary font-mono text-xs tabular-nums">
@@ -47,11 +51,7 @@ export function RetainedPercentField({
           </span>
         )}
       </div>
-      {error && (
-        <p id="cancel-retained-error" className="text-danger text-xs">
-          {error}
-        </p>
-      )}
+      <FormFieldError id="cancel-retained-error" message={error} />
     </div>
   );
 }

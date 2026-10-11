@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Eye, Filter } from "lucide-react";
+import { Eye } from "lucide-react";
 
 import { ADMIN_ROUTES, ORDER_PAYMENT_STATUS_DISPLAY, ORDER_PAYMENT_TERM_LABELS } from "@/constants";
 import { formatMoney } from "@/lib/format";
@@ -11,6 +11,7 @@ import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
 
 import { COLUMN_LABELS } from "./constants";
+import { CustomerCell } from "./CustomerCell";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { Order } from "../../types";
@@ -40,31 +41,7 @@ export function buildOrderColumns(onFilterCustomer: (customerId: string) => void
     {
       key: "customer",
       header: COLUMN_LABELS.customer,
-      cell: (row) =>
-        row.customerId ? (
-          <span className="flex items-center gap-1">
-            <span
-              className="text-ink-secondary max-w-28 truncate font-[family-name:var(--font-mono)] text-xs"
-              title={row.customerId}
-            >
-              {row.customerId}
-            </span>
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              className="text-ink-tertiary hover:text-ink-primary"
-              aria-label={`Lọc đơn của khách ${row.customerId}`}
-              onClick={(event) => {
-                event.stopPropagation();
-                onFilterCustomer(row.customerId ?? "");
-              }}
-            >
-              <Filter className="size-3" />
-            </Button>
-          </span>
-        ) : (
-          <span className="text-ink-tertiary text-xs">—</span>
-        ),
+      cell: (row) => <CustomerCell customerId={row.customerId} onFilter={onFilterCustomer} />,
     },
     {
       key: "recipient",

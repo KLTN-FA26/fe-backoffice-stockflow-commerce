@@ -1,6 +1,6 @@
 "use client";
 
-import { Factory, Truck } from "lucide-react";
+import { AlertTriangle, Factory, Truck } from "lucide-react";
 
 import {
   PRODUCTION_HOLD_REASON_LABELS,
@@ -71,7 +71,12 @@ function ProductionRow({ po, child = false }: { po: ProductionOrder; child?: boo
         {po.subcontractorName ? ` · ${po.subcontractorName}` : ""}
       </span>
       <StatusDot domain="order" status={PRODUCTION_ORDER_STATUS_DISPLAY[po.status]} />
-      {holdReason && <span className="text-warning">Treo: {holdReason}</span>}
+      {holdReason && (
+        <span className="text-ink-primary inline-flex items-center gap-1">
+          <AlertTriangle className="text-warning size-3" aria-hidden="true" />
+          Treo: {holdReason}
+        </span>
+      )}
       <span className="text-ink-secondary ml-auto tabular-nums">
         Đạt {po.goodQuantity}/{po.plannedQuantity}
         {po.dueDate ? ` · hạn ${formatDate(po.dueDate)}` : ""}

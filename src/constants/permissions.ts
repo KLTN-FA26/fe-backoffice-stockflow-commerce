@@ -47,14 +47,6 @@ export const CREDIT_HOLD_PERMISSIONS = {
 } as const;
 
 /**
- * Kho — resource `warehouse-warehouses` (BE WarehouseController). Màn release cần READ để chọn
- * kho xuất. ⚠️ Seed BE V20260928006000 chưa cấp cho ORDER_COORDINATOR → BE trả 403, FE báo rõ.
- */
-export const WAREHOUSE_PERMISSIONS = {
-  read: "warehouse-warehouses:READ",
-} as const;
-
-/**
  * Phiếu nhận hàng — resource `procurement-goods-receipts` (BE GoodsReceiptController, PR #62).
  * Kiểm đếm, xác nhận, huỷ DRAFT và chuyển hàng sang khu QC đều là UPDATE.
  */

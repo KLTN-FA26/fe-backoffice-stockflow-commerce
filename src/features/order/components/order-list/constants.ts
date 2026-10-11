@@ -47,6 +47,9 @@ export const FILTER_LABELS = {
   paymentTerm: "Phương thức thanh toán",
   allTerms: "Tất cả phương thức",
   invalidRange: "Ngày kết thúc phải sau hoặc bằng ngày bắt đầu — chưa áp dụng lọc ngày.",
+  // CONTRACT PENDING (B0): BE GET /orders chưa có `paymentTerm` — luôn nói rõ khi đang lọc
+  termPending:
+    "Lọc theo phương thức thanh toán đang chờ máy chủ hỗ trợ chính thức — nếu máy chủ chưa hỗ trợ, danh sách có thể chưa được lọc.",
   termIgnored:
     "Máy chủ chưa hỗ trợ lọc theo phương thức thanh toán — danh sách dưới đây CHƯA được lọc theo tiêu chí này.",
 } as const;

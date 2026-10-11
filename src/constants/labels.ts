@@ -26,6 +26,16 @@ export const UI_LABELS = {
   order: {
     pageTitle: "Đơn hàng",
     cancelFailedTitle: "Không huỷ được đơn",
+    releaseRefusedTitle: "Không release được đơn",
+    creditFailedTitle: "Không xử lý được đơn vượt hạn mức",
+    creditHoldsTitle: "Đơn vượt hạn mức công nợ",
+    // Nhãn nút thao tác — dùng chung lifecycle (ORDER_ACTIONS) và component
+    actions: {
+      release: "Release đơn",
+      creditApprove: "Duyệt vượt hạn mức",
+      creditReject: "Từ chối",
+      cancel: "Huỷ đơn",
+    },
     notFoundTitle: "Không tìm thấy đơn hàng",
     notFoundDescription: "Đơn hàng không tồn tại hoặc đường dẫn không hợp lệ.",
     forbiddenDescription: "Tài khoản của bạn chưa được cấp quyền truy cập đơn hàng.",

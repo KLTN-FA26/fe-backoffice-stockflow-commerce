@@ -5,10 +5,9 @@ import {
   ORDER_PAYMENT_TERM_LABELS,
 } from "@/constants";
 import { formatMoney } from "@/lib/format";
-import { formatDateTime } from "@/lib/format/date";
 import { StatusDot } from "@/components/shared/StatusDot";
 
-import { creditState, depositState } from "../selectors";
+import { CreditValue, DepositValue } from "./PaymentStateValues";
 
 import type { OrderCancellationReasonCode } from "@/constants";
 import type { ReactNode } from "react";
@@ -36,40 +35,6 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
       <dt className="text-ink-secondary">{label}</dt>
       <dd className="text-ink-primary text-right">{children}</dd>
     </>
-  );
-}
-
-/** Cọc — docs 15 BR-02 / docs 19 BR-09: chưa đủ cọc thì không release sang sản xuất. */
-function DepositValue({ order }: { order: Order }) {
-  const state = depositState(order);
-  const required = order.depositRequired;
-  return (
-    <span className="flex flex-col items-end">
-      {required !== null && (
-        <span className="font-mono tabular-nums">{formatMoney(required, order.currency)}</span>
-      )}
-      {state === "received" ? (
-        <span className="text-positive text-xs">
-          Đã nhận cọc
-          {order.depositReceivedAt ? ` · ${formatDateTime(order.depositReceivedAt)}` : ""}
-        </span>
-      ) : (
-        <span className="text-warning text-xs">Chưa nhận cọc</span>
-      )}
-    </span>
-  );
-}
-
-/** Công nợ — docs 14 BR-06: vượt hạn mức → On Hold chờ người có quyền duyệt (SCRUM-427). */
-function CreditValue({ order }: { order: Order }) {
-  const onHold = creditState(order) === "on-hold";
-  return (
-    <span className="flex flex-col items-end">
-      {order.creditTermDays !== null && <span>Kỳ hạn {order.creditTermDays} ngày</span>}
-      <span className={onHold ? "text-warning text-xs" : "text-ink-secondary text-xs"}>
-        {onHold ? "Vượt hạn mức — chờ duyệt" : "Đã qua kiểm hạn mức"}
-      </span>
-    </span>
   );
 }
 

@@ -26,7 +26,10 @@ function money(row: CreditHold, amount: number, className = "text-ink-primary") 
  */
 export function buildCreditHoldColumns(
   renderActions: (row: CreditHold) => ReactNode,
-  /** ACCOUNTANT (người duyệt) không có quyền `sales-orders` (BE seed) → mã đơn không là link. */
+  /**
+   * ACCOUNTANT (người duyệt) không có quyền `sales-orders` (BE seed) → mã đơn không là link.
+   * UI-only — Backend phải re-check (GET /orders/{id} @RequiresPermission sales-orders:READ).
+   */
   canOpenOrder: boolean,
 ): CreditHoldColumn[] {
   return [

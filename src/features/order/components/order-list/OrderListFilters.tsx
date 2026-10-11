@@ -123,7 +123,15 @@ export function OrderListFilters({ s }: { s: OrderListState }) {
           {FILTER_LABELS.invalidRange}
         </p>
       )}
-      {s.paymentTermIgnored && <Alert tone="warning">{FILTER_LABELS.termIgnored}</Alert>}
+      {/* Đã phát hiện BE bỏ qua → cảnh báo mạnh; còn lại chỉ ghi chú (dòng có thể không mang
+          paymentTerm nên không phải lúc nào cũng phát hiện được) */}
+      {s.paymentTermIgnored ? (
+        <Alert tone="warning">{FILTER_LABELS.termIgnored}</Alert>
+      ) : (
+        extra.paymentTerm && (
+          <p className="text-ink-tertiary text-xs">{FILTER_LABELS.termPending}</p>
+        )
+      )}
     </div>
   );
 }

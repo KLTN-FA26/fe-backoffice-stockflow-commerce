@@ -64,7 +64,9 @@ export function useOrderListState(canRead = true) {
   const page = query.data;
   /**
    * CONTRACT PENDING: BE `GET /orders` chưa có `paymentTerm`. BE thật bỏ qua tham số và trả
-   * mọi đơn → phát hiện để báo người dùng thay vì ngầm hiển thị danh sách chưa lọc.
+   * mọi đơn → phát hiện để báo người dùng thay vì ngầm hiển thị danh sách chưa lọc. Giới hạn:
+   * dòng không mang `paymentTerm` (null) không phát hiện được → UI luôn kèm ghi chú "chờ BE"
+   * khi bộ lọc bật (OrderListFilters).
    */
   const paymentTermIgnored =
     !!extra.paymentTerm &&

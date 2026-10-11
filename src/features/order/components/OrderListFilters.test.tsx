@@ -91,11 +91,25 @@ describe("OrderList — lọc khách / ngày đặt / phương thức thanh toá
     ).toBeInTheDocument();
   });
 
-  it("server đã lọc đúng → không cảnh báo", async () => {
+  it("server đã lọc đúng → không cảnh báo mạnh, chỉ ghi chú 'chờ máy chủ hỗ trợ'", async () => {
     renderList(() => apiOrderPage([creditOrder]), "?term=CREDIT");
 
     expect(await screen.findByText(creditOrder.orderNumber)).toBeInTheDocument();
     expect(screen.queryByText(/Máy chủ chưa hỗ trợ lọc/)).not.toBeInTheDocument();
+    expect(screen.getByText(/đang chờ máy chủ hỗ trợ chính thức/)).toBeInTheDocument();
+  });
+
+  it("dòng không mang paymentTerm (không phát hiện được) → vẫn có ghi chú trung thực", async () => {
+    renderList(() => apiOrderPage([apiOrder]), "?term=DEPOSIT");
+
+    expect(await screen.findByText(apiOrder.orderNumber)).toBeInTheDocument();
+    expect(screen.getByText(/đang chờ máy chủ hỗ trợ chính thức/)).toBeInTheDocument();
+  });
+
+  it("không bật lọc phương thức → không có ghi chú", async () => {
+    renderList(() => apiOrderPage([apiOrder]));
+    expect(await screen.findByText(apiOrder.orderNumber)).toBeInTheDocument();
+    expect(screen.queryByText(/đang chờ máy chủ hỗ trợ/)).not.toBeInTheDocument();
   });
 
   it("lọc không ra kết quả → 'Bỏ bộ lọc' xoá cả bộ lọc khách / ngày / thanh toán", async () => {
