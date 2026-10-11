@@ -1,6 +1,9 @@
 "use client";
 
-import { ORDER_PERMISSIONS } from "@/constants";
+import Link from "next/link";
+import { ShieldAlert } from "lucide-react";
+
+import { ADMIN_ROUTES, CREDIT_HOLD_PERMISSIONS, ORDER_PERMISSIONS } from "@/constants";
 import { useCan } from "@/lib/auth";
 
 import { ListToolbar } from "@/components/shared/ListToolbar";
@@ -34,6 +37,7 @@ export function OrderList() {
 function OrderListContent() {
   // READ = đọc dữ liệu (tách khỏi VIEW_PAGE mở trang — BE ADR-0004): thiếu thì không gọi API
   const canRead = useCan(ORDER_PERMISSIONS.read);
+  const canSeeCreditHolds = useCan(CREDIT_HOLD_PERMISSIONS.viewPage);
   const s = useOrderListState(canRead);
   const columns = buildOrderColumns(s.extra.setCustomerId);
   const visibleColumns = columns.filter((c) => s.config.visibleColumns.includes(c.key));
@@ -44,6 +48,16 @@ function OrderListContent() {
       <PageHeader
         title="Đơn hàng"
         subtitle="Theo dõi đơn bán, trạng thái xử lý và các ngoại lệ cần thao tác."
+        actions={
+          canSeeCreditHolds && (
+            <Link
+              href={ADMIN_ROUTES.orders.creditHolds}
+              className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary inline-flex items-center gap-1.5 rounded-[var(--r-sm)] border px-3 py-1.5 text-[0.8125rem] font-medium transition-colors"
+            >
+              <ShieldAlert className="text-warning size-3.5" /> Đơn vượt hạn mức
+            </Link>
+          )
+        }
       />
       {/* Thiếu READ: không có dữ liệu để tìm/lọc → ẩn toolbar + thanh Cấu hình */}
       {canRead && (

@@ -1,9 +1,11 @@
-import { ORDER_PERMISSIONS } from "@/constants";
+import { CREDIT_HOLD_PERMISSIONS, ORDER_PERMISSIONS } from "@/constants";
 import { StatusDot } from "@/components/shared/StatusDot";
 
 import { allowedOrderActions, isOrderTerminal } from "../lifecycle";
 import { releaseBlockers } from "../selectors";
 
+import { CreditApproveAction } from "./credit-hold/CreditApproveAction";
+import { CreditRejectAction } from "./credit-hold/CreditRejectAction";
 import { OrderCancelAction } from "./OrderCancelAction";
 import { OrderReleaseAction } from "./OrderReleaseAction";
 
@@ -19,7 +21,11 @@ interface OrderActionCardProps {
 /** Vì sao không có nút thao tác — để người dùng không tưởng là lỗi. */
 function noActionReason(order: Order, can: OrderActionCardProps["can"]): string {
   if (isOrderTerminal(order.status)) return "Đơn đã kết thúc — không còn thao tác.";
-  if (!can(ORDER_PERMISSIONS.cancel) && !can(ORDER_PERMISSIONS.release)) {
+  if (
+    !can(ORDER_PERMISSIONS.cancel) &&
+    !can(ORDER_PERMISSIONS.release) &&
+    !can(CREDIT_HOLD_PERMISSIONS.approve)
+  ) {
     return "Bạn chỉ có quyền xem đơn hàng.";
   }
   // BE BR-031; docs BR-03: từ SHIPPED không huỷ được nữa
@@ -47,6 +53,8 @@ export function OrderActionCard({ order, can }: OrderActionCardProps) {
       </div>
       <div className="space-y-2">
         {has("release") && <OrderReleaseAction order={order} />}
+        {has("credit-approve") && <CreditApproveAction order={order} />}
+        {has("credit-reject") && <CreditRejectAction order={order} />}
         {blockers.length > 0 && (
           <div className="border-border-default bg-bg-subtle rounded-[var(--r-sm)] border px-3 py-2 text-xs">
             <p className="text-ink-primary font-medium">Chưa release được</p>

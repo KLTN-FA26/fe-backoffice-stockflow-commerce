@@ -100,6 +100,7 @@ export type { ListOrderParams } from "./api";
 export type { ListCreditHoldParams } from "./action-api";
 
 // Components
+export { CreditHoldList } from "./components/credit-hold/CreditHoldList";
 export { OrderDetail } from "./components/OrderDetail";
 export { OrderList } from "./components/OrderList";
 export { OrderLoadError } from "./components/OrderLoadError";
