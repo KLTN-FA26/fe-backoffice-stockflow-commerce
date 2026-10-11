@@ -6,18 +6,17 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 
-import { api } from "@/lib/api/client";
-
+import { installInventoryTestApiContract } from "../test-api-contract";
 import { adjustmentFixture, renderInventory, setInventoryTestActor } from "../test-support";
 import { AdjustmentCreate } from "./AdjustmentCreate";
 
 const navigation = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => navigation }));
 const server = setupServer();
-const originalBaseUrl = api.defaults.baseURL;
+let restoreApiContract: () => void;
 const endpoint = "http://localhost/api/v1/inventory/adjustments";
 beforeAll(() => {
-  api.defaults.baseURL = "http://localhost/api";
+  restoreApiContract = installInventoryTestApiContract();
   server.listen({ onUnhandledRequest: "error" });
 });
 beforeEach(() => {
@@ -31,7 +30,7 @@ afterEach(() => {
 });
 afterAll(() => {
   server.close();
-  api.defaults.baseURL = originalBaseUrl;
+  restoreApiContract();
 });
 
 async function enterAdjustment() {

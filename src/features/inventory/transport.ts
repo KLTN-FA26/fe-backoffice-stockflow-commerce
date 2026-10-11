@@ -15,8 +15,7 @@ const failureEnvelope = z.object({
   fieldErrors: z.array(z.object({ field: z.string(), message: z.string() })).optional(),
 });
 
-// Adapt the actual backend envelope inside this feature. Existing mock/feature
-// APIs use a different unwrapped response and remain unaffected.
+// The shared client unwraps successful responses; validate the Inventory DTO here.
 export async function inventoryRequest<T extends z.ZodType>(
   config: AxiosRequestConfig,
   schema: T,
@@ -48,12 +47,7 @@ export async function inventoryRequest<T extends z.ZodType>(
       INVENTORY_MESSAGES.requestFailed,
     );
   }
-  const envelope = z
-    .object({ success: z.literal(true), data: z.unknown() })
-    .safeParse(response.data);
-  if (!envelope.success)
-    throw new ApiError(502, "INVALID_INVENTORY_CONTRACT", INVENTORY_MESSAGES.invalidContract);
-  const result = schema.safeParse(envelope.data.data);
+  const result = schema.safeParse(response.data);
   if (!result.success)
     throw new ApiError(502, "INVALID_INVENTORY_CONTRACT", INVENTORY_MESSAGES.invalidContract);
   return result.data;

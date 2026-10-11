@@ -4,14 +4,13 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { INVENTORY_API } from "@/constants/inventory";
 
-import { api } from "@/lib/api/client";
-
 import { listMovements } from "./api";
 import { movementPageDto } from "./schemas";
+import { installInventoryTestApiContract } from "./test-api-contract";
 import { inventoryRequest } from "./transport";
 
 const server = setupServer();
-const originalBaseUrl = api.defaults.baseURL;
+let restoreApiContract: () => void;
 const page = {
   items: [],
   page: 1,
@@ -23,13 +22,13 @@ const page = {
 };
 
 beforeAll(() => {
-  api.defaults.baseURL = "http://localhost/api";
+  restoreApiContract = installInventoryTestApiContract();
   server.listen({ onUnhandledRequest: "error" });
 });
 afterEach(() => server.resetHandlers());
 afterAll(() => {
   server.close();
-  api.defaults.baseURL = originalBaseUrl;
+  restoreApiContract();
 });
 
 describe("backend inventory transport boundary", () => {
@@ -54,6 +53,13 @@ describe("backend inventory transport boundary", () => {
         type: "MOVE",
       }),
     ).toEqual(page);
+  });
+
+  it("accepts data already unwrapped by the shared client", async () => {
+    server.use(
+      http.get("http://localhost/api/v1/inventory/movements", () => HttpResponse.json(page)),
+    );
+    expect(await listMovements({ page: 0, size: 15 })).toEqual(page);
   });
 
   it("preserves backend code, per-field validation and support correlation ID", async () => {
@@ -81,9 +87,11 @@ describe("backend inventory transport boundary", () => {
     });
   });
 
-  it("fails visibly if a response does not match the agreed envelope", async () => {
+  it("fails visibly if unwrapped data does not match the Inventory DTO", async () => {
     server.use(
-      http.get("http://localhost/api/v1/inventory/movements", () => HttpResponse.json(page)),
+      http.get("http://localhost/api/v1/inventory/movements", () =>
+        HttpResponse.json({ items: [] }),
+      ),
     );
     await expect(listMovements({ page: 0, size: 15 })).rejects.toMatchObject({
       status: 502,

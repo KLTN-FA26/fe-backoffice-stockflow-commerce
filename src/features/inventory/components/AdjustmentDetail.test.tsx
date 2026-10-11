@@ -7,16 +7,15 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { INVENTORY_LABELS } from "@/constants/inventory";
 import { STOCK_ADJUSTMENT_STATUS } from "@/constants/statuses";
 
-import { api } from "@/lib/api/client";
-
+import { installInventoryTestApiContract } from "../test-api-contract";
 import { adjustmentFixture, renderInventory, setInventoryTestActor } from "../test-support";
 import { AdjustmentDetail } from "./AdjustmentDetail";
 
 const server = setupServer();
-const originalBaseUrl = api.defaults.baseURL;
+let restoreApiContract: () => void;
 const endpoint = "http://localhost/api/v1/inventory/adjustments/:id";
 beforeAll(() => {
-  api.defaults.baseURL = "http://localhost/api";
+  restoreApiContract = installInventoryTestApiContract();
   server.listen({ onUnhandledRequest: "error" });
 });
 beforeEach(() => {
@@ -29,7 +28,7 @@ afterEach(() => {
 });
 afterAll(() => {
   server.close();
-  api.defaults.baseURL = originalBaseUrl;
+  restoreApiContract();
 });
 
 describe("adjustment detail", () => {
