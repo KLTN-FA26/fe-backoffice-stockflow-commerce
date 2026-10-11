@@ -44,6 +44,7 @@ export {
   QC_TASK_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
 } from "./permissions";
+export { SHARED_QUERY_ROOTS } from "./query-roots";
 export { ADMIN_ROUTES, APP_ROUTES } from "./routes";
 export { STORAGE_KEYS } from "./storage-keys";
 export {

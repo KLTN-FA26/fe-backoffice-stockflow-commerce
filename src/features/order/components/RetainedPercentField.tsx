@@ -1,3 +1,5 @@
+import { ORDER_LIMITS } from "@/constants";
+
 import { formatMoney } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,6 +40,7 @@ export function RetainedPercentField({
         <Input
           id="cancel-retained"
           type="number"
+          step={ORDER_LIMITS.percentInputStep}
           inputMode="decimal"
           placeholder="0"
           aria-invalid={error ? true : undefined}

@@ -22,6 +22,7 @@ import {
   ok,
   readBody,
   readParams,
+  roundMoney,
   sessionHistory,
   toOrderResponse,
 } from "./mock-routes-orders-store";
@@ -180,7 +181,7 @@ export function registerOrderMockRoutes(): void {
       cancellation: {
         reasonCode,
         reason: note || null,
-        retainedAmount: Math.round((order.amountPaid * retained) / 100),
+        retainedAmount: roundMoney((order.amountPaid * retained) / 100, order.currency),
       },
     });
     return ok(toOrderResponse(order));

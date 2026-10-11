@@ -192,7 +192,7 @@ describe(
       expect(within(dialog).getByRole("button", { name: "Huỷ đơn" })).toBeDisabled();
     });
 
-    it("đơn đã thu tiền → nhập % giữ lại, gửi retainedPercent", async () => {
+    it("đơn đã thu tiền → nhập % giữ lại thập phân, gửi retainedPercent", async () => {
       const user = userEvent.setup();
       await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => ({
         ...withStatus("IN_PRODUCTION"),
@@ -205,13 +205,16 @@ describe(
       // docs 19 BR-10: huỷ khi đang sản xuất có thể tính phí
       expect(within(dialog).getByText(/tính phí sản xuất/)).toBeInTheDocument();
       await pickOrderSelectOption(user, /Lý do huỷ/, "Khách yêu cầu");
-      await user.type(within(dialog).getByLabelText(/Giữ lại/), "25");
+      const retained = within(dialog).getByLabelText(/Giữ lại/);
+      // BE nhận BigDecimal → 25.5% hợp lệ; validation gốc của trình duyệt (step) không được chặn submit
+      await user.type(retained, "25.5");
+      expect(retained).toBeValid();
       await user.click(within(dialog).getByRole("button", { name: "Huỷ đơn" }));
 
       await waitFor(() =>
         expect(post).toHaveBeenCalledWith(CANCEL_PATH, {
           reasonCode: "CUSTOMER_REQUEST",
-          retainedPercent: 25,
+          retainedPercent: 25.5,
         }),
       );
     });

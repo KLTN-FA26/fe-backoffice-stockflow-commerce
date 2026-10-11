@@ -5,6 +5,8 @@
  * Thứ tự kiểm + mã lỗi chép theo BE develop: OrderReleaseService, CreditHoldService.
  */
 
+import { ORDER_LIMITS } from "@/constants";
+
 import { paginatePage, registerMockRoute } from "./mock-adapter";
 import {
   applyTransition,
@@ -52,6 +54,23 @@ function readNote(body: Record<string, unknown>): string {
 }
 
 const NOTE_REQUIRED = [{ field: "note", message: "note is required", code: "NotBlank" }];
+const DEPOSIT_PERCENT_INVALID = [
+  { field: "depositPercent", message: "must be between 0 and 100 (exclusive)", code: "Range" },
+];
+const INVALID = Symbol("invalid");
+
+/**
+ * BE CreditRefusalRequest.depositPercent: tuỳ chọn (bỏ trống = mặc định của khách), có thì
+ * 0 < x < 100 (biên mở) — cùng giới hạn với `ORDER_LIMITS.depositPercent*`.
+ */
+function readDepositPercent(body: Record<string, unknown>): number | undefined | typeof INVALID {
+  const value = body.depositPercent;
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== "number" || !Number.isFinite(value)) return INVALID;
+  return value > ORDER_LIMITS.depositPercentMin && value < ORDER_LIMITS.depositPercentMax
+    ? value
+    : INVALID;
+}
 
 function registerReleaseRoute(): void {
   // POST /orders/:id/release {warehouseId} — BE OrderReleaseService#release
@@ -151,9 +170,14 @@ function registerCreditRoutes(): void {
       case "SWITCH_TO_PREPAID":
         applyTransition(order, "PENDING_PAYMENT", note, { paymentTerm: "PREPAID" });
         break;
-      case "SWITCH_TO_DEPOSIT":
-        applyTransition(order, "PENDING_PAYMENT", note, { paymentTerm: "DEPOSIT" });
+      case "SWITCH_TO_DEPOSIT": {
+        const depositPercent = readDepositPercent(body);
+        if (depositPercent === INVALID) {
+          return error(400, "VALIDATION_FAILED", "Invalid request data", DEPOSIT_PERCENT_INVALID);
+        }
+        applyTransition(order, "PENDING_PAYMENT", note, { paymentTerm: "DEPOSIT", depositPercent });
         break;
+      }
       default:
         return error(400, "MALFORMED_REQUEST", "Unknown refusal action");
     }

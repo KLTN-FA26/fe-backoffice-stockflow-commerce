@@ -106,7 +106,7 @@ describe("Credit hold — duyệt / từ chối", { timeout: DIALOG_FLOW_TIMEOUT
     );
   });
 
-  it("từ chối chuyển cọc: % ngoài (0,100) báo lỗi; hợp lệ → body {action, depositPercent, note}", async () => {
+  it("từ chối chuyển cọc: % ngoài (0,100) báo lỗi; % thập phân hợp lệ → body {action, depositPercent, note}", async () => {
     const user = userEvent.setup();
     renderList(ORDER_PERMISSION_SETS.accountant);
     const post = vi.spyOn(api, "post").mockResolvedValue({
@@ -124,14 +124,16 @@ describe("Credit hold — duyệt / từ chối", { timeout: DIALOG_FLOW_TIMEOUT
     ).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Từ chối" })).toBeDisabled();
 
+    // BE nhận BigDecimal → 30.5% hợp lệ; validation gốc của trình duyệt (step) không được chặn submit
     await user.clear(percent);
-    await user.type(percent, "30");
+    await user.type(percent, "30.5");
+    expect(percent).toBeValid();
     await user.click(within(dialog).getByRole("button", { name: "Từ chối" }));
 
     await waitFor(() =>
       expect(post).toHaveBeenCalledWith(REJECT_PATH, {
         action: "SWITCH_TO_DEPOSIT",
-        depositPercent: 30,
+        depositPercent: 30.5,
         note: "Chuyển cọc",
       }),
     );

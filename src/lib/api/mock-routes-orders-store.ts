@@ -79,8 +79,19 @@ function deriveTerm(order: Order): BePaymentTerm {
   return "PREPAID";
 }
 
-/** ASSUMPTION (mock-only): BE chưa chốt % cọc mặc định (D13) — giả lập 30%. */
-const MOCK_DEPOSIT_RATIO = 0.3;
+/**
+ * ASSUMPTION (mock-only): BE chưa chốt % cọc mặc định (D13) — giả lập 30%. Chỉ dùng khi đơn
+ * không có % cọc riêng (từ chối công nợ bỏ trống `depositPercent` = mặc định của khách).
+ */
+const MOCK_DEFAULT_DEPOSIT_PERCENT = 30;
+
+/** Làm tròn theo đơn vị nhỏ nhất của tiền tệ (VND 0 số lẻ, USD 2) — như BE scale theo currency. */
+export function roundMoney(amount: number, currency: string): number {
+  const digits = new Intl.NumberFormat("en", { style: "currency", currency }).resolvedOptions()
+    .maximumFractionDigits;
+  const factor = 10 ** (digits ?? 0);
+  return Math.round(amount * factor) / factor;
+}
 
 export interface MockHistoryEntry {
   from: BeOrderStatus | null;
@@ -92,6 +103,8 @@ export interface MockHistoryEntry {
 interface OrderOverride {
   status?: BeOrderStatus;
   paymentTerm?: BePaymentTerm;
+  /** % cọc chốt khi từ chối công nợ → đặt cọc (BE CreditRefusalRequest.depositPercent). */
+  depositPercent?: number;
   warehouseId?: string;
   releasedAt?: string;
   cancellation?: { reasonCode: string; reason: string | null; retainedAmount: number };
@@ -201,7 +214,13 @@ export function toOrderResponse(order: Order) {
     warehouseId: released,
     releasedAt: override?.releasedAt ?? null,
     paidAmount: order.amountPaid,
-    depositRequired: term === "DEPOSIT" ? Math.round(order.grandTotal * MOCK_DEPOSIT_RATIO) : null,
+    depositRequired:
+      term === "DEPOSIT"
+        ? roundMoney(
+            (order.grandTotal * (override?.depositPercent ?? MOCK_DEFAULT_DEPOSIT_PERCENT)) / 100,
+            order.currency,
+          )
+        : null,
     depositReceivedAt:
       term === "DEPOSIT" && order.amountPaid > 0 ? (order.confirmedAt ?? order.placedAt) : null,
     paidInFullAt: order.amountPaid >= order.grandTotal ? (order.confirmedAt ?? null) : null,

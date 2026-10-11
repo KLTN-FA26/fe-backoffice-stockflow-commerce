@@ -36,6 +36,11 @@ export const ORDER_LIMITS = {
   /** BE `CreditRefusalRequest.depositPercent` — 0 < x < 100 (biên mở). */
   depositPercentMin: 0,
   depositPercentMax: 100,
+  /**
+   * `step` của ô nhập %: BE nhận BigDecimal (không ép số nguyên, không giới hạn scale) và zod
+   * cũng chấp nhận số thập phân → "any" để validation gốc của trình duyệt không chặn 30.5%.
+   */
+  percentInputStep: "any",
 } as const;
 
 /** Giới hạn phiếu nhận — đúng ràng buộc request BE goods receipt (PR #62, SCRUM-435). */

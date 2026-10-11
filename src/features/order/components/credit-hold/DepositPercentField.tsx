@@ -1,3 +1,5 @@
+import { ORDER_LIMITS } from "@/constants";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -20,6 +22,7 @@ export function DepositPercentField({ registration, error }: DepositPercentField
       <Input
         id="credit-reject-deposit"
         type="number"
+        step={ORDER_LIMITS.percentInputStep}
         inputMode="decimal"
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? "credit-reject-deposit-error" : undefined}

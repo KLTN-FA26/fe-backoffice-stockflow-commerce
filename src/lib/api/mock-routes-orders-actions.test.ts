@@ -119,6 +119,36 @@ describe("credit hold (SCRUM-427)", () => {
     expect(order.paymentTerm).toBe("DEPOSIT");
   });
 
+  it("SWITCH_TO_DEPOSIT 50% → chi tiết đơn trả cọc đúng 50% (không về mặc định 30%)", async () => {
+    await rejectCreditHold({
+      id: CREDIT_ON_HOLD,
+      action: "SWITCH_TO_DEPOSIT",
+      depositPercent: 50,
+      note: "Khách cọc nửa",
+    });
+    const detail = await getOrder(CREDIT_ON_HOLD);
+    expect(detail.depositRequired).toBe(Math.round(detail.totalAmount * 0.5));
+  });
+
+  it("SWITCH_TO_DEPOSIT bỏ trống % → dùng % cọc mặc định của mock (30%)", async () => {
+    await rejectCreditHold({ id: CREDIT_ON_HOLD, action: "SWITCH_TO_DEPOSIT", note: "Mặc định" });
+    const detail = await getOrder(CREDIT_ON_HOLD);
+    expect(detail.depositRequired).toBe(Math.round(detail.totalAmount * 0.3));
+  });
+
+  it("SWITCH_TO_DEPOSIT % ngoài (0, 100) → VALIDATION_FAILED, đơn vẫn On Hold", async () => {
+    const error = await captureError(
+      rejectCreditHold({
+        id: CREDIT_ON_HOLD,
+        action: "SWITCH_TO_DEPOSIT",
+        depositPercent: 100,
+        note: "Sai",
+      }),
+    );
+    expect(error.code).toBe("VALIDATION_FAILED");
+    expect((await getOrder(CREDIT_ON_HOLD)).status).toBe("On Hold");
+  });
+
   it("từ chối CANCEL → Cancelled với lý do CREDIT_REJECTED", async () => {
     const order = await rejectCreditHold({ id: CREDIT_ON_HOLD, action: "CANCEL", note: "Quá hạn" });
     expect(order.status).toBe("Cancelled");
