@@ -98,6 +98,16 @@ export const PRODUCTION_ORDER_MODE_LABELS = {
   SUBCONTRACTED: "Gia công ngoài",
 } as const satisfies Record<ProductionOrderMode, string>;
 
+/** Ràng buộc DB `production_orders.hold_reason` (docs 19 §5.1 — lý do treo lệnh). */
+export const PRODUCTION_HOLD_REASON_LABELS: Record<string, string> = {
+  FILE_REJECTED: "File in lỗi",
+  BLANKS_SHORT: "Thiếu phôi",
+  MACHINE_DOWN: "Máy hỏng",
+  WAITING_CUSTOMER: "Chờ khách",
+  SUBCONTRACTOR_LATE: "Nhà gia công trễ",
+  OTHER: "Khác",
+};
+
 export type OrderPaymentTerm = (typeof ORDER_PAYMENT_TERMS)[number];
 export type OrderPaymentStatus = (typeof ORDER_PAYMENT_STATUSES)[number];
 export type OrderCancellationReasonCode = (typeof ORDER_CANCELLATION_REASON_CODES)[number];

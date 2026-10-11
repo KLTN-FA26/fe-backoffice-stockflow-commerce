@@ -11,7 +11,8 @@ import { formatDateTime } from "@/lib/format/date";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { PageHeader } from "@/components/shared/PageHeader";
 
-import { useOrder } from "../queries";
+import { useOrder, useOrderProductionOrders } from "../queries";
+import { customLineCount, groupProductionOrdersByLine } from "../selectors";
 
 import { OrderActionCard } from "./OrderActionCard";
 import { OrderFinanceCard } from "./OrderFinanceCard";
@@ -19,6 +20,7 @@ import { OrderInfoCard } from "./OrderInfoCard";
 import { OrderLines } from "./OrderLines";
 import { OrderLoadError } from "./OrderLoadError";
 import { OrderPermissionGate } from "./OrderPermissionGate";
+import { LineProductionOrdersView, ProductionStatusNotice } from "./OrderProductionOrders";
 import { OrderStatusHistory } from "./OrderStatusHistory";
 import { OrderDetailSkeleton } from "./OrderSkeletons";
 
@@ -40,6 +42,9 @@ function OrderDetailContent({ id }: { id: string }) {
   // READ = đọc dữ liệu (tách khỏi VIEW_PAGE mở trang — BE ADR-0004): thiếu thì không gọi API
   const canRead = can(ORDER_PERMISSIONS.read);
   const query = useOrder(id, { enabled: canRead });
+  // Lệnh sản xuất chỉ có với dòng in (docs 19 BR-01) — đơn chỉ hàng sẵn không gọi API
+  const hasCustomLines = !!query.data && customLineCount(query.data) > 0;
+  const production = useOrderProductionOrders(id, { enabled: canRead && hasCustomLines });
   // Breadcrumb hiện mã đơn (SO-…) thay vì orderId (UUID của BE), như NCC
   useBreadcrumbLabel(id, query.data?.orderNumber);
 
@@ -59,6 +64,12 @@ function OrderDetailContent({ id }: { id: string }) {
   }
 
   const order = query.data;
+  const productionByLine = groupProductionOrdersByLine(production.data ?? []);
+  const productionState = production.isError
+    ? "unavailable"
+    : production.isPending
+      ? "loading"
+      : "ready";
   const subtitle = [order.recipientName, formatDateTime(order.placedAt)]
     .filter(Boolean)
     .join(" · ");
@@ -80,7 +91,17 @@ function OrderDetailContent({ id }: { id: string }) {
 
       <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
         <div className="min-w-0 space-y-5">
-          <OrderLines lines={order.lines} currency={order.currency} />
+          <ProductionStatusNotice query={production} />
+          <OrderLines
+            lines={order.lines}
+            currency={order.currency}
+            renderCustomLineExtra={(line) => (
+              <LineProductionOrdersView
+                entry={productionByLine.get(line.lineId)}
+                state={productionState}
+              />
+            )}
+          />
           <OrderStatusHistory orderId={order.orderId} />
         </div>
 
