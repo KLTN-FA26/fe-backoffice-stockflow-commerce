@@ -19,6 +19,7 @@ import { OrderInfoCard } from "./OrderInfoCard";
 import { OrderLines } from "./OrderLines";
 import { OrderLoadError } from "./OrderLoadError";
 import { OrderPermissionGate } from "./OrderPermissionGate";
+import { OrderStatusHistory } from "./OrderStatusHistory";
 import { OrderDetailSkeleton } from "./OrderSkeletons";
 
 interface OrderDetailProps {
@@ -78,7 +79,10 @@ function OrderDetailContent({ id }: { id: string }) {
       />
 
       <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
-        <OrderLines lines={order.lines} currency={order.currency} />
+        <div className="min-w-0 space-y-5">
+          <OrderLines lines={order.lines} currency={order.currency} />
+          <OrderStatusHistory orderId={order.orderId} />
+        </div>
 
         <div className="space-y-5">
           <OrderActionCard order={order} can={can} />
