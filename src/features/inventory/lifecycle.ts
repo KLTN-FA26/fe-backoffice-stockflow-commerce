@@ -34,7 +34,7 @@ export function allowedAdjustmentActions(
   roles: readonly RoleName[],
   userId: string | undefined,
   requestedBy: string,
-) {
+): Array<(typeof STOCK_ADJUSTMENT_ACTION)[keyof typeof STOCK_ADJUSTMENT_ACTION]> {
   if (status !== STOCK_ADJUSTMENT_STATUS.PENDING_APPROVAL || !userId) return [];
   if (userId === requestedBy) {
     return canRequestAdjustment(roles) ? [STOCK_ADJUSTMENT_ACTION.WITHDRAW] : [];

@@ -1,0 +1,54 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render } from "@testing-library/react";
+import { NuqsTestingAdapter } from "nuqs/adapters/testing";
+
+import { useAuthStore } from "@/lib/auth/auth-store";
+
+import { stockAdjustmentDto } from "./schemas";
+
+import type { ReactNode } from "react";
+import type { RoleName } from "@/lib/auth/roles";
+import type { StockAdjustment } from "./types";
+
+// Generated test-only fixtures follow pinned StockAdjustmentResponse; they are
+// never registered as demo records or imported by production components.
+export function adjustmentFixture(overrides: Partial<StockAdjustment> = {}) {
+  return stockAdjustmentDto.parse({
+    adjustmentId: crypto.randomUUID(),
+    number: "TEST-ADJUSTMENT",
+    locationCode: "HCM-A01-1-A",
+    sku: "CUP-PP-500",
+    quantityDelta: -3,
+    reason: "SCRAP",
+    status: "PENDING_APPROVAL",
+    requestedBy: crypto.randomUUID(),
+    requestedAt: "2026-10-11T00:00:00Z",
+    version: 0,
+    ...overrides,
+  });
+}
+
+export function setInventoryTestActor(role: RoleName, userId = crypto.randomUUID()) {
+  useAuthStore.setState({
+    user: {
+      userId,
+      fullName: "Test actor",
+      email: "actor@example.test",
+      roles: [role],
+      warehouseIds: [],
+    },
+    impersonatedRole: null,
+  });
+  return userId;
+}
+
+export function renderInventory(ui: ReactNode, searchParams = "") {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return render(
+    <NuqsTestingAdapter searchParams={searchParams} hasMemory>
+      <QueryClientProvider client={client}>{ui}</QueryClientProvider>
+    </NuqsTestingAdapter>,
+  );
+}

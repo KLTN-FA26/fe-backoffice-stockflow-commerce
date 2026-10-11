@@ -7,12 +7,16 @@
  * (CLAUDE.md + FRONTEND-AI-RULES.md §6.1)
  */
 
-import type { SemanticTone } from "@/lib/mock-data";
+import { STOCK_ADJUSTMENT_STATUS } from "@/constants/statuses";
+
+import type { SemanticTone, StatusDomain } from "@/lib/mock-data";
 
 export type { SemanticTone };
 
 const TONE: Record<SemanticTone, readonly string[]> = {
   positive: [
+    // Stock adjustment (BE StockAdjustmentStatus, SCRUM-424)
+    STOCK_ADJUSTMENT_STATUS.POSTED,
     "DELIVERED",
     "CONFIRMED",
     "RECEIVED",
@@ -72,6 +76,11 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Initiated",
     // Order — BE IN_FULFILMENT (picking/packing/sản xuất gộp làm 1). FE order khớp BE.
     "In Fulfilment",
+    // docs 19 §5.1 — lệnh sản xuất đang tiến hành
+    "Material Issued",
+    "QC",
+    // BE PaymentStatus.ON_CREDIT (order/api/PaymentStatus.java) — đơn công nợ, chưa thu
+    "On Credit",
   ],
   warning: [
     "RETRYING",
@@ -136,6 +145,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Guest",
     "New",
     "Requested",
+    // docs 19 §5.1 — lệnh sản xuất vừa sinh, chờ kiểm file in
+    "Pending Prepress",
   ],
   muted: [
     "UNKNOWN",
@@ -143,6 +154,7 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     // BE #36 cancellationDeliveryStatus: PO huỷ trước khi gửi NCC → không cần báo huỷ.
     "NOT_REQUIRED",
     "CLOSED",
+    STOCK_ADJUSTMENT_STATUS.WITHDRAWN,
     "Closed",
     "Inactive",
     "Hidden",
@@ -160,7 +172,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     // QC dòng nhận — SKU không bật cờ Yêu cầu QC, đi luồng 2 bước (docs 03 §5.2)
     "Not Required",
   ],
-  special: ["Refunded", "Partially Refunded", "In Production"],
+  // Lệnh sản xuất (docs 19 §5.1): in nội bộ / gia công ngoài là sản xuất → special.
+  special: ["Refunded", "Partially Refunded", "In Production", "Printing", "Subcontracted"],
 };
 
 /** Thứ tự ưu tiên khi status trùng nhiều tone (CLAUDE.md). */
@@ -208,6 +221,10 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   PENDING: "Đang chờ",
   CONFIRMED: "Đã xác nhận",
   REJECTED: "NCC từ chối",
+  // Stock adjustment (SCRUM-424). PENDING_APPROVAL dùng chung nhãn ở trên; REJECTED ghi đè theo
+  // domain ở STATUS_LABEL_VI_BY_DOMAIN vì nhãn chung là của phản hồi NCC.
+  [STOCK_ADJUSTMENT_STATUS.POSTED]: "Đã ghi sổ",
+  [STOCK_ADJUSTMENT_STATUS.WITHDRAWN]: "Đã rút yêu cầu",
   // Positive
   Confirmed: "Đã xác nhận",
   Approved: "Đã duyệt",
@@ -330,4 +347,27 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   // Special
   Refunded: "Đã hoàn tiền",
   "Partially Refunded": "Hoàn tiền một phần",
+  // Lệnh sản xuất (docs 19 §5.1)
+  "Pending Prepress": "Chờ kiểm file in",
+  "Material Issued": "Đã cấp phôi",
+  Printing: "Đang in",
+  QC: "Đang kiểm thành phẩm",
+  Subcontracted: "Đang gia công ngoài",
+  // Thanh toán đơn (BE PaymentStatus)
+  "On Credit": "Ghi công nợ",
 };
+
+/**
+ * Nhãn ghi đè theo domain khi cùng một wire value mang nghĩa khác nhau giữa các module
+ * (vd REJECTED: PO = "NCC từ chối", điều chỉnh tồn = "Từ chối"). Tone không đổi.
+ */
+const STATUS_LABEL_VI_BY_DOMAIN: Partial<Record<StatusDomain, Record<string, string>>> = {
+  stock: {
+    [STOCK_ADJUSTMENT_STATUS.REJECTED]: "Từ chối",
+  },
+};
+
+/** Nhãn tiếng Việt của status, ưu tiên nhãn riêng của domain nếu có. */
+export function statusLabelVi(status: string, domain?: StatusDomain): string | undefined {
+  return (domain && STATUS_LABEL_VI_BY_DOMAIN[domain]?.[status]) ?? STATUS_LABEL_VI[status];
+}
