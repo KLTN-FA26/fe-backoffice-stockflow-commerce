@@ -289,7 +289,28 @@ export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
 export type ProposalStatus = (typeof PROPOSAL_STATUSES)[number];
 export type SkuStatus = (typeof SKU_STATUSES)[number];
 export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
+export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
+export type ProposalStatus = (typeof PROPOSAL_STATUSES)[number];
+export type SkuStatus = (typeof SKU_STATUSES)[number];
+export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 export type SupplierStatus = (typeof SUPPLIER_STATUSES)[number];
 export type SupplierApiStatus = (typeof SUPPLIER_API_STATUSES)[number];
 export type SupplierChannel = (typeof SUPPLIER_CHANNELS)[number];
+
+// Backend StockAdjustmentStatus (SCRUM-424); preserve wire values.
+export const STOCK_ADJUSTMENT_STATUSES = [
+  "PENDING_APPROVAL",
+  "POSTED",
+  "REJECTED",
+  "WITHDRAWN",
+] as const;
+
+export const STOCK_ADJUSTMENT_STATUS = {
+  PENDING_APPROVAL: "PENDING_APPROVAL",
+  POSTED: "POSTED",
+  REJECTED: "REJECTED",
+  WITHDRAWN: "WITHDRAWN",
+} as const satisfies Record<string, StockAdjustmentStatus>;
+
+export type StockAdjustmentStatus = (typeof STOCK_ADJUSTMENT_STATUSES)[number];

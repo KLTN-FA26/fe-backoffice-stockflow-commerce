@@ -54,6 +54,41 @@ filters, adjustment statuses/actions, threshold definition and approval policy,
 stock quantity/lot/location semantics, count snapshot/count/review/post lifecycle,
 posting atomicity/idempotency, and the resulting adjustment references.
 
+### A1 upstream contract discovery
+
+Connected GitHub access located the authoritative source repositories after A0:
+
+- Business modules: `KLTN-FA26/docs` at
+  `84b8b54df2551bfd4a6daedfa70587831791f72b` (00, 06, 11 and 19).
+- Backend: `KLTN-FA26/be-backoffice-stockflow-commerce` develop at
+  `1de8f42612be534539d98bbcf105d8b39c6d74a3`.
+- F-CNT: backend `docs/business-design/04c-all-flows.md`, together with
+  `05-business-rules.md` / BR-STK-005.
+- Wire types/actions: `StockOperationsController`, `StockAdjustmentResponse`,
+  `StockMovementResponse`, `RequestAdjustmentRequest`, `RejectAdjustmentRequest`,
+  `StockAdjustment`, `AdjustmentStatus`, and `StockMovement`.
+
+The implemented API prefix is `/api/v1/inventory`; successful responses use
+`{ success: true, data: ... }`. PageResponse uses zero-based `page`, `size`,
+`totalElements`, `totalPages`, `hasNext` and `hasPrevious`.
+
+**Acceptance gaps escalated to the coordinator:** movement filtering currently
+supports only SKU/location/type, with no date query. MovementType exposes RECEIPT,
+MOVE, ADJUSTMENT and TRANSFER_OUT, without a production-issue type. Manual reasons
+are DAMAGED, LOST, FOUND, EXPIRED, DATA_CORRECTION, SCRAP, SAMPLE and OTHER;
+DAMAGE and SUBCONTRACT_LOSS are not supported. Every manual request enters
+PENDING_APPROVAL and a different actor approves/posts or rejects; the requester
+may withdraw. POSTED/REJECTED/WITHDRAWN are terminal. No configurable threshold or
+approval tier is exposed in this contract; the frontend cannot manufacture one.
+
+Backend `docs/SCRUM-146-147-298-split-handoff.md` confirms count code was removed,
+and calls out unresolved blind-count/data-scope/four-eyes/reservation-shortage/
+staleness/idempotent-post gates. It is a recovery reference, not an agreed REST
+contract. The original coordinator question remains pending for that contract.
+
+A1 adds inventory-local envelope/error adaptation and warehouse-aware query keys.
+No shared axios/query factory or existing feature API behavior is changed.
+
 ## Proposed coherent checkpoints
 
 1. **A1 inventory domain/API contracts:** transcribe supplied contracts into
