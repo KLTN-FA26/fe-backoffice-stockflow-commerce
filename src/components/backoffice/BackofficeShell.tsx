@@ -34,6 +34,8 @@ import {
   ADMIN_ROUTES,
   APP_ROUTES,
   BRAND,
+  FULFILLMENT_PACKAGE_PERMISSIONS,
+  FULFILLMENT_PICK_PERMISSIONS,
   GOODS_RECEIPT_PERMISSIONS,
   ORDER_PERMISSIONS,
   PO_PERMISSIONS,
@@ -47,8 +49,6 @@ import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
 import {
   invoices,
   moveTasks,
-  packingTasks,
-  pickTasks,
   purchaseOrders,
   putawayTasks,
   shipments,
@@ -89,8 +89,6 @@ const WARNING_STATUSES: Record<string, string[]> = {
   "/admin/purchase-orders": ["Pending Approval"],
   "/admin/invoices": ["Exception", "Disputed"],
   "/admin/putaway": ["On Hold"],
-  "/admin/picking": ["Short", "On Hold"],
-  "/admin/packing": ["Verification Failed", "On Hold"],
   "/admin/shipments": ["Exception", "Delivery Failed"],
   "/admin/transfers": ["Partially Received"],
   "/admin/moves": ["On Hold", "Discrepancy"],
@@ -106,12 +104,6 @@ function computeWarningCounts(): Record<string, number> {
   ).length;
   counts["/admin/putaway"] = putawayTasks.filter((pt) =>
     WARNING_STATUSES["/admin/putaway"]!.includes(pt.status),
-  ).length;
-  counts["/admin/picking"] = pickTasks.filter((pk) =>
-    WARNING_STATUSES["/admin/picking"]!.includes(pk.status),
-  ).length;
-  counts["/admin/packing"] = packingTasks.filter((pa) =>
-    WARNING_STATUSES["/admin/packing"]!.includes(pa.status),
   ).length;
   counts["/admin/shipments"] = shipments.filter((sh) =>
     WARNING_STATUSES["/admin/shipments"]!.includes(sh.status),
@@ -259,8 +251,20 @@ const NAV_GROUPS: NavGroup[] = [
         icon: ClipboardList,
         permission: ORDER_PERMISSIONS.viewPage,
       },
-      { label: "Lấy hàng", tooltip: "Picking", href: "/admin/picking", icon: WarehouseIcon },
-      { label: "Đóng gói", tooltip: "Packing", href: "/admin/packing", icon: PackageCheck },
+      {
+        label: "Lấy hàng",
+        tooltip: "Picking",
+        href: ADMIN_ROUTES.picking.list,
+        icon: WarehouseIcon,
+        permission: FULFILLMENT_PICK_PERMISSIONS.viewPage,
+      },
+      {
+        label: "Đóng gói",
+        tooltip: "Packing",
+        href: ADMIN_ROUTES.packing.list,
+        icon: PackageCheck,
+        permission: FULFILLMENT_PACKAGE_PERMISSIONS.viewPage,
+      },
       { label: "Vận đơn", tooltip: "Shipments", href: "/admin/shipments", icon: Truck },
     ],
   },
