@@ -9,9 +9,9 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 
+import { adminCancelOrderSchema } from "../action-schemas";
 import { adminCancelErrorView } from "../errors";
 import { useAdminCancelOrder } from "../mutations";
-import { adminCancelOrderSchema } from "../schemas";
 import { orderKeys } from "../queries";
 
 import type { Order } from "../types";
@@ -21,7 +21,7 @@ interface OrderCancelActionProps {
 }
 
 /** Lỗi cho thấy dữ liệu trên màn đã cũ (đơn đã đổi trạng thái / không còn trong phạm vi). */
-const STALE_ERROR_CODES: readonly string[] = ["CONFLICT", "NOT_FOUND"];
+const STALE_ERROR_CODES: readonly string[] = ["ORDER_NOT_CANCELLABLE", "CONFLICT", "NOT_FOUND"];
 
 /**
  * Nút "Huỷ đơn" + dialog bắt buộc lý do. Hiện hay không do `allowedOrderActions` quyết.
@@ -68,22 +68,20 @@ export function OrderCancelAction({ order }: OrderCancelActionProps) {
         description={`Huỷ đơn ${order.orderNumber}? Hành động này không thể hoàn tác.`}
         requireReason
         reasonLabel="Lý do huỷ"
-        reasonMaxLength={ORDER_LIMITS.cancelReasonMax}
+        reasonMaxLength={ORDER_LIMITS.cancelNoteMax}
         variant="danger"
         confirmLabel="Huỷ đơn"
         loading={isPending}
         closeOnConfirm={false}
         onConfirm={(reason) => {
-          // Validate bằng Input schema (trim, bắt buộc, ≤ 500) trước khi gửi
-          const parsed = adminCancelOrderSchema.safeParse({ reason });
+          // Tạm thời (tới B7 — chọn mã lý do): lý do tự do gửi dạng reasonCode OTHER + note,
+          // đúng hợp đồng BE AdminCancelOrderRequest (OTHER bắt buộc có note).
+          const parsed = adminCancelOrderSchema.safeParse({ reasonCode: "OTHER", note: reason });
           if (!parsed.success) {
             toast.error(UI_LABELS.order.cancelFailedTitle, parsed.error.issues[0]?.message);
             return;
           }
-          adminCancel(
-            { id: order.orderId, reason: parsed.data.reason },
-            { onSuccess: () => setOpen(false) },
-          );
+          adminCancel({ id: order.orderId, ...parsed.data }, { onSuccess: () => setOpen(false) });
         }}
       />
     </>

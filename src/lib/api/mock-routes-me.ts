@@ -8,6 +8,7 @@
  */
 
 import {
+  CREDIT_HOLD_PERMISSIONS,
   GOODS_RECEIPT_PERMISSIONS,
   ORDER_PERMISSIONS,
   PO_PERMISSIONS,
@@ -22,11 +23,15 @@ const ALL_PO = Object.values(PO_PERMISSIONS);
 const { viewPage, read, create, update, export: exportCode } = SUPPLIER_PERMISSIONS;
 const PO = PO_PERMISSIONS;
 
-// Seed BE V20260903000100: chỉ ORDER_COORDINATOR có sales-orders:APPROVE ("System Admin" là
-// role mock-only, được toàn quyền như NCC).
-// SALES_STAFF: VIEW_PAGE/READ/CREATE/UPDATE; ORDER_COORDINATOR: thêm APPROVE (huỷ đơn admin).
-const ORDER_VIEW = [ORDER_PERMISSIONS.viewPage, ORDER_PERMISSIONS.read];
-const ORDER_ALL = Object.values(ORDER_PERMISSIONS);
+// Seed BE develop ("System Admin" là role mock-only, được toàn quyền như NCC):
+// - V20260903000100: sales-orders APPROVE (release) chỉ ORDER_COORDINATOR.
+// - V20261013000200: sales-order-cancellations:UPDATE cho SALES_STAFF + ORDER_COORDINATOR.
+// - V20261013000400: sales-order-credit-holds APPROVE chỉ ACCOUNTANT; Sales/Coordinator chỉ xem.
+const ORDER = ORDER_PERMISSIONS;
+const CREDIT_VIEW = [CREDIT_HOLD_PERMISSIONS.viewPage, CREDIT_HOLD_PERMISSIONS.read];
+const ORDER_SALES = [ORDER.viewPage, ORDER.read, ORDER.cancel, ...CREDIT_VIEW];
+const ORDER_ALL = [...Object.values(ORDER_PERMISSIONS), ...CREDIT_VIEW];
+const CREDIT_ALL = Object.values(CREDIT_HOLD_PERMISSIONS);
 
 // Seed BE V20260903000100: goods-receipts VIEW_PAGE/READ/CREATE/UPDATE cho WAREHOUSE_STAFF,
 // WAREHOUSE_MANAGER, PROCUREMENT_STAFF; QC_STAFF chỉ VIEW_PAGE/READ + qc-tasks:APPROVE.
@@ -37,10 +42,10 @@ const GR_WORK = [GR.viewPage, GR.read, GR.create, GR.update];
 const ALL_GR_QC = [...Object.values(GR), ...Object.values(QC)];
 
 const MOCK_PERMISSIONS_BY_ROLE: Record<string, readonly string[]> = {
-  "System Admin": [...ALL_SUPPLIER, ...ALL_PO, ...ORDER_ALL, ...ALL_GR_QC],
+  "System Admin": [...ALL_SUPPLIER, ...ALL_PO, ...ORDER_ALL, ...CREDIT_ALL, ...ALL_GR_QC],
   "E-commerce Admin": ALL_SUPPLIER,
   "Order Coordinator": ORDER_ALL,
-  "Sales Staff": ORDER_VIEW,
+  "Sales Staff": ORDER_SALES,
   // Seed BE: PROCUREMENT_STAFF — NCC: VIEW_PAGE, READ, CREATE, UPDATE, EXPORT (không DELETE);
   // PO: VIEW_PAGE, READ, CREATE, UPDATE, EXPORT (không APPROVE).
   "Procurement Staff": [
@@ -62,7 +67,7 @@ const MOCK_PERMISSIONS_BY_ROLE: Record<string, readonly string[]> = {
   "Warehouse Manager": [PO.viewPage, PO.read, PO.approve, ...GR_WORK],
   "Warehouse Staff": GR_WORK,
   "QC Staff": [GR.viewPage, GR.read, QC.viewPage, QC.read, QC.approve],
-  Accountant: [viewPage, read],
+  Accountant: [viewPage, read, ...CREDIT_ALL],
 };
 
 export function registerMeMockRoutes(): void {

@@ -35,15 +35,20 @@ const withStatus = (status: OrderDto["status"]): OrderDto => ({ ...apiOrder, sta
 afterEach(() => vi.restoreAllMocks());
 
 describe("OrderDetail — action-gating theo mã quyền + trạng thái BE", () => {
-  it("ORDER_COORDINATOR (sales-orders:APPROVE) + PENDING_PAYMENT → có nút Huỷ đơn", async () => {
+  it("ORDER_COORDINATOR (sales-order-cancellations:UPDATE) + PENDING_PAYMENT → có nút Huỷ đơn", async () => {
     await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => apiOrder);
 
     expect(await screen.findByRole("heading", { name: apiOrder.orderNumber })).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Huỷ đơn" })).toBeInTheDocument();
   });
 
-  it("SALES_STAFF (không có APPROVE) → không có nút Huỷ đơn", async () => {
+  it("SALES_STAFF (sales-order-cancellations:UPDATE, BE V20261013000200) → có nút Huỷ đơn", async () => {
     await renderDetail(ORDER_PERMISSION_SETS.salesStaff, () => apiOrder);
+    expect(await screen.findByRole("button", { name: "Huỷ đơn" })).toBeInTheDocument();
+  });
+
+  it("chỉ có quyền đọc (không có sales-order-cancellations:UPDATE) → không có nút Huỷ đơn", async () => {
+    await renderDetail(ORDER_PERMISSION_SETS.readOnly, () => apiOrder);
 
     await screen.findByRole("heading", { name: apiOrder.orderNumber });
     await waitFor(() =>
@@ -112,8 +117,8 @@ describe("OrderDetail — action-gating theo mã quyền + trạng thái BE", ()
 });
 
 describe("OrderDetail — card thao tác giải thích khi không có nút", () => {
-  it("SALES_STAFF → 'Bạn chỉ có quyền xem đơn hàng.'", async () => {
-    await renderDetail(ORDER_PERMISSION_SETS.salesStaff, () => apiOrder);
+  it("chỉ quyền đọc → 'Bạn chỉ có quyền xem đơn hàng.'", async () => {
+    await renderDetail(ORDER_PERMISSION_SETS.readOnly, () => apiOrder);
     expect(await screen.findByText("Bạn chỉ có quyền xem đơn hàng.")).toBeInTheDocument();
   });
 
@@ -131,9 +136,10 @@ describe("OrderDetail — card thao tác giải thích khi không có nút", () 
 });
 
 describe("OrderDetail — luồng huỷ đơn", () => {
-  it("nhập lý do + Ctrl+Enter → POST admin-cancellation với lý do đã trim, đóng dialog", async () => {
+  it("nhập lý do + Ctrl+Enter → POST admin-cancellation {reasonCode OTHER, note đã trim}, đóng dialog", async () => {
     await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => apiOrder);
-    const post = vi.spyOn(api, "post").mockResolvedValue({ data: null });
+    // BE trả OrderResponse đã CANCELLED
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: withStatus("CANCELLED") });
 
     await userEvent.click(await screen.findByRole("button", { name: "Huỷ đơn" }));
     await userEvent.type(
@@ -141,7 +147,9 @@ describe("OrderDetail — luồng huỷ đơn", () => {
       "  Khách đổi ý  {Control>}{Enter}{/Control}",
     );
 
-    await waitFor(() => expect(post).toHaveBeenCalledWith(CANCEL_PATH, { reason: "Khách đổi ý" }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(CANCEL_PATH, { reasonCode: "OTHER", note: "Khách đổi ý" }),
+    );
     await waitFor(() => expect(screen.queryByLabelText(/Lý do huỷ/)).not.toBeInTheDocument());
   });
 

@@ -9,7 +9,7 @@
 
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { adminCancelOrder, getOrder, listOrders } from "@/features/order/api";
+import { adminCancelOrder, getOrder, getOrderHistory, listOrders } from "@/features/order/api";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { orders } from "@/lib/mock-data";
@@ -124,39 +124,98 @@ describe("GET /orders/:id — OrderResponse", () => {
   });
 });
 
-describe("POST /orders/:id/admin-cancellation", () => {
-  it("huỷ hợp lệ → thành công; huỷ lần 2 → CONFLICT", async () => {
-    const order = firstOrderWith("Pending Payment");
-
-    await expect(adminCancelOrder({ id: order.orderId, reason: "Khách đổi ý" })).resolves.toBe(
-      undefined,
-    );
-    expect((await getOrder(order.orderId)).status).toBe("Cancelled");
-
-    const error = await captureError(adminCancelOrder({ id: order.orderId, reason: "Lần 2" }));
-    expect(error.status).toBe(409);
-    expect(error.code).toBe("CONFLICT");
+describe("GET /orders — lọc khách / ngày / phương thức thanh toán", () => {
+  it("customerId chỉ trả đơn của khách đó", async () => {
+    const page = await listOrders({ page: 0, size: 200, customerId: "CUS-0008" });
+    expect(page.items.length).toBeGreaterThan(0);
+    expect(page.items.every((o) => o.customerId === "CUS-0008")).toBe(true);
   });
 
-  it("thiếu lý do → VALIDATION_FAILED, fieldErrors.reason", async () => {
+  it("placedFrom/placedTo tính cả hai đầu theo ngày VN", async () => {
+    const page = await listOrders({
+      page: 0,
+      size: 200,
+      placedFrom: "2026-06-11",
+      placedTo: "2026-06-11",
+    });
+    expect(page.items.length).toBeGreaterThan(0);
+    expect(page.items.every((o) => o.placedAt.startsWith("2026-06-11"))).toBe(true);
+  });
+
+  it("placedTo trước placedFrom → VALIDATION_FAILED (BE OrderServiceImpl)", async () => {
+    const error = await captureError(
+      listOrders({ placedFrom: "2026-06-30", placedTo: "2026-06-01" }),
+    );
+    expect(error.code).toBe("VALIDATION_FAILED");
+  });
+
+  it("paymentTerm (contract pending, mock lọc) chỉ trả đơn công nợ", async () => {
+    const page = await listOrders({ page: 0, size: 200, paymentTerm: "CREDIT" });
+    expect(page.items.length).toBeGreaterThan(0);
+    expect(page.items.every((o) => o.paymentTerm === "CREDIT")).toBe(true);
+  });
+
+  it("dòng danh sách không mang lines (như BE OrderPersistenceMapper)", async () => {
+    const page = await listOrders({ page: 0, size: 5 });
+    expect(page.items.every((o) => o.lines.length === 0)).toBe(true);
+  });
+});
+
+describe("GET /orders/:id/history", () => {
+  it("bước đầu from=null lúc đặt đơn, sau đó theo thời gian", async () => {
+    const history = await getOrderHistory("ORD-2026-0007");
+    expect(history[0]?.from).toBeNull();
+    expect(history.length).toBeGreaterThan(1);
+  });
+});
+
+describe("POST /orders/:id/admin-cancellation", () => {
+  it("huỷ hợp lệ → trả OrderResponse CANCELLED + cancellation; huỷ lần 2 → ORDER_NOT_CANCELLABLE", async () => {
     const order = firstOrderWith("Pending Payment");
-    const error = await captureError(adminCancelOrder({ id: order.orderId, reason: "  " }));
+
+    const cancelled = await adminCancelOrder({
+      id: order.orderId,
+      reasonCode: "CUSTOMER_REQUEST",
+      note: "Khách đổi ý",
+    });
+    expect(cancelled.status).toBe("Cancelled");
+    expect(cancelled.cancellation?.reasonCode).toBe("CUSTOMER_REQUEST");
+    expect((await getOrder(order.orderId)).status).toBe("Cancelled");
+    const history = await getOrderHistory(order.orderId);
+    expect(history.at(-1)).toMatchObject({ from: "Pending Payment", to: "Cancelled" });
+
+    const error = await captureError(
+      adminCancelOrder({ id: order.orderId, reasonCode: "CUSTOMER_REQUEST" }),
+    );
+    expect(error.status).toBe(409);
+    expect(error.code).toBe("ORDER_NOT_CANCELLABLE");
+  });
+
+  it("OTHER không có ghi chú → VALIDATION_FAILED, fieldErrors.note", async () => {
+    const order = firstOrderWith("Pending Payment");
+    const error = await captureError(
+      adminCancelOrder({ id: order.orderId, reasonCode: "OTHER", note: "  " }),
+    );
 
     expect(error.status).toBe(400);
     expect(error.code).toBe("VALIDATION_FAILED");
-    expect(error.fieldErrors?.reason).toBeTruthy();
+    expect(error.fieldErrors?.note).toBeTruthy();
   });
 
-  it("BE BR-031; docs BR-03: đơn Shipped → CONFLICT", async () => {
+  it("BE BR-031; docs BR-03: đơn Shipped → ORDER_NOT_CANCELLABLE", async () => {
     const order = firstOrderWith("Shipped");
-    const error = await captureError(adminCancelOrder({ id: order.orderId, reason: "Thử" }));
+    const error = await captureError(
+      adminCancelOrder({ id: order.orderId, reasonCode: "CUSTOMER_REQUEST" }),
+    );
 
     expect(error.status).toBe(409);
-    expect(error.code).toBe("CONFLICT");
+    expect(error.code).toBe("ORDER_NOT_CANCELLABLE");
   });
 
   it("đơn không tồn tại → NOT_FOUND (không tiết lộ quyền)", async () => {
-    const error = await captureError(adminCancelOrder({ id: "ORD-KHONG-TON-TAI", reason: "Thử" }));
+    const error = await captureError(
+      adminCancelOrder({ id: "ORD-KHONG-TON-TAI", reasonCode: "CUSTOMER_REQUEST" }),
+    );
     expect(error.code).toBe("NOT_FOUND");
   });
 });

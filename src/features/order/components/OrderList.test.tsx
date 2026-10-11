@@ -51,10 +51,10 @@ describe("OrderList — phân trang/lọc phía server", () => {
     expect(screen.getAllByText(formatDate(apiOrder.placedAt)).length).toBeGreaterThan(0);
   });
 
-  it("URL ?status=Paid&q=SO-2026&page=2 → gửi status=PAID, search, page=1 (BE đánh số từ 0)", async () => {
-    renderList(() => apiOrderPage([]), "?status=Paid&q=SO-2026&page=2");
+  it("URL ?status=Confirmed&q=SO-2026&page=2 → gửi status=CONFIRMED, search, page=1 (BE đánh số từ 0)", async () => {
+    renderList(() => apiOrderPage([]), "?status=Confirmed&q=SO-2026&page=2");
 
-    await waitFor(() => expect(lastListQuery().get("status")).toBe("PAID"));
+    await waitFor(() => expect(lastListQuery().get("status")).toBe("CONFIRMED"));
     const query = lastListQuery();
     expect(query.get("search")).toBe("SO-2026");
     expect(query.get("page")).toBe("1");

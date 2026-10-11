@@ -26,12 +26,16 @@ export const PO_LIMITS = {
 } as const;
 
 export const ORDER_LIMITS = {
-  /**
-   * Độ dài tối đa lý do huỷ đơn — cột `ordering.orders.cancellation_reason VARCHAR(500)`
-   * (BE migration V20260901000300__ordering_orders.sql). `AdminCancelOrderRequest` chỉ có
-   * @NotBlank nên FE phải chặn, quá dài → DB từ chối → BE trả 500.
-   */
-  cancelReasonMax: 500,
+  /** BE `AdminCancelOrderRequest.note` @Size(max = 1000); bắt buộc khi reasonCode = OTHER. */
+  cancelNoteMax: 1000,
+  /** BE `AdminCancelOrderRequest.retainedPercent` 0..100 — phần tiền giữ lại khi huỷ. */
+  retainedPercentMin: 0,
+  retainedPercentMax: 100,
+  /** BE `CreditDecisionRequest.note` / `CreditRefusalRequest.note` @NotBlank @Size(max = 1000). */
+  creditNoteMax: 1000,
+  /** BE `CreditRefusalRequest.depositPercent` — 0 < x < 100 (biên mở). */
+  depositPercentMin: 0,
+  depositPercentMax: 100,
 } as const;
 
 /** Giới hạn phiếu nhận — đúng ràng buộc request BE goods receipt (PR #62, SCRUM-435). */

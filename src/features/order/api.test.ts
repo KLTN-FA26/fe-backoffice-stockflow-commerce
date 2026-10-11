@@ -81,8 +81,48 @@ describe("order API contract (BE OrderResponse)", () => {
         quantity: 2,
         unitPrice: 175000,
         lineTotal: 350000,
+        isCustom: false,
+        designSnapshotId: null,
+        reservationIds: ["7a7a7a7a-0000-4000-8000-000000000001"],
       },
     ]);
+  });
+
+  it("docs 14 BR-02: dòng có designSnapshotId là dòng in (custom); field thanh toán thiếu → null", () => {
+    const order = toOrder(
+      orderDtoSchema.parse({
+        ...beOrder,
+        lines: [{ ...beOrder.lines[0], designSnapshotId: "c0ffee00-0000-4000-8000-000000000001" }],
+      }),
+    );
+    expect(order.lines[0]?.isCustom).toBe(true);
+    expect(order.paymentTerm).toBeNull();
+    expect(order.paymentStatus).toBeNull();
+    expect(order.cancellation).toBeNull();
+  });
+
+  it("map field thanh toán / release / huỷ (SCRUM-423/427/460)", () => {
+    const order = toOrder(
+      orderDtoSchema.parse({
+        ...beOrder,
+        status: "CANCELLED",
+        paymentTerm: "DEPOSIT",
+        paymentStatus: "PARTIALLY_PAID",
+        paidAmount: 100000,
+        depositRequired: 105000,
+        warehouseId: "8f8f8f8f-0000-4000-8000-000000000001",
+        cancellation: { reasonCode: "CUSTOMER_REQUEST", retainedAmount: 0 },
+      }),
+    );
+    expect(order).toMatchObject({
+      paymentTerm: "DEPOSIT",
+      paymentStatus: "PARTIALLY_PAID",
+      paidAmount: 100000,
+      depositRequired: 105000,
+      depositReceivedAt: null,
+      warehouseId: "8f8f8f8f-0000-4000-8000-000000000001",
+      cancellation: { reasonCode: "CUSTOMER_REQUEST", reason: null, retainedAmount: 0 },
+    });
   });
 
   it("đơn guest (BE bỏ hẳn key customerId vì non_null) vẫn parse được", () => {
@@ -90,7 +130,7 @@ describe("order API contract (BE OrderResponse)", () => {
     const order = toOrder(orderDtoSchema.parse(apiGuestOrder));
 
     expect(order.customerId).toBeNull();
-    expect(order.status).toBe("Paid");
+    expect(order.status).toBe("Confirmed");
     expect(order.recipientName).toBe("Nguyễn Văn A");
     expect(order.shippingAddressText).toBe("123 Nguyễn Huệ, Phường Bến Nghé, TP. Hồ Chí Minh");
   });
@@ -124,7 +164,9 @@ describe("order API contract (BE OrderResponse)", () => {
   it.each([
     ["DRAFT", "Draft"],
     ["PENDING_PAYMENT", "Pending Payment"],
-    ["PAID", "Paid"],
+    ["CONFIRMED", "Confirmed"],
+    ["IN_PRODUCTION", "In Production"],
+    ["READY_TO_FULFILL", "Ready to Fulfill"],
     ["IN_FULFILMENT", "In Fulfilment"],
     ["ON_HOLD", "On Hold"],
     ["SHIPPED", "Shipped"],
@@ -144,6 +186,10 @@ describe("order API contract (BE OrderResponse)", () => {
 
   it("mã tiền tệ sai định dạng → parse fail", () => {
     expect(() => orderDtoSchema.parse({ ...beOrder, currency: "vnd" })).toThrow();
+  });
+
+  it("PAID đã bị BE bỏ (SCRUM-460) → parse fail", () => {
+    expect(() => orderDtoSchema.parse({ ...beOrder, status: "PAID" })).toThrow();
   });
 
   it("status lạ ngoài OrderStatus.java → parse fail (bug contract)", async () => {
@@ -176,5 +222,22 @@ describe("order API contract (BE OrderResponse)", () => {
     expect(query.get("search")).toBe("SO-2026");
     expect(query.getAll("status")).toEqual(["PENDING_PAYMENT", "SHIPPED"]);
     expect(query.get("sort")).toBe("placedAt,desc");
+  });
+
+  it("listOrders gửi lọc khách, khoảng ngày, phương thức thanh toán (contract pending)", async () => {
+    const get = vi.spyOn(api, "get").mockResolvedValue({ data: emptyBePage });
+
+    await listOrders({
+      customerId: " CUS-0007 ",
+      placedFrom: "2026-06-01",
+      placedTo: "2026-06-30",
+      paymentTerm: "CREDIT",
+    });
+
+    const query = new URLSearchParams(String(get.mock.calls[0]?.[1]?.params));
+    expect(query.get("customerId")).toBe("CUS-0007");
+    expect(query.get("placedFrom")).toBe("2026-06-01");
+    expect(query.get("placedTo")).toBe("2026-06-30");
+    expect(query.get("paymentTerm")).toBe("CREDIT");
   });
 });

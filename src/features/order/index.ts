@@ -2,9 +2,11 @@
  * Order — feature public API.
  *
  * types.ts    → z.infer từ schemas + OrderStatus từ constants/statuses
- * schemas.ts  → zod DTO (BE OrderResponse) + model FE + admin-cancel input
+ * schemas.ts  → zod DTO (BE OrderResponse) + model FE + history
+ * action-schemas.ts → input release / credit / huỷ; credit-hold-schemas.ts, production-schemas.ts
  * status-map.ts → BE→FE status mapping
- * api.ts      → axios calls (list, detail, admin-cancel)
+ * api.ts      → axios calls (list, detail, history, admin-cancel)
+ * action-api.ts → release, credit hold, lệnh sản xuất (contract pending)
  * queries.ts  → React Query hooks
  * mutations.ts → mutation hooks
  * lifecycle.ts → transition table + action-gating
@@ -13,11 +15,32 @@
  */
 
 // Types
-export type { BackendOrderStatus, Order, OrderDto, OrderLine, OrderStatus } from "./types";
+export type {
+  BackendOrderStatus,
+  CreditHold,
+  Order,
+  OrderDto,
+  OrderLine,
+  OrderStatus,
+  OrderStatusChange,
+  ProductionOrder,
+} from "./types";
 
 // Schemas
-export { adminCancelOrderSchema, orderDtoSchema, orderPageDtoSchema } from "./schemas";
-export type { AdminCancelOrderInput as AdminCancelOrderFormInput } from "./schemas";
+export {
+  adminCancelOrderSchema,
+  creditApprovalSchema,
+  creditRejectionSchema,
+  releaseOrderSchema,
+} from "./action-schemas";
+export { orderDtoSchema, orderPageDtoSchema } from "./schemas";
+export type {
+  AdminCancelOrderInput,
+  CreditApprovalInput,
+  CreditRejectionFormInput,
+  CreditRejectionInput,
+  ReleaseOrderInput,
+} from "./types";
 
 // Status mapping
 export { mapBackendOrderStatus, toBackendOrderStatuses } from "./status-map";
@@ -33,23 +56,48 @@ export {
   isTerminal,
   nextOrderStatuses,
 } from "./lifecycle";
-export type { OrderAction } from "./lifecycle";
+export type { OrderAction, OrderActionCode, OrderActionContext } from "./lifecycle";
 
 // Selectors
-export { shouldFlagOrderRow } from "./selectors";
+export {
+  creditOverage,
+  creditState,
+  customLineCount,
+  depositState,
+  groupProductionOrdersByLine,
+  shouldFlagOrderRow,
+} from "./selectors";
 
 // Query hooks
-export { orderKeys, useOrder, useOrders } from "./queries";
+export {
+  orderKeys,
+  useCreditHolds,
+  useOrder,
+  useOrderHistory,
+  useOrderProductionOrders,
+  useOrders,
+} from "./queries";
 
 // Error mapping
-export { adminCancelErrorView } from "./errors";
+export {
+  adminCancelErrorView,
+  creditDecisionErrorView,
+  isProductionApiUnavailable,
+  releaseErrorView,
+} from "./errors";
 export type { OrderErrorView } from "./errors";
 
 // Mutation hooks
-export { useAdminCancelOrder } from "./mutations";
+export {
+  useAdminCancelOrder,
+  useApproveCreditHold,
+  useRejectCreditHold,
+  useReleaseOrder,
+} from "./mutations";
 
-// API (for direct use in non-hook contexts)
-export type { AdminCancelOrderInput, ListOrderParams } from "./api";
+// API params
+export type { ListOrderParams } from "./api";
+export type { ListCreditHoldParams } from "./action-api";
 
 // Components
 export { OrderDetail } from "./components/OrderDetail";

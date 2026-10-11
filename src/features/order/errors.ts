@@ -6,42 +6,25 @@
  * nào; code là contract (BE `common/error/ErrorCode.java`).
  */
 
-import { ORDER_LIMITS, UI_LABELS } from "@/constants";
+import { UI_LABELS } from "@/constants";
 
 import type { ApiError } from "@/lib/api/error";
 
 export interface OrderErrorView {
   title: string;
   detail: string;
+  /** Mã BR nghiệp vụ bị vi phạm — hiển thị để Coordinator đối chiếu docs (vd BR-PRD-08). */
+  rule?: string;
+  /** Chi tiết gốc từ máy chủ (vd danh sách SKU thiếu mẫu duyệt) — tiếng Anh, chỉ để tham khảo. */
+  serverDetail?: string;
   traceId?: string;
 }
 
-const CANCEL_FAILED = UI_LABELS.order.cancelFailedTitle;
-
-/** Message cho lỗi admin-cancel (POST /orders/:id/admin-cancellation). */
-export function adminCancelErrorView(error: ApiError): OrderErrorView {
+/** Lỗi chung mọi thao tác: quyền, không tìm thấy, mạng. `null` → để hàm gọi xử lý tiếp. */
+function commonErrorView(error: ApiError, title: string, action: string): OrderErrorView | null {
   const traceId = error.traceId;
   switch (error.code) {
-    case "VALIDATION_FAILED":
-      // BE trả fieldErrors.reason bằng tiếng Anh ("reason is required") — không hiện thẳng.
-      // BE @NotBlank; BE PR #42 thêm @Size(max = 500) → lỗi có thể do trống hoặc quá dài
-      return {
-        title: CANCEL_FAILED,
-        detail: `Lý do huỷ là bắt buộc và tối đa ${ORDER_LIMITS.cancelReasonMax} ký tự.`,
-        traceId,
-      };
-    // BE BR-031 (order/api/OrderStatus.java#canTransitionTo); docs 17 BR-03 (§6 / §4.5):
-    // hàng đã bàn giao vận chuyển — phải đi flow trả hàng. Nút lẽ ra đã ẩn qua
-    // allowedOrderActions; đây là lớp phòng hộ khi state đã cũ (BE hotfix #35 → 409).
-    case "CONFLICT":
-      return {
-        title: "Đơn không còn huỷ được",
-        // Không ghi mã BR cho người dùng; trang tự tải lại (OrderCancelAction) nên không bảo "tải lại".
-        detail: "Đơn đã bàn giao vận chuyển hoặc đã đóng. Vui lòng xử lý qua luồng trả hàng.",
-        traceId,
-      };
-    // 404 dùng chung cho "không tồn tại" và "ngoài phạm vi" — BE chủ đích không
-    // tiết lộ đơn có tồn tại hay không.
+    // 404 dùng chung cho "không tồn tại" và "ngoài phạm vi" — BE chủ đích không tiết lộ.
     case "NOT_FOUND":
       return {
         title: UI_LABELS.order.notFoundTitle,
@@ -50,18 +33,148 @@ export function adminCancelErrorView(error: ApiError): OrderErrorView {
       };
     case "FORBIDDEN":
     case "OUT_OF_DATA_SCOPE":
-      return { title: CANCEL_FAILED, detail: "Bạn không có quyền huỷ đơn này.", traceId };
+      return { title, detail: `Bạn không có quyền ${action}.`, traceId };
     case "NETWORK_ERROR":
+      return { title, detail: "Không kết nối được máy chủ. Vui lòng kiểm tra mạng.", traceId };
+    default:
+      return null;
+  }
+}
+
+function fallback(error: ApiError, title: string, action: string): OrderErrorView {
+  return {
+    title,
+    detail: `Đã xảy ra lỗi khi ${action}. Vui lòng thử lại.`,
+    traceId: error.traceId,
+  };
+}
+
+/* ── Admin cancel ────────────────────────────────────────────────────── */
+
+const CANCEL_FAILED = UI_LABELS.order.cancelFailedTitle;
+
+export function adminCancelErrorView(error: ApiError): OrderErrorView {
+  const traceId = error.traceId;
+  switch (error.code) {
+    case "VALIDATION_FAILED":
+      // BE Order#cancelByAdmin: reasonCode OTHER thiếu note, hoặc retainedPercent ngoài 0..100
       return {
         title: CANCEL_FAILED,
-        detail: "Không kết nối được máy chủ. Vui lòng kiểm tra mạng.",
+        detail: "Kiểm tra lại lý do huỷ, ghi chú (bắt buộc với lý do khác) và tỷ lệ giữ lại.",
+        traceId,
+      };
+    // BE BR-031 (OrderStatus#canTransitionTo); docs 17 BR-03 (§6 / §4.5): hàng đã bàn giao vận
+    // chuyển — phải đi flow trả hàng. Nút lẽ ra đã ẩn qua allowedOrderActions; đây là lớp phòng
+    // hộ khi state đã cũ. BE develop trả ORDER_NOT_CANCELLABLE; CONFLICT giữ cho bản BE cũ.
+    case "ORDER_NOT_CANCELLABLE":
+    case "CONFLICT":
+      return {
+        title: "Đơn không còn huỷ được",
+        detail: "Đơn đã bàn giao vận chuyển hoặc đã đóng. Vui lòng xử lý qua luồng trả hàng.",
+        rule: "BR-03",
         traceId,
       };
     default:
+      return (
+        commonErrorView(error, CANCEL_FAILED, "huỷ đơn này") ??
+        fallback(error, CANCEL_FAILED, "huỷ đơn")
+      );
+  }
+}
+
+/* ── Release (SCRUM-423) ─────────────────────────────────────────────── */
+
+const RELEASE_REFUSED = "Không release được đơn";
+
+/** Thứ tự kiểm ở BE: kho → mẫu duyệt → công nợ quá hạn → cọc → trạng thái (OrderReleaseService). */
+export function releaseErrorView(error: ApiError): OrderErrorView {
+  const traceId = error.traceId;
+  const serverDetail = error.message || undefined;
+  switch (error.code) {
+    // docs 19 BR-08 / docs 17 BR-09: dòng thiết kế mới chưa có mẫu khách duyệt không được release
+    case "DESIGN_SAMPLE_NOT_APPROVED":
       return {
-        title: CANCEL_FAILED,
-        detail: "Đã xảy ra lỗi khi huỷ đơn. Vui lòng thử lại.",
+        title: RELEASE_REFUSED,
+        detail:
+          "Đơn có dòng in dùng thiết kế mới chưa có mẫu được khách duyệt. Cần mẫu Approved trước khi sản xuất.",
+        rule: "BR-PRD-08",
+        serverDetail,
         traceId,
       };
+    // docs 19 BR-09 / docs 15 BR-02: đơn đặt cọc chỉ release khi tiền cọc đã về
+    case "ORDER_DEPOSIT_NOT_RECEIVED":
+      return {
+        title: RELEASE_REFUSED,
+        detail: "Đơn đặt cọc chưa nhận đủ tiền cọc. Chờ kế toán ghi nhận cọc rồi release lại.",
+        rule: "BR-PRD-09",
+        traceId,
+      };
+    // docs 14 edge case "Khách quá hạn công nợ" + docs 17 BR-02
+    case "CUSTOMER_CREDIT_OVERDUE":
+      return {
+        title: RELEASE_REFUSED,
+        detail:
+          "Khách đang có công nợ quá hạn. Cần thu phần quá hạn trước khi release đơn công nợ.",
+        rule: "BR-02",
+        traceId,
+      };
+    case "WAREHOUSE_NOT_FOUND":
+      return {
+        title: RELEASE_REFUSED,
+        detail: "Kho xuất đã chọn không tồn tại. Chọn kho khác.",
+        traceId,
+      };
+    // docs 17 BR-02: chỉ release đơn đủ điều kiện (Confirmed); state trên màn có thể đã cũ
+    case "CONFLICT":
+      return {
+        title: RELEASE_REFUSED,
+        detail: "Đơn không còn ở trạng thái được release (đã release, đang tạm giữ hoặc đã huỷ).",
+        rule: "BR-02",
+        serverDetail,
+        traceId,
+      };
+    default:
+      return (
+        commonErrorView(error, RELEASE_REFUSED, "release đơn") ??
+        fallback(error, RELEASE_REFUSED, "release đơn")
+      );
   }
+}
+
+/* ── Credit hold (SCRUM-427) ─────────────────────────────────────────── */
+
+const CREDIT_FAILED = "Không xử lý được đơn vượt hạn mức";
+
+export function creditDecisionErrorView(error: ApiError): OrderErrorView {
+  const traceId = error.traceId;
+  switch (error.code) {
+    case "ORDER_NOT_ON_CREDIT_HOLD":
+      return {
+        title: CREDIT_FAILED,
+        detail: "Đơn không còn chờ duyệt vượt hạn mức (đã được người khác xử lý).",
+        traceId,
+      };
+    // docs 14 BR-05: chỉ dùng phương thức thanh toán được phép cho khách
+    case "PAYMENT_TERM_NOT_ALLOWED":
+      return {
+        title: CREDIT_FAILED,
+        detail: "Khách không được phép dùng phương thức thanh toán đã chọn. Chọn cách xử lý khác.",
+        rule: "BR-05",
+        traceId,
+      };
+    case "VALIDATION_FAILED":
+      return { title: CREDIT_FAILED, detail: "Kiểm tra lại ghi chú và tỷ lệ cọc.", traceId };
+    default:
+      return (
+        commonErrorView(error, CREDIT_FAILED, "duyệt vượt hạn mức") ??
+        fallback(error, CREDIT_FAILED, "xử lý đơn")
+      );
+  }
+}
+
+/* ── Lệnh sản xuất (CONTRACT PENDING) ───────────────────────────────── */
+
+/** BE chưa có endpoint → 404 (không route) / 405. Phân biệt với lỗi thật để UI báo trung thực. */
+export function isProductionApiUnavailable(error: ApiError): boolean {
+  return error.status === 404 || error.status === 405 || error.status === 501;
 }

@@ -357,6 +357,12 @@ export const TOAST_MESSAGES = {
     saveBlocked: "Chưa thể lưu",
     checkForm: "Kiểm tra lại biểu mẫu",
   },
+  order: {
+    cancelled: "Đã huỷ đơn hàng",
+    released: "Đã release đơn cho kho",
+    creditApproved: "Đã duyệt vượt hạn mức công nợ",
+    creditRejected: "Đã từ chối vượt hạn mức công nợ",
+  },
   supplier: {
     created: "Tạo nhà cung cấp thành công",
     updated: "Cập nhật nhà cung cấp thành công",

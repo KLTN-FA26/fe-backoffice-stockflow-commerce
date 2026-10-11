@@ -18,16 +18,40 @@ export const SUPPLIER_PERMISSIONS = {
 } as const;
 
 /**
- * Đơn hàng — resource `sales-orders` (BE `OrderResources.ORDERS`). Huỷ đơn phía admin
- * (`POST /orders/{id}/admin-cancellation`) yêu cầu APPROVE scope ALL; seed BE chỉ cấp cho
- * ORDER_COORDINATOR (SALES_STAFF chỉ có VIEW_PAGE/READ/CREATE/UPDATE).
+ * Đơn hàng — resource `sales-orders` (BE `OrderResources.ORDERS`, develop). Seed BE
+ * V20260903000100: SALES_STAFF + ORDER_COORDINATOR có VIEW_PAGE/READ/CREATE/UPDATE; chỉ
+ * ORDER_COORDINATOR có APPROVE = release đơn (`POST /orders/{id}/release`, SCRUM-423).
  */
 export const ORDER_PERMISSIONS = {
   // Mở trang (menu + chặn route) — BE Action.VIEW_PAGE, ADR-0004
   viewPage: "sales-orders:VIEW_PAGE",
-  // Đọc dữ liệu (GET /orders, /orders/{id}) — seed BE: SALES_STAFF, ORDER_COORDINATOR
+  // Đọc dữ liệu (GET /orders, /orders/{id}, /orders/{id}/history)
   read: "sales-orders:READ",
-  cancel: "sales-orders:APPROVE",
+  // Release đơn sang kho / sản xuất — OrderReleaseController, APPROVE scope ALL
+  release: "sales-orders:APPROVE",
+  // Huỷ đơn phía admin — resource riêng `sales-order-cancellations` (BE V20261013000200):
+  // SALES_STAFF + ORDER_COORDINATOR có UPDATE.
+  cancel: "sales-order-cancellations:UPDATE",
+} as const;
+
+/**
+ * Đơn công nợ vượt hạn mức — resource `sales-order-credit-holds` (BE CreditHoldController,
+ * SCRUM-427, seed V20261013000400): ACCOUNTANT có VIEW_PAGE/READ/APPROVE; SALES_STAFF và
+ * ORDER_COORDINATOR chỉ VIEW_PAGE/READ (xem, không duyệt).
+ */
+export const CREDIT_HOLD_PERMISSIONS = {
+  viewPage: "sales-order-credit-holds:VIEW_PAGE",
+  read: "sales-order-credit-holds:READ",
+  // Duyệt (`/credit-approval`) và từ chối (`/credit-rejection`) đều là APPROVE
+  approve: "sales-order-credit-holds:APPROVE",
+} as const;
+
+/**
+ * Kho — resource `warehouse-warehouses` (BE WarehouseController). Màn release cần READ để chọn
+ * kho xuất. ⚠️ Seed BE V20260928006000 chưa cấp cho ORDER_COORDINATOR → BE trả 403, FE báo rõ.
+ */
+export const WAREHOUSE_PERMISSIONS = {
+  read: "warehouse-warehouses:READ",
 } as const;
 
 /**
