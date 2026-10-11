@@ -5,7 +5,7 @@
 
 import { Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { vi } from "vitest";
 
@@ -85,4 +85,20 @@ export function renderOrderScreen(ui: React.ReactElement, searchParams = "") {
       </NuqsTestingAdapter>
     </QueryClientProvider>,
   );
+}
+
+/**
+ * Chọn một option của Radix Select trong jsdom (thiếu pointer-capture / scrollIntoView).
+ * Bản riêng của order — không import fixture của feature khác (feature-architecture).
+ */
+export async function pickOrderSelectOption(
+  user: { click: (el: Element) => Promise<void> },
+  trigger: string | RegExp,
+  option: string | RegExp,
+) {
+  Element.prototype.hasPointerCapture ??= () => false;
+  Element.prototype.releasePointerCapture ??= () => {};
+  Element.prototype.scrollIntoView ??= () => {};
+  await user.click(await screen.findByRole("combobox", { name: trigger }));
+  await user.click(await screen.findByRole("option", { name: option }));
 }

@@ -70,3 +70,30 @@ export function groupProductionOrdersByLine(
   }
   return byLine;
 }
+
+/* ── Release (SCRUM-423) ─────────────────────────────────────────────── */
+
+export interface ReleaseBlocker {
+  /** Mã BR để đối chiếu docs. */
+  rule: string;
+  message: string;
+}
+
+/**
+ * Lý do CHẮC CHẮN chưa release được, suy từ dữ liệu đơn — hiện trước để Coordinator không phải
+ * bấm thử. BR-PRD-08 (mẫu duyệt) và công nợ quá hạn FE không biết trước → chỉ BE báo khi release.
+ */
+export function releaseBlockers(
+  order: Pick<Order, "status" | "paymentTerm" | "depositReceivedAt">,
+): ReleaseBlocker[] {
+  const blockers: ReleaseBlocker[] = [];
+  // docs 19 BR-09 / BE ORDER_DEPOSIT_NOT_RECEIVED: đơn cọc chưa đủ cọc
+  if (order.status === "Pending Payment" && depositState(order) === "awaiting") {
+    blockers.push({ rule: "BR-PRD-09", message: "Đơn đặt cọc chưa nhận đủ tiền cọc." });
+  }
+  // docs 17 BR-02 / docs 14 BR-06: công nợ vượt hạn mức chưa được duyệt
+  if (order.status === "On Hold" && order.paymentTerm === "CREDIT") {
+    blockers.push({ rule: "BR-02", message: "Đơn công nợ vượt hạn mức đang chờ duyệt." });
+  }
+  return blockers;
+}
