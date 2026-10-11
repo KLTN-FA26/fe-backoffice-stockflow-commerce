@@ -1,11 +1,24 @@
-import { COLUMN_LABELS, DEFAULT_COLUMNS, SEARCH_SCOPE_LABEL, STATUS_OPTIONS } from "./constants";
+import { ORDER_PAYMENT_TERM_LABELS } from "@/constants";
+import { formatDate } from "@/lib/format/date";
+
+import {
+  COLUMN_LABELS,
+  DEFAULT_COLUMNS,
+  FILTER_LABELS,
+  SEARCH_SCOPE_LABEL,
+  STATUS_OPTIONS,
+} from "./constants";
 
 import type { ListSummaryItem } from "@/components/shared/ListToolbar";
 import type { OrderListState } from "./useOrderListState";
 
 /** Thanh "Cấu hình" dưới toolbar (data-table-mode-a §3). Không có "Search trong cột" vì server không hỗ trợ. */
 export function buildSummaryItems(s: OrderListState): ListSummaryItem[] {
-  const { filters } = s;
+  const { filters, extra } = s;
+  const dateRange =
+    extra.placedFrom || extra.placedTo
+      ? `${extra.placedFrom ? formatDate(extra.placedFrom) : "…"} → ${extra.placedTo ? formatDate(extra.placedTo) : "…"}`
+      : "Tất cả";
   const statusLabel = filters.status
     .map((v) => STATUS_OPTIONS.find((o) => o.value === v)?.label ?? v)
     .join(", ");
@@ -22,6 +35,24 @@ export function buildSummaryItems(s: OrderListState): ListSummaryItem[] {
       value: statusLabel || "Tất cả",
       active: filters.status.length > 0,
       onClear: () => void filters.setStatus([]),
+    },
+    {
+      label: COLUMN_LABELS.customer ?? FILTER_LABELS.customer,
+      value: extra.customerId || "Tất cả",
+      active: extra.customerId !== "",
+      onClear: () => extra.setCustomerId(""),
+    },
+    {
+      label: FILTER_LABELS.placedAt,
+      value: dateRange,
+      active: extra.placedFrom !== "" || extra.placedTo !== "",
+      onClear: extra.clearDates,
+    },
+    {
+      label: FILTER_LABELS.paymentTerm,
+      value: extra.paymentTerm ? ORDER_PAYMENT_TERM_LABELS[extra.paymentTerm] : "Tất cả",
+      active: extra.paymentTerm !== null,
+      onClear: () => extra.setPaymentTerm(null),
     },
     {
       label: "Sắp xếp",

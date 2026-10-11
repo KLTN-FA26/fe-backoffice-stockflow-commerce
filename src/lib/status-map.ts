@@ -345,5 +345,5 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   QC: "Đang kiểm thành phẩm",
   Subcontracted: "Đang gia công ngoài",
   // Thanh toán đơn (BE PaymentStatus)
-  "On Credit": "Công nợ",
+  "On Credit": "Ghi công nợ",
 };

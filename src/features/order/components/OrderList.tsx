@@ -1,7 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
-
 import { ORDER_PERMISSIONS } from "@/constants";
 import { useCan } from "@/lib/auth";
 
@@ -11,6 +9,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { buildOrderColumns } from "./order-list/columns";
 import { COLUMN_LABELS, DEFAULT_COLUMNS, STATUS_OPTIONS } from "./order-list/constants";
 import { OrderListBody } from "./order-list/OrderListBody";
+import { OrderListFilters } from "./order-list/OrderListFilters";
 import { buildSummaryItems } from "./order-list/summary";
 import { useOrderListState } from "./order-list/useOrderListState";
 import { OrderPermissionGate } from "./OrderPermissionGate";
@@ -36,7 +35,7 @@ function OrderListContent() {
   // READ = đọc dữ liệu (tách khỏi VIEW_PAGE mở trang — BE ADR-0004): thiếu thì không gọi API
   const canRead = useCan(ORDER_PERMISSIONS.read);
   const s = useOrderListState(canRead);
-  const columns = useMemo(() => buildOrderColumns(), []);
+  const columns = buildOrderColumns(s.extra.setCustomerId);
   const visibleColumns = columns.filter((c) => s.config.visibleColumns.includes(c.key));
   const { filters } = s;
 
@@ -51,7 +50,7 @@ function OrderListContent() {
         <ListToolbar
           search={filters.q}
           onSearchChange={(v) => void filters.setQ(v)}
-          searchPlaceholder="Tìm theo mã đơn, người nhận, SĐT..."
+          searchPlaceholder="Tìm theo mã đơn, người liên hệ / nhận, SĐT..."
           statusOptions={STATUS_OPTIONS}
           selectedStatuses={filters.status}
           onToggleStatus={s.toggleStatus}
@@ -70,6 +69,7 @@ function OrderListContent() {
           resetDisabled={!s.hasFilters && !s.hasColumnConfig && s.sort.key === null}
         />
       )}
+      {canRead && <OrderListFilters s={s} />}
       <OrderListBody s={s} columns={visibleColumns} />
     </>
   );
