@@ -42,6 +42,8 @@ async function openAndPick(user: ReturnType<typeof userEvent.setup>) {
 
 afterEach(() => vi.restoreAllMocks());
 
+const DIALOG_FLOW_TIMEOUT_MS = 15_000;
+
 describe("Release — action-gating (SCRUM-423, docs 17 BR-02)", () => {
   it("Confirmed + ORDER_COORDINATOR → có nút Release đơn", async () => {
     await renderDetail(ORDER_PERMISSION_SETS.coordinator, confirmed);
@@ -83,7 +85,8 @@ describe("Credit hold trên trang chi tiết (SCRUM-427)", () => {
   });
 });
 
-describe("Release — gửi & lý do từ chối", () => {
+// Dialog nhiều bước (Radix Select trong jsdom) chậm khi chạy song song cả bộ test → nới timeout
+describe("Release — gửi & lý do từ chối", { timeout: DIALOG_FLOW_TIMEOUT_MS }, () => {
   it("chọn kho → POST /release {warehouseId}, đóng dialog", async () => {
     const user = userEvent.setup();
     await renderDetail(ORDER_PERMISSION_SETS.coordinator, confirmed);

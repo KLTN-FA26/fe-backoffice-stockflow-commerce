@@ -1,4 +1,4 @@
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -9,7 +9,12 @@ import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
 import { toast } from "@/components/shared/Toast";
 
 import { apiGuestOrder, apiOrder } from "../__fixtures__/order";
-import { ORDER_PERMISSION_SETS, mockOrderApiGet, renderOrderScreen } from "../__fixtures__/render";
+import {
+  ORDER_PERMISSION_SETS,
+  mockOrderApiGet,
+  pickOrderSelectOption,
+  renderOrderScreen,
+} from "../__fixtures__/render";
 
 import { OrderDetail } from "./OrderDetail";
 
@@ -33,6 +38,8 @@ async function renderDetail(permissions: readonly PermissionCode[], handler: () 
 const withStatus = (status: OrderDto["status"]): OrderDto => ({ ...apiOrder, status });
 
 afterEach(() => vi.restoreAllMocks());
+
+const DIALOG_FLOW_TIMEOUT_MS = 15_000;
 
 describe("OrderDetail — action-gating theo mã quyền + trạng thái BE", () => {
   it("ORDER_COORDINATOR (sales-order-cancellations:UPDATE) + PENDING_PAYMENT → có nút Huỷ đơn", async () => {
@@ -135,76 +142,130 @@ describe("OrderDetail — card thao tác giải thích khi không có nút", () 
   });
 });
 
-describe("OrderDetail — luồng huỷ đơn", () => {
-  it("nhập lý do + Ctrl+Enter → POST admin-cancellation {reasonCode OTHER, note đã trim}, đóng dialog", async () => {
-    await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => apiOrder);
-    // BE trả OrderResponse đã CANCELLED
-    const post = vi.spyOn(api, "post").mockResolvedValue({ data: withStatus("CANCELLED") });
+type User = ReturnType<typeof userEvent.setup>;
 
-    await userEvent.click(await screen.findByRole("button", { name: "Huỷ đơn" }));
-    await userEvent.type(
-      screen.getByLabelText(/Lý do huỷ/),
-      "  Khách đổi ý  {Control>}{Enter}{/Control}",
-    );
+/** Mở dialog huỷ, chọn mã lý do (+ ghi chú) rồi bấm Huỷ đơn trong dialog. */
+async function cancelWith(user: User, reason: RegExp | string, note = "") {
+  await user.click(await screen.findByRole("button", { name: "Huỷ đơn" }));
+  await pickOrderSelectOption(user, /Lý do huỷ/, reason);
+  const dialog = screen.getByRole("dialog");
+  if (note) {
+    // paste thay vì gõ từng phím — nhanh, không phụ thuộc tải máy khi chạy cả bộ test
+    await user.click(within(dialog).getByLabelText(/Ghi chú/));
+    await user.paste(note);
+  }
+  await user.click(within(dialog).getByRole("button", { name: "Huỷ đơn" }));
+  return dialog;
+}
 
-    await waitFor(() =>
-      expect(post).toHaveBeenCalledWith(CANCEL_PATH, { reasonCode: "OTHER", note: "Khách đổi ý" }),
-    );
-    await waitFor(() => expect(screen.queryByLabelText(/Lý do huỷ/)).not.toBeInTheDocument());
-  });
+// Dialog nhiều bước (Radix Select trong jsdom) chậm khi chạy song song cả bộ test → nới timeout
+describe(
+  "OrderDetail — luồng huỷ đơn (reasonCode / note / retainedPercent)",
+  { timeout: DIALOG_FLOW_TIMEOUT_MS },
+  () => {
+    it("chọn mã lý do + ghi chú → POST admin-cancellation {reasonCode, note đã trim}, đóng dialog", async () => {
+      const user = userEvent.setup();
+      await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => apiOrder);
+      // BE trả OrderResponse đã CANCELLED
+      const post = vi.spyOn(api, "post").mockResolvedValue({ data: withStatus("CANCELLED") });
 
-  it("lỗi mạng → dialog vẫn mở, giữ nguyên lý do để thử lại", async () => {
-    await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => apiOrder);
-    vi.spyOn(api, "post").mockRejectedValue(
-      new ApiError(0, "NETWORK_ERROR", "Không kết nối được máy chủ."),
-    );
+      await cancelWith(user, "Khách yêu cầu", "  Khách đổi ý  ");
 
-    await userEvent.click(await screen.findByRole("button", { name: "Huỷ đơn" }));
-    await userEvent.type(
-      screen.getByLabelText(/Lý do huỷ/),
-      "Khách đổi ý{Control>}{Enter}{/Control}",
-    );
+      await waitFor(() =>
+        expect(post).toHaveBeenCalledWith(CANCEL_PATH, {
+          reasonCode: "CUSTOMER_REQUEST",
+          note: "Khách đổi ý",
+        }),
+      );
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    });
 
-    await waitFor(() => expect(api.post).toHaveBeenCalled());
-    expect(screen.getByLabelText(/Lý do huỷ/)).toHaveValue("Khách đổi ý");
-  });
+    it("chưa chọn lý do → nút Huỷ đơn trong dialog bị khoá; 'Lý do khác' bắt buộc ghi chú", async () => {
+      const user = userEvent.setup();
+      await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => apiOrder);
 
-  it("lỗi có traceId → toast dùng nhãn chung 'TraceId', tiêu đề 'Không huỷ được đơn'", async () => {
-    await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => apiOrder);
-    const toastError = vi.spyOn(toast, "error");
-    vi.spyOn(api, "post").mockRejectedValue(
-      new ApiError(500, "INTERNAL_ERROR", "boom", undefined, "corr-77"),
-    );
+      await user.click(await screen.findByRole("button", { name: "Huỷ đơn" }));
+      const dialog = screen.getByRole("dialog");
+      expect(within(dialog).getByRole("button", { name: "Huỷ đơn" })).toBeDisabled();
+      await pickOrderSelectOption(user, /Lý do huỷ/, "Lý do khác");
+      expect(within(dialog).getByText("Lý do khác cần ghi chú")).toBeInTheDocument();
+      expect(within(dialog).getByRole("button", { name: "Huỷ đơn" })).toBeDisabled();
+    });
 
-    await userEvent.click(await screen.findByRole("button", { name: "Huỷ đơn" }));
-    await userEvent.type(
-      screen.getByLabelText(/Lý do huỷ/),
-      "Khách đổi ý{Control>}{Enter}{/Control}",
-    );
+    it("đơn đã thu tiền → nhập % giữ lại, gửi retainedPercent", async () => {
+      const user = userEvent.setup();
+      await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => ({
+        ...withStatus("IN_PRODUCTION"),
+        paidAmount: 200_000,
+      }));
+      const post = vi.spyOn(api, "post").mockResolvedValue({ data: withStatus("CANCELLED") });
 
-    await waitFor(() => expect(toastError).toHaveBeenCalled());
-    const [title, detail] = toastError.mock.calls[0] ?? [];
-    expect(title).toBe(UI_LABELS.order.cancelFailedTitle);
-    expect(detail).toContain(`${UI_LABELS.common.traceId}: corr-77`);
-  });
+      await user.click(await screen.findByRole("button", { name: "Huỷ đơn" }));
+      const dialog = screen.getByRole("dialog");
+      // docs 19 BR-10: huỷ khi đang sản xuất có thể tính phí
+      expect(within(dialog).getByText(/tính phí sản xuất/)).toBeInTheDocument();
+      await pickOrderSelectOption(user, /Lý do huỷ/, "Khách yêu cầu");
+      await user.type(within(dialog).getByLabelText(/Giữ lại/), "25");
+      await user.click(within(dialog).getByRole("button", { name: "Huỷ đơn" }));
 
-  it("CONFLICT (đơn đã đổi trạng thái) → đóng dialog và tải lại đơn", async () => {
-    await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => apiOrder);
-    vi.spyOn(api, "post").mockRejectedValue(new ApiError(409, "CONFLICT", "Conflicting state"));
+      await waitFor(() =>
+        expect(post).toHaveBeenCalledWith(CANCEL_PATH, {
+          reasonCode: "CUSTOMER_REQUEST",
+          retainedPercent: 25,
+        }),
+      );
+    });
 
-    await userEvent.click(await screen.findByRole("button", { name: "Huỷ đơn" }));
-    await userEvent.type(
-      screen.getByLabelText(/Lý do huỷ/),
-      "Khách đổi ý{Control>}{Enter}{/Control}",
-    );
+    it("lỗi mạng → dialog vẫn mở, báo lỗi trong dialog để thử lại", async () => {
+      const user = userEvent.setup();
+      await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => apiOrder);
+      vi.spyOn(api, "post").mockRejectedValue(
+        new ApiError(0, "NETWORK_ERROR", "Không kết nối được máy chủ."),
+      );
 
-    await waitFor(() => expect(screen.queryByLabelText(/Lý do huỷ/)).not.toBeInTheDocument());
-    // Lần 1 lúc mở trang, lần 2 do invalidate orderKeys.all sau CONFLICT
-    await waitFor(() =>
-      expect(vi.mocked(api.get).mock.calls.filter(([url]) => url === DETAIL_PATH)).toHaveLength(2),
-    );
-  });
-});
+      const dialog = await cancelWith(user, "Khách yêu cầu");
+
+      expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+        "Không kết nối được máy chủ",
+      );
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+    });
+
+    it("lỗi có traceId → tiêu đề 'Không huỷ được đơn' + nhãn chung 'TraceId' trong dialog", async () => {
+      const user = userEvent.setup();
+      await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => apiOrder);
+      vi.spyOn(api, "post").mockRejectedValue(
+        new ApiError(500, "INTERNAL_ERROR", "boom", undefined, "corr-77"),
+      );
+
+      const dialog = await cancelWith(user, "Khách yêu cầu");
+
+      const alert = await within(dialog).findByRole("alert");
+      expect(alert).toHaveTextContent(UI_LABELS.order.cancelFailedTitle);
+      expect(alert).toHaveTextContent(`${UI_LABELS.common.traceId}: corr-77`);
+    });
+
+    it("ORDER_NOT_CANCELLABLE (đơn đã đổi trạng thái) → đóng dialog, toast và tải lại đơn", async () => {
+      const user = userEvent.setup();
+      await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => apiOrder);
+      const toastError = vi.spyOn(toast, "error");
+      vi.spyOn(api, "post").mockRejectedValue(
+        new ApiError(409, "ORDER_NOT_CANCELLABLE", "Conflicting state"),
+      );
+
+      await cancelWith(user, "Khách yêu cầu");
+
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      expect(toastError).toHaveBeenCalledWith("Đơn không còn huỷ được", expect.any(String));
+      // Lần 1 lúc mở trang, lần 2 do invalidate orderKeys.all
+      await waitFor(() =>
+        expect(vi.mocked(api.get).mock.calls.filter(([url]) => url === DETAIL_PATH)).toHaveLength(
+          2,
+        ),
+      );
+    });
+  },
+);
 
 describe("OrderDetail — kiểm quyền trước khi gọi API", () => {
   it("WAREHOUSE_STAFF (không có sales-orders) → 'Bạn không có quyền', không gọi GET /orders/{id}", async () => {

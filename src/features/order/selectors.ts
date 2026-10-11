@@ -97,3 +97,16 @@ export function releaseBlockers(
   }
   return blockers;
 }
+
+/* ── Huỷ đơn ──────────────────────────────────────────────────────────── */
+
+/** Hệ quả huỷ theo trạng thái — docs 17 §4.4–4.5, docs 19 BR-10. */
+export function cancelConsequence(status: OrderStatus): string | null {
+  if (status === "In Production") {
+    return "Đơn đang sản xuất: lệnh chưa in sẽ huỷ và trả phôi về kho; lệnh đã in tính phí sản xuất (docs 19 BR-10).";
+  }
+  if (status === "Ready to Fulfill" || status === "In Fulfilment") {
+    return "Đơn đã giao kho: huỷ sẽ dừng lấy hàng và put-back hàng đã lấy (docs 17 BR-03).";
+  }
+  return null;
+}

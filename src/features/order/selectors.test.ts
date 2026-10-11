@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  cancelConsequence,
   creditOverage,
   creditState,
   customLineCount,
@@ -109,5 +110,18 @@ describe("dòng đơn & lệnh sản xuất", () => {
   it("shouldFlagOrderRow — chỉ On Hold", () => {
     expect(shouldFlagOrderRow({ status: "On Hold" })).toBe(true);
     expect(shouldFlagOrderRow({ status: "In Production" })).toBe(false);
+  });
+});
+
+describe("cancelConsequence — hệ quả huỷ theo trạng thái", () => {
+  it("In Production → nhắc phí sản xuất (docs 19 BR-10)", () => {
+    expect(cancelConsequence("In Production")).toContain("BR-10");
+  });
+  it("đã giao kho → dừng pick + put-back (docs 17 BR-03)", () => {
+    expect(cancelConsequence("Ready to Fulfill")).toContain("BR-03");
+    expect(cancelConsequence("In Fulfilment")).toContain("put-back");
+  });
+  it("chưa giao kho / sản xuất → không có cảnh báo thêm", () => {
+    expect(cancelConsequence("Pending Payment")).toBeNull();
   });
 });

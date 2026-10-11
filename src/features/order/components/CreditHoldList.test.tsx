@@ -44,6 +44,8 @@ function renderList(permissions: readonly PermissionCode[], items: unknown[] = [
 
 afterEach(() => vi.restoreAllMocks());
 
+const DIALOG_FLOW_TIMEOUT_MS = 15_000;
+
 describe("Credit hold — danh sách (SCRUM-427)", () => {
   it("hiện số liệu hạn mức + phần vượt (docs 14 BR-06: dư nợ + đơn − hạn mức)", async () => {
     renderList(ORDER_PERMISSION_SETS.accountant);
@@ -82,7 +84,8 @@ describe("Credit hold — danh sách (SCRUM-427)", () => {
   });
 });
 
-describe("Credit hold — duyệt / từ chối", () => {
+// Dialog nhiều bước (Radix Select trong jsdom) chậm khi chạy song song cả bộ test → nới timeout
+describe("Credit hold — duyệt / từ chối", { timeout: DIALOG_FLOW_TIMEOUT_MS }, () => {
   it("duyệt: ghi chú bắt buộc → POST /credit-approval {note}", async () => {
     const user = userEvent.setup();
     renderList(ORDER_PERMISSION_SETS.accountant);
