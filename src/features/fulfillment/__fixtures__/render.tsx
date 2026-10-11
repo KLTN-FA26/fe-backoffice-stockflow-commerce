@@ -99,7 +99,16 @@ export function mockFulfillmentApi(
 /** `userId` mặc định là người được gán của fixture `apiTask()`. */
 export function renderFulfillmentScreen(ui: React.ReactElement, userId: string = PICKER_ID) {
   useAuthStore.setState({
-    user: { userId, fullName: "Test", email: "t@t.vn", roles: [], warehouseIds: [] },
+    user: {
+      userId,
+      username: "t@t.vn",
+      fullName: "Test",
+      email: "t@t.vn",
+      status: "ACTIVE",
+      roles: [],
+      lastLoginAt: null,
+    },
+    status: "authenticated",
     isAuthenticated: true,
     impersonatedRole: null,
   });

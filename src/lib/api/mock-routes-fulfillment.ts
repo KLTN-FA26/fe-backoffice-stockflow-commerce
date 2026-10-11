@@ -8,6 +8,7 @@
  */
 
 import { registerMockRoute } from "./mock-adapter";
+import { toBackendRoles } from "./mock-backend-roles";
 import {
   conflict,
   currentActor,
@@ -23,7 +24,6 @@ import {
   toTaskResponse,
   verifyDesigns,
 } from "./mock-routes-fulfillment-store";
-import { BACKEND_ROLE_BY_MOCK_ROLE } from "./mock-routes-me";
 import { backendOrderStatusOf, lockedChecksumOf, setMockOrderStatus } from "./mock-routes-orders";
 import {
   BE_DEFAULT_PAGE_SIZE,
@@ -306,7 +306,7 @@ function registerUserRoutes(): void {
         email: user.email,
         fullName: user.fullName,
         status: user.active ? "ACTIVE" : "DISABLED",
-        roles: user.roles.map((name) => BACKEND_ROLE_BY_MOCK_ROLE[name]).sort(),
+        roles: toBackendRoles(user.roles),
         warehouseIds: user.warehouseIds,
       }))
       .filter((user) => (!role || user.roles.includes(role)) && (!status || user.status === status))

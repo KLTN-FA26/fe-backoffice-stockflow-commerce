@@ -38,7 +38,15 @@ const USERS = {
 
 function actAs(user: { userId: string; roles: RoleName[] }) {
   useAuthStore.setState({
-    user: { ...user, fullName: "Test", email: "t@t.vn", warehouseIds: [] },
+    user: {
+      ...user,
+      username: "t@t.vn",
+      fullName: "Test",
+      email: "t@t.vn",
+      status: "ACTIVE",
+      lastLoginAt: null,
+    },
+    status: "authenticated",
     isAuthenticated: true,
     impersonatedRole: null,
   });

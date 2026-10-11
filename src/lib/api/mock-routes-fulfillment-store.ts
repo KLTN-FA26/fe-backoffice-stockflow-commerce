@@ -6,6 +6,7 @@
  * chỉnh, mang snapshot + checksum như BE.
  */
 
+import { toBackendRoles } from "./mock-backend-roles";
 import {
   backendOrderStatusOf,
   fakeSha256,
@@ -198,12 +199,11 @@ export interface MockActor {
   roles: readonly string[];
 }
 
+/** Vai trò thật của phiên (vai trò giả lập chỉ đổi nhãn, không đổi quyền — như BFF mock). */
 export async function currentActor(): Promise<MockActor> {
-  const [{ useAuthStore }, { mockBackendRoles }] = await Promise.all([
-    import("@/lib/auth/auth-store"),
-    import("./mock-routes-me"),
-  ]);
-  return { userId: useAuthStore.getState().user?.userId ?? "", roles: await mockBackendRoles() };
+  const { useAuthStore } = await import("@/lib/auth/auth-store");
+  const user = useAuthStore.getState().user;
+  return { userId: user?.userId ?? "", roles: toBackendRoles(user?.roles ?? []) };
 }
 
 /** SYSTEM_ADMIN qua mọi cổng vai trò (BE RoleHierarchyConfig). */

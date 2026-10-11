@@ -120,3 +120,23 @@ export const STAFF_ROLE = {
 } as const;
 
 export type StaffRole = (typeof STAFF_ROLE)[keyof typeof STAFF_ROLE];
+
+/** BE develop IdentityResources / IdentityController: read-only RBAC screen APIs. */
+export const IDENTITY_PERMISSIONS = {
+  rolesRead: "identity-roles:READ",
+  rbacRead: "identity-rbac:READ",
+  rbacApprove: "identity-rbac:APPROVE",
+} as const;
+
+export const PERMISSION_QUERY = {
+  path: "/identity/me/permissions",
+  staleTime: 30_000,
+} as const;
+export const PERMISSION_UI = {
+  deniedTitle: "Không có quyền truy cập",
+  deniedDescription: "Bạn không có quyền mở trang này.",
+  errorTitle: "Không thể tải quyền truy cập",
+  retry: "Thử lại",
+  productCreateDenied: "Bạn không có quyền tạo sản phẩm.",
+  demoContext: "Chỉ đổi nhãn vai trò demo; quyền vẫn lấy từ phiên đăng nhập.",
+} as const;
