@@ -188,59 +188,49 @@ export const QC_OUTCOME_BY_API = {
 } as const satisfies Record<QcOutcomeApi, QcOutcomeStatus>;
 
 /**
- * Trạng thái lấy hàng của task xuất kho — nhãn nguyên văn docs 07 §5.1, chỉ gồm các trạng thái BE
- * `PickStatus` phát ra được. BE không có Created / Released / On Hold: task tạo ra là đã gán.
- * BE `PICKED` = docs 07 §5.1 `Completed` ("Đã lấy đủ & gom về staging"). `Picked` của docs 07 §5.2
- * là trạng thái TỒN (hàng đã rời vị trí), không phải trạng thái pick task — không dùng ở đây.
+ * Trạng thái lấy hàng của task xuất kho — HỆ QUY CHIẾU LÀ BE, không phải docs.
+ * Mỗi giá trị BE `fulfillment/internal/domain/PickStatus.java` ứng đúng 1 tên hiển thị = chính tên
+ * enum BE viết Title Case (như module phiếu nhận: `DRAFT` → `Draft`), không đổi nghĩa, không mượn
+ * tên trạng thái docs 07 §5.1 (`Assigned` / `In Progress` / `Completed`…). Docs chỉ để tham khảo:
+ * BE đổi enum thì FE mới đổi theo.
+ * `SHORT` có trong enum BE nhưng chưa code nào set.
  */
-export const PICK_STATUSES = [
-  "Assigned",
-  "In Progress",
-  "Short",
-  "Completed",
-  "Cancelled",
-] as const;
+export const PICK_STATUSES = ["Pending", "Picking", "Picked", "Short", "Cancelled"] as const;
 
 export const PICK_STATUS = {
-  ASSIGNED: "Assigned",
-  CANCELLED: "Cancelled",
-  COMPLETED: "Completed",
-  IN_PROGRESS: "In Progress",
-  SHORT: "Short",
-} as const satisfies Record<string, PickStatus>;
-
-/** BE `fulfillment/internal/domain/PickStatus.java`. `SHORT` có trong enum, chưa code nào set. */
-export const PICK_API_STATUSES = ["PENDING", "PICKING", "PICKED", "SHORT", "CANCELLED"] as const;
-
-export const PICK_STATUS_BY_API = {
-  PENDING: "Assigned",
-  PICKING: "In Progress",
-  PICKED: "Completed",
+  PENDING: "Pending",
+  PICKING: "Picking",
+  PICKED: "Picked",
   SHORT: "Short",
   CANCELLED: "Cancelled",
 } as const satisfies Record<PickApiStatus, PickStatus>;
 
-/** Trạng thái đóng gói — nhãn nguyên văn docs 08 §5, theo BE `PackStatus`. */
-export const PACK_STATUSES = ["Pending", "In Progress", "On Hold", "Packed", "Cancelled"] as const;
+/** BE `fulfillment/internal/domain/PickStatus.java` — giá trị nhận qua API. */
+export const PICK_API_STATUSES = ["PENDING", "PICKING", "PICKED", "SHORT", "CANCELLED"] as const;
+
+/** Đổi 1-1 giá trị BE → tên hiển thị; khoá theo enum BE nên BE thêm giá trị là typecheck báo. */
+export const PICK_STATUS_BY_API = PICK_STATUS;
+
+/**
+ * Trạng thái đóng gói — HỆ QUY CHIẾU LÀ BE `fulfillment/internal/domain/PackStatus.java`, cùng quy
+ * tắc với `PICK_STATUSES` (tên enum BE viết Title Case; docs 08 §5 chỉ để tham khảo).
+ * `PACKING` có trong enum BE nhưng chưa code nào set — `status-map` chưa có nhãn, thêm khi BE dùng.
+ */
+export const PACK_STATUSES = ["Pending", "Packing", "On Hold", "Packed", "Cancelled"] as const;
 
 export const PACK_STATUS = {
-  CANCELLED: "Cancelled",
-  IN_PROGRESS: "In Progress",
-  ON_HOLD: "On Hold",
-  PACKED: "Packed",
   PENDING: "Pending",
-} as const satisfies Record<string, PackStatus>;
-
-/** BE `fulfillment/internal/domain/PackStatus.java`. `PACKING` có trong enum, chưa code nào set. */
-export const PACK_API_STATUSES = ["PENDING", "PACKING", "ON_HOLD", "PACKED", "CANCELLED"] as const;
-
-export const PACK_STATUS_BY_API = {
-  PENDING: "Pending",
-  PACKING: "In Progress",
+  PACKING: "Packing",
   ON_HOLD: "On Hold",
   PACKED: "Packed",
   CANCELLED: "Cancelled",
 } as const satisfies Record<PackApiStatus, PackStatus>;
+
+/** BE `fulfillment/internal/domain/PackStatus.java` — giá trị nhận qua API. */
+export const PACK_API_STATUSES = ["PENDING", "PACKING", "ON_HOLD", "PACKED", "CANCELLED"] as const;
+
+/** Đổi 1-1 giá trị BE → tên hiển thị; khoá theo enum BE nên BE thêm giá trị là typecheck báo. */
+export const PACK_STATUS_BY_API = PACK_STATUS;
 
 /** BE `design/api/DesignArtifactRole.java` — vai trò file trong bundle thiết kế đã khoá. */
 export const DESIGN_ARTIFACT_ROLES = [

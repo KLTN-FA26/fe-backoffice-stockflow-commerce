@@ -24,7 +24,7 @@ export type FulfillmentOrder = z.infer<typeof fulfillmentOrderSchema>;
 export type FulfillmentOrderLine = z.infer<typeof fulfillmentOrderLineSchema>;
 export type AssignableUser = z.infer<typeof assignableUserSchema>;
 
-/* ── Model FE: giữ field BE, chỉ đổi 2 status sang nhãn docs 07 §5.1 / 08 §5 ── */
+/* ── Model FE: giữ field BE, 2 status đổi 1-1 sang tên enum BE dạng Title Case (BE là chuẩn) ── */
 
 export type FulfillmentTask = Omit<FulfillmentTaskApiDto, "pickStatus" | "packStatus"> & {
   pickStatus: PickStatus;

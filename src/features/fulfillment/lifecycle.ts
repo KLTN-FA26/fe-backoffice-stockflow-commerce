@@ -69,8 +69,8 @@ export const FULFILLMENT_ACTIONS: readonly FulfillmentAction[] = [
     permission: FULFILLMENT_PICK_PERMISSIONS.update,
     roles: [ORDER_COORDINATOR, WAREHOUSE_MANAGER],
     assigneeOnly: false,
-    // BE `PickJpaEntity#assign`: chỉ gán khi pick còn PENDING (docs 07 §5.1: Assigned → trả lại)
-    pick: { from: [PICK_STATUS.ASSIGNED] },
+    // BE `PickJpaEntity#assign`: chỉ gán khi pick còn PENDING
+    pick: { from: [PICK_STATUS.PENDING] },
   },
   {
     code: "startPicking",
@@ -78,7 +78,7 @@ export const FULFILLMENT_ACTIONS: readonly FulfillmentAction[] = [
     permission: FULFILLMENT_PICK_PERMISSIONS.update,
     roles: FLOOR_ROLES,
     assigneeOnly: true,
-    pick: { from: [PICK_STATUS.ASSIGNED], to: PICK_STATUS.IN_PROGRESS },
+    pick: { from: [PICK_STATUS.PENDING], to: PICK_STATUS.PICKING },
   },
   {
     code: "completePicking",
@@ -86,7 +86,7 @@ export const FULFILLMENT_ACTIONS: readonly FulfillmentAction[] = [
     permission: FULFILLMENT_PICK_PERMISSIONS.update,
     roles: FLOOR_ROLES,
     assigneeOnly: true,
-    pick: { from: [PICK_STATUS.IN_PROGRESS], to: PICK_STATUS.COMPLETED },
+    pick: { from: [PICK_STATUS.PICKING], to: PICK_STATUS.PICKED },
   },
   {
     code: "completePacking",
@@ -95,8 +95,8 @@ export const FULFILLMENT_ACTIONS: readonly FulfillmentAction[] = [
     roles: FLOOR_ROLES,
     assigneeOnly: true,
     // BE: "Picking must finish before packing"; kiện đang giữ phải qua kiểm tra lại (X-CHK)
-    pick: { from: [PICK_STATUS.COMPLETED] },
-    pack: { from: [PACK_STATUS.PENDING, PACK_STATUS.IN_PROGRESS], to: PACK_STATUS.PACKED },
+    pick: { from: [PICK_STATUS.PICKED] },
+    pack: { from: [PACK_STATUS.PENDING, PACK_STATUS.PACKING], to: PACK_STATUS.PACKED },
   },
   {
     code: "reverify",

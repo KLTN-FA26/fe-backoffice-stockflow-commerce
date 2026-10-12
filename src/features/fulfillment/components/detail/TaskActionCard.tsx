@@ -71,7 +71,7 @@ export function TaskActionCard({
     scope === "picking"
       ? {
           show:
-            task.pickStatus === PICK_STATUS.COMPLETED &&
+            task.pickStatus === PICK_STATUS.PICKED &&
             actor.can(FULFILLMENT_PACKAGE_PERMISSIONS.viewPage),
           href: ADMIN_ROUTES.packing.detail(task.taskId),
           label: fulfillment.action.openPacking,

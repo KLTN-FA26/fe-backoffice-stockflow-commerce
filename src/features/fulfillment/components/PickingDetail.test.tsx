@@ -55,7 +55,7 @@ function renderDetail(
 }
 
 describe("PickingDetail — action-gating theo trạng thái + quyền + vai trò + người được gán", () => {
-  it("NV kho được gán, Assigned: Bắt đầu lấy hàng → xác nhận → POST picking-start không body", async () => {
+  it("NV kho được gán, Pending: Bắt đầu lấy hàng → xác nhận → POST picking-start không body", async () => {
     const user = userEvent.setup();
     const { post } = renderDetail(IDENTITIES.warehouseStaff, apiTask());
 
@@ -71,7 +71,7 @@ describe("PickingDetail — action-gating theo trạng thái + quyền + vai tr�
     expect(screen.queryByRole("button", { name: action.assign })).toBeNull();
   });
 
-  it("In Progress: Hoàn tất lấy hàng → POST picking-completion", async () => {
+  it("Picking: Hoàn tất lấy hàng → POST picking-completion", async () => {
     const user = userEvent.setup();
     const { post } = renderDetail(IDENTITIES.warehouseStaff, apiTask({ pickStatus: "PICKING" }));
 
@@ -101,7 +101,7 @@ describe("PickingDetail — action-gating theo trạng thái + quyền + vai tr�
     expect(screen.queryByRole("button", { name: action.assign })).toBeNull();
   });
 
-  it("điều phối đơn: Gán lại khi Assigned, không có nút lấy hàng", async () => {
+  it("điều phối đơn: Gán lại khi Pending, không có nút lấy hàng", async () => {
     renderDetail(IDENTITIES.orderCoordinator, apiTask(), "coordinator-id");
     expect(await screen.findByRole("button", { name: action.assign })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: action.startPicking })).toBeNull();
@@ -175,10 +175,10 @@ describe("PickingDetail — dữ liệu phụ trợ và lỗi", () => {
     expect(screen.getByRole("button", { name: action.startPicking })).toBeInTheDocument();
   });
 
-  it("BE PICKED hiện nhãn docs 07 §5.1 Completed (Hoàn tất), không dùng Picked của tồn kho", async () => {
+  it("BE PICKED hiện đúng tên BE (Picked → Đã lấy), không đổi sang tên docs", async () => {
     renderDetail(IDENTITIES.warehouseStaff, pickedTask());
-    expect(await screen.findByText("Hoàn tất")).toBeInTheDocument();
-    expect(screen.queryByText("Đã lấy")).toBeNull();
+    expect(await screen.findByText("Đã lấy")).toBeInTheDocument();
+    expect(screen.queryByText("Hoàn tất")).toBeNull();
   });
 
   it("lỗi 409 khi bắt đầu (task đã đổi ở nơi khác) → đóng dialog, tải lại task", async () => {

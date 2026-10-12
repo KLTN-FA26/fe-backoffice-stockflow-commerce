@@ -136,31 +136,28 @@ export const PUTAWAY_TRANSITIONS: Record<PutawayStatus, readonly PutawayStatus[]
 
 /* ── Module 07: Picking ──────────────────────────────────────────────── */
 
-// docs/warehouse/07-picking §5.1 — TẬP CON mà BE hiện hỗ trợ (`PickJpaEntity`: start / complete /
-// cancel), dùng chung cho mọi màn đọc pick task. Task tạo ra là đã gán (BE PENDING = "Assigned").
+// HỆ QUY CHIẾU LÀ BE: chép đúng các chuyển trạng thái BE `PickJpaEntity` đang cho phép
+// (start / complete / cancel), dùng chung cho mọi màn đọc pick task. Docs 07 §5.1 chỉ để tham khảo
+// — BE thêm/bỏ chuyển tiếp thì FE mới đổi theo, FE không tự thêm trạng thái docs mà BE chưa có.
 // "→ Cancelled" do đơn bị huỷ (BE OrderCancellationListener), không phải thao tác trên task.
-// TODO(docs 07 §5.1): bổ sung lại `Created` / `Released` / `On Hold` và các nhánh của `Short`
-// (→ In Progress / → Completed) khi BE có wave/release, tạm dừng và xử lý thiếu hàng.
-// `Short` hiện có trong enum BE nhưng chưa có luồng nào đưa vào hay ra.
+// `SHORT` có trong enum BE nhưng BE chưa có luồng nào đưa vào hay ra.
 export const PICK_TRANSITIONS: Record<PickStatus, readonly PickStatus[]> = {
-  Assigned: ["In Progress", "Cancelled"],
-  "In Progress": ["Completed", "Cancelled"],
+  Pending: ["Picking", "Cancelled"],
+  Picking: ["Picked", "Cancelled"],
   Short: [],
-  Completed: [],
+  Picked: [],
   Cancelled: [],
 };
 
 /* ── Module 08: Packing ──────────────────────────────────────────────── */
 
-// docs/warehouse/08-packing §5 — TẬP CON mà BE hiện hỗ trợ (`PackJpaEntity`: complete / hold /
-// cancel), dùng chung cho mọi màn đọc pack task.
-// BR-01/BR-02 (docs 08 §6) + BR-DSG-003: thiết kế lệch checksum → `On Hold`, chỉ ra `Packed` khi
-// kiểm tra lại khớp (flow X-CHK).
-// TODO(docs 08 §5): bổ sung lại `Verification Failed` và `Packed → Handed to Shipping` khi BE có
-// bước kiểm đơn riêng và bàn giao vận chuyển (module 09). Hiện `Packed` tạm là trạng thái cuối.
+// HỆ QUY CHIẾU LÀ BE: chép đúng các chuyển trạng thái BE `PackJpaEntity` đang cho phép
+// (complete / hold / cancel). Docs 08 §5 chỉ để tham khảo — BE đổi thì FE mới đổi theo.
+// BR-DSG-003 (BE): thiết kế lệch checksum → `On Hold`, chỉ ra `Packed` khi kiểm tra lại khớp
+// (flow X-CHK). `PACKED` là trạng thái cuối ở BE hiện tại.
 export const PACK_TRANSITIONS: Record<PackStatus, readonly PackStatus[]> = {
   Pending: ["Packed", "On Hold", "Cancelled"],
-  "In Progress": ["Packed", "On Hold", "Cancelled"],
+  Packing: ["Packed", "On Hold", "Cancelled"],
   "On Hold": ["Packed", "Cancelled"],
   Packed: [],
   Cancelled: [],

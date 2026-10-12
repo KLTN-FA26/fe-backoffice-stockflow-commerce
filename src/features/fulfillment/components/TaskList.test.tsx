@@ -63,14 +63,14 @@ function renderList(
 }
 
 describe("PickingList — danh sách task theo BE (chỉ phân trang)", () => {
-  it("NV kho theo seed BE: thấy task của mình, trạng thái theo nhãn docs, không có nút tạo / gán", async () => {
+  it("NV kho theo seed BE: thấy task của mình, trạng thái theo tên BE, không có nút tạo / gán", async () => {
     const { get } = renderList(<PickingList />, IDENTITIES.warehouseStaff);
 
     const row = (await screen.findByRole("link", { name: "3F4A5B6C" })).closest("tr");
     expect(row).not.toBeNull();
     const cells = within(row as HTMLElement);
-    // PENDING của BE = "Assigned" (docs 07 §5.1) → nhãn tiếng Việt
-    expect(cells.getByText("Đã gán")).toBeInTheDocument();
+    // BE pick PENDING + pack PENDING → "Pending" (tên enum BE) → nhãn tiếng Việt ở cả 2 cột
+    expect(cells.getAllByText("Chờ xử lý")).toHaveLength(2);
     expect(cells.getByText(fulfillment.self)).toBeInTheDocument();
     // Không có sales-orders:READ → hiện id đơn rút gọn, không gọi /orders
     expect(cells.getByText(ORDER_ID.slice(-8).toUpperCase())).toBeInTheDocument();
@@ -142,7 +142,7 @@ describe("PickingList — danh sách task theo BE (chỉ phân trang)", () => {
     expect(put).not.toHaveBeenCalled();
   });
 
-  it("điều phối đơn: gán được task còn Assigned, không gán task đang lấy hàng", async () => {
+  it("điều phối đơn: gán được task còn Pending, không gán task đang lấy hàng", async () => {
     renderList(<PickingList />, IDENTITIES.orderCoordinator, [
       apiTask(),
       apiTask({ taskId: HELD_ID, pickStatus: "PICKING" }),

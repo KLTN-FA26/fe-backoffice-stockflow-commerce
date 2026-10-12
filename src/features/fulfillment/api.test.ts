@@ -50,8 +50,8 @@ describe("fulfillment task API — hợp đồng BE FulfillmentController", () =
       expect.objectContaining({ params: { page: 2, size: 20 } }),
     );
     expect(result.items.map((task) => [task.pickStatus, task.packStatus])).toEqual([
-      ["Assigned", "Pending"],
-      ["Completed", "On Hold"],
+      ["Pending", "Pending"],
+      ["Picked", "On Hold"],
     ]);
   });
 
@@ -67,7 +67,7 @@ describe("fulfillment task API — hợp đồng BE FulfillmentController", () =
       .mockResolvedValueOnce({ data: apiTask({ pickStatus: "PICKING" }) });
     const task = await getFulfillmentTask(TASK_ID);
     expect(get.mock.calls[0]?.[0]).toBe(PATH);
-    expect(task.pickStatus).toBe("In Progress");
+    expect(task.pickStatus).toBe("Picking");
   });
 
   it("tạo task gửi đúng `CreateTaskRequest`", async () => {
@@ -95,8 +95,8 @@ describe("fulfillment task API — hợp đồng BE FulfillmentController", () =
       .mockResolvedValueOnce({ data: pickedTask() })
       .mockResolvedValueOnce({ data: pickedTask({ packStatus: "PACKED" }) });
 
-    expect((await startPicking(TASK_ID)).pickStatus).toBe("In Progress");
-    expect((await completePicking(TASK_ID)).pickStatus).toBe("Completed");
+    expect((await startPicking(TASK_ID)).pickStatus).toBe("Picking");
+    expect((await completePicking(TASK_ID)).pickStatus).toBe("Picked");
     expect((await completePacking(TASK_ID)).packStatus).toBe("Packed");
     expect(post.mock.calls).toEqual([
       [`${PATH}/picking-start`, undefined],

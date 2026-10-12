@@ -14,7 +14,7 @@ import { AssigneeSelect } from "./AssigneeSelect";
 
 import type { FulfillmentTask } from "@/features/fulfillment/types";
 
-/** Gán lại task cho nhân viên khác — BE chỉ cho khi chưa bắt đầu lấy hàng (pick `Assigned`). */
+/** Gán lại task cho nhân viên khác — BE chỉ cho khi chưa bắt đầu lấy hàng (pick `PENDING`). */
 export function AssignDialog({ task, onClose }: { task: FulfillmentTask; onClose: () => void }) {
   const canReadUsers = useCan(IDENTITY_USER_PERMISSIONS.read);
   const assign = useAssignFulfillmentTask();

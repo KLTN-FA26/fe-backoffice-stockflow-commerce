@@ -93,7 +93,7 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
       expect(all.length).toBeGreaterThan(0);
       // Seed phủ đủ trạng thái để demo badge + action-gating
       expect(new Set(all.map((t) => t.pickStatus))).toEqual(
-        new Set(["Assigned", "In Progress", "Completed", "Cancelled"]),
+        new Set(["Pending", "Picking", "Picked", "Cancelled"]),
       );
       expect(new Set(all.map((t) => t.packStatus))).toEqual(
         new Set(["Pending", "On Hold", "Packed", "Cancelled"]),
@@ -121,7 +121,7 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
     "luồng đủ: lấy hàng → đóng gói lệch checksum (200 + On Hold) → kiểm tra lại → Packed",
     async () => {
       const task = required(
-        (await allTasks()).find((t) => t.pickStatus === "Assigned" && t.packStatus === "Pending"),
+        (await allTasks()).find((t) => t.pickStatus === "Pending" && t.packStatus === "Pending"),
         "task chờ lấy hàng",
       );
       const id = task.taskId;
@@ -133,7 +133,7 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
       expect(task.assignedUserId).toBe(USERS.picker.userId);
       expect(await codeOf(completePicking(id))).toBe("CONFLICT");
       const started = await startPicking(id);
-      expect(started.pickStatus).toBe("In Progress");
+      expect(started.pickStatus).toBe("Picking");
       expect(started.startedAt).toBeTruthy();
 
       // Đã bắt đầu → không gán lại được
@@ -147,7 +147,7 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
       actAs(USERS.picker);
       // Chưa lấy xong → chưa đóng gói
       expect(await codeOf(completePacking(id))).toBe("CONFLICT");
-      expect((await completePicking(id)).pickStatus).toBe("Completed");
+      expect((await completePicking(id)).pickStatus).toBe("Picked");
 
       // X-CHK: lệch checksum KHÔNG phải lỗi
       const held = await completePacking(id);
@@ -238,7 +238,7 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
       expect(created).toMatchObject({
         orderId: order.orderId,
         assignedUserId: USERS.picker.userId,
-        pickStatus: "Assigned",
+        pickStatus: "Pending",
         packStatus: "Pending",
       });
       // Gọi lại → trả task cũ, bỏ qua người được gán mới
@@ -250,7 +250,7 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
       expect(again.assignedUserId).toBe(USERS.picker.userId);
       expect((await listFulfillableOrders()).map((o) => o.orderId)).not.toContain(order.orderId);
 
-      // Còn Assigned → gán lại được
+      // Còn Pending → gán lại được
       const reassigned = await assignFulfillmentTask({
         taskId: created.taskId,
         assignedUserId: USERS.otherPicker.userId,
