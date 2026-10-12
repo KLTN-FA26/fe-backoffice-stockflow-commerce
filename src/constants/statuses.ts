@@ -187,6 +187,62 @@ export const QC_OUTCOME_BY_API = {
   REJECTED: "Rejected",
 } as const satisfies Record<QcOutcomeApi, QcOutcomeStatus>;
 
+/**
+ * Trạng thái lấy hàng của task xuất kho — HỆ QUY CHIẾU LÀ BE, không phải docs.
+ * Mỗi giá trị BE `fulfillment/internal/domain/PickStatus.java` ứng đúng 1 tên hiển thị = chính tên
+ * enum BE viết Title Case (như module phiếu nhận: `DRAFT` → `Draft`), không đổi nghĩa, không mượn
+ * tên trạng thái docs 07 §5.1 (`Assigned` / `In Progress` / `Completed`…). Docs chỉ để tham khảo:
+ * BE đổi enum thì FE mới đổi theo.
+ * `SHORT` có trong enum BE nhưng chưa code nào set.
+ */
+export const PICK_STATUSES = ["Pending", "Picking", "Picked", "Short", "Cancelled"] as const;
+
+export const PICK_STATUS = {
+  PENDING: "Pending",
+  PICKING: "Picking",
+  PICKED: "Picked",
+  SHORT: "Short",
+  CANCELLED: "Cancelled",
+} as const satisfies Record<PickApiStatus, PickStatus>;
+
+/** BE `fulfillment/internal/domain/PickStatus.java` — giá trị nhận qua API. */
+export const PICK_API_STATUSES = ["PENDING", "PICKING", "PICKED", "SHORT", "CANCELLED"] as const;
+
+/** Đổi 1-1 giá trị BE → tên hiển thị; khoá theo enum BE nên BE thêm giá trị là typecheck báo. */
+export const PICK_STATUS_BY_API = PICK_STATUS;
+
+/**
+ * Trạng thái đóng gói — HỆ QUY CHIẾU LÀ BE `fulfillment/internal/domain/PackStatus.java`, cùng quy
+ * tắc với `PICK_STATUSES` (tên enum BE viết Title Case; docs 08 §5 chỉ để tham khảo).
+ * `PACKING` có trong enum BE nhưng chưa code nào set — `status-map` chưa có nhãn, thêm khi BE dùng.
+ */
+export const PACK_STATUSES = ["Pending", "Packing", "On Hold", "Packed", "Cancelled"] as const;
+
+export const PACK_STATUS = {
+  PENDING: "Pending",
+  PACKING: "Packing",
+  ON_HOLD: "On Hold",
+  PACKED: "Packed",
+  CANCELLED: "Cancelled",
+} as const satisfies Record<PackApiStatus, PackStatus>;
+
+/** BE `fulfillment/internal/domain/PackStatus.java` — giá trị nhận qua API. */
+export const PACK_API_STATUSES = ["PENDING", "PACKING", "ON_HOLD", "PACKED", "CANCELLED"] as const;
+
+/** Đổi 1-1 giá trị BE → tên hiển thị; khoá theo enum BE nên BE thêm giá trị là typecheck báo. */
+export const PACK_STATUS_BY_API = PACK_STATUS;
+
+/** BE `design/api/DesignArtifactRole.java` — vai trò file trong bundle thiết kế đã khoá. */
+export const DESIGN_ARTIFACT_ROLES = [
+  "CUSTOMER_PREVIEW",
+  "TECHNICAL_SPEC",
+  "PRINT_READY",
+  "PRODUCTION_INSTRUCTION",
+] as const;
+
+/** Trạng thái đơn BE cho phép tạo task xuất kho (FulfillmentServiceImpl#createTask). */
+export const FULFILLABLE_ORDER_API_STATUSES = ["CONFIRMED", "READY_TO_FULFILL"] as const;
+
 export const PRODUCT_STATUSES = [
   "Draft",
   "Pending Approval",
@@ -285,6 +341,11 @@ export type ReceiptApiStatus = (typeof RECEIPT_API_STATUSES)[number];
 export type ReceiptQcProgressApi = (typeof RECEIPT_QC_PROGRESS_API)[number];
 export type QcOutcomeApi = (typeof QC_OUTCOME_API)[number];
 export type QcOutcomeStatus = (typeof QC_OUTCOME_STATUSES)[number];
+export type PickStatus = (typeof PICK_STATUSES)[number];
+export type PickApiStatus = (typeof PICK_API_STATUSES)[number];
+export type PackStatus = (typeof PACK_STATUSES)[number];
+export type PackApiStatus = (typeof PACK_API_STATUSES)[number];
+export type DesignArtifactRole = (typeof DESIGN_ARTIFACT_ROLES)[number];
 export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
 export type ProposalStatus = (typeof PROPOSAL_STATUSES)[number];
 export type SkuStatus = (typeof SKU_STATUSES)[number];

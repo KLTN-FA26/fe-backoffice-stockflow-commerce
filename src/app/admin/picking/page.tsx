@@ -1,6 +1,13 @@
-import { Warehouse } from "lucide-react";
-import { ComingSoonPage } from "@/components/shared/ComingSoonPage";
+import { Suspense } from "react";
+
+import { PickingList } from "@/features/fulfillment/components/TaskList";
+
+import { PageSkeleton } from "@/components/shared/PageSkeleton";
 
 export default function PickingPage() {
-  return <ComingSoonPage title="Lấy hàng" icon={Warehouse} />;
+  return (
+    <Suspense fallback={<PageSkeleton variant="list" />}>
+      <PickingList />
+    </Suspense>
+  );
 }

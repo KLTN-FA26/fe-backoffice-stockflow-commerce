@@ -422,55 +422,8 @@ export function registerAllMockRoutes(): void {
     };
   });
 
-  /* ====================================================================
-   * Module 07 — Pick Tasks
-   * ==================================================================*/
-
-  registerMockRoute("GET", "/pick-tasks", async (config) => {
-    const { pickTasks } = await import("@/lib/mock-data");
-    const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
-    const status = params.getAll("status");
-
-    let filtered = [...pickTasks];
-    if (status.length) filtered = filtered.filter((t) => status.includes(t.status));
-
-    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
-  });
-
-  registerMockRoute("GET", "/pick-tasks/:id", async (config) => {
-    const { pickTasks } = await import("@/lib/mock-data");
-    const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
-    const task = pickTasks.find((t) => t.pickId === id);
-    if (!task) return { status: 404, data: { message: "Pick task not found" }, headers: {} };
-    return { status: 200, data: task, headers: {} };
-  });
-
-  /* ====================================================================
-   * Module 08 — Packing Tasks
-   * ==================================================================*/
-
-  registerMockRoute("GET", "/packing-tasks", async (config) => {
-    const { packingTasks } = await import("@/lib/mock-data");
-    const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
-    const status = params.getAll("status");
-
-    let filtered = [...packingTasks];
-    if (status.length) filtered = filtered.filter((t) => status.includes(t.status));
-
-    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
-  });
-
-  registerMockRoute("GET", "/packing-tasks/:id", async (config) => {
-    const { packingTasks } = await import("@/lib/mock-data");
-    const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
-    const task = packingTasks.find((t) => t.taskId === id);
-    if (!task) return { status: 404, data: { message: "Packing task not found" }, headers: {} };
-    return { status: 200, data: task, headers: {} };
-  });
+  // Module 07/08 (lấy hàng, đóng gói): API thật `/fulfillment/tasks` — mock ở
+  // `mock-routes-fulfillment.ts` (SCRUM-437).
 
   /* ====================================================================
    * Module 09 — Shipments / Carriers

@@ -1,14 +1,19 @@
 import "server-only";
 
 import {
+  FULFILLMENT_PACKAGE_PERMISSIONS,
+  FULFILLMENT_PICK_PERMISSIONS,
   GOODS_RECEIPT_PERMISSIONS,
   IDENTITY_PERMISSIONS,
+  IDENTITY_USER_PERMISSIONS,
   ORDER_PERMISSIONS,
   PO_PERMISSIONS,
   PRODUCT_PERMISSIONS,
   QC_TASK_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
 } from "@/constants/permissions";
+
+import { toBackendRoles } from "@/lib/api/mock-backend-roles";
 
 import type { PermissionCode } from "@/lib/auth/me-permissions";
 
@@ -18,6 +23,15 @@ import type { PermissionCode } from "@/lib/auth/me-permissions";
 const GR = GOODS_RECEIPT_PERMISSIONS;
 const QC = QC_TASK_PERMISSIONS;
 const GR_WORK = [GR.viewPage, GR.read, GR.create, GR.update];
+
+// Seed BE V20260903000100 + V20260919001300 (fulfillment):
+// WAREHOUSE_STAFF / WAREHOUSE_MANAGER — pick-lists VIEW_PAGE/READ/UPDATE, packages
+// VIEW_PAGE/READ/CREATE; QC_STAFF — pick-lists:READ + packages READ/CREATE (không VIEW_PAGE).
+// identity-users:READ chỉ ECOMMERCE_ADMIN (System Admin mock-only được toàn quyền).
+const PICK = FULFILLMENT_PICK_PERMISSIONS;
+const PACK = FULFILLMENT_PACKAGE_PERMISSIONS;
+const FULFILLMENT_FLOOR = [...Object.values(PICK), ...Object.values(PACK)];
+const WH_WORK = [...GR_WORK, ...FULFILLMENT_FLOOR];
 
 /** Explicit demo session responses keyed by existing staff IDs, never computed from roles. */
 const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
@@ -29,6 +43,8 @@ const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...Object.values(IDENTITY_PERMISSIONS),
     ...Object.values(GR),
     ...Object.values(QC),
+    ...FULFILLMENT_FLOOR,
+    IDENTITY_USER_PERMISSIONS.read,
   ],
   "USER-PROC-01": [
     SUPPLIER_PERMISSIONS.viewPage,
@@ -46,22 +62,37 @@ const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     QC.read,
   ],
   "USER-PLAN-01": [],
-  "USER-WH-01": GR_WORK,
-  "USER-WH-02": GR_WORK,
-  "USER-WH-03": GR_WORK,
-  "USER-WH-04": GR_WORK,
-  "USER-QC-01": [GR.viewPage, GR.read, QC.viewPage, QC.read, QC.approve],
+  "USER-WH-01": WH_WORK,
+  "USER-WH-02": WH_WORK,
+  "USER-WH-03": WH_WORK,
+  "USER-WH-04": WH_WORK,
+  "USER-QC-01": [
+    GR.viewPage,
+    GR.read,
+    QC.viewPage,
+    QC.read,
+    QC.approve,
+    PICK.read,
+    PACK.read,
+    PACK.create,
+  ],
   "USER-ACC-01": [SUPPLIER_PERMISSIONS.viewPage, SUPPLIER_PERMISSIONS.read],
-  "USER-ECAD-01": [...Object.values(PRODUCT_PERMISSIONS), ...Object.values(SUPPLIER_PERMISSIONS)],
+  "USER-ECAD-01": [
+    ...Object.values(PRODUCT_PERMISSIONS),
+    ...Object.values(SUPPLIER_PERMISSIONS),
+    IDENTITY_USER_PERMISSIONS.read,
+  ],
   "USER-SALE-01": [ORDER_PERMISSIONS.viewPage, ORDER_PERMISSIONS.read],
   "USER-SALE-02": [ORDER_PERMISSIONS.viewPage, ORDER_PERMISSIONS.read],
   "USER-SALE-03": [ORDER_PERMISSIONS.viewPage, ORDER_PERMISSIONS.read],
-  "USER-COORD-01": Object.values(ORDER_PERMISSIONS),
+  // Order Coordinator + Warehouse Staff → thêm quyền kho xuất của WAREHOUSE_STAFF
+  "USER-COORD-01": [...Object.values(ORDER_PERMISSIONS), ...FULFILLMENT_FLOOR],
 };
 
 export function mockSessionPermissions(userId: string, roles: readonly string[]) {
   return {
-    roles: [...roles],
+    // BE trả mã vai trò (`MyPermissionsResponse.roles`) — màn fulfillment gate kép theo mã này
+    roles: toBackendRoles(roles),
     permissions: [...(MOCK_USER_GRANTS[userId] ?? [])].sort(),
     dataScope: "ALL" as const,
   };

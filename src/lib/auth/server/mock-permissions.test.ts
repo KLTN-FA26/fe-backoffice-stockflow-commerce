@@ -8,6 +8,7 @@ import { AUTH_COOKIE_NAME, MOCK_LOGIN_PASSWORD } from "@/constants/auth";
 import { PERMISSION_QUERY, SUPPLIER_PERMISSIONS } from "@/constants/permissions";
 
 import { getMockStaffUsers } from "@/lib/api/mock-adapter";
+import { toBackendRoles } from "@/lib/api/mock-backend-roles";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { myPermissionsSchema } from "@/lib/auth/me-permissions";
 
@@ -49,7 +50,7 @@ describe("explicit mock permission responses", () => {
     );
     expect(permissions.status).toBe(200);
     expect(myPermissionsSchema.parse(await permissions.json())).toEqual({
-      roles: staff.roles,
+      roles: toBackendRoles(staff.roles),
       permissions: [],
       dataScope: "ALL",
     });

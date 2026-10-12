@@ -26,6 +26,21 @@ export const RECEIPT_COLUMNS = {
   STATUS: "status",
 } as const;
 
+/** Cột danh sách task xuất kho — chỉ field có trong BE `FulfillmentTaskResponse`. */
+export const FULFILLMENT_COLUMNS = {
+  ACTIONS: "actions",
+  ASSIGNED_AT: "assignedAt",
+  ASSIGNEE: "assignee",
+  INTEGRITY: "integrity",
+  ORDER: "order",
+  PACK_STATUS: "packStatus",
+  PACKED_AT: "packedAt",
+  PICK_STATUS: "pickStatus",
+  PICKED_AT: "pickedAt",
+  STARTED_AT: "startedAt",
+  TASK: "task",
+} as const;
+
 export const PRODUCT_COLUMNS = {
   ACTIONS: "actions",
   CATEGORY: "category",

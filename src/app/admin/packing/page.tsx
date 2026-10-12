@@ -1,6 +1,13 @@
-import { PackageCheck } from "lucide-react";
-import { ComingSoonPage } from "@/components/shared/ComingSoonPage";
+import { Suspense } from "react";
+
+import { PackingList } from "@/features/fulfillment/components/TaskList";
+
+import { PageSkeleton } from "@/components/shared/PageSkeleton";
 
 export default function PackingPage() {
-  return <ComingSoonPage title="Đóng gói" icon={PackageCheck} />;
+  return (
+    <Suspense fallback={<PageSkeleton variant="list" />}>
+      <PackingList />
+    </Suspense>
+  );
 }
