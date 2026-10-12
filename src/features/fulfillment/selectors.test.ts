@@ -13,6 +13,7 @@ import {
   designedLines,
   integrityOutcome,
   isOnDesignHold,
+  isSafeArtifactUrl,
   latestEvidenceByLine,
   shortChecksum,
   shortId,
@@ -24,6 +25,17 @@ const NEW = "2026-10-10T04:00:00Z";
 const OTHER_LINE = "33333333-aaaa-4bbb-8ccc-000000000003";
 
 describe("fulfillment selectors", () => {
+  it("isSafeArtifactUrl: chỉ URL tuyệt đối http(s) mới được mở trong tab", () => {
+    expect(isSafeArtifactUrl("https://files.example/a?sig=1")).toBe(true);
+    expect(isSafeArtifactUrl("http://localhost:9000/a")).toBe(true);
+    expect(isSafeArtifactUrl("javascript:alert(1)")).toBe(false);
+    expect(isSafeArtifactUrl(" javascript:alert(1)")).toBe(false);
+    expect(isSafeArtifactUrl("data:text/html,x")).toBe(false);
+    expect(isSafeArtifactUrl("blob:https://files.example/uuid")).toBe(false);
+    expect(isSafeArtifactUrl("//files.example/a")).toBe(false);
+    expect(isSafeArtifactUrl("")).toBe(false);
+  });
+
   it("isOnDesignHold chỉ đúng khi pack On Hold", () => {
     expect(isOnDesignHold({ packStatus: "On Hold" })).toBe(true);
     expect(isOnDesignHold({ packStatus: "Pending" })).toBe(false);

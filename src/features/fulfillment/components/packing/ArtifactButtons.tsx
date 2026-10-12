@@ -9,6 +9,7 @@ import {
 } from "@/constants";
 import { fulfillmentErrorMessage } from "@/features/fulfillment/errors";
 import { useDesignArtifactDownload } from "@/features/fulfillment/mutations";
+import { isSafeArtifactUrl } from "@/features/fulfillment/selectors";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 
@@ -46,6 +47,12 @@ export function ArtifactButtons({
       { taskId, lineId, role },
       {
         onSuccess: (artifact) => {
+          // Lớp chặn cuối: schema đã chỉ nhận http(s), kiểm lại ngay trước khi gán vào tab
+          if (!isSafeArtifactUrl(artifact.url)) {
+            tab.close();
+            toast.error(FULFILLMENT_ERROR_MESSAGES.artifactUrlInvalid);
+            return;
+          }
           tab.location.href = artifact.url;
         },
         onError: (error) => {

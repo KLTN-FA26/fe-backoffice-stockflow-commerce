@@ -84,6 +84,25 @@ describe("fulfillment DTO schemas — hợp đồng BE FulfillmentController", (
     );
   });
 
+  it("artifact access: url chỉ nhận http(s) tuyệt đối — chặn javascript: / data: / đường dẫn tương đối", () => {
+    const artifact = {
+      artifactId: "a1",
+      role: "PRINT_READY",
+      originalName: "front.pdf",
+      contentType: "application/pdf",
+      sizeBytes: 1,
+      checksum: "c".repeat(64),
+      expiresAt: "2026-10-10T03:05:00Z",
+    };
+    const ok = (url: string) => beArtifactAccessSchema.safeParse({ ...artifact, url }).success;
+    expect(ok("https://files.example/signed?sig=1")).toBe(true);
+    expect(ok("http://localhost:9000/bucket/front.pdf")).toBe(true);
+    expect(ok("javascript:alert(1)")).toBe(false);
+    expect(ok("JavaScript:alert(1)")).toBe(false);
+    expect(ok("data:text/html,<script>alert(1)</script>")).toBe(false);
+    expect(ok("/files/front.pdf")).toBe(false);
+  });
+
   it("đơn hàng: dòng thường không có snapshot; bỏ qua field không dùng", () => {
     const parsed = fulfillmentOrderSchema.parse({
       ...fulfillmentOrder,

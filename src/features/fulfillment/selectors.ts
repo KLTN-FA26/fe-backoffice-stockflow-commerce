@@ -6,6 +6,18 @@ import { FULFILLMENT_LIMITS, PACK_STATUS } from "@/constants";
 
 import type { FulfillmentOrderLine, FulfillmentTask, IntegrityEvidence } from "./types";
 
+/** Scheme được phép mở cho URL ký của file thiết kế — chặn `javascript:` / `data:` / `blob:`… */
+const ARTIFACT_URL_PROTOCOLS: readonly string[] = ["https:", "http:"];
+
+/**
+ * URL tải file thiết kế có an toàn để mở/gán vào tab không: phải là URL tuyệt đối và scheme
+ * `https:` / `http:`. URL do BE trả, nhưng đây là lớp chặn cuối trước `tab.location.href`.
+ */
+export function isSafeArtifactUrl(url: string): boolean {
+  if (!URL.canParse(url)) return false;
+  return ARTIFACT_URL_PROTOCOLS.includes(new URL(url).protocol);
+}
+
 /** Kiện đang bị giữ do lệch checksum thiết kế (flow X-CHK). */
 export function isOnDesignHold(task: Pick<FulfillmentTask, "packStatus">): boolean {
   return task.packStatus === PACK_STATUS.ON_HOLD;

@@ -152,6 +152,30 @@ describe("PackingStation — thiết kế đã khoá bên cạnh dòng tuỳ ch�
     expect(get.mock.calls.some(([url]) => url === PRINT_PATH)).toBe(true);
   });
 
+  it("BE trả URL javascript: → không gán vào tab, đóng tab và báo lỗi", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const user = userEvent.setup();
+    const tab = fakeTab();
+    vi.spyOn(window, "open").mockReturnValue(tab);
+    const error = vi.spyOn(toast, "error").mockImplementation(() => "");
+    mockFulfillmentApi(IDENTITIES.staffWithOrders, {
+      [PATH]: () => pickedTask(),
+      [`/orders/${ORDER_ID}`]: () => fulfillmentOrder,
+      "/orders": () => EMPTY_PAGE,
+      [PREVIEW_PATH]: () => artifact("CUSTOMER_PREVIEW", "image/png"),
+      [PRINT_PATH]: () => ({
+        ...artifact("PRINT_READY", "application/pdf"),
+        url: "javascript:alert(1)",
+      }),
+    });
+    renderFulfillmentScreen(<PackingStation id={TASK_ID} />);
+
+    await user.click(await screen.findByRole("button", { name: "File in" }));
+    await waitFor(() => expect(tab.close).toHaveBeenCalled());
+    expect(tab.location.href).toBe("");
+    expect(error).toHaveBeenCalled();
+  });
+
   it("trình duyệt chặn tab mới → báo người dùng, không gọi API", async () => {
     const user = userEvent.setup();
     vi.spyOn(window, "open").mockReturnValue(null);

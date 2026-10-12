@@ -272,6 +272,8 @@ export const FULFILLMENT_ERROR_MESSAGES = {
   // 409 khi task CHƯA bị giữ: BE dùng cùng mã cho "lệch checksum" và "đơn không còn ở khâu xuất kho"
   artifactUnavailable:
     "Không lấy được file thiết kế: đơn hàng không còn ở khâu xuất kho, hoặc file không khớp checksum đã chốt.",
+  // URL ký BE trả không phải http(s) — không mở để tránh chạy `javascript:` trong tab
+  artifactUrlInvalid: "Đường dẫn file thiết kế không hợp lệ — không mở được. Báo bộ phận kỹ thuật.",
   popupBlocked:
     "Trình duyệt đã chặn tab mới — cho phép mở cửa sổ bật lên cho trang này rồi tải lại.",
   artifactMismatch:

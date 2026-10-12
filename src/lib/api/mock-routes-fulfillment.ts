@@ -50,6 +50,8 @@ const ARTIFACT_ROLES = [
 /** ASSUMPTION (mock-only): bundle mock không có file hướng dẫn sản xuất → demo nhánh 404. */
 const MISSING_ARTIFACT_ROLE = "PRODUCTION_INSTRUCTION";
 const ARTIFACT_TTL_MS = 5 * 60_000;
+/** File mẫu tĩnh cho URL ký giả lập (`public/mock/design-artifacts/`). */
+const MOCK_ARTIFACT_DIR = "/mock/design-artifacts";
 
 const newestFirst = (a: MockTask, b: MockTask) => b.createdAt.localeCompare(a.createdAt);
 
@@ -165,18 +167,19 @@ function registerTaskReadRoutes(): void {
         return beError(404, "NOT_FOUND", `The confirmed bundle has no ${role} artifact`);
       }
       const preview = role === "CUSTOMER_PREVIEW";
-      const body = preview
-        ? `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="320"><rect width="320" height="320" fill="white" stroke="black"/><text x="160" y="165" text-anchor="middle" font-family="monospace" font-size="18">${line.designId}</text></svg>`
-        : `Mock ${role} of ${line.designId}`;
-      const contentType = preview ? "image/svg+xml" : "text/plain";
+      // BE trả URL ký http(s) (presigned) — mock trỏ tới file mẫu tĩnh trong `public/mock/`
+      const file = preview ? "customer-preview.svg" : "artifact.txt";
+      const url = new URL(`${MOCK_ARTIFACT_DIR}/${file}`, window.location.origin);
+      url.searchParams.set("design", line.designId);
+      url.searchParams.set("role", role);
       return beOk({
         artifactId: `ART-${line.designId}-${role}`,
         role,
         originalName: `${line.designId}-${role.toLowerCase()}.${preview ? "svg" : "txt"}`,
-        contentType,
-        sizeBytes: body.length,
+        contentType: preview ? "image/svg+xml" : "text/plain",
+        sizeBytes: 1024,
         checksum: lockedChecksumOf(line),
-        url: `data:${contentType};charset=utf-8,${encodeURIComponent(body)}`,
+        url: url.href,
         expiresAt: new Date(Date.now() + ARTIFACT_TTL_MS).toISOString(),
       });
     },

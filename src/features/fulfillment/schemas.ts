@@ -10,6 +10,8 @@ import { z } from "zod";
 import { DESIGN_ARTIFACT_ROLES, PACK_API_STATUSES, PICK_API_STATUSES } from "@/constants";
 import { bePageSchema } from "@/lib/api/page-schema";
 
+import { isSafeArtifactUrl } from "./selectors";
+
 /* ── DTO: task ───────────────────────────────────────────────────────── */
 
 /**
@@ -51,7 +53,8 @@ export const beArtifactAccessSchema = z.object({
   contentType: z.string(),
   sizeBytes: z.number().int().min(0),
   checksum: z.string(),
-  url: z.string(),
+  // Chỉ nhận URL tuyệt đối http(s) — URL này được gán vào `tab.location.href` / `<img src>`
+  url: z.string().refine(isSafeArtifactUrl, { message: "URL file thiết kế không hợp lệ" }),
   expiresAt: z.string(),
 });
 
