@@ -86,7 +86,7 @@ export const FULFILLMENT_ACTIONS: readonly FulfillmentAction[] = [
     permission: FULFILLMENT_PICK_PERMISSIONS.update,
     roles: FLOOR_ROLES,
     assigneeOnly: true,
-    pick: { from: [PICK_STATUS.IN_PROGRESS], to: PICK_STATUS.PICKED },
+    pick: { from: [PICK_STATUS.IN_PROGRESS], to: PICK_STATUS.COMPLETED },
   },
   {
     code: "completePacking",
@@ -95,7 +95,7 @@ export const FULFILLMENT_ACTIONS: readonly FulfillmentAction[] = [
     roles: FLOOR_ROLES,
     assigneeOnly: true,
     // BE: "Picking must finish before packing"; kiện đang giữ phải qua kiểm tra lại (X-CHK)
-    pick: { from: [PICK_STATUS.PICKED] },
+    pick: { from: [PICK_STATUS.COMPLETED] },
     pack: { from: [PACK_STATUS.PENDING, PACK_STATUS.IN_PROGRESS], to: PACK_STATUS.PACKED },
   },
   {

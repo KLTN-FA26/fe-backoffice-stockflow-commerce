@@ -190,16 +190,22 @@ export const QC_OUTCOME_BY_API = {
 /**
  * Trạng thái lấy hàng của task xuất kho — nhãn nguyên văn docs 07 §5.1, chỉ gồm các trạng thái BE
  * `PickStatus` phát ra được. BE không có Created / Released / On Hold: task tạo ra là đã gán.
- * Lấy xong hiện `Picked` (docs 07 §5.2 "đã lấy khỏi vị trí") thay cho `Completed` của §5.1: trên cùng một
- * task còn bước đóng gói, "Hoàn tất" ở cột lấy hàng dễ bị đọc nhầm là cả task đã xong.
+ * BE `PICKED` = docs 07 §5.1 `Completed` ("Đã lấy đủ & gom về staging"). `Picked` của docs 07 §5.2
+ * là trạng thái TỒN (hàng đã rời vị trí), không phải trạng thái pick task — không dùng ở đây.
  */
-export const PICK_STATUSES = ["Assigned", "In Progress", "Short", "Picked", "Cancelled"] as const;
+export const PICK_STATUSES = [
+  "Assigned",
+  "In Progress",
+  "Short",
+  "Completed",
+  "Cancelled",
+] as const;
 
 export const PICK_STATUS = {
   ASSIGNED: "Assigned",
   CANCELLED: "Cancelled",
+  COMPLETED: "Completed",
   IN_PROGRESS: "In Progress",
-  PICKED: "Picked",
   SHORT: "Short",
 } as const satisfies Record<string, PickStatus>;
 
@@ -209,7 +215,7 @@ export const PICK_API_STATUSES = ["PENDING", "PICKING", "PICKED", "SHORT", "CANC
 export const PICK_STATUS_BY_API = {
   PENDING: "Assigned",
   PICKING: "In Progress",
-  PICKED: "Picked",
+  PICKED: "Completed",
   SHORT: "Short",
   CANCELLED: "Cancelled",
 } as const satisfies Record<PickApiStatus, PickStatus>;

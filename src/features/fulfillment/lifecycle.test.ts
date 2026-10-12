@@ -43,13 +43,13 @@ describe("PICK_TRANSITIONS / PACK_TRANSITIONS (docs 07 §5.1, 08 §5 — theo BE
     expect(Object.keys(PACK_TRANSITIONS).sort()).toEqual([...PACK_STATUSES].sort());
   });
 
-  it("pick: Assigned → In Progress → Picked; huỷ theo đơn ở bước chưa xong", () => {
+  it("pick: Assigned → In Progress → Completed; huỷ theo đơn ở bước chưa xong", () => {
     expect(PICK_TRANSITIONS.Assigned).toEqual(["In Progress", "Cancelled"]);
-    expect(PICK_TRANSITIONS["In Progress"]).toEqual(["Picked", "Cancelled"]);
+    expect(PICK_TRANSITIONS["In Progress"]).toEqual(["Completed", "Cancelled"]);
   });
 
-  it("pick: Picked / Short / Cancelled là terminal", () => {
-    expect(PICK_TRANSITIONS.Picked).toEqual([]);
+  it("pick: Completed / Short / Cancelled là terminal", () => {
+    expect(PICK_TRANSITIONS.Completed).toEqual([]);
     expect(PICK_TRANSITIONS.Short).toEqual([]);
     expect(PICK_TRANSITIONS.Cancelled).toEqual([]);
   });
@@ -66,11 +66,11 @@ describe("PICK_TRANSITIONS / PACK_TRANSITIONS (docs 07 §5.1, 08 §5 — theo BE
 });
 
 describe("allowedFulfillmentActions — quyền + vai trò + người được gán (BE gate kép)", () => {
-  it("NV kho là người được gán: Assigned → bắt đầu; In Progress → hoàn tất; Picked → đóng gói", () => {
+  it("NV kho là người được gán: Assigned → bắt đầu; In Progress → hoàn tất; Completed → đóng gói", () => {
     const staff = actorOf(IDENTITIES.warehouseStaff);
     expect(codes(task("Assigned", "Pending"), staff)).toEqual(["startPicking"]);
     expect(codes(task("In Progress", "Pending"), staff)).toEqual(["completePicking"]);
-    expect(codes(task("Picked", "Pending"), staff)).toEqual(["completePacking"]);
+    expect(codes(task("Completed", "Pending"), staff)).toEqual(["completePacking"]);
   });
 
   it("NV kho KHÔNG phải người được gán → không có thao tác nào", () => {
@@ -84,7 +84,7 @@ describe("allowedFulfillmentActions — quyền + vai trò + người được g
     const manager = actorOf(IDENTITIES.warehouseManager);
     expect(codes(task("Assigned", "Pending", SOMEONE_ELSE), manager)).toEqual(["assign"]);
     expect(codes(task("In Progress", "Pending", SOMEONE_ELSE), manager)).toEqual([]);
-    expect(codes(task("Picked", "Pending", SOMEONE_ELSE), manager)).toEqual([]);
+    expect(codes(task("Completed", "Pending", SOMEONE_ELSE), manager)).toEqual([]);
   });
 
   it("quản lý kho tự được gán → gán lại + bắt đầu lấy hàng", () => {
@@ -96,22 +96,22 @@ describe("allowedFulfillmentActions — quyền + vai trò + người được g
     const coordinator = actorOf(IDENTITIES.orderCoordinator);
     expect(codes(task("Assigned", "Pending"), coordinator)).toEqual(["assign"]);
     expect(codes(task("In Progress", "Pending"), coordinator)).toEqual([]);
-    expect(codes(task("Picked", "Pending"), coordinator)).toEqual([]);
-    expect(codes(task("Picked", "On Hold"), coordinator)).toEqual([]);
+    expect(codes(task("Completed", "Pending"), coordinator)).toEqual([]);
+    expect(codes(task("Completed", "On Hold"), coordinator)).toEqual([]);
   });
 
   it("X-CHK: chỉ QC / quản lý kho kiểm tra lại kiện On Hold, không cần là người được gán", () => {
-    const held = task("Picked", "On Hold", SOMEONE_ELSE);
+    const held = task("Completed", "On Hold", SOMEONE_ELSE);
     expect(codes(held, actorOf(IDENTITIES.qcStaff))).toEqual(["reverify"]);
     expect(codes(held, actorOf(IDENTITIES.warehouseManager))).toEqual(["reverify"]);
     // Người được gán là NV kho: kiện đang giữ thì không đóng gói lại được
-    expect(codes(task("Picked", "On Hold"), actorOf(IDENTITIES.warehouseStaff))).toEqual([]);
+    expect(codes(task("Completed", "On Hold"), actorOf(IDENTITIES.warehouseStaff))).toEqual([]);
   });
 
   it("QC không có thao tác lấy hàng / đóng gói / gán", () => {
     const qc = actorOf(IDENTITIES.qcStaff);
     expect(codes(task("Assigned", "Pending"), qc)).toEqual([]);
-    expect(codes(task("Picked", "Pending"), qc)).toEqual([]);
+    expect(codes(task("Completed", "Pending"), qc)).toEqual([]);
   });
 
   it("chưa lấy hàng xong → không đóng gói (BE: Picking must finish before packing)", () => {
@@ -123,7 +123,7 @@ describe("allowedFulfillmentActions — quyền + vai trò + người được g
     for (const identity of Object.values(IDENTITIES)) {
       const actor = actorOf(identity);
       expect(codes(task("Cancelled", "Cancelled"), actor)).toEqual([]);
-      expect(codes(task("Picked", "Packed"), actor)).toEqual([]);
+      expect(codes(task("Completed", "Packed"), actor)).toEqual([]);
     }
   });
 
@@ -180,10 +180,10 @@ describe("các cổng phụ", () => {
   });
 
   it("canDownloadArtifact: người được gán, quản lý kho, QC; điều phối và NV kho khác thì không", () => {
-    const others = task("Picked", "Pending", SOMEONE_ELSE);
-    expect(canDownloadArtifact(task("Picked", "Pending"), actorOf(IDENTITIES.warehouseStaff))).toBe(
-      true,
-    );
+    const others = task("Completed", "Pending", SOMEONE_ELSE);
+    expect(
+      canDownloadArtifact(task("Completed", "Pending"), actorOf(IDENTITIES.warehouseStaff)),
+    ).toBe(true);
     expect(canDownloadArtifact(others, actorOf(IDENTITIES.warehouseStaff))).toBe(false);
     expect(canDownloadArtifact(others, actorOf(IDENTITIES.warehouseManager))).toBe(true);
     expect(canDownloadArtifact(others, actorOf(IDENTITIES.qcStaff))).toBe(true);
@@ -196,10 +196,10 @@ describe("các cổng phụ", () => {
 
   it("isTaskCancelled / isTaskClosed", () => {
     expect(isTaskCancelled(task("Cancelled", "Cancelled"))).toBe(true);
-    expect(isTaskCancelled(task("Picked", "On Hold"))).toBe(false);
-    expect(isTaskClosed(task("Picked", "Packed"))).toBe(true);
+    expect(isTaskCancelled(task("Completed", "On Hold"))).toBe(false);
+    expect(isTaskClosed(task("Completed", "Packed"))).toBe(true);
     expect(isTaskClosed(task("Cancelled", "Pending"))).toBe(true);
-    expect(isTaskClosed(task("Picked", "On Hold"))).toBe(false);
+    expect(isTaskClosed(task("Completed", "On Hold"))).toBe(false);
   });
 
   it("chưa đăng nhập (userId null) không bao giờ là người được gán", () => {

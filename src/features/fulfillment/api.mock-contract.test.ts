@@ -93,7 +93,7 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
       expect(all.length).toBeGreaterThan(0);
       // Seed phủ đủ trạng thái để demo badge + action-gating
       expect(new Set(all.map((t) => t.pickStatus))).toEqual(
-        new Set(["Assigned", "In Progress", "Picked", "Cancelled"]),
+        new Set(["Assigned", "In Progress", "Completed", "Cancelled"]),
       );
       expect(new Set(all.map((t) => t.packStatus))).toEqual(
         new Set(["Pending", "On Hold", "Packed", "Cancelled"]),
@@ -147,7 +147,7 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
       actAs(USERS.picker);
       // Chưa lấy xong → chưa đóng gói
       expect(await codeOf(completePacking(id))).toBe("CONFLICT");
-      expect((await completePicking(id)).pickStatus).toBe("Picked");
+      expect((await completePicking(id)).pickStatus).toBe("Completed");
 
       // X-CHK: lệch checksum KHÔNG phải lỗi
       const held = await completePacking(id);

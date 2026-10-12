@@ -175,10 +175,10 @@ describe("PickingDetail — dữ liệu phụ trợ và lỗi", () => {
     expect(screen.getByRole("button", { name: action.startPicking })).toBeInTheDocument();
   });
 
-  it("đã lấy xong hiện nhãn Đã lấy thay vì Hoàn tất (dễ nhầm là xong cả task)", async () => {
+  it("BE PICKED hiện nhãn docs 07 §5.1 Completed (Hoàn tất), không dùng Picked của tồn kho", async () => {
     renderDetail(IDENTITIES.warehouseStaff, pickedTask());
-    expect(await screen.findByText("Đã lấy")).toBeInTheDocument();
-    expect(screen.queryByText("Hoàn tất")).toBeNull();
+    expect(await screen.findByText("Hoàn tất")).toBeInTheDocument();
+    expect(screen.queryByText("Đã lấy")).toBeNull();
   });
 
   it("lỗi 409 khi bắt đầu (task đã đổi ở nơi khác) → đóng dialog, tải lại task", async () => {

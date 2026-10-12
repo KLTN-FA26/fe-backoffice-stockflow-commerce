@@ -25,13 +25,13 @@ export function noActionText(
   scope: FulfillmentScope,
 ): string {
   if (isTaskCancelled(task)) return `${STATUS_LABEL_VI.Cancelled} — không còn thao tác.`;
-  if (scope === "picking" && task.pickStatus === PICK_STATUS.PICKED) {
+  if (scope === "picking" && task.pickStatus === PICK_STATUS.COMPLETED) {
     return `${STATUS_LABEL_VI[task.pickStatus]} — không còn thao tác lấy hàng.`;
   }
   if (scope === "packing") {
     if (isTaskClosed(task)) return `${STATUS_LABEL_VI[task.packStatus]} — không còn thao tác.`;
     if (isOnDesignHold(task)) return "Chờ QC hoặc quản lý kho kiểm tra lại thiết kế.";
-    if (task.pickStatus !== PICK_STATUS.PICKED) return noActions.waitingPick;
+    if (task.pickStatus !== PICK_STATUS.COMPLETED) return noActions.waitingPick;
   }
   if (isBlockedAsNonAssignee(task, actor, ASSIGNEE_ONLY[scope])) return noActions.notAssignee;
   return noActions.viewOnly;

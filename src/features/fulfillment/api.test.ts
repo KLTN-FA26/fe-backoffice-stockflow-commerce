@@ -51,7 +51,7 @@ describe("fulfillment task API — hợp đồng BE FulfillmentController", () =
     );
     expect(result.items.map((task) => [task.pickStatus, task.packStatus])).toEqual([
       ["Assigned", "Pending"],
-      ["Picked", "On Hold"],
+      ["Completed", "On Hold"],
     ]);
   });
 
@@ -96,7 +96,7 @@ describe("fulfillment task API — hợp đồng BE FulfillmentController", () =
       .mockResolvedValueOnce({ data: pickedTask({ packStatus: "PACKED" }) });
 
     expect((await startPicking(TASK_ID)).pickStatus).toBe("In Progress");
-    expect((await completePicking(TASK_ID)).pickStatus).toBe("Picked");
+    expect((await completePicking(TASK_ID)).pickStatus).toBe("Completed");
     expect((await completePacking(TASK_ID)).packStatus).toBe("Packed");
     expect(post.mock.calls).toEqual([
       [`${PATH}/picking-start`, undefined],

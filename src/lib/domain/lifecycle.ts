@@ -136,23 +136,28 @@ export const PUTAWAY_TRANSITIONS: Record<PutawayStatus, readonly PutawayStatus[]
 
 /* ── Module 07: Picking ──────────────────────────────────────────────── */
 
-// docs/warehouse/07-picking §5.1, thu theo BE `PickJpaEntity` (start / complete / cancel):
-// task tạo ra là đã gán (BE PENDING = "Assigned"); không có Created / Released / On Hold.
+// docs/warehouse/07-picking §5.1 — TẬP CON mà BE hiện hỗ trợ (`PickJpaEntity`: start / complete /
+// cancel), dùng chung cho mọi màn đọc pick task. Task tạo ra là đã gán (BE PENDING = "Assigned").
 // "→ Cancelled" do đơn bị huỷ (BE OrderCancellationListener), không phải thao tác trên task.
-// `Short` có trong enum BE nhưng chưa có luồng nào đưa vào hay ra.
+// TODO(docs 07 §5.1): bổ sung lại `Created` / `Released` / `On Hold` và các nhánh của `Short`
+// (→ In Progress / → Completed) khi BE có wave/release, tạm dừng và xử lý thiếu hàng.
+// `Short` hiện có trong enum BE nhưng chưa có luồng nào đưa vào hay ra.
 export const PICK_TRANSITIONS: Record<PickStatus, readonly PickStatus[]> = {
   Assigned: ["In Progress", "Cancelled"],
-  "In Progress": ["Picked", "Cancelled"],
+  "In Progress": ["Completed", "Cancelled"],
   Short: [],
-  Picked: [],
+  Completed: [],
   Cancelled: [],
 };
 
 /* ── Module 08: Packing ──────────────────────────────────────────────── */
 
-// docs/warehouse/08-packing §5, thu theo BE `PackJpaEntity` (complete / hold / cancel).
+// docs/warehouse/08-packing §5 — TẬP CON mà BE hiện hỗ trợ (`PackJpaEntity`: complete / hold /
+// cancel), dùng chung cho mọi màn đọc pack task.
 // BR-01/BR-02 (docs 08 §6) + BR-DSG-003: thiết kế lệch checksum → `On Hold`, chỉ ra `Packed` khi
-// kiểm tra lại khớp (flow X-CHK). `Packed` là cuối ở BE hiện tại (chưa có Handed to Shipping).
+// kiểm tra lại khớp (flow X-CHK).
+// TODO(docs 08 §5): bổ sung lại `Verification Failed` và `Packed → Handed to Shipping` khi BE có
+// bước kiểm đơn riêng và bàn giao vận chuyển (module 09). Hiện `Packed` tạm là trạng thái cuối.
 export const PACK_TRANSITIONS: Record<PackStatus, readonly PackStatus[]> = {
   Pending: ["Packed", "On Hold", "Cancelled"],
   "In Progress": ["Packed", "On Hold", "Cancelled"],
