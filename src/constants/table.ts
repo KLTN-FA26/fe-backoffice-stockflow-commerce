@@ -82,3 +82,26 @@ export const VARIANT_COLUMNS = {
   NAME_VI: "nameVi",
   VALUES: "values",
 } as const;
+
+/** Cột danh sách lệnh chuyển kho — field BE `TransferOrderRowResponse`. */
+export const TRANSFER_COLUMNS = {
+  ACTIONS: "actions",
+  CREATED_AT: "createdAt",
+  DISPATCHED_AT: "dispatchedAt",
+  EXPECTED_DATE: "expectedDate",
+  FROM_WAREHOUSE: "fromWarehouse",
+  NUMBER: "number",
+  STATUS: "status",
+  TO_WAREHOUSE: "toWarehouse",
+} as const;
+
+/** Cột danh sách chuyến xe (contract đề xuất SCRUM-288). */
+export const LOAD_COLUMNS = {
+  ACTIONS: "actions",
+  CARRIER: "carrier",
+  DISPATCHED_AT: "dispatchedAt",
+  NUMBER: "number",
+  PROGRESS: "progress",
+  STATUS: "status",
+  VEHICLE: "vehicle",
+} as const;

@@ -48,7 +48,7 @@ export function RoleSwitcher() {
     : `${user.roles.map((r) => r).join(", ")}`;
 
   return (
-    <div className="fixed right-4 bottom-4 z-50">
+    <div className="fixed right-4 bottom-4 z-50 print:hidden">
       {/* Toggle button */}
       <button
         onClick={() => setOpen(!open)}

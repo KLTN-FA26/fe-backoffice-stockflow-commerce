@@ -3,6 +3,7 @@
 import { cn } from "cn";
 import {
   ArrowRightLeft,
+  CalendarClock,
   ClipboardList,
   FileText,
   LayoutDashboard,
@@ -40,22 +41,17 @@ import {
   IDENTITY_PERMISSIONS,
   ORDER_PERMISSIONS,
   PO_PERMISSIONS,
+  SHIPMENT_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
+  TRANSFER_PERMISSIONS,
+  UI_LABELS,
 } from "@/constants";
 
 import { logoutApi } from "@/lib/auth/auth-api";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
-import {
-  invoices,
-  moveTasks,
-  purchaseOrders,
-  putawayTasks,
-  shipments,
-  transferOrders,
-  warehouses,
-} from "@/lib/mock-data";
+import { invoices, moveTasks, purchaseOrders, putawayTasks, warehouses } from "@/lib/mock-data";
 
 import { Logo } from "@/components/shared/Logo";
 import { SearchBar } from "@/components/shared/SearchBar";
@@ -90,8 +86,6 @@ const WARNING_STATUSES: Record<string, string[]> = {
   "/admin/purchase-orders": ["Pending Approval"],
   "/admin/invoices": ["Exception", "Disputed"],
   "/admin/putaway": ["On Hold"],
-  "/admin/shipments": ["Exception", "Delivery Failed"],
-  "/admin/transfers": ["Partially Received"],
   "/admin/moves": ["On Hold", "Discrepancy"],
 };
 
@@ -105,12 +99,6 @@ function computeWarningCounts(): Record<string, number> {
   ).length;
   counts["/admin/putaway"] = putawayTasks.filter((pt) =>
     WARNING_STATUSES["/admin/putaway"]!.includes(pt.status),
-  ).length;
-  counts["/admin/shipments"] = shipments.filter((sh) =>
-    WARNING_STATUSES["/admin/shipments"]!.includes(sh.status),
-  ).length;
-  counts["/admin/transfers"] = transferOrders.filter((to) =>
-    WARNING_STATUSES["/admin/transfers"]!.includes(to.status),
   ).length;
   counts["/admin/moves"] = moveTasks.filter((mv) =>
     WARNING_STATUSES["/admin/moves"]!.includes(mv.status),
@@ -230,10 +218,11 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: Lightbulb,
       },
       {
-        label: "Chuyển kho liên kho",
+        label: UI_LABELS.transfer.pageTitle,
         tooltip: "Inter-warehouse Transfers",
-        href: "/admin/transfers",
+        href: ADMIN_ROUTES.transfers.list,
         icon: ArrowRightLeft,
+        permission: TRANSFER_PERMISSIONS.viewPage,
       },
       {
         label: "Di chuyển nội bộ",
@@ -267,7 +256,21 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: PackageCheck,
         permission: FULFILLMENT_PACKAGE_PERMISSIONS.viewPage,
       },
-      { label: "Vận đơn", tooltip: "Shipments", href: "/admin/shipments", icon: Truck },
+      {
+        label: UI_LABELS.shipping.loadPlanTitle,
+        tooltip: "Load planning",
+        href: ADMIN_ROUTES.loadPlans,
+        icon: CalendarClock,
+        // Chưa có resource quyền riêng (SCRUM-452) — tạm theo quyền xem màn xếp xe
+        permission: SHIPMENT_PERMISSIONS.viewPage,
+      },
+      {
+        label: UI_LABELS.shipping.pageTitle,
+        tooltip: "Loading & carrier handover",
+        href: ADMIN_ROUTES.shipments.list,
+        icon: Truck,
+        permission: SHIPMENT_PERMISSIONS.viewPage,
+      },
     ],
   },
 ];
@@ -281,13 +284,17 @@ interface BreadcrumbItem {
   href?: string;
 }
 
-const EDIT_SEGMENT = "edit";
-const EDIT_LABEL = "Chỉnh sửa";
+/** Đoạn cuối URL là trang con của một bản ghi: `/<module>/<id>/<đoạn>` → "… / <id> / <nhãn>". */
+const SUBPAGE_LABELS: Record<string, string> = {
+  edit: "Chỉnh sửa",
+  manifest: UI_LABELS.shipping.manifestTitle,
+};
 
 const DETAIL_LABEL_BY_ROUTE: Record<string, string> = {
   "/admin/products/create": "Tạo sản phẩm",
   "/admin/purchase-orders/create": "Tạo đơn đặt hàng",
   "/admin/suppliers/create": "Tạo nhà cung cấp",
+  "/admin/transfers/create": "Tạo lệnh chuyển kho",
 };
 
 /** Required capabilities fail closed; unassigned items remain visible. */
@@ -325,13 +332,17 @@ export function buildBreadcrumbItems(
       .split("/")
       .filter(Boolean);
     // `/<module>/<id>/edit` → "… / <id> / Chỉnh sửa" thay vì chữ "edit"
-    if (rest.length >= 2 && rest.at(-1) === EDIT_SEGMENT) {
+    const last = rest.at(-1) ?? "";
+    // Object.hasOwn: đoạn URL như "constructor" không được trả về hàm của Object.prototype
+    const subpage =
+      rest.length >= 2 && Object.hasOwn(SUBPAGE_LABELS, last) ? SUBPAGE_LABELS[last] : undefined;
+    if (subpage) {
       const id = rest.slice(0, -1).join("/");
       items.push({
         label: labelFor(id) ?? decodeURIComponent(id),
         href: linkable ? `${navItem.href}/${id}` : undefined,
       });
-      items.push({ label: EDIT_LABEL });
+      items.push({ label: subpage });
     } else {
       const last = pathname.split("/").at(-1) ?? "";
       items.push({
@@ -593,7 +604,8 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
         // h-svh + overflow-hidden ghi đè `min-h-svh` của SidebarProvider: chiều cao phải
         // BỊ CHẶN để `overflow-auto` của <main> có hiệu lực, nhờ đó topbar/sidebar đứng yên
         // và chỉ vùng nội dung cuộn. Dùng min-h-* thì cả trang cuộn, topbar trôi theo.
-        className="bg-bg-surface h-svh overflow-hidden"
+        // In (biên bản bàn giao): bỏ khung cố định chiều cao để in đủ nội dung, ẩn sidebar + topbar
+        className="bg-bg-surface h-svh overflow-hidden print:h-auto print:overflow-visible print:[&_[data-slot=sidebar]]:hidden"
         style={
           {
             "--sidebar-width": "240px",
@@ -608,7 +620,7 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
         {/* ================================================================== */}
         <SidebarInset className="bg-bg-surface flex min-h-0 min-w-0 flex-col">
           {/* Topbar */}
-          <header className="border-border-default bg-bg-surface flex h-14 shrink-0 items-center gap-2 border-b px-4">
+          <header className="border-border-default bg-bg-surface flex h-14 shrink-0 items-center gap-2 border-b px-4 print:hidden">
             {/* Mobile sidebar trigger */}
             <SidebarTrigger className="text-ink-secondary hover:bg-bg-muted hover:text-ink-primary size-8 shrink-0 md:hidden" />
 
@@ -739,7 +751,9 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
           </header>
 
           {/* Content */}
-          <main className="flex-1 overflow-auto p-4">{children}</main>
+          <main className="flex-1 overflow-auto p-4 print:overflow-visible print:p-0">
+            {children}
+          </main>
         </SidebarInset>
       </SidebarProvider>
     </TooltipProvider>
