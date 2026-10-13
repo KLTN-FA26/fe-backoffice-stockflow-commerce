@@ -23,6 +23,7 @@ const DRAFT_LABEL = STATUS_LABEL_VI[PO_STATUS.DRAFT] ?? PO_STATUS.DRAFT;
 export function ReviewStep({
   form,
   selectedSupplier,
+  warehouseName,
   totals,
   currency,
   suggestedDate,
@@ -31,6 +32,7 @@ export function ReviewStep({
 }: {
   form: PoCreateFormValues;
   selectedSupplier?: SupplierOption;
+  warehouseName?: string;
   /** Hôm nay + leadTimeDays của NCC — BE tự đặt ngày này khi để trống `expectedAt`. */
   suggestedDate: string | null;
   totals: Totals;
@@ -50,6 +52,7 @@ export function ReviewStep({
             label={UI_LABELS.purchaseOrder.supplier}
             value={selectedSupplier ? `${selectedSupplier.code} — ${selectedSupplier.name}` : "—"}
           />
+          <SummaryItem label="Kho nhận hàng" value={warehouseName ?? "—"} />
           <SummaryItem
             label={UI_LABELS.purchaseOrder.expectedDate}
             value={
@@ -71,6 +74,7 @@ export function ReviewStep({
             mono
           />
           <SummaryItem label={UI_LABELS.purchaseOrder.currency} value={currency} mono />
+          <SummaryItem label="Thuế" value={formatMoney(totals.taxTotal, currency)} mono />
           <SummaryItem label="Tổng PO" value={formatMoney(totals.grandTotal, currency)} mono />
           <SummaryItem label="Số PO" value="Hệ thống tự cấp khi tạo đơn" />
         </div>

@@ -2,8 +2,9 @@
  * Mock routes — Nhà cung cấp (module 01), tách khỏi `mock-routes.ts` để PR NCC không sửa
  * chung đoạn code với các PR khác.
  *
- * Trả đúng hợp đồng BE PR #36 (SupplierController): PageResponse trang từ 0, status
- * ACTIVE/INACTIVE, lỗi `{ errorCode, message, fieldErrors[] }`. Không thêm field ngoài hợp đồng.
+ * Trả đúng hợp đồng BE SupplierController (PR #36, cập nhật PR #71): PageResponse trang từ 0, status
+ * ACTIVE/INACTIVE/BLACKLISTED, lỗi `{ errorCode, message, fieldErrors[] }`. Không thêm field ngoài
+ * hợp đồng.
  * File này + `mock-routes.ts` + `mock-adapter.ts` là nơi duy nhất đọc `mock-data.ts`.
  */
 
@@ -12,7 +13,8 @@ import { registerMockRoute } from "./mock-adapter";
 import type { AxiosRequestConfig } from "axios";
 import type { Supplier } from "@/lib/mock-data";
 
-type ApiStatus = "ACTIVE" | "INACTIVE";
+type ApiStatus = "ACTIVE" | "INACTIVE" | "BLACKLISTED";
+const API_STATUSES: readonly string[] = ["ACTIVE", "INACTIVE", "BLACKLISTED"];
 type Channel = "EMAIL" | "API";
 
 interface MockSupplierRecord {
@@ -28,6 +30,9 @@ interface MockSupplierRecord {
   leadTimeDays: number;
   communicationChannel: Channel;
   apiEndpoint: string | null;
+  overReceiptTolerancePercent: number | null;
+  printSubcontractor: boolean;
+  lossTolerancePercent: number | null;
   createdAt: string;
   lastModifiedAt: string;
 }
@@ -39,10 +44,11 @@ const DEFAULT_PAGE_SIZE = 20; // Pages.DEFAULT_PAGE_SIZE
 const SORTABLE = ["code", "name", "status", "createdAt", "lastModifiedAt"] as const;
 const DEFAULT_PAYMENT_DAYS = 30; // CommercialTerms.PAYMENT_DAYS
 const SEED_TIMESTAMP = "2026-09-01T00:00:00Z";
-const CODE_REGEX = /^[A-Za-z0-9._-]+$/;
-// PO "mở" theo BE = DRAFT/APPROVED/SENT/PARTIALLY_RECEIVED, tức mọi PO chưa đóng/huỷ.
+// BE PR #71 SaveSupplierRequest: @Size(max = 30) @Pattern("[A-Za-z0-9][A-Za-z0-9_-]*"), server upper-case.
+const CODE_REGEX = /^[A-Za-z0-9][A-Za-z0-9_-]{0,29}$/;
+// PO "mở" theo BE = mọi PO chưa đóng/huỷ (DRAFT … PARTIALLY_RECEIVED, RECEIVED chưa đóng).
 // So theo dạng chuẩn hoá để đúng với cả nhãn mock-data ("Closed") lẫn mã BE ("CLOSED").
-const CLOSED_PO_STATUSES: readonly string[] = ["RECEIVED", "CLOSED", "CLOSED_SHORT", "CANCELLED"];
+const CLOSED_PO_STATUSES: readonly string[] = ["CLOSED", "CANCELLED"];
 
 function normalizePoStatus(status: string): string {
   return status.trim().toUpperCase().replace(/\s+/g, "_");
@@ -71,6 +77,9 @@ function fromMockData(s: Supplier): MockSupplierRecord {
     leadTimeDays: s.leadTimeDays,
     communicationChannel: "EMAIL",
     apiEndpoint: null,
+    overReceiptTolerancePercent: null,
+    printSubcontractor: false,
+    lossTolerancePercent: null,
     createdAt: SEED_TIMESTAMP,
     lastModifiedAt: SEED_TIMESTAMP,
   };
@@ -131,6 +140,12 @@ function num(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isInteger(value) ? value : fallback;
 }
 
+/** BE `@DecimalMin("0") @DecimalMax("100")`, tuỳ chọn. `undefined` = sai phạm vi. */
+function percent(value: unknown): number | null | undefined {
+  if (value == null || value === "") return null;
+  return typeof value === "number" && value >= 0 && value <= 100 ? value : undefined;
+}
+
 function idParam(config: AxiosRequestConfig): string {
   const params = (config as Record<string, unknown>)._mockParams as Record<string, string>;
   return decodeURIComponent(params.id ?? "");
@@ -158,9 +173,12 @@ function isDeliveryContactValid(channel: Channel, email: string | null, endpoint
 /** Đọc + validate body theo SaveSupplierRequest. Trả record hoặc response lỗi. */
 function readSaveRequest(data: unknown, existing: MockSupplierRecord | null) {
   const body = readSupplierBody(data);
-  const code = str(body.code);
+  const code = str(body.code)?.toUpperCase() ?? null;
   const name = str(body.name);
-  const status = body.status === "ACTIVE" || body.status === "INACTIVE" ? body.status : null;
+  const status =
+    typeof body.status === "string" && API_STATUSES.includes(body.status)
+      ? (body.status as ApiStatus)
+      : null;
   const channel =
     body.communicationChannel === "EMAIL" || body.communicationChannel === "API"
       ? body.communicationChannel
@@ -175,6 +193,13 @@ function readSaveRequest(data: unknown, existing: MockSupplierRecord | null) {
   if (!isDeliveryContactValid(channel, email, apiEndpoint)) {
     return validationError("deliveryContactValid", "Thông tin kênh gửi PO không hợp lệ");
   }
+  const overReceipt = percent(body.overReceiptTolerancePercent);
+  const loss = percent(body.lossTolerancePercent);
+  if (overReceipt === undefined) {
+    return validationError("overReceiptTolerancePercent", "Dung sai phải trong 0–100");
+  }
+  if (loss === undefined)
+    return validationError("lossTolerancePercent", "Dung sai phải trong 0–100");
   const now = new Date().toISOString();
   const record: MockSupplierRecord = {
     supplierId: existing?.supplierId ?? code,
@@ -189,6 +214,10 @@ function readSaveRequest(data: unknown, existing: MockSupplierRecord | null) {
     leadTimeDays: num(body.leadTimeDays, existing?.leadTimeDays ?? 0),
     communicationChannel: channel,
     apiEndpoint: channel === "API" ? apiEndpoint : null,
+    // BE PUT thay toàn bộ: field vắng mặt = null / false.
+    overReceiptTolerancePercent: overReceipt,
+    printSubcontractor: body.printSubcontractor === true,
+    lossTolerancePercent: loss,
     createdAt: existing?.createdAt ?? now,
     lastModifiedAt: now,
   };
@@ -293,7 +322,12 @@ export function registerSupplierMockRoutes(): void {
     }
     const duplicate = duplicateError(all, record, existing.supplierId);
     if (duplicate) return duplicate;
-    if (record.status === "INACTIVE" && (await hasOpenPurchaseOrders(existing.supplierId))) {
+    // BE Supplier#update: rời ACTIVE (INACTIVE hoặc BLACKLISTED) khi còn PO mở → 409.
+    if (
+      record.status !== "ACTIVE" &&
+      existing.status === "ACTIVE" &&
+      (await hasOpenPurchaseOrders(existing.supplierId))
+    ) {
       return error(
         409,
         "SUPPLIER_HAS_OPEN_PURCHASE_ORDERS",

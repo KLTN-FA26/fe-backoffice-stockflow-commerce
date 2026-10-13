@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { bePo } from "./__fixtures__/render";
+import { bePo, bePoLine } from "./__fixtures__/render";
 import { mapBePoToFe } from "./mappers";
 import { beDeliveryDecisionSchema, bePurchaseOrderSchema, beSupplierSpendSchema } from "./schemas";
 
@@ -9,16 +9,17 @@ function beResponse(overrides: Record<string, unknown> = {}) {
   return bePo({
     status: "PARTIALLY_RECEIVED",
     lines: [
-      {
-        lineId: "33333333-3333-4333-8333-333333333333",
-        sku: "SOFA-3S-GREY",
+      bePoLine({
         description: "3 Seater Sofa",
-        quantityOrdered: 10,
         quantityReceived: 4,
         openQuantity: 6,
         unitPrice: "100000.00",
-      },
+        taxRate: "8.00",
+        lineTotal: "1000000.00",
+        status: "PARTIALLY_RECEIVED",
+      }),
     ],
+    orderDate: "2026-09-30",
     // 17:30 UTC = 00:30 hôm sau theo Asia/Ho_Chi_Minh
     createdAt: "2026-09-29T17:30:00Z",
     sentAt: "2026-09-30T02:00:00Z",
@@ -33,10 +34,12 @@ describe("bePurchaseOrderSchema (parse tại biên API)", () => {
     expect(bePurchaseOrderSchema.parse(beResponse()).lines[0]?.unitPrice).toBe(100000);
   });
 
-  it("chặn status ngoài 7 mã BE (không để từ vựng Title Case lọt qua)", () => {
+  it("chặn status ngoài 8 mã BE D4 (không để từ vựng Title Case lọt qua)", () => {
     expect(
       bePurchaseOrderSchema.safeParse(beResponse({ status: "Pending Approval" })).success,
     ).toBe(false);
+    // Mã cũ trước D4 không còn hợp lệ.
+    expect(bePurchaseOrderSchema.safeParse(beResponse({ status: "SENT" })).success).toBe(false);
   });
 
   it("chặn số tiền không phải số thay vì âm thầm đổi thành 0", () => {
@@ -66,7 +69,9 @@ describe("mapBePoToFe", () => {
       orderedQty: 10,
       receivedQty: 4,
       openQuantity: 6,
+      taxRate: 8,
       lineTotal: 1000000,
+      status: "PARTIALLY_RECEIVED",
     });
   });
 
@@ -81,8 +86,20 @@ describe("mapBePoToFe", () => {
     });
   });
 
-  it("orderDate tính theo Asia/Ho_Chi_Minh, không theo UTC", () => {
+  it("orderDate lấy thẳng từ BE (LocalDate), không suy từ createdAt", () => {
     expect(po.orderDate).toBe("2026-09-30");
+  });
+
+  it("mang kho nhận, NCC, tổng trước thuế / thuế và revision", () => {
+    expect(po).toMatchObject({
+      type: "STANDARD",
+      warehouseId: "d99123fd-2997-4751-6bb9-e10a2e6d9949",
+      warehouseName: "Kho Hồ Chí Minh",
+      supplierName: "Gỗ Hòa Phát",
+      subtotal: 1000000,
+      taxTotal: 0,
+      revisionNo: 0,
+    });
   });
 
   it("giữ NGUYÊN tiền tệ BE trả (EUR không bị đổi thành VND)", () => {
@@ -91,13 +108,13 @@ describe("mapBePoToFe", () => {
     expect(eur.lines[0]?.currency).toBe("EUR");
   });
 
-  it("trả lý do đóng thiếu", () => {
+  it("đóng thiếu: CLOSED + closeKind SHORT_CLOSE, trả lý do đóng", () => {
     const closed = mapBePoToFe(
       bePurchaseOrderSchema.parse(
-        beResponse({ status: "CLOSED_SHORT", closeShortReason: "NCC hết hàng" }),
+        beResponse({ status: "CLOSED", closeKind: "SHORT_CLOSE", closeReason: "NCC hết hàng" }),
       ),
     );
-    expect(closed.rejectionReason).toBe("NCC hết hàng");
+    expect(closed).toMatchObject({ closeKind: "SHORT_CLOSE", rejectionReason: "NCC hết hàng" });
   });
 
   it("chịu được field BE null", () => {

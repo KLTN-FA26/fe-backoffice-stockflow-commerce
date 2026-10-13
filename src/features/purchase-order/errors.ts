@@ -9,23 +9,24 @@ import { PO_ERROR_MESSAGES, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
 /** Ngữ cảnh thao tác — cùng một `errorCode` có thể cần câu giải thích khác nhau. */
-export type PoErrorContext = "send" | "recover" | "receive" | "default";
+export type PoErrorContext = "send" | "recover" | "default";
 
 type KnownErrorCode = Exclude<
   keyof typeof PO_ERROR_MESSAGES,
-  "receiveRejected" | "sendSupplierUnavailable" | "recoverConflict" | "generic"
+  "sendSupplierUnavailable" | "recoverConflict" | "generic"
 >;
 
 /** Tên trường BE (CreatePurchaseOrderRequest…) → nhãn tiếng Việt. */
 const FIELD_LABELS: Record<string, string> = {
   supplierId: UI_LABELS.purchaseOrder.supplier,
+  warehouseId: UI_LABELS.purchaseOrder.validation.warehouseRequired,
+  taxRate: "Thuế suất",
   currency: UI_LABELS.purchaseOrder.currency,
   expectedAt: UI_LABELS.purchaseOrder.expectedDate,
   lines: UI_LABELS.purchaseOrder.lines,
   sku: UI_LABELS.purchaseOrder.sku,
   quantityOrdered: UI_LABELS.purchaseOrder.orderedQty,
   unitPrice: UI_LABELS.purchaseOrder.unitPrice,
-  quantity: UI_LABELS.purchaseOrder.receivedQty,
   reason: "Lý do",
   note: "Ghi chú",
   status: UI_LABELS.purchaseOrder.supplierResponse,
@@ -49,8 +50,6 @@ export function poErrorMessage(error: unknown, context: PoErrorContext = "defaul
   if (!(error instanceof ApiError)) return PO_ERROR_MESSAGES.generic;
   const firstField = Object.keys(error.fieldErrors ?? {})[0];
   if (firstField) return `${PO_ERROR_MESSAGES.VALIDATION_FAILED}: ${fieldLabel(firstField)}`;
-  // BE: nhận vượt "còn nhận được" là IllegalArgumentException → 400 chung, không có field.
-  if (context === "receive" && error.status === 400) return PO_ERROR_MESSAGES.receiveRejected;
   // BE publishDelivery: 409 CONFLICT chung khi NCC không nhận được PO (mã cụ thể đi nhánh dưới).
   if (context === "send" && error.code === "CONFLICT") {
     return PO_ERROR_MESSAGES.sendSupplierUnavailable;

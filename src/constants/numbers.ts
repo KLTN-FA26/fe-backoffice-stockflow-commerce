@@ -4,10 +4,16 @@
 
 /** Giới hạn đơn đặt NCC — lấy đúng ràng buộc DB/BE nhánh `test` (BE request chưa có @Size). */
 export const PO_LIMITS = {
-  /** BE `procurement.po_line.description VARCHAR(300)`. */
-  lineDescriptionMax: 300,
-  /** BE lý do huỷ / đóng thiếu `VARCHAR(1000)`; lý do khôi phục / đổi ngày giao 1..1000. */
+  /** BE `purchase_order_lines.note VARCHAR(255)` (BE PR #71). */
+  lineDescriptionMax: 255,
+  /** BE lý do khôi phục / đổi ngày giao 1..1000. */
   reasonMax: 1000,
+  /** BE `purchase_orders.cancel_reason` / `close_reason VARCHAR(255)` (BE PR #71). */
+  closeReasonMax: 255,
+  /** BE lý do từ chối duyệt — `purchase_order_approvals.reason VARCHAR(500)`. */
+  rejectReasonMax: 500,
+  /** BE `purchase_orders.note TEXT`, giới hạn ở request 2000. */
+  noteMax: 2000,
   /** BE `SupplierConfirmationRequest.supplierReference` @Size(max = 100). */
   supplierReferenceMax: 100,
   /** BE `int quantityOrdered` (Java int). */
@@ -26,4 +32,30 @@ export const ORDER_LIMITS = {
    * @NotBlank nên FE phải chặn, quá dài → DB từ chối → BE trả 500.
    */
   cancelReasonMax: 500,
+} as const;
+
+/** Giới hạn phiếu nhận — đúng ràng buộc request BE goods receipt (PR #62, SCRUM-435). */
+export const RECEIPT_LIMITS = {
+  /** `ReceiptLinesRequest.lines` @Size(max = 200). */
+  linesMax: 200,
+  /** `ReceiptLinesRequest.Line.lotNumber` / `locationCode` @Size(max = 64); `MoveToQcRequest`. */
+  codeMax: 64,
+  /** `ReceiptLinesRequest.Line.note` @Size(max = 255). */
+  lineNoteMax: 255,
+  /** `CreateGoodsReceiptRequest.deliveryNote` @Size(max = 100). */
+  deliveryNoteMax: 100,
+  /** `CreateGoodsReceiptRequest.note` @Size(max = 2000). */
+  noteMax: 2000,
+  /** `QcDecisionRequest.Part.reason` @Size(max = 500). */
+  qcReasonMax: 500,
+} as const;
+
+/** Giới hạn task xuất kho — đúng ràng buộc request BE FulfillmentController. */
+export const FULFILLMENT_LIMITS = {
+  /** `ReverificationRequest.resolutionNote` @NotBlank @Size(max = 1000). */
+  resolutionNoteMax: 1000,
+  /** Số ký tự đầu của checksum SHA-256 (64 hex) hiện trong bảng — đủ để đối chiếu bằng mắt. */
+  checksumPreviewLength: 12,
+  /** Số ký tự CUỐI của UUID hiện khi BE không trả mã đọc được (task, đơn, người được gán). */
+  shortIdLength: 8,
 } as const;

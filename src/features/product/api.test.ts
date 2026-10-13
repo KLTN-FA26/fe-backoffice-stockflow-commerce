@@ -18,13 +18,15 @@ const backendProduct = {
   code: "CHAIR-01",
   name: "Ghế",
   nameEn: "Chair",
+  slug: null,
+  brandId: "33333333-3333-4333-8333-333333333333",
+  brandName: "StockFlow",
   categoryId: null,
+  shortDescription: null,
   description: null,
   descriptionEn: null,
-  brand: "StockFlow",
   taxClass: "STANDARD",
-  customizable: false,
-  images: [],
+  kind: "CUSTOMIZABLE",
   status: "DRAFT",
   createdAt: "2026-01-01T00:00:00Z",
   createdBy: "system",
@@ -33,10 +35,8 @@ const backendProduct = {
   approvedBy: null,
   approvedAt: null,
   rejectionReason: null,
-  weightKg: null,
-  lengthCm: null,
-  widthCm: null,
-  heightCm: null,
+  publishedAt: null,
+  discontinuedAt: null,
 };
 
 function backendPage() {
@@ -74,6 +74,20 @@ describe("product API contract", () => {
     expect(product).not.toHaveProperty("attributes");
     expect(product).not.toHaveProperty("slug");
     expect(product.submittedBy).toBe(backendProduct.submittedBy);
+  });
+
+  it("maps BE PR #71 brand / kind / slug fields; images live on variants, not the product", async () => {
+    vi.spyOn(api, "get").mockResolvedValueOnce({ data: { ...backendProduct, slug: "ghe" } });
+
+    const product = await getProduct(backendProduct.productId);
+
+    expect(product).toMatchObject({
+      brand: "StockFlow",
+      brandId: backendProduct.brandId,
+      type: "Customizable",
+      slug: "ghe",
+      images: [],
+    });
   });
 
   it("maps display statuses to the exact backend enum values", async () => {

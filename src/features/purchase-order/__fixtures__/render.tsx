@@ -10,7 +10,7 @@ import { render, screen } from "@testing-library/react";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { vi } from "vitest";
 
-import { PO_PERMISSIONS, SUPPLIER_PERMISSIONS } from "@/constants";
+import { GOODS_RECEIPT_PERMISSIONS, PO_PERMISSIONS, SUPPLIER_PERMISSIONS } from "@/constants";
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
@@ -23,11 +23,26 @@ export const PO_PERMISSION_SETS = {
   // VIEW_PAGE = mở trang; READ = được gọi API dữ liệu (BE Action.java, ADR-0004)
   viewOnly: [P.viewPage],
   readOnly: [P.viewPage, P.read],
-  // Seed BE PROCUREMENT_STAFF: tạo + gửi/huỷ/nhận/đóng thiếu, không duyệt
-  procurement: [P.viewPage, P.read, P.create, P.update, P.export, SUPPLIER_PERMISSIONS.read],
+  // Seed BE PROCUREMENT_STAFF: tạo + gửi/huỷ/đóng thiếu, không duyệt; tạo được phiếu nhận
+  procurement: [
+    P.viewPage,
+    P.read,
+    P.create,
+    P.update,
+    P.export,
+    SUPPLIER_PERMISSIONS.read,
+    // Seed BE PROCUREMENT_STAFF: goods-receipts VIEW_PAGE/READ/CREATE/UPDATE
+    GOODS_RECEIPT_PERMISSIONS.viewPage,
+    GOODS_RECEIPT_PERMISSIONS.create,
+  ],
   // BE #40 WAREHOUSE_MANAGER: chỉ duyệt
   approver: [P.viewPage, P.read, P.approve],
-  full: [...Object.values(P), SUPPLIER_PERMISSIONS.read],
+  full: [
+    ...Object.values(P),
+    SUPPLIER_PERMISSIONS.read,
+    GOODS_RECEIPT_PERMISSIONS.viewPage,
+    GOODS_RECEIPT_PERMISSIONS.create,
+  ],
 } satisfies Record<string, PermissionCode[]>;
 
 /** Handler theo path: trả data, hoặc throw (vd ApiError) để giả lập lỗi. */
@@ -59,8 +74,17 @@ export function mockApi(
 
 export function renderPoScreen(ui: React.ReactElement, searchParams = "") {
   useAuthStore.setState({
-    user: { userId: "u-test", fullName: "Test", email: "t@t.vn", roles: [], warehouseIds: [] },
+    user: {
+      userId: "u-test",
+      fullName: "Test",
+      email: "t@t.vn",
+      roles: [],
+      username: "test",
+      status: "ACTIVE",
+      lastLoginAt: null,
+    },
     isAuthenticated: true,
+    status: "authenticated",
     impersonatedRole: null,
   });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -79,29 +103,39 @@ export function bePo(overrides: Record<string, unknown> = {}) {
   return {
     purchaseOrderId: "11111111-1111-4111-8111-111111111111",
     poNumber: "PO-20261002-000001",
+    type: "STANDARD",
+    productionOrderId: null,
     supplierId: "22222222-2222-4222-8222-222222222222",
+    supplierCode: "GOHOAPHAT",
+    supplierName: "Gỗ Hòa Phát",
+    warehouseId: "d99123fd-2997-4751-6bb9-e10a2e6d9949",
+    warehouseCode: "HCM",
+    warehouseName: "Kho Hồ Chí Minh",
     status: "DRAFT",
     currency: "VND",
+    orderDate: "2026-10-01",
+    subtotal: 1000000,
+    taxTotal: 0,
     totalAmount: 1000000,
+    note: null,
     expectedAt: "2099-01-01",
-    lines: [
-      {
-        lineId: "33333333-3333-4333-8333-333333333333",
-        sku: "SOFA-3S-GREY",
-        description: "Sofa 3 chỗ",
-        quantityOrdered: 10,
-        quantityReceived: 0,
-        openQuantity: 10,
-        unitPrice: 100000,
-      },
-    ],
+    lines: [bePoLine()],
     createdAt: "2026-10-01T03:00:00Z",
     createdBy: "procurement",
     lastModifiedAt: "2026-10-01T03:00:00Z",
     lastModifiedBy: "procurement",
     possibleDuplicate: false,
+    revisionNo: 0,
+    submittedBy: null,
+    submittedAt: null,
+    approvedBy: null,
+    approvedAt: null,
+    confirmedBy: null,
+    confirmedAt: null,
+    closedAt: null,
+    closeKind: null,
+    closeReason: null,
     cancellationReason: null,
-    closeShortReason: null,
     paymentTermDays: 30,
     leadTimeDays: 7,
     sentAt: null,
@@ -110,6 +144,26 @@ export function bePo(overrides: Record<string, unknown> = {}) {
     supplierReference: null,
     supplierResponseNote: null,
     deliveryStatus: "NOT_SENT",
+    ...overrides,
+  };
+}
+
+/** Một dòng `PurchaseOrderResponse.lines` của BE (PR #71). */
+export function bePoLine(overrides: Record<string, unknown> = {}) {
+  return {
+    lineId: "33333333-3333-4333-8333-333333333333",
+    lineNo: 1,
+    inventoryItemId: "44444444-4444-4444-8444-444444444444",
+    sku: "SOFA-3S-GREY",
+    description: "Sofa 3 chỗ",
+    uom: "EACH",
+    quantityOrdered: 10,
+    quantityReceived: 0,
+    openQuantity: 10,
+    unitPrice: 100000,
+    taxRate: 0,
+    lineTotal: 1000000,
+    status: "OPEN",
     ...overrides,
   };
 }

@@ -16,6 +16,7 @@ import {
   PO_DELIVERY_ATTEMPT_STATUSES,
   PO_DELIVERY_STATUS,
   PO_DELIVERY_STATUSES,
+  PO_LINE_STATUSES,
   PO_STATUSES,
   SUPPLIER_CONFIRMATION_STATUSES,
 } from "@/constants";
@@ -41,21 +42,40 @@ const beDecimal = z.union([z.number(), z.string()]).transform(Number).pipe(z.num
 
 export const bePoLineSchema = z.object({
   lineId: z.string(),
+  lineNo: z.number().int().positive(),
+  inventoryItemId: z.string(),
   sku: z.string(),
   description: z.string().nullish(),
+  uom: z.string(),
   quantityOrdered: z.number().int().positive(),
+  // Tính từ phiếu nhận đã xác nhận (BE PR #71).
   quantityReceived: z.number().int().min(0),
   openQuantity: z.number().int().min(0),
   unitPrice: beDecimal,
+  taxRate: beDecimal,
+  lineTotal: beDecimal,
+  status: z.enum(PO_LINE_STATUSES),
 });
 
 export const bePurchaseOrderSchema = z.object({
   purchaseOrderId: z.string(),
   poNumber: z.string(),
+  // STANDARD | SUBCONTRACT (in gia công, SCRUM-434).
+  type: z.string(),
+  productionOrderId: z.string().nullish(),
   supplierId: z.string(),
+  supplierCode: z.string().nullish(),
+  supplierName: z.string().nullish(),
+  warehouseId: z.string(),
+  warehouseCode: z.string().nullish(),
+  warehouseName: z.string().nullish(),
   status: poStatusSchema,
   currency: z.string(),
+  orderDate: z.string(),
+  subtotal: beDecimal,
+  taxTotal: beDecimal,
   totalAmount: beDecimal,
+  note: z.string().nullish(),
   expectedAt: z.string().nullish(),
   // BE: rỗng ở list row (PurchaseOrderSearchRepository), đầy đủ ở detail/mutation.
   lines: z.array(bePoLineSchema),
@@ -64,8 +84,17 @@ export const bePurchaseOrderSchema = z.object({
   lastModifiedAt: z.string().nullish(),
   lastModifiedBy: z.string().nullish(),
   possibleDuplicate: z.boolean(),
+  revisionNo: z.number().int().min(0),
+  submittedBy: z.string().nullish(),
+  submittedAt: z.string().nullish(),
+  approvedBy: z.string().nullish(),
+  approvedAt: z.string().nullish(),
+  confirmedBy: z.string().nullish(),
+  confirmedAt: z.string().nullish(),
+  closedAt: z.string().nullish(),
+  closeKind: z.enum(["NORMAL", "SHORT_CLOSE", "FORCE_CLOSE"]).nullish(),
+  closeReason: z.string().nullish(),
   cancellationReason: z.string().nullish(),
-  closeShortReason: z.string().nullish(),
   paymentTermDays: z.number().int().min(0),
   leadTimeDays: z.number().int().min(0),
   sentAt: z.string().nullish(),
@@ -155,22 +184,37 @@ export const poLineSchema = z.object({
   unitPrice: z.number().min(0),
   /** Mã ISO đúng như BE trả (PO có thể là EUR) — không ép về VND. */
   currency: z.string(),
+  uom: z.string(),
+  taxRate: z.number().min(0),
+  /** BE `lineTotal` = SL × đơn giá + thuế. */
   lineTotal: z.number().min(0),
+  status: z.enum(PO_LINE_STATUSES),
 });
 
 export const purchaseOrderSchema = z.object({
   poId: z.string(),
   poNumber: z.string(),
+  type: z.string(),
   supplierId: z.string(),
+  supplierName: z.string().optional(),
+  warehouseId: z.string(),
+  warehouseName: z.string().optional(),
   status: poStatusSchema,
   currency: z.string(),
-  /** Ngày của `createdAt` theo Asia/Ho_Chi_Minh (YYYY-MM-DD). */
+  /** BE `orderDate` (ngày đặt theo lịch Việt Nam). */
   orderDate: z.string(),
   expectedDate: z.string(),
   createdBy: z.string(),
-  /** `cancellationReason` hoặc `closeShortReason` của BE. */
+  /** `cancellationReason` hoặc `closeReason` của BE. */
   rejectionReason: z.string().optional(),
-  /** BE `totalAmount` = Σ SL đặt × đơn giá (BE chưa có thuế/chiết khấu). */
+  closeKind: z.string().optional(),
+  note: z.string().optional(),
+  revisionNo: z.number().int(),
+  submittedBy: z.string().optional(),
+  approvedBy: z.string().optional(),
+  subtotal: z.number(),
+  taxTotal: z.number(),
+  /** BE `totalAmount` = tạm tính + thuế. */
   grandTotal: z.number(),
   paymentTermDays: z.number().int(),
   leadTimeDays: z.number().int(),

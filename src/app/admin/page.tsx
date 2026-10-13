@@ -15,6 +15,8 @@ import {
   Receipt,
   ArrowRightLeft,
 } from "lucide-react";
+
+import { RECEIPT_STATUS } from "@/constants";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatTile } from "@/components/shared/StatTile";
 import { DataTable } from "@/components/shared/DataTable";
@@ -51,6 +53,8 @@ import {
   type MoveTask,
 } from "@/lib/mock-data";
 
+import type { ReceiptStatus } from "@/constants";
+
 /* -------------------------------------------------------------------------- */
 /*  Types                                                                    */
 /* -------------------------------------------------------------------------- */
@@ -77,6 +81,14 @@ interface ActivityItem {
 /*  KPI Stats — computed from mock data                                      */
 /* -------------------------------------------------------------------------- */
 
+/** Phiếu nhận còn đang xử lý (chưa Closed/Cancelled) — docs 03 §5.1. */
+const RECEIPT_PROCESSING_STATUSES: readonly ReceiptStatus[] = [
+  RECEIPT_STATUS.DRAFT,
+  RECEIPT_STATUS.CONFIRMED,
+  RECEIPT_STATUS.IN_QC,
+  RECEIPT_STATUS.IN_PUTAWAY,
+];
+
 function computeKpis() {
   const ordersPending = orders.filter((o) =>
     ["Pending Payment", "Confirmed", "In Production", "Ready to Fulfill"].includes(o.status),
@@ -85,7 +97,7 @@ function computeKpis() {
   const poPendingApproval = purchaseOrders.filter((po) => po.status === "Pending Approval").length;
 
   const receiptsProcessing = receipts.filter((r) =>
-    ["Draft", "Confirmed", "In Putaway"].includes(r.status),
+    RECEIPT_PROCESSING_STATUSES.includes(r.status),
   ).length;
 
   const pickAttention = pickTasks.filter((pk) => ["Short", "On Hold"].includes(pk.status)).length;

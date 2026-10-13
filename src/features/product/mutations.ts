@@ -1,21 +1,20 @@
-import { createMutation, createTransitionMutation } from "@/lib/api/query-factory";
+import { createMutation } from "@/lib/api/query-factory";
 
 import {
   createProduct,
   publishProduct,
   transitionProduct,
-  transitionSku,
   unpublishProduct,
   updateProduct,
 } from "./api";
-import { productKeys, skuKeys } from "./queries";
+import { productKeys } from "./queries";
 
 import type { CreateProductInput, UpdateProductInput } from "./schemas";
-import type { Product, Sku } from "./types";
-import type { TransitionProductInput, TransitionSkuInput } from "./api";
+import type { Product } from "./types";
+import type { TransitionProductInput } from "./api";
 
 export const useCreateProduct = createMutation<CreateProductInput, Product>(createProduct, {
-  invalidate: [productKeys.all, skuKeys.all],
+  invalidate: [productKeys.all],
   showErrorToast: false,
   successMessage: "Tạo sản phẩm thành công",
 });
@@ -23,7 +22,7 @@ export const useCreateProduct = createMutation<CreateProductInput, Product>(crea
 export const useUpdateProduct = createMutation<{ id: string } & UpdateProductInput, Product>(
   updateProduct,
   {
-    invalidate: [productKeys.all, skuKeys.all],
+    invalidate: [productKeys.all],
     showErrorToast: false,
     successMessage: "Cập nhật sản phẩm thành công",
   },
@@ -32,7 +31,7 @@ export const useUpdateProduct = createMutation<{ id: string } & UpdateProductInp
 export const useTransitionProduct = createMutation<TransitionProductInput, Product>(
   transitionProduct,
   {
-    invalidate: [productKeys.all, skuKeys.all],
+    invalidate: [productKeys.all],
     showErrorToast: false,
     successMessage: "Chuyển trạng thái sản phẩm thành công",
   },
@@ -49,10 +48,3 @@ export const useUnpublishProduct = createMutation<string, void>(unpublishProduct
   showErrorToast: false,
   successMessage: "Gỡ xuất bản sản phẩm thành công",
 });
-
-export const useTransitionSku = createTransitionMutation<TransitionSkuInput, Sku>(
-  transitionSku,
-  skuKeys,
-  [productKeys.all],
-  "Chuyển trạng thái SKU thành công",
-);

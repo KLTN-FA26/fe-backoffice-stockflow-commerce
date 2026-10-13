@@ -1,0 +1,1 @@
+Mock design artifact — chỉ dùng ở chế độ mock (NEXT_PUBLIC_USE_MOCK=true).

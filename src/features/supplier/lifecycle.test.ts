@@ -19,12 +19,16 @@ const PERMISSION_SETS = {
 const checker = (codes: readonly PermissionCode[]) => (code: PermissionCode) =>
   codes.includes(code);
 
-const keys = (status: "Active" | "Inactive", codes: readonly PermissionCode[]) =>
+const keys = (status: "Active" | "Inactive" | "Blacklisted", codes: readonly PermissionCode[]) =>
   allowedSupplierActions(status, checker(codes)).map((a) => a.key);
 
-describe("SUPPLIER_TRANSITIONS (BE SupplierStatus ACTIVE/INACTIVE)", () => {
-  it("Active ↔ Inactive, mọi trạng thái đều có mặt", () => {
-    expect(SUPPLIER_TRANSITIONS).toEqual({ Active: ["Inactive"], Inactive: ["Active"] });
+describe("SUPPLIER_TRANSITIONS (BE SupplierStatus ACTIVE/INACTIVE/BLACKLISTED)", () => {
+  it("Active ↔ Inactive; danh sách đen chỉ gỡ ra bằng kích hoạt lại", () => {
+    expect(SUPPLIER_TRANSITIONS).toEqual({
+      Active: ["Inactive", "Blacklisted"],
+      Inactive: ["Active", "Blacklisted"],
+      Blacklisted: ["Active"],
+    });
   });
 });
 
@@ -39,20 +43,22 @@ describe("allowedSupplierActions — action-gating theo mã quyền", () => {
     expect(keys("Inactive", PERMISSION_SETS.readOnly)).toEqual([]);
   });
 
-  it("CREATE + UPDATE (không DELETE) → kích hoạt lại được, không ngừng hợp tác được", () => {
-    expect(keys("Inactive", PERMISSION_SETS.editor)).toEqual(["activate"]);
-    expect(keys("Active", PERMISSION_SETS.editor)).toEqual([]);
+  it("CREATE + UPDATE (không DELETE) → kích hoạt lại / đưa vào danh sách đen, không ngừng hợp tác", () => {
+    expect(keys("Inactive", PERMISSION_SETS.editor)).toEqual(["activate", "blacklist"]);
+    expect(keys("Active", PERMISSION_SETS.editor)).toEqual(["blacklist"]);
+    expect(keys("Blacklisted", PERMISSION_SETS.editor)).toEqual(["activate"]);
   });
 
   it("có DELETE → ngừng hợp tác NCC đang hoạt động", () => {
-    expect(keys("Active", PERMISSION_SETS.full)).toEqual(["deactivate"]);
-    expect(keys("Inactive", PERMISSION_SETS.full)).toEqual(["activate"]);
+    expect(keys("Active", PERMISSION_SETS.full)).toEqual(["deactivate", "blacklist"]);
+    expect(keys("Inactive", PERMISSION_SETS.full)).toEqual(["activate", "blacklist"]);
   });
 
   it("mỗi hành động gắn đúng mã quyền BE", () => {
     const [deactivate] = allowedSupplierActions("Active", () => true);
-    const [activate] = allowedSupplierActions("Inactive", () => true);
+    const [activate, blacklist] = allowedSupplierActions("Inactive", () => true);
     expect(deactivate?.permission).toBe("procurement-suppliers:DELETE");
     expect(activate?.permission).toBe("procurement-suppliers:UPDATE");
+    expect(blacklist?.permission).toBe("procurement-suppliers:UPDATE");
   });
 });

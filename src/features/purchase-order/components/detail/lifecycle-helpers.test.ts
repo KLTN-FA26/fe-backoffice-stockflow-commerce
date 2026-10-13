@@ -5,10 +5,11 @@ import { getLifecycleSteps } from "./lifecycle-helpers";
 const stepOf = (status: Parameters<typeof getLifecycleSteps>[0], label: string) =>
   getLifecycleSteps(status).find((s) => s.label === label);
 
-describe("getLifecycleSteps — 'Nhận một phần' là bước tuỳ đơn", () => {
-  it("CLOSED: không đánh dấu đã qua 'Nhận một phần' (BE đóng thẳng SENT → CLOSED khi nhận đủ)", () => {
+describe("getLifecycleSteps — các bước nhận hàng là tuỳ đơn", () => {
+  it("CLOSED: không khẳng định đã qua 'Nhận một phần' / 'Đã nhận đủ' (đóng thiếu hoặc nhận đủ)", () => {
     expect(stepOf("CLOSED", "PARTIALLY_RECEIVED")).toMatchObject({ done: false, optional: true });
-    expect(stepOf("CLOSED", "SENT")).toMatchObject({ done: true, optional: false });
+    expect(stepOf("CLOSED", "RECEIVED")).toMatchObject({ done: false, optional: true });
+    expect(stepOf("CLOSED", "CONFIRMED")).toMatchObject({ done: true, optional: false });
     expect(stepOf("CLOSED", "CLOSED")).toMatchObject({ done: true, current: true });
   });
 
@@ -20,15 +21,24 @@ describe("getLifecycleSteps — 'Nhận một phần' là bước tuỳ đơn", 
     });
   });
 
-  it("CLOSED_SHORT: chỉ đến từ nhận một phần → bước đó chắc chắn đã qua", () => {
-    expect(stepOf("CLOSED_SHORT", "PARTIALLY_RECEIVED")).toMatchObject({
-      done: true,
-      optional: false,
-    });
-    expect(stepOf("CLOSED_SHORT", "CLOSED")).toMatchObject({ done: false });
+  it("PENDING_APPROVAL nằm giữa DRAFT và APPROVED trên trục chính", () => {
+    expect(getLifecycleSteps("PENDING_APPROVAL").map((s) => s.label)).toEqual([
+      "DRAFT",
+      "PENDING_APPROVAL",
+      "APPROVED",
+      "CONFIRMED",
+      "PARTIALLY_RECEIVED",
+      "RECEIVED",
+      "CLOSED",
+    ]);
+    expect(stepOf("PENDING_APPROVAL", "DRAFT")).toMatchObject({ done: true });
+    expect(stepOf("PENDING_APPROVAL", "APPROVED")).toMatchObject({ done: false });
   });
 
-  it("SENT: bước nhận một phần phía trước là tuỳ đơn, chưa qua", () => {
-    expect(stepOf("SENT", "PARTIALLY_RECEIVED")).toMatchObject({ done: false, optional: true });
+  it("CONFIRMED: các bước nhận hàng phía trước là tuỳ đơn, chưa qua", () => {
+    expect(stepOf("CONFIRMED", "PARTIALLY_RECEIVED")).toMatchObject({
+      done: false,
+      optional: true,
+    });
   });
 });

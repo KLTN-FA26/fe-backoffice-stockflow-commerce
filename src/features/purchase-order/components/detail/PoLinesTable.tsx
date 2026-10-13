@@ -39,6 +39,7 @@ export function PoLinesTable({ lines }: { lines: PoLine[] }) {
       cell: (r) => (
         <span className="text-ink-primary font-[family-name:var(--font-mono)] text-[0.8125rem] font-medium tabular-nums">
           {r.orderedQty.toLocaleString("vi-VN")}
+          <span className="text-ink-tertiary ml-1 text-[0.6875rem] font-normal">{r.uom}</span>
         </span>
       ),
     },
@@ -51,6 +52,16 @@ export function PoLinesTable({ lines }: { lines: PoLine[] }) {
       cell: (r) => (
         <span className="text-ink-primary font-[family-name:var(--font-mono)] text-[0.8125rem] font-medium tabular-nums">
           {formatMoney(r.unitPrice, r.currency)}
+        </span>
+      ),
+    },
+    {
+      key: "taxRate",
+      header: "Thuế",
+      align: "right",
+      cell: (r) => (
+        <span className="text-ink-secondary font-[family-name:var(--font-mono)] text-[0.8125rem] tabular-nums">
+          {r.taxRate}%
         </span>
       ),
     },
@@ -88,7 +99,8 @@ export function PoLinesTable({ lines }: { lines: PoLine[] }) {
     },
     {
       key: "lineTotal",
-      header: "Thành tiền",
+      // BE PR #71 `line_total` = SL × đơn giá + thuế của dòng.
+      header: "Thành tiền (gồm thuế)",
       align: "right",
       sortable: true,
       compare: (a, b) => a.lineTotal - b.lineTotal,

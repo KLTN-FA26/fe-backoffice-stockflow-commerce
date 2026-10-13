@@ -6,8 +6,6 @@ export type {
   ProductAttribute,
   ProductStatus,
   ProductType,
-  Sku,
-  SkuStatus,
   Uom,
 } from "./types";
 
@@ -27,16 +25,13 @@ export {
   productStatusValues,
   productTypeSchema,
   productTypeValues,
-  skuSchema,
-  skuStatusSchema,
-  skuStatusValues,
   transitionProductSchema,
-  transitionSkuSchema,
   updateProductSchema,
   uomSchema,
   uomValues,
 } from "./schemas";
 export type {
+  BrandDto,
   CategoryDto,
   CreateProductInput,
   ProductDraftFormValues,
@@ -44,48 +39,24 @@ export type {
   ProductDto,
   ProductStatusValue,
   ProductTypeValue,
-  SkuDto,
-  SkuStatusValue,
   TransitionProductInput,
-  TransitionSkuInput,
   UpdateProductInput,
 } from "./schemas";
 
 export {
   PRODUCT_ACTIONS,
   PRODUCT_TRANSITIONS,
-  SKU_ACTIONS,
-  SKU_TRANSITIONS,
   allowedProductActions,
-  allowedSkuActions,
   allowedTransitions,
   canTransition,
   isProductTerminal,
   isSelfApproval,
-  isSkuTerminal,
   isTerminal,
   nextProductStatuses,
-  nextSkuStatuses,
 } from "./lifecycle";
-export type { ProductAction, SkuAction } from "./lifecycle";
+export type { ProductAction } from "./lifecycle";
 
-export {
-  attributesForProducts,
-  categoryName,
-  computeProductStats,
-  computeSkuStats,
-  countProductStatuses,
-  countSkuStatuses,
-  formatVnd,
-  productAvailableStock,
-  productName,
-  productSkuCount,
-  productUomLabel,
-  shouldFlagProductRow,
-  shouldFlagSkuRow,
-  skusForProduct,
-} from "./selectors";
-export type { ProductListStats } from "./selectors";
+export { attributesForProducts, categoryName, formatVnd, shouldFlagProductRow } from "./selectors";
 
 export {
   PRODUCT_DRAFT_FORM_DEFAULTS,
@@ -100,21 +71,19 @@ export type {
 } from "./create-product-form";
 
 export {
+  brandKeys,
   categoryKeys,
   productKeys,
-  skuKeys,
+  useBrands,
   useCategories,
   useProduct,
   useProducts,
-  useSku,
-  useSkus,
 } from "./queries";
 
 export {
   usePublishProduct,
   useCreateProduct,
   useTransitionProduct,
-  useTransitionSku,
   useUpdateProduct,
   useUnpublishProduct,
 } from "./mutations";
@@ -122,4 +91,41 @@ export {
 export { productTransitionErrorMessage } from "./transition-errors";
 export { toProductApiPage, toProductUiPage } from "./pagination";
 
-export type { ListProductsParams, ListSkusParams } from "./api";
+export type { ListProductsParams } from "./api";
+
+/* ── Biến thể / logistics theo SKU / ảnh theo biến thể (BE PR #71) ───── */
+export type {
+  LogisticsFormValues,
+  SkuLogistics,
+  StorageClass,
+  Variant,
+  VariantInput,
+  VariantMedia,
+  VariantStatus,
+} from "./variant-schemas";
+export {
+  STORAGE_CLASSES,
+  VARIANT_STATUSES,
+  logisticsFormSchema,
+  variantInputSchema,
+} from "./variant-schemas";
+export type { VariantTransition } from "./variant-api";
+export { allowedVariantActions, countVariantsByStatus, VARIANT_ACTIONS } from "./variant-lifecycle";
+export type { VariantAction } from "./variant-lifecycle";
+export { variantErrorMessage } from "./variant-errors";
+export {
+  useAddVariant,
+  useDeleteVariantMedia,
+  useMakePrimaryMedia,
+  useMediaViewUrl,
+  usePublishVariantMedia,
+  useSaveSkuLogistics,
+  useSkuLogistics,
+  useTransitionVariant,
+  useUpdateVariant,
+  useUploadVariantMedia,
+  useVariantMedia,
+  useVariants,
+  useWithdrawVariantMedia,
+  variantKeys,
+} from "./variant-queries";

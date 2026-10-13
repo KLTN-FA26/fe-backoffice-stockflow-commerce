@@ -7,7 +7,12 @@ import { ArrowLeft } from "lucide-react";
 import { ADMIN_ROUTES, SUPPLIER_PERMISSIONS } from "@/constants";
 import { usePermissionChecker } from "@/lib/auth";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
-import { useActivateSupplier, useDeactivateSupplier, useSupplier } from "@/features/supplier";
+import {
+  useActivateSupplier,
+  useBlacklistSupplier,
+  useDeactivateSupplier,
+  useSupplier,
+} from "@/features/supplier";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
@@ -23,6 +28,32 @@ import { SupplierPermissionGate } from "./SupplierPermissionGate";
 
 import type { SupplierActionKey } from "@/features/supplier/lifecycle";
 
+const CONFIRM_DIALOG: Record<
+  SupplierActionKey,
+  { title: string; description: string; confirmLabel: string; variant: "danger" | "default" }
+> = {
+  activate: {
+    title: "Kích hoạt lại nhà cung cấp?",
+    description: "Nhà cung cấp sẽ hoạt động trở lại và xuất hiện trong bộ chọn khi tạo PO.",
+    confirmLabel: "Kích hoạt lại",
+    variant: "default",
+  },
+  deactivate: {
+    title: "Ngừng hợp tác với nhà cung cấp?",
+    description:
+      "NCC sẽ không xuất hiện khi tạo PO mới. Nếu NCC còn đơn đặt hàng đang mở, hệ thống sẽ từ chối.",
+    confirmLabel: "Ngừng hợp tác",
+    variant: "danger",
+  },
+  blacklist: {
+    title: "Đưa nhà cung cấp vào danh sách đen?",
+    description:
+      "NCC sẽ không nhận PO mới và được đánh dấu không hợp tác lại. Có thể gỡ bằng Kích hoạt lại.",
+    confirmLabel: "Đưa vào danh sách đen",
+    variant: "danger",
+  },
+};
+
 function SupplierDetailContent({ supplierId }: { supplierId: string }) {
   const [confirming, setConfirming] = useState<SupplierActionKey | null>(null);
   const can = usePermissionChecker();
@@ -33,7 +64,8 @@ function SupplierDetailContent({ supplierId }: { supplierId: string }) {
   useBreadcrumbLabel(supplierId, query.data?.code);
   const activate = useActivateSupplier();
   const deactivate = useDeactivateSupplier();
-  const isToggling = activate.isPending || deactivate.isPending;
+  const blacklist = useBlacklistSupplier();
+  const isToggling = activate.isPending || deactivate.isPending || blacklist.isPending;
 
   if (!canRead) return <SupplierLoadError error={null} kind="no-read" />;
   if (query.isError) {
@@ -48,10 +80,12 @@ function SupplierDetailContent({ supplierId }: { supplierId: string }) {
   }
 
   const supplier = query.data;
-  const deactivating = confirming === "deactivate";
+  const dialog = CONFIRM_DIALOG[confirming ?? "activate"];
   const handleConfirm = () => {
-    const mutation = deactivating ? deactivate : activate;
-    mutation.mutate(supplier, { onSettled: () => setConfirming(null) });
+    const onSettled = () => setConfirming(null);
+    if (confirming === "deactivate") deactivate.mutate(supplier, { onSettled });
+    else if (confirming === "blacklist") blacklist.mutate(supplier, { onSettled });
+    else activate.mutate(supplier, { onSettled });
   };
 
   return (
@@ -93,14 +127,10 @@ function SupplierDetailContent({ supplierId }: { supplierId: string }) {
       <ConfirmDialog
         open={confirming !== null}
         onOpenChange={(open) => !open && setConfirming(null)}
-        title={deactivating ? "Ngừng hợp tác với nhà cung cấp?" : "Kích hoạt lại nhà cung cấp?"}
-        description={
-          deactivating
-            ? "NCC sẽ không xuất hiện khi tạo PO mới. Nếu NCC còn đơn đặt hàng đang mở, hệ thống sẽ từ chối."
-            : "Nhà cung cấp sẽ hoạt động trở lại và xuất hiện trong bộ chọn khi tạo PO."
-        }
-        confirmLabel={deactivating ? "Ngừng hợp tác" : "Kích hoạt lại"}
-        variant={deactivating ? "danger" : "default"}
+        title={dialog.title}
+        description={dialog.description}
+        confirmLabel={dialog.confirmLabel}
+        variant={dialog.variant}
         loading={isToggling}
         onConfirm={handleConfirm}
       />

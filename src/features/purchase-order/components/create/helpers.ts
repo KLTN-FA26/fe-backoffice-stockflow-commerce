@@ -11,16 +11,33 @@ export function fieldClass(hasError = false): string {
 }
 
 export function createEmptyLine(): PoCreateFormLine {
-  return { skuId: "", description: "", orderedQty: "1", unitPrice: "" };
+  return { skuId: "", description: "", orderedQty: "1", unitPrice: "", taxRate: "" };
 }
 
-export function lineTotal(line: Pick<PoCreateFormLine, "orderedQty" | "unitPrice">): number {
-  return (Number(line.orderedQty) || 0) * (Number(line.unitPrice) || 0);
+type LineAmounts = Pick<PoCreateFormLine, "orderedQty" | "unitPrice" | "taxRate">;
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/** SL × đơn giá, trước thuế (BE `PoLine#subtotal`, 2 chữ số). */
+export function lineSubtotal(line: Pick<PoCreateFormLine, "orderedQty" | "unitPrice">): number {
+  return round2((Number(line.orderedQty) || 0) * (Number(line.unitPrice) || 0));
 }
 
-/** BE `totalAmount` = Σ SL đặt × đơn giá (BE chưa có thuế / chiết khấu). */
+/** Thuế của dòng (BE `PoLine#tax`: tạm tính × thuế suất / 100, làm tròn 2 chữ số). */
+export function lineTax(line: LineAmounts): number {
+  return round2((lineSubtotal(line) * (Number(line.taxRate) || 0)) / 100);
+}
+
+/** Thành tiền gồm thuế (BE `PoLine#total`). */
+export function lineTotal(line: LineAmounts): number {
+  return lineSubtotal(line) + lineTax(line);
+}
+
+/** BE `PurchaseOrder`: subtotal, taxTotal, totalAmount = subtotal + taxTotal. */
 export function calculateTotals(lines: readonly PoCreateFormLine[]): Totals {
-  return { grandTotal: lines.reduce((acc, line) => acc + lineTotal(line), 0) };
+  const subtotal = lines.reduce((acc, line) => acc + lineSubtotal(line), 0);
+  const taxTotal = lines.reduce((acc, line) => acc + lineTax(line), 0);
+  return { subtotal, taxTotal, grandTotal: subtotal + taxTotal };
 }
 
 /** Mã SKU nhập tay → dạng BE lưu (`common.domain.Sku`: trim + upper-case). */

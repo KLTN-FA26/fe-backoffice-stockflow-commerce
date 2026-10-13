@@ -11,7 +11,7 @@ import { fieldClass, lineTotal } from "./helpers";
 
 import type { CreatePoWizard } from "./useCreateForm";
 
-/** SL đặt / đơn giá / thành tiền của một dòng — lỗi inline dưới từng ô. */
+/** SL đặt / đơn giá / thuế suất / thành tiền của một dòng — lỗi inline dưới từng ô. */
 export function PoLineFields({ w, index }: { w: CreatePoWizard; index: number }) {
   const { register } = w.form;
   const currency = w.values.currency;
@@ -21,9 +21,10 @@ export function PoLineFields({ w, index }: { w: CreatePoWizard; index: number })
   const priceDigits = currencyFractionDigits(currency);
   const qtyErrorId = `po-line-${index}-qty-error`;
   const priceErrorId = `po-line-${index}-price-error`;
+  const taxErrorId = `po-line-${index}-tax-error`;
 
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
       <div>
         <label
           htmlFor={`po-line-${index}-qty`}
@@ -64,8 +65,30 @@ export function PoLineFields({ w, index }: { w: CreatePoWizard; index: number })
         <FieldError id={priceErrorId}>{errors?.unitPrice?.message}</FieldError>
       </div>
       <div>
+        <label
+          htmlFor={`po-line-${index}-tax`}
+          className="text-ink-secondary mb-0.5 block text-[11px] leading-4 font-medium"
+        >
+          Thuế suất (%)
+        </label>
+        <Input
+          id={`po-line-${index}-tax`}
+          {...register(`lines.${index}.taxRate`)}
+          type="number"
+          min={0}
+          max={100}
+          step="0.01"
+          inputMode="decimal"
+          placeholder="0"
+          aria-invalid={errors?.taxRate ? true : undefined}
+          aria-describedby={errors?.taxRate ? taxErrorId : undefined}
+          className={cn(fieldClass(!!errors?.taxRate), "text-right tabular-nums")}
+        />
+        <FieldError id={taxErrorId}>{errors?.taxRate?.message}</FieldError>
+      </div>
+      <div>
         <label className="text-ink-secondary mb-0.5 block text-[11px] leading-4 font-medium">
-          Thành tiền
+          Thành tiền (gồm thuế)
         </label>
         <Input
           value={formatMoney(line ? lineTotal(line) : 0, currency)}

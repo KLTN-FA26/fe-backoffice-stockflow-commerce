@@ -13,7 +13,6 @@ export const ADMIN_ROUTES = {
     detail: (id: string) => `${ADMIN_BASE}/products/${id}`,
     edit: (id: string) => `${ADMIN_BASE}/products/${id}/edit`,
     list: `${ADMIN_BASE}/products`,
-    skuDetail: (id: string) => `${ADMIN_BASE}/products/sku/${id}`,
   },
   purchaseOrders: {
     create: `${ADMIN_BASE}/purchase-orders/create`,
@@ -28,7 +27,19 @@ export const ADMIN_ROUTES = {
     detail: (id: string) => `${ADMIN_BASE}/orders/${id}`,
     list: `${ADMIN_BASE}/orders`,
   },
+  packing: {
+    detail: (id: string) => `${ADMIN_BASE}/packing/${id}`,
+    list: `${ADMIN_BASE}/packing`,
+  },
+  picking: {
+    detail: (id: string) => `${ADMIN_BASE}/picking/${id}`,
+    list: `${ADMIN_BASE}/picking`,
+  },
   receipts: {
+    create: `${ADMIN_BASE}/receipts/create`,
+    // Tạo phiếu từ một PO đã chọn sẵn (vd nút "Nhận hàng" ở màn PO)
+    createFromPo: (poId: string) =>
+      `${ADMIN_BASE}/receipts/create?poId=${encodeURIComponent(poId)}`,
     detail: (id: string) => `${ADMIN_BASE}/receipts/${id}`,
     list: `${ADMIN_BASE}/receipts`,
   },

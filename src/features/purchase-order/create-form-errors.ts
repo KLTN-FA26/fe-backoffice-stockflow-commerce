@@ -20,8 +20,10 @@ export interface PoCreateFieldError {
 /** Field cấp PO của BE `CreatePurchaseOrderRequest` → field form. */
 const ORDER_FIELDS = {
   supplierId: "supplierId",
+  warehouseId: "warehouseId",
   currency: "currency",
   expectedAt: "expectedDate",
+  note: "note",
   lines: "lines",
 } as const satisfies Record<string, PoCreateFieldPath>;
 
@@ -31,6 +33,7 @@ const LINE_FIELDS = {
   description: "description",
   quantityOrdered: "orderedQty",
   unitPrice: "unitPrice",
+  taxRate: "taxRate",
 } as const;
 
 const LINE_PATH = /^lines\[(\d+)\]\.(\w+)$/;
@@ -61,6 +64,10 @@ export function poCreateFieldErrors(error: ApiError): PoCreateFieldError[] {
   // BE createPurchaseOrder: NCC không tồn tại (404) / ngừng hợp tác (409) → ô Nhà cung cấp.
   if (error.code === "SUPPLIER_NOT_FOUND" || error.code === "SUPPLIER_INACTIVE") {
     out.push({ field: "supplierId", message: PO_ERROR_MESSAGES[error.code] });
+  }
+  // BE PR #71: kho nhận không tồn tại (404) → ô Kho nhận.
+  if (error.code === "WAREHOUSE_NOT_FOUND") {
+    out.push({ field: "warehouseId", message: PO_ERROR_MESSAGES.WAREHOUSE_NOT_FOUND });
   }
   for (const name of Object.keys(error.fieldErrors ?? {})) {
     const mapped = mapField(name);

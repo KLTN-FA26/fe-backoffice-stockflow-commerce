@@ -21,15 +21,14 @@ export const poCreateFormLineSchema = z.object({
   skuId: z
     .string()
     .min(1, UI_LABELS.purchaseOrder.validation.skuRequired)
-    .regex(SKU_CODE_PATTERN, "Mã SKU chỉ gồm chữ in hoa, số, dấu gạch ngang; 3–64 ký tự"),
-  // BE #36 (9fbb90f) ProcurementServiceImpl#description: khi gửi NCC, dòng phải có mô tả — thiếu thì
-  // BE lấy tên theo SKU trong danh mục, không có → 400 PO_LINE_DESCRIPTION_REQUIRED và PO kẹt.
-  // Chưa có API danh mục SKU (open-question C12) nên FE BẮT BUỘC mô tả ngay từ lúc tạo.
-  // BE `po_line.description VARCHAR(300)`.
+    .regex(
+      SKU_CODE_PATTERN,
+      "Mã SKU chỉ gồm chữ in hoa, số, dấu chấm, gạch dưới, gạch ngang; tối đa 64 ký tự",
+    ),
+  // BE PR #71: bỏ trống thì BE lấy tên sản phẩm của SKU. `purchase_order_lines.note VARCHAR(255)`.
   description: z
     .string()
     .trim()
-    .min(1, UI_LABELS.purchaseOrder.validation.descriptionRequired)
     .max(PO_LIMITS.lineDescriptionMax, `Mô tả tối đa ${PO_LIMITS.lineDescriptionMax} ký tự`),
   // BE `int quantityOrdered` @Positive.
   orderedQty: z.string().superRefine((raw, ctx) => {
@@ -40,20 +39,30 @@ export const poCreateFormLineSchema = z.object({
       ctx.addIssue({ code: "custom", message: "SL đặt vượt giới hạn cho phép" });
     }
   }),
-  // BE `unitPrice` @PositiveOrZero — 0 được phép (dòng tặng). Số lẻ theo tiền tệ: kiểm ở form.
+  // BE PR #71 `unitPrice` > 0 (`ck_purchase_order_lines_price`). Số lẻ theo tiền tệ: kiểm ở form.
   unitPrice: z.string().refine((raw) => {
     const n = toNumber(raw);
-    return Number.isFinite(n) && n >= 0;
-  }, "Nhập đơn giá (không âm)"),
+    return Number.isFinite(n) && n > 0;
+  }, "Nhập đơn giá (lớn hơn 0)"),
+  // BE PR #71: thuế suất % của dòng, 0–100; để trống = 0.
+  taxRate: z.string().refine((raw) => {
+    if (raw.trim() === "") return true;
+    const n = Number(raw);
+    return Number.isFinite(n) && n >= 0 && n <= 100;
+  }, "Thuế suất 0–100%"),
 });
 
 export const poCreateFormSchema = z
   .object({
     supplierId: z.string().min(1, UI_LABELS.purchaseOrder.validation.supplierRequired),
+    // SCRUM-390 (docs 02 §3): kho nhận bắt buộc.
+    warehouseId: z.string().min(1, UI_LABELS.purchaseOrder.validation.warehouseRequired),
     // BR-07 (docs 02 §6): một PO một tiền tệ — chọn ở cấp PO.
     currency: z.enum(PO_INPUT_CURRENCIES),
     // BR-06 (docs 02 §6): ngày đã qua chỉ CẢNH BÁO; trống → BE tự đặt hôm nay + leadTimeDays.
     expectedDate: z.string(),
+    // BE PR #71 `purchase_orders.note` (text) — FE giới hạn như `createPoSchema`.
+    note: z.string().max(PO_LIMITS.noteMax, `Ghi chú tối đa ${PO_LIMITS.noteMax} ký tự`),
     lines: z.array(poCreateFormLineSchema).min(1, "Cần ít nhất một dòng hàng"),
   })
   .superRefine((form, ctx) => {

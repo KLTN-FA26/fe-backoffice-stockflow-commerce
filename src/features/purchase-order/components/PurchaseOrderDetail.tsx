@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, Package } from "lucide-react";
 
 import { ADMIN_ROUTES, PO_PERMISSIONS } from "@/constants";
@@ -31,6 +32,7 @@ export function PurchaseOrderDetail({ id }: { id: string }) {
 
 function PurchaseOrderDetailBody({ id }: { id: string }) {
   const d = usePoDetail(id);
+  const router = useRouter();
 
   if (!d.canRead) return <PoLoadError error={null} kind="no-read" />;
   if (d.poQuery.isPending) return <PageSkeleton variant="detail" />;
@@ -84,7 +86,12 @@ function PurchaseOrderDetailBody({ id }: { id: string }) {
             actions={d.actions}
             isMutating={d.isMutating}
             conflictError={d.conflictError}
-            onAction={(act) => d.open(act.code)}
+            // "Nhận hàng" = tạo phiếu nhận cho PO này (SCRUM-436), không còn dialog nhận thẳng
+            onAction={(act) =>
+              act.code === "receive"
+                ? router.push(ADMIN_ROUTES.receipts.createFromPo(po.poId))
+                : d.open(act.code)
+            }
           />
           <PoOverview po={po} />
           <PoLifecycleTimeline status={po.status} />

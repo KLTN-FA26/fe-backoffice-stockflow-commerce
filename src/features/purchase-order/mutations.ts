@@ -12,16 +12,18 @@ import { createMutation } from "@/lib/api/query-factory";
 import {
   approvePurchaseOrder,
   cancelPurchaseOrder,
+  closePurchaseOrder,
   closeShortPurchaseOrder,
   createPurchaseOrder,
-  receiveGoods,
   recordSupplierConfirmation,
   recoverPoDelivery,
+  rejectPurchaseOrder,
   sendPurchaseOrder,
+  submitPurchaseOrder,
 } from "./api";
 import { poDashboardKeys, poDeliveryKeys, poKeys, supplierSpendKeys } from "./queries";
 
-import type { CreatePoResult, ReceiveLineInput } from "./api";
+import type { CreatePoResult } from "./api";
 import type {
   CreatePoInput,
   RecoverDeliveryInput,
@@ -39,6 +41,21 @@ export const useCreatePo = createMutation<CreatePoInput, CreatePoResult>(createP
   invalidate: PO_INVALIDATE,
   showErrorToast: false,
 });
+
+export const useSubmitPo = createMutation<{ id: string }, PurchaseOrder>(
+  ({ id }) => submitPurchaseOrder(id),
+  { invalidate: PO_INVALIDATE, showErrorToast: false, successMessage: MSG.submitted },
+);
+
+export const useRejectPo = createMutation<{ id: string; reason: string }, PurchaseOrder>(
+  ({ id, reason }) => rejectPurchaseOrder(id, reason),
+  { invalidate: PO_INVALIDATE, showErrorToast: false, successMessage: MSG.rejected },
+);
+
+export const useClosePo = createMutation<{ id: string }, PurchaseOrder>(
+  ({ id }) => closePurchaseOrder(id),
+  { invalidate: PO_INVALIDATE, showErrorToast: false, successMessage: MSG.closed },
+);
 
 export const useApprovePo = createMutation<{ id: string }, PurchaseOrder>(
   ({ id }) => approvePurchaseOrder(id),
@@ -64,15 +81,6 @@ export const useCloseShortPo = createMutation<{ id: string; reason: string }, Pu
   ({ id, reason }) => closeShortPurchaseOrder(id, reason),
   { invalidate: PO_INVALIDATE, showErrorToast: false, successMessage: MSG.closedShort },
 );
-
-export const useReceiveGoodsPo = createMutation<
-  { id: string; lines: ReceiveLineInput[] },
-  PurchaseOrder
->(({ id, lines }) => receiveGoods(id, lines), {
-  invalidate: PO_INVALIDATE,
-  showErrorToast: false,
-  successMessage: MSG.received,
-});
 
 export const useRecoverPoDelivery = createMutation<
   { id: string; input: RecoverDeliveryInput },

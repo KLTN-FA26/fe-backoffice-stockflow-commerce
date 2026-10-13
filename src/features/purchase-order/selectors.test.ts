@@ -16,7 +16,6 @@ import {
   totalOpenQuantity,
   totalOrderedQuantity,
   totalReceivedQuantity,
-  validateReceiveDraft,
 } from "./selectors";
 
 import type { PoLine, PurchaseOrder } from "./types";
@@ -31,44 +30,23 @@ function line(lineId: string, openQuantity: number): PoLine {
     openQuantity,
     unitPrice: 1000,
     currency: "VND",
+    uom: "EACH",
+    taxRate: 0,
     lineTotal: 10000,
+    status: openQuantity === 0 ? "RECEIVED" : "PARTIALLY_RECEIVED",
   };
 }
-
-describe("validateReceiveDraft — BR-04 (docs 02 §6), dung sai = 0 theo BE (open-question C9)", () => {
-  const lines = [line("a", 6), line("b", 3)];
-
-  it("keeps valid lines and skips empty inputs", () => {
-    expect(validateReceiveDraft(lines, { a: "4", b: "" })).toEqual({
-      lines: [{ lineId: "a", quantity: 4 }],
-      errors: {},
-    });
-  });
-
-  it("accepts exactly the open quantity", () => {
-    expect(validateReceiveDraft(lines, { a: "6" }).lines).toEqual([{ lineId: "a", quantity: 6 }]);
-  });
-
-  it("BR-04: SL nhận vượt openQuantity bị chặn, có lỗi inline", () => {
-    const result = validateReceiveDraft(lines, { a: "20" });
-    expect(result.lines).toEqual([]);
-    expect(result.errors.a).toContain("6");
-  });
-
-  it.each(["0", "-1", "1.5", "abc"])("rejects %s", (raw) => {
-    expect(validateReceiveDraft(lines, { b: raw }).errors.b).toBeDefined();
-  });
-
-  it("returns nothing to send when every input is empty", () => {
-    expect(validateReceiveDraft(lines, {})).toEqual({ lines: [], errors: {} });
-  });
-});
 
 describe("PO quantity selectors", () => {
   const po: PurchaseOrder = {
     poId: "po-1",
     poNumber: "PO-1",
+    type: "STANDARD",
     supplierId: "sup-1",
+    warehouseId: "wh-1",
+    revisionNo: 0,
+    subtotal: 20000,
+    taxTotal: 0,
     status: "PARTIALLY_RECEIVED",
     currency: "VND",
     orderDate: "2026-09-30",
@@ -93,8 +71,12 @@ describe("PO quantity selectors", () => {
     expect(totalOpenQuantity(po)).toBe(6);
   });
 
-  it("đánh dấu đơn cần xử lý: gửi NCC thất bại / NCC từ chối (chỉ khi còn SENT)", () => {
-    const sent = { ...po, status: "SENT" as const, supplierConfirmationStatus: "PENDING" as const };
+  it("đánh dấu đơn cần xử lý: gửi NCC thất bại / NCC từ chối (chỉ khi còn CONFIRMED)", () => {
+    const sent = {
+      ...po,
+      status: "CONFIRMED" as const,
+      supplierConfirmationStatus: "PENDING" as const,
+    };
     expect(poAttentionReason({ ...sent, deliveryStatus: "FAILED" })).toBe("deliveryFailed");
     expect(
       poAttentionReason({
@@ -158,7 +140,7 @@ describe('deliveryFailureName (failure BE: "<reference>: <Exception>")', () => {
 });
 
 describe("deliveryAlert — cảnh báo thẻ Gửi NCC theo điều kiện khôi phục của BE", () => {
-  const sent = { status: "SENT", supplierConfirmationStatus: "PENDING" } as const;
+  const sent = { status: "CONFIRMED", supplierConfirmationStatus: "PENDING" } as const;
   it("thất bại hẳn + còn khôi phục được → recoverable; BE đang tự gửi lại → retrying", () => {
     expect(deliveryAlert({ ...sent, deliveryStatus: "FAILED" })).toBe("recoverable");
     expect(deliveryAlert({ ...sent, deliveryStatus: "RETRYING" })).toBe("retrying");
