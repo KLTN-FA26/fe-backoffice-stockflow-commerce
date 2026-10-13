@@ -40,10 +40,12 @@ export async function fetchActiveSupplierOptions(signal?: AbortSignal): Promise<
   return supplierOptionPageSchema.parse(data).items;
 }
 
-export function useSupplierOptions() {
+/** `enabled=false` khi người dùng không có `procurement-suppliers:READ` (tránh gọi để nhận 403). */
+export function useSupplierOptions(enabled = true) {
   return useQuery({
     queryKey: supplierOptionKeys.active(),
     queryFn: ({ signal }) => fetchActiveSupplierOptions(signal),
+    enabled,
     ...QUERY_TIMES.master,
   });
 }
