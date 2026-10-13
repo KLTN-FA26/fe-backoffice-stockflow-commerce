@@ -49,7 +49,6 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Allocated",
     "ACCEPTED",
     "RECEIVED_COMPLETED",
-    "Sẵn sàng in",
   ],
   info: [
     // Bán hàng B2B & sản xuất (BE d215f6e)
@@ -73,7 +72,6 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Partially Completed",
     "DISPATCHED",
     "IN_PRODUCTION",
-    "Đang in",
     "Printing",
     "QC",
     "Out for Delivery",
@@ -120,9 +118,7 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Pending Verification",
     "Draft Proposal",
     "RECEIVED_PARTIAL",
-    "Chờ Prepress",
     "Pending Prepress",
-    "Tạm dừng",
     "Hold",
     // Receipt — còn dòng cần QC chưa kết luận, chặn putaway (docs 03 §5.1)
     "In QC",
@@ -195,7 +191,6 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Refunded",
     "Partially Refunded",
     "In Production",
-    "MẪU THỬ",
     "SAMPLE",
     // Gia công ngoài — tách khỏi in tại xưởng (BE d215f6e)
     "Subcontracted",
@@ -360,13 +355,9 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   Merged: "Đã gộp",
   Voided: "Đã vô hiệu",
   // Print & Packaging Production
-  "Chờ Prepress": "Chờ Prepress",
   "Pending Prepress": "Chờ Prepress",
-  "Sẵn sàng in": "Sẵn sàng in",
-  "Đang in": "Đang in",
   Printing: "Đang in",
   QC: "Kiểm tra QC",
-  "Tạm dừng": "Tạm dừng (Hold)",
   Hold: "Tạm dừng (Hold)",
   "Changes Requested": "Yêu cầu sửa",
   // Bán hàng B2B & sản xuất (BE d215f6e)
@@ -390,7 +381,6 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   CHANGES_REQUESTED: "Yêu cầu sửa giá",
   INVITED: "Đã mời",
   PENDING_ACTIVATION: "Chờ kích hoạt",
-  "MẪU THỬ": "Mẫu thử",
   SAMPLE: "Mẫu thử",
   "ĐƠN HÀNG": "Đơn hàng",
   ORDER: "Đơn hàng",
