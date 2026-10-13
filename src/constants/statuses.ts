@@ -378,6 +378,11 @@ export const CUSTOMER_STATUS_BY_API = {
 /** Điều khoản thanh toán — BE `CommercialTerm` / `PaymentTerm`. */
 export const PAYMENT_TERMS = ["PREPAID", "DEPOSIT", "CREDIT"] as const;
 export type PaymentTerm = (typeof PAYMENT_TERMS)[number];
+export const PAYMENT_TERM_LABELS = {
+  PREPAID: "Trả trước",
+  DEPOSIT: "Đặt cọc",
+  CREDIT: "Công nợ",
+} as const satisfies Record<PaymentTerm, string>;
 /** Quyết định B1 (2026-10-13): Sales chỉ được chọn hai điều khoản này khi tạo khách. */
 export const SALES_ONBOARDING_PAYMENT_TERMS = [
   "PREPAID",

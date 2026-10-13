@@ -162,6 +162,11 @@ export const PRODUCTION_ORDER_PERMISSIONS = {
   approve: "production-orders:APPROVE",
 } as const;
 
+/** Bảng giá theo khách — `catalog-customer-prices` (BE d215f6e, P7): Sales chỉ đọc. */
+export const CATALOG_CUSTOMER_PRICE_PERMISSIONS = {
+  read: "catalog-customer-prices:READ",
+} as const;
+
 /** Xuất phôi cho LSX + gửi / nhận gia công — `production-material-issues` (seed V20261015000400). */
 export const MATERIAL_ISSUE_PERMISSIONS = {
   read: "production-material-issues:READ",

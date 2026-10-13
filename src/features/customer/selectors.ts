@@ -1,15 +1,11 @@
 /** Selector thuần cho khách hàng — không side effect. */
 
-import { CUSTOMER_STATUS_BY_API } from "@/constants";
+import { CUSTOMER_STATUS_BY_API, PAYMENT_TERM_LABELS } from "@/constants";
 
 import type { CustomerApiStatus, PaymentTerm } from "@/constants";
 import type { CreditProfile } from "./types";
 
-export const PAYMENT_TERM_LABEL: Readonly<Record<PaymentTerm, string>> = {
-  PREPAID: "Trả trước",
-  DEPOSIT: "Đặt cọc",
-  CREDIT: "Công nợ",
-};
+export const PAYMENT_TERM_LABEL = PAYMENT_TERM_LABELS;
 
 export function customerStatusLabel(status: CustomerApiStatus): string {
   return CUSTOMER_STATUS_BY_API[status];

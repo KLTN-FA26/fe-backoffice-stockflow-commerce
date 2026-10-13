@@ -19,6 +19,7 @@ export const ADMIN_ROUTES = {
     createForCustomer: (customerId: string) =>
       `${ADMIN_BASE}/quotes/create?customerId=${encodeURIComponent(customerId)}`,
     detail: (id: string) => `${ADMIN_BASE}/quotes/${id}`,
+    edit: (id: string) => `${ADMIN_BASE}/quotes/${id}/edit`,
     list: `${ADMIN_BASE}/quotes`,
     byCustomer: (customerId: string) =>
       `${ADMIN_BASE}/quotes?customerId=${encodeURIComponent(customerId)}`,
@@ -27,6 +28,13 @@ export const ADMIN_ROUTES = {
     create: `${ADMIN_BASE}/sample-requests/create`,
     createForCustomer: (customerId: string) =>
       `${ADMIN_BASE}/sample-requests/create?customerId=${encodeURIComponent(customerId)}`,
+    /** Làm mẫu cho một dòng báo giá (BE kiểm tra quote cùng khách + thiết kế + phôi). */
+    createFromQuoteLine: (q: {
+      quoteId: string;
+      customerId: string;
+      blankSku: string;
+      designSnapshotId: string;
+    }) => `${ADMIN_BASE}/sample-requests/create?${new URLSearchParams(q).toString()}`,
     detail: (id: string) => `${ADMIN_BASE}/sample-requests/${id}`,
     list: `${ADMIN_BASE}/sample-requests`,
     byCustomer: (customerId: string) =>

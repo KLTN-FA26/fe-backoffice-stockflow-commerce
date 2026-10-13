@@ -8,7 +8,6 @@ import {
   getCustomer,
   getCustomerStatusHistory,
   getPortalInvitation,
-  listCustomerAddresses,
   listCustomers,
 } from "./api";
 
@@ -49,15 +48,6 @@ export function useCreditProfile(id: string, enabled = true) {
     queryKey: sub(id, "credit-profile"),
     queryFn: ({ signal }) => getCreditProfile(id, signal),
     enabled,
-    ...QUERY_TIMES.detail,
-  });
-}
-
-export function useCustomerAddresses(id: string | undefined, enabled = true) {
-  return useQuery({
-    queryKey: sub(id ?? "", "addresses"),
-    queryFn: ({ signal }) => listCustomerAddresses(id ?? "", signal),
-    enabled: enabled && !!id,
     ...QUERY_TIMES.detail,
   });
 }

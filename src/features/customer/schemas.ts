@@ -76,20 +76,6 @@ export const creditProfileDtoSchema = z.object({
   version: z.number().int(),
 });
 
-export const customerAddressDtoSchema = z.object({
-  addressId: z.string(),
-  customerId: z.string(),
-  type: z.enum(["SHIPPING", "BILLING"]),
-  recipientName: z.string(),
-  phone: z.string(),
-  line1: z.string(),
-  line2: z.string().nullish(),
-  wardName: z.string(),
-  provinceName: z.string(),
-  defaultAddress: z.boolean(),
-});
-export const customerAddressListDtoSchema = z.array(customerAddressDtoSchema);
-
 export const portalActivationDtoSchema = z.object({ email: z.string() });
 
 /* ── Input ───────────────────────────────────────────────────────────── */

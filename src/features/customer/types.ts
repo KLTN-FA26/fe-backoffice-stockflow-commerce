@@ -2,7 +2,6 @@ import type { z } from "zod";
 
 import type {
   creditProfileDtoSchema,
-  customerAddressDtoSchema,
   customerCreateInputSchema,
   customerDtoSchema,
   customerStatusEntryDtoSchema,
@@ -17,7 +16,6 @@ export type CustomerStatusEntry = z.infer<typeof customerStatusEntryDtoSchema>;
 export type InvitedCustomer = z.infer<typeof invitedCustomerDtoSchema>;
 export type PortalInvitation = z.infer<typeof portalInvitationDtoSchema>;
 export type CreditProfile = z.infer<typeof creditProfileDtoSchema>;
-export type CustomerAddress = z.infer<typeof customerAddressDtoSchema>;
 export type CustomerCreateValues = z.infer<typeof customerCreateInputSchema>;
 export type CustomerUpdateValues = z.infer<typeof customerUpdateInputSchema>;
 export type PortalActivationValues = z.infer<typeof portalActivationInputSchema>;

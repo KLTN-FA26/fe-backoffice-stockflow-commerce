@@ -8,7 +8,6 @@ import { api } from "@/lib/api/client";
 
 import {
   creditProfileDtoSchema,
-  customerAddressListDtoSchema,
   customerDtoSchema,
   customerPageDtoSchema,
   customerStatusHistoryDtoSchema,
@@ -23,7 +22,6 @@ import type { ListQueryParams, PaginatedResponse } from "@/lib/api/query-factory
 import type {
   CreditProfile,
   Customer,
-  CustomerAddress,
   CustomerCreateValues,
   CustomerStatusEntry,
   CustomerUpdateValues,
@@ -83,14 +81,6 @@ export async function getPortalInvitation(
 export async function getCreditProfile(id: string, signal?: AbortSignal): Promise<CreditProfile> {
   const { data } = await api.get<unknown>(`${byId(id)}/credit-profile`, { signal });
   return creditProfileDtoSchema.parse(data);
-}
-
-export async function listCustomerAddresses(
-  id: string,
-  signal?: AbortSignal,
-): Promise<CustomerAddress[]> {
-  const { data } = await api.get<unknown>(`${byId(id)}/addresses`, { signal });
-  return customerAddressListDtoSchema.parse(data);
 }
 
 /** `POST /customers` → 201 khách PENDING_ACTIVATION + lời mời (link KHÔNG bao giờ trả về). */
