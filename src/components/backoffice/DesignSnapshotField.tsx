@@ -56,8 +56,9 @@ export function DesignSnapshotField({
       id={id}
       label="Thiết kế (snapshot đã xác nhận)"
       required
-      error={error}
-      hint={HINT[state]}
+      // Thiết kế chưa xác nhận / lỗi tải là LỖI (role=alert), không phải gợi ý xám.
+      error={error ?? (state === "unconfirmed" || state === "error" ? HINT[state] : undefined)}
+      hint={state === "loading" ? HINT.loading : HINT.idle}
     >
       {designs.designs.length > 0 && (
         <select

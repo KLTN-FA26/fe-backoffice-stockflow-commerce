@@ -8,7 +8,7 @@ import { useWarehouseOptions } from "@/lib/references/warehouse-options";
 import { sampleErrorMessage } from "@/features/sample-request/errors";
 import { useSubmitSample } from "@/features/sample-request/mutations";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
-import { FORM_INPUT_CLASS, FormField } from "@/components/shared/FormField";
+import { FORM_INPUT_CLASS, FormField, fieldA11y } from "@/components/shared/FormField";
 import { Input } from "@/components/ui/input";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -61,10 +61,15 @@ function SubmitForm({ id, onClose }: { id: string; onClose: () => void }) {
           id="submit-warehouse-id"
           label="Mã kho (UUID)"
           required
+          error={warehouseId && !UUID.test(warehouseId) ? "Mã kho phải là UUID hợp lệ" : undefined}
           hint="Tài khoản chưa được cấp quyền xem danh sách kho (đã báo BE). Nhập mã kho do điều phối cung cấp."
         >
           <Input
-            id="submit-warehouse-id"
+            {...fieldA11y(
+              "submit-warehouse-id",
+              warehouseId && !UUID.test(warehouseId) ? "invalid" : undefined,
+              true,
+            )}
             value={warehouseId}
             onChange={(event) => setWarehouseId(event.target.value.trim())}
             className={`${FORM_INPUT_CLASS} font-[family-name:var(--font-mono)]`}

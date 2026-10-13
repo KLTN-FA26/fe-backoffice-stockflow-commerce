@@ -9,6 +9,7 @@ import { quoteErrorMessage } from "@/features/quote/errors";
 import { useConvertQuote } from "@/features/quote/mutations";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FORM_INPUT_CLASS, FormField } from "@/components/shared/FormField";
+import { Notice } from "@/components/shared/Notice";
 
 import type { Quote } from "@/features/quote/types";
 
@@ -82,9 +83,9 @@ function ConvertForm({ quote, onClose }: { quote: Quote; onClose: () => void }) 
       }}
     >
       {addresses.isError && (
-        <p className="text-warning text-[0.8125rem]">
+        <Notice tone="warning">
           Không tải được sổ địa chỉ — đơn sẽ dùng địa chỉ mặc định của khách.
-        </p>
+        </Notice>
       )}
       <AddressSelect
         id="convert-shipping"

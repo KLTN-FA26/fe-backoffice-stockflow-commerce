@@ -43,7 +43,7 @@ export function canChangeCustomerStatus(
 ): boolean {
   return (
     can(CUSTOMER_PERMISSIONS.approve) &&
-    roles.some((role) => role === "ECOMMERCE_ADMIN" || role === STAFF_ROLE.SYSTEM_ADMIN)
+    roles.some((role) => role === STAFF_ROLE.ECOMMERCE_ADMIN || role === STAFF_ROLE.SYSTEM_ADMIN)
   );
 }
 
@@ -60,4 +60,17 @@ export function allowedCustomerActions(
   canChangeStatus: boolean,
 ): readonly CustomerStatusAction[] {
   return canChangeStatus ? CUSTOMER_TRANSITIONS[status] : [];
+}
+
+/**
+ * Trạng thái lời mời portal: BE `GET /customers/{id}/portal-invitation` thêm role check
+ * SALES_STAFF / ECOMMERCE_ADMIN (SYSTEM_ADMIN luôn qua). UI-only — Backend phải re-check.
+ */
+export function canViewInvitation(roles: readonly string[]): boolean {
+  return roles.some(
+    (role) =>
+      role === STAFF_ROLE.SALES_STAFF ||
+      role === STAFF_ROLE.ECOMMERCE_ADMIN ||
+      role === STAFF_ROLE.SYSTEM_ADMIN,
+  );
 }

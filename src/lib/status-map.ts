@@ -13,6 +13,8 @@ export type { SemanticTone };
 
 const TONE: Record<SemanticTone, readonly string[]> = {
   positive: [
+    // Dòng báo giá đã có mẫu khách duyệt (BE QuoteLine.sample.satisfied)
+    "Sample Approved",
     "DELIVERED",
     "CONFIRMED",
     "RECEIVED",
@@ -53,6 +55,7 @@ const TONE: Record<SemanticTone, readonly string[]> = {
   info: [
     // Bán hàng B2B & sản xuất (BE d215f6e)
     "Sent",
+    "Repeat Design",
     "Preparing",
     "Shipping",
     "Submitted",
@@ -89,6 +92,9 @@ const TONE: Record<SemanticTone, readonly string[]> = {
   warning: [
     // Bán hàng B2B & sản xuất (BE d215f6e)
     "Pending Activation",
+    "Sample Required",
+    "Subcontractor Late",
+    "Not Reconciled",
     "Under Review",
     "RETRYING",
     "PENDING",
@@ -372,6 +378,11 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   "Under Review": "Đang xem xét",
   Preparing: "Đang chuẩn bị hàng",
   Shipping: "Đang giao",
+  "Sample Approved": "Mẫu đã duyệt",
+  "Sample Required": "Cần duyệt mẫu",
+  "Repeat Design": "In lại thiết kế cũ",
+  "Subcontractor Late": "Nhà gia công trễ hạn",
+  "Not Reconciled": "Chưa đối soát phôi",
   DISPATCHED: "Đã xuất gửi đi",
   IN_PRODUCTION: "Đang gia công",
   RECEIVED_PARTIAL: "Nhận một phần",

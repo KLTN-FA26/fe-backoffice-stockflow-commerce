@@ -7,6 +7,7 @@
  * - Lỗi dữ liệu cũ (chuyển trạng thái sai, khoá dòng) → tải lại LSX trước khi báo lỗi.
  */
 
+import { QUERY_ROOTS } from "@/lib/api/query-roots";
 import { createMutation } from "@/lib/api/query-factory";
 import { withStaleRefetch } from "@/lib/api/stale-refetch";
 
@@ -26,16 +27,16 @@ import {
   stopProduction,
 } from "./api";
 import { PRODUCTION_STALE_CODES } from "./errors";
+import { recallBlanks, supplementSubcontract, takeInHouse } from "./subcontract-api";
 import { productionKeys } from "./queries";
 
-const SAMPLE_ROOT_KEY = ["sample-requests"] as const;
-const ORDER_ROOT_KEY = ["orders"] as const;
-const FULFILLMENT_ROOT_KEY = ["fulfillment"] as const;
+/** LSX đổi → vòng mẫu (IN_PRODUCTION / READY), đơn bán (tiến độ in), danh sách đóng gói (hàng vào khu PACKING). */
 const DOWNSTREAM = [
   productionKeys.all,
-  SAMPLE_ROOT_KEY,
-  ORDER_ROOT_KEY,
-  FULFILLMENT_ROOT_KEY,
+  QUERY_ROOTS.sampleRequests,
+  QUERY_ROOTS.orders,
+  QUERY_ROOTS.myOrders,
+  QUERY_ROOTS.fulfillmentTasks,
 ] as const;
 
 function production<TInput, TResult>(
@@ -72,3 +73,15 @@ export const useReconcileReceipt = production(
   "Đã đối soát phôi của lần nhận hàng.",
 );
 export const useApproveLoss = production(approveLoss, "Đã duyệt khấu trừ hao hụt.");
+export const useRecallBlanks = production(
+  recallBlanks,
+  "Đã ghi nhận thu hồi phôi từ nhà gia công.",
+);
+export const useTakeInHouse = production(
+  takeInHouse,
+  "Đã chuyển phần còn lại về sản xuất tại xưởng.",
+);
+export const useSupplementSubcontract = production(
+  supplementSubcontract,
+  "Đã đặt thêm cho nhà gia công.",
+);

@@ -4,6 +4,7 @@
  * Khách duyệt mẫu mở khoá chấp nhận báo giá (BR-PRD-08) → thêm root `quotes`.
  */
 
+import { QUERY_ROOTS } from "@/lib/api/query-roots";
 import { createMutation } from "@/lib/api/query-factory";
 import { withStaleRefetch } from "@/lib/api/stale-refetch";
 
@@ -22,8 +23,8 @@ import { sampleKeys } from "./queries";
 
 import type { SampleCreateOutput, SampleDetail, SampleSpecOutput } from "./types";
 
-const PRODUCTION_ROOT_KEY = ["production-orders"] as const;
-const QUOTE_ROOT_KEY = ["quotes"] as const;
+const PRODUCTION_ROOT_KEY = QUERY_ROOTS.productionOrders;
+const QUOTE_ROOT_KEY = QUERY_ROOTS.quotes;
 
 function sampleMutation<TInput>(
   fn: (input: TInput) => Promise<SampleDetail>,

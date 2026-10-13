@@ -49,10 +49,13 @@ export function TierEditor({
                 inputMode="numeric"
                 placeholder="Từ SL"
                 aria-invalid={tierErrors?.minQuantity ? true : undefined}
+                aria-describedby={tierErrors?.minQuantity ? `${minId}-error` : undefined}
                 className={NUM}
               />
               {tierErrors?.minQuantity && (
-                <p className="text-danger mt-1 text-xs">{tierErrors.minQuantity.message}</p>
+                <p id={`${minId}-error`} className="text-danger mt-1 text-xs">
+                  {tierErrors.minQuantity.message}
+                </p>
               )}
             </div>
             <div>
@@ -65,10 +68,13 @@ export function TierEditor({
                 inputMode="numeric"
                 placeholder="Đơn giá"
                 aria-invalid={tierErrors?.unitPrice ? true : undefined}
+                aria-describedby={tierErrors?.unitPrice ? `${priceId}-error` : undefined}
                 className={NUM}
               />
               {tierErrors?.unitPrice && (
-                <p className="text-danger mt-1 text-xs">{tierErrors.unitPrice.message}</p>
+                <p id={`${priceId}-error`} className="text-danger mt-1 text-xs">
+                  {tierErrors.unitPrice.message}
+                </p>
               )}
             </div>
             <Button

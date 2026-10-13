@@ -6,6 +6,7 @@ import { formatMoney } from "@/lib/format/money";
 import { formatNumber } from "@/lib/format/number";
 import { PRICE_SOURCE_LABEL, useCustomerPriceSchedule } from "@/lib/references/price-schedule";
 import { tierPrice } from "@/features/quote/selectors";
+import { Notice } from "@/components/shared/Notice";
 
 /**
  * Xem trước giá theo bảng giá khách — CHỈ tạm tính; BE chọn bậc và tính tiền khi lưu.
@@ -33,12 +34,12 @@ export function LinePricePreview({
       </p>
     );
   if (schedule.isPending) return <p className="text-ink-tertiary text-xs">Đang tra bảng giá…</p>;
-  if (schedule.isError) return <p className="text-warning text-xs">Không tra được bảng giá.</p>;
+  if (schedule.isError) return <Notice tone="warning">Không tra được bảng giá.</Notice>;
   if (schedule.data === null)
     return (
-      <p className="text-warning text-xs">
+      <Notice tone="warning">
         Phôi chưa có giá bán cho khách này — bỏ chọn “Theo bảng giá” và nhập bậc giá thoả thuận.
-      </p>
+      </Notice>
     );
   const data = schedule.data;
   const unit = tierPrice(data.tiers, blankUnits);
@@ -54,10 +55,10 @@ export function LinePricePreview({
           .join(" · ")}
       </div>
       {unit === null ? (
-        <div className="text-warning">
+        <Notice tone="warning">
           Tổng {formatNumber(blankUnits)} cái của phôi này dưới bậc thấp nhất — nhập bậc giá thoả
           thuận (P4).
-        </div>
+        </Notice>
       ) : (
         <div>
           Tạm tính theo tổng {formatNumber(blankUnits)} cái:{" "}

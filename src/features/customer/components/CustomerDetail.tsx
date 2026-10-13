@@ -16,7 +16,11 @@ import { useCan, useMyPermissions, usePermissionChecker } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { formatDateTime } from "@/lib/format/date";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
-import { canChangeCustomerStatus, canResendInvitation } from "@/features/customer/lifecycle";
+import {
+  canChangeCustomerStatus,
+  canResendInvitation,
+  canViewInvitation,
+} from "@/features/customer/lifecycle";
 import { useCustomer } from "@/features/customer/queries";
 import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
 import { Card } from "@/components/shared/Card";
@@ -138,9 +142,7 @@ function CustomerDetailContent({ id }: { id: string }) {
         </Card>
         <InvitationCard
           customerId={customer.customerId}
-          canRead={roles.some((r) =>
-            ["SALES_STAFF", "ECOMMERCE_ADMIN", "SYSTEM_ADMIN"].includes(r),
-          )}
+          canRead={canViewInvitation(roles)}
           canResend={canResendInvitation(customer.status, can)}
         />
         <CreditProfileCard

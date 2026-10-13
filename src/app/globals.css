@@ -112,7 +112,25 @@
   --ring: var(--brand);
 }
 
-:root[data-theme="dark"] [data-mode="storefront"] {
+/* Mật độ Mode B (mode-b-storefront.md): mục chạm ≥ 44px, ô nhập 16px (iOS không tự zoom),
+   bo góc md. Áp cả cho dialog / popover Radix vì data-mode được gắn lên <html> ở portal. */
+[data-mode="storefront"] [data-slot="button"] {
+  min-height: 44px;
+  border-radius: var(--r-md);
+}
+[data-mode="storefront"] [data-slot="button"][data-size^="icon"] {
+  min-width: 44px;
+}
+[data-mode="storefront"] [data-slot="input"],
+[data-mode="storefront"] [data-slot="textarea"],
+[data-mode="storefront"] select {
+  min-height: 44px;
+  font-size: 16px;
+  border-radius: var(--r-md);
+}
+
+:root[data-theme="dark"] [data-mode="storefront"],
+:root[data-theme="dark"][data-mode="storefront"] {
   --bg-base: #17130f;
   --bg-surface: #211a14;
   --bg-subtle: #1c1611;
@@ -125,7 +143,6 @@
   --ink-inverse: #17130f;
   --brand: #c98d4e;
   --brand-hover: #d89e60;
-  --accent: #c98d4e;
 }
 
 /* ============================================================================

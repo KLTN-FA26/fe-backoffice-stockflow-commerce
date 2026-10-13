@@ -201,6 +201,8 @@ export const STAFF_ROLE = {
   SYSTEM_ADMIN: "SYSTEM_ADMIN",
   WAREHOUSE_MANAGER: "WAREHOUSE_MANAGER",
   WAREHOUSE_STAFF: "WAREHOUSE_STAFF",
+  ECOMMERCE_ADMIN: "ECOMMERCE_ADMIN",
+  SALES_STAFF: "SALES_STAFF",
   /** Tài khoản portal của khách B2B — chỉ thấy `/portal`, không thấy back-office. */
   CUSTOMER: "CUSTOMER",
 } as const;

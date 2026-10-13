@@ -13,6 +13,7 @@ import { useActivatePortalAccount } from "@/features/customer/mutations";
 import { invitationTokenSchema, portalActivationInputSchema } from "@/features/customer/schemas";
 import { FORM_INPUT_CLASS, FormField, fieldA11y } from "@/components/shared/FormField";
 import { Logo } from "@/components/shared/Logo";
+import { useStorefrontMode } from "@/components/storefront/use-storefront-mode";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -56,6 +57,7 @@ function InvalidLink({ message }: { message: string }) {
 }
 
 export function PortalActivation() {
+  useStorefrontMode();
   const token = useSyncExternalStore(subscribeHash, readToken, () => "");
   // Server không thấy fragment → chờ client đọc xong mới quyết định link hợp lệ (tránh nháy lỗi).
   const hydrated = useSyncExternalStore(

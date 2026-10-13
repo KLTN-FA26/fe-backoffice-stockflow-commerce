@@ -138,3 +138,21 @@ export const lossApprovalInputSchema = z.object({
     .refine((v) => /^\d+(\.\d{1,2})?$/.test(v), "Số tiền ≥ 0, tối đa 2 số lẻ"),
   note: z.string().trim().min(1, "Ghi lý do / căn cứ thoả thuận").max(1000, "Tối đa 1000 ký tự"),
 });
+
+export const recallInputSchema = z
+  .object({
+    returned: wholeNumber("Số nguyên ≥ 0"),
+    spoilt: wholeNumber("Số nguyên ≥ 0"),
+    returnLocation: z.string().trim().max(64, "Tối đa 64 ký tự"),
+    note,
+  })
+  .refine((v) => Number(v.returned) + Number(v.spoilt) >= 1, {
+    path: ["returned"],
+    message: "Nhập số phôi trả về hoặc hỏng (tổng ≥ 1)",
+  });
+
+export const quantityReasonInputSchema = z.object({
+  quantity: wholeNumber("Số lượng là số nguyên ≥ 1", 1),
+  reason: z.string().trim().min(1, "Nhập lý do").max(500, "Tối đa 500 ký tự"),
+  packingLocation: z.string().trim().max(64, "Tối đa 64 ký tự"),
+});

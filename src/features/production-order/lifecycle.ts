@@ -92,3 +92,33 @@ export function allowedProductionActions(
     actions.push("split");
   return actions;
 }
+
+export type SubcontractRecoveryAction = "recall" | "inHouse" | "supplement";
+
+const IN_HOUSE_FROM: readonly ProductionApiStatus[] = [
+  "PENDING_PREPRESS",
+  "READY",
+  "SUBCONTRACTED",
+  "QC",
+];
+
+/**
+ * Xử lý sự cố gia công (QA2): thu hồi phôi (chỉ gửi phôi, quyền xuất phôi), chuyển phần còn lại
+ * về xưởng khi eff ∈ {PENDING_PREPRESS, READY, SUBCONTRACTED, QC}, đặt thêm khi chưa kết thúc —
+ * hai thao tác sau cần `production-orders:APPROVE`. UI-only — BE kiểm tra số lượng / phôi còn ở NCC.
+ */
+export function allowedSubcontractRecovery(
+  order: ProductionDetail,
+  can: (code: PermissionCode) => boolean,
+): SubcontractRecoveryAction[] {
+  const { status, mode } = order.summary;
+  if (mode !== "SUBCONTRACTED" || TERMINAL_PRODUCTION_STATUSES.includes(status)) return [];
+  const eff = effectiveStatus(order);
+  const actions: SubcontractRecoveryAction[] = [];
+  if (order.subcontract?.method === "SUPPLIED_BLANKS" && can(MATERIAL_ISSUE_PERMISSIONS.create))
+    actions.push("recall");
+  if (can(PRODUCTION_ORDER_PERMISSIONS.approve) && eff && IN_HOUSE_FROM.includes(eff))
+    actions.push("inHouse");
+  if (can(PRODUCTION_ORDER_PERMISSIONS.approve)) actions.push("supplement");
+  return actions;
+}

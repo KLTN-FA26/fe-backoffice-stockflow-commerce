@@ -18,6 +18,7 @@ import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
+import { Notice } from "@/components/shared/Notice";
 import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
 
@@ -125,7 +126,7 @@ export function PortalOrderDetail({ id }: { id: string }) {
   const reorder = useReorder();
   const [requestId] = useState(() => crypto.randomUUID());
   const [confirm, setConfirm] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
+  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
   const back = { href: PORTAL_ROUTES.orders.list, label: "Về danh sách đơn" };
   if (!canRead) return <LoadErrorState error={null} kind="no-read" copy={COPY} back={back} />;
   if (query.isError)
@@ -212,9 +213,9 @@ export function PortalOrderDetail({ id }: { id: string }) {
         </section>
       </div>
       {result && (
-        <p role="status" className="text-ink-secondary text-sm">
-          {result}
-        </p>
+        <Notice tone={result.ok ? "positive" : "danger"} live>
+          {result.text}
+        </Notice>
       )}
       <div className="flex flex-wrap gap-3">
         {order.statusGroup !== "CANCELLED" && (
@@ -259,13 +260,14 @@ export function PortalOrderDetail({ id }: { id: string }) {
             {
               onSuccess: () => {
                 setConfirm(false);
-                setResult(
-                  "Đã gửi yêu cầu báo giá mới. Bạn sẽ thấy báo giá ở mục Báo giá khi Sales gửi.",
-                );
+                setResult({
+                  ok: true,
+                  text: "Đã gửi yêu cầu báo giá mới. Bạn sẽ thấy báo giá ở mục Báo giá khi Sales gửi.",
+                });
               },
               onError: (error) => {
                 setConfirm(false);
-                setResult(myOrderErrorMessage(error));
+                setResult({ ok: false, text: myOrderErrorMessage(error) });
               },
             },
           )

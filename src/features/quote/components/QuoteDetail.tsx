@@ -23,8 +23,9 @@ import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
 import { Card } from "@/components/shared/Card";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
-import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
+import { Notice } from "@/components/shared/Notice";
+import { StatusDot } from "@/components/shared/StatusDot";
 
 import { MONO, QUOTE_COPY } from "./copy";
 import { QuoteHistory } from "./detail/QuoteHistory";
@@ -153,10 +154,10 @@ function QuoteDetailContent({ id }: { id: string }) {
           </div>
         )}
         {pendingSamples > 0 && open && (
-          <p className="text-warning text-[0.8125rem]">
+          <Notice tone="warning">
             {pendingSamples} dòng dùng thiết kế mới chưa có mẫu được duyệt — khách chỉ chấp nhận
             được sau khi duyệt mẫu (BR-PRD-08).
-          </p>
+          </Notice>
         )}
         <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
           <Summary quote={quote} />

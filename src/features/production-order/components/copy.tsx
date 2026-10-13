@@ -30,12 +30,10 @@ export function ProductionStatus({
     <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
       <StatusDot domain="order" status={PRODUCTION_STATUS_BY_API[row.status]} />
       {row.holdReason && (
-        <span className="text-warning text-xs">{HOLD_REASON_LABEL[row.holdReason]}</span>
+        <span className="text-ink-secondary text-xs">{HOLD_REASON_LABEL[row.holdReason]}</span>
       )}
       {row.mode === "SUBCONTRACTED" && row.status !== "SUBCONTRACTED" && (
-        <span className="border-special/40 text-special rounded-[var(--r-sm)] border px-1.5 text-xs">
-          Gia công
-        </span>
+        <StatusDot domain="order" status="Subcontracted" />
       )}
     </span>
   );

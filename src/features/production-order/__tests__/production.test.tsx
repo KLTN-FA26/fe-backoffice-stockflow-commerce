@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ROLE_PERMISSIONS, mockApi, renderScreen } from "@/test/api-screen";
 
 import { ProductionDetailView } from "..";
-import { allowedProductionActions } from "../lifecycle";
+import { allowedProductionActions, allowedSubcontractRecovery } from "../lifecycle";
 import { awaitingQc, blanksStillNeeded, effectiveStatus } from "../selectors";
 
 import type { PermissionCode } from "@/lib/auth/me-permissions";
@@ -94,6 +94,36 @@ describe("production lifecycle (BE ProductionOrder transitions)", () => {
     expect(awaitingQc(o, [{ id: "r", round: 1, passed: 450, failed: 10, inspectedAt: "x" }])).toBe(
       150,
     );
+  });
+});
+
+describe("subcontract recovery (QA2)", () => {
+  const sub = (status: string) =>
+    order(
+      status,
+      { mode: "SUBCONTRACTED", parentId: "p-1" },
+      {
+        subcontract: {
+          method: "SUPPLIED_BLANKS",
+          subcontractorId: "s-1",
+          unitPrice: 800,
+          currency: "VND",
+        },
+      },
+    );
+  it("WAREHOUSE_MANAGER on SUBCONTRACTED: recall + take in-house + supplement", () => {
+    expect(allowedSubcontractRecovery(sub("SUBCONTRACTED"), can("WAREHOUSE_MANAGER"))).toEqual([
+      "recall",
+      "inHouse",
+      "supplement",
+    ]);
+  });
+  it("WAREHOUSE_STAFF may only recall blanks; in-house LSX gets nothing; terminal gets nothing", () => {
+    expect(allowedSubcontractRecovery(sub("SUBCONTRACTED"), can("WAREHOUSE_STAFF"))).toEqual([
+      "recall",
+    ]);
+    expect(allowedSubcontractRecovery(order("READY"), can("WAREHOUSE_MANAGER"))).toEqual([]);
+    expect(allowedSubcontractRecovery(sub("COMPLETED"), can("WAREHOUSE_MANAGER"))).toEqual([]);
   });
 });
 

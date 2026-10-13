@@ -21,9 +21,11 @@ import {
 } from "@/features/production-order/queries";
 import { Card } from "@/components/shared/Card";
 import { Button } from "@/components/ui/button";
+import { StatusDot } from "@/components/shared/StatusDot";
 
 import { MONO } from "../copy";
 import { LossApprovalForm, ReconcileForm } from "./SubcontractForms";
+import { SubcontractRecovery } from "./SubcontractRecovery";
 
 import type { ProductionDetail } from "@/features/production-order/types";
 
@@ -144,7 +146,7 @@ export function SubcontractPanel({ order }: { order: ProductionDetail }) {
               </span>
               {terms.method === "SUPPLIED_BLANKS" &&
                 (receipt.reconciledAt ? (
-                  <span className="text-positive">
+                  <span className="text-ink-secondary">
                     Đã đối soát: dùng {receipt.usedBlanks ?? "—"} · hỏng {receipt.spoiltBlanks ?? 0}{" "}
                     · trả {receipt.returnedBlanks ?? 0}
                   </span>
@@ -157,7 +159,7 @@ export function SubcontractPanel({ order }: { order: ProductionDetail }) {
                     Đối soát phôi
                   </Button>
                 ) : (
-                  <span className="text-warning">Chưa đối soát — chưa coi là hao hụt</span>
+                  <StatusDot domain="order" status="Not Reconciled" />
                 ))}
             </div>
             {reconciling === receipt.receiptId && (
@@ -170,6 +172,7 @@ export function SubcontractPanel({ order }: { order: ProductionDetail }) {
           </div>
         ))}
       </section>
+      <SubcontractRecovery order={order} />
       {settlement.data && (
         <section aria-labelledby="settlement" className="space-y-2">
           <h3 id="settlement" className="text-ink-primary text-[0.8125rem] font-semibold">

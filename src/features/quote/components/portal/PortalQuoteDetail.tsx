@@ -21,7 +21,8 @@ import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { StatusDot } from "@/components/shared/StatusDot";
 
 import { MONO, QUOTE_COPY } from "../copy";
-import { QuoteLinesTable } from "../detail/QuoteLinesTable";
+
+import { PortalQuoteLines } from "./PortalQuoteLines";
 import { PortalQuoteResponse } from "./PortalQuoteResponse";
 
 /** Portal khách: xem báo giá, chấp nhận hoặc yêu cầu chỉnh sửa (SCRUM-449). */
@@ -101,7 +102,7 @@ export function PortalQuoteDetail({ id }: { id: string }) {
           </p>
         </div>
       )}
-      <QuoteLinesTable lines={quote.lines} />
+      <PortalQuoteLines lines={quote.lines} />
       {actions.length > 0 && (
         <PortalQuoteResponse quote={quote} sampleBlocked={needSample.length > 0} />
       )}

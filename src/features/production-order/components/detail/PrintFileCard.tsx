@@ -6,7 +6,9 @@ import { formatDateTime } from "@/lib/format/date";
 import { formatNumber } from "@/lib/format/number";
 import { usePrintFile } from "@/features/production-order/queries";
 import { Card } from "@/components/shared/Card";
+import { Skeleton } from "@/components/shared/Skeleton";
 import { Button } from "@/components/ui/button";
+import { Notice } from "@/components/shared/Notice";
 
 import { MONO } from "../copy";
 
@@ -29,14 +31,14 @@ export function PrintFileCard({ order }: { order: ProductionDetail }) {
   return (
     <Card className="space-y-3">
       <h2 className="text-ink-primary text-sm font-semibold">File in</h2>
-      {file.isPending && <p className="text-ink-tertiary text-[0.8125rem]">Đang lấy file in…</p>}
+      {file.isPending && <Skeleton className="h-16" />}
       {file.isError && (
-        <p role="alert" className="text-warning text-[0.8125rem]">
+        <Notice tone="warning" live>
           Chưa có file in hợp lệ cho thiết kế này, hoặc kiểm tra toàn vẹn thất bại.{" "}
           <button type="button" className="underline" onClick={() => void file.refetch()}>
             Thử lại
           </button>
-        </p>
+        </Notice>
       )}
       {file.data && (
         <>

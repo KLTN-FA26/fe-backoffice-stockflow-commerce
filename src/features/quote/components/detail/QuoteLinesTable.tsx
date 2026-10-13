@@ -1,39 +1,41 @@
 "use client";
 
 import Link from "next/link";
-import { CircleAlert, CircleCheck, Repeat } from "lucide-react";
 
 import { formatMoney } from "@/lib/format/money";
 import { formatNumber } from "@/lib/format/number";
+import { StatusDot } from "@/components/shared/StatusDot";
 
 import { MONO } from "../copy";
 
 import type { ReactNode } from "react";
 import type { QuoteLine } from "@/features/quote/types";
 
-function SampleState({ line }: { line: QuoteLine }) {
-  if (line.sample.reorder)
-    return (
-      <span className="text-info inline-flex items-center gap-1">
-        <Repeat className="size-3.5" aria-hidden="true" /> In lại thiết kế cũ
-      </span>
-    );
-  if (line.sample.satisfied)
-    return (
-      <span className="text-positive inline-flex items-center gap-1">
-        <CircleCheck className="size-3.5" aria-hidden="true" /> Mẫu đã duyệt
-      </span>
-    );
-  return (
-    <span className="text-warning inline-flex items-center gap-1">
-      <CircleAlert className="size-3.5" aria-hidden="true" /> Cần duyệt mẫu
-    </span>
-  );
+/** Trạng thái mẫu của dòng — qua StatusDot / status-map, không tự tô màu. */
+export function SampleState({ line }: { line: QuoteLine }) {
+  const status = line.sample.reorder
+    ? "Repeat Design"
+    : line.sample.satisfied
+      ? "Sample Approved"
+      : "Sample Required";
+  return <StatusDot domain="design" status={status} />;
 }
 
+/** Đơn giá / thành tiền hiển thị: đã chấp nhận → số chốt; còn lại → số đề xuất (BE tính). */
+export function linePrice(line: QuoteLine) {
+  const accepted = line.acceptedUnitPrice != null;
+  return {
+    unit: accepted ? line.acceptedUnitPrice : line.proposedUnitPrice,
+    total: accepted ? line.acceptedLineTotal : line.proposedLineTotal,
+    quantity: line.acceptedQuantity ?? line.quantity,
+  };
+}
+
+const TH = "px-3 py-2 font-medium";
+
 /**
- * Dòng báo giá — số liệu (bậc giá, đơn giá đề xuất / đã chấp nhận) đọc nguyên từ BE; FE không tự
- * tính giá. `sampleAction` cho phép màn back-office gắn nút "Tạo yêu cầu mẫu" theo dòng.
+ * Bảng dòng báo giá (back-office) — số liệu đọc nguyên từ BE, FE không tự tính giá.
+ * `sampleAction` gắn nút "Tạo yêu cầu mẫu" theo dòng. Vùng cuộn ngang focus được bằng bàn phím.
  */
 export function QuoteLinesTable({
   lines,
@@ -45,40 +47,42 @@ export function QuoteLinesTable({
   sampleAction?: (line: QuoteLine) => ReactNode;
 }) {
   return (
-    <div className="border-border-default overflow-x-auto rounded-[var(--r-sm)] border">
+    <div
+      role="region"
+      aria-label="Các dòng của báo giá"
+      tabIndex={0}
+      className="border-border-default focus-visible:ring-brand overflow-x-auto rounded-[var(--r-sm)] border focus-visible:ring-2 focus-visible:outline-none"
+    >
       <table className="w-full min-w-[860px] text-[0.8125rem]">
         <caption className="sr-only">Các dòng của báo giá</caption>
         <thead className="bg-bg-subtle text-ink-secondary text-left">
           <tr>
-            <th scope="col" className="px-3 py-2 font-medium">
+            <th scope="col" className={TH}>
               #
             </th>
-            <th scope="col" className="px-3 py-2 font-medium">
+            <th scope="col" className={TH}>
               Phôi / thiết kế
             </th>
-            <th scope="col" className="px-3 py-2 text-right font-medium">
+            <th scope="col" className={`${TH} text-right`}>
               SL (cái)
             </th>
-            <th scope="col" className="px-3 py-2 font-medium">
+            <th scope="col" className={TH}>
               Bậc giá (từ SL → đơn giá)
             </th>
-            <th scope="col" className="px-3 py-2 text-right font-medium">
+            <th scope="col" className={`${TH} text-right`}>
               Đơn giá
             </th>
-            <th scope="col" className="px-3 py-2 text-right font-medium">
+            <th scope="col" className={`${TH} text-right`}>
               Thành tiền
             </th>
-            <th scope="col" className="px-3 py-2 font-medium">
+            <th scope="col" className={TH}>
               Mẫu
             </th>
           </tr>
         </thead>
         <tbody>
           {lines.map((line) => {
-            const accepted = line.acceptedUnitPrice != null;
-            const unit = accepted ? line.acceptedUnitPrice : line.proposedUnitPrice;
-            const total = accepted ? line.acceptedLineTotal : line.proposedLineTotal;
-            const qty = line.acceptedQuantity ?? line.quantity;
+            const { unit, total, quantity } = linePrice(line);
             return (
               <tr key={line.id} className="border-border-default border-t align-top">
                 <td className={`px-3 py-2 ${MONO}`}>{line.lineNo}</td>
@@ -94,7 +98,7 @@ export function QuoteLinesTable({
                   )}
                 </td>
                 <td className={`px-3 py-2 text-right ${MONO}`}>
-                  {formatNumber(qty)}
+                  {formatNumber(quantity)}
                   {line.acceptedQuantity != null && line.acceptedQuantity !== line.quantity && (
                     <div className="text-ink-tertiary">đề xuất {formatNumber(line.quantity)}</div>
                   )}
@@ -110,7 +114,7 @@ export function QuoteLinesTable({
                       ))}
                     </ul>
                   ) : (
-                    <span className="text-warning">Chưa có giá — Sales cần nhập bậc giá</span>
+                    <span className="text-ink-secondary">Chưa có giá — Sales cần nhập bậc giá</span>
                   )}
                   {line.moq != null && (
                     <div className="text-ink-tertiary mt-1">
@@ -126,11 +130,6 @@ export function QuoteLinesTable({
                 </td>
                 <td className="px-3 py-2">
                   <SampleState line={line} />
-                  {line.sample.approvedSampleId && (
-                    <div className={`text-ink-tertiary ${MONO}`}>
-                      Mẫu {line.sample.approvedSampleId.slice(0, 8)}
-                    </div>
-                  )}
                   {sampleAction?.(line)}
                 </td>
               </tr>

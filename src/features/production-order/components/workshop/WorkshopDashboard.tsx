@@ -16,6 +16,7 @@ import { FORM_INPUT_CLASS } from "@/components/shared/FormField";
 import { Skeleton } from "@/components/shared/Skeleton";
 import { StatTile } from "@/components/shared/StatTile";
 import { Input } from "@/components/ui/input";
+import { StatusDot } from "@/components/shared/StatusDot";
 
 import { MONO, PRODUCTION_COPY } from "../copy";
 
@@ -156,7 +157,7 @@ export function WorkshopDashboard() {
               <span className="text-ink-secondary">{productionStatusLabel(row.status)}</span>
               {/* SCRUM-442: cảnh báo nhà gia công trễ hạn trên dashboard xưởng */}
               {row.mode === "SUBCONTRACTED" && (
-                <span className="text-warning font-medium">Nhà gia công trễ hạn</span>
+                <StatusDot domain="order" status="Subcontractor Late" />
               )}
             </li>
           ))}

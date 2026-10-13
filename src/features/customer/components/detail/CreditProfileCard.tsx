@@ -4,6 +4,7 @@ import { formatMoney } from "@/lib/format/money";
 import { useCreditProfile } from "@/features/customer/queries";
 import { PAYMENT_TERM_LABEL, allowedPaymentTerms } from "@/features/customer/selectors";
 import { Card } from "@/components/shared/Card";
+import { Skeleton } from "@/components/shared/Skeleton";
 
 import { InfoList } from "./InfoList";
 
@@ -70,12 +71,13 @@ export function CreditProfileCard({
           Bạn chưa có quyền xem điều khoản thanh toán.
         </p>
       )}
-      {canRead && profile.isPending && (
-        <p className="text-ink-tertiary text-[0.8125rem]">Đang tải…</p>
-      )}
+      {canRead && profile.isPending && <Skeleton className="h-16" />}
       {canRead && profile.isError && (
         <p role="alert" className="text-danger text-[0.8125rem]">
-          Không tải được điều khoản thanh toán.
+          Không tải được điều khoản thanh toán.{" "}
+          <button type="button" className="underline" onClick={() => void profile.refetch()}>
+            Thử lại
+          </button>
         </p>
       )}
       {profile.data && <InfoList items={rowsOf(profile.data)} />}

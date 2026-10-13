@@ -13,6 +13,7 @@ import {
   todayVn,
 } from "@/features/production-order/selectors";
 import { Skeleton } from "@/components/shared/Skeleton";
+import { StatusDot } from "@/components/shared/StatusDot";
 
 import { MONO } from "../copy";
 
@@ -57,7 +58,11 @@ function Column({ status, today }: { status: ProductionApiStatus; today: string 
         </Link>
       </header>
       <ul className="flex max-h-[560px] flex-col gap-2 overflow-y-auto p-2">
-        {query.isPending && <Skeleton className="h-20" />}
+        {query.isPending && (
+          <li aria-hidden="true">
+            <Skeleton className="h-20" />
+          </li>
+        )}
         {query.isError && (
           <li role="alert" className="text-danger text-xs">
             Không tải được cột này.{" "}
@@ -93,9 +98,11 @@ function Column({ status, today }: { status: ProductionApiStatus; today: string 
                     Hạn {formatDate(row.dueDate)}
                   </span>
                 )}
-                {row.mode === "SUBCONTRACTED" && <span className="text-special">Gia công</span>}
+                {row.mode === "SUBCONTRACTED" && (
+                  <StatusDot domain="order" status="Subcontracted" />
+                )}
                 {row.holdReason && (
-                  <span className="text-warning">{HOLD_REASON_LABEL[row.holdReason]}</span>
+                  <span className="text-ink-secondary">{HOLD_REASON_LABEL[row.holdReason]}</span>
                 )}
               </div>
             </Link>

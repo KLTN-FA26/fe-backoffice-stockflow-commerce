@@ -20,6 +20,7 @@ import { Card } from "@/components/shared/Card";
 import { FORM_INPUT_CLASS, FormField, fieldA11y } from "@/components/shared/FormField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Notice } from "@/components/shared/Notice";
 
 import { MONO } from "../copy";
 
@@ -175,12 +176,12 @@ export function QcPanel({ order, active }: { order: ProductionDetail; active: bo
         </p>
       )}
       {order.summary.status === "COMPLETED" && isOrder && (
-        <p className="text-positive text-[0.8125rem]">
+        <Notice tone="positive">
           Đã hoàn tất và bàn giao sang khu đóng gói (giữ cho đơn bán).{" "}
           <Link href={ADMIN_ROUTES.packing.list} className="text-accent hover:underline">
             Mở đóng gói
           </Link>
-        </p>
+        </Notice>
       )}
       {!canRead && (
         <p className="text-ink-tertiary text-[0.8125rem]">Bạn chưa có quyền xem kết quả QC.</p>

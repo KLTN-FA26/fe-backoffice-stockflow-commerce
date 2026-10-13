@@ -5,6 +5,7 @@ import { STATUS_LABEL_VI } from "@/lib/domain/status-map";
 import { formatDateTime } from "@/lib/format/date";
 import { useCustomerStatusHistory } from "@/features/customer/queries";
 import { Card } from "@/components/shared/Card";
+import { Skeleton } from "@/components/shared/Skeleton";
 
 import type { CustomerApiStatus } from "@/constants";
 
@@ -19,10 +20,13 @@ export function StatusHistoryCard({ customerId }: { customerId: string }) {
   return (
     <Card className="space-y-3">
       <h2 className="text-ink-primary text-sm font-semibold">Lịch sử trạng thái</h2>
-      {history.isPending && <p className="text-ink-tertiary text-[0.8125rem]">Đang tải…</p>}
+      {history.isPending && <Skeleton className="h-16" />}
       {history.isError && (
         <p role="alert" className="text-danger text-[0.8125rem]">
-          Không tải được lịch sử trạng thái.
+          Không tải được lịch sử trạng thái.{" "}
+          <button type="button" className="underline" onClick={() => void history.refetch()}>
+            Thử lại
+          </button>
         </p>
       )}
       {history.data?.length === 0 && (

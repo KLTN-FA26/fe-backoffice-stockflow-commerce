@@ -18,6 +18,8 @@ import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { Logo } from "@/components/shared/Logo";
 import { Button } from "@/components/ui/button";
 
+import { useStorefrontMode } from "./use-storefront-mode";
+
 import type { ReactNode } from "react";
 import type { PermissionCode } from "@/lib/auth/me-permissions";
 
@@ -52,6 +54,7 @@ const PORTAL_NAV: PortalNavItem[] = [
 
 /** Khung portal khách hàng (Mode B) — header mỏng, mobile-first, tách khỏi back-office. */
 export function PortalShell({ children }: { children: ReactNode }) {
+  useStorefrontMode();
   const pathname = usePathname();
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
@@ -76,7 +79,7 @@ export function PortalShell({ children }: { children: ReactNode }) {
           </Link>
           <nav
             aria-label="Portal khách hàng"
-            className="order-3 flex w-full gap-1 sm:order-none sm:w-auto"
+            className="order-3 -mx-1 flex w-full gap-1 overflow-x-auto px-1 sm:order-none sm:w-auto sm:overflow-visible"
           >
             {items.map((item) => {
               const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -87,7 +90,7 @@ export function PortalShell({ children }: { children: ReactNode }) {
                   href={item.href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "focus-visible:ring-brand inline-flex min-h-11 items-center gap-2 rounded-[var(--r-md)] px-3 text-sm font-medium focus-visible:ring-2 focus-visible:outline-none",
+                    "focus-visible:ring-brand inline-flex min-h-11 shrink-0 items-center gap-2 rounded-[var(--r-md)] px-3 text-sm font-medium focus-visible:ring-2 focus-visible:outline-none",
                     active
                       ? "bg-bg-muted text-ink-primary"
                       : "text-ink-secondary hover:bg-bg-muted",

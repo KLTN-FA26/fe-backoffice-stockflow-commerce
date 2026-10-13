@@ -6,6 +6,7 @@
  * - Lỗi dữ liệu cũ (OPTIMISTIC_LOCK, chuyển trạng thái sai, hết hạn) → tải lại báo giá.
  */
 
+import { QUERY_ROOTS } from "@/lib/api/query-roots";
 import { createMutation } from "@/lib/api/query-factory";
 import { withStaleRefetch } from "@/lib/api/stale-refetch";
 
@@ -25,8 +26,7 @@ import { quoteKeys } from "./queries";
 import type { Quote, QuoteFormOutput } from "./types";
 
 const STALE = [quoteKeys.all] as const;
-/** = `orderKeys.all` của features/order — khai báo lại để không import chéo feature. */
-const ORDER_ROOT_KEY = ["orders"] as const;
+const ORDER_ROOT_KEY = QUERY_ROOTS.orders;
 
 function staff<TInput>(
   fn: (input: TInput) => Promise<Quote>,
@@ -55,7 +55,10 @@ export const useUpdateQuote = staff<{ id: string; version: number; values: Quote
 export const useSendQuote = staff(sendQuote, "Đã gửi báo giá cho khách.");
 export const useReviseQuote = staff(reviseQuote, "Đã mở bản sửa của báo giá.");
 export const useCancelQuote = staff(cancelQuote, "Đã huỷ báo giá nháp.");
-export const useConvertQuote = staff(convertQuote, "Đã tạo đơn bán từ báo giá.", [ORDER_ROOT_KEY]);
+export const useConvertQuote = staff(convertQuote, "Đã tạo đơn bán từ báo giá.", [
+  ORDER_ROOT_KEY,
+  QUERY_ROOTS.myOrders,
+]);
 export const useAcceptQuote = staff(acceptQuote, "Đã chấp nhận báo giá. Sales sẽ tạo đơn hàng.");
 export const useRequestQuoteChanges = staff(
   requestQuoteChanges,

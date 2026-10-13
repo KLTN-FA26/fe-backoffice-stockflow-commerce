@@ -6,7 +6,9 @@ import { formatDateTime } from "@/lib/format/date";
 import { useResendInvitation } from "@/features/customer/mutations";
 import { usePortalInvitation } from "@/features/customer/queries";
 import { Card } from "@/components/shared/Card";
+import { Skeleton } from "@/components/shared/Skeleton";
 import { Button } from "@/components/ui/button";
+import { Notice } from "@/components/shared/Notice";
 
 import { InfoList } from "./InfoList";
 
@@ -67,9 +69,7 @@ export function InvitationCard({
           Chỉ Sales và Quản trị TMĐT xem được trạng thái lời mời.
         </p>
       )}
-      {canRead && invitation.isPending && (
-        <p className="text-ink-tertiary text-[0.8125rem]">Đang tải…</p>
-      )}
+      {canRead && invitation.isPending && <Skeleton className="h-16" />}
       {canRead && invitation.isError && (
         <p role="alert" className="text-danger text-[0.8125rem]">
           Không tải được trạng thái lời mời.{" "}
@@ -80,9 +80,9 @@ export function InvitationCard({
       )}
       {data && <InfoList items={rows} />}
       {data?.delivery === "FAILED" && (
-        <p className="text-warning text-[0.8125rem]">
+        <Notice tone="warning">
           Email chưa tới được khách. Kiểm tra lại địa chỉ email rồi gửi lại lời mời.
-        </p>
+        </Notice>
       )}
     </Card>
   );
