@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 
 import { AUTH_COOKIE_NAME, LEGACY_AUTH_COOKIE_NAME } from "@/constants/auth";
 
+import { safeCallbackUrl } from "@/lib/auth/redirect";
 import { expireLegacyCookie } from "@/lib/auth/server/cookie";
 
 import type { NextRequest } from "next/server";
@@ -51,9 +52,12 @@ export function proxy(request: NextRequest) {
     return finalize(NextResponse.redirect(loginUrl));
   }
 
-  // Already authenticated → redirect away from login
+  // Already authenticated → leave login; honour a safe callback (refresh right after login
+  // would otherwise bounce to /admin and lose the page the user came from). Role-based area
+  // correction (customer → /portal) happens client-side in AreaGate.
   if (isPublicPath(pathname) && isAuthenticated) {
-    return finalize(NextResponse.redirect(new URL("/admin", request.url)));
+    const callback = safeCallbackUrl(request.nextUrl.searchParams.get("callbackUrl")) ?? "/admin";
+    return finalize(NextResponse.redirect(new URL(callback, request.url)));
   }
 
   return finalize(NextResponse.next());

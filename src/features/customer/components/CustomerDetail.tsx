@@ -103,7 +103,11 @@ function CustomerDetailContent({ id }: { id: string }) {
               { label: "Điện thoại", value: <span className={MONO}>{customer.phone ?? "—"}</span> },
               {
                 label: "Mã số thuế",
-                value: <span className={MONO}>{customer.taxCode ?? "Chưa có"}</span>,
+                value: customer.taxCode ? (
+                  <span className={MONO}>{customer.taxCode}</span>
+                ) : (
+                  "Chưa có"
+                ),
               },
               { label: "Ngày tạo", value: formatDateTime(customer.createdAt) },
             ]}

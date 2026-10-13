@@ -35,4 +35,11 @@ describe("proxy — protected areas", () => {
     expect(get("/portal/quotes", true).headers.get("location")).toBeNull();
     expect(get("/admin/customers", true).headers.get("location")).toBeNull();
   });
+
+  it("an authenticated visit to /login follows a safe callback instead of always /admin", () => {
+    const back = get(`/login?callbackUrl=${encodeURIComponent("/admin/quotes?status=SENT")}`, true);
+    expect(back.headers.get("location")).toBe(`${origin}/admin/quotes?status=SENT`);
+    const evil = get(`/login?callbackUrl=${encodeURIComponent("//evil.example.com")}`, true);
+    expect(evil.headers.get("location")).toBe(`${origin}/admin`);
+  });
 });
