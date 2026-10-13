@@ -243,7 +243,7 @@ function LoginForm() {
             <p className="text-ink-secondary mt-2 text-sm leading-6">
               {isMock
                 ? "Chọn một tài khoản nhân sự để truy cập dữ liệu demo."
-                : "Đăng nhập bằng tài khoản nội bộ đã được cấp cho bạn."}
+                : "Đăng nhập bằng tài khoản được cấp: nhân viên vào trang quản trị, khách hàng doanh nghiệp vào cổng khách hàng (dùng email đã kích hoạt)."}
             </p>
           </div>
 

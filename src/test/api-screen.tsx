@@ -102,6 +102,11 @@ export const ROLE_PERMISSIONS = {
     "production-qc-results:CREATE",
   ],
   CUSTOMER: [
+    "customer-customers:VIEW_PAGE",
+    "customer-customers:READ",
+    "sales-orders:VIEW_PAGE",
+    "sales-orders:READ",
+    "sales-orders:CREATE",
     "sales-quotes:VIEW_PAGE",
     "sales-quotes:READ",
     "sales-quotes:APPROVE",

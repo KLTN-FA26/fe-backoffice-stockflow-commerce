@@ -159,26 +159,24 @@ function QuoteDetailContent({ id }: { id: string }) {
           </p>
         )}
         <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-          <div className="space-y-4">
-            <Summary quote={quote} />
-            <QuoteLinesTable
-              lines={quote.lines}
-              sampleAction={(line) =>
-                canRequestSample && !line.sample.satisfied ? (
-                  <SampleRequestLink
-                    href={ADMIN_ROUTES.sampleRequests.createFromQuoteLine({
-                      quoteId: quote.id,
-                      customerId: quote.customerId,
-                      blankSku: line.blankSku,
-                      designSnapshotId: line.designSnapshotId,
-                    })}
-                  />
-                ) : null
-              }
-            />
-          </div>
+          <Summary quote={quote} />
           <QuoteHistory history={quote.history} />
         </div>
+        <QuoteLinesTable
+          lines={quote.lines}
+          sampleAction={(line) =>
+            canRequestSample && !line.sample.satisfied ? (
+              <SampleRequestLink
+                href={ADMIN_ROUTES.sampleRequests.createFromQuoteLine({
+                  quoteId: quote.id,
+                  customerId: quote.customerId,
+                  blankSku: line.blankSku,
+                  designSnapshotId: line.designSnapshotId,
+                })}
+              />
+            ) : null
+          }
+        />
       </div>
     </>
   );

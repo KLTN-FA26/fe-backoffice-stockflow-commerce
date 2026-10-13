@@ -34,11 +34,10 @@ const detail = (statusGroup: string) => ({
 
 afterEach(() => vi.restoreAllMocks());
 
-/** CUSTOMER cần `sales-orders:READ` (OWN) — role test dùng bộ quyền khách + đọc đơn. */
 describe("Portal order detail (SCRUM-248 timeline, R1b reorder, SCRUM-257 unavailable)", () => {
   it("renders the BE timeline read-only and an honest disabled return request", async () => {
-    mockApi("SALES_STAFF", { get: { "/orders/me/o-1": () => detail("DELIVERED") } });
-    renderScreen(<PortalOrderDetail id="o-1" />, "SALES_STAFF");
+    mockApi("CUSTOMER", { get: { "/orders/me/o-1": () => detail("DELIVERED") } });
+    renderScreen(<PortalOrderDetail id="o-1" />, "CUSTOMER");
     expect(await screen.findByRole("heading", { name: "SO-20261014-000001" })).toBeInTheDocument();
     const timeline = screen.getByRole("heading", { name: "Tiến trình" })
       .parentElement as HTMLElement;
@@ -49,7 +48,7 @@ describe("Portal order detail (SCRUM-248 timeline, R1b reorder, SCRUM-257 unavai
   });
 
   it("reorder posts a stable requestId and maps ORDER_NOT_QUOTED to Vietnamese", async () => {
-    const api = mockApi("SALES_STAFF", {
+    const api = mockApi("CUSTOMER", {
       get: { "/orders/me/o-1": () => detail("DELIVERED") },
       post: {
         "/orders/o-1/reorder": () => {
@@ -57,7 +56,7 @@ describe("Portal order detail (SCRUM-248 timeline, R1b reorder, SCRUM-257 unavai
         },
       },
     });
-    renderScreen(<PortalOrderDetail id="o-1" />, "SALES_STAFF");
+    renderScreen(<PortalOrderDetail id="o-1" />, "CUSTOMER");
     await userEvent.click(await screen.findByRole("button", { name: /Đặt lại/ }));
     await userEvent.click(
       within(await screen.findByRole("dialog")).getByRole("button", {

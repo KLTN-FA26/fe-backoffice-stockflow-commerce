@@ -84,11 +84,32 @@
   --ink-inverse: #ffffff;
   --brand: #a9682f;
   --brand-hover: #8c5526;
-  --accent: #a9682f;
   --card-pad: 24px;
   --card-radius: var(--r-lg);
   --el-gap: 12px;
   --card-shadow: var(--sh-md);
+}
+
+/* Biến shadcn được tính sẵn ở :root (var(--brand) đã resolve) → khai báo lại trong scope để
+   nút / input / popover của components/ui nhận caramel và nền kem, không giữ ink / blue Mode A. */
+[data-mode="storefront"] {
+  --background: var(--bg-base);
+  --foreground: var(--ink-primary);
+  --card: var(--bg-surface);
+  --card-foreground: var(--ink-primary);
+  --popover: var(--bg-surface);
+  --popover-foreground: var(--ink-primary);
+  --primary: var(--brand);
+  --primary-foreground: var(--ink-inverse);
+  --secondary: var(--bg-subtle);
+  --secondary-foreground: var(--ink-primary);
+  --muted: var(--bg-muted);
+  --muted-foreground: var(--ink-tertiary);
+  --accent: var(--bg-muted);
+  --accent-foreground: var(--ink-primary);
+  --border: var(--border-default);
+  --input: var(--border-default);
+  --ring: var(--brand);
 }
 
 :root[data-theme="dark"] [data-mode="storefront"] {
