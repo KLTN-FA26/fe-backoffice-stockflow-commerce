@@ -1,14 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { 
-  Factory, 
-  Layers, 
-  Scan, 
-  ShieldCheck, 
-  PackageCheck,
-  TrendingUp
-} from "lucide-react";
 import { WorkshopLSX } from "@/features/ui-workshop/types";
 import { WorkshopDashboard } from "@/features/ui-workshop/components/WorkshopDashboard";
 import { BlankIssueScanScreen } from "@/features/ui-workshop/components/BlankIssueScanScreen";
@@ -19,7 +11,13 @@ import { CompletedHandoffList } from "@/features/ui-workshop/components/Complete
 type Tab = "dashboard" | "kanban" | "scan" | "qc" | "handoff";
 
 export default function WorkshopPreviewPage() {
-  const [activeTab, setActiveTab] = useState<Tab>("dashboard");
+  const [activeTab, setActiveTab] = useState<Tab>(() => {
+    if (typeof window !== "undefined") {
+      const tabParam = new URLSearchParams(window.location.search).get("tab") as Tab | null;
+      if (tabParam) return tabParam;
+    }
+    return "dashboard";
+  });
   const [selectedQcOrder, setSelectedQcOrder] = useState<WorkshopLSX | undefined>();
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -28,10 +26,10 @@ export default function WorkshopPreviewPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--border-default)] pb-4">
+      <div className="flex flex-col justify-between gap-4 border-b border-[var(--border-default)] pb-4 md:flex-row md:items-center">
         <div>
           <div className="flex items-center gap-2">
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-blue-600 text-white text-xs font-bold font-mono">
+            <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-blue-600 font-mono text-xs font-bold text-white">
               B
             </span>
             <h1 className="text-xl font-bold text-[var(--ink-primary)]">
@@ -39,7 +37,10 @@ export default function WorkshopPreviewPage() {
             </h1>
           </div>
           <p className="mt-1 text-xs text-[var(--ink-secondary)]">
-            Phạm vi: <strong>SCRUM-410</strong> (Quét xuất phôi), <strong>SCRUM-417</strong> (Kanban in & phế phẩm), <strong>SCRUM-419</strong> (QC đối chiếu mẫu duyệt), <strong>SCRUM-412</strong> (Bàn giao đóng gói), <strong>SCRUM-416</strong> (Dashboard & Phân quyền xưởng).
+            Phạm vi: <strong>SCRUM-410</strong> (Quét xuất phôi), <strong>SCRUM-417</strong> (Kanban
+            in & phế phẩm), <strong>SCRUM-419</strong> (QC đối chiếu mẫu duyệt),{" "}
+            <strong>SCRUM-412</strong> (Bàn giao đóng gói), <strong>SCRUM-416</strong> (Dashboard &
+            Phân quyền xưởng).
           </p>
         </div>
 
@@ -49,7 +50,7 @@ export default function WorkshopPreviewPage() {
             onClick={() => setActiveTab("dashboard")}
             className={`rounded-md px-3 py-1.5 font-medium transition-colors ${
               activeTab === "dashboard"
-                ? "bg-[var(--brand)] text-[var(--ink-inverse)] font-semibold shadow-xs"
+                ? "bg-[var(--brand)] font-semibold text-[var(--ink-inverse)] shadow-xs"
                 : "text-[var(--ink-secondary)] hover:bg-[var(--bg-subtle)]"
             }`}
           >
@@ -59,7 +60,7 @@ export default function WorkshopPreviewPage() {
             onClick={() => setActiveTab("kanban")}
             className={`rounded-md px-3 py-1.5 font-medium transition-colors ${
               activeTab === "kanban"
-                ? "bg-indigo-600 text-white font-semibold shadow-xs"
+                ? "bg-indigo-600 font-semibold text-white shadow-xs"
                 : "text-[var(--ink-secondary)] hover:bg-[var(--bg-subtle)]"
             }`}
           >
@@ -69,7 +70,7 @@ export default function WorkshopPreviewPage() {
             onClick={() => setActiveTab("scan")}
             className={`rounded-md px-3 py-1.5 font-medium transition-colors ${
               activeTab === "scan"
-                ? "bg-emerald-600 text-white font-semibold shadow-xs"
+                ? "bg-emerald-600 font-semibold text-white shadow-xs"
                 : "text-[var(--ink-secondary)] hover:bg-[var(--bg-subtle)]"
             }`}
           >
@@ -79,7 +80,7 @@ export default function WorkshopPreviewPage() {
             onClick={() => setActiveTab("qc")}
             className={`rounded-md px-3 py-1.5 font-medium transition-colors ${
               activeTab === "qc"
-                ? "bg-purple-600 text-white font-semibold shadow-xs"
+                ? "bg-purple-600 font-semibold text-white shadow-xs"
                 : "text-[var(--ink-secondary)] hover:bg-[var(--bg-subtle)]"
             }`}
           >
@@ -89,7 +90,7 @@ export default function WorkshopPreviewPage() {
             onClick={() => setActiveTab("handoff")}
             className={`rounded-md px-3 py-1.5 font-medium transition-colors ${
               activeTab === "handoff"
-                ? "bg-teal-600 text-white font-semibold shadow-xs"
+                ? "bg-teal-600 font-semibold text-white shadow-xs"
                 : "text-[var(--ink-secondary)] hover:bg-[var(--bg-subtle)]"
             }`}
           >
@@ -101,9 +102,7 @@ export default function WorkshopPreviewPage() {
       {/* Tab contents */}
       <div key={refreshKey}>
         {activeTab === "dashboard" && (
-          <WorkshopDashboard
-            onSelectTab={(tab) => setActiveTab(tab)}
-          />
+          <WorkshopDashboard onSelectTab={(tab) => setActiveTab(tab)} />
         )}
 
         {activeTab === "kanban" && (
@@ -131,11 +130,7 @@ export default function WorkshopPreviewPage() {
           />
         )}
 
-        {activeTab === "handoff" && (
-          <CompletedHandoffList
-            onRefresh={triggerRefresh}
-          />
-        )}
+        {activeTab === "handoff" && <CompletedHandoffList onRefresh={triggerRefresh} />}
       </div>
     </div>
   );

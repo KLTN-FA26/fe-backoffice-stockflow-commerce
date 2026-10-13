@@ -1,14 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { 
-  FlaskConical, 
-  Layers, 
-  ShieldCheck, 
-  ExternalLink,
-  RotateCcw
-} from "lucide-react";
-import { SampleRequest, ProductionOrder } from "@/features/ui-samples-production/types";
+import { ExternalLink } from "lucide-react";
 import { SampleRequestList } from "@/features/ui-samples-production/components/SampleRequestList";
 import { SampleRequestDetail } from "@/features/ui-samples-production/components/SampleRequestDetail";
 import { CustomerSamplePortalView } from "@/features/ui-samples-production/components/CustomerSamplePortalView";
@@ -16,24 +9,31 @@ import { ProductionOrderList } from "@/features/ui-samples-production/components
 import { ProductionOrderDetail } from "@/features/ui-samples-production/components/ProductionOrderDetail";
 import { SampleCreateDialog } from "@/features/ui-samples-production/components/SampleCreateDialog";
 
-type ActiveTab = "samples" | "sample-detail" | "customer-portal" | "production-orders" | "production-detail";
+type ActiveTab =
+  "samples" | "sample-detail" | "customer-portal" | "production-orders" | "production-detail";
 
 export default function SamplesProductionPreviewPage() {
-  const [activeTab, setActiveTab] = useState<ActiveTab>("samples");
+  const [activeTab, setActiveTab] = useState<ActiveTab>(() => {
+    if (typeof window !== "undefined") {
+      const tabParam = new URLSearchParams(window.location.search).get("tab") as ActiveTab | null;
+      if (tabParam) return tabParam;
+    }
+    return "samples";
+  });
   const [selectedSampleId, setSelectedSampleId] = useState<string>("smp-001");
   const [selectedOrderId, setSelectedOrderId] = useState<string>("lsx-001");
   const [showCreateSample, setShowCreateSample] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const triggerRefresh = () => setRefreshKey(prev => prev + 1);
+  const triggerRefresh = () => setRefreshKey((prev) => prev + 1);
 
   return (
     <div className="space-y-6">
       {/* Group Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--border-default)] pb-4">
+      <div className="flex flex-col justify-between gap-4 border-b border-[var(--border-default)] pb-4 md:flex-row md:items-center">
         <div>
           <div className="flex items-center gap-2">
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-emerald-600 text-white text-xs font-bold font-mono">
+            <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-emerald-600 font-mono text-xs font-bold text-white">
               A
             </span>
             <h1 className="text-xl font-bold text-[var(--ink-primary)]">
@@ -41,7 +41,9 @@ export default function SamplesProductionPreviewPage() {
             </h1>
           </div>
           <p className="mt-1 text-xs text-[var(--ink-secondary)]">
-            Phạm vi: <strong>SCRUM-404</strong> (Yêu cầu mẫu & Khách duyệt), <strong>SCRUM-406</strong> (DS Lệnh sản xuất LSX), <strong>SCRUM-408</strong> (Chi tiết LSX & Prepress), <strong>SCRUM-414</strong> (Hủy & Tạm dừng LSX).
+            Phạm vi: <strong>SCRUM-404</strong> (Yêu cầu mẫu & Khách duyệt),{" "}
+            <strong>SCRUM-406</strong> (DS Lệnh sản xuất LSX), <strong>SCRUM-408</strong> (Chi tiết
+            LSX & Prepress), <strong>SCRUM-414</strong> (Hủy & Tạm dừng LSX).
           </p>
         </div>
 
@@ -51,7 +53,7 @@ export default function SamplesProductionPreviewPage() {
             onClick={() => setActiveTab("samples")}
             className={`rounded-md px-3 py-1.5 font-medium transition-colors ${
               activeTab === "samples" || activeTab === "sample-detail"
-                ? "bg-[var(--brand)] text-[var(--ink-inverse)] font-semibold shadow-xs"
+                ? "bg-[var(--brand)] font-semibold text-[var(--ink-inverse)] shadow-xs"
                 : "text-[var(--ink-secondary)] hover:bg-[var(--bg-subtle)]"
             }`}
           >
@@ -59,9 +61,9 @@ export default function SamplesProductionPreviewPage() {
           </button>
           <button
             onClick={() => setActiveTab("customer-portal")}
-            className={`rounded-md px-3 py-1.5 font-medium transition-colors flex items-center gap-1 ${
+            className={`flex items-center gap-1 rounded-md px-3 py-1.5 font-medium transition-colors ${
               activeTab === "customer-portal"
-                ? "bg-sky-600 text-white font-semibold shadow-xs"
+                ? "bg-sky-600 font-semibold text-white shadow-xs"
                 : "text-[var(--ink-secondary)] hover:bg-[var(--bg-subtle)]"
             }`}
           >
@@ -72,7 +74,7 @@ export default function SamplesProductionPreviewPage() {
             onClick={() => setActiveTab("production-orders")}
             className={`rounded-md px-3 py-1.5 font-medium transition-colors ${
               activeTab === "production-orders" || activeTab === "production-detail"
-                ? "bg-[var(--brand)] text-[var(--ink-inverse)] font-semibold shadow-xs"
+                ? "bg-[var(--brand)] font-semibold text-[var(--ink-inverse)] shadow-xs"
                 : "text-[var(--ink-secondary)] hover:bg-[var(--bg-subtle)]"
             }`}
           >

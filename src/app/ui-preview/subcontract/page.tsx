@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Share2, Scissors, Truck, PackageCheck } from "lucide-react";
+import { Truck, PackageCheck } from "lucide-react";
 import { SubcontractOrder } from "@/features/ui-subcontract/types";
 import { subcontractRepo } from "@/features/ui-subcontract/mock-repo";
 import { SubcontractParentChildView } from "@/features/ui-subcontract/components/SubcontractParentChildView";
@@ -13,7 +13,7 @@ type Tab = "hierarchy" | "send-out" | "return";
 export default function SubcontractPreviewPage() {
   const [activeTab, setActiveTab] = useState<Tab>("hierarchy");
   const [selectedSubOrder, setSelectedSubOrder] = useState<SubcontractOrder | undefined>(
-    subcontractRepo.getAllSubcontractOrders()[0]
+    subcontractRepo.getAllSubcontractOrders()[0],
   );
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -22,10 +22,10 @@ export default function SubcontractPreviewPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--border-default)] pb-4">
+      <div className="flex flex-col justify-between gap-4 border-b border-[var(--border-default)] pb-4 md:flex-row md:items-center">
         <div>
           <div className="flex items-center gap-2">
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-purple-600 text-white text-xs font-bold font-mono">
+            <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-purple-600 font-mono text-xs font-bold text-white">
               C
             </span>
             <h1 className="text-xl font-bold text-[var(--ink-primary)]">
@@ -33,7 +33,8 @@ export default function SubcontractPreviewPage() {
             </h1>
           </div>
           <p className="mt-1 text-xs text-[var(--ink-secondary)]">
-            Phạm vi: <strong>SCRUM-442</strong> (Tách LSX số lượng cha-con, chọn đối tác gia công, xuất phôi & in phiếu xuất kho Dispatch Note, theo dõi nhận lại & QC).
+            Phạm vi: <strong>SCRUM-442</strong> (Tách LSX số lượng cha-con, chọn đối tác gia công,
+            xuất phôi & in phiếu xuất kho Dispatch Note, theo dõi nhận lại & QC).
           </p>
         </div>
 
@@ -43,7 +44,7 @@ export default function SubcontractPreviewPage() {
             onClick={() => setActiveTab("hierarchy")}
             className={`rounded-md px-3 py-1.5 font-medium transition-colors ${
               activeTab === "hierarchy"
-                ? "bg-[var(--brand)] text-[var(--ink-inverse)] font-semibold shadow-xs"
+                ? "bg-[var(--brand)] font-semibold text-[var(--ink-inverse)] shadow-xs"
                 : "text-[var(--ink-secondary)] hover:bg-[var(--bg-subtle)]"
             }`}
           >
@@ -51,9 +52,9 @@ export default function SubcontractPreviewPage() {
           </button>
           <button
             onClick={() => setActiveTab("send-out")}
-            className={`rounded-md px-3 py-1.5 font-medium transition-colors flex items-center gap-1 ${
+            className={`flex items-center gap-1 rounded-md px-3 py-1.5 font-medium transition-colors ${
               activeTab === "send-out"
-                ? "bg-sky-600 text-white font-semibold shadow-xs"
+                ? "bg-sky-600 font-semibold text-white shadow-xs"
                 : "text-[var(--ink-secondary)] hover:bg-[var(--bg-subtle)]"
             }`}
           >
@@ -62,9 +63,9 @@ export default function SubcontractPreviewPage() {
           </button>
           <button
             onClick={() => setActiveTab("return")}
-            className={`rounded-md px-3 py-1.5 font-medium transition-colors flex items-center gap-1 ${
+            className={`flex items-center gap-1 rounded-md px-3 py-1.5 font-medium transition-colors ${
               activeTab === "return"
-                ? "bg-purple-600 text-white font-semibold shadow-xs"
+                ? "bg-purple-600 font-semibold text-white shadow-xs"
                 : "text-[var(--ink-secondary)] hover:bg-[var(--bg-subtle)]"
             }`}
           >

@@ -1,17 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { 
-  Printer, 
-  Play, 
-  CheckCircle2, 
-  AlertCircle, 
-  Sparkles, 
-  Clock, 
-  Layers, 
-  RotateCcw,
-  Check
-} from "lucide-react";
+import { Printer, Play, CheckCircle2, Layers, Check, AlertCircle } from "lucide-react";
 import { WorkshopLSX, WorkshopLsxStatus } from "../types";
 import { workshopRepo } from "../mock-repo";
 
@@ -28,6 +18,7 @@ export function WorkshopKanbanBoard({ onRefresh, onNavigateToQc }: Props) {
   const [goodQty, setGoodQty] = useState(1000);
   const [scrapQty, setScrapQty] = useState(20);
   const [scrapReason, setScrapReason] = useState("");
+  const [recordError, setRecordError] = useState<string | null>(null);
 
   const orders = workshopRepo.getOrders();
 
@@ -48,9 +39,10 @@ export function WorkshopKanbanBoard({ onRefresh, onNavigateToQc }: Props) {
   const handleRecordOutputSubmit = () => {
     if (!selectedOrder) return;
     if (scrapQty > 0 && !scrapReason.trim()) {
-      alert("BR-PRD-04: Phôi hỏng (phế phẩm) bắt buộc phải có lý do điều chỉnh kho.");
+      setRecordError("BR-PRD-04: Phôi hỏng (phế phẩm) bắt buộc phải có lý do điều chỉnh kho!");
       return;
     }
+    setRecordError(null);
     workshopRepo.recordPrintOutput(selectedOrder.id, goodQty, scrapQty, scrapReason);
     setShowRecordModal(false);
     onRefresh();
@@ -59,37 +51,40 @@ export function WorkshopKanbanBoard({ onRefresh, onNavigateToQc }: Props) {
   return (
     <div className="space-y-4">
       {/* Title */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div>
-          <h2 className="text-lg font-bold text-[var(--ink-primary)] flex items-center gap-2">
+          <h2 className="flex items-center gap-2 text-lg font-bold text-[var(--ink-primary)]">
             <Layers className="h-5 w-5 text-[var(--accent)]" />
             <span>Bảng Kanban Xưởng Sản Xuất (Workshop Kanban Board — SCRUM-417)</span>
           </h2>
           <p className="text-xs text-[var(--ink-secondary)]">
-            Quản lý dòng chảy công việc từ phôi đến máy in và trạm kiểm định QC (BR-PRD-04: ghi nhận phế phẩm kèm lý do).
+            Quản lý dòng chảy công việc từ phôi đến máy in và trạm kiểm định QC (BR-PRD-04: ghi nhận
+            phế phẩm kèm lý do).
           </p>
         </div>
       </div>
 
       {/* Kanban Board Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
+      <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 lg:grid-cols-4">
         {columns.map((col) => {
           const colOrders = orders.filter((o) => o.status === col.status);
           return (
             <div
               key={col.status}
-              className={`flex flex-col rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-xs min-h-[480px]`}
+              className={`flex min-h-[480px] flex-col rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-xs`}
             >
               {/* Column Header */}
-              <div className={`p-3 border-b-2 ${col.color} bg-[var(--bg-subtle)] flex items-center justify-between`}>
-                <span className="font-semibold text-xs text-[var(--ink-primary)]">{col.label}</span>
-                <span className="rounded-full bg-[var(--bg-muted)] px-2 py-0.5 text-[11px] font-mono font-bold text-[var(--ink-secondary)]">
+              <div
+                className={`border-b-2 p-3 ${col.color} flex items-center justify-between bg-[var(--bg-subtle)]`}
+              >
+                <span className="text-xs font-semibold text-[var(--ink-primary)]">{col.label}</span>
+                <span className="rounded-full bg-[var(--bg-muted)] px-2 py-0.5 font-mono text-[11px] font-bold text-[var(--ink-secondary)]">
                   {colOrders.length}
                 </span>
               </div>
 
               {/* Column Cards */}
-              <div className="p-3 space-y-3 flex-1 overflow-y-auto max-h-[600px]">
+              <div className="max-h-[600px] flex-1 space-y-3 overflow-y-auto p-3">
                 {colOrders.length === 0 ? (
                   <div className="py-12 text-center text-[11px] text-[var(--ink-tertiary)] italic">
                     Không có LSX nào ở cột này
@@ -98,51 +93,68 @@ export function WorkshopKanbanBoard({ onRefresh, onNavigateToQc }: Props) {
                   colOrders.map((order) => (
                     <div
                       key={order.id}
-                      className="rounded-md border border-[var(--border-default)] bg-[var(--bg-surface)] p-3.5 shadow-xs hover:border-[var(--border-strong)] transition-all space-y-2.5"
+                      className="space-y-2.5 rounded-md border border-[var(--border-default)] bg-[var(--bg-surface)] p-3.5 shadow-xs transition-all hover:border-[var(--border-strong)]"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="font-mono font-bold text-xs text-[var(--ink-primary)]">{order.code}</span>
+                        <span className="font-mono text-xs font-bold text-[var(--ink-primary)]">
+                          {order.code}
+                        </span>
                         {order.type === "SAMPLE" ? (
-                          <span className="rounded bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 px-1.5 py-0.2 text-[10px] font-bold">
+                          <span className="py-0.2 rounded bg-purple-100 px-1.5 text-[10px] font-bold text-purple-800 dark:bg-purple-950 dark:text-purple-300">
                             MẪU
                           </span>
                         ) : (
-                          <span className="rounded bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 px-1.5 py-0.2 text-[10px] font-bold">
+                          <span className="py-0.2 rounded bg-blue-100 px-1.5 text-[10px] font-bold text-blue-800 dark:bg-blue-950 dark:text-blue-300">
                             ĐƠN HÀNG
                           </span>
                         )}
                       </div>
 
                       <div>
-                        <div className="text-xs font-medium text-[var(--ink-primary)] truncate">{order.customerName}</div>
-                        <div className="text-[11px] font-mono text-[var(--ink-secondary)]">{order.blankSku}</div>
+                        <div className="truncate text-xs font-medium text-[var(--ink-primary)]">
+                          {order.customerName}
+                        </div>
+                        <div className="font-mono text-[11px] text-[var(--ink-secondary)]">
+                          {order.blankSku}
+                        </div>
                       </div>
 
-                      <div className="rounded bg-[var(--bg-subtle)] p-2 text-[11px] space-y-1">
+                      <div className="space-y-1 rounded bg-[var(--bg-subtle)] p-2 text-[11px]">
                         <div className="flex justify-between">
                           <span className="text-[var(--ink-tertiary)]">Kế hoạch:</span>
-                          <span className="font-mono font-bold">{order.plannedQuantity.toLocaleString()}</span>
+                          <span className="font-mono font-bold">
+                            {order.plannedQuantity.toLocaleString()}
+                          </span>
                         </div>
                         {order.machineId && (
                           <div className="flex justify-between">
                             <span className="text-[var(--ink-tertiary)]">Máy in:</span>
-                            <span className="font-mono text-indigo-600 font-semibold">{order.machineId}</span>
+                            <span className="font-mono font-semibold text-indigo-600">
+                              {order.machineId}
+                            </span>
                           </div>
                         )}
                         {(order.printedGoodQuantity > 0 || order.printedScrapQuantity > 0) && (
-                          <div className="flex justify-between border-t border-[var(--border-default)] pt-1 mt-1">
+                          <div className="mt-1 flex justify-between border-t border-[var(--border-default)] pt-1">
                             <span className="text-[var(--ink-tertiary)]">Đạt / Phế:</span>
                             <span className="font-mono">
-                              <strong className="text-emerald-600">{order.printedGoodQuantity}</strong> /{" "}
-                              <strong className="text-rose-600">{order.printedScrapQuantity}</strong>
+                              <strong className="text-emerald-600">
+                                {order.printedGoodQuantity}
+                              </strong>{" "}
+                              /{" "}
+                              <strong className="text-rose-600">
+                                {order.printedScrapQuantity}
+                              </strong>
                             </span>
                           </div>
                         )}
                       </div>
 
                       {/* Card Action Buttons */}
-                      <div className="pt-2 border-t border-[var(--border-default)] flex items-center justify-between">
-                        <span className="text-[10px] text-[var(--ink-tertiary)] font-mono">{order.dueDate}</span>
+                      <div className="flex items-center justify-between border-t border-[var(--border-default)] pt-2">
+                        <span className="font-mono text-[10px] text-[var(--ink-tertiary)]">
+                          {order.dueDate}
+                        </span>
 
                         {order.status === "Material Issued" && (
                           <button
@@ -150,7 +162,7 @@ export function WorkshopKanbanBoard({ onRefresh, onNavigateToQc }: Props) {
                               setSelectedOrder(order);
                               setShowStartModal(true);
                             }}
-                            className="inline-flex items-center gap-1 rounded bg-indigo-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-indigo-700 shadow-xs"
+                            className="inline-flex items-center gap-1 rounded bg-indigo-600 px-2 py-1 text-[11px] font-medium text-white shadow-xs hover:bg-indigo-700"
                           >
                             <Play className="h-3 w-3" />
                             <span>Lên máy in</span>
@@ -163,7 +175,7 @@ export function WorkshopKanbanBoard({ onRefresh, onNavigateToQc }: Props) {
                               setSelectedOrder(order);
                               setShowRecordModal(true);
                             }}
-                            className="inline-flex items-center gap-1 rounded bg-[var(--brand)] px-2 py-1 text-[11px] font-medium text-[var(--ink-inverse)] hover:bg-[var(--brand-hover)] shadow-xs"
+                            className="inline-flex items-center gap-1 rounded bg-[var(--brand)] px-2 py-1 text-[11px] font-medium text-[var(--ink-inverse)] shadow-xs hover:bg-[var(--brand-hover)]"
                           >
                             <Check className="h-3 w-3" />
                             <span>Ghi nhận SL</span>
@@ -173,7 +185,7 @@ export function WorkshopKanbanBoard({ onRefresh, onNavigateToQc }: Props) {
                         {order.status === "QC" && onNavigateToQc && (
                           <button
                             onClick={() => onNavigateToQc(order)}
-                            className="inline-flex items-center gap-1 rounded bg-purple-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-purple-700 shadow-xs"
+                            className="inline-flex items-center gap-1 rounded bg-purple-600 px-2 py-1 text-[11px] font-medium text-white shadow-xs hover:bg-purple-700"
                           >
                             <CheckCircle2 className="h-3 w-3" />
                             <span>Mở QC</span>
@@ -192,18 +204,20 @@ export function WorkshopKanbanBoard({ onRefresh, onNavigateToQc }: Props) {
       {/* Modal Start Print */}
       {showStartModal && selectedOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 shadow-lg space-y-4 text-xs">
-            <h3 className="text-sm font-bold text-[var(--ink-primary)] flex items-center gap-2">
+          <div className="w-full max-w-md space-y-4 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 text-xs shadow-lg">
+            <h3 className="flex items-center gap-2 text-sm font-bold text-[var(--ink-primary)]">
               <Printer className="h-4 w-4 text-indigo-600" />
               <span>Gán máy in & Bắt đầu in: {selectedOrder.code}</span>
             </h3>
 
             <div>
-              <label className="block text-[var(--ink-secondary)] mb-1">Chọn máy in trong xưởng:</label>
+              <label className="mb-1 block text-[var(--ink-secondary)]">
+                Chọn máy in trong xưởng:
+              </label>
               <select
                 value={machineId}
                 onChange={(e) => setMachineId(e.target.value)}
-                className="w-full rounded border border-[var(--border-default)] bg-[var(--bg-subtle)] p-2 text-xs font-mono font-medium"
+                className="w-full rounded border border-[var(--border-default)] bg-[var(--bg-subtle)] p-2 font-mono text-xs font-medium"
               >
                 <option value="FLEXO-01">Máy in Flexo UV 01 (In ly giấy tốc độ cao)</option>
                 <option value="FLEXO-02">Máy in Flexo UV 02 (In tô & hộp Kraft)</option>
@@ -212,7 +226,7 @@ export function WorkshopKanbanBoard({ onRefresh, onNavigateToQc }: Props) {
               </select>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-[var(--border-default)]">
+            <div className="flex justify-end gap-2 border-t border-[var(--border-default)] pt-2">
               <button
                 onClick={() => setShowStartModal(false)}
                 className="rounded border border-[var(--border-default)] px-3 py-1.5 text-[var(--ink-secondary)] hover:bg-[var(--bg-subtle)]"
@@ -221,7 +235,7 @@ export function WorkshopKanbanBoard({ onRefresh, onNavigateToQc }: Props) {
               </button>
               <button
                 onClick={handleStartPrintSubmit}
-                className="rounded bg-indigo-600 px-3 py-1.5 font-medium text-white hover:bg-indigo-700 shadow-xs"
+                className="rounded bg-indigo-600 px-3 py-1.5 font-medium text-white shadow-xs hover:bg-indigo-700"
               >
                 Bắt đầu in
               </button>
@@ -233,38 +247,42 @@ export function WorkshopKanbanBoard({ onRefresh, onNavigateToQc }: Props) {
       {/* Modal Record Print Output */}
       {showRecordModal && selectedOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 shadow-lg space-y-4 text-xs">
-            <h3 className="text-sm font-bold text-[var(--ink-primary)] flex items-center gap-2">
+          <div className="w-full max-w-md space-y-4 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] p-5 text-xs shadow-lg">
+            <h3 className="flex items-center gap-2 text-sm font-bold text-[var(--ink-primary)]">
               <CheckCircle2 className="h-4 w-4 text-emerald-600" />
               <span>Ghi nhận sản lượng in & Phế phẩm (BR-PRD-04)</span>
             </h3>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[var(--ink-secondary)] mb-1 font-medium">SL In đạt (Tốt):</label>
+                <label className="mb-1 block font-medium text-[var(--ink-secondary)]">
+                  SL In đạt (Tốt):
+                </label>
                 <input
                   type="number"
                   min="0"
                   value={goodQty}
                   onChange={(e) => setGoodQty(Number(e.target.value))}
-                  className="w-full rounded border border-[var(--border-default)] bg-[var(--bg-subtle)] p-2 text-xs font-mono font-bold text-emerald-700 dark:text-emerald-400"
+                  className="w-full rounded border border-[var(--border-default)] bg-[var(--bg-subtle)] p-2 font-mono text-xs font-bold text-emerald-700 dark:text-emerald-400"
                 />
               </div>
               <div>
-                <label className="block text-[var(--ink-secondary)] mb-1 font-medium">SL Phôi hỏng (Phế):</label>
+                <label className="mb-1 block font-medium text-[var(--ink-secondary)]">
+                  SL Phôi hỏng (Phế):
+                </label>
                 <input
                   type="number"
                   min="0"
                   value={scrapQty}
                   onChange={(e) => setScrapQty(Number(e.target.value))}
-                  className="w-full rounded border border-[var(--border-default)] bg-[var(--bg-subtle)] p-2 text-xs font-mono font-bold text-rose-700 dark:text-rose-400"
+                  className="w-full rounded border border-[var(--border-default)] bg-[var(--bg-subtle)] p-2 font-mono text-xs font-bold text-rose-700 dark:text-rose-400"
                 />
               </div>
             </div>
 
             {scrapQty > 0 && (
               <div>
-                <label className="block text-[var(--ink-primary)] mb-1 font-semibold">
+                <label className="mb-1 block font-semibold text-[var(--ink-primary)]">
                   Lý do phế phẩm (* bắt buộc điều chỉnh kho BR-PRD-04):
                 </label>
                 <textarea
@@ -272,13 +290,23 @@ export function WorkshopKanbanBoard({ onRefresh, onNavigateToQc }: Props) {
                   required
                   placeholder="Ví dụ: Lệch màu lúc canh bo trục, kẹt phôi máy dập viền..."
                   value={scrapReason}
-                  onChange={(e) => setScrapReason(e.target.value)}
-                  className="w-full rounded border border-rose-300 dark:border-rose-900 bg-[var(--bg-subtle)] p-2 text-xs"
+                  onChange={(e) => {
+                    setScrapReason(e.target.value);
+                    if (recordError) setRecordError(null);
+                  }}
+                  className="w-full rounded border border-rose-300 bg-[var(--bg-subtle)] p-2 text-xs dark:border-rose-900"
                 />
               </div>
             )}
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-[var(--border-default)]">
+            {recordError && (
+              <div className="flex items-center gap-2 rounded-md border border-rose-300 bg-rose-50 p-2 text-xs text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300">
+                <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
+                <span>{recordError}</span>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 border-t border-[var(--border-default)] pt-2">
               <button
                 onClick={() => setShowRecordModal(false)}
                 className="rounded border border-[var(--border-default)] px-3 py-1.5 text-[var(--ink-secondary)] hover:bg-[var(--bg-subtle)]"
@@ -287,7 +315,7 @@ export function WorkshopKanbanBoard({ onRefresh, onNavigateToQc }: Props) {
               </button>
               <button
                 onClick={handleRecordOutputSubmit}
-                className="rounded bg-[var(--brand)] px-3 py-1.5 font-medium text-[var(--ink-inverse)] hover:bg-[var(--brand-hover)] shadow-xs"
+                className="rounded bg-[var(--brand)] px-3 py-1.5 font-medium text-[var(--ink-inverse)] shadow-xs hover:bg-[var(--brand-hover)]"
               >
                 Xác nhận & Chuyển sang QC
               </button>

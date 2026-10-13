@@ -1,16 +1,8 @@
-export type WorkshopRole = 
-  | "PRODUCTION_STAFF"
-  | "QC_STAFF"
-  | "WAREHOUSE_STAFF"
-  | "WAREHOUSE_MANAGER";
+export type WorkshopRole =
+  "PRODUCTION_STAFF" | "QC_STAFF" | "WAREHOUSE_STAFF" | "WAREHOUSE_MANAGER";
 
-export type WorkshopLsxStatus = 
-  | "Ready"
-  | "Material Issued"
-  | "Printing"
-  | "QC"
-  | "Completed"
-  | "On Hold";
+export type WorkshopLsxStatus =
+  "Ready" | "Material Issued" | "Printing" | "QC" | "Completed" | "On Hold";
 
 export interface WorkshopLSX {
   id: string;
@@ -23,7 +15,7 @@ export interface WorkshopLSX {
   plannedQuantity: number;
   scannedBlanksQuantity: number;
   isBlanksCompleted: boolean;
-  
+
   // Printing metrics
   printedGoodQuantity: number;
   printedScrapQuantity: number;
@@ -69,4 +61,15 @@ export interface WorkshopMetrics {
   overdueOrdersCount: number;
   scrapRatePercent: number;
   pendingSampleApprovalCount: number;
+}
+
+export interface RegisteredBarcode {
+  barcode: string;
+  blankSku: string;
+  blankName: string;
+  lotNumber: string;
+  warehouseLocation: string;
+  availableQty: number;
+  status: "AVAILABLE" | "DEPLETED" | "QUARANTINED";
+  expiryDate?: string;
 }

@@ -1,4 +1,4 @@
-import { B2BQuote, B2BCustomer, QuoteStatus } from "./types";
+import { B2BQuote, B2BCustomer } from "./types";
 
 const INITIAL_QUOTES: B2BQuote[] = [
   {
@@ -18,7 +18,8 @@ const INITIAL_QUOTES: B2BQuote[] = [
         blankSku: "LY-GIAY-350-TRANG",
         blankName: "Ly giấy trơn hai lớp 350ml PE",
         designName: "Logo Mùa Thu Highland Gold 2026",
-        designSnapshotUrl: "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=600&auto=format&fit=crop&q=80",
+        designSnapshotUrl:
+          "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=600&auto=format&fit=crop&q=80",
         isNewDesign: true,
         sampleApproved: false, // Thiết kế mới chưa được duyệt mẫu -> Block duyệt báo giá
         printTechnology: "In Flexo UV 4 màu",
@@ -56,7 +57,8 @@ const INITIAL_QUOTES: B2BQuote[] = [
         blankSku: "TO-GIAY-750-KRAFT",
         blankName: "Tô giấy Kraft 750ml chống thấm",
         designName: "Nhãn Tô Kraft Takeaway Golden",
-        designSnapshotUrl: "https://images.unsplash.com/photo-1584735935682-2f2b69dff9d2?w=600&auto=format&fit=crop&q=80",
+        designSnapshotUrl:
+          "https://images.unsplash.com/photo-1584735935682-2f2b69dff9d2?w=600&auto=format&fit=crop&q=80",
         isNewDesign: true,
         sampleApproved: true, // Mẫu SMP-2026-003 đã được duyệt -> Cho phép chấp thuận báo giá
         printTechnology: "In Offset 4 màu",
@@ -94,16 +96,15 @@ const INITIAL_QUOTES: B2BQuote[] = [
         blankSku: "LY-NHUA-PP-500",
         blankName: "Ly nhựa PP mờ sần 500ml",
         designName: "Mẫu Thỏ Trăng Tết Trung Thu",
-        designSnapshotUrl: "https://images.unsplash.com/photo-1558877085-7835154371bb?w=600&auto=format&fit=crop&q=80",
+        designSnapshotUrl:
+          "https://images.unsplash.com/photo-1558877085-7835154371bb?w=600&auto=format&fit=crop&q=80",
         isNewDesign: false,
         sampleApproved: true,
         printTechnology: "In Lưới trực tiếp",
         selectedQuantity: 5000,
         unitPrice: 1350,
         lineTotal: 6750000,
-        tiers: [
-          { minQuantity: 5000, unitPrice: 1350, discountPercent: 0 },
-        ],
+        tiers: [{ minQuantity: 5000, unitPrice: 1350, discountPercent: 0 }],
       },
     ],
     subtotal: 6750000,
@@ -181,7 +182,7 @@ class InMemoryB2BRepo {
         (item) =>
           item.code.toLowerCase().includes(q) ||
           item.customerName.toLowerCase().includes(q) ||
-          item.customerTaxCode.includes(q)
+          item.customerTaxCode.includes(q),
       );
     }
     return list;
@@ -262,7 +263,7 @@ class InMemoryB2BRepo {
         (c) =>
           c.companyName.toLowerCase().includes(q) ||
           c.taxCode.includes(q) ||
-          c.email.toLowerCase().includes(q)
+          c.email.toLowerCase().includes(q),
       );
     }
     return list;
@@ -290,17 +291,22 @@ class InMemoryB2BRepo {
     return cust;
   }
 
-  activateCustomer(token: string, password: string): { success: boolean; message: string; customer?: B2BCustomer } {
+  activateCustomer(
+    token: string,
+    _password: string,
+  ): { success: boolean; message: string; customer?: B2BCustomer } {
     if (token === "token-expired-bmk") {
       return {
         success: false,
-        message: "Liên kết kích hoạt đã HẾT HẠN (quá thời hạn 7 ngày). Vui lòng liên hệ nhân viên Sales StockFlow để nhận liên kết mới.",
+        message:
+          "Liên kết kích hoạt đã HẾT HẠN (quá thời hạn 7 ngày). Vui lòng liên hệ nhân viên Sales StockFlow để nhận liên kết mới.",
       };
     }
     if (token === "token-active-hlh") {
       return {
         success: false,
-        message: "Liên kết này ĐÃ ĐƯỢC SỬ DỤNG. Tài khoản doanh nghiệp đã kích hoạt trước đó. Vui lòng đăng nhập trực tiếp.",
+        message:
+          "Liên kết này ĐÃ ĐƯỢC SỬ DỤNG. Tài khoản doanh nghiệp đã kích hoạt trước đó. Vui lòng đăng nhập trực tiếp.",
       };
     }
 

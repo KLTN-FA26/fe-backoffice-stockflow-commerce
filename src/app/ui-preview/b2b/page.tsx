@@ -1,13 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { 
-  Briefcase, 
-  DollarSign, 
-  ExternalLink, 
-  Users, 
-  KeyRound 
-} from "lucide-react";
+import { DollarSign, Users, KeyRound } from "lucide-react";
 import { B2BQuote } from "@/features/ui-b2b/types";
 import { b2bRepo } from "@/features/ui-b2b/mock-repo";
 import { B2BQuoteList } from "@/features/ui-b2b/components/B2BQuoteList";
@@ -19,9 +13,7 @@ type Tab = "quotes" | "quote-portal" | "customers" | "activation";
 
 export default function B2BPreviewPage() {
   const [activeTab, setActiveTab] = useState<Tab>("quotes");
-  const [selectedQuote, setSelectedQuote] = useState<B2BQuote>(
-    b2bRepo.getQuotes()[0]
-  );
+  const [selectedQuote, setSelectedQuote] = useState<B2BQuote>(b2bRepo.getQuotes()[0]);
   const [activationToken, setActivationToken] = useState<string>("token-invite-gsp");
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -30,10 +22,10 @@ export default function B2BPreviewPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--border-default)] pb-4">
+      <div className="flex flex-col justify-between gap-4 border-b border-[var(--border-default)] pb-4 md:flex-row md:items-center">
         <div>
           <div className="flex items-center gap-2">
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-amber-600 text-white text-xs font-bold font-mono">
+            <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-amber-600 font-mono text-xs font-bold text-white">
               D
             </span>
             <h1 className="text-xl font-bold text-[var(--ink-primary)]">
@@ -41,7 +33,9 @@ export default function B2BPreviewPage() {
             </h1>
           </div>
           <p className="mt-1 text-xs text-[var(--ink-secondary)]">
-            Phạm vi: <strong>SCRUM-449</strong> (Sales báo giá bậc tier pricing & Portal khách duyệt có guard BR-PRD-08), <strong>SCRUM-451</strong> (Tạo khách B2B, gửi thư mời & Trang kích hoạt portal).
+            Phạm vi: <strong>SCRUM-449</strong> (Sales báo giá bậc tier pricing & Portal khách duyệt
+            có guard BR-PRD-08), <strong>SCRUM-451</strong> (Tạo khách B2B, gửi thư mời & Trang kích
+            hoạt portal).
           </p>
         </div>
 
@@ -51,7 +45,7 @@ export default function B2BPreviewPage() {
             onClick={() => setActiveTab("quotes")}
             className={`rounded-md px-3 py-1.5 font-medium transition-colors ${
               activeTab === "quotes"
-                ? "bg-[var(--brand)] text-[var(--ink-inverse)] font-semibold shadow-xs"
+                ? "bg-[var(--brand)] font-semibold text-[var(--ink-inverse)] shadow-xs"
                 : "text-[var(--ink-secondary)] hover:bg-[var(--bg-subtle)]"
             }`}
           >
@@ -59,9 +53,9 @@ export default function B2BPreviewPage() {
           </button>
           <button
             onClick={() => setActiveTab("quote-portal")}
-            className={`rounded-md px-3 py-1.5 font-medium transition-colors flex items-center gap-1 ${
+            className={`flex items-center gap-1 rounded-md px-3 py-1.5 font-medium transition-colors ${
               activeTab === "quote-portal"
-                ? "bg-amber-600 text-white font-semibold shadow-xs"
+                ? "bg-amber-600 font-semibold text-white shadow-xs"
                 : "text-[var(--ink-secondary)] hover:bg-[var(--bg-subtle)]"
             }`}
           >
@@ -70,9 +64,9 @@ export default function B2BPreviewPage() {
           </button>
           <button
             onClick={() => setActiveTab("customers")}
-            className={`rounded-md px-3 py-1.5 font-medium transition-colors flex items-center gap-1 ${
+            className={`flex items-center gap-1 rounded-md px-3 py-1.5 font-medium transition-colors ${
               activeTab === "customers"
-                ? "bg-sky-600 text-white font-semibold shadow-xs"
+                ? "bg-sky-600 font-semibold text-white shadow-xs"
                 : "text-[var(--ink-secondary)] hover:bg-[var(--bg-subtle)]"
             }`}
           >
@@ -81,9 +75,9 @@ export default function B2BPreviewPage() {
           </button>
           <button
             onClick={() => setActiveTab("activation")}
-            className={`rounded-md px-3 py-1.5 font-medium transition-colors flex items-center gap-1 ${
+            className={`flex items-center gap-1 rounded-md px-3 py-1.5 font-medium transition-colors ${
               activeTab === "activation"
-                ? "bg-emerald-600 text-white font-semibold shadow-xs"
+                ? "bg-emerald-600 font-semibold text-white shadow-xs"
                 : "text-[var(--ink-secondary)] hover:bg-[var(--bg-subtle)]"
             }`}
           >

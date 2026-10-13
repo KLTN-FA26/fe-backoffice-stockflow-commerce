@@ -1,4 +1,4 @@
-import { SampleRequest, ProductionOrder, SampleStatus, ProductionOrderStatus } from "./types";
+import { SampleRequest, ProductionOrder } from "./types";
 
 const INITIAL_SAMPLES: SampleRequest[] = [
   {
@@ -10,7 +10,8 @@ const INITIAL_SAMPLES: SampleRequest[] = [
     blankSku: "LY-GIAY-350-TRANG",
     blankName: "Ly giấy trơn hai lớp 350ml PE",
     designName: "Logo Mùa Thu Highland Gold 2026",
-    designSnapshotUrl: "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=600&auto=format&fit=crop&q=80",
+    designSnapshotUrl:
+      "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=600&auto=format&fit=crop&q=80",
     printSpec: {
       technology: "In Flexo UV 4 màu",
       colors: ["Pantone 1805C", "Pantone 7549C", "Pantone 426C", "Black"],
@@ -69,7 +70,8 @@ const INITIAL_SAMPLES: SampleRequest[] = [
     blankSku: "LY-NHUA-PP-500",
     blankName: "Ly nhựa PP mờ sần 500ml",
     designName: "Mẫu Thỏ Trăng Tết Trung Thu",
-    designSnapshotUrl: "https://images.unsplash.com/photo-1558877085-7835154371bb?w=600&auto=format&fit=crop&q=80",
+    designSnapshotUrl:
+      "https://images.unsplash.com/photo-1558877085-7835154371bb?w=600&auto=format&fit=crop&q=80",
     printSpec: {
       technology: "In Lưới trực tiếp",
       colors: ["Pantone 219C", "Pantone Reflex Blue"],
@@ -108,7 +110,8 @@ const INITIAL_SAMPLES: SampleRequest[] = [
     blankSku: "TO-GIAY-750-KRAFT",
     blankName: "Tô giấy Kraft 750ml chống thấm",
     designName: "Nhãn Tô Kraft Takeaway Golden",
-    designSnapshotUrl: "https://images.unsplash.com/photo-1584735935682-2f2b69dff9d2?w=600&auto=format&fit=crop&q=80",
+    designSnapshotUrl:
+      "https://images.unsplash.com/photo-1584735935682-2f2b69dff9d2?w=600&auto=format&fit=crop&q=80",
     printSpec: {
       technology: "In Offset 4 màu",
       colors: ["CMYK"],
@@ -154,7 +157,8 @@ const INITIAL_PRODUCTION_ORDERS: ProductionOrder[] = [
       fileSize: "18.4 MB",
       checksum: "sha256:7b91ca34d56f912e84",
       downloadUrl: "#mock-download",
-      previewUrl: "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=800&auto=format&fit=crop&q=80",
+      previewUrl:
+        "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=800&auto=format&fit=crop&q=80",
       colorSeparation: ["C", "M", "Y", "K", "Spot Gold 871C"],
       dimensions: "85mm x 115mm (3mm bleed)",
       resolutionDpi: 300,
@@ -179,13 +183,15 @@ const INITIAL_PRODUCTION_ORDERS: ProductionOrder[] = [
     createdAt: "2026-10-08 09:30",
     prepressCheckedAt: "2026-10-08 14:20",
     prepressCheckResult: "PASS",
-    prepressNotes: "Đã khớp checksum với bản mẫu SMP-2026-003 đã được khách duyệt. File in đạt chuẩn.",
+    prepressNotes:
+      "Đã khớp checksum với bản mẫu SMP-2026-003 đã được khách duyệt. File in đạt chuẩn.",
     prepressArtifact: {
       fileName: "GoldenSpoon_Kraft750_MasterPrint.pdf",
       fileSize: "32.1 MB",
       checksum: "sha256:a123bc456def7890",
       downloadUrl: "#mock-download",
-      previewUrl: "https://images.unsplash.com/photo-1584735935682-2f2b69dff9d2?w=800&auto=format&fit=crop&q=80",
+      previewUrl:
+        "https://images.unsplash.com/photo-1584735935682-2f2b69dff9d2?w=800&auto=format&fit=crop&q=80",
       colorSeparation: ["CMYK"],
       dimensions: "140mm x 75mm",
       resolutionDpi: 300,
@@ -215,7 +221,8 @@ const INITIAL_PRODUCTION_ORDERS: ProductionOrder[] = [
       fileSize: "12.8 MB",
       checksum: "sha256:8812ffaa994101",
       downloadUrl: "#mock-download",
-      previewUrl: "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=800&auto=format&fit=crop&q=80",
+      previewUrl:
+        "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=800&auto=format&fit=crop&q=80",
       colorSeparation: ["Pantone 469C", "Pantone Warm Gray 1C"],
       dimensions: "90mm x 135mm",
       resolutionDpi: 300,
@@ -239,13 +246,15 @@ const INITIAL_PRODUCTION_ORDERS: ProductionOrder[] = [
     scrapQuantity: 0,
     dueDate: "2026-10-16",
     createdAt: "2026-10-08 16:00",
-    holdReason: "Phát hiện file in sai kích thước tràn viền (Bleed chỉ có 1mm thay vì chuẩn 3mm). Đang chờ Sales liên hệ khách gửi lại file.",
+    holdReason:
+      "Phát hiện file in sai kích thước tràn viền (Bleed chỉ có 1mm thay vì chuẩn 3mm). Đang chờ Sales liên hệ khách gửi lại file.",
     prepressArtifact: {
       fileName: "PhucLong_PET700_Halloween.pdf",
       fileSize: "24.5 MB",
       checksum: "sha256:dd12349912bcce",
       downloadUrl: "#mock-download",
-      previewUrl: "https://images.unsplash.com/photo-1558877085-7835154371bb?w=800&auto=format&fit=crop&q=80",
+      previewUrl:
+        "https://images.unsplash.com/photo-1558877085-7835154371bb?w=800&auto=format&fit=crop&q=80",
       colorSeparation: ["CMYK"],
       dimensions: "95mm x 150mm",
       resolutionDpi: 300,
@@ -277,7 +286,7 @@ class InMemorySamplesProductionRepo {
         (s) =>
           s.code.toLowerCase().includes(q) ||
           s.customerName.toLowerCase().includes(q) ||
-          s.blankSku.toLowerCase().includes(q)
+          s.blankSku.toLowerCase().includes(q),
       );
     }
     return list;
@@ -287,7 +296,9 @@ class InMemorySamplesProductionRepo {
     return this.samples.find((s) => s.id === id || s.code === id);
   }
 
-  createSampleRequest(data: Omit<SampleRequest, "id" | "code" | "roundNumber" | "status" | "history">): SampleRequest {
+  createSampleRequest(
+    data: Omit<SampleRequest, "id" | "code" | "roundNumber" | "status" | "history">,
+  ): SampleRequest {
     const count = this.samples.length + 1;
     const code = `SMP-2026-${String(count).padStart(3, "0")}`;
     const newSample: SampleRequest = {
@@ -405,7 +416,11 @@ class InMemorySamplesProductionRepo {
   }
 
   // PRODUCTION ORDERS API
-  getProductionOrders(params?: { type?: string; status?: string; search?: string }): ProductionOrder[] {
+  getProductionOrders(params?: {
+    type?: string;
+    status?: string;
+    search?: string;
+  }): ProductionOrder[] {
     let list = [...this.productionOrders];
     if (params?.type && params.type !== "ALL") {
       list = list.filter((p) => p.type === params.type);
@@ -420,7 +435,7 @@ class InMemorySamplesProductionRepo {
           p.code.toLowerCase().includes(q) ||
           p.customerName.toLowerCase().includes(q) ||
           p.blankSku.toLowerCase().includes(q) ||
-          (p.orderCode && p.orderCode.toLowerCase().includes(q))
+          (p.orderCode && p.orderCode.toLowerCase().includes(q)),
       );
     }
     return list;
@@ -490,10 +505,20 @@ class InMemorySamplesProductionRepo {
     po.cancellationReason = reason;
 
     // Tính toán outcome theo chính sách BR-PRD-10
-    if (prevStatus === "Pending Prepress" || prevStatus === "Ready" || prevStatus === "Material Issued") {
-      po.cancellationPolicyOutcome = "Hủy trước in: Hoàn trả 100% phôi đã xuất về kho lưu trữ. Không phát sinh chi phí in phế.";
+    if (
+      prevStatus === "Pending Prepress" ||
+      prevStatus === "Ready" ||
+      prevStatus === "Material Issued"
+    ) {
+      po.cancellationPolicyOutcome =
+        "Hủy trước in: Hoàn trả 100% phôi đã xuất về kho lưu trữ. Không phát sinh chi phí in phế.";
     } else {
-      po.cancellationPolicyOutcome = "Hủy trong khi in: Toàn bộ sản phẩm dở dang (" + po.goodQuantity + " sản phẩm) và phôi hỏng (" + po.scrapQuantity + " phôi) được tính chi phí phế phẩm. Báo cáo kế toán ghi nhận chi phí phạt vi phạm hợp đồng.";
+      po.cancellationPolicyOutcome =
+        "Hủy trong khi in: Toàn bộ sản phẩm dở dang (" +
+        po.goodQuantity +
+        " sản phẩm) và phôi hỏng (" +
+        po.scrapQuantity +
+        " phôi) được tính chi phí phế phẩm. Báo cáo kế toán ghi nhận chi phí phạt vi phạm hợp đồng.";
     }
     return po;
   }

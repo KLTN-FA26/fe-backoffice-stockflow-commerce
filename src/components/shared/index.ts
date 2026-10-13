@@ -1,4 +1,5 @@
 export { StatusDot } from "./StatusDot";
+export { StatusBadge } from "./StatusBadge";
 export { Card } from "./Card";
 export { PageHeader } from "./PageHeader";
 export { SearchBar } from "./SearchBar";
