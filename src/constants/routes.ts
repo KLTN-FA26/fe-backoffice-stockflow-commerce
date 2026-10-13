@@ -114,4 +114,8 @@ export const PORTAL_ROUTES = {
     list: `${PORTAL_BASE}/samples`,
     detail: (id: string) => `${PORTAL_BASE}/samples/${id}`,
   },
+  orders: {
+    list: `${PORTAL_BASE}/orders`,
+    detail: (id: string) => `${PORTAL_BASE}/orders/${id}`,
+  },
 } as const;

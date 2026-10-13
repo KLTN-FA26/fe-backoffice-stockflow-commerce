@@ -54,6 +54,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
   info: [
     // Bán hàng B2B & sản xuất (BE d215f6e)
     "Sent",
+    "Preparing",
+    "Shipping",
     "Submitted",
     "Material Issued",
     "Sent to Customer",
@@ -89,6 +91,7 @@ const TONE: Record<SemanticTone, readonly string[]> = {
   warning: [
     // Bán hàng B2B & sản xuất (BE d215f6e)
     "Pending Activation",
+    "Under Review",
     "RETRYING",
     "PENDING",
     "PARTIALLY_RECEIVED",
@@ -374,6 +377,10 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   "Material Issued": "Đã xuất phôi",
   Subcontracted: "Gia công ngoài",
   "Pending Activation": "Chờ kích hoạt",
+  // Nhóm trạng thái đơn khách thấy (BE CustomerOrderCardResponse.statusGroup)
+  "Under Review": "Đang xem xét",
+  Preparing: "Đang chuẩn bị hàng",
+  Shipping: "Đang giao",
   DISPATCHED: "Đã xuất gửi đi",
   IN_PRODUCTION: "Đang gia công",
   RECEIVED_PARTIAL: "Nhận một phần",

@@ -1,9 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, FileText, FlaskConical } from "lucide-react";
+import { ArrowRight, FileText, FlaskConical, PackageOpen } from "lucide-react";
 
-import { PORTAL_ROUTES, QUOTE_PERMISSIONS, SAMPLE_REQUEST_PERMISSIONS } from "@/constants";
+import {
+  ORDER_PERMISSIONS,
+  PORTAL_ROUTES,
+  QUOTE_PERMISSIONS,
+  SAMPLE_REQUEST_PERMISSIONS,
+} from "@/constants";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { useMyPermissions } from "@/lib/auth/me-permissions";
@@ -16,6 +21,13 @@ const ENTRIES = [
     title: "Báo giá",
     description: "Xem báo giá Sales gửi, chấp nhận hoặc yêu cầu chỉnh sửa.",
     permission: QUOTE_PERMISSIONS.read,
+  },
+  {
+    href: PORTAL_ROUTES.orders.list,
+    icon: PackageOpen,
+    title: "Đơn hàng",
+    description: "Theo dõi tiến trình đơn và đặt lại bằng yêu cầu báo giá mới.",
+    permission: ORDER_PERMISSIONS.read,
   },
   {
     href: PORTAL_ROUTES.samples.list,

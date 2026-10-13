@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { FileText, FlaskConical, LogOut } from "lucide-react";
+import { FileText, FlaskConical, LogOut, PackageOpen } from "lucide-react";
 import { cn } from "cn";
 
 import {
   APP_ROUTES,
+  ORDER_PERMISSIONS,
   PORTAL_ROUTES,
   QUOTE_PERMISSIONS,
   SAMPLE_REQUEST_PERMISSIONS,
@@ -34,6 +35,12 @@ const PORTAL_NAV: PortalNavItem[] = [
     href: PORTAL_ROUTES.quotes.list,
     icon: FileText,
     permission: QUOTE_PERMISSIONS.read,
+  },
+  {
+    label: "Đơn hàng",
+    href: PORTAL_ROUTES.orders.list,
+    icon: PackageOpen,
+    permission: ORDER_PERMISSIONS.read,
   },
   {
     label: "Mẫu thử",
