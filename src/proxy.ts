@@ -9,6 +9,15 @@ import { expireLegacyCookie } from "@/lib/auth/server/cookie";
 import type { NextRequest } from "next/server";
 
 const PUBLIC_PATHS = ["/login", "/register", "/forgot-password"];
+/** Back-office (Mode A) và portal khách hàng (Mode B) đều cần phiên. */
+const PROTECTED_PREFIXES = ["/admin", "/portal"];
+/** Trang kích hoạt từ email mời: khách chưa có mật khẩu → không thể có phiên (SCRUM-451). */
+const PORTAL_ACTIVATION_PATH = "/portal/activate";
+
+function isProtectedPath(pathname: string): boolean {
+  if (pathname === PORTAL_ACTIVATION_PATH) return false;
+  return PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
 
 function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname.startsWith(p));
@@ -35,10 +44,10 @@ export function proxy(request: NextRequest) {
   const authToken = request.cookies.get(AUTH_COOKIE_NAME)?.value;
   const isAuthenticated = !!authToken;
 
-  // Protected routes: /admin/*
-  if (pathname.startsWith("/admin") && !isAuthenticated) {
+  // Protected routes: /admin/*, /portal/* — giữ cả query để quay lại đúng bộ lọc sau đăng nhập
+  if (isProtectedPath(pathname) && !isAuthenticated) {
     const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("callbackUrl", pathname);
+    loginUrl.searchParams.set("callbackUrl", `${pathname}${request.nextUrl.search}`);
     return finalize(NextResponse.redirect(loginUrl));
   }
 

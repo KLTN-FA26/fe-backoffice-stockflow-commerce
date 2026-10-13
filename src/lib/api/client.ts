@@ -6,6 +6,7 @@ import { APP_ROUTES } from "@/constants";
 import { AUTH_PATHS, BROWSER_API_BASE, BROWSER_API_TIMEOUT_MS } from "@/constants/auth";
 
 import { useAuthStore } from "@/lib/auth/auth-store";
+import { loginUrlFor } from "@/lib/auth/redirect";
 import { useAppStore } from "@/lib/store/use-app-store";
 
 import { ApiError } from "./error";
@@ -53,7 +54,10 @@ api.interceptors.response.use(
         typeof window !== "undefined" &&
         window.location.pathname !== APP_ROUTES.login
       ) {
-        window.location.replace(APP_ROUTES.login);
+        // Giữ trang + bộ lọc hiện tại để đăng nhập lại xong quay về đúng chỗ.
+        window.location.replace(
+          loginUrlFor(`${window.location.pathname}${window.location.search ?? ""}`),
+        );
       }
     }
     return Promise.reject(ApiError.from(err));

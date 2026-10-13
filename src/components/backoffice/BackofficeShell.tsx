@@ -3,8 +3,12 @@
 import { cn } from "cn";
 import {
   ArrowRightLeft,
+  Building2,
   ClipboardList,
+  Factory,
+  FileSignature,
   FileText,
+  FlaskConical,
   LayoutDashboard,
   Lightbulb,
   LogOut,
@@ -20,6 +24,7 @@ import {
   ShieldCheck,
   Settings,
   ShoppingCart,
+  SquareKanban,
   Sun,
   Truck,
   User,
@@ -34,12 +39,16 @@ import {
   ADMIN_ROUTES,
   APP_ROUTES,
   BRAND,
+  CUSTOMER_PERMISSIONS,
   FULFILLMENT_PACKAGE_PERMISSIONS,
   FULFILLMENT_PICK_PERMISSIONS,
   GOODS_RECEIPT_PERMISSIONS,
   IDENTITY_PERMISSIONS,
   ORDER_PERMISSIONS,
   PO_PERMISSIONS,
+  PRODUCTION_ORDER_PERMISSIONS,
+  QUOTE_PERMISSIONS,
+  SAMPLE_REQUEST_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
 } from "@/constants";
 
@@ -244,6 +253,53 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    // Luồng B2B: khách → báo giá → khách chấp nhận → đơn / mẫu (SCRUM-449/451/404)
+    title: "BÁN HÀNG",
+    items: [
+      {
+        label: "Khách hàng",
+        tooltip: "B2B customers",
+        href: ADMIN_ROUTES.customers.list,
+        icon: Building2,
+        permission: CUSTOMER_PERMISSIONS.viewPage,
+      },
+      {
+        label: "Báo giá",
+        tooltip: "Quotes",
+        href: ADMIN_ROUTES.quotes.list,
+        icon: FileSignature,
+        permission: QUOTE_PERMISSIONS.viewPage,
+      },
+      {
+        label: "Yêu cầu mẫu",
+        tooltip: "Sample requests",
+        href: ADMIN_ROUTES.sampleRequests.list,
+        icon: FlaskConical,
+        permission: SAMPLE_REQUEST_PERMISSIONS.viewPage,
+      },
+    ],
+  },
+  {
+    // Xưởng in: prepress → xuất phôi → in → QC → bàn giao đóng gói (SCRUM-406..419, 442)
+    title: "SẢN XUẤT",
+    items: [
+      {
+        label: "Xưởng in",
+        tooltip: "Workshop board & dashboard",
+        href: ADMIN_ROUTES.workshop,
+        icon: SquareKanban,
+        permission: PRODUCTION_ORDER_PERMISSIONS.viewPage,
+      },
+      {
+        label: "Lệnh sản xuất",
+        tooltip: "Production orders",
+        href: ADMIN_ROUTES.productionOrders.list,
+        icon: Factory,
+        permission: PRODUCTION_ORDER_PERMISSIONS.viewPage,
+      },
+    ],
+  },
+  {
     title: "THỰC HIỆN ĐƠN",
     items: [
       {
@@ -286,6 +342,9 @@ const EDIT_LABEL = "Chỉnh sửa";
 
 const DETAIL_LABEL_BY_ROUTE: Record<string, string> = {
   "/admin/products/create": "Tạo sản phẩm",
+  "/admin/customers/create": "Tạo khách hàng",
+  "/admin/quotes/create": "Tạo báo giá",
+  "/admin/sample-requests/create": "Tạo yêu cầu mẫu",
   "/admin/purchase-orders/create": "Tạo đơn đặt hàng",
   "/admin/suppliers/create": "Tạo nhà cung cấp",
 };

@@ -67,13 +67,17 @@ describe("safe browser auth contract", () => {
     expect(requests[0].baseURL).toBe(BROWSER_API_BASE);
     expect(requests[0].headers.has("Authorization")).toBe(false);
   });
-  it("401 clears UI auth and redirects without retry or refresh", async () => {
+  it("401 clears UI auth and redirects (back to the same page after login) without retry or refresh", async () => {
     useAuthStore.getState().login(user, false);
-    vi.stubGlobal("window", { location: { pathname: "/admin/products", replace: redirect } });
+    vi.stubGlobal("window", {
+      location: { pathname: "/admin/products", search: "?status=Draft", replace: redirect },
+    });
     status = 401;
     await expect(api.get("/products")).rejects.toMatchObject({ status: 401 });
     expect(useAuthStore.getState().status).toBe("unauthenticated");
-    expect(redirect).toHaveBeenCalledWith("/login");
+    expect(redirect).toHaveBeenCalledWith(
+      `/login?callbackUrl=${encodeURIComponent("/admin/products?status=Draft")}`,
+    );
     expect(requests.map((request) => request.url)).toEqual(["/products"]);
   });
   it("failed login 401 keeps the BFF code and never triggers the expired-session redirect", async () => {

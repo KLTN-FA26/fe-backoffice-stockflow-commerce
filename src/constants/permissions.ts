@@ -101,6 +101,79 @@ export const FULFILLMENT_PACKAGE_PERMISSIONS = {
   create: "fulfillment-packages:CREATE",
 } as const;
 
+/**
+ * Khách hàng B2B — resource `customer-customers` (BE CustomerController + CustomerOnboardingController,
+ * SCRUM-450). CREATE = Sales tạo khách + gửi / gửi lại lời mời portal (seed V20261015000100: SALES_STAFF,
+ * ECOMMERCE_ADMIN, SYSTEM_ADMIN). APPROVE = đổi trạng thái (khoá / mở lại, lý do bắt buộc).
+ * Endpoint chỉ có ở BE local integration d215f6e — chưa merge develop.
+ */
+export const CUSTOMER_PERMISSIONS = {
+  viewPage: "customer-customers:VIEW_PAGE",
+  read: "customer-customers:READ",
+  create: "customer-customers:CREATE",
+  update: "customer-customers:UPDATE",
+  approve: "customer-customers:APPROVE",
+} as const;
+
+/**
+ * Điều khoản thanh toán của khách — resource `customer-credit-profiles` (BE CreditProfileController).
+ * APPROVE = người duyệt công nợ hiện có (BR-02). Quyết định B1 (2026-10-13): Sales chỉ chọn
+ * PREPAID / DEPOSIT lúc tạo khách, KHÔNG có quyền cấp CREDIT.
+ */
+export const CREDIT_PROFILE_PERMISSIONS = {
+  read: "customer-credit-profiles:READ",
+  approve: "customer-credit-profiles:APPROVE",
+} as const;
+
+/**
+ * Báo giá B2B — resource `sales-quotes` (BE QuoteController, SCRUM-448, seed V20261015000300).
+ * SALES_STAFF V/R/C/U · ORDER_COORDINATOR V/R/U · CUSTOMER V/R/APPROVE (chấp nhận / yêu cầu sửa).
+ */
+export const QUOTE_PERMISSIONS = {
+  viewPage: "sales-quotes:VIEW_PAGE",
+  read: "sales-quotes:READ",
+  create: "sales-quotes:CREATE",
+  // Sửa nháp, gửi, mở bản sửa, huỷ, chuyển thành đơn
+  update: "sales-quotes:UPDATE",
+  // Phía khách: chấp nhận / yêu cầu sửa
+  approve: "sales-quotes:APPROVE",
+} as const;
+
+/**
+ * Yêu cầu làm mẫu — resource `production-sample-requests` (BE SampleRequestController, SCRUM-403;
+ * seed V20261010000500 + V20261015000200: CUSTOMER V/R/APPROVE, SALES_STAFF có APPROVE).
+ */
+export const SAMPLE_REQUEST_PERMISSIONS = {
+  viewPage: "production-sample-requests:VIEW_PAGE",
+  read: "production-sample-requests:READ",
+  create: "production-sample-requests:CREATE",
+  update: "production-sample-requests:UPDATE",
+  approve: "production-sample-requests:APPROVE",
+} as const;
+
+/**
+ * Lệnh sản xuất (LSX) — resource `production-orders` (BE ProductionOrderController, SCRUM-405..415).
+ * UPDATE = prepress, treo, in, ghi sản lượng · APPROVE = huỷ / dừng / tiếp tục, tách gia công.
+ */
+export const PRODUCTION_ORDER_PERMISSIONS = {
+  viewPage: "production-orders:VIEW_PAGE",
+  read: "production-orders:READ",
+  update: "production-orders:UPDATE",
+  approve: "production-orders:APPROVE",
+} as const;
+
+/** Xuất phôi cho LSX + gửi / nhận gia công — `production-material-issues` (seed V20261015000400). */
+export const MATERIAL_ISSUE_PERMISSIONS = {
+  read: "production-material-issues:READ",
+  create: "production-material-issues:CREATE",
+} as const;
+
+/** QC thành phẩm LSX — `production-qc-results` (seed V20261015000420: QC_STAFF, WAREHOUSE_MANAGER). */
+export const PRODUCTION_QC_PERMISSIONS = {
+  read: "production-qc-results:READ",
+  create: "production-qc-results:CREATE",
+} as const;
+
 /** Danh sách tài khoản nhân viên — `GET /identity/users` (BE UserManagementController). */
 export const IDENTITY_USER_PERMISSIONS = {
   read: "identity-users:READ",
@@ -117,6 +190,8 @@ export const STAFF_ROLE = {
   SYSTEM_ADMIN: "SYSTEM_ADMIN",
   WAREHOUSE_MANAGER: "WAREHOUSE_MANAGER",
   WAREHOUSE_STAFF: "WAREHOUSE_STAFF",
+  /** Tài khoản portal của khách B2B — chỉ thấy `/portal`, không thấy back-office. */
+  CUSTOMER: "CUSTOMER",
 } as const;
 
 export type StaffRole = (typeof STAFF_ROLE)[keyof typeof STAFF_ROLE];

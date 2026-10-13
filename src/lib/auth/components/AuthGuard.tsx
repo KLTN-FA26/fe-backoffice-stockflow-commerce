@@ -3,12 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-import { APP_ROUTES } from "@/constants";
 import { AUTH_UI } from "@/constants/auth";
 
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
 
+import { loginUrlFor } from "../redirect";
 import { useAuthLifecycle } from "../use-auth-lifecycle";
 
 import type { ReactNode } from "react";
@@ -19,7 +19,10 @@ export function AuthGuard({ children }: { children: ReactNode }) {
   const { status, isAuthenticated, bootstrapError, retry } = useAuthLifecycle();
 
   useEffect(() => {
-    if (status === "unauthenticated") router.replace(APP_ROUTES.login);
+    // Hết phiên giữa chừng → đăng nhập lại rồi quay về đúng trang + bộ lọc đang xem.
+    if (status !== "unauthenticated") return;
+    const { pathname, search } = window.location;
+    router.replace(loginUrlFor(`${pathname}${search}`));
   }, [status, router]);
 
   if (!isAuthenticated) {

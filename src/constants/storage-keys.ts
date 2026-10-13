@@ -9,4 +9,10 @@ export const STORAGE_KEYS = {
   adminPackingConfig: "stockflow:admin:packing:config",
   adminPickingConfig: "stockflow:admin:picking:config",
   adminSuppliersConfig: "stockflow:admin:suppliers:config",
+  adminCustomersConfig: "stockflow:admin:customers:config",
+  adminQuotesConfig: "stockflow:admin:quotes:config",
+  adminSampleRequestsConfig: "stockflow:admin:sample-requests:config",
+  adminProductionOrdersConfig: "stockflow:admin:production-orders:config",
+  portalQuotesConfig: "stockflow:portal:quotes:config",
+  portalSamplesConfig: "stockflow:portal:samples:config",
 } as const;

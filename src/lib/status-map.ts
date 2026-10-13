@@ -52,6 +52,11 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Sẵn sàng in",
   ],
   info: [
+    // Bán hàng B2B & sản xuất (BE d215f6e)
+    "Sent",
+    "Submitted",
+    "Material Issued",
+    "Sent to Customer",
     "QUEUED",
     "SENT",
     "In Progress",
@@ -82,6 +87,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "In Fulfilment",
   ],
   warning: [
+    // Bán hàng B2B & sản xuất (BE d215f6e)
+    "Pending Activation",
     "RETRYING",
     "PENDING",
     "PARTIALLY_RECEIVED",
@@ -157,6 +164,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "PENDING_ACTIVATION",
   ],
   muted: [
+    // Bán hàng B2B & sản xuất (BE d215f6e)
+    "Expired",
     "UNKNOWN",
     "SUPPRESSED",
     // BE #36 cancellationDeliveryStatus: PO huỷ trước khi gửi NCC → không cần báo huỷ.
@@ -179,7 +188,15 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     // QC dòng nhận — SKU không bật cờ Yêu cầu QC, đi luồng 2 bước (docs 03 §5.2)
     "Not Required",
   ],
-  special: ["Refunded", "Partially Refunded", "In Production", "MẪU THỬ", "SAMPLE"],
+  special: [
+    "Refunded",
+    "Partially Refunded",
+    "In Production",
+    "MẪU THỬ",
+    "SAMPLE",
+    // Gia công ngoài — tách khỏi in tại xưởng (BE d215f6e)
+    "Subcontracted",
+  ],
 };
 
 /** Thứ tự ưu tiên khi status trùng nhiều tone (CLAUDE.md). */
@@ -349,6 +366,14 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   "Tạm dừng": "Tạm dừng (Hold)",
   Hold: "Tạm dừng (Hold)",
   "Changes Requested": "Yêu cầu sửa",
+  // Bán hàng B2B & sản xuất (BE d215f6e)
+  Sent: "Đã gửi khách",
+  Expired: "Hết hiệu lực",
+  Submitted: "Đã gửi sản xuất",
+  "Sent to Customer": "Đã gửi mẫu cho khách",
+  "Material Issued": "Đã xuất phôi",
+  Subcontracted: "Gia công ngoài",
+  "Pending Activation": "Chờ kích hoạt",
   DISPATCHED: "Đã xuất gửi đi",
   IN_PRODUCTION: "Đang gia công",
   RECEIVED_PARTIAL: "Nhận một phần",

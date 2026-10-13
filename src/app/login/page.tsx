@@ -19,11 +19,13 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState, useTransition } from "react";
 
-import { ADMIN_ROUTES, APP_ROUTES } from "@/constants";
+import { APP_ROUTES } from "@/constants";
 import { AUTH_UI } from "@/constants/auth";
 
 import { getMockLoginUsersApi, loginApi, mockLoginApi } from "@/lib/auth/auth-api";
+import { useAuthStore } from "@/lib/auth/auth-store";
 import { loginErrorMessage } from "@/lib/auth/login-error";
+import { landingFor } from "@/lib/auth/redirect";
 import { useAuthLifecycle } from "@/lib/auth/use-auth-lifecycle";
 
 import { useIsMock } from "@/providers/app-providers";
@@ -67,9 +69,9 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestedCallback = searchParams.get("callbackUrl");
-  const callbackUrl = requestedCallback?.startsWith(`${ADMIN_ROUTES.home}/`)
-    ? requestedCallback
-    : ADMIN_ROUTES.home;
+  // Nhân viên → /admin, tài khoản khách (chỉ CUSTOMER) → /portal; callback khác khu vực bị bỏ.
+  const roles = useAuthStore((state) => state.user?.roles);
+  const callbackUrl = landingFor(roles ?? [], requestedCallback);
   const isMock = useIsMock();
   const { status, isAuthenticated, bootstrapError, retry } = useAuthLifecycle();
 
@@ -114,7 +116,7 @@ function LoginForm() {
   }, [isMock]);
 
   function completeLogin() {
-    router.replace(callbackUrl);
+    router.replace(landingFor(useAuthStore.getState().user?.roles ?? [], requestedCallback));
     router.refresh();
   }
 

@@ -68,6 +68,45 @@
   --scene-accent: #22d3ee;
 }
 
+/* Mode B · Storefront / portal khách hàng (.claude/rules/mode-b-storefront.md).
+   Chỉ áp trong cây có data-mode="storefront" — caramel không lọt sang /admin,
+   và --accent (blue) bị thay bằng caramel để blue không lọt sang Mode B. */
+[data-mode="storefront"] {
+  --bg-base: #f7f2eb;
+  --bg-surface: #fffdfb;
+  --bg-subtle: #f7f2eb;
+  --bg-muted: #efe7dc;
+  --border-default: #e6dccc;
+  --border-strong: #d6c8b3;
+  --ink-primary: #2a211a;
+  --ink-secondary: #6e6055;
+  --ink-tertiary: #9c8c7c;
+  --ink-inverse: #ffffff;
+  --brand: #a9682f;
+  --brand-hover: #8c5526;
+  --accent: #a9682f;
+  --card-pad: 24px;
+  --card-radius: var(--r-lg);
+  --el-gap: 12px;
+  --card-shadow: var(--sh-md);
+}
+
+:root[data-theme="dark"] [data-mode="storefront"] {
+  --bg-base: #17130f;
+  --bg-surface: #211a14;
+  --bg-subtle: #1c1611;
+  --bg-muted: #2a2119;
+  --border-default: #322820;
+  --border-strong: #46382c;
+  --ink-primary: #f3ebe1;
+  --ink-secondary: #bba996;
+  --ink-tertiary: #8a7866;
+  --ink-inverse: #17130f;
+  --brand: #c98d4e;
+  --brand-hover: #d89e60;
+  --accent: #c98d4e;
+}
+
 /* ============================================================================
    TAILWIND v4 @theme — map StockFlow tokens → utility classes + shadcn semantic vars
    ==========================================================================*/
