@@ -167,6 +167,12 @@ export const CATALOG_CUSTOMER_PRICE_PERMISSIONS = {
   read: "catalog-customer-prices:READ",
 } as const;
 
+/** Kho & sơ đồ vị trí — `warehouse-warehouses`, `warehouse-locations` (BE WarehouseController). */
+export const WAREHOUSE_PERMISSIONS = {
+  read: "warehouse-warehouses:READ",
+  locationsRead: "warehouse-locations:READ",
+} as const;
+
 /** Xuất phôi cho LSX + gửi / nhận gia công — `production-material-issues` (seed V20261015000400). */
 export const MATERIAL_ISSUE_PERMISSIONS = {
   read: "production-material-issues:READ",

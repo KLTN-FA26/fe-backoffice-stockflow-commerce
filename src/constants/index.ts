@@ -35,6 +35,7 @@ export {
   SAMPLE_REQUEST_PERMISSIONS,
   STAFF_ROLE,
   SUPPLIER_PERMISSIONS,
+  WAREHOUSE_PERMISSIONS,
 } from "./permissions";
 export type { StaffRole } from "./permissions";
 export { ADMIN_ROUTES, APP_ROUTES, PORTAL_ROUTES } from "./routes";

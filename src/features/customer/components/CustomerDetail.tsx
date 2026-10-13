@@ -120,6 +120,13 @@ function CustomerDetailContent({ id }: { id: string }) {
                 </Link>
               </Button>
             )}
+            {active && can(SAMPLE_REQUEST_PERMISSIONS.create) && (
+              <Button asChild variant="outline" size="sm">
+                <Link href={ADMIN_ROUTES.sampleRequests.createForCustomer(customer.customerId)}>
+                  <FlaskConical className="size-3.5" /> Tạo yêu cầu mẫu
+                </Link>
+              </Button>
+            )}
             {can(SAMPLE_REQUEST_PERMISSIONS.read) && (
               <Button asChild variant="outline" size="sm">
                 <Link href={ADMIN_ROUTES.sampleRequests.byCustomer(customer.customerId)}>
