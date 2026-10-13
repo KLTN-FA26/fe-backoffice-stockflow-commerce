@@ -1,22 +1,23 @@
 import type { z } from "zod";
-
 import type {
   dashboardDtoSchema,
-  dispatchNoteDtoSchema,
   materialIssueDtoSchema,
   printFileDtoSchema,
   productionDetailDtoSchema,
   productionRowDtoSchema,
   qcRoundDtoSchema,
   scrapDtoSchema,
-  settlementDtoSchema,
   statusChangeDtoSchema,
-  subcontractRecallDtoSchema,
-  subcontractReceiptDtoSchema,
   HOLD_REASONS,
   SCRAP_REASONS,
   SUBCONTRACT_METHODS,
 } from "./schemas";
+import type {
+  dispatchNoteDtoSchema,
+  settlementDtoSchema,
+  subcontractRecallDtoSchema,
+  subcontractReceiptDtoSchema,
+} from "./subcontract-schemas";
 
 export type ProductionRow = z.infer<typeof productionRowDtoSchema>;
 export type ProductionDetail = z.infer<typeof productionDetailDtoSchema>;

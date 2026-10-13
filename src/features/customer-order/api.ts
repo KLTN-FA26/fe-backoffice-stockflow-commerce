@@ -5,7 +5,7 @@ import { api } from "@/lib/api/client";
 import { myOrderDetailDtoSchema, myOrderPageDtoSchema } from "./schemas";
 
 import type { ListQueryParams, PaginatedResponse } from "@/lib/api/query-factory";
-import type { MyOrderCard, MyOrderDetail } from "./schemas";
+import type { MyOrderCard, MyOrderDetail } from "./types";
 
 export interface ListMyOrderParams extends ListQueryParams {
   page?: number;

@@ -469,3 +469,29 @@ export const PRODUCTION_ORDER_TYPES = ["SAMPLE", "ORDER"] as const;
 export type ProductionOrderType = (typeof PRODUCTION_ORDER_TYPES)[number];
 export const PRODUCTION_ORDER_MODES = ["IN_HOUSE", "SUBCONTRACTED"] as const;
 export type ProductionOrderMode = (typeof PRODUCTION_ORDER_MODES)[number];
+
+/** Nhóm trạng thái đơn khách đọc — BE `CustomerOrderCardResponse.statusGroup` (develop). */
+export const ORDER_STATUS_GROUPS = [
+  "AWAITING_PAYMENT",
+  "UNDER_REVIEW",
+  "CONFIRMED",
+  "IN_PRODUCTION",
+  "PREPARING",
+  "SHIPPING",
+  "DELIVERED",
+  "CANCELLED",
+  "RETURNED",
+] as const;
+export type OrderStatusGroup = (typeof ORDER_STATUS_GROUPS)[number];
+/** Nhóm → chuỗi status-map (nhãn Việt + tone dùng chung). */
+export const ORDER_STATUS_GROUP_DISPLAY = {
+  AWAITING_PAYMENT: "Pending Payment",
+  UNDER_REVIEW: "Under Review",
+  CONFIRMED: "Confirmed",
+  IN_PRODUCTION: "In Production",
+  PREPARING: "Preparing",
+  SHIPPING: "Shipping",
+  DELIVERED: "Delivered",
+  CANCELLED: "Cancelled",
+  RETURNED: "Returned",
+} as const satisfies Record<OrderStatusGroup, string>;

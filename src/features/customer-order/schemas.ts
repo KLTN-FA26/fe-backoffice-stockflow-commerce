@@ -6,35 +6,11 @@
 
 import { z } from "zod";
 
+import { ORDER_STATUS_GROUPS } from "@/constants";
+
 import { bePageSchema } from "@/lib/api/page-schema";
 
-export const STATUS_GROUPS = [
-  "AWAITING_PAYMENT",
-  "UNDER_REVIEW",
-  "CONFIRMED",
-  "IN_PRODUCTION",
-  "PREPARING",
-  "SHIPPING",
-  "DELIVERED",
-  "CANCELLED",
-  "RETURNED",
-] as const;
-export type StatusGroup = (typeof STATUS_GROUPS)[number];
-
-/** Nhóm trạng thái khách đọc → chuỗi status-map (nhãn Việt + tone dùng chung). */
-export const STATUS_GROUP_DISPLAY: Readonly<Record<StatusGroup, string>> = {
-  AWAITING_PAYMENT: "Pending Payment",
-  UNDER_REVIEW: "Under Review",
-  CONFIRMED: "Confirmed",
-  IN_PRODUCTION: "In Production",
-  PREPARING: "Preparing",
-  SHIPPING: "Shipping",
-  DELIVERED: "Delivered",
-  CANCELLED: "Cancelled",
-  RETURNED: "Returned",
-};
-
-const statusGroup = z.enum(STATUS_GROUPS);
+const statusGroup = z.enum(ORDER_STATUS_GROUPS);
 
 export const myOrderCardDtoSchema = z.object({
   orderId: z.string(),
@@ -97,6 +73,3 @@ export const myOrderDetailDtoSchema = z.object({
   ),
   deliveryState: z.string().nullish(),
 });
-
-export type MyOrderCard = z.infer<typeof myOrderCardDtoSchema>;
-export type MyOrderDetail = z.infer<typeof myOrderDetailDtoSchema>;

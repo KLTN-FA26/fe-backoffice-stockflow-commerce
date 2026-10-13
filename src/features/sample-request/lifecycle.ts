@@ -1,6 +1,6 @@
 /**
  * Vòng đời yêu cầu mẫu — chép BE `SampleStatus.canTransitionTo` + bước hệ thống (d215f6e,
- * handoff SCRUM-394-395):
+ * BE docs/handoffs/SCRUM-394-395.md):
  *   DRAFT → SUBMITTED (gửi sản xuất, giữ phôi — Q1) | CANCELLED ; sửa quy cách chỉ khi DRAFT
  *   SUBMITTED → IN_PRODUCTION → READY (do LSX mẫu chạy, không có nút)
  *   READY → SENT_TO_CUSTOMER (gửi mẫu cho khách)

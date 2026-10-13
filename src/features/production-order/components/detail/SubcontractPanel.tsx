@@ -10,26 +10,30 @@ import {
   PO_PERMISSIONS,
   PRODUCTION_ORDER_PERMISSIONS,
 } from "@/constants";
+
 import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { formatDate, formatDateTime } from "@/lib/format/date";
 import { formatMoney } from "@/lib/format/money";
 import { formatNumber } from "@/lib/format/number";
+
+import { canReconcileReceipt } from "@/features/production-order/lifecycle";
 import {
   useDispatchNote,
   useSettlement,
   useSubcontractReceipts,
 } from "@/features/production-order/queries";
+
 import { Card } from "@/components/shared/Card";
-import { Button } from "@/components/ui/button";
 import { StatusDot } from "@/components/shared/StatusDot";
+import { Button } from "@/components/ui/button";
 
 import { MONO } from "../copy";
-import { LossApprovalForm, ReconcileForm } from "./SubcontractForms";
+import { SettlementSection } from "./SettlementSection";
+import { ReconcileForm } from "./SubcontractForms";
 import { SubcontractRecovery } from "./SubcontractRecovery";
+import { METHOD } from "./SubcontractTerms";
 
 import type { ProductionDetail } from "@/features/production-order/types";
-
-const METHOD = { SUPPLIED_BLANKS: "Gửi phôi", FULL_SERVICE: "Trọn gói" } as const;
 
 /** Gia công ngoài (SCRUM-442): điều khoản, phiếu giao, nhận về + đối soát phôi, quyết toán. */
 export function SubcontractPanel({ order }: { order: ProductionDetail }) {
@@ -150,7 +154,7 @@ export function SubcontractPanel({ order }: { order: ProductionDetail }) {
                     Đã đối soát: dùng {receipt.usedBlanks ?? "—"} · hỏng {receipt.spoiltBlanks ?? 0}{" "}
                     · trả {receipt.returnedBlanks ?? 0}
                   </span>
-                ) : can(MATERIAL_ISSUE_PERMISSIONS.create) ? (
+                ) : canReconcileReceipt(order, receipt, can) ? (
                   <Button
                     size="sm"
                     variant="outline"
@@ -173,29 +177,7 @@ export function SubcontractPanel({ order }: { order: ProductionDetail }) {
         ))}
       </section>
       <SubcontractRecovery order={order} />
-      {settlement.data && (
-        <section aria-labelledby="settlement" className="space-y-2">
-          <h3 id="settlement" className="text-ink-primary text-[0.8125rem] font-semibold">
-            Quyết toán ({settlement.data.status === "FINAL" ? "đã chốt" : "chờ duyệt hao hụt"})
-          </h3>
-          <p className={`text-ink-secondary ${MONO}`}>
-            Nhận {formatNumber(settlement.data.receivedQuantity)} · đạt{" "}
-            {formatNumber(settlement.data.passedQuantity)} · phôi gửi{" "}
-            {formatNumber(settlement.data.blanksSent)} · mất{" "}
-            {formatNumber(settlement.data.blanksLost)} (dung sai {settlement.data.tolerancePercent}%
-            = {formatNumber(settlement.data.toleranceBlanks)}, vượt{" "}
-            {formatNumber(settlement.data.excessLoss)})
-          </p>
-          <p className={MONO}>
-            Phải trả {formatMoney(settlement.data.payableAmount, settlement.data.currency)} − khấu
-            trừ {formatMoney(settlement.data.deductionAmount ?? 0, settlement.data.currency)} + phí
-            huỷ {formatMoney(settlement.data.cancellationFee ?? 0, settlement.data.currency)} ={" "}
-            <strong>{formatMoney(settlement.data.netPayable, settlement.data.currency)}</strong>
-          </p>
-          {settlement.data.status === "AWAITING_APPROVAL" &&
-            can(PRODUCTION_ORDER_PERMISSIONS.approve) && <LossApprovalForm order={order} />}
-        </section>
-      )}
+      {settlement.data && <SettlementSection order={order} settlement={settlement.data} />}
     </Card>
   );
 }

@@ -16,7 +16,7 @@ const PROTECTED_PREFIXES = ["/admin", "/portal"];
 const PORTAL_ACTIVATION_PATH = "/portal/activate";
 
 function isProtectedPath(pathname: string): boolean {
-  if (pathname === PORTAL_ACTIVATION_PATH) return false;
+  if (pathname.replace(/\/+$/, "") === PORTAL_ACTIVATION_PATH) return false;
   return PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 

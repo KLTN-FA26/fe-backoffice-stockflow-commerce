@@ -1,5 +1,5 @@
 /**
- * Vòng đời báo giá — chép từ BE `QuoteStatus.canTransitionTo` (d215f6e, handoff SCRUM-448):
+ * Vòng đời báo giá — chép từ BE `QuoteStatus.canTransitionTo` (d215f6e, BE docs/handoffs/SCRUM-448.md):
  *   DRAFT → SENT (gửi) | CANCELLED (huỷ, lý do bắt buộc) ; sửa nội dung chỉ khi DRAFT
  *   SENT → ACCEPTED | CHANGES_REQUESTED (chỉ khách portal) ; quá validUntil → EXPIRED
  *   CHANGES_REQUESTED → DRAFT (mở bản sửa, revision + 1)

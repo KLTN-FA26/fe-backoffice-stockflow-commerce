@@ -1,11 +1,12 @@
 /**
- * Báo giá B2B — hợp đồng BE local integration d215f6e (QuoteController, handoff SCRUM-448).
+ * Báo giá B2B — hợp đồng BE local integration d215f6e (QuoteController, BE docs/handoffs/SCRUM-448.md).
  * Jackson `non_null` → field null bị bỏ → response dùng `.nullish()`.
  */
 
 import { z } from "zod";
 
 import { PAYMENT_TERMS, QUOTE_API_STATUSES } from "@/constants";
+
 import { bePageSchema } from "@/lib/api/page-schema";
 
 /* ── DTO ─────────────────────────────────────────────────────────────── */

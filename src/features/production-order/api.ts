@@ -4,13 +4,10 @@
  * INVALID_PRODUCTION_TRANSITION; màn hình tải lại.
  */
 
-import { z } from "zod";
-
 import { api } from "@/lib/api/client";
 
 import {
   dashboardDtoSchema,
-  dispatchNoteDtoSchema,
   materialIssueDtoSchema,
   materialIssueResultDtoSchema,
   printFileDtoSchema,
@@ -18,10 +15,8 @@ import {
   productionPageDtoSchema,
   qcRoundDtoSchema,
   scrapDtoSchema,
-  settlementDtoSchema,
-  subcontractRecallDtoSchema,
-  subcontractReceiptDtoSchema,
 } from "./schemas";
+import { BASE, byId, getList, act } from "./http";
 
 import type { ProductionApiStatus, ProductionOrderType } from "@/constants";
 import type { ListQueryParams, PaginatedResponse } from "@/lib/api/query-factory";
@@ -31,11 +26,7 @@ import type {
   ProductionDetail,
   ProductionRow,
   ScrapReason,
-  SubcontractMethod,
 } from "./types";
-
-const BASE = "/production/orders";
-const byId = (id: string) => `${BASE}/${encodeURIComponent(id)}`;
 
 export interface ListProductionParams extends ListQueryParams {
   page?: number;
@@ -79,11 +70,6 @@ export async function getProductionOrder(
   return productionDetailDtoSchema.parse(data);
 }
 
-async function getList<T extends z.ZodType>(path: string, schema: T, signal?: AbortSignal) {
-  const { data } = await api.get<unknown>(path, { signal });
-  return z.array(schema).parse(data);
-}
-
 /** Link tải có thời hạn (presigned) — mở file thật, không tạo file giả. */
 export async function getPrintFile(id: string, signal?: AbortSignal) {
   const { data } = await api.get<unknown>(`${byId(id)}/print-file`, { signal });
@@ -95,19 +81,6 @@ export const listQcRounds = (id: string, signal?: AbortSignal) =>
   getList(`${byId(id)}/qc-results`, qcRoundDtoSchema, signal);
 export const listScrap = (id: string, signal?: AbortSignal) =>
   getList(`${byId(id)}/scrap`, scrapDtoSchema, signal);
-export const listSubcontractReceipts = (id: string, signal?: AbortSignal) =>
-  getList(`${byId(id)}/subcontract-receipts`, subcontractReceiptDtoSchema, signal);
-export const listSubcontractRecalls = (id: string, signal?: AbortSignal) =>
-  getList(`${byId(id)}/subcontract-recalls`, subcontractRecallDtoSchema, signal);
-
-export async function getDispatchNote(id: string, signal?: AbortSignal) {
-  const { data } = await api.get<unknown>(`${byId(id)}/subcontract-dispatch-note`, { signal });
-  return dispatchNoteDtoSchema.parse(data);
-}
-export async function getSettlement(id: string, signal?: AbortSignal) {
-  const { data } = await api.get<unknown>(`${byId(id)}/subcontract-settlement`, { signal });
-  return settlementDtoSchema.parse(data);
-}
 
 /** QA3: kỳ báo cáo theo hoạt động thực tế (in / phế trong kỳ) — mặc định ACTIVITY. */
 export async function getDashboard(
@@ -126,13 +99,6 @@ export async function listOverdue(signal?: AbortSignal) {
     signal,
   });
   return productionPageDtoSchema.parse(data);
-}
-
-/* ── Thao tác ────────────────────────────────────────────────────────── */
-
-async function act(id: string, path: string, body?: object): Promise<ProductionDetail> {
-  const { data } = await api.post<unknown>(`${byId(id)}/${path}`, body);
-  return productionDetailDtoSchema.parse(data);
 }
 
 export const decidePrepress = (i: { id: string; decision: "PASS" | "FAIL"; note?: string }) =>
@@ -196,38 +162,4 @@ export async function recordQc(i: {
 }) {
   const { id, ...body } = i;
   await api.post<unknown>(`${byId(id)}/qc-results`, body);
-}
-
-export const splitSubcontract = (i: {
-  id: string;
-  quantity: number;
-  subcontractorId: string;
-  method: SubcontractMethod;
-  unitPrice: number;
-  dueDate?: string;
-}) => {
-  const { id, ...body } = i;
-  return act(id, "subcontract-split", body);
-};
-export const dispatchSubcontract = (id: string) => act(id, "subcontract-dispatch");
-export async function reconcileReceipt(i: {
-  id: string;
-  receiptId: string;
-  spoilt: number;
-  returned: number;
-  returnLocation?: string;
-}) {
-  const { id, receiptId, ...body } = i;
-  await api.post<unknown>(
-    `${byId(id)}/subcontract-receipts/${encodeURIComponent(receiptId)}/reconciliation`,
-    body,
-  );
-}
-export async function approveLoss(i: { id: string; deductionPerBlank: number; note: string }) {
-  const { id, ...body } = i;
-  const { data } = await api.post<unknown>(
-    `${byId(id)}/subcontract-settlement/loss-approval`,
-    body,
-  );
-  return settlementDtoSchema.parse(data);
 }

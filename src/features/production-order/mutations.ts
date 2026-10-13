@@ -12,20 +12,22 @@ import { createMutation } from "@/lib/api/query-factory";
 import { withStaleRefetch } from "@/lib/api/stale-refetch";
 
 import {
-  approveLoss,
   cancelProduction,
   decidePrepress,
-  dispatchSubcontract,
   holdProduction,
   issueMaterial,
-  reconcileReceipt,
   recordOutput,
   recordQc,
   resumeProduction,
-  splitSubcontract,
   startPrinting,
   stopProduction,
 } from "./api";
+import {
+  approveLoss,
+  dispatchSubcontract,
+  reconcileReceipt,
+  splitSubcontract,
+} from "./subcontract-flow-api";
 import { PRODUCTION_STALE_CODES } from "./errors";
 import { recallBlanks, supplementSubcontract, takeInHouse } from "./subcontract-api";
 import { productionKeys } from "./queries";

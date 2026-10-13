@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm, useWatch } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 
 import { ADMIN_ROUTES } from "@/constants";
+
 import { usePermissionChecker } from "@/lib/auth/components/Can";
+
 import { sampleErrorMessage } from "@/features/sample-request/errors";
 import { allowedSampleActions } from "@/features/sample-request/lifecycle";
 import {
@@ -15,24 +15,19 @@ import {
   useNextSampleRound,
   useRequestSampleChanges,
   useSendSample,
-  useUpdateSample,
 } from "@/features/sample-request/mutations";
-import { sampleCreateInputSchema } from "@/features/sample-request/schemas";
 import { productionCancelled } from "@/features/sample-request/selectors";
+
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
+import { FormDialog } from "@/components/shared/FormDialog";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 
-import { SampleSpecFields } from "../SampleSpecFields";
 import { SubmitSampleDialog } from "./SubmitSampleDialog";
+import { EditSpecForm } from "./EditSpecForm";
 
 import type { SampleAction } from "@/features/sample-request/lifecycle";
-import type {
-  SampleCreateOutput,
-  SampleCreateValues,
-  SampleDetail,
-} from "@/features/sample-request/types";
+import type { SampleDetail } from "@/features/sample-request/types";
 
 const LABEL: Record<SampleAction, string> = {
   edit: "Sửa quy cách",
@@ -43,48 +38,6 @@ const LABEL: Record<SampleAction, string> = {
   requestChanges: "Ghi nhận khách yêu cầu sửa",
   nextRound: "Làm lần mẫu mới",
 };
-
-function EditSpecForm({ sample, onClose }: { sample: SampleDetail; onClose: () => void }) {
-  const [error, setError] = useState<string | null>(null);
-  const update = useUpdateSample();
-  const form = useForm<SampleCreateValues, unknown, SampleCreateOutput>({
-    resolver: zodResolver(sampleCreateInputSchema),
-    defaultValues: {
-      customerId: sample.customerId,
-      quoteId: sample.quoteId ?? "",
-      designSnapshotId: sample.specification.designSnapshotId,
-      blankSku: sample.specification.blankSku,
-      quantity: String(sample.specification.quantity),
-      dueDate: sample.specification.dueDate ?? "",
-    },
-  });
-  const customerId = useWatch({ control: form.control, name: "customerId" });
-  const submit = form.handleSubmit((values) =>
-    update.mutate(
-      { id: sample.id, values },
-      { onSuccess: onClose, onError: (failure) => setError(sampleErrorMessage(failure)) },
-    ),
-  );
-  return (
-    <FormDialogBody
-      title="Sửa quy cách mẫu"
-      description="Chỉ sửa được khi yêu cầu còn nháp."
-      submitLabel="Lưu"
-      canSubmit
-      isPending={update.isPending}
-      error={error}
-      onCancel={onClose}
-      onSubmit={() => void submit()}
-    >
-      <SampleSpecFields
-        control={form.control}
-        register={form.register}
-        errors={form.formState.errors}
-        customerId={customerId}
-      />
-    </FormDialogBody>
-  );
-}
 
 /** Thao tác back-office theo `allowedSampleActions` (lifecycle.ts) — không rải if/else trong JSX. */
 export function SampleActions({ sample }: { sample: SampleDetail }) {

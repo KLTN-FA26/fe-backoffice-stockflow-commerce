@@ -44,7 +44,7 @@ export const scrapLineInputSchema = z
   });
 
 /**
- * Ghi sản lượng: in ≥ 1, tổng phế ≤ số in (BR-PRD-04, handoff SCRUM-394-395: phế phẩm trừ kho
+ * Ghi sản lượng: in ≥ 1, tổng phế ≤ số in (BR-PRD-04, BE docs/handoffs/SCRUM-394-395.md: phế phẩm trừ kho
  * ngay) và ≤ phôi đã xuất còn chưa in (BE kiểm). `maxPrintable` truyền từ màn hình.
  */
 export function outputInputSchema(maxPrintable: number) {

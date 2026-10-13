@@ -1,6 +1,6 @@
 /**
  * Thao tác LSX theo trạng thái — chép bảng chuyển tiếp của BE `ProductionOrder` (d215f6e,
- * handoff SCRUM-394-395 / SPRINT2-WORKSHOP-PLAN). "eff" = trạng thái trước khi treo khi ON_HOLD.
+ * BE docs/handoffs/SCRUM-394-395.md / BE docs/handoffs/SPRINT2-WORKSHOP-PLAN.md). "eff" = trạng thái trước khi treo khi ON_HOLD.
  *   PENDING_PREPRESS: prepress PASS→READY / FAIL→ON_HOLD(FILE_REJECTED) (BR-PRD-02); treo; huỷ; tách gia công
  *   READY: xuất phôi (tại xưởng) → MATERIAL_ISSUED khi đủ (BR-PRD-03); gửi gia công (LSX gia công); treo; huỷ
  *   MATERIAL_ISSUED: bắt đầu in → PRINTING; treo; huỷ
@@ -22,7 +22,7 @@ import { effectiveStatus } from "./selectors";
 
 import type { ProductionApiStatus } from "@/constants";
 import type { PermissionCode } from "@/lib/auth/me-permissions";
-import type { ProductionDetail } from "./types";
+import type { ProductionDetail, Settlement, SubcontractReceipt } from "./types";
 
 export type ProductionAction =
   | "prepress"
@@ -121,4 +121,48 @@ export function allowedSubcontractRecovery(
     actions.push("inHouse");
   if (can(PRODUCTION_ORDER_PERMISSIONS.approve)) actions.push("supplement");
   return actions;
+}
+
+/** Bảng chuyển trạng thái (tài liệu + test) — chép từ BE `ProductionOrder` (BE docs/handoffs/SCRUM-394-395.md). */
+export const PRODUCTION_TRANSITIONS: Readonly<
+  Record<ProductionApiStatus, readonly ProductionApiStatus[]>
+> = {
+  PENDING_PREPRESS: ["READY", "ON_HOLD", "CANCELLED"],
+  READY: ["MATERIAL_ISSUED", "SUBCONTRACTED", "ON_HOLD", "CANCELLED"],
+  MATERIAL_ISSUED: ["PRINTING", "ON_HOLD", "CANCELLED"],
+  PRINTING: ["QC", "READY", "ON_HOLD", "CANCELLED"],
+  SUBCONTRACTED: ["QC", "ON_HOLD", "COMPLETED", "CANCELLED"],
+  QC: ["COMPLETED", "READY", "ON_HOLD", "CANCELLED"],
+  ON_HOLD: [
+    "PENDING_PREPRESS",
+    "READY",
+    "MATERIAL_ISSUED",
+    "PRINTING",
+    "SUBCONTRACTED",
+    "QC",
+    "CANCELLED",
+  ],
+  COMPLETED: [],
+  CANCELLED: [],
+};
+
+/** Đối soát phôi một lần nhận (Q9): chỉ hình thức gửi phôi, chưa đối soát, quyền xuất phôi. */
+export function canReconcileReceipt(
+  order: ProductionDetail,
+  receipt: SubcontractReceipt,
+  can: (code: PermissionCode) => boolean,
+): boolean {
+  return (
+    order.subcontract?.method === "SUPPLIED_BLANKS" &&
+    !receipt.reconciledAt &&
+    can(MATERIAL_ISSUE_PERMISSIONS.create)
+  );
+}
+
+/** Duyệt khấu trừ hao hụt (QA1): quyết toán chờ duyệt + `production-orders:APPROVE`. */
+export function canApproveLoss(
+  settlement: Settlement,
+  can: (code: PermissionCode) => boolean,
+): boolean {
+  return settlement.status === "AWAITING_APPROVAL" && can(PRODUCTION_ORDER_PERMISSIONS.approve);
 }

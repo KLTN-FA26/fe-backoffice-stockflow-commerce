@@ -53,6 +53,8 @@ export {
 export {
   CUSTOMER_API_STATUSES,
   CUSTOMER_STATUS_BY_API,
+  ORDER_STATUS_GROUP_DISPLAY,
+  ORDER_STATUS_GROUPS,
   PAYMENT_TERM_LABELS,
   PAYMENT_TERMS,
   PRODUCTION_API_STATUSES,
@@ -112,6 +114,7 @@ export {
 } from "./statuses";
 export type {
   CustomerApiStatus,
+  OrderStatusGroup,
   PaymentTerm,
   ProductionApiStatus,
   ProductionOrderMode,

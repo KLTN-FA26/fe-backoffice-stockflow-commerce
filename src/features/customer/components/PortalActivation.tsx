@@ -4,18 +4,22 @@ import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CheckCircle2, LoaderCircle, TriangleAlert } from "lucide-react";
+import { CheckCircle2, LoaderCircle } from "lucide-react";
 
 import { APP_ROUTES } from "@/constants";
+
 import { ApiError } from "@/lib/api/error";
+
 import { WEAK_PASSWORD_MESSAGE, customerErrorMessage } from "@/features/customer/errors";
 import { useActivatePortalAccount } from "@/features/customer/mutations";
 import { invitationTokenSchema, portalActivationInputSchema } from "@/features/customer/schemas";
+
 import { FORM_INPUT_CLASS, FormField, fieldA11y } from "@/components/shared/FormField";
-import { Logo } from "@/components/shared/Logo";
 import { useStorefrontMode } from "@/components/storefront/use-storefront-mode";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+
+import { Panel, InvalidLink } from "./ActivationPanel";
 
 import type { PortalActivationValues } from "@/features/customer/types";
 
@@ -24,37 +28,15 @@ function subscribeHash(onChange: () => void) {
   window.addEventListener("hashchange", onChange);
   return () => window.removeEventListener("hashchange", onChange);
 }
+/** Gỡ token khỏi thanh địa chỉ sau khi link đã dùng / bị từ chối (tránh lộ qua chia sẻ màn hình). */
+function clearTokenFromUrl() {
+  window.history.replaceState(null, "", window.location.pathname);
+}
 function readToken(): string {
   return new URLSearchParams(window.location.hash.replace(/^#/, "")).get("token") ?? "";
 }
 
 const noopSubscribe = () => () => {};
-
-function Panel({ children }: { children: React.ReactNode }) {
-  return (
-    <main
-      data-mode="storefront"
-      className="bg-bg-base text-ink-primary flex min-h-screen items-center justify-center px-4 py-10"
-    >
-      <div className="bg-bg-surface border-border-default w-full max-w-md space-y-5 rounded-[var(--r-xl)] border p-6 shadow-[var(--sh-md)] sm:p-8">
-        <Logo height={32} />
-        {children}
-      </div>
-    </main>
-  );
-}
-
-function InvalidLink({ message }: { message: string }) {
-  return (
-    <div role="alert" className="space-y-3">
-      <TriangleAlert className="text-warning size-8" aria-hidden="true" />
-      <h1 className="font-[family-name:var(--font-display)] text-xl font-bold">
-        Link kích hoạt không dùng được
-      </h1>
-      <p className="text-ink-secondary text-sm">{message}</p>
-    </div>
-  );
-}
 
 export function PortalActivation() {
   useStorefrontMode();
@@ -121,8 +103,10 @@ export function PortalActivation() {
     activate.mutate(
       { token, password },
       {
+        onSuccess: clearTokenFromUrl,
         onError: (error) => {
           if (error instanceof ApiError && error.code === "PORTAL_INVITATION_INVALID") {
+            clearTokenFromUrl();
             setInvalid(customerErrorMessage(error));
           } else if (error instanceof ApiError && error.code === "VALIDATION_FAILED") {
             form.setError("password", { type: "server", message: WEAK_PASSWORD_MESSAGE });

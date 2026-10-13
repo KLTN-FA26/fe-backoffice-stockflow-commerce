@@ -6,15 +6,17 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, LoaderCircle } from "lucide-react";
 
-import { ADMIN_ROUTES, CUSTOMER_PERMISSIONS, SALES_ONBOARDING_PAYMENT_TERMS } from "@/constants";
+import { ADMIN_ROUTES, CUSTOMER_PERMISSIONS } from "@/constants";
+
 import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes";
 import { apiFieldErrors } from "@/lib/api/error-message";
 import { ApiError } from "@/lib/api/error";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
+
 import { customerErrorMessage } from "@/features/customer/errors";
 import { useCreateCustomer } from "@/features/customer/mutations";
 import { customerCreateInputSchema } from "@/features/customer/schemas";
-import { PAYMENT_TERM_LABEL } from "@/features/customer/selectors";
+
 import { Card } from "@/components/shared/Card";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { FORM_INPUT_CLASS, FormField, fieldA11y } from "@/components/shared/FormField";
@@ -22,29 +24,10 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+import { PaymentTermSection } from "./PaymentTermSection";
+import { DEFAULTS, FIELD_BY_ERROR, isFormField } from "./create-form";
+
 import type { CustomerCreateValues } from "@/features/customer/types";
-
-const DEFAULTS: CustomerCreateValues = {
-  companyName: "",
-  taxCode: "",
-  contactName: "",
-  email: "",
-  phone: "",
-  paymentTerm: "PREPAID",
-  depositPercent: "",
-};
-
-/** Lỗi nghiệp vụ 409 trỏ đúng trường để người dùng sửa tại chỗ. */
-const FIELD_BY_ERROR: Readonly<Record<string, keyof CustomerCreateValues>> = {
-  CUSTOMER_TAX_CODE_ALREADY_EXISTS: "taxCode",
-  CUSTOMER_EMAIL_ALREADY_EXISTS: "email",
-  USER_EMAIL_ALREADY_EXISTS: "email",
-  CREDIT_PROFILE_INVALID: "depositPercent",
-};
-
-function isFormField(name: string): name is keyof CustomerCreateValues {
-  return name in DEFAULTS;
-}
 
 function CustomerCreateForm() {
   const router = useRouter();
@@ -179,48 +162,7 @@ function CustomerCreateForm() {
           </FormField>
         </Card>
 
-        <Card className="grid gap-4 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <h2 className="text-ink-primary text-sm font-semibold">Điều khoản thanh toán</h2>
-            <p className="text-ink-tertiary mt-1 text-xs">
-              Sales chọn Trả trước hoặc Đặt cọc. Công nợ (hạn mức, số ngày) do người duyệt công nợ
-              thiết lập sau trên hồ sơ khách.
-            </p>
-          </div>
-          <fieldset className="flex flex-wrap gap-2 sm:col-span-2">
-            <legend className="sr-only">Điều khoản thanh toán</legend>
-            {SALES_ONBOARDING_PAYMENT_TERMS.map((term) => (
-              <label
-                key={term}
-                className="border-border-default has-[:checked]:border-brand has-[:focus-visible]:ring-brand/30 flex cursor-pointer items-center gap-2 rounded-[var(--r-sm)] border px-3 py-2 text-[0.8125rem] has-[:focus-visible]:ring-2"
-              >
-                <input
-                  type="radio"
-                  value={term}
-                  {...register("paymentTerm")}
-                  className="accent-[var(--brand)]"
-                />
-                {PAYMENT_TERM_LABEL[term]}
-              </label>
-            ))}
-          </fieldset>
-          {paymentTerm === "DEPOSIT" && (
-            <FormField
-              id="customer-depositPercent"
-              label="Tỷ lệ cọc đã thoả thuận (%)"
-              required
-              error={errors.depositPercent?.message}
-              hint="Lớn hơn 0 và nhỏ hơn 100, tối đa 2 chữ số thập phân."
-            >
-              <Input
-                {...register("depositPercent")}
-                {...fieldA11y("customer-depositPercent", errors.depositPercent?.message, true)}
-                inputMode="decimal"
-                className={`${FORM_INPUT_CLASS} text-right tabular-nums`}
-              />
-            </FormField>
-          )}
-        </Card>
+        <PaymentTermSection register={register} errors={errors} paymentTerm={paymentTerm} />
 
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={cancel} disabled={create.isPending}>

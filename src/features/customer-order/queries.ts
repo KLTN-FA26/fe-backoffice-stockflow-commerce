@@ -3,7 +3,7 @@ import { createDetailQuery, createListQuery, createQueryKeys } from "@/lib/api/q
 import { getMyOrder, listMyOrders } from "./api";
 
 import type { ListMyOrderParams } from "./api";
-import type { MyOrderCard, MyOrderDetail } from "./schemas";
+import type { MyOrderCard, MyOrderDetail } from "./types";
 
 export const myOrderKeys = createQueryKeys<ListMyOrderParams>("my-orders");
 

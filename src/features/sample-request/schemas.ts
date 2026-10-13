@@ -1,11 +1,12 @@
 /**
  * Yêu cầu làm mẫu — hợp đồng BE local integration d215f6e (SampleRequestController,
- * handoff SCRUM-394-395). Jackson `non_null` → `.nullish()` cho field có thể vắng.
+ * BE docs/handoffs/SCRUM-394-395.md). Jackson `non_null` → `.nullish()` cho field có thể vắng.
  */
 
 import { z } from "zod";
 
 import { PRODUCTION_API_STATUSES, SAMPLE_API_STATUSES } from "@/constants";
+
 import { bePageSchema } from "@/lib/api/page-schema";
 
 const productionRefSchema = z.object({
