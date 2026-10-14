@@ -1,5 +1,6 @@
 /** Lỗi BE → câu tiếng Việt (messages_vi; BE trả message tiếng Anh cho lỗi nghiệp vụ). */
 
+import { ApiError } from "@/lib/api/error";
 import { apiErrorMessage } from "@/lib/api/error-message";
 
 export const PRODUCTION_ERROR_MESSAGES: Readonly<Record<string, string>> = {
@@ -26,6 +27,30 @@ export const PRODUCTION_ERROR_MESSAGES: Readonly<Record<string, string>> = {
 
 export function productionErrorMessage(error: unknown): string {
   return apiErrorMessage(error, PRODUCTION_ERROR_MESSAGES);
+}
+
+/**
+ * Lỗi khu đóng gói khi QC hoàn tất LSX đơn (SCRUM-412, BE `WorkshopStock.packingArea`): BE không trả
+ * fieldErrors nên FE gắn về ô "Khu đóng gói" — tổng đạt + lỗi đã được kiểm ở client trước khi gửi.
+ */
+export function qcPackingFieldError(error: unknown, packingLocation: string): string | null {
+  if (!(error instanceof ApiError)) return null;
+  if (error.code === "LOCATION_NOT_FOUND") return "Không có vị trí này trong kho của lệnh.";
+  if (error.code !== "VALIDATION_FAILED") return null;
+  return packingLocation
+    ? "Vị trí này không phải khu đóng gói (PACKING) đang dùng được."
+    : "Kho có nhiều hoặc chưa có khu đóng gói dùng được — nhập rõ khu nhận hàng.";
+}
+
+/** `GET /production/orders/{id}/print-file` — BE đối chiếu checksum ngay khi cấp link (BR-PRD-02). */
+const PRINT_FILE_ERROR_MESSAGES: Readonly<Record<string, string>> = {
+  NOT_FOUND: "Thiết kế đã khoá của lệnh này chưa có file in (PRINT_READY).",
+  CONFLICT:
+    "File in không khớp checksum của thiết kế đã khoá — không cấp link. Báo Sales để xử lý thiết kế.",
+};
+
+export function printFileErrorMessage(error: unknown): string {
+  return apiErrorMessage(error, PRINT_FILE_ERROR_MESSAGES);
 }
 
 export const PRODUCTION_STALE_CODES = [

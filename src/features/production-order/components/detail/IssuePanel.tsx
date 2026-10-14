@@ -1,11 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { LoaderCircle, ScanLine } from "lucide-react";
 
 import { MATERIAL_ISSUE_PERMISSIONS } from "@/constants";
 import { useCan } from "@/lib/auth/components/Can";
-import { formatDateTime } from "@/lib/format/date";
 import { formatNumber } from "@/lib/format/number";
 import { productionErrorMessage } from "@/features/production-order/errors";
 import { useIssueMaterial } from "@/features/production-order/mutations";
@@ -14,12 +13,14 @@ import { blanksStillNeeded } from "@/features/production-order/selectors";
 import { LocationField } from "@/components/backoffice/LocationField";
 import { Card } from "@/components/shared/Card";
 import { FORM_INPUT_CLASS, FormField } from "@/components/shared/FormField";
+import { Notice } from "@/components/shared/Notice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 import { MONO } from "../copy";
+import { IssueHistory } from "./IssueHistory";
 
-import type { ProductionDetail } from "@/features/production-order/types";
+import type { MaterialIssue, ProductionDetail } from "@/features/production-order/types";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -27,6 +28,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  * Xuất phôi cho LSX (SCRUM-410): cần xuất vs đã xuất; mỗi lần quét chuyển trọn một phiếu giữ phôi
  * tới khu sản xuất. `requestId` sinh một lần cho mỗi lượt → bấm lại không xuất trùng (BE idempotent).
  * BE không có tra cứu theo mã vạch → ô "phiếu giữ" để trống thì hệ thống lấy phiếu kế tiếp.
+ * BE chặn xuất vượt số còn cần (BR-PRD-03, ISSUE_EXCEEDS_REQUIREMENT) và phiếu không thuộc LSX.
+ * Quét xong: báo ngay kết quả lần quét (live region) và trả focus về ô quét cho lần kế tiếp.
  */
 export function IssuePanel({ order, active }: { order: ProductionDetail; active: boolean }) {
   const canRead = useCan(MATERIAL_ISSUE_PERMISSIONS.read);
@@ -37,19 +40,27 @@ export function IssuePanel({ order, active }: { order: ProductionDetail; active:
   const [toLocation, setToLocation] = useState("");
   const [reservationId, setReservationId] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [lastScan, setLastScan] = useState<MaterialIssue | null>(null);
+  const scanRef = useRef<HTMLInputElement>(null);
   const needed = blanksStillNeeded(order);
   const reservationInvalid = reservationId !== "" && !UUID.test(reservationId);
 
   const submit = () => {
     setError(null);
+    setLastScan(null);
     issue.mutate(
       { id: order.summary.id, requestId, toLocation, reservationId: reservationId || undefined },
       {
-        onSuccess: () => {
+        onSuccess: (result) => {
           setRequestId(crypto.randomUUID());
           setReservationId("");
+          setLastScan(result.issue);
+          scanRef.current?.focus();
         },
-        onError: (failure) => setError(productionErrorMessage(failure)),
+        onError: (failure) => {
+          setError(productionErrorMessage(failure));
+          scanRef.current?.select();
+        },
       },
     );
   };
@@ -87,6 +98,7 @@ export function IssuePanel({ order, active }: { order: ProductionDetail; active:
             error={reservationInvalid ? "Mã phiếu giữ không hợp lệ" : undefined}
           >
             <Input
+              ref={scanRef}
               id="issue-reservation"
               value={reservationId}
               onChange={(event) => setReservationId(event.target.value.trim())}
@@ -103,6 +115,17 @@ export function IssuePanel({ order, active }: { order: ProductionDetail; active:
           </Button>
         </form>
       )}
+      {lastScan && (
+        <Notice tone="positive" live>
+          Đã xuất {formatNumber(lastScan.quantity)} phôi{" "}
+          <span className={MONO}>
+            {lastScan.sku}
+            {lastScan.lotNumber ? ` · ${lastScan.lotNumber}` : ""}
+          </span>{" "}
+          từ <span className={MONO}>{lastScan.fromLocation}</span> →{" "}
+          <span className={MONO}>{lastScan.toLocation}</span>.
+        </Notice>
+      )}
       {error && (
         <p role="alert" className="text-danger text-[0.8125rem]">
           {error}
@@ -111,41 +134,7 @@ export function IssuePanel({ order, active }: { order: ProductionDetail; active:
       {!canRead && (
         <p className="text-ink-tertiary text-[0.8125rem]">Bạn chưa có quyền xem phiếu xuất phôi.</p>
       )}
-      {issues.data && issues.data.length > 0 && (
-        <table className="w-full text-[0.8125rem]">
-          <caption className="sr-only">Các lần xuất phôi</caption>
-          <thead className="text-ink-tertiary text-left">
-            <tr>
-              <th scope="col" className="py-1">
-                Thời điểm
-              </th>
-              <th scope="col">Phôi / lô</th>
-              <th scope="col">Từ → tới</th>
-              <th scope="col" className="text-right">
-                SL
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {issues.data.map((row) => (
-              <tr key={row.id} className="border-border-default border-t">
-                <td className="py-1 tabular-nums">{formatDateTime(row.issuedAt)}</td>
-                <td className={MONO}>
-                  {row.sku}
-                  {row.lotNumber ? ` · ${row.lotNumber}` : ""}
-                </td>
-                <td className={MONO}>
-                  {row.fromLocation} → {row.toLocation}
-                </td>
-                <td className={`text-right ${MONO}`}>{formatNumber(row.quantity)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-      {issues.data?.length === 0 && (
-        <p className="text-ink-tertiary text-[0.8125rem]">Chưa xuất phôi lần nào.</p>
-      )}
+      {issues.data && <IssueHistory issues={issues.data} />}
     </Card>
   );
 }

@@ -1,31 +1,29 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { Controller, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LoaderCircle } from "lucide-react";
 
-import { ADMIN_ROUTES, PRODUCTION_QC_PERMISSIONS, SAMPLE_REQUEST_PERMISSIONS } from "@/constants";
+import { PRODUCTION_QC_PERMISSIONS, SAMPLE_REQUEST_PERMISSIONS } from "@/constants";
 
 import { usePermissionChecker } from "@/lib/auth/components/Can";
-import { formatDateTime } from "@/lib/format/date";
 import { formatNumber } from "@/lib/format/number";
 
-import { productionErrorMessage } from "@/features/production-order/errors";
+import { productionErrorMessage, qcPackingFieldError } from "@/features/production-order/errors";
 import { qcBaseSchema, qcSumMatches } from "@/features/production-order/input-schemas";
 import { useRecordQc } from "@/features/production-order/mutations";
 import { useQcRounds } from "@/features/production-order/queries";
 import { awaitingQc } from "@/features/production-order/selectors";
 
-import { LocationField } from "@/components/backoffice/LocationField";
 import { Card } from "@/components/shared/Card";
 import { FORM_INPUT_CLASS, FormField, fieldA11y } from "@/components/shared/FormField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Notice } from "@/components/shared/Notice";
 
 import { MONO } from "../copy";
+import { QcHistory } from "./QcHistory";
+import { QcPackingField } from "./QcPackingField";
 import { Reference } from "./QcReference";
 
 import type { z } from "zod";
@@ -64,7 +62,11 @@ export function QcPanel({ order, active }: { order: ProductionDetail; active: bo
       },
       {
         onSuccess: () => form.reset(),
-        onError: (failure) => setError(productionErrorMessage(failure)),
+        onError: (failure) => {
+          const field = isOrder ? qcPackingFieldError(failure, values.packingLocation) : null;
+          if (field) form.setError("packingLocation", { message: field });
+          else setError(productionErrorMessage(failure));
+        },
       },
     );
   });
@@ -77,13 +79,11 @@ export function QcPanel({ order, active }: { order: ProductionDetail; active: bo
           <span className={`text-ink-secondary ${MONO}`}>Chờ QC: {formatNumber(awaiting)} cái</span>
         )}
       </div>
-      <Reference order={order} canReadSample={can(SAMPLE_REQUEST_PERMISSIONS.read)} />
-      {order.summary.mode === "SUBCONTRACTED" && (
-        <p className="text-ink-tertiary text-xs">
-          Hàng gia công trả về chỉ QC một lần tại đây; kho chỉ đếm và đối soát (quyết định
-          2026-10-13).
-        </p>
-      )}
+      <Reference
+        order={order}
+        canReadSample={can(SAMPLE_REQUEST_PERMISSIONS.read)}
+        withPreview={active}
+      />
       {active && can(PRODUCTION_QC_PERMISSIONS.create) && awaiting !== null && awaiting > 0 && (
         <form
           onSubmit={(event) => void submit(event)}
@@ -112,21 +112,7 @@ export function QcPanel({ order, active }: { order: ProductionDetail; active: bo
             />
           </FormField>
           {isOrder && (
-            <Controller
-              control={form.control}
-              name="packingLocation"
-              render={({ field }) => (
-                <LocationField
-                  id="qc-packing"
-                  label="Khu đóng gói nhận hàng"
-                  warehouseId={order.summary.warehouseId}
-                  areaType="PACKING"
-                  emptyHint="Để trống nếu kho chỉ có một khu đóng gói."
-                  value={field.value}
-                  onChange={field.onChange}
-                />
-              )}
-            />
+            <QcPackingField control={form.control} warehouseId={order.summary.warehouseId} />
           )}
           <FormField id="qc-note" label="Ghi chú lỗi" error={errors.note?.message}>
             <Input
@@ -147,28 +133,7 @@ export function QcPanel({ order, active }: { order: ProductionDetail; active: bo
           {error}
         </p>
       )}
-      {order.summary.status === "COMPLETED" && isOrder && (
-        <Notice tone="positive">
-          Đã hoàn tất và bàn giao sang khu đóng gói (giữ cho đơn bán).{" "}
-          <Link href={ADMIN_ROUTES.packing.list} className="text-accent hover:underline">
-            Mở đóng gói
-          </Link>
-        </Notice>
-      )}
-      {!canRead && (
-        <p className="text-ink-tertiary text-[0.8125rem]">Bạn chưa có quyền xem kết quả QC.</p>
-      )}
-      {rounds.data && rounds.data.length > 0 && (
-        <ol className="space-y-1 text-[0.8125rem]">
-          {rounds.data.map((round) => (
-            <li key={round.id} className={MONO}>
-              Lần {round.round}: đạt {formatNumber(round.passed)} · lỗi {formatNumber(round.failed)}{" "}
-              — {formatDateTime(round.inspectedAt)}
-              {round.note ? ` — ${round.note}` : ""}
-            </li>
-          ))}
-        </ol>
-      )}
+      <QcHistory order={order} rounds={rounds.data} canRead={canRead} />
     </Card>
   );
 }

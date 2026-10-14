@@ -224,7 +224,7 @@ describe("production detail — real role gating", () => {
       post: { "/production/orders/po-1/prepress": () => order("ON_HOLD") },
     });
     renderScreen(<ProductionDetailView id="po-1" />, "PRODUCTION_STAFF");
-    expect(await screen.findByRole("link", { name: /Mở file in/ })).toHaveAttribute(
+    expect(await screen.findByRole("link", { name: /Mở \/ tải file in/ })).toHaveAttribute(
       "href",
       "https://files.example.com/x",
     );
