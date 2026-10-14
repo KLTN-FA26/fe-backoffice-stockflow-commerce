@@ -21,6 +21,9 @@ beforeAll(() => {
 });
 afterEach(() => vi.restoreAllMocks());
 
+// Render cả màn + react-query + userEvent: máy CI / máy đang tải nặng có thể vượt mốc 5s mặc định
+const HEAVY = { timeout: 15_000 };
+
 const DEFAULTS: TransferFormInput = {
   fromWarehouseId: FROM_WH,
   toWarehouseId: TO_WH,
@@ -50,7 +53,7 @@ function renderForm(error: unknown) {
 
 const qty = (row: number) => screen.getByLabelText(`SL dòng ${row}`);
 
-describe("TransferForm — lỗi máy chủ theo dòng (SKU + lô)", () => {
+describe("TransferForm — lỗi máy chủ theo dòng (SKU + lô)", HEAVY, () => {
   it("BE chỉ ra dòng thiếu tồn → đánh dấu đúng dòng; sửa dòng đó thì bỏ đánh dấu", async () => {
     const user = userEvent.setup();
     const onSubmit = renderForm(

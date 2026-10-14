@@ -21,10 +21,13 @@ beforeAll(() => {
 });
 afterEach(() => vi.restoreAllMocks());
 
+// Render cả màn + react-query + userEvent: máy CI / máy đang tải nặng có thể vượt mốc 5s mặc định
+const HEAVY = { timeout: 15_000 };
+
 const PATH = `/inventory/transfer-orders/${TRANSFER_ID}`;
 const L = UI_LABELS.transfer;
 
-describe("TransferEdit — lệnh bị sửa ở nơi khác", () => {
+describe("TransferEdit — lệnh bị sửa ở nơi khác", HEAVY, () => {
   it("lưu gặp OPTIMISTIC_LOCK → nạp bản mới, báo rõ thay đổi chưa lưu đã bị bỏ", async () => {
     const user = userEvent.setup();
     let version = 3;

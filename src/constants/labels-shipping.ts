@@ -13,6 +13,8 @@ export const SHIPPING_UI_LABELS = {
   loadPlanTitle: "Kế hoạch xếp xe",
   // SCRUM-452
   loadPlanInProgress: "Đang phát triển",
+  // Chưa có API BE (SCRUM-288) — màn chỉ chạy trên mock
+  notAvailableYet: "Đang phát triển — chờ hệ thống xếp xe & bàn giao hoàn tất.",
   notFoundTitle: "Không tìm thấy chuyến xe",
   notFoundDescription: "Chuyến xe không tồn tại hoặc đường dẫn không hợp lệ.",
   forbiddenDescription: "Tài khoản của bạn chưa được cấp quyền thao tác này với chuyến xe.",
@@ -141,7 +143,7 @@ export const SHIPPING_TOAST_MESSAGES = {
 /** errorCode đề xuất cho BE SCRUM-288 → câu tiếng Việt. */
 export const SHIPPING_ERROR_MESSAGES = {
   PACKAGE_NOT_IN_LOAD: "Kiện không thuộc chuyến này — không được xếp lên xe.",
-  PACKAGE_ALREADY_LOADED: "Kiện đã được quét lên xe trước đó.",
+  PACKAGE_ALREADY_LOADED: "Kiện đã được xếp lên xe của chuyến khác — không xếp lên xe này.",
   PACKAGE_NOT_FOUND: "Không tìm thấy kiện với mã này.",
   // Không khẳng định "đã tải lại": lần tải lại có thể thất bại (khi đó có thông báo riêng)
   INVALID_LOAD_TRANSITION:

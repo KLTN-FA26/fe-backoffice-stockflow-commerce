@@ -122,8 +122,3 @@ export function isLoadAwaitingStart(status: LoadStatus): boolean {
 export function hasManifestView(status: LoadStatus): boolean {
   return status === LOAD_STATUS.LOADING || status === LOAD_STATUS.DISPATCHED;
 }
-
-/** DISPATCHED / CANCELLED — không còn thao tác. */
-export function isLoadTerminal(status: LoadStatus): boolean {
-  return LOAD_TRANSITIONS[status].length === 0;
-}

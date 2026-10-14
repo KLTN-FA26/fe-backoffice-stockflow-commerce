@@ -20,6 +20,9 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 afterEach(() => vi.restoreAllMocks());
 
+// Render cả màn + react-query + userEvent: máy CI / máy đang tải nặng có thể vượt mốc 5s mặc định
+const HEAVY = { timeout: 15_000 };
+
 const PATH = "/inventory/transfer-orders";
 const L = UI_LABELS.transfer;
 const E = UI_LABELS.emptyList;
@@ -43,7 +46,7 @@ function renderList(list: RouteHandler, searchParams = "") {
   return spies;
 }
 
-describe("TransferList — lọc qua URL → API → bảng", () => {
+describe("TransferList — lọc qua URL → API → bảng", HEAVY, () => {
   it("tham số URL (trạng thái, kho, search, trang) → gửi đúng params BE (trang từ 0)", async () => {
     const { get } = renderList(
       () => bePage([row]),
@@ -69,7 +72,7 @@ describe("TransferList — lọc qua URL → API → bảng", () => {
   });
 });
 
-describe("TransferList — hai loại empty state", () => {
+describe("TransferList — hai loại empty state", HEAVY, () => {
   it("chưa có lệnh nào (không lọc) → 'Chưa có lệnh chuyển kho' + nút tạo", async () => {
     renderList(() => bePage([]));
     expect(await screen.findByText(L.empty.noDataTitle)).toBeInTheDocument();
@@ -90,7 +93,7 @@ describe("TransferList — hai loại empty state", () => {
   });
 });
 
-describe("TransferList — BE 400 tham số", () => {
+describe("TransferList — BE 400 tham số", HEAVY, () => {
   it("số trang sai (BE UNSUPPORTED_PARAMETER) → về trang đầu, không báo 'không tìm thấy lệnh'", async () => {
     renderList(() => {
       throw new ApiError(400, "UNSUPPORTED_PARAMETER", "bad page");

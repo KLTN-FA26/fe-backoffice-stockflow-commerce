@@ -19,6 +19,9 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 afterEach(() => vi.restoreAllMocks());
 
+// Render cả màn + react-query + userEvent: máy CI / máy đang tải nặng có thể vượt mốc 5s mặc định
+const HEAVY = { timeout: 15_000 };
+
 const PATH = `/inventory/transfer-orders/${TRANSFER_ID}`;
 const A = UI_LABELS.transfer.action;
 
@@ -45,7 +48,7 @@ function renderDetail(permissions: readonly PermissionCode[], transfer: Transfer
   return spies;
 }
 
-describe("TransferDetail — action-gating + xuất kho", () => {
+describe("TransferDetail — action-gating + xuất kho", HEAVY, () => {
   it("PICKING + NV kho → thấy Xuất kho; xuất thiếu gửi đúng SL từng dòng", async () => {
     const user = userEvent.setup();
     const { post } = renderDetail(ROLES.warehouseStaff, apiTransfer({ status: "PICKING" }));

@@ -71,8 +71,8 @@ const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     QC.viewPage,
     QC.read,
   ],
-  // Giữ rỗng: fixture "không có quyền" của mock-permissions.test.ts
-  "USER-PLAN-01": [],
+  // INVENTORY_PLANNER (seed V20261010000500): tạo / sửa / gửi duyệt / huỷ, KHÔNG duyệt
+  "USER-PLAN-01": [TO.viewPage, TO.read, TO.create, TO.update],
   "USER-WH-01": [...WH_WORK, ...TO_STAFF, ...SHIP],
   "USER-WH-02": [...WH_WORK, ...TO_STAFF, ...SHIP],
   "USER-WH-03": [...WH_WORK, ...TO_STAFF, ...SHIP],

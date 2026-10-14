@@ -1,7 +1,7 @@
 "use client";
 
 import { UI_LABELS } from "@/constants";
-import { useWarehouseOptions } from "@/lib/references/warehouse-options";
+import { useWarehouseDirectory, useWarehouseOptions } from "@/lib/references/warehouse-options";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -32,9 +32,15 @@ function WarehouseFilter({
   value: string;
   onChange: (value: string) => void;
 }) {
-  // Chỉ kho đang hoạt động. Lệnh cũ thuộc kho đã ngừng không lọc theo kho đó được — đã note BE
-  // (lọc theo kho ngừng hoạt động chưa được chốt nghiệp vụ)
-  const { data: warehouses = [], isError, refetch } = useWarehouseOptions();
+  // MỌI kho (cả kho đã ngừng) — lọc được lịch sử lệnh của kho đã ngừng hoạt động (BE GET danh sách
+  // nhận cả kho ngừng). Kho ngừng gắn nhãn, so với danh sách kho đang hoạt động.
+  const { data: warehouses = [], isError, refetch } = useWarehouseDirectory();
+  const { data: active } = useWarehouseOptions();
+  const activeIds = new Set(active?.map((w) => w.warehouseId));
+  const inactiveSuffix = (warehouseId: string) =>
+    active && !activeIds.has(warehouseId)
+      ? ` (${UI_LABELS.transfer.warehouseSelect.inactive})`
+      : "";
   const warehouseLabel = useWarehouseLabel();
   return (
     <div className="flex items-center gap-2">
@@ -48,7 +54,7 @@ function WarehouseFilter({
         <SelectContent>
           <SelectGroup>
             <SelectItem value={ALL}>{UI_LABELS.transfer.field.all}</SelectItem>
-            {/* Lọc qua URL theo kho không còn hoạt động → vẫn hiện tên, không để ô trống */}
+            {/* Kho trong URL không có trong danh mục (đã xoá / không đọc được) → vẫn hiện, không để ô trống */}
             {value && warehouses.length > 0 && !warehouses.some((w) => w.warehouseId === value) && (
               <SelectItem value={value}>
                 {warehouseLabel(value)} ({UI_LABELS.transfer.warehouseSelect.inactive})
@@ -57,6 +63,7 @@ function WarehouseFilter({
             {warehouses.map((w) => (
               <SelectItem key={w.warehouseId} value={w.warehouseId}>
                 {w.code ? `${w.code} · ${w.name}` : w.name}
+                {inactiveSuffix(w.warehouseId)}
               </SelectItem>
             ))}
           </SelectGroup>

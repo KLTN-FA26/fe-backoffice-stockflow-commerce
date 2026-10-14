@@ -102,12 +102,12 @@ describe("ManifestScreen — đối soát + bàn giao", () => {
     await user.click(submit);
 
     await waitFor(() =>
-      expect(post).toHaveBeenCalledWith(`${PATH}/handover`, {
-        version: 2,
-        carrierRepresentative: "Anh Tài",
-        note: undefined,
-        signed: true,
-      }),
+      expect(post).toHaveBeenCalledWith(
+        `${PATH}/handover`,
+        { version: 2, carrierRepresentative: "Anh Tài", note: undefined, signed: true },
+        // Một key cho lần mở dialog — BE chống bàn giao trùng khi gửi lại
+        { headers: { "Idempotency-Key": expect.any(String) } },
+      ),
     );
   });
 

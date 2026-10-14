@@ -5,9 +5,12 @@
  *   GET  /fulfillment/loads?status&search&page&size   → PageResponse<LoadRow>     (READ)
  *   GET  /fulfillment/loads/{id}                       → Load (kèm lines, manifest) (READ)
  *   POST /fulfillment/loads/{id}/loading-start         VEHICLE_BOOKED → LOADING     (UPDATE)
- *   POST /fulfillment/loads/{id}/scans {packageCode}   → Load; 409 PACKAGE_NOT_IN_LOAD,
- *        PACKAGE_ALREADY_LOADED; 404 PACKAGE_NOT_FOUND                              (UPDATE)
+ *   POST /fulfillment/loads/{id}/scans {packageCode}   → Load; IDEMPOTENT: quét lại kiện đã lên
+ *        ĐÚNG chuyến này → 200 trả chuyến hiện tại. 409 PACKAGE_NOT_IN_LOAD (không thuộc chuyến),
+ *        PACKAGE_ALREADY_LOADED (đã lên xe chuyến khác); 404 PACKAGE_NOT_FOUND       (UPDATE)
  *   POST /fulfillment/loads/{id}/handover {version, carrierRepresentative, note, signed}
+ *        header `Idempotency-Key` (BE `common/idempotency`, như PO / Shelf / Design): bàn giao
+ *        sinh manifest + outbox event — gửi lại cùng key (mạng chập chờn) không bàn giao hai lần.
  *        → Load DISPATCHED; 409 LOAD_NOT_FULLY_LOADED / OPTIMISTIC_LOCK; 400 khi `signed`
  *        ≠ true (guard "manifest signed" của 03 §11). BE: shipment → HANDED_OVER, publish
  *        ShipmentDispatched → order SHIPPED khi mọi kiện của đơn đã bàn giao (BR-03) — bất đồng
@@ -64,8 +67,16 @@ export async function getLoad(id: string, signal?: AbortSignal): Promise<Load> {
   return beLoadSchema.parse(data);
 }
 
-async function postLoad(path: string, body?: unknown): Promise<Load> {
-  const { data } = await api.post<unknown>(path, body);
+const IDEMPOTENCY_HEADER = "Idempotency-Key";
+
+async function postLoad(
+  path: string,
+  body?: unknown,
+  headers?: Record<string, string>,
+): Promise<Load> {
+  const { data } = headers
+    ? await api.post<unknown>(path, body, { headers })
+    : await api.post<unknown>(path, body);
   return beLoadSchema.parse(data);
 }
 
@@ -77,11 +88,15 @@ export const scanPackage = ({ loadId, packageCode }: ScanPackageInput) =>
   postLoad(`${loadPath(loadId)}/scans`, { packageCode });
 
 /** Bàn giao: chuyến → DISPATCHED, ghi biên bản. Không gửi mã vận đơn (hãng bên thứ ba). */
-export const handoverLoad = ({ loadId, version, values }: HandoverLoadInput) =>
-  postLoad(`${loadPath(loadId)}/handover`, {
-    version,
-    carrierRepresentative: values.carrierRepresentative,
-    note: values.note || undefined,
-    // Xác nhận hai bên đã ký biên bản giấy — BE re-check guard "manifest signed" (03 §11)
-    signed: values.signed,
-  });
+export const handoverLoad = ({ loadId, version, values, idempotencyKey }: HandoverLoadInput) =>
+  postLoad(
+    `${loadPath(loadId)}/handover`,
+    {
+      version,
+      carrierRepresentative: values.carrierRepresentative,
+      note: values.note || undefined,
+      // Xác nhận hai bên đã ký biên bản giấy — BE re-check guard "manifest signed" (03 §11)
+      signed: values.signed,
+    },
+    { [IDEMPOTENCY_HEADER]: idempotencyKey },
+  );

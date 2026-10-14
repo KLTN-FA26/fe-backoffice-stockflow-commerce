@@ -66,10 +66,21 @@ describe("mock /fulfillment/loads khớp schema FE", () => {
       );
     }
     expect(latest.loadedPackages).toBe(latest.plannedPackages);
-    const again = await call("POST", `${base}/scans`, {
-      packageCode: latest.lines[0]?.packageCode,
+    // Quét lại kiện đã lên đúng chuyến → 200 idempotent, không tăng version
+    const again = beLoadSchema.parse(
+      (await call("POST", `${base}/scans`, { packageCode: latest.lines[0]?.packageCode })).data,
+    );
+    expect(again.version).toBe(latest.version);
+    // Kiện đã lên xe chuyến khác → 409 PACKAGE_ALREADY_LOADED
+    const otherLoaded = loads
+      .filter((l) => l.loadId !== loading.loadId)
+      .flatMap((l) => l.lines)
+      .find((l) => l.loadedAt);
+    if (!otherLoaded) throw new Error("seed thiếu kiện đã lên xe ở chuyến khác");
+    const foreignLoaded = await call("POST", `${base}/scans`, {
+      packageCode: otherLoaded.packageCode,
     });
-    expect(again.data).toMatchObject({ errorCode: "PACKAGE_ALREADY_LOADED" });
+    expect(foreignLoaded.data).toMatchObject({ errorCode: "PACKAGE_ALREADY_LOADED" });
 
     // Sai version → OPTIMISTIC_LOCK; chưa xác nhận ký biên bản → 400 (guard "manifest signed")
     const stale = await call("POST", `${base}/handover`, {

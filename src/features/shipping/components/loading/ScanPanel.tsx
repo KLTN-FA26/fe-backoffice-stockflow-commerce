@@ -45,7 +45,8 @@ function useScanFeedback(alive: React.RefObject<boolean>) {
 
 /**
  * Quét kiện lên xe (docs 09 §4 bước 4, F-SHP bước 04): BE từ chối kiện không thuộc chuyến
- * (PACKAGE_NOT_IN_LOAD) hoặc đã quét (PACKAGE_ALREADY_LOADED).
+ * (PACKAGE_NOT_IN_LOAD) hoặc đã lên xe chuyến khác (PACKAGE_ALREADY_LOADED). Quét lại kiện đã lên
+ * đúng chuyến này → BE trả 200 (idempotent) → báo "đã lên xe" như lần đầu.
  * Máy quét gửi mã liên tục → mã xếp hàng đợi và gửi lần lượt (giữ thứ tự, không gửi chồng); mã
  * đang chờ / đang gửi mà quét lại thì bỏ qua. Rời màn hoặc chuyến đổi trạng thái ở nơi khác → bỏ
  * phần còn lại của hàng đợi, không gửi tiếp các mã chắc chắn bị từ chối (các mã đó vào danh sách
@@ -96,10 +97,7 @@ export function ScanPanel({
           message: `${packageCode} — ${S.accepted} (${loaded}/${planned})`,
         });
       } catch (error: unknown) {
-        // Kiện đã lên xe từ trước (quét đúp / máy khác đã quét) → không phải lỗi, không bắt gỡ khỏi xe
-        if (error instanceof ApiError && error.code === "PACKAGE_ALREADY_LOADED") {
-          show({ tone: "positive", message: `${packageCode} — ${shippingErrorMessage(error)}` });
-        } else if (!(error instanceof ApiError)) {
+        if (!(error instanceof ApiError)) {
           // Response sai hợp đồng (BE có thể đã nhận mã) → không ghi là kiện bị từ chối; bảng tải lại
           show({ tone: "danger", message: `${packageCode} — ${S.invalidResponse}` });
         } else {

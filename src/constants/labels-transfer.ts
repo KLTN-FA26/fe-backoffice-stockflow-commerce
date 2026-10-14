@@ -37,7 +37,8 @@ export const TRANSFER_UI_LABELS = {
   },
   noActions: {
     viewOnly: "Bạn chỉ có quyền xem lệnh chuyển kho.",
-    pendingApproval: "Đang chờ quản lý kho duyệt.",
+    // docs 10 §2: Approver là QUYỀN duyệt, không phải chức danh
+    pendingApproval: "Đang chờ người có quyền duyệt.",
     inTransit: "Hàng đã rời kho nguồn — chờ kho đích nhận hàng.",
     // docs 10 §5: Partially Received = kho đích nhận một phần; Received = nhận đủ, chờ putaway
     partiallyReceived: "Kho đích đã nhận một phần — chờ nhận nốt hoặc đóng lệnh.",

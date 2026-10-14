@@ -12,7 +12,6 @@ import {
   hasManifestView,
   isFullyLoaded,
   isLoadAwaitingStart,
-  isLoadTerminal,
   loadGateState,
 } from "./lifecycle";
 
@@ -42,7 +41,6 @@ describe("LOAD_TRANSITIONS (BE business-design 03 §11)", () => {
   it("DISPATCHED / CANCELLED là terminal", () => {
     expect(LOAD_TRANSITIONS.DISPATCHED).toEqual([]);
     expect(LOAD_TRANSITIONS.CANCELLED).toEqual([]);
-    expect(isLoadTerminal("DISPATCHED")).toBe(true);
   });
 });
 
@@ -89,7 +87,10 @@ describe("allowedLoadActions — gating", () => {
 
 describe("helper trạng thái chuyến", () => {
   it("terminal: DISPATCHED / CANCELLED; còn lại không", () => {
-    expect(LOAD_STATUSES.filter(isLoadTerminal)).toEqual(["DISPATCHED", "CANCELLED"]);
+    expect(LOAD_STATUSES.filter((status) => LOAD_TRANSITIONS[status].length === 0)).toEqual([
+      "DISPATCHED",
+      "CANCELLED",
+    ]);
   });
 
   it("chờ bắt đầu xếp = VEHICLE_BOOKED; có biên bản = LOADING / DISPATCHED", () => {

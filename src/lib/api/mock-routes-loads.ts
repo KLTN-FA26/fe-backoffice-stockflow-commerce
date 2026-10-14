@@ -50,6 +50,8 @@ async function withLoad(
   if (!load) return loadNotFound(id);
   const result = apply(load);
   if (!("loadId" in result)) return result;
+  // Thao tác idempotent không đổi gì (vd quét lại kiện đã lên đúng chuyến) → 200, không tăng version
+  if (result === load) return beOk(toLoadResponse(load));
   const saved = { ...result, version: load.version + 1 };
   store.set(id, saved);
   return beOk(toLoadResponse(saved));
@@ -89,19 +91,28 @@ export function registerLoadMockRoutes(): void {
   );
 
   // F-SHP bước 04: chặn kiện không thuộc chuyến
-  registerMockRoute("POST", `${ITEM}/scans`, (config) =>
-    withLoad(config, (load) => {
+  registerMockRoute("POST", `${ITEM}/scans`, async (config) => {
+    const all = [...(await getLoadStore()).values()];
+    return withLoad(config, (load) => {
       if (load.status !== "LOADING") return invalidLoadTransition(load.status, "scan packages");
       const code = readString(parseJsonBody(config.data).packageCode).toUpperCase();
       const line = load.lines.find((l) => l.packageCode.toUpperCase() === code);
       if (!line) {
+        // Kiện đã lên xe của chuyến khác → không được xếp thêm lên xe này
+        const onOther = all.some(
+          (other) =>
+            other.loadId !== load.loadId &&
+            other.lines.some((l) => l.loadedAt && l.packageCode.toUpperCase() === code),
+        );
+        if (onOther) {
+          return beError(409, "PACKAGE_ALREADY_LOADED", `Package ${code} is on another load`);
+        }
         return isKnownPackageCode(code)
           ? beError(409, "PACKAGE_NOT_IN_LOAD", `Package ${code} is not planned on ${load.number}`)
           : beError(404, "PACKAGE_NOT_FOUND", `Package ${code} not found`);
       }
-      if (line.loadedAt) {
-        return beError(409, "PACKAGE_ALREADY_LOADED", `Package ${code} is already on the vehicle`);
-      }
+      // Idempotent: quét lại kiện đã lên đúng chuyến này → 200 trả chuyến hiện tại
+      if (line.loadedAt) return load;
       const loadedAt = new Date().toISOString();
       return {
         ...load,
@@ -109,8 +120,8 @@ export function registerLoadMockRoutes(): void {
           l.loadLineId === line.loadLineId ? { ...l, loadedAt, loadedBy: MOCK_LOADER } : l,
         ),
       };
-    }),
-  );
+    });
+  });
 
   // 03 §11: LOADING → DISPATCHED khi đủ kiện + biên bản ký; BR-03 order → SHIPPED ở BE
   registerMockRoute("POST", `${ITEM}/handover`, (config) =>

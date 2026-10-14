@@ -21,4 +21,6 @@ export interface HandoverLoadInput {
   loadId: string;
   version: number;
   values: HandoverValues;
+  /** Một key cho một lần mở dialog bàn giao — gửi lại (retry) dùng lại key, BE không bàn giao hai lần. */
+  idempotencyKey: string;
 }

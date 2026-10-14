@@ -28,6 +28,8 @@ const SERVER_FIELDS = ["carrierRepresentative", "note"] as const;
  */
 export function HandoverDialog({ load, onClose }: { load: Load; onClose: () => void }) {
   const handover = useHandoverLoad();
+  // Cố định trong suốt lần mở dialog: bấm lại sau lỗi mạng gửi cùng key (BE chống bàn giao trùng)
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
   const [serverError, setServerError] = useState<string | null>(null);
   const form = useForm<HandoverFormInput, unknown, HandoverValues>({
     resolver: zodResolver(handoverInputSchema),
@@ -50,7 +52,7 @@ export function HandoverDialog({ load, onClose }: { load: Load; onClose: () => v
   const submit = form.handleSubmit((values) => {
     setServerError(null);
     handover.mutate(
-      { loadId: load.loadId, version: load.version, values },
+      { loadId: load.loadId, version: load.version, values, idempotencyKey },
       {
         onSuccess: onClose,
         onError: (error) => {

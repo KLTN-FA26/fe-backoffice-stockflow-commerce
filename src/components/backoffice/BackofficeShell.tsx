@@ -52,6 +52,7 @@ import { useAuthStore } from "@/lib/auth/auth-store";
 import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
 import { invoices, moveTasks, purchaseOrders, putawayTasks, warehouses } from "@/lib/mock-data";
+import { useIsMock } from "@/providers/app-providers";
 
 import { Logo } from "@/components/shared/Logo";
 import { SearchBar } from "@/components/shared/SearchBar";
@@ -117,6 +118,8 @@ interface NavItem {
   icon: LucideIcon;
   /** Mã quyền BE cần có để thấy menu (đọc từ /identity/me/permissions). Không khai báo = luôn hiện. */
   permission?: PermissionCode;
+  /** Màn chỉ chạy được trên mock (BE chưa có API) — ẩn khi nối BE thật. */
+  mockOnly?: boolean;
 }
 
 interface NavGroup {
@@ -270,6 +273,8 @@ export const NAV_GROUPS: NavGroup[] = [
         href: ADMIN_ROUTES.shipments.list,
         icon: Truck,
         permission: SHIPMENT_PERMISSIONS.viewPage,
+        // BE SCRUM-288 chưa có /fulfillment/loads — lên BE thật sẽ gọi API không tồn tại
+        mockOnly: true,
       },
     ],
   },
@@ -297,10 +302,11 @@ const DETAIL_LABEL_BY_ROUTE: Record<string, string> = {
   "/admin/transfers/create": "Tạo lệnh chuyển kho",
 };
 
-/** Required capabilities fail closed; unassigned items remain visible. */
+/** Required capabilities fail closed; unassigned items remain visible; mock-only items need mock mode. */
 export function useCanSeeNavItem(): (item: NavItem) => boolean {
   const can = usePermissionChecker();
-  return (item) => !item.permission || can(item.permission);
+  const isMock = useIsMock();
+  return (item) => (!item.mockOnly || isMock) && (!item.permission || can(item.permission));
 }
 
 function findNavItem(pathname: string): NavItem | undefined {

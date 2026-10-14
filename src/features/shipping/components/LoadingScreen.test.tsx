@@ -183,19 +183,30 @@ describe("LoadingScreen — quét kiện lên xe", () => {
     );
   });
 
-  it("kiện đã lên xe từ trước (quét đúp) → báo nhẹ, KHÔNG vào danh sách kiện phải gỡ", async () => {
+  it("quét đúp kiện đã lên đúng chuyến (BE 200 idempotent) → báo đã lên xe, KHÔNG vào danh sách gỡ", async () => {
+    const user = userEvent.setup();
+    renderLoading(ROLES.warehouseStaff, apiLoad());
+    const input = await screen.findByLabelText(L.scan.label);
+    await user.type(input, "PKG-0001{Enter}");
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(`PKG-0001 — ${L.scan.accepted}`),
+    );
+    expect(screen.queryByText(L.scan.rejectedTitle, { exact: false })).not.toBeInTheDocument();
+  });
+
+  it("kiện đã lên xe chuyến khác → 409 PACKAGE_ALREADY_LOADED, vào danh sách kiện phải gỡ", async () => {
     const user = userEvent.setup();
     renderLoading(ROLES.warehouseStaff, apiLoad(), () => {
       throw new ApiError(409, "PACKAGE_ALREADY_LOADED", "x");
     });
     const input = await screen.findByLabelText(L.scan.label);
-    await user.type(input, "PKG-0001{Enter}");
-    await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent(
-        SHIPPING_ERROR_MESSAGES.PACKAGE_ALREADY_LOADED,
-      ),
+    await user.type(input, "PKG-0777{Enter}");
+    expect(
+      await screen.findByRole("heading", { name: `${L.scan.rejectedTitle} (1)` }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("listitem")).toHaveTextContent(
+      SHIPPING_ERROR_MESSAGES.PACKAGE_ALREADY_LOADED,
     );
-    expect(screen.queryByText(L.scan.rejectedTitle, { exact: false })).not.toBeInTheDocument();
   });
 
   it("mã có dấu (bộ gõ tiếng Việt đang bật) → chặn trước khi gửi, báo cách sửa", async () => {

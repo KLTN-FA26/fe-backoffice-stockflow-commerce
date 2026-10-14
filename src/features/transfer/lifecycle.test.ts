@@ -4,7 +4,7 @@ import { TRANSFER_STATUSES, UI_LABELS } from "@/constants";
 import { TRANSFER_TRANSITIONS } from "@/lib/domain/lifecycle";
 
 import { TRANSFER_ROLE_PERMISSIONS as ROLES } from "./__fixtures__/render";
-import { allowedTransferActions, isTransferEditable, isTransferTerminal } from "./lifecycle";
+import { allowedTransferActions, isTransferEditable } from "./lifecycle";
 
 import type { TransferStatus } from "@/constants";
 import type { PermissionCode } from "@/lib/auth";
@@ -54,8 +54,6 @@ describe("TRANSFER_TRANSITIONS (docs 10 §5 = BE TransferStatus)", () => {
     expect(TRANSFER_TRANSITIONS.COMPLETED).toEqual([]);
     expect(TRANSFER_TRANSITIONS.CLOSED).toEqual([]);
     expect(TRANSFER_TRANSITIONS.CANCELLED).toEqual([]);
-    expect(isTransferTerminal("CLOSED")).toBe(true);
-    expect(isTransferTerminal("IN_TRANSIT")).toBe(false);
   });
 
   it("chỉ DRAFT sửa được", () => {

@@ -181,11 +181,6 @@ export function isTransferEditable(status: TransferStatus): boolean {
   return status === S.DRAFT;
 }
 
-/** COMPLETED / CLOSED / CANCELLED — không còn chuyển tiếp. */
-export function isTransferTerminal(status: TransferStatus): boolean {
-  return TRANSFER_TRANSITIONS[status].length === 0;
-}
-
 /** Hàng đang trên đường tới kho đích (chưa nhận đủ). */
 export function isTransferInTransit(status: TransferStatus): boolean {
   return status === S.IN_TRANSIT || status === S.PARTIALLY_RECEIVED;

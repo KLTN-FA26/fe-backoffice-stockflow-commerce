@@ -2,7 +2,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { IDENTITY_PERMISSIONS, SUPPLIER_PERMISSIONS } from "@/constants/permissions";
+import {
+  IDENTITY_PERMISSIONS,
+  SHIPMENT_PERMISSIONS,
+  SUPPLIER_PERMISSIONS,
+} from "@/constants/permissions";
 
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
@@ -10,6 +14,9 @@ import { useAuthStore } from "@/lib/auth/auth-store";
 import { meKeys } from "@/lib/auth/me-permissions";
 
 import { NAV_GROUPS, useCanSeeNavItem } from "./BackofficeShell";
+
+const mockMode = vi.hoisted(() => ({ isMock: false }));
+vi.mock("@/providers/app-providers", () => ({ useIsMock: () => mockMode.isMock }));
 
 function Navigation() {
   const canSee = useCanSeeNavItem();
@@ -86,5 +93,20 @@ describe("declared navigation permissions", () => {
     });
     mount();
     expect(await screen.findByRole("link", { name: "Phân quyền" })).toBeInTheDocument();
+  });
+  it("màn chỉ chạy trên mock (xếp xe & bàn giao) ẩn khi nối BE thật dù có quyền", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [], permissions: [SHIPMENT_PERMISSIONS.viewPage], dataScope: "ALL" },
+    });
+    mockMode.isMock = false;
+    mount();
+    expect(await screen.findByRole("link", { name: "Kế hoạch xếp xe" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Xếp xe & bàn giao" })).not.toBeInTheDocument();
+
+    cleanup();
+    mockMode.isMock = true;
+    mount();
+    expect(await screen.findByRole("link", { name: "Xếp xe & bàn giao" })).toBeInTheDocument();
+    mockMode.isMock = false;
   });
 });

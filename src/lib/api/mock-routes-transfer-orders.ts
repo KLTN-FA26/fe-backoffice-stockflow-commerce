@@ -5,6 +5,7 @@
  */
 
 import { registerMockRoute } from "./mock-adapter";
+import { currentActor } from "./mock-routes-fulfillment-store";
 import {
   BE_DEFAULT_PAGE_SIZE,
   BE_MAX_PAGE_SIZE,
@@ -126,35 +127,28 @@ async function inactiveWarehouseError(draft: { fromWarehouseId: string; toWareho
 }
 
 /**
- * Giả lập thiếu tồn để demo lỗi theo dòng: mock không có số tồn thật, coi mỗi dòng (SKU + lô) chỉ
- * có `MOCK_AVAILABLE_PER_LINE` đơn vị. Trả đúng message BE (InsufficientStockException) + fieldErrors
- * theo dòng như CONTRACT ĐỀ XUẤT (code bỏ trống để BE giữ nguyên message có số).
+ * Giả lập thiếu tồn: mock không có số tồn thật, coi mỗi dòng (SKU + lô) chỉ có
+ * `MOCK_AVAILABLE_PER_LINE` đơn vị. Trả ĐÚNG như BE hiện tại (InsufficientStockException): chỉ
+ * message của dòng thiếu đầu tiên, KHÔNG có `fieldErrors` theo dòng — đó mới là contract đề xuất
+ * (FE xử lý nhánh đó trong `stockErrorsByLine`, chỉ phủ bằng unit test).
  */
 const MOCK_AVAILABLE_PER_LINE = 500;
 
-function insufficientStock(
-  rows: readonly { sku: string; quantity: number }[],
-  field: "quantity" | "shippedQuantity",
-) {
-  const short = rows
-    .map((row, index) => ({ ...row, index }))
-    .filter((row) => row.quantity > MOCK_AVAILABLE_PER_LINE);
-  const first = short[0];
+function insufficientStock(rows: readonly { sku: string; quantity: number }[]) {
+  const first = rows.find((row) => row.quantity > MOCK_AVAILABLE_PER_LINE);
   if (!first) return null;
   return beError(
     409,
     "INSUFFICIENT_STOCK",
     `Insufficient stock for SKU ${first.sku}: requested ${first.quantity}, available ${MOCK_AVAILABLE_PER_LINE}`,
-    short.map((row) => ({
-      field: `lines[${row.index}].${field}`,
-      message: `requested ${row.quantity}, available ${MOCK_AVAILABLE_PER_LINE}`,
-    })),
   );
 }
 
 type Handler = (
   t: MockTransfer,
   body: Record<string, unknown>,
+  /** userId của người gọi (phiên mock) — ghi người thao tác, chặn tự duyệt. */
+  actorId: string,
 ) => MockTransfer | ReturnType<typeof beError>;
 
 /** POST `/{id}/<verb>`: tìm lệnh, kiểm bảng chuyển trạng thái, áp thay đổi. */
@@ -195,13 +189,24 @@ function transition(
     ) {
       return invalidTransferTransition(current.status, next);
     }
-    const result = apply(current, parseJsonBody(config.data));
+    const actorId = (await currentActor()).userId || MOCK_PO_ACTOR;
+    const result = apply(current, parseJsonBody(config.data), actorId);
     if (!("transferId" in result)) return result;
     const saved = { ...result, status: next, version: current.version + 1 };
     store.set(id, saved);
     return beOk(saved);
   });
 }
+
+/** = BE TransferOrder#approve / #reject (four-eyes, ck_transfer_order_four_eyes): người gửi duyệt không tự duyệt / từ chối. */
+const selfApproval = (t: MockTransfer, actorId: string) =>
+  t.submittedBy && t.submittedBy === actorId
+    ? beError(
+        409,
+        "TRANSFER_SELF_APPROVAL",
+        "The submitter cannot approve or reject their own transfer",
+      )
+    : null;
 
 const requireReason = (body: Record<string, unknown>) =>
   readString(body.reason) ? null : beError(400, "VALIDATION_FAILED", "reason is required");
@@ -236,7 +241,6 @@ export function registerTransferOrderMockRoutes(): void {
     if (inactive) return inactive;
     const short = insufficientStock(
       parsed.draft.lines.map((l) => ({ sku: l.sku, quantity: l.requested })),
-      "quantity",
     );
     if (short) return short;
     const transfer: MockTransfer = {
@@ -284,7 +288,6 @@ export function registerTransferOrderMockRoutes(): void {
     if (inactive) return inactive;
     const short = insufficientStock(
       parsed.draft.lines.map((l) => ({ sku: l.sku, quantity: l.requested })),
-      "quantity",
     );
     if (short) return short;
     const saved = { ...current, ...parsed.draft, version: current.version + 1 };
@@ -300,26 +303,28 @@ export function registerTransferOrderMockRoutes(): void {
     "submission",
     (t) => (total(t) <= MOCK_APPROVAL_THRESHOLD ? "APPROVED" : "PENDING_APPROVAL"),
     // = BE TransferOrder#submit: duyệt luôn thì người gửi thành người duyệt, submittedBy/At = null
-    (t) =>
+    (t, _body, actorId) =>
       total(t) <= MOCK_APPROVAL_THRESHOLD
         ? {
             ...t,
             submittedBy: null,
             submittedAt: null,
-            approvedBy: MOCK_PO_ACTOR,
+            approvedBy: actorId,
             approvedAt: now(),
           }
-        : { ...t, submittedBy: MOCK_PO_ACTOR, submittedAt: now() },
+        : { ...t, submittedBy: actorId, submittedAt: now() },
   );
   transition(
     "approval",
     () => "APPROVED",
-    (t) => ({ ...t, approvedBy: MOCK_PO_ACTOR, approvedAt: now() }),
+    (t, _body, actorId) =>
+      selfApproval(t, actorId) ?? { ...t, approvedBy: actorId, approvedAt: now() },
   );
   transition(
     "rejection",
     () => "DRAFT",
-    (t) => ({ ...t, submittedBy: null, submittedAt: null }),
+    (t, _body, actorId) =>
+      selfApproval(t, actorId) ?? { ...t, submittedBy: null, submittedAt: null },
     requireReason,
   );
   transition(
@@ -341,7 +346,7 @@ export function registerTransferOrderMockRoutes(): void {
   transition(
     "dispatch",
     () => "IN_TRANSIT",
-    (t, body) => {
+    (t, body, actorId) => {
       const shipped = new Map<string, number>();
       for (const line of Array.isArray(body.lines) ? body.lines.filter(isRecord) : []) {
         // = BE controller: lineId lặp thì cộng dồn (`merge(…, Integer::sum)`)
@@ -362,12 +367,9 @@ export function registerTransferOrderMockRoutes(): void {
       if (lines.every((l) => l.shipped === 0)) {
         return beError(400, "VALIDATION_FAILED", "Ship at least one unit");
       }
-      const short = insufficientStock(
-        lines.map((l) => ({ sku: l.sku, quantity: l.shipped })),
-        "shippedQuantity",
-      );
+      const short = insufficientStock(lines.map((l) => ({ sku: l.sku, quantity: l.shipped })));
       if (short) return short;
-      return { ...t, lines, dispatchedBy: MOCK_PO_ACTOR, dispatchedAt: now() };
+      return { ...t, lines, dispatchedBy: actorId, dispatchedAt: now() };
     },
   );
 }
