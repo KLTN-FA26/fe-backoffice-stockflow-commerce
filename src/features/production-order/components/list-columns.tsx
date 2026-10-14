@@ -77,6 +77,17 @@ export function columns(today: string): ColumnDef<ProductionRow>[] {
       ),
     },
     {
+      // SCRUM-412: khu PACKING nhận hàng khi LSX đơn hoàn tất (bàn giao tự động, BE PR #109).
+      key: "packingLocation",
+      header: "Khu đóng gói",
+      cell: (row) =>
+        row.packingLocation ? (
+          <span className={MONO}>{row.packingLocation}</span>
+        ) : (
+          <span className="text-ink-tertiary">—</span>
+        ),
+    },
+    {
       key: "source",
       header: "Nguồn",
       cell: (row) =>

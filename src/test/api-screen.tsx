@@ -2,7 +2,7 @@
  * Render một màn có API giả lập theo URL — đi qua chuỗi thật `/identity/me/permissions` → useCan
  * → UI (mẫu `features/receipt/__fixtures__/render.tsx`, dùng chung cho các module bán hàng / sản xuất).
  * Bộ quyền theo vai trò lấy từ phiên BE throwaway d215f6e (`/identity/me/permissions` thật,
- * 2026-10-14) — xem `ROLE_PERMISSIONS`.
+ * 2026-10-14) + quyền đọc PR #109 cấp thêm ở V20261015000800 — xem `ROLE_PERMISSIONS`.
  */
 
 import { Suspense } from "react";
@@ -41,6 +41,9 @@ export const ROLE_PERMISSIONS = {
     "production-orders:READ",
     "production-qc-results:READ",
     "sales-orders:READ",
+    // V20261015000800 (PR #109): nộp mẫu vào kho thật + chọn thiết kế đã xác nhận của khách.
+    "warehouse-warehouses:READ",
+    "design-snapshots:READ",
   ],
   ECOMMERCE_ADMIN: [
     "customer-customers:VIEW_PAGE",
@@ -92,6 +95,8 @@ export const ROLE_PERMISSIONS = {
     "production-qc-results:CREATE",
     "warehouse-warehouses:READ",
     "warehouse-locations:READ",
+    // V20261015000800 (PR #109): chọn nhà gia công in khi tách LSX.
+    "procurement-suppliers:READ",
   ],
   QC_STAFF: [
     "production-sample-requests:VIEW_PAGE",
@@ -113,6 +118,8 @@ export const ROLE_PERMISSIONS = {
     "production-sample-requests:VIEW_PAGE",
     "production-sample-requests:READ",
     "production-sample-requests:APPROVE",
+    // Khách cũng có mã này nhưng BE từ chối ở /design-snapshots (chỉ back-office).
+    "design-snapshots:READ",
   ],
 } satisfies Record<string, PermissionCode[]>;
 

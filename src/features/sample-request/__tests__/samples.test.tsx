@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { SAMPLE_API_STATUSES } from "@/constants";
-import { mockApi, renderScreen } from "@/test/api-screen";
+import { apiError, mockApi, renderScreen } from "@/test/api-screen";
 
 import { PortalSampleDetail, SampleDetailView } from "..";
 import { SAMPLE_TRANSITIONS, allowedSampleActions } from "../lifecycle";
@@ -79,25 +79,64 @@ describe("SAMPLE_TRANSITIONS (BE SampleStatus, docs SCRUM-394)", () => {
 });
 
 describe("Sample detail — role gating", () => {
-  it("SALES_STAFF on DRAFT: edit / submit / cancel; submit without warehouse list asks for an id", async () => {
-    mockApi("SALES_STAFF", {
-      get: {
-        "/production/sample-requests/s-1": () => sample("DRAFT"),
-        "/customers/c-1": () => ({
-          customerId: "c-1",
-          fullName: "Bao Bì Xanh",
-          email: "a@x.vn",
-          status: "ACTIVE",
-        }),
-      },
+  const draftRoutes = (warehouses: () => unknown) => ({
+    "/production/sample-requests/s-1": () => sample("DRAFT"),
+    "/customers/c-1": () => ({
+      customerId: "c-1",
+      fullName: "Bao Bì Xanh",
+      email: "a@x.vn",
+      status: "ACTIVE",
+    }),
+    "/warehouses": warehouses,
+  });
+
+  it("SCRUM-403 SALES_STAFF on DRAFT: submits to a real warehouse chosen from the list (no id typing)", async () => {
+    const api = mockApi("SALES_STAFF", {
+      get: draftRoutes(() => ({
+        items: [{ id: "wh-hcm", prefix: "HCM", name: "Kho Hồ Chí Minh" }],
+      })),
+      post: { "/production/sample-requests/s-1/submission": () => sample("SUBMITTED") },
     });
     renderScreen(<SampleDetailView id="s-1" />, "SALES_STAFF");
     expect(await screen.findByRole("button", { name: "Sửa quy cách" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Huỷ yêu cầu" })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Gửi sản xuất" }));
     const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByLabelText(/Mã kho/)).toBeInTheDocument();
+    expect(within(dialog).queryByLabelText(/Mã kho/)).not.toBeInTheDocument();
+    const submit = within(dialog).getByRole("button", { name: "Gửi sản xuất" });
+    expect(submit).toBeDisabled();
+    await within(dialog).findByRole("option", { name: "HCM — Kho Hồ Chí Minh" });
+    await userEvent.selectOptions(within(dialog).getByLabelText(/Kho sản xuất/), "wh-hcm");
+    await userEvent.click(submit);
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith("/production/sample-requests/s-1/submission", {
+        warehouseId: "wh-hcm",
+      }),
+    );
+  });
+
+  it("no active warehouse → explains and keeps submit disabled", async () => {
+    mockApi("SALES_STAFF", { get: draftRoutes(() => ({ items: [] })) });
+    renderScreen(<SampleDetailView id="s-1" />, "SALES_STAFF");
+    await userEvent.click(await screen.findByRole("button", { name: "Gửi sản xuất" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(await within(dialog).findByText("Chưa có kho nào đang hoạt động.")).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Gửi sản xuất" })).toBeDisabled();
+  });
+
+  it("warehouse list refused (403) → Vietnamese message, never a free-text id", async () => {
+    mockApi("SALES_STAFF", {
+      get: draftRoutes(() => {
+        throw apiError(403, "FORBIDDEN");
+      }),
+    });
+    renderScreen(<SampleDetailView id="s-1" />, "SALES_STAFF");
+    await userEvent.click(await screen.findByRole("button", { name: "Gửi sản xuất" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      await within(dialog).findByText("Bạn không có quyền thực hiện thao tác này."),
+    ).toBeInTheDocument();
+    expect(within(dialog).queryByRole("textbox")).not.toBeInTheDocument();
   });
 
   it("QC_STAFF (read only) sees the round but no mutating action", async () => {

@@ -51,6 +51,11 @@ export const productionRowDtoSchema = z.object({
   salesOrderLineId: z.string().nullish(),
   parentId: z.string().nullish(),
   createdAt: z.string(),
+  /**
+   * Khu PACKING nhận hàng của LSX đơn đã hoàn tất — bàn giao tự động khi QC hoàn tất (SCRUM-412, BE PR #109
+   * V20261015000810). null trước khi hoàn tất, với LSX mẫu, hoặc LSX cũ không có dòng sổ kho để biết.
+   */
+  packingLocation: z.string().nullish(),
 });
 export const productionPageDtoSchema = bePageSchema(productionRowDtoSchema);
 

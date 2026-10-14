@@ -13,7 +13,7 @@ import { formatNumber } from "@/lib/format/number";
 import { productionErrorMessage, qcPackingFieldError } from "@/features/production-order/errors";
 import { qcBaseSchema, qcSumMatches } from "@/features/production-order/input-schemas";
 import { useRecordQc } from "@/features/production-order/mutations";
-import { useQcRounds } from "@/features/production-order/queries";
+import { usePackingLocations, useQcRounds } from "@/features/production-order/queries";
 import { awaitingQc } from "@/features/production-order/selectors";
 
 import { Card } from "@/components/shared/Card";
@@ -29,7 +29,7 @@ import { Reference } from "./QcReference";
 import type { z } from "zod";
 import type { ProductionDetail } from "@/features/production-order/types";
 
-/** QC thành phẩm (SCRUM-419) + bàn giao đóng gói khi hoàn tất (SCRUM-412 — BE tự chuyển, không có nút riêng). */
+/** QC thành phẩm (SCRUM-418/419) + bàn giao đóng gói tự động khi hoàn tất (SCRUM-412 — đã chốt: không có bước xác nhận riêng). */
 export function QcPanel({ order, active }: { order: ProductionDetail; active: boolean }) {
   const can = usePermissionChecker();
   const canRead = can(PRODUCTION_QC_PERMISSIONS.read);
@@ -43,7 +43,10 @@ export function QcPanel({ order, active }: { order: ProductionDetail; active: bo
   });
   const { errors } = form.formState;
   const isOrder = order.summary.type === "ORDER";
+  const packing = usePackingLocations(order.summary.id, isOrder && active && canRead);
   const submit = form.handleSubmit((values) => {
+    if (isOrder && (packing.data?.length ?? 0) > 1 && !values.packingLocation)
+      return form.setError("packingLocation", { message: "Chọn khu đóng gói nhận hàng" });
     if (!qcSumMatches(values, awaiting ?? 0)) {
       form.setError("passed", {
         type: "validate",
@@ -111,9 +114,7 @@ export function QcPanel({ order, active }: { order: ProductionDetail; active: bo
               className={`${FORM_INPUT_CLASS} text-right tabular-nums`}
             />
           </FormField>
-          {isOrder && (
-            <QcPackingField control={form.control} warehouseId={order.summary.warehouseId} />
-          )}
+          {isOrder && <QcPackingField control={form.control} locations={packing} />}
           <FormField id="qc-note" label="Ghi chú lỗi" error={errors.note?.message}>
             <Input
               {...form.register("note")}

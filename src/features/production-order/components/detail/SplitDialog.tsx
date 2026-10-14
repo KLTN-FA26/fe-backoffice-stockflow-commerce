@@ -5,16 +5,16 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-import { ADMIN_ROUTES, SUPPLIER_PERMISSIONS } from "@/constants";
-import { useCan } from "@/lib/auth/components/Can";
+import { ADMIN_ROUTES } from "@/constants";
 import { formatNumber } from "@/lib/format/number";
-import { useSupplierOptions } from "@/lib/references/supplier-options";
 import { productionErrorMessage } from "@/features/production-order/errors";
 import { splitInputSchema } from "@/features/production-order/input-schemas";
 import { useSplitSubcontract } from "@/features/production-order/mutations";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FORM_INPUT_CLASS, FormField, fieldA11y } from "@/components/shared/FormField";
 import { Input } from "@/components/ui/input";
+
+import { SubcontractorField } from "./SubcontractorField";
 
 import type { z } from "zod";
 import type { ProductionDetail } from "@/features/production-order/types";
@@ -26,8 +26,6 @@ const METHOD_LABEL = {
 
 function SplitForm({ order, onClose }: { order: ProductionDetail; onClose: () => void }) {
   const router = useRouter();
-  const canListSuppliers = useCan(SUPPLIER_PERMISSIONS.read);
-  const suppliers = useSupplierOptions(canListSuppliers);
   const [error, setError] = useState<string | null>(null);
   const split = useSplitSubcontract();
   const unissued = order.summary.plannedQuantity - order.issuedQuantity;
@@ -89,38 +87,10 @@ function SplitForm({ order, onClose }: { order: ProductionDetail; onClose: () =>
           className={`${FORM_INPUT_CLASS} text-right tabular-nums`}
         />
       </FormField>
-      <FormField
-        id="split-supplier"
-        label="Nhà gia công"
-        required
+      <SubcontractorField
+        registration={form.register("subcontractorId")}
         error={errors.subcontractorId?.message}
-        hint={
-          canListSuppliers
-            ? "Chỉ NCC được đánh dấu là nhà gia công in mới được chấp nhận."
-            : "Chưa có quyền xem danh sách NCC — nhập mã NCC (UUID)."
-        }
-      >
-        {canListSuppliers ? (
-          <select
-            id="split-supplier"
-            {...form.register("subcontractorId")}
-            className={`${FORM_INPUT_CLASS} border px-2`}
-          >
-            <option value="">— Chọn nhà gia công —</option>
-            {(suppliers.data ?? []).map((supplier) => (
-              <option key={supplier.supplierId} value={supplier.supplierId}>
-                {supplier.code} — {supplier.name}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <Input
-            {...form.register("subcontractorId")}
-            {...fieldA11y("split-supplier", errors.subcontractorId?.message, true)}
-            className={`${FORM_INPUT_CLASS} font-[family-name:var(--font-mono)]`}
-          />
-        )}
-      </FormField>
+      />
       <FormField id="split-method" label="Hình thức" required>
         <select
           id="split-method"

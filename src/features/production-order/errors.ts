@@ -9,6 +9,8 @@ export const PRODUCTION_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   PRINT_FILE_MISMATCH: "File in không khớp với thiết kế đã khoá — không thể duyệt prepress.",
   RESERVATION_NOT_ISSUABLE: "Phiếu giữ phôi này không thể xuất.",
   ISSUE_EXCEEDS_REQUIREMENT: "Số phôi vượt quá số lệnh sản xuất còn cần (BR-PRD-03).",
+  ISSUE_LOCATION_MISMATCH: "Sai vị trí: phôi của phiếu giữ này không nằm ở vị trí vừa quét.",
+  ISSUE_ITEM_MISMATCH: "Sai mã hàng: mã vừa quét không phải phôi của phiếu giữ này.",
   INSUFFICIENT_STOCK: "Không đủ phôi trong kho.",
   LOCATION_NOT_FOUND: "Không tìm thấy vị trí trong kho của lệnh.",
   LOCATION_NOT_USABLE: "Vị trí này hiện không nhận hàng được.",

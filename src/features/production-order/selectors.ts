@@ -4,7 +4,14 @@ import { PRODUCTION_STATUS_BY_API } from "@/constants";
 import { STATUS_LABEL_VI } from "@/lib/domain/status-map";
 
 import type { ProductionApiStatus } from "@/constants";
-import type { HoldReason, ProductionDetail, ProductionRow, QcRound, ScrapReason } from "./types";
+import type {
+  HoldReason,
+  PendingHold,
+  ProductionDetail,
+  ProductionRow,
+  QcRound,
+  ScrapReason,
+} from "./types";
 
 export const HOLD_REASON_LABEL: Readonly<Record<HoldReason, string>> = {
   FILE_REJECTED: "File in bị từ chối",
@@ -76,4 +83,21 @@ export function isOverdue(row: Pick<ProductionRow, "dueDate" | "status">, today:
 
 export function todayVn(now = new Date()): string {
   return now.toLocaleDateString("sv-SE", { timeZone: "Asia/Ho_Chi_Minh" });
+}
+
+/**
+ * SCRUM-409/410 xác nhận khi quét — cùng quy tắc BE `MaterialIssueService.requireScanned`: vị trí quét phải là
+ * vị trí của phiếu giữ (không phân biệt hoa thường); mã quét phải là SKU của phiếu (không phân biệt hoa thường)
+ * hoặc đúng mã vạch của SKU. Chỉ để báo sai ngay tại chỗ — BE vẫn kiểm tra lại trước khi chuyển hàng.
+ */
+export function scanMismatch(
+  hold: Pick<PendingHold, "locationCode" | "sku" | "barcode">,
+  scannedLocation: string,
+  scannedCode: string,
+): "location" | "item" | null {
+  const same = (a: string, b: string) => a.trim().toUpperCase() === b.trim().toUpperCase();
+  if (scannedLocation.trim() && !same(scannedLocation, hold.locationCode)) return "location";
+  const code = scannedCode.trim();
+  if (code && !same(code, hold.sku) && code !== (hold.barcode ?? "").trim()) return "item";
+  return null;
 }

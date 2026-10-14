@@ -174,6 +174,17 @@ describe("production detail — real role gating", () => {
       ...routes(order("READY")),
       get: {
         ...routes(order("READY")).get,
+        // Chưa giữ phôi nào → lần xuất tới để BE giữ + chuyển, không có vị trí nguồn để quét.
+        "/production/orders/po-1/material-issues/pending": () => ({
+          productionOrderId: "po-1",
+          orderNumber: "LSX-20261014-0001",
+          status: "READY",
+          blankSku: "CUP-PAPER-12OZ",
+          required: 1000,
+          issued: 0,
+          outstanding: 1000,
+          holds: [],
+        }),
         "/warehouses/wh-1/layout": () => ({
           areas: [
             {

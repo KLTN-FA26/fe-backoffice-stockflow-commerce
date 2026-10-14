@@ -12,8 +12,9 @@ import { MONO } from "../copy";
 import type { ProductionDetail, QcRound } from "@/features/production-order/types";
 
 /**
- * Kết quả QC: các lượt đã ghi + bàn giao đóng gói. SCRUM-412: BE tự chuyển thành phẩm sang khu
- * PACKING ngay trong lượt QC làm LSX hoàn tất (không có endpoint xác nhận bàn giao riêng).
+ * Kết quả QC: các lượt đã ghi + bàn giao đóng gói. SCRUM-412: BE tự chuyển thành phẩm sang khu PACKING ngay
+ * trong lượt QC làm LSX hoàn tất và ghi lại khu đó (`summary.packingLocation`, BE PR #109 V20261015000810).
+ * Đã chốt: không có bước xác nhận bàn giao thủ công. LSX cũ không có dòng sổ kho → không ghi khu.
  */
 export function QcHistory({
   order,
@@ -28,7 +29,15 @@ export function QcHistory({
     <>
       {order.summary.status === "COMPLETED" && order.summary.type === "ORDER" && (
         <Notice tone="positive">
-          Đã hoàn tất và bàn giao sang khu đóng gói (giữ cho đơn bán).{" "}
+          Đã hoàn tất và tự động bàn giao sang khu đóng gói
+          {order.summary.packingLocation ? (
+            <>
+              {" "}
+              <span className={MONO}>{order.summary.packingLocation}</span>
+            </>
+          ) : null}{" "}
+          (giữ cho đơn bán
+          {order.completedAt ? `, lúc ${formatDateTime(order.completedAt)}` : ""}).{" "}
           <Link href={ADMIN_ROUTES.packing.list} className="text-accent hover:underline">
             Mở đóng gói
           </Link>

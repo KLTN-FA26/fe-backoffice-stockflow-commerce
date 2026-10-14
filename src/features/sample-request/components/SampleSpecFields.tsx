@@ -1,6 +1,6 @@
 "use client";
 
-import { Controller } from "react-hook-form";
+import { Controller, useWatch } from "react-hook-form";
 
 import { DesignSnapshotField } from "@/components/backoffice/DesignSnapshotField";
 import { FORM_INPUT_CLASS, FormField, fieldA11y } from "@/components/shared/FormField";
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import type { Control, FieldErrors, UseFormRegister } from "react-hook-form";
 import type { SampleCreateOutput, SampleCreateValues } from "@/features/sample-request/types";
 
-/** Quy cách một lần mẫu: thiết kế đã xác nhận + phôi + SL (1–1000 cái) + hạn mong muốn. */
+/** Quy cách một lần mẫu: phôi + thiết kế đã xác nhận (lọc theo phôi) + SL (1–1000 cái) + hạn mong muốn. */
 export function SampleSpecFields({
   control: c,
   register: r,
@@ -22,21 +22,9 @@ export function SampleSpecFields({
   errors: FieldErrors<SampleCreateValues>;
   customerId: string;
 }) {
+  const blankSku = useWatch({ control: c, name: "blankSku" });
   return (
     <>
-      <Controller
-        control={c}
-        name="designSnapshotId"
-        render={({ field }) => (
-          <DesignSnapshotField
-            id="sample-design"
-            customerId={customerId}
-            value={field.value}
-            onChange={field.onChange}
-            error={errors.designSnapshotId?.message}
-          />
-        )}
-      />
       <FormField id="sample-sku" label="Mã phôi (SKU)" required error={errors.blankSku?.message}>
         <Input
           {...r("blankSku")}
@@ -44,6 +32,20 @@ export function SampleSpecFields({
           className={`${FORM_INPUT_CLASS} font-[family-name:var(--font-mono)] uppercase`}
         />
       </FormField>
+      <Controller
+        control={c}
+        name="designSnapshotId"
+        render={({ field }) => (
+          <DesignSnapshotField
+            id="sample-design"
+            customerId={customerId}
+            blankSku={blankSku ?? ""}
+            value={field.value}
+            onChange={field.onChange}
+            error={errors.designSnapshotId?.message}
+          />
+        )}
+      />
       <FormField
         id="sample-qty"
         label="Số lượng mẫu (cái)"

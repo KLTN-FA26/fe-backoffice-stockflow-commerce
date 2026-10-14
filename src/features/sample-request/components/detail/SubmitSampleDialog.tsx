@@ -3,32 +3,40 @@
 import { useState } from "react";
 
 import { WAREHOUSE_PERMISSIONS } from "@/constants";
+import { apiErrorMessage } from "@/lib/api/error-message";
 import { useCan } from "@/lib/auth/components/Can";
 import { useWarehouseOptions } from "@/lib/references/warehouse-options";
 import { sampleErrorMessage } from "@/features/sample-request/errors";
 import { useSubmitSample } from "@/features/sample-request/mutations";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { FORM_INPUT_CLASS, FormField, fieldA11y } from "@/components/shared/FormField";
-import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
+/**
+ * Nộp lần mẫu vào một kho thật (SCRUM-403): danh sách kho đang hoạt động từ `GET /warehouses`
+ * (SALES_STAFF có `warehouse-warehouses:READ` từ BE PR #109, V20261015000800). Không có ô nhập mã kho.
+ */
 function SubmitForm({ id, onClose }: { id: string; onClose: () => void }) {
-  // GAP BE (d215f6e): SALES_STAFF không có `warehouse-warehouses:READ` → không tải được danh sách
-  // kho; khi đó cho nhập mã kho (BE vẫn kiểm tra kho tồn tại + đang hoạt động).
   const canListWarehouses = useCan(WAREHOUSE_PERMISSIONS.read);
   const warehouses = useWarehouseOptions(canListWarehouses);
   const [warehouseId, setWarehouseId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const submit = useSubmitSample();
-  const listed = canListWarehouses && warehouses.isSuccess;
+  const options = warehouses.data ?? [];
+
+  let status: string | undefined;
+  if (!canListWarehouses)
+    status = "Tài khoản chưa được cấp quyền xem danh sách kho — chưa nộp mẫu được.";
+  else if (warehouses.isPending) status = "Đang tải danh sách kho…";
+  else if (warehouses.isError) status = apiErrorMessage(warehouses.error);
+  else if (options.length === 0) status = "Chưa có kho nào đang hoạt động.";
 
   return (
     <FormDialogBody
       title="Gửi sản xuất mẫu"
       description="Tạo lệnh sản xuất mẫu và giữ phôi ngay tại kho được chọn. Kho thiếu phôi khả dụng thì hệ thống từ chối."
       submitLabel="Gửi sản xuất"
-      canSubmit={UUID.test(warehouseId)}
+      canSubmit={options.some((warehouse) => warehouse.warehouseId === warehouseId)}
       isPending={submit.isPending}
       error={error}
       onCancel={onClose}
@@ -40,41 +48,26 @@ function SubmitForm({ id, onClose }: { id: string; onClose: () => void }) {
         );
       }}
     >
-      {listed ? (
-        <FormField id="submit-warehouse" label="Kho sản xuất" required>
-          <select
-            id="submit-warehouse"
-            value={warehouseId}
-            onChange={(event) => setWarehouseId(event.target.value)}
-            className={`${FORM_INPUT_CLASS} border px-2`}
-          >
-            <option value="">— Chọn kho —</option>
-            {(warehouses.data ?? []).map((warehouse) => (
-              <option key={warehouse.warehouseId} value={warehouse.warehouseId}>
-                {warehouse.code} — {warehouse.name}
-              </option>
-            ))}
-          </select>
-        </FormField>
-      ) : (
-        <FormField
-          id="submit-warehouse-id"
-          label="Mã kho (UUID)"
-          required
-          error={warehouseId && !UUID.test(warehouseId) ? "Mã kho phải là UUID hợp lệ" : undefined}
-          hint="Tài khoản chưa được cấp quyền xem danh sách kho (đã báo BE). Nhập mã kho do điều phối cung cấp."
+      <FormField id="submit-warehouse" label="Kho sản xuất" required hint={status}>
+        <select
+          {...fieldA11y("submit-warehouse", undefined, !!status)}
+          value={warehouseId}
+          disabled={options.length === 0}
+          onChange={(event) => setWarehouseId(event.target.value)}
+          className={`${FORM_INPUT_CLASS} border px-2`}
         >
-          <Input
-            {...fieldA11y(
-              "submit-warehouse-id",
-              warehouseId && !UUID.test(warehouseId) ? "invalid" : undefined,
-              true,
-            )}
-            value={warehouseId}
-            onChange={(event) => setWarehouseId(event.target.value.trim())}
-            className={`${FORM_INPUT_CLASS} font-[family-name:var(--font-mono)]`}
-          />
-        </FormField>
+          <option value="">— Chọn kho —</option>
+          {options.map((warehouse) => (
+            <option key={warehouse.warehouseId} value={warehouse.warehouseId}>
+              {warehouse.code} — {warehouse.name}
+            </option>
+          ))}
+        </select>
+      </FormField>
+      {warehouses.isError && (
+        <Button type="button" variant="link" size="xs" onClick={() => void warehouses.refetch()}>
+          Thử lại
+        </Button>
       )}
     </FormDialogBody>
   );

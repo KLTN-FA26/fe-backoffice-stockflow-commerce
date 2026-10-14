@@ -173,6 +173,14 @@ export const WAREHOUSE_PERMISSIONS = {
   locationsRead: "warehouse-locations:READ",
 } as const;
 
+/**
+ * Thiết kế đã khách xác nhận — `design-snapshots` (BE PR #109 `DesignSnapshotController`, cấp cho SALES_STAFF ở
+ * V20261015000800). Chỉ back-office; BE từ chối khách hàng dù khách cũng có mã quyền này.
+ */
+export const DESIGN_SNAPSHOT_PERMISSIONS = {
+  read: "design-snapshots:READ",
+} as const;
+
 /** Xuất phôi cho LSX + gửi / nhận gia công — `production-material-issues` (seed V20261015000400). */
 export const MATERIAL_ISSUE_PERMISSIONS = {
   read: "production-material-issues:READ",

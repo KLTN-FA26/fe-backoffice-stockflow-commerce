@@ -20,6 +20,8 @@ import {
   listSubcontractReceipts,
 } from "./subcontract-flow-api";
 
+import { getApprovedSample, getPackingLocations, getPendingIssue } from "./reference-api";
+
 import type { ListProductionParams } from "./api";
 import type { ProductionDetail, ProductionRow } from "./types";
 
@@ -64,6 +66,12 @@ export const useSubcontractRecalls = (id: string, enabled = true) =>
   useSub(id, "subcontract-recalls", listSubcontractRecalls, enabled);
 export const useSettlement = (id: string, enabled = true) =>
   useSub(id, "settlement", getSettlement, enabled);
+export const usePendingIssue = (id: string, enabled = true) =>
+  useSub(id, "material-issues-pending", getPendingIssue, enabled);
+export const useApprovedSample = (id: string, enabled = true) =>
+  useSub(id, "approved-sample", getApprovedSample, enabled);
+export const usePackingLocations = (id: string, enabled = true) =>
+  useSub(id, "packing-locations", getPackingLocations, enabled);
 
 export function useProductionDashboard(params: {
   from?: string;

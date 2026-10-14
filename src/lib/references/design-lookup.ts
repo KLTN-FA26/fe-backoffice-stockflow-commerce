@@ -1,74 +1,108 @@
 /**
- * Thiết kế đã khách xác nhận → `designSnapshotId` cho dòng báo giá / yêu cầu mẫu.
+ * Thiết kế khách đã xác nhận → `designSnapshotId` cho dòng báo giá / yêu cầu mẫu (SCRUM-403/448/449).
  *
- * BE (d215f6e, DesignWorkflowController): `GET /designs` chỉ trả bản nháp mà người gọi là owner /
- * designer được gán / reviewer — KHÔNG lọc theo khách. Sales chỉ thấy thiết kế mình tham gia.
- * Đây là GAP BE (ghi ở FE-API-READINESS): chưa có "snapshot đã xác nhận của khách X". UI cho phép
- * dán mã snapshot khi không tìm thấy trong danh sách; BE vẫn kiểm tra quyền sở hữu + xác nhận.
+ * BE PR #109 `DesignSnapshotController` (quyền `design-snapshots:READ`, chỉ back-office):
+ * - `GET /design-snapshots?customerId=&sku=` — snapshot đã xác nhận của ĐÚNG khách, mới nhất trước; `sku`
+ *   thu hẹp về thiết kế của sản phẩm chứa SKU phôi đó (khớp đúng mã).
+ * - `GET /design-snapshots/{id}/preview?customerId=` — link ngắn hạn tới CUSTOMER_PREVIEW khách đã xác nhận;
+ *   snapshot của khách khác → 404, file đổi checksum → 409.
+ * Bản nháp (`GET /designs`) không còn dùng ở đây: đó là việc của designer / reviewer.
  */
 
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 
 import { api } from "@/lib/api/client";
-import { ApiError } from "@/lib/api/error";
 import { QUERY_TIMES } from "@/lib/api/query-client";
 
-const designDraftSchema = z.object({
-  id: z.string(),
-  customerId: z.string(),
-  productId: z.string(),
-  name: z.string(),
-  status: z.string(),
+const artifactSchema = z.object({
+  artifactId: z.string(),
+  role: z.string(),
+  originalName: z.string(),
+  contentType: z.string(),
+  sizeBytes: z.number(),
+  checksum: z.string(),
 });
-const designPageSchema = z.object({ items: z.array(designDraftSchema) });
 
-const designSnapshotSchema = z.object({
-  id: z.string(),
+const confirmedSnapshotSchema = z.object({
+  snapshotId: z.string(),
   draftId: z.string(),
+  designName: z.string(),
+  customerId: z.string(),
+  productId: z.string().nullish(),
   checksum: z.string(),
   confirmedAt: z.string(),
+  artifacts: z.array(artifactSchema).nullish(),
+});
+const confirmedSnapshotPageSchema = z.object({
+  items: z.array(confirmedSnapshotSchema),
+  totalElements: z.number().int(),
 });
 
-export type DesignDraftRef = z.infer<typeof designDraftSchema>;
-export type DesignSnapshotRef = z.infer<typeof designSnapshotSchema>;
+const snapshotPreviewSchema = z.object({
+  snapshotId: z.string(),
+  artifactId: z.string(),
+  originalName: z.string(),
+  contentType: z.string(),
+  sizeBytes: z.number(),
+  checksum: z.string(),
+  url: z.string(),
+  expiresAt: z.string(),
+});
 
-export const designRefKeys = {
-  all: ["references", "designs"] as const,
-  visible: () => [...designRefKeys.all, "visible"] as const,
-  snapshot: (draftId: string) => [...designRefKeys.all, "snapshot", draftId] as const,
+export type ConfirmedSnapshot = z.infer<typeof confirmedSnapshotSchema>;
+export type SnapshotPreview = z.infer<typeof snapshotPreviewSchema>;
+
+/** Đủ cho một khách; Sales hiếm khi có hơn vài chục thiết kế đã xác nhận cho một khách. */
+const SNAPSHOT_PAGE_SIZE = 50;
+
+export const designSnapshotKeys = {
+  all: ["references", "design-snapshots"] as const,
+  confirmed: (customerId: string, sku: string) =>
+    [...designSnapshotKeys.all, "confirmed", customerId, sku] as const,
+  preview: (snapshotId: string, customerId: string) =>
+    [...designSnapshotKeys.all, "preview", snapshotId, customerId] as const,
 };
 
-/** Thiết kế người dùng hiện tại được thấy, lọc theo khách ở client. */
-export function useVisibleDesigns(customerId: string | undefined, enabled = true) {
-  const query = useQuery({
-    queryKey: designRefKeys.visible(),
-    queryFn: async ({ signal }) => {
-      const params = new URLSearchParams({ page: "0", size: "200" });
-      const { data } = await api.get<unknown>("/designs", { params, signal });
-      return designPageSchema.parse(data).items;
-    },
+export async function fetchConfirmedSnapshots(
+  customerId: string,
+  sku: string,
+  signal?: AbortSignal,
+) {
+  const params = new URLSearchParams({ customerId, page: "0", size: String(SNAPSHOT_PAGE_SIZE) });
+  if (sku) params.set("sku", sku);
+  const { data } = await api.get<unknown>("/design-snapshots", { params, signal });
+  return confirmedSnapshotPageSchema.parse(data);
+}
+
+export async function fetchSnapshotPreview(
+  snapshotId: string,
+  customerId: string,
+  signal?: AbortSignal,
+): Promise<SnapshotPreview> {
+  const { data } = await api.get<unknown>(
+    `/design-snapshots/${encodeURIComponent(snapshotId)}/preview`,
+    { params: new URLSearchParams({ customerId }), signal },
+  );
+  return snapshotPreviewSchema.parse(data);
+}
+
+/** `sku` rỗng = mọi thiết kế đã xác nhận của khách. `enabled=false` khi thiếu quyền (tránh 403). */
+export function useConfirmedSnapshots(customerId: string, sku: string, enabled = true) {
+  return useQuery({
+    queryKey: designSnapshotKeys.confirmed(customerId, sku),
+    queryFn: ({ signal }) => fetchConfirmedSnapshots(customerId, sku, signal),
     enabled: enabled && !!customerId,
     ...QUERY_TIMES.list,
   });
-  return {
-    ...query,
-    designs: (query.data ?? []).filter((design) => design.customerId === customerId),
-  };
 }
 
-/** Snapshot đã xác nhận của một bản nháp; 404 = khách chưa xác nhận → `null`. */
-export async function fetchDesignSnapshot(
-  draftId: string,
-  signal?: AbortSignal,
-): Promise<DesignSnapshotRef | null> {
-  try {
-    const { data } = await api.get<unknown>(`/designs/${encodeURIComponent(draftId)}/snapshot`, {
-      signal,
-    });
-    return designSnapshotSchema.parse(data);
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 404) return null;
-    throw error;
-  }
+/** Link ký ngắn hạn (BE no-store): không giữ lâu trong cache, hỏi lại khi cần link mới. */
+export function useSnapshotPreview(snapshotId: string, customerId: string, enabled = true) {
+  return useQuery({
+    queryKey: designSnapshotKeys.preview(snapshotId, customerId),
+    queryFn: ({ signal }) => fetchSnapshotPreview(snapshotId, customerId, signal),
+    enabled: enabled && !!snapshotId && !!customerId,
+    ...QUERY_TIMES.detail,
+  });
 }

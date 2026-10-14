@@ -86,6 +86,7 @@ export function QuoteLineEditor({
             <DesignSnapshotField
               id={`${prefix}-design`}
               customerId={customerId}
+              blankSku={blankSku ?? ""}
               value={field.value}
               onChange={field.onChange}
               error={errors?.designSnapshotId?.message}

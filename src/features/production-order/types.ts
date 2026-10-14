@@ -18,6 +18,11 @@ import type {
   subcontractRecallDtoSchema,
   subcontractReceiptDtoSchema,
 } from "./subcontract-schemas";
+import type {
+  approvedSampleDtoSchema,
+  pendingHoldDtoSchema,
+  pendingIssueDtoSchema,
+} from "./reference-schemas";
 
 export type ProductionRow = z.infer<typeof productionRowDtoSchema>;
 export type ProductionDetail = z.infer<typeof productionDetailDtoSchema>;
@@ -34,3 +39,7 @@ export type Settlement = z.infer<typeof settlementDtoSchema>;
 export type HoldReason = (typeof HOLD_REASONS)[number];
 export type ScrapReason = (typeof SCRAP_REASONS)[number];
 export type SubcontractMethod = (typeof SUBCONTRACT_METHODS)[number];
+
+export type PendingIssue = z.infer<typeof pendingIssueDtoSchema>;
+export type PendingHold = z.infer<typeof pendingHoldDtoSchema>;
+export type ApprovedSample = z.infer<typeof approvedSampleDtoSchema>;

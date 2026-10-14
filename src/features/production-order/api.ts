@@ -137,17 +137,26 @@ export const stopProduction = (i: {
     ...(i.scrap.length ? { scrap: i.scrap } : {}),
   });
 
-/** Quét xuất phôi: `requestId` là khoá idempotent — bấm lại / mạng chập chờn không xuất trùng. */
+/**
+ * Quét xuất phôi: `requestId` là khoá idempotent — bấm lại / mạng chập chờn không xuất trùng.
+ * `scannedLocation` / `scannedCode` (BE PR #109, SCRUM-409/410): vị trí nguồn và SKU / mã vạch quét được —
+ * BE so với phiếu giữ TRƯỚC khi chuyển (ISSUE_LOCATION_MISMATCH / ISSUE_ITEM_MISMATCH); bỏ trống thì phiếu
+ * giữ tự quyết như trước.
+ */
 export async function issueMaterial(i: {
   id: string;
   requestId: string;
   toLocation: string;
   reservationId?: string;
+  scannedLocation?: string;
+  scannedCode?: string;
 }) {
   const { data } = await api.post<unknown>(`${byId(i.id)}/material-issues`, {
     requestId: i.requestId,
     toLocation: i.toLocation,
     ...(i.reservationId ? { reservationId: i.reservationId } : {}),
+    ...(i.scannedLocation ? { scannedLocation: i.scannedLocation } : {}),
+    ...(i.scannedCode ? { scannedCode: i.scannedCode } : {}),
   });
   return materialIssueResultDtoSchema.parse(data);
 }

@@ -1,14 +1,11 @@
 "use client";
 
-import Link from "next/link";
-
-import { ADMIN_ROUTES } from "@/constants";
 import { printFileErrorMessage } from "@/features/production-order/errors";
 import { usePrintFile } from "@/features/production-order/queries";
 import { SignedFilePreview } from "@/components/backoffice/SignedFilePreview";
 import { Skeleton } from "@/components/shared/Skeleton";
 
-import { MONO } from "../copy";
+import { ApprovedSampleReference } from "./ApprovedSampleReference";
 
 import type { ProductionDetail } from "@/features/production-order/types";
 
@@ -31,36 +28,16 @@ function LockedFileThumb({ order }: { order: ProductionDetail }) {
   );
 }
 
-function ReferenceText({
-  order,
-  canReadSample,
-}: {
-  order: ProductionDetail;
-  canReadSample: boolean;
-}) {
-  // BR-PRD-05 (SCRUM-399): LSX mẫu đối chiếu file in; LSX đơn đối chiếu mẫu khách đã duyệt.
-  if (order.summary.type === "SAMPLE") return <>Chuẩn đối chiếu: file in đã khoá.</>;
-  if (!order.approvedSampleId)
-    return <>Thiết kế in lại — không có mẫu mới; đối chiếu file in đã khoá.</>;
-  return (
-    <>
-      Chuẩn đối chiếu: mẫu khách đã duyệt{" "}
-      {canReadSample ? (
-        <Link
-          href={ADMIN_ROUTES.sampleRequests.detail(order.approvedSampleId)}
-          className="text-accent hover:underline"
-        >
-          mở phiếu mẫu
-        </Link>
-      ) : (
-        <span className={MONO}>{order.approvedSampleId.slice(0, 8)}</span>
-      )}
-      . Hệ thống chưa lưu ảnh của mẫu đã duyệt — so với mẫu vật và file in đã khoá.
-    </>
-  );
-}
+const SUBCONTRACT_NOTE = (
+  <p className="text-ink-tertiary text-xs">
+    Hàng gia công trả về chỉ QC một lần tại đây; kho chỉ đếm và đối soát (quyết định 2026-10-13).
+  </p>
+);
 
-/** Chuẩn đối chiếu đặt cạnh form QC (SCRUM-419); bản thu nhỏ chỉ hiện khi đang QC. */
+/**
+ * Chuẩn đối chiếu đặt cạnh form QC (SCRUM-418/419, BR-PRD-05): LSX mẫu so với file in đã khoá; LSX đơn so với
+ * lần mẫu khách đã duyệt (ảnh khách duyệt qua `approved-sample`). Ảnh / link chỉ tải khi đang QC.
+ */
 export function Reference({
   order,
   canReadSample,
@@ -70,19 +47,29 @@ export function Reference({
   canReadSample: boolean;
   withPreview: boolean;
 }) {
+  const subcontracted = order.summary.mode === "SUBCONTRACTED" && SUBCONTRACT_NOTE;
+  if (order.summary.type === "ORDER" && order.approvedSampleId && withPreview)
+    return (
+      <div className="space-y-1">
+        <ApprovedSampleReference
+          order={order}
+          canReadSample={canReadSample}
+          fallback={<LockedFileThumb order={order} />}
+        />
+        {subcontracted}
+      </div>
+    );
+  let text = "Chuẩn đối chiếu: file in đã khoá.";
+  if (order.summary.type === "ORDER")
+    text = order.approvedSampleId
+      ? "Chuẩn đối chiếu: lần mẫu khách đã duyệt (hiện khi lệnh tới bước QC)."
+      : "Thiết kế in lại — không có mẫu mới; đối chiếu file in đã khoá.";
   return (
     <div className="flex flex-wrap items-start gap-3">
       {withPreview && <LockedFileThumb order={order} />}
       <div className="min-w-0 flex-1 space-y-1">
-        <p className="text-ink-secondary text-[0.8125rem]">
-          <ReferenceText order={order} canReadSample={canReadSample} />
-        </p>
-        {order.summary.mode === "SUBCONTRACTED" && (
-          <p className="text-ink-tertiary text-xs">
-            Hàng gia công trả về chỉ QC một lần tại đây; kho chỉ đếm và đối soát (quyết định
-            2026-10-13).
-          </p>
-        )}
+        <p className="text-ink-secondary text-[0.8125rem]">{text}</p>
+        {subcontracted}
       </div>
     </div>
   );
