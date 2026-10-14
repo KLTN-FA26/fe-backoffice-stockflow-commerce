@@ -40,13 +40,26 @@ export function LocationField({
   const canReadLayout = useCan(WAREHOUSE_PERMISSIONS.locationsRead);
   const areas = useWarehouseAreas(warehouseId, canReadLayout);
   const options = (areas.data ?? []).filter((area) => !areaType || area.type === areaType);
-  const hint = options.length
-    ? emptyHint
-    : `Nhập hoặc quét mã vị trí.${emptyHint ? ` ${emptyHint}` : ""}`;
+  // Đang tải sơ đồ: giữ chỗ bằng select khoá — không hiện ô nhập rồi tráo sang select (mã đã gõ/quét
+  // vào ô tạm sẽ còn trong state nhưng select không hiện, gửi đi một vị trí người dùng không thấy).
+  const loading = canReadLayout && areas.isLoading;
+  const hint =
+    options.length || loading
+      ? emptyHint
+      : `Nhập hoặc quét mã vị trí.${emptyHint ? ` ${emptyHint}` : ""}`;
 
   return (
     <FormField id={id} label={label} required={required} error={error} hint={hint}>
-      {options.length ? (
+      {loading ? (
+        <select
+          {...fieldA11y(id, error, !!hint)}
+          disabled
+          aria-busy
+          className={`${FORM_INPUT_CLASS} border px-2`}
+        >
+          <option>Đang tải vị trí…</option>
+        </select>
+      ) : options.length ? (
         <select
           {...fieldA11y(id, error, !!hint)}
           value={value}
