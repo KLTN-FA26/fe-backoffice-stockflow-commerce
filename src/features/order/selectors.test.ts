@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   cancelConsequence,
+  creditHoldReason,
   creditOverage,
   creditState,
   customLineCount,
@@ -28,7 +29,7 @@ describe("depositState — docs 15 BR-02 / docs 19 BR-09", () => {
 });
 
 describe("creditState / creditOverage — docs 14 BR-06", () => {
-  it("đơn CREDIT On Hold = đang chờ duyệt vượt hạn mức", () => {
+  it("đơn CREDIT On Hold = đang tạm giữ (chỉ trạng thái, không phải nguyên nhân)", () => {
     expect(creditState({ paymentTerm: "CREDIT", status: "On Hold" })).toBe("on-hold");
     expect(creditState({ paymentTerm: "CREDIT", status: "Confirmed" })).toBe("within-limit");
     expect(creditState({ paymentTerm: "DEPOSIT", status: "On Hold" })).toBe("not-applicable");
@@ -36,6 +37,38 @@ describe("creditState / creditOverage — docs 14 BR-06", () => {
   it("phần vượt = dư nợ + giá trị đơn − hạn mức, không âm", () => {
     expect(creditOverage({ creditLimit: 100, exposure: 60, orderAmount: 70 })).toBe(30);
     expect(creditOverage({ creditLimit: 100, exposure: 10, orderAmount: 20 })).toBe(0);
+  });
+});
+
+describe("creditHoldReason — chỉ nêu nguyên nhân số liệu BE chứng minh được", () => {
+  const order = { currency: "VND" };
+  const hold = (creditLimit: number, exposure: number, orderAmount: number, currency = "VND") => ({
+    creditLimit,
+    exposure,
+    orderAmount,
+    order: { ...order, currency },
+  });
+
+  it("A. vượt > 0 → over-limit kèm đúng số vượt", () => {
+    expect(creditHoldReason(hold(1_000_000, 800_000, 350_000))).toEqual({
+      kind: "over-limit",
+      excess: 150_000,
+    });
+  });
+
+  it("B. vượt = 0 (BE submitOnCredit chỉ giữ khi OVERDUE hoặc OVER_LIMIT) → overdue", () => {
+    expect(creditHoldReason(hold(1_000_000, 200_000, 350_000))).toEqual({ kind: "overdue" });
+    // Đúng bằng hạn mức: BE coi là trong hạn mức (≤) → đang giữ thì chỉ có thể vì nợ quá hạn
+    expect(creditHoldReason(hold(1_000_000, 650_000, 350_000))).toEqual({ kind: "overdue" });
+  });
+
+  it("sai số số thực dưới đơn vị nhỏ nhất của tiền tệ không thành 'vượt 0,00'", () => {
+    // 100.1 + 0.2 − 100.3 ≈ 5.7e-14 trên số thực
+    expect(creditHoldReason(hold(100.3, 100.1, 0.2, "USD"))).toEqual({ kind: "overdue" });
+    expect(creditHoldReason(hold(100, 100, 0.01, "USD"))).toEqual({
+      kind: "over-limit",
+      excess: expect.closeTo(0.01, 6),
+    });
   });
 });
 
@@ -49,11 +82,14 @@ describe("releaseBlockers — lý do chưa release biết trước", () => {
       }),
     ).toEqual([{ rule: "BR-PRD-09", message: "Đơn đặt cọc chưa nhận đủ tiền cọc." }]);
   });
-  it("BR-02: đơn công nợ On Hold chờ duyệt", () => {
-    expect(
-      releaseBlockers({ status: "On Hold", paymentTerm: "CREDIT", depositReceivedAt: null })[0]
-        ?.rule,
-    ).toBe("BR-02");
+  it("BR-02: đơn công nợ On Hold chờ duyệt — không đoán nguyên nhân giữ", () => {
+    const [blocker] = releaseBlockers({
+      status: "On Hold",
+      paymentTerm: "CREDIT",
+      depositReceivedAt: null,
+    });
+    expect(blocker?.rule).toBe("BR-02");
+    expect(blocker?.message).not.toMatch(/vượt hạn mức|quá hạn/i);
   });
   it("đơn Confirmed → không có lý do biết trước (BR-PRD-08 do BE kiểm)", () => {
     expect(

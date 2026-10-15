@@ -1,5 +1,6 @@
 import { formatMoney } from "@/lib/format";
 import { formatDateTime } from "@/lib/format/date";
+import { STATUS_LABEL_VI } from "@/lib/status-map";
 
 import { creditState, depositState } from "../selectors";
 
@@ -48,14 +49,18 @@ export function DepositValue({ order }: { order: Order }) {
   );
 }
 
-/** Công nợ — docs 14 BR-06: vượt hạn mức → On Hold chờ người có quyền duyệt (SCRUM-427). */
+/**
+ * Công nợ — docs 14 BR-06 (SCRUM-427). Chỉ nêu TRẠNG THÁI: `OrderResponse` không mang lý do giữ
+ * (vượt hạn mức / nợ quá hạn / lý do khác), nên On Hold hiện "Tạm giữ" — cùng nhãn trạng thái
+ * On Hold (lib/status-map) — không đoán nguyên nhân. Lý do chứng minh được nằm ở hàng đợi công nợ.
+ */
 export function CreditValue({ order }: { order: Order }) {
   const onHold = creditState(order) === "on-hold";
   return (
     <span className="flex flex-col items-end">
       {order.creditTermDays !== null && <span>Kỳ hạn {order.creditTermDays} ngày</span>}
       <DerivedState tone={onHold ? "warning" : "neutral"}>
-        {onHold ? "Vượt hạn mức — chờ duyệt" : "Đã qua kiểm hạn mức"}
+        {onHold ? STATUS_LABEL_VI["On Hold"] : "Đã qua kiểm hạn mức"}
       </DerivedState>
     </span>
   );

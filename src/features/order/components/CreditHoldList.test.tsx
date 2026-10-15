@@ -48,13 +48,26 @@ afterEach(() => vi.restoreAllMocks());
 const DIALOG_FLOW_TIMEOUT_MS = 15_000;
 
 describe("Credit hold — danh sách (SCRUM-427)", () => {
-  it("hiện số liệu hạn mức + phần vượt (docs 14 BR-06: dư nợ + đơn − hạn mức)", async () => {
+  it("A. vượt > 0 → lý do 'Vượt hạn mức' + số vượt định dạng tiền (docs 14 BR-06)", async () => {
     renderList(ORDER_PERMISSION_SETS.accountant);
 
     const row = (await screen.findByText(apiOrder.orderNumber)).closest("tr");
     expect(row).not.toBeNull();
     // 800.000 + 350.000 − 1.000.000 = 150.000
-    expect(within(row as HTMLElement).getByText(/150\.000/)).toBeInTheDocument();
+    const reason = within(row as HTMLElement).getByText(/^Vượt hạn mức/);
+    expect(reason).toHaveTextContent(/^Vượt hạn mức\s*150\.000\s*₫$/);
+    expect(within(row as HTMLElement).queryByText(/công nợ quá hạn/)).not.toBeInTheDocument();
+  });
+
+  it("B. vượt = 0 (giữ vì nợ quá hạn) → 'Khách có công nợ quá hạn', KHÔNG 'Vượt hạn mức 0 ₫'", async () => {
+    // 200.000 + 350.000 ≤ 1.000.000: không vượt — BE chỉ giữ vì khách có nợ quá hạn (OVERDUE)
+    renderList(ORDER_PERMISSION_SETS.accountant, [{ ...hold, exposure: 200_000 }]);
+
+    const row = (await screen.findByText(apiOrder.orderNumber)).closest("tr");
+    expect(within(row as HTMLElement).getByText("Khách có công nợ quá hạn")).toBeInTheDocument();
+    expect(within(row as HTMLElement).queryByText(/Vượt hạn mức/)).not.toBeInTheDocument();
+    expect((row as HTMLElement).textContent).not.toMatch(/Vượt hạn mức\s*0/);
+    expect(screen.getByRole("columnheader", { name: "Lý do giữ" })).toBeInTheDocument();
   });
 
   it("ACCOUNTANT (APPROVE) thấy Duyệt / Từ chối; mã đơn không là link (không có quyền sales-orders)", async () => {

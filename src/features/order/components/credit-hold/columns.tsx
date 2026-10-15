@@ -6,7 +6,7 @@ import { ADMIN_ROUTES } from "@/constants";
 import { formatMoney } from "@/lib/format";
 import { formatDate, formatDateTime } from "@/lib/format/date";
 
-import { creditOverage } from "../../selectors";
+import { creditHoldReason } from "../../selectors";
 
 import type { ReactNode } from "react";
 import type { ColumnDef } from "@/components/shared/DataTable";
@@ -87,10 +87,20 @@ export function buildCreditHoldColumns(
     },
     { key: "creditLimit", header: "Hạn mức", align: "right", cell: (r) => money(r, r.creditLimit) },
     {
-      key: "overage",
-      header: "Vượt hạn mức",
+      // Lý do suy từ số liệu lúc kiểm — xem `creditHoldReason` (BE chưa trả outcome)
+      key: "reason",
+      header: "Lý do giữ",
       align: "right",
-      cell: (r) => money(r, creditOverage(r), "text-danger font-medium"),
+      cell: (r) => {
+        const reason = creditHoldReason(r);
+        return reason.kind === "over-limit" ? (
+          <span className="text-danger text-[0.8125rem] font-medium">
+            Vượt hạn mức {money(r, reason.excess, "text-danger")}
+          </span>
+        ) : (
+          <span className="text-danger text-[0.8125rem] font-medium">Khách có công nợ quá hạn</span>
+        );
+      },
     },
     {
       key: "checkedAt",

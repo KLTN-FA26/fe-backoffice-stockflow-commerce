@@ -62,6 +62,7 @@ export type { OrderAction, OrderActionCode, OrderActionContext } from "./lifecyc
 
 // Selectors
 export {
+  creditHoldReason,
   creditOverage,
   creditState,
   customLineCount,
