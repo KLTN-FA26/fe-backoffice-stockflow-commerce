@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 
+import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
 import { stockAdjustmentDto } from "./schemas";
@@ -26,6 +27,12 @@ export function adjustmentFixture(overrides: Partial<StockAdjustment> = {}) {
     version: 0,
     ...overrides,
   });
+}
+
+// MSW URL of a production request: the shared client's same-origin base path
+// (rewritten to the backend by next.config.ts), resolved against the jsdom origin.
+export function inventoryEndpoint(path: string) {
+  return new URL(`${api.defaults.baseURL ?? ""}${path}`, window.location.origin).href;
 }
 
 export function setInventoryTestActor(role: RoleName, userId = crypto.randomUUID()) {
