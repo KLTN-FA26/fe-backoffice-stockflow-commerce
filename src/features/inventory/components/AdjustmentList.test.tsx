@@ -82,6 +82,10 @@ describe("adjustment queue", () => {
       INVENTORY_ROUTES.adjustment(fixture.adjustmentId),
     );
     expect(screen.getByRole("cell", { name: "Chờ duyệt" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: INVENTORY_LABELS.movementTitle })).toHaveAttribute(
+      "href",
+      INVENTORY_ROUTES.movements,
+    );
     expect(
       screen.getByRole("link", { name: INVENTORY_LABELS.createAdjustment }),
     ).toBeInTheDocument();
