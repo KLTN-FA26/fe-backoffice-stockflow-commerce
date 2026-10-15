@@ -11,6 +11,4 @@
 export const SHARED_QUERY_ROOTS = {
   /** Tồn theo SKU / lô / vị trí — reserved + available đổi khi giữ chỗ đổi. */
   inventoryStock: "inventory-stock-items",
-  /** Phiếu giữ hàng (reservation) — trạng thái + hạn giữ chỗ. */
-  inventoryReservations: "inventory-stock-reservations",
 } as const;
