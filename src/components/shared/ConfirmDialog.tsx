@@ -34,6 +34,11 @@ interface ConfirmDialogProps {
    * thì người dùng sửa/thử lại, không phải gõ lại lý do.
    */
   closeOnConfirm?: boolean;
+  /**
+   * Lỗi của lần xác nhận vừa rồi, hiện TRONG dialog. Dialog modal ẩn phần còn lại của trang
+   * khỏi trình đọc màn hình, nên với `closeOnConfirm={false}` lỗi phải nằm ở đây mới đọc được.
+   */
+  error?: React.ReactNode;
 }
 
 export function ConfirmDialog({
@@ -50,6 +55,7 @@ export function ConfirmDialog({
   variant = "danger",
   loading = false,
   closeOnConfirm = true,
+  error,
 }: ConfirmDialogProps) {
   const [reason, setReason] = useState("");
   // Bên gọi đóng dialog qua prop `open` (không qua onOpenChange) → xoá lý do khi đóng.
@@ -110,6 +116,12 @@ export function ConfirmDialog({
                 onChange={setReason}
                 maxLength={reasonMaxLength}
               />
+            )}
+
+            {error && (
+              <div role="alert" className="text-danger text-[0.8125rem]">
+                {error}
+              </div>
             )}
           </div>
 

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
-import { INVENTORY_LABELS, STOCK_ADJUSTMENT_ACTION } from "@/constants/inventory";
+import { INVENTORY_LABELS, INVENTORY_LIMITS, STOCK_ADJUSTMENT_ACTION } from "@/constants/inventory";
 
 import { usePermissionChecker } from "@/lib/auth";
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -38,8 +38,11 @@ export function AdjustmentActions({ adjustment }: { adjustment: StockAdjustment 
   const pending = approve.isPending || reject.isPending || withdraw.isPending;
   const [action, setAction] = useState<(typeof actions)[number] | null>(null);
   const [error, setError] = useState<{ detail: string; traceId?: string } | null>(null);
+  // `pending` is a render snapshot: a second confirm in the same frame would still see false.
+  const running = useRef(false);
   const confirm = async (reason?: string) => {
-    if (pending || !action || !actions.includes(action)) return;
+    if (running.current || pending || !action || !actions.includes(action)) return;
+    running.current = true;
     setError(null);
     try {
       if (action === STOCK_ADJUSTMENT_ACTION.APPROVE)
@@ -49,17 +52,34 @@ export function AdjustmentActions({ adjustment }: { adjustment: StockAdjustment 
       if (action === STOCK_ADJUSTMENT_ACTION.REJECT) {
         const input = adjustmentRejectionInput.safeParse({ reason });
         if (!input.success) {
+          // Dialog stays open with the typed reason (closeOnConfirm={false}).
           setError({ detail: input.error.issues[0]?.message ?? INVENTORY_LABELS.rejectionReason });
           return;
         }
         await reject.mutateAsync({ id: adjustment.adjustmentId, input: input.data });
       }
+      // Only a confirmed success closes the dialog.
+      setAction(null);
     } catch (failure: unknown) {
       // Stale-state codes already refetched the detail in the mutation (mutations.ts).
       const view = inventoryErrorView(failure);
       setError({ detail: view.detail, traceId: view.traceId });
+    } finally {
+      running.current = false;
     }
   };
+  // An action that a refetch made unavailable (stale conflict) drops its dialog.
+  const dialogAction = action && actions.includes(action) ? action : null;
+  const errorView = error && (
+    <>
+      <p>{error.detail}</p>
+      {error.traceId && (
+        <p>
+          {INVENTORY_LABELS.trace}: {error.traceId}
+        </p>
+      )}
+    </>
+  );
   return (
     <div className="space-y-[var(--el-gap)]">
       <div className="flex gap-[var(--el-gap)]">
@@ -77,29 +97,33 @@ export function AdjustmentActions({ adjustment }: { adjustment: StockAdjustment 
         ))}
       </div>
       {pending && <p role="status">{INVENTORY_LABELS.submitting}</p>}
-      {error && (
+      {/* While the modal is open the page behind it is hidden from assistive tech, so the
+          error lives in the dialog; once it closes (stale action) it is shown here. */}
+      {errorView && !dialogAction && (
         <div role="alert" className="text-danger">
-          <p>{error.detail}</p>
-          {error.traceId && (
-            <p>
-              {INVENTORY_LABELS.trace}: {error.traceId}
-            </p>
-          )}
+          {errorView}
         </div>
       )}
-      {action && (
+      {dialogAction && (
         <ConfirmDialog
-          open={Boolean(action)}
+          open
           onOpenChange={(open) => {
-            if (!open) setAction(null);
+            if (!open) {
+              setAction(null);
+              setError(null);
+            }
           }}
-          title={actionLabels[action]}
-          description={actionDescriptions[action]}
-          confirmLabel={actionLabels[action]}
+          title={actionLabels[dialogAction]}
+          description={actionDescriptions[dialogAction]}
+          confirmLabel={actionLabels[dialogAction]}
           cancelLabel={INVENTORY_LABELS.cancel}
-          requireReason={action === STOCK_ADJUSTMENT_ACTION.REJECT}
+          requireReason={dialogAction === STOCK_ADJUSTMENT_ACTION.REJECT}
           reasonLabel={INVENTORY_LABELS.rejectionReason}
-          variant={action === STOCK_ADJUSTMENT_ACTION.APPROVE ? "default" : "danger"}
+          reasonMaxLength={INVENTORY_LIMITS.rejectionLength}
+          loading={pending}
+          closeOnConfirm={false}
+          error={errorView}
+          variant={dialogAction === STOCK_ADJUSTMENT_ACTION.APPROVE ? "default" : "danger"}
           onConfirm={(reason) => void confirm(reason)}
         />
       )}

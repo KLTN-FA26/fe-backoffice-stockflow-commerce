@@ -1,4 +1,4 @@
-import { cleanup, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
@@ -8,6 +8,7 @@ import {
   INVENTORY_ERROR_MESSAGES,
   INVENTORY_ERROR_TITLES,
   INVENTORY_LABELS,
+  INVENTORY_LIMITS,
 } from "@/constants/inventory";
 import { INVENTORY_PERMISSIONS } from "@/constants/permissions";
 import { STOCK_ADJUSTMENT_STATUS } from "@/constants/statuses";
@@ -78,6 +79,7 @@ describe("adjustment detail", () => {
       within(screen.getByRole("dialog")).getByRole("button", { name: INVENTORY_LABELS.approve }),
     );
     expect(await screen.findByText("Đã ghi sổ")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     await waitFor(() =>
       expect(
         screen.queryByRole("button", { name: INVENTORY_LABELS.approve }),
@@ -345,5 +347,142 @@ describe("adjustment detail", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: INVENTORY_LABELS.reject })).not.toBeInTheDocument();
     expect(screen.queryByText("Four eyes")).not.toBeInTheDocument();
+  });
+
+  describe("reject dialog lifecycle", () => {
+    const reason = "Thiếu chứng từ kiểm kê";
+
+    function serveRejection(
+      initial: ReturnType<typeof adjustmentFixture>,
+      respond: (attempt: number) => Promise<Response> | Response,
+    ) {
+      let fixture = initial;
+      const bodies: unknown[] = [];
+      server.use(
+        inventoryPermissions([adjustmentRead, adjustmentApprove]),
+        http.get(endpoint, () => HttpResponse.json({ success: true, data: fixture })),
+        http.post(`${endpoint}/rejection`, async ({ request }) => {
+          bodies.push(await request.json());
+          const response = await respond(bodies.length);
+          if (response.ok) fixture = { ...fixture, status: STOCK_ADJUSTMENT_STATUS.REJECTED };
+          return response;
+        }),
+      );
+      return bodies;
+    }
+
+    function rejected() {
+      return HttpResponse.json({
+        success: true,
+        data: adjustmentFixture({ status: STOCK_ADJUSTMENT_STATUS.REJECTED }),
+      });
+    }
+
+    async function openReject(id: string) {
+      renderInventory(<AdjustmentDetail id={id} />);
+      await userEvent.click(await screen.findByRole("button", { name: INVENTORY_LABELS.reject }));
+      return within(screen.getByRole("dialog"));
+    }
+
+    it("keeps the dialog and typed reason on API failure and closes only after success", async () => {
+      const fixture = adjustmentFixture();
+      const bodies = serveRejection(fixture, (attempt) =>
+        attempt === 1
+          ? HttpResponse.json(
+              { success: false, errorCode: "SERVER_ERROR", message: "Database exploded" },
+              { status: 500 },
+            )
+          : rejected(),
+      );
+      const dialog = await openReject(fixture.adjustmentId);
+      await userEvent.type(dialog.getByLabelText(/Lý do từ chối/), reason);
+      await userEvent.click(dialog.getByRole("button", { name: INVENTORY_LABELS.reject }));
+      expect(await dialog.findByRole("alert")).toHaveTextContent(INVENTORY_ERROR_MESSAGES.server);
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+      expect(dialog.getByLabelText(/Lý do từ chối/)).toHaveValue(reason);
+      expect(screen.queryByText(/Database exploded/)).not.toBeInTheDocument();
+      await userEvent.click(dialog.getByRole("button", { name: INVENTORY_LABELS.reject }));
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      expect(bodies).toEqual([{ reason }, { reason }]);
+    });
+
+    it("stays open and loading while pending and never sends a second reject", async () => {
+      const fixture = adjustmentFixture();
+      let release: () => void = () => undefined;
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const bodies = serveRejection(fixture, async () => {
+        await held;
+        return rejected();
+      });
+      const dialog = await openReject(fixture.adjustmentId);
+      await userEvent.type(dialog.getByLabelText(/Lý do từ chối/), reason);
+      const form = dialog.getByLabelText(/Lý do từ chối/).closest("form");
+      if (!form) throw new Error("reject form not rendered");
+      fireEvent.submit(form);
+      fireEvent.submit(form);
+      expect(await dialog.findByRole("button", { name: /Đang xử lý/ })).toBeDisabled();
+      expect(dialog.getByRole("button", { name: INVENTORY_LABELS.cancel })).toBeDisabled();
+      await userEvent.keyboard("{Escape}");
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+      fireEvent.submit(form);
+      expect(bodies).toHaveLength(1);
+      release();
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      expect(bodies).toHaveLength(1);
+    });
+
+    it("limits the reason to the backend rejection length", async () => {
+      const fixture = adjustmentFixture();
+      const bodies = serveRejection(fixture, () => rejected());
+      const dialog = await openReject(fixture.adjustmentId);
+      const field = dialog.getByLabelText(/Lý do từ chối/);
+      expect(field).toHaveAttribute("maxLength", String(INVENTORY_LIMITS.rejectionLength));
+      await userEvent.click(field);
+      await userEvent.paste("x".repeat(INVENTORY_LIMITS.rejectionLength + 1));
+      expect(field).toHaveValue("x".repeat(INVENTORY_LIMITS.rejectionLength));
+      await userEvent.click(dialog.getByRole("button", { name: INVENTORY_LABELS.reject }));
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      expect(bodies).toEqual([{ reason: "x".repeat(INVENTORY_LIMITS.rejectionLength) }]);
+    });
+
+    it("does not submit a blank or whitespace-only reason", async () => {
+      const fixture = adjustmentFixture();
+      const bodies = serveRejection(fixture, () => rejected());
+      const dialog = await openReject(fixture.adjustmentId);
+      await userEvent.type(dialog.getByLabelText(/Lý do từ chối/), "   ");
+      expect(dialog.getByRole("button", { name: INVENTORY_LABELS.reject })).toBeDisabled();
+      await userEvent.click(dialog.getByRole("button", { name: INVENTORY_LABELS.reject }));
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+      expect(bodies).toHaveLength(0);
+    });
+  });
+
+  it("withdraw sends one request and closes its dialog after success", async () => {
+    const requester = setInventoryTestActor("Warehouse Staff");
+    let fixture = adjustmentFixture({ requestedBy: requester });
+    let posts = 0;
+    server.use(
+      inventoryPermissions([adjustmentRead, stockUpdate]),
+      http.get(endpoint, () => HttpResponse.json({ success: true, data: fixture })),
+      http.post(`${endpoint}/withdrawal`, () => {
+        posts += 1;
+        fixture = {
+          ...fixture,
+          status: STOCK_ADJUSTMENT_STATUS.WITHDRAWN,
+          withdrawnAt: "2026-10-11T00:01:00Z",
+        };
+        return HttpResponse.json({ success: true, data: fixture });
+      }),
+    );
+    renderInventory(<AdjustmentDetail id={fixture.adjustmentId} />);
+    await userEvent.click(await screen.findByRole("button", { name: INVENTORY_LABELS.withdraw }));
+    await userEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: INVENTORY_LABELS.withdraw }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(await screen.findByText("Đã rút yêu cầu")).toBeInTheDocument();
+    expect(posts).toBe(1);
   });
 });

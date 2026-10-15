@@ -1,4 +1,4 @@
-import { cleanup, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
@@ -170,5 +170,74 @@ describe("adjustment create form", () => {
     expect(
       await screen.findByRole("button", { name: INVENTORY_LABELS.submitAdjustment }),
     ).toBeInTheDocument();
+  });
+
+  it("two submits in the same frame send exactly one POST", async () => {
+    const fixture = adjustmentFixture();
+    let posts = 0;
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    server.use(
+      http.post(endpoint, async () => {
+        posts += 1;
+        await held;
+        return HttpResponse.json({ success: true, data: fixture }, { status: 201 });
+      }),
+    );
+    renderInventory(<AdjustmentCreate />);
+    await enterAdjustment();
+    await userEvent.selectOptions(screen.getByLabelText(/Lý do điều chỉnh/), "SCRAP");
+    const submit = screen.getByRole("button", { name: INVENTORY_LABELS.submitAdjustment });
+    await waitFor(() => expect(submit).toBeEnabled());
+    const form = submit.closest("form");
+    if (!form) throw new Error("create form not rendered");
+    // No await between the two: React has not re-rendered isPending yet.
+    fireEvent.submit(form);
+    fireEvent.submit(form);
+    await waitFor(() => expect(posts).toBe(1));
+    release();
+    await waitFor(() =>
+      expect(navigation.push).toHaveBeenCalledWith(
+        INVENTORY_ROUTES.adjustment(fixture.adjustmentId),
+      ),
+    );
+    expect(posts).toBe(1);
+    expect(navigation.push).toHaveBeenCalledTimes(1);
+  });
+
+  it("releases the submit guard after a failure so a retry is sent", async () => {
+    const fixture = adjustmentFixture();
+    let posts = 0;
+    server.use(
+      http.post(endpoint, () => {
+        posts += 1;
+        return posts === 1
+          ? HttpResponse.json(
+              { success: false, errorCode: "SERVER_ERROR", message: "Boom" },
+              { status: 500 },
+            )
+          : HttpResponse.json({ success: true, data: fixture }, { status: 201 });
+      }),
+    );
+    renderInventory(<AdjustmentCreate />);
+    await enterAdjustment();
+    await userEvent.selectOptions(screen.getByLabelText(/Lý do điều chỉnh/), "SCRAP");
+    await userEvent.click(screen.getByRole("button", { name: INVENTORY_LABELS.submitAdjustment }));
+    expect(await screen.findByText(INVENTORY_ERROR_MESSAGES.server)).toBeInTheDocument();
+    // The user corrects the form (a server error keeps submit disabled until an edit).
+    const delta = screen.getByLabelText(/Chênh lệch số lượng/);
+    await userEvent.clear(delta);
+    await userEvent.type(delta, "-2");
+    const submit = screen.getByRole("button", { name: INVENTORY_LABELS.submitAdjustment });
+    await waitFor(() => expect(submit).toBeEnabled());
+    await userEvent.click(submit);
+    await waitFor(() =>
+      expect(navigation.push).toHaveBeenCalledWith(
+        INVENTORY_ROUTES.adjustment(fixture.adjustmentId),
+      ),
+    );
+    expect(posts).toBe(2);
   });
 });

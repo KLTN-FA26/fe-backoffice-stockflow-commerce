@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useRef } from "react";
 import { useForm } from "react-hook-form";
 
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
@@ -38,8 +39,12 @@ function AdjustmentCreateContent() {
     mode: "onChange",
     defaultValues: { locationCode: "", sku: "", lotNumber: "", note: "" },
   });
-  const submit = form.handleSubmit(async (input) => {
-    if (mutation.isPending) return;
+  // `mutation.isPending` is a render snapshot: two submits in one frame both see false.
+  // This ref flips synchronously after schema validation, before the first await.
+  const submitting = useRef(false);
+  const submitValid = async (input: CreateAdjustmentInput) => {
+    if (submitting.current || mutation.isPending) return;
+    submitting.current = true;
     form.clearErrors("root");
     try {
       const adjustment = await mutation.mutateAsync(input);
@@ -59,8 +64,10 @@ function AdjustmentCreateContent() {
         }
       }
       form.setError("root", { message: inventoryErrorView(error).detail });
+    } finally {
+      submitting.current = false;
     }
-  });
+  };
   return (
     <div className="space-y-[var(--card-pad)]">
       <PageHeader
@@ -69,7 +76,7 @@ function AdjustmentCreateContent() {
       />
       <InventoryOffline />
       <form
-        onSubmit={submit}
+        onSubmit={(event) => void form.handleSubmit(submitValid)(event)}
         className="border-border-default bg-bg-surface space-y-[var(--card-pad)] rounded-[var(--r-sm)] border p-[var(--card-pad)]"
       >
         <fieldset disabled={mutation.isPending}>
