@@ -6,8 +6,12 @@
 
 import { describe, expect, it } from "vitest";
 
-import { apiOrder } from "./__fixtures__/order";
-import { creditHoldDtoSchema, creditHoldPageDtoSchema } from "./credit-hold-schemas";
+import { apiCreditPosition, apiOrder } from "./__fixtures__/order";
+import {
+  creditHoldDtoSchema,
+  creditHoldPageDtoSchema,
+  creditPositionDtoSchema,
+} from "./credit-hold-schemas";
 import { productionOrderDtoSchema, productionOrderListDtoSchema } from "./production-schemas";
 import { orderDtoSchema, orderStatusChangeDtoSchema } from "./schemas";
 
@@ -146,5 +150,46 @@ describe("Production order (CONTRACT PENDING)", () => {
     expect(productionOrderDtoSchema.safeParse({ ...parent, mode: "OUTSOURCE" }).success).toBe(
       false,
     );
+  });
+});
+
+describe("CreditPositionResponse (GET /orders/credit-position/{customerId})", () => {
+  it("B. parse đúng hình BE; khách chỉ trả trước: field null bị bỏ khỏi JSON vẫn parse", () => {
+    expect(creditPositionDtoSchema.parse(apiCreditPosition)).toMatchObject({
+      allowedTerms: ["PREPAID", "DEPOSIT", "CREDIT"],
+      depositPercent: 40,
+      availableCredit: 200_000,
+      hasOverdue: false,
+    });
+    const prepaidOnly = {
+      customerId: apiOrder.customerId,
+      allowedTerms: ["PREPAID"],
+      defaultTerm: "PREPAID",
+      exposure: 0,
+      currency: "VND",
+      hasOverdue: false,
+    };
+    const parsed = creditPositionDtoSchema.parse(prepaidOnly);
+    expect(parsed.depositPercent).toBeUndefined();
+    expect(parsed.creditLimit).toBeUndefined();
+    expect(parsed.availableCredit).toBeUndefined();
+  });
+
+  it("C. thiếu field bắt buộc (exposure / currency / hasOverdue / allowedTerms) → fail", () => {
+    for (const key of ["exposure", "currency", "hasOverdue", "allowedTerms", "customerId"]) {
+      const broken: Record<string, unknown> = { ...apiCreditPosition };
+      delete broken[key];
+      expect(creditPositionDtoSchema.safeParse(broken).success, key).toBe(false);
+    }
+  });
+
+  it("mã phương thức FE chưa biết bị bỏ khỏi allowedTerms / defaultTerm — không thành lựa chọn", () => {
+    const parsed = creditPositionDtoSchema.parse({
+      ...apiCreditPosition,
+      allowedTerms: ["PREPAID", "INSTALLMENT"],
+      defaultTerm: "INSTALLMENT",
+    });
+    expect(parsed.allowedTerms).toEqual(["PREPAID"]);
+    expect(parsed.defaultTerm).toBeNull();
   });
 });

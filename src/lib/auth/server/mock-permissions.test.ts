@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 import { AUTH_COOKIE_NAME, MOCK_LOGIN_PASSWORD } from "@/constants/auth";
 import {
   CREDIT_HOLD_PERMISSIONS,
+  CUSTOMER_CREDIT_PROFILE_PERMISSIONS,
   FULFILLMENT_PICK_PERMISSIONS,
   ORDER_PERMISSIONS,
   PERMISSION_QUERY,
@@ -67,6 +68,16 @@ describe("explicit mock permission responses", () => {
       SUPPLIER_PERMISSIONS.read,
     );
   });
+  it("customer-credit-profiles:READ theo seed BE V20261013000400 — chỉ vai trò được cấp", () => {
+    const read = CUSTOMER_CREDIT_PROFILE_PERMISSIONS.read;
+    for (const id of ["USER-ACC-01", "USER-SALE-01", "USER-COORD-01", "USER-ADMIN-01"]) {
+      expect(mockSessionPermissions(id, []).permissions).toContain(read);
+    }
+    for (const id of ["USER-WH-01", "USER-QC-01", "USER-PROC-01", "USER-ECAD-01", "USER-PLAN-01"]) {
+      expect(mockSessionPermissions(id, []).permissions).not.toContain(read);
+    }
+  });
+
   it("BFF permissions return the cookie-selected user's validated list despite frontend impersonation", async () => {
     vi.stubEnv("APP_ORIGIN", "");
     const staff = (await getMockStaffUsers()).find(

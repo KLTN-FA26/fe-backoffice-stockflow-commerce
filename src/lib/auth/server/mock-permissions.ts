@@ -2,6 +2,7 @@ import "server-only";
 
 import {
   CREDIT_HOLD_PERMISSIONS,
+  CUSTOMER_CREDIT_PROFILE_PERMISSIONS,
   FULFILLMENT_PACKAGE_PERMISSIONS,
   FULFILLMENT_PICK_PERMISSIONS,
   GOODS_RECEIPT_PERMISSIONS,
@@ -41,8 +42,11 @@ const WH_WORK = [...GR_WORK, ...FULFILLMENT_FLOOR];
 const ORDER = ORDER_PERMISSIONS;
 const CREDIT_VIEW = [CREDIT_HOLD_PERMISSIONS.viewPage, CREDIT_HOLD_PERMISSIONS.read];
 const CREDIT_ALL = Object.values(CREDIT_HOLD_PERMISSIONS);
-const ORDER_SALES = [ORDER.viewPage, ORDER.read, ORDER.cancel, ...CREDIT_VIEW];
-const ORDER_ALL = [...Object.values(ORDER), ...CREDIT_VIEW];
+// V20261013000400: customer-credit-profiles READ cho ACCOUNTANT / SALES_STAFF / ORDER_COORDINATOR
+// (FE chỉ dùng READ — `GET /orders/credit-position/{customerId}`).
+const CREDIT_PROFILE_READ = CUSTOMER_CREDIT_PROFILE_PERMISSIONS.read;
+const ORDER_SALES = [ORDER.viewPage, ORDER.read, ORDER.cancel, ...CREDIT_VIEW, CREDIT_PROFILE_READ];
+const ORDER_ALL = [...Object.values(ORDER), ...CREDIT_VIEW, CREDIT_PROFILE_READ];
 
 /** Explicit demo session responses keyed by existing staff IDs, never computed from roles. */
 const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
@@ -51,6 +55,7 @@ const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...Object.values(PO_PERMISSIONS),
     ...Object.values(ORDER_PERMISSIONS),
     ...CREDIT_ALL,
+    CREDIT_PROFILE_READ,
     ...Object.values(PRODUCT_PERMISSIONS),
     ...Object.values(IDENTITY_PERMISSIONS),
     ...Object.values(GR),
@@ -88,7 +93,12 @@ const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     PACK.read,
     PACK.create,
   ],
-  "USER-ACC-01": [SUPPLIER_PERMISSIONS.viewPage, SUPPLIER_PERMISSIONS.read, ...CREDIT_ALL],
+  "USER-ACC-01": [
+    SUPPLIER_PERMISSIONS.viewPage,
+    SUPPLIER_PERMISSIONS.read,
+    ...CREDIT_ALL,
+    CREDIT_PROFILE_READ,
+  ],
   "USER-ECAD-01": [
     ...Object.values(PRODUCT_PERMISSIONS),
     ...Object.values(SUPPLIER_PERMISSIONS),

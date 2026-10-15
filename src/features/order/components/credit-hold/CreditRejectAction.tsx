@@ -1,16 +1,12 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQueryClient } from "@tanstack/react-query";
 import { XCircle } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 
-import {
-  CREDIT_REJECTION_ACTION_LABELS,
-  CREDIT_REJECTION_ACTIONS,
-  ORDER_LIMITS,
-  UI_LABELS,
-} from "@/constants";
+import { CREDIT_REJECTION_ACTION_LABELS, ORDER_LIMITS, UI_LABELS } from "@/constants";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -26,23 +22,32 @@ import { Textarea } from "@/components/ui/textarea";
 import { creditDecisionErrorView } from "../../errors";
 import { CREDIT_REJECTION_FORM_DEFAULTS, creditRejectionFormSchema } from "../../form-schemas";
 import { useRejectCreditHold } from "../../mutations";
+import { orderKeys } from "../../queries";
+import { availableRefusalActions } from "../../selectors";
 import { DANGER_OUTLINE_BUTTON } from "../button-styles";
 import { FormFieldError, RequiredMark } from "../FormFieldError";
 import { OrderRefusalAlert } from "../OrderRefusalAlert";
 import { STALE_CODES, useOrderActionErrors } from "../useOrderActionErrors";
 
+import { CreditPositionPanel } from "./CreditPositionPanel";
 import { DepositPercentField } from "./DepositPercentField";
+import { useCustomerCreditPosition } from "./useCustomerCreditPosition";
 
+import type { ApiError } from "@/lib/api/error";
 import type { CreditRejectionFormValues } from "../../form-schemas";
 import type { CreditRejectionInput } from "../../types";
 import type { CreditHoldTarget } from "./types";
 
 const LABEL = "text-ink-secondary text-xs font-medium";
+const TERM_NOT_ALLOWED =
+  "Khách không còn được dùng phương thức này — đã tải lại công nợ hiện tại, chọn cách xử lý khác.";
 
 /**
  * Từ chối vượt hạn mức (SCRUM-427, docs 15 §4.3): huỷ đơn (CREDIT_REJECTED) hoặc chuyển khách
- * sang trả trước / đặt cọc → đơn về Chờ thanh toán. UI-only gate — Backend phải re-check
- * (CreditHoldController @RequiresPermission sales-order-credit-holds:APPROVE).
+ * sang trả trước / đặt cọc → đơn về Chờ thanh toán. Cách chuyển chỉ hiện khi công nợ HIỆN TẠI
+ * của khách (`GET /orders/credit-position`) cho phép phương thức đó; % cọc điền sẵn từ hồ sơ khách.
+ * UI-only gate — Backend phải re-check (CreditHoldController @RequiresPermission
+ * sales-order-credit-holds:APPROVE; PAYMENT_TERM_NOT_ALLOWED).
  */
 export function CreditRejectAction({
   order,
@@ -78,7 +83,11 @@ function RejectForm({ order, onClose }: { order: CreditHoldTarget; onClose: () =
     STALE_CODES.credit,
     onClose,
   );
+  const queryClient = useQueryClient();
   const { mutate: reject, isPending } = useRejectCreditHold();
+  const position = useCustomerCreditPosition(order.customerId);
+  const allowedTerms = position.data?.allowedTerms ?? null;
+  const options = availableRefusalActions(allowedTerms);
   const form = useForm<CreditRejectionFormValues, unknown, CreditRejectionInput>({
     resolver: zodResolver(creditRejectionFormSchema),
     mode: "onChange",
@@ -87,9 +96,42 @@ function RejectForm({ order, onClose }: { order: CreditHoldTarget; onClose: () =
   const action = useWatch({ control: form.control, name: "action" });
   const { errors } = form.formState;
 
+  // % cọc mặc định lấy từ hồ sơ khách (BE, đơn vị %), chỉ khi người dùng chưa sửa tay — tải lại
+  // nền không ghi đè giá trị đã nhập. `setValue` (không `resetField`): ô cọc chỉ đăng ký khi chọn
+  // "Chuyển sang đặt cọc"; không đánh dirty nên vẫn phân biệt được giá trị người dùng tự nhập.
+  const defaultDeposit = position.data?.depositPercent ?? null;
+  useEffect(() => {
+    if (defaultDeposit === null || form.getFieldState("depositPercent").isDirty) return;
+    form.setValue("depositPercent", String(defaultDeposit), { shouldDirty: false });
+  }, [defaultDeposit, form]);
+
+  // Công nợ tải lại không còn cho phép cách đang chọn → bỏ chọn (giữ lỗi đang hiện, nếu có)
+  useEffect(() => {
+    const current = form.getValues("action");
+    if (current && !availableRefusalActions(allowedTerms).some((a) => a === current)) {
+      form.setValue("action", "");
+    }
+  }, [allowedTerms, form]);
+
+  const handleError = (error: ApiError) => {
+    if (error.code === "PAYMENT_TERM_NOT_ALLOWED") {
+      // Công nợ khách đổi giữa lúc tải và lúc gửi — BE quyết; tải lại để lựa chọn khớp BE
+      form.setError("action", { message: TERM_NOT_ALLOWED });
+      void queryClient.invalidateQueries({
+        queryKey: orderKeys.creditPosition(order.customerId ?? ""),
+      });
+    }
+    onError(error);
+  };
+
   const submit = form.handleSubmit((input) => {
+    // Chặn ở biên gửi, không chỉ dựa vào Select: cách xử lý phải khớp công nợ hiện tại đã tải
+    if (!options.includes(input.action)) {
+      form.setError("action", { message: TERM_NOT_ALLOWED });
+      return;
+    }
     clearRefusal();
-    reject({ id: order.orderId, ...input }, { onSuccess: onClose, onError });
+    reject({ id: order.orderId, ...input }, { onSuccess: onClose, onError: handleError });
   });
 
   return (
@@ -104,6 +146,7 @@ function RejectForm({ order, onClose }: { order: CreditHoldTarget; onClose: () =
       onSubmit={() => void submit()}
       onCancel={onClose}
     >
+      <CreditPositionPanel state={position} />
       <div className="grid gap-1.5">
         <Label htmlFor="credit-reject-action" className={LABEL}>
           Cách xử lý <RequiredMark />
@@ -117,12 +160,14 @@ function RejectForm({ order, onClose }: { order: CreditHoldTarget; onClose: () =
                 id="credit-reject-action"
                 autoFocus
                 aria-required="true"
+                aria-invalid={errors.action ? true : undefined}
+                aria-describedby={errors.action ? "credit-reject-action-error" : undefined}
                 className="w-full"
               >
                 <SelectValue placeholder="Chọn cách xử lý" />
               </SelectTrigger>
               <SelectContent>
-                {CREDIT_REJECTION_ACTIONS.map((a) => (
+                {options.map((a) => (
                   <SelectItem key={a} value={a}>
                     {CREDIT_REJECTION_ACTION_LABELS[a]}
                   </SelectItem>
@@ -131,6 +176,13 @@ function RejectForm({ order, onClose }: { order: CreditHoldTarget; onClose: () =
             </Select>
           )}
         />
+        <FormFieldError id="credit-reject-action-error" message={errors.action?.message} />
+        {!position.available && (
+          <p className="text-ink-tertiary text-xs">
+            Chuyển sang trả trước / đặt cọc cần xem được hồ sơ công nợ của khách — hiện chỉ huỷ đơn
+            được.
+          </p>
+        )}
       </div>
       {action === "SWITCH_TO_DEPOSIT" && (
         <DepositPercentField

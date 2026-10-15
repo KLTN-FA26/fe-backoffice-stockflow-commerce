@@ -9,12 +9,15 @@ import { ORDER_LIMITS } from "@/constants";
 
 import { paginatePage, registerMockRoute } from "./mock-adapter";
 import {
+  MOCK_CREDIT_LIMIT,
   applyTransition,
   backendStatus,
+  creditProfileOf,
   error,
   findOrder,
   idParam,
   isCustomLine,
+  mockCustomerUuid,
   ok,
   paymentTermOf,
   readBody,
@@ -23,12 +26,6 @@ import {
 } from "./mock-routes-orders-store";
 
 import type { Order } from "@/lib/mock-data";
-
-/**
- * ASSUMPTION (mock-only, open-question D13): chưa có hạn mức công nợ theo khách — giả lập
- * hạn mức chung 100.000 ₫ để đơn công nợ On Hold trong mock-data thật sự vượt hạn mức.
- */
-const MOCK_CREDIT_LIMIT = 100_000;
 
 /** ASSUMPTION (mock-only): mẫu được khách duyệt ⇔ thiết kế đã `Locked` (docs 12: khoá khi chốt mẫu). */
 async function hasApprovedSample(designId: string): Promise<boolean> {
@@ -44,6 +41,34 @@ async function exposureOf(order: Order): Promise<number> {
     .filter((o) => paymentTermOf(o) === "CREDIT" && backendStatus(o) !== "CANCELLED")
     .reduce((sum, o) => sum + Math.max(0, o.grandTotal - o.amountPaid), 0);
 }
+
+/**
+ * BE `CreditHoldService#position`: dư nợ = đơn công nợ chưa giao (bỏ đơn đang chờ quyết định công
+ * nợ — chưa phải tín dụng đã cấp) + phải thu còn mở; còn lại = hạn mức − dư nợ, không âm.
+ */
+async function creditPositionOf(mockCustomerId: string, currency: string) {
+  const { orders } = await import("@/lib/mock-data");
+  const profile = creditProfileOf(mockCustomerId);
+  const allowsCredit = profile.allowedTerms.includes("CREDIT");
+  const exposure = orders
+    .filter((o) => o.customerId === mockCustomerId && paymentTermOf(o) === "CREDIT")
+    .filter((o) => !["CANCELLED", "ON_HOLD"].includes(backendStatus(o)))
+    .reduce((sum, o) => sum + Math.max(0, o.grandTotal - o.amountPaid), 0);
+  return {
+    customerId: mockCustomerUuid(mockCustomerId),
+    allowedTerms: [...profile.allowedTerms],
+    defaultTerm: profile.defaultTerm,
+    depositPercent: profile.depositPercent,
+    creditLimit: allowsCredit ? MOCK_CREDIT_LIMIT : null,
+    creditTermDays: allowsCredit ? 30 : null,
+    exposure,
+    availableCredit: allowsCredit ? Math.max(0, MOCK_CREDIT_LIMIT - exposure) : null,
+    currency,
+    hasOverdue: profile.hasOverdue,
+  };
+}
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function isCreditHold(order: Order): boolean {
   return backendStatus(order) === "ON_HOLD" && paymentTermOf(order) === "CREDIT";
@@ -119,6 +144,21 @@ function registerReleaseRoute(): void {
 }
 
 function registerCreditRoutes(): void {
+  // GET /orders/credit-position/:id — CreditHoldController#position (customer-credit-profiles:READ)
+  registerMockRoute("GET", "/orders/credit-position/:id", async (config) => {
+    const id = idParam(config);
+    // BE bind `@PathVariable UUID` → không phải UUID = 400 UNSUPPORTED_PARAMETER
+    if (!UUID_PATTERN.test(id)) {
+      return error(400, "UNSUPPORTED_PARAMETER", "Unsupported parameter", [
+        { field: "customerId", message: "must be UUID" },
+      ]);
+    }
+    const { orders } = await import("@/lib/mock-data");
+    const owner = orders.find((o) => o.customerId && mockCustomerUuid(o.customerId) === id);
+    if (!owner?.customerId) return error(404, "CUSTOMER_NOT_FOUND", "Customer not found");
+    return ok(await creditPositionOf(owner.customerId, owner.currency));
+  });
+
   // GET /orders/credit-holds — cũ nhất trước, không lọc (CreditHoldController#list)
   registerMockRoute("GET", "/orders/credit-holds", async (config) => {
     const { orders } = await import("@/lib/mock-data");
@@ -161,6 +201,17 @@ function registerCreditRoutes(): void {
     if (!isCreditHold(order)) {
       return error(409, "ORDER_NOT_ON_CREDIT_HOLD", "Order is not held over its credit limit");
     }
+    // BE CreditHoldService#refuse: chuyển sang phương thức khách không được phép → 409
+    const switchTo =
+      body.action === "SWITCH_TO_PREPAID"
+        ? "PREPAID"
+        : body.action === "SWITCH_TO_DEPOSIT"
+          ? "DEPOSIT"
+          : null;
+    const profile = creditProfileOf(order.customerId);
+    if (switchTo && !profile.allowedTerms.includes(switchTo)) {
+      return error(409, "PAYMENT_TERM_NOT_ALLOWED", "This payment term is not available");
+    }
     switch (body.action) {
       case "CANCEL":
         applyTransition(order, "CANCELLED", note, {
@@ -175,7 +226,11 @@ function registerCreditRoutes(): void {
         if (depositPercent === INVALID) {
           return error(400, "VALIDATION_FAILED", "Invalid request data", DEPOSIT_PERCENT_INVALID);
         }
-        applyTransition(order, "PENDING_PAYMENT", note, { paymentTerm: "DEPOSIT", depositPercent });
+        // Bỏ trống → % cọc mặc định của hồ sơ khách (BE `terms.depositPercent()`)
+        applyTransition(order, "PENDING_PAYMENT", note, {
+          paymentTerm: "DEPOSIT",
+          depositPercent: depositPercent ?? profile.depositPercent ?? undefined,
+        });
         break;
       }
       default:

@@ -16,6 +16,7 @@ import { orders } from "@/lib/mock-data";
 
 import { activateMockAdapter } from "./mock-adapter";
 import { resetOrderMockStore } from "./mock-routes-orders";
+import { mockCustomerUuid } from "./mock-routes-orders-store";
 
 const originalAdapter = api.defaults.adapter;
 
@@ -125,11 +126,17 @@ describe("GET /orders/:id — OrderResponse", () => {
 });
 
 describe("GET /orders — lọc khách / ngày", () => {
-  it("customerId BE là UUID: id mock CUS-… không phải UUID → FE không gửi, trả mọi khách", async () => {
+  it("customerId (UUID cố định của khách mock) chỉ trả đơn của khách đó", async () => {
+    const customerId = mockCustomerUuid("CUS-0008");
+    const page = await listOrders({ page: 0, size: 200, customerId });
+    expect(page.items.length).toBeGreaterThan(0);
+    expect(page.items.every((o) => o.customerId === customerId)).toBe(true);
+  });
+
+  it("id mock thô CUS-… không phải UUID → FE không gửi, trả mọi khách", async () => {
     const all = await listOrders({ page: 0, size: 200 });
     const page = await listOrders({ page: 0, size: 200, customerId: "CUS-0008" });
     expect(page.totalElements).toBe(all.totalElements);
-    expect(new Set(page.items.map((o) => o.customerId)).size).toBeGreaterThan(1);
   });
 
   it("placedFrom/placedTo tính cả hai đầu theo ngày VN", async () => {

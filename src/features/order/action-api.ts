@@ -7,14 +7,15 @@ import { PAGE_SIZE } from "@/constants";
 import { api } from "@/lib/api/client";
 
 import { orderPath, ORDERS_PATH, toOrder } from "./api";
-import { creditHoldPageDtoSchema } from "./credit-hold-schemas";
+import { creditHoldPageDtoSchema, creditPositionDtoSchema } from "./credit-hold-schemas";
 import { productionOrderListDtoSchema } from "./production-schemas";
-import { orderDtoSchema } from "./schemas";
+import { isValidOrderCustomerId, orderDtoSchema } from "./schemas";
 
 import type { ListQueryParams, PaginatedResponse } from "@/lib/api/query-factory";
 import type {
   CreditApprovalInput,
   CreditHold,
+  CreditPosition,
   CreditRejectionInput,
   Order,
   ProductionOrder,
@@ -75,6 +76,37 @@ export async function rejectCreditHold(
   const { id, ...body } = input;
   const { data } = await api.post<unknown>(orderPath(id, "/credit-rejection"), body);
   return toOrder(orderDtoSchema.parse(data));
+}
+
+/**
+ * `GET /orders/credit-position/{customerId}` — BE CreditHoldController#position,
+ * `customer-credit-profiles:READ`. `{customerId}` là UUID (BE trả 400 UNSUPPORTED_PARAMETER nếu
+ * không phải) — chặn ở đây, không bao giờ gọi với id khác.
+ */
+export async function getCreditPosition(
+  customerId: string,
+  signal?: AbortSignal,
+): Promise<CreditPosition> {
+  if (!isValidOrderCustomerId(customerId)) {
+    throw new Error(`customerId phải là UUID: ${customerId}`);
+  }
+  const { data } = await api.get<unknown>(
+    `${ORDERS_PATH}/credit-position/${encodeURIComponent(customerId)}`,
+    { signal },
+  );
+  const dto = creditPositionDtoSchema.parse(data);
+  return {
+    customerId: dto.customerId,
+    allowedTerms: dto.allowedTerms,
+    defaultTerm: dto.defaultTerm,
+    depositPercent: dto.depositPercent ?? null,
+    creditLimit: dto.creditLimit ?? null,
+    creditTermDays: dto.creditTermDays ?? null,
+    exposure: dto.exposure,
+    availableCredit: dto.availableCredit ?? null,
+    currency: dto.currency,
+    hasOverdue: dto.hasOverdue,
+  };
 }
 
 /* ── Lệnh sản xuất (CONTRACT PENDING) ───────────────────────────────── */

@@ -18,6 +18,9 @@ import { FormFieldError, RequiredMark } from "../FormFieldError";
 import { OrderRefusalAlert } from "../OrderRefusalAlert";
 import { STALE_CODES, useOrderActionErrors } from "../useOrderActionErrors";
 
+import { CreditPositionPanel } from "./CreditPositionPanel";
+import { useCustomerCreditPosition } from "./useCustomerCreditPosition";
+
 import type { CreditApprovalFormValues } from "../../form-schemas";
 import type { CreditApprovalInput } from "../../types";
 import type { CreditHoldTarget } from "./types";
@@ -62,6 +65,7 @@ function ApproveForm({ order, onClose }: { order: CreditHoldTarget; onClose: () 
     onClose,
   );
   const { mutate: approve, isPending } = useApproveCreditHold();
+  const position = useCustomerCreditPosition(order.customerId);
   const form = useForm<CreditApprovalFormValues, unknown, CreditApprovalInput>({
     resolver: zodResolver(creditApprovalFormSchema),
     mode: "onTouched",
@@ -101,6 +105,8 @@ function ApproveForm({ order, onClose }: { order: CreditHoldTarget; onClose: () 
         />
         <FormFieldError id="credit-approve-note-error" message={noteError} />
       </div>
+      {/* Tham khảo để quyết định — duyệt chỉ cần ghi chú (BE CreditDecisionRequest), không chờ */}
+      <CreditPositionPanel state={position} />
       {refusal && <OrderRefusalAlert view={refusal} />}
     </FormDialogBody>
   );

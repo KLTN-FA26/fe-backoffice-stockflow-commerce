@@ -5,7 +5,8 @@ import { api } from "@/lib/api/client";
 import { ORDER_STATUSES } from "@/constants";
 
 import { buildOrderListQuery, getOrder, getOrderHistory, listOrders, toOrder } from "./api";
-import { apiGuestOrder } from "./__fixtures__/order";
+import { apiCreditPosition, apiGuestOrder } from "./__fixtures__/order";
+import { getCreditPosition } from "./action-api";
 import { STATUS_OPTIONS } from "./components/order-list/constants";
 import { orderDtoSchema } from "./schemas";
 
@@ -345,5 +346,26 @@ describe("order list filter — UNKNOWN chỉ để đọc, không bao giờ g�
     expect(query.has("paymentTerm")).toBe(false);
     expect(query.has("term")).toBe(false);
     expect([...query.keys()].sort()).toEqual(["page", "size"]);
+  });
+});
+
+describe("getCreditPosition — GET /orders/credit-position/{customerId}", () => {
+  it("A. gọi đúng path với UUID khách, map field vắng → null", async () => {
+    const get = vi.spyOn(api, "get").mockResolvedValue({
+      data: { ...apiCreditPosition, depositPercent: undefined },
+    });
+    const position = await getCreditPosition(apiCreditPosition.customerId);
+    expect(get).toHaveBeenCalledWith(
+      `/orders/credit-position/${apiCreditPosition.customerId}`,
+      expect.anything(),
+    );
+    expect(position.depositPercent).toBeNull();
+    expect(position.allowedTerms).toEqual(["PREPAID", "DEPOSIT", "CREDIT"]);
+  });
+
+  it("A. id khách không phải UUID (CUS-0007) → không bao giờ gọi BE", async () => {
+    const get = vi.spyOn(api, "get");
+    await expect(getCreditPosition("CUS-0007")).rejects.toThrow();
+    expect(get).not.toHaveBeenCalled();
   });
 });

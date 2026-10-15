@@ -4,6 +4,7 @@
 
 import { currencyFractionDigits } from "@/lib/format";
 
+import type { CreditRejectionAction, OrderPaymentTerm } from "@/constants";
 import type { CreditHold, Order, OrderReadStatus, ProductionOrder } from "./types";
 
 /**
@@ -36,7 +37,7 @@ export type CreditState = "not-applicable" | "on-hold" | "within-limit";
 /**
  * Trạng thái công nợ — BE không có field riêng. Đơn CREDIT ở On Hold = đang tạm giữ; `OrderResponse`
  * KHÔNG cho biết vì sao (vượt hạn mức, nợ quá hạn, hay giữ vì lý do khác) → không suy ra nguyên nhân
- * từ đây (xem `creditHoldReason`). Đơn CREDIT trạng thái khác đã qua kiểm hạn mức.
+ * từ đây (xem `creditHoldSummary`). Đơn CREDIT trạng thái khác đã qua kiểm hạn mức.
  */
 export function creditState(order: Pick<Order, "paymentTerm" | "status">): CreditState {
   if (order.paymentTerm !== "CREDIT") return "not-applicable";
@@ -48,28 +49,44 @@ export function creditOverage(hold: Pick<CreditHold, "creditLimit" | "exposure" 
   return Math.max(0, hold.exposure + hold.orderAmount - hold.creditLimit);
 }
 
-/** Nguyên nhân giữ đơn công nợ mà số liệu BE chứng minh được (xem `creditHoldReason`). */
-export type CreditHoldReason = { kind: "over-limit"; excess: number } | { kind: "overdue" };
+/** Tình trạng công nợ mà số liệu lúc kiểm chứng minh được (xem `creditHoldSummary`). */
+export type CreditHoldSummary = { kind: "over-limit"; excess: number } | { kind: "overdue" };
 
 /**
- * Lý do một đơn nằm trong hàng đợi công nợ. `CreditHoldResponse` (BE develop) CHƯA trả outcome —
+ * Tình trạng công nợ của một đơn trong hàng đợi — KHÔNG phải lý do giữ BE đã lưu (outcome).
+ * `CreditHoldResponse` (BE develop) CHƯA trả outcome —
  * chỉ có số liệu lúc kiểm (hạn mức, dư nợ, giá trị đơn). BE `OrderServiceImpl#submitOnCredit` xét
  * nợ quá hạn TRƯỚC (→ OVERDUE), rồi dư nợ + đơn > hạn mức (→ OVER_LIMIT); trong hạn mức → CONFIRMED,
  * không vào hàng đợi. Suy ra:
  * - phần vượt = 0 ⇒ chắc chắn OVERDUE (không thể giữ vì vượt hạn mức khi không vượt);
- * - phần vượt > 0 ⇒ chắc chắn đơn vượt hạn mức đúng số đó — nhưng KHÔNG loại trừ khách đồng thời có
- *   nợ quá hạn (BE không trả outcome), nên chỉ nêu điều số liệu chứng minh.
+ * - phần vượt > 0 ⇒ chắc chắn đơn vượt hạn mức đúng số đó — nhưng KHÔNG chứng minh outcome là
+ *   OVER_LIMIT (khách có thể đồng thời nợ quá hạn → BE lưu OVERDUE), nên chỉ nêu tình trạng.
  * So theo đơn vị nhỏ nhất của tiền tệ (BE `Money` làm tròn theo đó) để sai số số thực không biến
  * "vừa chạm hạn mức" thành "vượt 0,00".
  */
-export function creditHoldReason(
+export function creditHoldSummary(
   hold: Pick<CreditHold, "creditLimit" | "exposure" | "orderAmount"> & {
     order: Pick<CreditHold["order"], "currency">;
   },
-): CreditHoldReason {
+): CreditHoldSummary {
   const excess = creditOverage(hold);
   const minorUnits = Math.round(excess * 10 ** currencyFractionDigits(hold.order.currency));
   return minorUnits > 0 ? { kind: "over-limit", excess } : { kind: "overdue" };
+}
+
+/**
+ * Cách xử lý từ chối chọn được với công nợ HIỆN TẠI của khách. Huỷ luôn được; chuyển sang trả
+ * trước / đặt cọc chỉ khi `allowedTerms` của BE có phương thức đó (BE trả 409
+ * PAYMENT_TERM_NOT_ALLOWED nếu không — docs 14 BR-05). Chưa có credit position (đang tải / lỗi /
+ * thiếu quyền) → chỉ huỷ, không đoán phương thức. BE vẫn là nơi quyết định cuối.
+ */
+export function availableRefusalActions(
+  allowedTerms: readonly OrderPaymentTerm[] | null,
+): CreditRejectionAction[] {
+  const actions: CreditRejectionAction[] = ["CANCEL"];
+  if (allowedTerms?.includes("PREPAID")) actions.push("SWITCH_TO_PREPAID");
+  if (allowedTerms?.includes("DEPOSIT")) actions.push("SWITCH_TO_DEPOSIT");
+  return actions;
 }
 
 /* ── Dòng đơn & lệnh sản xuất ────────────────────────────────────────── */

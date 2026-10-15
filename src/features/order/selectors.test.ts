@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  availableRefusalActions,
   cancelConsequence,
-  creditHoldReason,
+  creditHoldSummary,
   creditOverage,
   creditState,
   customLineCount,
@@ -40,7 +41,7 @@ describe("creditState / creditOverage — docs 14 BR-06", () => {
   });
 });
 
-describe("creditHoldReason — chỉ nêu nguyên nhân số liệu BE chứng minh được", () => {
+describe("creditHoldSummary — chỉ nêu tình trạng số liệu BE chứng minh được", () => {
   const order = { currency: "VND" };
   const hold = (creditLimit: number, exposure: number, orderAmount: number, currency = "VND") => ({
     creditLimit,
@@ -50,22 +51,22 @@ describe("creditHoldReason — chỉ nêu nguyên nhân số liệu BE chứng m
   });
 
   it("A. vượt > 0 → over-limit kèm đúng số vượt", () => {
-    expect(creditHoldReason(hold(1_000_000, 800_000, 350_000))).toEqual({
+    expect(creditHoldSummary(hold(1_000_000, 800_000, 350_000))).toEqual({
       kind: "over-limit",
       excess: 150_000,
     });
   });
 
   it("B. vượt = 0 (BE submitOnCredit chỉ giữ khi OVERDUE hoặc OVER_LIMIT) → overdue", () => {
-    expect(creditHoldReason(hold(1_000_000, 200_000, 350_000))).toEqual({ kind: "overdue" });
+    expect(creditHoldSummary(hold(1_000_000, 200_000, 350_000))).toEqual({ kind: "overdue" });
     // Đúng bằng hạn mức: BE coi là trong hạn mức (≤) → đang giữ thì chỉ có thể vì nợ quá hạn
-    expect(creditHoldReason(hold(1_000_000, 650_000, 350_000))).toEqual({ kind: "overdue" });
+    expect(creditHoldSummary(hold(1_000_000, 650_000, 350_000))).toEqual({ kind: "overdue" });
   });
 
   it("sai số số thực dưới đơn vị nhỏ nhất của tiền tệ không thành 'vượt 0,00'", () => {
     // 100.1 + 0.2 − 100.3 ≈ 5.7e-14 trên số thực
-    expect(creditHoldReason(hold(100.3, 100.1, 0.2, "USD"))).toEqual({ kind: "overdue" });
-    expect(creditHoldReason(hold(100, 100, 0.01, "USD"))).toEqual({
+    expect(creditHoldSummary(hold(100.3, 100.1, 0.2, "USD"))).toEqual({ kind: "overdue" });
+    expect(creditHoldSummary(hold(100, 100, 0.01, "USD"))).toEqual({
       kind: "over-limit",
       excess: expect.closeTo(0.01, 6),
     });
@@ -159,5 +160,21 @@ describe("cancelConsequence — hệ quả huỷ theo trạng thái", () => {
   });
   it("chưa giao kho / sản xuất → không có cảnh báo thêm", () => {
     expect(cancelConsequence("Pending Payment")).toBeNull();
+  });
+});
+
+describe("availableRefusalActions — theo allowedTerms HIỆN TẠI (docs 14 BR-05)", () => {
+  it("huỷ luôn được; chuyển trả trước / đặt cọc chỉ khi BE cho phép", () => {
+    expect(availableRefusalActions(["PREPAID", "DEPOSIT", "CREDIT"])).toEqual([
+      "CANCEL",
+      "SWITCH_TO_PREPAID",
+      "SWITCH_TO_DEPOSIT",
+    ]);
+    expect(availableRefusalActions(["PREPAID", "CREDIT"])).toEqual(["CANCEL", "SWITCH_TO_PREPAID"]);
+    expect(availableRefusalActions(["CREDIT"])).toEqual(["CANCEL"]);
+    expect(availableRefusalActions([])).toEqual(["CANCEL"]);
+  });
+  it("chưa có credit position (đang tải / lỗi / thiếu quyền) → chỉ huỷ, không đoán", () => {
+    expect(availableRefusalActions(null)).toEqual(["CANCEL"]);
   });
 });

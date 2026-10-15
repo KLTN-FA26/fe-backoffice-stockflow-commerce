@@ -89,3 +89,20 @@ export const apiGuestOrder = {
     countryCode: "VN",
   },
 };
+
+/**
+ * BE `CreditPositionResponse` của khách `apiOrder.customerId` — công nợ HIỆN TẠI. Field null bị bỏ
+ * (Jackson non_null). `depositPercent` là phần trăm.
+ */
+export const apiCreditPosition = {
+  customerId: apiOrder.customerId ?? "",
+  allowedTerms: ["PREPAID", "DEPOSIT", "CREDIT"],
+  defaultTerm: "CREDIT",
+  depositPercent: 40,
+  creditLimit: 1_000_000,
+  creditTermDays: 30,
+  exposure: 800_000,
+  availableCredit: 200_000,
+  currency: "VND",
+  hasOverdue: false,
+};

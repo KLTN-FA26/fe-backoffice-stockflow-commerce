@@ -12,6 +12,8 @@ import type {
   creditHoldDtoSchema,
   creditHoldPageDtoSchema,
   creditHoldSchema,
+  creditPositionDtoSchema,
+  creditPositionSchema,
 } from "./credit-hold-schemas";
 import type { productionOrderDtoSchema, productionOrderSchema } from "./production-schemas";
 import type {
@@ -47,5 +49,7 @@ export type OrderStatusChange = z.infer<typeof orderStatusChangeSchema>;
 export type CreditHoldDto = z.infer<typeof creditHoldDtoSchema>;
 export type CreditHoldPageDto = z.infer<typeof creditHoldPageDtoSchema>;
 export type CreditHold = z.infer<typeof creditHoldSchema>;
+export type CreditPositionDto = z.output<typeof creditPositionDtoSchema>;
+export type CreditPosition = z.infer<typeof creditPositionSchema>;
 export type ProductionOrderDto = z.infer<typeof productionOrderDtoSchema>;
 export type ProductionOrder = z.infer<typeof productionOrderSchema>;

@@ -47,6 +47,15 @@ export const CREDIT_HOLD_PERMISSIONS = {
 } as const;
 
 /**
+ * Hồ sơ công nợ khách — resource `customer-credit-profiles` (BE seed V20261013000400): ACCOUNTANT
+ * VIEW_PAGE/READ/APPROVE, SALES_STAFF VIEW_PAGE/READ, ORDER_COORDINATOR READ. FE chỉ dùng READ —
+ * `GET /orders/credit-position/{customerId}` (CreditHoldController#position) đòi đúng quyền này.
+ */
+export const CUSTOMER_CREDIT_PROFILE_PERMISSIONS = {
+  read: "customer-credit-profiles:READ",
+} as const;
+
+/**
  * Phiếu nhận hàng — resource `procurement-goods-receipts` (BE GoodsReceiptController, PR #62).
  * Kiểm đếm, xác nhận, huỷ DRAFT và chuyển hàng sang khu QC đều là UPDATE.
  */

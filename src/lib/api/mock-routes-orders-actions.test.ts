@@ -8,6 +8,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 
 import {
   approveCreditHold,
+  getCreditPosition,
   listCreditHolds,
   listOrderProductionOrders,
   rejectCreditHold,
@@ -19,6 +20,7 @@ import { ApiError } from "@/lib/api/error";
 
 import { activateMockAdapter } from "./mock-adapter";
 import { resetOrderMockStore } from "./mock-routes-orders";
+import { mockCustomerUuid } from "./mock-routes-orders-store";
 
 const originalAdapter = api.defaults.adapter;
 
@@ -130,10 +132,13 @@ describe("credit hold (SCRUM-427)", () => {
     expect(detail.depositRequired).toBe(Math.round(detail.totalAmount * 0.5));
   });
 
-  it("SWITCH_TO_DEPOSIT bỏ trống % → dùng % cọc mặc định của mock (30%)", async () => {
+  it("SWITCH_TO_DEPOSIT bỏ trống % → % cọc mặc định trong hồ sơ khách (= depositPercent của credit position)", async () => {
+    const before = await getOrder(CREDIT_ON_HOLD);
+    const position = await getCreditPosition(before.customerId ?? "");
     await rejectCreditHold({ id: CREDIT_ON_HOLD, action: "SWITCH_TO_DEPOSIT", note: "Mặc định" });
     const detail = await getOrder(CREDIT_ON_HOLD);
-    expect(detail.depositRequired).toBe(Math.round(detail.totalAmount * 0.3));
+    expect(position.depositPercent).toBe(40);
+    expect(detail.depositRequired).toBe(Math.round((detail.totalAmount * 40) / 100));
   });
 
   it("SWITCH_TO_DEPOSIT % ngoài (0, 100) → VALIDATION_FAILED, đơn vẫn On Hold", async () => {
@@ -170,5 +175,66 @@ describe("GET /orders/:id/production-orders (contract pending)", () => {
   it("đơn chưa release → chưa có LSX", async () => {
     expect(await listOrderProductionOrders(DEPOSIT_PENDING)).toEqual([]);
     expect((await getOrder(DEPOSIT_PENDING)).paymentTerm).toBe("DEPOSIT");
+  });
+});
+
+describe("GET /orders/credit-position/:customerId (CreditHoldController#position)", () => {
+  it("id khách trên đơn / credit hold là UUID cố định và khớp với credit position", async () => {
+    const order = await getOrder(CREDIT_ON_HOLD);
+    expect(order.customerId).toBe(mockCustomerUuid("CUS-0007"));
+    expect(mockCustomerUuid("CUS-0007")).toBe(mockCustomerUuid("CUS-0007"));
+    expect(mockCustomerUuid("CUS-0007")).not.toBe(mockCustomerUuid("CUS-0006"));
+    const hold = (await listCreditHolds({})).items.find((h) => h.order.orderId === CREDIT_ON_HOLD);
+    expect(hold?.order.customerId).toBe(order.customerId);
+
+    const position = await getCreditPosition(order.customerId ?? "");
+    expect(position.customerId).toBe(order.customerId);
+  });
+
+  it("khách nhiều phương thức + cọc 40% / khách hạn chế (không cọc) có nợ quá hạn / khách chỉ trả trước", async () => {
+    const many = await getCreditPosition(mockCustomerUuid("CUS-0007"));
+    expect(many).toMatchObject({
+      allowedTerms: ["PREPAID", "DEPOSIT", "CREDIT"],
+      depositPercent: 40,
+      creditLimit: 100_000,
+      currency: "VND",
+      hasOverdue: false,
+    });
+    // Đơn đang chờ quyết định công nợ không tính vào dư nợ (BE undeliveredCreditExposure)
+    expect(many.exposure).toBe(0);
+    expect(many.availableCredit).toBe(100_000);
+
+    const restricted = await getCreditPosition(mockCustomerUuid("CUS-0006"));
+    expect(restricted.allowedTerms).toEqual(["PREPAID", "CREDIT"]);
+    expect(restricted.depositPercent).toBeNull();
+    expect(restricted.hasOverdue).toBe(true);
+
+    const prepaidOnly = await getCreditPosition(mockCustomerUuid("CUS-0005"));
+    expect(prepaidOnly).toMatchObject({
+      allowedTerms: ["PREPAID"],
+      depositPercent: null,
+      creditLimit: null,
+      availableCredit: null,
+    });
+  });
+
+  it("khách không tồn tại → 404 CUSTOMER_NOT_FOUND", async () => {
+    const error = await captureError(getCreditPosition("00000000-0000-4000-8000-000000000000"));
+    expect(error.code).toBe("CUSTOMER_NOT_FOUND");
+  });
+
+  it("từ chối chuyển sang phương thức khách không được phép → 409 PAYMENT_TERM_NOT_ALLOWED, đơn vẫn On Hold", async () => {
+    // CUS-0006 không có DEPOSIT trong hồ sơ — giả lập đơn công nợ của khách này đang chờ duyệt
+    const { orders } = await import("@/lib/mock-data");
+    const target = orders.find((o) => o.customerId === "CUS-0006");
+    if (!target) throw new Error("seed thiếu đơn của CUS-0006");
+    const { applyTransition } = await import("./mock-routes-orders-store");
+    applyTransition(target, "ON_HOLD", null, { paymentTerm: "CREDIT" });
+
+    const error = await captureError(
+      rejectCreditHold({ id: target.orderId, action: "SWITCH_TO_DEPOSIT", note: "Thử" }),
+    );
+    expect(error.code).toBe("PAYMENT_TERM_NOT_ALLOWED");
+    expect((await getOrder(target.orderId)).status).toBe("On Hold");
   });
 });

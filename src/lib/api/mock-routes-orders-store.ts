@@ -81,10 +81,92 @@ function deriveTerm(order: Order): BePaymentTerm {
 }
 
 /**
- * ASSUMPTION (mock-only): BE chưa chốt % cọc mặc định (D13) — giả lập 30%. Chỉ dùng khi đơn
- * không có % cọc riêng (từ chối công nợ bỏ trống `depositPercent` = mặc định của khách).
+ * ASSUMPTION (mock-only, open-question D13): chưa có hạn mức công nợ theo khách — giả lập hạn mức
+ * chung 100.000 ₫ để đơn công nợ On Hold trong mock-data thật sự vượt hạn mức.
  */
-const MOCK_DEFAULT_DEPOSIT_PERCENT = 30;
+export const MOCK_CREDIT_LIMIT = 100_000;
+
+/** Hồ sơ công nợ khách (BE `CreditTerms`) — `depositPercent` là phần trăm (30 = 30%). */
+export interface MockCreditProfile {
+  allowedTerms: readonly BePaymentTerm[];
+  defaultTerm: BePaymentTerm;
+  depositPercent: number | null;
+  /** ASSUMPTION (mock-only): khách có khoản phải thu quá hạn (BE lấy từ module payment). */
+  hasOverdue: boolean;
+}
+
+/**
+ * ASSUMPTION (mock-only, D13): mock-data chưa có hồ sơ công nợ. Gán theo phương thức các đơn đang
+ * có của khách (`deriveTerm`) để mọi đơn đều dùng phương thức khách được phép, và phủ đủ ca demo:
+ * nhiều phương thức (CUS-0007 — đơn đang chờ duyệt công nợ), hạn chế không cọc (CUS-0006, đang có
+ * nợ quá hạn: đơn COD giao thất bại chưa thu), chỉ cọc (CUS-0012). Khách khác: chỉ trả trước, như
+ * BE `CreditTerms.prepaidOnly`.
+ */
+const MOCK_CREDIT_PROFILES: Readonly<Record<string, MockCreditProfile>> = {
+  "CUS-0003": {
+    allowedTerms: ["PREPAID", "CREDIT"],
+    defaultTerm: "CREDIT",
+    depositPercent: null,
+    hasOverdue: false,
+  },
+  "CUS-0004": {
+    allowedTerms: ["PREPAID", "CREDIT"],
+    defaultTerm: "PREPAID",
+    depositPercent: null,
+    hasOverdue: false,
+  },
+  "CUS-0006": {
+    allowedTerms: ["PREPAID", "CREDIT"],
+    defaultTerm: "CREDIT",
+    depositPercent: null,
+    hasOverdue: true,
+  },
+  "CUS-0007": {
+    allowedTerms: ["PREPAID", "DEPOSIT", "CREDIT"],
+    defaultTerm: "CREDIT",
+    depositPercent: 40,
+    hasOverdue: false,
+  },
+  "CUS-0008": {
+    allowedTerms: ["PREPAID", "DEPOSIT", "CREDIT"],
+    defaultTerm: "PREPAID",
+    depositPercent: 25,
+    hasOverdue: false,
+  },
+  "CUS-0012": {
+    allowedTerms: ["PREPAID", "DEPOSIT"],
+    defaultTerm: "DEPOSIT",
+    depositPercent: 30,
+    hasOverdue: false,
+  },
+};
+
+const PREPAID_ONLY: MockCreditProfile = {
+  allowedTerms: ["PREPAID"],
+  defaultTerm: "PREPAID",
+  depositPercent: null,
+  hasOverdue: false,
+};
+
+export function creditProfileOf(mockCustomerId: string | undefined): MockCreditProfile {
+  return (mockCustomerId && MOCK_CREDIT_PROFILES[mockCustomerId]) || PREPAID_ONLY;
+}
+
+/**
+ * Id khách mock (`CUS-0007`) → UUID cố định — BE đánh id khách bằng UUID (`GET /orders?customerId`,
+ * `/orders/credit-position/{customerId}` đều bind `UUID`). Chỉ đổi ở biên mock; mock-data giữ
+ * nguyên. Cùng id luôn ra cùng UUID (băm, không ngẫu nhiên); version 4 + variant RFC 4122.
+ */
+export function mockCustomerUuid(mockCustomerId: string): string {
+  const hex = fakeSha256(`customer:${mockCustomerId}`);
+  return [
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    `4${hex.slice(13, 16)}`,
+    `${"89ab"[Number.parseInt(hex.slice(16, 17), 16) % 4]}${hex.slice(17, 20)}`,
+    hex.slice(20, 32),
+  ].join("-");
+}
 
 /** Làm tròn theo đơn vị nhỏ nhất của tiền tệ (VND 0 số lẻ, USD 2) — như BE scale theo currency. */
 export function roundMoney(amount: number, currency: string): number {
@@ -204,7 +286,7 @@ export function toOrderResponse(order: Order) {
   return {
     orderId: order.orderId,
     orderNumber: order.orderNumber,
-    customerId: order.customerId,
+    customerId: order.customerId ? mockCustomerUuid(order.customerId) : null,
     status,
     totalAmount: order.grandTotal,
     currency: order.currency,
@@ -246,7 +328,12 @@ export function toOrderResponse(order: Order) {
     depositRequired:
       term === "DEPOSIT"
         ? roundMoney(
-            (order.grandTotal * (override?.depositPercent ?? MOCK_DEFAULT_DEPOSIT_PERCENT)) / 100,
+            (order.grandTotal *
+              (override?.depositPercent ??
+                creditProfileOf(order.customerId).depositPercent ??
+                // Đơn cọc nhưng khách chưa có hồ sơ — không xảy ra với bảng trên; giữ số an toàn
+                30)) /
+              100,
             order.currency,
           )
         : null,

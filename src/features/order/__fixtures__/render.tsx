@@ -9,7 +9,11 @@ import { render, screen } from "@testing-library/react";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { vi } from "vitest";
 
-import { CREDIT_HOLD_PERMISSIONS, ORDER_PERMISSIONS } from "@/constants";
+import {
+  CREDIT_HOLD_PERMISSIONS,
+  CUSTOMER_CREDIT_PROFILE_PERMISSIONS,
+  ORDER_PERMISSIONS,
+} from "@/constants";
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
@@ -18,7 +22,8 @@ import type { PermissionCode } from "@/lib/auth";
 /**
  * Theo seed BE develop: `sales-orders` APPROVE (release) chỉ ORDER_COORDINATOR;
  * `sales-order-cancellations:UPDATE` cho SALES_STAFF + ORDER_COORDINATOR;
- * `sales-order-credit-holds:APPROVE` chỉ ACCOUNTANT (Sales/Coordinator chỉ READ).
+ * `sales-order-credit-holds:APPROVE` chỉ ACCOUNTANT (Sales/Coordinator chỉ READ);
+ * `customer-credit-profiles:READ` cho ACCOUNTANT / SALES_STAFF / ORDER_COORDINATOR (V20261013000400).
  */
 export const ORDER_PERMISSION_SETS = {
   // WAREHOUSE_STAFF: không có quyền đơn bán nào
@@ -32,6 +37,7 @@ export const ORDER_PERMISSION_SETS = {
     ORDER_PERMISSIONS.cancel,
     CREDIT_HOLD_PERMISSIONS.viewPage,
     CREDIT_HOLD_PERMISSIONS.read,
+    CUSTOMER_CREDIT_PROFILE_PERMISSIONS.read,
   ],
   coordinator: [
     ORDER_PERMISSIONS.viewPage,
@@ -40,11 +46,13 @@ export const ORDER_PERMISSION_SETS = {
     ORDER_PERMISSIONS.cancel,
     CREDIT_HOLD_PERMISSIONS.viewPage,
     CREDIT_HOLD_PERMISSIONS.read,
+    CUSTOMER_CREDIT_PROFILE_PERMISSIONS.read,
   ],
   accountant: [
     CREDIT_HOLD_PERMISSIONS.viewPage,
     CREDIT_HOLD_PERMISSIONS.read,
     CREDIT_HOLD_PERMISSIONS.approve,
+    CUSTOMER_CREDIT_PROFILE_PERMISSIONS.read,
   ],
 } satisfies Record<string, PermissionCode[]>;
 

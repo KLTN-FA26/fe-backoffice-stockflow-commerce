@@ -12,11 +12,13 @@ import { ApiError } from "@/lib/api/error";
 import { createDetailQuery, createListQuery, createQueryKeys } from "@/lib/api/query-factory";
 
 import {
+  getCreditPosition,
   listCreditHolds,
   listOrderProductionOrders,
   type ListCreditHoldParams,
 } from "./action-api";
 import { getOrder, getOrderHistory, listOrders, type ListOrderParams } from "./api";
+import { isValidOrderCustomerId } from "./schemas";
 
 import type { CreditHold, Order } from "./types";
 
@@ -30,6 +32,9 @@ export const orderKeys = {
   productionOrders: (id: string) => [...baseOrderKeys.detail(id), "production-orders"] as const,
   creditHolds: (params?: ListCreditHoldParams) =>
     [...baseOrderKeys.all, "credit-holds", params] as const,
+  // Dưới `orderKeys.all`: thao tác đơn (duyệt / từ chối / huỷ) đổi dư nợ → tự tải lại
+  creditPosition: (customerId: string) =>
+    [...baseOrderKeys.all, "credit-position", customerId] as const,
 };
 
 /**
@@ -72,6 +77,20 @@ export function useOrderProductionOrders(id: string, options: { enabled?: boolea
     queryKey: orderKeys.productionOrders(id),
     queryFn: ({ signal }) => listOrderProductionOrders(id, signal),
     enabled: !!id && (options.enabled ?? true),
+    retry: retryTransient,
+  });
+}
+
+/**
+ * Công nợ HIỆN TẠI của một khách — chỉ gọi khi màn cần (dialog quyết định đang mở), KHÔNG theo
+ * từng dòng hàng đợi. Không gọi khi thiếu quyền / id không phải UUID. Cache theo khách.
+ */
+export function useCreditPosition(customerId: string | null, options: { enabled?: boolean } = {}) {
+  const id = customerId ?? "";
+  return useQuery({
+    queryKey: orderKeys.creditPosition(id),
+    queryFn: ({ signal }) => getCreditPosition(id, signal),
+    enabled: (options.enabled ?? true) && isValidOrderCustomerId(id),
     retry: retryTransient,
   });
 }
