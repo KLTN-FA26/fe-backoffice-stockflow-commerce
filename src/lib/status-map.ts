@@ -76,11 +76,6 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Initiated",
     // Order — BE IN_FULFILMENT (picking/packing/sản xuất gộp làm 1). FE order khớp BE.
     "In Fulfilment",
-    // docs 19 §5.1 — lệnh sản xuất đang tiến hành
-    "Material Issued",
-    "QC",
-    // BE PaymentStatus.ON_CREDIT (order/api/PaymentStatus.java) — đơn công nợ, chưa thu
-    "On Credit",
   ],
   warning: [
     "RETRYING",
@@ -145,8 +140,6 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Guest",
     "New",
     "Requested",
-    // docs 19 §5.1 — lệnh sản xuất vừa sinh, chờ kiểm file in
-    "Pending Prepress",
   ],
   muted: [
     "UNKNOWN",
@@ -172,8 +165,7 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     // QC dòng nhận — SKU không bật cờ Yêu cầu QC, đi luồng 2 bước (docs 03 §5.2)
     "Not Required",
   ],
-  // Lệnh sản xuất (docs 19 §5.1): in nội bộ / gia công ngoài là sản xuất → special.
-  special: ["Refunded", "Partially Refunded", "In Production", "Printing", "Subcontracted"],
+  special: ["Refunded", "Partially Refunded", "In Production"],
 };
 
 /** Thứ tự ưu tiên khi status trùng nhiều tone (CLAUDE.md). */
@@ -347,14 +339,6 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   // Special
   Refunded: "Đã hoàn tiền",
   "Partially Refunded": "Hoàn tiền một phần",
-  // Lệnh sản xuất (docs 19 §5.1)
-  "Pending Prepress": "Chờ kiểm file in",
-  "Material Issued": "Đã cấp phôi",
-  Printing: "Đang in",
-  QC: "Đang kiểm thành phẩm",
-  Subcontracted: "Đang gia công ngoài",
-  // Thanh toán đơn (BE PaymentStatus)
-  "On Credit": "Ghi công nợ",
 };
 
 /**

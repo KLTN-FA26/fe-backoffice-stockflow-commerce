@@ -1,4 +1,4 @@
-import { cleanup, screen } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
@@ -169,5 +169,49 @@ describe("adjustment queue", () => {
     expect(await screen.findByRole("link", { name: fixture.number })).toBeInTheDocument();
     expect(screen.getByRole("cell", { name: "COUNT_VARIANCE" })).toBeInTheDocument();
     expect(screen.getByTitle(/APPROVED/)).toBeInTheDocument();
+  });
+
+  it("labels stock statuses in the filter and sends only the wire value", async () => {
+    const statuses = vi.fn();
+    server.use(
+      inventoryPermissions([adjustmentRead]),
+      http.get(endpoint, ({ request }) => {
+        statuses(new URL(request.url).searchParams.get("status"));
+        return HttpResponse.json({ success: true, data: emptyPage });
+      }),
+    );
+    renderInventory(<AdjustmentList />);
+    await screen.findByText(INVENTORY_LABELS.noAdjustments);
+    const select = screen.getByLabelText(INVENTORY_LABELS.status);
+    expect(
+      within(select)
+        .getAllByRole("option")
+        .map((option) => [option.getAttribute("value"), option.textContent]),
+    ).toEqual([
+      ["", INVENTORY_LABELS.all],
+      ["PENDING_APPROVAL", "Chờ duyệt"],
+      ["POSTED", "Đã ghi sổ"],
+      ["REJECTED", "Từ chối"],
+      ["WITHDRAWN", "Đã rút yêu cầu"],
+    ]);
+    expect(within(select).queryByText("NCC từ chối")).not.toBeInTheDocument();
+    await userEvent.selectOptions(select, "REJECTED");
+    await waitFor(() => expect(statuses).toHaveBeenLastCalledWith("REJECTED"));
+  });
+
+  it("shows a rejected adjustment row with the Inventory label", async () => {
+    const fixture = adjustmentFixture({ status: STOCK_ADJUSTMENT_STATUS.REJECTED });
+    server.use(
+      inventoryPermissions([adjustmentRead]),
+      http.get(endpoint, () =>
+        HttpResponse.json({
+          success: true,
+          data: { ...emptyPage, items: [fixture], totalElements: 1, totalPages: 1 },
+        }),
+      ),
+    );
+    renderInventory(<AdjustmentList />);
+    expect(await screen.findByRole("cell", { name: "Từ chối" })).toBeInTheDocument();
+    expect(screen.queryByText("NCC từ chối")).not.toBeInTheDocument();
   });
 });

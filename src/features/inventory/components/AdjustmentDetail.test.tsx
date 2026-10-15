@@ -303,6 +303,8 @@ describe("adjustment detail", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(INVENTORY_ERROR_MESSAGES.transition);
     await waitFor(() => expect(reads).toBe(2));
     expect(await screen.findByText("Decided by a peer")).toBeInTheDocument();
+    expect(screen.getByText("Từ chối")).toBeInTheDocument();
+    expect(screen.queryByText("NCC từ chối")).not.toBeInTheDocument();
     expectNoDecisionControls();
     expect(screen.queryByText(/already REJECTED/)).not.toBeInTheDocument();
   });

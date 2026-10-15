@@ -3,7 +3,7 @@
 import { INVENTORY_LABELS } from "@/constants/inventory";
 import { STOCK_ADJUSTMENT_STATUSES } from "@/constants/statuses";
 
-import { STATUS_LABEL_VI } from "@/lib/status-map";
+import { statusLabelVi } from "@/lib/status-map";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,7 +64,7 @@ export function AdjustmentFilters({
           <option value="">{INVENTORY_LABELS.all}</option>
           {STOCK_ADJUSTMENT_STATUSES.map((status) => (
             <option key={status} value={status}>
-              {STATUS_LABEL_VI[status]}
+              {statusLabelVi(status, "stock")}
             </option>
           ))}
         </select>
