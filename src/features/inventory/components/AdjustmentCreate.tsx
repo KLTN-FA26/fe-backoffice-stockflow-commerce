@@ -13,6 +13,7 @@ import { ApiError } from "@/lib/api/error";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 
+import { inventoryErrorView } from "../errors";
 import { useCreateAdjustment } from "../mutations";
 import { adjustmentCreateInput } from "../schemas";
 import { AdjustmentFields } from "./AdjustmentFields";
@@ -57,9 +58,7 @@ function AdjustmentCreateContent() {
           if (message) form.setError(field, { type: "server", message });
         }
       }
-      form.setError("root", {
-        message: error instanceof Error ? error.message : INVENTORY_LABELS.loadError,
-      });
+      form.setError("root", { message: inventoryErrorView(error).detail });
     }
   });
   return (

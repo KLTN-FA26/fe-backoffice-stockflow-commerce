@@ -157,3 +157,31 @@ export const STOCK_MOVEMENT_LABELS = {
   PICK: "Lấy hàng",
   PUT_BACK: "Trả hàng về vị trí",
 } as const satisfies Record<(typeof STOCK_MOVEMENT_TYPES)[number], string>;
+
+// Inventory API failures by BE `errorCode` (develop 0f18f24 ErrorCode.java). Never show the
+// backend `message`: it is English prose, not a contract.
+export const INVENTORY_ERROR_MESSAGES = {
+  selfApproval: "Người tạo yêu cầu không thể tự duyệt hoặc từ chối yêu cầu của mình.",
+  transition: "Trạng thái yêu cầu đã thay đổi nên thao tác này không còn khả dụng.",
+  concurrentChange: "Yêu cầu vừa được người khác cập nhật. Dữ liệu mới nhất đã được tải lại.",
+  notRequester: "Chỉ người tạo yêu cầu mới được rút yêu cầu điều chỉnh.",
+  outOfScope: "Bạn không có quyền với dữ liệu tồn kho của kho này.",
+  stockItemNotFound: "Không tìm thấy tồn kho của SKU/lô tại vị trí này.",
+  adjustmentNotFound: "Yêu cầu điều chỉnh không tồn tại hoặc không thuộc phạm vi kho bạn được xem.",
+  insufficientStock:
+    "Không đủ tồn khả dụng để ghi sổ: số lượng sau điều chỉnh sẽ thấp hơn số đang giữ chỗ.",
+  policyConflict: "Chính sách tồn kho hiện tại không cho phép thực hiện điều chỉnh này.",
+  validation: "Dữ liệu chưa hợp lệ. Vui lòng kiểm tra lại các trường đã nhập.",
+  forbidden: "Bạn không có quyền thực hiện thao tác này với dữ liệu tồn kho.",
+  notFound: "Dữ liệu tồn kho yêu cầu không tồn tại hoặc không thuộc phạm vi của bạn.",
+  conflict: "Dữ liệu tồn kho đã thay đổi. Vui lòng tải lại rồi thử lại.",
+  network: "Không kết nối được máy chủ. Vui lòng kiểm tra mạng.",
+  server: "Đã xảy ra lỗi khi xử lý yêu cầu tồn kho. Vui lòng thử lại.",
+} as const;
+
+export const INVENTORY_ERROR_TITLES = {
+  notFound: "Không tìm thấy dữ liệu tồn kho",
+  adjustmentNotFound: "Không tìm thấy yêu cầu điều chỉnh",
+  network: "Không kết nối được máy chủ",
+  actionFailed: "Không thực hiện được thao tác",
+} as const;

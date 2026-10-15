@@ -4,11 +4,11 @@ import { useSyncExternalStore } from "react";
 
 import { INVENTORY_LABELS } from "@/constants/inventory";
 
-import { ApiError } from "@/lib/api/error";
-
 import { Alert } from "@/components/shared/Alert";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/button";
+
+import { inventoryErrorView, isRetryableInventoryError } from "../errors";
 
 function subscribeOnline(callback: () => void) {
   window.addEventListener("online", callback);
@@ -33,21 +33,28 @@ export function InventoryOffline() {
 }
 
 export function InventoryError({ error, retry }: { error: unknown; retry: () => void }) {
-  const denied = error instanceof ApiError && error.status === 403;
+  const view = inventoryErrorView(error);
   return (
     <EmptyState
-      title={denied ? INVENTORY_LABELS.denied : INVENTORY_LABELS.loadError}
-      description={error instanceof Error ? error.message : INVENTORY_LABELS.loadError}
+      title={view.title}
+      description={view.detail}
       action={
         <div className="space-y-[var(--el-gap)]">
-          {error instanceof ApiError && error.traceId && (
+          {view.traceId && (
             <p>
-              {INVENTORY_LABELS.trace}: {error.traceId}
+              {INVENTORY_LABELS.trace}: {view.traceId}
             </p>
           )}
-          <Button className="rounded-[var(--r-sm)]" type="button" onClick={retry} variant="outline">
-            {INVENTORY_LABELS.retry}
-          </Button>
+          {isRetryableInventoryError(view) && (
+            <Button
+              className="rounded-[var(--r-sm)]"
+              type="button"
+              onClick={retry}
+              variant="outline"
+            >
+              {INVENTORY_LABELS.retry}
+            </Button>
+          )}
         </div>
       }
     />

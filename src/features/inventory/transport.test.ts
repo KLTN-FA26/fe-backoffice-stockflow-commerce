@@ -2,9 +2,10 @@ import { HttpResponse, http } from "msw";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { INVENTORY_API } from "@/constants/inventory";
+import { INVENTORY_API, INVENTORY_ERROR_MESSAGES } from "@/constants/inventory";
 
-import { listMovements } from "./api";
+import { approveAdjustment, listMovements } from "./api";
+import { inventoryErrorView } from "./errors";
 import { movementPageDto } from "./schemas";
 import { installInventoryTestApiContract } from "./test-api-contract";
 import { inventoryRequest } from "./transport";
@@ -107,6 +108,30 @@ describe("backend inventory transport boundary", () => {
     );
     await expect(listMovements({ page: 0, size: 15 })).rejects.toMatchObject({
       code: "INVALID_INVENTORY_CONTRACT",
+    });
+  });
+
+  it("hands the mapper the backend errorCode, not just its English message", async () => {
+    server.use(
+      http.post("http://localhost/api/v1/inventory/adjustments/:id/approval", () =>
+        HttpResponse.json(
+          {
+            success: false,
+            errorCode: "INVENTORY_POLICY_STOCK_CONFLICT",
+            message: "Existing stock is incompatible with this policy",
+            correlationId: "policy-trace",
+          },
+          { status: 409 },
+        ),
+      ),
+    );
+    const failure = await approveAdjustment(crypto.randomUUID()).catch((error: unknown) => error);
+    expect(failure).toMatchObject({ status: 409, code: "INVENTORY_POLICY_STOCK_CONFLICT" });
+    expect(inventoryErrorView(failure)).toEqual({
+      kind: "conflict",
+      title: expect.any(String),
+      detail: INVENTORY_ERROR_MESSAGES.policyConflict,
+      traceId: "policy-trace",
     });
   });
 });

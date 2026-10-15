@@ -10,6 +10,7 @@ import { useAuthStore } from "@/lib/auth/auth-store";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 
+import { inventoryErrorView } from "../errors";
 import { allowedAdjustmentActions } from "../lifecycle";
 import { useApproveAdjustment, useRejectAdjustment, useWithdrawAdjustment } from "../mutations";
 import { adjustmentRejectionInput } from "../schemas";
@@ -36,7 +37,7 @@ export function AdjustmentActions({ adjustment }: { adjustment: StockAdjustment 
   const withdraw = useWithdrawAdjustment();
   const pending = approve.isPending || reject.isPending || withdraw.isPending;
   const [action, setAction] = useState<(typeof actions)[number] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ detail: string; traceId?: string } | null>(null);
   const confirm = async (reason?: string) => {
     if (pending || !action || !actions.includes(action)) return;
     setError(null);
@@ -48,13 +49,15 @@ export function AdjustmentActions({ adjustment }: { adjustment: StockAdjustment 
       if (action === STOCK_ADJUSTMENT_ACTION.REJECT) {
         const input = adjustmentRejectionInput.safeParse({ reason });
         if (!input.success) {
-          setError(input.error.issues[0]?.message ?? INVENTORY_LABELS.rejectionReason);
+          setError({ detail: input.error.issues[0]?.message ?? INVENTORY_LABELS.rejectionReason });
           return;
         }
         await reject.mutateAsync({ id: adjustment.adjustmentId, input: input.data });
       }
     } catch (failure: unknown) {
-      setError(failure instanceof Error ? failure.message : INVENTORY_LABELS.loadError);
+      // Stale-state codes already refetched the detail in the mutation (mutations.ts).
+      const view = inventoryErrorView(failure);
+      setError({ detail: view.detail, traceId: view.traceId });
     }
   };
   return (
@@ -75,9 +78,14 @@ export function AdjustmentActions({ adjustment }: { adjustment: StockAdjustment 
       </div>
       {pending && <p role="status">{INVENTORY_LABELS.submitting}</p>}
       {error && (
-        <p role="alert" className="text-danger">
-          {error}
-        </p>
+        <div role="alert" className="text-danger">
+          <p>{error.detail}</p>
+          {error.traceId && (
+            <p>
+              {INVENTORY_LABELS.trace}: {error.traceId}
+            </p>
+          )}
+        </div>
       )}
       {action && (
         <ConfirmDialog

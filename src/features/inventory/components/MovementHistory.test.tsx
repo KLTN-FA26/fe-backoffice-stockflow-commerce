@@ -8,6 +8,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import {
   INVENTORY_API,
+  INVENTORY_ERROR_MESSAGES,
   INVENTORY_LABELS,
   STOCK_MOVEMENT_LABELS,
   STOCK_MOVEMENT_TYPES,
@@ -163,7 +164,8 @@ describe("movement ledger screen", () => {
       }),
     );
     renderHistory();
-    expect(await screen.findByText("Temporary failure")).toBeInTheDocument();
+    expect(await screen.findByText(INVENTORY_ERROR_MESSAGES.server)).toBeInTheDocument();
+    expect(screen.queryByText("Temporary failure")).not.toBeInTheDocument();
     expect(screen.getByText(/ledger-test/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: INVENTORY_LABELS.retry }));
     expect(await screen.findByText(INVENTORY_LABELS.noMovements)).toBeInTheDocument();

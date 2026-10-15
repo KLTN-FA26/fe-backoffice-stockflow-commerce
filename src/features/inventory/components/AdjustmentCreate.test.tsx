@@ -4,7 +4,11 @@ import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
+import {
+  INVENTORY_ERROR_MESSAGES,
+  INVENTORY_LABELS,
+  INVENTORY_ROUTES,
+} from "@/constants/inventory";
 import { INVENTORY_PERMISSIONS } from "@/constants/permissions";
 
 import { installInventoryTestApiContract } from "../test-api-contract";
@@ -117,6 +121,30 @@ describe("adjustment create form", () => {
     expect(await screen.findByText("Unknown location")).toBeInTheDocument();
     expect(screen.getByLabelText(/Vị trí/)).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByText(/create-test/)).toBeInTheDocument();
+    expect(screen.getByText(INVENTORY_ERROR_MESSAGES.validation)).toBeInTheDocument();
+    expect(screen.queryByText("Unknown stock row")).not.toBeInTheDocument();
+    expect(navigation.push).not.toHaveBeenCalled();
+  });
+
+  it("names the missing stock row, not the adjustment, for STOCK_ITEM_NOT_FOUND", async () => {
+    server.use(
+      http.post(endpoint, () =>
+        HttpResponse.json(
+          {
+            success: false,
+            errorCode: "STOCK_ITEM_NOT_FOUND",
+            message: "No CUP-PP-500 at HCM-A01-1-A",
+          },
+          { status: 404 },
+        ),
+      ),
+    );
+    renderInventory(<AdjustmentCreate />);
+    await enterAdjustment();
+    await userEvent.selectOptions(screen.getByLabelText(/Lý do điều chỉnh/), "SCRAP");
+    await userEvent.click(screen.getByRole("button", { name: INVENTORY_LABELS.submitAdjustment }));
+    expect(await screen.findByText(INVENTORY_ERROR_MESSAGES.stockItemNotFound)).toBeInTheDocument();
+    expect(screen.queryByText(/No CUP-PP-500/)).not.toBeInTheDocument();
     expect(navigation.push).not.toHaveBeenCalled();
   });
 
