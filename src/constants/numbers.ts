@@ -58,3 +58,13 @@ export const RECEIPT_LIMITS = {
   /** `QcDecisionRequest.Part.reason` @Size(max = 500). */
   qcReasonMax: 500,
 } as const;
+
+/** Giới hạn task xuất kho — đúng ràng buộc request BE FulfillmentController. */
+export const FULFILLMENT_LIMITS = {
+  /** `ReverificationRequest.resolutionNote` @NotBlank @Size(max = 1000). */
+  resolutionNoteMax: 1000,
+  /** Số ký tự đầu của checksum SHA-256 (64 hex) hiện trong bảng — đủ để đối chiếu bằng mắt. */
+  checksumPreviewLength: 12,
+  /** Số ký tự CUỐI của UUID hiện khi BE không trả mã đọc được (task, đơn, người được gán). */
+  shortIdLength: 8,
+} as const;

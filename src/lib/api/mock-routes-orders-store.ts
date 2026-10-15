@@ -1,7 +1,8 @@
 /**
  * Mock đơn bán — store in-memory + chuyển mock-data → wire BE `OrderResponse`, dùng chung cho
- * `mock-routes-orders.ts` (list/detail/history/huỷ) và `mock-routes-orders-actions.ts`
- * (release, credit hold, lệnh sản xuất).
+ * `mock-routes-orders.ts` (list/detail/history/huỷ), `mock-routes-orders-actions.ts`
+ * (release, credit hold, lệnh sản xuất) và mock xuất kho `mock-routes-fulfillment*.ts` (đổi trạng
+ * thái đơn, snapshot + checksum thiết kế). Một nguồn duy nhất cho trạng thái đơn đã đổi trong phiên.
  *
  * mock-data (không được sửa) dùng 20 trạng thái docs 17 và chưa có phương thức thanh toán B2B,
  * hạn mức công nợ hay lệnh sản xuất. Mọi suy diễn dưới đây là ASSUMPTION mock-only — chỉ GÁN
@@ -9,7 +10,7 @@
  */
 
 import type { AxiosRequestConfig } from "axios";
-import type { Order, OrderManagementStatus } from "@/lib/mock-data";
+import type { Order, OrderLine, OrderManagementStatus } from "@/lib/mock-data";
 
 export type BeOrderStatus =
   | "DRAFT"
@@ -122,6 +123,34 @@ export function backendStatus(order: Order): BeOrderStatus {
   return overrides.get(order.orderId)?.status ?? MOCK_TO_BACKEND_STATUS[order.status];
 }
 
+/** Trạng thái BE hiện tại của một đơn mock — cho mock xuất kho (`requireOrderInFulfilment`). */
+export async function backendOrderStatusOf(orderId: string): Promise<BeOrderStatus | undefined> {
+  const order = await findOrder(orderId);
+  return order ? backendStatus(order) : undefined;
+}
+
+/** Mock xuất kho đổi trạng thái đơn như BE (vào xuất kho, giữ / gỡ giữ do lệch thiết kế). */
+export function setMockOrderStatus(orderId: string, status: BeOrderStatus): void {
+  overrides.set(orderId, { ...(overrides.get(orderId) ?? { history: [] }), status });
+}
+
+/** SHA-256 giả 64 hex, ổn định theo seed (FNV-1a lặp 8 lần). */
+export function fakeSha256(seed: string): string {
+  let out = "";
+  for (let round = 0; round < 8; round++) {
+    let hash = 0x811c9dc5;
+    for (const char of `${round}:${seed}`) {
+      hash = Math.imul(hash ^ char.charCodeAt(0), 0x01000193);
+    }
+    out += (hash >>> 0).toString(16).padStart(8, "0");
+  }
+  return out;
+}
+
+/** Dòng mock có `designId` = dòng tuỳ chỉnh: BE trả snapshot đã khoá + SHA-256 của bundle. */
+export const snapshotIdOf = (line: OrderLine) => `SNAP-${line.designId ?? ""}`;
+export const lockedChecksumOf = (line: OrderLine) => fakeSha256(line.lineId);
+
 export function paymentTermOf(order: Order): BePaymentTerm {
   return overrides.get(order.orderId)?.paymentTerm ?? deriveTerm(order);
 }
@@ -187,8 +216,8 @@ export function toOrderResponse(order: Order) {
       lineTotal: line.lineTotal,
       // ASSUMPTION (mock-only): mỗi dòng giữ hàng từ đúng 1 lô → 1 reservation
       reservationIds: CANCELLABLE_STATUSES.includes(status) ? [`RSV-${line.lineId}`] : [],
-      designSnapshotId: line.designId ?? null,
-      designChecksum: null,
+      designSnapshotId: isCustomLine(line) ? snapshotIdOf(line) : null,
+      designChecksum: isCustomLine(line) ? lockedChecksumOf(line) : null,
     })),
     placedAt: order.placedAt,
     createdBy: order.createdById ?? null,
