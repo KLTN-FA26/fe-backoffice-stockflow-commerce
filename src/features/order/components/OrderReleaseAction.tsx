@@ -65,7 +65,7 @@ function ReleaseForm({ order, onClose }: { order: ReleaseOrder; onClose: () => v
     mode: "onChange",
     defaultValues: RELEASE_FORM_DEFAULTS,
   });
-  const { refusal, clearRefusal, onError } = useOrderActionErrors(
+  const { refusal, clearRefusal, onError, idempotencyKeyFor, finishAttempt } = useOrderActionErrors(
     releaseErrorView,
     STALE_CODES.release,
     onClose,
@@ -82,7 +82,18 @@ function ReleaseForm({ order, onClose }: { order: ReleaseOrder; onClose: () => v
 
   const submit = form.handleSubmit((input) => {
     clearRefusal();
-    release({ id: order.orderId, ...input }, { onSuccess: onClose, onError });
+    // Một lần bấm = một request; cùng nội dung bấm lại sau lỗi tạm thời → cùng Idempotency-Key
+    const variables = { id: order.orderId, ...input };
+    release(
+      { ...variables, idempotencyKey: idempotencyKeyFor(variables) },
+      {
+        onSuccess: () => {
+          finishAttempt();
+          onClose();
+        },
+        onError,
+      },
+    );
   });
 
   return (

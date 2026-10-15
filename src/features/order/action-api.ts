@@ -5,8 +5,9 @@
 
 import { PAGE_SIZE } from "@/constants";
 import { api } from "@/lib/api/client";
+import { idempotencyRequestConfig } from "@/lib/api/idempotency";
 
-import { orderPath, ORDERS_PATH, toOrder } from "./api";
+import { orderPath, ORDERS_PATH, toOrder, type OrderMutationVars } from "./api";
 import { creditHoldPageDtoSchema, creditPositionDtoSchema } from "./credit-hold-schemas";
 import { productionOrderListDtoSchema } from "./production-schemas";
 import { isValidOrderCustomerId, orderDtoSchema } from "./schemas";
@@ -29,9 +30,13 @@ import type {
  * Thành công: có dòng in → IN_PRODUCTION (sinh lệnh sản xuất), chỉ hàng sẵn → READY_TO_FULFILL.
  * Từ chối (409/404) mang `errorCode` — map ở `errors.ts#releaseErrorView`.
  */
-export async function releaseOrder(input: ReleaseOrderInput & { id: string }): Promise<Order> {
-  const { id, warehouseId } = input;
-  const { data } = await api.post<unknown>(orderPath(id, "/release"), { warehouseId });
+export async function releaseOrder(input: OrderMutationVars<ReleaseOrderInput>): Promise<Order> {
+  const { id, warehouseId, idempotencyKey } = input;
+  const { data } = await api.post<unknown>(
+    orderPath(id, "/release"),
+    { warehouseId },
+    idempotencyRequestConfig(idempotencyKey),
+  );
   return toOrder(orderDtoSchema.parse(data));
 }
 
@@ -59,10 +64,14 @@ export async function listCreditHolds(
 
 /** `POST /orders/{id}/credit-approval {note}` → đơn CONFIRMED. */
 export async function approveCreditHold(
-  input: CreditApprovalInput & { id: string },
+  input: OrderMutationVars<CreditApprovalInput>,
 ): Promise<Order> {
-  const { id, note } = input;
-  const { data } = await api.post<unknown>(orderPath(id, "/credit-approval"), { note });
+  const { id, note, idempotencyKey } = input;
+  const { data } = await api.post<unknown>(
+    orderPath(id, "/credit-approval"),
+    { note },
+    idempotencyRequestConfig(idempotencyKey),
+  );
   return toOrder(orderDtoSchema.parse(data));
 }
 
@@ -71,10 +80,14 @@ export async function approveCreditHold(
  * (CREDIT_REJECTED); SWITCH_TO_* chuyển đơn về PENDING_PAYMENT.
  */
 export async function rejectCreditHold(
-  input: CreditRejectionInput & { id: string },
+  input: OrderMutationVars<CreditRejectionInput>,
 ): Promise<Order> {
-  const { id, ...body } = input;
-  const { data } = await api.post<unknown>(orderPath(id, "/credit-rejection"), body);
+  const { id, idempotencyKey, ...body } = input;
+  const { data } = await api.post<unknown>(
+    orderPath(id, "/credit-rejection"),
+    body,
+    idempotencyRequestConfig(idempotencyKey),
+  );
   return toOrder(orderDtoSchema.parse(data));
 }
 

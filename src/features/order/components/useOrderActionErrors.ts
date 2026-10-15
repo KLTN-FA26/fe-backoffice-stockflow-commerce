@@ -3,6 +3,8 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { useIdempotencyAttempt } from "@/lib/api/idempotency";
+
 import { toast } from "@/components/shared/Toast";
 
 import { isOrderConcurrencyError, mapServerFieldErrors } from "../errors";
@@ -22,11 +24,15 @@ export interface ServerFieldErrorTarget<F extends string> {
  * 0. Mã nghiệp vụ riêng của form (vd PAYMENT_TERM_NOT_ALLOWED) — form xử lý TRƯỚC khi gọi đây.
  * 1. Mã trong `staleCodes` = dữ liệu trên màn đã cũ (đơn đã đổi trạng thái, người khác đã xử lý)
  *    → đóng dialog, toast, tải lại toàn bộ dữ liệu đơn (`orderKeys.all`) để nút tự ẩn.
- * 2. Tranh chấp đồng thời (OPTIMISTIC_LOCK / LOCK_TIMEOUT) → giữ dialog + dữ liệu đã nhập, báo
- *    trong dialog; OPTIMISTIC_LOCK tải lại `orderKeys.all` (đơn đã đổi). KHÔNG tự gửi lại —
- *    người dùng bấm lại (chưa có Idempotency-Key).
+ * 2. Tranh chấp đồng thời (OPTIMISTIC_LOCK / LOCK_TIMEOUT / IDEMPOTENT_REQUEST_IN_PROGRESS) →
+ *    giữ dialog + dữ liệu đã nhập, báo trong dialog; OPTIMISTIC_LOCK tải lại `orderKeys.all` (đơn
+ *    đã đổi). KHÔNG tự gửi lại — người dùng bấm lại.
  * 3. `fieldErrors` của BE → lỗi tại ô (mọi field nhận ra); field lạ → kèm vào thông báo chung.
  * 4. Còn lại → giữ dialog + dữ liệu đã nhập, hiện lý do (mã BR, traceId) ngay trong dialog.
+ *
+ * Idempotency-Key: một "lần thử logic" theo dialog (`idempotencyKeyFor(variables)`) — mọi lỗi được
+ * `settle` TRƯỚC các bước trên: BE đã chốt kết quả (hay KEY_REUSED) → bỏ key; BE nhả claim (409,
+ * 5xx, mất mạng) → giữ key cho lần bấm lại cùng nội dung. Thành công → `finishAttempt`.
  */
 export function useOrderActionErrors<F extends string>(
   toView: (error: ApiError) => OrderErrorView,
@@ -36,8 +42,10 @@ export function useOrderActionErrors<F extends string>(
 ) {
   const queryClient = useQueryClient();
   const [refusal, setRefusal] = useState<OrderErrorView | null>(null);
+  const attempt = useIdempotencyAttempt();
 
   const onError = (error: ApiError) => {
+    attempt.settle(error);
     const view = toView(error);
     if (staleCodes.includes(error.code)) {
       onClose();
@@ -64,7 +72,15 @@ export function useOrderActionErrors<F extends string>(
     setRefusal(view);
   };
 
-  return { refusal, clearRefusal: () => setRefusal(null), onError };
+  return {
+    refusal,
+    clearRefusal: () => setRefusal(null),
+    onError,
+    /** Key cho đúng biến mutation này (cùng nội dung → cùng key). */
+    idempotencyKeyFor: attempt.keyFor,
+    /** Gọi khi thành công — lần thử logic đã xong. */
+    finishAttempt: attempt.reset,
+  };
 }
 
 /** Mã "dữ liệu cũ" theo thao tác — BE ErrorCode (develop). */

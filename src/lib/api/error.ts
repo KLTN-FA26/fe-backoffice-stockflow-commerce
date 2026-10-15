@@ -4,9 +4,10 @@
  * Every axios error is converted into an ApiError so consuming code never
  * needs to inspect raw AxiosError shapes.
  *
- * `fieldErrors` (when present) maps directly to react-hook-form `setError`:
- *   for (const [k, msg] of Object.entries(e.fieldErrors))
- *     form.setError(k as Path<T>, { type: "server", message: msg });
+ * `fieldErrors` (when present) keeps the server's field names verbatim (`{ field: message }`).
+ * Each form maps the server fields it recognises explicitly (e.g. `ServerFieldMap` in
+ * `features/order/errors.ts`, `poCreateFieldErrors`) — never cast an arbitrary server field name to
+ * a form path type; unknown fields go to the form's general error instead.
  */
 
 import { type AxiosError } from "axios";

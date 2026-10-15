@@ -49,7 +49,7 @@ export function CancelForm({ order, onClose }: { order: CancelOrder; onClose: ()
     mode: "onChange",
     defaultValues: ADMIN_CANCEL_FORM_DEFAULTS,
   });
-  const { refusal, clearRefusal, onError } = useOrderActionErrors(
+  const { refusal, clearRefusal, onError, idempotencyKeyFor, finishAttempt } = useOrderActionErrors(
     adminCancelErrorView,
     STALE_CODES.cancel,
     onClose,
@@ -72,7 +72,18 @@ export function CancelForm({ order, onClose }: { order: CancelOrder; onClose: ()
 
   const submit = form.handleSubmit((input) => {
     clearRefusal();
-    adminCancel({ id: order.orderId, ...input }, { onSuccess: onClose, onError });
+    // Một lần bấm = một request; cùng nội dung bấm lại sau lỗi tạm thời → cùng Idempotency-Key
+    const variables = { id: order.orderId, ...input };
+    adminCancel(
+      { ...variables, idempotencyKey: idempotencyKeyFor(variables) },
+      {
+        onSuccess: () => {
+          finishAttempt();
+          onClose();
+        },
+        onError,
+      },
+    );
   });
 
   return (

@@ -28,10 +28,15 @@ export interface OrderErrorView {
  *   dữ liệu trên màn đã cũ, phải tải lại trước khi thử lại.
  * - LOCK_TIMEOUT: không lấy được khoá dòng trong thời hạn (đơn khoá PESSIMISTIC_WRITE, 3 giây) —
  *   người khác đang xử lý, giao dịch của mình chưa đổi gì → thử lại sau ít giây.
- * KHÔNG tự gửi lại: thao tác có thể không còn hợp lệ với dữ liệu mới, và chưa có Idempotency-Key —
- * người dùng tự bấm lại.
+ * - IDEMPOTENT_REQUEST_IN_PROGRESS (409, `IdempotencyFilter`): một request cùng Idempotency-Key
+ *   vẫn đang chạy — bấm lại sau ít giây (cùng key) sẽ nhận kết quả của nó.
+ * KHÔNG tự gửi lại: thao tác có thể không còn hợp lệ với dữ liệu mới — người dùng tự bấm lại.
  */
-export const ORDER_CONCURRENCY_CODES = ["OPTIMISTIC_LOCK", "LOCK_TIMEOUT"] as const;
+export const ORDER_CONCURRENCY_CODES = [
+  "OPTIMISTIC_LOCK",
+  "LOCK_TIMEOUT",
+  "IDEMPOTENT_REQUEST_IN_PROGRESS",
+] as const;
 
 export function isOrderConcurrencyError(error: ApiError): boolean {
   return (ORDER_CONCURRENCY_CODES as readonly string[]).includes(error.code);
@@ -80,6 +85,20 @@ function commonErrorView(error: ApiError, title: string, action: string): OrderE
       return {
         title,
         detail: "Đơn đang được xử lý ở nơi khác. Đợi vài giây rồi bấm thử lại.",
+        traceId,
+      };
+    case "IDEMPOTENT_REQUEST_IN_PROGRESS":
+      return {
+        title,
+        detail: "Yêu cầu vừa gửi vẫn đang được máy chủ xử lý. Đợi vài giây rồi bấm thử lại.",
+        traceId,
+      };
+    // 422 từ IdempotencyFilter: key đã gắn với một yêu cầu khác — yêu cầu này CHƯA được thực hiện
+    case "IDEMPOTENCY_KEY_REUSED":
+      return {
+        title,
+        detail:
+          "Yêu cầu chưa được gửi đi do trùng mã với yêu cầu trước. Kiểm tra lại rồi bấm gửi lần nữa.",
         traceId,
       };
     // 404 dùng chung cho "không tồn tại" và "ngoài phạm vi" — BE chủ đích không tiết lộ.

@@ -37,6 +37,11 @@ async function renderDetail(permissions: readonly PermissionCode[], handler: () 
 
 const withStatus = (status: OrderDto["status"]): OrderDto => ({ ...apiOrder, status });
 
+/** Mọi thao tác ghi đơn gửi kèm Idempotency-Key (header riêng request, không vào body). */
+const WITH_IDEMPOTENCY_KEY = expect.objectContaining({
+  headers: { "Idempotency-Key": expect.any(String) },
+});
+
 afterEach(() => vi.restoreAllMocks());
 
 const DIALOG_FLOW_TIMEOUT_MS = 15_000;
@@ -172,10 +177,14 @@ describe(
       await cancelWith(user, "Khách yêu cầu", "  Khách đổi ý  ");
 
       await waitFor(() =>
-        expect(post).toHaveBeenCalledWith(CANCEL_PATH, {
-          reasonCode: "CUSTOMER_REQUEST",
-          note: "Khách đổi ý",
-        }),
+        expect(post).toHaveBeenCalledWith(
+          CANCEL_PATH,
+          {
+            reasonCode: "CUSTOMER_REQUEST",
+            note: "Khách đổi ý",
+          },
+          WITH_IDEMPOTENCY_KEY,
+        ),
       );
       await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     });
@@ -212,10 +221,14 @@ describe(
       await user.click(within(dialog).getByRole("button", { name: "Huỷ đơn" }));
 
       await waitFor(() =>
-        expect(post).toHaveBeenCalledWith(CANCEL_PATH, {
-          reasonCode: "CUSTOMER_REQUEST",
-          retainedPercent: 25.5,
-        }),
+        expect(post).toHaveBeenCalledWith(
+          CANCEL_PATH,
+          {
+            reasonCode: "CUSTOMER_REQUEST",
+            retainedPercent: 25.5,
+          },
+          WITH_IDEMPOTENCY_KEY,
+        ),
       );
     });
 

@@ -58,6 +58,11 @@ function callsTo(get: ReturnType<typeof renderList>, path: string): number {
   return get.mock.calls.filter(([url]) => url === path).length;
 }
 
+/** Mọi thao tác ghi đơn gửi kèm Idempotency-Key (header riêng request, không vào body). */
+const WITH_IDEMPOTENCY_KEY = expect.objectContaining({
+  headers: { "Idempotency-Key": expect.any(String) },
+});
+
 afterEach(() => vi.restoreAllMocks());
 
 const DIALOG_FLOW_TIMEOUT_MS = 15_000;
@@ -156,7 +161,11 @@ describe("Credit hold — duyệt / từ chối", { timeout: DIALOG_FLOW_TIMEOUT
     await user.click(within(dialog).getByRole("button", { name: "Duyệt" }));
 
     await waitFor(() =>
-      expect(post).toHaveBeenCalledWith(APPROVE_PATH, { note: "Khách đã cam kết" }),
+      expect(post).toHaveBeenCalledWith(
+        APPROVE_PATH,
+        { note: "Khách đã cam kết" },
+        WITH_IDEMPOTENCY_KEY,
+      ),
     );
   });
 
@@ -187,11 +196,15 @@ describe("Credit hold — duyệt / từ chối", { timeout: DIALOG_FLOW_TIMEOUT
     await user.click(within(dialog).getByRole("button", { name: "Từ chối" }));
 
     await waitFor(() =>
-      expect(post).toHaveBeenCalledWith(REJECT_PATH, {
-        action: "SWITCH_TO_DEPOSIT",
-        depositPercent: 30.5,
-        note: "Chuyển cọc",
-      }),
+      expect(post).toHaveBeenCalledWith(
+        REJECT_PATH,
+        {
+          action: "SWITCH_TO_DEPOSIT",
+          depositPercent: 30.5,
+          note: "Chuyển cọc",
+        },
+        WITH_IDEMPOTENCY_KEY,
+      ),
     );
   });
 
@@ -431,7 +444,11 @@ describe("Credit hold — công nợ hiện tại của khách", { timeout: DIAL
     await user.type(within(dialog).getByLabelText(/Ghi chú/), "Huỷ");
     await user.click(within(dialog).getByRole("button", { name: "Từ chối" }));
     await waitFor(() =>
-      expect(post).toHaveBeenCalledWith(REJECT_PATH, { action: "CANCEL", note: "Huỷ" }),
+      expect(post).toHaveBeenCalledWith(
+        REJECT_PATH,
+        { action: "CANCEL", note: "Huỷ" },
+        WITH_IDEMPOTENCY_KEY,
+      ),
     );
   });
 
@@ -496,7 +513,9 @@ describe("Credit hold — công nợ hiện tại của khách", { timeout: DIAL
     expect(await within(dialog).findByText(/Không tải được công nợ hiện tại/)).toBeInTheDocument();
     await user.type(within(dialog).getByLabelText(/Ghi chú duyệt/), "Ok");
     await user.click(within(dialog).getByRole("button", { name: "Duyệt" }));
-    await waitFor(() => expect(post).toHaveBeenCalledWith(APPROVE_PATH, { note: "Ok" }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(APPROVE_PATH, { note: "Ok" }, WITH_IDEMPOTENCY_KEY),
+    );
   });
 });
 
@@ -594,11 +613,15 @@ describe(
       await user.type(percent, "35");
       await user.click(within(dialog).getByRole("button", { name: "Từ chối" }));
       await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
-      expect(post).toHaveBeenLastCalledWith(REJECT_PATH, {
-        action: "SWITCH_TO_DEPOSIT",
-        depositPercent: 35,
-        note: "Cọc lại",
-      });
+      expect(post).toHaveBeenLastCalledWith(
+        REJECT_PATH,
+        {
+          action: "SWITCH_TO_DEPOSIT",
+          depositPercent: 35,
+          note: "Cọc lại",
+        },
+        WITH_IDEMPOTENCY_KEY,
+      );
     });
 
     it("E. kiểm tra phía client (zod) vẫn chạy: ghi chú trống → không gửi", async () => {
@@ -633,3 +656,120 @@ describe(
     });
   },
 );
+
+/* ── Step 9: Idempotency-Key ───────────────────────────────────────────── */
+
+describe("Credit hold — Idempotency-Key", { timeout: DIALOG_FLOW_TIMEOUT_MS }, () => {
+  type PostSpy = { mock: { calls: unknown[][] } };
+  const keyOf = (post: PostSpy, call: number) =>
+    (post.mock.calls[call]?.[2] as { headers?: Record<string, string> } | undefined)?.headers?.[
+      "Idempotency-Key"
+    ];
+
+  async function rejectCancel(user: ReturnType<typeof userEvent.setup>, note: string) {
+    const dialog = await openReject(user, apiOrder.orderNumber);
+    await screen.findByRole("region", { name: "Công nợ hiện tại của khách" });
+    await pickOrderSelectOption(user, /Cách xử lý/, "Huỷ đơn");
+    await user.type(within(dialog).getByLabelText(/Ghi chú/), note);
+    await user.click(within(dialog).getByRole("button", { name: "Từ chối" }));
+    return dialog;
+  }
+
+  it("C. đổi nội dung sau lỗi tạm thời → key mới; một key không bao giờ đi với hai body khác nhau", async () => {
+    const user = userEvent.setup();
+    renderList(ORDER_PERMISSION_SETS.accountant);
+    const post = vi
+      .spyOn(api, "post")
+      .mockRejectedValueOnce(new ApiError(409, "LOCK_TIMEOUT", "busy"))
+      .mockResolvedValueOnce({ data: { ...heldOrder, status: "CANCELLED" } });
+    const dialog = await rejectCancel(user, "A");
+    await within(dialog).findByText(/đang được xử lý ở nơi khác/);
+
+    await user.type(within(dialog).getByLabelText(/Ghi chú/), "B");
+    await user.click(within(dialog).getByRole("button", { name: "Từ chối" }));
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
+    expect(post.mock.calls.map((c) => c[1])).toEqual([
+      { action: "CANCEL", note: "A" },
+      { action: "CANCEL", note: "AB" },
+    ]);
+    expect(keyOf(post, 1)).not.toBe(keyOf(post, 0));
+  });
+
+  it("IDEMPOTENT_REQUEST_IN_PROGRESS (409) → báo đang xử lý, không tự gửi lại; bấm lại dùng CÙNG key", async () => {
+    const user = userEvent.setup();
+    renderList(ORDER_PERMISSION_SETS.accountant);
+    const post = vi
+      .spyOn(api, "post")
+      .mockRejectedValueOnce(new ApiError(409, "IDEMPOTENT_REQUEST_IN_PROGRESS", "still running"))
+      .mockResolvedValueOnce({ data: { ...heldOrder, status: "CANCELLED" } });
+    const dialog = await rejectCancel(user, "Huỷ");
+
+    expect(await within(dialog).findByText(/vẫn đang được máy chủ xử lý/)).toBeInTheDocument();
+    expect(post).toHaveBeenCalledTimes(1);
+    await user.click(within(dialog).getByRole("button", { name: "Từ chối" }));
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
+    expect(keyOf(post, 1)).toBe(keyOf(post, 0));
+  });
+
+  it("IDEMPOTENCY_KEY_REUSED (422) → báo ở mức dialog, không gắn vào ô, không tự gửi lại; bấm lại dùng key MỚI", async () => {
+    const user = userEvent.setup();
+    renderList(ORDER_PERMISSION_SETS.accountant);
+    const post = vi
+      .spyOn(api, "post")
+      .mockRejectedValueOnce(new ApiError(422, "IDEMPOTENCY_KEY_REUSED", "reused"))
+      .mockResolvedValueOnce({ data: { ...heldOrder, status: "CANCELLED" } });
+    const dialog = await rejectCancel(user, "Huỷ");
+
+    expect(await within(dialog).findByText(/trùng mã với yêu cầu trước/)).toBeInTheDocument();
+    expect(within(dialog).getByLabelText(/Ghi chú/)).not.toHaveAttribute("aria-invalid");
+    expect(within(dialog).getByRole("combobox", { name: /Cách xử lý/ })).not.toHaveAttribute(
+      "aria-invalid",
+    );
+    expect(post).toHaveBeenCalledTimes(1);
+    await user.click(within(dialog).getByRole("button", { name: "Từ chối" }));
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
+    expect(keyOf(post, 1)).not.toBe(keyOf(post, 0));
+  });
+
+  it("D. duyệt và từ chối cùng đơn: mỗi dialog một key, không rò key sang nhau", async () => {
+    const user = userEvent.setup();
+    renderList(ORDER_PERMISSION_SETS.accountant);
+    const post = vi.spyOn(api, "post").mockRejectedValue(new ApiError(409, "LOCK_TIMEOUT", "busy"));
+    const rejectDialog = await rejectCancel(user, "Huỷ");
+    await within(rejectDialog).findByText(/đang được xử lý ở nơi khác/);
+    await user.click(within(rejectDialog).getByRole("button", { name: "Huỷ" }));
+
+    await user.click(await screen.findByRole("button", { name: /^Duyệt vượt hạn mức đơn/ }));
+    const approve = await screen.findByRole("dialog");
+    await user.type(within(approve).getByLabelText(/Ghi chú duyệt/), "Ok");
+    await user.click(within(approve).getByRole("button", { name: "Duyệt" }));
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
+    expect(post.mock.calls[1]?.[0]).toBe(APPROVE_PATH);
+    expect(keyOf(post, 1)).not.toBe(keyOf(post, 0));
+  });
+
+  it("G. OPTIMISTIC_LOCK → tải lại thấy đơn không còn chờ duyệt → dialog biến mất, không tự gửi", async () => {
+    const user = userEvent.setup();
+    let queue: unknown[] = [hold];
+    renderList(ORDER_PERMISSION_SETS.accountant, [], {
+      [POSITION_PATH]: () => apiCreditPosition,
+    });
+    // Hàng đợi động: sau lỗi khoá, người khác đã xử lý đơn → hàng đợi rỗng
+    const get = vi.mocked(api.get);
+    const base = get.getMockImplementation();
+    get.mockImplementation((url: string, config?: { params?: unknown }) =>
+      url === "/orders/credit-holds"
+        ? Promise.resolve({ data: apiOrderPage(queue as never[]) })
+        : (base?.(url, config) ?? Promise.reject(new Error(url))),
+    );
+    const post = vi.spyOn(api, "post").mockImplementation(async () => {
+      queue = [];
+      throw new ApiError(409, "OPTIMISTIC_LOCK", "changed");
+    });
+    await rejectCancel(user, "Huỷ");
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(await screen.findByText("Không có đơn vượt hạn mức")).toBeInTheDocument();
+    expect(post).toHaveBeenCalledTimes(1);
+  });
+});

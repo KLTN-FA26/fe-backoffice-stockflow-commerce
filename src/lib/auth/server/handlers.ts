@@ -152,7 +152,14 @@ export async function logoutHandler(request: NextRequest): Promise<NextResponse>
   return expireSessionCookie(new NextResponse(null, { status: 204, headers: NO_STORE }));
 }
 
-const SAFE_REQUEST_HEADERS = ["Content-Type", "Accept", "X-Warehouse-Id"] as const;
+// Idempotency-Key: BE IdempotencyFilter khoá theo (key, người gọi) + vân tay body — BFF chuyển
+// nguyên header (body đã chuyển nguyên byte) để thao tác ghi bấm lại không bị làm hai lần.
+const SAFE_REQUEST_HEADERS = [
+  "Content-Type",
+  "Accept",
+  "X-Warehouse-Id",
+  "Idempotency-Key",
+] as const;
 const SAFE_RESPONSE_HEADERS = ["Content-Type", "Content-Disposition"] as const;
 // Check parsed JSON too, so escaped property names/strings cannot bypass filtering.
 function containsCredential(value: unknown, token: string): boolean {

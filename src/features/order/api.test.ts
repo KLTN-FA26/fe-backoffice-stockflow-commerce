@@ -4,9 +4,16 @@ import { api } from "@/lib/api/client";
 
 import { ORDER_STATUSES } from "@/constants";
 
-import { buildOrderListQuery, getOrder, getOrderHistory, listOrders, toOrder } from "./api";
+import {
+  adminCancelOrder,
+  buildOrderListQuery,
+  getOrder,
+  getOrderHistory,
+  listOrders,
+  toOrder,
+} from "./api";
 import { apiCreditPosition, apiGuestOrder } from "./__fixtures__/order";
-import { getCreditPosition } from "./action-api";
+import { approveCreditHold, getCreditPosition, rejectCreditHold, releaseOrder } from "./action-api";
 import { STATUS_OPTIONS } from "./components/order-list/constants";
 import { orderDtoSchema } from "./schemas";
 
@@ -367,5 +374,70 @@ describe("getCreditPosition — GET /orders/credit-position/{customerId}", () =>
     const get = vi.spyOn(api, "get");
     await expect(getCreditPosition("CUS-0007")).rejects.toThrow();
     expect(get).not.toHaveBeenCalled();
+  });
+});
+
+describe("Idempotency-Key — chỉ thao tác ghi đơn, header riêng từng request", () => {
+  const ID = beOrder.orderId;
+  const KEY = "k-0000-test-key";
+  const header = { headers: { "Idempotency-Key": KEY } };
+
+  it.each([
+    [
+      "huỷ admin",
+      () => adminCancelOrder({ id: ID, reasonCode: "OTHER", note: "x", idempotencyKey: KEY }),
+      `/orders/${ID}/admin-cancellation`,
+      { reasonCode: "OTHER", note: "x" },
+    ],
+    [
+      "release",
+      () => releaseOrder({ id: ID, warehouseId: "W1", idempotencyKey: KEY }),
+      `/orders/${ID}/release`,
+      { warehouseId: "W1" },
+    ],
+    [
+      "duyệt công nợ",
+      () => approveCreditHold({ id: ID, note: "ok", idempotencyKey: KEY }),
+      `/orders/${ID}/credit-approval`,
+      { note: "ok" },
+    ],
+    [
+      "từ chối công nợ",
+      () => rejectCreditHold({ id: ID, action: "CANCEL", note: "no", idempotencyKey: KEY }),
+      `/orders/${ID}/credit-rejection`,
+      { action: "CANCEL", note: "no" },
+    ],
+  ])(
+    "A/B/E. %s → đúng key trong header, body + path không đổi, key KHÔNG vào body",
+    async (_, call, path, body) => {
+      const post = vi.spyOn(api, "post").mockResolvedValue({ data: beOrder });
+      await call();
+      expect(post).toHaveBeenCalledWith(path, body, header);
+    },
+  );
+
+  it("không có key → không gửi header (gọi trực tiếp, vd mock / script)", async () => {
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: beOrder });
+    await releaseOrder({ id: ID, warehouseId: "W1" });
+    expect(post).toHaveBeenCalledWith(`/orders/${ID}/release`, { warehouseId: "W1" }, undefined);
+  });
+
+  it("C. đọc dữ liệu (GET) không bao giờ mang Idempotency-Key", async () => {
+    const get = vi.spyOn(api, "get").mockImplementation(async (url: string) => ({
+      data: url.endsWith("/history")
+        ? []
+        : url === "/orders"
+          ? emptyBePage
+          : url.includes("credit-position")
+            ? apiCreditPosition
+            : beOrder,
+    }));
+    await listOrders({});
+    await getOrder(ID);
+    await getOrderHistory(ID);
+    await getCreditPosition(apiCreditPosition.customerId);
+    for (const [, config] of get.mock.calls) {
+      expect(JSON.stringify(config ?? {})).not.toContain("Idempotency-Key");
+    }
   });
 });

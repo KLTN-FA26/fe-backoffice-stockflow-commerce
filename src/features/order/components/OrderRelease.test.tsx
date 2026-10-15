@@ -44,6 +44,11 @@ async function openAndPick(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole("button", { name: "Release" }));
 }
 
+/** Mọi thao tác ghi đơn gửi kèm Idempotency-Key (header riêng request, không vào body). */
+const WITH_IDEMPOTENCY_KEY = expect.objectContaining({
+  headers: { "Idempotency-Key": expect.any(String) },
+});
+
 afterEach(() => vi.restoreAllMocks());
 
 const DIALOG_FLOW_TIMEOUT_MS = 15_000;
@@ -101,7 +106,11 @@ describe("Release — gửi & lý do từ chối", { timeout: DIALOG_FLOW_TIMEOU
     await openAndPick(user);
 
     await waitFor(() =>
-      expect(post).toHaveBeenCalledWith(RELEASE_PATH, { warehouseId: WAREHOUSE_ID }),
+      expect(post).toHaveBeenCalledWith(
+        RELEASE_PATH,
+        { warehouseId: WAREHOUSE_ID },
+        WITH_IDEMPOTENCY_KEY,
+      ),
     );
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
@@ -189,7 +198,11 @@ describe(
       // Kho đã chọn vẫn còn — bấm lại là gửi lại (người dùng chủ động)
       await user.click(within(dialog).getByRole("button", { name: "Release" }));
       await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
-      expect(post).toHaveBeenLastCalledWith(RELEASE_PATH, { warehouseId: WAREHOUSE_ID });
+      expect(post).toHaveBeenLastCalledWith(
+        RELEASE_PATH,
+        { warehouseId: WAREHOUSE_ID },
+        WITH_IDEMPOTENCY_KEY,
+      );
     });
 
     it("B. LOCK_TIMEOUT → 'đang được xử lý ở nơi khác', không tải lại vội, không tự gửi lại, vẫn bấm lại được", async () => {
@@ -229,3 +242,81 @@ describe(
     });
   },
 );
+
+/* ── Step 9: Idempotency-Key — vòng đời theo BE IdempotencyFilter ───────── */
+
+type PostSpy = { mock: { calls: unknown[][] } };
+
+function keyOf(post: PostSpy, call: number): string | undefined {
+  const config = post.mock.calls[call]?.[2] as { headers?: Record<string, string> } | undefined;
+  return config?.headers?.["Idempotency-Key"];
+}
+
+describe("Release — Idempotency-Key", { timeout: DIALOG_FLOW_TIMEOUT_MS }, () => {
+  it("A/B. lần đầu có key K1; LOCK_TIMEOUT (BE nhả claim) → bấm lại cùng nội dung dùng lại K1, mỗi lần bấm đúng 1 request", async () => {
+    const user = userEvent.setup();
+    await renderDetail(ORDER_PERMISSION_SETS.coordinator, confirmed);
+    const post = vi
+      .spyOn(api, "post")
+      .mockRejectedValueOnce(new ApiError(409, "LOCK_TIMEOUT", "busy"))
+      .mockResolvedValueOnce({ data: { ...confirmed, status: "READY_TO_FULFILL" } });
+
+    await openAndPick(user);
+    const dialog = await screen.findByRole("dialog");
+    await within(dialog).findByText(/đang được xử lý ở nơi khác/);
+    expect(post).toHaveBeenCalledTimes(1);
+    const k1 = keyOf(post, 0);
+    expect(k1).toMatch(/^[A-Za-z0-9\-_:.]{8,255}$/);
+
+    await user.click(within(dialog).getByRole("button", { name: "Release" }));
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
+    expect(keyOf(post, 1)).toBe(k1);
+  });
+
+  it("15. lỗi BE đã LƯU (400) → bấm lại cùng nội dung dùng key MỚI (không bị trả lại 400 cũ)", async () => {
+    const user = userEvent.setup();
+    await renderDetail(ORDER_PERMISSION_SETS.coordinator, confirmed);
+    const post = vi
+      .spyOn(api, "post")
+      .mockRejectedValueOnce(new ApiError(400, "VALIDATION_FAILED", "Invalid request data"))
+      .mockResolvedValueOnce({ data: { ...confirmed, status: "READY_TO_FULFILL" } });
+
+    await openAndPick(user);
+    const dialog = await screen.findByRole("dialog");
+    await within(dialog).findByRole("alert");
+    await user.click(within(dialog).getByRole("button", { name: "Release" }));
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
+    expect(keyOf(post, 1)).not.toBe(keyOf(post, 0));
+  });
+
+  it("D/F. thành công → dialog đóng; mở lại + gửi → key mới, không thừa key cũ", async () => {
+    const user = userEvent.setup();
+    await renderDetail(ORDER_PERMISSION_SETS.coordinator, confirmed);
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: confirmed });
+
+    await openAndPick(user);
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await openAndPick(user);
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
+    expect(keyOf(post, 1)).not.toBe(keyOf(post, 0));
+  });
+
+  it("E. đóng dialog (Huỷ) sau lỗi tạm thời rồi mở lại → lần thử mới, key mới", async () => {
+    const user = userEvent.setup();
+    await renderDetail(ORDER_PERMISSION_SETS.coordinator, confirmed);
+    const post = vi
+      .spyOn(api, "post")
+      .mockRejectedValueOnce(new ApiError(409, "LOCK_TIMEOUT", "busy"))
+      .mockResolvedValueOnce({ data: confirmed });
+
+    await openAndPick(user);
+    const dialog = await screen.findByRole("dialog");
+    await within(dialog).findByText(/đang được xử lý ở nơi khác/);
+    await user.click(within(dialog).getByRole("button", { name: "Huỷ" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    await openAndPick(user);
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
+    expect(keyOf(post, 1)).not.toBe(keyOf(post, 0));
+  });
+});

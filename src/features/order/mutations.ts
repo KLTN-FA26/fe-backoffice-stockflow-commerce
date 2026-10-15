@@ -24,7 +24,7 @@ import { createMutation } from "@/lib/api/query-factory";
 import { RESERVATION_CHANGE_INVALIDATIONS } from "@/lib/api/shared-query-keys";
 
 import { approveCreditHold, rejectCreditHold, releaseOrder } from "./action-api";
-import { adminCancelOrder } from "./api";
+import { adminCancelOrder, type OrderMutationVars } from "./api";
 import { orderKeys } from "./queries";
 
 import type {
@@ -35,9 +35,7 @@ import type {
   ReleaseOrderInput,
 } from "./types";
 
-type WithId<T> = T & { id: string };
-
-export const useAdminCancelOrder = createMutation<WithId<AdminCancelOrderInput>, Order>(
+export const useAdminCancelOrder = createMutation<OrderMutationVars<AdminCancelOrderInput>, Order>(
   adminCancelOrder,
   {
     invalidate: [orderKeys.all, ...RESERVATION_CHANGE_INVALIDATIONS],
@@ -46,13 +44,16 @@ export const useAdminCancelOrder = createMutation<WithId<AdminCancelOrderInput>,
   },
 );
 
-export const useReleaseOrder = createMutation<WithId<ReleaseOrderInput>, Order>(releaseOrder, {
-  invalidate: [orderKeys.all, ...RESERVATION_CHANGE_INVALIDATIONS],
-  successMessage: TOAST_MESSAGES.order.released,
-  showErrorToast: false,
-});
+export const useReleaseOrder = createMutation<OrderMutationVars<ReleaseOrderInput>, Order>(
+  releaseOrder,
+  {
+    invalidate: [orderKeys.all, ...RESERVATION_CHANGE_INVALIDATIONS],
+    successMessage: TOAST_MESSAGES.order.released,
+    showErrorToast: false,
+  },
+);
 
-export const useApproveCreditHold = createMutation<WithId<CreditApprovalInput>, Order>(
+export const useApproveCreditHold = createMutation<OrderMutationVars<CreditApprovalInput>, Order>(
   approveCreditHold,
   {
     invalidate: [orderKeys.all],
@@ -61,7 +62,7 @@ export const useApproveCreditHold = createMutation<WithId<CreditApprovalInput>, 
   },
 );
 
-export const useRejectCreditHold = createMutation<WithId<CreditRejectionInput>, Order>(
+export const useRejectCreditHold = createMutation<OrderMutationVars<CreditRejectionInput>, Order>(
   rejectCreditHold,
   {
     invalidate: [orderKeys.all, ...RESERVATION_CHANGE_INVALIDATIONS],

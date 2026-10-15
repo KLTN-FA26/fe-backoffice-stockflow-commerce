@@ -66,7 +66,7 @@ function ApproveForm({ order, onClose }: { order: CreditHoldTarget; onClose: () 
     mode: "onTouched",
     defaultValues: CREDIT_APPROVAL_FORM_DEFAULTS,
   });
-  const { refusal, clearRefusal, onError } = useOrderActionErrors(
+  const { refusal, clearRefusal, onError, idempotencyKeyFor, finishAttempt } = useOrderActionErrors(
     creditDecisionErrorView,
     STALE_CODES.credit,
     onClose,
@@ -79,7 +79,18 @@ function ApproveForm({ order, onClose }: { order: CreditHoldTarget; onClose: () 
 
   const submit = form.handleSubmit((input) => {
     clearRefusal();
-    approve({ id: order.orderId, ...input }, { onSuccess: onClose, onError });
+    // Một lần bấm = một request; cùng nội dung bấm lại sau lỗi tạm thời → cùng Idempotency-Key
+    const variables = { id: order.orderId, ...input };
+    approve(
+      { ...variables, idempotencyKey: idempotencyKeyFor(variables) },
+      {
+        onSuccess: () => {
+          finishAttempt();
+          onClose();
+        },
+        onError,
+      },
+    );
   });
 
   return (

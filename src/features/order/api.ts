@@ -9,6 +9,7 @@
 
 import { PAGE_SIZE } from "@/constants";
 import { api } from "@/lib/api/client";
+import { idempotencyRequestConfig } from "@/lib/api/idempotency";
 
 import {
   isValidOrderCustomerId,
@@ -167,10 +168,17 @@ export async function getOrderHistory(
 // POST /orders/{orderId}/admin-cancellation — BE `sales-order-cancellations:UPDATE` scope ALL.
 // Flow riêng, KHÔNG chung với self-cancel của khách (POST .../cancellation, scope OWN).
 
+/** Biến của thao tác ghi đơn: id + input + `Idempotency-Key` (header, không vào body). */
+export type OrderMutationVars<T> = T & { id: string; idempotencyKey?: string };
+
 export async function adminCancelOrder(
-  input: AdminCancelOrderInput & { id: string },
+  input: OrderMutationVars<AdminCancelOrderInput>,
 ): Promise<Order> {
-  const { id, ...body } = input;
-  const { data } = await api.post<unknown>(orderPath(id, "/admin-cancellation"), body);
+  const { id, idempotencyKey, ...body } = input;
+  const { data } = await api.post<unknown>(
+    orderPath(id, "/admin-cancellation"),
+    body,
+    idempotencyRequestConfig(idempotencyKey),
+  );
   return toOrder(orderDtoSchema.parse(data));
 }

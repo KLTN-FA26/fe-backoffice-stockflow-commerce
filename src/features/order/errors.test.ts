@@ -193,3 +193,25 @@ describe("mapServerFieldErrors — fieldErrors BE → ô form (map riêng từng
     });
   });
 });
+
+describe("mã idempotency (BE IdempotencyFilter)", () => {
+  const VIEWS = [adminCancelErrorView, releaseErrorView, creditDecisionErrorView];
+
+  it("IDEMPOTENT_REQUEST_IN_PROGRESS (409) → nhóm 'thử lại sau', câu riêng, không phải lỗi ô", () => {
+    expect(isOrderConcurrencyError(apiError(409, "IDEMPOTENT_REQUEST_IN_PROGRESS"))).toBe(true);
+    for (const view of VIEWS) {
+      expect(view(apiError(409, "IDEMPOTENT_REQUEST_IN_PROGRESS")).detail).toMatch(
+        /vẫn đang được máy chủ xử lý/,
+      );
+    }
+  });
+
+  it("IDEMPOTENCY_KEY_REUSED (422) → câu riêng mức dialog, KHÔNG thuộc nhóm khoá / thử lại", () => {
+    expect(isOrderConcurrencyError(apiError(422, "IDEMPOTENCY_KEY_REUSED"))).toBe(false);
+    for (const view of VIEWS) {
+      const v = view(apiError(422, "IDEMPOTENCY_KEY_REUSED"));
+      expect(v.detail).toMatch(/chưa được gửi đi/);
+      expect(v.detail).not.toMatch(/English/);
+    }
+  });
+});

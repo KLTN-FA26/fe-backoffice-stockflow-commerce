@@ -88,7 +88,7 @@ function RejectForm({ order, onClose }: { order: CreditHoldTarget; onClose: () =
     mode: "onChange",
     defaultValues: CREDIT_REJECTION_FORM_DEFAULTS,
   });
-  const { refusal, clearRefusal, onError } = useOrderActionErrors(
+  const { refusal, clearRefusal, onError, idempotencyKeyFor, finishAttempt } = useOrderActionErrors(
     creditDecisionErrorView,
     STALE_CODES.credit,
     onClose,
@@ -135,7 +135,18 @@ function RejectForm({ order, onClose }: { order: CreditHoldTarget; onClose: () =
       return;
     }
     clearRefusal();
-    reject({ id: order.orderId, ...input }, { onSuccess: onClose, onError: handleError });
+    // Một lần bấm = một request; cùng nội dung bấm lại sau lỗi tạm thời → cùng Idempotency-Key
+    const variables = { id: order.orderId, ...input };
+    reject(
+      { ...variables, idempotencyKey: idempotencyKeyFor(variables) },
+      {
+        onSuccess: () => {
+          finishAttempt();
+          onClose();
+        },
+        onError: handleError,
+      },
+    );
   });
 
   return (
