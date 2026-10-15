@@ -1,8 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import { STOCK_MOVEMENT_LABELS, STOCK_MOVEMENT_TYPES } from "@/constants/inventory";
+import {
+  STOCK_ADJUSTMENT_REASON_LABELS,
+  STOCK_ADJUSTMENT_REASONS,
+  STOCK_MOVEMENT_LABELS,
+  STOCK_MOVEMENT_TYPES,
+} from "@/constants/inventory";
 
-import { inventoryPageRange, movementTypeLabel } from "./selectors";
+import {
+  adjustmentReasonLabel,
+  formatSignedQuantity,
+  inventoryPageRange,
+  movementTypeLabel,
+} from "./selectors";
 
 describe("inventory pagination metadata", () => {
   it("uses backend total and zero-based page", () => {
@@ -34,5 +44,24 @@ describe("movement type label", () => {
 
   it.each(["FUTURE_MOVEMENT_TYPE", "constructor"])("shows unknown %s verbatim", (type) => {
     expect(movementTypeLabel(type)).toBe(type);
+  });
+
+  describe("adjustment display helpers", () => {
+    it.each(STOCK_ADJUSTMENT_REASONS)("localizes known reason %s", (reason) => {
+      expect(adjustmentReasonLabel(reason)).toBe(STOCK_ADJUSTMENT_REASON_LABELS[reason]);
+      expect(adjustmentReasonLabel(reason)).not.toBe(reason);
+    });
+
+    it.each(["FUTURE_REASON", "constructor"])("shows unknown reason %s verbatim", (reason) => {
+      expect(adjustmentReasonLabel(reason)).toBe(reason);
+    });
+
+    it.each([
+      [5, "+5"],
+      [0, "0"],
+      [-5, "-5"],
+    ])("signs quantity %i as %s", (value, text) => {
+      expect(formatSignedQuantity(value)).toBe(text);
+    });
   });
 });

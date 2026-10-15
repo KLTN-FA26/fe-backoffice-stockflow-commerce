@@ -483,4 +483,20 @@ describe("adjustment detail", () => {
     expect(await screen.findByText("Đã rút yêu cầu")).toBeInTheDocument();
     expect(posts).toBe(1);
   });
+
+  it("shows the reason label and a signed positive delta", async () => {
+    const fixture = adjustmentFixture({ reason: "DAMAGED", quantityDelta: 5 });
+    server.use(inventoryPermissions([adjustmentRead]), serve(fixture));
+    renderInventory(<AdjustmentDetail id={fixture.adjustmentId} />);
+    expect(await screen.findByText("Hư hỏng")).toBeInTheDocument();
+    expect(screen.getByText("+5")).toBeInTheDocument();
+    expect(screen.queryByText("DAMAGED")).not.toBeInTheDocument();
+  });
+
+  it("keeps an unknown reason raw on the detail", async () => {
+    const fixture = adjustmentFixture({ reason: "FUTURE_REASON" });
+    server.use(inventoryPermissions([adjustmentRead]), serve(fixture));
+    renderInventory(<AdjustmentDetail id={fixture.adjustmentId} />);
+    expect(await screen.findByText("FUTURE_REASON")).toBeInTheDocument();
+  });
 });

@@ -16,6 +16,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+import { adjustmentReasonLabel, formatSignedQuantity } from "../selectors";
+
 import type { StockAdjustment } from "../types";
 
 export function AdjustmentTable({ items }: { items: StockAdjustment[] }) {
@@ -66,10 +68,9 @@ export function AdjustmentTable({ items }: { items: StockAdjustment[] }) {
               <TableCell className="font-mono">{item.locationCode}</TableCell>
               <TableCell>{formatDateTime(item.requestedAt)}</TableCell>
               <TableCell className="text-right font-mono tabular-nums">
-                {item.quantityDelta > 0 ? "+" : ""}
-                {item.quantityDelta}
+                {formatSignedQuantity(item.quantityDelta)}
               </TableCell>
-              <TableCell>{item.reason}</TableCell>
+              <TableCell>{adjustmentReasonLabel(item.reason)}</TableCell>
               <TableCell>
                 <StatusDot domain="stock" status={item.status} />
               </TableCell>

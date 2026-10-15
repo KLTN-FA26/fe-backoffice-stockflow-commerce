@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
@@ -237,5 +237,33 @@ describe("adjustment create form", () => {
       ),
     );
     expect(posts).toBe(2);
+  });
+
+  it("shows Vietnamese reason labels but sends the exact wire code", async () => {
+    const fixture = adjustmentFixture({ reason: "DAMAGED" });
+    const submitted = vi.fn();
+    server.use(
+      http.post(endpoint, async ({ request }) => {
+        submitted(await request.json());
+        return HttpResponse.json({ success: true, data: fixture }, { status: 201 });
+      }),
+    );
+    renderInventory(<AdjustmentCreate />);
+    await enterAdjustment();
+    const reason = screen.getByLabelText(/Lý do điều chỉnh/);
+    expect(within(reason).getByRole("option", { name: "Hư hỏng" })).toHaveValue("DAMAGED");
+    expect(within(reason).queryByRole("option", { name: "DAMAGED" })).not.toBeInTheDocument();
+    await userEvent.selectOptions(reason, "Hư hỏng");
+    await userEvent.click(screen.getByRole("button", { name: INVENTORY_LABELS.submitAdjustment }));
+    await waitFor(() => expect(submitted).toHaveBeenCalled());
+    expect(submitted.mock.lastCall?.[0]).toMatchObject({ reason: "DAMAGED" });
+  });
+
+  it("explains that the delta is in the SKU base unit", async () => {
+    renderInventory(<AdjustmentCreate />);
+    const delta = await screen.findByLabelText(/Chênh lệch số lượng/);
+    const help = screen.getByText(INVENTORY_LABELS.quantityDeltaHelp);
+    expect(help.id).toBeTruthy();
+    expect(delta.getAttribute("aria-describedby")?.split(" ")).toContain(help.id);
   });
 });

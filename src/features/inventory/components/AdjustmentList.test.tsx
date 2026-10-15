@@ -214,4 +214,30 @@ describe("adjustment queue", () => {
     expect(await screen.findByRole("cell", { name: "Từ chối" })).toBeInTheDocument();
     expect(screen.queryByText("NCC từ chối")).not.toBeInTheDocument();
   });
+
+  it("labels known reasons, keeps unknown ones raw and signs the delta", async () => {
+    const up = adjustmentFixture({ reason: "DAMAGED", quantityDelta: 5, number: "ADJ-UP" });
+    const down = adjustmentFixture({ reason: "SCRAP", quantityDelta: -5, number: "ADJ-DOWN" });
+    const future = adjustmentFixture({ reason: "FUTURE_REASON", number: "ADJ-FUTURE" });
+    server.use(
+      inventoryPermissions([adjustmentRead]),
+      http.get(endpoint, () =>
+        HttpResponse.json({
+          success: true,
+          data: { ...emptyPage, items: [up, down, future], totalElements: 3, totalPages: 1 },
+        }),
+      ),
+    );
+    renderInventory(<AdjustmentList />);
+    const upRow = (await screen.findByRole("link", { name: "ADJ-UP" })).closest("tr");
+    const downRow = screen.getByRole("link", { name: "ADJ-DOWN" }).closest("tr");
+    const futureRow = screen.getByRole("link", { name: "ADJ-FUTURE" }).closest("tr");
+    if (!upRow || !downRow || !futureRow) throw new Error("rows not rendered");
+    expect(within(upRow).getByRole("cell", { name: "Hư hỏng" })).toBeInTheDocument();
+    expect(within(upRow).getByRole("cell", { name: "+5" })).toBeInTheDocument();
+    expect(within(downRow).getByRole("cell", { name: "Phế phẩm" })).toBeInTheDocument();
+    expect(within(downRow).getByRole("cell", { name: "-5" })).toBeInTheDocument();
+    expect(within(futureRow).getByRole("cell", { name: "FUTURE_REASON" })).toBeInTheDocument();
+    expect(screen.queryByRole("cell", { name: "DAMAGED" })).not.toBeInTheDocument();
+  });
 });

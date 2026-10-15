@@ -27,6 +27,19 @@ export const STOCK_ADJUSTMENT_REASONS = [
   "OTHER",
 ] as const;
 
+// Nhãn hiển thị cho lý do điều chỉnh (wire value giữ nguyên khi gửi BE). Dùng lại thuật ngữ
+// sẵn có ("Phế phẩm", "làm mẫu" trong INVENTORY_MESSAGES.writeDown).
+export const STOCK_ADJUSTMENT_REASON_LABELS = {
+  DAMAGED: "Hư hỏng",
+  LOST: "Thất thoát",
+  FOUND: "Tìm thấy",
+  EXPIRED: "Hết hạn",
+  DATA_CORRECTION: "Điều chỉnh dữ liệu",
+  SCRAP: "Phế phẩm",
+  SAMPLE: "Làm mẫu",
+  OTHER: "Khác",
+} as const satisfies Record<(typeof STOCK_ADJUSTMENT_REASONS)[number], string>;
+
 export const STOCK_ADJUSTMENT_REASON = {
   OTHER: "OTHER",
   SAMPLE: "SAMPLE",
@@ -92,6 +105,7 @@ export const INVENTORY_LABELS = {
   adjustmentNumber: "Mã điều chỉnh",
   adjustmentReason: "Lý do điều chỉnh",
   quantityDelta: "Chênh lệch số lượng",
+  quantityDeltaHelp: "Theo đơn vị cơ sở của SKU; số dương tăng tồn, số âm giảm tồn.",
   status: "Trạng thái",
   requestedAt: "Ngày yêu cầu",
   requestedBy: "Người yêu cầu",

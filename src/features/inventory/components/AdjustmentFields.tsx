@@ -1,6 +1,7 @@
 import {
   INVENTORY_LABELS,
   INVENTORY_LIMITS,
+  STOCK_ADJUSTMENT_REASON_LABELS,
   STOCK_ADJUSTMENT_REASONS,
 } from "@/constants/inventory";
 
@@ -58,8 +59,11 @@ export function AdjustmentFields({ form }: { form: UseFormReturn<CreateAdjustmen
           max={INVENTORY_LIMITS.delta}
           {...register("quantityDelta", { valueAsNumber: true })}
           aria-invalid={Boolean(errors.quantityDelta)}
-          aria-describedby="delta-error"
+          aria-describedby="delta-help delta-error"
         />
+        <p id="delta-help" className="text-ink-secondary text-sm">
+          {INVENTORY_LABELS.quantityDeltaHelp}
+        </p>
         <p
           id="delta-error"
           role={errors.quantityDelta ? "alert" : undefined}
@@ -85,7 +89,7 @@ export function AdjustmentFields({ form }: { form: UseFormReturn<CreateAdjustmen
           <option value="">{INVENTORY_LABELS.chooseReason}</option>
           {STOCK_ADJUSTMENT_REASONS.map((reason) => (
             <option key={reason} value={reason}>
-              {reason}
+              {STOCK_ADJUSTMENT_REASON_LABELS[reason]}
             </option>
           ))}
         </select>
