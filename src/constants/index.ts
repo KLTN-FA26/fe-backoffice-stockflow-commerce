@@ -42,6 +42,7 @@ export type {
   ProductionOrderStatus,
 } from "./orders";
 export {
+  BACKOFFICE_ROLES,
   CREDIT_HOLD_PERMISSIONS,
   CUSTOMER_CREDIT_PROFILE_PERMISSIONS,
   FULFILLMENT_PACKAGE_PERMISSIONS,

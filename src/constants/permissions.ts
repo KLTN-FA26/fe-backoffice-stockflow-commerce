@@ -146,6 +146,27 @@ export const STAFF_ROLE = {
 
 export type StaffRole = (typeof STAFF_ROLE)[keyof typeof STAFF_ROLE];
 
+/**
+ * Vai trò back-office — đúng enum BE `common/security/Role.java` (develop) TRỪ `CUSTOMER`.
+ * BE `ScopeGuards#requireBackOffice`: hợp lệ ⇔ có ít nhất một vai trò ≠ CUSTOMER trong
+ * `CurrentUser.roles()` — mà `roles()` chỉ chứa vai trò BE biết tên. `/identity/me[/permissions]`
+ * thì trả cả vai trò tự tạo (SCRUM-455), nên FE KHÔNG dùng "có vai trò ≠ CUSTOMER" mà dùng danh
+ * sách vai trò đã biết này để khớp BE. Thêm vai trò vào enum BE → thêm ở đây.
+ */
+export const BACKOFFICE_ROLES = [
+  "WAREHOUSE_STAFF",
+  "WAREHOUSE_MANAGER",
+  "INVENTORY_PLANNER",
+  "QC_STAFF",
+  "SALES_STAFF",
+  "ORDER_COORDINATOR",
+  "ECOMMERCE_ADMIN",
+  "PROCUREMENT_STAFF",
+  "ACCOUNTANT",
+  "PRODUCTION_STAFF",
+  "SYSTEM_ADMIN",
+] as const;
+
 /** BE develop IdentityResources / IdentityController: read-only RBAC screen APIs. */
 export const IDENTITY_PERMISSIONS = {
   rolesRead: "identity-roles:READ",
@@ -164,4 +185,8 @@ export const PERMISSION_UI = {
   retry: "Thử lại",
   productCreateDenied: "Bạn không có quyền tạo sản phẩm.",
   demoContext: "Chỉ đổi nhãn vai trò demo; quyền vẫn lấy từ phiên đăng nhập.",
+  backOfficeDeniedTitle: "Tài khoản không dùng được trang quản trị",
+  backOfficeDeniedDescription:
+    "Trang quản trị chỉ dành cho nhân viên. Tài khoản khách hàng không vào được khu vực này.",
+  logout: "Đăng xuất",
 } as const;
