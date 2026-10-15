@@ -9,6 +9,7 @@
 
 import {
   GOODS_RECEIPT_PERMISSIONS,
+  INVENTORY_PERMISSIONS,
   ORDER_PERMISSIONS,
   PO_PERMISSIONS,
   QC_TASK_PERMISSIONS,
@@ -36,8 +37,15 @@ const QC = QC_TASK_PERMISSIONS;
 const GR_WORK = [GR.viewPage, GR.read, GR.create, GR.update];
 const ALL_GR_QC = [...Object.values(GR), ...Object.values(QC)];
 
+// Seed BE tới develop 0f18f24 (V20260903000100 + V20261010000500 + V20261013000200 +
+// V20261014001200): WAREHOUSE_STAFF và INVENTORY_PLANNER yêu cầu / rút điều chỉnh, đọc phiếu
+// và sổ kho; chỉ WAREHOUSE_MANAGER (và SYSTEM_ADMIN) duyệt. QC_STAFF không có mã nào ở đây.
+const INV = INVENTORY_PERMISSIONS;
+const INVENTORY_FLOOR = [INV.adjustmentRead, INV.stockUpdate, INV.movementRead];
+const INVENTORY_ALL = Object.values(INV);
+
 const MOCK_PERMISSIONS_BY_ROLE: Record<string, readonly string[]> = {
-  "System Admin": [...ALL_SUPPLIER, ...ALL_PO, ...ORDER_ALL, ...ALL_GR_QC],
+  "System Admin": [...ALL_SUPPLIER, ...ALL_PO, ...ORDER_ALL, ...ALL_GR_QC, ...INVENTORY_ALL],
   "E-commerce Admin": ALL_SUPPLIER,
   "Order Coordinator": ORDER_ALL,
   "Sales Staff": ORDER_VIEW,
@@ -59,8 +67,9 @@ const MOCK_PERMISSIONS_BY_ROLE: Record<string, readonly string[]> = {
     QC.read,
   ],
   // BE #40: WAREHOUSE_MANAGER duyệt PO (VIEW_PAGE, READ, APPROVE); không có quyền NCC.
-  "Warehouse Manager": [PO.viewPage, PO.read, PO.approve, ...GR_WORK],
-  "Warehouse Staff": GR_WORK,
+  "Warehouse Manager": [PO.viewPage, PO.read, PO.approve, ...GR_WORK, ...INVENTORY_ALL],
+  "Warehouse Staff": [...GR_WORK, ...INVENTORY_FLOOR],
+  "Inventory Planner": INVENTORY_FLOOR,
   "QC Staff": [GR.viewPage, GR.read, QC.viewPage, QC.read, QC.approve],
   Accountant: [viewPage, read],
 };
