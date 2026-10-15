@@ -12,8 +12,8 @@ import { movementPageDto } from "./schemas";
 import { inventoryEndpoint } from "./test-support";
 import { inventoryRequest } from "./transport";
 
-// The shared production client as-is: same-origin `/api` base (next.config.ts rewrites it to
-// the backend `/api/v1`) and its own `{ success: true, data }` unwrapping. No test-only
+// The shared production client uses the same-origin `/api/backend` BFF proxy and
+// its own `{ success: true, data }` unwrapping. No test-only
 // baseURL or response interceptor.
 const server = setupServer();
 const movements = inventoryEndpoint(INVENTORY_API.movements);
@@ -32,12 +32,12 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
 describe("backend inventory transport boundary", () => {
-  it("calls the same-origin /api path and forwards zero-based paging and filters", async () => {
-    expect(api.defaults.baseURL).toBe("/api");
+  it("calls the same-origin /api/backend path and forwards zero-based paging and filters", async () => {
+    expect(api.defaults.baseURL).toBe("/api/backend");
     server.use(
       http.get(movements, ({ request }) => {
         const url = new URL(request.url);
-        expect(url.pathname).toBe(`/api${INVENTORY_API.movements}`);
+        expect(url.pathname).toBe(`/api/backend${INVENTORY_API.movements}`);
         expect(Object.fromEntries(url.searchParams)).toEqual({
           page: "1",
           size: "15",

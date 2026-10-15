@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, render, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { INVENTORY_PERMISSIONS } from "@/constants";
@@ -23,10 +23,6 @@ vi.mock("next/navigation", () => ({
 
 const ADJUSTMENTS = "Điều chỉnh tồn";
 const MOVEMENTS = "Lịch sử biến động";
-// Gated by SUPPLIER_PERMISSIONS.viewPage, which no fixture grants: once it disappears the
-// permission query has succeeded (the shell keeps gated items visible while loading).
-const LOADED_SENTINEL = "Nhà cung cấp";
-
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
@@ -49,8 +45,12 @@ async function renderShell(
       fullName: "Test actor",
       email: "actor@example.test",
       roles: [role],
-      warehouseIds: [],
+      username: "actor",
+      status: "ACTIVE",
+      lastLoginAt: null,
     },
+    status: "authenticated",
+    isAuthenticated: true,
     impersonatedRole: null,
   });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -63,7 +63,14 @@ async function renderShell(
       </ThemeProvider>
     </QueryClientProvider>,
   );
-  await waitFor(() => expect(screen.queryByText(LOADED_SENTINEL)).not.toBeInTheDocument());
+  await waitFor(() =>
+    expect(
+      client
+        .getQueryCache()
+        .getAll()
+        .some((query) => query.state.status === "success"),
+    ).toBe(true),
+  );
 }
 
 // Sidebar only — sub-pages also show the parent menu as a breadcrumb link.

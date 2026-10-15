@@ -11,9 +11,9 @@
 import { paginatePage, registerMockRoute } from "./mock-adapter";
 
 import type { AxiosRequestConfig } from "axios";
-import type { Order, OrderStatus } from "@/lib/mock-data";
+import type { Order, OrderLine, OrderStatus } from "@/lib/mock-data";
 
-type BackendOrderStatus =
+export type BackendOrderStatus =
   | "DRAFT"
   | "PENDING_PAYMENT"
   | "PAID"
@@ -77,6 +77,43 @@ function backendStatus(order: Order): BackendOrderStatus {
   return statusOverrides.get(order.orderId) ?? MOCK_TO_BACKEND_STATUS[order.status];
 }
 
+/** Trạng thái BE hiện tại của một đơn mock — cho mock xuất kho (`requireOrderInFulfilment`). */
+export async function backendOrderStatusOf(
+  orderId: string,
+): Promise<BackendOrderStatus | undefined> {
+  const { orders } = await import("@/lib/mock-data");
+  const order = orders.find((o) => o.orderId === orderId);
+  return order ? backendStatus(order) : undefined;
+}
+
+/** Mock xuất kho đổi trạng thái đơn như BE (vào xuất kho, giữ / gỡ giữ do lệch thiết kế). */
+export function setMockOrderStatus(orderId: string, status: BackendOrderStatus): void {
+  statusOverrides.set(orderId, status);
+}
+
+/** SHA-256 giả 64 hex, ổn định theo seed (FNV-1a lặp 8 lần). */
+export function fakeSha256(seed: string): string {
+  let out = "";
+  for (let round = 0; round < 8; round++) {
+    let hash = 0x811c9dc5;
+    for (const char of `${round}:${seed}`) {
+      hash = Math.imul(hash ^ char.charCodeAt(0), 0x01000193);
+    }
+    out += (hash >>> 0).toString(16).padStart(8, "0");
+  }
+  return out;
+}
+
+/** Dòng mock có `designId` = dòng tuỳ chỉnh: BE trả snapshot đã khoá + SHA-256 của bundle. */
+export const snapshotIdOf = (line: OrderLine) => `SNAP-${line.designId ?? ""}`;
+export const lockedChecksumOf = (line: OrderLine) => fakeSha256(line.lineId);
+
+/**
+ * BE đã đổi trạng thái "đơn đi tiếp được" từ PAID sang CONFIRMED (SCRUM-460); mock đơn hàng còn
+ * dùng PAID. Lọc `status=CONFIRMED` (mock xuất kho) khớp cả đơn PAID của mock.
+ */
+const STATUS_FILTER_ALIAS: Readonly<Record<string, BackendOrderStatus>> = { CONFIRMED: "PAID" };
+
 /** mock-data `Order` → BE `OrderResponse`. Chỉ field có trong hợp đồng BE. */
 function toOrderResponse(order: Order) {
   const address = {
@@ -105,8 +142,8 @@ function toOrderResponse(order: Order) {
       unitPrice: line.unitPrice,
       lineTotal: line.lineTotal,
       reservationIds: [],
-      designSnapshotId: null,
-      designChecksum: null,
+      designSnapshotId: line.designId ? snapshotIdOf(line) : null,
+      designChecksum: line.designId ? lockedChecksumOf(line) : null,
     })),
     placedAt: order.placedAt,
     createdBy: order.createdById ?? null,
@@ -194,7 +231,7 @@ export function registerOrderMockRoutes(): void {
     const page = Math.max(0, Number(params.get("page")) || 0);
     const size = Math.max(1, Number(params.get("size")) || 15);
     const search = params.get("search")?.trim().toLowerCase();
-    const statuses = params.getAll("status");
+    const statuses = params.getAll("status").map((value) => STATUS_FILTER_ALIAS[value] ?? value);
     const [sortField = "placedAt", sortDir = "desc"] = (
       params.get("sort") ?? "placedAt,desc"
     ).split(",");

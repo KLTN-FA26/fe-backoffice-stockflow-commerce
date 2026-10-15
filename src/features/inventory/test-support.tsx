@@ -32,7 +32,7 @@ export function adjustmentFixture(overrides: Partial<StockAdjustment> = {}) {
 }
 
 // MSW URL of a production request: the shared client's same-origin base path
-// (rewritten to the backend by next.config.ts), resolved against the jsdom origin.
+// (forwarded by the BFF proxy), resolved against the jsdom origin.
 export function inventoryEndpoint(path: string) {
   return new URL(`${api.defaults.baseURL ?? ""}${path}`, window.location.origin).href;
 }
@@ -59,8 +59,12 @@ export function setInventoryTestActor(role: RoleName, userId = crypto.randomUUID
       fullName: "Test actor",
       email: "actor@example.test",
       roles: [role],
-      warehouseIds: [],
+      username: "actor",
+      status: "ACTIVE",
+      lastLoginAt: null,
     },
+    status: "authenticated",
+    isAuthenticated: true,
     impersonatedRole: null,
   });
   return userId;

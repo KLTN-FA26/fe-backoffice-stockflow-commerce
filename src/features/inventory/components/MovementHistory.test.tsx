@@ -43,8 +43,12 @@ beforeEach(() => {
       fullName: "Test actor",
       email: "actor@example.test",
       roles: ["Warehouse Staff"],
-      warehouseIds: [],
+      username: "actor",
+      status: "ACTIVE",
+      lastLoginAt: null,
     },
+    status: "authenticated",
+    isAuthenticated: true,
     impersonatedRole: null,
   });
   server.use(inventoryPermissions([INVENTORY_PERMISSIONS.movementRead]));

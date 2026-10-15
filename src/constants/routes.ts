@@ -27,6 +27,14 @@ export const ADMIN_ROUTES = {
     detail: (id: string) => `${ADMIN_BASE}/orders/${id}`,
     list: `${ADMIN_BASE}/orders`,
   },
+  packing: {
+    detail: (id: string) => `${ADMIN_BASE}/packing/${id}`,
+    list: `${ADMIN_BASE}/packing`,
+  },
+  picking: {
+    detail: (id: string) => `${ADMIN_BASE}/picking/${id}`,
+    list: `${ADMIN_BASE}/picking`,
+  },
   receipts: {
     create: `${ADMIN_BASE}/receipts/create`,
     // Tạo phiếu từ một PO đã chọn sẵn (vd nút "Nhận hàng" ở màn PO)

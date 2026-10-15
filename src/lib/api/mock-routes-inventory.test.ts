@@ -10,17 +10,10 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { INVENTORY_API, INVENTORY_LIMITS } from "@/constants/inventory";
-import {
-  GOODS_RECEIPT_PERMISSIONS,
-  INVENTORY_PERMISSIONS,
-  PO_PERMISSIONS,
-} from "@/constants/permissions";
 
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { useAuthStore } from "@/lib/auth/auth-store";
-import { fetchMyPermissions } from "@/lib/auth/me-permissions";
-import { staffUsers } from "@/lib/mock-data";
 
 import {
   approveAdjustment,
@@ -34,7 +27,7 @@ import {
 import { stockAdjustmentDto } from "@/features/inventory/schemas";
 import { inventoryRequest } from "@/features/inventory/transport";
 
-import { activateMockAdapter } from "./mock-adapter";
+import { activateMockAdapter, getMockStaffUsers } from "./mock-adapter";
 import { mockActorId, resetInventoryMockState } from "./mock-routes-inventory";
 
 import type { RoleName } from "@/lib/auth/roles";
@@ -50,7 +43,17 @@ const UNKNOWN_ID = "00000000-0000-4000-8000-0000000000ff";
 
 function actAs(userId: string, roles: RoleName[] = ["Warehouse Manager"]) {
   useAuthStore.setState({
-    user: { userId, fullName: userId, email: `${userId}@example.test`, roles, warehouseIds: [] },
+    user: {
+      userId,
+      username: userId,
+      fullName: userId,
+      email: `${userId}@example.test`,
+      roles,
+      status: "ACTIVE",
+      lastLoginAt: null,
+    },
+    status: "authenticated",
+    isAuthenticated: true,
     impersonatedRole: null,
   });
 }
@@ -393,34 +396,25 @@ describe("lists: zero-based PageResponse and filters", () => {
   });
 });
 
-describe("mock identity grants Inventory permission codes", () => {
-  const inventoryCodes = Object.values(INVENTORY_PERMISSIONS);
-
-  it("the default mock user can use every Inventory screen; other codes stay", async () => {
-    const [defaultUser] = staffUsers;
-    if (!defaultUser) throw new Error("mock-data has no staff user");
-    actAs(defaultUser.userId, defaultUser.roles);
-    const me = await fetchMyPermissions();
-    expect(Object.keys(me).sort()).toEqual(["dataScope", "permissions", "roles"]);
-    expect(me.permissions).toEqual(expect.arrayContaining(inventoryCodes));
-    expect(me.permissions).toEqual(
-      expect.arrayContaining([PO_PERMISSIONS.approve, GOODS_RECEIPT_PERMISSIONS.update]),
+describe("Inventory uses the authenticated mock session identity", () => {
+  it("uses the session user ID despite frontend role impersonation", async () => {
+    const [user] = await getMockStaffUsers();
+    if (!user) throw new Error("Missing mock staff");
+    useAuthStore.getState().login(
+      {
+        userId: user.userId,
+        username: user.email,
+        fullName: user.fullName,
+        email: user.email,
+        roles: user.roles,
+        status: "ACTIVE",
+        lastLoginAt: null,
+      },
+      false,
     );
-  });
-
-  it("follows the backend seed: staff request and read, only the manager approves", async () => {
-    actAs(ACTOR_A, ["Warehouse Staff"]);
-    const staff = (await fetchMyPermissions()).permissions;
-    expect(staff).toEqual(
-      expect.arrayContaining([
-        INVENTORY_PERMISSIONS.adjustmentRead,
-        INVENTORY_PERMISSIONS.stockUpdate,
-        INVENTORY_PERMISSIONS.movementRead,
-      ]),
-    );
-    expect(staff).not.toContain(INVENTORY_PERMISSIONS.adjustmentApprove);
-    actAs(ACTOR_A, ["QC Staff"]);
-    const qc = (await fetchMyPermissions()).permissions;
-    inventoryCodes.forEach((codeValue) => expect(qc).not.toContain(codeValue));
+    useAuthStore.getState().setImpersonatedRole("QC Staff");
+    const created = await createAdjustment(FOUND);
+    expect(created.requestedBy).toBe(mockActorId(user.userId));
+    expect(await withdrawAdjustment(created.adjustmentId)).toMatchObject({ status: "WITHDRAWN" });
   });
 });
