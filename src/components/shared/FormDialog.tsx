@@ -91,6 +91,8 @@ export function FormDialogBody({
           variant="outline"
           size="sm"
           onClick={onCancel}
+          // Đang gửi thì không huỷ được (giống ConfirmDialog) — khoá luôn để không trông như bấm được
+          disabled={isPending}
           className="border-border-strong bg-bg-surface text-ink-primary hover:bg-bg-muted rounded-[var(--r-sm)]"
         >
           Huỷ

@@ -377,9 +377,14 @@ export function registerAllMockRoutes(): void {
    * Module 06 — Warehouses / Zones / Locations / Slotting
    * ==================================================================*/
 
-  registerMockRoute("GET", "/warehouses", async () => {
+  registerMockRoute("GET", "/warehouses", async (config) => {
     const { warehouses } = await import("@/lib/mock-data");
-    return { status: 200, data: { items: warehouses, total: warehouses.length }, headers: {} };
+    // = BE `?status=ACTIVE|INACTIVE` (bỏ trống = mọi trạng thái): màn chọn kho chỉ hiện kho đang hoạt động
+    const status = new URLSearchParams(config.url?.split("?")[1] ?? "").get("status");
+    const items = status
+      ? warehouses.filter((w) => (w.active ? "ACTIVE" : "INACTIVE") === status.toUpperCase())
+      : warehouses;
+    return { status: 200, data: { items, total: items.length }, headers: {} };
   });
 
   registerMockRoute("GET", "/warehouses/:id", async (config) => {
@@ -425,60 +430,8 @@ export function registerAllMockRoutes(): void {
   // Module 07/08 (lấy hàng, đóng gói): API thật `/fulfillment/tasks` — mock ở
   // `mock-routes-fulfillment.ts` (SCRUM-437).
 
-  /* ====================================================================
-   * Module 09 — Shipments / Carriers
-   * ==================================================================*/
-
-  registerMockRoute("GET", "/shipments", async (config) => {
-    const { shipments } = await import("@/lib/mock-data");
-    const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
-    const status = params.getAll("status");
-
-    let filtered = [...shipments];
-    if (status.length) filtered = filtered.filter((s) => status.includes(s.status));
-
-    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
-  });
-
-  registerMockRoute("GET", "/shipments/:id", async (config) => {
-    const { shipments } = await import("@/lib/mock-data");
-    const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
-    const shipment = shipments.find((s) => s.shipmentId === id);
-    if (!shipment) return { status: 404, data: { message: "Shipment not found" }, headers: {} };
-    return { status: 200, data: shipment, headers: {} };
-  });
-
-  registerMockRoute("GET", "/carriers", async () => {
-    const { carriers } = await import("@/lib/mock-data");
-    return { status: 200, data: { items: carriers, total: carriers.length }, headers: {} };
-  });
-
-  /* ====================================================================
-   * Module 10 — Transfer Orders
-   * ==================================================================*/
-
-  registerMockRoute("GET", "/transfer-orders", async (config) => {
-    const { transferOrders } = await import("@/lib/mock-data");
-    const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
-    const status = params.getAll("status");
-
-    let filtered = [...transferOrders];
-    if (status.length) filtered = filtered.filter((t) => status.includes(t.status));
-
-    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
-  });
-
-  registerMockRoute("GET", "/transfer-orders/:id", async (config) => {
-    const { transferOrders } = await import("@/lib/mock-data");
-    const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
-    const transfer = transferOrders.find((t) => t.transferOrderId === id);
-    if (!transfer) return { status: 404, data: { message: "Transfer not found" }, headers: {} };
-    return { status: 200, data: transfer, headers: {} };
-  });
+  // Module 09 (chuyến xe) và 10 (lệnh chuyển kho) theo hợp đồng BE: mock-routes-loads.ts,
+  // mock-routes-transfer-orders.ts — route cũ /shipments, /carriers, /transfer-orders đã bỏ.
 
   /* ====================================================================
    * Module 11 — Move Tasks

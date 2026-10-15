@@ -121,6 +121,31 @@ export const STAFF_ROLE = {
 
 export type StaffRole = (typeof STAFF_ROLE)[keyof typeof STAFF_ROLE];
 
+/**
+ * Lệnh chuyển kho — resource `inventory-transfer-orders` (BE TransferOrderController, SCRUM-326/327).
+ * Tạo / sửa nháp / gửi duyệt / huỷ = CREATE; lấy hàng / xuất kho ở kho nguồn = UPDATE; duyệt / từ chối
+ * = APPROVE (seed BE: chỉ WAREHOUSE_MANAGER).
+ */
+export const TRANSFER_PERMISSIONS = {
+  viewPage: "inventory-transfer-orders:VIEW_PAGE",
+  read: "inventory-transfer-orders:READ",
+  create: "inventory-transfer-orders:CREATE",
+  update: "inventory-transfer-orders:UPDATE",
+  approve: "inventory-transfer-orders:APPROVE",
+} as const;
+
+/**
+ * Xếp xe & bàn giao hãng — resource `fulfillment-shipments` (đã seed V20260903000100, cấp cho
+ * WAREHOUSE_STAFF / WAREHOUSE_MANAGER / ORDER_COORDINATOR).
+ * ASSUMPTION: BE SCRUM-288 chưa có controller; dùng resource đã seed cho endpoint chuyến xe.
+ */
+export const SHIPMENT_PERMISSIONS = {
+  viewPage: "fulfillment-shipments:VIEW_PAGE",
+  read: "fulfillment-shipments:READ",
+  create: "fulfillment-shipments:CREATE",
+  update: "fulfillment-shipments:UPDATE",
+} as const;
+
 /** BE develop IdentityResources / IdentityController: read-only RBAC screen APIs. */
 export const IDENTITY_PERMISSIONS = {
   rolesRead: "identity-roles:READ",
