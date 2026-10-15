@@ -33,7 +33,17 @@ export const STOCK_ADJUSTMENT_REASON = {
   SCRAP: "SCRAP",
 } as const;
 
-export const STOCK_MOVEMENT_TYPES = ["RECEIPT", "MOVE", "ADJUSTMENT", "TRANSFER_OUT"] as const;
+// Backend develop 0f18f24 StockMovement.MovementType — the values GET /movements?type= accepts.
+// Responses carry `type` as a String and may hold values newer than this list.
+export const STOCK_MOVEMENT_TYPES = [
+  "RECEIPT",
+  "MOVE",
+  "ADJUSTMENT",
+  "TRANSFER_OUT",
+  "STATUS_CHANGE",
+  "PICK",
+  "PUT_BACK",
+] as const;
 export const STOCK_ADJUSTMENT_ACTION = {
   APPROVE: "approve",
   REJECT: "reject",
@@ -143,4 +153,7 @@ export const STOCK_MOVEMENT_LABELS = {
   MOVE: "Chuyển vị trí",
   ADJUSTMENT: "Điều chỉnh",
   TRANSFER_OUT: "Xuất điều chuyển",
-} as const;
+  STATUS_CHANGE: "Đổi trạng thái tồn",
+  PICK: "Lấy hàng",
+  PUT_BACK: "Trả hàng về vị trí",
+} as const satisfies Record<(typeof STOCK_MOVEMENT_TYPES)[number], string>;

@@ -100,4 +100,11 @@ describe("SCRUM-424 lifecycle and four eyes", () => {
       ),
     ).toEqual([]);
   });
+
+  it("an unknown backend status offers no action to any actor", () => {
+    roles.forEach((role) => {
+      expect(allowedAdjustmentActions("APPROVED", [role], "decider", "requester")).toEqual([]);
+      expect(allowedAdjustmentActions("APPROVED", [role], "requester", "requester")).toEqual([]);
+    });
+  });
 });

@@ -29,8 +29,10 @@ export function canViewInventory(roles: readonly RoleName[]): boolean {
   return canRequestAdjustment(roles) || roles.includes("Inventory Planner");
 }
 
+// `status` is the open response string: anything other than a known pending
+// request — including an unrecognised backend status — offers no action.
 export function allowedAdjustmentActions(
-  status: StockAdjustmentStatus,
+  status: string,
   roles: readonly RoleName[],
   userId: string | undefined,
   requestedBy: string,

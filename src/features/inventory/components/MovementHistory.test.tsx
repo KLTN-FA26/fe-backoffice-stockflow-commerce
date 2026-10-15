@@ -1,12 +1,17 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { INVENTORY_API, INVENTORY_LABELS } from "@/constants/inventory";
+import {
+  INVENTORY_API,
+  INVENTORY_LABELS,
+  STOCK_MOVEMENT_LABELS,
+  STOCK_MOVEMENT_TYPES,
+} from "@/constants/inventory";
 
 import { useAuthStore } from "@/lib/auth/auth-store";
 
@@ -167,5 +172,72 @@ describe("movement ledger screen", () => {
     renderHistory();
     expect(screen.getByText(INVENTORY_LABELS.denied)).toBeInTheDocument();
     expect(screen.queryByLabelText(INVENTORY_LABELS.sku)).not.toBeInTheDocument();
+  });
+
+  it("renders current and unknown movement types without losing the page", async () => {
+    const row = {
+      sku: "CUP-PP-500",
+      quantity: 4,
+      occurredAt: "2026-10-11T00:00:00Z",
+    };
+    server.use(
+      http.get(endpoint, () =>
+        HttpResponse.json({
+          success: true,
+          data: {
+            ...emptyPage,
+            items: [
+              {
+                ...row,
+                movementId: crypto.randomUUID(),
+                type: "STATUS_CHANGE",
+                fromLocation: "HCM-A01-1-A",
+                status: "INBOUND",
+                toStatus: "QUARANTINE",
+                referenceType: "QC_INSPECTION",
+              },
+              {
+                ...row,
+                movementId: crypto.randomUUID(),
+                type: "FUTURE_MOVEMENT_TYPE",
+                status: null,
+                referenceType: "PICK_LINE",
+              },
+            ],
+            totalElements: 20,
+            totalPages: 2,
+            hasNext: true,
+          },
+        }),
+      ),
+    );
+    renderHistory();
+    const table = await screen.findByRole("table");
+    expect(within(table).getAllByRole("row")).toHaveLength(3);
+    expect(within(table).getByText(STOCK_MOVEMENT_LABELS.STATUS_CHANGE)).toBeInTheDocument();
+    expect(within(table).getByText("FUTURE_MOVEMENT_TYPE")).toBeInTheDocument();
+    expect(within(table).getByText("PICK_LINE")).toBeInTheDocument();
+    expect(screen.queryByText(INVENTORY_LABELS.loadError)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: INVENTORY_LABELS.next })).toBeEnabled();
+  });
+
+  it("offers exactly the backend movement types and sends the chosen one", async () => {
+    const types = vi.fn();
+    server.use(
+      http.get(endpoint, ({ request }) => {
+        types(new URL(request.url).searchParams.get("type"));
+        return HttpResponse.json({ success: true, data: emptyPage });
+      }),
+    );
+    renderHistory();
+    await screen.findByText(INVENTORY_LABELS.noMovements);
+    const select = screen.getByLabelText(INVENTORY_LABELS.movementType);
+    expect(
+      within(select)
+        .getAllByRole("option")
+        .map((option) => option.getAttribute("value")),
+    ).toEqual(["", ...STOCK_MOVEMENT_TYPES]);
+    await userEvent.selectOptions(select, "PUT_BACK");
+    await waitFor(() => expect(types).toHaveBeenLastCalledWith("PUT_BACK"));
   });
 });

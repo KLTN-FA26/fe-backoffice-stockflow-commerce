@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { inventoryPageRange } from "./selectors";
+import { STOCK_MOVEMENT_LABELS, STOCK_MOVEMENT_TYPES } from "@/constants/inventory";
+
+import { inventoryPageRange, movementTypeLabel } from "./selectors";
 
 describe("inventory pagination metadata", () => {
   it("uses backend total and zero-based page", () => {
@@ -21,5 +23,16 @@ describe("inventory pagination metadata", () => {
       last: 0,
       total: 50,
     });
+  });
+});
+
+describe("movement type label", () => {
+  it.each(STOCK_MOVEMENT_TYPES)("localizes known %s", (type) => {
+    expect(movementTypeLabel(type)).toBe(STOCK_MOVEMENT_LABELS[type]);
+    expect(movementTypeLabel(type)).not.toBe(type);
+  });
+
+  it.each(["FUTURE_MOVEMENT_TYPE", "constructor"])("shows unknown %s verbatim", (type) => {
+    expect(movementTypeLabel(type)).toBe(type);
   });
 });

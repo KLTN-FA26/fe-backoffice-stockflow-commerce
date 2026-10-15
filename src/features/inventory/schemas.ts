@@ -11,8 +11,10 @@ import { STOCK_ADJUSTMENT_STATUSES } from "@/constants/statuses";
 
 import { requiredString } from "@/lib/validation/primitives";
 
-// Source: backend develop 1de8f426 StockAdjustmentResponse; nullable fields
-// may be omitted by the backend Jackson NON_NULL policy.
+// Source: backend develop 0f18f24 StockAdjustmentResponse; nullable fields
+// may be omitted by the backend Jackson NON_NULL policy. `reason` and `status`
+// are Strings on the wire: read them open so a newer code does not invalidate
+// the response. Write-side enums stay strict in adjustmentCreateInput/list input.
 export const stockAdjustmentDto = z.object({
   adjustmentId: z.uuid(),
   number: z.string(),
@@ -20,9 +22,9 @@ export const stockAdjustmentDto = z.object({
   sku: z.string(),
   lotNumber: z.string().nullish(),
   quantityDelta: z.number().int(),
-  reason: z.enum(STOCK_ADJUSTMENT_REASONS),
+  reason: z.string(),
   note: z.string().nullish(),
-  status: z.enum(STOCK_ADJUSTMENT_STATUSES),
+  status: z.string(),
   requestedBy: z.uuid(),
   requestedAt: z.iso.datetime(),
   decidedBy: z.uuid().nullish(),
@@ -33,16 +35,19 @@ export const stockAdjustmentDto = z.object({
   version: z.number().int().nonnegative(),
 });
 
+// Source: backend develop 0f18f24 StockMovementResponse. `type`, `status`,
+// `toStatus` and `referenceType` are Strings; keep them open so one newer code
+// does not invalidate the whole ledger page. status/toStatus may be null/omitted.
 export const stockMovementDto = z.object({
   movementId: z.uuid(),
-  type: z.enum(STOCK_MOVEMENT_TYPES),
+  type: z.string(),
   sku: z.string(),
   lotNumber: z.string().nullish(),
   fromLocation: z.string().nullish(),
   toLocation: z.string().nullish(),
   quantity: z.number().int().positive(),
-  status: z.string(),
-  toStatus: z.string(),
+  status: z.string().nullish(),
+  toStatus: z.string().nullish(),
   referenceType: z.string(),
   referenceId: z.uuid().nullish(),
   reason: z.string().nullish(),

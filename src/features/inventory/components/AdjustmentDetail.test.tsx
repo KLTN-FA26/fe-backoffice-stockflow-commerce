@@ -103,4 +103,15 @@ describe("adjustment detail", () => {
       screen.queryByRole("button", { name: INVENTORY_LABELS.approve }),
     ).not.toBeInTheDocument();
   });
+
+  it("renders unknown backend reason/status verbatim with no lifecycle action", async () => {
+    const fixture = adjustmentFixture({ reason: "COUNT_VARIANCE", status: "APPROVED" });
+    server.use(http.get(endpoint, () => HttpResponse.json({ success: true, data: fixture })));
+    renderInventory(<AdjustmentDetail id={fixture.adjustmentId} />);
+    expect(await screen.findByText("COUNT_VARIANCE")).toBeInTheDocument();
+    expect(screen.getByTitle(/APPROVED/)).toBeInTheDocument();
+    [INVENTORY_LABELS.approve, INVENTORY_LABELS.reject, INVENTORY_LABELS.withdraw].forEach((name) =>
+      expect(screen.queryByRole("button", { name })).not.toBeInTheDocument(),
+    );
+  });
 });

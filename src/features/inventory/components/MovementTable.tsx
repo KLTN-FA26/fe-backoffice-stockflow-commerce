@@ -1,4 +1,4 @@
-import { INVENTORY_LABELS, STOCK_MOVEMENT_LABELS } from "@/constants/inventory";
+import { INVENTORY_LABELS } from "@/constants/inventory";
 
 import { formatDateTime } from "@/lib/format/date";
 
@@ -11,6 +11,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
+import { movementTypeLabel } from "../selectors";
 
 import type { StockMovement } from "../types";
 
@@ -46,7 +48,7 @@ export function MovementTable({ items }: { items: StockMovement[] }) {
           {items.map((item) => (
             <TableRow key={item.movementId}>
               <TableCell>{formatDateTime(item.occurredAt)}</TableCell>
-              <TableCell>{STOCK_MOVEMENT_LABELS[item.type]}</TableCell>
+              <TableCell>{movementTypeLabel(item.type)}</TableCell>
               <TableCell className="font-mono">{item.sku}</TableCell>
               <TableCell className="font-mono">
                 {item.lotNumber ?? INVENTORY_LABELS.missing}

@@ -87,4 +87,28 @@ describe("adjustment queue", () => {
       screen.queryByRole("link", { name: INVENTORY_LABELS.createAdjustment }),
     ).not.toBeInTheDocument();
   });
+
+  it("keeps a row with unknown backend reason/status visible", async () => {
+    const fixture = adjustmentFixture({ reason: "COUNT_VARIANCE", status: "APPROVED" });
+    server.use(
+      http.get(endpoint, () =>
+        HttpResponse.json({
+          success: true,
+          data: {
+            items: [fixture],
+            page: 0,
+            size: 15,
+            totalElements: 1,
+            totalPages: 1,
+            hasNext: false,
+            hasPrevious: false,
+          },
+        }),
+      ),
+    );
+    renderInventory(<AdjustmentList />);
+    expect(await screen.findByRole("link", { name: fixture.number })).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "COUNT_VARIANCE" })).toBeInTheDocument();
+    expect(screen.getByTitle(/APPROVED/)).toBeInTheDocument();
+  });
 });
