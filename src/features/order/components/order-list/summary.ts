@@ -1,4 +1,3 @@
-import { ORDER_PAYMENT_TERM_LABELS } from "@/constants";
 import { formatDate } from "@/lib/format/date";
 
 import {
@@ -37,7 +36,7 @@ export function buildSummaryItems(s: OrderListState): ListSummaryItem[] {
       onClear: () => void filters.setStatus([]),
     },
     {
-      label: COLUMN_LABELS.customer ?? FILTER_LABELS.customer,
+      label: FILTER_LABELS.customer,
       value: extra.customerId || "Tất cả",
       active: extra.customerId !== "",
       onClear: () => extra.setCustomerId(""),
@@ -47,12 +46,6 @@ export function buildSummaryItems(s: OrderListState): ListSummaryItem[] {
       value: dateRange,
       active: extra.placedFrom !== "" || extra.placedTo !== "",
       onClear: extra.clearDates,
-    },
-    {
-      label: FILTER_LABELS.paymentTerm,
-      value: extra.paymentTerm ? ORDER_PAYMENT_TERM_LABELS[extra.paymentTerm] : "Tất cả",
-      active: extra.paymentTerm !== null,
-      onClear: () => extra.setPaymentTerm(null),
     },
     {
       label: "Sắp xếp",

@@ -62,15 +62,6 @@ export function useOrderListState(canRead = true) {
 
   const hasFilters = filters.q.trim() !== "" || filters.status.length > 0 || extra.active;
   const page = query.data;
-  /**
-   * CONTRACT PENDING: BE `GET /orders` chưa có `paymentTerm`. BE thật bỏ qua tham số và trả
-   * mọi đơn → phát hiện để báo người dùng thay vì ngầm hiển thị danh sách chưa lọc. Giới hạn:
-   * dòng không mang `paymentTerm` (null) không phát hiện được → UI luôn kèm ghi chú "chờ BE"
-   * khi bộ lọc bật (OrderListFilters).
-   */
-  const paymentTermIgnored =
-    !!extra.paymentTerm &&
-    !!page?.items.some((o) => o.paymentTerm !== null && o.paymentTerm !== extra.paymentTerm);
   const emptyState: OrderListEmptyState = !page
     ? "none"
     : page.totalElements === 0
@@ -114,7 +105,7 @@ export function useOrderListState(canRead = true) {
     void filters.setPage(1);
   };
 
-  /** Bỏ mọi bộ lọc dữ liệu (search, trạng thái, khách, ngày, thanh toán) — giữ cột/sort. */
+  /** Bỏ mọi bộ lọc dữ liệu (search, trạng thái, khách, ngày) — giữ cột/sort. */
   const clearFilters = () => {
     filters.reset();
     extra.reset();
@@ -135,7 +126,6 @@ export function useOrderListState(canRead = true) {
     extra,
     sort,
     hasFilters,
-    paymentTermIgnored,
     emptyState,
     visibleColumnCount,
     hasColumnConfig: visibleColumnCount !== DEFAULT_COLUMNS.length - 1,

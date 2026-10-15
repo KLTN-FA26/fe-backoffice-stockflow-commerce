@@ -2,50 +2,48 @@
 
 import { useState } from "react";
 
-import { ORDER_PAYMENT_TERM_LABELS, ORDER_PAYMENT_TERMS } from "@/constants";
-import { Alert } from "@/components/shared/Alert";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
+import { isValidOrderCustomerId } from "../../schemas";
 
 import { FILTER_LABELS } from "./constants";
 
-import type { OrderPaymentTerm } from "@/constants";
 import type { OrderListState } from "./useOrderListState";
-
-const ALL_TERMS = "ALL";
-
-function isPaymentTerm(value: string): value is OrderPaymentTerm {
-  return (ORDER_PAYMENT_TERMS as readonly string[]).includes(value);
-}
 
 const FIELD = "flex flex-col gap-1";
 const LABEL = "text-ink-secondary text-xs font-medium";
 const CONTROL = "border-border-default bg-bg-surface h-8 rounded-[var(--r-sm)] text-[0.8125rem]";
+const CUSTOMER_ERROR_ID = "order-filter-customer-error";
 
 /**
- * Hàng bộ lọc riêng của đơn: khách hàng, khoảng ngày đặt, phương thức thanh toán (URL qua nuqs).
- * Mã khách nhập tay: `GET /customers` của BE chặn ORDER_COORDINATOR / ACCOUNTANT (403) nên chưa
- * dựng được ô chọn khách dùng chung cho mọi vai trò.
+ * Hàng bộ lọc riêng của đơn: khách hàng, khoảng ngày đặt (URL qua nuqs) — đúng các tham số BE
+ * `GET /orders` nhận; không lọc theo phương thức thanh toán (BE chưa hỗ trợ).
+ * ID khách nhập tay: `GET /customers` của BE chặn ORDER_COORDINATOR / ACCOUNTANT (403) nên chưa
+ * dựng được ô chọn khách dùng chung cho mọi vai trò. BE nhận UUID — giá trị khác giữ ở ô nhập kèm
+ * lỗi inline, không lên URL / không gọi API.
  */
 export function OrderListFilters({ s }: { s: OrderListState }) {
   const { extra } = s;
-  // Nháp mã khách — chỉ áp khi Enter / rời ô, tránh gọi API mỗi phím
-  const [customerDraft, setCustomerDraft] = useState(extra.customerId);
-  const [syncedCustomer, setSyncedCustomer] = useState(extra.customerId);
-  if (syncedCustomer !== extra.customerId) {
-    // URL đổi từ nơi khác (Reset, back/forward) → đồng bộ lại ô nhập
-    setSyncedCustomer(extra.customerId);
-    setCustomerDraft(extra.customerId);
+  // Nháp ID khách — chỉ áp khi Enter / rời ô, tránh gọi API mỗi phím
+  const [customerDraft, setCustomerDraft] = useState(extra.customerInput);
+  const [syncedCustomer, setSyncedCustomer] = useState(extra.customerInput);
+  // Báo lỗi sau khi người dùng chốt, hoặc ngay khi URL mang sẵn giá trị sai; sau đó kiểm theo phím
+  const [customerTouched, setCustomerTouched] = useState(extra.customerIdInvalid);
+  if (syncedCustomer !== extra.customerInput) {
+    // URL đổi từ nơi khác (Reset, back/forward, nút lọc ở cột) → đồng bộ lại ô nhập
+    setSyncedCustomer(extra.customerInput);
+    setCustomerDraft(extra.customerInput);
+    setCustomerTouched(extra.customerIdInvalid);
   }
+  const customerValue = customerDraft.trim();
+  const customerDraftInvalid = customerValue !== "" && !isValidOrderCustomerId(customerValue);
+  const customerError = customerTouched && customerDraftInvalid;
   const commitCustomer = () => {
-    if (customerDraft.trim() !== extra.customerId) extra.setCustomerId(customerDraft);
+    setCustomerTouched(true);
+    // Sai → giữ nháp tại chỗ kèm lỗi, không đụng URL / query
+    if (customerDraftInvalid) return;
+    if (customerValue !== extra.customerInput) extra.setCustomerId(customerValue);
   };
 
   return (
@@ -63,8 +61,10 @@ export function OrderListFilters({ s }: { s: OrderListState }) {
             onKeyDown={(event) => {
               if (event.key === "Enter") commitCustomer();
             }}
-            placeholder="Nhập mã khách, Enter để lọc"
-            className={`${CONTROL} w-64 font-[family-name:var(--font-mono)]`}
+            placeholder={FILTER_LABELS.customerPlaceholder}
+            aria-invalid={customerError || undefined}
+            aria-describedby={customerError ? CUSTOMER_ERROR_ID : undefined}
+            className={`${CONTROL} w-72 font-[family-name:var(--font-mono)]`}
           />
         </div>
         <div className={FIELD}>
@@ -96,41 +96,16 @@ export function OrderListFilters({ s }: { s: OrderListState }) {
             className={`${CONTROL} w-40 tabular-nums`}
           />
         </div>
-        <div className={FIELD}>
-          <Label htmlFor="order-filter-term" className={LABEL}>
-            {FILTER_LABELS.paymentTerm}
-          </Label>
-          <Select
-            value={extra.paymentTerm ?? ALL_TERMS}
-            onValueChange={(value) => extra.setPaymentTerm(isPaymentTerm(value) ? value : null)}
-          >
-            <SelectTrigger id="order-filter-term" className={`${CONTROL} w-48`}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_TERMS}>{FILTER_LABELS.allTerms}</SelectItem>
-              {ORDER_PAYMENT_TERMS.map((term) => (
-                <SelectItem key={term} value={term}>
-                  {ORDER_PAYMENT_TERM_LABELS[term]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
       </div>
+      {customerError && (
+        <p id={CUSTOMER_ERROR_ID} role="alert" className="text-danger text-xs">
+          {FILTER_LABELS.customerInvalid}
+        </p>
+      )}
       {extra.invalidRange && (
         <p id="order-filter-range-error" role="alert" className="text-danger text-xs">
           {FILTER_LABELS.invalidRange}
         </p>
-      )}
-      {/* Đã phát hiện BE bỏ qua → cảnh báo mạnh; còn lại chỉ ghi chú (dòng có thể không mang
-          paymentTerm nên không phải lúc nào cũng phát hiện được) */}
-      {s.paymentTermIgnored ? (
-        <Alert tone="warning">{FILTER_LABELS.termIgnored}</Alert>
-      ) : (
-        extra.paymentTerm && (
-          <p className="text-ink-tertiary text-xs">{FILTER_LABELS.termPending}</p>
-        )
       )}
     </div>
   );

@@ -124,11 +124,12 @@ describe("GET /orders/:id — OrderResponse", () => {
   });
 });
 
-describe("GET /orders — lọc khách / ngày / phương thức thanh toán", () => {
-  it("customerId chỉ trả đơn của khách đó", async () => {
+describe("GET /orders — lọc khách / ngày", () => {
+  it("customerId BE là UUID: id mock CUS-… không phải UUID → FE không gửi, trả mọi khách", async () => {
+    const all = await listOrders({ page: 0, size: 200 });
     const page = await listOrders({ page: 0, size: 200, customerId: "CUS-0008" });
-    expect(page.items.length).toBeGreaterThan(0);
-    expect(page.items.every((o) => o.customerId === "CUS-0008")).toBe(true);
+    expect(page.totalElements).toBe(all.totalElements);
+    expect(new Set(page.items.map((o) => o.customerId)).size).toBeGreaterThan(1);
   });
 
   it("placedFrom/placedTo tính cả hai đầu theo ngày VN", async () => {
@@ -149,10 +150,10 @@ describe("GET /orders — lọc khách / ngày / phương thức thanh toán", (
     expect(error.code).toBe("VALIDATION_FAILED");
   });
 
-  it("paymentTerm (contract pending, mock lọc) chỉ trả đơn công nợ", async () => {
+  it("BE GET /orders không lọc theo paymentTerm: tham số lạ không được gửi, mọi phương thức trả về", async () => {
+    // ListQueryParams có index signature nên kiểu không chặn được — chặn ở serializer
     const page = await listOrders({ page: 0, size: 200, paymentTerm: "CREDIT" });
-    expect(page.items.length).toBeGreaterThan(0);
-    expect(page.items.every((o) => o.paymentTerm === "CREDIT")).toBe(true);
+    expect(new Set(page.items.map((o) => o.paymentTerm)).size).toBeGreaterThan(1);
   });
 
   it("dòng danh sách không mang lines (như BE OrderPersistenceMapper)", async () => {

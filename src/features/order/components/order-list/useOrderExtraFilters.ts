@@ -1,26 +1,29 @@
 "use client";
 
-import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
+import { parseAsString, useQueryState } from "nuqs";
 
-import { ORDER_PAYMENT_TERMS } from "@/constants";
+import { isValidOrderCustomerId } from "../../schemas";
 
 /** Khoá URL của bộ lọc riêng trang đơn (ngoài status/q/page/sort của `useUrlFilters`). */
 export const ORDER_FILTER_KEYS = {
   customer: "customer",
   from: "from",
   to: "to",
-  term: "term",
 } as const;
 
 /** `yyyy-MM-dd` — đúng định dạng `LocalDate` BE nhận ở `placedFrom/placedTo`. */
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
- * Bộ lọc khách / ngày đặt / phương thức thanh toán trên URL (state-persistence: người khác mở
- * link phải thấy cùng danh sách). Đổi bộ lọc → về trang 1 (`resetPage`).
+ * Bộ lọc khách / ngày đặt trên URL (state-persistence: người khác mở link phải thấy cùng danh
+ * sách). Đổi bộ lọc → về trang 1 (`resetPage`). Chỉ những tham số BE `GET /orders` nhận —
+ * không có phương thức thanh toán (BE chưa hỗ trợ lọc theo `paymentTerm`).
+ *
+ * `customer` trên URL có thể sai (link cũ, gõ tay): giữ nguyên để ô nhập hiện lỗi, nhưng chỉ
+ * UUID hợp lệ mới vào `params` / query key — không bao giờ để BE trả 400 cả trang.
  */
 export function useOrderExtraFilters(resetPage: () => void) {
-  const [customerId, setCustomerId] = useQueryState(
+  const [customerRaw, setCustomerId] = useQueryState(
     ORDER_FILTER_KEYS.customer,
     parseAsString.withDefault(""),
   );
@@ -32,11 +35,10 @@ export function useOrderExtraFilters(resetPage: () => void) {
     ORDER_FILTER_KEYS.to,
     parseAsString.withDefault(""),
   );
-  const [paymentTerm, setPaymentTerm] = useQueryState(
-    ORDER_FILTER_KEYS.term,
-    parseAsStringLiteral(ORDER_PAYMENT_TERMS),
-  );
 
+  const customerInput = customerRaw.trim();
+  const customerIdInvalid = customerInput !== "" && !isValidOrderCustomerId(customerInput);
+  const customerId = customerIdInvalid ? "" : customerInput;
   const from = ISO_DAY.test(placedFrom) ? placedFrom : "";
   const to = ISO_DAY.test(placedTo) ? placedTo : "";
   // BE OrderServiceImpl: placedTo trước placedFrom → 400. Chặn ở FE, không gửi khoảng sai.
@@ -50,23 +52,24 @@ export function useOrderExtraFilters(resetPage: () => void) {
     };
 
   return {
-    customerId: customerId.trim(),
+    /** Khách đang lọc thật (UUID hợp lệ) — "" khi không lọc hoặc giá trị URL sai. */
+    customerId,
+    /** Giá trị khách trên URL như người dùng thấy (có thể sai) — để ô nhập hiển thị + báo lỗi. */
+    customerInput,
+    customerIdInvalid,
     placedFrom: from,
     placedTo: to,
-    paymentTerm,
     invalidRange,
-    /** Giá trị gửi API — bỏ khoảng ngày sai thay vì để BE trả 400. */
+    /** Giá trị gửi API — bỏ khách / khoảng ngày sai thay vì để BE trả 400. */
     params: {
-      customerId: customerId.trim() || undefined,
+      customerId: customerId || undefined,
       placedFrom: invalidRange ? undefined : from || undefined,
       placedTo: invalidRange ? undefined : to || undefined,
-      paymentTerm: paymentTerm ?? undefined,
     },
-    active: customerId.trim() !== "" || from !== "" || to !== "" || paymentTerm !== null,
+    active: customerId !== "" || from !== "" || to !== "",
     setCustomerId: withPageReset((v: string) => setCustomerId(v.trim() || null)),
     setPlacedFrom: withPageReset((v: string) => setPlacedFrom(v || null)),
     setPlacedTo: withPageReset((v: string) => setPlacedTo(v || null)),
-    setPaymentTerm: withPageReset(setPaymentTerm),
     clearDates: () => {
       void setPlacedFrom(null);
       void setPlacedTo(null);
@@ -76,7 +79,6 @@ export function useOrderExtraFilters(resetPage: () => void) {
       void setCustomerId(null);
       void setPlacedFrom(null);
       void setPlacedTo(null);
-      void setPaymentTerm(null);
     },
   };
 }

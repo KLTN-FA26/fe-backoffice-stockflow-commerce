@@ -40,18 +40,14 @@ export const SEARCH_SCOPE_LABEL = "Mã đơn, người liên hệ / người nh�
 
 /** Nhãn bộ lọc riêng — dùng ở hàng bộ lọc và thanh Cấu hình. */
 export const FILTER_LABELS = {
-  customer: "Mã khách hàng",
+  // BE lọc theo UUID khách (`customerId`), không phải mã khách hiển thị
+  customer: "ID khách hàng",
+  customerPlaceholder: "Nhập UUID khách, Enter để lọc",
+  customerInvalid: "ID khách hàng phải là UUID hợp lệ.",
   placedAt: "Ngày đặt",
   from: "Từ ngày",
   to: "Đến ngày",
-  paymentTerm: "Phương thức thanh toán",
-  allTerms: "Tất cả phương thức",
   invalidRange: "Ngày kết thúc phải sau hoặc bằng ngày bắt đầu — chưa áp dụng lọc ngày.",
-  // CONTRACT PENDING (B0): BE GET /orders chưa có `paymentTerm` — luôn nói rõ khi đang lọc
-  termPending:
-    "Lọc theo phương thức thanh toán đang chờ máy chủ hỗ trợ chính thức — nếu máy chủ chưa hỗ trợ, danh sách có thể chưa được lọc.",
-  termIgnored:
-    "Máy chủ chưa hỗ trợ lọc theo phương thức thanh toán — danh sách dưới đây CHƯA được lọc theo tiêu chí này.",
 } as const;
 
 /** Tiêu đề cột — dùng chung cho bảng, popover ẩn/hiện cột và thanh Cấu hình. */

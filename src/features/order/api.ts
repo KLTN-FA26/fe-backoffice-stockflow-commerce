@@ -10,10 +10,14 @@
 import { PAGE_SIZE } from "@/constants";
 import { api } from "@/lib/api/client";
 
-import { orderDtoSchema, orderPageDtoSchema, orderStatusChangeDtoSchema } from "./schemas";
+import {
+  isValidOrderCustomerId,
+  orderDtoSchema,
+  orderPageDtoSchema,
+  orderStatusChangeDtoSchema,
+} from "./schemas";
 import { mapBackendOrderStatus, toBackendOrderStatuses } from "./status-map";
 
-import type { OrderPaymentTerm } from "@/constants";
 import type { ListQueryParams, PaginatedResponse } from "@/lib/api/query-factory";
 import type {
   AdminCancelOrderInput,
@@ -84,25 +88,30 @@ export function toOrder(dto: OrderDto): Order {
 
 /* ── List ────────────────────────────────────────────────────────────── */
 
+/**
+ * Đúng các tham số BE `OrderController#list` nhận: page, size, search, status (lặp), customerId
+ * (UUID), placedFrom, placedTo, sort. KHÔNG có `paymentTerm` — BE chưa hỗ trợ lọc theo phương
+ * thức thanh toán (field vẫn có trên `OrderResponse`, chỉ không lọc được).
+ */
 export interface ListOrderParams extends ListQueryParams {
   /** Trang đánh số từ 0 (BE PageResponse). */
   page?: number;
   size?: number;
   search?: string;
   status?: OrderStatus[];
+  /** UUID khách — giá trị không phải UUID bị bỏ, không gửi (BE trả 400 cả trang). */
   customerId?: string;
   /** `yyyy-MM-dd`, cả hai đầu tính, múi giờ Asia/Ho_Chi_Minh (BE OrderServiceImpl). */
   placedFrom?: string;
   placedTo?: string;
-  /**
-   * CONTRACT PENDING (B0 đã duyệt): BE `GET /orders` CHƯA có tham số `paymentTerm`. FE gửi theo
-   * hợp đồng đã thống nhất; mock lọc theo, BE thật hiện bỏ qua → UI ghi rõ bộ lọc chờ BE.
-   */
-  paymentTerm?: OrderPaymentTerm;
   /** `field,asc|desc`. */
   sort?: string;
 }
 
+/**
+ * Dựng query theo danh sách trắng ở trên — tham số lạ lọt vào lúc chạy (state cũ, link cũ có
+ * `paymentTerm`) không bao giờ được gửi.
+ */
 export function buildOrderListQuery(params: ListOrderParams): URLSearchParams {
   const { page = 0, size = PAGE_SIZE.md, search, status, sort } = params;
   // Chỉ gửi param có giá trị (không `search=` rỗng); mảng status phát key lặp
@@ -110,10 +119,10 @@ export function buildOrderListQuery(params: ListOrderParams): URLSearchParams {
   const query = new URLSearchParams({ page: String(Math.max(0, page)), size: String(size) });
   if (search?.trim()) query.set("search", search.trim());
   for (const value of toBackendOrderStatuses(status ?? [])) query.append("status", value);
-  if (params.customerId?.trim()) query.set("customerId", params.customerId.trim());
+  const customerId = params.customerId?.trim();
+  if (customerId && isValidOrderCustomerId(customerId)) query.set("customerId", customerId);
   if (params.placedFrom) query.set("placedFrom", params.placedFrom);
   if (params.placedTo) query.set("placedTo", params.placedTo);
-  if (params.paymentTerm) query.set("paymentTerm", params.paymentTerm);
   if (sort?.trim()) query.set("sort", sort.trim());
   return query;
 }

@@ -79,8 +79,6 @@ export function registerOrderMockRoutes(): void {
     const customerId = params.get("customerId");
     const placedFrom = params.get("placedFrom");
     const placedTo = params.get("placedTo");
-    // CONTRACT PENDING: BE chưa có `paymentTerm` — chỉ mock lọc (hợp đồng đã thống nhất, B0)
-    const paymentTerm = params.get("paymentTerm");
     const [sortField = "placedAt", sortDir = "desc"] = (
       params.get("sort") ?? "placedAt,desc"
     ).split(",");
@@ -103,7 +101,6 @@ export function registerOrderMockRoutes(): void {
     if (customerId) filtered = filtered.filter((o) => o.customerId === customerId);
     if (placedFrom) filtered = filtered.filter((o) => placedDay(o.placedAt) >= placedFrom);
     if (placedTo) filtered = filtered.filter((o) => placedDay(o.placedAt) <= placedTo);
-    if (paymentTerm) filtered = filtered.filter((o) => o.paymentTerm === paymentTerm);
     filtered.sort((a, b) => {
       const result = compareOrders(a, b, sortField);
       return sortDir === "desc" ? -result : result;

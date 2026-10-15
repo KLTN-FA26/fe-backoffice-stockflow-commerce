@@ -19,6 +19,8 @@ import {
 } from "@/constants/orders";
 import { ORDER_READ_STATUSES, ORDER_STATUS_UNKNOWN } from "@/constants/statuses";
 
+import { uuid } from "@/lib/validation/primitives";
+
 /* ── DTO (BE wire) ───────────────────────────────────────────────────── */
 
 /**
@@ -157,6 +159,15 @@ export const orderPageDtoSchema = z.object({
   hasNext: z.boolean(),
   hasPrevious: z.boolean(),
 });
+
+/* ── Tham số lọc `GET /orders` ───────────────────────────────────────── */
+
+/** BE `OrderController#list`: `@RequestParam UUID customerId` — giá trị khác → 400 UNSUPPORTED_PARAMETER. */
+export const orderListCustomerIdSchema = uuid("ID khách hàng phải là UUID hợp lệ.");
+
+export function isValidOrderCustomerId(value: string): boolean {
+  return orderListCustomerIdSchema.safeParse(value).success;
+}
 
 /* ── Model FE ────────────────────────────────────────────────────────── */
 

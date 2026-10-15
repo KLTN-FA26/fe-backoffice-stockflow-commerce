@@ -318,20 +318,32 @@ describe("order list filter — UNKNOWN chỉ để đọc, không bao giờ g�
     expect(query.get("sort")).toBe("placedAt,desc");
   });
 
-  it("listOrders gửi lọc khách, khoảng ngày, phương thức thanh toán (contract pending)", async () => {
+  it("listOrders gửi lọc khách (UUID, đã trim) + khoảng ngày", async () => {
     const get = vi.spyOn(api, "get").mockResolvedValue({ data: emptyBePage });
 
     await listOrders({
-      customerId: " CUS-0007 ",
+      customerId: " 550e8400-e29b-41d4-a716-446655440000 ",
       placedFrom: "2026-06-01",
       placedTo: "2026-06-30",
-      paymentTerm: "CREDIT",
     });
 
     const query = new URLSearchParams(String(get.mock.calls[0]?.[1]?.params));
-    expect(query.get("customerId")).toBe("CUS-0007");
+    expect(query.get("customerId")).toBe("550e8400-e29b-41d4-a716-446655440000");
     expect(query.get("placedFrom")).toBe("2026-06-01");
     expect(query.get("placedTo")).toBe("2026-06-30");
-    expect(query.get("paymentTerm")).toBe("CREDIT");
+  });
+
+  it("BE customerId là UUID: giá trị khác (CUS-0007, UUID cụt, rỗng) không bao giờ được gửi", () => {
+    for (const customerId of ["CUS-0007", "abc", "12345", "550e8400-e29b-41d4-a716", "  "]) {
+      expect(buildOrderListQuery({ customerId }).has("customerId")).toBe(false);
+    }
+  });
+
+  it("BE GET /orders không có paymentTerm: tham số lọt vào lúc chạy không được serialize", () => {
+    // ListQueryParams có index signature — kiểu không chặn được, serializer phải chặn
+    const query = buildOrderListQuery({ paymentTerm: "CREDIT", term: "NET_30" });
+    expect(query.has("paymentTerm")).toBe(false);
+    expect(query.has("term")).toBe(false);
+    expect([...query.keys()].sort()).toEqual(["page", "size"]);
   });
 });
