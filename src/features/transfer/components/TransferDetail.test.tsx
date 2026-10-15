@@ -8,6 +8,7 @@ import {
   TRANSFER_ROLE_PERMISSIONS as ROLES,
   mockTransferApi,
   renderTransferScreen,
+  HEAVY_TEST,
 } from "../__fixtures__/render";
 import { OTHER_USER, TRANSFER_ID, apiTransfer, warehouses } from "../__fixtures__/transfer";
 import { TransferDetail } from "./TransferDetail";
@@ -18,9 +19,6 @@ import type { TransferOrder } from "../types";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 afterEach(() => vi.restoreAllMocks());
-
-// Render cả màn + react-query + userEvent: máy CI / máy đang tải nặng có thể vượt mốc 5s mặc định
-const HEAVY = { timeout: 15_000 };
 
 const PATH = `/inventory/transfer-orders/${TRANSFER_ID}`;
 const A = UI_LABELS.transfer.action;
@@ -48,7 +46,7 @@ function renderDetail(permissions: readonly PermissionCode[], transfer: Transfer
   return spies;
 }
 
-describe("TransferDetail — action-gating + xuất kho", HEAVY, () => {
+describe("TransferDetail — action-gating + xuất kho", HEAVY_TEST, () => {
   it("PICKING + NV kho → thấy Xuất kho; xuất thiếu gửi đúng SL từng dòng", async () => {
     const user = userEvent.setup();
     const { post } = renderDetail(ROLES.warehouseStaff, apiTransfer({ status: "PICKING" }));

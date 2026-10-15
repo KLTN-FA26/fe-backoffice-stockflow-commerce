@@ -132,4 +132,47 @@ describe("ManifestScreen — đối soát + bàn giao", () => {
     expect(screen.getByRole("button", { name: L.action.print })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: L.action.handover })).not.toBeInTheDocument();
   });
+
+  it("gửi lại sau lỗi 400 dùng Idempotency-Key MỚI; sau lỗi mạng giữ key cũ", async () => {
+    const user = userEvent.setup();
+    const errors = [
+      new ApiError(400, "VALIDATION_FAILED", "bad", { carrierRepresentative: "too long" }),
+      new ApiError(0, "NETWORK_ERROR", "offline"),
+    ];
+    const { post } = mockShippingApi(
+      ROLES.warehouseStaff,
+      { [PATH]: () => apiLoad({ lines: FULL }), "/warehouses": () => ({ items: [] }) },
+      {
+        [`${PATH}/handover`]: () => {
+          const error = errors.shift();
+          if (error) throw error;
+          return apiLoad({ lines: FULL, status: "DISPATCHED" });
+        },
+      },
+    );
+    renderShippingScreen(<ManifestScreen id={LOAD_ID} />);
+    await user.click(await screen.findByRole("button", { name: L.action.handover }));
+    const dialog = await screen.findByRole("dialog");
+    await user.type(within(dialog).getByLabelText(/Tên đại diện/), "Anh Tài");
+    await user.click(within(dialog).getByLabelText(L.manifest.signedConfirm));
+    const submit = within(dialog).getByRole("button", { name: L.action.handover });
+
+    const keyOf = (call: number) =>
+      (post.mock.calls[call]?.[2] as { headers: Record<string, string> } | undefined)?.headers[
+        "Idempotency-Key"
+      ];
+    await user.click(submit);
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(1));
+    // 400 gắn lỗi vào ô → sửa ô rồi gửi lại
+    await user.type(within(dialog).getByLabelText(/Tên đại diện/), "!");
+    await waitFor(() => expect(submit).toBeEnabled());
+    await user.click(submit);
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(submit).toBeEnabled());
+    await user.click(submit);
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(3));
+
+    expect(keyOf(1)).not.toBe(keyOf(0));
+    expect(keyOf(2)).toBe(keyOf(1));
+  });
 });

@@ -5,7 +5,12 @@ import { ApiError } from "@/lib/api/error";
 import { LOAD_TRANSITIONS } from "@/lib/domain/lifecycle";
 
 import { SHIPPING_ROLE_PERMISSIONS as ROLES } from "./__fixtures__/render";
-import { isScanQueueFatal, isStaleLoadError, shippingErrorMessage } from "./errors";
+import {
+  isScanQueueFatal,
+  isStaleLoadError,
+  shippingErrorMessage,
+  shouldRenewIdempotencyKey,
+} from "./errors";
 import {
   LOAD_NO_ACTION_REASON,
   allowedLoadActions,
@@ -137,5 +142,15 @@ describe("errors — phân loại lỗi quét / chuyến", () => {
     expect(shippingErrorMessage(new ApiError(500, "constructor", ""))).toBe(
       SHIPPING_ERROR_MESSAGES.generic,
     );
+  });
+});
+
+describe("Idempotency-Key bàn giao — khi nào đổi key", () => {
+  it("4xx (BE đã lưu response, kể cả 400) → đổi key; mất mạng / 5xx / lỗi lạ → giữ key", () => {
+    expect(shouldRenewIdempotencyKey(new ApiError(400, "VALIDATION_FAILED", ""))).toBe(true);
+    expect(shouldRenewIdempotencyKey(new ApiError(409, "OPTIMISTIC_LOCK", ""))).toBe(true);
+    expect(shouldRenewIdempotencyKey(new ApiError(0, "NETWORK_ERROR", ""))).toBe(false);
+    expect(shouldRenewIdempotencyKey(new ApiError(503, "UNAVAILABLE", ""))).toBe(false);
+    expect(shouldRenewIdempotencyKey(new Error("parse"))).toBe(false);
   });
 });

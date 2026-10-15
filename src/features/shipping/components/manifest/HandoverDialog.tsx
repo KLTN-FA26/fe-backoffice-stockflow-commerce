@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 
 import { SHIPPING_LIMITS, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
-import { shippingErrorMessage } from "@/features/shipping/errors";
+import { shippingErrorMessage, shouldRenewIdempotencyKey } from "@/features/shipping/errors";
 import { handoverInputSchema } from "@/features/shipping/input-schemas";
 import { useHandoverLoad } from "@/features/shipping/mutations";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
@@ -28,8 +28,9 @@ const SERVER_FIELDS = ["carrierRepresentative", "note"] as const;
  */
 export function HandoverDialog({ load, onClose }: { load: Load; onClose: () => void }) {
   const handover = useHandoverLoad();
-  // Cố định trong suốt lần mở dialog: bấm lại sau lỗi mạng gửi cùng key (BE chống bàn giao trùng)
-  const [idempotencyKey] = useState(() => crypto.randomUUID());
+  // Bấm lại sau lỗi mạng / 5xx gửi cùng key (BE chống bàn giao trùng); lỗi 4xx thì đổi key — xem
+  // `shouldRenewIdempotencyKey`
+  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
   const [serverError, setServerError] = useState<string | null>(null);
   const form = useForm<HandoverFormInput, unknown, HandoverValues>({
     resolver: zodResolver(handoverInputSchema),
@@ -58,6 +59,7 @@ export function HandoverDialog({ load, onClose }: { load: Load; onClose: () => v
         onError: (error) => {
           // Lỗi dữ liệu cũ đã có toast ở mutation (dialog có thể đóng ngay khi dữ liệu tải lại)
           setServerError(shippingErrorMessage(error));
+          if (shouldRenewIdempotencyKey(error)) setIdempotencyKey(crypto.randomUUID());
           // @Valid của BE → gắn lỗi vào đúng ô (api-conventions §4.4)
           if (error instanceof ApiError) {
             for (const name of SERVER_FIELDS) {

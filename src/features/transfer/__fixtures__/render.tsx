@@ -17,6 +17,9 @@ import type { PermissionCode } from "@/lib/auth";
 
 const TO = TRANSFER_PERMISSIONS;
 
+/** Test render cả màn + react-query + userEvent: máy CI / máy đang tải nặng có thể vượt mốc 5s mặc định. */
+export const HEAVY_TEST = { timeout: 15_000 };
+
 /** Seed BE V20260903000100 + V20261010000500 cho resource `inventory-transfer-orders`. */
 export const TRANSFER_ROLE_PERMISSIONS = {
   viewOnly: [TO.viewPage, TO.read],

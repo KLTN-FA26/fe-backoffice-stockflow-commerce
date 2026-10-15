@@ -9,6 +9,7 @@ import {
   TRANSFER_ROLE_PERMISSIONS as ROLES,
   mockTransferApi,
   renderTransferScreen,
+  HEAVY_TEST,
 } from "../__fixtures__/render";
 import { TRANSFER_ID, apiTransfer, warehouses } from "../__fixtures__/transfer";
 import { TransferEdit } from "./TransferEdit";
@@ -21,13 +22,10 @@ beforeAll(() => {
 });
 afterEach(() => vi.restoreAllMocks());
 
-// Render cả màn + react-query + userEvent: máy CI / máy đang tải nặng có thể vượt mốc 5s mặc định
-const HEAVY = { timeout: 15_000 };
-
 const PATH = `/inventory/transfer-orders/${TRANSFER_ID}`;
 const L = UI_LABELS.transfer;
 
-describe("TransferEdit — lệnh bị sửa ở nơi khác", HEAVY, () => {
+describe("TransferEdit — lệnh bị sửa ở nơi khác", HEAVY_TEST, () => {
   it("lưu gặp OPTIMISTIC_LOCK → nạp bản mới, báo rõ thay đổi chưa lưu đã bị bỏ", async () => {
     const user = userEvent.setup();
     let version = 3;

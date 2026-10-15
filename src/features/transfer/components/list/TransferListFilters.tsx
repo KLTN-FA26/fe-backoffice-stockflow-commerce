@@ -1,7 +1,7 @@
 "use client";
 
 import { UI_LABELS } from "@/constants";
-import { useWarehouseDirectory, useWarehouseOptions } from "@/lib/references/warehouse-options";
+import { useWarehouseDirectory } from "@/lib/references/warehouse-options";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -33,14 +33,8 @@ function WarehouseFilter({
   onChange: (value: string) => void;
 }) {
   // MỌI kho (cả kho đã ngừng) — lọc được lịch sử lệnh của kho đã ngừng hoạt động (BE GET danh sách
-  // nhận cả kho ngừng). Kho ngừng gắn nhãn, so với danh sách kho đang hoạt động.
+  // nhận cả kho ngừng). Kho ngừng gắn nhãn theo `status` BE trả cùng danh mục (một query).
   const { data: warehouses = [], isError, refetch } = useWarehouseDirectory();
-  const { data: active } = useWarehouseOptions();
-  const activeIds = new Set(active?.map((w) => w.warehouseId));
-  const inactiveSuffix = (warehouseId: string) =>
-    active && !activeIds.has(warehouseId)
-      ? ` (${UI_LABELS.transfer.warehouseSelect.inactive})`
-      : "";
   const warehouseLabel = useWarehouseLabel();
   return (
     <div className="flex items-center gap-2">
@@ -63,7 +57,7 @@ function WarehouseFilter({
             {warehouses.map((w) => (
               <SelectItem key={w.warehouseId} value={w.warehouseId}>
                 {w.code ? `${w.code} · ${w.name}` : w.name}
-                {inactiveSuffix(w.warehouseId)}
+                {!w.active && ` (${UI_LABELS.transfer.warehouseSelect.inactive})`}
               </SelectItem>
             ))}
           </SelectGroup>

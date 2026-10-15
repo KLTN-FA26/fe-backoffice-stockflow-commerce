@@ -27,6 +27,16 @@ export function isStaleLoadError(error: unknown): boolean {
 }
 
 /**
+ * Có tạo `Idempotency-Key` mới cho lần gửi sau không. BE `IdempotencyFilter.isStorable` LƯU mọi
+ * response < 500 (trừ 408/409/423/425/429) — kể cả 400 VALIDATION_FAILED: gửi lại cùng key với
+ * body đã sửa sẽ bị 422 IDEMPOTENCY_KEY_REUSED mãi. Chỉ giữ key khi request có thể chưa tới / chưa
+ * xong ở BE (mất mạng `status 0`, 5xx) — gửi lại đúng request đó thì BE không bàn giao hai lần.
+ */
+export function shouldRenewIdempotencyKey(error: unknown): boolean {
+  return error instanceof ApiError && error.status >= 400 && error.status < 500;
+}
+
+/**
  * Lỗi làm mọi mã còn trong hàng đợi quét chắc chắn thất bại theo cùng một cách (chuyến không còn
  * LOADING / không còn tồn tại, mất quyền, mất mạng) → dừng hàng đợi thay vì gửi tiếp từng mã.
  */

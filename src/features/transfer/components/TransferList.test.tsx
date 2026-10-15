@@ -10,6 +10,7 @@ import {
   bePage,
   mockTransferApi,
   renderTransferScreen,
+  HEAVY_TEST,
 } from "../__fixtures__/render";
 import { FROM_WH, TO_WH, TRANSFER_ID, warehouses } from "../__fixtures__/transfer";
 import { TransferList } from "./TransferList";
@@ -19,9 +20,6 @@ import type { RouteHandler } from "../__fixtures__/render";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 afterEach(() => vi.restoreAllMocks());
-
-// Render cả màn + react-query + userEvent: máy CI / máy đang tải nặng có thể vượt mốc 5s mặc định
-const HEAVY = { timeout: 15_000 };
 
 const PATH = "/inventory/transfer-orders";
 const L = UI_LABELS.transfer;
@@ -46,7 +44,7 @@ function renderList(list: RouteHandler, searchParams = "") {
   return spies;
 }
 
-describe("TransferList — lọc qua URL → API → bảng", HEAVY, () => {
+describe("TransferList — lọc qua URL → API → bảng", HEAVY_TEST, () => {
   it("tham số URL (trạng thái, kho, search, trang) → gửi đúng params BE (trang từ 0)", async () => {
     const { get } = renderList(
       () => bePage([row]),
@@ -72,7 +70,7 @@ describe("TransferList — lọc qua URL → API → bảng", HEAVY, () => {
   });
 });
 
-describe("TransferList — hai loại empty state", HEAVY, () => {
+describe("TransferList — hai loại empty state", HEAVY_TEST, () => {
   it("chưa có lệnh nào (không lọc) → 'Chưa có lệnh chuyển kho' + nút tạo", async () => {
     renderList(() => bePage([]));
     expect(await screen.findByText(L.empty.noDataTitle)).toBeInTheDocument();
@@ -93,7 +91,7 @@ describe("TransferList — hai loại empty state", HEAVY, () => {
   });
 });
 
-describe("TransferList — BE 400 tham số", HEAVY, () => {
+describe("TransferList — BE 400 tham số", HEAVY_TEST, () => {
   it("số trang sai (BE UNSUPPORTED_PARAMETER) → về trang đầu, không báo 'không tìm thấy lệnh'", async () => {
     renderList(() => {
       throw new ApiError(400, "UNSUPPORTED_PARAMETER", "bad page");
@@ -111,5 +109,40 @@ describe("TransferList — BE 400 tham số", HEAVY, () => {
       await screen.findByText(TRANSFER_ERROR_MESSAGES.UNSUPPORTED_PARAMETER),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: E.clearFilters })).toBeInTheDocument();
+  });
+});
+
+describe("TransferList — lọc theo kho", HEAVY_TEST, () => {
+  it("bộ lọc liệt kê cả kho đã ngừng hoạt động (lọc lịch sử), có nhãn theo status BE", async () => {
+    // Radix Select dùng pointer capture — jsdom không có
+    Element.prototype.hasPointerCapture ??= () => false;
+    Element.prototype.releasePointerCapture ??= () => undefined;
+    Element.prototype.scrollIntoView ??= () => undefined;
+    const user = userEvent.setup();
+    mockTransferApi(ROLES.inventoryPlanner, {
+      [PATH]: () => bePage([row]),
+      "/warehouses": () => ({
+        ...warehouses,
+        items: [
+          { ...warehouses.items[0], status: "ACTIVE" },
+          {
+            id: "c0ffee00-0000-4000-8000-0000000000c3",
+            prefix: "DN",
+            name: "Kho Đà Nẵng",
+            status: "INACTIVE",
+          },
+        ],
+      }),
+    });
+    renderTransferScreen(<TransferList />);
+    await screen.findByText("TO-20261012-0001");
+
+    await user.click(screen.getByRole("combobox", { name: L.field.fromWarehouse }));
+    expect(
+      await screen.findByRole("option", {
+        name: `DN · Kho Đà Nẵng (${L.warehouseSelect.inactive})`,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /^HCM · Kho Hồ Chí Minh$/ })).toBeInTheDocument();
   });
 });
