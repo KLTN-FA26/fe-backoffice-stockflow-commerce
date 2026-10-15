@@ -5,15 +5,16 @@ import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  INVENTORY_API,
   INVENTORY_ERROR_MESSAGES,
   INVENTORY_LABELS,
   INVENTORY_ROUTES,
 } from "@/constants/inventory";
 import { INVENTORY_PERMISSIONS } from "@/constants/permissions";
 
-import { installInventoryTestApiContract } from "../test-api-contract";
 import {
   adjustmentFixture,
+  inventoryEndpoint,
   inventoryPermissions,
   renderInventory,
   setInventoryTestActor,
@@ -23,10 +24,8 @@ import { AdjustmentCreate } from "./AdjustmentCreate";
 const navigation = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => navigation }));
 const server = setupServer();
-let restoreApiContract: () => void;
-const endpoint = "http://localhost/api/v1/inventory/adjustments";
+const endpoint = inventoryEndpoint(INVENTORY_API.adjustments);
 beforeAll(() => {
-  restoreApiContract = installInventoryTestApiContract();
   server.listen({ onUnhandledRequest: "error" });
 });
 beforeEach(() => {
@@ -41,7 +40,6 @@ afterEach(() => {
 });
 afterAll(() => {
   server.close();
-  restoreApiContract();
 });
 
 async function enterAdjustment() {

@@ -4,14 +4,19 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { INVENTORY_API, INVENTORY_ERROR_MESSAGES } from "@/constants/inventory";
 
+import { api } from "@/lib/api/client";
+
 import { approveAdjustment, listMovements } from "./api";
 import { inventoryErrorView } from "./errors";
 import { movementPageDto } from "./schemas";
-import { installInventoryTestApiContract } from "./test-api-contract";
+import { inventoryEndpoint } from "./test-support";
 import { inventoryRequest } from "./transport";
 
+// The shared production client as-is: same-origin `/api` base (next.config.ts rewrites it to
+// the backend `/api/v1`) and its own `{ success: true, data }` unwrapping. No test-only
+// baseURL or response interceptor.
 const server = setupServer();
-let restoreApiContract: () => void;
+const movements = inventoryEndpoint(INVENTORY_API.movements);
 const page = {
   items: [],
   page: 1,
@@ -22,26 +27,24 @@ const page = {
   hasPrevious: true,
 };
 
-beforeAll(() => {
-  restoreApiContract = installInventoryTestApiContract();
-  server.listen({ onUnhandledRequest: "error" });
-});
+beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 afterEach(() => server.resetHandlers());
-afterAll(() => {
-  server.close();
-  restoreApiContract();
-});
+afterAll(() => server.close());
 
 describe("backend inventory transport boundary", () => {
-  it("unwraps actual PageResponse and forwards zero-based pagination and filters", async () => {
+  it("calls the same-origin /api path and forwards zero-based paging and filters", async () => {
+    expect(api.defaults.baseURL).toBe("/api");
     server.use(
-      http.get("http://localhost/api/v1/inventory/movements", ({ request }) => {
+      http.get(movements, ({ request }) => {
         const url = new URL(request.url);
-        expect(url.searchParams.get("page")).toBe("1");
-        expect(url.searchParams.get("size")).toBe("15");
-        expect(url.searchParams.get("sku")).toBe("CUP-PP-500");
-        expect(url.searchParams.get("location")).toBe("HCM-A01-1-A");
-        expect(url.searchParams.get("type")).toBe("MOVE");
+        expect(url.pathname).toBe(`/api${INVENTORY_API.movements}`);
+        expect(Object.fromEntries(url.searchParams)).toEqual({
+          page: "1",
+          size: "15",
+          sku: "CUP-PP-500",
+          location: "HCM-A01-1-A",
+          type: "MOVE",
+        });
         return HttpResponse.json({ success: true, data: page });
       }),
     );
@@ -56,16 +59,9 @@ describe("backend inventory transport boundary", () => {
     ).toEqual(page);
   });
 
-  it("accepts data already unwrapped by the shared client", async () => {
-    server.use(
-      http.get("http://localhost/api/v1/inventory/movements", () => HttpResponse.json(page)),
-    );
-    expect(await listMovements({ page: 0, size: 15 })).toEqual(page);
-  });
-
   it("preserves backend code, per-field validation and support correlation ID", async () => {
     server.use(
-      http.get("http://localhost/api/v1/inventory/movements", () =>
+      http.get(movements, () =>
         HttpResponse.json(
           {
             success: false,
@@ -88,11 +84,9 @@ describe("backend inventory transport boundary", () => {
     });
   });
 
-  it("fails visibly if unwrapped data does not match the Inventory DTO", async () => {
+  it("fails visibly if the enveloped data does not match the Inventory DTO", async () => {
     server.use(
-      http.get("http://localhost/api/v1/inventory/movements", () =>
-        HttpResponse.json({ items: [] }),
-      ),
+      http.get(movements, () => HttpResponse.json({ success: true, data: { items: [] } })),
     );
     await expect(listMovements({ page: 0, size: 15 })).rejects.toMatchObject({
       status: 502,
@@ -100,12 +94,8 @@ describe("backend inventory transport boundary", () => {
     });
   });
 
-  it("does not treat a failed success-status envelope as valid data", async () => {
-    server.use(
-      http.get("http://localhost/api/v1/inventory/movements", () =>
-        HttpResponse.json({ success: false, data: page }),
-      ),
-    );
+  it("does not treat a failed envelope sent with HTTP 200 as valid data", async () => {
+    server.use(http.get(movements, () => HttpResponse.json({ success: false, data: page })));
     await expect(listMovements({ page: 0, size: 15 })).rejects.toMatchObject({
       code: "INVALID_INVENTORY_CONTRACT",
     });
@@ -113,7 +103,7 @@ describe("backend inventory transport boundary", () => {
 
   it("hands the mapper the backend errorCode, not just its English message", async () => {
     server.use(
-      http.post("http://localhost/api/v1/inventory/adjustments/:id/approval", () =>
+      http.post(inventoryEndpoint(`${INVENTORY_API.adjustments}/:id/approval`), () =>
         HttpResponse.json(
           {
             success: false,

@@ -5,11 +5,10 @@ import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { UI_LABELS } from "@/constants";
-import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
+import { INVENTORY_API, INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 import { INVENTORY_PERMISSIONS } from "@/constants/permissions";
 import { STOCK_ADJUSTMENT_STATUS } from "@/constants/statuses";
 
-import { installInventoryTestApiContract } from "../test-api-contract";
 import {
   adjustmentFixture,
   inventoryEndpoint,
@@ -20,8 +19,7 @@ import {
 import { AdjustmentList } from "./AdjustmentList";
 
 const server = setupServer();
-let restoreApiContract: () => void;
-const endpoint = "http://localhost/api/v1/inventory/adjustments";
+const endpoint = inventoryEndpoint(INVENTORY_API.adjustments);
 const emptyPage = {
   items: [],
   page: 0,
@@ -33,7 +31,6 @@ const emptyPage = {
 };
 const { adjustmentRead, stockUpdate } = INVENTORY_PERMISSIONS;
 beforeAll(() => {
-  restoreApiContract = installInventoryTestApiContract();
   server.listen({ onUnhandledRequest: "error" });
 });
 beforeEach(() => {
@@ -46,7 +43,6 @@ afterEach(() => {
 });
 afterAll(() => {
   server.close();
-  restoreApiContract();
 });
 
 function emptyList() {

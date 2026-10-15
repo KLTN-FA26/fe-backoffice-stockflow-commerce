@@ -5,6 +5,7 @@ import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  INVENTORY_API,
   INVENTORY_ERROR_MESSAGES,
   INVENTORY_ERROR_TITLES,
   INVENTORY_LABELS,
@@ -13,9 +14,9 @@ import {
 import { INVENTORY_PERMISSIONS } from "@/constants/permissions";
 import { STOCK_ADJUSTMENT_STATUS } from "@/constants/statuses";
 
-import { installInventoryTestApiContract } from "../test-api-contract";
 import {
   adjustmentFixture,
+  inventoryEndpoint,
   inventoryPermissions,
   renderInventory,
   setInventoryTestActor,
@@ -23,8 +24,7 @@ import {
 import { AdjustmentDetail } from "./AdjustmentDetail";
 
 const server = setupServer();
-let restoreApiContract: () => void;
-const endpoint = "http://localhost/api/v1/inventory/adjustments/:id";
+const endpoint = inventoryEndpoint(`${INVENTORY_API.adjustments}/:id`);
 const { adjustmentRead, adjustmentApprove, stockUpdate } = INVENTORY_PERMISSIONS;
 const decisionButtons = [
   INVENTORY_LABELS.approve,
@@ -32,7 +32,6 @@ const decisionButtons = [
   INVENTORY_LABELS.withdraw,
 ] as const;
 beforeAll(() => {
-  restoreApiContract = installInventoryTestApiContract();
   server.listen({ onUnhandledRequest: "error" });
 });
 beforeEach(() => {
@@ -45,7 +44,6 @@ afterEach(() => {
 });
 afterAll(() => {
   server.close();
-  restoreApiContract();
 });
 
 function serve(fixture: ReturnType<typeof adjustmentFixture>) {
