@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 
 import { api } from "@/lib/api/client";
@@ -8,6 +9,7 @@ import { useAuthStore } from "@/lib/auth/auth-store";
 import { stockAdjustmentDto } from "./schemas";
 
 import type { ReactNode } from "react";
+import type { PermissionCode } from "@/lib/auth";
 import type { RoleName } from "@/lib/auth/roles";
 import type { StockAdjustment } from "./types";
 
@@ -35,6 +37,21 @@ export function inventoryEndpoint(path: string) {
   return new URL(`${api.defaults.baseURL ?? ""}${path}`, window.location.origin).href;
 }
 
+// GET /identity/me/permissions for the current actor. Inventory capability comes
+// only from these codes; the role names in the response are never consulted.
+export function inventoryPermissions(
+  permissions: readonly PermissionCode[],
+  roles: readonly string[] = ["TEST"],
+) {
+  return http.get(inventoryEndpoint("/identity/me/permissions"), () =>
+    HttpResponse.json({
+      success: true,
+      data: { roles: [...roles], permissions: [...permissions], dataScope: "ALL" },
+    }),
+  );
+}
+
+// Session user; the role is display metadata and does not grant Inventory access.
 export function setInventoryTestActor(role: RoleName, userId = crypto.randomUUID()) {
   useAuthStore.setState({
     user: {

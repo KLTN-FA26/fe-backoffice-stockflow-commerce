@@ -12,10 +12,11 @@ import {
   STOCK_MOVEMENT_LABELS,
   STOCK_MOVEMENT_TYPES,
 } from "@/constants/inventory";
+import { INVENTORY_PERMISSIONS } from "@/constants/permissions";
 
 import { useAuthStore } from "@/lib/auth/auth-store";
 
-import { inventoryEndpoint } from "../test-support";
+import { inventoryEndpoint, inventoryPermissions } from "../test-support";
 import { MovementHistory } from "./MovementHistory";
 
 const server = setupServer();
@@ -45,6 +46,7 @@ beforeEach(() => {
     },
     impersonatedRole: null,
   });
+  server.use(inventoryPermissions([INVENTORY_PERMISSIONS.movementRead]));
 });
 afterEach(() => {
   cleanup();
@@ -167,11 +169,38 @@ describe("movement ledger screen", () => {
     expect(await screen.findByText(INVENTORY_LABELS.noMovements)).toBeInTheDocument();
   });
 
-  it("does not query inventory for an unauthorized role", () => {
-    useAuthStore.setState({ impersonatedRole: "Sales Staff" });
+  it("a formerly privileged role without movement READ is denied and nothing is fetched", async () => {
+    const ledger = vi.fn();
+    useAuthStore.setState({ impersonatedRole: "Warehouse Manager" });
+    server.use(
+      inventoryPermissions(
+        [
+          INVENTORY_PERMISSIONS.adjustmentRead,
+          INVENTORY_PERMISSIONS.adjustmentApprove,
+          INVENTORY_PERMISSIONS.stockUpdate,
+        ],
+        ["WAREHOUSE_MANAGER"],
+      ),
+      http.get(endpoint, () => {
+        ledger();
+        return HttpResponse.json({ success: true, data: emptyPage });
+      }),
+    );
     renderHistory();
-    expect(screen.getByText(INVENTORY_LABELS.denied)).toBeInTheDocument();
+    expect(await screen.findByText(INVENTORY_LABELS.denied)).toBeInTheDocument();
     expect(screen.queryByLabelText(INVENTORY_LABELS.sku)).not.toBeInTheDocument();
+    expect(ledger).not.toHaveBeenCalled();
+  });
+
+  it("a non-allowlisted role with movement READ opens the ledger", async () => {
+    useAuthStore.setState({ impersonatedRole: "Sales Staff" });
+    server.use(
+      inventoryPermissions([INVENTORY_PERMISSIONS.movementRead], ["SALES_STAFF"]),
+      http.get(endpoint, () => HttpResponse.json({ success: true, data: emptyPage })),
+    );
+    renderHistory();
+    expect(await screen.findByText(INVENTORY_LABELS.noMovements)).toBeInTheDocument();
+    expect(screen.getByLabelText(INVENTORY_LABELS.sku)).toBeInTheDocument();
   });
 
   it("renders current and unknown movement types without losing the page", async () => {

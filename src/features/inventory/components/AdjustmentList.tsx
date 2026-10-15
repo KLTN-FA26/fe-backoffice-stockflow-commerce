@@ -3,37 +3,33 @@
 import Link from "next/link";
 
 import { INVENTORY_LABELS, INVENTORY_ROUTES, INVENTORY_STORAGE_KEYS } from "@/constants/inventory";
+import { INVENTORY_PERMISSIONS } from "@/constants/permissions";
 
-import { useAuthStore } from "@/lib/auth/auth-store";
+import { useCan } from "@/lib/auth";
 
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
 
-import { canRequestAdjustment, canViewInventory } from "../lifecycle";
 import { useAdjustments } from "../queries";
 import { useInventoryListFilters } from "../use-list-filters";
 import { AdjustmentFilters } from "./AdjustmentFilters";
 import { AdjustmentTable } from "./AdjustmentTable";
-import {
-  InventoryDenied,
-  InventoryError,
-  InventoryNoFilterResults,
-  InventoryOffline,
-} from "./InventoryFeedback";
+import { InventoryError, InventoryNoFilterResults, InventoryOffline } from "./InventoryFeedback";
 import { InventoryPager } from "./InventoryPager";
+import { InventoryPermissionGate } from "./InventoryPermissionGate";
 
 export function AdjustmentList() {
-  const auth = useAuthStore();
-  return canViewInventory(auth.effectiveRoles()) ? (
-    <AdjustmentListContent canCreate={canRequestAdjustment(auth.effectiveRoles())} />
-  ) : (
-    <InventoryDenied />
+  return (
+    <InventoryPermissionGate permission={INVENTORY_PERMISSIONS.adjustmentRead} variant="list">
+      <AdjustmentListContent />
+    </InventoryPermissionGate>
   );
 }
 
-function AdjustmentListContent({ canCreate }: { canCreate: boolean }) {
+function AdjustmentListContent() {
+  const canCreate = useCan(INVENTORY_PERMISSIONS.stockUpdate);
   const state = useInventoryListFilters(INVENTORY_STORAGE_KEYS.adjustments);
   const query = useAdjustments({
     page: state.page - 1,

@@ -80,3 +80,18 @@ export const PRODUCT_PERMISSIONS = {
   // Duyệt (bốn mắt), kích hoạt / ngừng biến thể, xuất bản ảnh
   approve: "product-products:APPROVE",
 } as const;
+
+/**
+ * Điều chỉnh tồn + sổ kho — BE `StockOperationsController` (develop 0f18f24), resource
+ * `InventoryResources.STOCK_ITEMS` / `STOCK_ADJUSTMENTS` / `STOCK_MOVEMENTS`.
+ */
+export const INVENTORY_PERMISSIONS = {
+  // GET /inventory/adjustments, /inventory/adjustments/{id}
+  adjustmentRead: "inventory-stock-adjustments:READ",
+  // POST …/approval và …/rejection — bốn mắt vẫn do lifecycle + BE kiểm
+  adjustmentApprove: "inventory-stock-adjustments:APPROVE",
+  // POST /inventory/adjustments (tạo) và …/withdrawal (rút) — việc của NV kho
+  stockUpdate: "inventory-stock-items:UPDATE",
+  // GET /inventory/movements
+  movementRead: "inventory-stock-movements:READ",
+} as const;

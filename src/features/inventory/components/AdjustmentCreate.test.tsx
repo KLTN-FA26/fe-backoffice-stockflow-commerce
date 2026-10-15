@@ -5,9 +5,15 @@ import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
+import { INVENTORY_PERMISSIONS } from "@/constants/permissions";
 
 import { installInventoryTestApiContract } from "../test-api-contract";
-import { adjustmentFixture, renderInventory, setInventoryTestActor } from "../test-support";
+import {
+  adjustmentFixture,
+  inventoryPermissions,
+  renderInventory,
+  setInventoryTestActor,
+} from "../test-support";
 import { AdjustmentCreate } from "./AdjustmentCreate";
 
 const navigation = vi.hoisted(() => ({ push: vi.fn() }));
@@ -23,6 +29,7 @@ beforeEach(() => {
   localStorage.clear();
   navigation.push.mockClear();
   setInventoryTestActor("Warehouse Staff");
+  server.use(inventoryPermissions([INVENTORY_PERMISSIONS.stockUpdate]));
 });
 afterEach(() => {
   cleanup();
@@ -34,7 +41,7 @@ afterAll(() => {
 });
 
 async function enterAdjustment() {
-  await userEvent.type(screen.getByLabelText(/Vị trí/), "HCM-A01-1-A");
+  await userEvent.type(await screen.findByLabelText(/Vị trí/), "HCM-A01-1-A");
   await userEvent.type(screen.getByLabelText(/SKU/), "CUP-PP-500");
   await userEvent.type(screen.getByLabelText(/Chênh lệch số lượng/), "-3");
 }
@@ -113,11 +120,27 @@ describe("adjustment create form", () => {
     expect(navigation.push).not.toHaveBeenCalled();
   });
 
-  it("planner cannot create", () => {
-    setInventoryTestActor("Inventory Planner");
+  it("a formerly privileged role without stock UPDATE cannot create", async () => {
+    setInventoryTestActor("System Admin");
+    server.use(
+      inventoryPermissions(
+        [INVENTORY_PERMISSIONS.adjustmentRead, INVENTORY_PERMISSIONS.adjustmentApprove],
+        ["SYSTEM_ADMIN"],
+      ),
+    );
     renderInventory(<AdjustmentCreate />);
+    expect(await screen.findByText(INVENTORY_LABELS.denied)).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: INVENTORY_LABELS.submitAdjustment }),
     ).not.toBeInTheDocument();
+  });
+
+  it("a non-allowlisted role with stock UPDATE gets the create form", async () => {
+    setInventoryTestActor("Accountant");
+    server.use(inventoryPermissions([INVENTORY_PERMISSIONS.stockUpdate], ["ACCOUNTANT"]));
+    renderInventory(<AdjustmentCreate />);
+    expect(
+      await screen.findByRole("button", { name: INVENTORY_LABELS.submitAdjustment }),
+    ).toBeInTheDocument();
   });
 });

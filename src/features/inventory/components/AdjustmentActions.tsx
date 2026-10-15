@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { INVENTORY_LABELS, STOCK_ADJUSTMENT_ACTION } from "@/constants/inventory";
 
+import { usePermissionChecker } from "@/lib/auth";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -27,13 +28,9 @@ const actionDescriptions = {
 };
 
 export function AdjustmentActions({ adjustment }: { adjustment: StockAdjustment }) {
-  const auth = useAuthStore();
-  const actions = allowedAdjustmentActions(
-    adjustment.status,
-    auth.effectiveRoles(),
-    auth.user?.userId,
-    adjustment.requestedBy,
-  );
+  const userId = useAuthStore((state) => state.user?.userId);
+  const can = usePermissionChecker();
+  const actions = allowedAdjustmentActions(adjustment.status, can, userId, adjustment.requestedBy);
   const approve = useApproveAdjustment();
   const reject = useRejectAdjustment();
   const withdraw = useWithdrawAdjustment();

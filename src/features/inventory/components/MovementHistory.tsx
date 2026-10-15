@@ -3,30 +3,31 @@
 import Link from "next/link";
 
 import { INVENTORY_LABELS, INVENTORY_ROUTES, INVENTORY_STORAGE_KEYS } from "@/constants/inventory";
-
-import { useAuthStore } from "@/lib/auth/auth-store";
+import { INVENTORY_PERMISSIONS } from "@/constants/permissions";
 
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
 
-import { canViewInventory } from "../lifecycle";
 import { useMovements } from "../queries";
 import { useInventoryListFilters } from "../use-list-filters";
 import {
-  InventoryDenied,
   InventoryError,
   InventoryNoFilterResults,
   InventoryNoMovements,
   InventoryOffline,
 } from "./InventoryFeedback";
 import { InventoryPager } from "./InventoryPager";
+import { InventoryPermissionGate } from "./InventoryPermissionGate";
 import { MovementFilters } from "./MovementFilters";
 import { MovementTable } from "./MovementTable";
 
 export function MovementHistory() {
-  const auth = useAuthStore();
-  return canViewInventory(auth.effectiveRoles()) ? <MovementHistoryContent /> : <InventoryDenied />;
+  return (
+    <InventoryPermissionGate permission={INVENTORY_PERMISSIONS.movementRead} variant="list">
+      <MovementHistoryContent />
+    </InventoryPermissionGate>
+  );
 }
 
 function MovementHistoryContent() {

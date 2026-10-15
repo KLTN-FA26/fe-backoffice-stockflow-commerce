@@ -1,4 +1,4 @@
-export { allowedAdjustmentActions, canRequestAdjustment, canViewInventory } from "./lifecycle";
+export { allowedAdjustmentActions } from "./lifecycle";
 export {
   useApproveAdjustment,
   useCreateAdjustment,

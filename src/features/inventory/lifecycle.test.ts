@@ -1,110 +1,95 @@
 import { describe, expect, it } from "vitest";
 
 import { STOCK_ADJUSTMENT_ACTION } from "@/constants/inventory";
+import { INVENTORY_PERMISSIONS } from "@/constants/permissions";
 import { STOCK_ADJUSTMENT_STATUSES, STOCK_ADJUSTMENT_STATUS } from "@/constants/statuses";
 
-import {
-  ADJUSTMENT_TRANSITIONS,
-  allowedAdjustmentActions,
-  canRequestAdjustment,
-} from "./lifecycle";
+import { ADJUSTMENT_TRANSITIONS, allowedAdjustmentActions } from "./lifecycle";
 
-import type { RoleName } from "@/lib/auth/roles";
+import type { PermissionCode } from "@/lib/auth";
 
-const roles: RoleName[] = [
-  "Warehouse Staff",
-  "Warehouse Manager",
-  "Inventory Planner",
-  "System Admin",
-];
+const { PENDING_APPROVAL } = STOCK_ADJUSTMENT_STATUS;
 
-describe("SCRUM-424 lifecycle and four eyes", () => {
+function granted(...codes: PermissionCode[]) {
+  return (code: PermissionCode) => codes.includes(code);
+}
+
+const checkers = {
+  none: granted(),
+  approve: granted(INVENTORY_PERMISSIONS.adjustmentApprove),
+  update: granted(INVENTORY_PERMISSIONS.stockUpdate),
+  all: granted(
+    INVENTORY_PERMISSIONS.adjustmentRead,
+    INVENTORY_PERMISSIONS.adjustmentApprove,
+    INVENTORY_PERMISSIONS.stockUpdate,
+    INVENTORY_PERMISSIONS.movementRead,
+  ),
+};
+
+describe("SCRUM-424 lifecycle, four eyes and permission codes", () => {
   it("covers every wire status", () => {
     expect(Object.keys(ADJUSTMENT_TRANSITIONS)).toEqual([...STOCK_ADJUSTMENT_STATUSES]);
   });
 
-  it.each(
-    STOCK_ADJUSTMENT_STATUSES.filter(
-      (status) => status !== STOCK_ADJUSTMENT_STATUS.PENDING_APPROVAL,
-    ),
-  )("%s is terminal for every role", (status) => {
-    expect(ADJUSTMENT_TRANSITIONS[status]).toEqual([]);
-    roles.forEach((role) =>
-      expect(allowedAdjustmentActions(status, [role], "decider", "requester")).toEqual([]),
-    );
-  });
-
-  it.each<RoleName>(["Warehouse Manager", "System Admin"])(
-    "%s can decide another request",
-    (role) => {
-      expect(
-        allowedAdjustmentActions(
-          STOCK_ADJUSTMENT_STATUS.PENDING_APPROVAL,
-          [role],
-          "decider",
-          "requester",
-        ),
-      ).toEqual([STOCK_ADJUSTMENT_ACTION.APPROVE, STOCK_ADJUSTMENT_ACTION.REJECT]);
+  it.each(STOCK_ADJUSTMENT_STATUSES.filter((status) => status !== PENDING_APPROVAL))(
+    "%s is terminal for every permission set and actor",
+    (status) => {
+      expect(ADJUSTMENT_TRANSITIONS[status]).toEqual([]);
+      Object.values(checkers).forEach((can) => {
+        expect(allowedAdjustmentActions(status, can, "decider", "requester")).toEqual([]);
+        expect(allowedAdjustmentActions(status, can, "requester", "requester")).toEqual([]);
+      });
     },
   );
 
-  it.each(roles)("%s cannot approve their own request", (role) => {
+  it("APPROVE lets another user decide a pending request", () => {
     expect(
-      allowedAdjustmentActions(
-        STOCK_ADJUSTMENT_STATUS.PENDING_APPROVAL,
-        [role],
-        "requester",
-        "requester",
-      ),
-    ).not.toContain(STOCK_ADJUSTMENT_ACTION.APPROVE);
+      allowedAdjustmentActions(PENDING_APPROVAL, checkers.approve, "decider", "requester"),
+    ).toEqual([STOCK_ADJUSTMENT_ACTION.APPROVE, STOCK_ADJUSTMENT_ACTION.REJECT]);
   });
 
-  it("staff may withdraw only their own pending request", () => {
+  it("without APPROVE nobody can decide", () => {
     expect(
-      allowedAdjustmentActions(
-        STOCK_ADJUSTMENT_STATUS.PENDING_APPROVAL,
-        ["Warehouse Staff"],
-        "requester",
-        "requester",
-      ),
-    ).toEqual([STOCK_ADJUSTMENT_ACTION.WITHDRAW]);
+      allowedAdjustmentActions(PENDING_APPROVAL, checkers.update, "decider", "requester"),
+    ).toEqual([]);
     expect(
-      allowedAdjustmentActions(
-        STOCK_ADJUSTMENT_STATUS.PENDING_APPROVAL,
-        ["Warehouse Staff"],
-        "other",
-        "requester",
-      ),
+      allowedAdjustmentActions(PENDING_APPROVAL, checkers.none, "decider", "requester"),
     ).toEqual([]);
   });
 
-  it("planner cannot create or decide requests", () => {
-    expect(canRequestAdjustment(["Inventory Planner"])).toBe(false);
+  it("the requester cannot approve or reject their own request even with APPROVE", () => {
+    const actions = allowedAdjustmentActions(
+      PENDING_APPROVAL,
+      checkers.all,
+      "requester",
+      "requester",
+    );
+    expect(actions).not.toContain(STOCK_ADJUSTMENT_ACTION.APPROVE);
+    expect(actions).not.toContain(STOCK_ADJUSTMENT_ACTION.REJECT);
+  });
+
+  it("withdraw needs UPDATE and being the requester", () => {
     expect(
-      allowedAdjustmentActions(
-        STOCK_ADJUSTMENT_STATUS.PENDING_APPROVAL,
-        ["Inventory Planner"],
-        "other",
-        "requester",
-      ),
+      allowedAdjustmentActions(PENDING_APPROVAL, checkers.update, "requester", "requester"),
+    ).toEqual([STOCK_ADJUSTMENT_ACTION.WITHDRAW]);
+    expect(
+      allowedAdjustmentActions(PENDING_APPROVAL, checkers.approve, "requester", "requester"),
+    ).toEqual([]);
+    expect(
+      allowedAdjustmentActions(PENDING_APPROVAL, checkers.update, "other", "requester"),
     ).toEqual([]);
   });
 
   it("missing actor gets no actions", () => {
     expect(
-      allowedAdjustmentActions(
-        STOCK_ADJUSTMENT_STATUS.PENDING_APPROVAL,
-        ["System Admin"],
-        undefined,
-        "requester",
-      ),
+      allowedAdjustmentActions(PENDING_APPROVAL, checkers.all, undefined, "requester"),
     ).toEqual([]);
   });
 
-  it("an unknown backend status offers no action to any actor", () => {
-    roles.forEach((role) => {
-      expect(allowedAdjustmentActions("APPROVED", [role], "decider", "requester")).toEqual([]);
-      expect(allowedAdjustmentActions("APPROVED", [role], "requester", "requester")).toEqual([]);
+  it("an unknown backend status offers no action even with every permission", () => {
+    Object.values(checkers).forEach((can) => {
+      expect(allowedAdjustmentActions("APPROVED", can, "decider", "requester")).toEqual([]);
+      expect(allowedAdjustmentActions("APPROVED", can, "requester", "requester")).toEqual([]);
     });
   });
 });

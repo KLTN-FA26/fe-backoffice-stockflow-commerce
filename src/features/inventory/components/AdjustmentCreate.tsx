@@ -6,27 +6,26 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
+import { INVENTORY_PERMISSIONS } from "@/constants/permissions";
 
 import { ApiError } from "@/lib/api/error";
-import { useAuthStore } from "@/lib/auth/auth-store";
 
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 
-import { canRequestAdjustment } from "../lifecycle";
 import { useCreateAdjustment } from "../mutations";
 import { adjustmentCreateInput } from "../schemas";
 import { AdjustmentFields } from "./AdjustmentFields";
-import { InventoryDenied, InventoryOffline } from "./InventoryFeedback";
+import { InventoryOffline } from "./InventoryFeedback";
+import { InventoryPermissionGate } from "./InventoryPermissionGate";
 
 import type { CreateAdjustmentInput } from "../types";
 
 export function AdjustmentCreate() {
-  const auth = useAuthStore();
-  return canRequestAdjustment(auth.effectiveRoles()) ? (
-    <AdjustmentCreateContent />
-  ) : (
-    <InventoryDenied />
+  return (
+    <InventoryPermissionGate permission={INVENTORY_PERMISSIONS.stockUpdate} variant="form">
+      <AdjustmentCreateContent />
+    </InventoryPermissionGate>
   );
 }
 

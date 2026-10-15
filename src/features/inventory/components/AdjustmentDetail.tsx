@@ -3,8 +3,8 @@
 import Link from "next/link";
 
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
+import { INVENTORY_PERMISSIONS } from "@/constants/permissions";
 
-import { useAuthStore } from "@/lib/auth/auth-store";
 import { formatDateTime } from "@/lib/format/date";
 
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -12,17 +12,16 @@ import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
 
-import { canViewInventory } from "../lifecycle";
 import { useAdjustment } from "../queries";
 import { AdjustmentActions } from "./AdjustmentActions";
-import { InventoryDenied, InventoryError, InventoryOffline } from "./InventoryFeedback";
+import { InventoryError, InventoryOffline } from "./InventoryFeedback";
+import { InventoryPermissionGate } from "./InventoryPermissionGate";
 
 export function AdjustmentDetail({ id }: { id: string }) {
-  const auth = useAuthStore();
-  return canViewInventory(auth.effectiveRoles()) ? (
-    <AdjustmentDetailContent id={id} />
-  ) : (
-    <InventoryDenied />
+  return (
+    <InventoryPermissionGate permission={INVENTORY_PERMISSIONS.adjustmentRead}>
+      <AdjustmentDetailContent id={id} />
+    </InventoryPermissionGate>
   );
 }
 
