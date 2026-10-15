@@ -25,14 +25,18 @@ const WAREHOUSE_ID = "8f8f8f8f-0000-4000-8000-000000000001";
 const confirmed: OrderDto = { ...apiOrder, status: "CONFIRMED", paymentTerm: "PREPAID" };
 
 async function renderDetail(permissions: readonly PermissionCode[], order: OrderDto) {
-  mockOrderApiGet(permissions, {
+  const get = mockOrderApiGet(permissions, {
     [DETAIL_PATH]: () => order,
     "/warehouses": () => ({ items: [{ id: WAREHOUSE_ID, prefix: "HN", name: "Kho Hà Nội" }] }),
   });
   await act(async () => {
     renderOrderScreen(<OrderDetail params={Promise.resolve({ id: apiOrder.orderId })} />);
   });
+  return get;
 }
+
+const detailCalls = (get: Awaited<ReturnType<typeof renderDetail>>) =>
+  get.mock.calls.filter(([url]) => url === DETAIL_PATH).length;
 
 async function openAndPick(user: ReturnType<typeof userEvent.setup>) {
   await user.click(await screen.findByRole("button", { name: "Release đơn" }));
@@ -160,3 +164,68 @@ describe("Release — gửi & lý do từ chối", { timeout: DIALOG_FLOW_TIMEOU
     expect(await screen.findByText(/warehouse-warehouses:READ/)).toBeInTheDocument();
   });
 });
+
+describe(
+  "Release — tranh chấp đồng thời + fieldErrors (Step 8)",
+  { timeout: DIALOG_FLOW_TIMEOUT_MS },
+  () => {
+    it("A. OPTIMISTIC_LOCK → báo trong dialog, giữ kho đã chọn, tải lại đơn, KHÔNG tự gửi lại; bấm lại → gửi lần 2", async () => {
+      const user = userEvent.setup();
+      const get = await renderDetail(ORDER_PERMISSION_SETS.coordinator, confirmed);
+      const post = vi
+        .spyOn(api, "post")
+        .mockRejectedValueOnce(new ApiError(409, "OPTIMISTIC_LOCK", "The record changed meanwhile"))
+        .mockResolvedValueOnce({ data: { ...confirmed, status: "READY_TO_FULFILL" } });
+      await user.click(await screen.findByRole("button", { name: "Release đơn" }));
+      await pickOrderSelectOption(user, /Kho xuất/, /HN — Kho Hà Nội/);
+      const dialog = screen.getByRole("dialog");
+      // Đếm ngay trước khi gửi — mọi lần GET chi tiết sau đó là do lỗi khoá kích hoạt
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      const before = detailCalls(get);
+      await user.click(within(dialog).getByRole("button", { name: "Release" }));
+      expect(await within(dialog).findByText(/vừa được người khác cập nhật/)).toBeInTheDocument();
+      await waitFor(() => expect(detailCalls(get)).toBeGreaterThan(before));
+      expect(post).toHaveBeenCalledTimes(1);
+      // Kho đã chọn vẫn còn — bấm lại là gửi lại (người dùng chủ động)
+      await user.click(within(dialog).getByRole("button", { name: "Release" }));
+      await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
+      expect(post).toHaveBeenLastCalledWith(RELEASE_PATH, { warehouseId: WAREHOUSE_ID });
+    });
+
+    it("B. LOCK_TIMEOUT → 'đang được xử lý ở nơi khác', không tải lại vội, không tự gửi lại, vẫn bấm lại được", async () => {
+      const user = userEvent.setup();
+      const get = await renderDetail(ORDER_PERMISSION_SETS.coordinator, confirmed);
+      const post = vi
+        .spyOn(api, "post")
+        .mockRejectedValue(new ApiError(409, "LOCK_TIMEOUT", "The record is busy"));
+
+      await openAndPick(user);
+      const dialog = await screen.findByRole("dialog");
+      expect(await within(dialog).findByText(/đang được xử lý ở nơi khác/)).toBeInTheDocument();
+      const after = detailCalls(get);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(detailCalls(get)).toBe(after);
+      expect(post).toHaveBeenCalledTimes(1);
+      expect(within(dialog).getByRole("button", { name: "Release" })).toBeEnabled();
+    });
+
+    it("fieldErrors.warehouseId (400 VALIDATION_FAILED) → lỗi tại ô Kho xuất", async () => {
+      const user = userEvent.setup();
+      await renderDetail(ORDER_PERMISSION_SETS.coordinator, confirmed);
+      vi.spyOn(api, "post").mockRejectedValue(
+        new ApiError(400, "VALIDATION_FAILED", "Invalid request data", {
+          warehouseId: "must not be null",
+        }),
+      );
+
+      await openAndPick(user);
+      const dialog = await screen.findByRole("dialog");
+      expect(await within(dialog).findByText("Chọn kho xuất.")).toBeInTheDocument();
+      expect(within(dialog).getByRole("combobox", { name: /Kho xuất/ })).toHaveAttribute(
+        "aria-invalid",
+        "true",
+      );
+      expect(within(dialog).queryByText("must not be null")).not.toBeInTheDocument();
+    });
+  },
+);

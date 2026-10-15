@@ -499,3 +499,137 @@ describe("Credit hold — công nợ hiện tại của khách", { timeout: DIAL
     await waitFor(() => expect(post).toHaveBeenCalledWith(APPROVE_PATH, { note: "Ok" }));
   });
 });
+
+/* ── Step 8: tranh chấp đồng thời + fieldErrors BE ─────────────────────── */
+
+describe(
+  "Credit hold — OPTIMISTIC_LOCK / LOCK_TIMEOUT / fieldErrors",
+  { timeout: DIALOG_FLOW_TIMEOUT_MS },
+  () => {
+    async function fillCancel(user: ReturnType<typeof userEvent.setup>, dialog: HTMLElement) {
+      await screen.findByRole("region", { name: "Công nợ hiện tại của khách" });
+      await pickOrderSelectOption(user, /Cách xử lý/, "Huỷ đơn");
+      await user.type(within(dialog).getByLabelText(/Ghi chú/), "Huỷ");
+      await user.click(within(dialog).getByRole("button", { name: "Từ chối" }));
+    }
+
+    it("A. OPTIMISTIC_LOCK khi từ chối → báo + giữ dialog/ghi chú, tải lại hàng đợi + công nợ, không tự gửi lại", async () => {
+      const user = userEvent.setup();
+      const get = renderList(ORDER_PERMISSION_SETS.accountant);
+      const post = vi
+        .spyOn(api, "post")
+        .mockRejectedValueOnce(new ApiError(409, "OPTIMISTIC_LOCK", "changed"))
+        .mockResolvedValueOnce({ data: { ...heldOrder, status: "CANCELLED" } });
+      const dialog = await openReject(user, apiOrder.orderNumber);
+      const queueBefore = callsTo(get, "/orders/credit-holds");
+
+      await fillCancel(user, dialog);
+      expect(await within(dialog).findByText(/vừa được người khác cập nhật/)).toBeInTheDocument();
+      await waitFor(() =>
+        expect(callsTo(get, "/orders/credit-holds")).toBeGreaterThan(queueBefore),
+      );
+      await waitFor(() => expect(callsTo(get, POSITION_PATH)).toBe(2));
+      expect(post).toHaveBeenCalledTimes(1);
+      expect(within(dialog).getByLabelText(/Ghi chú/)).toHaveValue("Huỷ");
+      // Lỗi khoá không gắn vào ô nào
+      expect(within(dialog).getByRole("combobox", { name: /Cách xử lý/ })).not.toHaveAttribute(
+        "aria-invalid",
+      );
+
+      await user.click(within(dialog).getByRole("button", { name: "Từ chối" }));
+      await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
+    });
+
+    it("B. LOCK_TIMEOUT khi từ chối → báo thử lại sau, không tải lại hàng đợi / công nợ, không tự gửi lại", async () => {
+      const user = userEvent.setup();
+      const get = renderList(ORDER_PERMISSION_SETS.accountant);
+      const post = vi
+        .spyOn(api, "post")
+        .mockRejectedValue(new ApiError(409, "LOCK_TIMEOUT", "busy"));
+      const dialog = await openReject(user, apiOrder.orderNumber);
+      await fillCancel(user, dialog);
+
+      expect(await within(dialog).findByText(/đang được xử lý ở nơi khác/)).toBeInTheDocument();
+      const queue = callsTo(get, "/orders/credit-holds");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(callsTo(get, "/orders/credit-holds")).toBe(queue);
+      expect(callsTo(get, POSITION_PATH)).toBe(1);
+      expect(post).toHaveBeenCalledTimes(1);
+      expect(within(dialog).getByRole("button", { name: "Từ chối" })).toBeEnabled();
+    });
+
+    it("fieldErrors note + depositPercent → lỗi tại cả hai ô; field cấp lớp lạ → thông báo chung; sửa ô → hết lỗi, gửi lại được", async () => {
+      const user = userEvent.setup();
+      renderList(ORDER_PERMISSION_SETS.accountant);
+      const post = vi
+        .spyOn(api, "post")
+        .mockRejectedValueOnce(
+          new ApiError(400, "VALIDATION_FAILED", "Invalid request data", {
+            note: "note is required",
+            depositPercent: "depositPercent must be below 100",
+            creditRefusalRequest: "object-level problem",
+          }),
+        )
+        .mockResolvedValueOnce({ data: { ...heldOrder, status: "PENDING_PAYMENT" } });
+      const dialog = await openReject(user, apiOrder.orderNumber);
+      await screen.findByRole("region", { name: "Công nợ hiện tại của khách" });
+      await pickOrderSelectOption(user, /Cách xử lý/, "Chuyển sang đặt cọc");
+      await user.type(within(dialog).getByLabelText(/Ghi chú/), "Cọc");
+      await user.click(within(dialog).getByRole("button", { name: "Từ chối" }));
+
+      expect(await within(dialog).findByText(/Ghi chú là bắt buộc/)).toBeInTheDocument();
+      expect(
+        within(dialog).getByText(/Tỷ lệ cọc phải lớn hơn 0% và nhỏ hơn 100%\./),
+      ).toBeInTheDocument();
+      expect(within(dialog).getByLabelText(/Tỷ lệ cọc/)).toHaveAttribute("aria-invalid", "true");
+      expect(within(dialog).getByText("object-level problem")).toBeInTheDocument();
+
+      // F. sửa ô → lỗi máy chủ của ô đó mất, form chạy bình thường
+      await user.type(within(dialog).getByLabelText(/Ghi chú/), " lại");
+      await waitFor(() =>
+        expect(within(dialog).queryByText(/Ghi chú là bắt buộc/)).not.toBeInTheDocument(),
+      );
+      const percent = within(dialog).getByLabelText(/Tỷ lệ cọc/);
+      await user.clear(percent);
+      await user.type(percent, "35");
+      await user.click(within(dialog).getByRole("button", { name: "Từ chối" }));
+      await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
+      expect(post).toHaveBeenLastCalledWith(REJECT_PATH, {
+        action: "SWITCH_TO_DEPOSIT",
+        depositPercent: 35,
+        note: "Cọc lại",
+      });
+    });
+
+    it("E. kiểm tra phía client (zod) vẫn chạy: ghi chú trống → không gửi", async () => {
+      const user = userEvent.setup();
+      renderList(ORDER_PERMISSION_SETS.accountant);
+      const post = vi.spyOn(api, "post");
+      const dialog = await openReject(user, apiOrder.orderNumber);
+      await screen.findByRole("region", { name: "Công nợ hiện tại của khách" });
+      await pickOrderSelectOption(user, /Cách xử lý/, "Huỷ đơn");
+      expect(within(dialog).getByRole("button", { name: "Từ chối" })).toBeDisabled();
+      expect(post).not.toHaveBeenCalled();
+    });
+
+    it("duyệt: fieldErrors.note → lỗi tại ô ghi chú duyệt", async () => {
+      const user = userEvent.setup();
+      renderList(ORDER_PERMISSION_SETS.accountant);
+      vi.spyOn(api, "post").mockRejectedValue(
+        new ApiError(400, "VALIDATION_FAILED", "Invalid request data", {
+          note: "note is required",
+        }),
+      );
+      await user.click(await screen.findByRole("button", { name: /^Duyệt vượt hạn mức đơn/ }));
+      const dialog = await screen.findByRole("dialog");
+      await user.type(within(dialog).getByLabelText(/Ghi chú duyệt/), "Ok");
+      await user.click(within(dialog).getByRole("button", { name: "Duyệt" }));
+
+      expect(await within(dialog).findByText(/Ghi chú là bắt buộc/)).toBeInTheDocument();
+      expect(within(dialog).getByLabelText(/Ghi chú duyệt/)).toHaveAttribute(
+        "aria-invalid",
+        "true",
+      );
+    });
+  },
+);

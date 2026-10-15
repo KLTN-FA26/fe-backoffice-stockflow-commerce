@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
-import { adminCancelErrorView } from "../errors";
+import { ADMIN_CANCEL_FIELD_ERRORS, adminCancelErrorView } from "../errors";
 import { ADMIN_CANCEL_FORM_DEFAULTS, adminCancelFormSchema } from "../form-schemas";
 import { useAdminCancelOrder } from "../mutations";
 import { cancelConsequence } from "../selectors";
@@ -43,17 +43,21 @@ const LABEL = "text-ink-secondary text-xs font-medium";
 
 /** Form huỷ đơn admin (mã lý do, ghi chú, % giữ lại) — trong `FormDialog` của OrderCancelAction. */
 export function CancelForm({ order, onClose }: { order: CancelOrder; onClose: () => void }) {
-  const { refusal, clearRefusal, onError } = useOrderActionErrors(
-    adminCancelErrorView,
-    STALE_CODES.cancel,
-    onClose,
-  );
   const { mutate: adminCancel, isPending } = useAdminCancelOrder();
   const form = useForm<AdminCancelFormValues, unknown, AdminCancelOrderInput>({
     resolver: zodResolver(adminCancelFormSchema),
     mode: "onChange",
     defaultValues: ADMIN_CANCEL_FORM_DEFAULTS,
   });
+  const { refusal, clearRefusal, onError } = useOrderActionErrors(
+    adminCancelErrorView,
+    STALE_CODES.cancel,
+    onClose,
+    {
+      map: ADMIN_CANCEL_FIELD_ERRORS,
+      setError: (field, message) => form.setError(field, { type: "server", message }),
+    },
+  );
   const [reasonCode, retained] = useWatch({
     control: form.control,
     name: ["reasonCode", "retainedPercent"],
@@ -61,8 +65,10 @@ export function CancelForm({ order, onClose }: { order: CancelOrder; onClose: ()
   const { errors } = form.formState;
   const paid = order.paidAmount ?? 0;
   const consequence = cancelConsequence(order.status);
-  // Lỗi "OTHER cần ghi chú" chỉ hiện khi đã chọn OTHER (BE Order#cancelByAdmin)
-  const noteError = reasonCode === "OTHER" ? errors.note?.message : undefined;
+  // Lỗi "OTHER cần ghi chú" chỉ hiện khi đã chọn OTHER (BE Order#cancelByAdmin); lỗi máy chủ
+  // trả về cho ô ghi chú (vd quá dài) thì luôn hiện
+  const noteError =
+    reasonCode === "OTHER" || errors.note?.type === "server" ? errors.note?.message : undefined;
 
   const submit = form.handleSubmit((input) => {
     clearRefusal();
@@ -107,6 +113,8 @@ export function CancelForm({ order, onClose }: { order: CancelOrder; onClose: ()
                 id="cancel-reason-code"
                 autoFocus
                 aria-required="true"
+                aria-invalid={errors.reasonCode ? true : undefined}
+                aria-describedby={errors.reasonCode ? "cancel-reason-code-error" : undefined}
                 className="w-full"
               >
                 <SelectValue placeholder="Chọn lý do huỷ" />
@@ -121,6 +129,7 @@ export function CancelForm({ order, onClose }: { order: CancelOrder; onClose: ()
             </Select>
           )}
         />
+        <FormFieldError id="cancel-reason-code-error" message={errors.reasonCode?.message} />
       </div>
       <div className="grid gap-1.5">
         <Label htmlFor="cancel-note" className={LABEL}>

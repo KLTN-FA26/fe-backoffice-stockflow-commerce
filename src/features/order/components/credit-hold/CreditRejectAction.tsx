@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
-import { creditDecisionErrorView } from "../../errors";
+import { CREDIT_REJECTION_FIELD_ERRORS, creditDecisionErrorView } from "../../errors";
 import { CREDIT_REJECTION_FORM_DEFAULTS, creditRejectionFormSchema } from "../../form-schemas";
 import { useRejectCreditHold } from "../../mutations";
 import { orderKeys } from "../../queries";
@@ -78,11 +78,6 @@ export function CreditRejectAction({
 }
 
 function RejectForm({ order, onClose }: { order: CreditHoldTarget; onClose: () => void }) {
-  const { refusal, clearRefusal, onError } = useOrderActionErrors(
-    creditDecisionErrorView,
-    STALE_CODES.credit,
-    onClose,
-  );
   const queryClient = useQueryClient();
   const { mutate: reject, isPending } = useRejectCreditHold();
   const position = useCustomerCreditPosition(order.customerId);
@@ -93,6 +88,15 @@ function RejectForm({ order, onClose }: { order: CreditHoldTarget; onClose: () =
     mode: "onChange",
     defaultValues: CREDIT_REJECTION_FORM_DEFAULTS,
   });
+  const { refusal, clearRefusal, onError } = useOrderActionErrors(
+    creditDecisionErrorView,
+    STALE_CODES.credit,
+    onClose,
+    {
+      map: CREDIT_REJECTION_FIELD_ERRORS,
+      setError: (field, message) => form.setError(field, { type: "server", message }),
+    },
+  );
   const action = useWatch({ control: form.control, name: "action" });
   const { errors } = form.formState;
 

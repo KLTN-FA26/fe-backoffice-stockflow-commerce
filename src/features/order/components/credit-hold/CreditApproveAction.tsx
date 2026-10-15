@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
-import { creditDecisionErrorView } from "../../errors";
+import { CREDIT_APPROVAL_FIELD_ERRORS, creditDecisionErrorView } from "../../errors";
 import { CREDIT_APPROVAL_FORM_DEFAULTS, creditApprovalFormSchema } from "../../form-schemas";
 import { useApproveCreditHold } from "../../mutations";
 import { FormFieldError, RequiredMark } from "../FormFieldError";
@@ -59,11 +59,6 @@ export function CreditApproveAction({
 }
 
 function ApproveForm({ order, onClose }: { order: CreditHoldTarget; onClose: () => void }) {
-  const { refusal, clearRefusal, onError } = useOrderActionErrors(
-    creditDecisionErrorView,
-    STALE_CODES.credit,
-    onClose,
-  );
   const { mutate: approve, isPending } = useApproveCreditHold();
   const position = useCustomerCreditPosition(order.customerId);
   const form = useForm<CreditApprovalFormValues, unknown, CreditApprovalInput>({
@@ -71,6 +66,15 @@ function ApproveForm({ order, onClose }: { order: CreditHoldTarget; onClose: () 
     mode: "onTouched",
     defaultValues: CREDIT_APPROVAL_FORM_DEFAULTS,
   });
+  const { refusal, clearRefusal, onError } = useOrderActionErrors(
+    creditDecisionErrorView,
+    STALE_CODES.credit,
+    onClose,
+    {
+      map: CREDIT_APPROVAL_FIELD_ERRORS,
+      setError: (field, message) => form.setError(field, { type: "server", message }),
+    },
+  );
   const noteError = form.formState.errors.note?.message;
 
   const submit = form.handleSubmit((input) => {

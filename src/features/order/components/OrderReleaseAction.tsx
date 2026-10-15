@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { releaseErrorView } from "../errors";
+import { RELEASE_FIELD_ERRORS, releaseErrorView } from "../errors";
 import { RELEASE_FORM_DEFAULTS, releaseFormSchema } from "../form-schemas";
 import { useReleaseOrder } from "../mutations";
 import { customLineCount } from "../selectors";
@@ -59,17 +59,22 @@ export function OrderReleaseAction({ order }: { order: ReleaseOrder }) {
 
 function ReleaseForm({ order, onClose }: { order: ReleaseOrder; onClose: () => void }) {
   const warehouses = useWarehouseOptions();
-  const { refusal, clearRefusal, onError } = useOrderActionErrors(
-    releaseErrorView,
-    STALE_CODES.release,
-    onClose,
-  );
   const { mutate: release, isPending } = useReleaseOrder();
   const form = useForm<ReleaseFormValues, unknown, ReleaseOrderInput>({
     resolver: zodResolver(releaseFormSchema),
     mode: "onChange",
     defaultValues: RELEASE_FORM_DEFAULTS,
   });
+  const { refusal, clearRefusal, onError } = useOrderActionErrors(
+    releaseErrorView,
+    STALE_CODES.release,
+    onClose,
+    {
+      map: RELEASE_FIELD_ERRORS,
+      setError: (field, message) => form.setError(field, { type: "server", message }),
+    },
+  );
+  const warehouseError = form.formState.errors.warehouseId?.message;
   const printLines = customLineCount(order);
   // BE seed chưa cấp warehouse-warehouses:READ cho ORDER_COORDINATOR → GET /warehouses 403
   const warehousesForbidden =
@@ -108,7 +113,14 @@ function ReleaseForm({ order, onClose }: { order: ReleaseOrder; onClose: () => v
                 id="release-warehouse"
                 autoFocus
                 aria-required="true"
-                aria-describedby={warehouses.isError ? "release-warehouse-error" : undefined}
+                aria-invalid={warehouseError ? true : undefined}
+                aria-describedby={
+                  warehouses.isError
+                    ? "release-warehouse-error"
+                    : warehouseError
+                      ? "release-warehouse-field-error"
+                      : undefined
+                }
                 className="w-full"
               >
                 <SelectValue
@@ -132,6 +144,7 @@ function ReleaseForm({ order, onClose }: { order: ReleaseOrder; onClose: () => v
               : "Không tải được danh sách kho."}
           </p>
         )}
+        <FormFieldError id="release-warehouse-field-error" message={warehouseError} />
         {warehouses.data?.length === 0 && (
           <FormFieldError id="release-warehouse-empty" message="Chưa có kho nào đang hoạt động." />
         )}

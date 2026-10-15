@@ -4,9 +4,14 @@ import { UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
 import {
+  ADMIN_CANCEL_FIELD_ERRORS,
+  CREDIT_REJECTION_FIELD_ERRORS,
+  RELEASE_FIELD_ERRORS,
   adminCancelErrorView,
   creditDecisionErrorView,
+  isOrderConcurrencyError,
   isProductionApiUnavailable,
+  mapServerFieldErrors,
   releaseErrorView,
 } from "./errors";
 
@@ -102,5 +107,89 @@ describe("isProductionApiUnavailable — contract pending", () => {
   it("5xx / mạng → lỗi thật, không che đi", () => {
     expect(isProductionApiUnavailable(apiError(500, "INTERNAL_ERROR"))).toBe(false);
     expect(isProductionApiUnavailable(apiError(0, "NETWORK_ERROR"))).toBe(false);
+  });
+});
+
+describe("tranh chấp đồng thời — OPTIMISTIC_LOCK / LOCK_TIMEOUT (BE 409, isRetryable)", () => {
+  const VIEWS = [adminCancelErrorView, releaseErrorView, creditDecisionErrorView];
+
+  it("phân loại đúng hai mã khoá; mã 409 khác KHÔNG phải tranh chấp đồng thời", () => {
+    expect(isOrderConcurrencyError(apiError(409, "OPTIMISTIC_LOCK"))).toBe(true);
+    expect(isOrderConcurrencyError(apiError(409, "LOCK_TIMEOUT"))).toBe(true);
+    for (const code of ["CONFLICT", "PAYMENT_TERM_NOT_ALLOWED", "ORDER_NOT_ON_CREDIT_HOLD"]) {
+      expect(isOrderConcurrencyError(apiError(409, code))).toBe(false);
+    }
+  });
+
+  it.each(VIEWS)(
+    "OPTIMISTIC_LOCK → 'đã được người khác cập nhật… tải lại', mọi thao tác",
+    (view) => {
+      const v = view(apiError(409, "OPTIMISTIC_LOCK"));
+      expect(v.detail).toMatch(/người khác cập nhật/);
+      expect(v.detail).toMatch(/tải lại/);
+      expect(v.detail).not.toMatch(/English/);
+    },
+  );
+
+  it.each(VIEWS)("LOCK_TIMEOUT → 'đang được xử lý ở nơi khác… thử lại', mọi thao tác", (view) => {
+    const v = view(apiError(409, "LOCK_TIMEOUT"));
+    expect(v.detail).toMatch(/đang được xử lý ở nơi khác/);
+    expect(v.detail).toMatch(/thử lại/);
+  });
+
+  it("C. mã nghiệp vụ 409 vẫn có câu riêng, không bị nuốt bởi nhánh khoá", () => {
+    expect(creditDecisionErrorView(apiError(409, "PAYMENT_TERM_NOT_ALLOWED")).rule).toBe("BR-05");
+    expect(creditDecisionErrorView(apiError(409, "ORDER_NOT_ON_CREDIT_HOLD")).detail).toMatch(
+      /người khác xử lý/,
+    );
+    expect(releaseErrorView(apiError(409, "CONFLICT")).rule).toBe("BR-02");
+    expect(adminCancelErrorView(apiError(409, "ORDER_NOT_CANCELLABLE")).rule).toBe("BR-03");
+  });
+
+  it("D. 409 / mã lạ → câu chung như cũ", () => {
+    const v = creditDecisionErrorView(apiError(409, "SOMETHING_NEW"));
+    expect(v.detail).toBe("Đã xảy ra lỗi khi xử lý đơn. Vui lòng thử lại.");
+  });
+});
+
+describe("mapServerFieldErrors — fieldErrors BE → ô form (map riêng từng form)", () => {
+  const withFields = (fieldErrors: Record<string, string> | undefined) =>
+    new ApiError(400, "VALIDATION_FAILED", "Invalid request data", fieldErrors);
+
+  it("A. một field nhận ra → đúng ô, câu tiếng Việt", () => {
+    expect(
+      mapServerFieldErrors(withFields({ warehouseId: "must not be null" }), RELEASE_FIELD_ERRORS),
+    ).toEqual({ mapped: [{ field: "warehouseId", message: "Chọn kho xuất." }], unmapped: [] });
+  });
+
+  it("B. nhiều field nhận ra → giữ tất cả", () => {
+    const { mapped } = mapServerFieldErrors(
+      withFields({ note: "note is required", depositPercent: "must be below 100" }),
+      CREDIT_REJECTION_FIELD_ERRORS,
+    );
+    expect(mapped.map((m) => m.field)).toEqual(["note", "depositPercent"]);
+  });
+
+  it("C. field lạ (vd field cấp lớp, `reason` cũ) → không gắn ô, trả message để báo chung", () => {
+    expect(
+      mapServerFieldErrors(
+        withFields({ reason: "reason is at most 500 characters", note: "too long" }),
+        ADMIN_CANCEL_FIELD_ERRORS,
+      ),
+    ).toEqual({
+      mapped: [ADMIN_CANCEL_FIELD_ERRORS.note],
+      unmapped: ["reason is at most 500 characters"],
+    });
+    // Tên trùng thuộc tính Object.prototype không bị coi là field biết
+    expect(
+      mapServerFieldErrors(withFields({ toString: "x" }), RELEASE_FIELD_ERRORS).mapped,
+    ).toEqual([]);
+  });
+
+  it("D. không có fieldErrors → không gì để gắn", () => {
+    expect(mapServerFieldErrors(withFields(undefined), RELEASE_FIELD_ERRORS)).toEqual({
+      mapped: [],
+      unmapped: [],
+    });
   });
 });

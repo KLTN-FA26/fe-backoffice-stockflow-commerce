@@ -297,3 +297,40 @@ describe("OrderDetail — kiểm quyền trước khi gọi API", () => {
     expect(screen.getAllByText(UI_LABELS.order.forbiddenDescription)).toHaveLength(1);
   });
 });
+
+describe(
+  "OrderDetail — huỷ đơn: fieldErrors BE → ô form (Step 8)",
+  { timeout: DIALOG_FLOW_TIMEOUT_MS },
+  () => {
+    it("B. nhiều field (reasonCode + note) → lỗi tại cả hai ô, kể cả ghi chú khi lý do không phải 'khác'", async () => {
+      const user = userEvent.setup();
+      await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => apiOrder);
+      vi.spyOn(api, "post").mockRejectedValue(
+        new ApiError(400, "VALIDATION_FAILED", "Invalid request data", {
+          reasonCode: "must not be null",
+          note: "note is at most 1000 characters",
+        }),
+      );
+
+      const dialog = await cancelWith(user, "Khách yêu cầu", "Ghi chú");
+      expect(await within(dialog).findByText("Chọn lý do huỷ hợp lệ.")).toBeInTheDocument();
+      expect(within(dialog).getByText(/Ghi chú tối đa 1000 ký tự/)).toBeInTheDocument();
+      expect(within(dialog).getByLabelText(/Ghi chú/)).toHaveAttribute("aria-invalid", "true");
+    });
+
+    it("C. field lạ (`reason` cũ) → không crash, message máy chủ đi vào thông báo chung", async () => {
+      const user = userEvent.setup();
+      await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => apiOrder);
+      vi.spyOn(api, "post").mockRejectedValue(
+        new ApiError(400, "VALIDATION_FAILED", "Invalid request data", {
+          reason: "reason is at most 500 characters",
+        }),
+      );
+
+      const dialog = await cancelWith(user, "Khách yêu cầu");
+      const alert = await within(dialog).findByRole("alert");
+      expect(alert).toHaveTextContent("Kiểm tra lại lý do huỷ");
+      expect(alert).toHaveTextContent("reason is at most 500 characters");
+    });
+  },
+);
