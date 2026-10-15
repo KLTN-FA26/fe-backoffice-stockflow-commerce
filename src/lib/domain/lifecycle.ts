@@ -44,11 +44,12 @@ import type {
   TransferOrderStatus,
   MoveTaskStatus,
 } from "@/lib/mock-data";
-// OrderStatus lấy từ constants/statuses.ts (không phải mock-data) — đúng 10 trạng thái BE
-// (OrderStatus.java), dùng cho zod enum / lifecycle / filter UI.
+// OrderStatus lấy từ constants/statuses.ts (không phải mock-data) — 12 trạng thái BE
+// (OrderStatus.java) FE hỗ trợ, dùng cho zod enum / lifecycle / filter UI; OrderReadStatus thêm
+// UNKNOWN (trạng thái BE mới FE chưa hỗ trợ) — chỉ đọc, không chuyển tiếp được.
 // ReceiptStatus cũng vậy — 6 trạng thái docs 03 §5.1 (mock-data chỉ có 5, thiếu "In QC").
 // PickStatus / PackStatus: các trạng thái BE `/fulfillment/tasks` phát ra được (SCRUM-437).
-import type { OrderStatus, PackStatus, PickStatus, ReceiptStatus } from "@/constants/statuses";
+import type { OrderReadStatus, PackStatus, PickStatus, ReceiptStatus } from "@/constants/statuses";
 
 /* ── Module 01: Product ──────────────────────────────────────────────── */
 
@@ -221,7 +222,7 @@ export const MOVE_TRANSITIONS: Record<MoveTaskStatus, readonly MoveTaskStatus[]>
 // Chép nguyên BE `order/api/OrderStatus.java#canTransitionTo` (develop, 12 trạng thái sau
 // SCRUM-460/423/427) — FE khớp BE, không dựng theo docs 17 (xem QUYẾT ĐỊNH ở ORDER_STATUSES).
 // Mã wire ↔ nhãn FE: features/order/status-map.ts (CONFIRMED ↔ "Confirmed"…).
-export const ORDER_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
+export const ORDER_TRANSITIONS: Record<OrderReadStatus, readonly OrderReadStatus[]> = {
   // DRAFT → CONFIRMED / ON_HOLD: đơn công nợ trong / vượt hạn mức (docs 14 BR-06, SCRUM-427)
   Draft: ["Pending Payment", "Confirmed", "On Hold", "Cancelled"],
   // docs 15 BR-02: đơn cọc chỉ Confirmed khi đủ cọc; không đi thẳng sang sản xuất / kho
@@ -243,4 +244,6 @@ export const ORDER_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
   Completed: [],
   Cancelled: [],
   Returned: [],
+  // Trạng thái BE mới FE chưa hiểu → không mở thao tác nào chỉ vì parse được (KHÔNG phải terminal).
+  UNKNOWN: [],
 };

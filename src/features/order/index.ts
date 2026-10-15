@@ -16,11 +16,13 @@
 
 // Types
 export type {
+  BackendOrderReadStatus,
   BackendOrderStatus,
   CreditHold,
   Order,
   OrderDto,
   OrderLine,
+  OrderReadStatus,
   OrderStatus,
   OrderStatusChange,
   ProductionOrder,

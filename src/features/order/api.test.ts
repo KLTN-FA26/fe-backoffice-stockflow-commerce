@@ -2,9 +2,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "@/lib/api/client";
 
-import { getOrder, listOrders, toOrder } from "./api";
+import { ORDER_STATUSES } from "@/constants";
+
+import { buildOrderListQuery, getOrder, getOrderHistory, listOrders, toOrder } from "./api";
 import { apiGuestOrder } from "./__fixtures__/order";
+import { STATUS_OPTIONS } from "./components/order-list/constants";
 import { orderDtoSchema } from "./schemas";
+
+import type { OrderStatus } from "./types";
 
 /** Hình dạng `OrderResponse` BE (develop) sau khi interceptor bóc envelope. */
 const beOrder = {
@@ -188,13 +193,102 @@ describe("order API contract (BE OrderResponse)", () => {
     expect(() => orderDtoSchema.parse({ ...beOrder, currency: "vnd" })).toThrow();
   });
 
-  it("PAID đã bị BE bỏ (SCRUM-460) → parse fail", () => {
-    expect(() => orderDtoSchema.parse({ ...beOrder, status: "PAID" })).toThrow();
+  it("PAID đã bị BE bỏ (SCRUM-460) → UNKNOWN, không đoán thành Confirmed", () => {
+    expect(toOrder(orderDtoSchema.parse({ ...beOrder, status: "PAID" })).status).toBe("UNKNOWN");
   });
 
-  it("status lạ ngoài OrderStatus.java → parse fail (bug contract)", async () => {
+  it("thiếu status (field bắt buộc) vẫn fail — bug hợp đồng, không phải trạng thái mới", () => {
+    const { status: _omit, ...withoutStatus } = beOrder;
+    void _omit;
+    expect(() => orderDtoSchema.parse(withoutStatus)).toThrow();
+    expect(() => orderDtoSchema.parse({ ...beOrder, status: null })).toThrow();
+  });
+});
+
+describe("order API — trạng thái BE mới FE chưa hỗ trợ (forward-compat)", () => {
+  it("chi tiết: status lạ (PICKING) → parse được, status UNKNOWN", async () => {
     vi.spyOn(api, "get").mockResolvedValue({ data: { ...beOrder, status: "PICKING" } });
-    await expect(getOrder(beOrder.orderId)).rejects.toThrow();
+    const order = await getOrder(beOrder.orderId);
+    expect(order.status).toBe("UNKNOWN");
+    expect(order.orderNumber).toBe(beOrder.orderNumber);
+  });
+
+  it("danh sách: một dòng status lạ không làm hỏng cả trang", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: {
+        ...emptyBePage,
+        items: [beOrder, { ...beOrder, orderId: "o-2", status: "SOME_FUTURE_STATUS" }],
+        totalElements: 2,
+        totalPages: 1,
+      },
+    });
+    const page = await listOrders({});
+    expect(page.items.map((o) => o.status)).toEqual(["Pending Payment", "UNKNOWN"]);
+  });
+
+  it("lịch sử: from / to lạ → UNKNOWN từng vị trí; from vắng vẫn null", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: [
+        { to: "PENDING_PAYMENT", occurredAt: "2026-09-07T03:15:00Z" },
+        { from: "PENDING_PAYMENT", to: "PICKING", occurredAt: "2026-09-07T04:00:00Z" },
+        { from: "PACKED", to: "SHIPPED", occurredAt: "2026-09-07T05:00:00Z" },
+      ],
+    });
+    const history = await getOrderHistory(beOrder.orderId);
+    expect(history.map(({ from, to }) => ({ from, to }))).toEqual([
+      { from: null, to: "Pending Payment" },
+      { from: "Pending Payment", to: "UNKNOWN" },
+      { from: "UNKNOWN", to: "Shipped" },
+    ]);
+  });
+
+  it("paymentStatus lạ → UNKNOWN; paymentTerm lạ → null (không thành lựa chọn mới)", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { ...beOrder, paymentTerm: "INSTALLMENT", paymentStatus: "REFUNDED" },
+    });
+    const order = await getOrder(beOrder.orderId);
+    expect(order.paymentStatus).toBe("UNKNOWN");
+    expect(order.paymentTerm).toBeNull();
+  });
+
+  it("paymentTerm vắng key / null → model null; đã biết giữ nguyên", () => {
+    expect(toOrder(orderDtoSchema.parse(beOrder)).paymentTerm).toBeNull();
+    expect(toOrder(orderDtoSchema.parse({ ...beOrder, paymentTerm: null })).paymentTerm).toBeNull();
+    expect(toOrder(orderDtoSchema.parse({ ...beOrder, paymentTerm: "DEPOSIT" })).paymentTerm).toBe(
+      "DEPOSIT",
+    );
+  });
+});
+
+describe("order list filter — UNKNOWN chỉ để đọc, không bao giờ gửi BE", () => {
+  it("UNKNOWN không có trong lựa chọn lọc trạng thái lẫn tập trạng thái URL", () => {
+    expect(STATUS_OPTIONS.map((option) => option.value)).not.toContain("UNKNOWN");
+    expect(STATUS_OPTIONS.map((option) => option.value)).toEqual([...ORDER_STATUSES]);
+    // useOrderListState: useUrlFilters(ORDER_STATUSES) — ?status=UNKNOWN bị nuqs bỏ
+    expect(ORDER_STATUSES).not.toContain("UNKNOWN");
+  });
+
+  it("serializer bỏ UNKNOWN / chuỗi lạ lọt vào lúc chạy, giữ mã đã biết", () => {
+    // Kiểu đã chặn UNKNOWN; ép kiểu để mô phỏng giá trị lọt vào lúc chạy (vd config cũ)
+    const leaked = ["UNKNOWN", "Shipped", "PICKING"] as unknown as OrderStatus[];
+    expect(buildOrderListQuery({ status: leaked }).getAll("status")).toEqual(["SHIPPED"]);
+  });
+
+  it("mọi trạng thái đã biết vẫn serialize đúng mã BE như trước", () => {
+    expect(buildOrderListQuery({ status: [...ORDER_STATUSES] }).getAll("status")).toEqual([
+      "DRAFT",
+      "PENDING_PAYMENT",
+      "CONFIRMED",
+      "IN_PRODUCTION",
+      "READY_TO_FULFILL",
+      "IN_FULFILMENT",
+      "ON_HOLD",
+      "SHIPPED",
+      "DELIVERED",
+      "COMPLETED",
+      "CANCELLED",
+      "RETURNED",
+    ]);
   });
 
   it("listOrders mặc định chỉ gửi page/size — không có search rỗng", async () => {

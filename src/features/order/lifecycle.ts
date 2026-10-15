@@ -8,7 +8,12 @@
  * Source: BE order/api/OrderStatus.java (FE khớp BE — xem ORDER_STATUSES).
  */
 
-import { CREDIT_HOLD_PERMISSIONS, ORDER_PERMISSIONS, UI_LABELS } from "@/constants";
+import {
+  CREDIT_HOLD_PERMISSIONS,
+  ORDER_PERMISSIONS,
+  ORDER_STATUS_UNKNOWN,
+  UI_LABELS,
+} from "@/constants";
 import {
   ORDER_TRANSITIONS,
   allowedTransitions,
@@ -18,7 +23,7 @@ import {
 
 import type { OrderPaymentTerm } from "@/constants";
 import type { PermissionCode } from "@/lib/auth";
-import type { OrderStatus } from "./types";
+import type { OrderReadStatus, OrderStatus } from "./types";
 
 /* ── Re-exports ──────────────────────────────────────────────────────── */
 
@@ -118,15 +123,17 @@ export const ORDER_ACTIONS: readonly OrderAction[] = [
  * 2. Mọi `targetStatuses` hợp lệ theo bảng chuyển tiếp.
  * 3. Điều kiện thêm (`requires`) trên `context` — vd đơn công nợ cho credit hold.
  * 4. Người dùng có mã quyền BE yêu cầu (`can` = `usePermissionChecker()` ở component).
+ * `UNKNOWN` (trạng thái BE FE chưa hỗ trợ) → không action nào.
  *
  * UI-only gating — Backend phải re-check (BE BR-031, OrderReleaseService, CreditHoldService +
  * @RequiresPermission; docs 17 BR-02/BR-03).
  */
 export function allowedOrderActions(
-  status: OrderStatus,
+  status: OrderReadStatus,
   can: (code: PermissionCode) => boolean,
   context: OrderActionContext = {},
 ): readonly OrderAction[] {
+  if (status === ORDER_STATUS_UNKNOWN) return [];
   return ORDER_ACTIONS.filter((action) => {
     // 1. Status gate
     if (!action.fromStatuses.includes(status)) return false;
@@ -146,12 +153,15 @@ export function allowedOrderActions(
   });
 }
 
-/** Check if the order is in a terminal (final) state. */
-export function isOrderTerminal(status: OrderStatus): boolean {
-  return isTerminal(ORDER_TRANSITIONS, status);
+/**
+ * Check if the order is in a terminal (final) state. `UNKNOWN` không có chuyển tiếp nhưng KHÔNG
+ * phải đã kết thúc — chỉ là FE chưa hiểu trạng thái đó.
+ */
+export function isOrderTerminal(status: OrderReadStatus): boolean {
+  return status !== ORDER_STATUS_UNKNOWN && isTerminal(ORDER_TRANSITIONS, status);
 }
 
 /** Get allowed next statuses from the transition table. */
-export function nextOrderStatuses(status: OrderStatus): readonly OrderStatus[] {
+export function nextOrderStatuses(status: OrderReadStatus): readonly OrderReadStatus[] {
   return allowedTransitions(ORDER_TRANSITIONS, status);
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ORDER_STATUSES } from "@/constants";
+import { ORDER_READ_STATUSES, ORDER_STATUSES } from "@/constants";
 
 import {
   ORDER_TRANSITIONS,
@@ -50,10 +50,18 @@ describe("ORDER_TRANSITIONS (BE OrderStatus#canTransitionTo)", () => {
     }
   });
 
-  it("bảng phủ đúng 12 trạng thái BE, không thêm trạng thái docs nào", () => {
-    expect(Object.keys(ORDER_TRANSITIONS).sort()).toEqual([...ORDER_STATUSES].sort());
+  it("bảng phủ 12 trạng thái BE + UNKNOWN phòng thủ, không thêm trạng thái docs nào", () => {
+    expect(Object.keys(ORDER_TRANSITIONS).sort()).toEqual([...ORDER_READ_STATUSES].sort());
     expect(ORDER_STATUSES).toHaveLength(12);
     expect(ORDER_STATUSES).not.toContain("Paid");
+  });
+
+  it("UNKNOWN (trạng thái BE mới FE chưa hỗ trợ): không chuyển tiếp, không phải terminal", () => {
+    expect(ORDER_TRANSITIONS.UNKNOWN).toEqual([]);
+    expect(nextOrderStatuses("UNKNOWN")).toEqual([]);
+    expect(isOrderTerminal("UNKNOWN")).toBe(false);
+    // Không trạng thái đã biết nào chuyển được sang UNKNOWN
+    for (const status of ORDER_STATUSES) expect(nextOrderStatuses(status)).not.toContain("UNKNOWN");
   });
 });
 
@@ -140,6 +148,12 @@ describe("allowedOrderActions — huỷ admin", () => {
       expect(codes(status, "SALES_STAFF")).toEqual(["admin-cancel"]);
       expect(codes(status, "ORDER_COORDINATOR")).toEqual(["admin-cancel"]);
     }
+  });
+
+  it("UNKNOWN → không action nào kể cả khi có mọi quyền và là đơn công nợ", () => {
+    const all = () => true;
+    expect(allowedOrderActions("UNKNOWN", all)).toEqual([]);
+    expect(allowedOrderActions("UNKNOWN", all, { paymentTerm: "CREDIT" })).toEqual([]);
   });
 
   it("WAREHOUSE_STAFF không có quyền đơn bán → không thấy action nào", () => {

@@ -19,12 +19,22 @@ export const ORDER_PAYMENT_TERM_LABELS = {
  */
 export const ORDER_PAYMENT_STATUSES = ["UNPAID", "PARTIALLY_PAID", "ON_CREDIT", "PAID"] as const;
 
+/** Giá trị BE ngoài `ORDER_PAYMENT_STATUSES` khi đọc — hiển thị "Không rõ" (lib/status-map). */
+export const ORDER_PAYMENT_STATUS_UNKNOWN = "UNKNOWN";
+
+export const ORDER_PAYMENT_READ_STATUSES = [
+  ...ORDER_PAYMENT_STATUSES,
+  ORDER_PAYMENT_STATUS_UNKNOWN,
+] as const;
+
 export const ORDER_PAYMENT_STATUS_DISPLAY = {
   UNPAID: "Unpaid",
   PARTIALLY_PAID: "Partially Paid",
   ON_CREDIT: "On Credit",
   PAID: "Paid",
-} as const satisfies Record<OrderPaymentStatus, string>;
+  // Tra màu muted + nhãn "Không rõ" ở lib/status-map.ts
+  UNKNOWN: "UNKNOWN",
+} as const satisfies Record<OrderPaymentReadStatus, string>;
 
 /** BE `order/api/CancellationReasonCode.java`. */
 export const ORDER_CANCELLATION_REASON_CODES = [
@@ -110,6 +120,7 @@ export const PRODUCTION_HOLD_REASON_LABELS: Record<string, string> = {
 
 export type OrderPaymentTerm = (typeof ORDER_PAYMENT_TERMS)[number];
 export type OrderPaymentStatus = (typeof ORDER_PAYMENT_STATUSES)[number];
+export type OrderPaymentReadStatus = (typeof ORDER_PAYMENT_READ_STATUSES)[number];
 export type OrderCancellationReasonCode = (typeof ORDER_CANCELLATION_REASON_CODES)[number];
 export type CreditRejectionAction = (typeof CREDIT_REJECTION_ACTIONS)[number];
 export type ProductionOrderStatus = (typeof PRODUCTION_ORDER_STATUSES)[number];

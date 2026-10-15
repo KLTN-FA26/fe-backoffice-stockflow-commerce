@@ -49,9 +49,52 @@ describe("OrderResponse — field SCRUM-423/427/460", () => {
     expect(orderDtoSchema.safeParse(apiOrder).success).toBe(true);
   });
 
-  it("paymentTerm / paymentStatus lạ → fail", () => {
-    expect(orderDtoSchema.safeParse({ ...apiOrder, paymentTerm: "COD" }).success).toBe(false);
-    expect(orderDtoSchema.safeParse({ ...apiOrder, paymentStatus: "REFUNDED" }).success).toBe(
+  it("paymentStatus: lạ → UNKNOWN; đã biết giữ nguyên; null giữ null; vắng key giữ undefined", () => {
+    const parse = (paymentStatus: unknown) =>
+      orderDtoSchema.parse({ ...apiOrder, paymentStatus }).paymentStatus;
+    expect(parse("REFUNDED")).toBe("UNKNOWN");
+    expect(parse("PARTIALLY_PAID")).toBe("PARTIALLY_PAID");
+    expect(parse(null)).toBeNull();
+    expect(orderDtoSchema.parse(apiOrder).paymentStatus).toBeUndefined();
+  });
+
+  it("paymentTerm: lạ → null (KHÔNG UNKNOWN); đã biết giữ nguyên; null → null; vắng → undefined", () => {
+    const parse = (paymentTerm: unknown) =>
+      orderDtoSchema.parse({ ...apiOrder, paymentTerm }).paymentTerm;
+    expect(parse("COD")).toBeNull();
+    expect(parse("INSTALLMENT")).toBeNull();
+    for (const term of ["PREPAID", "DEPOSIT", "CREDIT"] as const) expect(parse(term)).toBe(term);
+    expect(parse(null)).toBeNull();
+    // Vắng key (Jackson non_null) → undefined ở DTO; toOrder chuẩn hoá về null (api.test)
+    expect(orderDtoSchema.parse(apiOrder).paymentTerm).toBeUndefined();
+  });
+
+  it("sai KIỂU (không phải chuỗi) vẫn fail — chỉ chuỗi lạ mới được dung thứ", () => {
+    expect(orderDtoSchema.safeParse({ ...apiOrder, status: 3 }).success).toBe(false);
+    expect(orderDtoSchema.safeParse({ ...apiOrder, paymentTerm: 1 }).success).toBe(false);
+    expect(orderDtoSchema.safeParse({ ...apiOrder, paymentStatus: true }).success).toBe(false);
+  });
+
+  it("đơn credit hold lồng status lạ → order.status UNKNOWN, cả bản ghi vẫn parse", () => {
+    expect(
+      creditHoldDtoSchema.parse({ ...hold, order: { ...hold.order, status: "PAYMENT_FAILED" } })
+        .order.status,
+    ).toBe("UNKNOWN");
+  });
+
+  it("history: from lạ → UNKNOWN; to lạ → UNKNOWN; from null giữ null", () => {
+    const at = "2026-09-07T03:15:00Z";
+    expect(
+      orderStatusChangeDtoSchema.parse({ from: "PACKED", to: "SHIPPED", occurredAt: at }).from,
+    ).toBe("UNKNOWN");
+    expect(
+      orderStatusChangeDtoSchema.parse({ from: "CONFIRMED", to: "PICKING", occurredAt: at }).to,
+    ).toBe("UNKNOWN");
+    expect(
+      orderStatusChangeDtoSchema.parse({ from: null, to: "PENDING_PAYMENT", occurredAt: at }).from,
+    ).toBeNull();
+    // `to` bắt buộc: vắng → vẫn fail
+    expect(orderStatusChangeDtoSchema.safeParse({ from: null, occurredAt: at }).success).toBe(
       false,
     );
   });

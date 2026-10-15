@@ -1,4 +1,4 @@
-import { CREDIT_HOLD_PERMISSIONS, ORDER_PERMISSIONS } from "@/constants";
+import { CREDIT_HOLD_PERMISSIONS, ORDER_PERMISSIONS, ORDER_STATUS_UNKNOWN } from "@/constants";
 import { StatusDot } from "@/components/shared/StatusDot";
 
 import { allowedOrderActions, isOrderTerminal } from "../lifecycle";
@@ -20,6 +20,9 @@ interface OrderActionCardProps {
 
 /** Vì sao không có nút thao tác — để người dùng không tưởng là lỗi. */
 function noActionReason(order: Order, can: OrderActionCardProps["can"]): string {
+  // Trạng thái BE mới FE chưa hỗ trợ — không đoán thao tác (không phải "đã kết thúc")
+  if (order.status === ORDER_STATUS_UNKNOWN)
+    return "Trạng thái đơn chưa được hỗ trợ — không có thao tác.";
   if (isOrderTerminal(order.status)) return "Đơn đã kết thúc — không còn thao tác.";
   if (
     !can(ORDER_PERMISSIONS.cancel) &&

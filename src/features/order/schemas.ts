@@ -11,8 +11,13 @@
 
 import { z } from "zod";
 
-import { ORDER_PAYMENT_STATUSES, ORDER_PAYMENT_TERMS } from "@/constants/orders";
-import { ORDER_STATUSES } from "@/constants/statuses";
+import {
+  ORDER_PAYMENT_READ_STATUSES,
+  ORDER_PAYMENT_STATUS_UNKNOWN,
+  ORDER_PAYMENT_STATUSES,
+  ORDER_PAYMENT_TERMS,
+} from "@/constants/orders";
+import { ORDER_READ_STATUSES, ORDER_STATUS_UNKNOWN } from "@/constants/statuses";
 
 /* ── DTO (BE wire) ───────────────────────────────────────────────────── */
 
@@ -23,9 +28,22 @@ import { ORDER_STATUSES } from "@/constants/statuses";
 const currencyCode = z.string().regex(/^[A-Z]{3}$/, "Mã tiền tệ không hợp lệ");
 
 /**
- * BE `order/api/OrderStatus.java` (develop) — 12 giá trị; SCRUM-460 bỏ PAID → CONFIRMED,
- * SCRUM-423 thêm IN_PRODUCTION / READY_TO_FULFILL. Giá trị lạ → parse fail
- * ("Dữ liệu trả về không đúng định dạng").
+ * Enum BE dễ mở rộng (cùng tinh thần `deliveryStatus` của PO): chuỗi ngoài `values` → `fallback`
+ * thay vì làm hỏng cả response. Khác `.catch()`: chỉ nhận CHUỖI — vắng key / null / sai kiểu ở
+ * field bắt buộc vẫn fail (đó là bug hợp đồng, không phải giá trị mới). Field cho phép null thì
+ * nối `.nullish()` như cũ.
+ */
+function tolerantEnum<const T extends readonly [string, ...string[]], const F>(
+  values: T,
+  fallback: F,
+) {
+  return z.union([z.enum(values), z.string().transform((): F => fallback)]);
+}
+
+/**
+ * BE `order/api/OrderStatus.java` (develop) — 12 giá trị FE hỗ trợ; SCRUM-460 bỏ PAID → CONFIRMED,
+ * SCRUM-423 thêm IN_PRODUCTION / READY_TO_FULFILL. Đây là tập giá trị ĐƯỢC GỬI lên BE (lọc
+ * `status=`) — không bao giờ chứa `UNKNOWN`. Đọc về: giá trị lạ → `UNKNOWN` (orderStatusDtoSchema).
  */
 export const BACKEND_ORDER_STATUSES = [
   "DRAFT",
@@ -42,7 +60,8 @@ export const BACKEND_ORDER_STATUSES = [
   "RETURNED",
 ] as const;
 
-export const orderStatusDtoSchema = z.enum(BACKEND_ORDER_STATUSES);
+/** Trạng thái đọc từ BE: mã đã biết, hoặc `UNKNOWN` cho trạng thái BE mới FE chưa hỗ trợ. */
+export const orderStatusDtoSchema = tolerantEnum(BACKEND_ORDER_STATUSES, ORDER_STATUS_UNKNOWN);
 
 /**
  * Field có thể null dùng `.nullish()` (cho phép vắng key): BE bật Jackson
@@ -95,7 +114,8 @@ export const orderDtoSchema = z.object({
   billingAddress: orderAddressDtoSchema.nullish(),
   // ── Thanh toán / release / huỷ (SCRUM-423/427/460). Dòng danh sách có thể không mang
   // một số field ("null on list rows that do not carry it") → nullish.
-  paymentTerm: z.enum(ORDER_PAYMENT_TERMS).nullish(),
+  // Giá trị lạ → null ("chưa rõ phương thức"), KHÔNG thành lựa chọn mới; null / vắng giữ nguyên.
+  paymentTerm: tolerantEnum(ORDER_PAYMENT_TERMS, null).nullish(),
   /** Kho xuất — null tới khi release (SCRUM-423). */
   warehouseId: z.string().nullish(),
   releasedAt: z.string().nullish(),
@@ -104,7 +124,8 @@ export const orderDtoSchema = z.object({
   depositRequired: z.number().nullish(),
   depositReceivedAt: z.string().nullish(),
   paidInFullAt: z.string().nullish(),
-  paymentStatus: z.enum(ORDER_PAYMENT_STATUSES).nullish(),
+  // Giá trị lạ → UNKNOWN (hiển thị "Không rõ"); null / vắng giữ nguyên.
+  paymentStatus: tolerantEnum(ORDER_PAYMENT_STATUSES, ORDER_PAYMENT_STATUS_UNKNOWN).nullish(),
   creditTermDays: z.number().int().nullish(),
   cancellation: z
     .object({
@@ -115,7 +136,10 @@ export const orderDtoSchema = z.object({
     .nullish(),
 });
 
-/** BE `OrderStatusChangeResponse` — `GET /orders/{id}/history`, cũ → mới; `from` null ở bước đầu. */
+/**
+ * BE `OrderStatusChangeResponse` — `GET /orders/{id}/history`, cũ → mới; `from` null ở bước đầu.
+ * Trạng thái lạ ở `from` / `to` → `UNKNOWN`, không làm hỏng cả lịch sử.
+ */
 export const orderStatusChangeDtoSchema = z.object({
   from: orderStatusDtoSchema.nullish(),
   to: orderStatusDtoSchema,
@@ -160,7 +184,7 @@ export const orderSchema = z.object({
   orderId: z.string(),
   orderNumber: z.string(),
   customerId: z.string().nullable(),
-  status: z.enum(ORDER_STATUSES),
+  status: z.enum(ORDER_READ_STATUSES),
   totalAmount: z.number(),
   currency: currencyCode,
   placedAt: z.string(),
@@ -171,7 +195,7 @@ export const orderSchema = z.object({
   shippingAddressText: z.string().nullable(),
   lines: z.array(orderLineSchema),
   paymentTerm: z.enum(ORDER_PAYMENT_TERMS).nullable(),
-  paymentStatus: z.enum(ORDER_PAYMENT_STATUSES).nullable(),
+  paymentStatus: z.enum(ORDER_PAYMENT_READ_STATUSES).nullable(),
   paidAmount: z.number().nullable(),
   depositRequired: z.number().nullable(),
   depositReceivedAt: z.string().nullable(),
@@ -189,8 +213,8 @@ export const orderSchema = z.object({
 });
 
 export const orderStatusChangeSchema = z.object({
-  from: z.enum(ORDER_STATUSES).nullable(),
-  to: z.enum(ORDER_STATUSES),
+  from: z.enum(ORDER_READ_STATUSES).nullable(),
+  to: z.enum(ORDER_READ_STATUSES),
   reason: z.string().nullable(),
   occurredAt: z.string(),
 });

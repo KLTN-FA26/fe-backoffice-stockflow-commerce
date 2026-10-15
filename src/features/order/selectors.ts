@@ -2,13 +2,13 @@
  * Order — selectors (pure derivations). PURE — không side effect, không import icon.
  */
 
-import type { CreditHold, Order, OrderStatus, ProductionOrder } from "./types";
+import type { CreditHold, Order, OrderReadStatus, ProductionOrder } from "./types";
 
 /**
  * Trạng thái cần người xử lý tay → gắn viền cảnh báo ở row (data-table-mode-a).
  * Trong các trạng thái BE chỉ ON_HOLD là "đang chờ xử lý ngoại lệ".
  */
-const FLAGGED_STATUSES: readonly OrderStatus[] = ["On Hold"];
+const FLAGGED_STATUSES: readonly OrderReadStatus[] = ["On Hold"];
 
 export function shouldFlagOrderRow(order: Pick<Order, "status">): boolean {
   return FLAGGED_STATUSES.includes(order.status);
@@ -101,7 +101,7 @@ export function releaseBlockers(
 /* ── Huỷ đơn ──────────────────────────────────────────────────────────── */
 
 /** Hệ quả huỷ theo trạng thái — docs 17 §4.4–4.5, docs 19 BR-10. */
-export function cancelConsequence(status: OrderStatus): string | null {
+export function cancelConsequence(status: OrderReadStatus): string | null {
   if (status === "In Production") {
     return "Đơn đang sản xuất: lệnh chưa in sẽ huỷ và trả phôi về kho; lệnh đã in tính phí sản xuất (docs 19 BR-10).";
   }

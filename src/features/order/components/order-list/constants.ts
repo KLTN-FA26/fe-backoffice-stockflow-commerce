@@ -67,7 +67,10 @@ export const COLUMN_LABELS: Record<string, string> = {
   actions: "Thao tác",
 };
 
-/** Đúng 12 trạng thái BE (ORDER_STATUSES) — gồm On Hold, In Production. */
+/**
+ * Đúng 12 trạng thái BE FE hỗ trợ (ORDER_STATUSES) — gồm On Hold, In Production. KHÔNG có
+ * `UNKNOWN`: đó là trạng thái chỉ để đọc, không phải giá trị lọc gửi BE.
+ */
 export const STATUS_OPTIONS: { label: string; value: OrderStatus }[] = ORDER_STATUSES.map(
   (value) => ({
     label: STATUS_LABEL_VI[value] ?? value,
