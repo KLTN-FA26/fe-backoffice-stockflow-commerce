@@ -19,6 +19,7 @@ import {
   Receipt,
   ShieldCheck,
   Settings,
+  ShieldAlert,
   ShoppingCart,
   Sun,
   Truck,
@@ -34,6 +35,7 @@ import {
   ADMIN_ROUTES,
   APP_ROUTES,
   BRAND,
+  CREDIT_HOLD_PERMISSIONS,
   FULFILLMENT_PACKAGE_PERMISSIONS,
   FULFILLMENT_PICK_PERMISSIONS,
   GOODS_RECEIPT_PERMISSIONS,
@@ -41,6 +43,7 @@ import {
   ORDER_PERMISSIONS,
   PO_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
+  UI_LABELS,
 } from "@/constants";
 
 import { logoutApi } from "@/lib/auth/auth-api";
@@ -253,6 +256,15 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: ClipboardList,
         permission: ORDER_PERMISSIONS.viewPage,
       },
+      // Mục riêng, gate bằng quyền credit hold — ACCOUNTANT duyệt công nợ nhưng không có
+      // sales-orders:VIEW_PAGE nên không đi qua được mục "Đơn hàng" (BE V20261013000400).
+      {
+        label: UI_LABELS.order.creditHoldsTitle,
+        tooltip: "Credit holds",
+        href: ADMIN_ROUTES.orders.creditHolds,
+        icon: ShieldAlert,
+        permission: CREDIT_HOLD_PERMISSIONS.viewPage,
+      },
       {
         label: "Lấy hàng",
         tooltip: "Picking",
@@ -294,6 +306,30 @@ const DETAIL_LABEL_BY_ROUTE: Record<string, string> = {
 export function useCanSeeNavItem(): (item: NavItem) => boolean {
   const can = usePermissionChecker();
   return (item) => !item.permission || can(item.permission);
+}
+
+/** Mỗi mục tự gate theo quyền của chính nó; nhóm không còn mục nào thì bỏ (không hiện tiêu đề rỗng). */
+export function visibleNavGroups(canSeeItem: (item: NavItem) => boolean): NavGroup[] {
+  return NAV_GROUPS.map((group) => ({ ...group, items: group.items.filter(canSeeItem) })).filter(
+    (group) => group.items.length > 0,
+  );
+}
+
+/**
+ * Mục menu đang mở: khớp dài nhất trong các mục được thấy — `/admin/orders/credit-holds` sáng
+ * mục hàng đợi công nợ, không sáng kèm "Đơn hàng" (`/admin/orders`). `/admin` chỉ khớp đúng.
+ */
+export function findActiveNavHref(
+  pathname: string,
+  items: readonly Pick<NavItem, "href">[],
+): string | undefined {
+  return items
+    .filter((item) =>
+      item.href === ADMIN_ROUTES.home
+        ? pathname === item.href
+        : pathname === item.href || pathname.startsWith(`${item.href}/`),
+    )
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 }
 
 function findNavItem(pathname: string): NavItem | undefined {
@@ -454,6 +490,11 @@ function BackofficeSidebar() {
 
   const warningCounts = useMemo(() => computeWarningCounts(), []);
   const canSeeItem = useCanSeeNavItem();
+  const visibleGroups = visibleNavGroups(canSeeItem);
+  const activeHref = findActiveNavHref(
+    pathname,
+    visibleGroups.flatMap((group) => group.items),
+  );
 
   return (
     <Sidebar
@@ -489,7 +530,7 @@ function BackofficeSidebar() {
 
       {/* Nav groups */}
       <SidebarContent className="[&::-webkit-scrollbar-thumb]:bg-border-strong min-h-0 flex-1 [scrollbar-width:thin] gap-0 overflow-y-auto px-2 py-2 [&::-webkit-scrollbar]:block [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
-        {NAV_GROUPS.map((group) => (
+        {visibleGroups.map((group) => (
           <SidebarGroup key={group.title} className="mb-1.5 gap-0 p-0">
             {collapsed ? (
               <div className="border-border-default mx-auto my-1.5 w-8 border-t" />
@@ -501,11 +542,8 @@ function BackofficeSidebar() {
 
             <SidebarGroupContent>
               <SidebarMenu className={cn("gap-0.5", collapsed && "items-center")}>
-                {group.items.filter(canSeeItem).map((item) => {
-                  const isActive =
-                    item.href === "/admin"
-                      ? pathname === "/admin"
-                      : pathname === item.href || pathname.startsWith(item.href + "/");
+                {group.items.map((item) => {
+                  const isActive = item.href === activeHref;
                   const Icon = item.icon;
                   const warnCount = warningCounts[item.href] ?? 0;
 

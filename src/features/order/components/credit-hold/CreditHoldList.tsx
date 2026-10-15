@@ -69,6 +69,8 @@ function CreditHoldListContent() {
   const can = usePermissionChecker();
   // UI-only — Backend phải re-check (CreditHoldController @RequiresPermission READ / APPROVE)
   const canRead = can(CREDIT_HOLD_PERMISSIONS.read);
+  // ACCOUNTANT xem hàng đợi nhưng không có sales-orders:VIEW_PAGE → không dẫn tới trang đơn bị chặn
+  const canOpenOrders = can(ORDER_PERMISSIONS.viewPage);
   // Trang trên URL (nuqs); số dòng/trang là sở thích cá nhân → localStorage (state-persistence)
   const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
   const { config, updateConfig } = usePageConfig<CreditHoldPageConfig>(
@@ -91,7 +93,7 @@ function CreditHoldListContent() {
         {codes.includes("credit-reject") && <CreditRejectAction order={row.order} compact />}
       </div>
     );
-  }, can(ORDER_PERMISSIONS.viewPage));
+  }, canOpenOrders);
 
   return (
     <>
@@ -99,9 +101,11 @@ function CreditHoldListContent() {
         title={TITLE}
         subtitle="Đơn công nợ có dư nợ + giá trị đơn vượt hạn mức tín dụng, chờ người có quyền duyệt."
         actions={
-          <HeaderLink href={ADMIN_ROUTES.orders.list}>
-            <ArrowLeft className="size-3.5" /> {UI_LABELS.order.pageTitle}
-          </HeaderLink>
+          canOpenOrders && (
+            <HeaderLink href={ADMIN_ROUTES.orders.list}>
+              <ArrowLeft className="size-3.5" /> {UI_LABELS.order.pageTitle}
+            </HeaderLink>
+          )
         }
       />
       {!canRead ? (

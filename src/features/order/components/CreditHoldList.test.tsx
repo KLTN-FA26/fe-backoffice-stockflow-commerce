@@ -2,6 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { ADMIN_ROUTES, CREDIT_HOLD_PERMISSIONS } from "@/constants";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 
@@ -63,14 +64,36 @@ describe("Credit hold — danh sách (SCRUM-427)", () => {
       await screen.findByRole("button", { name: /^Duyệt vượt hạn mức đơn/ }),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Từ chối vượt hạn mức đơn/ })).toBeInTheDocument();
+    // G. mã đơn vẫn hiện nhưng không là link tới trang đơn bị chặn
+    expect(screen.getByText(apiOrder.orderNumber)).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: apiOrder.orderNumber })).not.toBeInTheDocument();
+    // E. không có link "Đơn hàng" ở header — ACCOUNTANT không vào được trang đơn
+    expect(screen.queryByRole("link", { name: /Đơn hàng/ })).not.toBeInTheDocument();
   });
 
   it("ORDER_COORDINATOR / SALES_STAFF chỉ xem — không có nút duyệt, mã đơn là link", async () => {
     renderList(ORDER_PERMISSION_SETS.coordinator);
 
-    expect(await screen.findByRole("link", { name: apiOrder.orderNumber })).toBeInTheDocument();
+    // H. mã đơn là link tới chi tiết
+    expect(await screen.findByRole("link", { name: apiOrder.orderNumber })).toHaveAttribute(
+      "href",
+      ADMIN_ROUTES.orders.detail(apiOrder.orderId),
+    );
     expect(screen.queryByRole("button", { name: /Duyệt vượt hạn mức/ })).not.toBeInTheDocument();
+    // F. có sales-orders:VIEW_PAGE → link "Đơn hàng" ở header về đúng danh sách đơn
+    expect(screen.getByRole("link", { name: /Đơn hàng/ })).toHaveAttribute(
+      "href",
+      ADMIN_ROUTES.orders.list,
+    );
+  });
+
+  it("I. chỉ quyền credit hold VIEW_PAGE + READ (không có sales-orders) → vào được hàng đợi", async () => {
+    const get = renderList([CREDIT_HOLD_PERMISSIONS.viewPage, CREDIT_HOLD_PERMISSIONS.read]);
+
+    expect(await screen.findByText(apiOrder.orderNumber)).toBeInTheDocument();
+    expect(screen.queryByText("Bạn không có quyền")).not.toBeInTheDocument();
+    expect(get.mock.calls.some(([url]) => url === "/orders/credit-holds")).toBe(true);
+    expect(screen.queryByRole("link", { name: /Đơn hàng/ })).not.toBeInTheDocument();
   });
 
   it("không có quyền sales-order-credit-holds → 'Bạn không có quyền', không gọi API", async () => {
