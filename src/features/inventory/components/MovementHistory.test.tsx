@@ -256,6 +256,68 @@ describe("movement ledger screen", () => {
     expect(screen.getByRole("button", { name: INVENTORY_LABELS.next })).toBeEnabled();
   });
 
+  it("shows the stock status change of a ledger row, keeping unknown codes verbatim", async () => {
+    const row = {
+      sku: "CUP-PP-500",
+      quantity: 4,
+      occurredAt: "2026-10-11T00:00:00Z",
+      fromLocation: "HCM-A01-1-A",
+      toLocation: "HCM-A01-1-A",
+    };
+    server.use(
+      http.get(endpoint, () =>
+        HttpResponse.json({
+          success: true,
+          data: {
+            ...emptyPage,
+            items: [
+              // BE #108 expiry sweep: same location on both sides, only the status moves.
+              {
+                ...row,
+                movementId: crypto.randomUUID(),
+                type: "STATUS_CHANGE",
+                status: "AVAILABLE",
+                toStatus: "EXPIRED",
+                referenceType: "EXPIRY_SWEEP",
+              },
+              {
+                ...row,
+                movementId: crypto.randomUUID(),
+                type: "MOVE",
+                status: "FUTURE_STOCK_STATUS",
+                referenceType: "MOVE_TASK",
+              },
+              {
+                ...row,
+                movementId: crypto.randomUUID(),
+                type: "RECEIPT",
+                referenceType: "GOODS_RECEIPT",
+              },
+            ],
+            totalElements: 3,
+            totalPages: 1,
+          },
+        }),
+      ),
+    );
+    renderHistory();
+    const table = await screen.findByRole("table");
+    const statusColumn = within(table)
+      .getAllByRole("columnheader")
+      .findIndex((header) => header.textContent === INVENTORY_LABELS.status);
+    expect(statusColumn).toBeGreaterThan(-1);
+    const statusCells = within(table)
+      .getAllByRole("row")
+      .slice(1)
+      .map((tableRow) => within(tableRow).getAllByRole("cell")[statusColumn]?.textContent);
+    expect(statusCells).toEqual([
+      `AVAILABLE ${INVENTORY_LABELS.statusTransition} EXPIRED`,
+      "FUTURE_STOCK_STATUS",
+      INVENTORY_LABELS.missing,
+    ]);
+    expect(screen.queryByText(INVENTORY_LABELS.loadError)).not.toBeInTheDocument();
+  });
+
   it("offers exactly the backend movement types and sends the chosen one", async () => {
     const types = vi.fn();
     server.use(

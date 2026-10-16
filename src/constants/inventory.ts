@@ -158,6 +158,7 @@ export const INVENTORY_LABELS = {
   reference: "Chứng từ nguồn",
   reason: "Lý do",
   missing: "—",
+  statusTransition: "→",
   filtered: "Đang áp dụng bộ lọc",
   offline: "Mất kết nối — thay đổi chưa được lưu.",
 } as const;

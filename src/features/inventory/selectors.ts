@@ -1,4 +1,5 @@
 import {
+  INVENTORY_LABELS,
   STOCK_ADJUSTMENT_REASON_LABELS,
   STOCK_ADJUSTMENT_REASONS,
   STOCK_MOVEMENT_LABELS,
@@ -9,6 +10,15 @@ import {
 export function movementTypeLabel(type: string): string {
   const known = STOCK_MOVEMENT_TYPES.find((value) => value === type);
   return known ? STOCK_MOVEMENT_LABELS[known] : type;
+}
+
+// Ledger stock status codes are shown verbatim: `AVAILABLE → EXPIRED` when the row changes
+// status (e.g. BE expiry sweep STATUS_CHANGE), the one known side otherwise.
+export function movementStatusLabel(status?: string | null, toStatus?: string | null): string {
+  if (status && toStatus && status !== toStatus) {
+    return `${status} ${INVENTORY_LABELS.statusTransition} ${toStatus}`;
+  }
+  return status || toStatus || INVENTORY_LABELS.missing;
 }
 
 // Known adjustment reasons are localized; a newer backend code is shown verbatim.

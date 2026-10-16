@@ -12,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import { movementTypeLabel } from "../selectors";
+import { movementStatusLabel, movementTypeLabel } from "../selectors";
 
 import type { StockMovement } from "../types";
 
@@ -30,6 +30,7 @@ export function MovementTable({ items }: { items: StockMovement[] }) {
               INVENTORY_LABELS.lot,
               INVENTORY_LABELS.fromLocation,
               INVENTORY_LABELS.toLocation,
+              INVENTORY_LABELS.status,
               INVENTORY_LABELS.quantity,
               INVENTORY_LABELS.reference,
               INVENTORY_LABELS.reason,
@@ -58,6 +59,9 @@ export function MovementTable({ items }: { items: StockMovement[] }) {
               </TableCell>
               <TableCell className="font-mono">
                 {item.toLocation ?? INVENTORY_LABELS.missing}
+              </TableCell>
+              <TableCell className="font-mono">
+                {movementStatusLabel(item.status, item.toStatus)}
               </TableCell>
               <TableCell className="text-right font-mono tabular-nums">{item.quantity}</TableCell>
               <TableCell className="font-mono">{item.referenceType}</TableCell>
