@@ -13,7 +13,7 @@ import {
   lockedChecksumOf,
   setMockOrderStatus,
   snapshotIdOf,
-} from "./mock-routes-orders";
+} from "./mock-routes-orders-store";
 import { beError, isRecord } from "./mock-routes-purchase-orders-store";
 
 import type { AxiosRequestConfig } from "axios";
@@ -148,6 +148,10 @@ function seedTask(order: Order, spec: SeedSpec): MockTask {
     verifyDesigns(task, order, false, at(100));
     // BE: lệch checksum → đơn ON_HOLD (reason DESIGN_MISMATCH)
     setMockOrderStatus(order.orderId, "ON_HOLD");
+  } else if (spec.pick !== "CANCELLED") {
+    // BE `createTask` → `Order#startFulfilment`: đơn có task thì đã IN_FULFILMENT (đơn mock
+    // "Ready to Fulfill" gộp về READY_TO_FULFILL, task seed coi như đã tạo)
+    setMockOrderStatus(order.orderId, "IN_FULFILMENT");
   }
   return task;
 }

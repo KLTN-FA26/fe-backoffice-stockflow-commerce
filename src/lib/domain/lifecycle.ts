@@ -42,13 +42,14 @@ import type {
   PutawayStatus,
   MoveTaskStatus,
 } from "@/lib/mock-data";
-// OrderStatus lấy từ constants/statuses.ts (không phải mock-data) — đúng 10 trạng thái BE
-// (OrderStatus.java), dùng cho zod enum / lifecycle / filter UI.
+// OrderStatus lấy từ constants/statuses.ts (không phải mock-data) — 12 trạng thái BE
+// (OrderStatus.java) FE hỗ trợ, dùng cho zod enum / lifecycle / filter UI; OrderReadStatus thêm
+// UNKNOWN (trạng thái BE mới FE chưa hỗ trợ) — chỉ đọc, không chuyển tiếp được.
 // ReceiptStatus cũng vậy — 6 trạng thái docs 03 §5.1 (mock-data chỉ có 5, thiếu "In QC").
 // PickStatus / PackStatus: các trạng thái BE `/fulfillment/tasks` phát ra được (SCRUM-437).
 import type {
   LoadStatus,
-  OrderStatus,
+  OrderReadStatus,
   PackStatus,
   PickStatus,
   ReceiptStatus,
@@ -219,27 +220,31 @@ export const MOVE_TRANSITIONS: Record<MoveTaskStatus, readonly MoveTaskStatus[]>
 
 /* ── Module 14: Order ────────────────────────────────────────────────── */
 
-// Chép nguyên BE `order/api/OrderStatus.java#canTransitionTo` (10 trạng thái, ON_HOLD có từ BE
-// commit 2e9c4df) — FE khớp BE, không dựng theo docs 17 (xem QUYẾT ĐỊNH ở ORDER_STATUSES).
-// Mã wire ↔ nhãn FE: features/order/status-map.ts (PAID ↔ "Paid", IN_FULFILMENT ↔ "In Fulfilment").
-export const ORDER_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
-  // DRAFT → PENDING_PAYMENT / CANCELLED
-  Draft: ["Pending Payment", "Cancelled"],
-  // PENDING_PAYMENT → PAID / CANCELLED
-  "Pending Payment": ["Paid", "Cancelled"],
-  // PAID → IN_FULFILMENT / ON_HOLD / CANCELLED
-  Paid: ["In Fulfilment", "On Hold", "Cancelled"],
-  // IN_FULFILMENT → SHIPPED / ON_HOLD / CANCELLED
+// Chép nguyên BE `order/api/OrderStatus.java#canTransitionTo` (develop, 12 trạng thái sau
+// SCRUM-460/423/427) — FE khớp BE, không dựng theo docs 17 (xem QUYẾT ĐỊNH ở ORDER_STATUSES).
+// Mã wire ↔ nhãn FE: features/order/status-map.ts (CONFIRMED ↔ "Confirmed"…).
+export const ORDER_TRANSITIONS: Record<OrderReadStatus, readonly OrderReadStatus[]> = {
+  // DRAFT → CONFIRMED / ON_HOLD: đơn công nợ trong / vượt hạn mức (docs 14 BR-06, SCRUM-427)
+  Draft: ["Pending Payment", "Confirmed", "On Hold", "Cancelled"],
+  // docs 15 BR-02: đơn cọc chỉ Confirmed khi đủ cọc; không đi thẳng sang sản xuất / kho
+  "Pending Payment": ["Confirmed", "Cancelled"],
+  // Release (SCRUM-423, docs 17 §4.2 bước 5–6): có dòng in → In Production, chỉ hàng sẵn →
+  // Ready to Fulfill; In Fulfilment: kho nhận đơn chỉ-hàng-sẵn chưa release
+  Confirmed: ["In Production", "Ready to Fulfill", "In Fulfilment", "On Hold", "Cancelled"],
+  // docs 19 BR-06: rời In Production khi mọi lệnh sản xuất (gốc + con) Completed
+  "In Production": ["Ready to Fulfill", "On Hold", "Cancelled"],
+  "Ready to Fulfill": ["In Fulfilment", "On Hold", "Cancelled"],
   "In Fulfilment": ["Shipped", "On Hold", "Cancelled"],
-  // ON_HOLD → IN_FULFILMENT / CANCELLED
-  "On Hold": ["In Fulfilment", "Cancelled"],
+  // Duyệt công nợ → Confirmed; từ chối + đổi sang trả trước/cọc → Pending Payment (docs 15 §4.3)
+  "On Hold": ["Confirmed", "Pending Payment", "In Fulfilment", "Cancelled"],
   // BE BR-031 (OrderStatus#canTransitionTo); docs 17 BR-03 (§6 / §4.5): từ SHIPPED hàng đã ở
   // chỗ hãng vận chuyển — không còn Cancelled, phải đi flow trả hàng.
   Shipped: ["Delivered"],
-  // DELIVERED → COMPLETED / RETURNED
   Delivered: ["Completed", "Returned"],
-  // Terminal (OrderStatus#isTerminal)
+  // Terminal (OrderStatus#isTerminal) — docs 17 BR-05: bất biến về nội dung
   Completed: [],
   Cancelled: [],
   Returned: [],
+  // Trạng thái BE mới FE chưa hiểu → không mở thao tác nào chỉ vì parse được (KHÔNG phải terminal).
+  UNKNOWN: [],
 };

@@ -4,9 +4,10 @@
  * Every axios error is converted into an ApiError so consuming code never
  * needs to inspect raw AxiosError shapes.
  *
- * `fieldErrors` (when present) maps directly to react-hook-form `setError`:
- *   for (const [k, msg] of Object.entries(e.fieldErrors))
- *     form.setError(k as Path<T>, { type: "server", message: msg });
+ * `fieldErrors` (when present) keeps the server's field names verbatim (`{ field: message }`).
+ * Each form maps the server fields it recognises explicitly (e.g. `ServerFieldMap` in
+ * `features/order/errors.ts`, `poCreateFieldErrors`) — never cast an arbitrary server field name to
+ * a form path type; unknown fields go to the form's general error instead.
  */
 
 import { type AxiosError } from "axios";
@@ -76,15 +77,25 @@ export class ApiError extends Error {
   }
 }
 
-function normalizeFieldErrors(
-  errors: ApiErrorBody["fieldErrors"],
-): Record<string, string> | undefined {
-  if (!errors) return undefined;
-  if (!Array.isArray(errors)) return errors;
+/**
+ * BE `ApiResponse.fieldErrors`: `[{ field, message, code? }]` (field đầu tiên thắng). Phần tử sai
+ * hình (không phải object, thiếu / không phải chuỗi `field` hoặc `message`) bị bỏ — body lỗi đến từ
+ * mạng, không được làm hỏng luồng xử lý lỗi.
+ */
+function normalizeFieldErrors(errors: unknown): Record<string, string> | undefined {
+  if (typeof errors !== "object" || errors === null) return undefined;
+  const entries: [unknown, unknown][] = Array.isArray(errors)
+    ? errors.map((error: unknown) =>
+        typeof error === "object" && error !== null && "field" in error && "message" in error
+          ? [error.field, error.message]
+          : [undefined, undefined],
+      )
+    : Object.entries(errors);
 
   const normalized: Record<string, string> = {};
-  for (const error of errors) {
-    if (!(error.field in normalized)) normalized[error.field] = error.message;
+  for (const [field, message] of entries) {
+    if (typeof field !== "string" || field === "" || typeof message !== "string") continue;
+    if (!Object.hasOwn(normalized, field)) normalized[field] = message;
   }
   return Object.keys(normalized).length > 0 ? normalized : undefined;
 }

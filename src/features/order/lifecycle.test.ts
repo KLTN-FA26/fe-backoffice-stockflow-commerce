@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { ORDER_READ_STATUSES, ORDER_STATUSES } from "@/constants";
+
 import {
   ORDER_TRANSITIONS,
   allowedOrderActions,
@@ -7,24 +9,32 @@ import {
   nextOrderStatuses,
 } from "./lifecycle";
 
+import type { OrderPaymentTerm } from "@/constants";
 import type { PermissionCode } from "@/lib/auth";
 import type { OrderStatus } from "./types";
 
 /**
- * Nguồn: BE order/api/OrderStatus.java#canTransitionTo (10 giá trị, ON_HOLD từ BE commit
- * 2e9c4df). FE khớp BE 1-1 — xem QUYẾT ĐỊNH ở ORDER_STATUSES.
+ * Nguồn: BE order/api/OrderStatus.java#canTransitionTo (develop, 12 giá trị sau
+ * SCRUM-460/423/427). FE khớp BE 1-1 — xem QUYẾT ĐỊNH ở ORDER_STATUSES.
  */
 describe("ORDER_TRANSITIONS (BE OrderStatus#canTransitionTo)", () => {
   it.each<[OrderStatus, OrderStatus[]]>([
-    ["Draft", ["Pending Payment", "Cancelled"]],
-    ["Pending Payment", ["Paid", "Cancelled"]],
-    ["Paid", ["In Fulfilment", "On Hold", "Cancelled"]],
+    ["Draft", ["Pending Payment", "Confirmed", "On Hold", "Cancelled"]],
+    ["Pending Payment", ["Confirmed", "Cancelled"]],
+    ["Confirmed", ["In Production", "Ready to Fulfill", "In Fulfilment", "On Hold", "Cancelled"]],
+    ["In Production", ["Ready to Fulfill", "On Hold", "Cancelled"]],
+    ["Ready to Fulfill", ["In Fulfilment", "On Hold", "Cancelled"]],
     ["In Fulfilment", ["Shipped", "On Hold", "Cancelled"]],
-    ["On Hold", ["In Fulfilment", "Cancelled"]],
+    ["On Hold", ["Confirmed", "Pending Payment", "In Fulfilment", "Cancelled"]],
     ["Shipped", ["Delivered"]],
     ["Delivered", ["Completed", "Returned"]],
   ])("%s → %j", (from, to) => {
     expect(nextOrderStatuses(from)).toEqual(to);
+  });
+
+  it("docs 15 BR-02: Pending Payment không đi thẳng sang sản xuất / kho", () => {
+    expect(nextOrderStatuses("Pending Payment")).not.toContain("In Production");
+    expect(nextOrderStatuses("Pending Payment")).not.toContain("Ready to Fulfill");
   });
 
   it("BE BR-031; docs BR-03: từ Shipped trở đi không còn Cancelled", () => {
@@ -40,81 +50,121 @@ describe("ORDER_TRANSITIONS (BE OrderStatus#canTransitionTo)", () => {
     }
   });
 
-  it("bảng có đúng 10 trạng thái BE, không thêm trạng thái docs nào", () => {
-    expect(Object.keys(ORDER_TRANSITIONS).sort()).toEqual(
-      [
-        "Cancelled",
-        "Completed",
-        "Delivered",
-        "Draft",
-        "In Fulfilment",
-        "On Hold",
-        "Paid",
-        "Pending Payment",
-        "Returned",
-        "Shipped",
-      ].sort(),
-    );
+  it("bảng phủ 12 trạng thái BE + UNKNOWN phòng thủ, không thêm trạng thái docs nào", () => {
+    expect(Object.keys(ORDER_TRANSITIONS).sort()).toEqual([...ORDER_READ_STATUSES].sort());
+    expect(ORDER_STATUSES).toHaveLength(12);
+    expect(ORDER_STATUSES).not.toContain("Paid");
+  });
+
+  it("UNKNOWN (trạng thái BE mới FE chưa hỗ trợ): không chuyển tiếp, không phải terminal", () => {
+    expect(ORDER_TRANSITIONS.UNKNOWN).toEqual([]);
+    expect(nextOrderStatuses("UNKNOWN")).toEqual([]);
+    expect(isOrderTerminal("UNKNOWN")).toBe(false);
+    // Không trạng thái đã biết nào chuyển được sang UNKNOWN
+    for (const status of ORDER_STATUSES) expect(nextOrderStatuses(status)).not.toContain("UNKNOWN");
   });
 });
 
 /**
- * Bộ mã quyền `sales-orders` theo seed BE (V20260903000100__identity_seed_roles_permissions.sql):
- * ORDER_COORDINATOR có APPROVE; SALES_STAFF chỉ VIEW_PAGE/READ/CREATE/UPDATE; WAREHOUSE_STAFF
- * không có quyền nào trên `sales-orders`.
+ * Mã quyền theo seed BE develop:
+ * - `sales-orders`: SALES_STAFF + ORDER_COORDINATOR VIEW_PAGE/READ/CREATE/UPDATE; chỉ
+ *   ORDER_COORDINATOR có APPROVE (= release) — V20260903000100.
+ * - `sales-order-cancellations:UPDATE`: SALES_STAFF + ORDER_COORDINATOR — V20261013000200.
+ * - `sales-order-credit-holds`: ACCOUNTANT VIEW_PAGE/READ/APPROVE; Sales + Coordinator chỉ
+ *   VIEW_PAGE/READ — V20261013000400.
+ * - WAREHOUSE_STAFF: không có quyền đơn bán nào.
  */
 const ROLE_PERMISSIONS: Record<string, readonly PermissionCode[]> = {
   ORDER_COORDINATOR: [
     "sales-orders:VIEW_PAGE",
     "sales-orders:READ",
-    "sales-orders:CREATE",
-    "sales-orders:UPDATE",
     "sales-orders:APPROVE",
-    "sales-orders:EXPORT",
+    "sales-order-cancellations:UPDATE",
+    "sales-order-credit-holds:READ",
   ],
   SALES_STAFF: [
     "sales-orders:VIEW_PAGE",
     "sales-orders:READ",
-    "sales-orders:CREATE",
-    "sales-orders:UPDATE",
+    "sales-order-cancellations:UPDATE",
+    "sales-order-credit-holds:READ",
   ],
+  ACCOUNTANT: ["sales-order-credit-holds:READ", "sales-order-credit-holds:APPROVE"],
   WAREHOUSE_STAFF: [],
 };
 
-function checkerFor(role: keyof typeof ROLE_PERMISSIONS) {
+type Role = keyof typeof ROLE_PERMISSIONS;
+
+function checkerFor(role: Role) {
   const granted = ROLE_PERMISSIONS[role] ?? [];
   return (code: PermissionCode) => granted.includes(code);
 }
 
-const codes = (status: OrderStatus, role: keyof typeof ROLE_PERMISSIONS) =>
-  allowedOrderActions(status, checkerFor(role)).map((a) => a.code);
+const codes = (status: OrderStatus, role: Role, paymentTerm: OrderPaymentTerm = "PREPAID") =>
+  allowedOrderActions(status, checkerFor(role), { paymentTerm }).map((a) => a.code);
 
-describe("allowedOrderActions — action-gating theo status + mã quyền BE", () => {
-  it("ORDER_COORDINATOR (có sales-orders:APPROVE) huỷ được đơn Pending Payment / Paid", () => {
-    expect(codes("Pending Payment", "ORDER_COORDINATOR")).toEqual(["admin-cancel"]);
-    expect(codes("Paid", "ORDER_COORDINATOR")).toEqual(["admin-cancel"]);
+describe("allowedOrderActions — release (SCRUM-423)", () => {
+  it("Confirmed + ORDER_COORDINATOR → Release + Huỷ", () => {
+    expect(codes("Confirmed", "ORDER_COORDINATOR")).toEqual(["release", "admin-cancel"]);
   });
 
-  it("SALES_STAFF không có APPROVE → không thấy nút huỷ (BE sẽ trả 403)", () => {
-    expect(codes("Pending Payment", "SALES_STAFF")).toEqual([]);
-    expect(codes("Paid", "SALES_STAFF")).toEqual([]);
+  it("Confirmed + SALES_STAFF (không có APPROVE) → không thấy Release, vẫn huỷ được", () => {
+    expect(codes("Confirmed", "SALES_STAFF")).toEqual(["admin-cancel"]);
   });
 
-  it("WAREHOUSE_STAFF không có quyền sales-orders → không thấy action nào", () => {
-    expect(codes("Pending Payment", "WAREHOUSE_STAFF")).toEqual([]);
+  it("docs 17 BR-02: chưa đủ điều kiện thanh toán (Pending Payment / On Hold) → không Release", () => {
+    for (const status of ["Pending Payment", "On Hold", "Draft"] as const) {
+      expect(codes(status, "ORDER_COORDINATOR")).not.toContain("release");
+    }
   });
 
-  it("In Fulfilment (BE IN_FULFILMENT → CANCELLED) — ORDER_COORDINATOR thấy nút huỷ", () => {
-    expect(codes("In Fulfilment", "ORDER_COORDINATOR")).toEqual(["admin-cancel"]);
+  it("đã release (In Production / Ready to Fulfill) → không Release lại", () => {
+    for (const status of ["In Production", "Ready to Fulfill", "In Fulfilment"] as const) {
+      expect(codes(status, "ORDER_COORDINATOR")).not.toContain("release");
+    }
+  });
+});
+
+describe("allowedOrderActions — credit hold (SCRUM-427, docs 14 BR-06)", () => {
+  it("On Hold + CREDIT + ACCOUNTANT → Duyệt / Từ chối vượt hạn mức", () => {
+    expect(codes("On Hold", "ACCOUNTANT", "CREDIT")).toEqual(["credit-approve", "credit-reject"]);
   });
 
-  it("On Hold (BE ON_HOLD → CANCELLED) — ORDER_COORDINATOR thấy nút huỷ", () => {
-    expect(codes("On Hold", "ORDER_COORDINATOR")).toEqual(["admin-cancel"]);
+  it("On Hold + CREDIT + ORDER_COORDINATOR (chỉ READ) → không duyệt được, chỉ huỷ", () => {
+    expect(codes("On Hold", "ORDER_COORDINATOR", "CREDIT")).toEqual(["admin-cancel"]);
   });
 
-  it("BE BR-031; docs BR-03: từ Shipped trở đi không ai thấy nút huỷ, kể cả có APPROVE", () => {
-    for (const status of ["Shipped", "Delivered", "Completed", "Cancelled"] as const) {
-      expect(codes(status, "ORDER_COORDINATOR")).toEqual([]);
+  it("On Hold không phải đơn công nợ (treo vì lý do khác) → không có duyệt công nợ", () => {
+    expect(codes("On Hold", "ACCOUNTANT", "DEPOSIT")).toEqual([]);
+  });
+
+  it("đơn CREDIT đã Confirmed → hết credit hold", () => {
+    expect(codes("Confirmed", "ACCOUNTANT", "CREDIT")).toEqual([]);
+  });
+});
+
+describe("allowedOrderActions — huỷ admin", () => {
+  it("SALES_STAFF + ORDER_COORDINATOR có sales-order-cancellations:UPDATE → huỷ được trước Shipped", () => {
+    for (const status of ["Pending Payment", "In Production", "Ready to Fulfill"] as const) {
+      expect(codes(status, "SALES_STAFF")).toEqual(["admin-cancel"]);
+      expect(codes(status, "ORDER_COORDINATOR")).toEqual(["admin-cancel"]);
+    }
+  });
+
+  it("UNKNOWN → không action nào kể cả khi có mọi quyền và là đơn công nợ", () => {
+    const all = () => true;
+    expect(allowedOrderActions("UNKNOWN", all)).toEqual([]);
+    expect(allowedOrderActions("UNKNOWN", all, { paymentTerm: "CREDIT" })).toEqual([]);
+  });
+
+  it("WAREHOUSE_STAFF không có quyền đơn bán → không thấy action nào", () => {
+    for (const status of ORDER_STATUSES) expect(codes(status, "WAREHOUSE_STAFF")).toEqual([]);
+  });
+
+  it("BE BR-031; docs BR-03/BR-05: từ Shipped trở đi và terminal → không render nút mutating nào", () => {
+    for (const status of ["Shipped", "Delivered", "Completed", "Cancelled", "Returned"] as const) {
+      for (const role of Object.keys(ROLE_PERMISSIONS)) {
+        expect(codes(status, role, "CREDIT")).toEqual([]);
+      }
     }
   });
 });

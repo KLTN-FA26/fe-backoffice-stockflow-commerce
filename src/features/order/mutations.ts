@@ -1,30 +1,72 @@
 /**
  * Order — mutation hooks.
  *
- * `createMutation` thuần (KHÔNG `createTransitionMutation`): admin-cancel là một
- * endpoint POST riêng biệt (`/orders/:id/admin-cancellation`), không phải PATCH
- * status chung.
+ * `createMutation` thuần (KHÔNG `createTransitionMutation`): mỗi thao tác là một endpoint POST
+ * riêng (`/admin-cancellation`, `/release`, `/credit-approval`, `/credit-rejection`), không phải
+ * PATCH status chung.
+ *
+ * Invalidation map (api-conventions §2.3): mọi thao tác đổi trạng thái đơn → `orderKeys.all`
+ * (list + detail + history + lệnh sản xuất + credit holds đều nằm dưới key này).
+ * Thao tác đổi giữ chỗ tồn (BE `OrderStatus#holdsStock`) còn invalidate tồn + phiếu giữ hàng
+ * qua `RESERVATION_CHANGE_INVALIDATIONS` (`lib/api/shared-query-keys.ts`, không import chéo feature):
+ *   - huỷ admin → nhả giữ chỗ (BE OrderServiceImpl.cancelLoaded)
+ *   - release → ghim giữ chỗ vào kho xuất (BE OrderReleaseService.release)
+ *   - từ chối công nợ → huỷ (nhả) hoặc chuyển trả trước / đặt cọc (giữ chỗ lại) (BE CreditHoldService.refuse)
+ * Duyệt công nợ: ON_HOLD → CONFIRMED, cả hai đều giữ hàng → giữ chỗ không đổi, chỉ `orderKeys.all`.
+ * Không invalidate sổ cái (movements) — giữ chỗ không ghi bút toán tồn.
+ *
+ * `showErrorToast: false` — call site tự map lỗi theo `error.code` (`errors.ts`) và hiện lý do
+ * từ chối ngay trong dialog; để factory toast `error.message` (tiếng Anh) sẽ ra 2 thông báo.
  */
 
+import { TOAST_MESSAGES } from "@/constants";
 import { createMutation } from "@/lib/api/query-factory";
+import { RESERVATION_CHANGE_INVALIDATIONS } from "@/lib/api/shared-query-keys";
 
-import { adminCancelOrder, type AdminCancelOrderInput } from "./api";
+import { approveCreditHold, rejectCreditHold, releaseOrder } from "./action-api";
+import { adminCancelOrder, type OrderMutationVars } from "./api";
 import { orderKeys } from "./queries";
 
-/* ── Admin cancel ────────────────────────────────────────────────────── */
+import type {
+  AdminCancelOrderInput,
+  CreditApprovalInput,
+  CreditRejectionInput,
+  Order,
+  ReleaseOrderInput,
+} from "./types";
 
-/**
- * Invalidation map (api-conventions §2.3): huỷ đơn đổi trạng thái đơn (list + detail →
- * `orderKeys.all`) và giải phóng giữ chỗ tồn (BE `OrderStatus#holdsStock`: PENDING_PAYMENT/PAID/
- * IN_FULFILMENT/ON_HOLD giữ hàng). Module tồn kho chưa có query nào (`features/inventory` mới là
- * stub) nên chưa có key để invalidate — khi có `inventoryKeys`/`reservationKeys` thì thêm vào đây
- * (qua page/lib/domain, không import chéo feature).
- *
- * `showErrorToast: false` — call site tự map lỗi qua `adminCancelErrorView()`
- * (branch theo `error.code`), nếu để factory toast `error.message` sẽ ra 2 toast.
- */
-export const useAdminCancelOrder = createMutation<AdminCancelOrderInput, void>(adminCancelOrder, {
-  invalidate: [orderKeys.all],
-  successMessage: "Đã huỷ đơn hàng",
-  showErrorToast: false,
-});
+export const useAdminCancelOrder = createMutation<OrderMutationVars<AdminCancelOrderInput>, Order>(
+  adminCancelOrder,
+  {
+    invalidate: [orderKeys.all, ...RESERVATION_CHANGE_INVALIDATIONS],
+    successMessage: TOAST_MESSAGES.order.cancelled,
+    showErrorToast: false,
+  },
+);
+
+export const useReleaseOrder = createMutation<OrderMutationVars<ReleaseOrderInput>, Order>(
+  releaseOrder,
+  {
+    invalidate: [orderKeys.all, ...RESERVATION_CHANGE_INVALIDATIONS],
+    successMessage: TOAST_MESSAGES.order.released,
+    showErrorToast: false,
+  },
+);
+
+export const useApproveCreditHold = createMutation<OrderMutationVars<CreditApprovalInput>, Order>(
+  approveCreditHold,
+  {
+    invalidate: [orderKeys.all],
+    successMessage: TOAST_MESSAGES.order.creditApproved,
+    showErrorToast: false,
+  },
+);
+
+export const useRejectCreditHold = createMutation<OrderMutationVars<CreditRejectionInput>, Order>(
+  rejectCreditHold,
+  {
+    invalidate: [orderKeys.all, ...RESERVATION_CHANGE_INVALIDATIONS],
+    successMessage: TOAST_MESSAGES.order.creditRejected,
+    showErrorToast: false,
+  },
+);

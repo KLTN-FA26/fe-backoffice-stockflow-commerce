@@ -5,23 +5,55 @@
 
 import { Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { vi } from "vitest";
 
-import { ORDER_PERMISSIONS } from "@/constants";
+import {
+  CREDIT_HOLD_PERMISSIONS,
+  CUSTOMER_CREDIT_PROFILE_PERMISSIONS,
+  ORDER_PERMISSIONS,
+} from "@/constants";
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
 import type { PermissionCode } from "@/lib/auth";
 
-/** Theo seed BE: ORDER_COORDINATOR có APPROVE; SALES_STAFF chỉ VIEW_PAGE/READ/CREATE/UPDATE. */
+/**
+ * Theo seed BE develop: `sales-orders` APPROVE (release) chỉ ORDER_COORDINATOR;
+ * `sales-order-cancellations:UPDATE` cho SALES_STAFF + ORDER_COORDINATOR;
+ * `sales-order-credit-holds:APPROVE` chỉ ACCOUNTANT (Sales/Coordinator chỉ READ);
+ * `customer-credit-profiles:READ` cho ACCOUNTANT / SALES_STAFF / ORDER_COORDINATOR (V20261013000400).
+ */
 export const ORDER_PERMISSION_SETS = {
-  // WAREHOUSE_STAFF: không có quyền sales-orders nào
+  // WAREHOUSE_STAFF: không có quyền đơn bán nào
   none: [],
-  viewOnly: ["sales-orders:VIEW_PAGE"],
-  salesStaff: ["sales-orders:VIEW_PAGE", "sales-orders:READ"],
-  coordinator: ["sales-orders:VIEW_PAGE", "sales-orders:READ", ORDER_PERMISSIONS.cancel],
+  viewOnly: [ORDER_PERMISSIONS.viewPage],
+  // Chỉ đọc đơn — không huỷ / release / duyệt công nợ
+  readOnly: [ORDER_PERMISSIONS.viewPage, ORDER_PERMISSIONS.read],
+  salesStaff: [
+    ORDER_PERMISSIONS.viewPage,
+    ORDER_PERMISSIONS.read,
+    ORDER_PERMISSIONS.cancel,
+    CREDIT_HOLD_PERMISSIONS.viewPage,
+    CREDIT_HOLD_PERMISSIONS.read,
+    CUSTOMER_CREDIT_PROFILE_PERMISSIONS.read,
+  ],
+  coordinator: [
+    ORDER_PERMISSIONS.viewPage,
+    ORDER_PERMISSIONS.read,
+    ORDER_PERMISSIONS.release,
+    ORDER_PERMISSIONS.cancel,
+    CREDIT_HOLD_PERMISSIONS.viewPage,
+    CREDIT_HOLD_PERMISSIONS.read,
+    CUSTOMER_CREDIT_PROFILE_PERMISSIONS.read,
+  ],
+  accountant: [
+    CREDIT_HOLD_PERMISSIONS.viewPage,
+    CREDIT_HOLD_PERMISSIONS.read,
+    CREDIT_HOLD_PERMISSIONS.approve,
+    CUSTOMER_CREDIT_PROFILE_PERMISSIONS.read,
+  ],
 } satisfies Record<string, PermissionCode[]>;
 
 /** Handler theo path: trả data, hoặc throw (vd ApiError) để giả lập lỗi. */
@@ -70,4 +102,20 @@ export function renderOrderScreen(ui: React.ReactElement, searchParams = "") {
       </NuqsTestingAdapter>
     </QueryClientProvider>,
   );
+}
+
+/**
+ * Chọn một option của Radix Select trong jsdom (thiếu pointer-capture / scrollIntoView).
+ * Bản riêng của order — không import fixture của feature khác (feature-architecture).
+ */
+export async function pickOrderSelectOption(
+  user: { click: (el: Element) => Promise<void> },
+  trigger: string | RegExp,
+  option: string | RegExp,
+) {
+  Element.prototype.hasPointerCapture ??= () => false;
+  Element.prototype.releasePointerCapture ??= () => {};
+  Element.prototype.scrollIntoView ??= () => {};
+  await user.click(await screen.findByRole("combobox", { name: trigger }));
+  await user.click(await screen.findByRole("option", { name: option }));
 }

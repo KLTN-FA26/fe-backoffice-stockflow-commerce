@@ -2,9 +2,22 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "@/lib/api/client";
 
-import { getOrder, listOrders, toOrder } from "./api";
-import { apiGuestOrder } from "./__fixtures__/order";
+import { ORDER_STATUSES } from "@/constants";
+
+import {
+  adminCancelOrder,
+  buildOrderListQuery,
+  getOrder,
+  getOrderHistory,
+  listOrders,
+  toOrder,
+} from "./api";
+import { apiCreditPosition, apiGuestOrder } from "./__fixtures__/order";
+import { approveCreditHold, getCreditPosition, rejectCreditHold, releaseOrder } from "./action-api";
+import { STATUS_OPTIONS } from "./components/order-list/constants";
 import { orderDtoSchema } from "./schemas";
+
+import type { OrderStatus } from "./types";
 
 /** Hình dạng `OrderResponse` BE (develop) sau khi interceptor bóc envelope. */
 const beOrder = {
@@ -81,8 +94,48 @@ describe("order API contract (BE OrderResponse)", () => {
         quantity: 2,
         unitPrice: 175000,
         lineTotal: 350000,
+        isCustom: false,
+        designSnapshotId: null,
+        reservationIds: ["7a7a7a7a-0000-4000-8000-000000000001"],
       },
     ]);
+  });
+
+  it("docs 14 BR-02: dòng có designSnapshotId là dòng in (custom); field thanh toán thiếu → null", () => {
+    const order = toOrder(
+      orderDtoSchema.parse({
+        ...beOrder,
+        lines: [{ ...beOrder.lines[0], designSnapshotId: "c0ffee00-0000-4000-8000-000000000001" }],
+      }),
+    );
+    expect(order.lines[0]?.isCustom).toBe(true);
+    expect(order.paymentTerm).toBeNull();
+    expect(order.paymentStatus).toBeNull();
+    expect(order.cancellation).toBeNull();
+  });
+
+  it("map field thanh toán / release / huỷ (SCRUM-423/427/460)", () => {
+    const order = toOrder(
+      orderDtoSchema.parse({
+        ...beOrder,
+        status: "CANCELLED",
+        paymentTerm: "DEPOSIT",
+        paymentStatus: "PARTIALLY_PAID",
+        paidAmount: 100000,
+        depositRequired: 105000,
+        warehouseId: "8f8f8f8f-0000-4000-8000-000000000001",
+        cancellation: { reasonCode: "CUSTOMER_REQUEST", retainedAmount: 0 },
+      }),
+    );
+    expect(order).toMatchObject({
+      paymentTerm: "DEPOSIT",
+      paymentStatus: "PARTIALLY_PAID",
+      paidAmount: 100000,
+      depositRequired: 105000,
+      depositReceivedAt: null,
+      warehouseId: "8f8f8f8f-0000-4000-8000-000000000001",
+      cancellation: { reasonCode: "CUSTOMER_REQUEST", reason: null, retainedAmount: 0 },
+    });
   });
 
   it("đơn guest (BE bỏ hẳn key customerId vì non_null) vẫn parse được", () => {
@@ -90,7 +143,7 @@ describe("order API contract (BE OrderResponse)", () => {
     const order = toOrder(orderDtoSchema.parse(apiGuestOrder));
 
     expect(order.customerId).toBeNull();
-    expect(order.status).toBe("Paid");
+    expect(order.status).toBe("Confirmed");
     expect(order.recipientName).toBe("Nguyễn Văn A");
     expect(order.shippingAddressText).toBe("123 Nguyễn Huệ, Phường Bến Nghé, TP. Hồ Chí Minh");
   });
@@ -124,7 +177,9 @@ describe("order API contract (BE OrderResponse)", () => {
   it.each([
     ["DRAFT", "Draft"],
     ["PENDING_PAYMENT", "Pending Payment"],
-    ["PAID", "Paid"],
+    ["CONFIRMED", "Confirmed"],
+    ["IN_PRODUCTION", "In Production"],
+    ["READY_TO_FULFILL", "Ready to Fulfill"],
     ["IN_FULFILMENT", "In Fulfilment"],
     ["ON_HOLD", "On Hold"],
     ["SHIPPED", "Shipped"],
@@ -146,9 +201,102 @@ describe("order API contract (BE OrderResponse)", () => {
     expect(() => orderDtoSchema.parse({ ...beOrder, currency: "vnd" })).toThrow();
   });
 
-  it("status lạ ngoài OrderStatus.java → parse fail (bug contract)", async () => {
+  it("PAID đã bị BE bỏ (SCRUM-460) → UNKNOWN, không đoán thành Confirmed", () => {
+    expect(toOrder(orderDtoSchema.parse({ ...beOrder, status: "PAID" })).status).toBe("UNKNOWN");
+  });
+
+  it("thiếu status (field bắt buộc) vẫn fail — bug hợp đồng, không phải trạng thái mới", () => {
+    const { status: _omit, ...withoutStatus } = beOrder;
+    void _omit;
+    expect(() => orderDtoSchema.parse(withoutStatus)).toThrow();
+    expect(() => orderDtoSchema.parse({ ...beOrder, status: null })).toThrow();
+  });
+});
+
+describe("order API — trạng thái BE mới FE chưa hỗ trợ (forward-compat)", () => {
+  it("chi tiết: status lạ (PICKING) → parse được, status UNKNOWN", async () => {
     vi.spyOn(api, "get").mockResolvedValue({ data: { ...beOrder, status: "PICKING" } });
-    await expect(getOrder(beOrder.orderId)).rejects.toThrow();
+    const order = await getOrder(beOrder.orderId);
+    expect(order.status).toBe("UNKNOWN");
+    expect(order.orderNumber).toBe(beOrder.orderNumber);
+  });
+
+  it("danh sách: một dòng status lạ không làm hỏng cả trang", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: {
+        ...emptyBePage,
+        items: [beOrder, { ...beOrder, orderId: "o-2", status: "SOME_FUTURE_STATUS" }],
+        totalElements: 2,
+        totalPages: 1,
+      },
+    });
+    const page = await listOrders({});
+    expect(page.items.map((o) => o.status)).toEqual(["Pending Payment", "UNKNOWN"]);
+  });
+
+  it("lịch sử: from / to lạ → UNKNOWN từng vị trí; from vắng vẫn null", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: [
+        { to: "PENDING_PAYMENT", occurredAt: "2026-09-07T03:15:00Z" },
+        { from: "PENDING_PAYMENT", to: "PICKING", occurredAt: "2026-09-07T04:00:00Z" },
+        { from: "PACKED", to: "SHIPPED", occurredAt: "2026-09-07T05:00:00Z" },
+      ],
+    });
+    const history = await getOrderHistory(beOrder.orderId);
+    expect(history.map(({ from, to }) => ({ from, to }))).toEqual([
+      { from: null, to: "Pending Payment" },
+      { from: "Pending Payment", to: "UNKNOWN" },
+      { from: "UNKNOWN", to: "Shipped" },
+    ]);
+  });
+
+  it("paymentStatus lạ → UNKNOWN; paymentTerm lạ → null (không thành lựa chọn mới)", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { ...beOrder, paymentTerm: "INSTALLMENT", paymentStatus: "REFUNDED" },
+    });
+    const order = await getOrder(beOrder.orderId);
+    expect(order.paymentStatus).toBe("UNKNOWN");
+    expect(order.paymentTerm).toBeNull();
+  });
+
+  it("paymentTerm vắng key / null → model null; đã biết giữ nguyên", () => {
+    expect(toOrder(orderDtoSchema.parse(beOrder)).paymentTerm).toBeNull();
+    expect(toOrder(orderDtoSchema.parse({ ...beOrder, paymentTerm: null })).paymentTerm).toBeNull();
+    expect(toOrder(orderDtoSchema.parse({ ...beOrder, paymentTerm: "DEPOSIT" })).paymentTerm).toBe(
+      "DEPOSIT",
+    );
+  });
+});
+
+describe("order list filter — UNKNOWN chỉ để đọc, không bao giờ gửi BE", () => {
+  it("UNKNOWN không có trong lựa chọn lọc trạng thái lẫn tập trạng thái URL", () => {
+    expect(STATUS_OPTIONS.map((option) => option.value)).not.toContain("UNKNOWN");
+    expect(STATUS_OPTIONS.map((option) => option.value)).toEqual([...ORDER_STATUSES]);
+    // useOrderListState: useUrlFilters(ORDER_STATUSES) — ?status=UNKNOWN bị nuqs bỏ
+    expect(ORDER_STATUSES).not.toContain("UNKNOWN");
+  });
+
+  it("serializer bỏ UNKNOWN / chuỗi lạ lọt vào lúc chạy, giữ mã đã biết", () => {
+    // Kiểu đã chặn UNKNOWN; ép kiểu để mô phỏng giá trị lọt vào lúc chạy (vd config cũ)
+    const leaked = ["UNKNOWN", "Shipped", "PICKING"] as unknown as OrderStatus[];
+    expect(buildOrderListQuery({ status: leaked }).getAll("status")).toEqual(["SHIPPED"]);
+  });
+
+  it("mọi trạng thái đã biết vẫn serialize đúng mã BE như trước", () => {
+    expect(buildOrderListQuery({ status: [...ORDER_STATUSES] }).getAll("status")).toEqual([
+      "DRAFT",
+      "PENDING_PAYMENT",
+      "CONFIRMED",
+      "IN_PRODUCTION",
+      "READY_TO_FULFILL",
+      "IN_FULFILMENT",
+      "ON_HOLD",
+      "SHIPPED",
+      "DELIVERED",
+      "COMPLETED",
+      "CANCELLED",
+      "RETURNED",
+    ]);
   });
 
   it("listOrders mặc định chỉ gửi page/size — không có search rỗng", async () => {
@@ -176,5 +324,120 @@ describe("order API contract (BE OrderResponse)", () => {
     expect(query.get("search")).toBe("SO-2026");
     expect(query.getAll("status")).toEqual(["PENDING_PAYMENT", "SHIPPED"]);
     expect(query.get("sort")).toBe("placedAt,desc");
+  });
+
+  it("listOrders gửi lọc khách (UUID, đã trim) + khoảng ngày", async () => {
+    const get = vi.spyOn(api, "get").mockResolvedValue({ data: emptyBePage });
+
+    await listOrders({
+      customerId: " 550e8400-e29b-41d4-a716-446655440000 ",
+      placedFrom: "2026-06-01",
+      placedTo: "2026-06-30",
+    });
+
+    const query = new URLSearchParams(String(get.mock.calls[0]?.[1]?.params));
+    expect(query.get("customerId")).toBe("550e8400-e29b-41d4-a716-446655440000");
+    expect(query.get("placedFrom")).toBe("2026-06-01");
+    expect(query.get("placedTo")).toBe("2026-06-30");
+  });
+
+  it("BE customerId là UUID: giá trị khác (CUS-0007, UUID cụt, rỗng) không bao giờ được gửi", () => {
+    for (const customerId of ["CUS-0007", "abc", "12345", "550e8400-e29b-41d4-a716", "  "]) {
+      expect(buildOrderListQuery({ customerId }).has("customerId")).toBe(false);
+    }
+  });
+
+  it("BE GET /orders không có paymentTerm: tham số lọt vào lúc chạy không được serialize", () => {
+    // ListQueryParams có index signature — kiểu không chặn được, serializer phải chặn
+    const query = buildOrderListQuery({ paymentTerm: "CREDIT", term: "NET_30" });
+    expect(query.has("paymentTerm")).toBe(false);
+    expect(query.has("term")).toBe(false);
+    expect([...query.keys()].sort()).toEqual(["page", "size"]);
+  });
+});
+
+describe("getCreditPosition — GET /orders/credit-position/{customerId}", () => {
+  it("A. gọi đúng path với UUID khách, map field vắng → null", async () => {
+    const get = vi.spyOn(api, "get").mockResolvedValue({
+      data: { ...apiCreditPosition, depositPercent: undefined },
+    });
+    const position = await getCreditPosition(apiCreditPosition.customerId);
+    expect(get).toHaveBeenCalledWith(
+      `/orders/credit-position/${apiCreditPosition.customerId}`,
+      expect.anything(),
+    );
+    expect(position.depositPercent).toBeNull();
+    expect(position.allowedTerms).toEqual(["PREPAID", "DEPOSIT", "CREDIT"]);
+  });
+
+  it("A. id khách không phải UUID (CUS-0007) → không bao giờ gọi BE", async () => {
+    const get = vi.spyOn(api, "get");
+    await expect(getCreditPosition("CUS-0007")).rejects.toThrow();
+    expect(get).not.toHaveBeenCalled();
+  });
+});
+
+describe("Idempotency-Key — chỉ thao tác ghi đơn, header riêng từng request", () => {
+  const ID = beOrder.orderId;
+  const KEY = "k-0000-test-key";
+  const header = { headers: { "Idempotency-Key": KEY } };
+
+  it.each([
+    [
+      "huỷ admin",
+      () => adminCancelOrder({ id: ID, reasonCode: "OTHER", note: "x", idempotencyKey: KEY }),
+      `/orders/${ID}/admin-cancellation`,
+      { reasonCode: "OTHER", note: "x" },
+    ],
+    [
+      "release",
+      () => releaseOrder({ id: ID, warehouseId: "W1", idempotencyKey: KEY }),
+      `/orders/${ID}/release`,
+      { warehouseId: "W1" },
+    ],
+    [
+      "duyệt công nợ",
+      () => approveCreditHold({ id: ID, note: "ok", idempotencyKey: KEY }),
+      `/orders/${ID}/credit-approval`,
+      { note: "ok" },
+    ],
+    [
+      "từ chối công nợ",
+      () => rejectCreditHold({ id: ID, action: "CANCEL", note: "no", idempotencyKey: KEY }),
+      `/orders/${ID}/credit-rejection`,
+      { action: "CANCEL", note: "no" },
+    ],
+  ])(
+    "A/B/E. %s → đúng key trong header, body + path không đổi, key KHÔNG vào body",
+    async (_, call, path, body) => {
+      const post = vi.spyOn(api, "post").mockResolvedValue({ data: beOrder });
+      await call();
+      expect(post).toHaveBeenCalledWith(path, body, header);
+    },
+  );
+
+  it("không có key → không gửi header (gọi trực tiếp, vd mock / script)", async () => {
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: beOrder });
+    await releaseOrder({ id: ID, warehouseId: "W1" });
+    expect(post).toHaveBeenCalledWith(`/orders/${ID}/release`, { warehouseId: "W1" }, undefined);
+  });
+
+  it("C. đọc dữ liệu (GET) không bao giờ mang Idempotency-Key", async () => {
+    const get = vi.spyOn(api, "get").mockImplementation(async (url: string) => ({
+      data: url.endsWith("/history")
+        ? []
+        : url === "/orders"
+          ? emptyBePage
+          : url.includes("credit-position")
+            ? apiCreditPosition
+            : beOrder,
+    }));
+    await listOrders({});
+    await getOrder(ID);
+    await getOrderHistory(ID);
+    await getCreditPosition(apiCreditPosition.customerId);
+    for (const [, config] of get.mock.calls) {
+      expect(JSON.stringify(config ?? {})).not.toContain("Idempotency-Key");
+    }
   });
 });

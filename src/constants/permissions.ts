@@ -18,16 +18,41 @@ export const SUPPLIER_PERMISSIONS = {
 } as const;
 
 /**
- * Đơn hàng — resource `sales-orders` (BE `OrderResources.ORDERS`). Huỷ đơn phía admin
- * (`POST /orders/{id}/admin-cancellation`) yêu cầu APPROVE scope ALL; seed BE chỉ cấp cho
- * ORDER_COORDINATOR (SALES_STAFF chỉ có VIEW_PAGE/READ/CREATE/UPDATE).
+ * Đơn hàng — resource `sales-orders` (BE `OrderResources.ORDERS`, develop). Seed BE
+ * V20260903000100: SALES_STAFF + ORDER_COORDINATOR có VIEW_PAGE/READ/CREATE/UPDATE; chỉ
+ * ORDER_COORDINATOR có APPROVE = release đơn (`POST /orders/{id}/release`, SCRUM-423).
  */
 export const ORDER_PERMISSIONS = {
   // Mở trang (menu + chặn route) — BE Action.VIEW_PAGE, ADR-0004
   viewPage: "sales-orders:VIEW_PAGE",
-  // Đọc dữ liệu (GET /orders, /orders/{id}) — seed BE: SALES_STAFF, ORDER_COORDINATOR
+  // Đọc dữ liệu (GET /orders, /orders/{id}, /orders/{id}/history)
   read: "sales-orders:READ",
-  cancel: "sales-orders:APPROVE",
+  // Release đơn sang kho / sản xuất — OrderReleaseController, APPROVE scope ALL
+  release: "sales-orders:APPROVE",
+  // Huỷ đơn phía admin — resource riêng `sales-order-cancellations` (BE V20261013000200):
+  // SALES_STAFF + ORDER_COORDINATOR có UPDATE.
+  cancel: "sales-order-cancellations:UPDATE",
+} as const;
+
+/**
+ * Đơn công nợ vượt hạn mức — resource `sales-order-credit-holds` (BE CreditHoldController,
+ * SCRUM-427, seed V20261013000400): ACCOUNTANT có VIEW_PAGE/READ/APPROVE; SALES_STAFF và
+ * ORDER_COORDINATOR chỉ VIEW_PAGE/READ (xem, không duyệt).
+ */
+export const CREDIT_HOLD_PERMISSIONS = {
+  viewPage: "sales-order-credit-holds:VIEW_PAGE",
+  read: "sales-order-credit-holds:READ",
+  // Duyệt (`/credit-approval`) và từ chối (`/credit-rejection`) đều là APPROVE
+  approve: "sales-order-credit-holds:APPROVE",
+} as const;
+
+/**
+ * Hồ sơ công nợ khách — resource `customer-credit-profiles` (BE seed V20261013000400): ACCOUNTANT
+ * VIEW_PAGE/READ/APPROVE, SALES_STAFF VIEW_PAGE/READ, ORDER_COORDINATOR READ. FE chỉ dùng READ —
+ * `GET /orders/credit-position/{customerId}` (CreditHoldController#position) đòi đúng quyền này.
+ */
+export const CUSTOMER_CREDIT_PROFILE_PERMISSIONS = {
+  read: "customer-credit-profiles:READ",
 } as const;
 
 /**
@@ -122,6 +147,27 @@ export const STAFF_ROLE = {
 export type StaffRole = (typeof STAFF_ROLE)[keyof typeof STAFF_ROLE];
 
 /**
+ * Vai trò back-office — đúng enum BE `common/security/Role.java` (develop) TRỪ `CUSTOMER`.
+ * BE `ScopeGuards#requireBackOffice`: hợp lệ ⇔ có ít nhất một vai trò ≠ CUSTOMER trong
+ * `CurrentUser.roles()` — mà `roles()` chỉ chứa vai trò BE biết tên. `/identity/me[/permissions]`
+ * thì trả cả vai trò tự tạo (SCRUM-455), nên FE KHÔNG dùng "có vai trò ≠ CUSTOMER" mà dùng danh
+ * sách vai trò đã biết này để khớp BE. Thêm vai trò vào enum BE → thêm ở đây.
+ */
+export const BACKOFFICE_ROLES = [
+  "WAREHOUSE_STAFF",
+  "WAREHOUSE_MANAGER",
+  "INVENTORY_PLANNER",
+  "QC_STAFF",
+  "SALES_STAFF",
+  "ORDER_COORDINATOR",
+  "ECOMMERCE_ADMIN",
+  "PROCUREMENT_STAFF",
+  "ACCOUNTANT",
+  "PRODUCTION_STAFF",
+  "SYSTEM_ADMIN",
+] as const;
+
+/**
  * Lệnh chuyển kho — resource `inventory-transfer-orders` (BE TransferOrderController, SCRUM-326/327).
  * Tạo / sửa nháp / gửi duyệt / huỷ = CREATE; lấy hàng / xuất kho ở kho nguồn = UPDATE; duyệt / từ chối
  * = APPROVE (seed BE: chỉ WAREHOUSE_MANAGER).
@@ -164,4 +210,8 @@ export const PERMISSION_UI = {
   retry: "Thử lại",
   productCreateDenied: "Bạn không có quyền tạo sản phẩm.",
   demoContext: "Chỉ đổi nhãn vai trò demo; quyền vẫn lấy từ phiên đăng nhập.",
+  backOfficeDeniedTitle: "Tài khoản không dùng được trang quản trị",
+  backOfficeDeniedDescription:
+    "Trang quản trị chỉ dành cho nhân viên. Tài khoản khách hàng không vào được khu vực này.",
+  logout: "Đăng xuất",
 } as const;

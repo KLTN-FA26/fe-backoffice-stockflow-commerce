@@ -8,7 +8,12 @@
  * Source: BE order/api/OrderStatus.java (FE khớp BE — xem ORDER_STATUSES).
  */
 
-import { ORDER_PERMISSIONS } from "@/constants";
+import {
+  CREDIT_HOLD_PERMISSIONS,
+  ORDER_PERMISSIONS,
+  ORDER_STATUS_UNKNOWN,
+  UI_LABELS,
+} from "@/constants";
 import {
   ORDER_TRANSITIONS,
   allowedTransitions,
@@ -16,8 +21,9 @@ import {
   isTerminal,
 } from "@/lib/domain/lifecycle";
 
+import type { OrderPaymentTerm } from "@/constants";
 import type { PermissionCode } from "@/lib/auth";
-import type { OrderStatus } from "./types";
+import type { OrderReadStatus, OrderStatus } from "./types";
 
 /* ── Re-exports ──────────────────────────────────────────────────────── */
 
@@ -25,33 +31,84 @@ export { ORDER_TRANSITIONS, allowedTransitions, canTransition, isTerminal };
 
 /* ── Action definitions ──────────────────────────────────────────────── */
 
+/** Dữ kiện đơn ngoài trạng thái mà một số action cần (vd đơn công nợ). */
+export interface OrderActionContext {
+  readonly paymentTerm?: OrderPaymentTerm | null;
+}
+
+export type OrderActionCode = "release" | "credit-approve" | "credit-reject" | "admin-cancel";
+
 /** Actions the UI can gate per status + permission code. */
 export interface OrderAction {
   /** Unique action code. */
-  readonly code: string;
-  /** Button label. */
+  readonly code: OrderActionCode;
+  /** Button label (động từ). */
   readonly label: string;
   /** Mã quyền BE cần có. */
   readonly permission: PermissionCode;
   /** Statuses where this action is available. */
   readonly fromStatuses: readonly OrderStatus[];
-  /** Target status after action (undefined = non-transition action). */
-  readonly targetStatus?: OrderStatus;
+  /** Target statuses after action — mọi đích phải hợp lệ theo ORDER_TRANSITIONS. */
+  readonly targetStatuses: readonly OrderStatus[];
+  /** Điều kiện thêm ngoài trạng thái. */
+  readonly requires?: (ctx: OrderActionContext) => boolean;
   /** Destructive action styling. */
   readonly destructive?: boolean;
 }
 
+// BE Order#holdForCredit / CreditHoldService: chỉ đơn ON_HOLD với paymentTerm CREDIT mới có
+// hồ sơ vượt hạn mức (ON_HOLD còn dùng cho treo thiết kế, thiếu hàng…).
+const isCreditOrder = (ctx: OrderActionContext) => ctx.paymentTerm === "CREDIT";
+
 export const ORDER_ACTIONS: readonly OrderAction[] = [
+  // SCRUM-423 / docs 17 §4.2 bước 4–6 + BR-02: chỉ đơn Confirmed (đủ điều kiện thanh toán) mới
+  // release; có dòng in → In Production, chỉ hàng sẵn → Ready to Fulfill.
+  // Endpoint: POST /orders/{id}/release (BE sales-orders:APPROVE — chỉ ORDER_COORDINATOR).
+  {
+    code: "release",
+    label: UI_LABELS.order.actions.release,
+    permission: ORDER_PERMISSIONS.release,
+    fromStatuses: ["Confirmed"],
+    targetStatuses: ["In Production", "Ready to Fulfill"],
+  },
+  // SCRUM-427 / docs 14 BR-06: đơn công nợ vượt hạn mức chờ người có quyền duyệt.
+  // POST /orders/{id}/credit-approval (sales-order-credit-holds:APPROVE — ACCOUNTANT).
+  {
+    code: "credit-approve",
+    label: UI_LABELS.order.actions.creditApprove,
+    permission: CREDIT_HOLD_PERMISSIONS.approve,
+    fromStatuses: ["On Hold"],
+    targetStatuses: ["Confirmed"],
+    requires: isCreditOrder,
+  },
+  // docs 15 §4.3: từ chối → huỷ, hoặc chuyển sang trả trước / đặt cọc (về Pending Payment).
+  {
+    code: "credit-reject",
+    label: UI_LABELS.order.actions.creditReject,
+    permission: CREDIT_HOLD_PERMISSIONS.approve,
+    fromStatuses: ["On Hold"],
+    targetStatuses: ["Cancelled", "Pending Payment"],
+    requires: isCreditOrder,
+    destructive: true,
+  },
   // BE BR-031 (order/api/OrderStatus.java#canTransitionTo); docs 17 BR-03 (§6 / §4.5):
   // từ "Shipped" trở đi hàng đã bàn giao vận chuyển, phải đi qua flow trả hàng. `fromStatuses`
-  // = các trạng thái BE cho → CANCELLED (DRAFT, PENDING_PAYMENT, PAID, IN_FULFILMENT, ON_HOLD).
-  // Endpoint: POST /orders/{orderId}/admin-cancellation (BE sales-orders:APPROVE, scope ALL).
+  // = các trạng thái BE cho → CANCELLED.
+  // Endpoint: POST /orders/{orderId}/admin-cancellation (BE sales-order-cancellations:UPDATE).
   {
     code: "admin-cancel",
-    label: "Huỷ đơn",
+    label: UI_LABELS.order.actions.cancel,
     permission: ORDER_PERMISSIONS.cancel,
-    fromStatuses: ["Draft", "Pending Payment", "Paid", "In Fulfilment", "On Hold"],
-    targetStatus: "Cancelled",
+    fromStatuses: [
+      "Draft",
+      "Pending Payment",
+      "Confirmed",
+      "In Production",
+      "Ready to Fulfill",
+      "In Fulfilment",
+      "On Hold",
+    ],
+    targetStatuses: ["Cancelled"],
     destructive: true,
   },
 ] as const;
@@ -63,35 +120,48 @@ export const ORDER_ACTIONS: readonly OrderAction[] = [
  *
  * Checks:
  * 1. Action's `fromStatuses` includes current status.
- * 2. If action has `targetStatus`, the transition table allows it.
- * 3. Người dùng có mã quyền BE yêu cầu (`can` = `usePermissionChecker()` ở component).
+ * 2. Mọi `targetStatuses` hợp lệ theo bảng chuyển tiếp.
+ * 3. Điều kiện thêm (`requires`) trên `context` — vd đơn công nợ cho credit hold.
+ * 4. Người dùng có mã quyền BE yêu cầu (`can` = `usePermissionChecker()` ở component).
+ * `UNKNOWN` (trạng thái BE FE chưa hỗ trợ) → không action nào.
  *
- * UI-only gating — Backend phải re-check (BE BR-031 + @RequiresPermission APPROVE/ALL; docs BR-03).
+ * UI-only gating — Backend phải re-check (BE BR-031, OrderReleaseService, CreditHoldService +
+ * @RequiresPermission; docs 17 BR-02/BR-03).
  */
 export function allowedOrderActions(
-  status: OrderStatus,
+  status: OrderReadStatus,
   can: (code: PermissionCode) => boolean,
+  context: OrderActionContext = {},
 ): readonly OrderAction[] {
+  if (status === ORDER_STATUS_UNKNOWN) return [];
   return ORDER_ACTIONS.filter((action) => {
     // 1. Status gate
     if (!action.fromStatuses.includes(status)) return false;
 
-    // 2. Transition gate
-    if (action.targetStatus && !canTransition(ORDER_TRANSITIONS, status, action.targetStatus)) {
+    // 2. Transition gate — mọi đích của action phải hợp lệ theo bảng chuyển tiếp
+    if (
+      !action.targetStatuses.every((target) => canTransition(ORDER_TRANSITIONS, status, target))
+    ) {
       return false;
     }
 
-    // 3. Permission gate
+    // 3. Điều kiện ngoài trạng thái (vd đơn công nợ)
+    if (action.requires && !action.requires(context)) return false;
+
+    // 4. Permission gate
     return can(action.permission);
   });
 }
 
-/** Check if the order is in a terminal (final) state. */
-export function isOrderTerminal(status: OrderStatus): boolean {
-  return isTerminal(ORDER_TRANSITIONS, status);
+/**
+ * Check if the order is in a terminal (final) state. `UNKNOWN` không có chuyển tiếp nhưng KHÔNG
+ * phải đã kết thúc — chỉ là FE chưa hiểu trạng thái đó.
+ */
+export function isOrderTerminal(status: OrderReadStatus): boolean {
+  return status !== ORDER_STATUS_UNKNOWN && isTerminal(ORDER_TRANSITIONS, status);
 }
 
 /** Get allowed next statuses from the transition table. */
-export function nextOrderStatuses(status: OrderStatus): readonly OrderStatus[] {
+export function nextOrderStatuses(status: OrderReadStatus): readonly OrderReadStatus[] {
   return allowedTransitions(ORDER_TRANSITIONS, status);
 }

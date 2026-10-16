@@ -63,7 +63,7 @@ export function apiOrderPage(items: OrderDto[], page = 0, size = 15): OrderPageD
 export const apiGuestOrder = {
   orderId: "7e1d2c3b-9a8f-4e6d-8c5b-1a2b3c4d5e6f",
   orderNumber: "SO-20261002-000002",
-  status: "PAID",
+  status: "CONFIRMED",
   totalAmount: 30000000,
   currency: "VND",
   lines: [
@@ -88,4 +88,21 @@ export const apiGuestOrder = {
     provinceName: "TP. Hồ Chí Minh",
     countryCode: "VN",
   },
+};
+
+/**
+ * BE `CreditPositionResponse` của khách `apiOrder.customerId` — công nợ HIỆN TẠI. Field null bị bỏ
+ * (Jackson non_null). `depositPercent` là phần trăm.
+ */
+export const apiCreditPosition = {
+  customerId: apiOrder.customerId ?? "",
+  allowedTerms: ["PREPAID", "DEPOSIT", "CREDIT"],
+  defaultTerm: "CREDIT",
+  depositPercent: 40,
+  creditLimit: 1_000_000,
+  creditTermDays: 30,
+  exposure: 800_000,
+  availableCredit: 200_000,
+  currency: "VND",
+  hasOverdue: false,
 };

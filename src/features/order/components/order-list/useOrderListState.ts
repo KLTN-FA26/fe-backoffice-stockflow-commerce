@@ -7,6 +7,8 @@ import { useUrlFilters } from "@/hooks/use-url-filters";
 
 import { useOrders } from "../../queries";
 
+import { useOrderExtraFilters } from "./useOrderExtraFilters";
+
 import {
   DEFAULT_COLUMNS,
   DEFAULT_CONFIG,
@@ -43,6 +45,7 @@ export function useOrderListState(canRead = true) {
     DEFAULT_CONFIG,
     mergeStoredConfig,
   );
+  const extra = useOrderExtraFilters(() => void filters.setPage(1));
   const sort = parseSort(filters.sort);
   const query = useOrders(
     {
@@ -51,12 +54,13 @@ export function useOrderListState(canRead = true) {
       size: config.pageSize,
       search: filters.debouncedQ,
       status: filters.status,
+      ...extra.params,
       sort: sort.key ? `${sort.key},${sort.direction}` : undefined,
     },
     { enabled: canRead },
   );
 
-  const hasFilters = filters.q.trim() !== "" || filters.status.length > 0;
+  const hasFilters = filters.q.trim() !== "" || filters.status.length > 0 || extra.active;
   const page = query.data;
   const emptyState: OrderListEmptyState = !page
     ? "none"
@@ -101,9 +105,15 @@ export function useOrderListState(canRead = true) {
     void filters.setPage(1);
   };
 
+  /** Bỏ mọi bộ lọc dữ liệu (search, trạng thái, khách, ngày) — giữ cột/sort. */
+  const clearFilters = () => {
+    filters.reset();
+    extra.reset();
+  };
+
   const resetAll = () => {
     updateConfig(() => DEFAULT_CONFIG);
-    filters.reset();
+    clearFilters();
   };
 
   const visibleColumnCount = config.visibleColumns.filter((c) => c !== "actions").length;
@@ -113,6 +123,7 @@ export function useOrderListState(canRead = true) {
     query,
     config,
     filters,
+    extra,
     sort,
     hasFilters,
     emptyState,
@@ -124,6 +135,7 @@ export function useOrderListState(canRead = true) {
     toggleColumn,
     changeSort,
     changePageSize,
+    clearFilters,
     resetAll,
   };
 }

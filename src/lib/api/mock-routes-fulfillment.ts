@@ -24,7 +24,11 @@ import {
   toTaskResponse,
   verifyDesigns,
 } from "./mock-routes-fulfillment-store";
-import { backendOrderStatusOf, lockedChecksumOf, setMockOrderStatus } from "./mock-routes-orders";
+import {
+  backendOrderStatusOf,
+  lockedChecksumOf,
+  setMockOrderStatus,
+} from "./mock-routes-orders-store";
 import {
   BE_DEFAULT_PAGE_SIZE,
   BE_MAX_PAGE_SIZE,
@@ -204,11 +208,13 @@ function registerAssignmentRoutes(): void {
     }
     const order = await findMockOrder(orderId);
     if (!order) return taskNotFound();
-    // Mock đơn hàng còn dùng PAID cho trạng thái BE CONFIRMED (xem STATUS_FILTER_ALIAS)
-    if ((await backendOrderStatusOf(orderId)) !== "PAID") {
-      return conflict("Only a confirmed or released order can enter fulfillment");
+    // BE `createTask`: READY_TO_FULFILL (đã release, sản xuất xong nếu có) hoặc CONFIRMED chưa ai
+    // release; `Order#startFulfilment` từ chối đơn CONFIRMED còn dòng in (BR-PRD-06)
+    const status = await backendOrderStatusOf(orderId);
+    if (status !== "CONFIRMED" && status !== "READY_TO_FULFILL") {
+      return conflict(`Only a confirmed or released order can enter fulfillment; it is ${status}`);
     }
-    if (order.lines.some((line) => line.designId)) {
+    if (status === "CONFIRMED" && order.lines.some((line) => line.designId)) {
       return conflict(
         `Order ${order.orderNumber} cannot be released from status CONFIRMED; release it to production first: it has lines to print`,
       );

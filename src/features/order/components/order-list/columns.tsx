@@ -3,21 +3,26 @@
 import Link from "next/link";
 import { Eye } from "lucide-react";
 
-import { ADMIN_ROUTES } from "@/constants";
+import { ADMIN_ROUTES, ORDER_PAYMENT_STATUS_DISPLAY, ORDER_PAYMENT_TERM_LABELS } from "@/constants";
 import { formatMoney } from "@/lib/format";
 import { formatDate } from "@/lib/format/date";
 import { statusCell } from "@/components/shared/column-helpers";
+import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
 
 import { COLUMN_LABELS } from "./constants";
+import { CustomerCell } from "./CustomerCell";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { Order } from "../../types";
 
 type OrderColumn = ColumnDef<Order> & { key: string };
 
-/** Cột bảng đơn hàng. Sort phía server; không có search trong cột (server không hỗ trợ). */
-export function buildOrderColumns(): OrderColumn[] {
+/**
+ * Cột bảng đơn hàng. Sort phía server; không có search trong cột (server không hỗ trợ).
+ * `onFilterCustomer`: lọc nhanh theo khách của dòng (BE chỉ trả `customerId`, chưa có tên khách).
+ */
+export function buildOrderColumns(onFilterCustomer: (customerId: string) => void): OrderColumn[] {
   return [
     {
       key: "orderNumber",
@@ -32,6 +37,11 @@ export function buildOrderColumns(): OrderColumn[] {
           {row.orderNumber}
         </Link>
       ),
+    },
+    {
+      key: "customer",
+      header: COLUMN_LABELS.customer,
+      cell: (row) => <CustomerCell customerId={row.customerId} onFilter={onFilterCustomer} />,
     },
     {
       key: "recipient",
@@ -58,6 +68,25 @@ export function buildOrderColumns(): OrderColumn[] {
           {formatDate(row.placedAt)}
         </span>
       ),
+    },
+    {
+      key: "paymentTerm",
+      header: COLUMN_LABELS.paymentTerm,
+      cell: (row) => (
+        <span className="text-ink-secondary text-[0.8125rem]">
+          {row.paymentTerm ? ORDER_PAYMENT_TERM_LABELS[row.paymentTerm] : "—"}
+        </span>
+      ),
+    },
+    {
+      key: "paymentStatus",
+      header: COLUMN_LABELS.paymentStatus,
+      cell: (row) =>
+        row.paymentStatus ? (
+          <StatusDot domain="payment" status={ORDER_PAYMENT_STATUS_DISPLAY[row.paymentStatus]} />
+        ) : (
+          <span className="text-ink-tertiary text-xs">—</span>
+        ),
     },
     // Không dùng moneyCell: tiền tệ lấy từ `currency` của từng đơn (api-conventions §10).
     {

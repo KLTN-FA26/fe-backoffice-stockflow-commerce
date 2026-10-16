@@ -8,6 +8,7 @@ import { ApiError } from "@/lib/api/error";
 import { activateMockAdapter } from "@/lib/api/mock-adapter";
 import { resetFulfillmentMockStore } from "@/lib/api/mock-routes-fulfillment-store";
 import { resetOrderMockStore } from "@/lib/api/mock-routes-orders";
+import { backendOrderStatusOf, setMockOrderStatus } from "@/lib/api/mock-routes-orders-store";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
 import {
@@ -272,6 +273,49 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
         roles: ["Warehouse Staff"],
       });
       expect(await codeOf(startPicking(cancelled.taskId))).toBe("CONFLICT");
+    },
+    FLOW_TIMEOUT_MS,
+  );
+
+  it(
+    "điều kiện vào xuất kho theo BE createTask + Order#startFulfilment (BR-PRD-06)",
+    async () => {
+      resetOrderMockStore();
+      resetFulfillmentMockStore();
+      actAs(USERS.coordinator);
+      const assignedUserId = USERS.picker.userId;
+      // Seed: ORD-2026-0011 có dòng in (DSN-2026-0028), chưa có task; ORD-2026-0013 chỉ hàng sẵn
+      const printOrderId = "ORD-2026-0011";
+      const stockOrderId = "ORD-2026-0013";
+      expect(designedLines((await getFulfillmentOrder(printOrderId)).lines).length).toBeGreaterThan(
+        0,
+      );
+      expect(designedLines((await getFulfillmentOrder(stockOrderId)).lines)).toEqual([]);
+
+      // Ngoài CONFIRMED / READY_TO_FULFILL → từ chối (đơn đang sản xuất)
+      expect(await backendOrderStatusOf(printOrderId)).toBe("IN_PRODUCTION");
+      expect(await codeOf(createFulfillmentTask({ orderId: printOrderId, assignedUserId }))).toBe(
+        "CONFLICT",
+      );
+
+      // B. CONFIRMED + dòng in → phải release sản xuất trước; đơn giữ nguyên CONFIRMED
+      setMockOrderStatus(printOrderId, "CONFIRMED");
+      expect(await codeOf(createFulfillmentTask({ orderId: printOrderId, assignedUserId }))).toBe(
+        "CONFLICT",
+      );
+      expect(await backendOrderStatusOf(printOrderId)).toBe("CONFIRMED");
+
+      // A. READY_TO_FULFILL (sản xuất đã giao) + dòng in → vào xuất kho
+      setMockOrderStatus(printOrderId, "READY_TO_FULFILL");
+      const printTask = await createFulfillmentTask({ orderId: printOrderId, assignedUserId });
+      expect(printTask).toMatchObject({ orderId: printOrderId, pickStatus: "Pending" });
+      expect(await backendOrderStatusOf(printOrderId)).toBe("IN_FULFILMENT");
+
+      // C. CONFIRMED chỉ hàng sẵn, chưa ai release → vào xuất kho
+      expect(await backendOrderStatusOf(stockOrderId)).toBe("CONFIRMED");
+      const stockTask = await createFulfillmentTask({ orderId: stockOrderId, assignedUserId });
+      expect(stockTask).toMatchObject({ orderId: stockOrderId, pickStatus: "Pending" });
+      expect(await backendOrderStatusOf(stockOrderId)).toBe("IN_FULFILMENT");
     },
     FLOW_TIMEOUT_MS,
   );

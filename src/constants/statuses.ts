@@ -292,18 +292,24 @@ export const INVOICE_STATUS = {
 } as const satisfies Record<string, InvoiceStatus>;
 
 /**
- * Order — đúng 10 trạng thái của BE `order/api/OrderStatus.java`, ánh xạ 1-1 với mã wire
- * (PENDING_PAYMENT ↔ "Pending Payment"…, xem features/order/status-map.ts).
+ * Order — đúng 12 trạng thái của BE `order/api/OrderStatus.java` (develop, sau SCRUM-460/423/427),
+ * ánh xạ 1-1 với mã wire (PENDING_PAYMENT ↔ "Pending Payment"…, xem features/order/status-map.ts).
+ * SCRUM-460 bỏ PAID → CONFIRMED; SCRUM-423 thêm IN_PRODUCTION / READY_TO_FULFILL (release).
  *
  * QUYẾT ĐỊNH (lệch quy tắc "docs thắng" của CLAUDE.md, chủ đích cho module order): FE khớp BE,
- * KHÔNG dựng theo 20 trạng thái của docs 17 §5 — docs tách nhiều bước (Picking, Packed,
- * In Production…) mà BE không có, hiển thị chúng là hứa trạng thái BE không bao giờ trả.
- * mock-data.ts vẫn dùng 20 trạng thái docs; route mock gộp về 10 trạng thái BE trước khi trả.
+ * KHÔNG dựng theo 20 trạng thái của docs 17 §5 — docs tách nhiều bước (Picking, Packed…) mà BE
+ * gộp vào IN_FULFILMENT, hiển thị chúng là hứa trạng thái BE không bao giờ trả.
+ * mock-data.ts vẫn dùng 20 trạng thái docs; route mock gộp về trạng thái BE trước khi trả.
+ *
+ * Đây là các trạng thái FE HIỂU — nguồn cho bộ lọc, URL và tham số gửi BE. Trạng thái BE mới mà
+ * FE chưa hỗ trợ đọc về thành `ORDER_STATUS_UNKNOWN` (xem `ORDER_READ_STATUSES`), không thêm ở đây.
  */
 export const ORDER_STATUSES = [
   "Draft",
   "Pending Payment",
-  "Paid",
+  "Confirmed",
+  "In Production",
+  "Ready to Fulfill",
   "In Fulfilment",
   "On Hold",
   "Shipped",
@@ -312,6 +318,16 @@ export const ORDER_STATUSES = [
   "Cancelled",
   "Returned",
 ] as const;
+
+/**
+ * Trạng thái phòng thủ khi đọc: BE trả giá trị ngoài `ORDER_STATUSES` (BE thêm trạng thái mới
+ * trước FE) → hiển thị "Không rõ" (lib/status-map), không có thao tác nào. Chỉ để ĐỌC — không bao
+ * giờ là giá trị lọc / gửi BE.
+ */
+export const ORDER_STATUS_UNKNOWN = "UNKNOWN";
+
+/** Trạng thái đơn sau khi parse response BE: trạng thái đã biết hoặc `ORDER_STATUS_UNKNOWN`. */
+export const ORDER_READ_STATUSES = [...ORDER_STATUSES, ORDER_STATUS_UNKNOWN] as const;
 
 /** Nhà cung cấp (module 01) — BE: ACTIVE/INACTIVE (SCRUM-118). */
 export const SUPPLIER_STATUSES = ["Active", "Inactive", "Blacklisted"] as const;
@@ -404,6 +420,7 @@ export type ProposalStatus = (typeof PROPOSAL_STATUSES)[number];
 export type SkuStatus = (typeof SKU_STATUSES)[number];
 export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
+export type OrderReadStatus = (typeof ORDER_READ_STATUSES)[number];
 export type SupplierStatus = (typeof SUPPLIER_STATUSES)[number];
 export type SupplierApiStatus = (typeof SUPPLIER_API_STATUSES)[number];
 export type SupplierChannel = (typeof SUPPLIER_CHANNELS)[number];

@@ -1,6 +1,8 @@
 import "server-only";
 
 import {
+  CREDIT_HOLD_PERMISSIONS,
+  CUSTOMER_CREDIT_PROFILE_PERMISSIONS,
   FULFILLMENT_PACKAGE_PERMISSIONS,
   FULFILLMENT_PICK_PERMISSIONS,
   GOODS_RECEIPT_PERMISSIONS,
@@ -41,12 +43,27 @@ const PACK = FULFILLMENT_PACKAGE_PERMISSIONS;
 const FULFILLMENT_FLOOR = [...Object.values(PICK), ...Object.values(PACK)];
 const WH_WORK = [...GR_WORK, ...FULFILLMENT_FLOOR];
 
+// Seed BE develop (đơn bán):
+// - V20260903000100: sales-orders APPROVE (release) chỉ ORDER_COORDINATOR.
+// - V20261013000200: sales-order-cancellations:UPDATE cho SALES_STAFF + ORDER_COORDINATOR.
+// - V20261013000400: sales-order-credit-holds APPROVE chỉ ACCOUNTANT; Sales/Coordinator chỉ xem.
+const ORDER = ORDER_PERMISSIONS;
+const CREDIT_VIEW = [CREDIT_HOLD_PERMISSIONS.viewPage, CREDIT_HOLD_PERMISSIONS.read];
+const CREDIT_ALL = Object.values(CREDIT_HOLD_PERMISSIONS);
+// V20261013000400: customer-credit-profiles READ cho ACCOUNTANT / SALES_STAFF / ORDER_COORDINATOR
+// (FE chỉ dùng READ — `GET /orders/credit-position/{customerId}`).
+const CREDIT_PROFILE_READ = CUSTOMER_CREDIT_PROFILE_PERMISSIONS.read;
+const ORDER_SALES = [ORDER.viewPage, ORDER.read, ORDER.cancel, ...CREDIT_VIEW, CREDIT_PROFILE_READ];
+const ORDER_ALL = [...Object.values(ORDER), ...CREDIT_VIEW, CREDIT_PROFILE_READ];
+
 /** Explicit demo session responses keyed by existing staff IDs, never computed from roles. */
 const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
   "USER-ADMIN-01": [
     ...Object.values(SUPPLIER_PERMISSIONS),
     ...Object.values(PO_PERMISSIONS),
     ...Object.values(ORDER_PERMISSIONS),
+    ...CREDIT_ALL,
+    CREDIT_PROFILE_READ,
     ...Object.values(PRODUCT_PERMISSIONS),
     ...Object.values(IDENTITY_PERMISSIONS),
     ...Object.values(GR),
@@ -87,22 +104,23 @@ const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     PACK.read,
     PACK.create,
   ],
-  "USER-ACC-01": [SUPPLIER_PERMISSIONS.viewPage, SUPPLIER_PERMISSIONS.read],
+  "USER-ACC-01": [
+    SUPPLIER_PERMISSIONS.viewPage,
+    SUPPLIER_PERMISSIONS.read,
+    ...CREDIT_ALL,
+    CREDIT_PROFILE_READ,
+  ],
   "USER-ECAD-01": [
     ...Object.values(PRODUCT_PERMISSIONS),
     ...Object.values(SUPPLIER_PERMISSIONS),
     IDENTITY_USER_PERMISSIONS.read,
   ],
-  "USER-SALE-01": [ORDER_PERMISSIONS.viewPage, ORDER_PERMISSIONS.read],
-  "USER-SALE-02": [ORDER_PERMISSIONS.viewPage, ORDER_PERMISSIONS.read],
-  "USER-SALE-03": [ORDER_PERMISSIONS.viewPage, ORDER_PERMISSIONS.read],
-  // Order Coordinator + Warehouse Staff → thêm quyền kho xuất của WAREHOUSE_STAFF
-  "USER-COORD-01": [
-    ...Object.values(ORDER_PERMISSIONS),
-    ...FULFILLMENT_FLOOR,
-    ...TO_STAFF,
-    ...SHIP,
-  ],
+  "USER-SALE-01": ORDER_SALES,
+  "USER-SALE-02": ORDER_SALES,
+  "USER-SALE-03": ORDER_SALES,
+  // Order Coordinator + Warehouse Staff: đơn bán / công nợ + quyền kho xuất, chuyển kho, chuyến xe
+  // của WAREHOUSE_STAFF
+  "USER-COORD-01": [...ORDER_ALL, ...FULFILLMENT_FLOOR, ...TO_STAFF, ...SHIP],
 };
 
 export function mockSessionPermissions(userId: string, roles: readonly string[]) {
