@@ -16,9 +16,10 @@
  *   lại mãi một lỗi đã lưu (vd 403 trước khi được cấp quyền).
  * - Nội dung đổi → key mới (không bao giờ thành KEY_REUSED vì người dùng sửa form).
  * Không tự gửi lại — mỗi lần bấm là đúng một request.
+ *
+ * Module THUẦN (không React) — được import từ lớp api dùng chung cả Server Component. Component
+ * client giữ một `createIdempotencyAttempt()` theo vòng đời của nó (vd `useOrderActionErrors`).
  */
-
-import { useState } from "react";
 
 import type { AxiosRequestConfig } from "axios";
 import type { ApiError } from "./error";
@@ -85,10 +86,4 @@ export function createIdempotencyAttempt(
       if (!idempotencyKeyStillUsable(error)) current = null;
     },
   };
-}
-
-/** Một lần thử logic theo vòng đời component (dialog mở → đóng = bỏ). */
-export function useIdempotencyAttempt(): IdempotencyAttempt {
-  const [attempt] = useState(() => createIdempotencyAttempt());
-  return attempt;
 }

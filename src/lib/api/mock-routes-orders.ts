@@ -174,10 +174,12 @@ export function registerOrderMockRoutes(): void {
       );
     }
 
-    applyTransition(order, "CANCELLED", note || reasonCode, {
+    // BE Order#cancel: cột lý do (đơn + lịch sử) = "CODE" hoặc "CODE: ghi chú"
+    const reasonText = note ? `${reasonCode}: ${note}` : reasonCode;
+    applyTransition(order, "CANCELLED", reasonText, {
       cancellation: {
         reasonCode,
-        reason: note || null,
+        reason: reasonText,
         retainedAmount: roundMoney((order.amountPaid * retained) / 100, order.currency),
       },
     });

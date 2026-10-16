@@ -214,8 +214,13 @@ function registerCreditRoutes(): void {
     }
     switch (body.action) {
       case "CANCEL":
-        applyTransition(order, "CANCELLED", note, {
-          cancellation: { reasonCode: "CREDIT_REJECTED", reason: note, retainedAmount: 0 },
+        // BE Order#cancel: lý do = "CREDIT_REJECTED: ghi chú" (đơn + lịch sử)
+        applyTransition(order, "CANCELLED", `CREDIT_REJECTED: ${note}`, {
+          cancellation: {
+            reasonCode: "CREDIT_REJECTED",
+            reason: `CREDIT_REJECTED: ${note}`,
+            retainedAmount: 0,
+          },
         });
         break;
       case "SWITCH_TO_PREPAID":

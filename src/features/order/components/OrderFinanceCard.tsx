@@ -1,15 +1,11 @@
-import {
-  ORDER_CANCELLATION_REASON_CODES,
-  ORDER_CANCELLATION_REASON_LABELS,
-  ORDER_PAYMENT_STATUS_DISPLAY,
-  ORDER_PAYMENT_TERM_LABELS,
-} from "@/constants";
+import { ORDER_PAYMENT_STATUS_DISPLAY, ORDER_PAYMENT_TERM_LABELS } from "@/constants";
 import { formatMoney } from "@/lib/format";
 import { StatusDot } from "@/components/shared/StatusDot";
 
+import { cancellationReasonLabel, parseCancellationReason } from "../selectors";
+
 import { CreditValue, DepositValue } from "./PaymentStateValues";
 
-import type { OrderCancellationReasonCode } from "@/constants";
 import type { ReactNode } from "react";
 import type { Order } from "../types";
 
@@ -18,16 +14,6 @@ interface OrderFinanceCardProps {
 }
 
 const EMPTY = "—";
-
-function isReasonCode(code: string): code is OrderCancellationReasonCode {
-  return (ORDER_CANCELLATION_REASON_CODES as readonly string[]).includes(code);
-}
-
-/** Mã lạ (BE thêm mã mới) → hiện nguyên mã thay vì để trống. */
-function cancellationReasonLabel(code: string | null): string {
-  if (!code) return EMPTY;
-  return isReasonCode(code) ? ORDER_CANCELLATION_REASON_LABELS[code] : code;
-}
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -44,6 +30,9 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
  */
 export function OrderFinanceCard({ order }: OrderFinanceCardProps) {
   const { cancellation } = order;
+  const cancellationNote = cancellation
+    ? parseCancellationReason(cancellation.reason, cancellation.reasonCode).note
+    : null;
   return (
     <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
       <h2 className="text-ink-primary mb-3 text-[0.9375rem] font-semibold">Thanh toán</h2>
@@ -84,8 +73,11 @@ export function OrderFinanceCard({ order }: OrderFinanceCardProps) {
         )}
         {cancellation && (
           <>
-            <Row label="Lý do huỷ">{cancellationReasonLabel(cancellation.reasonCode)}</Row>
-            {cancellation.reason && <Row label="Ghi chú huỷ">{cancellation.reason}</Row>}
+            <Row label="Lý do huỷ">
+              {cancellation.reasonCode ? cancellationReasonLabel(cancellation.reasonCode) : EMPTY}
+            </Row>
+            {/* `reason` của BE là "CODE: ghi chú" — chỉ hiện phần ghi chú */}
+            {cancellationNote && <Row label="Ghi chú huỷ">{cancellationNote}</Row>}
             {cancellation.retainedAmount !== null && (
               <Row label="Giữ lại">
                 <span className="font-mono tabular-nums">

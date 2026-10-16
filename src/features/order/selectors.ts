@@ -2,9 +2,14 @@
  * Order — selectors (pure derivations). PURE — không side effect, không import icon.
  */
 
+import { ORDER_CANCELLATION_REASON_CODES, ORDER_CANCELLATION_REASON_LABELS } from "@/constants";
 import { currencyFractionDigits } from "@/lib/format";
 
-import type { CreditRejectionAction, OrderPaymentTerm } from "@/constants";
+import type {
+  CreditRejectionAction,
+  OrderCancellationReasonCode,
+  OrderPaymentTerm,
+} from "@/constants";
 import type { CreditHold, Order, OrderReadStatus, ProductionOrder } from "./types";
 
 /**
@@ -87,6 +92,54 @@ export function availableRefusalActions(
   if (allowedTerms?.includes("PREPAID")) actions.push("SWITCH_TO_PREPAID");
   if (allowedTerms?.includes("DEPOSIT")) actions.push("SWITCH_TO_DEPOSIT");
   return actions;
+}
+
+/* ── Lý do huỷ ───────────────────────────────────────────────────────── */
+
+const isKnownReasonCode = (code: string): code is OrderCancellationReasonCode =>
+  (ORDER_CANCELLATION_REASON_CODES as readonly string[]).includes(code);
+
+/**
+ * Tách cột lý do huỷ của BE (`Order#cancel`: `"CODE"` hoặc `"CODE: ghi chú"` — dùng cho cả
+ * `cancellation.reason` lẫn lịch sử trạng thái) thành mã + ghi chú, như BE
+ * `CancelOrderCommand.fromText`. `knownCode` (mã có cấu trúc `cancellation.reasonCode`) cho phép
+ * tách cả mã BE mới FE chưa có nhãn. Lý do tự do kiểu cũ → không mã, cả chuỗi là ghi chú.
+ */
+export function parseCancellationReason(
+  reason: string | null,
+  knownCode?: string | null,
+): { code: string | null; note: string | null } {
+  const text = reason?.trim() ?? "";
+  if (!text) return { code: null, note: null };
+  const candidates = [...(knownCode ? [knownCode] : []), ...ORDER_CANCELLATION_REASON_CODES];
+  for (const code of candidates) {
+    if (text === code) return { code, note: null };
+    if (text.startsWith(`${code}:`))
+      return { code, note: text.slice(code.length + 1).trim() || null };
+  }
+  return { code: null, note: text };
+}
+
+/** Nhãn tiếng Việt của mã lý do huỷ; mã lạ (BE thêm mã mới) hiện nguyên mã, không để trống. */
+export function cancellationReasonLabel(code: string): string {
+  return isKnownReasonCode(code) ? ORDER_CANCELLATION_REASON_LABELS[code] : code;
+}
+
+/** Một dòng đọc được: "Khách yêu cầu — khách đổi ý" thay vì "CUSTOMER_REQUEST: khách đổi ý". */
+export function formatCancellationReason(reason: string | null): string | null {
+  const { code, note } = parseCancellationReason(reason);
+  if (!code) return note;
+  const label = cancellationReasonLabel(code);
+  return note ? `${label} — ${note}` : label;
+}
+
+/**
+ * Số tiền giữ lại xem trước khi huỷ — cùng cách BE `Order#cancel`: tiền đã thu × % / 100, làm tròn
+ * HALF_UP theo số lẻ của tiền tệ (VND 0, USD 2). % giữ nguyên (gửi BE đúng số người nhập).
+ */
+export function retainedAmountPreview(paid: number, percent: number, currency: string): number {
+  const factor = 10 ** currencyFractionDigits(currency);
+  return Math.round(((paid * percent) / 100) * factor) / factor;
 }
 
 /* ── Dòng đơn & lệnh sản xuất ────────────────────────────────────────── */

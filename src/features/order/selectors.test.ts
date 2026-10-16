@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   availableRefusalActions,
   cancelConsequence,
+  formatCancellationReason,
+  parseCancellationReason,
+  retainedAmountPreview,
   creditHoldSummary,
   creditOverage,
   creditState,
@@ -176,5 +179,50 @@ describe("availableRefusalActions — theo allowedTerms HIỆN TẠI (docs 14 BR
   });
   it("chưa có credit position (đang tải / lỗi / thiếu quyền) → chỉ huỷ, không đoán", () => {
     expect(availableRefusalActions(null)).toEqual(["CANCEL"]);
+  });
+});
+
+describe('lý do huỷ — cột BE "CODE" / "CODE: ghi chú" (Order#cancel, CancelOrderCommand.fromText)', () => {
+  it("mã đã biết + ghi chú → nhãn — ghi chú", () => {
+    expect(parseCancellationReason("CUSTOMER_REQUEST: khách đổi ý")).toEqual({
+      code: "CUSTOMER_REQUEST",
+      note: "khách đổi ý",
+    });
+    expect(formatCancellationReason("CUSTOMER_REQUEST: khách đổi ý")).toBe(
+      "Khách yêu cầu — khách đổi ý",
+    );
+  });
+
+  it("chỉ mã (không ghi chú) → chỉ nhãn, không dấu thừa", () => {
+    expect(formatCancellationReason("OUT_OF_STOCK")).toBe("Hết hàng, không thể giao");
+    expect(formatCancellationReason("OUT_OF_STOCK:   ")).toBe("Hết hàng, không thể giao");
+  });
+
+  it("mã lạ: tách được khi có mã có cấu trúc; không có thì giữ nguyên chuỗi, không lỗi", () => {
+    expect(parseCancellationReason("FRAUD_REVIEW: x", "FRAUD_REVIEW")).toEqual({
+      code: "FRAUD_REVIEW",
+      note: "x",
+    });
+    expect(formatCancellationReason("FRAUD_REVIEW: x")).toBe("FRAUD_REVIEW: x");
+  });
+
+  it("lý do tự do kiểu cũ / rỗng", () => {
+    expect(formatCancellationReason("Khách gọi điện huỷ")).toBe("Khách gọi điện huỷ");
+    expect(formatCancellationReason(null)).toBeNull();
+    expect(formatCancellationReason("  ")).toBeNull();
+  });
+});
+
+describe("retainedAmountPreview — như BE Order#cancel (làm tròn theo số lẻ của tiền tệ)", () => {
+  it("VND: 0%, số nguyên, thập phân 30,5%, số lớn — luôn ra đồng nguyên", () => {
+    expect(retainedAmountPreview(200_000, 0, "VND")).toBe(0);
+    expect(retainedAmountPreview(200_000, 25, "VND")).toBe(50_000);
+    expect(retainedAmountPreview(333_333, 30.5, "VND")).toBe(101_667);
+    expect(retainedAmountPreview(9_876_543_210, 12.75, "VND")).toBe(1_259_259_259);
+  });
+
+  it("USD giữ xu (cách cũ làm tròn về đô la nguyên), không lộ sai số số thực", () => {
+    expect(retainedAmountPreview(100.1, 33.3, "USD")).toBe(33.33);
+    expect(retainedAmountPreview(0.3, 10, "USD")).toBe(0.03);
   });
 });

@@ -36,6 +36,16 @@ function neverSent(key: string): boolean {
 }
 
 const CUSTOMER_UUID = "550e8400-e29b-41d4-a716-446655440000";
+
+/**
+ * Nhập cả chuỗi bằng paste thay vì gõ từng phím (36 ký tự UUID) — cùng sự kiện onChange, nhưng
+ * không phụ thuộc tải máy khi chạy song song cả bộ test (như `cancelWith` của OrderDetail).
+ */
+async function fill(input: HTMLElement, value: string) {
+  await userEvent.clear(input);
+  await userEvent.click(input);
+  await userEvent.paste(value);
+}
 const INVALID_MESSAGE = "ID khách hàng phải là UUID hợp lệ.";
 
 const creditOrder = {
@@ -91,7 +101,8 @@ describe("OrderList — lọc khách / ngày đặt (URL), đúng hợp đồng 
     renderList(() => apiOrderPage([apiOrder]), "?page=3");
 
     const input = await screen.findByLabelText("ID khách hàng");
-    await userEvent.type(input, `${CUSTOMER_UUID}{Enter}`);
+    await fill(input, CUSTOMER_UUID);
+    await userEvent.keyboard("{Enter}");
 
     await waitFor(() => expect(lastListQuery().get("customerId")).toBe(CUSTOMER_UUID));
     expect(lastListQuery().get("page")).toBe("0");
@@ -125,8 +136,8 @@ describe("OrderList — lọc khách / ngày đặt (URL), đúng hợp đồng 
       "zzze8400-e29b-41d4-a716-446655440000",
       "12345",
     ]) {
-      await userEvent.clear(input);
-      await userEvent.type(input, `${bad}{Enter}`);
+      await fill(input, bad);
+      await userEvent.keyboard("{Enter}");
       expect(await screen.findByText(INVALID_MESSAGE)).toBeInTheDocument();
     }
     expect(neverSent("customerId")).toBe(true);
@@ -139,8 +150,7 @@ describe("OrderList — lọc khách / ngày đặt (URL), đúng hợp đồng 
     await userEvent.type(input, "abc{Enter}");
     expect(await screen.findByText(INVALID_MESSAGE)).toBeInTheDocument();
 
-    await userEvent.clear(input);
-    await userEvent.type(input, CUSTOMER_UUID);
+    await fill(input, CUSTOMER_UUID);
     // Kiểm lại theo phím: lỗi tắt ngay khi giá trị hợp lệ
     expect(screen.queryByText(INVALID_MESSAGE)).not.toBeInTheDocument();
     await userEvent.keyboard("{Enter}");

@@ -4,6 +4,8 @@ import { formatMoney } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+import { retainedAmountPreview } from "../selectors";
+
 import { FormFieldError } from "./FormFieldError";
 
 import type { UseFormRegisterReturn } from "react-hook-form";
@@ -50,7 +52,7 @@ export function RetainedPercentField({
         />
         {preview && (
           <span className="text-ink-secondary font-mono text-xs tabular-nums">
-            ≈ {formatMoney(Math.round((paidAmount * percent) / 100), currency)}
+            ≈ {formatMoney(retainedAmountPreview(paidAmount, percent, currency), currency)}
           </span>
         )}
       </div>

@@ -347,3 +347,23 @@ describe(
     });
   },
 );
+
+describe(
+  "OrderDetail — xem trước tiền giữ lại khi huỷ",
+  { timeout: DIALOG_FLOW_TIMEOUT_MS },
+  () => {
+    it("USD 33,3% → giữ xu (cách cũ làm tròn về đô la nguyên)", async () => {
+      const user = userEvent.setup();
+      await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => ({
+        ...withStatus("CONFIRMED"),
+        currency: "USD",
+        paidAmount: 100.1,
+      }));
+
+      await user.click(await screen.findByRole("button", { name: "Huỷ đơn" }));
+      const dialog = screen.getByRole("dialog");
+      await user.type(within(dialog).getByLabelText(/Giữ lại/), "33.3");
+      expect(within(dialog).getByText("≈ $33.33")).toBeInTheDocument();
+    });
+  },
+);

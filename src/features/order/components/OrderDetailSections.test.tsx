@@ -116,15 +116,52 @@ describe("OrderDetail — thanh toán / cọc / công nợ / huỷ", () => {
     expect(card.queryByText("Tạm giữ")).not.toBeInTheDocument();
   });
 
-  it("đơn đã huỷ → lý do huỷ theo mã + ghi chú", async () => {
+  it('đơn đã huỷ → nhãn lý do + ghi chú tách khỏi cột BE "CODE: ghi chú", không lộ mã', async () => {
     await renderDetail({
       ...apiOrder,
       status: "CANCELLED",
-      cancellation: { reasonCode: "OUT_OF_STOCK", reason: "Hết phôi", retainedAmount: 0 },
+      // BE Order#cancel lưu `reason` = "CODE: ghi chú"
+      cancellation: {
+        reasonCode: "OUT_OF_STOCK",
+        reason: "OUT_OF_STOCK: Hết phôi",
+        retainedAmount: 0,
+      },
     });
 
     expect(await screen.findByText("Hết hàng, không thể giao")).toBeInTheDocument();
     expect(screen.getByText("Hết phôi")).toBeInTheDocument();
+    expect(screen.queryByText(/OUT_OF_STOCK/)).not.toBeInTheDocument();
+  });
+
+  it("đơn huỷ không ghi chú (reason = mã) → chỉ nhãn, không có dòng ghi chú trống / mã thô", async () => {
+    await renderDetail({
+      ...apiOrder,
+      status: "CANCELLED",
+      cancellation: {
+        reasonCode: "CUSTOMER_REQUEST",
+        reason: "CUSTOMER_REQUEST",
+        retainedAmount: 0,
+      },
+    });
+
+    expect(await screen.findByText("Khách yêu cầu")).toBeInTheDocument();
+    expect(screen.queryByText("Ghi chú huỷ")).not.toBeInTheDocument();
+    expect(screen.queryByText(/CUSTOMER_REQUEST/)).not.toBeInTheDocument();
+  });
+
+  it("mã lý do BE mới FE chưa có nhãn → vẫn đọc được, ghi chú tách đúng", async () => {
+    await renderDetail({
+      ...apiOrder,
+      status: "CANCELLED",
+      cancellation: {
+        reasonCode: "FRAUD_REVIEW",
+        reason: "FRAUD_REVIEW: kiểm tra lại",
+        retainedAmount: 0,
+      },
+    });
+
+    expect(await screen.findByText("FRAUD_REVIEW")).toBeInTheDocument();
+    expect(screen.getByText("kiểm tra lại")).toBeInTheDocument();
   });
 
   it("chưa release → kho xuất 'Chưa release'", async () => {
@@ -155,5 +192,26 @@ describe("OrderDetail — lịch sử trạng thái", () => {
     expect(items).toHaveLength(2);
     expect(within(items[0] as HTMLElement).getByText("Đã nhận đủ cọc")).toBeInTheDocument();
     expect(within(items[1] as HTMLElement).getByText(/Tạo đơn/)).toBeInTheDocument();
+  });
+
+  it('bước huỷ: lý do BE "CODE: ghi chú" → "Khách yêu cầu — khách đổi ý"; lý do cũ tự do giữ nguyên', async () => {
+    await renderDetail(
+      { ...apiOrder, status: "CANCELLED" },
+      {
+        [`${DETAIL_PATH}/history`]: () => [
+          { to: "PENDING_PAYMENT", occurredAt: "2026-09-07T03:15:00Z" },
+          {
+            from: "PENDING_PAYMENT",
+            to: "CANCELLED",
+            reason: "CUSTOMER_REQUEST: khách đổi ý",
+            occurredAt: "2026-09-08T02:00:00Z",
+          },
+        ],
+      },
+    );
+
+    const history = await screen.findByRole("region", { name: "Lịch sử trạng thái" });
+    expect(await within(history).findByText("Khách yêu cầu — khách đổi ý")).toBeInTheDocument();
+    expect(within(history).queryByText(/CUSTOMER_REQUEST/)).not.toBeInTheDocument();
   });
 });

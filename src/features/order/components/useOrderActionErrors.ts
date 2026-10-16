@@ -3,7 +3,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { useIdempotencyAttempt } from "@/lib/api/idempotency";
+import { createIdempotencyAttempt } from "@/lib/api/idempotency";
 
 import { toast } from "@/components/shared/Toast";
 
@@ -42,7 +42,8 @@ export function useOrderActionErrors<F extends string>(
 ) {
   const queryClient = useQueryClient();
   const [refusal, setRefusal] = useState<OrderErrorView | null>(null);
-  const attempt = useIdempotencyAttempt();
+  // Một lần thử logic theo vòng đời dialog (form chỉ mount khi mở → đóng là bỏ key)
+  const [attempt] = useState(() => createIdempotencyAttempt());
 
   const onError = (error: ApiError) => {
     attempt.settle(error);

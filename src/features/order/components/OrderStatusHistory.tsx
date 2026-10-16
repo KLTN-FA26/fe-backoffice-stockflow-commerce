@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/shared/Skeleton";
 import { StatusDot } from "@/components/shared/StatusDot";
 
 import { useOrderHistory } from "../queries";
+import { formatCancellationReason } from "../selectors";
 
 import { OrderLoadError } from "./OrderLoadError";
 
@@ -66,7 +67,12 @@ export function OrderStatusHistory({ orderId }: OrderStatusHistoryProps) {
                 {formatDateTime(change.occurredAt)}
               </div>
               {change.reason && (
-                <p className="text-ink-secondary mt-0.5 max-w-[68ch] text-xs">{change.reason}</p>
+                <p className="text-ink-secondary mt-0.5 max-w-[68ch] text-xs">
+                  {/* BE ghi lý do huỷ dạng "CODE: ghi chú" → nhãn tiếng Việt */}
+                  {change.to === "Cancelled"
+                    ? formatCancellationReason(change.reason)
+                    : change.reason}
+                </p>
               )}
             </li>
           ))}
