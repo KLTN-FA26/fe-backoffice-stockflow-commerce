@@ -9,4 +9,8 @@ export const STORAGE_KEYS = {
   adminPackingConfig: "stockflow:admin:packing:config",
   adminPickingConfig: "stockflow:admin:picking:config",
   adminSuppliersConfig: "stockflow:admin:suppliers:config",
+  adminTransfersConfig: "stockflow:admin:transfers:config",
+  adminShipmentsConfig: "stockflow:admin:shipments:config",
+  /** sessionStorage — mã quét không thành công theo chuyến (màn xếp hàng). */
+  shipmentRejectedScans: "stockflow:admin:shipments:rejected-scans",
 } as const;

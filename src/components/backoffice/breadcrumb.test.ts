@@ -14,6 +14,17 @@ describe("buildBreadcrumbItems", () => {
     ]);
   });
 
+  it("biên bản bàn giao của chuyến hiện '… / <chuyến> / Biên bản bàn giao'", () => {
+    expect(buildBreadcrumbItems("/admin/shipments/LOAD-2026-0001/manifest").slice(1)).toEqual([
+      { label: "Xếp xe & bàn giao", href: "/admin/shipments" },
+      { label: "LOAD-2026-0001", href: "/admin/shipments/LOAD-2026-0001" },
+      { label: "Biên bản bàn giao" },
+    ]);
+    expect(buildBreadcrumbItems("/admin/transfers/create").at(-1)).toEqual({
+      label: "Tạo lệnh chuyển kho",
+    });
+  });
+
   it("trang chi tiết và trang tạo giữ nguyên như cũ", () => {
     expect(buildBreadcrumbItems("/admin/suppliers/SUP-001").at(-1)).toEqual({ label: "SUP-001" });
     expect(buildBreadcrumbItems("/admin/suppliers/create").at(-1)).toEqual({

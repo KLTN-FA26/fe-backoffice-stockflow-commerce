@@ -9,6 +9,7 @@ import {
   INVENTORY_PERMISSIONS,
   PERMISSION_QUERY,
   SUPPLIER_PERMISSIONS,
+  TRANSFER_PERMISSIONS,
 } from "@/constants/permissions";
 
 import { getMockStaffUsers } from "@/lib/api/mock-adapter";
@@ -30,7 +31,12 @@ describe("explicit mock permission responses", () => {
     expect(mockSessionPermissions("USER-PLAN-01", ["System Admin"]).permissions).not.toContain(
       INVENTORY_PERMISSIONS.adjustmentApprove,
     );
+    // Fixture "không có quyền": user không có trong bảng grant, kể cả khi giả lập System Admin
     expect(mockSessionPermissions("unknown", ["System Admin"]).permissions).toEqual([]);
+    // Planner theo seed BE: không có quyền duyệt dù giả lập System Admin
+    const planner = mockSessionPermissions("USER-PLAN-01", ["System Admin"]).permissions;
+    expect(planner).toContain(TRANSFER_PERMISSIONS.create);
+    expect(planner).not.toContain(TRANSFER_PERMISSIONS.approve);
     expect(mockSessionPermissions("USER-PROC-01", []).permissions).toContain(
       SUPPLIER_PERMISSIONS.create,
     );
@@ -60,11 +66,8 @@ describe("explicit mock permission responses", () => {
     expect(permissions.status).toBe(200);
     expect(myPermissionsSchema.parse(await permissions.json())).toEqual({
       roles: toBackendRoles(staff.roles),
-      permissions: [
-        INVENTORY_PERMISSIONS.adjustmentRead,
-        INVENTORY_PERMISSIONS.stockUpdate,
-        INVENTORY_PERMISSIONS.movementRead,
-      ].sort(),
+      // Đúng danh sách của phiên (planner), không phải quyền của vai trò đang giả lập
+      permissions: mockSessionPermissions("USER-PLAN-01", []).permissions,
       dataScope: "ALL",
     });
     useAuthStore.getState().setImpersonatedRole(null);
