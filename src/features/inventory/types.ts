@@ -17,6 +17,20 @@ import type {
   stockLevelRowSchema,
   stockMovementDto,
 } from "./schemas";
+import type {
+  atpInput,
+  reservationListInput,
+  reservationPageDto,
+  reservationRowDto,
+  stockAlertDto,
+  stockAlertListInput,
+  stockAlertPageDto,
+  stockLevelDto,
+  stockLevelsInput,
+  warehouseStockItemDto,
+  warehouseStockItemPageDto,
+  warehouseStockItemsInput,
+} from "./stock-schemas";
 
 export type StockAdjustment = z.infer<typeof stockAdjustmentDto>;
 export type StockMovement = z.infer<typeof stockMovementDto>;
@@ -35,3 +49,18 @@ export type ReservationRow = z.infer<typeof reservationRowSchema>;
 export type AtpLookupInput = z.infer<typeof atpLookupInputSchema>;
 export type AtpLookupResult = z.infer<typeof atpLookupResultSchema>;
 export type InventoryOverviewData = z.infer<typeof inventoryOverviewSchema>;
+
+// Inventory overview (SCRUM-438) backend read contracts. Params are the caller-side input:
+// the schemas normalise SKU, drop blanks and comma-join list filters before the request.
+export type StockLevel = z.infer<typeof stockLevelDto>;
+export type WarehouseStockItem = z.infer<typeof warehouseStockItemDto>;
+export type WarehouseStockItemPage = z.infer<typeof warehouseStockItemPageDto>;
+export type StockReservation = z.infer<typeof reservationRowDto>;
+export type StockReservationPage = z.infer<typeof reservationPageDto>;
+export type StockAlert = z.infer<typeof stockAlertDto>;
+export type StockAlertPage = z.infer<typeof stockAlertPageDto>;
+export type StockLevelsParams = z.input<typeof stockLevelsInput>;
+export type WarehouseStockItemsParams = z.input<typeof warehouseStockItemsInput>;
+export type AtpParams = z.input<typeof atpInput>;
+export type ReservationListParams = z.input<typeof reservationListInput>;
+export type StockAlertListParams = z.input<typeof stockAlertListInput>;

@@ -8,13 +8,54 @@ export const INVENTORY_API = {
   rejection: (id: string) => `/inventory/adjustments/${encodeURIComponent(id)}/rejection`,
   withdrawal: (id: string) => `/inventory/adjustments/${encodeURIComponent(id)}/withdrawal`,
   movements: "/inventory/movements",
+  // SCRUM-438 reads — backend develop 0f18f24 InventoryController / StockAlertController.
+  stockLevels: "/inventory/stock-levels",
+  warehouseStockItems: (warehouseId: string) =>
+    `/inventory/warehouses/${encodeURIComponent(warehouseId)}/stock-items`,
+  atp: "/inventory/stock-items/atp",
+  reservations: "/inventory/reservations",
+  alerts: "/inventory/alerts",
 } as const;
 
 export const INVENTORY_QUERY_KEYS = {
   adjustments: "inventory-stock-adjustments",
   movements: "inventory-stock-movements",
   stock: SHARED_QUERY_ROOTS.inventoryStock,
+  reservations: "inventory-reservations",
+  alerts: "inventory-alerts",
 } as const;
+
+// Backend develop 0f18f24 StockStatus — values GET /warehouses/{id}/stock-items?status= accepts.
+export const STOCK_STATUSES = [
+  "INBOUND",
+  "AVAILABLE",
+  "QUARANTINE",
+  "BLOCKED",
+  "DAMAGED",
+  "EXPIRED",
+] as const;
+// StockBrowsingImpl STOCK_SORT whitelist; the backend default is locationCode ascending.
+export const STOCK_ITEM_SORT_FIELDS = [
+  "locationCode",
+  "sku",
+  "lotNumber",
+  "expiryDate",
+  "onHand",
+  "receivedAt",
+] as const;
+// ReservationStatus / ReleaseReason.
+export const RESERVATION_STATUSES = ["HELD", "CONSUMED", "RELEASED", "EXPIRED"] as const;
+export const RESERVATION_RELEASE_REASONS = [
+  "ORDER_CANCELLED",
+  "PAYMENT_FAILED",
+  "RESERVATION_EXPIRED",
+  "MANUAL_OVERRIDE",
+] as const;
+// StockAlert.Kind / Status and the StockAlertsImpl SORT whitelist.
+export const STOCK_ALERT_KINDS = ["REORDER", "SAFETY", "EXPIRING", "EXPIRED"] as const;
+export const STOCK_ALERT_STATUSES = ["OPEN", "ACKNOWLEDGED", "RESOLVED"] as const;
+export const STOCK_ALERT_SORT_FIELDS = ["openedAt", "kind", "sku"] as const;
+export const INVENTORY_SORT_DIRECTIONS = ["asc", "desc"] as const;
 
 export const STOCK_ADJUSTMENT_REASONS = [
   "DAMAGED",

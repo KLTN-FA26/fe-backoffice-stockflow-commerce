@@ -23,6 +23,7 @@ import {
 import { STOCK_ADJUSTMENT_STATUS, STOCK_ADJUSTMENT_STATUSES } from "@/constants/statuses";
 
 import { registerMockRoute } from "./mock-adapter";
+import { registerInventoryStockMockRoutes } from "./mock-routes-inventory-stock";
 import {
   beError,
   parseJsonBody,
@@ -475,4 +476,5 @@ export function registerInventoryMockRoutes(): void {
   registerMockRoute("POST", `${one}/rejection`, reject);
   registerMockRoute("POST", `${one}/withdrawal`, withdraw);
   registerMockRoute("GET", INVENTORY_API.movements, listMovements);
+  registerInventoryStockMockRoutes();
 }

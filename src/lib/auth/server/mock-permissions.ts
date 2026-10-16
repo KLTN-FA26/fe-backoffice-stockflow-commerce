@@ -44,7 +44,8 @@ const INV = INVENTORY_PERMISSIONS;
 const INVENTORY_FLOOR = [INV.adjustmentRead, INV.stockUpdate, INV.movementRead];
 const INVENTORY_ALL = Object.values(INV);
 // Seed BE V20260903000100: WAREHOUSE_STAFF / MANAGER đọc tồn + giữ chỗ; INVENTORY_PLANNER và
-// QC_STAFF chỉ đọc tồn (inventory-stock-items VIEW_PAGE/READ).
+// QC_STAFF chỉ đọc tồn (inventory-stock-items VIEW_PAGE/READ). V20261014000900: inventory-alerts:READ
+// cho WAREHOUSE_MANAGER / INVENTORY_PLANNER / WAREHOUSE_STAFF (QC_STAFF không có).
 const OV = INVENTORY_OVERVIEW_PERMISSIONS;
 const STOCK_READ = [OV.stockViewPage, OV.stockRead];
 const OVERVIEW_ALL = Object.values(OV);
@@ -84,7 +85,15 @@ const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     QC.read,
   ],
   // INVENTORY_PLANNER (seed V20261010000500): tạo / sửa / gửi duyệt / huỷ, KHÔNG duyệt
-  "USER-PLAN-01": [...INVENTORY_FLOOR, ...STOCK_READ, TO.viewPage, TO.read, TO.create, TO.update],
+  "USER-PLAN-01": [
+    ...INVENTORY_FLOOR,
+    ...STOCK_READ,
+    OV.alertRead,
+    TO.viewPage,
+    TO.read,
+    TO.create,
+    TO.update,
+  ],
   // Existing USER-ADMIN-01 is also the only Warehouse Manager; WH users are staff.
   "USER-WH-01": [...WH_WORK, ...TO_STAFF, ...SHIP],
   "USER-WH-02": [...WH_WORK, ...TO_STAFF, ...SHIP],

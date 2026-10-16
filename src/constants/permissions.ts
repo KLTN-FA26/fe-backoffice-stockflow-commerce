@@ -97,14 +97,17 @@ export const INVENTORY_PERMISSIONS = {
 } as const;
 
 /**
- * Tổng quan tồn kho (SCRUM-438) — resource `InventoryResources.STOCK_ITEMS` / `RESERVATIONS`.
- * Tồn kho và giữ chỗ là hai resource riêng; seed BE V20260903000100.
+ * Tổng quan tồn kho (SCRUM-438) — resource `InventoryResources.STOCK_ITEMS` / `RESERVATIONS` /
+ * `ALERTS`. Tồn kho và giữ chỗ là hai resource riêng; seed BE V20260903000100.
  */
 export const INVENTORY_OVERVIEW_PERMISSIONS = {
   stockViewPage: "inventory-stock-items:VIEW_PAGE",
   stockRead: "inventory-stock-items:READ",
   reservationViewPage: "inventory-reservations:VIEW_PAGE",
   reservationRead: "inventory-reservations:READ",
+  // GET /inventory/alerts (StockAlertController, READ) — cảnh báo nhúng trong màn tổng quan, không
+  // có menu riêng nên không cần VIEW_PAGE. Seed V20261014000900.
+  alertRead: "inventory-alerts:READ",
 } as const;
 
 /**
