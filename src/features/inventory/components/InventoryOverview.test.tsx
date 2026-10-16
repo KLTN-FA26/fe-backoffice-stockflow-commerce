@@ -216,6 +216,62 @@ describe("reservations", () => {
   });
 });
 
+describe("reservation warehouse filter lifecycle", () => {
+  const HCM = {
+    id: "0e380000-0000-4000-8000-0000000000a2",
+    prefix: "HCM01",
+    name: "Kho HCM",
+    status: "ACTIVE",
+  };
+  const lastHolds = () =>
+    Object.fromEntries(sentTo("/inventory/reservations").at(-1)?.searchParams ?? []);
+  const paged = overviewPage([OVERVIEW_RESERVATION], {
+    totalElements: 16,
+    totalPages: 2,
+    hasNext: true,
+  });
+
+  it("unticking drops the warehouse parameter again", async () => {
+    const user = await openFor("CUP-PP-500");
+    await openWarehouse(user, "HN01");
+    const holds = await region(INVENTORY_LABELS.reservationsTitle);
+    const filter = await within(holds).findByRole("checkbox");
+    await user.click(filter);
+    await waitFor(() => expect(lastHolds().warehouse).toBe("HN01"));
+    await user.click(filter);
+    await waitFor(() => expect(lastHolds()).toEqual({ sku: "CUP-PP-500", page: "0", size: "15" }));
+  });
+
+  it("opening another warehouse while narrowed follows it and returns to page 1", async () => {
+    const user = await openFor("CUP-PP-500", {
+      directory: { items: [OVERVIEW_WAREHOUSE, HCM] },
+      reservations: paged,
+    });
+    await openWarehouse(user, "HN01");
+    const holds = await region(INVENTORY_LABELS.reservationsTitle);
+    await user.click(await within(holds).findByRole("checkbox"));
+    await user.click(within(holds).getByRole("button", { name: INVENTORY_LABELS.next }));
+    await waitFor(() => expect(lastHolds()).toMatchObject({ warehouse: "HN01", page: "1" }));
+    await openWarehouse(user, "HCM01");
+    await waitFor(() => expect(lastHolds()).toMatchObject({ warehouse: "HCM01", page: "0" }));
+  });
+
+  it("a new SKU leaves no warehouse filter behind", async () => {
+    const user = await openFor("CUP-PP-500");
+    await openWarehouse(user, "HN01");
+    const holds = await region(INVENTORY_LABELS.reservationsTitle);
+    await user.click(await within(holds).findByRole("checkbox"));
+    await waitFor(() => expect(lastHolds().warehouse).toBe("HN01"));
+    const input = screen.getByLabelText(INVENTORY_LABELS.skuLookup);
+    await user.clear(input);
+    await user.type(input, "LID-PP-90{Enter}");
+    await waitFor(() => expect(lastHolds()).toEqual({ sku: "LID-PP-90", page: "0", size: "15" }));
+    expect(
+      within(await region(INVENTORY_LABELS.reservationsTitle)).queryByRole("checkbox"),
+    ).toBeNull();
+  });
+});
+
 describe("alerts", () => {
   it("shows SKU-level low stock from the backend, as text and not colour alone", async () => {
     await openFor("CUP-PP-500", {

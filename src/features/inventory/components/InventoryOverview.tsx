@@ -25,7 +25,7 @@ const { stockRead, reservationRead, alertRead } = INVENTORY_OVERVIEW_PERMISSIONS
  */
 export function InventoryOverview() {
   return (
-    <InventoryPermissionGate permission={[stockRead, reservationRead]} variant="list">
+    <InventoryPermissionGate anyOf={[stockRead, reservationRead]} variant="list">
       <InventoryOverviewContent />
     </InventoryPermissionGate>
   );
@@ -36,8 +36,8 @@ function InventoryOverviewContent() {
   const [activeSku, setActiveSku] = useState<string | null>(null);
   const [warehouseCode, setWarehouseCode] = useState<string | null>(null);
 
-  // A new SKU drops everything chosen for the previous one; the sections are keyed by the SKU, so
-  // their pages and filters start over too.
+  // A new SKU drops everything chosen for the previous one; each section is keyed by the SKU (in its
+  // own key namespace — siblings must not share a key), so its pages and filters start over too.
   const submit = (sku: string) => {
     setActiveSku(sku);
     setWarehouseCode(null);
@@ -60,7 +60,7 @@ function InventoryOverviewContent() {
         <>
           {can(stockRead) && (
             <StockOverviewSection
-              key={activeSku}
+              key={`stock:${activeSku}`}
               sku={activeSku}
               showAlerts={can(alertRead)}
               warehouseCode={warehouseCode}
@@ -69,9 +69,10 @@ function InventoryOverviewContent() {
           )}
           {can(reservationRead) && (
             <InventoryReservationsSection
-              key={activeSku}
+              key={`holds:${activeSku}`}
               sku={activeSku}
-              warehouseCode={warehouseCode}
+              // Only a warehouse the user can still see open in the stock section may narrow holds.
+              warehouseCode={can(stockRead) ? warehouseCode : null}
             />
           )}
         </>

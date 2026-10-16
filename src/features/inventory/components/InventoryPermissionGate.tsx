@@ -15,6 +15,11 @@ import type { PermissionCode } from "@/lib/auth";
 
 const { loadError } = UI_LABELS;
 
+/** Exactly one of: a single required code, or `anyOf` — any one listed code opens the screen. */
+type GateRequirement =
+  | { permission: PermissionCode; anyOf?: never }
+  | { anyOf: readonly [PermissionCode, ...PermissionCode[]]; permission?: never };
+
 /**
  * Chặn màn tồn kho theo mã quyền BE (theo mẫu `PoPermissionGate`): đang tải → skeleton,
  * không tải được quyền → báo lỗi + thử lại, thiếu quyền → từ chối. Không suy từ tên vai trò.
@@ -22,11 +27,10 @@ const { loadError } = UI_LABELS;
  */
 export function InventoryPermissionGate({
   permission,
+  anyOf,
   variant = "detail",
   children,
-}: {
-  /** One code, or a list of which any one opens the screen. */
-  permission: PermissionCode | readonly PermissionCode[];
+}: GateRequirement & {
   variant?: "detail" | "list" | "form";
   children: React.ReactNode;
 }) {
@@ -53,8 +57,9 @@ export function InventoryPermissionGate({
       />
     );
   }
-  const anyOf: readonly PermissionCode[] =
-    typeof permission === "string" ? [permission] : permission;
-  if (!anyOf.some((code) => hasPermission(data, code))) return <InventoryDenied />;
+  const allowed = permission
+    ? hasPermission(data, permission)
+    : anyOf.some((code) => hasPermission(data, code));
+  if (!allowed) return <InventoryDenied />;
   return <>{children}</>;
 }

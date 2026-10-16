@@ -1,7 +1,7 @@
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { setupServer } from "msw/node";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { INVENTORY_LABELS, INVENTORY_MESSAGES } from "@/constants/inventory";
 import { INVENTORY_OVERVIEW_PERMISSIONS } from "@/constants/permissions";
@@ -146,6 +146,30 @@ describe("exact-SKU submission", () => {
       "true",
     );
     expect(sent.filter((url) => url.startsWith("/inventory"))).toEqual([]);
+  });
+
+  it("with both sections, a new SKU leaves no stale warehouse detail and no duplicate keys", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    open([stockRead, reservationRead]);
+    const user = await lookUp("CUP-PP-500");
+    await user.click(
+      await screen.findByRole("button", { name: `${INVENTORY_LABELS.viewWarehouse} HN01` }),
+    );
+    expect(await screen.findAllByRole("heading", { name: /Tồn theo vị trí và lô/ })).toHaveLength(
+      1,
+    );
+    await lookUp("LID-PP-90");
+    await waitFor(() =>
+      expect(screen.queryAllByRole("heading", { name: /Tồn theo vị trí và lô/ })).toHaveLength(0),
+    );
+    expect(
+      screen.getAllByRole("heading", { name: INVENTORY_LABELS.reservationsTitle }),
+    ).toHaveLength(1);
+    const keyWarnings = consoleError.mock.calls.filter((args) =>
+      String(args[0]).includes("same key"),
+    );
+    consoleError.mockRestore();
+    expect(keyWarnings).toEqual([]);
   });
 
   it("a new SKU drops the warehouse opened for the previous one", async () => {

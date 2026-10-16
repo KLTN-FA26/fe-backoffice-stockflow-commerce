@@ -7,10 +7,19 @@ import { Label } from "@/components/ui/label";
 
 import { inventoryPageRange } from "../selectors";
 
-import type { MovementPage } from "../types";
-
-/** Only the page metadata of a backend `PageResponse`; any item type will do. */
-export type InventoryPageMeta = Omit<MovementPage, "items"> & { items: readonly unknown[] };
+/**
+ * What the pager reads from a backend `PageResponse` (zero-based `page`), whatever the item type:
+ * the item count of this page for the range, and the page metadata.
+ */
+export interface InventoryPageMeta {
+  items: readonly unknown[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
+}
 
 interface InventoryPagerProps {
   data: InventoryPageMeta;
