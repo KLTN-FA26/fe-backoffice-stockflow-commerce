@@ -3,6 +3,7 @@
 import { cn } from "cn";
 import {
   ArrowRightLeft,
+  Boxes,
   CalendarClock,
   ClipboardList,
   FileText,
@@ -41,6 +42,7 @@ import {
   FULFILLMENT_PICK_PERMISSIONS,
   GOODS_RECEIPT_PERMISSIONS,
   IDENTITY_PERMISSIONS,
+  INVENTORY_OVERVIEW_PERMISSIONS,
   INVENTORY_PERMISSIONS,
   ORDER_PERMISSIONS,
   PO_PERMISSIONS,
@@ -122,6 +124,8 @@ interface NavItem {
   icon: LucideIcon;
   /** Mã quyền BE cần có để thấy menu (đọc từ /identity/me/permissions). Không khai báo = luôn hiện. */
   permission?: PermissionCode;
+  /** Thấy menu khi có ít nhất một mã trong danh sách (màn mở bằng nhiều quyền khác nhau). */
+  anyPermission?: readonly PermissionCode[];
   /** Màn chỉ chạy được trên mock (BE chưa có API) — ẩn khi nối BE thật. */
   mockOnly?: boolean;
 }
@@ -212,6 +216,17 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     title: "KHO",
     items: [
+      {
+        label: INVENTORY_LABELS.overviewTitle,
+        tooltip: "Inventory Overview",
+        href: INVENTORY_ROUTES.overview,
+        icon: Boxes,
+        // Same rule as the page gate: stock READ or reservation READ; alert READ alone is not enough.
+        anyPermission: [
+          INVENTORY_OVERVIEW_PERMISSIONS.stockRead,
+          INVENTORY_OVERVIEW_PERMISSIONS.reservationRead,
+        ],
+      },
       {
         label: "Kho map & slotting",
         tooltip: "Warehouse Map",
@@ -325,7 +340,10 @@ const DETAIL_LABEL_BY_ROUTE: Record<string, string> = {
 export function useCanSeeNavItem(): (item: NavItem) => boolean {
   const can = usePermissionChecker();
   const isMock = useIsMock();
-  return (item) => (!item.mockOnly || isMock) && (!item.permission || can(item.permission));
+  return (item) =>
+    (!item.mockOnly || isMock) &&
+    (!item.permission || can(item.permission)) &&
+    (!item.anyPermission || item.anyPermission.some(can));
 }
 
 function findNavItem(pathname: string): NavItem | undefined {

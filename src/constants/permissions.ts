@@ -97,6 +97,20 @@ export const INVENTORY_PERMISSIONS = {
 } as const;
 
 /**
+ * Tổng quan tồn kho (SCRUM-438) — resource `InventoryResources.STOCK_ITEMS` / `RESERVATIONS` /
+ * `ALERTS`. Tồn kho và giữ chỗ là hai resource riêng; seed BE V20260903000100.
+ */
+export const INVENTORY_OVERVIEW_PERMISSIONS = {
+  stockViewPage: "inventory-stock-items:VIEW_PAGE",
+  stockRead: "inventory-stock-items:READ",
+  reservationViewPage: "inventory-reservations:VIEW_PAGE",
+  reservationRead: "inventory-reservations:READ",
+  // GET /inventory/alerts (StockAlertController, READ) — cảnh báo nhúng trong màn tổng quan, không
+  // có menu riêng nên không cần VIEW_PAGE. Seed V20261014000900.
+  alertRead: "inventory-alerts:READ",
+} as const;
+
+/**
  * Task xuất kho — resource `fulfillment-pick-lists` (BE FulfillmentController, SCRUM-43).
  * Tạo task, gán, bắt đầu / hoàn tất lấy hàng đều là UPDATE (không có CREATE).
  */
@@ -159,6 +173,15 @@ export const SHIPMENT_PERMISSIONS = {
   read: "fulfillment-shipments:READ",
   create: "fulfillment-shipments:CREATE",
   update: "fulfillment-shipments:UPDATE",
+} as const;
+
+/**
+ * Danh mục kho — resource `warehouse-warehouses` (BE WarehouseController: GET /warehouses = READ).
+ * Seed V20260928006000: WAREHOUSE_MANAGER, WAREHOUSE_STAFF, INVENTORY_PLANNER, PROCUREMENT_STAFF;
+ * QC_STAFF không có.
+ */
+export const WAREHOUSE_PERMISSIONS = {
+  read: "warehouse-warehouses:READ",
 } as const;
 
 /** BE develop IdentityResources / IdentityController: read-only RBAC screen APIs. */
