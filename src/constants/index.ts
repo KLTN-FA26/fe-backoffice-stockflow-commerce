@@ -50,7 +50,6 @@ export type { StaffRole } from "./permissions";
 export { ADMIN_ROUTES, APP_ROUTES } from "./routes";
 export { STORAGE_KEYS } from "./storage-keys";
 export {
-  DEFAULT_PAGE_SIZE_OPTIONS,
   FULFILLMENT_COLUMNS,
   INVOICE_COLUMNS,
   LOAD_COLUMNS,

@@ -25,7 +25,8 @@ export function InventoryPermissionGate({
   variant = "detail",
   children,
 }: {
-  permission: PermissionCode;
+  /** One code, or a list of which any one opens the screen. */
+  permission: PermissionCode | readonly PermissionCode[];
   variant?: "detail" | "list" | "form";
   children: React.ReactNode;
 }) {
@@ -52,6 +53,8 @@ export function InventoryPermissionGate({
       />
     );
   }
-  if (!hasPermission(data, permission)) return <InventoryDenied />;
+  const anyOf: readonly PermissionCode[] =
+    typeof permission === "string" ? [permission] : permission;
+  if (!anyOf.some((code) => hasPermission(data, code))) return <InventoryDenied />;
   return <>{children}</>;
 }

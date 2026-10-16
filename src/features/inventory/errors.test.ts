@@ -30,6 +30,9 @@ describe("inventory error mapping by backend errorCode", () => {
     ["INSUFFICIENT_STOCK", 409, "conflict", M.insufficientStock],
     ["INVENTORY_POLICY_STOCK_CONFLICT", 409, "conflict", M.policyConflict],
     ["VALIDATION_FAILED", 400, "validation", M.validation],
+    // StockBrowsingImpl.warehouseStock / Pages.of + SortWhitelist (Inventory Overview reads).
+    ["WAREHOUSE_NOT_FOUND", 404, "not-found", M.warehouseNotFound],
+    ["UNSUPPORTED_PARAMETER", 400, "validation", M.unsupportedParameter],
   ] as const)("%s (%i) → Vietnamese %s message", (code, status, kind, detail) => {
     const view = inventoryErrorView(apiError(status, code));
     expect(view).toMatchObject({ kind, detail, traceId: "trace-1" });

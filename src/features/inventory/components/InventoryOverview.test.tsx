@@ -1,210 +1,280 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { NuqsTestingAdapter } from "nuqs/adapters/testing";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { HttpResponse } from "msw";
+import { setupServer } from "msw/node";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { api } from "@/lib/api/client";
+import { INVENTORY_LABELS, STOCK_ALERT_KIND_LABELS } from "@/constants/inventory";
+import { INVENTORY_OVERVIEW_PERMISSIONS } from "@/constants/permissions";
 
-import { createInventoryMockService } from "../mock-service";
+import {
+  OVERVIEW_RESERVATION,
+  OVERVIEW_STOCK_ITEMS,
+  OVERVIEW_WAREHOUSE,
+  inventoryPermissions,
+  overviewAlert,
+  overviewHandlers,
+  overviewPage,
+  renderInventory,
+  setInventoryTestActor,
+} from "../test-support";
 import { InventoryOverview } from "./InventoryOverview";
 
-import type { InventoryService } from "../service";
+const ALL = Object.values(INVENTORY_OVERVIEW_PERMISSIONS);
+const server = setupServer();
+const sent: URL[] = [];
+const sentTo = (path: string) =>
+  sent.filter((url) => url.pathname.replace("/api/backend", "").startsWith(path));
+const stockItemsPath = `/inventory/warehouses/${OVERVIEW_WAREHOUSE.id}/stock-items`;
 
+beforeAll(() => {
+  server.listen({ onUnhandledRequest: "error" });
+  server.events.on("request:start", ({ request }) => sent.push(new URL(request.url)));
+});
+beforeEach(() => setInventoryTestActor("Warehouse Manager"));
 afterEach(() => {
   cleanup();
-  vi.restoreAllMocks();
+  server.resetHandlers();
+  sent.length = 0;
 });
+afterAll(() => server.close());
 
-function renderOverview(service: InventoryService) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <NuqsTestingAdapter>
-      <QueryClientProvider client={client}>
-        <InventoryOverview service={service} />
-      </QueryClientProvider>
-    </NuqsTestingAdapter>,
+async function openFor(sku: string, overrides: Parameters<typeof overviewHandlers>[0] = {}) {
+  server.use(inventoryPermissions(ALL), ...overviewHandlers(overrides));
+  renderInventory(<InventoryOverview />);
+  const user = userEvent.setup();
+  await user.type(await screen.findByLabelText(INVENTORY_LABELS.skuLookup), `${sku}{Enter}`);
+  return user;
+}
+
+const region = (name: string | RegExp) => screen.findByRole("region", { name });
+const levelsRegion = () => region(INVENTORY_LABELS.stockLevelsTitle);
+
+async function openWarehouse(user: ReturnType<typeof userEvent.setup>, code: string) {
+  await user.click(
+    await screen.findByRole("button", { name: `${INVENTORY_LABELS.viewWarehouse} ${code}` }),
   );
 }
 
-describe("Inventory foundation", () => {
-  it("shows supplied highlights without inferring warnings from ATP or expiry", async () => {
-    const user = userEvent.setup();
-    renderOverview(createInventoryMockService());
-    const levels = await screen.findByRole("region", { name: "Stock Levels" });
-    const zeroAtp = within(levels).getByRole("row", { name: /DEMO-SKU-002/ });
-    expect(within(zeroAtp).getByText("Không khả dụng (minh họa)")).toBeInTheDocument();
-    const lowStock = within(levels).getByRole("row", { name: /DEMO-SKU-003/ });
-    expect(within(lowStock).getByText("Tồn thấp (minh họa)")).toBeInTheDocument();
-    const unflagged = within(levels).getByRole("row", { name: /DEMO-SKU-001/ });
-    expect(within(unflagged).queryByText(/Tồn thấp/)).not.toBeInTheDocument();
-
-    await user.click(within(levels).getByRole("button", { name: "DEMO-SKU-001" }));
-    const items = await screen.findByRole("region", { name: "Stock Items" });
-    const expiring = within(items).getByRole("row", { name: /DEMO-LOT-1/ });
-    expect(within(expiring).getByText("Gần hết hạn (minh họa)")).toBeInTheDocument();
-    const later = within(items).getByRole("row", { name: /DEMO-LOT-2/ });
-    expect(within(later).queryByText(/Gần hết hạn/)).not.toBeInTheDocument();
-    expect(within(later).getByText("Không bán được (minh họa)")).toBeInTheDocument();
-  });
-
-  it("does not derive alerts when an adapter leaves highlight fields empty", async () => {
-    const user = userEvent.setup();
-    const mock = createInventoryMockService();
-    const service: InventoryService = {
-      ...mock,
-      loadOverview: async (signal) => {
-        const preview = await mock.loadOverview(signal);
-        return {
-          ...preview,
-          stockLevels: preview.stockLevels.map((row) =>
-            row.sku === "DEMO-SKU-002" ? { ...row, availabilityHighlight: null } : row,
-          ),
-        };
-      },
-      loadStockItems: async (sku, warehouseCode, signal) =>
-        (await mock.loadStockItems(sku, warehouseCode, signal)).map((row) => ({
-          ...row,
-          nearExpiryHighlight: null,
-        })),
-    };
-    renderOverview(service);
-    const levels = await screen.findByRole("region", { name: "Stock Levels" });
-    const zeroAtp = within(levels).getByRole("row", { name: /DEMO-SKU-002/ });
-    expect(within(zeroAtp).getByRole("cell", { name: "0" })).toBeInTheDocument();
-    expect(within(zeroAtp).queryByText(/Không khả dụng/)).not.toBeInTheDocument();
-
-    await user.click(within(levels).getByRole("button", { name: "DEMO-SKU-001" }));
-    const items = await screen.findByRole("region", { name: "Stock Items" });
-    const expiring = within(items).getByRole("row", { name: /DEMO-LOT-1/ });
-    expect(within(expiring).queryByText(/Gần hết hạn/)).not.toBeInTheDocument();
-  });
-
-  it("renders four mock-backed sections without inventory HTTP requests", async () => {
-    const get = vi.spyOn(api, "get").mockRejectedValue(new Error("Unexpected HTTP"));
-    renderOverview(createInventoryMockService());
-    const levels = await screen.findByRole("region", { name: "Stock Levels" });
-    expect(within(levels).getByRole("button", { name: "DEMO-SKU-001" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Stock Items" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "ATP Lookup" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Reservations" })).toBeInTheDocument();
-    expect(screen.getByText(/Dữ liệu minh họa/)).toBeInTheDocument();
-    expect(get).not.toHaveBeenCalled();
-  });
-
-  it("preserves null lot/expiry instead of inferring dates or condition", async () => {
-    const user = userEvent.setup();
-    renderOverview(createInventoryMockService());
-    const levels = await screen.findByRole("region", { name: "Stock Levels" });
-    await user.click(within(levels).getByRole("button", { name: "DEMO-SKU-001" }));
-    const items = await screen.findByRole("region", { name: "Stock Items" });
-    expect(await within(items).findByText("Chưa có số lô")).toBeInTheDocument();
-    expect(within(items).getByText("Chưa có hạn dùng")).toBeInTheDocument();
+describe("stock levels", () => {
+  it("shows every backend quantity as received, with no pager", async () => {
+    await openFor("CUP-PP-500");
+    const levels = await levelsRegion();
+    const row = (await within(levels).findByText("HN01")).closest("tr");
+    expect(row).not.toBeNull();
+    // atp 330 is the backend's figure: not available − reserved (350 − 25).
     expect(
-      within(items)
-        .getAllByRole("row")
-        .slice(1)
-        .map((row) => within(row).getAllByRole("cell")[2].textContent),
-    ).toEqual(["DEMO-LOT-1", "DEMO-LOT-2", "Chưa có số lô"]);
-    expect(within(items).getByText("Trạng thái mẫu A")).toBeInTheDocument();
-    expect(within(items).getByText("Tình trạng mẫu B")).toBeInTheDocument();
+      within(row as HTMLElement)
+        .getAllByRole("cell")
+        .map((cell) => cell.textContent),
+    ).toEqual(["HN01", "423", "350", "25", "0", "330", INVENTORY_LABELS.viewWarehouse]);
+    expect(within(levels).queryByLabelText(INVENTORY_LABELS.perPage)).toBeNull();
   });
 
-  it("shows loading, then allows retry after a service failure", async () => {
-    const mock = createInventoryMockService();
-    const service: InventoryService = {
-      ...mock,
-      loadOverview: vi
-        .fn()
-        .mockRejectedValueOnce(new Error("Fixture failure"))
-        .mockImplementation((signal) => mock.loadOverview(signal)),
-    };
-    renderOverview(service);
-    expect(screen.getByRole("status")).toBeInTheDocument();
-    await userEvent.click(await screen.findByRole("button", { name: "Thử lại" }));
-    expect(await screen.findByRole("region", { name: "Stock Levels" })).toBeInTheDocument();
+  it("treats an unknown SKU's empty list as an empty state", async () => {
+    await openFor("NO-SUCH-SKU", { levels: [] });
+    expect(await screen.findByText(INVENTORY_LABELS.noStockLevels)).toBeInTheDocument();
   });
 
-  it("renders an empty section without inventing a record", async () => {
-    const mock = createInventoryMockService();
-    renderOverview({
-      ...mock,
-      loadOverview: async (signal) => ({
-        ...(await mock.loadOverview(signal)),
-        stockLevels: [],
+  it("shows the inventory error for a failed read", async () => {
+    await openFor("CUP-PP-500", {
+      levels: HttpResponse.json(
+        { success: false, errorCode: "INTERNAL_ERROR", correlationId: "trace-1" },
+        { status: 500 },
+      ),
+    });
+    const levels = await levelsRegion();
+    expect(await within(levels).findByText(INVENTORY_LABELS.loadError)).toBeInTheDocument();
+    expect(within(levels).getByText(/trace-1/)).toBeInTheDocument();
+  });
+});
+
+describe("warehouse identity", () => {
+  it("resolves the code through the directory: id to stock items, code to ATP", async () => {
+    const user = await openFor("CUP-PP-500");
+    await openWarehouse(user, "HN01");
+    await waitFor(() => expect(sentTo(stockItemsPath)).toHaveLength(1));
+    expect(Object.fromEntries(sentTo(stockItemsPath)[0]?.searchParams ?? [])).toEqual({
+      sku: "CUP-PP-500",
+      page: "0",
+      size: "15",
+      sort: "expiryDate,asc",
+    });
+    await waitFor(() => expect(sentTo("/inventory/stock-items/atp")).toHaveLength(1));
+    expect(Object.fromEntries(sentTo("/inventory/stock-items/atp")[0]?.searchParams ?? [])).toEqual(
+      { sku: "CUP-PP-500", warehouse: "HN01" },
+    );
+  });
+
+  it("a code missing from the directory sends neither the stock-item nor the ATP read", async () => {
+    const user = await openFor("CUP-PP-500");
+    await openWarehouse(user, "HCM01");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      `${INVENTORY_LABELS.warehouseUnresolved}: HCM01`,
+    );
+    expect(sentTo("/inventory/warehouses")).toEqual([]);
+    expect(sentTo("/inventory/stock-items/atp")).toEqual([]);
+  });
+
+  it("a directory that cannot be read invents no identity", async () => {
+    const user = await openFor("CUP-PP-500", {
+      directory: HttpResponse.json({ success: false, errorCode: "FORBIDDEN" }, { status: 403 }),
+    });
+    await openWarehouse(user, "HN01");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      INVENTORY_LABELS.directoryUnavailable,
+    );
+    expect(screen.getByText("HN01", { selector: "td" })).toBeInTheDocument();
+    expect(sentTo("/inventory/warehouses")).toEqual([]);
+    expect(sentTo("/inventory/stock-items/atp")).toEqual([]);
+  });
+});
+
+describe("warehouse stock items", () => {
+  it("keeps the server's row order and shows missing optional fields as a dash", async () => {
+    // Deliberately not in expiry order: the page must not re-sort what the server returned.
+    const reversed = [OVERVIEW_STOCK_ITEMS[1], OVERVIEW_STOCK_ITEMS[0]];
+    const user = await openFor("CUP-PP-500", { items: overviewPage(reversed) });
+    await openWarehouse(user, "HN01");
+    const items = await region(/Tồn theo vị trí và lô/);
+    const rows = await within(items).findAllByRole("row");
+    expect(rows[1]).toHaveTextContent("HN01-A02-01-A");
+    expect(rows[2]).toHaveTextContent("HN01-A01-02-B");
+    expect(within(rows[1] as HTMLElement).getAllByText(INVENTORY_LABELS.missing)).toHaveLength(3);
+  });
+
+  it("pages on the server from zero and returns to the first page on a new page size", async () => {
+    const user = await openFor("CUP-PP-500", {
+      items: overviewPage(OVERVIEW_STOCK_ITEMS, {
+        totalElements: 20,
+        totalPages: 2,
+        hasNext: true,
       }),
     });
-    expect(await screen.findByText("Chưa có dữ liệu mẫu")).toBeInTheDocument();
-  });
-
-  it("filters mock stock rows and shows an empty drill-down for the selected SKU", async () => {
-    const user = userEvent.setup();
-    renderOverview(createInventoryMockService());
-    const levels = await screen.findByRole("region", { name: "Stock Levels" });
-    await user.type(
-      within(levels).getByRole("searchbox", { name: "Tìm SKU hoặc sản phẩm" }),
-      "DEMO-SKU-024",
+    await openWarehouse(user, "HN01");
+    const items = await region(/Tồn theo vị trí và lô/);
+    await user.click(await within(items).findByRole("button", { name: INVENTORY_LABELS.next }));
+    await waitFor(() => expect(sentTo(stockItemsPath).at(-1)?.searchParams.get("page")).toBe("1"));
+    await user.selectOptions(within(items).getByLabelText(INVENTORY_LABELS.perPage), "50");
+    await waitFor(() =>
+      expect(Object.fromEntries(sentTo(stockItemsPath).at(-1)?.searchParams ?? [])).toMatchObject({
+        page: "0",
+        size: "50",
+      }),
     );
-    expect(within(levels).getByRole("button", { name: "DEMO-SKU-024" })).toBeInTheDocument();
-    expect(within(levels).queryByRole("button", { name: "DEMO-SKU-001" })).not.toBeInTheDocument();
-    await user.click(within(levels).getByRole("button", { name: "DEMO-SKU-024" }));
-    const items = screen.getByRole("region", { name: "Stock Items" });
-    expect(
-      await within(items).findByText("Chưa có stock item cho SKU và kho này"),
-    ).toBeInTheDocument();
-    expect(within(items).getByText("DEMO-SKU-024")).toBeInTheDocument();
+  });
+});
+
+describe("ATP", () => {
+  it("renders zero as a value", async () => {
+    const user = await openFor("CUP-PP-500", { atp: 0 });
+    await openWarehouse(user, "HN01");
+    const atp = await region(/ATP — có thể hứa bán/);
+    expect(await within(atp).findByText("0")).toBeInTheDocument();
+    expect(within(atp).getByText(INVENTORY_LABELS.atpZero)).toBeInTheDocument();
   });
 
-  it("pages through mock rows", async () => {
-    const user = userEvent.setup();
-    renderOverview(createInventoryMockService());
-    const levels = await screen.findByRole("region", { name: "Stock Levels" });
-    await user.click(within(levels).getByRole("button", { name: "Sau" }));
-    expect(within(levels).getByRole("button", { name: "DEMO-SKU-011" })).toBeInTheDocument();
+  it("is never asked for before a warehouse is chosen", async () => {
+    await openFor("CUP-PP-500");
+    await levelsRegion();
+    await screen.findByText("HN01");
+    expect(sentTo("/inventory/stock-items/atp")).toEqual([]);
+  });
+});
+
+describe("reservations", () => {
+  it("shows the backend order id and dashes for omitted fields, and pages on the server", async () => {
+    const user = await openFor("CUP-PP-500", {
+      reservations: overviewPage([OVERVIEW_RESERVATION], {
+        totalElements: 16,
+        totalPages: 2,
+        hasNext: true,
+      }),
+    });
+    const holds = await region(INVENTORY_LABELS.reservationsTitle);
+    const row = (await within(holds).findByText(OVERVIEW_RESERVATION.orderId)).closest("tr");
+    expect(within(row as HTMLElement).getAllByText(INVENTORY_LABELS.missing)).toHaveLength(4);
+    await user.click(within(holds).getByRole("button", { name: INVENTORY_LABELS.next }));
+    await waitFor(() =>
+      expect(sentTo("/inventory/reservations").at(-1)?.searchParams.get("page")).toBe("1"),
+    );
   });
 
-  it("shows detail loading and then stock items for the selected SKU", async () => {
-    const user = userEvent.setup();
-    const mock = createInventoryMockService();
-    let complete:
-      ((items: Awaited<ReturnType<InventoryService["loadStockItems"]>>) => void) | undefined;
-    const service: InventoryService = {
-      ...mock,
-      loadStockItems: () =>
-        new Promise((resolve) => {
-          complete = resolve;
+  it("offers the warehouse filter only once a warehouse is open, off by default", async () => {
+    const user = await openFor("CUP-PP-500");
+    const holds = await region(INVENTORY_LABELS.reservationsTitle);
+    expect(within(holds).queryByRole("checkbox")).toBeNull();
+    await openWarehouse(user, "HN01");
+    const filter = await within(holds).findByRole("checkbox");
+    expect(sentTo("/inventory/reservations").at(-1)?.searchParams.has("warehouse")).toBe(false);
+    await user.click(filter);
+    await waitFor(() =>
+      expect(
+        Object.fromEntries(sentTo("/inventory/reservations").at(-1)?.searchParams ?? []),
+      ).toEqual({ sku: "CUP-PP-500", warehouse: "HN01", page: "0", size: "15" }),
+    );
+  });
+});
+
+describe("alerts", () => {
+  it("shows SKU-level low stock from the backend, as text and not colour alone", async () => {
+    await openFor("CUP-PP-500", {
+      lowStock: overviewPage([overviewAlert("REORDER", { thresholdQty: 500 })]),
+    });
+    const levels = await levelsRegion();
+    expect(await within(levels).findByText(STOCK_ALERT_KIND_LABELS.REORDER)).toBeInTheDocument();
+    expect(within(levels).getByText(/Ngưỡng: 500/)).toBeInTheDocument();
+    const query = sentTo("/inventory/alerts")[0]?.searchParams;
+    expect(query?.get("kind")).toBe("REORDER,SAFETY");
+    expect(query?.has("warehouseId")).toBe(false);
+  });
+
+  it("says there is no low-stock alert only when the server counts none", async () => {
+    await openFor("CUP-PP-500");
+    expect(await screen.findByText(INVENTORY_LABELS.noLowStockAlerts)).toBeInTheDocument();
+  });
+
+  it("does not read a later page's alerts as absent", async () => {
+    await openFor("CUP-PP-500", {
+      lowStock: overviewPage([overviewAlert("SAFETY")], {
+        totalElements: 16,
+        totalPages: 2,
+        hasNext: true,
+      }),
+    });
+    expect(await screen.findByText(STOCK_ALERT_KIND_LABELS.SAFETY)).toBeInTheDocument();
+    expect(screen.queryByText(INVENTORY_LABELS.noLowStockAlerts)).toBeNull();
+  });
+
+  it("shows expiry alerts of the open warehouse with the backend's own days-to-expiry", async () => {
+    const user = await openFor("CUP-PP-500", {
+      expiry: overviewPage([
+        overviewAlert("EXPIRED", {
+          warehouseId: OVERVIEW_WAREHOUSE.id,
+          warehouseCode: "HN01",
+          lotNumber: "L2599",
+          expiryDate: "2026-10-01",
+          daysToExpiry: -15,
+          reservationImpaired: true,
         }),
-    };
-    renderOverview(service);
-    const levels = await screen.findByRole("region", { name: "Stock Levels" });
-    await user.click(within(levels).getByRole("button", { name: "DEMO-SKU-001" }));
-    const items = screen.getByRole("region", { name: "Stock Items" });
-    expect(within(items).getByRole("status", { name: "Đang tải nội dung" })).toBeInTheDocument();
-    complete?.(await mock.loadStockItems("DEMO-SKU-001", "DEMO-WH"));
-    expect(await within(items).findByText("DEMO-LOT-1")).toBeInTheDocument();
-  });
-
-  it("retries a failed stock-item query independently of the overview", async () => {
-    const user = userEvent.setup();
-    const mock = createInventoryMockService();
-    const service: InventoryService = {
-      ...mock,
-      loadStockItems: vi
-        .fn()
-        .mockRejectedValueOnce(new Error("Fixture failure"))
-        .mockImplementation((sku, warehouseCode, signal) =>
-          mock.loadStockItems(sku, warehouseCode, signal),
-        ),
-    };
-    renderOverview(service);
-    const levels = await screen.findByRole("region", { name: "Stock Levels" });
-    await user.click(within(levels).getByRole("button", { name: "DEMO-SKU-001" }));
-    const items = screen.getByRole("region", { name: "Stock Items" });
-    expect(
-      await within(items).findByText("Không tải được stock item minh họa"),
-    ).toBeInTheDocument();
-    await user.click(within(items).getByRole("button", { name: "Thử lại" }));
-    expect(await within(items).findByText("DEMO-LOT-1")).toBeInTheDocument();
-    expect(within(levels).getByRole("button", { name: "DEMO-SKU-001" })).toBeInTheDocument();
+        // Far-off expiry still flagged EXPIRING: the page trusts the backend's kind, no own window.
+        overviewAlert("EXPIRING", {
+          warehouseId: OVERVIEW_WAREHOUSE.id,
+          lotNumber: "L3000",
+          expiryDate: "2030-01-01",
+          daysToExpiry: 1173,
+        }),
+      ]),
+    });
+    await openWarehouse(user, "HN01");
+    const expiry = await region(INVENTORY_LABELS.expiryAlertsTitle);
+    expect(await within(expiry).findByText(STOCK_ALERT_KIND_LABELS.EXPIRED)).toBeInTheDocument();
+    expect(within(expiry).getByText(/Số ngày đến hạn: -15/)).toBeInTheDocument();
+    expect(within(expiry).getByText(/Số ngày đến hạn: 1173/)).toBeInTheDocument();
+    expect(within(expiry).getByText(INVENTORY_LABELS.reservationImpaired)).toBeInTheDocument();
+    const query = sentTo("/inventory/alerts").find((url) =>
+      url.searchParams.get("kind")?.includes("EXPIRING"),
+    );
+    expect(query?.searchParams.get("warehouseId")).toBe(OVERVIEW_WAREHOUSE.id);
   });
 });

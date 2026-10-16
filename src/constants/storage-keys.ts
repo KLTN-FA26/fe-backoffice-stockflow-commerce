@@ -1,5 +1,4 @@
 export const STORAGE_KEYS = {
-  adminInventoryConfig: "stockflow:admin:inventory:config",
   adminProductsConfig: "stockflow:admin:products:config",
   adminPurchaseOrdersConfig: "stockflow:admin:purchase-orders:config",
   adminPurchaseOrdersSpendConfig: "stockflow:admin:purchase-orders:spend:config",

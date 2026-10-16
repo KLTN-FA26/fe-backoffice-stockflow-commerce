@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 import {
+  INVENTORY_LIMITS,
+  INVENTORY_MESSAGES,
   INVENTORY_SORT_DIRECTIONS,
   RESERVATION_STATUSES,
   STOCK_ALERT_KINDS,
@@ -132,6 +134,18 @@ const paging = {
 };
 
 export const stockLevelsInput = z.object({ sku });
+
+/** Overview SKU form: the same exact code the backend `Sku` record accepts, normalised on submit. */
+export const skuLookupInput = z.object({
+  sku: z
+    .string()
+    .trim()
+    .min(1, INVENTORY_MESSAGES.required)
+    .min(INVENTORY_LIMITS.skuMinLength, INVENTORY_MESSAGES.invalidSku)
+    .max(INVENTORY_LIMITS.skuMaxLength, INVENTORY_MESSAGES.invalidSku)
+    .regex(/^[A-Za-z0-9-]+$/, INVENTORY_MESSAGES.invalidSku)
+    .transform((value) => value.toUpperCase()),
+});
 
 export const warehouseStockItemsInput = z.object({
   warehouseId,

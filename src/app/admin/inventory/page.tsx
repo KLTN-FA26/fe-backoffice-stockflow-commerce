@@ -1,5 +1,5 @@
-import { InventoryRoute } from "@/features/inventory/components/InventoryRoute";
+import { InventoryOverview } from "@/features/inventory";
 
 export default function InventoryPage() {
-  return <InventoryRoute />;
+  return <InventoryOverview />;
 }

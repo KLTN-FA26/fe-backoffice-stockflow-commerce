@@ -1,15 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { ADMIN_ROUTES } from "@/constants";
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 
 import { buildBreadcrumbItems } from "./BackofficeShell";
 
 describe("buildBreadcrumbItems", () => {
   it("đăng ký route Inventory trong điều hướng back-office", () => {
-    expect(buildBreadcrumbItems(ADMIN_ROUTES.inventory)).toEqual([
-      { label: "Back-office", href: ADMIN_ROUTES.home },
-      { label: "Tổng quan tồn kho", href: undefined },
+    expect(buildBreadcrumbItems(INVENTORY_ROUTES.overview)).toEqual([
+      { label: "Back-office", href: "/admin" },
+      { label: INVENTORY_LABELS.overviewTitle, href: undefined },
     ]);
   });
 
