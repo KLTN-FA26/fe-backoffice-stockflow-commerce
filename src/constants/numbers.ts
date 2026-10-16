@@ -68,3 +68,38 @@ export const FULFILLMENT_LIMITS = {
   /** Số ký tự CUỐI của UUID hiện khi BE không trả mã đọc được (task, đơn, người được gán). */
   shortIdLength: 8,
 } as const;
+
+/** Giới hạn lệnh chuyển kho — đúng ràng buộc request BE (CreateTransferOrderRequest, ReasonRequest). */
+export const TRANSFER_LIMITS = {
+  /** `lines` @Size(max = 200). */
+  linesMax: 200,
+  /** `Line.quantity` @Max(1_000_000). */
+  quantityMax: 1_000_000,
+  /** `Line.lotNumber` @Size(max = 64); SKU @Pattern `[A-Za-z0-9-]{3,64}`. */
+  codeMax: 64,
+  skuMin: 3,
+  /** `ReasonRequest.reason` @Size(max = 500). */
+  reasonMax: 500,
+  /**
+   * `stockflow.inventory.transfer.approval-threshold-units` (mặc định 100; docs 10 §4 bước 3 + §5 "Draft → Approved: Submit (dưới ngưỡng)"): tổng SL ≤ ngưỡng
+   * thì gửi duyệt là duyệt luôn. Chỉ để hiện gợi ý — BE đọc cấu hình thật.
+   */
+  approvalThresholdUnits: 100,
+} as const;
+
+/** Ô quét mã vạch dùng chung (`use-scan-tone`). */
+export const SCAN_LIMITS = {
+  /** Chờ trình duyệt mở AudioContext tối đa — quá thì bỏ tiếng báo đang chờ. */
+  audioResumeTimeoutMs: 1000,
+} as const;
+
+/** Xếp xe & bàn giao — ASSUMPTION theo contract đề xuất SCRUM-288 (BE chưa có request). */
+export const SHIPPING_LIMITS = {
+  scanCodeMax: 64,
+  carrierRepresentativeMax: 100,
+  noteMax: 500,
+  /** Thời gian giữ màu phản hồi sau mỗi lần quét. */
+  scanFeedbackMs: 1500,
+  /** Biên bản đang đối soát (LOADING): tự tải lại để thấy kiện quét từ máy khác. */
+  manifestPollMs: 15_000,
+} as const;

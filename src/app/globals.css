@@ -68,6 +68,31 @@
   --scene-accent: #22d3ee;
 }
 
+/* In (biên bản bàn giao…): luôn in bảng màu sáng — trình duyệt bỏ nền khi in, giữ token tối sẽ ra chữ
+   gần trắng trên giấy trắng. Toast cố định góc màn hình không thuộc tài liệu in. */
+@media print {
+  :root,
+  :root[data-theme="dark"] {
+    color-scheme: light;
+    --bg-base: #ffffff;
+    --bg-surface: #ffffff;
+    --bg-subtle: #f7f8fa;
+    --bg-muted: #eef0f3;
+    --border-default: #dadde1;
+    --border-strong: #c5cad1;
+    --ink-primary: #1a1b18;
+    --ink-secondary: #5c5e58;
+    --ink-tertiary: #8a8c85;
+    --ink-inverse: #ffffff;
+    --brand: #1a1b18;
+    --brand-hover: #000000;
+    --accent: #1e88e5;
+  }
+  [data-sonner-toaster] {
+    display: none;
+  }
+}
+
 /* ============================================================================
    TAILWIND v4 @theme — map StockFlow tokens → utility classes + shadcn semantic vars
    ==========================================================================*/

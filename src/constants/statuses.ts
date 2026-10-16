@@ -347,6 +347,59 @@ export const SUPPLIER_API_STATUSES = ["ACTIVE", "INACTIVE", "BLACKLISTED"] as co
 /** Kênh gửi PO cho NCC — BE `communicationChannel` (EMAIL|API, BE PR #36). */
 export const SUPPLIER_CHANNELS = ["EMAIL", "API"] as const;
 
+/**
+ * Lệnh chuyển kho liên kho — BE `TransferStatus` (SCRUM-327, `inventory/internal/domain/TransferStatus.java`),
+ * nguyên văn mã wire, cùng vòng đời docs 10 §5. FE hiển thị qua status-map như PO.
+ */
+export const TRANSFER_STATUSES = [
+  "DRAFT",
+  "PENDING_APPROVAL",
+  "APPROVED",
+  "PICKING",
+  "IN_TRANSIT",
+  "PARTIALLY_RECEIVED",
+  "RECEIVED",
+  "COMPLETED",
+  "CLOSED",
+  "CANCELLED",
+] as const;
+
+export const TRANSFER_STATUS = {
+  DRAFT: "DRAFT",
+  PENDING_APPROVAL: "PENDING_APPROVAL",
+  APPROVED: "APPROVED",
+  PICKING: "PICKING",
+  IN_TRANSIT: "IN_TRANSIT",
+  PARTIALLY_RECEIVED: "PARTIALLY_RECEIVED",
+  RECEIVED: "RECEIVED",
+  COMPLETED: "COMPLETED",
+  CLOSED: "CLOSED",
+  CANCELLED: "CANCELLED",
+} as const satisfies Record<string, TransferStatus>;
+
+/** BE `TransferReason` — lý do chuyển kho (CreateTransferOrderRequest.reason, tuỳ chọn). */
+export const TRANSFER_REASONS = ["REBALANCING", "DEMAND", "CAMPAIGN", "OVERFLOW", "OTHER"] as const;
+
+/**
+ * Chuyến xe xuất hàng — `LoadStatus` theo BE business-design 03-state-machines §11.
+ * ASSUMPTION: BE SCRUM-288 chưa có enum; FE dùng đúng tên trong thiết kế, khớp lại khi BE lên.
+ */
+export const LOAD_STATUSES = [
+  "PLANNED",
+  "VEHICLE_BOOKED",
+  "LOADING",
+  "DISPATCHED",
+  "CANCELLED",
+] as const;
+
+export const LOAD_STATUS = {
+  PLANNED: "PLANNED",
+  VEHICLE_BOOKED: "VEHICLE_BOOKED",
+  LOADING: "LOADING",
+  DISPATCHED: "DISPATCHED",
+  CANCELLED: "CANCELLED",
+} as const satisfies Record<string, LoadStatus>;
+
 export type PoStatus = (typeof PO_STATUSES)[number];
 export type SupplierConfirmationStatus = (typeof SUPPLIER_CONFIRMATION_STATUSES)[number];
 export type PoDeliveryStatus = (typeof PO_DELIVERY_STATUSES)[number];
@@ -371,3 +424,6 @@ export type OrderReadStatus = (typeof ORDER_READ_STATUSES)[number];
 export type SupplierStatus = (typeof SUPPLIER_STATUSES)[number];
 export type SupplierApiStatus = (typeof SUPPLIER_API_STATUSES)[number];
 export type SupplierChannel = (typeof SUPPLIER_CHANNELS)[number];
+export type TransferStatus = (typeof TRANSFER_STATUSES)[number];
+export type TransferReason = (typeof TRANSFER_REASONS)[number];
+export type LoadStatus = (typeof LOAD_STATUSES)[number];

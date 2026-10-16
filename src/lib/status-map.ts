@@ -47,6 +47,9 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Staged",
     "Picked",
     "Allocated",
+    // Chuyển kho (BE TransferStatus) + chuyến xe (LoadStatus, BE 03-state-machines §11)
+    "COMPLETED",
+    "DISPATCHED",
   ],
   info: [
     "QUEUED",
@@ -77,6 +80,12 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "QC",
     // BE PaymentStatus.ON_CREDIT (order/api/PaymentStatus.java) — đơn công nợ, chưa thu
     "On Credit",
+    // Chuyển kho: đang lấy hàng ở kho nguồn / đang trên đường (docs 10 §5)
+    "PICKING",
+    "IN_TRANSIT",
+    // Chuyến xe: đã đặt xe / đang xếp hàng lên xe
+    "VEHICLE_BOOKED",
+    "LOADING",
   ],
   warning: [
     "RETRYING",
@@ -143,6 +152,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Requested",
     // docs 19 §5.1 — lệnh sản xuất vừa sinh, chờ kiểm file in
     "Pending Prepress",
+    // Chuyến xe mới lập kế hoạch, chưa đặt xe
+    "PLANNED",
   ],
   muted: [
     "UNKNOWN",
@@ -216,6 +227,15 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   PENDING: "Đang chờ",
   CONFIRMED: "Đã xác nhận",
   REJECTED: "NCC từ chối",
+  // Chuyển kho liên kho (BE TransferStatus, docs 10 §5)
+  PICKING: "Đang lấy hàng",
+  IN_TRANSIT: "Đang vận chuyển",
+  COMPLETED: "Hoàn tất",
+  // Chuyến xe (BE 03-state-machines §11)
+  PLANNED: "Đã lập kế hoạch",
+  VEHICLE_BOOKED: "Đã đặt xe",
+  LOADING: "Đang xếp hàng",
+  DISPATCHED: "Đã bàn giao",
   // Positive
   Confirmed: "Đã xác nhận",
   Approved: "Đã duyệt",

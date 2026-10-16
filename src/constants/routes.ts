@@ -52,6 +52,20 @@ export const ADMIN_ROUTES = {
     detail: (id: string) => `${ADMIN_BASE}/variants/${id}`,
     list: `${ADMIN_BASE}/variants`,
   },
+  transfers: {
+    create: `${ADMIN_BASE}/transfers/create`,
+    detail: (id: string) => `${ADMIN_BASE}/transfers/${id}`,
+    edit: (id: string) => `${ADMIN_BASE}/transfers/${id}/edit`,
+    list: `${ADMIN_BASE}/transfers`,
+  },
+  shipments: {
+    list: `${ADMIN_BASE}/shipments`,
+    /** Màn xếp hàng lên xe của một chuyến (quét kiện). */
+    loading: (id: string) => `${ADMIN_BASE}/shipments/${id}`,
+    manifest: (id: string) => `${ADMIN_BASE}/shipments/${id}/manifest`,
+  },
+  /** Kế hoạch xếp xe — SCRUM-452, đang phát triển. */
+  loadPlans: `${ADMIN_BASE}/load-plans`,
   suppliers: {
     list: `${ADMIN_BASE}/suppliers`,
     create: `${ADMIN_BASE}/suppliers/create`,

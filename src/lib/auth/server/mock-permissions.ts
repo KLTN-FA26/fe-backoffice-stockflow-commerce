@@ -12,7 +12,9 @@ import {
   PO_PERMISSIONS,
   PRODUCT_PERMISSIONS,
   QC_TASK_PERMISSIONS,
+  SHIPMENT_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
+  TRANSFER_PERMISSIONS,
 } from "@/constants/permissions";
 
 import { toBackendRoles } from "@/lib/api/mock-backend-roles";
@@ -25,6 +27,12 @@ import type { PermissionCode } from "@/lib/auth/me-permissions";
 const GR = GOODS_RECEIPT_PERMISSIONS;
 const QC = QC_TASK_PERMISSIONS;
 const GR_WORK = [GR.viewPage, GR.read, GR.create, GR.update];
+// Seed BE: inventory-transfer-orders — WAREHOUSE_MANAGER đủ 5 quyền (gồm APPROVE), INVENTORY_PLANNER
+// VIEW_PAGE/READ/CREATE/UPDATE, WAREHOUSE_STAFF VIEW_PAGE/READ/UPDATE (V20261010000500).
+// fulfillment-shipments VIEW_PAGE/READ/CREATE/UPDATE cho WAREHOUSE_STAFF / MANAGER / ORDER_COORDINATOR.
+const TO = TRANSFER_PERMISSIONS;
+const TO_STAFF = [TO.viewPage, TO.read, TO.update];
+const SHIP = Object.values(SHIPMENT_PERMISSIONS);
 
 // Seed BE V20260903000100 + V20260919001300 (fulfillment):
 // WAREHOUSE_STAFF / WAREHOUSE_MANAGER — pick-lists VIEW_PAGE/READ/UPDATE, packages
@@ -62,6 +70,8 @@ const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...Object.values(QC),
     ...FULFILLMENT_FLOOR,
     IDENTITY_USER_PERMISSIONS.read,
+    ...Object.values(TO),
+    ...SHIP,
   ],
   "USER-PROC-01": [
     SUPPLIER_PERMISSIONS.viewPage,
@@ -78,11 +88,12 @@ const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     QC.viewPage,
     QC.read,
   ],
-  "USER-PLAN-01": [],
-  "USER-WH-01": WH_WORK,
-  "USER-WH-02": WH_WORK,
-  "USER-WH-03": WH_WORK,
-  "USER-WH-04": WH_WORK,
+  // INVENTORY_PLANNER (seed V20261010000500): tạo / sửa / gửi duyệt / huỷ, KHÔNG duyệt
+  "USER-PLAN-01": [TO.viewPage, TO.read, TO.create, TO.update],
+  "USER-WH-01": [...WH_WORK, ...TO_STAFF, ...SHIP],
+  "USER-WH-02": [...WH_WORK, ...TO_STAFF, ...SHIP],
+  "USER-WH-03": [...WH_WORK, ...TO_STAFF, ...SHIP],
+  "USER-WH-04": [...WH_WORK, ...TO_STAFF, ...SHIP],
   "USER-QC-01": [
     GR.viewPage,
     GR.read,
@@ -107,8 +118,9 @@ const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
   "USER-SALE-01": ORDER_SALES,
   "USER-SALE-02": ORDER_SALES,
   "USER-SALE-03": ORDER_SALES,
-  // Order Coordinator + Warehouse Staff → thêm quyền kho xuất của WAREHOUSE_STAFF
-  "USER-COORD-01": [...ORDER_ALL, ...FULFILLMENT_FLOOR],
+  // Order Coordinator + Warehouse Staff: đơn bán / công nợ + quyền kho xuất, chuyển kho, chuyến xe
+  // của WAREHOUSE_STAFF
+  "USER-COORD-01": [...ORDER_ALL, ...FULFILLMENT_FLOOR, ...TO_STAFF, ...SHIP],
 };
 
 export function mockSessionPermissions(userId: string, roles: readonly string[]) {

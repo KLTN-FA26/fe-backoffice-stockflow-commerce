@@ -40,8 +40,6 @@ import type {
   QcStatus,
   InvoiceStatus,
   PutawayStatus,
-  ShipmentStatus,
-  TransferOrderStatus,
   MoveTaskStatus,
 } from "@/lib/mock-data";
 // OrderStatus lấy từ constants/statuses.ts (không phải mock-data) — 12 trạng thái BE
@@ -49,7 +47,14 @@ import type {
 // UNKNOWN (trạng thái BE mới FE chưa hỗ trợ) — chỉ đọc, không chuyển tiếp được.
 // ReceiptStatus cũng vậy — 6 trạng thái docs 03 §5.1 (mock-data chỉ có 5, thiếu "In QC").
 // PickStatus / PackStatus: các trạng thái BE `/fulfillment/tasks` phát ra được (SCRUM-437).
-import type { OrderReadStatus, PackStatus, PickStatus, ReceiptStatus } from "@/constants/statuses";
+import type {
+  LoadStatus,
+  OrderReadStatus,
+  PackStatus,
+  PickStatus,
+  ReceiptStatus,
+  TransferStatus,
+} from "@/constants/statuses";
 
 /* ── Module 01: Product ──────────────────────────────────────────────── */
 
@@ -164,40 +169,36 @@ export const PACK_TRANSITIONS: Record<PackStatus, readonly PackStatus[]> = {
   Cancelled: [],
 };
 
-/* ── Module 09: Shipping ─────────────────────────────────────────────── */
+/* ── Module 09: Shipping — chuyến xe (load) ──────────────────────────── */
 
-// ShipmentStatus = "Label Created" | "Ready to Dispatch" | "Handed Over" | "In Transit"
-//   | "Out for Delivery" | "Delivery Failed" | "Returning" | "Delivered" | "Returned" | "Exception" | "Cancelled"
-// docs/warehouse/09-shipping §5
-export const SHIPMENT_TRANSITIONS: Record<ShipmentStatus, readonly ShipmentStatus[]> = {
-  "Label Created": ["Ready to Dispatch"],
-  "Ready to Dispatch": ["Handed Over"],
-  "Handed Over": ["In Transit"],
-  "In Transit": ["Out for Delivery", "Exception"],
-  "Out for Delivery": ["Delivered", "Delivery Failed"],
-  "Delivery Failed": ["Out for Delivery", "Returning"],
-  Returning: ["Returned"],
-  Delivered: [],
-  Returned: [],
-  Exception: ["In Transit", "Returning"],
-  Cancelled: [],
+// BE business-design 03-state-machines §11 (rescope 2026-10-06: hãng là bên thứ ba, không tracking).
+// PLANNED → VEHICLE_BOOKED (đặt xe ngoài hệ thống, SCRUM-287/452) → LOADING (xe đến, quét kiện)
+// → DISPATCHED (đủ kiện + biên bản ký, SCRUM-288). Huỷ chỉ khi còn PLANNED.
+// ASSUMPTION: BE SCRUM-288 chưa có enum — khớp lại khi BE lên.
+export const LOAD_TRANSITIONS: Record<LoadStatus, readonly LoadStatus[]> = {
+  PLANNED: ["VEHICLE_BOOKED", "CANCELLED"],
+  VEHICLE_BOOKED: ["LOADING"],
+  LOADING: ["DISPATCHED"],
+  DISPATCHED: [],
+  CANCELLED: [],
 };
 
 /* ── Module 10: Inter-warehouse Transfer ─────────────────────────────── */
 
-// TransferOrderStatus = "Draft" | "Pending Approval" | "Approved" | "Picking"
-//   | "In Transit" | "Partially Received" | "Received" | "Completed" | "Cancelled"
-// docs/warehouse/10-transfer §5
-export const TRANSFER_TRANSITIONS: Record<TransferOrderStatus, readonly TransferOrderStatus[]> = {
-  Draft: ["Pending Approval"],
-  "Pending Approval": ["Approved", "Cancelled"],
-  Approved: ["Picking"],
-  Picking: ["In Transit"],
-  "In Transit": ["Partially Received", "Received"],
-  "Partially Received": ["Received"],
-  Received: ["Completed"],
-  Completed: [],
-  Cancelled: [],
+// docs 10 §5 = BE `TransferStatus.canTransitionTo` (SCRUM-327). DRAFT → APPROVED khi tổng SL ≤ ngưỡng
+// duyệt; PENDING_APPROVAL → DRAFT khi bị từ chối; PICKING → APPROVED khi dừng lấy hàng.
+// BR-04 (docs 10 §6): chỉ huỷ trước khi rời kho nguồn — sau IN_TRANSIT chỉ còn đóng (CLOSED).
+export const TRANSFER_TRANSITIONS: Record<TransferStatus, readonly TransferStatus[]> = {
+  DRAFT: ["PENDING_APPROVAL", "APPROVED", "CANCELLED"],
+  PENDING_APPROVAL: ["APPROVED", "DRAFT"],
+  APPROVED: ["PICKING", "CANCELLED"],
+  PICKING: ["IN_TRANSIT", "APPROVED"],
+  IN_TRANSIT: ["PARTIALLY_RECEIVED", "RECEIVED"],
+  PARTIALLY_RECEIVED: ["RECEIVED", "CLOSED"],
+  RECEIVED: ["COMPLETED"],
+  COMPLETED: [],
+  CLOSED: [],
+  CANCELLED: [],
 };
 
 /* ── Module 11: Intra-warehouse Move ─────────────────────────────────── */

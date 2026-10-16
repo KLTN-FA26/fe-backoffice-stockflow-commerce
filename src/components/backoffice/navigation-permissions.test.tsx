@@ -7,6 +7,7 @@ import {
   CREDIT_HOLD_PERMISSIONS,
   IDENTITY_PERMISSIONS,
   ORDER_PERMISSIONS,
+  SHIPMENT_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
 } from "@/constants/permissions";
 
@@ -24,6 +25,9 @@ import {
 } from "./BackofficeShell";
 
 import type { PermissionCode } from "@/lib/auth/me-permissions";
+
+const mockMode = vi.hoisted(() => ({ isMock: false }));
+vi.mock("@/providers/app-providers", () => ({ useIsMock: () => mockMode.isMock }));
 
 function Navigation() {
   const canSee = useCanSeeNavItem();
@@ -101,6 +105,21 @@ describe("declared navigation permissions", () => {
     mount();
     expect(await screen.findByRole("link", { name: "Phân quyền" })).toBeInTheDocument();
   });
+  it("màn chỉ chạy trên mock (xếp xe & bàn giao) ẩn khi nối BE thật dù có quyền", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [], permissions: [SHIPMENT_PERMISSIONS.viewPage], dataScope: "ALL" },
+    });
+    mockMode.isMock = false;
+    mount();
+    expect(await screen.findByRole("link", { name: "Kế hoạch xếp xe" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Xếp xe & bàn giao" })).not.toBeInTheDocument();
+
+    cleanup();
+    mockMode.isMock = true;
+    mount();
+    expect(await screen.findByRole("link", { name: "Xếp xe & bàn giao" })).toBeInTheDocument();
+    mockMode.isMock = false;
+  });
 });
 
 describe("credit hold navigation — gate bằng quyền credit hold, không phụ thuộc trang Đơn hàng", () => {
@@ -170,5 +189,70 @@ describe("credit hold navigation — gate bằng quyền credit hold, không ph�
       [ADMIN_ROUTES.orders.creditHolds],
     ]);
     expect(groups.every((group) => group.items.length > 0)).toBe(true);
+  });
+});
+
+describe("mockOnly đi chung pipeline hiển thị + mục đang mở (một tập mục được thấy)", () => {
+  /** Chạy đúng pipeline của sidebar: quyền + mockOnly → nhóm được thấy → mục đang mở. */
+  function ActiveProbe({ pathname }: { pathname: string }) {
+    const canSee = useCanSeeNavItem();
+    const groups = visibleNavGroups(canSee);
+    const active = findActiveNavHref(
+      pathname,
+      groups.flatMap((group) => group.items),
+    );
+    return (
+      <>
+        <output aria-label="active">{active ?? "none"}</output>
+        <output aria-label="visible">
+          {groups.flatMap((group) => group.items.map((item) => item.href)).join(" ")}
+        </output>
+      </>
+    );
+  }
+
+  function probe(pathname: string, permissions: string[]) {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [], permissions, dataScope: "ALL" },
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <ActiveProbe pathname={pathname} />
+      </QueryClientProvider>,
+    );
+  }
+
+  const SHIPMENT_DETAIL = ADMIN_ROUTES.shipments.loading("trip-1");
+
+  afterEach(() => {
+    mockMode.isMock = false;
+  });
+
+  it("A/B. ngoài mock: mục mockOnly ẩn và KHÔNG thành mục đang mở dù đúng route của nó", async () => {
+    mockMode.isMock = false;
+    probe(SHIPMENT_DETAIL, [SHIPMENT_PERMISSIONS.viewPage]);
+    await waitFor(() =>
+      expect(screen.getByLabelText("visible")).toHaveTextContent(ADMIN_ROUTES.loadPlans),
+    );
+    expect(screen.getByLabelText("visible")).not.toHaveTextContent(ADMIN_ROUTES.shipments.list);
+    expect(screen.getByLabelText("active")).toHaveTextContent("none");
+  });
+
+  it("C. trong mock: mục mockOnly hiện và sáng theo route như mọi mục khác", async () => {
+    mockMode.isMock = true;
+    probe(SHIPMENT_DETAIL, [SHIPMENT_PERMISSIONS.viewPage]);
+    await waitFor(() =>
+      expect(screen.getByLabelText("active")).toHaveTextContent(ADMIN_ROUTES.shipments.list),
+    );
+  });
+
+  it("D. trong mock nhưng thiếu quyền của mục → vẫn ẩn, không sáng (quyền vẫn áp dụng)", async () => {
+    mockMode.isMock = true;
+    probe(SHIPMENT_DETAIL, [ORDER_PERMISSIONS.viewPage]);
+    await waitFor(() =>
+      expect(screen.getByLabelText("visible")).toHaveTextContent(ADMIN_ROUTES.orders.list),
+    );
+    expect(screen.getByLabelText("visible")).not.toHaveTextContent(ADMIN_ROUTES.shipments.list);
+    expect(screen.getByLabelText("active")).toHaveTextContent("none");
   });
 });

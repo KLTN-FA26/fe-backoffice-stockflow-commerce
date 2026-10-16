@@ -2,14 +2,27 @@
  * Nhãn UI + nội dung toast dùng lại ≥2 lần (§15 — không hardcode string).
  */
 
+import { SHIPPING_TOAST_MESSAGES, SHIPPING_UI_LABELS } from "./labels-shipping";
+import { TRANSFER_TOAST_MESSAGES, TRANSFER_UI_LABELS } from "./labels-transfer";
+
 export const UI_LABELS = {
   common: {
     retry: "Thử lại",
+    back: "Quay lại",
     backToList: "Về danh sách",
     backToHome: "Về trang tổng quan",
     traceId: "TraceId",
+    /** Caption bảng danh sách: "Hiển thị x / tổng …". */
+    showing: "Hiển thị",
   },
   // Trạng thái lỗi khi tải dữ liệu (§8 PRODUCTION-FRONTEND-RULES)
+  emptyList: {
+    noResultsTitle: "Không tìm thấy kết quả",
+    invalidPageTitle: "Trang không còn dữ liệu",
+    invalidPageDescription: "Trang hiện tại vượt quá số trang có dữ liệu.",
+    clearFilters: "Bỏ bộ lọc",
+    firstPage: "Về trang đầu",
+  },
   loadError: {
     networkTitle: "Không kết nối được máy chủ",
     networkDescription: "Kiểm tra kết nối mạng rồi thử lại.",
@@ -188,6 +201,8 @@ export const UI_LABELS = {
     linesCancelledDescription: "Phiếu đã huỷ trước khi xác nhận — không nhập kho, chỉ còn xem.",
     dateRangeInvalid: "Ngày bắt đầu sau ngày kết thúc — không có phiếu nào khớp.",
   },
+  transfer: TRANSFER_UI_LABELS,
+  shipping: SHIPPING_UI_LABELS,
   fulfillment: {
     pickingTitle: "Lấy hàng",
     pickingSubtitle: "Task xuất kho theo đơn: gán nhân viên, bắt đầu và hoàn tất lấy hàng.",
@@ -521,6 +536,8 @@ export const TOAST_MESSAGES = {
     movedToQc: "Đã chuyển hàng sang khu QC",
     inspected: "Đã ghi nhận kết luận QC",
   },
+  transfer: TRANSFER_TOAST_MESSAGES,
+  shipping: SHIPPING_TOAST_MESSAGES,
   fulfillment: {
     created: "Đã tạo task lấy hàng",
     // BE trả lại task đã có của đơn (vẫn 201) thay vì tạo mới
