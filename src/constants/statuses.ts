@@ -410,3 +410,20 @@ export type SupplierChannel = (typeof SUPPLIER_CHANNELS)[number];
 export type TransferStatus = (typeof TRANSFER_STATUSES)[number];
 export type TransferReason = (typeof TRANSFER_REASONS)[number];
 export type LoadStatus = (typeof LOAD_STATUSES)[number];
+
+// Backend StockAdjustmentStatus (SCRUM-424); preserve wire values.
+export const STOCK_ADJUSTMENT_STATUSES = [
+  "PENDING_APPROVAL",
+  "POSTED",
+  "REJECTED",
+  "WITHDRAWN",
+] as const;
+
+export const STOCK_ADJUSTMENT_STATUS = {
+  PENDING_APPROVAL: "PENDING_APPROVAL",
+  POSTED: "POSTED",
+  REJECTED: "REJECTED",
+  WITHDRAWN: "WITHDRAWN",
+} as const satisfies Record<string, StockAdjustmentStatus>;
+
+export type StockAdjustmentStatus = (typeof STOCK_ADJUSTMENT_STATUSES)[number];

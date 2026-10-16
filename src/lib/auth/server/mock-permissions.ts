@@ -6,6 +6,7 @@ import {
   GOODS_RECEIPT_PERMISSIONS,
   IDENTITY_PERMISSIONS,
   IDENTITY_USER_PERMISSIONS,
+  INVENTORY_PERMISSIONS,
   ORDER_PERMISSIONS,
   PO_PERMISSIONS,
   PRODUCT_PERMISSIONS,
@@ -38,8 +39,11 @@ const SHIP = Object.values(SHIPMENT_PERMISSIONS);
 // identity-users:READ chỉ ECOMMERCE_ADMIN (System Admin mock-only được toàn quyền).
 const PICK = FULFILLMENT_PICK_PERMISSIONS;
 const PACK = FULFILLMENT_PACKAGE_PERMISSIONS;
+const INV = INVENTORY_PERMISSIONS;
+const INVENTORY_FLOOR = [INV.adjustmentRead, INV.stockUpdate, INV.movementRead];
+const INVENTORY_ALL = Object.values(INV);
 const FULFILLMENT_FLOOR = [...Object.values(PICK), ...Object.values(PACK)];
-const WH_WORK = [...GR_WORK, ...FULFILLMENT_FLOOR];
+const WH_WORK = [...GR_WORK, ...FULFILLMENT_FLOOR, ...INVENTORY_FLOOR];
 
 /** Explicit demo session responses keyed by existing staff IDs, never computed from roles. */
 const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
@@ -53,6 +57,7 @@ const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...Object.values(QC),
     ...FULFILLMENT_FLOOR,
     IDENTITY_USER_PERMISSIONS.read,
+    ...INVENTORY_ALL,
     ...Object.values(TO),
     ...SHIP,
   ],
@@ -72,7 +77,8 @@ const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     QC.read,
   ],
   // INVENTORY_PLANNER (seed V20261010000500): tạo / sửa / gửi duyệt / huỷ, KHÔNG duyệt
-  "USER-PLAN-01": [TO.viewPage, TO.read, TO.create, TO.update],
+  "USER-PLAN-01": [...INVENTORY_FLOOR, TO.viewPage, TO.read, TO.create, TO.update],
+  // Existing USER-ADMIN-01 is also the only Warehouse Manager; WH users are staff.
   "USER-WH-01": [...WH_WORK, ...TO_STAFF, ...SHIP],
   "USER-WH-02": [...WH_WORK, ...TO_STAFF, ...SHIP],
   "USER-WH-03": [...WH_WORK, ...TO_STAFF, ...SHIP],
@@ -100,6 +106,7 @@ const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
   "USER-COORD-01": [
     ...Object.values(ORDER_PERMISSIONS),
     ...FULFILLMENT_FLOOR,
+    ...INVENTORY_FLOOR,
     ...TO_STAFF,
     ...SHIP,
   ],

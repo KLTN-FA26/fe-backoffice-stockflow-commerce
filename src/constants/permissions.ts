@@ -82,6 +82,21 @@ export const PRODUCT_PERMISSIONS = {
 } as const;
 
 /**
+ * Điều chỉnh tồn + sổ kho — BE `StockOperationsController` (develop 0f18f24), resource
+ * `InventoryResources.STOCK_ITEMS` / `STOCK_ADJUSTMENTS` / `STOCK_MOVEMENTS`.
+ */
+export const INVENTORY_PERMISSIONS = {
+  // GET /inventory/adjustments, /inventory/adjustments/{id}
+  adjustmentRead: "inventory-stock-adjustments:READ",
+  // POST …/approval và …/rejection — bốn mắt vẫn do lifecycle + BE kiểm
+  adjustmentApprove: "inventory-stock-adjustments:APPROVE",
+  // POST /inventory/adjustments (tạo) và …/withdrawal (rút) — việc của NV kho
+  stockUpdate: "inventory-stock-items:UPDATE",
+  // GET /inventory/movements
+  movementRead: "inventory-stock-movements:READ",
+} as const;
+
+/**
  * Task xuất kho — resource `fulfillment-pick-lists` (BE FulfillmentController, SCRUM-43).
  * Tạo task, gán, bắt đầu / hoàn tất lấy hàng đều là UPDATE (không có CREATE).
  */

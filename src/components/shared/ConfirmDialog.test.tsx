@@ -157,4 +157,31 @@ describe("ConfirmDialog", () => {
     expect(onConfirm).not.toHaveBeenCalled();
     expect(screen.getByLabelText(/Lý do huỷ/)).toHaveValue("Dòng 1\nDòng 2");
   });
+
+  it("hiện lỗi truyền vào bên trong dialog (role=alert) — không có lỗi thì không render", () => {
+    const { rerender } = render(
+      <ConfirmDialog
+        open
+        onOpenChange={vi.fn()}
+        title="Từ chối"
+        description="Mô tả"
+        onConfirm={vi.fn()}
+        closeOnConfirm={false}
+      />,
+    );
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    rerender(
+      <ConfirmDialog
+        open
+        onOpenChange={vi.fn()}
+        title="Từ chối"
+        description="Mô tả"
+        onConfirm={vi.fn()}
+        closeOnConfirm={false}
+        error="Không thực hiện được"
+      />,
+    );
+    expect(screen.getByRole("dialog")).toContainElement(screen.getByRole("alert"));
+    expect(screen.getByRole("alert")).toHaveTextContent("Không thực hiện được");
+  });
 });

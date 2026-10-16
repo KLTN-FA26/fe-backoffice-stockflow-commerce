@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { AUTH_COOKIE_NAME, MOCK_LOGIN_PASSWORD } from "@/constants/auth";
 import {
+  INVENTORY_PERMISSIONS,
   PERMISSION_QUERY,
   SUPPLIER_PERMISSIONS,
   TRANSFER_PERMISSIONS,
@@ -24,6 +25,12 @@ vi.mock("@/lib/config", () => ({ IS_MOCK: true }));
 
 describe("explicit mock permission responses", () => {
   it("grants depend only on explicit session fixture, never supplied or impersonated roles", () => {
+    expect(mockSessionPermissions("USER-PLAN-01", ["System Admin"]).permissions).toEqual(
+      mockSessionPermissions("USER-PLAN-01", []).permissions,
+    );
+    expect(mockSessionPermissions("USER-PLAN-01", ["System Admin"]).permissions).not.toContain(
+      INVENTORY_PERMISSIONS.adjustmentApprove,
+    );
     // Fixture "không có quyền": user không có trong bảng grant, kể cả khi giả lập System Admin
     expect(mockSessionPermissions("unknown", ["System Admin"]).permissions).toEqual([]);
     // Planner theo seed BE: không có quyền duyệt dù giả lập System Admin
@@ -77,6 +84,36 @@ describe("explicit mock permission responses", () => {
       expect(readFileSync(path, "utf8")).not.toMatch(
         /effectiveRoles|impersonatedRole|RoleName|ROLE_PERMISSIONS|permissionsFor|accessToken|refreshToken|Authorization.*Bearer/,
       );
+    }
+  });
+});
+
+describe("Inventory grants in the authoritative server session", () => {
+  it.each([
+    ["System Admin", ["USER-ADMIN-01"], true],
+    ["Warehouse Manager", ["USER-ADMIN-01"], true],
+    [
+      "Warehouse Staff",
+      ["USER-WH-01", "USER-WH-02", "USER-WH-03", "USER-WH-04", "USER-COORD-01"],
+      false,
+    ],
+    ["Inventory Planner", ["USER-PLAN-01"], false],
+    ["QC Staff", ["USER-QC-01"], false],
+  ] as const)("%s receives only its seeded Inventory grants", async (role, ids, approves) => {
+    const users = await getMockStaffUsers();
+    const codes = Object.values(INVENTORY_PERMISSIONS);
+    for (const id of ids) {
+      const user = users.find((candidate) => candidate.userId === id);
+      if (!user) throw new Error(`Missing mock user ${id}`);
+      expect(user.roles).toContain(role);
+      const actual = mockSessionPermissions(user.userId, user.roles).permissions.filter((code) =>
+        codes.some((inventoryCode) => inventoryCode === code),
+      );
+      const expected =
+        role === "QC Staff"
+          ? []
+          : codes.filter((code) => approves || code !== INVENTORY_PERMISSIONS.adjustmentApprove);
+      expect(actual).toEqual(expected.sort());
     }
   });
 });

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
+
 import { buildBreadcrumbItems } from "./BackofficeShell";
 
 describe("buildBreadcrumbItems", () => {
@@ -49,5 +51,33 @@ describe("buildBreadcrumbItems", () => {
     expect(
       buildBreadcrumbItems(`/admin/suppliers/${uuid}/edit`, () => true, labelFor).slice(2),
     ).toEqual([{ label: "SUP-002", href: `/admin/suppliers/${uuid}` }, { label: "Chỉnh sửa" }]);
+  });
+
+  it("điều chỉnh tồn: danh sách, trang tạo và chi tiết đều nằm dưới menu Điều chỉnh tồn", () => {
+    const root = { label: "Back-office", href: "/admin" };
+    const parent = { label: "Điều chỉnh tồn", href: INVENTORY_ROUTES.adjustments };
+    expect(buildBreadcrumbItems(INVENTORY_ROUTES.adjustments)).toEqual([
+      root,
+      { label: "Điều chỉnh tồn", href: undefined },
+    ]);
+    expect(buildBreadcrumbItems(INVENTORY_ROUTES.createAdjustment)).toEqual([
+      root,
+      parent,
+      { label: INVENTORY_LABELS.createAdjustment },
+    ]);
+    const id = "d0000001-0000-4000-8000-000000000009";
+    expect(buildBreadcrumbItems(INVENTORY_ROUTES.adjustment(id))).toEqual([
+      root,
+      parent,
+      { label: id },
+    ]);
+  });
+
+  it("lịch sử biến động có breadcrumb riêng, không lẫn với Di chuyển nội bộ", () => {
+    expect(buildBreadcrumbItems(INVENTORY_ROUTES.movements)).toEqual([
+      { label: "Back-office", href: "/admin" },
+      { label: "Lịch sử biến động", href: undefined },
+    ]);
+    expect(buildBreadcrumbItems("/admin/moves").at(-1)?.label).toBe("Di chuyển nội bộ");
   });
 });

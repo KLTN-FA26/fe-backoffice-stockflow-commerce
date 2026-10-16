@@ -6,6 +6,7 @@ import {
   CalendarClock,
   ClipboardList,
   FileText,
+  History as HistoryIcon,
   LayoutDashboard,
   Lightbulb,
   LogOut,
@@ -21,6 +22,7 @@ import {
   ShieldCheck,
   Settings,
   ShoppingCart,
+  SlidersHorizontal,
   Sun,
   Truck,
   User,
@@ -39,6 +41,7 @@ import {
   FULFILLMENT_PICK_PERMISSIONS,
   GOODS_RECEIPT_PERMISSIONS,
   IDENTITY_PERMISSIONS,
+  INVENTORY_PERMISSIONS,
   ORDER_PERMISSIONS,
   PO_PERMISSIONS,
   SHIPMENT_PERMISSIONS,
@@ -46,6 +49,7 @@ import {
   TRANSFER_PERMISSIONS,
   UI_LABELS,
 } from "@/constants";
+import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 
 import { logoutApi } from "@/lib/auth/auth-api";
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -233,6 +237,20 @@ export const NAV_GROUPS: NavGroup[] = [
         href: "/admin/moves",
         icon: Move,
       },
+      {
+        label: "Điều chỉnh tồn",
+        tooltip: "Stock adjustments",
+        href: INVENTORY_ROUTES.adjustments,
+        icon: SlidersHorizontal,
+        permission: INVENTORY_PERMISSIONS.adjustmentRead,
+      },
+      {
+        label: "Lịch sử biến động",
+        tooltip: "Stock movement history",
+        href: INVENTORY_ROUTES.movements,
+        icon: HistoryIcon,
+        permission: INVENTORY_PERMISSIONS.movementRead,
+      },
     ],
   },
   {
@@ -299,6 +317,7 @@ const DETAIL_LABEL_BY_ROUTE: Record<string, string> = {
   "/admin/products/create": "Tạo sản phẩm",
   "/admin/purchase-orders/create": "Tạo đơn đặt hàng",
   "/admin/suppliers/create": "Tạo nhà cung cấp",
+  [INVENTORY_ROUTES.createAdjustment]: INVENTORY_LABELS.createAdjustment,
   "/admin/transfers/create": "Tạo lệnh chuyển kho",
 };
 

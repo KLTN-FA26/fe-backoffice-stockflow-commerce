@@ -7,12 +7,16 @@
  * (CLAUDE.md + FRONTEND-AI-RULES.md §6.1)
  */
 
-import type { SemanticTone } from "@/lib/mock-data";
+import { STOCK_ADJUSTMENT_STATUS } from "@/constants/statuses";
+
+import type { SemanticTone, StatusDomain } from "@/lib/mock-data";
 
 export type { SemanticTone };
 
 const TONE: Record<SemanticTone, readonly string[]> = {
   positive: [
+    // Stock adjustment (BE StockAdjustmentStatus, SCRUM-424)
+    STOCK_ADJUSTMENT_STATUS.POSTED,
     "DELIVERED",
     "CONFIRMED",
     "RECEIVED",
@@ -154,6 +158,7 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     // BE #36 cancellationDeliveryStatus: PO huỷ trước khi gửi NCC → không cần báo huỷ.
     "NOT_REQUIRED",
     "CLOSED",
+    STOCK_ADJUSTMENT_STATUS.WITHDRAWN,
     "Closed",
     "Inactive",
     "Hidden",
@@ -219,6 +224,10 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   PENDING: "Đang chờ",
   CONFIRMED: "Đã xác nhận",
   REJECTED: "NCC từ chối",
+  // Stock adjustment (SCRUM-424). PENDING_APPROVAL dùng chung nhãn ở trên; REJECTED ghi đè theo
+  // domain ở STATUS_LABEL_VI_BY_DOMAIN vì nhãn chung là của phản hồi NCC.
+  [STOCK_ADJUSTMENT_STATUS.POSTED]: "Đã ghi sổ",
+  [STOCK_ADJUSTMENT_STATUS.WITHDRAWN]: "Đã rút yêu cầu",
   // Chuyển kho liên kho (BE TransferStatus, docs 10 §5)
   PICKING: "Đang lấy hàng",
   IN_TRANSIT: "Đang vận chuyển",
@@ -351,3 +360,18 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   Refunded: "Đã hoàn tiền",
   "Partially Refunded": "Hoàn tiền một phần",
 };
+
+/**
+ * Nhãn ghi đè theo domain khi cùng một wire value mang nghĩa khác nhau giữa các module
+ * (vd REJECTED: PO = "NCC từ chối", điều chỉnh tồn = "Từ chối"). Tone không đổi.
+ */
+const STATUS_LABEL_VI_BY_DOMAIN: Partial<Record<StatusDomain, Record<string, string>>> = {
+  stock: {
+    [STOCK_ADJUSTMENT_STATUS.REJECTED]: "Từ chối",
+  },
+};
+
+/** Nhãn tiếng Việt của status, ưu tiên nhãn riêng của domain nếu có. */
+export function statusLabelVi(status: string, domain?: StatusDomain): string | undefined {
+  return (domain && STATUS_LABEL_VI_BY_DOMAIN[domain]?.[status]) ?? STATUS_LABEL_VI[status];
+}
