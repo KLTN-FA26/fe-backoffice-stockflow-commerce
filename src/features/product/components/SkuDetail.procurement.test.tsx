@@ -1,8 +1,6 @@
 import { Suspense } from "react";
-import { act, render, screen, within } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-
-import { ADMIN_ROUTES } from "@/constants";
 
 import type { Sku } from "@/features/product";
 
@@ -64,36 +62,17 @@ async function renderSkuDetail() {
 
 afterEach(() => vi.clearAllMocks());
 
-describe("SKU detail procurement navigation", () => {
-  it("renders settings on the SKU route with links to existing supplier detail routes", async () => {
+// Procurement lives on the canonical /admin/products/{productId}/skus/{variantId} route only
+// (CanonicalIdentity.test). The legacy route must not keep a second, competing integration.
+describe("legacy SKU detail", () => {
+  it.each([true, false])("no longer mounts Procurement (mock mode: %s)", async (mock) => {
+    useIsMockMock.mockReturnValue(mock);
     useSkuMock.mockReturnValue({ data: sku, isLoading: false });
     await renderSkuDetail();
 
-    expect(await screen.findByRole("heading", { name: "Cài đặt mua hàng" })).toBeInTheDocument();
-    expect(useSkuMock).toHaveBeenCalledWith(sku.skuId);
-    const settings = within(screen.getByRole("region", { name: "Cài đặt mua hàng" }));
-    expect(settings.queryByText("Điểm đặt hàng lại")).not.toBeInTheDocument();
-    expect(settings.queryByText(String(sku.reorderPoint))).not.toBeInTheDocument();
-    expect(screen.getByText("Điểm đặt lại (reorder)")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Công ty TNHH Dệt may Thành Công" })).toHaveAttribute(
-      "href",
-      ADMIN_ROUTES.suppliers.detail("SUP-001"),
-    );
-  });
-
-  it("keeps illustrative mappings and the legacy reorder point out of non-mock settings", async () => {
-    useIsMockMock.mockReturnValue(false);
-    useSkuMock.mockReturnValue({ data: sku, isLoading: false });
-    await renderSkuDetail();
-
-    expect(await screen.findByRole("heading", { name: "Cài đặt mua hàng" })).toBeInTheDocument();
-    expect(screen.getByText("Chưa có nhà cung cấp liên kết")).toBeInTheDocument();
-    const settings = within(screen.getByRole("region", { name: "Cài đặt mua hàng" }));
-    expect(settings.queryByText(String(sku.reorderPoint))).not.toBeInTheDocument();
-    expect(settings.getAllByText("Chưa có dữ liệu")).toHaveLength(1);
-    expect(
-      screen.queryByRole("link", { name: "Công ty TNHH Dệt may Thành Công" }),
-    ).not.toBeInTheDocument();
+    expect((await screen.findAllByText(sku.variantLabel)).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("heading", { name: "Cài đặt mua hàng" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Chưa có nhà cung cấp liên kết")).not.toBeInTheDocument();
     useIsMockMock.mockReturnValue(true);
   });
 });

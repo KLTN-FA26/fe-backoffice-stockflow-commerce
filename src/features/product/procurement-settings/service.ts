@@ -1,3 +1,4 @@
+import { PROCUREMENT_CONTRACT_TEXT } from "./form-model";
 import { PROCUREMENT_SUPPLIER_CHOICES } from "./mock-fixtures";
 import { procurementMockService } from "./mock-service";
 
@@ -12,12 +13,8 @@ export function readSkuProcurementSettingsView(
   isMock: boolean,
 ): SkuProcurementSettingsView {
   if (isMock) return procurementMockService.read(skuId);
-  return {
-    skuId,
-    defaultSupplierId: null,
-    defaultSupplierName: null,
-    suppliers: [],
-  };
+  // No BE read contract: never synthesise an empty "no suppliers" view in real mode.
+  throw new Error(PROCUREMENT_CONTRACT_TEXT.pending);
 }
 
 export function readProcurementSupplierChoices(

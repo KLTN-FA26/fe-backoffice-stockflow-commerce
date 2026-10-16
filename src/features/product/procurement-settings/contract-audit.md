@@ -5,6 +5,29 @@ Audited remote BE `develop` at `c716da2a45e54f489ca2c9b526059918d532e08a`
 temporary checkout of the verified remote revision. Findings describe source,
 not a deployed database or running API.
 
+## Re-audit — BE develop `47550fe8cb677f0afd747c76027a2fa47ee03c03` (2026-10-16)
+
+Searched all of `src/main/java` and `src/main/resources/db/migration` for `SupplierItem`,
+`supplier_items`, `supplier-items`, `defaultSupplier`/`default_supplier`, and the BE history and
+remote branches for SCRUM-69. Result: **still no contract.** No supplier-item or default-supplier
+entity, repository, service, DTO or controller exists; the only sources remain the 2026-09-28
+schema migrations (`V20260928002000__proc_supplier_master.sql`, `V20260928003000__inventory_items.sql`)
+and the seeded `procurement-supplier-items` / `inventory-inventory-items` permission codes, which no
+`@RequiresPermission` uses. Inventory Control (`InventoryControlController`, SCRUM-70) is unchanged
+and still owns `reorderPoint`.
+
+Customer Price List (SCRUM-428) was searched the same way (`PriceList`, `price_list`,
+`CustomerPrice`, quantity tiers, validity, `wholesale`, `b2b`): **not implemented.** The only pricing
+code is `catalog.pricing_rule` (`PricingRuleJpaEntity`: optional `sku`, customer `segmentId`,
+`price`, `currency`, `priority`, `active` — no customer, no quantity tier, no validity window),
+whose repository has no caller and no HTTP endpoint, and the per-SKU base price
+(`GET|PUT /api/v1/products/{productId}/skus/{sku}/base-price`). Neither is a customer price list.
+
+FE consequence: Procurement is mounted on the canonical `/admin/products/{productId}/skus/{variantId}`
+route with the route's canonical identity and states that the contract is missing; real mode reads,
+shows and saves nothing (no empty "no suppliers" view). The legacy `/admin/products/sku/{id}` route
+no longer mounts Procurement. The mock editor and fixtures remain the typed boundary for tests.
+
 ## Current ownership correction — Task 4B Step 2
 
 The sections below preserve the historical Task 4A audit at `c716da2`. They are

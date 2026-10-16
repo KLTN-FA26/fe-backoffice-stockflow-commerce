@@ -13,6 +13,19 @@ export const PROCUREMENT_LABELS = {
   orderMultiple: "Bội số đặt hàng",
 } as const;
 
+/**
+ * Real (non-mock) mode: BE develop 47550fe still has no supplier-item / default-supplier read or
+ * write API (contract-audit.md), so the section states that instead of showing empty data.
+ */
+export const PROCUREMENT_CONTRACT_TEXT = {
+  title: "Cài đặt mua hàng",
+  pending: "Chưa có dữ liệu mua hàng từ hệ thống",
+  pendingDescription:
+    "Backend chưa cung cấp API đọc/ghi liên kết nhà cung cấp theo SKU, nhà cung cấp mặc định, mã hàng NCC, thời gian giao, MOQ và bội số đặt hàng. Mục này chưa hiển thị hay lưu dữ liệu nào.",
+  appliesTo: "Áp dụng cho SKU",
+  reorderPointOwner: "Điểm đặt hàng lại được cấu hình trong Chính sách tồn kho.",
+} as const;
+
 // Generic representation checks only: optional blanks and fractional values remain valid.
 const optionalQuantity = z.string().superRefine((value, context) => {
   const integrity = inspectProcurementQuantity(value);

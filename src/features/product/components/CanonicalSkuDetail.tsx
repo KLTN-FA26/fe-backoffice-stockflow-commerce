@@ -16,6 +16,7 @@ import { useCanonicalVariant } from "../variant-queries";
 import { canonicalVariantRouteSchema } from "../variant-schemas";
 import { CanonicalVariantFeedback } from "./CanonicalVariantFeedback";
 import { InventoryControlSection } from "./InventoryControlSection";
+import { ProcurementSettingsSection } from "./ProcurementSettingsSection";
 
 import type { CanonicalVariant } from "../variant-schemas";
 
@@ -97,6 +98,8 @@ export function CanonicalSkuPresentation({
         </dl>
       </section>
       <InventoryControlSection identity={identity} />
+      {/* Real mode only (this route never renders in mock mode): canonical Product/Variant ids. */}
+      <ProcurementSettingsSection isMock={false} identity={identity} />
     </div>
   );
 }

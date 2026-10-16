@@ -145,3 +145,59 @@ describe("Inventory Control base version and conflict recovery", () => {
     expect(screen.getByRole("textbox", { name: text.reorderPoint })).toHaveValue("45");
   });
 });
+
+// BR-PRD-006: tracking cannot be relaxed while stock recorded under the old policy exists.
+describe("Inventory Control BR-PRD-006 stock refusal", () => {
+  const lotTracked = {
+    ...response,
+    removalStrategy: "FEFO",
+    trackingMode: "LOT",
+    expiryTracked: true,
+    maxShelfLifeDays: 365,
+  };
+
+  it("names the refused tracking changes, keeps every dirty field and stays in the editor", async () => {
+    const { user, put } = setupEditor(lotTracked);
+    await enterEdit(user);
+    await change(user, text.reorderPoint, "45");
+    await user.click(screen.getByRole("checkbox", { name: text.expiryTracked }));
+    await user.clear(screen.getByRole("textbox", { name: text.maxShelfLifeDays }));
+    await user.selectOptions(screen.getByRole("combobox", { name: text.trackingMode }), "NONE");
+    put.mockRejectedValueOnce(
+      new ApiError(409, "INVENTORY_POLICY_STOCK_CONFLICT", "Cần đối soát tồn hiện tại"),
+    );
+    await user.click(screen.getByRole("button", { name: text.save }));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(text.stockConflict);
+    expect(alert).toHaveTextContent(text.stockConflictChanges);
+    expect(alert).toHaveTextContent("Chế độ theo dõi: Theo lô → Không theo dõi");
+    expect(alert).toHaveTextContent("Theo dõi hạn sử dụng: Có → Không");
+    expect(alert).toHaveTextContent("Thời hạn sử dụng tối đa: 365 ngày → Chưa cấu hình");
+    expect(alert).not.toHaveTextContent(text.reorderPoint);
+    // The draft is untouched and the editor stays open.
+    expect(screen.getByRole("textbox", { name: text.reorderPoint })).toHaveValue("45");
+    expect(screen.getByRole("combobox", { name: text.trackingMode })).toHaveValue("NONE");
+    expect(screen.getByRole("checkbox", { name: text.expiryTracked })).not.toBeChecked();
+    expect(screen.getByRole("button", { name: text.save })).toBeEnabled();
+    // Reloading the same version cannot clear a stock refusal, so it is not offered.
+    expect(screen.queryByRole("button", { name: text.reload })).not.toBeInTheDocument();
+    expect(put.mock.calls[0]?.[1]).toMatchObject({
+      version: 7,
+      trackingMode: "NONE",
+      expiryTracked: false,
+      maxShelfLifeDays: null,
+    });
+  });
+
+  it("maps INVENTORY_POLICY_INVALID and a denied save to their own messages", async () => {
+    const { user, put } = setupEditor();
+    await enterEdit(user);
+    put.mockRejectedValueOnce(new ApiError(400, "INVENTORY_POLICY_INVALID", "Invalid policy"));
+    await user.click(screen.getByRole("button", { name: text.save }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(text.policyInvalid);
+    put.mockRejectedValueOnce(new ApiError(403, "FORBIDDEN", "Not authorised"));
+    await user.click(screen.getByRole("button", { name: text.save }));
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(text.saveDenied));
+    expect(screen.queryByRole("button", { name: text.reload })).not.toBeInTheDocument();
+  });
+});

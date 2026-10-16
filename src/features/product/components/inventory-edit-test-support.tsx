@@ -32,9 +32,9 @@ export const response = {
   usableOnHand: 12,
   reorderRequired: false,
 };
-export function setupEditor() {
+export function setupEditor(base: Record<string, unknown> = response) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const get = vi.spyOn(api, "get").mockResolvedValue({ data: response });
+  const get = vi.spyOn(api, "get").mockResolvedValue({ data: base });
   const put = vi
     .spyOn(api, "put")
     .mockResolvedValue({ data: { ...response, version: 15, reorderPoint: 30 } });

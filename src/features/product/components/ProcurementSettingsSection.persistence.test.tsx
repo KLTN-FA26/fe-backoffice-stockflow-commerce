@@ -25,14 +25,26 @@ describe("procurement workflow service boundary", () => {
     expect(screen.getByText("Chưa có nhà cung cấp liên kết")).toBeInTheDocument();
   });
 
-  it("does not offer mock editing when real mode has no contract", () => {
+  it("real mode shows the missing contract, not an empty supplier list, and offers no editing", () => {
     render(
       <ProcurementSettingsSection
-        settings={readSkuProcurementSettingsView("SKU-001-BLK-L", false)}
         isMock={false}
+        identity={{
+          productId: "11111111-1111-4111-8111-111111111111",
+          variantId: "22222222-2222-4222-8222-222222222222",
+          sku: "CHAIR-BLUE",
+        }}
       />,
     );
+    expect(screen.getByRole("status")).toHaveTextContent("Chưa có dữ liệu mua hàng từ hệ thống");
+    expect(screen.queryByText("Chưa có nhà cung cấp liên kết")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Chỉnh sửa" })).not.toBeInTheDocument();
     expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument();
+  });
+
+  it("never reads a procurement view outside mock mode", () => {
+    expect(() => readSkuProcurementSettingsView("SKU-001-BLK-L", false)).toThrow(
+      "Chưa có dữ liệu mua hàng",
+    );
   });
 });

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, renderHook, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, renderHook, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -66,7 +66,24 @@ describe("canonical SKU route and navigation", () => {
     expect(screen.getByText(variantId)).toBeInTheDocument();
     expect(get).toHaveBeenCalledTimes(1);
     expect(get.mock.calls[0]?.[0]).toBe(`/products/${productId}/variants/${variantId}`);
-    expect(screen.queryByText("Cài đặt mua hàng")).not.toBeInTheDocument();
+  });
+  it("mounts Procurement on the canonical route for that SKU, contract-pending and read-free", async () => {
+    prepare();
+    const get = vi.spyOn(api, "get").mockResolvedValue({ data: variant });
+    render(<CanonicalSkuDetail productId={productId} variantId={variantId} />, { wrapper });
+    const procurement = within(await screen.findByRole("region", { name: "Cài đặt mua hàng" }));
+    expect(procurement.getByRole("status")).toHaveTextContent(
+      "Chưa có dữ liệu mua hàng từ hệ thống",
+    );
+    expect(procurement.getByText(variant.sku)).toBeInTheDocument();
+    // No fabricated data or editing: no default supplier, no mapping table, no reorder-point field.
+    expect(procurement.queryByText("Nhà cung cấp mặc định")).not.toBeInTheDocument();
+    expect(procurement.queryByRole("table")).not.toBeInTheDocument();
+    expect(procurement.queryByRole("button")).not.toBeInTheDocument();
+    expect(procurement.queryByRole("spinbutton")).not.toBeInTheDocument();
+    expect(procurement.queryByRole("textbox")).not.toBeInTheDocument();
+    // Only the canonical variant read: Procurement issues no request of its own.
+    expect(get).toHaveBeenCalledTimes(1);
   });
   it("reports mismatched identities without presenting the returned SKU", async () => {
     prepare();

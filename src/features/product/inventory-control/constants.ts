@@ -15,6 +15,10 @@ export const INVENTORY_CONTROL_TEXT = {
     "Chính sách đã thay đổi hoặc trạng thái sản phẩm không cho phép lưu. Tải lại để kiểm tra; bản nháp được giữ nguyên.",
   stockConflict: "Tồn kho hiện tại không tương thích với chính sách này.",
   countConflict: "Cần xử lý kỳ kiểm kê đang hoạt động trước khi thay đổi chính sách.",
+  // BR-PRD-006 (InventoryControlServiceImpl.configure → INVENTORY_POLICY_STOCK_CONFLICT, 409).
+  stockConflictChanges: "Thay đổi về theo dõi / xuất kho trong lần lưu này:",
+  policyInvalid: "Chính sách không hợp lệ theo quy tắc của hệ thống (INVENTORY_POLICY_INVALID).",
+  saveDenied: "Bạn không có quyền cập nhật chính sách tồn kho.",
   numeric: "Nhập số nguyên không âm có thể biểu diễn chính xác.",
   thresholdRelation: "Tồn kho an toàn không được lớn hơn điểm đặt hàng lại.",
   expiryTracking: "Theo dõi hạn sử dụng yêu cầu chế độ LOT hoặc LOT_SERIAL.",

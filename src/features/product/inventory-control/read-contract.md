@@ -51,5 +51,10 @@ Outstanding GETs are cancelled around PUT to avoid overwriting its accepted resp
 CONFLICT (409) is ambiguous: it covers version mismatch and Product lifecycle refusal.
 The UI does not claim it proves another actor changed the version. COUNT_POLICY_CONFLICT
 and INVENTORY_POLICY_STOCK_CONFLICT are shown distinctly with backend information.
-Explicit reload replaces draft/base only after successful GET. Failure keeps draft,
+For INVENTORY_POLICY_STOCK_CONFLICT (BR-PRD-006, BE develop 47550fe
+`InventoryControlServiceImpl.configure` → `policies.incompatible`) the message also lists the
+tracking/removal settings this save changed (old → new), the only fields that check covers.
+INVENTORY_POLICY_INVALID (400) and a denied save (403) have their own copy. Reload is offered
+only for CONFLICT / OPTIMISTIC_LOCK: re-reading the same version cannot clear a stock or count
+refusal. Explicit reload replaces draft/base only after successful GET. Failure keeps draft,
 base version, and original conflict. Retrying Save without reload quotes the same base.

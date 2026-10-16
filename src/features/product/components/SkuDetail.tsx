@@ -22,10 +22,6 @@ import { StatusDot } from "@/components/shared/StatusDot";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
-import { useIsMock } from "@/providers/app-providers";
-
-import { readSkuProcurementSettingsView } from "../procurement-settings/service";
-import { ProcurementSettingsSection } from "./ProcurementSettingsSection";
 
 import type { Sku, SkuStatus } from "@/features/product";
 
@@ -82,7 +78,6 @@ function Section({
 
 export function SkuDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id: skuId } = React.use(params);
-  const isMock = useIsMock();
   const roles = useAuthStore((state) => state.effectiveRoles());
   const currentRole = roles[0];
 
@@ -242,12 +237,6 @@ export function SkuDetail({ params }: { params: Promise<{ id: string }> }) {
               </InfoRow>
             </div>
           </Section>
-
-          <ProcurementSettingsSection
-            key={`${sku.skuId}:${isMock}`}
-            isMock={isMock}
-            settings={readSkuProcurementSettingsView(sku.skuId, isMock)}
-          />
 
           {/* Tổ hợp biến thể */}
           <Section title="Tổ hợp biến thể" icon={Tag}>

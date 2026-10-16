@@ -7,7 +7,11 @@ import { ApiError } from "@/lib/api/error";
 import { Button } from "@/components/ui/button";
 
 import { INVENTORY_CONTROL_TEXT as text } from "../inventory-control/constants";
-import { inventoryPolicyError, isPolicyConflict } from "../inventory-control/edit-errors";
+import {
+  inventoryPolicyError,
+  isPolicyConflict,
+  operationalChanges,
+} from "../inventory-control/edit-errors";
 import {
   draftToPolicy,
   inventoryPolicyDraftSchema,
@@ -41,6 +45,8 @@ export function InventoryControlEditor({
   const mutation = useUpdateInventoryControl(base.context.productId, base.context.variantId);
   const busy = useRef(false);
   const [failure, setFailure] = useState<unknown>(null);
+  // What this save changed in tracking/removal, frozen at the failed attempt (BR-PRD-006 detail).
+  const [failedChanges, setFailedChanges] = useState<string[]>([]);
   const [reloading, setReloading] = useState(false);
   const [reloadFailed, setReloadFailed] = useState(false);
   const savePending = form.formState.isSubmitting || mutation.isPending;
@@ -56,6 +62,7 @@ export function InventoryControlEditor({
       );
     } catch (error: unknown) {
       setFailure(error);
+      setFailedChanges(operationalChanges(base.policy, draftToPolicy(draft)));
       if (error instanceof ApiError && error.fieldErrors) {
         for (const key of Object.keys(inventoryPolicyDraftSchema.shape)) {
           const parsed = inventoryPolicyDraftSchema.keyof().safeParse(key);
@@ -107,7 +114,7 @@ export function InventoryControlEditor({
       )}
       {failure !== null && (
         <p role="alert" className="text-danger min-w-0 text-sm wrap-anywhere whitespace-pre-wrap">
-          {inventoryPolicyError(failure)}
+          {inventoryPolicyError(failure, failedChanges)}
         </p>
       )}
       {reloadFailed && (

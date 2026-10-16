@@ -47,7 +47,7 @@ describe("procurement mock interaction contract", () => {
     await saveProcurementSettings(draft, true);
     expect(readSkuProcurementSettingsView(draft.skuId, true).defaultSupplierId).toBe("SUP-003");
     await expect(saveProcurementSettings(draft, false)).rejects.toThrow("Chờ hợp đồng dữ liệu");
-    expect(readSkuProcurementSettingsView(draft.skuId, false).defaultSupplierId).toBeNull();
+    expect(() => readSkuProcurementSettingsView(draft.skuId, false)).toThrow();
     expect(readProcurementSupplierChoices(false)).toEqual([]);
   });
 

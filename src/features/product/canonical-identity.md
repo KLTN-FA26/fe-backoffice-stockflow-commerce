@@ -14,12 +14,12 @@ Canonical Product read parsing also accepts the confirmed PIM response. Existing
 Product writes retain their legacy contracts; this is not a complete Product CRUD
 migration. Product images absent from that response are not fetched for identity.
 
-The legacy `/admin/products/sku/{id}`, `SkuDetail`, and Procurement mock persistence
-remain unchanged. A canonical Variant is not converted to a legacy Sku, and this
+The legacy `/admin/products/sku/{id}` and `SkuDetail` remain unchanged, except that
+Procurement is no longer mounted there: it lives on this canonical route, in its
+contract-pending state (see `procurement-settings/contract-audit.md`). A canonical Variant is not converted to a legacy Sku, and this
 shell does not fabricate price, stock, barcode or Procurement data.
 
 Application mock mode explicitly reports that canonical reads need the real API;
 it does not synthesize identity records. Tests mock the confirmed HTTP response
 shape only. Reads use the existing `product-products:READ` resource through the
-permission checker. No Inventory Control API, query, policy, mutation or UI is
-implemented here.
+permission checker. Inventory Control lives in `inventory-control/`.

@@ -198,6 +198,10 @@ describe("Inventory Control read-only section", () => {
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
     expect(screen.getByText(identity.sku, { selector: "dd" })).toBeInTheDocument();
-    expect(screen.queryByText("Cài đặt mua hàng")).not.toBeInTheDocument();
+    // Procurement is mounted, contract-pending, and adds no read of its own.
+    expect(
+      within(screen.getByRole("region", { name: "Cài đặt mua hàng" })).getByRole("status"),
+    ).toHaveTextContent("Chưa có dữ liệu mua hàng từ hệ thống");
+    expect(get).toHaveBeenCalledTimes(2);
   });
 });
