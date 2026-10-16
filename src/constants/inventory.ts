@@ -225,6 +225,7 @@ export const INVENTORY_LABELS = {
   viewingWarehouse: "Đang xem",
   directoryLoading: "Đang xác định kho",
   directoryUnavailable: "Không tải được danh mục kho",
+  directoryForbidden: "Không có quyền xem danh mục kho",
   warehouseUnresolved: "Không tìm thấy kho này trong danh mục kho",
   warehouseDetailUnavailable: "Chưa xác định được kho nên chưa xem được chi tiết vị trí và ATP.",
   stockItemsTitle: "Tồn theo vị trí và lô",

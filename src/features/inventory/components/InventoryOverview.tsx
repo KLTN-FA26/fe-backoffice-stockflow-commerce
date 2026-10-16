@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { INVENTORY_LABELS } from "@/constants/inventory";
-import { INVENTORY_OVERVIEW_PERMISSIONS } from "@/constants/permissions";
+import { INVENTORY_OVERVIEW_PERMISSIONS, WAREHOUSE_PERMISSIONS } from "@/constants/permissions";
 
 import { usePermissionChecker } from "@/lib/auth";
 
@@ -35,6 +35,9 @@ function InventoryOverviewContent() {
   const can = usePermissionChecker();
   const [activeSku, setActiveSku] = useState<string | null>(null);
   const [warehouseCode, setWarehouseCode] = useState<string | null>(null);
+  // Resolving a stock-level code to a warehouse id needs the directory (GET /warehouses,
+  // warehouse-warehouses:READ). Without it nothing downstream of the warehouse is requested.
+  const canResolveWarehouse = can(stockRead) && can(WAREHOUSE_PERMISSIONS.read);
 
   // A new SKU drops everything chosen for the previous one; each section is keyed by the SKU (in its
   // own key namespace — siblings must not share a key), so its pages and filters start over too.
@@ -63,6 +66,7 @@ function InventoryOverviewContent() {
               key={`stock:${activeSku}`}
               sku={activeSku}
               showAlerts={can(alertRead)}
+              canResolveWarehouse={canResolveWarehouse}
               warehouseCode={warehouseCode}
               onSelectWarehouse={setWarehouseCode}
             />
@@ -71,8 +75,8 @@ function InventoryOverviewContent() {
             <InventoryReservationsSection
               key={`holds:${activeSku}`}
               sku={activeSku}
-              // Only a warehouse the user can still see open in the stock section may narrow holds.
-              warehouseCode={can(stockRead) ? warehouseCode : null}
+              // Only a warehouse resolved in the stock section (stock + directory READ) may narrow holds.
+              warehouseCode={canResolveWarehouse ? warehouseCode : null}
             />
           )}
         </>

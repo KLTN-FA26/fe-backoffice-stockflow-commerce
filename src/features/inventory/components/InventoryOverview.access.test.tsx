@@ -1,10 +1,11 @@
-import { cleanup, screen, waitFor } from "@testing-library/react";
+import { focusManager } from "@tanstack/react-query";
+import { cleanup, act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { INVENTORY_LABELS, INVENTORY_MESSAGES } from "@/constants/inventory";
-import { INVENTORY_OVERVIEW_PERMISSIONS } from "@/constants/permissions";
+import { INVENTORY_OVERVIEW_PERMISSIONS, WAREHOUSE_PERMISSIONS } from "@/constants/permissions";
 
 import {
   OVERVIEW_RESERVATION,
@@ -18,6 +19,7 @@ import { InventoryOverview } from "./InventoryOverview";
 import type { PermissionCode } from "@/lib/auth";
 
 const { stockRead, reservationRead, alertRead } = INVENTORY_OVERVIEW_PERMISSIONS;
+const warehouseRead = WAREHOUSE_PERMISSIONS.read;
 const server = setupServer();
 // Every request that left the page, as backend path + query (the BFF base path stripped).
 const sent: string[] = [];
@@ -96,6 +98,7 @@ describe("Inventory Overview access", () => {
     expect(await screen.findByText(INVENTORY_LABELS.denied)).toBeInTheDocument();
     expect(screen.queryByLabelText(INVENTORY_LABELS.skuLookup)).toBeNull();
     expect(sent.filter((url) => url.startsWith("/inventory"))).toEqual([]);
+    expect(sentTo("/warehouses")).toEqual([]);
   });
 
   it("stock without alert READ: no alert request, and says alerts are unavailable — not absent", async () => {
@@ -104,6 +107,79 @@ describe("Inventory Overview access", () => {
     expect(await screen.findByText(INVENTORY_LABELS.alertsUnavailable)).toBeInTheDocument();
     expect(screen.queryByText(INVENTORY_LABELS.noLowStockAlerts)).toBeNull();
     expect(sentTo("/inventory/alerts")).toEqual([]);
+  });
+});
+
+describe("warehouse directory authorization", () => {
+  const openHn01 = async () => {
+    const user = await lookUp("CUP-PP-500");
+    await user.click(
+      await screen.findByRole("button", { name: `${INVENTORY_LABELS.viewWarehouse} HN01` }),
+    );
+    return user;
+  };
+
+  it("stock READ without warehouse READ (QC): levels only — no directory, stock-item or ATP read", async () => {
+    open([stockRead]);
+    await openHn01();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      `${INVENTORY_LABELS.directoryForbidden}: HN01`,
+    );
+    expect(screen.getByText("HN01", { selector: "td" })).toBeInTheDocument();
+    expect(sentTo("/inventory/stock-levels")).toHaveLength(1);
+    expect(sentTo("/warehouses")).toEqual([]);
+    expect(sentTo("/inventory/warehouses")).toEqual([]);
+    expect(sentTo("/inventory/stock-items/atp")).toEqual([]);
+  });
+
+  it("stock + warehouse READ: directory resolves the code, stock items by id, ATP by code", async () => {
+    open([stockRead, warehouseRead]);
+    await openHn01();
+    await waitFor(() => expect(sentTo("/inventory/stock-items/atp")).toHaveLength(1));
+    expect(sentTo("/warehouses")).toHaveLength(1);
+    expect(
+      sentTo("/inventory/warehouses/0e380000-0000-4000-8000-0000000000a1/stock-items"),
+    ).toHaveLength(1);
+    expect(sentTo("/inventory/stock-items/atp")[0]).toContain("warehouse=HN01");
+  });
+
+  it("reservation READ only: holds load and the directory is never read", async () => {
+    open([reservationRead]);
+    await lookUp("CUP-PP-500");
+    await waitFor(() => expect(sentTo("/inventory/reservations")).toHaveLength(1));
+    expect(sentTo("/warehouses")).toEqual([]);
+  });
+
+  it("losing warehouse READ mid-session stops the resolved warehouse driving new reads", async () => {
+    const refocus = () =>
+      act(() => {
+        focusManager.setFocused(false);
+        focusManager.setFocused(true);
+      });
+    open([stockRead, reservationRead, warehouseRead]);
+    await openHn01();
+    await waitFor(() => expect(sentTo("/inventory/stock-items/atp")).toHaveLength(1));
+    expect(await screen.findByRole("checkbox")).toBeInTheDocument();
+    // Permissions refetch on focus; the next answer no longer carries warehouse READ.
+    server.use(inventoryPermissions([stockRead, reservationRead]));
+    refocus();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      `${INVENTORY_LABELS.directoryForbidden}: HN01`,
+    );
+    expect(screen.queryByRole("heading", { name: /Tồn theo vị trí và lô/ })).toBeNull();
+    // Nor can the reservation filter narrow by that warehouse any more.
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    // From here on the cached warehouse must drive no read, even on the next refocus.
+    const items = sentTo("/inventory/warehouses").length;
+    const atp = sentTo("/inventory/stock-items/atp").length;
+    const directory = sentTo("/warehouses").length;
+    refocus();
+    await waitFor(() => expect(sentTo("/identity/me/permissions").length).toBeGreaterThan(2));
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(sentTo("/inventory/warehouses")).toHaveLength(items);
+    expect(sentTo("/inventory/stock-items/atp")).toHaveLength(atp);
+    expect(sentTo("/warehouses")).toHaveLength(directory);
+    act(() => focusManager.setFocused(undefined));
   });
 });
 
@@ -150,7 +226,7 @@ describe("exact-SKU submission", () => {
 
   it("with both sections, a new SKU leaves no stale warehouse detail and no duplicate keys", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    open([stockRead, reservationRead]);
+    open([stockRead, reservationRead, warehouseRead]);
     const user = await lookUp("CUP-PP-500");
     await user.click(
       await screen.findByRole("button", { name: `${INVENTORY_LABELS.viewWarehouse} HN01` }),
@@ -173,7 +249,7 @@ describe("exact-SKU submission", () => {
   });
 
   it("a new SKU drops the warehouse opened for the previous one", async () => {
-    open([stockRead]);
+    open([stockRead, warehouseRead]);
     const user = await lookUp("CUP-PP-500");
     await user.click(
       await screen.findByRole("button", { name: `${INVENTORY_LABELS.viewWarehouse} HN01` }),

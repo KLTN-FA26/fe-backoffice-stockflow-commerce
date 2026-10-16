@@ -5,7 +5,7 @@ import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { INVENTORY_LABELS, STOCK_ALERT_KIND_LABELS } from "@/constants/inventory";
-import { INVENTORY_OVERVIEW_PERMISSIONS } from "@/constants/permissions";
+import { INVENTORY_OVERVIEW_PERMISSIONS, WAREHOUSE_PERMISSIONS } from "@/constants/permissions";
 
 import {
   OVERVIEW_RESERVATION,
@@ -20,7 +20,7 @@ import {
 } from "../test-support";
 import { InventoryOverview } from "./InventoryOverview";
 
-const ALL = Object.values(INVENTORY_OVERVIEW_PERMISSIONS);
+const ALL = [...Object.values(INVENTORY_OVERVIEW_PERMISSIONS), WAREHOUSE_PERMISSIONS.read];
 const server = setupServer();
 const sent: URL[] = [];
 const sentTo = (path: string) =>

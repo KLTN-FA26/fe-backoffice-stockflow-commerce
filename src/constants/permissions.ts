@@ -175,6 +175,15 @@ export const SHIPMENT_PERMISSIONS = {
   update: "fulfillment-shipments:UPDATE",
 } as const;
 
+/**
+ * Danh mục kho — resource `warehouse-warehouses` (BE WarehouseController: GET /warehouses = READ).
+ * Seed V20260928006000: WAREHOUSE_MANAGER, WAREHOUSE_STAFF, INVENTORY_PLANNER, PROCUREMENT_STAFF;
+ * QC_STAFF không có.
+ */
+export const WAREHOUSE_PERMISSIONS = {
+  read: "warehouse-warehouses:READ",
+} as const;
+
 /** BE develop IdentityResources / IdentityController: read-only RBAC screen APIs. */
 export const IDENTITY_PERMISSIONS = {
   rolesRead: "identity-roles:READ",

@@ -15,6 +15,7 @@ import {
   SHIPMENT_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
   TRANSFER_PERMISSIONS,
+  WAREHOUSE_PERMISSIONS,
 } from "@/constants/permissions";
 
 import { toBackendRoles } from "@/lib/api/mock-backend-roles";
@@ -50,7 +51,16 @@ const OV = INVENTORY_OVERVIEW_PERMISSIONS;
 const STOCK_READ = [OV.stockViewPage, OV.stockRead];
 const OVERVIEW_ALL = Object.values(OV);
 const FULFILLMENT_FLOOR = [...Object.values(PICK), ...Object.values(PACK)];
-const WH_WORK = [...GR_WORK, ...FULFILLMENT_FLOOR, ...INVENTORY_FLOOR, ...OVERVIEW_ALL];
+// Seed V20260928006000: warehouse-warehouses READ (danh mục kho) cho WAREHOUSE_MANAGER / STAFF,
+// INVENTORY_PLANNER, PROCUREMENT_STAFF — không có QC_STAFF.
+const WAREHOUSE_READ = WAREHOUSE_PERMISSIONS.read;
+const WH_WORK = [
+  ...GR_WORK,
+  ...FULFILLMENT_FLOOR,
+  ...INVENTORY_FLOOR,
+  ...OVERVIEW_ALL,
+  WAREHOUSE_READ,
+];
 
 /** Explicit demo session responses keyed by existing staff IDs, never computed from roles. */
 const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
@@ -66,6 +76,7 @@ const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     IDENTITY_USER_PERMISSIONS.read,
     ...INVENTORY_ALL,
     ...OVERVIEW_ALL,
+    WAREHOUSE_READ,
     ...Object.values(TO),
     ...SHIP,
   ],
@@ -83,12 +94,14 @@ const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...GR_WORK,
     QC.viewPage,
     QC.read,
+    WAREHOUSE_READ,
   ],
   // INVENTORY_PLANNER (seed V20261010000500): tạo / sửa / gửi duyệt / huỷ, KHÔNG duyệt
   "USER-PLAN-01": [
     ...INVENTORY_FLOOR,
     ...STOCK_READ,
     OV.alertRead,
+    WAREHOUSE_READ,
     TO.viewPage,
     TO.read,
     TO.create,
@@ -125,6 +138,7 @@ const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...FULFILLMENT_FLOOR,
     ...INVENTORY_FLOOR,
     ...OVERVIEW_ALL,
+    WAREHOUSE_READ,
     ...TO_STAFF,
     ...SHIP,
   ],

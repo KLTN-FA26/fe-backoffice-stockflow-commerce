@@ -2,6 +2,7 @@
 
 import { INVENTORY_LABELS } from "@/constants/inventory";
 
+import { Alert } from "@/components/shared/Alert";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 
@@ -18,12 +19,15 @@ import { WarehouseInventorySection } from "./WarehouseInventorySection";
 export function StockOverviewSection({
   sku,
   showAlerts,
+  canResolveWarehouse,
   warehouseCode,
   onSelectWarehouse,
 }: {
   sku: string;
   /** alert READ held as well: without it the page shows "unavailable", never "no alert". */
   showAlerts: boolean;
+  /** warehouse-warehouses:READ held too: only then is the warehouse resolved and drilled into. */
+  canResolveWarehouse: boolean;
   warehouseCode: string | null;
   onSelectWarehouse: (code: string) => void;
 }) {
@@ -58,14 +62,25 @@ export function StockOverviewSection({
           description={INVENTORY_LABELS.noStockLevelsDescription}
         />
       )}
-      {warehouseCode && (
-        <WarehouseInventorySection
-          key={warehouseCode}
-          sku={sku}
-          warehouseCode={warehouseCode}
-          showAlerts={showAlerts}
-        />
-      )}
+      {warehouseCode &&
+        (canResolveWarehouse ? (
+          <WarehouseInventorySection
+            key={warehouseCode}
+            sku={sku}
+            warehouseCode={warehouseCode}
+            showAlerts={showAlerts}
+          />
+        ) : (
+          // No directory permission: the id cannot be known, so no directory, stock-item or ATP read.
+          <div role="alert">
+            <Alert
+              tone="warning"
+              title={`${INVENTORY_LABELS.directoryForbidden}: ${warehouseCode}`}
+            >
+              {INVENTORY_LABELS.warehouseDetailUnavailable}
+            </Alert>
+          </div>
+        ))}
     </section>
   );
 }
