@@ -8,8 +8,6 @@ import type {
   productSchema,
   productStatusSchema,
   productTypeSchema,
-  skuSchema,
-  skuStatusSchema,
   uomSchema,
 } from "./schemas";
 
@@ -20,6 +18,4 @@ export type Product = z.infer<typeof productSchema>;
 export type ProductAttribute = z.infer<typeof productAttributeSchema>;
 export type ProductStatus = z.infer<typeof productStatusSchema>;
 export type ProductType = z.infer<typeof productTypeSchema>;
-export type Sku = z.infer<typeof skuSchema>;
-export type SkuStatus = z.infer<typeof skuStatusSchema>;
 export type Uom = z.infer<typeof uomSchema>;

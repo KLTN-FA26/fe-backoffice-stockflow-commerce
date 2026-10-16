@@ -31,6 +31,15 @@ export function formatTime(iso: string): string {
   }).format(new Date(iso));
 }
 
+/**
+ * Calendar date (YYYY-MM-DD) of an instant as seen in Asia/Ho_Chi_Minh.
+ * `iso.slice(0, 10)` would take the UTC date — off by one day before 07:00 VN time.
+ */
+export function toLocalIsoDate(iso: string): string {
+  // en-CA formats as YYYY-MM-DD.
+  return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date(iso));
+}
+
 /** True if the date is in the past (for overdue warnings — BR-06 module 02). */
 export function isOverdue(iso: string): boolean {
   return new Date(iso) < new Date();

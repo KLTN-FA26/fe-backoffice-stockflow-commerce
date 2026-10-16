@@ -1,4 +1,4 @@
-/** Fixture test — đúng hình `SupplierResponse` BE PR #36 (không bịa field ngoài hợp đồng). */
+/** Fixture test — đúng hình `SupplierResponse` BE PR #71 (không bịa field ngoài hợp đồng). */
 
 import type { SupplierApiDto, SupplierDto, SupplierFormValues } from "../types";
 
@@ -15,6 +15,9 @@ export const apiSupplier: SupplierApiDto = {
   leadTimeDays: 7,
   communicationChannel: "EMAIL",
   apiEndpoint: null,
+  overReceiptTolerancePercent: null,
+  printSubcontractor: false,
+  lossTolerancePercent: null,
   createdAt: "2026-09-01T00:00:00Z",
   lastModifiedAt: "2026-09-02T00:00:00Z",
 };
@@ -42,6 +45,9 @@ export const validFormValues: SupplierFormValues = {
   leadTimeDays: 7,
   communicationChannel: "EMAIL",
   apiEndpoint: "",
+  overReceiptTolerancePercent: null,
+  printSubcontractor: false,
+  lossTolerancePercent: null,
 };
 
 export function apiPage(items: SupplierApiDto[] = [apiSupplier]) {

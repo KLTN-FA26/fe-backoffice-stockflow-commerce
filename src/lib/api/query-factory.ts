@@ -220,10 +220,22 @@ export function createMutation<TInput, TResult = void>(
   ) {
     const queryClient = useQueryClient();
 
+    // onSuccess/onError của hook (và của `factoryOpts.options`) được GỌI BÊN TRONG handler gộp
+    // dưới đây, không spread đè lên — nếu spread sau cùng, callback màn hình sẽ thay thế
+    // handler gộp và làm mất invalidate + toast của factory.
+    const { onSuccess: hookOnSuccess, onError: hookOnError, ...hookRest } = hookOpts ?? {};
+    const {
+      onSuccess: optionsOnSuccess,
+      onError: optionsOnError,
+      ...optionsRest
+    } = factoryOpts.options ?? {};
+
     return useMutation<TResult, ApiError, TInput>({
+      ...optionsRest,
+      ...hookRest,
       mutationFn,
 
-      onSuccess: (data, variables, context) => {
+      onSuccess: (data, variables, ...rest) => {
         // Invalidate specified query keys
         if (factoryOpts.invalidate) {
           for (const key of factoryOpts.invalidate) {
@@ -244,20 +256,13 @@ export function createMutation<TInput, TResult = void>(
           }
         }
 
-        // Custom factory-level handler
+        // Custom factory-level handlers, then hook-level handler
         factoryOpts.onSuccess?.(data, variables);
-
-        // Custom hook-level handler
-        if (hookOpts?.onSuccess) {
-          (hookOpts.onSuccess as (d: TResult, v: TInput, c: unknown) => void)(
-            data,
-            variables,
-            context,
-          );
-        }
+        optionsOnSuccess?.(data, variables, ...rest);
+        hookOnSuccess?.(data, variables, ...rest);
       },
 
-      onError: (error, variables, context) => {
+      onError: (error, variables, ...rest) => {
         if (factoryOpts.showErrorToast !== false) {
           // Toast error — dynamic require to avoid circular import
           try {
@@ -269,21 +274,11 @@ export function createMutation<TInput, TResult = void>(
           }
         }
 
-        // Custom factory-level handler
+        // Custom factory-level handlers, then hook-level handler
         factoryOpts.onError?.(error, variables);
-
-        // Custom hook-level handler
-        if (hookOpts?.onError) {
-          (hookOpts.onError as (e: ApiError, v: TInput, c: unknown) => void)(
-            error,
-            variables,
-            context,
-          );
-        }
+        optionsOnError?.(error, variables, ...rest);
+        hookOnError?.(error, variables, ...rest);
       },
-
-      ...factoryOpts.options,
-      ...hookOpts,
     });
   };
 }

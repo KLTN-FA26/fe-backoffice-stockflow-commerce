@@ -1,5 +1,5 @@
 /**
- * Supplier — zod schemas, khớp hợp đồng BE PR #36 (SupplierController).
+ * Supplier — zod schemas, khớp hợp đồng BE SupplierController (PR #36, cập nhật PR #71).
  *
  * Hai lớp (api-conventions §3.1):
  *  - DTO: `supplierApiDtoSchema` = đúng `SupplierResponse` trên wire; `supplierDtoSchema` = model FE
@@ -41,6 +41,10 @@ export const supplierApiDtoSchema = z.object({
   leadTimeDays: z.number().int(),
   communicationChannel: supplierChannelSchema,
   apiEndpoint: z.string().nullish(),
+  // BE PR #71: dung sai nhận vượt (%), NCC in gia công + dung sai hao hụt (%) (SCRUM-433/434).
+  overReceiptTolerancePercent: z.coerce.number().nullish(),
+  printSubcontractor: z.boolean().default(false),
+  lossTolerancePercent: z.coerce.number().nullish(),
   createdAt: z.string().nullish(),
   lastModifiedAt: z.string().nullish(),
 });
@@ -61,27 +65,28 @@ export const supplierDtoSchema = supplierApiDtoSchema.extend({
   status: supplierStatusSchema,
 });
 
-/* ── Input (form gửi đi) — ràng buộc theo BE SaveSupplierRequest (PR #36) ─ */
+/* ── Input (form gửi đi) — ràng buộc theo BE SaveSupplierRequest (PR #71) ─ */
 
-// BE: @Pattern("[A-Za-z0-9._-]+") @Size(max = 64) — BE không tự sinh mã
-const CODE_REGEX = /^[A-Za-z0-9._-]+$/;
-// BE: chữ-số 8–32 ký tự, có ít nhất 1 chữ số — chấp nhận MST nước ngoài (BR-07 docs 02: PO bằng USD)
-const TAX_CODE_REGEX = /^(?=.*[0-9])[0-9A-Za-z][0-9A-Za-z-]{6,30}[0-9A-Za-z]$/;
+// BE: @Pattern("[A-Za-z0-9][A-Za-z0-9_-]*") @Size(max = 30), server upper-case — BE không tự sinh mã
+const CODE_REGEX = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
+// BE: chữ-số 8–30 ký tự, có ít nhất 1 chữ số — chấp nhận MST nước ngoài (BR-07 docs 02: PO bằng USD)
+const TAX_CODE_REGEX = /^(?=.*[0-9])[0-9A-Za-z][0-9A-Za-z-]{6,28}[0-9A-Za-z]$/;
 // BE: @Pattern("^\+?[0-9](?:[0-9 .()-]*[0-9])?$") + isPhoneDigitsValid (8–15 chữ số)
 const PHONE_REGEX = /^\+?[0-9](?:[0-9 .()-]*[0-9])?$/;
 const HTTPS_PORT = "443";
 
-/** Giới hạn theo BE SaveSupplierRequest (PR #36): @Size / @Min / @Max / isPhoneDigitsValid. */
+/** Giới hạn theo BE SaveSupplierRequest (PR #71): @Size / @Min / @Max / isPhoneDigitsValid. */
 export const SUPPLIER_LIMITS = {
-  codeMax: 64,
+  codeMax: 30,
   nameMax: 200,
-  contactNameMax: 200,
-  emailMax: 320,
-  phoneMax: 32,
+  contactNameMax: 150,
+  emailMax: 150,
+  phoneMax: 30,
   phoneDigitsMin: 8,
   phoneDigitsMax: 15,
   apiEndpointMax: 500,
   termDaysMax: 365,
+  percentMax: 100,
 } as const;
 
 const L = SUPPLIER_FIELD_LABELS;
@@ -109,6 +114,14 @@ export function isValidApiEndpoint(value: string): boolean {
   }
 }
 
+/** BE `@DecimalMin("0") @DecimalMax("100")`, tuỳ chọn (null = theo mặc định của hệ thống). */
+const optionalPercent = (label: string) =>
+  z
+    .number({ error: `${label} phải là số` })
+    .min(0, `${label} không được âm`)
+    .max(SUPPLIER_LIMITS.percentMax, `${label} tối đa ${SUPPLIER_LIMITS.percentMax}%`)
+    .nullable();
+
 const termDays = (label: string) =>
   z
     .number({ error: `${label} phải là số` })
@@ -123,7 +136,7 @@ export const supplierFormSchema = z
       .trim()
       .min(1, `${L.code} không được để trống`)
       .max(SUPPLIER_LIMITS.codeMax, tooLong(L.code, SUPPLIER_LIMITS.codeMax))
-      .regex(CODE_REGEX, "Mã chỉ gồm chữ, số, dấu chấm, gạch ngang, gạch dưới"),
+      .regex(CODE_REGEX, "Mã chỉ gồm chữ, số, gạch ngang, gạch dưới; bắt đầu bằng chữ hoặc số"),
     name: z
       .string()
       .trim()
@@ -134,7 +147,7 @@ export const supplierFormSchema = z
       .trim()
       .refine(
         (v) => v === "" || TAX_CODE_REGEX.test(v),
-        `${L.taxCode} gồm 8–32 ký tự chữ/số, có ít nhất 1 chữ số`,
+        `${L.taxCode} gồm 8–30 ký tự chữ/số, có ít nhất 1 chữ số`,
       ),
     contactName: z
       .string()
@@ -162,6 +175,9 @@ export const supplierFormSchema = z
       .string()
       .trim()
       .max(SUPPLIER_LIMITS.apiEndpointMax, tooLong(L.apiEndpoint, SUPPLIER_LIMITS.apiEndpointMax)),
+    overReceiptTolerancePercent: optionalPercent(L.overReceiptTolerancePercent),
+    printSubcontractor: z.boolean(),
+    lossTolerancePercent: optionalPercent(L.lossTolerancePercent),
   })
   .superRefine((v, ctx) => {
     // BE SaveSupplierRequest.isDeliveryContactValid (PR #36): kênh EMAIL cần email, kênh API cần endpoint https

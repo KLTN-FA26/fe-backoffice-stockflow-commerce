@@ -9,7 +9,13 @@ import { createMutation } from "@/lib/api/query-factory";
 import { supplierOptionKeys } from "@/lib/references/supplier-options";
 import { toast } from "@/components/shared/Toast";
 
-import { activateSupplier, createSupplier, deactivateSupplier, updateSupplier } from "./api";
+import {
+  activateSupplier,
+  blacklistSupplier,
+  createSupplier,
+  deactivateSupplier,
+  updateSupplier,
+} from "./api";
 import { supplierErrorMessage } from "./errors";
 import { supplierKeys } from "./queries";
 
@@ -36,6 +42,13 @@ export const useUpdateSupplier = createMutation<SupplierUpdateInput, SupplierDto
 export const useActivateSupplier = createMutation<SupplierDto, SupplierDto>(activateSupplier, {
   invalidate: [supplierKeys.all, supplierOptionKeys.all],
   successMessage: TOAST_MESSAGES.supplier.activated,
+  showErrorToast: false,
+  onError: toastError,
+});
+
+export const useBlacklistSupplier = createMutation<SupplierDto, SupplierDto>(blacklistSupplier, {
+  invalidate: [supplierKeys.all, supplierOptionKeys.all],
+  successMessage: TOAST_MESSAGES.supplier.blacklisted,
   showErrorToast: false,
   onError: toastError,
 });

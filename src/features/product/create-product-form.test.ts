@@ -11,26 +11,25 @@ describe("create product form helpers", () => {
       name: "Áo mới",
       nameEn: "New shirt",
       categoryId: "c5ad8d15-e378-4ea7-8c75-b5c012508ced",
-      brand: "StockFlow",
+      brandId: "0b6a2f4e-9a43-4c55-8f0e-0c1c6e8c1b11",
       taxClass: "STANDARD",
-      customizable: false,
+      customizable: true,
+      shortDescription: "  Áo thun in  ",
       description: "Mô tả",
       descriptionEn: "Description",
-      imageUrls: "/mock/img/new-1.jpg\n/mock/img/new-2.jpg",
-      weightKg: "0.5",
-      lengthCm: "",
-      widthCm: "20",
-      heightCm: "10",
     });
 
-    expect(input).toMatchObject({
+    expect(input).toEqual({
       code: "PRD-NEW",
       name: "Áo mới",
       nameEn: "New shirt",
-      brand: "StockFlow",
-      images: ["/mock/img/new-1.jpg", "/mock/img/new-2.jpg"],
-      weightKg: 0.5,
-      lengthCm: null,
+      categoryId: "c5ad8d15-e378-4ea7-8c75-b5c012508ced",
+      brandId: "0b6a2f4e-9a43-4c55-8f0e-0c1c6e8c1b11",
+      shortDescription: "Áo thun in",
+      description: "Mô tả",
+      descriptionEn: "Description",
+      taxClass: "STANDARD",
+      kind: "CUSTOMIZABLE",
     });
   });
 
@@ -48,31 +47,22 @@ describe("create product form helpers", () => {
     );
   });
 
-  it("maps backend logistics and image errors to their form fields", () => {
-    const result = mapCreateProductError(
-      new ApiError(400, "VALIDATION_FAILED", "Dữ liệu không hợp lệ", {
-        images: "URL ảnh không hợp lệ",
-        weightKg: "Khối lượng phải lớn hơn 0",
-      }),
-    );
-
-    expect(result.fieldErrors).toMatchObject({
-      imageUrls: "URL ảnh không hợp lệ",
-      weightKg: "Khối lượng phải lớn hơn 0.",
-    });
+  it("maps a stale brand (BE 404 BRAND_NOT_FOUND) to the brand field", () => {
+    const result = mapCreateProductError(new ApiError(404, "BRAND_NOT_FOUND", "Brand not found"));
+    expect(result.fieldErrors.brandId).toBe("Thương hiệu đã bị xoá hoặc không còn khả dụng.");
   });
 
   it("localizes recognized validation fields without branching on translated messages", () => {
     const result = mapCreateProductError(
       new ApiError(400, "VALIDATION_FAILED", "Validation failed", {
         name: "must not be blank",
-        brand: "ne doit pas être vide",
+        brandId: "ne doit pas être vide",
       }),
     );
 
     expect(result.fieldErrors).toMatchObject({
       name: "Tên sản phẩm không hợp lệ.",
-      brand: "Thương hiệu không hợp lệ.",
+      brandId: "Thương hiệu không hợp lệ.",
     });
   });
 });

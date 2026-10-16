@@ -1,6 +1,6 @@
 "use client";
 
-import { INVENTORY_PERMISSIONS, UI_LABELS } from "@/constants";
+import { INVENTORY_OVERVIEW_PERMISSIONS, UI_LABELS } from "@/constants";
 import { hasPermission, useMyPermissions } from "@/lib/auth";
 
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -16,7 +16,8 @@ import type { InventoryService } from "../service";
 /** UI route guard. The BE must re-check READ on each inventory request. */
 export function InventoryAccess({ service }: { service: InventoryService }) {
   const { data, isPending, isError, fetchStatus, refetch } = useMyPermissions();
-  const { stock, reservations } = INVENTORY_PERMISSIONS;
+  const { stockViewPage, stockRead, reservationViewPage, reservationRead } =
+    INVENTORY_OVERVIEW_PERMISSIONS;
 
   if (isPending && fetchStatus !== "paused") return <PageSkeleton variant="list" />;
   if (isError || fetchStatus === "paused") {
@@ -32,10 +33,10 @@ export function InventoryAccess({ service }: { service: InventoryService }) {
       />
     );
   }
-  if (!hasPermission(data, stock.viewPage)) {
+  if (!hasPermission(data, stockViewPage)) {
     return <EmptyState title={UI_LABELS.loadError.forbiddenTitle} />;
   }
-  if (!hasPermission(data, stock.read)) {
+  if (!hasPermission(data, stockRead)) {
     return (
       <div className="space-y-[var(--card-pad)]">
         <PageHeader title={INVENTORY_COPY.title} subtitle={INVENTORY_COPY.subtitle} />
@@ -45,6 +46,6 @@ export function InventoryAccess({ service }: { service: InventoryService }) {
   }
 
   const showReservations =
-    hasPermission(data, reservations.viewPage) && hasPermission(data, reservations.read);
+    hasPermission(data, reservationViewPage) && hasPermission(data, reservationRead);
   return <InventoryOverview service={service} showReservations={showReservations} />;
 }

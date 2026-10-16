@@ -42,6 +42,22 @@ Mỗi mutation khai báo rõ nó invalidate cái gì, theo liên kết module tr
 Ví dụ: confirm receipt → invalidate cả `receiptKeys` lẫn `poKeys` lẫn `inventoryKeys`,
 vì nhận hàng đổi cả tồn kho và trạng thái PO.
 
+### Callback của mutation — đặt ở đâu
+
+Invalidate + toast thuộc về **factory** (`createMutation` trong `mutations.ts`), không lặp lại
+ở component. Callback của màn hình chỉ làm việc của màn hình (đóng dialog, điều hướng, map lỗi
+về field):
+
+| Việc                                                          | Đặt ở                                              |
+| ------------------------------------------------------------- | -------------------------------------------------- |
+| Chỉ áp cho **một lần gọi** (đóng đúng dialog này, điều hướng) | `mutate(vars, { onSuccess, onSettled })` — ưu tiên |
+| Áp cho **mọi lần gọi** của hook trên màn (map lỗi chung)      | `useXxx({ onError })`                              |
+
+Cả hai cách đều KHÔNG ghi đè invalidate/toast của factory — `createMutation` gọi callback màn
+hình **sau** handler của nó (có test `lib/api/query-factory.test.tsx`). Đừng gọi lại
+`invalidateQueries`/toast thành công trong component; muốn tắt toast lỗi mặc định để map lỗi
+inline thì đặt `showErrorToast: false` ở factory.
+
 ## Zod — hai lớp schema, KHÔNG trộn (§3.1)
 
 | Lớp   | Tên                            | Việc                                   |

@@ -15,17 +15,32 @@ export const PO_COLUMNS = {
   PO_NUMBER: "poNumber",
   STATUS: "status",
   SUPPLIER: "supplier",
-  WAREHOUSE: "warehouse",
 } as const;
 
+/** Cột danh sách phiếu nhận — chỉ field có trong BE `GoodsReceiptRowResponse` (PR #62). */
 export const RECEIPT_COLUMNS = {
   ACTIONS: "actions",
-  LINE_COUNT: "lineCount",
-  PO_REFERENCE: "poReference",
-  RECEIPT_NUMBER: "receiptNumber",
+  CONFIRMED_AT: "confirmedAt",
+  DELIVERY_NOTE: "deliveryNote",
+  NUMBER: "number",
+  PURCHASE_ORDER: "purchaseOrder",
+  RECEIVED_AT: "receivedAt",
   STATUS: "status",
-  SUPPLIER: "supplier",
-  WAREHOUSE: "warehouse",
+} as const;
+
+/** Cột danh sách task xuất kho — chỉ field có trong BE `FulfillmentTaskResponse`. */
+export const FULFILLMENT_COLUMNS = {
+  ACTIONS: "actions",
+  ASSIGNED_AT: "assignedAt",
+  ASSIGNEE: "assignee",
+  INTEGRITY: "integrity",
+  ORDER: "order",
+  PACK_STATUS: "packStatus",
+  PACKED_AT: "packedAt",
+  PICK_STATUS: "pickStatus",
+  PICKED_AT: "pickedAt",
+  STARTED_AT: "startedAt",
+  TASK: "task",
 } as const;
 
 export const PRODUCT_COLUMNS = {
@@ -68,4 +83,27 @@ export const VARIANT_COLUMNS = {
   NAME_EN: "nameEn",
   NAME_VI: "nameVi",
   VALUES: "values",
+} as const;
+
+/** Cột danh sách lệnh chuyển kho — field BE `TransferOrderRowResponse`. */
+export const TRANSFER_COLUMNS = {
+  ACTIONS: "actions",
+  CREATED_AT: "createdAt",
+  DISPATCHED_AT: "dispatchedAt",
+  EXPECTED_DATE: "expectedDate",
+  FROM_WAREHOUSE: "fromWarehouse",
+  NUMBER: "number",
+  STATUS: "status",
+  TO_WAREHOUSE: "toWarehouse",
+} as const;
+
+/** Cột danh sách chuyến xe (contract đề xuất SCRUM-288). */
+export const LOAD_COLUMNS = {
+  ACTIONS: "actions",
+  CARRIER: "carrier",
+  DISPATCHED_AT: "dispatchedAt",
+  NUMBER: "number",
+  PROGRESS: "progress",
+  STATUS: "status",
+  VEHICLE: "vehicle",
 } as const;

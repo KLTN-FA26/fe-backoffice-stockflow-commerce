@@ -18,6 +18,9 @@ export const FIELD_STEP_MAP: Record<SupplierField, StepKey> = {
   leadTimeDays: "terms",
   communicationChannel: "terms",
   apiEndpoint: "terms",
+  overReceiptTolerancePercent: "terms",
+  printSubcontractor: "terms",
+  lossTolerancePercent: "terms",
 };
 
 const STEP_ORDER: StepKey[] = STEPS.map((s) => s.key);

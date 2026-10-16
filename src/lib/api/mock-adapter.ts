@@ -12,13 +12,15 @@
  * **Only this file may import mock-data.ts** — enforced by CI grep.
  */
 
-import {
-  AxiosError,
-  type AxiosRequestConfig,
-  type AxiosResponse,
-  type InternalAxiosRequestConfig,
-} from "axios";
+import axios, { AxiosError } from "axios";
+
+import { AUTH_API_BASE, AUTH_PATHS } from "@/constants/auth";
+import { PERMISSION_QUERY } from "@/constants/permissions";
+
 import { api } from "./client";
+
+import type { AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from "axios";
+import type { LegacyPaginatedResponse, PaginatedResponse } from "./query-factory";
 
 /* ── Types ───────────────────────────────────────────────────────────── */
 
@@ -47,12 +49,12 @@ export function registerMockRoute(method: string, pattern: string, handler: Rout
 const delay = (ms?: number) =>
   new Promise<void>((r) => setTimeout(r, ms ?? 200 + Math.random() * 300));
 
-/** Paginate an array server-style. */
-export function paginate<T>(
-  items: T[],
-  page = 1,
-  pageSize = 15,
-): { items: T[]; total: number; page: number; pageSize: number } {
+/**
+ * Paginate an array server-style — LEGACY 1-based (`page`, `pageSize`).
+ * Các màn mock-only cũ (receipt, invoice…) vẫn gửi `page=1&pageSize=`; đổi chữ ký
+ * hàm này sẽ làm rỗng các list đó. Route đã khớp BE PageResponse dùng `paginatePage`.
+ */
+export function paginate<T>(items: T[], page = 1, pageSize = 15): LegacyPaginatedResponse<T> {
   const start = (page - 1) * pageSize;
   return {
     items: items.slice(start, start + pageSize),
@@ -60,6 +62,59 @@ export function paginate<T>(
     page,
     pageSize,
   };
+}
+
+/** Paginate theo BE PageResponse — `page` đánh số từ 0, `size`. */
+export function paginatePage<T>(items: T[], page = 0, size = 15): PaginatedResponse<T> {
+  const start = page * size;
+  const totalElements = items.length;
+  const totalPages = size <= 0 ? 0 : Math.ceil(totalElements / size);
+  return {
+    items: items.slice(start, start + size),
+    totalElements,
+    page,
+    size,
+    totalPages,
+    hasNext: page + 1 < totalPages,
+    hasPrevious: page > 0,
+  };
+}
+
+/* ── Query params ────────────────────────────────────────────────────── */
+
+/**
+ * Axios chỉ gộp `config.params` vào `config.url` **bên trong adapter dựng sẵn**
+ * (`helpers/resolveConfig.ts` cho xhr/fetch, `adapters/http.js` cho node).
+ * `dispatchRequest` gọi custom adapter với `config` thô → `config.url` không có
+ * query string, mọi route mock đọc `config.url?.split("?")[1]` sẽ thấy rỗng.
+ *
+ * Hàm này tự serialize để handler thấy đúng param. Mảng phát ra **key lặp lại**
+ * (`status=A&status=B`) chứ không phải `status[]=` — khớp `params.getAll(key)`.
+ */
+export function serializeMockParams(params: unknown): string {
+  if (!params) return "";
+  if (params instanceof URLSearchParams) return params.toString();
+  if (typeof params !== "object") return "";
+
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params as Record<string, unknown>)) {
+    if (value === undefined || value === null || value === "") continue;
+    const list = Array.isArray(value) ? value : [value];
+    for (const item of list) {
+      if (item === undefined || item === null || item === "") continue;
+      search.append(key, String(item));
+    }
+  }
+  return search.toString();
+}
+
+/** Gắn query string đã serialize vào `config.url` để handler đọc được. */
+function withQueryString<T extends AxiosRequestConfig>(config: T): T {
+  const query = serializeMockParams(config.params);
+  if (!query) return config;
+  const base = config.url ?? "/";
+  const separator = base.includes("?") ? "&" : "?";
+  return { ...config, url: `${base}${separator}${query}` };
 }
 
 /* ── Match URL to registered pattern ─────────────────────────────────── */
@@ -79,6 +134,18 @@ function matchRoute(
   return null;
 }
 
+/**
+ * Resolve a registered route handler + URL params without going through the
+ * adapter. Dành cho test: adapter thật có delay 200–500ms và 5% lỗi 500 ngẫu
+ * nhiên nên không test qua axios được (flaky).
+ */
+export function resolveMockRoute(
+  method: string,
+  url: string,
+): { handler: RouteHandler; params: Record<string, string> } | null {
+  return matchRoute(method, url);
+}
+
 /* ── Adapter ─────────────────────────────────────────────────────────── */
 
 /**
@@ -89,8 +156,18 @@ function matchRoute(
  * registered yet and get a bogus 404.
  */
 let routesReady: Promise<void> | undefined;
+const networkAdapter = axios.getAdapter(api.defaults.adapter);
 
 async function mockAdapter(config: InternalAxiosRequestConfig): Promise<AxiosResponse> {
+  // Mock identity uses the same HttpOnly BFF boundary as production.
+  if (
+    (config.baseURL === AUTH_API_BASE &&
+      Object.values(AUTH_PATHS).some((path) => path === config.url)) ||
+    config.url === PERMISSION_QUERY.path ||
+    config.url === "/identity/roles" ||
+    config.url?.startsWith("/identity/roles/")
+  )
+    return networkAdapter(config);
   if (routesReady) await routesReady;
 
   const url = config.url ?? "/";
@@ -121,11 +198,13 @@ async function mockAdapter(config: InternalAxiosRequestConfig): Promise<AxiosRes
     );
   }
 
-  // Inject URL params into config for handlers to use
-  (config as AxiosRequestConfig & { _mockParams: Record<string, string> })._mockParams =
+  // Handler nhận config có query string (axios không tự serialize cho custom
+  // adapter) + URL params đã match.
+  const handlerConfig = withQueryString(config);
+  (handlerConfig as AxiosRequestConfig & { _mockParams: Record<string, string> })._mockParams =
     matched.params;
 
-  return settleMockResponse(await matched.handler(config), config);
+  return settleMockResponse(await matched.handler(handlerConfig), config);
 }
 
 function settleMockResponse(response: MockResponse, config: AxiosRequestConfig): AxiosResponse {
@@ -173,15 +252,46 @@ export function activateMockAdapter(): void {
   routesReady = Promise.all([
     import("./mock-routes"),
     import("./mock-routes-suppliers"),
-    import("./mock-routes-me"),
+    import("./mock-routes-purchase-orders"),
+    import("./mock-routes-orders"),
+    import("./mock-routes-goods-receipts"),
+    import("./mock-routes-variants"),
+    import("./mock-routes-inventory"),
+    import("./mock-routes-fulfillment"),
+    import("./mock-routes-transfer-orders"),
+    import("./mock-routes-loads"),
   ]).then(
-    ([{ registerAllMockRoutes }, { registerSupplierMockRoutes }, { registerMeMockRoutes }]) => {
+    ([
+      { registerAllMockRoutes },
+      { registerSupplierMockRoutes },
+      { registerPurchaseOrderMockRoutes },
+      { registerOrderMockRoutes },
+      { registerGoodsReceiptMockRoutes },
+      { registerVariantMockRoutes },
+      { registerInventoryMockRoutes },
+      { registerFulfillmentMockRoutes },
+      { registerTransferOrderMockRoutes },
+      { registerLoadMockRoutes },
+    ]) => {
       registerAllMockRoutes();
       registerSupplierMockRoutes();
-      registerMeMockRoutes();
+      registerPurchaseOrderMockRoutes();
+      registerOrderMockRoutes();
+      registerGoodsReceiptMockRoutes();
+      registerVariantMockRoutes();
+      registerInventoryMockRoutes();
+      registerFulfillmentMockRoutes();
+      registerTransferOrderMockRoutes();
+      registerLoadMockRoutes();
     },
   );
 
   api.defaults.adapter = mockAdapter;
-  console.info("[mock-adapter] Activated — all API calls will be served from mock-data.ts");
+  console.info("[mock-adapter] Activated — feature data is mocked; auth uses the BFF");
+}
+
+/** Auth mocks obtain staff data only through the adapter boundary. */
+export async function getMockStaffUsers() {
+  const { staffUsers } = await import("@/lib/mock-data");
+  return staffUsers;
 }

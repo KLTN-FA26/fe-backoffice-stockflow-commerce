@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { INVENTORY_PERMISSIONS } from "@/constants";
+import { INVENTORY_OVERVIEW_PERMISSIONS } from "@/constants";
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
@@ -21,8 +21,11 @@ function renderAccess(permissions: PermissionCode[]) {
       fullName: "Test",
       email: "test@example.com",
       roles: [],
-      warehouseIds: [],
+      username: "inventory-test",
+      status: "ACTIVE",
+      lastLoginAt: null,
     },
+    status: "authenticated",
     isAuthenticated: true,
   });
   vi.spyOn(api, "get").mockResolvedValue({
@@ -43,35 +46,31 @@ function renderAccess(permissions: PermissionCode[]) {
 }
 
 describe("Inventory route permissions", () => {
-  const { stock, reservations } = INVENTORY_PERMISSIONS;
+  const { stockViewPage, stockRead, reservationViewPage, reservationRead } =
+    INVENTORY_OVERVIEW_PERMISSIONS;
 
   it("blocks route access without stock VIEW_PAGE, even with READ", async () => {
-    const service = renderAccess([stock.read]);
+    const service = renderAccess([stockRead]);
     expect(await screen.findByText("Bạn không có quyền")).toBeInTheDocument();
     expect(service.loadOverview).not.toHaveBeenCalled();
   });
 
   it("opens the page without stock data when READ is missing", async () => {
-    const service = renderAccess([stock.viewPage]);
+    const service = renderAccess([stockViewPage]);
     expect(await screen.findByText("Bạn không có quyền xem dữ liệu")).toBeInTheDocument();
     expect(screen.getByText("Tổng quan tồn kho")).toBeInTheDocument();
     expect(service.loadOverview).not.toHaveBeenCalled();
   });
 
   it("shows stock but does not load reservations without their own permissions", async () => {
-    const service = renderAccess([stock.viewPage, stock.read]);
+    const service = renderAccess([stockViewPage, stockRead]);
     expect(await screen.findByRole("region", { name: "Stock Levels" })).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Reservations" })).not.toBeInTheDocument();
     expect(service.loadReservations).not.toHaveBeenCalled();
   });
 
   it("loads reservations when both reservation permissions are granted", async () => {
-    const service = renderAccess([
-      stock.viewPage,
-      stock.read,
-      reservations.viewPage,
-      reservations.read,
-    ]);
+    const service = renderAccess([stockViewPage, stockRead, reservationViewPage, reservationRead]);
     expect(await screen.findByRole("region", { name: "Reservations" })).toBeInTheDocument();
     expect(await screen.findByText("DEMO-ORDER-001")).toBeInTheDocument();
     expect(service.loadReservations).toHaveBeenCalledOnce();
