@@ -176,7 +176,7 @@ export const TRANSFER_FIELD_MESSAGES = {
   toRequired: "Chọn kho đích",
   sameWarehouse: "Kho đích phải khác kho nguồn",
   skuRequired: "Nhập SKU",
-  skuFormat: "SKU 3–64 ký tự, chỉ gồm chữ, số và dấu gạch ngang",
+  skuFormat: "SKU 1–64 ký tự gồm chữ, số, '.', '_', '-', bắt đầu bằng chữ hoặc số",
   quantity: "SL là số nguyên từ 1",
   quantityMax: "SL tối đa 1.000.000",
   duplicateLine: "Trùng SKU và lô với dòng khác — gộp vào một dòng",

@@ -46,6 +46,7 @@ export function FormDialogBody({
   isPending,
   error,
   danger = false,
+  hideCancel = false,
   onSubmit,
   onCancel,
   children,
@@ -58,6 +59,8 @@ export function FormDialogBody({
   /** Lỗi từ server (đã map tiếng Việt) — hiện ngay trong dialog, form giữ nguyên. */
   error: string | null;
   danger?: boolean;
+  /** Hộp thoại chỉ báo kết quả (một nút "Đóng"): không cần thêm nút Huỷ. */
+  hideCancel?: boolean;
   onSubmit: () => void;
   onCancel: () => void;
   children?: React.ReactNode;
@@ -86,17 +89,19 @@ export function FormDialogBody({
         )}
       </div>
       <DialogFooter className="border-border-default bg-bg-subtle mx-0 mb-0 rounded-b-[var(--r-xl)] border-t px-[18px] py-[14px]">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onCancel}
-          // Đang gửi thì không huỷ được (giống ConfirmDialog) — khoá luôn để không trông như bấm được
-          disabled={isPending}
-          className="border-border-strong bg-bg-surface text-ink-primary hover:bg-bg-muted rounded-[var(--r-sm)]"
-        >
-          Huỷ
-        </Button>
+        {!hideCancel && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onCancel}
+            // Đang gửi thì không huỷ được (giống ConfirmDialog) — khoá luôn để không trông như bấm được
+            disabled={isPending}
+            className="border-border-strong bg-bg-surface text-ink-primary hover:bg-bg-muted rounded-[var(--r-sm)]"
+          >
+            Huỷ
+          </Button>
+        )}
         <Button
           type="submit"
           size="sm"

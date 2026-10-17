@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Save } from "lucide-react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 
 import { ADMIN_ROUTES, PRODUCT_STATUS, PRODUCT_PERMISSIONS } from "@/constants";
 
@@ -24,15 +24,20 @@ import {
   useUpdateProduct,
 } from "@/features/product";
 
+import { useAttributes } from "../attribute-queries";
+
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
 
+import { previewMatrix } from "../axes-draft";
+import { ProductAxesFields, createAxesIssue } from "./ProductAxesFields";
 import { ProductMasterFields } from "./ProductMasterFields";
 import { ProductFormBackLink, ProductFormForbidden } from "./ProductFormNavigation";
 
 import type { Product, ProductDraftFormValues } from "@/features/product";
+import type { AxisDraft } from "../axes-draft";
 
 export function ProductCreate({ productId }: { productId?: string }) {
   const isEditing = Boolean(productId);
@@ -43,12 +48,17 @@ export function ProductCreate({ productId }: { productId?: string }) {
   const categories = categoriesQuery.data?.items ?? [];
   const brandsQuery = useBrands();
   const brands = brandsQuery.data ?? [];
+  // Cùng khoá với danh sách thuộc tính của `ProductAxesFields` → dùng chung bộ nhớ đệm, không gọi thêm.
+  const attributesQuery = useAttributes({ active: true }, !isEditing);
   const [serverMessage, setServerMessage] = useState<string>();
+  // Trục biến thể chọn ngay khi tạo (BE PR #116) — chỉ khi tạo mới; sản phẩm đã có sửa trục ở trang chi tiết.
+  const [axes, setAxes] = useState<AxisDraft[]>([]);
   const form = useForm<ProductDraftFormValues>({
     defaultValues: PRODUCT_DRAFT_FORM_DEFAULTS,
     resolver: zodResolver(productDraftFormSchema),
   });
   const { isDirty } = form.formState;
+  const productCode = useWatch({ control: form.control, name: "productCode" });
 
   useEffect(() => {
     const product = productQuery.data;
@@ -61,7 +71,7 @@ export function ProductCreate({ productId }: { productId?: string }) {
       error instanceof ApiError
         ? error
         : new ApiError(0, "UNKNOWN_ERROR", "Không lưu được sản phẩm.");
-    const mapped = mapCreateProductError(apiError);
+    const mapped = mapCreateProductError(apiError, axes.length > 0);
     for (const [field, message] of Object.entries(mapped.fieldErrors)) {
       if (!message) continue;
       if (field in PRODUCT_DRAFT_FORM_DEFAULTS) {
@@ -69,6 +79,13 @@ export function ProductCreate({ productId }: { productId?: string }) {
       }
     }
     setServerMessage(mapped.message);
+    // 409 OPTIMISTIC_LOCK: lấy lại bản mới nhất (kèm `version` mới) và nạp lại biểu mẫu — gửi tiếp
+    // với `version` cũ sẽ lại bị từ chối.
+    if (apiError.code === "OPTIMISTIC_LOCK") {
+      void productQuery.refetch().then((result) => {
+        if (result.data) form.reset(productToDraftForm(result.data));
+      });
+    }
   };
 
   const onSuccess = (saved: Product) => {
@@ -82,10 +99,23 @@ export function ProductCreate({ productId }: { productId?: string }) {
 
   const submit = form.handleSubmit((values) => {
     setServerMessage(undefined);
-    const input = buildCreateProductInput(values);
+    if (!productId) {
+      const attributes = attributesQuery.data?.items ?? [];
+      const blocked = createAxesIssue(axes, previewMatrix(axes, attributes, values.productCode));
+      if (blocked) {
+        setServerMessage(blocked);
+        return;
+      }
+    }
+    const input = buildCreateProductInput(values, productId ? [] : axes);
     if (productId) {
+      const version = productQuery.data?.version;
+      if (version === undefined) {
+        setServerMessage("Chưa tải xong sản phẩm. Hãy thử lại sau giây lát.");
+        return;
+      }
       const { code: _code, ...update } = input;
-      updateMutation.mutate({ id: productId, ...update });
+      updateMutation.mutate({ id: productId, ...update, version });
     } else {
       createMutation.mutate(input);
     }
@@ -117,7 +147,7 @@ export function ProductCreate({ productId }: { productId?: string }) {
     <>
       <PageHeader
         title={isEditing ? "Chỉnh sửa sản phẩm" : "Tạo sản phẩm"}
-        subtitle="Lưu Product master ở trạng thái Draft; SKU và Inventory Item thuộc các API tiếp theo."
+        subtitle="Lưu Product master ở trạng thái Draft cùng biến thể: một biến thể mặc định, hoặc đủ ma trận nếu chọn trục."
         actions={<ProductFormBackLink />}
       />
       <form onSubmit={submit} noValidate className="space-y-4 pb-16">
@@ -136,6 +166,9 @@ export function ProductCreate({ productId }: { productId?: string }) {
           form={form}
           isEditing={isEditing}
         />
+        {!isEditing && (
+          <ProductAxesFields productCode={productCode} value={axes} onChange={setAxes} />
+        )}
         <div className="border-border-default bg-bg-subtle sticky bottom-0 flex justify-end border-t p-3">
           <Button
             type="submit"

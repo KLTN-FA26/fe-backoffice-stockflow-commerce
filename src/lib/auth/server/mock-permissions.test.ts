@@ -6,10 +6,12 @@ import { describe, expect, it, vi } from "vitest";
 
 import { AUTH_COOKIE_NAME, MOCK_LOGIN_PASSWORD } from "@/constants/auth";
 import {
+  ATTRIBUTE_PERMISSIONS,
   INVENTORY_PERMISSIONS,
   PERMISSION_QUERY,
   SUPPLIER_PERMISSIONS,
   TRANSFER_PERMISSIONS,
+  VARIANT_PERMISSIONS,
 } from "@/constants/permissions";
 
 import { getMockStaffUsers } from "@/lib/api/mock-adapter";
@@ -40,6 +42,19 @@ describe("explicit mock permission responses", () => {
     expect(mockSessionPermissions("USER-PROC-01", []).permissions).toContain(
       SUPPLIER_PERMISSIONS.create,
     );
+  });
+  it("admin và E-commerce Admin có product-attributes / product-variants (seed BE V20260928006000); nhân viên kho thì không", () => {
+    for (const userId of ["USER-ADMIN-01", "USER-ECAD-01"]) {
+      const { permissions } = mockSessionPermissions(userId, []);
+      for (const code of [
+        ...Object.values(ATTRIBUTE_PERMISSIONS),
+        ...Object.values(VARIANT_PERMISSIONS),
+      ])
+        expect(permissions).toContain(code);
+    }
+    const warehouse = mockSessionPermissions("USER-WH-01", []).permissions;
+    expect(warehouse).not.toContain(ATTRIBUTE_PERMISSIONS.viewPage);
+    expect(warehouse).not.toContain(VARIANT_PERMISSIONS.create);
   });
   it("BFF permissions return the cookie-selected user's validated list despite frontend impersonation", async () => {
     vi.stubEnv("APP_ORIGIN", "");

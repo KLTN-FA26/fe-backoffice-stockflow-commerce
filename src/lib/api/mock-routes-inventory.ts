@@ -22,6 +22,8 @@ import {
 } from "@/constants/inventory";
 import { STOCK_ADJUSTMENT_STATUS, STOCK_ADJUSTMENT_STATUSES } from "@/constants/statuses";
 
+import { SKU_INPUT_PATTERN } from "@/lib/validation/sku";
+
 import { registerMockRoute } from "./mock-adapter";
 import {
   beError,
@@ -275,7 +277,7 @@ function requestFieldErrors(body: Record<string, unknown>): MockFieldError[] {
     add("locationCode", "locationCode is at most 64 characters", "Size");
   const sku = readString(body.sku);
   if (!sku) add("sku", "sku is required", "NotBlank");
-  else if (!/^[A-Za-z0-9-]{3,64}$/.test(sku)) add("sku", "malformed SKU", "Pattern");
+  else if (!SKU_INPUT_PATTERN.test(sku)) add("sku", "malformed SKU", "Pattern");
   if (typeof body.lotNumber === "string" && body.lotNumber.length > INVENTORY_LIMITS.lotLength)
     add("lotNumber", "lotNumber is at most 64 characters", "Size");
   const delta = body.quantityDelta;

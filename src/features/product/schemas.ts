@@ -8,6 +8,8 @@ import { z } from "zod";
 
 import { PRODUCT_STATUSES } from "@/constants";
 
+import { axisInputSchema } from "./axes-schemas";
+
 export const productStatusValues = PRODUCT_STATUSES;
 
 export const productTypeValues = ["Standard", "Customizable"] as const;
@@ -61,6 +63,8 @@ export const productSchema = z.object({
   type: productTypeSchema,
   categoryId: z.string().min(1).nullable(),
   status: productStatusSchema,
+  /** BE `ProductResponse.version` — gửi lại khi sửa / ngừng kinh doanh (409 OPTIMISTIC_LOCK nếu đã đổi). */
+  version: z.number().int(),
   description: z.string(),
   descriptionEn: z.string(),
   images: z.array(z.string()),
@@ -83,6 +87,10 @@ export const productSchema = z.object({
   submittedAt: z.string().optional(),
   approvedBy: z.string().optional(),
   approvedAt: z.string().optional(),
+  suspendedAt: z.string().optional(),
+  suspendReason: z.string().optional(),
+  discontinuedAt: z.string().optional(),
+  discontinueReason: z.string().optional(),
   weightKg: z.number().positive().nullable().optional(),
   lengthCm: z.number().positive().nullable().optional(),
   widthCm: z.number().positive().nullable().optional(),
@@ -123,6 +131,22 @@ export const beBrandSchema = z.object({
 /** BE PR #71: STANDARD (bán nguyên mẫu) | CUSTOMIZABLE (in theo thiết kế của khách). */
 export const productKindValues = ["STANDARD", "CUSTOMIZABLE"] as const;
 
+/** BE `ProductStatus` (product/api/ProductStatus.java). INACTIVE = tạm ngưng (kltn-docs 01 §5.1). */
+export const beProductStatusValues = [
+  "DRAFT",
+  "PENDING_APPROVAL",
+  "APPROVED",
+  "PUBLISHED",
+  "INACTIVE",
+  "DISCONTINUED",
+] as const;
+
+/**
+ * Trạng thái BE chưa biết (BE thêm sau) → "UNKNOWN" thay vì làm hỏng cả danh sách sản phẩm —
+ * cùng cách với `deliveryStatusSchema` của PO.
+ */
+export const beProductStatusSchema = z.enum([...beProductStatusValues, "UNKNOWN"]).catch("UNKNOWN");
+
 /**
  * BE PR #71 `ProductResponse`. Ảnh nằm ở biến thể (`/variants/{id}/media`), kích thước / khối
  * lượng nằm ở SKU (`/skus/{id}/logistics`) — không còn trên dòng sản phẩm.
@@ -143,7 +167,9 @@ export const productMasterDtoSchema = z.object({
   descriptionEn: z.string().nullish(),
   taxClass: z.enum(["STANDARD", "REDUCED", "EXEMPT"]),
   kind: z.enum(productKindValues),
-  status: z.enum(["DRAFT", "PENDING_APPROVAL", "APPROVED", "PUBLISHED", "DISCONTINUED"]),
+  status: beProductStatusSchema,
+  /** BE `long version` — luôn có; bản ghi mới tạo là 0. */
+  version: z.number().int().min(0),
   createdAt: z.string(),
   createdBy: z.string().nullish(),
   submittedBy: z.string().nullish(),
@@ -151,6 +177,11 @@ export const productMasterDtoSchema = z.object({
   approvedBy: z.string().nullish(),
   approvedAt: z.string().nullish(),
   rejectionReason: z.string().nullish(),
+  /** Chỉ có khi INACTIVE (tạm ngưng) / DISCONTINUED — kèm lý do (BE `ck_products_inactive` / `_discontinued`). */
+  suspendedAt: z.string().nullish(),
+  suspendReason: z.string().nullish(),
+  discontinuedAt: z.string().nullish(),
+  discontinueReason: z.string().nullish(),
 });
 
 /** BE `CreateProductRequest.code`: 1–50 ký tự chữ/số/'_'/'-', bắt đầu bằng chữ hoặc số. */
@@ -176,9 +207,31 @@ export const createProductSchema = z.object({
   descriptionEn: z.string(),
   taxClass: z.enum(["STANDARD", "REDUCED", "EXEMPT"]),
   kind: z.enum(productKindValues),
+  /**
+   * BE PR #116: có `axes` thì BE tạo luôn MỌI tổ hợp giá trị đang dùng (SKU `MÃ-GIÁ_TRỊ-…`, tổ hợp
+   * đầu tiên là biến thể mặc định) trong cùng giao dịch — bị từ chối (SKU trùng, quá 100 tổ hợp…) thì
+   * không để lại sản phẩm nào. Không có `axes`: một biến thể mặc định có SKU = mã sản phẩm.
+   */
+  axes: z.array(axisInputSchema).optional(),
 });
 
-export const updateProductSchema = createProductSchema.omit({ code: true });
+/** BE `UpdateProductRequest`: như tạo, không có `code`, thêm `version` (@NotNull) của lần đọc trước. */
+export const updateProductSchema = createProductSchema
+  .omit({ code: true, axes: true })
+  .extend({ version: z.number().int().min(0) });
+
+/** Độ dài tối đa của lý do ngừng kinh doanh — BE `DiscontinueProductRequest.reason` @Size(max = 500). */
+export const DISCONTINUE_REASON_MAX = 500;
+
+/** BE `DiscontinueProductRequest`: `reason` bắt buộc (kltn-docs 01 §5.2), `version` của lần đọc trước. */
+export const discontinueProductSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(1, "Lý do ngừng kinh doanh là bắt buộc")
+    .max(DISCONTINUE_REASON_MAX, `Lý do tối đa ${DISCONTINUE_REASON_MAX} ký tự`),
+  version: z.number().int().min(0),
+});
 
 export const productDraftFormSchema = z.object({
   productCode: createProductSchema.shape.code,
@@ -196,7 +249,8 @@ export const productDraftFormSchema = z.object({
 export const transitionProductSchema = z
   .object({
     id: z.string(),
-    action: z.enum(["submit", "approve", "reject", "discontinue"]),
+    // Ngừng kinh doanh có body riêng (`discontinueProductSchema`) nên không đi qua đây.
+    action: z.enum(["submit", "approve", "reject"]),
     reason: z.string().optional(),
   })
   .refine((value) => value.action !== "reject" || Boolean(value.reason?.trim()), {
@@ -208,6 +262,7 @@ export type ProductStatusValue = z.infer<typeof productStatusSchema>;
 export type ProductTypeValue = z.infer<typeof productTypeSchema>;
 export type CreateProductInput = z.infer<typeof createProductSchema>;
 export type UpdateProductInput = z.infer<typeof updateProductSchema>;
+export type DiscontinueProductBody = z.infer<typeof discontinueProductSchema>;
 export type ProductMasterDto = z.infer<typeof productMasterDtoSchema>;
 export type ProductDraftFormValues = z.infer<typeof productDraftFormSchema>;
 export type ProductDto = z.infer<typeof productSchema>;

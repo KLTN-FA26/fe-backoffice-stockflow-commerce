@@ -18,6 +18,16 @@ const input = {
   reason: "SCRAP",
 };
 
+describe("SKU của form điều chỉnh khớp BE @ValidSku", () => {
+  it.each(["CUP_12", "A.B", "X", "cup-pp.500_a"])("chấp nhận %s", (sku) => {
+    expect(adjustmentCreateInput.safeParse({ ...input, sku }).success).toBe(true);
+  });
+
+  it.each(["", " ", "-AB", "A B", "A".repeat(65)])("từ chối %j", (sku) => {
+    expect(adjustmentCreateInput.safeParse({ ...input, sku }).success).toBe(false);
+  });
+});
+
 describe("SCRUM-424 adjustment input contract", () => {
   it.each(STOCK_ADJUSTMENT_REASONS)("accepts the documented %s reason", (reason) => {
     expect(

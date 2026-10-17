@@ -3,6 +3,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  ATTRIBUTE_PERMISSIONS,
   IDENTITY_PERMISSIONS,
   SHIPMENT_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
@@ -108,5 +109,39 @@ describe("declared navigation permissions", () => {
     mount();
     expect(await screen.findByRole("link", { name: "Xếp xe & bàn giao" })).toBeInTheDocument();
     mockMode.isMock = false;
+  });
+  it("Đề xuất nhập hàng (BE chưa có API) chỉ hiện ở mock, không phụ thuộc quyền", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [], permissions: [], dataScope: "ALL" },
+    });
+    mockMode.isMock = false;
+    mount();
+    expect(await screen.findByRole("link", { name: "Tổng quan" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Đề xuất nhập hàng" })).not.toBeInTheDocument();
+
+    cleanup();
+    mockMode.isMock = true;
+    mount();
+    expect(await screen.findByRole("link", { name: "Đề xuất nhập hàng" })).toBeInTheDocument();
+    mockMode.isMock = false;
+  });
+  it("Từ điển thuộc tính theo quyền xem trang product-attributes và dẫn tới màn thật, không phải màn dữ liệu mẫu", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [], permissions: [ATTRIBUTE_PERMISSIONS.viewPage], dataScope: "ALL" },
+    });
+    mount();
+    const link = await screen.findByRole("link", { name: "Từ điển thuộc tính" });
+    expect(link).toHaveAttribute("href", "/admin/attributes");
+    expect(screen.queryByRole("link", { name: "Thuộc tính biến thể" })).not.toBeInTheDocument();
+  });
+  it("không có quyền xem trang product-attributes thì ẩn Từ điển thuộc tính", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [], permissions: [], dataScope: "ALL" },
+    });
+    mount();
+    await screen.findByRole("link", { name: "Tổng quan" });
+    await waitFor(() =>
+      expect(screen.queryByRole("link", { name: "Từ điển thuộc tính" })).not.toBeInTheDocument(),
+    );
   });
 });

@@ -46,10 +46,8 @@ export const ADMIN_ROUTES = {
   replenishment: {
     list: `${ADMIN_BASE}/replenishment`,
   },
-  variants: {
-    detail: (id: string) => `${ADMIN_BASE}/variants/${id}`,
-    list: `${ADMIN_BASE}/variants`,
-  },
+  /** Từ điển thuộc tính (BE PR #113) — thay màn "Thuộc tính biến thể" dựng từ dữ liệu mẫu. */
+  attributes: `${ADMIN_BASE}/attributes`,
   transfers: {
     create: `${ADMIN_BASE}/transfers/create`,
     detail: (id: string) => `${ADMIN_BASE}/transfers/${id}`,

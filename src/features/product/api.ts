@@ -2,9 +2,12 @@ import { api } from "@/lib/api/client";
 
 import { PAGE_SIZE } from "@/constants";
 
-import { beBrandSchema, beCategorySchema, productMasterDtoSchema, productSchema } from "./schemas";
+import { parseDiscontinuationExtras } from "./lifecycle-api";
+import { parseProduct, parseProductPage } from "./product-parse";
+import { beBrandSchema, beCategorySchema, discontinueProductSchema } from "./schemas";
 
 import type { LegacyPaginatedResponse, PaginatedResponse } from "@/lib/api/query-factory";
+import type { OpenReference } from "./lifecycle-schemas";
 import type {
   BeCategoryDto,
   BrandDto,
@@ -19,17 +22,22 @@ export const PRODUCT_LIST_FILTER_STATUSES = [
   "Pending Approval",
   "Approved",
   "Published",
+  "Inactive",
   "Discontinued",
 ] as const satisfies readonly Product["status"][];
 
 export type ProductListFilterStatus = (typeof PRODUCT_LIST_FILTER_STATUSES)[number];
 
-const PRODUCT_LIST_API_STATUS: Record<ProductListFilterStatus, ProductMasterDto["status"]> = {
+const PRODUCT_LIST_API_STATUS: Record<
+  ProductListFilterStatus,
+  Exclude<ProductMasterDto["status"], "UNKNOWN">
+> = {
   Approved: "APPROVED",
   Discontinued: "DISCONTINUED",
   Draft: "DRAFT",
   "Pending Approval": "PENDING_APPROVAL",
   Published: "PUBLISHED",
+  Inactive: "INACTIVE",
 };
 
 export interface ListProductsParams {
@@ -43,8 +51,26 @@ export interface ListProductsParams {
 
 export interface TransitionProductInput {
   id: string;
-  action: "submit" | "approve" | "reject" | "discontinue";
+  action: "submit" | "approve" | "reject";
   reason?: string;
+}
+
+/** Ngừng kinh doanh — BE `POST /products/{id}/discontinuation` cần `reason` + `version` của lần đọc trước. */
+export interface DiscontinueProductInput {
+  id: string;
+  reason: string;
+  version: number;
+}
+
+/**
+ * Cảnh báo BE trả kèm (không phải lỗi — sản phẩm đã ngừng): PO / đơn hàng mở còn tham chiếu SKU của
+ * nó (`warnings` là mã `OPEN_PURCHASE_ORDER_LINES` / `UNSHIPPED_ORDER_LINES`) và chính các chứng từ đó.
+ */
+export interface DiscontinueProductResult {
+  product: Product;
+  warnings: string[];
+  openReferences: OpenReference[];
+  openReferencesTruncated: boolean;
 }
 
 export async function listProducts(
@@ -79,6 +105,7 @@ export async function createProduct(input: CreateProductInput): Promise<Product>
   return parseProduct(data);
 }
 
+/** BE `UpdateProductRequest.version` @NotNull: gửi `version` của lần đọc trước (409 OPTIMISTIC_LOCK nếu đã đổi). */
 export async function updateProduct(input: { id: string } & UpdateProductInput): Promise<Product> {
   const { id, ...body } = input;
   const { data } = await api.put<unknown>(`/products/${id}`, productBody(body));
@@ -86,7 +113,7 @@ export async function updateProduct(input: { id: string } & UpdateProductInput):
 }
 
 /** Chuỗi rỗng → không gửi: BE lưu null thay vì "" cho các trường tuỳ chọn. */
-function productBody<T extends UpdateProductInput>(input: T): T {
+function productBody<T extends Omit<UpdateProductInput, "version">>(input: T): T {
   return {
     ...input,
     shortDescription: input.shortDescription?.trim() || undefined,
@@ -106,6 +133,16 @@ export async function transitionProduct(input: TransitionProductInput): Promise<
     suffix === "rejection" ? { reason: reason?.trim() } : undefined,
   );
   return parseProduct(data);
+}
+
+export async function discontinueProduct(
+  input: DiscontinueProductInput,
+): Promise<DiscontinueProductResult> {
+  const body = discontinueProductSchema.parse({ reason: input.reason, version: input.version });
+  const { data } = await api.post<unknown>(`/products/${input.id}/discontinuation`, body);
+  // `ProductDiscontinuationResponse`: các trường sản phẩm ở cấp trên cùng + cảnh báo + chứng từ còn mở.
+  const extras = parseDiscontinuationExtras(data);
+  return { product: parseProduct(data), ...extras };
 }
 
 export async function publishProduct(id: string): Promise<void> {
@@ -163,66 +200,6 @@ function toCategory(dto: BeCategoryDto): Category {
   };
 }
 
-function parseProduct(value: unknown): Product {
-  const legacy = productSchema.safeParse(value);
-  if (legacy.success) return legacy.data;
-  return toProduct(productMasterDtoSchema.parse(value));
-}
-
-function parseProductPage(value: unknown): PaginatedResponse<Product> {
-  if (typeof value !== "object" || value === null || !("items" in value)) {
-    throw new Error("Product page response is malformed");
-  }
-  const page = value as Record<string, unknown>;
-  const items = Array.isArray(page.items) ? page.items.map(parseProduct) : [];
-  return {
-    items,
-    page: requireNumber(page.page, "page"),
-    size: requireNumber(page.size, "size"),
-    totalElements: requireNumber(page.totalElements, "totalElements"),
-    totalPages: requireNumber(page.totalPages, "totalPages"),
-    hasNext: requireBoolean(page.hasNext, "hasNext"),
-    hasPrevious: requireBoolean(page.hasPrevious, "hasPrevious"),
-  };
-}
-
-function toProduct(dto: ProductMasterDto): Product {
-  const status = {
-    APPROVED: "Approved",
-    DISCONTINUED: "Discontinued",
-    DRAFT: "Draft",
-    PENDING_APPROVAL: "Pending Approval",
-    PUBLISHED: "Published",
-  }[dto.status] as Product["status"];
-
-  return productSchema.parse({
-    productId: dto.productId,
-    code: dto.code,
-    name: dto.name,
-    nameEn: dto.nameEn || dto.name,
-    // Chỉ khi BE có slug — không bịa slug từ tên.
-    ...(dto.slug ? { slug: dto.slug } : {}),
-    type: dto.kind === "CUSTOMIZABLE" ? "Customizable" : "Standard",
-    categoryId: dto.categoryId ?? null,
-    status,
-    shortDescription: dto.shortDescription ?? undefined,
-    description: dto.description ?? "",
-    descriptionEn: dto.descriptionEn ?? "",
-    // BE PR #71: ảnh thuộc biến thể (`/variants/{id}/media`), không còn trên dòng sản phẩm.
-    images: [],
-    taxClass: dto.taxClass.toLowerCase(),
-    brand: dto.brandName ?? "",
-    brandId: dto.brandId ?? null,
-    rejectionReason: dto.rejectionReason ?? undefined,
-    createdAt: dto.createdAt,
-    createdBy: dto.createdBy ?? "—",
-    submittedBy: dto.submittedBy ?? undefined,
-    submittedAt: dto.submittedAt ?? undefined,
-    approvedBy: dto.approvedBy ?? undefined,
-    approvedAt: dto.approvedAt ?? undefined,
-  });
-}
-
 function transitionSuffix(action: TransitionProductInput["action"]): string {
   switch (action) {
     case "submit":
@@ -231,17 +208,5 @@ function transitionSuffix(action: TransitionProductInput["action"]): string {
       return "approval";
     case "reject":
       return "rejection";
-    case "discontinue":
-      return "discontinuation";
   }
-}
-
-function requireNumber(value: unknown, field: string): number {
-  if (typeof value !== "number") throw new Error(`Product page ${field} is malformed`);
-  return value;
-}
-
-function requireBoolean(value: unknown, field: string): boolean {
-  if (typeof value !== "boolean") throw new Error(`Product page ${field} is malformed`);
-  return value;
 }

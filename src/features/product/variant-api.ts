@@ -44,11 +44,16 @@ export async function listVariants(productId: string, signal?: AbortSignal): Pro
     .sort((a, b) => a.position - b.position || a.sku.localeCompare(b.sku));
 }
 
-function variantBody(input: VariantInput) {
+/**
+ * Form → BE `VariantRequest` (`sku`, `name`, `optionValueIds`, `position`). Bỏ trống thì không gửi:
+ * sản phẩm có trục → BE sinh SKU / tên; khi sửa → BE giữ giá trị hiện tại. BE đã bỏ
+ * `attributeSignature` (tự suy ra từ các tuỳ chọn).
+ */
+export function variantBody(input: VariantInput) {
   return {
-    sku: input.sku.trim(),
-    name: input.name.trim(),
-    attributeSignature: input.attributeSignature.trim() || undefined,
+    sku: input.sku.trim() || undefined,
+    name: input.name.trim() || undefined,
+    optionValueIds: input.optionValueIds.length > 0 ? input.optionValueIds : undefined,
   };
 }
 
@@ -57,7 +62,7 @@ export async function addVariant(input: { productId: string } & VariantInput): P
   return beVariantSchema.parse(data);
 }
 
-/** PUT thay toàn bộ; SKU chỉ đổi được khi biến thể còn DRAFT (BE trả 409 nếu không). */
+/** SKU và tuỳ chọn chỉ đổi được khi biến thể còn DRAFT (BE trả 409 nếu không). */
 export async function updateVariant(
   input: { productId: string; variantId: string; position: number } & VariantInput,
 ): Promise<Variant> {

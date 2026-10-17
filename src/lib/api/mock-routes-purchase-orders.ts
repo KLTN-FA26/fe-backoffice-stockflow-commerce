@@ -7,6 +7,8 @@
  * Gửi NCC / khôi phục / NCC xác nhận / lịch sử gửi: `mock-routes-purchase-orders-delivery.ts`.
  */
 
+import { SKU_CODE_PATTERN } from "@/lib/validation/sku";
+
 import { registerMockRoute } from "./mock-adapter";
 import { registerPoDeliveryMockRoutes } from "./mock-routes-purchase-orders-delivery";
 import {
@@ -49,8 +51,6 @@ import type {
 
 /** BE `ProcurementServiceImpl.SORT` whitelist. */
 const PO_SORT_WHITELIST = ["poNumber", "expectedAt", "createdAt", "lastModifiedAt", "status"];
-/** BE `common.domain.Sku` — mã được trim + upper-case rồi phải khớp mẫu này. */
-const BE_SKU_PATTERN = /^[A-Z0-9][A-Z0-9._-]{0,63}$/;
 const poNumberSequence = new Map<string, number>();
 /** PO đã từng có revision (gửi duyệt) — lần gửi lại sau khi bị từ chối là revision kế tiếp. */
 const revisedPos = new Set<string>();
@@ -107,7 +107,7 @@ function readCreateLines(rawLines: unknown[], fieldErrors: MockFieldError[]): Mo
     const qty = r.quantityOrdered;
     const price = r.unitPrice;
     const tax = r.taxRate ?? 0;
-    if (!BE_SKU_PATTERN.test(sku)) {
+    if (!SKU_CODE_PATTERN.test(sku)) {
       fieldErrors.push({ field: `lines[${idx}].sku`, message: "sku is required" });
     }
     if (typeof qty !== "number" || !Number.isInteger(qty) || qty <= 0) {
