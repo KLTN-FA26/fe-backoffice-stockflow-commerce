@@ -44,6 +44,7 @@ import {
   INVENTORY_PERMISSIONS,
   ORDER_PERMISSIONS,
   PO_PERMISSIONS,
+  PRODUCT_PERMISSIONS,
   SHIPMENT_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
   TRANSFER_PERMISSIONS,
@@ -144,6 +145,7 @@ export const NAV_GROUPS: NavGroup[] = [
         tooltip: "Products & SKUs",
         href: "/admin/products",
         icon: Package,
+        permission: PRODUCT_PERMISSIONS.viewPage,
       },
       {
         label: "Thuộc tính biến thể",
@@ -242,14 +244,14 @@ export const NAV_GROUPS: NavGroup[] = [
         tooltip: "Stock adjustments",
         href: INVENTORY_ROUTES.adjustments,
         icon: SlidersHorizontal,
-        permission: INVENTORY_PERMISSIONS.adjustmentRead,
+        permission: INVENTORY_PERMISSIONS.adjustmentViewPage,
       },
       {
         label: "Lịch sử biến động",
         tooltip: "Stock movement history",
         href: INVENTORY_ROUTES.movements,
         icon: HistoryIcon,
-        permission: INVENTORY_PERMISSIONS.movementRead,
+        permission: INVENTORY_PERMISSIONS.movementViewPage,
       },
     ],
   },
@@ -326,6 +328,13 @@ export function useCanSeeNavItem(): (item: NavItem) => boolean {
   const can = usePermissionChecker();
   const isMock = useIsMock();
   return (item) => (!item.mockOnly || isMock) && (!item.permission || can(item.permission));
+}
+
+/** Visible items per group; a group with nothing left is dropped, so no orphan header renders. */
+export function visibleNavGroups(canSeeItem: (item: NavItem) => boolean): NavGroup[] {
+  return NAV_GROUPS.map((group) => ({ ...group, items: group.items.filter(canSeeItem) })).filter(
+    (group) => group.items.length > 0,
+  );
 }
 
 function findNavItem(pathname: string): NavItem | undefined {
@@ -525,7 +534,7 @@ function BackofficeSidebar() {
 
       {/* Nav groups */}
       <SidebarContent className="[&::-webkit-scrollbar-thumb]:bg-border-strong min-h-0 flex-1 [scrollbar-width:thin] gap-0 overflow-y-auto px-2 py-2 [&::-webkit-scrollbar]:block [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
-        {NAV_GROUPS.map((group) => (
+        {visibleNavGroups(canSeeItem).map((group) => (
           <SidebarGroup key={group.title} className="mb-1.5 gap-0 p-0">
             {collapsed ? (
               <div className="border-border-default mx-auto my-1.5 w-8 border-t" />
@@ -537,7 +546,7 @@ function BackofficeSidebar() {
 
             <SidebarGroupContent>
               <SidebarMenu className={cn("gap-0.5", collapsed && "items-center")}>
-                {group.items.filter(canSeeItem).map((item) => {
+                {group.items.map((item) => {
                   const isActive =
                     item.href === "/admin"
                       ? pathname === "/admin"

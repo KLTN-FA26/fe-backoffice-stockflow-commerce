@@ -49,6 +49,7 @@ describe("admin layout auth boundary", () => {
         status: "ACTIVE",
         roles: [],
         lastLoginAt: null,
+        mustChangePassword: false,
       },
       false,
     );

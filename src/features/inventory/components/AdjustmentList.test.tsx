@@ -29,7 +29,7 @@ const emptyPage = {
   hasNext: false,
   hasPrevious: false,
 };
-const { adjustmentRead, stockUpdate } = INVENTORY_PERMISSIONS;
+const { adjustmentRead, adjustmentViewPage, movementViewPage, stockUpdate } = INVENTORY_PERMISSIONS;
 beforeAll(() => {
   server.listen({ onUnhandledRequest: "error" });
 });
@@ -53,7 +53,7 @@ describe("adjustment queue", () => {
   it("loads the URL approval queue and links its detail", async () => {
     const fixture = adjustmentFixture();
     server.use(
-      inventoryPermissions([adjustmentRead, stockUpdate]),
+      inventoryPermissions([adjustmentViewPage, adjustmentRead, stockUpdate, movementViewPage]),
       http.get(endpoint, ({ request }) => {
         const params = new URL(request.url).searchParams;
         expect(params.get("status")).toBe(STOCK_ADJUSTMENT_STATUS.PENDING_APPROVAL);
@@ -87,9 +87,35 @@ describe("adjustment queue", () => {
     ).toBeInTheDocument();
   });
 
+  it("hides the movement-history shortcut without its page permission", async () => {
+    server.use(inventoryPermissions([adjustmentViewPage, adjustmentRead]), emptyList());
+    renderInventory(<AdjustmentList />);
+    expect(
+      await screen.findByRole("heading", { name: INVENTORY_LABELS.adjustmentTitle }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: INVENTORY_LABELS.movementTitle }),
+    ).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["READ only", [adjustmentRead]],
+    ["VIEW_PAGE only", [adjustmentViewPage]],
+  ] as const)(
+    "%s cannot open the adjustment page (needs VIEW_PAGE and READ)",
+    async (_label, permissions) => {
+      server.use(inventoryPermissions(permissions), emptyList());
+      renderInventory(<AdjustmentList />);
+      expect(await screen.findByText(INVENTORY_LABELS.denied)).toBeInTheDocument();
+      expect(
+        screen.queryByRole("heading", { name: INVENTORY_LABELS.adjustmentTitle }),
+      ).not.toBeInTheDocument();
+    },
+  );
+
   it("READ without stock UPDATE sees no create action", async () => {
     setInventoryTestActor("Inventory Planner");
-    server.use(inventoryPermissions([adjustmentRead]), emptyList());
+    server.use(inventoryPermissions([adjustmentViewPage, adjustmentRead]), emptyList());
     renderInventory(<AdjustmentList />);
     await screen.findByText(INVENTORY_LABELS.noAdjustments);
     expect(
@@ -99,7 +125,10 @@ describe("adjustment queue", () => {
 
   it("a formerly privileged role without UPDATE gets no create action", async () => {
     setInventoryTestActor("System Admin");
-    server.use(inventoryPermissions([adjustmentRead], ["SYSTEM_ADMIN"]), emptyList());
+    server.use(
+      inventoryPermissions([adjustmentViewPage, adjustmentRead], ["SYSTEM_ADMIN"]),
+      emptyList(),
+    );
     renderInventory(<AdjustmentList />);
     await screen.findByText(INVENTORY_LABELS.noAdjustments);
     expect(
@@ -109,7 +138,10 @@ describe("adjustment queue", () => {
 
   it("a non-allowlisted role with READ and UPDATE can open the queue and create", async () => {
     setInventoryTestActor("Accountant");
-    server.use(inventoryPermissions([adjustmentRead, stockUpdate], ["ACCOUNTANT"]), emptyList());
+    server.use(
+      inventoryPermissions([adjustmentViewPage, adjustmentRead, stockUpdate], ["ACCOUNTANT"]),
+      emptyList(),
+    );
     renderInventory(<AdjustmentList />);
     await screen.findByText(INVENTORY_LABELS.noAdjustments);
     expect(
@@ -141,7 +173,11 @@ describe("adjustment queue", () => {
           ? HttpResponse.json({ success: false, errorCode: "SERVER_ERROR" }, { status: 500 })
           : HttpResponse.json({
               success: true,
-              data: { roles: ["TEST"], permissions: [adjustmentRead], dataScope: "ALL" },
+              data: {
+                roles: ["TEST"],
+                permissions: [adjustmentViewPage, adjustmentRead],
+                dataScope: "ALL",
+              },
             });
       }),
       emptyList(),
@@ -157,7 +193,7 @@ describe("adjustment queue", () => {
   it("keeps a row with unknown backend reason/status visible", async () => {
     const fixture = adjustmentFixture({ reason: "COUNT_VARIANCE", status: "APPROVED" });
     server.use(
-      inventoryPermissions([adjustmentRead]),
+      inventoryPermissions([adjustmentViewPage, adjustmentRead]),
       http.get(endpoint, () =>
         HttpResponse.json({
           success: true,
@@ -174,7 +210,7 @@ describe("adjustment queue", () => {
   it("labels stock statuses in the filter and sends only the wire value", async () => {
     const statuses = vi.fn();
     server.use(
-      inventoryPermissions([adjustmentRead]),
+      inventoryPermissions([adjustmentViewPage, adjustmentRead]),
       http.get(endpoint, ({ request }) => {
         statuses(new URL(request.url).searchParams.get("status"));
         return HttpResponse.json({ success: true, data: emptyPage });
@@ -202,7 +238,7 @@ describe("adjustment queue", () => {
   it("shows a rejected adjustment row with the Inventory label", async () => {
     const fixture = adjustmentFixture({ status: STOCK_ADJUSTMENT_STATUS.REJECTED });
     server.use(
-      inventoryPermissions([adjustmentRead]),
+      inventoryPermissions([adjustmentViewPage, adjustmentRead]),
       http.get(endpoint, () =>
         HttpResponse.json({
           success: true,
@@ -220,7 +256,7 @@ describe("adjustment queue", () => {
     const down = adjustmentFixture({ reason: "SCRAP", quantityDelta: -5, number: "ADJ-DOWN" });
     const future = adjustmentFixture({ reason: "FUTURE_REASON", number: "ADJ-FUTURE" });
     server.use(
-      inventoryPermissions([adjustmentRead]),
+      inventoryPermissions([adjustmentViewPage, adjustmentRead]),
       http.get(endpoint, () =>
         HttpResponse.json({
           success: true,

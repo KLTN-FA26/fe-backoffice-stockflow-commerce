@@ -51,6 +51,7 @@ function actAs(userId: string, roles: RoleName[] = ["Warehouse Manager"]) {
       roles,
       status: "ACTIVE",
       lastLoginAt: null,
+      mustChangePassword: false,
     },
     status: "authenticated",
     isAuthenticated: true,
@@ -409,6 +410,7 @@ describe("Inventory uses the authenticated mock session identity", () => {
         roles: user.roles,
         status: "ACTIVE",
         lastLoginAt: null,
+        mustChangePassword: false,
       },
       false,
     );

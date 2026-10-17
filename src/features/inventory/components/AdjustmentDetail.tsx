@@ -20,7 +20,9 @@ import { InventoryPermissionGate } from "./InventoryPermissionGate";
 
 export function AdjustmentDetail({ id }: { id: string }) {
   return (
-    <InventoryPermissionGate permission={INVENTORY_PERMISSIONS.adjustmentRead}>
+    <InventoryPermissionGate
+      permissions={[INVENTORY_PERMISSIONS.adjustmentViewPage, INVENTORY_PERMISSIONS.adjustmentRead]}
+    >
       <AdjustmentDetailContent id={id} />
     </InventoryPermissionGate>
   );

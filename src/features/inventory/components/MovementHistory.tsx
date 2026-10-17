@@ -24,7 +24,10 @@ import { MovementTable } from "./MovementTable";
 
 export function MovementHistory() {
   return (
-    <InventoryPermissionGate permission={INVENTORY_PERMISSIONS.movementRead} variant="list">
+    <InventoryPermissionGate
+      permissions={[INVENTORY_PERMISSIONS.movementViewPage, INVENTORY_PERMISSIONS.movementRead]}
+      variant="list"
+    >
       <MovementHistoryContent />
     </InventoryPermissionGate>
   );
