@@ -1,12 +1,15 @@
 import { AxiosError } from "axios";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import { AUTH_API_BASE, AUTH_PATHS, AUTH_STORAGE_KEY, BROWSER_API_BASE } from "@/constants/auth";
 
 import { api } from "@/lib/api/client";
 
 import { getCurrentUserApi, loginApi, logoutApi } from "./auth-api";
+import { authUserSchema } from "./auth-schemas";
 import { useAuthStore } from "./auth-store";
+
+import type { AuthUser } from "./auth-schemas";
 
 import type { InternalAxiosRequestConfig } from "axios";
 
@@ -18,6 +21,7 @@ const user = {
   status: "ACTIVE",
   roles: [],
   lastLoginAt: null,
+  mustChangePassword: false,
 };
 const originalAdapter = api.defaults.adapter;
 let requests: InternalAxiosRequestConfig[];
@@ -55,6 +59,29 @@ describe("safe browser auth contract", () => {
   it("loads a safe identity from BFF session bootstrap", async () => {
     expect(await getCurrentUserApi()).toEqual(user);
     expect(requests[0]).toMatchObject({ baseURL: AUTH_API_BASE, url: AUTH_PATHS.me });
+  });
+  it("parses the current /me DTO including mustChangePassword and populated profile values", async () => {
+    data = {
+      ...user,
+      userId: "0b6f4f3e-8a4c-4d1f-9a38-3c1f0b1a2d4e",
+      fullName: "Nguyễn Văn A",
+      roles: ["WAREHOUSE_STAFF"],
+      lastLoginAt: "2026-10-17T01:02:03.456789Z",
+      mustChangePassword: true,
+    };
+    expect(await getCurrentUserApi()).toEqual(data);
+  });
+  it("rejects a /me body without mustChangePassword", async () => {
+    const { mustChangePassword: _mustChangePassword, ...legacy } = user;
+    data = legacy;
+    await expect(getCurrentUserApi()).rejects.toThrow();
+  });
+  it("same-user revalidation refreshes mustChangePassword without a session change", () => {
+    useAuthStore.getState().login(user, false);
+    const version = useAuthStore.getState().authorizationVersion;
+    useAuthStore.getState().reconcileSession({ ...user, mustChangePassword: true });
+    expect(useAuthStore.getState().user?.mustChangePassword).toBe(true);
+    expect(useAuthStore.getState().authorizationVersion).toBe(version);
   });
   it("rejects an obsolete token DTO as a browser login response", async () => {
     data = { accessToken: "legacy", tokenType: "Bearer", expiresInSeconds: 28800 };
@@ -122,5 +149,40 @@ describe("safe browser auth contract", () => {
     status = 403;
     await expect(api.get("/products")).rejects.toMatchObject({ status: 403 });
     expect(useAuthStore.getState().isAuthenticated).toBe(true);
+  });
+});
+
+// BE MeResponse + `jackson.default-property-inclusion: non_null`: null profile fields are omitted.
+describe("authUserSchema matches the Spring MeResponse contract", () => {
+  const { fullName: _fullName, lastLoginAt: _lastLoginAt, ...required } = user;
+
+  it("normalizes omitted and explicit null profile fields to null", () => {
+    expect(authUserSchema.parse(required)).toMatchObject({ fullName: null, lastLoginAt: null });
+    expect(authUserSchema.parse(user)).toMatchObject({ fullName: null, lastLoginAt: null });
+  });
+  it("keeps present profile values unchanged", () => {
+    const at = "2026-10-17T01:02:03.456789Z";
+    expect(authUserSchema.parse({ ...user, fullName: "A", lastLoginAt: at })).toMatchObject({
+      fullName: "A",
+      lastLoginAt: at,
+    });
+  });
+  it.each([
+    ["a malformed lastLoginAt", { ...user, lastLoginAt: "17/10/2026" }],
+    ["a missing mustChangePassword", (({ mustChangePassword: _m, ...rest }) => rest)(user)],
+    ["a non-boolean mustChangePassword", { ...user, mustChangePassword: "false" }],
+    ["a null mustChangePassword", { ...user, mustChangePassword: null }],
+    ["a missing email", (({ email: _e, ...rest }) => rest)(user)],
+  ])("rejects %s", (_label, body) => {
+    expect(authUserSchema.safeParse(body).success).toBe(false);
+  });
+  it("infers required, non-optional nullable fields", () => {
+    expectTypeOf<AuthUser["fullName"]>().toEqualTypeOf<string | null>();
+    expectTypeOf<AuthUser["lastLoginAt"]>().toEqualTypeOf<string | null>();
+    expectTypeOf<AuthUser["mustChangePassword"]>().toEqualTypeOf<boolean>();
+    expectTypeOf<AuthUser>().toHaveProperty("fullName");
+    expectTypeOf<{ fullName: string | null }>().toExtend<Pick<AuthUser, "fullName">>();
+    // Optional keys would make `{}` assignable to the pick; required keys do not.
+    expectTypeOf<object>().not.toExtend<Pick<AuthUser, "fullName" | "lastLoginAt">>();
   });
 });

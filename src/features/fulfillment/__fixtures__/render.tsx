@@ -107,6 +107,7 @@ export function renderFulfillmentScreen(ui: React.ReactElement, userId: string =
       status: "ACTIVE",
       roles: [],
       lastLoginAt: null,
+      mustChangePassword: false,
     },
     status: "authenticated",
     isAuthenticated: true,

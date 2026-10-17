@@ -46,12 +46,18 @@ beforeEach(() => {
       username: "actor",
       status: "ACTIVE",
       lastLoginAt: null,
+      mustChangePassword: false,
     },
     status: "authenticated",
     isAuthenticated: true,
     impersonatedRole: null,
   });
-  server.use(inventoryPermissions([INVENTORY_PERMISSIONS.movementRead]));
+  server.use(
+    inventoryPermissions([
+      INVENTORY_PERMISSIONS.movementViewPage,
+      INVENTORY_PERMISSIONS.movementRead,
+    ]),
+  );
 });
 afterEach(() => {
   cleanup();
@@ -201,12 +207,33 @@ describe("movement ledger screen", () => {
   it("a non-allowlisted role with movement READ opens the ledger", async () => {
     useAuthStore.setState({ impersonatedRole: "Sales Staff" });
     server.use(
-      inventoryPermissions([INVENTORY_PERMISSIONS.movementRead], ["SALES_STAFF"]),
+      inventoryPermissions(
+        [INVENTORY_PERMISSIONS.movementViewPage, INVENTORY_PERMISSIONS.movementRead],
+        ["SALES_STAFF"],
+      ),
       http.get(endpoint, () => HttpResponse.json({ success: true, data: emptyPage })),
     );
     renderHistory();
     expect(await screen.findByText(INVENTORY_LABELS.noMovements)).toBeInTheDocument();
     expect(screen.getByLabelText(INVENTORY_LABELS.sku)).toBeInTheDocument();
+  });
+
+  // Route needs VIEW_PAGE (open the screen) AND READ (GET /inventory/movements) — BE ADR-0004
+  it.each([
+    ["VIEW_PAGE only", [INVENTORY_PERMISSIONS.movementViewPage]],
+    ["READ only", [INVENTORY_PERMISSIONS.movementRead]],
+  ] as const)("%s cannot open the ledger", async (_label, permissions) => {
+    const ledger = vi.fn();
+    server.use(
+      inventoryPermissions(permissions),
+      http.get(endpoint, () => {
+        ledger();
+        return HttpResponse.json({ success: true, data: emptyPage });
+      }),
+    );
+    renderHistory();
+    expect(await screen.findByText(INVENTORY_LABELS.denied)).toBeInTheDocument();
+    expect(ledger).not.toHaveBeenCalled();
   });
 
   it("renders current and unknown movement types without losing the page", async () => {

@@ -1,8 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, waitFor, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { INVENTORY_PERMISSIONS } from "@/constants";
+import { IDENTITY_PERMISSIONS, INVENTORY_PERMISSIONS } from "@/constants";
 import { INVENTORY_ROUTES } from "@/constants/inventory";
 
 import { api } from "@/lib/api/client";
@@ -48,6 +49,7 @@ async function renderShell(
       username: "actor",
       status: "ACTIVE",
       lastLoginAt: null,
+      mustChangePassword: false,
     },
     status: "authenticated",
     isAuthenticated: true,
@@ -82,9 +84,15 @@ function navLink(name: string) {
 
 describe("Inventory sidebar entries follow backend permission codes", () => {
   it.each([
-    [[INVENTORY_PERMISSIONS.adjustmentRead, INVENTORY_PERMISSIONS.movementRead], true, true],
-    [[INVENTORY_PERMISSIONS.adjustmentRead], true, false],
-    [[INVENTORY_PERMISSIONS.movementRead], false, true],
+    [
+      [INVENTORY_PERMISSIONS.adjustmentViewPage, INVENTORY_PERMISSIONS.movementViewPage],
+      true,
+      true,
+    ],
+    [[INVENTORY_PERMISSIONS.adjustmentViewPage], true, false],
+    [[INVENTORY_PERMISSIONS.movementViewPage], false, true],
+    // READ is data access for other screens; the page needs VIEW_PAGE (BE ADR-0004)
+    [[INVENTORY_PERMISSIONS.adjustmentRead, INVENTORY_PERMISSIONS.movementRead], false, false],
     [[], false, false],
   ] as const)("%j → adjustments %s, movements %s", async (permissions, adjustments, movements) => {
     await renderShell(permissions);
@@ -93,7 +101,10 @@ describe("Inventory sidebar entries follow backend permission codes", () => {
   });
 
   it("links to the canonical Inventory routes", async () => {
-    await renderShell([INVENTORY_PERMISSIONS.adjustmentRead, INVENTORY_PERMISSIONS.movementRead]);
+    await renderShell([
+      INVENTORY_PERMISSIONS.adjustmentViewPage,
+      INVENTORY_PERMISSIONS.movementViewPage,
+    ]);
     expect(navLink(ADJUSTMENTS)).toHaveAttribute("href", INVENTORY_ROUTES.adjustments);
     expect(navLink(MOVEMENTS)).toHaveAttribute("href", INVENTORY_ROUTES.movements);
   });
@@ -104,7 +115,7 @@ describe("Inventory sidebar entries follow backend permission codes", () => {
   });
 
   it.each<RoleName>(["System Admin", "Warehouse Manager"])(
-    "%s without Inventory READ codes sees no Inventory entry",
+    "%s without Inventory page codes sees no Inventory entry",
     async (role) => {
       await renderShell([], role);
       expect(navLink(ADJUSTMENTS)).not.toBeInTheDocument();
@@ -112,8 +123,8 @@ describe("Inventory sidebar entries follow backend permission codes", () => {
     },
   );
 
-  it("a non-allowlisted role with movement READ sees Movement History", async () => {
-    await renderShell([INVENTORY_PERMISSIONS.movementRead], "Accountant");
+  it("a non-allowlisted role with movement VIEW_PAGE sees Movement History", async () => {
+    await renderShell([INVENTORY_PERMISSIONS.movementViewPage], "Accountant");
     expect(navLink(MOVEMENTS)).toBeInTheDocument();
   });
 
@@ -123,16 +134,53 @@ describe("Inventory sidebar entries follow backend permission codes", () => {
     INVENTORY_ROUTES.adjustment("d0000001-0000-4000-8000-000000000009"),
   ])("marks only the adjustment entry active on %s", async (pathname) => {
     navigation.pathname = pathname;
-    await renderShell([INVENTORY_PERMISSIONS.adjustmentRead, INVENTORY_PERMISSIONS.movementRead]);
+    await renderShell([
+      INVENTORY_PERMISSIONS.adjustmentViewPage,
+      INVENTORY_PERMISSIONS.movementViewPage,
+    ]);
     expect(navLink(ADJUSTMENTS)).toHaveAttribute("data-active", "true");
     expect(navLink(MOVEMENTS)).not.toHaveAttribute("data-active", "true");
   });
 
   it("marks only Movement History active on its route", async () => {
     navigation.pathname = INVENTORY_ROUTES.movements;
-    await renderShell([INVENTORY_PERMISSIONS.adjustmentRead, INVENTORY_PERMISSIONS.movementRead]);
+    await renderShell([
+      INVENTORY_PERMISSIONS.adjustmentViewPage,
+      INVENTORY_PERMISSIONS.movementViewPage,
+    ]);
     expect(navLink(MOVEMENTS)).toHaveAttribute("data-active", "true");
     expect(navLink(ADJUSTMENTS)).not.toHaveAttribute("data-active", "true");
     expect(navLink("Di chuyển nội bộ")).not.toHaveAttribute("data-active", "true");
+  });
+});
+
+describe("sidebar groups", () => {
+  function groupLabel(title: string) {
+    const sidebar = document.querySelector<HTMLElement>('[data-sidebar="content"]');
+    if (!sidebar) throw new Error("Sidebar content not rendered");
+    return within(sidebar).queryByText(title);
+  }
+
+  it("drops a group header when every item in it is denied", async () => {
+    await renderShell([]);
+    expect(groupLabel("PLATFORM")).not.toBeInTheDocument();
+    expect(groupLabel("TỔNG QUAN")).toBeInTheDocument();
+  });
+
+  it("collapsed sidebar renders no separator for a group with no visible item", async () => {
+    await renderShell([]);
+    await userEvent.click(screen.getByRole("button", { name: "Thu nhỏ sidebar" }));
+    const sidebar = document.querySelector<HTMLElement>('[data-sidebar="content"]');
+    if (!sidebar) throw new Error("Sidebar content not rendered");
+    const groups = sidebar.querySelectorAll<HTMLElement>('[data-sidebar="group"]');
+    expect(groups.length).toBeGreaterThan(0);
+    for (const group of groups)
+      expect(within(group).queryAllByRole("link").length).toBeGreaterThan(0);
+  });
+
+  it("keeps the group header when one of its items is allowed", async () => {
+    await renderShell([IDENTITY_PERMISSIONS.rbacRead]);
+    expect(groupLabel("PLATFORM")).toBeInTheDocument();
+    expect(navLink("Phân quyền")).toBeInTheDocument();
   });
 });

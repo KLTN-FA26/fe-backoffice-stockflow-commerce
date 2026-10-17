@@ -86,6 +86,9 @@ export const PRODUCT_PERMISSIONS = {
  * `InventoryResources.STOCK_ITEMS` / `STOCK_ADJUSTMENTS` / `STOCK_MOVEMENTS`.
  */
 export const INVENTORY_PERMISSIONS = {
+  // Mở trang (menu + chặn route) — BE Action.VIEW_PAGE, ADR-0004; seed cấp kèm READ
+  adjustmentViewPage: "inventory-stock-adjustments:VIEW_PAGE",
+  movementViewPage: "inventory-stock-movements:VIEW_PAGE",
   // GET /inventory/adjustments, /inventory/adjustments/{id}
   adjustmentRead: "inventory-stock-adjustments:READ",
   // POST …/approval và …/rejection — bốn mắt vẫn do lifecycle + BE kiểm

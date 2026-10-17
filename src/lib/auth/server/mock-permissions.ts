@@ -40,7 +40,14 @@ const SHIP = Object.values(SHIPMENT_PERMISSIONS);
 const PICK = FULFILLMENT_PICK_PERMISSIONS;
 const PACK = FULFILLMENT_PACKAGE_PERMISSIONS;
 const INV = INVENTORY_PERMISSIONS;
-const INVENTORY_FLOOR = [INV.adjustmentRead, INV.stockUpdate, INV.movementRead];
+// Seed BE V20261013000200 / V20261014001200: VIEW_PAGE luôn cấp kèm READ cho sổ kho + phiếu điều chỉnh.
+const INVENTORY_FLOOR = [
+  INV.adjustmentViewPage,
+  INV.adjustmentRead,
+  INV.stockUpdate,
+  INV.movementViewPage,
+  INV.movementRead,
+];
 const INVENTORY_ALL = Object.values(INV);
 const FULFILLMENT_FLOOR = [...Object.values(PICK), ...Object.values(PACK)];
 const WH_WORK = [...GR_WORK, ...FULFILLMENT_FLOOR, ...INVENTORY_FLOOR];

@@ -22,7 +22,10 @@ import { InventoryPermissionGate } from "./InventoryPermissionGate";
 
 export function AdjustmentList() {
   return (
-    <InventoryPermissionGate permission={INVENTORY_PERMISSIONS.adjustmentRead} variant="list">
+    <InventoryPermissionGate
+      permissions={[INVENTORY_PERMISSIONS.adjustmentViewPage, INVENTORY_PERMISSIONS.adjustmentRead]}
+      variant="list"
+    >
       <AdjustmentListContent />
     </InventoryPermissionGate>
   );
@@ -30,6 +33,7 @@ export function AdjustmentList() {
 
 function AdjustmentListContent() {
   const canCreate = useCan(INVENTORY_PERMISSIONS.stockUpdate);
+  const canViewMovements = useCan(INVENTORY_PERMISSIONS.movementViewPage);
   const state = useInventoryListFilters(INVENTORY_STORAGE_KEYS.adjustments);
   const query = useAdjustments({
     page: state.page - 1,
@@ -50,9 +54,11 @@ function AdjustmentListContent() {
         subtitle={INVENTORY_LABELS.approvalPolicy}
         actions={
           <>
-            <Button className="rounded-[var(--r-sm)]" asChild variant="outline" size="sm">
-              <Link href={INVENTORY_ROUTES.movements}>{INVENTORY_LABELS.movementTitle}</Link>
-            </Button>
+            {canViewMovements && (
+              <Button className="rounded-[var(--r-sm)]" asChild variant="outline" size="sm">
+                <Link href={INVENTORY_ROUTES.movements}>{INVENTORY_LABELS.movementTitle}</Link>
+              </Button>
+            )}
             {createAction}
           </>
         }

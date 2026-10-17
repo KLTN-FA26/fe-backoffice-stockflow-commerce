@@ -101,6 +101,7 @@ function renderSection() {
       username: "test",
       status: "ACTIVE",
       lastLoginAt: null,
+      mustChangePassword: false,
     },
     isAuthenticated: true,
     status: "authenticated",

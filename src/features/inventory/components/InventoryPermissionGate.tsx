@@ -21,11 +21,12 @@ const { loadError } = UI_LABELS;
  * UI-only — Backend phải re-check (@RequiresPermission trên StockOperationsController).
  */
 export function InventoryPermissionGate({
-  permission,
+  permissions,
   variant = "detail",
   children,
 }: {
-  permission: PermissionCode;
+  /** Thiếu BẤT KỲ mã nào → từ chối (cùng hợp đồng với `PoPermissionGate`). */
+  permissions: readonly PermissionCode[];
   variant?: "detail" | "list" | "form";
   children: React.ReactNode;
 }) {
@@ -52,6 +53,6 @@ export function InventoryPermissionGate({
       />
     );
   }
-  if (!hasPermission(data, permission)) return <InventoryDenied />;
+  if (!permissions.every((code) => hasPermission(data, code))) return <InventoryDenied />;
   return <>{children}</>;
 }

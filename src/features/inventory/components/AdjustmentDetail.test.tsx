@@ -25,7 +25,8 @@ import { AdjustmentDetail } from "./AdjustmentDetail";
 
 const server = setupServer();
 const endpoint = inventoryEndpoint(`${INVENTORY_API.adjustments}/:id`);
-const { adjustmentRead, adjustmentApprove, stockUpdate } = INVENTORY_PERMISSIONS;
+const { adjustmentRead, adjustmentApprove, adjustmentViewPage, stockUpdate } =
+  INVENTORY_PERMISSIONS;
 const decisionButtons = [
   INVENTORY_LABELS.approve,
   INVENTORY_LABELS.reject,
@@ -60,7 +61,7 @@ describe("adjustment detail", () => {
   it("approves another request and removes all actions after posting", async () => {
     let fixture = adjustmentFixture();
     server.use(
-      inventoryPermissions([adjustmentRead, adjustmentApprove]),
+      inventoryPermissions([adjustmentViewPage, adjustmentRead, adjustmentApprove]),
       http.get(endpoint, () => HttpResponse.json({ success: true, data: fixture })),
       http.post(`${endpoint}/approval`, () => {
         fixture = {
@@ -90,7 +91,7 @@ describe("adjustment detail", () => {
     const requester = setInventoryTestActor("Warehouse Manager");
     const fixture = adjustmentFixture({ requestedBy: requester });
     server.use(
-      inventoryPermissions([adjustmentRead, adjustmentApprove, stockUpdate]),
+      inventoryPermissions([adjustmentViewPage, adjustmentRead, adjustmentApprove, stockUpdate]),
       serve(fixture),
     );
     renderInventory(<AdjustmentDetail id={fixture.adjustmentId} />);
@@ -106,7 +107,7 @@ describe("adjustment detail", () => {
   it("requester without stock UPDATE cannot withdraw", async () => {
     const requester = setInventoryTestActor("Warehouse Staff");
     const fixture = adjustmentFixture({ requestedBy: requester });
-    server.use(inventoryPermissions([adjustmentRead]), serve(fixture));
+    server.use(inventoryPermissions([adjustmentViewPage, adjustmentRead]), serve(fixture));
     renderInventory(<AdjustmentDetail id={fixture.adjustmentId} />);
     await screen.findByText(fixture.number);
     expectNoDecisionControls();
@@ -115,7 +116,10 @@ describe("adjustment detail", () => {
   it("UPDATE does not let another user withdraw someone else's request", async () => {
     setInventoryTestActor("Warehouse Staff");
     const fixture = adjustmentFixture();
-    server.use(inventoryPermissions([adjustmentRead, stockUpdate]), serve(fixture));
+    server.use(
+      inventoryPermissions([adjustmentViewPage, adjustmentRead, stockUpdate]),
+      serve(fixture),
+    );
     renderInventory(<AdjustmentDetail id={fixture.adjustmentId} />);
     await screen.findByText(fixture.number);
     expectNoDecisionControls();
@@ -124,7 +128,7 @@ describe("adjustment detail", () => {
   it("requires a rejection reason and keeps server failure visible", async () => {
     const fixture = adjustmentFixture();
     server.use(
-      inventoryPermissions([adjustmentRead, adjustmentApprove]),
+      inventoryPermissions([adjustmentViewPage, adjustmentRead, adjustmentApprove]),
       serve(fixture),
       http.post(`${endpoint}/rejection`, () =>
         HttpResponse.json(
@@ -146,7 +150,7 @@ describe("adjustment detail", () => {
   it("READ only sees detail without decision controls", async () => {
     setInventoryTestActor("Inventory Planner");
     const fixture = adjustmentFixture();
-    server.use(inventoryPermissions([adjustmentRead]), serve(fixture));
+    server.use(inventoryPermissions([adjustmentViewPage, adjustmentRead]), serve(fixture));
     renderInventory(<AdjustmentDetail id={fixture.adjustmentId} />);
     await screen.findByText(fixture.number);
     expectNoDecisionControls();
@@ -156,7 +160,7 @@ describe("adjustment detail", () => {
     setInventoryTestActor("System Admin");
     const fixture = adjustmentFixture();
     server.use(
-      inventoryPermissions([adjustmentRead, stockUpdate], ["SYSTEM_ADMIN"]),
+      inventoryPermissions([adjustmentViewPage, adjustmentRead, stockUpdate], ["SYSTEM_ADMIN"]),
       serve(fixture),
     );
     renderInventory(<AdjustmentDetail id={fixture.adjustmentId} />);
@@ -168,7 +172,10 @@ describe("adjustment detail", () => {
     setInventoryTestActor("Sales Staff");
     const fixture = adjustmentFixture();
     server.use(
-      inventoryPermissions([adjustmentRead, adjustmentApprove], ["SALES_STAFF"]),
+      inventoryPermissions(
+        [adjustmentViewPage, adjustmentRead, adjustmentApprove],
+        ["SALES_STAFF"],
+      ),
       serve(fixture),
     );
     renderInventory(<AdjustmentDetail id={fixture.adjustmentId} />);
@@ -200,7 +207,7 @@ describe("adjustment detail", () => {
   it("renders unknown backend reason/status verbatim with no lifecycle action", async () => {
     const fixture = adjustmentFixture({ reason: "COUNT_VARIANCE", status: "APPROVED" });
     server.use(
-      inventoryPermissions([adjustmentRead, adjustmentApprove, stockUpdate]),
+      inventoryPermissions([adjustmentViewPage, adjustmentRead, adjustmentApprove, stockUpdate]),
       serve(fixture),
     );
     renderInventory(<AdjustmentDetail id={fixture.adjustmentId} />);
@@ -211,7 +218,7 @@ describe("adjustment detail", () => {
 
   it("shows Vietnamese not-found for STOCK_ADJUSTMENT_NOT_FOUND, never the backend text", async () => {
     server.use(
-      inventoryPermissions([adjustmentRead]),
+      inventoryPermissions([adjustmentViewPage, adjustmentRead]),
       http.get(endpoint, () =>
         HttpResponse.json(
           {
@@ -237,7 +244,7 @@ describe("adjustment detail", () => {
     const fixture = adjustmentFixture();
     let reads = 0;
     server.use(
-      inventoryPermissions([adjustmentRead, adjustmentApprove]),
+      inventoryPermissions([adjustmentViewPage, adjustmentRead, adjustmentApprove]),
       http.get(endpoint, () => {
         reads += 1;
         return HttpResponse.json({ success: true, data: fixture });
@@ -271,7 +278,7 @@ describe("adjustment detail", () => {
     let fixture = adjustmentFixture();
     let reads = 0;
     server.use(
-      inventoryPermissions([adjustmentRead, adjustmentApprove]),
+      inventoryPermissions([adjustmentViewPage, adjustmentRead, adjustmentApprove]),
       http.get(endpoint, () => {
         reads += 1;
         return HttpResponse.json({ success: true, data: fixture });
@@ -314,7 +321,7 @@ describe("adjustment detail", () => {
     let fixture = adjustmentFixture();
     let reads = 0;
     server.use(
-      inventoryPermissions([adjustmentRead, adjustmentApprove, stockUpdate]),
+      inventoryPermissions([adjustmentViewPage, adjustmentRead, adjustmentApprove, stockUpdate]),
       http.get(endpoint, () => {
         reads += 1;
         return HttpResponse.json({ success: true, data: fixture });
@@ -357,7 +364,7 @@ describe("adjustment detail", () => {
       let fixture = initial;
       const bodies: unknown[] = [];
       server.use(
-        inventoryPermissions([adjustmentRead, adjustmentApprove]),
+        inventoryPermissions([adjustmentViewPage, adjustmentRead, adjustmentApprove]),
         http.get(endpoint, () => HttpResponse.json({ success: true, data: fixture })),
         http.post(`${endpoint}/rejection`, async ({ request }) => {
           bodies.push(await request.json());
@@ -462,7 +469,7 @@ describe("adjustment detail", () => {
     let fixture = adjustmentFixture({ requestedBy: requester });
     let posts = 0;
     server.use(
-      inventoryPermissions([adjustmentRead, stockUpdate]),
+      inventoryPermissions([adjustmentViewPage, adjustmentRead, stockUpdate]),
       http.get(endpoint, () => HttpResponse.json({ success: true, data: fixture })),
       http.post(`${endpoint}/withdrawal`, () => {
         posts += 1;
@@ -486,7 +493,7 @@ describe("adjustment detail", () => {
 
   it("shows the reason label and a signed positive delta", async () => {
     const fixture = adjustmentFixture({ reason: "DAMAGED", quantityDelta: 5 });
-    server.use(inventoryPermissions([adjustmentRead]), serve(fixture));
+    server.use(inventoryPermissions([adjustmentViewPage, adjustmentRead]), serve(fixture));
     renderInventory(<AdjustmentDetail id={fixture.adjustmentId} />);
     expect(await screen.findByText("Hư hỏng")).toBeInTheDocument();
     expect(screen.getByText("+5")).toBeInTheDocument();
@@ -495,7 +502,7 @@ describe("adjustment detail", () => {
 
   it("keeps an unknown reason raw on the detail", async () => {
     const fixture = adjustmentFixture({ reason: "FUTURE_REASON" });
-    server.use(inventoryPermissions([adjustmentRead]), serve(fixture));
+    server.use(inventoryPermissions([adjustmentViewPage, adjustmentRead]), serve(fixture));
     renderInventory(<AdjustmentDetail id={fixture.adjustmentId} />);
     expect(await screen.findByText("FUTURE_REASON")).toBeInTheDocument();
   });

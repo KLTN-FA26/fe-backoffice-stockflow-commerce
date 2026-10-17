@@ -25,7 +25,7 @@ import type { CreateAdjustmentInput } from "../types";
 
 export function AdjustmentCreate() {
   return (
-    <InventoryPermissionGate permission={INVENTORY_PERMISSIONS.stockUpdate} variant="form">
+    <InventoryPermissionGate permissions={[INVENTORY_PERMISSIONS.stockUpdate]} variant="form">
       <AdjustmentCreateContent />
     </InventoryPermissionGate>
   );
