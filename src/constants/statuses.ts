@@ -251,6 +251,8 @@ export const PRODUCT_STATUSES = [
   "Published",
   "Inactive",
   "Discontinued",
+  // Trạng thái BE chưa biết (BE mở rộng danh sách) — hiển thị "Không rõ", không chặn cả trang.
+  "UNKNOWN",
 ] as const;
 
 export const PRODUCT_STATUS = {
@@ -261,6 +263,7 @@ export const PRODUCT_STATUS = {
   INACTIVE: "Inactive",
   PENDING_APPROVAL: "Pending Approval",
   PUBLISHED: "Published",
+  UNKNOWN: "UNKNOWN",
 } as const satisfies Record<string, ProductStatus>;
 
 export const SKU_STATUSES = ["Active", "Blocked", "Obsolete"] as const;

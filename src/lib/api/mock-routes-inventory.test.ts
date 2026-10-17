@@ -216,7 +216,8 @@ describe("request rules enforced by the mock itself", () => {
 
   it("bean validation answers with per-field errors", async () => {
     const error = await captureError(
-      postRaw({ locationCode: "", sku: "x", quantityDelta: 2_000_000, reason: "FOUND" }),
+      // SKU BE: 1–64 ký tự, không bắt đầu bằng dấu phân cách ("x" một ký tự là hợp lệ).
+      postRaw({ locationCode: "", sku: "_x", quantityDelta: 2_000_000, reason: "FOUND" }),
     );
     expect(error.status).toBe(400);
     expect(error.code).toBe("VALIDATION_FAILED");

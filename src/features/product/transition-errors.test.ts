@@ -61,7 +61,7 @@ describe("product transition errors", () => {
       productTransitionErrorMessage(
         new ApiError(400, "VALIDATION_FAILED", "x", { reason: "must not be blank" }),
       ),
-    ).toBe("Vui lòng nhập lý do từ chối.");
+    ).toBe("Vui lòng nhập lý do (tối đa 500 ký tự).");
     expect(productTransitionErrorMessage(new ApiError(400, "VALIDATION_FAILED", "x"))).toBe(
       "Dữ liệu chuyển trạng thái không hợp lệ.",
     );

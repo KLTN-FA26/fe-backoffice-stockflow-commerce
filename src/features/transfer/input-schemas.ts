@@ -7,12 +7,11 @@ import { z } from "zod";
 
 import { TRANSFER_FIELD_MESSAGES as MSG, TRANSFER_LIMITS, TRANSFER_REASONS } from "@/constants";
 import { isoDate } from "@/lib/validation/primitives";
-
-/** BE `CreateTransferOrderRequest.Line.sku` @Pattern `[A-Za-z0-9\-]{3,64}`. */
-const SKU_PATTERN = /^[A-Za-z0-9-]{3,64}$/;
+import { skuSchema } from "@/lib/validation/sku";
 
 export const transferLineInputSchema = z.object({
-  sku: z.string().trim().min(1, MSG.skuRequired).regex(SKU_PATTERN, MSG.skuFormat),
+  // BE `CreateTransferOrderRequest.Line.sku` @ValidSku — xem lib/validation/sku.ts.
+  sku: skuSchema({ required: MSG.skuRequired, format: MSG.skuFormat }),
   lotNumber: z.string().trim().max(TRANSFER_LIMITS.codeMax, MSG.tooLong).default(""),
   quantity: z
     .number({ message: MSG.quantity })

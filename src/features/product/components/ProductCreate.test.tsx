@@ -36,6 +36,10 @@ vi.mock("@/features/product", async () => {
   };
 });
 
+vi.mock("../attribute-queries", () => ({
+  useAttributes: () => ({ data: { items: [] }, isLoading: false, isError: false }),
+}));
+
 vi.mock("./ProductMasterFields", () => ({
   ProductMasterFields: ({
     form,
@@ -60,6 +64,7 @@ const product = (name: string): Product => ({
   type: "Standard",
   categoryId: null,
   status: PRODUCT_STATUS.DRAFT,
+  version: 4,
   description: "",
   descriptionEn: "",
   images: [],

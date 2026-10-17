@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Pencil } from "lucide-react";
 
-import { PRODUCT_PERMISSIONS } from "@/constants";
+import { PRODUCT_PERMISSIONS, VARIANT_PERMISSIONS } from "@/constants";
 import { usePermissionChecker } from "@/lib/auth";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { SlideOverPanel } from "@/components/shared/SlideOverPanel";
@@ -15,6 +15,8 @@ import { variantErrorMessage } from "../../variant-errors";
 import { allowedVariantActions } from "../../variant-lifecycle";
 import { useTransitionVariant } from "../../variant-queries";
 import { VariantFormDialog } from "./VariantFormDialog";
+import { VariantBasePrice } from "./VariantBasePrice";
+import { VariantInventoryControl } from "./VariantInventoryControl";
 import { VariantLogistics } from "./VariantLogistics";
 import { VariantMediaGallery } from "./VariantMediaGallery";
 
@@ -26,16 +28,24 @@ export function VariantPanel({
   productId,
   variant,
   productApproved,
+  acceptsChanges,
+  productDiscontinued,
   open,
   onClose,
 }: {
   productId: string;
   variant: Variant | null;
   productApproved: boolean;
+  /** Không chờ duyệt, không ngừng kinh doanh: logistics, chính sách tồn kho và giá mới sửa được (BE 409 CONFLICT). */
+  acceptsChanges: boolean;
+  /** Sản phẩm đã ngừng kinh doanh: BE `CatalogCommerceService.price` chỉ từ chối trường hợp này (chờ duyệt vẫn đặt giá được). */
+  productDiscontinued: boolean;
   open: boolean;
   onClose: () => void;
 }) {
   const can = usePermissionChecker();
+  // Sửa biến thể: `product-variants:UPDATE`; logistics và ảnh là nội dung sản phẩm: `product-products`.
+  const canEditVariant = can(VARIANT_PERMISSIONS.update);
   const canUpdate = can(PRODUCT_PERMISSIONS.update);
   const canApprove = can(PRODUCT_PERMISSIONS.approve);
   const transition = useTransitionVariant();
@@ -53,7 +63,9 @@ export function VariantPanel({
       },
     );
   };
-  const actions = variant ? allowedVariantActions(variant, can, productApproved) : [];
+  const actions = variant
+    ? allowedVariantActions(variant, can, productApproved, acceptsChanges)
+    : [];
   const obsolete = variant?.status === "OBSOLETE";
 
   return (
@@ -68,10 +80,19 @@ export function VariantPanel({
       {variant && (
         <div className="space-y-6">
           <section className="space-y-2 text-[0.8125rem]">
-            <Row label="Tổ hợp thuộc tính">
-              <span className="font-[family-name:var(--font-mono)] break-all">
-                {variant.attributeSignature || "—"}
-              </span>
+            <Row label="Tuỳ chọn">
+              {variant.options.length > 0 ? (
+                <ul className="space-y-0.5">
+                  {variant.options.map((option) => (
+                    <li key={option.attributeId}>
+                      <span className="text-ink-tertiary">{option.attributeCode}: </span>
+                      {option.label}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                "—"
+              )}
             </Row>
             <Row label="Biến thể mặc định">{variant.defaultVariant ? "Có" : "Không"}</Row>
             {variant.obsoletedAt && (
@@ -80,7 +101,7 @@ export function VariantPanel({
               </Row>
             )}
             <div className="flex flex-wrap gap-2 pt-2">
-              {canUpdate && !obsolete && (
+              {canEditVariant && !obsolete && acceptsChanges && (
                 <Button type="button" variant="outline" size="sm" onClick={() => setEditing(true)}>
                   <Pencil className="size-3.5" /> Sửa
                 </Button>
@@ -108,7 +129,25 @@ export function VariantPanel({
             <VariantLogistics
               productId={productId}
               variantId={variant.variantId}
-              canEdit={canUpdate && !obsolete}
+              canEdit={canUpdate && !obsolete && acceptsChanges}
+            />
+          </section>
+
+          <section>
+            <h3 className="text-ink-primary mb-2 text-sm font-semibold">Chính sách tồn kho</h3>
+            <VariantInventoryControl
+              productId={productId}
+              variantId={variant.variantId}
+              canEdit={canUpdate && acceptsChanges}
+            />
+          </section>
+
+          <section>
+            <h3 className="text-ink-primary mb-2 text-sm font-semibold">Giá bán</h3>
+            <VariantBasePrice
+              productId={productId}
+              sku={variant.sku}
+              canEdit={canUpdate && !productDiscontinued}
             />
           </section>
 
@@ -117,7 +156,7 @@ export function VariantPanel({
             <VariantMediaGallery
               productId={productId}
               variantId={variant.variantId}
-              canUpload={canUpdate && !obsolete}
+              canUpload={canUpdate && !obsolete && acceptsChanges}
               canPublish={canApprove}
             />
           </section>

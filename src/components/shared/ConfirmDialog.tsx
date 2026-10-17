@@ -39,6 +39,8 @@ interface ConfirmDialogProps {
    * khỏi trình đọc màn hình, nên với `closeOnConfirm={false}` lỗi phải nằm ở đây mới đọc được.
    */
   error?: React.ReactNode;
+  /** Nội dung bổ sung dưới phần mô tả (vd danh sách chứng từ còn mở) — trước ô lý do. */
+  children?: React.ReactNode;
 }
 
 export function ConfirmDialog({
@@ -56,6 +58,7 @@ export function ConfirmDialog({
   loading = false,
   closeOnConfirm = true,
   error,
+  children,
 }: ConfirmDialogProps) {
   const [reason, setReason] = useState("");
   // Bên gọi đóng dialog qua prop `open` (không qua onOpenChange) → xoá lý do khi đóng.
@@ -108,6 +111,8 @@ export function ConfirmDialog({
             <DialogDescription className="text-ink-secondary text-[0.875rem] leading-relaxed">
               {description}
             </DialogDescription>
+
+            {children}
 
             {requireReason && (
               <ConfirmReasonField

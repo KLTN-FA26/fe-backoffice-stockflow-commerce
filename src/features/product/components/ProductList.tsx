@@ -10,7 +10,7 @@ import { PERMISSION_UI } from "@/constants/permissions";
 import { usePageConfig } from "@/hooks/use-page-config";
 import { useUrlFilters } from "@/hooks/use-url-filters";
 import { useCan } from "@/lib/auth/components/Can";
-import { STATUS_LABEL_VI } from "@/lib/status-map";
+import { statusLabelVi } from "@/lib/status-map";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ListStatsPanel } from "@/components/shared/ListStatsPanel";
@@ -78,7 +78,7 @@ const DEFAULT_CONFIG: ProductsPageConfig = {
 };
 
 const PRODUCT_STATUS_OPTIONS = ["all", ...PRODUCT_LIST_FILTER_STATUSES].map((value) => ({
-  label: value === "all" ? "Tất cả" : (STATUS_LABEL_VI[value] ?? value),
+  label: value === "all" ? "Tất cả" : (statusLabelVi(value, "product") ?? value),
   value: value as ProductStatusFilter,
 }));
 const PRODUCT_COLUMN_LABELS: Record<ProductTableColumnKey, string> = {

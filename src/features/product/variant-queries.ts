@@ -2,6 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 
 import { createMutation } from "@/lib/api/query-factory";
 
+import { getInventoryControl, saveInventoryControl } from "./inventory-control-api";
+import {
+  generateVariants,
+  getProductAttributes,
+  replaceProductAxes,
+  replaceProductDescriptives,
+} from "./axes-api";
 import {
   addVariant,
   deleteVariantMedia,
@@ -17,9 +24,13 @@ import {
   uploadVariantMedia,
   withdrawVariantMedia,
 } from "./variant-api";
+import { PRODUCT_HISTORY_ROOT } from "./queries";
 
+import type { AxisInput, DescriptiveEntry, ProductAttributes } from "./axes-schemas";
+import type { InventoryControl, InventoryControlFormValues } from "./inventory-control-schemas";
 import type { VariantTransition } from "./variant-api";
 import type {
+  GeneratedVariants,
   LogisticsFormValues,
   SkuLogistics,
   Variant,
@@ -31,10 +42,13 @@ import type {
 export const variantKeys = {
   all: ["variants"] as const,
   list: (productId: string) => ["variants", productId, "list"] as const,
+  axes: (productId: string) => ["variants", productId, "axes"] as const,
   logistics: (productId: string, variantId: string) =>
     ["variants", productId, variantId, "logistics"] as const,
   media: (productId: string, variantId: string) =>
     ["variants", productId, variantId, "media"] as const,
+  inventoryControl: (productId: string, variantId: string) =>
+    ["variants", productId, variantId, "inventory-control"] as const,
   mediaUrl: (productId: string, variantId: string, mediaId: string, edge: number) =>
     ["variants", productId, variantId, "media", mediaId, edge] as const,
 };
@@ -47,10 +61,37 @@ export function useVariants(productId: string | undefined) {
   });
 }
 
+/** Trục + thuộc tính mô tả của sản phẩm (BE `GET /products/{id}/attributes`). */
+export function useProductAttributes(productId: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: variantKeys.axes(productId ?? ""),
+    queryFn: ({ signal }) => getProductAttributes(productId ?? "", signal),
+    enabled: Boolean(productId) && enabled,
+  });
+}
+
+/** Trục của sản phẩm — quyết định form thêm biến thể (chọn tuỳ chọn hay nhập SKU tay). */
+export function useProductAxes(productId: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: variantKeys.axes(productId ?? ""),
+    queryFn: ({ signal }) => getProductAttributes(productId ?? "", signal),
+    select: (attributes: ProductAttributes) => attributes.axes,
+    enabled: Boolean(productId) && enabled,
+  });
+}
+
 export function useSkuLogistics(productId: string, variantId: string | undefined) {
   return useQuery({
     queryKey: variantKeys.logistics(productId, variantId ?? ""),
     queryFn: ({ signal }) => getSkuLogistics(productId, variantId ?? "", signal),
+    enabled: Boolean(variantId),
+  });
+}
+
+export function useInventoryControl(productId: string, variantId: string | undefined) {
+  return useQuery({
+    queryKey: variantKeys.inventoryControl(productId, variantId ?? ""),
+    queryFn: ({ signal }) => getInventoryControl(productId, variantId ?? "", signal),
     enabled: Boolean(variantId),
   });
 }
@@ -80,7 +121,8 @@ export function useMediaViewUrl(
   });
 }
 
-const all = [variantKeys.all];
+/** Mọi thay đổi biến thể / trục / ảnh / logistics đều ghi vào lịch sử thay đổi của sản phẩm. */
+const all = [variantKeys.all, PRODUCT_HISTORY_ROOT];
 
 export const useAddVariant = createMutation<{ productId: string } & VariantInput, Variant>(
   addVariant,
@@ -146,3 +188,35 @@ export const useDeleteVariantMedia = createMutation<
   { productId: string; variantId: string; mediaId: string },
   void
 >(deleteVariantMedia, { invalidate: all, showErrorToast: false, successMessage: "Đã xoá ảnh" });
+
+export const useReplaceProductAxes = createMutation<
+  { productId: string; axes: AxisInput[] },
+  ProductAttributes
+>(replaceProductAxes, {
+  invalidate: all,
+  showErrorToast: false,
+  successMessage: "Đã lưu trục biến thể",
+});
+
+export const useReplaceProductDescriptives = createMutation<
+  { productId: string; attributes: DescriptiveEntry[] },
+  ProductAttributes
+>(replaceProductDescriptives, {
+  invalidate: all,
+  showErrorToast: false,
+  successMessage: "Đã lưu thuộc tính mô tả",
+});
+
+export const useGenerateVariants = createMutation<
+  { productId: string; optionValueIds?: Record<string, string[]> },
+  GeneratedVariants
+>(generateVariants, { invalidate: all, showErrorToast: false });
+
+export const useSaveInventoryControl = createMutation<
+  { productId: string; variantId: string; version: number; values: InventoryControlFormValues },
+  InventoryControl
+>(saveInventoryControl, {
+  invalidate: all,
+  showErrorToast: false,
+  successMessage: "Đã lưu chính sách tồn kho",
+});

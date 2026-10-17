@@ -2,6 +2,7 @@
 
 import React, { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { cn } from "cn";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -15,6 +16,7 @@ import {
   Tag,
   ChevronRight,
   ChevronDown,
+  History,
   Pencil,
 } from "lucide-react";
 import { ADMIN_ROUTES, PRODUCT_PERMISSIONS, PRODUCT_STATUS } from "@/constants";
@@ -40,6 +42,10 @@ import { StatusDot } from "@/components/shared/StatusDot";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
+import { ProductAttributesSection } from "./ProductAttributesSection";
+import { ProductHistory } from "./ProductHistory";
+import { ProductListingSection } from "./ProductListingSection";
+import { ProductLifecycleDialogs, type LifecycleDialog } from "./ProductLifecycleDialogs";
 import { VariantMediaGallery } from "./variants/VariantMediaGallery";
 import { VariantsSection } from "./variants/VariantsSection";
 import type { PrintArea, ProductAction, ProductStatus } from "@/features/product";
@@ -155,10 +161,16 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
 
   const lifecycleSteps = useMemo(() => {
     if (!product) return [];
-    const idx = LIFECYCLE_ORDER.indexOf(product.status);
-    return LIFECYCLE_ORDER.map((step, i) => ({
+    // Tạm ngưng (Inactive) chỉ hiện khi sản phẩm đang ở đó: nó rẽ ra từ Approved / Published.
+    const order =
+      product.status === PRODUCT_STATUS.INACTIVE
+        ? [...LIFECYCLE_ORDER.slice(0, -1), PRODUCT_STATUS.INACTIVE, PRODUCT_STATUS.DISCONTINUED]
+        : LIFECYCLE_ORDER;
+    const idx = order.indexOf(product.status);
+    return order.map((step, i) => ({
       label: step,
-      done: i <= idx,
+      // Một sản phẩm tạm ngưng có thể chưa từng xuất bản → không đánh dấu "Published" là đã qua.
+      done: i <= idx && !(product.status === PRODUCT_STATUS.INACTIVE && step === "Published"),
       current: i === idx,
     }));
   }, [product]);
@@ -166,6 +178,8 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
   const transitionMutation = useTransitionProduct();
   const publishMutation = usePublishProduct();
   const unpublishMutation = useUnpublishProduct();
+  const router = useRouter();
+  const [dialog, setDialog] = useState<LifecycleDialog>(null);
   const isTransitionPending =
     transitionMutation.isPending || publishMutation.isPending || unpublishMutation.isPending;
   const actions = useMemo(
@@ -186,6 +200,16 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
   const handleStatusChange = useCallback(
     async (action: ProductAction) => {
       if (!action.transition) return;
+      // Tạm ngưng / tiếp tục / ngừng kinh doanh / xoá cần `version` (và lý do) → hộp thoại riêng.
+      if (
+        action.transition === "suspend" ||
+        action.transition === "resume" ||
+        action.transition === "discontinue" ||
+        action.transition === "delete"
+      ) {
+        setDialog(action.transition);
+        return;
+      }
       let reason: string | undefined;
       if (action.transition === "reject") {
         reason = window.prompt("Nhập lý do từ chối")?.trim();
@@ -269,6 +293,14 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
             </Link>
           </div>
         }
+      />
+
+      <ProductLifecycleDialogs
+        product={product}
+        dialog={dialog}
+        onClose={() => setDialog(null)}
+        onDeleted={() => router.push(ADMIN_ROUTES.products.list)}
+        onStale={() => void productQuery.refetch()}
       />
 
       {/* Status action bar */}
@@ -355,6 +387,27 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
                   </span>
                 </InfoRow>
               )}
+              {/* BE chỉ trả các trường này khi INACTIVE (tạm ngưng) / DISCONTINUED. */}
+              {product.suspendedAt && (
+                <InfoRow label="Tạm ngưng từ">
+                  <span className="tabular-nums">
+                    {new Date(product.suspendedAt).toLocaleDateString("vi-VN")}
+                  </span>
+                </InfoRow>
+              )}
+              {product.suspendReason && (
+                <InfoRow label="Lý do tạm ngưng">{product.suspendReason}</InfoRow>
+              )}
+              {product.discontinuedAt && (
+                <InfoRow label="Ngừng kinh doanh từ">
+                  <span className="tabular-nums">
+                    {new Date(product.discontinuedAt).toLocaleDateString("vi-VN")}
+                  </span>
+                </InfoRow>
+              )}
+              {product.discontinueReason && (
+                <InfoRow label="Lý do ngừng">{product.discontinueReason}</InfoRow>
+              )}
             </div>
           </Section>
 
@@ -366,58 +419,37 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
             <p className="text-ink-tertiary mt-1.5 text-xs italic">{product.descriptionEn}</p>
           </Section>
 
-          {/* Thuộc tính biến thể */}
-          {product.attributes && product.attributes.length > 0 && (
-            <Section
-              title="Thuộc tính biến thể"
-              icon={Palette}
-              actions={
-                <Link
-                  href={ADMIN_ROUTES.variants.list}
-                  className="border-border-default text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary inline-flex items-center gap-1 rounded-[var(--r-sm)] border px-2 py-0.5 text-xs"
-                >
-                  Quản lý biến thể →
-                </Link>
-              }
-            >
-              <div className="space-y-3">
-                {product.attributes.map((attr) => (
-                  <div key={attr.attributeId}>
-                    <div className="text-ink-tertiary mb-1.5 text-xs font-medium">
-                      {attr.name.vi} <span className="opacity-60">({attr.name.en})</span>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {attr.values.map((val) => (
-                        <span
-                          key={val}
-                          className="border-border-default bg-bg-subtle text-ink-secondary inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium"
-                        >
-                          {attr.swatch?.[val] && (
-                            <span
-                              className="border-border-default size-3 rounded-full border"
-                              style={{ backgroundColor: attr.swatch[val] }}
-                            />
-                          )}
-                          {val}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Section>
-          )}
+          {/* Trục biến thể + thuộc tính mô tả — BE PR #114 */}
+          <Section title="Thuộc tính & trục biến thể" icon={Palette}>
+            <ProductAttributesSection productId={product.productId} status={product.status} />
+          </Section>
 
           {/* Biến thể — BE PR #71 */}
           <Section title={`Biến thể (${variants.length})`} icon={Tag}>
             <VariantsSection
               productId={product.productId}
+              productCode={product.code ?? product.productId}
+              productDiscontinued={product.status === PRODUCT_STATUS.DISCONTINUED}
+              acceptsChanges={
+                product.status !== PRODUCT_STATUS.PENDING_APPROVAL &&
+                product.status !== PRODUCT_STATUS.DISCONTINUED
+              }
               productApproved={
                 product.status === PRODUCT_STATUS.APPROVED ||
                 product.status === PRODUCT_STATUS.PUBLISHED
               }
               query={variantsQuery}
             />
+          </Section>
+
+          {/* Thông tin bán trên cửa hàng — BE `GET/PUT /products/{id}/ecommerce` */}
+          <Section title="Thông tin cửa hàng (TMĐT)" icon={Tag} defaultOpen={false}>
+            <ProductListingSection productId={product.productId} status={product.status} />
+          </Section>
+
+          {/* Lịch sử thay đổi — BE `GET /products/{id}/versions` (tải khi mở mục) */}
+          <Section title="Lịch sử thay đổi" icon={History} defaultOpen={false}>
+            <ProductHistory productId={product.productId} />
           </Section>
 
           {/* Cấu hình tùy chỉnh */}

@@ -77,8 +77,39 @@ export const PRODUCT_PERMISSIONS = {
   create: "product-products:CREATE",
   // Sửa nháp, thêm / sửa / chặn biến thể, logistics, tải ảnh lên
   update: "product-products:UPDATE",
-  // Duyệt (bốn mắt), kích hoạt / ngừng biến thể, xuất bản ảnh
+  // Duyệt (bốn mắt), xuất bản ảnh; tạm ngưng / tiếp tục / ngừng kinh doanh sản phẩm (BE
+  // `ProductController`: suspension, resumption, discontinuation đều là APPROVE — kltn-docs 01 §5.1
+  // giao cho System Admin, BE cho cả ECOMMERCE_ADMIN vì cùng giữ quyền APPROVE)
   approve: "product-products:APPROVE",
+  // Xoá sản phẩm Nháp (`DELETE /products/{id}`) — quyền riêng, có thể cấp hoặc thu hồi tách biệt
+  delete: "product-products:DELETE",
+} as const;
+
+/**
+ * Cấu trúc biến thể — resource `product-variants` (BE `ProductResources.VARIANTS`, khai báo ở
+ * `ProductAttributeController`): trục biến thể (`PUT /products/{id}/axes`), thêm biến thể và sinh ma
+ * trận là CREATE, sửa / chặn là UPDATE, kích hoạt / ngừng dùng là APPROVE. Khác với nội dung sản phẩm
+ * (`product-products`), nên SALES_STAFF có quyền này mà không có quyền duyệt sản phẩm.
+ */
+export const VARIANT_PERMISSIONS = {
+  viewPage: "product-variants:VIEW_PAGE",
+  read: "product-variants:READ",
+  create: "product-variants:CREATE",
+  update: "product-variants:UPDATE",
+  approve: "product-variants:APPROVE",
+} as const;
+
+/**
+ * Từ điển thuộc tính — resource `product-attributes` (BE `AttributeController`,
+ * `CategoryAttributeController`). Thêm / sửa / xoá một giá trị là UPDATE của thuộc tính (không có
+ * quyền riêng cho giá trị); gán bộ thuộc tính cho danh mục cũng là UPDATE.
+ */
+export const ATTRIBUTE_PERMISSIONS = {
+  viewPage: "product-attributes:VIEW_PAGE",
+  read: "product-attributes:READ",
+  create: "product-attributes:CREATE",
+  update: "product-attributes:UPDATE",
+  delete: "product-attributes:DELETE",
 } as const;
 
 /**

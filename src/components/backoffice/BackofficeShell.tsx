@@ -36,6 +36,7 @@ import { useMemo, useState } from "react";
 import {
   ADMIN_ROUTES,
   APP_ROUTES,
+  ATTRIBUTE_PERMISSIONS,
   BRAND,
   FULFILLMENT_PACKAGE_PERMISSIONS,
   FULFILLMENT_PICK_PERMISSIONS,
@@ -146,10 +147,11 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: Package,
       },
       {
-        label: "Thuộc tính biến thể",
-        tooltip: "Variant Attributes",
-        href: "/admin/variants",
+        label: "Từ điển thuộc tính",
+        tooltip: "Attribute dictionary",
+        href: ADMIN_ROUTES.attributes,
         icon: Palette,
+        permission: ATTRIBUTE_PERMISSIONS.viewPage,
       },
       {
         label: "Nhà cung cấp",
@@ -180,6 +182,8 @@ export const NAV_GROUPS: NavGroup[] = [
         tooltip: "Replenishment",
         href: "/admin/replenishment",
         icon: Lightbulb,
+        // BE chưa có API đề xuất nhập hàng (chỉ có đánh giá ngưỡng tồn) — màn chạy trên dữ liệu mẫu
+        mockOnly: true,
       },
       {
         label: "Đơn đặt NCC",

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { RECEIPT_STATUS } from "@/constants";
+import { useIsMock } from "@/providers/app-providers";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatTile } from "@/components/shared/StatTile";
 import { DataTable } from "@/components/shared/DataTable";
@@ -388,6 +389,8 @@ const replenishmentColumns = [
 /* -------------------------------------------------------------------------- */
 
 export default function AdminDashboardPage() {
+  // Đề xuất nhập hàng: BE chưa có API → widget chỉ có dữ liệu mẫu, không hiện khi nối BE thật.
+  const isMock = useIsMock();
   const kpis = useMemo(() => computeKpis(), []);
   const warningItems = useMemo(() => collectWarningItems(), []);
   const activities = useMemo(() => collectActivities(), []);
@@ -495,7 +498,7 @@ export default function AdminDashboardPage() {
       {/* ================================================================ */}
       {/* Row 3: Warehouse KPIs + Replenishment preview                    */}
       {/* ================================================================ */}
-      <div className="mb-6 grid gap-4 lg:grid-cols-[1fr_1fr]">
+      <div className={cn("mb-6 grid gap-4", isMock && "lg:grid-cols-[1fr_1fr]")}>
         {/* Warehouse performance */}
         <div className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-[var(--card-shadow)]">
           <div className="mb-3 flex items-center justify-between">
@@ -615,38 +618,42 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* Replenishment preview */}
-        <div className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-[var(--card-shadow)]">
-          <div className="mb-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <ShoppingCart className="text-accent size-4" />
-              <h2 className="text-ink-primary text-[0.875rem] font-semibold">Đề xuất nhập hàng</h2>
-              <span className="bg-accent/12 text-accent rounded-full px-2 py-0.5 text-[0.625rem] font-bold tabular-nums">
-                {replenishmentProposals.length}
-              </span>
+        {/* Replenishment preview — chỉ mock (BE chưa có API đề xuất nhập hàng) */}
+        {isMock && (
+          <div className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-[var(--card-shadow)]">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShoppingCart className="text-accent size-4" />
+                <h2 className="text-ink-primary text-[0.875rem] font-semibold">
+                  Đề xuất nhập hàng
+                </h2>
+                <span className="bg-accent/12 text-accent rounded-full px-2 py-0.5 text-[0.625rem] font-bold tabular-nums">
+                  {replenishmentProposals.length}
+                </span>
+              </div>
+              <Link
+                href="/admin/replenishment"
+                className="text-accent flex items-center gap-1 text-xs font-medium hover:underline"
+              >
+                Xem tất cả <ArrowRight className="size-3" />
+              </Link>
             </div>
-            <Link
-              href="/admin/replenishment"
-              className="text-accent flex items-center gap-1 text-xs font-medium hover:underline"
-            >
-              Xem tất cả <ArrowRight className="size-3" />
-            </Link>
+            {replenishmentProposals.length > 0 ? (
+              <DataTable
+                data={replenishmentProposals.slice(0, 5)}
+                columns={replenishmentColumns}
+                rowKey={(row) => row.proposalId}
+                caption={`${replenishmentProposals.length} đề xuất`}
+                pageSize={5}
+              />
+            ) : (
+              <EmptyState
+                title="Không có đề xuất"
+                description="Hệ thống chưa phát hiện SKU cần nhập thêm."
+              />
+            )}
           </div>
-          {replenishmentProposals.length > 0 ? (
-            <DataTable
-              data={replenishmentProposals.slice(0, 5)}
-              columns={replenishmentColumns}
-              rowKey={(row) => row.proposalId}
-              caption={`${replenishmentProposals.length} đề xuất`}
-              pageSize={5}
-            />
-          ) : (
-            <EmptyState
-              title="Không có đề xuất"
-              description="Hệ thống chưa phát hiện SKU cần nhập thêm."
-            />
-          )}
-        </div>
+        )}
       </div>
     </>
   );

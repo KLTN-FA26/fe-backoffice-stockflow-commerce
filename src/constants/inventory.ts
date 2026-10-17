@@ -70,7 +70,6 @@ export const INVENTORY_LIMITS = {
   noteLength: 1000,
   rejectionLength: 500,
   skuMaxLength: 64,
-  skuMinLength: 3,
 } as const;
 
 export const INVENTORY_MESSAGES = {
@@ -79,7 +78,7 @@ export const INVENTORY_MESSAGES = {
   nonzeroDelta: "Số lượng điều chỉnh phải khác 0.",
   writeDown: "Phế phẩm và làm mẫu chỉ được giảm tồn kho.",
   otherNote: "Cần giải thích khi chọn lý do khác.",
-  invalidSku: "SKU phải gồm 3–64 ký tự chữ, số hoặc dấu gạch ngang.",
+  invalidSku: "SKU gồm 1–64 ký tự chữ, số, '.', '_' hoặc '-', bắt đầu bằng chữ hoặc số.",
   requestFailed: "Không thực hiện được yêu cầu tồn kho.",
 } as const;
 

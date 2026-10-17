@@ -13,14 +13,20 @@ import type { ProductStatus } from "./types";
 
 export { allowedTransitions, canTransition, isTerminal };
 
-export type BackendProductStatus = Exclude<ProductStatus, "Active" | "Inactive">;
+/** "Active" là trạng thái legacy của mock cũ; "UNKNOWN" là trạng thái BE chưa biết — đều không có chuyển tiếp. */
+export type BackendProductStatus = Exclude<ProductStatus, "Active" | "UNKNOWN">;
 
-/** Exact ProductStatus state machine from backend develop. */
+/**
+ * Exact ProductStatus state machine from backend develop (`ProductStatus#canTransitionTo`).
+ * Inactive = tạm ngưng: `POST /suspension` (Approved | Published → Inactive, cần lý do) và
+ * `POST /resumption` (Inactive → Approved; muốn lên cửa hàng phải xuất bản lại).
+ */
 export const PRODUCT_TRANSITIONS: Record<BackendProductStatus, readonly BackendProductStatus[]> = {
   Draft: ["Pending Approval"],
   "Pending Approval": ["Approved", "Draft"],
-  Approved: ["Published", "Discontinued"],
-  Published: ["Approved", "Discontinued"],
+  Approved: ["Published", "Discontinued", "Inactive"],
+  Published: ["Approved", "Discontinued", "Inactive"],
+  Inactive: ["Approved", "Discontinued"],
   Discontinued: [],
 };
 
@@ -30,7 +36,16 @@ export interface ProductAction {
   readonly permission: PermissionCode;
   readonly fromStatuses: readonly ProductStatus[];
   readonly targetStatus?: ProductStatus;
-  readonly transition?: "submit" | "approve" | "reject" | "discontinue" | "publish" | "unpublish";
+  readonly transition?:
+    | "submit"
+    | "approve"
+    | "reject"
+    | "discontinue"
+    | "publish"
+    | "unpublish"
+    | "suspend"
+    | "resume"
+    | "delete";
   readonly destructive?: boolean;
 }
 
@@ -84,13 +99,42 @@ export const PRODUCT_ACTIONS: readonly ProductAction[] = [
     targetStatus: "Approved",
     transition: "unpublish",
   },
+  // BE `ProductController`: tạm ngưng / tiếp tục / ngừng kinh doanh đều là product-products:APPROVE
+  // (docs 01 §5.1 giao cho System Admin; BE cho cả vai trò giữ quyền APPROVE). Backend phải re-check.
+  {
+    code: "suspend",
+    label: "Tạm ngưng",
+    permission: PRODUCT_PERMISSIONS.approve,
+    fromStatuses: ["Approved", "Published"],
+    targetStatus: "Inactive",
+    transition: "suspend",
+    destructive: true,
+  },
+  {
+    code: "resume",
+    label: "Tiếp tục kinh doanh",
+    permission: PRODUCT_PERMISSIONS.approve,
+    fromStatuses: ["Inactive"],
+    targetStatus: "Approved",
+    transition: "resume",
+  },
   {
     code: "discontinue",
     label: "Ngừng kinh doanh",
     permission: PRODUCT_PERMISSIONS.approve,
-    fromStatuses: ["Approved", "Published"],
+    fromStatuses: ["Approved", "Published", "Inactive"],
     targetStatus: "Discontinued",
     transition: "discontinue",
+    destructive: true,
+  },
+  // BR-02 (docs 01 §6): sản phẩm đã gửi duyệt không xoá, chỉ Inactive / Discontinued; BE
+  // `Product.requireDeletable` chỉ cho xoá DRAFT. Quyền DELETE riêng, tách khỏi APPROVE.
+  {
+    code: "delete",
+    label: "Xoá sản phẩm",
+    permission: PRODUCT_PERMISSIONS.delete,
+    fromStatuses: ["Draft"],
+    transition: "delete",
     destructive: true,
   },
 ] as const;
@@ -126,5 +170,5 @@ export function nextProductStatuses(status: ProductStatus): readonly ProductStat
 }
 
 function isBackendProductStatus(status: ProductStatus): status is BackendProductStatus {
-  return status !== "Active" && status !== "Inactive";
+  return status !== "Active" && status !== "UNKNOWN";
 }

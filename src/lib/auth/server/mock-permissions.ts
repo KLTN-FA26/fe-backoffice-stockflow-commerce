@@ -1,6 +1,7 @@
 import "server-only";
 
 import {
+  ATTRIBUTE_PERMISSIONS,
   FULFILLMENT_PACKAGE_PERMISSIONS,
   FULFILLMENT_PICK_PERMISSIONS,
   GOODS_RECEIPT_PERMISSIONS,
@@ -14,6 +15,7 @@ import {
   SHIPMENT_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
   TRANSFER_PERMISSIONS,
+  VARIANT_PERMISSIONS,
 } from "@/constants/permissions";
 
 import { toBackendRoles } from "@/lib/api/mock-backend-roles";
@@ -40,6 +42,12 @@ const SHIP = Object.values(SHIPMENT_PERMISSIONS);
 const PICK = FULFILLMENT_PICK_PERMISSIONS;
 const PACK = FULFILLMENT_PACKAGE_PERMISSIONS;
 const INV = INVENTORY_PERMISSIONS;
+// Seed BE V20260928006000: ECOMMERCE_ADMIN có product-attributes và product-variants đủ quyền (admin mock
+// là System Admin: toàn quyền như mọi nhóm khác ở đây).
+const PRODUCT_STRUCTURE = [
+  ...Object.values(VARIANT_PERMISSIONS),
+  ...Object.values(ATTRIBUTE_PERMISSIONS),
+];
 const INVENTORY_FLOOR = [INV.adjustmentRead, INV.stockUpdate, INV.movementRead];
 const INVENTORY_ALL = Object.values(INV);
 const FULFILLMENT_FLOOR = [...Object.values(PICK), ...Object.values(PACK)];
@@ -52,6 +60,7 @@ const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...Object.values(PO_PERMISSIONS),
     ...Object.values(ORDER_PERMISSIONS),
     ...Object.values(PRODUCT_PERMISSIONS),
+    ...PRODUCT_STRUCTURE,
     ...Object.values(IDENTITY_PERMISSIONS),
     ...Object.values(GR),
     ...Object.values(QC),
@@ -96,6 +105,7 @@ const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
   "USER-ACC-01": [SUPPLIER_PERMISSIONS.viewPage, SUPPLIER_PERMISSIONS.read],
   "USER-ECAD-01": [
     ...Object.values(PRODUCT_PERMISSIONS),
+    ...PRODUCT_STRUCTURE,
     ...Object.values(SUPPLIER_PERMISSIONS),
     IDENTITY_USER_PERMISSIONS.read,
   ],

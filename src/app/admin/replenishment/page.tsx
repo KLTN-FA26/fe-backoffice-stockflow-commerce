@@ -11,6 +11,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { cn } from "cn";
+import { ComingSoonPage } from "@/components/shared/ComingSoonPage";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ListStatsPanel } from "@/components/shared/ListStatsPanel";
 import {
@@ -31,6 +32,7 @@ import {
 } from "@/lib/mock-data";
 import { STATUS_LABEL_VI } from "@/lib/status-map";
 import { usePageConfig } from "@/hooks/use-page-config";
+import { useIsMock } from "@/providers/app-providers";
 
 type ProposalStatusFilter = "all" | ReplenishmentProposal["status"];
 type ProposalSearchField = "proposalId" | "skuId" | "variantLabel" | "reason";
@@ -167,7 +169,26 @@ function shouldFlag(row: ReplenishmentProposal): boolean {
   return sku.stockOnHand === 0 || sku.stockAvailable < sku.reorderPoint;
 }
 
+/**
+ * Đề xuất nhập hàng — BE chưa có API (chỉ có đánh giá ngưỡng tồn ở inventory), màn này chạy hoàn
+ * toàn trên mock-data. Ngoài chế độ mock phải báo "đang phát triển" thay vì hiện dữ liệu mẫu như
+ * thể là dữ liệu thật (cùng cách với `ShippingGate`).
+ */
 export default function ReplenishmentPage() {
+  const isMock = useIsMock();
+  if (!isMock) {
+    return (
+      <ComingSoonPage
+        title="Đề xuất nhập hàng"
+        subtitle="Backend chưa có API đề xuất nhập hàng. Màn này chỉ có dữ liệu mẫu ở chế độ mock."
+        icon={RefreshCw}
+      />
+    );
+  }
+  return <ReplenishmentMockView />;
+}
+
+function ReplenishmentMockView() {
   const { config, setConfig, updateConfig } = usePageConfig<ReplenishmentPageConfig>(
     STORAGE_KEY,
     DEFAULT_CONFIG,

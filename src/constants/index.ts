@@ -30,6 +30,7 @@ export {
   TRANSFER_LIMITS,
 } from "./numbers";
 export {
+  ATTRIBUTE_PERMISSIONS,
   FULFILLMENT_PACKAGE_PERMISSIONS,
   FULFILLMENT_PICK_PERMISSIONS,
   GOODS_RECEIPT_PERMISSIONS,
@@ -44,6 +45,7 @@ export {
   STAFF_ROLE,
   SUPPLIER_PERMISSIONS,
   TRANSFER_PERMISSIONS,
+  VARIANT_PERMISSIONS,
 } from "./permissions";
 export type { StaffRole } from "./permissions";
 export { ADMIN_ROUTES, APP_ROUTES } from "./routes";

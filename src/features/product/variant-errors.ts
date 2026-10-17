@@ -13,6 +13,7 @@ export type VariantErrorContext =
   | "upload"
   | "publish"
   | "media"
+  | "inventory"
   | "load";
 
 const TRANSITION_MESSAGE: Partial<Record<VariantErrorContext, string>> = {
@@ -26,13 +27,21 @@ const TRANSITION_MESSAGE: Partial<Record<VariantErrorContext, string>> = {
 };
 
 const CODE_MESSAGE: Record<string, string> = {
-  VARIANT_SKU_ALREADY_EXISTS: "Mã SKU đã được dùng cho biến thể khác.",
+  VARIANT_SKU_ALREADY_EXISTS:
+    "Mã SKU hoặc tổ hợp thuộc tính này đã có ở một biến thể khác của sản phẩm.",
+  VARIANT_OPTIONS_INVALID:
+    "Tuỳ chọn không hợp lệ: cần chọn đúng một giá trị còn dùng cho mỗi thuộc tính của sản phẩm.",
+  VARIANT_MATRIX_TOO_LARGE: "Quá nhiều biến thể cho một lần tạo.",
   VARIANT_NOT_FOUND: "Không tìm thấy biến thể — có thể đã bị đổi. Dữ liệu đã được tải lại.",
   PRODUCT_NOT_FOUND: "Không tìm thấy sản phẩm.",
   MEDIA_NOT_FOUND: "Không tìm thấy ảnh — có thể đã bị xoá. Dữ liệu đã được tải lại.",
   OPTIMISTIC_LOCK: "Thông tin vừa được người khác sửa. Dữ liệu đã được tải lại, hãy nhập lại.",
   INVENTORY_POLICY_STOCK_CONFLICT:
     "Không đổi được đơn vị tính khi SKU còn tồn kho — mọi số lượng đã đếm đang theo đơn vị cũ.",
+  INVENTORY_POLICY_INVALID:
+    "Chính sách tồn kho chưa hợp lệ: tồn an toàn không vượt điểm đặt hàng lại; theo dõi hạn dùng cần theo lô và xuất theo FEFO; hạn dùng tối đa chỉ có khi theo dõi hạn dùng.",
+  COUNT_POLICY_CONFLICT:
+    "SKU đang có đợt kiểm kê mở — hoàn tất kiểm kê trước khi đổi cách theo dõi hoặc chiến lược xuất.",
   PRODUCT_NOT_APPROVED: "Sản phẩm phải được duyệt trước khi xuất bản ảnh.",
   SELF_APPROVAL_NOT_ALLOWED: "Ảnh phải do người khác người tải lên xuất bản (duyệt bốn mắt).",
   PAYLOAD_TOO_LARGE: "Ảnh quá lớn (tối đa 25 megapixel và giới hạn dung lượng của hệ thống).",
@@ -43,12 +52,22 @@ const CODE_MESSAGE: Record<string, string> = {
 };
 
 const CONFLICT_MESSAGE: Partial<Record<VariantErrorContext, string>> = {
+  // BE `SkuInventoryControlService`: lệch version hoặc sản phẩm đang chờ duyệt / đã ngừng đều là CONFLICT.
+  inventory:
+    "Không lưu được: thông tin vừa được người khác sửa, hoặc sản phẩm đang chờ duyệt / đã ngừng kinh doanh. Dữ liệu đã được tải lại.",
   publish: "Chỉ xuất bản được ảnh đã tải lên và đã tạo bản hiển thị — hãy tải lại ảnh đó.",
   logistics: "SKU này không thuộc sản phẩm đang xem.",
 };
 
+/** `INVENTORY_POLICY_STOCK_CONFLICT` của chính sách tồn kho (khác câu của đơn vị tính ở logistics). */
+const INVENTORY_STOCK_CONFLICT =
+  "Tồn kho hiện có của SKU không khớp với chính sách mới (theo dõi lô / serial / hạn dùng hoặc chiến lược xuất). Hãy xử lý tồn kho trước.";
+
 export function variantErrorMessage(error: unknown, context: VariantErrorContext): string {
   if (!(error instanceof ApiError)) return "Không thực hiện được thao tác. Vui lòng thử lại.";
+  if (error.code === "INVENTORY_POLICY_STOCK_CONFLICT" && context === "inventory") {
+    return INVENTORY_STOCK_CONFLICT;
+  }
   if (error.code === "INVALID_VARIANT_TRANSITION") {
     return TRANSITION_MESSAGE[context] ?? "Biến thể đã đổi trạng thái. Dữ liệu đã được tải lại.";
   }
