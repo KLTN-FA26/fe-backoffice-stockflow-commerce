@@ -131,11 +131,9 @@ describe("PurchaseOrderDetail — giao NCC (BE #36)", () => {
         deliveryStatus: "FAILED",
       }),
     );
-    const decisionsTab = await screen.findByRole("tab", { name: /Quyết định gửi\s*1/ });
-    expect(screen.getByRole("tab", { name: /Lần gửi\s*1/ })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
+    // Tab không hiện số đếm — chỉ nhãn
+    const decisionsTab = await screen.findByRole("tab", { name: "Quyết định gửi" });
+    expect(screen.getByRole("tab", { name: "Lần gửi" })).toHaveAttribute("aria-selected", "true");
     await user.click(decisionsTab);
     // ai cho gửi, ngày giao cũ → mới (lý do xem trong panel chi tiết)
     expect(await screen.findByText("Gửi lần đầu")).toBeInTheDocument();
