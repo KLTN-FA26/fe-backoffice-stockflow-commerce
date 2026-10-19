@@ -77,10 +77,11 @@ export const PRODUCT_PERMISSIONS = {
   create: "product-products:CREATE",
   // Sửa nháp, thêm / sửa / chặn biến thể, logistics, tải ảnh lên
   update: "product-products:UPDATE",
-  // Duyệt (bốn mắt), xuất bản ảnh; tạm ngưng / tiếp tục / ngừng kinh doanh sản phẩm (BE
-  // `ProductController`: suspension, resumption, discontinuation đều là APPROVE — kltn-docs 01 §5.1
-  // giao cho System Admin, BE cho cả ECOMMERCE_ADMIN vì cùng giữ quyền APPROVE)
+  // Duyệt (bốn mắt), xuất bản / gỡ xuất bản, xuất bản ảnh
   approve: "product-products:APPROVE",
+  // Tạm ngưng / tiếp tục / ngừng kinh doanh — resource riêng `product-lifecycle` (BE
+  // `ProductLifecycleController`, PR #123): kltn-docs 01 §5.1 chỉ giao cho System Admin
+  lifecycle: "product-lifecycle:APPROVE",
   // Xoá sản phẩm Nháp (`DELETE /products/{id}`) — quyền riêng, có thể cấp hoặc thu hồi tách biệt
   delete: "product-products:DELETE",
 } as const;

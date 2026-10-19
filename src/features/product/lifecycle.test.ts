@@ -35,7 +35,7 @@ describe("product lifecycle", () => {
 
   it("Inactive (tạm ngưng) có thể về Approved hoặc ngừng kinh doanh; UNKNOWN không có thao tác", () => {
     expect(nextProductStatuses("Inactive")).toEqual(["Approved", "Discontinued"]);
-    const canApprove = (code: string) => code === PRODUCT_PERMISSIONS.approve;
+    const canApprove = (code: string) => code === PRODUCT_PERMISSIONS.lifecycle;
     expect(allowedProductActions("Inactive", canApprove).map((a) => a.code)).toEqual([
       "resume",
       "discontinue",
@@ -60,10 +60,12 @@ describe("product lifecycle", () => {
     expect(allowedProductActions("Pending Approval", () => false)).toEqual([]);
   });
 
-  // BE `ProductController`: suspension / resumption / discontinuation đều là product-products:APPROVE;
+  // BE `ProductLifecycleController` (PR #123): suspension / resumption / discontinuation là
+  // product-lifecycle:APPROVE (chỉ System Admin); publish / unpublish vẫn là product-products:APPROVE.
   // BE `ProductStatus#canTransitionTo`: INACTIVE chỉ đến từ APPROVED hoặc PUBLISHED.
-  it("tạm ngưng chỉ từ Approved / Published, cần APPROVE; tiếp tục chỉ từ Inactive", () => {
-    const canApprove = (code: string) => code === PRODUCT_PERMISSIONS.approve;
+  it("tạm ngưng chỉ từ Approved / Published, cần quyền lifecycle; tiếp tục chỉ từ Inactive", () => {
+    const canApprove = (code: string) =>
+      code === PRODUCT_PERMISSIONS.approve || code === PRODUCT_PERMISSIONS.lifecycle;
     const codes = (status: ProductStatus, can: (code: string) => boolean) =>
       allowedProductActions(status, can).map((a) => a.code);
     expect(codes("Approved", canApprove)).toEqual(["publish", "suspend", "discontinue"]);
@@ -75,6 +77,11 @@ describe("product lifecycle", () => {
     const canUpdate = (code: string) => code === PRODUCT_PERMISSIONS.update;
     expect(codes("Approved", canUpdate)).toEqual([]);
     expect(codes("Inactive", canUpdate)).toEqual([]);
+    // E-commerce Admin: có product-products:APPROVE nhưng không có product-lifecycle:APPROVE.
+    const ecommerceAdmin = (code: string) => code === PRODUCT_PERMISSIONS.approve;
+    expect(codes("Approved", ecommerceAdmin)).toEqual(["publish"]);
+    expect(codes("Published", ecommerceAdmin)).toEqual(["unpublish"]);
+    expect(codes("Inactive", ecommerceAdmin)).toEqual([]);
   });
 
   // BR-02 docs 01 §6 + BE `Product.requireDeletable`: chỉ xoá sản phẩm Nháp, bằng quyền DELETE riêng.
