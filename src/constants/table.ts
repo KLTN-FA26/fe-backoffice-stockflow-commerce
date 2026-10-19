@@ -65,6 +65,24 @@ export const SKU_COLUMNS = {
   VARIANT_LABEL: "variantLabel",
 } as const;
 
+/** Cột bảng thương hiệu (BE `BrandResponse`). */
+export const TAXONOMY_BRAND_COLUMNS = {
+  CODE: "code",
+  LOGO: "logo",
+  NAME: "name",
+  SLUG: "slug",
+  ACTIVE: "active",
+} as const;
+
+/** Cột bảng danh mục (BE `CategoryResponse`) — cây theo thứ tự `path`, tên thụt lề theo `depth`. */
+export const TAXONOMY_CATEGORY_COLUMNS = {
+  CODE: "code",
+  NAME: "name",
+  LEVEL: "level",
+  SORT_ORDER: "sortOrder",
+  ACTIVE: "active",
+} as const;
+
 export const INVOICE_COLUMNS = {
   ACTIONS: "actions",
   DUE_DATE: "dueDate",

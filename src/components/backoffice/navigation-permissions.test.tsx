@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ATTRIBUTE_PERMISSIONS,
   IDENTITY_PERMISSIONS,
+  PRODUCT_PERMISSIONS,
   SHIPMENT_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
 } from "@/constants/permissions";
@@ -87,6 +88,18 @@ describe("declared navigation permissions", () => {
     );
     expect(screen.queryByRole("link", { name: "Nhà cung cấp" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Tổng quan" })).toBeInTheDocument();
+  });
+  it("brands & categories follow product-products:VIEW_PAGE (ProductTaxonomyController)", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [], permissions: [PRODUCT_PERMISSIONS.viewPage], dataScope: "ALL" },
+    });
+    mount();
+    expect(screen.queryByRole("link", { name: "Thương hiệu & danh mục" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Thương hiệu & danh mục" })).toHaveAttribute(
+      "href",
+      "/admin/taxonomy",
+    );
+    expect(screen.queryByRole("link", { name: "Từ điển thuộc tính" })).not.toBeInTheDocument();
   });
   it("read-only RBAC navigation uses the real backend READ capability", async () => {
     vi.spyOn(api, "get").mockResolvedValue({

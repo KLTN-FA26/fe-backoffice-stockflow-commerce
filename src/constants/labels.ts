@@ -3,6 +3,7 @@
  */
 
 import { SHIPPING_TOAST_MESSAGES, SHIPPING_UI_LABELS } from "./labels-shipping";
+import { TAXONOMY_TOAST_MESSAGES, TAXONOMY_UI_LABELS } from "./labels-taxonomy";
 import { TRANSFER_TOAST_MESSAGES, TRANSFER_UI_LABELS } from "./labels-transfer";
 
 export const UI_LABELS = {
@@ -193,6 +194,7 @@ export const UI_LABELS = {
   },
   transfer: TRANSFER_UI_LABELS,
   shipping: SHIPPING_UI_LABELS,
+  taxonomy: TAXONOMY_UI_LABELS,
   fulfillment: {
     pickingTitle: "Lấy hàng",
     pickingSubtitle: "Task xuất kho theo đơn: gán nhân viên, bắt đầu và hoàn tất lấy hàng.",
@@ -522,6 +524,7 @@ export const TOAST_MESSAGES = {
   },
   transfer: TRANSFER_TOAST_MESSAGES,
   shipping: SHIPPING_TOAST_MESSAGES,
+  taxonomy: TAXONOMY_TOAST_MESSAGES,
   fulfillment: {
     created: "Đã tạo task lấy hàng",
     // BE trả lại task đã có của đơn (vẫn 201) thay vì tạo mới

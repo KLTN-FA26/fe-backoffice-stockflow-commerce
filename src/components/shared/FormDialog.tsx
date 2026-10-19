@@ -47,6 +47,7 @@ export function FormDialogBody({
   error,
   danger = false,
   hideCancel = false,
+  readOnly = false,
   onSubmit,
   onCancel,
   children,
@@ -61,6 +62,8 @@ export function FormDialogBody({
   danger?: boolean;
   /** Hộp thoại chỉ báo kết quả (một nút "Đóng"): không cần thêm nút Huỷ. */
   hideCancel?: boolean;
+  /** Chỉ xem (thiếu quyền sửa): khoá mọi ô qua `fieldset disabled`, footer chỉ còn nút Đóng. */
+  readOnly?: boolean;
   onSubmit: () => void;
   onCancel: () => void;
   children?: React.ReactNode;
@@ -69,7 +72,7 @@ export function FormDialogBody({
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        if (canSubmit && !isPending) onSubmit();
+        if (canSubmit && !isPending && !readOnly) onSubmit();
       }}
     >
       <DialogHeader className="border-border-default border-b px-[18px] py-4">
@@ -81,7 +84,13 @@ export function FormDialogBody({
         <DialogDescription className="text-ink-secondary text-[0.875rem] leading-relaxed">
           {description}
         </DialogDescription>
-        {children}
+        {readOnly ? (
+          <fieldset disabled className="m-0 min-w-0 space-y-3 border-0 p-0">
+            {children}
+          </fieldset>
+        ) : (
+          children
+        )}
         {error && (
           <p role="alert" className="text-danger text-[0.8125rem]">
             {error}
@@ -99,19 +108,21 @@ export function FormDialogBody({
             disabled={isPending}
             className="border-border-strong bg-bg-surface text-ink-primary hover:bg-bg-muted rounded-[var(--r-sm)]"
           >
-            Huỷ
+            {readOnly ? "Đóng" : "Huỷ"}
           </Button>
         )}
-        <Button
-          type="submit"
-          size="sm"
-          variant={danger ? "destructive" : "default"}
-          disabled={!canSubmit || isPending}
-          className="rounded-[var(--r-sm)] disabled:opacity-50"
-        >
-          {isPending && <Loader2 className="size-3.5 animate-spin" />}
-          {submitLabel}
-        </Button>
+        {!readOnly && (
+          <Button
+            type="submit"
+            size="sm"
+            variant={danger ? "destructive" : "default"}
+            disabled={!canSubmit || isPending}
+            className="rounded-[var(--r-sm)] disabled:opacity-50"
+          >
+            {isPending && <Loader2 className="size-3.5 animate-spin" />}
+            {submitLabel}
+          </Button>
+        )}
       </DialogFooter>
     </form>
   );

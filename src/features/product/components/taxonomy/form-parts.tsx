@@ -1,0 +1,57 @@
+"use client";
+
+import { Controller } from "react-hook-form";
+
+import { UI_LABELS } from "@/constants";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+
+import type { Control, FieldPathByValue, FieldValues } from "react-hook-form";
+
+const L = UI_LABELS.taxonomy;
+
+/** Nhãn "Đang dùng" / "Đã ngưng" của cờ `active` trong bảng thương hiệu / danh mục. */
+export function ActiveBadge({ active }: { active: boolean }) {
+  return (
+    <Badge
+      variant="outline"
+      className={
+        active ? "border-positive/30 bg-positive/10 text-positive" : "text-ink-tertiary bg-bg-muted"
+      }
+    >
+      {active ? L.active : L.inactive}
+    </Badge>
+  );
+}
+
+/** Ô tick boolean gắn react-hook-form — cờ "Đang dùng" của form thương hiệu / danh mục. */
+export function CheckboxField<T extends FieldValues>({
+  control,
+  name,
+  label,
+}: {
+  control: Control<T>;
+  name: FieldPathByValue<T, boolean>;
+  label: string;
+}) {
+  return (
+    <Controller
+      control={control}
+      name={name}
+      render={({ field }) => (
+        <label className="text-ink-secondary flex items-center gap-2 text-[0.8125rem]">
+          <Checkbox checked={field.value} onCheckedChange={(v) => field.onChange(v === true)} />
+          {label}
+        </label>
+      )}
+    />
+  );
+}
+
+/**
+ * Thân dialog cuộn được khi form dài (SEO, ảnh) — giữ header và nút Lưu luôn trong màn hình thấp.
+ * Không sửa `FormDialog` dùng chung của module khác.
+ */
+export function DialogScrollArea({ children }: { children: React.ReactNode }) {
+  return <div className="max-h-[50vh] space-y-3 overflow-y-auto pr-1">{children}</div>;
+}
