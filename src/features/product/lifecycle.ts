@@ -99,12 +99,12 @@ export const PRODUCT_ACTIONS: readonly ProductAction[] = [
     targetStatus: "Approved",
     transition: "unpublish",
   },
-  // BE `ProductController`: tạm ngưng / tiếp tục / ngừng kinh doanh đều là product-products:APPROVE
-  // (docs 01 §5.1 giao cho System Admin; BE cho cả vai trò giữ quyền APPROVE). Backend phải re-check.
+  // BE `ProductLifecycleController`: tạm ngưng / tiếp tục / ngừng kinh doanh là product-lifecycle:APPROVE,
+  // chỉ System Admin giữ (docs 01 §5.1). Backend vẫn kiểm lại.
   {
     code: "suspend",
     label: "Tạm ngưng",
-    permission: PRODUCT_PERMISSIONS.approve,
+    permission: PRODUCT_PERMISSIONS.lifecycle,
     fromStatuses: ["Approved", "Published"],
     targetStatus: "Inactive",
     transition: "suspend",
@@ -113,7 +113,7 @@ export const PRODUCT_ACTIONS: readonly ProductAction[] = [
   {
     code: "resume",
     label: "Tiếp tục kinh doanh",
-    permission: PRODUCT_PERMISSIONS.approve,
+    permission: PRODUCT_PERMISSIONS.lifecycle,
     fromStatuses: ["Inactive"],
     targetStatus: "Approved",
     transition: "resume",
@@ -121,7 +121,7 @@ export const PRODUCT_ACTIONS: readonly ProductAction[] = [
   {
     code: "discontinue",
     label: "Ngừng kinh doanh",
-    permission: PRODUCT_PERMISSIONS.approve,
+    permission: PRODUCT_PERMISSIONS.lifecycle,
     fromStatuses: ["Approved", "Published", "Inactive"],
     targetStatus: "Discontinued",
     transition: "discontinue",

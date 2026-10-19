@@ -118,8 +118,10 @@ const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     PACK.create,
   ],
   "USER-ACC-01": [SUPPLIER_PERMISSIONS.viewPage, SUPPLIER_PERMISSIONS.read],
+  // ECOMMERCE_ADMIN: duyệt / xuất bản nhưng không tạm ngưng / ngừng kinh doanh (product-lifecycle chỉ
+  // System Admin, BE PR #123)
   "USER-ECAD-01": [
-    ...Object.values(PRODUCT_PERMISSIONS),
+    ...Object.values(PRODUCT_PERMISSIONS).filter((code) => code !== PRODUCT_PERMISSIONS.lifecycle),
     ...PRODUCT_STRUCTURE,
     ...Object.values(SUPPLIER_PERMISSIONS),
     IDENTITY_USER_PERMISSIONS.read,
