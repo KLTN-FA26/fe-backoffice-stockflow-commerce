@@ -133,6 +133,20 @@ export const INVENTORY_PERMISSIONS = {
 } as const;
 
 /**
+ * Hồ sơ hàng tồn (logistics + chính sách tồn của một SKU) — resource `inventory-inventory-items`
+ * (BE PR #119 `InventoryItemController`, chỉ khai báo VIEW_PAGE / READ / UPDATE). Seed
+ * V20260928006000: WAREHOUSE_MANAGER, INVENTORY_PLANNER mọi quyền; WAREHOUSE_STAFF,
+ * PROCUREMENT_STAFF chỉ VIEW_PAGE / READ. Role catalog (ECOMMERCE_ADMIN, SALES_STAFF) không có quyền.
+ */
+export const INVENTORY_ITEM_PERMISSIONS = {
+  viewPage: "inventory-inventory-items:VIEW_PAGE",
+  // GET /inventory/items, GET /inventory/items/{id}
+  read: "inventory-inventory-items:READ",
+  // PUT /inventory/items/{id}/logistics, PUT …/policy
+  update: "inventory-inventory-items:UPDATE",
+} as const;
+
+/**
  * Sơ đồ kho — resource `warehouse-locations` (BE `LayoutController`): `GET /warehouses/{id}/layout`
  * và `GET /locations/{code}`. WAREHOUSE_STAFF có VIEW_PAGE/READ (seed V20260928006000).
  */

@@ -1,0 +1,89 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
+
+import { ADMIN_ROUTES, INVENTORY_ITEM_PERMISSIONS, UI_LABELS } from "@/constants";
+import { usePermissionChecker } from "@/lib/auth";
+import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
+import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { PageSkeleton } from "@/components/shared/PageSkeleton";
+
+import { inventoryItemCapabilities } from "../../lifecycle";
+import { useInventoryItem } from "../../queries";
+import { ItemDetailError } from "./ItemDetailError";
+import { ItemEvaluationCard } from "./ItemEvaluationCard";
+import { ItemLogisticsCard } from "./ItemLogisticsCard";
+import { ItemPolicyCard } from "./ItemPolicyCard";
+
+export type ItemEditing = "logistics" | "policy" | null;
+
+const L = UI_LABELS.inventoryItem;
+
+function InventoryItemDetailContent({ id }: { id: string }) {
+  const [editing, setEditing] = useState<ItemEditing>(null);
+  // READ = đọc dữ liệu (tách khỏi VIEW_PAGE mở trang): thiếu thì không gọi API; UPDATE chỉ để hiện
+  // nút Sửa. UI-only — Backend phải re-check (BE PR #119 @RequiresPermission).
+  const { canRead, canEdit } = inventoryItemCapabilities(usePermissionChecker());
+  const query = useInventoryItem(id, { enabled: canRead });
+  // Breadcrumb hiện SKU thay vì UUID của BE
+  useBreadcrumbLabel(id, query.data?.sku);
+
+  if (!canRead) return <ItemDetailError kind="no-read" />;
+  if (query.isError) {
+    return (
+      <ItemDetailError kind="error" error={query.error} onRetry={() => void query.refetch()} />
+    );
+  }
+  if (query.isPending) return <PageSkeleton variant="detail" />;
+
+  const item = query.data;
+  const done = () => setEditing(null);
+
+  return (
+    <>
+      <PageHeader
+        title={item.sku}
+        subtitle={L.version(item.version)}
+        actions={
+          <Link
+            href={ADMIN_ROUTES.inventoryItems.list}
+            className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary inline-flex items-center gap-1.5 rounded-[var(--r-sm)] border px-3 py-1.5 text-[0.8125rem] font-medium transition-colors"
+          >
+            <ArrowLeft className="size-3.5" /> {L.back}
+          </Link>
+        }
+      />
+      <div className="grid items-start gap-5 xl:grid-cols-[1fr_320px]">
+        {/* Logistics và chính sách tồn đứng cạnh nhau, mỗi khối một cột */}
+        <div className="grid items-start gap-5 lg:grid-cols-2">
+          <ItemLogisticsCard
+            item={item}
+            editing={editing}
+            canEdit={canEdit}
+            onEdit={() => setEditing("logistics")}
+            onDone={done}
+          />
+          <ItemPolicyCard
+            item={item}
+            editing={editing}
+            canEdit={canEdit}
+            onEdit={() => setEditing("policy")}
+            onDone={done}
+          />
+        </div>
+        <ItemEvaluationCard item={item} />
+      </div>
+    </>
+  );
+}
+
+export function InventoryItemDetail({ id }: { id: string }) {
+  return (
+    <PermissionBoundary permissions={[INVENTORY_ITEM_PERMISSIONS.viewPage]}>
+      <InventoryItemDetailContent id={id} />
+    </PermissionBoundary>
+  );
+}

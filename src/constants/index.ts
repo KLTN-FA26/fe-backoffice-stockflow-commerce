@@ -14,6 +14,7 @@ export {
   TOAST_MESSAGES,
   UI_LABELS,
 } from "./labels";
+export { INVENTORY_ITEM_ERROR_MESSAGES } from "./labels-inventory-item";
 export { SHIPPING_ERROR_MESSAGES, SHIPPING_FIELD_MESSAGES } from "./labels-shipping";
 export { TAXONOMY_ERROR_MESSAGES } from "./labels-taxonomy";
 export {
@@ -23,6 +24,7 @@ export {
 } from "./labels-transfer";
 export {
   FULFILLMENT_LIMITS,
+  INVENTORY_POLICY_LIMITS,
   ORDER_LIMITS,
   PO_LIMITS,
   RECEIPT_LIMITS,
@@ -38,6 +40,7 @@ export {
   GOODS_RECEIPT_PERMISSIONS,
   IDENTITY_PERMISSIONS,
   IDENTITY_USER_PERMISSIONS,
+  INVENTORY_ITEM_PERMISSIONS,
   INVENTORY_PERMISSIONS,
   ORDER_PERMISSIONS,
   PO_PERMISSIONS,
@@ -55,6 +58,7 @@ export { ADMIN_ROUTES, APP_ROUTES } from "./routes";
 export { STORAGE_KEYS } from "./storage-keys";
 export {
   FULFILLMENT_COLUMNS,
+  INVENTORY_ITEM_COLUMNS,
   INVOICE_COLUMNS,
   LOAD_COLUMNS,
   PAGE_SIZE,

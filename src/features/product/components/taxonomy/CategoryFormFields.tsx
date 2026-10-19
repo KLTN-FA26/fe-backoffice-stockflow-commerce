@@ -3,13 +3,13 @@
 import { useWatch } from "react-hook-form";
 
 import { UI_LABELS } from "@/constants";
+import { FORM_INPUT_CLASS, FORM_TEXTAREA_CLASS } from "@/components/shared/form-control-classes";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 import { parentCodeOf } from "../../taxonomy-schemas";
 import { Field } from "../variants/Field";
 import { CategoryParentSelect } from "./CategoryParentSelect";
-import { TAXONOMY_INPUT_CLASS, TAXONOMY_TEXTAREA_CLASS } from "./form-classes";
 import { CheckboxField, DialogScrollArea } from "./form-parts";
 import { UrlPreviewThumb } from "./TaxonomyThumb";
 
@@ -44,7 +44,7 @@ export function CategoryFormFields({
             {...form.register("code")}
             disabled={editing}
             autoFocus={!editing}
-            className={`${TAXONOMY_INPUT_CLASS} ${MONO}`}
+            className={`${FORM_INPUT_CLASS} ${MONO}`}
           />
         </Field>
         <Field label={F.parent} id="category-parent" error={errors.parentId?.message}>
@@ -55,7 +55,7 @@ export function CategoryFormFields({
               value={parentCodeOf(category) ?? L.rootCategory}
               disabled
               readOnly
-              className={`${TAXONOMY_INPUT_CLASS} font-[family-name:var(--font-mono)]`}
+              className={`${FORM_INPUT_CLASS} font-[family-name:var(--font-mono)]`}
             />
           ) : (
             <CategoryParentSelect form={form} />
@@ -67,7 +67,7 @@ export function CategoryFormFields({
           id="category-name"
           {...form.register("name")}
           autoFocus={editing && !readOnly}
-          className={TAXONOMY_INPUT_CLASS}
+          className={FORM_INPUT_CLASS}
         />
       </Field>
       <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,3fr)] gap-3">
@@ -77,7 +77,7 @@ export function CategoryFormFields({
             inputMode="numeric"
             placeholder="0"
             {...form.register("sortOrder")}
-            className={`${TAXONOMY_INPUT_CLASS} tabular-nums`}
+            className={`${FORM_INPUT_CLASS} tabular-nums`}
           />
         </Field>
         <Field label={F.imageUrl} id="category-image" error={errors.imageUrl?.message}>
@@ -87,7 +87,7 @@ export function CategoryFormFields({
               id="category-image"
               {...form.register("imageUrl")}
               placeholder="https://…"
-              className={TAXONOMY_INPUT_CLASS}
+              className={FORM_INPUT_CLASS}
             />
           </div>
         </Field>
@@ -96,7 +96,7 @@ export function CategoryFormFields({
         <Input
           id="category-seo-title"
           {...form.register("seoTitle")}
-          className={TAXONOMY_INPUT_CLASS}
+          className={FORM_INPUT_CLASS}
         />
       </Field>
       <Field label={F.seoDescription} id="category-seo-description">
@@ -104,7 +104,7 @@ export function CategoryFormFields({
           id="category-seo-description"
           rows={3}
           {...form.register("seoDescription")}
-          className={TAXONOMY_TEXTAREA_CLASS}
+          className={FORM_TEXTAREA_CLASS}
         />
       </Field>
       {editing && (

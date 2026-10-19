@@ -4,10 +4,10 @@ import { Controller } from "react-hook-form";
 
 import { TAXONOMY_LIMITS, UI_LABELS } from "@/constants";
 import { FormSelect } from "@/components/shared/FormSelect";
+import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
 import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { useCategoryParentOptions } from "../../taxonomy-queries";
-import { TAXONOMY_SELECT_CLASS } from "./form-classes";
 
 import type { UseFormReturn } from "react-hook-form";
 import type { CategoryFormValues } from "../../taxonomy-input-schemas";
@@ -36,7 +36,7 @@ export function CategoryParentSelect({ form }: { form: UseFormReturn<CategoryFor
               onValueChange={(v) => field.onChange(v === ROOT ? "" : v)}
               disabled={options.isPending}
             >
-              <SelectTrigger id="category-parent" className={TAXONOMY_SELECT_CLASS}>
+              <SelectTrigger id="category-parent" className={FORM_SELECT_CLASS}>
                 {/* Ô đã đóng chỉ hiện tên + mã, không kèm khoảng thụt lề của danh sách */}
                 <SelectValue>
                   {selected && (

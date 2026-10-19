@@ -8,6 +8,11 @@ export const APP_ROUTES = {
 export const ADMIN_ROUTES = {
   home: ADMIN_BASE,
   permissions: `${ADMIN_BASE}/permissions`,
+  /** Hồ sơ hàng tồn — BE PR #119 `InventoryItemController` (`/api/v1/inventory/items`). */
+  inventoryItems: {
+    list: `${ADMIN_BASE}/inventory-items`,
+    detail: (id: string) => `${ADMIN_BASE}/inventory-items/${id}`,
+  },
   products: {
     create: `${ADMIN_BASE}/products/create`,
     detail: (id: string) => `${ADMIN_BASE}/products/${id}`,

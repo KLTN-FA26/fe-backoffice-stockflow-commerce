@@ -7,6 +7,7 @@ import {
   GOODS_RECEIPT_PERMISSIONS,
   IDENTITY_PERMISSIONS,
   IDENTITY_USER_PERMISSIONS,
+  INVENTORY_ITEM_PERMISSIONS,
   INVENTORY_PERMISSIONS,
   ORDER_PERMISSIONS,
   PO_PERMISSIONS,
@@ -60,11 +61,17 @@ const INVENTORY_FLOOR = [
 ];
 const INVENTORY_ALL = Object.values(INV);
 const FULFILLMENT_FLOOR = [...Object.values(PICK), ...Object.values(PACK)];
+// Seed BE V20260928006000 (BE PR #119): hồ sơ hàng tồn — WAREHOUSE_MANAGER / INVENTORY_PLANNER mọi
+// quyền, WAREHOUSE_STAFF / PROCUREMENT_STAFF chỉ VIEW_PAGE + READ; role catalog không có.
+const ITEM = INVENTORY_ITEM_PERMISSIONS;
+const ITEM_READ = [ITEM.viewPage, ITEM.read];
+const ITEM_ALL = Object.values(ITEM);
 const WH_WORK = [
   ...GR_WORK,
   ...FULFILLMENT_FLOOR,
   ...INVENTORY_FLOOR,
   WAREHOUSE_LOCATION_PERMISSIONS.read,
+  ...ITEM_READ,
 ];
 
 /** Explicit demo session responses keyed by existing staff IDs, never computed from roles. */
@@ -84,6 +91,7 @@ const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     WAREHOUSE_LOCATION_PERMISSIONS.read,
     ...Object.values(TO),
     ...SHIP,
+    ...ITEM_ALL,
   ],
   "USER-PROC-01": [
     SUPPLIER_PERMISSIONS.viewPage,
@@ -99,9 +107,10 @@ const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...GR_WORK,
     QC.viewPage,
     QC.read,
+    ...ITEM_READ,
   ],
   // INVENTORY_PLANNER (seed V20261010000500): tạo / sửa / gửi duyệt / huỷ, KHÔNG duyệt
-  "USER-PLAN-01": [...INVENTORY_FLOOR, TO.viewPage, TO.read, TO.create, TO.update],
+  "USER-PLAN-01": [...INVENTORY_FLOOR, TO.viewPage, TO.read, TO.create, TO.update, ...ITEM_ALL],
   // Existing USER-ADMIN-01 is also the only Warehouse Manager; WH users are staff.
   "USER-WH-01": [...WH_WORK, ...TO_STAFF, ...SHIP],
   "USER-WH-02": [...WH_WORK, ...TO_STAFF, ...SHIP],
@@ -136,6 +145,7 @@ const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...INVENTORY_FLOOR,
     ...TO_STAFF,
     ...SHIP,
+    ...ITEM_READ,
   ],
 };
 

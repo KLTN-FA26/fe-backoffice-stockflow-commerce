@@ -3,6 +3,7 @@
 import { cn } from "cn";
 import {
   ArrowRightLeft,
+  Boxes,
   CalendarClock,
   ClipboardList,
   FileText,
@@ -43,6 +44,7 @@ import {
   FULFILLMENT_PICK_PERMISSIONS,
   GOODS_RECEIPT_PERMISSIONS,
   IDENTITY_PERMISSIONS,
+  INVENTORY_ITEM_PERMISSIONS,
   INVENTORY_PERMISSIONS,
   ORDER_PERMISSIONS,
   PO_PERMISSIONS,
@@ -225,6 +227,14 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     title: "KHO",
     items: [
+      {
+        label: "Hồ sơ hàng tồn",
+        tooltip: "Inventory items",
+        href: ADMIN_ROUTES.inventoryItems.list,
+        icon: Boxes,
+        // Route BE khai báo cho resource inventory-inventory-items (PR #119)
+        permission: INVENTORY_ITEM_PERMISSIONS.viewPage,
+      },
       {
         label: "Kho map & slotting",
         tooltip: "Warehouse Map",
