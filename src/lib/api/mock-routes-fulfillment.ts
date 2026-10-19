@@ -7,6 +7,8 @@
  * VALIDATION_FAILED kèm message tiếng Anh — FE tự dịch theo ngữ cảnh.
  */
 
+import { PICK_API_STATUSES } from "@/constants";
+
 import { registerMockRoute } from "./mock-adapter";
 import { toBackendRoles } from "./mock-backend-roles";
 import {
@@ -119,8 +121,15 @@ function registerTaskReadRoutes(): void {
     if (page < 0 || size < 1 || size > BE_MAX_PAGE_SIZE) {
       return beError(400, "UNSUPPORTED_PARAMETER", "Unsupported page parameters");
     }
+    // BE `parseStatus`: PickStatus (any case), unknown value → 400 UNSUPPORTED_PARAMETER.
+    const status = readString(([] as unknown[]).concat(params.status ?? [])[0]).toUpperCase();
+    if (status && !PICK_API_STATUSES.some((known) => known === status)) {
+      return beError(400, "UNSUPPORTED_PARAMETER", "Unknown pick status");
+    }
     const actor = await currentActor();
-    const all = [...(await getFulfillmentStore()).values()].sort(newestFirst);
+    const all = [...(await getFulfillmentStore()).values()]
+      .filter((task) => !status || task.pickStatus === status)
+      .sort(newestFirst);
     // BE `listTasks`: quản lý / điều phối thấy hết → QC chỉ thấy kiện đang giữ → NV kho thấy của mình
     let visible: MockTask[];
     if (hasAnyRole(actor, "WAREHOUSE_MANAGER", "ORDER_COORDINATOR")) visible = all;

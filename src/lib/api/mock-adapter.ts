@@ -260,6 +260,7 @@ export function activateMockAdapter(): void {
     import("./mock-routes-product-attributes"),
     import("./mock-routes-product-commerce"),
     import("./mock-routes-inventory"),
+    import("./mock-routes-stock-alerts"),
     import("./mock-routes-fulfillment"),
     import("./mock-routes-transfer-orders"),
     import("./mock-routes-loads"),
@@ -275,6 +276,7 @@ export function activateMockAdapter(): void {
       { registerProductAttributeMockRoutes },
       { registerProductCommerceMockRoutes },
       { registerInventoryMockRoutes },
+      { registerStockAlertMockRoutes },
       { registerFulfillmentMockRoutes },
       { registerTransferOrderMockRoutes },
       { registerLoadMockRoutes },
@@ -289,6 +291,7 @@ export function activateMockAdapter(): void {
       registerProductAttributeMockRoutes();
       registerProductCommerceMockRoutes();
       registerInventoryMockRoutes();
+      registerStockAlertMockRoutes();
       registerFulfillmentMockRoutes();
       registerTransferOrderMockRoutes();
       registerLoadMockRoutes();
