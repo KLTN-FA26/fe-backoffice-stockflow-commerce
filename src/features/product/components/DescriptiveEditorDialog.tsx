@@ -3,21 +3,17 @@
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 
+import { DialogScrollArea } from "@/components/shared/DialogScrollArea";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 
 import { attributeErrorMessage } from "../attribute-errors";
 import { useAttributes } from "../attribute-queries";
 import { descriptiveEntryFromDraft } from "../axes-schemas";
 import { useProductAttributes, useReplaceProductDescriptives } from "../variant-queries";
+import { DescriptiveValueEditor } from "./DescriptiveValueEditor";
+import { ProductSelectTrigger } from "./form-controls";
 
 import type { Attribute } from "../attribute-schemas";
 import type { DescriptiveDraft, ProductAttributes } from "../axes-schemas";
@@ -135,153 +131,66 @@ function Form({
       }}
       onCancel={onDone}
     >
-      {drafts.length === 0 && (
-        <p className="text-ink-tertiary text-xs">Chưa có thuộc tính mô tả nào.</p>
-      )}
-      {drafts.map((draft, index) => {
-        const attribute = byId.get(draft.attributeId);
-        const result = results[index];
-        return (
-          <div
-            key={draft.attributeId}
-            className="border-border-default space-y-2 rounded-[var(--r-sm)] border p-3"
-          >
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-ink-primary text-[0.8125rem] font-medium">
-                {attribute?.name ?? draft.attributeId}
-                {attribute?.unit && <span className="text-ink-tertiary"> ({attribute.unit})</span>}
-              </span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label={`Gỡ thuộc tính ${attribute?.name ?? ""}`}
-                onClick={() => setDrafts((all) => all.filter((_, i) => i !== index))}
-              >
-                <Trash2 className="size-3.5" />
-              </Button>
+      <DialogScrollArea>
+        {drafts.length === 0 && (
+          <p className="text-ink-tertiary text-xs">Chưa có thuộc tính mô tả nào.</p>
+        )}
+        {drafts.map((draft, index) => {
+          const attribute = byId.get(draft.attributeId);
+          const result = results[index];
+          return (
+            <div
+              key={draft.attributeId}
+              className="border-border-default space-y-2 rounded-[var(--r-sm)] border p-3"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-ink-primary text-[0.8125rem] font-medium">
+                  {attribute?.name ?? draft.attributeId}
+                  {attribute?.unit && (
+                    <span className="text-ink-tertiary"> ({attribute.unit})</span>
+                  )}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Gỡ thuộc tính ${attribute?.name ?? ""}`}
+                  onClick={() => setDrafts((all) => all.filter((_, i) => i !== index))}
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+              </div>
+              <DescriptiveValueEditor
+                draft={draft}
+                attribute={attribute}
+                onChange={(next) => patch(index, next)}
+              />
+              {"error" in result && <p className="text-danger text-xs">{result.error}</p>}
             </div>
-            <ValueEditor
-              draft={draft}
-              attribute={attribute}
-              onChange={(next) => patch(index, next)}
-            />
-            {"error" in result && <p className="text-danger text-xs">{result.error}</p>}
-          </div>
-        );
-      })}
-      {addable.length > 0 && (
-        <Select
-          value=""
-          onValueChange={(id) => {
-            const attribute = byId.get(id);
-            if (attribute) setDrafts((all) => [...all, emptyDraft(attribute)]);
-          }}
-        >
-          <SelectTrigger aria-label="Thêm thuộc tính mô tả" className="w-full">
-            <Plus className="size-3.5" />
-            <SelectValue placeholder="Thêm thuộc tính mô tả" />
-          </SelectTrigger>
-          <SelectContent>
-            {addable.map((a) => (
-              <SelectItem key={a.attributeId} value={a.attributeId}>
-                {a.name} ({a.code})
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      )}
+          );
+        })}
+        {addable.length > 0 && (
+          <Select
+            value=""
+            onValueChange={(id) => {
+              const attribute = byId.get(id);
+              if (attribute) setDrafts((all) => [...all, emptyDraft(attribute)]);
+            }}
+          >
+            <ProductSelectTrigger aria-label="Thêm thuộc tính mô tả">
+              <Plus className="size-3.5" />
+              <SelectValue placeholder="Thêm thuộc tính mô tả" />
+            </ProductSelectTrigger>
+            <SelectContent>
+              {addable.map((a) => (
+                <SelectItem key={a.attributeId} value={a.attributeId}>
+                  {a.name} ({a.code})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </DialogScrollArea>
     </FormDialogBody>
   );
-}
-
-function ValueEditor({
-  draft,
-  attribute,
-  onChange,
-}: {
-  draft: DescriptiveDraft;
-  attribute: Attribute | undefined;
-  onChange: (next: Partial<DescriptiveDraft>) => void;
-}) {
-  const values = (attribute?.values ?? []).filter(
-    (v) => v.active || draft.valueIds.includes(v.valueId),
-  );
-  switch (draft.dataType) {
-    case "SELECT":
-    case "COLOR":
-      return (
-        <Select
-          value={draft.valueIds[0] ?? ""}
-          onValueChange={(id) => onChange({ valueIds: [id] })}
-        >
-          <SelectTrigger aria-label="Giá trị" className="w-full">
-            <SelectValue placeholder="Chọn giá trị" />
-          </SelectTrigger>
-          <SelectContent>
-            {values.map((v) => (
-              <SelectItem key={v.valueId} value={v.valueId}>
-                {v.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      );
-    case "MULTISELECT":
-      return (
-        <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-          {values.map((v) => (
-            <label key={v.valueId} className="text-ink-secondary flex items-center gap-1.5 text-xs">
-              <input
-                type="checkbox"
-                className="accent-brand size-3.5"
-                checked={draft.valueIds.includes(v.valueId)}
-                onChange={(e) =>
-                  onChange({
-                    valueIds: e.target.checked
-                      ? [...draft.valueIds, v.valueId]
-                      : draft.valueIds.filter((id) => id !== v.valueId),
-                  })
-                }
-              />
-              {v.label}
-            </label>
-          ))}
-        </div>
-      );
-    case "TEXT":
-      return (
-        <Input
-          aria-label="Nội dung"
-          value={draft.text}
-          maxLength={2000}
-          onChange={(e) => onChange({ text: e.target.value })}
-        />
-      );
-    case "NUMBER":
-      return (
-        <Input
-          aria-label="Số"
-          inputMode="decimal"
-          value={draft.number}
-          onChange={(e) => onChange({ number: e.target.value })}
-          className="text-right tabular-nums"
-        />
-      );
-    case "BOOLEAN":
-      return (
-        <Select
-          value={draft.bool === null ? "" : String(draft.bool)}
-          onValueChange={(v) => onChange({ bool: v === "true" })}
-        >
-          <SelectTrigger aria-label="Giá trị" className="w-full">
-            <SelectValue placeholder="Chọn" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="true">Có</SelectItem>
-            <SelectItem value="false">Không</SelectItem>
-          </SelectContent>
-        </Select>
-      );
-  }
 }

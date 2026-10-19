@@ -181,3 +181,28 @@ describe("history (GET /products/{id}/versions)", () => {
     expect(changedFieldLabel("reorderPoint")).toBe("Điểm đặt hàng lại");
   });
 });
+
+// BE #121 (`ProductChangeType`, V20261019000400): thông tin mua hàng, quy đổi ĐVT, đơn vị bán của SKU.
+describe("history — loại thay đổi đơn vị / mua hàng của SKU (BE #121)", () => {
+  it.each([
+    ["PURCHASING", "Thông tin mua hàng của SKU"],
+    ["UOM_CONVERSION", "Quy đổi đơn vị tính"],
+    ["SALES_UNIT", "Đơn vị bán"],
+  ] as const)("%s đọc được (cả subjectType) và có nhãn tiếng Việt", (type, label) => {
+    const parsed = productVersionSchema.parse({
+      action: "UPDATE",
+      actorName: "Admin",
+      outcome: "SUCCESS",
+      occurredAt: "2026-10-19T00:00:00Z",
+      changeType: type,
+      subjectType: type,
+      subjectId: null,
+      fromStatus: null,
+      toStatus: null,
+      reason: null,
+      changedFields: [],
+    });
+    expect(parsed).toMatchObject({ changeType: type, subjectType: type });
+    expect(CHANGE_TYPE_LABEL[parsed.changeType]).toBe(label);
+  });
+});

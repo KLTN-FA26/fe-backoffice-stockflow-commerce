@@ -3,14 +3,21 @@
 import { useState } from "react";
 import { ArrowRight } from "lucide-react";
 
+import { formatDateTime } from "@/lib/format/date";
+import { useProductVersions } from "@/features/product";
 import { DataTable, type ColumnDef } from "@/components/shared/DataTable";
 
-import { useProductVersions } from "@/features/product";
-import { CHANGE_TYPE_LABEL, changedFieldLabel, historyStatusLabel } from "../lifecycle-labels";
+import {
+  CHANGE_TYPE_LABEL,
+  changedFieldLabel,
+  historyActorLabel,
+  historyStatusLabel,
+} from "../lifecycle-labels";
 
 import type { ProductVersion } from "../lifecycle-schemas";
 
 const HISTORY_PAGE_SIZES = [10, 20, 50];
+const NO_SKUS: ReadonlyMap<string, string> = new Map();
 
 /** Dòng "từ → đến" của một lần đổi trạng thái; trống nếu dòng không đổi trạng thái. */
 function StatusMove({ entry }: { entry: ProductVersion }) {
@@ -28,21 +35,33 @@ function StatusMove({ entry }: { entry: ProductVersion }) {
   );
 }
 
-const COLUMNS: ColumnDef<ProductVersion>[] = [
+/** SKU của biến thể mà dòng lịch sử nói tới (`subjectId` = variantId); ảnh / sản phẩm thì không có. */
+function SubjectSku({ sku }: { sku: string | undefined }) {
+  if (!sku) return null;
+  return (
+    <div className="text-ink-tertiary text-xs">
+      SKU{" "}
+      <span className="text-ink-secondary font-[family-name:var(--font-mono)] font-medium">
+        {sku}
+      </span>
+    </div>
+  );
+}
+
+const historyColumns = (skuById: ReadonlyMap<string, string>): ColumnDef<ProductVersion>[] => [
   {
     key: "occurredAt",
     header: "Thời gian",
-    cell: (row) => (
-      <span className="tabular-nums">{new Date(row.occurredAt).toLocaleString("vi-VN")}</span>
-    ),
+    cell: (row) => <span className="tabular-nums">{formatDateTime(row.occurredAt)}</span>,
   },
-  { key: "actor", header: "Người thực hiện", cell: (row) => row.actorName ?? "—" },
+  { key: "actor", header: "Người thực hiện", cell: (row) => historyActorLabel(row.actorName) },
   {
     key: "change",
     header: "Thay đổi",
     cell: (row) => (
       <div className="space-y-0.5">
         <div className="text-ink-primary font-medium">{CHANGE_TYPE_LABEL[row.changeType]}</div>
+        <SubjectSku sku={row.subjectId ? skuById.get(row.subjectId) : undefined} />
         <StatusMove entry={row} />
         {row.changedFields && row.changedFields.length > 0 && (
           <div className="text-ink-tertiary text-xs">
@@ -61,9 +80,17 @@ const COLUMNS: ColumnDef<ProductVersion>[] = [
 
 /**
  * Lịch sử thay đổi của sản phẩm (BE `GET /products/{id}/versions`, mới nhất trước, phân trang): chuyển
- * trạng thái kèm lý do, sửa thông tin, biến thể, ảnh, logistics và chính sách tồn kho.
+ * trạng thái kèm lý do, sửa thông tin, biến thể, ảnh; dòng logistics / chính sách tồn kho cũ vẫn đọc
+ * được (BE PR #119 không ghi thêm — hai mục này đã chuyển sang hồ sơ hàng tồn).
  */
-export function ProductHistory({ productId }: { productId: string }) {
+export function ProductHistory({
+  productId,
+  skuById = NO_SKUS,
+}: {
+  productId: string;
+  /** variantId → SKU, để dòng biến thể nêu SKU nào (`subjectId`). */
+  skuById?: ReadonlyMap<string, string>;
+}) {
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(HISTORY_PAGE_SIZES[0] ?? 10);
   const query = useProductVersions(productId, page, size);
@@ -89,7 +116,7 @@ export function ProductHistory({ productId }: { productId: string }) {
   return (
     <DataTable
       data={data.items}
-      columns={COLUMNS}
+      columns={historyColumns(skuById)}
       rowKey={(row) => `${row.occurredAt}-${row.changeType}-${row.subjectId ?? ""}`}
       caption={`${data.totalElements} thay đổi`}
       pageSize={size}

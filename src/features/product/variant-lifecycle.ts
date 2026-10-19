@@ -1,7 +1,7 @@
 /**
  * Biến thể — vòng đời + gate thao tác theo mã quyền thật (BE `VariantStatus#canTransitionTo`,
  * `ProductVariantController` @RequiresPermission): resource `product-variants` — chặn là UPDATE,
- * kích hoạt / ngừng dùng là APPROVE (khác `product-products` của nội dung sản phẩm, logistics và ảnh). UI-only: BE kiểm lại và trả 409.
+ * kích hoạt / ngừng dùng là APPROVE (khác `product-products` của nội dung sản phẩm, giá và ảnh). UI-only: BE kiểm lại và trả 409.
  *
  *   DRAFT → ACTIVE (kích hoạt, cần sản phẩm đã duyệt — BE tự kích hoạt các biến thể Nháp lúc duyệt
  *           sản phẩm) | OBSOLETE

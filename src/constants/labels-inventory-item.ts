@@ -118,6 +118,19 @@ export const INVENTORY_ITEM_UI_LABELS = {
     no: "Không",
     unset: "Chưa đặt ngưỡng",
   },
+  /** Tóm tắt chỉ đọc trong panel biến thể của sản phẩm (BE PR #119) — sửa ở trang Hồ sơ hàng tồn. */
+  variantSummary: {
+    title: "Logistics của SKU",
+    openInInventory: "Mở hồ sơ tồn kho",
+    loading: "Đang tải logistics…",
+    noPermission: "Logistics do bộ phận kho quản lý — bạn không có quyền xem.",
+    noItem: "SKU chưa có hồ sơ tồn kho.",
+    // Lỗi tải `GET /inventory/items/{id}` (BE PR #119) ở panel biến thể
+    notFound: "Không tìm thấy hồ sơ hàng tồn của SKU.",
+    forbidden: "Bạn không có quyền xem hồ sơ hàng tồn của SKU.",
+    loadFailed: "Không tải được hồ sơ hàng tồn của SKU. Vui lòng thử lại.",
+    weightValue: (kg: number) => `${kg} kg`,
+  },
 } as const;
 
 export const INVENTORY_ITEM_TOAST_MESSAGES = {

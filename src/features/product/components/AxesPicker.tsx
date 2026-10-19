@@ -1,20 +1,19 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { Lock, Plus } from "lucide-react";
+
+import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
 
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 import { canBeVariantAxis } from "../attribute-schemas";
+import { AxisFieldset } from "./AxisFieldset";
 
-import type { Attribute, AttributeValue } from "../attribute-schemas";
+import type { Attribute } from "../attribute-schemas";
 import type { AxisDraft } from "../axes-draft";
+
+const L = UI_LABELS.product.axes;
 
 interface Props {
   /** Từ điển thuộc tính (kèm giá trị). */
@@ -31,13 +30,11 @@ interface Props {
   usedValueIds?: ReadonlySet<string>;
 }
 
-const orderValues = (values: readonly AttributeValue[]) =>
-  [...values].sort((a, b) => a.sortOrder - b.sortOrder || a.code.localeCompare(b.code));
-
 /**
  * Chọn trục biến thể và giá trị của từng trục từ từ điển (BE `ReplaceAxesRequest` /
  * `CreateProductRequest.axes`). Chỉ SELECT / COLOR làm trục được; mỗi thuộc tính một trục; mỗi trục ít
  * nhất một giá trị còn dùng. Thứ tự trục là thứ tự hiển thị và thứ tự trong SKU sinh tự động.
+ * Bộ trục bị khoá thì nói lý do bằng chữ ngay trên danh sách (BE `ProductAttributeSet.replaceAxes`).
  */
 export function AxesPicker({
   attributes,
@@ -66,142 +63,60 @@ export function AxesPicker({
         !excludeAttributeIds.includes(a.attributeId) &&
         (!chosen.has(a.attributeId) || a.attributeId === current),
     );
+  const lockReason = structureLocked ? L.lockNotDraft : addLocked ? L.lockOptionUsed : null;
+  const noCandidates = lockReason === null && pickable().length === 0;
 
   return (
     <div className="space-y-3">
+      {lockReason && (
+        <p className="border-border-default bg-bg-subtle text-ink-secondary flex gap-2 rounded-[var(--r-sm)] border px-3 py-2 text-xs">
+          <Lock aria-hidden className="text-ink-tertiary mt-0.5 size-3.5 shrink-0" />
+          {lockReason}
+        </p>
+      )}
       {value.length === 0 && (
         <p className="text-ink-tertiary text-xs">
           Chưa có trục nào — sản phẩm chỉ có một biến thể.
         </p>
       )}
-      {value.map((axis, index) => {
-        const attribute = byId.get(axis.attributeId);
-        const axisUsed = attribute?.values.some((v) => usedValueIds.has(v.valueId)) ?? false;
-        const values = orderValues(attribute?.values ?? []).filter(
-          (v) => v.active || axis.optionValueIds.includes(v.valueId),
-        );
-        return (
-          <fieldset
-            key={axis.attributeId || `new-${index}`}
-            className="border-border-default space-y-2 rounded-[var(--r-sm)] border p-3"
-          >
-            <div className="flex items-center gap-2">
-              <Select
-                value={axis.attributeId}
-                // Đổi thuộc tính của trục thì bỏ các giá trị đã chọn (thuộc thuộc tính cũ).
-                onValueChange={(attributeId) => update(index, { attributeId, optionValueIds: [] })}
-                disabled={structureLocked}
-              >
-                <SelectTrigger aria-label={`Thuộc tính của trục ${index + 1}`} className="flex-1">
-                  <SelectValue placeholder="Chọn thuộc tính" />
-                </SelectTrigger>
-                <SelectContent>
-                  {pickable(axis.attributeId).map((a) => (
-                    <SelectItem key={a.attributeId} value={a.attributeId}>
-                      {a.name} ({a.code})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Đưa trục lên"
-                disabled={index === 0}
-                onClick={() => move(index, -1)}
-              >
-                <ArrowUp className="size-3.5" />
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Đưa trục xuống"
-                disabled={index === value.length - 1}
-                onClick={() => move(index, 1)}
-              >
-                <ArrowDown className="size-3.5" />
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Gỡ trục"
-                title={
-                  structureLocked
-                    ? "Chỉ gỡ được trục khi sản phẩm còn Nháp"
-                    : axisUsed
-                      ? "Đang có biến thể dùng giá trị của trục này"
-                      : "Gỡ trục"
-                }
-                disabled={structureLocked || axisUsed}
-                onClick={() => onChange(value.filter((_, i) => i !== index))}
-              >
-                <Trash2 className="size-3.5" />
-              </Button>
-            </div>
-            {attribute && (
-              <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-                {values.length === 0 && (
-                  <span className="text-warning text-xs">
-                    Thuộc tính này chưa có giá trị đang dùng — thêm giá trị ở màn Thuộc tính.
-                  </span>
-                )}
-                {values.map((v) => {
-                  const checked = axis.optionValueIds.includes(v.valueId);
-                  const used = usedValueIds.has(v.valueId);
-                  return (
-                    <label
-                      key={v.valueId}
-                      className="text-ink-secondary flex items-center gap-1.5 text-xs"
-                      title={used ? "Đang có biến thể dùng giá trị này" : undefined}
-                    >
-                      <input
-                        type="checkbox"
-                        className="accent-brand size-3.5"
-                        checked={checked}
-                        disabled={used && checked}
-                        onChange={(e) =>
-                          update(index, {
-                            optionValueIds: e.target.checked
-                              ? [...axis.optionValueIds, v.valueId]
-                              : axis.optionValueIds.filter((id) => id !== v.valueId),
-                          })
-                        }
-                      />
-                      {v.hexColor && (
-                        <span
-                          className="border-border-default size-3 rounded-full border"
-                          style={{ backgroundColor: v.hexColor }}
-                        />
-                      )}
-                      {v.label}
-                      {!v.active && <span className="text-ink-tertiary">(đã vô hiệu)</span>}
-                    </label>
-                  );
-                })}
-              </div>
-            )}
-          </fieldset>
-        );
-      })}
+      {value.map((axis, index) => (
+        <AxisFieldset
+          key={axis.attributeId || `new-${index}`}
+          index={index}
+          count={value.length}
+          axis={axis}
+          attribute={byId.get(axis.attributeId)}
+          pickable={pickable(axis.attributeId)}
+          structureLocked={structureLocked}
+          usedValueIds={usedValueIds}
+          onChange={(patch) => update(index, patch)}
+          onMove={(delta) => move(index, delta)}
+          onRemove={() => onChange(value.filter((_, i) => i !== index))}
+        />
+      ))}
       <Button
         type="button"
         variant="outline"
         size="sm"
-        disabled={structureLocked || addLocked || pickable().length === 0}
-        title={
-          structureLocked
-            ? "Chỉ thêm được trục khi sản phẩm còn Nháp"
-            : addLocked
-              ? "Đã có biến thể mang tuỳ chọn nên không thêm trục mới được"
-              : undefined
-        }
+        disabled={lockReason !== null || noCandidates}
         onClick={() => onChange([...value, { attributeId: "", optionValueIds: [] }])}
       >
         <Plus className="size-3.5" /> Thêm trục
       </Button>
+      {noCandidates && (
+        <p className="text-ink-tertiary text-xs">
+          {L.noCandidates}{" "}
+          {/* Tab mới: điều hướng tại chỗ đóng dialog / rời form và mất thay đổi chưa lưu */}
+          <Link
+            href={ADMIN_ROUTES.attributes}
+            target="_blank"
+            rel="noreferrer"
+            className="text-info font-medium hover:underline"
+          >
+            {L.manageAttributes}
+          </Link>
+        </p>
+      )}
     </div>
   );
 }

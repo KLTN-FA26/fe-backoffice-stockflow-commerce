@@ -1,6 +1,6 @@
 import { Label } from "@/components/ui/label";
 
-/** Nhãn + ô nhập + gợi ý + lỗi inline — dùng chung cho form biến thể và logistics. */
+/** Nhãn + ô nhập + gợi ý + lỗi inline — dùng chung cho form biến thể và giá bán. */
 export function Field({
   label,
   id,

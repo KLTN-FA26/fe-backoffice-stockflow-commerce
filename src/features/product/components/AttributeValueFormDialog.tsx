@@ -3,11 +3,11 @@
 import { useState } from "react";
 
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
-import { Input } from "@/components/ui/input";
 
 import { attributeErrorMessage } from "../attribute-errors";
 import { useAddAttributeValue, useUpdateAttributeValue } from "../attribute-queries";
 import { attributeValueFormSchemaFor } from "../attribute-schemas";
+import { ProductInput } from "./form-controls";
 import { Field } from "./variants/Field";
 
 import type { Attribute, AttributeValue, AttributeValueFormValues } from "../attribute-schemas";
@@ -100,7 +100,7 @@ function Form({
       onCancel={onDone}
     >
       <Field label="Mã *" id="value-code" error={values.code ? issueOf("code") : undefined}>
-        <Input
+        <ProductInput
           id="value-code"
           value={values.code}
           onChange={set("code")}
@@ -110,7 +110,7 @@ function Form({
         />
       </Field>
       <Field label="Nhãn *" id="value-label" error={values.label ? issueOf("label") : undefined}>
-        <Input id="value-label" value={values.label} onChange={set("label")} />
+        <ProductInput id="value-label" value={values.label} onChange={set("label")} />
       </Field>
       {isColor && (
         <Field label="Màu *" id="value-hex" error={issueOf("hexColor")}>
@@ -122,7 +122,7 @@ function Form({
               onChange={(e) => setValues((v) => ({ ...v, hexColor: e.target.value.toUpperCase() }))}
               className="border-border-default h-8 w-10 cursor-pointer rounded border"
             />
-            <Input
+            <ProductInput
               id="value-hex"
               value={values.hexColor}
               onChange={set("hexColor")}
@@ -133,7 +133,7 @@ function Form({
       )}
       <div className="grid grid-cols-2 gap-3">
         <Field label="Giá trị số" id="value-number" hint="Tuỳ chọn" error={issueOf("valueNumber")}>
-          <Input
+          <ProductInput
             id="value-number"
             inputMode="decimal"
             value={values.valueNumber}
@@ -142,7 +142,7 @@ function Form({
           />
         </Field>
         <Field label="Thứ tự" id="value-sort" hint="Trống = 0" error={issueOf("sortOrder")}>
-          <Input
+          <ProductInput
             id="value-sort"
             inputMode="numeric"
             value={values.sortOrder}

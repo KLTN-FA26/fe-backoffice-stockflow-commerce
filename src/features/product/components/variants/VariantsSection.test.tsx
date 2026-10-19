@@ -3,11 +3,16 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { PRODUCT_PERMISSIONS, VARIANT_PERMISSIONS } from "@/constants";
+import {
+  INVENTORY_ITEM_PERMISSIONS,
+  PRODUCT_PERMISSIONS,
+  UI_LABELS,
+  VARIANT_PERMISSIONS,
+} from "@/constants";
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
-import { VariantsSection } from "./VariantsSection";
+import { ProductVariantsSection } from "../ProductVariantsSection";
 
 import type { PermissionCode } from "@/lib/auth";
 
@@ -32,12 +37,11 @@ const variant = (over: Record<string, unknown> = {}) => ({
       label: "12oz",
     },
   ],
+  // BE PR #119 `VariantResponse.inventoryItemId` — null khi SKU chưa có hồ sơ hàng tồn
+  inventoryItemId: "item-1",
   ...over,
 });
 const logistics = {
-  skuId: "v-1",
-  sku: "CUP-12OZ",
-  version: 2,
   unitOfMeasure: "EACH",
   barcode: null,
   weightKg: 0.02,
@@ -74,20 +78,14 @@ const attributes = {
   ],
   descriptives: [],
 };
-const inventoryControl = {
-  skuId: "v-1",
+/** BE PR #119 `InventoryItemResponse` (`GET /inventory/items/{id}`) — version là của hồ sơ. */
+const item = {
+  id: "item-1",
   sku: "CUP-12OZ",
-  unitOfMeasure: "EACH",
-  version: 4,
-  reorderPoint: 20,
-  safetyStock: 5,
-  removalStrategy: "FEFO",
-  trackingMode: "NONE",
-  expiryTracked: false,
-  maxShelfLifeDays: null,
-  usableOnHand: 12,
-  reorderRequired: true,
-  belowSafetyStock: false,
+  version: 2,
+  logistics,
+  policy: { reorderPoint: null, safetyStock: null, maxQty: null, removalStrategy: "FIFO" },
+  evaluation: { usableOnHand: 0, reorderRequired: null, belowSafetyStock: null },
 };
 
 const skuPrice = {
@@ -120,9 +118,7 @@ function mockBe(permissions: readonly PermissionCode[], variants = [variant()]) 
       };
     }
     if (url === `/products/${PRODUCT}/attributes`) return { data: attributes };
-    if (url === `/products/${PRODUCT}/skus/v-1/logistics`) return { data: logistics };
-    if (url === `/products/${PRODUCT}/skus/v-1/inventory-control`)
-      return { data: inventoryControl };
+    if (url === "/inventory/items/item-1") return { data: item };
     if (url === `/products/${PRODUCT}/skus/CUP-12OZ/base-price`) return { data: skuPrice };
     if (url === `/products/${PRODUCT}/variants/v-1/media`) return { data: [] };
     throw new Error(`Không có mock cho GET ${url}`);
@@ -132,7 +128,6 @@ function mockBe(permissions: readonly PermissionCode[], variants = [variant()]) 
     throw new Error(`Không có mock cho POST ${url}`);
   });
   const put = vi.spyOn(api, "put").mockImplementation(async (url: string) => {
-    if (url.endsWith("/inventory-control")) return { data: { ...inventoryControl, version: 5 } };
     if (url.endsWith("/base-price")) {
       return {
         data: {
@@ -147,9 +142,9 @@ function mockBe(permissions: readonly PermissionCode[], variants = [variant()]) 
         },
       };
     }
-    return { data: { ...logistics, version: 3 } };
+    throw new Error(`Không có mock cho PUT ${url}`);
   });
-  return { post, put };
+  return { post, put, get: vi.mocked(api.get) };
 }
 
 function Harness({
@@ -166,8 +161,9 @@ function Harness({
       return listVariants(PRODUCT);
     },
   });
+  // Mục Biến thể như trên trang chi tiết: nút thêm / sinh nằm trên dòng tiêu đề.
   return (
-    <VariantsSection
+    <ProductVariantsSection
       productId={PRODUCT}
       productCode="CUP"
       productApproved
@@ -202,6 +198,24 @@ function renderSection(props: { acceptsChanges?: boolean; productDiscontinued?: 
   );
 }
 
+const S = UI_LABELS.inventoryItem.variantSummary;
+const F = UI_LABELS.inventoryItem.field;
+const I = INVENTORY_ITEM_PERMISSIONS;
+/** Seed BE V20260928006000: WAREHOUSE_MANAGER có toàn quyền `inventory-inventory-items`. */
+const WAREHOUSE_MANAGER = [PRODUCT_PERMISSIONS.read, I.viewPage, I.read, I.update];
+/** Role catalog: sửa / duyệt sản phẩm và biến thể; seed BE không cấp `inventory-inventory-items`. */
+const ECOMMERCE_ADMIN = [
+  PRODUCT_PERMISSIONS.read,
+  PRODUCT_PERMISSIONS.update,
+  PRODUCT_PERMISSIONS.approve,
+  VARIANT_PERMISSIONS.create,
+  VARIANT_PERMISSIONS.update,
+  VARIANT_PERMISSIONS.approve,
+];
+
+const calledInventoryItems = (get: ReturnType<typeof mockBe>["get"]) =>
+  get.mock.calls.some(([url]) => String(url).startsWith("/inventory/items"));
+
 describe("VariantsSection — biến thể thật (BE PR #71), không còn bảng SKU mock", () => {
   it("chỉ xem: hiện biến thể, không có nút Thêm / thao tác", async () => {
     mockBe([PRODUCT_PERMISSIONS.read]);
@@ -211,7 +225,7 @@ describe("VariantsSection — biến thể thật (BE PR #71), không còn bản
     await userEvent.setup().click(screen.getByText("CUP-12OZ"));
     const panel = await screen.findByRole("dialog");
     expect(within(panel).queryByRole("button", { name: "Tạm chặn" })).not.toBeInTheDocument();
-    expect(await within(panel).findByText("50/gói", { exact: false })).toBeInTheDocument();
+    expect(await within(panel).findByText(S.noPermission)).toBeInTheDocument();
   });
 
   it("hiện nhãn tuỳ chọn (options) của biến thể trong bảng và panel; biến thể không có trục hiện —", async () => {
@@ -271,34 +285,56 @@ describe("VariantsSection — biến thể thật (BE PR #71), không còn bản
     );
   });
 
-  it("sửa logistics gửi version của lần đọc (chống ghi đè)", async () => {
-    const user = userEvent.setup();
-    const { put } = mockBe([PRODUCT_PERMISSIONS.read, PRODUCT_PERMISSIONS.update]);
-    renderSection();
-    await user.click(await screen.findByText("CUP-12OZ"));
-    const panel = await screen.findByRole("dialog");
-    await user.click(await within(panel).findByRole("button", { name: /Sửa logistics/ }));
-    await user.clear(within(panel).getByLabelText("Khối lượng (kg)"));
-    await user.type(within(panel).getByLabelText("Khối lượng (kg)"), "0.03");
-    await user.click(within(panel).getByRole("button", { name: "Lưu logistics" }));
-    await waitFor(() =>
-      expect(put).toHaveBeenCalledWith(
-        `/products/${PRODUCT}/skus/v-1/logistics`,
-        expect.objectContaining({
-          version: 2,
-          weightKg: 0.03,
-          packSize: 50,
-          storageClass: "NORMAL",
-        }),
-      ),
-    );
-  });
-
   it("sinh tổ hợp: nút chỉ hiện khi có quyền tạo biến thể (product-variants:CREATE), sản phẩm nhận thay đổi và đã có trục", async () => {
     mockBe([PRODUCT_PERMISSIONS.read, VARIANT_PERMISSIONS.create]);
     renderSection();
     expect(await screen.findByRole("button", { name: /Sinh tổ hợp biến thể/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Thêm biến thể/ })).toBeInTheDocument();
+  });
+
+  it("nút Sinh / Thêm biến thể nằm trên dòng tiêu đề mục Biến thể và mở đúng hộp thoại", async () => {
+    const user = userEvent.setup();
+    mockBe([PRODUCT_PERMISSIONS.read, VARIANT_PERMISSIONS.create]);
+    renderSection();
+    const title = await screen.findByRole("button", { name: /^Biến thể \(1\)/ });
+    const titleRow = title.parentElement;
+    if (!titleRow) throw new Error("thiếu dòng tiêu đề mục Biến thể");
+    expect(
+      await within(titleRow).findByRole("button", { name: /Sinh tổ hợp biến thể/ }),
+    ).toBeInTheDocument();
+    await user.click(within(titleRow).getByRole("button", { name: /Thêm biến thể/ }));
+    expect(await screen.findByRole("dialog", { name: "Thêm biến thể" })).toBeInTheDocument();
+  });
+
+  it("sản phẩm không nhận thay đổi (chờ duyệt / ngừng kinh doanh): không có nút thêm / sinh", async () => {
+    mockBe([PRODUCT_PERMISSIONS.read, VARIANT_PERMISSIONS.create]);
+    renderSection({ acceptsChanges: false });
+    await screen.findByText("CUP-12OZ");
+    expect(screen.queryByRole("button", { name: /Thêm biến thể/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Sinh tổ hợp biến thể/ })).not.toBeInTheDocument();
+  });
+
+  it("panel nêu ngắn lý do khoá khi sản phẩm không nhận thay đổi, không còn nút Sửa / chuyển trạng thái", async () => {
+    const user = userEvent.setup();
+    mockBe([PRODUCT_PERMISSIONS.read, VARIANT_PERMISSIONS.update, VARIANT_PERMISSIONS.approve]);
+    renderSection({ acceptsChanges: false });
+    await user.click(await screen.findByText("CUP-12OZ"));
+    const panel = await screen.findByRole("dialog");
+    expect(within(panel).getByText(UI_LABELS.product.variants.lockedHint)).toBeInTheDocument();
+    expect(within(panel).queryByRole("button", { name: /Sửa/ })).not.toBeInTheDocument();
+    expect(within(panel).queryByRole("button", { name: "Tạm chặn" })).not.toBeInTheDocument();
+  });
+
+  it("sản phẩm nhận thay đổi: panel không có câu khoá", async () => {
+    const user = userEvent.setup();
+    mockBe([PRODUCT_PERMISSIONS.read, VARIANT_PERMISSIONS.update]);
+    renderSection();
+    await user.click(await screen.findByText("CUP-12OZ"));
+    const panel = await screen.findByRole("dialog");
+    expect(await within(panel).findByRole("button", { name: /Sửa/ })).toBeInTheDocument();
+    expect(
+      within(panel).queryByText(UI_LABELS.product.variants.lockedHint),
+    ).not.toBeInTheDocument();
   });
 
   it("chỉ có quyền sửa nội dung sản phẩm (product-products:UPDATE) thì không có nút thêm / sinh biến thể", async () => {
@@ -307,36 +343,6 @@ describe("VariantsSection — biến thể thật (BE PR #71), không còn bản
     await screen.findByText("CUP-12OZ");
     expect(screen.queryByRole("button", { name: /Thêm biến thể/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Sinh tổ hợp biến thể/ })).not.toBeInTheDocument();
-  });
-
-  it("panel hiện chính sách tồn kho + giá bán của SKU; sửa chính sách gửi version của lần đọc", async () => {
-    const user = userEvent.setup();
-    const { put } = mockBe([PRODUCT_PERMISSIONS.read, PRODUCT_PERMISSIONS.update]);
-    renderSection();
-    await user.click(await screen.findByText("CUP-12OZ"));
-    const panel = await screen.findByRole("dialog");
-    expect(await within(panel).findByText("Điểm đặt hàng lại")).toBeInTheDocument();
-    expect(
-      within(panel).getByText(/Dưới tồn an toàn|Đã tới điểm đặt hàng lại/),
-    ).toBeInTheDocument();
-    expect(await within(panel).findByText("Giá bán cơ sở")).toBeInTheDocument();
-
-    await user.click(within(panel).getByRole("button", { name: /Sửa chính sách tồn kho/ }));
-    const reorder = within(panel).getByLabelText("Điểm đặt hàng lại");
-    await user.clear(reorder);
-    await user.type(reorder, "30");
-    await user.click(within(panel).getByRole("button", { name: "Lưu chính sách" }));
-    await waitFor(() =>
-      expect(put).toHaveBeenCalledWith(`/products/${PRODUCT}/skus/v-1/inventory-control`, {
-        version: 4,
-        reorderPoint: 30,
-        safetyStock: 5,
-        removalStrategy: "FEFO",
-        trackingMode: "NONE",
-        expiryTracked: false,
-        maxShelfLifeDays: null,
-      }),
-    );
   });
 
   it("đặt giá gửi MÃ SKU (không phải variantId), revision của lần đọc, VND", async () => {
@@ -359,7 +365,7 @@ describe("VariantsSection — biến thể thật (BE PR #71), không còn bản
     );
   });
 
-  it("giá không phải số nguyên VND → không gửi; chỉ đọc thì không có nút sửa chính sách / giá", async () => {
+  it("giá không phải số nguyên VND → không gửi", async () => {
     const user = userEvent.setup();
     const { put } = mockBe([PRODUCT_PERMISSIONS.read, PRODUCT_PERMISSIONS.update]);
     renderSection();
@@ -373,20 +379,20 @@ describe("VariantsSection — biến thể thật (BE PR #71), không còn bản
     expect(put).not.toHaveBeenCalled();
   });
 
-  it("chỉ đọc: panel không có Sửa chính sách / Sửa giá", async () => {
+  it("chỉ đọc: panel không có Sửa giá / Đặt giá", async () => {
     mockBe([PRODUCT_PERMISSIONS.read]);
     renderSection();
     await userEvent.setup().click(await screen.findByText("CUP-12OZ"));
     const panel = await screen.findByRole("dialog");
     await within(panel).findByText("Giá bán cơ sở");
     expect(
-      within(panel).queryByRole("button", { name: /Sửa chính sách tồn kho|Sửa giá|Đặt giá/ }),
+      within(panel).queryByRole("button", { name: /Sửa giá|Đặt giá/ }),
     ).not.toBeInTheDocument();
   });
 
   // BE `ProductVariantService.requireChangeable`: mọi thao tác ghi biến thể bị từ chối khi sản phẩm
   // chờ duyệt / đã ngừng kinh doanh. BE `CatalogCommerceService.price` chỉ từ chối DISCONTINUED.
-  it("sản phẩm chờ duyệt: ẩn Sửa biến thể, Tạm chặn, Sửa logistics / chính sách tồn kho — nhưng vẫn đặt giá được", async () => {
+  it("sản phẩm chờ duyệt: ẩn Sửa biến thể, Tạm chặn — nhưng vẫn đặt giá được", async () => {
     mockBe([
       PRODUCT_PERMISSIONS.read,
       PRODUCT_PERMISSIONS.update,
@@ -399,13 +405,7 @@ describe("VariantsSection — biến thể thật (BE PR #71), không còn bản
     await userEvent.setup().click(await screen.findByText("CUP-12OZ"));
     const panel = await screen.findByRole("dialog");
     expect(await within(panel).findByRole("button", { name: "Sửa giá" })).toBeInTheDocument();
-    for (const name of [
-      /^Sửa$/,
-      "Tạm chặn",
-      "Ngừng dùng",
-      /Sửa logistics/,
-      /Sửa chính sách tồn kho/,
-    ]) {
+    for (const name of [/^Sửa$/, "Tạm chặn", "Ngừng dùng"]) {
       expect(within(panel).queryByRole("button", { name })).not.toBeInTheDocument();
     }
     expect(screen.queryByRole("button", { name: /Thêm biến thể/ })).not.toBeInTheDocument();
@@ -418,5 +418,61 @@ describe("VariantsSection — biến thể thật (BE PR #71), không còn bản
     const panel = await screen.findByRole("dialog");
     await within(panel).findByText("Giá bán cơ sở");
     expect(within(panel).queryByRole("button", { name: "Sửa giá" })).not.toBeInTheDocument();
+  });
+});
+
+// BE PR #119: logistics + chính sách tồn rời khỏi sản phẩm sang `/inventory/items/{id}` (quyền
+// `inventory-inventory-items`, không theo trạng thái sản phẩm / biến thể). Panel chỉ tóm tắt + link.
+describe("VariantPanel — tóm tắt hồ sơ hàng tồn (BE PR #119)", () => {
+  it("WAREHOUSE_MANAGER: 4 dòng tóm tắt + link sang hồ sơ tồn kho, không sửa tại đây", async () => {
+    mockBe(WAREHOUSE_MANAGER);
+    renderSection();
+    await userEvent.setup().click(await screen.findByText("CUP-12OZ"));
+    const panel = await screen.findByRole("dialog");
+    expect(await within(panel).findByText("EACH")).toBeInTheDocument();
+    for (const label of [F.unitOfMeasure, F.barcode, UI_LABELS.inventoryItem.weightView]) {
+      expect(within(panel).getByText(label)).toBeInTheDocument();
+    }
+    expect(within(panel).getByText(F.storageClass)).toBeInTheDocument();
+    expect(
+      within(panel).getByText(UI_LABELS.inventoryItem.storageClass.NORMAL),
+    ).toBeInTheDocument();
+    expect(within(panel).getByText(S.weightValue(0.02))).toBeInTheDocument();
+    expect(within(panel).getByText(UI_LABELS.inventoryItem.notProvided)).toBeInTheDocument();
+    expect(within(panel).queryByText(F.packSize)).not.toBeInTheDocument();
+    expect(within(panel).getByRole("link", { name: S.openInInventory })).toHaveAttribute(
+      "href",
+      "/admin/inventory-items/item-1",
+    );
+    expect(within(panel).queryByRole("button", { name: /logistics|chính sách/i })).toBeNull();
+  });
+
+  it("ECOMMERCE_ADMIN (role catalog, không có quyền kho): báo không có quyền, không gọi /inventory/items", async () => {
+    const { get } = mockBe(ECOMMERCE_ADMIN);
+    renderSection();
+    await userEvent.setup().click(await screen.findByText("CUP-12OZ"));
+    const panel = await screen.findByRole("dialog");
+    expect(within(panel).getByText(S.noPermission)).toBeInTheDocument();
+    expect(within(panel).queryByRole("link", { name: S.openInInventory })).toBeNull();
+    expect(calledInventoryItems(get)).toBe(false);
+  });
+
+  it("SKU chưa có hồ sơ tồn kho (inventoryItemId null) → báo, không gọi /inventory/items", async () => {
+    const { get } = mockBe(WAREHOUSE_MANAGER, [variant({ inventoryItemId: null })]);
+    renderSection();
+    await userEvent.setup().click(await screen.findByText("CUP-12OZ"));
+    const panel = await screen.findByRole("dialog");
+    expect(within(panel).getByText(S.noItem)).toBeInTheDocument();
+    expect(calledInventoryItems(get)).toBe(false);
+  });
+
+  it("sản phẩm Chờ duyệt vẫn thấy link hồ sơ tồn kho — BE #119 không chặn theo trạng thái SP", async () => {
+    mockBe([...WAREHOUSE_MANAGER, VARIANT_PERMISSIONS.update]);
+    renderSection({ acceptsChanges: false });
+    await userEvent.setup().click(await screen.findByText("CUP-12OZ"));
+    const panel = await screen.findByRole("dialog");
+    expect(await within(panel).findByRole("link", { name: S.openInInventory })).toBeInTheDocument();
+    // Biến thể vẫn khoá theo trạng thái sản phẩm (BE `requireChangeable`).
+    expect(within(panel).queryByRole("button", { name: /^Sửa$/ })).not.toBeInTheDocument();
   });
 });

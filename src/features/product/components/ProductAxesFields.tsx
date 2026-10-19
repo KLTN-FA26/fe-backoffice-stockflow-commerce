@@ -1,9 +1,16 @@
 "use client";
 
+import { Plus } from "lucide-react";
+
+import { UI_LABELS } from "@/constants";
+
+import { Button } from "@/components/ui/button";
+
 import { useAttributes } from "../attribute-queries";
 import { axesDraftIssue, previewMatrix } from "../axes-draft";
 import { MATRIX_MAX_PER_CALL } from "../axes-schemas";
 import { AxesPicker } from "./AxesPicker";
+import { useCategoryAxisPrefill } from "./useCategoryAxisPrefill";
 
 import type { AxisDraft } from "../axes-draft";
 
@@ -29,13 +36,16 @@ export function createAxesIssue(
  * cùng MỌI tổ hợp giá trị trong một lần gọi — SKU `MÃ-GIÁ_TRỊ-…` theo thứ tự trục, tổ hợp đầu tiên là
  * biến thể mặc định, mọi biến thể ở trạng thái Nháp. Bị từ chối (SKU trùng, quá 100 tổ hợp…) thì không
  * có sản phẩm nào được tạo. Bỏ trống: sản phẩm có một biến thể mặc định, SKU = mã sản phẩm.
+ * Danh mục có bộ thuộc tính gợi ý → điền sẵn trục bắt buộc và nút thêm nhanh trục gợi ý (spec D9).
  */
 export function ProductAxesFields({
   productCode,
+  categoryId,
   value,
   onChange,
 }: {
   productCode: string;
+  categoryId: string;
   value: AxisDraft[];
   onChange: (next: AxisDraft[]) => void;
 }) {
@@ -43,6 +53,19 @@ export function ProductAxesFields({
   const attributes = dictionary.data?.items ?? [];
   const preview = previewMatrix(value, attributes, productCode || "MÃ");
   const issue = createAxesIssue(value, preview);
+  const suggested = useCategoryAxisPrefill({
+    categoryId,
+    enabled: dictionary.isSuccess,
+    value,
+    onChange,
+  });
+  const required = suggested.filter((s) => s.required).map((s) => s.attributeName);
+  // Thêm nhanh: trục gợi ý chưa chọn và có trong từ điển (AxesPicker cần giá trị của thuộc tính)
+  const quickAdd = suggested.filter(
+    (s) =>
+      !value.some((axis) => axis.attributeId === s.attributeId) &&
+      attributes.some((a) => a.attributeId === s.attributeId),
+  );
 
   return (
     <section className="border-border-default bg-bg-surface rounded-[var(--r-sm)] border p-4">
@@ -61,6 +84,30 @@ export function ProductAxesFields({
           </p>
         ) : (
           <AxesPicker attributes={attributes} value={value} onChange={onChange} />
+        )}
+        {required.length > 0 && (
+          <p className="text-ink-tertiary text-xs">
+            {UI_LABELS.product.create.prefilled(required)}
+          </p>
+        )}
+        {quickAdd.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="text-ink-secondary">{UI_LABELS.product.create.quickAdd}</span>
+            {quickAdd.map((s) => (
+              <Button
+                key={s.attributeId}
+                type="button"
+                variant="outline"
+                size="xs"
+                className="rounded-[var(--r-sm)]"
+                onClick={() =>
+                  onChange([...value, { attributeId: s.attributeId, optionValueIds: [] }])
+                }
+              >
+                <Plus className="size-3" /> {s.attributeName}
+              </Button>
+            ))}
+          </div>
         )}
         {value.length > 0 && preview.total > 0 && (
           <div className="border-border-default bg-bg-subtle space-y-1 rounded-[var(--r-sm)] border p-3 text-[0.8125rem]">

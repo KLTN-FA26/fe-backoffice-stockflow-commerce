@@ -5,6 +5,8 @@ import { api } from "@/lib/api/client";
 import {
   discontinueProduct,
   getProduct,
+  listBrands,
+  listCategories,
   listProducts,
   publishProduct,
   transitionProduct,
@@ -270,5 +272,46 @@ describe("product API contract", () => {
 
     expect(post).toHaveBeenNthCalledWith(1, `/products/${backendProduct.productId}/publication`);
     expect(post).toHaveBeenNthCalledWith(2, `/products/${backendProduct.productId}/unpublication`);
+  });
+});
+
+// Danh mục / thương hiệu bị ngưng ở màn phân loại vẫn gắn với sản phẩm cũ: trang chi tiết, cột danh mục
+// của danh sách và form sửa phải tra được tên — tải cả bản ghi đã ngưng (ô chọn tự lọc khi mời chọn).
+describe("lookup danh mục / thương hiệu gồm cả bản đã ngưng", () => {
+  const page = (items: unknown[]) => ({
+    items,
+    page: 0,
+    size: 200,
+    totalElements: items.length,
+    totalPages: 1,
+    hasNext: false,
+    hasPrevious: false,
+  });
+  it("không lọc active và giữ cờ active của danh mục", async () => {
+    const get = vi.spyOn(api, "get").mockResolvedValue({
+      data: page([
+        {
+          categoryId: "cat-old",
+          parentId: null,
+          code: "OLD",
+          name: "Danh mục cũ",
+          slug: "old",
+          path: "/OLD",
+          depth: 0,
+          sortOrder: 0,
+          active: false,
+        },
+      ]),
+    });
+    const { items } = await listCategories();
+    expect(items).toEqual([expect.objectContaining({ categoryId: "cat-old", active: false })]);
+    expect(get.mock.calls[0]?.[1]).not.toMatchObject({ params: { active: true } });
+  });
+  it("thương hiệu đã ngưng vẫn có trong danh sách tra tên", async () => {
+    const get = vi.spyOn(api, "get").mockResolvedValue({
+      data: page([{ brandId: "b-old", code: "OLD", name: "Hiệu cũ", slug: "old", active: false }]),
+    });
+    expect(await listBrands()).toEqual([expect.objectContaining({ brandId: "b-old" })]);
+    expect(get.mock.calls[0]?.[1]).not.toMatchObject({ params: { active: true } });
   });
 });

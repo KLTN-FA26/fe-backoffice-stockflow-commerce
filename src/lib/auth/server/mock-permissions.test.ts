@@ -10,6 +10,7 @@ import {
   INVENTORY_ITEM_PERMISSIONS,
   INVENTORY_PERMISSIONS,
   PERMISSION_QUERY,
+  PRODUCT_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
   TRANSFER_PERMISSIONS,
   VARIANT_PERMISSIONS,
@@ -56,6 +57,18 @@ describe("explicit mock permission responses", () => {
     const warehouse = mockSessionPermissions("USER-WH-01", []).permissions;
     expect(warehouse).not.toContain(ATTRIBUTE_PERMISSIONS.viewPage);
     expect(warehouse).not.toContain(VARIANT_PERMISSIONS.create);
+  });
+  it("chỉ System Admin có product-lifecycle:APPROVE (BE V20261019000700); E-commerce Admin vẫn duyệt", () => {
+    expect(mockSessionPermissions("USER-ADMIN-01", []).permissions).toContain(
+      PRODUCT_PERMISSIONS.lifecycle,
+    );
+    const ecommerce = mockSessionPermissions("USER-ECAD-01", []).permissions;
+    expect(ecommerce).not.toContain(PRODUCT_PERMISSIONS.lifecycle);
+    expect(ecommerce).toContain(PRODUCT_PERMISSIONS.approve);
+    for (const userId of ["USER-WH-01", "USER-PROC-01", "USER-SALE-01", "USER-PLAN-01"])
+      expect(mockSessionPermissions(userId, []).permissions).not.toContain(
+        PRODUCT_PERMISSIONS.lifecycle,
+      );
   });
   it("BFF permissions return the cookie-selected user's validated list despite frontend impersonation", async () => {
     vi.stubEnv("APP_ORIGIN", "");

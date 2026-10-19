@@ -1,31 +1,19 @@
 /**
- * API biến thể / logistics theo SKU / ảnh theo biến thể (BE PR #71). Parse zod tại biên; mock
- * adapter trả đúng hình response BE nên một luồng xử lý chạy cho cả mock lẫn BE thật.
+ * API biến thể / ảnh theo biến thể (BE PR #71). Parse zod tại biên; mock adapter trả đúng hình
+ * response BE nên một luồng xử lý chạy cho cả mock lẫn BE thật. Logistics của SKU đọc qua
+ * `inventoryItemId` ở `lib/references/inventory-item-lookup.ts` (BE PR #119).
  */
 import { api } from "@/lib/api/client";
 
-import {
-  beDownloadUrlSchema,
-  beMediaSchema,
-  beSkuLogisticsSchema,
-  beVariantSchema,
-} from "./variant-schemas";
+import { beDownloadUrlSchema, beMediaSchema, beVariantSchema } from "./variant-schemas";
 
-import type {
-  LogisticsFormValues,
-  SkuLogistics,
-  Variant,
-  VariantInput,
-  VariantMedia,
-} from "./variant-schemas";
+import type { Variant, VariantInput, VariantMedia } from "./variant-schemas";
 
 const variantsPath = (productId: string) => `/products/${encodeURIComponent(productId)}/variants`;
 const variantPath = (productId: string, variantId: string) =>
   `${variantsPath(productId)}/${encodeURIComponent(variantId)}`;
 const mediaPath = (productId: string, variantId: string) =>
   `${variantPath(productId, variantId)}/media`;
-const logisticsPath = (productId: string, variantId: string) =>
-  `/products/${encodeURIComponent(productId)}/skus/${encodeURIComponent(variantId)}/logistics`;
 
 /** BE giới hạn trang 200 (`Pages.MAX_PAGE_SIZE`); một sản phẩm không có nhiều biến thể hơn thế. */
 const VARIANT_PAGE_SIZE = 200;
@@ -90,55 +78,6 @@ export async function transitionVariant(input: {
     `${variantPath(input.productId, input.variantId)}/${TRANSITION_PATH[input.action]}`,
   );
   return beVariantSchema.parse(data);
-}
-
-/* ── Logistics theo SKU ──────────────────────────────────────────────── */
-
-export async function getSkuLogistics(
-  productId: string,
-  variantId: string,
-  signal?: AbortSignal,
-): Promise<SkuLogistics> {
-  const { data } = await api.get<unknown>(logisticsPath(productId, variantId), { signal });
-  return beSkuLogisticsSchema.parse(data);
-}
-
-const toNumber = (raw: string) => (raw.trim() === "" ? null : Number(raw));
-
-/** Form → BE `SkuLogisticsRequest`; trống = chưa biết (null); `version` là của lần đọc trước. */
-export function toLogisticsRequest(values: LogisticsFormValues, version: number) {
-  return {
-    version,
-    unitOfMeasure: values.unitOfMeasure.trim(),
-    barcode: values.barcode.trim() || null,
-    weightKg: toNumber(values.weightKg),
-    lengthCm: toNumber(values.lengthCm),
-    widthCm: toNumber(values.widthCm),
-    heightCm: toNumber(values.heightCm),
-    packageWeightKg: toNumber(values.packageWeightKg),
-    packageLengthCm: toNumber(values.packageLengthCm),
-    packageWidthCm: toNumber(values.packageWidthCm),
-    packageHeightCm: toNumber(values.packageHeightCm),
-    packageCount: toNumber(values.packageCount),
-    packSize: toNumber(values.packSize),
-    storageClass: values.storageClass,
-    requiresAdultSignature: values.requiresAdultSignature,
-    shippingRestrictionNote: values.shippingRestrictionNote.trim() || null,
-    qcRequired: values.qcRequired,
-  };
-}
-
-export async function saveSkuLogistics(input: {
-  productId: string;
-  variantId: string;
-  version: number;
-  values: LogisticsFormValues;
-}): Promise<SkuLogistics> {
-  const { data } = await api.put<unknown>(
-    logisticsPath(input.productId, input.variantId),
-    toLogisticsRequest(input.values, input.version),
-  );
-  return beSkuLogisticsSchema.parse(data);
 }
 
 /* ── Ảnh theo biến thể ───────────────────────────────────────────────── */

@@ -28,9 +28,10 @@ import { toProductApiPage, toProductUiPage } from "@/features/product/pagination
 import type { Product } from "@/features/product";
 
 /*
- * Chỉ danh sách sản phẩm. Biến thể / SKU, logistics và ảnh nằm trong trang từng sản phẩm
- * (BE PR #71 `/products/{id}/variants`); BE không có danh sách SKU toàn hệ thống, nên tab "SKU"
- * cũ (gọi `/skus` không tồn tại) đã bỏ.
+ * Chỉ danh sách sản phẩm. Biến thể / SKU và ảnh nằm trong trang từng sản phẩm
+ * (BE PR #71 `/products/{id}/variants`); logistics và chính sách tồn của SKU ở trang Hồ sơ hàng tồn
+ * (BE PR #119). BE không có danh sách SKU toàn hệ thống, nên tab "SKU" cũ (gọi `/skus` không tồn
+ * tại) đã bỏ.
  */
 type ProductStatusFilter = "all" | ProductListFilterStatus;
 type ProductSearchField = "productId" | "name" | "category" | "type";
@@ -115,7 +116,8 @@ function mergeStoredConfig(
   };
 }
 
-const PAGE_SUBTITLE = "Quản lý sản phẩm. Biến thể, logistics và ảnh nằm trong trang từng sản phẩm.";
+const PAGE_SUBTITLE =
+  "Quản lý sản phẩm. Biến thể và ảnh nằm trong trang từng sản phẩm; logistics của SKU ở Hồ sơ hàng tồn.";
 
 export function ProductList() {
   const router = useRouter();

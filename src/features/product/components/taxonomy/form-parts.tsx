@@ -47,11 +47,3 @@ export function CheckboxField<T extends FieldValues>({
     />
   );
 }
-
-/**
- * Thân dialog cuộn được khi form dài (SEO, ảnh) — giữ header và nút Lưu luôn trong màn hình thấp.
- * Không sửa `FormDialog` dùng chung của module khác.
- */
-export function DialogScrollArea({ children }: { children: React.ReactNode }) {
-  return <div className="max-h-[50vh] space-y-3 overflow-y-auto pr-1">{children}</div>;
-}

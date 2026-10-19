@@ -1,15 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Sparkles } from "lucide-react";
 
-import { VARIANT_PERMISSIONS } from "@/constants";
-import { usePermissionChecker } from "@/lib/auth";
 import { DataTable, type ColumnDef } from "@/components/shared/DataTable";
 import { statusCell, textCell } from "@/components/shared/column-helpers";
-import { Button } from "@/components/ui/button";
 
-import { useProductAxes } from "../../variant-queries";
 import { variantErrorMessage } from "../../variant-errors";
 import { variantOptionsLabel } from "../../variant-schemas";
 import { GenerateVariantsDialog } from "../GenerateVariantsDialog";
@@ -18,10 +13,12 @@ import { VariantPanel } from "./VariantPanel";
 
 import type { UseQueryResult } from "@tanstack/react-query";
 import type { Variant } from "../../variant-schemas";
+import type { VariantDialog } from "./VariantsActions";
 
 /**
  * Bảng biến thể của sản phẩm (BE `GET /products/{id}/variants`) — thay bảng "SKU" mock cũ,
- * vốn gọi `/skus` không tồn tại ở BE. Bấm một dòng mở panel chi tiết (logistics, ảnh).
+ * vốn gọi `/skus` không tồn tại ở BE. Bấm một dòng mở panel chi tiết (tóm tắt hồ sơ hàng tồn, giá,
+ * ảnh). Nút thêm / sinh biến thể nằm trên dòng tiêu đề mục (`VariantsActions`); mục giữ `dialog`.
  */
 export function VariantsSection({
   productId,
@@ -30,6 +27,8 @@ export function VariantsSection({
   acceptsChanges,
   productDiscontinued,
   query,
+  dialog,
+  onDialogChange,
 }: {
   productId: string;
   /** Mã sản phẩm — gốc của SKU sinh tự động (`MÃ-GIÁ_TRỊ-…`). */
@@ -41,15 +40,10 @@ export function VariantsSection({
   /** Đã ngừng kinh doanh — chỉ trường hợp này BE từ chối đặt giá. */
   productDiscontinued: boolean;
   query: UseQueryResult<Variant[]>;
+  dialog: VariantDialog;
+  onDialogChange: (dialog: VariantDialog) => void;
 }) {
-  const can = usePermissionChecker();
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
-  const [generating, setGenerating] = useState(false);
-  // Sinh ma trận cần ít nhất một trục; quyền tạo biến thể là `product-variants:CREATE` (BE).
-  const axes = useProductAxes(productId, can(VARIANT_PERMISSIONS.create));
-  const canAdd = acceptsChanges && can(VARIANT_PERMISSIONS.create);
-  const canGenerate = canAdd && (axes.data?.length ?? 0) > 0;
   const variants = query.data ?? [];
   // Đọc lại từ danh sách mới nhất: sau khi đổi trạng thái panel thấy ngay giá trị BE trả.
   const selected = variants.find((v) => v.variantId === selectedId) ?? null;
@@ -81,18 +75,6 @@ export function VariantsSection({
 
   return (
     <div className="space-y-3">
-      {canAdd && (
-        <div className="flex justify-end gap-2">
-          {canGenerate && (
-            <Button type="button" variant="outline" size="sm" onClick={() => setGenerating(true)}>
-              <Sparkles className="size-3.5" /> Sinh tổ hợp biến thể
-            </Button>
-          )}
-          <Button type="button" variant="outline" size="sm" onClick={() => setAdding(true)}>
-            <Plus className="size-3.5" /> Thêm biến thể
-          </Button>
-        </div>
-      )}
       {query.isError ? (
         <p role="alert" className="text-danger text-[0.8125rem]">
           {variantErrorMessage(query.error, "load")}
@@ -122,12 +104,16 @@ export function VariantsSection({
         open={selected !== null}
         onClose={() => setSelectedId(null)}
       />
-      <VariantFormDialog productId={productId} open={adding} onOpenChange={setAdding} />
+      <VariantFormDialog
+        productId={productId}
+        open={dialog === "add"}
+        onOpenChange={(open) => onDialogChange(open ? "add" : null)}
+      />
       <GenerateVariantsDialog
         productId={productId}
         productCode={productCode}
-        open={generating}
-        onOpenChange={setGenerating}
+        open={dialog === "generate"}
+        onOpenChange={(open) => onDialogChange(open ? "generate" : null)}
       />
     </div>
   );

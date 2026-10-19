@@ -17,11 +17,12 @@ import {
 
 import { DiscontinueResultDialog } from "./DiscontinueResultDialog";
 import { OpenReferencesList } from "./OpenReferencesList";
+import { ProductRejectDialog } from "./ProductRejectDialog";
 
 import type { ApiError } from "@/lib/api";
 import type { DiscontinueProductResult, Product } from "@/features/product";
 
-export type LifecycleDialog = "suspend" | "resume" | "discontinue" | "delete" | null;
+export type LifecycleDialog = "reject" | "suspend" | "resume" | "discontinue" | "delete" | null;
 
 interface Props {
   product: Product;
@@ -29,15 +30,14 @@ interface Props {
   onClose: () => void;
   /** Sản phẩm đã bị xoá — màn chi tiết quay về danh sách. */
   onDeleted: () => void;
-  /** 409 OPTIMISTIC_LOCK: lấy lại bản mới nhất để lần gửi sau mang `version` đúng. */
-  onStale: () => void;
 }
 
 /**
- * Bốn hộp thoại cuối vòng đời sản phẩm (BE SCRUM-461): tạm ngưng, tiếp tục, ngừng kinh doanh, xoá bản
- * nháp. Mỗi thao tác gửi `version` của lần đọc trước; lỗi hiện TRONG hộp thoại (modal che phần còn lại).
+ * Hộp thoại vòng đời cần xác nhận / lý do: từ chối duyệt, và bốn thao tác cuối vòng đời (BE SCRUM-461)
+ * tạm ngưng, tiếp tục, ngừng kinh doanh, xoá bản nháp — gửi `version` của lần đọc trước. Lỗi hiện TRONG
+ * hộp thoại (modal che phần còn lại); 409 version / trạng thái cũ thì mutation tự tải lại chi tiết.
  */
-export function ProductLifecycleDialogs({ product, dialog, onClose, onDeleted, onStale }: Props) {
+export function ProductLifecycleDialogs({ product, dialog, onClose, onDeleted }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<DiscontinueProductResult | null>(null);
   const suspend = useSuspendProduct();
@@ -49,10 +49,7 @@ export function ProductLifecycleDialogs({ product, dialog, onClose, onDeleted, o
   // Chỉ tải chứng từ còn mở khi hộp thoại ngừng kinh doanh mở.
   const references = useOpenReferences(product.productId, dialog === "discontinue");
 
-  const fail = (e: ApiError) => {
-    setError(productTransitionErrorMessage(e));
-    if (e.code === "OPTIMISTIC_LOCK") onStale();
-  };
+  const fail = (e: ApiError) => setError(productTransitionErrorMessage(e));
   const settle = { onSuccess: onClose, onError: fail };
   const change = (open: boolean) => {
     if (open || pending) return;
@@ -63,6 +60,7 @@ export function ProductLifecycleDialogs({ product, dialog, onClose, onDeleted, o
 
   return (
     <>
+      <ProductRejectDialog product={product} open={dialog === "reject"} onClose={onClose} />
       <ConfirmDialog
         open={dialog === "suspend"}
         onOpenChange={change}
@@ -152,7 +150,9 @@ export function ProductLifecycleDialogs({ product, dialog, onClose, onDeleted, o
 }
 
 function DiscontinueReferences({ query }: { query: ReturnType<typeof useOpenReferences> }) {
-  if (query.isLoading) {
+  // Cùng khoá với thẻ cột phải: lúc mở, hộp thoại có thể đang giữ bản thẻ đã tải trong khi lấy bản
+  // mới — chờ bản mới thay vì đưa danh sách cũ ra trước nút xác nhận.
+  if (query.isLoading || query.isFetching) {
     return <p className="text-ink-tertiary text-xs">Đang kiểm tra chứng từ còn mở…</p>;
   }
   if (query.isError || !query.data) {

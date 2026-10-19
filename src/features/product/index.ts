@@ -60,11 +60,14 @@ export {
   nextProductStatuses,
 } from "./lifecycle";
 export type { ProductAction } from "./lifecycle";
+export { mediaCapabilities, productChangeGate } from "./product-capabilities";
+export type { MediaCapabilities, ProductChangeGate } from "./product-capabilities";
 
-export { categoryName, formatVnd, shouldFlagProductRow } from "./selectors";
+export { categoryName, formatVnd, shouldFlagProductRow, taxClassLabel } from "./selectors";
 
 export {
   PRODUCT_DRAFT_FORM_DEFAULTS,
+  applyServerFieldErrors,
   buildCreateProductInput,
   mapCreateProductError,
   PRODUCT_STALE_MESSAGE,
@@ -131,13 +134,10 @@ export { toProductApiPage, toProductUiPage } from "./pagination";
 
 export type { DiscontinueProductInput, DiscontinueProductResult, ListProductsParams } from "./api";
 
-/* ── Biến thể / logistics theo SKU / ảnh theo biến thể (BE PR #71) ───── */
+/* ── Biến thể / ảnh theo biến thể (BE PR #71) ──────────────────────────── */
 export type {
-  LogisticsFormValues,
   ProductAxis,
   ProductAxisOption,
-  SkuLogistics,
-  StorageClass,
   Variant,
   VariantInput,
   VariantMedia,
@@ -145,9 +145,7 @@ export type {
   VariantStatus,
 } from "./variant-schemas";
 export {
-  STORAGE_CLASSES,
   VARIANT_STATUSES,
-  logisticsFormSchema,
   variantInputSchema,
   variantInputSchemaFor,
   variantOptionsLabel,
@@ -163,8 +161,6 @@ export {
   useMediaViewUrl,
   useProductAxes,
   usePublishVariantMedia,
-  useSaveSkuLogistics,
-  useSkuLogistics,
   useTransitionVariant,
   useUpdateVariant,
   useUploadVariantMedia,
@@ -231,20 +227,12 @@ export type { AxisDraft } from "./axes-draft";
 export type { GeneratedVariants } from "./variant-schemas";
 export {
   useGenerateVariants,
-  useInventoryControl,
   useProductAttributes,
   useReplaceProductAxes,
   useReplaceProductDescriptives,
-  useSaveInventoryControl,
 } from "./variant-queries";
 
-/* ── Chính sách tồn kho theo SKU, listing TMĐT, giá cơ sở ──────────────── */
-export {
-  REMOVAL_STRATEGIES,
-  TRACKING_MODES,
-  inventoryControlFormSchema,
-} from "./inventory-control-schemas";
-export type { InventoryControl, InventoryControlFormValues } from "./inventory-control-schemas";
+/* ── Listing TMĐT, giá cơ sở ─────────────────────────────────────────── */
 export {
   BASE_PRICE_CURRENCY,
   basePriceFormSchema,

@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "@/lib/api/error";
+import { formatDateTime } from "@/lib/format/date";
 
 import { installApi, renderApp } from "../product-test-utils";
 import { ProductHistory } from "./ProductHistory";
@@ -78,6 +79,47 @@ describe("ProductHistory — GET /products/{id}/versions", () => {
     expect(document.body).not.toHaveTextContent("categoryId");
   });
 
+  it("dòng biến thể nêu SKU; người thực hiện system / unknown và trường ảnh hiện tiếng Việt", async () => {
+    installApi({
+      permissions: [],
+      get: (url) =>
+        url === versionsUrl
+          ? page([
+              entry({
+                changeType: "VARIANT_STATUS",
+                subjectType: "VARIANT",
+                subjectId: "v-1",
+                fromStatus: "ACTIVE",
+                toStatus: "BLOCKED",
+                actorName: "unknown",
+              }),
+              entry({
+                changeType: "MEDIA",
+                subjectType: "MEDIA",
+                subjectId: "m-1",
+                changedFields: ["published"],
+                actorName: "system",
+              }),
+              entry({
+                changeType: "MEDIA",
+                subjectType: "MEDIA",
+                subjectId: "m-2",
+                changedFields: ["withdrawn"],
+              }),
+            ])
+          : undefined,
+    });
+    renderApp(<ProductHistory productId={PRODUCT} skuById={new Map([["v-1", "CUP-12OZ"]])} />);
+    expect(await screen.findByText("CUP-12OZ")).toBeInTheDocument();
+    expect(screen.getByText("Không rõ")).toBeInTheDocument();
+    expect(screen.getByText("Hệ thống")).toBeInTheDocument();
+    expect(screen.getByText("Xuất bản ảnh")).toBeInTheDocument();
+    expect(screen.getByText("Gỡ ảnh khỏi cửa hàng")).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/unknown|system|published|withdrawn/);
+    // Ảnh không thuộc biến thể nào trong bảng tra → không bịa SKU.
+    expect(screen.queryByText("m-1")).not.toBeInTheDocument();
+  });
+
   it("lịch sử trống: trạng thái trống riêng, không phải lỗi", async () => {
     installApi({ permissions: [], get: (url) => (url === versionsUrl ? page([]) : undefined) });
     renderApp(<ProductHistory productId={PRODUCT} />);
@@ -123,5 +165,16 @@ describe("ProductHistory — GET /products/{id}/versions", () => {
     await waitFor(() => expect(calls().at(-1)).toEqual({ page: 1, size: 10 }));
     expect(await screen.findByText("Gửi duyệt")).toBeInTheDocument();
     expect(within(document.body).queryByText("Tạo sản phẩm")).not.toBeInTheDocument();
+  });
+});
+
+describe("ProductHistory — thời điểm theo giờ Việt Nam", () => {
+  it("hiện thời điểm qua formatDateTime (Asia/Ho_Chi_Minh), không phụ thuộc múi giờ máy", async () => {
+    installApi({
+      permissions: [],
+      get: (url) => (url === versionsUrl ? page([entry({})]) : undefined),
+    });
+    renderApp(<ProductHistory productId={PRODUCT} />);
+    expect(await screen.findByText(formatDateTime("2026-02-01T08:30:00Z"))).toBeInTheDocument();
   });
 });

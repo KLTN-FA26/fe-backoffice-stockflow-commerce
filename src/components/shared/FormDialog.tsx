@@ -5,17 +5,19 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 
+import { LayeredDialogContent } from "./LayeredDialogContent";
+
 /**
  * Khung dialog có form — cùng kiểu với `ConfirmDialog` (header viền dưới, body có padding, footer
- * nền `bg.subtle`). Form đặt trong con của `DialogContent`: Radix unmount khi đóng nên dữ liệu đã
- * nhập tự reset mỗi lần mở lại. Dùng chung cho thao tác PO và biến thể sản phẩm.
+ * nền `bg.subtle`). Form đặt trong con của `LayeredDialogContent`: Radix unmount khi đóng nên dữ liệu
+ * đã nhập tự reset mỗi lần mở lại. Dùng chung cho thao tác PO và biến thể sản phẩm; nằm trên
+ * `SlideOverPanel` nên mở được từ trong panel.
  */
 export function FormDialog({
   open,
@@ -28,12 +30,9 @@ export function FormDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        showCloseButton={false}
-        className="border-border-default bg-bg-surface gap-0 rounded-[var(--r-xl)] border p-0 shadow-[var(--sh-lg)] ring-0 sm:max-w-[520px]"
-      >
+      <LayeredDialogContent className="border-border-default bg-bg-surface gap-0 rounded-[var(--r-xl)] border p-0 shadow-[var(--sh-lg)] ring-0 sm:max-w-[520px]">
         {children}
-      </DialogContent>
+      </LayeredDialogContent>
     </Dialog>
   );
 }

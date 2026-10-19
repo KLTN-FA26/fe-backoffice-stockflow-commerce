@@ -1,18 +1,9 @@
 "use client";
 
-import { Controller } from "react-hook-form";
-
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
+import { ProductInput } from "./form-controls";
 import { ProductDescriptionFields } from "./ProductDescriptionFields";
 import { ProductFormField } from "./ProductFormField";
+import { BrandSelectField, CategorySelectField, TaxClassSelectField } from "./ProductMasterSelects";
 
 import type { UseFormReturn } from "react-hook-form";
 import type { BrandDto, ProductDraftFormValues } from "../schemas";
@@ -24,10 +15,6 @@ interface ProductMasterFieldsProps {
   form: UseFormReturn<ProductDraftFormValues>;
   isEditing: boolean;
 }
-
-/** Thụt lề theo cấp để cây danh mục đọc được trong một ô chọn phẳng. */
-const categoryLabel = (category: Category) =>
-  `${"\u00a0\u00a0".repeat(category.level - 1)}${category.name.vi}`;
 
 export function ProductMasterFields({
   brands,
@@ -55,7 +42,7 @@ export function ProductMasterFields({
             error={errors.productCode?.message}
             required
           >
-            <Input
+            <ProductInput
               {...register("productCode")}
               id="product-code"
               autoFocus={!isEditing}
@@ -64,38 +51,14 @@ export function ProductMasterFields({
               className="font-[family-name:var(--font-mono)] uppercase"
             />
           </ProductFormField>
-          <ProductFormField
-            htmlFor="brand-id"
-            label="Thương hiệu"
-            error={errors.brandId?.message}
-            required
-          >
-            <Controller
-              control={control}
-              name="brandId"
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="brand-id" aria-invalid={Boolean(errors.brandId)}>
-                    <SelectValue placeholder="Chọn thương hiệu" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {brands.map((brand) => (
-                      <SelectItem key={brand.brandId} value={brand.brandId}>
-                        {brand.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-          </ProductFormField>
+          <BrandSelectField brands={brands} control={control} error={errors.brandId?.message} />
           <ProductFormField
             htmlFor="name"
             label="Tên sản phẩm"
             error={errors.name?.message}
             required
           >
-            <Input {...register("name")} id="name" aria-invalid={Boolean(errors.name)} />
+            <ProductInput {...register("name")} id="name" aria-invalid={Boolean(errors.name)} />
           </ProductFormField>
           <ProductFormField
             htmlFor="name-en"
@@ -103,56 +66,18 @@ export function ProductMasterFields({
             error={errors.nameEn?.message}
             required
           >
-            <Input {...register("nameEn")} id="name-en" aria-invalid={Boolean(errors.nameEn)} />
+            <ProductInput
+              {...register("nameEn")}
+              id="name-en"
+              aria-invalid={Boolean(errors.nameEn)}
+            />
           </ProductFormField>
-          <ProductFormField
-            htmlFor="category-id"
-            label="Danh mục"
+          <CategorySelectField
+            categories={categories}
+            control={control}
             error={errors.categoryId?.message}
-            required
-          >
-            <Controller
-              control={control}
-              name="categoryId"
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="category-id" aria-invalid={Boolean(errors.categoryId)}>
-                    <SelectValue placeholder="Chọn danh mục" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category.categoryId} value={category.categoryId}>
-                        {categoryLabel(category)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-          </ProductFormField>
-          <ProductFormField
-            htmlFor="tax-class"
-            label="Nhóm thuế"
-            error={errors.taxClass?.message}
-            required
-          >
-            <Controller
-              control={control}
-              name="taxClass"
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="tax-class">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="STANDARD">Tiêu chuẩn</SelectItem>
-                    <SelectItem value="REDUCED">Giảm thuế</SelectItem>
-                    <SelectItem value="EXEMPT">Miễn thuế</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-            />
-          </ProductFormField>
+          />
+          <TaxClassSelectField control={control} error={errors.taxClass?.message} />
         </div>
         <label className="text-ink-secondary mt-4 flex items-center gap-2 text-xs font-medium">
           <input

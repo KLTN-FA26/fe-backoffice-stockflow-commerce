@@ -1,4 +1,5 @@
-import type { ApiError } from "@/lib/api";
+import { PRODUCT_ERROR_MESSAGES } from "@/constants";
+import { ApiError } from "@/lib/api";
 
 /** Branches on the stable BE errorCode only; the server message is a display fallback. */
 export function productTransitionErrorMessage(error: ApiError): string {
@@ -6,6 +7,17 @@ export function productTransitionErrorMessage(error: ApiError): string {
     // BE ProductPublicationAdapter.publish: no approved image in the variant galleries (409).
     case "PRODUCT_GALLERY_REQUIRED":
       return "Cần duyệt ít nhất một ảnh trong gallery trước khi xuất bản sản phẩm.";
+    // BE Product.submit (docs 01 §3): chưa có thương hiệu — fieldErrors[brandId].
+    case "PRODUCT_BRAND_REQUIRED":
+      return PRODUCT_ERROR_MESSAGES.brandRequired;
+    // BE ProductPublicationAdapter.publish: SP không còn APPROVED / PUBLISHED, không còn danh mục
+    // đang dùng / biến thể Đang dùng.
+    case "PRODUCT_NOT_APPROVED":
+      return PRODUCT_ERROR_MESSAGES.notApproved;
+    case "PRODUCT_CATEGORY_REQUIRED":
+      return PRODUCT_ERROR_MESSAGES.categoryRequired;
+    case "PRODUCT_SKU_REQUIRED":
+      return PRODUCT_ERROR_MESSAGES.skuRequired;
     case "SELF_APPROVAL_NOT_ALLOWED":
       return "Bạn không thể phê duyệt sản phẩm do chính mình gửi duyệt.";
     case "INVALID_PRODUCT_STATUS_TRANSITION":
@@ -31,4 +43,20 @@ export function productTransitionErrorMessage(error: ApiError): string {
     default:
       return error.message || "Không thể cập nhật trạng thái sản phẩm.";
   }
+}
+
+/**
+ * Bản sản phẩm trên màn đã cũ: `version` đổi (OPTIMISTIC_LOCK) hoặc trạng thái đã đổi ở nơi khác
+ * (INVALID_PRODUCT_STATUS_TRANSITION, BE `Product.requireCanTransitionTo`; PRODUCT_NOT_APPROVED khi
+ * xuất bản, BE `ProductPublicationAdapter.publish` — nút chỉ hiện lúc Approved). Mutation vòng đời bọc
+ * `withStaleRefetch` theo hàm này để tải lại chi tiết — nút hiện đúng trạng thái thật, lần sau đúng version.
+ */
+const STALE_CODES = new Set([
+  "OPTIMISTIC_LOCK",
+  "INVALID_PRODUCT_STATUS_TRANSITION",
+  "PRODUCT_NOT_APPROVED",
+]);
+
+export function isStaleProductError(error: unknown): boolean {
+  return error instanceof ApiError && STALE_CODES.has(error.code);
 }

@@ -1,24 +1,17 @@
 /**
- * Biến thể, logistics theo SKU và ảnh theo biến thể — hợp đồng BE PR #71:
+ * Biến thể và ảnh theo biến thể — hợp đồng BE PR #71:
  *  - `GET/POST/PUT /products/{id}/variants`, `/{variantId}/activation | blocking | obsoletion`
- *  - `GET/PUT /products/{id}/skus/{variantId}/logistics` (variantId là skuId)
  *  - `/products/{id}/variants/{variantId}/media` (tải lên multipart, xuất bản bốn mắt)
- * Ảnh và kích thước / khối lượng không còn trên dòng sản phẩm.
+ * Logistics và chính sách tồn của SKU nằm ở hồ sơ hàng tồn `/inventory/items/{id}` (BE PR #119 bỏ hai
+ * route logistics / chính sách tồn theo SKU dưới sản phẩm); biến thể chỉ mang `inventoryItemId`.
  */
 
 import { z } from "zod";
 
 import { optionalSkuSchema, SKU_INPUT_PATTERN, skuSchema } from "@/lib/validation/sku";
 
-/** BE serialise BigDecimal thành số JSON; nhận cả chuỗi số, chặn NaN. */
-const beDecimal = z.union([z.number(), z.string()]).transform(Number).pipe(z.number());
-
 export const VARIANT_STATUSES = ["DRAFT", "ACTIVE", "BLOCKED", "OBSOLETE"] as const;
 export type VariantStatus = (typeof VARIANT_STATUSES)[number];
-
-/** BE `StorageClass` (inventory :: api). */
-export const STORAGE_CLASSES = ["NORMAL", "COLD", "HAZMAT", "FRAGILE", "OVERSIZE"] as const;
-export type StorageClass = (typeof STORAGE_CLASSES)[number];
 
 /** BE `VariantOptionResponse` — giá trị một trục (màu, cỡ…) mà biến thể mang. */
 export const beVariantOptionSchema = z.object({
@@ -44,6 +37,8 @@ export const beVariantSchema = z.object({
   version: z.number().int(),
   /** Một phần tử cho mỗi trục của sản phẩm; rỗng với sản phẩm không có trục. */
   options: z.array(beVariantOptionSchema).default([]),
+  /** BE PR #119: hồ sơ hàng tồn của SKU (`/inventory/items/{id}`); null khi SKU chưa có hồ sơ. */
+  inventoryItemId: z.string().nullish(),
 });
 export type Variant = z.infer<typeof beVariantSchema>;
 
@@ -64,30 +59,6 @@ export const beGeneratedVariantsSchema = z.object({
   skipped: z.number().int().min(0),
 });
 export type GeneratedVariants = z.infer<typeof beGeneratedVariantsSchema>;
-
-/** BE `SkuLogisticsResponse` — kích thước / khối lượng là `null` khi chưa biết. */
-export const beSkuLogisticsSchema = z.object({
-  skuId: z.string(),
-  sku: z.string(),
-  version: z.number().int(),
-  unitOfMeasure: z.string(),
-  barcode: z.string().nullish(),
-  weightKg: beDecimal.nullish(),
-  lengthCm: beDecimal.nullish(),
-  widthCm: beDecimal.nullish(),
-  heightCm: beDecimal.nullish(),
-  packageWeightKg: beDecimal.nullish(),
-  packageLengthCm: beDecimal.nullish(),
-  packageWidthCm: beDecimal.nullish(),
-  packageHeightCm: beDecimal.nullish(),
-  packageCount: z.number().int(),
-  packSize: z.number().int(),
-  storageClass: z.enum(STORAGE_CLASSES),
-  requiresAdultSignature: z.boolean(),
-  shippingRestrictionNote: z.string().nullish(),
-  qcRequired: z.boolean(),
-});
-export type SkuLogistics = z.infer<typeof beSkuLogisticsSchema>;
 
 /** BE `MediaResponse` — bản gốc riêng tư, xem qua `download-url` có hạn. */
 export const beMediaSchema = z.object({
@@ -154,39 +125,6 @@ export function variantInputSchemaFor(axisCount: number) {
 /** Sản phẩm không có trục (mặc định khi chưa biết). */
 export const variantInputSchema = variantInputSchemaFor(0);
 export type VariantInput = z.infer<typeof variantInputSchema>;
-
-const optionalPositive = z
-  .string()
-  .trim()
-  .refine((v) => v === "" || Number(v) > 0, "Phải lớn hơn 0");
-const optionalCount = z
-  .string()
-  .trim()
-  .refine((v) => v === "" || (Number.isInteger(Number(v)) && Number(v) >= 1), "Số nguyên ≥ 1");
-
-/** Form logistics — chuỗi người dùng gõ; chuyển sang `SkuLogisticsRequest` khi gửi. */
-export const logisticsFormSchema = z.object({
-  unitOfMeasure: z
-    .string()
-    .trim()
-    .regex(/^[A-Z0-9_]{1,16}$/, "Đơn vị tính 1–16 ký tự in hoa, số hoặc _"),
-  barcode: z.string().trim().max(64, "Mã vạch tối đa 64 ký tự"),
-  weightKg: optionalPositive,
-  lengthCm: optionalPositive,
-  widthCm: optionalPositive,
-  heightCm: optionalPositive,
-  packageWeightKg: optionalPositive,
-  packageLengthCm: optionalPositive,
-  packageWidthCm: optionalPositive,
-  packageHeightCm: optionalPositive,
-  packageCount: optionalCount,
-  packSize: optionalCount,
-  storageClass: z.enum(STORAGE_CLASSES),
-  requiresAdultSignature: z.boolean(),
-  shippingRestrictionNote: z.string().trim().max(500, "Ghi chú tối đa 500 ký tự"),
-  qcRequired: z.boolean(),
-});
-export type LogisticsFormValues = z.infer<typeof logisticsFormSchema>;
 
 /** Tối đa ảnh một lần xuất bản (BE `PublishMediaRequest`). */
 export const PUBLISH_MEDIA_MAX = 20;

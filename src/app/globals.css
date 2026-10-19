@@ -239,3 +239,15 @@
     transition-delay: 0s !important;
   }
 }
+
+/*
+  Lớp dropdown portal (Radix Select / Popover). shadcn đặt z-50 cho content, nhưng drawer
+  (`SlideOverPanel`) ở lớp 1100 và dialog (`LayeredDialogContent`) ở 1150 (thang z-index
+  design-tokens) — dropdown mở bên trong chúng bị che. Đặt NGOÀI @layer nên thắng utility z-50 của
+  Tailwind v4 mà không cần !important; Radix chép z-index đã tính sang wrapper popper.
+  Vẫn dưới toast (1200) và tooltip (1300).
+*/
+[data-slot="select-content"],
+[data-slot="popover-content"] {
+  z-index: 1160;
+}
