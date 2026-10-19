@@ -16,6 +16,7 @@ import {
   SUPPLIER_PERMISSIONS,
   TRANSFER_PERMISSIONS,
   VARIANT_PERMISSIONS,
+  WAREHOUSE_LOCATION_PERMISSIONS,
 } from "@/constants/permissions";
 
 import { toBackendRoles } from "@/lib/api/mock-backend-roles";
@@ -48,10 +49,23 @@ const PRODUCT_STRUCTURE = [
   ...Object.values(VARIANT_PERMISSIONS),
   ...Object.values(ATTRIBUTE_PERMISSIONS),
 ];
-const INVENTORY_FLOOR = [INV.adjustmentRead, INV.stockUpdate, INV.movementRead];
+// Seed BE: WAREHOUSE_STAFF / INVENTORY_PLANNER giữ inventory-stock-items:READ/UPDATE và
+// inventory-alerts:READ (V20261014000900); WAREHOUSE_STAFF thêm warehouse-locations:READ (V20260928006000).
+const INVENTORY_FLOOR = [
+  INV.adjustmentRead,
+  INV.stockUpdate,
+  INV.stockRead,
+  INV.movementRead,
+  INV.alertRead,
+];
 const INVENTORY_ALL = Object.values(INV);
 const FULFILLMENT_FLOOR = [...Object.values(PICK), ...Object.values(PACK)];
-const WH_WORK = [...GR_WORK, ...FULFILLMENT_FLOOR, ...INVENTORY_FLOOR];
+const WH_WORK = [
+  ...GR_WORK,
+  ...FULFILLMENT_FLOOR,
+  ...INVENTORY_FLOOR,
+  WAREHOUSE_LOCATION_PERMISSIONS.read,
+];
 
 /** Explicit demo session responses keyed by existing staff IDs, never computed from roles. */
 const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
@@ -67,6 +81,7 @@ const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...FULFILLMENT_FLOOR,
     IDENTITY_USER_PERMISSIONS.read,
     ...INVENTORY_ALL,
+    WAREHOUSE_LOCATION_PERMISSIONS.read,
     ...Object.values(TO),
     ...SHIP,
   ],

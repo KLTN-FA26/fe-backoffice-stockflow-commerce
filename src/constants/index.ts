@@ -46,6 +46,7 @@ export {
   SUPPLIER_PERMISSIONS,
   TRANSFER_PERMISSIONS,
   VARIANT_PERMISSIONS,
+  WAREHOUSE_LOCATION_PERMISSIONS,
 } from "./permissions";
 export type { StaffRole } from "./permissions";
 export { ADMIN_ROUTES, APP_ROUTES } from "./routes";

@@ -125,6 +125,18 @@ export const INVENTORY_PERMISSIONS = {
   stockUpdate: "inventory-stock-items:UPDATE",
   // GET /inventory/movements
   movementRead: "inventory-stock-movements:READ",
+  // GET /inventory/stock-items?sku= (tồn theo SKU và vị trí) — gợi ý nguồn khi chuyển vị trí
+  stockRead: "inventory-stock-items:READ",
+  // GET /inventory/alerts, /inventory/alerts/summary (BE StockAlertController, resource inventory-alerts)
+  alertRead: "inventory-alerts:READ",
+} as const;
+
+/**
+ * Sơ đồ kho — resource `warehouse-locations` (BE `LayoutController`): `GET /warehouses/{id}/layout`
+ * và `GET /locations/{code}`. WAREHOUSE_STAFF có VIEW_PAGE/READ (seed V20260928006000).
+ */
+export const WAREHOUSE_LOCATION_PERMISSIONS = {
+  read: "warehouse-locations:READ",
 } as const;
 
 /**

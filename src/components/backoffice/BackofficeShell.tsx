@@ -56,7 +56,7 @@ import { logoutApi } from "@/lib/auth/auth-api";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
-import { invoices, moveTasks, purchaseOrders, putawayTasks, warehouses } from "@/lib/mock-data";
+import { invoices, purchaseOrders, putawayTasks, warehouses } from "@/lib/mock-data";
 import { useIsMock } from "@/providers/app-providers";
 
 import { Logo } from "@/components/shared/Logo";
@@ -85,14 +85,14 @@ import type { LucideIcon } from "lucide-react";
 import type { PermissionCode } from "@/lib/auth/me-permissions";
 import type { Warehouse } from "@/lib/mock-data";
 /* -------------------------------------------------------------------------- */
-/*  Warning dot counts — computed from mock data                             */
+/*  Warning dot counts — computed from mock data (mock mode only: the BE has */
+/*  no cross-module "needs attention" counts, so real mode shows no badge)    */
 /* -------------------------------------------------------------------------- */
 
 const WARNING_STATUSES: Record<string, string[]> = {
   "/admin/purchase-orders": ["Pending Approval"],
   "/admin/invoices": ["Exception", "Disputed"],
   "/admin/putaway": ["On Hold"],
-  "/admin/moves": ["On Hold", "Discrepancy"],
 };
 
 function computeWarningCounts(): Record<string, number> {
@@ -105,9 +105,6 @@ function computeWarningCounts(): Record<string, number> {
   ).length;
   counts["/admin/putaway"] = putawayTasks.filter((pt) =>
     WARNING_STATUSES["/admin/putaway"]!.includes(pt.status),
-  ).length;
-  counts["/admin/moves"] = moveTasks.filter((mv) =>
-    WARNING_STATUSES["/admin/moves"]!.includes(mv.status),
   ).length;
   return counts;
 }
@@ -197,6 +194,8 @@ export const NAV_GROUPS: NavGroup[] = [
         tooltip: "Supplier Invoices",
         href: "/admin/invoices",
         icon: Receipt,
+        // BE chưa có API hoá đơn NCC (`/invoices`) — màn chạy trên dữ liệu mẫu
+        mockOnly: true,
       },
     ],
   },
@@ -240,6 +239,8 @@ export const NAV_GROUPS: NavGroup[] = [
         tooltip: "Intra-warehouse Moves",
         href: "/admin/moves",
         icon: Move,
+        // BE StockOperationsController: POST /inventory/movements là inventory-stock-items:UPDATE
+        permission: INVENTORY_PERMISSIONS.stockUpdate,
       },
       {
         label: "Điều chỉnh tồn",
@@ -492,7 +493,12 @@ function BackofficeSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
 
-  const warningCounts = useMemo(() => computeWarningCounts(), []);
+  const isMock = useIsMock();
+  // Số đếm lấy từ dữ liệu mẫu: không hiện khi nối BE thật (không bịa số liệu)
+  const warningCounts = useMemo<Record<string, number>>(
+    () => (isMock ? computeWarningCounts() : {}),
+    [isMock],
+  );
   const canSeeItem = useCanSeeNavItem();
 
   return (
@@ -603,6 +609,7 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
   const currentUser = useAuthStore((state) => state.user);
+  const isMock = useIsMock();
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>("all");
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
@@ -686,11 +693,14 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
               aria-label="Tìm toàn cục"
             />
 
-            <WarehouseSwitcher
-              selected={selectedWarehouse}
-              onSelect={setSelectedWarehouse}
-              label={selectedWhLabel}
-            />
+            {/* Danh sách kho lấy từ dữ liệu mẫu và chưa nối với phạm vi dữ liệu: chỉ hiện ở mock */}
+            {isMock && (
+              <WarehouseSwitcher
+                selected={selectedWarehouse}
+                onSelect={setSelectedWarehouse}
+                label={selectedWhLabel}
+              />
+            )}
 
             {/* Theme toggle */}
             <Button

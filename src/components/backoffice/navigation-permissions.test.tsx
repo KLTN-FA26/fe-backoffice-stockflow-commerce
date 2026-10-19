@@ -125,6 +125,21 @@ describe("declared navigation permissions", () => {
     expect(await screen.findByRole("link", { name: "Đề xuất nhập hàng" })).toBeInTheDocument();
     mockMode.isMock = false;
   });
+  it("Hoá đơn NCC (BE chưa có API hoá đơn) chỉ hiện ở mock, không phụ thuộc quyền", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [], permissions: [], dataScope: "ALL" },
+    });
+    mockMode.isMock = false;
+    mount();
+    expect(await screen.findByRole("link", { name: "Tổng quan" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Hoá đơn NCC" })).not.toBeInTheDocument();
+
+    cleanup();
+    mockMode.isMock = true;
+    mount();
+    expect(await screen.findByRole("link", { name: "Hoá đơn NCC" })).toBeInTheDocument();
+    mockMode.isMock = false;
+  });
   it("Từ điển thuộc tính theo quyền xem trang product-attributes và dẫn tới màn thật, không phải màn dữ liệu mẫu", async () => {
     vi.spyOn(api, "get").mockResolvedValue({
       data: { roles: [], permissions: [ATTRIBUTE_PERMISSIONS.viewPage], dataScope: "ALL" },
