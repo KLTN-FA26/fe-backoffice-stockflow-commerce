@@ -1,7 +1,7 @@
 ---
 description: Review PR theo CLAUDE.md, .claude/rules, docs nghiệp vụ và contract BE — chỉ báo lỗi chắc chắn
 argument-hint: "[--comment] [--requested] <owner/repo/pull/N | số PR>"
-allowed-tools: Read, Glob, Grep, Bash(gh pr view:*), Bash(gh pr diff:*), Bash(gh pr comment:*), Bash(gh pr list:*), Bash(gh issue view:*), Bash(gh search:*), Bash(git diff:*), Bash(git log:*), Bash(git blame:*), mcp__github_inline_comment__create_inline_comment
+allowed-tools: Read, Glob, Grep, Write(.review-context/**), Bash(gh pr view:*), Bash(gh pr diff:*), Bash(gh pr comment:*), Bash(gh pr list:*), Bash(gh issue view:*), Bash(gh search:*), Bash(git diff:*), Bash(git log:*), Bash(git blame:*), Bash(git show:*), Bash(git ls-files:*), Bash(wc:*), mcp__github_inline_comment__create_inline_comment
 ---
 
 Review pull request: $ARGUMENTS
@@ -20,6 +20,9 @@ là review không đạt: một model đọc diff một lượt sẽ bỏ sót, 
 **Giả định cho mọi agent và subagent** (nói rõ với từng subagent được gọi):
 
 - Mọi tool đều hoạt động. Không gọi thử, không gọi thăm dò. Mỗi lần gọi tool phải có mục đích rõ.
+- Trên CI chỉ một số lệnh được phép; lệnh khác bị **từ chối im lặng**. Đọc/tìm file → dùng tool
+  `Read`, `Grep`, `Glob`, không dùng `cat`/`grep`/`find` qua Bash. Mỗi lệnh Bash là **một lệnh đơn**:
+  không pipe `|`, không `$(...)`, không heredoc, không `&&`/`;`. Đếm dòng file → `wc -l <file>`.
 - Viết mọi kết quả và comment bằng **tiếng Việt**, ngắn gọn.
 
 ## Bước 0 — Xác định nguồn ngữ cảnh (tự làm, không gọi agent)
@@ -45,7 +48,7 @@ Dừng, không làm gì thêm, nếu một trong các điều sau đúng:
   (tự động, chỉ đổi lockfile/`.github/`/tài liệu, thay đổi nhỏ hiển nhiên đúng). Có `--requested`
   nghĩa là có người comment "@claude review" — họ muốn review, nên vẫn review dù PR nhỏ hay draft.
 
-Có `--requested` và `--comment` mà phải dừng → đăng **một** comment ngắn bằng `gh pr comment` nói lý
+Có `--requested` và `--comment` mà phải dừng → đăng **một** comment ngắn (cách đăng ở bước 7) nói lý
 do (ví dụ "Commit `abc1234` đã được review ở comment trên — push commit mới rồi gọi lại"). Người gọi
 phải nhận được phản hồi, không được im lặng.
 
@@ -149,7 +152,9 @@ Không có `--comment` → dừng ở đây, không đăng gì lên GitHub.
 
 Có `--comment` và có issue → làm bước 8 trước, rồi quay lại đăng comment tóm tắt dưới đây.
 
-Có `--comment` → **luôn** đăng đúng một comment tóm tắt bằng `gh pr comment`, có hay không có issue.
+Có `--comment` → **luôn** đăng đúng một comment tóm tắt, có hay không có issue. Cách đăng — duy nhất
+cách này chạy được trên CI: dùng tool `Write` ghi nội dung vào `.review-context/review-summary.md`, rồi
+chạy đúng một lệnh `gh pr comment <số PR> --body-file .review-context/review-summary.md`.
 Dòng `Commit đã review` là thứ bước 1 dùng để biết commit nào đã review, nên không được thiếu:
 
 ---

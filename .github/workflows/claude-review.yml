@@ -128,7 +128,8 @@ jobs:
 
       # Pin theo commit: tag có thể bị dời sang code khác, mà bước này giữ token.
       # Bump cả hai workflow cùng lúc, trên cả develop và main, nếu không mọi lần chạy đều fail validation.
-      - uses: anthropics/claude-code-action@5eb090f3c3afd701a0672cd32981197ca27688f6 # v1.0.253
+      - id: claude
+        uses: anthropics/claude-code-action@5eb090f3c3afd701a0672cd32981197ca27688f6 # v1.0.253
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # --requested: gọi bằng comment, nên dừng ở bước lọc thì vẫn phải trả lời lý do.
@@ -137,7 +138,41 @@ jobs:
           # xác minh). Với model mặc định của action (Sonnet), lần "@claude review" trên #36 tự review một
           # mình trong 5 lượt và không gọi agent con nào; chạy thử với Opus trên #38 thì gọi đủ.
           # Command đã khai báo các tool trong frontmatter; liệt kê lại ở đây để phiên headless
-          # không dừng ở một permission prompt không ai trả lời được.
+          # không dừng ở một permission prompt không ai trả lời được. Tool nào không có ở đây thì bị
+          # từ chối im lặng: ở #38/#39 có 13 và 26 lần như vậy, và comment không được đăng. Ngoài lệnh
+          # gh/git còn cho các lệnh chỉ đọc mà agent con hay dùng (wc -l để kiểm giới hạn số dòng file),
+          # và Write/Edit chỉ trong .review-context/ để soạn nội dung comment rồi gửi bằng --body-file.
           claude_args: |
             --model claude-opus-5-5
-            --allowedTools "Read,Glob,Grep,Task,Agent,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*),Bash(git diff:*),Bash(git log:*),Bash(git blame:*)"
+            --allowedTools "Read,Glob,Grep,Task,Agent,Write(.review-context/**),Edit(.review-context/**),mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*),Bash(git diff:*),Bash(git log:*),Bash(git blame:*),Bash(git show:*),Bash(git ls-files:*),Bash(wc:*),Bash(ls:*),Bash(cat:*),Bash(head:*),Bash(tail:*)"
+
+      # Log không in hội thoại (show_full_output tắt - repo public, docs private), nên tool bị từ chối
+      # là không thấy. In riêng tên tool + đầu lệnh để biết cần cho phép thêm gì.
+      - name: Report denied tool calls
+        if: always() && steps.claude.outputs.execution_file != ''
+        env:
+          EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+        run: |
+          jq -r '
+            ([.[] | select(.type == "result")] | last | .permission_denials // []) as $d
+            | "Bị từ chối: " + ($d | length | tostring) + " lần",
+              ($d[] | "- " + .tool_name + ": "
+                + ((.tool_input.command // .tool_input.file_path // .tool_input.pattern // .tool_input)
+                   | tostring | .[0:160]))
+          ' "$EXECUTION_FILE" || echo "Không đọc được $EXECUTION_FILE"
+
+      # Có người gọi "@claude review" mà bot không đăng gì là lỗi, không phải "không có vấn đề". Bắt
+      # job đỏ để thấy ngay trên PR, thay vì im lặng như #38/#39.
+      - name: Check a reply was posted
+        if: always() && github.event_name == 'issue_comment'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SINCE: ${{ github.event.comment.created_at }}
+        run: |
+          url="repos/${{ github.repository }}/issues/${{ env.PR_NUMBER }}/comments?since=$SINCE&per_page=100"
+          count=$(gh api "$url" --jq '[.[] | select(.user.login == "claude[bot]" and .created_at > env.SINCE)] | length')
+          if [ "$count" -eq 0 ]; then
+            echo "::error::Claude không đăng comment nào cho lần gọi @claude review này - xem bước 'Report denied tool calls'."
+            exit 1
+          fi
+          echo "Claude đã đăng $count comment."
