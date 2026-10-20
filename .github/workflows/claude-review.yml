@@ -1,5 +1,5 @@
 # =============================================================================
-# Claude review. Chạy lệnh /review-pr của repo (.claude/commands/review-pr.md) khi một pull request
+# Claude review. Chạy quy trình review của repo (.github/claude/review-pr.md) khi một pull request
 # được mở hoặc rời trạng thái draft, hoặc khi có người comment bắt đầu bằng "@claude review", rồi đăng
 # kết quả thành comment trên PR.
 #
@@ -56,6 +56,8 @@ jobs:
 
     env:
       PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+      # Nhánh tích hợp: mọi PR thường merge vào đây, nên quy trình review đọc từ đây.
+      REVIEW_BRANCH: develop
 
     steps:
       # Báo đã nhận lệnh: review mất vài phút, không có phản hồi thì người gọi tưởng bot không chạy.
@@ -71,19 +73,38 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: refs/pull/${{ env.PR_NUMBER }}/head
-          # Review chạy git blame / git log trên các dòng bị sửa; full history cũng kéo về nhánh mặc
-          # định cho bước dưới.
+          # Review chạy git blame / git log trên các dòng bị sửa, và git diff khi PR quá lớn cho
+          # `gh pr diff`; full history cũng kéo về nhánh REVIEW_BRANCH cho bước dưới.
           fetch-depth: 0
 
-      # Quy trình review luôn lấy từ nhánh mặc định, không lấy từ PR: PR tách ra trước khi có lệnh này
-      # (hoặc stacked trên nhánh feature) vẫn review được, và một PR không tự sửa được luật chấm chính nó.
-      - name: Use review command from default branch
+      # Quy trình review đọc từ REVIEW_BRANCH rồi truyền thẳng vào `prompt`, KHÔNG qua lệnh trong
+      # .claude/commands/: claude-code-action khôi phục .claude/ (và CLAUDE.md, .husky…) từ nhánh base
+      # của PR trước khi chạy (src/github/operations/restore-config.ts), nên PR xếp chồng có base chưa
+      # có lệnh sẽ mất lệnh và Claude chỉ review một lượt (storefront #10). .github/ không bị khôi phục.
+      # Đọc từ REVIEW_BRANCH thay vì từ PR: PR không tự sửa được quy trình chấm chính nó. Riêng khi
+      # REVIEW_BRANCH chưa có file (PR đầu tiên đưa file vào) thì dùng bản trong PR.
+      - name: Prepare review prompt
+        id: prompt
+        env:
+          ARGS: --comment ${{ github.event_name == 'issue_comment' && '--requested ' || '' }}${{ github.repository }}/pull/${{ env.PR_NUMBER }}
         run: |
-          mkdir -p .claude/commands
-          git show "origin/${{ github.event.repository.default_branch }}:.claude/commands/review-pr.md"             > .claude/commands/review-pr.md
+          echo "REVIEW_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+          src="origin/$REVIEW_BRANCH:.github/claude/review-pr.md"
+          if git cat-file -e "$src" 2>/dev/null; then
+            text=$(git show "$src")
+          elif [ -f .github/claude/review-pr.md ]; then
+            echo "::notice::$src chưa có - dùng bản trong PR."
+            text=$(cat .github/claude/review-pr.md)
+          else
+            echo "::error::Không tìm thấy .github/claude/review-pr.md ở $REVIEW_BRANCH lẫn trong PR."
+            exit 1
+          fi
+          text=${text//'$ARGUMENTS'/$ARGS}
+          delim="PROMPT_$(openssl rand -hex 16)"
+          { echo "text<<$delim"; echo "$text"; echo "$delim"; } >> "$GITHUB_OUTPUT"
 
       # ---------------------------------------------------------------------
-      # Ngữ cảnh cho review, đặt trong .review-context/ (đã gitignore). /review-pr tìm ở đây trước.
+      # Ngữ cảnh cho review, đặt trong .review-context/ (đã gitignore). Quy trình review (.github/claude/review-pr.md) tìm ở đây trước.
       # Giữ khối này giống hệt trong claude.yml.
       # ---------------------------------------------------------------------
 
@@ -137,12 +158,13 @@ jobs:
           # không xác minh, không đăng comment, kết quả của cả 6 agent bị bỏ.
           settings: |
             {"env": {"CLAUDE_CODE_DISABLE_BACKGROUND_TASKS": "1"}}
-          # --requested: gọi bằng comment, nên dừng ở bước lọc thì vẫn phải trả lời lý do.
-          prompt: /review-pr --comment ${{ github.event_name == 'issue_comment' && '--requested ' || '' }}${{ github.repository }}/pull/${{ env.PR_NUMBER }}
-          # Model chính là Opus: /review-pr là quy trình điều phối (gọi agent con haiku/sonnet/opus rồi
+          # Toàn văn quy trình (bước "Prepare review prompt"). Đối số --requested: gọi bằng comment, nên
+          # dừng ở bước lọc thì vẫn phải trả lời lý do.
+          prompt: ${{ steps.prompt.outputs.text }}
+          # Model chính là Opus: quy trình review là điều phối (gọi agent con haiku/sonnet/opus rồi
           # xác minh). Với model mặc định của action (Sonnet), lần "@claude review" trên #36 tự review một
           # mình trong 5 lượt và không gọi agent con nào; chạy thử với Opus trên #38 thì gọi đủ.
-          # Command đã khai báo các tool trong frontmatter; liệt kê lại ở đây để phiên headless
+          # Quy trình không còn là command nên mọi tool phải liệt kê ở đây, để phiên headless
           # không dừng ở một permission prompt không ai trả lời được. Tool nào không có ở đây thì bị
           # từ chối im lặng: ở #38/#39 có 13 và 26 lần như vậy, và comment không được đăng. Ngoài lệnh
           # gh/git còn cho các lệnh chỉ đọc mà agent con hay dùng (wc -l để kiểm giới hạn số dòng file),
@@ -202,18 +224,29 @@ jobs:
           console.log(`\nKết quả cuối (${result?.subtype ?? "?"}):\n${short(result?.result ?? "", 4000)}`);
           JS
 
-      # Có người gọi "@claude review" mà bot không đăng gì là lỗi, không phải "không có vấn đề". Bắt
-      # job đỏ để thấy ngay trên PR, thay vì im lặng như #38/#39.
+      # Review mà bot không đăng gì là lỗi, không phải "không có vấn đề". Bắt job đỏ để thấy ngay trên
+      # PR, thay vì im lặng như #38/#39. Áp cho cả review tự chạy lúc mở PR; ngoại lệ duy nhất là bước
+      # lọc dừng có chủ đích - khi đó quy trình kết thúc bằng dòng "REVIEW_SKIPPED: <lý do>".
       - name: Check a reply was posted
-        if: always() && github.event_name == 'issue_comment'
+        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
-          SINCE: ${{ github.event.comment.created_at }}
+          SINCE: ${{ github.event.comment.created_at || env.REVIEW_STARTED_AT }}
+          EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
         run: |
           url="repos/${{ github.repository }}/issues/${{ env.PR_NUMBER }}/comments?since=$SINCE&per_page=100"
           count=$(gh api "$url" --jq '[.[] | select(.user.login == "claude[bot]" and .created_at > env.SINCE)] | length')
-          if [ "$count" -eq 0 ]; then
-            echo "::error::Claude không đăng comment nào cho lần gọi @claude review này - xem bước 'Report Claude run'."
-            exit 1
+          if [ "$count" -gt 0 ]; then
+            echo "Claude đã đăng $count comment."
+            exit 0
           fi
-          echo "Claude đã đăng $count comment."
+          result=""
+          if [ -n "$EXECUTION_FILE" ] && [ -f "$EXECUTION_FILE" ]; then
+            result=$(jq -r '(if type == "array" then . else [.] end) | map(select(.type == "result")) | last | .result // ""' "$EXECUTION_FILE")
+          fi
+          if [ "${{ github.event_name }}" = "pull_request" ] && [[ "$result" == *REVIEW_SKIPPED:* ]]; then
+            echo "::notice::Bỏ qua review có chủ đích - ${result#*REVIEW_SKIPPED:}"
+            exit 0
+          fi
+          echo "::error::Claude không đăng comment nào cho lần review này - xem bước 'Report Claude run'."
+          exit 1

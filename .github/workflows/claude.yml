@@ -3,7 +3,7 @@
 # Claude sẽ trả lời ngay tại đó - một câu hỏi hoặc một thay đổi code.
 #
 # Comment trên PR BẮT ĐẦU bằng "@claude review" không chạy ở đây mà ở claude-review.yml, để review lại
-# đi đúng quy trình nhiều agent của /review-pr thay vì một lượt trò chuyện vài chục giây.
+# đi đúng quy trình nhiều agent trong .github/claude/review-pr.md thay vì một lượt trò chuyện vài chục giây.
 #
 # Action tự từ chối người không có quyền write trên repo, nên comment từ bên ngoài không tiêu được token.
 #
@@ -52,7 +52,7 @@ jobs:
           fetch-depth: 0
 
       # ---------------------------------------------------------------------
-      # Ngữ cảnh cho review, đặt trong .review-context/ (đã gitignore). /review-pr tìm ở đây trước.
+      # Ngữ cảnh cho review, đặt trong .review-context/ (đã gitignore). Quy trình review (.github/claude/review-pr.md) tìm ở đây trước.
       # Giữ khối này giống hệt trong claude-review.yml.
       # ---------------------------------------------------------------------
 
