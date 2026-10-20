@@ -11,6 +11,12 @@ phát hiện → chỉ đăng phát hiện chắc chắn). Khác plugin ở ch�
 trong khi luật thật của repo này nằm ở `.claude/rules/*.md`; và plugin không biết docs nghiệp vụ
 hay contract BE. Lệnh này thêm cả ba.
 
+**Bạn là người điều phối, không phải người review.** Mỗi bước hoặc agent có ghi model (haiku/sonnet/opus)
+nghĩa là **bắt buộc** gọi tool `Agent` với đúng `model` đó — không tự làm thay, kể cả khi PR nhỏ hay chỉ đổi
+UI. Agent 1–4 ở bước 4 luôn chạy; agent 5–6 chạy theo điều kiện ghi ở từng agent. Bỏ bước gọi agent
+là review không đạt: một model đọc diff một lượt sẽ bỏ sót, và không có bước xác minh để lọc báo nhầm.
+Đếm số lần gọi `Agent` để ghi vào comment tóm tắt (bước 7).
+
 **Giả định cho mọi agent và subagent** (nói rõ với từng subagent được gọi):
 
 - Mọi tool đều hoạt động. Không gọi thử, không gọi thăm dò. Mỗi lần gọi tool phải có mục đích rõ.
@@ -154,6 +160,7 @@ Dòng `Commit đã review` là thứ bước 1 dùng để biết commit nào đ
 contract BE." — Có issue: "Phát hiện N vấn đề, xem comment trên từng dòng." kèm danh sách một dòng mỗi issue>
 
 Commit đã review: `<full sha HEAD của PR>`
+Agent đã chạy: <tổng số lần gọi Agent> (review: <danh sách agent ở bước 4 đã chạy, ví dụ 1, 2, 3, 4, 6>; xác minh: <số issue đã xác minh>)
 <dòng nguồn ngữ cảnh — ví dụ: docs @ `abc1234`, BE develop @ `def5678`>
 
 ---
