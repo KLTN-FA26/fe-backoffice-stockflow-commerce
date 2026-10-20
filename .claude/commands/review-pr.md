@@ -17,12 +17,22 @@ UI. Agent 1–4 ở bước 4 luôn chạy; agent 5–6 chạy theo điều ki�
 là review không đạt: một model đọc diff một lượt sẽ bỏ sót, và không có bước xác minh để lọc báo nhầm.
 Đếm số lần gọi `Agent` để ghi vào comment tóm tắt (bước 7).
 
+**Gọi `Agent` luôn với `run_in_background: false` và chờ kết quả.** Muốn chạy song song thì gọi nhiều
+`Agent` trong **cùng một lượt** (cùng một message), mỗi cái `run_in_background: false`. Không bao giờ kết
+thúc lượt để "chờ agent chạy xong": trên CI phiên chỉ có một lượt, kết thúc lượt là kết thúc review và
+mất hết kết quả. Chỉ được kết thúc sau khi đã đăng comment tóm tắt (bước 7) — hoặc in kết quả ra
+terminal khi không có `--comment`.
+
 **Giả định cho mọi agent và subagent** (nói rõ với từng subagent được gọi):
 
 - Mọi tool đều hoạt động. Không gọi thử, không gọi thăm dò. Mỗi lần gọi tool phải có mục đích rõ.
 - Trên CI chỉ một số lệnh được phép; lệnh khác bị **từ chối im lặng**. Đọc/tìm file → dùng tool
   `Read`, `Grep`, `Glob`, không dùng `cat`/`grep`/`find` qua Bash. Mỗi lệnh Bash là **một lệnh đơn**:
   không pipe `|`, không `$(...)`, không heredoc, không `&&`/`;`. Đếm dòng file → `wc -l <file>`.
+- `Read` file lớn (diff, kết quả tool đã lưu) → đọc theo `offset`/`limit`, đừng đọc cả file một lần.
+- `Grep` dùng ripgrep: không có look-ahead/look-behind (`(?!…)`, `(?<=…)`).
+- `gh pr diff <PR>` không nhận đường dẫn file; cần một file thì `Read` file đó, hoặc `gh pr diff <PR>`
+  rồi tìm trong kết quả.
 - Viết mọi kết quả và comment bằng **tiếng Việt**, ngắn gọn.
 
 ## Bước 0 — Xác định nguồn ngữ cảnh (tự làm, không gọi agent)
