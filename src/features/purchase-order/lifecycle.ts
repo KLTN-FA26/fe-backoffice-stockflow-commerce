@@ -57,6 +57,7 @@ function isPoStatus(value: string): value is PoStatus {
 
 export type PoActionCode =
   | "submit"
+  | "edit"
   | "approve"
   | "reject"
   | "send"
@@ -84,7 +85,7 @@ export interface PoAction {
 
 export type PoGateState = Pick<
   PurchaseOrder,
-  "status" | "supplierConfirmationStatus" | "deliveryStatus"
+  "status" | "type" | "supplierConfirmationStatus" | "deliveryStatus"
 >;
 
 export const PO_ACTIONS: readonly PoAction[] = [
@@ -94,6 +95,17 @@ export const PO_ACTIONS: readonly PoAction[] = [
     permission: PO_PERMISSIONS.update,
     fromStatuses: [PO_STATUS.DRAFT],
     targetStatus: PO_STATUS.PENDING_APPROVAL,
+  },
+  {
+    code: "edit",
+    label: UI_LABELS.purchaseOrder.action.edit,
+    // Backend phải re-check (@RequiresPermission procurement-purchase-orders:UPDATE,
+    // PURCHASE_ORDER_NOT_EDITABLE): BE `PurchaseOrder#reviseDraft` chỉ cho DRAFT + STANDARD.
+    // BE `PUT /purchase-orders/{id}` chỉ đòi PO:UPDATE. Thiếu quyền đọc danh mục NCC thì màn sửa vẫn
+    // mở: dòng đã lưu sửa được, không thêm dòng mới (`savedLinesWithoutTerms`).
+    permission: PO_PERMISSIONS.update,
+    fromStatuses: [PO_STATUS.DRAFT],
+    when: (po) => po.type === "STANDARD",
   },
   {
     code: "approve",

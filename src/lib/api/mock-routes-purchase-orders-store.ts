@@ -104,6 +104,8 @@ export interface MockBePo {
   lastModifiedBy: string;
   possibleDuplicate: boolean;
   revisionNo: number;
+  /** BE `PurchaseOrderResponse.version` — tăng mỗi lần ghi; `PUT` sửa nháp so khớp (OPTIMISTIC_LOCK). */
+  version: number;
   submittedBy: string | null;
   submittedAt: string | null;
   approvedBy: string | null;
@@ -390,6 +392,7 @@ async function seedToBePo(po: PurchaseOrder): Promise<MockBePo> {
     lastModifiedBy: po.createdBy,
     possibleDuplicate: false,
     revisionNo: 0,
+    version: 0,
     submittedBy: submitted ? MOCK_SUBMITTER : null,
     submittedAt: submitted ? createdAt : null,
     approvedBy: approved ? MOCK_APPROVER : null,
@@ -457,6 +460,7 @@ export function touch(po: MockBePo, patch: Partial<MockBePo>): MockBePo {
   return {
     ...po,
     ...patch,
+    version: po.version + 1,
     lastModifiedAt: new Date().toISOString(),
     lastModifiedBy: MOCK_PO_ACTOR,
   };

@@ -252,7 +252,9 @@ export function activateMockAdapter(): void {
   routesReady = Promise.all([
     import("./mock-routes"),
     import("./mock-routes-suppliers"),
+    import("./mock-routes-supplier-items"),
     import("./mock-routes-purchase-orders"),
+    import("./mock-routes-purchase-orders-draft"),
     import("./mock-routes-orders"),
     import("./mock-routes-goods-receipts"),
     import("./mock-routes-variants"),
@@ -270,7 +272,9 @@ export function activateMockAdapter(): void {
     ([
       { registerAllMockRoutes },
       { registerSupplierMockRoutes },
+      { registerSupplierItemMockRoutes },
       { registerPurchaseOrderMockRoutes },
+      { registerPoDraftMockRoutes },
       { registerOrderMockRoutes },
       { registerGoodsReceiptMockRoutes },
       { registerVariantMockRoutes },
@@ -287,7 +291,9 @@ export function activateMockAdapter(): void {
     ]) => {
       registerAllMockRoutes();
       registerSupplierMockRoutes();
+      registerSupplierItemMockRoutes();
       registerPurchaseOrderMockRoutes();
+      registerPoDraftMockRoutes();
       registerOrderMockRoutes();
       registerGoodsReceiptMockRoutes();
       registerVariantMockRoutes();

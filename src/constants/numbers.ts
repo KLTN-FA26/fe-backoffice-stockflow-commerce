@@ -12,6 +12,8 @@ export const PO_LIMITS = {
   closeReasonMax: 255,
   /** BE lý do từ chối duyệt — `purchase_order_approvals.reason VARCHAR(500)`. */
   rejectReasonMax: 500,
+  /** BE `UpdatePurchaseOrderRequest.lines` @Size(max = 200). */
+  linesMax: 200,
   /** BE `purchase_orders.note TEXT`, giới hạn ở request 2000. */
   noteMax: 2000,
   /** BE `SupplierConfirmationRequest.supplierReference` @Size(max = 100). */
@@ -119,3 +121,24 @@ export const SHIPPING_LIMITS = {
   /** Biên bản đang đối soát (LOADING): tự tải lại để thấy kiện quét từ máy khác. */
   manifestPollMs: 15_000,
 } as const;
+
+/**
+ * Danh mục hàng NCC — nguồn BE: `SupplierItemTerms` (mã NCC, lead time), `PurchasePrices`
+ * (số lẻ giá, tối đa 2 và không vượt số lẻ tiền tệ), `Pages.MAX_PAGE_SIZE`.
+ */
+export const SUPPLIER_ITEM_LIMITS = {
+  supplierSkuCodeMax: 50,
+  leadTimeDaysMax: 365,
+  priceMaxScale: 2,
+  // BE `SaveSupplierItemRequest.price` @Digits(integer = 16) + `PurchasePrices.MAX` (numeric(18,2))
+  priceIntegerDigitsMax: 16,
+  // BE `moq` / `packSize` là `Integer` Java — quá int32 thì Jackson không bind được (400 chung)
+  intMax: 2_147_483_647,
+  catalogPageSize: 200,
+} as const;
+
+/**
+ * Số gợi ý mỗi lần tìm hồ sơ hàng tồn (`GET /inventory/items?q=`) ở ô chọn SKU — bằng
+ * `Pages.DEFAULT_PAGE_SIZE` của BE (tối đa `Pages.MAX_PAGE_SIZE` 200); gõ thêm để thu hẹp.
+ */
+export const INVENTORY_ITEM_OPTIONS_PAGE_SIZE = 20;

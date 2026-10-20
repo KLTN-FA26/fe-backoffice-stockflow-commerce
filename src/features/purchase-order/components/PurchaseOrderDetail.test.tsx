@@ -2,6 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { ADMIN_ROUTES } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
 import {
@@ -61,9 +62,13 @@ function renderDetail(permissions: readonly PermissionCode[], po = bePo()) {
   return spies;
 }
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+const { push } = vi.hoisted(() => ({ push: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  push.mockReset();
+});
 
 describe("PurchaseOrderDetail — gate theo mã quyền", () => {
   it("thiếu VIEW_PAGE → màn không có quyền, không gọi API PO", async () => {
@@ -100,6 +105,22 @@ describe("PurchaseOrderDetail — gate theo mã quyền", () => {
     await waitFor(() =>
       expect(post).toHaveBeenCalledWith(`/purchase-orders/${PO_ID}/approval`, undefined),
     );
+  });
+});
+
+describe("PurchaseOrderDetail — sửa nháp (BE SCRUM-462)", () => {
+  it("Draft STANDARD + PO:UPDATE → nút Sửa nháp dẫn tới /edit", async () => {
+    const user = userEvent.setup();
+    renderDetail(PO_PERMISSION_SETS.procurement);
+    await user.click(await screen.findByRole("button", { name: "Sửa nháp" }));
+    expect(push).toHaveBeenCalledWith(ADMIN_ROUTES.purchaseOrders.edit(PO_ID));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("PO gia công (SUBCONTRACT) → không có nút Sửa nháp", async () => {
+    renderDetail(PO_PERMISSION_SETS.procurement, bePo({ type: "SUBCONTRACT" }));
+    expect(await screen.findByRole("button", { name: "Gửi duyệt" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sửa nháp" })).not.toBeInTheDocument();
   });
 });
 

@@ -2,7 +2,6 @@
 
 import { ArrowRight, Send } from "lucide-react";
 
-import { UI_LABELS } from "@/constants";
 import { Button } from "@/components/ui/button";
 
 import { STEPS, type StepKey } from "./types";
@@ -11,6 +10,9 @@ export function CreateBottomBar({
   currentStep,
   currentStepIndex,
   isPending,
+  submitDisabled = false,
+  submitLabel,
+  pendingLabel,
   onBack,
   onNext,
   onSubmit,
@@ -18,6 +20,11 @@ export function CreateBottomBar({
   currentStep: StepKey;
   currentStepIndex: number;
   isPending: boolean;
+  /** Khoá nút lưu mà không hiện "đang lưu" (vd đơn đã đổi trạng thái, không lưu được nữa). */
+  submitDisabled?: boolean;
+  /** "Tạo đơn đặt hàng" (tạo) / "Lưu thay đổi" (sửa nháp). */
+  submitLabel: string;
+  pendingLabel: string;
   onBack: () => void;
   onNext: () => void;
   onSubmit: () => void;
@@ -56,11 +63,11 @@ export function CreateBottomBar({
               type="button"
               size="sm"
               onClick={onSubmit}
-              disabled={isPending}
+              disabled={isPending || submitDisabled}
               className="bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse inline-flex items-center gap-1.5 rounded-[var(--r-sm)] px-3 py-1.5 text-[0.8125rem] font-medium transition-colors"
             >
               <Send className="size-3.5" />
-              {isPending ? "Đang tạo..." : UI_LABELS.purchaseOrder.createAction}
+              {isPending ? pendingLabel : submitLabel}
             </Button>
           )}
         </div>
