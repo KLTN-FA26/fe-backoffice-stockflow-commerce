@@ -147,3 +147,5 @@ export function useSupplierItemDeletion(supplierId: string, onConflict: () => vo
     confirm,
   };
 }
+
+export type SupplierItemDeletion = ReturnType<typeof useSupplierItemDeletion>;

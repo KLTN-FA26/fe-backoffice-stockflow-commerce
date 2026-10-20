@@ -61,14 +61,14 @@ export const createPoSchema = z
     note: z
       .string()
       .trim()
-      .max(PO_LIMITS.noteMax, `Ghi chú tối đa ${PO_LIMITS.noteMax} ký tự`)
+      .max(PO_LIMITS.noteMax, UI_LABELS.purchaseOrder.validation.noteMaxError(PO_LIMITS.noteMax))
       .optional(),
     // BR-07 (docs 02 §6): một PO một loại tiền — `currency` chỉ ở cấp PO; BE chặn
     // line ≠ order currency. NCC không còn mang tiền tệ (BE #36) nên chọn trên form.
     currency: z.enum(PO_INPUT_CURRENCIES),
     // BR-06 (docs 02 §6): ngày giao trong quá khứ chỉ CẢNH BÁO (`isExpectedDatePast`), không chặn.
     expectedAt: isoDate.nullable(),
-    lines: z.array(poLineInputSchema).min(1, "Phải có ít nhất 1 dòng hàng"),
+    lines: z.array(poLineInputSchema).min(1, UI_LABELS.purchaseOrder.validation.linesMinOne),
   })
   // ASSUMPTION (chưa có open-question): docs không nói về SKU trùng trong cùng PO và BE cho
   // phép; FE chặn để tránh 2 dòng cùng SKU khó đối chiếu khi nhận hàng (BR-04).
@@ -168,7 +168,10 @@ export const supplierConfirmationInputSchema = z
         PO_LIMITS.supplierReferenceMax,
         `Mã tham chiếu tối đa ${PO_LIMITS.supplierReferenceMax} ký tự`,
       ),
-    note: z.string().trim().max(PO_REASON_MAX, `Ghi chú tối đa ${PO_REASON_MAX} ký tự`),
+    note: z
+      .string()
+      .trim()
+      .max(PO_REASON_MAX, UI_LABELS.purchaseOrder.validation.noteMaxError(PO_REASON_MAX)),
   })
   // BE @ValidProcurementFields: NCC từ chối thì bắt buộc ghi lý do.
   .refine((v) => v.status !== "REJECTED" || v.note.length > 0, {

@@ -312,10 +312,33 @@ export function resetPoMockStore(): void {
   outbox.clear();
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/**
+ * BE `purchase_order_lines.id` là UUID (`UpdatePurchaseOrderRequest.lines[].lineId` @UUID), còn seed
+ * dùng mã đọc được ("POL-0009-1"). Đổi sang UUID v4 ỔN ĐỊNH (băm `poId` + số dòng) để PUT sửa nháp gửi
+ * lại đúng `lineId`; không sửa `mock-data.ts`. Mã đã là UUID thì giữ nguyên.
+ */
+export function seedLineUuid(seedLineId: string, poId: string, index: number): string {
+  if (UUID_PATTERN.test(seedLineId)) return seedLineId;
+  let hex = "";
+  for (let round = 0; hex.length < 32; round += 1) {
+    // FNV-1a 32-bit mỗi vòng, đủ ổn định cho id demo (không cần chống trùng mật mã)
+    let hash = 0x811c9dc5;
+    for (const ch of `${poId}:${index}:${round}`) {
+      hash ^= ch.charCodeAt(0);
+      hash = Math.imul(hash, 0x01000193) >>> 0;
+    }
+    hex += hash.toString(16).padStart(8, "0");
+  }
+  const variant = ((parseInt(hex[16] ?? "0", 16) & 0x3) | 0x8).toString(16);
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-${variant}${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
+
 async function seedToBePo(po: PurchaseOrder): Promise<MockBePo> {
   const status = LEGACY_PO_STATUS[po.status];
   const lines: MockBePoLine[] = po.lines.map((l, i) => ({
-    lineId: l.lineId,
+    lineId: seedLineUuid(l.lineId, po.poId, i),
     lineNo: i + 1,
     inventoryItemId: `item-${l.skuId}`,
     sku: l.skuId,

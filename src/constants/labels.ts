@@ -210,6 +210,9 @@ export const UI_LABELS = {
       cancel: "Huỷ PO",
     },
     validation: {
+      // Dùng chung schema tạo / sửa nháp / form wizard PO
+      noteMaxError: (max: number) => `Ghi chú tối đa ${max} ký tự`,
+      linesMinOne: "Phải có ít nhất 1 dòng hàng",
       supplierRequired: "Chọn nhà cung cấp",
       warehouseRequired: "Chọn kho nhận hàng",
       skuRequired: "Nhập mã SKU",

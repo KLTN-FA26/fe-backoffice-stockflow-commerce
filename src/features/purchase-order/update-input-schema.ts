@@ -25,11 +25,11 @@ export const updatePoSchema = z
     note: z
       .string()
       .trim()
-      .max(PO_LIMITS.noteMax, `Ghi chú tối đa ${PO_LIMITS.noteMax} ký tự`)
+      .max(PO_LIMITS.noteMax, UI_LABELS.purchaseOrder.validation.noteMaxError(PO_LIMITS.noteMax))
       .optional(),
     lines: z
       .array(poLineInputSchema.extend({ lineId: z.uuid().optional() }))
-      .min(1, "Phải có ít nhất 1 dòng hàng")
+      .min(1, UI_LABELS.purchaseOrder.validation.linesMinOne)
       .max(PO_LIMITS.linesMax, UI_LABELS.purchaseOrder.draftEdit.linesMaxError(PO_LIMITS.linesMax)),
   })
   // Issue #30 §2 "Draft edit keeps sending unitPrice": BE thay giá thương lượng của dòng đã lưu

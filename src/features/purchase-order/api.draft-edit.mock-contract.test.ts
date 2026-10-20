@@ -15,6 +15,7 @@ import { resetSupplierMockStore } from "@/lib/api/mock-routes-suppliers";
 
 import { createPurchaseOrder, getPurchaseOrder, submitPurchaseOrder } from "./api";
 import { updatePurchaseOrder } from "./draft-api";
+import { updatePoSchema } from "./update-input-schema";
 
 import type { CreatePoInput } from "./input-schemas";
 import type { UpdatePoInput } from "./update-input-schema";
@@ -82,6 +83,38 @@ afterAll(() => {
 });
 
 describe("PUT /purchase-orders/{id} — sửa nháp (BE SCRUM-462)", () => {
+  it("PO nháp trong seed (lineId seed không phải UUID) → GET trả lineId UUID ổn định, PUT giữ dòng → 200", async () => {
+    const store = await getPoStore();
+    const seedDraft = [...store.values()].find(
+      (po) => po.status === "DRAFT" && po.type === "STANDARD",
+    );
+    expect(seedDraft).toBeDefined();
+    if (!seedDraft) return;
+    for (const line of seedDraft.lines) {
+      seedMockSupplierItem({
+        supplierId: seedDraft.supplierId,
+        sku: line.sku,
+        price: CATALOG_PRICE,
+        currency: seedDraft.currency,
+      });
+    }
+    const po = await getPurchaseOrder(seedDraft.purchaseOrderId);
+    const input = body(
+      po.version,
+      po.lines.map((l) =>
+        updateLine(l.skuId, {
+          lineId: l.lineId,
+          quantityOrdered: l.orderedQty,
+          unitPrice: l.unitPrice,
+        }),
+      ),
+    );
+    // Cùng chốt chặn FE dùng trước khi PUT (`useEditDraftForm`)
+    expect(updatePoSchema.safeParse(input).success).toBe(true);
+    const updated = await updatePurchaseOrder({ id: po.poId, body: input });
+    expect(updated.lines.map((l) => l.lineId)).toEqual(po.lines.map((l) => l.lineId));
+  });
+
   it("PUT nháp: dòng cũ giữ unitPrice đã gửi, dòng mới thiếu giá lấy giá danh mục", async () => {
     const po = await create([createLine(SKU_A, 100)]);
     const lineId = po.lines[0]?.lineId;

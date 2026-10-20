@@ -6,7 +6,6 @@ import { Info, PackageSearch, Plus } from "lucide-react";
 import { INVENTORY_ITEM_PERMISSIONS, SUPPLIER_ITEM_UI_LABELS } from "@/constants";
 import { usePermissionChecker } from "@/lib/auth";
 import { supplierItemActions } from "@/features/supplier";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { DataTable } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
@@ -15,6 +14,7 @@ import { Button } from "@/components/ui/button";
 
 import { SupplierLoadError } from "../../SupplierLoadError";
 import { buildSupplierItemColumns } from "./supplier-item-columns";
+import { SupplierItemDeleteDialog } from "./SupplierItemDeleteDialog";
 import { SupplierItemFormDialog } from "./SupplierItemFormDialog";
 import {
   ITEM_PAGE_SIZE_OPTIONS,
@@ -132,21 +132,7 @@ export function SupplierItemsTab({ supplier }: { supplier: SupplierDto }) {
         onOpenChange={(open) => !open && setEditing(null)}
         onConflict={refetch}
       />
-      <ConfirmDialog
-        open={del.isOpen}
-        onOpenChange={(open) => !open && del.close()}
-        title={L.deleteTitle}
-        description={
-          del.target?.preferred
-            ? `${L.deleteDescription(del.target.sku)} ${L.deletePreferredWarning}`
-            : L.deleteDescription(del.target?.sku ?? "")
-        }
-        confirmLabel={L.action.delete}
-        loading={del.isPending}
-        closeOnConfirm={false}
-        error={del.error}
-        onConfirm={del.confirm}
-      />
+      <SupplierItemDeleteDialog deletion={del} />
     </section>
   );
 }

@@ -152,7 +152,9 @@ export function poFormSchema(options: PoFormSchemaOptions) {
         ? z.string().min(1, UI_LABELS.purchaseOrder.validation.expectedDateRequired)
         : z.string(),
       // BE PR #71 `purchase_orders.note` (text) — FE giới hạn như `createPoSchema`.
-      note: z.string().max(PO_LIMITS.noteMax, `Ghi chú tối đa ${PO_LIMITS.noteMax} ký tự`),
+      note: z
+        .string()
+        .max(PO_LIMITS.noteMax, UI_LABELS.purchaseOrder.validation.noteMaxError(PO_LIMITS.noteMax)),
       lines: linesSchema(options.maxLines),
     })
     .superRefine((form, ctx) => {
