@@ -132,6 +132,11 @@ jobs:
         uses: anthropics/claude-code-action@5eb090f3c3afd701a0672cd32981197ca27688f6 # v1.0.253
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Agent con phải chạy tiền cảnh. Trên #38, Opus chạy 6 agent review ở chế độ nền rồi kết thúc
+          # lượt để "chờ" ("Bước 4 đang chạy 6 agent…") - phiên CI chỉ có một lượt, nên kết thúc là hết:
+          # không xác minh, không đăng comment, kết quả của cả 6 agent bị bỏ.
+          settings: |
+            {"env": {"CLAUDE_CODE_DISABLE_BACKGROUND_TASKS": "1"}}
           # --requested: gọi bằng comment, nên dừng ở bước lọc thì vẫn phải trả lời lý do.
           prompt: /review-pr --comment ${{ github.event_name == 'issue_comment' && '--requested ' || '' }}${{ github.repository }}/pull/${{ env.PR_NUMBER }}
           # Model chính là Opus: /review-pr là quy trình điều phối (gọi agent con haiku/sonnet/opus rồi
