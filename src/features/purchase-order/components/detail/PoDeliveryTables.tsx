@@ -24,7 +24,8 @@ const FIRST_PAGE: PoHistoryParams = { page: 0, size: PAGE_SIZE.md };
  * Lịch sử gửi NCC — 2 bảng, phân trang server (BE PageResponse):
  * "Lần gửi" (`/deliveries`: gửi có tới NCC không) và
  * "Quyết định gửi" (`/delivery-decisions`: ai cho gửi lần đầu / khôi phục, vì sao).
- * Cả hai query chạy ngay để đổi tab là có dữ liệu, không phải chờ tải.
+ * Bảng "Lần gửi" (tab mặc định, có poll khi đang gửi) tải ngay; "Quyết định gửi" chỉ tải từ lần
+ * đầu mở tab đó — không gọi API cho tab người dùng không xem.
  * Bấm một dòng → panel trượt phải hiện đủ field của dòng đó.
  */
 export function PoDeliveryTables({ poId, poll = false }: { poId: string; poll?: boolean }) {
@@ -32,9 +33,10 @@ export function PoDeliveryTables({ poId, poll = false }: { poId: string; poll?: 
   const [attemptParams, setAttemptParams] = useState(FIRST_PAGE);
   const [decisionParams, setDecisionParams] = useState(FIRST_PAGE);
   const [detail, setDetail] = useState<DeliveryDetail | null>(null);
+  const [decisionsOpened, setDecisionsOpened] = useState(false);
   const attemptsQ = usePoDeliveries(poId, attemptParams, { poll });
   useRefreshDeliveriesOnSettle(poId, poll);
-  const decisionsQ = usePoDeliveryDecisions(poId, decisionParams);
+  const decisionsQ = usePoDeliveryDecisions(poId, decisionParams, { enabled: decisionsOpened });
 
   const tabs: { key: Tab; label: string }[] = [
     { key: "attempts", label: "Lần gửi" },
@@ -46,7 +48,10 @@ export function PoDeliveryTables({ poId, poll = false }: { poId: string; poll?: 
       <PageTabs
         tabs={tabs.map((t) => ({ value: t.key, label: t.label }))}
         value={tab}
-        onChange={setTab}
+        onChange={(next) => {
+          if (next === "decisions") setDecisionsOpened(true);
+          setTab(next);
+        }}
         idPrefix="po-delivery"
         ariaLabel="Lịch sử gửi PO"
         className="mb-3"

@@ -9,6 +9,8 @@ import { PageTabs } from "@/components/shared/PageTabs";
 import { Button } from "@/components/ui/button";
 
 export const PO_LIST_TABS = ["orders", "spend"] as const;
+/** `idPrefix` chung của thanh tab và `PageTabPanel` ở `PurchaseOrderList`. */
+export const PO_LIST_TAB_ID_PREFIX = "po-list";
 export type PoTabKey = (typeof PO_LIST_TABS)[number];
 
 const TABS: { key: PoTabKey; label: string; icon: typeof FileText }[] = [
@@ -87,7 +89,7 @@ export function PoListTabs({
       }))}
       value={active}
       onChange={onChange}
-      idPrefix="po-list"
+      idPrefix={PO_LIST_TAB_ID_PREFIX}
       ariaLabel="Đơn đặt NCC"
     />
   );

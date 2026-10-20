@@ -123,7 +123,7 @@ describe("PurchaseOrderDetail — giao NCC (BE #36)", () => {
 
   it("lịch sử gửi: 2 tab bảng — lần gửi (/deliveries) và quyết định gửi (/delivery-decisions)", async () => {
     const user = userEvent.setup();
-    renderDetail(
+    const { get } = renderDetail(
       PO_PERMISSION_SETS.procurement,
       bePo({
         status: "CONFIRMED",
@@ -134,6 +134,12 @@ describe("PurchaseOrderDetail — giao NCC (BE #36)", () => {
     // Tab không hiện số đếm — chỉ nhãn
     const decisionsTab = await screen.findByRole("tab", { name: "Quyết định gửi" });
     expect(screen.getByRole("tab", { name: "Lần gửi" })).toHaveAttribute("aria-selected", "true");
+    // Tab chưa mở thì không gọi API của nó
+    await screen.findByRole("columnheader", { name: "Kết quả" });
+    expect(get).not.toHaveBeenCalledWith(
+      `/purchase-orders/${PO_ID}/delivery-decisions`,
+      expect.anything(),
+    );
     await user.click(decisionsTab);
     // ai cho gửi, ngày giao cũ → mới (lý do xem trong panel chi tiết)
     expect(await screen.findByText("Gửi lần đầu")).toBeInTheDocument();
