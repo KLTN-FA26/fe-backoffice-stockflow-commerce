@@ -1,6 +1,9 @@
 # =============================================================================
 # @claude theo yêu cầu. Nhắc @claude trong comment của PR hoặc issue, review comment, hoặc issue mới,
-# Claude sẽ trả lời ngay tại đó - một câu hỏi, review lại ("@claude review"), hoặc một thay đổi code.
+# Claude sẽ trả lời ngay tại đó - một câu hỏi hoặc một thay đổi code.
+#
+# Comment trên PR BẮT ĐẦU bằng "@claude review" không chạy ở đây mà ở claude-review.yml, để review lại
+# đi đúng quy trình nhiều agent của /review-pr thay vì một lượt trò chuyện vài chục giây.
 #
 # Action tự từ chối người không có quyền write trên repo, nên comment từ bên ngoài không tiêu được token.
 #
@@ -27,7 +30,8 @@ permissions:
 jobs:
   claude:
     if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') &&
+       !(github.event.issue.pull_request && startsWith(github.event.comment.body, '@claude review'))) ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
@@ -110,8 +114,8 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           additional_permissions: |
             actions: read
-          # "@claude review" phải ra cùng chất lượng với review tự động lúc mở PR, nên trỏ Claude về
-          # đúng quy trình đó thay vì để nó tự review theo cách chung chung.
+          # Ngữ cảnh docs/BE đã checkout sẵn ở trên - chỉ cho Claude biết chỗ để trả lời câu hỏi nghiệp
+          # vụ/contract. Review đầy đủ không làm ở đây (xem đầu file).
           claude_args: |
-            --append-system-prompt "Khi được yêu cầu review PR (ví dụ '@claude review'), đọc và làm đúng theo .claude/commands/review-pr.md, với PR hiện tại làm đối số. Ngữ cảnh docs nằm ở .review-context/docs/docs, BE ở .review-context/be, SHA ở .review-context/refs.txt. Trả lời bằng tiếng Việt."
+            --append-system-prompt "Docs nghiệp vụ nằm ở .review-context/docs/docs, mã BE (develop) ở .review-context/be, SHA của hai repo ở .review-context/refs.txt. Nếu được nhờ review cả PR, nói người dùng comment một dòng bắt đầu bằng '@claude review' để chạy quy trình review đầy đủ. Trả lời bằng tiếng Việt."
             --allowedTools "Task,Agent,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh search:*),Bash(git diff:*),Bash(git log:*),Bash(git blame:*),Bash(pnpm run:*)"
