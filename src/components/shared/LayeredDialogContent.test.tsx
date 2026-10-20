@@ -9,11 +9,27 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { FormDialog, FormDialogBody } from "./FormDialog";
 import { SlideOverPanel } from "./SlideOverPanel";
 
-/** Lớp z (`z-[1150]`) của một phần tử; `NaN` nếu không có. */
-function zOf(element: Element): number {
-  const match = /(?:^|\s)z-\[(\d+)\]/.exec(element.getAttribute("class") ?? "");
+const globalsCss = readFileSync(path.resolve(process.cwd(), "src/app/globals.css"), "utf8").replace(
+  /\/\*[\s\S]*?\*\//g,
+  "",
+);
+
+/** Giá trị số của biến thang z-index `--z-*` khai báo trong globals.css; `NaN` nếu không có. */
+function zToken(name: string): number {
+  const match = new RegExp(`${name}:\\s*(\\d+)\\s*;`).exec(globalsCss);
   return Number(match?.[1]);
 }
+
+/** Lớp z của phần tử — `z-[1100]` hoặc token `z-(--z-*)` tra trong globals.css; `NaN` nếu không có. */
+function zOf(element: Element): number {
+  const className = element.getAttribute("class") ?? "";
+  const literal = /(?:^|\s)z-\[(\d+)\]/.exec(className);
+  if (literal) return Number(literal[1]);
+  const token = /(?:^|\s)z-\((--z-[a-z-]+)\)/.exec(className);
+  return token ? zToken(token[1]) : Number.NaN;
+}
+
+const DIALOG_ON_DRAWER = "z-(--z-dialog-on-drawer)";
 
 function dialogOverlay(): Element {
   const overlay = document.body.querySelector('[data-slot="dialog-overlay"]');
@@ -36,18 +52,32 @@ function SampleForm({ onClose }: { onClose: () => void }) {
   );
 }
 
-describe("dialog nằm trên panel trượt (thang z-index: drawer 1100 < dialog < toast 1200)", () => {
-  it("FormDialog: content và overlay ở lớp 1150", () => {
+describe("thang z-index trong globals.css", () => {
+  it("drawer < dialog-on-drawer < dropdown-on-dialog < toast < tooltip", () => {
+    const scale = [
+      "--z-drawer",
+      "--z-dialog-on-drawer",
+      "--z-dropdown-on-dialog",
+      "--z-toast",
+      "--z-tooltip",
+    ].map(zToken);
+    expect(scale).toEqual([1100, 1150, 1160, 1200, 1300]);
+  });
+});
+
+describe("dialog nằm trên panel trượt (thang z-index: drawer < dialog-on-drawer < toast)", () => {
+  it("FormDialog: content và overlay ở lớp dialog-on-drawer", () => {
     render(
       <FormDialog open onOpenChange={vi.fn()}>
         <SampleForm onClose={vi.fn()} />
       </FormDialog>,
     );
-    expect(screen.getByRole("dialog", { name: "Sửa biến thể" })).toHaveClass("z-[1150]");
-    expect(dialogOverlay()).toHaveClass("z-[1150]");
+    expect(screen.getByRole("dialog", { name: "Sửa biến thể" })).toHaveClass(DIALOG_ON_DRAWER);
+    expect(dialogOverlay()).toHaveClass(DIALOG_ON_DRAWER);
+    expect(dialogOverlay()).not.toHaveClass("z-50");
   });
 
-  it("ConfirmDialog: content và overlay ở lớp 1150", () => {
+  it("ConfirmDialog: content và overlay ở lớp dialog-on-drawer", () => {
     render(
       <ConfirmDialog
         open
@@ -57,8 +87,11 @@ describe("dialog nằm trên panel trượt (thang z-index: drawer 1100 < dialog
         onConfirm={vi.fn()}
       />,
     );
-    expect(screen.getByRole("dialog", { name: "Tạm chặn biến thể?" })).toHaveClass("z-[1150]");
-    expect(dialogOverlay()).toHaveClass("z-[1150]");
+    expect(screen.getByRole("dialog", { name: "Tạm chặn biến thể?" })).toHaveClass(
+      DIALOG_ON_DRAWER,
+    );
+    expect(dialogOverlay()).toHaveClass(DIALOG_ON_DRAWER);
+    expect(dialogOverlay()).not.toHaveClass("z-50");
   });
 
   function Panel({ children }: { children: React.ReactNode }) {
@@ -120,17 +153,15 @@ describe("dialog nằm trên panel trượt (thang z-index: drawer 1100 < dialog
 
 describe("globals.css — dropdown portal nằm trên dialog / panel", () => {
   // Radix Select / Popover render vào portal riêng; shadcn đặt z-50 nên mở trong dialog / panel là bị che.
-  const css = readFileSync(path.resolve(process.cwd(), "src/app/globals.css"), "utf8").replace(
-    /\/\*[\s\S]*?\*\//g,
-    "",
-  );
+  const css = globalsCss;
   const rule =
     /\[data-slot="select-content"\],\s*\[data-slot="popover-content"\]\s*\{([^}]*)\}/.exec(css);
 
-  it("có rule z-index cho select-content và popover-content, trên dialog 1150, dưới toast 1200", () => {
-    const z = Number(/z-index:\s*(\d+)\s*;/.exec(rule?.[1] ?? "")?.[1]);
-    expect(z).toBeGreaterThan(1150);
-    expect(z).toBeLessThan(1200);
+  it("select-content và popover-content dùng token dropdown-on-dialog: trên dialog, dưới toast", () => {
+    expect(rule?.[1]).toMatch(/z-index:\s*var\(--z-dropdown-on-dialog\)\s*;/);
+    const z = zToken("--z-dropdown-on-dialog");
+    expect(z).toBeGreaterThan(zToken("--z-dialog-on-drawer"));
+    expect(z).toBeLessThan(zToken("--z-toast"));
   });
 
   it("rule nằm ngoài @layer (thắng utility z-50 của Tailwind) và không dùng !important", () => {
