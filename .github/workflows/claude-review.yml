@@ -132,6 +132,11 @@ jobs:
         uses: anthropics/claude-code-action@5eb090f3c3afd701a0672cd32981197ca27688f6 # v1.0.253
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Agent con phải chạy tiền cảnh. Trên #38, Opus chạy 6 agent review ở chế độ nền rồi kết thúc
+          # lượt để "chờ" ("Bước 4 đang chạy 6 agent…") - phiên CI chỉ có một lượt, nên kết thúc là hết:
+          # không xác minh, không đăng comment, kết quả của cả 6 agent bị bỏ.
+          settings: |
+            {"env": {"CLAUDE_CODE_DISABLE_BACKGROUND_TASKS": "1"}}
           # --requested: gọi bằng comment, nên dừng ở bước lọc thì vẫn phải trả lời lý do.
           prompt: /review-pr --comment ${{ github.event_name == 'issue_comment' && '--requested ' || '' }}${{ github.repository }}/pull/${{ env.PR_NUMBER }}
           # Model chính là Opus: /review-pr là quy trình điều phối (gọi agent con haiku/sonnet/opus rồi
@@ -146,20 +151,56 @@ jobs:
             --model claude-opus-5-5
             --allowedTools "Read,Glob,Grep,Task,Agent,Write(.review-context/**),Edit(.review-context/**),mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*),Bash(git diff:*),Bash(git log:*),Bash(git blame:*),Bash(git show:*),Bash(git ls-files:*),Bash(wc:*),Bash(ls:*),Bash(cat:*),Bash(head:*),Bash(tail:*)"
 
-      # Log không in hội thoại (show_full_output tắt - repo public, docs private), nên tool bị từ chối
-      # là không thấy. In riêng tên tool + đầu lệnh để biết cần cho phép thêm gì.
-      - name: Report denied tool calls
+      # Log không in hội thoại (show_full_output tắt - repo public, docs private), nên khi review không
+      # đăng được gì thì không biết vì sao. In tóm tắt phiên: từng tool đã gọi (tên + đầu lệnh/đường
+      # dẫn, không có nội dung file), lỗi tool trả về, lệnh bị từ chối, và kết quả cuối - kết quả cuối
+      # vốn là thứ sẽ đăng lên PR nên in ra không lộ thêm gì. #38/#39: chạy đủ agent, gần như không bị
+      # từ chối, vẫn không đăng - chỉ log kiểu này mới chỉ ra được bước hỏng.
+      - name: Report Claude run
         if: always() && steps.claude.outputs.execution_file != ''
         env:
           EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
         run: |
-          jq -r '
-            ([.[] | select(.type == "result")] | last | .permission_denials // []) as $d
-            | "Bị từ chối: " + ($d | length | tostring) + " lần",
-              ($d[] | "- " + .tool_name + ": "
-                + ((.tool_input.command // .tool_input.file_path // .tool_input.pattern // .tool_input)
-                   | tostring | .[0:160]))
-          ' "$EXECUTION_FILE" || echo "Không đọc được $EXECUTION_FILE"
+          node - "$EXECUTION_FILE" <<'JS'
+          const fs = require("fs");
+          const file = process.argv[2];
+          let msgs;
+          try {
+            msgs = JSON.parse(fs.readFileSync(file, "utf8"));
+          } catch (e) {
+            console.log(`Không đọc được ${file}: ${e.message}`);
+            process.exit(0);
+          }
+          if (!Array.isArray(msgs)) msgs = [msgs];
+          const short = (v, n) => {
+            const s = typeof v === "string" ? v : JSON.stringify(v) ?? "";
+            return s.length > n ? `${s.slice(0, n)}…` : s;
+          };
+          const what = (i) =>
+            i?.command ?? i?.file_path ?? i?.pattern ??
+            (i?.subagent_type || i?.model ? `${i.subagent_type ?? ""} ${i.model ?? ""}: ${i.description ?? ""}` : undefined) ??
+            i?.description ?? i;
+          const calls = [];
+          const errors = [];
+          for (const m of msgs) {
+            const content = m?.message?.content;
+            if (!Array.isArray(content)) continue;
+            const indent = m.parent_tool_use_id ? "  ↳ " : "";
+            for (const c of content) {
+              if (m.type === "assistant" && c.type === "tool_use") calls.push(`${indent}${c.name}: ${short(what(c.input), 160)}`);
+              if (m.type === "user" && c.type === "tool_result" && c.is_error) errors.push(`${indent}${short(c.content, 300)}`);
+            }
+          }
+          const result = msgs.filter((m) => m?.type === "result").at(-1);
+          const denials = result?.permission_denials ?? [];
+          console.log(`Tool đã gọi: ${calls.length}`);
+          for (const l of calls) console.log(`- ${l}`);
+          console.log(`\nLỗi tool: ${errors.length}`);
+          for (const l of errors) console.log(`- ${l}`);
+          console.log(`\nBị từ chối: ${denials.length}`);
+          for (const d of denials) console.log(`- ${d.tool_name}: ${short(what(d.tool_input), 160)}`);
+          console.log(`\nKết quả cuối (${result?.subtype ?? "?"}):\n${short(result?.result ?? "", 4000)}`);
+          JS
 
       # Có người gọi "@claude review" mà bot không đăng gì là lỗi, không phải "không có vấn đề". Bắt
       # job đỏ để thấy ngay trên PR, thay vì im lặng như #38/#39.
@@ -172,7 +213,7 @@ jobs:
           url="repos/${{ github.repository }}/issues/${{ env.PR_NUMBER }}/comments?since=$SINCE&per_page=100"
           count=$(gh api "$url" --jq '[.[] | select(.user.login == "claude[bot]" and .created_at > env.SINCE)] | length')
           if [ "$count" -eq 0 ]; then
-            echo "::error::Claude không đăng comment nào cho lần gọi @claude review này - xem bước 'Report denied tool calls'."
+            echo "::error::Claude không đăng comment nào cho lần gọi @claude review này - xem bước 'Report Claude run'."
             exit 1
           fi
           echo "Claude đã đăng $count comment."
