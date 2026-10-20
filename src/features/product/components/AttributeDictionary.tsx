@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, Search, XCircle } from "lucide-react";
+import { FolderTree, Plus, Search, Tags, XCircle } from "lucide-react";
 import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
 
 import { ATTRIBUTE_PERMISSIONS } from "@/constants";
@@ -12,6 +12,7 @@ import { DataTable, type ColumnDef } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
+import { PageTabPanel, PageTabs } from "@/components/shared/PageTabs";
 import { textCell } from "@/components/shared/column-helpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -112,149 +113,141 @@ export function AttributeDictionary() {
           ) : undefined
         }
       />
-      <div
-        role="tablist"
-        aria-label="Từ điển thuộc tính"
-        className="border-border-default mb-4 flex gap-1 border-b"
-      >
-        {(
-          [
-            ["attributes", "Thuộc tính"],
-            ["categories", "Theo danh mục"],
-          ] as const
-        ).map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            role="tab"
-            aria-selected={tab === key}
-            onClick={() => void setTab(key)}
-            className={`-mb-px border-b-2 px-3 py-2 text-[0.8125rem] font-medium ${tab === key ? "border-brand text-ink-primary" : "text-ink-tertiary hover:text-ink-primary border-transparent"}`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      {/* Thanh tab dùng chung (kiểu Tabs shadcn) — đồng bộ với PO, Thương hiệu & danh mục */}
+      <PageTabs
+        tabs={[
+          { value: "attributes", label: "Thuộc tính", icon: Tags },
+          { value: "categories", label: "Theo danh mục", icon: FolderTree },
+        ]}
+        value={tab}
+        onChange={(next) => void setTab(next)}
+        idPrefix="attribute-dictionary"
+        ariaLabel="Từ điển thuộc tính"
+      />
 
-      {tab === "categories" ? (
-        <CategoryAttributesEditor />
-      ) : (
-        <>
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            <div className="relative">
-              <Search className="text-ink-tertiary absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2" />
-              <Input
-                aria-label="Tìm thuộc tính"
-                placeholder="Tìm theo mã hoặc tên…"
-                value={q}
-                onChange={(e) => void setQ(e.target.value || null)}
-                className="w-64 pl-8"
-              />
+      <PageTabPanel idPrefix="attribute-dictionary" value={tab}>
+        {tab === "categories" ? (
+          <CategoryAttributesEditor />
+        ) : (
+          <>
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <div className="relative">
+                <Search className="text-ink-tertiary absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2" />
+                <Input
+                  aria-label="Tìm thuộc tính"
+                  placeholder="Tìm theo mã hoặc tên…"
+                  value={q}
+                  onChange={(e) => void setQ(e.target.value || null)}
+                  className="w-64 pl-8"
+                />
+              </div>
+              <Select
+                value={dataType ?? "all"}
+                onValueChange={(v) =>
+                  void setDataType(
+                    v === "all" ? null : (v as (typeof ATTRIBUTE_DATA_TYPES)[number]),
+                  )
+                }
+              >
+                <SelectTrigger aria-label="Lọc theo loại" className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Mọi loại</SelectItem>
+                  {ATTRIBUTE_DATA_TYPES.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {DATA_TYPE_LABEL[t]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={active ?? "all"}
+                onValueChange={(v) =>
+                  void setActive(v === "all" ? null : (v as (typeof ACTIVE_FILTERS)[number]))
+                }
+              >
+                <SelectTrigger aria-label="Lọc theo trạng thái" className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Mọi trạng thái</SelectItem>
+                  <SelectItem value="true">Đang dùng</SelectItem>
+                  <SelectItem value="false">Ngừng dùng</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <Select
-              value={dataType ?? "all"}
-              onValueChange={(v) =>
-                void setDataType(v === "all" ? null : (v as (typeof ATTRIBUTE_DATA_TYPES)[number]))
-              }
-            >
-              <SelectTrigger aria-label="Lọc theo loại" className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Mọi loại</SelectItem>
-                {ATTRIBUTE_DATA_TYPES.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {DATA_TYPE_LABEL[t]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={active ?? "all"}
-              onValueChange={(v) =>
-                void setActive(v === "all" ? null : (v as (typeof ACTIVE_FILTERS)[number]))
-              }
-            >
-              <SelectTrigger aria-label="Lọc theo trạng thái" className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Mọi trạng thái</SelectItem>
-                <SelectItem value="true">Đang dùng</SelectItem>
-                <SelectItem value="false">Ngừng dùng</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
 
-          {query.isLoading ? (
-            <PageSkeleton variant="list" />
-          ) : query.isError ? (
-            <EmptyState
-              icon={<XCircle className="size-8" />}
-              title="Không tải được từ điển thuộc tính"
-              description={attributeErrorMessage(query.error, "load")}
-              action={
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void query.refetch()}
-                >
-                  Thử lại
-                </Button>
-              }
-            />
-          ) : rows.length === 0 ? (
-            <EmptyState
-              title={filtered ? "Không tìm thấy kết quả" : "Chưa có thuộc tính nào"}
-              description={
-                filtered
-                  ? "Có thể có thuộc tính, nhưng bộ lọc hiện tại không khớp."
-                  : "Thêm thuộc tính đầu tiên (vd Màu sắc, Kích cỡ) để dùng làm trục biến thể."
-              }
-              action={
-                filtered ? (
+            {query.isLoading ? (
+              <PageSkeleton variant="list" />
+            ) : query.isError ? (
+              <EmptyState
+                icon={<XCircle className="size-8" />}
+                title="Không tải được từ điển thuộc tính"
+                description={attributeErrorMessage(query.error, "load")}
+                action={
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => {
-                      void setQ(null);
-                      void setDataType(null);
-                      void setActive(null);
-                    }}
+                    onClick={() => void query.refetch()}
                   >
-                    Bỏ bộ lọc
+                    Thử lại
                   </Button>
-                ) : undefined
-              }
-            />
-          ) : (
-            <>
-              <DataTable
-                data={rows}
-                columns={columns}
-                rowKey={(row) => row.attributeId}
-                caption={`${rows.length} thuộc tính`}
-                onRowClick={(row) => setSelectedId(row.attributeId)}
-                pageSize={15}
+                }
               />
-              {(query.data?.totalElements ?? 0) > ATTRIBUTE_LIST_SIZE && (
-                <p className="text-ink-tertiary mt-2 text-xs">
-                  Chỉ hiện {ATTRIBUTE_LIST_SIZE} thuộc tính đầu — thu hẹp bằng bộ lọc để xem phần
-                  còn lại.
-                </p>
-              )}
-            </>
-          )}
-          <AttributeDetailPanel attribute={selected} onClose={() => setSelectedId(null)} />
-          <AttributeFormDialog
-            open={creating}
-            onOpenChange={setCreating}
-            onSaved={(a) => setSelectedId(a.attributeId)}
-          />
-        </>
-      )}
+            ) : rows.length === 0 ? (
+              <EmptyState
+                title={filtered ? "Không tìm thấy kết quả" : "Chưa có thuộc tính nào"}
+                description={
+                  filtered
+                    ? "Có thể có thuộc tính, nhưng bộ lọc hiện tại không khớp."
+                    : "Thêm thuộc tính đầu tiên (vd Màu sắc, Kích cỡ) để dùng làm trục biến thể."
+                }
+                action={
+                  filtered ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        void setQ(null);
+                        void setDataType(null);
+                        void setActive(null);
+                      }}
+                    >
+                      Bỏ bộ lọc
+                    </Button>
+                  ) : undefined
+                }
+              />
+            ) : (
+              <>
+                <DataTable
+                  data={rows}
+                  columns={columns}
+                  rowKey={(row) => row.attributeId}
+                  caption={`${rows.length} thuộc tính`}
+                  onRowClick={(row) => setSelectedId(row.attributeId)}
+                  pageSize={15}
+                />
+                {(query.data?.totalElements ?? 0) > ATTRIBUTE_LIST_SIZE && (
+                  <p className="text-ink-tertiary mt-2 text-xs">
+                    Chỉ hiện {ATTRIBUTE_LIST_SIZE} thuộc tính đầu — thu hẹp bằng bộ lọc để xem phần
+                    còn lại.
+                  </p>
+                )}
+              </>
+            )}
+            <AttributeDetailPanel attribute={selected} onClose={() => setSelectedId(null)} />
+            <AttributeFormDialog
+              open={creating}
+              onOpenChange={setCreating}
+              onSaved={(a) => setSelectedId(a.attributeId)}
+            />
+          </>
+        )}
+      </PageTabPanel>
     </>
   );
 }
