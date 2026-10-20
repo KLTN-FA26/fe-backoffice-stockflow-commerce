@@ -226,18 +226,25 @@ jobs:
 
       # Review mà bot không đăng gì là lỗi, không phải "không có vấn đề". Bắt job đỏ để thấy ngay trên
       # PR, thay vì im lặng như #38/#39. Áp cho cả review tự chạy lúc mở PR; ngoại lệ duy nhất là bước
-      # lọc dừng có chủ đích - khi đó quy trình kết thúc bằng dòng "REVIEW_SKIPPED: <lý do>".
+      # lọc dừng có chủ đích (quy trình kết thúc bằng "REVIEW_SKIPPED: <lý do>") và action tự bỏ qua.
       - name: Check a reply was posted
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
           SINCE: ${{ github.event.comment.created_at || env.REVIEW_STARTED_AT }}
           EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+          CLAUDE_OUTCOME: ${{ steps.claude.outcome }}
         run: |
           url="repos/${{ github.repository }}/issues/${{ env.PR_NUMBER }}/comments?since=$SINCE&per_page=100"
           count=$(gh api "$url" --jq '[.[] | select(.user.login == "claude[bot]" and .created_at > env.SINCE)] | length')
           if [ "$count" -gt 0 ]; then
             echo "Claude đã đăng $count comment."
+            exit 0
+          fi
+          # Action tự bỏ qua mà không chạy Claude (không có file kết quả, bước vẫn success): PR sửa
+          # chính file workflow nên khác bản trên nhánh mặc định - action từ chối có chủ đích.
+          if [ "$CLAUDE_OUTCOME" = "success" ] && [ -z "$EXECUTION_FILE" ]; then
+            echo "::notice::claude-code-action bỏ qua lần chạy này (xem log bước Claude) - không có review."
             exit 0
           fi
           result=""
