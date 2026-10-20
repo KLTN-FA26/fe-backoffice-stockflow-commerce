@@ -44,7 +44,52 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          # "@claude review" chạy git blame / git log trên các dòng bị sửa.
+          fetch-depth: 0
+
+      # ---------------------------------------------------------------------
+      # Ngữ cảnh cho review, đặt trong .review-context/ (đã gitignore). /review-pr tìm ở đây trước.
+      # Giữ khối này giống hệt trong claude-review.yml.
+      # ---------------------------------------------------------------------
+
+      # Repo docs private, GITHUB_TOKEN không đọc được repo khác. Dùng fine-grained PAT chỉ cấp
+      # Contents: Read-only cho riêng repo docs (org tắt deploy key nên không dùng được cách đó).
+      # Thiếu token hoặc token hết hạn thì review vẫn chạy và nói rõ trong comment là đã bỏ qua
+      # kiểm tra nghiệp vụ - một bước checkout hỏng không đáng làm mất cả lần review.
+      - name: Checkout docs
+        continue-on-error: true
+        uses: actions/checkout@v4
+        with:
+          repository: KLTN-FA26/docs
+          token: ${{ secrets.DOCS_READ_TOKEN }}
+          path: .review-context/docs
+          persist-credentials: false
+
+      # BE public, nhánh develop là bản đang chạy (main tụt xa). Chỉ lấy phần review cần: mã Java
+      # (enum status, DTO, controller - status và transition lấy BE làm chuẩn), migration (seed mã
+      # quyền theo role) và i18n (thông báo lỗi). Bỏ fonts và dữ liệu demo.
+      - name: Checkout BE
+        continue-on-error: true
+        uses: actions/checkout@v4
+        with:
+          repository: KLTN-FA26/be-backoffice-stockflow-commerce
+          ref: develop
+          path: .review-context/be
+          sparse-checkout: |
+            src/main/java
+            src/main/resources/db/migration
+            src/main/resources/i18n
+          persist-credentials: false
+
+      # SHA để comment link tới đúng phiên bản docs/BE đã đối chiếu.
+      - name: Record context refs
+        run: |
+          for repo in docs be; do
+            if [ -d ".review-context/$repo/.git" ]; then
+              echo "$repo $(git -C ".review-context/$repo" rev-parse HEAD)"
+            fi
+          done > .review-context/refs.txt
+          cat .review-context/refs.txt
 
       # Phiên bản pnpm lấy từ "packageManager" trong package.json - không khai báo lại ở đây.
       # Action bên thứ ba nên pin theo commit (v6.1.0).
@@ -65,3 +110,8 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           additional_permissions: |
             actions: read
+          # "@claude review" phải ra cùng chất lượng với review tự động lúc mở PR, nên trỏ Claude về
+          # đúng quy trình đó thay vì để nó tự review theo cách chung chung.
+          claude_args: |
+            --append-system-prompt "Khi được yêu cầu review PR (ví dụ '@claude review'), đọc và làm đúng theo .claude/commands/review-pr.md, với PR hiện tại làm đối số. Ngữ cảnh docs nằm ở .review-context/docs/docs, BE ở .review-context/be, SHA ở .review-context/refs.txt. Trả lời bằng tiếng Việt."
+            --allowedTools "Task,Agent,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh search:*),Bash(git diff:*),Bash(git log:*),Bash(git blame:*),Bash(pnpm run:*)"
