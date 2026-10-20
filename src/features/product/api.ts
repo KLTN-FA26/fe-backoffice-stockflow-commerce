@@ -156,13 +156,14 @@ export async function unpublishProduct(id: string): Promise<void> {
  * BE PR #71 `GET /categories` — MỌI danh mục (mọi cấp, tải hết các trang 200 dòng) theo thứ tự cây:
  * trang đầu một mình bỏ sót danh mục, ô chọn của form sản phẩm cần đủ cây. Gồm cả danh mục đã ngưng
  * (`active` = false, ngưng ở màn phân loại): sản phẩm cũ vẫn gắn và phải tra được tên — ô chọn chỉ mời
- * chọn danh mục đang dùng (ProductMasterSelects).
+ * chọn danh mục đang dùng (ProductMasterSelects). Vượt mức chặn trang thì helper đã `console.warn`,
+ * ô chọn chỉ dùng `rows`.
  */
 export async function listCategories(
   signal?: AbortSignal,
 ): Promise<LegacyPaginatedResponse<Category>> {
-  const nodes = await listAllCategoryNodes({ sort: "path,asc" }, signal);
-  const items = nodes.map(toCategory);
+  const { rows } = await listAllCategoryNodes({ sort: "path,asc" }, signal);
+  const items = rows.map(toCategory);
   return { items, page: 1, pageSize: items.length, total: items.length };
 }
 
@@ -171,7 +172,8 @@ export async function listCategories(
  * ngưng để tra tên cho sản phẩm cũ (ô chọn chỉ mời chọn cái đang dùng).
  */
 export async function listBrands(signal?: AbortSignal): Promise<BrandDto[]> {
-  return listAllBrands({ sort: "name,asc" }, signal);
+  const { rows } = await listAllBrands({ sort: "name,asc" }, signal);
+  return rows;
 }
 
 /** BE chỉ có tên một ngôn ngữ cho danh mục; `level` = `depth` + 1 (cây tối đa 11 cấp). */
