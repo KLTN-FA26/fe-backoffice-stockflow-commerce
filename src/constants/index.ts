@@ -15,6 +15,7 @@ export {
   UI_LABELS,
 } from "./labels";
 export { INVENTORY_ITEM_ERROR_MESSAGES } from "./labels-inventory-item";
+export { PRODUCT_ERROR_MESSAGES, PRODUCT_REJECT_LABELS } from "./labels-product";
 export { SHIPPING_ERROR_MESSAGES, SHIPPING_FIELD_MESSAGES } from "./labels-shipping";
 export { TAXONOMY_ERROR_MESSAGES } from "./labels-taxonomy";
 export {

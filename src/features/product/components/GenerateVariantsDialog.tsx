@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 
+import { DialogScrollArea } from "@/components/shared/DialogScrollArea";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 
 import { attributeErrorMessage } from "../attribute-errors";
@@ -142,87 +143,89 @@ function Body({
       }}
       onCancel={onDone}
     >
-      {attributes.isLoading && (
-        <p className="text-ink-tertiary text-xs">Đang tải trục của sản phẩm…</p>
-      )}
-      {attributes.isError && (
-        <p role="alert" className="text-danger text-xs">
-          {attributeErrorMessage(attributes.error, "load")}
-        </p>
-      )}
-      {(axes ?? []).map((axis) => (
-        <fieldset key={axis.attributeId} className="space-y-1.5">
-          <legend className="text-ink-secondary text-xs font-medium">{axis.name}</legend>
-          <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-            {axis.options
-              .filter((o) => o.active)
-              .map((o) => (
-                <label
-                  key={o.valueId}
-                  className="text-ink-secondary flex items-center gap-1.5 text-xs"
-                >
-                  <input
-                    type="checkbox"
-                    className="accent-brand size-3.5"
-                    checked={!excluded.has(o.valueId)}
-                    onChange={(e) =>
-                      setExcluded((prev) => {
-                        const next = new Set(prev);
-                        if (e.target.checked) next.delete(o.valueId);
-                        else next.add(o.valueId);
-                        return next;
-                      })
-                    }
-                  />
-                  {o.label}
-                </label>
-              ))}
-          </div>
-        </fieldset>
-      ))}
-      {attributes.isSuccess && (
-        <div className="border-border-default bg-bg-subtle space-y-1.5 rounded-[var(--r-sm)] border p-3 text-[0.8125rem]">
-          <p>
-            <span className="tabular-nums">{preview.total}</span> tổ hợp ·{" "}
-            <span className="tabular-nums">{preview.existing}</span> đã có ·{" "}
-            <span className="text-ink-primary font-medium tabular-nums">{preview.toCreate}</span> sẽ
-            tạo mới
+      <DialogScrollArea>
+        {attributes.isLoading && (
+          <p className="text-ink-tertiary text-xs">Đang tải trục của sản phẩm…</p>
+        )}
+        {attributes.isError && (
+          <p role="alert" className="text-danger text-xs">
+            {attributeErrorMessage(attributes.error, "load")}
           </p>
-          {emptyAxis && (
-            <p className="text-warning text-xs">Mỗi trục cần ít nhất một giá trị được chọn.</p>
-          )}
-          {preview.overCap && (
-            <p role="alert" className="text-danger text-xs">
-              Tối đa {MATRIX_MAX_PER_CALL} biến thể mỗi lần sinh — bỏ bớt giá trị của một trục.
+        )}
+        {(axes ?? []).map((axis) => (
+          <fieldset key={axis.attributeId} className="space-y-1.5">
+            <legend className="text-ink-secondary text-xs font-medium">{axis.name}</legend>
+            <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+              {axis.options
+                .filter((o) => o.active)
+                .map((o) => (
+                  <label
+                    key={o.valueId}
+                    className="text-ink-secondary flex items-center gap-1.5 text-xs"
+                  >
+                    <input
+                      type="checkbox"
+                      className="accent-brand size-3.5"
+                      checked={!excluded.has(o.valueId)}
+                      onChange={(e) =>
+                        setExcluded((prev) => {
+                          const next = new Set(prev);
+                          if (e.target.checked) next.delete(o.valueId);
+                          else next.add(o.valueId);
+                          return next;
+                        })
+                      }
+                    />
+                    {o.label}
+                  </label>
+                ))}
+            </div>
+          </fieldset>
+        ))}
+        {attributes.isSuccess && (
+          <div className="border-border-default bg-bg-subtle space-y-1.5 rounded-[var(--r-sm)] border p-3 text-[0.8125rem]">
+            <p>
+              <span className="tabular-nums">{preview.total}</span> tổ hợp ·{" "}
+              <span className="tabular-nums">{preview.existing}</span> đã có ·{" "}
+              <span className="text-ink-primary font-medium tabular-nums">{preview.toCreate}</span>{" "}
+              sẽ tạo mới
             </p>
-          )}
-          {!emptyAxis && !preview.overCap && preview.toCreate === 0 && (
-            <p className="text-ink-tertiary text-xs">Mọi tổ hợp đã có biến thể.</p>
-          )}
-          {preview.samples.length > 0 && (
-            <ul className="text-ink-secondary space-y-0.5 text-xs">
-              {preview.samples.map((s) => (
-                <li key={s.sku}>
-                  <span className="text-ink-primary font-[family-name:var(--font-mono)]">
-                    {s.sku}
-                  </span>{" "}
-                  — {s.label}
-                  {s.keptDefault && (
-                    <span className="text-ink-tertiary"> (biến thể mặc định, giữ SKU)</span>
-                  )}
-                </li>
-              ))}
-              {preview.toCreate > preview.samples.length && <li>…</li>}
-            </ul>
-          )}
-          {preview.usesDefault && (
-            <p className="text-ink-tertiary text-xs">
-              Biến thể mặc định hiện chưa có tuỳ chọn sẽ nhận tổ hợp đầu tiên (giữ nguyên SKU của
-              nó) — tổ hợp này vẫn tính vào giới hạn {MATRIX_MAX_PER_CALL}.
-            </p>
-          )}
-        </div>
-      )}
+            {emptyAxis && (
+              <p className="text-warning text-xs">Mỗi trục cần ít nhất một giá trị được chọn.</p>
+            )}
+            {preview.overCap && (
+              <p role="alert" className="text-danger text-xs">
+                Tối đa {MATRIX_MAX_PER_CALL} biến thể mỗi lần sinh — bỏ bớt giá trị của một trục.
+              </p>
+            )}
+            {!emptyAxis && !preview.overCap && preview.toCreate === 0 && (
+              <p className="text-ink-tertiary text-xs">Mọi tổ hợp đã có biến thể.</p>
+            )}
+            {preview.samples.length > 0 && (
+              <ul className="text-ink-secondary space-y-0.5 text-xs">
+                {preview.samples.map((s) => (
+                  <li key={s.sku}>
+                    <span className="text-ink-primary font-[family-name:var(--font-mono)]">
+                      {s.sku}
+                    </span>{" "}
+                    — {s.label}
+                    {s.keptDefault && (
+                      <span className="text-ink-tertiary"> (biến thể mặc định, giữ SKU)</span>
+                    )}
+                  </li>
+                ))}
+                {preview.toCreate > preview.samples.length && <li>…</li>}
+              </ul>
+            )}
+            {preview.usesDefault && (
+              <p className="text-ink-tertiary text-xs">
+                Biến thể mặc định hiện chưa có tuỳ chọn sẽ nhận tổ hợp đầu tiên (giữ nguyên SKU của
+                nó) — tổ hợp này vẫn tính vào giới hạn {MATRIX_MAX_PER_CALL}.
+              </p>
+            )}
+          </div>
+        )}
+      </DialogScrollArea>
     </FormDialogBody>
   );
 }

@@ -101,8 +101,11 @@ export const categorySchema = z.object({
   categoryId: z.string(),
   name: bilingualLabelSchema,
   parentId: z.string().nullable(),
-  level: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+  /** `depth` + 1 của BE — cây tối đa 11 cấp (CHECK `ck_categories_depth` 0–10, TAXONOMY_LIMITS). */
+  level: z.number().int().min(1),
   slug: z.string(),
+  /** BE `CategoryResponse.active` — không có thì coi như đang dùng. */
+  active: z.boolean().optional(),
 });
 
 /** BE PR #71 `CategoryResponse` — một nút của cây danh mục (`depth` 0 là gốc). */
@@ -149,7 +152,8 @@ export const beProductStatusSchema = z.enum([...beProductStatusValues, "UNKNOWN"
 
 /**
  * BE PR #71 `ProductResponse`. Ảnh nằm ở biến thể (`/variants/{id}/media`), kích thước / khối
- * lượng nằm ở SKU (`/skus/{id}/logistics`) — không còn trên dòng sản phẩm.
+ * lượng nằm ở hồ sơ hàng tồn của SKU (`/inventory/items/{id}`, BE PR #119) — không còn trên dòng
+ * sản phẩm.
  */
 export const productMasterDtoSchema = z.object({
   // Id do BE cấp; seed demo có id không đúng biến thể RFC 4122 nên không dùng `.uuid()` (zod v4

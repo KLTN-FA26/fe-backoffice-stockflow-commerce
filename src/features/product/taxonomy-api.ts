@@ -1,7 +1,7 @@
 /**
  * API thương hiệu / danh mục cho màn quản lý (BE `ProductTaxonomyController`). Parse zod tại biên.
- * Dropdown của form sản phẩm vẫn đọc qua `listBrands` / `listCategories` trong `api.ts`; `listAll*`
- * phục vụ cây danh mục và ô chọn danh mục cha của màn này.
+ * `listAll*` phục vụ cây danh mục, ô chọn danh mục cha của màn này và ô chọn thương hiệu / danh mục
+ * của form sản phẩm (`listBrands` / `listCategories` trong `api.ts`).
  */
 import { PAGE_SIZE, TAXONOMY_LIMITS } from "@/constants";
 import { api } from "@/lib/api/client";

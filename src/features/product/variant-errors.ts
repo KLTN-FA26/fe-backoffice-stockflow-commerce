@@ -1,20 +1,11 @@
 /**
- * Lỗi BE của biến thể / logistics / ảnh → câu tiếng Việt. Không lộ message tiếng Anh của BE.
+ * Lỗi BE của biến thể / ảnh → câu tiếng Việt. Không lộ message tiếng Anh của BE.
  * `INVALID_VARIANT_TRANSITION` dùng cho nhiều luật khác nhau, nên câu tuỳ thao tác (`context`).
  */
 import { ApiError } from "@/lib/api/error";
 
 export type VariantErrorContext =
-  | "activate"
-  | "block"
-  | "obsolete"
-  | "save"
-  | "logistics"
-  | "upload"
-  | "publish"
-  | "media"
-  | "inventory"
-  | "load";
+  "activate" | "block" | "obsolete" | "save" | "upload" | "publish" | "media" | "load";
 
 const TRANSITION_MESSAGE: Partial<Record<VariantErrorContext, string>> = {
   activate:
@@ -36,12 +27,6 @@ const CODE_MESSAGE: Record<string, string> = {
   PRODUCT_NOT_FOUND: "Không tìm thấy sản phẩm.",
   MEDIA_NOT_FOUND: "Không tìm thấy ảnh — có thể đã bị xoá. Dữ liệu đã được tải lại.",
   OPTIMISTIC_LOCK: "Thông tin vừa được người khác sửa. Dữ liệu đã được tải lại, hãy nhập lại.",
-  INVENTORY_POLICY_STOCK_CONFLICT:
-    "Không đổi được đơn vị tính khi SKU còn tồn kho — mọi số lượng đã đếm đang theo đơn vị cũ.",
-  INVENTORY_POLICY_INVALID:
-    "Chính sách tồn kho chưa hợp lệ: tồn an toàn không vượt điểm đặt hàng lại; theo dõi hạn dùng cần theo lô và xuất theo FEFO; hạn dùng tối đa chỉ có khi theo dõi hạn dùng.",
-  COUNT_POLICY_CONFLICT:
-    "SKU đang có đợt kiểm kê mở — hoàn tất kiểm kê trước khi đổi cách theo dõi hoặc chiến lược xuất.",
   PRODUCT_NOT_APPROVED: "Sản phẩm phải được duyệt trước khi xuất bản ảnh.",
   SELF_APPROVAL_NOT_ALLOWED: "Ảnh phải do người khác người tải lên xuất bản (duyệt bốn mắt).",
   PAYLOAD_TOO_LARGE: "Ảnh quá lớn (tối đa 25 megapixel và giới hạn dung lượng của hệ thống).",
@@ -52,22 +37,11 @@ const CODE_MESSAGE: Record<string, string> = {
 };
 
 const CONFLICT_MESSAGE: Partial<Record<VariantErrorContext, string>> = {
-  // BE `SkuInventoryControlService`: lệch version hoặc sản phẩm đang chờ duyệt / đã ngừng đều là CONFLICT.
-  inventory:
-    "Không lưu được: thông tin vừa được người khác sửa, hoặc sản phẩm đang chờ duyệt / đã ngừng kinh doanh. Dữ liệu đã được tải lại.",
   publish: "Chỉ xuất bản được ảnh đã tải lên và đã tạo bản hiển thị — hãy tải lại ảnh đó.",
-  logistics: "SKU này không thuộc sản phẩm đang xem.",
 };
-
-/** `INVENTORY_POLICY_STOCK_CONFLICT` của chính sách tồn kho (khác câu của đơn vị tính ở logistics). */
-const INVENTORY_STOCK_CONFLICT =
-  "Tồn kho hiện có của SKU không khớp với chính sách mới (theo dõi lô / serial / hạn dùng hoặc chiến lược xuất). Hãy xử lý tồn kho trước.";
 
 export function variantErrorMessage(error: unknown, context: VariantErrorContext): string {
   if (!(error instanceof ApiError)) return "Không thực hiện được thao tác. Vui lòng thử lại.";
-  if (error.code === "INVENTORY_POLICY_STOCK_CONFLICT" && context === "inventory") {
-    return INVENTORY_STOCK_CONFLICT;
-  }
   if (error.code === "INVALID_VARIANT_TRANSITION") {
     return TRANSITION_MESSAGE[context] ?? "Biến thể đã đổi trạng thái. Dữ liệu đã được tải lại.";
   }
@@ -81,4 +55,22 @@ export function variantErrorMessage(error: unknown, context: VariantErrorContext
   if (error.status === 413) return CODE_MESSAGE.PAYLOAD_TOO_LARGE ?? "";
   if (error.status === 415) return CODE_MESSAGE.UNSUPPORTED_MEDIA_TYPE ?? "";
   return "Không thực hiện được thao tác. Vui lòng thử lại.";
+}
+
+/**
+ * Mã mà câu ở trên nói "Dữ liệu đã được tải lại" (hoặc cho thấy trạng thái trên màn đã cũ): BE
+ * `ProductVariantService.requireVariant` (VARIANT_NOT_FOUND), `ProductMediaService.requireMedia`
+ * (MEDIA_NOT_FOUND), `VariantStatus` / `requireAcceptsImages` (INVALID_VARIANT_TRANSITION),
+ * `GlobalExceptionHandler.handleOptimisticLock` (OPTIMISTIC_LOCK, ghi đồng thời). Mutation biến thể /
+ * ảnh bọc `withStaleRefetch` theo hàm này để câu đó là thật.
+ */
+const STALE_CODES = new Set([
+  "OPTIMISTIC_LOCK",
+  "VARIANT_NOT_FOUND",
+  "MEDIA_NOT_FOUND",
+  "INVALID_VARIANT_TRANSITION",
+]);
+
+export function isStaleVariantError(error: unknown): boolean {
+  return error instanceof ApiError && STALE_CODES.has(error.code);
 }

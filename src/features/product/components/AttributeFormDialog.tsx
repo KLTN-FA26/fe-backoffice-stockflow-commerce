@@ -3,19 +3,13 @@
 import { useState } from "react";
 
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 
 import { attributeErrorMessage } from "../attribute-errors";
 import { DATA_TYPE_LABEL } from "../attribute-labels";
 import { useCreateAttribute, useUpdateAttribute } from "../attribute-queries";
 import { ATTRIBUTE_DATA_TYPES, attributeFormSchema } from "../attribute-schemas";
+import { ProductInput, ProductSelectTrigger } from "./form-controls";
 import { Field } from "./variants/Field";
 
 import type { Attribute, AttributeDataType, AttributeFormValues } from "../attribute-schemas";
@@ -121,7 +115,7 @@ function Form({
       onCancel={onDone}
     >
       <Field label="Mã *" id="attr-code" error={values.code ? issueOf("code") : undefined}>
-        <Input
+        <ProductInput
           id="attr-code"
           value={values.code}
           onChange={text("code")}
@@ -136,9 +130,9 @@ function Form({
           onValueChange={(v) => setValues((s) => ({ ...s, dataType: v as AttributeDataType }))}
           disabled={Boolean(attribute)}
         >
-          <SelectTrigger id="attr-type" className="w-full">
+          <ProductSelectTrigger id="attr-type">
             <SelectValue />
-          </SelectTrigger>
+          </ProductSelectTrigger>
           <SelectContent>
             {ATTRIBUTE_DATA_TYPES.map((t) => (
               <SelectItem key={t} value={t}>
@@ -149,14 +143,14 @@ function Form({
         </Select>
       </Field>
       <Field label="Tên *" id="attr-name" error={values.name ? issueOf("name") : undefined}>
-        <Input id="attr-name" value={values.name} onChange={text("name")} />
+        <ProductInput id="attr-name" value={values.name} onChange={text("name")} />
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Đơn vị" id="attr-unit" error={issueOf("unit")}>
-          <Input id="attr-unit" value={values.unit} onChange={text("unit")} />
+          <ProductInput id="attr-unit" value={values.unit} onChange={text("unit")} />
         </Field>
         <Field label="Thứ tự" id="attr-sort" hint="Trống = 0" error={issueOf("sortOrder")}>
-          <Input
+          <ProductInput
             id="attr-sort"
             inputMode="numeric"
             value={values.sortOrder}

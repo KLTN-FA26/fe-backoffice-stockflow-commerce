@@ -7,10 +7,9 @@
  * - Lỗi do dữ liệu cũ (`isStaleTaxonomyError`) → tải lại danh sách rồi mới gọi onError của màn.
  * Lỗi map inline trong dialog nên tắt toast lỗi mặc định.
  */
-import { useQueryClient } from "@tanstack/react-query";
-
 import { TOAST_MESSAGES } from "@/constants";
 import { createMutation } from "@/lib/api/query-factory";
+import { withStaleRefetch } from "@/lib/api/stale-refetch";
 
 import { brandKeys, categoryKeys, productKeys } from "./queries";
 import { createBrand, createCategory, updateBrand, updateCategory } from "./taxonomy-api";
@@ -19,30 +18,6 @@ import { isStaleTaxonomyError } from "./taxonomy-errors";
 const TOAST = TOAST_MESSAGES.taxonomy;
 const BRAND_LIST = [brandKeys.all] as const;
 const CATEGORY_LIST = [categoryKeys.all] as const;
-
-/**
- * Bọc một mutation hook: lỗi do dữ liệu cũ (`isStale`) → tải lại các khoá liên quan rồi mới gọi
- * `onError` của màn hình, để lần mở lại dialog thấy bản mới nhất (cùng cách các feature receipt /
- * fulfillment / transfer làm trong `mutations.ts` của chúng).
- */
-function withStaleRefetch<TInput, TResult>(
-  useBase: ReturnType<typeof createMutation<TInput, TResult>>,
-  staleKeys: readonly (readonly unknown[])[],
-  isStale: (error: unknown) => boolean,
-) {
-  return function useWithStaleRefetch(options?: Parameters<typeof useBase>[0]) {
-    const queryClient = useQueryClient();
-    return useBase({
-      ...options,
-      onError: (...args) => {
-        if (isStale(args[0])) {
-          for (const queryKey of staleKeys) void queryClient.invalidateQueries({ queryKey });
-        }
-        options?.onError?.(...args);
-      },
-    });
-  };
-}
 
 export const useCreateBrand = createMutation(createBrand, {
   invalidate: BRAND_LIST,

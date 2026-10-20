@@ -1,10 +1,12 @@
 /**
- * Mock routes — biến thể, logistics theo SKU, ảnh theo biến thể (BE PR #71
- * `ProductVariantController`, `SkuLogisticsController`, `ProductMediaController`).
+ * Mock routes — biến thể, ảnh theo biến thể (BE PR #71 `ProductVariantController`,
+ * `ProductMediaController`).
  *
- * Trả đúng hình response BE (VariantResponse, SkuLogisticsResponse, MediaResponse) để
+ * Trả đúng hình response BE (VariantResponse kèm `inventoryItemId` của BE PR #119, MediaResponse) để
  * `features/product/variant-api.ts` chạy một luồng cho cả mock lẫn BE thật. Dữ liệu khởi tạo từ
- * các SKU trong mock-data (mỗi SKU mock = một biến thể).
+ * các SKU trong mock-data (mỗi SKU mock = một biến thể). Logistics của từng biến thể vẫn giữ ở đây
+ * (kho `logistics`) nhưng chỉ phục vụ mock `/inventory/items` — BE PR #119 đã bỏ route logistics
+ * theo SKU dưới sản phẩm.
  */
 
 import { SKU_INPUT_PATTERN } from "@/lib/validation/sku";
@@ -59,6 +61,7 @@ interface MockVariant {
   options: MockOption[];
 }
 
+/** Logistics của hồ sơ hàng tồn (BE PR #119), khoá theo id biến thể — nguồn của mock `/inventory/items`. */
 export interface MockLogistics {
   skuId: string;
   sku: string;
@@ -265,6 +268,15 @@ function newMedia(variantId: string, over: Partial<MockMedia> = {}): MockMedia {
   };
 }
 
+/** Hồ sơ hàng tồn (BE PR #119) 1-1 với biến thể theo SKU — id mock `item-<variantId>`. */
+export const inventoryItemIdOf = (variantId: string): string => `item-${variantId}`;
+
+/** BE `VariantResponse`: biến thể kèm `inventoryItemId` (null khi SKU chưa có hồ sơ hàng tồn). */
+const toResponse = (variant: MockVariant) => ({
+  ...variant,
+  inventoryItemId: logistics.has(variant.variantId) ? inventoryItemIdOf(variant.variantId) : null,
+});
+
 async function find(config: AxiosRequestConfig) {
   const { id, variantId } = params(config);
   return (await store()).find((v) => v.productId === id && v.variantId === variantId);
@@ -421,7 +433,7 @@ function transition(target: VariantStatus) {
       fromStatus: from,
       toStatus: target,
     });
-    return ok(variant);
+    return ok(toResponse(variant));
   };
 }
 
@@ -500,7 +512,7 @@ export function registerVariantMockRoutes(): void {
     const { id } = params(config);
     const rows = (await store()).filter((v) => v.productId === id);
     return ok({
-      items: rows,
+      items: rows.map(toResponse),
       page: 0,
       size: Math.max(rows.length, 1),
       totalElements: rows.length,
@@ -512,7 +524,7 @@ export function registerVariantMockRoutes(): void {
 
   registerMockRoute("GET", "/products/:id/variants/:variantId", async (config) => {
     const variant = await find(config);
-    return variant ? ok(variant) : variantNotFound();
+    return variant ? ok(toResponse(variant)) : variantNotFound();
   });
 
   registerMockRoute("POST", "/products/:id/variants", async (config) => {
@@ -541,7 +553,7 @@ export function registerVariantMockRoutes(): void {
       }
       if (str(body(config).sku) && sku !== target.sku) target.sku = sku;
       assignDefaultOptions(target, options, name);
-      return ok(target, 201);
+      return ok(toResponse(target), 201);
     }
     if (
       all.some((v) => v.sku === sku || (v.productId === id && v.attributeSignature === signature))
@@ -555,7 +567,7 @@ export function registerVariantMockRoutes(): void {
       options,
     });
     recordMockHistory(variant.productId, "VARIANT_ADDED", { subjectId: variant.variantId });
-    return ok(variant, 201);
+    return ok(toResponse(variant), 201);
   });
 
   // BE `POST /products/{id}/variants/generation`: tạo các tổ hợp còn thiếu của ma trận (tối đa 100
@@ -660,7 +672,7 @@ export function registerVariantMockRoutes(): void {
       recordMockHistory(variant.productId, "VARIANT_ADDED", { subjectId: variant.variantId });
       return variant;
     });
-    return ok({ created, skipped: plan.skipped }, 201);
+    return ok({ created: created.map(toResponse), skipped: plan.skipped }, 201);
   });
 
   registerMockRoute("PUT", "/products/:id/variants/:variantId", async (config) => {
@@ -711,52 +723,12 @@ export function registerVariantMockRoutes(): void {
         changedFields: changed,
       });
     }
-    return ok(variant);
+    return ok(toResponse(variant));
   });
 
   registerMockRoute("POST", "/products/:id/variants/:variantId/activation", transition("ACTIVE"));
   registerMockRoute("POST", "/products/:id/variants/:variantId/blocking", transition("BLOCKED"));
   registerMockRoute("POST", "/products/:id/variants/:variantId/obsoletion", transition("OBSOLETE"));
-
-  registerMockRoute("GET", "/products/:id/skus/:variantId/logistics", async (config) => {
-    const variant = await find(config);
-    const row = variant && logistics.get(variant.variantId);
-    return row ? ok(row) : variantNotFound();
-  });
-
-  registerMockRoute("PUT", "/products/:id/skus/:variantId/logistics", async (config) => {
-    const variant = await find(config);
-    const row = variant && logistics.get(variant.variantId);
-    if (!variant || !row) return variantNotFound();
-    // BE `SkuInventoryControlService.describe`: không sửa khi sản phẩm chờ duyệt hoặc đã ngừng (409 CONFLICT).
-    const product = await findMockProduct(variant.productId);
-    if (product && !mockProductAcceptsChanges(product)) {
-      return fail(409, "CONFLICT", "Conflicting state");
-    }
-    const b = body(config);
-    if (b.version !== row.version) {
-      return fail(409, "OPTIMISTIC_LOCK", "The item was changed by someone else");
-    }
-    const next: MockLogistics = {
-      ...row,
-      ...(b as Partial<MockLogistics>),
-      version: row.version + 1,
-    };
-    next.packageCount = next.packageCount ?? 1;
-    next.packSize = next.packSize ?? 1;
-    logistics.set(row.skuId, next);
-    // Như `RecordDiff.changedFields`: chỉ ghi các trường thật sự đổi.
-    const changed = (Object.keys(row) as (keyof MockLogistics)[]).filter(
-      (key) => key !== "version" && key !== "skuId" && key !== "sku" && row[key] !== next[key],
-    );
-    if (changed.length > 0) {
-      recordMockHistory(variant.productId, "LOGISTICS", {
-        subjectId: variant.variantId,
-        changedFields: changed,
-      });
-    }
-    return ok(next);
-  });
 
   registerMockRoute("GET", "/products/:id/variants/:variantId/media", async (config) => {
     const variant = await find(config);
@@ -884,14 +856,6 @@ export function registerVariantMockRoutes(): void {
 
 /* ── Hàm dùng chung cho các file route mock khác ───────────────────────── */
 
-/** Đơn vị tính của SKU (logistics là nguồn): chính sách tồn kho và logistics cùng một mục tồn kho trên BE. */
-export function mockUnitOfMeasure(variantId: string): string {
-  return logistics.get(variantId)?.unitOfMeasure ?? "EACH";
-}
-
-/** Hồ sơ hàng tồn (BE PR #119) 1-1 với biến thể theo SKU — id mock `item-<variantId>`. */
-export const inventoryItemIdOf = (variantId: string): string => `item-${variantId}`;
-
 /** Logistics của mọi biến thể kèm id hồ sơ hàng tồn — nguồn của mock `/inventory/items`. */
 export async function mockInventoryItemRows(): Promise<{ id: string; row: MockLogistics }[]> {
   return (await store()).flatMap((v) => {
@@ -900,7 +864,7 @@ export async function mockInventoryItemRows(): Promise<{ id: string; row: MockLo
   });
 }
 
-/** Ghi logistics của một biến thể — PUT hồ sơ hàng tồn dùng chung `version` với logistics SKU. */
+/** Ghi logistics của một biến thể — PUT `/inventory/items/{id}/logistics` (version là của hồ sơ). */
 export function saveMockLogistics(row: MockLogistics): void {
   logistics.set(row.skuId, row);
 }

@@ -76,6 +76,10 @@ export const PRODUCT_CHANGE_TYPES = [
   "MEDIA",
   "LOGISTICS",
   "INVENTORY_CONTROL",
+  // BE #121 (V20261019000400): thông tin mua hàng, quy đổi ĐVT và đơn vị bán của một SKU
+  "PURCHASING",
+  "UOM_CONVERSION",
+  "SALES_UNIT",
 ] as const;
 export type ProductChangeType = (typeof PRODUCT_CHANGE_TYPES)[number] | "UNKNOWN";
 
@@ -86,6 +90,9 @@ export const PRODUCT_CHANGE_SUBJECTS = [
   "MEDIA",
   "LOGISTICS",
   "INVENTORY_CONTROL",
+  "PURCHASING",
+  "UOM_CONVERSION",
+  "SALES_UNIT",
 ] as const;
 
 /** BE `ProductVersionResponse` — một dòng lịch sử thay đổi (mới nhất trước). */

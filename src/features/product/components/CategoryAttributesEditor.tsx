@@ -6,13 +6,7 @@ import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { ATTRIBUTE_PERMISSIONS } from "@/constants";
 import { usePermissionChecker } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 
 import { attributeErrorMessage } from "../attribute-errors";
 import { DATA_TYPE_LABEL, ROLE_LABEL } from "../attribute-labels";
@@ -24,6 +18,7 @@ import {
 } from "../attribute-queries";
 import { ATTRIBUTE_ROLES, canBeVariantAxis } from "../attribute-schemas";
 import { useCategories } from "../queries";
+import { ProductSelectTrigger } from "./form-controls";
 
 import type { Attribute, AttributeRole, CategoryAttribute } from "../attribute-schemas";
 
@@ -41,7 +36,11 @@ interface Row {
 export function CategoryAttributesEditor() {
   const categories = useCategories();
   const [categoryId, setCategoryId] = useState("");
-  const items = useMemo(() => categories.data?.items ?? [], [categories.data]);
+  // Lookup gồm cả danh mục đã ngưng (tra tên sản phẩm cũ) — bộ thuộc tính gợi ý chỉ cho cái đang dùng.
+  const items = useMemo(
+    () => (categories.data?.items ?? []).filter((category) => category.active !== false),
+    [categories.data],
+  );
   const query = useCategoryAttributes(categoryId || undefined);
 
   return (
@@ -51,9 +50,9 @@ export function CategoryAttributesEditor() {
           Danh mục
         </label>
         <Select value={categoryId} onValueChange={setCategoryId}>
-          <SelectTrigger id="category-attr-select" className="w-full">
+          <ProductSelectTrigger id="category-attr-select">
             <SelectValue placeholder={categories.isLoading ? "Đang tải…" : "Chọn danh mục"} />
-          </SelectTrigger>
+          </ProductSelectTrigger>
           <SelectContent>
             {items.map((category) => (
               <SelectItem key={category.categoryId} value={category.categoryId}>
@@ -138,9 +137,12 @@ function Editor({ categoryId, saved }: { categoryId: string; saved: CategoryAttr
               onValueChange={(v) => patch(index, { defaultRole: v as AttributeRole })}
               disabled={!canEdit}
             >
-              <SelectTrigger aria-label={`Vai trò của ${attribute?.name ?? ""}`} className="w-40">
+              <ProductSelectTrigger
+                aria-label={`Vai trò của ${attribute?.name ?? ""}`}
+                className="w-40"
+              >
                 <SelectValue />
-              </SelectTrigger>
+              </ProductSelectTrigger>
               <SelectContent>
                 {ATTRIBUTE_ROLES.map((role) => (
                   <SelectItem key={role} value={role} disabled={role === "VARIANT_AXIS" && !axisOk}>
@@ -215,10 +217,10 @@ function Editor({ categoryId, saved }: { categoryId: string; saved: CategoryAttr
                   ]);
               }}
             >
-              <SelectTrigger aria-label="Thêm thuộc tính cho danh mục" className="w-64">
+              <ProductSelectTrigger aria-label="Thêm thuộc tính cho danh mục" className="w-64">
                 <Plus className="size-3.5" />
                 <SelectValue placeholder="Thêm thuộc tính" />
-              </SelectTrigger>
+              </ProductSelectTrigger>
               <SelectContent>
                 {addable.map((a) => (
                   <SelectItem key={a.attributeId} value={a.attributeId}>

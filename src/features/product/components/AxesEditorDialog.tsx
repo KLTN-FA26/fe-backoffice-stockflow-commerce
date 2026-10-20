@@ -2,6 +2,9 @@
 
 import { useMemo, useState } from "react";
 
+import { UI_LABELS } from "@/constants";
+
+import { DialogScrollArea } from "@/components/shared/DialogScrollArea";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 
 import { attributeErrorMessage } from "../attribute-errors";
@@ -50,41 +53,32 @@ function AxesForm({
 }) {
   const attributesQuery = useProductAttributes(productId);
   const dictionary = useAttributes({});
-  const ready = attributesQuery.isSuccess && dictionary.isSuccess;
+  if (attributesQuery.isSuccess && dictionary.isSuccess) {
+    return (
+      <AxesFormBody
+        productId={productId}
+        isDraft={isDraft}
+        current={attributesQuery.data}
+        attributes={dictionary.data.items}
+        onDone={onDone}
+      />
+    );
+  }
   return (
-    <>
-      {attributesQuery.isError || dictionary.isError ? (
-        <FormDialogBody
-          title="Trục biến thể"
-          description="Không tải được thuộc tính của sản phẩm hoặc từ điển thuộc tính (cần quyền xem thuộc tính)."
-          submitLabel="Lưu"
-          canSubmit={false}
-          isPending={false}
-          error={null}
-          onSubmit={onDone}
-          onCancel={onDone}
-        />
-      ) : !ready ? (
-        <FormDialogBody
-          title="Trục biến thể"
-          description="Đang tải…"
-          submitLabel="Lưu"
-          canSubmit={false}
-          isPending={false}
-          error={null}
-          onSubmit={onDone}
-          onCancel={onDone}
-        />
-      ) : (
-        <AxesFormBody
-          productId={productId}
-          isDraft={isDraft}
-          current={attributesQuery.data}
-          attributes={dictionary.data.items}
-          onDone={onDone}
-        />
-      )}
-    </>
+    <FormDialogBody
+      title="Trục biến thể"
+      description={
+        attributesQuery.isError || dictionary.isError
+          ? "Không tải được thuộc tính của sản phẩm hoặc từ điển thuộc tính (cần quyền xem thuộc tính)."
+          : "Đang tải…"
+      }
+      submitLabel="Lưu"
+      canSubmit={false}
+      isPending={false}
+      error={null}
+      onSubmit={onDone}
+      onCancel={onDone}
+    />
   );
 }
 
@@ -121,7 +115,8 @@ function AxesFormBody({
   return (
     <FormDialogBody
       title="Trục biến thể"
-      description="Mỗi trục là một thuộc tính (màu, cỡ…) và các giá trị sản phẩm có. Thứ tự trục là thứ tự trong tên và SKU của biến thể. Thêm, gỡ trục chỉ làm được khi sản phẩm còn Nháp và chưa biến thể nào dùng tuỳ chọn."
+      // Lý do khoá (rời Nháp / đã có biến thể dùng giá trị) do `AxesPicker` nói ngay trên danh sách trục
+      description={UI_LABELS.product.axes.description}
       submitLabel="Lưu trục"
       canSubmit={issue === null}
       isPending={save.isPending}
@@ -135,15 +130,17 @@ function AxesFormBody({
       }}
       onCancel={onDone}
     >
-      <AxesPicker
-        attributes={attributes}
-        value={drafts}
-        onChange={setDrafts}
-        excludeAttributeIds={current.descriptives.map((d) => d.attributeId)}
-        structureLocked={!isDraft}
-        addLocked={usedValueIds.size > 0}
-        usedValueIds={usedValueIds}
-      />
+      <DialogScrollArea>
+        <AxesPicker
+          attributes={attributes}
+          value={drafts}
+          onChange={setDrafts}
+          excludeAttributeIds={current.descriptives.map((d) => d.attributeId)}
+          structureLocked={!isDraft}
+          addLocked={usedValueIds.size > 0}
+          usedValueIds={usedValueIds}
+        />
+      </DialogScrollArea>
     </FormDialogBody>
   );
 }

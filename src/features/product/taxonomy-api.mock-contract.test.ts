@@ -92,7 +92,9 @@ describe("thương hiệu", () => {
     );
   });
 
-  it("sửa thay toàn bộ: bỏ logo = xoá, ngưng dùng thì rơi khỏi dropdown form SP", async () => {
+  // Ngưng dùng: lookup của form SP vẫn có (cờ active=false) để tra tên SP cũ — ô chọn tự ẩn nó
+  // (ProductMasterSelects, test ở ProductCreate.edit.test).
+  it("sửa thay toàn bộ: bỏ logo = xoá, ngưng dùng thì lookup đánh dấu active=false", async () => {
     const created = await createBrand(brand({ logoUrl: "https://cdn.example/hanes.png" }));
     expect(created.logoUrl).toBe("https://cdn.example/hanes.png");
     const updated = await updateBrand({
@@ -101,7 +103,9 @@ describe("thương hiệu", () => {
     });
     expect(updated).toMatchObject({ code: "HANES", name: "Hanes VN", active: false });
     expect(updated).not.toHaveProperty("logoUrl");
-    expect((await listBrands()).some((b) => b.brandId === created.brandId)).toBe(false);
+    expect((await listBrands()).find((b) => b.brandId === created.brandId)).toMatchObject({
+      active: false,
+    });
   });
 
   it("sửa thương hiệu không tồn tại → 404 BRAND_NOT_FOUND", async () => {

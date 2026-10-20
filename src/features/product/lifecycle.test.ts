@@ -84,6 +84,43 @@ describe("product lifecycle", () => {
     expect(codes("Inactive", ecommerceAdmin)).toEqual([]);
   });
 
+  // BE #123 (32d1506a, V20261019000700): tạm ngưng / tiếp tục / ngừng kinh doanh chỉ System Admin
+  // (product-lifecycle:APPROVE); product-products:APPROVE vẫn duyệt / từ chối / xuất bản / gỡ.
+  describe("quyền vòng đời tách khỏi quyền duyệt (BE #123)", () => {
+    const codes = (status: ProductStatus, can: (code: string) => boolean) =>
+      allowedProductActions(status, can).map((a) => a.code);
+    const grants =
+      (...granted: string[]) =>
+      (code: string) =>
+        granted.includes(code);
+    const ECOMMERCE_ADMIN = grants(PRODUCT_PERMISSIONS.update, PRODUCT_PERMISSIONS.approve);
+    const SYSTEM_ADMIN = grants(
+      PRODUCT_PERMISSIONS.update,
+      PRODUCT_PERMISSIONS.approve,
+      PRODUCT_PERMISSIONS.lifecycle,
+    );
+    const CATALOG_EDITOR = grants(PRODUCT_PERMISSIONS.update);
+
+    it("mã quyền khớp BE ProductResources.LIFECYCLE", () => {
+      expect(PRODUCT_PERMISSIONS.lifecycle).toBe("product-lifecycle:APPROVE");
+    });
+    it("E-commerce Admin: duyệt / xuất bản / gỡ, KHÔNG tạm ngưng / tiếp tục / ngừng", () => {
+      expect(codes("Pending Approval", ECOMMERCE_ADMIN)).toEqual(["approve", "reject"]);
+      expect(codes("Approved", ECOMMERCE_ADMIN)).toEqual(["publish"]);
+      expect(codes("Published", ECOMMERCE_ADMIN)).toEqual(["unpublish"]);
+      expect(codes("Inactive", ECOMMERCE_ADMIN)).toEqual([]);
+    });
+    it("System Admin: đủ cả duyệt lẫn tạm ngưng / tiếp tục / ngừng", () => {
+      expect(codes("Pending Approval", SYSTEM_ADMIN)).toEqual(["approve", "reject"]);
+      expect(codes("Published", SYSTEM_ADMIN)).toEqual(["unpublish", "suspend", "discontinue"]);
+      expect(codes("Inactive", SYSTEM_ADMIN)).toEqual(["resume", "discontinue"]);
+    });
+    it("người soạn catalog (chỉ UPDATE): không thao tác vòng đời nào", () => {
+      expect(codes("Published", CATALOG_EDITOR)).toEqual([]);
+      expect(codes("Inactive", CATALOG_EDITOR)).toEqual([]);
+    });
+  });
+
   // BR-02 docs 01 §6 + BE `Product.requireDeletable`: chỉ xoá sản phẩm Nháp, bằng quyền DELETE riêng.
   it("xoá chỉ cho sản phẩm Draft và cần quyền DELETE (không phải APPROVE / UPDATE)", () => {
     const codes = (status: ProductStatus, can: (code: string) => boolean) =>

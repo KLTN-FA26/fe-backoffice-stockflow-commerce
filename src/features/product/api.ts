@@ -1,10 +1,9 @@
 import { api } from "@/lib/api/client";
 
-import { PAGE_SIZE } from "@/constants";
-
 import { parseDiscontinuationExtras } from "./lifecycle-api";
 import { parseProduct, parseProductPage } from "./product-parse";
-import { beBrandSchema, beCategorySchema, discontinueProductSchema } from "./schemas";
+import { discontinueProductSchema } from "./schemas";
+import { listAllBrands, listAllCategoryNodes } from "./taxonomy-api";
 
 import type { LegacyPaginatedResponse, PaginatedResponse } from "@/lib/api/query-factory";
 import type { OpenReference } from "./lifecycle-schemas";
@@ -153,50 +152,39 @@ export async function unpublishProduct(id: string): Promise<void> {
   await api.post(`/products/${id}/unpublication`);
 }
 
-/** BE PR #71 `GET /categories` — PageResponse<CategoryResponse>, chỉ danh mục đang dùng. */
+/**
+ * BE PR #71 `GET /categories` — MỌI danh mục (mọi cấp, tải hết các trang 200 dòng) theo thứ tự cây:
+ * trang đầu một mình bỏ sót danh mục, ô chọn của form sản phẩm cần đủ cây. Gồm cả danh mục đã ngưng
+ * (`active` = false, ngưng ở màn phân loại): sản phẩm cũ vẫn gắn và phải tra được tên — ô chọn chỉ mời
+ * chọn danh mục đang dùng (ProductMasterSelects). Vượt mức chặn trang thì helper đã `console.warn`,
+ * ô chọn chỉ dùng `rows`.
+ */
 export async function listCategories(
   signal?: AbortSignal,
 ): Promise<LegacyPaginatedResponse<Category>> {
-  const params = new URLSearchParams({
-    active: "true",
-    size: String(PAGE_SIZE.masterData),
-    sort: "path,asc",
-  });
-  const { data } = await api.get<unknown>("/categories", { params, signal });
-  const items = beItems(data).map((row) => toCategory(beCategorySchema.parse(row)));
+  const { rows } = await listAllCategoryNodes({ sort: "path,asc" }, signal);
+  const items = rows.map(toCategory);
   return { items, page: 1, pageSize: items.length, total: items.length };
 }
 
-/** BE PR #71 `GET /brands` — thương hiệu đang dùng, sắp theo tên. */
+/**
+ * BE PR #71 `GET /brands` — MỌI thương hiệu (tải hết các trang), sắp theo tên; gồm cả thương hiệu đã
+ * ngưng để tra tên cho sản phẩm cũ (ô chọn chỉ mời chọn cái đang dùng).
+ */
 export async function listBrands(signal?: AbortSignal): Promise<BrandDto[]> {
-  const params = new URLSearchParams({
-    active: "true",
-    size: String(PAGE_SIZE.masterData),
-    sort: "name,asc",
-  });
-  const { data } = await api.get<unknown>("/brands", { params, signal });
-  return beItems(data).map((row) => beBrandSchema.parse(row));
+  const { rows } = await listAllBrands({ sort: "name,asc" }, signal);
+  return rows;
 }
 
-function beItems(page: unknown): unknown[] {
-  if (
-    typeof page !== "object" ||
-    page === null ||
-    !Array.isArray((page as { items?: unknown }).items)
-  ) {
-    throw new Error("Page response is malformed");
-  }
-  return (page as { items: unknown[] }).items;
-}
-
-/** BE chỉ có tên một ngôn ngữ cho danh mục; cây sâu hơn 3 cấp hiển thị như cấp 3. */
+/** BE chỉ có tên một ngôn ngữ cho danh mục; `level` = `depth` + 1 (cây tối đa 11 cấp). */
 function toCategory(dto: BeCategoryDto): Category {
   return {
     categoryId: dto.categoryId,
     name: { vi: dto.name, en: dto.name },
     parentId: dto.parentId ?? null,
-    level: Math.min(3, dto.depth + 1) as Category["level"],
+    level: dto.depth + 1,
     slug: dto.slug,
+    active: dto.active,
   };
 }
 

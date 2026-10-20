@@ -47,3 +47,17 @@ export function attributeErrorMessage(error: unknown, context: AttributeErrorCon
   if (error.status === 403) return CODE_MESSAGE.FORBIDDEN ?? "";
   return "Không thực hiện được thao tác. Vui lòng thử lại.";
 }
+
+/**
+ * Mã mà câu ở trên nói "Đã tải lại": dữ liệu trên màn đã cũ (người khác sửa / xoá thuộc tính, giá trị).
+ * Mutation thuộc tính / trục bọc `withStaleRefetch` theo hàm này để câu đó là thật.
+ */
+const STALE_CODES = new Set([
+  "OPTIMISTIC_LOCK",
+  "ATTRIBUTE_NOT_FOUND",
+  "ATTRIBUTE_VALUE_NOT_FOUND",
+]);
+
+export function isStaleAttributeError(error: unknown): boolean {
+  return error instanceof ApiError && STALE_CODES.has(error.code);
+}

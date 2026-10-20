@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import { PRODUCT_ERROR_MESSAGES } from "@/constants";
 import { ApiError } from "@/lib/api";
 
-import { productTransitionErrorMessage } from "./transition-errors";
+import { isStaleProductError, productTransitionErrorMessage } from "./transition-errors";
 
 const GALLERY_REQUIRED = "Cần duyệt ít nhất một ảnh trong gallery trước khi xuất bản sản phẩm.";
 
@@ -65,5 +66,38 @@ describe("product transition errors", () => {
     expect(productTransitionErrorMessage(new ApiError(400, "VALIDATION_FAILED", "x"))).toBe(
       "Dữ liệu chuyển trạng thái không hợp lệ.",
     );
+  });
+
+  // BE Product.submit (PRODUCT_BRAND_REQUIRED + fieldErrors[brandId]),
+  // ProductPublicationAdapter.publish (PRODUCT_CATEGORY_REQUIRED / PRODUCT_SKU_REQUIRED).
+  it.each([
+    ["PRODUCT_BRAND_REQUIRED", PRODUCT_ERROR_MESSAGES.brandRequired],
+    ["PRODUCT_CATEGORY_REQUIRED", PRODUCT_ERROR_MESSAGES.categoryRequired],
+    ["PRODUCT_SKU_REQUIRED", PRODUCT_ERROR_MESSAGES.skuRequired],
+    // BE ProductPublicationAdapter.publish: SP không còn APPROVED / PUBLISHED (vd vừa bị tạm ngưng).
+    ["PRODUCT_NOT_APPROVED", PRODUCT_ERROR_MESSAGES.notApproved],
+  ])("%s → câu tiếng Việt, không lộ câu tiếng Anh của BE", (code, message) => {
+    expect(productTransitionErrorMessage(new ApiError(409, code, "English server text"))).toBe(
+      message,
+    );
+  });
+
+  it("PRODUCT_BRAND_REQUIRED kèm fieldErrors[brandId] nêu đúng ô Thương hiệu", () => {
+    const error = new ApiError(409, "PRODUCT_BRAND_REQUIRED", "x", {
+      brandId: "A brand is required",
+    });
+    expect(productTransitionErrorMessage(error)).toMatch(/Thương hiệu/);
+  });
+
+  it("isStaleProductError: OPTIMISTIC_LOCK / INVALID_PRODUCT_STATUS_TRANSITION / PRODUCT_NOT_APPROVED", () => {
+    expect(isStaleProductError(new ApiError(409, "OPTIMISTIC_LOCK", "x"))).toBe(true);
+    expect(isStaleProductError(new ApiError(409, "INVALID_PRODUCT_STATUS_TRANSITION", "x"))).toBe(
+      true,
+    );
+    // Xuất bản bị từ chối vì SP đã rời Approved ở nơi khác = trạng thái trên màn đã cũ.
+    expect(isStaleProductError(new ApiError(409, "PRODUCT_NOT_APPROVED", "x"))).toBe(true);
+    expect(isStaleProductError(new ApiError(409, "PRODUCT_GALLERY_REQUIRED", "x"))).toBe(false);
+    expect(isStaleProductError(new ApiError(409, "PRODUCT_BRAND_REQUIRED", "x"))).toBe(false);
+    expect(isStaleProductError(new Error("OPTIMISTIC_LOCK"))).toBe(false);
   });
 });

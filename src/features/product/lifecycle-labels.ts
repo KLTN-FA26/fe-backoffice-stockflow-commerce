@@ -39,8 +39,13 @@ export const CHANGE_TYPE_LABEL: Record<ProductChangeType, string> = {
   VARIANT_UPDATED: "Sửa biến thể",
   VARIANT_STATUS: "Đổi trạng thái biến thể",
   MEDIA: "Ảnh",
+  // BE PR #119 không ghi thêm hai loại dưới (đã chuyển sang hồ sơ hàng tồn) — dòng cũ vẫn đọc được.
   LOGISTICS: "Logistics của SKU",
   INVENTORY_CONTROL: "Chính sách tồn kho của SKU",
+  // BE #121 (`SkuUnitService`, V20261019000400)
+  PURCHASING: "Thông tin mua hàng của SKU",
+  UOM_CONVERSION: "Quy đổi đơn vị tính",
+  SALES_UNIT: "Đơn vị bán",
   UNKNOWN: "Thay đổi khác",
 };
 
@@ -58,7 +63,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 export const historyStatusLabel = (code: string): string => STATUS_LABEL[code] ?? "Không rõ";
 
-/** Tên trường BE ghi trong `changedFields` (sản phẩm, biến thể, logistics, chính sách tồn kho). */
+/** Tên trường BE ghi trong `changedFields` (sản phẩm, biến thể; logistics / chính sách tồn ở dòng cũ). */
 const FIELD_LABEL: Record<string, string> = {
   name: "Tên",
   nameEn: "Tên tiếng Anh",
@@ -96,5 +101,21 @@ const FIELD_LABEL: Record<string, string> = {
   trackingMode: "Theo dõi lô / serial",
   expiryTracked: "Theo dõi hạn dùng",
   maxShelfLifeDays: "Hạn dùng tối đa",
+  // Ảnh — BE `ProductMediaService` ghi tên thao tác hoặc trường của ảnh đã đổi
+  uploaded: "Tải ảnh lên",
+  deleted: "Xoá ảnh",
+  published: "Xuất bản ảnh",
+  withdrawn: "Gỡ ảnh khỏi cửa hàng",
+  altText: "Mô tả ảnh",
+  sortOrder: "Thứ tự ảnh",
+  primary: "Ảnh bìa",
 };
 export const changedFieldLabel = (field: string): string => FIELD_LABEL[field] ?? field;
+
+/**
+ * BE `ProductServiceImpl.versions`: "system" khi không có người thực hiện (job / listener), "unknown"
+ * khi không tra được tên. Tên người thật hiện nguyên văn.
+ */
+const ACTOR_LABEL: Record<string, string> = { system: "Hệ thống", unknown: "Không rõ" };
+export const historyActorLabel = (actorName: string | null | undefined): string =>
+  actorName ? (ACTOR_LABEL[actorName] ?? actorName) : "—";

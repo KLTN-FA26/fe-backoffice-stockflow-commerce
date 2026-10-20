@@ -3,6 +3,7 @@
  */
 
 import { INVENTORY_ITEM_TOAST_MESSAGES, INVENTORY_ITEM_UI_LABELS } from "./labels-inventory-item";
+import { PRODUCT_UI_LABELS } from "./labels-product";
 import { SHIPPING_TOAST_MESSAGES, SHIPPING_UI_LABELS } from "./labels-shipping";
 import { TAXONOMY_TOAST_MESSAGES, TAXONOMY_UI_LABELS } from "./labels-taxonomy";
 import { TRANSFER_TOAST_MESSAGES, TRANSFER_UI_LABELS } from "./labels-transfer";
@@ -197,6 +198,7 @@ export const UI_LABELS = {
   shipping: SHIPPING_UI_LABELS,
   taxonomy: TAXONOMY_UI_LABELS,
   inventoryItem: INVENTORY_ITEM_UI_LABELS,
+  product: PRODUCT_UI_LABELS,
   fulfillment: {
     pickingTitle: "Lấy hàng",
     pickingSubtitle: "Task xuất kho theo đơn: gán nhân viên, bắt đầu và hoàn tất lấy hàng.",

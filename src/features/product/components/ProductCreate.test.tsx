@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PRODUCT_STATUS } from "@/constants";
+import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
 
 import type { Product } from "@/features/product";
 
@@ -36,7 +37,9 @@ vi.mock("@/features/product", async () => {
   };
 });
 
-vi.mock("../attribute-queries", () => ({
+// Chỉ thay hook đọc; giữ khoá + mutation thật (mutations.ts dùng `attributeKeys`).
+vi.mock("../attribute-queries", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../attribute-queries")>()),
   useAttributes: () => ({ data: { items: [] }, isLoading: false, isError: false }),
 }));
 
@@ -89,6 +92,12 @@ describe("ProductCreate server-data hydration", () => {
     queryState.data = product("Server name");
     useProductMock.mockReturnValue(queryState);
     useUpdateProductMock.mockReturnValue({ isPending: false, mutate: vi.fn() });
+  });
+
+  it("breadcrumb của trang sửa hiện mã sản phẩm thay cho UUID", async () => {
+    render(<ProductCreate productId="product-1" />);
+    await screen.findByDisplayValue("Server name");
+    expect(useBreadcrumbLabelStore.getState().labels["product-1"]).toBe("PRD-1");
   });
 
   it("hydrates the initial server product into the form", async () => {

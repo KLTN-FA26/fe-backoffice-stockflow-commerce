@@ -1,9 +1,10 @@
-import { PRODUCT_STATUS } from "@/constants";
+import { PRODUCT_STATUS, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api";
 
 import { toAxisInputs } from "./axes-draft";
 import { attributeErrorMessage } from "./attribute-errors";
 
+import type { UseFormSetError } from "react-hook-form";
 import type { AxisDraft } from "./axes-draft";
 import type { CreateProductInput, ProductDraftFormValues } from "./schemas";
 import type { Product, ProductStatus } from "./types";
@@ -66,9 +67,11 @@ export function buildCreateProductInput(
   };
 }
 
-/** BE 409 OPTIMISTIC_LOCK: sản phẩm đã bị người khác sửa kể từ lần tải trang. */
-export const PRODUCT_STALE_MESSAGE =
-  "Dữ liệu đã bị người khác sửa. Biểu mẫu đã được tải lại với bản mới nhất, hãy kiểm tra rồi lưu lại.";
+/**
+ * BE 409 OPTIMISTIC_LOCK: sản phẩm đã bị người khác sửa kể từ lần tải trang. Câu tạm trong lúc form
+ * sửa tải bản mới nhất — sau đó thay bằng câu nêu ô bị đổi (`useProductEditSource`).
+ */
+export const PRODUCT_STALE_MESSAGE = UI_LABELS.product.edit.checking;
 
 /** Lỗi tạo sản phẩm kèm trục mà BE từ chối cả giao dịch (không để lại sản phẩm nào). */
 const AXES_ERROR_CODES = new Set([
@@ -135,6 +138,18 @@ export function mapCreateProductError(
     fieldErrors,
     message: error.message,
   };
+}
+
+/** Lỗi theo ô của BE → `setError` của form; bỏ ô không có trên form. */
+export function applyServerFieldErrors(
+  fieldErrors: CreateProductServerErrors,
+  setError: UseFormSetError<ProductDraftFormValues>,
+): void {
+  for (const [field, message] of Object.entries(fieldErrors)) {
+    if (message && field in PRODUCT_DRAFT_FORM_DEFAULTS) {
+      setError(field as CreateProductServerField, { type: "server", message });
+    }
+  }
 }
 
 function localizeKnownValidationFields(fieldErrors: CreateProductServerErrors): void {

@@ -3,18 +3,12 @@
 import { useMemo, useState } from "react";
 
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 
 import { variantErrorMessage } from "../../variant-errors";
 import { useAddVariant, useProductAxes, useUpdateVariant } from "../../variant-queries";
 import { variantInputSchemaFor } from "../../variant-schemas";
+import { ProductInput, ProductSelectTrigger } from "../form-controls";
 import { Field } from "./Field";
 
 import type { ProductAxis, Variant } from "../../variant-schemas";
@@ -127,9 +121,9 @@ function VariantForm({
               }
               disabled={locked}
             >
-              <SelectTrigger id={id} className="w-full">
+              <ProductSelectTrigger id={id}>
                 <SelectValue placeholder={`Chọn ${axis.name.toLowerCase()}`} />
-              </SelectTrigger>
+              </ProductSelectTrigger>
               <SelectContent>
                 {axis.options
                   // Giá trị đã bị vô hiệu trong từ điển: chỉ biến thể đang mang nó mới còn thấy.
@@ -154,7 +148,7 @@ function VariantForm({
         }
         error={values.sku ? issueOf("sku") : undefined}
       >
-        <Input
+        <ProductInput
           id="variant-sku"
           value={values.sku}
           onChange={set("sku")}
@@ -173,7 +167,7 @@ function VariantForm({
         }
         error={values.name ? issueOf("name") : undefined}
       >
-        <Input id="variant-name" value={values.name} onChange={set("name")} />
+        <ProductInput id="variant-name" value={values.name} onChange={set("name")} />
       </Field>
     </FormDialogBody>
   );

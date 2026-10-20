@@ -16,6 +16,8 @@ import type { Listing, ListingFormValues } from "./listing-schemas";
  */
 export const listingKeys = {
   all: ["listing"] as const,
+  /** Listing + giá của một sản phẩm. */
+  product: (productId: string) => ["listing", productId] as const,
   listing: (productId: string) => ["listing", productId, "ecommerce"] as const,
   price: (productId: string, sku: string) => ["listing", productId, "price", sku] as const,
 };

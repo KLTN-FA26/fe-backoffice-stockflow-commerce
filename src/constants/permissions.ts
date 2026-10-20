@@ -68,14 +68,14 @@ export const PO_PERMISSIONS = {
 } as const;
 
 /**
- * Sản phẩm, biến thể, logistics theo SKU, ảnh theo biến thể — resource `product-products`
- * (BE ProductResources.PRODUCTS, PR #71).
+ * Sản phẩm, giá bán, ảnh theo biến thể — resource `product-products` (BE ProductResources.PRODUCTS,
+ * PR #71). Logistics / chính sách tồn của SKU là `inventory-inventory-items` (BE PR #119).
  */
 export const PRODUCT_PERMISSIONS = {
   viewPage: "product-products:VIEW_PAGE",
   read: "product-products:READ",
   create: "product-products:CREATE",
-  // Sửa nháp, thêm / sửa / chặn biến thể, logistics, tải ảnh lên
+  // Sửa nháp, listing / giá bán, tải ảnh lên (biến thể là `product-variants`)
   update: "product-products:UPDATE",
   // Duyệt (bốn mắt), xuất bản / gỡ xuất bản, xuất bản ảnh
   approve: "product-products:APPROVE",

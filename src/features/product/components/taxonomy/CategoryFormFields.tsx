@@ -3,6 +3,7 @@
 import { useWatch } from "react-hook-form";
 
 import { UI_LABELS } from "@/constants";
+import { DialogScrollArea } from "@/components/shared/DialogScrollArea";
 import { FORM_INPUT_CLASS, FORM_TEXTAREA_CLASS } from "@/components/shared/form-control-classes";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { parentCodeOf } from "../../taxonomy-schemas";
 import { Field } from "../variants/Field";
 import { CategoryParentSelect } from "./CategoryParentSelect";
-import { CheckboxField, DialogScrollArea } from "./form-parts";
+import { CheckboxField } from "./form-parts";
 import { UrlPreviewThumb } from "./TaxonomyThumb";
 
 import type { UseFormReturn } from "react-hook-form";

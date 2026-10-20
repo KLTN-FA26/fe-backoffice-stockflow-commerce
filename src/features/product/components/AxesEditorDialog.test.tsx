@@ -66,17 +66,17 @@ const attributes = (used: boolean) => ({
 
 afterEach(() => vi.restoreAllMocks());
 
-function setup(used: boolean) {
+function setup(used: boolean, items: unknown[] = dictionary) {
   return installApi({
     permissions: [],
     get: (url) => {
       if (url === `/products/${PRODUCT}/attributes`) return attributes(used);
       if (url === "/attributes") {
         return {
-          items: dictionary,
+          items,
           page: 0,
           size: 200,
-          totalElements: 3,
+          totalElements: items.length,
           totalPages: 1,
           hasNext: false,
           hasPrevious: false,
@@ -172,5 +172,54 @@ describe("AxesEditorDialog — PUT /products/{id}/axes", () => {
     expect(await within(dialog).findByRole("alert")).toHaveTextContent(
       /Chỉ thêm hoặc gỡ trục khi sản phẩm còn Nháp/,
     );
+  });
+
+  describe("lý do khoá bộ trục hiện thành chữ (không chỉ title trên nút bị vô hiệu)", () => {
+    it("đã rời Nháp: nói rõ bộ trục khoá vì không còn Nháp", async () => {
+      setup(false);
+      renderDialog(false);
+      const dialog = await screen.findByRole("dialog", { name: "Trục biến thể" });
+      expect(
+        await within(dialog).findByText(/Bộ trục đã khoá vì sản phẩm không còn ở trạng thái Nháp/),
+      ).toBeVisible();
+    });
+
+    it("Nháp nhưng đã có biến thể dùng giá trị: nói rõ vì sao không thêm trục, trục nào không gỡ được", async () => {
+      setup(true);
+      renderDialog(true);
+      const dialog = await screen.findByRole("dialog", { name: "Trục biến thể" });
+      expect(
+        await within(dialog).findByText(/Không thêm trục mới được vì đã có biến thể dùng giá trị/),
+      ).toBeVisible();
+      expect(within(dialog).getByText(/không gỡ được trục và không bỏ chọn/)).toBeVisible();
+    });
+
+    it("Nháp, chưa khoá: không hiện lý do khoá", async () => {
+      setup(false);
+      renderDialog(true);
+      const dialog = await screen.findByRole("dialog", { name: "Trục biến thể" });
+      await within(dialog).findByRole("combobox", { name: "Thuộc tính của trục 1" });
+      expect(within(dialog).queryByText(/Bộ trục đã khoá|Không thêm trục mới được/)).toBeNull();
+    });
+  });
+
+  it("hết thuộc tính Chọn một / Màu sắc để thêm: gợi ý + link trang Thuộc tính mở tab mới", async () => {
+    // Từ điển chỉ còn COLOR (đã là trục) và NOTE (TEXT — không làm trục được)
+    setup(false, [dictionary[0], dictionary[2]]);
+    renderDialog(true);
+    const dialog = await screen.findByRole("dialog", { name: "Trục biến thể" });
+    expect(await within(dialog).findByText(/Không còn thuộc tính kiểu Chọn một/)).toBeVisible();
+    const link = within(dialog).getByRole("link", { name: /trang Thuộc tính/ });
+    expect(link).toHaveAttribute("href", "/admin/attributes");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(within(dialog).getByRole("button", { name: /Thêm trục/ })).toBeDisabled();
+  });
+
+  it("còn thuộc tính để thêm: không hiện gợi ý trang Thuộc tính", async () => {
+    setup(false);
+    renderDialog(true);
+    const dialog = await screen.findByRole("dialog", { name: "Trục biến thể" });
+    await within(dialog).findByRole("combobox", { name: "Thuộc tính của trục 1" });
+    expect(within(dialog).queryByRole("link", { name: /trang Thuộc tính/ })).toBeNull();
   });
 });
