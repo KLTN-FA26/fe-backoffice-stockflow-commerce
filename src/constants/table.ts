@@ -65,6 +65,24 @@ export const SKU_COLUMNS = {
   VARIANT_LABEL: "variantLabel",
 } as const;
 
+/** Cột bảng thương hiệu (BE `BrandResponse`). */
+export const TAXONOMY_BRAND_COLUMNS = {
+  CODE: "code",
+  LOGO: "logo",
+  NAME: "name",
+  SLUG: "slug",
+  ACTIVE: "active",
+} as const;
+
+/** Cột bảng danh mục (BE `CategoryResponse`) — cây theo thứ tự `path`, tên thụt lề theo `depth`. */
+export const TAXONOMY_CATEGORY_COLUMNS = {
+  CODE: "code",
+  NAME: "name",
+  LEVEL: "level",
+  SORT_ORDER: "sortOrder",
+  ACTIVE: "active",
+} as const;
+
 export const INVOICE_COLUMNS = {
   ACTIONS: "actions",
   DUE_DATE: "dueDate",
@@ -93,6 +111,16 @@ export const TRANSFER_COLUMNS = {
   NUMBER: "number",
   STATUS: "status",
   TO_WAREHOUSE: "toWarehouse",
+} as const;
+
+/** Cột bảng hồ sơ hàng tồn (BE PR #119 `InventoryItemResponse`). */
+export const INVENTORY_ITEM_COLUMNS = {
+  SKU: "sku",
+  UOM: "unitOfMeasure",
+  BARCODE: "barcode",
+  STORAGE: "storageClass",
+  TRACKING: "trackingMode",
+  POLICY: "policyConfigured",
 } as const;
 
 /** Cột danh sách chuyến xe (contract đề xuất SCRUM-288). */

@@ -21,6 +21,8 @@ import {
   STOCK_STATUSES,
 } from "@/constants/inventory";
 
+import { SKU_CODE_PATTERN } from "@/lib/validation/sku";
+
 import { paginatePage, registerMockRoute } from "./mock-adapter";
 import {
   MOCK_RESERVATIONS,
@@ -44,7 +46,6 @@ type Params = Record<string, unknown>;
 type MockReply = ReturnType<typeof ok> | ReturnType<typeof beError>;
 type SortClause = { field: string; descending: boolean };
 
-const SKU_PATTERN = /^[A-Z0-9-]{3,64}$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const UNSUPPORTED = "Unsupported parameter value";
 
@@ -91,7 +92,7 @@ function text(value: unknown): string | undefined {
 /** `new Sku(raw)`: bắt buộc, trim + viết hoa, sai định dạng → 400 VALIDATION_FAILED. */
 function requiredSku(params: Params): string {
   const sku = text(params.sku)?.toUpperCase();
-  if (!sku || !SKU_PATTERN.test(sku)) throw invalid();
+  if (!sku || !SKU_CODE_PATTERN.test(sku)) throw invalid();
   return sku;
 }
 

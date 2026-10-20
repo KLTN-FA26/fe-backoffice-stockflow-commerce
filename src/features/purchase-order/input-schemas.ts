@@ -9,11 +9,12 @@ import { z } from "zod";
 import { PO_LIMITS, UI_LABELS } from "@/constants";
 import { currencyFractionDigits, fitsCurrencyScale } from "@/lib/format";
 import { intQty, isoDate, money, requiredString } from "@/lib/validation/primitives";
+import { SKU_CODE_PATTERN } from "@/lib/validation/sku";
 
 /** BR-07 / ASSUMPTION (open-question A4): FE hỗ trợ VND / USD / CNY cho PO mới. */
 export const PO_INPUT_CURRENCIES = ["VND", "USD", "CNY"] as const;
 /** BE `product.variants.sku` (`ck_variants_sku`): mã được trim + upper-case rồi phải khớp mẫu này. */
-export const SKU_CODE_PATTERN = /^[A-Z0-9][A-Z0-9._-]{0,63}$/;
+export { SKU_CODE_PATTERN };
 /** BE: lý do khôi phục / đổi ngày giao 1..1000 ký tự. */
 export const PO_REASON_MAX = PO_LIMITS.reasonMax;
 

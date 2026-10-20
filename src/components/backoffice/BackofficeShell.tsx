@@ -7,6 +7,7 @@ import {
   CalendarClock,
   ClipboardList,
   FileText,
+  FolderTree,
   History as HistoryIcon,
   LayoutDashboard,
   Lightbulb,
@@ -37,15 +38,18 @@ import { useMemo, useState } from "react";
 import {
   ADMIN_ROUTES,
   APP_ROUTES,
+  ATTRIBUTE_PERMISSIONS,
   BRAND,
   FULFILLMENT_PACKAGE_PERMISSIONS,
   FULFILLMENT_PICK_PERMISSIONS,
   GOODS_RECEIPT_PERMISSIONS,
   IDENTITY_PERMISSIONS,
+  INVENTORY_ITEM_PERMISSIONS,
   INVENTORY_OVERVIEW_PERMISSIONS,
   INVENTORY_PERMISSIONS,
   ORDER_PERMISSIONS,
   PO_PERMISSIONS,
+  PRODUCT_PERMISSIONS,
   SHIPMENT_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
   TRANSFER_PERMISSIONS,
@@ -57,7 +61,7 @@ import { logoutApi } from "@/lib/auth/auth-api";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
-import { invoices, moveTasks, purchaseOrders, putawayTasks, warehouses } from "@/lib/mock-data";
+import { invoices, purchaseOrders, putawayTasks, warehouses } from "@/lib/mock-data";
 import { useIsMock } from "@/providers/app-providers";
 
 import { Logo } from "@/components/shared/Logo";
@@ -86,14 +90,14 @@ import type { LucideIcon } from "lucide-react";
 import type { PermissionCode } from "@/lib/auth/me-permissions";
 import type { Warehouse } from "@/lib/mock-data";
 /* -------------------------------------------------------------------------- */
-/*  Warning dot counts — computed from mock data                             */
+/*  Warning dot counts — computed from mock data (mock mode only: the BE has */
+/*  no cross-module "needs attention" counts, so real mode shows no badge)    */
 /* -------------------------------------------------------------------------- */
 
 const WARNING_STATUSES: Record<string, string[]> = {
   "/admin/purchase-orders": ["Pending Approval"],
   "/admin/invoices": ["Exception", "Disputed"],
   "/admin/putaway": ["On Hold"],
-  "/admin/moves": ["On Hold", "Discrepancy"],
 };
 
 function computeWarningCounts(): Record<string, number> {
@@ -106,9 +110,6 @@ function computeWarningCounts(): Record<string, number> {
   ).length;
   counts["/admin/putaway"] = putawayTasks.filter((pt) =>
     WARNING_STATUSES["/admin/putaway"]!.includes(pt.status),
-  ).length;
-  counts["/admin/moves"] = moveTasks.filter((mv) =>
-    WARNING_STATUSES["/admin/moves"]!.includes(mv.status),
   ).length;
   return counts;
 }
@@ -150,10 +151,19 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: Package,
       },
       {
-        label: "Thuộc tính biến thể",
-        tooltip: "Variant Attributes",
-        href: "/admin/variants",
+        label: "Từ điển thuộc tính",
+        tooltip: "Attribute dictionary",
+        href: ADMIN_ROUTES.attributes,
         icon: Palette,
+        permission: ATTRIBUTE_PERMISSIONS.viewPage,
+      },
+      {
+        label: "Thương hiệu & danh mục",
+        tooltip: "Brands & Categories",
+        href: ADMIN_ROUTES.taxonomy.list,
+        icon: FolderTree,
+        // BE gate mọi endpoint /brands, /categories bằng product-products (ProductTaxonomyController)
+        permission: PRODUCT_PERMISSIONS.viewPage,
       },
       {
         label: "Nhà cung cấp",
@@ -184,6 +194,8 @@ export const NAV_GROUPS: NavGroup[] = [
         tooltip: "Replenishment",
         href: "/admin/replenishment",
         icon: Lightbulb,
+        // BE chưa có API đề xuất nhập hàng (chỉ có đánh giá ngưỡng tồn) — màn chạy trên dữ liệu mẫu
+        mockOnly: true,
       },
       {
         label: "Đơn đặt NCC",
@@ -197,6 +209,8 @@ export const NAV_GROUPS: NavGroup[] = [
         tooltip: "Supplier Invoices",
         href: "/admin/invoices",
         icon: Receipt,
+        // BE chưa có API hoá đơn NCC (`/invoices`) — màn chạy trên dữ liệu mẫu
+        mockOnly: true,
       },
     ],
   },
@@ -228,6 +242,14 @@ export const NAV_GROUPS: NavGroup[] = [
         ],
       },
       {
+        label: "Hồ sơ hàng tồn",
+        tooltip: "Inventory items",
+        href: ADMIN_ROUTES.inventoryItems.list,
+        icon: Boxes,
+        // Route BE khai báo cho resource inventory-inventory-items (PR #119)
+        permission: INVENTORY_ITEM_PERMISSIONS.viewPage,
+      },
+      {
         label: "Kho map & slotting",
         tooltip: "Warehouse Map",
         href: "/admin/warehouse-map",
@@ -251,6 +273,8 @@ export const NAV_GROUPS: NavGroup[] = [
         tooltip: "Intra-warehouse Moves",
         href: "/admin/moves",
         icon: Move,
+        // BE StockOperationsController: POST /inventory/movements là inventory-stock-items:UPDATE
+        permission: INVENTORY_PERMISSIONS.stockUpdate,
       },
       {
         label: "Điều chỉnh tồn",
@@ -506,7 +530,12 @@ function BackofficeSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
 
-  const warningCounts = useMemo(() => computeWarningCounts(), []);
+  const isMock = useIsMock();
+  // Số đếm lấy từ dữ liệu mẫu: không hiện khi nối BE thật (không bịa số liệu)
+  const warningCounts = useMemo<Record<string, number>>(
+    () => (isMock ? computeWarningCounts() : {}),
+    [isMock],
+  );
   const canSeeItem = useCanSeeNavItem();
 
   return (
@@ -556,10 +585,7 @@ function BackofficeSidebar() {
             <SidebarGroupContent>
               <SidebarMenu className={cn("gap-0.5", collapsed && "items-center")}>
                 {group.items.filter(canSeeItem).map((item) => {
-                  const isActive =
-                    item.href === "/admin"
-                      ? pathname === "/admin"
-                      : pathname === item.href || pathname.startsWith(item.href + "/");
+                  const isActive = findNavItem(pathname)?.href === item.href;
                   const Icon = item.icon;
                   const warnCount = warningCounts[item.href] ?? 0;
 
@@ -617,6 +643,7 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
   const currentUser = useAuthStore((state) => state.user);
+  const isMock = useIsMock();
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>("all");
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
@@ -700,11 +727,14 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
               aria-label="Tìm toàn cục"
             />
 
-            <WarehouseSwitcher
-              selected={selectedWarehouse}
-              onSelect={setSelectedWarehouse}
-              label={selectedWhLabel}
-            />
+            {/* Danh sách kho lấy từ dữ liệu mẫu và chưa nối với phạm vi dữ liệu: chỉ hiện ở mock */}
+            {isMock && (
+              <WarehouseSwitcher
+                selected={selectedWarehouse}
+                onSelect={setSelectedWarehouse}
+                label={selectedWhLabel}
+              />
+            )}
 
             {/* Theme toggle */}
             <Button

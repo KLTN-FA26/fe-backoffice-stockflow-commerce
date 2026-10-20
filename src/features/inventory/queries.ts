@@ -132,8 +132,6 @@ export function useWarehouseStockItems(input: WarehouseStockItemsParams) {
     queryKey: stockKeys.warehouseItems(params, warehouseId),
     queryFn: ({ signal }) => listWarehouseStockItems(input, signal),
     enabled: params !== null,
-    placeholderData: (previous, query) =>
-      query?.queryKey[2] === warehouseId ? previous : undefined,
   });
 }
 
@@ -156,8 +154,6 @@ export function useReservations(input: ReservationListParams) {
     queryKey: stockReservationKeys.list(params, warehouseId),
     queryFn: ({ signal }) => listReservations(input, signal),
     enabled: params !== null,
-    placeholderData: (previous, query) =>
-      query?.queryKey[2] === warehouseId ? previous : undefined,
   });
 }
 
@@ -168,7 +164,5 @@ export function useStockAlerts(input: StockAlertListParams) {
     queryKey: stockAlertKeys.list(params, warehouseId),
     queryFn: ({ signal }) => listStockAlerts(input, signal),
     enabled: params !== null,
-    placeholderData: (previous, query) =>
-      query?.queryKey[2] === warehouseId ? previous : undefined,
   });
 }

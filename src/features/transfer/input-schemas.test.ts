@@ -24,6 +24,17 @@ describe("transferFormSchema (CreateTransferOrderRequest + BR docs 10 §6)", () 
     expect(transferFormSchema.safeParse(valid).success).toBe(true);
   });
 
+  it.each(["CUP_12", "A.B", "x", "cup-pp.500_a"])(
+    "SKU %s hợp lệ theo BE @ValidSku (có '_' / '.', 1 ký tự, chữ thường)",
+    (sku) => {
+      const result = transferFormSchema.safeParse({
+        ...valid,
+        lines: [{ sku, lotNumber: "", quantity: 1 }],
+      });
+      expect(result.success).toBe(true);
+    },
+  );
+
   it("BR-01: kho nguồn trùng kho đích → lỗi ở kho đích", () => {
     const result = transferFormSchema.safeParse({ ...valid, toWarehouseId: "wh-a" });
     expect(result.success).toBe(false);

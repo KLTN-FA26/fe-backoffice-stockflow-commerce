@@ -1,5 +1,7 @@
 "use client";
 
+import { useId } from "react";
+
 import { INVENTORY_LABELS, INVENTORY_PAGE_SIZES } from "@/constants/inventory";
 
 import { Button } from "@/components/ui/button";
@@ -32,21 +34,16 @@ interface InventoryPagerProps {
 }
 
 // `setPage` receives the one-based page the URL/state uses; `data.page` is the backend's zero-based page.
-export function InventoryPager({
-  data,
-  id = "inventory-page-size",
-  pending,
-  size,
-  setSize,
-  setPage,
-}: InventoryPagerProps) {
+export function InventoryPager({ data, id, pending, size, setSize, setPage }: InventoryPagerProps) {
+  const generatedId = useId();
+  const selectId = id ?? generatedId;
   const range = inventoryPageRange(data);
   return (
     <footer className="border-border-default bg-bg-subtle flex items-center justify-between gap-[var(--el-gap)] border-t p-[var(--card-pad)]">
       <div className="flex items-center gap-[var(--el-gap)]">
-        <Label htmlFor={id}>{INVENTORY_LABELS.perPage}</Label>
+        <Label htmlFor={selectId}>{INVENTORY_LABELS.perPage}</Label>
         <select
-          id={id}
+          id={selectId}
           value={size}
           onChange={(event) => setSize(Number(event.target.value))}
           disabled={pending}

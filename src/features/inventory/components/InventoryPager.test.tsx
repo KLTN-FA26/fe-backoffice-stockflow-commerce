@@ -85,3 +85,20 @@ describe("InventoryPager", () => {
     );
   });
 });
+
+it("gives simultaneous default pagers distinct label/select associations", () => {
+  renderPager(movementPage);
+  renderPager(adjustmentPage);
+  const selects = screen.getAllByLabelText(INVENTORY_LABELS.perPage);
+  expect(selects).toHaveLength(2);
+  expect(selects[0]?.id).toBeTruthy();
+  expect(selects[0]?.id).not.toBe(selects[1]?.id);
+});
+
+it("disables page size and navigation while pending", () => {
+  render(
+    <InventoryPager data={adjustmentPage} pending size={15} setPage={vi.fn()} setSize={vi.fn()} />,
+  );
+  expect(screen.getByLabelText(INVENTORY_LABELS.perPage)).toBeDisabled();
+  for (const button of screen.getAllByRole("button")) expect(button).toBeDisabled();
+});

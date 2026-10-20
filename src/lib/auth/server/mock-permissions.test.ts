@@ -6,10 +6,16 @@ import { describe, expect, it, vi } from "vitest";
 
 import { AUTH_COOKIE_NAME, MOCK_LOGIN_PASSWORD } from "@/constants/auth";
 import {
+  ATTRIBUTE_PERMISSIONS,
+  INVENTORY_ITEM_PERMISSIONS,
+  INVENTORY_OVERVIEW_PERMISSIONS,
+  WAREHOUSE_PERMISSIONS,
   INVENTORY_PERMISSIONS,
   PERMISSION_QUERY,
+  PRODUCT_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
   TRANSFER_PERMISSIONS,
+  VARIANT_PERMISSIONS,
 } from "@/constants/permissions";
 
 import { getMockStaffUsers } from "@/lib/api/mock-adapter";
@@ -40,6 +46,31 @@ describe("explicit mock permission responses", () => {
     expect(mockSessionPermissions("USER-PROC-01", []).permissions).toContain(
       SUPPLIER_PERMISSIONS.create,
     );
+  });
+  it("admin và E-commerce Admin có product-attributes / product-variants (seed BE V20260928006000); nhân viên kho thì không", () => {
+    for (const userId of ["USER-ADMIN-01", "USER-ECAD-01"]) {
+      const { permissions } = mockSessionPermissions(userId, []);
+      for (const code of [
+        ...Object.values(ATTRIBUTE_PERMISSIONS),
+        ...Object.values(VARIANT_PERMISSIONS),
+      ])
+        expect(permissions).toContain(code);
+    }
+    const warehouse = mockSessionPermissions("USER-WH-01", []).permissions;
+    expect(warehouse).not.toContain(ATTRIBUTE_PERMISSIONS.viewPage);
+    expect(warehouse).not.toContain(VARIANT_PERMISSIONS.create);
+  });
+  it("chỉ System Admin có product-lifecycle:APPROVE (BE V20261019000700); E-commerce Admin vẫn duyệt", () => {
+    expect(mockSessionPermissions("USER-ADMIN-01", []).permissions).toContain(
+      PRODUCT_PERMISSIONS.lifecycle,
+    );
+    const ecommerce = mockSessionPermissions("USER-ECAD-01", []).permissions;
+    expect(ecommerce).not.toContain(PRODUCT_PERMISSIONS.lifecycle);
+    expect(ecommerce).toContain(PRODUCT_PERMISSIONS.approve);
+    for (const userId of ["USER-WH-01", "USER-PROC-01", "USER-SALE-01", "USER-PLAN-01"])
+      expect(mockSessionPermissions(userId, []).permissions).not.toContain(
+        PRODUCT_PERMISSIONS.lifecycle,
+      );
   });
   it("BFF permissions return the cookie-selected user's validated list despite frontend impersonation", async () => {
     vi.stubEnv("APP_ORIGIN", "");
@@ -111,9 +142,62 @@ describe("Inventory grants in the authoritative server session", () => {
       );
       const expected =
         role === "QC Staff"
-          ? []
+          ? [INVENTORY_PERMISSIONS.stockRead]
           : codes.filter((code) => approves || code !== INVENTORY_PERMISSIONS.adjustmentApprove);
       expect(actual).toEqual(expected.sort());
     }
   });
+});
+
+describe("Inventory item grants (BE PR #119, seed V20260928006000)", () => {
+  const ITEM = INVENTORY_ITEM_PERMISSIONS;
+  const ALL = Object.values(ITEM);
+  const READ = [ITEM.viewPage, ITEM.read];
+  it.each([
+    // System Admin + Warehouse Manager
+    ["USER-ADMIN-01", ALL],
+    ["USER-PLAN-01", ALL],
+    ["USER-WH-01", READ],
+    ["USER-WH-04", READ],
+    // Order Coordinator + Warehouse Staff
+    ["USER-COORD-01", READ],
+    ["USER-PROC-01", READ],
+    ["USER-QC-01", []],
+    ["USER-ACC-01", []],
+    ["USER-ECAD-01", []],
+    ["USER-SALE-01", []],
+  ] as const)("%s nhận đúng quyền hồ sơ hàng tồn theo seed", (userId, expected) => {
+    const codes: readonly string[] = ALL;
+    const actual = mockSessionPermissions(userId, []).permissions.filter((code) =>
+      codes.includes(code),
+    );
+    expect(actual).toEqual([...expected].sort());
+  });
+});
+
+describe("Overview grants match backend seeds", () => {
+  const OV = INVENTORY_OVERVIEW_PERMISSIONS;
+  it.each([
+    ["USER-ADMIN-01", true, true, true, true],
+    ["USER-WH-01", true, true, true, true],
+    ["USER-PLAN-01", true, false, true, true],
+    ["USER-QC-01", true, false, false, false],
+    ["USER-PROC-01", false, false, false, true],
+    ["USER-ECAD-01", false, false, false, false],
+    ["USER-SALE-01", false, false, false, true],
+  ] as const)(
+    "%s has seeded stock, reservation, alert and directory reads",
+    (id, stock, holds, alerts, directory) => {
+      const { permissions } = mockSessionPermissions(id, []);
+      for (const [code, allowed] of [
+        [OV.stockRead, stock],
+        [OV.reservationRead, holds],
+        [OV.alertRead, alerts],
+        [WAREHOUSE_PERMISSIONS.read, directory],
+      ] as const) {
+        expect(permissions.includes(code)).toBe(allowed);
+      }
+      expect(new Set(permissions).size).toBe(permissions.length);
+    },
+  );
 });

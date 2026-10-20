@@ -12,6 +12,8 @@ import {
   STOCK_STATUSES,
 } from "@/constants/inventory";
 
+import { skuSchema } from "@/lib/validation/sku";
+
 import { inventoryPageDto } from "./schemas";
 
 // Read side of Inventory Overview (SCRUM-438). Source: backend develop 0f18f24 InventoryController,
@@ -101,18 +103,18 @@ export const stockAlertPageDto = inventoryPageDto(stockAlertDto);
 
 // Exact SKU only (no partial or product-name search on the backend): trimmed, upper-cased like
 // the backend `Sku` record. The warehouse-stock and reservation filters compare it verbatim.
-const sku = z
-  .string()
-  .trim()
-  .min(1)
-  .transform((value) => value.toUpperCase());
+// common.domain.Sku (backend develop 103aa04): validate the shared alphabet, then normalise.
+const sku = skuSchema({
+  required: INVENTORY_MESSAGES.required,
+  format: INVENTORY_MESSAGES.invalidSku,
+}).transform((value) => value.toUpperCase());
 // Absent or blank → omitted from the request, never sent as an empty string.
 const optionalText = z
   .string()
   .trim()
   .optional()
   .transform((value) => value || undefined);
-const optionalSku = optionalText.transform((value) => value?.toUpperCase());
+const optionalSku = optionalText.pipe(sku.optional());
 // Comma-joined on the wire (`status=A,B`): Spring binds that to a List/Set, not `status[]=`.
 // An empty list would match nothing on the backend, so callers omit the filter instead.
 function commaList<T extends readonly [string, ...string[]]>(values: T) {
@@ -130,22 +132,13 @@ function sortClause<T extends readonly [string, ...string[]]>(fields: T) {
 }
 const paging = {
   page: z.number().int().nonnegative(),
-  size: z.number().int().positive(),
+  size: z.number().int().positive().max(INVENTORY_LIMITS.maxPageSize),
 };
 
 export const stockLevelsInput = z.object({ sku });
 
 /** Overview SKU form: the same exact code the backend `Sku` record accepts, normalised on submit. */
-export const skuLookupInput = z.object({
-  sku: z
-    .string()
-    .trim()
-    .min(1, INVENTORY_MESSAGES.required)
-    .min(INVENTORY_LIMITS.skuMinLength, INVENTORY_MESSAGES.invalidSku)
-    .max(INVENTORY_LIMITS.skuMaxLength, INVENTORY_MESSAGES.invalidSku)
-    .regex(/^[A-Za-z0-9-]+$/, INVENTORY_MESSAGES.invalidSku)
-    .transform((value) => value.toUpperCase()),
-});
+export const skuLookupInput = z.object({ sku });
 
 export const warehouseStockItemsInput = z.object({
   warehouseId,

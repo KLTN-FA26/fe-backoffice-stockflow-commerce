@@ -68,17 +68,49 @@ export const PO_PERMISSIONS = {
 } as const;
 
 /**
- * Sản phẩm, biến thể, logistics theo SKU, ảnh theo biến thể — resource `product-products`
- * (BE ProductResources.PRODUCTS, PR #71).
+ * Sản phẩm, giá bán, ảnh theo biến thể — resource `product-products` (BE ProductResources.PRODUCTS,
+ * PR #71). Logistics / chính sách tồn của SKU là `inventory-inventory-items` (BE PR #119).
  */
 export const PRODUCT_PERMISSIONS = {
   viewPage: "product-products:VIEW_PAGE",
   read: "product-products:READ",
   create: "product-products:CREATE",
-  // Sửa nháp, thêm / sửa / chặn biến thể, logistics, tải ảnh lên
+  // Sửa nháp, listing / giá bán, tải ảnh lên (biến thể là `product-variants`)
   update: "product-products:UPDATE",
-  // Duyệt (bốn mắt), kích hoạt / ngừng biến thể, xuất bản ảnh
+  // Duyệt (bốn mắt), xuất bản / gỡ xuất bản, xuất bản ảnh
   approve: "product-products:APPROVE",
+  // Tạm ngưng / tiếp tục / ngừng kinh doanh — resource riêng `product-lifecycle` (BE
+  // `ProductLifecycleController`, PR #123): kltn-docs 01 §5.1 chỉ giao cho System Admin
+  lifecycle: "product-lifecycle:APPROVE",
+  // Xoá sản phẩm Nháp (`DELETE /products/{id}`) — quyền riêng, có thể cấp hoặc thu hồi tách biệt
+  delete: "product-products:DELETE",
+} as const;
+
+/**
+ * Cấu trúc biến thể — resource `product-variants` (BE `ProductResources.VARIANTS`, khai báo ở
+ * `ProductAttributeController`): trục biến thể (`PUT /products/{id}/axes`), thêm biến thể và sinh ma
+ * trận là CREATE, sửa / chặn là UPDATE, kích hoạt / ngừng dùng là APPROVE. Khác với nội dung sản phẩm
+ * (`product-products`), nên SALES_STAFF có quyền này mà không có quyền duyệt sản phẩm.
+ */
+export const VARIANT_PERMISSIONS = {
+  viewPage: "product-variants:VIEW_PAGE",
+  read: "product-variants:READ",
+  create: "product-variants:CREATE",
+  update: "product-variants:UPDATE",
+  approve: "product-variants:APPROVE",
+} as const;
+
+/**
+ * Từ điển thuộc tính — resource `product-attributes` (BE `AttributeController`,
+ * `CategoryAttributeController`). Thêm / sửa / xoá một giá trị là UPDATE của thuộc tính (không có
+ * quyền riêng cho giá trị); gán bộ thuộc tính cho danh mục cũng là UPDATE.
+ */
+export const ATTRIBUTE_PERMISSIONS = {
+  viewPage: "product-attributes:VIEW_PAGE",
+  read: "product-attributes:READ",
+  create: "product-attributes:CREATE",
+  update: "product-attributes:UPDATE",
+  delete: "product-attributes:DELETE",
 } as const;
 
 /**
@@ -94,6 +126,32 @@ export const INVENTORY_PERMISSIONS = {
   stockUpdate: "inventory-stock-items:UPDATE",
   // GET /inventory/movements
   movementRead: "inventory-stock-movements:READ",
+  // GET /inventory/stock-items?sku= (tồn theo SKU và vị trí) — gợi ý nguồn khi chuyển vị trí
+  stockRead: "inventory-stock-items:READ",
+  // GET /inventory/alerts, /inventory/alerts/summary (BE StockAlertController, resource inventory-alerts)
+  alertRead: "inventory-alerts:READ",
+} as const;
+
+/**
+ * Hồ sơ hàng tồn (logistics + chính sách tồn của một SKU) — resource `inventory-inventory-items`
+ * (BE PR #119 `InventoryItemController`, chỉ khai báo VIEW_PAGE / READ / UPDATE). Seed
+ * V20260928006000: WAREHOUSE_MANAGER, INVENTORY_PLANNER mọi quyền; WAREHOUSE_STAFF,
+ * PROCUREMENT_STAFF chỉ VIEW_PAGE / READ. Role catalog (ECOMMERCE_ADMIN, SALES_STAFF) không có quyền.
+ */
+export const INVENTORY_ITEM_PERMISSIONS = {
+  viewPage: "inventory-inventory-items:VIEW_PAGE",
+  // GET /inventory/items, GET /inventory/items/{id}
+  read: "inventory-inventory-items:READ",
+  // PUT /inventory/items/{id}/logistics, PUT …/policy
+  update: "inventory-inventory-items:UPDATE",
+} as const;
+
+/**
+ * Sơ đồ kho — resource `warehouse-locations` (BE `LayoutController`): `GET /warehouses/{id}/layout`
+ * và `GET /locations/{code}`. WAREHOUSE_STAFF có VIEW_PAGE/READ (seed V20260928006000).
+ */
+export const WAREHOUSE_LOCATION_PERMISSIONS = {
+  read: "warehouse-locations:READ",
 } as const;
 
 /**
@@ -178,7 +236,7 @@ export const SHIPMENT_PERMISSIONS = {
 /**
  * Danh mục kho — resource `warehouse-warehouses` (BE WarehouseController: GET /warehouses = READ).
  * Seed V20260928006000: WAREHOUSE_MANAGER, WAREHOUSE_STAFF, INVENTORY_PLANNER, PROCUREMENT_STAFF;
- * QC_STAFF không có.
+ * V20261017000800 thêm SALES_STAFF; QC_STAFF không có.
  */
 export const WAREHOUSE_PERMISSIONS = {
   read: "warehouse-warehouses:READ",

@@ -1,0 +1,219 @@
+# =============================================================================
+# Claude review. Chạy lệnh /review-pr của repo (.claude/commands/review-pr.md) khi một pull request
+# được mở hoặc rời trạng thái draft, hoặc khi có người comment bắt đầu bằng "@claude review", rồi đăng
+# kết quả thành comment trên PR.
+#
+# Không dùng nguyên plugin code-review như BE: plugin chỉ đối chiếu file tên CLAUDE.md, còn luật thật
+# của repo này nằm ở .claude/rules/*.md (CLAUDE.md gốc chỉ là bảng trỏ sang đó), và plugin không biết
+# docs nghiệp vụ hay contract BE. /review-pr giữ khung của plugin (lọc PR, nhiều agent song song, xác
+# minh từng phát hiện, chỉ đăng phát hiện chắc chắn) và thêm rules theo glob, docs, BE.
+#
+# KHÔNG có trigger synchronize: review lại commit mới thì comment "@claude review". Comment đó chạy
+# đúng job này - cùng quy trình nhiều agent - chứ không phải claude.yml: ở chế độ trò chuyện của
+# claude.yml, Claude review một mình trong vài chục giây và bỏ qua bước xác minh.
+# Mỗi lần chạy tiêu quota subscription của người sở hữu CLAUDE_CODE_OAUTH_TOKEN, nhiều agent nên không rẻ.
+#
+# Chỉ mang tính tham khảo. Không phải required check - cổng chặn merge là ci.yml.
+# =============================================================================
+
+name: claude-review
+
+on:
+  pull_request:
+    types: [opened, ready_for_review, reopened]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    # Comment: chỉ trên PR, phải BẮT ĐẦU bằng "@claude review", và chỉ người trong repo/org được gọi -
+    # repo public, không để comment từ bên ngoài tiêu quota. Câu khác có "@claude" vẫn sang claude.yml.
+    if: >-
+      (github.event_name == 'pull_request' && github.event.pull_request.draft == false) ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request &&
+       startsWith(github.event.comment.body, '@claude review') &&
+       contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association))
+    # Concurrency đặt ở cấp JOB, không ở cấp workflow. Mọi comment trên PR đều kích hoạt workflow này -
+    # kể cả comment tự động của Vercel ngay sau khi PR mở. Ở cấp workflow, run của comment đó vào cùng
+    # nhóm và huỷ review thật trước khi kịp xét `if` (PR #44 bị huỷ sau 1 giây như vậy). Ở cấp job,
+    # run bị `if` loại thì không vào nhóm; nhóm còn tách riêng theo run_id cho mọi comment không phải
+    # "@claude review", để chắc chắn không huỷ nhầm.
+    concurrency:
+      group: "claude-review-${{ (github.event_name == 'pull_request' || startsWith(github.event.comment.body, '@claude review')) && format('pr-{0}', github.event.pull_request.number || github.event.issue.number) || github.run_id }}"
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      # Action đổi OIDC token lấy installation token của Claude GitHub App - token đó mới là thứ
+      # thực sự ghi comment.
+      id-token: write
+
+    env:
+      PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+
+    steps:
+      # Báo đã nhận lệnh: review mất vài phút, không có phản hồi thì người gọi tưởng bot không chạy.
+      - name: Acknowledge comment
+        if: github.event_name == 'issue_comment'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api "repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}/reactions" -f content=eyes
+
+      # Comment chạy trên nhánh mặc định, nên phải chỉ rõ code của PR. Dùng head (luôn tồn tại), không
+      # dùng merge ref (không có khi PR đang conflict).
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ env.PR_NUMBER }}/head
+          # Review chạy git blame / git log trên các dòng bị sửa; full history cũng kéo về nhánh mặc
+          # định cho bước dưới.
+          fetch-depth: 0
+
+      # Quy trình review luôn lấy từ nhánh mặc định, không lấy từ PR: PR tách ra trước khi có lệnh này
+      # (hoặc stacked trên nhánh feature) vẫn review được, và một PR không tự sửa được luật chấm chính nó.
+      - name: Use review command from default branch
+        run: |
+          mkdir -p .claude/commands
+          git show "origin/${{ github.event.repository.default_branch }}:.claude/commands/review-pr.md"             > .claude/commands/review-pr.md
+
+      # ---------------------------------------------------------------------
+      # Ngữ cảnh cho review, đặt trong .review-context/ (đã gitignore). /review-pr tìm ở đây trước.
+      # Giữ khối này giống hệt trong claude.yml.
+      # ---------------------------------------------------------------------
+
+      # Repo docs private, GITHUB_TOKEN không đọc được repo khác. Dùng fine-grained PAT chỉ cấp
+      # Contents: Read-only cho riêng repo docs (org tắt deploy key nên không dùng được cách đó).
+      # Thiếu token hoặc token hết hạn thì review vẫn chạy và nói rõ trong comment là đã bỏ qua
+      # kiểm tra nghiệp vụ - một bước checkout hỏng không đáng làm mất cả lần review.
+      - name: Checkout docs
+        continue-on-error: true
+        uses: actions/checkout@v4
+        with:
+          repository: KLTN-FA26/docs
+          token: ${{ secrets.DOCS_READ_TOKEN }}
+          path: .review-context/docs
+          persist-credentials: false
+
+      # BE public, nhánh develop là bản đang chạy (main tụt xa). Chỉ lấy phần review cần: mã Java
+      # (enum status, DTO, controller - status và transition lấy BE làm chuẩn), migration (seed mã
+      # quyền theo role) và i18n (thông báo lỗi). Bỏ fonts và dữ liệu demo.
+      - name: Checkout BE
+        continue-on-error: true
+        uses: actions/checkout@v4
+        with:
+          repository: KLTN-FA26/be-backoffice-stockflow-commerce
+          ref: develop
+          path: .review-context/be
+          sparse-checkout: |
+            src/main/java
+            src/main/resources/db/migration
+            src/main/resources/i18n
+          persist-credentials: false
+
+      # SHA để comment link tới đúng phiên bản docs/BE đã đối chiếu.
+      - name: Record context refs
+        run: |
+          for repo in docs be; do
+            if [ -d ".review-context/$repo/.git" ]; then
+              echo "$repo $(git -C ".review-context/$repo" rev-parse HEAD)"
+            fi
+          done > .review-context/refs.txt
+          cat .review-context/refs.txt
+
+      # Pin theo commit: tag có thể bị dời sang code khác, mà bước này giữ token.
+      # Bump cả hai workflow cùng lúc, trên cả develop và main, nếu không mọi lần chạy đều fail validation.
+      - id: claude
+        uses: anthropics/claude-code-action@5eb090f3c3afd701a0672cd32981197ca27688f6 # v1.0.253
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Agent con phải chạy tiền cảnh. Trên #38, Opus chạy 6 agent review ở chế độ nền rồi kết thúc
+          # lượt để "chờ" ("Bước 4 đang chạy 6 agent…") - phiên CI chỉ có một lượt, nên kết thúc là hết:
+          # không xác minh, không đăng comment, kết quả của cả 6 agent bị bỏ.
+          settings: |
+            {"env": {"CLAUDE_CODE_DISABLE_BACKGROUND_TASKS": "1"}}
+          # --requested: gọi bằng comment, nên dừng ở bước lọc thì vẫn phải trả lời lý do.
+          prompt: /review-pr --comment ${{ github.event_name == 'issue_comment' && '--requested ' || '' }}${{ github.repository }}/pull/${{ env.PR_NUMBER }}
+          # Model chính là Opus: /review-pr là quy trình điều phối (gọi agent con haiku/sonnet/opus rồi
+          # xác minh). Với model mặc định của action (Sonnet), lần "@claude review" trên #36 tự review một
+          # mình trong 5 lượt và không gọi agent con nào; chạy thử với Opus trên #38 thì gọi đủ.
+          # Command đã khai báo các tool trong frontmatter; liệt kê lại ở đây để phiên headless
+          # không dừng ở một permission prompt không ai trả lời được. Tool nào không có ở đây thì bị
+          # từ chối im lặng: ở #38/#39 có 13 và 26 lần như vậy, và comment không được đăng. Ngoài lệnh
+          # gh/git còn cho các lệnh chỉ đọc mà agent con hay dùng (wc -l để kiểm giới hạn số dòng file),
+          # và Write/Edit chỉ trong .review-context/ để soạn nội dung comment rồi gửi bằng --body-file.
+          claude_args: |
+            --model claude-opus-5-5
+            --allowedTools "Read,Glob,Grep,Task,Agent,Write(.review-context/**),Edit(.review-context/**),mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*),Bash(git diff:*),Bash(git log:*),Bash(git blame:*),Bash(git show:*),Bash(git ls-files:*),Bash(wc:*),Bash(ls:*),Bash(cat:*),Bash(head:*),Bash(tail:*)"
+
+      # Log không in hội thoại (show_full_output tắt - repo public, docs private), nên khi review không
+      # đăng được gì thì không biết vì sao. In tóm tắt phiên: từng tool đã gọi (tên + đầu lệnh/đường
+      # dẫn, không có nội dung file), lỗi tool trả về, lệnh bị từ chối, và kết quả cuối - kết quả cuối
+      # vốn là thứ sẽ đăng lên PR nên in ra không lộ thêm gì. #38/#39: chạy đủ agent, gần như không bị
+      # từ chối, vẫn không đăng - chỉ log kiểu này mới chỉ ra được bước hỏng.
+      - name: Report Claude run
+        if: always() && steps.claude.outputs.execution_file != ''
+        env:
+          EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+        run: |
+          node - "$EXECUTION_FILE" <<'JS'
+          const fs = require("fs");
+          const file = process.argv[2];
+          let msgs;
+          try {
+            msgs = JSON.parse(fs.readFileSync(file, "utf8"));
+          } catch (e) {
+            console.log(`Không đọc được ${file}: ${e.message}`);
+            process.exit(0);
+          }
+          if (!Array.isArray(msgs)) msgs = [msgs];
+          const short = (v, n) => {
+            const s = typeof v === "string" ? v : JSON.stringify(v) ?? "";
+            return s.length > n ? `${s.slice(0, n)}…` : s;
+          };
+          const what = (i) =>
+            i?.command ?? i?.file_path ?? i?.pattern ??
+            (i?.subagent_type || i?.model ? `${i.subagent_type ?? ""} ${i.model ?? ""}: ${i.description ?? ""}` : undefined) ??
+            i?.description ?? i;
+          const calls = [];
+          const errors = [];
+          for (const m of msgs) {
+            const content = m?.message?.content;
+            if (!Array.isArray(content)) continue;
+            const indent = m.parent_tool_use_id ? "  ↳ " : "";
+            for (const c of content) {
+              if (m.type === "assistant" && c.type === "tool_use") calls.push(`${indent}${c.name}: ${short(what(c.input), 160)}`);
+              if (m.type === "user" && c.type === "tool_result" && c.is_error) errors.push(`${indent}${short(c.content, 300)}`);
+            }
+          }
+          const result = msgs.filter((m) => m?.type === "result").at(-1);
+          const denials = result?.permission_denials ?? [];
+          console.log(`Tool đã gọi: ${calls.length}`);
+          for (const l of calls) console.log(`- ${l}`);
+          console.log(`\nLỗi tool: ${errors.length}`);
+          for (const l of errors) console.log(`- ${l}`);
+          console.log(`\nBị từ chối: ${denials.length}`);
+          for (const d of denials) console.log(`- ${d.tool_name}: ${short(what(d.tool_input), 160)}`);
+          console.log(`\nKết quả cuối (${result?.subtype ?? "?"}):\n${short(result?.result ?? "", 4000)}`);
+          JS
+
+      # Có người gọi "@claude review" mà bot không đăng gì là lỗi, không phải "không có vấn đề". Bắt
+      # job đỏ để thấy ngay trên PR, thay vì im lặng như #38/#39.
+      - name: Check a reply was posted
+        if: always() && github.event_name == 'issue_comment'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SINCE: ${{ github.event.comment.created_at }}
+        run: |
+          url="repos/${{ github.repository }}/issues/${{ env.PR_NUMBER }}/comments?since=$SINCE&per_page=100"
+          count=$(gh api "$url" --jq '[.[] | select(.user.login == "claude[bot]" and .created_at > env.SINCE)] | length')
+          if [ "$count" -eq 0 ]; then
+            echo "::error::Claude không đăng comment nào cho lần gọi @claude review này - xem bước 'Report Claude run'."
+            exit 1
+          fi
+          echo "Claude đã đăng $count comment."

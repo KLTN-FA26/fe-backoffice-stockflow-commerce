@@ -1,14 +1,17 @@
-import { focusManager } from "@tanstack/react-query";
+import { focusManager, onlineManager } from "@tanstack/react-query";
 import { cleanup, act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { HttpResponse, http } from "msw";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { UI_LABELS } from "@/constants";
 import { INVENTORY_LABELS, INVENTORY_MESSAGES } from "@/constants/inventory";
 import { INVENTORY_OVERVIEW_PERMISSIONS, WAREHOUSE_PERMISSIONS } from "@/constants/permissions";
 
 import {
   OVERVIEW_RESERVATION,
+  inventoryEndpoint,
   inventoryPermissions,
   overviewHandlers,
   renderInventory,
@@ -37,6 +40,8 @@ afterEach(() => {
   cleanup();
   server.resetHandlers();
   sent.length = 0;
+  onlineManager.setOnline(true);
+  focusManager.setFocused(undefined);
 });
 afterAll(() => server.close());
 
@@ -63,6 +68,7 @@ describe("Inventory Overview access", () => {
     expect(await screen.findByText("HN01")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: INVENTORY_LABELS.reservationsTitle })).toBeNull();
     expect(sentTo("/inventory/reservations")).toEqual([]);
+    expect(sentTo("/inventory/stock-levels")).toHaveLength(1);
   });
 
   it("reservation-only: opens and reads holds by SKU without any stock, ATP or alert request", async () => {
@@ -70,6 +76,7 @@ describe("Inventory Overview access", () => {
     await lookUp("CUP-PP-500");
     expect(await screen.findByText(OVERVIEW_RESERVATION.orderId)).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: INVENTORY_LABELS.stockLevelsTitle })).toBeNull();
+    expect(sentTo("/inventory/reservations")).toHaveLength(1);
     expect(sentTo("/inventory/reservations")[0]).toContain("sku=CUP-PP-500");
     for (const path of [
       "/inventory/stock-levels",
@@ -91,6 +98,9 @@ describe("Inventory Overview access", () => {
     expect(
       await screen.findByRole("heading", { name: INVENTORY_LABELS.reservationsTitle }),
     ).toBeInTheDocument();
+    await waitFor(() => expect(sentTo("/inventory/reservations")).toHaveLength(1));
+    expect(sentTo("/inventory/stock-levels")).toHaveLength(1);
+    expect(sentTo("/inventory/alerts")).toHaveLength(0);
   });
 
   it("alert READ alone does not open the page", async () => {
@@ -265,4 +275,82 @@ describe("exact-SKU submission", () => {
       screen.getByRole("button", { name: `${INVENTORY_LABELS.viewWarehouse} HN01` }),
     ).toHaveAttribute("aria-pressed", "false");
   });
+});
+
+describe("permission failures and revocation", () => {
+  it("denies no permissions before any inventory request", async () => {
+    open([]);
+    expect(await screen.findByText(INVENTORY_LABELS.denied)).toBeInTheDocument();
+    expect(
+      sent.filter((url) => url.startsWith("/inventory") || url.startsWith("/warehouses")),
+    ).toEqual([]);
+  });
+
+  it("permission retrieval error offers retry without inventory requests", async () => {
+    server.use(
+      http.get(inventoryEndpoint("/identity/me/permissions"), () =>
+        HttpResponse.json({ success: false }, { status: 500 }),
+      ),
+    );
+    renderInventory(<InventoryOverview />);
+    expect(await screen.findByText(UI_LABELS.loadError.permissionsTitle)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: INVENTORY_LABELS.retry })).toBeInTheDocument();
+    expect(sent.filter((url) => url.startsWith("/inventory"))).toEqual([]);
+    server.use(inventoryPermissions([stockRead]), ...overviewHandlers());
+    await userEvent.setup().click(screen.getByRole("button", { name: INVENTORY_LABELS.retry }));
+    expect(await screen.findByLabelText(INVENTORY_LABELS.skuLookup)).toBeInTheDocument();
+  });
+
+  it("paused permission retrieval shows offline retry and sends nothing", async () => {
+    onlineManager.setOnline(false);
+    open([stockRead]);
+    expect(await screen.findByText(UI_LABELS.loadError.networkTitle)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: INVENTORY_LABELS.retry })).toBeInTheDocument();
+    expect(sent).toEqual([]);
+  });
+
+  it("revoking stock, reservation and alert reads prevents later requests", async () => {
+    open([stockRead, reservationRead, alertRead]);
+    await lookUp("CUP-PP-500");
+    await screen.findByText(OVERVIEW_RESERVATION.orderId);
+    await waitFor(() => expect(sentTo("/inventory/alerts")).toHaveLength(1));
+    server.use(inventoryPermissions([]));
+    act(() => {
+      focusManager.setFocused(false);
+      focusManager.setFocused(true);
+    });
+    expect(await screen.findByText(INVENTORY_LABELS.denied)).toBeInTheDocument();
+    const inventoryReads = sent.filter((url) => url.startsWith("/inventory")).length;
+    const permissionReads = sentTo("/identity/me/permissions").length;
+    act(() => {
+      focusManager.setFocused(false);
+      focusManager.setFocused(true);
+    });
+    await waitFor(() =>
+      expect(sentTo("/identity/me/permissions").length).toBeGreaterThan(permissionReads),
+    );
+    expect(sent.filter((url) => url.startsWith("/inventory"))).toHaveLength(inventoryReads);
+  });
+});
+
+describe("SKU requests match backend validation", () => {
+  it.each(["A", "SKU_01", "SKU.01", "SKU-01", "sku_01"])("requests valid %s", async (sku) => {
+    open([stockRead]);
+    await lookUp(sku);
+    await waitFor(() =>
+      expect(sentTo("/inventory/stock-levels")).toEqual([
+        `/inventory/stock-levels?sku=${sku.toUpperCase()}`,
+      ]),
+    );
+  });
+
+  it.each(["-SKU", "_SKU", ".SKU", "A B", "A".repeat(65)])(
+    "invalid %s sends no inventory request",
+    async (sku) => {
+      open([stockRead, reservationRead]);
+      await lookUp(sku);
+      expect(await screen.findByRole("alert")).toHaveTextContent(INVENTORY_MESSAGES.invalidSku);
+      expect(sent.filter((url) => url.startsWith("/inventory"))).toEqual([]);
+    },
+  );
 });

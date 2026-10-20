@@ -10,6 +10,7 @@ import {
 import { STOCK_ADJUSTMENT_STATUSES } from "@/constants/statuses";
 
 import { requiredString } from "@/lib/validation/primitives";
+import { skuSchema } from "@/lib/validation/sku";
 
 // Source: backend develop 0f18f24 StockAdjustmentResponse; nullable fields
 // may be omitted by the backend Jackson NON_NULL policy. `reason` and `status`
@@ -58,10 +59,11 @@ export const stockMovementDto = z.object({
 export const adjustmentCreateInput = z
   .object({
     locationCode: requiredString(INVENTORY_MESSAGES.required).max(INVENTORY_LIMITS.locationLength),
-    sku: requiredString(INVENTORY_MESSAGES.required)
-      .min(INVENTORY_LIMITS.skuMinLength)
-      .max(INVENTORY_LIMITS.skuMaxLength)
-      .regex(/^[A-Za-z0-9-]+$/, INVENTORY_MESSAGES.invalidSku),
+    // BE `@ValidSku` (common.domain.Sku): 1–64, chữ/số/'.'/'_'/'-' — xem lib/validation/sku.ts.
+    sku: skuSchema({
+      required: INVENTORY_MESSAGES.required,
+      format: INVENTORY_MESSAGES.invalidSku,
+    }),
     lotNumber: z.string().trim().max(INVENTORY_LIMITS.lotLength).optional(),
     quantityDelta: z
       .number()

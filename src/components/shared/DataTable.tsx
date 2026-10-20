@@ -279,6 +279,7 @@ export function DataTable<T>({
                   <TableRow
                     key={key}
                     data-state={selectedKeys?.has(key) ? "selected" : undefined}
+                    data-flagged={isFlag || undefined}
                     onClick={() => onRowClick?.(row)}
                     className={cn(
                       "border-border-default transition-colors",

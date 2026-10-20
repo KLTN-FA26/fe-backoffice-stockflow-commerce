@@ -1,9 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, waitFor, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { INVENTORY_PERMISSIONS } from "@/constants";
-import { INVENTORY_ROUTES } from "@/constants/inventory";
+import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -23,6 +23,7 @@ vi.mock("next/navigation", () => ({
 
 const ADJUSTMENTS = "Điều chỉnh tồn";
 const MOVEMENTS = "Lịch sử biến động";
+const MOVES = "Di chuyển nội bộ";
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
@@ -123,16 +124,51 @@ describe("Inventory sidebar entries follow backend permission codes", () => {
     INVENTORY_ROUTES.adjustment("d0000001-0000-4000-8000-000000000009"),
   ])("marks only the adjustment entry active on %s", async (pathname) => {
     navigation.pathname = pathname;
-    await renderShell([INVENTORY_PERMISSIONS.adjustmentRead, INVENTORY_PERMISSIONS.movementRead]);
+    await renderShell([
+      INVENTORY_PERMISSIONS.adjustmentRead,
+      INVENTORY_PERMISSIONS.movementRead,
+      INVENTORY_PERMISSIONS.stockRead,
+    ]);
+    expect(navLink(INVENTORY_LABELS.overviewTitle)).not.toHaveAttribute("data-active", "true");
     expect(navLink(ADJUSTMENTS)).toHaveAttribute("data-active", "true");
     expect(navLink(MOVEMENTS)).not.toHaveAttribute("data-active", "true");
   });
 
   it("marks only Movement History active on its route", async () => {
     navigation.pathname = INVENTORY_ROUTES.movements;
-    await renderShell([INVENTORY_PERMISSIONS.adjustmentRead, INVENTORY_PERMISSIONS.movementRead]);
+    await renderShell([
+      INVENTORY_PERMISSIONS.adjustmentRead,
+      INVENTORY_PERMISSIONS.movementRead,
+      INVENTORY_PERMISSIONS.stockUpdate,
+    ]);
     expect(navLink(MOVEMENTS)).toHaveAttribute("data-active", "true");
     expect(navLink(ADJUSTMENTS)).not.toHaveAttribute("data-active", "true");
-    expect(navLink("Di chuyển nội bộ")).not.toHaveAttribute("data-active", "true");
+    expect(navLink(MOVES)).not.toHaveAttribute("data-active", "true");
+  });
+
+  it("Di chuyển nội bộ follows the backend guard of POST /inventory/movements (stock UPDATE)", async () => {
+    await renderShell([INVENTORY_PERMISSIONS.movementRead, INVENTORY_PERMISSIONS.adjustmentRead]);
+    expect(navLink(MOVES)).not.toBeInTheDocument();
+    cleanup();
+    await renderShell([INVENTORY_PERMISSIONS.stockUpdate]);
+    expect(navLink(MOVES)).toHaveAttribute("href", "/admin/moves");
+  });
+
+  it("marks only Di chuyển nội bộ active on /admin/moves", async () => {
+    navigation.pathname = "/admin/moves";
+    await renderShell([INVENTORY_PERMISSIONS.stockUpdate, INVENTORY_PERMISSIONS.movementRead]);
+    expect(navLink(MOVES)).toHaveAttribute("data-active", "true");
+    expect(navLink(MOVEMENTS)).not.toHaveAttribute("data-active", "true");
+  });
+});
+
+describe("shell shows no demo data against the real backend", () => {
+  it("has no mock-only entries, no warning badges and no mock warehouse switcher", async () => {
+    await renderShell([]);
+    for (const name of ["Hoá đơn NCC", "Đề xuất nhập hàng", "Xếp xe & bàn giao"]) {
+      expect(navLink(name)).not.toBeInTheDocument();
+    }
+    expect(document.querySelector('[data-sidebar="menu-badge"]')).toBeNull();
+    expect(screen.queryByRole("button", { name: "Tất cả kho" })).not.toBeInTheDocument();
   });
 });

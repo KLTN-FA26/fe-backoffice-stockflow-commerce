@@ -175,3 +175,39 @@ describe("paged lists", () => {
     ]);
   });
 });
+
+describe("warehouse cache isolation", () => {
+  it("does not reuse a previous warehouse's stock rows while the next read is pending", async () => {
+    serve(INVENTORY_API.warehouseStockItems("WH-HN-01"), emptyPage);
+    server.use(
+      http.get(
+        inventoryEndpoint(INVENTORY_API.warehouseStockItems("WH-HCM-01")),
+        async ({ request }) => {
+          requests.push(new URL(request.url));
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          return HttpResponse.json({ success: true, data: emptyPage });
+        },
+      ),
+    );
+    const { wrapper } = setup();
+    const { result, rerender } = renderHook(
+      ({ warehouseId }) => useWarehouseStockItems({ warehouseId, sku: "A", page: 0, size: 20 }),
+      { wrapper, initialProps: { warehouseId: "WH-HN-01" } },
+    );
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    rerender({ warehouseId: "WH-HCM-01" });
+    expect(result.current.data).toBeUndefined();
+    expect(result.current.isPlaceholderData).toBe(false);
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+  });
+
+  it.each(["-A", "_A", ".A", "A B", "A".repeat(65)])(
+    "invalid SKU %s never requests stock",
+    (sku) => {
+      const { wrapper } = setup();
+      const { result } = renderHook(() => useStockLevels(sku), { wrapper });
+      expect(result.current.fetchStatus).toBe("idle");
+      expect(requests).toHaveLength(0);
+    },
+  );
+});

@@ -14,6 +14,8 @@ import {
   stockAlertDto,
   stockAlertListInput,
   stockLevelsDto,
+  skuLookupInput,
+  stockLevelsInput,
   warehouseStockItemDto,
   warehouseStockItemsInput,
 } from "./stock-schemas";
@@ -251,4 +253,23 @@ describe("request inputs", () => {
       }).success,
     ).toBe(false);
   });
+});
+
+// common.domain.Sku at backend develop 103aa04: same contract at form and API boundary.
+describe("exact SKU contract", () => {
+  it.each(["A", "SKU_01", "SKU.01", "SKU-01", "  sku_01  "])("accepts and normalises %s", (sku) => {
+    const expected = sku.trim().toUpperCase();
+    expect(skuLookupInput.parse({ sku }).sku).toBe(expected);
+    expect(stockLevelsInput.parse({ sku }).sku).toBe(expected);
+  });
+
+  it.each(["", "  ", "-SKU", ".SKU", "_SKU", "A B", "A".repeat(65)])("rejects %s", (sku) => {
+    expect(skuLookupInput.safeParse({ sku }).success).toBe(false);
+    expect(stockLevelsInput.safeParse({ sku }).success).toBe(false);
+  });
+});
+
+it("overview pagination rejects sizes above the backend Pages ceiling", () => {
+  expect(stockAlertListInput.safeParse({ page: 0, size: 200 }).success).toBe(true);
+  expect(stockAlertListInput.safeParse({ page: 0, size: 201 }).success).toBe(false);
 });

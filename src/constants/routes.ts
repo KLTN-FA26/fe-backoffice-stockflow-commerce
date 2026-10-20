@@ -8,6 +8,11 @@ export const APP_ROUTES = {
 export const ADMIN_ROUTES = {
   home: ADMIN_BASE,
   permissions: `${ADMIN_BASE}/permissions`,
+  /** Hồ sơ hàng tồn — BE PR #119 `InventoryItemController` (`/api/v1/inventory/items`). */
+  inventoryItems: {
+    list: `${ADMIN_BASE}/inventory-items`,
+    detail: (id: string) => `${ADMIN_BASE}/inventory-items/${id}`,
+  },
   products: {
     create: `${ADMIN_BASE}/products/create`,
     detail: (id: string) => `${ADMIN_BASE}/products/${id}`,
@@ -46,9 +51,11 @@ export const ADMIN_ROUTES = {
   replenishment: {
     list: `${ADMIN_BASE}/replenishment`,
   },
-  variants: {
-    detail: (id: string) => `${ADMIN_BASE}/variants/${id}`,
-    list: `${ADMIN_BASE}/variants`,
+  /** Từ điển thuộc tính (BE PR #113) — thay màn "Thuộc tính biến thể" dựng từ dữ liệu mẫu. */
+  attributes: `${ADMIN_BASE}/attributes`,
+  /** Thương hiệu & danh mục — BE `ProductTaxonomyController` (gate product-products). */
+  taxonomy: {
+    list: `${ADMIN_BASE}/taxonomy`,
   },
   transfers: {
     create: `${ADMIN_BASE}/transfers/create`,

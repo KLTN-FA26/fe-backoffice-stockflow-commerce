@@ -366,6 +366,10 @@ export const STATUS_LABEL_VI: Record<string, string> = {
  * (vd REJECTED: PO = "NCC từ chối", điều chỉnh tồn = "Từ chối"). Tone không đổi.
  */
 const STATUS_LABEL_VI_BY_DOMAIN: Partial<Record<StatusDomain, Record<string, string>>> = {
+  // BE `ProductStatus.INACTIVE` = tạm ngưng (kltn-docs 01 §5.1); NCC cũng có Inactive nhưng là "Không hoạt động".
+  product: {
+    Inactive: "Tạm ngưng",
+  },
   stock: {
     [STOCK_ADJUSTMENT_STATUS.REJECTED]: "Từ chối",
   },

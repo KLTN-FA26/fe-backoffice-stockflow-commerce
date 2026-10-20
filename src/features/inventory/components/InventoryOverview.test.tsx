@@ -4,7 +4,11 @@ import { HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { INVENTORY_LABELS, STOCK_ALERT_KIND_LABELS } from "@/constants/inventory";
+import {
+  INVENTORY_LABELS,
+  INVENTORY_MESSAGES,
+  STOCK_ALERT_KIND_LABELS,
+} from "@/constants/inventory";
 import { INVENTORY_OVERVIEW_PERMISSIONS, WAREHOUSE_PERMISSIONS } from "@/constants/permissions";
 
 import {
@@ -333,4 +337,32 @@ describe("alerts", () => {
     );
     expect(query?.searchParams.get("warehouseId")).toBe(OVERVIEW_WAREHOUSE.id);
   });
+});
+
+it("invalid stock response shows a contract error rather than an empty result", async () => {
+  await openFor("A", { levels: { items: [] } });
+  expect(await screen.findByText(INVENTORY_MESSAGES.invalidContract)).toBeInTheDocument();
+  expect(screen.queryByText(INVENTORY_LABELS.noStockLevels)).toBeNull();
+});
+
+it("unresolved warehouse codes cannot narrow reservation requests", async () => {
+  const user = await openFor("CUP-PP-500");
+  await openWarehouse(user, "HCM01");
+  expect(await screen.findByRole("alert")).toHaveTextContent(INVENTORY_LABELS.warehouseUnresolved);
+  expect(screen.queryByRole("checkbox")).toBeNull();
+  expect(sentTo("/inventory/reservations").every((url) => !url.searchParams.has("warehouse"))).toBe(
+    true,
+  );
+});
+
+it("retries directory failure before permitting warehouse reads", async () => {
+  const user = await openFor("CUP-PP-500", {
+    directory: HttpResponse.json({ success: false }, { status: 500 }),
+  });
+  await openWarehouse(user, "HN01");
+  expect(await screen.findByRole("alert")).toHaveTextContent(INVENTORY_LABELS.directoryUnavailable);
+  expect(sentTo(stockItemsPath)).toHaveLength(0);
+  server.use(...overviewHandlers());
+  await user.click(screen.getByRole("button", { name: INVENTORY_LABELS.retry }));
+  await waitFor(() => expect(sentTo(stockItemsPath)).toHaveLength(1));
 });

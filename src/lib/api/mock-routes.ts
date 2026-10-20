@@ -8,8 +8,31 @@
  */
 
 import { registerMockRoute, paginate } from "./mock-adapter";
+import {
+  allMockProducts,
+  createdProducts,
+  deleteMockProduct,
+  findMockProduct,
+  saveMockProduct,
+} from "./mock-product-store";
+import {
+  beProductStatus,
+  clearMockHistory,
+  mockHistoryPage,
+  recordMockHistory,
+} from "./mock-product-history";
+import { fail, noContent, ok, queryOf } from "./mock-route-utils";
+import { brandStore, findMockBrand, findMockCategory } from "./mock-routes-taxonomy-store";
+import {
+  activateMockDraftVariants,
+  createMockProductMatrix,
+  deleteMockProductVariants,
+  mockOpenReferences,
+  obsoleteMockVariants,
+} from "./mock-routes-variants";
 
 import type { Product } from "@/lib/mock-data";
+import type { MockProduct } from "./mock-product-store";
 
 /** BE PR #71 `CreateProductRequest` / `UpdateProductRequest` (+ `reason` của rejection). */
 interface CreateProductMockBody {
@@ -25,40 +48,21 @@ interface CreateProductMockBody {
   taxClass?: unknown;
   kind?: unknown;
   reason?: unknown;
+  version?: unknown;
+  /** BE PR #116 `CreateProductRequest.axes`. */
+  axes?: unknown;
 }
 
-type MockProduct = Product & {
-  brandId?: string | null;
-  shortDescription?: string;
-};
-
-const createdProducts: MockProduct[] = [];
-const productOverrides = new Map<string, MockProduct>();
-
-/** BE PR #71 `BrandResponse` — thương hiệu của seed mock (theo tên `brand` trong mock-data). */
-const MOCK_BRANDS = [
-  { brandId: "BRD-SFB", code: "SFB", name: "StockFlow Basics", slug: "stockflow-basics" },
-  { brandId: "BRD-GILDAN", code: "GILDAN", name: "Gildan", slug: "gildan" },
-].map((brand) => ({ ...brand, logoUrl: null, active: true, version: 0 }));
-
-/** Seed mock chỉ có tên thương hiệu; BE PR #71 trả kèm `brandId`. */
+/**
+ * Seed mock chỉ có tên thương hiệu; BE PR #71 trả kèm `brandId`. Thương hiệu / danh mục đọc từ store
+ * của màn Thương hiệu & danh mục (`mock-routes-taxonomy-store.ts`) — bản vừa tạo dùng được ngay.
+ */
 function withBrandId(product: MockProduct): MockProduct {
-  if (product.brandId) return product;
   return {
     ...product,
-    brandId: MOCK_BRANDS.find((b) => b.name === product.brand)?.brandId ?? null,
-  };
-}
-
-function mockPage<T>(items: T[]) {
-  return {
-    items,
-    page: 0,
-    size: Math.max(items.length, 1),
-    totalElements: items.length,
-    totalPages: items.length ? 1 : 0,
-    hasNext: false,
-    hasPrevious: false,
+    version: product.version ?? 0,
+    brandId:
+      product.brandId || (brandStore().find((b) => b.name === product.brand)?.brandId ?? null),
   };
 }
 
@@ -97,7 +101,7 @@ export function registerAllMockRoutes(): void {
 
   // GET /products
   registerMockRoute("GET", "/products", async (config) => {
-    const { products } = await import("@/lib/mock-data");
+    const products = await allMockProducts();
     const params = readRequestSearchParams(config);
     const page = Math.max(0, Number(params.get("page")) || 0);
     const pageSize = Math.max(1, Number(params.get("size")) || 15);
@@ -110,9 +114,7 @@ export function registerAllMockRoutes(): void {
       ",",
     );
 
-    let filtered = [...products, ...createdProducts].map((product) =>
-      withBrandId(productOverrides.get(product.productId) ?? product),
-    );
+    let filtered = products.map(withBrandId);
     if (q)
       filtered = filtered.filter(
         (p) => p.name.toLowerCase().includes(q) || p.productId.toLowerCase().includes(q),
@@ -148,19 +150,17 @@ export function registerAllMockRoutes(): void {
 
   // GET /products/:id
   registerMockRoute("GET", "/products/:id", async (config) => {
-    const { products } = await import("@/lib/mock-data");
     const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
-    const product =
-      productOverrides.get(id) ?? [...products, ...createdProducts].find((p) => p.productId === id);
+    const product = await findMockProduct(id);
     if (!product) return { status: 404, data: { message: "Product not found" }, headers: {} };
     return { status: 200, data: withBrandId(product), headers: {} };
   });
 
   // POST /products
   registerMockRoute("POST", "/products", async (config) => {
-    const { categories, products } = await import("@/lib/mock-data");
     const body = parseCreateProductBody(config.data);
-    const productId = readString(body.code) || readString(body.productId);
+    // BE upper-cases the code (`ProductWebMapper#toCommand`); mock products are keyed by it.
+    const productId = (readString(body.code) || readString(body.productId)).toUpperCase();
     const fieldErrors: Record<string, string> = {};
 
     if (!productId) fieldErrors.productId = "Nhập mã sản phẩm";
@@ -168,12 +168,10 @@ export function registerAllMockRoutes(): void {
     if (!readString(body.nameEn)) fieldErrors.nameEn = "Nhập tên tiếng Anh";
     if (!readString(body.categoryId)) fieldErrors.categoryId = "Chọn danh mục";
     if (Object.keys(fieldErrors).length > 0) return validationFailed(fieldErrors);
-    const brand = MOCK_BRANDS.find((b) => b.brandId === readString(body.brandId));
+    const brand = findMockBrand(readString(body.brandId));
     if (readString(body.brandId) && !brand) return brandNotFound();
 
-    const duplicated = [...products, ...createdProducts].some(
-      (product) => product.productId === productId,
-    );
+    const duplicated = (await allMockProducts()).some((product) => product.productId === productId);
     if (duplicated) {
       return {
         status: 409,
@@ -187,8 +185,7 @@ export function registerAllMockRoutes(): void {
     }
 
     const categoryId = readString(body.categoryId);
-    const categoryExists = categories.some((category) => category.categoryId === categoryId);
-    if (!categoryExists) {
+    if (!(await findMockCategory(categoryId))) {
       return {
         status: 404,
         data: {
@@ -230,17 +227,26 @@ export function registerAllMockRoutes(): void {
       brandId: brand?.brandId ?? null,
       createdAt: now,
       createdBy: "Mock API",
+      version: 0,
     };
 
+    // BE PR #116: có `axes` thì tạo cả ma trận trong cùng giao dịch — bị từ chối (SKU trùng, ma trận
+    // quá lớn…) thì không để lại sản phẩm nào (ở mock: kiểm tra hết rồi mới ghi).
+    const matrix = await createMockProductMatrix({
+      productId,
+      productName: product.name,
+      axes: body.axes,
+    });
+    if (matrix.error) return matrix.error;
+
     createdProducts.push(product);
+    recordMockHistory(productId, "CREATED", { toStatus: "DRAFT" });
     return { status: 201, data: product, headers: {} };
   });
 
   registerMockRoute("PUT", "/products/:id", async (config) => {
-    const { products } = await import("@/lib/mock-data");
     const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
-    const current =
-      productOverrides.get(id) ?? [...products, ...createdProducts].find((p) => p.productId === id);
+    const current = await findMockProduct(id);
     if (!current)
       return {
         status: 404,
@@ -248,10 +254,14 @@ export function registerAllMockRoutes(): void {
         headers: {},
       };
     const body = parseCreateProductBody(config.data);
-    const brand = MOCK_BRANDS.find((b) => b.brandId === readString(body.brandId));
+    // BE `UpdateProductRequest.version` @NotNull; đã đổi kể từ lần đọc → 409 OPTIMISTIC_LOCK.
+    const stale = checkProductVersion(body.version, current);
+    if (stale) return stale;
+    const brand = findMockBrand(readString(body.brandId));
     if (readString(body.brandId) && !brand) return brandNotFound();
     const updated: MockProduct = {
       ...current,
+      version: (current.version ?? 0) + 1,
       name: readString(body.name),
       nameEn: readString(body.nameEn),
       categoryId: readString(body.categoryId),
@@ -265,44 +275,18 @@ export function registerAllMockRoutes(): void {
         typeof body.taxClass === "string" ? body.taxClass.toLowerCase() : body.taxClass,
       ),
     };
-    productOverrides.set(id, updated);
+    // BE `Product.updateDetails`: chỉ sửa được khi còn Nháp.
+    if (current.status !== "Draft") return invalidTransition();
+    saveMockProduct(updated);
+    const changed = changedProductFields(current, updated);
+    if (changed.length > 0) recordMockHistory(id, "UPDATED", { changedFields: changed });
     return { status: 200, data: updated, headers: {} };
   });
 
   registerProductTransitionRoutes();
+  registerProductLifecycleRoutes();
 
-  // GET /categories — BE PR #71 PageResponse<CategoryResponse>
-  registerMockRoute("GET", "/categories", async () => {
-    const { categories } = await import("@/lib/mock-data");
-    const pathOf = (id: string | null): string => {
-      const node = categories.find((c) => c.categoryId === id);
-      return node ? `${pathOf(node.parentId)}/${node.categoryId}` : "";
-    };
-    const rows = categories.map((c, i) => ({
-      categoryId: c.categoryId,
-      parentId: c.parentId,
-      code: c.categoryId,
-      name: c.name.vi,
-      slug: c.slug,
-      path: pathOf(c.categoryId),
-      depth: c.level - 1,
-      sortOrder: i,
-      imageUrl: null,
-      seoTitle: null,
-      seoDescription: null,
-      active: true,
-      version: 0,
-    }));
-    rows.sort((a, b) => a.path.localeCompare(b.path));
-    return { status: 200, data: mockPage(rows), headers: {} };
-  });
-
-  // GET /brands — BE PR #71 PageResponse<BrandResponse>
-  registerMockRoute("GET", "/brands", async () => ({
-    status: 200,
-    data: mockPage([...MOCK_BRANDS].sort((a, b) => a.name.localeCompare(b.name))),
-    headers: {},
-  }));
+  // GET /categories, /brands (+ tạo / sửa): mock-routes-taxonomy.ts
 
   // Suppliers: xem mock-routes-suppliers.ts (đăng ký trong mock-adapter.ts)
 
@@ -468,31 +452,194 @@ export function registerAllMockRoutes(): void {
   });
 }
 
+/** Ghi lịch sử cho một lần chuyển trạng thái thành công (như `ProductServiceImpl` ghi `product_change_log`). */
+interface TransitionHistory {
+  type: "SUBMITTED" | "APPROVED" | "REJECTED" | "SUSPENDED" | "RESUMED" | "DISCONTINUED";
+  reason?: string;
+}
+
 function registerProductTransitionRoutes(): void {
-  registerProductTransition("submission", ["Draft"], "Pending Approval", (product) => ({
-    ...product,
-    submittedBy: MOCK_SUBMITTER_ID,
-    submittedAt: new Date().toISOString(),
-  }));
-  registerProductTransition("approval", ["Pending Approval"], "Approved", (product) => ({
-    ...product,
-    approvedBy: MOCK_APPROVER_ID,
-    approvedAt: new Date().toISOString(),
-  }));
-  registerProductTransition("discontinuation", ["Approved", "Published"], "Discontinued");
+  registerProductTransition(
+    "submission",
+    ["Draft"],
+    "Pending Approval",
+    (product) => ({
+      ...product,
+      submittedBy: MOCK_SUBMITTER_ID,
+      submittedAt: new Date().toISOString(),
+    }),
+    false,
+    () => ({ type: "SUBMITTED" }),
+  );
+  registerProductTransition(
+    "approval",
+    ["Pending Approval"],
+    "Approved",
+    (product) => ({
+      ...product,
+      approvedBy: MOCK_APPROVER_ID,
+      approvedAt: new Date().toISOString(),
+    }),
+    false,
+    () => ({ type: "APPROVED" }),
+    // BE `ProductServiceImpl.approve`: các biến thể nháp được kích hoạt cùng sản phẩm.
+    (id) => activateMockDraftVariants(id),
+  );
+  // BE `DiscontinueProductRequest`: `reason` (≤ 500) + `version` bắt buộc; từ Approved / Published /
+  // Inactive. Trả sản phẩm + `warnings` (PO / đơn mở còn tham chiếu SKU — cảnh báo, không từ chối) và
+  // chính các chứng từ đó; mọi biến thể thành OBSOLETE.
+  registerMockRoute("POST", "/products/:id/discontinuation", async (config) => {
+    const body = parseCreateProductBody(config.data);
+    const reason = readString(body.reason);
+    if (!reason || reason.length > 500) {
+      return mockValidationError("reason", "reason is required (at most 500 characters)");
+    }
+    if (typeof body.version !== "number")
+      return mockValidationError("version", "version is required");
+    const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
+    const current = await findMockProduct(id);
+    const stale = current ? checkProductVersion(body.version, current) : null;
+    if (stale) return stale;
+    // Đọc chứng từ còn mở TRƯỚC khi các biến thể bị ngừng dùng (như BE).
+    const open = await mockOpenReferences(id);
+    const result = await transitionMockProduct(
+      config,
+      ["Approved", "Published", "Inactive"],
+      "Discontinued",
+      (product) => ({
+        ...product,
+        discontinuedAt: new Date().toISOString(),
+        discontinueReason: reason,
+        suspendedAt: undefined,
+        suspendReason: undefined,
+      }),
+      false,
+      () => ({ type: "DISCONTINUED", reason }),
+      (productId) => obsoleteMockVariants(productId, reason),
+    );
+    if (result.status !== 200) return result;
+    const kinds = new Set(open.references.map((reference) => reference.kind));
+    const warnings = [
+      ...(kinds.has("PURCHASE_ORDER_LINE") ? ["OPEN_PURCHASE_ORDER_LINES"] : []),
+      ...(kinds.has("SALES_ORDER_LINE") ? ["UNSHIPPED_ORDER_LINES"] : []),
+    ];
+    return {
+      ...result,
+      data: {
+        ...(result.data as object),
+        warnings,
+        openReferences: open.references,
+        openReferencesTruncated: open.truncated,
+      },
+    };
+  });
   registerProductTransition("unpublication", ["Published"], "Approved", undefined, true);
   registerProductTransition("publication", ["Approved"], "Published", undefined, true);
 
   registerMockRoute("POST", "/products/:id/rejection", async (config) => {
     const body = parseCreateProductBody(config.data);
-    if (!readString(body.reason)) {
+    const reason = readString(body.reason);
+    if (!reason) {
       return mockValidationError("reason", "Lý do từ chối là bắt buộc.");
     }
-    return transitionMockProduct(config, ["Pending Approval"], "Draft", (product) => ({
-      ...product,
-      submittedBy: undefined,
-      submittedAt: undefined,
-    }));
+    return transitionMockProduct(
+      config,
+      ["Pending Approval"],
+      "Draft",
+      (product) => ({
+        ...product,
+        submittedBy: undefined,
+        submittedAt: undefined,
+      }),
+      false,
+      () => ({ type: "REJECTED", reason }),
+    );
+  });
+}
+
+/**
+ * BE SCRUM-461: tạm ngưng (`reason` + `version`, từ Approved / Published), tiếp tục (`version`, từ
+ * Inactive), xoá nháp (`?version=`, chỉ Draft), chứng từ còn mở và lịch sử thay đổi.
+ */
+function registerProductLifecycleRoutes(): void {
+  registerMockRoute("POST", "/products/:id/suspension", async (config) => {
+    const body = parseCreateProductBody(config.data);
+    const reason = readString(body.reason);
+    if (!reason || reason.length > 500) {
+      return mockValidationError("reason", "reason is required (at most 500 characters)");
+    }
+    const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
+    const current = await findMockProduct(id);
+    const stale = current ? checkProductVersion(body.version, current) : null;
+    if (stale) return stale;
+    return transitionMockProduct(
+      config,
+      ["Approved", "Published"],
+      "Inactive",
+      (product) => ({
+        ...product,
+        suspendedAt: new Date().toISOString(),
+        suspendReason: reason,
+      }),
+      false,
+      () => ({ type: "SUSPENDED", reason }),
+    );
+  });
+
+  registerMockRoute("POST", "/products/:id/resumption", async (config) => {
+    const body = parseCreateProductBody(config.data);
+    const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
+    const current = await findMockProduct(id);
+    const stale = current ? checkProductVersion(body.version, current) : null;
+    if (stale) return stale;
+    return transitionMockProduct(
+      config,
+      ["Inactive"],
+      "Approved",
+      (product) => ({ ...product, suspendedAt: undefined, suspendReason: undefined }),
+      false,
+      () => ({ type: "RESUMED" }),
+    );
+  });
+
+  registerMockRoute("DELETE", "/products/:id", async (config) => {
+    const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
+    const current = await findMockProduct(id);
+    if (!current) return fail(404, "PRODUCT_NOT_FOUND", "Product not found");
+    const raw = readRequestSearchParams(config).get("version");
+    if (raw === null || raw === "" || !Number.isInteger(Number(raw))) {
+      return mockValidationError("version", "version is required");
+    }
+    const stale = checkProductVersion(Number(raw), current);
+    if (stale) return stale;
+    // BE `Product.requireDeletable` (BR-02 docs 01): chỉ xoá được sản phẩm Nháp.
+    if (current.status !== "Draft") {
+      return fail(409, "PRODUCT_NOT_DELETABLE", "Only a draft product can be deleted");
+    }
+    // BE `ProductService.deleteDraft`: còn PO / đơn mở tham chiếu SKU → 409 PRODUCT_IN_USE.
+    const open = await mockOpenReferences(id);
+    if (open.references.length > 0) {
+      return fail(409, "PRODUCT_IN_USE", "A SKU of this product is still referenced");
+    }
+    await deleteMockProductVariants(id);
+    deleteMockProduct(id);
+    clearMockHistory(id);
+    return noContent();
+  });
+
+  registerMockRoute("GET", "/products/:id/open-references", async (config) => {
+    const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
+    if (!(await findMockProduct(id))) return fail(404, "PRODUCT_NOT_FOUND", "Product not found");
+    return ok(await mockOpenReferences(id));
+  });
+
+  registerMockRoute("GET", "/products/:id/versions", async (config) => {
+    const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
+    if (!(await findMockProduct(id))) return fail(404, "PRODUCT_NOT_FOUND", "Product not found");
+    const query = queryOf(config);
+    const page = Math.max(0, Number(query.get("page")) || 0);
+    const size = Math.min(200, Math.max(1, Number(query.get("size")) || 20));
+    return ok(mockHistoryPage(id, page, size));
   });
 }
 
@@ -502,11 +649,28 @@ function registerProductTransition(
   targetStatus: Product["status"],
   enrich?: (product: MockProduct) => MockProduct,
   voidResponse = false,
+  history?: () => TransitionHistory,
+  afterCommit?: (productId: string) => void | Promise<void>,
 ): void {
   registerMockRoute("POST", `/products/:id/${suffix}`, (config) =>
-    transitionMockProduct(config, fromStatuses, targetStatus, enrich, voidResponse),
+    transitionMockProduct(
+      config,
+      fromStatuses,
+      targetStatus,
+      enrich,
+      voidResponse,
+      history,
+      afterCommit,
+    ),
   );
 }
+
+const invalidTransition = () =>
+  fail(
+    409,
+    "INVALID_PRODUCT_STATUS_TRANSITION",
+    "This product cannot move to that status right now",
+  );
 
 async function transitionMockProduct(
   config: import("axios").AxiosRequestConfig,
@@ -514,12 +678,11 @@ async function transitionMockProduct(
   targetStatus: Product["status"],
   enrich?: (product: MockProduct) => MockProduct,
   voidResponse = false,
+  history?: () => TransitionHistory,
+  afterCommit?: (productId: string) => void | Promise<void>,
 ) {
-  const { products } = await import("@/lib/mock-data");
   const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
-  const current =
-    productOverrides.get(id) ??
-    [...products, ...createdProducts].find((item) => item.productId === id);
+  const current = await findMockProduct(id);
   if (!current) {
     return {
       status: 404,
@@ -527,22 +690,52 @@ async function transitionMockProduct(
       headers: {},
     };
   }
-  if (!fromStatuses.includes(current.status)) {
+  if (!fromStatuses.includes(current.status)) return invalidTransition();
+  const next = { ...current, status: targetStatus, version: (current.version ?? 0) + 1 };
+  const transitioned = enrich?.(next) ?? next;
+  saveMockProduct(transitioned);
+  await afterCommit?.(id);
+  const entry = history?.();
+  if (entry) {
+    recordMockHistory(id, entry.type, {
+      fromStatus: beProductStatus(current.status),
+      toStatus: beProductStatus(targetStatus),
+      reason: entry.reason,
+    });
+  }
+  return { status: 200, data: voidResponse ? null : transitioned, headers: {} };
+}
+
+/** Tên các trường mà một lần sửa nháp đã đổi — như `Product.updateDetails` trả về cho lịch sử. */
+function changedProductFields(before: MockProduct, after: MockProduct): string[] {
+  const pairs: [string, unknown, unknown][] = [
+    ["name", before.name, after.name],
+    ["nameEn", before.nameEn, after.nameEn],
+    ["brandId", before.brandId ?? null, after.brandId ?? null],
+    ["categoryId", before.categoryId, after.categoryId],
+    ["shortDescription", before.shortDescription ?? "", after.shortDescription ?? ""],
+    ["description", before.description, after.description],
+    ["descriptionEn", before.descriptionEn, after.descriptionEn],
+    ["taxClass", before.taxClass, after.taxClass],
+    ["kind", before.type, after.type],
+  ];
+  return pairs.filter(([, left, right]) => left !== right).map(([field]) => field);
+}
+
+/** `version` thiếu → 400 VALIDATION_FAILED; khác bản hiện tại → 409 OPTIMISTIC_LOCK (như BE). */
+function checkProductVersion(version: unknown, current: MockProduct) {
+  if (typeof version !== "number") return mockValidationError("version", "version is required");
+  if (version !== (current.version ?? 0)) {
     return {
       status: 409,
       data: {
-        errorCode: "INVALID_PRODUCT_STATUS_TRANSITION",
-        message: "This product cannot move to that status right now",
+        errorCode: "OPTIMISTIC_LOCK",
+        message: "The record changed meanwhile, please retry",
       },
       headers: {},
     };
   }
-  const transitioned = enrich?.({ ...current, status: targetStatus }) ?? {
-    ...current,
-    status: targetStatus,
-  };
-  productOverrides.set(id, transitioned);
-  return { status: 200, data: voidResponse ? null : transitioned, headers: {} };
+  return null;
 }
 
 function mockValidationError(field: string, message: string) {
@@ -588,6 +781,8 @@ function readProductStatus(value: string): Product["status"] | null {
       return "Approved";
     case "PUBLISHED":
       return "Published";
+    case "INACTIVE":
+      return "Inactive";
     case "DISCONTINUED":
       return "Discontinued";
     default:

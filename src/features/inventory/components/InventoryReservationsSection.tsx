@@ -5,12 +5,15 @@ import { useState } from "react";
 import { INVENTORY_LABELS } from "@/constants/inventory";
 import { PAGE_SIZE } from "@/constants/table";
 
+import { useWarehouseDirectory } from "@/lib/references/warehouse-options";
+
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 
 import { useReservations } from "../queries";
+import { selectWarehouseByCode } from "../selectors";
 import { InventoryError } from "./InventoryFeedback";
 import { InventoryPager } from "./InventoryPager";
 import { ReservationsTable } from "./ReservationsTable";
@@ -30,7 +33,13 @@ export function InventoryReservationsSection({
   const [page, setPage] = useState(1);
   const [size, setSize] = useState<number>(PAGE_SIZE.md);
   const [onlyWarehouse, setOnlyWarehouse] = useState(false);
-  const warehouse = onlyWarehouse && warehouseCode ? warehouseCode : undefined;
+  // A selected display code is not an identity until the permitted directory resolves it.
+  const directory = useWarehouseDirectory(warehouseCode !== null);
+  const resolvedWarehouse =
+    warehouseCode && directory.data && !directory.isError
+      ? selectWarehouseByCode(directory.data, warehouseCode)
+      : null;
+  const warehouse = onlyWarehouse && resolvedWarehouse ? resolvedWarehouse.code : undefined;
   // Another warehouse opened while narrowed is a different filter: start again at page 1.
   const [pagedFor, setPagedFor] = useState(warehouse);
   if (pagedFor !== warehouse) {
@@ -49,7 +58,7 @@ export function InventoryReservationsSection({
         <h2 id="inventory-reservations" className="text-ink-primary font-semibold">
           {INVENTORY_LABELS.reservationsTitle}
         </h2>
-        {warehouseCode && (
+        {resolvedWarehouse && (
           <div className="flex items-center gap-2">
             <Checkbox
               id="inventory-reservations-warehouse"

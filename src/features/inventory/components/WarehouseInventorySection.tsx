@@ -5,6 +5,8 @@ import { INVENTORY_LABELS } from "@/constants/inventory";
 import { useWarehouseDirectory } from "@/lib/references/warehouse-options";
 
 import { Alert } from "@/components/shared/Alert";
+import { Button } from "@/components/ui/button";
+
 import { Skeleton } from "@/components/shared/Skeleton";
 
 import { selectWarehouseByCode } from "../selectors";
@@ -48,6 +50,11 @@ export function WarehouseInventorySection({
           }
         >
           {INVENTORY_LABELS.warehouseDetailUnavailable}
+          {directory.isError && (
+            <Button type="button" variant="outline" onClick={() => void directory.refetch()}>
+              {INVENTORY_LABELS.retry}
+            </Button>
+          )}
         </Alert>
       </div>
     );

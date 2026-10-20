@@ -48,7 +48,10 @@ describe("route table", () => {
     expect(atp).not.toBeNull();
     expect(items?.params).toEqual({ id: "WH-HN-01" });
     expect(atp?.handler).not.toBe(items?.handler);
-    expect(resolveMockRoute("GET", "/inventory/stock-items")).toBeNull();
+    // Develop owns the location-stock read used by Move; keep it alongside ATP.
+    const locationStock = resolveMockRoute("GET", "/inventory/stock-items");
+    expect(locationStock).not.toBeNull();
+    expect(locationStock?.handler).not.toBe(atp?.handler);
   });
 
   it("uses the warehouses of the mock warehouse directory", () => {
@@ -185,4 +188,13 @@ describe("alerts", () => {
       ["EXPIRED", "L2599", -15],
     ]);
   });
+});
+
+describe("backend SKU alphabet in mocks", () => {
+  it.each(["A", "SKU_01", "SKU.01", "SKU-01", " sku_01 "])(
+    "accepts %s without narrower mock validation",
+    async (sku) => {
+      await expect(getStockLevels({ sku })).resolves.toEqual([]);
+    },
+  );
 });
