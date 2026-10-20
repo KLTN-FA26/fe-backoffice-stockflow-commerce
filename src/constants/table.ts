@@ -113,6 +113,16 @@ export const TRANSFER_COLUMNS = {
   TO_WAREHOUSE: "toWarehouse",
 } as const;
 
+/** Cột bảng hồ sơ hàng tồn (BE PR #119 `InventoryItemResponse`). */
+export const INVENTORY_ITEM_COLUMNS = {
+  SKU: "sku",
+  UOM: "unitOfMeasure",
+  BARCODE: "barcode",
+  STORAGE: "storageClass",
+  TRACKING: "trackingMode",
+  POLICY: "policyConfigured",
+} as const;
+
 /** Cột danh sách chuyến xe (contract đề xuất SCRUM-288). */
 export const LOAD_COLUMNS = {
   ACTIONS: "actions",

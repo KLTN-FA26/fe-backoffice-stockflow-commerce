@@ -59,7 +59,7 @@ interface MockVariant {
   options: MockOption[];
 }
 
-interface MockLogistics {
+export interface MockLogistics {
   skuId: string;
   sku: string;
   version: number;
@@ -79,6 +79,8 @@ interface MockLogistics {
   requiresAdultSignature: boolean;
   shippingRestrictionNote: string | null;
   qcRequired: boolean;
+  /** BE #121 — kiện được xoay 6 hướng khi xếp xe (docs 01 E13); mặc định true. */
+  rotatable: boolean;
 }
 
 interface MockMedia {
@@ -234,6 +236,7 @@ function defaultLogistics(skuId: string, sku: string): MockLogistics {
     requiresAdultSignature: false,
     shippingRestrictionNote: null,
     qcRequired: false,
+    rotatable: true,
   };
 }
 
@@ -884,6 +887,22 @@ export function registerVariantMockRoutes(): void {
 /** Đơn vị tính của SKU (logistics là nguồn): chính sách tồn kho và logistics cùng một mục tồn kho trên BE. */
 export function mockUnitOfMeasure(variantId: string): string {
   return logistics.get(variantId)?.unitOfMeasure ?? "EACH";
+}
+
+/** Hồ sơ hàng tồn (BE PR #119) 1-1 với biến thể theo SKU — id mock `item-<variantId>`. */
+export const inventoryItemIdOf = (variantId: string): string => `item-${variantId}`;
+
+/** Logistics của mọi biến thể kèm id hồ sơ hàng tồn — nguồn của mock `/inventory/items`. */
+export async function mockInventoryItemRows(): Promise<{ id: string; row: MockLogistics }[]> {
+  return (await store()).flatMap((v) => {
+    const row = logistics.get(v.variantId);
+    return row ? [{ id: inventoryItemIdOf(v.variantId), row }] : [];
+  });
+}
+
+/** Ghi logistics của một biến thể — PUT hồ sơ hàng tồn dùng chung `version` với logistics SKU. */
+export function saveMockLogistics(row: MockLogistics): void {
+  logistics.set(row.skuId, row);
 }
 
 /** Biến thể của một sản phẩm (đã sắp theo vị trí). */

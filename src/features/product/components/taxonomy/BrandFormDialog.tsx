@@ -8,13 +8,13 @@ import { PRODUCT_PERMISSIONS, UI_LABELS } from "@/constants";
 import { usePermissionChecker } from "@/lib/auth";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { toast } from "@/components/shared/Toast";
+import { FORM_INPUT_CLASS } from "@/components/shared/form-control-classes";
 import { Input } from "@/components/ui/input";
 
 import { makeBrandFormSchema } from "../../taxonomy-input-schemas";
 import { isStaleTaxonomyError, taxonomyFormError } from "../../taxonomy-errors";
 import { useCreateBrand, useUpdateBrand } from "../../taxonomy-mutations";
 import { Field } from "../variants/Field";
-import { TAXONOMY_INPUT_CLASS } from "./form-classes";
 import { CheckboxField } from "./form-parts";
 import { UrlPreviewThumb } from "./TaxonomyThumb";
 
@@ -111,7 +111,7 @@ function BrandForm({ brand, onDone }: { brand?: Brand; onDone: () => void }) {
             {...form.register("code")}
             disabled={Boolean(brand)}
             autoFocus={!brand}
-            className={`${TAXONOMY_INPUT_CLASS} font-[family-name:var(--font-mono)] uppercase`}
+            className={`${FORM_INPUT_CLASS} font-[family-name:var(--font-mono)] uppercase`}
           />
         </Field>
         <Field label={`${L.field.name} *`} id="brand-name" error={errors.name?.message}>
@@ -119,7 +119,7 @@ function BrandForm({ brand, onDone }: { brand?: Brand; onDone: () => void }) {
             id="brand-name"
             {...form.register("name")}
             autoFocus={Boolean(brand) && !readOnly}
-            className={TAXONOMY_INPUT_CLASS}
+            className={FORM_INPUT_CLASS}
           />
         </Field>
       </div>
@@ -130,7 +130,7 @@ function BrandForm({ brand, onDone }: { brand?: Brand; onDone: () => void }) {
             id="brand-logo"
             {...form.register("logoUrl")}
             placeholder="https://…"
-            className={TAXONOMY_INPUT_CLASS}
+            className={FORM_INPUT_CLASS}
           />
         </div>
       </Field>

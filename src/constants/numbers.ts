@@ -96,6 +96,13 @@ export const TAXONOMY_LIMITS = {
   maxLookupPages: 25,
 } as const;
 
+/** Giới hạn chính sách tồn — BE PR #119. */
+export const INVENTORY_POLICY_LIMITS = {
+  /** `UpdateItemPolicyRequest.maxShelfLifeDays` @Min(1) @Max(36500). */
+  maxShelfLifeDaysMin: 1,
+  maxShelfLifeDaysMax: 36500,
+} as const;
+
 /** Ô quét mã vạch dùng chung (`use-scan-tone`). */
 export const SCAN_LIMITS = {
   /** Chờ trình duyệt mở AudioContext tối đa — quá thì bỏ tiếng báo đang chờ. */

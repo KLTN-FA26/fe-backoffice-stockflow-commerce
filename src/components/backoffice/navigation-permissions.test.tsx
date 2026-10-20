@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ATTRIBUTE_PERMISSIONS,
   IDENTITY_PERMISSIONS,
+  INVENTORY_ITEM_PERMISSIONS,
   PRODUCT_PERMISSIONS,
   SHIPMENT_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
@@ -100,6 +101,17 @@ describe("declared navigation permissions", () => {
       "/admin/taxonomy",
     );
     expect(screen.queryByRole("link", { name: "Từ điển thuộc tính" })).not.toBeInTheDocument();
+  });
+  it("hồ sơ hàng tồn theo inventory-inventory-items:VIEW_PAGE (BE PR #119)", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [], permissions: [INVENTORY_ITEM_PERMISSIONS.viewPage], dataScope: "ALL" },
+    });
+    mount();
+    expect(screen.queryByRole("link", { name: "Hồ sơ hàng tồn" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Hồ sơ hàng tồn" })).toHaveAttribute(
+      "href",
+      "/admin/inventory-items",
+    );
   });
   it("read-only RBAC navigation uses the real backend READ capability", async () => {
     vi.spyOn(api, "get").mockResolvedValue({

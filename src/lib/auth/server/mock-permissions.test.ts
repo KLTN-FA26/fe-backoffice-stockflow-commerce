@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 import { AUTH_COOKIE_NAME, MOCK_LOGIN_PASSWORD } from "@/constants/auth";
 import {
   ATTRIBUTE_PERMISSIONS,
+  INVENTORY_ITEM_PERMISSIONS,
   INVENTORY_PERMISSIONS,
   PERMISSION_QUERY,
   SUPPLIER_PERMISSIONS,
@@ -130,5 +131,31 @@ describe("Inventory grants in the authoritative server session", () => {
           : codes.filter((code) => approves || code !== INVENTORY_PERMISSIONS.adjustmentApprove);
       expect(actual).toEqual(expected.sort());
     }
+  });
+});
+
+describe("Inventory item grants (BE PR #119, seed V20260928006000)", () => {
+  const ITEM = INVENTORY_ITEM_PERMISSIONS;
+  const ALL = Object.values(ITEM);
+  const READ = [ITEM.viewPage, ITEM.read];
+  it.each([
+    // System Admin + Warehouse Manager
+    ["USER-ADMIN-01", ALL],
+    ["USER-PLAN-01", ALL],
+    ["USER-WH-01", READ],
+    ["USER-WH-04", READ],
+    // Order Coordinator + Warehouse Staff
+    ["USER-COORD-01", READ],
+    ["USER-PROC-01", READ],
+    ["USER-QC-01", []],
+    ["USER-ACC-01", []],
+    ["USER-ECAD-01", []],
+    ["USER-SALE-01", []],
+  ] as const)("%s nhận đúng quyền hồ sơ hàng tồn theo seed", (userId, expected) => {
+    const codes: readonly string[] = ALL;
+    const actual = mockSessionPermissions(userId, []).permissions.filter((code) =>
+      codes.includes(code),
+    );
+    expect(actual).toEqual([...expected].sort());
   });
 });
