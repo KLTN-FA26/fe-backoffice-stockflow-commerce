@@ -15,6 +15,7 @@ export {
   UI_LABELS,
 } from "./labels";
 export { SHIPPING_ERROR_MESSAGES, SHIPPING_FIELD_MESSAGES } from "./labels-shipping";
+export { TAXONOMY_ERROR_MESSAGES } from "./labels-taxonomy";
 export {
   TRANSFER_ERROR_MESSAGES,
   TRANSFER_FIELD_MESSAGES,
@@ -27,6 +28,7 @@ export {
   RECEIPT_LIMITS,
   SCAN_LIMITS,
   SHIPPING_LIMITS,
+  TAXONOMY_LIMITS,
   TRANSFER_LIMITS,
 } from "./numbers";
 export {
@@ -60,6 +62,8 @@ export {
   PRODUCT_COLUMNS,
   RECEIPT_COLUMNS,
   SKU_COLUMNS,
+  TAXONOMY_BRAND_COLUMNS,
+  TAXONOMY_CATEGORY_COLUMNS,
   TRANSFER_COLUMNS,
   VARIANT_COLUMNS,
 } from "./table";

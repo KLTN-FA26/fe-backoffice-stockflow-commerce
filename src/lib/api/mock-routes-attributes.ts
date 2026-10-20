@@ -26,6 +26,7 @@ import {
   text,
   validationFailed,
 } from "./mock-route-utils";
+import { findMockCategory } from "./mock-routes-taxonomy-store";
 
 import type {
   MockAttrType,
@@ -283,10 +284,9 @@ export function registerAttributeMockRoutes(): void {
       .sort((a, b) => a.sortOrder - b.sortOrder || a.attributeCode.localeCompare(b.attributeCode));
   };
 
-  const categoryExists = async (categoryId: string) => {
-    const { categories } = await import("@/lib/mock-data");
-    return categories.some((c) => c.categoryId === categoryId);
-  };
+  // Danh mục đọc từ store của màn Thương hiệu & danh mục — danh mục vừa tạo dùng được ngay
+  const categoryExists = async (categoryId: string) =>
+    (await findMockCategory(categoryId)) !== undefined;
 
   registerMockRoute("GET", "/categories/:id/attributes", async (config) => {
     const id = pathParams(config).id ?? "";

@@ -78,6 +78,24 @@ export const TRANSFER_LIMITS = {
   approvalThresholdUnits: 100,
 } as const;
 
+/** Giới hạn thương hiệu / danh mục — BE `Create*Request` / `Update*Request` + migration PIM dictionary. */
+export const TAXONOMY_LIMITS = {
+  /** `name` @Size(max = 255). */
+  nameMax: 255,
+  /** `CreateCategoryRequest.seoTitle` @Size(max = 255). */
+  seoTitleMax: 255,
+  /**
+   * Cấp sâu nhất còn nhận con: `ProductTaxonomyService.createCategory` từ chối cha có depth ≥ 10
+   * (400 VALIDATION_FAILED, cây tối đa 11 cấp — CHECK `ck_categories_depth` 0–10).
+   */
+  maxParentDepth: 9,
+  /**
+   * Ô chọn danh mục cha / cây danh mục tải hết các trang 200 dòng (`Pages.MAX_PAGE_SIZE`) thay vì
+   * cắt ở trang đầu; chặn trên 25 trang (5000 bản ghi) để không lặp vô hạn nếu BE trả sai `hasNext`.
+   */
+  maxLookupPages: 25,
+} as const;
+
 /** Ô quét mã vạch dùng chung (`use-scan-tone`). */
 export const SCAN_LIMITS = {
   /** Chờ trình duyệt mở AudioContext tối đa — quá thì bỏ tiếng báo đang chờ. */

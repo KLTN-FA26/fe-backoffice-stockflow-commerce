@@ -48,6 +48,10 @@ export const ADMIN_ROUTES = {
   },
   /** Từ điển thuộc tính (BE PR #113) — thay màn "Thuộc tính biến thể" dựng từ dữ liệu mẫu. */
   attributes: `${ADMIN_BASE}/attributes`,
+  /** Thương hiệu & danh mục — BE `ProductTaxonomyController` (gate product-products). */
+  taxonomy: {
+    list: `${ADMIN_BASE}/taxonomy`,
+  },
   transfers: {
     create: `${ADMIN_BASE}/transfers/create`,
     detail: (id: string) => `${ADMIN_BASE}/transfers/${id}`,

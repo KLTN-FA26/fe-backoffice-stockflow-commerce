@@ -22,6 +22,7 @@ import {
   recordMockHistory,
 } from "./mock-product-history";
 import { fail, noContent, ok, queryOf } from "./mock-route-utils";
+import { brandStore, findMockBrand, findMockCategory } from "./mock-routes-taxonomy-store";
 import {
   activateMockDraftVariants,
   createMockProductMatrix,
@@ -52,31 +53,16 @@ interface CreateProductMockBody {
   axes?: unknown;
 }
 
-/** BE PR #71 `BrandResponse` — thương hiệu của seed mock (theo tên `brand` trong mock-data). */
-const MOCK_BRANDS = [
-  { brandId: "BRD-SFB", code: "SFB", name: "StockFlow Basics", slug: "stockflow-basics" },
-  { brandId: "BRD-GILDAN", code: "GILDAN", name: "Gildan", slug: "gildan" },
-].map((brand) => ({ ...brand, logoUrl: null, active: true, version: 0 }));
-
-/** Seed mock chỉ có tên thương hiệu; BE PR #71 trả kèm `brandId`. */
+/**
+ * Seed mock chỉ có tên thương hiệu; BE PR #71 trả kèm `brandId`. Thương hiệu / danh mục đọc từ store
+ * của màn Thương hiệu & danh mục (`mock-routes-taxonomy-store.ts`) — bản vừa tạo dùng được ngay.
+ */
 function withBrandId(product: MockProduct): MockProduct {
   return {
     ...product,
     version: product.version ?? 0,
     brandId:
-      product.brandId || (MOCK_BRANDS.find((b) => b.name === product.brand)?.brandId ?? null),
-  };
-}
-
-function mockPage<T>(items: T[]) {
-  return {
-    items,
-    page: 0,
-    size: Math.max(items.length, 1),
-    totalElements: items.length,
-    totalPages: items.length ? 1 : 0,
-    hasNext: false,
-    hasPrevious: false,
+      product.brandId || (brandStore().find((b) => b.name === product.brand)?.brandId ?? null),
   };
 }
 
@@ -172,7 +158,6 @@ export function registerAllMockRoutes(): void {
 
   // POST /products
   registerMockRoute("POST", "/products", async (config) => {
-    const { categories } = await import("@/lib/mock-data");
     const body = parseCreateProductBody(config.data);
     // BE upper-cases the code (`ProductWebMapper#toCommand`); mock products are keyed by it.
     const productId = (readString(body.code) || readString(body.productId)).toUpperCase();
@@ -183,7 +168,7 @@ export function registerAllMockRoutes(): void {
     if (!readString(body.nameEn)) fieldErrors.nameEn = "Nhập tên tiếng Anh";
     if (!readString(body.categoryId)) fieldErrors.categoryId = "Chọn danh mục";
     if (Object.keys(fieldErrors).length > 0) return validationFailed(fieldErrors);
-    const brand = MOCK_BRANDS.find((b) => b.brandId === readString(body.brandId));
+    const brand = findMockBrand(readString(body.brandId));
     if (readString(body.brandId) && !brand) return brandNotFound();
 
     const duplicated = (await allMockProducts()).some((product) => product.productId === productId);
@@ -200,8 +185,7 @@ export function registerAllMockRoutes(): void {
     }
 
     const categoryId = readString(body.categoryId);
-    const categoryExists = categories.some((category) => category.categoryId === categoryId);
-    if (!categoryExists) {
+    if (!(await findMockCategory(categoryId))) {
       return {
         status: 404,
         data: {
@@ -273,7 +257,7 @@ export function registerAllMockRoutes(): void {
     // BE `UpdateProductRequest.version` @NotNull; đã đổi kể từ lần đọc → 409 OPTIMISTIC_LOCK.
     const stale = checkProductVersion(body.version, current);
     if (stale) return stale;
-    const brand = MOCK_BRANDS.find((b) => b.brandId === readString(body.brandId));
+    const brand = findMockBrand(readString(body.brandId));
     if (readString(body.brandId) && !brand) return brandNotFound();
     const updated: MockProduct = {
       ...current,
@@ -302,38 +286,7 @@ export function registerAllMockRoutes(): void {
   registerProductTransitionRoutes();
   registerProductLifecycleRoutes();
 
-  // GET /categories — BE PR #71 PageResponse<CategoryResponse>
-  registerMockRoute("GET", "/categories", async () => {
-    const { categories } = await import("@/lib/mock-data");
-    const pathOf = (id: string | null): string => {
-      const node = categories.find((c) => c.categoryId === id);
-      return node ? `${pathOf(node.parentId)}/${node.categoryId}` : "";
-    };
-    const rows = categories.map((c, i) => ({
-      categoryId: c.categoryId,
-      parentId: c.parentId,
-      code: c.categoryId,
-      name: c.name.vi,
-      slug: c.slug,
-      path: pathOf(c.categoryId),
-      depth: c.level - 1,
-      sortOrder: i,
-      imageUrl: null,
-      seoTitle: null,
-      seoDescription: null,
-      active: true,
-      version: 0,
-    }));
-    rows.sort((a, b) => a.path.localeCompare(b.path));
-    return { status: 200, data: mockPage(rows), headers: {} };
-  });
-
-  // GET /brands — BE PR #71 PageResponse<BrandResponse>
-  registerMockRoute("GET", "/brands", async () => ({
-    status: 200,
-    data: mockPage([...MOCK_BRANDS].sort((a, b) => a.name.localeCompare(b.name))),
-    headers: {},
-  }));
+  // GET /categories, /brands (+ tạo / sửa): mock-routes-taxonomy.ts
 
   // Suppliers: xem mock-routes-suppliers.ts (đăng ký trong mock-adapter.ts)
 

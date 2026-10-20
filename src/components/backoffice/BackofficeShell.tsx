@@ -6,6 +6,7 @@ import {
   CalendarClock,
   ClipboardList,
   FileText,
+  FolderTree,
   History as HistoryIcon,
   LayoutDashboard,
   Lightbulb,
@@ -45,6 +46,7 @@ import {
   INVENTORY_PERMISSIONS,
   ORDER_PERMISSIONS,
   PO_PERMISSIONS,
+  PRODUCT_PERMISSIONS,
   SHIPMENT_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
   TRANSFER_PERMISSIONS,
@@ -149,6 +151,14 @@ export const NAV_GROUPS: NavGroup[] = [
         href: ADMIN_ROUTES.attributes,
         icon: Palette,
         permission: ATTRIBUTE_PERMISSIONS.viewPage,
+      },
+      {
+        label: "Thương hiệu & danh mục",
+        tooltip: "Brands & Categories",
+        href: ADMIN_ROUTES.taxonomy.list,
+        icon: FolderTree,
+        // BE gate mọi endpoint /brands, /categories bằng product-products (ProductTaxonomyController)
+        permission: PRODUCT_PERMISSIONS.viewPage,
       },
       {
         label: "Nhà cung cấp",
