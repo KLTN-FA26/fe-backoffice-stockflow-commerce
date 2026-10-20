@@ -8,17 +8,17 @@ import { api } from "@/lib/api/client";
 
 import { inTreeOrder } from "./category-tree";
 import {
-  beBrandPageSchema,
-  beBrandSchema,
-  beCategoryPageSchema,
-  beCategorySchema,
-} from "./taxonomy-schemas";
-import {
   toBrandCreateRequest,
   toBrandUpdateRequest,
   toCategoryCreateRequest,
   toCategoryUpdateRequest,
 } from "./taxonomy-input-schemas";
+import {
+  beBrandPageSchema,
+  beBrandSchema,
+  beCategoryPageSchema,
+  beCategorySchema,
+} from "./taxonomy-schemas";
 
 import type { Brand, BrandPage, CategoryNode, CategoryNodePage } from "./taxonomy-schemas";
 import type { BrandFormValues, CategoryFormValues } from "./taxonomy-input-schemas";
@@ -116,16 +116,30 @@ export async function updateCategory(input: {
   return beCategorySchema.parse(data);
 }
 
+/** Kết quả tải đủ các trang; `truncated` = BE còn nhiều trang hơn mức chặn nên danh sách bị cắt. */
+export interface AllPages<T> {
+  rows: T[];
+  truncated: boolean;
+}
+
 /**
  * Tải mọi trang cho ô chọn / cây: trang đầu cho biết `totalPages`, các trang còn lại tải song song
  * (không chờ nối tiếp). Các trang không cùng một snapshot — bản ghi thêm / ngưng giữa hai request
- * làm lệch offset → khử trùng theo id để ô chọn không lặp option (trùng `key`).
+ * làm lệch offset: một dòng có thể bị lặp (khử trùng theo id để ô chọn không trùng `key`) hoặc bị
+ * sót (không bù được) — `visibleTreeRows` chịu được tổ tiên vắng mặt nên cây không vỡ, dòng sót
+ * hiện lại ở lần tải sau. Vượt `maxLookupPages` thì cắt và báo `truncated` để UI cảnh báo.
  */
 async function fetchAllPages<T>(
   fetchPage: (page: number) => Promise<{ items: T[]; hasNext: boolean; totalPages: number }>,
   idOf: (row: T) => string,
-): Promise<T[]> {
+): Promise<AllPages<T>> {
   const first = await fetchPage(0);
+  const truncated = first.hasNext && first.totalPages > TAXONOMY_LIMITS.maxLookupPages;
+  if (truncated) {
+    console.warn(
+      `[taxonomy] ${first.totalPages} trang vượt mức chặn ${TAXONOMY_LIMITS.maxLookupPages} — danh sách bị cắt`,
+    );
+  }
   const pageCount = first.hasNext ? Math.min(first.totalPages, TAXONOMY_LIMITS.maxLookupPages) : 1;
   const rest = await Promise.all(
     Array.from({ length: Math.max(0, pageCount - 1) }, (_, i) => fetchPage(i + 1)),
@@ -134,12 +148,15 @@ async function fetchAllPages<T>(
   for (const row of [first, ...rest].flatMap((p) => p.items)) {
     if (!byId.has(idOf(row))) byId.set(idOf(row), row);
   }
-  return [...byId.values()];
+  return { rows: [...byId.values()], truncated };
 }
 
 type LookupParams = Pick<BrandListParams, "q" | "active" | "sort">;
 
-export async function listAllBrands(params: LookupParams, signal?: AbortSignal): Promise<Brand[]> {
+export async function listAllBrands(
+  params: LookupParams,
+  signal?: AbortSignal,
+): Promise<AllPages<Brand>> {
   return fetchAllPages(
     (page) => listBrandPage({ ...params, page, size: PAGE_SIZE.masterData }, signal),
     (brand) => brand.brandId,
@@ -150,10 +167,10 @@ export async function listAllBrands(params: LookupParams, signal?: AbortSignal):
 export async function listAllCategoryNodes(
   params: LookupParams,
   signal?: AbortSignal,
-): Promise<CategoryNode[]> {
-  const rows = await fetchAllPages(
+): Promise<AllPages<CategoryNode>> {
+  const { rows, truncated } = await fetchAllPages(
     (page) => listCategoryPage({ ...params, page, size: PAGE_SIZE.masterData }, signal),
     (category) => category.categoryId,
   );
-  return inTreeOrder(rows);
+  return { rows: inTreeOrder(rows), truncated };
 }

@@ -3,6 +3,9 @@
  * Tách khỏi `labels.ts` cho gọn; `UI_LABELS.taxonomy` / `TOAST_MESSAGES.taxonomy` trỏ về đây.
  */
 
+import { TAXONOMY_LIMITS } from "./numbers";
+import { PAGE_SIZE } from "./table";
+
 export const TAXONOMY_UI_LABELS = {
   pageTitle: "Thương hiệu & danh mục",
   pageSubtitle:
@@ -30,6 +33,7 @@ export const TAXONOMY_UI_LABELS = {
   rootCategory: "— Danh mục gốc —",
   parentLoading: "Đang tải danh sách danh mục…",
   parentLoadFailed: "Không tải được danh sách danh mục — hiện chỉ chọn được danh mục gốc.",
+  listTruncated: `Danh sách quá dài — chỉ hiện ${PAGE_SIZE.masterData * TAXONOMY_LIMITS.maxLookupPages} bản ghi đầu, hãy tìm hoặc lọc để thu hẹp.`,
   maxDepthReached: "đã đủ 11 cấp",
   allStatuses: "Tất cả",
   active: "Đang dùng",

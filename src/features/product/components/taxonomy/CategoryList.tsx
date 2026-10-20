@@ -17,8 +17,9 @@ const L = UI_LABELS.taxonomy;
 const ALL_COLUMNS = Object.values(TAXONOMY_CATEGORY_COLUMNS);
 
 /**
- * Tab Danh mục — cây thư mục kiểu Drive (mũi tên mở / thu gọn danh mục con) theo thứ tự cây (`useCategoryTreePage`: tải đủ rồi phân trang
- * phía FE) để con luôn nằm ngay dưới cha, kể cả khi mã có '-' / trùng tiền tố hay cha ở trang khác.
+ * Tab Danh mục — cây thư mục kiểu Drive (mũi tên mở / thu gọn danh mục con) theo thứ tự cây
+ * (`useCategoryTreePage`: tải đủ rồi phân trang phía FE) để con luôn nằm ngay dưới cha, kể cả khi
+ * mã có '-' / trùng tiền tố hay cha ở trang khác.
  * Bấm dòng để sửa (hoặc xem khi thiếu quyền sửa).
  */
 export function CategoryList() {
@@ -56,6 +57,7 @@ export function CategoryList() {
         columnLabels={CATEGORY_COLUMN_LABELS}
         lockedColumn={TAXONOMY_CATEGORY_COLUMNS.CODE}
       />
+      {query.data?.truncated && <p className="text-warning mb-2 text-xs">{L.listTruncated}</p>}
       {asTree && expandable.length > 0 && (
         <div className="mb-2 flex justify-end gap-2">
           <Button

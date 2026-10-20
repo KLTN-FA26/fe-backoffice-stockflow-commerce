@@ -57,11 +57,16 @@ export function CategoryParentSelect({ form }: { form: UseFormReturn<CategoryFor
                     value={c.categoryId}
                     disabled={c.depth > TAXONOMY_LIMITS.maxParentDepth}
                   >
-                    {"  ".repeat(c.depth)}
-                    {c.name}
-                    <span className="text-ink-tertiary font-[family-name:var(--font-mono)] text-xs">
-                      {c.code}
-                      {c.depth > TAXONOMY_LIMITS.maxParentDepth && ` · ${L.maxDepthReached}`}
+                    {/* Thụt lề bằng padding — ký tự khoảng trắng bị HTML gộp nên không dùng */}
+                    <span
+                      className="flex items-baseline gap-2"
+                      style={{ paddingInlineStart: `${c.depth * 0.75}rem` }}
+                    >
+                      {c.name}
+                      <span className="text-ink-tertiary font-[family-name:var(--font-mono)] text-xs">
+                        {c.code}
+                        {c.depth > TAXONOMY_LIMITS.maxParentDepth && ` · ${L.maxDepthReached}`}
+                      </span>
                     </span>
                   </SelectItem>
                 ))}
@@ -70,6 +75,7 @@ export function CategoryParentSelect({ form }: { form: UseFormReturn<CategoryFor
           );
         }}
       />
+      {options.truncated && <p className="text-warning text-xs">{L.listTruncated}</p>}
       {options.isPending && <p className="text-ink-tertiary text-xs">{L.parentLoading}</p>}
       {options.isError && (
         <p role="alert" className="text-danger flex flex-wrap items-center gap-2 text-xs">

@@ -9,7 +9,7 @@ import { brandKeys, categoryKeys } from "./queries";
 import { listAllCategoryNodes, listBrandPage } from "./taxonomy-api";
 
 import type { Brand, BrandPage, CategoryNode } from "./taxonomy-schemas";
-import type { BrandListParams } from "./taxonomy-api";
+import type { AllPages, BrandListParams } from "./taxonomy-api";
 
 /*
  * Dùng chung gốc khoá `brands` / `categories` với dropdown form sản phẩm (`queries.ts`) để
@@ -22,6 +22,14 @@ export const useBrandPage = createListQuery<Brand, BrandListParams, BrandPage>(
   listBrandPage,
   QUERY_TIMES.master,
 );
+
+/** Một query duy nhất (mọi trạng thái, thứ tự cây) cho cả cây danh mục lẫn ô chọn cha. */
+const categoryTreeQuery = {
+  queryKey: categoryKeys.list({ view: "tree" }),
+  queryFn: ({ signal }: { signal: AbortSignal }) =>
+    listAllCategoryNodes({ sort: "path,asc" }, signal),
+  ...QUERY_TIMES.master,
+};
 
 /** `Specs.contains(name) OR contains(code)` + `Specs.eq(active)` của BE, áp trên cây đã tải. */
 function matchesFilters(row: CategoryNode, filters: { q?: string; active?: boolean }): boolean {
@@ -45,33 +53,38 @@ export function useCategoryTreePage(
 ) {
   const { q, active } = filters;
   const select = useCallback(
-    (rows: CategoryNode[]) => {
+    ({ rows, truncated }: AllPages<CategoryNode>) => {
       const matched = rows.filter((row) => matchesFilters(row, { q, active }));
       return {
         ...toClientPage(visibleTreeRows(matched, expanded), page, size),
         expandable: expandablePaths(matched),
+        truncated,
       };
     },
     [q, active, page, size, expanded],
   );
   return useQuery({
-    queryKey: categoryKeys.list({ view: "tree" }),
-    queryFn: ({ signal }) => listAllCategoryNodes({ sort: "path,asc" }, signal),
+    ...categoryTreeQuery,
     select,
     enabled,
     placeholderData: keepPreviousData,
-    ...QUERY_TIMES.master,
   });
 }
 
-const PARENT_OPTIONS = { active: true, sort: "path,asc" } as const;
+/** Ô chọn danh mục cha chỉ gồm danh mục đang dùng, giữ thứ tự cây. */
+const selectParentOptions = ({ rows, truncated }: AllPages<CategoryNode>) => ({
+  rows: rows.filter((row) => row.active),
+  truncated,
+});
 
-/** Ô chọn danh mục cha: MỌI danh mục đang dùng (tải hết các trang), theo thứ tự cây. */
+/** Dùng chung query (và cache) với cây danh mục — mở dialog tạo không tải lại gì. */
 export function useCategoryParentOptions(enabled = true) {
-  return useQuery({
-    queryKey: categoryKeys.list({ view: "parent-options", ...PARENT_OPTIONS }),
-    queryFn: ({ signal }) => listAllCategoryNodes(PARENT_OPTIONS, signal),
-    enabled,
-    ...QUERY_TIMES.master,
-  });
+  const query = useQuery({ ...categoryTreeQuery, select: selectParentOptions, enabled });
+  return {
+    data: query.data?.rows,
+    truncated: query.data?.truncated ?? false,
+    isPending: query.isPending,
+    isError: query.isError,
+    refetch: query.refetch,
+  };
 }

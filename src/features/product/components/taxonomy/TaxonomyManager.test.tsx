@@ -239,6 +239,30 @@ describe("TaxonomyManager — tab Danh mục", () => {
     );
   });
 
+  it("mở dialog tạo sau khi cây đã tải: dùng chung cache, không gọi /categories lần nữa", async () => {
+    const user = userEvent.setup();
+    const { get } = setup(PRODUCT_ROLES.ecommerceAdmin, "?tab=categories");
+    await screen.findByText("APPAREL");
+    const before = get.mock.calls.filter(([url]) => url === "/categories").length;
+    await user.click(screen.getByRole("button", { name: /Tạo danh mục/ }));
+    await screen.findByRole("dialog");
+    await pickOption(user, /Danh mục cha/, /Thời trang/);
+    expect(get.mock.calls.filter(([url]) => url === "/categories")).toHaveLength(before);
+  });
+
+  it("danh mục đã ngưng không được chọn làm cha", async () => {
+    const user = userEvent.setup();
+    setup(PRODUCT_ROLES.ecommerceAdmin, "?tab=categories", {
+      categories: [apparel, { ...tshirt, active: false }],
+    });
+    await screen.findByText("APPAREL");
+    await user.click(screen.getByRole("button", { name: /Tạo danh mục/ }));
+    await screen.findByRole("dialog");
+    await user.click(await screen.findByRole("combobox", { name: /Danh mục cha/ }));
+    expect(await screen.findByRole("option", { name: /Thời trang/ })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /Áo thun/ })).not.toBeInTheDocument();
+  });
+
   it("sửa danh mục: mã và cha khoá, PUT không gửi mã / cha", async () => {
     const user = userEvent.setup();
     const { put } = setup(PRODUCT_ROLES.ecommerceAdmin, "?tab=categories", {

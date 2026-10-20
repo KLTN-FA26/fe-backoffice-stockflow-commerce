@@ -37,7 +37,7 @@ describe("listAll* — ô chọn tải đủ các trang, không cắt ở 200 d�
       .mockResolvedValueOnce({ data: pageOf([category("THUN", "/AO/THUN", 1)], 1, 3) })
       .mockResolvedValueOnce({ data: pageOf([category("POLO", "/AO/POLO", 1)], 2, 3) });
 
-    const rows = await listAllCategoryNodes({ active: true, sort: "path,asc" });
+    const { rows } = await listAllCategoryNodes({ active: true, sort: "path,asc" });
 
     expect(rows.map((r) => r.code)).toEqual(["AO", "POLO", "THUN", "AO-KHOAC"]);
     expect(get).toHaveBeenCalledTimes(3);
@@ -52,14 +52,15 @@ describe("listAll* — ô chọn tải đủ các trang, không cắt ở 200 d�
     vi.spyOn(api, "get")
       .mockResolvedValueOnce({ data: pageOf([category("AO", "/AO", 0), shifted], 0, 2) })
       .mockResolvedValueOnce({ data: pageOf([shifted, category("B", "/B", 0)], 1, 2) });
-    const rows = await listAllCategoryNodes({ active: true });
+    const { rows } = await listAllCategoryNodes({ active: true });
     expect(rows.map((r) => r.code)).toEqual(["AO", "AO-KHOAC", "B"]);
   });
 
   it("chặn trên số trang (không gọi vô hạn nếu BE báo quá nhiều trang)", async () => {
     const brand = { brandId: "b", code: "B", name: "B", slug: "b", active: true };
     const get = vi.spyOn(api, "get").mockResolvedValue({ data: pageOf([brand], 0, 999) });
-    await listAllBrands({ active: true, sort: "name,asc" });
+    const { truncated } = await listAllBrands({ active: true, sort: "name,asc" });
+    expect(truncated).toBe(true);
     expect(get).toHaveBeenCalledTimes(25);
   });
 
