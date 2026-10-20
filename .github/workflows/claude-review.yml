@@ -1,16 +1,16 @@
 # =============================================================================
-# Claude review. Chạy plugin code-review của Anthropic (chính là /code-review dùng ở máy local) khi
-# một pull request được mở hoặc rời trạng thái draft, rồi đăng kết quả thành comment trên PR.
+# Claude review. Chạy lệnh /review-pr của repo (.claude/commands/review-pr.md) khi một pull request
+# được mở hoặc rời trạng thái draft, rồi đăng kết quả thành comment trên PR.
 #
-# Plugin đọc mọi CLAUDE.md trên các đường dẫn bị sửa, chạy song song nhiều agent review (tuân thủ
-# CLAUDE.md, bug trong diff, lịch sử git) và chỉ đăng những phát hiện vượt qua ngưỡng tin cậy. Nó bỏ
-# qua PR đã đóng, draft, PR quá nhỏ và PR Claude đã review rồi - vì vậy KHÔNG có trigger synchronize:
-# chạy lần hai trên cùng PR cũng sẽ dừng ở bước kiểm tra đó, sau khi đã tiêu quota để biết điều ấy.
+# Không dùng nguyên plugin code-review như BE: plugin chỉ đối chiếu file tên CLAUDE.md, còn luật thật
+# của repo này nằm ở .claude/rules/*.md (CLAUDE.md gốc chỉ là bảng trỏ sang đó), và plugin không biết
+# docs nghiệp vụ hay contract BE. /review-pr giữ khung của plugin (lọc PR, nhiều agent song song, xác
+# minh từng phát hiện, chỉ đăng phát hiện chắc chắn) và thêm rules theo glob, docs, BE.
 #
-# Mỗi lần chạy tiêu quota subscription của người sở hữu CLAUDE_CODE_OAUTH_TOKEN, và plugin dùng nhiều
-# agent nên không rẻ. Muốn review commit mới hơn thì comment "@claude review" (claude.yml).
+# KHÔNG có trigger synchronize: review lại commit mới thì comment "@claude review" (claude.yml).
+# Mỗi lần chạy tiêu quota subscription của người sở hữu CLAUDE_CODE_OAUTH_TOKEN, nhiều agent nên không rẻ.
 #
-# Chỉ mang tính tham khảo. Không phải required check - cổng chặn merge là ci.yml (pnpm validate).
+# Chỉ mang tính tham khảo. Không phải required check - cổng chặn merge là ci.yml.
 # =============================================================================
 
 name: claude-review
@@ -42,18 +42,60 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Agent lịch sử của plugin chạy git blame trên các dòng bị sửa.
+          # Review chạy git blame / git log trên các dòng bị sửa.
           fetch-depth: 0
+
+      # ---------------------------------------------------------------------
+      # Ngữ cảnh cho review, đặt trong .review-context/ (đã gitignore). /review-pr tìm ở đây trước.
+      # Giữ khối này giống hệt trong claude.yml.
+      # ---------------------------------------------------------------------
+
+      # Repo docs private, GITHUB_TOKEN không đọc được repo khác. Dùng fine-grained PAT chỉ cấp
+      # Contents: Read-only cho riêng repo docs (org tắt deploy key nên không dùng được cách đó).
+      # Thiếu token hoặc token hết hạn thì review vẫn chạy và nói rõ trong comment là đã bỏ qua
+      # kiểm tra nghiệp vụ - một bước checkout hỏng không đáng làm mất cả lần review.
+      - name: Checkout docs
+        continue-on-error: true
+        uses: actions/checkout@v4
+        with:
+          repository: KLTN-FA26/docs
+          token: ${{ secrets.DOCS_READ_TOKEN }}
+          path: .review-context/docs
+          persist-credentials: false
+
+      # BE public, nhánh develop là bản đang chạy (main tụt xa). Chỉ lấy phần review cần: mã Java
+      # (enum status, DTO, controller - status và transition lấy BE làm chuẩn), migration (seed mã
+      # quyền theo role) và i18n (thông báo lỗi). Bỏ fonts và dữ liệu demo.
+      - name: Checkout BE
+        continue-on-error: true
+        uses: actions/checkout@v4
+        with:
+          repository: KLTN-FA26/be-backoffice-stockflow-commerce
+          ref: develop
+          path: .review-context/be
+          sparse-checkout: |
+            src/main/java
+            src/main/resources/db/migration
+            src/main/resources/i18n
+          persist-credentials: false
+
+      # SHA để comment link tới đúng phiên bản docs/BE đã đối chiếu.
+      - name: Record context refs
+        run: |
+          for repo in docs be; do
+            if [ -d ".review-context/$repo/.git" ]; then
+              echo "$repo $(git -C ".review-context/$repo" rev-parse HEAD)"
+            fi
+          done > .review-context/refs.txt
+          cat .review-context/refs.txt
 
       # Pin theo commit: tag có thể bị dời sang code khác, mà bước này giữ token.
       # Bump cả hai workflow cùng lúc, trên cả develop và main, nếu không mọi lần chạy đều fail validation.
       - uses: anthropics/claude-code-action@5eb090f3c3afd701a0672cd32981197ca27688f6 # v1.0.253
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          plugin_marketplaces: https://github.com/anthropics/claude-code.git
-          plugins: code-review@claude-code-plugins
-          prompt: /code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}
+          prompt: /review-pr --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}
           # Command đã khai báo các tool này trong frontmatter; liệt kê lại ở đây để phiên headless
           # không dừng ở một permission prompt không ai trả lời được.
           claude_args: |
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*)"
+            --allowedTools "Read,Glob,Grep,Task,Agent,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*),Bash(git diff:*),Bash(git log:*),Bash(git blame:*)"
