@@ -24,7 +24,7 @@ export function inventoryItemErrorMessage(error: unknown, context: Context): str
 
 /**
  * Lỗi theo ô từ BE. `ApiError.fieldErrors` chỉ giữ message nên nhận diện qua tên trường: lỗi trên
- * `maxQty` là INVENTORY_MAX_QTY_BELOW_THRESHOLD (BE PR #119 StockPolicy.validate). Vài mã lỗi
+ * `maxQty` + INVENTORY_POLICY_INVALID là INVENTORY_MAX_QTY_BELOW_THRESHOLD (BE PR #119 StockPolicy.validate). Vài mã lỗi
  * không kèm fieldErrors nhưng chỉ đúng một ô — gán theo mã.
  */
 export function inventoryItemFieldErrors(
@@ -38,7 +38,14 @@ export function inventoryItemFieldErrors(
   }
   if (!error.fieldErrors) return {};
   const out: Partial<Record<FieldKey, string>> = {};
-  if ("maxQty" in error.fieldErrors) out.maxQty = MESSAGES.INVENTORY_MAX_QTY_BELOW_THRESHOLD;
+  if ("maxQty" in error.fieldErrors) {
+    // BE StockPolicy.validate → INVENTORY_POLICY_INVALID; bean validation @Min(0) → VALIDATION_FAILED
+    if (error.code === "INVENTORY_POLICY_INVALID") {
+      out.maxQty = MESSAGES.INVENTORY_MAX_QTY_BELOW_THRESHOLD;
+    } else if (error.code === "VALIDATION_FAILED") {
+      out.maxQty = MESSAGES.MAX_QTY_NEGATIVE;
+    }
+  }
   return out;
 }
 

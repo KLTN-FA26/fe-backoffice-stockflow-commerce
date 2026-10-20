@@ -67,7 +67,13 @@ export function ItemPolicyForm({ item, onDone }: { item: InventoryItem; onDone: 
     >
       <div className="grid grid-cols-3 gap-3">
         {THRESHOLDS.map((name) => (
-          <Field key={name} label={F[name]} id={`pl-${name}`} error={errors[name]?.message}>
+          <Field
+            key={name}
+            label={F[name]}
+            id={`pl-${name}`}
+            hint={name === "maxQty" ? L.policy.maxQtyHint : undefined}
+            error={errors[name]?.message}
+          >
             <Input
               id={`pl-${name}`}
               inputMode="numeric"

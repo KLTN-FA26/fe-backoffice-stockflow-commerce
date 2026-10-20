@@ -26,16 +26,23 @@ export const DEFAULT_POLICY: MockPolicy = {
 };
 
 export const policies = new Map<string, MockPolicy>();
+/** BE `inventory_items.policy_configured`: bật khi lưu chính sách, kể cả khi cả ba ngưỡng null. */
+const configuredIds = new Set<string>();
 
 export function resetInventoryPolicyStore(): void {
   policies.clear();
+  configuredIds.clear();
+}
+
+export function savePolicy(itemId: string, policy: MockPolicy): void {
+  policies.set(itemId, policy);
+  configuredIds.add(itemId);
 }
 
 export const policyOf = (itemId: string): MockPolicy => policies.get(itemId) ?? DEFAULT_POLICY;
 
-/** `policyConfigured` = có ít nhất một ngưỡng khác null. */
-export const isConfigured = (p: MockPolicy) =>
-  p.reorderPoint !== null || p.safetyStock !== null || p.maxQty !== null;
+/** `policyConfigured` = đã từng lưu chính sách (BE InventoryPolicyRepository `policy_configured=true`). */
+export const isConfigured = (itemId: string) => configuredIds.has(itemId);
 
 /** ASSUMPTION: mock không có tồn thật — tồn khả dụng cố định theo item (0–99). */
 export function usableOnHandOf(itemId: string): number {

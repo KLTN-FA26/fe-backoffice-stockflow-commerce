@@ -106,6 +106,17 @@ describe("GET /inventory/items", () => {
     const rest = await listInventoryItems({ page: 0, size: 200, policyConfigured: false });
     expect(rest.items).toHaveLength(items.length - 1);
   });
+
+  it("lưu chính sách rỗng (cả ba ngưỡng null) vẫn là đã cấu hình — như BE policy_configured", async () => {
+    const item = await firstItem();
+    await saveItemPolicy({
+      id: item.id,
+      version: item.version,
+      values: policyValues({ reorderPoint: "", safetyStock: "", maxQty: "" }),
+    });
+    const configured = await listInventoryItems({ page: 0, size: 200, policyConfigured: true });
+    expect(configured.items.map((i) => i.id)).toEqual([item.id]);
+  });
 });
 
 describe("GET /inventory/items/{id}", () => {

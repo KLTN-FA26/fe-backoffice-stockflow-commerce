@@ -11,7 +11,7 @@ import { bodyOf, fail, ok, pageOf, pathParams, queryOf } from "./mock-route-util
 import {
   evaluationOf,
   isConfigured,
-  policies,
+  savePolicy,
   policyOf,
   readPolicy,
   validatePolicy,
@@ -53,7 +53,7 @@ async function listItems(config: AxiosRequestConfig) {
       if (q && !row.sku.toLowerCase().includes(q) && !(row.barcode ?? "").toLowerCase().includes(q))
         return false;
       if (storageClass && row.storageClass !== storageClass) return false;
-      return configured === null || isConfigured(policyOf(id)) === (configured === "true");
+      return configured === null || isConfigured(id) === (configured === "true");
     })
     .sort((a, b) => (a.row.sku < b.row.sku ? -1 : a.row.sku > b.row.sku ? 1 : 0))
     .map(({ id, row }) => ({
@@ -63,7 +63,7 @@ async function listItems(config: AxiosRequestConfig) {
       barcode: row.barcode,
       storageClass: row.storageClass,
       trackingMode: policyOf(id).trackingMode,
-      policyConfigured: isConfigured(policyOf(id)),
+      policyConfigured: isConfigured(id),
     }));
   return ok(pageOf(items, page, size));
 }
@@ -112,7 +112,7 @@ export function registerInventoryItemMockRoutes(): void {
     const policy = readPolicy(b);
     const invalid = validatePolicy(policy);
     if (invalid) return invalid;
-    policies.set(id, policy);
+    savePolicy(id, policy);
     const next: MockLogistics = { ...row, version: row.version + 1 };
     saveMockLogistics(next);
     return ok(toItem(id, next));

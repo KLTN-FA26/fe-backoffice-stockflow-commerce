@@ -59,6 +59,8 @@ export const INVENTORY_ITEM_UI_LABELS = {
     configured: "Đã cấu hình",
     unconfigured: "Chưa cấu hình",
     notSet: "Chưa đặt",
+    maxQtyHint:
+      "Mức tồn bổ sung tới khi đặt hàng lại (order-up-to); ≥ điểm đặt lại và tồn an toàn.",
   },
   empty: {
     noItems: "Chưa có hồ sơ hàng tồn",
@@ -130,6 +132,8 @@ export const INVENTORY_ITEM_ERROR_MESSAGES = {
   INVENTORY_POLICY_INVALID:
     "Chính sách tồn chưa hợp lệ — kiểm tra lại các ngưỡng, cách xuất kho và hạn dùng.",
   INVENTORY_MAX_QTY_BELOW_THRESHOLD: "Tồn tối đa phải ≥ điểm đặt lại và ≥ tồn an toàn.",
+  /** VALIDATION_FAILED trên maxQty (bean validation @Min(0)). */
+  MAX_QTY_NEGATIVE: "Tồn tối đa phải là số nguyên ≥ 0.",
   /** INVENTORY_POLICY_STOCK_CONFLICT khi lưu logistics = đổi ĐVT lúc còn tồn. */
   UOM_STOCK_CONFLICT:
     "Không đổi được đơn vị tính khi SKU còn tồn kho — mọi số lượng đã đếm đang theo đơn vị cũ.",
