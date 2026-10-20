@@ -21,6 +21,7 @@ import {
   sendPurchaseOrder,
   submitPurchaseOrder,
 } from "./api";
+import { updatePurchaseOrder } from "./draft-api";
 import { poDashboardKeys, poDeliveryKeys, poKeys, supplierSpendKeys } from "./queries";
 
 import type { CreatePoResult } from "./api";
@@ -29,6 +30,7 @@ import type {
   RecoverDeliveryInput,
   SendPoInput,
   SupplierConfirmationInput,
+  UpdatePoInput,
 } from "./schemas";
 import type { PurchaseOrder } from "./types";
 
@@ -41,6 +43,15 @@ export const useCreatePo = createMutation<CreatePoInput, CreatePoResult>(createP
   invalidate: PO_INVALIDATE,
   showErrorToast: false,
 });
+
+/**
+ * Sửa PO nháp (BE SCRUM-462). Màn sửa tự map lỗi (`OPTIMISTIC_LOCK`, `PURCHASE_ORDER_NOT_EDITABLE`,
+ * lỗi theo dòng) nên tắt toast lỗi mặc định; toast thành công do factory phát.
+ */
+export const useUpdateDraftPo = createMutation<{ id: string; body: UpdatePoInput }, CreatePoResult>(
+  updatePurchaseOrder,
+  { invalidate: PO_INVALIDATE, showErrorToast: false, successMessage: MSG.draftSaved },
+);
 
 export const useSubmitPo = createMutation<{ id: string }, PurchaseOrder>(
   ({ id }) => submitPurchaseOrder(id),

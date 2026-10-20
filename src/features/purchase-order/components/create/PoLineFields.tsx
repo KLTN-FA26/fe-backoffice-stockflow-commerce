@@ -2,8 +2,9 @@
 
 import { cn } from "cn";
 
+import { UI_LABELS } from "@/constants";
 import { currencyFractionDigits } from "@/lib/format";
-import { formatMoney } from "@/features/purchase-order";
+import { formatMoney, isUnitPriceRequired } from "@/features/purchase-order";
 import { Input } from "@/components/ui/input";
 
 import { FieldError } from "./CreateFormPrimitives";
@@ -21,6 +22,8 @@ export function PoLineFields({ w, index }: { w: CreatePoWizard; index: number })
   const priceDigits = currencyFractionDigits(currency);
   const qtyErrorId = `po-line-${index}-qty-error`;
   const priceErrorId = `po-line-${index}-price-error`;
+  // BE #118: dòng mới cùng tiền tệ danh mục được để trống giá (BE lấy giá danh mục)
+  const priceRequired = line ? isUnitPriceRequired(line, currency) : true;
   const taxErrorId = `po-line-${index}-tax-error`;
 
   return (
@@ -49,7 +52,7 @@ export function PoLineFields({ w, index }: { w: CreatePoWizard; index: number })
           htmlFor={`po-line-${index}-price`}
           className="text-ink-secondary mb-0.5 block text-[11px] leading-4 font-medium"
         >
-          Đơn giá <span className="text-danger">*</span>
+          Đơn giá {priceRequired && <span className="text-danger">*</span>}
         </label>
         <Input
           id={`po-line-${index}-price`}
@@ -57,6 +60,7 @@ export function PoLineFields({ w, index }: { w: CreatePoWizard; index: number })
           type="number"
           min={0}
           step={10 ** -priceDigits}
+          placeholder={priceRequired ? undefined : UI_LABELS.purchaseOrder.catalog.pricePlaceholder}
           inputMode={priceDigits === 0 ? "numeric" : "decimal"}
           aria-invalid={errors?.unitPrice ? true : undefined}
           aria-describedby={errors?.unitPrice ? priceErrorId : undefined}
@@ -91,7 +95,7 @@ export function PoLineFields({ w, index }: { w: CreatePoWizard; index: number })
           Thành tiền (gồm thuế)
         </label>
         <Input
-          value={formatMoney(line ? lineTotal(line) : 0, currency)}
+          value={formatMoney(line ? lineTotal(line, currency) : 0, currency)}
           readOnly
           aria-label={`Thành tiền dòng ${index + 1}`}
           className={cn(fieldClass(), "bg-bg-muted text-ink-secondary text-right tabular-nums")}

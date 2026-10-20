@@ -4,7 +4,10 @@ import { ZodError } from "zod";
 import { PO_ERROR_MESSAGES } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
+import { poCreateFieldErrors } from "./create-form-errors";
 import { isStalePoError, poErrorMessage } from "./errors";
+
+import type { PoCreateFormLine } from "./create-form-schema";
 
 describe("poErrorMessage — lỗi BE → câu tiếng Việt", () => {
   it("response sai hợp đồng (ZodError) / lỗi lạ → câu chung, không lộ message thô", () => {
@@ -87,5 +90,59 @@ describe("isStalePoError — dữ liệu trên màn đã cũ, cần tải lại 
       false,
     );
     expect(isStalePoError(new Error("x"))).toBe(false);
+  });
+});
+
+function lineWithTerms(moq: number, packSize: number): PoCreateFormLine {
+  return {
+    skuId: "sku",
+    description: "",
+    orderedQty: "1",
+    unitPrice: "",
+    taxRate: "",
+    lineId: "",
+    terms: { moq, packSize, price: 1, currency: "VND", effectiveLeadTimeDays: 1 },
+  };
+}
+
+describe("poCreateFieldErrors — SUPPLIER_TERMS_VIOLATED / SKU_NOT_PURCHASABLE (#30)", () => {
+  it("SUPPLIER_TERMS_VIOLATED: 3 dòng lỗi → 3 lỗi đúng lines.i.<ô>", () => {
+    const err = new ApiError(409, "SUPPLIER_TERMS_VIOLATED", "x", {
+      "lines[0].sku": "SUPPLIER_ITEM_NOT_LISTED",
+      "lines[1].quantityOrdered": "PO_LINE_BELOW_MOQ",
+      "lines[2].unitPrice": "PO_LINE_PRICE_REQUIRED",
+    });
+    const lines = [lineWithTerms(1, 1), lineWithTerms(10, 5), lineWithTerms(1, 1)];
+    expect(poCreateFieldErrors(err, lines)).toEqual([
+      { field: "lines.0.skuId", message: PO_ERROR_MESSAGES.SUPPLIER_ITEM_NOT_LISTED },
+      { field: "lines.1.orderedQty", message: "SL tối thiểu 10, theo bội số 5" },
+      { field: "lines.2.unitPrice", message: PO_ERROR_MESSAGES.PO_LINE_PRICE_REQUIRED },
+    ]);
+  });
+
+  it("lỗi SL hiện số MOQ/quy cách của chính dòng đó; không có terms → câu MOQ chung", () => {
+    const err = new ApiError(409, "SUPPLIER_TERMS_VIOLATED", "x", {
+      "lines[0].quantityOrdered": "PO_LINE_BELOW_MOQ",
+      "lines[1].quantityOrdered": "PO_LINE_BELOW_MOQ",
+    });
+    const noTerms: PoCreateFormLine = { ...lineWithTerms(1, 1), terms: null };
+    const result = poCreateFieldErrors(err, [lineWithTerms(24, 12), noTerms]);
+    expect(result[0]?.message).toBe("SL tối thiểu 24, theo bội số 12");
+    expect(result[1]?.message).toBe(PO_ERROR_MESSAGES.PO_LINE_BELOW_MOQ);
+  });
+
+  it("SKU_NOT_PURCHASABLE → lines.0.skuId", () => {
+    const err = new ApiError(409, "SKU_NOT_PURCHASABLE", "x", { "lines[0].sku": "x" });
+    expect(poCreateFieldErrors(err, [lineWithTerms(1, 1)])).toEqual([
+      { field: "lines.0.skuId", message: PO_ERROR_MESSAGES.SKU_NOT_PURCHASABLE },
+    ]);
+  });
+
+  it("poErrorMessage(SUPPLIER_TERMS_VIOLATED / PURCHASE_ORDER_NOT_EDITABLE) là câu tiếng Việt", () => {
+    for (const code of ["SUPPLIER_TERMS_VIOLATED", "PURCHASE_ORDER_NOT_EDITABLE"] as const) {
+      const message = poErrorMessage(new ApiError(409, code, "english"));
+      expect(message).toBe(PO_ERROR_MESSAGES[code]);
+      expect(message).not.toBe(PO_ERROR_MESSAGES.generic);
+    }
   });
 });

@@ -10,22 +10,18 @@ import { z } from "zod";
 /* ── Money ───────────────────────────────────────────────────────────── */
 
 /** VND amount: non-negative integer. */
-export const vnd = (msg = "Số tiền không hợp lệ") =>
-  z.number().int(msg).nonnegative(msg);
+export const vnd = (msg = "Số tiền không hợp lệ") => z.number().int(msg).nonnegative(msg);
 
 /** Generic non-negative money amount (allows decimals for USD). */
-export const money = (msg = "Số tiền không hợp lệ") =>
-  z.number().nonnegative(msg);
+export const money = (msg = "Số tiền không hợp lệ") => z.number().nonnegative(msg);
 
 /* ── Quantities ──────────────────────────────────────────────────────── */
 
 /** Positive integer quantity (default for discrete items). */
-export const intQty = (msg = "Số lượng phải > 0") =>
-  z.number().int(msg).positive(msg);
+export const intQty = (msg = "Số lượng phải > 0") => z.number().int(msg).positive(msg);
 
 /** Positive number quantity (for weight-based UOM like kg). */
-export const decimalQty = (msg = "Số lượng phải > 0") =>
-  z.number().positive(msg);
+export const decimalQty = (msg = "Số lượng phải > 0") => z.number().positive(msg);
 
 /* ── Dates ───────────────────────────────────────────────────────────── */
 
@@ -53,8 +49,7 @@ export const locationCode = z
   .regex(/^LOC-[A-Z]{2,3}-/, "Mã vị trí không hợp lệ (LOC-XX(X)-...)");
 
 /** Non-empty trimmed string for required text fields. */
-export const requiredString = (msg = "Trường bắt buộc") =>
-  z.string().trim().min(1, msg);
+export const requiredString = (msg = "Trường bắt buộc") => z.string().trim().min(1, msg);
 
 /* ── Currency ────────────────────────────────────────────────────────── */
 
@@ -64,6 +59,12 @@ export const currencySchema = z.enum(["VND", "USD", "CNY"]);
 
 export const email = z.string().email("Email không hợp lệ");
 
-export const phone = z
-  .string()
-  .regex(/^(\+84|0)\d{9,10}$/, "Số điện thoại không hợp lệ");
+export const phone = z.string().regex(/^(\+84|0)\d{9,10}$/, "Số điện thoại không hợp lệ");
+
+/**
+ * Field DTO có thể null của BE. BE bật Jackson `default-property-inclusion: non_null`
+ * (application.yml) — giá trị null bị BỎ khỏi JSON chứ không gửi `null`. Nhận cả thiếu lẫn null,
+ * chuẩn hoá về `null`. Dùng cho mọi cột nullable thay vì `.nullable()` (sẽ vỡ khi field vắng).
+ */
+export const omittedOrNull = <T extends z.ZodType>(schema: T) =>
+  schema.nullish().transform((value) => value ?? null);

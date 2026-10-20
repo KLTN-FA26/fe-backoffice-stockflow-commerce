@@ -30,6 +30,13 @@ function beResponse(overrides: Record<string, unknown> = {}) {
 }
 
 describe("bePurchaseOrderSchema (parse tại biên API)", () => {
+  it("parse version của PurchaseOrderResponse và đưa sang FE view", () => {
+    const be = bePurchaseOrderSchema.parse(beResponse({ version: 3 }));
+    expect(be.version).toBe(3);
+    expect(mapBePoToFe(be).version).toBe(3);
+    expect(bePurchaseOrderSchema.safeParse(beResponse({ version: undefined })).success).toBe(false);
+  });
+
   it("nhận response BE và đổi BigDecimal dạng chuỗi thành số", () => {
     expect(bePurchaseOrderSchema.parse(beResponse()).lines[0]?.unitPrice).toBe(100000);
   });

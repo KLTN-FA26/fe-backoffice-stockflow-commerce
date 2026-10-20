@@ -24,6 +24,7 @@ import {
 import type { PoDeliveryStatus, SupplierConfirmationStatus } from "@/constants";
 
 export * from "./input-schemas";
+export * from "./update-input-schema";
 
 /* ── Status enums ────────────────────────────────────────────────────── */
 
@@ -85,6 +86,8 @@ export const bePurchaseOrderSchema = z.object({
   lastModifiedBy: z.string().nullish(),
   possibleDuplicate: z.boolean(),
   revisionNo: z.number().int().min(0),
+  // BE `PurchaseOrderResponse.version` — khoá lạc quan cho `PUT /purchase-orders/{id}` (SCRUM-462).
+  version: z.number().int().min(0),
   submittedBy: z.string().nullish(),
   submittedAt: z.string().nullish(),
   approvedBy: z.string().nullish(),
@@ -210,6 +213,7 @@ export const purchaseOrderSchema = z.object({
   closeKind: z.string().optional(),
   note: z.string().optional(),
   revisionNo: z.number().int(),
+  version: z.number().int(),
   submittedBy: z.string().optional(),
   approvedBy: z.string().optional(),
   subtotal: z.number(),

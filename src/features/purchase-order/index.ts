@@ -23,6 +23,7 @@ export {
   recoverDeliveryInputSchema,
   sendPoInputSchema,
   supplierConfirmationInputSchema,
+  updatePoSchema,
 } from "./schemas";
 export type {
   CreatePoInput,
@@ -31,12 +32,16 @@ export type {
   SendPoInput,
   SupplierConfirmationInput,
   SupplierSpendRow,
+  UpdatePoInput,
 } from "./schemas";
 
 // Form tạo PO (react-hook-form) — schema chuỗi + map lỗi BE vào ô
-export { poCreateFormSchema } from "./create-form-schema";
+export { poCreateFormSchema, poFormSchema } from "./create-form-schema";
+export { orderQuantityIssues, poQuantityTermsMessage, termsOf } from "./line-terms";
+export type { OrderQuantityIssue, PoLineTerms } from "./line-terms";
 export type { PoCreateFormLine, PoCreateFormValues } from "./create-form-schema";
 export { poCreateFieldErrors } from "./create-form-errors";
+export { poToFormValues } from "./draft-form";
 export type { PoCreateFieldError, PoCreateFieldPath } from "./create-form-errors";
 
 // Lifecycle
@@ -59,7 +64,10 @@ export {
   linesMissingDescription,
   showsCancellationNotice,
   deliveryRound,
+  effectiveUnitPrice,
+  isUnitPriceRequired,
   formatMoney,
+  planLeadTimeDays,
   isExpectedDatePast,
   isFirstDelivery,
   openQuantity,
@@ -83,6 +91,7 @@ export {
   usePoDeliveryDecisions,
   usePoStatusDashboard,
   usePurchaseOrder,
+  usePurchaseOrderReload,
   usePurchaseOrders,
   useSupplierSpend,
 } from "./queries";
@@ -99,7 +108,8 @@ export {
   useRejectPo,
   useSendPo,
   useSubmitPo,
+  useUpdateDraftPo,
 } from "./mutations";
 
 // API types
-export type { PoHistoryParams } from "./api";
+export type { CreatePoResult, PoHistoryParams } from "./api";

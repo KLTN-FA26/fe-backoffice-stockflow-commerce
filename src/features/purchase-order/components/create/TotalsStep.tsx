@@ -1,12 +1,12 @@
 "use client";
 
 import { UI_LABELS } from "@/constants";
-import { formatMoney } from "@/features/purchase-order";
+import { effectiveUnitPrice, formatMoney } from "@/features/purchase-order";
 
 import { Card } from "@/components/shared/Card";
 
 import { SectionTitle } from "./CreateFormPrimitives";
-import { lineTotal } from "./helpers";
+import { lineTotal, usesCatalogPrice } from "./helpers";
 import type { PoCreateFormLine } from "@/features/purchase-order";
 import type { Totals } from "./types";
 
@@ -72,10 +72,15 @@ export function TotalsStep({
                 {formatQty(line.orderedQty)}
               </div>
               <div className="text-ink-secondary text-right font-[family-name:var(--font-mono)] tabular-nums">
-                {formatMoney(Number(line.unitPrice) || 0, currency)}
+                {formatMoney(effectiveUnitPrice(line, currency) ?? 0, currency)}
+                {usesCatalogPrice(line, currency) && (
+                  <div className="text-ink-tertiary font-[family-name:var(--font-sans)] text-[11px]">
+                    {UI_LABELS.purchaseOrder.catalog.priceFromCatalog}
+                  </div>
+                )}
               </div>
               <div className="text-ink-primary text-right font-[family-name:var(--font-mono)] font-medium tabular-nums">
-                {formatMoney(lineTotal(line), currency)}
+                {formatMoney(lineTotal(line, currency), currency)}
               </div>
             </div>
           ))

@@ -7,6 +7,7 @@ import {
   FileCheck2,
   PackageCheck,
   PackageX,
+  Pencil,
   RotateCcw,
   Send,
   Undo2,
@@ -39,6 +40,7 @@ const STYLE_OF = {
 
 const ACTION_ICON: Record<PoActionCode, LucideIcon> = {
   submit: FileCheck2,
+  edit: Pencil,
   approve: CheckCircle2,
   reject: Undo2,
   send: Send,
