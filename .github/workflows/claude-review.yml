@@ -133,7 +133,11 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # --requested: gọi bằng comment, nên dừng ở bước lọc thì vẫn phải trả lời lý do.
           prompt: /review-pr --comment ${{ github.event_name == 'issue_comment' && '--requested ' || '' }}${{ github.repository }}/pull/${{ env.PR_NUMBER }}
-          # Command đã khai báo các tool này trong frontmatter; liệt kê lại ở đây để phiên headless
+          # Model chính là Opus: /review-pr là quy trình điều phối (gọi agent con haiku/sonnet/opus rồi
+          # xác minh). Với model mặc định của action (Sonnet), lần "@claude review" trên #36 tự review một
+          # mình trong 5 lượt và không gọi agent con nào; chạy thử với Opus trên #38 thì gọi đủ.
+          # Command đã khai báo các tool trong frontmatter; liệt kê lại ở đây để phiên headless
           # không dừng ở một permission prompt không ai trả lời được.
           claude_args: |
+            --model claude-opus-5-5
             --allowedTools "Read,Glob,Grep,Task,Agent,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*),Bash(git diff:*),Bash(git log:*),Bash(git blame:*)"
