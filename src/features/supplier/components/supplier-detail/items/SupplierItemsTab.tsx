@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Info, PackageSearch, Plus } from "lucide-react";
 
-import { INVENTORY_ITEM_PERMISSIONS, SUPPLIER_ITEM_UI_LABELS } from "@/constants";
+import { INVENTORY_ITEM_PERMISSIONS, SUPPLIER_ITEM_UI_LABELS, SUPPLIER_STATUS } from "@/constants";
 import { usePermissionChecker } from "@/lib/auth";
 import { supplierItemActions } from "@/features/supplier";
 import { DataTable } from "@/components/shared/DataTable";
@@ -114,7 +114,7 @@ export function SupplierItemsTab({ supplier }: { supplier: SupplierDto }) {
   return (
     <section className="space-y-3" aria-label={L.tabTitle}>
       <div className="flex items-center justify-between gap-3">
-        {supplier.status !== "Active" ? (
+        {supplier.status !== SUPPLIER_STATUS.ACTIVE ? (
           <p className="text-ink-secondary flex items-center gap-1.5 text-[0.8125rem]">
             <Info className="text-info size-3.5 shrink-0" /> {L.inactiveNotice}
           </p>

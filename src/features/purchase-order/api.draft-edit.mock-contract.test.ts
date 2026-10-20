@@ -130,6 +130,20 @@ describe("PUT /purchase-orders/{id} — sửa nháp (BE SCRUM-462)", () => {
     expect(updated.subtotal).toBe(3 * 100 + 2 * CATALOG_PRICE);
   });
 
+  it('cùng lineId hai lần → 400 VALIDATION_FAILED như BE reviseDraft ("or is named twice")', async () => {
+    const po = await create([createLine(SKU_A, 5)]);
+    const lineId = po.lines[0]?.lineId;
+    const err = await updatePurchaseOrder({
+      id: po.poId,
+      body: body(po.version, [
+        updateLine(SKU_A, { lineId, unitPrice: 5 }),
+        updateLine(SKU_A, { lineId, unitPrice: 5 }),
+      ]),
+    }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err).toMatchObject({ status: 400, code: "VALIDATION_FAILED" });
+  });
+
   it("version cũ → 409 OPTIMISTIC_LOCK", async () => {
     const po = await create([createLine(SKU_A, 5)]);
     const lineId = po.lines[0]?.lineId;

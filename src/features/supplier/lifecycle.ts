@@ -10,7 +10,7 @@
  * UI-only: chỉ ẩn/hiện nút. // Backend phải re-check (BE @RequiresPermission + open-PO guard)
  */
 
-import { SUPPLIER_ITEM_PERMISSIONS, SUPPLIER_PERMISSIONS } from "@/constants";
+import { SUPPLIER_ITEM_PERMISSIONS, SUPPLIER_PERMISSIONS, SUPPLIER_STATUS } from "@/constants";
 
 import type { PermissionCode } from "@/lib/auth";
 import type { SupplierStatus } from "./types";
@@ -73,7 +73,7 @@ export function supplierItemActions(
   status: SupplierStatus,
   can: (code: PermissionCode) => boolean,
 ): SupplierItemActions {
-  const active = status === "Active";
+  const active = status === SUPPLIER_STATUS.ACTIVE;
   return {
     create: active && can(SUPPLIER_ITEM_PERMISSIONS.create),
     edit: active && can(SUPPLIER_ITEM_PERMISSIONS.update),

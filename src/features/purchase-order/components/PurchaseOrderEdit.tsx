@@ -6,6 +6,7 @@ import {
   ADMIN_ROUTES,
   PO_PERMISSIONS,
   PO_STATUS,
+  PO_TYPE,
   SUPPLIER_ITEM_PERMISSIONS,
   UI_LABELS,
 } from "@/constants";
@@ -140,5 +141,5 @@ function EditForm({
 
 /** BE `PurchaseOrder#reviseDraft`: chỉ PO thường ở trạng thái nháp sửa được. */
 function isDraftStandard(po: PurchaseOrder): boolean {
-  return po.status === PO_STATUS.DRAFT && po.type === "STANDARD";
+  return po.status === PO_STATUS.DRAFT && po.type === PO_TYPE.STANDARD;
 }

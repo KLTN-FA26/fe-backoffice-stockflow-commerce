@@ -25,6 +25,12 @@ export const PO_STATUS = {
   CANCELLED: "CANCELLED",
 } as const satisfies Record<string, PoStatus>;
 
+/** BE `PurchaseOrder.Type`: chỉ PO thường (STANDARD) sửa nháp được (`PurchaseOrder#reviseDraft`). */
+export const PO_TYPE = {
+  STANDARD: "STANDARD",
+  SUBCONTRACT: "SUBCONTRACT",
+} as const;
+
 /** BE `purchase_order_lines.status`. */
 export const PO_LINE_STATUSES = [
   "OPEN",

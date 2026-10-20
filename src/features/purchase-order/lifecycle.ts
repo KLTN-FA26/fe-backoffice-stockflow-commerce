@@ -12,6 +12,7 @@ import {
   PO_PERMISSIONS,
   PO_STATUS,
   PO_STATUSES,
+  PO_TYPE,
   SUPPLIER_CONFIRMATION_STATUS,
   UI_LABELS,
 } from "@/constants";
@@ -105,7 +106,7 @@ export const PO_ACTIONS: readonly PoAction[] = [
     // mở: dòng đã lưu sửa được, không thêm dòng mới (`savedLinesWithoutTerms`).
     permission: PO_PERMISSIONS.update,
     fromStatuses: [PO_STATUS.DRAFT],
-    when: (po) => po.type === "STANDARD",
+    when: (po) => po.type === PO_TYPE.STANDARD,
   },
   {
     code: "approve",

@@ -4,6 +4,8 @@
  * `mock-routes-purchase-orders.ts` (đã vượt 400 dòng).
  */
 
+import { PO_STATUS, PO_TYPE } from "@/constants";
+
 import { registerMockRoute } from "./mock-adapter";
 import {
   isPossibleDuplicate,
@@ -71,8 +73,12 @@ function reviseLines(
       continue;
     }
     const existing = current.get(lineId);
-    if (!existing) return validation(`Line ${lineId} is not on purchase order ${po.poNumber}`);
-    if (!kept.add(lineId)) return validation(`Line ${lineId} is listed twice`);
+    // BE `PurchaseOrder#reviseDraft`: `existing == null || !kept.add(lineId)` — Java `Set.add` trả
+    // boolean, JS trả chính Set nên kiểm `has` trước rồi mới `add`.
+    if (!existing || kept.has(lineId)) {
+      return validation(`Line ${lineId} is not a line of ${po.poNumber}, or is named twice`);
+    }
+    kept.add(lineId);
     if (existing.sku !== line.sku) {
       return validation(`Line ${lineId} keeps its SKU ${existing.sku}; add a new line instead`);
     }
@@ -113,7 +119,7 @@ async function updateDraft(config: AxiosRequestConfig) {
   const po = store.get(id);
   if (!po) return notFound(id);
   // BE `reviseDraft`: chỉ DRAFT + STANDARD; rồi so version (lạc quan).
-  if (po.status !== "DRAFT" || po.type !== "STANDARD") {
+  if (po.status !== PO_STATUS.DRAFT || po.type !== PO_TYPE.STANDARD) {
     return beError(
       409,
       "PURCHASE_ORDER_NOT_EDITABLE",
