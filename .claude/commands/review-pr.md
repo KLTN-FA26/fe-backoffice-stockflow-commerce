@@ -1,6 +1,6 @@
 ---
 description: Review PR theo CLAUDE.md, .claude/rules, docs nghiệp vụ và contract BE — chỉ báo lỗi chắc chắn
-argument-hint: "[--comment] <owner/repo/pull/N | số PR>"
+argument-hint: "[--comment] [--requested] <owner/repo/pull/N | số PR>"
 allowed-tools: Read, Glob, Grep, Bash(gh pr view:*), Bash(gh pr diff:*), Bash(gh pr comment:*), Bash(gh pr list:*), Bash(gh issue view:*), Bash(gh search:*), Bash(git diff:*), Bash(git log:*), Bash(git blame:*), mcp__github_inline_comment__create_inline_comment
 ---
 
@@ -31,10 +31,17 @@ Nguồn nào không tồn tại → ghi nhận, bỏ qua agent phụ thuộc nó
 
 Dừng, không làm gì thêm, nếu một trong các điều sau đúng:
 
-- PR đã đóng, hoặc là draft.
-- PR không cần review: tự động, chỉ đổi lockfile/`.github/`/tài liệu, hoặc thay đổi nhỏ hiển nhiên đúng.
-- Claude đã đăng review cho **đúng commit HEAD hiện tại** của PR (xem `gh pr view <PR> --comments`).
-  Review cho commit cũ hơn thì vẫn review tiếp — đó là trường hợp "@claude review" sau khi push thêm.
+- PR đã đóng.
+- Claude đã review **đúng commit HEAD hiện tại** của PR: trong `gh pr view <PR> --comments` có comment
+  "## Code review" ghi `Commit đã review: <sha>` trùng HEAD. Review cho commit cũ hơn thì vẫn review
+  tiếp — đó là trường hợp "@claude review" sau khi push thêm.
+- **Chỉ khi KHÔNG có `--requested`** (chạy tự động lúc mở PR): PR là draft, hoặc không cần review
+  (tự động, chỉ đổi lockfile/`.github/`/tài liệu, thay đổi nhỏ hiển nhiên đúng). Có `--requested`
+  nghĩa là có người comment "@claude review" — họ muốn review, nên vẫn review dù PR nhỏ hay draft.
+
+Có `--requested` và `--comment` mà phải dừng → đăng **một** comment ngắn bằng `gh pr comment` nói lý
+do (ví dụ "Commit `abc1234` đã được review ở comment trên — push commit mới rồi gọi lại"). Người gọi
+phải nhận được phản hồi, không được im lặng.
 
 Vẫn review PR do Claude tạo.
 
@@ -134,19 +141,22 @@ Kèm dòng nguồn ngữ cảnh đã dùng/bị thiếu (bước 0).
 
 Không có `--comment` → dừng ở đây, không đăng gì lên GitHub.
 
-Có `--comment` và không có issue → đăng một comment tóm tắt bằng `gh pr comment`:
+Có `--comment` và có issue → làm bước 8 trước, rồi quay lại đăng comment tóm tắt dưới đây.
+
+Có `--comment` → **luôn** đăng đúng một comment tóm tắt bằng `gh pr comment`, có hay không có issue.
+Dòng `Commit đã review` là thứ bước 1 dùng để biết commit nào đã review, nên không được thiếu:
 
 ---
 
 ## Code review
 
-Không phát hiện vấn đề. Đã kiểm tra bug, CLAUDE.md + rules, nghiệp vụ (docs) và contract BE.
+<Không có issue: "Không phát hiện vấn đề. Đã kiểm tra bug, CLAUDE.md + rules, nghiệp vụ (docs) và
+contract BE." — Có issue: "Phát hiện N vấn đề, xem comment trên từng dòng." kèm danh sách một dòng mỗi issue>
 
+Commit đã review: `<full sha HEAD của PR>`
 <dòng nguồn ngữ cảnh — ví dụ: docs @ `abc1234`, BE develop @ `def5678`>
 
 ---
-
-Có `--comment` và có issue → sang bước 8.
 
 ## Bước 8 — Đăng comment inline
 
@@ -157,6 +167,8 @@ Tự lập danh sách comment định đăng (không đăng danh sách này). R�
 - Fix nhỏ, tự đủ → kèm khối suggestion commit được. Fix lớn (≥ 6 dòng, đổi cấu trúc, nhiều chỗ) →
   mô tả cách sửa, không kèm suggestion. Không kèm suggestion nếu commit nó chưa sửa hết lỗi.
 - **Mỗi issue chỉ MỘT comment.** Không lặp.
+
+Xong bước 8 → quay lại bước 7 đăng comment tóm tắt.
 
 ## Định dạng link
 
