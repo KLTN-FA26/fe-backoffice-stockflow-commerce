@@ -1,6 +1,6 @@
 import { Fragment } from "react";
 
-import { ORDER_DELIVERY_FAILURE_LABELS } from "@/constants";
+import { ORDER_BALANCE_POLICY_LABELS, ORDER_DELIVERY_FAILURE_LABELS } from "@/constants";
 import { formatDate, formatDateTime } from "@/lib/format/date";
 
 import type { Order } from "../types";
@@ -10,6 +10,11 @@ interface OrderInfoCardProps {
 }
 
 const EMPTY = "—";
+
+/** "Thu phần còn lại" của đơn cọc: nhãn Việt của `balancePolicy` (BE PR #150: có thêm ON_CREDIT). */
+function balancePolicyLabel(policy: NonNullable<Order["balancePolicy"]>): string {
+  return policy === "UNKNOWN" ? "Không rõ" : ORDER_BALANCE_POLICY_LABELS[policy];
+}
 
 /** Mốc thời gian vòng đời đơn (BE PR #133) — chỉ hiện mốc đã có. */
 const MILESTONES = [
@@ -40,6 +45,20 @@ export function OrderInfoCard({ order }: OrderInfoCardProps) {
         <dd className="text-ink-primary">{order.contactEmail ?? EMPTY}</dd>
         <dt className="text-ink-secondary">Địa chỉ giao</dt>
         <dd className="text-ink-primary">{order.shippingAddressText ?? EMPTY}</dd>
+        {order.balancePolicy && (
+          <>
+            <dt className="text-ink-secondary">Thu phần còn lại</dt>
+            <dd className="text-ink-primary">{balancePolicyLabel(order.balancePolicy)}</dd>
+          </>
+        )}
+        {order.creditTermDays !== null && (
+          <>
+            <dt className="text-ink-secondary">Hạn công nợ</dt>
+            <dd className="text-ink-primary tabular-nums">
+              {order.creditTermDays} ngày sau khi giao
+            </dd>
+          </>
+        )}
         {MILESTONES.map(([key, label]) => {
           const value = order[key];
           return value ? (

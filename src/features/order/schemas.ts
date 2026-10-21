@@ -11,10 +11,13 @@
 import { z } from "zod";
 
 import {
+  ORDER_BALANCE_POLICIES,
   ORDER_DELIVERY_FAILURE_REASONS,
+  ORDER_HISTORY_ENTRY_TYPES,
   ORDER_HOLD_REASONS,
   ORDER_MANUAL_HOLD_REASONS,
   ORDER_REMAINDER_CLOSURE_REASONS,
+  ORDER_REMAINDER_FEE_LABELS,
   ORDER_SHIPMENT_STATUSES,
 } from "@/constants/labels-order";
 import { ORDER_LIMITS } from "@/constants/numbers";
@@ -63,6 +66,14 @@ export const orderHoldReasonDtoSchema = z.enum([...ORDER_HOLD_REASONS, "UNKNOWN"
 /** BE `DeliveryFailureReason` — tolerant. */
 export const orderDeliveryFailureReasonDtoSchema = z
   .enum([...ORDER_DELIVERY_FAILURE_REASONS, "UNKNOWN"])
+  .catch("UNKNOWN");
+
+/**
+ * BE `BalancePolicy` — cách thu phần còn lại của đơn cọc (BE PR #150: thêm ON_CREDIT). Tolerant: giá trị
+ * lạ → "UNKNOWN" (hiện "Không rõ"), không làm hỏng cả trang.
+ */
+export const orderBalancePolicyDtoSchema = z
+  .enum([...ORDER_BALANCE_POLICIES, "UNKNOWN"])
   .catch("UNKNOWN");
 
 /** BE `OrderShipmentStatus` — tolerant. */
@@ -168,6 +179,23 @@ export const orderDtoSchema = z.object({
   /** Phải trả trước khi hàng rời kho (G3-Q4): > 0 thì bàn giao bị từ chối. */
   amountDueBeforeHandover: z.number().nullish(),
   shipments: z.array(orderShipmentDtoSchema).nullish(),
+  /**
+   * Cách thu phần còn lại của đơn cọc: BEFORE_DELIVERY | ON_DELIVERY | ON_CREDIT; null với đơn không
+   * cọc (BE PR #150).
+   */
+  balancePolicy: orderBalancePolicyDtoSchema.nullish(),
+  /** Số ngày trả sau khi giao: đơn CREDIT, hoặc đơn cọc ON_CREDIT cho phần còn lại; null nếu khác. */
+  creditTermDays: z.number().int().nullish(),
+  /**
+   * Sales cho phép giao một phần (PACK-PARTIAL, BE PR #150); mặc định false. Vắng (null) trên dòng
+   * danh sách không mang field này.
+   */
+  allowPartialShipment: z.boolean().nullish(),
+  /**
+   * Hàng in của đơn đã về bàn đóng gói (không có dòng in, hoặc sản xuất xong). False khi đơn còn đang in,
+   * hoặc đã giao hàng có sẵn trước khi sản xuất xong (PACK-EARLY); vắng trên dòng danh sách.
+   */
+  printLinesReady: z.boolean().nullish(),
 });
 
 /** BE `PageResponse<OrderResponse>` — trang đánh số từ 0. */
@@ -247,7 +275,62 @@ export const orderSchema = z.object({
   amountDueBeforeHandover: z.number().nullable(),
   /** Rỗng khi BE không trả `shipments` (đơn chưa chia lô). */
   shipments: z.array(orderShipmentSchema),
+  /** null khi đơn không cọc (hoặc dòng danh sách không mang field này). */
+  balancePolicy: orderBalancePolicyDtoSchema.nullable(),
+  creditTermDays: z.number().int().nullable(),
+  /** null = BE không trả (dòng danh sách) — màn chi tiết không đoán, ẩn điều khiển. */
+  allowPartialShipment: z.boolean().nullable(),
+  printLinesReady: z.boolean().nullable(),
 });
+
+/* ── Lịch sử đơn (BE GET /orders/{id}/history) ───────────────────────── */
+
+/**
+ * BE `OrderStatusChangeResponse` (BE PR #150, "review of #150"): mỗi mục có `type` — `STATUS_CHANGE`
+ * (trạng thái đi `from` → `to`) hoặc `PARTIAL_SHIPMENT_DECISION` (Sales bật / tắt giao một phần,
+ * `from` / `to` null, `partialShipmentAllowed`, `reason` = ghi chú của Sales). Mục thứ hai chỉ nhân viên
+ * thấy. `type` vắng (BE cũ) = STATUS_CHANGE; giá trị lạ → "UNKNOWN".
+ */
+export const orderHistoryEntryDtoSchema = z.object({
+  type: z
+    .enum([...ORDER_HISTORY_ENTRY_TYPES, "UNKNOWN"])
+    .default("STATUS_CHANGE")
+    .catch("UNKNOWN"),
+  from: orderStatusDtoSchema.nullish(),
+  to: orderStatusDtoSchema.nullish(),
+  reason: z.string().nullish(),
+  occurredAt: z.string(),
+  actorId: z.string().nullish(),
+  actorName: z.string().nullish(),
+  partialShipmentAllowed: z.boolean().nullish(),
+});
+
+export const orderHistoryDtoSchema = z.array(orderHistoryEntryDtoSchema);
+
+const historyEntryBase = {
+  occurredAt: z.string(),
+  reason: z.string().nullable(),
+  /** Tên người thực hiện; null với hệ thống / bước ghi trước G3-2. */
+  actorName: z.string().nullable(),
+};
+
+/** Mục lịch sử đã phân loại — UI render theo `kind`, không đọc `type` thô. */
+export const orderHistoryEntrySchema = z.discriminatedUnion("kind", [
+  z.object({
+    ...historyEntryBase,
+    kind: z.literal("status-change"),
+    /** null ở bước đầu (đơn vừa được đặt). */
+    from: z.enum(ORDER_STATUSES).nullable(),
+    to: z.enum(ORDER_STATUSES),
+  }),
+  z.object({
+    ...historyEntryBase,
+    kind: z.literal("partial-shipment"),
+    /** true = Sales bật giao một phần; false = tắt. */
+    allowed: z.boolean(),
+  }),
+  z.object({ ...historyEntryBase, kind: z.literal("unknown") }),
+]);
 
 /* ── Admin cancel input ──────────────────────────────────────────────── */
 
@@ -316,14 +399,66 @@ export const deliveryFailureSchema = reasonWithNote(
   "Ghi chú",
 );
 
+/**
+ * Khoản phí đã thoả thuận khi đóng phần còn lại (`CloseRemainderRequest.agreedFee` = `CancellationFeeRequest`,
+ * BE PR #150): số tiền nguyên VND > 0 (BE `Order#requireRemainderFee`: đúng số chữ số thập phân của tiền
+ * tệ, VND = 0), lý do ≤ 500 và chi tiết ≤ 2000 đều bắt buộc. Trần = giá trị phần hàng in bị đóng, BE
+ * mới biết (400) — FE không đoán.
+ */
+export const agreedFeeSchema = z.object({
+  amount: z
+    .number({ error: ORDER_REMAINDER_FEE_LABELS.amountInvalid })
+    .int(ORDER_REMAINDER_FEE_LABELS.amountInvalid)
+    .positive(ORDER_REMAINDER_FEE_LABELS.amountInvalid),
+  reason: z
+    .string()
+    .trim()
+    .min(1, ORDER_REMAINDER_FEE_LABELS.reasonRequired)
+    .max(ORDER_LIMITS.feeReasonMax, ORDER_REMAINDER_FEE_LABELS.reasonTooLong),
+  detail: z
+    .string()
+    .trim()
+    .min(1, ORDER_REMAINDER_FEE_LABELS.detailRequired)
+    .max(ORDER_LIMITS.feeDetailMax, ORDER_REMAINDER_FEE_LABELS.detailTooLong),
+});
+
 /** Đóng phần còn lại (`POST /orders/{id}/remainder-closure`, `CloseRemainderRequest`). */
-export const remainderClosureSchema = reasonWithNote(
-  ORDER_REMAINDER_CLOSURE_REASONS,
-  ORDER_LIMITS.remainderClosureNoteMax,
-  "Ghi chú",
-);
+export const remainderClosureSchema = z
+  .object({
+    reasonCode: z.enum(ORDER_REMAINDER_CLOSURE_REASONS, { error: "Chọn lý do" }),
+    note: z
+      .string()
+      .trim()
+      .max(
+        ORDER_LIMITS.remainderClosureNoteMax,
+        `Ghi chú tối đa ${ORDER_LIMITS.remainderClosureNoteMax} ký tự`,
+      ),
+    /** Tuỳ chọn; chỉ sau khi hàng in đã in (BE 409 CANCELLATION_FEE_BEFORE_PRINTING nếu chưa). */
+    agreedFee: agreedFeeSchema.optional(),
+  })
+  .refine((value) => value.reasonCode !== "OTHER" || value.note.length > 0, {
+    path: ["note"],
+    message: NOTE_REQUIRED,
+  });
+
+/**
+ * Cho phép / dừng giao một phần (`PUT /orders/{id}/partial-shipment`, `PartialShipmentRequest`):
+ * `allowed` bắt buộc, `note` ≤ 500 không bắt buộc (được ghi vào lịch sử đơn).
+ */
+export const partialShipmentSchema = z.object({
+  allowed: z.boolean(),
+  note: z
+    .string()
+    .trim()
+    .max(
+      ORDER_LIMITS.partialShipmentNoteMax,
+      `Ghi chú tối đa ${ORDER_LIMITS.partialShipmentNoteMax} ký tự`,
+    ),
+});
 
 export type HoldOrderValues = z.infer<typeof holdOrderSchema>;
 export type ResolveOrderHoldValues = z.infer<typeof resolveOrderHoldSchema>;
 export type DeliveryFailureValues = z.infer<typeof deliveryFailureSchema>;
 export type RemainderClosureValues = z.infer<typeof remainderClosureSchema>;
+export type AgreedFeeValues = z.infer<typeof agreedFeeSchema>;
+export type PartialShipmentValues = z.infer<typeof partialShipmentSchema>;

@@ -37,6 +37,8 @@ export const SUPPLIER_ITEM_PERMISSIONS = {
  * - `cancel`: huỷ đơn phía admin (`POST /orders/{id}/admin-cancellation`) và đóng phần còn lại của
  *   đơn giao một phần (`POST /orders/{id}/remainder-closure`) — BE tách sang resource
  *   `sales-order-cancellations` (UPDATE, scope ALL; seed: ORDER_COORDINATOR + SALES_STAFF).
+ * - `partialShipment`: Sales cho phép / dừng giao một phần của đơn — resource
+ *   `sales-order-partial-shipments` (UPDATE, scope ALL; seed: SALES_STAFF + SYSTEM_ADMIN).
  */
 export const ORDER_PERMISSIONS = {
   // Mở trang (menu + chặn route) — BE Action.VIEW_PAGE, ADR-0004
@@ -46,6 +48,9 @@ export const ORDER_PERMISSIONS = {
   read: "sales-orders:READ",
   approve: "sales-orders:APPROVE",
   cancel: "sales-order-cancellations:UPDATE",
+  // Cho phép / dừng giao một phần của đơn (`PUT /orders/{id}/partial-shipment`, BE PR #150) — resource
+  // `sales-order-partial-shipments` (UPDATE, scope ALL; seed: SALES_STAFF + SYSTEM_ADMIN)
+  partialShipment: "sales-order-partial-shipments:UPDATE",
 } as const;
 
 /**

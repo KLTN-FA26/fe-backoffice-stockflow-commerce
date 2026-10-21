@@ -76,6 +76,7 @@ export function OrderActionCard({ order, can }: OrderActionCardProps) {
     holdReason: order.holdReason,
     hasShipments: order.shipments.length > 0,
     packedAt: order.packedAt,
+    statusBeforeHold: order.statusBeforeHold,
   });
   const has = (code: string) => actions.some((a) => a.code === code);
   const onHold = order.status === "On Hold";

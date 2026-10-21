@@ -1,7 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { CircleCheck, PackageX, PauseCircle, Scissors } from "lucide-react";
+import { CircleCheck, PackageX, PauseCircle, Scissors, Split } from "lucide-react";
 import { useState } from "react";
 
 import {
@@ -11,6 +11,7 @@ import {
   ORDER_LIMITS,
   ORDER_MANUAL_HOLD_REASONS,
   ORDER_HOLD_REASON_LABELS,
+  ORDER_PARTIAL_SHIPMENT_LABELS,
   ORDER_REMAINDER_CLOSURE_LABELS,
   ORDER_REMAINDER_CLOSURE_REASONS,
   UI_LABELS,
@@ -21,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { ORDER_STALE_ERROR_CODES, orderActionErrorView } from "../errors";
 import {
   useCloseOrderRemainder,
+  useDecidePartialShipment,
   useHoldOrder,
   useRecordDeliveryFailure,
   useResolveOrderHold,
@@ -29,11 +31,13 @@ import { orderKeys } from "../queries";
 import {
   deliveryFailureSchema,
   holdOrderSchema,
+  partialShipmentSchema,
   remainderClosureSchema,
   resolveOrderHoldSchema,
 } from "../schemas";
 
 import { OrderReasonDialog } from "./OrderReasonDialog";
+import { RemainderFeeFields, useAgreedFeeFields } from "./RemainderFeeFields";
 
 import type { ApiError } from "@/lib/api/error";
 import type { OrderStatusActionKey } from "../errors";
@@ -178,6 +182,8 @@ export function OrderDeliveryFailureAction({ order }: { order: ActionOrder }) {
 export function OrderRemainderClosureAction({ order }: { order: ActionOrder }) {
   const dialog = useActionDialog("remainderClosure");
   const { mutate, isPending } = useCloseOrderRemainder(dialog.hookOptions);
+  // Phí đã thoả thuận (BE PR #150): tuỳ chọn; giữ trạng thái ở đây để hộp thoại gộp vào input trước khi validate
+  const fee = useAgreedFeeFields();
   const labels = ORDER_ACTION_LABELS.remainderClosure;
   return (
     <>
@@ -185,7 +191,10 @@ export function OrderRemainderClosureAction({ order }: { order: ActionOrder }) {
         type="button"
         variant="outline"
         size="sm"
-        onClick={dialog.show}
+        onClick={() => {
+          fee.reset();
+          dialog.show();
+        }}
         className="border-danger text-danger hover:bg-danger/10 w-full rounded-[var(--r-sm)] border bg-transparent px-3 py-2 text-[0.8125rem] font-medium"
       >
         <Scissors className="size-3.5" /> {labels.button}
@@ -200,9 +209,51 @@ export function OrderRemainderClosureAction({ order }: { order: ActionOrder }) {
           noteLabel={labels.noteLabel}
           noteMax={ORDER_LIMITS.remainderClosureNoteMax}
           schema={remainderClosureSchema}
+          extra={{
+            values: fee.values,
+            render: (errors) => <RemainderFeeFields fee={fee} errors={errors} />,
+          }}
           isPending={isPending}
           error={dialog.error}
           onSubmit={(values) => mutate({ id: order.orderId, ...values })}
+          onClose={dialog.close}
+        />
+      )}
+    </>
+  );
+}
+
+/**
+ * Cho phép / dừng giao một phần (BE PR #150): nút + hộp thoại ghi chú tuỳ chọn (≤ 500, vào lịch sử đơn).
+ * Hiện hay không do `partialShipmentControl` quyết (mã quyền `sales-order-partial-shipments:UPDATE` + đơn chưa
+ * khoá). `next` = giá trị sẽ đặt. Thành công → toast + đóng; 409 LOCKED → đóng, tải lại đơn, báo.
+ */
+export function OrderPartialShipmentAction({ order, next }: { order: ActionOrder; next: boolean }) {
+  const dialog = useActionDialog("partialShipment");
+  const { mutate, isPending } = useDecidePartialShipment(dialog.hookOptions);
+  const L = ORDER_PARTIAL_SHIPMENT_LABELS;
+  return (
+    <>
+      <Button type="button" variant="outline" size="sm" onClick={dialog.show} className={BUTTON}>
+        <Split className="size-3.5" /> {next ? L.allowButton : L.stopButton}
+      </Button>
+      {dialog.open && (
+        <OrderReasonDialog
+          title={next ? L.allowTitle : L.stopTitle}
+          description={`${next ? L.allowDescription : L.stopDescription} (${order.orderNumber})`}
+          submitLabel={next ? L.allowSubmit : L.stopSubmit}
+          noteLabel={L.noteLabel}
+          notePlaceholder={L.notePlaceholder}
+          noteMax={ORDER_LIMITS.partialShipmentNoteMax}
+          schema={partialShipmentSchema.pick({ note: true })}
+          isPending={isPending}
+          error={dialog.error}
+          onSubmit={({ note }) =>
+            mutate(
+              { id: order.orderId, allowed: next, note },
+              { onSuccess: () => toast.success(next ? L.allowSuccess : L.stopSuccess) },
+            )
+          }
           onClose={dialog.close}
         />
       )}

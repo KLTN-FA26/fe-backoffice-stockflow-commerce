@@ -9,7 +9,10 @@ import type { z } from "zod";
 
 import type {
   orderDtoSchema,
+  orderHistoryEntryDtoSchema,
+  orderHistoryEntrySchema,
   orderLineSchema,
+  orderBalancePolicyDtoSchema,
   orderPageDtoSchema,
   orderSchema,
   orderStatusDtoSchema,
@@ -22,3 +25,6 @@ export type OrderDto = z.infer<typeof orderDtoSchema>;
 export type OrderPageDto = z.infer<typeof orderPageDtoSchema>;
 export type Order = z.infer<typeof orderSchema>;
 export type OrderLine = z.infer<typeof orderLineSchema>;
+export type OrderBalancePolicy = z.infer<typeof orderBalancePolicyDtoSchema>;
+export type OrderHistoryEntryDto = z.infer<typeof orderHistoryEntryDtoSchema>;
+export type OrderHistoryEntry = z.infer<typeof orderHistoryEntrySchema>;

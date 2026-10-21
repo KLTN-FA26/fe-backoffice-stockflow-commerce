@@ -126,6 +126,92 @@ export const ORDER_SHIPMENT_STATUS_DISPLAY = {
   UNKNOWN: "UNKNOWN",
 } as const satisfies Record<(typeof ORDER_SHIPMENT_STATUSES)[number], string>;
 
+/* ── Cách thu phần còn lại của đơn cọc (BE BalancePolicy / DepositBalancePolicy) ── */
+
+/**
+ * `Order.balancePolicy` và `CreditProfile.depositBalancePolicy` (BE PR #150): cách thu phần còn lại
+ * của đơn cọc. ON_CREDIT = ghi thành công nợ khi giao, đến hạn sau `creditTermDays`; cần hồ sơ công nợ
+ * `allowCredit` (409 BALANCE_POLICY_NOT_ALLOWED / 400 CREDIT_PROFILE_INVALID).
+ */
+export const ORDER_BALANCE_POLICIES = ["BEFORE_DELIVERY", "ON_DELIVERY", "ON_CREDIT"] as const;
+
+export const ORDER_BALANCE_POLICY_LABELS = {
+  BEFORE_DELIVERY: "Chuyển khoản trước khi giao",
+  ON_DELIVERY: "Thu hộ khi giao hàng (COD)",
+  ON_CREDIT: "Ghi công nợ phần còn lại",
+} as const satisfies Record<(typeof ORDER_BALANCE_POLICIES)[number], string>;
+
+/* ── Giao một phần (BE PR #150, PACK-PARTIAL) ────────────────────────── */
+
+/**
+ * Sales quyết đơn có được giao từng phần không (`PUT /orders/{id}/partial-shipment`); kho không còn
+ * tự quyết. Mỗi quyết định được ghi vào lịch sử đơn.
+ */
+export const ORDER_PARTIAL_SHIPMENT_LABELS = {
+  title: "Giao một phần",
+  stateOn: "Đang cho phép",
+  stateOff: "Chưa cho phép — đơn giao nguyên cả đơn",
+  hintOn:
+    "Kho được đóng và bàn giao từng phần của đơn; hàng có sẵn của đơn đang sản xuất được giao trước hàng in.",
+  hintOff: "Kho phải đóng đủ cả đơn. Bật khi khách đồng ý nhận hàng từng phần.",
+  allowButton: "Cho phép giao một phần",
+  stopButton: "Dừng giao một phần",
+  allowTitle: "Cho phép giao một phần",
+  stopTitle: "Dừng giao một phần",
+  allowDescription:
+    "Kho được đóng và bàn giao từng phần của đơn. Quyết định được ghi vào lịch sử đơn.",
+  stopDescription:
+    "Đơn sẽ giao nguyên cả đơn; phần chưa giao của đơn đã giao dở sẽ đi trong một lần bàn giao. Quyết định được ghi vào lịch sử đơn.",
+  noteLabel: "Ghi chú (không bắt buộc)",
+  notePlaceholder: "Vd: Khách đồng ý nhận hàng sẵn trước, hàng in giao sau",
+  allowSubmit: "Cho phép",
+  stopSubmit: "Dừng giao một phần",
+  allowSuccess: "Đã cho phép giao một phần",
+  stopSuccess: "Đã dừng giao một phần",
+  failedTitle: "Không cập nhật được giao một phần",
+  /** Đơn đã giao dở vì hàng in chưa xong: BE khoá không cho tắt (ORDER_PARTIAL_SHIPMENT_LOCKED). */
+  lockedAwaitingPrints:
+    "Hàng có sẵn đã đi trước hàng in nên đơn đã tách — chưa dừng giao một phần được cho tới khi hàng in giao xong hoặc phần còn lại được đóng.",
+  /** Đơn đã đi / đã đóng: không còn đổi được. */
+  lockedClosed: "Đơn đã giao đi hoặc đã đóng — không còn đổi được cách giao.",
+} as const;
+
+/* ── Lịch sử đơn (BE GET /orders/{id}/history) ───────────────────────── */
+
+/** BE `OrderStatusChangeResponse.type`. */
+export const ORDER_HISTORY_ENTRY_TYPES = ["STATUS_CHANGE", "PARTIAL_SHIPMENT_DECISION"] as const;
+
+export const ORDER_HISTORY_LABELS = {
+  title: "Lịch sử đơn",
+  loading: "Đang tải lịch sử…",
+  empty: "Chưa có thay đổi nào được ghi lại",
+  loadFailed: "Không tải được lịch sử đơn. Hãy thử tải lại trang.",
+  retry: "Tải lại",
+  placed: "Đặt đơn",
+  partialAllowed: "Bật giao một phần",
+  partialStopped: "Tắt giao một phần",
+  unknownEntry: "Thay đổi không rõ",
+  by: "Bởi",
+  noteLabel: "Ghi chú",
+  statusMoved: "Chuyển trạng thái",
+} as const;
+
+/* ── Đóng phần còn lại kèm phí thoả thuận (BE PR #150) ───────────────── */
+
+export const ORDER_REMAINDER_FEE_LABELS = {
+  toggle: "Giữ một khoản phí đã thoả thuận với khách",
+  toggleHint:
+    "Chỉ khi hàng in đã bắt đầu in. Tiền khách đã trả vượt giá trị đơn mới trả phí này trước (kể cả tiền cọc), phần dư được hoàn; thiếu thì ghi thành khoản phải thu. Tối đa bằng giá trị phần hàng in bị đóng.",
+  amount: "Số tiền phí (VND)",
+  reason: "Lý do giữ phí",
+  detail: "Chi tiết đã thoả thuận với khách",
+  amountInvalid: "Nhập số tiền nguyên lớn hơn 0",
+  reasonRequired: "Nhập lý do giữ phí",
+  detailRequired: "Nhập chi tiết đã thoả thuận",
+  reasonTooLong: "Lý do tối đa 500 ký tự",
+  detailTooLong: "Chi tiết tối đa 2000 ký tự",
+} as const;
+
 /* ── Nhãn UI thao tác trạng thái ─────────────────────────────────────── */
 
 export const ORDER_ACTION_LABELS = {
@@ -197,6 +283,22 @@ export const ORDER_ERROR_MESSAGES = {
   ORDER_NOT_CANCELLABLE:
     "Đơn hàng không thể huỷ nữa — hàng đã đóng gói, hãy xử lý qua luồng trả hàng.",
   ORDER_CANCELLED: "Đơn hàng đã bị huỷ.",
+  // BE PR #150 — giao một phần do Sales quyết trên đơn
+  ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED:
+    "Đơn chưa được phép giao một phần — nhờ Sale bật “Cho phép giao một phần” trên đơn.",
+  ORDER_PARTIAL_SHIPMENT_LOCKED:
+    "Không đổi được cách giao nữa: đơn đã giao đi hoặc đóng, hoặc hàng có sẵn đã đi trước hàng in nên đơn đã tách.",
+  // BE PR #150 — thu phần còn lại ghi công nợ; huỷ / đóng phần còn lại có phí
+  BALANCE_CREDIT_LIMIT_EXCEEDED:
+    "Phần còn lại ghi công nợ làm công nợ của khách vượt hạn mức. Chọn cách thu khác hoặc nhờ Kế toán nâng hạn mức.",
+  CUSTOMER_CREDIT_OVERDUE:
+    "Khách đang có công nợ quá hạn — chưa ghi công nợ thêm được. Chọn cách thu khác hoặc xử lý khoản quá hạn trước.",
+  BALANCE_POLICY_NOT_ALLOWED:
+    "Khách này chưa được phép ghi công nợ phần còn lại — chọn cách thu khác hoặc bật công nợ cho khách.",
+  CREDIT_PROFILE_INVALID:
+    "Điều khoản của khách chưa hợp lệ: “Ghi công nợ phần còn lại” cần bật công nợ (allowCredit) cùng hạn mức và số ngày nợ.",
+  CANCELLATION_FEE_BEFORE_PRINTING:
+    "Đơn chưa bắt đầu in nên hoàn tiền đủ, không giữ phí — bỏ khoản phí rồi gửi lại.",
 } as const;
 
 export type OrderErrorCode = keyof typeof ORDER_ERROR_MESSAGES;

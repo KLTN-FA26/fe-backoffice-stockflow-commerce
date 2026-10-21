@@ -36,9 +36,29 @@ export interface OrderActionContext {
    * ORDER_NOT_CANCELLABLE) — kể cả đơn ON_HOLD bị giữ từ PACKED / PARTIALLY_FULFILLED.
    */
   readonly packedAt: string | null;
+  /**
+   * Trạng thái đơn quay về khi gỡ giữ (staff). Cần để biết đơn ON_HOLD có đang giữ từ IN_PRODUCTION
+   * không — hàng có sẵn đóng trước hàng in vẫn huỷ được (BE PR #150, `Order#packedOnlyAheadOfPrints`).
+   */
+  readonly statusBeforeHold?: Order["statusBeforeHold"];
 }
 
 const NO_CONTEXT: OrderActionContext = { holdReason: null, hasShipments: false, packedAt: null };
+
+/**
+ * BE `Order#packedOnlyAheadOfPrints` (BE PR #150, PACK-EARLY): hàng có sẵn của đơn còn đang in đã đóng
+ * thành kiện nhưng CHƯA bàn giao lô nào → kiện còn nằm trong kho, huỷ được (huỷ kiện, trả hàng về tồn,
+ * quy tắc phí khi đang in). Đã có lô rời đi hoặc đơn đã PACKED trở đi thì phải đi luồng trả hàng.
+ * BE không trả cờ "huỷ được" nên FE đối chiếu cùng điều kiện (17 §4.5 bước 15).
+ */
+export function isPackedOnlyAheadOfPrints(
+  status: OrderStatus,
+  { packedAt, hasShipments, statusBeforeHold }: OrderActionContext,
+): boolean {
+  const printing =
+    status === "In Production" || (status === "On Hold" && statusBeforeHold === "In Production");
+  return packedAt !== null && printing && !hasShipments;
+}
 
 /** Actions the UI can gate per status + permission code (+ ngữ cảnh đơn). */
 export interface OrderAction {
@@ -53,7 +73,7 @@ export interface OrderAction {
   /** Target status after action (undefined = non-transition action). */
   readonly targetStatus?: OrderStatus;
   /** Điều kiện thêm ngoài trạng thái (vd lý do giữ, đã chia lô). */
-  readonly requires?: (context: OrderActionContext) => boolean;
+  readonly requires?: (context: OrderActionContext, status: OrderStatus) => boolean;
   /** Destructive action styling. */
   readonly destructive?: boolean;
 }
@@ -73,8 +93,9 @@ export function isManuallyResolvableHold(reason: Order["holdReason"]): boolean {
 export const ORDER_ACTIONS: readonly OrderAction[] = [
   // BE `OrderStatus#canTransitionTo` (PR #133): → CANCELLED từ DRAFT, PENDING_PAYMENT, CONFIRMED,
   // IN_PRODUCTION, READY_TO_FULFILL, PICKING, ON_HOLD. PACKED trở đi (packedAt đã có) KHÔNG huỷ được (quyết định
-  // 17/10, BR-ORD-004) — đi luồng trả hàng. Endpoint: POST /orders/{orderId}/admin-cancellation
-  // (BE sales-order-cancellations:UPDATE, scope ALL).
+  // 17/10, BR-ORD-004) — đi luồng trả hàng; ngoại lệ (BE PR #150): đơn IN_PRODUCTION đã đóng sẵn hàng có sẵn
+  // mà chưa bàn giao lô nào vẫn huỷ được (`isPackedOnlyAheadOfPrints`). Endpoint:
+  // POST /orders/{orderId}/admin-cancellation (BE sales-order-cancellations:UPDATE, scope ALL).
   {
     code: "admin-cancel",
     label: "Huỷ đơn",
@@ -89,8 +110,10 @@ export const ORDER_ACTIONS: readonly OrderAction[] = [
       "On Hold",
     ],
     targetStatus: "Cancelled",
-    // `Order#requireNotPacked` (03 §9): đã đóng gói thì không huỷ — bất kể trạng thái hiện tại (ON_HOLD gồm cả)
-    requires: ({ packedAt }) => packedAt === null,
+    // `Order#requireNotPacked` (03 §9): đã đóng gói thì không huỷ — bất kể trạng thái hiện tại (ON_HOLD gồm cả),
+    // trừ khi mới đóng hàng có sẵn trước hàng in và chưa có lô nào rời kho
+    requires: (context, status) =>
+      context.packedAt === null || isPackedOnlyAheadOfPrints(status, context),
     destructive: true,
   },
   // `OrderStatus#mayBePutOnHold`: CONFIRMED … PACKED (kể cả giao một phần). POST /orders/{id}/hold,
@@ -166,7 +189,7 @@ export function allowedOrderActions(
     }
 
     // 3. Context gate
-    if (action.requires && !action.requires(context)) return false;
+    if (action.requires && !action.requires(context, status)) return false;
 
     // 4. Permission gate
     return can(action.permission);
@@ -181,4 +204,65 @@ export function isOrderTerminal(status: OrderStatus): boolean {
 /** Get allowed next statuses from the transition table. */
 export function nextOrderStatuses(status: OrderStatus): readonly OrderStatus[] {
   return allowedTransitions(ORDER_TRANSITIONS, status);
+}
+
+/* ── Giao một phần (BE PR #150, PACK-PARTIAL) ────────────────────────── */
+
+/**
+ * BE `Order#decidePartialShipment`: Sales đổi được cho tới khi hàng đi hết / đơn đóng. Từ SHIPPED trở đi
+ * (giao thất bại, đã giao, trả hàng, hoàn tiền, hoàn tất, huỷ, đóng sổ) → 409 ORDER_PARTIAL_SHIPMENT_LOCKED.
+ */
+export const PARTIAL_SHIPMENT_OPEN_STATUSES: readonly OrderStatus[] = [
+  "Draft",
+  "Pending Payment",
+  "Confirmed",
+  "In Production",
+  "Ready to Fulfill",
+  "Picking",
+  "Partially Fulfilled",
+  "Packed",
+  "On Hold",
+];
+
+export type PartialShipmentLock = "closed" | "awaiting-prints";
+
+/** Điều khiển "Giao một phần" trên chi tiết đơn: trạng thái hiện tại + việc nút sẽ làm. */
+export interface PartialShipmentControl {
+  /** Cờ hiện tại của đơn. */
+  readonly allowed: boolean;
+  /** Giá trị nút sẽ đặt (ngược với `allowed`). */
+  readonly next: boolean;
+  /** Có quyền VÀ đơn chưa bị khoá — mới hiện nút. */
+  readonly canChange: boolean;
+  /** Vì sao không đổi được dù có quyền (null = không bị khoá). */
+  readonly lock: PartialShipmentLock | null;
+}
+
+/**
+ * Điều khiển giao một phần của đơn, hoặc null khi BE không trả cờ (không đoán). Khoá:
+ * - đơn đã đi / đóng (`PARTIAL_SHIPMENT_OPEN_STATUSES`);
+ * - đang bật mà đơn PARTIALLY_FULFILLED còn chờ hàng in (`printLinesReady = false`): hàng có sẵn đã đi trước
+ *   hàng in nên đơn đã tách — BE 409 khi tắt. Khoá này chỉ gợi ý sớm; BE vẫn là người quyết (đơn ON_HOLD giữ từ
+ *   trạng thái đó chỉ biết qua 409).
+ * Quyền tra theo MÃ (`sales-order-partial-shipments:UPDATE`), không theo vai trò.
+ */
+export function partialShipmentControl(
+  order: Pick<Order, "status" | "allowPartialShipment" | "printLinesReady">,
+  can: (code: PermissionCode) => boolean,
+): PartialShipmentControl | null {
+  if (order.allowPartialShipment === null) return null;
+  const allowed = order.allowPartialShipment;
+  // Trạng thái chưa hỗ trợ: không đoán là đã đóng — chỉ hiện cờ, không cho đổi
+  if (order.status === "UNKNOWN") return { allowed, next: !allowed, lock: null, canChange: false };
+  let lock: PartialShipmentLock | null = null;
+  if (!PARTIAL_SHIPMENT_OPEN_STATUSES.includes(order.status)) lock = "closed";
+  else if (allowed && order.status === "Partially Fulfilled" && order.printLinesReady === false) {
+    lock = "awaiting-prints";
+  }
+  return {
+    allowed,
+    next: !allowed,
+    lock,
+    canChange: lock === null && can(ORDER_PERMISSIONS.partialShipment),
+  };
 }

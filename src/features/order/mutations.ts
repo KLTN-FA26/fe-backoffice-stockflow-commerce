@@ -13,12 +13,14 @@ import { ORDER_ACTION_LABELS } from "@/constants";
 import {
   adminCancelOrder,
   closeOrderRemainder,
+  decidePartialShipment,
   holdOrder,
   recordDeliveryFailure,
   resolveOrderHold,
   type AdminCancelOrderInput,
   type DeliveryFailureInput,
   type HoldOrderInput,
+  type PartialShipmentInput,
   type RemainderClosureInput,
   type ResolveOrderHoldInput,
 } from "./api";
@@ -75,6 +77,23 @@ export const useCloseOrderRemainder = createMutation<RemainderClosureInput, void
   {
     invalidate: [orderKeys.all],
     successMessage: ORDER_ACTION_LABELS.remainderClosure.success,
+    showErrorToast: false,
+  },
+);
+
+/* ── Giao một phần (BE PR #150) ──────────────────────────────────────── */
+
+/**
+ * Cho phép / dừng giao một phần của đơn. Đổi cờ `allowPartialShipment` của đơn (detail + list) và thêm một mục
+ * vào lịch sử đơn — cả hai nằm dưới `orderKeys.all`. Màn đóng gói / bàn giao đọc cờ này qua BE khi gọi
+ * (không giữ bản sao ở FE) nên không có key khác để làm mới.
+ * Không có `successMessage` cố định: lời báo phụ thuộc `allowed` nên call site phát toast; `showErrorToast: false`
+ * vì call site map lỗi (409 ORDER_PARTIAL_SHIPMENT_LOCKED…) ngay trong dialog.
+ */
+export const useDecidePartialShipment = createMutation<PartialShipmentInput, void>(
+  decidePartialShipment,
+  {
+    invalidate: [orderKeys.all],
     showErrorToast: false,
   },
 );

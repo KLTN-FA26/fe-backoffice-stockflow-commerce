@@ -9,14 +9,21 @@
 import { PAGE_SIZE } from "@/constants";
 import { api } from "@/lib/api/client";
 
-import { orderDtoSchema, orderPageDtoSchema } from "./schemas";
+import { orderDtoSchema, orderHistoryDtoSchema, orderPageDtoSchema } from "./schemas";
 import { mapBackendOrderStatus, toBackendOrderStatuses } from "./status-map";
 
 import type { ListQueryParams, PaginatedResponse } from "@/lib/api/query-factory";
-import type { Order, OrderDto, OrderStatus } from "./types";
+import type {
+  Order,
+  OrderDto,
+  OrderHistoryEntry,
+  OrderHistoryEntryDto,
+  OrderStatus,
+} from "./types";
 import type {
   DeliveryFailureValues,
   HoldOrderValues,
+  PartialShipmentValues,
   RemainderClosureValues,
   ResolveOrderHoldValues,
 } from "./schemas";
@@ -80,7 +87,35 @@ export function toOrder(dto: OrderDto): Order {
       failureReason: shipment.failureReason ?? null,
       lines: shipment.lines ?? [],
     })),
+    balancePolicy: dto.balancePolicy ?? null,
+    creditTermDays: dto.creditTermDays ?? null,
+    allowPartialShipment: dto.allowPartialShipment ?? null,
+    printLinesReady: dto.printLinesReady ?? null,
   };
+}
+
+/**
+ * Mục lịch sử BE → mục đã phân loại. `STATUS_CHANGE` mà thiếu `to` (hoặc `type` lạ) không đoán được —
+ * giữ thành mục "unknown" thay vì làm hỏng cả lịch sử. Pure — export để test.
+ */
+export function toOrderHistoryEntry(dto: OrderHistoryEntryDto): OrderHistoryEntry {
+  const base = {
+    occurredAt: dto.occurredAt,
+    reason: dto.reason ?? null,
+    actorName: dto.actorName ?? null,
+  };
+  if (dto.type === "PARTIAL_SHIPMENT_DECISION" && typeof dto.partialShipmentAllowed === "boolean") {
+    return { ...base, kind: "partial-shipment", allowed: dto.partialShipmentAllowed };
+  }
+  if (dto.type === "STATUS_CHANGE" && dto.to) {
+    return {
+      ...base,
+      kind: "status-change",
+      from: dto.from ? mapBackendOrderStatus(dto.from) : null,
+      to: mapBackendOrderStatus(dto.to),
+    };
+  }
+  return { ...base, kind: "unknown" };
 }
 
 /* ── List ────────────────────────────────────────────────────────────── */
@@ -124,6 +159,35 @@ export async function getOrder(id: string, signal?: AbortSignal): Promise<Order>
   return toOrder(orderDtoSchema.parse(data));
 }
 
+/* ── History ─────────────────────────────────────────────────────────── */
+// GET /orders/{id}/history — BE `sales-orders:READ`; cũ nhất trước (BE trả đã sắp theo `occurredAt`,
+// gồm cả quyết định giao một phần xen với đổi trạng thái).
+
+export async function getOrderHistory(
+  id: string,
+  signal?: AbortSignal,
+): Promise<OrderHistoryEntry[]> {
+  const { data } = await api.get<unknown>(`${ORDERS_PATH}/${encodeURIComponent(id)}/history`, {
+    signal,
+  });
+  return orderHistoryDtoSchema.parse(data).map(toOrderHistoryEntry);
+}
+
+/* ── Partial shipment ────────────────────────────────────────────────── */
+// PUT /orders/{id}/partial-shipment {allowed, note?} — BE `sales-order-partial-shipments:UPDATE`
+// (scope ALL). Trả `Order`; 409 ORDER_PARTIAL_SHIPMENT_LOCKED khi đơn đã đi / đóng hoặc hàng có sẵn đã đi
+// trước hàng in. Quyết định không đổi gì (bật khi đã bật) BE không ghi vào lịch sử.
+
+export type PartialShipmentInput = { id: string } & PartialShipmentValues;
+
+export async function decidePartialShipment(input: PartialShipmentInput): Promise<void> {
+  const { id, allowed, note } = input;
+  await api.put(`${ORDERS_PATH}/${encodeURIComponent(id)}/partial-shipment`, {
+    allowed,
+    ...(note ? { note } : {}),
+  });
+}
+
 /* ── Admin cancel ────────────────────────────────────────────────────── */
 // POST /orders/{orderId}/admin-cancellation — BE `orders:APPROVE` scope ALL, body JSON
 // {reason} bắt buộc (@NotBlank). Flow riêng, KHÔNG chung với self-cancel của khách
@@ -144,7 +208,8 @@ export async function adminCancelOrder(input: AdminCancelOrderInput): Promise<vo
 // - POST /orders/{id}/hold              {reasonCode, note?}   — sales-orders:APPROVE
 // - POST /orders/{id}/hold/resolution   {note}                — sales-orders:APPROVE
 // - POST /orders/{id}/delivery-failure  {reasonCode, note?}   — sales-orders:APPROVE
-// - POST /orders/{id}/remainder-closure {reasonCode, note?}   — sales-order-cancellations:UPDATE
+// - POST /orders/{id}/remainder-closure {reasonCode, note?, agreedFee?{amount, reason, detail}}
+//                                                             — sales-order-cancellations:UPDATE
 
 export type HoldOrderInput = { id: string } & HoldOrderValues;
 export type ResolveOrderHoldInput = { id: string } & ResolveOrderHoldValues;
@@ -172,9 +237,14 @@ export async function recordDeliveryFailure(input: DeliveryFailureInput): Promis
   );
 }
 
+/**
+ * `agreedFee` (BE PR #150) chỉ gửi khi có: số tiền khách thoả thuận cho phần hàng in đã in. BE trả `Order`
+ * — không mang số hoàn / giữ / còn nợ của lần đóng này (chúng nằm trong sự kiện `OrderRemainderClosed`),
+ * chỉ `amountDue` / `effectiveTotal` mới, nên màn chi tiết tải lại đơn thay vì đọc phản hồi.
+ */
 export async function closeOrderRemainder(input: RemainderClosureInput): Promise<void> {
-  await api.post(
-    `${ORDERS_PATH}/${encodeURIComponent(input.id)}/remainder-closure`,
-    reasonBody(input),
-  );
+  await api.post(`${ORDERS_PATH}/${encodeURIComponent(input.id)}/remainder-closure`, {
+    ...reasonBody(input),
+    ...(input.agreedFee ? { agreedFee: input.agreedFee } : {}),
+  });
 }
