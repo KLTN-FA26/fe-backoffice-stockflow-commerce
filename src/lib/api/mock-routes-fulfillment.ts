@@ -348,6 +348,73 @@ function registerAssigneeRoutes(): void {
   });
 }
 
+/**
+ * `GET /fulfillment/task-candidates` (BE PR #151, `FulfillmentServiceImpl#taskCandidates`, guard
+ * `fulfillment-task-assignment:CREATE`): đơn READY_TO_FULFILL chưa có task, release cũ nhất trước.
+ * `warehouseId` tuỳ chọn: bỏ qua → mọi kho trong phạm vi của người gọi; kho lạ → 404 WAREHOUSE_NOT_FOUND;
+ * kho ngoài phạm vi → 403 OUT_OF_DATA_SCOPE; `size` > 200 → 400.
+ */
+function registerTaskCandidateRoutes(): void {
+  registerMockRoute("GET", "/fulfillment/task-candidates", async (config) => {
+    const actor = await currentActor();
+    if (!actor.can(ASSIGNMENT.create)) return forbidden();
+    const params = readParams(config);
+    const page = Math.max(0, readInt(params.page, 0));
+    const size = readInt(params.size, BE_DEFAULT_PAGE_SIZE);
+    if (size < 1 || size > BE_MAX_PAGE_SIZE) {
+      return beError(
+        400,
+        "UNSUPPORTED_PARAMETER",
+        `size must be between 1 and ${BE_MAX_PAGE_SIZE}`,
+      );
+    }
+    const { customers, orders, staffUsers, warehouses } = await import("@/lib/mock-data");
+    const warehouseId = readString(params.warehouseId);
+    if (warehouseId && !warehouses.some((warehouse) => warehouse.warehouseId === warehouseId)) {
+      return beError(404, "WAREHOUSE_NOT_FOUND", "Warehouse not found");
+    }
+    const caller = staffUsers.find((user) => user.userId === actor.userId);
+    const callerScope: readonly string[] = caller?.warehouseIds ?? [];
+    if (warehouseId && callerScope.length > 0 && !callerScope.includes(warehouseId)) {
+      return beError(403, "OUT_OF_DATA_SCOPE", "The warehouse is outside your data scope");
+    }
+    // Chạy sau khi store khởi tạo: seed đặt trạng thái BE của đơn theo task đã có
+    const store = await getFulfillmentStore();
+    const withTask = new Set([...store.values()].map((task) => task.orderId));
+    const candidates = [];
+    for (const order of orders) {
+      if (withTask.has(order.orderId)) continue;
+      if ((await backendOrderStatusOf(order.orderId)) !== "READY_TO_FULFILL") continue;
+      if (
+        warehouseId
+          ? order.fulfillmentWarehouseId !== warehouseId
+          : callerScope.length > 0 && !callerScope.includes(order.fulfillmentWarehouseId)
+      ) {
+        continue;
+      }
+      candidates.push({
+        orderId: order.orderId,
+        orderNumber: order.orderNumber,
+        customerId: order.customerId,
+        customerName: customers.find((c) => c.customerId === order.customerId)?.fullName,
+        warehouseId: order.fulfillmentWarehouseId,
+        placedAt: order.placedAt,
+        releasedAt: order.confirmedAt ?? order.placedAt,
+        lineCount: order.lines.length,
+        totalQuantity: order.lines.reduce((sum, line) => sum + line.quantity, 0),
+        lines: order.lines.map((line) => ({
+          orderLineId: line.lineId,
+          sku: line.skuId,
+          quantity: line.quantity,
+          printed: Boolean(line.designId),
+        })),
+      });
+    }
+    candidates.sort((a, b) => a.releasedAt.localeCompare(b.releasedAt));
+    return beOk(bePage(candidates, page, size));
+  });
+}
+
 export function registerFulfillmentMockRoutes(): void {
   registerTaskReadRoutes();
   registerAssignmentRoutes();
@@ -362,4 +429,5 @@ export function registerFulfillmentMockRoutes(): void {
   registerPackRoutes();
   registerPackingMockRoutes();
   registerAssigneeRoutes();
+  registerTaskCandidateRoutes();
 }

@@ -13,6 +13,9 @@ import type {
   beIntegrityEvidenceSchema,
   fulfillmentOrderLineSchema,
   fulfillmentOrderSchema,
+  taskCandidateLineSchema,
+  taskCandidatePageSchema,
+  taskCandidateSchema,
 } from "./schemas";
 
 /* ── DTO trên wire ───────────────────────────────────────────────────── */
@@ -22,6 +25,9 @@ export type IntegrityEvidence = z.infer<typeof beIntegrityEvidenceSchema>;
 export type ArtifactAccess = z.infer<typeof beArtifactAccessSchema>;
 export type FulfillmentOrder = z.infer<typeof fulfillmentOrderSchema>;
 export type FulfillmentOrderLine = z.infer<typeof fulfillmentOrderLineSchema>;
+export type TaskCandidate = z.infer<typeof taskCandidateSchema>;
+export type TaskCandidateLine = z.infer<typeof taskCandidateLineSchema>;
+export type TaskCandidatePage = z.infer<typeof taskCandidatePageSchema>;
 export type Assignee = z.infer<typeof assigneeSchema>;
 
 /* ── Model FE: giữ field BE, 2 status đổi 1-1 sang tên enum BE dạng Title Case (BE là chuẩn) ── */

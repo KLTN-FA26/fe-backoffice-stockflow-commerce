@@ -13,6 +13,7 @@ import {
   assignees,
   bePage,
   fulfillmentOrder,
+  taskCandidate,
   mismatchEvidence,
   pickedTask,
 } from "./__fixtures__/task";
@@ -29,7 +30,7 @@ import {
 import {
   getFulfillmentOrder,
   listAssignees,
-  listFulfillableOrders,
+  listTaskCandidates,
   listOrderNumbers,
 } from "./reference-api";
 
@@ -159,13 +160,27 @@ describe("dữ liệu phụ trợ — đơn hàng và nhân viên", () => {
     expect(order.lines).toHaveLength(2);
   });
 
-  it("đơn chờ xuất kho chỉ lọc READY_TO_FULFILL (BE PR #133; key lặp cho Spring)", async () => {
-    const get = vi.spyOn(api, "get").mockResolvedValueOnce({ data: bePage([fulfillmentOrder]) });
-    await listFulfillableOrders();
-    expect(get.mock.calls[0]?.[1]).toMatchObject({
-      params: { page: 0, status: ["READY_TO_FULFILL"] },
-      paramsSerializer: { indexes: null },
-    });
+  it("đơn chờ xuất kho: GET /fulfillment/task-candidates (không gọi /orders), parse trang + dòng in", async () => {
+    const get = vi.spyOn(api, "get").mockResolvedValueOnce({ data: bePage([taskCandidate]) });
+    const page = await listTaskCandidates();
+    expect(get.mock.calls[0]?.[0]).toBe("/fulfillment/task-candidates");
+    expect(get.mock.calls[0]?.[1]).toMatchObject({ params: { page: 0, size: 200 } });
+    expect(page.items[0]).toMatchObject({ lineCount: 2, totalQuantity: 5 });
+    expect(page.items[0]?.lines.map((line) => line.printed)).toEqual([false, true]);
+  });
+
+  it("đơn chờ xuất kho: truyền warehouseId khi có; khách vãng lai không có customerId / customerName", async () => {
+    const guest = { ...taskCandidate, customerId: undefined, customerName: undefined };
+    const get = vi.spyOn(api, "get").mockResolvedValueOnce({ data: bePage([guest]) });
+    const page = await listTaskCandidates({ warehouseId: WAREHOUSE_ID });
+    expect(get.mock.calls[0]?.[1]).toMatchObject({ params: { warehouseId: WAREHOUSE_ID } });
+    expect(page.items[0]?.customerName).toBeUndefined();
+  });
+
+  it("đơn chờ xuất kho: response sai hợp đồng (thiếu lineCount) → từ chối", async () => {
+    const { lineCount: _omit, ...broken } = taskCandidate;
+    vi.spyOn(api, "get").mockResolvedValueOnce({ data: bePage([broken]) });
+    await expect(listTaskCandidates()).rejects.toThrow();
   });
 
   it("listOrderNumbers trả bản đồ id → số đơn", async () => {

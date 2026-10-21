@@ -2,7 +2,7 @@ import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { TOAST_MESSAGES, UI_LABELS } from "@/constants";
+import { FULFILLMENT_ERROR_MESSAGES, TOAST_MESSAGES, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { toast } from "@/components/shared/Toast";
 
@@ -21,7 +21,9 @@ import {
   assignees,
   bePage,
   fulfillmentOrder,
+  taskCandidate,
 } from "../__fixtures__/task";
+import { CreateTaskDialog } from "./assign/CreateTaskDialog";
 import { PickingList } from "./TaskList";
 
 import type { TestIdentity } from "../__fixtures__/render";
@@ -47,6 +49,7 @@ function renderList(
     {
       "/fulfillment/tasks": () => bePage(tasks),
       "/orders": () => bePage([fulfillmentOrder]),
+      "/fulfillment/task-candidates": () => bePage([taskCandidate]),
       "/fulfillment/assignees": () => assignees,
     },
     {},
@@ -165,12 +168,9 @@ describe("PickingList — danh sách task theo BE (chỉ phân trang)", () => {
     const { get } = renderList(
       <PickingList />,
       {
-        permissions: [
-          ...IDENTITIES.warehouseManager.permissions.filter(
-            (code) => code !== "fulfillment-task-assignment:UPDATE",
-          ),
-          "sales-orders:READ",
-        ],
+        permissions: IDENTITIES.warehouseManager.permissions.filter(
+          (code) => code !== "fulfillment-task-assignment:UPDATE",
+        ),
       },
       [],
     );
@@ -217,11 +217,11 @@ describe("Tạo task lấy hàng", () => {
     const success = vi.spyOn(toast, "success").mockImplementation(() => "");
     const warning = vi.spyOn(toast, "warning").mockImplementation(() => "");
     const spies = mockFulfillmentApi(
-      IDENTITIES.managerWithReferences,
+      // Quản lý kho theo seed BE: không có sales-orders:READ — vẫn chọn được đơn qua task-candidates
+      IDENTITIES.warehouseManager,
       {
         "/fulfillment/tasks": () => bePage([]),
-        // Như BE thật: dòng danh sách đơn không kèm dòng hàng
-        "/orders": () => bePage([{ ...fulfillmentOrder, status: "CONFIRMED", lines: [] }]),
+        "/fulfillment/task-candidates": () => bePage([taskCandidate]),
         "/fulfillment/assignees": () => assignees,
       },
       { "/fulfillment/tasks": () => created },
@@ -232,9 +232,14 @@ describe("Tạo task lấy hàng", () => {
     const dialog = await screen.findByRole("dialog");
     // Chưa chọn đơn → chưa biết kho → chưa gọi danh sách người nhận
     expect(spies.get.mock.calls.some(([url]) => url === "/fulfillment/assignees")).toBe(false);
-    await pickSelectOption(user, "Đơn hàng", "SO-20261010-000431");
-    // Không hiện "0 dòng" — danh sách đơn của BE không có dòng hàng để đếm
-    expect(within(dialog).queryByText(/dòng/)).toBeNull();
+    // Mỗi lựa chọn: số đơn, tên khách, số dòng / số lượng, ngày đặt, dấu "có dòng in"
+    await user.click(await screen.findByRole("combobox", { name: "Đơn hàng" }));
+    const option = await screen.findByRole("option", { name: /SO-20261010-000431/ });
+    expect(option).toHaveTextContent("Nguyễn Hoài Nam");
+    expect(option).toHaveTextContent("2 dòng · 5 sản phẩm");
+    expect(option).toHaveTextContent("Đặt 9 thg 10, 2026");
+    expect(option).toHaveTextContent(fulfillment.candidate.printed);
+    await user.click(option);
     await pickSelectOption(user, "Người được gán", /Hoàng Anh Tuấn/);
     await user.click(within(dialog).getByRole("button", { name: fulfillment.action.create }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
@@ -251,6 +256,18 @@ describe("Tạo task lấy hàng", () => {
     expect(warning).not.toHaveBeenCalled();
   });
 
+  it("danh sách đơn đọc từ task-candidates, không gọi GET /orders ở dialog", async () => {
+    const { get } = await createTask(apiTask());
+    const urls = get.mock.calls.map(([url]) => url);
+    expect(urls).toContain("/fulfillment/task-candidates");
+    // /orders chỉ còn dùng cho cột số đơn của danh sách (khi có sales-orders:READ) — quản lý kho thì không
+    expect(urls).not.toContain("/orders");
+    expect(get).toHaveBeenCalledWith(
+      "/fulfillment/task-candidates",
+      expect.objectContaining({ params: expect.objectContaining({ page: 0, size: 200 }) }),
+    );
+  });
+
   it("đơn đã có task (BE trả task cũ gán cho người khác, vẫn 201) → cảnh báo, không báo đã tạo", async () => {
     const { success, warning } = await createTask(apiTask({ assignedUserId: OTHER_PICKER_ID }));
     expect(warning).toHaveBeenCalledWith(TOAST_MESSAGES.fulfillment.alreadyExists);
@@ -258,25 +275,29 @@ describe("Tạo task lấy hàng", () => {
   });
 });
 
-describe("Tạo task lấy hàng — lỗi tải danh sách đơn", () => {
-  it("báo lỗi kèm nút Thử lại ngay trong dialog; thử lại thành công thì chọn được đơn", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
+describe("Tạo task lấy hàng — danh sách đơn chờ xuất kho", () => {
+  async function openDialog(
+    candidates: () => unknown,
+    identity: TestIdentity = IDENTITIES.warehouseManager,
+  ) {
     const user = userEvent.setup();
-    let failing = true;
-    mockFulfillmentApi(IDENTITIES.managerWithReferences, {
+    mockFulfillmentApi(identity, {
       "/fulfillment/tasks": () => bePage([]),
       "/fulfillment/assignees": () => assignees,
-      "/orders": (params) => {
-        // Chỉ làm hỏng lần gọi của dialog (có lọc status), không đụng lần tra số đơn của danh sách
-        const isDialogCall = typeof params === "object" && params !== null && "status" in params;
-        if (isDialogCall && failing) throw new ApiError(500, "INTERNAL_ERROR", "boom");
-        return bePage([{ ...fulfillmentOrder, status: "CONFIRMED", lines: [] }]);
-      },
+      "/fulfillment/task-candidates": candidates,
     });
     renderFulfillmentScreen(<PickingList />);
-
     await user.click(await screen.findByRole("button", { name: fulfillment.action.create }));
-    const dialog = await screen.findByRole("dialog");
+    return { user, dialog: await screen.findByRole("dialog") };
+  }
+
+  it("báo lỗi kèm nút Thử lại ngay trong dialog; thử lại thành công thì chọn được đơn", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    let failing = true;
+    const { user, dialog } = await openDialog(() => {
+      if (failing) throw new ApiError(500, "INTERNAL_ERROR", "boom");
+      return bePage([taskCandidate]);
+    });
     expect(
       await within(dialog).findByText(/Không tải được danh sách đơn hàng chờ xuất kho/),
     ).toBeInTheDocument();
@@ -286,5 +307,62 @@ describe("Tạo task lấy hàng — lỗi tải danh sách đơn", () => {
     await user.click(within(dialog).getByRole("button", { name: UI_LABELS.common.retry }));
     expect(await within(dialog).findByRole("combobox", { name: "Đơn hàng" })).toBeInTheDocument();
     expect(within(dialog).queryByText(/Không tải được danh sách đơn hàng/)).toBeNull();
+  });
+
+  it("403 OUT_OF_DATA_SCOPE → thông báo kho ngoài phạm vi, không có nút Thử lại", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { dialog } = await openDialog(() => {
+      throw new ApiError(403, "OUT_OF_DATA_SCOPE", "outside");
+    });
+    expect(
+      await within(dialog).findByText(FULFILLMENT_ERROR_MESSAGES.OUT_OF_DATA_SCOPE),
+    ).toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: UI_LABELS.common.retry })).toBeNull();
+    expect(within(dialog).getByRole("button", { name: fulfillment.action.create })).toBeDisabled();
+  });
+
+  it("403 FORBIDDEN → thông báo thiếu quyền tạo task", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { dialog } = await openDialog(() => {
+      throw new ApiError(403, "FORBIDDEN", "denied");
+    });
+    expect(
+      await within(dialog).findByText(FULFILLMENT_ERROR_MESSAGES.candidatesForbidden),
+    ).toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: UI_LABELS.common.retry })).toBeNull();
+  });
+
+  it("không có đơn nào chờ → EmptyState, khoá nút gửi", async () => {
+    const { dialog } = await openDialog(() => bePage([]));
+    expect(await within(dialog).findByText(fulfillment.candidate.emptyTitle)).toBeInTheDocument();
+    expect(within(dialog).queryByRole("combobox", { name: "Đơn hàng" })).toBeNull();
+    expect(within(dialog).getByRole("button", { name: fulfillment.action.create })).toBeDisabled();
+  });
+
+  it("đơn dài hơn một trang → nhắc chỉ hiện đơn cũ nhất", async () => {
+    const { dialog } = await openDialog(() => ({
+      ...bePage([taskCandidate], 0, 200),
+      totalElements: 320,
+      totalPages: 2,
+      hasNext: true,
+    }));
+    expect(
+      await within(dialog).findByText(fulfillment.candidate.truncated(1, 320)),
+    ).toBeInTheDocument();
+  });
+
+  it("thiếu fulfillment-task-assignment:CREATE → dialog báo thiếu quyền, không gọi task-candidates", async () => {
+    const get = mockFulfillmentApi(
+      {
+        permissions: IDENTITIES.warehouseManager.permissions.filter(
+          (code) => code !== "fulfillment-task-assignment:CREATE",
+        ),
+      },
+      { "/fulfillment/task-candidates": () => bePage([taskCandidate]) },
+    ).get;
+    renderFulfillmentScreen(<CreateTaskDialog onClose={vi.fn()} />);
+    expect(await screen.findByText(fulfillment.noCreateTitle)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: fulfillment.action.create })).toBeDisabled();
+    expect(get.mock.calls.some(([url]) => url === "/fulfillment/task-candidates")).toBe(false);
   });
 });

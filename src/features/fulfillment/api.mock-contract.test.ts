@@ -26,7 +26,7 @@ import {
   reverifyDesignIntegrity,
   startPicking,
 } from "./api";
-import { getFulfillmentOrder, listAssignees, listFulfillableOrders } from "./reference-api";
+import { getFulfillmentOrder, listAssignees, listTaskCandidates } from "./reference-api";
 import { designedLines } from "./selectors";
 
 import type { RoleName } from "@/lib/auth";
@@ -212,7 +212,7 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
       );
 
       actAs(USERS.coordinator);
-      const order = required((await listFulfillableOrders())[0], "đơn chờ xuất kho");
+      const order = required((await listTaskCandidates()).items[0], "đơn chờ xuất kho");
       // BE PR #133: chỉ đơn READY_TO_FULFILL (đã release) mới vào xuất kho
       expect(await backendOrderStatusOf(order.orderId)).toBe("READY_TO_FULFILL");
       expect(designedLines((await getFulfillmentOrder(order.orderId)).lines)).toEqual([]);
@@ -255,7 +255,7 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
       });
       expect(again.taskId).toBe(created.taskId);
       expect(again.assignedUserId).toBe(USERS.picker.userId);
-      expect((await listFulfillableOrders()).map((o) => o.orderId)).not.toContain(order.orderId);
+      expect((await listTaskCandidates()).items.map((o) => o.orderId)).not.toContain(order.orderId);
 
       // Còn Pending → gán lại được
       const reassigned = await assignFulfillmentTask({
@@ -306,6 +306,33 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
     actAs(USERS.manager);
     expect(await codeOf(listAssignees(""))).toBe("VALIDATION_FAILED");
     expect(await codeOf(listAssignees("khong-co-kho"))).toBe("WAREHOUSE_NOT_FOUND");
+  });
+
+  it("đơn chờ xuất kho: cần task-assignment:CREATE, cũ nhất trước, lọc theo kho, kho lạ → 404, size > 200 → 400", async () => {
+    // Các ca trước đã tạo task cho đơn chờ → dựng lại seed
+    resetOrderMockStore();
+    resetFulfillmentMockStore();
+    actAs(USERS.manager);
+    const { items } = await listTaskCandidates();
+    expect(items.length).toBeGreaterThan(0);
+    for (const candidate of items) {
+      expect(await backendOrderStatusOf(candidate.orderId)).toBe("READY_TO_FULFILL");
+      expect(candidate.lineCount).toBe(candidate.lines.length);
+      expect(candidate.totalQuantity).toBe(candidate.lines.reduce((sum, l) => sum + l.quantity, 0));
+    }
+    const released = items.map((c) => c.releasedAt ?? "");
+    expect(released).toEqual([...released].sort());
+
+    const warehouseId = required(items[0]?.warehouseId, "kho của đơn");
+    const inWarehouse = await listTaskCandidates({ warehouseId });
+    expect(inWarehouse.items.every((c) => c.warehouseId === warehouseId)).toBe(true);
+    expect(await codeOf(listTaskCandidates({ warehouseId: "khong-co-kho" }))).toBe(
+      "WAREHOUSE_NOT_FOUND",
+    );
+
+    // NV kho không có task-assignment:CREATE
+    actAs(USERS.picker);
+    expect(await codeOf(listTaskCandidates())).toBe("FORBIDDEN");
   });
 
   it("task không tồn tại → 404 NOT_FOUND; trang ngoài khoảng → 400", async () => {

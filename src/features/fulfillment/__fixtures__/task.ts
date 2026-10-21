@@ -8,6 +8,7 @@ import type {
   FulfillmentOrder,
   FulfillmentTaskApiDto,
   IntegrityEvidence,
+  TaskCandidate,
 } from "../types";
 
 export const TASK_ID = "3f2c9a10-7b1d-4e55-9c0a-1d2e3f4a5b6c";
@@ -74,6 +75,23 @@ export const fulfillmentOrder: FulfillmentOrder = {
       designSnapshotId: SNAPSHOT_ID,
       designChecksum: LOCKED_CHECKSUM,
     },
+  ],
+};
+
+/** `GET /fulfillment/task-candidates` — đơn READY_TO_FULFILL chưa có task (BE `TaskCandidateResponse`). */
+export const taskCandidate: TaskCandidate = {
+  orderId: ORDER_ID,
+  orderNumber: "SO-20261010-000431",
+  customerId: "cus-0010",
+  customerName: "Nguyễn Hoài Nam",
+  warehouseId: WAREHOUSE_ID,
+  placedAt: "2026-10-09T03:00:00Z",
+  releasedAt: "2026-10-10T01:00:00Z",
+  lineCount: 2,
+  totalQuantity: 5,
+  lines: [
+    { orderLineId: PLAIN_LINE_ID, sku: "TEE-BLK-M", quantity: 3, printed: false },
+    { orderLineId: DESIGN_LINE_ID, sku: "TEE-CUSTOM-L", quantity: 2, printed: true },
   ],
 };
 
