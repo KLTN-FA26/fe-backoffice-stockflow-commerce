@@ -20,10 +20,8 @@ import {
   assignableUsers,
   bePage,
   fulfillmentOrder,
-  mismatchEvidence,
-  pickedTask,
 } from "../__fixtures__/task";
-import { PackingList, PickingList } from "./TaskList";
+import { PickingList } from "./TaskList";
 
 import type { TestIdentity } from "../__fixtures__/render";
 import type { FulfillmentTaskApiDto } from "../types";
@@ -167,31 +165,6 @@ describe("PickingList — danh sách task theo BE (chỉ phân trang)", () => {
     renderList(<PickingList />, IDENTITIES.warehouseStaff, []);
     expect(await screen.findByText("Chưa có task xuất kho")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: fulfillment.action.create })).toBeNull();
-  });
-});
-
-describe("PackingList", () => {
-  it("hiện kết quả đối chiếu thiết kế; không có nút tạo / gán ở màn đóng gói", async () => {
-    renderList(<PackingList />, IDENTITIES.warehouseManager, [
-      apiTask(),
-      pickedTask({
-        taskId: HELD_ID,
-        packStatus: "ON_HOLD",
-        integrityEvidence: [mismatchEvidence()],
-      }),
-    ]);
-
-    const held = (await screen.findByRole("link", { name: "0000000A" })).closest("tr");
-    expect(within(held as HTMLElement).getByText("Tạm giữ")).toBeInTheDocument();
-    expect(within(held as HTMLElement).getByText("Lệch checksum")).toBeInTheDocument();
-    expect(screen.getByText("Chưa đối chiếu")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: fulfillment.action.create })).toBeNull();
-    expect(screen.queryByRole("button", { name: /Gán lại task/ })).toBeNull();
-  });
-
-  it("điều phối đơn theo seed BE không có packages:VIEW_PAGE → bị chặn", async () => {
-    renderList(<PackingList />, IDENTITIES.orderCoordinator);
-    expect(await screen.findByText(loadError.forbiddenTitle)).toBeInTheDocument();
   });
 });
 

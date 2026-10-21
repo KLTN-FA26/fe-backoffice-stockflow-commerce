@@ -4,7 +4,8 @@
  * Base URL của env đã gồm `/api/v1` → path không ghi `v1`.
  * Parse tại biên (api-conventions §3.2): zod validate một lần ở đây, map status BE → nhãn docs.
  * BE chưa có: dòng lấy hàng / quét / shortfall (start, completion không có body) và lọc danh sách
- * (chỉ `page` + `size`; phạm vi do BE quyết theo vai trò người gọi).
+ * (chỉ `page` + `size`; phạm vi do BE quyết theo vai trò người gọi). Đóng gói (nhận đơn, kiện, quét,
+ * hoàn tất) ở `packing-api.ts`.
  */
 
 import { PACK_STATUS_BY_API, PAGE_SIZE, PICK_STATUS_BY_API } from "@/constants";
@@ -108,13 +109,9 @@ export const completePicking = (taskId: string) =>
   postTask(`${taskPath(taskId)}/picking-completion`);
 
 /**
- * BE đối chiếu lại checksum mọi dòng có thiết kế. Lệch KHÔNG phải lỗi: vẫn HTTP 200 với pack
- * `On Hold` + evidence `matching: false` (flow X-CHK) — người gọi phải đọc `packStatus`.
+ * Kiểm tra lại kiện đang giữ (BE PR #136). Khớp → pack về `Packing` (KHÔNG phải `Packed`: người
+ * đóng gói hoàn tất lại). Còn lệch → vẫn 200, pack vẫn `On Hold`, ghi chú không được lưu.
  */
-export const completePacking = (taskId: string) =>
-  postTask(`${taskPath(taskId)}/packing-completion`);
-
-/** Kiểm tra lại kiện đang giữ. Còn lệch → vẫn 200, pack vẫn `On Hold`, ghi chú không được lưu. */
 export const reverifyDesignIntegrity = ({ taskId, resolutionNote }: ReverifyTaskInput) =>
   postTask(`${taskPath(taskId)}/design-integrity-reverification`, { resolutionNote });
 

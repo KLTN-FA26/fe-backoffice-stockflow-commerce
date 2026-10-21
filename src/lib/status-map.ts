@@ -26,6 +26,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Completed",
     "Delivered",
     "Packed",
+    // Kiện đã cân, đo, niêm phong (BE PackageStatus.SEALED, PR #136)
+    "Sealed",
     "Received",
     "Active",
     // Biến thể (BE VariantStatus, PR #71)
@@ -61,6 +63,9 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "In Progress",
     "In Transit",
     "Picking",
+    // Phiên đóng gói đang làm (BE PackStatus.PACKING) và kiện đang mở (PackageStatus.OPEN, PR #136)
+    "Packing",
+    "Package Open",
     "Shipped",
     "Assigned",
     "Released",
@@ -242,6 +247,7 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   Completed: "Hoàn tất",
   Delivered: "Đã giao",
   Packed: "Đã đóng gói",
+  Sealed: "Đã niêm phong",
   Received: "Đã nhận",
   Active: "Hoạt động",
   ACTIVE: "Đang dùng",
@@ -270,6 +276,8 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   "In Progress": "Đang xử lý",
   "In Transit": "Đang vận chuyển",
   Picking: "Đang lấy hàng",
+  Packing: "Đang đóng gói",
+  "Package Open": "Đang mở",
   Shipped: "Đã gửi",
   Assigned: "Đã gán",
   Released: "Đã release",

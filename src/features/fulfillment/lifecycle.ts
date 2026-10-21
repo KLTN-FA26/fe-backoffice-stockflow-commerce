@@ -2,7 +2,8 @@
  * Fulfillment task — action-gating (feature-architecture §6).
  *
  * Bảng chuyển trạng thái dùng chung `PICK_TRANSITIONS` / `PACK_TRANSITIONS` (lib/domain).
- * BE gate KÉP mỗi endpoint: mã quyền (`@RequiresPermission`) VÀ vai trò (`@PreAuthorize`), và
+ * Thao tác của trạm đóng gói (nhận đơn, kiện, quét, hoàn tất) gate ở `packing-lifecycle.ts`; ở đây còn
+ * gán / lấy hàng / kiểm tra lại thiết kế. BE gate KÉP mỗi endpoint: mã quyền (`@RequiresPermission`) VÀ vai trò (`@PreAuthorize`), và
  * phần lớn thao tác còn đòi người gọi là người được gán — nên ở đây kiểm cả ba, khác các màn chỉ
  * gate theo mã quyền. Vai trò đọc từ `/identity/me/permissions.roles`.
  * UI-only — Backend phải re-check (FulfillmentController + FulfillmentServiceImpl).
@@ -39,8 +40,7 @@ export interface FulfillmentGateState {
   assignedUserId?: string | null;
 }
 
-export type FulfillmentActionCode =
-  "assign" | "startPicking" | "completePicking" | "completePacking" | "reverify";
+export type FulfillmentActionCode = "assign" | "startPicking" | "completePicking" | "reverify";
 
 interface StatusGate<S extends string> {
   readonly from: readonly S[];
@@ -89,23 +89,15 @@ export const FULFILLMENT_ACTIONS: readonly FulfillmentAction[] = [
     pick: { from: [PICK_STATUS.PICKING], to: PICK_STATUS.PICKED },
   },
   {
-    code: "completePacking",
-    label: LABEL.completePacking,
-    permission: FULFILLMENT_PACKAGE_PERMISSIONS.create,
-    roles: FLOOR_ROLES,
-    assigneeOnly: true,
-    // BE: "Picking must finish before packing"; kiện đang giữ phải qua kiểm tra lại (X-CHK)
-    pick: { from: [PICK_STATUS.PICKED] },
-    pack: { from: [PACK_STATUS.PENDING, PACK_STATUS.PACKING], to: PACK_STATUS.PACKED },
-  },
-  {
     code: "reverify",
     label: LABEL.reverify,
     permission: FULFILLMENT_PACKAGE_PERMISSIONS.create,
-    // X-CHK (BR-DSG-003): chỉ QC / quản lý kho gỡ giữ, không cần là người được gán
-    roles: [QC_STAFF, WAREHOUSE_MANAGER],
+    // X-CHK (BR-DSG-003, docs 08: người đóng gói / quản lý kho xử lý kiểm đơn lệch; QC không có
+    // quyền trang đóng gói — BE #136 bản cuối), không cần là người được gán lấy hàng
+    roles: [WAREHOUSE_STAFF, WAREHOUSE_MANAGER],
     assigneeOnly: false,
-    pack: { from: [PACK_STATUS.ON_HOLD], to: PACK_STATUS.PACKED },
+    // BE PR #136: kiểm tra lại khớp → phiên về PACKING, người đóng gói hoàn tất lại (không ra PACKED)
+    pack: { from: [PACK_STATUS.ON_HOLD], to: PACK_STATUS.PACKING },
   },
 ];
 
@@ -180,13 +172,15 @@ export function canCreateTask(actor: FulfillmentActor): boolean {
 }
 
 /**
- * Tải artifact thiết kế: packages:READ + (người được gán là NV kho, hoặc quản lý kho / QC).
- * Điều phối đơn bị loại ở cả `@PreAuthorize` lẫn `requireArtifactAccess`.
+ * Tải artifact thiết kế: packages:READ + (quản lý kho / QC, hoặc NV kho là người được gán, hoặc — BE
+ * PR #136 mở cho người đóng gói — NV kho cùng kho khi pick đã xong). Điều phối đơn bị loại ở cả
+ * `@PreAuthorize` lẫn `requireArtifactAccess`.
  */
 export function canDownloadArtifact(task: FulfillmentGateState, actor: FulfillmentActor): boolean {
   if (!actor.can(FULFILLMENT_PACKAGE_PERMISSIONS.read) || isTaskCancelled(task)) return false;
   if (hasStaffRole(actor, [WAREHOUSE_MANAGER, QC_STAFF])) return true;
-  return hasStaffRole(actor, [WAREHOUSE_STAFF]) && isAssignee(task, actor);
+  if (!hasStaffRole(actor, [WAREHOUSE_STAFF])) return false;
+  return isAssignee(task, actor) || task.pickStatus === PICK_STATUS.PICKED;
 }
 
 /** Đơn bị huỷ → BE huỷ cả pick lẫn pack (OrderCancellationListener). */

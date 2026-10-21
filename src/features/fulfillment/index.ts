@@ -2,7 +2,8 @@
  * Fulfillment task (docs 07 picking + 08 packing) — public API barrel.
  *
  * Một feature cho hai module docs vì BE là MỘT resource `/fulfillment/tasks`: pick và pack nằm
- * trên cùng một task (đã chốt với người dùng, SCRUM-437).
+ * trên cùng một task (đã chốt với người dùng, SCRUM-437). Trạm đóng gói (BE PR #136, SCRUM-278) thêm
+ * hàng chờ, phiên đóng gói, kiện, quét kiểm, nhãn và hoàn tất thành lô giao — các file `packing-*`.
  */
 
 export * from "./types";
@@ -15,3 +16,12 @@ export * from "./mutations";
 export * from "./selectors";
 export * from "./lifecycle";
 export * from "./errors";
+export * from "./packing-types";
+export * from "./packing-schemas";
+export * from "./packing-input-schemas";
+export * from "./packing-api";
+export * from "./packing-queries";
+export * from "./packing-mutations";
+export * from "./packing-errors";
+export * from "./packing-selectors";
+export * from "./packing-lifecycle";

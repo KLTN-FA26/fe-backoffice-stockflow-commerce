@@ -17,7 +17,6 @@ import {
 } from "./__fixtures__/task";
 import {
   assignFulfillmentTask,
-  completePacking,
   completePicking,
   createFulfillmentTask,
   getDesignArtifactUrl,
@@ -88,39 +87,35 @@ describe("fulfillment task API — hợp đồng BE FulfillmentController", () =
     expect(task.assignedUserId).toBe(OTHER_PICKER_ID);
   });
 
-  it("bắt đầu / hoàn tất lấy hàng và đóng gói là POST KHÔNG body", async () => {
+  it("bắt đầu / hoàn tất lấy hàng là POST KHÔNG body", async () => {
     const post = vi
       .spyOn(api, "post")
       .mockResolvedValueOnce({ data: apiTask({ pickStatus: "PICKING" }) })
-      .mockResolvedValueOnce({ data: pickedTask() })
-      .mockResolvedValueOnce({ data: pickedTask({ packStatus: "PACKED" }) });
+      .mockResolvedValueOnce({ data: pickedTask() });
 
     expect((await startPicking(TASK_ID)).pickStatus).toBe("Picking");
     expect((await completePicking(TASK_ID)).pickStatus).toBe("Picked");
-    expect((await completePacking(TASK_ID)).packStatus).toBe("Packed");
     expect(post.mock.calls).toEqual([
       [`${PATH}/picking-start`, undefined],
       [`${PATH}/picking-completion`, undefined],
-      [`${PATH}/packing-completion`, undefined],
     ]);
   });
 
-  it("X-CHK: đóng gói lệch checksum trả 200 → kết quả `On Hold` kèm evidence, không ném lỗi", async () => {
-    vi.spyOn(api, "post").mockResolvedValueOnce({
-      data: pickedTask({ packStatus: "ON_HOLD", integrityEvidence: [mismatchEvidence()] }),
-    });
-    const task = await completePacking(TASK_ID);
-    expect(task.packStatus).toBe("On Hold");
-    expect(task.packedAt).toBeUndefined();
-    expect(task.integrityEvidence[0]?.matching).toBe(false);
-  });
-
-  it("kiểm tra lại gửi `resolutionNote`", async () => {
+  it("kiểm tra lại gửi `resolutionNote`; khớp thì pack về Packing (BE PR #136), còn lệch thì vẫn On Hold", async () => {
     const post = vi
       .spyOn(api, "post")
-      .mockResolvedValueOnce({ data: pickedTask({ packStatus: "PACKED" }) });
-    await reverifyDesignIntegrity({ taskId: TASK_ID, resolutionNote: "đã khôi phục file" });
-    expect(post).toHaveBeenCalledWith(`${PATH}/design-integrity-reverification`, {
+      .mockResolvedValueOnce({
+        data: pickedTask({ packStatus: "ON_HOLD", integrityEvidence: [mismatchEvidence()] }),
+      })
+      .mockResolvedValueOnce({ data: pickedTask({ packStatus: "PACKING" }) });
+    const stillHeld = await reverifyDesignIntegrity({ taskId: TASK_ID, resolutionNote: "x" });
+    expect(stillHeld.packStatus).toBe("On Hold");
+    expect(stillHeld.integrityEvidence[0]?.matching).toBe(false);
+    expect(
+      (await reverifyDesignIntegrity({ taskId: TASK_ID, resolutionNote: "đã khôi phục file" }))
+        .packStatus,
+    ).toBe("Packing");
+    expect(post).toHaveBeenLastCalledWith(`${PATH}/design-integrity-reverification`, {
       resolutionNote: "đã khôi phục file",
     });
   });

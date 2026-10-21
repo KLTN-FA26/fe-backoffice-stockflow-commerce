@@ -3,6 +3,7 @@
  */
 
 import { INVENTORY_ITEM_TOAST_MESSAGES, INVENTORY_ITEM_UI_LABELS } from "./labels-inventory-item";
+import { PACKING_TOAST_MESSAGES, PACKING_UI_LABELS } from "./labels-packing";
 import { PRODUCT_UI_LABELS } from "./labels-product";
 import { SHIPPING_TOAST_MESSAGES, SHIPPING_UI_LABELS } from "./labels-shipping";
 import { TAXONOMY_TOAST_MESSAGES, TAXONOMY_UI_LABELS } from "./labels-taxonomy";
@@ -343,12 +344,13 @@ export const UI_LABELS = {
   taxonomy: TAXONOMY_UI_LABELS,
   inventoryItem: INVENTORY_ITEM_UI_LABELS,
   product: PRODUCT_UI_LABELS,
+  packing: PACKING_UI_LABELS,
   fulfillment: {
     pickingTitle: "Lấy hàng",
     pickingSubtitle: "Task xuất kho theo đơn: gán nhân viên, bắt đầu và hoàn tất lấy hàng.",
     packingTitle: "Đóng gói",
     packingSubtitle:
-      "Đối chiếu thiết kế đã khoá, xác nhận đóng gói và xử lý kiện bị giữ do lệch checksum.",
+      "Quét kiểm, đóng kiện, cân đo, in nhãn và hoàn tất đóng gói; đối chiếu thiết kế đã khoá của dòng in.",
     notFoundTitle: "Không tìm thấy task xuất kho",
     // BE trả 404 (không phải 403) khi task không được gán cho người gọi
     notFoundDescription: "Task không tồn tại, hoặc không được gán cho bạn nên bạn không xem được.",
@@ -360,7 +362,6 @@ export const UI_LABELS = {
       assign: "Gán lại",
       startPicking: "Bắt đầu lấy hàng",
       completePicking: "Hoàn tất lấy hàng",
-      completePacking: "Xác nhận đóng gói",
       reverify: "Kiểm tra lại thiết kế",
       openPacking: "Mở trạm đóng gói",
       openPicking: "Xem lấy hàng",
@@ -375,7 +376,7 @@ export const UI_LABELS = {
     // Flow X-CHK (BR-DSG-003): lệch checksum là lỗi phải chặn, không có nút bỏ qua
     holdTitle: "Kiện đang bị giữ do lệch thiết kế.",
     holdDescription:
-      "Checksum file thiết kế không khớp bản khách đã chốt nên chưa được đóng gói. QC hoặc quản lý kho khôi phục đúng file rồi bấm Kiểm tra lại thiết kế; không có thao tác bỏ qua.",
+      "Checksum file thiết kế không khớp bản khách đã chốt nên chưa được đóng gói. Người đóng gói hoặc quản lý kho khôi phục đúng file rồi bấm Kiểm tra lại thiết kế; không có thao tác bỏ qua.",
     stillOnHold: "Thiết kế vẫn lệch checksum — kiện tiếp tục bị giữ",
     alreadyAssigned: "Task đang được gán cho người này — chọn người khác để gán lại.",
     artifactDisclaimer:
@@ -700,8 +701,8 @@ export const TOAST_MESSAGES = {
     assigned: "Đã gán task",
     pickingStarted: "Đã bắt đầu lấy hàng",
     pickingCompleted: "Đã hoàn tất lấy hàng",
-    packed: "Đã xác nhận đóng gói",
-    held: "Lệch checksum thiết kế — kiện bị giữ, chờ QC kiểm tra lại",
-    reverified: "Thiết kế khớp — đã gỡ giữ và đóng gói",
+    held: "Lệch checksum thiết kế — kiện bị giữ, chờ kiểm tra lại thiết kế",
+    reverified: "Thiết kế khớp — đã gỡ giữ, người đóng gói hoàn tất lại",
   },
+  packing: PACKING_TOAST_MESSAGES,
 } as const;

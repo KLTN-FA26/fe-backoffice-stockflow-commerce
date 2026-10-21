@@ -26,10 +26,11 @@ import {
   toTaskResponse,
   verifyDesigns,
 } from "./mock-routes-fulfillment-store";
+import { registerPackingMockRoutes } from "./mock-routes-packing";
 import {
   backendOrderStatusOf,
   lockedChecksumOf,
-  putMockOrderOnDesignHold,
+  resolveMockDesignHold,
   setMockOrderStatus,
 } from "./mock-routes-orders";
 import {
@@ -84,11 +85,15 @@ const missingField = (field: string) =>
     { field, message: "must not be null" },
   ]);
 
-/** BE `visible`: người được gán, hoặc quản lý kho / QC / điều phối. */
+/**
+ * BE `visible`: người được gán, quản lý kho / QC / điều phối, và (BE #136 bản cuối) nhân viên kho của
+ * kho đó khi lấy hàng đã xong — người đóng gói không nhất thiết là người lấy hàng.
+ */
 function canSee(task: MockTask, actor: MockActor): boolean {
   return (
     task.assignedUserId === actor.userId ||
-    hasAnyRole(actor, "WAREHOUSE_MANAGER", "QC_STAFF", "ORDER_COORDINATOR")
+    hasAnyRole(actor, "WAREHOUSE_MANAGER", "QC_STAFF", "ORDER_COORDINATOR") ||
+    (task.pickStatus === "PICKED" && hasAnyRole(actor, "WAREHOUSE_STAFF"))
   );
 }
 
@@ -162,7 +167,8 @@ function registerTaskReadRoutes(): void {
       // BE `requireArtifactAccess`: người được gán, hoặc quản lý kho / QC (không có điều phối)
       if (
         task.assignedUserId !== actor.userId &&
-        !hasAnyRole(actor, "WAREHOUSE_MANAGER", "QC_STAFF")
+        !hasAnyRole(actor, "WAREHOUSE_MANAGER", "QC_STAFF") &&
+        task.pickStatus !== "PICKED"
       ) {
         return taskNotFound();
       }
@@ -232,6 +238,8 @@ function registerAssignmentRoutes(): void {
     const task: MockTask = {
       taskId: nextTaskId(),
       orderId,
+      orderNumber: order.orderNumber,
+      warehouseId: order.fulfillmentWarehouseId,
       assignedUserId,
       pickStatus: "PENDING",
       packStatus: "PENDING",
@@ -259,38 +267,11 @@ function registerAssignmentRoutes(): void {
   });
 }
 
+/** Đóng gói (nhận đơn, kiện, quét, hoàn tất) ở `mock-routes-packing.ts`; ở đây còn kiểm tra lại thiết kế. */
 function registerPackRoutes(): void {
-  registerMockRoute("POST", `${PATH}/:id/packing-completion`, async (config) => {
-    const { task, actor } = await loadTask(config);
-    if (!hasAnyRole(actor, "WAREHOUSE_STAFF", "WAREHOUSE_MANAGER")) return forbidden();
-    if (!task) return taskNotFound();
-    if (task.assignedUserId !== actor.userId) {
-      return beError(404, "NOT_FOUND", "Fulfillment task is not assigned to this user");
-    }
-    if (task.pickStatus !== "PICKED") return conflict("Picking must finish before packing");
-    const closed = await orderClosedError(task.orderId);
-    if (closed) return closed;
-    if (task.packStatus === "ON_HOLD") {
-      return conflict("A checksum hold requires QC or warehouse-manager reverification");
-    }
-    if (task.packStatus !== "PENDING" && task.packStatus !== "PACKING") return conflict();
-    const order = await findMockOrder(task.orderId);
-    if (!order) return taskNotFound();
-    if (verifyDesigns(task, order, false)) {
-      task.packStatus = "PACKED";
-      task.packedAt = new Date().toISOString();
-      setMockOrderStatus(task.orderId, "PACKED");
-    } else {
-      // X-CHK: lệch → pack + đơn ON_HOLD (lý do DESIGN_MISMATCH, về lại bước đang làm), vẫn HTTP 200
-      task.packStatus = "ON_HOLD";
-      await putMockOrderOnDesignHold(task.orderId);
-    }
-    return beOk(toTaskResponse(task));
-  });
-
   registerMockRoute("POST", `${PATH}/:id/design-integrity-reverification`, async (config) => {
     const { task, actor } = await loadTask(config);
-    if (!hasAnyRole(actor, "QC_STAFF", "WAREHOUSE_MANAGER")) return forbidden();
+    if (!hasAnyRole(actor, "WAREHOUSE_STAFF", "WAREHOUSE_MANAGER")) return forbidden();
     const note = readString(parseJsonBody(config.data).resolutionNote);
     if (!note) {
       return beError(400, "VALIDATION_FAILED", "Invalid request data", [
@@ -304,10 +285,10 @@ function registerPackRoutes(): void {
     const order = await findMockOrder(task.orderId);
     if (!order) return taskNotFound();
     if (verifyDesigns(task, order, true)) {
-      task.packStatus = "PACKED";
-      task.packedAt = new Date().toISOString();
-      // Kiểm tra lại đạt: gỡ giữ DESIGN_MISMATCH rồi đóng gói xong → PACKED (BE `markPacked`)
-      setMockOrderStatus(task.orderId, "PACKED");
+      // BE PR #136: kiểm tra lại đạt → gỡ giữ DESIGN_MISMATCH, phiên về PACKING (docs 08 §5
+      // "Verification Failed → In Progress"); người đóng gói hoàn tất lại, đơn chưa PACKED
+      task.packStatus = "PACKING";
+      resolveMockDesignHold(task.orderId);
     }
     return beOk(toTaskResponse(task));
   });
@@ -349,5 +330,6 @@ export function registerFulfillmentMockRoutes(): void {
     task.pickedAt = now;
   });
   registerPackRoutes();
+  registerPackingMockRoutes();
   registerUserRoutes();
 }

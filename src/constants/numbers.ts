@@ -70,6 +70,31 @@ export const FULFILLMENT_LIMITS = {
   shortIdLength: 8,
 } as const;
 
+/**
+ * Giới hạn trạm đóng gói — đúng ràng buộc request BE PR #136 (`PackScanRequest`, `SealPackageRequest`,
+ * `PackingCompletionRequest`, `OpenPackageRequest`).
+ */
+export const PACKING_LIMITS = {
+  /** `PackScanRequest.quantity` @Positive @Max(1_000_000); `removeUnits.quantity` cùng giới hạn. */
+  quantityMax: 1_000_000,
+  /** `PackScanRequest.scannedCode` @NotBlank @Size(max = 64). */
+  scannedCodeMax: 64,
+  /** `PackScanRequest.lotNumber` @Size(max = 64). */
+  lotMax: 64,
+  /** `PackScanRequest.serialNumber` @Size(max = 100). */
+  serialMax: 100,
+  /** `PackingCompletionRequest.note` @Size(max = 500) — bắt buộc khi giao một phần. */
+  noteMax: 500,
+  /** `SealPackageRequest.weightKg` @Digits(integer = 7, fraction = 3) @Positive. */
+  weightKgMax: 9_999_999.999,
+  weightKgScale: 3,
+  /** `SealPackageRequest.lengthCm/widthCm/heightCm` @DecimalMax("100000") @Digits(fraction = 2). */
+  dimensionCmMax: 100_000,
+  dimensionCmScale: 2,
+  /** Thời gian giữ màu phản hồi sau mỗi lần quét đúng. */
+  scanFeedbackMs: 1500,
+} as const;
+
 /** Giới hạn lệnh chuyển kho — đúng ràng buộc request BE (CreateTransferOrderRequest, ReasonRequest). */
 export const TRANSFER_LIMITS = {
   /** `lines` @Size(max = 200). */
