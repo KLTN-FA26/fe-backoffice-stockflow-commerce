@@ -5,6 +5,13 @@ import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 import { buildBreadcrumbItems } from "./BackofficeShell";
 
 describe("buildBreadcrumbItems", () => {
+  it("đăng ký route Inventory trong điều hướng back-office", () => {
+    expect(buildBreadcrumbItems(INVENTORY_ROUTES.overview)).toEqual([
+      { label: "Back-office", href: "/admin" },
+      { label: INVENTORY_LABELS.overviewTitle, href: undefined },
+    ]);
+  });
+
   it("trang sửa hiện '… / <mã> / Chỉnh sửa', không hiện chữ 'edit'", () => {
     expect(buildBreadcrumbItems("/admin/suppliers/SUP-001/edit")).toEqual([
       { label: "Back-office", href: "/admin" },

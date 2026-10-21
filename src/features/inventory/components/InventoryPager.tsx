@@ -1,5 +1,7 @@
 "use client";
 
+import { useId } from "react";
+
 import { INVENTORY_LABELS, INVENTORY_PAGE_SIZES } from "@/constants/inventory";
 
 import { Button } from "@/components/ui/button";
@@ -7,24 +9,41 @@ import { Label } from "@/components/ui/label";
 
 import { inventoryPageRange } from "../selectors";
 
-import type { AdjustmentPage, MovementPage } from "../types";
+/**
+ * What the pager reads from a backend `PageResponse` (zero-based `page`), whatever the item type:
+ * the item count of this page for the range, and the page metadata.
+ */
+export interface InventoryPageMeta {
+  items: readonly unknown[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
+}
 
 interface InventoryPagerProps {
-  data: MovementPage | AdjustmentPage;
+  data: InventoryPageMeta;
+  /** Distinct per pager when one screen shows several (label ↔ select pairing). */
+  id?: string;
   pending: boolean;
   size: number;
   setSize: (size: number) => void;
   setPage: (page: number) => void;
 }
 
-export function InventoryPager({ data, pending, size, setSize, setPage }: InventoryPagerProps) {
+// `setPage` receives the one-based page the URL/state uses; `data.page` is the backend's zero-based page.
+export function InventoryPager({ data, id, pending, size, setSize, setPage }: InventoryPagerProps) {
+  const generatedId = useId();
+  const selectId = id ?? generatedId;
   const range = inventoryPageRange(data);
   return (
     <footer className="border-border-default bg-bg-subtle flex items-center justify-between gap-[var(--el-gap)] border-t p-[var(--card-pad)]">
       <div className="flex items-center gap-[var(--el-gap)]">
-        <Label htmlFor="inventory-page-size">{INVENTORY_LABELS.perPage}</Label>
+        <Label htmlFor={selectId}>{INVENTORY_LABELS.perPage}</Label>
         <select
-          id="inventory-page-size"
+          id={selectId}
           value={size}
           onChange={(event) => setSize(Number(event.target.value))}
           disabled={pending}

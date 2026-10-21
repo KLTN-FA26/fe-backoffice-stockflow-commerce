@@ -8,6 +8,7 @@ import {
   IDENTITY_PERMISSIONS,
   IDENTITY_USER_PERMISSIONS,
   INVENTORY_ITEM_PERMISSIONS,
+  INVENTORY_OVERVIEW_PERMISSIONS,
   INVENTORY_PERMISSIONS,
   ORDER_PERMISSIONS,
   PO_PERMISSIONS,
@@ -19,6 +20,7 @@ import {
   TRANSFER_PERMISSIONS,
   VARIANT_PERMISSIONS,
   WAREHOUSE_LOCATION_PERMISSIONS,
+  WAREHOUSE_PERMISSIONS,
 } from "@/constants/permissions";
 
 import { toBackendRoles } from "@/lib/api/mock-backend-roles";
@@ -61,7 +63,16 @@ const INVENTORY_FLOOR = [
   INV.alertRead,
 ];
 const INVENTORY_ALL = Object.values(INV);
+// Seed BE V20260903000100: WAREHOUSE_STAFF / MANAGER đọc tồn + giữ chỗ; INVENTORY_PLANNER và
+// QC_STAFF chỉ đọc tồn (inventory-stock-items VIEW_PAGE/READ). V20261014000900: inventory-alerts:READ
+// cho WAREHOUSE_MANAGER / INVENTORY_PLANNER / WAREHOUSE_STAFF (QC_STAFF không có).
+const OV = INVENTORY_OVERVIEW_PERMISSIONS;
+const STOCK_READ = [OV.stockViewPage, OV.stockRead];
+const OVERVIEW_ALL = Object.values(OV);
 const FULFILLMENT_FLOOR = [...Object.values(PICK), ...Object.values(PACK)];
+// Seed V20260928006000: warehouse-warehouses READ (danh mục kho) cho WAREHOUSE_MANAGER / STAFF,
+// INVENTORY_PLANNER, PROCUREMENT_STAFF; V20261017000800 thêm SALES_STAFF — không có QC_STAFF.
+const WAREHOUSE_READ = WAREHOUSE_PERMISSIONS.read;
 // Seed BE V20260928006000 (BE PR #119): hồ sơ hàng tồn — WAREHOUSE_MANAGER / INVENTORY_PLANNER mọi
 // quyền, WAREHOUSE_STAFF / PROCUREMENT_STAFF chỉ VIEW_PAGE + READ; role catalog không có.
 const ITEM = INVENTORY_ITEM_PERMISSIONS;
@@ -71,6 +82,8 @@ const WH_WORK = [
   ...GR_WORK,
   ...FULFILLMENT_FLOOR,
   ...INVENTORY_FLOOR,
+  ...OVERVIEW_ALL,
+  WAREHOUSE_READ,
   WAREHOUSE_LOCATION_PERMISSIONS.read,
   ...ITEM_READ,
 ];
@@ -90,6 +103,8 @@ const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...FULFILLMENT_FLOOR,
     IDENTITY_USER_PERMISSIONS.read,
     ...INVENTORY_ALL,
+    ...OVERVIEW_ALL,
+    WAREHOUSE_READ,
     WAREHOUSE_LOCATION_PERMISSIONS.read,
     ...Object.values(TO),
     ...SHIP,
@@ -111,10 +126,21 @@ const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...GR_WORK,
     QC.viewPage,
     QC.read,
+    WAREHOUSE_READ,
     ...ITEM_READ,
   ],
   // INVENTORY_PLANNER (seed V20261010000500): tạo / sửa / gửi duyệt / huỷ, KHÔNG duyệt
-  "USER-PLAN-01": [...INVENTORY_FLOOR, TO.viewPage, TO.read, TO.create, TO.update, ...ITEM_ALL],
+  "USER-PLAN-01": [
+    ...INVENTORY_FLOOR,
+    ...STOCK_READ,
+    OV.alertRead,
+    WAREHOUSE_READ,
+    TO.viewPage,
+    TO.read,
+    TO.create,
+    TO.update,
+    ...ITEM_ALL,
+  ],
   // Existing USER-ADMIN-01 is also the only Warehouse Manager; WH users are staff.
   "USER-WH-01": [...WH_WORK, ...TO_STAFF, ...SHIP],
   "USER-WH-02": [...WH_WORK, ...TO_STAFF, ...SHIP],
@@ -126,6 +152,7 @@ const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     QC.viewPage,
     QC.read,
     QC.approve,
+    ...STOCK_READ,
     PICK.read,
     PACK.read,
     PACK.create,
@@ -139,14 +166,16 @@ const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...Object.values(SUPPLIER_PERMISSIONS),
     IDENTITY_USER_PERMISSIONS.read,
   ],
-  "USER-SALE-01": [ORDER_PERMISSIONS.viewPage, ORDER_PERMISSIONS.read],
-  "USER-SALE-02": [ORDER_PERMISSIONS.viewPage, ORDER_PERMISSIONS.read],
-  "USER-SALE-03": [ORDER_PERMISSIONS.viewPage, ORDER_PERMISSIONS.read],
+  "USER-SALE-01": [ORDER_PERMISSIONS.viewPage, ORDER_PERMISSIONS.read, WAREHOUSE_READ],
+  "USER-SALE-02": [ORDER_PERMISSIONS.viewPage, ORDER_PERMISSIONS.read, WAREHOUSE_READ],
+  "USER-SALE-03": [ORDER_PERMISSIONS.viewPage, ORDER_PERMISSIONS.read, WAREHOUSE_READ],
   // Order Coordinator + Warehouse Staff → thêm quyền kho xuất của WAREHOUSE_STAFF
   "USER-COORD-01": [
     ...Object.values(ORDER_PERMISSIONS),
     ...FULFILLMENT_FLOOR,
     ...INVENTORY_FLOOR,
+    ...OVERVIEW_ALL,
+    WAREHOUSE_READ,
     ...TO_STAFF,
     ...SHIP,
     ...ITEM_READ,
@@ -157,7 +186,7 @@ export function mockSessionPermissions(userId: string, roles: readonly string[])
   return {
     // BE trả mã vai trò (`MyPermissionsResponse.roles`) — màn fulfillment gate kép theo mã này
     roles: toBackendRoles(roles),
-    permissions: [...(MOCK_USER_GRANTS[userId] ?? [])].sort(),
+    permissions: [...new Set(MOCK_USER_GRANTS[userId] ?? [])].sort(),
     dataScope: "ALL" as const,
   };
 }

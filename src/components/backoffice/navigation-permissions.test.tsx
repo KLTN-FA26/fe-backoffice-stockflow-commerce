@@ -2,10 +2,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { INVENTORY_LABELS } from "@/constants/inventory";
 import {
   ATTRIBUTE_PERMISSIONS,
   IDENTITY_PERMISSIONS,
   INVENTORY_ITEM_PERMISSIONS,
+  INVENTORY_OVERVIEW_PERMISSIONS,
   PRODUCT_PERMISSIONS,
   SHIPMENT_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
@@ -89,6 +91,24 @@ describe("declared navigation permissions", () => {
     );
     expect(screen.queryByRole("link", { name: "Nhà cung cấp" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Tổng quan" })).toBeInTheDocument();
+  });
+  it.each([
+    ["stock READ", [INVENTORY_OVERVIEW_PERMISSIONS.stockRead], true],
+    ["reservation READ", [INVENTORY_OVERVIEW_PERMISSIONS.reservationRead], true],
+    ["alert READ alone", [INVENTORY_OVERVIEW_PERMISSIONS.alertRead], false],
+  ] as const)("inventory overview menu with %s → visible: %s", async (_, permissions, visible) => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: {
+        roles: [],
+        permissions: [...permissions, IDENTITY_PERMISSIONS.rbacRead],
+        dataScope: "ALL",
+      },
+    });
+    mount();
+    // Wait for the permission answer (the RBAC entry appears), then check the overview entry.
+    expect(await screen.findByRole("link", { name: "Phân quyền" })).toBeInTheDocument();
+    const link = screen.queryByRole("link", { name: INVENTORY_LABELS.overviewTitle });
+    expect(link !== null).toBe(visible);
   });
   it("brands & categories follow product-products:VIEW_PAGE (ProductTaxonomyController)", async () => {
     vi.spyOn(api, "get").mockResolvedValue({

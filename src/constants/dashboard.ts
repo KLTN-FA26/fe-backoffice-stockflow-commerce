@@ -1,3 +1,4 @@
+import { INVENTORY_API } from "./inventory";
 import { INVENTORY_PERMISSIONS } from "./permissions";
 
 // Wire contract: backend develop — mọi widget tổng quan đọc API thật có sẵn; không có API thì không
@@ -8,7 +9,7 @@ export const DASHBOARD_API = {
   receipts: "/goods-receipts",
   transfers: "/inventory/transfer-orders",
   pickTasks: "/fulfillment/tasks",
-  alerts: "/inventory/alerts",
+  alerts: INVENTORY_API.alerts,
   alertSummary: "/inventory/alerts/summary",
 } as const;
 
