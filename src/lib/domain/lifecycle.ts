@@ -52,6 +52,7 @@ import type {
   PackStatus,
   PickStatus,
   ReceiptStatus,
+  ShipmentApiStatus,
   TransferStatus,
 } from "@/constants/statuses";
 
@@ -171,15 +172,28 @@ export const PACK_TRANSITIONS: Record<PackStatus, readonly PackStatus[]> = {
 
 /* ── Module 09: Shipping — chuyến xe (load) ──────────────────────────── */
 
-// BE business-design 03-state-machines §11 (rescope 2026-10-06: hãng là bên thứ ba, không tracking).
-// PLANNED → VEHICLE_BOOKED (đặt xe ngoài hệ thống, SCRUM-287/452) → LOADING (xe đến, quét kiện)
-// → DISPATCHED (đủ kiện + biên bản ký, SCRUM-288). Huỷ chỉ khi còn PLANNED.
-// ASSUMPTION: BE SCRUM-288 chưa có enum — khớp lại khi BE lên.
+// BE `LoadStatus` (PR #137): chuyến gửi kiện (PARCEL) bắt đầu ở LOADING khi tài xế hãng tới →
+// DISPATCHED khi hai bên ký biên bản. PLANNED → VEHICLE_BOOKED → LOADING là đường của chuyến nguyên
+// xe (FTL, SCRUM-287/452). Huỷ được ở mọi trạng thái còn mở (kiện về khu chờ xuất).
 export const LOAD_TRANSITIONS: Record<LoadStatus, readonly LoadStatus[]> = {
   PLANNED: ["VEHICLE_BOOKED", "CANCELLED"],
-  VEHICLE_BOOKED: ["LOADING"],
-  LOADING: ["DISPATCHED"],
+  VEHICLE_BOOKED: ["LOADING", "CANCELLED"],
+  LOADING: ["DISPATCHED", "CANCELLED"],
   DISPATCHED: [],
+  CANCELLED: [],
+};
+
+/**
+ * Lô giao (BE `ShipmentStatus`, docs 09 §5): READY_TO_DISPATCH → HANDED_OVER (ký biên bản) hoặc
+ * CANCELLED; kết quả hãng báo: HANDED_OVER → DELIVERED / DELIVERY_FAILED; DELIVERY_FAILED → DELIVERED
+ * (giao lại) / RETURNED. DELIVERED, RETURNED, CANCELLED là cuối.
+ */
+export const SHIPMENT_TRANSITIONS: Record<ShipmentApiStatus, readonly ShipmentApiStatus[]> = {
+  READY_TO_DISPATCH: ["HANDED_OVER", "CANCELLED"],
+  HANDED_OVER: ["DELIVERED", "DELIVERY_FAILED"],
+  DELIVERY_FAILED: ["DELIVERED", "RETURNED"],
+  DELIVERED: [],
+  RETURNED: [],
   CANCELLED: [],
 };
 

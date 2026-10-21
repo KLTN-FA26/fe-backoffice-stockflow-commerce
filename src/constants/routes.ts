@@ -65,11 +65,16 @@ export const ADMIN_ROUTES = {
     edit: (id: string) => `${ADMIN_BASE}/transfers/${id}/edit`,
     list: `${ADMIN_BASE}/transfers`,
   },
+  /** Lô giao chờ xuất / đã giao (BE `ShipmentController`, PR #137). */
   shipments: {
     list: `${ADMIN_BASE}/shipments`,
-    /** Màn xếp hàng lên xe của một chuyến (quét kiện). */
-    loading: (id: string) => `${ADMIN_BASE}/shipments/${id}`,
-    manifest: (id: string) => `${ADMIN_BASE}/shipments/${id}/manifest`,
+    detail: (id: string) => `${ADMIN_BASE}/shipments/${id}`,
+  },
+  /** Chuyến xe: quét kiện lên xe, bàn giao hãng (BE `DispatchController`, PR #137). */
+  loads: {
+    list: `${ADMIN_BASE}/loads`,
+    detail: (id: string) => `${ADMIN_BASE}/loads/${id}`,
+    manifest: (id: string) => `${ADMIN_BASE}/loads/${id}/manifest`,
   },
   /** Kế hoạch xếp xe — SCRUM-452, đang phát triển. */
   loadPlans: `${ADMIN_BASE}/load-plans`,

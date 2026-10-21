@@ -424,8 +424,8 @@ export const TRANSFER_STATUS = {
 export const TRANSFER_REASONS = ["REBALANCING", "DEMAND", "CAMPAIGN", "OVERFLOW", "OTHER"] as const;
 
 /**
- * Chuyến xe xuất hàng — `LoadStatus` theo BE business-design 03-state-machines §11.
- * ASSUMPTION: BE SCRUM-288 chưa có enum; FE dùng đúng tên trong thiết kế, khớp lại khi BE lên.
+ * Chuyến xe xuất hàng — BE `LoadStatus` (PR #137, SCRUM-288). Chuyến gửi kiện (PARCEL) bắt đầu ở
+ * LOADING khi tài xế hãng tới; PLANNED / VEHICLE_BOOKED chỉ có ở chuyến nguyên xe (FTL, SCRUM-287).
  */
 export const LOAD_STATUSES = [
   "PLANNED",
@@ -442,6 +442,12 @@ export const LOAD_STATUS = {
   DISPATCHED: "DISPATCHED",
   CANCELLED: "CANCELLED",
 } as const satisfies Record<string, LoadStatus>;
+
+/** BE `DispatchController` / `DeliveryOutcomeRequest.outcome` — kết quả hãng báo lại (docs 09 §4.3). */
+export const DELIVERY_OUTCOMES = ["DELIVERED", "DELIVERY_FAILED", "RETURNED"] as const;
+
+/** BE `CarrierResponse.status` — hãng ngừng dùng thì không nhận chuyến mới. */
+export const CARRIER_STATUSES = ["ACTIVE", "INACTIVE"] as const;
 
 export type PoStatus = (typeof PO_STATUSES)[number];
 export type SupplierConfirmationStatus = (typeof SUPPLIER_CONFIRMATION_STATUSES)[number];
@@ -469,6 +475,8 @@ export type SupplierChannel = (typeof SUPPLIER_CHANNELS)[number];
 export type TransferStatus = (typeof TRANSFER_STATUSES)[number];
 export type TransferReason = (typeof TRANSFER_REASONS)[number];
 export type LoadStatus = (typeof LOAD_STATUSES)[number];
+export type ShipmentApiStatus = (typeof PACK_SHIPMENT_API_STATUSES)[number];
+export type DeliveryOutcome = (typeof DELIVERY_OUTCOMES)[number];
 
 // Backend StockAdjustmentStatus (SCRUM-424); preserve wire values.
 export const STOCK_ADJUSTMENT_STATUSES = [

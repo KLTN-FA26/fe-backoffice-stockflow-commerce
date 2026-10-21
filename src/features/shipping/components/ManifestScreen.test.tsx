@@ -1,178 +1,100 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { SHIPPING_ERROR_MESSAGES, UI_LABELS } from "@/constants";
-import { ApiError } from "@/lib/api/error";
-import { toast } from "@/components/shared/Toast";
+import { UI_LABELS } from "@/constants";
 
-import { LOAD_ID, apiLoad, line } from "../__fixtures__/load";
+import { LOAD_ID, apiManifest } from "../__fixtures__/load";
 import {
-  SHIPPING_ROLE_PERMISSIONS as ROLES,
+  SHIPPING_ACTORS as ACTORS,
   mockShippingApi,
   renderShippingScreen,
 } from "../__fixtures__/render";
 import { ManifestScreen } from "./ManifestScreen";
 
-import type { PermissionCode } from "@/lib/auth";
-import type { Load } from "../types";
+import type { Manifest } from "../types";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
-// jsdom không có ResizeObserver mà Checkbox (radix use-size) dùng.
-beforeAll(() => {
-  globalThis.ResizeObserver ??= class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  };
-});
-
 afterEach(() => vi.restoreAllMocks());
 
-const PATH = `/fulfillment/loads/${LOAD_ID}`;
-const L = UI_LABELS.shipping;
-const FULL = [line(1, "2026-10-12T01:10:00Z"), line(2, "2026-10-12T01:12:00Z")];
+const PATH = `/fulfillment/loads/${LOAD_ID}/manifest`;
+const M = UI_LABELS.shipping.manifest;
 
-function renderManifest(permissions: readonly PermissionCode[], load: Load) {
-  const spies = mockShippingApi(
-    permissions,
-    { [PATH]: () => load, "/warehouses": () => ({ items: [] }) },
-    {
-      [`${PATH}/handover`]: () => ({
-        ...load,
-        status: "DISPATCHED",
-        manifest: {
-          manifestNumber: "MNF-1",
-          carrierRepresentative: "Anh Tài",
-          handedOverAt: "2026-10-12T02:00:00Z",
-        },
-      }),
-    },
-  );
+function renderManifest(manifest: Manifest) {
+  const spies = mockShippingApi(ACTORS.warehouseStaff, { get: { [PATH]: () => manifest } });
   renderShippingScreen(<ManifestScreen id={LOAD_ID} />);
   return spies;
 }
 
-describe("ManifestScreen — đối soát + bàn giao", () => {
-  it("còn kiện chưa lên xe → báo thiếu, nút bàn giao bị khoá", async () => {
-    renderManifest(ROLES.warehouseStaff, apiLoad());
-    expect(
-      await screen.findByText(`${L.manifest.missingPrefix} 1 ${L.manifest.packagesUnit} (1/2)`),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: L.action.handover })).toBeDisabled();
-    // Thiếu kiện → không in tờ để ký (khoá nút In)
-    expect(screen.getByRole("button", { name: L.action.print })).toBeDisabled();
+describe("ManifestScreen — biên bản bàn giao in được", () => {
+  it("đủ kiện: hiện kho, hãng, xe, từng lô với người nhận / COD, tổng; in bằng window.print", async () => {
+    const user = userEvent.setup();
+    const print = vi.spyOn(window, "print").mockImplementation(() => {});
+    renderManifest(apiManifest());
+    expect(await screen.findByRole("heading", { name: M.docTitle })).toBeInTheDocument();
+    expect(screen.getByText("Kho TP.HCM")).toBeInTheDocument();
+    expect(screen.getByText("GHN Giao Hàng Nhanh")).toBeInTheDocument();
+    expect(screen.getByText("51C-628.14")).toBeInTheDocument();
+    expect(screen.getByText("Vũ Đức Long")).toBeInTheDocument();
+    expect(screen.getByText("15 Quang Trung, Hà Đông, Hà Nội")).toBeInTheDocument();
+    expect(screen.getAllByText(/270\.000/).length).toBeGreaterThan(0);
+    expect(screen.getByText(M.warehouseSign)).toBeInTheDocument();
+    const button = screen.getByRole("button", { name: M.print });
+    expect(button).toBeEnabled();
+    await user.click(button);
+    expect(print).toHaveBeenCalledTimes(1);
   });
 
-  it("bàn giao gặp lỗi dữ liệu cũ (máy khác vừa đổi chuyến) → toast báo, không mất lỗi", async () => {
-    const user = userEvent.setup();
-    const error = vi.spyOn(toast, "error");
-    mockShippingApi(
-      ROLES.warehouseStaff,
-      { [PATH]: () => apiLoad({ lines: FULL }), "/warehouses": () => ({ items: [] }) },
-      {
-        [`${PATH}/handover`]: () => {
-          throw new ApiError(409, "OPTIMISTIC_LOCK", "stale");
+  it("còn kiện chưa lên xe → báo thiếu, không cho in để ký; bản in tay chỉ là bản đối soát", async () => {
+    const base = apiManifest();
+    const manifest = apiManifest({
+      shipments: [
+        {
+          ...(base.shipments[0] as NonNullable<(typeof base.shipments)[0]>),
+          packages: [{ labelCode: "PKG-SO-1-1", loaded: false }],
         },
-      },
+      ],
+    });
+    renderManifest(manifest);
+    const button = await screen.findByRole("button", { name: M.print });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute("title", M.printBlocked);
+    expect(screen.getByText(`${M.missingPrefix} 1 ${M.packagesUnit}`)).toBeInTheDocument();
+    expect(screen.getByText(M.draftBanner)).toBeInTheDocument();
+  });
+
+  it("đã bàn giao: in được, hiện người ký, mã biên bản, ghi chú và COD đổi so với nhãn", async () => {
+    const base = apiManifest();
+    renderManifest(
+      apiManifest({
+        status: "DISPATCHED",
+        dispatchedAt: "2026-10-21T03:00:00Z",
+        dispatchedByName: "Nhân viên kho A",
+        carrierRepresentative: "Trần Văn Tài",
+        signatureRef: "BB-2026-9",
+        handoverNote: "Hàng dễ vỡ",
+        shipments: [
+          {
+            ...(base.shipments[0] as NonNullable<(typeof base.shipments)[0]>),
+            codChangedSinceLabel: true,
+          },
+        ],
+      }),
     );
+    expect(await screen.findByText("Trần Văn Tài")).toBeInTheDocument();
+    expect(screen.getByText("BB-2026-9")).toBeInTheDocument();
+    expect(screen.getByText(/Hàng dễ vỡ/)).toBeInTheDocument();
+    expect(screen.getByText("Nhân viên kho A")).toBeInTheDocument();
+    expect(screen.getByText(M.codChanged)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: M.print })).toBeEnabled();
+    expect(screen.queryByText(M.draftBanner)).not.toBeInTheDocument();
+  });
+
+  it("không có quyền đọc → không gọi API biên bản", async () => {
+    const { get } = mockShippingApi(ACTORS.noAccess, { get: { [PATH]: () => apiManifest() } });
     renderShippingScreen(<ManifestScreen id={LOAD_ID} />);
-    await user.click(await screen.findByRole("button", { name: L.action.handover }));
-    const dialog = await screen.findByRole("dialog");
-    await user.type(within(dialog).getByLabelText(/Tên đại diện/), "Anh Tài");
-    await user.click(within(dialog).getByLabelText(L.manifest.signedConfirm));
-    await user.click(within(dialog).getByRole("button", { name: L.action.handover }));
-    await waitFor(() =>
-      expect(error).toHaveBeenCalledWith(SHIPPING_ERROR_MESSAGES.OPTIMISTIC_LOCK),
-    );
-  });
-
-  it("đủ kiện → nhập đại diện hãng + xác nhận đã ký rồi bàn giao (version gửi kèm)", async () => {
-    const user = userEvent.setup();
-    const { post } = renderManifest(ROLES.warehouseStaff, apiLoad({ lines: FULL }));
-    await user.click(await screen.findByRole("button", { name: L.action.handover }));
-
-    const dialog = await screen.findByRole("dialog");
-    const submit = within(dialog).getByRole("button", { name: L.action.handover });
-    await user.type(within(dialog).getByLabelText(/Tên đại diện/), "Anh Tài");
-    expect(submit).toBeDisabled();
-    await user.click(within(dialog).getByLabelText(L.manifest.signedConfirm));
-    await waitFor(() => expect(submit).toBeEnabled());
-    await user.click(submit);
-
-    await waitFor(() =>
-      expect(post).toHaveBeenCalledWith(
-        `${PATH}/handover`,
-        { version: 2, carrierRepresentative: "Anh Tài", note: undefined, signed: true },
-        // Một key cho lần mở dialog — BE chống bàn giao trùng khi gửi lại
-        { headers: { "Idempotency-Key": expect.any(String) } },
-      ),
-    );
-  });
-
-  it("chuyến chưa xếp hàng (vào thẳng URL) → không hiện biên bản rỗng", async () => {
-    renderManifest(ROLES.warehouseStaff, apiLoad({ status: "VEHICLE_BOOKED", lines: FULL }));
-    expect(await screen.findByText(L.manifest.unavailableTitle)).toBeInTheDocument();
-    expect(screen.queryByRole("article")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: L.action.handover })).not.toBeInTheDocument();
-  });
-
-  it("biên bản in được: danh sách kiện + hai ô ký, không có mã vận đơn", async () => {
-    renderManifest(ROLES.viewOnly, apiLoad({ lines: FULL }));
-    expect(await screen.findByText(L.document.title)).toBeInTheDocument();
-    // Tờ đủ kiện (để ký) không ghi "chưa bàn giao"
-    expect(screen.queryByText(L.document.notHandedOver, { exact: false })).not.toBeInTheDocument();
-    expect(screen.getByText(L.manifest.warehouseSign)).toBeInTheDocument();
-    expect(screen.getByText(L.manifest.carrierSign)).toBeInTheDocument();
-    expect(screen.getByText("PKG-0002")).toBeInTheDocument();
-    // Tài liệu in không có mã vận đơn / tracking (hãng bên thứ ba)
-    expect(within(screen.getByRole("article")).queryByText(/vận đơn|tracking/i)).toBeNull();
-    // Chỉ quyền xem → in được, không bàn giao được
-    expect(screen.getByRole("button", { name: L.action.print })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: L.action.handover })).not.toBeInTheDocument();
-  });
-
-  it("gửi lại sau lỗi 400 dùng Idempotency-Key MỚI; sau lỗi mạng giữ key cũ", async () => {
-    const user = userEvent.setup();
-    const errors = [
-      new ApiError(400, "VALIDATION_FAILED", "bad", { carrierRepresentative: "too long" }),
-      new ApiError(0, "NETWORK_ERROR", "offline"),
-    ];
-    const { post } = mockShippingApi(
-      ROLES.warehouseStaff,
-      { [PATH]: () => apiLoad({ lines: FULL }), "/warehouses": () => ({ items: [] }) },
-      {
-        [`${PATH}/handover`]: () => {
-          const error = errors.shift();
-          if (error) throw error;
-          return apiLoad({ lines: FULL, status: "DISPATCHED" });
-        },
-      },
-    );
-    renderShippingScreen(<ManifestScreen id={LOAD_ID} />);
-    await user.click(await screen.findByRole("button", { name: L.action.handover }));
-    const dialog = await screen.findByRole("dialog");
-    await user.type(within(dialog).getByLabelText(/Tên đại diện/), "Anh Tài");
-    await user.click(within(dialog).getByLabelText(L.manifest.signedConfirm));
-    const submit = within(dialog).getByRole("button", { name: L.action.handover });
-
-    const keyOf = (call: number) =>
-      (post.mock.calls[call]?.[2] as { headers: Record<string, string> } | undefined)?.headers[
-        "Idempotency-Key"
-      ];
-    await user.click(submit);
-    await waitFor(() => expect(post).toHaveBeenCalledTimes(1));
-    // 400 gắn lỗi vào ô → sửa ô rồi gửi lại
-    await user.type(within(dialog).getByLabelText(/Tên đại diện/), "!");
-    await waitFor(() => expect(submit).toBeEnabled());
-    await user.click(submit);
-    await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
-    await waitFor(() => expect(submit).toBeEnabled());
-    await user.click(submit);
-    await waitFor(() => expect(post).toHaveBeenCalledTimes(3));
-
-    expect(keyOf(1)).not.toBe(keyOf(0));
-    expect(keyOf(2)).toBe(keyOf(1));
+    expect(await screen.findByText(UI_LABELS.shipping.forbiddenDescription)).toBeInTheDocument();
+    expect(get.mock.calls.some(([url]) => url === PATH)).toBe(false);
   });
 });

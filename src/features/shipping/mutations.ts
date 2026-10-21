@@ -1,11 +1,10 @@
 /**
- * Shipping — mutations + invalidation map (api-conventions §2.3).
+ * Shipping — mutations chuyến xe + invalidation map (api-conventions §2.3).
  *
- * - Quét kiện: response là chuyến mới nhất → ghi thẳng vào cache detail (màn quét không nháy lại),
- *   chỉ invalidate danh sách (tiến độ loaded/planned). Lỗi quét hiện inline ở ô quét, không toast.
- * - Bàn giao: chuyến DISPATCHED + đơn hàng có thể chuyển SHIPPED (BR-03 docs 09 §6) → invalidate
- *   chuyến và đơn hàng.
- * - Lỗi trạng thái cũ (`isStaleLoadError`) → tải lại chuyến ở MỌI mutation.
+ * - Mọi thao tác trả chuyến mới nhất → ghi thẳng vào cache chi tiết (màn quét không nháy lại), chỉ
+ *   invalidate danh sách (tiến độ) và lô giao (trạng thái / chuyến của lô đổi).
+ * - Bàn giao: lô HANDED_OVER + đơn hàng chuyển SHIPPED (BR-03 docs 09 §6) → invalidate lô giao và đơn.
+ * - Lỗi trạng thái cũ (`isStaleLoadError`) → tải lại chuyến và lô ở MỌI mutation.
  */
 
 import { useQueryClient } from "@tanstack/react-query";
@@ -14,64 +13,116 @@ import { TOAST_MESSAGES } from "@/constants";
 import { createMutation } from "@/lib/api/query-factory";
 import { toast } from "@/components/shared/Toast";
 
-import { handoverLoad, scanPackage, startLoading } from "./api";
+import {
+  addLoadShipments,
+  cancelLoad,
+  handoverLoad,
+  openLoad,
+  removeLoadShipment,
+  scanPackage,
+  unscanPackage,
+} from "./api";
 import { isStaleLoadError, shippingErrorMessage } from "./errors";
-import { loadKeys } from "./queries";
+import { loadKeys, manifestKey, shipmentKeys } from "./queries";
 import { useRejectedScansStore } from "./rejected-scans-store";
 
-import type { HandoverLoadInput, Load, ScanPackageInput } from "./types";
+import type {
+  CancelLoadInput,
+  HandoverLoadInput,
+  Load,
+  LoadShipmentsInput,
+  OpenLoadInput,
+  RemoveLoadShipmentInput,
+  ScanPackageInput,
+  UnscanInput,
+} from "./types";
 
 /** = `orderKeys.all` của features/order — khai báo lại để không import chéo feature. */
 const ORDER_ROOT_KEY = ["orders"] as const;
 const LOAD_LIST_KEY = [...loadKeys.all, "list"] as const;
+const T = TOAST_MESSAGES.shipping;
 
+/**
+ * Bọc mutation trả `Load`: ghi response vào cache chi tiết (không bản cũ hơn) và tải lại khi gặp lỗi
+ * dữ liệu cũ. `loadIdOf` có thì huỷ GET chi tiết đang chạy của đúng chuyến đó trước khi gửi — GET về
+ * SAU response sẽ ghi đè bằng bản cũ (kiện vừa quét nhảy về "Chưa lên xe", bàn giao dùng version cũ
+ * → OPTIMISTIC_LOCK).
+ */
 function withLoadCache<TInput>(
   useBase: ReturnType<typeof createMutation<TInput, Load>>,
-  loadIdOf: (input: TInput) => string,
+  loadIdOf?: (input: TInput) => string,
 ) {
   return function useWithLoadCache(options?: Parameters<typeof useBase>[0]) {
     const queryClient = useQueryClient();
     return useBase({
       ...options,
-      // GET chi tiết đang chạy (refetch khi focus…) trả về SAU response này sẽ ghi đè bằng bản cũ:
-      // kiện vừa quét nhảy về "Chưa lên xe", bàn giao dùng version cũ → OPTIMISTIC_LOCK
-      // Chỉ huỷ GET của đúng chuyến đang thao tác — không đụng truy vấn của chuyến / màn khác
       onMutate: async (input, context) => {
-        await queryClient.cancelQueries({ queryKey: loadKeys.detail(loadIdOf(input)) });
+        if (loadIdOf) {
+          await queryClient.cancelQueries({ queryKey: loadKeys.detail(loadIdOf(input)) });
+        }
         return options?.onMutate?.(input, context);
       },
       onSuccess: async (load, ...rest) => {
-        // GET bắt đầu TRONG lúc POST chạy (focus, invalidate của mã quét trước) mang bản cũ hơn response
-        // này → huỷ trước khi ghi cache, nếu không nó về sau và ghi đè. Huỷ hoàn tác cache ngay (đồng
-        // bộ) về trạng thái trước GET, rồi mới ghi response
+        // GET bắt đầu TRONG lúc POST chạy mang bản cũ hơn response này → huỷ trước khi ghi cache
         await queryClient.cancelQueries({ queryKey: loadKeys.detail(load.loadId) });
         queryClient.setQueryData<Load>(loadKeys.detail(load.loadId), (cached) =>
           cached && cached.version > load.version ? cached : load,
         );
+        void queryClient.invalidateQueries({ queryKey: manifestKey(load.loadId) });
         options?.onSuccess?.(load, ...rest);
       },
       onError: (...args) => {
-        // Dữ liệu cũ → tải lại cả chuyến lẫn danh sách. Lỗi khác vẫn tải lại chi tiết chuyến: GET đã bị
-        // huỷ ở onMutate nên thay đổi từ máy khác (nếu có) chưa về
-        void queryClient.invalidateQueries({
-          queryKey: isStaleLoadError(args[0]) ? loadKeys.all : loadKeys.detail(loadIdOf(args[1])),
-        });
+        const [error, input] = args;
+        if (isStaleLoadError(error)) {
+          void queryClient.invalidateQueries({ queryKey: loadKeys.all });
+          void queryClient.invalidateQueries({ queryKey: shipmentKeys.all });
+        } else if (loadIdOf) {
+          // GET đã bị huỷ ở onMutate nên thay đổi từ máy khác (nếu có) chưa về
+          void queryClient.invalidateQueries({ queryKey: loadKeys.detail(loadIdOf(input)) });
+        }
         options?.onError?.(...args);
       },
     });
   };
 }
 
-export const useStartLoading = withLoadCache(
-  createMutation<string, Load>(startLoading, {
-    invalidate: [LOAD_LIST_KEY],
-    successMessage: TOAST_MESSAGES.shipping.loadingStarted,
+const toastError = (error: unknown) => toast.error(shippingErrorMessage(error));
+
+/** Dialog hiện lỗi inline (`showErrorToast: false`); lỗi dữ liệu cũ vẫn toast vì dialog có thể đóng ngay. */
+const toastIfStale = (error: unknown) => {
+  if (isStaleLoadError(error)) toastError(error);
+};
+
+export const useOpenLoad = withLoadCache(
+  createMutation<OpenLoadInput, Load>(openLoad, {
+    invalidate: [LOAD_LIST_KEY, shipmentKeys.all],
+    successMessage: T.loadOpened,
     showErrorToast: false,
-    onError: (error) => toast.error(shippingErrorMessage(error)),
+    onError: toastIfStale,
   }),
-  (loadId) => loadId,
 );
 
+export const useAddLoadShipments = withLoadCache(
+  createMutation<LoadShipmentsInput, Load>(addLoadShipments, {
+    invalidate: [LOAD_LIST_KEY, shipmentKeys.all],
+    successMessage: T.shipmentsAdded,
+    showErrorToast: false,
+    onError: toastIfStale,
+  }),
+  (input) => input.loadId,
+);
+
+export const useRemoveLoadShipment = withLoadCache(
+  createMutation<RemoveLoadShipmentInput, Load>(removeLoadShipment, {
+    invalidate: [LOAD_LIST_KEY, shipmentKeys.all],
+    successMessage: T.shipmentRemoved,
+    showErrorToast: false,
+    onError: toastError,
+  }),
+  (input) => input.loadId,
+);
+
+/** Lỗi quét hiện inline ở ô quét, không toast. */
 export const useScanPackage = withLoadCache(
   createMutation<ScanPackageInput, Load>(scanPackage, {
     invalidate: [LOAD_LIST_KEY],
@@ -80,18 +131,35 @@ export const useScanPackage = withLoadCache(
   (input) => input.loadId,
 );
 
+export const useUnscanPackage = withLoadCache(
+  createMutation<UnscanInput, Load>(unscanPackage, {
+    invalidate: [LOAD_LIST_KEY],
+    successMessage: T.unscanned,
+    showErrorToast: false,
+    onError: toastError,
+  }),
+  (input) => input.loadId,
+);
+
 export const useHandoverLoad = withLoadCache(
   createMutation<HandoverLoadInput, Load>(handoverLoad, {
-    invalidate: [loadKeys.all, ORDER_ROOT_KEY],
-    successMessage: TOAST_MESSAGES.shipping.handedOver,
-    // Dialog bàn giao hiện lỗi inline. Riêng lỗi dữ liệu cũ thì toast ở đây (không ở dialog): dữ liệu
-    // tải lại có thể làm dialog đóng ngay (chuyến không còn bàn giao được) — callback của dialog khi
-    // đó không còn chạy, lỗi sẽ mất
+    invalidate: [loadKeys.all, shipmentKeys.all, ORDER_ROOT_KEY],
+    successMessage: T.handedOver,
+    // Dialog bàn giao hiện lỗi inline; lỗi dữ liệu cũ thì toast (dialog có thể đóng ngay khi tải lại)
     showErrorToast: false,
-    onError: (error) => {
-      if (isStaleLoadError(error)) toast.error(shippingErrorMessage(error));
-    },
+    onError: toastIfStale,
     // Đã bàn giao → danh sách mã quét không thành công của chuyến (lưu tạm trên máy) hết ý nghĩa
+    onSuccess: (load) => useRejectedScansStore.getState().clear(load.loadId),
+  }),
+  (input) => input.loadId,
+);
+
+export const useCancelLoad = withLoadCache(
+  createMutation<CancelLoadInput, Load>(cancelLoad, {
+    invalidate: [loadKeys.all, shipmentKeys.all],
+    successMessage: T.cancelled,
+    showErrorToast: false,
+    onError: toastIfStale,
     onSuccess: (load) => useRejectedScansStore.getState().clear(load.loadId),
   }),
   (input) => input.loadId,

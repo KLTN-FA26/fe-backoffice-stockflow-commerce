@@ -241,7 +241,8 @@ export const TRANSFER_PERMISSIONS = {
 /**
  * Xếp xe & bàn giao hãng — resource `fulfillment-shipments` (đã seed V20260903000100, cấp cho
  * WAREHOUSE_STAFF / WAREHOUSE_MANAGER / ORDER_COORDINATOR).
- * ASSUMPTION: BE SCRUM-288 chưa có controller; dùng resource đã seed cho endpoint chuyến xe.
+ * BE PR #137: lô giao, chuyến xe, hãng đều dưới resource này; `@PreAuthorize` quyết thêm vai trò nào được
+ * làm gì (lên xe / bàn giao: nhân viên + quản lý kho; huỷ chuyến: quản lý kho; kết quả giao: điều phối đơn).
  */
 export const SHIPMENT_PERMISSIONS = {
   viewPage: "fulfillment-shipments:VIEW_PAGE",

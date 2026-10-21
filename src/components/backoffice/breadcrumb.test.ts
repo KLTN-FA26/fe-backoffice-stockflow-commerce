@@ -22,9 +22,9 @@ describe("buildBreadcrumbItems", () => {
   });
 
   it("biên bản bàn giao của chuyến hiện '… / <chuyến> / Biên bản bàn giao'", () => {
-    expect(buildBreadcrumbItems("/admin/shipments/LOAD-2026-0001/manifest").slice(1)).toEqual([
-      { label: "Xếp xe & bàn giao", href: "/admin/shipments" },
-      { label: "LOAD-2026-0001", href: "/admin/shipments/LOAD-2026-0001" },
+    expect(buildBreadcrumbItems("/admin/loads/LOAD-2026-0001/manifest").slice(1)).toEqual([
+      { label: "Chuyến xe", href: "/admin/loads" },
+      { label: "LOAD-2026-0001", href: "/admin/loads/LOAD-2026-0001" },
       { label: "Biên bản bàn giao" },
     ]);
     expect(buildBreadcrumbItems("/admin/transfers/create").at(-1)).toEqual({

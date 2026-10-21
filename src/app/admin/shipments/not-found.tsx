@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 
 const { common, shipping } = UI_LABELS;
 
-/** Route chuyến xe không tồn tại (api-conventions §8). */
+/** Route lô giao không tồn tại (api-conventions §8). */
 export default function ShipmentsNotFound() {
   return (
     <EmptyState

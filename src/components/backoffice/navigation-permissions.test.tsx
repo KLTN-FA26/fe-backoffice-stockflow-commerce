@@ -140,20 +140,28 @@ describe("declared navigation permissions", () => {
     mount();
     expect(await screen.findByRole("link", { name: "Phân quyền" })).toBeInTheDocument();
   });
-  it("màn chỉ chạy trên mock (xếp xe & bàn giao) ẩn khi nối BE thật dù có quyền", async () => {
+  it("giao cho hãng (Lô giao, Chuyến xe) nối BE thật theo quyền xem màn, không còn chỉ-mock", async () => {
     vi.spyOn(api, "get").mockResolvedValue({
       data: { roles: [], permissions: [SHIPMENT_PERMISSIONS.viewPage], dataScope: "ALL" },
     });
     mockMode.isMock = false;
     mount();
-    expect(await screen.findByRole("link", { name: "Kế hoạch xếp xe" })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Xếp xe & bàn giao" })).not.toBeInTheDocument();
-
-    cleanup();
-    mockMode.isMock = true;
-    mount();
-    expect(await screen.findByRole("link", { name: "Xếp xe & bàn giao" })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Lô giao" })).toHaveAttribute(
+      "href",
+      "/admin/shipments",
+    );
+    expect(screen.getByRole("link", { name: "Chuyến xe" })).toHaveAttribute("href", "/admin/loads");
+    expect(screen.getByRole("link", { name: "Kế hoạch xếp xe" })).toBeInTheDocument();
+  });
+  it("thiếu quyền xem màn giao hàng → ẩn Lô giao và Chuyến xe", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [], permissions: [], dataScope: "ALL" },
+    });
     mockMode.isMock = false;
+    mount();
+    expect(await screen.findByRole("link", { name: "Tổng quan" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Lô giao" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Chuyến xe" })).not.toBeInTheDocument();
   });
   it("Đề xuất nhập hàng (BE chưa có API) chỉ hiện ở mock, không phụ thuộc quyền", async () => {
     vi.spyOn(api, "get").mockResolvedValue({
