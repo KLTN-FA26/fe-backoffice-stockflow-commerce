@@ -12,14 +12,14 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import {
   adminCancelOrder,
   closeOrderRemainder,
-  decidePartialShipment,
   getOrder,
-  getOrderHistory,
   holdOrder,
   listOrders,
   recordDeliveryFailure,
   resolveOrderHold,
 } from "@/features/order/api";
+import { getOrderHistory } from "@/features/order/history-api";
+import { decidePartialShipment } from "@/features/order/partial-shipment-api";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { orders } from "@/lib/mock-data";

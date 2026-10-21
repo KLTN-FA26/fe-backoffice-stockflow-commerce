@@ -4,17 +4,16 @@ import { api } from "@/lib/api/client";
 
 import {
   closeOrderRemainder,
-  decidePartialShipment,
   getOrder,
-  getOrderHistory,
   holdOrder,
   listOrders,
   recordDeliveryFailure,
   resolveOrderHold,
   toOrder,
-  toOrderHistoryEntry,
 } from "./api";
 import { apiGuestOrder } from "./__fixtures__/order";
+import { getOrderHistory, toOrderHistoryEntry } from "./history-api";
+import { decidePartialShipment } from "./partial-shipment-api";
 import { orderDtoSchema } from "./schemas";
 
 /** Hình dạng `OrderResponse` BE (develop) sau khi interceptor bóc envelope. */

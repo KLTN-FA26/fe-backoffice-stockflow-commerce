@@ -10,7 +10,8 @@ import { ApiError } from "@/lib/api/error";
 import { QUERY_TIMES } from "@/lib/api/query-client";
 import { createDetailQuery, createListQuery, createQueryKeys } from "@/lib/api/query-factory";
 
-import { getOrder, getOrderHistory, listOrders, type ListOrderParams } from "./api";
+import { getOrder, listOrders, type ListOrderParams } from "./api";
+import { getOrderHistory } from "./history-api";
 import type { Order, OrderHistoryEntry } from "./types";
 
 /* ── Query keys ──────────────────────────────────────────────────────── */

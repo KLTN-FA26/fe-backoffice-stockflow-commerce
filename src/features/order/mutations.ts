@@ -13,17 +13,16 @@ import { ORDER_ACTION_LABELS } from "@/constants";
 import {
   adminCancelOrder,
   closeOrderRemainder,
-  decidePartialShipment,
   holdOrder,
   recordDeliveryFailure,
   resolveOrderHold,
   type AdminCancelOrderInput,
   type DeliveryFailureInput,
   type HoldOrderInput,
-  type PartialShipmentInput,
   type RemainderClosureInput,
   type ResolveOrderHoldInput,
 } from "./api";
+import { decidePartialShipment, type PartialShipmentInput } from "./partial-shipment-api";
 import { orderKeys } from "./queries";
 
 /* ── Admin cancel ────────────────────────────────────────────────────── */

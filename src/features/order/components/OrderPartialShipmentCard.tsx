@@ -1,6 +1,6 @@
 import { ORDER_PARTIAL_SHIPMENT_LABELS, ORDER_PERMISSIONS } from "@/constants";
 
-import { partialShipmentControl } from "../lifecycle";
+import { partialShipmentControl } from "../partial-shipment";
 
 import { OrderPartialShipmentAction } from "./OrderStatusActions";
 

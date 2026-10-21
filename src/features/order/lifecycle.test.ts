@@ -7,10 +7,9 @@ import {
   allowedOrderActions,
   isManuallyResolvableHold,
   isOrderTerminal,
-  isPackedOnlyAheadOfPrints,
   nextOrderStatuses,
-  partialShipmentControl,
 } from "./lifecycle";
+import { isPackedOnlyAheadOfPrints, partialShipmentControl } from "./partial-shipment";
 
 import type { PermissionCode } from "@/lib/auth";
 import type { OrderActionContext } from "./lifecycle";
@@ -326,11 +325,7 @@ describe("allowedOrderActions — huỷ đơn khi hàng có sẵn đã đóng tr
   it("PACKED trở đi vẫn không huỷ được (ngoại lệ chỉ cho đơn còn đang in)", () => {
     expect(codes("Picking", "ORDER_COORDINATOR", { packedAt })).not.toContain("admin-cancel");
     expect(
-      isPackedOnlyAheadOfPrints("Partially Fulfilled", {
-        holdReason: null,
-        hasShipments: false,
-        packedAt,
-      }),
+      isPackedOnlyAheadOfPrints("Partially Fulfilled", { hasShipments: false, packedAt }),
     ).toBe(false);
   });
 });

@@ -206,6 +206,8 @@ export const ORDER_REMAINDER_FEE_LABELS = {
   reason: "Lý do giữ phí",
   detail: "Chi tiết đã thoả thuận với khách",
   amountInvalid: "Nhập số tiền nguyên lớn hơn 0",
+  /** Số đã đọc được từ ô nhập — để người dùng soát lại trước khi gửi. */
+  amountPreview: (formatted: string) => `Sẽ ghi nhận: ${formatted}`,
   reasonRequired: "Nhập lý do giữ phí",
   detailRequired: "Nhập chi tiết đã thoả thuận",
   reasonTooLong: "Lý do tối đa 500 ký tự",

@@ -3,6 +3,7 @@
 import { useId, useState } from "react";
 
 import { ORDER_LIMITS, ORDER_REMAINDER_FEE_LABELS } from "@/constants";
+import { formatMoney } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,13 +13,19 @@ import type { ReasonDialogErrors } from "./OrderReasonDialog";
 const FIELD =
   "border-border-default bg-bg-surface text-ink-primary placeholder:text-ink-tertiary focus:border-accent rounded-[var(--r-sm)] text-[0.8125rem]";
 
+/** Một chuỗi chữ số liền, hoặc các nhóm 3 chữ số cùng dùng một dấu nghìn (chấm, phẩy hoặc khoảng trắng). */
+const AMOUNT_TEXT = /^(?:\d+|\d{1,3}(?:([.,\s])\d{3}(?:\1\d{3})*))$/;
+
 /**
- * Số tiền gõ vào → số nguyên VND. Bỏ dấu phân cách nghìn (chấm / phẩy / khoảng trắng); trống hoặc có ký tự
- * lạ → NaN để schema báo "Nhập số tiền nguyên lớn hơn 0" (VND không có số lẻ — `Order#requireRemainderFee`).
+ * Số tiền gõ vào → số nguyên VND. Chỉ nhận chữ số liền ("4000000") hoặc nhóm 3 chữ số cùng một dấu nghìn
+ * ("4.000.000", "4,000,000", "4 000 000"). Mọi dạng khác — dấu thập phân ("150000.50", "1,5"), trộn dấu
+ * ("150.000,5"), ký tự lạ, trống — trả NaN để schema báo "Nhập số tiền nguyên lớn hơn 0" thay vì lặng lẽ đọc
+ * sai thành một số khác (VND không có số lẻ, `Order#requireRemainderFee`).
  */
 export function parseFeeAmount(text: string): number {
-  const digits = text.replace(/[\s.,]/g, "");
-  return /^\d+$/.test(digits) ? Number(digits) : Number.NaN;
+  const trimmed = text.trim();
+  if (!AMOUNT_TEXT.test(trimmed)) return Number.NaN;
+  return Number(trimmed.replace(/[.,\s]/g, ""));
 }
 
 /** Trạng thái ô "phí đã thoả thuận" của hộp thoại đóng phần còn lại. */
@@ -108,6 +115,11 @@ export function RemainderFeeFields({
               aria-invalid={errors["agreedFee.amount"] ? true : undefined}
               className={`${FIELD} mt-1 tabular-nums`}
             />
+            {Number.isFinite(parseFeeAmount(fee.amount)) && (
+              <p className="text-ink-secondary mt-1 text-xs tabular-nums">
+                {L.amountPreview(formatMoney(parseFeeAmount(fee.amount), "VND"))}
+              </p>
+            )}
             <FieldError message={errors["agreedFee.amount"]} />
           </div>
           <div>

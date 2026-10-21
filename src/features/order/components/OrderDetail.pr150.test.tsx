@@ -327,6 +327,24 @@ describe("OrderDetail — Đóng phần còn lại kèm phí đã thoả thuận
     );
   });
 
+  it("số tiền có dấu thập phân → báo lỗi thay vì đọc thành số lớn gấp 100 lần; số hợp lệ hiện bản xem trước", async () => {
+    await renderDetail(ORDER_PERMISSION_SETS.salesStaff, () => apiPartialOrder);
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: null });
+    const user = userEvent.setup();
+
+    await openClosureDialog(user);
+    await fillFee(user);
+    // fillFee gõ "4.000.000" → bản xem trước đúng số sẽ gửi
+    expect(screen.getByText(/Sẽ ghi nhận: .*4\.000\.000/)).toBeInTheDocument();
+    await user.clear(screen.getByLabelText(/Số tiền phí/));
+    await user.type(screen.getByLabelText(/Số tiền phí/), "150000.50");
+    expect(screen.queryByText(/Sẽ ghi nhận/)).not.toBeInTheDocument();
+    await submit(user);
+
+    expect(await screen.findByText("Nhập số tiền nguyên lớn hơn 0")).toBeInTheDocument();
+    expect(post).not.toHaveBeenCalled();
+  });
+
   it("phí không hợp lệ (số tiền, lý do, chi tiết) → chặn trước khi gọi API, lỗi từng ô", async () => {
     await renderDetail(ORDER_PERMISSION_SETS.salesStaff, () => apiPartialOrder);
     const post = vi.spyOn(api, "post").mockResolvedValue({ data: null });
