@@ -351,8 +351,9 @@ function registerAssigneeRoutes(): void {
 /**
  * `GET /fulfillment/task-candidates` (BE PR #151, `FulfillmentServiceImpl#taskCandidates`, guard
  * `fulfillment-task-assignment:CREATE`): đơn READY_TO_FULFILL chưa có task, release cũ nhất trước.
- * `warehouseId` tuỳ chọn: bỏ qua → mọi kho trong phạm vi của người gọi; kho lạ → 404 WAREHOUSE_NOT_FOUND;
- * kho ngoài phạm vi → 403 OUT_OF_DATA_SCOPE; `size` > 200 → 400.
+ * `warehouseId` tuỳ chọn: bỏ qua → mọi kho trong phạm vi của người gọi; kho ngoài phạm vi → 403
+ * OUT_OF_DATA_SCOPE (kiểm trước); người gọi không bị giới hạn kho gửi kho lạ → 404 WAREHOUSE_NOT_FOUND;
+ * `size` > 200 → 400.
  */
 function registerTaskCandidateRoutes(): void {
   registerMockRoute("GET", "/fulfillment/task-candidates", async (config) => {
@@ -370,13 +371,15 @@ function registerTaskCandidateRoutes(): void {
     }
     const { customers, orders, staffUsers, warehouses } = await import("@/lib/mock-data");
     const warehouseId = readString(params.warehouseId);
-    if (warehouseId && !warehouses.some((warehouse) => warehouse.warehouseId === warehouseId)) {
-      return beError(404, "WAREHOUSE_NOT_FOUND", "Warehouse not found");
-    }
     const caller = staffUsers.find((user) => user.userId === actor.userId);
     const callerScope: readonly string[] = caller?.warehouseIds ?? [];
+    // Như BE `TaskCandidateService`: kiểm phạm vi trước, rồi mới tới kho có tồn tại không — người ngoài
+    // phạm vi không được biết kho khác có thật hay không
     if (warehouseId && callerScope.length > 0 && !callerScope.includes(warehouseId)) {
       return beError(403, "OUT_OF_DATA_SCOPE", "The warehouse is outside your data scope");
+    }
+    if (warehouseId && !warehouses.some((warehouse) => warehouse.warehouseId === warehouseId)) {
+      return beError(404, "WAREHOUSE_NOT_FOUND", "Warehouse not found");
     }
     // Chạy sau khi store khởi tạo: seed đặt trạng thái BE của đơn theo task đã có
     const store = await getFulfillmentStore();

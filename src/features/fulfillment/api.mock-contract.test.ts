@@ -308,7 +308,7 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
     expect(await codeOf(listAssignees("khong-co-kho"))).toBe("WAREHOUSE_NOT_FOUND");
   });
 
-  it("đơn chờ xuất kho: cần task-assignment:CREATE, cũ nhất trước, lọc theo kho, kho lạ → 404, size > 200 → 400", async () => {
+  it("đơn chờ xuất kho: cần task-assignment:CREATE, cũ nhất trước, lọc theo kho, phạm vi kho trước 404", async () => {
     // Các ca trước đã tạo task cho đơn chờ → dựng lại seed
     resetOrderMockStore();
     resetFulfillmentMockStore();
@@ -326,9 +326,16 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
     const warehouseId = required(items[0]?.warehouseId, "kho của đơn");
     const inWarehouse = await listTaskCandidates({ warehouseId });
     expect(inWarehouse.items.every((c) => c.warehouseId === warehouseId)).toBe(true);
+    // BE kiểm phạm vi kho trước: người bị giới hạn kho không biết kho lạ có tồn tại hay không
+    expect(await codeOf(listTaskCandidates({ warehouseId: "khong-co-kho" }))).toBe(
+      "OUT_OF_DATA_SCOPE",
+    );
+    // Người không bị giới hạn kho (điều phối) gửi kho lạ → 404
+    actAs(USERS.coordinator);
     expect(await codeOf(listTaskCandidates({ warehouseId: "khong-co-kho" }))).toBe(
       "WAREHOUSE_NOT_FOUND",
     );
+    actAs(USERS.manager);
 
     // NV kho không có task-assignment:CREATE
     actAs(USERS.picker);

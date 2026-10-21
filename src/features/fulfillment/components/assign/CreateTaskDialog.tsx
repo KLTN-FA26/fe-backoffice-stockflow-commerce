@@ -3,96 +3,18 @@
 import { useState } from "react";
 
 import { FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS, UI_LABELS } from "@/constants";
-import { ApiError } from "@/lib/api/error";
-import { formatDate } from "@/lib/format";
 import { useCan } from "@/lib/auth";
 import { fulfillmentErrorMessage } from "@/features/fulfillment/errors";
 import { createTaskInputSchema } from "@/features/fulfillment/input-schemas";
 import { useCreateFulfillmentTask } from "@/features/fulfillment/mutations";
 import { useTaskCandidates } from "@/features/fulfillment/queries";
 import { Alert } from "@/components/shared/Alert";
-import { EmptyState } from "@/components/shared/EmptyState";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 
-import { FieldError, MONO } from "../primitives";
-import { AssigneeSelect, SELECT_FIELD } from "./AssigneeSelect";
+import { AssigneeSelect } from "./AssigneeSelect";
+import { TaskCandidateSelect } from "./TaskCandidateSelect";
 
-import type { TaskCandidate } from "@/features/fulfillment/types";
-
-const { fulfillment, loadError, common } = UI_LABELS;
-const { candidate: candidateCopy } = fulfillment;
-
-/** Có dòng in tuỳ chỉnh (BE `lines[].printed`) — cần chú ý khi lấy hàng / đóng gói. */
-const hasPrintedLines = (candidate: TaskCandidate) => candidate.lines.some((line) => line.printed);
-
-const customerOf = (candidate: TaskCandidate) =>
-  candidate.customerName || candidateCopy.guestCustomer;
-
-/** Hiện trong ô chọn sau khi chọn: số đơn + tên khách. */
-function CandidateSummary({ candidate }: { candidate: TaskCandidate }) {
-  return (
-    <span className="truncate">
-      <span className={MONO}>{candidate.orderNumber}</span>
-      <span className="text-ink-tertiary"> · {customerOf(candidate)}</span>
-    </span>
-  );
-}
-
-/** Một dòng trong danh sách: số đơn, khách, số dòng / số lượng, ngày đặt, dấu "có dòng in". */
-function CandidateOption({ candidate }: { candidate: TaskCandidate }) {
-  return (
-    <span className="flex min-w-0 flex-col items-start gap-0.5">
-      <span className="flex items-center gap-2">
-        <span className={MONO}>{candidate.orderNumber}</span>
-        <span className="truncate">{customerOf(candidate)}</span>
-        {hasPrintedLines(candidate) && (
-          <Badge variant="outline" className="text-[0.6875rem]">
-            {candidateCopy.printed}
-          </Badge>
-        )}
-      </span>
-      <span className="text-ink-tertiary text-xs">
-        {candidateCopy.summary(candidate.lineCount, candidate.totalQuantity)}
-        {candidate.placedAt && ` · ${candidateCopy.placed(formatDate(candidate.placedAt))}`}
-      </span>
-    </span>
-  );
-}
-
-/** 403 (thiếu quyền / kho ngoài phạm vi) là quyết định của BE, thử lại không đổi được → không có nút Thử lại. */
-function CandidatesError({ error, onRetry }: { error: unknown; onRetry: () => void }) {
-  const status = error instanceof ApiError ? error.status : 0;
-  const denied = status === 403;
-  return (
-    <Alert
-      tone={denied ? "warning" : "danger"}
-      title={denied ? fulfillment.noCreateTitle : loadError.serverTitle}
-    >
-      {denied || status === 404
-        ? fulfillmentErrorMessage(error, "candidates")
-        : candidateCopy.loadFailed}
-      {!denied && (
-        <>
-          {" "}
-          <Button
-            type="button"
-            variant="link"
-            size="xs"
-            className="h-auto p-0 align-baseline"
-            onClick={onRetry}
-          >
-            {common.retry}
-          </Button>
-        </>
-      )}
-    </Alert>
-  );
-}
+const { fulfillment } = UI_LABELS;
 
 type FieldErrors = Partial<Record<"orderId" | "assignedUserId", string>>;
 
@@ -134,9 +56,8 @@ export function CreateTaskDialog({ onClose }: { onClose: () => void }) {
   };
 
   const options = candidates.data?.items ?? [];
-  const selected = options.find((order) => order.orderId === orderId);
   // Người nhận theo kho của đơn đã chọn (BE `GET /fulfillment/assignees?warehouseId=`)
-  const warehouseId = selected?.warehouseId;
+  const warehouseId = options.find((order) => order.orderId === orderId)?.warehouseId;
   return (
     <FormDialog open onOpenChange={(open) => !open && onClose()}>
       <FormDialogBody
@@ -149,64 +70,23 @@ export function CreateTaskDialog({ onClose }: { onClose: () => void }) {
         onSubmit={submit}
         onCancel={onClose}
       >
-        {!canCreate ? (
+        {canCreate ? (
+          <TaskCandidateSelect
+            query={candidates}
+            value={orderId}
+            error={errors.orderId}
+            onChange={(value) =>
+              edit(() => {
+                setOrderId(value);
+                // Đổi đơn có thể đổi kho → danh sách người nhận khác, bỏ lựa chọn cũ
+                setAssignedUserId("");
+              }, "orderId")
+            }
+          />
+        ) : (
           <Alert tone="warning" title={fulfillment.noCreateTitle}>
             {fulfillment.noCreateDescription}
           </Alert>
-        ) : candidates.isError ? (
-          <CandidatesError error={candidates.error} onRetry={() => void candidates.refetch()} />
-        ) : !candidates.isPending && options.length === 0 ? (
-          <EmptyState
-            className="py-6"
-            title={candidateCopy.emptyTitle}
-            description={candidateCopy.emptyDescription}
-          />
-        ) : (
-          <div>
-            <Label htmlFor="task-order" className="text-[0.8125rem]">
-              {candidateCopy.fieldLabel}
-            </Label>
-            <Select
-              value={orderId}
-              onValueChange={(value) =>
-                edit(() => {
-                  setOrderId(value);
-                  // Đổi đơn có thể đổi kho → danh sách người nhận khác, bỏ lựa chọn cũ
-                  setAssignedUserId("");
-                }, "orderId")
-              }
-              disabled={candidates.isPending}
-            >
-              <SelectTrigger
-                id="task-order"
-                autoFocus
-                aria-invalid={errors.orderId ? true : undefined}
-                aria-describedby={errors.orderId ? "task-order-error" : undefined}
-                className={SELECT_FIELD}
-              >
-                <SelectValue
-                  placeholder={
-                    candidates.isPending ? candidateCopy.loading : candidateCopy.placeholder
-                  }
-                >
-                  {selected && <CandidateSummary candidate={selected} />}
-                </SelectValue>
-              </SelectTrigger>
-              <TitledSelectContent title={candidateCopy.fieldLabel}>
-                {options.map((candidate) => (
-                  <SelectItem key={candidate.orderId} value={candidate.orderId}>
-                    <CandidateOption candidate={candidate} />
-                  </SelectItem>
-                ))}
-              </TitledSelectContent>
-            </Select>
-            <FieldError id="task-order-error">{errors.orderId}</FieldError>
-            {candidates.data?.hasNext && (
-              <p className="text-ink-tertiary mt-1 text-xs">
-                {candidateCopy.truncated(options.length, candidates.data.totalElements)}
-              </p>
-            )}
-          </div>
         )}
         <AssigneeSelect
           canAssign={canAssign}
