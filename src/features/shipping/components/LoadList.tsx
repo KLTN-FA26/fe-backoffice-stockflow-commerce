@@ -3,9 +3,8 @@
 import { useState } from "react";
 import { CalendarClock, Truck } from "lucide-react";
 
-import { SHIPMENT_PERMISSIONS, UI_LABELS } from "@/constants";
+import { FULFILLMENT_DISPATCH_PERMISSIONS, SHIPMENT_PERMISSIONS, UI_LABELS } from "@/constants";
 import { useCan } from "@/lib/auth";
-import { DISPATCH_ROLES, hasStaffRole } from "@/features/shipping/lifecycle";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -41,7 +40,7 @@ function LoadListContent() {
   const actor = useShippingActor();
   const s = useLoadListState(canRead);
   const [opening, setOpening] = useState(false);
-  const canOpen = actor.can(SHIPMENT_PERMISSIONS.create) && hasStaffRole(actor, DISPATCH_ROLES);
+  const canOpen = actor.can(FULFILLMENT_DISPATCH_PERMISSIONS.create);
   const columns = buildLoadColumns(s.navigateToLoad);
 
   return (

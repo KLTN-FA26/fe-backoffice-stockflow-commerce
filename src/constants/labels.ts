@@ -376,7 +376,7 @@ export const UI_LABELS = {
     // Flow X-CHK (BR-DSG-003): lệch checksum là lỗi phải chặn, không có nút bỏ qua
     holdTitle: "Kiện đang bị giữ do lệch thiết kế.",
     holdDescription:
-      "Checksum file thiết kế không khớp bản khách đã chốt nên chưa được đóng gói. Người đóng gói hoặc quản lý kho khôi phục đúng file rồi bấm Kiểm tra lại thiết kế; không có thao tác bỏ qua.",
+      "Checksum file thiết kế không khớp bản khách đã chốt nên chưa được đóng gói. QC hoặc quản lý kho khôi phục đúng file rồi bấm Kiểm tra lại thiết kế; không có thao tác bỏ qua.",
     stillOnHold: "Thiết kế vẫn lệch checksum — kiện tiếp tục bị giữ",
     alreadyAssigned: "Task đang được gán cho người này — chọn người khác để gán lại.",
     artifactDisclaimer:

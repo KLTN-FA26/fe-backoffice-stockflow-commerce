@@ -10,13 +10,12 @@ import { userDisplayName } from "@/features/fulfillment/reference-api";
 import type { FulfillmentActor } from "@/features/fulfillment/lifecycle";
 
 /**
- * Người đang đăng nhập dưới dạng `FulfillmentActor`: mã quyền + mã vai trò BE (cùng một response
- * `/identity/me/permissions`) + userId để so với người được gán.
+ * Người đang đăng nhập dưới dạng `FulfillmentActor`: mã quyền (`/identity/me/permissions`) + userId để so với người được gán.
  */
 export function useFulfillmentActor(): FulfillmentActor {
   const { data } = useMyPermissions();
   const userId = useAuthStore((s) => s.user?.userId ?? null);
-  return { can: (code) => hasPermission(data, code), roles: data?.roles ?? [], userId };
+  return { can: (code) => hasPermission(data, code), userId };
 }
 
 /**

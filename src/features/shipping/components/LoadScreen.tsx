@@ -105,7 +105,7 @@ function LoadBody({ id }: { id: string }) {
         ) : (
           // Không quét được (đã bàn giao / huỷ ở máy khác, chỉ có quyền xem…) → nói rõ vì sao, kể cả
           // khi ô quét vừa biến mất giữa lúc đang quét
-          <Alert tone="info">{loadNoActionReason(load, actor)}</Alert>
+          <Alert tone="info">{loadNoActionReason(load)}</Alert>
         )}
         {/* Ô quét vừa biến mất giữa lúc còn danh sách kiện cần gỡ → vẫn hiện (chỉ khi chuyến còn xếp) */}
         {!canScan && load.status === "LOADING" && (

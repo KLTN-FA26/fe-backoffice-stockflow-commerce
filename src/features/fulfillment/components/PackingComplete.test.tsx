@@ -552,10 +552,9 @@ describe("nhãn kiện", () => {
     );
   });
 
-  it("QC không có nút xem nhãn (BE @PreAuthorize chỉ NV kho / quản lý kho)", async () => {
+  it("không có fulfillment-packing:READ (QC) → không có nút xem nhãn", async () => {
     renderPackingStation({
       identity: {
-        roles: ["QC_STAFF"],
         permissions: [
           "fulfillment-packages:VIEW_PAGE",
           "fulfillment-packages:READ",

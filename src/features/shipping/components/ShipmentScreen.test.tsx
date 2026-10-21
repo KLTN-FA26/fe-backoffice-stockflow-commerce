@@ -114,7 +114,15 @@ describe("ShipmentScreen — ghi nhận kết quả giao (BR-02)", () => {
 
   it("nhân viên kho / chỉ xem / lô chưa bàn giao / lô đã kết thúc → không nút kết quả, kèm lý do", async () => {
     renderShipment(ACTORS.warehouseStaff, shipment({ status: "HANDED_OVER" }));
-    expect(await screen.findByText(L.noActions.wrongRole)).toBeInTheDocument();
+    expect(await screen.findByText(L.noActions.viewOnly)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: L.outcomeAction.DELIVERED }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("quản lý kho (chỉ delivery-outcomes:UPDATE) thấy lô HANDED_OVER: không nút kết quả, nói cần quyền phê duyệt", async () => {
+    renderShipment(ACTORS.warehouseManager, shipment({ status: "HANDED_OVER" }));
+    expect(await screen.findByText(L.noActions.needsApproval)).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: L.outcomeAction.DELIVERED }),
     ).not.toBeInTheDocument();

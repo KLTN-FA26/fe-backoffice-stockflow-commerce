@@ -152,10 +152,10 @@ export const SHIPPING_UI_LABELS = {
       notParcel: "Chuyến nguyên xe được xếp ở màn Kế hoạch xếp xe (đang phát triển).",
     },
     noActions: {
-      viewOnly: "Bạn chỉ có quyền xem chuyến xe.",
+      viewOnly:
+        "Bạn chỉ có quyền xem chuyến xe — quét kiện và bàn giao cần quyền xếp xe & bàn giao.",
       dispatched: "Đã bàn giao cho hãng vận chuyển.",
       cancelled: "Chuyến đã huỷ — kiện đã về khu chờ xuất.",
-      notDispatcher: "Quét kiện và bàn giao là việc của nhân viên kho.",
     },
     cancelDialog: {
       title: "Huỷ chuyến xe",
@@ -278,7 +278,8 @@ export const SHIPPING_UI_LABELS = {
       viewOnly: "Bạn chỉ có quyền xem lô giao.",
       readyToDispatch: "Lô chưa bàn giao — kết quả giao chỉ ghi nhận sau khi hãng đã nhận hàng.",
       terminal: "Lô đã có kết quả cuối — không còn thao tác.",
-      wrongRole: "Kết quả giao do Điều phối đơn hàng ghi nhận (hoàn hàng: cả Quản lý kho).",
+      needsApproval:
+        'Bạn chỉ ghi nhận được hàng hoàn về kho — "đã giao" / "giao thất bại" cần quyền phê duyệt kết quả giao.',
     },
     outcomeAction: {
       DELIVERED: "Ghi nhận đã giao",
