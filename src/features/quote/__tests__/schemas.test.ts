@@ -57,3 +57,32 @@ describe("quoteFormSchema.depositPercent — BE @Digits(integer = 3, fraction = 
     ).toBe(true);
   });
 });
+
+describe("quoteLineInputSchema.tiers — checked only when Sales enters the tiers", () => {
+  it("list price ticked: a stale, blank tier left in the hidden editor does not block saving", () => {
+    expect(
+      quoteLineInputSchema.safeParse({
+        ...LINE,
+        useListPrice: true,
+        tiers: [{ minQuantity: "", unitPrice: "" }],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("own tiers: each tier is validated on its own field, duplicates and empty list refused", () => {
+    const paths = (tiers: { minQuantity: string; unitPrice: string }[]) =>
+      quoteLineInputSchema
+        .safeParse({ ...LINE, useListPrice: false, tiers })
+        .error?.issues.map((issue) => issue.path.join("."))
+        .filter((path, index, all) => all.indexOf(path) === index);
+    expect(paths([{ minQuantity: "", unitPrice: "1000" }])).toEqual(["tiers.0.minQuantity"]);
+    expect(paths([])).toEqual(["tiers"]);
+    expect(
+      paths([
+        { minQuantity: "100", unitPrice: "1000" },
+        { minQuantity: "100", unitPrice: "900" },
+      ]),
+    ).toEqual(["tiers"]);
+    expect(paths([{ minQuantity: "100", unitPrice: "1000" }])).toBeUndefined();
+  });
+});

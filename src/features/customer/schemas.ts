@@ -100,7 +100,7 @@ const optionalPhone = z
 
 /**
  * MST KHÔNG bắt buộc (quyết định 2026-10-12: hộ kinh doanh / cửa hàng nhỏ được thiếu MST).
- * Khi có: 10 số, 10-3 số, hoặc 12 số CCCD của chủ hộ (BE `TaxCode`, V20261015000540).
+ * Khi có: 10 số, 10-3 số, hoặc 12 số CCCD của chủ hộ (BE `TaxCode`, V20261017000540).
  */
 const TAX_CODE = /^\d{10}(-\d{3})?$|^\d{12}$/;
 export function normalizeTaxCode(raw: string): string {
@@ -129,12 +129,17 @@ export const customerCreateInputSchema = z
     // B1 (SPRINT2-FINISH-DECISIONS 2026-10-13): Sales chọn PREPAID hoặc DEPOSIT; CREDIT thuộc
     // người duyệt công nợ hiện có → không có trong form tạo khách.
     paymentTerm: z.enum(SALES_ONBOARDING_PAYMENT_TERMS),
-    depositPercent: depositPercentText,
+    depositPercent: z.string().trim(),
   })
-  // BE: depositPercent bắt buộc KHI VÀ CHỈ KHI chọn DEPOSIT (CreateBusinessCustomerRequest)
-  .refine((v) => v.paymentTerm !== "DEPOSIT" || v.depositPercent !== "", {
-    path: ["depositPercent"],
-    message: "Nhập tỷ lệ cọc đã thoả thuận",
+  // BE: depositPercent bắt buộc KHI VÀ CHỈ KHI chọn DEPOSIT (CreateBusinessCustomerRequest). Điều khoản
+  // khác: ô bị ẩn mà form vẫn giữ giá trị cũ (api.ts bỏ nó) → không kiểm, kẻo chặn submit không lỗi.
+  .superRefine((v, ctx) => {
+    if (v.paymentTerm !== "DEPOSIT") return;
+    const message =
+      v.depositPercent === ""
+        ? "Nhập tỷ lệ cọc đã thoả thuận"
+        : depositPercentText.safeParse(v.depositPercent).error?.issues[0]?.message;
+    if (message) ctx.addIssue({ code: "custom", path: ["depositPercent"], message });
   });
 
 export const customerUpdateInputSchema = z.object({

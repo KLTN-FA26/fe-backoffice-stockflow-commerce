@@ -125,11 +125,24 @@ export const quoteLineInputSchema = z
     ),
     /** true = để BE lấy bậc giá từ bảng giá khách (P7); false = Sales nhập bậc giá thoả thuận (P4). */
     useListPrice: z.boolean(),
-    tiers: z.array(tierInputSchema).max(20, "Tối đa 20 bậc giá"),
+    // Chỉ kiểm ở superRefine khi Sales tự nhập: tick "Theo bảng giá" thì ô bậc giá bị ẩn mà form vẫn
+    // giữ bậc cũ (api.ts cũng bỏ `tiers`) — kiểm luôn sẽ chặn lưu mà không hiện lỗi nào.
+    tiers: z.array(z.object({ minQuantity: z.string().trim(), unitPrice: z.string().trim() })),
   })
   .superRefine((line, ctx) => {
-    if (!line.useListPrice && line.tiers.length === 0)
+    if (line.useListPrice) return;
+    if (line.tiers.length === 0)
       ctx.addIssue({ code: "custom", path: ["tiers"], message: "Nhập ít nhất một bậc giá" });
+    if (line.tiers.length > 20)
+      ctx.addIssue({ code: "custom", path: ["tiers"], message: "Tối đa 20 bậc giá" });
+    line.tiers.forEach((tier, index) => {
+      for (const issue of tierInputSchema.safeParse(tier).error?.issues ?? [])
+        ctx.addIssue({
+          code: "custom",
+          path: ["tiers", index, ...issue.path],
+          message: issue.message,
+        });
+    });
     const mins = line.tiers.map((tier) => tier.minQuantity);
     if (new Set(mins).size !== mins.length)
       ctx.addIssue({

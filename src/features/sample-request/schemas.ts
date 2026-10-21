@@ -8,6 +8,7 @@ import { z } from "zod";
 import { PRODUCTION_API_STATUSES, SAMPLE_API_STATUSES } from "@/constants";
 
 import { bePageSchema } from "@/lib/api/page-schema";
+import { SKU_CODE_PATTERN, SKU_FORMAT_MESSAGE } from "@/lib/validation/sku";
 
 const productionRefSchema = z.object({
   id: z.string(),
@@ -76,7 +77,6 @@ export const sampleDetailDtoSchema = z.object({
 /* ── Input ───────────────────────────────────────────────────────────── */
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const SKU = /^[A-Z0-9-]{3,64}$/;
 
 export const sampleSpecInputSchema = z.object({
   designSnapshotId: z.string().trim().regex(UUID, "Chọn thiết kế đã được khách xác nhận"),
@@ -84,7 +84,8 @@ export const sampleSpecInputSchema = z.object({
     .string()
     .trim()
     .transform((v) => v.toUpperCase())
-    .refine((v) => SKU.test(v), "Mã phôi gồm 3–64 ký tự A–Z, 0–9, dấu -"),
+    // BE `CreateSampleRequestRequest.blankSku` là `@ValidSku` → `common.domain.Sku` (mẫu chung của FE).
+    .refine((v) => SKU_CODE_PATTERN.test(v), SKU_FORMAT_MESSAGE),
   // BE: 1–1000 cái mỗi lần mẫu (CreateSampleRequestRequest @Min(1) @Max(1000)).
   quantity: z
     .string()
