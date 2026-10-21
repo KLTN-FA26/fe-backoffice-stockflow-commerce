@@ -144,15 +144,25 @@ export const SCAN_LIMITS = {
   audioResumeTimeoutMs: 1000,
 } as const;
 
-/** Xếp xe & bàn giao — ASSUMPTION theo contract đề xuất SCRUM-288 (BE chưa có request). */
+/**
+ * Xếp xe & bàn giao — độ dài tối đa theo BE `LoadScanRequest` / `OpenLoadRequest` / `HandoverRequest`
+ * / `CancelLoadRequest` / `DeliveryOutcomeRequest` (PR #137).
+ */
 export const SHIPPING_LIMITS = {
-  scanCodeMax: 64,
-  carrierRepresentativeMax: 100,
+  scanCodeMax: 48,
+  carrierRepresentativeMax: 120,
+  vehiclePlateMax: 20,
+  driverNameMax: 120,
+  driverPhoneMax: 32,
+  signatureRefMax: 255,
   noteMax: 500,
+  cancelReasonMax: 500,
+  /** `LoadShipmentsRequest.shipmentIds` / `OpenLoadRequest.shipmentIds`. */
+  shipmentIdsMax: 200,
   /** Thời gian giữ màu phản hồi sau mỗi lần quét. */
   scanFeedbackMs: 1500,
-  /** Biên bản đang đối soát (LOADING): tự tải lại để thấy kiện quét từ máy khác. */
-  manifestPollMs: 15_000,
+  /** Chuyến đang xếp hàng (LOADING): tự tải lại để thấy kiện quét từ máy khác. */
+  loadPollMs: 15_000,
 } as const;
 
 /**

@@ -1,6 +1,14 @@
+import Link from "next/link";
 import { Truck } from "lucide-react";
 
-import { ORDER_DELIVERY_FAILURE_LABELS, ORDER_SHIPMENT_STATUS_DISPLAY } from "@/constants";
+import {
+  ADMIN_ROUTES,
+  ORDER_DELIVERY_FAILURE_LABELS,
+  ORDER_SHIPMENT_STATUS_DISPLAY,
+  SHIPMENT_PERMISSIONS,
+  UI_LABELS,
+} from "@/constants";
+import { useCan } from "@/lib/auth";
 import { formatDateTime } from "@/lib/format/date";
 import { formatMoney } from "@/lib/format";
 import { StatusDot } from "@/components/shared/StatusDot";
@@ -22,6 +30,10 @@ function failureLabel(reason: string): string {
  * Mỗi lô có trạng thái riêng; đơn không chia lô thì không hiện card này.
  */
 export function OrderShipments({ order }: OrderShipmentsProps) {
+  // Lô giao của đơn CHÍNH là lô giao của kho (`fk_order_shipment_shipment`, BE PR #137): cùng id. Mở
+  // chi tiết lô cần quyền đọc `fulfillment-shipments` — thiếu thì chỉ hiện chữ, không dẫn tới trang 403.
+  // UI-only — Backend phải re-check (GET /fulfillment/shipments/{id}).
+  const canOpenShipment = useCan(SHIPMENT_PERMISSIONS.read);
   if (order.shipments.length === 0) return null;
   const skuOf = new Map(order.lines.map((line) => [line.lineId, line.sku]));
 
@@ -41,7 +53,17 @@ export function OrderShipments({ order }: OrderShipmentsProps) {
             className="border-border-default rounded-[var(--r-sm)] border p-3 text-[0.8125rem]"
           >
             <div className="flex items-center justify-between gap-2">
-              <span className="text-ink-primary font-semibold">Lô {index + 1}</span>
+              {canOpenShipment ? (
+                <Link
+                  href={ADMIN_ROUTES.shipments.detail(shipment.shipmentId)}
+                  aria-label={`${UI_LABELS.shipping.orderShipments.open} ${index + 1}`}
+                  className="text-accent font-semibold hover:underline"
+                >
+                  Lô {index + 1}
+                </Link>
+              ) : (
+                <span className="text-ink-primary font-semibold">Lô {index + 1}</span>
+              )}
               <StatusDot
                 domain="shipment"
                 status={ORDER_SHIPMENT_STATUS_DISPLAY[shipment.status]}

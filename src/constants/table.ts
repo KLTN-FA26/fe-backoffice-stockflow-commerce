@@ -123,13 +123,28 @@ export const INVENTORY_ITEM_COLUMNS = {
   POLICY: "policyConfigured",
 } as const;
 
-/** Cột danh sách chuyến xe (contract đề xuất SCRUM-288). */
+/** Cột danh sách chuyến xe (BE `LoadRowResponse`). */
 export const LOAD_COLUMNS = {
   ACTIONS: "actions",
   CARRIER: "carrier",
+  COD: "cod",
+  CODE: "code",
   DISPATCHED_AT: "dispatchedAt",
-  NUMBER: "number",
   PROGRESS: "progress",
+  SHIPMENTS: "shipments",
   STATUS: "status",
   VEHICLE: "vehicle",
+} as const;
+
+/** Cột danh sách lô giao (BE `ShipmentRowResponse`). */
+export const SHIPMENT_COLUMNS = {
+  ACTIONS: "actions",
+  CARRIER: "carrier",
+  COD: "cod",
+  CODE: "code",
+  LOAD: "load",
+  ORDER: "order",
+  PACKAGES: "packages",
+  READY_AT: "readyAt",
+  STATUS: "status",
 } as const;

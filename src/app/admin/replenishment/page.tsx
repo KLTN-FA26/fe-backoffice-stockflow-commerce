@@ -172,7 +172,7 @@ function shouldFlag(row: ReplenishmentProposal): boolean {
 /**
  * Đề xuất nhập hàng — BE chưa có API (chỉ có đánh giá ngưỡng tồn ở inventory), màn này chạy hoàn
  * toàn trên mock-data. Ngoài chế độ mock phải báo "đang phát triển" thay vì hiện dữ liệu mẫu như
- * thể là dữ liệu thật (cùng cách với `ShippingGate`).
+ * thể là dữ liệu thật (màn mock-only có cổng riêng).
  */
 export default function ReplenishmentPage() {
   const isMock = useIsMock();

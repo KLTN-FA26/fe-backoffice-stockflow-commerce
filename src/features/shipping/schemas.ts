@@ -1,62 +1,109 @@
 /**
- * Shipping (module 09) — zod DTO chuyến xe theo CONTRACT ĐỀ XUẤT cho BE SCRUM-288.
+ * Shipping (module 09) — zod DTO khớp BE PR #137 (SCRUM-288/292/293): `CarrierResponse`,
+ * `ShipmentRowResponse`, `ShipmentResponse`.
  *
- * ASSUMPTION: chờ BE SCRUM-288. BE develop chưa có entity / endpoint load, manifest — hình dạng
- * dưới đây dựng từ BE business-design 03-state-machines §11 + 04c F-SHP (bảng `load`, `load_line`
- * `loaded_at`, `manifest`). Khi BE lên: khớp lại field ở đây + `api.ts` + mock, không sửa component.
+ * BE bật Jackson `non_null` → field null bị BỎ khỏi JSON nên field tuỳ chọn khai `.nullish()`; kiểu
+ * nguyên thuỷ Java (int, long, boolean) luôn có mặt nên giữ bắt buộc. `BigDecimal` về dạng số JSON,
+ * `Instant` về chuỗi ISO. Enum khoan dung (`.catch("UNKNOWN")`): giá trị BE thêm sau không làm hỏng
+ * cả trang, màn hiện "Không rõ" và không mở thao tác nào.
  * Không có `trackingNumber` / `awb`: hãng là bên thứ ba (rescope 2026-10-06).
  */
 
 import { z } from "zod";
 
-import { LOAD_STATUSES } from "@/constants";
+import {
+  CARRIER_STATUSES,
+  DELIVERY_MODES,
+  PACKAGE_API_STATUSES,
+  PACK_SHIPMENT_API_STATUSES,
+} from "@/constants";
 import { bePageSchema } from "@/lib/api/page-schema";
 
-export const loadStatusSchema = z.enum(LOAD_STATUSES);
+export const count = z.number().int().min(0);
+export const measure = z.number().nonnegative();
+export const isoInstant = z.iso.datetime({ offset: true });
 
-/** Kiện thuộc chuyến (`load_line`) — `loadedAt` có giá trị khi đã quét lên xe (F-SHP bước 04). */
-export const beLoadLineSchema = z.object({
-  loadLineId: z.string(),
-  packageId: z.string(),
-  packageCode: z.string(),
-  orderId: z.string(),
-  orderNumber: z.string().nullish(),
-  weightKg: z.number().nonnegative().nullish(),
-  loadedAt: z.iso.datetime({ offset: true }).nullish(),
-  loadedBy: z.string().nullish(),
-});
+export function tolerantEnum<const T extends readonly [string, ...string[]]>(values: T) {
+  return z.enum([...values, "UNKNOWN"]).catch("UNKNOWN");
+}
 
-/** Biên bản bàn giao (`manifest`) — có khi chuyến đã DISPATCHED (F-SHP bước 05). */
-export const beManifestSchema = z.object({
-  manifestNumber: z.string(),
-  carrierRepresentative: z.string(),
-  note: z.string().nullish(),
-  handedOverBy: z.string().nullish(),
-  handedOverAt: z.iso.datetime({ offset: true }),
-});
+export const deliveryModeSchema = tolerantEnum(DELIVERY_MODES);
+/** `ShipmentStatus` của lô giao (docs 09 §5). */
+export const shipmentStatusSchema = tolerantEnum(PACK_SHIPMENT_API_STATUSES);
 
-const loadHeaderShape = {
-  loadId: z.string(),
-  number: z.string(),
-  warehouseId: z.string(),
-  status: loadStatusSchema,
-  // Xe đặt ngoài hệ thống (SCRUM-287): chỉ ghi nhận biển số / loại xe / hãng
-  vehiclePlate: z.string().nullish(),
-  vehicleType: z.string().nullish(),
-  carrierName: z.string().nullish(),
-  plannedPackages: z.number().int().min(0),
-  loadedPackages: z.number().int().min(0),
-  bookedAt: z.iso.datetime({ offset: true }).nullish(),
-  dispatchedAt: z.iso.datetime({ offset: true }).nullish(),
-};
+/* ── Hãng vận chuyển ─────────────────────────────────────────────────── */
 
-export const beLoadRowSchema = z.object(loadHeaderShape);
-
-export const beLoadSchema = z.object({
-  ...loadHeaderShape,
-  lines: z.array(beLoadLineSchema).default([]),
-  manifest: beManifestSchema.nullish(),
+/** BE `CarrierResponse` — hãng trong danh mục (docs 09 §3: tên và liên hệ). */
+export const beCarrierSchema = z.object({
+  carrierId: z.string(),
+  code: z.string(),
+  name: z.string(),
+  contactName: z.string().nullish(),
+  contactPhone: z.string().nullish(),
+  status: tolerantEnum(CARRIER_STATUSES),
   version: z.number().int(),
 });
 
-export const beLoadPageSchema = bePageSchema(beLoadRowSchema);
+export const beCarrierPageSchema = bePageSchema(beCarrierSchema);
+
+/* ── Lô giao ─────────────────────────────────────────────────────────── */
+
+/** BE `ShipmentRowResponse`. `codAmount`: số hãng thu — của nhãn tới khi bàn giao chốt (BR-04). */
+export const beShipmentRowSchema = z.object({
+  shipmentId: z.string(),
+  /** `<số đơn>-S<n>`. */
+  code: z.string(),
+  orderId: z.string(),
+  orderNumber: z.string().nullish(),
+  warehouseId: z.string(),
+  status: shipmentStatusSchema,
+  deliveryMode: deliveryModeSchema,
+  packageCount: count,
+  codAmount: measure.nullish(),
+  carrierId: z.string().nullish(),
+  carrierName: z.string().nullish(),
+  /** Chuyến đang mở hoặc đã bàn giao; vắng khi lô chưa lên chuyến nào. */
+  loadId: z.string().nullish(),
+  loadCode: z.string().nullish(),
+  partial: z.boolean(),
+  readyAt: isoInstant.nullish(),
+  handedOverAt: isoInstant.nullish(),
+  outcomeAt: isoInstant.nullish(),
+  failureReason: z.string().nullish(),
+  /** Bàn giao trước khi có chuyến — không biên bản nào nêu lô này. */
+  wholeOrderHandover: z.boolean(),
+  version: z.number().int(),
+});
+
+export const beShipmentPageSchema = bePageSchema(beShipmentRowSchema);
+
+/** BE `ShipmentResponse.Parcel`. */
+export const beShipmentParcelSchema = z.object({
+  packageId: z.string(),
+  labelCode: z.string(),
+  status: tolerantEnum(PACKAGE_API_STATUSES),
+  weightKg: measure.nullish(),
+  lengthCm: measure.nullish(),
+  widthCm: measure.nullish(),
+  heightCm: measure.nullish(),
+});
+
+/** BE `ShipmentResponse.Step` — mỗi bước ghi người thực hiện và thời điểm (docs 09 BR-02). */
+export const beShipmentStepSchema = z.object({
+  status: shipmentStatusSchema,
+  occurredAt: isoInstant,
+  recordedBy: z.string().nullish(),
+  recordedByName: z.string().nullish(),
+  note: z.string().nullish(),
+});
+
+/** BE `ShipmentResponse` — lô giao kèm kiện và lịch sử (chỉ nhân viên xem). */
+export const beShipmentSchema = z.object({
+  shipment: beShipmentRowSchema,
+  partialNote: z.string().nullish(),
+  /** Ghi chú nội bộ của lần giao thất bại — không hiện cho khách. */
+  failureNote: z.string().nullish(),
+  cancelledAt: isoInstant.nullish(),
+  packages: z.array(beShipmentParcelSchema),
+  timeline: z.array(beShipmentStepSchema),
+});

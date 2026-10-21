@@ -1,53 +1,76 @@
 import { describe, expect, it } from "vitest";
 
-import { SHIPPING_FIELD_MESSAGES } from "@/constants";
+import { apiLoad, loadShipment, parcel, shipmentRow } from "./__fixtures__/load";
+import {
+  findShipmentByCode,
+  isShipmentComplete,
+  loadedLabelCodes,
+  missingParcels,
+  reconcileLoad,
+  summarizeSelection,
+} from "./selectors";
 
-import { apiLoad, line } from "./__fixtures__/load";
-import { handoverInputSchema, scanPackageInputSchema } from "./input-schemas";
-import { orderCount, reconcileLoad } from "./selectors";
-
-describe("reconcileLoad — đối soát kế hoạch / thực tế", () => {
-  it("tách kiện đã lên / chưa lên, kiện quét gần nhất lên đầu", () => {
-    const load = apiLoad({
-      lines: [line(1, "2026-10-12T01:00:00Z"), line(2, null), line(3, "2026-10-12T01:05:00Z")],
-    });
+describe("reconcileLoad", () => {
+  it("đếm kiện đã lên xe / cần lên xe và liệt kê lô còn thiếu", () => {
+    const load = apiLoad();
     const result = reconcileLoad(load);
-    expect(result.planned).toBe(3);
-    expect(result.loaded).toBe(2);
-    expect(result.loadedLines.map((l) => l.packageCode)).toEqual(["PKG-0003", "PKG-0001"]);
-    expect(result.missingLines.map((l) => l.packageCode)).toEqual(["PKG-0002"]);
-    expect(result.progress).toBe(66);
-    expect(result.totalWeightKg).toBe(4.5);
+    expect(result).toMatchObject({ expected: 3, loaded: 1, progress: 33 });
+    expect(result.incompleteShipments.map((s) => s.code)).toEqual(["SO-2-S1"]);
   });
 
-  it("chuyến rỗng → tiến độ 0", () => {
-    expect(reconcileLoad(apiLoad({ lines: [] })).progress).toBe(0);
-  });
-
-  it("đếm đơn hàng khác nhau", () => {
-    const load = apiLoad({
-      lines: [line(1, null), { ...line(2, null), orderId: "ORD-2026-0001" }],
-    });
-    expect(orderCount(load)).toBe(1);
+  it("không có kiện → tiến độ 0; đủ kiện → 100", () => {
+    expect(reconcileLoad(apiLoad({ shipments: [] })).progress).toBe(0);
+    const full = apiLoad({ shipments: [loadShipment("A-S1", [parcel("P1", true)])] });
+    expect(reconcileLoad(full).progress).toBe(100);
+    expect(reconcileLoad(full).incompleteShipments).toEqual([]);
   });
 });
 
-describe("input schemas — quét kiện / bàn giao", () => {
-  it("mã quét được trim + in hoa; rỗng bị chặn", () => {
-    expect(scanPackageInputSchema.parse({ packageCode: "  pkg-0001 " }).packageCode).toBe(
-      "PKG-0001",
-    );
-    expect(scanPackageInputSchema.safeParse({ packageCode: "  " }).success).toBe(false);
+describe("lô trên chuyến", () => {
+  const [done, partial] = apiLoad().shipments;
+
+  it("đủ khi mọi kiện đã lên xe; liệt kê kiện còn thiếu", () => {
+    expect(done && isShipmentComplete(done)).toBe(true);
+    expect(partial && isShipmentComplete(partial)).toBe(false);
+    expect(partial && missingParcels(partial).map((p) => p.labelCode)).toEqual([
+      "PKG-SO-2-1",
+      "PKG-SO-2-2",
+    ]);
   });
 
-  it("bàn giao cần tên đại diện hãng và xác nhận đã ký biên bản giấy", () => {
-    const missingSign = handoverInputSchema.safeParse({ carrierRepresentative: "Anh Tài xế" });
-    expect(missingSign.error?.issues[0]?.message).toBe(SHIPPING_FIELD_MESSAGES.signedRequired);
-    expect(
-      handoverInputSchema.safeParse({ carrierRepresentative: " ", signed: true }).success,
-    ).toBe(false);
-    expect(
-      handoverInputSchema.safeParse({ carrierRepresentative: "Anh Tài xế", signed: true }).success,
-    ).toBe(true);
+  it("lô không kiện không bao giờ 'đủ'", () => {
+    expect(isShipmentComplete(loadShipment("E-S1", []))).toBe(false);
+  });
+
+  it("mã kiện đang trên xe và tra lô theo mã", () => {
+    const load = apiLoad();
+    expect(loadedLabelCodes(load)).toEqual(["PKG-SO-1-1"]);
+    expect(findShipmentByCode(load, "SO-2-S1")?.shipmentId).toBe("shp-SO-2-S1");
+    expect(findShipmentByCode(load, "NOPE")).toBeUndefined();
+  });
+});
+
+describe("summarizeSelection — lô đã chọn để mở chuyến", () => {
+  it("cùng kho, hãng chung → dùng cho chuyến", () => {
+    const rows = [
+      shipmentRow({ carrierId: "c1" }),
+      shipmentRow({ shipmentId: "s2", carrierId: "c1" }),
+    ];
+    expect(summarizeSelection(rows)).toEqual({
+      warehouseId: "wh-hcm",
+      mixedWarehouses: false,
+      carrierId: "c1",
+      mixedCarriers: false,
+    });
+  });
+
+  it("khác kho hoặc khác hãng được báo; chưa gán hãng thì không ép hãng", () => {
+    const mixed = summarizeSelection([
+      shipmentRow({ carrierId: "c1" }),
+      shipmentRow({ shipmentId: "s2", warehouseId: "wh-hn", carrierId: "c2" }),
+    ]);
+    expect(mixed).toMatchObject({ warehouseId: null, mixedWarehouses: true, mixedCarriers: true });
+    expect(summarizeSelection([shipmentRow()]).carrierId).toBeNull();
+    expect(summarizeSelection([])).toMatchObject({ warehouseId: null, mixedWarehouses: false });
   });
 });

@@ -2,7 +2,7 @@ import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { UI_LABELS } from "@/constants";
+import { SHIPMENT_PERMISSIONS, UI_LABELS } from "@/constants";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
@@ -296,6 +296,27 @@ describe("OrderDetail — hiển thị vòng đời (BE PR #133)", () => {
     expect(screen.getByText("Đã bàn giao:")).toBeInTheDocument();
     expect(screen.getByText("Đã giao:")).toBeInTheDocument();
     expect(screen.getByText("Giao một phần")).toBeInTheDocument();
+  });
+
+  it("có quyền đọc lô giao → 'Lô 1' dẫn tới chi tiết lô giao (cùng id với lô của kho)", async () => {
+    await renderDetail(
+      [...ORDER_PERMISSION_SETS.readOnly, SHIPMENT_PERMISSIONS.read],
+      () => apiPartialOrder,
+    );
+
+    const link = await screen.findByRole("link", { name: "Xem lô giao 1" });
+    expect(link).toHaveTextContent("Lô 1");
+    expect(link).toHaveAttribute(
+      "href",
+      `/admin/shipments/${apiPartialOrder.shipments?.[0]?.shipmentId}`,
+    );
+  });
+
+  it("thiếu quyền đọc lô giao → chỉ hiện chữ 'Lô 1', không dẫn tới trang bị từ chối", async () => {
+    await renderDetail(ORDER_PERMISSION_SETS.readOnly, () => apiPartialOrder);
+
+    await screen.findByText("Lô 1");
+    expect(screen.queryByRole("link", { name: /Xem lô giao/ })).not.toBeInTheDocument();
   });
 });
 

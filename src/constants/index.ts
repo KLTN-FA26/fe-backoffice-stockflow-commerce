@@ -97,6 +97,7 @@ export {
   INVENTORY_ITEM_COLUMNS,
   INVOICE_COLUMNS,
   LOAD_COLUMNS,
+  SHIPMENT_COLUMNS,
   PAGE_SIZE,
   PO_COLUMNS,
   PRODUCT_COLUMNS,
@@ -108,7 +109,9 @@ export {
   VARIANT_COLUMNS,
 } from "./table";
 export {
+  CARRIER_STATUSES,
   DELIVERY_MODES,
+  DELIVERY_OUTCOMES,
   DESIGN_ARTIFACT_ROLES,
   FULFILLABLE_ORDER_API_STATUSES,
   INVOICE_STATUS,
@@ -166,6 +169,7 @@ export {
   TRANSFER_STATUSES,
 } from "./statuses";
 export type {
+  DeliveryOutcome,
   DesignArtifactRole,
   InvoiceStatus,
   LoadStatus,
@@ -185,6 +189,7 @@ export type {
   ReceiptApiStatus,
   ReceiptQcProgressApi,
   ReceiptStatus,
+  ShipmentApiStatus,
   SkuStatus,
   SupplierApiStatus,
   SupplierChannel,

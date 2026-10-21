@@ -266,7 +266,7 @@ export function activateMockAdapter(): void {
     import("./mock-routes-stock-alerts"),
     import("./mock-routes-fulfillment"),
     import("./mock-routes-transfer-orders"),
-    import("./mock-routes-loads"),
+    import("./mock-routes-dispatch"),
     import("./mock-routes-taxonomy"),
   ]).then(
     ([
@@ -286,7 +286,7 @@ export function activateMockAdapter(): void {
       { registerStockAlertMockRoutes },
       { registerFulfillmentMockRoutes },
       { registerTransferOrderMockRoutes },
-      { registerLoadMockRoutes },
+      { registerDispatchMockRoutes },
       { registerTaxonomyMockRoutes },
     ]) => {
       registerAllMockRoutes();
@@ -305,7 +305,7 @@ export function activateMockAdapter(): void {
       registerStockAlertMockRoutes();
       registerFulfillmentMockRoutes();
       registerTransferOrderMockRoutes();
-      registerLoadMockRoutes();
+      registerDispatchMockRoutes();
       registerTaxonomyMockRoutes();
     },
   );

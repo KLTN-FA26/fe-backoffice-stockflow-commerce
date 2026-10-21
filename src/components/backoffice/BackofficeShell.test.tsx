@@ -165,7 +165,7 @@ describe("Inventory sidebar entries follow backend permission codes", () => {
 describe("shell shows no demo data against the real backend", () => {
   it("has no mock-only entries, no warning badges and no mock warehouse switcher", async () => {
     await renderShell([]);
-    for (const name of ["Hoá đơn NCC", "Đề xuất nhập hàng", "Xếp xe & bàn giao"]) {
+    for (const name of ["Hoá đơn NCC", "Đề xuất nhập hàng"]) {
       expect(navLink(name)).not.toBeInTheDocument();
     }
     expect(document.querySelector('[data-sidebar="menu-badge"]')).toBeNull();

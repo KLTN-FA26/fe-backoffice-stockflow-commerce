@@ -16,6 +16,7 @@ import {
   Move,
   Package,
   PackageCheck,
+  PackageOpen,
   Palette,
   PanelLeftClose,
   PanelLeftOpen,
@@ -319,13 +320,18 @@ export const NAV_GROUPS: NavGroup[] = [
         permission: SHIPMENT_PERMISSIONS.viewPage,
       },
       {
-        label: UI_LABELS.shipping.pageTitle,
-        tooltip: "Loading & carrier handover",
+        label: UI_LABELS.shipping.shipments.title,
+        tooltip: "Shipments waiting for dispatch",
         href: ADMIN_ROUTES.shipments.list,
+        icon: PackageOpen,
+        permission: SHIPMENT_PERMISSIONS.viewPage,
+      },
+      {
+        label: UI_LABELS.shipping.loads.title,
+        tooltip: "Loading & carrier handover",
+        href: ADMIN_ROUTES.loads.list,
         icon: Truck,
         permission: SHIPMENT_PERMISSIONS.viewPage,
-        // BE SCRUM-288 chưa có /fulfillment/loads — lên BE thật sẽ gọi API không tồn tại
-        mockOnly: true,
       },
     ],
   },
@@ -343,7 +349,7 @@ interface BreadcrumbItem {
 /** Đoạn cuối URL là trang con của một bản ghi: `/<module>/<id>/<đoạn>` → "… / <id> / <nhãn>". */
 const SUBPAGE_LABELS: Record<string, string> = {
   edit: "Chỉnh sửa",
-  manifest: UI_LABELS.shipping.manifestTitle,
+  manifest: UI_LABELS.shipping.manifest.title,
 };
 
 const DETAIL_LABEL_BY_ROUTE: Record<string, string> = {
