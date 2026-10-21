@@ -418,7 +418,6 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   "Repeat Design": "In lại thiết kế cũ",
   "Subcontractor Late": "Nhà gia công trễ hạn",
   "Not Reconciled": "Chưa đối soát phôi",
-  DISPATCHED: "Đã xuất gửi đi",
   IN_PRODUCTION: "Đang gia công",
   RECEIVED_PARTIAL: "Nhận một phần",
   RECEIVED_COMPLETED: "Hoàn tất nhận",

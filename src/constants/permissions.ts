@@ -43,6 +43,7 @@ export const ORDER_PERMISSIONS = {
   viewPage: "sales-orders:VIEW_PAGE",
   // Đọc dữ liệu (GET /orders, /orders/{id}) — seed BE: SALES_STAFF, ORDER_COORDINATOR
   read: "sales-orders:READ",
+  create: "sales-orders:CREATE",
   approve: "sales-orders:APPROVE",
   cancel: "sales-order-cancellations:UPDATE",
 } as const;
@@ -273,12 +274,6 @@ export const CATALOG_CUSTOMER_PRICE_PERMISSIONS = {
   read: "catalog-customer-prices:READ",
 } as const;
 
-/** Kho & sơ đồ vị trí — `warehouse-warehouses`, `warehouse-locations` (BE WarehouseController). */
-export const WAREHOUSE_PERMISSIONS = {
-  read: "warehouse-warehouses:READ",
-  locationsRead: "warehouse-locations:READ",
-} as const;
-
 /**
  * Thiết kế đã khách xác nhận — `design-snapshots` (BE PR #109 `DesignSnapshotController`, cấp cho SALES_STAFF ở
  * V20261015000800). Chỉ back-office; BE từ chối khách hàng dù khách cũng có mã quyền này.
@@ -356,6 +351,7 @@ export const SHIPMENT_PERMISSIONS = {
  */
 export const WAREHOUSE_PERMISSIONS = {
   read: "warehouse-warehouses:READ",
+  locationsRead: "warehouse-locations:READ",
 } as const;
 
 /** BE develop IdentityResources / IdentityController: read-only RBAC screen APIs. */

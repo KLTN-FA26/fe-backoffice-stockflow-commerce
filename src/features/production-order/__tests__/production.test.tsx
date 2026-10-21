@@ -157,6 +157,7 @@ describe("production detail — real role gating", () => {
       "/production/orders/po-1/scrap": () => [],
       "/production/orders/po-1/material-issues": () => [],
       "/production/orders/po-1/qc-results": () => [],
+      "/production/orders/po-1/packing-locations": () => ["PACK-01"],
     },
   });
 
