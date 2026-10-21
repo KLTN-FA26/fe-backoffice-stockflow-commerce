@@ -7,11 +7,10 @@ import { ATTRIBUTE_PERMISSIONS } from "@/constants";
 import { usePermissionChecker } from "@/lib/auth";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { SlideOverPanel } from "@/components/shared/SlideOverPanel";
-import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
 
 import { attributeErrorMessage } from "../attribute-errors";
-import { activeStatus } from "../active-status";
+import { ActiveDot } from "../active-status";
 import { DATA_TYPE_LABEL } from "../attribute-labels";
 import { useDeleteAttribute, useDeleteAttributeValue } from "../attribute-queries";
 import { holdsValues } from "../attribute-schemas";
@@ -81,7 +80,7 @@ export function AttributeDetailPanel({
       title={attribute?.code ?? ""}
       monoTitle
       subtitle={attribute?.name}
-      badge={attribute && <StatusDot domain="product" status={activeStatus(attribute.active)} />}
+      badge={attribute && <ActiveDot active={attribute.active} />}
     >
       {attribute && (
         <div className="space-y-6">

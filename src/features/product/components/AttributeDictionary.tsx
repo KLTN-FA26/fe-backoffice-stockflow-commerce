@@ -21,7 +21,6 @@ import {
   codeCell,
   EmptyCell,
   nameCell,
-  statusCell,
   textCell,
   viewColumn,
 } from "@/components/shared/column-helpers";
@@ -29,7 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 import { attributeErrorMessage } from "../attribute-errors";
-import { activeStatus } from "../active-status";
+import { ActiveDot } from "../active-status";
 import { DATA_TYPE_LABEL } from "../attribute-labels";
 import { ATTRIBUTE_LIST_SIZE } from "../attribute-api";
 import { useAttributes } from "../attribute-queries";
@@ -104,7 +103,7 @@ export function AttributeDictionary() {
           <EmptyCell />
         ),
     },
-    statusCell<Attribute>("active", "Trạng thái", (row) => activeStatus(row.active), "product"),
+    { key: "active", header: "Trạng thái", cell: (row) => <ActiveDot active={row.active} /> },
     viewColumn<Attribute>((row) => ({
       label: `Xem ${row.code}`,
       onOpen: () => setSelectedId(row.attributeId),
@@ -175,14 +174,14 @@ export function AttributeDictionary() {
                 },
                 {
                   label: "Loại",
-                  value: dataType ? DATA_TYPE_LABEL[dataType] : "Tất cả",
+                  value: dataType ? DATA_TYPE_LABEL[dataType] : UI_LABELS.taxonomy.allStatuses,
                   active: dataType !== null,
                   onClear: () => void setDataType(null),
                   clearLabel: "Xoá lọc loại",
                 },
                 {
                   label: "Trạng thái",
-                  value: active ? ATTRIBUTE_ACTIVE_LABEL[active] : "Tất cả",
+                  value: active ? ATTRIBUTE_ACTIVE_LABEL[active] : UI_LABELS.taxonomy.allStatuses,
                   active: active !== null,
                   onClear: () => void setActive(null),
                   clearLabel: "Xoá lọc trạng thái",

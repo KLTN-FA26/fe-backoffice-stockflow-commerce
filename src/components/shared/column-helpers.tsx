@@ -288,7 +288,7 @@ export function ToneDot({
   tone,
   label,
 }: {
-  tone: "positive" | "warning" | "danger" | "info" | "neutral";
+  tone: "positive" | "warning" | "danger" | "info" | "neutral" | "muted";
   label: string;
 }) {
   const dot = {
@@ -297,6 +297,7 @@ export function ToneDot({
     danger: "bg-danger",
     info: "bg-info",
     neutral: "bg-neutral",
+    muted: "bg-muted-tone",
   }[tone];
   return (
     <span className="text-ink-primary inline-flex items-center gap-2 text-[0.8125rem] leading-[1.4] font-medium whitespace-nowrap">

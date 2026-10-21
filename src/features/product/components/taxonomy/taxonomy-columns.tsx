@@ -4,9 +4,9 @@ import { ChevronDown, ChevronRight, Folder, FolderOpen } from "lucide-react";
 
 import { TAXONOMY_BRAND_COLUMNS, TAXONOMY_CATEGORY_COLUMNS, UI_LABELS } from "@/constants";
 
-import { CELL, statusCell } from "@/components/shared/column-helpers";
+import { CELL } from "@/components/shared/column-helpers";
 
-import { activeStatus } from "../../active-status";
+import { ActiveDot } from "../../active-status";
 import { TaxonomyThumb } from "./TaxonomyThumb";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
@@ -38,7 +38,7 @@ export const CATEGORY_COLUMN_LABELS: Record<string, string> = {
 const codeCell = (code: string) => <span className={CELL.code}>{code}</span>;
 
 const activeCell = <T extends { active: boolean }>(key: string) =>
-  statusCell<T>(key, F.active, (row) => activeStatus(row.active), "product");
+  ({ key, header: F.active, cell: (row: T) => <ActiveDot active={row.active} /> }) as ColumnDef<T>;
 
 /** Cột bảng thương hiệu — đúng field `BrandResponse`. */
 export function buildBrandColumns(): ColumnDef<Brand>[] {

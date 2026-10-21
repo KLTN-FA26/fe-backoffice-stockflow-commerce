@@ -13,6 +13,7 @@ import {
   STOCK_MOVEMENT_LABELS,
   STOCK_MOVEMENT_TYPES,
 } from "@/constants/inventory";
+import { UI_LABELS } from "@/constants";
 import { INVENTORY_PERMISSIONS } from "@/constants/permissions";
 
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -62,7 +63,7 @@ afterAll(() => {
 });
 
 const SKU_SEARCH = { name: `${INVENTORY_LABELS.sku}…` };
-const NEXT_PAGE = { name: INVENTORY_LABELS.next };
+const NEXT_PAGE = { name: "Sau" };
 
 // Radix Select dùng pointer capture — jsdom không có
 function patchRadix() {
@@ -110,6 +111,28 @@ describe("movement ledger screen", () => {
       page: "1",
     });
     expect(screen.getByRole("textbox", SKU_SEARCH)).toHaveValue("CUP-PP-500");
+  });
+
+  it("a page past the last one says so and offers the first page, not 'no movements'", async () => {
+    const pages = vi.fn();
+    server.use(
+      http.get(endpoint, ({ request }) => {
+        const page = Number(new URL(request.url).searchParams.get("page"));
+        pages(page);
+        // BE: page 8 is past the end — no items, but the ledger is not empty
+        return HttpResponse.json({
+          success: true,
+          data: { ...emptyPage, page, totalElements: 12, totalPages: 1, hasPrevious: page > 0 },
+        });
+      }),
+    );
+    const updates = renderHistory("?page=9");
+    expect(await screen.findByText(UI_LABELS.emptyList.invalidPageTitle)).toBeInTheDocument();
+    expect(screen.queryByText(INVENTORY_LABELS.noMovements)).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: UI_LABELS.emptyList.firstPage }));
+    await waitFor(() => expect(updates).toHaveBeenCalled());
+    // Trang 1 là mặc định → nuqs bỏ hẳn `page` khỏi URL
+    expect(updates.mock.lastCall?.[0].searchParams.get("page")).toBeNull();
   });
 
   it("changes type in URL and resets the page before the server request", async () => {
