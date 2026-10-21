@@ -22,6 +22,8 @@ export const ADMIN_ROUTES = {
   purchaseOrders: {
     create: `${ADMIN_BASE}/purchase-orders/create`,
     detail: (id: string) => `${ADMIN_BASE}/purchase-orders/${id}`,
+    // Sửa PO nháp (BE SCRUM-462)
+    edit: (id: string) => `${ADMIN_BASE}/purchase-orders/${id}/edit`,
     list: `${ADMIN_BASE}/purchase-orders`,
   },
   invoices: {

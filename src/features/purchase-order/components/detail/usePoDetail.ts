@@ -31,6 +31,7 @@ export function usePoDetail(id: string) {
   // Breadcrumb hiện số PO thay vì UUID.
   useBreadcrumbLabel(id, po?.poNumber);
 
+  // "Sửa nháp" (`edit`) không mở dialog — màn chi tiết điều hướng sang màn sửa nháp.
   const actions = po ? allowedPoActions(po, can) : [];
   const poActions = usePoActions(po, () => void poQuery.refetch());
 

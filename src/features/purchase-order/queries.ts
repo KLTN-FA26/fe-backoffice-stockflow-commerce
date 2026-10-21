@@ -50,6 +50,29 @@ export const usePurchaseOrder = createDetailQuery<PurchaseOrder>(poKeys, getPurc
     isDeliveryInFlight(query.state.data) ? PO_LIMITS.deliveryPollMs : false,
 });
 
+/**
+ * Tải lại chi tiết PO ngay từ server (`staleTime: 0`) cho màn sửa nháp sau lỗi lưu. Dùng `fetchQuery`
+ * thay `refetch()`: lỗi (kể cả bị refetch khác huỷ) ném ra → `{ error }`, không bao giờ trả data cũ
+ * React Query còn giữ như kết quả của `refetch()` bị huỷ.
+ */
+export function usePurchaseOrderReload(id: string) {
+  const queryClient = useQueryClient();
+  return async (): Promise<{ po?: PurchaseOrder; error?: unknown }> => {
+    try {
+      const po = await queryClient.fetchQuery({
+        queryKey: poKeys.detail(id),
+        queryFn: ({ signal }) => getPurchaseOrder(id, signal),
+        staleTime: 0,
+        // Chỉ để phân loại lỗi vừa gặp: báo ngay, không giữ nút lưu khoá trong lúc thử lại (backoff)
+        retry: false,
+      });
+      return { po };
+    } catch (error) {
+      return { error };
+    }
+  };
+}
+
 export const useSupplierSpend = createListQuery<SupplierSpendRow, SupplierSpendParams>(
   supplierSpendKeys,
   listSupplierSpend,
