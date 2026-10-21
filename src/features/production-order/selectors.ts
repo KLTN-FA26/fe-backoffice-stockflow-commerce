@@ -68,6 +68,18 @@ export function awaitingQc(
   );
 }
 
+/**
+ * Lần QC này có hoàn tất LSX không — cùng quy tắc BE `ProductionOrder.recordQc`: sau lần QC, số tốt
+ * = good − lỗi; đủ planned thì COMPLETED (bàn giao vào khu PACKING, SCRUM-412), thiếu thì về READY in
+ * bù. Chỉ lần hoàn tất mới cần khu đóng gói (`PrintRunService.recordQc`).
+ */
+export function qcCompletesOrder(
+  summary: Pick<ProductionDetail["summary"], "goodQuantity" | "plannedQuantity">,
+  failedNow: number,
+): boolean {
+  return summary.goodQuantity - failedNow >= summary.plannedQuantity;
+}
+
 /** Phôi còn cần = planned − good − (issued − printed). */
 export function blanksStillNeeded(
   order: Pick<ProductionDetail, "summary" | "issuedQuantity" | "printedQuantity">,

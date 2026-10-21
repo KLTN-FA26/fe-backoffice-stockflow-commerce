@@ -123,12 +123,19 @@ export function allowedSubcontractRecovery(
   return actions;
 }
 
-/** Bảng chuyển trạng thái (tài liệu + test) — chép từ BE `ProductionOrder` (BE docs/handoffs/SCRUM-394-395.md). */
+/**
+ * Bảng chuyển trạng thái (tài liệu + test) — chép từ BE `ProductionOrder` (BE develop 492a2d61,
+ * BE docs/handoffs/SCRUM-394-395.md). Ngoài các nút ở header file này còn có bước của hệ thống:
+ *   READY → QC: LSX gia công nhận nốt hàng sau một lần QC thiếu (`receivedFromSubcontractor`).
+ *   READY / SUBCONTRACTED / QC / ON_HOLD → COMPLETED: lấy phần còn nợ về xưởng khi không còn nợ và không
+ *   còn hàng chờ QC (`giveBackToPrintShop`, 03 §16 G9); lấy về toàn bộ → CANCELLED.
+ *   PRINTING → READY: ghi sản lượng mà mọi cái đều phế (BE ghi PRINTING→QC→READY trong cùng lượt).
+ */
 export const PRODUCTION_TRANSITIONS: Readonly<
   Record<ProductionApiStatus, readonly ProductionApiStatus[]>
 > = {
   PENDING_PREPRESS: ["READY", "ON_HOLD", "CANCELLED"],
-  READY: ["MATERIAL_ISSUED", "SUBCONTRACTED", "ON_HOLD", "CANCELLED"],
+  READY: ["MATERIAL_ISSUED", "SUBCONTRACTED", "QC", "ON_HOLD", "COMPLETED", "CANCELLED"],
   MATERIAL_ISSUED: ["PRINTING", "ON_HOLD", "CANCELLED"],
   PRINTING: ["QC", "READY", "ON_HOLD", "CANCELLED"],
   SUBCONTRACTED: ["QC", "ON_HOLD", "COMPLETED", "CANCELLED"],
@@ -140,6 +147,7 @@ export const PRODUCTION_TRANSITIONS: Readonly<
     "PRINTING",
     "SUBCONTRACTED",
     "QC",
+    "COMPLETED",
     "CANCELLED",
   ],
   COMPLETED: [],

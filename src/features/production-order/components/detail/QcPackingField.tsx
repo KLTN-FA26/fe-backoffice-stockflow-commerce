@@ -28,7 +28,8 @@ export function QcPackingField({
   if (locations.isPending) hint = "Đang tải khu đóng gói…";
   else if (locations.isError) hint = productionErrorMessage(locations.error);
   else if (options.length === 0)
-    hint = "Kho của lệnh chưa có khu đóng gói dùng được — chưa hoàn tất lệnh đơn được.";
+    hint =
+      "Kho của lệnh chưa có khu đóng gói dùng được — vẫn ghi được lần QC còn thiếu, nhưng chưa hoàn tất lệnh đơn được.";
   else if (options.length === 1) hint = "Kho chỉ có một khu đóng gói — hàng chuyển vào đó.";
 
   return (

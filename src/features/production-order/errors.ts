@@ -5,7 +5,7 @@ import { apiErrorMessage } from "@/lib/api/error-message";
 
 export const PRODUCTION_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   INVALID_PRODUCTION_TRANSITION:
-    "Lệnh sản xuất không thể chuyển sang trạng thái này lúc này (có thể người khác vừa thao tác, đơn bán đã huỷ hoặc còn phôi ở nhà gia công). Dữ liệu đã được tải lại.",
+    "Lệnh sản xuất không thể chuyển sang trạng thái này lúc này (có thể người khác vừa thao tác, đơn bán đã huỷ, dòng đơn đã đóng sau khi giao một phần, hoặc còn phôi ở nhà gia công chưa đối soát). Dữ liệu đã được tải lại.",
   PRINT_FILE_MISMATCH: "File in không khớp với thiết kế đã khoá — không thể duyệt prepress.",
   RESERVATION_NOT_ISSUABLE: "Phiếu giữ phôi này không thể xuất.",
   ISSUE_EXCEEDS_REQUIREMENT: "Số phôi vượt quá số lệnh sản xuất còn cần (BR-PRD-03).",

@@ -14,6 +14,8 @@ import { FORM_INPUT_CLASS, FormField, fieldA11y } from "@/components/shared/Form
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
+import { inHouseCancelNote } from "../copy";
+
 import type { z } from "zod";
 import type { ProductionDetail } from "@/features/production-order/types";
 
@@ -26,11 +28,17 @@ export function CancelForm({ order, onClose }: Props) {
   const [error, setError] = useState<string | null>(null);
   const mutation = useCancelProduction();
   const subcontracted = order.summary.mode === "SUBCONTRACTED";
-  const needsPacking = subcontracted && order.summary.type === "ORDER" && order.summary.goodQuantity > 0;
+  const needsPacking =
+    subcontracted && order.summary.type === "ORDER" && order.summary.goodQuantity > 0;
   const packing = usePackingLocations(order.summary.id, needsPacking);
   const form = useForm<z.input<typeof cancelInputSchema>>({
     resolver: zodResolver(cancelInputSchema),
-    defaultValues: { reason: "", subcontractorFee: "", subcontractorFeeReason: "", packingLocation: "" },
+    defaultValues: {
+      reason: "",
+      subcontractorFee: "",
+      subcontractorFeeReason: "",
+      packingLocation: "",
+    },
   });
   const { errors } = form.formState;
   const submit = form.handleSubmit((v) => {
@@ -59,11 +67,13 @@ export function CancelForm({ order, onClose }: Props) {
       description={
         subcontracted
           ? "Phôi phải được đối soát xong. Phần còn nợ của đơn chuyển sang LSX tại xưởng; phí huỷ với nhà gia công là số đã thoả thuận, hệ thống không tự tính hay tự chi (QA2)."
-          : "Chỉ huỷ được trước khi in; phôi đã xuất được trả lại kho."
+          : inHouseCancelNote(order.summary.goodQuantity)
       }
       submitLabel="Huỷ lệnh"
       danger
-      canSubmit={!needsPacking || (!packing.isPending && !packing.isError && !!packing.data?.length)}
+      canSubmit={
+        !needsPacking || (!packing.isPending && !packing.isError && !!packing.data?.length)
+      }
       isPending={mutation.isPending}
       error={error}
       onCancel={onClose}
@@ -118,10 +128,16 @@ export function CancelForm({ order, onClose }: Props) {
             className={`${FORM_INPUT_CLASS} border px-2`}
           >
             <option value="">
-              {packing.data?.length === 1 ? `Mặc định: ${packing.data[0]}` : "— Chọn khu đóng gói —"}
+              {packing.data?.length === 1
+                ? `Mặc định: ${packing.data[0]}`
+                : "— Chọn khu đóng gói —"}
             </option>
             {packing.data?.length && packing.data.length > 1
-              ? packing.data.map((code) => <option key={code} value={code}>{code}</option>)
+              ? packing.data.map((code) => (
+                  <option key={code} value={code}>
+                    {code}
+                  </option>
+                ))
               : null}
           </select>
         </FormField>

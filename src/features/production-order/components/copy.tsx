@@ -1,4 +1,5 @@
 import { PRODUCTION_STATUS_BY_API } from "@/constants";
+import { formatNumber } from "@/lib/format/number";
 import { StatusDot } from "@/components/shared/StatusDot";
 
 import { HOLD_REASON_LABEL } from "../selectors";
@@ -19,6 +20,18 @@ export const PRODUCTION_COPY: LoadErrorCopy = {
 export const MONO = "font-[family-name:var(--font-mono)] text-[0.8125rem] tabular-nums";
 
 export const TYPE_LABEL = { SAMPLE: "Mẫu", ORDER: "Đơn hàng" } as const;
+
+/**
+ * Hệ quả kho khi huỷ LSX tại xưởng — BE `ProductionOrder.cancel` (develop 492a2d61): phôi đã xuất chưa
+ * in trả kho, phôi đã hết hạn thì xuất huỷ (0cefaff5); huỷ sau một lần QC thiếu thì thành phẩm tốt đã in
+ * thành phế phẩm, xuất huỷ — không bán cho ai khác (BR-PRD-10, Q3).
+ */
+export function inHouseCancelNote(goodQuantity: number): string {
+  const blanks = "phôi đã xuất chưa in được trả lại kho, phôi đã hết hạn bị xuất huỷ.";
+  return goodQuantity > 0
+    ? `${formatNumber(goodQuantity)} thành phẩm tốt đã in sẽ chuyển thành phế phẩm và xuất huỷ; ${blanks}`
+    : `Chỉ huỷ được trước khi in; ${blanks}`;
+}
 
 /** Trạng thái + lý do treo + nhãn gia công (SCRUM-442: badge gia công trên danh sách / bảng xưởng). */
 export function ProductionStatus({

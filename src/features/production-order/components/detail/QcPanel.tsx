@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LoaderCircle } from "lucide-react";
 
@@ -14,7 +14,7 @@ import { productionErrorMessage, qcPackingFieldError } from "@/features/producti
 import { qcBaseSchema, qcSumMatches } from "@/features/production-order/input-schemas";
 import { useRecordQc } from "@/features/production-order/mutations";
 import { usePackingLocations, useQcRounds } from "@/features/production-order/queries";
-import { awaitingQc } from "@/features/production-order/selectors";
+import { awaitingQc, qcCompletesOrder } from "@/features/production-order/selectors";
 
 import { Card } from "@/components/shared/Card";
 import { FORM_INPUT_CLASS, FormField, fieldA11y } from "@/components/shared/FormField";
@@ -44,9 +44,14 @@ export function QcPanel({ order, active }: { order: ProductionDetail; active: bo
   const { errors } = form.formState;
   const isOrder = order.summary.type === "ORDER";
   const packing = usePackingLocations(order.summary.id, isOrder && active && canRead);
+  const failedNow = Number(useWatch({ control: form.control, name: "failed" })) || 0;
+  // Lần QC thiếu (về READY in bù) không bàn giao gì → BE không cần khu đóng gói.
+  const handsOver = isOrder && qcCompletesOrder(order.summary, failedNow);
+  const packingBlocked =
+    handsOver && (packing.isPending || packing.isError || !packing.data?.length);
   const submit = form.handleSubmit((values) => {
-    if (isOrder && (packing.isPending || packing.isError || !packing.data?.length)) return;
-    if (isOrder && (packing.data?.length ?? 0) > 1 && !values.packingLocation)
+    if (packingBlocked) return;
+    if (handsOver && (packing.data?.length ?? 0) > 1 && !values.packingLocation)
       return form.setError("packingLocation", { message: "Chọn khu đóng gói nhận hàng" });
     if (!qcSumMatches(values, awaiting ?? 0)) {
       form.setError("passed", {
@@ -62,7 +67,7 @@ export function QcPanel({ order, active }: { order: ProductionDetail; active: bo
         passed: Number(values.passed),
         failed: Number(values.failed),
         ...(values.note ? { note: values.note } : {}),
-        ...(isOrder && values.packingLocation ? { packingLocation: values.packingLocation } : {}),
+        ...(handsOver && values.packingLocation ? { packingLocation: values.packingLocation } : {}),
       },
       {
         onSuccess: () => form.reset(),
@@ -124,7 +129,7 @@ export function QcPanel({ order, active }: { order: ProductionDetail; active: bo
             />
           </FormField>
           <div className="flex items-end justify-end sm:col-span-2">
-            <Button type="submit" disabled={record.isPending || (isOrder && (packing.isPending || packing.isError || !packing.data?.length))}>
+            <Button type="submit" disabled={record.isPending || packingBlocked}>
               {record.isPending && <LoaderCircle className="size-4 animate-spin" />} Ghi kết quả QC
             </Button>
           </div>

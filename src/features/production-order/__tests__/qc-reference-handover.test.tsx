@@ -200,6 +200,35 @@ describe("SCRUM-412 automatic hand-over to PACKING", () => {
     );
   });
 
+  it("no PACKING area: a short round is still recorded (back to READY), the completing one is blocked", async () => {
+    const api = mockApi("QC_STAFF", {
+      get: routes(
+        qcOrder(),
+        () => APPROVED,
+        () => [],
+      ),
+      post: { "/production/orders/po-1/qc-results": () => ({}) },
+    });
+    renderScreen(<ProductionDetailView id="po-1" />, "QC_STAFF");
+    expect(await screen.findByText(/chưa có khu đóng gói dùng được/)).toBeInTheDocument();
+    const submit = screen.getByRole("button", { name: "Ghi kết quả QC" });
+    await userEvent.type(screen.getByLabelText(/^Đạt/), "100");
+    expect(submit).toBeDisabled();
+
+    await userEvent.clear(screen.getByLabelText(/^Đạt/));
+    await userEvent.type(screen.getByLabelText(/^Đạt/), "99");
+    await userEvent.clear(screen.getByLabelText(/^Lỗi/));
+    await userEvent.type(screen.getByLabelText(/^Lỗi/), "1");
+    expect(submit).toBeEnabled();
+    await userEvent.click(submit);
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith("/production/orders/po-1/qc-results", {
+        passed: 99,
+        failed: 1,
+      }),
+    );
+  });
+
   it("completed ORDER shows where the goods were handed over; no confirm button exists", async () => {
     const done = qcOrder({ completedAt: "2026-10-14T04:00:00Z" }, "COMPLETED");
     done.summary.packingLocation = "HCM-PACK01";
