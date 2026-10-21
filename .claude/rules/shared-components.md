@@ -22,15 +22,24 @@ Viết lại thứ đã có là nguyên nhân số một khiến UI lệch nhau 
 
 `<PageHeader>` (title + breadcrumb + action phải / hero mode B) · `<SectionTitle>` ·
 `<AppCard>`/`<SurfaceCard>` (biến thể `elevated` cho storefront, `flush` cho back-office) ·
-`<BackofficeShell>` (sidebar + topbar) · `<StorefrontShell>` (header mỏng + footer +
+`<BackofficeShell>` (sidebar + topbar; menu drill-down qua `SidebarNav`) · `<StorefrontShell>` (header mỏng + footer +
 floating cart/chat) · `<PageContainer>` (max-width + padding theo mode).
 
 ## Dữ liệu & hiển thị
 
-`<DataTable>` (chủ lực mode A — xem [data-table-mode-a.md](data-table-mode-a.md)) ·
+`<DataTable>` (chủ lực mode A — xem [data-table-mode-a.md](data-table-mode-a.md); prop
+`stickyHeader` cho trang danh sách chính) · `<ListToolbar>` (prop `actions` cho nút của trang,
+cỡ nút qua `TOOLBAR_ACTION_CLASS`) · `<ListConfigSummary>` ·
 `<FilterBar>`/`<FilterPanel>` (drawer trên mobile, dùng chung 2 mode) · `<SortDropdown>` ·
 `<SearchBar>` · `<StatTile>`/`<KpiCard>` (giá trị mono tabular + nhãn + delta) ·
 `<EmptyState>` · `<MoneyText>` (formatVND, tabular-nums, hỗ trợ giá khuyến mãi + % giảm).
+
+## Form
+
+`<InputCombobox>` — combobox **gõ thẳng vào ô input** (kiểu shadcn Combobox): ô input là trigger,
+danh sách xổ ngay dưới, ↑/↓ + Enter chọn, Esc đóng. **Bắt buộc** cho mọi combobox chọn-một có tìm
+kiếm; không dùng Popover + `CommandInput` (ô tìm nằm trong popover) nữa. Item dùng
+`COMBOBOX_ITEM_CLASS`; BE lọc → `shouldFilter={false}` + `search` / `onSearchChange`.
 
 ## Phản hồi
 
