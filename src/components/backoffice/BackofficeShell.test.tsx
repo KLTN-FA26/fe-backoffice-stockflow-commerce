@@ -3,7 +3,7 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { INVENTORY_PERMISSIONS } from "@/constants";
-import { INVENTORY_ROUTES } from "@/constants/inventory";
+import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -124,7 +124,12 @@ describe("Inventory sidebar entries follow backend permission codes", () => {
     INVENTORY_ROUTES.adjustment("d0000001-0000-4000-8000-000000000009"),
   ])("marks only the adjustment entry active on %s", async (pathname) => {
     navigation.pathname = pathname;
-    await renderShell([INVENTORY_PERMISSIONS.adjustmentRead, INVENTORY_PERMISSIONS.movementRead]);
+    await renderShell([
+      INVENTORY_PERMISSIONS.adjustmentRead,
+      INVENTORY_PERMISSIONS.movementRead,
+      INVENTORY_PERMISSIONS.stockRead,
+    ]);
+    expect(navLink(INVENTORY_LABELS.overviewTitle)).not.toHaveAttribute("data-active", "true");
     expect(navLink(ADJUSTMENTS)).toHaveAttribute("data-active", "true");
     expect(navLink(MOVEMENTS)).not.toHaveAttribute("data-active", "true");
   });

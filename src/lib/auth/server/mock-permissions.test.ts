@@ -8,6 +8,8 @@ import { AUTH_COOKIE_NAME, MOCK_LOGIN_PASSWORD } from "@/constants/auth";
 import {
   ATTRIBUTE_PERMISSIONS,
   INVENTORY_ITEM_PERMISSIONS,
+  INVENTORY_OVERVIEW_PERMISSIONS,
+  WAREHOUSE_PERMISSIONS,
   INVENTORY_PERMISSIONS,
   PERMISSION_QUERY,
   PRODUCT_PERMISSIONS,
@@ -140,7 +142,7 @@ describe("Inventory grants in the authoritative server session", () => {
       );
       const expected =
         role === "QC Staff"
-          ? []
+          ? [INVENTORY_PERMISSIONS.stockRead]
           : codes.filter((code) => approves || code !== INVENTORY_PERMISSIONS.adjustmentApprove);
       expect(actual).toEqual(expected.sort());
     }
@@ -171,4 +173,31 @@ describe("Inventory item grants (BE PR #119, seed V20260928006000)", () => {
     );
     expect(actual).toEqual([...expected].sort());
   });
+});
+
+describe("Overview grants match backend seeds", () => {
+  const OV = INVENTORY_OVERVIEW_PERMISSIONS;
+  it.each([
+    ["USER-ADMIN-01", true, true, true, true],
+    ["USER-WH-01", true, true, true, true],
+    ["USER-PLAN-01", true, false, true, true],
+    ["USER-QC-01", true, false, false, false],
+    ["USER-PROC-01", false, false, false, true],
+    ["USER-ECAD-01", false, false, false, false],
+    ["USER-SALE-01", false, false, false, true],
+  ] as const)(
+    "%s has seeded stock, reservation, alert and directory reads",
+    (id, stock, holds, alerts, directory) => {
+      const { permissions } = mockSessionPermissions(id, []);
+      for (const [code, allowed] of [
+        [OV.stockRead, stock],
+        [OV.reservationRead, holds],
+        [OV.alertRead, alerts],
+        [WAREHOUSE_PERMISSIONS.read, directory],
+      ] as const) {
+        expect(permissions.includes(code)).toBe(allowed);
+      }
+      expect(new Set(permissions).size).toBe(permissions.length);
+    },
+  );
 });

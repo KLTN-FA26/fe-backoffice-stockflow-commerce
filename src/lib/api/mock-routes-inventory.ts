@@ -31,6 +31,7 @@ import { MOVE_API, MOVE_LIMITS } from "@/constants/move";
 import { SKU_INPUT_PATTERN } from "@/lib/validation/sku";
 
 import { registerMockRoute } from "./mock-adapter";
+import { registerInventoryStockMockRoutes } from "./mock-routes-inventory-stock";
 import {
   beError,
   parseJsonBody,
@@ -593,6 +594,7 @@ export function registerInventoryMockRoutes(): void {
   registerMockRoute("POST", `${one}/rejection`, reject);
   registerMockRoute("POST", `${one}/withdrawal`, withdraw);
   registerMockRoute("GET", INVENTORY_API.movements, listMovements);
+  registerInventoryStockMockRoutes();
   registerMockRoute("POST", MOVE_API.move, createMove);
   // Mock không có tồn theo vị trí: danh sách rỗng (BE trả mảng rỗng khi SKU chưa có tồn).
   registerMockRoute("GET", MOVE_API.stockItems, () => ok([]));

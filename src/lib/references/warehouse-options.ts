@@ -12,6 +12,7 @@ import { z } from "zod";
 import { PAGE_SIZE } from "@/constants";
 import { api } from "@/lib/api/client";
 import { QUERY_TIMES } from "@/lib/api/query-client";
+import { useAppStore } from "@/lib/store/use-app-store";
 
 const warehouseOptionSchema = z
   .object({
@@ -39,7 +40,8 @@ export type WarehouseOption = z.infer<typeof warehouseOptionSchema>;
 export const warehouseOptionKeys = {
   all: ["references", "warehouses"] as const,
   active: () => [...warehouseOptionKeys.all, "active"] as const,
-  directory: () => [...warehouseOptionKeys.all, "directory"] as const,
+  directory: (warehouseId: string | null = null) =>
+    [...warehouseOptionKeys.all, "directory", warehouseId] as const,
 };
 
 export async function fetchActiveWarehouseOptions(
@@ -69,9 +71,11 @@ export async function fetchWarehouseDirectory(signal?: AbortSignal): Promise<War
   return warehouseOptionPageSchema.parse(data).items;
 }
 
-export function useWarehouseDirectory() {
+export function useWarehouseDirectory(enabled = true) {
+  const warehouseId = useAppStore((state) => state.warehouseId);
   return useQuery({
-    queryKey: warehouseOptionKeys.directory(),
+    queryKey: warehouseOptionKeys.directory(warehouseId),
+    enabled,
     queryFn: ({ signal }) => fetchWarehouseDirectory(signal),
     ...QUERY_TIMES.master,
   });

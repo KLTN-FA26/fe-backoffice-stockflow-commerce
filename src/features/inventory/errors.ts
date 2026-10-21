@@ -80,6 +80,12 @@ function known(code: string): Pick<InventoryErrorView, "kind" | "detail" | "titl
     // findOne (several layers) / stock policy — 409.
     case "INVENTORY_POLICY_STOCK_CONFLICT":
       return { kind: "conflict", title: TITLES.conflict, detail: M.policyConflict };
+    // StockBrowsingImpl.warehouseStock — 404 for an unknown warehouse id.
+    case "WAREHOUSE_NOT_FOUND":
+      return { kind: "not-found", title: TITLES["not-found"], detail: M.warehouseNotFound };
+    // Pages.of / SortWhitelist / enum binding — 400, a paging, sort or filter value was refused.
+    case "UNSUPPORTED_PARAMETER":
+      return { kind: "validation", title: TITLES.validation, detail: M.unsupportedParameter };
     case "VALIDATION_FAILED":
       return { kind: "validation", title: TITLES.validation, detail: M.validation };
     // transport.ts: response did not match the Inventory DTO.

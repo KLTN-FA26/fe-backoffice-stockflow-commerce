@@ -8,13 +8,54 @@ export const INVENTORY_API = {
   rejection: (id: string) => `/inventory/adjustments/${encodeURIComponent(id)}/rejection`,
   withdrawal: (id: string) => `/inventory/adjustments/${encodeURIComponent(id)}/withdrawal`,
   movements: "/inventory/movements",
+  // SCRUM-438 reads — backend develop 0f18f24 InventoryController / StockAlertController.
+  stockLevels: "/inventory/stock-levels",
+  warehouseStockItems: (warehouseId: string) =>
+    `/inventory/warehouses/${encodeURIComponent(warehouseId)}/stock-items`,
+  atp: "/inventory/stock-items/atp",
+  reservations: "/inventory/reservations",
+  alerts: "/inventory/alerts",
 } as const;
 
 export const INVENTORY_QUERY_KEYS = {
   adjustments: "inventory-stock-adjustments",
   movements: "inventory-stock-movements",
   stock: SHARED_QUERY_ROOTS.inventoryStock,
+  reservations: "inventory-reservations",
+  alerts: "inventory-alerts",
 } as const;
+
+// Backend develop 0f18f24 StockStatus — values GET /warehouses/{id}/stock-items?status= accepts.
+export const STOCK_STATUSES = [
+  "INBOUND",
+  "AVAILABLE",
+  "QUARANTINE",
+  "BLOCKED",
+  "DAMAGED",
+  "EXPIRED",
+] as const;
+// StockBrowsingImpl STOCK_SORT whitelist; the backend default is locationCode ascending.
+export const STOCK_ITEM_SORT_FIELDS = [
+  "locationCode",
+  "sku",
+  "lotNumber",
+  "expiryDate",
+  "onHand",
+  "receivedAt",
+] as const;
+// ReservationStatus / ReleaseReason.
+export const RESERVATION_STATUSES = ["HELD", "CONSUMED", "RELEASED", "EXPIRED"] as const;
+export const RESERVATION_RELEASE_REASONS = [
+  "ORDER_CANCELLED",
+  "PAYMENT_FAILED",
+  "RESERVATION_EXPIRED",
+  "MANUAL_OVERRIDE",
+] as const;
+// StockAlert.Kind / Status and the StockAlertsImpl SORT whitelist.
+export const STOCK_ALERT_KINDS = ["REORDER", "SAFETY", "EXPIRING", "EXPIRED"] as const;
+export const STOCK_ALERT_STATUSES = ["OPEN", "ACKNOWLEDGED", "RESOLVED"] as const;
+export const STOCK_ALERT_SORT_FIELDS = ["openedAt", "kind", "sku"] as const;
+export const INVENTORY_SORT_DIRECTIONS = ["asc", "desc"] as const;
 
 export const STOCK_ADJUSTMENT_REASONS = [
   "DAMAGED",
@@ -70,6 +111,8 @@ export const INVENTORY_LIMITS = {
   noteLength: 1000,
   rejectionLength: 500,
   skuMaxLength: 64,
+  // Backend common.persistence.Pages.MAX_PAGE_SIZE (develop 103aa04).
+  maxPageSize: 200,
 } as const;
 
 export const INVENTORY_MESSAGES = {
@@ -83,6 +126,7 @@ export const INVENTORY_MESSAGES = {
 } as const;
 
 export const INVENTORY_ROUTES = {
+  overview: "/admin/inventory",
   movements: "/admin/movements",
   adjustments: "/admin/inventory/adjustments",
   createAdjustment: "/admin/inventory/adjustments/create",
@@ -160,7 +204,71 @@ export const INVENTORY_LABELS = {
   statusTransition: "→",
   filtered: "Đang áp dụng bộ lọc",
   offline: "Mất kết nối — thay đổi chưa được lưu.",
+  // Tổng quan tồn kho (SCRUM-438): tra đúng một mã SKU — BE không tìm theo tên hay một phần mã.
+  overviewTitle: "Tổng quan tồn kho",
+  overviewSubtitle: "Tồn kho, ATP và giữ chỗ của một mã SKU — theo đơn vị cơ sở của SKU.",
+  skuLookup: "Mã SKU",
+  skuPlaceholder: "Nhập đúng mã SKU, ví dụ CUP-PP-500",
+  lookup: "Tra cứu",
+  skuPrompt: "Nhập mã SKU để xem tồn kho",
+  skuPromptDescription: "Tra cứu theo đúng mã SKU; không tìm theo tên sản phẩm hay một phần mã.",
+  activeSku: "Đang xem SKU",
+  stockLevelsTitle: "Tồn theo kho",
+  warehouse: "Kho",
+  onHand: "Tồn thực tế",
+  available: "Hàng khả dụng",
+  reserved: "Đã giữ chỗ",
+  allocated: "Đã phân bổ",
+  atp: "ATP",
+  noStockLevels: "SKU này không có tồn kho",
+  noStockLevelsDescription: "Kiểm tra lại mã SKU hoặc phạm vi kho bạn được xem.",
+  viewWarehouse: "Xem chi tiết",
+  viewingWarehouse: "Đang xem",
+  directoryLoading: "Đang xác định kho",
+  directoryUnavailable: "Không tải được danh mục kho",
+  directoryForbidden: "Không có quyền xem danh mục kho",
+  warehouseUnresolved: "Không tìm thấy kho này trong danh mục kho",
+  warehouseDetailUnavailable: "Chưa xác định được kho nên chưa xem được chi tiết vị trí và ATP.",
+  stockItemsTitle: "Tồn theo vị trí và lô",
+  stockItemsSort: "Sắp xếp theo hạn dùng tăng dần — do máy chủ sắp xếp.",
+  expiryDate: "Hạn dùng",
+  receivedAt: "Thời điểm nhận",
+  noStockItems: "Kho này không còn dòng tồn nào của SKU",
+  atpTitle: "ATP — có thể hứa bán",
+  atpLoading: "Đang tải ATP",
+  atpZero: "Không còn hàng có thể hứa bán tại kho này.",
+  reservationsTitle: "Giữ chỗ",
+  order: "Mã đơn hàng",
+  reservedAt: "Giữ lúc",
+  holdExpiresAt: "Hết hạn giữ",
+  releaseReason: "Lý do giải phóng",
+  closedAt: "Đóng lúc",
+  noReservations: "SKU này không có giữ chỗ nào",
+  onlySelectedWarehouse: "Chỉ giữ chỗ tại kho đang xem",
+  lowStockTitle: "Cảnh báo tồn thấp (toàn hệ thống)",
+  expiryAlertsTitle: "Cảnh báo hạn dùng tại kho",
+  alertsUnavailable: "Không có quyền xem cảnh báo tồn kho — chưa có thông tin cảnh báo.",
+  noLowStockAlerts: "Không có cảnh báo tồn thấp đang mở trong phạm vi bạn được xem.",
+  noExpiryAlerts: "Không có cảnh báo hạn dùng đang mở trong phạm vi bạn được xem.",
+  observedQty: "Số lượng ghi nhận",
+  thresholdQty: "Ngưỡng",
+  daysToExpiry: "Số ngày đến hạn",
+  reservationImpaired: "Lô quá hạn còn giữ chỗ của khách",
 } as const;
+
+// StockAlert.Kind: REORDER/SAFETY là tồn thấp theo SKU, EXPIRING/EXPIRED là hạn dùng theo lô.
+export const STOCK_ALERT_KIND_LABELS = {
+  REORDER: "Cần đặt hàng lại",
+  SAFETY: "Dưới tồn an toàn",
+  EXPIRING: "Sắp hết hạn",
+  EXPIRED: "Đã quá hạn",
+} as const satisfies Record<(typeof STOCK_ALERT_KINDS)[number], string>;
+
+export const STOCK_ALERT_STATUS_LABELS = {
+  OPEN: "Đang mở",
+  ACKNOWLEDGED: "Đã ghi nhận",
+  RESOLVED: "Đã đóng",
+} as const satisfies Record<(typeof STOCK_ALERT_STATUSES)[number], string>;
 
 export const STOCK_MOVEMENT_LABELS = {
   RECEIPT: "Nhập hàng",
@@ -191,6 +299,8 @@ export const INVENTORY_ERROR_MESSAGES = {
   conflict: "Dữ liệu tồn kho đã thay đổi. Vui lòng tải lại rồi thử lại.",
   network: "Không kết nối được máy chủ. Vui lòng kiểm tra mạng.",
   server: "Đã xảy ra lỗi khi xử lý yêu cầu tồn kho. Vui lòng thử lại.",
+  warehouseNotFound: "Kho này không tồn tại hoặc đã bị xoá khỏi danh mục kho.",
+  unsupportedParameter: "Tham số tra cứu tồn kho không được hỗ trợ. Vui lòng tải lại trang.",
 } as const;
 
 export const INVENTORY_ERROR_TITLES = {

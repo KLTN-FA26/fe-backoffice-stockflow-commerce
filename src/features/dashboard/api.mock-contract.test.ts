@@ -87,10 +87,17 @@ describe("dashboard sources on the mock", () => {
     expect(pending).toBeLessThanOrEqual(all);
   });
 
-  it("stock alerts: summary names every kind with zero, the list is empty (the mock holds no stock)", async () => {
+  it("stock alerts: dashboard summary agrees with the shared overview alert records", async () => {
     expect(await fetchAlertSummary()).toEqual({
-      openByKind: { REORDER: 0, SAFETY: 0, EXPIRING: 0, EXPIRED: 0 },
+      openByKind: { REORDER: 1, SAFETY: 0, EXPIRING: 1, EXPIRED: 1 },
     });
-    expect(await listOpenAlerts()).toMatchObject({ items: [], totalElements: 0 });
+    const alerts = await listOpenAlerts();
+    expect(alerts.totalElements).toBe(3);
+    expect(alerts.items.map((alert) => alert.kind).sort()).toEqual([
+      "EXPIRED",
+      "EXPIRING",
+      "REORDER",
+    ]);
+    expect(alerts.items.every((alert) => alert.status === "OPEN")).toBe(true);
   });
 });
