@@ -32,13 +32,19 @@ import { PRODUCTION_STALE_CODES } from "./errors";
 import { recallBlanks, supplementSubcontract, takeInHouse } from "./subcontract-api";
 import { productionKeys } from "./queries";
 
-/** LSX đổi → vòng mẫu (IN_PRODUCTION / READY), đơn bán (tiến độ in), danh sách đóng gói (hàng vào khu PACKING). */
+/**
+ * LSX đổi → vòng mẫu (IN_PRODUCTION / READY), đơn bán (tiến độ in), danh sách đóng gói (hàng vào khu
+ * PACKING), và tồn + giữ hàng: xuất phôi / gửi / thu hồi gia công chuyển phôi, ghi sản lượng trừ phế
+ * phẩm, huỷ / dừng trả phôi về kho (BR-PRD-04).
+ */
 const DOWNSTREAM = [
   productionKeys.all,
   QUERY_ROOTS.sampleRequests,
   QUERY_ROOTS.orders,
   QUERY_ROOTS.myOrders,
   QUERY_ROOTS.fulfillmentTasks,
+  QUERY_ROOTS.inventoryStock,
+  QUERY_ROOTS.inventoryReservations,
 ] as const;
 
 function production<TInput, TResult>(

@@ -1,11 +1,13 @@
 /**
  * Khách hàng B2B — mutations + invalidation map (api-conventions §2.3).
- * Mọi thao tác đổi khách → `customerKeys.all` (list + detail + lời mời + lịch sử trạng thái).
+ * Mọi thao tác đổi khách → `customerKeys.all` (list + detail + lời mời + lịch sử trạng thái) và
+ * `customerRefKeys.all` (bản tra cứu khách ở các module khác).
  * Lỗi được map tiếng Việt ở factory; màn hình chỉ đóng dialog / điều hướng / map lỗi trường.
  */
 
 import { createMutation } from "@/lib/api/query-factory";
 import { withStaleRefetch } from "@/lib/api/stale-refetch";
+import { customerRefKeys } from "@/lib/references/customer-lookup";
 import { toast } from "@/components/shared/Toast";
 
 import {
@@ -20,6 +22,13 @@ import { customerKeys } from "./queries";
 
 import type { ChangeCustomerStatusInput, UpdateCustomerInput } from "./api";
 import type { Customer, CustomerCreateValues, InvitedCustomer } from "./types";
+
+/**
+ * Khách + bản tra cứu khách dùng ở báo giá / mẫu / LSX (`references/customers`: tên, ô chọn khách
+ * ACTIVE, địa chỉ, điều khoản tín dụng) — đổi tên / trạng thái mà không làm mới thì ô chọn còn
+ * đưa khách đã khoá và danh sách khác giữ tên cũ tới 10 phút.
+ */
+const CUSTOMER_DATA = [customerKeys.all, customerRefKeys.all];
 
 function toastError(error: unknown) {
   toast.error(customerErrorMessage(error));
@@ -42,7 +51,7 @@ function toastInvitation(result: InvitedCustomer, action: "created" | "resent") 
 export const useCreateCustomer = createMutation<CustomerCreateValues, InvitedCustomer>(
   createCustomer,
   {
-    invalidate: [customerKeys.all],
+    invalidate: CUSTOMER_DATA,
     showErrorToast: false,
     onSuccess: (result) => toastInvitation(result, "created"),
   },
@@ -50,7 +59,7 @@ export const useCreateCustomer = createMutation<CustomerCreateValues, InvitedCus
 
 export const useUpdateCustomer = withStaleRefetch(
   createMutation<UpdateCustomerInput, Customer>(updateCustomer, {
-    invalidate: [customerKeys.all],
+    invalidate: CUSTOMER_DATA,
     successMessage: "Đã lưu thông tin khách hàng.",
     showErrorToast: false,
   }),
@@ -59,7 +68,7 @@ export const useUpdateCustomer = withStaleRefetch(
 
 export const useChangeCustomerStatus = withStaleRefetch(
   createMutation<ChangeCustomerStatusInput, Customer>(changeCustomerStatus, {
-    invalidate: [customerKeys.all],
+    invalidate: CUSTOMER_DATA,
     successMessage: "Đã cập nhật trạng thái khách hàng.",
     showErrorToast: false,
     onError: toastError,
@@ -70,7 +79,7 @@ export const useChangeCustomerStatus = withStaleRefetch(
 
 export const useResendInvitation = withStaleRefetch(
   createMutation<string, InvitedCustomer>(resendPortalInvitation, {
-    invalidate: [customerKeys.all],
+    invalidate: CUSTOMER_DATA,
     showErrorToast: false,
     onError: toastError,
     onSuccess: (result) => toastInvitation(result, "resent"),

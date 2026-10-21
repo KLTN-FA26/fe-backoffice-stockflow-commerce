@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { customerKeys } from "@/features/customer/queries";
 import { myOrderKeys } from "@/features/customer-order/queries";
 import { fulfillmentKeys } from "@/features/fulfillment/queries";
+import { stockKeys, stockReservationKeys } from "@/features/inventory/queries";
 import { orderKeys } from "@/features/order/queries";
 import { productionKeys } from "@/features/production-order/queries";
 import { quoteKeys } from "@/features/quote/queries";
@@ -19,6 +20,8 @@ describe("QUERY_ROOTS match the owning features' key factories (cross-feature in
     ["orders", orderKeys.all],
     ["myOrders", myOrderKeys.all],
     ["fulfillmentTasks", fulfillmentKeys.all],
+    ["inventoryStock", stockKeys.all],
+    ["inventoryReservations", stockReservationKeys.all],
   ] as const)("%s", (root, keys) => {
     expect(QUERY_ROOTS[root]).toEqual(keys);
   });
