@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { MOVE_LIMITS, MOVE_MESSAGES } from "@/constants/move";
 
-import { requiredString } from "@/lib/validation/primitives";
+import { beUuid, requiredString } from "@/lib/validation/primitives";
 import { skuSchema } from "@/lib/validation/sku";
 
 import { sameLocation, sameWarehouse } from "./selectors";
@@ -44,7 +44,7 @@ export const moveCreateInput = z
 
 // BE `StockMoveResponse`; lotNumber is omitted when null (Jackson NON_NULL).
 export const stockMoveDto = z.object({
-  movementId: z.uuid(),
+  movementId: beUuid,
   sku: z.string(),
   lotNumber: z.string().nullish(),
   fromLocation: z.string(),
@@ -56,7 +56,7 @@ export const stockMoveDto = z.object({
 // BE `StockItemResponse` (GET /inventory/stock-items?sku=): a bare list, not a page. `status` is a
 // String on the wire — kept open so a newer code does not invalidate the list.
 export const stockRowDto = z.object({
-  id: z.uuid(),
+  id: beUuid,
   sku: z.string(),
   locationCode: z.string(),
   lotNumber: z.string().nullish(),

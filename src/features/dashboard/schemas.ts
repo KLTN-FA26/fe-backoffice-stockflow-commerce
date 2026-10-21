@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { beUuid } from "@/lib/validation/primitives";
+
 // Only the paging total is read: counters never look at the rows.
 export const countPageDto = z.object({ totalElements: z.number().int().nonnegative() });
 
@@ -11,7 +13,7 @@ export const alertSummaryDto = z.object({
 // BE `StockAlertResponse` — fields the dashboard shows. `kind`/`status` stay open Strings so a newer
 // code does not invalidate the page; nullable fields are omitted by Jackson NON_NULL.
 export const stockAlertDto = z.object({
-  id: z.uuid(),
+  id: beUuid,
   kind: z.string(),
   sku: z.string(),
   warehouseCode: z.string().nullish(),

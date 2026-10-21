@@ -6,7 +6,7 @@
 import { z } from "zod";
 
 import { PO_LIMITS, UI_LABELS } from "@/constants";
-import { isoDate, requiredString } from "@/lib/validation/primitives";
+import { beUuid, isoDate, requiredString } from "@/lib/validation/primitives";
 
 import { poLineInputSchema } from "./input-schemas";
 
@@ -28,7 +28,7 @@ export const updatePoSchema = z
       .max(PO_LIMITS.noteMax, UI_LABELS.purchaseOrder.validation.noteMaxError(PO_LIMITS.noteMax))
       .optional(),
     lines: z
-      .array(poLineInputSchema.extend({ lineId: z.uuid().optional() }))
+      .array(poLineInputSchema.extend({ lineId: beUuid.optional() }))
       .min(1, UI_LABELS.purchaseOrder.validation.linesMinOne)
       .max(PO_LIMITS.linesMax, UI_LABELS.purchaseOrder.draftEdit.linesMaxError(PO_LIMITS.linesMax)),
   })
