@@ -13,8 +13,6 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { FieldError, taskCode } from "../primitives";
 
-import type { FulfillmentTask } from "@/features/fulfillment/types";
-
 const { fulfillment } = UI_LABELS;
 
 /**
@@ -22,7 +20,7 @@ const { fulfillment } = UI_LABELS;
  * checksum sau khi đã khôi phục đúng file. Bắt buộc ghi cách đã xử lý; không có nút bỏ qua.
  * BE trả 200 cả khi vẫn lệch → dialog giữ nguyên, báo vẫn bị giữ (ghi chú lần đó không được lưu).
  */
-export function ReverifyDialog({ task, onClose }: { task: FulfillmentTask; onClose: () => void }) {
+export function ReverifyDialog({ taskId, onClose }: { taskId: string; onClose: () => void }) {
   const reverify = useReverifyDesignIntegrity();
   const [note, setNote] = useState("");
   const [fieldError, setFieldError] = useState<string | undefined>();
@@ -35,7 +33,7 @@ export function ReverifyDialog({ task, onClose }: { task: FulfillmentTask; onClo
       return;
     }
     reverify.mutate(
-      { taskId: task.taskId, resolutionNote: parsed.data.resolutionNote },
+      { taskId, resolutionNote: parsed.data.resolutionNote },
       {
         onSuccess: (result) => {
           if (isOnDesignHold(result)) setServerError(fulfillment.stillOnHold);
@@ -49,8 +47,8 @@ export function ReverifyDialog({ task, onClose }: { task: FulfillmentTask; onClo
   return (
     <FormDialog open onOpenChange={(open) => !open && onClose()}>
       <FormDialogBody
-        title={`${fulfillment.action.reverify} — task ${taskCode(task.taskId)}`}
-        description="Hệ thống tải lại bundle thiết kế và so checksum với bản khách đã chốt. Chỉ khi khớp, kiện mới được gỡ giữ và đóng gói."
+        title={`${fulfillment.action.reverify} — task ${taskCode(taskId)}`}
+        description="Hệ thống tải lại bundle thiết kế và so checksum với bản khách đã chốt. Chỉ khi khớp, đóng gói mới được gỡ giữ và quay lại đang đóng để người đóng hoàn tất."
         submitLabel={fulfillment.action.reverify}
         canSubmit
         isPending={reverify.isPending}

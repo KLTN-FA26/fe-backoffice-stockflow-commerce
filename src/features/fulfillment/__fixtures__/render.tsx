@@ -58,7 +58,7 @@ export const IDENTITIES = {
   },
 } satisfies Record<string, TestIdentity>;
 
-export type RouteHandler = (params: unknown, body?: unknown) => unknown;
+export type RouteHandler = (params: unknown, body?: unknown, config?: unknown) => unknown;
 
 /** Giả lập `api.get/post/put` theo URL. Trả spy để kiểm params / body đã gửi. */
 export function mockFulfillmentApi(
@@ -66,6 +66,7 @@ export function mockFulfillmentApi(
   getRoutes: Record<string, RouteHandler>,
   postRoutes: Record<string, RouteHandler> = {},
   putRoutes: Record<string, RouteHandler> = {},
+  deleteRoutes: Record<string, RouteHandler> = {},
 ) {
   const get = vi
     .spyOn(api, "get")
@@ -83,17 +84,26 @@ export function mockFulfillmentApi(
       if (!handler) throw new Error(`Không có mock cho GET ${url}`);
       return { data: handler(config?.params) };
     });
-  const post = vi.spyOn(api, "post").mockImplementation(async (url: string, body?: unknown) => {
-    const handler = postRoutes[url];
-    if (!handler) throw new Error(`Không có mock cho POST ${url}`);
-    return { data: handler(undefined, body) };
-  });
+  const post = vi
+    .spyOn(api, "post")
+    .mockImplementation(async (url: string, body?: unknown, config?: unknown) => {
+      const handler = postRoutes[url];
+      if (!handler) throw new Error(`Không có mock cho POST ${url}`);
+      return { data: handler(undefined, body, config) };
+    });
+  const del = vi
+    .spyOn(api, "delete")
+    .mockImplementation(async (url: string, config?: { params?: unknown }) => {
+      const handler = deleteRoutes[url];
+      if (!handler) throw new Error(`Không có mock cho DELETE ${url}`);
+      return { data: handler(config?.params) };
+    });
   const put = vi.spyOn(api, "put").mockImplementation(async (url: string, body?: unknown) => {
     const handler = putRoutes[url];
     if (!handler) throw new Error(`Không có mock cho PUT ${url}`);
     return { data: handler(undefined, body) };
   });
-  return { get, post, put };
+  return { get, post, put, del };
 }
 
 /** `userId` mặc định là người được gán của fixture `apiTask()`. */

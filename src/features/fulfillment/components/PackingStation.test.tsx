@@ -2,11 +2,23 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { FULFILLMENT_ERROR_MESSAGES, FULFILLMENT_FIELD_MESSAGES, UI_LABELS } from "@/constants";
+import {
+  FULFILLMENT_ERROR_MESSAGES,
+  FULFILLMENT_FIELD_MESSAGES,
+  PACKING_ERROR_MESSAGES,
+  UI_LABELS,
+} from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { toast } from "@/components/shared/Toast";
 
 import { IDENTITIES, mockFulfillmentApi, renderFulfillmentScreen } from "../__fixtures__/render";
+import {
+  OTHER_PACKER_ID,
+  apiSession,
+  packLine,
+  pendingSession,
+  printLine,
+} from "../__fixtures__/packing";
 import {
   DESIGN_LINE_ID,
   ORDER_ID,
@@ -22,6 +34,7 @@ import {
 import { PackingStation } from "./PackingStation";
 
 import type { TestIdentity } from "../__fixtures__/render";
+import type { PackingSessionDto } from "../packing-types";
 import type { FulfillmentTaskApiDto } from "../types";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
@@ -68,56 +81,49 @@ const heldTask = (overrides: Partial<FulfillmentTaskApiDto> = {}) =>
 interface Scenario {
   identity: TestIdentity;
   task: FulfillmentTaskApiDto;
+  /** Phiên đóng gói (mặc định: PACKING bởi người được gán, có một dòng thường + một dòng in). */
+  session?: PackingSessionDto;
   userId?: string;
-  /** Kết quả lần lượt của các lần đóng gói / kiểm tra lại. */
-  packResults?: FulfillmentTaskApiDto[];
+  /** Kết quả lần lượt của các lần kiểm tra lại. */
   reverifyResults?: FulfillmentTaskApiDto[];
 }
+
+const withPrintLine = (overrides: Partial<PackingSessionDto> = {}) =>
+  apiSession({ lines: [packLine(), printLine()], ...overrides });
 
 function renderStation({
   identity,
   task: initial,
+  session: initialSession,
   userId,
-  packResults,
   reverifyResults,
 }: Scenario) {
   let task = initial;
+  let session = initialSession ?? withPrintLine();
   const next = (queue: FulfillmentTaskApiDto[] | undefined) => {
     const result = queue?.shift();
     if (!result) throw new Error("không còn kết quả giả lập");
-    return (task = result);
+    task = result;
+    // BE PR #136: kiểm tra lại khớp → phiên đóng gói về PACKING
+    if (result.packStatus === "PACKING") session = { ...session, packStatus: "PACKING" };
+    return result;
   };
   const spies = mockFulfillmentApi(
     identity,
     {
       [PATH]: () => task,
+      [`${PATH}/packing-session`]: () => session,
       [`/orders/${ORDER_ID}`]: () => fulfillmentOrder,
-      "/orders": () => ({
-        items: [],
-        page: 0,
-        size: 200,
-        totalElements: 0,
-        totalPages: 0,
-        hasNext: false,
-        hasPrevious: false,
-      }),
+      "/orders": () => EMPTY_PAGE,
       [PREVIEW_PATH]: () => artifact("CUSTOMER_PREVIEW", "image/png"),
       [PRINT_PATH]: () => artifact("PRINT_READY", "application/pdf"),
     },
     {
-      [`${PATH}/packing-completion`]: () => next(packResults),
       [`${PATH}/design-integrity-reverification`]: () => next(reverifyResults),
     },
   );
   renderFulfillmentScreen(<PackingStation id={TASK_ID} />, userId ?? PICKER_ID);
   return spies;
-}
-
-async function confirmPacking(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(await screen.findByRole("button", { name: action.completePacking }));
-  await user.click(
-    within(await screen.findByRole("dialog")).getByRole("button", { name: action.completePacking }),
-  );
 }
 
 describe("PackingStation — thiết kế đã khoá bên cạnh dòng tuỳ chỉnh", () => {
@@ -160,6 +166,7 @@ describe("PackingStation — thiết kế đã khoá bên cạnh dòng tuỳ ch�
     const error = vi.spyOn(toast, "error").mockImplementation(() => "");
     mockFulfillmentApi(IDENTITIES.staffWithOrders, {
       [PATH]: () => pickedTask(),
+      [`${PATH}/packing-session`]: () => withPrintLine(),
       [`/orders/${ORDER_ID}`]: () => fulfillmentOrder,
       "/orders": () => EMPTY_PAGE,
       [PREVIEW_PATH]: () => artifact("CUSTOMER_PREVIEW", "image/png"),
@@ -198,6 +205,7 @@ describe("PackingStation — thiết kế đã khoá bên cạnh dòng tuỳ ch�
     };
     mockFulfillmentApi(IDENTITIES.staffWithOrders, {
       [PATH]: () => pickedTask({ packStatus: "PACKED", packedAt: "2026-10-10T03:00:00Z" }),
+      [`${PATH}/packing-session`]: () => withPrintLine({ packStatus: "PACKED" }),
       [`/orders/${ORDER_ID}`]: () => fulfillmentOrder,
       "/orders": () => EMPTY_PAGE,
       [PREVIEW_PATH]: refuse,
@@ -219,6 +227,7 @@ describe("PackingStation — thiết kế đã khoá bên cạnh dòng tuỳ ch�
     vi.spyOn(console, "error").mockImplementation(() => {});
     mockFulfillmentApi(IDENTITIES.staffWithOrders, {
       [PATH]: () => heldTask(),
+      [`${PATH}/packing-session`]: () => withPrintLine({ packStatus: "ON_HOLD" }),
       [`/orders/${ORDER_ID}`]: () => fulfillmentOrder,
       "/orders": () => EMPTY_PAGE,
       [PREVIEW_PATH]: () => {
@@ -235,6 +244,7 @@ describe("PackingStation — thiết kế đã khoá bên cạnh dòng tuỳ ch�
     vi.spyOn(console, "error").mockImplementation(() => {});
     mockFulfillmentApi(IDENTITIES.staffWithOrders, {
       [PATH]: () => pickedTask(),
+      [`${PATH}/packing-session`]: () => withPrintLine(),
       [`/orders/${ORDER_ID}`]: () => fulfillmentOrder,
       "/orders": () => ({
         items: [],
@@ -262,19 +272,52 @@ describe("PackingStation — thiết kế đã khoá bên cạnh dòng tuỳ ch�
     const { get } = renderStation({ identity: IDENTITIES.warehouseStaff, task: pickedTask() });
     expect(await screen.findByText(fulfillment.noOrderReadTitle)).toBeInTheDocument();
     expect(get.mock.calls.some(([url]) => String(url).startsWith("/orders"))).toBe(false);
-    // Vẫn xác nhận đóng gói được — BE tự đối chiếu
-    expect(screen.getByRole("button", { name: action.completePacking })).toBeInTheDocument();
+    // Vẫn hoàn tất đóng gói được — BE tự đối chiếu
+    expect(
+      screen.getByRole("button", { name: UI_LABELS.packing.action.complete }),
+    ).toBeInTheDocument();
   });
 
   it("thiếu sales-orders:READ nhưng đã có evidence → suy dòng từ evidence, vẫn tải được artifact", async () => {
-    renderStation({ identity: IDENTITIES.warehouseStaff, task: heldTask() });
+    renderStation({
+      identity: IDENTITIES.warehouseStaff,
+      task: heldTask(),
+      session: withPrintLine({ packStatus: "ON_HOLD" }),
+    });
     expect(await screen.findByRole("heading", { name: "Dòng 1" })).toBeInTheDocument();
     expect(
       await screen.findByRole("img", { name: /Thiết kế đã khoá của Dòng 1/ }),
     ).toBeInTheDocument();
   });
 
-  it("điều phối đơn không có quyền tải artifact → không gọi download-url", async () => {
+  it("người đóng không phải người lấy hàng (task không phải của họ) → không tải được file thiết kế", async () => {
+    const { get } = renderStation({
+      identity: IDENTITIES.staffWithOrders,
+      task: pickedTask({ assignedUserId: OTHER_PICKER_ID }),
+    });
+    expect(await screen.findByText(/không có quyền xem file thiết kế/)).toBeInTheDocument();
+    expect(get.mock.calls.some(([url]) => String(url).includes("design-artifacts"))).toBe(false);
+    expect(screen.queryByRole("button", { name: "File in" })).toBeNull();
+  });
+
+  it("BE trả 404 cho task (người đóng không phải người lấy hàng) → trạm vẫn chạy, báo không xem được thiết kế", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    mockFulfillmentApi(IDENTITIES.staffWithOrders, {
+      [PATH]: () => {
+        throw new ApiError(404, "NOT_FOUND", "Resource not found");
+      },
+      [`${PATH}/packing-session`]: () => withPrintLine(),
+      "/orders": () => EMPTY_PAGE,
+    });
+    renderFulfillmentScreen(<PackingStation id={TASK_ID} />);
+    expect(await screen.findByText(UI_LABELS.packing.notice.noTaskAccessTitle)).toBeInTheDocument();
+    // Việc đóng gói không bị ảnh hưởng
+    expect(
+      screen.getByRole("button", { name: UI_LABELS.packing.action.complete }),
+    ).toBeInTheDocument();
+  });
+
+  it("thiếu fulfillment-packages:READ (điều phối đơn) → không gọi API phiên, báo không có quyền xem", async () => {
     // Cổng route cần packages:VIEW_PAGE — cấp thêm để vào tới màn, vẫn thiếu packages:READ
     const identity = {
       roles: IDENTITIES.orderCoordinator.roles,
@@ -284,57 +327,38 @@ describe("PackingStation — thiết kế đã khoá bên cạnh dòng tuỳ ch�
       ],
     };
     const { get } = renderStation({ identity, task: pickedTask(), userId: "coordinator-id" });
-    expect(await screen.findByText(/không có quyền xem file thiết kế/)).toBeInTheDocument();
-    expect(get.mock.calls.some(([url]) => String(url).includes("design-artifacts"))).toBe(false);
-    expect(screen.queryByRole("button", { name: "File in" })).toBeNull();
+    expect(await screen.findByText(UI_LABELS.loadError.noReadTitle)).toBeInTheDocument();
+    expect(get.mock.calls.some(([url]) => String(url).includes("packing-session"))).toBe(false);
   });
 });
 
-describe("PackingStation — xác nhận đóng gói và flow X-CHK", () => {
-  it("đóng gói khớp checksum → POST không body, sang Packed, hết thao tác", async () => {
-    const user = userEvent.setup();
-    const { post } = renderStation({
-      identity: IDENTITIES.staffWithOrders,
-      task: pickedTask(),
-      packResults: [
-        pickedTask({
-          packStatus: "PACKED",
-          packedAt: "2026-10-10T03:00:00Z",
-          integrityEvidence: [apiEvidence()],
-        }),
-      ],
-    });
-    await confirmPacking(user);
-    await waitFor(() => expect(post).toHaveBeenCalledWith(`${PATH}/packing-completion`, undefined));
-    expect(await screen.findByText(/Đã đóng gói — không còn thao tác/)).toBeInTheDocument();
-    expect(screen.queryByText(fulfillment.holdTitle)).toBeNull();
-    expect(screen.queryByRole("button", { name: action.completePacking })).toBeNull();
-  });
+describe("PackingStation — kiểm tra lại thiết kế (flow X-CHK) và quyền thao tác", () => {
+  const heldSession = () => withPrintLine({ packStatus: "ON_HOLD" });
 
-  it("đóng gói lệch checksum (BE trả 200 + ON_HOLD) → cảnh báo giữ kiện + evidence lệch, NV kho không gỡ được", async () => {
-    const user = userEvent.setup();
+  it("phiên bị giữ (BE 200 + ON_HOLD) → cảnh báo + evidence lệch; NV kho không kiểm tra lại, không hoàn tất", async () => {
     renderStation({
       identity: IDENTITIES.staffWithOrders,
-      task: pickedTask(),
-      packResults: [heldTask()],
+      task: heldTask(),
+      session: heldSession(),
     });
-    await confirmPacking(user);
 
     expect(await screen.findByText(fulfillment.holdTitle)).toBeInTheDocument();
     const history = screen.getByRole("table", { name: "Lịch sử đối chiếu checksum thiết kế" });
     expect(within(history).getByText("Lệch checksum")).toBeInTheDocument();
     expect(within(history).getByText("bbbbbbbbbbbb…")).toBeInTheDocument();
-    // Không có nút bỏ qua; NV kho không kiểm tra lại, không đóng gói lại
+    // Không có nút bỏ qua; NV kho không kiểm tra lại, không hoàn tất, không quét
     expect(screen.queryByRole("button", { name: action.reverify })).toBeNull();
-    expect(screen.queryByRole("button", { name: action.completePacking })).toBeNull();
-    expect(screen.getByText(/Chờ QC hoặc quản lý kho kiểm tra lại/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: UI_LABELS.packing.action.complete })).toBeNull();
+    expect(screen.queryByLabelText(UI_LABELS.packing.scan.label)).toBeNull();
+    expect(screen.getAllByText(/Chờ QC hoặc quản lý kho kiểm tra lại/).length).toBeGreaterThan(0);
   });
 
-  it("quản lý kho kiểm tra lại: bắt buộc ghi chú; vẫn lệch thì giữ dialog; khớp thì gỡ giữ", async () => {
+  it("quản lý kho kiểm tra lại: bắt buộc ghi chú; vẫn lệch thì giữ dialog; khớp thì phiên về Packing, KHÔNG sang Packed", async () => {
     const user = userEvent.setup();
     const { post } = renderStation({
       identity: IDENTITIES.warehouseManager,
       task: heldTask({ assignedUserId: OTHER_PICKER_ID }),
+      session: heldSession(),
       reverifyResults: [
         heldTask({
           assignedUserId: OTHER_PICKER_ID,
@@ -342,8 +366,7 @@ describe("PackingStation — xác nhận đóng gói và flow X-CHK", () => {
         }),
         pickedTask({
           assignedUserId: OTHER_PICKER_ID,
-          packStatus: "PACKED",
-          packedAt: "2026-10-10T05:00:00Z",
+          packStatus: "PACKING",
           integrityEvidence: [
             apiEvidence({ verifiedAt: "2026-10-10T05:00:00Z" }),
             mismatchEvidence(),
@@ -375,24 +398,66 @@ describe("PackingStation — xác nhận đóng gói và flow X-CHK", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(post).toHaveBeenCalledTimes(2);
     await waitFor(() => expect(screen.queryByText(fulfillment.holdTitle)).toBeNull());
+    // Phiên về "Đang đóng gói": người đóng hoàn tất lại (quản lý kho thao tác được trong phiên)
+    expect(await screen.findAllByText("Đang đóng gói")).not.toHaveLength(0);
+    expect(screen.queryByText("Đã đóng gói")).toBeNull();
+    expect(
+      screen.getByRole("button", { name: UI_LABELS.packing.action.complete }),
+    ).toBeInTheDocument();
   });
 
-  it("chưa lấy hàng xong → không có nút đóng gói, giải thích lý do", async () => {
+  it("chưa nhận đơn → nút Bắt đầu đóng gói; BE từ chối PACKING_NOT_READY thì báo bằng tiếng Việt", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const user = userEvent.setup();
+    const error = vi.spyOn(toast, "error").mockImplementation(() => "");
+    mockFulfillmentApi(
+      IDENTITIES.warehouseStaff,
+      {
+        [PATH]: () => apiTask({ pickStatus: "PICKING" }),
+        [`${PATH}/packing-session`]: () => pendingSession(),
+      },
+      {
+        [`${PATH}/packing-start`]: () => {
+          throw new ApiError(409, "PACKING_NOT_READY", "Picking is PICKING");
+        },
+      },
+    );
+    renderFulfillmentScreen(<PackingStation id={TASK_ID} />);
+    await user.click(await screen.findByRole("button", { name: UI_LABELS.packing.action.start }));
+    await waitFor(() =>
+      expect(error).toHaveBeenCalledWith(PACKING_ERROR_MESSAGES.PACKING_NOT_READY),
+    );
+  });
+
+  it("người khác đã nhận đơn → NV kho chỉ xem, câu báo nêu tên người đang đóng", async () => {
     renderStation({
       identity: IDENTITIES.warehouseStaff,
-      task: apiTask({ pickStatus: "PICKING" }),
+      task: pickedTask(),
+      session: apiSession({ packerId: OTHER_PACKER_ID, packerName: "Nguyễn Văn Đạt" }),
     });
-    expect(await screen.findByText(fulfillment.noActions.waitingPick)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: action.completePacking })).toBeNull();
+    expect(
+      await screen.findByText(UI_LABELS.packing.notice.takenTitle("Nguyễn Văn Đạt")),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: UI_LABELS.packing.action.complete })).toBeNull();
+    expect(screen.queryByRole("button", { name: UI_LABELS.packing.action.openPackage })).toBeNull();
+    expect(screen.queryByLabelText(UI_LABELS.packing.scan.label)).toBeNull();
   });
 
-  it("quản lý kho không được gán → không đóng gói hộ", async () => {
+  it("quản lý kho vẫn thao tác được khi người khác đã nhận đơn (BE không bắn PACKING_TAKEN cho quản lý)", async () => {
     renderStation({
       identity: IDENTITIES.warehouseManager,
-      task: pickedTask({ assignedUserId: OTHER_PICKER_ID }),
+      task: pickedTask(),
+      session: apiSession({ packerId: OTHER_PACKER_ID, packerName: "Nguyễn Văn Đạt" }),
     });
-    expect(await screen.findByText(fulfillment.noActions.notAssignee)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: action.completePacking })).toBeNull();
+    expect(
+      await screen.findByText(UI_LABELS.packing.notice.managerTitle("Nguyễn Văn Đạt")),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: UI_LABELS.packing.action.complete }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: UI_LABELS.packing.action.openPackage }),
+    ).toBeInTheDocument();
   });
 
   it("QC theo seed BE không có packages:VIEW_PAGE → bị chặn ở cổng route (gap BE)", async () => {

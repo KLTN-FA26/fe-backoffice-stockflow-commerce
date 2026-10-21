@@ -3,12 +3,7 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
 
-import {
-  FULFILLMENT_PACKAGE_PERMISSIONS,
-  FULFILLMENT_PICK_PERMISSIONS,
-  STAFF_ROLE,
-  UI_LABELS,
-} from "@/constants";
+import { FULFILLMENT_PICK_PERMISSIONS, STAFF_ROLE, UI_LABELS } from "@/constants";
 import { canCreateTask, hasStaffRole } from "@/features/fulfillment/lifecycle";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -89,19 +84,6 @@ export function PickingList() {
       variant="list"
     >
       <TaskListContent scope="picking" />
-    </FulfillmentPermissionGate>
-  );
-}
-
-/** Danh sách task ở màn Đóng gói — cần `fulfillment-packages:VIEW_PAGE`. */
-export function PackingList() {
-  return (
-    <FulfillmentPermissionGate
-      scope="packing"
-      permissions={[FULFILLMENT_PACKAGE_PERMISSIONS.viewPage]}
-      variant="list"
-    >
-      <TaskListContent scope="packing" />
     </FulfillmentPermissionGate>
   );
 }

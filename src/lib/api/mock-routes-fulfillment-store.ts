@@ -7,6 +7,7 @@
  */
 
 import { toBackendRoles } from "./mock-backend-roles";
+import { resetPackingMockStore } from "./mock-routes-packing-store";
 import {
   backendOrderStatusOf,
   fakeSha256,
@@ -35,6 +36,9 @@ export interface MockEvidence {
 export interface MockTask {
   taskId: string;
   orderId: string;
+  /** BE PR #136 trả thêm số đơn + kho trên task. */
+  orderNumber: string;
+  warehouseId: string;
   assignedUserId: string;
   pickStatus: MockPickStatus;
   packStatus: MockPackStatus;
@@ -87,6 +91,7 @@ const tampered = new Map<string, number>();
 let sequence = 0;
 
 export function resetFulfillmentMockStore(): void {
+  resetPackingMockStore();
   store = undefined;
   tampered.clear();
   sequence = 0;
@@ -136,6 +141,8 @@ function seedTask(order: Order, spec: SeedSpec): MockTask {
   const task: MockTask = {
     taskId: mockTaskId(order.orderId),
     orderId: order.orderId,
+    orderNumber: order.orderNumber,
+    warehouseId: order.fulfillmentWarehouseId,
     assignedUserId: spec.assignee,
     pickStatus: spec.pick,
     packStatus: spec.pack,

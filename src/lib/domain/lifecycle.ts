@@ -156,14 +156,15 @@ export const PICK_TRANSITIONS: Record<PickStatus, readonly PickStatus[]> = {
 
 /* ── Module 08: Packing ──────────────────────────────────────────────── */
 
-// HỆ QUY CHIẾU LÀ BE: chép đúng các chuyển trạng thái BE `PackJpaEntity` đang cho phép
-// (complete / hold / cancel). Docs 08 §5 chỉ để tham khảo — BE đổi thì FE mới đổi theo.
-// BR-DSG-003 (BE): thiết kế lệch checksum → `On Hold`, chỉ ra `Packed` khi kiểm tra lại khớp
-// (flow X-CHK). `PACKED` là trạng thái cuối ở BE hiện tại.
+// HỆ QUY CHIẾU LÀ BE: chép đúng phiên đóng gói BE `PackingSession` (PR #136, 03-state-machines):
+// PENDING → PACKING (packer nhận đơn, `packing-start`) → PACKED (không còn gì chờ giao), PACKING ⇄
+// ON_HOLD (thiết kế dòng in lệch checksum, BR-DSG-003; QC / quản lý kho kiểm tra lại thì phiên về
+// PACKING — docs 08 §5 "Verification Failed → In Progress" — chứ KHÔNG ra PACKED), → CANCELLED khi
+// đơn huỷ. Giao một phần giữ phiên ở PACKING. `PACKED` / `CANCELLED` là trạng thái cuối.
 export const PACK_TRANSITIONS: Record<PackStatus, readonly PackStatus[]> = {
-  Pending: ["Packed", "On Hold", "Cancelled"],
+  Pending: ["Packing", "Cancelled"],
   Packing: ["Packed", "On Hold", "Cancelled"],
-  "On Hold": ["Packed", "Cancelled"],
+  "On Hold": ["Packing", "Cancelled"],
   Packed: [],
   Cancelled: [],
 };

@@ -220,7 +220,8 @@ export const PICK_STATUS_BY_API = PICK_STATUS;
 /**
  * Trạng thái đóng gói — HỆ QUY CHIẾU LÀ BE `fulfillment/internal/domain/PackStatus.java`, cùng quy
  * tắc với `PICK_STATUSES` (tên enum BE viết Title Case; docs 08 §5 chỉ để tham khảo).
- * `PACKING` có trong enum BE nhưng chưa code nào set — `status-map` chưa có nhãn, thêm khi BE dùng.
+ * `PACKING` = packer đã nhận đơn tại bàn đóng gói (BE PR #136: `POST /tasks/{id}/packing-start`; sau
+ * khi kiểm tra lại thiết kế khớp, phiên cũng trở lại `PACKING` chứ không phải `PACKED`).
  */
 export const PACK_STATUSES = ["Pending", "Packing", "On Hold", "Packed", "Cancelled"] as const;
 
@@ -237,6 +238,43 @@ export const PACK_API_STATUSES = ["PENDING", "PACKING", "ON_HOLD", "PACKED", "CA
 
 /** Đổi 1-1 giá trị BE → tên hiển thị; khoá theo enum BE nên BE thêm giá trị là typecheck báo. */
 export const PACK_STATUS_BY_API = PACK_STATUS;
+
+/** BE `fulfillment/internal/domain/PackageStatus.java` (PR #136) — kiện ở trạm đóng gói. */
+export const PACKAGE_API_STATUSES = ["OPEN", "SEALED", "VOIDED"] as const;
+
+/** BE `PackageType.java` (PR #136) — loại kiện; mặc định CARTON khi không gửi. */
+export const PACKAGE_TYPES = ["CARTON", "BAG", "PALLET", "CRATE", "OTHER"] as const;
+
+/** BE `ShipmentStatus.java` (PR #136, kltn-docs 09 §5) — lô giao do bước đóng gói tạo ra. */
+export const PACK_SHIPMENT_API_STATUSES = [
+  "READY_TO_DISPATCH",
+  "HANDED_OVER",
+  "DELIVERED",
+  "DELIVERY_FAILED",
+  "RETURNED",
+  "CANCELLED",
+] as const;
+
+/** BE `DeliveryMode.java` — hiện mọi lô là PARCEL (BE: chờ G3-4). */
+export const DELIVERY_MODES = ["PARCEL", "FULL_TRUCKLOAD"] as const;
+
+/** Trạng thái kiện / lô giao → chuỗi status của `StatusDot` (nhãn + màu ở `lib/status-map.ts`). */
+export const PACKAGE_STATUS_DISPLAY = {
+  OPEN: "Package Open",
+  SEALED: "Sealed",
+  VOIDED: "Voided",
+  UNKNOWN: "UNKNOWN",
+} as const;
+
+export const PACK_SHIPMENT_STATUS_DISPLAY = {
+  READY_TO_DISPATCH: "Ready to Dispatch",
+  HANDED_OVER: "Handed Over",
+  DELIVERED: "Delivered",
+  DELIVERY_FAILED: "Delivery Failed",
+  RETURNED: "Returned",
+  CANCELLED: "Cancelled",
+  UNKNOWN: "UNKNOWN",
+} as const;
 
 /** BE `design/api/DesignArtifactRole.java` — vai trò file trong bundle thiết kế đã khoá. */
 export const DESIGN_ARTIFACT_ROLES = [

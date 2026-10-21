@@ -12,7 +12,6 @@ import { useAuthStore } from "@/lib/auth/auth-store";
 
 import {
   assignFulfillmentTask,
-  completePacking,
   completePicking,
   createFulfillmentTask,
   getDesignArtifactUrl,
@@ -118,7 +117,7 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
   );
 
   it(
-    "luồng đủ: lấy hàng → đóng gói lệch checksum (200 + On Hold) → kiểm tra lại → Packed",
+    "luồng lấy hàng: người được gán bắt đầu → hoàn tất; đóng gói do màn trạm (packing.mock-contract.test.ts) lo",
     async () => {
       const task = required(
         (await allTasks()).find((t) => t.pickStatus === "Pending" && t.packStatus === "Pending"),
@@ -145,43 +144,11 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
       ).toBe("CONFLICT");
 
       actAs(USERS.picker);
-      // Chưa lấy xong → chưa đóng gói
-      expect(await codeOf(completePacking(id))).toBe("CONFLICT");
-      expect((await completePicking(id)).pickStatus).toBe("Picked");
-
-      // X-CHK: lệch checksum KHÔNG phải lỗi
-      const held = await completePacking(id);
-      expect(held.packStatus).toBe("On Hold");
-      // Lệch checksum → đơn ON_HOLD (DESIGN_MISMATCH), về lại bước đang làm khi gỡ giữ
-      expect(await backendOrderStatusOf(task.orderId)).toBe("ON_HOLD");
-      expect(held.packedAt).toBeUndefined();
-      expect(held.integrityEvidence.length).toBeGreaterThan(0);
-      expect(held.integrityEvidence.every((e) => !e.matching)).toBe(true);
-      // Kiện đang giữ → đóng gói lại bị từ chối; NV kho không được kiểm tra lại
-      expect(await codeOf(completePacking(id))).toBe("CONFLICT");
-      expect(await codeOf(reverifyDesignIntegrity({ taskId: id, resolutionNote: "x" }))).toBe(
-        "FORBIDDEN",
-      );
-
-      actAs(USERS.qc);
-      expect(await codeOf(reverifyDesignIntegrity({ taskId: id, resolutionNote: " " }))).toBe(
-        "VALIDATION_FAILED",
-      );
-      // File chưa được khôi phục → vẫn 200, vẫn On Hold, thêm evidence
-      const still = await reverifyDesignIntegrity({ taskId: id, resolutionNote: "thử lại" });
-      expect(still.packStatus).toBe("On Hold");
-      expect(still.integrityEvidence.length).toBeGreaterThan(held.integrityEvidence.length);
-
-      const packed = await reverifyDesignIntegrity({ taskId: id, resolutionNote: "đã khôi phục" });
-      expect(packed.packStatus).toBe("Packed");
-      // Kiểm tra lại đạt: gỡ giữ DESIGN_MISMATCH rồi đóng gói xong → đơn PACKED
-      expect(await backendOrderStatusOf(task.orderId)).toBe("PACKED");
-      expect(packed.packedAt).toBeTruthy();
-      // Mới nhất trước
-      expect(packed.integrityEvidence[0]?.matching).toBe(true);
-      expect(await codeOf(reverifyDesignIntegrity({ taskId: id, resolutionNote: "lần nữa" }))).toBe(
-        "CONFLICT",
-      );
+      const picked = await completePicking(id);
+      expect(picked.pickStatus).toBe("Picked");
+      // BE PR #136 trả thêm số đơn + kho trên task
+      expect(picked.orderNumber).toBeTruthy();
+      expect(picked.warehouseId).toBeTruthy();
     },
     FLOW_TIMEOUT_MS,
   );

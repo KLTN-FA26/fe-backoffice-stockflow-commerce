@@ -12,11 +12,7 @@ import {
   UI_LABELS,
 } from "@/constants";
 import { allowedFulfillmentActions } from "@/features/fulfillment/lifecycle";
-import {
-  useCompletePacking,
-  useCompletePicking,
-  useStartPicking,
-} from "@/features/fulfillment/mutations";
+import { useCompletePicking, useStartPicking } from "@/features/fulfillment/mutations";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
@@ -57,7 +53,6 @@ export function TaskActionCard({
   const mutations = {
     startPicking: useStartPicking(),
     completePicking: useCompletePicking(),
-    completePacking: useCompletePacking(),
   };
   const [dialog, setDialog] = useState<FulfillmentActionCode | null>(null);
   const actions = allowedFulfillmentActions(task, actor).filter((action) =>
@@ -143,7 +138,9 @@ export function TaskActionCard({
         />
       )}
       {dialog === "assign" && <AssignDialog task={task} onClose={() => setDialog(null)} />}
-      {dialog === "reverify" && <ReverifyDialog task={task} onClose={() => setDialog(null)} />}
+      {dialog === "reverify" && (
+        <ReverifyDialog taskId={task.taskId} onClose={() => setDialog(null)} />
+      )}
     </section>
   );
 }

@@ -233,6 +233,15 @@ export async function putMockOrderOnDesignHold(orderId: string): Promise<void> {
   state.holdNote = undefined;
 }
 
+/**
+ * Mock kiểm tra lại thiết kế khớp: gỡ giữ DESIGN_MISMATCH, đơn về đúng bước đang làm trước khi bị giữ
+ * (BE `OrderService.resolveDesignHold`) — KHÔNG sang PACKED, người đóng gói hoàn tất lại (BE PR #136).
+ */
+export function resolveMockDesignHold(orderId: string): void {
+  const state = lifecycleOf(orderId);
+  setMockOrderStatus(orderId, state.statusBeforeHold ?? "PICKING");
+}
+
 /** SHA-256 giả 64 hex, ổn định theo seed (FNV-1a lặp 8 lần). */
 export function fakeSha256(seed: string): string {
   let out = "";

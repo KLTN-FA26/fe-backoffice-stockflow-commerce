@@ -15,7 +15,7 @@ const { noActions } = UI_LABELS.fulfillment;
 
 const ASSIGNEE_ONLY: Record<FulfillmentScope, readonly FulfillmentActionCode[]> = {
   picking: ["startPicking", "completePicking"],
-  packing: ["completePacking"],
+  packing: [],
 };
 
 /** Câu thay cho nút khi task không còn thao tác nào trong màn này với người dùng này. */
