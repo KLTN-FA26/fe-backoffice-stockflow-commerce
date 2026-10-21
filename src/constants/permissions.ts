@@ -31,16 +31,20 @@ export const SUPPLIER_ITEM_PERMISSIONS = {
 } as const;
 
 /**
- * Đơn hàng — resource `sales-orders` (BE `OrderResources.ORDERS`). Huỷ đơn phía admin
- * (`POST /orders/{id}/admin-cancellation`) yêu cầu APPROVE scope ALL; seed BE chỉ cấp cho
- * ORDER_COORDINATOR (SALES_STAFF chỉ có VIEW_PAGE/READ/CREATE/UPDATE).
+ * Đơn hàng — resource `sales-orders` (BE `OrderResources.ORDERS`).
+ * - `approve` (APPROVE, scope ALL): giữ đơn, gỡ giữ, ghi giao thất bại (`OrderReleaseController`);
+ *   seed BE chỉ cấp cho ORDER_COORDINATOR (SALES_STAFF chỉ có VIEW_PAGE/READ/CREATE/UPDATE).
+ * - `cancel`: huỷ đơn phía admin (`POST /orders/{id}/admin-cancellation`) và đóng phần còn lại của
+ *   đơn giao một phần (`POST /orders/{id}/remainder-closure`) — BE tách sang resource
+ *   `sales-order-cancellations` (UPDATE, scope ALL; seed: ORDER_COORDINATOR + SALES_STAFF).
  */
 export const ORDER_PERMISSIONS = {
   // Mở trang (menu + chặn route) — BE Action.VIEW_PAGE, ADR-0004
   viewPage: "sales-orders:VIEW_PAGE",
   // Đọc dữ liệu (GET /orders, /orders/{id}) — seed BE: SALES_STAFF, ORDER_COORDINATOR
   read: "sales-orders:READ",
-  cancel: "sales-orders:APPROVE",
+  approve: "sales-orders:APPROVE",
+  cancel: "sales-order-cancellations:UPDATE",
 } as const;
 
 /**

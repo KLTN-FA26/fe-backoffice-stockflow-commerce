@@ -61,7 +61,7 @@ export const pickedTask = (overrides: Partial<FulfillmentTaskApiDto> = {}) =>
 export const fulfillmentOrder: FulfillmentOrder = {
   orderId: ORDER_ID,
   orderNumber: "SO-20261010-000431",
-  status: "IN_FULFILMENT",
+  status: "PICKING",
   lines: [
     { lineId: PLAIN_LINE_ID, sku: "TEE-BLK-M", quantity: 3 },
     {

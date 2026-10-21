@@ -51,13 +51,37 @@ describe("OrderList — phân trang/lọc phía server", () => {
     expect(screen.getAllByText(formatDate(apiOrder.placedAt)).length).toBeGreaterThan(0);
   });
 
-  it("URL ?status=Paid&q=SO-2026&page=2 → gửi status=PAID, search, page=1 (BE đánh số từ 0)", async () => {
-    renderList(() => apiOrderPage([]), "?status=Paid&q=SO-2026&page=2");
+  it("URL ?status=Confirmed&q=SO-2026&page=2 → gửi status=CONFIRMED, search, page=1 (BE đánh số từ 0)", async () => {
+    renderList(() => apiOrderPage([]), "?status=Confirmed&q=SO-2026&page=2");
 
-    await waitFor(() => expect(lastListQuery().get("status")).toBe("PAID"));
+    await waitFor(() => expect(lastListQuery().get("status")).toBe("CONFIRMED"));
     const query = lastListQuery();
     expect(query.get("search")).toBe("SO-2026");
     expect(query.get("page")).toBe("1");
+  });
+});
+
+describe("OrderList — liên kết từ tile 'Đơn chờ xử lý' của dashboard", () => {
+  it("?status=Pending Payment,Confirmed,In Production,Ready to Fulfill,On Hold → gửi đúng 5 mã BE", async () => {
+    renderList(
+      () => apiOrderPage([]),
+      "?status=Pending%20Payment,Confirmed,In%20Production,Ready%20to%20Fulfill,On%20Hold",
+    );
+
+    await waitFor(() => expect(lastListQuery().getAll("status")).toHaveLength(5));
+    expect(lastListQuery().getAll("status")).toEqual([
+      "PENDING_PAYMENT",
+      "CONFIRMED",
+      "IN_PRODUCTION",
+      "READY_TO_FULFILL",
+      "ON_HOLD",
+    ]);
+  });
+
+  it("URL cũ ?status=Paid / In Fulfilment bị bỏ — không gửi lọc nào", async () => {
+    renderList(() => apiOrderPage([]), "?status=Paid,In%20Fulfilment");
+
+    await waitFor(() => expect(String(lastListQuery())).toBe("page=0&size=15"));
   });
 });
 

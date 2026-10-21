@@ -34,6 +34,14 @@ export const ORDER_LIMITS = {
    * @NotBlank nên FE phải chặn, quá dài → DB từ chối → BE trả 500.
    */
   cancelReasonMax: 500,
+  /** `HoldOrderRequest.note` @Size(max = 1000) — BE PR #133. */
+  holdNoteMax: 1000,
+  /** `ResolveHoldRequest.note` @NotBlank @Size(max = 1000). */
+  resolveNoteMax: 1000,
+  /** `DeliveryFailureRequest.note` @Size(max = 500). */
+  deliveryFailureNoteMax: 500,
+  /** `CloseRemainderRequest.note` @Size(max = 1000). */
+  remainderClosureNoteMax: 1000,
 } as const;
 
 /** Giới hạn phiếu nhận — đúng ràng buộc request BE goods receipt (PR #62, SCRUM-435). */

@@ -1,6 +1,8 @@
 import { INVENTORY_API } from "./inventory";
 import { INVENTORY_PERMISSIONS } from "./permissions";
 
+import type { OrderStatus } from "./statuses";
+
 // Wire contract: backend develop — mọi widget tổng quan đọc API thật có sẵn; không có API thì không
 // hiện ở chế độ nối BE (xem `MockDashboardPanels`).
 export const DASHBOARD_API = {
@@ -26,13 +28,24 @@ export const DASHBOARD_LIMITS = {
 } as const;
 
 // Trạng thái BE (giá trị enum) mỗi chỉ số đếm — không dùng nhãn Title Case của FE.
-// OrderStatus.java: đơn đã đặt và chưa giao cho kho thực hiện.
+// OrderStatus.java: đơn đã đặt và chưa giao cho kho thực hiện, cộng đơn đang tạm giữ (ON_HOLD) —
+// đơn giữ cũng cần người xử lý (quyết định 20/10).
 export const DASHBOARD_ORDER_PENDING_STATUSES = [
   "PENDING_PAYMENT",
   "CONFIRMED",
   "IN_PRODUCTION",
   "READY_TO_FULFILL",
+  "ON_HOLD",
 ] as const;
+// Cùng danh sách trên dưới dạng giá trị `?status=` của màn đơn hàng (nhãn FE, `ORDER_STATUSES`), để
+// tile mở đúng tập đơn nó đếm. Giữ cùng thứ tự với DASHBOARD_ORDER_PENDING_STATUSES (có test đối chiếu).
+export const DASHBOARD_ORDER_PENDING_FILTER = [
+  "Pending Payment",
+  "Confirmed",
+  "In Production",
+  "Ready to Fulfill",
+  "On Hold",
+] as const satisfies readonly OrderStatus[];
 // PurchaseOrder: chờ duyệt (docs 02).
 export const DASHBOARD_PO_PENDING_STATUSES = ["PENDING_APPROVAL"] as const;
 // GoodsReceiptStatus.java / docs 03 §5.1: còn đang xử lý (chưa CLOSED / CANCELLED).

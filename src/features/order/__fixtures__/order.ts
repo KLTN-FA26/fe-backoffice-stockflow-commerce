@@ -19,6 +19,10 @@ export const apiOrder: OrderDto = {
       reservationIds: [],
       designSnapshotId: null,
       designChecksum: null,
+      // BE luôn gửi ba số này (0 khi đơn chưa có lô) — OrderServiceImpl#lifecycleOf
+      shippedQuantity: 0,
+      deliveredQuantity: 0,
+      cancelledQuantity: 0,
     },
   ],
   placedAt: "2026-09-07T03:15:00Z",
@@ -41,6 +45,12 @@ export const apiOrder: OrderDto = {
     postalCode: null,
   },
   billingAddress: null,
+  // BE luôn gửi các số tiền (billedAmount bắt đầu từ 0; amountDue tính từ tổng đơn)
+  paymentTerm: "PREPAID",
+  billedAmount: 0,
+  effectiveTotal: 350000,
+  amountDue: 350000,
+  amountDueBeforeHandover: 350000,
 };
 
 export function apiOrderPage(items: OrderDto[], page = 0, size = 15): OrderPageDto {
@@ -63,7 +73,7 @@ export function apiOrderPage(items: OrderDto[], page = 0, size = 15): OrderPageD
 export const apiGuestOrder = {
   orderId: "7e1d2c3b-9a8f-4e6d-8c5b-1a2b3c4d5e6f",
   orderNumber: "SO-20261002-000002",
-  status: "PAID",
+  status: "CONFIRMED",
   totalAmount: 30000000,
   currency: "VND",
   lines: [
@@ -88,4 +98,43 @@ export const apiGuestOrder = {
     provinceName: "TP. Hồ Chí Minh",
     countryCode: "VN",
   },
+};
+
+/** Đơn BE PICKING — dựng nhanh các biến thể cho test thao tác trạng thái. */
+export function apiOrderWith(patch: Record<string, unknown>) {
+  return { ...apiOrder, ...patch } as OrderDto;
+}
+
+const PARTIAL_LINE_ID = "9f0e1d2c-aaaa-4bbb-8ccc-dddd00001111";
+
+/** Đơn giao một phần: một lô đã bàn giao 1/2 đơn vị, dòng hàng có số lượng giao (BE PR #133). */
+export const apiPartialOrder: OrderDto = {
+  ...apiOrder,
+  status: "PARTIALLY_FULFILLED",
+  lines: [
+    {
+      lineId: PARTIAL_LINE_ID,
+      sku: "TSHIRT-WHT-M",
+      quantity: 2,
+      unitPrice: 175000,
+      lineTotal: 350000,
+      reservationIds: [],
+      shippedQuantity: 1,
+      deliveredQuantity: 0,
+      cancelledQuantity: 0,
+    },
+  ],
+  packedAt: "2026-09-08T01:00:00Z",
+  effectiveTotal: 350000,
+  amountDue: 100000,
+  amountDueBeforeHandover: 0,
+  shipments: [
+    {
+      shipmentId: "6c5e0a10-1111-4222-8333-444455556666",
+      status: "HANDED_OVER",
+      amount: 175000,
+      handedOverAt: "2026-09-08T02:00:00Z",
+      lines: [{ lineId: PARTIAL_LINE_ID, quantity: 1 }],
+    },
+  ],
 };

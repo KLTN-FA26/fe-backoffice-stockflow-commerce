@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import { UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
-import { adminCancelErrorView } from "./errors";
+import { ORDER_ERROR_MESSAGES } from "@/constants";
+
+import { ORDER_STALE_ERROR_CODES, adminCancelErrorView, orderActionErrorView } from "./errors";
 
 function apiError(status: number, code: string, message = "server message in English") {
   return new ApiError(status, code, message, undefined, "corr-123");
@@ -40,5 +42,92 @@ describe("adminCancelErrorView — branch theo errorCode BE", () => {
     const view = adminCancelErrorView(apiError(500, "INTERNAL_ERROR"));
     expect(view.detail).not.toContain("English");
     expect(view.traceId).toBe("corr-123");
+  });
+});
+
+describe("adminCancelErrorView — mã lỗi mới của BE PR #133", () => {
+  it.each(["ORDER_NOT_CANCELLABLE", "ORDER_INVALID_TRANSITION", "ORDER_CANCELLED"] as const)(
+    "%s → câu tiếng Việt riêng của mã",
+    (code) => {
+      const view = adminCancelErrorView(apiError(409, code));
+      expect(view.title).toBe("Đơn không còn huỷ được");
+      expect(view.detail).toBe(ORDER_ERROR_MESSAGES[code]);
+    },
+  );
+});
+
+describe("orderActionErrorView — mọi mã ORDER_* mới đều có câu tiếng Việt", () => {
+  const NEW_CODES = [
+    "ORDER_INVALID_TRANSITION",
+    "ORDER_NOT_ON_HOLD",
+    "ORDER_CREDIT_HOLD_USE_APPROVAL",
+    "ORDER_DESIGN_HOLD_USE_REVERIFICATION",
+    "ORDER_DELIVERY_VIA_SHIPMENT",
+    "ORDER_BALANCE_NOT_PAID",
+    "ORDER_SHIPMENT_NOT_FOUND",
+    "ORDER_SHIPMENT_CONFLICT",
+    "ORDER_SHIPMENT_QUANTITY_EXCEEDED",
+    "ORDER_SHIPMENT_INVALID_TRANSITION",
+  ] as const;
+
+  it.each(NEW_CODES)("%s → câu riêng, không lộ message tiếng Anh của server", (code) => {
+    const view = orderActionErrorView(apiError(409, code), "hold");
+    expect(view.detail).toBe(ORDER_ERROR_MESSAGES[code]);
+    expect(view.detail).not.toContain("English");
+    expect(view.detail).toMatch(
+      /[ạảãàáâấầẩẫậăắằẳẵặẹẻẽèéêếềểễệỉĩịọỏõòóôốồổỗộơớờởỡợụủũùúưứừửữựỳỷỹýđ]/i,
+    );
+    expect(view.title).toBe("Không giữ được đơn");
+    expect(view.traceId).toBe("corr-123");
+  });
+
+  it("gỡ giữ CREDIT / DESIGN_MISMATCH → chỉ dẫn xử lý ở màn khác", () => {
+    expect(
+      orderActionErrorView(apiError(409, "ORDER_CREDIT_HOLD_USE_APPROVAL"), "resolveHold").detail,
+    ).toContain("duyệt công nợ");
+    expect(
+      orderActionErrorView(apiError(409, "ORDER_DESIGN_HOLD_USE_REVERIFICATION"), "resolveHold")
+        .detail,
+    ).toContain("bàn đóng gói");
+  });
+
+  it("tiêu đề theo thao tác", () => {
+    const error = apiError(500, "INTERNAL_ERROR");
+    expect(orderActionErrorView(error, "resolveHold").title).toBe("Không gỡ giữ được đơn");
+    expect(orderActionErrorView(error, "deliveryFailure").title).toBe(
+      "Không ghi được giao thất bại",
+    );
+    expect(orderActionErrorView(error, "remainderClosure").title).toBe(
+      "Không đóng được phần còn lại",
+    );
+  });
+
+  it("VALIDATION_FAILED / FORBIDDEN / NETWORK_ERROR / NOT_FOUND / mã lạ → câu chung tiếng Việt", () => {
+    expect(orderActionErrorView(apiError(400, "VALIDATION_FAILED"), "hold").detail).toContain(
+      "chọn lý do",
+    );
+    expect(
+      orderActionErrorView(apiError(400, "VALIDATION_FAILED"), "resolveHold").detail,
+    ).toContain("cách đã xử lý");
+    expect(orderActionErrorView(apiError(403, "FORBIDDEN"), "hold").detail).toContain(
+      "không có quyền",
+    );
+    expect(orderActionErrorView(apiError(0, "NETWORK_ERROR"), "hold").detail).toContain("kết nối");
+    expect(orderActionErrorView(apiError(404, "NOT_FOUND"), "hold").title).toBe(
+      UI_LABELS.order.notFoundTitle,
+    );
+    expect(orderActionErrorView(apiError(500, "WHATEVER"), "hold").detail).not.toContain("English");
+  });
+
+  it("mã nghiệp vụ cho thấy dữ liệu đã cũ → tải lại; lỗi 400/500 thì không", () => {
+    for (const code of [
+      "ORDER_INVALID_TRANSITION",
+      "ORDER_NOT_ON_HOLD",
+      "ORDER_DELIVERY_VIA_SHIPMENT",
+    ]) {
+      expect(ORDER_STALE_ERROR_CODES).toContain(code);
+    }
+    expect(ORDER_STALE_ERROR_CODES).not.toContain("VALIDATION_FAILED");
+    expect(ORDER_STALE_ERROR_CODES).not.toContain("ORDER_BALANCE_NOT_PAID");
   });
 });

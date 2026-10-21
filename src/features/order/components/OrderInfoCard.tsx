@@ -1,4 +1,7 @@
-import { formatDate } from "@/lib/format/date";
+import { Fragment } from "react";
+
+import { ORDER_DELIVERY_FAILURE_LABELS } from "@/constants";
+import { formatDate, formatDateTime } from "@/lib/format/date";
 
 import type { Order } from "../types";
 
@@ -7,6 +10,15 @@ interface OrderInfoCardProps {
 }
 
 const EMPTY = "—";
+
+/** Mốc thời gian vòng đời đơn (BE PR #133) — chỉ hiện mốc đã có. */
+const MILESTONES = [
+  ["packedAt", "Đóng gói xong"],
+  ["shippedAt", "Bàn giao vận chuyển"],
+  ["deliveredAt", "Đã giao"],
+  ["completedAt", "Hoàn tất"],
+  ["closedAt", "Đã đóng sổ"],
+] as const satisfies readonly (readonly [keyof Order, string])[];
 
 export function OrderInfoCard({ order }: OrderInfoCardProps) {
   return (
@@ -28,6 +40,25 @@ export function OrderInfoCard({ order }: OrderInfoCardProps) {
         <dd className="text-ink-primary">{order.contactEmail ?? EMPTY}</dd>
         <dt className="text-ink-secondary">Địa chỉ giao</dt>
         <dd className="text-ink-primary">{order.shippingAddressText ?? EMPTY}</dd>
+        {MILESTONES.map(([key, label]) => {
+          const value = order[key];
+          return value ? (
+            <Fragment key={key}>
+              <dt className="text-ink-secondary">{label}</dt>
+              <dd className="text-ink-primary tabular-nums">{formatDateTime(value)}</dd>
+            </Fragment>
+          ) : null;
+        })}
+        {order.deliveryFailureReason && (
+          <>
+            <dt className="text-ink-secondary">Giao thất bại</dt>
+            <dd className="text-ink-primary">
+              {order.deliveryFailureReason === "UNKNOWN"
+                ? "Không rõ"
+                : ORDER_DELIVERY_FAILURE_LABELS[order.deliveryFailureReason]}
+            </dd>
+          </>
+        )}
       </dl>
     </section>
   );

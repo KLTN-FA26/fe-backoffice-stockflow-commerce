@@ -4,6 +4,7 @@ import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DASHBOARD_API, DASHBOARD_LABELS } from "@/constants/dashboard";
+import { ADMIN_ROUTES } from "@/constants/routes";
 import {
   FULFILLMENT_PICK_PERMISSIONS,
   GOODS_RECEIPT_PERMISSIONS,
@@ -65,8 +66,20 @@ describe("KPI tiles — real list endpoints, gated by the endpoint's own permiss
       "CONFIRMED",
       "IN_PRODUCTION",
       "READY_TO_FULFILL",
+      "ON_HOLD",
     ]);
     expect(seen.orders?.get("size")).toBe("1");
+    // Tile mở danh sách đơn lọc đúng tập trạng thái nó đếm (nhãn FE trên URL, cách nhau bằng dấu phẩy)
+    const href =
+      screen.getByText(DASHBOARD_LABELS.ordersPending).closest("a")?.getAttribute("href") ?? "";
+    expect(href.startsWith(`${ADMIN_ROUTES.orders.list}?status=`)).toBe(true);
+    expect(decodeURIComponent(href.split("?status=")[1] ?? "").split(",")).toEqual([
+      "Pending Payment",
+      "Confirmed",
+      "In Production",
+      "Ready to Fulfill",
+      "On Hold",
+    ]);
     expect(seen.po?.getAll("status")).toEqual(["PENDING_APPROVAL"]);
   });
 
