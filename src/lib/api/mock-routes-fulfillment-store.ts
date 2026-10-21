@@ -6,7 +6,7 @@
  * chỉnh, mang snapshot + checksum như BE.
  */
 
-import { toBackendRoles } from "./mock-backend-roles";
+import { mockGrantsOf } from "./mock-user-grants";
 import { resetPackingMockStore } from "./mock-routes-packing-store";
 import {
   backendOrderStatusOf,
@@ -20,6 +20,7 @@ import { beError, isRecord } from "./mock-routes-purchase-orders-store";
 
 import type { AxiosRequestConfig } from "axios";
 import type { Order, OrderStatus } from "@/lib/mock-data";
+import type { PermissionCode } from "@/lib/auth/me-permissions";
 
 export type MockPickStatus = "PENDING" | "PICKING" | "PICKED" | "SHORT" | "CANCELLED";
 export type MockPackStatus = "PENDING" | "PACKING" | "ON_HOLD" | "PACKED" | "CANCELLED";
@@ -209,19 +210,19 @@ export function toTaskResponse(task: MockTask) {
 
 export interface MockActor {
   userId: string;
-  roles: readonly string[];
+  /** Có mã quyền này không — như `@RequiresPermission` / `CurrentUser.can` của BE (BE PR #148). */
+  can: (code: PermissionCode) => boolean;
 }
 
-/** Vai trò thật của phiên (vai trò giả lập chỉ đổi nhãn, không đổi quyền — như BFF mock). */
+/**
+ * Người gọi thật của phiên và quyền của họ (vai trò giả lập chỉ đổi nhãn, không đổi quyền — như BFF
+ * mock; quyền lấy từ `mock-user-grants`, cùng nguồn với `/identity/me/permissions`).
+ */
 export async function currentActor(): Promise<MockActor> {
   const { useAuthStore } = await import("@/lib/auth/auth-store");
-  const user = useAuthStore.getState().user;
-  return { userId: user?.userId ?? "", roles: toBackendRoles(user?.roles ?? []) };
-}
-
-/** SYSTEM_ADMIN qua mọi cổng vai trò (BE RoleHierarchyConfig). */
-export function hasAnyRole(actor: MockActor, ...roles: string[]): boolean {
-  return actor.roles.some((role) => role === "SYSTEM_ADMIN" || roles.includes(role));
+  const userId = useAuthStore.getState().user?.userId ?? "";
+  const grants = mockGrantsOf(userId);
+  return { userId, can: (code) => grants.has(code) };
 }
 
 /* ── Lỗi BE (mã chung, message tiếng Anh như FulfillmentServiceImpl) ──── */

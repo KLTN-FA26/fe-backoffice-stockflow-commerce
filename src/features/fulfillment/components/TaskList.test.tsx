@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -88,6 +88,19 @@ describe("PickingList — danh sách task theo BE (chỉ phân trang)", () => {
     expect(screen.queryByRole("textbox")).toBeNull();
     expect(screen.queryByRole("button", { name: "Lọc trạng thái" })).toBeNull();
     expect(screen.getByText(/Phạm vi: mọi task/)).toBeInTheDocument();
+  });
+
+  it("ghi chú phạm vi theo mã quyền: oversight → mọi task; design-reverification → kiện giữ; còn lại → của mình", async () => {
+    renderList(<PickingList />, IDENTITIES.warehouseStaff);
+    await screen.findByRole("link", { name: "3F4A5B6C" });
+    expect(screen.getByText(/Phạm vi: task được gán cho bạn/)).toBeInTheDocument();
+    cleanup();
+
+    renderList(<PickingList />, {
+      permissions: [...IDENTITIES.qcStaff.permissions, "fulfillment-pick-lists:VIEW_PAGE" as const],
+    });
+    await screen.findByRole("link", { name: "3F4A5B6C" });
+    expect(screen.getByText(/Phạm vi: kiện đang bị giữ do lệch thiết kế/)).toBeInTheDocument();
   });
 
   it("quản lý kho có quyền đọc đơn + nhân viên: hiện số đơn, tên người được gán, gán lại gửi PUT", async () => {

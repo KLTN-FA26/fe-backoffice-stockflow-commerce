@@ -37,14 +37,19 @@ export const SUPPLIER_ITEM_PERMISSIONS = {
  * - `cancel`: huỷ đơn phía admin (`POST /orders/{id}/admin-cancellation`) và đóng phần còn lại của
  *   đơn giao một phần (`POST /orders/{id}/remainder-closure`) — BE tách sang resource
  *   `sales-order-cancellations` (UPDATE, scope ALL; seed: ORDER_COORDINATOR + SALES_STAFF).
+ * - `cancellationQueueRead`: hàng chờ yêu cầu huỷ của khách (`GET /orders/cancellation-requests`) —
+ *   BE PR #148 tách khỏi `sales-orders:READ`; seed: SALES_STAFF, ORDER_COORDINATOR (KHÔNG có ACCOUNTANT,
+ *   dù kế toán đọc được danh sách / chi tiết đơn).
  */
 export const ORDER_PERMISSIONS = {
   // Mở trang (menu + chặn route) — BE Action.VIEW_PAGE, ADR-0004
   viewPage: "sales-orders:VIEW_PAGE",
-  // Đọc dữ liệu (GET /orders, /orders/{id}) — seed BE: SALES_STAFF, ORDER_COORDINATOR
+  // Đọc dữ liệu (GET /orders, /orders/{id}, /orders/{id}/history) — seed BE: SALES_STAFF,
+  // ORDER_COORDINATOR và (BE PR #148, "ACCREAD") ACCOUNTANT
   read: "sales-orders:READ",
   approve: "sales-orders:APPROVE",
   cancel: "sales-order-cancellations:UPDATE",
+  cancellationQueueRead: "sales-order-cancellations:READ",
 } as const;
 
 /**
@@ -187,43 +192,81 @@ export const INVENTORY_OVERVIEW_PERMISSIONS = {
 
 /**
  * Task xuất kho — resource `fulfillment-pick-lists` (BE FulfillmentController, SCRUM-43).
- * Tạo task, gán, bắt đầu / hoàn tất lấy hàng đều là UPDATE (không có CREATE).
+ * Chỉ còn quyền ĐỌC: danh sách / chi tiết task và dòng lấy hàng. Mọi thao tác ghi đã tách sang các
+ * resource riêng bên dưới (BE PR #148) — `fulfillment-pick-lists:UPDATE` không còn bảo vệ endpoint nào.
  */
 export const FULFILLMENT_PICK_PERMISSIONS = {
   viewPage: "fulfillment-pick-lists:VIEW_PAGE",
   read: "fulfillment-pick-lists:READ",
-  update: "fulfillment-pick-lists:UPDATE",
 } as const;
 
 /**
- * Đóng gói — resource `fulfillment-packages` (BE FulfillmentResources.PACKAGES). READ = tải
- * artifact thiết kế; CREATE = xác nhận đóng gói và kiểm tra lại thiết kế (flow X-CHK).
+ * Giao / gán task — resource `fulfillment-task-assignment` (BE PR #148). CREATE: tạo task
+ * (`POST /fulfillment/tasks`); UPDATE: danh sách người nhận (`GET /fulfillment/assignees`) và gán lại
+ * (`PUT /tasks/{id}/assignment`). Seed: ORDER_COORDINATOR, WAREHOUSE_MANAGER, SYSTEM_ADMIN.
+ */
+export const FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS = {
+  create: "fulfillment-task-assignment:CREATE",
+  update: "fulfillment-task-assignment:UPDATE",
+} as const;
+
+/**
+ * Giám sát task — resource `fulfillment-task-oversight` (BE PR #148). READ: danh sách task hiện MỌI task
+ * của kho mình (thiếu quyền → chỉ task được gán cho mình) và xem được task dù không phải người được gán.
+ * Seed: ORDER_COORDINATOR, WAREHOUSE_MANAGER, SYSTEM_ADMIN.
+ */
+export const FULFILLMENT_TASK_OVERSIGHT_PERMISSIONS = {
+  read: "fulfillment-task-oversight:READ",
+} as const;
+
+/**
+ * Lấy hàng — resource `fulfillment-picking` (BE PR #148). UPDATE: bắt đầu / hoàn tất lấy hàng, xác nhận
+ * dòng, trả hàng về vị trí. READ: `GET /fulfillment/put-backs`. Seed: WAREHOUSE_STAFF,
+ * WAREHOUSE_MANAGER, SYSTEM_ADMIN.
+ */
+export const FULFILLMENT_PICKING_PERMISSIONS = {
+  read: "fulfillment-picking:READ",
+  update: "fulfillment-picking:UPDATE",
+} as const;
+
+/**
+ * Hàng chờ / phiên đóng gói và tải artifact thiết kế — resource `fulfillment-packages`
+ * (BE FulfillmentResources.PACKAGES). READ: `GET /packing-queue`, `GET /tasks/{id}/packing-session`,
+ * tải artifact. `fulfillment-packages:CREATE` không còn bảo vệ endpoint nào (BE PR #148): thao tác đóng
+ * gói là `fulfillment-packing:UPDATE`, kiểm tra lại thiết kế là `fulfillment-design-reverification:UPDATE`.
  */
 export const FULFILLMENT_PACKAGE_PERMISSIONS = {
   viewPage: "fulfillment-packages:VIEW_PAGE",
   read: "fulfillment-packages:READ",
-  create: "fulfillment-packages:CREATE",
+} as const;
+
+/**
+ * Thao tác đóng gói — resource `fulfillment-packing` (BE PR #148). UPDATE: nhận đơn, tạo / quét / niêm
+ * phong / mở lại / huỷ kiện, hoàn tất đóng gói (và người đóng gói xem được task đã lấy xong). READ: nhãn
+ * kiện. APPROVE: làm hộ / tiếp quản phiên của người đóng khác. Seed: UPDATE + READ cho WAREHOUSE_STAFF,
+ * WAREHOUSE_MANAGER; APPROVE chỉ WAREHOUSE_MANAGER; SYSTEM_ADMIN đủ.
+ */
+export const FULFILLMENT_PACKING_PERMISSIONS = {
+  read: "fulfillment-packing:READ",
+  update: "fulfillment-packing:UPDATE",
+  approve: "fulfillment-packing:APPROVE",
+} as const;
+
+/**
+ * Kiểm tra lại thiết kế — resource `fulfillment-design-reverification` (BE PR #148). UPDATE:
+ * `POST /tasks/{id}/design-integrity-reverification`. READ: task đang giữ do lệch thiết kế hiện cho
+ * người này (không cần là người được gán) và tải được file thiết kế. Seed: QC_STAFF,
+ * WAREHOUSE_MANAGER, SYSTEM_ADMIN.
+ */
+export const FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS = {
+  read: "fulfillment-design-reverification:READ",
+  update: "fulfillment-design-reverification:UPDATE",
 } as const;
 
 /** Danh sách tài khoản nhân viên — `GET /identity/users` (BE UserManagementController). */
 export const IDENTITY_USER_PERMISSIONS = {
   read: "identity-users:READ",
 } as const;
-
-/**
- * Mã vai trò BE (`common/security/Roles.java`), trả trong `/identity/me/permissions.roles`.
- * Chỉ dùng ở nơi BE gate kép bằng `@PreAuthorize` theo vai trò (FulfillmentController) — các
- * màn khác gate theo mã quyền.
- */
-export const STAFF_ROLE = {
-  ORDER_COORDINATOR: "ORDER_COORDINATOR",
-  QC_STAFF: "QC_STAFF",
-  SYSTEM_ADMIN: "SYSTEM_ADMIN",
-  WAREHOUSE_MANAGER: "WAREHOUSE_MANAGER",
-  WAREHOUSE_STAFF: "WAREHOUSE_STAFF",
-} as const;
-
-export type StaffRole = (typeof STAFF_ROLE)[keyof typeof STAFF_ROLE];
 
 /**
  * Lệnh chuyển kho — resource `inventory-transfer-orders` (BE TransferOrderController, SCRUM-326/327).
@@ -239,16 +282,60 @@ export const TRANSFER_PERMISSIONS = {
 } as const;
 
 /**
- * Xếp xe & bàn giao hãng — resource `fulfillment-shipments` (đã seed V20260903000100, cấp cho
- * WAREHOUSE_STAFF / WAREHOUSE_MANAGER / ORDER_COORDINATOR).
- * BE PR #137: lô giao, chuyến xe, hãng đều dưới resource này; `@PreAuthorize` quyết thêm vai trò nào được
- * làm gì (lên xe / bàn giao: nhân viên + quản lý kho; huỷ chuyến: quản lý kho; kết quả giao: điều phối đơn).
+ * Xem lô giao / chuyến xe / hãng — resource `fulfillment-shipments` (BE `ShipmentController`,
+ * `DispatchController`, `CarrierController` đọc). Ghi đã tách sang các resource bên dưới (BE PR #148):
+ * `fulfillment-shipments:CREATE/UPDATE` không còn bảo vệ endpoint nào.
  */
 export const SHIPMENT_PERMISSIONS = {
   viewPage: "fulfillment-shipments:VIEW_PAGE",
   read: "fulfillment-shipments:READ",
-  create: "fulfillment-shipments:CREATE",
-  update: "fulfillment-shipments:UPDATE",
+} as const;
+
+/**
+ * Xếp xe & bàn giao — resource `fulfillment-dispatch` (BE PR #148). CREATE: mở chuyến
+ * (`POST /fulfillment/loads`). UPDATE: thêm / bớt lô, quét / gỡ quét kiện, bàn giao, chọn hãng cho lô
+ * (`PUT /shipments/{id}/carrier`). Seed: WAREHOUSE_STAFF, WAREHOUSE_MANAGER, SYSTEM_ADMIN.
+ */
+export const FULFILLMENT_DISPATCH_PERMISSIONS = {
+  create: "fulfillment-dispatch:CREATE",
+  update: "fulfillment-dispatch:UPDATE",
+} as const;
+
+/** Huỷ chuyến xe trước khi rời kho (`POST /loads/{id}/cancellation`) — seed: WAREHOUSE_MANAGER, SYSTEM_ADMIN. */
+export const FULFILLMENT_LOAD_CANCELLATION_PERMISSIONS = {
+  update: "fulfillment-load-cancellations:UPDATE",
+} as const;
+
+/** Danh mục hãng vận chuyển: thêm / sửa (`POST`, `PUT /fulfillment/carriers`) — seed: WAREHOUSE_MANAGER, SYSTEM_ADMIN. */
+export const FULFILLMENT_CARRIER_PERMISSIONS = {
+  update: "fulfillment-carriers:UPDATE",
+} as const;
+
+/**
+ * Kết quả giao — resource `fulfillment-delivery-outcomes` (BE PR #148, docs 09 BR-02).
+ * UPDATE một mình = chỉ ghi HÀNG HOÀN VỀ KHO (RETURNED); ĐÃ GIAO / GIAO THẤT BẠI cần thêm APPROVE
+ * (kéo theo đơn và công nợ). Seed: UPDATE cho ORDER_COORDINATOR, WAREHOUSE_MANAGER; APPROVE cho
+ * ORDER_COORDINATOR; SYSTEM_ADMIN đủ.
+ */
+export const FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS = {
+  update: "fulfillment-delivery-outcomes:UPDATE",
+  approve: "fulfillment-delivery-outcomes:APPROVE",
+} as const;
+
+/** Đổi trạng thái khách hàng (`POST /customers/{id}/status`) — seed: ECOMMERCE_ADMIN, SYSTEM_ADMIN. */
+export const CUSTOMER_STATUS_PERMISSIONS = {
+  approve: "customer-status:APPROVE",
+} as const;
+
+/** Giá / tồn cho cổng khách (`GET /catalog/products/availability`, `/prices`) — seed: CUSTOMER; không dùng ở back office. */
+export const CATALOG_STOREFRONT_PERMISSIONS = {
+  read: "catalog-storefront:READ",
+} as const;
+
+/** Cổng quản trị `/actuator/**` — READ cho GET/HEAD, UPDATE cho mọi method khác (BE PR #148). */
+export const PLATFORM_ACTUATOR_PERMISSIONS = {
+  read: "platform-actuator:READ",
+  update: "platform-actuator:UPDATE",
 } as const;
 
 /**

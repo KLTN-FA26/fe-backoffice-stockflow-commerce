@@ -4,9 +4,9 @@
  *   GET /fulfillment/carriers?status&search&page&size
  *   GET /fulfillment/shipments?warehouseId&status&carrierId&orderId&search&page&size
  *   GET /fulfillment/shipments/{id}                 → Shipment (kiện + lịch sử)
- *   PUT /fulfillment/shipments/{id}/carrier {carrierId}   (null = bỏ hãng; nhân viên kho)
+ *   PUT /fulfillment/shipments/{id}/carrier {carrierId}   (null = bỏ hãng; fulfillment-dispatch:UPDATE)
  *   POST /fulfillment/shipments/{id}/delivery-outcome {outcome, failureReason?, note?}
- *        (Điều phối đơn hàng; HÀNG HOÀN về kho cả quản lý kho — BE `@PreAuthorize` + kiểm vai trò)
+ *        (fulfillment-delivery-outcomes:UPDATE; ĐÃ GIAO / GIAO THẤT BẠI cần thêm :APPROVE — BE PR #148)
  * Nhãn kiện in lại dùng endpoint nhãn của trạm đóng gói (ghi nhận lần in) — xem `errors.ts` LABEL_OUTDATED.
  */
 
