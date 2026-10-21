@@ -10,6 +10,7 @@ import { z } from "zod";
 
 import { CUSTOMER_API_STATUSES, PAYMENT_TERMS, SALES_ONBOARDING_PAYMENT_TERMS } from "@/constants";
 import { bePageSchema } from "@/lib/api/page-schema";
+import { depositPercentText } from "@/lib/validation/primitives";
 
 /* ── DTO ─────────────────────────────────────────────────────────────── */
 
@@ -39,7 +40,13 @@ export const customerStatusEntryDtoSchema = z.object({
 export const customerStatusHistoryDtoSchema = z.array(customerStatusEntryDtoSchema);
 
 export const INVITATION_DELIVERIES = ["SENT", "FAILED"] as const;
-export const INVITATION_STATES = ["PENDING", "EXPIRED", "ACTIVATED", "NO_ACCOUNT", "UNAVAILABLE"] as const;
+export const INVITATION_STATES = [
+  "PENDING",
+  "EXPIRED",
+  "ACTIVATED",
+  "NO_ACCOUNT",
+  "UNAVAILABLE",
+] as const;
 
 export const invitedCustomerDtoSchema = z.object({
   customer: customerDtoSchema,
@@ -67,7 +74,8 @@ export const creditProfileDtoSchema = z.object({
   allowCredit: z.boolean(),
   defaultPaymentTerm: z.enum(PAYMENT_TERMS),
   depositPercent: z.number().nullish(),
-  depositBalancePolicy: z.enum(["BEFORE_DELIVERY", "ON_DELIVERY"]).nullish(),
+  // BE `DepositBalancePolicy` — ON_CREDIT (phần còn lại ghi công nợ) thêm ở dbf7da04 / V20261022000500.
+  depositBalancePolicy: z.enum(["BEFORE_DELIVERY", "ON_DELIVERY", "ON_CREDIT"]).nullish(),
   creditLimit: z.number().nullish(),
   creditTermDays: z.number().int().nullish(),
   currency: z.string(),
@@ -105,17 +113,6 @@ const optionalTaxCode = z
   .max(20, "Tối đa 20 ký tự")
   .refine((v) => v === "" || TAX_CODE.test(normalizeTaxCode(v)), {
     message: "MST gồm 10 số, 10-3 số, hoặc 12 số",
-  });
-
-/** % cọc: 0 < x < 100, tối đa 2 chữ số thập phân (BE `@Digits(3,2)`, NUMERIC(5,2)). */
-const depositPercentText = z
-  .string()
-  .trim()
-  .refine((v) => v === "" || /^\d{1,2}(\.\d{1,2})?$/.test(v), {
-    message: "Nhập số từ 0,01 đến 99,99 (tối đa 2 chữ số thập phân)",
-  })
-  .refine((v) => v === "" || (Number(v) > 0 && Number(v) < 100), {
-    message: "Tỷ lệ cọc phải lớn hơn 0 và nhỏ hơn 100",
   });
 
 export const customerCreateInputSchema = z

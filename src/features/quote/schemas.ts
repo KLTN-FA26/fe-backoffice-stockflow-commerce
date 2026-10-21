@@ -8,6 +8,8 @@ import { z } from "zod";
 import { PAYMENT_TERMS, QUOTE_API_STATUSES } from "@/constants";
 
 import { bePageSchema } from "@/lib/api/page-schema";
+import { SKU_CODE_PATTERN, SKU_FORMAT_MESSAGE } from "@/lib/validation/sku";
+import { DEPOSIT_PERCENT_FORMAT_MESSAGE, depositPercentText } from "@/lib/validation/primitives";
 
 /* ── DTO ─────────────────────────────────────────────────────────────── */
 
@@ -89,7 +91,6 @@ export const quotePageDtoSchema = bePageSchema(quoteRowDtoSchema);
 
 /* ── Input (form) ────────────────────────────────────────────────────── */
 
-const SKU = /^[A-Z0-9-]{3,64}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const positiveInt = (message: string) =>
   z
@@ -113,7 +114,8 @@ export const quoteLineInputSchema = z
       .string()
       .trim()
       .transform((v) => v.toUpperCase())
-      .refine((v) => SKU.test(v), "Mã phôi gồm 3–64 ký tự A–Z, 0–9, dấu -"),
+      // BE `QuoteRequests.Line.blankSku` là `@ValidSku` → `common.domain.Sku` (mẫu chung của FE).
+      .refine((v) => SKU_CODE_PATTERN.test(v), SKU_FORMAT_MESSAGE),
     designSnapshotId: z.string().trim().regex(UUID, "Chọn thiết kế đã được khách xác nhận"),
     printSpec: z.string().trim().max(2000, "Tối đa 2000 ký tự"),
     // P6 (2026-10-12): đơn vị duy nhất là cái — không quy đổi thùng / carton.
@@ -147,13 +149,14 @@ export const quoteFormSchema = z
     lines: z.array(quoteLineInputSchema).min(1, "Cần ít nhất một dòng").max(50, "Tối đa 50 dòng"),
   })
   .superRefine((form, ctx) => {
-    if (form.paymentTerm === "DEPOSIT" && form.depositPercent !== "") {
-      const value = Number(form.depositPercent);
-      if (!(value > 0 && value < 100))
+    // Chỉ kiểm khi chọn DEPOSIT: ô bị ẩn với điều khoản khác nhưng form vẫn giữ giá trị cũ.
+    if (form.paymentTerm === "DEPOSIT") {
+      const result = depositPercentText.safeParse(form.depositPercent);
+      if (!result.success)
         ctx.addIssue({
           code: "custom",
           path: ["depositPercent"],
-          message: "Tỷ lệ cọc trong khoảng (0, 100)",
+          message: result.error.issues[0]?.message ?? DEPOSIT_PERCENT_FORMAT_MESSAGE,
         });
     }
     // BE: validUntil phải ở tương lai (kiểm lại khi gửi khách).

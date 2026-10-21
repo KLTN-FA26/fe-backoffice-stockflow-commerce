@@ -10,6 +10,7 @@ import { z } from "zod";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { QUERY_TIMES } from "@/lib/api/query-client";
+import { SKU_CODE_PATTERN } from "@/lib/validation/sku";
 
 const tierSchema = z.object({ minQuantity: z.number().int(), unitPrice: z.number() });
 const priceScheduleSchema = z.object({
@@ -27,8 +28,6 @@ export const PRICE_SOURCE_LABEL: Readonly<Record<PriceSchedule["source"], string
   SEGMENT: "Giá nhóm khách",
   BASE: "Giá niêm yết",
 };
-
-const SKU = /^[A-Z0-9-]{3,64}$/;
 
 /** `null` = chưa có giá áp dụng (PRICE_NOT_AVAILABLE). */
 export function useCustomerPriceSchedule(
@@ -55,7 +54,7 @@ export function useCustomerPriceSchedule(
         throw error;
       }
     },
-    enabled: enabled && !!customerId && SKU.test(normalized),
+    enabled: enabled && !!customerId && SKU_CODE_PATTERN.test(normalized),
     ...QUERY_TIMES.master,
   });
 }
