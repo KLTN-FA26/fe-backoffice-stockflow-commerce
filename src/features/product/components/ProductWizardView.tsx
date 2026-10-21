@@ -1,13 +1,10 @@
 "use client";
 
-import { PageHeader } from "@/components/shared/PageHeader";
-
 import { ProductReviewStep } from "./create/ProductReviewStep";
 import { ProductWizardBottomBar } from "./create/ProductWizardBottomBar";
 import { ProductWizardStepper } from "./create/ProductWizardStepper";
 import { ProductAxesFields } from "./ProductAxesFields";
 import { ProductDescriptionFields } from "./ProductDescriptionFields";
-import { ProductFormBackLink } from "./ProductFormNavigation";
 import { ProductFormServerAlert, ProductStepIssues } from "./ProductFormParts";
 import { ProductMasterFields } from "./ProductMasterFields";
 
@@ -77,12 +74,10 @@ export function ProductWizardView({
       : "1 biến thể mặc định";
 
   return (
-    <>
-      <PageHeader
-        title={header.title}
-        subtitle={header.subtitle}
-        actions={<ProductFormBackLink />}
-      />
+    // Giao diện kiểu Vercel như trang danh sách / chi tiết (globals.css `.surface-soft`). Không hiện
+    // tiêu đề — breadcrumb topbar đã có tên trang và link về danh sách; h1 giữ cho screen reader.
+    <div className="surface-soft surface-compact">
+      <h1 className="sr-only">{header.title}</h1>
       <div className="grid gap-4 xl:grid-cols-[260px_1fr]">
         <ProductWizardStepper wizard={wizard} isEditing={isEditing} summary={summary} />
         <div className="min-w-0 space-y-4 pb-24">
@@ -140,6 +135,6 @@ export function ProductWizardView({
         onSubmit={onSubmit}
       />
       {confirmDialog}
-    </>
+    </div>
   );
 }

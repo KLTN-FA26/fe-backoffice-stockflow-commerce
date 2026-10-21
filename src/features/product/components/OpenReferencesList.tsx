@@ -17,7 +17,7 @@ export function OpenReferencesList({
 }) {
   return (
     <div className="space-y-1.5">
-      <ul className="border-border-default divide-border-default max-h-48 divide-y overflow-auto rounded-[var(--r-sm)] border text-[0.8125rem]">
+      <ul className="border-border-default max-h-48 divide-y divide-(--table-line) overflow-auto rounded-[var(--r-sm)] border text-[0.8125rem]">
         {references.map((reference) => (
           <li
             key={`${reference.kind}-${reference.documentId}-${reference.sku}`}

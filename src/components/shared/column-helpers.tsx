@@ -292,10 +292,10 @@ export function ToneDot({
   label: string;
 }) {
   const dot = {
-    positive: "bg-positive",
-    warning: "bg-warning",
-    danger: "bg-danger",
-    info: "bg-info",
+    positive: "bg-dot-positive",
+    warning: "bg-dot-warning",
+    danger: "bg-dot-danger",
+    info: "bg-dot-info",
     neutral: "bg-neutral",
     muted: "bg-muted-tone",
   }[tone];

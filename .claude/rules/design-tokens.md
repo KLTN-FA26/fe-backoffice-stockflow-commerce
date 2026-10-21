@@ -29,9 +29,10 @@ Tailwind class sinh ra từ đó. Không khai báo màu ở nơi khác.
 
 | Token            | Light     | Dark      | Vai trò                       |
 | ---------------- | --------- | --------- | ----------------------------- |
-| `bg.base`        | `#F3F4F6` | `#0E0F11` | nền trang, app shell          |
+| `bg.base`        | `#F6F6F6` | `#0E0F11` | nền trang, app shell          |
 | `bg.surface`     | `#FFFFFF` | `#17181B` | card, panel, table body       |
-| `bg.subtle`      | `#F7F8FA` | `#1F2124` | sidebar, header bảng, toolbar |
+| `bg.subtle`      | `#F7F8FA` | `#1F2124` | header bảng, toolbar          |
+| `bg.sidebar`     | `#FAFAFA` | `#1F2124` | nền sidebar back-office       |
 | `bg.muted`       | `#EEF0F3` | `#2A2C30` | hover, selected nhẹ, disabled |
 | `border.default` | `#DADDE1` | `#2E3034` | viền card, ô nhập             |
 | `border.strong`  | `#C5CAD1` | `#3D4045` | viền focus, divider           |

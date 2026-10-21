@@ -57,7 +57,7 @@ export function ProductOpenReferencesCard({
   return (
     <section className={PRODUCT_CARD_CLASS}>
       <h2 className="text-ink-primary mb-1 flex items-center gap-2 text-[0.9375rem] font-semibold">
-        <FileClock className="text-accent size-4" />
+        <FileClock className="text-accent size-3.5" />
         {L.title}
         {references.length > 0 && (
           <span className="text-ink-tertiary text-xs tabular-nums">({references.length})</span>

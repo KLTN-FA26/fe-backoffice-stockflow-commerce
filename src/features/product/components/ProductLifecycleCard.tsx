@@ -48,7 +48,7 @@ export function ProductLifecycleCard({ status }: { status: ProductStatus }) {
   return (
     <section className={PRODUCT_CARD_CLASS}>
       <h2 className="text-ink-primary mb-4 flex items-center gap-2 text-[0.9375rem] font-semibold">
-        <Ruler className="text-accent size-4" />
+        <Ruler className="text-accent size-3.5" />
         {L.title}
       </h2>
       <div className="relative pl-6">

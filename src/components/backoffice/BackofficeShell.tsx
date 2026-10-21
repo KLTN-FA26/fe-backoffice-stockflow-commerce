@@ -6,23 +6,27 @@ import {
   Boxes,
   CalendarClock,
   ClipboardList,
+  Database,
   FileBox,
   FileText,
   FolderTree,
   History as HistoryIcon,
   LayoutDashboard,
   Lightbulb,
+  ListChecks,
   MapPin,
   Move,
   Package,
   PackageCheck,
   PackageOpen,
+  PackagePlus,
   Palette,
   PanelLeftClose,
   PanelLeftOpen,
   Receipt,
   Search as SearchIcon,
   ShieldCheck,
+  ShoppingBag,
   ShoppingCart,
   SlidersHorizontal,
   Truck,
@@ -55,7 +59,7 @@ import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 
 import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
-import { invoices, purchaseOrders, putawayTasks, warehouses } from "@/lib/mock-data";
+import { invoices, purchaseOrders, putawayTasks } from "@/lib/mock-data";
 import { useIsMock } from "@/providers/app-providers";
 
 import { SearchBar } from "@/components/shared/SearchBar";
@@ -63,15 +67,8 @@ import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
-  SidebarMenu,
-  SidebarMenuBadge,
-  SidebarMenuButton,
-  SidebarMenuItem,
   SidebarProvider,
   SidebarRail,
   useSidebar,
@@ -79,7 +76,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 import { SidebarFooterBar } from "./SidebarFooterBar";
-import { SidebarWarehouseSwitcher } from "./SidebarWarehouseSwitcher";
+import { SidebarNav } from "./SidebarNav";
 
 import type { LucideIcon } from "lucide-react";
 import type { PermissionCode } from "@/lib/auth/me-permissions";
@@ -112,7 +109,7 @@ function computeWarningCounts(): Record<string, number> {
 /*  Sidebar nav config                                                       */
 /* -------------------------------------------------------------------------- */
 
-interface NavItem {
+export interface NavItem {
   label: string;
   tooltip: string;
   href: string;
@@ -125,18 +122,22 @@ interface NavItem {
   mockOnly?: boolean;
 }
 
-interface NavGroup {
+export interface NavGroup {
+  /** Tên item cha trong sidebar. */
   title: string;
+  icon: LucideIcon;
   items: NavItem[];
 }
 
 export const NAV_GROUPS: NavGroup[] = [
   {
-    title: "TỔNG QUAN",
+    title: "Tổng quan",
+    icon: LayoutDashboard,
     items: [{ label: "Tổng quan", tooltip: "Dashboard", href: "/admin", icon: LayoutDashboard }],
   },
   {
-    title: "MASTER DATA",
+    title: "Master data",
+    icon: Database,
     items: [
       {
         label: "Sản phẩm & SKU",
@@ -169,7 +170,8 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    title: "PLATFORM",
+    title: "Platform",
+    icon: ShieldCheck,
     items: [
       {
         label: "Phân quyền",
@@ -181,7 +183,8 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    title: "MUA HÀNG",
+    title: "Mua hàng",
+    icon: ShoppingBag,
     items: [
       {
         label: "Đề xuất nhập hàng",
@@ -209,7 +212,8 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    title: "NHẬP HÀNG",
+    title: "Nhập hàng",
+    icon: PackagePlus,
     items: [
       {
         label: "Phiếu nhận",
@@ -222,7 +226,8 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    title: "KHO",
+    title: "Kho",
+    icon: WarehouseIcon,
     items: [
       {
         label: INVENTORY_LABELS.overviewTitle,
@@ -288,7 +293,8 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    title: "THỰC HIỆN ĐƠN",
+    title: "Thực hiện đơn",
+    icon: ListChecks,
     items: [
       {
         label: "Đơn hàng",
@@ -449,7 +455,7 @@ function SidebarCollapseButton() {
           className="text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary size-7 shrink-0 rounded-[var(--r-sm)] bg-transparent"
           aria-label={label}
         >
-          {open ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />}
+          {open ? <PanelLeftClose className="size-3.5" /> : <PanelLeftOpen className="size-3.5" />}
         </Button>
       </TooltipTrigger>
       <TooltipContent side="bottom">{label} (Ctrl+B)</TooltipContent>
@@ -480,7 +486,7 @@ function SidebarSearchIcon() {
           className="text-ink-secondary hover:bg-bg-muted hover:text-ink-primary size-8 rounded-[var(--r-sm)] bg-transparent"
           aria-label={UI_LABELS.shell.quickSearch}
         >
-          <SearchIcon className="size-4" />
+          <SearchIcon className="size-3.5" />
         </Button>
       </TooltipTrigger>
       <TooltipContent side="right">{UI_LABELS.shell.quickSearchHint}</TooltipContent>
@@ -504,21 +510,24 @@ function BackofficeSidebar() {
   return (
     <Sidebar
       collapsible="icon"
-      className="border-border-default [&_[data-slot=sidebar-inner]]:bg-bg-subtle border-r"
+      className="border-border-default [&_[data-slot=sidebar-inner]]:bg-sidebar border-r"
     >
       <SidebarHeader
-        className={cn(
-          "border-border-default shrink-0 gap-2 border-b",
-          collapsed ? "items-center px-0 py-2" : "px-2 py-2",
-        )}
+        className={cn("shrink-0 gap-2", collapsed ? "items-center px-0 py-2" : "px-2 py-2")}
       >
-        {/* Kho đang xem nằm trên ô search. Danh sách kho lấy từ dữ liệu mẫu và chưa nối với
-            phạm vi dữ liệu BE: chỉ hiện ở mock */}
-        {isMock && <SidebarWarehouseSwitcher warehouses={warehouses} />}
+        {/* Tên app ở đầu sidebar; thu gọn chỉ còn chữ cái đầu */}
+        <div
+          className={cn(
+            "text-ink-primary flex h-9 items-center text-lg font-bold tracking-tight",
+            collapsed ? "justify-center" : "px-2",
+          )}
+        >
+          {collapsed ? UI_LABELS.shell.appName.charAt(0) : UI_LABELS.shell.appName}
+        </div>
         {collapsed ? (
           <SidebarSearchIcon />
         ) : (
-          // Ô search toàn cục thay chỗ logo, dùng hết chiều rộng sidebar như ô chọn kho
+          // Ô search toàn cục dưới tên app, dùng hết chiều rộng sidebar
           <SearchBar
             placeholder={UI_LABELS.shell.quickSearchHint}
             className="min-w-0"
@@ -527,65 +536,16 @@ function BackofficeSidebar() {
         )}
       </SidebarHeader>
 
-      {/* Nav groups */}
-      <SidebarContent className="[&::-webkit-scrollbar-thumb]:bg-border-strong min-h-0 flex-1 [scrollbar-width:thin] gap-0 overflow-y-auto px-2 py-2 [&::-webkit-scrollbar]:block [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
-        {NAV_GROUPS.map((group) => (
-          <SidebarGroup key={group.title} className="mb-1.5 gap-0 p-0">
-            {collapsed ? (
-              <div className="border-border-default mx-auto my-1.5 w-8 border-t" />
-            ) : (
-              <SidebarGroupLabel className="text-ink-tertiary h-auto px-2.5 pt-3 pb-0.5 text-[0.625rem] font-semibold tracking-[0.08em] uppercase">
-                {group.title}
-              </SidebarGroupLabel>
-            )}
-
-            <SidebarGroupContent>
-              <SidebarMenu className={cn("gap-0.5", collapsed && "items-center")}>
-                {group.items.filter(canSeeItem).map((item) => {
-                  const isActive = findNavItem(pathname)?.href === item.href;
-                  const Icon = item.icon;
-                  const warnCount = warningCounts[item.href] ?? 0;
-
-                  return (
-                    <SidebarMenuItem key={item.href} className={cn(collapsed && "w-8")}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={isActive}
-                        tooltip={item.tooltip}
-                        className={cn(
-                          "h-auto rounded-[var(--r-sm)] transition-colors duration-150",
-                          collapsed
-                            ? "justify-center gap-0 group-data-[collapsible=icon]:overflow-visible"
-                            : "gap-2.5 px-2.5 py-1.5 text-[0.8125rem]",
-                          isActive
-                            ? "bg-brand text-ink-inverse hover:bg-brand hover:text-ink-inverse data-active:bg-brand data-active:text-ink-inverse font-medium"
-                            : "text-ink-secondary hover:bg-bg-muted hover:text-ink-primary",
-                        )}
-                      >
-                        <Link href={item.href}>
-                          <Icon className="size-4 shrink-0" />
-                          {!collapsed && <span className="truncate">{item.label}</span>}
-                        </Link>
-                      </SidebarMenuButton>
-
-                      {/* Warning dot */}
-                      {warnCount > 0 &&
-                        (collapsed ? (
-                          <span className="bg-positive ring-bg-subtle pointer-events-none absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full text-[0.5625rem] leading-none font-bold text-white ring-2">
-                            {warnCount}
-                          </span>
-                        ) : (
-                          <SidebarMenuBadge className="bg-positive inset-y-0 my-auto size-[18px] min-w-0 justify-center rounded-full px-0 text-[0.5625rem] leading-none font-bold text-white peer-hover/menu-button:text-white peer-data-active/menu-button:text-white peer-data-[size=default]/menu-button:top-0">
-                            {warnCount}
-                          </SidebarMenuBadge>
-                        ))}
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        ))}
+      {/* Nav: item cha mở/đóng kiểu Vercel. Scrollbar mảnh, không có nút mũi tên — chỉ dùng
+          ::-webkit-scrollbar (đặt `scrollbar-width` thì Chrome bỏ qua style webkit và hiện mũi tên) */}
+      <SidebarContent className="[&::-webkit-scrollbar-thumb]:bg-border-strong min-h-0 flex-1 gap-0 overflow-y-auto px-2 py-2 [&::-webkit-scrollbar]:block [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-button]:hidden [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
+        <SidebarNav
+          groups={NAV_GROUPS}
+          activeHref={findNavItem(pathname)?.href}
+          canSeeItem={canSeeItem}
+          warningCounts={warningCounts}
+          collapsed={collapsed}
+        />
       </SidebarContent>
 
       <SidebarFooterBar />
@@ -626,16 +586,17 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
         {/* ================================================================== */}
         {/*  Main area                                                        */}
         {/* ================================================================== */}
-        <SidebarInset className="bg-bg-surface flex min-h-0 min-w-0 flex-col">
+        <SidebarInset className="bg-bg-base flex min-h-0 min-w-0 flex-col">
           {/* Topbar */}
-          <header className="border-border-default bg-bg-surface flex h-14 shrink-0 items-center gap-2 border-b px-4 print:hidden">
+          <header className="border-border-default bg-bg-base relative flex h-14 shrink-0 items-center gap-2 border-b px-4 print:hidden">
             <SidebarCollapseButton />
             <div aria-hidden className="bg-border-default mr-1 h-4 w-px shrink-0" />
 
-            <div className="min-w-0 flex-1">
+            {/* Breadcrumb căn giữa topbar (absolute để giữa thật, không lệch theo nút bên trái) */}
+            <div className="absolute inset-x-0 mx-auto flex w-fit max-w-[60%] min-w-0 justify-center">
               <nav
                 aria-label="Breadcrumb"
-                className="text-ink-tertiary flex items-center gap-1.5 text-[0.8125rem]"
+                className="text-ink-tertiary flex min-w-0 items-center gap-1.5 text-sm"
               >
                 {breadcrumbItems.map((item, index) => (
                   <span
