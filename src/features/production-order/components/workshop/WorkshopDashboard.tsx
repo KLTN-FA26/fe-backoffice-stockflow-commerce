@@ -94,7 +94,7 @@ export function WorkshopDashboard() {
             icon={Trash2}
             subtitle={
               data.scrapRate != null
-                ? `Tỷ lệ phế ${formatPercent(data.scrapRate * 100, 2)}`
+                ? `Tỷ lệ phế ${formatPercent(data.scrapRate, 2)}`
                 : "Chưa in trong kỳ"
             }
           />
