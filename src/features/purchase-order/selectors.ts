@@ -108,7 +108,7 @@ const IN_FLIGHT: readonly string[] = [PO_DELIVERY_STATUS.QUEUED, PO_DELIVERY_STA
 /**
  * Đang gửi thư tới NCC — BE chưa có kết quả cuối (QUEUED: chờ worker, RETRYING: đang thử lại),
  * cho thư gửi đơn (`deliveryStatus`) lẫn thư báo huỷ (`cancellationDeliveryStatus`, BE #36).
- * Màn chi tiết tự tải lại trong lúc này để không phải F5 (re-review PR #14, mục 3).
+ * Hết "đang gửi" → màn chi tiết làm mới bảng lần gửi một lần (không poll — người dùng tự F5).
  */
 export function isDeliveryInFlight(
   po: Pick<PurchaseOrder, "deliveryStatus" | "cancellationDeliveryStatus"> | undefined,

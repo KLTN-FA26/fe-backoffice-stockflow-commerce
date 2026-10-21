@@ -78,7 +78,7 @@ export function PoDeliveryCard({ po }: { po: PurchaseOrder }) {
       </div>
 
       <h3 className="text-ink-primary mt-5 mb-2 text-[0.875rem] font-semibold">Lịch sử gửi</h3>
-      <PoDeliveryTables poId={po.poId} poll={isDeliveryInFlight(po)} />
+      <PoDeliveryTables poId={po.poId} inFlight={isDeliveryInFlight(po)} />
     </section>
   );
 }
