@@ -79,6 +79,20 @@ describe("production lifecycle (BE ProductionOrder transitions)", () => {
       "split",
     ]);
   });
+  it("held subcontract work switches effective status to QC when goods arrive without lifting hold", () => {
+    const held = order(
+      "ON_HOLD",
+      { mode: "SUBCONTRACTED", holdReason: "WAITING_CUSTOMER" },
+      {
+        history: [
+          { fromStatus: "SUBCONTRACTED", toStatus: "ON_HOLD", changedAt: "2026-10-14T04:00:00Z" },
+          { fromStatus: "ON_HOLD", toStatus: "ON_HOLD", changedAt: "2026-10-14T05:00:00Z" },
+        ],
+      },
+    );
+    expect(effectiveStatus(held)).toBe("QC");
+    expect(allowedSubcontractRecovery(held, can("WAREHOUSE_MANAGER"))).toContain("inHouse");
+  });
   it("BR-PRD-11/12: only a root in-house ORDER can be split; a SAMPLE or a child cannot", () => {
     expect(allowedProductionActions(order("READY"), can("WAREHOUSE_MANAGER"))).toContain("split");
     expect(

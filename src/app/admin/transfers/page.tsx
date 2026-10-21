@@ -1,6 +1,13 @@
-import { ArrowRightLeft } from "lucide-react";
-import { ComingSoonPage } from "@/components/shared/ComingSoonPage";
+import { Suspense } from "react";
+
+import { TransferList } from "@/features/transfer/components/TransferList";
+
+import { PageSkeleton } from "@/components/shared/PageSkeleton";
 
 export default function TransfersPage() {
-  return <ComingSoonPage title="Chuyển kho liên kho" icon={ArrowRightLeft} />;
+  return (
+    <Suspense fallback={<PageSkeleton variant="list" />}>
+      <TransferList />
+    </Suspense>
+  );
 }

@@ -1,6 +1,7 @@
 /**
  * Biến thể — vòng đời + gate thao tác theo mã quyền thật (BE `VariantStatus#canTransitionTo`,
- * `ProductVariantController` @RequiresPermission). UI-only: BE kiểm lại và trả 409.
+ * `ProductVariantController` @RequiresPermission): resource `product-variants` — chặn là UPDATE,
+ * kích hoạt / ngừng dùng là APPROVE (khác `product-products` của nội dung sản phẩm, giá và ảnh). UI-only: BE kiểm lại và trả 409.
  *
  *   DRAFT → ACTIVE (kích hoạt, cần sản phẩm đã duyệt — BE tự kích hoạt các biến thể Nháp lúc duyệt
  *           sản phẩm) | OBSOLETE
@@ -8,7 +9,7 @@
  *   BLOCKED → ACTIVE | OBSOLETE
  *   OBSOLETE: kết thúc. Biến thể mặc định không ngừng dùng riêng (ngừng kinh doanh sản phẩm).
  */
-import { PRODUCT_PERMISSIONS } from "@/constants";
+import { VARIANT_PERMISSIONS } from "@/constants";
 
 import type { PermissionCode } from "@/lib/auth";
 import type { VariantTransition } from "./variant-api";
@@ -26,31 +27,37 @@ export const VARIANT_ACTIONS: readonly VariantAction[] = [
   {
     code: "activate",
     label: "Kích hoạt",
-    permission: PRODUCT_PERMISSIONS.approve,
+    permission: VARIANT_PERMISSIONS.approve,
     fromStatuses: ["DRAFT", "BLOCKED"],
   },
   {
     code: "block",
     label: "Tạm chặn",
-    permission: PRODUCT_PERMISSIONS.update,
+    permission: VARIANT_PERMISSIONS.update,
     fromStatuses: ["ACTIVE"],
     destructive: true,
   },
   {
     code: "obsolete",
     label: "Ngừng dùng",
-    permission: PRODUCT_PERMISSIONS.approve,
+    permission: VARIANT_PERMISSIONS.approve,
     fromStatuses: ["DRAFT", "ACTIVE", "BLOCKED"],
     destructive: true,
   },
 ];
 
-/** @param productApproved sản phẩm đã duyệt / đang bán — BE từ chối kích hoạt khi chưa (409). */
+/**
+ * @param productApproved sản phẩm đã duyệt / đang bán — BE từ chối kích hoạt khi chưa (409).
+ * @param acceptsChanges BE `ProductVariantService.requireChangeable`: mọi thao tác ghi biến thể (kể cả
+ *   kích hoạt / chặn / ngừng dùng) bị từ chối khi sản phẩm chờ duyệt hoặc đã ngừng kinh doanh.
+ */
 export function allowedVariantActions(
   variant: Pick<Variant, "status" | "defaultVariant">,
   can: (code: PermissionCode) => boolean,
   productApproved = true,
+  acceptsChanges = true,
 ): readonly VariantAction[] {
+  if (!acceptsChanges) return [];
   return VARIANT_ACTIONS.filter(
     (action) =>
       action.fromStatuses.includes(variant.status) &&

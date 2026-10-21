@@ -7,6 +7,8 @@
  * VALIDATION_FAILED kèm message tiếng Anh — FE tự dịch theo ngữ cảnh.
  */
 
+import { PICK_API_STATUSES } from "@/constants";
+
 import { registerMockRoute } from "./mock-adapter";
 import { toBackendRoles } from "./mock-backend-roles";
 import {
@@ -24,7 +26,13 @@ import {
   toTaskResponse,
   verifyDesigns,
 } from "./mock-routes-fulfillment-store";
-import { backendOrderStatusOf, lockedChecksumOf, setMockOrderStatus } from "./mock-routes-orders";
+import { registerPackingMockRoutes } from "./mock-routes-packing";
+import {
+  backendOrderStatusOf,
+  lockedChecksumOf,
+  resolveMockDesignHold,
+  setMockOrderStatus,
+} from "./mock-routes-orders";
 import {
   BE_DEFAULT_PAGE_SIZE,
   BE_MAX_PAGE_SIZE,
@@ -77,11 +85,15 @@ const missingField = (field: string) =>
     { field, message: "must not be null" },
   ]);
 
-/** BE `visible`: người được gán, hoặc quản lý kho / QC / điều phối. */
+/**
+ * BE `visible`: người được gán, quản lý kho / QC / điều phối, và (BE #136 bản cuối) nhân viên kho của
+ * kho đó khi lấy hàng đã xong — người đóng gói không nhất thiết là người lấy hàng.
+ */
 function canSee(task: MockTask, actor: MockActor): boolean {
   return (
     task.assignedUserId === actor.userId ||
-    hasAnyRole(actor, "WAREHOUSE_MANAGER", "QC_STAFF", "ORDER_COORDINATOR")
+    hasAnyRole(actor, "WAREHOUSE_MANAGER", "QC_STAFF", "ORDER_COORDINATOR") ||
+    (task.pickStatus === "PICKED" && hasAnyRole(actor, "WAREHOUSE_STAFF"))
   );
 }
 
@@ -119,8 +131,15 @@ function registerTaskReadRoutes(): void {
     if (page < 0 || size < 1 || size > BE_MAX_PAGE_SIZE) {
       return beError(400, "UNSUPPORTED_PARAMETER", "Unsupported page parameters");
     }
+    // BE `parseStatus`: PickStatus (any case), unknown value → 400 UNSUPPORTED_PARAMETER.
+    const status = readString(([] as unknown[]).concat(params.status ?? [])[0]).toUpperCase();
+    if (status && !PICK_API_STATUSES.some((known) => known === status)) {
+      return beError(400, "UNSUPPORTED_PARAMETER", "Unknown pick status");
+    }
     const actor = await currentActor();
-    const all = [...(await getFulfillmentStore()).values()].sort(newestFirst);
+    const all = [...(await getFulfillmentStore()).values()]
+      .filter((task) => !status || task.pickStatus === status)
+      .sort(newestFirst);
     // BE `listTasks`: quản lý / điều phối thấy hết → QC chỉ thấy kiện đang giữ → NV kho thấy của mình
     let visible: MockTask[];
     if (hasAnyRole(actor, "WAREHOUSE_MANAGER", "ORDER_COORDINATOR")) visible = all;
@@ -148,7 +167,8 @@ function registerTaskReadRoutes(): void {
       // BE `requireArtifactAccess`: người được gán, hoặc quản lý kho / QC (không có điều phối)
       if (
         task.assignedUserId !== actor.userId &&
-        !hasAnyRole(actor, "WAREHOUSE_MANAGER", "QC_STAFF")
+        !hasAnyRole(actor, "WAREHOUSE_MANAGER", "QC_STAFF") &&
+        task.pickStatus !== "PICKED"
       ) {
         return taskNotFound();
       }
@@ -204,19 +224,22 @@ function registerAssignmentRoutes(): void {
     }
     const order = await findMockOrder(orderId);
     if (!order) return taskNotFound();
-    // Mock đơn hàng còn dùng PAID cho trạng thái BE CONFIRMED (xem STATUS_FILTER_ALIAS)
-    if ((await backendOrderStatusOf(orderId)) !== "PAID") {
-      return conflict("Only a confirmed or released order can enter fulfillment");
-    }
-    if (order.lines.some((line) => line.designId)) {
-      return conflict(
-        `Order ${order.orderNumber} cannot be released from status CONFIRMED; release it to production first: it has lines to print`,
+    // BE PR #133: chỉ đơn READY_TO_FULFILL (đã release) mới vào xuất kho — đơn CONFIRMED phải release trước
+    const orderStatus = await backendOrderStatusOf(orderId);
+    if (orderStatus !== "READY_TO_FULFILL") {
+      // BE `FulfillmentServiceImpl#createTask`: PICK_TASK_STATE_CONFLICT (409), không phải CONFLICT chung
+      return beError(
+        409,
+        "PICK_TASK_STATE_CONFLICT",
+        `Only a released order (READY_TO_FULFILL) can enter fulfillment; it is ${orderStatus ?? "UNKNOWN"}`,
       );
     }
     const now = new Date().toISOString();
     const task: MockTask = {
       taskId: nextTaskId(),
       orderId,
+      orderNumber: order.orderNumber,
+      warehouseId: order.fulfillmentWarehouseId,
       assignedUserId,
       pickStatus: "PENDING",
       packStatus: "PENDING",
@@ -225,7 +248,8 @@ function registerAssignmentRoutes(): void {
       evidence: [],
     };
     store.set(task.taskId, task);
-    setMockOrderStatus(orderId, "IN_FULFILMENT");
+    // READY_TO_FULFILL → PICKING, cùng giao dịch với việc tạo task (BE `orders.startPicking`)
+    setMockOrderStatus(orderId, "PICKING");
     return beOk(toTaskResponse(task), 201);
   });
 
@@ -243,37 +267,11 @@ function registerAssignmentRoutes(): void {
   });
 }
 
+/** Đóng gói (nhận đơn, kiện, quét, hoàn tất) ở `mock-routes-packing.ts`; ở đây còn kiểm tra lại thiết kế. */
 function registerPackRoutes(): void {
-  registerMockRoute("POST", `${PATH}/:id/packing-completion`, async (config) => {
-    const { task, actor } = await loadTask(config);
-    if (!hasAnyRole(actor, "WAREHOUSE_STAFF", "WAREHOUSE_MANAGER")) return forbidden();
-    if (!task) return taskNotFound();
-    if (task.assignedUserId !== actor.userId) {
-      return beError(404, "NOT_FOUND", "Fulfillment task is not assigned to this user");
-    }
-    if (task.pickStatus !== "PICKED") return conflict("Picking must finish before packing");
-    const closed = await orderClosedError(task.orderId);
-    if (closed) return closed;
-    if (task.packStatus === "ON_HOLD") {
-      return conflict("A checksum hold requires QC or warehouse-manager reverification");
-    }
-    if (task.packStatus !== "PENDING" && task.packStatus !== "PACKING") return conflict();
-    const order = await findMockOrder(task.orderId);
-    if (!order) return taskNotFound();
-    if (verifyDesigns(task, order, false)) {
-      task.packStatus = "PACKED";
-      task.packedAt = new Date().toISOString();
-    } else {
-      // X-CHK: lệch → pack + đơn ON_HOLD, vẫn HTTP 200
-      task.packStatus = "ON_HOLD";
-      setMockOrderStatus(task.orderId, "ON_HOLD");
-    }
-    return beOk(toTaskResponse(task));
-  });
-
   registerMockRoute("POST", `${PATH}/:id/design-integrity-reverification`, async (config) => {
     const { task, actor } = await loadTask(config);
-    if (!hasAnyRole(actor, "QC_STAFF", "WAREHOUSE_MANAGER")) return forbidden();
+    if (!hasAnyRole(actor, "WAREHOUSE_STAFF", "WAREHOUSE_MANAGER")) return forbidden();
     const note = readString(parseJsonBody(config.data).resolutionNote);
     if (!note) {
       return beError(400, "VALIDATION_FAILED", "Invalid request data", [
@@ -287,9 +285,10 @@ function registerPackRoutes(): void {
     const order = await findMockOrder(task.orderId);
     if (!order) return taskNotFound();
     if (verifyDesigns(task, order, true)) {
-      task.packStatus = "PACKED";
-      task.packedAt = new Date().toISOString();
-      setMockOrderStatus(task.orderId, "IN_FULFILMENT");
+      // BE PR #136: kiểm tra lại đạt → gỡ giữ DESIGN_MISMATCH, phiên về PACKING (docs 08 §5
+      // "Verification Failed → In Progress"); người đóng gói hoàn tất lại, đơn chưa PACKED
+      task.packStatus = "PACKING";
+      resolveMockDesignHold(task.orderId);
     }
     return beOk(toTaskResponse(task));
   });
@@ -331,5 +330,6 @@ export function registerFulfillmentMockRoutes(): void {
     task.pickedAt = now;
   });
   registerPackRoutes();
+  registerPackingMockRoutes();
   registerUserRoutes();
 }

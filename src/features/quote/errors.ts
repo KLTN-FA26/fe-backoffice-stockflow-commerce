@@ -22,6 +22,7 @@ export const QUOTE_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   SHIPPING_ADDRESS_REQUIRED: "Khách chưa có địa chỉ giao hàng. Bổ sung địa chỉ trước khi tạo đơn.",
   ADDRESS_NOT_FOUND: "Không tìm thấy địa chỉ đã chọn.",
   INSUFFICIENT_STOCK: "Không đủ tồn kho để giữ hàng cho đơn.",
+  SKU_NOT_SELLABLE: "Phôi trên báo giá đã ngừng bán. Sales cần đổi sang phôi đang hoạt động và gửi báo giá mới.",
   CONFLICT: "Thiết kế chưa được khách xác nhận, hoặc phôi không thuộc sản phẩm của thiết kế.",
 };
 

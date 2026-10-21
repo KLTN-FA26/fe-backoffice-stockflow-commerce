@@ -3,11 +3,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { api } from "@/lib/api/client";
 
 import {
+  discontinueProduct,
   getProduct,
+  listBrands,
+  listCategories,
   listProducts,
   publishProduct,
   transitionProduct,
   unpublishProduct,
+  updateProduct,
 } from "./api";
 import { productKeys } from "./queries";
 
@@ -28,6 +32,7 @@ const backendProduct = {
   taxClass: "STANDARD",
   kind: "CUSTOMIZABLE",
   status: "DRAFT",
+  version: 3,
   createdAt: "2026-01-01T00:00:00Z",
   createdBy: "system",
   submittedBy: "22222222-2222-4222-8222-222222222222",
@@ -140,7 +145,6 @@ describe("product API contract", () => {
   it.each([
     ["submit", "submission", "PENDING_APPROVAL"],
     ["approve", "approval", "APPROVED"],
-    ["discontinue", "discontinuation", "DISCONTINUED"],
   ] as const)("maps %s to the backend %s transition", async (action, suffix, status) => {
     const post = vi.spyOn(api, "post").mockResolvedValueOnce({
       data: { ...backendProduct, status },
@@ -150,10 +154,114 @@ describe("product API contract", () => {
 
     expect(post).toHaveBeenCalledWith(`/products/${backendProduct.productId}/${suffix}`, undefined);
     expect(result.status).toBe(
-      { PENDING_APPROVAL: "Pending Approval", APPROVED: "Approved", DISCONTINUED: "Discontinued" }[
-        status
-      ],
+      { PENDING_APPROVAL: "Pending Approval", APPROVED: "Approved" }[status],
     );
+  });
+
+  it("keeps the product version read from the backend (needed by update / discontinue)", async () => {
+    vi.spyOn(api, "get").mockResolvedValueOnce({ data: backendProduct });
+
+    expect((await getProduct(backendProduct.productId)).version).toBe(3);
+  });
+
+  it("PUT sends the version last read (BE UpdateProductRequest.version is @NotNull)", async () => {
+    const put = vi
+      .spyOn(api, "put")
+      .mockResolvedValueOnce({ data: { ...backendProduct, version: 4 } });
+
+    const saved = await updateProduct({
+      id: backendProduct.productId,
+      name: "Ghế",
+      nameEn: "Chair",
+      categoryId: "44444444-4444-4444-8444-444444444444",
+      brandId: backendProduct.brandId,
+      shortDescription: "",
+      description: "",
+      descriptionEn: "",
+      taxClass: "STANDARD",
+      kind: "STANDARD",
+      version: 3,
+    });
+
+    expect(put).toHaveBeenCalledWith(
+      `/products/${backendProduct.productId}`,
+      expect.objectContaining({ version: 3, name: "Ghế" }),
+    );
+    expect(saved.version).toBe(4);
+  });
+
+  it("discontinuation posts { reason, version } and surfaces the warnings", async () => {
+    const post = vi.spyOn(api, "post").mockResolvedValueOnce({
+      data: {
+        ...backendProduct,
+        status: "DISCONTINUED",
+        version: 4,
+        warnings: ["OPEN_PURCHASE_ORDER_LINES"],
+        openReferences: [],
+        openReferencesTruncated: false,
+      },
+    });
+
+    const result = await discontinueProduct({
+      id: backendProduct.productId,
+      reason: "  Ngừng sản xuất  ",
+      version: 3,
+    });
+
+    expect(post).toHaveBeenCalledWith(`/products/${backendProduct.productId}/discontinuation`, {
+      reason: "Ngừng sản xuất",
+      version: 3,
+    });
+    expect(result.product.status).toBe("Discontinued");
+    expect(result.warnings).toEqual(["OPEN_PURCHASE_ORDER_LINES"]);
+  });
+
+  it("refuses to discontinue without a reason or over the BE 500-character limit", async () => {
+    const post = vi.spyOn(api, "post");
+
+    await expect(
+      discontinueProduct({ id: backendProduct.productId, reason: "  ", version: 3 }),
+    ).rejects.toThrow();
+    await expect(
+      discontinueProduct({ id: backendProduct.productId, reason: "x".repeat(501), version: 3 }),
+    ).rejects.toThrow();
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it("parses a suspended (INACTIVE) product instead of failing the whole page", async () => {
+    vi.spyOn(api, "get").mockResolvedValueOnce({
+      data: {
+        ...backendPage(),
+        items: [backendProduct, { ...backendProduct, productId: "p2", status: "INACTIVE" }],
+      },
+    });
+
+    const page = await listProducts({});
+
+    expect(page.items.map((p) => p.status)).toEqual(["Draft", "Inactive"]);
+  });
+
+  it("an unknown future status falls back to UNKNOWN and does not throw", async () => {
+    vi.spyOn(api, "get").mockResolvedValueOnce({
+      data: {
+        ...backendPage(),
+        items: [{ ...backendProduct, status: "SOME_FUTURE_STATUS" }, backendProduct],
+      },
+    });
+
+    const page = await listProducts({});
+
+    expect(page.items.map((p) => p.status)).toEqual(["UNKNOWN", "Draft"]);
+  });
+
+  it("filters the list by INACTIVE too", async () => {
+    const get = vi.spyOn(api, "get").mockResolvedValueOnce({ data: backendPage() });
+
+    await listProducts({ status: ["Inactive"] });
+
+    expect((get.mock.calls[0]?.[1]?.params as URLSearchParams).getAll("status")).toEqual([
+      "INACTIVE",
+    ]);
   });
 
   it("handles publication and unpublication as void responses", async () => {
@@ -164,5 +272,46 @@ describe("product API contract", () => {
 
     expect(post).toHaveBeenNthCalledWith(1, `/products/${backendProduct.productId}/publication`);
     expect(post).toHaveBeenNthCalledWith(2, `/products/${backendProduct.productId}/unpublication`);
+  });
+});
+
+// Danh mục / thương hiệu bị ngưng ở màn phân loại vẫn gắn với sản phẩm cũ: trang chi tiết, cột danh mục
+// của danh sách và form sửa phải tra được tên — tải cả bản ghi đã ngưng (ô chọn tự lọc khi mời chọn).
+describe("lookup danh mục / thương hiệu gồm cả bản đã ngưng", () => {
+  const page = (items: unknown[]) => ({
+    items,
+    page: 0,
+    size: 200,
+    totalElements: items.length,
+    totalPages: 1,
+    hasNext: false,
+    hasPrevious: false,
+  });
+  it("không lọc active và giữ cờ active của danh mục", async () => {
+    const get = vi.spyOn(api, "get").mockResolvedValue({
+      data: page([
+        {
+          categoryId: "cat-old",
+          parentId: null,
+          code: "OLD",
+          name: "Danh mục cũ",
+          slug: "old",
+          path: "/OLD",
+          depth: 0,
+          sortOrder: 0,
+          active: false,
+        },
+      ]),
+    });
+    const { items } = await listCategories();
+    expect(items).toEqual([expect.objectContaining({ categoryId: "cat-old", active: false })]);
+    expect(get.mock.calls[0]?.[1]).not.toMatchObject({ params: { active: true } });
+  });
+  it("thương hiệu đã ngưng vẫn có trong danh sách tra tên", async () => {
+    const get = vi.spyOn(api, "get").mockResolvedValue({
+      data: page([{ brandId: "b-old", code: "OLD", name: "Hiệu cũ", slug: "old", active: false }]),
+    });
+    expect(await listBrands()).toEqual([expect.objectContaining({ brandId: "b-old" })]);
+    expect(get.mock.calls[0]?.[1]).not.toMatchObject({ params: { active: true } });
   });
 });

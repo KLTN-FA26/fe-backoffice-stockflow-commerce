@@ -1,18 +1,7 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { cn } from "cn";
-import {
-  Columns3,
-  FileDown,
-  Filter,
-  ListFilter,
-  RotateCcw,
-  Search,
-  Settings2,
-  X,
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Columns3, FileDown, Filter, ListFilter, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -34,17 +23,15 @@ import {
 } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
+import { ListConfigSummary, type ListSummaryItem } from "./ListConfigSummary";
+
+import type { ReactNode } from "react";
+
+export type { ListSummaryItem };
+
 export interface ListOption<T extends string> {
   label: string;
   value: T;
-}
-
-export interface ListSummaryItem {
-  label: string;
-  value: ReactNode;
-  active?: boolean;
-  onClear?: () => void;
-  clearLabel?: string;
 }
 
 export interface ListToolbarProps<
@@ -82,8 +69,44 @@ export interface ListToolbarProps<
   /** Không truyền → ẩn nút xuất (vd người dùng thiếu quyền xuất dữ liệu). */
   onExport?: () => void;
   summaryItems: ListSummaryItem[];
+  /** Hàng facet nghiệp vụ dưới toolbar (kho, vị trí, loại…) — chỉ trang có bộ lọc thêm. */
+  facets?: ReactNode;
+  /** Công cụ riêng của trang (vd mở / thu gọn cây) — đặt sau các icon công cụ, dùng `ToolbarIconButton`. */
+  tools?: ReactNode;
   onResetAll: () => void;
   resetDisabled?: boolean;
+}
+
+/** Nút icon công cụ của toolbar (cùng dáng nút Lọc / Ẩn hiện cột) — nhãn nằm ở tooltip. */
+export function ToolbarIconButton({
+  label,
+  icon,
+  onClick,
+  disabled,
+}: {
+  label: string;
+  icon: ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          aria-label={label}
+          onClick={onClick}
+          disabled={disabled}
+          className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary rounded-[var(--r-sm)] focus-visible:ring-0"
+        >
+          {icon}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  );
 }
 
 function commandItemClassName() {
@@ -120,6 +143,8 @@ export function ListToolbar<Status extends string, Field extends string, Column 
   exportLabel = "Xuất Excel",
   onExport,
   summaryItems,
+  facets,
+  tools,
   onResetAll,
   resetDisabled = false,
 }: ListToolbarProps<Status, Field, Column>) {
@@ -137,6 +162,7 @@ export function ListToolbar<Status extends string, Field extends string, Column 
               value={search}
               onChange={(event) => onSearchChange(event.target.value)}
               placeholder={searchPlaceholder}
+              aria-label={searchPlaceholder}
               className="border-border-default bg-bg-surface focus-visible:border-brand focus-visible:ring-brand/20 h-9 rounded-[var(--r-sm)] pl-9 text-[0.8125rem] shadow-none"
             />
           </div>
@@ -335,6 +361,7 @@ export function ListToolbar<Status extends string, Field extends string, Column 
                 </PopoverContent>
               </Popover>
             )}
+            {tools}
           </div>
 
           <div className="ml-auto flex items-center gap-2">
@@ -366,46 +393,16 @@ export function ListToolbar<Status extends string, Field extends string, Column 
         </div>
       </div>
 
-      <div className="border-border-default bg-bg-subtle/70 mb-4 flex flex-wrap items-center gap-2 rounded-[var(--r-sm)] border px-3 py-2 text-[0.8125rem]">
-        <div className="text-ink-primary mr-1 flex items-center gap-2 font-medium">
-          <Settings2 className="text-accent size-3.5" />
-          Cấu hình
+      {facets && (
+        <div className="border-border-default bg-bg-subtle mb-3 flex flex-wrap items-center gap-3 rounded-[var(--r-sm)] border px-3 py-2">
+          {facets}
         </div>
-        <div className="flex min-w-0 flex-1 flex-wrap gap-2">
-          {summaryItems.map((item) => (
-            <Badge
-              key={item.label}
-              variant="outline"
-              className="bg-bg-subtle text-ink-secondary gap-1"
-            >
-              {item.label}: {item.value}
-              {item.active && item.onClear && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={item.onClear}
-                  aria-label={item.clearLabel ?? `Xoá ${item.label}`}
-                  className="text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary size-4 rounded-full p-0"
-                >
-                  <X className="size-3" />
-                </Button>
-              )}
-            </Badge>
-          ))}
-        </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="xs"
-          onClick={onResetAll}
-          disabled={resetDisabled}
-          className="text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary ml-auto rounded-[var(--r-sm)]"
-        >
-          <RotateCcw className="size-3" />
-          Đặt lại
-        </Button>
-      </div>
+      )}
+      <ListConfigSummary
+        items={summaryItems}
+        onResetAll={onResetAll}
+        resetDisabled={resetDisabled}
+      />
     </TooltipProvider>
   );
 }

@@ -25,6 +25,12 @@ export const PO_STATUS = {
   CANCELLED: "CANCELLED",
 } as const satisfies Record<string, PoStatus>;
 
+/** BE `PurchaseOrder.Type`: chỉ PO thường (STANDARD) sửa nháp được (`PurchaseOrder#reviseDraft`). */
+export const PO_TYPE = {
+  STANDARD: "STANDARD",
+  SUBCONTRACT: "SUBCONTRACT",
+} as const;
+
 /** BE `purchase_order_lines.status`. */
 export const PO_LINE_STATUSES = [
   "OPEN",
@@ -214,7 +220,8 @@ export const PICK_STATUS_BY_API = PICK_STATUS;
 /**
  * Trạng thái đóng gói — HỆ QUY CHIẾU LÀ BE `fulfillment/internal/domain/PackStatus.java`, cùng quy
  * tắc với `PICK_STATUSES` (tên enum BE viết Title Case; docs 08 §5 chỉ để tham khảo).
- * `PACKING` có trong enum BE nhưng chưa code nào set — `status-map` chưa có nhãn, thêm khi BE dùng.
+ * `PACKING` = packer đã nhận đơn tại bàn đóng gói (BE PR #136: `POST /tasks/{id}/packing-start`; sau
+ * khi kiểm tra lại thiết kế khớp, phiên cũng trở lại `PACKING` chứ không phải `PACKED`).
  */
 export const PACK_STATUSES = ["Pending", "Packing", "On Hold", "Packed", "Cancelled"] as const;
 
@@ -232,6 +239,43 @@ export const PACK_API_STATUSES = ["PENDING", "PACKING", "ON_HOLD", "PACKED", "CA
 /** Đổi 1-1 giá trị BE → tên hiển thị; khoá theo enum BE nên BE thêm giá trị là typecheck báo. */
 export const PACK_STATUS_BY_API = PACK_STATUS;
 
+/** BE `fulfillment/internal/domain/PackageStatus.java` (PR #136) — kiện ở trạm đóng gói. */
+export const PACKAGE_API_STATUSES = ["OPEN", "SEALED", "VOIDED"] as const;
+
+/** BE `PackageType.java` (PR #136) — loại kiện; mặc định CARTON khi không gửi. */
+export const PACKAGE_TYPES = ["CARTON", "BAG", "PALLET", "CRATE", "OTHER"] as const;
+
+/** BE `ShipmentStatus.java` (PR #136, kltn-docs 09 §5) — lô giao do bước đóng gói tạo ra. */
+export const PACK_SHIPMENT_API_STATUSES = [
+  "READY_TO_DISPATCH",
+  "HANDED_OVER",
+  "DELIVERED",
+  "DELIVERY_FAILED",
+  "RETURNED",
+  "CANCELLED",
+] as const;
+
+/** BE `DeliveryMode.java` — hiện mọi lô là PARCEL (BE: chờ G3-4). */
+export const DELIVERY_MODES = ["PARCEL", "FULL_TRUCKLOAD"] as const;
+
+/** Trạng thái kiện / lô giao → chuỗi status của `StatusDot` (nhãn + màu ở `lib/status-map.ts`). */
+export const PACKAGE_STATUS_DISPLAY = {
+  OPEN: "Package Open",
+  SEALED: "Sealed",
+  VOIDED: "Voided",
+  UNKNOWN: "UNKNOWN",
+} as const;
+
+export const PACK_SHIPMENT_STATUS_DISPLAY = {
+  READY_TO_DISPATCH: "Ready to Dispatch",
+  HANDED_OVER: "Handed Over",
+  DELIVERED: "Delivered",
+  DELIVERY_FAILED: "Delivery Failed",
+  RETURNED: "Returned",
+  CANCELLED: "Cancelled",
+  UNKNOWN: "UNKNOWN",
+} as const;
+
 /** BE `design/api/DesignArtifactRole.java` — vai trò file trong bundle thiết kế đã khoá. */
 export const DESIGN_ARTIFACT_ROLES = [
   "CUSTOMER_PREVIEW",
@@ -240,8 +284,11 @@ export const DESIGN_ARTIFACT_ROLES = [
   "PRODUCTION_INSTRUCTION",
 ] as const;
 
-/** Trạng thái đơn BE cho phép tạo task xuất kho (FulfillmentServiceImpl#createTask). */
-export const FULFILLABLE_ORDER_API_STATUSES = ["CONFIRMED", "READY_TO_FULFILL"] as const;
+/**
+ * Trạng thái đơn BE cho phép tạo task xuất kho: chỉ READY_TO_FULFILL (đã release, đã chọn kho, hàng
+ * in đã sản xuất xong) — đơn CONFIRMED phải release trước (BE PR #133, FulfillmentServiceImpl#createTask).
+ */
+export const FULFILLABLE_ORDER_API_STATUSES = ["READY_TO_FULFILL"] as const;
 
 export const PRODUCT_STATUSES = [
   "Draft",
@@ -251,6 +298,8 @@ export const PRODUCT_STATUSES = [
   "Published",
   "Inactive",
   "Discontinued",
+  // Trạng thái BE chưa biết (BE mở rộng danh sách) — hiển thị "Không rõ", không chặn cả trang.
+  "UNKNOWN",
 ] as const;
 
 export const PRODUCT_STATUS = {
@@ -261,6 +310,7 @@ export const PRODUCT_STATUS = {
   INACTIVE: "Inactive",
   PENDING_APPROVAL: "Pending Approval",
   PUBLISHED: "Published",
+  UNKNOWN: "UNKNOWN",
 } as const satisfies Record<string, ProductStatus>;
 
 export const SKU_STATUSES = ["Active", "Blocked", "Obsolete"] as const;
@@ -292,25 +342,34 @@ export const INVOICE_STATUS = {
 } as const satisfies Record<string, InvoiceStatus>;
 
 /**
- * Order — đúng 10 trạng thái của BE `order/api/OrderStatus.java`, ánh xạ 1-1 với mã wire
- * (PENDING_PAYMENT ↔ "Pending Payment"…, xem features/order/status-map.ts).
+ * Order — 19 trạng thái của BE `order/api/OrderStatus.java` (BE PR #133, SCRUM-239/246/247),
+ * ánh xạ 1-1 với mã wire (PENDING_PAYMENT ↔ "Pending Payment"…, xem features/order/status-map.ts).
+ * `IN_FULFILMENT` đã bị BE bỏ (tách PICKING / PACKED), `PAID` cũ là CONFIRMED.
  *
- * QUYẾT ĐỊNH (lệch quy tắc "docs thắng" của CLAUDE.md, chủ đích cho module order): FE khớp BE,
- * KHÔNG dựng theo 20 trạng thái của docs 17 §5 — docs tách nhiều bước (Picking, Packed,
- * In Production…) mà BE không có, hiển thị chúng là hứa trạng thái BE không bao giờ trả.
- * mock-data.ts vẫn dùng 20 trạng thái docs; route mock gộp về 10 trạng thái BE trước khi trả.
+ * "UNKNOWN" không phải trạng thái BE: mã BE thêm sau này parse về đây (`.catch`) để một giá trị lạ
+ * không làm hỏng cả danh sách đơn. Không có chuyển tiếp / thao tác nào từ UNKNOWN và không có ở bộ lọc.
  */
 export const ORDER_STATUSES = [
   "Draft",
   "Pending Payment",
-  "Paid",
-  "In Fulfilment",
+  "Confirmed",
+  "In Production",
+  "Ready to Fulfill",
+  "Picking",
+  "Partially Fulfilled",
+  "Packed",
   "On Hold",
   "Shipped",
+  "Delivery Failed",
   "Delivered",
+  "Return Requested",
+  "Returned",
+  "Refunded",
+  "Partially Refunded",
   "Completed",
   "Cancelled",
-  "Returned",
+  "Closed",
+  "UNKNOWN",
 ] as const;
 
 /** Nhà cung cấp (module 01) — BE: ACTIVE/INACTIVE (SCRUM-118). */
@@ -330,6 +389,65 @@ export const SUPPLIER_API_STATUSES = ["ACTIVE", "INACTIVE", "BLACKLISTED"] as co
 
 /** Kênh gửi PO cho NCC — BE `communicationChannel` (EMAIL|API, BE PR #36). */
 export const SUPPLIER_CHANNELS = ["EMAIL", "API"] as const;
+
+/**
+ * Lệnh chuyển kho liên kho — BE `TransferStatus` (SCRUM-327, `inventory/internal/domain/TransferStatus.java`),
+ * nguyên văn mã wire, cùng vòng đời docs 10 §5. FE hiển thị qua status-map như PO.
+ */
+export const TRANSFER_STATUSES = [
+  "DRAFT",
+  "PENDING_APPROVAL",
+  "APPROVED",
+  "PICKING",
+  "IN_TRANSIT",
+  "PARTIALLY_RECEIVED",
+  "RECEIVED",
+  "COMPLETED",
+  "CLOSED",
+  "CANCELLED",
+] as const;
+
+export const TRANSFER_STATUS = {
+  DRAFT: "DRAFT",
+  PENDING_APPROVAL: "PENDING_APPROVAL",
+  APPROVED: "APPROVED",
+  PICKING: "PICKING",
+  IN_TRANSIT: "IN_TRANSIT",
+  PARTIALLY_RECEIVED: "PARTIALLY_RECEIVED",
+  RECEIVED: "RECEIVED",
+  COMPLETED: "COMPLETED",
+  CLOSED: "CLOSED",
+  CANCELLED: "CANCELLED",
+} as const satisfies Record<string, TransferStatus>;
+
+/** BE `TransferReason` — lý do chuyển kho (CreateTransferOrderRequest.reason, tuỳ chọn). */
+export const TRANSFER_REASONS = ["REBALANCING", "DEMAND", "CAMPAIGN", "OVERFLOW", "OTHER"] as const;
+
+/**
+ * Chuyến xe xuất hàng — BE `LoadStatus` (PR #137, SCRUM-288). Chuyến gửi kiện (PARCEL) bắt đầu ở
+ * LOADING khi tài xế hãng tới; PLANNED / VEHICLE_BOOKED chỉ có ở chuyến nguyên xe (FTL, SCRUM-287).
+ */
+export const LOAD_STATUSES = [
+  "PLANNED",
+  "VEHICLE_BOOKED",
+  "LOADING",
+  "DISPATCHED",
+  "CANCELLED",
+] as const;
+
+export const LOAD_STATUS = {
+  PLANNED: "PLANNED",
+  VEHICLE_BOOKED: "VEHICLE_BOOKED",
+  LOADING: "LOADING",
+  DISPATCHED: "DISPATCHED",
+  CANCELLED: "CANCELLED",
+} as const satisfies Record<string, LoadStatus>;
+
+/** BE `DispatchController` / `DeliveryOutcomeRequest.outcome` — kết quả hãng báo lại (docs 09 §4.3). */
+export const DELIVERY_OUTCOMES = ["DELIVERED", "DELIVERY_FAILED", "RETURNED"] as const;
+
+/** BE `CarrierResponse.status` — hãng ngừng dùng thì không nhận chuyến mới. */
+export const CARRIER_STATUSES = ["ACTIVE", "INACTIVE"] as const;
 
 export type PoStatus = (typeof PO_STATUSES)[number];
 export type SupplierConfirmationStatus = (typeof SUPPLIER_CONFIRMATION_STATUSES)[number];
@@ -495,3 +613,25 @@ export const ORDER_STATUS_GROUP_DISPLAY = {
   CANCELLED: "Cancelled",
   RETURNED: "Returned",
 } as const satisfies Record<OrderStatusGroup, string>;
+export type TransferStatus = (typeof TRANSFER_STATUSES)[number];
+export type TransferReason = (typeof TRANSFER_REASONS)[number];
+export type LoadStatus = (typeof LOAD_STATUSES)[number];
+export type ShipmentApiStatus = (typeof PACK_SHIPMENT_API_STATUSES)[number];
+export type DeliveryOutcome = (typeof DELIVERY_OUTCOMES)[number];
+
+// Backend StockAdjustmentStatus (SCRUM-424); preserve wire values.
+export const STOCK_ADJUSTMENT_STATUSES = [
+  "PENDING_APPROVAL",
+  "POSTED",
+  "REJECTED",
+  "WITHDRAWN",
+] as const;
+
+export const STOCK_ADJUSTMENT_STATUS = {
+  PENDING_APPROVAL: "PENDING_APPROVAL",
+  POSTED: "POSTED",
+  REJECTED: "REJECTED",
+  WITHDRAWN: "WITHDRAWN",
+} as const satisfies Record<string, StockAdjustmentStatus>;
+
+export type StockAdjustmentStatus = (typeof STOCK_ADJUSTMENT_STATUSES)[number];

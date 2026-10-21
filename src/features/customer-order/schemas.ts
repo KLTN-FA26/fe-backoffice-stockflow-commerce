@@ -72,4 +72,7 @@ export const myOrderDetailDtoSchema = z.object({
     }),
   ),
   deliveryState: z.string().nullish(),
+  allowedActions: z
+    .object({ cancel: z.boolean(), requestCancellation: z.boolean(), reorder: z.boolean() })
+    .nullish(),
 });

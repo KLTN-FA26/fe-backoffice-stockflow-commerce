@@ -102,6 +102,7 @@ export const cancelInputSchema = z
       .trim()
       .refine((v) => v === "" || /^\d+(\.\d{1,2})?$/.test(v), "Số tiền ≥ 0, tối đa 2 số lẻ"),
     subcontractorFeeReason: z.string().trim().max(1000, "Tối đa 1000 ký tự"),
+    packingLocation: z.string().trim().max(64, "Tối đa 64 ký tự"),
   })
   .refine(
     (v) =>

@@ -142,7 +142,7 @@ function CustomerDetailContent({ id }: { id: string }) {
         </Card>
         <InvitationCard
           customerId={customer.customerId}
-          canRead={canViewInvitation(roles)}
+          canRead={canViewInvitation(can, roles)}
           canResend={canResendInvitation(customer.status, can)}
         />
         <CreditProfileCard

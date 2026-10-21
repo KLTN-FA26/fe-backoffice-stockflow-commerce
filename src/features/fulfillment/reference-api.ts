@@ -39,7 +39,7 @@ export async function getFulfillmentOrder(
   return fulfillmentOrderSchema.parse(data);
 }
 
-/** Đơn đưa được vào xuất kho: CONFIRMED hoặc READY_TO_FULFILL (FulfillmentServiceImpl#createTask). */
+/** Đơn đưa được vào xuất kho: chỉ READY_TO_FULFILL — đơn CONFIRMED phải release trước (BE PR #133, FulfillmentServiceImpl#createTask). */
 export async function listFulfillableOrders(signal?: AbortSignal): Promise<FulfillmentOrder[]> {
   const { data } = await api.get<unknown>(ORDERS_PATH, {
     // Một trang tối đa của BE (Pages.MAX_PAGE_SIZE = 200), mới nhất trước — ô chọn chưa có tìm kiếm

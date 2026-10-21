@@ -39,7 +39,7 @@ export const customerStatusEntryDtoSchema = z.object({
 export const customerStatusHistoryDtoSchema = z.array(customerStatusEntryDtoSchema);
 
 export const INVITATION_DELIVERIES = ["SENT", "FAILED"] as const;
-export const INVITATION_STATES = ["PENDING", "EXPIRED", "ACTIVATED", "NO_ACCOUNT"] as const;
+export const INVITATION_STATES = ["PENDING", "EXPIRED", "ACTIVATED", "NO_ACCOUNT", "UNAVAILABLE"] as const;
 
 export const invitedCustomerDtoSchema = z.object({
   customer: customerDtoSchema,
@@ -67,6 +67,7 @@ export const creditProfileDtoSchema = z.object({
   allowCredit: z.boolean(),
   defaultPaymentTerm: z.enum(PAYMENT_TERMS),
   depositPercent: z.number().nullish(),
+  depositBalancePolicy: z.enum(["BEFORE_DELIVERY", "ON_DELIVERY"]).nullish(),
   creditLimit: z.number().nullish(),
   creditTermDays: z.number().int().nullish(),
   currency: z.string(),

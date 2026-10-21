@@ -4,13 +4,13 @@ import { useMemo, useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { cn } from "cn";
-import { BarChart3, Eye, Package, XCircle, Plus } from "lucide-react";
+import { BarChart3, Package, XCircle, Plus } from "lucide-react";
 import { ADMIN_ROUTES, PAGE_SIZE, PRODUCT_PERMISSIONS, STORAGE_KEYS } from "@/constants";
 import { PERMISSION_UI } from "@/constants/permissions";
 import { usePageConfig } from "@/hooks/use-page-config";
 import { useUrlFilters } from "@/hooks/use-url-filters";
 import { useCan } from "@/lib/auth/components/Can";
-import { STATUS_LABEL_VI } from "@/lib/status-map";
+import { statusLabelVi } from "@/lib/status-map";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ListStatsPanel } from "@/components/shared/ListStatsPanel";
@@ -19,7 +19,7 @@ import { DataTable, type ColumnDef } from "@/components/shared/DataTable";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
-import { statusCell, textCell } from "@/components/shared/column-helpers";
+import { CELL, statusCell, textCell, ViewAction } from "@/components/shared/column-helpers";
 import { shouldFlagProductRow, useCategories, useProducts } from "@/features/product";
 import { PRODUCT_LIST_FILTER_STATUSES, type ProductListFilterStatus } from "@/features/product/api";
 import { getProductListEmptyState } from "@/features/product/product-list-state";
@@ -28,9 +28,10 @@ import { toProductApiPage, toProductUiPage } from "@/features/product/pagination
 import type { Product } from "@/features/product";
 
 /*
- * Chỉ danh sách sản phẩm. Biến thể / SKU, logistics và ảnh nằm trong trang từng sản phẩm
- * (BE PR #71 `/products/{id}/variants`); BE không có danh sách SKU toàn hệ thống, nên tab "SKU"
- * cũ (gọi `/skus` không tồn tại) đã bỏ.
+ * Chỉ danh sách sản phẩm. Biến thể / SKU và ảnh nằm trong trang từng sản phẩm
+ * (BE PR #71 `/products/{id}/variants`); logistics và chính sách tồn của SKU ở trang Hồ sơ hàng tồn
+ * (BE PR #119). BE không có danh sách SKU toàn hệ thống, nên tab "SKU" cũ (gọi `/skus` không tồn
+ * tại) đã bỏ.
  */
 type ProductStatusFilter = "all" | ProductListFilterStatus;
 type ProductSearchField = "productId" | "name" | "category" | "type";
@@ -78,7 +79,7 @@ const DEFAULT_CONFIG: ProductsPageConfig = {
 };
 
 const PRODUCT_STATUS_OPTIONS = ["all", ...PRODUCT_LIST_FILTER_STATUSES].map((value) => ({
-  label: value === "all" ? "Tất cả" : (STATUS_LABEL_VI[value] ?? value),
+  label: value === "all" ? "Tất cả" : (statusLabelVi(value, "product") ?? value),
   value: value as ProductStatusFilter,
 }));
 const PRODUCT_COLUMN_LABELS: Record<ProductTableColumnKey, string> = {
@@ -115,7 +116,8 @@ function mergeStoredConfig(
   };
 }
 
-const PAGE_SUBTITLE = "Quản lý sản phẩm. Biến thể, logistics và ảnh nằm trong trang từng sản phẩm.";
+const PAGE_SUBTITLE =
+  "Quản lý sản phẩm. Biến thể và ảnh nằm trong trang từng sản phẩm; logistics của SKU ở Hồ sơ hàng tồn.";
 
 export function ProductList() {
   const router = useRouter();
@@ -218,7 +220,7 @@ export function ProductList() {
         <Link
           href={ADMIN_ROUTES.products.detail(row.productId)}
           onClick={(e) => e.stopPropagation()}
-          className="text-accent font-[family-name:var(--font-mono)] text-[0.8125rem] font-medium hover:underline"
+          className={`${CELL.code} hover:underline`}
         >
           {productCode(row)}
         </Link>
@@ -233,7 +235,7 @@ export function ProductList() {
         <Link
           href={ADMIN_ROUTES.products.detail(row.productId)}
           onClick={(e) => e.stopPropagation()}
-          className="text-ink-primary hover:text-accent text-[0.8125rem] font-medium hover:underline"
+          className={`${CELL.name} hover:text-accent hover:underline`}
         >
           {row.name}
         </Link>
@@ -254,7 +256,7 @@ export function ProductList() {
       key: "type",
       header: "Loại",
       cell: (row) => (
-        <span className="text-ink-secondary text-[0.8125rem]">
+        <span className={CELL.text}>
           {row.type === "Customizable" ? "Tùy chỉnh" : "Tiêu chuẩn"}
         </span>
       ),
@@ -268,14 +270,7 @@ export function ProductList() {
       key: "actions",
       header: "",
       cell: (row) => (
-        <Link
-          href={ADMIN_ROUTES.products.detail(row.productId)}
-          onClick={(e) => e.stopPropagation()}
-          className="border-border-default bg-bg-surface text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary flex size-7 items-center justify-center rounded-[var(--r-sm)] border transition-colors"
-          aria-label="Xem chi tiết"
-        >
-          <Eye className="size-3.5" />
-        </Link>
+        <ViewAction label="Xem chi tiết" href={ADMIN_ROUTES.products.detail(row.productId)} />
       ),
     },
   ];

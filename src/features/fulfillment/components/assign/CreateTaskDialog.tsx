@@ -12,13 +12,8 @@ import { Alert } from "@/components/shared/Alert";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 
 import { FieldError, MONO } from "../primitives";
 import { AssigneeSelect, SELECT_FIELD } from "./AssigneeSelect";
@@ -29,8 +24,8 @@ type FieldErrors = Partial<Record<"orderId" | "assignedUserId", string>>;
 
 /**
  * Đưa một đơn vào xuất kho và gán người lấy hàng (BE `POST /fulfillment/tasks`).
- * BR-01 (docs 07 §6): chỉ picking khi đơn đã Confirmed — BE nhận đơn CONFIRMED / READY_TO_FULFILL;
- * đơn có dòng in phải release sản xuất trước (BR-06).
+ * BR-01 (docs 07 §6): chỉ picking khi đơn đã release — BE (PR #133) chỉ nhận đơn READY_TO_FULFILL;
+ * đơn CONFIRMED phải release trước, đơn có dòng in phải release sản xuất trước (BR-06).
  */
 export function CreateTaskDialog({ onClose }: { onClose: () => void }) {
   const canReadOrders = useCan(ORDER_PERMISSIONS.read);
@@ -66,7 +61,7 @@ export function CreateTaskDialog({ onClose }: { onClose: () => void }) {
     <FormDialog open onOpenChange={(open) => !open && onClose()}>
       <FormDialogBody
         title={fulfillment.action.create}
-        description="Chọn đơn đã xác nhận để đưa vào xuất kho và gán nhân viên lấy hàng. Mỗi đơn chỉ có một task."
+        description="Chọn đơn đã release (sẵn sàng xuất kho) để đưa vào xuất kho và gán nhân viên lấy hàng. Mỗi đơn chỉ có một task."
         submitLabel={fulfillment.action.create}
         canSubmit={canReadOrders && canReadUsers && !orders.isError}
         isPending={create.isPending}
@@ -119,14 +114,14 @@ export function CreateTaskDialog({ onClose }: { onClose: () => void }) {
                   }
                 />
               </SelectTrigger>
-              <SelectContent>
+              <TitledSelectContent title={"Đơn hàng"}>
                 {options.map((order) => (
                   <SelectItem key={order.orderId} value={order.orderId}>
                     {/* Dòng danh sách đơn của BE không kèm dòng hàng (OrderSearchRepository) → chỉ hiện số đơn */}
                     <span className={MONO}>{order.orderNumber}</span>
                   </SelectItem>
                 ))}
-              </SelectContent>
+              </TitledSelectContent>
             </Select>
             <FieldError id="task-order-error">{errors.orderId}</FieldError>
           </div>

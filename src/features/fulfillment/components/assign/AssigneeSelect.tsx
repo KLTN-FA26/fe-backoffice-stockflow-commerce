@@ -6,13 +6,8 @@ import { userDisplayName } from "@/features/fulfillment/reference-api";
 import { Alert } from "@/components/shared/Alert";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 
 import { FieldError } from "../primitives";
 
@@ -90,7 +85,7 @@ export function AssigneeSelect({
             }
           />
         </SelectTrigger>
-        <SelectContent>
+        <TitledSelectContent title={fulfillment.field.assignee}>
           {options.map((user) => (
             <SelectItem key={user.userId} value={user.userId}>
               {userDisplayName(user)}
@@ -99,7 +94,7 @@ export function AssigneeSelect({
               )}
             </SelectItem>
           ))}
-        </SelectContent>
+        </TitledSelectContent>
       </Select>
       <FieldError id="task-assignee-error">{error}</FieldError>
     </div>

@@ -39,6 +39,17 @@
   --r-lg: 12px;
   --r-xl: 16px;
   --r-full: 9999px;
+  /* Thang z-index (design-tokens.md) — dùng `z-(--z-*)` / `var(--z-*)`, không gõ số trần. */
+  --z-dropdown: 50;
+  --z-sticky: 100;
+  --z-floating: 800;
+  --z-overlay: 900;
+  --z-modal: 1000;
+  --z-drawer: 1100;
+  --z-dialog-on-drawer: 1150;
+  --z-dropdown-on-dialog: 1160;
+  --z-toast: 1200;
+  --z-tooltip: 1300;
   --sh-sm: 0 1px 2px rgba(26, 27, 24, 0.06), 0 1px 3px rgba(26, 27, 24, 0.08);
   --sh-md: 0 4px 12px rgba(26, 27, 24, 0.08);
   --sh-lg: 0 12px 32px rgba(26, 27, 24, 0.14);
@@ -145,6 +156,34 @@
   --brand-hover: #d89e60;
 }
 
+/* In (biên bản bàn giao…): luôn in bảng màu sáng — trình duyệt bỏ nền khi in, giữ token tối sẽ ra chữ
+   gần trắng trên giấy trắng. Toast cố định góc màn hình không thuộc tài liệu in. */
+@media print {
+  :root,
+  :root[data-theme="dark"],
+  :root[data-mode="storefront"],
+  :root[data-theme="dark"][data-mode="storefront"],
+  [data-mode="storefront"] {
+    color-scheme: light;
+    --bg-base: #ffffff;
+    --bg-surface: #ffffff;
+    --bg-subtle: #f7f8fa;
+    --bg-muted: #eef0f3;
+    --border-default: #dadde1;
+    --border-strong: #c5cad1;
+    --ink-primary: #1a1b18;
+    --ink-secondary: #5c5e58;
+    --ink-tertiary: #8a8c85;
+    --ink-inverse: #ffffff;
+    --brand: #1a1b18;
+    --brand-hover: #000000;
+    --accent: #1e88e5;
+  }
+  [data-sonner-toaster] {
+    display: none;
+  }
+}
+
 /* ============================================================================
    TAILWIND v4 @theme — map StockFlow tokens → utility classes + shadcn semantic vars
    ==========================================================================*/
@@ -240,8 +279,10 @@
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
+  /* Trỏ thẳng về token nền: `--muted` ở :root là status.muted (#9A9C95) nên `var(--muted)` làm
+     mọi `bg-muted` của shadcn (nút đang mở, mục cmdk được trỏ, skeleton) ra xám đậm. */
+  --color-muted: var(--bg-muted);
+  --color-muted-foreground: var(--ink-tertiary);
   --color-destructive: var(--destructive);
   --color-border: var(--border);
   --color-input: var(--input);
@@ -290,4 +331,32 @@
     transition-duration: 0s !important;
     transition-delay: 0s !important;
   }
+}
+
+/*
+  Lớp dropdown portal (Radix Select / Popover). shadcn đặt z-50 cho content, nhưng drawer
+  (`SlideOverPanel`, `--z-drawer`) và dialog trên drawer (`LayeredDialogContent`,
+  `--z-dialog-on-drawer`) cao hơn — dropdown mở bên trong chúng bị che. Đặt NGOÀI @layer nên thắng
+  utility z-50 của Tailwind v4 mà không cần !important; Radix chép z-index đã tính sang wrapper
+  popper. Vẫn dưới toast (`--z-toast`) và tooltip (`--z-tooltip`).
+*/
+[data-slot="select-content"],
+[data-slot="popover-content"] {
+  z-index: var(--z-dropdown-on-dialog);
+}
+
+/*
+  Mục đang trỏ trong dropdown (Radix Select): shadcn tô `focus:bg-accent`, nhưng `--color-accent`
+  của dự án là accent.blue (link, icon thông tin) → mục bị tô xanh đậm. Trả về màu hover trung
+  tính mặc định của shadcn (nền muted nhạt, chữ ink.primary). Đặt NGOÀI @layer để thắng utility
+  của Tailwind v4 mà không cần !important.
+*/
+[data-slot="select-item"]:focus,
+[data-slot="select-item"][data-highlighted] {
+  background-color: var(--bg-muted);
+  color: var(--ink-primary);
+}
+[data-slot="select-item"]:focus *,
+[data-slot="select-item"][data-highlighted] * {
+  color: inherit;
 }

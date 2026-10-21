@@ -1,8 +1,8 @@
 /**
  * Render một màn có API giả lập theo URL — đi qua chuỗi thật `/identity/me/permissions` → useCan
  * → UI (mẫu `features/receipt/__fixtures__/render.tsx`, dùng chung cho các module bán hàng / sản xuất).
- * Bộ quyền theo vai trò lấy từ phiên BE throwaway d215f6e (`/identity/me/permissions` thật,
- * 2026-10-14) + quyền đọc PR #109 cấp thêm ở V20261015000800 — xem `ROLE_PERMISSIONS`.
+ * Bộ quyền theo vai trò từ BE, cập nhật resource đổi trạng thái khách và chuyển báo giá
+ * thành đơn theo migration V20261022000200 và V20261017000300.
  */
 
 import { Suspense } from "react";
@@ -17,7 +17,7 @@ import { useAuthStore } from "@/lib/auth/auth-store";
 
 import type { PermissionCode } from "@/lib/auth";
 
-/** Quyền thật (đã lọc theo resource liên quan) đọc từ BE d215f6e cho từng vai trò seed. */
+/** Quyền theo resource BE liên quan đến các màn trong bộ test. */
 export const ROLE_PERMISSIONS = {
   SALES_STAFF: [
     "customer-customers:VIEW_PAGE",
@@ -32,6 +32,7 @@ export const ROLE_PERMISSIONS = {
     "sales-quotes:READ",
     "sales-quotes:CREATE",
     "sales-quotes:UPDATE",
+    "sales-quote-conversions:CREATE",
     "production-sample-requests:VIEW_PAGE",
     "production-sample-requests:READ",
     "production-sample-requests:CREATE",
@@ -51,13 +52,14 @@ export const ROLE_PERMISSIONS = {
     "customer-customers:CREATE",
     "customer-customers:UPDATE",
     "customer-customers:APPROVE",
+    "customer-status:APPROVE",
     "customer-addresses:READ",
   ],
   ORDER_COORDINATOR: [
     "customer-credit-profiles:READ",
     "sales-quotes:VIEW_PAGE",
     "sales-quotes:READ",
-    "sales-quotes:UPDATE",
+    "sales-quote-conversions:CREATE",
     "production-sample-requests:VIEW_PAGE",
     "production-sample-requests:READ",
     "production-orders:VIEW_PAGE",

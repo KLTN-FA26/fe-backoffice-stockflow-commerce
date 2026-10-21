@@ -65,6 +65,24 @@ export const SKU_COLUMNS = {
   VARIANT_LABEL: "variantLabel",
 } as const;
 
+/** Cột bảng thương hiệu (BE `BrandResponse`). */
+export const TAXONOMY_BRAND_COLUMNS = {
+  CODE: "code",
+  LOGO: "logo",
+  NAME: "name",
+  SLUG: "slug",
+  ACTIVE: "active",
+} as const;
+
+/** Cột bảng danh mục (BE `CategoryResponse`) — cây theo thứ tự `path`, tên thụt lề theo `depth`. */
+export const TAXONOMY_CATEGORY_COLUMNS = {
+  CODE: "code",
+  NAME: "name",
+  LEVEL: "level",
+  SORT_ORDER: "sortOrder",
+  ACTIVE: "active",
+} as const;
+
 export const INVOICE_COLUMNS = {
   ACTIONS: "actions",
   DUE_DATE: "dueDate",
@@ -81,4 +99,52 @@ export const VARIANT_COLUMNS = {
   NAME_EN: "nameEn",
   NAME_VI: "nameVi",
   VALUES: "values",
+} as const;
+
+/** Cột danh sách lệnh chuyển kho — field BE `TransferOrderRowResponse`. */
+export const TRANSFER_COLUMNS = {
+  ACTIONS: "actions",
+  CREATED_AT: "createdAt",
+  DISPATCHED_AT: "dispatchedAt",
+  EXPECTED_DATE: "expectedDate",
+  FROM_WAREHOUSE: "fromWarehouse",
+  NUMBER: "number",
+  STATUS: "status",
+  TO_WAREHOUSE: "toWarehouse",
+} as const;
+
+/** Cột bảng hồ sơ hàng tồn (BE PR #119 `InventoryItemResponse`). */
+export const INVENTORY_ITEM_COLUMNS = {
+  SKU: "sku",
+  UOM: "unitOfMeasure",
+  BARCODE: "barcode",
+  STORAGE: "storageClass",
+  TRACKING: "trackingMode",
+  POLICY: "policyConfigured",
+} as const;
+
+/** Cột danh sách chuyến xe (BE `LoadRowResponse`). */
+export const LOAD_COLUMNS = {
+  ACTIONS: "actions",
+  CARRIER: "carrier",
+  COD: "cod",
+  CODE: "code",
+  DISPATCHED_AT: "dispatchedAt",
+  PROGRESS: "progress",
+  SHIPMENTS: "shipments",
+  STATUS: "status",
+  VEHICLE: "vehicle",
+} as const;
+
+/** Cột danh sách lô giao (BE `ShipmentRowResponse`). */
+export const SHIPMENT_COLUMNS = {
+  ACTIONS: "actions",
+  CARRIER: "carrier",
+  COD: "cod",
+  CODE: "code",
+  LOAD: "load",
+  ORDER: "order",
+  PACKAGES: "packages",
+  READY_AT: "readyAt",
+  STATUS: "status",
 } as const;

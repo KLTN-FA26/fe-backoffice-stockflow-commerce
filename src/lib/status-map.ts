@@ -7,7 +7,9 @@
  * (CLAUDE.md + FRONTEND-AI-RULES.md §6.1)
  */
 
-import type { SemanticTone } from "@/lib/mock-data";
+import { STOCK_ADJUSTMENT_STATUS } from "@/constants/statuses";
+
+import type { SemanticTone, StatusDomain } from "@/lib/mock-data";
 
 export type { SemanticTone };
 
@@ -15,6 +17,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
   positive: [
     // Dòng báo giá đã có mẫu khách duyệt (BE QuoteLine.sample.satisfied)
     "Sample Approved",
+    // Stock adjustment (BE StockAdjustmentStatus, SCRUM-424)
+    STOCK_ADJUSTMENT_STATUS.POSTED,
     "DELIVERED",
     "CONFIRMED",
     "RECEIVED",
@@ -24,6 +28,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Completed",
     "Delivered",
     "Packed",
+    // Kiện đã cân, đo, niêm phong (BE PackageStatus.SEALED, PR #136)
+    "Sealed",
     "Received",
     "Active",
     // Biến thể (BE VariantStatus, PR #71)
@@ -51,6 +57,9 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Allocated",
     "ACCEPTED",
     "RECEIVED_COMPLETED",
+    // Chuyển kho (BE TransferStatus) + chuyến xe (LoadStatus, BE 03-state-machines §11)
+    "COMPLETED",
+    "DISPATCHED",
   ],
   info: [
     // Bán hàng B2B & sản xuất (BE d215f6e)
@@ -66,12 +75,14 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "In Progress",
     "In Transit",
     "Picking",
+    // Phiên đóng gói đang làm (BE PackStatus.PACKING) và kiện đang mở (PackageStatus.OPEN, PR #136)
+    "Packing",
+    "Package Open",
     "Shipped",
     "Assigned",
     "Released",
     "Published",
     "In Putaway",
-    "Partially Fulfilled",
     "Partially Completed",
     "DISPATCHED",
     "IN_PRODUCTION",
@@ -86,8 +97,12 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Queued",
     "Approved for Payment",
     "Initiated",
-    // Order — BE IN_FULFILMENT (picking/packing/sản xuất gộp làm 1). FE order khớp BE.
-    "In Fulfilment",
+    // Chuyển kho: đang lấy hàng ở kho nguồn / đang trên đường (docs 10 §5)
+    "PICKING",
+    "IN_TRANSIT",
+    // Chuyến xe: đã đặt xe / đang xếp hàng lên xe
+    "VEHICLE_BOOKED",
+    "LOADING",
   ],
   warning: [
     // Bán hàng B2B & sản xuất (BE d215f6e)
@@ -120,6 +135,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Warning",
     "Pending Payment",
     "Ready to Fulfill",
+    // Order giao một phần (BE PARTIALLY_FULFILLED): còn phần chưa tới tay khách, cần nhân viên xử lý
+    "Partially Fulfilled",
     "Return Requested",
     "Pending Verification",
     "Draft Proposal",
@@ -167,6 +184,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Requested",
     "INVITED",
     "PENDING_ACTIVATION",
+    // Chuyến xe mới lập kế hoạch, chưa đặt xe
+    "PLANNED",
   ],
   muted: [
     // Bán hàng B2B & sản xuất (BE d215f6e)
@@ -176,6 +195,7 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     // BE #36 cancellationDeliveryStatus: PO huỷ trước khi gửi NCC → không cần báo huỷ.
     "NOT_REQUIRED",
     "CLOSED",
+    STOCK_ADJUSTMENT_STATUS.WITHDRAWN,
     "Closed",
     "Inactive",
     "Hidden",
@@ -248,12 +268,26 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   PENDING: "Đang chờ",
   CONFIRMED: "Đã xác nhận",
   REJECTED: "NCC từ chối",
+  // Stock adjustment (SCRUM-424). PENDING_APPROVAL dùng chung nhãn ở trên; REJECTED ghi đè theo
+  // domain ở STATUS_LABEL_VI_BY_DOMAIN vì nhãn chung là của phản hồi NCC.
+  [STOCK_ADJUSTMENT_STATUS.POSTED]: "Đã ghi sổ",
+  [STOCK_ADJUSTMENT_STATUS.WITHDRAWN]: "Đã rút yêu cầu",
+  // Chuyển kho liên kho (BE TransferStatus, docs 10 §5)
+  PICKING: "Đang lấy hàng",
+  IN_TRANSIT: "Đang vận chuyển",
+  COMPLETED: "Hoàn tất",
+  // Chuyến xe (BE 03-state-machines §11)
+  PLANNED: "Đã lập kế hoạch",
+  VEHICLE_BOOKED: "Đã đặt xe",
+  LOADING: "Đang xếp hàng",
+  DISPATCHED: "Đã bàn giao",
   // Positive
   Confirmed: "Đã xác nhận",
   Approved: "Đã duyệt",
   Completed: "Hoàn tất",
   Delivered: "Đã giao",
   Packed: "Đã đóng gói",
+  Sealed: "Đã niêm phong",
   Received: "Đã nhận",
   Active: "Hoạt động",
   ACTIVE: "Đang dùng",
@@ -282,6 +316,8 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   "In Progress": "Đang xử lý",
   "In Transit": "Đang vận chuyển",
   Picking: "Đang lấy hàng",
+  Packing: "Đang đóng gói",
+  "Package Open": "Đang mở",
   Shipped: "Đã gửi",
   Assigned: "Đã gán",
   Released: "Đã release",
@@ -301,7 +337,6 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   "Approved for Payment": "Duyệt thanh toán",
   Initiated: "Đã khởi tạo",
   "In Production": "Đang sản xuất",
-  "In Fulfilment": "Đang xử lý kho",
   // Warning
   "Pending Approval": "Chờ duyệt",
   "On Hold": "Tạm giữ",
@@ -406,3 +441,29 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   Refunded: "Đã hoàn tiền",
   "Partially Refunded": "Hoàn tiền một phần",
 };
+
+/**
+ * Nhãn ghi đè theo domain khi cùng một wire value mang nghĩa khác nhau giữa các module
+ * (vd REJECTED: PO = "NCC từ chối", điều chỉnh tồn = "Từ chối"). Tone không đổi.
+ */
+const STATUS_LABEL_VI_BY_DOMAIN: Partial<Record<StatusDomain, Record<string, string>>> = {
+  // BE `ProductStatus.INACTIVE` = tạm ngưng (kltn-docs 01 §5.1); NCC cũng có Inactive nhưng là "Không hoạt động".
+  product: {
+    Inactive: "Tạm ngưng",
+  },
+  stock: {
+    [STOCK_ADJUSTMENT_STATUS.REJECTED]: "Từ chối",
+  },
+  // Đơn hàng (BE OrderStatus, PR #133): nhãn sát nghĩa nghiệp vụ hơn nhãn dùng chung với module khác
+  order: {
+    "Ready to Fulfill": "Sẵn sàng xuất kho",
+    "Partially Fulfilled": "Giao một phần",
+    Shipped: "Đang vận chuyển",
+    Returned: "Đã nhận hàng trả",
+  },
+};
+
+/** Nhãn tiếng Việt của status, ưu tiên nhãn riêng của domain nếu có. */
+export function statusLabelVi(status: string, domain?: StatusDomain): string | undefined {
+  return (domain && STATUS_LABEL_VI_BY_DOMAIN[domain]?.[status]) ?? STATUS_LABEL_VI[status];
+}

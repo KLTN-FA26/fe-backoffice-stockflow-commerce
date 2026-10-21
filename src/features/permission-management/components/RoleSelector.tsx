@@ -1,11 +1,6 @@
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 
 import type { RoleResponse } from "../types";
 
@@ -31,13 +26,13 @@ export function RoleSelector({ roles, value, onChange, disabled }: RoleSelectorP
         >
           <SelectValue placeholder="Chọn vai trò" />
         </SelectTrigger>
-        <SelectContent>
+        <TitledSelectContent title={"Vai trò"}>
           {roles.map((role) => (
             <SelectItem key={role.code} value={role.code}>
               {role.name}
             </SelectItem>
           ))}
-        </SelectContent>
+        </TitledSelectContent>
       </Select>
     </div>
   );

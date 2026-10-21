@@ -1,10 +1,12 @@
 import { onlineManager } from "@tanstack/react-query";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "@/lib/api/error";
 
 import { apiSupplier } from "../__fixtures__/supplier";
+import { apiItemPage } from "../__fixtures__/supplier-item";
 import { PERMISSION_SETS, mockApiGet, renderSupplierScreen } from "../__fixtures__/render";
 import { SupplierDetail } from "./SupplierDetail";
 
@@ -13,6 +15,7 @@ import type { PermissionCode } from "@/lib/auth";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 const DETAIL_PATH = `/suppliers/${apiSupplier.supplierId}`;
+const ITEMS_PATH = `${DETAIL_PATH}/items`;
 
 function renderDetail(permissions: readonly PermissionCode[], handler: () => unknown) {
   mockApiGet(permissions, { [DETAIL_PATH]: handler });
@@ -103,11 +106,59 @@ describe("SupplierDetail — chỉ 404 mới là 'không tìm thấy'", () => {
     expect(await screen.findByText("Không tìm thấy nhà cung cấp")).toBeInTheDocument();
   });
 
+  it("refetch nền lỗi khi đã có dữ liệu → giữ trang (tab, dialog đang mở), không thay bằng màn lỗi", async () => {
+    let loads = 0;
+    const { client } = renderDetail(PERMISSION_SETS.readOnly, () => {
+      if (loads++ > 0) throw new ApiError(503, "SERVICE_UNAVAILABLE", "down");
+      return apiSupplier;
+    });
+    expect(await screen.findByRole("heading", { name: apiSupplier.name })).toBeInTheDocument();
+    await client.refetchQueries();
+    await waitFor(() => expect(loads).toBeGreaterThan(1));
+    expect(screen.getByRole("heading", { name: apiSupplier.name })).toBeInTheDocument();
+  });
+
+  it("thiếu quyền danh mục → không có tablist, cũng không có tabpanel trỏ tới tab không tồn tại", async () => {
+    renderDetail(PERMISSION_SETS.readOnly, () => apiSupplier);
+    expect(await screen.findByRole("heading", { name: apiSupplier.name })).toBeInTheDocument();
+    expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
+    expect(screen.queryByRole("tabpanel")).not.toBeInTheDocument();
+  });
+
   it("mất mạng (query bị pause) → 'Không kết nối được máy chủ', không phải 'không tìm thấy'", async () => {
     onlineManager.setOnline(false);
     renderDetail(PERMISSION_SETS.readOnly, () => apiSupplier);
 
     expect(await screen.findByText("Không kết nối được máy chủ")).toBeInTheDocument();
     expect(screen.queryByText("Không tìm thấy nhà cung cấp")).not.toBeInTheDocument();
+  });
+});
+
+describe("SupplierDetail — tab Danh mục hàng", () => {
+  it("PROCUREMENT_STAFF thấy tab Danh mục hàng và nút Thêm SKU", async () => {
+    const user = userEvent.setup();
+    mockApiGet(PERMISSION_SETS.procurementStaff, {
+      [DETAIL_PATH]: () => apiSupplier,
+      [ITEMS_PATH]: () => apiItemPage(),
+    });
+    renderSupplierScreen(<SupplierDetail id={apiSupplier.supplierId} />);
+
+    await user.click(await screen.findByRole("tab", { name: "Danh mục hàng" }));
+    expect(await screen.findByRole("button", { name: "Thêm SKU" })).toBeInTheDocument();
+  });
+
+  it("ACCOUNTANT (không có procurement-supplier-items:READ) → không có tab, ?tab=items rơi về Hồ sơ, không gọi /items", async () => {
+    const get = mockApiGet(PERMISSION_SETS.accountant, {
+      [DETAIL_PATH]: () => apiSupplier,
+      [ITEMS_PATH]: () => apiItemPage(),
+    });
+    renderSupplierScreen(<SupplierDetail id={apiSupplier.supplierId} />, "?tab=items");
+
+    expect(await screen.findByRole("heading", { name: apiSupplier.name })).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Danh mục hàng" })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /Xem đơn đặt hàng của nhà cung cấp này/ }),
+    ).toBeInTheDocument();
+    expect(get.mock.calls.some(([url]) => url === ITEMS_PATH)).toBe(false);
   });
 });

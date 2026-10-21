@@ -17,6 +17,7 @@ const STATE_LABEL = {
   EXPIRED: "Lời mời đã hết hạn",
   ACTIVATED: "Đã kích hoạt",
   NO_ACCOUNT: "Không có tài khoản portal",
+  UNAVAILABLE: "Lời mời hiện không khả dụng",
 } as const;
 
 const DELIVERY_LABEL = { SENT: "Đã gửi email", FAILED: "Gửi email thất bại" } as const;
@@ -28,7 +29,7 @@ export function InvitationCard({
   canResend,
 }: {
   customerId: string;
-  /** BE chỉ cho SALES_STAFF / ECOMMERCE_ADMIN xem (role check trong controller). */
+  /** BE yêu cầu quyền đọc khách và tài khoản back-office. */
   canRead: boolean;
   canResend: boolean;
 }) {
@@ -66,7 +67,7 @@ export function InvitationCard({
       </div>
       {!canRead && (
         <p className="text-ink-tertiary text-[0.8125rem]">
-          Chỉ Sales và Quản trị TMĐT xem được trạng thái lời mời.
+          Bạn không có quyền xem trạng thái lời mời.
         </p>
       )}
       {canRead && invitation.isPending && <Skeleton className="h-16" />}

@@ -25,18 +25,20 @@ describe("QUOTE_TRANSITIONS (BE QuoteStatus.canTransitionTo, SCRUM-448)", () => 
     expect(QUOTE_TRANSITIONS.CANCELLED).toEqual([]);
     expect(QUOTE_TRANSITIONS.CONVERTED).toEqual([]);
   });
-  it("only DRAFT can be cancelled — a sent quote cannot", () => {
+  it("DRAFT and ACCEPTED can be cancelled when BE conditions hold; SENT cannot", () => {
     expect(QUOTE_TRANSITIONS.DRAFT).toContain("CANCELLED");
     expect(QUOTE_TRANSITIONS.SENT).not.toContain("CANCELLED");
+    expect(QUOTE_TRANSITIONS.ACCEPTED).toContain("CANCELLED");
   });
 });
 
 describe("quote action gating", () => {
   const update = has("sales-quotes:UPDATE");
-  it("staff: DRAFT → edit/send/cancel; CHANGES_REQUESTED → revise; ACCEPTED → convert; terminal → none", () => {
+  it("staff: UPDATE handles draft/revision; conversion requires its own CREATE permission", () => {
     expect(allowedStaffQuoteActions("DRAFT", update)).toEqual(["edit", "send", "cancel"]);
     expect(allowedStaffQuoteActions("CHANGES_REQUESTED", update)).toEqual(["revise"]);
-    expect(allowedStaffQuoteActions("ACCEPTED", update)).toEqual(["convert"]);
+    expect(allowedStaffQuoteActions("ACCEPTED", update)).toEqual(["cancel"]);
+    expect(allowedStaffQuoteActions("ACCEPTED", has("sales-quote-conversions:CREATE"))).toEqual(["convert"]);
     expect(allowedStaffQuoteActions("CONVERTED", update)).toEqual([]);
     expect(allowedStaffQuoteActions("SENT", update)).toEqual([]);
   });

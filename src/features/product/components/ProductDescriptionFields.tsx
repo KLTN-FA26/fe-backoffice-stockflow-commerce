@@ -1,7 +1,6 @@
 "use client";
 
-import { Textarea } from "@/components/ui/textarea";
-
+import { ProductTextarea } from "./form-controls";
 import { ProductFormField } from "./ProductFormField";
 
 import type { UseFormReturn } from "react-hook-form";
@@ -22,14 +21,14 @@ export function ProductDescriptionFields({
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <div className="lg:col-span-2">
           <ProductFormField htmlFor="short-description" label="Mô tả ngắn">
-            <Textarea {...register("shortDescription")} id="short-description" rows={2} />
+            <ProductTextarea {...register("shortDescription")} id="short-description" rows={2} />
           </ProductFormField>
         </div>
         <ProductFormField htmlFor="description" label="Mô tả tiếng Việt">
-          <Textarea {...register("description")} id="description" rows={4} />
+          <ProductTextarea {...register("description")} id="description" rows={4} />
         </ProductFormField>
         <ProductFormField htmlFor="description-en" label="Mô tả tiếng Anh">
-          <Textarea {...register("descriptionEn")} id="description-en" rows={4} />
+          <ProductTextarea {...register("descriptionEn")} id="description-en" rows={4} />
         </ProductFormField>
       </div>
     </section>

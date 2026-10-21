@@ -3,7 +3,7 @@
  *   DRAFT → SENT (gửi) | CANCELLED (huỷ, lý do bắt buộc) ; sửa nội dung chỉ khi DRAFT
  *   SENT → ACCEPTED | CHANGES_REQUESTED (chỉ khách portal) ; quá validUntil → EXPIRED
  *   CHANGES_REQUESTED → DRAFT (mở bản sửa, revision + 1)
- *   ACCEPTED → CONVERTED (tạo đơn bán)
+ *   ACCEPTED → CONVERTED (tạo đơn bán) | CANCELLED (chỉ khi phôi ngừng bán, BE kiểm tra)
  *   EXPIRED / CANCELLED / CONVERTED: trạng thái cuối, không thao tác.
  * UI-only — Backend phải re-check (QuoteService: back-office vs portal, quyền sales-quotes).
  */
@@ -20,7 +20,7 @@ export const QUOTE_TRANSITIONS: Readonly<Record<QuoteApiStatus, readonly QuoteAp
   DRAFT: ["SENT", "CANCELLED"],
   SENT: ["ACCEPTED", "CHANGES_REQUESTED", "EXPIRED"],
   CHANGES_REQUESTED: ["DRAFT"],
-  ACCEPTED: ["CONVERTED"],
+  ACCEPTED: ["CONVERTED", "CANCELLED"],
   EXPIRED: [],
   CANCELLED: [],
   CONVERTED: [],
@@ -30,18 +30,20 @@ const STAFF_ACTIONS: Readonly<Record<QuoteApiStatus, readonly StaffQuoteAction[]
   DRAFT: ["edit", "send", "cancel"],
   SENT: [],
   CHANGES_REQUESTED: ["revise"],
-  ACCEPTED: ["convert"],
+  ACCEPTED: ["cancel", "convert"],
   EXPIRED: [],
   CANCELLED: [],
   CONVERTED: [],
 };
 
-/** Nút back-office: mọi thao tác đổi báo giá cần `sales-quotes:UPDATE` (tạo mới cần CREATE). */
+/** Sửa báo giá cần UPDATE; chuyển thành đơn cần resource CREATE riêng của BE. */
 export function allowedStaffQuoteActions(
   status: QuoteApiStatus,
   can: (code: PermissionCode) => boolean,
 ): readonly StaffQuoteAction[] {
-  return can(QUOTE_PERMISSIONS.update) ? STAFF_ACTIONS[status] : [];
+  return STAFF_ACTIONS[status].filter((action) =>
+    action === "convert" ? can(QUOTE_PERMISSIONS.convert) : can(QUOTE_PERMISSIONS.update),
+  );
 }
 
 /**

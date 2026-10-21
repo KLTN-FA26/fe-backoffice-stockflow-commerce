@@ -5,6 +5,7 @@ import { cn } from "cn";
 import { Check, ChevronsUpDown } from "lucide-react";
 
 import { UI_LABELS } from "@/constants";
+import { DropdownTitle } from "@/components/shared/TitledSelectContent";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -62,6 +63,7 @@ export function SupplierCombobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+        <DropdownTitle>{UI_LABELS.purchaseOrder.supplier}</DropdownTitle>
         <Command>
           <CommandInput placeholder="Tìm NCC..." />
           <CommandList>

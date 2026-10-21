@@ -9,11 +9,12 @@ import { z } from "zod";
 import { PO_LIMITS, UI_LABELS } from "@/constants";
 import { currencyFractionDigits, fitsCurrencyScale } from "@/lib/format";
 import { intQty, isoDate, money, requiredString } from "@/lib/validation/primitives";
+import { SKU_CODE_PATTERN } from "@/lib/validation/sku";
 
 /** BR-07 / ASSUMPTION (open-question A4): FE hỗ trợ VND / USD / CNY cho PO mới. */
 export const PO_INPUT_CURRENCIES = ["VND", "USD", "CNY"] as const;
 /** BE `product.variants.sku` (`ck_variants_sku`): mã được trim + upper-case rồi phải khớp mẫu này. */
-export const SKU_CODE_PATTERN = /^[A-Z0-9][A-Z0-9._-]{0,63}$/;
+export { SKU_CODE_PATTERN };
 /** BE: lý do khôi phục / đổi ngày giao 1..1000 ký tự. */
 export const PO_REASON_MAX = PO_LIMITS.reasonMax;
 
@@ -43,8 +44,11 @@ export const poLineInputSchema = z.object({
     PO_LIMITS.quantityMax,
     "Số lượng vượt giới hạn cho phép",
   ),
-  // BE PR #71 `ck_purchase_order_lines_price`: đơn giá > 0.
-  unitPrice: money("Đơn giá phải lớn hơn 0").refine((v) => v > 0, "Đơn giá phải lớn hơn 0"),
+  // BE PR #71 `ck_purchase_order_lines_price`: đơn giá > 0. BE #118 `CreatePOLineRequest`:
+  // `unitPrice` optional — bỏ trống thì BE lấy giá danh mục NCC (cùng tiền tệ PO).
+  unitPrice: money("Đơn giá phải lớn hơn 0")
+    .refine((v) => v > 0, "Đơn giá phải lớn hơn 0")
+    .optional(),
   // BE PR #71: thuế suất % theo dòng (0..100), bỏ trống = 0.
   taxRate: z.number().min(0, "Thuế suất 0–100%").max(100, "Thuế suất 0–100%").nullable().optional(),
 });
@@ -57,14 +61,14 @@ export const createPoSchema = z
     note: z
       .string()
       .trim()
-      .max(PO_LIMITS.noteMax, `Ghi chú tối đa ${PO_LIMITS.noteMax} ký tự`)
+      .max(PO_LIMITS.noteMax, UI_LABELS.purchaseOrder.validation.noteMaxError(PO_LIMITS.noteMax))
       .optional(),
     // BR-07 (docs 02 §6): một PO một loại tiền — `currency` chỉ ở cấp PO; BE chặn
     // line ≠ order currency. NCC không còn mang tiền tệ (BE #36) nên chọn trên form.
     currency: z.enum(PO_INPUT_CURRENCIES),
     // BR-06 (docs 02 §6): ngày giao trong quá khứ chỉ CẢNH BÁO (`isExpectedDatePast`), không chặn.
     expectedAt: isoDate.nullable(),
-    lines: z.array(poLineInputSchema).min(1, "Phải có ít nhất 1 dòng hàng"),
+    lines: z.array(poLineInputSchema).min(1, UI_LABELS.purchaseOrder.validation.linesMinOne),
   })
   // ASSUMPTION (chưa có open-question): docs không nói về SKU trùng trong cùng PO và BE cho
   // phép; FE chặn để tránh 2 dòng cùng SKU khó đối chiếu khi nhận hàng (BR-04).
@@ -76,7 +80,7 @@ export const createPoSchema = z
   // tiền tệ PO (VND: số nguyên). Chặn ở FE để tổng hiển thị khớp tổng BE lưu.
   .superRefine((po, ctx) => {
     po.lines.forEach((line, i) => {
-      if (!fitsCurrencyScale(line.unitPrice, po.currency)) {
+      if (line.unitPrice !== undefined && !fitsCurrencyScale(line.unitPrice, po.currency)) {
         ctx.addIssue({
           code: "custom",
           message: unitPriceScaleMessage(po.currency),
@@ -127,7 +131,7 @@ export function sendPoInputSchema(currentExpectedAt: string | null, orderDate?: 
       // BE PR #71 `PurchaseOrder#confirm`: ngày giao không được trước ngày đặt (400). Đã qua so
       // với HÔM NAY nhưng sau ngày đặt thì vẫn chỉ cảnh báo (BR-06).
       .refine((v) => !orderDate || v.expectedAt >= orderDate, {
-        message: "Ngày giao không được trước ngày đặt hàng",
+        message: UI_LABELS.purchaseOrder.validation.expectedBeforeOrderDate,
         path: ["expectedAt"],
       })
   );
@@ -164,7 +168,10 @@ export const supplierConfirmationInputSchema = z
         PO_LIMITS.supplierReferenceMax,
         `Mã tham chiếu tối đa ${PO_LIMITS.supplierReferenceMax} ký tự`,
       ),
-    note: z.string().trim().max(PO_REASON_MAX, `Ghi chú tối đa ${PO_REASON_MAX} ký tự`),
+    note: z
+      .string()
+      .trim()
+      .max(PO_REASON_MAX, UI_LABELS.purchaseOrder.validation.noteMaxError(PO_REASON_MAX)),
   })
   // BE @ValidProcurementFields: NCC từ chối thì bắt buộc ghi lý do.
   .refine((v) => v.status !== "REJECTED" || v.note.length > 0, {

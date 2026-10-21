@@ -9,9 +9,37 @@ type Currency = Order["currency"];
 interface OrderLinesProps {
   lines: readonly OrderLine[];
   currency: Currency;
+  /** Đơn đã có lô giao (BE `shipments` không rỗng). */
+  hasShipments: boolean;
 }
 
-export function OrderLines({ lines, currency }: OrderLinesProps) {
+/**
+ * Tiến độ giao từng dòng (BE PR #133). BE luôn gửi ba số (0 khi chưa có lô) nên chỉ hiện khi đơn đã có lô
+ * giao hoặc đã đóng bớt đơn vị. `shippedQuantity` = mọi đơn vị đã bàn giao và chưa trả về (gồm cả đã giao),
+ * nên "Đang giao" = đã bàn giao − đã giao.
+ */
+function LineProgress({ line, hasShipments }: { line: OrderLine; hasShipments: boolean }) {
+  const closed = line.cancelledQuantity ?? 0;
+  if (!hasShipments && closed === 0) return null;
+  const handedOver = line.shippedQuantity ?? 0;
+  const delivered = line.deliveredQuantity ?? 0;
+  const parts = [
+    hasShipments && { label: "Đã bàn giao", value: handedOver },
+    hasShipments && { label: "Đã giao", value: delivered },
+    closed > 0 && { label: "Không giao (đã đóng)", value: closed },
+  ].filter((part): part is { label: string; value: number } => part !== false);
+  return (
+    <div className="text-ink-secondary mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
+      {parts.map((part) => (
+        <span key={part.label}>
+          {part.label}: <span className="text-ink-primary tabular-nums">{part.value}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+export function OrderLines({ lines, currency, hasShipments }: OrderLinesProps) {
   return (
     <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
       <h2 className="text-ink-primary mb-3 flex items-center gap-2 text-[0.9375rem] font-semibold">
@@ -41,6 +69,7 @@ export function OrderLines({ lines, currency }: OrderLinesProps) {
                   {formatMoney(line.lineTotal, currency)}
                 </span>
               </div>
+              <LineProgress line={line} hasShipments={hasShipments} />
             </div>
           </div>
         ))}

@@ -50,7 +50,7 @@ export function QuoteStaffActions({ quote }: { quote: Quote }) {
           className="text-danger"
           onClick={() => setDialog("cancel")}
         >
-          Huỷ báo giá
+          {quote.status === "ACCEPTED" ? "Huỷ vì phôi ngừng bán" : "Huỷ báo giá"}
         </Button>
       )}
       {actions.includes("edit") && (
@@ -113,8 +113,12 @@ export function QuoteStaffActions({ quote }: { quote: Quote }) {
       <ConfirmDialog
         open={dialog === "cancel"}
         onOpenChange={(open) => !open && close()}
-        title="Huỷ báo giá nháp?"
-        description="Báo giá bị huỷ không thể khôi phục. Chỉ báo giá nháp mới huỷ được."
+        title={quote.status === "ACCEPTED" ? "Huỷ báo giá đã chấp nhận?" : "Huỷ báo giá nháp?"}
+        description={
+          quote.status === "ACCEPTED"
+            ? "Chỉ huỷ được khi ít nhất một phôi trong báo giá đã ngừng bán. Ghi lý do và lập báo giá mới nếu khách vẫn muốn mua; hệ thống sẽ kiểm tra lại trạng thái phôi."
+            : "Báo giá bị huỷ không thể khôi phục."
+        }
         confirmLabel="Huỷ báo giá"
         requireReason
         reasonLabel="Lý do huỷ"

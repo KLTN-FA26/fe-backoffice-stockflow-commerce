@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { PRODUCT_PERMISSIONS } from "@/constants";
+import { VARIANT_PERMISSIONS } from "@/constants";
 
 import { allowedVariantActions, countVariantsByStatus } from "./variant-lifecycle";
 
@@ -16,7 +16,7 @@ const actions = (
   can: (c: PermissionCode) => boolean,
   defaultVariant = false,
 ) => allowedVariantActions({ status, defaultVariant }, can).map((a) => a.code);
-const { update, approve } = PRODUCT_PERMISSIONS;
+const { update, approve } = VARIANT_PERMISSIONS;
 
 describe("allowedVariantActions (BE VariantStatus#canTransitionTo + @RequiresPermission)", () => {
   it("DRAFT → kích hoạt / ngừng dùng cần APPROVE; UPDATE thôi thì không có gì", () => {
@@ -53,5 +53,19 @@ describe("allowedVariantActions (BE VariantStatus#canTransitionTo + @RequiresPer
       BLOCKED: 0,
       OBSOLETE: 1,
     });
+  });
+
+  // BE `ProductVariantService.requireChangeable`: kích hoạt / chặn / ngừng dùng đều bị từ chối khi
+  // sản phẩm chờ duyệt hoặc đã ngừng kinh doanh.
+  it("không có thao tác nào khi sản phẩm không nhận thay đổi", () => {
+    const all = with_(update, approve);
+    expect(
+      allowedVariantActions({ status: "ACTIVE", defaultVariant: false }, all, true, true).length,
+    ).toBeGreaterThan(0);
+    for (const status of ["DRAFT", "ACTIVE", "BLOCKED"] as const) {
+      expect(allowedVariantActions({ status, defaultVariant: false }, all, true, false)).toEqual(
+        [],
+      );
+    }
   });
 });

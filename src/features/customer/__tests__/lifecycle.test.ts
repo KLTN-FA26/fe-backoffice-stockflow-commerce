@@ -4,9 +4,11 @@ import { CUSTOMER_API_STATUSES } from "@/constants";
 
 import {
   CUSTOMER_TRANSITIONS,
+  REASON_REQUIRED,
   allowedCustomerActions,
   canChangeCustomerStatus,
   canResendInvitation,
+  canViewInvitation,
 } from "../lifecycle";
 
 import type { PermissionCode } from "@/lib/auth/me-permissions";
@@ -25,14 +27,17 @@ describe("CUSTOMER_TRANSITIONS (BE Customer.changeStatus, docs 18 §5)", () => {
   });
   it("closed customer can only be reopened (reason required)", () => {
     expect(CUSTOMER_TRANSITIONS.INACTIVE).toEqual(["reopen"]);
+    expect(REASON_REQUIRED.has("reopen")).toBe(true);
+    expect(REASON_REQUIRED.has("reactivate")).toBe(true);
   });
 });
 
 describe("customer action gating", () => {
-  it("status change needs APPROVE and role ECOMMERCE_ADMIN — Sales with APPROVE is refused (BE 403)", () => {
-    const approve = has("customer-customers:APPROVE");
+  it("status change needs customer-status:APPROVE and an admin role", () => {
+    const approve = has("customer-status:APPROVE");
     expect(canChangeCustomerStatus(approve, ["SALES_STAFF"])).toBe(false);
     expect(canChangeCustomerStatus(approve, ["ECOMMERCE_ADMIN"])).toBe(true);
+    expect(canChangeCustomerStatus(has("customer-customers:APPROVE"), ["ECOMMERCE_ADMIN"])).toBe(false);
     expect(canChangeCustomerStatus(has(), ["ECOMMERCE_ADMIN"])).toBe(false);
     expect(allowedCustomerActions("ACTIVE", false)).toEqual([]);
   });
@@ -41,5 +46,10 @@ describe("customer action gating", () => {
     expect(canResendInvitation("PENDING_ACTIVATION", create)).toBe(true);
     expect(canResendInvitation("ACTIVE", create)).toBe(false);
     expect(canResendInvitation("PENDING_ACTIVATION", has())).toBe(false);
+  });
+  it("invitation state requires customer READ and a back-office identity", () => {
+    expect(canViewInvitation(has("customer-customers:READ"), ["ORDER_COORDINATOR"])).toBe(true);
+    expect(canViewInvitation(has("customer-customers:READ"), ["CUSTOMER"])).toBe(false);
+    expect(canViewInvitation(has(), ["SALES_STAFF"])).toBe(false);
   });
 });

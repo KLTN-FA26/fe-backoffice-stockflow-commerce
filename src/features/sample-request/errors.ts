@@ -14,6 +14,7 @@ export const SAMPLE_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   SAMPLE_NEXT_ROUND_EXISTS: "Lần mẫu tiếp theo của yêu cầu này đã được tạo.",
   WAREHOUSE_NOT_FOUND: "Không tìm thấy kho.",
   INSUFFICIENT_STOCK: "Kho không đủ phôi khả dụng để giữ cho mẫu.",
+  SKU_NOT_SELLABLE: "Phôi này đã ngừng bán. Chọn phôi đang hoạt động trước khi tiếp tục làm mẫu.",
   CONFLICT:
     "Thiết kế không thuộc sản phẩm của phôi, chưa được xác nhận, hoặc kho đang ngừng hoạt động.",
   OUT_OF_DATA_SCOPE: "Yêu cầu mẫu thuộc kho bạn không được phân công.",

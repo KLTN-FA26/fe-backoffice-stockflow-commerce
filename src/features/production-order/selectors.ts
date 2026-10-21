@@ -44,6 +44,9 @@ export function effectiveStatus(
 ): ProductionApiStatus | null {
   if (order.summary.status !== "ON_HOLD") return order.summary.status;
   const hold = [...order.history].reverse().find((change) => change.toStatus === "ON_HOLD");
+  // BE ProductionOrder.receivedFromSubcontractor giữ ON_HOLD nhưng ghi ON_HOLD→ON_HOLD
+  // khi hàng gia công đến trong lúc đang treo; sau khi mở lại bước tiếp theo là QC.
+  if (hold?.fromStatus === "ON_HOLD" && order.summary.mode === "SUBCONTRACTED") return "QC";
   return isStatus(hold?.fromStatus) ? hold.fromStatus : null;
 }
 

@@ -48,7 +48,7 @@ export function PortalOrderDetail({ id }: { id: string }) {
     );
   if (query.isPending) return <PageSkeleton variant="detail" />;
   const order = query.data;
-  const actions = allowedMyOrderActions(order.statusGroup, can);
+  const actions = allowedMyOrderActions(order.statusGroup, order.allowedActions, can);
 
   return (
     <div className="space-y-6">

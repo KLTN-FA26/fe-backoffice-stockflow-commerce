@@ -1,19 +1,11 @@
 /**
- * Lỗi BE của biến thể / logistics / ảnh → câu tiếng Việt. Không lộ message tiếng Anh của BE.
+ * Lỗi BE của biến thể / ảnh → câu tiếng Việt. Không lộ message tiếng Anh của BE.
  * `INVALID_VARIANT_TRANSITION` dùng cho nhiều luật khác nhau, nên câu tuỳ thao tác (`context`).
  */
 import { ApiError } from "@/lib/api/error";
 
 export type VariantErrorContext =
-  | "activate"
-  | "block"
-  | "obsolete"
-  | "save"
-  | "logistics"
-  | "upload"
-  | "publish"
-  | "media"
-  | "load";
+  "activate" | "block" | "obsolete" | "save" | "upload" | "publish" | "media" | "load";
 
 const TRANSITION_MESSAGE: Partial<Record<VariantErrorContext, string>> = {
   activate:
@@ -26,13 +18,15 @@ const TRANSITION_MESSAGE: Partial<Record<VariantErrorContext, string>> = {
 };
 
 const CODE_MESSAGE: Record<string, string> = {
-  VARIANT_SKU_ALREADY_EXISTS: "Mã SKU đã được dùng cho biến thể khác.",
+  VARIANT_SKU_ALREADY_EXISTS:
+    "Mã SKU hoặc tổ hợp thuộc tính này đã có ở một biến thể khác của sản phẩm.",
+  VARIANT_OPTIONS_INVALID:
+    "Tuỳ chọn không hợp lệ: cần chọn đúng một giá trị còn dùng cho mỗi thuộc tính của sản phẩm.",
+  VARIANT_MATRIX_TOO_LARGE: "Quá nhiều biến thể cho một lần tạo.",
   VARIANT_NOT_FOUND: "Không tìm thấy biến thể — có thể đã bị đổi. Dữ liệu đã được tải lại.",
   PRODUCT_NOT_FOUND: "Không tìm thấy sản phẩm.",
   MEDIA_NOT_FOUND: "Không tìm thấy ảnh — có thể đã bị xoá. Dữ liệu đã được tải lại.",
   OPTIMISTIC_LOCK: "Thông tin vừa được người khác sửa. Dữ liệu đã được tải lại, hãy nhập lại.",
-  INVENTORY_POLICY_STOCK_CONFLICT:
-    "Không đổi được đơn vị tính khi SKU còn tồn kho — mọi số lượng đã đếm đang theo đơn vị cũ.",
   PRODUCT_NOT_APPROVED: "Sản phẩm phải được duyệt trước khi xuất bản ảnh.",
   SELF_APPROVAL_NOT_ALLOWED: "Ảnh phải do người khác người tải lên xuất bản (duyệt bốn mắt).",
   PAYLOAD_TOO_LARGE: "Ảnh quá lớn (tối đa 25 megapixel và giới hạn dung lượng của hệ thống).",
@@ -44,7 +38,6 @@ const CODE_MESSAGE: Record<string, string> = {
 
 const CONFLICT_MESSAGE: Partial<Record<VariantErrorContext, string>> = {
   publish: "Chỉ xuất bản được ảnh đã tải lên và đã tạo bản hiển thị — hãy tải lại ảnh đó.",
-  logistics: "SKU này không thuộc sản phẩm đang xem.",
 };
 
 export function variantErrorMessage(error: unknown, context: VariantErrorContext): string {
@@ -62,4 +55,22 @@ export function variantErrorMessage(error: unknown, context: VariantErrorContext
   if (error.status === 413) return CODE_MESSAGE.PAYLOAD_TOO_LARGE ?? "";
   if (error.status === 415) return CODE_MESSAGE.UNSUPPORTED_MEDIA_TYPE ?? "";
   return "Không thực hiện được thao tác. Vui lòng thử lại.";
+}
+
+/**
+ * Mã mà câu ở trên nói "Dữ liệu đã được tải lại" (hoặc cho thấy trạng thái trên màn đã cũ): BE
+ * `ProductVariantService.requireVariant` (VARIANT_NOT_FOUND), `ProductMediaService.requireMedia`
+ * (MEDIA_NOT_FOUND), `VariantStatus` / `requireAcceptsImages` (INVALID_VARIANT_TRANSITION),
+ * `GlobalExceptionHandler.handleOptimisticLock` (OPTIMISTIC_LOCK, ghi đồng thời). Mutation biến thể /
+ * ảnh bọc `withStaleRefetch` theo hàm này để câu đó là thật.
+ */
+const STALE_CODES = new Set([
+  "OPTIMISTIC_LOCK",
+  "VARIANT_NOT_FOUND",
+  "MEDIA_NOT_FOUND",
+  "INVALID_VARIANT_TRANSITION",
+]);
+
+export function isStaleVariantError(error: unknown): boolean {
+  return error instanceof ApiError && STALE_CODES.has(error.code);
 }

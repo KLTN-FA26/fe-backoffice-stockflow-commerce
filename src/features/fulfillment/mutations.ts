@@ -2,11 +2,12 @@
  * Fulfillment task — mutations + invalidation map (api-conventions §2.3).
  *
  * - Mọi mutation đổi task → `fulfillmentKeys.all` (list + detail của cả hai màn).
- * - Tạo task / đóng gói / kiểm tra lại còn đổi trạng thái ĐƠN (CONFIRMED → IN_FULFILMENT,
- *   IN_FULFILMENT ⇄ ON_HOLD — docs 17 §5) → màn đơn hàng và dữ liệu đơn của feature này.
+ * - Tạo task / kiểm tra lại còn đổi trạng thái ĐƠN (READY_TO_FULFILL → PICKING,
+ *   → PACKED, PICKING ⇄ ON_HOLD khi lệch thiết kế — BE PR #133, docs 17 §5) → màn đơn hàng và dữ liệu đơn của feature này.
  *   Tồn kho chưa đổi ở các bước này (BE chưa có dòng lấy hàng) nên không invalidate tồn.
- * - Đóng gói và kiểm tra lại KHÔNG có `successMessage` cố định: BE trả 200 cả khi lệch checksum
- *   (pack `On Hold`), toast chọn theo `packStatus` của kết quả.
+ * - Kiểm tra lại KHÔNG có `successMessage` cố định: BE trả 200 cả khi vẫn lệch checksum (pack
+ *   `On Hold`), toast chọn theo `packStatus` của kết quả. Thao tác của trạm đóng gói (nhận đơn, quét,
+ *   kiện, hoàn tất) nằm ở `packing-mutations.ts`.
  * - Lỗi "dữ liệu đã đổi ở nơi khác" (`isStaleFulfillmentError`) → tải lại ở MỌI mutation.
  */
 
@@ -18,7 +19,6 @@ import { toast } from "@/components/shared/Toast";
 
 import {
   assignFulfillmentTask,
-  completePacking,
   completePicking,
   createFulfillmentTask,
   getDesignArtifactUrl,
@@ -122,29 +122,6 @@ function useRefreshArtifacts() {
   const queryClient = useQueryClient();
   return (taskId: string) =>
     void queryClient.invalidateQueries({ queryKey: fulfillmentArtifactKeys.task(taskId) });
-}
-
-const useCompletePackingBase = withStaleRefetch(
-  createMutation<string, FulfillmentTask>(completePacking, {
-    invalidate: TASK_AND_ORDER_KEYS,
-    showErrorToast: false,
-    // X-CHK: lệch checksum là kết quả 200, không phải lỗi
-    onSuccess: (task) =>
-      isOnDesignHold(task) ? toast.warning(TOAST.held) : toast.success(TOAST.packed),
-    onError: toastError("pack"),
-  }),
-);
-
-export function useCompletePacking(options?: Parameters<typeof useCompletePackingBase>[0]) {
-  const refreshArtifacts = useRefreshArtifacts();
-  return useCompletePackingBase({
-    ...options,
-    onSuccess: (...args) => {
-      // Vừa phát hiện lệch → ảnh đang hiện có thể là file sai, lấy lại để BE trả đúng tình trạng
-      if (isOnDesignHold(args[0])) refreshArtifacts(args[0].taskId);
-      options?.onSuccess?.(...args);
-    },
-  });
 }
 
 const useReverifyDesignIntegrityBase = withStaleRefetch(

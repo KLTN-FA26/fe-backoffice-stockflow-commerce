@@ -45,6 +45,7 @@ export function QcPanel({ order, active }: { order: ProductionDetail; active: bo
   const isOrder = order.summary.type === "ORDER";
   const packing = usePackingLocations(order.summary.id, isOrder && active && canRead);
   const submit = form.handleSubmit((values) => {
+    if (isOrder && (packing.isPending || packing.isError || !packing.data?.length)) return;
     if (isOrder && (packing.data?.length ?? 0) > 1 && !values.packingLocation)
       return form.setError("packingLocation", { message: "Chọn khu đóng gói nhận hàng" });
     if (!qcSumMatches(values, awaiting ?? 0)) {
@@ -123,7 +124,7 @@ export function QcPanel({ order, active }: { order: ProductionDetail; active: bo
             />
           </FormField>
           <div className="flex items-end justify-end sm:col-span-2">
-            <Button type="submit" disabled={record.isPending}>
+            <Button type="submit" disabled={record.isPending || (isOrder && (packing.isPending || packing.isError || !packing.data?.length))}>
               {record.isPending && <LoaderCircle className="size-4 animate-spin" />} Ghi kết quả QC
             </Button>
           </div>

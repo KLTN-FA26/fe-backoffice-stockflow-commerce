@@ -46,11 +46,6 @@ export const COLUMNS: ColumnDef<Customer>[] = [
     cell: (row) => <span className={`text-ink-secondary ${MONO}`}>{row.phone ?? "—"}</span>,
   },
   {
-    key: "taxCode",
-    header: "Mã số thuế",
-    cell: (row) => <span className={`text-ink-secondary ${MONO}`}>{row.taxCode ?? "—"}</span>,
-  },
-  {
     key: "status",
     header: "Trạng thái",
     sortable: true,

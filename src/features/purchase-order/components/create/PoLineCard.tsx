@@ -5,14 +5,17 @@ import { cn } from "cn";
 
 import { PO_LIMITS, UI_LABELS } from "@/constants";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 import { FieldError } from "./CreateFormPrimitives";
-import { fieldClass, normalizeSkuCode } from "./helpers";
+import { fieldClass } from "./helpers";
+import { LineTermsHint } from "./LineTermsHint";
 import { PoLineFields } from "./PoLineFields";
+import { SkuCatalogCombobox } from "./SkuCatalogCombobox";
 
 import type { CreatePoWizard } from "./useCreateForm";
+
+const C = UI_LABELS.purchaseOrder.catalog;
 
 /** Một dòng hàng — mọi ô `register` vào react-hook-form, lỗi (client + server) hiện inline. */
 export function PoLineCard({
@@ -27,7 +30,14 @@ export function PoLineCard({
   const { register } = w.form;
   const line = w.values.lines[index];
   const errors = w.errors.lines?.[index];
-  const sku = register(`lines.${index}.skuId`);
+  const { catalog } = w;
+  const locked = (line?.lineId ?? "") !== "";
+  // Chỉ chọn được khi đã có danh mục (đủ quyền, đã chọn NCC, tải xong, không rỗng).
+  const pickable = catalog.canRead && catalog.items.length > 0;
+  const usedSkus = new Set(
+    w.values.lines.flatMap((l, i) => (i !== index && l.skuId !== "" ? [l.skuId] : [])),
+  );
+  const lockedId = `po-line-${index}-sku-locked`;
   const skuErrorId = `po-line-${index}-sku-error`;
   const descErrorId = `po-line-${index}-desc-error`;
 
@@ -69,29 +79,24 @@ export function PoLineCard({
             <label className="text-ink-secondary mb-0.5 block text-[11px] leading-4 font-medium">
               SKU <span className="text-danger">*</span>
             </label>
-            {/* TODO(SKU combobox): ô nhập TẠM vì BE chưa có API danh mục SKU (BR-01 /
-                open-question C12) — BE chỉ có `GET /products/{id}/skus/{sku}/base-price`.
-                Khi BE có API liệt kê SKU Active (lọc theo NCC nếu có), thay Input này bằng
-                combobox chọn SKU, cùng kiểu `SupplierCombobox` (bọc bằng `Controller`):
-                  1. Thêm query vào `lib/references` (không gọi chéo `features/product`).
-                  2. Chọn SKU → điền `skuId` + `description`; vẫn KHÔNG tự điền đơn giá trừ khi
-                     giá trả về cùng tiền tệ với PO (lỗi VND → $ cũ).
-                  3. Bỏ `normalizeSkuCode` ở ô này (mã lấy từ danh mục, không gõ tay).
-                Combobox cũ (dữ liệu mock) có ở git: `git show 16d63a2:src/features/purchase-order/components/create/SkuCombobox.tsx`.
-                Hiện tại: nhập mã đúng định dạng BE `common.domain.Sku`. */}
-            <Input
-              {...sku}
-              onChange={(e) => {
-                // BE `common.domain.Sku` trim + upper-case — hiện đúng dạng sẽ lưu ngay khi gõ.
-                e.target.value = normalizeSkuCode(e.target.value);
-                void sku.onChange(e);
-              }}
-              placeholder="VD: SOFA-3S-GREY"
-              aria-label={`SKU dòng ${index + 1}`}
-              aria-invalid={errors?.skuId ? true : undefined}
-              aria-describedby={errors?.skuId ? skuErrorId : undefined}
-              className={cn(fieldClass(!!errors?.skuId), "font-[family-name:var(--font-mono)]")}
+            {/* BR-01 (docs 02 §6): chỉ chọn SKU trong danh mục của NCC. Dòng đã lưu (`lineId`)
+                giữ SKU — BE `PUT /purchase-orders/{id}` báo 400 nếu đổi. */}
+            <SkuCatalogCombobox
+              items={catalog.items}
+              value={line?.skuId ?? ""}
+              usedSkus={usedSkus}
+              onSelect={(item) => catalog.selectSku(index, item)}
+              ariaLabel={C.skuAria(index + 1)}
+              hasError={!!errors?.skuId}
+              describedBy={errors?.skuId ? skuErrorId : locked ? lockedId : undefined}
+              disabled={locked || !pickable}
             />
+            {locked && (
+              <p id={lockedId} className="text-ink-tertiary mt-0.5 text-[11px]">
+                {C.skuLocked}
+              </p>
+            )}
+            {line?.terms && <LineTermsHint terms={line.terms} poCurrency={w.values.currency} />}
             <FieldError id={skuErrorId}>{errors?.skuId?.message}</FieldError>
           </div>
           <div className="min-w-0">
@@ -99,12 +104,12 @@ export function PoLineCard({
               htmlFor={`po-line-${index}-desc`}
               className="text-ink-secondary mb-0.5 block text-[11px] leading-4 font-medium"
             >
-              Mô tả sản phẩm <span className="text-danger">*</span>
+              Mô tả sản phẩm
             </label>
             <Textarea
               id={`po-line-${index}-desc`}
               {...register(`lines.${index}.description`)}
-              placeholder="VD: Sofa 3 chỗ, vải xám"
+              placeholder={UI_LABELS.purchaseOrder.lineDescriptionPlaceholder}
               rows={2}
               maxLength={PO_LIMITS.lineDescriptionMax}
               aria-invalid={errors?.description ? true : undefined}

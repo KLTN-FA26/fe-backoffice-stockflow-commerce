@@ -3,7 +3,6 @@
 import { useState } from "react";
 import {
   Dialog,
-  DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
@@ -12,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 
 import { ConfirmReasonField } from "./ConfirmReasonField";
+import { LayeredDialogContent } from "./LayeredDialogContent";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -34,6 +34,13 @@ interface ConfirmDialogProps {
    * thì người dùng sửa/thử lại, không phải gõ lại lý do.
    */
   closeOnConfirm?: boolean;
+  /**
+   * Lỗi của lần xác nhận vừa rồi, hiện TRONG dialog. Dialog modal ẩn phần còn lại của trang
+   * khỏi trình đọc màn hình, nên với `closeOnConfirm={false}` lỗi phải nằm ở đây mới đọc được.
+   */
+  error?: React.ReactNode;
+  /** Nội dung bổ sung dưới phần mô tả (vd danh sách chứng từ còn mở) — trước ô lý do. */
+  children?: React.ReactNode;
 }
 
 export function ConfirmDialog({
@@ -50,6 +57,8 @@ export function ConfirmDialog({
   variant = "danger",
   loading = false,
   closeOnConfirm = true,
+  error,
+  children,
 }: ConfirmDialogProps) {
   const [reason, setReason] = useState("");
   // Bên gọi đóng dialog qua prop `open` (không qua onOpenChange) → xoá lý do khi đóng.
@@ -79,10 +88,7 @@ export function ConfirmDialog({
         onOpenChange(v);
       }}
     >
-      <DialogContent
-        showCloseButton={false}
-        className="border-border-default bg-bg-surface gap-0 rounded-[var(--r-xl)] border p-0 shadow-[var(--sh-lg)] ring-0 sm:max-w-[440px]"
-      >
+      <LayeredDialogContent className="border-border-default bg-bg-surface gap-0 rounded-[var(--r-xl)] border p-0 shadow-[var(--sh-lg)] ring-0 sm:max-w-[440px]">
         <DialogHeader className="border-border-default border-b px-[18px] py-4">
           <DialogTitle className="text-ink-primary font-[family-name:var(--font-display)] text-[1.05rem] leading-tight font-semibold">
             {title}
@@ -90,7 +96,7 @@ export function ConfirmDialog({
         </DialogHeader>
 
         {/* form: Ctrl/⌘ + Enter trong ô lý do = xác nhận (Mode A — thao tác không cần chuột).
-            `contents` để form không thêm hộp layout, giữ nguyên grid của DialogContent. */}
+            `contents` để form không thêm hộp layout, giữ nguyên grid của LayeredDialogContent. */}
         <form
           className="contents"
           onSubmit={(event) => {
@@ -103,6 +109,8 @@ export function ConfirmDialog({
               {description}
             </DialogDescription>
 
+            {children}
+
             {requireReason && (
               <ConfirmReasonField
                 label={reasonLabel}
@@ -110,6 +118,12 @@ export function ConfirmDialog({
                 onChange={setReason}
                 maxLength={reasonMaxLength}
               />
+            )}
+
+            {error && (
+              <div role="alert" className="text-danger text-[0.8125rem]">
+                {error}
+              </div>
             )}
           </div>
 
@@ -142,7 +156,7 @@ export function ConfirmDialog({
             </Button>
           </DialogFooter>
         </form>
-      </DialogContent>
+      </LayeredDialogContent>
     </Dialog>
   );
 }

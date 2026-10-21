@@ -24,7 +24,7 @@ Người dùng là nhân viên kho ngồi cả ca — ưu tiên tốc độ thao
 **CẤM caramel** (`#A9682F`, `#C98D4E`, `bg.warm`, `card.warm`, `ink.warm`, `line.warm`)
 lọt vào mode A. Đó là token của [mode B](mode-b-storefront.md).
 
-Mode A dùng `brand.ink` cho CTA, active tab underline/text/count badge và focus border/ring của mọi input/select/textarea. `accent.blue` chỉ dùng cho icon thông tin, progress, link phụ hoặc trạng thái info; không dùng làm focus chính.
+Mode A dùng `brand.ink` cho CTA, count badge của tab đang chọn và focus border/ring của mọi input/select/textarea. `accent.blue` chỉ dùng cho icon thông tin, progress, link phụ hoặc trạng thái info; không dùng làm focus chính.
 
 ## Density
 

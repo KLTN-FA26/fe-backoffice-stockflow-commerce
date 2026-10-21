@@ -5,9 +5,12 @@ import { cn } from "cn";
 
 import { UI_LABELS } from "@/constants";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { PageTabs } from "@/components/shared/PageTabs";
 import { Button } from "@/components/ui/button";
 
 export const PO_LIST_TABS = ["orders", "spend"] as const;
+/** `idPrefix` chung của thanh tab và `PageTabPanel` ở `PurchaseOrderList`. */
+export const PO_LIST_TAB_ID_PREFIX = "po-list";
 export type PoTabKey = (typeof PO_LIST_TABS)[number];
 
 const TABS: { key: PoTabKey; label: string; icon: typeof FileText }[] = [
@@ -75,41 +78,19 @@ export function PoListTabs({
   orderCount: number;
   onChange: (tab: PoTabKey) => void;
 }) {
+  // Thanh tab dùng chung (kiểu Tabs shadcn) — đồng bộ với màn Thuộc tính, Thương hiệu & danh mục
   return (
-    <div role="tablist" className="border-border-default mb-4 flex gap-0 border-b">
-      {TABS.map((tab) => {
-        const isActive = active === tab.key;
-        const Icon = tab.icon;
-        return (
-          <Button
-            key={tab.key}
-            type="button"
-            role="tab"
-            aria-selected={isActive}
-            variant="ghost"
-            onClick={() => onChange(tab.key)}
-            className={cn(
-              "hover:bg-bg-muted/60 h-auto rounded-none border-b-2 bg-transparent px-4 py-2 text-[0.8125rem] font-medium transition-colors",
-              isActive
-                ? "border-brand text-brand hover:text-brand"
-                : "text-ink-tertiary hover:text-ink-primary border-transparent",
-            )}
-          >
-            <Icon className="size-3.5" />
-            {tab.label}
-            {tab.key === "orders" && (
-              <span
-                className={cn(
-                  "ml-1 rounded-full px-1.5 py-0.5 text-[0.625rem] font-semibold tabular-nums",
-                  isActive ? "bg-brand text-ink-inverse" : "bg-bg-muted text-ink-tertiary",
-                )}
-              >
-                {orderCount}
-              </span>
-            )}
-          </Button>
-        );
-      })}
-    </div>
+    <PageTabs
+      tabs={TABS.map((tab) => ({
+        value: tab.key,
+        label: tab.label,
+        icon: tab.icon,
+        count: tab.key === "orders" ? orderCount : undefined,
+      }))}
+      value={active}
+      onChange={onChange}
+      idPrefix={PO_LIST_TAB_ID_PREFIX}
+      ariaLabel="Đơn đặt NCC"
+    />
   );
 }

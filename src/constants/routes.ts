@@ -48,6 +48,11 @@ export const ADMIN_ROUTES = {
   },
   workshop: `${ADMIN_BASE}/workshop`,
   permissions: `${ADMIN_BASE}/permissions`,
+  /** Hồ sơ hàng tồn — BE PR #119 `InventoryItemController` (`/api/v1/inventory/items`). */
+  inventoryItems: {
+    list: `${ADMIN_BASE}/inventory-items`,
+    detail: (id: string) => `${ADMIN_BASE}/inventory-items/${id}`,
+  },
   products: {
     create: `${ADMIN_BASE}/products/create`,
     detail: (id: string) => `${ADMIN_BASE}/products/${id}`,
@@ -57,6 +62,8 @@ export const ADMIN_ROUTES = {
   purchaseOrders: {
     create: `${ADMIN_BASE}/purchase-orders/create`,
     detail: (id: string) => `${ADMIN_BASE}/purchase-orders/${id}`,
+    // Sửa PO nháp (BE SCRUM-462)
+    edit: (id: string) => `${ADMIN_BASE}/purchase-orders/${id}/edit`,
     list: `${ADMIN_BASE}/purchase-orders`,
   },
   invoices: {
@@ -86,10 +93,31 @@ export const ADMIN_ROUTES = {
   replenishment: {
     list: `${ADMIN_BASE}/replenishment`,
   },
-  variants: {
-    detail: (id: string) => `${ADMIN_BASE}/variants/${id}`,
-    list: `${ADMIN_BASE}/variants`,
+  /** Từ điển thuộc tính (BE PR #113) — thay màn "Thuộc tính biến thể" dựng từ dữ liệu mẫu. */
+  attributes: `${ADMIN_BASE}/attributes`,
+  /** Thương hiệu & danh mục — BE `ProductTaxonomyController` (gate product-products). */
+  taxonomy: {
+    list: `${ADMIN_BASE}/taxonomy`,
   },
+  transfers: {
+    create: `${ADMIN_BASE}/transfers/create`,
+    detail: (id: string) => `${ADMIN_BASE}/transfers/${id}`,
+    edit: (id: string) => `${ADMIN_BASE}/transfers/${id}/edit`,
+    list: `${ADMIN_BASE}/transfers`,
+  },
+  /** Lô giao chờ xuất / đã giao (BE `ShipmentController`, PR #137). */
+  shipments: {
+    list: `${ADMIN_BASE}/shipments`,
+    detail: (id: string) => `${ADMIN_BASE}/shipments/${id}`,
+  },
+  /** Chuyến xe: quét kiện lên xe, bàn giao hãng (BE `DispatchController`, PR #137). */
+  loads: {
+    list: `${ADMIN_BASE}/loads`,
+    detail: (id: string) => `${ADMIN_BASE}/loads/${id}`,
+    manifest: (id: string) => `${ADMIN_BASE}/loads/${id}/manifest`,
+  },
+  /** Kế hoạch xếp xe — SCRUM-452, đang phát triển. */
+  loadPlans: `${ADMIN_BASE}/load-plans`,
   suppliers: {
     list: `${ADMIN_BASE}/suppliers`,
     create: `${ADMIN_BASE}/suppliers/create`,

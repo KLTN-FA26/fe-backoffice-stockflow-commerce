@@ -27,10 +27,23 @@ export const beIntegrityEvidenceSchema = z.object({
   verifiedAt: z.string(),
 });
 
+/**
+ * BE `FulfillmentTaskResponse.PaymentDue` — khoản đơn còn nợ trước khi bàn giao (G3-Q4): cảnh báo
+ * sớm cho người đóng gói; bàn giao bị từ chối tới khi đơn được thanh toán.
+ */
+export const bePaymentDueSchema = z.object({
+  amountDueBeforeHandover: z.number().nonnegative(),
+  currency: z.string(),
+});
+
 /** BE `FulfillmentTaskResponse` — `taskId` là id của pick; pick và pack 1-1 trên cùng task. */
 export const beFulfillmentTaskSchema = z.object({
   taskId: z.string(),
   orderId: z.string(),
+  // BE PR #136 trả thêm số đơn / kho / tên người được gán
+  orderNumber: z.string().nullish(),
+  warehouseId: z.string().nullish(),
+  assignedUserName: z.string().nullish(),
   // API luôn gán khi tạo (CreateTaskRequest @NotNull), cột DB cho phép null
   assignedUserId: z.string().nullish(),
   pickStatus: z.enum(PICK_API_STATUSES),
@@ -41,6 +54,9 @@ export const beFulfillmentTaskSchema = z.object({
   packedAt: z.string().nullish(),
   // Mới nhất trước (BE `findByPackIdOrderByVerifiedAtDesc`)
   integrityEvidence: z.array(beIntegrityEvidenceSchema).default([]),
+  // Chỉ có ở câu trả lời của `packing-completion` (BE PR #136): lô giao vừa tạo + cảnh báo thu tiền
+  shipmentId: z.string().nullish(),
+  paymentDue: bePaymentDueSchema.nullish(),
 });
 
 export const beFulfillmentTaskPageSchema = bePageSchema(beFulfillmentTaskSchema);

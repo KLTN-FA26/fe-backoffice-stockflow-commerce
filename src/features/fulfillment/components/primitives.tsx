@@ -1,3 +1,5 @@
+import { cn } from "cn";
+
 import { UI_LABELS } from "@/constants";
 import { shortId } from "@/features/fulfillment/selectors";
 
@@ -8,6 +10,21 @@ export const NUM = `${MONO} text-right`;
 
 /** Hai màn dùng chung một resource BE — `scope` chỉ quyết tiêu đề, cột và nhóm thao tác. */
 export type FulfillmentScope = "picking" | "packing";
+
+/** Số đo (kg, cm) kiểu vi-VN, tối đa `digits` chữ số lẻ — không thêm số 0 thừa. */
+export function formatMeasure(value: number, digits = 3): string {
+  return value.toLocaleString("vi-VN", { maximumFractionDigits: digits });
+}
+
+/** Ô nhập một dòng của form trạm đóng gói (cùng kiểu `fieldClass` của màn xếp xe). */
+export function fieldClass(hasError = false): string {
+  return cn(
+    "h-8 w-full rounded-[var(--r-sm)] border bg-bg-surface px-2.5 text-[0.8125rem] text-ink-primary outline-none transition-colors placeholder:text-ink-tertiary disabled:bg-bg-muted disabled:text-ink-tertiary",
+    hasError
+      ? "border-danger focus:border-danger focus-visible:ring-2 focus-visible:ring-danger/20"
+      : "border-border-default focus:border-brand focus-visible:ring-2 focus-visible:ring-brand/20",
+  );
+}
 
 /** Lỗi inline dưới ô — `id` để ô nhập trỏ `aria-describedby` tới. */
 export function FieldError({ id, children }: { id?: string; children?: string }) {

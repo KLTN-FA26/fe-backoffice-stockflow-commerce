@@ -14,6 +14,12 @@ import { mapBackendOrderStatus, toBackendOrderStatuses } from "./status-map";
 
 import type { ListQueryParams, PaginatedResponse } from "@/lib/api/query-factory";
 import type { Order, OrderDto, OrderStatus } from "./types";
+import type {
+  DeliveryFailureValues,
+  HoldOrderValues,
+  RemainderClosureValues,
+  ResolveOrderHoldValues,
+} from "./schemas";
 
 const ORDERS_PATH = "/orders";
 
@@ -39,12 +45,40 @@ export function toOrder(dto: OrderDto): Order {
     recipientPhone: address?.phone ?? dto.contactPhone ?? "",
     contactEmail: dto.contactEmail ?? null,
     shippingAddressText: addressText || null,
-    lines: dto.lines.map(({ lineId, sku, quantity, unitPrice, lineTotal }) => ({
-      lineId,
-      sku,
-      quantity,
-      unitPrice,
-      lineTotal,
+    lines: dto.lines.map((line) => ({
+      lineId: line.lineId,
+      sku: line.sku,
+      quantity: line.quantity,
+      unitPrice: line.unitPrice,
+      lineTotal: line.lineTotal,
+      shippedQuantity: line.shippedQuantity ?? null,
+      deliveredQuantity: line.deliveredQuantity ?? null,
+      cancelledQuantity: line.cancelledQuantity ?? null,
+    })),
+    paymentTerm: dto.paymentTerm ?? null,
+    holdReason: dto.holdReason ?? null,
+    holdReasonPublic: dto.holdReasonPublic ?? null,
+    statusBeforeHold: dto.statusBeforeHold ? mapBackendOrderStatus(dto.statusBeforeHold) : null,
+    holdNote: dto.holdNote ?? null,
+    packedAt: dto.packedAt ?? null,
+    shippedAt: dto.shippedAt ?? null,
+    deliveredAt: dto.deliveredAt ?? null,
+    deliveryFailureReason: dto.deliveryFailureReason ?? null,
+    completedAt: dto.completedAt ?? null,
+    closedAt: dto.closedAt ?? null,
+    billedAmount: dto.billedAmount ?? null,
+    effectiveTotal: dto.effectiveTotal ?? null,
+    amountDue: dto.amountDue ?? null,
+    amountDueBeforeHandover: dto.amountDueBeforeHandover ?? null,
+    shipments: (dto.shipments ?? []).map((shipment) => ({
+      shipmentId: shipment.shipmentId,
+      status: shipment.status,
+      amount: shipment.amount ?? null,
+      billedAmount: shipment.billedAmount ?? null,
+      handedOverAt: shipment.handedOverAt ?? null,
+      outcomeAt: shipment.outcomeAt ?? null,
+      failureReason: shipment.failureReason ?? null,
+      lines: shipment.lines ?? [],
     })),
   };
 }
@@ -103,4 +137,44 @@ export interface AdminCancelOrderInput {
 export async function adminCancelOrder(input: AdminCancelOrderInput): Promise<void> {
   const { id, reason } = input;
   await api.post(`${ORDERS_PATH}/${encodeURIComponent(id)}/admin-cancellation`, { reason });
+}
+
+/* ── Hold / resolve / delivery-failure / remainder-closure ───────────── */
+// BE PR #133. Body bỏ `note` khi trống (BE `@Size`, null hợp lệ trừ OTHER / gỡ giữ).
+// - POST /orders/{id}/hold              {reasonCode, note?}   — sales-orders:APPROVE
+// - POST /orders/{id}/hold/resolution   {note}                — sales-orders:APPROVE
+// - POST /orders/{id}/delivery-failure  {reasonCode, note?}   — sales-orders:APPROVE
+// - POST /orders/{id}/remainder-closure {reasonCode, note?}   — sales-order-cancellations:UPDATE
+
+export type HoldOrderInput = { id: string } & HoldOrderValues;
+export type ResolveOrderHoldInput = { id: string } & ResolveOrderHoldValues;
+export type DeliveryFailureInput = { id: string } & DeliveryFailureValues;
+export type RemainderClosureInput = { id: string } & RemainderClosureValues;
+
+function reasonBody({ reasonCode, note }: { reasonCode: string; note: string }) {
+  return note ? { reasonCode, note } : { reasonCode };
+}
+
+export async function holdOrder(input: HoldOrderInput): Promise<void> {
+  await api.post(`${ORDERS_PATH}/${encodeURIComponent(input.id)}/hold`, reasonBody(input));
+}
+
+export async function resolveOrderHold(input: ResolveOrderHoldInput): Promise<void> {
+  await api.post(`${ORDERS_PATH}/${encodeURIComponent(input.id)}/hold/resolution`, {
+    note: input.note,
+  });
+}
+
+export async function recordDeliveryFailure(input: DeliveryFailureInput): Promise<void> {
+  await api.post(
+    `${ORDERS_PATH}/${encodeURIComponent(input.id)}/delivery-failure`,
+    reasonBody(input),
+  );
+}
+
+export async function closeOrderRemainder(input: RemainderClosureInput): Promise<void> {
+  await api.post(
+    `${ORDERS_PATH}/${encodeURIComponent(input.id)}/remainder-closure`,
+    reasonBody(input),
+  );
 }

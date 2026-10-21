@@ -8,7 +8,7 @@ import { PortalOrderDetail } from "..";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));
 
-const detail = (statusGroup: string) => ({
+const detail = (statusGroup: string, reorder = true) => ({
   orderId: "o-1",
   orderNumber: "SO-20261014-000001",
   status: "DELIVERED",
@@ -16,6 +16,7 @@ const detail = (statusGroup: string) => ({
   total: 3000000,
   currency: "VND",
   placedAt: "2026-10-10T02:00:00Z",
+  allowedActions: { cancel: false, requestCancellation: false, reorder },
   lines: [
     {
       lineId: "l-1",
@@ -69,6 +70,13 @@ describe("Portal order detail (SCRUM-248 timeline, R1b reorder, SCRUM-257 unavai
       }),
     );
     expect(await screen.findByText(/không đặt từ báo giá/)).toBeInTheDocument();
+  });
+
+  it("hides reorder when BE says this order cannot be quoted again", async () => {
+    mockApi("CUSTOMER", { get: { "/orders/me/o-1": () => detail("DELIVERED", false) } });
+    renderScreen(<PortalOrderDetail id="o-1" />, "CUSTOMER");
+    expect(await screen.findByRole("heading", { name: "SO-20261014-000001" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Đặt lại/ })).not.toBeInTheDocument();
   });
 
   it("a role without sales-orders:READ is refused without calling the API", async () => {

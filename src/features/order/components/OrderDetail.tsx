@@ -1,7 +1,5 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
 import { onlineManager } from "@tanstack/react-query";
 import { use } from "react";
 
@@ -10,6 +8,7 @@ import { usePermissionChecker } from "@/lib/auth";
 import { formatDateTime } from "@/lib/format/date";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { BackLink } from "@/components/shared/BackLink";
 
 import { useOrder } from "../queries";
 
@@ -19,6 +18,7 @@ import { OrderInfoCard } from "./OrderInfoCard";
 import { OrderLines } from "./OrderLines";
 import { OrderLoadError } from "./OrderLoadError";
 import { OrderPermissionGate } from "./OrderPermissionGate";
+import { OrderShipments } from "./OrderShipments";
 import { OrderDetailSkeleton } from "./OrderSkeletons";
 
 interface OrderDetailProps {
@@ -67,21 +67,19 @@ function OrderDetailContent({ id }: { id: string }) {
       <PageHeader
         title={order.orderNumber}
         subtitle={subtitle}
-        actions={
-          <Link
-            href={ADMIN_ROUTES.orders.list}
-            className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary inline-flex items-center gap-1.5 rounded-[var(--r-sm)] border px-3 py-1.5 text-[0.8125rem] font-medium transition-colors"
-          >
-            <ArrowLeft className="size-3.5" /> Quay lại
-          </Link>
-        }
+        actions={<BackLink href={ADMIN_ROUTES.orders.list} />}
       />
 
       <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
-        <OrderLines lines={order.lines} currency={order.currency} />
+        <OrderLines
+          lines={order.lines}
+          currency={order.currency}
+          hasShipments={order.shipments.length > 0}
+        />
 
         <div className="space-y-5">
           <OrderActionCard order={order} can={can} />
+          <OrderShipments order={order} />
           <OrderInfoCard order={order} />
           <OrderFinanceCard order={order} />
         </div>
