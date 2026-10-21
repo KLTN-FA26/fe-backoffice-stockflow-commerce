@@ -13,7 +13,7 @@ import type { ProductionDetail, QcRound } from "@/features/production-order/type
 
 /**
  * Kết quả QC: các lượt đã ghi + bàn giao đóng gói. SCRUM-412: BE tự chuyển thành phẩm sang khu PACKING ngay
- * trong lượt QC làm LSX hoàn tất và ghi lại khu đó (`summary.packingLocation`, BE PR #109 V20261015000810).
+ * trong lượt QC làm LSX hoàn tất và ghi lại khu đó (`summary.packingLocation`, BE PR #109 V20261017000810).
  * Đã chốt: không có bước xác nhận bàn giao thủ công. LSX cũ không có dòng sổ kho → không ghi khu.
  */
 export function QcHistory({

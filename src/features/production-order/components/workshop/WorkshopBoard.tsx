@@ -32,7 +32,7 @@ const COLUMNS: readonly ProductionApiStatus[] = [
 const COLUMN_LIMIT = 30;
 
 function Column({ status, today }: { status: ProductionApiStatus; today: string }) {
-  // Hàng đợi theo hạn giao sớm trước (BR-PRD-07).
+  // Hàng đợi: hạn hoàn thành gần trước, rồi thời điểm tạo (docs 19-production §4.4).
   const query = useProductionOrders({
     status: [status],
     size: COLUMN_LIMIT,

@@ -10,7 +10,7 @@ import type { UseFormRegisterReturn } from "react-hook-form";
 /**
  * Nhà gia công cho phần LSX tách ra (SCRUM-441). BR-PRD-11: chỉ NCC là nhà gia công in —
  * `GET /suppliers?printSubcontractor=true` (BE PR #109; WAREHOUSE_MANAGER có `procurement-suppliers:READ` từ
- * V20261015000800). Không có ô nhập mã NCC.
+ * V20261017000800). Không có ô nhập mã NCC.
  */
 export function SubcontractorField({
   registration,

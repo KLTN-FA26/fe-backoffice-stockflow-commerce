@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 
 /**
  * Nộp lần mẫu vào một kho thật (SCRUM-403): danh sách kho đang hoạt động từ `GET /warehouses`
- * (SALES_STAFF có `warehouse-warehouses:READ` từ BE PR #109, V20261015000800). Không có ô nhập mã kho.
+ * (SALES_STAFF có `warehouse-warehouses:READ` từ BE PR #109, V20261017000800). Không có ô nhập mã kho.
  */
 function SubmitForm({ id, onClose }: { id: string; onClose: () => void }) {
   const canListWarehouses = useCan(WAREHOUSE_PERMISSIONS.read);

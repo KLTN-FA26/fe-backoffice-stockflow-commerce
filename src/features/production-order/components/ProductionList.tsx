@@ -57,7 +57,7 @@ function ProductionListContent() {
       dueFrom: dueFrom || undefined,
       dueTo: dueTo || undefined,
       salesOrderId: salesOrderId || undefined,
-      // Hàng đợi xưởng: hạn giao sớm trước (BR-PRD-07).
+      // Hàng đợi xưởng: hạn hoàn thành gần trước, rồi thời điểm tạo (docs 19-production §4.4).
       sort: sortActive ? `${sortKey},${direction}` : "dueDate,asc;createdAt,asc",
     },
     { enabled: canRead },

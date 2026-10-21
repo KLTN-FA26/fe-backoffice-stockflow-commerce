@@ -42,7 +42,7 @@ export const ROLE_PERMISSIONS = {
     "production-orders:READ",
     "production-qc-results:READ",
     "sales-orders:READ",
-    // V20261015000800 (PR #109): nộp mẫu vào kho thật + chọn thiết kế đã xác nhận của khách.
+    // V20261017000800 (PR #109): nộp mẫu vào kho thật + chọn thiết kế đã xác nhận của khách.
     "warehouse-warehouses:READ",
     "design-snapshots:READ",
   ],
@@ -97,7 +97,7 @@ export const ROLE_PERMISSIONS = {
     "production-qc-results:CREATE",
     "warehouse-warehouses:READ",
     "warehouse-locations:READ",
-    // V20261015000800 (PR #109): chọn nhà gia công in khi tách LSX.
+    // V20261017000800 (PR #109): chọn nhà gia công in khi tách LSX.
     "procurement-suppliers:READ",
   ],
   QC_STAFF: [

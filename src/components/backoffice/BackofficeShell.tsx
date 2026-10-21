@@ -418,9 +418,9 @@ const SUBPAGE_LABELS: Record<string, string> = {
 
 const DETAIL_LABEL_BY_ROUTE: Record<string, string> = {
   "/admin/products/create": "Tạo sản phẩm",
-  "/admin/customers/create": "Tạo khách hàng",
-  "/admin/quotes/create": "Tạo báo giá",
-  "/admin/sample-requests/create": "Tạo yêu cầu mẫu",
+  [ADMIN_ROUTES.customers.create]: "Tạo khách hàng",
+  [ADMIN_ROUTES.quotes.create]: "Tạo báo giá",
+  [ADMIN_ROUTES.sampleRequests.create]: "Tạo yêu cầu mẫu",
   "/admin/purchase-orders/create": "Tạo đơn đặt hàng",
   "/admin/suppliers/create": "Tạo nhà cung cấp",
   [INVENTORY_ROUTES.createAdjustment]: INVENTORY_LABELS.createAdjustment,

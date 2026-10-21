@@ -6,7 +6,7 @@
  * quyền: BE re-check mọi request (@RequiresPermission).
  */
 
-import { ADMIN_ROUTES, PORTAL_ROUTES } from "@/constants";
+import { ADMIN_ROUTES, APP_ROUTES, PORTAL_ROUTES } from "@/constants";
 
 export type AppArea = "admin" | "portal";
 
@@ -54,5 +54,5 @@ export function landingFor(roles: readonly string[], callback: string | null | u
 /** `/login?callbackUrl=<đường dẫn hiện tại>` — quay lại đúng trang + bộ lọc sau khi đăng nhập. */
 export function loginUrlFor(currentPath: string | null | undefined): string {
   const safe = safeCallbackUrl(currentPath);
-  return safe ? `/login?callbackUrl=${encodeURIComponent(safe)}` : "/login";
+  return safe ? `${APP_ROUTES.login}?callbackUrl=${encodeURIComponent(safe)}` : APP_ROUTES.login;
 }

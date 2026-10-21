@@ -262,7 +262,7 @@ export const FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS = {
 
 /**
  * Khách hàng B2B — resource `customer-customers` (BE CustomerController + CustomerOnboardingController,
- * SCRUM-450). CREATE = Sales tạo khách + gửi / gửi lại lời mời portal (seed V20261015000100: SALES_STAFF,
+ * SCRUM-450). CREATE = Sales tạo khách + gửi / gửi lại lời mời portal (seed V20261017000100: SALES_STAFF,
  * ECOMMERCE_ADMIN, SYSTEM_ADMIN). Đổi trạng thái dùng resource `customer-status` riêng;
  * Sales có quyền duyệt khách nhưng không được khoá / mở lại tài khoản.
  */
@@ -302,7 +302,7 @@ export const QUOTE_PERMISSIONS = {
 
 /**
  * Yêu cầu làm mẫu — resource `production-sample-requests` (BE SampleRequestController, SCRUM-403;
- * seed V20261010000500 + V20261015000200: CUSTOMER V/R/APPROVE, SALES_STAFF có APPROVE).
+ * seed V20261010000500 + V20261017000200: CUSTOMER V/R/APPROVE, SALES_STAFF có APPROVE).
  */
 export const SAMPLE_REQUEST_PERMISSIONS = {
   viewPage: "production-sample-requests:VIEW_PAGE",
@@ -330,19 +330,19 @@ export const CATALOG_CUSTOMER_PRICE_PERMISSIONS = {
 
 /**
  * Thiết kế đã khách xác nhận — `design-snapshots` (BE PR #109 `DesignSnapshotController`, cấp cho SALES_STAFF ở
- * V20261015000800). Chỉ back-office; BE từ chối khách hàng dù khách cũng có mã quyền này.
+ * V20261017000800). Chỉ back-office; BE từ chối khách hàng dù khách cũng có mã quyền này.
  */
 export const DESIGN_SNAPSHOT_PERMISSIONS = {
   read: "design-snapshots:READ",
 } as const;
 
-/** Xuất phôi cho LSX + gửi / nhận gia công — `production-material-issues` (seed V20261015000400). */
+/** Xuất phôi cho LSX + gửi / nhận gia công — `production-material-issues` (seed V20261017000400). */
 export const MATERIAL_ISSUE_PERMISSIONS = {
   read: "production-material-issues:READ",
   create: "production-material-issues:CREATE",
 } as const;
 
-/** QC thành phẩm LSX — `production-qc-results` (seed V20261015000420: QC_STAFF, WAREHOUSE_MANAGER). */
+/** QC thành phẩm LSX — `production-qc-results` (seed V20261017000420: QC_STAFF, WAREHOUSE_MANAGER). */
 export const PRODUCTION_QC_PERMISSIONS = {
   read: "production-qc-results:READ",
   create: "production-qc-results:CREATE",
