@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 
 import { ORDER_STALE_ERROR_CODES, adminCancelErrorView } from "../errors";
 import { useAdminCancelOrder } from "../mutations";
-import { adminCancelOrderSchema } from "../schemas";
+import { adminCancelOrderSchema } from "../input-schemas";
 import { orderKeys } from "../queries";
 
 import type { Order } from "../types";

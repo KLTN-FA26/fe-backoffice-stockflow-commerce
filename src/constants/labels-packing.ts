@@ -87,7 +87,7 @@ export const PACKING_UI_LABELS = {
       `Còn ${amount} phải thanh toán trước khi giao cho hãng. Vẫn đóng gói bình thường, nhưng bước bàn giao sẽ bị từ chối cho tới khi đơn được thanh toán.`,
     printWaitingTitle: "Hàng in chưa về bàn đóng gói",
     printWaitingDescription:
-      "Đơn còn đang sản xuất hàng in nên lúc này chỉ đóng được hàng có sẵn. Muốn đóng và giao phần có sẵn trước, đơn phải được phép giao một phần — nhờ Sale bật trên đơn. Hàng in sẽ về bàn đóng gói sau khi sản xuất xong.",
+      "Dòng in chưa sẵn sàng — chỉ đóng được phần hàng có sẵn; muốn giao trước phần này thì đơn phải được Sale cho phép giao một phần. Hàng in sẽ về bàn đóng gói sau khi sản xuất xong.",
     refetchFailed: "Không tải lại được dữ liệu mới nhất — đang hiện bản đã tải trước đó.",
     voidedPackages: (labels: string) => `Kiện đã huỷ: ${labels}`,
   },

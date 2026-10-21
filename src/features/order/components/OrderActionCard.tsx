@@ -5,10 +5,10 @@ import { allowedOrderActions, isOrderTerminal } from "../lifecycle";
 
 import { OrderCancelAction } from "./OrderCancelAction";
 import { OrderHoldNotice } from "./OrderHoldNotice";
+import { OrderRemainderClosureAction } from "./OrderRemainderClosureAction";
 import {
   OrderDeliveryFailureAction,
   OrderHoldAction,
-  OrderRemainderClosureAction,
   OrderResolveHoldAction,
 } from "./OrderStatusActions";
 

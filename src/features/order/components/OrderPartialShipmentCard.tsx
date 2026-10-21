@@ -2,7 +2,7 @@ import { ORDER_PARTIAL_SHIPMENT_LABELS, ORDER_PERMISSIONS } from "@/constants";
 
 import { partialShipmentControl } from "../partial-shipment";
 
-import { OrderPartialShipmentAction } from "./OrderStatusActions";
+import { OrderPartialShipmentAction } from "./OrderPartialShipmentAction";
 
 import type { PermissionCode } from "@/lib/auth";
 import type { Order } from "../types";
@@ -10,7 +10,12 @@ import type { Order } from "../types";
 interface OrderPartialShipmentCardProps {
   order: Pick<
     Order,
-    "orderId" | "orderNumber" | "status" | "allowPartialShipment" | "printLinesReady"
+    | "orderId"
+    | "orderNumber"
+    | "status"
+    | "statusBeforeHold"
+    | "allowPartialShipment"
+    | "printLinesReady"
   >;
   can: (code: PermissionCode) => boolean;
 }

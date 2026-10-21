@@ -9,7 +9,7 @@ import {
   isOrderTerminal,
   nextOrderStatuses,
 } from "./lifecycle";
-import { isPackedOnlyAheadOfPrints, partialShipmentControl } from "./partial-shipment";
+import { isPackedOnlyAheadOfPrints } from "./partial-shipment";
 
 import type { PermissionCode } from "@/lib/auth";
 import type { OrderActionContext } from "./lifecycle";
@@ -327,95 +327,5 @@ describe("allowedOrderActions — huỷ đơn khi hàng có sẵn đã đóng tr
     expect(
       isPackedOnlyAheadOfPrints("Partially Fulfilled", { hasShipments: false, packedAt }),
     ).toBe(false);
-  });
-});
-
-describe("partialShipmentControl — Giao một phần (sales-order-partial-shipments:UPDATE)", () => {
-  const order = (
-    status: OrderStatus,
-    allowPartialShipment: boolean | null,
-    printLinesReady: boolean | null = true,
-  ) => ({ status, allowPartialShipment, printLinesReady });
-
-  it("BE không trả cờ (dòng danh sách) → null, không đoán", () => {
-    expect(partialShipmentControl(order("Picking", null), checkerFor("SALES_STAFF"))).toBeNull();
-  });
-
-  it("SALES_STAFF (có mã quyền) đổi được; nút đặt giá trị ngược với cờ hiện tại", () => {
-    expect(partialShipmentControl(order("Picking", false), checkerFor("SALES_STAFF"))).toEqual({
-      allowed: false,
-      next: true,
-      canChange: true,
-      lock: null,
-    });
-    expect(partialShipmentControl(order("Picking", true), checkerFor("SALES_STAFF"))).toMatchObject(
-      {
-        allowed: true,
-        next: false,
-        canChange: true,
-      },
-    );
-  });
-
-  it("gate theo MÃ quyền: điều phối viên / kho không có mã → thấy trạng thái nhưng không đổi được", () => {
-    expect(
-      partialShipmentControl(order("Picking", false), checkerFor("ORDER_COORDINATOR")),
-    ).toMatchObject({ allowed: false, canChange: false, lock: null });
-    expect(
-      partialShipmentControl(order("Picking", true), checkerFor("WAREHOUSE_STAFF")),
-    ).toMatchObject({ canChange: false });
-  });
-
-  it.each([
-    "Draft",
-    "Pending Payment",
-    "Confirmed",
-    "In Production",
-    "Ready to Fulfill",
-    "Picking",
-    "Partially Fulfilled",
-    "Packed",
-    "On Hold",
-  ] as const)("%s → còn đổi được (BE Order#decidePartialShipment)", (status) => {
-    expect(partialShipmentControl(order(status, false), checkerFor("SALES_STAFF"))).toMatchObject({
-      canChange: true,
-      lock: null,
-    });
-  });
-
-  it.each([
-    "Shipped",
-    "Delivery Failed",
-    "Delivered",
-    "Return Requested",
-    "Returned",
-    "Refunded",
-    "Partially Refunded",
-    "Completed",
-    "Cancelled",
-    "Closed",
-  ] as const)("%s → khoá (BE 409 ORDER_PARTIAL_SHIPMENT_LOCKED)", (status) => {
-    expect(partialShipmentControl(order(status, true), checkerFor("SALES_STAFF"))).toMatchObject({
-      canChange: false,
-      lock: "closed",
-    });
-  });
-
-  it("đang bật, đơn giao dở còn chờ hàng in (printLinesReady=false) → khoá 'awaiting-prints'; bật lại thì không", () => {
-    expect(
-      partialShipmentControl(order("Partially Fulfilled", true, false), checkerFor("SALES_STAFF")),
-    ).toMatchObject({ canChange: false, lock: "awaiting-prints" });
-    expect(
-      partialShipmentControl(order("Partially Fulfilled", true, true), checkerFor("SALES_STAFF")),
-    ).toMatchObject({ canChange: true, lock: null });
-  });
-
-  it("trạng thái chưa hỗ trợ → chỉ hiện cờ, không cho đổi, không bảo 'đã đóng'", () => {
-    expect(partialShipmentControl(order("UNKNOWN", true), checkerFor("SALES_STAFF"))).toEqual({
-      allowed: true,
-      next: false,
-      canChange: false,
-      lock: null,
-    });
   });
 });

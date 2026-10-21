@@ -16,8 +16,9 @@
 export type { BackendOrderStatus, Order, OrderDto, OrderLine, OrderStatus } from "./types";
 
 // Schemas
-export { adminCancelOrderSchema, orderDtoSchema, orderPageDtoSchema } from "./schemas";
-export type { AdminCancelOrderInput as AdminCancelOrderFormInput } from "./schemas";
+export { adminCancelOrderSchema } from "./input-schemas";
+export type { AdminCancelOrderInput as AdminCancelOrderFormInput } from "./input-schemas";
+export { orderDtoSchema, orderPageDtoSchema } from "./schemas";
 
 // Status mapping
 export { mapBackendOrderStatus, toBackendOrderStatuses } from "./status-map";

@@ -64,15 +64,34 @@ export interface PartialShipmentControl {
 }
 
 /**
- * Điều khiển giao một phần của đơn, hoặc null khi BE không trả cờ (không đoán). Khoá:
- * - đơn đã đi / đóng (`PARTIAL_SHIPMENT_OPEN_STATUSES`);
- * - đang bật mà đơn PARTIALLY_FULFILLED còn chờ hàng in (`printLinesReady = false`): hàng có sẵn đã đi trước
- *   hàng in nên đơn đã tách — BE 409 khi tắt. Khoá này chỉ gợi ý sớm; BE vẫn là người quyết (đơn ON_HOLD giữ từ
- *   trạng thái đó chỉ biết qua 409).
+ * BE `Order.awaitingProduction` (PACK-EARLY): hàng có sẵn đã bàn giao trước khi hàng in xong, đơn tách hẳn và
+ * chờ sản xuất. Cột này KHÔNG có trong `OrderResponse`, nên suy từ `printLinesReady` theo đúng
+ * `Order#printLinesReady`: `printLinesReady = !hasPrintLines || (!printing && !awaitingProduction)`, với
+ * `printing` = IN_PRODUCTION, hoặc ON_HOLD giữ từ IN_PRODUCTION (lúc đó chưa có lô nào đi nên awaiting = false).
+ * Vậy `printLinesReady === false` mà đơn không còn "đang in" thì chỉ có thể là đang chờ sản xuất — kể cả khi đơn
+ * ON_HOLD giữ từ PARTIALLY_FULFILLED (cờ này vẫn đúng suốt thời gian bị giữ).
+ */
+export function isAwaitingProduction(
+  order: Pick<Order, "status" | "statusBeforeHold" | "printLinesReady">,
+): boolean {
+  if (order.printLinesReady !== false) return false;
+  const printing =
+    order.status === "In Production" ||
+    (order.status === "On Hold" && order.statusBeforeHold === "In Production");
+  return !printing;
+}
+
+/**
+ * Điều khiển giao một phần của đơn, hoặc null khi BE không trả cờ (không đoán). Khoá theo
+ * `Order#decidePartialShipment` (BE kiểm tra theo thứ tự này):
+ * - đơn đã đi / đóng (`PARTIAL_SHIPMENT_OPEN_STATUSES`) → "closed";
+ * - muốn TẮT mà đơn đang chờ sản xuất (`isAwaitingProduction`) → "awaiting-prints": đơn đã tách nên BE
+ *   409 ORDER_PARTIAL_SHIPMENT_LOCKED cho tới khi hàng in xong hoặc phần còn lại được đóng. Đơn IN_PRODUCTION
+ *   chưa giao lô nào thì vẫn tắt được.
  * Quyền tra theo MÃ (`sales-order-partial-shipments:UPDATE`), không theo vai trò.
  */
 export function partialShipmentControl(
-  order: Pick<Order, "status" | "allowPartialShipment" | "printLinesReady">,
+  order: Pick<Order, "status" | "statusBeforeHold" | "allowPartialShipment" | "printLinesReady">,
   can: (code: PermissionCode) => boolean,
 ): PartialShipmentControl | null {
   if (order.allowPartialShipment === null) return null;
@@ -81,9 +100,7 @@ export function partialShipmentControl(
   if (order.status === "UNKNOWN") return { allowed, next: !allowed, lock: null, canChange: false };
   let lock: PartialShipmentLock | null = null;
   if (!PARTIAL_SHIPMENT_OPEN_STATUSES.includes(order.status)) lock = "closed";
-  else if (allowed && order.status === "Partially Fulfilled" && order.printLinesReady === false) {
-    lock = "awaiting-prints";
-  }
+  else if (allowed && isAwaitingProduction(order)) lock = "awaiting-prints";
   return {
     allowed,
     next: !allowed,

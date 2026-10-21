@@ -7,7 +7,7 @@
 
 import { api } from "@/lib/api/client";
 
-import { orderHistoryDtoSchema } from "./schemas";
+import { orderHistoryDtoSchema } from "./history-schemas";
 import { mapBackendOrderStatus } from "./status-map";
 
 import type { OrderHistoryEntry, OrderHistoryEntryDto } from "./types";

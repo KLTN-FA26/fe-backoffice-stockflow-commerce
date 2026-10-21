@@ -58,6 +58,7 @@ export {
   TRANSFER_FIELD_MESSAGES,
   TRANSFER_REASON_LABELS,
 } from "./labels-transfer";
+export { SHARED_QUERY_ROOTS } from "./query-roots";
 export {
   FULFILLMENT_LIMITS,
   INVENTORY_ITEM_OPTIONS_PAGE_SIZE,

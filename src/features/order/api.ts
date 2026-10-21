@@ -19,7 +19,7 @@ import type {
   HoldOrderValues,
   RemainderClosureValues,
   ResolveOrderHoldValues,
-} from "./schemas";
+} from "./input-schemas";
 
 const ORDERS_PATH = "/orders";
 

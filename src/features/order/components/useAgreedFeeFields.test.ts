@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseFeeAmount } from "./RemainderFeeFields";
+import { parseFeeAmount } from "./useAgreedFeeFields";
 
 describe("parseFeeAmount — số tiền phí gõ tay → số nguyên VND, không đọc sai lặng lẽ", () => {
   it.each([

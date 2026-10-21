@@ -8,7 +8,7 @@
 
 import { createMutation } from "@/lib/api/query-factory";
 
-import { ORDER_ACTION_LABELS } from "@/constants";
+import { ORDER_ACTION_LABELS, SHARED_QUERY_ROOTS } from "@/constants";
 
 import {
   adminCancelOrder,
@@ -84,15 +84,19 @@ export const useCloseOrderRemainder = createMutation<RemainderClosureInput, void
 
 /**
  * Cho phép / dừng giao một phần của đơn. Đổi cờ `allowPartialShipment` của đơn (detail + list) và thêm một mục
- * vào lịch sử đơn — cả hai nằm dưới `orderKeys.all`. Màn đóng gói / bàn giao đọc cờ này qua BE khi gọi
- * (không giữ bản sao ở FE) nên không có key khác để làm mới.
+ * vào lịch sử đơn — cả hai nằm dưới `orderKeys.all`. Cờ này còn quyết việc kho được làm (hoàn tất đóng gói
+ * một phần, thêm lô vào chuyến, bàn giao) nên làm mới luôn task / phiên đóng gói và chuyến xe qua root dùng chung.
  * Không có `successMessage` cố định: lời báo phụ thuộc `allowed` nên call site phát toast; `showErrorToast: false`
  * vì call site map lỗi (409 ORDER_PARTIAL_SHIPMENT_LOCKED…) ngay trong dialog.
  */
 export const useDecidePartialShipment = createMutation<PartialShipmentInput, void>(
   decidePartialShipment,
   {
-    invalidate: [orderKeys.all],
+    invalidate: [
+      orderKeys.all,
+      [SHARED_QUERY_ROOTS.fulfillmentTasks],
+      [SHARED_QUERY_ROOTS.fulfillmentLoads],
+    ],
     showErrorToast: false,
   },
 );

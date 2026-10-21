@@ -6,7 +6,7 @@
 
 import { api } from "@/lib/api/client";
 
-import type { PartialShipmentValues } from "./schemas";
+import type { PartialShipmentValues } from "./input-schemas";
 
 const ORDERS_PATH = "/orders";
 
