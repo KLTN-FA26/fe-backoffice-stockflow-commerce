@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PRODUCT_PERMISSIONS, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
-import { installApi, pickOption, renderApp } from "../product-test-utils";
+import { goToLastStep, installApi, pickOption, renderApp } from "../product-test-utils";
 import { ProductCreate } from "./ProductCreate";
 
 const { pushMock } = vi.hoisted(() => ({ pushMock: vi.fn() }));
@@ -102,7 +102,9 @@ function setup(
 beforeEach(() => pushMock.mockClear());
 afterEach(() => vi.restoreAllMocks());
 
-describe("ProductCreate — ô thương hiệu / danh mục", () => {
+// Luồng wizard nhiều bước (Radix Select + chuyển bước) chậm khi cả bộ test chạy song song → 15 s
+// như PurchaseOrderCreate.test.
+describe("ProductCreate — ô thương hiệu / danh mục", { timeout: 15_000 }, () => {
   it("sửa: thương hiệu / danh mục đổ đúng sau khi tải và Lưu gửi lại đúng id", async () => {
     const { put } = setup(PRODUCT_PERMISSIONS.update);
     const user = userEvent.setup();
@@ -114,6 +116,7 @@ describe("ProductCreate — ô thương hiệu / danh mục", () => {
     // Ô đã đóng chỉ hiện tên — không chép khoảng thụt lề của danh sách
     expect(screen.getByRole("combobox", { name: /Danh mục/ }).textContent).toBe("Ly giấy cấp 5");
 
+    await goToLastStep(user);
     await user.click(screen.getByRole("button", { name: "Lưu thay đổi" }));
     await waitFor(() =>
       expect(put).toHaveBeenCalledWith(
@@ -186,7 +189,7 @@ describe("ProductCreate — thương hiệu / danh mục đã ngưng dùng", () 
   });
 });
 
-describe("ProductCreate — sửa bị 409 OPTIMISTIC_LOCK", () => {
+describe("ProductCreate — sửa bị 409 OPTIMISTIC_LOCK", { timeout: 15_000 }, () => {
   it("giữ nội dung đang nhập, nêu ô người khác vừa đổi, lần lưu sau gửi version mới", async () => {
     // Người khác lưu mô tả trước: từ lúc đó BE trả bản version 2 và từ chối PUT version 1
     let otherSaved = false;
@@ -206,6 +209,7 @@ describe("ProductCreate — sửa bị 409 OPTIMISTIC_LOCK", () => {
     const name = await screen.findByDisplayValue("Túi tote");
     await user.clear(name);
     await user.type(name, "Bản của tôi");
+    await goToLastStep(user);
     await user.click(screen.getByRole("button", { name: "Lưu thay đổi" }));
 
     expect(await screen.findByText(/người khác đổi: Mô tả tiếng Việt/)).toBeInTheDocument();

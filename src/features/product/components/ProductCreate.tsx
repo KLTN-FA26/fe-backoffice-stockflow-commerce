@@ -22,24 +22,22 @@ import {
   useUpdateProduct,
 } from "@/features/product";
 
-import { PageHeader } from "@/components/shared/PageHeader";
-
 import { useAttributes } from "../attribute-queries";
 import { previewMatrix } from "../axes-draft";
-import { ProductAxesFields, createAxesIssue } from "./ProductAxesFields";
-import { ProductMasterFields } from "./ProductMasterFields";
-import { ProductFormBackLink } from "./ProductFormNavigation";
-import {
-  ProductFormSaveBar,
-  ProductFormServerAlert,
-  productFormBlock,
-  useMatrixCreateConfirm,
-} from "./ProductFormParts";
+import { useProductWizard } from "./create/useProductWizard";
+import { stepOfField } from "./create/wizard-steps";
+import { createAxesIssue } from "./ProductAxesFields";
+import { productFormBlock, useMatrixCreateConfirm } from "./ProductFormParts";
+import { ProductWizardView } from "./ProductWizardView";
 import { useProductEditSource } from "./useProductEditSource";
 
 import type { Product, ProductDraftFormValues } from "@/features/product";
 import type { AxisDraft } from "../axes-draft";
 
+/**
+ * Tạo (`productId` trống) / sửa nháp sản phẩm theo wizard — Thông tin chung → Mô tả → Trục biến thể
+ * (chỉ khi tạo) → Rà soát. Wizard chỉ lo chuyển bước; lưu, xử lý lỗi BE, xác nhận số SKU ở đây.
+ */
 export function ProductCreate({ productId }: { productId?: string }) {
   const isEditing = Boolean(productId);
   const router = useRouter();
@@ -60,6 +58,14 @@ export function ProductCreate({ productId }: { productId?: string }) {
     control: form.control,
     name: ["productCode", "categoryId"],
   });
+  const attributes = attributesQuery.data?.items ?? [];
+  // Cùng cách tính với `ProductAxesFields` — chặn "Tiếp tục" ở bước trục khi ma trận lỗi
+  const matrix = previewMatrix(axes, attributes, productCode || "MÃ");
+  const wizard = useProductWizard({
+    form,
+    isEditing,
+    axesIssue: isEditing ? null : createAxesIssue(axes, matrix),
+  });
 
   const handleError = (error: unknown) => {
     const apiError =
@@ -68,6 +74,8 @@ export function ProductCreate({ productId }: { productId?: string }) {
         : new ApiError(0, "UNKNOWN_ERROR", "Không lưu được sản phẩm.");
     const mapped = mapCreateProductError(apiError, axes.length > 0);
     applyServerFieldErrors(mapped.fieldErrors, form.setError);
+    // Lỗi theo ô → về bước sớm nhất chứa ô lỗi; lỗi chung / lỗi trục ở lại bước rà soát
+    wizard.jumpToEarliest(Object.keys(mapped.fieldErrors).flatMap((f) => stepOfField(f) ?? []));
     setServerMessage(mapped.message);
     // 409 OPTIMISTIC_LOCK khi sửa: nhận `version` mới, giữ nội dung đang nhập, nêu ô bị đổi
     if (isEditing && apiError.code === "OPTIMISTIC_LOCK") {
@@ -96,14 +104,17 @@ export function ProductCreate({ productId }: { productId?: string }) {
       updateMutation.mutate({ id: productId, ...update, version });
       return;
     }
-    const preview = previewMatrix(axes, attributesQuery.data?.items ?? [], values.productCode);
+    const preview = previewMatrix(axes, attributes, values.productCode);
     // Kiểm trục trước khi dựng request (`toAxisInputs` parse zod — trục rỗng sẽ ném lỗi); trục sinh
     // nhiều hơn một SKU → xác nhận số SKU trước khi tạo cả ma trận
     const axesIssue = createAxesIssue(axes, preview);
-    if (axesIssue) return setServerMessage(axesIssue);
+    if (axesIssue) {
+      wizard.jumpToEarliest(["axes"]);
+      return setServerMessage(axesIssue);
+    }
     const skuCount = axes.length > 0 ? preview.total : 1;
     matrixConfirm.request(buildCreateProductInput(values, axes), skuCount);
-  });
+  }, wizard.jumpToErrors);
 
   const blocked = productFormBlock({
     isEditing,
@@ -116,34 +127,21 @@ export function ProductCreate({ productId }: { productId?: string }) {
   if (blocked) return blocked;
 
   return (
-    <>
-      <PageHeader
-        title={isEditing ? "Chỉnh sửa sản phẩm" : "Tạo sản phẩm"}
-        subtitle="Lưu Product master ở trạng thái Draft cùng biến thể: một biến thể mặc định, hoặc đủ ma trận nếu chọn trục."
-        actions={<ProductFormBackLink />}
-      />
-      <form onSubmit={submit} noValidate className="space-y-4 pb-16">
-        <ProductFormServerAlert message={serverMessage} />
-        <ProductMasterFields
-          brands={brandsQuery.data ?? []}
-          categories={categoriesQuery.data?.items ?? []}
-          form={form}
-          isEditing={isEditing}
-        />
-        {!isEditing && (
-          <ProductAxesFields
-            productCode={productCode}
-            categoryId={categoryId}
-            value={axes}
-            onChange={setAxes}
-          />
-        )}
-        <ProductFormSaveBar
-          isEditing={isEditing}
-          isPending={createMutation.isPending || updateMutation.isPending}
-        />
-      </form>
-      {matrixConfirm.dialog}
-    </>
+    <ProductWizardView
+      wizard={wizard}
+      form={form}
+      isEditing={isEditing}
+      brands={brandsQuery.data ?? []}
+      categories={categoriesQuery.data?.items ?? []}
+      productCode={productCode}
+      categoryId={categoryId}
+      axes={axes}
+      onAxesChange={setAxes}
+      matrix={axes.length > 0 && matrix.total > 0 ? matrix : null}
+      serverMessage={serverMessage}
+      isPending={createMutation.isPending || updateMutation.isPending}
+      onSubmit={() => void submit()}
+      confirmDialog={matrixConfirm.dialog}
+    />
   );
 }
