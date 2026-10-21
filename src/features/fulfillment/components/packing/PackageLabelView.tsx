@@ -1,10 +1,12 @@
 "use client";
 
+import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Printer } from "lucide-react";
 
 import { UI_LABELS } from "@/constants";
-import { packingErrorMessage } from "@/features/fulfillment/packing-errors";
-import { usePackageLabel } from "@/features/fulfillment/packing-queries";
+import { isStalePackingError, packingErrorMessage } from "@/features/fulfillment/packing-errors";
+import { packingKeys, usePackageLabel } from "@/features/fulfillment/packing-queries";
 import { Alert } from "@/components/shared/Alert";
 import { Skeleton } from "@/components/shared/Skeleton";
 import { Button } from "@/components/ui/button";
@@ -29,6 +31,14 @@ export function PackageLabelView({
 }) {
   const query = usePackageLabel({ taskId, packageId }, true);
   const label = query.data;
+  const queryClient = useQueryClient();
+  // Phiên đã đổi (kiện không còn niêm phong, đã huỷ, trạng thái đổi…) → tải lại phiên để trạm khớp BE
+  useEffect(() => {
+    if (query.isError && isStalePackingError(query.error)) {
+      void queryClient.invalidateQueries({ queryKey: packingKeys.session(taskId) });
+      void queryClient.invalidateQueries({ queryKey: packingKeys.queues() });
+    }
+  }, [query.isError, query.error, queryClient, taskId]);
 
   return (
     <div className="space-y-4">

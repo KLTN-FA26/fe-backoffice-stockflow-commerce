@@ -2,7 +2,12 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { PACKING_ERROR_MESSAGES, UI_LABELS } from "@/constants";
+import {
+  PACKING_ERROR_MESSAGES,
+  PACKING_FIELD_MESSAGES,
+  PACKING_INVALID_RESPONSE_MESSAGE,
+  UI_LABELS,
+} from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { toast } from "@/components/shared/Toast";
 
@@ -204,6 +209,34 @@ describe("trạm đóng gói — quét kiểm", () => {
     await waitFor(() =>
       expect(post).toHaveBeenCalledWith(SCAN_URL, expect.objectContaining({ quantity: 2 })),
     );
+    // Quét hàng loạt là một lần duy nhất: ô số lượng về 1, lần quét sau chỉ đóng 1
+    await waitFor(() => expect(quantity).toHaveValue("1"));
+    await scanCode(user, "TEE-BLK-M");
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
+    expect(post.mock.calls[1]?.[1]).toMatchObject({ quantity: 1 });
+  });
+
+  it("phản hồi sai hợp đồng (parse lỗi): không đưa vào 'Gửi lại' cùng scanId; tải lại phiên; lần quét kế dùng scanId mới", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const user = userEvent.setup();
+    const { post, get } = renderPackingStation({
+      session: openPackageSession(),
+      post: () => ({ [SCAN_URL]: () => ({ taskId: "chi-co-mot-field" }) }),
+    });
+    await scanCode(user, "TEE-BLK-M");
+    expect(
+      await screen.findAllByText(new RegExp(PACKING_INVALID_RESPONSE_MESSAGE.slice(0, 30))),
+    ).not.toHaveLength(0);
+    expect(screen.queryByRole("button", { name: P.action.retryScan })).toBeNull();
+    await waitFor(() =>
+      expect(
+        get.mock.calls.filter(([url]) => String(url).endsWith("packing-session")).length,
+      ).toBeGreaterThan(1),
+    );
+    await scanCode(user, "TEE-BLK-M");
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
+    const ids = post.mock.calls.map(([, body]) => (body as { scanId: string }).scanId);
+    expect(new Set(ids).size).toBe(2);
   });
 
   it("lỗi mạng: lần quét giữ nguyên scanId, 'Gửi lại' dùng ĐÚNG id đó (BE không ghi hai lần)", async () => {
@@ -281,7 +314,7 @@ describe("trạm đóng gói — quét kiểm", () => {
     );
   });
 
-  it("dòng theo lô: hỏi số lô (chọn trong các lô đã lấy) trước khi gửi, body có lotNumber", async () => {
+  it("dòng theo lô: hỏi số lô — gõ / quét mã lô (không phân biệt hoa thường) khớp lô đã lấy, body có đúng tên lô; lô lạ bị chặn ở form", async () => {
     const user = userEvent.setup();
     const { post } = renderPackingStation({
       session: openPackageSession({ lines: [lotLine()] }),
@@ -294,12 +327,19 @@ describe("trạm đóng gói — quét kiểm", () => {
     });
     await scanCode(user, "MUG-WHT");
     const dialog = await screen.findByRole("dialog");
-    // Chưa chọn lô → không gửi
+    const lot = within(dialog).getByLabelText(P.scan.promptLot);
+    expect(lot).toHaveFocus();
+    // Chưa nhập lô → không gửi
     await user.click(within(dialog).getByRole("button", { name: P.scan.promptSubmit }));
-    expect(within(dialog).getByText("Chọn số lô")).toBeInTheDocument();
+    expect(within(dialog).getByText(PACKING_FIELD_MESSAGES.lotRequired)).toBeInTheDocument();
+    // Lô không thuộc hàng đã lấy → chặn, không gọi API
+    await user.type(lot, "LOT-Z");
+    await user.click(within(dialog).getByRole("button", { name: P.scan.promptSubmit }));
+    expect(within(dialog).getByText(PACKING_FIELD_MESSAGES.lotUnknown)).toBeInTheDocument();
     expect(post).not.toHaveBeenCalled();
-    await pickSelectOption(user, P.scan.promptLot, P.scan.lotOption("LOT-B", 2));
-    await user.click(within(dialog).getByRole("button", { name: P.scan.promptSubmit }));
+    // Quét mã lô bằng máy quét (kết thúc Enter) viết thường → gửi đúng "LOT-B"
+    await user.clear(lot);
+    await user.type(lot, "lot-b{Enter}");
     await waitFor(() =>
       expect(post).toHaveBeenCalledWith(
         SCAN_URL,

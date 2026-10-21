@@ -17,9 +17,11 @@ const { fulfillment } = UI_LABELS;
 export function PackingNotices({
   session,
   access,
+  waitingPick,
 }: {
   session: PackingSession;
   access: PackingAccess;
+  waitingPick: boolean;
 }) {
   const owner = session.packerName ?? undefined;
   const due = session.paymentDue;
@@ -40,7 +42,7 @@ export function PackingNotices({
           {N.managerDescription}
         </Alert>
       )}
-      {access.canStart && <Alert tone="info">{N.pendingStart}</Alert>}
+      {access.canStart && !waitingPick && <Alert tone="info">{N.pendingStart}</Alert>}
       {due && due.amountDueBeforeHandover > 0 && (
         <Alert tone="warning" title={N.paymentTitle}>
           {N.paymentDescription(formatMoney(due.amountDueBeforeHandover, due.currency))}

@@ -126,7 +126,10 @@ export function CompleteDialog({
     complete.mutate(
       {
         taskId: session.taskId,
-        requestId: completionRequestId(session.taskId),
+        requestId: completionRequestId(
+          session.taskId,
+          ready.sealed.map((pkg) => pkg.packageId),
+        ),
         partial: mode === "partial",
         note: parsed.data.note || undefined,
       },

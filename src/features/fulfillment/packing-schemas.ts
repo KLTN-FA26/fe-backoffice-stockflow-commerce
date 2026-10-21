@@ -124,6 +124,8 @@ export const bePackShipmentSchema = z.object({
   deliveryMode: tolerantEnum(DELIVERY_MODES),
   packageCount: count,
   codAmount: measure.nullish(),
+  /** Tiền tệ của `codAmount` (BE PR #136 bổ sung); thiếu thì chỉ hiện "có thu hộ". */
+  currency: z.string().nullish(),
   partial: z.boolean(),
   partialNote: z.string().nullish(),
   readyAt: z.string().nullish(),

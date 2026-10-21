@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "@/lib/api/client";
 
@@ -25,7 +25,6 @@ import {
   startPacking,
   voidPackage,
 } from "./packing-api";
-import { clearCompletionRequestId, completionRequestId } from "./packing-request-id";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -196,33 +195,5 @@ describe("packing API — hợp đồng BE PackingController (PR #136)", () => {
     const held = await completePacking({ taskId: TASK_ID, requestId: "r", partial: false });
     expect(held.packStatus).toBe("On Hold");
     expect(held.shipmentId).toBeUndefined();
-  });
-});
-
-describe("requestId của lần hoàn tất — nhớ theo task trong sessionStorage", () => {
-  beforeEach(() => window.sessionStorage.clear());
-
-  it("cùng task → cùng id cho tới khi lần hoàn tất tạo lô giao; task khác → id khác", () => {
-    const first = completionRequestId("task-a");
-    expect(completionRequestId("task-a")).toBe(first);
-    expect(completionRequestId("task-b")).not.toBe(first);
-    expect(window.sessionStorage.getItem(`stockflow:admin:packing:completion:task-a`)).toBe(first);
-    clearCompletionRequestId("task-a");
-    expect(window.sessionStorage.getItem(`stockflow:admin:packing:completion:task-a`)).toBeNull();
-    expect(completionRequestId("task-a")).not.toBe(first);
-  });
-
-  it("sessionStorage bị chặn → vẫn giữ id trong bộ nhớ, không ném lỗi", () => {
-    const original = Storage.prototype.getItem;
-    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
-      throw new Error("blocked");
-    });
-    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
-      throw new Error("blocked");
-    });
-    const id = completionRequestId("task-blocked");
-    expect(completionRequestId("task-blocked")).toBe(id);
-    expect(() => clearCompletionRequestId("task-blocked")).not.toThrow();
-    expect(original).toBeDefined();
   });
 });

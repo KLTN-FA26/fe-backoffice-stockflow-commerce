@@ -84,7 +84,7 @@ export function parcelView(s: PackSessionState, parcel: ParcelState) {
   });
 }
 
-function shipmentView(shipment: ShipmentState) {
+function shipmentView(shipment: ShipmentState, currency: string) {
   return omitUndefined({
     shipmentId: shipment.shipmentId,
     code: shipment.code,
@@ -92,6 +92,7 @@ function shipmentView(shipment: ShipmentState) {
     deliveryMode: "PARCEL",
     packageCount: shipment.packageCount,
     codAmount: shipment.codAmount,
+    currency,
     partial: shipment.partial,
     partialNote: shipment.partialNote,
     readyAt: shipment.readyAt,
@@ -112,7 +113,7 @@ export function sessionView(s: PackSessionState, packStatus: string, order: Orde
     packedAt: s.packedAt,
     lines: s.lines.map((line) => lineView(s, line)),
     packages: s.parcels.map((p) => parcelView(s, p)),
-    shipments: s.shipments.map(shipmentView),
+    shipments: s.shipments.map((shipment) => shipmentView(shipment, order.currency)),
     paymentDue: paymentDueOf(order),
   });
 }

@@ -40,14 +40,17 @@ export function PackingStatusCard({
   session,
   access,
   actor,
+  waitingPick,
 }: {
   session: PackingSession;
   access: PackingAccess;
   actor: FulfillmentActor;
+  /** Lấy hàng chưa xong (theo task) → chưa nhận đơn đóng gói được, ẩn nút Bắt đầu. */
+  waitingPick: boolean;
 }) {
   const start = useStartPacking();
   const [dialog, setDialog] = useState<"complete" | "reverify" | null>(null);
-  const idle = noActionText(session, access);
+  const idle = waitingPick ? N.waitingPick : noActionText(session, access);
   const owner = access.isOwner ? S.you : (session.packerName ?? S.waiting);
 
   return (
@@ -79,7 +82,7 @@ export function PackingStatusCard({
         )}
       </dl>
       <div className="space-y-2">
-        {access.canStart && (
+        {access.canStart && !waitingPick && (
           <Button
             type="button"
             size="sm"
@@ -105,7 +108,7 @@ export function PackingStatusCard({
             <ShieldCheck className="size-3.5" /> {UI_LABELS.packing.action.reverify}
           </Button>
         )}
-        {idle && !access.canStart && !access.canWork && !access.canReverify && (
+        {idle && (waitingPick || (!access.canStart && !access.canWork && !access.canReverify)) && (
           <p className="text-ink-tertiary text-center text-xs">{idle}</p>
         )}
         {actor.can(FULFILLMENT_PICK_PERMISSIONS.viewPage) && (

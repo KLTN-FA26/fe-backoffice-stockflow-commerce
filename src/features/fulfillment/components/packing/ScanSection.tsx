@@ -42,6 +42,7 @@ export function ScanSection({ session }: { session: PackingSession }) {
     session,
     target,
     quantityText: quantity,
+    onQuantityUsed: () => setQuantity("1"),
   });
 
   return (

@@ -176,12 +176,22 @@ describe("các cổng phụ", () => {
     expect(canCreateTask(actorOf(IDENTITIES.qcStaff))).toBe(false);
   });
 
-  it("canDownloadArtifact: người được gán, quản lý kho, QC; điều phối và NV kho khác thì không", () => {
+  it("canDownloadArtifact: người được gán, quản lý kho, QC; NV kho khác chỉ khi pick đã xong (BE #136 mở cho người đóng); điều phối không", () => {
     const others = task("Picked", "Pending", SOMEONE_ELSE);
     expect(canDownloadArtifact(task("Picked", "Pending"), actorOf(IDENTITIES.warehouseStaff))).toBe(
       true,
     );
-    expect(canDownloadArtifact(others, actorOf(IDENTITIES.warehouseStaff))).toBe(false);
+    expect(canDownloadArtifact(others, actorOf(IDENTITIES.warehouseStaff))).toBe(true);
+    // Pick chưa xong: người không được gán vẫn bị chặn
+    expect(
+      canDownloadArtifact(
+        task("Picking", "Pending", SOMEONE_ELSE),
+        actorOf(IDENTITIES.warehouseStaff),
+      ),
+    ).toBe(false);
+    expect(
+      canDownloadArtifact(task("Picking", "Pending"), actorOf(IDENTITIES.warehouseStaff)),
+    ).toBe(true);
     expect(canDownloadArtifact(others, actorOf(IDENTITIES.warehouseManager))).toBe(true);
     expect(canDownloadArtifact(others, actorOf(IDENTITIES.qcStaff))).toBe(true);
     expect(canDownloadArtifact(others, actorOf(IDENTITIES.orderCoordinator))).toBe(false);

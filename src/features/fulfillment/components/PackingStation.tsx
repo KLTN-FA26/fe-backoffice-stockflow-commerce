@@ -8,6 +8,7 @@ import {
   ADMIN_ROUTES,
   FULFILLMENT_PACKAGE_PERMISSIONS,
   FULFILLMENT_PICK_PERMISSIONS,
+  PICK_STATUS,
   UI_LABELS,
 } from "@/constants";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
@@ -43,8 +44,7 @@ function PackingStationBody({ id }: { id: string }) {
   const refs = useTaskReferences(actor);
   const [labelId, setLabelId] = useQueryState("label", parseAsString);
   const sessionQuery = usePackingSession(id, { enabled: canRead });
-  // Task (thiết kế đã khoá + lịch sử đối chiếu) tách khỏi phiên: người đóng không phải người lấy hàng
-  // nhận 404 ở đây (BE chỉ cho người được gán / quản lý kho / QC) mà việc đóng gói vẫn chạy bình thường
+  // Task (thiết kế đã khoá, lịch sử đối chiếu, trạng thái lấy hàng) tách khỏi phiên
   const taskQuery = useFulfillmentTask(id, {
     enabled: canRead && actor.can(FULFILLMENT_PICK_PERMISSIONS.read),
   });
@@ -68,6 +68,8 @@ function PackingStationBody({ id }: { id: string }) {
   const access = packingAccess(session, actor);
   const task = taskQuery.data;
   const skuByLine = Object.fromEntries(session.lines.map((line) => [line.orderLineId, line.sku]));
+  // Chưa lấy hàng xong thì chưa nhận đơn được (BE `PACKING_NOT_READY`) — chỉ biết khi đọc được task
+  const waitingPick = access.canStart && !!task && task.pickStatus !== PICK_STATUS.PICKED;
   const showDesign = hasPrintLines(session) || (task?.integrityEvidence.length ?? 0) > 0;
 
   return (
@@ -106,7 +108,7 @@ function PackingStationBody({ id }: { id: string }) {
       ) : (
         <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
           <div className="min-w-0 space-y-5">
-            <PackingNotices session={session} access={access} />
+            <PackingNotices session={session} access={access} waitingPick={waitingPick} />
             <PackingLinesSection session={session} />
             {access.canWork && <ScanSection session={session} />}
             <PackagesSection
@@ -131,14 +133,14 @@ function PackingStationBody({ id }: { id: string }) {
                 </Section>
               </>
             )}
-            {showDesign && !task && taskQuery.isError && (
-              <Alert tone="info" title={packing.notice.noTaskAccessTitle}>
-                {packing.notice.noTaskAccessDescription}
-              </Alert>
-            )}
           </div>
           <div className="space-y-5">
-            <PackingStatusCard session={session} access={access} actor={actor} />
+            <PackingStatusCard
+              session={session}
+              access={access}
+              actor={actor}
+              waitingPick={waitingPick}
+            />
           </div>
         </div>
       )}

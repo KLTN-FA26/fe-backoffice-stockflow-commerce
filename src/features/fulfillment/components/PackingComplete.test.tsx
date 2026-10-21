@@ -211,6 +211,26 @@ describe("mở lại / huỷ kiện", () => {
     expect(await screen.findByText(/Kiện đã huỷ: PKG-/)).toBeInTheDocument();
   });
 
+  it("lô giao có currency: hiện số tiền thu hộ theo currency của lô", async () => {
+    renderPackingStation({
+      session: fullySealed({
+        packages: [sealedPackage({ shipmentId: SHIPMENT_ID })],
+        shipments: [packShipment({ codAmount: 450000, currency: "VND" })],
+      }),
+    });
+    expect(await screen.findByText(/450\.000/)).toBeInTheDocument();
+  });
+
+  it("lô giao chưa có currency (BE cũ): chỉ báo 'có thu hộ', không đoán tiền tệ", async () => {
+    renderPackingStation({
+      session: fullySealed({
+        packages: [sealedPackage({ shipmentId: SHIPMENT_ID })],
+        shipments: [packShipment({ codAmount: 450000, currency: undefined })],
+      }),
+    });
+    expect(await screen.findByText(P.shipments.hasCod)).toBeInTheDocument();
+  });
+
   it("kiện đã vào lô giao: chỉ còn xem nhãn", async () => {
     renderPackingStation({
       session: fullySealed({
@@ -321,7 +341,7 @@ describe("hoàn tất đóng gói", () => {
     await user.click(within(dialog).getByRole("button", { name: P.complete.submitFull }));
     await waitFor(() => expect(post).toHaveBeenCalledTimes(1));
     const first = (post.mock.calls[0]?.[1] as { requestId: string }).requestId;
-    expect(window.sessionStorage.getItem(REQUEST_KEY)).toBe(first);
+    expect(JSON.parse(window.sessionStorage.getItem(REQUEST_KEY) ?? "{}").id).toBe(first);
     await user.click(within(dialog).getByRole("button", { name: P.complete.submitFull }));
     await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
     expect((post.mock.calls[1]?.[1] as { requestId: string }).requestId).toBe(first);
@@ -510,6 +530,26 @@ describe("nhãn kiện", () => {
     expect(
       screen.getByText(PACKING_ERROR_MESSAGES.PACKAGE_NOT_SEALED, { exact: false }),
     ).toBeInTheDocument();
+  });
+
+  it("BE trả 409 PACK_STATE_CONFLICT khi lấy nhãn → báo và tải lại phiên", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const user = userEvent.setup();
+    const { get } = renderPackingStation({
+      session: fullySealed(),
+      get: () => ({
+        [`${PKG}/label`]: () => {
+          throw new ApiError(409, "PACK_STATE_CONFLICT", "Packing is ON_HOLD");
+        },
+      }),
+    });
+    await user.click(await screen.findByRole("button", { name: P.action.label }));
+    expect(await screen.findByText(P.label.unavailableTitle)).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        get.mock.calls.filter(([url]) => String(url).endsWith("packing-session")).length,
+      ).toBeGreaterThan(1),
+    );
   });
 
   it("QC không có nút xem nhãn (BE @PreAuthorize chỉ NV kho / quản lý kho)", async () => {

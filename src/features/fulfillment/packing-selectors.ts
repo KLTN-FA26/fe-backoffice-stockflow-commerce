@@ -68,6 +68,17 @@ export function lotChoices(line: Pick<PackLine, "lots">): { lot: PackLot; left: 
     .filter((choice) => choice.left > 0);
 }
 
+/**
+ * Lô đã lấy cho dòng khớp với chữ người đóng gõ / quét (không phân biệt hoa thường, bỏ khoảng trắng
+ * hai đầu — như BE `same`). Trả đúng tên lô BE để gửi lên; không khớp → undefined.
+ */
+export function matchLot(line: Pick<PackLine, "lots">, text: string): PackLot | undefined {
+  const wanted = text.trim().toLowerCase();
+  return wanted === ""
+    ? undefined
+    : line.lots.find((lot) => lot.lotNumber.toLowerCase() === wanted);
+}
+
 /* ── Hoàn tất ────────────────────────────────────────────────────────── */
 
 export interface CompletionReadiness {

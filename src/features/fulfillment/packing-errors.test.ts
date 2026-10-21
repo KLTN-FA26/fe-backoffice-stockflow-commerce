@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 
 import {
   FULFILLMENT_ERROR_MESSAGES,
   PACKING_ERROR_MESSAGES,
+  PACKING_INVALID_RESPONSE_MESSAGE,
   PACKING_VALIDATION_FIELD_MESSAGES,
   UI_LABELS,
 } from "@/constants";
@@ -36,6 +38,12 @@ const BE_CODES = [
   ["PACKAGE_NOT_FOUND", 404],
   ["OUT_OF_DATA_SCOPE", 403],
 ] as const;
+
+const zodError = () => {
+  const result = z.object({ wanted: z.number() }).safeParse({});
+  if (result.success) throw new Error("expected a parse failure");
+  return result.error;
+};
 
 const err = (code: string, status = 409, fieldErrors?: Record<string, string>) =>
   new ApiError(status, code, "English message from BE with a uuid 3f2c9a10", fieldErrors);
@@ -96,6 +104,7 @@ describe("isStalePackingError — mã làm phiên cũ → tải lại", () => {
     "PACKAGE_NOT_SEALED",
     "PACKAGE_SHIPPED",
     "PACKAGE_NOT_FOUND",
+    "PACK_LOT_MISMATCH",
     "PACKING_INCOMPLETE",
     "PACK_NOTHING_TO_SHIP",
     "CONFLICT",
@@ -108,7 +117,6 @@ describe("isStalePackingError — mã làm phiên cũ → tải lại", () => {
     "PACK_ITEM_NOT_IN_ORDER",
     "PACK_SCAN_AMBIGUOUS",
     "PACK_SCAN_ID_CONFLICT",
-    "PACK_LOT_MISMATCH",
     "PACK_SERIAL_MISMATCH",
     "PACK_PARTIAL_NOT_ALLOWED",
     "VALIDATION_FAILED",
@@ -117,8 +125,9 @@ describe("isStalePackingError — mã làm phiên cũ → tải lại", () => {
     expect(isStalePackingError(err(code))).toBe(false);
   });
 
-  it("không phải ApiError → không coi là phiên cũ", () => {
+  it("không phải ApiError → không coi là phiên cũ; phản hồi sai hợp đồng (zod) thì tải lại phiên", () => {
     expect(isStalePackingError(new Error("x"))).toBe(false);
+    expect(isStalePackingError(zodError())).toBe(true);
   });
 });
 
@@ -128,6 +137,12 @@ describe("isRetryablePackingError — giữ nguyên scanId / requestId khi gửi
     expect(isRetryablePackingError(new ApiError(503, "HTTP_503", "x"))).toBe(true);
     expect(isRetryablePackingError(err("LOCK_TIMEOUT"))).toBe(true);
     expect(isRetryablePackingError(err("OPTIMISTIC_LOCK"))).toBe(true);
+  });
+
+  it("phản hồi sai hợp đồng (zod) hoặc lỗi lạ → KHÔNG gửi lại cùng id (thử lại thủ công dùng id mới)", () => {
+    expect(isRetryablePackingError(zodError())).toBe(false);
+    expect(isRetryablePackingError(new Error("boom"))).toBe(false);
+    expect(packingErrorMessage(zodError())).toBe(PACKING_INVALID_RESPONSE_MESSAGE);
   });
 
   it("lỗi nghiệp vụ 4xx (BE không ghi gì) → lần sau dùng id mới", () => {

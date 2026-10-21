@@ -171,13 +171,15 @@ export function canCreateTask(actor: FulfillmentActor): boolean {
 }
 
 /**
- * Tải artifact thiết kế: packages:READ + (người được gán là NV kho, hoặc quản lý kho / QC).
- * Điều phối đơn bị loại ở cả `@PreAuthorize` lẫn `requireArtifactAccess`.
+ * Tải artifact thiết kế: packages:READ + (quản lý kho / QC, hoặc NV kho là người được gán, hoặc — BE
+ * PR #136 mở cho người đóng gói — NV kho cùng kho khi pick đã xong). Điều phối đơn bị loại ở cả
+ * `@PreAuthorize` lẫn `requireArtifactAccess`.
  */
 export function canDownloadArtifact(task: FulfillmentGateState, actor: FulfillmentActor): boolean {
   if (!actor.can(FULFILLMENT_PACKAGE_PERMISSIONS.read) || isTaskCancelled(task)) return false;
   if (hasStaffRole(actor, [WAREHOUSE_MANAGER, QC_STAFF])) return true;
-  return hasStaffRole(actor, [WAREHOUSE_STAFF]) && isAssignee(task, actor);
+  if (!hasStaffRole(actor, [WAREHOUSE_STAFF])) return false;
+  return isAssignee(task, actor) || task.pickStatus === PICK_STATUS.PICKED;
 }
 
 /** Đơn bị huỷ → BE huỷ cả pick lẫn pack (OrderCancellationListener). */

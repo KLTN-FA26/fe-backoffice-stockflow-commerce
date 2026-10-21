@@ -86,9 +86,6 @@ export const PACKING_UI_LABELS = {
     paymentDescription: (amount: string) =>
       `Còn ${amount} phải thanh toán trước khi giao cho hãng. Vẫn đóng gói bình thường, nhưng bước bàn giao sẽ bị từ chối cho tới khi đơn được thanh toán.`,
     refetchFailed: "Không tải lại được dữ liệu mới nhất — đang hiện bản đã tải trước đó.",
-    noTaskAccessTitle: "Không xem được thiết kế đã khoá của task này",
-    noTaskAccessDescription:
-      "Chỉ người được gán lấy hàng, quản lý kho và QC xem được task và file thiết kế. Việc quét kiểm và đóng kiện không bị ảnh hưởng.",
     voidedPackages: (labels: string) => `Kiện đã huỷ: ${labels}`,
   },
   lines: {
@@ -127,7 +124,7 @@ export const PACKING_UI_LABELS = {
     promptLine: "Dòng đơn hàng",
     promptLinePlaceholder: "Chọn dòng",
     promptLot: "Số lô",
-    promptLotPlaceholder: "Chọn lô đã lấy",
+    promptLotPlaceholder: "Quét hoặc gõ số lô",
     promptSerial: "Số serial",
     promptSerialHint: "Mỗi lần quét một đơn vị — quét serial của chiếc đang đóng.",
     promptSubmit: "Đóng vào kiện",
@@ -289,7 +286,8 @@ export const PACKING_FIELD_MESSAGES = {
   quantityTooLarge: `Tối đa ${PACKING_LIMITS.quantityMax.toLocaleString("vi-VN")} mỗi lần`,
   quantityExceedsHeld: "Vượt quá số đang có trong kiện",
   lineRequired: "Chọn dòng đơn hàng",
-  lotRequired: "Chọn số lô",
+  lotRequired: "Nhập hoặc quét số lô",
+  lotUnknown: "Số lô này không có trong hàng đã lấy cho dòng",
   serialRequired: "Nhập số serial",
   serialTooLong: `Tối đa ${PACKING_LIMITS.serialMax} ký tự`,
   codeRequired: "Nhập mã cần quét",
@@ -337,6 +335,13 @@ export const PACKING_ERROR_MESSAGES = {
   ORDER_CANCELLED: "Đơn hàng đã huỷ nên phiên đóng gói đã đóng.",
 } as const;
 
+/**
+ * Phản hồi của BE sai hợp đồng (zod parse lỗi): BE có thể ĐÃ ghi lần quét / thao tác, nên không gửi lại
+ * mù quáng — phiên được tải lại để xem kết quả thật.
+ */
+export const PACKING_INVALID_RESPONSE_MESSAGE =
+  "Máy chủ trả dữ liệu sai định dạng — thao tác có thể đã được ghi. Phiên đã được tải lại, kiểm tra trước khi quét tiếp.";
+
 /** Mã lỗi nghiệp vụ đóng gói — dữ liệu phiên đã đổi ở nơi khác thì tải lại (xem `packing-errors.ts`). */
 export const PACKING_STALE_ERROR_CODES = [
   "PACKING_NOT_READY",
@@ -349,6 +354,7 @@ export const PACKING_STALE_ERROR_CODES = [
   "PACKAGE_NOT_SEALED",
   "PACKAGE_SHIPPED",
   "PACKAGE_NOT_FOUND",
+  "PACK_LOT_MISMATCH",
   "PACKING_INCOMPLETE",
   "PACK_NOTHING_TO_SHIP",
   "ORDER_CANCELLED",

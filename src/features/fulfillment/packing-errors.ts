@@ -6,10 +6,13 @@
 import {
   FULFILLMENT_ERROR_MESSAGES,
   PACKING_ERROR_MESSAGES,
+  PACKING_INVALID_RESPONSE_MESSAGE,
   PACKING_STALE_ERROR_CODES,
   UI_LABELS,
   PACKING_VALIDATION_FIELD_MESSAGES,
 } from "@/constants";
+import { ZodError } from "zod";
+
 import { ApiError } from "@/lib/api/error";
 
 import { isStaleFulfillmentError } from "./errors";
@@ -42,6 +45,7 @@ function validationMessage(error: ApiError): string {
 
 /** Câu tiếng Việt cho một lỗi ở trạm đóng gói. */
 export function packingErrorMessage(error: unknown, state: PackingErrorState = {}): string {
+  if (error instanceof ZodError) return PACKING_INVALID_RESPONSE_MESSAGE;
   if (!(error instanceof ApiError)) return FULFILLMENT_ERROR_MESSAGES.generic;
   if (error.code === "PACKING_TAKEN" && state.packerName) {
     return UI_LABELS.packing.notice.takenTitle(state.packerName);
@@ -58,6 +62,8 @@ export function packingErrorMessage(error: unknown, state: PackingErrorState = {
 
 /** Phiên đóng gói / task đã đổi ở nơi khác → tải lại phiên (và hàng chờ). */
 export function isStalePackingError(error: unknown): boolean {
+  // Phản hồi sai hợp đồng: BE có thể đã ghi thao tác → xem lại phiên thật
+  if (error instanceof ZodError) return true;
   if (!(error instanceof ApiError)) return false;
   return (
     PACKING_STALE_ERROR_CODES.some((code) => code === error.code) || isStaleFulfillmentError(error)
@@ -66,11 +72,13 @@ export function isStalePackingError(error: unknown): boolean {
 
 /**
  * Lần gửi có thể chưa tới / chưa xong ở BE (mất mạng, 5xx, khoá bận): giữ nguyên `scanId` /
- * `requestId` và cho gửi lại đúng request đó — BE trả 200 mà không ghi hai lần. Lỗi nghiệp vụ 4xx
- * thì BE đã từ chối và không ghi gì: lần quét kế tiếp dùng id mới.
+ * `requestId` và cho gửi lại đúng request đó — BE trả 200 mà không ghi hai lần. Lỗi nghiệp vụ 4xx thì
+ * BE đã từ chối và không ghi gì: lần quét kế tiếp dùng id mới. Phản hồi sai hợp đồng (parse lỗi, mọi
+ * lỗi không phải `ApiError`) KHÔNG gửi lại cùng id: BE đã trả lời — gửi lại chỉ nhận lại đúng phản hồi
+ * hỏng — nên thử lại thủ công dùng id mới sau khi phiên được tải lại.
  */
 export function isRetryablePackingError(error: unknown): boolean {
-  if (!(error instanceof ApiError)) return true;
+  if (!(error instanceof ApiError)) return false;
   return (
     error.status === 0 ||
     error.status >= 500 ||

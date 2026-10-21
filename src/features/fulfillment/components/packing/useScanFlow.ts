@@ -61,11 +61,14 @@ export function useScanFlow({
   session,
   target,
   quantityText,
+  onQuantityUsed,
 }: {
   taskId: string;
   session: PackingSession;
   target: PackPackage | undefined;
   quantityText: string;
+  /** Số lượng đã dùng cho một lần quét — ô số lượng về 1 (quét hàng loạt là một lần duy nhất). */
+  onQuantityUsed: () => void;
 }) {
   const scan = useScanPackage();
   const alive = useRef(true);
@@ -137,6 +140,8 @@ export function useScanFlow({
     }
     const plan = planScan(session.lines, raw);
     const base = { packageId: target.packageId, packageNo: target.packageNo };
+    // Số lượng khác 1 chỉ cho đúng lần quét này, không dính sang các lần quét sau
+    onQuantityUsed();
     const tracked = plan.kind === "line" && (plan.line.lotTracked || plan.line.serialTracked);
     if (tracked || plan.kind === "ambiguous") {
       const candidates =

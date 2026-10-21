@@ -290,31 +290,13 @@ describe("PackingStation — thiết kế đã khoá bên cạnh dòng tuỳ ch�
     ).toBeInTheDocument();
   });
 
-  it("người đóng không phải người lấy hàng (task không phải của họ) → không tải được file thiết kế", async () => {
-    const { get } = renderStation({
+  it("người đóng không phải người lấy hàng: pick đã xong → vẫn xem / tải được file thiết kế (BE #136)", async () => {
+    renderStation({
       identity: IDENTITIES.staffWithOrders,
       task: pickedTask({ assignedUserId: OTHER_PICKER_ID }),
     });
-    expect(await screen.findByText(/không có quyền xem file thiết kế/)).toBeInTheDocument();
-    expect(get.mock.calls.some(([url]) => String(url).includes("design-artifacts"))).toBe(false);
-    expect(screen.queryByRole("button", { name: "File in" })).toBeNull();
-  });
-
-  it("BE trả 404 cho task (người đóng không phải người lấy hàng) → trạm vẫn chạy, báo không xem được thiết kế", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    mockFulfillmentApi(IDENTITIES.staffWithOrders, {
-      [PATH]: () => {
-        throw new ApiError(404, "NOT_FOUND", "Resource not found");
-      },
-      [`${PATH}/packing-session`]: () => withPrintLine(),
-      "/orders": () => EMPTY_PAGE,
-    });
-    renderFulfillmentScreen(<PackingStation id={TASK_ID} />);
-    expect(await screen.findByText(UI_LABELS.packing.notice.noTaskAccessTitle)).toBeInTheDocument();
-    // Việc đóng gói không bị ảnh hưởng
-    expect(
-      screen.getByRole("button", { name: UI_LABELS.packing.action.complete }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "File in" })).toBeInTheDocument();
+    expect(screen.queryByText(/không có quyền xem file thiết kế/)).toBeNull();
   });
 
   it("thiếu fulfillment-packages:READ (điều phối đơn) → không gọi API phiên, báo không có quyền xem", async () => {
@@ -406,14 +388,28 @@ describe("PackingStation — kiểm tra lại thiết kế (flow X-CHK) và quy�
     ).toBeInTheDocument();
   });
 
-  it("chưa nhận đơn → nút Bắt đầu đóng gói; BE từ chối PACKING_NOT_READY thì báo bằng tiếng Việt", async () => {
+  it("lấy hàng chưa xong (theo task) → ẩn nút Bắt đầu đóng gói, nói lý do", async () => {
+    const { post } = renderStation({
+      identity: IDENTITIES.warehouseStaff,
+      task: apiTask({ pickStatus: "PICKING" }),
+      session: pendingSession(),
+    });
+    expect(await screen.findByText(UI_LABELS.packing.notice.waitingPick)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: UI_LABELS.packing.action.start })).toBeNull();
+    expect(screen.queryByText(UI_LABELS.packing.notice.pendingStart)).toBeNull();
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it("không đọc được task → vẫn có nút Bắt đầu; BE từ chối PACKING_NOT_READY thì báo bằng tiếng Việt", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const user = userEvent.setup();
     const error = vi.spyOn(toast, "error").mockImplementation(() => "");
     mockFulfillmentApi(
       IDENTITIES.warehouseStaff,
       {
-        [PATH]: () => apiTask({ pickStatus: "PICKING" }),
+        [PATH]: () => {
+          throw new ApiError(404, "NOT_FOUND", "Resource not found");
+        },
         [`${PATH}/packing-session`]: () => pendingSession(),
       },
       {

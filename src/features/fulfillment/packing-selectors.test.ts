@@ -15,6 +15,7 @@ import {
   leftToPack,
   linesMatchingCode,
   lotChoices,
+  matchLot,
   openPackages,
   planScan,
   visiblePackages,
@@ -142,5 +143,14 @@ describe("completionReadiness (BE PackingSession.complete)", () => {
       lines: [packLine({ packed: 3, shipped: 3, remaining: 0 })],
     });
     expect(completionReadiness(shipped).sealed).toHaveLength(0);
+  });
+});
+
+describe("matchLot — lô gõ / quét khớp lô đã lấy", () => {
+  it("không phân biệt hoa thường, bỏ khoảng trắng; trả đúng tên lô BE; lô lạ / rỗng → undefined", () => {
+    const line = lotLine();
+    expect(matchLot(line, "  lot-b ")?.lotNumber).toBe("LOT-B");
+    expect(matchLot(line, "LOT-Z")).toBeUndefined();
+    expect(matchLot(line, "   ")).toBeUndefined();
   });
 });

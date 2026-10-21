@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 
-import { PACKING_LIMITS, UI_LABELS } from "@/constants";
+import { PACKING_FIELD_MESSAGES, PACKING_LIMITS, UI_LABELS } from "@/constants";
 import { scanDetailSchema } from "@/features/fulfillment/packing-input-schemas";
-import { lotChoices } from "@/features/fulfillment/packing-selectors";
+import { lotChoices, matchLot } from "@/features/fulfillment/packing-selectors";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,6 +47,7 @@ export function ScanDetailDialog({
   const line = prompt.candidates.find((candidate) => candidate.orderLineId === lineId);
   const needsLine = prompt.candidates.length > 1;
   const lots = line ? lotChoices(line) : [];
+  // Một lô duy nhất còn đóng được → điền sẵn; ngoài ra gõ hoặc quét mã lô (gợi ý trong danh sách)
   const onlyLot = lots.length === 1 ? lots[0]?.lot.lotNumber : undefined;
   const effectiveLot = lot || onlyLot || "";
 
@@ -64,9 +65,15 @@ export function ScanDetailDialog({
       );
       return;
     }
+    // Lô gõ / quét phải khớp một lô đã lấy cho dòng — gửi đúng tên lô của BE
+    const matched = line?.lotTracked ? matchLot(line, parsed.data.lotNumber) : undefined;
+    if (line?.lotTracked && !matched) {
+      setErrors({ lotNumber: PACKING_FIELD_MESSAGES.lotUnknown });
+      return;
+    }
     onSubmit({
       orderLineId: parsed.data.orderLineId || undefined,
-      lotNumber: parsed.data.lotNumber || undefined,
+      lotNumber: matched?.lotNumber,
       serialNumber: parsed.data.serialNumber || undefined,
     });
   };
@@ -111,20 +118,32 @@ export function ScanDetailDialog({
             <Label htmlFor="scan-lot" className="text-[0.8125rem]">
               {S.promptLot}
             </Label>
-            <Select value={effectiveLot} onValueChange={setLot}>
-              <SelectTrigger id="scan-lot" className={TRIGGER}>
-                <SelectValue placeholder={S.promptLotPlaceholder} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {lots.map(({ lot: choice, left }) => (
-                    <SelectItem key={choice.lotNumber} value={choice.lotNumber}>
-                      {S.lotOption(choice.lotNumber, left)}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+            <Input
+              id="scan-lot"
+              autoFocus
+              list="scan-lot-choices"
+              value={effectiveLot}
+              maxLength={PACKING_LIMITS.lotMax}
+              autoComplete="off"
+              spellCheck={false}
+              placeholder={S.promptLotPlaceholder}
+              aria-invalid={errors.lotNumber ? true : undefined}
+              onChange={(event) => {
+                setLot(event.target.value);
+                setErrors((current) => ({ ...current, lotNumber: "" }));
+              }}
+              className={`${fieldClass(!!errors.lotNumber)} font-[family-name:var(--font-mono)]`}
+            />
+            <datalist id="scan-lot-choices">
+              {lots.map(({ lot: choice, left }) => (
+                <option key={choice.lotNumber} value={choice.lotNumber}>
+                  {S.lotOption(choice.lotNumber, left)}
+                </option>
+              ))}
+            </datalist>
+            <p className="text-ink-tertiary mt-1 text-xs">
+              {lots.map(({ lot: choice, left }) => S.lotOption(choice.lotNumber, left)).join(" · ")}
+            </p>
             <FieldError>{errors.lotNumber}</FieldError>
           </div>
         )}

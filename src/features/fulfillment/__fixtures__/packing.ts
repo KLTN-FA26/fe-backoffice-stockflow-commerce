@@ -122,6 +122,7 @@ export function packShipment(overrides: Partial<PackShipment> = {}): PackShipmen
     deliveryMode: "PARCEL",
     packageCount: 1,
     codAmount: 0,
+    currency: "VND",
     partial: false,
     readyAt: "2026-10-10T03:40:00Z",
     ...overrides,
