@@ -2,12 +2,7 @@
 
 import Link from "next/link";
 
-import {
-  INVENTORY_LABELS,
-  INVENTORY_PAGE_SIZES,
-  INVENTORY_ROUTES,
-  INVENTORY_STORAGE_KEYS,
-} from "@/constants/inventory";
+import { INVENTORY_LABELS, INVENTORY_ROUTES, INVENTORY_STORAGE_KEYS } from "@/constants/inventory";
 import { INVENTORY_PERMISSIONS } from "@/constants/permissions";
 
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
@@ -26,7 +21,7 @@ import {
   InventoryOffline,
 } from "./InventoryFeedback";
 import { buildMovementColumns } from "./inventory-columns";
-import { serverPage } from "./inventory-page";
+import { InventoryPager } from "./InventoryPager";
 import { InventoryPermissionGate } from "./InventoryPermissionGate";
 import { InventoryToolbar } from "./InventoryToolbar";
 
@@ -80,16 +75,21 @@ function MovementHistoryContent() {
                 columns={MOVEMENT_COLUMNS}
                 data={query.data.items}
                 rowKey={(row) => row.movementId}
-                caption={INVENTORY_LABELS.movementTitle}
+                // Một trang BE = một trang bảng; phân trang ở InventoryPager bên dưới
                 pageSize={state.size}
-                pageSizeOptions={INVENTORY_PAGE_SIZES}
-                serverPagination={serverPage(query.data, state)}
               />
             ) : state.hasFilters ? (
               <InventoryNoFilterResults reset={() => void state.reset()} />
             ) : (
               <InventoryNoMovements />
             )}
+            <InventoryPager
+              data={query.data}
+              pending={query.isFetching}
+              size={state.size}
+              setSize={state.setSize}
+              setPage={(page) => void state.setPage(page)}
+            />
           </section>
         )
       )}

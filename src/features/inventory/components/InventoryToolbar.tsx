@@ -5,6 +5,7 @@ import {
   STOCK_MOVEMENT_LABELS,
   STOCK_MOVEMENT_TYPES,
 } from "@/constants/inventory";
+import { UI_LABELS } from "@/constants";
 import { STOCK_ADJUSTMENT_STATUSES } from "@/constants/statuses";
 import { statusLabelVi } from "@/lib/status-map";
 import { FORM_INPUT_CLASS, FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
@@ -43,7 +44,7 @@ export function InventoryToolbar({
   const summary = [
     {
       label: L.sku,
-      value: filters.sku || "Chưa nhập",
+      value: filters.sku || UI_LABELS.common.notEntered,
       active: Boolean(filters.sku),
       onClear: () => void state.setFilters({ sku: "" }),
     },

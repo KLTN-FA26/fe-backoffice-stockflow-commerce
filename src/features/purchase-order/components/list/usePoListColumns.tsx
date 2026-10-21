@@ -106,7 +106,7 @@ export function usePoListColumns({
     {
       ...statusColumn,
       key: PO_COLUMNS.STATUS,
-      // Đơn cần xử lý: viền trái (flagRow) + một dòng lý do để biết vì sao bị đánh dấu.
+      // Đơn cần xử lý: thêm một dòng lý do dưới trạng thái để biết vì sao bị đánh dấu.
       cell: (row) => {
         const reason = poAttentionReason(row);
         return (

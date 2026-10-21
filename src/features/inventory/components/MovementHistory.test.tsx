@@ -62,7 +62,7 @@ afterAll(() => {
 });
 
 const SKU_SEARCH = { name: `${INVENTORY_LABELS.sku}…` };
-const NEXT_PAGE = { name: "Sau" };
+const NEXT_PAGE = { name: INVENTORY_LABELS.next };
 
 // Radix Select dùng pointer capture — jsdom không có
 function patchRadix() {

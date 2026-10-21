@@ -19,8 +19,9 @@ Mã chứng từ (mono, link tới detail) · đối tượng liên quan · ngà
 `<StatusBadge>` · cột hành động (icon-button hoặc menu).
 
 - Số (SL, tiền) → **căn phải, `tabular-nums`, mono**.
-- Row trạng thái "cần chú ý" (Exception, Short, Discrepancy, On Hold) →
-  **left border 2px** nền `status.warning` rất nhạt ở mép trái.
+- Row trạng thái "cần chú ý" (Exception, Short, Discrepancy, On Hold): **không** tô viền trái /
+  nền riêng (đã bỏ — chốt 2026-10-21). Tín hiệu nằm ở chính ô `<StatusDot>` (tone warning/danger) và
+  dòng lý do nếu có. `flagRow` của `DataTable` chỉ gắn `data-flagged` cho test, không đổi giao diện.
 - Bulk-select checkbox cho thao tác hàng loạt. Có row được chọn → hiện action phụ cạnh
   nút export. Hành động destructive vẫn phải `<ConfirmDialog>`.
 

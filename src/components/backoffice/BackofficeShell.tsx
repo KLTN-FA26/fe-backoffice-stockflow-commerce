@@ -462,16 +462,20 @@ function SidebarSearchIcon() {
           onClick={() => {
             toggleSidebar();
             requestAnimationFrame(() =>
-              document.querySelector<HTMLInputElement>('input[aria-label="Tìm toàn cục"]')?.focus(),
+              document
+                .querySelector<HTMLInputElement>(
+                  `input[aria-label="${UI_LABELS.shell.globalSearch}"]`,
+                )
+                ?.focus(),
             );
           }}
           className="text-ink-secondary hover:bg-bg-muted hover:text-ink-primary size-8 rounded-[var(--r-sm)] bg-transparent"
-          aria-label="Tìm nhanh"
+          aria-label={UI_LABELS.shell.quickSearch}
         >
           <SearchIcon className="size-4" />
         </Button>
       </TooltipTrigger>
-      <TooltipContent side="right">Tìm nhanh (⌘K)</TooltipContent>
+      <TooltipContent side="right">{UI_LABELS.shell.quickSearchHint}</TooltipContent>
     </Tooltip>
   );
 }
@@ -507,7 +511,11 @@ function BackofficeSidebar() {
           <SidebarSearchIcon />
         ) : (
           // Ô search toàn cục thay chỗ logo, dùng hết chiều rộng sidebar như ô chọn kho
-          <SearchBar placeholder="Tìm nhanh (⌘K)" className="min-w-0" aria-label="Tìm toàn cục" />
+          <SearchBar
+            placeholder={UI_LABELS.shell.quickSearchHint}
+            className="min-w-0"
+            aria-label={UI_LABELS.shell.globalSearch}
+          />
         )}
       </SidebarHeader>
 

@@ -191,7 +191,8 @@ describe("adjustment queue", () => {
     await screen.findByText(INVENTORY_LABELS.noAdjustments);
     // Lọc trạng thái qua nút Filter của toolbar chuẩn (popover chọn một)
     await userEvent.click(screen.getByRole("button", { name: "Lọc trạng thái" }));
-    const options = await screen.findAllByRole("option");
+    // Chỉ lấy option trong popover (trang còn ô chọn "Dòng/trang" của InventoryPager)
+    const options = within(await screen.findByRole("listbox")).getAllByRole("option");
     expect(options.map((option) => option.textContent)).toEqual([
       "Chờ duyệt",
       "Đã ghi sổ",

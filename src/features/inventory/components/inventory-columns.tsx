@@ -26,7 +26,7 @@ import type { StockAdjustment, StockMovement } from "../types";
 
 const L = INVENTORY_LABELS;
 
-/** Phiếu chờ duyệt → viền trái cảnh báo (data-table-mode-a: row "cần chú ý"). */
+/** Phiếu chờ duyệt = row "cần chú ý" (data-table-mode-a) — gắn `data-flagged`, không tô viền. */
 export const isPendingAdjustment = (row: StockAdjustment) =>
   row.status === STOCK_ADJUSTMENT_STATUS.PENDING_APPROVAL;
 

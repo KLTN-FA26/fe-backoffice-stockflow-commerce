@@ -12,7 +12,13 @@ import {
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
-import { ADMIN_ROUTES, INVOICE_COLUMNS, INVOICE_STATUSES, STORAGE_KEYS } from "@/constants";
+import {
+  ADMIN_ROUTES,
+  INVOICE_COLUMNS,
+  INVOICE_STATUSES,
+  STORAGE_KEYS,
+  UI_LABELS,
+} from "@/constants";
 
 import { usePageConfig } from "@/hooks/use-page-config";
 import { useUrlFilters } from "@/hooks/use-url-filters";
@@ -174,7 +180,7 @@ export function InvoiceList() {
       clearLabel: "Xoá search chính",
       label: "Search chính",
       onClear: hasGlobalSearch ? () => filters.setQ("") : undefined,
-      value: filters.q || "Chưa nhập",
+      value: filters.q || UI_LABELS.common.notEntered,
     },
     {
       active: hasStatusFilter,

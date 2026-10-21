@@ -185,12 +185,20 @@ export function StackText({
   sub?: ReactNode;
   mono?: boolean;
 }) {
-  if (!main) return <EmptyCell />;
+  if (!main && !sub) return <EmptyCell />;
+  // Dòng chính trống nhưng có dòng phụ (NCC không có người liên hệ nhưng có email, xe chưa gán biển
+  // số…) → vẫn hiện dòng phụ, dòng chính là "—"
   return (
     <div className="flex min-w-0 flex-col gap-0.5">
-      <span className={mono ? `text-ink-primary ${MONO} text-[0.8125rem] font-medium` : CELL.name}>
-        {main}
-      </span>
+      {main ? (
+        <span
+          className={mono ? `text-ink-primary ${MONO} text-[0.8125rem] font-medium` : CELL.name}
+        >
+          {main}
+        </span>
+      ) : (
+        <EmptyCell />
+      )}
       {sub ? <span className={CELL.sub}>{sub}</span> : null}
     </div>
   );

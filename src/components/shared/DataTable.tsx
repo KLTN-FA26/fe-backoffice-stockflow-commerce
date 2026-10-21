@@ -59,7 +59,7 @@ interface DataTableProps<T> {
   /** Unique row key extractor. */
   rowKey: (row: T) => string;
   caption?: string;
-  /** Row gets `flag` left-border warning when true. */
+  /** Row "cần chú ý": gắn `data-flagged` (không đổi giao diện — viền trái đã bỏ, xem data-table-mode-a). */
   flagRow?: (row: T) => boolean;
   /** Click handler on row. */
   onRowClick?: (row: T) => void;

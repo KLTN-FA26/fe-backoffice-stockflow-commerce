@@ -3,6 +3,7 @@
 import { cn } from "cn";
 import { Filter } from "lucide-react";
 
+import { UI_LABELS } from "@/constants";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
@@ -24,9 +25,10 @@ import type { AttributeDataType } from "../attribute-schemas";
 export const ATTRIBUTE_ACTIVE_FILTERS = ["true", "false"] as const;
 type ActiveFilter = (typeof ATTRIBUTE_ACTIVE_FILTERS)[number];
 
+// Cùng nhãn cờ `active` với thương hiệu / danh mục — một nguồn duy nhất
 export const ATTRIBUTE_ACTIVE_LABEL: Record<ActiveFilter, string> = {
-  true: "Đang dùng",
-  false: "Ngừng dùng",
+  true: UI_LABELS.taxonomy.active,
+  false: UI_LABELS.taxonomy.inactive,
 };
 const TITLE = "Lọc thuộc tính";
 const ITEM_CLASS =

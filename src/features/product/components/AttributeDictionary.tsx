@@ -5,7 +5,7 @@ import { cn } from "cn";
 import { FolderTree, Plus, Search, Tags, XCircle } from "lucide-react";
 import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
 
-import { ATTRIBUTE_PERMISSIONS } from "@/constants";
+import { ATTRIBUTE_PERMISSIONS, UI_LABELS } from "@/constants";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useUrlTab } from "@/hooks/use-url-filters";
 import { usePermissionChecker } from "@/lib/auth";
@@ -168,7 +168,7 @@ export function AttributeDictionary() {
               items={[
                 {
                   label: "Search chính",
-                  value: q || "Chưa nhập",
+                  value: q || UI_LABELS.common.notEntered,
                   active: q !== "",
                   onClear: () => void setQ(null),
                   clearLabel: "Xoá search chính",
