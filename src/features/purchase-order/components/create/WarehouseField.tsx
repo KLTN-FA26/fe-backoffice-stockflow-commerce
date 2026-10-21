@@ -6,12 +6,12 @@ import { UI_LABELS } from "@/constants";
 import { Button } from "@/components/ui/button";
 import {
   Select,
-  SelectContent,
   SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 
 import { FieldError } from "./CreateFormPrimitives";
 import { fieldClass } from "./helpers";
@@ -52,7 +52,7 @@ export function WarehouseField({ w }: { w: CreatePoWizard }) {
             >
               <SelectValue placeholder={w.warehousesQuery.isLoading ? F.loading : F.placeholder} />
             </SelectTrigger>
-            <SelectContent>
+            <TitledSelectContent title={F.label}>
               <SelectGroup>
                 {/* Kho của nháp ngoài danh sách: ngừng hoạt động (khoá + nhãn) hoặc danh sách chưa tải được */}
                 {w.keptWarehouse && (
@@ -71,7 +71,7 @@ export function WarehouseField({ w }: { w: CreatePoWizard }) {
                   </SelectItem>
                 ))}
               </SelectGroup>
-            </SelectContent>
+            </TitledSelectContent>
           </Select>
         )}
       />

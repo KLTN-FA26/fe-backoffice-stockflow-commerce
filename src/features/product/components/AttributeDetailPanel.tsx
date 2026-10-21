@@ -10,6 +10,7 @@ import { SlideOverPanel } from "@/components/shared/SlideOverPanel";
 import { Button } from "@/components/ui/button";
 
 import { attributeErrorMessage } from "../attribute-errors";
+import { ActiveDot } from "../active-status";
 import { DATA_TYPE_LABEL } from "../attribute-labels";
 import { useDeleteAttribute, useDeleteAttributeValue } from "../attribute-queries";
 import { holdsValues } from "../attribute-schemas";
@@ -79,13 +80,7 @@ export function AttributeDetailPanel({
       title={attribute?.code ?? ""}
       monoTitle
       subtitle={attribute?.name}
-      badge={
-        attribute && (
-          <span className="text-ink-secondary text-xs">
-            {attribute.active ? "Đang dùng" : "Ngừng dùng"}
-          </span>
-        )
-      }
+      badge={attribute && <ActiveDot active={attribute.active} />}
     >
       {attribute && (
         <div className="space-y-6">

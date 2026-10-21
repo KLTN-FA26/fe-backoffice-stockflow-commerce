@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { parseAsInteger, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 
 import {
@@ -16,6 +14,7 @@ import { useSupplier } from "@/features/supplier";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { PageTabPanel, PageTabs } from "@/components/shared/PageTabs";
+import { BackLink } from "@/components/shared/BackLink";
 
 import { SupplierItemsTab } from "./supplier-detail/items/SupplierItemsTab";
 import { SupplierProfileTab } from "./supplier-detail/SupplierProfileTab";
@@ -68,14 +67,7 @@ function SupplierDetailContent({ supplierId }: { supplierId: string }) {
       <PageHeader
         title={supplier.name}
         subtitle={`${supplier.code} — hồ sơ nhà cung cấp`}
-        actions={
-          <Link
-            href={ADMIN_ROUTES.suppliers.list}
-            className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary inline-flex items-center gap-1.5 rounded-[var(--r-sm)] border px-3 py-1.5 text-[0.8125rem] font-medium transition-colors"
-          >
-            <ArrowLeft className="size-3.5" /> Quay lại
-          </Link>
-        }
+        actions={<BackLink href={ADMIN_ROUTES.suppliers.list} />}
       />
       {canReadItems && (
         <PageTabs

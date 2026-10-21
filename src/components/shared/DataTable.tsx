@@ -59,7 +59,7 @@ interface DataTableProps<T> {
   /** Unique row key extractor. */
   rowKey: (row: T) => string;
   caption?: string;
-  /** Row gets `flag` left-border warning when true. */
+  /** Row "cần chú ý": gắn `data-flagged` (không đổi giao diện — viền trái đã bỏ, xem data-table-mode-a). */
   flagRow?: (row: T) => boolean;
   /** Click handler on row. */
   onRowClick?: (row: T) => void;
@@ -69,7 +69,7 @@ interface DataTableProps<T> {
   onSelectionChange?: (keys: Set<string>) => void;
   /** Page size. Default 10. */
   pageSize?: number;
-  pageSizeOptions?: number[];
+  pageSizeOptions?: readonly number[];
   serverPagination?: {
     /** Zero-based, matching the shared/backend PageResponse contract. */
     page: number;
@@ -284,7 +284,6 @@ export function DataTable<T>({
                     className={cn(
                       "border-border-default transition-colors",
                       onRowClick && "cursor-pointer",
-                      isFlag && "shadow-[inset_2px_0_0_var(--warning)]",
                     )}
                   >
                     {selectable && (

@@ -2,6 +2,8 @@
 
 import { UI_LABELS } from "@/constants";
 
+import { CheckboxField } from "@/components/shared/CheckboxField";
+
 import { ProductInput } from "./form-controls";
 import { ProductFormField } from "./ProductFormField";
 import { BrandSelectField, CategorySelectField, TaxClassSelectField } from "./ProductMasterSelects";
@@ -74,14 +76,12 @@ export function ProductMasterFields({
         />
         <TaxClassSelectField control={control} error={errors.taxClass?.message} />
       </div>
-      <label className="text-ink-secondary mt-4 flex items-center gap-2 text-xs font-medium">
-        <input
-          {...register("customizable")}
-          type="checkbox"
-          className="border-border-strong accent-brand size-4 rounded-[var(--r-sm)]"
-        />
-        Sản phẩm cho phép cá nhân hoá / in ấn
-      </label>
+      <CheckboxField
+        control={control}
+        name="customizable"
+        label="Sản phẩm cho phép cá nhân hoá / in ấn"
+        className="mt-4"
+      />
     </section>
   );
 }

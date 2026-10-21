@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Printer, Truck } from "lucide-react";
+import { Printer, Truck } from "lucide-react";
 
 import { ADMIN_ROUTES, SHIPMENT_PERMISSIONS, UI_LABELS } from "@/constants";
 import { useCan, usePermissionChecker } from "@/lib/auth";
@@ -15,6 +15,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
+import { BackLink } from "@/components/shared/BackLink";
 
 import { RejectedScansNotice } from "./loading/RejectedScans";
 import { HandoverDialog } from "./manifest/HandoverDialog";
@@ -80,11 +81,7 @@ function ManifestBody({ id }: { id: string }) {
           subtitle={L.manifest.reconcileTitle}
           actions={
             <>
-              <Button variant="outline" size="sm" asChild>
-                <Link href={ADMIN_ROUTES.shipments.loading(load.loadId)}>
-                  <ArrowLeft className="size-3.5" /> {L.loadingTitle}
-                </Link>
-              </Button>
+              <BackLink href={ADMIN_ROUTES.shipments.loading(load.loadId)} label={L.loadingTitle} />
               <Button
                 variant="outline"
                 size="sm"

@@ -4,7 +4,9 @@ import { ChevronDown, ChevronRight, Folder, FolderOpen } from "lucide-react";
 
 import { TAXONOMY_BRAND_COLUMNS, TAXONOMY_CATEGORY_COLUMNS, UI_LABELS } from "@/constants";
 
-import { ActiveBadge } from "./form-parts";
+import { CELL } from "@/components/shared/column-helpers";
+
+import { ActiveDot } from "../../active-status";
 import { TaxonomyThumb } from "./TaxonomyThumb";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
@@ -15,9 +17,6 @@ const B = TAXONOMY_BRAND_COLUMNS;
 const C = TAXONOMY_CATEGORY_COLUMNS;
 const L = UI_LABELS.taxonomy;
 const F = L.field;
-const CELL = "text-[0.8125rem]";
-const MONO = `font-[family-name:var(--font-mono)] ${CELL}`;
-const NUMBER = `text-ink-secondary tabular-nums ${MONO}`;
 
 export const BRAND_COLUMN_LABELS: Record<string, string> = {
   [B.CODE]: F.code,
@@ -35,9 +34,11 @@ export const CATEGORY_COLUMN_LABELS: Record<string, string> = {
   [C.ACTIVE]: F.active,
 };
 
-const codeCell = (code: string) => (
-  <span className={`text-ink-primary font-medium ${MONO}`}>{code}</span>
-);
+// Cùng style cột mã / tên / trạng thái / nút xem của bảng Sản phẩm (data-table-mode-a)
+const codeCell = (code: string) => <span className={CELL.code}>{code}</span>;
+
+const activeCell = <T extends { active: boolean }>(key: string) =>
+  ({ key, header: F.active, cell: (row: T) => <ActiveDot active={row.active} /> }) as ColumnDef<T>;
 
 /** Cột bảng thương hiệu — đúng field `BrandResponse`. */
 export function buildBrandColumns(): ColumnDef<Brand>[] {
@@ -51,14 +52,14 @@ export function buildBrandColumns(): ColumnDef<Brand>[] {
     {
       key: B.NAME,
       header: F.name,
-      cell: (row) => <span className={`text-ink-primary ${CELL}`}>{row.name}</span>,
+      cell: (row) => <span className={CELL.name}>{row.name}</span>,
     },
     {
       key: B.SLUG,
       header: F.slug,
-      cell: (row) => <span className={`text-ink-secondary ${MONO}`}>{row.slug}</span>,
+      cell: (row) => <span className={CELL.ref}>{row.slug}</span>,
     },
-    { key: B.ACTIVE, header: F.active, cell: (row) => <ActiveBadge active={row.active} /> },
+    activeCell<Brand>(B.ACTIVE),
   ];
 }
 
@@ -76,7 +77,7 @@ function CategoryNameCell({ row, tree }: { row: CategoryRow; tree: CategoryTreeC
   const FolderIcon = hasChildren && open ? FolderOpen : Folder;
   return (
     <span
-      className={`text-ink-primary inline-flex items-center gap-1.5 ${CELL}`}
+      className={`${CELL.name} inline-flex items-center gap-1.5`}
       // Thụt lề theo cấp — giá trị tính từ dữ liệu nên không dùng được class tĩnh
       style={{ paddingInlineStart: tree ? `${row.depth * 1.5}rem` : undefined }}
     >
@@ -126,14 +127,14 @@ export function buildCategoryColumns(tree: CategoryTreeControls | null): ColumnD
       key: C.LEVEL,
       header: F.level,
       align: "right",
-      cell: (row) => <span className={NUMBER}>{row.depth + 1}</span>,
+      cell: (row) => <span className={CELL.number}>{row.depth + 1}</span>,
     },
     {
       key: C.SORT_ORDER,
       header: F.sortOrder,
       align: "right",
-      cell: (row) => <span className={NUMBER}>{row.sortOrder}</span>,
+      cell: (row) => <span className={CELL.number}>{row.sortOrder}</span>,
     },
-    { key: C.ACTIVE, header: F.active, cell: (row) => <ActiveBadge active={row.active} /> },
+    activeCell<CategoryRow>(C.ACTIVE),
   ];
 }

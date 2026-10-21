@@ -8,11 +8,14 @@ import { INVENTORY_PERMISSIONS } from "@/constants/permissions";
 
 import { hasPermission, useMyPermissions } from "@/lib/auth";
 
+import { DataTable } from "@/components/shared/DataTable";
 import { Button } from "@/components/ui/button";
 
 import { useMovements } from "../queries";
 import { InventoryError } from "./InventoryFeedback";
-import { MovementTable } from "./MovementTable";
+import { buildMovementColumns } from "./inventory-columns";
+
+const MOVEMENT_COLUMNS = buildMovementColumns();
 
 /**
  * Các lần chuyển vị trí gần đây — sổ kho lọc `type=MOVE` (BE `GET /inventory/movements`,
@@ -52,7 +55,12 @@ function RecentMovesList() {
       ) : query.isError ? (
         <InventoryError error={query.error} retry={() => void query.refetch()} />
       ) : query.data?.items.length ? (
-        <MovementTable items={query.data.items} />
+        <DataTable
+          columns={MOVEMENT_COLUMNS}
+          data={query.data.items}
+          rowKey={(row) => row.movementId}
+          caption={INVENTORY_LABELS.movementTitle}
+        />
       ) : (
         <p className="text-ink-secondary text-sm">{MOVE_LABELS.recentEmpty}</p>
       )}

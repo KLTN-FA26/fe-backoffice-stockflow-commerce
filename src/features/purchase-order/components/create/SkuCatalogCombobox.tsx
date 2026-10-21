@@ -6,6 +6,7 @@ import { Check, ChevronsUpDown } from "lucide-react";
 
 import { UI_LABELS } from "@/constants";
 import { formatMoney } from "@/features/purchase-order";
+import { DropdownTitle } from "@/components/shared/TitledSelectContent";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -77,6 +78,7 @@ export function SkuCatalogCombobox({
         className="w-[max(var(--radix-popover-trigger-width),28rem)] p-0"
         align="start"
       >
+        <DropdownTitle>{"SKU"}</DropdownTitle>
         <Command>
           <CommandInput placeholder={C.skuSearch} />
           <CommandList>

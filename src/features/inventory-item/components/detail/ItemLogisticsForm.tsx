@@ -11,8 +11,10 @@ import {
   FORM_TEXTAREA_CLASS,
 } from "@/components/shared/form-control-classes";
 import { Input } from "@/components/ui/input";
-import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
+import { CheckboxField } from "@/components/shared/CheckboxField";
 
 import { useSaveItemLogistics } from "../../mutations";
 import { logisticsFormSchema, STORAGE_CLASSES } from "../../schemas";
@@ -101,26 +103,20 @@ export function ItemLogisticsForm({ item, onDone }: { item: InventoryItem; onDon
                 <SelectTrigger id="lg-storage" className={FORM_SELECT_CLASS}>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <TitledSelectContent title={F.storageClass}>
                   {STORAGE_CLASSES.map((c) => (
                     <SelectItem key={c} value={c}>
                       {L.storageClass[c]}
                     </SelectItem>
                   ))}
-                </SelectContent>
+                </TitledSelectContent>
               </FormSelect>
             )}
           />
         </Field>
       </div>
       {CHECKS.map((name) => (
-        <label
-          key={name}
-          className="text-ink-secondary flex items-center gap-2 text-xs font-medium"
-        >
-          <input type="checkbox" {...form.register(name)} className="accent-brand size-4" />
-          {F[name]}
-        </label>
+        <CheckboxField key={name} control={form.control} name={name} label={F[name]} />
       ))}
       <Field
         label={F.shippingRestrictionNote}

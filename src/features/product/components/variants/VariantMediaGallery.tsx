@@ -6,6 +6,7 @@ import { ImageOff, Star, Trash2, Upload } from "lucide-react";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 
 import { variantErrorMessage } from "../../variant-errors";
 import {
@@ -98,12 +99,11 @@ export function VariantMediaGallery({
               <label className="relative block">
                 <Thumb productId={productId} variantId={variantId} media={m} />
                 {!compact && canPublish && !m.published && (
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     aria-label={`Chọn ảnh ${m.originalName ?? m.mediaId} để xuất bản`}
                     checked={selected.has(m.mediaId)}
-                    onChange={() => toggle(m.mediaId)}
-                    className="accent-brand absolute top-1.5 left-1.5 size-4"
+                    onCheckedChange={() => toggle(m.mediaId)}
+                    className="absolute top-1.5 left-1.5"
                   />
                 )}
                 <span className="absolute top-1.5 right-1.5 flex gap-1">

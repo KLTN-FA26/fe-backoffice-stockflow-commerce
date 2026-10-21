@@ -1,14 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { Eye } from "lucide-react";
 
 import { ADMIN_ROUTES, PO_COLUMNS, UI_LABELS } from "@/constants";
 import { formatDate } from "@/lib/format";
 import { formatMoney, poAttentionReason } from "@/features/purchase-order";
 import { ColumnFilterButton } from "@/components/shared/ListToolbar";
-import { statusCell } from "@/components/shared/column-helpers";
-import { Button } from "@/components/ui/button";
+import {
+  CELL,
+  EMPTY_CELL,
+  EmptyCell,
+  statusCell,
+  viewColumn,
+} from "@/components/shared/column-helpers";
 
 import { supplierLabel } from "./helpers";
 
@@ -58,7 +62,7 @@ export function usePoListColumns({
       cell: (row) => (
         <Link
           href={ADMIN_ROUTES.purchaseOrders.detail(row.poId)}
-          className="text-accent font-[family-name:var(--font-mono)] text-[0.8125rem] font-medium hover:underline"
+          className={`${CELL.code} hover:underline`}
         >
           {row.poNumber}
         </Link>
@@ -75,36 +79,34 @@ export function usePoListColumns({
           onChange={(v) => onColumnSearch(PO_COLUMNS.SUPPLIER, v)}
         />
       ),
-      cell: (row) => (
-        <span className="text-ink-primary text-[0.8125rem]">
-          {supplierLabel(row, supplierRefs)}
-        </span>
-      ),
+      cell: (row) => {
+        const label = supplierLabel(row, supplierRefs);
+        return label === EMPTY_CELL ? <EmptyCell /> : <span className={CELL.name}>{label}</span>;
+      },
     },
     {
       key: PO_COLUMNS.EXPECTED_DATE,
       header: UI_LABELS.purchaseOrder.expectedDateShort,
       sortable: true,
-      cell: (row) => (
-        <span className="text-ink-tertiary text-[0.8125rem] tabular-nums">
-          {row.expectedDate ? formatDate(row.expectedDate) : "—"}
-        </span>
-      ),
+      cell: (row) =>
+        row.expectedDate ? (
+          <span className={CELL.date}>{formatDate(row.expectedDate)}</span>
+        ) : (
+          <EmptyCell />
+        ),
     },
     {
       key: PO_COLUMNS.GRAND_TOTAL,
       header: UI_LABELS.purchaseOrder.totalAmount,
       align: "right",
       cell: (row) => (
-        <span className="text-ink-primary font-[family-name:var(--font-mono)] font-medium tabular-nums">
-          {formatMoney(row.grandTotal, row.currency)}
-        </span>
+        <span className={CELL.number}>{formatMoney(row.grandTotal, row.currency)}</span>
       ),
     },
     {
       ...statusColumn,
       key: PO_COLUMNS.STATUS,
-      // Đơn cần xử lý: viền trái (flagRow) + một dòng lý do để biết vì sao bị đánh dấu.
+      // Đơn cần xử lý: thêm một dòng lý do dưới trạng thái để biết vì sao bị đánh dấu.
       cell: (row) => {
         const reason = poAttentionReason(row);
         return (
@@ -120,23 +122,11 @@ export function usePoListColumns({
       },
     },
     {
+      ...viewColumn<PurchaseOrder>((row) => ({
+        label: `Xem chi tiết ${row.poNumber}`,
+        onOpen: () => onNavigate(row),
+      })),
       key: PO_COLUMNS.ACTIONS,
-      header: "",
-      cell: (row) => (
-        <Button
-          type="button"
-          variant="outline"
-          size="icon-sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            onNavigate(row);
-          }}
-          className="border-border-default bg-bg-surface text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary rounded-[var(--r-sm)]"
-          aria-label="Xem chi tiết"
-        >
-          <Eye className="size-3.5" />
-        </Button>
-      ),
     },
   ];
 }
