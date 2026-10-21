@@ -12,9 +12,12 @@ import { useUrlFilters } from "@/hooks/use-url-filters";
 import { useCan } from "@/lib/auth/components/Can";
 import { statusLabelVi } from "@/lib/status-map";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { ListStatsPanel } from "@/components/shared/ListStatsPanel";
-import { ListToolbar, type ListSummaryItem } from "@/components/shared/ListToolbar";
+import {
+  ListToolbar,
+  TOOLBAR_ACTION_CLASS,
+  type ListSummaryItem,
+} from "@/components/shared/ListToolbar";
 import { DataTable, type ColumnDef } from "@/components/shared/DataTable";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
@@ -115,9 +118,6 @@ function mergeStoredConfig(
     },
   };
 }
-
-const PAGE_SUBTITLE =
-  "Quản lý sản phẩm. Biến thể và ảnh nằm trong trang từng sản phẩm; logistics của SKU ở Hồ sơ hàng tồn.";
 
 export function ProductList() {
   const router = useRouter();
@@ -369,6 +369,42 @@ export function ProductList() {
           productFilters.reset();
         }}
         resetDisabled={!hasAnyConfig}
+        actions={
+          <>
+            <Button
+              type="button"
+              variant={productConfig.showStats ? "secondary" : "outline"}
+              size="sm"
+              onClick={() =>
+                updateProductsConfig((current) => ({ ...current, showStats: !current.showStats }))
+              }
+              className={cn(
+                "border-border-default bg-bg-surface text-ink-primary hover:bg-bg-muted",
+                TOOLBAR_ACTION_CLASS,
+                productConfig.showStats &&
+                  "border-brand bg-brand/10 text-brand hover:bg-brand/10 hover:text-brand border",
+              )}
+            >
+              <BarChart3 className="text-dot-info size-3.5" />
+              {productConfig.showStats ? "Ẩn thống kê" : "Hiện thống kê"}
+            </Button>
+            <Button
+              variant="default"
+              type="button"
+              size="sm"
+              onClick={() => canCreateProduct && router.push(ADMIN_ROUTES.products.create)}
+              disabled={!canCreateProduct}
+              title={canCreateProduct ? "Tạo sản phẩm" : PERMISSION_UI.productCreateDenied}
+              className={cn(
+                "bg-brand !text-ink-inverse hover:bg-brand-hover hover:!text-ink-inverse",
+                TOOLBAR_ACTION_CLASS,
+              )}
+            >
+              <Plus className="size-3.5" />
+              Tạo sản phẩm
+            </Button>
+          </>
+        }
       />
     );
   };
@@ -380,7 +416,7 @@ export function ProductList() {
   if (loadError) {
     return (
       <>
-        <PageHeader title="Sản phẩm" subtitle={PAGE_SUBTITLE} />
+        <h1 className="sr-only">Sản phẩm</h1>
         <EmptyState
           icon={<XCircle className="size-8" />}
           title="Không tải được dữ liệu sản phẩm"
@@ -405,43 +441,10 @@ export function ProductList() {
   }
 
   return (
-    <>
-      <PageHeader
-        title="Sản phẩm"
-        subtitle={PAGE_SUBTITLE}
-        actions={
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant={productConfig.showStats ? "secondary" : "outline"}
-              size="sm"
-              onClick={() =>
-                updateProductsConfig((current) => ({ ...current, showStats: !current.showStats }))
-              }
-              className={cn(
-                "rounded-[var(--r-sm)]",
-                productConfig.showStats &&
-                  "border-brand bg-brand/10 text-brand hover:bg-brand/10 hover:text-brand border",
-              )}
-            >
-              <BarChart3 className="size-3.5" />
-              {productConfig.showStats ? "Ẩn thống kê" : "Hiện thống kê"}
-            </Button>
-            <Button
-              variant="default"
-              type="button"
-              size="sm"
-              onClick={() => canCreateProduct && router.push(ADMIN_ROUTES.products.create)}
-              disabled={!canCreateProduct}
-              title={canCreateProduct ? "Tạo sản phẩm" : PERMISSION_UI.productCreateDenied}
-              className="bg-brand !text-ink-inverse hover:bg-brand-hover hover:!text-ink-inverse rounded-[var(--r-sm)]"
-            >
-              <Plus className="size-3.5" />
-              Tạo sản phẩm
-            </Button>
-          </div>
-        }
-      />
+    // Giao diện kiểu Vercel: khối bo tròn hơn, vạch kẻ bảng mờ (globals.css `.surface-soft`)
+    <div className="surface-soft">
+      {/* Không hiện title/subtitle — tên trang nằm ở breadcrumb topbar; h1 giữ cho screen reader */}
+      <h1 className="sr-only">Sản phẩm</h1>
 
       <ListStatsPanel
         stats={productStats}
@@ -460,6 +463,7 @@ export function ProductList() {
           flagRow={shouldFlagProductRow}
           onRowClick={navigateToDetail}
           selectable
+          stickyHeader
           selectedKeys={prodSelectedKeys}
           onSelectionChange={setProdSelectedKeys}
           pageSize={productPageSize}
@@ -500,7 +504,10 @@ export function ProductList() {
                 variant="default"
                 size="sm"
                 onClick={() => router.push(ADMIN_ROUTES.products.create)}
-                className="bg-brand !text-ink-inverse hover:bg-brand-hover hover:!text-ink-inverse rounded-[var(--r-sm)]"
+                className={cn(
+                  "bg-brand !text-ink-inverse hover:bg-brand-hover hover:!text-ink-inverse",
+                  TOOLBAR_ACTION_CLASS,
+                )}
               >
                 <Plus className="size-3.5" />
                 Tạo sản phẩm đầu tiên
@@ -546,6 +553,6 @@ export function ProductList() {
           }
         />
       )}
-    </>
+    </div>
   );
 }

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "cn";
-import { LogOut, Moon, Settings, Sun, User } from "lucide-react";
+import { Ellipsis, LogOut, Moon, Settings, Sun, User } from "lucide-react";
 
 import { APP_ROUTES } from "@/constants";
 import { logoutApi } from "@/lib/auth/auth-api";
@@ -12,48 +12,13 @@ import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import { SidebarFooter, useSidebar } from "@/components/ui/sidebar";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 import type { ReactNode } from "react";
 
-const ICON_ONLY =
-  "text-ink-secondary hover:bg-bg-muted hover:text-ink-primary size-8 rounded-[var(--r-sm)] bg-transparent p-0";
 const MENU =
   "border-border-default bg-bg-surface absolute bottom-full z-[801] mb-1 w-64 rounded-[var(--r-md)] border py-1 shadow-[var(--sh-lg)]";
 const MENU_ITEM =
   "text-ink-secondary hover:bg-bg-muted hover:text-ink-primary h-auto w-full justify-start gap-2 rounded-none bg-transparent px-3 py-1.5 text-[0.8125rem] transition-colors";
-
-/** Nút icon ở đáy sidebar — chỉ icon, nhãn nằm trong tooltip để hàng đáy gọn. */
-function FooterButton({
-  icon,
-  ariaLabel,
-  onClick,
-  expanded,
-}: {
-  icon: ReactNode;
-  ariaLabel: string;
-  onClick: () => void;
-  expanded?: boolean;
-}) {
-  const { state } = useSidebar();
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={onClick}
-          aria-label={ariaLabel}
-          aria-expanded={expanded}
-          className={ICON_ONLY}
-        >
-          {icon}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side={state === "collapsed" ? "right" : "top"}>{ariaLabel}</TooltipContent>
-    </Tooltip>
-  );
-}
 
 /** Popup mở lên trên từ đáy sidebar; lớp phủ trong suốt để bấm ra ngoài thì đóng. */
 function UpMenu({ onClose, children }: { onClose: () => void; children: ReactNode }) {
@@ -76,15 +41,19 @@ function initials(name: string) {
     .join("");
 }
 
-/** Tài khoản đang đăng nhập — bấm mở menu (hồ sơ, cài đặt, đăng xuất) lên trên. */
+/**
+ * Tài khoản đang đăng nhập — bấm avatar hoặc nút 3 chấm bên phải đều mở cùng menu (hồ sơ, cài đặt,
+ * chuyển sáng / tối, đăng xuất) lên trên.
+ */
 function UserMenu() {
   const router = useRouter();
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const currentUser = useAuthStore((s) => s.user);
   const name = currentUser?.fullName ?? "Người dùng";
-  const role = currentUser?.roles.join(", ") || currentUser?.email || "";
   const [open, setOpen] = useState(false);
+  const { theme, toggleTheme } = useTheme();
+  const dark = theme === "dark";
 
   async function handleLogout() {
     setOpen(false);
@@ -97,7 +66,7 @@ function UserMenu() {
   }
 
   return (
-    <div className={cn("relative", !collapsed && "min-w-0 flex-1")}>
+    <div className={cn("relative", !collapsed && "flex min-w-0 flex-1 items-center gap-1")}>
       <Button
         type="button"
         variant="ghost"
@@ -109,26 +78,31 @@ function UserMenu() {
           "hover:bg-bg-muted h-auto bg-transparent transition-colors",
           collapsed
             ? "size-8 rounded-full p-0"
-            : "w-full min-w-0 justify-start gap-2 rounded-[var(--r-sm)] px-1 py-1",
+            : "min-w-0 flex-1 shrink justify-start gap-2 rounded-[var(--r-sm)] px-1 py-1",
         )}
       >
         <span className="bg-accent flex size-7 shrink-0 items-center justify-center rounded-full text-[0.6875rem] font-bold text-white">
           {initials(name)}
         </span>
-        {/* Tên + vai trò cạnh avatar — biết đang đăng nhập bằng ai mà không phải mở menu */}
+        {/* Chỉ tên cạnh avatar (vai trò xem trong menu) — căn giữa theo chiều dọc với avatar */}
         {!collapsed && (
-          <span className="flex min-w-0 flex-col items-start leading-tight">
-            <span className="text-ink-primary w-full truncate text-[0.8125rem] font-medium">
-              {name}
-            </span>
-            {role && (
-              <span className="text-ink-tertiary w-full truncate text-[0.6875rem] font-normal">
-                {role}
-              </span>
-            )}
+          <span className="text-ink-primary min-w-0 truncate text-[0.8125rem] leading-none font-medium">
+            {name}
           </span>
         )}
       </Button>
+      {!collapsed && (
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => setOpen((o) => !o)}
+          aria-label="Tuỳ chọn tài khoản"
+          aria-expanded={open}
+          className="text-ink-secondary hover:bg-bg-muted hover:text-ink-primary size-8 shrink-0 rounded-[var(--r-md)] bg-transparent p-0"
+        >
+          <Ellipsis className="size-3.5" />
+        </Button>
+      )}
       {open && (
         <UpMenu onClose={() => setOpen(false)}>
           <div className="border-border-default border-b px-3 py-2">
@@ -165,6 +139,10 @@ function UserMenu() {
             <Settings className="size-3.5" />
             Cài đặt
           </Button>
+          <Button type="button" variant="ghost" onClick={toggleTheme} className={MENU_ITEM}>
+            {dark ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}
+            {dark ? "Chuyển sang Light" : "Chuyển sang Dark"}
+          </Button>
           <div className="border-border-default my-1 border-t" />
           <Button
             type="button"
@@ -181,30 +159,18 @@ function UserMenu() {
   );
 }
 
-/**
- * Đáy sidebar cố định, một hàng gọn: tài khoản (avatar + tên + vai trò) bên trái, chuyển sáng /
- * tối bên phải. Nằm ngoài vùng cuộn của menu nên luôn thấy được.
- */
+/** Đáy sidebar cố định: tài khoản (avatar + tên + vai trò + nút 3 chấm). Ngoài vùng cuộn của menu. */
 export function SidebarFooterBar() {
-  const { theme, toggleTheme } = useTheme();
   const { state } = useSidebar();
-  const dark = theme === "dark";
 
   return (
     <SidebarFooter
       className={cn(
         "border-border-default shrink-0 border-t p-2",
-        state === "collapsed"
-          ? "flex-col items-center gap-1"
-          : "flex-row items-center justify-between gap-1",
+        state === "collapsed" ? "flex-col items-center gap-1" : "flex-row items-center gap-1",
       )}
     >
       <UserMenu />
-      <FooterButton
-        icon={dark ? <Sun className="size-4 shrink-0" /> : <Moon className="size-4 shrink-0" />}
-        ariaLabel={dark ? "Chuyển sang Light" : "Chuyển sang Dark"}
-        onClick={toggleTheme}
-      />
     </SidebarFooter>
   );
 }

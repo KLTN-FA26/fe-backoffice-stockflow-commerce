@@ -42,7 +42,8 @@ const ACTION_ICON: Record<NonNullable<ProductAction["transition"]>, ReactNode> =
 };
 
 // Cùng thông số thẻ hành động trang chi tiết NCC (`supplier-detail/SidebarCards.tsx`)
-const BUTTON_BASE = "w-full rounded-[var(--r-sm)] border px-3 py-2 text-[0.8125rem] font-medium";
+const BUTTON_BASE =
+  "h-(--action-h) w-full rounded-(--action-radius) border px-3 text-[0.8125rem] font-medium";
 const OUTLINE = `border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted ${BUTTON_BASE}`;
 // variant `default` (không `outline`): outline có `dark:bg-input/30` đè nền brand ở dark mode
 const PRIMARY = `border-border-default bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse ${BUTTON_BASE}`;

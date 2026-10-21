@@ -23,6 +23,8 @@ export const UI_LABELS = {
   },
   // Khung back-office (sidebar / topbar)
   shell: {
+    appName: "StockFlowCommerce",
+    navBack: "Quay lại",
     globalSearch: "Tìm toàn cục",
     quickSearch: "Tìm nhanh",
     quickSearchHint: "Tìm nhanh (⌘K)",

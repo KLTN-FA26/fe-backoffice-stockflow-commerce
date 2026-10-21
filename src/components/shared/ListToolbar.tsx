@@ -73,9 +73,18 @@ export interface ListToolbarProps<
   facets?: ReactNode;
   /** Công cụ riêng của trang (vd mở / thu gọn cây) — đặt sau các icon công cụ, dùng `ToolbarIconButton`. */
   tools?: ReactNode;
+  /**
+   * Nút hành động của trang (vd Tạo mới, Hiện thống kê) — góc phải, sau nút xuất. Dùng
+   * `TOOLBAR_ACTION_CLASS` để cùng cỡ với nút xuất.
+   */
+  actions?: ReactNode;
   onResetAll: () => void;
   resetDisabled?: boolean;
 }
+
+/** Cỡ nút hành động trên toolbar — cao/bo góc theo biến CSS `--action-*` (`.surface-soft` đổi). */
+export const TOOLBAR_ACTION_CLASS =
+  "h-(--action-h) gap-1.5 rounded-(--action-radius) px-(--action-px) text-[0.8125rem] shadow-(--control-shadow)";
 
 /** Nút icon công cụ của toolbar (cùng dáng nút Lọc / Ẩn hiện cột) — nhãn nằm ở tooltip. */
 export function ToolbarIconButton({
@@ -99,7 +108,7 @@ export function ToolbarIconButton({
           aria-label={label}
           onClick={onClick}
           disabled={disabled}
-          className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary rounded-[var(--r-sm)] focus-visible:ring-0"
+          className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary size-(--control-size) rounded-(--control-radius) shadow-(--control-shadow) focus-visible:ring-0"
         >
           {icon}
         </Button>
@@ -145,6 +154,7 @@ export function ListToolbar<Status extends string, Field extends string, Column 
   summaryItems,
   facets,
   tools,
+  actions,
   onResetAll,
   resetDisabled = false,
 }: ListToolbarProps<Status, Field, Column>) {
@@ -154,16 +164,16 @@ export function ListToolbar<Status extends string, Field extends string, Column 
 
   return (
     <TooltipProvider>
-      <div className="border-border-default bg-bg-surface mb-3 rounded-[var(--r-sm)] border px-3 py-2 shadow-[var(--card-shadow)]">
+      <div className="mb-3 rounded-(--section-radius) border border-(--toolbar-frame-border) bg-(--toolbar-bg) px-(--toolbar-pad-x) py-(--toolbar-pad-y) shadow-(--toolbar-frame-shadow)">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-[280px] flex-1 lg:max-w-xl">
-            <Search className="text-accent pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+          <div className="relative min-w-[280px] flex-1 lg:max-w-(--toolbar-search-max)">
+            <Search className="text-accent pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2" />
             <Input
               value={search}
               onChange={(event) => onSearchChange(event.target.value)}
               placeholder={searchPlaceholder}
               aria-label={searchPlaceholder}
-              className="border-border-default bg-bg-surface focus-visible:border-brand focus-visible:ring-brand/20 h-9 rounded-[var(--r-sm)] pl-9 text-[0.8125rem] shadow-none"
+              className="border-border-default bg-bg-surface focus-visible:border-brand focus-visible:ring-brand/20 h-(--control-h) rounded-(--control-radius) pl-9 text-(length:--control-text) shadow-(--control-shadow)"
             />
           </div>
 
@@ -179,13 +189,16 @@ export function ListToolbar<Status extends string, Field extends string, Column 
                         size="icon"
                         aria-label="Lọc trạng thái"
                         className={cn(
-                          "border-border-default bg-bg-surface text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary rounded-[var(--r-sm)] focus-visible:ring-0",
+                          "border-border-default bg-bg-surface text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary size-(--control-size) rounded-(--control-radius) shadow-(--control-shadow) focus-visible:ring-0",
                           hasStatusFilter &&
                             "border-info bg-info/10 text-info hover:bg-info/10 hover:text-info",
                         )}
                       >
                         <Filter
-                          className={cn("text-info size-4", hasStatusFilter && "text-current")}
+                          className={cn(
+                            "text-dot-info size-3.5",
+                            hasStatusFilter && "text-current",
+                          )}
                         />
                       </Button>
                     </PopoverTrigger>
@@ -236,13 +249,16 @@ export function ListToolbar<Status extends string, Field extends string, Column 
                         size="icon"
                         aria-label="Chọn trường search"
                         className={cn(
-                          "border-border-default bg-bg-surface text-ink-tertiary hover:bg-special/5 hover:text-special focus-visible:border-border-default data-[state=open]:border-border-default data-[state=open]:bg-bg-surface data-[state=open]:text-ink-tertiary rounded-[var(--r-sm)] focus-visible:ring-0",
+                          "border-border-default bg-bg-surface text-ink-tertiary hover:bg-special/5 hover:text-special focus-visible:border-border-default data-[state=open]:border-border-default data-[state=open]:bg-bg-surface data-[state=open]:text-ink-tertiary size-(--control-size) rounded-(--control-radius) shadow-(--control-shadow) focus-visible:ring-0",
                           hasFieldConfig &&
                             "border-special bg-special/10 text-special hover:border-special hover:bg-special/10 hover:text-special data-[state=open]:border-special data-[state=open]:bg-special/10 data-[state=open]:text-special",
                         )}
                       >
                         <ListFilter
-                          className={cn("text-special size-4", hasFieldConfig && "text-current")}
+                          className={cn(
+                            "text-dot-special size-3.5",
+                            hasFieldConfig && "text-current",
+                          )}
                         />
                       </Button>
                     </PopoverTrigger>
@@ -302,13 +318,16 @@ export function ListToolbar<Status extends string, Field extends string, Column 
                         size="icon"
                         aria-label="Ẩn hiện cột"
                         className={cn(
-                          "border-border-default bg-bg-surface text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary rounded-[var(--r-sm)] focus-visible:ring-0",
+                          "border-border-default bg-bg-surface text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary size-(--control-size) rounded-(--control-radius) shadow-(--control-shadow) focus-visible:ring-0",
                           hasColumnConfig &&
                             "border-warning bg-warning/10 text-warning hover:bg-warning/10 hover:text-warning",
                         )}
                       >
                         <Columns3
-                          className={cn("text-warning size-4", hasColumnConfig && "text-current")}
+                          className={cn(
+                            "text-dot-warning size-3.5",
+                            hasColumnConfig && "text-current",
+                          )}
                         />
                       </Button>
                     </PopoverTrigger>
@@ -373,7 +392,7 @@ export function ListToolbar<Status extends string, Field extends string, Column 
                 onClick={onBulkDelete}
                 className="border-danger/20 bg-danger/5 text-danger hover:bg-danger/10 hover:text-danger rounded-[var(--r-sm)]"
               >
-                <X className="size-4" />
+                <X className="size-3.5" />
                 {bulkDeleteLabel}
               </Button>
             )}
@@ -383,18 +402,22 @@ export function ListToolbar<Status extends string, Field extends string, Column 
                 variant="outline"
                 size="sm"
                 onClick={onExport}
-                className="border-positive/20 bg-positive/5 text-positive hover:bg-positive/10 hover:text-positive rounded-[var(--r-sm)]"
+                className={cn(
+                  "border-border-default bg-bg-surface text-ink-primary hover:bg-bg-muted hover:text-ink-primary",
+                  TOOLBAR_ACTION_CLASS,
+                )}
               >
-                <FileDown className="size-4" />
+                <FileDown className="text-dot-positive size-3.5" />
                 {exportLabel}
               </Button>
             )}
+            {actions}
           </div>
         </div>
       </div>
 
       {facets && (
-        <div className="border-border-default bg-bg-subtle mb-3 flex flex-wrap items-center gap-3 rounded-[var(--r-sm)] border px-3 py-2">
+        <div className="border-border-default bg-bg-subtle mb-3 flex flex-wrap items-center gap-3 rounded-(--section-radius) border px-3 py-2">
           {facets}
         </div>
       )}

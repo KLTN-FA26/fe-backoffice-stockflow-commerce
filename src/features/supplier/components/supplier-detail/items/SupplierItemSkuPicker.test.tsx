@@ -109,9 +109,7 @@ describe("Thêm SKU — chọn từ hồ sơ hàng tồn (GET /inventory/items)"
       ).toBe(true);
 
       await user.click(screen.getByRole("option", { name: /SOFA-GRY-3S/ }));
-      expect(within(dialog).getByRole("combobox", { name: /^SKU/ })).toHaveTextContent(
-        "SOFA-GRY-3S",
-      );
+      expect(within(dialog).getByRole("combobox", { name: /^SKU/ })).toHaveValue("SOFA-GRY-3S");
       await user.type(within(dialog).getByRole("textbox", { name: /^Giá/ }), "1000");
       await user.type(within(dialog).getByRole("textbox", { name: /Quy cách đóng gói/ }), "5");
       await user.type(within(dialog).getByRole("textbox", { name: /MOQ/ }), "10");

@@ -69,7 +69,7 @@ describe("PurchaseOrderCreate — SKU theo danh mục NCC (#30)", () => {
     expect(priceInput()).toHaveValue(2000000);
     expect(screen.getByText("MOQ 10")).toBeInTheDocument();
     expect(screen.getByText("Quy cách 5")).toBeInTheDocument();
-    expect(await skuBox()).toHaveTextContent("TABLE-OAK-120");
+    expect(await skuBox()).toHaveValue("TABLE-OAK-120");
   }, 20_000);
 
   it("PO VND, danh mục USD → ô giá trống và bắt buộc", async () => {
@@ -119,16 +119,16 @@ describe("PurchaseOrderCreate — SKU theo danh mục NCC (#30)", () => {
     expect(within(dialog).getByText("Đổi nhà cung cấp?")).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "Quay lại" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-    expect(supplierBox()).toHaveTextContent("GOHOAPHAT");
+    expect(supplierBox()).toHaveDisplayValue(/GOHOAPHAT/);
 
     // Đồng ý → đổi NCC, dòng hàng về một dòng trống
     await chooseSecond();
     dialog = await screen.findByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "Đổi nhà cung cấp" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-    expect(supplierBox()).toHaveTextContent(SUPPLIER_REF_2.code);
+    expect(supplierBox()).toHaveDisplayValue(new RegExp(SUPPLIER_REF_2.code));
     await next(user);
-    expect(await skuBox()).toHaveTextContent("Chọn SKU trong danh mục");
+    expect(await skuBox()).toHaveAttribute("placeholder", "Chọn SKU trong danh mục");
     expect(screen.queryByRole("combobox", { name: "SKU dòng 2" })).not.toBeInTheDocument();
   }, 20_000);
 

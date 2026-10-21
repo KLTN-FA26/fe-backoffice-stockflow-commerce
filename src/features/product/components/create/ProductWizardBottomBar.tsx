@@ -36,7 +36,7 @@ export function ProductWizardBottomBar({
             size="sm"
             onClick={wizard.goBack}
             disabled={wizard.currentIndex === 0}
-            className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted rounded-[var(--r-sm)] disabled:opacity-40"
+            className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted h-(--action-h) rounded-(--action-radius) px-(--action-px) disabled:opacity-40"
           >
             {UI_LABELS.common.back}
           </Button>
@@ -46,7 +46,7 @@ export function ProductWizardBottomBar({
               size="sm"
               onClick={onSubmit}
               disabled={isPending}
-              className="bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse inline-flex items-center gap-1.5 rounded-[var(--r-sm)]"
+              className="bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse inline-flex h-(--action-h) items-center gap-1.5 rounded-(--action-radius) px-(--action-px)"
             >
               <Save className="size-3.5" />
               {submitLabel}
@@ -56,7 +56,7 @@ export function ProductWizardBottomBar({
               type="button"
               size="sm"
               onClick={() => void wizard.goNext()}
-              className="bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse inline-flex items-center gap-1.5 rounded-[var(--r-sm)]"
+              className="bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse inline-flex h-(--action-h) items-center gap-1.5 rounded-(--action-radius) px-(--action-px)"
             >
               {L.next}
               <ArrowRight className="size-3.5" />
