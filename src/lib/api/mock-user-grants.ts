@@ -216,25 +216,33 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ORDER_PERMISSIONS.viewPage,
     ORDER_PERMISSIONS.read,
     ORDER_PERMISSIONS.cancel,
+    // Seed BE: SALES_STAFF + SYSTEM_ADMIN (không phải ORDER_COORDINATOR) quyết đơn có giao một phần không
+    ORDER_PERMISSIONS.partialShipment,
     WAREHOUSE_READ,
   ],
   "USER-SALE-02": [
     ORDER_PERMISSIONS.viewPage,
     ORDER_PERMISSIONS.read,
     ORDER_PERMISSIONS.cancel,
+    // Seed BE: SALES_STAFF + SYSTEM_ADMIN (không phải ORDER_COORDINATOR) quyết đơn có giao một phần không
+    ORDER_PERMISSIONS.partialShipment,
     WAREHOUSE_READ,
   ],
   "USER-SALE-03": [
     ORDER_PERMISSIONS.viewPage,
     ORDER_PERMISSIONS.read,
     ORDER_PERMISSIONS.cancel,
+    // Seed BE: SALES_STAFF + SYSTEM_ADMIN (không phải ORDER_COORDINATOR) quyết đơn có giao một phần không
+    ORDER_PERMISSIONS.partialShipment,
     WAREHOUSE_READ,
   ],
   // Seed BE: SALES_STAFF có sales-order-cancellations:UPDATE (huỷ đơn, đóng phần còn lại) nhưng không có APPROVE
   // (giữ / gỡ giữ / ghi giao thất bại là của ORDER_COORDINATOR)
   // Order Coordinator + Warehouse Staff → thêm quyền kho xuất của WAREHOUSE_STAFF
   "USER-COORD-01": [
-    ...Object.values(ORDER_PERMISSIONS),
+    ...Object.values(ORDER_PERMISSIONS).filter(
+      (code) => code !== ORDER_PERMISSIONS.partialShipment,
+    ),
     ...FULFILLMENT_READ,
     ...COORDINATOR_WORK,
     ...FLOOR_WORK,

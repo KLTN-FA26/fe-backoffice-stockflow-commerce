@@ -86,6 +86,8 @@ interface Scenario {
   userId?: string;
   /** Kết quả lần lượt của các lần kiểm tra lại. */
   reverifyResults?: FulfillmentTaskApiDto[];
+  /** Đơn trả về cho `GET /orders/{id}` (mặc định `fulfillmentOrder`). */
+  order?: object;
 }
 
 const withPrintLine = (overrides: Partial<PackingSessionDto> = {}) =>
@@ -97,6 +99,7 @@ function renderStation({
   session: initialSession,
   userId,
   reverifyResults,
+  order,
 }: Scenario) {
   let task = initial;
   let session = initialSession ?? withPrintLine();
@@ -113,7 +116,7 @@ function renderStation({
     {
       [PATH]: () => task,
       [`${PATH}/packing-session`]: () => session,
-      [`/orders/${ORDER_ID}`]: () => fulfillmentOrder,
+      [`/orders/${ORDER_ID}`]: () => order ?? fulfillmentOrder,
       "/orders": () => EMPTY_PAGE,
       [PREVIEW_PATH]: () => artifact("CUSTOMER_PREVIEW", "image/png"),
       [PRINT_PATH]: () => artifact("PRINT_READY", "application/pdf"),
@@ -310,6 +313,47 @@ describe("PackingStation — thiết kế đã khoá bên cạnh dòng tuỳ ch�
     const { get } = renderStation({ identity, task: pickedTask(), userId: "coordinator-id" });
     expect(await screen.findByText(UI_LABELS.loadError.noReadTitle)).toBeInTheDocument();
     expect(get.mock.calls.some(([url]) => String(url).includes("packing-session"))).toBe(false);
+  });
+});
+
+describe("PackingStation — hàng in chưa về bàn đóng gói (printLinesReady = false, BE PR #150)", () => {
+  const waitingSession = () =>
+    withPrintLine({ lines: [packLine(), printLine({ available: 0, remaining: 2 })] });
+
+  it("đơn báo printLinesReady=false → thông báo, dòng in hiện 'Chờ in' thay vì cảnh báo thiếu hàng", async () => {
+    renderStation({
+      identity: IDENTITIES.staffWithOrders,
+      task: pickedTask(),
+      session: waitingSession(),
+      order: { ...fulfillmentOrder, printLinesReady: false },
+    });
+
+    expect(await screen.findByText(UI_LABELS.packing.notice.printWaitingTitle)).toBeInTheDocument();
+    expect(screen.getByText(UI_LABELS.packing.lines.printWaiting)).toBeInTheDocument();
+    expect(screen.queryByText(/Mới có 0\/2 về bàn đóng gói/)).toBeNull();
+  });
+
+  it("đơn báo printLinesReady=true → không có thông báo, dòng in hiện số đã về bàn", async () => {
+    renderStation({
+      identity: IDENTITIES.staffWithOrders,
+      task: pickedTask(),
+      session: withPrintLine(),
+      order: { ...fulfillmentOrder, printLinesReady: true },
+    });
+
+    await screen.findByRole("heading", { name: "TEE-CUSTOM-L" });
+    expect(screen.queryByText(UI_LABELS.packing.notice.printWaitingTitle)).toBeNull();
+    expect(screen.queryByText(UI_LABELS.packing.lines.printWaiting)).toBeNull();
+  });
+
+  it("không đọc được đơn (thiếu sales-orders:READ) → suy từ phiên: dòng in 'đã về bàn' = 0", async () => {
+    renderStation({
+      identity: IDENTITIES.warehouseStaff,
+      task: pickedTask(),
+      session: waitingSession(),
+    });
+
+    expect(await screen.findByText(UI_LABELS.packing.notice.printWaitingTitle)).toBeInTheDocument();
   });
 });
 

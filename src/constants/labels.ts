@@ -450,7 +450,7 @@ export const FULFILLMENT_ERROR_MESSAGES = {
   stale:
     "Task hoặc đơn hàng đã đổi trạng thái nên không thực hiện được thao tác này. Dữ liệu đã được tải lại.",
   createConflict:
-    "Chỉ đơn đã release (sẵn sàng xuất kho) mới đưa vào xuất kho; đơn mới xác nhận phải release trước, đơn có dòng in phải release sản xuất trước.",
+    "Chỉ đơn đã release (sẵn sàng xuất kho) mới đưa vào xuất kho; đơn mới xác nhận phải release trước. Đơn đang sản xuất chỉ vào xuất kho khi có dòng hàng có sẵn (lấy trước hàng in); đơn toàn hàng in phải chờ sản xuất xong.",
   orderNotFound: "Không tìm thấy đơn hàng",
   assignConflict: "Chỉ gán lại được khi task chưa bắt đầu lấy hàng. Dữ liệu đã được tải lại.",
   assigneeInvalid: "Người được gán phải là nhân viên kho hoặc quản lý kho đang hoạt động",

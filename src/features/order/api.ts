@@ -19,7 +19,7 @@ import type {
   HoldOrderValues,
   RemainderClosureValues,
   ResolveOrderHoldValues,
-} from "./schemas";
+} from "./input-schemas";
 
 const ORDERS_PATH = "/orders";
 
@@ -80,6 +80,10 @@ export function toOrder(dto: OrderDto): Order {
       failureReason: shipment.failureReason ?? null,
       lines: shipment.lines ?? [],
     })),
+    balancePolicy: dto.balancePolicy ?? null,
+    creditTermDays: dto.creditTermDays ?? null,
+    allowPartialShipment: dto.allowPartialShipment ?? null,
+    printLinesReady: dto.printLinesReady ?? null,
   };
 }
 
@@ -144,7 +148,8 @@ export async function adminCancelOrder(input: AdminCancelOrderInput): Promise<vo
 // - POST /orders/{id}/hold              {reasonCode, note?}   — sales-orders:APPROVE
 // - POST /orders/{id}/hold/resolution   {note}                — sales-orders:APPROVE
 // - POST /orders/{id}/delivery-failure  {reasonCode, note?}   — sales-orders:APPROVE
-// - POST /orders/{id}/remainder-closure {reasonCode, note?}   — sales-order-cancellations:UPDATE
+// - POST /orders/{id}/remainder-closure {reasonCode, note?, agreedFee?{amount, reason, detail}}
+//                                                             — sales-order-cancellations:UPDATE
 
 export type HoldOrderInput = { id: string } & HoldOrderValues;
 export type ResolveOrderHoldInput = { id: string } & ResolveOrderHoldValues;
@@ -172,9 +177,14 @@ export async function recordDeliveryFailure(input: DeliveryFailureInput): Promis
   );
 }
 
+/**
+ * `agreedFee` (BE PR #150) chỉ gửi khi có: số tiền khách thoả thuận cho phần hàng in đã in. BE trả `Order`
+ * — không mang số hoàn / giữ / còn nợ của lần đóng này (chúng nằm trong sự kiện `OrderRemainderClosed`),
+ * chỉ `amountDue` / `effectiveTotal` mới, nên màn chi tiết tải lại đơn thay vì đọc phản hồi.
+ */
 export async function closeOrderRemainder(input: RemainderClosureInput): Promise<void> {
-  await api.post(
-    `${ORDERS_PATH}/${encodeURIComponent(input.id)}/remainder-closure`,
-    reasonBody(input),
-  );
+  await api.post(`${ORDERS_PATH}/${encodeURIComponent(input.id)}/remainder-closure`, {
+    ...reasonBody(input),
+    ...(input.agreedFee ? { agreedFee: input.agreedFee } : {}),
+  });
 }

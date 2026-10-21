@@ -150,3 +150,11 @@ describe("isRetryablePackingError — giữ nguyên scanId / requestId khi gửi
     expect(isRetryablePackingError(err("VALIDATION_FAILED", 400))).toBe(false);
   });
 });
+
+describe("packingErrorMessage — giao một phần do Sales bật (BE PR #150)", () => {
+  it("PACK_PARTIAL_NOT_ALLOWED → nhờ Sale bật trên đơn, không còn nói 'hệ thống không cho'", () => {
+    const message = packingErrorMessage(err("PACK_PARTIAL_NOT_ALLOWED"));
+    expect(message).toBe("Đơn chưa được phép giao một phần — nhờ Sale bật trên đơn");
+    expect(message).not.toContain("English");
+  });
+});

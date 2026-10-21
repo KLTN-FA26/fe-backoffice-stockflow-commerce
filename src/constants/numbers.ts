@@ -37,6 +37,12 @@ export const ORDER_LIMITS = {
   deliveryFailureNoteMax: 500,
   /** `CloseRemainderRequest.note` @Size(max = 1000). */
   remainderClosureNoteMax: 1000,
+  /** `PartialShipmentRequest.note` @Size(max = 500) — BE PR #150. */
+  partialShipmentNoteMax: 500,
+  /** `CancellationFeeRequest.reason` @Size(max = 500) — `CloseRemainderRequest.agreedFee` (BE PR #150). */
+  feeReasonMax: 500,
+  /** `CancellationFeeRequest.detail` @Size(max = 2000). */
+  feeDetailMax: 2000,
 } as const;
 
 /** Giới hạn phiếu nhận — đúng ràng buộc request BE goods receipt (PR #62, SCRUM-435). */

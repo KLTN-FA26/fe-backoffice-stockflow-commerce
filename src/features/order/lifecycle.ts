@@ -16,6 +16,8 @@ import {
   isTerminal,
 } from "@/lib/domain/lifecycle";
 
+import { isPackedOnlyAheadOfPrints } from "./partial-shipment";
+
 import type { PermissionCode } from "@/lib/auth";
 import type { Order, OrderStatus } from "./types";
 
@@ -36,6 +38,11 @@ export interface OrderActionContext {
    * ORDER_NOT_CANCELLABLE) — kể cả đơn ON_HOLD bị giữ từ PACKED / PARTIALLY_FULFILLED.
    */
   readonly packedAt: string | null;
+  /**
+   * Trạng thái đơn quay về khi gỡ giữ (staff). Cần để biết đơn ON_HOLD có đang giữ từ IN_PRODUCTION
+   * không — hàng có sẵn đóng trước hàng in vẫn huỷ được (BE PR #150, `Order#packedOnlyAheadOfPrints`).
+   */
+  readonly statusBeforeHold?: Order["statusBeforeHold"];
 }
 
 const NO_CONTEXT: OrderActionContext = { holdReason: null, hasShipments: false, packedAt: null };
@@ -53,7 +60,7 @@ export interface OrderAction {
   /** Target status after action (undefined = non-transition action). */
   readonly targetStatus?: OrderStatus;
   /** Điều kiện thêm ngoài trạng thái (vd lý do giữ, đã chia lô). */
-  readonly requires?: (context: OrderActionContext) => boolean;
+  readonly requires?: (context: OrderActionContext, status: OrderStatus) => boolean;
   /** Destructive action styling. */
   readonly destructive?: boolean;
 }
@@ -73,8 +80,9 @@ export function isManuallyResolvableHold(reason: Order["holdReason"]): boolean {
 export const ORDER_ACTIONS: readonly OrderAction[] = [
   // BE `OrderStatus#canTransitionTo` (PR #133): → CANCELLED từ DRAFT, PENDING_PAYMENT, CONFIRMED,
   // IN_PRODUCTION, READY_TO_FULFILL, PICKING, ON_HOLD. PACKED trở đi (packedAt đã có) KHÔNG huỷ được (quyết định
-  // 17/10, BR-ORD-004) — đi luồng trả hàng. Endpoint: POST /orders/{orderId}/admin-cancellation
-  // (BE sales-order-cancellations:UPDATE, scope ALL).
+  // 17/10, BR-ORD-004) — đi luồng trả hàng; ngoại lệ (BE PR #150): đơn IN_PRODUCTION đã đóng sẵn hàng có sẵn
+  // mà chưa bàn giao lô nào vẫn huỷ được (`isPackedOnlyAheadOfPrints`). Endpoint:
+  // POST /orders/{orderId}/admin-cancellation (BE sales-order-cancellations:UPDATE, scope ALL).
   {
     code: "admin-cancel",
     label: "Huỷ đơn",
@@ -89,8 +97,10 @@ export const ORDER_ACTIONS: readonly OrderAction[] = [
       "On Hold",
     ],
     targetStatus: "Cancelled",
-    // `Order#requireNotPacked` (03 §9): đã đóng gói thì không huỷ — bất kể trạng thái hiện tại (ON_HOLD gồm cả)
-    requires: ({ packedAt }) => packedAt === null,
+    // `Order#requireNotPacked` (03 §9): đã đóng gói thì không huỷ — bất kể trạng thái hiện tại (ON_HOLD gồm cả),
+    // trừ khi mới đóng hàng có sẵn trước hàng in và chưa có lô nào rời kho
+    requires: (context, status) =>
+      context.packedAt === null || isPackedOnlyAheadOfPrints(status, context),
     destructive: true,
   },
   // `OrderStatus#mayBePutOnHold`: CONFIRMED … PACKED (kể cả giao một phần). POST /orders/{id}/hold,
@@ -166,7 +176,7 @@ export function allowedOrderActions(
     }
 
     // 3. Context gate
-    if (action.requires && !action.requires(context)) return false;
+    if (action.requires && !action.requires(context, status)) return false;
 
     // 4. Permission gate
     return can(action.permission);

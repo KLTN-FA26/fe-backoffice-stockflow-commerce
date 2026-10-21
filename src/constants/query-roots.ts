@@ -11,4 +11,11 @@
 export const SHARED_QUERY_ROOTS = {
   /** Tồn theo SKU / lô / vị trí — reserved + available đổi khi giữ chỗ đổi. */
   inventoryStock: "inventory-stock-items",
+  /**
+   * Task xuất kho — gồm cả hàng chờ và phiên đóng gói (`packingKeys` nằm dưới root này). Đổi cách giao của đơn
+   * (Sales cho phép / dừng giao một phần) đổi việc kho được phép làm, nên Order invalidate qua root này.
+   */
+  fulfillmentTasks: "fulfillment-tasks",
+  /** Chuyến xe giao hãng vận chuyển — thêm lô vào chuyến / bàn giao phụ thuộc cờ giao một phần của đơn. */
+  fulfillmentLoads: "fulfillment-loads",
 } as const;

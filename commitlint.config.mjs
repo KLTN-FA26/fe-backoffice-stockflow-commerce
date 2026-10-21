@@ -9,6 +9,7 @@ export default {
       [
         "product",
         "po",
+        "order",
         "receipt",
         "invoice",
         "putaway",
