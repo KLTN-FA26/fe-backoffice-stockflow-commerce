@@ -71,6 +71,25 @@ Trạng thái luôn render qua `<StatusBadge domain status>`, không bao giờ t
 Thêm trạng thái mới → chỉ sửa `src/lib/status-map.ts`, xem
 [skill status-badge](../skills/status-badge/SKILL.md).
 
+## Chấm trạng thái (--dot-*)
+
+Chấm tròn của `<StatusDot>` / `ToneDot` và icon công cụ trên toolbar dùng thang màu **tươi hơn**
+status gốc (kiểu Vercel/Radix step-9). Light và dark dùng cùng giá trị.
+
+| Tone       | Dot       | Tailwind                |
+| ---------- | --------- | ----------------------- |
+| `positive` | `#12A594` | `bg-/text-dot-positive` |
+| `info`     | `#0090FF` | `bg-/text-dot-info`     |
+| `warning`  | `#F76B15` | `bg-/text-dot-warning`  |
+| `danger`   | `#E5484D` | `bg-/text-dot-danger`   |
+| `special`  | `#8E4EC6` | `bg-/text-dot-special`  |
+
+`neutral` / `muted` dùng nguyên màu status gốc.
+
+- **Chỉ** cho chấm và icon công cụ. Chữ, viền, nền badge vẫn theo status gốc — màu tươi làm chữ
+  không đủ 4.5:1.
+- Warning là **cam**, không phải vàng `#FFC53D`: chấm vàng trên nền trắng chỉ ~1.6:1, dưới 3:1 cho UI.
+
 ## Spacing (scale 4px)
 
 `2xs`=2 · `xs`=4 · `sm`=8 · `md`=12 · `lg`=16 · `xl`=24 · `2xl`=32 · `3xl`=48
@@ -79,8 +98,36 @@ Gọi qua biến density của mode, **không** gọi thẳng `p-4` trong compon
 
 ## Radius
 
-`sm`=4 (mode A: nút, ô nhập, badge, card) · `md`=8 (mặc định shared) ·
+`sm`=4 (mode A: ô nhập, badge) · `md`=8 (mode A style Vercel: khối, card, nút hành động; mặc định shared) ·
 `lg`=12 (mode B: card sản phẩm, panel) · `xl`=16 (mode B: modal, sheet) · `full`=9999 (pill, avatar)
+
+## Token style Vercel (.surface-soft)
+
+Style chuẩn của Mode A (xem [Quyết định thiết kế 2026-10](#quyết-định-thiết-kế-2026-10)). Trong lúc
+migrate, token bật theo **trang** bằng class wrapper `.surface-soft` (`globals.css`); PR dọn cuối
+đưa giá trị cột phải vào `:root` và xoá class. Component dùng biến, **không** gõ giá trị trần.
+
+| Biến                     | Mặc định (`:root`) | `.surface-soft`      | Dùng ở                                 |
+| ------------------------ | ------------------ | -------------------- | -------------------------------------- |
+| `--section-radius`       | `r-sm` 4px         | `r-md` 8px           | toolbar, bảng, khối form               |
+| `--card-radius`          | `r-sm` 4px         | `r-md` 8px           | `Card`, thẻ chi tiết, `StatTile`       |
+| `--card-shadow`          | none               | `--sh-sm`            | mọi khối dạng card                     |
+| `--table-line`           | `border.default`   | `border.default` 55% | vạch dòng bảng, `divide-y` trong card  |
+| `--toolbar-bg`           | `bg.surface`       | transparent          | khung `ListToolbar`                    |
+| `--toolbar-frame-border` | `border.default`   | transparent          | viền khung toolbar / config summary    |
+| `--toolbar-frame-shadow` | `--card-shadow`    | none                 | bóng khung toolbar                     |
+| `--toolbar-pad-x/-y`     | 12px / 8px         | 0 / 0                | padding khung toolbar                  |
+| `--toolbar-search-max`   | 36rem              | none                 | ô search kéo dài                       |
+| `--control-size`         | 32px               | 40px                 | nút icon công cụ                       |
+| `--control-h`            | 36px               | 40px                 | ô search                               |
+| `--control-text`         | 13px               | 14px                 | chữ ô search                           |
+| `--control-radius`       | `r-sm` 4px         | `r-md` 8px           | ô/nút trong toolbar                    |
+| `--control-shadow`       | none               | `--sh-sm`            | ô/nút trong toolbar                    |
+| `--action-h / -px`       | 28px / 10px        | 40px / 14px          | nút hành động (`TOOLBAR_ACTION_CLASS`) |
+| `--action-radius`        | `r-sm` 4px         | `r-md` 8px           | nút hành động                          |
+| `--summary-bg`           | `bg.subtle` 70%    | `bg.surface`         | thanh `Cấu hình`                       |
+
+`.surface-soft.surface-compact` (trang chi tiết / form): `--action-h` 34px, `--action-px` 12px.
 
 ## Z-index — cố định, không tự bịa
 
@@ -97,6 +144,8 @@ dialog đó phải nằm trên dialog — vẫn dưới toast/tooltip. Biến `-
 - Giá tiền storefront: `text.h2`/`text.display`, weight 700, tabular-nums.
 - KHÔNG all-caps cho label thường (chỉ `overline` cho eyebrow thật cần).
 - Độ dài dòng body ≤ 75 ký tự (`max-w-[68ch]`).
+- Mode A: chữ nav sidebar + breadcrumb **14px**; icon trong khung app (sidebar, toolbar, footer,
+  tiêu đề mục) **14px** (`size-3.5`).
 
 **Font:** Inter (UI + body) · Inter Tight (heading storefront, số KPI) ·
 JetBrains Mono (SKU, PO number, AWB, số cần canh cột). Một họ font, hai biến thể —
@@ -137,3 +186,21 @@ Có chủ đích, không trang trí:
 - `!important` chỉ khi buộc phải override shadcn — kèm comment giải thích.
 - shadcn: copy vào `components/ui/`, không sửa tay. Tuỳ biến → bọc ở `components/shared/`
   hoặc override bằng `className` + token.
+
+## Quyết định thiết kế 2026-10
+
+Chốt 2026-10-21 (PR #63, feature product làm mẫu). Các mục sau **ghi đè**
+`src/_design/FRONTEND-AI-RULES.md` (file đó bị hook chặn sửa — đọc nó thì lấy mục này làm chuẩn):
+
+| FRONTEND-AI-RULES        | Cũ                                         | Mới                                                                      |
+| ------------------------ | ------------------------------------------ | ------------------------------------------------------------------------ |
+| §3 radius Mode A         | `sm` 4px cho nút, ô nhập, badge, card      | khối/card/nút hành động 8px; ô nhập, badge 4px                           |
+| §3 elevation Mode A      | ưu tiên viền, `shadow.none`                | viền + `--sh-sm` cho khối dạng card                                      |
+| §3 nền                   | `bg.base` `#F3F4F6`, sidebar `bg.subtle`   | `bg.base` `#F6F6F6`, `bg.sidebar` `#FAFAFA`                              |
+| §4.2 PageHeader          | title + subtitle + actions                 | không title hiển thị (`h1` sr-only), tên trang ở breadcrumb              |
+| §4.2 toolbar             | một khung chứa search + công cụ            | không khung; mỗi ô/nút có viền + bóng, 40px                              |
+| §4.2 nút xuất / thống kê | tone `positive`, nút thống kê ở PageHeader | nền trắng, icon `--dot-*`; mọi nút hành động trong `ListToolbar actions` |
+
+Lý do: đồng bộ giao diện kiểu Vercel, tách lớp rõ trên nền F6, ít chrome hơn cho trang dày dữ liệu.
+Chi tiết áp dụng: [mode-a-backoffice.md](mode-a-backoffice.md) (3 loại trang),
+[data-table-mode-a.md](data-table-mode-a.md), skill `vercel-restyle`.
