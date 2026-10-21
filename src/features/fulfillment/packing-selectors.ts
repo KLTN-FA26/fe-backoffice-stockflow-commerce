@@ -115,3 +115,18 @@ export function completionReadiness(session: PackingSession): CompletionReadines
 /** Phiên có dòng in cần đối chiếu thiết kế khi hoàn tất (docs 08 BR-02). */
 export const hasPrintLines = (session: Pick<PackingSession, "lines">): boolean =>
   session.lines.some((line) => line.printLine);
+
+/**
+ * Hàng in của đơn chưa về bàn đóng gói (BE PR #150, PACK-EARLY): đơn còn đang in, hoặc đã giao hàng có sẵn
+ * trước khi sản xuất xong. Nguồn chính là cờ `printLinesReady` của đơn (cần `sales-orders:READ`); khi cờ
+ * không có (người đóng gói không đọc được đơn) suy từ phiên: BE đặt "đã về bàn" = 0 cho dòng in lúc cờ false,
+ * còn khi đã sẵn sàng thì bằng số cần.
+ */
+export function printLinesWaiting(
+  session: Pick<PackingSession, "lines">,
+  printLinesReady?: boolean | null,
+): boolean {
+  if (printLinesReady === true) return false;
+  if (printLinesReady === false) return hasPrintLines(session);
+  return session.lines.some((line) => line.printLine && line.wanted > 0 && line.available === 0);
+}

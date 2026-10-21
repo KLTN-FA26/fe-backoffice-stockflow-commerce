@@ -18,6 +18,7 @@ import {
   matchLot,
   openPackages,
   planScan,
+  printLinesWaiting,
   visiblePackages,
   voidedPackages,
 } from "./packing-selectors";
@@ -152,5 +153,29 @@ describe("matchLot — lô gõ / quét khớp lô đã lấy", () => {
     expect(matchLot(line, "  lot-b ")?.lotNumber).toBe("LOT-B");
     expect(matchLot(line, "LOT-Z")).toBeUndefined();
     expect(matchLot(line, "   ")).toBeUndefined();
+  });
+});
+
+describe("printLinesWaiting — hàng in chưa về bàn đóng gói (BE PR #150, PACK-EARLY)", () => {
+  const waiting = session({ lines: [packLine(), printLine({ available: 0, remaining: 2 })] });
+  const ready = session({ lines: [packLine(), printLine()] });
+
+  it("cờ printLinesReady của đơn là nguồn chính", () => {
+    expect(printLinesWaiting(ready, false)).toBe(true);
+    expect(printLinesWaiting(waiting, true)).toBe(false);
+  });
+
+  it("đơn không có dòng in thì không bao giờ 'chờ in' dù cờ false", () => {
+    expect(printLinesWaiting(session({ lines: [packLine()] }), false)).toBe(false);
+  });
+
+  it("không có cờ (không đọc được đơn) → suy từ phiên: dòng in còn cần mà 'đã về bàn' = 0", () => {
+    expect(printLinesWaiting(waiting)).toBe(true);
+    expect(printLinesWaiting(waiting, null)).toBe(true);
+    expect(printLinesWaiting(ready)).toBe(false);
+    // Dòng in đã đóng hết (cần 0) không tính là đang chờ
+    expect(
+      printLinesWaiting(session({ lines: [printLine({ wanted: 0, available: 0, remaining: 0 })] })),
+    ).toBe(false);
   });
 });

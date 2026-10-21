@@ -19,8 +19,10 @@ function Tag({ children }: { children: string }) {
   );
 }
 
-function LineRow({ line }: { line: PackLine }) {
-  const short = line.available < line.wanted;
+function LineRow({ line, printWaiting }: { line: PackLine; printWaiting: boolean }) {
+  // Dòng in chưa về bàn vì còn sản xuất (PACK-EARLY) — không phải thiếu hàng lúc lấy, nên không cảnh báo "mới có"
+  const waitingForPrints = printWaiting && line.printLine && line.available < line.wanted;
+  const short = line.available < line.wanted && !waitingForPrints;
   const left = leftToPack(line);
   return (
     <tr className="border-border-default border-b last:border-b-0">
@@ -35,7 +37,11 @@ function LineRow({ line }: { line: PackLine }) {
       <td className={`${TD} text-ink-secondary ${MONO}`}>{line.barcode ?? "—"}</td>
       <td className={`${TD} text-right ${MONO}`}>{line.wanted}</td>
       <td className={`${TD} text-right ${MONO} ${short ? "text-warning font-medium" : ""}`}>
-        {line.available}
+        {waitingForPrints ? (
+          <span className="text-ink-tertiary font-normal">{L.printWaiting}</span>
+        ) : (
+          line.available
+        )}
       </td>
       <td className={`${TD} text-right ${MONO}`}>{line.packed}</td>
       <td className={`${TD} text-right ${MONO}`}>{line.shipped}</td>
@@ -44,7 +50,7 @@ function LineRow({ line }: { line: PackLine }) {
         title={short ? L.shortOfPicked(line.available, line.wanted) : undefined}
       >
         {line.remaining === 0 ? L.done : line.remaining}
-        {line.remaining > 0 && left < line.remaining && (
+        {line.remaining > 0 && left < line.remaining && !waitingForPrints && (
           <span className="text-warning block text-[0.6875rem] font-normal">
             {L.shortOfPicked(line.available, line.wanted)}
           </span>
@@ -64,7 +70,14 @@ function LineRow({ line }: { line: PackLine }) {
 }
 
 /** Dòng hàng của đơn: số cần, đã về bàn, đã đóng, đã giao, còn lại và lô đã lấy (BE `PackingSessionResponse.Line`). */
-export function PackingLinesSection({ session }: { session: PackingSession }) {
+export function PackingLinesSection({
+  session,
+  printLinesWaiting = false,
+}: {
+  session: PackingSession;
+  /** Hàng in chưa về bàn đóng gói (`printLinesReady = false`): dòng in hiện "Chờ in" thay vì cảnh báo thiếu. */
+  printLinesWaiting?: boolean;
+}) {
   return (
     <Section title={L.title} description={L.description}>
       <div className="border-border-default overflow-x-auto rounded-[var(--r-sm)] border">
@@ -100,7 +113,7 @@ export function PackingLinesSection({ session }: { session: PackingSession }) {
           </thead>
           <tbody>
             {session.lines.map((line) => (
-              <LineRow key={line.orderLineId} line={line} />
+              <LineRow key={line.orderLineId} line={line} printWaiting={printLinesWaiting} />
             ))}
           </tbody>
         </table>

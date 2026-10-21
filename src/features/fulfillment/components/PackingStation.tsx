@@ -13,7 +13,7 @@ import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { canDownloadArtifact } from "@/features/fulfillment/lifecycle";
 import { packingAccess } from "@/features/fulfillment/packing-lifecycle";
 import { usePackingSession } from "@/features/fulfillment/packing-queries";
-import { hasPrintLines } from "@/features/fulfillment/packing-selectors";
+import { hasPrintLines, printLinesWaiting } from "@/features/fulfillment/packing-selectors";
 import { useFulfillmentOrder, useFulfillmentTask } from "@/features/fulfillment/queries";
 import { Alert } from "@/components/shared/Alert";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -70,6 +70,8 @@ function PackingStationBody({ id }: { id: string }) {
   // Chưa lấy hàng xong thì chưa nhận đơn được (BE `PACKING_NOT_READY`) — chỉ biết khi đọc được task
   const waitingPick = access.canStart && !!task && task.pickStatus !== PICK_STATUS.PICKED;
   const showDesign = hasPrintLines(session) || (task?.integrityEvidence.length ?? 0) > 0;
+  // Hàng in chưa về bàn đóng gói (BE PR #150, PACK-EARLY): cờ của đơn khi đọc được, không thì suy từ phiên
+  const printWaiting = printLinesWaiting(session, order.data?.printLinesReady);
 
   return (
     <>
@@ -105,8 +107,13 @@ function PackingStationBody({ id }: { id: string }) {
       ) : (
         <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
           <div className="min-w-0 space-y-5">
-            <PackingNotices session={session} access={access} waitingPick={waitingPick} />
-            <PackingLinesSection session={session} />
+            <PackingNotices
+              session={session}
+              access={access}
+              waitingPick={waitingPick}
+              printLinesWaiting={printWaiting}
+            />
+            <PackingLinesSection session={session} printLinesWaiting={printWaiting} />
             {access.canWork && <ScanSection session={session} />}
             <PackagesSection
               session={session}
