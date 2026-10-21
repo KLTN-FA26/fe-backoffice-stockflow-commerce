@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PRODUCT_PERMISSIONS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
-import { installApi, pickOption, renderApp } from "../product-test-utils";
+import { goToLastStep, installApi, nextStep, pickOption, renderApp } from "../product-test-utils";
 import { ProductCreate } from "./ProductCreate";
 
 const { pushMock } = vi.hoisted(() => ({ pushMock: vi.fn() }));
@@ -105,6 +105,9 @@ async function fillMaster(user: ReturnType<typeof userEvent.setup>, code = "cup"
   await pickOption(user, /Danh mục/, "Ly giấy");
 }
 
+/** Thông tin chung → Mô tả → Trục biến thể. */
+const toAxesStep = (user: ReturnType<typeof userEvent.setup>) => nextStep(user, 2);
+
 async function addAxis(
   user: ReturnType<typeof userEvent.setup>,
   index: number,
@@ -114,12 +117,16 @@ async function addAxis(
   await pickOption(user, `Thuộc tính của trục ${index}`, new RegExp(attributeName));
 }
 
-describe("ProductCreate — trục biến thể khi tạo sản phẩm", () => {
+// Luồng wizard nhiều bước (Radix Select + chuyển bước) chậm khi cả bộ test chạy song song → 15 s
+// như PurchaseOrderCreate.test.
+describe("ProductCreate — trục biến thể khi tạo sản phẩm", { timeout: 15_000 }, () => {
   it("không chọn trục: POST không có `axes` (BE tạo một biến thể mặc định)", async () => {
     const { post } = setup([attribute("a-size", "SIZE", ["S", "M"])]);
     const user = userEvent.setup();
     renderApp(<ProductCreate />);
     await fillMaster(user);
+    await goToLastStep(user);
+    expect(screen.getByText(/Không có trục — tạo một biến thể mặc định/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Tạo bản nháp" }));
     await waitFor(() => expect(post).toHaveBeenCalled());
     const body = post.mock.calls[0]?.[1] as Record<string, unknown>;
@@ -138,6 +145,7 @@ describe("ProductCreate — trục biến thể khi tạo sản phẩm", () => {
     const user = userEvent.setup();
     renderApp(<ProductCreate />);
     await fillMaster(user, "cup");
+    await toAxesStep(user);
 
     await addAxis(user, 1, "SIZE");
     await user.click(screen.getByLabelText("Nhãn S"));
@@ -151,6 +159,7 @@ describe("ProductCreate — trục biến thể khi tạo sản phẩm", () => {
     expect(screen.getByText("CUP-S-WHT")).toBeInTheDocument();
     expect(screen.getByText("CUP-M-BLK")).toBeInTheDocument();
 
+    await goToLastStep(user);
     await user.click(screen.getByRole("button", { name: "Tạo bản nháp" }));
     // 4 SKU → xác nhận trước khi tạo cả ma trận
     const confirm = await screen.findByRole("dialog", { name: "Tạo sản phẩm và 4 SKU?" });
@@ -173,14 +182,21 @@ describe("ProductCreate — trục biến thể khi tạo sản phẩm", () => {
     const user = userEvent.setup();
     renderApp(<ProductCreate />);
     await fillMaster(user);
+    await toAxesStep(user);
     await addAxis(user, 1, "BIG");
     for (const code of codes("B", 11)) await user.click(screen.getByLabelText(`Nhãn ${code}`));
     await addAxis(user, 2, "TEN");
     for (const code of codes("T", 10)) await user.click(screen.getByLabelText(`Nhãn ${code}`));
 
     expect(await screen.findByText(/Ma trận có 110 biến thể — tối đa 100/)).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Tạo bản nháp" }));
-    expect(await screen.findAllByText(/Ma trận có 110 biến thể/)).not.toHaveLength(0);
+    // Ma trận lỗi → "Tiếp tục" không qua được bước trục, không tới được nút tạo
+    await user.click(screen.getByRole("button", { name: "Tiếp tục" }));
+    expect(await screen.findByText("Cần xử lý trước khi tiếp tục")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Trục biến thể/ })).toHaveAttribute(
+      "aria-current",
+      "step",
+    );
+    expect(screen.queryByRole("button", { name: "Tạo bản nháp" })).toBeNull();
     expect(post).not.toHaveBeenCalled();
   }, 15_000);
 
@@ -189,8 +205,9 @@ describe("ProductCreate — trục biến thể khi tạo sản phẩm", () => {
     const user = userEvent.setup();
     renderApp(<ProductCreate />);
     await fillMaster(user);
+    await toAxesStep(user);
     await addAxis(user, 1, "SIZE");
-    await user.click(screen.getByRole("button", { name: "Tạo bản nháp" }));
+    await user.click(screen.getByRole("button", { name: "Tiếp tục" }));
     const alerts = await screen.findAllByRole("alert");
     expect(alerts.some((a) => /Trục 1: chọn ít nhất một giá trị/.test(a.textContent ?? ""))).toBe(
       true,
@@ -205,8 +222,10 @@ describe("ProductCreate — trục biến thể khi tạo sản phẩm", () => {
     const user = userEvent.setup();
     renderApp(<ProductCreate />);
     await fillMaster(user);
+    await toAxesStep(user);
     await addAxis(user, 1, "SIZE");
     await user.click(screen.getByLabelText("Nhãn S"));
+    await goToLastStep(user);
     await user.click(screen.getByRole("button", { name: "Tạo bản nháp" }));
     const alert = await screen.findByText(/Sản phẩm chưa được tạo/);
     expect(alert).toHaveTextContent(/trùng/);
@@ -239,7 +258,10 @@ describe("ProductCreate — trục biến thể khi tạo sản phẩm", () => {
         return undefined;
       },
     });
+    const user = userEvent.setup();
     renderApp(<ProductCreate />);
+    await fillMaster(user);
+    await toAxesStep(user);
     const section = (await screen.findByText("Trục biến thể (tuỳ chọn)")).closest(
       "section",
     ) as HTMLElement;
@@ -277,6 +299,7 @@ describe("ProductCreate — trục gợi ý của danh mục (spec D9) và xác 
     const user = userEvent.setup();
     renderApp(<ProductCreate />);
     await fillMaster(user);
+    await toAxesStep(user);
 
     expect(
       await screen.findByRole("combobox", { name: "Thuộc tính của trục 1" }),
@@ -295,6 +318,7 @@ describe("ProductCreate — trục gợi ý của danh mục (spec D9) và xác 
     const user = userEvent.setup();
     renderApp(<ProductCreate />);
     await fillMaster(user);
+    await toAxesStep(user);
     await waitFor(() =>
       expect(get).toHaveBeenCalledWith(`/categories/${CATEGORY}/attributes`, expect.anything()),
     );
@@ -307,16 +331,21 @@ describe("ProductCreate — trục gợi ý của danh mục (spec D9) và xác 
     const user = userEvent.setup();
     renderApp(<ProductCreate />);
     await fillMaster(user);
+    await toAxesStep(user);
     await addAxis(user, 1, "SIZE");
     await user.click(screen.getByLabelText("Nhãn S"));
     await user.click(screen.getByLabelText("Nhãn M"));
+    await goToLastStep(user);
     await user.click(screen.getByRole("button", { name: "Tạo bản nháp" }));
     const confirm = await screen.findByRole("dialog", { name: "Tạo sản phẩm và 2 SKU?" });
     await user.click(within(confirm).getByRole("button", { name: "Quay lại" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(post).not.toHaveBeenCalled();
 
+    // Quay lại bước trục (thanh dưới), bỏ bớt giá trị → còn một SKU
+    await user.click(screen.getByRole("button", { name: "Quay lại" }));
     await user.click(screen.getByLabelText("Nhãn M"));
+    await goToLastStep(user);
     await user.click(screen.getByRole("button", { name: "Tạo bản nháp" }));
     await waitFor(() => expect(post).toHaveBeenCalled());
     expect(screen.queryByRole("dialog")).toBeNull();

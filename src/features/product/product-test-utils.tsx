@@ -3,10 +3,10 @@
  * `useMyPermissions` gọi `/identity/me/permissions`, và dựng spy cho `api` (axios) để test kiểm đúng
  * request gửi đi mà không cần BE hay mock adapter.
  */
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
-import { vi } from "vitest";
+import { expect, vi } from "vitest";
 
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -64,6 +64,32 @@ export async function pickOption(
   patchJsdomForRadix();
   await user.click(await screen.findByRole("combobox", { name: trigger }));
   await user.click(await screen.findByRole("option", { name: option }));
+}
+
+type Clicker = { click: (el: Element) => Promise<void> };
+
+const stepText = () => screen.getByText(/^Bước \d/).textContent;
+
+/** Wizard sản phẩm: bấm "Tiếp tục" rồi chờ sang bước mới (bước hiện tại phải hợp lệ). */
+async function advance(user: Clicker, next: Element) {
+  const before = stepText();
+  await user.click(next);
+  await waitFor(() => expect(stepText()).not.toBe(before));
+}
+
+/** Wizard sản phẩm: qua `times` bước. */
+export async function nextStep(user: Clicker, times = 1) {
+  for (let i = 0; i < times; i += 1) {
+    await advance(user, await screen.findByRole("button", { name: "Tiếp tục" }));
+  }
+}
+
+/** Wizard sản phẩm: đi tới bước Rà soát (hết nút "Tiếp tục"). */
+export async function goToLastStep(user: Clicker) {
+  for (let next = screen.queryByRole("button", { name: "Tiếp tục" }); next;) {
+    await advance(user, next);
+    next = screen.queryByRole("button", { name: "Tiếp tục" });
+  }
 }
 
 export function renderApp(ui: ReactElement, options: { searchParams?: string } = {}) {
