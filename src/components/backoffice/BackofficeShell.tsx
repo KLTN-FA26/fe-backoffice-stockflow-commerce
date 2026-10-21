@@ -6,6 +6,7 @@ import {
   Boxes,
   CalendarClock,
   ClipboardList,
+  FileBox,
   FileText,
   FolderTree,
   History as HistoryIcon,
@@ -237,7 +238,8 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "Hồ sơ hàng tồn",
         tooltip: "Inventory items",
         href: ADMIN_ROUTES.inventoryItems.list,
-        icon: Boxes,
+        // Hồ sơ cấu hình SKU — khác icon Boxes của "Tổng quan tồn kho" (số lượng tồn)
+        icon: FileBox,
         // Route BE khai báo cho resource inventory-inventory-items (PR #119)
         permission: INVENTORY_ITEM_PERMISSIONS.viewPage,
       },
