@@ -7,12 +7,13 @@ import { SUPPLIER_CHANNEL_LABELS, SUPPLIER_CHANNELS, SUPPLIER_FIELD_LABELS } fro
 import { Input } from "@/components/ui/input";
 import {
   Select,
-  SelectContent,
   SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
+import { CheckboxField } from "@/components/shared/CheckboxField";
 
 import { FieldError, FieldHint, Label, fieldA11y, fieldId, inputCls } from "./fields";
 
@@ -98,7 +99,7 @@ export function SupplierTermsSection({
             >
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <TitledSelectContent title={L.communicationChannel}>
               <SelectGroup>
                 {SUPPLIER_CHANNELS.map((c) => (
                   <SelectItem key={c} value={c}>
@@ -106,7 +107,7 @@ export function SupplierTermsSection({
                   </SelectItem>
                 ))}
               </SelectGroup>
-            </SelectContent>
+            </TitledSelectContent>
           </Select>
           <FieldError name="communicationChannel" message={errors.communicationChannel?.message} />
         </div>
@@ -149,15 +150,12 @@ export function SupplierTermsSection({
           <FieldHint>Phần trăm được nhận vượt số lượng đặt khi nhập kho.</FieldHint>
         </div>
         <div className="space-y-1 sm:col-span-2">
-          <label className="text-ink-secondary flex items-center gap-2 text-xs font-medium">
-            <input
-              type="checkbox"
-              {...register("printSubcontractor")}
-              id={fieldId("printSubcontractor")}
-              className="border-border-strong accent-brand size-4 rounded-[var(--r-sm)]"
-            />
-            {L.printSubcontractor} — nhận in theo đơn gia công
-          </label>
+          <CheckboxField
+            control={control}
+            name="printSubcontractor"
+            id={fieldId("printSubcontractor")}
+            label={`${L.printSubcontractor} — nhận in theo đơn gia công`}
+          />
         </div>
         {printSubcontractor && (
           <div className="space-y-1">

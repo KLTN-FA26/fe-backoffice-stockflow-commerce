@@ -1,8 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-
 import {
   ADMIN_ROUTES,
   FULFILLMENT_PACKAGE_PERMISSIONS,
@@ -16,7 +13,7 @@ import { isOnDesignHold } from "@/features/fulfillment/selectors";
 import { Alert } from "@/components/shared/Alert";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
-import { Button } from "@/components/ui/button";
+import { BackLink } from "@/components/shared/BackLink";
 
 import { TaskActionCard } from "./detail/TaskActionCard";
 import { TaskInfo } from "./detail/TaskInfo";
@@ -27,7 +24,7 @@ import { EvidenceTable } from "./packing/EvidenceTable";
 import { Section, orderLabel, taskCode } from "./primitives";
 import { useFulfillmentActor, useTaskReferences } from "./useFulfillmentActor";
 
-const { fulfillment, common } = UI_LABELS;
+const { fulfillment } = UI_LABELS;
 
 function PackingStationBody({ id }: { id: string }) {
   const actor = useFulfillmentActor();
@@ -59,13 +56,7 @@ function PackingStationBody({ id }: { id: string }) {
       <PageHeader
         title={`Trạm đóng gói — task ${taskCode(task.taskId)}`}
         subtitle={`${fulfillment.packingTitle} · Đơn ${orderNumber ?? orderLabel(task.orderId, undefined)}`}
-        actions={
-          <Button variant="outline" size="sm" asChild>
-            <Link href={ADMIN_ROUTES.packing.list}>
-              <ArrowLeft className="size-3.5" /> {common.backToList}
-            </Link>
-          </Button>
-        }
+        actions={<BackLink href={ADMIN_ROUTES.packing.list} />}
       />
       <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
         <div className="min-w-0 space-y-5">

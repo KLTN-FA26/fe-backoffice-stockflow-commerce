@@ -2,24 +2,25 @@
 
 import { UI_LABELS } from "@/constants";
 import { useWarehouseDirectory } from "@/lib/references/warehouse-options";
+import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
   Select,
-  SelectContent,
   SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 
 import { useWarehouseLabel } from "../primitives";
 
 import type { TransferListState } from "./useTransferListState";
 
 const ALL = "__all__";
-const TRIGGER =
-  "border-border-default bg-bg-surface h-8 w-[13rem] rounded-[var(--r-sm)] text-[0.8125rem]";
+// Select chuẩn Mode A (cao 36px như ô search) — hàng facet nghiệp vụ dưới toolbar
+const TRIGGER = `${FORM_SELECT_CLASS} w-[13rem]`;
 
 function WarehouseFilter({
   id,
@@ -45,7 +46,7 @@ function WarehouseFilter({
         <SelectTrigger id={id} className={TRIGGER}>
           <SelectValue />
         </SelectTrigger>
-        <SelectContent>
+        <TitledSelectContent title={label}>
           <SelectGroup>
             <SelectItem value={ALL}>{UI_LABELS.transfer.field.all}</SelectItem>
             {/* Kho trong URL không có trong danh mục (đã xoá / không đọc được) → vẫn hiện, không để ô trống */}
@@ -61,7 +62,7 @@ function WarehouseFilter({
               </SelectItem>
             ))}
           </SelectGroup>
-        </SelectContent>
+        </TitledSelectContent>
       </Select>
       {/* Không tải được danh sách kho → nói rõ, đừng để bộ lọc chỉ còn "Tất cả" mà không lý do */}
       {isError && (

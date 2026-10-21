@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
+import { Checkbox } from "@/components/ui/checkbox";
 
 import { attributeErrorMessage } from "../attribute-errors";
 import { useAddAttributeValue, useUpdateAttributeValue } from "../attribute-queries";
@@ -153,11 +154,9 @@ function Form({
       </div>
       {value && (
         <label className="text-ink-secondary flex items-center gap-2 text-xs font-medium">
-          <input
-            type="checkbox"
+          <Checkbox
             checked={values.active}
-            onChange={(e) => setValues((v) => ({ ...v, active: e.target.checked }))}
-            className="accent-brand size-4"
+            onCheckedChange={(checked) => setValues((v) => ({ ...v, active: checked === true }))}
           />
           Đang dùng (giá trị bị vô hiệu không chọn mới được)
         </label>

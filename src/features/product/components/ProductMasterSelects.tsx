@@ -4,7 +4,8 @@ import { Controller } from "react-hook-form";
 
 import { UI_LABELS } from "@/constants";
 import { FormSelect } from "@/components/shared/FormSelect";
-import { SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
+import { SelectItem, SelectValue } from "@/components/ui/select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 
 import { productDraftFormSchema } from "../schemas";
 import { taxClassLabel } from "../selectors";
@@ -64,14 +65,14 @@ export function BrandSelectField({
             <ProductSelectTrigger id="brand-id" aria-invalid={Boolean(error)}>
               <SelectValue placeholder="Chọn thương hiệu" />
             </ProductSelectTrigger>
-            <SelectContent>
+            <TitledSelectContent title={"Thương hiệu"}>
               {selectable(brands, (b) => b.brandId, field.value).map((brand) => (
                 <SelectItem key={brand.brandId} value={brand.brandId}>
                   {brand.name}
                   {inactiveSuffix(brand)}
                 </SelectItem>
               ))}
-            </SelectContent>
+            </TitledSelectContent>
           </FormSelect>
         )}
       />
@@ -97,13 +98,13 @@ export function CategorySelectField({
                 {selectedCategoryName(categories, field.value)}
               </SelectValue>
             </ProductSelectTrigger>
-            <SelectContent>
+            <TitledSelectContent title={"Danh mục"}>
               {selectable(categories, (c) => c.categoryId, field.value).map((category) => (
                 <SelectItem key={category.categoryId} value={category.categoryId}>
                   {categoryLabel(category)}
                 </SelectItem>
               ))}
-            </SelectContent>
+            </TitledSelectContent>
           </FormSelect>
         )}
       />
@@ -122,13 +123,13 @@ export function TaxClassSelectField({ control, error }: SelectFieldProps) {
             <ProductSelectTrigger id="tax-class">
               <SelectValue />
             </ProductSelectTrigger>
-            <SelectContent>
+            <TitledSelectContent title={"Nhóm thuế"}>
               {TAX_CLASSES.map((value) => (
                 <SelectItem key={value} value={value}>
                   {taxClassLabel(value)}
                 </SelectItem>
               ))}
-            </SelectContent>
+            </TitledSelectContent>
           </FormSelect>
         )}
       />

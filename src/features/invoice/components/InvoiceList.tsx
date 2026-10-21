@@ -6,7 +6,6 @@ import {
   BarChart3,
   CheckCircle,
   CircleDollarSign,
-  Eye,
   FileText,
   Wallet,
 } from "lucide-react";
@@ -30,8 +29,9 @@ import {
   codeCell,
   dateCell,
   moneyCell,
+  refCell,
   statusCell,
-  textCell,
+  viewColumn,
 } from "@/components/shared/column-helpers";
 import { DataTable, type ColumnDef } from "@/components/shared/DataTable";
 import { ListStatsPanel } from "@/components/shared/ListStatsPanel";
@@ -62,13 +62,13 @@ const STATUS_OPTIONS: { label: string; value: InvoiceStatus }[] = INVOICE_STATUS
 );
 
 const COLUMN_OPTIONS: { label: string; value: InvoiceColumnKey }[] = [
-  { label: "Invoice number", value: INVOICE_COLUMNS.INVOICE_NUMBER },
+  { label: "Số hoá đơn", value: INVOICE_COLUMNS.INVOICE_NUMBER },
   { label: "NCC", value: INVOICE_COLUMNS.SUPPLIER },
   { label: "PO tham chiếu", value: INVOICE_COLUMNS.PO_REFERENCE },
   { label: "Ngày hoá đơn", value: INVOICE_COLUMNS.INVOICE_DATE },
   { label: "Hạn thanh toán", value: INVOICE_COLUMNS.DUE_DATE },
   { label: "Tổng tiền", value: INVOICE_COLUMNS.GRAND_TOTAL },
-  { label: "InvoiceStatus", value: INVOICE_COLUMNS.STATUS },
+  { label: "Trạng thái", value: INVOICE_COLUMNS.STATUS },
   { label: "Hành động", value: INVOICE_COLUMNS.ACTIONS },
 ];
 
@@ -115,21 +115,16 @@ export function InvoiceList() {
 
   const columns = useMemo<ColumnDef<Invoice>[]>(
     () => [
-      codeCell(
-        INVOICE_COLUMNS.INVOICE_NUMBER,
-        "Invoice number",
-        (invoice) => invoice.invoiceNumber,
-        {
-          sortable: true,
-          compare: (a, b) => a.invoiceNumber.localeCompare(b.invoiceNumber),
-          onClick: (invoice) => router.push(ADMIN_ROUTES.invoices.detail(invoice.invoiceId)),
-        },
-      ),
-      textCell(INVOICE_COLUMNS.SUPPLIER, "NCC", (invoice) => invoice.supplierId, {
+      codeCell(INVOICE_COLUMNS.INVOICE_NUMBER, "Số hoá đơn", (invoice) => invoice.invoiceNumber, {
+        sortable: true,
+        compare: (a, b) => a.invoiceNumber.localeCompare(b.invoiceNumber),
+        onClick: (invoice) => router.push(ADMIN_ROUTES.invoices.detail(invoice.invoiceId)),
+      }),
+      refCell(INVOICE_COLUMNS.SUPPLIER, "NCC", (invoice) => invoice.supplierId, {
         sortable: true,
         compare: (a, b) => a.supplierId.localeCompare(b.supplierId),
       }),
-      textCell(INVOICE_COLUMNS.PO_REFERENCE, "PO tham chiếu", (invoice) => invoice.poId, {
+      refCell(INVOICE_COLUMNS.PO_REFERENCE, "PO tham chiếu", (invoice) => invoice.poId, {
         sortable: true,
         compare: (a, b) => a.poId.localeCompare(b.poId),
       }),
@@ -148,30 +143,17 @@ export function InvoiceList() {
         (amount) => formatMoney(amount, "VND"),
         { sortable: true, compare: (a, b) => a.grandTotal - b.grandTotal },
       ),
-      statusCell(INVOICE_COLUMNS.STATUS, "InvoiceStatus", (invoice) => invoice.status, "invoice", {
+      statusCell(INVOICE_COLUMNS.STATUS, "Trạng thái", (invoice) => invoice.status, "invoice", {
         sortable: true,
         compare: (a, b) => a.status.localeCompare(b.status),
         withIcon: true,
       }),
       {
+        ...viewColumn<Invoice>((invoice) => ({
+          label: "Xem chi tiết hoá đơn",
+          href: ADMIN_ROUTES.invoices.detail(invoice.invoiceId),
+        })),
         key: INVOICE_COLUMNS.ACTIONS,
-        header: "",
-        className: "w-[56px]",
-        cell: (invoice) => (
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            aria-label="Xem chi tiết hoá đơn"
-            onClick={(event) => {
-              event.stopPropagation();
-              router.push(ADMIN_ROUTES.invoices.detail(invoice.invoiceId));
-            }}
-            className="border-border-default bg-bg-surface text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary rounded-[var(--r-sm)]"
-          >
-            <Eye className="size-3.5" />
-          </Button>
-        ),
       },
     ],
     [router],

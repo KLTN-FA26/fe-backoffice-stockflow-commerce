@@ -6,7 +6,8 @@ import { Plus, Trash2 } from "lucide-react";
 import { DialogScrollArea } from "@/components/shared/DialogScrollArea";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
+import { Select, SelectItem, SelectValue } from "@/components/ui/select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 
 import { attributeErrorMessage } from "../attribute-errors";
 import { useAttributes } from "../attribute-queries";
@@ -181,13 +182,13 @@ function Form({
               <Plus className="size-3.5" />
               <SelectValue placeholder="Thêm thuộc tính mô tả" />
             </ProductSelectTrigger>
-            <SelectContent>
+            <TitledSelectContent title={"Thuộc tính mô tả"}>
               {addable.map((a) => (
                 <SelectItem key={a.attributeId} value={a.attributeId}>
                   {a.name} ({a.code})
                 </SelectItem>
               ))}
-            </SelectContent>
+            </TitledSelectContent>
           </Select>
         )}
       </DialogScrollArea>

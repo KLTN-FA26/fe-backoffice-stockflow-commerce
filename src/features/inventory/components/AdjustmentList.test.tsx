@@ -32,6 +32,13 @@ const emptyPage = {
 const { adjustmentRead, stockUpdate } = INVENTORY_PERMISSIONS;
 beforeAll(() => {
   server.listen({ onUnhandledRequest: "error" });
+  // jsdom không có ResizeObserver / scrollIntoView mà `cmdk` (popover lọc trạng thái) dùng
+  globalThis.ResizeObserver ??= class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+  Element.prototype.scrollIntoView ??= () => undefined;
 });
 beforeEach(() => {
   localStorage.clear();
@@ -182,20 +189,17 @@ describe("adjustment queue", () => {
     );
     renderInventory(<AdjustmentList />);
     await screen.findByText(INVENTORY_LABELS.noAdjustments);
-    const select = screen.getByLabelText(INVENTORY_LABELS.status);
-    expect(
-      within(select)
-        .getAllByRole("option")
-        .map((option) => [option.getAttribute("value"), option.textContent]),
-    ).toEqual([
-      ["", INVENTORY_LABELS.all],
-      ["PENDING_APPROVAL", "Chờ duyệt"],
-      ["POSTED", "Đã ghi sổ"],
-      ["REJECTED", "Từ chối"],
-      ["WITHDRAWN", "Đã rút yêu cầu"],
+    // Lọc trạng thái qua nút Filter của toolbar chuẩn (popover chọn một)
+    await userEvent.click(screen.getByRole("button", { name: "Lọc trạng thái" }));
+    const options = await screen.findAllByRole("option");
+    expect(options.map((option) => option.textContent)).toEqual([
+      "Chờ duyệt",
+      "Đã ghi sổ",
+      "Từ chối",
+      "Đã rút yêu cầu",
     ]);
-    expect(within(select).queryByText("NCC từ chối")).not.toBeInTheDocument();
-    await userEvent.selectOptions(select, "REJECTED");
+    expect(screen.queryByText("NCC từ chối")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("option", { name: "Từ chối" }));
     await waitFor(() => expect(statuses).toHaveBeenLastCalledWith("REJECTED"));
   });
 

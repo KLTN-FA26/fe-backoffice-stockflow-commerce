@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { ADMIN_ROUTES, INVENTORY_ITEM_COLUMNS as C, UI_LABELS } from "@/constants";
+import { CELL, refCell, textCell, ToneDot, viewColumn } from "@/components/shared/column-helpers";
 
 import { COLUMN_LABELS } from "./constants";
 
@@ -12,16 +13,6 @@ import type { InventoryItemSummary } from "@/features/inventory-item/types";
 type ItemColumn = ColumnDef<InventoryItemSummary> & { key: string };
 
 const L = UI_LABELS.inventoryItem;
-const mono = "font-[family-name:var(--font-mono)] tabular-nums";
-
-function ToneLabel({ dot, className, label }: { dot: string; className: string; label: string }) {
-  return (
-    <span className={`inline-flex items-center gap-1.5 ${className}`}>
-      <span aria-hidden className={`size-1.5 rounded-full ${dot}`} />
-      {label}
-    </span>
-  );
-}
 
 /** Cột bảng hồ sơ hàng tồn — BE chưa hỗ trợ sort nên không có cột sortable. */
 export function buildInventoryItemColumns(): ItemColumn[] {
@@ -32,42 +23,42 @@ export function buildInventoryItemColumns(): ItemColumn[] {
       cell: (row) => (
         <Link
           href={ADMIN_ROUTES.inventoryItems.detail(row.id)}
-          className="text-accent font-[family-name:var(--font-mono)] text-[0.8125rem] font-medium hover:underline"
+          className={`${CELL.code} hover:underline`}
           onClick={(event) => event.stopPropagation()}
         >
           {row.sku}
         </Link>
       ),
     },
-    {
-      key: C.UOM,
-      header: COLUMN_LABELS[C.UOM],
-      cell: (row) => <span className={mono}>{row.unitOfMeasure}</span>,
-    },
-    {
-      key: C.BARCODE,
-      header: COLUMN_LABELS[C.BARCODE],
-      cell: (row) => <span className={mono}>{row.barcode ?? "—"}</span>,
-    },
-    {
-      key: C.STORAGE,
-      header: COLUMN_LABELS[C.STORAGE],
-      cell: (row) => L.storageClass[row.storageClass],
-    },
-    {
-      key: C.TRACKING,
-      header: COLUMN_LABELS[C.TRACKING],
-      cell: (row) => L.trackingMode[row.trackingMode],
-    },
+    refCell<InventoryItemSummary>(C.UOM, COLUMN_LABELS[C.UOM], (row) => row.unitOfMeasure),
+    refCell<InventoryItemSummary>(C.BARCODE, COLUMN_LABELS[C.BARCODE], (row) => row.barcode),
+    textCell<InventoryItemSummary>(
+      C.STORAGE,
+      COLUMN_LABELS[C.STORAGE],
+      (row) => L.storageClass[row.storageClass],
+    ),
+    textCell<InventoryItemSummary>(
+      C.TRACKING,
+      COLUMN_LABELS[C.TRACKING],
+      (row) => L.trackingMode[row.trackingMode],
+    ),
     {
       key: C.POLICY,
       header: COLUMN_LABELS[C.POLICY],
+      // Cờ đã / chưa cấu hình không nằm trong status-map → ToneDot cùng dáng StatusDot
       cell: (row) =>
         row.policyConfigured ? (
-          <ToneLabel dot="bg-positive" className="text-positive" label={L.policy.configured} />
+          <ToneDot tone="positive" label={L.policy.configured} />
         ) : (
-          <ToneLabel dot="bg-warning" className="text-warning" label={L.policy.unconfigured} />
+          <ToneDot tone="warning" label={L.policy.unconfigured} />
         ),
     },
   ];
 }
+
+/** Nút xem cuối dòng — luôn hiện, không nằm trong ẩn/hiện cột. */
+export const inventoryItemViewColumn = () =>
+  viewColumn<InventoryItemSummary>((row) => ({
+    label: `Xem chi tiết ${row.sku}`,
+    href: ADMIN_ROUTES.inventoryItems.detail(row.id),
+  }));

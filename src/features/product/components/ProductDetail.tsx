@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useMemo } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, History, Palette, Tag } from "lucide-react";
+import { History, Palette, Tag } from "lucide-react";
 
 import { ADMIN_ROUTES, PRODUCT_STATUS } from "@/constants";
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -18,6 +17,7 @@ import {
 } from "@/features/product";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
+import { BackLink } from "@/components/shared/BackLink";
 
 import { ProductActionCard } from "./ProductActionCard";
 import { ProductAttributesSection } from "./ProductAttributesSection";
@@ -70,15 +70,7 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
       <PageHeader
         title={product.name}
         subtitle={product.nameEn}
-        actions={
-          <Link
-            href={ADMIN_ROUTES.products.list}
-            className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary inline-flex items-center gap-1.5 rounded-[var(--r-sm)] border px-3 py-1.5 text-[0.8125rem] font-medium transition-colors"
-          >
-            <ArrowLeft className="size-3.5" />
-            Quay lại
-          </Link>
-        }
+        actions={<BackLink href={ADMIN_ROUTES.products.list} />}
       />
 
       <ProductLifecycleDialogs

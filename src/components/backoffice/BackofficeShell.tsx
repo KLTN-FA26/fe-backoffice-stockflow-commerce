@@ -11,9 +11,7 @@ import {
   History as HistoryIcon,
   LayoutDashboard,
   Lightbulb,
-  LogOut,
   MapPin,
-  Moon,
   Move,
   Package,
   PackageCheck,
@@ -21,25 +19,21 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Receipt,
+  Search as SearchIcon,
   ShieldCheck,
-  Settings,
   ShoppingCart,
   SlidersHorizontal,
-  Sun,
   Truck,
-  User,
   Users,
   Warehouse as WarehouseIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useMemo } from "react";
 
 import {
   ADMIN_ROUTES,
-  APP_ROUTES,
   ATTRIBUTE_PERMISSIONS,
-  BRAND,
   FULFILLMENT_PACKAGE_PERMISSIONS,
   FULFILLMENT_PICK_PERMISSIONS,
   GOODS_RECEIPT_PERMISSIONS,
@@ -56,16 +50,12 @@ import {
 } from "@/constants";
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 
-import { logoutApi } from "@/lib/auth/auth-api";
-import { useAuthStore } from "@/lib/auth/auth-store";
 import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
 import { invoices, purchaseOrders, putawayTasks, warehouses } from "@/lib/mock-data";
 import { useIsMock } from "@/providers/app-providers";
 
-import { Logo } from "@/components/shared/Logo";
 import { SearchBar } from "@/components/shared/SearchBar";
-import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import {
   Sidebar,
@@ -80,14 +70,16 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
-  SidebarTrigger,
+  SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
+import { SidebarFooterBar } from "./SidebarFooterBar";
+import { SidebarWarehouseSwitcher } from "./SidebarWarehouseSwitcher";
+
 import type { LucideIcon } from "lucide-react";
 import type { PermissionCode } from "@/lib/auth/me-permissions";
-import type { Warehouse } from "@/lib/mock-data";
 /* -------------------------------------------------------------------------- */
 /*  Warning dot counts — computed from mock data (mock mode only: the BE has */
 /*  no cross-module "needs attention" counts, so real mode shows no badge)    */
@@ -411,100 +403,59 @@ export function buildBreadcrumbItems(
 /*  Sidebar nội dung — dùng shadcn primitives, giữ nguyên style StockFlow     */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Nút thu gọn / mở rộng sidebar ở đầu topbar (mẫu layout của shadcn): cùng một chỗ dù sidebar
+ * đang mở hay thu gọn, và cũng là nút mở sidebar trên mobile. Phím tắt Ctrl/⌘+B do
+ * `SidebarProvider` lo sẵn.
+ */
 function SidebarCollapseButton() {
-  const { state, toggleSidebar } = useSidebar();
-  const collapsed = state === "collapsed";
-  const label = collapsed ? "Mở rộng sidebar" : "Thu nhỏ sidebar";
+  const { state, isMobile, openMobile, toggleSidebar } = useSidebar();
+  const open = isMobile ? openMobile : state === "expanded";
+  const label = open ? "Thu nhỏ sidebar" : "Mở rộng sidebar";
 
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon-sm"
-      onClick={toggleSidebar}
-      className="text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary hidden size-7 shrink-0 rounded-[var(--r-sm)] bg-transparent md:flex"
-      aria-label={label}
-      title={label}
-    >
-      {collapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
-    </Button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={toggleSidebar}
+          className="text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary size-7 shrink-0 rounded-[var(--r-sm)] bg-transparent"
+          aria-label={label}
+        >
+          {open ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">{label} (Ctrl+B)</TooltipContent>
+    </Tooltip>
   );
 }
 
-interface WarehouseSwitcherProps {
-  selected: string;
-  onSelect: (warehouseId: string) => void;
-  label: string;
-}
-
-/** Đổi kho — nằm ở header sidebar, cạnh logo. Thu gọn thì chỉ còn icon + tooltip.
- *  TODO: state nên chuyển sang useAppStore.warehouseId (đã có persist) để F5 không mất
- *  lựa chọn kho — xem .claude/rules/state-persistence.md. Ngoài phạm vi task này. */
-function WarehouseSwitcher({ selected, onSelect, label }: WarehouseSwitcherProps) {
-  const [open, setOpen] = useState(false);
-  const title = `Kho đang xem: ${label}`;
-
+/** Sidebar thu gọn: icon kính lúp — bấm thì mở rộng sidebar và đưa con trỏ vào ô search. */
+function SidebarSearchIcon() {
+  const { toggleSidebar } = useSidebar();
   return (
-    <div className="relative shrink-0">
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => setOpen((o) => !o)}
-            className="text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary size-7 shrink-0 rounded-[var(--r-sm)] bg-transparent transition-colors duration-150"
-            aria-label={title}
-            aria-expanded={open}
-          >
-            <WarehouseIcon className="size-4" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="bottom">{title}</TooltipContent>
-      </Tooltip>
-
-      {open && (
-        <>
-          <div className="fixed inset-0 z-[800]" onClick={() => setOpen(false)} />
-          <div className="border-border-default bg-bg-surface absolute top-full right-0 z-[801] mt-1 w-64 rounded-[var(--r-md)] border py-1 shadow-[var(--sh-lg)]">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => {
-                onSelect("all");
-                setOpen(false);
-              }}
-              className={cn(
-                "hover:bg-bg-muted h-auto w-full justify-start gap-2 rounded-none bg-transparent px-3 py-1.5 text-left text-[0.8125rem] transition-colors",
-                selected === "all" ? "text-accent font-medium" : "text-ink-secondary",
-              )}
-            >
-              Tất cả kho
-            </Button>
-            {warehouses.map((wh: Warehouse) => (
-              <Button
-                key={wh.warehouseId}
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  onSelect(wh.warehouseId);
-                  setOpen(false);
-                }}
-                className={cn(
-                  "hover:bg-bg-muted h-auto w-full justify-start gap-2 rounded-none bg-transparent px-3 py-1.5 text-left text-[0.8125rem] transition-colors",
-                  selected === wh.warehouseId ? "text-accent font-medium" : "text-ink-secondary",
-                )}
-              >
-                <span className="text-ink-tertiary font-[family-name:var(--font-mono)] text-xs">
-                  {wh.code}
-                </span>
-                <span className="truncate">{wh.name}</span>
-              </Button>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => {
+            toggleSidebar();
+            requestAnimationFrame(() =>
+              document.querySelector<HTMLInputElement>('input[aria-label="Tìm toàn cục"]')?.focus(),
+            );
+          }}
+          className="text-ink-secondary hover:bg-bg-muted hover:text-ink-primary size-8 rounded-[var(--r-sm)] bg-transparent"
+          aria-label="Tìm nhanh"
+        >
+          <SearchIcon className="size-4" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="right">Tìm nhanh (⌘K)</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -528,30 +479,20 @@ function BackofficeSidebar() {
     >
       <SidebarHeader
         className={cn(
-          "border-border-default h-14 shrink-0 flex-row items-center border-b p-0",
-          collapsed ? "justify-center px-0" : "gap-1 px-2",
+          "border-border-default shrink-0 gap-2 border-b",
+          collapsed ? "items-center px-0 py-2" : "px-2 py-2",
         )}
       >
-        <Link
-          href={ADMIN_ROUTES.home}
-          aria-label={`${BRAND.name} — về trang tổng quan`}
-          className={cn(
-            "hover:bg-bg-muted focus-visible:ring-border-strong flex min-w-0 items-center rounded-[var(--r-sm)] transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-none",
-            collapsed ? "size-10 justify-center" : "h-10 flex-1 gap-2 px-1.5",
-          )}
-        >
-          {/* Logo đã có sẵn chữ "StockFlow" trong ảnh — không cần chữ HTML kèm theo. */}
-          <Logo variant="mark" height={collapsed ? 32 : 36} decorative />
-        </Link>
-
-        {!collapsed && <SidebarCollapseButton />}
+        {/* Kho đang xem nằm trên ô search. Danh sách kho lấy từ dữ liệu mẫu và chưa nối với
+            phạm vi dữ liệu BE: chỉ hiện ở mock */}
+        {isMock && <SidebarWarehouseSwitcher warehouses={warehouses} />}
+        {collapsed ? (
+          <SidebarSearchIcon />
+        ) : (
+          // Ô search toàn cục thay chỗ logo, dùng hết chiều rộng sidebar như ô chọn kho
+          <SearchBar placeholder="Tìm nhanh (⌘K)" className="min-w-0" aria-label="Tìm toàn cục" />
+        )}
       </SidebarHeader>
-
-      {collapsed && (
-        <div className="border-border-default flex justify-center border-b py-1.5">
-          <SidebarCollapseButton />
-        </div>
-      )}
 
       {/* Nav groups */}
       <SidebarContent className="[&::-webkit-scrollbar-thumb]:bg-border-strong min-h-0 flex-1 [scrollbar-width:thin] gap-0 overflow-y-auto px-2 py-2 [&::-webkit-scrollbar]:block [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
@@ -616,6 +557,10 @@ function BackofficeSidebar() {
           </SidebarGroup>
         ))}
       </SidebarContent>
+
+      <SidebarFooterBar />
+      {/* Vạch mảnh ở mép phải: rê chuột hiện, bấm để thu gọn / mở rộng */}
+      <SidebarRail />
     </Sidebar>
   );
 }
@@ -626,33 +571,10 @@ function BackofficeSidebar() {
 
 export function BackofficeShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
-  const { theme, toggleTheme } = useTheme();
-  const currentUser = useAuthStore((state) => state.user);
-  const isMock = useIsMock();
-  const [selectedWarehouse, setSelectedWarehouse] = useState<string>("all");
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
-
-  const selectedWhLabel = useMemo(() => {
-    if (selectedWarehouse === "all") return "Tất cả kho";
-    const wh = warehouses.find((w: Warehouse) => w.warehouseId === selectedWarehouse);
-    return wh ? wh.code : selectedWarehouse;
-  }, [selectedWarehouse]);
 
   const canSeeItem = useCanSeeNavItem();
   const breadcrumbLabels = useBreadcrumbLabelStore((s) => s.labels);
   const breadcrumbItems = buildBreadcrumbItems(pathname, canSeeItem, (id) => breadcrumbLabels[id]);
-  const currentUserName = currentUser?.fullName ?? "Người dùng";
-
-  async function handleLogout() {
-    setUserMenuOpen(false);
-    try {
-      await logoutApi();
-    } finally {
-      router.replace(APP_ROUTES.login);
-      router.refresh();
-    }
-  }
 
   return (
     <TooltipProvider>
@@ -677,8 +599,8 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
         <SidebarInset className="bg-bg-surface flex min-h-0 min-w-0 flex-col">
           {/* Topbar */}
           <header className="border-border-default bg-bg-surface flex h-14 shrink-0 items-center gap-2 border-b px-4 print:hidden">
-            {/* Mobile sidebar trigger */}
-            <SidebarTrigger className="text-ink-secondary hover:bg-bg-muted hover:text-ink-primary size-8 shrink-0 md:hidden" />
+            <SidebarCollapseButton />
+            <div aria-hidden className="bg-border-default mr-1 h-4 w-px shrink-0" />
 
             <div className="min-w-0 flex-1">
               <nav
@@ -704,108 +626,6 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
                   </span>
                 ))}
               </nav>
-            </div>
-
-            {/* Global search */}
-            <SearchBar
-              placeholder="Tìm nhanh (⌘K)"
-              className="max-w-[240px]"
-              aria-label="Tìm toàn cục"
-            />
-
-            {/* Danh sách kho lấy từ dữ liệu mẫu và chưa nối với phạm vi dữ liệu: chỉ hiện ở mock */}
-            {isMock && (
-              <WarehouseSwitcher
-                selected={selectedWarehouse}
-                onSelect={setSelectedWarehouse}
-                label={selectedWhLabel}
-              />
-            )}
-
-            {/* Theme toggle */}
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={toggleTheme}
-              className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary rounded-[var(--r-sm)] transition-colors"
-              aria-label={theme === "dark" ? "Chuyển sang Light" : "Chuyển sang Dark"}
-            >
-              {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
-            </Button>
-
-            {/* User menu */}
-            <div className="relative">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setUserMenuOpen((open) => !open)}
-                className="hover:bg-bg-muted h-auto gap-2 rounded-[var(--r-sm)] bg-transparent px-1 py-0.5 transition-colors"
-                aria-label="Mở menu tài khoản"
-              >
-                <div className="bg-accent flex size-8 items-center justify-center rounded-full text-xs font-bold text-white">
-                  {currentUserName
-                    .split(" ")
-                    .slice(-2)
-                    .map((word) => word[0])
-                    .join("")}
-                </div>
-              </Button>
-              {userMenuOpen && (
-                <>
-                  <div className="fixed inset-0 z-[800]" onClick={() => setUserMenuOpen(false)} />
-                  <div className="border-border-default bg-bg-surface absolute top-full right-0 z-[801] mt-1 w-64 rounded-[var(--r-md)] border py-1 shadow-[var(--sh-lg)]">
-                    {/* User info header */}
-                    <div className="border-border-default border-b px-3 py-2">
-                      <div className="text-ink-primary text-[0.8125rem] font-semibold">
-                        {currentUserName}
-                      </div>
-                      <div className="text-ink-tertiary text-xs">
-                        {currentUser?.email ?? "Chưa có thông tin email"}
-                      </div>
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        {currentUser?.roles.map((role) => (
-                          <span
-                            key={role}
-                            className="bg-bg-subtle text-ink-secondary rounded-full px-2 py-0.5 text-[0.625rem] font-medium"
-                          >
-                            {role}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                    {/* Menu items */}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => setUserMenuOpen(false)}
-                      className="text-ink-secondary hover:bg-bg-muted hover:text-ink-primary h-auto w-full justify-start gap-2 rounded-none bg-transparent px-3 py-1.5 text-[0.8125rem] transition-colors"
-                    >
-                      <User className="size-3.5" />
-                      Hồ sơ cá nhân
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => setUserMenuOpen(false)}
-                      className="text-ink-secondary hover:bg-bg-muted hover:text-ink-primary h-auto w-full justify-start gap-2 rounded-none bg-transparent px-3 py-1.5 text-[0.8125rem] transition-colors"
-                    >
-                      <Settings className="size-3.5" />
-                      Cài đặt
-                    </Button>
-                    <div className="border-border-default my-1 border-t" />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={handleLogout}
-                      className="text-danger hover:bg-bg-muted hover:text-danger h-auto w-full justify-start gap-2 rounded-none bg-transparent px-3 py-1.5 text-[0.8125rem] transition-colors"
-                    >
-                      <LogOut className="size-3.5" />
-                      Đăng xuất
-                    </Button>
-                  </div>
-                </>
-              )}
             </div>
           </header>
 

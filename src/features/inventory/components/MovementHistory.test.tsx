@@ -61,6 +61,16 @@ afterAll(() => {
   server.close();
 });
 
+const SKU_SEARCH = { name: `${INVENTORY_LABELS.sku}…` };
+const NEXT_PAGE = { name: "Sau" };
+
+// Radix Select dùng pointer capture — jsdom không có
+function patchRadix() {
+  Element.prototype.hasPointerCapture ??= () => false;
+  Element.prototype.releasePointerCapture ??= () => undefined;
+  Element.prototype.scrollIntoView ??= () => undefined;
+}
+
 function renderHistory(searchParams = "", onUrlUpdate = vi.fn()) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
@@ -99,7 +109,7 @@ describe("movement ledger screen", () => {
       type: "MOVE",
       page: "1",
     });
-    expect(screen.getByLabelText(INVENTORY_LABELS.sku)).toHaveValue("CUP-PP-500");
+    expect(screen.getByRole("textbox", SKU_SEARCH)).toHaveValue("CUP-PP-500");
   });
 
   it("changes type in URL and resets the page before the server request", async () => {
@@ -112,9 +122,10 @@ describe("movement ledger screen", () => {
     );
     const updates = renderHistory("?page=3");
     await screen.findByText(INVENTORY_LABELS.noMovements);
-    await userEvent.selectOptions(
-      screen.getByLabelText(INVENTORY_LABELS.movementType),
-      "ADJUSTMENT",
+    patchRadix();
+    await userEvent.click(screen.getByRole("combobox", { name: INVENTORY_LABELS.movementType }));
+    await userEvent.click(
+      await screen.findByRole("option", { name: STOCK_MOVEMENT_LABELS.ADJUSTMENT }),
     );
     await waitFor(() => expect(updates).toHaveBeenCalled());
     expect(updates.mock.lastCall?.[0].searchParams.get("type")).toBe("ADJUSTMENT");
@@ -131,6 +142,16 @@ describe("movement ledger screen", () => {
           success: true,
           data: {
             ...emptyPage,
+            items: [
+              {
+                movementId: crypto.randomUUID(),
+                sku: "CUP-PP-500",
+                quantity: 1,
+                occurredAt: "2026-10-11T00:00:00Z",
+                type: "MOVE",
+                referenceType: "MOVE_TASK",
+              },
+            ],
             page,
             totalElements: 30,
             totalPages: 2,
@@ -141,12 +162,10 @@ describe("movement ledger screen", () => {
       }),
     );
     renderHistory();
-    await screen.findByText(INVENTORY_LABELS.noMovements);
-    await userEvent.click(screen.getByRole("button", { name: INVENTORY_LABELS.next }));
+    await screen.findByRole("table");
+    await userEvent.click(screen.getByRole("button", NEXT_PAGE));
     await waitFor(() => expect(pages).toHaveBeenLastCalledWith(1));
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: INVENTORY_LABELS.next })).toBeDisabled(),
-    );
+    await waitFor(() => expect(screen.getByRole("button", NEXT_PAGE)).toBeDisabled());
   });
 
   it("shows a recoverable error and retries", async () => {
@@ -194,7 +213,7 @@ describe("movement ledger screen", () => {
     );
     renderHistory();
     expect(await screen.findByText(INVENTORY_LABELS.denied)).toBeInTheDocument();
-    expect(screen.queryByLabelText(INVENTORY_LABELS.sku)).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", SKU_SEARCH)).not.toBeInTheDocument();
     expect(ledger).not.toHaveBeenCalled();
   });
 
@@ -206,7 +225,7 @@ describe("movement ledger screen", () => {
     );
     renderHistory();
     expect(await screen.findByText(INVENTORY_LABELS.noMovements)).toBeInTheDocument();
-    expect(screen.getByLabelText(INVENTORY_LABELS.sku)).toBeInTheDocument();
+    expect(screen.getByRole("textbox", SKU_SEARCH)).toBeInTheDocument();
   });
 
   it("renders current and unknown movement types without losing the page", async () => {
@@ -253,7 +272,7 @@ describe("movement ledger screen", () => {
     expect(within(table).getByText("FUTURE_MOVEMENT_TYPE")).toBeInTheDocument();
     expect(within(table).getByText("PICK_LINE")).toBeInTheDocument();
     expect(screen.queryByText(INVENTORY_LABELS.loadError)).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: INVENTORY_LABELS.next })).toBeEnabled();
+    expect(screen.getByRole("button", NEXT_PAGE)).toBeEnabled();
   });
 
   it("shows the stock status change of a ledger row, keeping unknown codes verbatim", async () => {
@@ -328,13 +347,13 @@ describe("movement ledger screen", () => {
     );
     renderHistory();
     await screen.findByText(INVENTORY_LABELS.noMovements);
-    const select = screen.getByLabelText(INVENTORY_LABELS.movementType);
-    expect(
-      within(select)
-        .getAllByRole("option")
-        .map((option) => option.getAttribute("value")),
-    ).toEqual(["", ...STOCK_MOVEMENT_TYPES]);
-    await userEvent.selectOptions(select, "PUT_BACK");
+    patchRadix();
+    await userEvent.click(screen.getByRole("combobox", { name: INVENTORY_LABELS.movementType }));
+    expect((await screen.findAllByRole("option")).map((option) => option.textContent)).toEqual([
+      INVENTORY_LABELS.all,
+      ...STOCK_MOVEMENT_TYPES.map((type) => STOCK_MOVEMENT_LABELS[type]),
+    ]);
+    await userEvent.click(screen.getByRole("option", { name: STOCK_MOVEMENT_LABELS.PUT_BACK }));
     await waitFor(() => expect(types).toHaveBeenLastCalledWith("PUT_BACK"));
   });
 });

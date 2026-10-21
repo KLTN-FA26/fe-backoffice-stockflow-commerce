@@ -2,23 +2,32 @@
 
 import Link from "next/link";
 
-import { INVENTORY_LABELS, INVENTORY_ROUTES, INVENTORY_STORAGE_KEYS } from "@/constants/inventory";
+import {
+  INVENTORY_LABELS,
+  INVENTORY_PAGE_SIZES,
+  INVENTORY_ROUTES,
+  INVENTORY_STORAGE_KEYS,
+} from "@/constants/inventory";
 import { INVENTORY_PERMISSIONS } from "@/constants/permissions";
 
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useCan } from "@/lib/auth";
 
 import { EmptyState } from "@/components/shared/EmptyState";
+import { DataTable } from "@/components/shared/DataTable";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
 
 import { useAdjustments } from "../queries";
 import { useInventoryListFilters } from "../use-list-filters";
-import { AdjustmentFilters } from "./AdjustmentFilters";
-import { AdjustmentTable } from "./AdjustmentTable";
 import { InventoryError, InventoryNoFilterResults, InventoryOffline } from "./InventoryFeedback";
-import { InventoryPager } from "./InventoryPager";
+import { buildAdjustmentColumns, isPendingAdjustment } from "./inventory-columns";
+import { serverPage } from "./inventory-page";
+import { InventoryToolbar } from "./InventoryToolbar";
 import { InventoryPermissionGate } from "./InventoryPermissionGate";
+
+const ADJUSTMENT_COLUMNS = buildAdjustmentColumns();
 
 export function AdjustmentList() {
   return (
@@ -31,11 +40,14 @@ export function AdjustmentList() {
 function AdjustmentListContent() {
   const canCreate = useCan(INVENTORY_PERMISSIONS.stockUpdate);
   const state = useInventoryListFilters(INVENTORY_STORAGE_KEYS.adjustments);
+  // Ô gõ ghi URL ngay; request dùng giá trị debounce 300ms như các trang danh sách khác
+  const sku = useDebouncedValue(state.filters.sku.trim(), 300);
+  const location = useDebouncedValue(state.filters.location.trim(), 300);
   const query = useAdjustments({
     page: state.page - 1,
     size: state.size,
-    sku: state.filters.sku || undefined,
-    location: state.filters.location || undefined,
+    sku: sku || undefined,
+    location: location || undefined,
     status: state.filters.status ?? undefined,
   });
   const createAction = canCreate ? (
@@ -58,7 +70,7 @@ function AdjustmentListContent() {
         }
       />
       <InventoryOffline />
-      <AdjustmentFilters state={state} />
+      <InventoryToolbar state={state} mode="adjustment" />
       {query.isFetching && !query.isLoading && (
         <div role="status" aria-label={INVENTORY_LABELS.fetching} className="bg-info h-1" />
       )}
@@ -68,12 +80,18 @@ function AdjustmentListContent() {
         <InventoryError error={query.error} retry={() => void query.refetch()} />
       ) : (
         query.data && (
-          <section
-            aria-busy={query.isFetching}
-            className="border-border-default bg-bg-surface rounded-[var(--r-sm)] border"
-          >
+          <section aria-busy={query.isFetching}>
             {query.data.items.length ? (
-              <AdjustmentTable items={query.data.items} />
+              <DataTable
+                columns={ADJUSTMENT_COLUMNS}
+                data={query.data.items}
+                rowKey={(row) => row.adjustmentId}
+                caption={INVENTORY_LABELS.adjustmentTitle}
+                flagRow={isPendingAdjustment}
+                pageSize={state.size}
+                pageSizeOptions={INVENTORY_PAGE_SIZES}
+                serverPagination={serverPage(query.data, state)}
+              />
             ) : state.hasFilters ? (
               <InventoryNoFilterResults reset={() => void state.reset()} />
             ) : (
@@ -83,13 +101,6 @@ function AdjustmentListContent() {
                 action={createAction}
               />
             )}
-            <InventoryPager
-              data={query.data}
-              pending={query.isFetching}
-              size={state.size}
-              setSize={state.setSize}
-              setPage={(page) => void state.setPage(page)}
-            />
           </section>
         )
       )}

@@ -18,7 +18,6 @@ interface LoadLinesTableProps {
   showLoadedAt?: boolean;
   /** Hiện cột tick đối soát (biên bản bàn giao). */
   showCheck?: boolean;
-  highlightMissing?: boolean;
 }
 
 /** Bảng kiện của chuyến — dùng cho màn quét (đã lên / chưa lên) và biên bản bàn giao. */
@@ -28,7 +27,6 @@ export function LoadLinesTable({
   emptyText,
   showLoadedAt = false,
   showCheck = false,
-  highlightMissing = false,
 }: LoadLinesTableProps) {
   // Căn phải theo cờ `numeric` của cột, không so chữ tiêu đề
   const columns = [
@@ -74,11 +72,8 @@ export function LoadLinesTable({
             return (
               <tr
                 key={line.loadLineId}
-                className={cn(
-                  "border-border-default border-t",
-                  // data-table-mode-a: dòng cần chú ý → viền trái 2px tone warning
-                  highlightMissing && missing && "border-l-warning border-l-2",
-                )}
+                // Dòng thiếu kiện: chỉ ô "Chưa lên xe" tô tone warning, không viền trái riêng
+                className="border-border-default border-t"
               >
                 {showCheck && (
                   <td className={`text-ink-tertiary w-px px-3 py-2 ${MONO}`}>{index + 1}</td>

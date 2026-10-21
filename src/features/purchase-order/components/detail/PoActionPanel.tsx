@@ -35,7 +35,7 @@ const STYLE_OF = {
   secondary:
     "border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted dark:bg-bg-surface",
   danger:
-    "border-danger text-danger hover:bg-danger/10 hover:text-danger bg-transparent dark:bg-transparent",
+    "border-danger text-danger hover:bg-danger/10 hover:text-danger bg-transparent dark:border-danger dark:bg-transparent",
 } as const;
 
 const ACTION_ICON: Record<PoActionCode, LucideIcon> = {
@@ -52,12 +52,17 @@ const ACTION_ICON: Record<PoActionCode, LucideIcon> = {
   cancel: XCircle,
 };
 
+/** Thao tác phụ (không đẩy luồng trạng thái) — viền trung tính như "Chỉnh sửa hồ sơ" của NCC. */
+const SECONDARY_ACTIONS: ReadonlySet<PoActionCode> = new Set([
+  "edit",
+  "recordConfirmation",
+  "recoverDelivery",
+]);
+
 /** Thao tác chính của luồng = nền brand; thao tác phụ = viền trung tính; phá huỷ = viền đỏ. */
 function styleOf(act: PoAction): keyof typeof STYLE_OF {
   if (act.destructive) return "danger";
-  return act.code === "recordConfirmation" || act.code === "recoverDelivery"
-    ? "secondary"
-    : "primary";
+  return SECONDARY_ACTIONS.has(act.code) ? "secondary" : "primary";
 }
 
 export function PoActionPanel({
@@ -87,15 +92,16 @@ export function PoActionPanel({
         <div className="space-y-2">
           {actions.map((act) => {
             const Icon = ACTION_ICON[act.code];
+            const style = styleOf(act);
             return (
               <Button
                 key={act.code}
                 type="button"
-                variant={act.destructive ? "outline" : "default"}
+                variant={style === "primary" ? "default" : "outline"}
                 size="sm"
                 disabled={isMutating}
                 onClick={() => onAction(act)}
-                className={`${STYLE_OF[styleOf(act)]} ${BUTTON_BASE}`}
+                className={`${STYLE_OF[style]} ${BUTTON_BASE}`}
               >
                 <Icon className="size-3.5" /> {act.label}
               </Button>

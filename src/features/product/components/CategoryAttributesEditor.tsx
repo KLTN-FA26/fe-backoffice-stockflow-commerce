@@ -6,7 +6,9 @@ import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { ATTRIBUTE_PERMISSIONS } from "@/constants";
 import { usePermissionChecker } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
+import { Select, SelectItem, SelectValue } from "@/components/ui/select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
+import { Checkbox } from "@/components/ui/checkbox";
 
 import { attributeErrorMessage } from "../attribute-errors";
 import { DATA_TYPE_LABEL, ROLE_LABEL } from "../attribute-labels";
@@ -53,14 +55,14 @@ export function CategoryAttributesEditor() {
           <ProductSelectTrigger id="category-attr-select">
             <SelectValue placeholder={categories.isLoading ? "Đang tải…" : "Chọn danh mục"} />
           </ProductSelectTrigger>
-          <SelectContent>
+          <TitledSelectContent title={"Danh mục"}>
             {items.map((category) => (
               <SelectItem key={category.categoryId} value={category.categoryId}>
                 {"— ".repeat(category.level - 1)}
                 {category.name.vi}
               </SelectItem>
             ))}
-          </SelectContent>
+          </TitledSelectContent>
         </Select>
       </div>
       {categoryId === "" ? (
@@ -143,21 +145,19 @@ function Editor({ categoryId, saved }: { categoryId: string; saved: CategoryAttr
               >
                 <SelectValue />
               </ProductSelectTrigger>
-              <SelectContent>
+              <TitledSelectContent title={"Vai trò"}>
                 {ATTRIBUTE_ROLES.map((role) => (
                   <SelectItem key={role} value={role} disabled={role === "VARIANT_AXIS" && !axisOk}>
                     {ROLE_LABEL[role]}
                   </SelectItem>
                 ))}
-              </SelectContent>
+              </TitledSelectContent>
             </Select>
             <label className="text-ink-secondary flex items-center gap-1.5 text-xs">
-              <input
-                type="checkbox"
-                className="accent-brand size-3.5"
+              <Checkbox
                 checked={row.required}
                 disabled={!canEdit}
-                onChange={(e) => patch(index, { required: e.target.checked })}
+                onCheckedChange={(checked) => patch(index, { required: checked === true })}
               />
               Bắt buộc
             </label>
@@ -221,13 +221,13 @@ function Editor({ categoryId, saved }: { categoryId: string; saved: CategoryAttr
                 <Plus className="size-3.5" />
                 <SelectValue placeholder="Thêm thuộc tính" />
               </ProductSelectTrigger>
-              <SelectContent>
+              <TitledSelectContent title={"Thêm thuộc tính"}>
                 {addable.map((a) => (
                   <SelectItem key={a.attributeId} value={a.attributeId}>
                     {a.name} ({a.code})
                   </SelectItem>
                 ))}
-              </SelectContent>
+              </TitledSelectContent>
             </Select>
           )}
           <Button

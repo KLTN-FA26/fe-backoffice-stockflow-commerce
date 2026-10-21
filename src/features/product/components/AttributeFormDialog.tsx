@@ -3,7 +3,9 @@
 import { useState } from "react";
 
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
-import { Select, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
+import { Select, SelectItem, SelectValue } from "@/components/ui/select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
+import { Checkbox } from "@/components/ui/checkbox";
 
 import { attributeErrorMessage } from "../attribute-errors";
 import { DATA_TYPE_LABEL } from "../attribute-labels";
@@ -133,13 +135,13 @@ function Form({
           <ProductSelectTrigger id="attr-type">
             <SelectValue />
           </ProductSelectTrigger>
-          <SelectContent>
+          <TitledSelectContent title={"Loại"}>
             {ATTRIBUTE_DATA_TYPES.map((t) => (
               <SelectItem key={t} value={t}>
                 {DATA_TYPE_LABEL[t]}
               </SelectItem>
             ))}
-          </SelectContent>
+          </TitledSelectContent>
         </Select>
       </Field>
       <Field label="Tên *" id="attr-name" error={values.name ? issueOf("name") : undefined}>
@@ -170,11 +172,9 @@ function Form({
           key={field}
           className="text-ink-secondary flex items-center gap-2 text-xs font-medium"
         >
-          <input
-            type="checkbox"
+          <Checkbox
             checked={values[field]}
-            onChange={(e) => setValues((v) => ({ ...v, [field]: e.target.checked }))}
-            className="accent-brand size-4"
+            onCheckedChange={(checked) => setValues((v) => ({ ...v, [field]: checked === true }))}
           />
           {label}
         </label>

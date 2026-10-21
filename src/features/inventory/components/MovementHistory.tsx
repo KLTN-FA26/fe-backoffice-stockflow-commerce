@@ -2,9 +2,17 @@
 
 import Link from "next/link";
 
-import { INVENTORY_LABELS, INVENTORY_ROUTES, INVENTORY_STORAGE_KEYS } from "@/constants/inventory";
+import {
+  INVENTORY_LABELS,
+  INVENTORY_PAGE_SIZES,
+  INVENTORY_ROUTES,
+  INVENTORY_STORAGE_KEYS,
+} from "@/constants/inventory";
 import { INVENTORY_PERMISSIONS } from "@/constants/permissions";
 
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+
+import { DataTable } from "@/components/shared/DataTable";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
@@ -17,10 +25,12 @@ import {
   InventoryNoMovements,
   InventoryOffline,
 } from "./InventoryFeedback";
-import { InventoryPager } from "./InventoryPager";
+import { buildMovementColumns } from "./inventory-columns";
+import { serverPage } from "./inventory-page";
 import { InventoryPermissionGate } from "./InventoryPermissionGate";
-import { MovementFilters } from "./MovementFilters";
-import { MovementTable } from "./MovementTable";
+import { InventoryToolbar } from "./InventoryToolbar";
+
+const MOVEMENT_COLUMNS = buildMovementColumns();
 
 export function MovementHistory() {
   return (
@@ -32,11 +42,14 @@ export function MovementHistory() {
 
 function MovementHistoryContent() {
   const state = useInventoryListFilters(INVENTORY_STORAGE_KEYS.movements);
+  // Ô gõ ghi URL ngay; request dùng giá trị debounce 300ms như các trang danh sách khác
+  const sku = useDebouncedValue(state.filters.sku.trim(), 300);
+  const location = useDebouncedValue(state.filters.location.trim(), 300);
   const query = useMovements({
     page: state.page - 1,
     size: state.size,
-    sku: state.filters.sku || undefined,
-    location: state.filters.location || undefined,
+    sku: sku || undefined,
+    location: location || undefined,
     type: state.filters.type ?? undefined,
   });
   return (
@@ -51,7 +64,7 @@ function MovementHistoryContent() {
         }
       />
       <InventoryOffline />
-      <MovementFilters state={state} />
+      <InventoryToolbar state={state} mode="movement" />
       {query.isFetching && !query.isLoading && (
         <div role="status" aria-label={INVENTORY_LABELS.fetching} className="bg-info h-1" />
       )}
@@ -61,24 +74,22 @@ function MovementHistoryContent() {
         <InventoryError error={query.error} retry={() => void query.refetch()} />
       ) : (
         query.data && (
-          <section
-            aria-busy={query.isFetching}
-            className="border-border-default bg-bg-surface rounded-[var(--r-sm)] border"
-          >
+          <section aria-busy={query.isFetching}>
             {query.data.items.length ? (
-              <MovementTable items={query.data.items} />
+              <DataTable
+                columns={MOVEMENT_COLUMNS}
+                data={query.data.items}
+                rowKey={(row) => row.movementId}
+                caption={INVENTORY_LABELS.movementTitle}
+                pageSize={state.size}
+                pageSizeOptions={INVENTORY_PAGE_SIZES}
+                serverPagination={serverPage(query.data, state)}
+              />
             ) : state.hasFilters ? (
               <InventoryNoFilterResults reset={() => void state.reset()} />
             ) : (
               <InventoryNoMovements />
             )}
-            <InventoryPager
-              data={query.data}
-              pending={query.isFetching}
-              size={state.size}
-              setSize={state.setSize}
-              setPage={(page) => void state.setPage(page)}
-            />
           </section>
         )
       )}
