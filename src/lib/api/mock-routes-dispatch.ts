@@ -1,10 +1,17 @@
 /**
  * Mock routes — chuyến xe, lô giao, hãng vận chuyển (module 09), theo hợp đồng BE PR #137
  * (`DispatchController`, `ShipmentController`, `CarrierController`; xem features/shipping/api.ts).
- * Chỉ dùng khi USE_MOCK=true. Trả đúng errorCode BE để FE map lỗi tiếng Việt. Vai trò lấy từ phiên mock
- * như BE `@PreAuthorize`: nhân viên / quản lý kho lên xe, quản lý kho huỷ chuyến, điều phối đơn hàng ghi
- * nhận kết quả giao (hàng hoàn cả quản lý kho).
+ * Chỉ dùng khi USE_MOCK=true. Trả đúng errorCode BE để FE map lỗi tiếng Việt. Quyền lấy từ phiên mock
+ * như BE `@RequiresPermission` (BE PR #148): fulfillment-dispatch:CREATE / UPDATE cho mở chuyến / lên xe,
+ * fulfillment-load-cancellations:UPDATE cho huỷ chuyến, fulfillment-delivery-outcomes:UPDATE (+ APPROVE
+ * cho ĐÃ GIAO / GIAO THẤT BẠI) cho kết quả giao.
  */
+
+import {
+  FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS as OUTCOME,
+  FULFILLMENT_DISPATCH_PERMISSIONS,
+  FULFILLMENT_LOAD_CANCELLATION_PERMISSIONS,
+} from "@/constants";
 
 import { registerMockRoute } from "./mock-adapter";
 import { handover, recordOutcome } from "./mock-dispatch-handover";
@@ -25,7 +32,7 @@ import {
   shipmentDetailView,
   shipmentRowView,
 } from "./mock-dispatch-view";
-import { currentActor, hasAnyRole, routeParam } from "./mock-routes-fulfillment-store";
+import { currentActor, routeParam } from "./mock-routes-fulfillment-store";
 import { fail, ok } from "./mock-route-utils";
 import {
   BE_DEFAULT_PAGE_SIZE,
@@ -38,12 +45,15 @@ import {
 } from "./mock-routes-purchase-orders-store";
 
 import type { AxiosRequestConfig } from "axios";
+import type { PermissionCode } from "@/lib/auth/me-permissions";
 import type { DispatchState, MockLoad, MockShipment } from "./mock-dispatch-store";
 import type { MockResponseShape } from "./mock-route-utils";
 
 const LOADS = "/fulfillment/loads";
 const SHIPMENTS = "/fulfillment/shipments";
-const DISPATCHERS = ["WAREHOUSE_STAFF", "WAREHOUSE_MANAGER"];
+// BE PR #148: mỗi endpoint một mã quyền (không còn `@PreAuthorize` theo vai trò)
+const DISPATCH_CREATE = FULFILLMENT_DISPATCH_PERMISSIONS.create;
+const DISPATCH_UPDATE = FULFILLMENT_DISPATCH_PERMISSIONS.update;
 
 const forbidden = () => fail(403, "FORBIDDEN", "Access denied");
 const loadNotFound = (id: string) => fail(404, "LOAD_NOT_FOUND", `Load ${id} not found`);
@@ -54,13 +64,13 @@ const pageOf = <T>(items: readonly T[], config: AxiosRequestConfig) => {
   return ok(bePage(items, readInt(params.page, 0), size));
 };
 
-/** Chạy `apply` với chuyến tìm theo id (404 LOAD_NOT_FOUND) khi người gọi có một trong các vai trò. */
+/** Chạy `apply` với chuyến tìm theo id (404 LOAD_NOT_FOUND) khi người gọi có mã quyền (null = không đòi). */
 async function withLoad(
   config: AxiosRequestConfig,
-  roles: string[] | null,
+  permission: PermissionCode | null,
   apply: (state: DispatchState, load: MockLoad) => MockResponseShape,
 ): Promise<MockResponseShape> {
-  if (roles && !hasAnyRole(await currentActor(), ...roles)) return forbidden();
+  if (permission && !(await currentActor()).can(permission)) return forbidden();
   const state = await getDispatchState();
   const load = state.loads.get(routeParam(config, "id"));
   return load ? apply(state, load) : loadNotFound(routeParam(config, "id"));
@@ -116,7 +126,7 @@ function registerCarrierAndShipmentRoutes(): void {
   );
 
   registerMockRoute("PUT", `${SHIPMENTS}/:id/carrier`, async (config) => {
-    if (!hasAnyRole(await currentActor(), ...DISPATCHERS)) return forbidden();
+    if (!(await currentActor()).can(DISPATCH_UPDATE)) return forbidden();
     return withShipment(config, (state, shipment) => {
       const body = parseJsonBody(config.data);
       const carrierId = typeof body.carrierId === "string" ? body.carrierId : null;
@@ -150,12 +160,9 @@ function registerCarrierAndShipmentRoutes(): void {
   registerMockRoute("POST", `${SHIPMENTS}/:id/delivery-outcome`, async (config) => {
     const body = parseJsonBody(config.data);
     const actor = await currentActor();
-    // 09 BR-02: ĐÃ GIAO / THẤT BẠI chỉ Điều phối đơn hàng; HÀNG HOÀN cả quản lý kho
-    const roles =
-      body.outcome === "RETURNED"
-        ? ["ORDER_COORDINATOR", "WAREHOUSE_MANAGER"]
-        : ["ORDER_COORDINATOR"];
-    if (!hasAnyRole(actor, ...roles)) return forbidden();
+    // 09 BR-02: endpoint cần delivery-outcomes:UPDATE; ĐÃ GIAO / THẤT BẠI cần thêm :APPROVE
+    if (!actor.can(OUTCOME.update)) return forbidden();
+    if (body.outcome !== "RETURNED" && !actor.can(OUTCOME.approve)) return forbidden();
     return withShipment(config, (state, shipment) => recordOutcome(state, shipment, body));
   });
 }
@@ -195,11 +202,11 @@ export function registerDispatchMockRoutes(): void {
   );
 
   registerMockRoute("POST", LOADS, async (config) => {
-    if (!hasAnyRole(await currentActor(), ...DISPATCHERS)) return forbidden();
+    if (!(await currentActor()).can(DISPATCH_CREATE)) return forbidden();
     return openLoad(await getDispatchState(), parseJsonBody(config.data));
   });
   registerMockRoute("POST", `${LOADS}/:id/shipments`, (config) =>
-    withLoad(config, DISPATCHERS, (state, load) => {
+    withLoad(config, DISPATCH_UPDATE, (state, load) => {
       const ids = parseJsonBody(config.data).shipmentIds;
       return addShipments(
         state,
@@ -209,23 +216,27 @@ export function registerDispatchMockRoutes(): void {
     }),
   );
   registerMockRoute("DELETE", `${LOADS}/:id/shipments/:sid`, (config) =>
-    withLoad(config, DISPATCHERS, (state, load) =>
+    withLoad(config, DISPATCH_UPDATE, (state, load) =>
       removeShipment(state, load, routeParam(config, "sid")),
     ),
   );
   registerMockRoute("POST", `${LOADS}/:id/scans`, (config) =>
-    withLoad(config, DISPATCHERS, (state, load) => scan(state, load, parseJsonBody(config.data))),
+    withLoad(config, DISPATCH_UPDATE, (state, load) =>
+      scan(state, load, parseJsonBody(config.data)),
+    ),
   );
   registerMockRoute("DELETE", `${LOADS}/:id/scans/:pid`, (config) =>
-    withLoad(config, DISPATCHERS, (state, load) => unscan(state, load, routeParam(config, "pid"))),
+    withLoad(config, DISPATCH_UPDATE, (state, load) =>
+      unscan(state, load, routeParam(config, "pid")),
+    ),
   );
   registerMockRoute("POST", `${LOADS}/:id/handover`, (config) =>
-    withLoad(config, DISPATCHERS, (state, load) =>
+    withLoad(config, DISPATCH_UPDATE, (state, load) =>
       handover(state, load, parseJsonBody(config.data)),
     ),
   );
   registerMockRoute("POST", `${LOADS}/:id/cancellation`, (config) =>
-    withLoad(config, ["WAREHOUSE_MANAGER"], (state, load) =>
+    withLoad(config, FULFILLMENT_LOAD_CANCELLATION_PERMISSIONS.update, (state, load) =>
       cancelLoad(state, load, readString(parseJsonBody(config.data).reason)),
     ),
   );

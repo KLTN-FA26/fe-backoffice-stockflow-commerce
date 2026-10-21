@@ -12,7 +12,7 @@ import type { FulfillmentScope } from "./primitives";
  * Chặn route màn xuất kho khi thiếu BẤT KỲ mã quyền nào trong `permissions` (mẫu
  * `ReceiptPermissionGate`). Lấy hàng cần `fulfillment-pick-lists:VIEW_PAGE`, đóng gói cần
  * `fulfillment-packages:VIEW_PAGE`; `READ` không chặn route — trang tự hiện "không có quyền xem".
- * UI-only — Backend phải re-check (@RequiresPermission + @PreAuthorize trên FulfillmentController).
+ * UI-only — Backend phải re-check (@RequiresPermission trên FulfillmentController / PackingController).
  */
 export function FulfillmentPermissionGate({
   scope,

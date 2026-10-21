@@ -101,12 +101,15 @@ export const fulfillmentOrderSchema = z.object({
 
 export const fulfillmentOrderPageSchema = bePageSchema(fulfillmentOrderSchema);
 
-/** Phần `UserResponse` (BE UserManagementController) cần để chọn / hiện tên người được gán. */
-export const assignableUserSchema = z.object({
+/**
+ * BE `AssigneeResponse` (`GET /fulfillment/assignees?warehouseId=`, guard
+ * `fulfillment-task-assignment:UPDATE`): người nhận được task của một kho — chỉ tên và vai trò, BE đã lọc
+ * nhân viên đang hoạt động được gán cho kho đó (`requireWarehouseAssignee`).
+ */
+export const assigneeSchema = z.object({
   userId: z.string(),
-  username: z.string().nullish(),
-  fullName: z.string().nullish(),
+  displayName: z.string().nullish(),
   roles: z.array(z.string()).default([]),
 });
 
-export const assignableUserPageSchema = bePageSchema(assignableUserSchema);
+export const assigneeListSchema = z.array(assigneeSchema);

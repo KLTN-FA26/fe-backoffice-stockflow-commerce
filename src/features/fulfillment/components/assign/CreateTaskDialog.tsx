@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { IDENTITY_USER_PERMISSIONS, ORDER_PERMISSIONS, UI_LABELS } from "@/constants";
+import { FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS, ORDER_PERMISSIONS, UI_LABELS } from "@/constants";
 import { useCan } from "@/lib/auth";
 import { fulfillmentErrorMessage } from "@/features/fulfillment/errors";
 import { createTaskInputSchema } from "@/features/fulfillment/input-schemas";
@@ -29,7 +29,7 @@ type FieldErrors = Partial<Record<"orderId" | "assignedUserId", string>>;
  */
 export function CreateTaskDialog({ onClose }: { onClose: () => void }) {
   const canReadOrders = useCan(ORDER_PERMISSIONS.read);
-  const canReadUsers = useCan(IDENTITY_USER_PERMISSIONS.read);
+  const canAssign = useCan(FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS.update);
   const orders = useFulfillableOrders(canReadOrders);
   const create = useCreateFulfillmentTask();
   const [orderId, setOrderId] = useState("");
@@ -57,13 +57,15 @@ export function CreateTaskDialog({ onClose }: { onClose: () => void }) {
   };
 
   const options = orders.data ?? [];
+  // Người nhận theo kho của đơn đã chọn (BE `GET /fulfillment/assignees?warehouseId=`)
+  const warehouseId = options.find((order) => order.orderId === orderId)?.warehouseId;
   return (
     <FormDialog open onOpenChange={(open) => !open && onClose()}>
       <FormDialogBody
         title={fulfillment.action.create}
         description="Chọn đơn đã release (sẵn sàng xuất kho) để đưa vào xuất kho và gán nhân viên lấy hàng. Mỗi đơn chỉ có một task."
         submitLabel={fulfillment.action.create}
-        canSubmit={canReadOrders && canReadUsers && !orders.isError}
+        canSubmit={canReadOrders && canAssign && !orders.isError}
         isPending={create.isPending}
         error={serverError}
         onSubmit={submit}
@@ -94,7 +96,13 @@ export function CreateTaskDialog({ onClose }: { onClose: () => void }) {
             </Label>
             <Select
               value={orderId}
-              onValueChange={(value) => edit(() => setOrderId(value), "orderId")}
+              onValueChange={(value) =>
+                edit(() => {
+                  setOrderId(value);
+                  // Đổi đơn có thể đổi kho → danh sách người nhận khác, bỏ lựa chọn cũ
+                  setAssignedUserId("");
+                }, "orderId")
+              }
               disabled={orders.isPending}
             >
               <SelectTrigger
@@ -127,7 +135,8 @@ export function CreateTaskDialog({ onClose }: { onClose: () => void }) {
           </div>
         )}
         <AssigneeSelect
-          canReadUsers={canReadUsers}
+          canAssign={canAssign}
+          warehouseId={warehouseId}
           value={assignedUserId}
           error={errors.assignedUserId}
           onChange={(userId) => edit(() => setAssignedUserId(userId), "assignedUserId")}

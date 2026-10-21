@@ -119,6 +119,71 @@ describe("explicit mock permission responses", () => {
   });
 });
 
+describe("Fulfillment / order grants (BE PR #148, V20261022000200)", () => {
+  const grants = (userId: string) => mockSessionPermissions(userId, []).permissions;
+
+  it("nhân viên kho: lấy hàng + đóng gói + xếp xe; không gán / giám sát / huỷ chuyến / kết quả giao", () => {
+    const staff = grants("USER-WH-01");
+    for (const code of [
+      "fulfillment-picking:READ",
+      "fulfillment-picking:UPDATE",
+      "fulfillment-packing:READ",
+      "fulfillment-packing:UPDATE",
+      "fulfillment-dispatch:CREATE",
+      "fulfillment-dispatch:UPDATE",
+    ])
+      expect(staff).toContain(code);
+    for (const code of [
+      "fulfillment-packing:APPROVE",
+      "fulfillment-task-assignment:UPDATE",
+      "fulfillment-task-oversight:READ",
+      "fulfillment-design-reverification:UPDATE",
+      "fulfillment-load-cancellations:UPDATE",
+      "fulfillment-carriers:UPDATE",
+      "fulfillment-delivery-outcomes:UPDATE",
+    ])
+      expect(staff).not.toContain(code);
+  });
+
+  it("admin demo (đồng thời quản lý kho): đủ các nhóm kho", () => {
+    const manager = grants("USER-ADMIN-01");
+    for (const code of [
+      "fulfillment-packing:APPROVE",
+      "fulfillment-task-assignment:CREATE",
+      "fulfillment-task-oversight:READ",
+      "fulfillment-design-reverification:READ",
+      "fulfillment-load-cancellations:UPDATE",
+      "fulfillment-carriers:UPDATE",
+      "fulfillment-delivery-outcomes:UPDATE",
+    ])
+      expect(manager).toContain(code);
+  });
+
+  it("QC chỉ kiểm tra lại thiết kế; kế toán đọc được đơn (BE PR #148 ACCREAD); điều phối ghi đã giao", () => {
+    const qc = grants("USER-QC-01");
+    expect(qc).toContain("fulfillment-design-reverification:UPDATE");
+    expect(qc).not.toContain("fulfillment-packing:UPDATE");
+    const accountant = grants("USER-ACC-01");
+    expect(accountant).toEqual(
+      expect.arrayContaining(["sales-orders:VIEW_PAGE", "sales-orders:READ"]),
+    );
+    expect(grants("USER-COORD-01")).toContain("fulfillment-delivery-outcomes:APPROVE");
+  });
+
+  it("không còn mã quyền cũ không bảo vệ endpoint nào trong bộ quyền demo", () => {
+    for (const userId of ["USER-ADMIN-01", "USER-WH-01", "USER-COORD-01", "USER-QC-01"]) {
+      const codes = grants(userId);
+      for (const dead of [
+        "fulfillment-pick-lists:UPDATE",
+        "fulfillment-packages:CREATE",
+        "fulfillment-shipments:CREATE",
+        "fulfillment-shipments:UPDATE",
+      ])
+        expect(codes).not.toContain(dead);
+    }
+  });
+});
+
 describe("Inventory grants in the authoritative server session", () => {
   it.each([
     ["System Admin", ["USER-ADMIN-01"], true],

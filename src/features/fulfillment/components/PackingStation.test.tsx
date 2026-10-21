@@ -302,7 +302,6 @@ describe("PackingStation — thiết kế đã khoá bên cạnh dòng tuỳ ch�
   it("thiếu fulfillment-packages:READ (điều phối đơn) → không gọi API phiên, báo không có quyền xem", async () => {
     // Cổng route cần packages:VIEW_PAGE — cấp thêm để vào tới màn, vẫn thiếu packages:READ
     const identity = {
-      roles: IDENTITIES.orderCoordinator.roles,
       permissions: [
         ...IDENTITIES.orderCoordinator.permissions,
         "fulfillment-packages:VIEW_PAGE" as const,
@@ -317,9 +316,12 @@ describe("PackingStation — thiết kế đã khoá bên cạnh dòng tuỳ ch�
 describe("PackingStation — kiểm tra lại thiết kế (flow X-CHK) và quyền thao tác", () => {
   const heldSession = () => withPrintLine({ packStatus: "ON_HOLD" });
 
-  it("phiên bị giữ (BE 200 + ON_HOLD) → cảnh báo + evidence lệch; người đóng gói có nút kiểm tra lại nhưng không hoàn tất / quét", async () => {
+  it("phiên bị giữ (BE 200 + ON_HOLD) → cảnh báo + evidence lệch; người có design-reverification:UPDATE (QC) có nút kiểm tra lại nhưng không hoàn tất / quét", async () => {
     renderStation({
-      identity: IDENTITIES.staffWithOrders,
+      // QC theo seed không có packages:VIEW_PAGE — cấp thêm để vào tới màn
+      identity: {
+        permissions: [...IDENTITIES.qcStaff.permissions, "fulfillment-packages:VIEW_PAGE" as const],
+      },
       task: heldTask(),
       session: heldSession(),
     });
@@ -328,10 +330,21 @@ describe("PackingStation — kiểm tra lại thiết kế (flow X-CHK) và quy�
     const history = screen.getByRole("table", { name: "Lịch sử đối chiếu checksum thiết kế" });
     expect(within(history).getByText("Lệch checksum")).toBeInTheDocument();
     expect(within(history).getByText("bbbbbbbbbbbb…")).toBeInTheDocument();
-    // Không có nút bỏ qua; kiểm tra lại là việc của người đóng gói / quản lý kho (docs 08)
+    // Không có nút bỏ qua; kiểm tra lại cần fulfillment-design-reverification:UPDATE (docs 08)
     expect(screen.getByRole("button", { name: action.reverify })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: UI_LABELS.packing.action.complete })).toBeNull();
     expect(screen.queryByLabelText(UI_LABELS.packing.scan.label)).toBeNull();
+  });
+
+  it("người đóng gói (chỉ fulfillment-packing:*) thấy phiên bị giữ nhưng không có nút kiểm tra lại", async () => {
+    renderStation({
+      identity: IDENTITIES.staffWithOrders,
+      task: heldTask(),
+      session: heldSession(),
+    });
+
+    expect(await screen.findByText(fulfillment.holdTitle)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: action.reverify })).toBeNull();
   });
 
   it("quản lý kho kiểm tra lại: bắt buộc ghi chú; vẫn lệch thì giữ dialog; khớp thì phiên về Packing, KHÔNG sang Packed", async () => {

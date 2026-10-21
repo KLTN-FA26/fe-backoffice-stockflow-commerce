@@ -4,10 +4,16 @@
  */
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
+import {
+  FULFILLMENT_PICK_PERMISSIONS,
+  FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS,
+  FULFILLMENT_TASK_OVERSIGHT_PERMISSIONS,
+} from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { activateMockAdapter } from "@/lib/api/mock-adapter";
 import { resetFulfillmentMockStore } from "@/lib/api/mock-routes-fulfillment-store";
 import { backendOrderStatusOf, resetOrderMockStore } from "@/lib/api/mock-routes-orders";
+import { MOCK_USER_GRANTS } from "@/lib/api/mock-user-grants";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
 import {
@@ -20,13 +26,17 @@ import {
   reverifyDesignIntegrity,
   startPicking,
 } from "./api";
-import { getFulfillmentOrder, listAssignableUsers, listFulfillableOrders } from "./reference-api";
+import { getFulfillmentOrder, listAssignees, listFulfillableOrders } from "./reference-api";
 import { designedLines } from "./selectors";
 
 import type { RoleName } from "@/lib/auth";
 import type { FulfillmentTask } from "./types";
 
-/** Tài khoản có sẵn trong seed mock (`staffUsers`). */
+/**
+ * Tài khoản có sẵn trong seed mock (`staffUsers`). Quyền của mock backend lấy từ `MOCK_USER_GRANTS`
+ * theo userId (BE PR #148), không theo vai trò; `USER-OC-TEST` là điều phối thuần (gán + giám sát task,
+ * đọc task) — không có quyền lấy hàng / đóng gói như `USER-COORD-01`.
+ */
 const USERS = {
   manager: { userId: "USER-ADMIN-01", roles: ["Warehouse Manager"] },
   picker: { userId: "USER-WH-01", roles: ["Warehouse Staff"] },
@@ -52,6 +62,11 @@ function actAs(user: { userId: string; roles: RoleName[] }) {
 }
 
 beforeAll(() => {
+  MOCK_USER_GRANTS["USER-OC-TEST"] = [
+    ...Object.values(FULFILLMENT_PICK_PERMISSIONS),
+    ...Object.values(FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS),
+    ...Object.values(FULFILLMENT_TASK_OVERSIGHT_PERMISSIONS),
+  ];
   vi.spyOn(Math, "random").mockReturnValue(0.5);
   vi.spyOn(console, "info").mockImplementation(() => {});
   resetOrderMockStore();
@@ -59,7 +74,10 @@ beforeAll(() => {
   activateMockAdapter();
 });
 
-afterAll(() => vi.restoreAllMocks());
+afterAll(() => {
+  delete MOCK_USER_GRANTS["USER-OC-TEST"];
+  vi.restoreAllMocks();
+});
 
 /** Adapter mock trễ ~350ms/lần gọi (Math.random ghim 0.5). */
 const FLOW_TIMEOUT_MS = 30_000;
@@ -86,7 +104,7 @@ function required<T>(value: T | undefined, what: string): T {
 
 describe("fulfillment mock ↔ hợp đồng BE", () => {
   it(
-    "phạm vi danh sách theo vai trò: quản lý thấy hết, QC chỉ kiện giữ, NV kho chỉ task của mình",
+    "phạm vi danh sách theo mã quyền: task-oversight:READ thấy hết, design-reverification:READ chỉ kiện giữ, còn lại chỉ task của mình",
     async () => {
       const all = await allTasks();
       expect(all.length).toBeGreaterThan(0);
@@ -160,7 +178,7 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
         (await allTasks()).find((t) => t.packStatus === "On Hold"),
         "kiện đang giữ",
       );
-      // Kiểm tra lại thiết kế: người đóng gói / quản lý kho (docs 08), QC không còn quyền trang đóng gói
+      // Kiểm tra lại thiết kế: design-reverification:UPDATE (QC, quản lý kho — BE PR #148)
       actAs(USERS.manager);
       const lineId = required(held.integrityEvidence[0]?.orderLineId, "evidence");
       const input = { taskId: held.taskId, lineId, role: "CUSTOMER_PREVIEW" } as const;
@@ -186,7 +204,7 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
   );
 
   it(
-    "tạo task: đúng vai trò + người được gán hợp lệ; một đơn một task; đơn rời danh sách chờ",
+    "tạo task: đúng mã quyền + người được gán hợp lệ; một đơn một task; đơn rời danh sách chờ",
     async () => {
       actAs(USERS.picker);
       expect(await codeOf(createFulfillmentTask({ orderId: "x", assignedUserId: "y" }))).toBe(
@@ -265,15 +283,29 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
     FLOW_TIMEOUT_MS,
   );
 
-  it("danh sách nhân viên gán được chỉ gồm nhân viên kho / quản lý kho", async () => {
+  it("người nhận task theo kho: chỉ NV kho / quản lý kho của kho đó; cần task-assignment:UPDATE; kho bắt buộc và phải tồn tại", async () => {
     actAs(USERS.manager);
-    const users = await listAssignableUsers();
+    const task = required((await allTasks())[0], "task");
+    const warehouseId = required(task.warehouseId ?? undefined, "kho của task");
+    // BE trả tên người được gán ngay trên task — màn danh sách không phải tra riêng
+    expect(task.assignedUserName).toBeTruthy();
+    const users = await listAssignees(warehouseId);
     expect(users.length).toBeGreaterThan(0);
     expect(
       users.every((u) =>
         u.roles.some((role) => role === "WAREHOUSE_STAFF" || role === "WAREHOUSE_MANAGER"),
       ),
     ).toBe(true);
+    // BE `AssigneeResponse`: chỉ userId + displayName + roles (không email / điện thoại / trạng thái)
+    expect(Object.keys(users[0] ?? {}).sort()).toEqual(["displayName", "roles", "userId"]);
+
+    // NV kho không có task-assignment:UPDATE
+    actAs(USERS.picker);
+    expect(await codeOf(listAssignees(warehouseId))).toBe("FORBIDDEN");
+
+    actAs(USERS.manager);
+    expect(await codeOf(listAssignees(""))).toBe("VALIDATION_FAILED");
+    expect(await codeOf(listAssignees("khong-co-kho"))).toBe("WAREHOUSE_NOT_FOUND");
   });
 
   it("task không tồn tại → 404 NOT_FOUND; trang ngoài khoảng → 400", async () => {

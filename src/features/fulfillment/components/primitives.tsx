@@ -99,13 +99,13 @@ export function orderLabel(
   return orderNumbers?.[orderId] ?? shortId(orderId);
 }
 
-/** Tên người được gán: chính mình → "Tôi"; tra được → tên; không thì id rút gọn. */
+/** Tên người được gán: chính mình → "Tôi"; BE trả `assignedUserName` → tên; không thì id rút gọn. */
 export function assigneeLabel(
   userId: string | null | undefined,
-  userNames: Readonly<Record<string, string>>,
+  userName: string | null | undefined,
   selfId: string | null,
 ): string {
   if (!userId) return "—";
   if (userId === selfId) return UI_LABELS.fulfillment.self;
-  return userNames[userId] ?? shortId(userId);
+  return userName || shortId(userId);
 }

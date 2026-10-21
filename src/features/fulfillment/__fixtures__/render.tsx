@@ -1,7 +1,7 @@
 /**
  * Render màn xuất kho trong test với API giả lập theo URL — đi qua đúng chuỗi thật:
- * `/identity/me/permissions` (mã quyền + mã vai trò) → useFulfillmentActor → UI.
- * Bộ quyền chép seed BE V20260903000100 + V20260919001300.
+ * `/identity/me/permissions` (mã quyền) → useFulfillmentActor → UI.
+ * Bộ quyền chép seed BE V20260903000100 + V20260919001300 + V20261022000200 (BE PR #148).
  */
 
 import { Suspense } from "react";
@@ -11,11 +11,14 @@ import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { vi } from "vitest";
 
 import {
+  FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS as REVERIFY,
   FULFILLMENT_PACKAGE_PERMISSIONS as PACK,
+  FULFILLMENT_PACKING_PERMISSIONS as PACKING,
   FULFILLMENT_PICK_PERMISSIONS as PICK,
-  IDENTITY_USER_PERMISSIONS,
+  FULFILLMENT_PICKING_PERMISSIONS as PICKING,
+  FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS as ASSIGNMENT,
+  FULFILLMENT_TASK_OVERSIGHT_PERMISSIONS as OVERSIGHT,
   ORDER_PERMISSIONS,
-  STAFF_ROLE,
 } from "@/constants";
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -24,36 +27,50 @@ import { PICKER_ID } from "./task";
 
 import type { PermissionCode } from "@/lib/auth";
 
+/** Người đăng nhập trong test = một bộ mã quyền (FE không đọc tên vai trò để quyết định quyền). */
 export interface TestIdentity {
-  roles: readonly string[];
   permissions: readonly PermissionCode[];
 }
 
-const FLOOR: PermissionCode[] = [...Object.values(PICK), ...Object.values(PACK)];
+/** Đọc task + hàng chờ / phiên đóng gói (seed: nhân viên kho, quản lý kho). */
+const FLOOR_READ: PermissionCode[] = [...Object.values(PICK), ...Object.values(PACK)];
+/** Ghi: lấy hàng + đóng gói (BE PR #148: fulfillment-picking, fulfillment-packing). */
+const FLOOR: PermissionCode[] = [
+  ...FLOOR_READ,
+  ...Object.values(PICKING),
+  PACKING.read,
+  PACKING.update,
+];
+/** Quản lý kho: thêm tiếp quản phiên, gán / giám sát task, kiểm tra lại thiết kế. */
+const MANAGER: PermissionCode[] = [
+  ...FLOOR,
+  PACKING.approve,
+  ...Object.values(ASSIGNMENT),
+  OVERSIGHT.read,
+  ...Object.values(REVERIFY),
+];
 
-/** Vai trò theo seed BE. Vai trò kho KHÔNG có sales-orders:READ / identity-users:READ. */
+/** Bộ quyền theo seed BE. Vai trò kho KHÔNG có sales-orders:READ. */
 export const IDENTITIES = {
-  warehouseStaff: { roles: [STAFF_ROLE.WAREHOUSE_STAFF], permissions: FLOOR },
-  warehouseManager: { roles: [STAFF_ROLE.WAREHOUSE_MANAGER], permissions: FLOOR },
-  // packages: chỉ CREATE (không VIEW_PAGE / READ)
+  warehouseStaff: { permissions: FLOOR },
+  warehouseManager: { permissions: MANAGER },
+  // Điều phối: gán / giám sát task, đọc task; không có quyền đóng gói
   orderCoordinator: {
-    roles: [STAFF_ROLE.ORDER_COORDINATOR],
     permissions: [
       ...Object.values(PICK),
-      PACK.create,
+      ...Object.values(ASSIGNMENT),
+      OVERSIGHT.read,
       ORDER_PERMISSIONS.viewPage,
       ORDER_PERMISSIONS.read,
     ],
   },
-  // Không có VIEW_PAGE ở cả hai resource
-  qcStaff: { roles: [STAFF_ROLE.QC_STAFF], permissions: [PICK.read, PACK.read, PACK.create] },
-  // Quản lý kho được admin cấp thêm quyền đọc đơn + nhân viên (để gán và xem dòng đơn)
+  // Không có VIEW_PAGE ở cả hai resource; chỉ kiểm tra lại thiết kế
+  qcStaff: { permissions: [PICK.read, PACK.read, ...Object.values(REVERIFY)] },
+  // Quản lý kho được admin cấp thêm quyền đọc đơn (để xem số đơn và dòng đơn)
   managerWithReferences: {
-    roles: [STAFF_ROLE.WAREHOUSE_MANAGER],
-    permissions: [...FLOOR, ORDER_PERMISSIONS.read, IDENTITY_USER_PERMISSIONS.read],
+    permissions: [...MANAGER, ORDER_PERMISSIONS.read],
   },
   staffWithOrders: {
-    roles: [STAFF_ROLE.WAREHOUSE_STAFF],
     permissions: [...FLOOR, ORDER_PERMISSIONS.read],
   },
 } satisfies Record<string, TestIdentity>;
@@ -74,7 +91,7 @@ export function mockFulfillmentApi(
       if (url === "/identity/me/permissions") {
         return {
           data: {
-            roles: [...identity.roles],
+            roles: ["TEST"],
             permissions: [...identity.permissions],
             dataScope: "ALL",
           },

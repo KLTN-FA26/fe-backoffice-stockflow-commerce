@@ -3,10 +3,9 @@
 import { useState } from "react";
 import { Truck } from "lucide-react";
 
-import { SHIPMENT_PERMISSIONS, UI_LABELS } from "@/constants";
+import { FULFILLMENT_DISPATCH_PERMISSIONS, SHIPMENT_PERMISSIONS, UI_LABELS } from "@/constants";
 import { useCan } from "@/lib/auth";
 import { canAssignCarrier } from "@/features/shipping/shipment-lifecycle";
-import { DISPATCH_ROLES, hasStaffRole } from "@/features/shipping/lifecycle";
 import { summarizeSelection } from "@/features/shipping/selectors";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -26,7 +25,7 @@ function ShipmentListContent() {
   const actor = useShippingActor();
   const s = useShipmentListState(canRead);
   const [opening, setOpening] = useState(false);
-  const canOpen = actor.can(SHIPMENT_PERMISSIONS.create) && hasStaffRole(actor, DISPATCH_ROLES);
+  const canOpen = actor.can(FULFILLMENT_DISPATCH_PERMISSIONS.create);
   const columns = buildShipmentColumns((row) => canAssignCarrier(row, actor), s.navigateToShipment);
   const selected = [...s.selected.values()];
   const selection = summarizeSelection(selected);

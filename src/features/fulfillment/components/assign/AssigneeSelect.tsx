@@ -1,8 +1,8 @@
 "use client";
 
 import { UI_LABELS } from "@/constants";
-import { useAssignableUsers } from "@/features/fulfillment/queries";
-import { userDisplayName } from "@/features/fulfillment/reference-api";
+import { useAssignees } from "@/features/fulfillment/queries";
+import { assigneeName } from "@/features/fulfillment/reference-api";
 import { Alert } from "@/components/shared/Alert";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -16,19 +16,22 @@ export const SELECT_FIELD =
   "border-border-default bg-bg-surface mt-1 w-full rounded-[var(--r-sm)] text-[0.8125rem]";
 
 /**
- * Chọn người được gán — nhân viên kho / quản lý kho đang hoạt động (BE `requireWarehouseAssignee`).
- * Thiếu `identity-users:READ` (seed BE chưa cấp cho điều phối / quản lý kho) → không gọi API,
- * hiện thông báo và dialog khoá nút gửi.
+ * Chọn người được gán — danh sách do BE trả theo kho (`GET /fulfillment/assignees?warehouseId=`: nhân viên
+ * kho / quản lý kho đang hoạt động của kho đó). Thiếu `fulfillment-task-assignment:UPDATE` → không gọi
+ * API, hiện thông báo và dialog khoá nút gửi. Chưa biết kho (chưa chọn đơn) → nhắc chọn đơn trước.
  */
 export function AssigneeSelect({
-  canReadUsers,
+  canAssign,
+  warehouseId,
   value,
   onChange,
   error,
   currentUserId,
   autoFocus,
 }: {
-  canReadUsers: boolean;
+  canAssign: boolean;
+  /** Kho của task / đơn — BE trả người nhận theo kho. */
+  warehouseId: string | null | undefined;
   value: string;
   onChange: (userId: string) => void;
   error: string | undefined;
@@ -36,12 +39,12 @@ export function AssigneeSelect({
   currentUserId?: string | null;
   autoFocus?: boolean;
 }) {
-  const users = useAssignableUsers(canReadUsers);
+  const users = useAssignees(warehouseId, canAssign);
 
-  if (!canReadUsers) {
+  if (!canAssign) {
     return (
-      <Alert tone="warning" title={fulfillment.noUserReadTitle}>
-        {fulfillment.noUserReadDescription}
+      <Alert tone="warning" title={fulfillment.noAssignTitle}>
+        {fulfillment.noAssignDescription}
       </Alert>
     );
   }
@@ -67,7 +70,7 @@ export function AssigneeSelect({
       <Label htmlFor="task-assignee" className="text-[0.8125rem]">
         {fulfillment.field.assignee}
       </Label>
-      <Select value={value} onValueChange={onChange} disabled={users.isPending}>
+      <Select value={value} onValueChange={onChange} disabled={!warehouseId || users.isPending}>
         <SelectTrigger
           id="task-assignee"
           autoFocus={autoFocus}
@@ -77,18 +80,20 @@ export function AssigneeSelect({
         >
           <SelectValue
             placeholder={
-              users.isPending
-                ? "Đang tải nhân viên…"
-                : options.length
-                  ? "Chọn nhân viên kho"
-                  : "Không có nhân viên kho đang hoạt động"
+              !warehouseId
+                ? "Chọn đơn hàng trước"
+                : users.isPending
+                  ? "Đang tải nhân viên…"
+                  : options.length
+                    ? "Chọn nhân viên kho"
+                    : "Không có nhân viên kho đang hoạt động"
             }
           />
         </SelectTrigger>
         <TitledSelectContent title={fulfillment.field.assignee}>
           {options.map((user) => (
             <SelectItem key={user.userId} value={user.userId}>
-              {userDisplayName(user)}
+              {assigneeName(user)}
               {user.userId === currentUserId && (
                 <span className="text-ink-tertiary"> · đang được gán</span>
               )}

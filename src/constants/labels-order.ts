@@ -51,7 +51,7 @@ export const ORDER_HOLD_GUIDANCE = {
   CREDIT:
     "Đơn bị giữ vì vượt hạn mức công nợ — không gỡ giữ tại đây. Duyệt hoặc từ chối ở màn duyệt công nợ.",
   DESIGN_MISMATCH:
-    "Đơn bị giữ vì thiết kế in lệch checksum lúc đóng gói — không gỡ giữ tại đây. QC hoặc quản lý kho kiểm tra lại kiện ở bàn đóng gói.",
+    "Đơn bị giữ vì thiết kế in lệch checksum lúc đóng gói — không gỡ giữ tại đây. Quản lý kho kiểm tra lại kiện ở bàn đóng gói.",
   UNRESOLVABLE: "Không xác định được lý do giữ — chưa thể gỡ giữ từ màn này. Tải lại trang.",
 } as const;
 

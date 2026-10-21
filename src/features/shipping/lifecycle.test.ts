@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { LOAD_STATUSES, SHIPMENT_PERMISSIONS } from "@/constants";
+import {
+  FULFILLMENT_CARRIER_PERMISSIONS,
+  FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS as OUTCOME,
+  FULFILLMENT_DISPATCH_PERMISSIONS as DISPATCH,
+  FULFILLMENT_LOAD_CANCELLATION_PERMISSIONS,
+  LOAD_STATUSES,
+  SHIPMENT_PERMISSIONS,
+} from "@/constants";
 import { LOAD_TRANSITIONS, SHIPMENT_TRANSITIONS } from "@/lib/domain/lifecycle";
 
 import {
@@ -14,15 +21,23 @@ import { allowedOutcomes, canAssignCarrier, noOutcomeReason } from "./shipment-l
 
 import type { LoadGateState, ShippingActor } from "./lifecycle";
 
-const ALL_PERMS = Object.values(SHIPMENT_PERMISSIONS);
-const actor = (roles: string[], permissions: readonly string[] = ALL_PERMS): ShippingActor => ({
-  roles,
+/** Bộ quyền theo seed BE PR #148 — tên chỉ để đọc test, FE không đọc tên vai trò. */
+const READ = [SHIPMENT_PERMISSIONS.viewPage, SHIPMENT_PERMISSIONS.read];
+const STAFF_PERMS = [...READ, ...Object.values(DISPATCH)];
+const MANAGER_PERMS = [
+  ...STAFF_PERMS,
+  ...Object.values(FULFILLMENT_CARRIER_PERMISSIONS),
+  ...Object.values(FULFILLMENT_LOAD_CANCELLATION_PERMISSIONS),
+  OUTCOME.update,
+];
+const COORDINATOR_PERMS = [...READ, ...Object.values(OUTCOME)];
+const actor = (permissions: readonly string[]): ShippingActor => ({
   can: (code) => permissions.includes(code),
 });
-const STAFF = actor(["WAREHOUSE_STAFF"]);
-const MANAGER = actor(["WAREHOUSE_MANAGER"]);
-const COORDINATOR = actor(["ORDER_COORDINATOR"]);
-const ADMIN = actor(["SYSTEM_ADMIN"]);
+const STAFF = actor(STAFF_PERMS);
+const MANAGER = actor(MANAGER_PERMS);
+const COORDINATOR = actor(COORDINATOR_PERMS);
+const ADMIN = actor([...MANAGER_PERMS, ...COORDINATOR_PERMS]);
 
 const gate = (patch: Partial<LoadGateState> = {}): LoadGateState => ({
   status: "LOADING",
@@ -49,7 +64,7 @@ describe("LOAD_TRANSITIONS (BE LoadStatus)", () => {
   });
 });
 
-describe("allowedLoadActions — quyền + vai trò + trạng thái (BE gate kép)", () => {
+describe("allowedLoadActions — mã quyền + trạng thái (BE PR #148)", () => {
   it("nhân viên kho đang xếp đủ kiện: thêm / bỏ lô, quét, gỡ, bàn giao; không huỷ chuyến", () => {
     expect(codes(gate(), STAFF)).toEqual([
       "addShipment",
@@ -60,22 +75,24 @@ describe("allowedLoadActions — quyền + vai trò + trạng thái (BE gate ké
     ]);
   });
 
-  it("quản lý kho thêm được huỷ chuyến; SYSTEM_ADMIN qua mọi cổng vai trò", () => {
+  it("huỷ chuyến cần fulfillment-load-cancellations:UPDATE (quản lý kho), không phải quyền xếp xe", () => {
     expect(codes(gate(), MANAGER)).toContain("cancel");
     expect(codes(gate(), ADMIN)).toContain("cancel");
     expect(codes(gate(), ADMIN)).toContain("handover");
+    expect(codes(gate(), STAFF)).not.toContain("cancel");
+    // chỉ có quyền huỷ chuyến (vai trò tạo lúc chạy) → huỷ được, không quét / bàn giao
+    expect(codes(gate(), actor([FULFILLMENT_LOAD_CANCELLATION_PERMISSIONS.update]))).toEqual([
+      "cancel",
+    ]);
   });
 
-  it("điều phối đơn hàng có UPDATE nhưng không lên xe, không bàn giao, không huỷ chuyến", () => {
+  it("điều phối đơn hàng (chỉ quyền kết quả giao) không lên xe, không bàn giao, không huỷ chuyến", () => {
     expect(codes(gate(), COORDINATOR)).toEqual([]);
   });
 
-  it("thiếu UPDATE (chỉ xem) → không thao tác nào", () => {
-    const viewOnly = actor(
-      ["WAREHOUSE_STAFF"],
-      [SHIPMENT_PERMISSIONS.viewPage, SHIPMENT_PERMISSIONS.read],
-    );
-    expect(codes(gate(), viewOnly)).toEqual([]);
+  it("thiếu fulfillment-dispatch:UPDATE (chỉ xem; fulfillment-shipments:UPDATE cũ không còn tác dụng) → không thao tác nào", () => {
+    expect(codes(gate(), actor(READ))).toEqual([]);
+    expect(codes(gate(), actor([...READ, "fulfillment-shipments:UPDATE"]))).toEqual([]);
   });
 
   it("bàn giao khoá có lý do khi chưa có lô, hoặc còn kiện chưa quét", () => {
@@ -120,13 +137,10 @@ describe("allowedLoadActions — quyền + vai trò + trạng thái (BE gate ké
 
 describe("loadNoActionReason", () => {
   it("nói đúng vì sao không có ô quét / nút", () => {
-    expect(loadNoActionReason(gate({ status: "DISPATCHED" }), STAFF)).toMatch(/Đã bàn giao/);
-    expect(loadNoActionReason(gate({ status: "CANCELLED" }), STAFF)).toMatch(/huỷ/);
-    expect(loadNoActionReason(gate({ mode: "FULL_TRUCKLOAD" }), STAFF)).toMatch(/nguyên xe/);
-    expect(loadNoActionReason(gate(), COORDINATOR)).toMatch(/nhân viên kho/);
-    expect(loadNoActionReason(gate(), actor(["SALES_STAFF"], [SHIPMENT_PERMISSIONS.read]))).toMatch(
-      /chỉ có quyền xem/,
-    );
+    expect(loadNoActionReason(gate({ status: "DISPATCHED" }))).toMatch(/Đã bàn giao/);
+    expect(loadNoActionReason(gate({ status: "CANCELLED" }))).toMatch(/huỷ/);
+    expect(loadNoActionReason(gate({ mode: "FULL_TRUCKLOAD" }))).toMatch(/nguyên xe/);
+    expect(loadNoActionReason(gate())).toMatch(/chỉ có quyền xem/);
   });
 });
 
@@ -139,7 +153,7 @@ describe("SHIPMENT_TRANSITIONS + allowedOutcomes (docs 09 §5, BR-02)", () => {
     }
   });
 
-  it("điều phối đơn ghi đã giao / thất bại / hoàn; quản lý kho chỉ hoàn hàng; nhân viên kho không ghi gì", () => {
+  it("delivery-outcomes:APPROVE ghi đã giao / thất bại / hoàn; chỉ :UPDATE (quản lý kho) chỉ ghi hoàn hàng; không có quyền nào thì không ghi gì", () => {
     expect(allowedOutcomes({ status: "HANDED_OVER" }, COORDINATOR)).toEqual([
       "DELIVERED",
       "DELIVERY_FAILED",
@@ -161,20 +175,20 @@ describe("SHIPMENT_TRANSITIONS + allowedOutcomes (docs 09 §5, BR-02)", () => {
     expect(allowedOutcomes({ status: "READY_TO_DISPATCH" }, COORDINATOR)).toEqual([]);
     expect(allowedOutcomes({ status: "DELIVERED" }, COORDINATOR)).toEqual([]);
     expect(allowedOutcomes({ status: "UNKNOWN" }, ADMIN)).toEqual([]);
-    expect(
-      allowedOutcomes(
-        { status: "HANDED_OVER" },
-        actor(["ORDER_COORDINATOR"], [SHIPMENT_PERMISSIONS.read]),
-      ),
-    ).toEqual([]);
+    expect(allowedOutcomes({ status: "HANDED_OVER" }, actor(READ))).toEqual([]);
+    // APPROVE mà thiếu UPDATE → endpoint từ chối (BE @RequiresPermission UPDATE)
+    expect(allowedOutcomes({ status: "HANDED_OVER" }, actor([...READ, OUTCOME.approve]))).toEqual(
+      [],
+    );
     expect(noOutcomeReason({ status: "READY_TO_DISPATCH" }, COORDINATOR)).toMatch(/chưa bàn giao/);
     expect(noOutcomeReason({ status: "DELIVERED" }, COORDINATOR)).toMatch(/cuối/);
-    expect(noOutcomeReason({ status: "HANDED_OVER" }, STAFF)).toMatch(/Điều phối/);
+    expect(noOutcomeReason({ status: "HANDED_OVER" }, STAFF)).toMatch(/chỉ có quyền xem/);
+    expect(noOutcomeReason({ status: "HANDED_OVER" }, MANAGER)).toMatch(/phê duyệt/);
   });
 });
 
 describe("canAssignCarrier", () => {
-  it("nhân viên / quản lý kho chọn hãng cho lô chờ xuất chưa lên chuyến; điều phối đơn không", () => {
+  it("fulfillment-dispatch:UPDATE (nhân viên / quản lý kho) chọn hãng cho lô chờ xuất chưa lên chuyến; điều phối đơn không", () => {
     const free = { status: "READY_TO_DISPATCH", loadId: undefined } as const;
     expect(canAssignCarrier(free, STAFF)).toBe(true);
     expect(canAssignCarrier(free, MANAGER)).toBe(true);

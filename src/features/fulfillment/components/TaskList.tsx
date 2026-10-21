@@ -3,8 +3,13 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
 
-import { FULFILLMENT_PICK_PERMISSIONS, STAFF_ROLE, UI_LABELS } from "@/constants";
-import { canCreateTask, hasStaffRole } from "@/features/fulfillment/lifecycle";
+import {
+  FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS,
+  FULFILLMENT_PICK_PERMISSIONS,
+  FULFILLMENT_TASK_OVERSIGHT_PERMISSIONS,
+  UI_LABELS,
+} from "@/constants";
+import { canCreateTask } from "@/features/fulfillment/lifecycle";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 
@@ -28,12 +33,16 @@ const SCOPE_COPY = {
   packing: { title: fulfillment.packingTitle, subtitle: fulfillment.packingSubtitle },
 } as const;
 
-/** BE `listTasks` quyết phạm vi theo vai trò, theo đúng thứ tự ưu tiên này. */
+/**
+ * BE `listTasks` quyết phạm vi theo mã quyền, theo đúng thứ tự ưu tiên này:
+ * fulfillment-task-oversight:READ → mọi task; fulfillment-design-reverification:READ → task đang giữ
+ * do lệch thiết kế; còn lại → task được gán cho mình.
+ */
 function scopeNote(actor: FulfillmentActor): string {
-  if (hasStaffRole(actor, [STAFF_ROLE.WAREHOUSE_MANAGER, STAFF_ROLE.ORDER_COORDINATOR])) {
-    return "mọi task";
+  if (actor.can(FULFILLMENT_TASK_OVERSIGHT_PERMISSIONS.read)) return "mọi task";
+  if (actor.can(FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS.read)) {
+    return "kiện đang bị giữ do lệch thiết kế";
   }
-  if (hasStaffRole(actor, [STAFF_ROLE.QC_STAFF])) return "kiện đang bị giữ do lệch thiết kế";
   return "task được gán cho bạn";
 }
 

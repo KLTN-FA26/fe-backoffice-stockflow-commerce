@@ -159,7 +159,6 @@ describe("PackingQueue — hàng chờ đóng gói", () => {
 
   it("thiếu fulfillment-packages:READ (có VIEW_PAGE) → không gọi API hàng chờ, báo không có quyền xem", async () => {
     const identity = {
-      roles: IDENTITIES.orderCoordinator.roles,
       permissions: ["fulfillment-packages:VIEW_PAGE" as const],
     };
     const { get } = renderQueue([queueRow()], identity);
