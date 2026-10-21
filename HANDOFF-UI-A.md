@@ -24,7 +24,7 @@
 1. **BR-PRD-01 (1 LSX per line):** Khi yêu cầu mẫu được gửi sang sản xuất, tự động khởi tạo đúng 1 LSX kiểu `SAMPLE` với mã nguồn liên kết `sourceId`.
 2. **BR-PRD-02 (Prepress checksum check):** Kiểm tra đối chiếu mã băm SHA256 của tệp in với thiết kế mẫu đã duyệt. Prepress pass chuyển sang `Ready`; fail tự động đẩy sang `On Hold`.
 3. **BR-PRD-08 (Design Lock):** Khách hàng phê duyệt mẫu sẽ khóa thiết kế (bản chụp snapshot + phôi SKU) làm chuẩn mực đối chiếu cho sản xuất sau này.
-4. **BR-PRD-10 (Cancellation policy outcome):** 
+4. **BR-PRD-10 (Cancellation policy outcome):**
    - Hủy trước khi in (`Pending Prepress`, `Ready`, `Material Issued`): Hoàn nhập phôi về kho 100%, không tính phí in.
    - Hủy khi đang in (`Printing`, `QC`): Tính toàn bộ chi phí dở dang và phế phẩm vào đơn hàng.
 
