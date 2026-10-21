@@ -4,6 +4,7 @@
 
 import {
   ORDER_CANCELLATION_REQUEST_EXPIRED_NOTE,
+  ORDER_CANCELLATION_REQUEST_STATUS,
   ORDER_CANCELLATION_REQUEST_STATUS_LABELS,
 } from "@/constants";
 
@@ -46,5 +47,7 @@ export function cancellationRequestNote(
   status: string,
   decisionNote: string | null,
 ): string | null {
-  return status === "EXPIRED" ? ORDER_CANCELLATION_REQUEST_EXPIRED_NOTE : decisionNote;
+  return status === ORDER_CANCELLATION_REQUEST_STATUS.EXPIRED
+    ? ORDER_CANCELLATION_REQUEST_EXPIRED_NOTE
+    : decisionNote;
 }

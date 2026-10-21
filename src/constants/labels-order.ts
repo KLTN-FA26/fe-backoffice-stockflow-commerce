@@ -91,6 +91,14 @@ export const ORDER_CANCELLATION_REQUEST_STATUSES = [
   "EXPIRED",
 ] as const;
 
+/** Trạng thái đơn lẻ để so sánh trong code — không gõ tay lại chuỗi. */
+export const ORDER_CANCELLATION_REQUEST_STATUS = {
+  PENDING: "PENDING",
+  APPROVED: "APPROVED",
+  REJECTED: "REJECTED",
+  EXPIRED: "EXPIRED",
+} as const satisfies Record<(typeof ORDER_CANCELLATION_REQUEST_STATUSES)[number], string>;
+
 export const ORDER_CANCELLATION_REQUEST_STATUS_LABELS = {
   PENDING: "Chờ xử lý",
   APPROVED: "Đã duyệt",

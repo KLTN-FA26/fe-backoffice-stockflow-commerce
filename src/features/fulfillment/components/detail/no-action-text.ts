@@ -30,7 +30,7 @@ export function noActionText(
   }
   if (scope === "packing") {
     if (isTaskClosed(task)) return `${STATUS_LABEL_VI[task.packStatus]} — không còn thao tác.`;
-    if (isOnDesignHold(task)) return "Chờ QC hoặc quản lý kho kiểm tra lại thiết kế.";
+    if (isOnDesignHold(task)) return UI_LABELS.packing.notice.holdReadOnly;
     if (task.pickStatus !== PICK_STATUS.PICKED) return noActions.waitingPick;
   }
   if (isBlockedAsNonAssignee(task, actor, ASSIGNEE_ONLY[scope])) return noActions.notAssignee;
