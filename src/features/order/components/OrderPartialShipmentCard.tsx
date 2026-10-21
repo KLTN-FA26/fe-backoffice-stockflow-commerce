@@ -28,6 +28,7 @@ interface OrderPartialShipmentCardProps {
  * không hiện gì (không đoán).
  */
 export function OrderPartialShipmentCard({ order, can }: OrderPartialShipmentCardProps) {
+  // UI-only — Backend phải re-check (PUT /orders/{id}/partial-shipment: @RequiresPermission + 409 LOCKED)
   const control = partialShipmentControl(order, can);
   if (!control) return null;
   const L = ORDER_PARTIAL_SHIPMENT_LABELS;

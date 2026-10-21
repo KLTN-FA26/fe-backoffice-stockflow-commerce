@@ -105,6 +105,8 @@ export function partialShipmentControl(
     allowed,
     next: !allowed,
     lock,
+    // UI-only — Backend phải re-check (@RequiresPermission sales-order-partial-shipments:UPDATE;
+    // đơn đã đi/đóng hoặc đang chờ sản xuất → 409 ORDER_PARTIAL_SHIPMENT_LOCKED)
     canChange: lock === null && can(ORDER_PERMISSIONS.partialShipment),
   };
 }
