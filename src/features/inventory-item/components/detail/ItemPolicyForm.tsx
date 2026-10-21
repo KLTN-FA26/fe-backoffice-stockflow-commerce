@@ -6,6 +6,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { UI_LABELS } from "@/constants";
 import { FORM_INPUT_CLASS } from "@/components/shared/form-control-classes";
 import { Input } from "@/components/ui/input";
+import { CheckboxField } from "@/components/shared/CheckboxField";
 
 import { useSaveItemPolicy } from "../../mutations";
 import { policyFormSchema } from "../../schemas";
@@ -90,17 +91,14 @@ export function ItemPolicyForm({ item, onDone }: { item: InventoryItem; onDone: 
         hint={expiryTracked ? L.expiryHint : undefined}
         error={errors.expiryTracked?.message}
       >
-        <input
+        <CheckboxField
+          control={form.control}
+          name="expiryTracked"
           id="pl-expiry"
-          type="checkbox"
-          {...form.register("expiryTracked", {
-            // Tắt theo dõi → xoá số ngày (ô bị ẩn); toPolicyRequest cũng gửi null
-            onChange: (e: { target: { checked: boolean } }) => {
-              if (!e.target.checked)
-                form.setValue("maxShelfLifeDays", "", { shouldValidate: true });
-            },
-          })}
-          className="accent-brand block size-4"
+          // Tắt theo dõi → xoá số ngày (ô bị ẩn); toPolicyRequest cũng gửi null
+          onCheckedChange={(checked) => {
+            if (!checked) form.setValue("maxShelfLifeDays", "", { shouldValidate: true });
+          }}
         />
       </Field>
       {expiryTracked && (

@@ -17,6 +17,14 @@ export const UI_LABELS = {
     traceId: "TraceId",
     /** Caption bảng danh sách: "Hiển thị x / tổng …". */
     showing: "Hiển thị",
+    /** Badge thanh Cấu hình khi ô search chưa có nội dung. */
+    notEntered: "Chưa nhập",
+  },
+  // Khung back-office (sidebar / topbar)
+  shell: {
+    globalSearch: "Tìm toàn cục",
+    quickSearch: "Tìm nhanh",
+    quickSearchHint: "Tìm nhanh (⌘K)",
   },
   // Trạng thái lỗi khi tải dữ liệu (§8 PRODUCTION-FRONTEND-RULES)
   emptyList: {

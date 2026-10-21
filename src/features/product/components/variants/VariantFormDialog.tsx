@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
-import { Select, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
+import { Select, SelectItem, SelectValue } from "@/components/ui/select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 
 import { variantErrorMessage } from "../../variant-errors";
 import { useAddVariant, useProductAxes, useUpdateVariant } from "../../variant-queries";
@@ -124,7 +125,7 @@ function VariantForm({
               <ProductSelectTrigger id={id}>
                 <SelectValue placeholder={`Chọn ${axis.name.toLowerCase()}`} />
               </ProductSelectTrigger>
-              <SelectContent>
+              <TitledSelectContent title={axis.name}>
                 {axis.options
                   // Giá trị đã bị vô hiệu trong từ điển: chỉ biến thể đang mang nó mới còn thấy.
                   .filter((option) => option.active || option.valueId === current)
@@ -133,7 +134,7 @@ function VariantForm({
                       {option.label}
                     </SelectItem>
                   ))}
-              </SelectContent>
+              </TitledSelectContent>
             </Select>
           </Field>
         );

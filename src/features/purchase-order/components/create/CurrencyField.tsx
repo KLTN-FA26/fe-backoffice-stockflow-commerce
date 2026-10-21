@@ -7,12 +7,12 @@ import { PO_INPUT_CURRENCIES } from "@/features/purchase-order";
 import { Button } from "@/components/ui/button";
 import {
   Select,
-  SelectContent,
   SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 
 import { FieldError } from "./CreateFormPrimitives";
 import { fieldClass } from "./helpers";
@@ -59,7 +59,7 @@ export function CurrencyField({ w }: { w: CreatePoWizard }) {
             >
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <TitledSelectContent title={UI_LABELS.purchaseOrder.currencyOfPo}>
               <SelectGroup>
                 {PO_INPUT_CURRENCIES.map((c) => (
                   <SelectItem key={c} value={c}>
@@ -67,7 +67,7 @@ export function CurrencyField({ w }: { w: CreatePoWizard }) {
                   </SelectItem>
                 ))}
               </SelectGroup>
-            </SelectContent>
+            </TitledSelectContent>
           </Select>
         )}
       />

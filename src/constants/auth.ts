@@ -37,6 +37,7 @@ export const AUTH_EVENT_CHANNEL = "stockflow-session-events";
 export const AUTH_EVENT_STORAGE_KEY = "stockflow:auth:event";
 export const AUTH_UI = {
   bootstrapError: "Không thể xác minh phiên đăng nhập.",
+  verifyingSession: "Đang xác minh phiên đăng nhập",
   retry: "Thử lại",
 } as const;
 /**

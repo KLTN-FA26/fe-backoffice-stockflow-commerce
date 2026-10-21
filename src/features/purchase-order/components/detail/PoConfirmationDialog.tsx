@@ -8,13 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
-  SelectContent,
   SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 
 import { PoDialog, PoDialogForm } from "./PoDialog";
 
@@ -95,7 +95,7 @@ function ConfirmationForm({
           <SelectTrigger id="po-confirm-status" className="w-full">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <TitledSelectContent title={UI_LABELS.purchaseOrder.supplierResponse}>
             <SelectGroup>
               {options.map((o) => (
                 <SelectItem key={o.value} value={o.value}>
@@ -103,7 +103,7 @@ function ConfirmationForm({
                 </SelectItem>
               ))}
             </SelectGroup>
-          </SelectContent>
+          </TitledSelectContent>
         </Select>
       </div>
       <div className="grid gap-1.5">

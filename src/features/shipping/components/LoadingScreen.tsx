@@ -1,8 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-
 import { ADMIN_ROUTES, LOAD_STATUS, SHIPMENT_PERMISSIONS, UI_LABELS } from "@/constants";
 import { useCan, usePermissionChecker } from "@/lib/auth";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
@@ -17,7 +14,7 @@ import { reconcileLoad } from "@/features/shipping/selectors";
 import { Alert } from "@/components/shared/Alert";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
-import { Button } from "@/components/ui/button";
+import { BackLink } from "@/components/shared/BackLink";
 
 import { LoadInfoCard } from "./loading/LoadInfoCard";
 import { LoadingActions } from "./loading/LoadingActions";
@@ -64,11 +61,7 @@ function LoadingBody({ id }: { id: string }) {
         subtitle={L.subtitle}
         actions={
           <>
-            <Button variant="outline" size="sm" asChild>
-              <Link href={ADMIN_ROUTES.shipments.list}>
-                <ArrowLeft className="size-3.5" /> {UI_LABELS.common.backToList}
-              </Link>
-            </Button>
+            <BackLink href={ADMIN_ROUTES.shipments.list} />
             <LoadingActions load={load} actions={actions} />
           </>
         }
@@ -102,7 +95,6 @@ function LoadingBody({ id }: { id: string }) {
               caption={`${L.caption.missing} ${load.number}`}
               lines={missingLines}
               emptyText={L.empty.allLoaded}
-              highlightMissing
             />
           </Section>
           <Section title={`${L.loadedSection} (${loadedLines.length})`}>

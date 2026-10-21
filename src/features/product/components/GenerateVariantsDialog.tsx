@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 
 import { DialogScrollArea } from "@/components/shared/DialogScrollArea";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
+import { Checkbox } from "@/components/ui/checkbox";
 
 import { attributeErrorMessage } from "../attribute-errors";
 import { comboKey, previewGeneration } from "../axes-draft";
@@ -163,14 +164,12 @@ function Body({
                     key={o.valueId}
                     className="text-ink-secondary flex items-center gap-1.5 text-xs"
                   >
-                    <input
-                      type="checkbox"
-                      className="accent-brand size-3.5"
+                    <Checkbox
                       checked={!excluded.has(o.valueId)}
-                      onChange={(e) =>
+                      onCheckedChange={(checked) =>
                         setExcluded((prev) => {
                           const next = new Set(prev);
-                          if (e.target.checked) next.delete(o.valueId);
+                          if (checked === true) next.delete(o.valueId);
                           else next.add(o.valueId);
                           return next;
                         })

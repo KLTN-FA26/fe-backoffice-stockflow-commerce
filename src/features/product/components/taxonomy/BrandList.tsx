@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { STORAGE_KEYS, TAXONOMY_BRAND_COLUMNS, UI_LABELS } from "@/constants";
+import { viewColumn } from "@/components/shared/column-helpers";
 
 import { useBrandPage } from "../../taxonomy-queries";
 import { BRAND_COLUMN_LABELS, buildBrandColumns } from "./taxonomy-columns";
@@ -10,6 +11,8 @@ import { BrandFormDialog } from "./BrandFormDialog";
 import { TaxonomyListBody } from "./TaxonomyListBody";
 import { TaxonomyToolbar } from "./TaxonomyToolbar";
 import { useTaxonomyListState } from "./useTaxonomyListState";
+
+import type { Brand } from "../../taxonomy-schemas";
 
 const L = UI_LABELS.taxonomy;
 const ALL_COLUMNS = Object.values(TAXONOMY_BRAND_COLUMNS);
@@ -20,7 +23,13 @@ export function BrandList() {
   const query = useBrandPage({ ...s.params, sort: "name,asc" }, { enabled: s.canRead });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = query.data?.items.find((b) => b.brandId === selectedId);
-  const columns = buildBrandColumns().filter((c) => s.config.visibleColumns.includes(c.key));
+  const columns = [
+    ...buildBrandColumns().filter((c) => s.config.visibleColumns.includes(c.key)),
+    viewColumn<Brand>((row) => ({
+      label: `${L.viewRow} ${row.name}`,
+      onOpen: () => setSelectedId(row.brandId),
+    })),
+  ];
 
   return (
     <>

@@ -1,13 +1,13 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Package } from "lucide-react";
+import { Package } from "lucide-react";
 
 import { ADMIN_ROUTES, PO_PERMISSIONS } from "@/constants";
 import { Alert } from "@/components/shared/Alert";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
+import { BackLink } from "@/components/shared/BackLink";
 
 import { PoActionPanel } from "./detail/PoActionPanel";
 import { PoDeliveryCard } from "./detail/PoDeliveryCard";
@@ -47,15 +47,7 @@ function PurchaseOrderDetailBody({ id }: { id: string }) {
       <PageHeader
         title={po.poNumber}
         subtitle={`Đơn đặt NCC — ${supplierName}`}
-        actions={
-          <Link
-            href={ADMIN_ROUTES.purchaseOrders.list}
-            className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary inline-flex items-center gap-1.5 rounded-[var(--r-sm)] border px-3 py-1.5 text-[0.8125rem] font-medium transition-colors"
-          >
-            <ArrowLeft className="size-3.5" />
-            Quay lại
-          </Link>
-        }
+        actions={<BackLink href={ADMIN_ROUTES.purchaseOrders.list} />}
       />
       {d.isDuplicate && (
         <Alert tone="warning" title="Cảnh báo trùng lặp (BR-PO-003)" className="mb-5">

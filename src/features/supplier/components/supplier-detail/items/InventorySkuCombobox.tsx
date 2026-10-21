@@ -8,6 +8,7 @@ import { SUPPLIER_ITEM_UI_LABELS } from "@/constants";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useInventoryItemOptions } from "@/lib/references/inventory-item-options";
 import { useSupplierCatalog } from "@/lib/references/supplier-items";
+import { DropdownTitle } from "@/components/shared/TitledSelectContent";
 import { Button } from "@/components/ui/button";
 import { Command, CommandGroup, CommandInput, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -93,6 +94,7 @@ export function InventorySkuCombobox({
       </PopoverTrigger>
       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
         {/* BE lọc theo `q` → tắt lọc phía cmdk */}
+        <DropdownTitle>{SUPPLIER_ITEM_UI_LABELS.field.sku}</DropdownTitle>
         <Command shouldFilter={false}>
           <CommandInput placeholder={P.search} value={search} onValueChange={setSearch} />
           {(catalog.data?.truncated || (catalog.isError && !catalog.data)) && (

@@ -7,12 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
-  SelectContent,
   SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 
 import { ISO_CURRENCY_PATTERN } from "./useSupplierSpendFilters";
 
@@ -55,7 +55,7 @@ export function SpendCurrencyPicker({
           <SelectTrigger id="spend-currency" className={`w-[120px] ${FIELD_CLASS}`}>
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <TitledSelectContent title={"Tiền tệ"}>
             <SelectGroup>
               {PO_INPUT_CURRENCIES.map((c) => (
                 <SelectItem key={c} value={c}>
@@ -64,7 +64,7 @@ export function SpendCurrencyPicker({
               ))}
               <SelectItem value={OTHER}>Mã khác…</SelectItem>
             </SelectGroup>
-          </SelectContent>
+          </TitledSelectContent>
         </Select>
       </div>
       {otherOpen && (

@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
@@ -9,6 +9,7 @@ import {
   INVENTORY_ERROR_MESSAGES,
   INVENTORY_LABELS,
   INVENTORY_ROUTES,
+  STOCK_ADJUSTMENT_REASON_LABELS,
 } from "@/constants/inventory";
 import { INVENTORY_PERMISSIONS } from "@/constants/permissions";
 
@@ -27,7 +28,17 @@ const server = setupServer();
 const endpoint = inventoryEndpoint(INVENTORY_API.adjustments);
 beforeAll(() => {
   server.listen({ onUnhandledRequest: "error" });
+  // Radix Select dùng pointer capture / scrollIntoView — jsdom không có
+  Element.prototype.hasPointerCapture ??= () => false;
+  Element.prototype.releasePointerCapture ??= () => undefined;
+  Element.prototype.scrollIntoView ??= () => undefined;
 });
+
+/** Chọn lý do điều chỉnh qua shadcn Select theo nhãn tiếng Việt. */
+async function pickReason(label: string) {
+  await userEvent.click(screen.getByRole("combobox", { name: /Lý do điều chỉnh/ }));
+  await userEvent.click(await screen.findByRole("option", { name: label }));
+}
 beforeEach(() => {
   localStorage.clear();
   navigation.push.mockClear();
@@ -53,7 +64,7 @@ describe("adjustment create form", () => {
     renderInventory(<AdjustmentCreate />);
     await enterAdjustment();
     expect(screen.getByRole("button", { name: INVENTORY_LABELS.submitAdjustment })).toBeDisabled();
-    await userEvent.selectOptions(screen.getByLabelText(/Lý do điều chỉnh/), "SCRAP");
+    await pickReason(STOCK_ADJUSTMENT_REASON_LABELS.SCRAP);
     await waitFor(() =>
       expect(screen.getByRole("button", { name: INVENTORY_LABELS.submitAdjustment })).toBeEnabled(),
     );
@@ -70,7 +81,7 @@ describe("adjustment create form", () => {
     );
     renderInventory(<AdjustmentCreate />);
     await enterAdjustment();
-    await userEvent.selectOptions(screen.getByLabelText(/Lý do điều chỉnh/), "SCRAP");
+    await pickReason(STOCK_ADJUSTMENT_REASON_LABELS.SCRAP);
     await userEvent.click(screen.getByRole("button", { name: INVENTORY_LABELS.submitAdjustment }));
     await waitFor(() =>
       expect(navigation.push).toHaveBeenCalledWith(
@@ -88,7 +99,7 @@ describe("adjustment create form", () => {
   it("requires an explanation for OTHER", async () => {
     renderInventory(<AdjustmentCreate />);
     await enterAdjustment();
-    await userEvent.selectOptions(screen.getByLabelText(/Lý do điều chỉnh/), "OTHER");
+    await pickReason(STOCK_ADJUSTMENT_REASON_LABELS.OTHER);
     expect(await screen.findByText("Cần giải thích khi chọn lý do khác.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: INVENTORY_LABELS.submitAdjustment })).toBeDisabled();
     await userEvent.type(screen.getByLabelText(INVENTORY_LABELS.note), "Recount after audit");
@@ -114,7 +125,7 @@ describe("adjustment create form", () => {
     );
     renderInventory(<AdjustmentCreate />);
     await enterAdjustment();
-    await userEvent.selectOptions(screen.getByLabelText(/Lý do điều chỉnh/), "SCRAP");
+    await pickReason(STOCK_ADJUSTMENT_REASON_LABELS.SCRAP);
     await userEvent.click(screen.getByRole("button", { name: INVENTORY_LABELS.submitAdjustment }));
     expect(await screen.findByText("Unknown location")).toBeInTheDocument();
     expect(screen.getByLabelText(/Vị trí/)).toHaveAttribute("aria-invalid", "true");
@@ -139,7 +150,7 @@ describe("adjustment create form", () => {
     );
     renderInventory(<AdjustmentCreate />);
     await enterAdjustment();
-    await userEvent.selectOptions(screen.getByLabelText(/Lý do điều chỉnh/), "SCRAP");
+    await pickReason(STOCK_ADJUSTMENT_REASON_LABELS.SCRAP);
     await userEvent.click(screen.getByRole("button", { name: INVENTORY_LABELS.submitAdjustment }));
     expect(await screen.findByText(INVENTORY_ERROR_MESSAGES.stockItemNotFound)).toBeInTheDocument();
     expect(screen.queryByText(/No CUP-PP-500/)).not.toBeInTheDocument();
@@ -186,7 +197,7 @@ describe("adjustment create form", () => {
     );
     renderInventory(<AdjustmentCreate />);
     await enterAdjustment();
-    await userEvent.selectOptions(screen.getByLabelText(/Lý do điều chỉnh/), "SCRAP");
+    await pickReason(STOCK_ADJUSTMENT_REASON_LABELS.SCRAP);
     const submit = screen.getByRole("button", { name: INVENTORY_LABELS.submitAdjustment });
     await waitFor(() => expect(submit).toBeEnabled());
     const form = submit.closest("form");
@@ -221,7 +232,7 @@ describe("adjustment create form", () => {
     );
     renderInventory(<AdjustmentCreate />);
     await enterAdjustment();
-    await userEvent.selectOptions(screen.getByLabelText(/Lý do điều chỉnh/), "SCRAP");
+    await pickReason(STOCK_ADJUSTMENT_REASON_LABELS.SCRAP);
     await userEvent.click(screen.getByRole("button", { name: INVENTORY_LABELS.submitAdjustment }));
     expect(await screen.findByText(INVENTORY_ERROR_MESSAGES.server)).toBeInTheDocument();
     // The user corrects the form (a server error keeps submit disabled until an edit).
@@ -250,10 +261,10 @@ describe("adjustment create form", () => {
     );
     renderInventory(<AdjustmentCreate />);
     await enterAdjustment();
-    const reason = screen.getByLabelText(/Lý do điều chỉnh/);
-    expect(within(reason).getByRole("option", { name: "Hư hỏng" })).toHaveValue("DAMAGED");
-    expect(within(reason).queryByRole("option", { name: "DAMAGED" })).not.toBeInTheDocument();
-    await userEvent.selectOptions(reason, "Hư hỏng");
+    await userEvent.click(screen.getByRole("combobox", { name: /Lý do điều chỉnh/ }));
+    expect(await screen.findByRole("option", { name: "Hư hỏng" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "DAMAGED" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("option", { name: "Hư hỏng" }));
     await userEvent.click(screen.getByRole("button", { name: INVENTORY_LABELS.submitAdjustment }));
     await waitFor(() => expect(submitted).toHaveBeenCalled());
     expect(submitted.mock.lastCall?.[0]).toMatchObject({ reason: "DAMAGED" });

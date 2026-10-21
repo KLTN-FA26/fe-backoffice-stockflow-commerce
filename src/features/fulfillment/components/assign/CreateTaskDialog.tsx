@@ -12,13 +12,8 @@ import { Alert } from "@/components/shared/Alert";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 
 import { FieldError, MONO } from "../primitives";
 import { AssigneeSelect, SELECT_FIELD } from "./AssigneeSelect";
@@ -119,14 +114,14 @@ export function CreateTaskDialog({ onClose }: { onClose: () => void }) {
                   }
                 />
               </SelectTrigger>
-              <SelectContent>
+              <TitledSelectContent title={"Đơn hàng"}>
                 {options.map((order) => (
                   <SelectItem key={order.orderId} value={order.orderId}>
                     {/* Dòng danh sách đơn của BE không kèm dòng hàng (OrderSearchRepository) → chỉ hiện số đơn */}
                     <span className={MONO}>{order.orderNumber}</span>
                   </SelectItem>
                 ))}
-              </SelectContent>
+              </TitledSelectContent>
             </Select>
             <FieldError id="task-order-error">{errors.orderId}</FieldError>
           </div>

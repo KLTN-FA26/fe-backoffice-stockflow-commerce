@@ -7,12 +7,12 @@ import { useWarehouseOptions } from "@/lib/references/warehouse-options";
 import { Button } from "@/components/ui/button";
 import {
   Select,
-  SelectContent,
   SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 
 import { fieldClass, useWarehouseLabel } from "../primitives";
 import { Field } from "./FormField";
@@ -69,7 +69,7 @@ export function WarehouseField({
             >
               <SelectValue placeholder={UI_LABELS.transfer.field.selectWarehouse} />
             </SelectTrigger>
-            <SelectContent>
+            <TitledSelectContent title={label}>
               <SelectGroup>
                 {isMissing(field.value) && (
                   <SelectItem value={field.value}>
@@ -82,7 +82,7 @@ export function WarehouseField({
                   </SelectItem>
                 ))}
               </SelectGroup>
-            </SelectContent>
+            </TitledSelectContent>
           </Select>
         )}
       />

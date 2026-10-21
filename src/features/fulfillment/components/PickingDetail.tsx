@@ -1,14 +1,11 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-
 import { ADMIN_ROUTES, FULFILLMENT_PICK_PERMISSIONS, UI_LABELS } from "@/constants";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { useFulfillmentOrder, useFulfillmentTask } from "@/features/fulfillment/queries";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
-import { Button } from "@/components/ui/button";
+import { BackLink } from "@/components/shared/BackLink";
 
 import { OrderLinesSection } from "./detail/OrderLinesSection";
 import { TaskActionCard } from "./detail/TaskActionCard";
@@ -18,7 +15,7 @@ import { FulfillmentPermissionGate } from "./FulfillmentPermissionGate";
 import { orderLabel, taskCode } from "./primitives";
 import { useFulfillmentActor, useTaskReferences } from "./useFulfillmentActor";
 
-const { fulfillment, common } = UI_LABELS;
+const { fulfillment } = UI_LABELS;
 
 function PickingDetailBody({ id }: { id: string }) {
   const actor = useFulfillmentActor();
@@ -48,13 +45,7 @@ function PickingDetailBody({ id }: { id: string }) {
       <PageHeader
         title={`Task ${taskCode(task.taskId)}`}
         subtitle={`${fulfillment.pickingTitle} · Đơn ${orderNumber ?? orderLabel(task.orderId, undefined)}`}
-        actions={
-          <Button variant="outline" size="sm" asChild>
-            <Link href={ADMIN_ROUTES.picking.list}>
-              <ArrowLeft className="size-3.5" /> {common.backToList}
-            </Link>
-          </Button>
-        }
+        actions={<BackLink href={ADMIN_ROUTES.picking.list} />}
       />
       <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
         <div className="min-w-0 space-y-5">

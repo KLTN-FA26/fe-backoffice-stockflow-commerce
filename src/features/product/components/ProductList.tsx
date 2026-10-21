@@ -4,7 +4,7 @@ import { useMemo, useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { cn } from "cn";
-import { BarChart3, Eye, Package, XCircle, Plus } from "lucide-react";
+import { BarChart3, Package, XCircle, Plus } from "lucide-react";
 import { ADMIN_ROUTES, PAGE_SIZE, PRODUCT_PERMISSIONS, STORAGE_KEYS } from "@/constants";
 import { PERMISSION_UI } from "@/constants/permissions";
 import { usePageConfig } from "@/hooks/use-page-config";
@@ -19,7 +19,7 @@ import { DataTable, type ColumnDef } from "@/components/shared/DataTable";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
-import { statusCell, textCell } from "@/components/shared/column-helpers";
+import { CELL, statusCell, textCell, ViewAction } from "@/components/shared/column-helpers";
 import { shouldFlagProductRow, useCategories, useProducts } from "@/features/product";
 import { PRODUCT_LIST_FILTER_STATUSES, type ProductListFilterStatus } from "@/features/product/api";
 import { getProductListEmptyState } from "@/features/product/product-list-state";
@@ -220,7 +220,7 @@ export function ProductList() {
         <Link
           href={ADMIN_ROUTES.products.detail(row.productId)}
           onClick={(e) => e.stopPropagation()}
-          className="text-accent font-[family-name:var(--font-mono)] text-[0.8125rem] font-medium hover:underline"
+          className={`${CELL.code} hover:underline`}
         >
           {productCode(row)}
         </Link>
@@ -235,7 +235,7 @@ export function ProductList() {
         <Link
           href={ADMIN_ROUTES.products.detail(row.productId)}
           onClick={(e) => e.stopPropagation()}
-          className="text-ink-primary hover:text-accent text-[0.8125rem] font-medium hover:underline"
+          className={`${CELL.name} hover:text-accent hover:underline`}
         >
           {row.name}
         </Link>
@@ -256,7 +256,7 @@ export function ProductList() {
       key: "type",
       header: "Loại",
       cell: (row) => (
-        <span className="text-ink-secondary text-[0.8125rem]">
+        <span className={CELL.text}>
           {row.type === "Customizable" ? "Tùy chỉnh" : "Tiêu chuẩn"}
         </span>
       ),
@@ -270,14 +270,7 @@ export function ProductList() {
       key: "actions",
       header: "",
       cell: (row) => (
-        <Link
-          href={ADMIN_ROUTES.products.detail(row.productId)}
-          onClick={(e) => e.stopPropagation()}
-          className="border-border-default bg-bg-surface text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary flex size-7 items-center justify-center rounded-[var(--r-sm)] border transition-colors"
-          aria-label="Xem chi tiết"
-        >
-          <Eye className="size-3.5" />
-        </Link>
+        <ViewAction label="Xem chi tiết" href={ADMIN_ROUTES.products.detail(row.productId)} />
       ),
     },
   ];

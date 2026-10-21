@@ -5,7 +5,8 @@ import { Controller } from "react-hook-form";
 import { UI_LABELS } from "@/constants";
 import { FormSelect } from "@/components/shared/FormSelect";
 import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
-import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 
 import { REMOVAL_STRATEGIES, TRACKING_MODES } from "../../schemas";
 import { Field } from "./Field";
@@ -41,13 +42,13 @@ export function ItemPolicySelects({
               <SelectTrigger id="pl-removal" className={FORM_SELECT_CLASS}>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <TitledSelectContent title={F.removalStrategy}>
                 {REMOVAL_STRATEGIES.map((s) => (
                   <SelectItem key={s} value={s}>
                     {L.removalStrategy[s]}
                   </SelectItem>
                 ))}
-              </SelectContent>
+              </TitledSelectContent>
             </FormSelect>
           )}
         />
@@ -67,13 +68,13 @@ export function ItemPolicySelects({
               <SelectTrigger id="pl-tracking" className={FORM_SELECT_CLASS}>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <TitledSelectContent title={F.trackingMode}>
                 {TRACKING_MODES.map((m) => (
                   <SelectItem key={m} value={m}>
                     {L.trackingMode[m]}
                   </SelectItem>
                 ))}
-              </SelectContent>
+              </TitledSelectContent>
             </FormSelect>
           )}
         />
