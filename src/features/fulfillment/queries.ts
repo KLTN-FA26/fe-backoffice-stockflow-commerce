@@ -7,8 +7,8 @@ import { getDesignArtifactUrl, getFulfillmentTask, listFulfillmentTasks } from "
 import {
   getFulfillmentOrder,
   listAssignees,
-  listFulfillableOrders,
   listOrderNumbers,
+  listTaskCandidates,
 } from "./reference-api";
 
 import type { ListFulfillmentTaskParams } from "./api";
@@ -25,7 +25,12 @@ export const fulfillmentReferenceKeys = {
   /** Gốc của mọi dữ liệu ĐƠN HÀNG — mutation đổi trạng thái đơn chỉ làm mới nhánh này. */
   orders: () => [...fulfillmentReferenceKeys.all, "orders"] as const,
   order: (orderId: string) => [...fulfillmentReferenceKeys.orders(), "detail", orderId] as const,
-  fulfillableOrders: () => [...fulfillmentReferenceKeys.orders(), "fulfillable"] as const,
+  /**
+   * Đơn chờ đưa vào xuất kho (`GET /fulfillment/task-candidates`) — nằm dưới nhánh đơn hàng để tạo task /
+   * đổi trạng thái đơn làm mới danh sách (đơn vừa có task phải rời danh sách).
+   */
+  taskCandidates: (warehouseId?: string) =>
+    [...fulfillmentReferenceKeys.orders(), "task-candidates", warehouseId ?? "all"] as const,
   orderNumbers: () => [...fulfillmentReferenceKeys.orders(), "numbers"] as const,
   /** Người nhận task theo kho — không đổi theo thao tác trên task → không nằm dưới nhánh đơn hàng. */
   assignees: (warehouseId: string) =>
@@ -52,11 +57,14 @@ export function useFulfillmentOrder(orderId: string | undefined, enabled: boolea
   });
 }
 
-/** Đơn chờ đưa vào xuất kho — cho dialog tạo task. */
-export function useFulfillableOrders(enabled: boolean) {
+/**
+ * Đơn chờ đưa vào xuất kho — cho dialog tạo task. Cần `fulfillment-task-assignment:CREATE` (không cần
+ * `sales-orders:READ`); thiếu quyền → tắt, dialog hiện thông báo.
+ */
+export function useTaskCandidates(enabled: boolean, warehouseId?: string) {
   return useQuery({
-    queryKey: fulfillmentReferenceKeys.fulfillableOrders(),
-    queryFn: ({ signal }) => listFulfillableOrders(signal),
+    queryKey: fulfillmentReferenceKeys.taskCandidates(warehouseId),
+    queryFn: ({ signal }) => listTaskCandidates({ warehouseId }, signal),
     enabled,
     ...QUERY_TIMES.list,
   });

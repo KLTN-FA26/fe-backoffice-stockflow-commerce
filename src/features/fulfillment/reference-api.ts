@@ -3,6 +3,8 @@
  *
  * - Đơn hàng (`GET /orders`, `/orders/{id}`): số đơn, dòng đơn (SKU, SL, thiết kế đã khoá). Cần
  *   `sales-orders:READ`; seed BE không cấp cho nhân viên kho / quản lý kho / QC.
+ * - Đơn chờ đưa vào xuất kho (`GET /fulfillment/task-candidates`): cần `fulfillment-task-assignment:CREATE`
+ *   — quản lý kho chọn đơn để tạo task mà không cần `sales-orders:READ` (BE PR #151).
  * - Người nhận task (`GET /fulfillment/assignees?warehouseId=`): danh sách chọn trong dialog gán / tạo
  *   task. Cần `fulfillment-task-assignment:UPDATE` — cùng quyền với việc gán, nên ai gán được thì thấy
  *   danh sách (không cần `identity-users:READ`). Tên người được gán trên task lấy từ `assignedUserName`.
@@ -10,18 +12,21 @@
  * `features/order` (import boundary) — parse bằng schema nhỏ của feature này.
  */
 
-import { FULFILLABLE_ORDER_API_STATUSES, PAGE_SIZE } from "@/constants";
+import { PAGE_SIZE } from "@/constants";
 import { api } from "@/lib/api/client";
 
-import { assigneeListSchema, fulfillmentOrderPageSchema, fulfillmentOrderSchema } from "./schemas";
+import {
+  assigneeListSchema,
+  fulfillmentOrderPageSchema,
+  fulfillmentOrderSchema,
+  taskCandidatePageSchema,
+} from "./schemas";
 
-import type { Assignee, FulfillmentOrder } from "./types";
+import type { Assignee, FulfillmentOrder, TaskCandidatePage } from "./types";
 
 const ORDERS_PATH = "/orders";
 const ASSIGNEES_PATH = "/fulfillment/assignees";
-
-/** Spring bind `@RequestParam List<OrderStatus> status` từ `status=A&status=B`. */
-const REPEAT_ARRAY_PARAMS = { indexes: null } as const;
+const TASK_CANDIDATES_PATH = "/fulfillment/task-candidates";
 
 export async function getFulfillmentOrder(
   orderId: string,
@@ -33,15 +38,22 @@ export async function getFulfillmentOrder(
   return fulfillmentOrderSchema.parse(data);
 }
 
-/** Đơn đưa được vào xuất kho: chỉ READY_TO_FULFILL — đơn CONFIRMED phải release trước (BE PR #133, FulfillmentServiceImpl#createTask). */
-export async function listFulfillableOrders(signal?: AbortSignal): Promise<FulfillmentOrder[]> {
-  const { data } = await api.get<unknown>(ORDERS_PATH, {
-    // Một trang tối đa của BE (Pages.MAX_PAGE_SIZE = 200), mới nhất trước — ô chọn chưa có tìm kiếm
-    params: { page: 0, size: PAGE_SIZE.masterData, status: [...FULFILLABLE_ORDER_API_STATUSES] },
-    paramsSerializer: REPEAT_ARRAY_PARAMS,
+/**
+ * Đơn đưa được vào xuất kho (BE `GET /fulfillment/task-candidates`, guard
+ * `fulfillment-task-assignment:CREATE`): chỉ đơn READY_TO_FULFILL chưa có task — đơn CONFIRMED phải
+ * release trước (BE PR #133, FulfillmentServiceImpl#createTask) — cũ nhất trước. Không cần
+ * `sales-orders:READ`. Bỏ `warehouseId` thì người gọi bị giới hạn kho nhận mọi kho của mình.
+ */
+export async function listTaskCandidates(
+  params: { warehouseId?: string } = {},
+  signal?: AbortSignal,
+): Promise<TaskCandidatePage> {
+  const { data } = await api.get<unknown>(TASK_CANDIDATES_PATH, {
+    // Một trang tối đa của BE (Pages.MAX_PAGE_SIZE = 200) — ô chọn chưa có tìm kiếm / phân trang
+    params: { page: 0, size: PAGE_SIZE.masterData, warehouseId: params.warehouseId },
     signal,
   });
-  return fulfillmentOrderPageSchema.parse(data).items;
+  return taskCandidatePageSchema.parse(data);
 }
 
 /**
