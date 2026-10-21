@@ -94,4 +94,10 @@ export const deliveryOutcomeInputSchema = z
     } else if (value.failureReason === "OTHER" && !value.note) {
       ctx.addIssue({ code: "custom", path: ["note"], message: MSG.noteRequiredForOther });
     }
-  });
+  })
+  // BE chỉ lưu lý do / ghi chú của lần GIAO THẤT BẠI (`Shipment#recordFailed`); kết quả khác bỏ cả hai
+  .transform((value) =>
+    value.outcome === "DELIVERY_FAILED"
+      ? value
+      : { outcome: value.outcome, failureReason: undefined, note: undefined },
+  );

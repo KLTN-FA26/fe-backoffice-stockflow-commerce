@@ -5,10 +5,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { SHIPPING_ERROR_MESSAGES as ERR, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { useRejectedScansStore } from "@/features/shipping/rejected-scans-store";
+import { resetScanIds } from "@/features/shipping/scan-ids";
 
 import { LOAD_ID, apiLoad, loadShipment, parcel } from "../__fixtures__/load";
 import {
   SHIPPING_ACTORS as ACTORS,
+  bePage,
   mockShippingApi,
   renderShippingScreen,
 } from "../__fixtures__/render";
@@ -22,6 +24,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 afterEach(() => {
   vi.restoreAllMocks();
   useRejectedScansStore.setState({ byLoad: {} });
+  resetScanIds();
   sessionStorage.clear();
 });
 
@@ -92,7 +95,13 @@ describe("LoadScreen — thông tin chuyến và tiến độ", () => {
 describe("LoadScreen — quét kiện", () => {
   it("ô quét luôn focus; Enter gửi mã in hoa kèm scanId (uuid); báo đã lên xe và xoá ô", async () => {
     const user = userEvent.setup();
-    const { post } = renderLoad(ACTORS.warehouseStaff, apiLoad(), { scan: () => fullLoad() });
+    const after = apiLoad({
+      shipments: [
+        loadShipment("SO-1-S1", [parcel("PKG-SO-1-1", true)]),
+        loadShipment("SO-2-S1", [parcel("PKG-SO-2-1", true), parcel("PKG-SO-2-2", false)]),
+      ],
+    });
+    const { post } = renderLoad(ACTORS.warehouseStaff, apiLoad(), { scan: () => after });
     const input = await screen.findByLabelText(L.scan.label);
     expect(input).toHaveFocus();
     await user.type(input, " pkg-so-2-1{Enter}");
@@ -102,10 +111,46 @@ describe("LoadScreen — quét kiện", () => {
     expect(body).toMatchObject({ packageCode: "PKG-SO-2-1" });
     expect((body as { scanId: string }).scanId).toMatch(UUID);
     await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent(`PKG-SO-2-1 — ${L.scan.accepted} (1/1)`),
+      expect(screen.getByRole("status")).toHaveTextContent(`PKG-SO-2-1 — ${L.scan.accepted} (2/3)`),
     );
     expect(input).toHaveValue("");
     expect(input).toHaveFocus();
+  });
+
+  it("phản hồi không có kiện trên xe (BE replay câu trả lời cũ) → không báo thành công, scanId đổi mới", async () => {
+    const user = userEvent.setup();
+    const { post } = renderLoad(ACTORS.warehouseStaff, apiLoad());
+    const input = await screen.findByLabelText(L.scan.label);
+    await user.type(input, "PKG-SO-2-1{Enter}");
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(L.scan.notLoaded));
+    expect(screen.queryByRole("status")).toBeEmptyDOMElement();
+    await user.type(input, "PKG-SO-2-1{Enter}");
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
+    const ids = post.mock.calls.map((c) => (c[1] as { scanId: string }).scanId);
+    expect(ids[1]).not.toBe(ids[0]);
+  });
+
+  it("scanId đang chờ (mất mạng) bị bỏ khi kiện đó vừa được gỡ khỏi xe → quét lại là lần quét mới", async () => {
+    const user = userEvent.setup();
+    let calls = 0;
+    const { post, delete: del } = renderLoad(ACTORS.warehouseStaff, apiLoad(), {
+      scan: () => {
+        calls += 1;
+        if (calls === 1) throw new ApiError(0, "NETWORK_ERROR", "offline");
+        return apiLoad();
+      },
+    });
+    const input = await screen.findByLabelText(L.scan.label);
+    await user.type(input, "PKG-SO-1-1{Enter}");
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(L.scan.notSent));
+    await user.click(
+      await screen.findByRole("button", { name: `${L.load.unscanAria} PKG-SO-1-1` }),
+    );
+    await waitFor(() => expect(del).toHaveBeenCalledWith(`${PATH}/scans/pkg-PKG-SO-1-1`));
+    await user.type(input, "PKG-SO-1-1{Enter}");
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
+    const ids = post.mock.calls.map((c) => (c[1] as { scanId: string }).scanId);
+    expect(ids[1]).not.toBe(ids[0]);
   });
 
   it("mỗi lần quét một scanId mới; hai mã liên tiếp gửi lần lượt đúng thứ tự", async () => {
@@ -242,5 +287,56 @@ describe("LoadScreen — gate quyền / vai trò / trạng thái", () => {
     await waitFor(() =>
       expect(post).toHaveBeenCalledWith(`${PATH}/cancellation`, { reason: "Hãng huỷ xe" }),
     );
+  });
+});
+
+describe("LoadScreen — thêm lô vào chuyến", () => {
+  it("lọc theo hãng ở BE, giữ lô chưa gán hãng, bỏ lô nguyên xe / lô hãng khác / lô đã lên chuyến khác", async () => {
+    const user = userEvent.setup();
+    const row = (code: string, patch: Record<string, unknown> = {}) => ({
+      shipmentId: `shp-${code}`,
+      code,
+      orderId: `ord-${code}`,
+      warehouseId: "wh-hcm",
+      status: "READY_TO_DISPATCH",
+      deliveryMode: "PARCEL",
+      packageCount: 1,
+      partial: false,
+      wholeOrderHandover: false,
+      version: 0,
+      ...patch,
+    });
+    const spies = mockShippingApi(ACTORS.warehouseStaff, {
+      get: {
+        [PATH]: () => apiLoad(),
+        "/fulfillment/shipments": (params) => {
+          const carrierId = (params as { carrierId?: string }).carrierId;
+          return carrierId
+            ? bePage([row("MINE-1", { carrierId: "car-ghn" })])
+            : bePage([
+                row("MINE-1", { carrierId: "car-ghn" }),
+                row("FREE-1"),
+                row("OTHER-1", { carrierId: "car-vtp" }),
+                row("FTL-1", { deliveryMode: "FULL_TRUCKLOAD" }),
+                row("BUSY-1", { loadId: "LOAD-9" }),
+              ]);
+        },
+      },
+    });
+    renderShippingScreen(<LoadScreen id={LOAD_ID} />);
+    await user.click(await screen.findByRole("button", { name: L.load.addShipments }));
+    const dialog = await screen.findByRole("dialog");
+    expect(await within(dialog).findByText("MINE-1")).toBeInTheDocument();
+    expect(within(dialog).getByText("FREE-1")).toBeInTheDocument();
+    for (const hidden of ["OTHER-1", "FTL-1", "BUSY-1"]) {
+      expect(within(dialog).queryByText(hidden)).not.toBeInTheDocument();
+    }
+    const calls = spies.get.mock.calls
+      .filter(([url]) => url === "/fulfillment/shipments")
+      .map(([, config]) => config?.params as Record<string, unknown>);
+    expect(calls).toContainEqual(
+      expect.objectContaining({ carrierId: "car-ghn", warehouseId: "wh-hcm" }),
+    );
+    expect(calls.some((p) => p.carrierId === undefined)).toBe(true);
   });
 });

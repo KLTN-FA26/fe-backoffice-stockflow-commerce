@@ -60,6 +60,10 @@ export const beShipmentRowSchema = z.object({
   deliveryMode: deliveryModeSchema,
   packageCount: count,
   codAmount: measure.nullish(),
+  /** Tiền tệ của `codAmount` (BE #137 bổ sung; thiếu thì chỉ hiện "có thu hộ"). */
+  currency: z.string().nullish(),
+  /** Task xuất kho / đóng gói của đơn — đích của lối "in lại nhãn" (BE #137 bổ sung). */
+  taskId: z.string().nullish(),
   carrierId: z.string().nullish(),
   carrierName: z.string().nullish(),
   /** Chuyến đang mở hoặc đã bàn giao; vắng khi lô chưa lên chuyến nào. */
@@ -100,6 +104,9 @@ export const beShipmentStepSchema = z.object({
 /** BE `ShipmentResponse` — lô giao kèm kiện và lịch sử (chỉ nhân viên xem). */
 export const beShipmentSchema = z.object({
   shipment: beShipmentRowSchema,
+  /** BE có thể đặt `taskId` / `currency` ở ngoài hàng lô thay vì trong đó — nhận cả hai chỗ. */
+  taskId: z.string().nullish(),
+  currency: z.string().nullish(),
   partialNote: z.string().nullish(),
   /** Ghi chú nội bộ của lần giao thất bại — không hiện cho khách. */
   failureNote: z.string().nullish(),

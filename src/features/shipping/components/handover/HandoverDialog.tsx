@@ -38,9 +38,11 @@ export function HandoverDialog({ load, onClose, onDone, onRefused }: HandoverDia
   // `onSuccess` ở mức hook (không ở `mutate`): ghi cache đưa chuyến sang DISPATCHED có thể gỡ hộp thoại
   // này trước khi callback của `mutate` chạy — callback mức hook vẫn chạy.
   const handover = useHandoverLoad({ onSuccess: onDone });
-  const [version] = useState(load.version);
+  // null sau OPTIMISTIC_LOCK: lần ký kế tiếp lấy phiên bản đã tải lại (sau khi người ký xem lại)
+  const [version, setVersion] = useState<number | null>(load.version);
   const [serverError, setServerError] = useState<string | null>(null);
   const [refusal, setRefusal] = useState<HandoverRefusal | null>(null);
+  const blocked = refusal ? load.shipments.find((s) => s.code === refusal.shipmentCode) : undefined;
   const schema = handoverInputSchema(!load.vehiclePlate);
   const form = useForm<HandoverFormInput, unknown, HandoverValues>({
     resolver: zodResolver(schema),
@@ -68,12 +70,17 @@ export function HandoverDialog({ load, onClose, onDone, onRefused }: HandoverDia
   const submit = form.handleSubmit((values) => {
     setServerError(null);
     handover.mutate(
-      { loadId: load.loadId, version, values },
+      { loadId: load.loadId, version: version ?? load.version, values },
       {
         onError: (error) => {
-          // Chuyến đã đổi trong lúc ký → đóng hộp, người dùng kiểm tra lại biên bản rồi mở lại
-          if (error instanceof ApiError && error.code === "OPTIMISTIC_LOCK") return onClose();
           setServerError(shippingErrorMessage(error));
+          // Chuyến đã đổi trong lúc ký → GIỮ các ô đã nhập (tên người ký, mã biên bản, ghi chú), bỏ tick
+          // "đã ký": hai bên xem lại biên bản (đã tải lại phía sau) rồi tick lại mới ký tiếp được
+          if (error instanceof ApiError && error.code === "OPTIMISTIC_LOCK") {
+            setVersion(null);
+            form.resetField("signed");
+            return;
+          }
           const named = handoverRefusalOf(error);
           setRefusal(named ?? null);
           if (named) onRefused(named);
@@ -104,12 +111,10 @@ export function HandoverDialog({ load, onClose, onDone, onRefused }: HandoverDia
       >
         <RejectedScansNotice load={load} />
         <HandoverFields form={form} load={load} />
-        {refusal?.reprintLabel && <RefusalNotice orderNumber={orderNumberOf(load, refusal)} />}
+        {refusal?.reprintLabel && (
+          <RefusalNotice orderNumber={blocked?.orderNumber ?? undefined} taskId={blocked?.taskId} />
+        )}
       </FormDialogBody>
     </FormDialog>
   );
-}
-
-function orderNumberOf(load: Load, refusal: HandoverRefusal): string | undefined {
-  return load.shipments.find((s) => s.code === refusal.shipmentCode)?.orderNumber ?? undefined;
 }

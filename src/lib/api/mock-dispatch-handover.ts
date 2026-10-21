@@ -22,18 +22,18 @@ export function handover(
 ): MockResponseShape {
   // Đã bàn giao: trả nguyên chuyến (gọi lại là vô hại)
   if (load.status === "DISPATCHED") return ok(loadDetailView(state, load));
-  if (load.status !== "LOADING") {
-    return fail(
-      409,
-      "INVALID_LOAD_TRANSITION",
-      `Load ${load.code} is ${load.status}; it cannot be handed over`,
-    );
-  }
   if (body.version !== load.version) {
     return fail(
       409,
       "OPTIMISTIC_LOCK",
       `Load ${load.code} changed since version ${String(body.version)} (now ${load.version})`,
+    );
+  }
+  if (load.status !== "LOADING") {
+    return fail(
+      409,
+      "INVALID_LOAD_TRANSITION",
+      `Load ${load.code} is ${load.status}; it cannot be handed over`,
     );
   }
   if (body.signed !== true) {

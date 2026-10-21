@@ -6,10 +6,12 @@
 import { ADMIN_ROUTES, SHIPPING_ERROR_MESSAGES } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
-type KnownErrorCode = Exclude<keyof typeof SHIPPING_ERROR_MESSAGES, "generic">;
+type KnownErrorCode = Exclude<keyof typeof SHIPPING_ERROR_MESSAGES, "generic" | "shipmentRefused">;
 
 function isKnownErrorCode(code: string): code is KnownErrorCode {
-  return code !== "generic" && Object.hasOwn(SHIPPING_ERROR_MESSAGES, code);
+  return (
+    code !== "generic" && code !== "shipmentRefused" && Object.hasOwn(SHIPPING_ERROR_MESSAGES, code)
+  );
 }
 
 /** Mã lô giao mà BE nêu tên trong lỗi bàn giao (`fieldErrors.shipmentCode`). */
@@ -17,13 +19,20 @@ export function shipmentCodeOf(error: unknown): string | undefined {
   return error instanceof ApiError ? error.fieldErrors?.shipmentCode : undefined;
 }
 
-/** Câu tiếng Việt cho lỗi; BE nêu tên lô giao thì thêm tiền tố "Lô <mã>". */
+/**
+ * Câu tiếng Việt cho lỗi; BE nêu tên lô giao thì thêm tiền tố "Lô <mã>". BE gắn `shipmentCode` vào MỌI
+ * lỗi phía đơn khi bàn giao (đơn huỷ, lô xung đột, vượt số lượng…): mã chưa biết mà có tên lô vẫn nói
+ * được lô nào bị chặn, kèm lý do chung.
+ */
 export function shippingErrorMessage(error: unknown): string {
-  if (!(error instanceof ApiError) || !isKnownErrorCode(error.code)) {
-    return SHIPPING_ERROR_MESSAGES.generic;
+  if (!(error instanceof ApiError)) return SHIPPING_ERROR_MESSAGES.generic;
+  const shipmentCode = shipmentCodeOf(error);
+  if (!isKnownErrorCode(error.code)) {
+    return shipmentCode
+      ? `Lô ${shipmentCode}: ${SHIPPING_ERROR_MESSAGES.shipmentRefused}`
+      : SHIPPING_ERROR_MESSAGES.generic;
   }
   const message = SHIPPING_ERROR_MESSAGES[error.code];
-  const shipmentCode = shipmentCodeOf(error);
   return shipmentCode ? `Lô ${shipmentCode}: ${message}` : message;
 }
 
@@ -76,22 +85,17 @@ export interface HandoverRefusal {
   code: string;
   shipmentCode?: string;
   message: string;
-  /** Nhãn kiện lệch COD (BR-04): in lại nhãn ở màn Đóng gói rồi ký lại. */
+  /** Nhãn kiện lệch COD (BR-04): in lại nhãn ở trạm đóng gói rồi ký lại. */
   reprintLabel: boolean;
 }
 
-const REFUSAL_CODES: ReadonlySet<string> = new Set([
-  "LABEL_OUTDATED",
-  "ORDER_BALANCE_NOT_PAID",
-  "ORDER_INVALID_TRANSITION",
-  "PACKAGE_NOT_READY",
-  "SHIPMENT_OTHER_CARRIER",
-  "SHIPMENT_STATE_CONFLICT",
-]);
-
-/** Lỗi bàn giao có nêu lô giao → dữ liệu để đánh dấu đúng lô trên màn chuyến; lỗi khác → `undefined`. */
+/**
+ * Lỗi bàn giao có nêu tên lô (`fieldErrors.shipmentCode`) → dữ liệu để đánh dấu đúng lô trên màn chuyến.
+ * BE gắn tên lô vào mọi từ chối phía đơn nên không giới hạn theo mã lỗi; chỉ lỗi KHÔNG nêu lô (hết hạn
+ * khoá, chưa ký…) mới không đánh dấu lô nào.
+ */
 export function handoverRefusalOf(error: unknown): HandoverRefusal | undefined {
-  if (!(error instanceof ApiError) || !REFUSAL_CODES.has(error.code)) return undefined;
+  if (!(error instanceof ApiError)) return undefined;
   const shipmentCode = shipmentCodeOf(error);
   if (!shipmentCode) return undefined;
   return {
@@ -103,8 +107,9 @@ export function handoverRefusalOf(error: unknown): HandoverRefusal | undefined {
 }
 
 /**
- * Nơi in lại nhãn kiện: trạm đóng gói của đơn (endpoint nhãn ghi nhận lần in). `ShipmentResponse` /
- * `LoadResponse` không có `taskId` nên chưa nhảy thẳng tới trạm — mở danh sách task, từ task của đơn
- * vào Đóng gói. (Đề nghị BE trả `taskId` trên lô giao.)
+ * Nơi in lại nhãn kiện: trạm đóng gói của đơn (endpoint nhãn ghi nhận lần in) khi BE trả `taskId` của
+ * lô; chưa có thì danh sách task, từ task của đơn vào Đóng gói.
  */
-export const REPRINT_LABEL_HREF = ADMIN_ROUTES.picking.list;
+export function reprintLabelHref(taskId?: string | null): string {
+  return taskId ? ADMIN_ROUTES.packing.detail(taskId) : ADMIN_ROUTES.picking.list;
+}

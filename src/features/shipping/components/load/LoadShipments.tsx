@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 
 import { UI_LABELS } from "@/constants";
+import { forgetScanId } from "@/features/shipping/scan-ids";
 import { findShipmentByCode } from "@/features/shipping/selectors";
 import { useRemoveLoadShipment, useUnscanPackage } from "@/features/shipping/mutations";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -68,7 +69,12 @@ export function LoadShipments({
           canUnscan={canUnscan}
           unscanning={unscan.isPending}
           onRemove={setRemoving}
-          onUnscan={(_, packageId) => unscan.mutate({ loadId: load.loadId, packageId })}
+          onUnscan={(owner, packageId) => {
+            // Sau khi gỡ, quét lại phải là lần quét MỚI (không dùng lại scanId đang chờ của mã này)
+            const label = owner.packages.find((p) => p.packageId === packageId)?.labelCode;
+            if (label) forgetScanId(load.loadId, label);
+            unscan.mutate({ loadId: load.loadId, packageId });
+          }}
           onDismissRefusal={onDismissRefusal}
         />
       ))}

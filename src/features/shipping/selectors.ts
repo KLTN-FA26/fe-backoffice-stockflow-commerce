@@ -46,6 +46,12 @@ export function loadedLabelCodes(load: Pick<Load, "shipments">): string[] {
   );
 }
 
+/** Kiện có mã nhãn này đang nằm trên xe của chuyến (so không phân biệt hoa thường như BE). */
+export function isLabelLoaded(load: Pick<Load, "shipments">, labelCode: string): boolean {
+  const wanted = labelCode.toUpperCase();
+  return loadedLabelCodes(load).some((code) => code.toUpperCase() === wanted);
+}
+
 export function findShipmentByCode(
   load: Pick<Load, "shipments">,
   code: string,

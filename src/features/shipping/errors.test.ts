@@ -5,6 +5,7 @@ import { ApiError } from "@/lib/api/error";
 
 import {
   handoverRefusalOf,
+  reprintLabelHref,
   isScanQueueFatal,
   isStaleLoadError,
   isTransientError,
@@ -18,7 +19,7 @@ const err = (code: string, status = 409, fieldErrors?: Record<string, string>) =
 describe("shippingErrorMessage — mọi mã lỗi BE có câu tiếng Việt", () => {
   it("mọi mã khai báo đều ra đúng câu của mã đó", () => {
     for (const [code, message] of Object.entries(SHIPPING_ERROR_MESSAGES)) {
-      if (code === "generic") continue;
+      if (code === "generic" || code === "shipmentRefused") continue;
       expect(shippingErrorMessage(err(code))).toBe(message);
     }
   });
@@ -49,6 +50,18 @@ describe("shippingErrorMessage — mọi mã lỗi BE có câu tiếng Việt", 
   it("BE nêu tên lô → câu có tiền tố 'Lô <mã>'", () => {
     const message = shippingErrorMessage(err("LABEL_OUTDATED", 409, { shipmentCode: "SO-1-S2" }));
     expect(message).toBe(`Lô SO-1-S2: ${SHIPPING_ERROR_MESSAGES.LABEL_OUTDATED}`);
+  });
+
+  it("mã chưa biết nhưng BE nêu tên lô (đơn huỷ, lô xung đột, vượt số lượng…) → vẫn 'Lô X' + lý do chung", () => {
+    for (const code of [
+      "ORDER_CANCELLED",
+      "ORDER_SHIPMENT_CONFLICT",
+      "ORDER_SHIPMENT_QUANTITY_EXCEEDED",
+    ]) {
+      expect(shippingErrorMessage(err(code, 409, { shipmentCode: "SO-9-S1" }))).toBe(
+        `Lô SO-9-S1: ${SHIPPING_ERROR_MESSAGES.shipmentRefused}`,
+      );
+    }
   });
 
   it("mã lạ hoặc lỗi không phải ApiError → câu chung, không lộ message tiếng Anh của BE", () => {
@@ -108,9 +121,27 @@ describe("handoverRefusalOf — lô chặn bàn giao", () => {
     ).toBeDefined();
   });
 
+  it("mã chưa biết có tên lô → vẫn đánh dấu lô với lý do chung, không mở lối in nhãn", () => {
+    const refusal = handoverRefusalOf(err("ORDER_CANCELLED", 409, { shipmentCode: "SO-9-S1" }));
+    expect(refusal).toMatchObject({
+      code: "ORDER_CANCELLED",
+      shipmentCode: "SO-9-S1",
+      reprintLabel: false,
+    });
+    expect(refusal?.message).toBe(`Lô SO-9-S1: ${SHIPPING_ERROR_MESSAGES.shipmentRefused}`);
+  });
+
   it("không nêu tên lô hoặc lỗi khác → không đánh dấu lô nào", () => {
     expect(handoverRefusalOf(err("LABEL_OUTDATED"))).toBeUndefined();
-    expect(handoverRefusalOf(err("OPTIMISTIC_LOCK", 409, { shipmentCode: "S" }))).toBeUndefined();
+    expect(handoverRefusalOf(err("OPTIMISTIC_LOCK"))).toBeUndefined();
     expect(shipmentCodeOf(new Error("x"))).toBeUndefined();
+  });
+});
+
+describe("reprintLabelHref", () => {
+  it("có taskId → thẳng trạm đóng gói của task; chưa có → danh sách task", () => {
+    expect(reprintLabelHref("task-1")).toBe("/admin/packing/task-1");
+    expect(reprintLabelHref(undefined)).toBe("/admin/picking");
+    expect(reprintLabelHref(null)).toBe("/admin/picking");
   });
 });

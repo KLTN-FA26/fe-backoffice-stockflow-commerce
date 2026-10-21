@@ -176,6 +176,7 @@ export const SHIPPING_UI_LABELS = {
     placeholder: "Quét hoặc nhập mã kiện rồi nhấn Enter",
     hint: "Ô quét luôn sẵn sàng nhận mã — dùng máy quét mã vạch hoặc gõ tay.",
     accepted: "Đã lên xe",
+    notLoaded: "Máy chủ chưa xếp kiện này lên xe — quét lại.",
     rejectedTitle: "Mã quét không thành công — chưa lên xe",
     clearRejected: "Xoá danh sách",
     notSent: "Chưa gửi được — quét lại cùng mã để thử lại.",
@@ -369,6 +370,9 @@ export const SHIPPING_ERROR_MESSAGES = {
     "Số tiền thu hộ trên nhãn kiện khác số đơn hàng cần thu bây giờ — in lại nhãn rồi ký bàn giao lại.",
   ORDER_BALANCE_NOT_PAID: "Đơn của lô này chưa thanh toán đủ trước khi giao — chưa bàn giao được.",
   ORDER_INVALID_TRANSITION: "Đơn của lô này đang tạm giữ hoặc không ở trạng thái cho bàn giao.",
+  // BE gắn tên lô vào mọi từ chối phía đơn khi bàn giao (đơn huỷ, lô xung đột, vượt số lượng…)
+  shipmentRefused:
+    "Đơn của lô này không cho phép bàn giao lúc này (đơn huỷ, lô xung đột hoặc vượt số lượng).",
   generic: "Không thực hiện được thao tác. Thử lại sau.",
 } as const;
 

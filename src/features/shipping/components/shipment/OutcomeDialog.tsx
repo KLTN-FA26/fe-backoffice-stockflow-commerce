@@ -89,30 +89,33 @@ export function OutcomeDialog({ shipment, outcome, onClose }: OutcomeDialogProps
         onSubmit={() => void submit()}
         onCancel={() => !record.isPending && onClose()}
       >
+        {/* Chỉ lần giao THẤT BẠI có lý do + ghi chú: BE không lưu ghi chú của kết quả khác */}
         {failed && (
-          <FailureReasonField control={form.control} error={errors.failureReason?.message} />
+          <>
+            <FailureReasonField control={form.control} error={errors.failureReason?.message} />
+            <div>
+              <Label
+                htmlFor="outcome-note"
+                className="text-ink-secondary mb-1 block text-xs font-medium"
+              >
+                {D.note} {reason === "OTHER" && <span className="text-danger">*</span>}
+              </Label>
+              <Textarea
+                id="outcome-note"
+                rows={2}
+                maxLength={SHIPPING_LIMITS.noteMax}
+                aria-invalid={errors.note ? true : undefined}
+                aria-describedby="outcome-note-hint"
+                className="border-border-default bg-bg-surface rounded-[var(--r-sm)] text-[0.8125rem]"
+                {...form.register("note")}
+              />
+              <p id="outcome-note-hint" className="text-ink-tertiary mt-1 text-xs">
+                {reason === "OTHER" ? D.noteRequired : D.noteOptional}
+              </p>
+              <FieldError>{errors.note?.message}</FieldError>
+            </div>
+          </>
         )}
-        <div>
-          <Label
-            htmlFor="outcome-note"
-            className="text-ink-secondary mb-1 block text-xs font-medium"
-          >
-            {D.note} {failed && reason === "OTHER" && <span className="text-danger">*</span>}
-          </Label>
-          <Textarea
-            id="outcome-note"
-            rows={2}
-            maxLength={SHIPPING_LIMITS.noteMax}
-            aria-invalid={errors.note ? true : undefined}
-            aria-describedby="outcome-note-hint"
-            className="border-border-default bg-bg-surface rounded-[var(--r-sm)] text-[0.8125rem]"
-            {...form.register("note")}
-          />
-          <p id="outcome-note-hint" className="text-ink-tertiary mt-1 text-xs">
-            {failed && reason === "OTHER" ? D.noteRequired : D.noteOptional}
-          </p>
-          <FieldError>{errors.note?.message}</FieldError>
-        </div>
       </FormDialogBody>
     </FormDialog>
   );

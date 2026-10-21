@@ -8,6 +8,7 @@ import {
   SHIPMENT_COLUMNS,
   UI_LABELS,
 } from "@/constants";
+import { formatMoney } from "@/lib/format/money";
 import { useAssignCarrier } from "@/features/shipping/shipment-mutations";
 import {
   CELL,
@@ -22,6 +23,15 @@ import { CarrierSelect } from "../CarrierSelect";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { ShipmentRow } from "@/features/shipping/types";
+
+/** Số thu hộ theo tiền tệ của lô khi BE trả `currency`; chưa có thì chỉ nói có / không thu hộ (không gán nhãn VND). */
+export function codLabel(
+  amount: number | null | undefined,
+  currency: string | null | undefined,
+): string {
+  if (!amount || amount <= 0) return UI_LABELS.shipping.shipments.noCod;
+  return currency ? formatMoney(amount, currency) : UI_LABELS.shipping.shipments.hasCod;
+}
 
 const C = SHIPMENT_COLUMNS;
 const L = UI_LABELS.shipping.shipments;
@@ -84,9 +94,7 @@ export function buildShipmentColumns(
     {
       key: C.COD,
       header: UI_LABELS.shipping.field.cod,
-      cell: (row) => (
-        <span className={CELL.text}>{(row.codAmount ?? 0) > 0 ? L.hasCod : L.noCod}</span>
-      ),
+      cell: (row) => <span className={CELL.text}>{codLabel(row.codAmount, row.currency)}</span>,
     },
     {
       key: C.CARRIER,

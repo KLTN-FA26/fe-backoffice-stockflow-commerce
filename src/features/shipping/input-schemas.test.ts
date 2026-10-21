@@ -133,4 +133,21 @@ describe("cancelLoadInputSchema / deliveryOutcomeInputSchema", () => {
     ).toBe(true);
     expect(deliveryOutcomeInputSchema.safeParse({ outcome: "LOST" }).success).toBe(false);
   });
+
+  it("ghi chú / lý do chỉ giữ cho lần giao thất bại (BE không lưu ở kết quả khác)", () => {
+    expect(
+      deliveryOutcomeInputSchema.parse({ outcome: "DELIVERED", note: "x", failureReason: "LOST" }),
+    ).toEqual({
+      outcome: "DELIVERED",
+      failureReason: undefined,
+      note: undefined,
+    });
+    expect(
+      deliveryOutcomeInputSchema.parse({
+        outcome: "DELIVERY_FAILED",
+        failureReason: "LOST",
+        note: " gãy ",
+      }),
+    ).toMatchObject({ failureReason: "LOST", note: "gãy" });
+  });
 });

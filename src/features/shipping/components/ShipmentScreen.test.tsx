@@ -125,6 +125,16 @@ describe("ShipmentScreen — ghi nhận kết quả giao (BR-02)", () => {
     expect(await screen.findByText(L.noActions.readyToDispatch)).toBeInTheDocument();
   });
 
+  it("ghi chú chỉ có ở lần giao thất bại (BE không lưu ghi chú của kết quả khác)", async () => {
+    const user = userEvent.setup();
+    renderShipment(ACTORS.orderCoordinator, shipment({ status: "HANDED_OVER" }));
+    await user.click(await screen.findByRole("button", { name: L.outcomeAction.DELIVERED }));
+    expect(within(screen.getByRole("dialog")).queryByRole("textbox")).not.toBeInTheDocument();
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Huỷ" }));
+    await user.click(await screen.findByRole("button", { name: L.outcomeAction.DELIVERY_FAILED }));
+    expect(within(screen.getByRole("dialog")).getByRole("textbox")).toBeInTheDocument();
+  });
+
   it("đã giao: xác nhận trong hộp thoại → POST {outcome: DELIVERED}", async () => {
     const user = userEvent.setup();
     const { post } = renderShipment(ACTORS.orderCoordinator, shipment({ status: "HANDED_OVER" }));

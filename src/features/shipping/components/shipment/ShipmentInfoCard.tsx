@@ -13,6 +13,7 @@ import { useWarehouseDirectory } from "@/lib/references/warehouse-options";
 import { StatusDot } from "@/components/shared/StatusDot";
 
 import { InfoItem } from "../primitives";
+import { codLabel } from "../shipment-list/columns";
 import { ShipmentCarrier } from "./ShipmentCarrier";
 
 import type { Shipment } from "@/features/shipping/types";
@@ -63,11 +64,7 @@ export function ShipmentInfoCard({ data, canAssign }: { data: Shipment; canAssig
         <InfoItem label={UI_LABELS.shipping.load.modeLabel} value={L.mode[shipment.deliveryMode]} />
         <InfoItem
           label={F.cod}
-          value={
-            (shipment.codAmount ?? 0) > 0
-              ? UI_LABELS.shipping.shipments.hasCod
-              : UI_LABELS.shipping.shipments.noCod
-          }
+          value={codLabel(shipment.codAmount, shipment.currency ?? data.currency)}
         />
         <InfoItem
           label={L.onLoad}

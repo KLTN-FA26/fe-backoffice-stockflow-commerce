@@ -86,6 +86,24 @@ describe("lô giao + hãng", () => {
     expect(() => beShipmentSchema.parse(incomplete)).toThrow();
   });
 
+  it("taskId / currency (BE #137 bổ sung) tuỳ chọn: parse được cả trước và sau khi BE thêm", () => {
+    const before = beShipmentSchema.parse(apiShipment());
+    expect(before.shipment.taskId).toBeUndefined();
+    expect(before.shipment.currency).toBeUndefined();
+    const after = beShipmentSchema.parse({
+      ...apiShipment({ taskId: "task-1", currency: "VND" }),
+      taskId: "task-1",
+      currency: "VND",
+    });
+    expect(after).toMatchObject({ taskId: "task-1", currency: "VND" });
+    expect(after.shipment).toMatchObject({ taskId: "task-1", currency: "VND" });
+    const load = beLoadSchema.parse(
+      apiLoad({ shipments: [{ ...apiLoad().shipments[0]!, taskId: "t", currency: "USD" }] }),
+    );
+    expect(load.shipments[0]).toMatchObject({ taskId: "t", currency: "USD" });
+    expect(beLoadSchema.parse(apiLoad()).shipments[0]?.taskId).toBeUndefined();
+  });
+
   it("hãng: liên hệ tuỳ chọn, trạng thái lạ → UNKNOWN", () => {
     const carrier = beCarrierSchema.parse({
       carrierId: "c",

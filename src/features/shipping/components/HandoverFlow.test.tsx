@@ -9,6 +9,7 @@ import {
 } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { useRejectedScansStore } from "@/features/shipping/rejected-scans-store";
+import { resetScanIds } from "@/features/shipping/scan-ids";
 
 import { LOAD_ID, apiLoad, loadShipment, parcel } from "../__fixtures__/load";
 import {
@@ -25,6 +26,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 afterEach(() => {
   vi.restoreAllMocks();
   useRejectedScansStore.setState({ byLoad: {} });
+  resetScanIds();
   sessionStorage.clear();
 });
 
@@ -204,17 +206,88 @@ describe("hộp thoại bàn giao", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("OPTIMISTIC_LOCK (có người đổi chuyến khi đang ký) → đóng hộp thoại và tải lại chuyến", async () => {
+  it("OPTIMISTIC_LOCK (có người đổi chuyến khi đang ký) → giữ các ô đã nhập, bỏ tick đã ký; ký lại dùng version đã tải lại", async () => {
     const user = userEvent.setup();
-    const { get } = renderHandover(ready(), () => {
-      throw new ApiError(409, "OPTIMISTIC_LOCK", "en");
+    let current = ready();
+    let attempts = 0;
+    const { get, post } = mockShippingApi(ACTORS.warehouseStaff, {
+      get: { [PATH]: () => current },
+      post: {
+        [`${PATH}/handover`]: () => {
+          attempts += 1;
+          if (attempts > 1) return ready({ status: "DISPATCHED" });
+          current = ready({ version: 5 });
+          throw new ApiError(409, "OPTIMISTIC_LOCK", "en");
+        },
+      },
+    });
+    renderShippingScreen(<LoadScreen id={LOAD_ID} />);
+    const dialog = await openDialog(user);
+    const rep = within(dialog).getByLabelText(H.representative, { exact: false });
+    await user.clear(rep);
+    await user.type(rep, "Trần Văn Tài");
+    await user.type(within(dialog).getByLabelText(H.signatureRef, { exact: false }), "BB-9");
+    await user.click(within(dialog).getByRole("checkbox"));
+    await user.click(within(dialog).getByRole("button", { name: H.title }));
+    expect(await within(dialog).findByText(ERR.OPTIMISTIC_LOCK)).toBeInTheDocument();
+    // Hộp thoại còn nguyên, ô đã nhập còn, tick đã ký bị bỏ → nút khoá tới khi hai bên xem lại và tick lại
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(rep).toHaveValue("Trần Văn Tài");
+    expect(within(dialog).getByLabelText(H.signatureRef, { exact: false })).toHaveValue("BB-9");
+    expect(within(dialog).getByRole("checkbox")).not.toBeChecked();
+    expect(within(dialog).getByRole("button", { name: H.title })).toBeDisabled();
+    await waitFor(() =>
+      expect(get.mock.calls.filter(([url]) => url === PATH).length).toBeGreaterThan(1),
+    );
+    await user.click(within(dialog).getByRole("checkbox"));
+    await user.click(within(dialog).getByRole("button", { name: H.title }));
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
+    expect(post.mock.calls[1]?.[1]).toMatchObject({
+      version: 5,
+      carrierRepresentative: "Trần Văn Tài",
+      signatureRef: "BB-9",
+    });
+  });
+
+  it("lỗi phía đơn có tên lô nhưng mã chưa biết (đơn huỷ…) → vẫn đánh dấu lô, lý do chung, không lối in nhãn", async () => {
+    const user = userEvent.setup();
+    renderHandover(ready(), () => {
+      throw new ApiError(409, "ORDER_CANCELLED", "en", { shipmentCode: "SO-2-S1" });
     });
     const dialog = await openDialog(user);
     await user.click(within(dialog).getByRole("checkbox"));
     await user.click(within(dialog).getByRole("button", { name: H.title }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-    const before = get.mock.calls.filter(([url]) => url === PATH).length;
-    expect(before).toBeGreaterThan(1);
+    const message = `Lô SO-2-S1: ${ERR.shipmentRefused}`;
+    expect(await within(dialog).findByText(message)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Huỷ" }));
+    const card = await screen.findByRole("region", { name: `${L.shipments.title} SO-2-S1` });
+    expect(within(card).getByText(message)).toBeInTheDocument();
+    expect(
+      within(card).queryByRole("link", { name: new RegExp(L.load.reprintLabel) }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("LABEL_OUTDATED với lô có taskId → lối in nhãn dẫn thẳng trạm đóng gói của task", async () => {
+    const user = userEvent.setup();
+    const load = ready({
+      shipments: [
+        loadShipment("SO-1-S1", [parcel("PKG-SO-1-1", true)]),
+        loadShipment("SO-2-S1", [parcel("PKG-SO-2-1", true)], { taskId: "task-2" }),
+      ],
+    });
+    renderHandover(load, () => {
+      throw new ApiError(409, "LABEL_OUTDATED", "en", { shipmentCode: "SO-2-S1" });
+    });
+    const dialog = await openDialog(user);
+    await user.click(within(dialog).getByRole("checkbox"));
+    await user.click(within(dialog).getByRole("button", { name: H.title }));
+    const link = await within(dialog).findByRole("link", { name: new RegExp(L.load.reprintLabel) });
+    expect(link).toHaveAttribute("href", "/admin/packing/task-2");
+    await user.click(within(dialog).getByRole("button", { name: "Huỷ" }));
+    const card = await screen.findByRole("region", { name: `${L.shipments.title} SO-2-S1` });
+    expect(
+      within(card).getByRole("link", { name: new RegExp(L.load.reprintLabel) }),
+    ).toHaveAttribute("href", "/admin/packing/task-2");
   });
 
   it("chưa ký (400 HANDOVER_NOT_SIGNED) và lỗi theo ô của BE hiện đúng chỗ", async () => {

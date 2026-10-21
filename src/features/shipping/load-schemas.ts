@@ -63,6 +63,10 @@ export const beLoadShipmentSchema = z.object({
   loadedCount: count,
   labelCodAmount: measure.nullish(),
   codAmount: measure.nullish(),
+  /** Tiền tệ riêng của lô (BE #137 bổ sung); thiếu thì dùng `currency` của chuyến. */
+  currency: z.string().nullish(),
+  /** Task đóng gói của đơn — đích của lối "in lại nhãn" (BE #137 bổ sung). */
+  taskId: z.string().nullish(),
   packages: z.array(beLoadParcelSchema),
 });
 

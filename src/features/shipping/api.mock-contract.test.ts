@@ -316,6 +316,27 @@ describe("mock chuyến xe — mở, quét, bàn giao", () => {
   });
 });
 
+describe("mock bàn giao — kiểm version trước trạng thái (như BE)", () => {
+  it("chuyến đã huỷ: version cũ → OPTIMISTIC_LOCK; version hiện tại → INVALID_LOAD_TRANSITION", async () => {
+    const loading = beLoadPageSchema.parse(
+      (await call("GET", LOADS, undefined, { status: "LOADING" })).data,
+    ).items[0];
+    const base = `${LOADS}/${loading?.loadId}`;
+    const cancelled = beLoadSchema.parse(
+      (await call("POST", `${base}/cancellation`, { reason: "x" })).data,
+    );
+    const body = { carrierRepresentative: "A", vehiclePlate: "51C-1", signed: true };
+    expect(
+      errorCode(
+        await call("POST", `${base}/handover`, { ...body, version: cancelled.version - 1 }),
+      ),
+    ).toBe("OPTIMISTIC_LOCK");
+    expect(
+      errorCode(await call("POST", `${base}/handover`, { ...body, version: cancelled.version })),
+    ).toBe("INVALID_LOAD_TRANSITION");
+  });
+});
+
 describe("mock vai trò BE — lên xe là việc nhân viên kho, kết quả giao là của điều phối đơn", () => {
   it("điều phối đơn không mở chuyến / quét được (403); nhân viên kho không ghi kết quả giao (403)", async () => {
     const [shipment] = await cleanReady();

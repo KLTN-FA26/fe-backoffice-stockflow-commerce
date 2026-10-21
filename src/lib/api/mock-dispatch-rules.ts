@@ -6,6 +6,7 @@
 
 import {
   MOCK_DISPATCHER,
+  isMockLoadOpen,
   type DispatchState,
   type MockLoad,
   type MockShipment,
@@ -127,7 +128,7 @@ export function addShipments(
   load: MockLoad,
   ids: string[],
 ): MockResponseShape {
-  if (load.status !== "LOADING") return invalidTransition(load, "take shipments");
+  if (!isMockLoadOpen(load.status)) return invalidTransition(load, "take shipments");
   if (ids.length === 0) return validationFailed("shipmentIds", "must not be empty");
   const members = ids.map((id) => state.shipments.get(id));
   for (const member of members) {
@@ -145,7 +146,7 @@ export function removeShipment(
   load: MockLoad,
   shipmentId: string,
 ): MockResponseShape {
-  if (load.status !== "LOADING") return invalidTransition(load, "release shipments");
+  if (!isMockLoadOpen(load.status)) return invalidTransition(load, "release shipments");
   const shipment = state.shipments.get(shipmentId);
   if (!shipment || !load.shipmentIds.includes(shipmentId)) {
     return fail(409, "SHIPMENT_NOT_FOR_LOAD", "That shipment is not on this load");
@@ -232,7 +233,7 @@ export function cancelLoad(
   reason: string,
 ): MockResponseShape {
   if (load.status === "CANCELLED") return detail(state, load);
-  if (load.status !== "LOADING") return invalidTransition(load, "be cancelled");
+  if (!isMockLoadOpen(load.status)) return invalidTransition(load, "be cancelled");
   if (!reason) return validationFailed("reason", "must not be blank");
   for (const id of load.shipmentIds) {
     const shipment = state.shipments.get(id);

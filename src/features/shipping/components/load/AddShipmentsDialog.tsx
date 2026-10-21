@@ -23,13 +23,29 @@ export function AddShipmentsDialog({ load, onClose }: { load: Load; onClose: () 
   const add = useAddLoadShipments();
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
-  const query = useShipments({
+  // Lô đã gán hãng của chuyến: lọc ở BE (`carrierId`). BE không có bộ lọc "chưa gán hãng" nên lô chưa
+  // gán hãng lấy từ truy vấn theo kho rồi giữ phía FE những lô không có hãng. Chuyến nguyên xe (FTL) xếp
+  // theo kế hoạch xếp xe, không thêm vào chuyến gửi kiện (BE 409 SHIPMENT_NOT_FOR_LOAD).
+  const base = {
     status: "READY_TO_DISPATCH",
     warehouseId: load.warehouseId,
     size: PAGE_SIZE.masterData,
-  });
-  const candidates = (query.data?.items ?? []).filter(
-    (row) => !row.loadId && (!row.carrierId || row.carrierId === load.carrierId),
+  };
+  const assigned = useShipments(
+    { ...base, carrierId: load.carrierId ?? undefined },
+    { enabled: !!load.carrierId },
+  );
+  const anyCarrier = useShipments(base);
+  const pending = anyCarrier.isPending || (!!load.carrierId && assigned.isPending);
+  const rows = [
+    ...(load.carrierId ? (assigned.data?.items ?? []) : []),
+    ...(anyCarrier.data?.items ?? []).filter((row) => !row.carrierId),
+  ];
+  const candidates = rows.filter(
+    (row, index) =>
+      !row.loadId &&
+      row.deliveryMode === "PARCEL" &&
+      rows.findIndex((other) => other.shipmentId === row.shipmentId) === index,
   );
 
   const toggle = (id: string) =>
@@ -57,7 +73,7 @@ export function AddShipmentsDialog({ load, onClose }: { load: Load; onClose: () 
         }}
         onCancel={() => !add.isPending && onClose()}
       >
-        {candidates.length === 0 && !query.isPending && (
+        {candidates.length === 0 && !pending && (
           <p className="text-ink-tertiary text-[0.8125rem]">{L.empty}</p>
         )}
         <ul className="max-h-64 space-y-1 overflow-y-auto">

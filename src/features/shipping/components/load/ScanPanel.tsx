@@ -12,7 +12,8 @@ import {
 } from "@/features/shipping/errors";
 import { scanPackageInputSchema } from "@/features/shipping/input-schemas";
 import { useScanPackage } from "@/features/shipping/mutations";
-import { reconcileLoad } from "@/features/shipping/selectors";
+import { forgetScanId, scanIdFor } from "@/features/shipping/scan-ids";
+import { isLabelLoaded, reconcileLoad } from "@/features/shipping/selectors";
 import { ScanInput } from "@/components/backoffice/ScanInput";
 
 import { useScanFeedback } from "./useScanFeedback";
@@ -47,8 +48,6 @@ export function ScanPanel({
   const [feedback, show] = useScanFeedback(alive);
   const queue = useRef<string[]>([]);
   const busy = useRef(false);
-  // Mã → scanId của lần quét chưa có câu trả lời dứt khoát (để retry cùng id)
-  const pendingIds = useRef(new Map<string, string>());
   const [queued, setQueued] = useState(0);
 
   // Ref để cleanup lúc unmount gọi được bản `onReject` mới nhất
@@ -73,18 +72,25 @@ export function ScanPanel({
     busy.current = true;
     while (alive.current && queue.current.length > 0) {
       const packageCode = queue.current[0] ?? "";
-      const scanId = pendingIds.current.get(packageCode) ?? crypto.randomUUID();
-      pendingIds.current.set(packageCode, scanId);
+      // Id của lần quét chưa có câu trả lời dứt khoát (retry cùng id) — xem scan-ids.ts
+      const scanId = scanIdFor(load.loadId, packageCode);
       try {
         const next = await scan.mutateAsync({ loadId: load.loadId, packageCode, scanId });
-        pendingIds.current.delete(packageCode);
-        const { loaded, expected } = reconcileLoad(next);
-        show({
-          tone: "positive",
-          message: `${packageCode} — ${S.accepted} (${loaded}/${expected})`,
-        });
+        forgetScanId(load.loadId, packageCode);
+        // BE trả lại câu trả lời cũ cho scanId đã ghi mà không xếp kiện: chỉ báo thành công khi chuyến
+        // trả về thật sự có kiện này trên xe
+        if (isLabelLoaded(next, packageCode)) {
+          const { loaded, expected } = reconcileLoad(next);
+          show({
+            tone: "positive",
+            message: `${packageCode} — ${S.accepted} (${loaded}/${expected})`,
+          });
+        } else {
+          show({ tone: "danger", message: `${packageCode} — ${S.notLoaded}` });
+          onReject([packageCode], S.notLoaded);
+        }
       } catch (error: unknown) {
-        if (!isTransientError(error)) pendingIds.current.delete(packageCode);
+        if (!isTransientError(error)) forgetScanId(load.loadId, packageCode);
         if (!(error instanceof ApiError)) {
           // Response sai hợp đồng (BE có thể đã nhận mã) → không ghi là kiện bị từ chối; bảng tải lại
           show({ tone: "danger", message: `${packageCode} — ${S.invalidResponse}` });

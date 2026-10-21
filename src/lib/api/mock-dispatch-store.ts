@@ -11,7 +11,11 @@
 export type MockShipmentStatus =
   "READY_TO_DISPATCH" | "HANDED_OVER" | "DELIVERED" | "DELIVERY_FAILED" | "RETURNED" | "CANCELLED";
 
-export type MockLoadStatus = "LOADING" | "DISPATCHED" | "CANCELLED";
+export type MockLoadStatus = "PLANNED" | "VEHICLE_BOOKED" | "LOADING" | "DISPATCHED" | "CANCELLED";
+
+/** BE `LoadStatus#isOpen`: lô và kiện còn thêm / bớt được, chuyến còn huỷ được. */
+export const isMockLoadOpen = (status: MockLoadStatus): boolean =>
+  status === "PLANNED" || status === "VEHICLE_BOOKED" || status === "LOADING";
 
 export interface MockParcel {
   packageId: string;
@@ -40,6 +44,8 @@ export interface MockShipment {
   code: string;
   orderId: string;
   orderNumber: string;
+  /** Task xuất kho / đóng gói của đơn (BE #137: `taskId` trên lô giao). */
+  taskId: string;
   warehouseId: string;
   status: MockShipmentStatus;
   parcels: MockParcel[];
@@ -185,6 +191,7 @@ async function buildState(): Promise<DispatchState> {
       code: `${orderNumber}-S1`,
       orderId: task.orderId,
       orderNumber,
+      taskId: task.taskId,
       warehouseId: task.warehouseId,
       status: "READY_TO_DISPATCH",
       parcels,

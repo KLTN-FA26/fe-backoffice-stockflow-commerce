@@ -162,6 +162,17 @@ describe("ShipmentList — lô giao chờ xuất", () => {
     expect(screen.getByRole("button", { name: L.shipments.openLoad })).toBeDisabled();
   });
 
+  it("COD hiện số tiền theo tiền tệ khi BE trả currency; chưa có thì chỉ 'Có thu hộ'", async () => {
+    renderList(ACTORS.warehouseStaff, "", [
+      shipmentRow({ shipmentId: "s1", code: "SO-1-S1", codAmount: 270_000, currency: "VND" }),
+      shipmentRow({ shipmentId: "s2", code: "SO-2-S1", codAmount: 150_000 }),
+    ]);
+    await screen.findByText("SO-1-S1");
+    expect(screen.getByText(/270\.000/)).toBeInTheDocument();
+    expect(screen.getByText(L.shipments.hasCod)).toBeInTheDocument();
+    expect(screen.queryByText(/150\.000/)).not.toBeInTheDocument();
+  });
+
   it("danh sách rỗng: 'chưa có lô' khác 'lọc không ra kết quả'", async () => {
     renderList(ACTORS.warehouseStaff, "", []);
     expect(await screen.findByText(L.shipments.empty.noDataTitle)).toBeInTheDocument();

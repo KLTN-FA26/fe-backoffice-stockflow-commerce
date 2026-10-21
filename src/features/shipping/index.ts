@@ -16,3 +16,4 @@ export * from "./selectors";
 export * from "./lifecycle";
 export * from "./shipment-lifecycle";
 export * from "./errors";
+export * from "./scan-ids";

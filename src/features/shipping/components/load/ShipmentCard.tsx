@@ -5,7 +5,7 @@ import { CheckCircle2, ExternalLink, Trash2 } from "lucide-react";
 
 import { ADMIN_ROUTES, PACK_SHIPMENT_STATUS_DISPLAY, UI_LABELS } from "@/constants";
 import { formatMoney } from "@/lib/format/money";
-import { REPRINT_LABEL_HREF } from "@/features/shipping/errors";
+import { reprintLabelHref } from "@/features/shipping/errors";
 import { isShipmentComplete } from "@/features/shipping/selectors";
 import { Alert } from "@/components/shared/Alert";
 import { StatusDot } from "@/components/shared/StatusDot";
@@ -49,7 +49,9 @@ export function ShipmentCard({
 }: ShipmentCardProps) {
   const complete = isShipmentComplete(shipment);
   const money = (amount: number | null | undefined) =>
-    amount != null && currency ? formatMoney(amount, currency) : null;
+    amount != null && (shipment.currency ?? currency)
+      ? formatMoney(amount, (shipment.currency ?? currency) as string)
+      : null;
   const labelCod = money(shipment.labelCodAmount);
   const fixedCod = money(shipment.codAmount);
   return (
@@ -107,7 +109,10 @@ export function ShipmentCard({
           {refusal.reprintLabel && (
             <p className="mt-1">
               {L.reprintHint}{" "}
-              <Link href={REPRINT_LABEL_HREF} className="inline-flex items-center gap-1 underline">
+              <Link
+                href={reprintLabelHref(shipment.taskId)}
+                className="inline-flex items-center gap-1 underline"
+              >
                 {L.reprintLabel} <ExternalLink className="size-3" aria-hidden />
               </Link>
             </p>
