@@ -9,7 +9,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 
-import { adminCancelErrorView } from "../errors";
+import { ORDER_STALE_ERROR_CODES, adminCancelErrorView } from "../errors";
 import { useAdminCancelOrder } from "../mutations";
 import { adminCancelOrderSchema } from "../schemas";
 import { orderKeys } from "../queries";
@@ -19,9 +19,6 @@ import type { Order } from "../types";
 interface OrderCancelActionProps {
   order: Pick<Order, "orderId" | "orderNumber">;
 }
-
-/** Lỗi cho thấy dữ liệu trên màn đã cũ (đơn đã đổi trạng thái / không còn trong phạm vi). */
-const STALE_ERROR_CODES: readonly string[] = ["CONFLICT", "NOT_FOUND"];
 
 /**
  * Nút "Huỷ đơn" + dialog bắt buộc lý do. Hiện hay không do `allowedOrderActions` quyết.
@@ -34,7 +31,7 @@ export function OrderCancelAction({ order }: OrderCancelActionProps) {
   // Đóng dialog qua callback của mutate() — chỉ áp cho lần huỷ này (api-conventions "Callback").
   const { mutate: adminCancel, isPending } = useAdminCancelOrder({
     onError: (error) => {
-      if (STALE_ERROR_CODES.includes(error.code)) {
+      if (ORDER_STALE_ERROR_CODES.includes(error.code)) {
         setOpen(false);
         // Cả list lẫn detail đều đang giữ trạng thái cũ → làm mới toàn bộ dữ liệu đơn
         void queryClient.invalidateQueries({ queryKey: orderKeys.all });

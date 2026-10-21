@@ -6,9 +6,9 @@ import type { Order, OrderStatus } from "./types";
 
 /**
  * Trạng thái cần người xử lý tay → gắn viền cảnh báo ở row (data-table-mode-a).
- * Trong 10 trạng thái BE chỉ ON_HOLD là "đang chờ xử lý ngoại lệ".
+ * Ngoại lệ chờ nhân viên quyết: ON_HOLD (giữ đơn) và DELIVERY_FAILED (giao thất bại — giao lại hoặc trả về).
  */
-const FLAGGED_STATUSES: readonly OrderStatus[] = ["On Hold"];
+const FLAGGED_STATUSES: readonly OrderStatus[] = ["On Hold", "Delivery Failed"];
 
 export function shouldFlagOrderRow(order: Pick<Order, "status">): boolean {
   return FLAGGED_STATUSES.includes(order.status);

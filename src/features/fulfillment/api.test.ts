@@ -163,11 +163,11 @@ describe("dữ liệu phụ trợ — đơn hàng và nhân viên", () => {
     expect(order.lines).toHaveLength(2);
   });
 
-  it("đơn chờ xuất kho lọc đúng CONFIRMED + READY_TO_FULFILL (key lặp cho Spring)", async () => {
+  it("đơn chờ xuất kho chỉ lọc READY_TO_FULFILL (BE PR #133; key lặp cho Spring)", async () => {
     const get = vi.spyOn(api, "get").mockResolvedValueOnce({ data: bePage([fulfillmentOrder]) });
     await listFulfillableOrders();
     expect(get.mock.calls[0]?.[1]).toMatchObject({
-      params: { page: 0, status: ["CONFIRMED", "READY_TO_FULFILL"] },
+      params: { page: 0, status: ["READY_TO_FULFILL"] },
       paramsSerializer: { indexes: null },
     });
   });

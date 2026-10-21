@@ -10,6 +10,13 @@
 
 import { z } from "zod";
 
+import {
+  ORDER_DELIVERY_FAILURE_REASONS,
+  ORDER_HOLD_REASONS,
+  ORDER_MANUAL_HOLD_REASONS,
+  ORDER_REMAINDER_CLOSURE_REASONS,
+  ORDER_SHIPMENT_STATUSES,
+} from "@/constants/labels-order";
 import { ORDER_LIMITS } from "@/constants/numbers";
 import { ORDER_STATUSES } from "@/constants/statuses";
 
@@ -22,23 +29,44 @@ import { ORDER_STATUSES } from "@/constants/statuses";
 const currencyCode = z.string().regex(/^[A-Z]{3}$/, "Mã tiền tệ không hợp lệ");
 
 /**
- * BE `order/api/OrderStatus.java` — 10 giá trị (ON_HOLD có từ BE commit 2e9c4df,
- * SCRUM-43). Giá trị lạ → parse fail ("Dữ liệu trả về không đúng định dạng").
+ * BE `order/api/OrderStatus.java` — 19 giá trị (BE PR #133: bỏ IN_FULFILMENT / PAID, thêm PICKING,
+ * PACKED, PARTIALLY_FULFILLED, DELIVERY_FAILED, RETURN_REQUESTED, REFUNDED, PARTIALLY_REFUNDED, CLOSED…).
+ * Giá trị lạ (BE thêm sau, hoặc mã cũ BE không còn trả) → "UNKNOWN" thay vì làm hỏng cả danh sách.
  */
 export const BACKEND_ORDER_STATUSES = [
   "DRAFT",
   "PENDING_PAYMENT",
-  "PAID",
-  "IN_FULFILMENT",
+  "CONFIRMED",
+  "IN_PRODUCTION",
+  "READY_TO_FULFILL",
+  "PICKING",
+  "PARTIALLY_FULFILLED",
+  "PACKED",
   "ON_HOLD",
   "SHIPPED",
+  "DELIVERY_FAILED",
   "DELIVERED",
+  "RETURN_REQUESTED",
+  "RETURNED",
+  "REFUNDED",
+  "PARTIALLY_REFUNDED",
   "COMPLETED",
   "CANCELLED",
-  "RETURNED",
+  "CLOSED",
 ] as const;
 
-export const orderStatusDtoSchema = z.enum(BACKEND_ORDER_STATUSES);
+export const orderStatusDtoSchema = z.enum([...BACKEND_ORDER_STATUSES, "UNKNOWN"]).catch("UNKNOWN");
+
+/** BE `HoldReason` — tolerant: giá trị lạ → "UNKNOWN" (không cho phép gỡ giữ, xem lifecycle). */
+export const orderHoldReasonDtoSchema = z.enum([...ORDER_HOLD_REASONS, "UNKNOWN"]).catch("UNKNOWN");
+
+/** BE `DeliveryFailureReason` — tolerant. */
+export const orderDeliveryFailureReasonDtoSchema = z
+  .enum([...ORDER_DELIVERY_FAILURE_REASONS, "UNKNOWN"])
+  .catch("UNKNOWN");
+
+/** BE `OrderShipmentStatus` — tolerant. */
+export const orderShipmentStatusDtoSchema = z.enum(ORDER_SHIPMENT_STATUSES).catch("UNKNOWN");
 
 /**
  * Field có thể null dùng `.nullish()` (cho phép vắng key): BE bật Jackson
@@ -70,6 +98,32 @@ export const orderLineDtoSchema = z.object({
   reservationIds: z.array(z.string()).default([]),
   designSnapshotId: z.string().nullish(),
   designChecksum: z.string().nullish(),
+  /** Số đơn vị nằm trong lô còn ở hãng vận chuyển / khách (BE PR #133, omit khi null). */
+  shippedQuantity: z.number().int().nullish(),
+  /** Số đơn vị ở các lô đã giao. */
+  deliveredQuantity: z.number().int().nullish(),
+  /** Số đơn vị đã đóng ở đơn giao một phần — sẽ không được giao. */
+  cancelledQuantity: z.number().int().nullish(),
+});
+
+/** BE `OrderResponse.ShipmentLine`. */
+export const orderShipmentLineDtoSchema = z.object({
+  lineId: z.string(),
+  quantity: z.number().int(),
+});
+
+/** BE `OrderResponse.Shipment` — lô giao của đơn (split shipments, G4-Q3). */
+export const orderShipmentDtoSchema = z.object({
+  shipmentId: z.string(),
+  status: orderShipmentStatusDtoSchema,
+  /** Giá trị hàng của lô theo giá đơn. */
+  amount: z.number().nullish(),
+  /** Số tiền giao lô này đã ghi nhận công nợ (đơn công nợ). */
+  billedAmount: z.number().nullish(),
+  handedOverAt: z.string().nullish(),
+  outcomeAt: z.string().nullish(),
+  failureReason: z.string().nullish(),
+  lines: z.array(orderShipmentLineDtoSchema).nullish(),
 });
 
 export const orderDtoSchema = z.object({
@@ -89,6 +143,31 @@ export const orderDtoSchema = z.object({
   contactPhone: z.string().nullish(),
   shippingAddress: orderAddressDtoSchema.nullish(),
   billingAddress: orderAddressDtoSchema.nullish(),
+  /** BE `PaymentTerm`: PREPAID | DEPOSIT | CREDIT; null trên dòng danh sách không mang field này. */
+  paymentTerm: z.string().nullish(),
+  /** Staff: lý do đang giữ (ON_HOLD); null/vắng với đơn không bị giữ. */
+  holdReason: orderHoldReasonDtoSchema.nullish(),
+  /** Lý do giữ khách được đọc (AWAITING_CREDIT_APPROVAL | UNDER_REVIEW). */
+  holdReasonPublic: z.string().nullish(),
+  /** Staff: trạng thái đơn sẽ quay về khi gỡ giữ; vắng với giữ công nợ. */
+  statusBeforeHold: orderStatusDtoSchema.nullish(),
+  /** Staff: ghi chú lúc giữ. */
+  holdNote: z.string().nullish(),
+  packedAt: z.string().nullish(),
+  shippedAt: z.string().nullish(),
+  deliveredAt: z.string().nullish(),
+  deliveryFailureReason: orderDeliveryFailureReasonDtoSchema.nullish(),
+  completedAt: z.string().nullish(),
+  closedAt: z.string().nullish(),
+  /** Các lô giao đã ghi công nợ (đơn công nợ). */
+  billedAmount: z.number().nullish(),
+  /** Tổng trừ số đơn vị đã đóng ở đơn giao một phần. */
+  effectiveTotal: z.number().nullish(),
+  /** Khách còn nợ (effectiveTotal − paidAmount, không âm). */
+  amountDue: z.number().nullish(),
+  /** Phải trả trước khi hàng rời kho (G3-Q4): > 0 thì bàn giao bị từ chối. */
+  amountDueBeforeHandover: z.number().nullish(),
+  shipments: z.array(orderShipmentDtoSchema).nullish(),
 });
 
 /** BE `PageResponse<OrderResponse>` — trang đánh số từ 0. */
@@ -104,12 +183,30 @@ export const orderPageDtoSchema = z.object({
 
 /* ── Model FE ────────────────────────────────────────────────────────── */
 
-export const orderLineSchema = orderLineDtoSchema.pick({
-  lineId: true,
-  sku: true,
-  quantity: true,
-  unitPrice: true,
-  lineTotal: true,
+export const orderLineSchema = orderLineDtoSchema
+  .pick({
+    lineId: true,
+    sku: true,
+    quantity: true,
+    unitPrice: true,
+    lineTotal: true,
+  })
+  .extend({
+    /** null khi BE không trả (đơn chưa có lô giao). */
+    shippedQuantity: z.number().int().nullable(),
+    deliveredQuantity: z.number().int().nullable(),
+    cancelledQuantity: z.number().int().nullable(),
+  });
+
+export const orderShipmentSchema = z.object({
+  shipmentId: z.string(),
+  status: orderShipmentStatusDtoSchema,
+  amount: z.number().nullable(),
+  billedAmount: z.number().nullable(),
+  handedOverAt: z.string().nullable(),
+  outcomeAt: z.string().nullable(),
+  failureReason: z.string().nullable(),
+  lines: z.array(orderShipmentLineDtoSchema),
 });
 
 /**
@@ -131,6 +228,25 @@ export const orderSchema = z.object({
   /** Địa chỉ giao đã ghép sẵn (line1, line2, phường/xã, tỉnh); null khi BE không có. */
   shippingAddressText: z.string().nullable(),
   lines: z.array(orderLineSchema),
+  paymentTerm: z.string().nullable(),
+  /** Staff: lý do đang giữ; null khi đơn không ON_HOLD. */
+  holdReason: orderHoldReasonDtoSchema.nullable(),
+  holdReasonPublic: z.string().nullable(),
+  /** Trạng thái FE đơn quay về khi gỡ giữ; null với giữ công nợ. */
+  statusBeforeHold: z.enum(ORDER_STATUSES).nullable(),
+  holdNote: z.string().nullable(),
+  packedAt: z.string().nullable(),
+  shippedAt: z.string().nullable(),
+  deliveredAt: z.string().nullable(),
+  deliveryFailureReason: orderDeliveryFailureReasonDtoSchema.nullable(),
+  completedAt: z.string().nullable(),
+  closedAt: z.string().nullable(),
+  billedAmount: z.number().nullable(),
+  effectiveTotal: z.number().nullable(),
+  amountDue: z.number().nullable(),
+  amountDueBeforeHandover: z.number().nullable(),
+  /** Rỗng khi BE không trả `shipments` (đơn chưa chia lô). */
+  shipments: z.array(orderShipmentSchema),
 });
 
 /* ── Admin cancel input ──────────────────────────────────────────────── */
@@ -149,3 +265,65 @@ export const adminCancelOrderSchema = z.object({
 });
 
 export type AdminCancelOrderInput = z.infer<typeof adminCancelOrderSchema>;
+
+/* ── Hold / resolve / delivery-failure / remainder-closure input ─────── */
+
+const NOTE_REQUIRED = "Ghi chú là bắt buộc khi chọn “Lý do khác”";
+
+/**
+ * Lý do + ghi chú: BE `Order#putOnHold`, `#markDeliveryFailed`, `#closeRemainder` — OTHER bắt buộc
+ * có ghi chú (400 VALIDATION_FAILED nếu thiếu). `note` được trim; rỗng → bỏ khỏi body.
+ */
+function reasonWithNote<const R extends readonly [string, ...string[]]>(
+  reasons: R,
+  noteMax: number,
+  noteLabel: string,
+) {
+  return z
+    .object({
+      reasonCode: z.enum(reasons, { error: "Chọn lý do" }),
+      note: z.string().trim().max(noteMax, `${noteLabel} tối đa ${noteMax} ký tự`),
+    })
+    .refine((value) => value.reasonCode !== "OTHER" || value.note.length > 0, {
+      path: ["note"],
+      message: NOTE_REQUIRED,
+    });
+}
+
+/**
+ * Giữ đơn (`POST /orders/{id}/hold`, `HoldOrderRequest`). Chỉ lý do tự nêu — CREDIT và
+ * DESIGN_MISMATCH là của hệ thống, BE trả 400.
+ */
+export const holdOrderSchema = reasonWithNote(
+  ORDER_MANUAL_HOLD_REASONS,
+  ORDER_LIMITS.holdNoteMax,
+  "Ghi chú",
+);
+
+/** Gỡ giữ (`POST /orders/{id}/hold/resolution`, `ResolveHoldRequest`): ghi chú @NotBlank. */
+export const resolveOrderHoldSchema = z.object({
+  note: z
+    .string()
+    .trim()
+    .min(1, "Hãy ghi cách đã xử lý")
+    .max(ORDER_LIMITS.resolveNoteMax, `Ghi chú tối đa ${ORDER_LIMITS.resolveNoteMax} ký tự`),
+});
+
+/** Ghi giao thất bại (`POST /orders/{id}/delivery-failure`, `DeliveryFailureRequest`). */
+export const deliveryFailureSchema = reasonWithNote(
+  ORDER_DELIVERY_FAILURE_REASONS,
+  ORDER_LIMITS.deliveryFailureNoteMax,
+  "Ghi chú",
+);
+
+/** Đóng phần còn lại (`POST /orders/{id}/remainder-closure`, `CloseRemainderRequest`). */
+export const remainderClosureSchema = reasonWithNote(
+  ORDER_REMAINDER_CLOSURE_REASONS,
+  ORDER_LIMITS.remainderClosureNoteMax,
+  "Ghi chú",
+);
+
+export type HoldOrderValues = z.infer<typeof holdOrderSchema>;
+export type ResolveOrderHoldValues = z.infer<typeof resolveOrderHoldSchema>;
+export type DeliveryFailureValues = z.infer<typeof deliveryFailureSchema>;
+export type RemainderClosureValues = z.infer<typeof remainderClosureSchema>;

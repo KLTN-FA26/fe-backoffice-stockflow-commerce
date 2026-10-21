@@ -14,6 +14,13 @@ type MessageKey = keyof typeof FULFILLMENT_ERROR_MESSAGES;
 export type FulfillmentErrorContext =
   "create" | "assign" | "pick" | "pack" | "reverify" | "artifact";
 
+/**
+ * Lỗi trạng thái của task / đơn: BE (FulfillmentServiceImpl, PickList, PickJpaEntity) trả
+ * `PICK_TASK_STATE_CONFLICT` (409) — cùng nghĩa với `CONFLICT` chung nên dùng chung câu và cùng
+ * coi là "dữ liệu đã cũ".
+ */
+const STATE_CONFLICT_CODE = "PICK_TASK_STATE_CONFLICT";
+
 const BY_CONTEXT: Record<FulfillmentErrorContext, Readonly<Record<string, MessageKey>>> = {
   // 404 = không có đơn; 409 = đơn sai trạng thái / có dòng in chưa release sản xuất
   create: {
@@ -58,16 +65,26 @@ export function fulfillmentErrorMessage(
   state: FulfillmentErrorState = {},
 ): string {
   if (!(error instanceof ApiError)) return FULFILLMENT_ERROR_MESSAGES.generic;
-  if (context === "artifact" && error.code === "CONFLICT" && !state.onDesignHold) {
+  if (
+    context === "artifact" &&
+    (error.code === "CONFLICT" || error.code === STATE_CONFLICT_CODE) &&
+    !state.onDesignHold
+  ) {
     return FULFILLMENT_ERROR_MESSAGES.artifactUnavailable;
   }
-  const contextual = BY_CONTEXT[context][error.code];
+  const code = error.code === STATE_CONFLICT_CODE ? "CONFLICT" : error.code;
+  const contextual = BY_CONTEXT[context][code];
   if (contextual) return FULFILLMENT_ERROR_MESSAGES[contextual];
-  if (isMessageKey(error.code)) return FULFILLMENT_ERROR_MESSAGES[error.code];
+  if (isMessageKey(code)) return FULFILLMENT_ERROR_MESSAGES[code];
   return FULFILLMENT_ERROR_MESSAGES.generic;
 }
 
-const STALE_CODES: readonly string[] = ["NOT_FOUND", "CONFLICT", "OPTIMISTIC_LOCK"];
+const STALE_CODES: readonly string[] = [
+  "NOT_FOUND",
+  "CONFLICT",
+  STATE_CONFLICT_CODE,
+  "OPTIMISTIC_LOCK",
+];
 
 /** Lỗi do task / đơn đã đổi ở nơi khác (hoặc task bị gán cho người khác) → nên tải lại dữ liệu. */
 export function isStaleFulfillmentError(error: unknown): boolean {

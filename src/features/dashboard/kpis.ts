@@ -4,6 +4,7 @@ import { ADMIN_ROUTES } from "@/constants";
 import {
   DASHBOARD_API,
   DASHBOARD_LABELS,
+  DASHBOARD_ORDER_PENDING_FILTER,
   DASHBOARD_ORDER_PENDING_STATUSES,
   DASHBOARD_PICK_OPEN_STATUSES,
   DASHBOARD_PO_PENDING_STATUSES,
@@ -21,6 +22,11 @@ import {
 import type { LucideIcon } from "lucide-react";
 import type { PermissionCode } from "@/lib/auth";
 import type { CountSource } from "./types";
+
+/** Danh sách đơn lọc sẵn theo `?status=` (nuqs: giá trị cách nhau bằng dấu phẩy). */
+function orderListHref(statuses: readonly string[]): string {
+  return `${ADMIN_ROUTES.orders.list}?status=${statuses.map(encodeURIComponent).join(",")}`;
+}
 
 export interface KpiDefinition {
   key: string;
@@ -45,7 +51,8 @@ export const KPI_DEFINITIONS: readonly KpiDefinition[] = [
       statuses: DASHBOARD_ORDER_PENDING_STATUSES,
       repeatStatus: true,
     },
-    href: ADMIN_ROUTES.orders.list,
+    // Cùng tập trạng thái tile đang đếm → bấm vào thấy đúng những đơn đó
+    href: orderListHref(DASHBOARD_ORDER_PENDING_FILTER),
   },
   {
     key: "purchase-orders",

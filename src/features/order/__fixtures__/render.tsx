@@ -5,7 +5,7 @@
 
 import { Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { vi } from "vitest";
 
@@ -15,13 +15,23 @@ import { useAuthStore } from "@/lib/auth/auth-store";
 
 import type { PermissionCode } from "@/lib/auth";
 
-/** Theo seed BE: ORDER_COORDINATOR có APPROVE; SALES_STAFF chỉ VIEW_PAGE/READ/CREATE/UPDATE. */
+/**
+ * Theo seed BE: ORDER_COORDINATOR có sales-orders:APPROVE (giữ / gỡ giữ / giao thất bại) và
+ * sales-order-cancellations:UPDATE (huỷ, đóng phần còn lại); SALES_STAFF chỉ có cancellations:UPDATE.
+ */
 export const ORDER_PERMISSION_SETS = {
   // WAREHOUSE_STAFF: không có quyền sales-orders nào
   none: [],
   viewOnly: ["sales-orders:VIEW_PAGE"],
-  salesStaff: ["sales-orders:VIEW_PAGE", "sales-orders:READ"],
-  coordinator: ["sales-orders:VIEW_PAGE", "sales-orders:READ", ORDER_PERMISSIONS.cancel],
+  // Chỉ đọc (tài khoản được cấp VIEW_PAGE + READ, không có quyền thao tác)
+  readOnly: ["sales-orders:VIEW_PAGE", "sales-orders:READ"],
+  salesStaff: ["sales-orders:VIEW_PAGE", "sales-orders:READ", ORDER_PERMISSIONS.cancel],
+  coordinator: [
+    "sales-orders:VIEW_PAGE",
+    "sales-orders:READ",
+    ORDER_PERMISSIONS.approve,
+    ORDER_PERMISSIONS.cancel,
+  ],
 } satisfies Record<string, PermissionCode[]>;
 
 /** Handler theo path: trả data, hoặc throw (vd ApiError) để giả lập lỗi. */
@@ -70,4 +80,17 @@ export function renderOrderScreen(ui: React.ReactElement, searchParams = "") {
       </NuqsTestingAdapter>
     </QueryClientProvider>,
   );
+}
+
+/** Chọn một option của Radix Select trong jsdom (cần polyfill pointer capture / scrollIntoView). */
+export async function pickSelectOption(
+  user: { click: (el: Element) => Promise<void> },
+  trigger: string | RegExp,
+  option: string | RegExp,
+) {
+  Element.prototype.hasPointerCapture ??= () => false;
+  Element.prototype.releasePointerCapture ??= () => {};
+  Element.prototype.scrollIntoView ??= () => {};
+  await user.click(await screen.findByRole("combobox", { name: trigger }));
+  await user.click(await screen.findByRole("option", { name: option }));
 }

@@ -66,7 +66,6 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Released",
     "Published",
     "In Putaway",
-    "Partially Fulfilled",
     "Partially Completed",
     "Out for Delivery",
     "Pending (COD)",
@@ -77,8 +76,6 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Queued",
     "Approved for Payment",
     "Initiated",
-    // Order — BE IN_FULFILMENT (picking/packing/sản xuất gộp làm 1). FE order khớp BE.
-    "In Fulfilment",
     // Chuyển kho: đang lấy hàng ở kho nguồn / đang trên đường (docs 10 §5)
     "PICKING",
     "IN_TRANSIT",
@@ -111,6 +108,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Warning",
     "Pending Payment",
     "Ready to Fulfill",
+    // Order giao một phần (BE PARTIALLY_FULFILLED): còn phần chưa tới tay khách, cần nhân viên xử lý
+    "Partially Fulfilled",
     "Return Requested",
     "Pending Verification",
     "Draft Proposal",
@@ -290,7 +289,6 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   "Approved for Payment": "Duyệt thanh toán",
   Initiated: "Đã khởi tạo",
   "In Production": "Đang sản xuất",
-  "In Fulfilment": "Đang xử lý kho",
   // Warning
   "Pending Approval": "Chờ duyệt",
   "On Hold": "Tạm giữ",
@@ -372,6 +370,13 @@ const STATUS_LABEL_VI_BY_DOMAIN: Partial<Record<StatusDomain, Record<string, str
   },
   stock: {
     [STOCK_ADJUSTMENT_STATUS.REJECTED]: "Từ chối",
+  },
+  // Đơn hàng (BE OrderStatus, PR #133): nhãn sát nghĩa nghiệp vụ hơn nhãn dùng chung với module khác
+  order: {
+    "Ready to Fulfill": "Sẵn sàng xuất kho",
+    "Partially Fulfilled": "Giao một phần",
+    Shipped: "Đang vận chuyển",
+    Returned: "Đã nhận hàng trả",
   },
 };
 

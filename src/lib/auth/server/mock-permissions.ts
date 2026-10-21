@@ -166,9 +166,26 @@ const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...Object.values(SUPPLIER_PERMISSIONS),
     IDENTITY_USER_PERMISSIONS.read,
   ],
-  "USER-SALE-01": [ORDER_PERMISSIONS.viewPage, ORDER_PERMISSIONS.read, WAREHOUSE_READ],
-  "USER-SALE-02": [ORDER_PERMISSIONS.viewPage, ORDER_PERMISSIONS.read, WAREHOUSE_READ],
-  "USER-SALE-03": [ORDER_PERMISSIONS.viewPage, ORDER_PERMISSIONS.read, WAREHOUSE_READ],
+  "USER-SALE-01": [
+    ORDER_PERMISSIONS.viewPage,
+    ORDER_PERMISSIONS.read,
+    ORDER_PERMISSIONS.cancel,
+    WAREHOUSE_READ,
+  ],
+  "USER-SALE-02": [
+    ORDER_PERMISSIONS.viewPage,
+    ORDER_PERMISSIONS.read,
+    ORDER_PERMISSIONS.cancel,
+    WAREHOUSE_READ,
+  ],
+  "USER-SALE-03": [
+    ORDER_PERMISSIONS.viewPage,
+    ORDER_PERMISSIONS.read,
+    ORDER_PERMISSIONS.cancel,
+    WAREHOUSE_READ,
+  ],
+  // Seed BE: SALES_STAFF có sales-order-cancellations:UPDATE (huỷ đơn, đóng phần còn lại) nhưng không có APPROVE
+  // (giữ / gỡ giữ / ghi giao thất bại là của ORDER_COORDINATOR)
   // Order Coordinator + Warehouse Staff → thêm quyền kho xuất của WAREHOUSE_STAFF
   "USER-COORD-01": [
     ...Object.values(ORDER_PERMISSIONS),

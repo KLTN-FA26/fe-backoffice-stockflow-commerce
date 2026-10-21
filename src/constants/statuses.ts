@@ -246,8 +246,11 @@ export const DESIGN_ARTIFACT_ROLES = [
   "PRODUCTION_INSTRUCTION",
 ] as const;
 
-/** Trạng thái đơn BE cho phép tạo task xuất kho (FulfillmentServiceImpl#createTask). */
-export const FULFILLABLE_ORDER_API_STATUSES = ["CONFIRMED", "READY_TO_FULFILL"] as const;
+/**
+ * Trạng thái đơn BE cho phép tạo task xuất kho: chỉ READY_TO_FULFILL (đã release, đã chọn kho, hàng
+ * in đã sản xuất xong) — đơn CONFIRMED phải release trước (BE PR #133, FulfillmentServiceImpl#createTask).
+ */
+export const FULFILLABLE_ORDER_API_STATUSES = ["READY_TO_FULFILL"] as const;
 
 export const PRODUCT_STATUSES = [
   "Draft",
@@ -301,25 +304,34 @@ export const INVOICE_STATUS = {
 } as const satisfies Record<string, InvoiceStatus>;
 
 /**
- * Order — đúng 10 trạng thái của BE `order/api/OrderStatus.java`, ánh xạ 1-1 với mã wire
- * (PENDING_PAYMENT ↔ "Pending Payment"…, xem features/order/status-map.ts).
+ * Order — 19 trạng thái của BE `order/api/OrderStatus.java` (BE PR #133, SCRUM-239/246/247),
+ * ánh xạ 1-1 với mã wire (PENDING_PAYMENT ↔ "Pending Payment"…, xem features/order/status-map.ts).
+ * `IN_FULFILMENT` đã bị BE bỏ (tách PICKING / PACKED), `PAID` cũ là CONFIRMED.
  *
- * QUYẾT ĐỊNH (lệch quy tắc "docs thắng" của CLAUDE.md, chủ đích cho module order): FE khớp BE,
- * KHÔNG dựng theo 20 trạng thái của docs 17 §5 — docs tách nhiều bước (Picking, Packed,
- * In Production…) mà BE không có, hiển thị chúng là hứa trạng thái BE không bao giờ trả.
- * mock-data.ts vẫn dùng 20 trạng thái docs; route mock gộp về 10 trạng thái BE trước khi trả.
+ * "UNKNOWN" không phải trạng thái BE: mã BE thêm sau này parse về đây (`.catch`) để một giá trị lạ
+ * không làm hỏng cả danh sách đơn. Không có chuyển tiếp / thao tác nào từ UNKNOWN và không có ở bộ lọc.
  */
 export const ORDER_STATUSES = [
   "Draft",
   "Pending Payment",
-  "Paid",
-  "In Fulfilment",
+  "Confirmed",
+  "In Production",
+  "Ready to Fulfill",
+  "Picking",
+  "Partially Fulfilled",
+  "Packed",
   "On Hold",
   "Shipped",
+  "Delivery Failed",
   "Delivered",
+  "Return Requested",
+  "Returned",
+  "Refunded",
+  "Partially Refunded",
   "Completed",
   "Cancelled",
-  "Returned",
+  "Closed",
+  "UNKNOWN",
 ] as const;
 
 /** Nhà cung cấp (module 01) — BE: ACTIVE/INACTIVE (SCRUM-118). */
