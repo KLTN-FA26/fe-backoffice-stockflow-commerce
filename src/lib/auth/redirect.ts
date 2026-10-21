@@ -6,7 +6,7 @@
  * quyền: BE re-check mọi request (@RequiresPermission).
  */
 
-import { ADMIN_ROUTES, PORTAL_ROUTES, STAFF_ROLE } from "@/constants";
+import { ADMIN_ROUTES, PORTAL_ROUTES } from "@/constants";
 
 export type AppArea = "admin" | "portal";
 
@@ -33,7 +33,7 @@ export function areaOf(path: string): AppArea | null {
 
 /** Tài khoản portal = chỉ có vai trò CUSTOMER (BE `Roles.CUSTOMER`). */
 export function isCustomerOnly(roles: readonly string[]): boolean {
-  return roles.length > 0 && roles.every((role) => role === STAFF_ROLE.CUSTOMER);
+  return roles.length > 0 && roles.every((role) => role === "CUSTOMER");
 }
 
 export function homeAreaFor(roles: readonly string[]): AppArea {

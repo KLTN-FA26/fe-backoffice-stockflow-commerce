@@ -1,45 +1,40 @@
 /**
  * Shipping — action-gating chuyến xe (feature-architecture §6).
  *
- * Bảng `LOAD_TRANSITIONS` (lib/domain, BE `LoadStatus`). BE gate KÉP mỗi endpoint: mã quyền
- * (`@RequiresPermission fulfillment-shipments`) VÀ vai trò (`@PreAuthorize`): mở / quét / bàn giao là
- * nhân viên kho, huỷ chuyến là quản lý kho — điều phối đơn hàng có UPDATE trên resource này (để ghi kết
- * quả giao) nhưng không được lên xe. SYSTEM_ADMIN qua mọi cổng vai trò (BE RoleHierarchyConfig).
+ * Bảng `LOAD_TRANSITIONS` (lib/domain, BE `LoadStatus`). Từ BE PR #148 mỗi endpoint gate bằng MỘT mã
+ * quyền, không còn `@PreAuthorize` theo vai trò: mở chuyến `fulfillment-dispatch:CREATE`; thêm / bớt lô,
+ * quét, bàn giao `fulfillment-dispatch:UPDATE`; huỷ chuyến `fulfillment-load-cancellations:UPDATE`.
  * Chỉ chuyến gửi kiện (PARCEL) xử lý ở đây; chuyến nguyên xe thuộc Kế hoạch xếp xe (SCRUM-287/452).
  * UI-only — Backend phải re-check (trạng thái chuyến, kiện thuộc biên bản, quyền + phạm vi kho).
  */
 
-import { LOAD_STATUS, SHIPMENT_PERMISSIONS, STAFF_ROLE, UI_LABELS } from "@/constants";
+import {
+  FULFILLMENT_DISPATCH_PERMISSIONS,
+  FULFILLMENT_LOAD_CANCELLATION_PERMISSIONS,
+  LOAD_STATUS,
+  UI_LABELS,
+} from "@/constants";
 import { LOAD_TRANSITIONS } from "@/lib/domain/lifecycle";
 
-import type { LoadStatus, StaffRole } from "@/constants";
+import type { LoadStatus } from "@/constants";
 import type { PermissionCode } from "@/lib/auth";
 import type { Load, LoadApiStatus } from "./types";
 
-const { SYSTEM_ADMIN, WAREHOUSE_MANAGER, WAREHOUSE_STAFF } = STAFF_ROLE;
 const D = UI_LABELS.shipping.load.disabledReason;
 const N = UI_LABELS.shipping.load.noActions;
 
-/** Người đang đăng nhập: mã quyền + mã vai trò BE (cùng response `/identity/me/permissions`). */
+/** Người đang đăng nhập: mã quyền (`/identity/me/permissions`). */
 export interface ShippingActor {
   can: (code: PermissionCode) => boolean;
-  roles: readonly string[];
 }
-
-/** Vai trò BE cho phép; SYSTEM_ADMIN qua mọi cổng. */
-export function hasStaffRole(actor: ShippingActor, roles: readonly StaffRole[]): boolean {
-  return actor.roles.some((role) => role === SYSTEM_ADMIN || roles.some((r) => r === role));
-}
-
-export const DISPATCH_ROLES: readonly StaffRole[] = [WAREHOUSE_STAFF, WAREHOUSE_MANAGER];
 
 export type LoadActionCode =
   "addShipment" | "removeShipment" | "scan" | "unscan" | "handover" | "cancel";
 
 interface LoadAction {
   readonly code: LoadActionCode;
+  /** Mã quyền BE bảo vệ endpoint (`@RequiresPermission`). */
   readonly permission: PermissionCode;
-  readonly roles: readonly StaffRole[];
   readonly fromStatuses: readonly LoadApiStatus[];
   readonly targetStatus?: LoadStatus;
   /** Chỉ chuyến gửi kiện; huỷ chuyến áp cho cả chuyến nguyên xe. */
@@ -49,21 +44,19 @@ interface LoadAction {
 }
 
 const OPEN = [LOAD_STATUS.PLANNED, LOAD_STATUS.VEHICLE_BOOKED, LOAD_STATUS.LOADING] as const;
-const UPDATE = SHIPMENT_PERMISSIONS.update;
+const UPDATE = FULFILLMENT_DISPATCH_PERMISSIONS.update;
 
 export const LOAD_ACTIONS: readonly LoadAction[] = [
   // BE `DispatchLoad`: lô vào / ra biên bản khi chuyến còn mở
   {
     code: "addShipment",
     permission: UPDATE,
-    roles: DISPATCH_ROLES,
     fromStatuses: OPEN,
     parcelOnly: true,
   },
   {
     code: "removeShipment",
     permission: UPDATE,
-    roles: DISPATCH_ROLES,
     fromStatuses: OPEN,
     parcelOnly: true,
   },
@@ -71,21 +64,18 @@ export const LOAD_ACTIONS: readonly LoadAction[] = [
   {
     code: "scan",
     permission: UPDATE,
-    roles: DISPATCH_ROLES,
     fromStatuses: [LOAD_STATUS.LOADING],
     parcelOnly: true,
   },
   {
     code: "unscan",
     permission: UPDATE,
-    roles: DISPATCH_ROLES,
     fromStatuses: [LOAD_STATUS.LOADING],
     parcelOnly: true,
   },
   {
     code: "handover",
     permission: UPDATE,
-    roles: DISPATCH_ROLES,
     fromStatuses: [LOAD_STATUS.LOADING],
     targetStatus: LOAD_STATUS.DISPATCHED,
     parcelOnly: true,
@@ -93,8 +83,7 @@ export const LOAD_ACTIONS: readonly LoadAction[] = [
   },
   {
     code: "cancel",
-    permission: UPDATE,
-    roles: [WAREHOUSE_MANAGER],
+    permission: FULFILLMENT_LOAD_CANCELLATION_PERMISSIONS.update,
     fromStatuses: OPEN,
     targetStatus: LOAD_STATUS.CANCELLED,
     parcelOnly: false,
@@ -132,7 +121,6 @@ export function allowedLoadActions(
       action.fromStatuses.includes(load.status) &&
       transitionAllowed(load.status, action.targetStatus) &&
       actor.can(action.permission) &&
-      hasStaffRole(actor, action.roles) &&
       (!action.parcelOnly || load.mode === "PARCEL"),
   ).map((action) => {
     if (!action.requiresFullyLoaded) return { action };
@@ -149,12 +137,10 @@ export function hasLoadAction(
 }
 
 /** Câu thay cho nút khi không còn thao tác nào (người dùng hiểu vì sao ô quét / nút không có). */
-export function loadNoActionReason(load: LoadGateState, actor: ShippingActor): string {
+export function loadNoActionReason(load: LoadGateState): string {
   if (load.status === LOAD_STATUS.DISPATCHED) return N.dispatched;
   if (load.status === LOAD_STATUS.CANCELLED) return N.cancelled;
   if (load.mode !== "PARCEL") return D.notParcel;
-  if (!actor.can(UPDATE)) return N.viewOnly;
-  if (!hasStaffRole(actor, DISPATCH_ROLES)) return N.notDispatcher;
   return N.viewOnly;
 }
 

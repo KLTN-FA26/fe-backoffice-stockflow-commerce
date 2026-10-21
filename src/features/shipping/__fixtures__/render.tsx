@@ -8,7 +8,13 @@ import { render } from "@testing-library/react";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { vi } from "vitest";
 
-import { SHIPMENT_PERMISSIONS } from "@/constants";
+import {
+  FULFILLMENT_CARRIER_PERMISSIONS,
+  FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS,
+  FULFILLMENT_DISPATCH_PERMISSIONS,
+  FULFILLMENT_LOAD_CANCELLATION_PERMISSIONS,
+  SHIPMENT_PERMISSIONS,
+} from "@/constants";
 import { api } from "@/lib/api/client";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -29,23 +35,36 @@ Element.prototype.releasePointerCapture ??= () => {};
 Element.prototype.scrollIntoView ??= () => {};
 
 const SHIP = SHIPMENT_PERMISSIONS;
-const ALL = [SHIP.viewPage, SHIP.read, SHIP.create, SHIP.update];
+const READ: PermissionCode[] = [SHIP.viewPage, SHIP.read];
+const DISPATCH_ALL = Object.values(FULFILLMENT_DISPATCH_PERMISSIONS);
+const STAFF: PermissionCode[] = [...READ, ...DISPATCH_ALL];
+const MANAGER: PermissionCode[] = [
+  ...STAFF,
+  ...Object.values(FULFILLMENT_CARRIER_PERMISSIONS),
+  ...Object.values(FULFILLMENT_LOAD_CANCELLATION_PERMISSIONS),
+  FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS.update,
+];
+const COORDINATOR: PermissionCode[] = [
+  ...READ,
+  ...Object.values(FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS),
+];
 
+/** Người dùng thử = một bộ mã quyền; FE không đọc tên vai trò để quyết định quyền. */
 export interface TestActor {
-  roles: string[];
   permissions: PermissionCode[];
 }
 
 /**
- * Người dùng thử: seed BE cấp `fulfillment-shipments` đủ 4 quyền cho WAREHOUSE_STAFF / WAREHOUSE_MANAGER /
- * ORDER_COORDINATOR, nhưng `@PreAuthorize` mới quyết vai trò nào được làm gì (điều phối đơn không lên xe).
+ * Người dùng thử theo seed BE PR #148: nhân viên kho xếp xe / bàn giao (`fulfillment-dispatch`), quản lý
+ * kho thêm hãng / huỷ chuyến / ghi hàng hoàn, điều phối ghi kết quả giao (`fulfillment-delivery-outcomes`
+ * UPDATE + APPROVE) nhưng không lên xe.
  */
 export const SHIPPING_ACTORS = {
-  warehouseStaff: { roles: ["WAREHOUSE_STAFF"], permissions: ALL },
-  warehouseManager: { roles: ["WAREHOUSE_MANAGER"], permissions: ALL },
-  orderCoordinator: { roles: ["ORDER_COORDINATOR"], permissions: ALL },
-  viewOnly: { roles: ["SALES_STAFF"], permissions: [SHIP.viewPage, SHIP.read] },
-  noAccess: { roles: [], permissions: [] },
+  warehouseStaff: { permissions: STAFF },
+  warehouseManager: { permissions: MANAGER },
+  orderCoordinator: { permissions: COORDINATOR },
+  viewOnly: { permissions: READ },
+  noAccess: { permissions: [] },
 } satisfies Record<string, TestActor>;
 
 export type RouteHandler = (params: unknown, body?: unknown) => unknown;
@@ -90,7 +109,7 @@ export function mockShippingApi(actor: TestActor, routes: ApiRoutes = {}) {
     .spyOn(api, "get")
     .mockImplementation(async (url: string, config?: { params?: unknown }) => {
       if (url === "/identity/me/permissions") {
-        return { data: { roles: actor.roles, permissions: actor.permissions, dataScope: "ALL" } };
+        return { data: { roles: ["TEST"], permissions: actor.permissions, dataScope: "ALL" } };
       }
       if (url === "/warehouses") return { data: WAREHOUSES };
       if (url === "/fulfillment/carriers" && !routes.get?.[url]) {

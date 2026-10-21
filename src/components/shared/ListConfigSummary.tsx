@@ -27,7 +27,7 @@ interface ListConfigSummaryProps {
  */
 export function ListConfigSummary({ items, onResetAll, resetDisabled }: ListConfigSummaryProps) {
   return (
-    <div className="border-border-default bg-bg-subtle/70 mb-4 flex flex-wrap items-center gap-2 rounded-[var(--r-sm)] border px-3 py-2 text-[0.8125rem]">
+    <div className="border-border-default mb-4 flex flex-wrap items-center gap-2 rounded-(--section-radius) border bg-(--summary-bg) px-3 py-2 text-[0.8125rem] shadow-(--card-shadow)">
       <div className="text-ink-primary mr-1 flex items-center gap-2 font-medium">
         <Settings2 className="text-accent size-3.5" />
         Cấu hình
@@ -61,7 +61,8 @@ export function ListConfigSummary({ items, onResetAll, resetDisabled }: ListConf
         size="xs"
         onClick={onResetAll}
         disabled={resetDisabled}
-        className="text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary ml-auto rounded-[var(--r-sm)]"
+        // Bấm được (có cấu hình khác mặc định) → xanh tươi + nền nhạt để người dùng thấy ngay
+        className="text-ink-tertiary enabled:bg-dot-info/10 enabled:text-dot-info enabled:hover:bg-dot-info/15 enabled:hover:text-dot-info ml-auto rounded-[var(--r-sm)] enabled:font-semibold"
       >
         <RotateCcw className="size-3" />
         Đặt lại

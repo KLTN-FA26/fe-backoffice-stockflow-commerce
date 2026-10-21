@@ -7,7 +7,16 @@
  * VALIDATION_FAILED kèm message tiếng Anh — FE tự dịch theo ngữ cảnh.
  */
 
-import { PICK_API_STATUSES } from "@/constants";
+import {
+  FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS as REVERIFY,
+  FULFILLMENT_PACKAGE_PERMISSIONS as PACK,
+  FULFILLMENT_PACKING_PERMISSIONS as PACKING,
+  FULFILLMENT_PICK_PERMISSIONS as PICK,
+  FULFILLMENT_PICKING_PERMISSIONS as PICKING,
+  FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS as ASSIGNMENT,
+  FULFILLMENT_TASK_OVERSIGHT_PERMISSIONS as OVERSIGHT,
+  PICK_API_STATUSES,
+} from "@/constants";
 
 import { registerMockRoute } from "./mock-adapter";
 import { toBackendRoles } from "./mock-backend-roles";
@@ -17,7 +26,6 @@ import {
   findMockOrder,
   forbidden,
   getFulfillmentStore,
-  hasAnyRole,
   isTampered,
   nextTaskId,
   orderClosedError,
@@ -63,7 +71,10 @@ const MOCK_ARTIFACT_DIR = "/mock/design-artifacts";
 
 const newestFirst = (a: MockTask, b: MockTask) => b.createdAt.localeCompare(a.createdAt);
 
-/** BE `requireWarehouseAssignee`: ACTIVE + WAREHOUSE_STAFF hoặc WAREHOUSE_MANAGER. */
+/**
+ * BE `requireWarehouseAssignee`: ACTIVE + WAREHOUSE_STAFF hoặc WAREHOUSE_MANAGER. Đây là điều kiện của
+ * NGƯỜI ĐƯỢC GÁN (ai nhận việc), không phải quyền của người gọi — nên vẫn đọc vai trò.
+ */
 async function isValidAssignee(userId: string): Promise<boolean> {
   const { staffUsers } = await import("@/lib/mock-data");
   const user = staffUsers.find((candidate) => candidate.userId === userId);
@@ -86,14 +97,16 @@ const missingField = (field: string) =>
   ]);
 
 /**
- * BE `visible`: người được gán, quản lý kho / QC / điều phối, và (BE #136 bản cuối) nhân viên kho của
- * kho đó khi lấy hàng đã xong — người đóng gói không nhất thiết là người lấy hàng.
+ * BE `TaskAccess.requireVisible` (BE PR #148): người được gán; người có task-oversight:READ hoặc
+ * design-reverification:READ; và người đóng gói (packing:UPDATE) khi lấy hàng đã xong — người đóng gói
+ * không nhất thiết là người lấy hàng.
  */
 function canSee(task: MockTask, actor: MockActor): boolean {
   return (
     task.assignedUserId === actor.userId ||
-    hasAnyRole(actor, "WAREHOUSE_MANAGER", "QC_STAFF", "ORDER_COORDINATOR") ||
-    (task.pickStatus === "PICKED" && hasAnyRole(actor, "WAREHOUSE_STAFF"))
+    actor.can(OVERSIGHT.read) ||
+    actor.can(REVERIFY.read) ||
+    (task.pickStatus === "PICKED" && actor.can(PACKING.update))
   );
 }
 
@@ -102,7 +115,7 @@ async function loadTask(config: AxiosRequestConfig) {
   return { store, task: store.get(routeParam(config, "id")), actor: await currentActor() };
 }
 
-/** Khung chung của start / complete picking: vai trò → người được gán → đơn còn mở → chuyển. */
+/** Khung chung của start / complete picking: quyền → người được gán → đơn còn mở → chuyển. */
 function registerPickStep(
   suffix: string,
   from: MockTask["pickStatus"],
@@ -110,7 +123,7 @@ function registerPickStep(
 ) {
   registerMockRoute("POST", `${PATH}/:id/${suffix}`, async (config) => {
     const { task, actor } = await loadTask(config);
-    if (!hasAnyRole(actor, "WAREHOUSE_STAFF", "WAREHOUSE_MANAGER")) return forbidden();
+    if (!actor.can(PICKING.update)) return forbidden();
     if (!task) return taskNotFound();
     if (task.assignedUserId !== actor.userId) {
       return beError(404, "NOT_FOUND", "Fulfillment task is not assigned to this user");
@@ -140,13 +153,13 @@ function registerTaskReadRoutes(): void {
     const all = [...(await getFulfillmentStore()).values()]
       .filter((task) => !status || task.pickStatus === status)
       .sort(newestFirst);
-    // BE `listTasks`: quản lý / điều phối thấy hết → QC chỉ thấy kiện đang giữ → NV kho thấy của mình
+    // BE `listTasks`: endpoint cần pick-lists:READ; phạm vi theo quyền — task-oversight:READ thấy hết →
+    // design-reverification:READ chỉ thấy kiện đang giữ → còn lại thấy task của mình
+    if (!actor.can(PICK.read)) return forbidden();
     let visible: MockTask[];
-    if (hasAnyRole(actor, "WAREHOUSE_MANAGER", "ORDER_COORDINATOR")) visible = all;
-    else if (hasAnyRole(actor, "QC_STAFF")) visible = all.filter((t) => t.packStatus === "ON_HOLD");
-    else if (hasAnyRole(actor, "WAREHOUSE_STAFF")) {
-      visible = all.filter((t) => t.assignedUserId === actor.userId);
-    } else return forbidden();
+    if (actor.can(OVERSIGHT.read)) visible = all;
+    else if (actor.can(REVERIFY.read)) visible = all.filter((t) => t.packStatus === "ON_HOLD");
+    else visible = all.filter((t) => t.assignedUserId === actor.userId);
     return beOk(bePage(visible.map(toTaskResponse), page, size));
   });
 
@@ -161,14 +174,14 @@ function registerTaskReadRoutes(): void {
     `${PATH}/:id/lines/:lineId/design-artifacts/:role/download-url`,
     async (config) => {
       const { task, actor } = await loadTask(config);
-      if (!hasAnyRole(actor, "WAREHOUSE_STAFF", "WAREHOUSE_MANAGER", "QC_STAFF"))
-        return forbidden();
+      if (!actor.can(PACK.read)) return forbidden();
       if (!task) return taskNotFound();
-      // BE `requireArtifactAccess`: người được gán, hoặc quản lý kho / QC (không có điều phối)
+      // BE `requireArtifactAccess`: người được gán, người có design-reverification:READ, hoặc người đóng
+      // gói (packing:UPDATE) khi lấy hàng đã xong — không có điều phối
       if (
         task.assignedUserId !== actor.userId &&
-        !hasAnyRole(actor, "WAREHOUSE_MANAGER", "QC_STAFF") &&
-        task.pickStatus !== "PICKED"
+        !actor.can(REVERIFY.read) &&
+        !(task.pickStatus === "PICKED" && actor.can(PACKING.update))
       ) {
         return taskNotFound();
       }
@@ -209,7 +222,7 @@ function registerTaskReadRoutes(): void {
 function registerAssignmentRoutes(): void {
   registerMockRoute("POST", PATH, async (config) => {
     const actor = await currentActor();
-    if (!hasAnyRole(actor, "ORDER_COORDINATOR", "WAREHOUSE_MANAGER")) return forbidden();
+    if (!actor.can(ASSIGNMENT.create)) return forbidden();
     const body = parseJsonBody(config.data);
     const orderId = readString(body.orderId);
     const assignedUserId = readString(body.assignedUserId);
@@ -255,7 +268,7 @@ function registerAssignmentRoutes(): void {
 
   registerMockRoute("PUT", `${PATH}/:id/assignment`, async (config) => {
     const { task, actor } = await loadTask(config);
-    if (!hasAnyRole(actor, "ORDER_COORDINATOR", "WAREHOUSE_MANAGER")) return forbidden();
+    if (!actor.can(ASSIGNMENT.update)) return forbidden();
     const assignedUserId = readString(parseJsonBody(config.data).assignedUserId);
     if (!assignedUserId) return missingField("assignedUserId");
     if (!(await isValidAssignee(assignedUserId))) return invalidAssignee();
@@ -271,7 +284,7 @@ function registerAssignmentRoutes(): void {
 function registerPackRoutes(): void {
   registerMockRoute("POST", `${PATH}/:id/design-integrity-reverification`, async (config) => {
     const { task, actor } = await loadTask(config);
-    if (!hasAnyRole(actor, "WAREHOUSE_STAFF", "WAREHOUSE_MANAGER")) return forbidden();
+    if (!actor.can(REVERIFY.update)) return forbidden();
     const note = readString(parseJsonBody(config.data).resolutionNote);
     if (!note) {
       return beError(400, "VALIDATION_FAILED", "Invalid request data", [

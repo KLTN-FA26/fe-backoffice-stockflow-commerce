@@ -1,43 +1,49 @@
 /**
  * Trạm đóng gói — action-gating (feature-architecture §6).
  *
- * BE (PR #136) gate KÉP: mã quyền `fulfillment-packages` (`@RequiresPermission`) VÀ vai trò
- * (`@PreAuthorize`). Xem phiên / hàng chờ: nhân viên kho, quản lý kho (quyền READ; QC không có quyền
- * trang đóng gói — BE #136 bản cuối). Thao tác
- * (nhận đơn, kiện, quét, hoàn tất): chỉ nhân viên kho / quản lý kho (quyền CREATE) — KHÔNG còn đòi là
- * người được gán lấy hàng như bản cũ; ai nhận đơn ở bàn đóng gói (`packerId`) mới là người đóng.
- * Người khác bị `PACKING_TAKEN`, trừ quản lý kho (không bị chặn, người nhận đơn không đổi). Kiểm tra
- * lại thiết kế (docs 08): người đóng gói / quản lý kho. UI-only — Backend phải re-check (PackingController, PackingSession).
+ * BE PR #148: mỗi endpoint gate bằng một mã quyền, không còn `@PreAuthorize` theo vai trò.
+ * - Xem hàng chờ / phiên: `fulfillment-packages:READ`.
+ * - Thao tác (nhận đơn, kiện, quét, niêm phong, hoàn tất): `fulfillment-packing:UPDATE` — không đòi là
+ *   người được gán lấy hàng; ai nhận đơn ở bàn đóng gói (`packerId`) mới là người đóng. Người khác bị
+ *   `PACKING_TAKEN`, trừ người có `fulfillment-packing:APPROVE` (làm hộ / tiếp quản, người nhận đơn
+ *   không đổi — seed: quản lý kho).
+ * - Nhãn kiện: `fulfillment-packing:READ`.
+ * - Kiểm tra lại thiết kế (docs 08): `fulfillment-design-reverification:UPDATE` (seed: QC, quản lý kho).
+ * UI-only — Backend phải re-check (PackingController, PackingSession).
  */
 
-import { FULFILLMENT_PACKAGE_PERMISSIONS, PACK_STATUS, STAFF_ROLE } from "@/constants";
-
-import { hasStaffRole } from "./lifecycle";
+import {
+  FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS,
+  FULFILLMENT_PACKAGE_PERMISSIONS,
+  FULFILLMENT_PACKING_PERMISSIONS,
+  PACK_STATUS,
+} from "@/constants";
 
 import type { FulfillmentActor } from "./lifecycle";
 import type { PackingSession } from "./packing-types";
 
-const { WAREHOUSE_MANAGER, WAREHOUSE_STAFF } = STAFF_ROLE;
+const PACKING = FULFILLMENT_PACKING_PERMISSIONS;
 
 export interface PackingAccess {
-  /** Quyền xem phiên (READ) — nhân viên kho, quản lý kho. */
+  /** Quyền xem phiên (packages:READ). */
   canRead: boolean;
-  /** Có quyền thao tác đóng gói nói chung (CREATE + vai trò nhân viên / quản lý kho). */
+  /** Có quyền thao tác đóng gói nói chung (packing:UPDATE). */
   canPack: boolean;
-  isManager: boolean;
+  /** Làm hộ / tiếp quản phiên của người đóng khác (packing:APPROVE). */
+  canTakeOver: boolean;
   /** Chính người này đã nhận đơn. */
   isOwner: boolean;
   /** Nhận đơn ở bàn đóng gói: phiên còn PENDING. */
   canStart: boolean;
-  /** Quét, mở / niêm phong / huỷ kiện, hoàn tất: phiên PACKING và là người nhận đơn hoặc quản lý kho. */
+  /** Quét, mở / niêm phong / huỷ kiện, hoàn tất: phiên PACKING và là người nhận đơn hoặc có quyền tiếp quản. */
   canWork: boolean;
-  /** Đang có người khác đóng và người này không phải quản lý → chỉ xem (BE `PACKING_TAKEN`). */
+  /** Đang có người khác đóng và người này không có quyền tiếp quản → chỉ xem (BE `PACKING_TAKEN`). */
   takenByOther: boolean;
-  /** Quản lý kho thao tác trong phiên của người khác. */
+  /** Người có quyền tiếp quản thao tác trong phiên của người khác. */
   managerAssist: boolean;
-  /** Người đóng gói / quản lý kho kiểm tra lại thiết kế khi phiên bị giữ. */
+  /** Kiểm tra lại thiết kế khi phiên bị giữ (design-reverification:UPDATE). */
   canReverify: boolean;
-  /** Xem nhãn: nhân viên kho / quản lý kho có quyền READ (QC không được — `@PreAuthorize` của BE). */
+  /** Xem nhãn kiện (packing:READ). */
   canLabel: boolean;
 }
 
@@ -46,24 +52,22 @@ export function packingAccess(
   actor: FulfillmentActor,
 ): PackingAccess {
   const canRead = actor.can(FULFILLMENT_PACKAGE_PERMISSIONS.read);
-  const floorRole = hasStaffRole(actor, [WAREHOUSE_STAFF, WAREHOUSE_MANAGER]);
-  const canPack = actor.can(FULFILLMENT_PACKAGE_PERMISSIONS.create) && floorRole;
-  const isManager = hasStaffRole(actor, [WAREHOUSE_MANAGER]);
+  const canPack = actor.can(PACKING.update);
+  const canTakeOver = actor.can(PACKING.approve);
   const isOwner = actor.userId !== null && session.packerId === actor.userId;
   const packing = session.packStatus === PACK_STATUS.PACKING;
   return {
     canRead,
     canPack,
-    isManager,
+    canTakeOver,
     isOwner,
     canStart: canPack && session.packStatus === PACK_STATUS.PENDING,
-    canWork: canPack && packing && (isOwner || isManager),
-    takenByOther: canPack && packing && !isOwner && !isManager,
-    managerAssist: canPack && packing && isManager && !isOwner && !!session.packerId,
+    canWork: canPack && packing && (isOwner || canTakeOver),
+    takenByOther: canPack && packing && !isOwner && !canTakeOver,
+    managerAssist: canPack && packing && canTakeOver && !isOwner && !!session.packerId,
     canReverify:
-      actor.can(FULFILLMENT_PACKAGE_PERMISSIONS.create) &&
-      session.packStatus === PACK_STATUS.ON_HOLD &&
-      floorRole,
-    canLabel: canRead && floorRole,
+      actor.can(FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS.update) &&
+      session.packStatus === PACK_STATUS.ON_HOLD,
+    canLabel: actor.can(PACKING.read),
   };
 }

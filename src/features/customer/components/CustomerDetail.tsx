@@ -12,7 +12,7 @@ import {
   QUOTE_PERMISSIONS,
   SAMPLE_REQUEST_PERMISSIONS,
 } from "@/constants";
-import { useCan, useMyPermissions, usePermissionChecker } from "@/lib/auth";
+import { useCan, usePermissionChecker } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { formatDateTime } from "@/lib/format/date";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
@@ -42,7 +42,6 @@ const MONO = "font-[family-name:var(--font-mono)] tabular-nums";
 function CustomerDetailContent({ id }: { id: string }) {
   const canRead = useCan(CUSTOMER_PERMISSIONS.read);
   const can = usePermissionChecker();
-  const roles = useMyPermissions().data?.roles ?? [];
   const query = useCustomer(id, { enabled: canRead });
   const [editOpen, setEditOpen] = useState(false);
   useBreadcrumbLabel(id, query.data?.fullName);
@@ -83,7 +82,7 @@ function CustomerDetailContent({ id }: { id: string }) {
             )}
             <CustomerStatusActions
               customer={customer}
-              canChangeStatus={canChangeCustomerStatus(can, roles)}
+              canChangeStatus={canChangeCustomerStatus(can)}
             />
             {active && can(QUOTE_PERMISSIONS.create) && (
               <Button asChild size="sm">
@@ -142,7 +141,7 @@ function CustomerDetailContent({ id }: { id: string }) {
         </Card>
         <InvitationCard
           customerId={customer.customerId}
-          canRead={canViewInvitation(can, roles)}
+          canRead={canViewInvitation(can)}
           canResend={canResendInvitation(customer.status, can)}
         />
         <CreditProfileCard

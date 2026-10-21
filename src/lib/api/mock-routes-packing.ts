@@ -7,6 +7,8 @@
  * HTTP 200 với pack ON_HOLD và không có `shipmentId`, kiểm tra lại khớp → pack về PACKING.
  */
 
+import { FULFILLMENT_PACKAGE_PERMISSIONS, FULFILLMENT_PACKING_PERMISSIONS } from "@/constants";
+
 import { registerMockRoute } from "./mock-adapter";
 import {
   PackError,
@@ -32,7 +34,6 @@ import {
   findMockOrder,
   forbidden,
   getFulfillmentStore,
-  hasAnyRole,
   routeParam,
   taskNotFound,
   toTaskResponse,
@@ -56,14 +57,17 @@ import {
 } from "./mock-routes-purchase-orders-store";
 
 import type { AxiosRequestConfig } from "axios";
+import type { PermissionCode } from "@/lib/auth/me-permissions";
 import type { Order } from "@/lib/mock-data";
 import type { MockActor, MockTask } from "./mock-routes-fulfillment-store";
 import type { PackSessionState } from "./mock-packing-session";
 
 const BASE = "/fulfillment";
 const TASK = `${BASE}/tasks/:id`;
-const READERS = ["WAREHOUSE_STAFF", "WAREHOUSE_MANAGER"] as const;
-const PACKERS = ["WAREHOUSE_STAFF", "WAREHOUSE_MANAGER"] as const;
+/** BE PR #148: xem hàng chờ / phiên = packages:READ; ghi = packing:UPDATE; nhãn = packing:READ. */
+const READ_QUEUE = FULFILLMENT_PACKAGE_PERMISSIONS.read;
+const PACK_WORK = FULFILLMENT_PACKING_PERMISSIONS.update;
+const READ_LABEL = FULFILLMENT_PACKING_PERMISSIONS.read;
 const PACKABLE = ["READY_TO_FULFILL", "PICKING", "PARTIALLY_FULFILLED"];
 const PACKAGE_TYPES = ["CARTON", "BAG", "PALLET", "CRATE", "OTHER"];
 const QUEUED = ["PENDING", "PACKING", "ON_HOLD"];
@@ -75,7 +79,8 @@ interface Ctx {
   order: Order;
   state: PackSessionState;
   actor: MockActor;
-  manager: boolean;
+  /** packing:APPROVE — làm hộ / tiếp quản phiên của người khác (không bị PACKING_TAKEN). */
+  canTakeOver: boolean;
 }
 
 const asFailure = (error: unknown): Failure => {
@@ -96,14 +101,14 @@ const userName = async (userId: string) => {
   return staffUsers.find((u) => u.userId === userId)?.fullName;
 };
 
-/** Khung chung: vai trò → task → kho → (ghi) lấy hàng xong + đơn còn ở khâu kho → phiên. */
+/** Khung chung: quyền → task → kho → (ghi) lấy hàng xong + đơn còn ở khâu kho → phiên. */
 async function load(
   config: AxiosRequestConfig,
-  roles: readonly string[],
+  permission: PermissionCode,
   work: boolean,
 ): Promise<Ctx | Failure> {
   const actor = await currentActor();
-  if (!hasAnyRole(actor, ...roles)) return forbidden();
+  if (!actor.can(permission)) return forbidden();
   const task = (await getFulfillmentStore()).get(routeParam(config, "id"));
   const order = task ? await findMockOrder(task.orderId) : undefined;
   if (!task || !order) return taskNotFound();
@@ -119,7 +124,13 @@ async function load(
     }
   }
   const state = await getPackSession(task, order, userName);
-  return { task, order, state, actor, manager: hasAnyRole(actor, "WAREHOUSE_MANAGER") };
+  return {
+    task,
+    order,
+    state,
+    actor,
+    canTakeOver: actor.can(FULFILLMENT_PACKING_PERMISSIONS.approve),
+  };
 }
 
 const failed = (value: Ctx | Failure): value is Failure => "status" in value && "data" in value;
@@ -135,7 +146,7 @@ async function requirePackable(ctx: Ctx): Promise<Failure | null> {
   );
 }
 
-/** BE `requireWorkable`: chỉ khi PACKING, và chỉ người đã nhận đơn hoặc quản lý kho. */
+/** BE `requireWorkable`: chỉ khi PACKING, và chỉ người đã nhận đơn hoặc người có packing:APPROVE. */
 function requireWorkable(ctx: Ctx): Failure | null {
   if (ctx.task.packStatus !== "PACKING") {
     return beError(
@@ -146,7 +157,7 @@ function requireWorkable(ctx: Ctx): Failure | null {
         : `Packing is ${ctx.task.packStatus}`,
     );
   }
-  if (!ctx.manager && ctx.state.packerId !== ctx.actor.userId) {
+  if (!ctx.canTakeOver && ctx.state.packerId !== ctx.actor.userId) {
     return beError(
       409,
       "PACKING_TAKEN",
@@ -164,7 +175,7 @@ async function write(
   run: (ctx: Ctx) => Reply | Failure,
   checks: { workable: boolean } = { workable: true },
 ): Promise<Reply | Failure> {
-  const ctx = await load(config, PACKERS, true);
+  const ctx = await load(config, PACK_WORK, true);
   if (failed(ctx)) return ctx;
   const blocked = (await requirePackable(ctx)) ?? (checks.workable ? requireWorkable(ctx) : null);
   if (blocked) return blocked;
@@ -178,7 +189,7 @@ async function write(
 function registerReads(): void {
   registerMockRoute("GET", `${BASE}/packing-queue`, async (config) => {
     const actor = await currentActor();
-    if (!hasAnyRole(actor, ...READERS)) return forbidden();
+    if (!actor.can(READ_QUEUE)) return forbidden();
     const params = readParams(config);
     const page = readInt(params.page, 0);
     const size = readInt(params.size, BE_DEFAULT_PAGE_SIZE);
@@ -244,12 +255,12 @@ function registerReads(): void {
   });
 
   registerMockRoute("GET", `${TASK}/packing-session`, async (config) => {
-    const ctx = await load(config, READERS, false);
+    const ctx = await load(config, READ_QUEUE, false);
     return failed(ctx) ? ctx : beOk(view(ctx));
   });
 
   registerMockRoute("GET", `${TASK}/packages/:pid/label`, async (config) => {
-    const ctx = await load(config, PACKERS, false);
+    const ctx = await load(config, READ_LABEL, false);
     if (failed(ctx)) return ctx;
     const parcel = ctx.state.parcels.find((p) => p.packageId === routeParam(config, "pid"));
     if (!parcel) return beError(404, "PACKAGE_NOT_FOUND", "Package not found");
@@ -280,7 +291,7 @@ function registerReads(): void {
 
 function registerSessionWrites(): void {
   registerMockRoute("POST", `${TASK}/packing-start`, async (config) => {
-    const ctx = await load(config, PACKERS, true);
+    const ctx = await load(config, PACK_WORK, true);
     if (failed(ctx)) return ctx;
     const blocked = await requirePackable(ctx);
     if (blocked) return blocked;
@@ -396,7 +407,7 @@ function registerPackageWrites(): void {
 /** Hoàn tất đóng gói (BE `PackingService.complete`): kiện niêm phong chưa giao → MỘT lô giao READY_TO_DISPATCH. */
 function registerCompletion(): void {
   registerMockRoute("POST", `${TASK}/packing-completion`, async (config) => {
-    const ctx = await load(config, PACKERS, true);
+    const ctx = await load(config, PACK_WORK, true);
     if (failed(ctx)) return ctx;
     const { task, order, state } = ctx;
     const body = parseJsonBody(config.data);

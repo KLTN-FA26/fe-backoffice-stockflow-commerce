@@ -32,7 +32,7 @@ export function ProductMasterFields({
   } = form;
 
   return (
-    <section className="border-border-default bg-bg-surface rounded-[var(--r-sm)] border p-4">
+    <section className="border-border-default bg-bg-surface rounded-(--section-radius) border p-4 shadow-(--card-shadow)">
       <h2 className="text-ink-primary text-sm font-semibold">Thông tin định danh</h2>
       <p className="text-ink-secondary mt-1 text-xs">
         Các trường bắt buộc để lưu Product master ở trạng thái Draft.

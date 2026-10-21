@@ -2,14 +2,14 @@
  * Dữ liệu phụ trợ của module khác mà màn xuất kho cần — task BE chỉ trả id.
  *
  * - Đơn hàng (`GET /orders`, `/orders/{id}`): số đơn, dòng đơn (SKU, SL, thiết kế đã khoá). Cần
- *   `sales-orders:READ`; seed BE KHÔNG cấp cho WAREHOUSE_STAFF / WAREHOUSE_MANAGER / QC_STAFF.
+ *   `sales-orders:READ`; seed BE không cấp cho nhân viên kho / quản lý kho / QC.
  * - Nhân viên (`GET /identity/users`): chọn và hiện tên người được gán. Cần `identity-users:READ`;
- *   seed BE chỉ cấp cho ECOMMERCE_ADMIN.
+ *   seed BE chỉ cấp cho quản trị thương mại điện tử.
  * Thiếu quyền → màn hình không gọi, hiện thông báo (xem `components`). Không import
  * `features/order` (import boundary) — parse bằng schema nhỏ của feature này.
  */
 
-import { FULFILLABLE_ORDER_API_STATUSES, PAGE_SIZE, STAFF_ROLE } from "@/constants";
+import { FULFILLABLE_ORDER_API_STATUSES, PAGE_SIZE } from "@/constants";
 import { api } from "@/lib/api/client";
 
 import {
@@ -26,8 +26,12 @@ const USERS_PATH = "/identity/users";
 /** Spring bind `@RequestParam List<OrderStatus> status` từ `status=A&status=B`. */
 const REPEAT_ARRAY_PARAMS = { indexes: null } as const;
 
-/** BE `requireWarehouseAssignee`: người được gán phải ACTIVE và có một trong hai vai trò này. */
-export const ASSIGNABLE_ROLES = [STAFF_ROLE.WAREHOUSE_STAFF, STAFF_ROLE.WAREHOUSE_MANAGER] as const;
+/**
+ * BE `requireWarehouseAssignee`: người được gán phải ACTIVE và có một trong hai vai trò này. Đây là bộ
+ * lọc danh sách người nhận (`GET /identity/users?role=`), KHÔNG phải quyết định quyền của người gọi — ai
+ * được gán / tạo task do `fulfillment-task-assignment:*` quyết (allow-list trong no-role-gating.test.ts).
+ */
+export const ASSIGNABLE_ROLES = ["WAREHOUSE_STAFF", "WAREHOUSE_MANAGER"] as const;
 
 export async function getFulfillmentOrder(
   orderId: string,

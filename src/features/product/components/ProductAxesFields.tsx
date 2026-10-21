@@ -69,7 +69,7 @@ export function ProductAxesFields({
   );
 
   return (
-    <section className="border-border-default bg-bg-surface rounded-[var(--r-sm)] border p-4">
+    <section className="border-border-default bg-bg-surface rounded-(--section-radius) border p-4 shadow-(--card-shadow)">
       <h2 className="text-ink-primary text-sm font-semibold">Trục biến thể (tuỳ chọn)</h2>
       <p className="text-ink-secondary mt-1 text-xs">
         Chọn thuộc tính (màu, cỡ…) và các giá trị để tạo sẵn mọi biến thể cùng lúc. Bỏ trống thì sản

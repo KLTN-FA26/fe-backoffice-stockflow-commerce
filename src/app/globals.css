@@ -13,9 +13,10 @@
 /* Mode A · Light (mặc định) */
 :root {
   color-scheme: light;
-  --bg-base: #f3f4f6;
+  --bg-base: #f6f6f6;
   --bg-surface: #ffffff;
   --bg-subtle: #f7f8fa;
+  --bg-sidebar: #fafafa;
   --bg-muted: #eef0f3;
   --border-default: #dadde1;
   --border-strong: #c5cad1;
@@ -34,6 +35,14 @@
   --neutral: #6b6e68;
   --muted: #9a9c95;
   --special: #7c5cbf;
+  /* Chấm trạng thái (StatusDot): cùng tông với status ở trên nhưng tươi hơn (thang step-9 kiểu
+     Radix/Vercel). Chỉ dùng cho chấm — chữ/viền/nền badge vẫn theo status gốc cho đủ tương phản.
+     Warning dùng cam thay vàng #FFC53D: chấm vàng trên nền trắng chỉ ~1.6:1, dưới mức 3:1 cho UI. */
+  --dot-positive: #12a594;
+  --dot-info: #0090ff;
+  --dot-warning: #f76b15;
+  --dot-danger: #e5484d;
+  --dot-special: #8e4ec6;
   --r-sm: 4px;
   --r-md: 8px;
   --r-lg: 12px;
@@ -55,6 +64,27 @@
   --sh-lg: 0 12px 32px rgba(26, 27, 24, 0.14);
   --card-pad: 16px;
   --card-radius: var(--r-sm);
+  /* Bo góc khối nội dung (toolbar, bảng) và màu vạch kẻ dòng bảng — `.surface-soft` đổi lại */
+  --section-radius: var(--r-sm);
+  --table-line: var(--border-default);
+  --toolbar-bg: var(--bg-surface);
+  /* Khung toolbar + từng ô/nút trong toolbar — `.surface-soft` bỏ khung, đưa viền/bóng vào từng ô */
+  --toolbar-frame-border: var(--border-default);
+  --toolbar-frame-shadow: var(--card-shadow);
+  --toolbar-pad-x: 0.75rem;
+  --toolbar-pad-y: 0.5rem;
+  --toolbar-search-max: 36rem;
+  --control-size: 2rem;
+  --control-h: 2.25rem;
+  --control-text: 0.8125rem;
+  --control-radius: var(--r-sm);
+  --control-shadow: none;
+  /* Thanh `Cấu hình` dưới toolbar (ListConfigSummary) */
+  --summary-bg: color-mix(in srgb, var(--bg-subtle) 70%, transparent);
+  /* Nút hành động trên toolbar (xuất, tạo mới…) */
+  --action-h: 1.75rem;
+  --action-px: 0.625rem;
+  --action-radius: var(--r-sm);
   --el-gap: 8px;
   --card-shadow: none;
   --card-border: 1px solid var(--border-default);
@@ -66,6 +96,7 @@
   --bg-base: #0e0f11;
   --bg-surface: #17181b;
   --bg-subtle: #1f2124;
+  --bg-sidebar: #1f2124;
   --bg-muted: #2a2c30;
   --border-default: #2e3034;
   --border-strong: #3d4045;
@@ -168,6 +199,7 @@
     --bg-base: #ffffff;
     --bg-surface: #ffffff;
     --bg-subtle: #f7f8fa;
+    --bg-sidebar: #fafafa;
     --bg-muted: #eef0f3;
     --border-default: #dadde1;
     --border-strong: #c5cad1;
@@ -230,6 +262,11 @@
   --color-neutral: var(--neutral);
   --color-muted-tone: var(--muted);
   --color-special: var(--special);
+  --color-dot-positive: var(--dot-positive);
+  --color-dot-info: var(--dot-info);
+  --color-dot-warning: var(--dot-warning);
+  --color-dot-danger: var(--dot-danger);
+  --color-dot-special: var(--dot-special);
 
   /* Shadcn semantic vars → StockFlow tokens (để ui/ primitives tự đổi màu theo mode) */
   --background: var(--bg-base);
@@ -250,7 +287,7 @@
   --border: var(--border-default);
   --input: var(--border-default);
   --ring: var(--brand);
-  --sidebar: var(--bg-subtle);
+  --sidebar: var(--bg-sidebar);
   --sidebar-foreground: var(--ink-secondary);
   --sidebar-primary: var(--brand);
   --sidebar-primary-foreground: var(--ink-inverse);
@@ -359,4 +396,38 @@
 [data-slot="select-item"]:focus *,
 [data-slot="select-item"][data-highlighted] * {
   color: inherit;
+}
+
+/* Giao diện mềm kiểu Vercel cho trang danh sách: khối bo tròn hơn, vạch kẻ dòng bảng mờ hơn.
+   Bọc trang bằng `.surface-soft`; token gốc giữ nguyên cho trang khác. */
+.surface-soft {
+  --section-radius: var(--r-md);
+  --card-radius: var(--r-md);
+  --table-line: color-mix(in srgb, var(--border-default) 55%, transparent);
+  /* Nút toolbar to và tròn hơn, cao bằng ô search */
+  --action-h: 2.5rem;
+  --action-px: 0.875rem;
+  --action-radius: var(--r-md);
+  /* Bóng rất nhẹ cho khối dạng card (toolbar, bảng, thẻ chi tiết) — tách lớp rõ hơn trên nền F6 */
+  --card-shadow: var(--sh-sm);
+  /* Toolbar kiểu Vercel: không khung bao, ô search kéo dài, mỗi ô/nút tự có viền + bóng nhẹ */
+  --toolbar-bg: transparent;
+  --toolbar-frame-border: transparent;
+  --toolbar-frame-shadow: none;
+  --toolbar-pad-x: 0;
+  --toolbar-pad-y: 0;
+  --toolbar-search-max: none;
+  --control-size: 2.5rem;
+  --control-h: 2.5rem;
+  --control-text: 0.875rem;
+  --control-radius: var(--r-md);
+  --control-shadow: var(--sh-sm);
+  /* Thanh `Cấu hình` vẫn là khung có viền, nền trắng + bóng như card bảng */
+  --summary-bg: var(--bg-surface);
+}
+
+/* Trang chi tiết / form (không phải trang bảng): nút hành động nhỏ hơn toolbar danh sách */
+.surface-soft.surface-compact {
+  --action-h: 2.125rem;
+  --action-px: 0.75rem;
 }

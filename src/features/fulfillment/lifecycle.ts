@@ -3,34 +3,36 @@
  *
  * Bảng chuyển trạng thái dùng chung `PICK_TRANSITIONS` / `PACK_TRANSITIONS` (lib/domain).
  * Thao tác của trạm đóng gói (nhận đơn, kiện, quét, hoàn tất) gate ở `packing-lifecycle.ts`; ở đây còn
- * gán / lấy hàng / kiểm tra lại thiết kế. BE gate KÉP mỗi endpoint: mã quyền (`@RequiresPermission`) VÀ vai trò (`@PreAuthorize`), và
- * phần lớn thao tác còn đòi người gọi là người được gán — nên ở đây kiểm cả ba, khác các màn chỉ
- * gate theo mã quyền. Vai trò đọc từ `/identity/me/permissions.roles`.
+ * gán / lấy hàng / kiểm tra lại thiết kế. Từ BE PR #148 mỗi endpoint chỉ gate bằng MỘT mã quyền
+ * (`@RequiresPermission`, không còn `@PreAuthorize` theo vai trò) — FE không đọc tên vai trò để quyết định
+ * quyền. Phần lớn thao tác lấy hàng còn đòi người gọi là người được gán, nên ở đây kiểm: trạng thái,
+ * mã quyền, người được gán.
  * UI-only — Backend phải re-check (FulfillmentController + FulfillmentServiceImpl).
  */
 
 import {
+  FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS,
   FULFILLMENT_PACKAGE_PERMISSIONS,
-  FULFILLMENT_PICK_PERMISSIONS,
+  FULFILLMENT_PACKING_PERMISSIONS,
+  FULFILLMENT_PICKING_PERMISSIONS,
+  FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS,
   PACK_STATUS,
   PICK_STATUS,
-  STAFF_ROLE,
   UI_LABELS,
 } from "@/constants";
 import { PACK_TRANSITIONS, PICK_TRANSITIONS } from "@/lib/domain/lifecycle";
 
-import type { PackStatus, PickStatus, StaffRole } from "@/constants";
+import type { PackStatus, PickStatus } from "@/constants";
 import type { PermissionCode } from "@/lib/auth";
 
 const LABEL = UI_LABELS.fulfillment.action;
-const { ORDER_COORDINATOR, QC_STAFF, SYSTEM_ADMIN, WAREHOUSE_MANAGER, WAREHOUSE_STAFF } =
-  STAFF_ROLE;
+const ASSIGNMENT = FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS;
+const PICKING = FULFILLMENT_PICKING_PERMISSIONS;
+const REVERIFY = FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS;
 
 /** Người đang đăng nhập, đủ để tính quyền thao tác trên một task. */
 export interface FulfillmentActor {
   can: (code: PermissionCode) => boolean;
-  /** Mã vai trò BE của người dùng. */
-  roles: readonly string[];
   userId: string | null;
 }
 
@@ -51,23 +53,20 @@ interface StatusGate<S extends string> {
 export interface FulfillmentAction {
   readonly code: FulfillmentActionCode;
   readonly label: string;
+  /** Mã quyền BE bảo vệ endpoint (`@RequiresPermission`). */
   readonly permission: PermissionCode;
-  /** Vai trò BE cho phép (`@PreAuthorize hasAnyAuthority`). */
-  readonly roles: readonly StaffRole[];
   /** BE `pick.requireAssigned(actor)` — quản lý kho cũng không làm hộ. */
   readonly assigneeOnly: boolean;
   readonly pick?: StatusGate<PickStatus>;
   readonly pack?: StatusGate<PackStatus>;
 }
 
-const FLOOR_ROLES = [WAREHOUSE_STAFF, WAREHOUSE_MANAGER] as const;
-
 export const FULFILLMENT_ACTIONS: readonly FulfillmentAction[] = [
   {
     code: "assign",
     label: LABEL.assign,
-    permission: FULFILLMENT_PICK_PERMISSIONS.update,
-    roles: [ORDER_COORDINATOR, WAREHOUSE_MANAGER],
+    // BE `PUT /tasks/{id}/assignment` — fulfillment-task-assignment:UPDATE
+    permission: ASSIGNMENT.update,
     assigneeOnly: false,
     // BE `PickJpaEntity#assign`: chỉ gán khi pick còn PENDING
     pick: { from: [PICK_STATUS.PENDING] },
@@ -75,36 +74,31 @@ export const FULFILLMENT_ACTIONS: readonly FulfillmentAction[] = [
   {
     code: "startPicking",
     label: LABEL.startPicking,
-    permission: FULFILLMENT_PICK_PERMISSIONS.update,
-    roles: FLOOR_ROLES,
+    // BE `POST /tasks/{id}/picking-start` — fulfillment-picking:UPDATE
+    permission: PICKING.update,
     assigneeOnly: true,
     pick: { from: [PICK_STATUS.PENDING], to: PICK_STATUS.PICKING },
   },
   {
     code: "completePicking",
     label: LABEL.completePicking,
-    permission: FULFILLMENT_PICK_PERMISSIONS.update,
-    roles: FLOOR_ROLES,
+    // BE `POST /tasks/{id}/picking-completion` — fulfillment-picking:UPDATE
+    permission: PICKING.update,
     assigneeOnly: true,
     pick: { from: [PICK_STATUS.PICKING], to: PICK_STATUS.PICKED },
   },
   {
     code: "reverify",
     label: LABEL.reverify,
-    permission: FULFILLMENT_PACKAGE_PERMISSIONS.create,
-    // X-CHK (BR-DSG-003, docs 08: người đóng gói / quản lý kho xử lý kiểm đơn lệch; QC không có
-    // quyền trang đóng gói — BE #136 bản cuối), không cần là người được gán lấy hàng
-    roles: [WAREHOUSE_STAFF, WAREHOUSE_MANAGER],
+    // X-CHK (BR-DSG-003, docs 08): BE PR #148 — `POST /tasks/{id}/design-integrity-reverification`
+    // là fulfillment-design-reverification:UPDATE (seed QC_STAFF, WAREHOUSE_MANAGER), không cần là người
+    // được gán lấy hàng
+    permission: REVERIFY.update,
     assigneeOnly: false,
     // BE PR #136: kiểm tra lại khớp → phiên về PACKING, người đóng gói hoàn tất lại (không ra PACKED)
     pack: { from: [PACK_STATUS.ON_HOLD], to: PACK_STATUS.PACKING },
   },
 ];
-
-/** SYSTEM_ADMIN qua mọi cổng vai trò (BE RoleHierarchyConfig). */
-export function hasStaffRole(actor: FulfillmentActor, roles: readonly StaffRole[]): boolean {
-  return actor.roles.some((role) => role === SYSTEM_ADMIN || roles.some((r) => r === role));
-}
 
 export function isAssignee(task: FulfillmentGateState, actor: FulfillmentActor): boolean {
   return actor.userId !== null && task.assignedUserId === actor.userId;
@@ -128,7 +122,7 @@ function allowedByStatus(action: FulfillmentAction, task: FulfillmentGateState):
 
 /**
  * Action khả dụng cho task + người dùng: 1. trạng thái pick/pack và bảng chuyển trạng thái;
- * 2. mã quyền; 3. vai trò BE; 4. là người được gán (nếu action đòi).
+ * 2. mã quyền; 3. là người được gán (nếu action đòi).
  */
 export function allowedFulfillmentActions(
   task: FulfillmentGateState,
@@ -138,13 +132,12 @@ export function allowedFulfillmentActions(
     (action) =>
       allowedByStatus(action, task) &&
       actor.can(action.permission) &&
-      hasStaffRole(actor, action.roles) &&
       (!action.assigneeOnly || isAssignee(task, actor)),
   );
 }
 
 /**
- * Người dùng đủ quyền + vai trò cho một action đang mở theo trạng thái, nhưng không phải người
+ * Người dùng đủ quyền cho một action đang mở theo trạng thái, nhưng không phải người
  * được gán → màn hình giải thích thay vì chỉ ẩn nút.
  */
 export function isBlockedAsNonAssignee(
@@ -158,29 +151,26 @@ export function isBlockedAsNonAssignee(
       action.assigneeOnly &&
       allowedByStatus(action, task) &&
       actor.can(action.permission) &&
-      hasStaffRole(actor, action.roles) &&
       !isAssignee(task, actor),
   );
 }
 
-/** Tạo task: BE `POST /fulfillment/tasks` — pick-lists:UPDATE + điều phối / quản lý kho. */
+/** Tạo task: BE `POST /fulfillment/tasks` — fulfillment-task-assignment:CREATE. */
 export function canCreateTask(actor: FulfillmentActor): boolean {
-  return (
-    actor.can(FULFILLMENT_PICK_PERMISSIONS.update) &&
-    hasStaffRole(actor, [ORDER_COORDINATOR, WAREHOUSE_MANAGER])
-  );
+  return actor.can(ASSIGNMENT.create);
 }
 
 /**
- * Tải artifact thiết kế: packages:READ + (quản lý kho / QC, hoặc NV kho là người được gán, hoặc — BE
- * PR #136 mở cho người đóng gói — NV kho cùng kho khi pick đã xong). Điều phối đơn bị loại ở cả
- * `@PreAuthorize` lẫn `requireArtifactAccess`.
+ * Tải artifact thiết kế: endpoint cần packages:READ; BE `TaskAccess.requireArtifactAccess` cho qua người
+ * được gán, người có design-reverification:READ (quản lý kho / QC) và — khi lấy hàng đã xong — người
+ * có fulfillment-packing:UPDATE (người đóng gói). Điều phối đơn không có quyền nào trong số đó.
  */
 export function canDownloadArtifact(task: FulfillmentGateState, actor: FulfillmentActor): boolean {
   if (!actor.can(FULFILLMENT_PACKAGE_PERMISSIONS.read) || isTaskCancelled(task)) return false;
-  if (hasStaffRole(actor, [WAREHOUSE_MANAGER, QC_STAFF])) return true;
-  if (!hasStaffRole(actor, [WAREHOUSE_STAFF])) return false;
-  return isAssignee(task, actor) || task.pickStatus === PICK_STATUS.PICKED;
+  if (isAssignee(task, actor) || actor.can(REVERIFY.read)) return true;
+  return (
+    task.pickStatus === PICK_STATUS.PICKED && actor.can(FULFILLMENT_PACKING_PERMISSIONS.update)
+  );
 }
 
 /** Đơn bị huỷ → BE huỷ cả pick lẫn pack (OrderCancellationListener). */

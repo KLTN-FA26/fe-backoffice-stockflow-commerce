@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { PACK_STATUSES, PICK_STATUSES } from "@/constants";
+import {
+  FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS as REVERIFY,
+  FULFILLMENT_PACKING_PERMISSIONS as PACKING,
+  FULFILLMENT_PICK_PERMISSIONS as PICK,
+  FULFILLMENT_PICKING_PERMISSIONS as PICKING,
+  FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS as ASSIGNMENT,
+  PACK_STATUSES,
+  PICK_STATUSES,
+} from "@/constants";
 import { PACK_TRANSITIONS, PICK_TRANSITIONS } from "@/lib/domain/lifecycle";
 
 import { IDENTITIES, type TestIdentity } from "./__fixtures__/render";
@@ -15,17 +23,14 @@ import {
 } from "./lifecycle";
 
 import type { PackStatus, PickStatus } from "@/constants";
+import type { PermissionCode } from "@/lib/auth";
 import type { FulfillmentActor, FulfillmentGateState } from "./lifecycle";
 
 const ME = "user-me";
 const SOMEONE_ELSE = "user-other";
 
 function actorOf(identity: TestIdentity, userId: string | null = ME): FulfillmentActor {
-  return {
-    can: (code) => identity.permissions.includes(code),
-    roles: identity.roles,
-    userId,
-  };
+  return { can: (code) => identity.permissions.includes(code), userId };
 }
 
 const task = (
@@ -66,7 +71,7 @@ describe("PICK_TRANSITIONS / PACK_TRANSITIONS (theo BE PickJpaEntity / PackJpaEn
   });
 });
 
-describe("allowedFulfillmentActions — quyền + vai trò + người được gán (BE gate kép)", () => {
+describe("allowedFulfillmentActions — mã quyền + người được gán (BE PR #148: chỉ còn gate theo mã quyền)", () => {
   it("NV kho là người được gán: Pending → bắt đầu; Picking → hoàn tất; Picked → hết thao tác lấy hàng", () => {
     const staff = actorOf(IDENTITIES.warehouseStaff);
     expect(codes(task("Pending", "Pending"), staff)).toEqual(["startPicking"]);
@@ -102,14 +107,14 @@ describe("allowedFulfillmentActions — quyền + vai trò + người được g
     expect(codes(task("Picked", "On Hold"), coordinator)).toEqual([]);
   });
 
-  it("X-CHK (docs 08): người đóng gói (NV kho) / quản lý kho kiểm tra lại kiện On Hold, không cần là người được gán; QC thì không", () => {
+  it("X-CHK (docs 08): ai có fulfillment-design-reverification:UPDATE (QC, quản lý kho) kiểm tra lại kiện On Hold, không cần là người được gán; NV kho thì không", () => {
     const held = task("Picked", "On Hold", SOMEONE_ELSE);
     expect(codes(held, actorOf(IDENTITIES.warehouseManager))).toEqual(["reverify"]);
-    expect(codes(held, actorOf(IDENTITIES.warehouseStaff))).toEqual(["reverify"]);
-    expect(codes(held, actorOf(IDENTITIES.qcStaff))).toEqual([]);
+    expect(codes(held, actorOf(IDENTITIES.qcStaff))).toEqual(["reverify"]);
+    expect(codes(held, actorOf(IDENTITIES.warehouseStaff))).toEqual([]);
   });
 
-  it("QC không có thao tác lấy hàng / gán", () => {
+  it("QC không có thao tác lấy hàng / gán (chỉ kiểm tra lại thiết kế khi đang giữ)", () => {
     const qc = actorOf(IDENTITIES.qcStaff);
     expect(codes(task("Pending", "Pending"), qc)).toEqual([]);
     expect(codes(task("Picked", "Pending"), qc)).toEqual([]);
@@ -123,23 +128,21 @@ describe("allowedFulfillmentActions — quyền + vai trò + người được g
     }
   });
 
-  it("có vai trò nhưng thiếu mã quyền → không có thao tác", () => {
-    const noPermission = actorOf({ roles: IDENTITIES.warehouseStaff.roles, permissions: [] });
-    expect(codes(task("Pending", "Pending"), noPermission)).toEqual([]);
+  it("không có mã quyền nào → không có thao tác", () => {
+    expect(codes(task("Pending", "Pending"), actorOf({ permissions: [] }))).toEqual([]);
   });
 
-  it("có mã quyền nhưng sai vai trò → không có thao tác (BE @PreAuthorize)", () => {
-    const wrongRole = actorOf({
-      roles: ["SALES_STAFF"],
-      permissions: IDENTITIES.warehouseStaff.permissions,
-    });
-    expect(codes(task("Pending", "Pending"), wrongRole)).toEqual([]);
-  });
-
-  it("SYSTEM_ADMIN qua cổng vai trò nhưng vẫn phải là người được gán mới lấy hàng", () => {
-    const admin = { roles: ["SYSTEM_ADMIN"], permissions: IDENTITIES.warehouseStaff.permissions };
-    expect(codes(task("Pending", "Pending", SOMEONE_ELSE), actorOf(admin))).toEqual(["assign"]);
-    expect(codes(task("Pending", "Pending"), actorOf(admin))).toEqual(["assign", "startPicking"]);
+  it("mỗi thao tác theo đúng mã quyền của endpoint — một vai trò tạo lúc chạy chỉ cần được cấp mã đó", () => {
+    const only = (code: PermissionCode) => actorOf({ permissions: [code] });
+    const pending = task("Pending", "Pending");
+    expect(codes(pending, only(ASSIGNMENT.update))).toEqual(["assign"]);
+    expect(codes(pending, only(PICKING.update))).toEqual(["startPicking"]);
+    expect(codes(task("Picking", "Pending"), only(PICKING.update))).toEqual(["completePicking"]);
+    expect(codes(task("Picked", "On Hold"), only(REVERIFY.update))).toEqual(["reverify"]);
+    // mã đọc / mã của endpoint khác không mở thao tác
+    expect(codes(pending, only(PICK.read))).toEqual([]);
+    expect(codes(pending, only(ASSIGNMENT.create))).toEqual([]);
+    expect(codes(task("Picked", "On Hold"), only(PACKING.update))).toEqual([]);
   });
 
   it("mỗi action đích đều có trong bảng chuyển trạng thái", () => {
@@ -155,27 +158,27 @@ describe("allowedFulfillmentActions — quyền + vai trò + người được g
 });
 
 describe("các cổng phụ", () => {
-  it("isBlockedAsNonAssignee: đủ quyền + vai trò nhưng task gán cho người khác", () => {
+  it("isBlockedAsNonAssignee: đủ quyền nhưng task gán cho người khác", () => {
     const manager = actorOf(IDENTITIES.warehouseManager);
     const others = task("Pending", "Pending", SOMEONE_ELSE);
     expect(isBlockedAsNonAssignee(others, manager, ["startPicking"])).toBe(true);
     expect(isBlockedAsNonAssignee(task("Pending", "Pending"), manager, ["startPicking"])).toBe(
       false,
     );
-    // Điều phối không có vai trò lấy hàng → không phải "bị chặn vì không được gán"
+    // Điều phối không có fulfillment-picking:UPDATE → không phải "bị chặn vì không được gán"
     expect(
       isBlockedAsNonAssignee(others, actorOf(IDENTITIES.orderCoordinator), ["startPicking"]),
     ).toBe(false);
   });
 
-  it("canCreateTask: điều phối / quản lý kho; NV kho và QC thì không", () => {
+  it("canCreateTask: fulfillment-task-assignment:CREATE (điều phối / quản lý kho); NV kho và QC thì không", () => {
     expect(canCreateTask(actorOf(IDENTITIES.orderCoordinator))).toBe(true);
     expect(canCreateTask(actorOf(IDENTITIES.warehouseManager))).toBe(true);
     expect(canCreateTask(actorOf(IDENTITIES.warehouseStaff))).toBe(false);
     expect(canCreateTask(actorOf(IDENTITIES.qcStaff))).toBe(false);
   });
 
-  it("canDownloadArtifact: người được gán, quản lý kho, QC; NV kho khác chỉ khi pick đã xong (BE #136 mở cho người đóng); điều phối không", () => {
+  it("canDownloadArtifact: người được gán, người có design-reverification:READ (quản lý kho, QC); người đóng gói (packing:UPDATE) chỉ khi pick đã xong; điều phối không", () => {
     const others = task("Picked", "Pending", SOMEONE_ELSE);
     expect(canDownloadArtifact(task("Picked", "Pending"), actorOf(IDENTITIES.warehouseStaff))).toBe(
       true,

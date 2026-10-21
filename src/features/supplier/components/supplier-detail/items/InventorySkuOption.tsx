@@ -2,6 +2,7 @@ import { cn } from "cn";
 import { Check } from "lucide-react";
 
 import { SUPPLIER_ITEM_UI_LABELS } from "@/constants";
+import { COMBOBOX_ITEM_CLASS } from "@/components/shared/InputCombobox";
 import { CommandItem } from "@/components/ui/command";
 
 import type { InventoryItemOption } from "@/lib/references/inventory-item-options";
@@ -19,11 +20,7 @@ export function InventorySkuOption({
   onSelect: () => void;
 }) {
   return (
-    <CommandItem
-      value={item.sku}
-      className="data-selected:text-ink-secondary hover:bg-bg-muted/60 hover:text-ink-primary data-selected:hover:bg-bg-muted/60 data-selected:bg-transparent"
-      onSelect={onSelect}
-    >
+    <CommandItem value={item.sku} className={COMBOBOX_ITEM_CLASS} onSelect={onSelect}>
       <Check className={cn("mr-2 size-4", selected ? "opacity-100" : "opacity-0")} />
       <div className="min-w-0 flex-1">
         <div className="text-ink-primary font-[family-name:var(--font-mono)] text-xs">

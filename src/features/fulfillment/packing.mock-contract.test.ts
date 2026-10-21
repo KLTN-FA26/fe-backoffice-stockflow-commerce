@@ -370,7 +370,7 @@ describe("packing mock ↔ hợp đồng BE PR #136", () => {
   );
 
   it(
-    "kiện bị giữ do lệch thiết kế: người đóng gói / quản lý kiểm tra lại → phiên về PACKING (không PACKED) → người đóng hoàn tất lại",
+    "kiện bị giữ do lệch thiết kế: ai có design-reverification:UPDATE (QC, quản lý kho) kiểm tra lại → phiên về PACKING (không PACKED) → người đóng hoàn tất lại",
     async () => {
       actAs(USERS.manager);
       const id = (await taskOfOrder("ORD-2026-0009")).taskId;
@@ -388,17 +388,15 @@ describe("packing mock ↔ hợp đồng BE PR #136", () => {
           completePacking({ taskId: id, requestId: crypto.randomUUID(), partial: false }),
         ),
       ).toBe("PACK_STATE_CONFLICT");
-      // QC không có quyền trang đóng gói (BE #136 bản cuối): không xem phiên, không thao tác, không xem nhãn
-      actAs(USERS.qc);
-      expect(await codeOf(getPackingSession(id))).toBe("FORBIDDEN");
-      expect(await codeOf(startPacking(id))).toBe("FORBIDDEN");
-      expect(await codeOf(listPackingQueue({}))).toBe("FORBIDDEN");
+      // Người đóng gói (fulfillment-packing:UPDATE) không có design-reverification:UPDATE → không kiểm tra lại được
       expect(await codeOf(reverifyDesignIntegrity({ taskId: id, resolutionNote: "x" }))).toBe(
         "FORBIDDEN",
       );
+      // QC (BE PR #148): có design-reverification:UPDATE nhưng không có packing:UPDATE → không nhận đơn
+      actAs(USERS.qc);
+      expect(await codeOf(startPacking(id))).toBe("FORBIDDEN");
 
-      // Người đóng gói (NV kho cùng kho) kiểm tra lại thiết kế
-      actAs(USERS.picker);
+      // QC kiểm tra lại thiết kế
       const verified = await reverifyDesignIntegrity({
         taskId: id,
         resolutionNote: "đã khôi phục file",
@@ -421,7 +419,7 @@ describe("packing mock ↔ hợp đồng BE PR #136", () => {
   );
 
   it(
-    "phạm vi dữ liệu + vai trò: kho khác → 403 OUT_OF_DATA_SCOPE; điều phối / vai trò lạ → 403; task không có → 404",
+    "phạm vi dữ liệu + mã quyền: kho khác → 403 OUT_OF_DATA_SCOPE; điều phối (không có packages:READ) → 403; task không có → 404",
     async () => {
       const id = (await taskOfOrder("ORD-2026-0005")).taskId;
       actAs(USERS.otherWarehouse);
@@ -429,7 +427,7 @@ describe("packing mock ↔ hợp đồng BE PR #136", () => {
       // BE #136 bản cuối: NV kho cùng kho đọc được task khi lấy hàng đã xong (người đóng ≠ người lấy)
       actAs(USERS.otherPacker);
       expect((await getFulfillmentTask(id)).pickStatus).toBe("Picked");
-      actAs({ userId: "USER-OC-TEST", roles: ["Order Coordinator"] });
+      actAs({ userId: "USER-OC-TEST", roles: ["Order Coordinator"] }); // điều phối: không có packages:READ
       expect(await codeOf(getPackingSession(id))).toBe("FORBIDDEN");
       expect(await codeOf(listPackingQueue({}))).toBe("FORBIDDEN");
       actAs(USERS.manager);

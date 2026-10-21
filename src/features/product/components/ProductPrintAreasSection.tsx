@@ -62,7 +62,7 @@ export function ProductPrintAreasSection({ product }: { product: Product }) {
 
       {product.model3dUrl && (
         <div className={`${BOX} mt-3 flex items-center gap-2`}>
-          <Cube className="text-accent size-4" />
+          <Cube className="text-accent size-3.5" />
           <div>
             <div className="text-ink-secondary text-xs font-medium">3D Preview Model</div>
             <div className="text-ink-tertiary font-[family-name:var(--font-mono)] text-xs">

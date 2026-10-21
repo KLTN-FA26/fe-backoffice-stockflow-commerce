@@ -5,7 +5,7 @@
  * Không ai được đặt PENDING_ACTIVATION thủ công. UI-only — Backend phải re-check.
  */
 
-import { CUSTOMER_PERMISSIONS, STAFF_ROLE } from "@/constants";
+import { CUSTOMER_PERMISSIONS } from "@/constants";
 
 import type { CustomerApiStatus } from "@/constants";
 import type { PermissionCode } from "@/lib/auth/me-permissions";
@@ -34,17 +34,12 @@ export const CUSTOMER_ACTION_TARGET: Readonly<
 export const REASON_REQUIRED: ReadonlySet<CustomerStatusAction> = new Set(["reactivate", "reopen"]);
 
 /**
- * Đổi trạng thái: `customer-status:APPROVE` VÀ vai trò ECOMMERCE_ADMIN (hoặc SYSTEM_ADMIN).
- * Resource riêng chặn Sales đổi trạng thái dù họ có quyền duyệt khách ở resource khác.
+ * Đổi trạng thái: quyền `customer-status:APPROVE` do BE cấp; không suy quyền từ role.
  */
 export function canChangeCustomerStatus(
   can: (code: PermissionCode) => boolean,
-  roles: readonly string[],
 ): boolean {
-  return (
-    can(CUSTOMER_PERMISSIONS.approve) &&
-    roles.some((role) => role === STAFF_ROLE.ECOMMERCE_ADMIN || role === STAFF_ROLE.SYSTEM_ADMIN)
-  );
+  return can(CUSTOMER_PERMISSIONS.approve);
 }
 
 /** Gửi lại lời mời: CREATE + khách còn chờ kích hoạt (BE 409 CONFLICT nếu không). */
@@ -63,12 +58,11 @@ export function allowedCustomerActions(
 }
 
 /**
- * Trạng thái lời mời portal: BE yêu cầu customer-customers:READ và tài khoản back-office.
+ * Trạng thái lời mời portal: FE kiểm tra READ; BE kiểm tra thêm phạm vi back-office.
  * UI-only — Backend phải re-check.
  */
 export function canViewInvitation(
   can: (code: PermissionCode) => boolean,
-  roles: readonly string[],
 ): boolean {
-  return can(CUSTOMER_PERMISSIONS.read) && roles.some((role) => role !== STAFF_ROLE.CUSTOMER);
+  return can(CUSTOMER_PERMISSIONS.read);
 }

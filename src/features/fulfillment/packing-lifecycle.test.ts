@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { FULFILLMENT_PACKAGE_PERMISSIONS as PACK, STAFF_ROLE } from "@/constants";
+import {
+  FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS as REVERIFY,
+  FULFILLMENT_PACKAGE_PERMISSIONS as PACK,
+  FULFILLMENT_PACKING_PERMISSIONS as PACKING,
+} from "@/constants";
 
 import { IDENTITIES } from "./__fixtures__/render";
 import { OTHER_PACKER_ID, PACKER_ID } from "./__fixtures__/packing";
@@ -12,13 +16,12 @@ import type { SessionPackStatus } from "./packing-types";
 
 const actorOf = (identity: TestIdentity, userId: string | null = PACKER_ID): FulfillmentActor => ({
   can: (code) => identity.permissions.includes(code),
-  roles: identity.roles,
   userId,
 });
 
 const session = (packStatus: SessionPackStatus, packerId?: string) => ({ packStatus, packerId });
 
-describe("packingAccess — BE PR #136 gate kép (quyền fulfillment-packages + vai trò) và người nhận đơn", () => {
+describe("packingAccess — BE PR #148: mã quyền (packages:READ, packing:UPDATE / APPROVE / READ, design-reverification:UPDATE) và người nhận đơn", () => {
   it("phiên Pending: NV kho / quản lý kho nhận đơn được; QC thì không", () => {
     expect(packingAccess(session("Pending"), actorOf(IDENTITIES.warehouseStaff)).canStart).toBe(
       true,
@@ -29,7 +32,7 @@ describe("packingAccess — BE PR #136 gate kép (quyền fulfillment-packages +
     expect(packingAccess(session("Pending"), actorOf(IDENTITIES.qcStaff)).canStart).toBe(false);
   });
 
-  it("Packing: người đã nhận đơn làm việc được; NV kho khác chỉ xem; quản lý kho làm việc được (không đổi người nhận)", () => {
+  it("Packing: người đã nhận đơn làm việc được; NV kho khác chỉ xem; ai có packing:APPROVE (quản lý kho) làm việc được (không đổi người nhận)", () => {
     const owner = packingAccess(session("Packing", PACKER_ID), actorOf(IDENTITIES.warehouseStaff));
     expect(owner).toMatchObject({ canWork: true, isOwner: true, takenByOther: false });
 
@@ -52,16 +55,14 @@ describe("packingAccess — BE PR #136 gate kép (quyền fulfillment-packages +
     ).toBe(true);
   });
 
-  it("kiểm tra lại thiết kế (X-CHK, docs 08): người đóng gói / quản lý kho, chỉ khi On Hold, cần packages:CREATE; QC không", () => {
+  it("kiểm tra lại thiết kế (X-CHK, docs 08): cần fulfillment-design-reverification:UPDATE (QC, quản lý kho), chỉ khi On Hold; NV kho thì không", () => {
     const held = session("On Hold", PACKER_ID);
-    expect(packingAccess(held, actorOf(IDENTITIES.warehouseStaff)).canReverify).toBe(true);
+    expect(packingAccess(held, actorOf(IDENTITIES.qcStaff)).canReverify).toBe(true);
     expect(packingAccess(held, actorOf(IDENTITIES.warehouseManager)).canReverify).toBe(true);
-    expect(packingAccess(held, actorOf(IDENTITIES.qcStaff)).canReverify).toBe(false);
-    expect(packingAccess(session("Packing"), actorOf(IDENTITIES.warehouseStaff)).canReverify).toBe(
-      false,
-    );
-    const readOnlyStaff = { roles: [STAFF_ROLE.WAREHOUSE_STAFF], permissions: [PACK.read] };
-    expect(packingAccess(held, actorOf(readOnlyStaff)).canReverify).toBe(false);
+    expect(packingAccess(held, actorOf(IDENTITIES.warehouseStaff)).canReverify).toBe(false);
+    expect(packingAccess(session("Packing"), actorOf(IDENTITIES.qcStaff)).canReverify).toBe(false);
+    // chỉ có mã ĐỌC của resource → không kiểm tra lại được
+    expect(packingAccess(held, actorOf({ permissions: [REVERIFY.read] })).canReverify).toBe(false);
   });
 
   it("đã đóng xong / bị giữ → không ai thao tác kiện", () => {
@@ -74,21 +75,25 @@ describe("packingAccess — BE PR #136 gate kép (quyền fulfillment-packages +
     }
   });
 
-  it("nhãn: NV kho / quản lý kho có READ; QC không (BE @PreAuthorize)", () => {
+  it("nhãn: cần fulfillment-packing:READ (NV kho, quản lý kho); QC không", () => {
     expect(packingAccess(session("Packing"), actorOf(IDENTITIES.warehouseStaff)).canLabel).toBe(
       true,
     );
     expect(packingAccess(session("Packing"), actorOf(IDENTITIES.qcStaff)).canLabel).toBe(false);
   });
 
-  it("SYSTEM_ADMIN qua cổng vai trò và coi như quản lý kho", () => {
-    const admin = {
-      roles: [STAFF_ROLE.SYSTEM_ADMIN],
-      permissions: IDENTITIES.warehouseStaff.permissions,
-    };
-    expect(packingAccess(session("Packing", OTHER_PACKER_ID), actorOf(admin))).toMatchObject({
+  it("một vai trò tạo lúc chạy chỉ cần được cấp đúng mã: packing:UPDATE nhận đơn, packing:APPROVE tiếp quản phiên người khác", () => {
+    const packer = actorOf({ permissions: [PACK.read, PACKING.update] });
+    expect(packingAccess(session("Pending"), packer).canStart).toBe(true);
+    expect(packingAccess(session("Packing", OTHER_PACKER_ID), packer).takenByOther).toBe(true);
+    const lead = actorOf({ permissions: [PACK.read, PACKING.update, PACKING.approve] });
+    expect(packingAccess(session("Packing", OTHER_PACKER_ID), lead)).toMatchObject({
       canWork: true,
-      isManager: true,
+      canTakeOver: true,
     });
+    // đọc phiên mà không có packing:UPDATE → không nhận đơn
+    expect(packingAccess(session("Pending"), actorOf({ permissions: [PACK.read] })).canStart).toBe(
+      false,
+    );
   });
 });

@@ -36,7 +36,11 @@ export {
 export type { OrderAction } from "./lifecycle";
 
 // Selectors
-export { shouldFlagOrderRow } from "./selectors";
+export {
+  cancellationRequestNote,
+  cancellationRequestStatusLabel,
+  shouldFlagOrderRow,
+} from "./selectors";
 
 // Query hooks
 export { orderKeys, useOrder, useOrders } from "./queries";

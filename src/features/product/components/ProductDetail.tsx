@@ -15,9 +15,7 @@ import {
   useProduct,
   useVariants,
 } from "@/features/product";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
-import { BackLink } from "@/components/shared/BackLink";
 
 import { ProductActionCard } from "./ProductActionCard";
 import { ProductAttributesSection } from "./ProductAttributesSection";
@@ -66,12 +64,10 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
   const gate = productChangeGate(product.status);
 
   return (
-    <>
-      <PageHeader
-        title={product.name}
-        subtitle={product.nameEn}
-        actions={<BackLink href={ADMIN_ROUTES.products.list} />}
-      />
+    // Giao diện kiểu Vercel như trang danh sách (globals.css `.surface-soft`). Không hiện tiêu đề —
+    // breadcrumb topbar đã có mã sản phẩm và link về danh sách; h1 giữ cho screen reader.
+    <div className="surface-soft surface-compact">
+      <h1 className="sr-only">{product.name}</h1>
 
       <ProductLifecycleDialogs
         product={product}
@@ -129,6 +125,6 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
           />
         </div>
       </div>
-    </>
+    </div>
   );
 }

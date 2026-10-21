@@ -1,19 +1,26 @@
 /**
  * Contract mock giao hàng cho hãng (BE PR #137): chạy handler mock thật qua `resolveMockRoute` rồi parse
- * bằng schema FE — đảm bảo màn demo và hợp đồng FE không lệch nhau, và mock giữ đúng mã lỗi / vai trò BE.
+ * bằng schema FE — đảm bảo màn demo và hợp đồng FE không lệch nhau, và mock giữ đúng mã lỗi / mã quyền BE.
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
 
+import {
+  FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS,
+  FULFILLMENT_DISPATCH_PERMISSIONS,
+  FULFILLMENT_LOAD_CANCELLATION_PERMISSIONS,
+} from "@/constants";
 import { resolveMockRoute } from "@/lib/api/mock-adapter";
 import { getDispatchState, resetDispatchMockStore } from "@/lib/api/mock-dispatch-store";
 import { registerDispatchMockRoutes } from "@/lib/api/mock-routes-dispatch";
+import { MOCK_USER_GRANTS } from "@/lib/api/mock-user-grants";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
 import { beLoadPageSchema, beLoadSchema, beManifestSchema } from "./load-schemas";
 import { beCarrierPageSchema, beShipmentPageSchema, beShipmentSchema } from "./schemas";
 
 import type { AxiosRequestConfig } from "axios";
+import type { PermissionCode } from "@/lib/auth";
 import type { Load, ShipmentRow } from "./types";
 
 registerDispatchMockRoutes();
@@ -30,13 +37,26 @@ async function call(method: string, url: string, data?: unknown, params?: unknow
   return route.handler(config as AxiosRequestConfig);
 }
 
-function actAs(...roles: string[]) {
+/**
+ * Bộ quyền theo seed BE PR #148 (mock backend cổng theo mã quyền, lấy từ `MOCK_USER_GRANTS[userId]`):
+ * nhân viên kho xếp xe / bàn giao, quản lý kho thêm huỷ chuyến + ghi hàng hoàn, điều phối ghi kết quả giao.
+ */
+const WAREHOUSE_STAFF = [...Object.values(FULFILLMENT_DISPATCH_PERMISSIONS)];
+const WAREHOUSE_MANAGER = [
+  ...WAREHOUSE_STAFF,
+  FULFILLMENT_LOAD_CANCELLATION_PERMISSIONS.update,
+  FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS.update,
+];
+const ORDER_COORDINATOR = [...Object.values(FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS)];
+
+function actAs(grants: readonly PermissionCode[]) {
+  MOCK_USER_GRANTS["u-test"] = grants;
   useAuthStore.setState({
     user: {
       userId: "u-test",
       fullName: "T",
       email: "t@t.vn",
-      roles,
+      roles: [],
       username: "t",
       status: "ACTIVE",
       lastLoginAt: null,
@@ -94,7 +114,7 @@ async function openAndScanAll(load: Load): Promise<Load> {
 
 beforeEach(() => {
   resetDispatchMockStore();
-  actAs("WAREHOUSE_MANAGER");
+  actAs(WAREHOUSE_MANAGER);
 });
 
 describe("mock giao hàng cho hãng khớp schema FE", () => {
@@ -299,9 +319,9 @@ describe("mock chuyến xe — mở, quét, bàn giao", () => {
       (await call("GET", LOADS, undefined, { status: "LOADING" })).data,
     ).items[0];
     const base = `${LOADS}/${loading?.loadId}`;
-    actAs("WAREHOUSE_STAFF");
+    actAs(WAREHOUSE_STAFF);
     expect((await call("POST", `${base}/cancellation`, { reason: "x" })).status).toBe(403);
-    actAs("WAREHOUSE_MANAGER");
+    actAs(WAREHOUSE_MANAGER);
     const before = await readLoad(loading?.loadId ?? "");
     const cancelled = beLoadSchema.parse(
       (await call("POST", `${base}/cancellation`, { reason: "Hãng huỷ" })).data,
@@ -337,10 +357,10 @@ describe("mock bàn giao — kiểm version trước trạng thái (như BE)", (
   });
 });
 
-describe("mock vai trò BE — lên xe là việc nhân viên kho, kết quả giao là của điều phối đơn", () => {
+describe("mock mã quyền BE — lên xe cần fulfillment-dispatch, kết quả giao cần fulfillment-delivery-outcomes", () => {
   it("điều phối đơn không mở chuyến / quét được (403); nhân viên kho không ghi kết quả giao (403)", async () => {
     const [shipment] = await cleanReady();
-    actAs("ORDER_COORDINATOR");
+    actAs(ORDER_COORDINATOR);
     const open = await call("POST", LOADS, {
       requestId: crypto.randomUUID(),
       warehouseId: shipment?.warehouseId,
@@ -348,7 +368,7 @@ describe("mock vai trò BE — lên xe là việc nhân viên kho, kết quả g
     });
     expect(open.status).toBe(403);
     const handed = (await shipments({ status: "HANDED_OVER" }))[0];
-    actAs("WAREHOUSE_STAFF");
+    actAs(WAREHOUSE_STAFF);
     const denied = await call("POST", `${SHIPMENTS}/${handed?.shipmentId}/delivery-outcome`, {
       outcome: "DELIVERED",
     });
@@ -358,7 +378,7 @@ describe("mock vai trò BE — lên xe là việc nhân viên kho, kết quả g
   it("kết quả giao: HANDED_OVER → thất bại cần lý do ('Khác' cần ghi chú) → giao lại → cuối; quản lý kho chỉ ghi hoàn hàng", async () => {
     const handed = (await shipments({ status: "HANDED_OVER" }))[0];
     const url = `${SHIPMENTS}/${handed?.shipmentId}/delivery-outcome`;
-    actAs("ORDER_COORDINATOR");
+    actAs(ORDER_COORDINATOR);
     expect((await call("POST", url, { outcome: "RETURNED" })).data).toMatchObject({
       errorCode: "SHIPMENT_STATE_CONFLICT",
     });
@@ -378,13 +398,13 @@ describe("mock vai trò BE — lên xe là việc nhân viên kho, kết quả g
     expect(failed.shipment.status).toBe("DELIVERY_FAILED");
     expect(failed.failureNote).toBe("Khách chuyển nhà");
     expect(failed.timeline.at(-1)?.status).toBe("DELIVERY_FAILED");
-    actAs("WAREHOUSE_MANAGER");
+    actAs(WAREHOUSE_MANAGER);
     expect((await call("POST", url, { outcome: "DELIVERED" })).status).toBe(403);
     expect(
       beShipmentSchema.parse((await call("POST", url, { outcome: "RETURNED" })).data).shipment
         .status,
     ).toBe("RETURNED");
-    actAs("ORDER_COORDINATOR");
+    actAs(ORDER_COORDINATOR);
     expect((await call("POST", url, { outcome: "DELIVERED" })).data).toMatchObject({
       errorCode: "SHIPMENT_STATE_CONFLICT",
     });

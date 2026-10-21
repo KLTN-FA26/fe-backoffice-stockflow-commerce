@@ -33,12 +33,11 @@ describe("CUSTOMER_TRANSITIONS (BE Customer.changeStatus, docs 18 §5)", () => {
 });
 
 describe("customer action gating", () => {
-  it("status change needs customer-status:APPROVE and an admin role", () => {
+  it("status change needs customer-status:APPROVE", () => {
     const approve = has("customer-status:APPROVE");
-    expect(canChangeCustomerStatus(approve, ["SALES_STAFF"])).toBe(false);
-    expect(canChangeCustomerStatus(approve, ["ECOMMERCE_ADMIN"])).toBe(true);
-    expect(canChangeCustomerStatus(has("customer-customers:APPROVE"), ["ECOMMERCE_ADMIN"])).toBe(false);
-    expect(canChangeCustomerStatus(has(), ["ECOMMERCE_ADMIN"])).toBe(false);
+    expect(canChangeCustomerStatus(approve)).toBe(true);
+    expect(canChangeCustomerStatus(has("customer-customers:APPROVE"))).toBe(false);
+    expect(canChangeCustomerStatus(has())).toBe(false);
     expect(allowedCustomerActions("ACTIVE", false)).toEqual([]);
   });
   it("resend invitation only while pending and with CREATE", () => {
@@ -47,9 +46,8 @@ describe("customer action gating", () => {
     expect(canResendInvitation("ACTIVE", create)).toBe(false);
     expect(canResendInvitation("PENDING_ACTIVATION", has())).toBe(false);
   });
-  it("invitation state requires customer READ and a back-office identity", () => {
-    expect(canViewInvitation(has("customer-customers:READ"), ["ORDER_COORDINATOR"])).toBe(true);
-    expect(canViewInvitation(has("customer-customers:READ"), ["CUSTOMER"])).toBe(false);
-    expect(canViewInvitation(has(), ["SALES_STAFF"])).toBe(false);
+  it("invitation state requires customer READ", () => {
+    expect(canViewInvitation(has("customer-customers:READ"))).toBe(true);
+    expect(canViewInvitation(has())).toBe(false);
   });
 });

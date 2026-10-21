@@ -37,6 +37,9 @@ Tài liệu nguồn đầy đủ (bảng dài, phụ lục): `src/_design/FRONTE
   Không dùng màu hồng/magenta. Không hex trần, không `!important`, không `any`.
 - Mọi `BR-xx` encode vào zod refine / transition table phải có comment cite docs.
 - Không sửa `mock-data.ts`, `components/ui/*`, hai file `_design/*RULES.md` (hook đang chặn).
+- Style Mode A là **style Vercel**: mọi trang `/admin` thuộc 1 trong 3 loại trang (`surface-soft`)
+  — không PageHeader có title hiển thị. Mục này ghi đè FRONTEND-AI-RULES §3/§4.2, xem
+  `design-tokens.md` → _Quyết định thiết kế 2026-10_.
 
 ## Quy trình làm việc
 
@@ -58,9 +61,9 @@ Dự án dùng **pnpm** — KHÔNG `npm install` (crash trên cây symlink pnpm)
 
 ## Công cụ có sẵn
 
-Commands: `/module <tên>` · `/validate` · `/design-check` · `/fix-lint`
+Commands: `/module <tên>` · `/restyle <tên>` (chuyển module sang style Vercel) · `/validate` · `/design-check` · `/fix-lint`
 Agents: `design-reviewer` · `architecture-reviewer`
-Skills: `status-badge` (thêm trạng thái mới) · `zod-br-schema` (encode BR)
+Skills: `status-badge` (thêm trạng thái mới) · `zod-br-schema` (encode BR) · `vercel-restyle` (checklist style Vercel)
 
 ## Code style bắt buộc (§15 PRODUCTION-FRONTEND-RULES)
 

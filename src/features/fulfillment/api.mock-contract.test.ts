@@ -4,10 +4,16 @@
  */
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
+import {
+  FULFILLMENT_PICK_PERMISSIONS,
+  FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS,
+  FULFILLMENT_TASK_OVERSIGHT_PERMISSIONS,
+} from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { activateMockAdapter } from "@/lib/api/mock-adapter";
 import { resetFulfillmentMockStore } from "@/lib/api/mock-routes-fulfillment-store";
 import { backendOrderStatusOf, resetOrderMockStore } from "@/lib/api/mock-routes-orders";
+import { MOCK_USER_GRANTS } from "@/lib/api/mock-user-grants";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
 import {
@@ -26,7 +32,11 @@ import { designedLines } from "./selectors";
 import type { RoleName } from "@/lib/auth";
 import type { FulfillmentTask } from "./types";
 
-/** Tài khoản có sẵn trong seed mock (`staffUsers`). */
+/**
+ * Tài khoản có sẵn trong seed mock (`staffUsers`). Quyền của mock backend lấy từ `MOCK_USER_GRANTS`
+ * theo userId (BE PR #148), không theo vai trò; `USER-OC-TEST` là điều phối thuần (gán + giám sát task,
+ * đọc task) — không có quyền lấy hàng / đóng gói như `USER-COORD-01`.
+ */
 const USERS = {
   manager: { userId: "USER-ADMIN-01", roles: ["Warehouse Manager"] },
   picker: { userId: "USER-WH-01", roles: ["Warehouse Staff"] },
@@ -52,6 +62,11 @@ function actAs(user: { userId: string; roles: RoleName[] }) {
 }
 
 beforeAll(() => {
+  MOCK_USER_GRANTS["USER-OC-TEST"] = [
+    ...Object.values(FULFILLMENT_PICK_PERMISSIONS),
+    ...Object.values(FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS),
+    ...Object.values(FULFILLMENT_TASK_OVERSIGHT_PERMISSIONS),
+  ];
   vi.spyOn(Math, "random").mockReturnValue(0.5);
   vi.spyOn(console, "info").mockImplementation(() => {});
   resetOrderMockStore();
@@ -59,7 +74,10 @@ beforeAll(() => {
   activateMockAdapter();
 });
 
-afterAll(() => vi.restoreAllMocks());
+afterAll(() => {
+  delete MOCK_USER_GRANTS["USER-OC-TEST"];
+  vi.restoreAllMocks();
+});
 
 /** Adapter mock trễ ~350ms/lần gọi (Math.random ghim 0.5). */
 const FLOW_TIMEOUT_MS = 30_000;
@@ -86,7 +104,7 @@ function required<T>(value: T | undefined, what: string): T {
 
 describe("fulfillment mock ↔ hợp đồng BE", () => {
   it(
-    "phạm vi danh sách theo vai trò: quản lý thấy hết, QC chỉ kiện giữ, NV kho chỉ task của mình",
+    "phạm vi danh sách theo mã quyền: task-oversight:READ thấy hết, design-reverification:READ chỉ kiện giữ, còn lại chỉ task của mình",
     async () => {
       const all = await allTasks();
       expect(all.length).toBeGreaterThan(0);
@@ -160,7 +178,7 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
         (await allTasks()).find((t) => t.packStatus === "On Hold"),
         "kiện đang giữ",
       );
-      // Kiểm tra lại thiết kế: người đóng gói / quản lý kho (docs 08), QC không còn quyền trang đóng gói
+      // Kiểm tra lại thiết kế: design-reverification:UPDATE (QC, quản lý kho — BE PR #148)
       actAs(USERS.manager);
       const lineId = required(held.integrityEvidence[0]?.orderLineId, "evidence");
       const input = { taskId: held.taskId, lineId, role: "CUSTOMER_PREVIEW" } as const;
@@ -186,7 +204,7 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
   );
 
   it(
-    "tạo task: đúng vai trò + người được gán hợp lệ; một đơn một task; đơn rời danh sách chờ",
+    "tạo task: đúng mã quyền + người được gán hợp lệ; một đơn một task; đơn rời danh sách chờ",
     async () => {
       actAs(USERS.picker);
       expect(await codeOf(createFulfillmentTask({ orderId: "x", assignedUserId: "y" }))).toBe(

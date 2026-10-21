@@ -1,7 +1,7 @@
 /**
  * Shipping — API chuyến xe (BE `DispatchController`, PR #137, SCRUM-288/292). Base `/api/v1` đã nằm
- * trong axios client. Resource quyền `fulfillment-shipments`; mở / quét / bàn giao là việc nhân viên kho,
- * huỷ chuyến của quản lý kho (BE `@PreAuthorize`).
+ * trong axios client. Xem: `fulfillment-shipments:READ`; mở chuyến `fulfillment-dispatch:CREATE`, quét / bàn giao
+ * `fulfillment-dispatch:UPDATE`, huỷ chuyến `fulfillment-load-cancellations:UPDATE` (BE PR #148).
  *
  *   GET  /fulfillment/loads?warehouseId&status&carrierId&search&page&size   → PageResponse<LoadRow>
  *   GET  /fulfillment/loads/{id}            → Load (các lô, kiện, kiện nào đã lên xe, `version`)

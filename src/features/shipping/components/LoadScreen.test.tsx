@@ -237,14 +237,14 @@ describe("LoadScreen — quét kiện", () => {
   });
 });
 
-describe("LoadScreen — gate quyền / vai trò / trạng thái", () => {
-  it("điều phối đơn hàng chỉ xem: không ô quét, không nút lên xe / bàn giao; có lý do", async () => {
+describe("LoadScreen — gate mã quyền / trạng thái", () => {
+  it("điều phối đơn hàng (không có fulfillment-dispatch:UPDATE) chỉ xem: không ô quét, không nút lên xe / bàn giao; có lý do", async () => {
     renderLoad(ACTORS.orderCoordinator, apiLoad());
     await screen.findByRole("heading", { name: `${L.load.title} · ${LOAD_ID}` });
     expect(screen.queryByLabelText(L.scan.label)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: L.load.actions.handover })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: L.load.addShipments })).not.toBeInTheDocument();
-    expect(screen.getByText(L.load.noActions.notDispatcher)).toBeInTheDocument();
+    expect(screen.getByText(L.load.noActions.viewOnly)).toBeInTheDocument();
     // Biên bản vẫn xem được
     expect(screen.getByRole("link", { name: new RegExp(L.load.actions.manifest) })).toHaveAttribute(
       "href",

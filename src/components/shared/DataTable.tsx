@@ -2,14 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { cn } from "cn";
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from "@/components/ui/table";
+import { TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -87,6 +80,11 @@ interface DataTableProps<T> {
     onChange: (key: string, direction: SortDir) => void;
   };
   className?: string;
+  /**
+   * Header luôn dính đầu bảng: thân bảng cuộn trong khung cao tối đa gần bằng màn hình, kể cả khi
+   * ≤ 10 dòng (mặc định chỉ cuộn nội bộ khi > 10 dòng).
+   */
+  stickyHeader?: boolean;
 }
 
 type SortDir = "asc" | "desc";
@@ -106,6 +104,7 @@ export function DataTable<T>({
   serverPagination,
   serverSorting,
   className,
+  stickyHeader = false,
 }: DataTableProps<T>) {
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
@@ -195,14 +194,28 @@ export function DataTable<T>({
   return (
     <div
       className={cn(
-        "border-border-default bg-bg-surface overflow-hidden rounded-[var(--r-sm)] border",
+        "border-border-default bg-bg-surface overflow-hidden rounded-(--section-radius) border shadow-(--card-shadow)",
         className,
       )}
     >
-      <div className={cn(shouldScroll && "max-h-[520px] overflow-y-auto")}>
-        <Table>
-          <TableHeader className={cn(shouldScroll && "sticky top-0 z-10")}>
-            <TableRow className="border-border-default bg-bg-subtle hover:bg-bg-subtle">
+      {/* Khung cuộn tự viết thay cho wrapper `overflow-x-auto` của <Table> shadcn: wrapper đó
+          là khung cuộn gần nhất nên header `sticky` dính vào nó (không cuộn dọc) và trôi mất */}
+      <div
+        className={cn(
+          "relative w-full overflow-x-auto",
+          stickyHeader
+            ? "max-h-[calc(100svh-12rem)] overflow-y-auto"
+            : shouldScroll && "max-h-[520px] overflow-y-auto",
+        )}
+      >
+        <table data-slot="table" className="w-full caption-top text-sm">
+          <TableHeader
+            className={cn(
+              (stickyHeader || shouldScroll) &&
+                "sticky top-0 z-10 shadow-[inset_0_-1px_0_var(--table-line)]",
+            )}
+          >
+            <TableRow className="bg-bg-subtle hover:bg-bg-subtle border-(--table-line)">
               {selectable && (
                 <TableHead className="w-[34px]">
                   <Checkbox
@@ -282,7 +295,7 @@ export function DataTable<T>({
                     data-flagged={isFlag || undefined}
                     onClick={() => onRowClick?.(row)}
                     className={cn(
-                      "border-border-default transition-colors",
+                      "border-(--table-line) transition-colors",
                       onRowClick && "cursor-pointer",
                     )}
                   >
@@ -313,11 +326,11 @@ export function DataTable<T>({
               })
             )}
           </TableBody>
-        </Table>
+        </table>
       </div>
 
       {(caption || totalPages > 1) && (
-        <div className="border-border-default bg-bg-subtle text-ink-secondary flex flex-wrap items-center justify-between gap-3 border-t px-3.5 py-2 text-xs">
+        <div className="bg-bg-subtle text-ink-secondary flex flex-wrap items-center justify-between gap-3 border-t border-(--table-line) px-3.5 py-2 text-xs">
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-1.5">
               <span className="text-ink-tertiary">Dòng/trang</span>

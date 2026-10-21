@@ -49,7 +49,7 @@ export function ProductReviewStep({
     ],
   ];
   return (
-    <section className="border-border-default bg-bg-surface space-y-4 rounded-[var(--r-sm)] border p-4">
+    <section className="border-border-default bg-bg-surface space-y-4 rounded-(--section-radius) border p-4 shadow-(--card-shadow)">
       <div>
         <h2 className="text-ink-primary text-sm font-semibold">
           {isEditing ? "Rà soát trước khi lưu" : "Rà soát trước khi tạo"}
