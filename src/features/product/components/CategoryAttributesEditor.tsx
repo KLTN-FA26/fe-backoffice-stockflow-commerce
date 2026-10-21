@@ -122,7 +122,7 @@ function Editor({ categoryId, saved }: { categoryId: string; saved: CategoryAttr
         return (
           <div
             key={row.attributeId}
-            className="border-border-default flex flex-wrap items-center gap-3 rounded-[var(--r-sm)] border p-3"
+            className="border-border-default bg-bg-surface flex flex-wrap items-center gap-3 rounded-[var(--card-radius)] border p-3 shadow-(--card-shadow)"
           >
             <span className="text-ink-primary min-w-[10rem] flex-1 text-[0.8125rem] font-medium">
               {attribute?.name ?? row.attributeId}

@@ -64,11 +64,11 @@ export function AttributeFilterPopover({
                 size="icon"
                 aria-label={TITLE}
                 className={cn(
-                  "border-border-default bg-bg-surface text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary rounded-[var(--r-sm)] focus-visible:ring-0",
+                  "border-border-default bg-bg-surface text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary size-(--control-size) rounded-(--control-radius) shadow-(--control-shadow) focus-visible:ring-0",
                   hasFilter && "border-info bg-info/10 text-info hover:bg-info/10 hover:text-info",
                 )}
               >
-                <Filter className={cn("text-info size-4", hasFilter && "text-current")} />
+                <Filter className={cn("text-dot-info size-3.5", hasFilter && "text-current")} />
               </Button>
             </PopoverTrigger>
           </TooltipTrigger>
