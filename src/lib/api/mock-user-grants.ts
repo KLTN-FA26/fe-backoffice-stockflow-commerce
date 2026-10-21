@@ -19,7 +19,6 @@ import {
   FULFILLMENT_TASK_OVERSIGHT_PERMISSIONS,
   GOODS_RECEIPT_PERMISSIONS,
   IDENTITY_PERMISSIONS,
-  IDENTITY_USER_PERMISSIONS,
   INVENTORY_ITEM_PERMISSIONS,
   INVENTORY_OVERVIEW_PERMISSIONS,
   INVENTORY_PERMISSIONS,
@@ -56,7 +55,6 @@ const SHIP = Object.values(SHIPMENT_PERMISSIONS);
 // - đọc: WAREHOUSE_STAFF / WAREHOUSE_MANAGER có pick-lists VIEW_PAGE/READ + packages VIEW_PAGE/READ;
 //   QC_STAFF có pick-lists:READ + packages:READ (không VIEW_PAGE).
 // - ghi, mỗi nhóm một resource riêng (xem các tập quyền bên dưới).
-// identity-users:READ chỉ ECOMMERCE_ADMIN (System Admin mock-only được toàn quyền).
 const PICK = FULFILLMENT_PICK_PERMISSIONS;
 const PACK = FULFILLMENT_PACKAGE_PERMISSIONS;
 const TA = Object.values(FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS);
@@ -144,7 +142,6 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...FULFILLMENT_READ,
     ...MANAGER_WORK,
     ...Object.values(OUTCOME),
-    IDENTITY_USER_PERMISSIONS.read,
     ...INVENTORY_ALL,
     ...OVERVIEW_ALL,
     WAREHOUSE_READ,
@@ -214,27 +211,23 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...Object.values(PRODUCT_PERMISSIONS).filter((code) => code !== PRODUCT_PERMISSIONS.lifecycle),
     ...PRODUCT_STRUCTURE,
     ...Object.values(SUPPLIER_PERMISSIONS),
-    IDENTITY_USER_PERMISSIONS.read,
   ],
   "USER-SALE-01": [
     ORDER_PERMISSIONS.viewPage,
     ORDER_PERMISSIONS.read,
     ORDER_PERMISSIONS.cancel,
-    ORDER_PERMISSIONS.cancellationQueueRead,
     WAREHOUSE_READ,
   ],
   "USER-SALE-02": [
     ORDER_PERMISSIONS.viewPage,
     ORDER_PERMISSIONS.read,
     ORDER_PERMISSIONS.cancel,
-    ORDER_PERMISSIONS.cancellationQueueRead,
     WAREHOUSE_READ,
   ],
   "USER-SALE-03": [
     ORDER_PERMISSIONS.viewPage,
     ORDER_PERMISSIONS.read,
     ORDER_PERMISSIONS.cancel,
-    ORDER_PERMISSIONS.cancellationQueueRead,
     WAREHOUSE_READ,
   ],
   // Seed BE: SALES_STAFF có sales-order-cancellations:UPDATE (huỷ đơn, đóng phần còn lại) nhưng không có APPROVE

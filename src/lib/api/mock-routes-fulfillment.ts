@@ -75,13 +75,17 @@ const newestFirst = (a: MockTask, b: MockTask) => b.createdAt.localeCompare(a.cr
  * BE `requireWarehouseAssignee`: ACTIVE + WAREHOUSE_STAFF hoặc WAREHOUSE_MANAGER. Đây là điều kiện của
  * NGƯỜI ĐƯỢC GÁN (ai nhận việc), không phải quyền của người gọi — nên vẫn đọc vai trò.
  */
+function isWarehouseAssignee(user: { active: boolean; roles: readonly string[] }): boolean {
+  return (
+    user.active &&
+    user.roles.some((role) => role === "Warehouse Staff" || role === "Warehouse Manager")
+  );
+}
+
 async function isValidAssignee(userId: string): Promise<boolean> {
   const { staffUsers } = await import("@/lib/mock-data");
   const user = staffUsers.find((candidate) => candidate.userId === userId);
-  return (
-    !!user?.active &&
-    user.roles.some((role) => role === "Warehouse Staff" || role === "Warehouse Manager")
-  );
+  return !!user && isWarehouseAssignee(user);
 }
 
 const invalidAssignee = () =>
@@ -307,27 +311,40 @@ function registerPackRoutes(): void {
   });
 }
 
-/** `GET /identity/users` (BE UserManagementController) — phần màn gán task dùng: role + status. */
-function registerUserRoutes(): void {
-  registerMockRoute("GET", "/identity/users", async (config) => {
-    const { staffUsers } = await import("@/lib/mock-data");
-    const params = readParams(config);
-    const role = readString(params.role);
-    const status = readString(params.status);
-    const users = staffUsers
+/**
+ * `GET /fulfillment/assignees?warehouseId=` (BE `FulfillmentServiceImpl#assignees`, guard
+ * `fulfillment-task-assignment:UPDATE`): nhân viên kho / quản lý kho đang hoạt động được gán cho kho đó.
+ * Kho bắt buộc (400); kho lạ → 404 WAREHOUSE_NOT_FOUND; người gọi chỉ hỏi được kho trong phạm vi của mình.
+ */
+function registerAssigneeRoutes(): void {
+  registerMockRoute("GET", "/fulfillment/assignees", async (config) => {
+    const actor = await currentActor();
+    if (!actor.can(ASSIGNMENT.update)) return forbidden();
+    const warehouseId = readString(readParams(config).warehouseId);
+    if (!warehouseId) return missingField("warehouseId");
+    const { staffUsers, warehouses } = await import("@/lib/mock-data");
+    if (!warehouses.some((warehouse) => warehouse.warehouseId === warehouseId)) {
+      return beError(404, "WAREHOUSE_NOT_FOUND", "Warehouse not found");
+    }
+    const caller = staffUsers.find((user) => user.userId === actor.userId);
+    const callerScope: readonly string[] = caller?.warehouseIds ?? [];
+    if (callerScope.length > 0 && !callerScope.includes(warehouseId)) {
+      return beError(403, "OUT_OF_DATA_SCOPE", "The warehouse is outside your data scope");
+    }
+    const assignees = staffUsers
+      .filter(
+        (user) =>
+          isWarehouseAssignee(user) &&
+          ((user.warehouseIds as readonly string[]).length === 0 ||
+            (user.warehouseIds as readonly string[]).includes(warehouseId)),
+      )
       .map((user) => ({
         userId: user.userId,
-        username: user.email.split("@")[0] ?? user.email,
-        email: user.email,
-        fullName: user.fullName,
-        status: user.active ? "ACTIVE" : "DISABLED",
+        displayName: user.fullName,
         roles: toBackendRoles(user.roles),
-        warehouseIds: user.warehouseIds,
       }))
-      .filter((user) => (!role || user.roles.includes(role)) && (!status || user.status === status))
-      .sort((a, b) => a.username.localeCompare(b.username));
-    const size = readInt(params.size, BE_DEFAULT_PAGE_SIZE);
-    return beOk(bePage(users, readInt(params.page, 0), size));
+      .sort((a, b) => a.displayName.localeCompare(b.displayName, "vi"));
+    return beOk(assignees);
   });
 }
 
@@ -344,5 +361,5 @@ export function registerFulfillmentMockRoutes(): void {
   });
   registerPackRoutes();
   registerPackingMockRoutes();
-  registerUserRoutes();
+  registerAssigneeRoutes();
 }

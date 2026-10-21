@@ -372,13 +372,13 @@ export const UI_LABELS = {
     noOrderReadTitle: "Chưa đủ quyền xem dòng đơn hàng",
     noOrderReadDescription:
       "Danh sách SKU cần lấy đọc từ đơn hàng. Tài khoản chưa được cấp quyền xem đơn hàng — liên hệ quản trị để được cấp.",
-    noUserReadTitle: "Chưa đủ quyền xem danh sách nhân viên",
-    noUserReadDescription:
-      "Gán task cần đọc danh sách nhân viên kho. Tài khoản chưa được cấp quyền xem tài khoản nhân viên — liên hệ quản trị để được cấp.",
+    noAssignTitle: "Chưa đủ quyền chọn người nhận task",
+    noAssignDescription:
+      "Danh sách người nhận task chỉ hiện cho tài khoản được cấp quyền gán task — liên hệ quản trị để được cấp.",
     // Flow X-CHK (BR-DSG-003): lệch checksum là lỗi phải chặn, không có nút bỏ qua
     holdTitle: "Kiện đang bị giữ do lệch thiết kế.",
     holdDescription:
-      "Checksum file thiết kế không khớp bản khách đã chốt nên chưa được đóng gói. QC hoặc quản lý kho khôi phục đúng file rồi bấm Kiểm tra lại thiết kế; không có thao tác bỏ qua.",
+      "Checksum file thiết kế không khớp bản khách đã chốt nên chưa được đóng gói. Quản lý kho khôi phục đúng file rồi bấm Kiểm tra lại thiết kế; không có thao tác bỏ qua.",
     stillOnHold: "Thiết kế vẫn lệch checksum — kiện tiếp tục bị giữ",
     alreadyAssigned: "Task đang được gán cho người này — chọn người khác để gán lại.",
     artifactDisclaimer:

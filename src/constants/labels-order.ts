@@ -51,7 +51,7 @@ export const ORDER_HOLD_GUIDANCE = {
   CREDIT:
     "Đơn bị giữ vì vượt hạn mức công nợ — không gỡ giữ tại đây. Duyệt hoặc từ chối ở màn duyệt công nợ.",
   DESIGN_MISMATCH:
-    "Đơn bị giữ vì thiết kế in lệch checksum lúc đóng gói — không gỡ giữ tại đây. QC hoặc quản lý kho kiểm tra lại kiện ở bàn đóng gói.",
+    "Đơn bị giữ vì thiết kế in lệch checksum lúc đóng gói — không gỡ giữ tại đây. Quản lý kho kiểm tra lại kiện ở bàn đóng gói.",
   UNRESOLVABLE: "Không xác định được lý do giữ — chưa thể gỡ giữ từ màn này. Tải lại trang.",
 } as const;
 
@@ -80,39 +80,6 @@ export const ORDER_DELIVERY_FAILURE_LABELS = {
   DAMAGED: "Hàng hư hỏng",
   OTHER: "Lý do khác",
 } as const satisfies Record<(typeof ORDER_DELIVERY_FAILURE_REASONS)[number], string>;
-
-/* ── Yêu cầu huỷ đơn của khách (BE CancellationRequestStatus) ────────── */
-
-/** `GET /orders/cancellation-requests` / `GET /orders/me/{id}`; EXPIRED thêm ở BE PR #144. */
-export const ORDER_CANCELLATION_REQUEST_STATUSES = [
-  "PENDING",
-  "APPROVED",
-  "REJECTED",
-  "EXPIRED",
-] as const;
-
-/** Trạng thái đơn lẻ để so sánh trong code — không gõ tay lại chuỗi. */
-export const ORDER_CANCELLATION_REQUEST_STATUS = {
-  PENDING: "PENDING",
-  APPROVED: "APPROVED",
-  REJECTED: "REJECTED",
-  EXPIRED: "EXPIRED",
-} as const satisfies Record<(typeof ORDER_CANCELLATION_REQUEST_STATUSES)[number], string>;
-
-export const ORDER_CANCELLATION_REQUEST_STATUS_LABELS = {
-  PENDING: "Chờ xử lý",
-  APPROVED: "Đã duyệt",
-  REJECTED: "Đã từ chối",
-  EXPIRED: "Đã hết hạn",
-} as const satisfies Record<(typeof ORDER_CANCELLATION_REQUEST_STATUSES)[number], string>;
-
-/**
- * Yêu cầu EXPIRED do hệ thống đóng (không có người quyết định): đơn đã đóng gói, bàn giao, giao xong
- * hoặc đã huỷ theo đường khác trước khi ai kịp duyệt. BE `decisionNote` là tiếng Anh sinh tự động nên FE
- * hiện câu này thay cho ghi chú.
- */
-export const ORDER_CANCELLATION_REQUEST_EXPIRED_NOTE =
-  "Hệ thống tự đóng yêu cầu: đơn đã đóng gói, bàn giao, giao xong hoặc đã huỷ nên không còn huỷ được — hãy đề nghị trả hàng.";
 
 /* ── Lý do đóng phần còn lại (BE CancellationReasonCode) ─────────────── */
 
