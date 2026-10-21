@@ -38,7 +38,8 @@ vẫn màu status gốc (dot làm chữ là vi phạm tương phản).
    Tone theo thứ tự ưu tiên: special > danger > positive > warning > info > muted > neutral.
    Text trạng thái phải **nguyên văn** union type trong docs — không dịch, không viết lại.
 3. **Shared components**: dùng lại Card / FilterBar / SearchBar / DataTable / StatTile /
-   EmptyState / Skeleton / Toast / Alert / ConfirmDialog / PageHeader thay vì viết mới.
+   EmptyState / Skeleton / Toast / Alert / ConfirmDialog / InputCombobox thay vì viết mới
+   (Mode A không dùng PageHeader có title — xem mục 4b).
    `components/ui/*` là shadcn nguyên bản — không được sửa tay.
 4. **Density đúng mode**: radius, card padding, gap như bảng trên.
    4b. **Style Vercel (Mode A)**: trang thuộc đúng 1 trong 3 loại (`.claude/rules/mode-a-backoffice.md`

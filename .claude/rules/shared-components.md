@@ -20,7 +20,7 @@ Viết lại thứ đã có là nguyên nhân số một khiến UI lệch nhau 
 
 ## Layout & khung
 
-`<PageHeader>` (title + breadcrumb + action phải / hero mode B) · `<SectionTitle>` ·
+`<PageHeader>` (chỉ hero mode B và trang Mode A **chưa** chuyển — Mode A style Vercel không hiện title, xem [3 loại trang](mode-a-backoffice.md#3-loại-trang)) · `<SectionTitle>` ·
 `<AppCard>`/`<SurfaceCard>` (biến thể `elevated` cho storefront, `flush` cho back-office) ·
 `<BackofficeShell>` (sidebar + topbar; menu drill-down qua `SidebarNav`) · `<StorefrontShell>` (header mỏng + footer +
 floating cart/chat) · `<PageContainer>` (max-width + padding theo mode).
