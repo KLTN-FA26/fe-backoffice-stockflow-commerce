@@ -521,14 +521,6 @@ export const QUOTE_STATUS_BY_API = {
   CANCELLED: "Cancelled",
   CONVERTED: "Converted",
 } as const satisfies Record<QuoteApiStatus, string>;
-/** Trạng thái khách thấy trên portal — BE `QuoteStatus.seenByCustomer`. */
-export const QUOTE_PORTAL_STATUSES = [
-  "SENT",
-  "CHANGES_REQUESTED",
-  "ACCEPTED",
-  "EXPIRED",
-  "CONVERTED",
-] as const satisfies readonly QuoteApiStatus[];
 
 /** Yêu cầu mẫu — BE `SampleStatus` (SCRUM-403). */
 export const SAMPLE_API_STATUSES = [

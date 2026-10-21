@@ -5,6 +5,7 @@ import { FileText } from "lucide-react";
 import { parseAsInteger, useQueryState } from "nuqs";
 
 import {
+  PAGE_SIZE,
   PAYMENT_TERM_LABELS,
   PORTAL_ROUTES,
   QUOTE_PERMISSIONS,
@@ -22,14 +23,12 @@ import { Button } from "@/components/ui/button";
 
 import { MONO, QUOTE_COPY } from "../copy";
 
-const PAGE_SIZE = 10;
-
 /** Portal: báo giá của chính khách (BE tự giới hạn theo khách + trạng thái khách được thấy). */
 export function PortalQuoteList() {
   const canRead = useCan(QUOTE_PERMISSIONS.read);
   const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
   const query = useQuotes(
-    { page: Math.max(0, page - 1), size: PAGE_SIZE, sort: "createdAt,desc" },
+    { page: Math.max(0, page - 1), size: PAGE_SIZE.sm, sort: "createdAt,desc" },
     { enabled: canRead },
   );
 

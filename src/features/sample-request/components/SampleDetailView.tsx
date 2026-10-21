@@ -12,9 +12,9 @@ import {
 import { useCan } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { formatDate, formatDateTime } from "@/lib/format/date";
+import { formatNumber } from "@/lib/format/number";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { useSample } from "@/features/sample-request/queries";
-import { sampleStatusLabel } from "@/features/sample-request/selectors";
 import { CustomerName } from "@/components/backoffice/CustomerName";
 import { LoadErrorState } from "@/components/backoffice/LoadErrorState";
 import { Card } from "@/components/shared/Card";
@@ -93,7 +93,7 @@ function SampleDetailContent({ id }: { id: string }) {
                 </span>
               </Row>
               <Row label="Số lượng">
-                <span className={MONO}>{spec.quantity} cái</span>
+                <span className={MONO}>{formatNumber(spec.quantity)} cái</span>
               </Row>
               <Row label="Cần trước">{spec.dueDate ? formatDate(spec.dueDate) : "—"}</Row>
               {sample.quoteId && (
@@ -155,8 +155,9 @@ function SampleDetailContent({ id }: { id: string }) {
                     Lần {round.round} — {round.requestNumber}
                   </Link>
                 )}
-                <div className="text-ink-secondary">
-                  {sampleStatusLabel(round.status)} · {round.quantity} cái
+                <div className="text-ink-secondary flex flex-wrap items-center gap-2">
+                  <StatusDot domain="design" status={SAMPLE_STATUS_BY_API[round.status]} />
+                  <span className={MONO}>{formatNumber(round.quantity)} cái</span>
                 </div>
                 {round.customerFeedback && (
                   <div className="text-ink-tertiary">“{round.customerFeedback}”</div>

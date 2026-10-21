@@ -84,7 +84,6 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Published",
     "In Putaway",
     "Partially Completed",
-    "DISPATCHED",
     "IN_PRODUCTION",
     "Printing",
     "QC",

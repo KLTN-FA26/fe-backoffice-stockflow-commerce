@@ -4,7 +4,7 @@ import Link from "next/link";
 import { parseAsString, useQueryState } from "nuqs";
 import { AlertTriangle, Clock, FlaskConical, Printer, Trash2 } from "lucide-react";
 
-import { ADMIN_ROUTES, SAMPLE_REQUEST_PERMISSIONS } from "@/constants";
+import { ADMIN_ROUTES, PRODUCTION_STATUS_BY_API, SAMPLE_REQUEST_PERMISSIONS } from "@/constants";
 import { useCan } from "@/lib/auth/components/Can";
 import { formatDate } from "@/lib/format/date";
 import { formatNumber, formatPercent } from "@/lib/format/number";
@@ -154,7 +154,7 @@ export function WorkshopDashboard() {
               <span className="text-danger tabular-nums">
                 hạn {row.dueDate ? formatDate(row.dueDate) : "—"}
               </span>
-              <span className="text-ink-secondary">{productionStatusLabel(row.status)}</span>
+              <StatusDot domain="order" status={PRODUCTION_STATUS_BY_API[row.status]} />
               {/* SCRUM-442: cảnh báo nhà gia công trễ hạn trên dashboard xưởng */}
               {row.mode === "SUBCONTRACTED" && (
                 <StatusDot domain="order" status="Subcontractor Late" />

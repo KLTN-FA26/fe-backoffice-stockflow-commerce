@@ -28,10 +28,13 @@ export function RouteNotFound({
   title,
   description,
   href,
+  actionLabel = UI_LABELS.common.backToList,
 }: {
   title: string;
   description: string;
   href: string;
+  /** Nhãn phải khớp đích của `href` (vd trang chủ portal ≠ danh sách). */
+  actionLabel?: string;
 }) {
   return (
     <EmptyState
@@ -39,7 +42,7 @@ export function RouteNotFound({
       description={description}
       action={
         <Button variant="outline" size="sm" asChild>
-          <Link href={href}>{UI_LABELS.common.backToList}</Link>
+          <Link href={href}>{actionLabel}</Link>
         </Button>
       }
     />
