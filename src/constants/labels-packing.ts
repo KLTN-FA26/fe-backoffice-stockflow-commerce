@@ -74,8 +74,8 @@ export const PACKING_UI_LABELS = {
     pendingStart: "Bấm Bắt đầu đóng gói để nhận đơn này tại bàn đóng gói.",
     holdTitle: "Đóng gói đang bị giữ do lệch thiết kế.",
     holdDescription:
-      "Checksum file thiết kế không khớp bản khách đã chốt nên chưa giao được. QC hoặc quản lý kho khôi phục đúng file rồi kiểm tra lại; sau đó phiên đóng gói trở lại đang đóng và người đóng bấm hoàn tất lần nữa.",
-    holdReadOnly: "Chờ QC hoặc quản lý kho kiểm tra lại thiết kế.",
+      "Checksum file thiết kế không khớp bản khách đã chốt nên chưa giao được. Khôi phục đúng file rồi bấm Kiểm tra lại thiết kế (người đóng gói hoặc quản lý kho); sau đó phiên đóng gói trở lại đang đóng và người đóng bấm hoàn tất lần nữa.",
+    holdReadOnly: "Chờ người đóng gói hoặc quản lý kho kiểm tra lại thiết kế.",
     takenTitle: (name: string) => `${name} đang đóng gói đơn này.`,
     takenAnonymous: "Một nhân viên khác đang đóng gói đơn này.",
     takenDescription: "Bạn chỉ xem được — chỉ người đã nhận đơn hoặc quản lý kho mới thao tác.",
@@ -221,7 +221,7 @@ export const PACKING_UI_LABELS = {
     resultLoading: "Đang tải lô giao vừa tạo…",
     resultHeld: "Lệch checksum thiết kế — đóng gói bị giữ, chưa tạo lô giao.",
     resultHeldHint:
-      "QC hoặc quản lý kho kiểm tra lại thiết kế; sau đó người đóng hoàn tất lần nữa.",
+      "Kiểm tra lại thiết kế (người đóng gói hoặc quản lý kho); sau đó người đóng hoàn tất lần nữa.",
     close: "Đóng",
   },
   shipments: {
@@ -277,7 +277,7 @@ export const PACKING_TOAST_MESSAGES = {
   shipped: "Đã tạo lô giao",
   shippedPartial: "Đã giao một phần — phần còn lại đóng và giao sau",
   packed: "Đã đóng gói xong cả đơn",
-  held: "Lệch checksum thiết kế — đóng gói bị giữ, chờ QC kiểm tra lại",
+  held: "Lệch checksum thiết kế — đóng gói bị giữ, chờ kiểm tra lại thiết kế",
 } as const;
 
 /** Lỗi nhập ở form quét / niêm phong / hoàn tất — hiện inline dưới ô. */

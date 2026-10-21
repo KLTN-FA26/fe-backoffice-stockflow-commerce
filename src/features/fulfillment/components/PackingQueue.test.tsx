@@ -100,14 +100,13 @@ describe("PackingQueue — hàng chờ đóng gói", () => {
     expect(within(row).getByText(P.status.you)).toBeInTheDocument();
   });
 
-  it("bấm hàng / nút Mở trạm → sang trạm đóng gói của task", async () => {
+  it("nút Mở trạm là link; bấm hàng → sang trạm đóng gói của task", async () => {
     const user = userEvent.setup();
     renderQueue([queueRow()]);
-    await user.click(await screen.findByRole("button", { name: new RegExp(P.openStation) }));
-    expect(push).toHaveBeenCalledWith("/admin/packing/3f2c9a10-7b1d-4e55-9c0a-1d2e3f4a5b6c");
-    push.mockClear();
+    const open = await screen.findByRole("link", { name: new RegExp(P.openStation) });
+    expect(open).toHaveAttribute("href", "/admin/packing/3f2c9a10-7b1d-4e55-9c0a-1d2e3f4a5b6c");
     await user.click(screen.getByText("SO-20261010-000431"));
-    expect(push).toHaveBeenCalledTimes(1);
+    expect(push).toHaveBeenCalledWith("/admin/packing/3f2c9a10-7b1d-4e55-9c0a-1d2e3f4a5b6c");
   });
 
   it("lọc theo kho và trạng thái → gửi warehouseId / status, về trang đầu", async () => {

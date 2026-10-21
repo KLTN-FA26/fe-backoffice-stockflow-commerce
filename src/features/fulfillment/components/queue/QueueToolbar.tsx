@@ -2,16 +2,10 @@
 
 import { UI_LABELS } from "@/constants";
 import { useWarehouseDirectory } from "@/lib/references/warehouse-options";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { QUEUE_STATUS_VALUES } from "./constants";
 
@@ -38,19 +32,17 @@ export function QueueToolbar({ s }: { s: PackingQueueState }) {
           <SelectTrigger id="queue-warehouse" className={TRIGGER}>
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectItem value={ALL}>{L.filters.all}</SelectItem>
-              {s.warehouseId && !warehouses.some((w) => w.warehouseId === s.warehouseId) && (
-                <SelectItem value={s.warehouseId}>{s.warehouseId}</SelectItem>
-              )}
-              {warehouses.map((w) => (
-                <SelectItem key={w.warehouseId} value={w.warehouseId}>
-                  {w.code ? `${w.code} · ${w.name}` : w.name}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
+          <TitledSelectContent title={L.filters.warehouse}>
+            <SelectItem value={ALL}>{L.filters.all}</SelectItem>
+            {s.warehouseId && !warehouses.some((w) => w.warehouseId === s.warehouseId) && (
+              <SelectItem value={s.warehouseId}>{s.warehouseId}</SelectItem>
+            )}
+            {warehouses.map((w) => (
+              <SelectItem key={w.warehouseId} value={w.warehouseId}>
+                {w.code ? `${w.code} · ${w.name}` : w.name}
+              </SelectItem>
+            ))}
+          </TitledSelectContent>
         </Select>
       </div>
       <div className="flex items-center gap-2">
@@ -64,16 +56,14 @@ export function QueueToolbar({ s }: { s: PackingQueueState }) {
           <SelectTrigger id="queue-status" className={TRIGGER}>
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectItem value={ALL}>{L.filters.allWaiting}</SelectItem>
-              {QUEUE_STATUS_VALUES.map((value) => (
-                <SelectItem key={value} value={value}>
-                  {L.statusFilter[value]}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
+          <TitledSelectContent title={L.filters.status}>
+            <SelectItem value={ALL}>{L.filters.allWaiting}</SelectItem>
+            {QUEUE_STATUS_VALUES.map((value) => (
+              <SelectItem key={value} value={value}>
+                {L.statusFilter[value]}
+              </SelectItem>
+            ))}
+          </TitledSelectContent>
         </Select>
       </div>
       {isError && (

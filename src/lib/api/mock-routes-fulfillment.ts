@@ -85,11 +85,15 @@ const missingField = (field: string) =>
     { field, message: "must not be null" },
   ]);
 
-/** BE `visible`: người được gán, hoặc quản lý kho / QC / điều phối. */
+/**
+ * BE `visible`: người được gán, quản lý kho / QC / điều phối, và (BE #136 bản cuối) nhân viên kho của
+ * kho đó khi lấy hàng đã xong — người đóng gói không nhất thiết là người lấy hàng.
+ */
 function canSee(task: MockTask, actor: MockActor): boolean {
   return (
     task.assignedUserId === actor.userId ||
-    hasAnyRole(actor, "WAREHOUSE_MANAGER", "QC_STAFF", "ORDER_COORDINATOR")
+    hasAnyRole(actor, "WAREHOUSE_MANAGER", "QC_STAFF", "ORDER_COORDINATOR") ||
+    (task.pickStatus === "PICKED" && hasAnyRole(actor, "WAREHOUSE_STAFF"))
   );
 }
 
@@ -163,7 +167,8 @@ function registerTaskReadRoutes(): void {
       // BE `requireArtifactAccess`: người được gán, hoặc quản lý kho / QC (không có điều phối)
       if (
         task.assignedUserId !== actor.userId &&
-        !hasAnyRole(actor, "WAREHOUSE_MANAGER", "QC_STAFF")
+        !hasAnyRole(actor, "WAREHOUSE_MANAGER", "QC_STAFF") &&
+        task.pickStatus !== "PICKED"
       ) {
         return taskNotFound();
       }
@@ -266,7 +271,7 @@ function registerAssignmentRoutes(): void {
 function registerPackRoutes(): void {
   registerMockRoute("POST", `${PATH}/:id/design-integrity-reverification`, async (config) => {
     const { task, actor } = await loadTask(config);
-    if (!hasAnyRole(actor, "QC_STAFF", "WAREHOUSE_MANAGER")) return forbidden();
+    if (!hasAnyRole(actor, "WAREHOUSE_STAFF", "WAREHOUSE_MANAGER")) return forbidden();
     const note = readString(parseJsonBody(config.data).resolutionNote);
     if (!note) {
       return beError(400, "VALIDATION_FAILED", "Invalid request data", [

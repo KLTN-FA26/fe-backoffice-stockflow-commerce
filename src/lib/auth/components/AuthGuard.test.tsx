@@ -56,6 +56,7 @@ describe("server session AuthGuard", () => {
     );
     mount();
     expect(screen.queryByText("Protected admin")).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Đang xác minh phiên đăng nhập");
     expect(replace).not.toHaveBeenCalled();
     await act(async () => {
       finish?.(user);

@@ -6,15 +6,9 @@ import { PackagePlus } from "lucide-react";
 import { PACKAGE_TYPES, UI_LABELS } from "@/constants";
 import { isRetryablePackingError } from "@/features/fulfillment/packing-errors";
 import { useOpenPackage } from "@/features/fulfillment/packing-mutations";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import type { PackageType } from "@/features/fulfillment/packing-types";
 
@@ -53,15 +47,13 @@ export function OpenPackageButton({ taskId }: { taskId: string }) {
         >
           <SelectValue />
         </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            {PACKAGE_TYPES.map((value) => (
-              <SelectItem key={value} value={value}>
-                {L.packages.typeOption[value]}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        </SelectContent>
+        <TitledSelectContent title={L.packages.typeLabel}>
+          {PACKAGE_TYPES.map((value) => (
+            <SelectItem key={value} value={value}>
+              {L.packages.typeOption[value]}
+            </SelectItem>
+          ))}
+        </TitledSelectContent>
       </Select>
       <Button
         type="button"

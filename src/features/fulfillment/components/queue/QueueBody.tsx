@@ -88,7 +88,7 @@ export function QueueBody({ s, selfId }: { s: PackingQueueState; selfId: string 
   }
 
   const page = query.data;
-  const columns = buildQueueColumns({ warehouseName, selfId, onOpen: s.navigateToDetail });
+  const columns = buildQueueColumns({ warehouseName, selfId });
   return (
     <>
       <RefetchBar active={query.isFetching} label={L.refetching} />
@@ -97,7 +97,7 @@ export function QueueBody({ s, selfId }: { s: PackingQueueState; selfId: string 
         data={page.items}
         rowKey={(row) => row.taskId}
         caption={`${UI_LABELS.common.showing} ${page.items.length} / ${page.totalElements} ${L.queueCaption}`}
-        // Phiên đang bị giữ do lệch thiết kế cần QC / quản lý kho xử lý (data-table-mode-a: row cần chú ý)
+        // Phiên đang bị giữ do lệch thiết kế cần người đóng gói / quản lý kho xử lý (data-table-mode-a: row cần chú ý)
         flagRow={(row) => row.packStatus === "On Hold"}
         onRowClick={s.navigateToDetail}
         pageSize={s.config.pageSize}

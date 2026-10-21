@@ -18,6 +18,14 @@ export const UI_LABELS = {
     traceId: "TraceId",
     /** Caption bảng danh sách: "Hiển thị x / tổng …". */
     showing: "Hiển thị",
+    /** Badge thanh Cấu hình khi ô search chưa có nội dung. */
+    notEntered: "Chưa nhập",
+  },
+  // Khung back-office (sidebar / topbar)
+  shell: {
+    globalSearch: "Tìm toàn cục",
+    quickSearch: "Tìm nhanh",
+    quickSearchHint: "Tìm nhanh (⌘K)",
   },
   // Trạng thái lỗi khi tải dữ liệu (§8 PRODUCTION-FRONTEND-RULES)
   emptyList: {
@@ -368,7 +376,7 @@ export const UI_LABELS = {
     // Flow X-CHK (BR-DSG-003): lệch checksum là lỗi phải chặn, không có nút bỏ qua
     holdTitle: "Kiện đang bị giữ do lệch thiết kế.",
     holdDescription:
-      "Checksum file thiết kế không khớp bản khách đã chốt nên chưa được đóng gói. QC hoặc quản lý kho khôi phục đúng file rồi bấm Kiểm tra lại thiết kế; không có thao tác bỏ qua.",
+      "Checksum file thiết kế không khớp bản khách đã chốt nên chưa được đóng gói. Người đóng gói hoặc quản lý kho khôi phục đúng file rồi bấm Kiểm tra lại thiết kế; không có thao tác bỏ qua.",
     stillOnHold: "Thiết kế vẫn lệch checksum — kiện tiếp tục bị giữ",
     alreadyAssigned: "Task đang được gán cho người này — chọn người khác để gán lại.",
     artifactDisclaimer:
@@ -693,7 +701,7 @@ export const TOAST_MESSAGES = {
     assigned: "Đã gán task",
     pickingStarted: "Đã bắt đầu lấy hàng",
     pickingCompleted: "Đã hoàn tất lấy hàng",
-    held: "Lệch checksum thiết kế — kiện bị giữ, chờ QC kiểm tra lại",
+    held: "Lệch checksum thiết kế — kiện bị giữ, chờ kiểm tra lại thiết kế",
     reverified: "Thiết kế khớp — đã gỡ giữ, người đóng gói hoàn tất lại",
   },
   packing: PACKING_TOAST_MESSAGES,

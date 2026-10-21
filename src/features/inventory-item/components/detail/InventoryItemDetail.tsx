@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 
 import { ADMIN_ROUTES, INVENTORY_ITEM_PERMISSIONS, UI_LABELS } from "@/constants";
 import { usePermissionChecker } from "@/lib/auth";
@@ -10,6 +8,7 @@ import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
+import { BackLink } from "@/components/shared/BackLink";
 
 import { inventoryItemCapabilities } from "../../lifecycle";
 import { useInventoryItem } from "../../queries";
@@ -47,14 +46,7 @@ function InventoryItemDetailContent({ id }: { id: string }) {
       <PageHeader
         title={item.sku}
         subtitle={L.version(item.version)}
-        actions={
-          <Link
-            href={ADMIN_ROUTES.inventoryItems.list}
-            className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary inline-flex items-center gap-1.5 rounded-[var(--r-sm)] border px-3 py-1.5 text-[0.8125rem] font-medium transition-colors"
-          >
-            <ArrowLeft className="size-3.5" /> {L.back}
-          </Link>
-        }
+        actions={<BackLink href={ADMIN_ROUTES.inventoryItems.list} />}
       />
       <div className="grid items-start gap-5 xl:grid-cols-[1fr_320px]">
         {/* Logistics và chính sách tồn đứng cạnh nhau, mỗi khối một cột */}

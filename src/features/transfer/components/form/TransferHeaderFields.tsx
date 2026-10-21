@@ -6,12 +6,12 @@ import { TRANSFER_REASON_LABELS, TRANSFER_REASONS, UI_LABELS } from "@/constants
 import { Input } from "@/components/ui/input";
 import {
   Select,
-  SelectContent,
   SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 
 import { fieldClass } from "../primitives";
 import { Field } from "./FormField";
@@ -56,7 +56,7 @@ export function TransferHeaderFields({ form }: { form: TransferForm }) {
               >
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <TitledSelectContent title={UI_LABELS.transfer.field.reason}>
                 <SelectGroup>
                   <SelectItem value={NO_REASON}>{UI_LABELS.transfer.field.noReason}</SelectItem>
                   {TRANSFER_REASONS.map((r) => (
@@ -65,7 +65,7 @@ export function TransferHeaderFields({ form }: { form: TransferForm }) {
                     </SelectItem>
                   ))}
                 </SelectGroup>
-              </SelectContent>
+              </TitledSelectContent>
             </Select>
           )}
         />

@@ -5,7 +5,9 @@ import { ArrowDown, ArrowUp, Trash2 } from "lucide-react";
 import { UI_LABELS } from "@/constants";
 
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
+import { Select, SelectItem, SelectValue } from "@/components/ui/select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
+import { Checkbox } from "@/components/ui/checkbox";
 
 import { ProductSelectTrigger } from "./form-controls";
 
@@ -58,13 +60,13 @@ export function AxisFieldset({
           <ProductSelectTrigger aria-label={`Thuộc tính của trục ${index + 1}`} className="flex-1">
             <SelectValue placeholder="Chọn thuộc tính" />
           </ProductSelectTrigger>
-          <SelectContent>
+          <TitledSelectContent title={"Thuộc tính"}>
             {pickable.map((a) => (
               <SelectItem key={a.attributeId} value={a.attributeId}>
                 {a.name} ({a.code})
               </SelectItem>
             ))}
-          </SelectContent>
+          </TitledSelectContent>
         </Select>
         <Button
           type="button"
@@ -114,16 +116,15 @@ export function AxisFieldset({
                 className="text-ink-secondary flex items-center gap-1.5 text-xs"
                 title={used ? "Đang có biến thể dùng giá trị này" : undefined}
               >
-                <input
-                  type="checkbox"
-                  className="accent-brand size-3.5"
+                <Checkbox
                   checked={checked}
                   disabled={used && checked}
-                  onChange={(e) =>
+                  onCheckedChange={(checked) =>
                     onChange({
-                      optionValueIds: e.target.checked
-                        ? [...axis.optionValueIds, v.valueId]
-                        : axis.optionValueIds.filter((id) => id !== v.valueId),
+                      optionValueIds:
+                        checked === true
+                          ? [...axis.optionValueIds, v.valueId]
+                          : axis.optionValueIds.filter((id) => id !== v.valueId),
                     })
                   }
                 />

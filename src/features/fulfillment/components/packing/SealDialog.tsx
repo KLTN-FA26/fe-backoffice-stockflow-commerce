@@ -7,16 +7,10 @@ import { FLAG_CHOICES, sealInputSchema } from "@/features/fulfillment/packing-in
 import { packingErrorMessage } from "@/features/fulfillment/packing-errors";
 import { useSealPackage } from "@/features/fulfillment/packing-mutations";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { FieldError, MONO, fieldClass } from "../primitives";
 
@@ -61,15 +55,13 @@ function FlagSelect({
         <SelectTrigger id={id} className={TRIGGER}>
           <SelectValue />
         </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            {FLAG_CHOICES.map((choice) => (
-              <SelectItem key={choice} value={choice}>
-                {FLAG_LABEL[choice]}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        </SelectContent>
+        <TitledSelectContent title={label}>
+          {FLAG_CHOICES.map((choice) => (
+            <SelectItem key={choice} value={choice}>
+              {FLAG_LABEL[choice]}
+            </SelectItem>
+          ))}
+        </TitledSelectContent>
       </Select>
     </div>
   );
@@ -177,15 +169,13 @@ export function SealDialog({
             <SelectTrigger id="seal-type" className={TRIGGER}>
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {PACKAGE_TYPES.map((value) => (
-                  <SelectItem key={value} value={value}>
-                    {L.packages.typeOption[value]}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
+            <TitledSelectContent title={SEAL.packageType}>
+              {PACKAGE_TYPES.map((value) => (
+                <SelectItem key={value} value={value}>
+                  {L.packages.typeOption[value]}
+                </SelectItem>
+              ))}
+            </TitledSelectContent>
           </Select>
         </div>
         <div className="grid grid-cols-2 gap-3">

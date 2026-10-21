@@ -199,8 +199,10 @@
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
+  /* Trỏ thẳng về token nền: `--muted` ở :root là status.muted (#9A9C95) nên `var(--muted)` làm
+     mọi `bg-muted` của shadcn (nút đang mở, mục cmdk được trỏ, skeleton) ra xám đậm. */
+  --color-muted: var(--bg-muted);
+  --color-muted-foreground: var(--ink-tertiary);
   --color-destructive: var(--destructive);
   --color-border: var(--border);
   --color-input: var(--input);
@@ -261,4 +263,20 @@
 [data-slot="select-content"],
 [data-slot="popover-content"] {
   z-index: var(--z-dropdown-on-dialog);
+}
+
+/*
+  Mục đang trỏ trong dropdown (Radix Select): shadcn tô `focus:bg-accent`, nhưng `--color-accent`
+  của dự án là accent.blue (link, icon thông tin) → mục bị tô xanh đậm. Trả về màu hover trung
+  tính mặc định của shadcn (nền muted nhạt, chữ ink.primary). Đặt NGOÀI @layer để thắng utility
+  của Tailwind v4 mà không cần !important.
+*/
+[data-slot="select-item"]:focus,
+[data-slot="select-item"][data-highlighted] {
+  background-color: var(--bg-muted);
+  color: var(--ink-primary);
+}
+[data-slot="select-item"]:focus *,
+[data-slot="select-item"][data-highlighted] * {
+  color: inherit;
 }

@@ -1,8 +1,7 @@
 "use client";
 
 import { cn } from "cn";
-import { AlertTriangle, ArrowLeft, CircleAlert, FileImage, Package } from "lucide-react";
-import Link from "next/link";
+import { AlertTriangle, CircleAlert, FileImage, Package } from "lucide-react";
 import { use } from "react";
 
 import { ADMIN_ROUTES } from "@/constants";
@@ -18,6 +17,7 @@ import { DataTable, type ColumnDef } from "@/components/shared/DataTable";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { StatusDot } from "@/components/shared/StatusDot";
+import { BackLink } from "@/components/shared/BackLink";
 
 import type { InvoiceLine } from "@/features/invoice/types";
 
@@ -140,15 +140,7 @@ export function InvoiceDetail({ params }: InvoiceDetailProps) {
       <PageHeader
         title={invoice.invoiceNumber}
         subtitle="Chi tiết hoá đơn và kết quả đối chiếu ba chiều PO · Receipt · Invoice."
-        actions={
-          <Link
-            href={ADMIN_ROUTES.invoices.list}
-            className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary inline-flex items-center gap-1.5 rounded-[var(--r-sm)] border px-3 py-1.5 text-[0.8125rem] font-medium transition-colors"
-          >
-            <ArrowLeft className="size-3.5" />
-            Quay lại
-          </Link>
-        }
+        actions={<BackLink href={ADMIN_ROUTES.invoices.list} />}
       />
 
       <section className="grid gap-4 lg:grid-cols-[1fr_300px]">

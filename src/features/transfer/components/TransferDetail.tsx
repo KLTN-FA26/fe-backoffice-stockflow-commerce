@@ -1,8 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-
 import { ADMIN_ROUTES, TRANSFER_PERMISSIONS, UI_LABELS } from "@/constants";
 import { useCan } from "@/lib/auth";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
@@ -11,7 +8,7 @@ import { isPartialDispatch } from "@/features/transfer/selectors";
 import { Alert } from "@/components/shared/Alert";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
-import { Button } from "@/components/ui/button";
+import { BackLink } from "@/components/shared/BackLink";
 
 import { TransferActions } from "./detail/TransferActions";
 import { TransferInfo, TransferTimelineCard } from "./detail/TransferInfo";
@@ -47,13 +44,7 @@ function TransferDetailBody({ id }: { id: string }) {
       <PageHeader
         title={transfer.number}
         subtitle={L.pageTitle}
-        actions={
-          <Button variant="outline" size="sm" asChild>
-            <Link href={ADMIN_ROUTES.transfers.list}>
-              <ArrowLeft className="size-3.5" /> {UI_LABELS.common.backToList}
-            </Link>
-          </Button>
-        }
+        actions={<BackLink href={ADMIN_ROUTES.transfers.list} />}
       />
       {query.isError && <RefetchErrorNotice onRetry={() => void query.refetch()} />}
       <div className="grid gap-5 xl:grid-cols-[1fr_320px]">

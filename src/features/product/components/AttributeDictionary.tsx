@@ -1,42 +1,50 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { cn } from "cn";
 import { FolderTree, Plus, Search, Tags, XCircle } from "lucide-react";
 import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
 
-import { ATTRIBUTE_PERMISSIONS } from "@/constants";
+import { ATTRIBUTE_PERMISSIONS, UI_LABELS } from "@/constants";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useUrlTab } from "@/hooks/use-url-filters";
 import { usePermissionChecker } from "@/lib/auth";
 import { DataTable, type ColumnDef } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { FORM_INPUT_CLASS } from "@/components/shared/form-control-classes";
+import { ListConfigSummary } from "@/components/shared/ListConfigSummary";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { PageTabPanel, PageTabs } from "@/components/shared/PageTabs";
-import { textCell } from "@/components/shared/column-helpers";
+import {
+  CELL,
+  codeCell,
+  EmptyCell,
+  nameCell,
+  textCell,
+  viewColumn,
+} from "@/components/shared/column-helpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 import { attributeErrorMessage } from "../attribute-errors";
+import { ActiveDot } from "../active-status";
 import { DATA_TYPE_LABEL } from "../attribute-labels";
 import { ATTRIBUTE_LIST_SIZE } from "../attribute-api";
 import { useAttributes } from "../attribute-queries";
 import { ATTRIBUTE_DATA_TYPES } from "../attribute-schemas";
 import { AttributeDetailPanel } from "./AttributeDetailPanel";
+import {
+  ATTRIBUTE_ACTIVE_FILTERS,
+  ATTRIBUTE_ACTIVE_LABEL,
+  AttributeFilterPopover,
+} from "./AttributeFilterPopover";
 import { AttributeFormDialog } from "./AttributeFormDialog";
 import { CategoryAttributesEditor } from "./CategoryAttributesEditor";
 
 import type { Attribute } from "../attribute-schemas";
 
 const TABS = ["attributes", "categories"] as const;
-const ACTIVE_FILTERS = ["true", "false"] as const;
 
 /**
  * Từ điển thuộc tính (BE PR #113, WBS 3.1.2): danh sách thuộc tính kèm giá trị, tạo / sửa / xoá, và
@@ -51,7 +59,10 @@ export function AttributeDictionary() {
     "dataType",
     parseAsStringLiteral(ATTRIBUTE_DATA_TYPES),
   );
-  const [active, setActive] = useQueryState("active", parseAsStringLiteral(ACTIVE_FILTERS));
+  const [active, setActive] = useQueryState(
+    "active",
+    parseAsStringLiteral(ATTRIBUTE_ACTIVE_FILTERS),
+  );
   const debouncedQ = useDebouncedValue(q, 300);
   const [creating, setCreating] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -71,28 +82,32 @@ export function AttributeDictionary() {
   const filtered = Boolean(debouncedQ.trim() || dataType || active);
 
   const columns: ColumnDef<Attribute>[] = [
-    {
-      key: "code",
-      header: "Mã",
+    codeCell<Attribute>("code", "Mã", (row) => row.code, {
       sortable: true,
       compare: (a, b) => a.code.localeCompare(b.code),
-      cell: (row) => (
-        <span className="text-accent font-[family-name:var(--font-mono)] text-[0.8125rem] font-medium">
-          {row.code}
-        </span>
-      ),
-    },
-    textCell<Attribute>("name", "Tên", (row) => row.name, {
+    }),
+    nameCell<Attribute>("name", "Tên", (row) => row.name, {
       sortable: true,
       compare: (a, b) => a.name.localeCompare(b.name),
-      color: "primary",
     }),
     textCell<Attribute>("dataType", "Loại", (row) => DATA_TYPE_LABEL[row.dataType]),
-    textCell<Attribute>("unit", "Đơn vị", (row) => row.unit || "—"),
-    textCell<Attribute>("values", "Giá trị", (row) =>
-      row.values.length > 0 ? String(row.values.length) : "—",
-    ),
-    textCell<Attribute>("active", "Trạng thái", (row) => (row.active ? "Đang dùng" : "Ngừng dùng")),
+    textCell<Attribute>("unit", "Đơn vị", (row) => row.unit ?? ""),
+    {
+      key: "values",
+      header: "Giá trị",
+      align: "right",
+      cell: (row) =>
+        row.values.length > 0 ? (
+          <span className={CELL.number}>{row.values.length}</span>
+        ) : (
+          <EmptyCell />
+        ),
+    },
+    { key: "active", header: "Trạng thái", cell: (row) => <ActiveDot active={row.active} /> },
+    viewColumn<Attribute>((row) => ({
+      label: `Xem ${row.code}`,
+      onOpen: () => setSelectedId(row.attributeId),
+    })),
   ];
 
   return (
@@ -130,53 +145,55 @@ export function AttributeDictionary() {
           <CategoryAttributesEditor />
         ) : (
           <>
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <div className="relative">
-                <Search className="text-ink-tertiary absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2" />
+            <div className="border-border-default bg-bg-surface mb-3 flex flex-wrap items-center gap-2 rounded-[var(--r-sm)] border px-3 py-2 shadow-[var(--card-shadow)]">
+              <div className="relative min-w-[280px] flex-1 lg:max-w-xl">
+                <Search className="text-accent pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
                 <Input
                   aria-label="Tìm thuộc tính"
                   placeholder="Tìm theo mã hoặc tên…"
                   value={q}
                   onChange={(e) => void setQ(e.target.value || null)}
-                  className="w-64 pl-8"
+                  className={cn(FORM_INPUT_CLASS, "pl-9")}
                 />
               </div>
-              <Select
-                value={dataType ?? "all"}
-                onValueChange={(v) =>
-                  void setDataType(
-                    v === "all" ? null : (v as (typeof ATTRIBUTE_DATA_TYPES)[number]),
-                  )
-                }
-              >
-                <SelectTrigger aria-label="Lọc theo loại" className="w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Mọi loại</SelectItem>
-                  {ATTRIBUTE_DATA_TYPES.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {DATA_TYPE_LABEL[t]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select
-                value={active ?? "all"}
-                onValueChange={(v) =>
-                  void setActive(v === "all" ? null : (v as (typeof ACTIVE_FILTERS)[number]))
-                }
-              >
-                <SelectTrigger aria-label="Lọc theo trạng thái" className="w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Mọi trạng thái</SelectItem>
-                  <SelectItem value="true">Đang dùng</SelectItem>
-                  <SelectItem value="false">Ngừng dùng</SelectItem>
-                </SelectContent>
-              </Select>
+              <AttributeFilterPopover
+                dataType={dataType}
+                active={active}
+                onDataTypeChange={(v) => void setDataType(v)}
+                onActiveChange={(v) => void setActive(v)}
+              />
             </div>
+            <ListConfigSummary
+              items={[
+                {
+                  label: "Search chính",
+                  value: q || UI_LABELS.common.notEntered,
+                  active: q !== "",
+                  onClear: () => void setQ(null),
+                  clearLabel: "Xoá search chính",
+                },
+                {
+                  label: "Loại",
+                  value: dataType ? DATA_TYPE_LABEL[dataType] : UI_LABELS.taxonomy.allStatuses,
+                  active: dataType !== null,
+                  onClear: () => void setDataType(null),
+                  clearLabel: "Xoá lọc loại",
+                },
+                {
+                  label: "Trạng thái",
+                  value: active ? ATTRIBUTE_ACTIVE_LABEL[active] : UI_LABELS.taxonomy.allStatuses,
+                  active: active !== null,
+                  onClear: () => void setActive(null),
+                  clearLabel: "Xoá lọc trạng thái",
+                },
+              ]}
+              onResetAll={() => {
+                void setQ(null);
+                void setDataType(null);
+                void setActive(null);
+              }}
+              resetDisabled={!q && !dataType && !active}
+            />
 
             {query.isLoading ? (
               <PageSkeleton variant="list" />

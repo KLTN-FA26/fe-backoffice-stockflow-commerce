@@ -62,7 +62,7 @@ import type { PackSessionState } from "./mock-packing-session";
 
 const BASE = "/fulfillment";
 const TASK = `${BASE}/tasks/:id`;
-const READERS = ["WAREHOUSE_STAFF", "WAREHOUSE_MANAGER", "QC_STAFF"] as const;
+const READERS = ["WAREHOUSE_STAFF", "WAREHOUSE_MANAGER"] as const;
 const PACKERS = ["WAREHOUSE_STAFF", "WAREHOUSE_MANAGER"] as const;
 const PACKABLE = ["READY_TO_FULFILL", "PICKING", "PARTIALLY_FULFILLED"];
 const PACKAGE_TYPES = ["CARTON", "BAG", "PALLET", "CRATE", "OTHER"];

@@ -2,11 +2,12 @@
  * Trạm đóng gói — action-gating (feature-architecture §6).
  *
  * BE (PR #136) gate KÉP: mã quyền `fulfillment-packages` (`@RequiresPermission`) VÀ vai trò
- * (`@PreAuthorize`). Xem phiên / hàng chờ: nhân viên kho, quản lý kho, QC (quyền READ). Thao tác
+ * (`@PreAuthorize`). Xem phiên / hàng chờ: nhân viên kho, quản lý kho (quyền READ; QC không có quyền
+ * trang đóng gói — BE #136 bản cuối). Thao tác
  * (nhận đơn, kiện, quét, hoàn tất): chỉ nhân viên kho / quản lý kho (quyền CREATE) — KHÔNG còn đòi là
  * người được gán lấy hàng như bản cũ; ai nhận đơn ở bàn đóng gói (`packerId`) mới là người đóng.
  * Người khác bị `PACKING_TAKEN`, trừ quản lý kho (không bị chặn, người nhận đơn không đổi). Kiểm tra
- * lại thiết kế: QC / quản lý kho. UI-only — Backend phải re-check (PackingController, PackingSession).
+ * lại thiết kế (docs 08): người đóng gói / quản lý kho. UI-only — Backend phải re-check (PackingController, PackingSession).
  */
 
 import { FULFILLMENT_PACKAGE_PERMISSIONS, PACK_STATUS, STAFF_ROLE } from "@/constants";
@@ -16,10 +17,10 @@ import { hasStaffRole } from "./lifecycle";
 import type { FulfillmentActor } from "./lifecycle";
 import type { PackingSession } from "./packing-types";
 
-const { QC_STAFF, WAREHOUSE_MANAGER, WAREHOUSE_STAFF } = STAFF_ROLE;
+const { WAREHOUSE_MANAGER, WAREHOUSE_STAFF } = STAFF_ROLE;
 
 export interface PackingAccess {
-  /** Quyền xem phiên (READ) — nhân viên kho, quản lý kho, QC. */
+  /** Quyền xem phiên (READ) — nhân viên kho, quản lý kho. */
   canRead: boolean;
   /** Có quyền thao tác đóng gói nói chung (CREATE + vai trò nhân viên / quản lý kho). */
   canPack: boolean;
@@ -34,7 +35,7 @@ export interface PackingAccess {
   takenByOther: boolean;
   /** Quản lý kho thao tác trong phiên của người khác. */
   managerAssist: boolean;
-  /** QC / quản lý kho kiểm tra lại thiết kế khi phiên bị giữ. */
+  /** Người đóng gói / quản lý kho kiểm tra lại thiết kế khi phiên bị giữ. */
   canReverify: boolean;
   /** Xem nhãn: nhân viên kho / quản lý kho có quyền READ (QC không được — `@PreAuthorize` của BE). */
   canLabel: boolean;
@@ -62,7 +63,7 @@ export function packingAccess(
     canReverify:
       actor.can(FULFILLMENT_PACKAGE_PERMISSIONS.create) &&
       session.packStatus === PACK_STATUS.ON_HOLD &&
-      hasStaffRole(actor, [QC_STAFF, WAREHOUSE_MANAGER]),
+      floorRole,
     canLabel: canRead && floorRole,
   };
 }

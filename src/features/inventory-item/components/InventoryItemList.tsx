@@ -6,7 +6,7 @@ import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { ListToolbar } from "@/components/shared/ListToolbar";
 import { PageHeader } from "@/components/shared/PageHeader";
 
-import { buildInventoryItemColumns } from "./list/columns";
+import { buildInventoryItemColumns, inventoryItemViewColumn } from "./list/columns";
 import { COLUMN_LABELS, DEFAULT_COLUMNS, FILTER_OPTIONS, LOCKED_COLUMNS } from "./list/constants";
 import { InventoryItemListBody } from "./list/InventoryItemListBody";
 import { buildSummaryItems } from "./list/summary";
@@ -23,7 +23,10 @@ function InventoryItemListContent() {
   const canRead = useCan(INVENTORY_ITEM_PERMISSIONS.read);
   const s = useInventoryItemListState(canRead);
   const { filters } = s;
-  const visibleColumns = COLUMNS.filter((c) => s.config.visibleColumns.includes(c.key));
+  const visibleColumns = [
+    ...COLUMNS.filter((c) => s.config.visibleColumns.includes(c.key)),
+    inventoryItemViewColumn(),
+  ];
 
   return (
     <>

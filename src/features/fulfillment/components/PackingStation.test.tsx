@@ -317,7 +317,7 @@ describe("PackingStation — thiết kế đã khoá bên cạnh dòng tuỳ ch�
 describe("PackingStation — kiểm tra lại thiết kế (flow X-CHK) và quyền thao tác", () => {
   const heldSession = () => withPrintLine({ packStatus: "ON_HOLD" });
 
-  it("phiên bị giữ (BE 200 + ON_HOLD) → cảnh báo + evidence lệch; NV kho không kiểm tra lại, không hoàn tất", async () => {
+  it("phiên bị giữ (BE 200 + ON_HOLD) → cảnh báo + evidence lệch; người đóng gói có nút kiểm tra lại nhưng không hoàn tất / quét", async () => {
     renderStation({
       identity: IDENTITIES.staffWithOrders,
       task: heldTask(),
@@ -328,11 +328,10 @@ describe("PackingStation — kiểm tra lại thiết kế (flow X-CHK) và quy�
     const history = screen.getByRole("table", { name: "Lịch sử đối chiếu checksum thiết kế" });
     expect(within(history).getByText("Lệch checksum")).toBeInTheDocument();
     expect(within(history).getByText("bbbbbbbbbbbb…")).toBeInTheDocument();
-    // Không có nút bỏ qua; NV kho không kiểm tra lại, không hoàn tất, không quét
-    expect(screen.queryByRole("button", { name: action.reverify })).toBeNull();
+    // Không có nút bỏ qua; kiểm tra lại là việc của người đóng gói / quản lý kho (docs 08)
+    expect(screen.getByRole("button", { name: action.reverify })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: UI_LABELS.packing.action.complete })).toBeNull();
     expect(screen.queryByLabelText(UI_LABELS.packing.scan.label)).toBeNull();
-    expect(screen.getAllByText(/Chờ QC hoặc quản lý kho kiểm tra lại/).length).toBeGreaterThan(0);
   });
 
   it("quản lý kho kiểm tra lại: bắt buộc ghi chú; vẫn lệch thì giữ dialog; khớp thì phiên về Packing, KHÔNG sang Packed", async () => {

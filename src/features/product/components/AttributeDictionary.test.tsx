@@ -113,7 +113,8 @@ describe("AttributeDictionary — danh sách + lọc", () => {
     const user = userEvent.setup();
     renderApp(<AttributeDictionary />);
     await screen.findByText("COLOR");
-    await pickOption(user, "Lọc theo loại", "Màu sắc");
+    await user.click(screen.getByRole("button", { name: "Lọc thuộc tính" }));
+    await user.click(await screen.findByRole("option", { name: "Màu sắc" }));
     await waitFor(() => expect(screen.queryByText("WEIGHT")).not.toBeInTheDocument());
     const lastParams = get.mock.calls.filter((c) => c[0] === "/attributes").at(-1)?.[1] as {
       params: URLSearchParams;

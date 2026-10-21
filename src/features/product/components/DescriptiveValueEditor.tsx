@@ -1,6 +1,8 @@
 "use client";
 
-import { Select, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
+import { Select, SelectItem, SelectValue } from "@/components/ui/select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
+import { Checkbox } from "@/components/ui/checkbox";
 
 import { ProductInput, ProductSelectTrigger } from "./form-controls";
 
@@ -34,13 +36,13 @@ export function DescriptiveValueEditor({
           <ProductSelectTrigger aria-label="Giá trị">
             <SelectValue placeholder="Chọn giá trị" />
           </ProductSelectTrigger>
-          <SelectContent>
+          <TitledSelectContent title={"Giá trị"}>
             {values.map((v) => (
               <SelectItem key={v.valueId} value={v.valueId}>
                 {v.label}
               </SelectItem>
             ))}
-          </SelectContent>
+          </TitledSelectContent>
         </Select>
       );
     case "MULTISELECT":
@@ -48,15 +50,14 @@ export function DescriptiveValueEditor({
         <div className="flex flex-wrap gap-x-4 gap-y-1.5">
           {values.map((v) => (
             <label key={v.valueId} className="text-ink-secondary flex items-center gap-1.5 text-xs">
-              <input
-                type="checkbox"
-                className="accent-brand size-3.5"
+              <Checkbox
                 checked={draft.valueIds.includes(v.valueId)}
-                onChange={(e) =>
+                onCheckedChange={(checked) =>
                   onChange({
-                    valueIds: e.target.checked
-                      ? [...draft.valueIds, v.valueId]
-                      : draft.valueIds.filter((id) => id !== v.valueId),
+                    valueIds:
+                      checked === true
+                        ? [...draft.valueIds, v.valueId]
+                        : draft.valueIds.filter((id) => id !== v.valueId),
                   })
                 }
               />
@@ -93,10 +94,10 @@ export function DescriptiveValueEditor({
           <ProductSelectTrigger aria-label="Giá trị">
             <SelectValue placeholder="Chọn" />
           </ProductSelectTrigger>
-          <SelectContent>
+          <TitledSelectContent title={"Giá trị"}>
             <SelectItem value="true">Có</SelectItem>
             <SelectItem value="false">Không</SelectItem>
-          </SelectContent>
+          </TitledSelectContent>
         </Select>
       );
   }

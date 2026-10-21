@@ -7,17 +7,11 @@ import { PACKING_LIMITS, UI_LABELS } from "@/constants";
 import { openPackages } from "@/features/fulfillment/packing-selectors";
 import { ScanInput } from "@/components/backoffice/ScanInput";
 import { Alert } from "@/components/shared/Alert";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { MONO, Section, fieldClass } from "../primitives";
 import { ScanDetailDialog } from "./ScanDetailDialog";
@@ -63,15 +57,13 @@ export function ScanSection({ session }: { session: PackingSession }) {
                 >
                   <SelectValue placeholder={S.targetPlaceholder} />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {open.map((pkg) => (
-                      <SelectItem key={pkg.packageId} value={pkg.packageId}>
-                        {UI_LABELS.packing.packages.cardTitle(pkg.packageNo)} · {pkg.labelCode}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
+                <TitledSelectContent title={S.targetPackage}>
+                  {open.map((pkg) => (
+                    <SelectItem key={pkg.packageId} value={pkg.packageId}>
+                      {UI_LABELS.packing.packages.cardTitle(pkg.packageNo)} · {pkg.labelCode}
+                    </SelectItem>
+                  ))}
+                </TitledSelectContent>
               </Select>
             </div>
             <div>

@@ -6,16 +6,10 @@ import { PACKING_FIELD_MESSAGES, PACKING_LIMITS, UI_LABELS } from "@/constants";
 import { scanDetailSchema } from "@/features/fulfillment/packing-input-schemas";
 import { lotChoices, matchLot } from "@/features/fulfillment/packing-selectors";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { FieldError, fieldClass } from "../primitives";
 
@@ -99,16 +93,14 @@ export function ScanDetailDialog({
               <SelectTrigger id="scan-line" className={TRIGGER}>
                 <SelectValue placeholder={S.promptLinePlaceholder} />
               </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {prompt.candidates.map((candidate) => (
-                    <SelectItem key={candidate.orderLineId} value={candidate.orderLineId}>
-                      {candidate.sku}
-                      {candidate.printLine ? " — in theo thiết kế" : ""}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
+              <TitledSelectContent title={S.promptLine}>
+                {prompt.candidates.map((candidate) => (
+                  <SelectItem key={candidate.orderLineId} value={candidate.orderLineId}>
+                    {candidate.sku}
+                    {candidate.printLine ? " — in theo thiết kế" : ""}
+                  </SelectItem>
+                ))}
+              </TitledSelectContent>
             </Select>
             <FieldError>{errors.orderLineId}</FieldError>
           </div>

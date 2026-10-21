@@ -78,7 +78,6 @@ export function ManifestDocument({ load }: { load: Load }) {
         lines={load.lines}
         emptyText={UI_LABELS.shipping.empty.noLines}
         showCheck
-        highlightMissing
       />
       {/* In: tổng kết + ghi chú + ô ký là một khối không tách trang — ô ký không bị đẩy sang trang trắng */}
       <div className="break-inside-avoid space-y-4">

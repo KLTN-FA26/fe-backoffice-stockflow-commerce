@@ -52,14 +52,16 @@ describe("packingAccess — BE PR #136 gate kép (quyền fulfillment-packages +
     ).toBe(true);
   });
 
-  it("kiểm tra lại thiết kế (X-CHK): chỉ QC / quản lý kho, chỉ khi On Hold, cần packages:CREATE", () => {
+  it("kiểm tra lại thiết kế (X-CHK, docs 08): người đóng gói / quản lý kho, chỉ khi On Hold, cần packages:CREATE; QC không", () => {
     const held = session("On Hold", PACKER_ID);
-    expect(packingAccess(held, actorOf(IDENTITIES.qcStaff)).canReverify).toBe(true);
+    expect(packingAccess(held, actorOf(IDENTITIES.warehouseStaff)).canReverify).toBe(true);
     expect(packingAccess(held, actorOf(IDENTITIES.warehouseManager)).canReverify).toBe(true);
-    expect(packingAccess(held, actorOf(IDENTITIES.warehouseStaff)).canReverify).toBe(false);
-    expect(packingAccess(session("Packing"), actorOf(IDENTITIES.qcStaff)).canReverify).toBe(false);
-    const readOnlyQc = { roles: [STAFF_ROLE.QC_STAFF], permissions: [PACK.read] };
-    expect(packingAccess(held, actorOf(readOnlyQc)).canReverify).toBe(false);
+    expect(packingAccess(held, actorOf(IDENTITIES.qcStaff)).canReverify).toBe(false);
+    expect(packingAccess(session("Packing"), actorOf(IDENTITIES.warehouseStaff)).canReverify).toBe(
+      false,
+    );
+    const readOnlyStaff = { roles: [STAFF_ROLE.WAREHOUSE_STAFF], permissions: [PACK.read] };
+    expect(packingAccess(held, actorOf(readOnlyStaff)).canReverify).toBe(false);
   });
 
   it("đã đóng xong / bị giữ → không ai thao tác kiện", () => {

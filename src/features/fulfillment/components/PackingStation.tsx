@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { parseAsString, useQueryState } from "nuqs";
 
 import {
@@ -21,6 +19,7 @@ import { Alert } from "@/components/shared/Alert";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
+import { BackLink } from "@/components/shared/BackLink";
 
 import { FulfillmentLoadError } from "./FulfillmentLoadError";
 import { FulfillmentPermissionGate } from "./FulfillmentPermissionGate";
@@ -78,11 +77,9 @@ function PackingStationBody({ id }: { id: string }) {
         title={`${packing.stationTitle} — ${session.orderNumber ?? taskCode(session.taskId)}`}
         subtitle={fulfillment.packingSubtitle}
         actions={
-          <Button variant="outline" size="sm" asChild className="print:hidden">
-            <Link href={ADMIN_ROUTES.packing.list}>
-              <ArrowLeft className="size-3.5" /> {common.backToList}
-            </Link>
-          </Button>
+          <div className="print:hidden">
+            <BackLink href={ADMIN_ROUTES.packing.list} />
+          </div>
         }
         className="print:hidden"
       />

@@ -92,8 +92,9 @@ export const FULFILLMENT_ACTIONS: readonly FulfillmentAction[] = [
     code: "reverify",
     label: LABEL.reverify,
     permission: FULFILLMENT_PACKAGE_PERMISSIONS.create,
-    // X-CHK (BR-DSG-003): chỉ QC / quản lý kho gỡ giữ, không cần là người được gán
-    roles: [QC_STAFF, WAREHOUSE_MANAGER],
+    // X-CHK (BR-DSG-003, docs 08: người đóng gói / quản lý kho xử lý kiểm đơn lệch; QC không có
+    // quyền trang đóng gói — BE #136 bản cuối), không cần là người được gán lấy hàng
+    roles: [WAREHOUSE_STAFF, WAREHOUSE_MANAGER],
     assigneeOnly: false,
     // BE PR #136: kiểm tra lại khớp → phiên về PACKING, người đóng gói hoàn tất lại (không ra PACKED)
     pack: { from: [PACK_STATUS.ON_HOLD], to: PACK_STATUS.PACKING },

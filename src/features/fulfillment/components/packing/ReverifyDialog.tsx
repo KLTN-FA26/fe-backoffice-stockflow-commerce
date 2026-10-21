@@ -16,7 +16,7 @@ import { FieldError, taskCode } from "../primitives";
 const { fulfillment } = UI_LABELS;
 
 /**
- * Flow X-CHK (BR-DSG-003, BE docs business-design/04c): QC / quản lý kho yêu cầu BE đối chiếu lại
+ * Flow X-CHK (BR-DSG-003, BE docs business-design/04c): người đóng gói / quản lý kho yêu cầu BE đối chiếu lại
  * checksum sau khi đã khôi phục đúng file. Bắt buộc ghi cách đã xử lý; không có nút bỏ qua.
  * BE trả 200 cả khi vẫn lệch → dialog giữ nguyên, báo vẫn bị giữ (ghi chú lần đó không được lưu).
  */

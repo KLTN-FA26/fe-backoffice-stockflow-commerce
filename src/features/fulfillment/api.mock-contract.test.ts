@@ -160,7 +160,8 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
         (await allTasks()).find((t) => t.packStatus === "On Hold"),
         "kiện đang giữ",
       );
-      actAs(USERS.qc);
+      // Kiểm tra lại thiết kế: người đóng gói / quản lý kho (docs 08), QC không còn quyền trang đóng gói
+      actAs(USERS.manager);
       const lineId = required(held.integrityEvidence[0]?.orderLineId, "evidence");
       const input = { taskId: held.taskId, lineId, role: "CUSTOMER_PREVIEW" } as const;
       // File đang lệch → BE từ chối cấp URL

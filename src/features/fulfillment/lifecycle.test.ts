@@ -102,12 +102,11 @@ describe("allowedFulfillmentActions — quyền + vai trò + người được g
     expect(codes(task("Picked", "On Hold"), coordinator)).toEqual([]);
   });
 
-  it("X-CHK: chỉ QC / quản lý kho kiểm tra lại kiện On Hold, không cần là người được gán", () => {
+  it("X-CHK (docs 08): người đóng gói (NV kho) / quản lý kho kiểm tra lại kiện On Hold, không cần là người được gán; QC thì không", () => {
     const held = task("Picked", "On Hold", SOMEONE_ELSE);
-    expect(codes(held, actorOf(IDENTITIES.qcStaff))).toEqual(["reverify"]);
     expect(codes(held, actorOf(IDENTITIES.warehouseManager))).toEqual(["reverify"]);
-    // Người được gán là NV kho: không có quyền kiểm tra lại thiết kế
-    expect(codes(task("Picked", "On Hold"), actorOf(IDENTITIES.warehouseStaff))).toEqual([]);
+    expect(codes(held, actorOf(IDENTITIES.warehouseStaff))).toEqual(["reverify"]);
+    expect(codes(held, actorOf(IDENTITIES.qcStaff))).toEqual([]);
   });
 
   it("QC không có thao tác lấy hàng / gán", () => {

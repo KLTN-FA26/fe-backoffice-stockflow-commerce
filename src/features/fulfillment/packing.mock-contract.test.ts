@@ -10,7 +10,12 @@ import { resetFulfillmentMockStore } from "@/lib/api/mock-routes-fulfillment-sto
 import { backendOrderStatusOf, resetOrderMockStore } from "@/lib/api/mock-routes-orders";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
-import { completePicking, listFulfillmentTasks, reverifyDesignIntegrity } from "./api";
+import {
+  completePicking,
+  getFulfillmentTask,
+  listFulfillmentTasks,
+  reverifyDesignIntegrity,
+} from "./api";
 import {
   completePacking,
   getPackageLabel,
@@ -365,7 +370,7 @@ describe("packing mock ↔ hợp đồng BE PR #136", () => {
   );
 
   it(
-    "kiện bị giữ do lệch thiết kế: QC / quản lý kiểm tra lại → phiên về PACKING (không PACKED) → người đóng hoàn tất lại",
+    "kiện bị giữ do lệch thiết kế: người đóng gói / quản lý kiểm tra lại → phiên về PACKING (không PACKED) → người đóng hoàn tất lại",
     async () => {
       actAs(USERS.manager);
       const id = (await taskOfOrder("ORD-2026-0009")).taskId;
@@ -383,17 +388,17 @@ describe("packing mock ↔ hợp đồng BE PR #136", () => {
           completePacking({ taskId: id, requestId: crypto.randomUUID(), partial: false }),
         ),
       ).toBe("PACK_STATE_CONFLICT");
+      // QC không có quyền trang đóng gói (BE #136 bản cuối): không xem phiên, không thao tác, không xem nhãn
       actAs(USERS.qc);
-      // QC xem được phiên, nhưng không thao tác kiện (FORBIDDEN) và không xem nhãn
-      expect((await getPackingSession(id)).packStatus).toBe("On Hold");
+      expect(await codeOf(getPackingSession(id))).toBe("FORBIDDEN");
       expect(await codeOf(startPacking(id))).toBe("FORBIDDEN");
-      expect(await codeOf(openPackage({ taskId: id, idempotencyKey: "q" }))).toBe("FORBIDDEN");
-      expect(
-        await codeOf(
-          getPackageLabel({ taskId: id, packageId: session.packages[0]?.packageId ?? "" }),
-        ),
-      ).toBe("FORBIDDEN");
+      expect(await codeOf(listPackingQueue({}))).toBe("FORBIDDEN");
+      expect(await codeOf(reverifyDesignIntegrity({ taskId: id, resolutionNote: "x" }))).toBe(
+        "FORBIDDEN",
+      );
 
+      // Người đóng gói (NV kho cùng kho) kiểm tra lại thiết kế
+      actAs(USERS.picker);
       const verified = await reverifyDesignIntegrity({
         taskId: id,
         resolutionNote: "đã khôi phục file",
@@ -421,6 +426,9 @@ describe("packing mock ↔ hợp đồng BE PR #136", () => {
       const id = (await taskOfOrder("ORD-2026-0005")).taskId;
       actAs(USERS.otherWarehouse);
       expect(await codeOf(getPackingSession(id))).toBe("OUT_OF_DATA_SCOPE");
+      // BE #136 bản cuối: NV kho cùng kho đọc được task khi lấy hàng đã xong (người đóng ≠ người lấy)
+      actAs(USERS.otherPacker);
+      expect((await getFulfillmentTask(id)).pickStatus).toBe("Picked");
       actAs({ userId: "USER-OC-TEST", roles: ["Order Coordinator"] });
       expect(await codeOf(getPackingSession(id))).toBe("FORBIDDEN");
       expect(await codeOf(listPackingQueue({}))).toBe("FORBIDDEN");

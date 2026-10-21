@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 
+import { UI_LABELS } from "@/constants";
 import { INVENTORY_LABELS } from "@/constants/inventory";
 
 import { Alert } from "@/components/shared/Alert";
@@ -75,6 +76,30 @@ export function InventoryNoFilterResults({ reset }: { reset: () => void }) {
       action={
         <Button className="rounded-[var(--r-sm)]" type="button" variant="outline" onClick={reset}>
           {INVENTORY_LABELS.reset}
+        </Button>
+      }
+    />
+  );
+}
+
+/**
+ * `?page` vượt số trang (link cũ, F5 sau khi xử lý phiếu cuối của trang cuối): BE trả `items: []`
+ * nhưng `totalElements > 0` — khác "chưa có dữ liệu" và "lọc không ra" (api-conventions §8).
+ */
+export function InventoryInvalidPage({ toFirstPage }: { toFirstPage: () => void }) {
+  const L = UI_LABELS.emptyList;
+  return (
+    <EmptyState
+      title={L.invalidPageTitle}
+      description={L.invalidPageDescription}
+      action={
+        <Button
+          className="rounded-[var(--r-sm)]"
+          type="button"
+          variant="outline"
+          onClick={toFirstPage}
+        >
+          {L.firstPage}
         </Button>
       }
     />

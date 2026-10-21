@@ -1,11 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { Eye } from "lucide-react";
 
 import { ADMIN_ROUTES, SUPPLIER_CHANNEL_LABELS } from "@/constants";
-import { statusCell, textCell } from "@/components/shared/column-helpers";
-import { Button } from "@/components/ui/button";
+import {
+  CELL,
+  refCell,
+  StackText,
+  statusCell,
+  textCell,
+  viewColumn,
+} from "@/components/shared/column-helpers";
 
 import { COLUMN_LABELS } from "./constants";
 
@@ -23,9 +28,7 @@ function daysCell(
     key,
     header,
     align: "right",
-    cell: (row) => (
-      <span className="font-[family-name:var(--font-mono)] tabular-nums">{getDays(row)} ngày</span>
-    ),
+    cell: (row) => <span className={CELL.number}>{getDays(row)} ngày</span>,
   };
 }
 
@@ -41,7 +44,7 @@ export function buildSupplierColumns(
       cell: (row) => (
         <Link
           href={ADMIN_ROUTES.suppliers.detail(row.supplierId)}
-          className="text-accent font-[family-name:var(--font-mono)] text-[0.8125rem] font-medium hover:underline"
+          className={`${CELL.code} hover:underline`}
           onClick={(event) => event.stopPropagation()}
         >
           {row.code}
@@ -55,58 +58,26 @@ export function buildSupplierColumns(
       }),
       key: "name",
     },
-    {
-      key: "taxCode",
-      header: COLUMN_LABELS.taxCode,
-      cell: (row) => (
-        <span className="font-[family-name:var(--font-mono)] tabular-nums">
-          {row.taxCode ?? "—"}
-        </span>
-      ),
-    },
+    refCell<SupplierDto>("taxCode", COLUMN_LABELS.taxCode, (row) => row.taxCode),
     {
       key: "contact",
       header: COLUMN_LABELS.contact,
-      cell: (row) => (
-        <div className="text-[0.8125rem]">
-          <div className="text-ink-primary">{row.contactName ?? "—"}</div>
-          <div className="text-ink-secondary">{row.email ?? row.phone ?? "—"}</div>
-        </div>
-      ),
+      cell: (row) => <StackText main={row.contactName} sub={row.email ?? row.phone} />,
     },
     daysCell("paymentTermDays", COLUMN_LABELS.paymentTermDays, (row) => row.paymentTermDays),
     daysCell("leadTimeDays", COLUMN_LABELS.leadTimeDays, (row) => row.leadTimeDays),
-    {
-      key: "channel",
-      header: COLUMN_LABELS.channel,
-      cell: (row) => (
-        <span className="text-[0.8125rem]">
-          {SUPPLIER_CHANNEL_LABELS[row.communicationChannel]}
-        </span>
-      ),
-    },
+    textCell<SupplierDto>(
+      "channel",
+      COLUMN_LABELS.channel,
+      (row) => SUPPLIER_CHANNEL_LABELS[row.communicationChannel],
+    ),
     statusCell<SupplierDto>("status", COLUMN_LABELS.status, (row) => row.status, "sku", {
       sortable: true,
       withIcon: true,
     }) as SupplierColumn,
-    {
-      key: "actions",
-      header: "",
-      cell: (row) => (
-        <Button
-          type="button"
-          variant="outline"
-          size="icon-sm"
-          onClick={(event) => {
-            event.stopPropagation();
-            navigateToDetail(row);
-          }}
-          className="border-border-default bg-bg-surface text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary rounded-[var(--r-sm)]"
-          aria-label={`Xem chi tiết ${row.name}`}
-        >
-          <Eye className="size-3.5" />
-        </Button>
-      ),
-    },
+    viewColumn<SupplierDto>((row) => ({
+      label: `Xem chi tiết ${row.name}`,
+      onOpen: () => navigateToDetail(row),
+    })),
   ];
 }
