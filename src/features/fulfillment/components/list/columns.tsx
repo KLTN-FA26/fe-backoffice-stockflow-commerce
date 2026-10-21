@@ -86,7 +86,7 @@ export function buildTaskColumns({
       header: COLUMN_LABELS[C.ASSIGNEE] ?? C.ASSIGNEE,
       cell: (row) => (
         <span className={CELL.name} title={row.assignedUserId ?? undefined}>
-          {assigneeLabel(row.assignedUserId, refs.userNames, actor.userId)}
+          {assigneeLabel(row.assignedUserId, row.assignedUserName, actor.userId)}
         </span>
       ),
     },

@@ -26,7 +26,7 @@ import {
   reverifyDesignIntegrity,
   startPicking,
 } from "./api";
-import { getFulfillmentOrder, listAssignableUsers, listFulfillableOrders } from "./reference-api";
+import { getFulfillmentOrder, listAssignees, listFulfillableOrders } from "./reference-api";
 import { designedLines } from "./selectors";
 
 import type { RoleName } from "@/lib/auth";
@@ -283,15 +283,29 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
     FLOW_TIMEOUT_MS,
   );
 
-  it("danh sách nhân viên gán được chỉ gồm nhân viên kho / quản lý kho", async () => {
+  it("người nhận task theo kho: chỉ NV kho / quản lý kho của kho đó; cần task-assignment:UPDATE; kho bắt buộc và phải tồn tại", async () => {
     actAs(USERS.manager);
-    const users = await listAssignableUsers();
+    const task = required((await allTasks())[0], "task");
+    const warehouseId = required(task.warehouseId ?? undefined, "kho của task");
+    // BE trả tên người được gán ngay trên task — màn danh sách không phải tra riêng
+    expect(task.assignedUserName).toBeTruthy();
+    const users = await listAssignees(warehouseId);
     expect(users.length).toBeGreaterThan(0);
     expect(
       users.every((u) =>
         u.roles.some((role) => role === "WAREHOUSE_STAFF" || role === "WAREHOUSE_MANAGER"),
       ),
     ).toBe(true);
+    // BE `AssigneeResponse`: chỉ userId + displayName + roles (không email / điện thoại / trạng thái)
+    expect(Object.keys(users[0] ?? {}).sort()).toEqual(["displayName", "roles", "userId"]);
+
+    // NV kho không có task-assignment:UPDATE
+    actAs(USERS.picker);
+    expect(await codeOf(listAssignees(warehouseId))).toBe("FORBIDDEN");
+
+    actAs(USERS.manager);
+    expect(await codeOf(listAssignees(""))).toBe("VALIDATION_FAILED");
+    expect(await codeOf(listAssignees("khong-co-kho"))).toBe("WAREHOUSE_NOT_FOUND");
   });
 
   it("task không tồn tại → 404 NOT_FOUND; trang ngoài khoảng → 400", async () => {

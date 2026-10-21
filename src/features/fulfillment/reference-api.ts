@@ -3,8 +3,9 @@
  *
  * - Đơn hàng (`GET /orders`, `/orders/{id}`): số đơn, dòng đơn (SKU, SL, thiết kế đã khoá). Cần
  *   `sales-orders:READ`; seed BE không cấp cho nhân viên kho / quản lý kho / QC.
- * - Nhân viên (`GET /identity/users`): chọn và hiện tên người được gán. Cần `identity-users:READ`;
- *   seed BE chỉ cấp cho quản trị thương mại điện tử.
+ * - Người nhận task (`GET /fulfillment/assignees?warehouseId=`): danh sách chọn trong dialog gán / tạo
+ *   task. Cần `fulfillment-task-assignment:UPDATE` — cùng quyền với việc gán, nên ai gán được thì thấy
+ *   danh sách (không cần `identity-users:READ`). Tên người được gán trên task lấy từ `assignedUserName`.
  * Thiếu quyền → màn hình không gọi, hiện thông báo (xem `components`). Không import
  * `features/order` (import boundary) — parse bằng schema nhỏ của feature này.
  */
@@ -12,26 +13,15 @@
 import { FULFILLABLE_ORDER_API_STATUSES, PAGE_SIZE } from "@/constants";
 import { api } from "@/lib/api/client";
 
-import {
-  assignableUserPageSchema,
-  fulfillmentOrderPageSchema,
-  fulfillmentOrderSchema,
-} from "./schemas";
+import { assigneeListSchema, fulfillmentOrderPageSchema, fulfillmentOrderSchema } from "./schemas";
 
-import type { AssignableUser, FulfillmentOrder } from "./types";
+import type { Assignee, FulfillmentOrder } from "./types";
 
 const ORDERS_PATH = "/orders";
-const USERS_PATH = "/identity/users";
+const ASSIGNEES_PATH = "/fulfillment/assignees";
 
 /** Spring bind `@RequestParam List<OrderStatus> status` từ `status=A&status=B`. */
 const REPEAT_ARRAY_PARAMS = { indexes: null } as const;
-
-/**
- * BE `requireWarehouseAssignee`: người được gán phải ACTIVE và có một trong hai vai trò này. Đây là bộ
- * lọc danh sách người nhận (`GET /identity/users?role=`), KHÔNG phải quyết định quyền của người gọi — ai
- * được gán / tạo task do `fulfillment-task-assignment:*` quyết (allow-list trong no-role-gating.test.ts).
- */
-export const ASSIGNABLE_ROLES = ["WAREHOUSE_STAFF", "WAREHOUSE_MANAGER"] as const;
 
 export async function getFulfillmentOrder(
   orderId: string,
@@ -69,27 +59,21 @@ export async function listOrderNumbers(
   return Object.fromEntries(page.items.map((order) => [order.orderId, order.orderNumber]));
 }
 
-async function listActiveUsersByRole(role: string, signal?: AbortSignal) {
-  // BE `GET /identity/users` nhận MỘT mã vai trò mỗi lần gọi
-  const { data } = await api.get<unknown>(USERS_PATH, {
-    params: { page: 0, size: PAGE_SIZE.masterData, role, status: "ACTIVE" },
-    signal,
-  });
-  return assignableUserPageSchema.parse(data).items;
+/** Tên hiển thị của người nhận; thiếu tên thì id. */
+export function assigneeName(user: Pick<Assignee, "userId" | "displayName">): string {
+  return user.displayName || user.userId;
 }
 
-/** Nhân viên gán được task: nhân viên kho + quản lý kho đang hoạt động, gộp và bỏ trùng. */
-export async function listAssignableUsers(signal?: AbortSignal): Promise<AssignableUser[]> {
-  const pages = await Promise.all(
-    ASSIGNABLE_ROLES.map((role) => listActiveUsersByRole(role, signal)),
+/**
+ * Người nhận được task của một kho (BE `GET /fulfillment/assignees`): nhân viên kho / quản lý kho đang
+ * hoạt động được gán cho kho đó, xếp theo tên.
+ */
+export async function listAssignees(
+  warehouseId: string,
+  signal?: AbortSignal,
+): Promise<Assignee[]> {
+  const { data } = await api.get<unknown>(ASSIGNEES_PATH, { params: { warehouseId }, signal });
+  return [...assigneeListSchema.parse(data)].sort((a, b) =>
+    assigneeName(a).localeCompare(assigneeName(b), "vi"),
   );
-  const byId = new Map<string, AssignableUser>();
-  for (const user of pages.flat()) byId.set(user.userId, user);
-  return [...byId.values()].sort((a, b) =>
-    userDisplayName(a).localeCompare(userDisplayName(b), "vi"),
-  );
-}
-
-export function userDisplayName(user: AssignableUser): string {
-  return user.fullName || user.username || user.userId;
 }

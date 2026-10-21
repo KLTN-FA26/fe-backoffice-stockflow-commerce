@@ -76,9 +76,7 @@ const ALLOWED: Record<string, string> = {
   "src/lib/api/mock-backend-roles.ts":
     "đổi tên vai trò demo → mã vai trò BE để trả trong `roles` của /identity/me/permissions (chỉ hiển thị)",
   "src/lib/api/mock-routes-fulfillment.ts":
-    "mock `requireWarehouseAssignee` (ai NHẬN việc phải là NV / quản lý kho) và bộ lọc `GET /identity/users?role=`; quyền người gọi theo mã quyền",
-  "src/features/fulfillment/reference-api.ts":
-    "ASSIGNABLE_ROLES là bộ lọc danh sách người nhận (`GET /identity/users?role=`), phản chiếu BE `requireWarehouseAssignee`; quyền gán / tạo task là fulfillment-task-assignment:*",
+    "mock `requireWarehouseAssignee` / `GET /fulfillment/assignees` (ai NHẬN việc phải là NV / quản lý kho đang hoạt động); quyền người gọi theo mã quyền",
   "src/lib/auth/server/mock-role-matrices.ts":
     "danh mục vai trò demo cho màn Phân quyền (dữ liệu mock của ma trận quyền)",
   "src/features/permission-management/components/PermissionManagementPage.tsx":

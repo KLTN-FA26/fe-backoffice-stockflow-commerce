@@ -159,7 +159,7 @@ describe("Fulfillment / order grants (BE PR #148, V20261022000200)", () => {
       expect(manager).toContain(code);
   });
 
-  it("QC chỉ kiểm tra lại thiết kế; kế toán đọc đơn nhưng không có hàng chờ yêu cầu huỷ", () => {
+  it("QC chỉ kiểm tra lại thiết kế; kế toán đọc được đơn (BE PR #148 ACCREAD); điều phối ghi đã giao", () => {
     const qc = grants("USER-QC-01");
     expect(qc).toContain("fulfillment-design-reverification:UPDATE");
     expect(qc).not.toContain("fulfillment-packing:UPDATE");
@@ -167,14 +167,7 @@ describe("Fulfillment / order grants (BE PR #148, V20261022000200)", () => {
     expect(accountant).toEqual(
       expect.arrayContaining(["sales-orders:VIEW_PAGE", "sales-orders:READ"]),
     );
-    expect(accountant).not.toContain("sales-order-cancellations:READ");
-    expect(grants("USER-SALE-01")).toContain("sales-order-cancellations:READ");
-    expect(grants("USER-COORD-01")).toEqual(
-      expect.arrayContaining([
-        "sales-order-cancellations:READ",
-        "fulfillment-delivery-outcomes:APPROVE",
-      ]),
-    );
+    expect(grants("USER-COORD-01")).toContain("fulfillment-delivery-outcomes:APPROVE");
   });
 
   it("không còn mã quyền cũ không bảo vệ endpoint nào trong bộ quyền demo", () => {

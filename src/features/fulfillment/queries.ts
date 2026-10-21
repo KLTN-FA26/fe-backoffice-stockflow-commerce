@@ -6,7 +6,7 @@ import { createDetailQuery, createListQuery, createQueryKeys } from "@/lib/api/q
 import { getDesignArtifactUrl, getFulfillmentTask, listFulfillmentTasks } from "./api";
 import {
   getFulfillmentOrder,
-  listAssignableUsers,
+  listAssignees,
   listFulfillableOrders,
   listOrderNumbers,
 } from "./reference-api";
@@ -27,8 +27,9 @@ export const fulfillmentReferenceKeys = {
   order: (orderId: string) => [...fulfillmentReferenceKeys.orders(), "detail", orderId] as const,
   fulfillableOrders: () => [...fulfillmentReferenceKeys.orders(), "fulfillable"] as const,
   orderNumbers: () => [...fulfillmentReferenceKeys.orders(), "numbers"] as const,
-  /** Danh sách nhân viên không đổi theo thao tác trên task → không nằm dưới nhánh đơn hàng. */
-  assignableUsers: () => [...fulfillmentReferenceKeys.all, "assignable-users"] as const,
+  /** Người nhận task theo kho — không đổi theo thao tác trên task → không nằm dưới nhánh đơn hàng. */
+  assignees: (warehouseId: string) =>
+    [...fulfillmentReferenceKeys.all, "assignees", warehouseId] as const,
 };
 
 export const useFulfillmentTasks = createListQuery<FulfillmentTask, ListFulfillmentTaskParams>(
@@ -71,12 +72,15 @@ export function useOrderNumbers(enabled: boolean) {
   });
 }
 
-/** Nhân viên gán được task. Thiếu `identity-users:READ` → tắt, dialog gán hiện thông báo. */
-export function useAssignableUsers(enabled: boolean) {
+/**
+ * Người nhận được task của một kho. Thiếu `fulfillment-task-assignment:UPDATE` hoặc chưa biết kho →
+ * tắt, dialog gán hiện thông báo / nhắc chọn đơn.
+ */
+export function useAssignees(warehouseId: string | null | undefined, enabled: boolean) {
   return useQuery({
-    queryKey: fulfillmentReferenceKeys.assignableUsers(),
-    queryFn: ({ signal }) => listAssignableUsers(signal),
-    enabled,
+    queryKey: fulfillmentReferenceKeys.assignees(warehouseId ?? ""),
+    queryFn: ({ signal }) => listAssignees(warehouseId ?? "", signal),
+    enabled: enabled && !!warehouseId,
     ...QUERY_TIMES.master,
   });
 }

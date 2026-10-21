@@ -161,9 +161,13 @@ function seedTask(order: Order, spec: SeedSpec): MockTask {
   return task;
 }
 
+/** userId → tên hiển thị (BE trả `assignedUserName` trên task); nạp cùng lúc với store. */
+const staffNameById = new Map<string, string>();
+
 export async function getFulfillmentStore(): Promise<Map<string, MockTask>> {
   if (store) return store;
-  const { orders } = await import("@/lib/mock-data");
+  const { orders, staffUsers } = await import("@/lib/mock-data");
+  for (const user of staffUsers) staffNameById.set(user.userId, user.fullName);
   const seeded = new Map<string, MockTask>();
   const used = new Set<OrderStatus>();
   for (const order of orders) {
@@ -203,7 +207,11 @@ export function nextTaskId(): string {
 /** `FulfillmentTaskResponse` — field chưa có giá trị bị bỏ (Jackson non_null). */
 export function toTaskResponse(task: MockTask) {
   const { createdAt: _createdAt, evidence, ...rest } = task;
-  return { ...rest, integrityEvidence: evidence.map((entry) => ({ ...entry })) };
+  return {
+    ...rest,
+    assignedUserName: staffNameById.get(task.assignedUserId),
+    integrityEvidence: evidence.map((entry) => ({ ...entry })),
+  };
 }
 
 /* ── Người gọi ───────────────────────────────────────────────────────── */
