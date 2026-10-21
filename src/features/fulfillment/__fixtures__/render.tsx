@@ -18,7 +18,6 @@ import {
   FULFILLMENT_PICKING_PERMISSIONS as PICKING,
   FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS as ASSIGNMENT,
   FULFILLMENT_TASK_OVERSIGHT_PERMISSIONS as OVERSIGHT,
-  IDENTITY_USER_PERMISSIONS,
   ORDER_PERMISSIONS,
 } from "@/constants";
 import { api } from "@/lib/api/client";
@@ -51,7 +50,7 @@ const MANAGER: PermissionCode[] = [
   ...Object.values(REVERIFY),
 ];
 
-/** Bộ quyền theo seed BE. Vai trò kho KHÔNG có sales-orders:READ / identity-users:READ. */
+/** Bộ quyền theo seed BE. Vai trò kho KHÔNG có sales-orders:READ. */
 export const IDENTITIES = {
   warehouseStaff: { permissions: FLOOR },
   warehouseManager: { permissions: MANAGER },
@@ -67,9 +66,9 @@ export const IDENTITIES = {
   },
   // Không có VIEW_PAGE ở cả hai resource; chỉ kiểm tra lại thiết kế
   qcStaff: { permissions: [PICK.read, PACK.read, ...Object.values(REVERIFY)] },
-  // Quản lý kho được admin cấp thêm quyền đọc đơn + nhân viên (để gán và xem dòng đơn)
+  // Quản lý kho được admin cấp thêm quyền đọc đơn (để xem số đơn và dòng đơn)
   managerWithReferences: {
-    permissions: [...MANAGER, ORDER_PERMISSIONS.read, IDENTITY_USER_PERMISSIONS.read],
+    permissions: [...MANAGER, ORDER_PERMISSIONS.read],
   },
   staffWithOrders: {
     permissions: [...FLOOR, ORDER_PERMISSIONS.read],

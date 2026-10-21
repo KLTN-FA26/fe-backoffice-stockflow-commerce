@@ -8,10 +8,12 @@ import {
   OTHER_PICKER_ID,
   PICKER_ID,
   TASK_ID,
+  WAREHOUSE_ID,
   apiTask,
-  assignableUsers,
+  assignees,
   bePage,
   fulfillmentOrder,
+  taskCandidate,
   mismatchEvidence,
   pickedTask,
 } from "./__fixtures__/task";
@@ -27,8 +29,8 @@ import {
 } from "./api";
 import {
   getFulfillmentOrder,
-  listAssignableUsers,
-  listFulfillableOrders,
+  listAssignees,
+  listTaskCandidates,
   listOrderNumbers,
 } from "./reference-api";
 
@@ -158,13 +160,27 @@ describe("dữ liệu phụ trợ — đơn hàng và nhân viên", () => {
     expect(order.lines).toHaveLength(2);
   });
 
-  it("đơn chờ xuất kho chỉ lọc READY_TO_FULFILL (BE PR #133; key lặp cho Spring)", async () => {
-    const get = vi.spyOn(api, "get").mockResolvedValueOnce({ data: bePage([fulfillmentOrder]) });
-    await listFulfillableOrders();
-    expect(get.mock.calls[0]?.[1]).toMatchObject({
-      params: { page: 0, status: ["READY_TO_FULFILL"] },
-      paramsSerializer: { indexes: null },
-    });
+  it("đơn chờ xuất kho: GET /fulfillment/task-candidates (không gọi /orders), parse trang + dòng in", async () => {
+    const get = vi.spyOn(api, "get").mockResolvedValueOnce({ data: bePage([taskCandidate]) });
+    const page = await listTaskCandidates();
+    expect(get.mock.calls[0]?.[0]).toBe("/fulfillment/task-candidates");
+    expect(get.mock.calls[0]?.[1]).toMatchObject({ params: { page: 0, size: 200 } });
+    expect(page.items[0]).toMatchObject({ lineCount: 2, totalQuantity: 5 });
+    expect(page.items[0]?.lines.map((line) => line.printed)).toEqual([false, true]);
+  });
+
+  it("đơn chờ xuất kho: truyền warehouseId khi có; khách vãng lai không có customerId / customerName", async () => {
+    const guest = { ...taskCandidate, customerId: undefined, customerName: undefined };
+    const get = vi.spyOn(api, "get").mockResolvedValueOnce({ data: bePage([guest]) });
+    const page = await listTaskCandidates({ warehouseId: WAREHOUSE_ID });
+    expect(get.mock.calls[0]?.[1]).toMatchObject({ params: { warehouseId: WAREHOUSE_ID } });
+    expect(page.items[0]?.customerName).toBeUndefined();
+  });
+
+  it("đơn chờ xuất kho: response sai hợp đồng (thiếu lineCount) → từ chối", async () => {
+    const { lineCount: _omit, ...broken } = taskCandidate;
+    vi.spyOn(api, "get").mockResolvedValueOnce({ data: bePage([broken]) });
+    await expect(listTaskCandidates()).rejects.toThrow();
   });
 
   it("listOrderNumbers trả bản đồ id → số đơn", async () => {
@@ -172,23 +188,14 @@ describe("dữ liệu phụ trợ — đơn hàng và nhân viên", () => {
     expect(await listOrderNumbers()).toEqual({ [ORDER_ID]: "SO-20261010-000431" });
   });
 
-  it("nhân viên gán được: gọi riêng từng vai trò (BE nhận một role), ACTIVE, gộp bỏ trùng", async () => {
-    const [staff, other] = assignableUsers;
-    const get = vi
-      .spyOn(api, "get")
-      .mockResolvedValueOnce({ data: bePage([staff, other]) })
-      .mockResolvedValueOnce({ data: bePage([staff]) });
+  it("người nhận task: GET /fulfillment/assignees?warehouseId=, xếp theo tên, không gọi /identity/users", async () => {
+    const get = vi.spyOn(api, "get").mockResolvedValueOnce({ data: [assignees[1], assignees[0]] });
 
-    const users = await listAssignableUsers();
+    const users = await listAssignees(WAREHOUSE_ID);
 
-    expect(get.mock.calls.map((call) => call[1])).toEqual([
-      expect.objectContaining({
-        params: expect.objectContaining({ role: "WAREHOUSE_STAFF", status: "ACTIVE" }),
-      }),
-      expect.objectContaining({
-        params: expect.objectContaining({ role: "WAREHOUSE_MANAGER", status: "ACTIVE" }),
-      }),
-    ]);
-    expect(users.map((user) => user.userId).sort()).toEqual([PICKER_ID, OTHER_PICKER_ID].sort());
+    expect(get).toHaveBeenCalledTimes(1);
+    expect(get.mock.calls[0]?.[0]).toBe("/fulfillment/assignees");
+    expect(get.mock.calls[0]?.[1]).toMatchObject({ params: { warehouseId: WAREHOUSE_ID } });
+    expect(users.map((user) => user.userId)).toEqual([PICKER_ID, OTHER_PICKER_ID]);
   });
 });

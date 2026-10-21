@@ -2,23 +2,19 @@
 
 import { useState } from "react";
 
-import { IDENTITY_USER_PERMISSIONS, ORDER_PERMISSIONS, UI_LABELS } from "@/constants";
+import { FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS, UI_LABELS } from "@/constants";
 import { useCan } from "@/lib/auth";
 import { fulfillmentErrorMessage } from "@/features/fulfillment/errors";
 import { createTaskInputSchema } from "@/features/fulfillment/input-schemas";
 import { useCreateFulfillmentTask } from "@/features/fulfillment/mutations";
-import { useFulfillableOrders } from "@/features/fulfillment/queries";
+import { useTaskCandidates } from "@/features/fulfillment/queries";
 import { Alert } from "@/components/shared/Alert";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 
-import { FieldError, MONO } from "../primitives";
-import { AssigneeSelect, SELECT_FIELD } from "./AssigneeSelect";
+import { AssigneeSelect } from "./AssigneeSelect";
+import { TaskCandidateSelect } from "./TaskCandidateSelect";
 
-const { fulfillment, loadError, common } = UI_LABELS;
+const { fulfillment } = UI_LABELS;
 
 type FieldErrors = Partial<Record<"orderId" | "assignedUserId", string>>;
 
@@ -26,11 +22,14 @@ type FieldErrors = Partial<Record<"orderId" | "assignedUserId", string>>;
  * Đưa một đơn vào xuất kho và gán người lấy hàng (BE `POST /fulfillment/tasks`).
  * BR-01 (docs 07 §6): chỉ picking khi đơn đã release — BE (PR #133) chỉ nhận đơn READY_TO_FULFILL;
  * đơn CONFIRMED phải release trước, đơn có dòng in phải release sản xuất trước (BR-06).
+ * Danh sách đơn đọc từ `GET /fulfillment/task-candidates` (BE PR #151, cần `fulfillment-task-assignment:CREATE`)
+ * thay cho `GET /orders` (cần `sales-orders:READ` — quản lý kho không có). Người nhận vẫn lấy từ
+ * `GET /fulfillment/assignees` (cần `fulfillment-task-assignment:UPDATE`).
  */
 export function CreateTaskDialog({ onClose }: { onClose: () => void }) {
-  const canReadOrders = useCan(ORDER_PERMISSIONS.read);
-  const canReadUsers = useCan(IDENTITY_USER_PERMISSIONS.read);
-  const orders = useFulfillableOrders(canReadOrders);
+  const canCreate = useCan(FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS.create);
+  const canAssign = useCan(FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS.update);
+  const candidates = useTaskCandidates(canCreate);
   const create = useCreateFulfillmentTask();
   const [orderId, setOrderId] = useState("");
   const [assignedUserId, setAssignedUserId] = useState("");
@@ -56,78 +55,42 @@ export function CreateTaskDialog({ onClose }: { onClose: () => void }) {
     });
   };
 
-  const options = orders.data ?? [];
+  const options = candidates.data?.items ?? [];
+  // Người nhận theo kho của đơn đã chọn (BE `GET /fulfillment/assignees?warehouseId=`)
+  const warehouseId = options.find((order) => order.orderId === orderId)?.warehouseId;
   return (
     <FormDialog open onOpenChange={(open) => !open && onClose()}>
       <FormDialogBody
         title={fulfillment.action.create}
         description="Chọn đơn đã release (sẵn sàng xuất kho) để đưa vào xuất kho và gán nhân viên lấy hàng. Mỗi đơn chỉ có một task."
         submitLabel={fulfillment.action.create}
-        canSubmit={canReadOrders && canReadUsers && !orders.isError}
+        canSubmit={canCreate && canAssign && !candidates.isError && options.length > 0}
         isPending={create.isPending}
         error={serverError}
         onSubmit={submit}
         onCancel={onClose}
       >
-        {!canReadOrders ? (
-          <Alert tone="warning" title={fulfillment.noOrderReadTitle}>
-            Tạo task cần chọn đơn hàng. Tài khoản chưa được cấp quyền xem đơn hàng — liên hệ quản
-            trị để được cấp.
-          </Alert>
-        ) : orders.isError ? (
-          <Alert tone="danger" title={loadError.serverTitle}>
-            Không tải được danh sách đơn hàng chờ xuất kho.{" "}
-            <Button
-              type="button"
-              variant="link"
-              size="xs"
-              className="h-auto p-0 align-baseline"
-              onClick={() => void orders.refetch()}
-            >
-              {common.retry}
-            </Button>
-          </Alert>
+        {canCreate ? (
+          <TaskCandidateSelect
+            query={candidates}
+            value={orderId}
+            error={errors.orderId}
+            onChange={(value) =>
+              edit(() => {
+                setOrderId(value);
+                // Đổi đơn có thể đổi kho → danh sách người nhận khác, bỏ lựa chọn cũ
+                setAssignedUserId("");
+              }, "orderId")
+            }
+          />
         ) : (
-          <div>
-            <Label htmlFor="task-order" className="text-[0.8125rem]">
-              Đơn hàng
-            </Label>
-            <Select
-              value={orderId}
-              onValueChange={(value) => edit(() => setOrderId(value), "orderId")}
-              disabled={orders.isPending}
-            >
-              <SelectTrigger
-                id="task-order"
-                autoFocus
-                aria-invalid={errors.orderId ? true : undefined}
-                aria-describedby={errors.orderId ? "task-order-error" : undefined}
-                className={SELECT_FIELD}
-              >
-                <SelectValue
-                  placeholder={
-                    orders.isPending
-                      ? "Đang tải đơn hàng…"
-                      : options.length
-                        ? "Chọn đơn hàng"
-                        : "Không có đơn nào chờ xuất kho"
-                  }
-                />
-              </SelectTrigger>
-              <TitledSelectContent title={"Đơn hàng"}>
-                {options.map((order) => (
-                  <SelectItem key={order.orderId} value={order.orderId}>
-                    {/* Dòng danh sách đơn của BE không kèm dòng hàng (OrderSearchRepository) → chỉ hiện số đơn */}
-                    <span className={MONO}>{order.orderNumber}</span>
-                  </SelectItem>
-                ))}
-              </TitledSelectContent>
-            </Select>
-            <FieldError id="task-order-error">{errors.orderId}</FieldError>
-          </div>
+          <Alert tone="warning" title={fulfillment.noCreateTitle}>
+            {fulfillment.noCreateDescription}
+          </Alert>
         )}
         <AssigneeSelect
-          canReadUsers={canReadUsers}
+          canAssign={canAssign}
+          warehouseId={warehouseId}
           value={assignedUserId}
           error={errors.assignedUserId}
           onChange={(userId) => edit(() => setAssignedUserId(userId), "assignedUserId")}

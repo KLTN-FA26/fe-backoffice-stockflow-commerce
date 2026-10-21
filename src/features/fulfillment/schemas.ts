@@ -101,12 +101,43 @@ export const fulfillmentOrderSchema = z.object({
 
 export const fulfillmentOrderPageSchema = bePageSchema(fulfillmentOrderSchema);
 
-/** Phần `UserResponse` (BE UserManagementController) cần để chọn / hiện tên người được gán. */
-export const assignableUserSchema = z.object({
+/**
+ * BE `TaskCandidateResponse` (`GET /fulfillment/task-candidates`, guard
+ * `fulfillment-task-assignment:CREATE`, BE PR #151): đơn đã release (READY_TO_FULFILL) chưa có task,
+ * cũ nhất trước. Thay cho `GET /orders` (cần `sales-orders:READ`, quản lý kho không có). Một dòng
+ * `printed` là dòng in tuỳ chỉnh (BR-06 — đã release sản xuất mới vào được danh sách này).
+ */
+export const taskCandidateLineSchema = z.object({
+  orderLineId: z.string(),
+  sku: z.string(),
+  quantity: z.number().int(),
+  printed: z.boolean(),
+});
+
+export const taskCandidateSchema = z.object({
+  orderId: z.string(),
+  orderNumber: z.string(),
+  customerId: z.string().nullish(),
+  customerName: z.string().nullish(),
+  warehouseId: z.string(),
+  placedAt: z.string().nullish(),
+  releasedAt: z.string().nullish(),
+  lineCount: z.number().int().min(0),
+  totalQuantity: z.number().int().min(0),
+  lines: z.array(taskCandidateLineSchema).default([]),
+});
+
+export const taskCandidatePageSchema = bePageSchema(taskCandidateSchema);
+
+/**
+ * BE `AssigneeResponse` (`GET /fulfillment/assignees?warehouseId=`, guard
+ * `fulfillment-task-assignment:UPDATE`): người nhận được task của một kho — chỉ tên và vai trò, BE đã lọc
+ * nhân viên đang hoạt động được gán cho kho đó (`requireWarehouseAssignee`).
+ */
+export const assigneeSchema = z.object({
   userId: z.string(),
-  username: z.string().nullish(),
-  fullName: z.string().nullish(),
+  displayName: z.string().nullish(),
   roles: z.array(z.string()).default([]),
 });
 
-export const assignableUserPageSchema = bePageSchema(assignableUserSchema);
+export const assigneeListSchema = z.array(assigneeSchema);

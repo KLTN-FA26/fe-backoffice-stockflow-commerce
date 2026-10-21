@@ -37,9 +37,6 @@ export const SUPPLIER_ITEM_PERMISSIONS = {
  * - `cancel`: huỷ đơn phía admin (`POST /orders/{id}/admin-cancellation`) và đóng phần còn lại của
  *   đơn giao một phần (`POST /orders/{id}/remainder-closure`) — BE tách sang resource
  *   `sales-order-cancellations` (UPDATE, scope ALL; seed: ORDER_COORDINATOR + SALES_STAFF).
- * - `cancellationQueueRead`: hàng chờ yêu cầu huỷ của khách (`GET /orders/cancellation-requests`) —
- *   BE PR #148 tách khỏi `sales-orders:READ`; seed: SALES_STAFF, ORDER_COORDINATOR (KHÔNG có ACCOUNTANT,
- *   dù kế toán đọc được danh sách / chi tiết đơn).
  */
 export const ORDER_PERMISSIONS = {
   // Mở trang (menu + chặn route) — BE Action.VIEW_PAGE, ADR-0004
@@ -50,7 +47,6 @@ export const ORDER_PERMISSIONS = {
   create: "sales-orders:CREATE",
   approve: "sales-orders:APPROVE",
   cancel: "sales-order-cancellations:UPDATE",
-  cancellationQueueRead: "sales-order-cancellations:READ",
 } as const;
 
 /**
@@ -352,11 +348,6 @@ export const PRODUCTION_QC_PERMISSIONS = {
   create: "production-qc-results:CREATE",
 } as const;
 
-/** Danh sách tài khoản nhân viên — `GET /identity/users` (BE UserManagementController). */
-export const IDENTITY_USER_PERMISSIONS = {
-  read: "identity-users:READ",
-} as const;
-
 /**
  * Lệnh chuyển kho — resource `inventory-transfer-orders` (BE TransferOrderController, SCRUM-326/327).
  * Tạo / sửa nháp / gửi duyệt / huỷ = CREATE; lấy hàng / xuất kho ở kho nguồn = UPDATE; duyệt / từ chối
@@ -409,22 +400,6 @@ export const FULFILLMENT_CARRIER_PERMISSIONS = {
 export const FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS = {
   update: "fulfillment-delivery-outcomes:UPDATE",
   approve: "fulfillment-delivery-outcomes:APPROVE",
-} as const;
-
-/** Đổi trạng thái khách hàng (`POST /customers/{id}/status`) — seed: ECOMMERCE_ADMIN, SYSTEM_ADMIN. */
-export const CUSTOMER_STATUS_PERMISSIONS = {
-  approve: "customer-status:APPROVE",
-} as const;
-
-/** Giá / tồn cho cổng khách (`GET /catalog/products/availability`, `/prices`) — seed: CUSTOMER; không dùng ở back office. */
-export const CATALOG_STOREFRONT_PERMISSIONS = {
-  read: "catalog-storefront:READ",
-} as const;
-
-/** Cổng quản trị `/actuator/**` — READ cho GET/HEAD, UPDATE cho mọi method khác (BE PR #148). */
-export const PLATFORM_ACTUATOR_PERMISSIONS = {
-  read: "platform-actuator:READ",
-  update: "platform-actuator:UPDATE",
 } as const;
 
 /**

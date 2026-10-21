@@ -284,12 +284,6 @@ export const DESIGN_ARTIFACT_ROLES = [
   "PRODUCTION_INSTRUCTION",
 ] as const;
 
-/**
- * Trạng thái đơn BE cho phép tạo task xuất kho: chỉ READY_TO_FULFILL (đã release, đã chọn kho, hàng
- * in đã sản xuất xong) — đơn CONFIRMED phải release trước (BE PR #133, FulfillmentServiceImpl#createTask).
- */
-export const FULFILLABLE_ORDER_API_STATUSES = ["READY_TO_FULFILL"] as const;
-
 export const PRODUCT_STATUSES = [
   "Draft",
   "Pending Approval",

@@ -49,12 +49,7 @@ function PickingDetailBody({ id }: { id: string }) {
       />
       <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
         <div className="min-w-0 space-y-5">
-          <TaskInfo
-            task={task}
-            actor={actor}
-            orderNumber={orderNumber}
-            userNames={refs.userNames}
-          />
+          <TaskInfo task={task} actor={actor} orderNumber={orderNumber} />
           <OrderLinesSection scope="picking" canReadOrders={refs.canReadOrders} order={order} />
         </div>
         <div className="space-y-5">

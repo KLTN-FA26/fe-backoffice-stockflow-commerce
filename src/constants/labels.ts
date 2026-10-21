@@ -372,13 +372,34 @@ export const UI_LABELS = {
     noOrderReadTitle: "Chưa đủ quyền xem dòng đơn hàng",
     noOrderReadDescription:
       "Danh sách SKU cần lấy đọc từ đơn hàng. Tài khoản chưa được cấp quyền xem đơn hàng — liên hệ quản trị để được cấp.",
-    noUserReadTitle: "Chưa đủ quyền xem danh sách nhân viên",
-    noUserReadDescription:
-      "Gán task cần đọc danh sách nhân viên kho. Tài khoản chưa được cấp quyền xem tài khoản nhân viên — liên hệ quản trị để được cấp.",
+    // Dialog tạo task: đơn chờ xuất kho đọc từ GET /fulfillment/task-candidates (cần fulfillment-task-assignment:CREATE)
+    noCreateTitle: "Chưa đủ quyền tạo task lấy hàng",
+    noCreateDescription:
+      "Tài khoản chưa được cấp quyền tạo task xuất kho — liên hệ quản trị để được cấp.",
+    candidate: {
+      fieldLabel: "Đơn hàng",
+      loading: "Đang tải đơn hàng…",
+      placeholder: "Chọn đơn hàng",
+      empty: "Không có đơn nào chờ xuất kho",
+      emptyTitle: "Chưa có đơn nào chờ xuất kho",
+      emptyDescription:
+        "Chỉ đơn đã release (sẵn sàng xuất kho) và chưa có task mới hiện ở đây. Đơn mới xác nhận cần release trước.",
+      loadFailed: "Không tải được danh sách đơn hàng chờ xuất kho.",
+      printed: "Có dòng in",
+      guestCustomer: "Khách vãng lai",
+      truncated: (shown: number, total: number) =>
+        `Chỉ hiện ${shown}/${total} đơn cũ nhất đang chờ — tạo task cho các đơn này trước để thấy tiếp.`,
+      summary: (lineCount: number, totalQuantity: number) =>
+        `${lineCount} dòng · ${totalQuantity} sản phẩm`,
+      placed: (date: string) => `Đặt ${date}`,
+    },
+    noAssignTitle: "Chưa đủ quyền chọn người nhận task",
+    noAssignDescription:
+      "Danh sách người nhận task chỉ hiện cho tài khoản được cấp quyền gán task — liên hệ quản trị để được cấp.",
     // Flow X-CHK (BR-DSG-003): lệch checksum là lỗi phải chặn, không có nút bỏ qua
     holdTitle: "Kiện đang bị giữ do lệch thiết kế.",
     holdDescription:
-      "Checksum file thiết kế không khớp bản khách đã chốt nên chưa được đóng gói. QC hoặc quản lý kho khôi phục đúng file rồi bấm Kiểm tra lại thiết kế; không có thao tác bỏ qua.",
+      "Checksum file thiết kế không khớp bản khách đã chốt nên chưa được đóng gói. Quản lý kho khôi phục đúng file rồi bấm Kiểm tra lại thiết kế; không có thao tác bỏ qua.",
     stillOnHold: "Thiết kế vẫn lệch checksum — kiện tiếp tục bị giữ",
     alreadyAssigned: "Task đang được gán cho người này — chọn người khác để gán lại.",
     artifactDisclaimer:
@@ -448,6 +469,13 @@ export const FULFILLMENT_ERROR_MESSAGES = {
     "File thiết kế trong kho lưu trữ không khớp checksum đã chốt — không tải được. Báo QC kiểm tra.",
   VALIDATION_FAILED: "Dữ liệu không hợp lệ",
   FORBIDDEN: "Bạn không có quyền thực hiện thao tác này",
+  // Danh sách đơn chờ xuất kho (GET /fulfillment/task-candidates): 403 thiếu quyền tạo task, 403 kho ngoài
+  // phạm vi dữ liệu, 404 kho không tồn tại
+  candidatesForbidden:
+    "Bạn chưa được cấp quyền tạo task xuất kho nên không xem được đơn chờ xuất kho.",
+  OUT_OF_DATA_SCOPE:
+    "Kho này nằm ngoài phạm vi dữ liệu của bạn — bạn chỉ xem được đơn của kho mình phụ trách.",
+  warehouseNotFound: "Không tìm thấy kho.",
   OPTIMISTIC_LOCK: "Task vừa được người khác cập nhật. Dữ liệu đã được tải lại, hãy thử lại.",
   LOCK_TIMEOUT: "Task đang được người khác thao tác. Thử lại sau giây lát.",
   STORAGE_ERROR: "Kho lưu trữ file thiết kế đang không truy cập được. Thử lại sau.",
