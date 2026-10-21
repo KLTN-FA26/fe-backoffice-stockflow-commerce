@@ -179,7 +179,7 @@ describe("linesMissingDescription (BE #36 PO_LINE_DESCRIPTION_REQUIRED khi gửi
   });
 });
 
-describe("isDeliveryInFlight (tự tải lại khi đang gửi)", () => {
+describe("isDeliveryInFlight (đang gửi NCC)", () => {
   it("thư gửi đơn hoặc thư báo huỷ đang QUEUED/RETRYING → đang gửi", () => {
     expect(isDeliveryInFlight({ deliveryStatus: "QUEUED" })).toBe(true);
     expect(isDeliveryInFlight({ deliveryStatus: "RETRYING" })).toBe(true);
