@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { UI_LABELS, VEHICLE_TYPE_STATUS } from "@/constants";
+import { LOAD_PLAN_SOURCE, UI_LABELS, VEHICLE_TYPE_STATUS } from "@/constants";
 import { loadPlanErrorMessage } from "@/features/load-planning/errors";
 import { planInputsSchema, transferPlanInputsSchema } from "@/features/load-planning/input-schemas";
 import { useSetLoadPlanInputs } from "@/features/load-planning/mutations";
@@ -40,7 +40,7 @@ export function EditInputsDialog({ plan, onClose }: { plan: PlanDetail; onClose:
   const transferPlan = isTransferPlan(plan);
   const transferOrderId = plan.transferOrder?.transferOrderId;
   const inputs = usePlanInputsState({
-    sourceType: transferPlan ? "TRANSFER" : "ORDER",
+    sourceType: transferPlan ? LOAD_PLAN_SOURCE.TRANSFER : LOAD_PLAN_SOURCE.ORDER,
     transferOrderIds: transferOrderId ? [transferOrderId] : [],
     shipmentIds: plan.shipments.map((s) => s.shipmentId),
     vehicleTypeIds: plan.vehicleTypes
@@ -73,7 +73,7 @@ export function EditInputsDialog({ plan, onClose }: { plan: PlanDetail; onClose:
       }
       setError(null);
       update.mutate(
-        { ...base, ...parsed.data, sourceType: "TRANSFER", shipmentIds: [] },
+        { ...base, ...parsed.data, sourceType: LOAD_PLAN_SOURCE.TRANSFER, shipmentIds: [] },
         callbacks,
       );
       return;

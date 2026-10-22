@@ -1,4 +1,4 @@
-import { UI_LABELS } from "@/constants";
+import { PACK_STATUS, UI_LABELS } from "@/constants";
 import { kitCandidateLines } from "@/features/fulfillment/transfer-pack-selectors";
 import { Alert } from "@/components/shared/Alert";
 
@@ -15,8 +15,8 @@ export function TransferPackNotices({
   session: TransferPackSession;
   access: TransferPackAccess;
 }) {
-  const packed = session.packStatus === "Packed";
-  const cancelled = session.packStatus === "Cancelled";
+  const packed = session.packStatus === PACK_STATUS.PACKED;
+  const cancelled = session.packStatus === PACK_STATUS.CANCELLED;
   const kitHint = access.canWork && kitCandidateLines(session).length > 0;
   return (
     <div className="space-y-2 empty:hidden">

@@ -7,6 +7,7 @@ import { ArrowRight, CheckCircle2, Truck } from "lucide-react";
 import {
   ADMIN_ROUTES,
   LOAD_PLAN_PERMISSIONS,
+  PACK_STATUS,
   TRANSFER_DELIVERY_MODE_LABELS,
   UI_LABELS,
 } from "@/constants";
@@ -50,7 +51,7 @@ export function TransferPackStatusCard({
       : "—";
   };
   const canPlan =
-    session.packStatus === "Packed" &&
+    session.packStatus === PACK_STATUS.PACKED &&
     actor.can(LOAD_PLAN_PERMISSIONS.read) &&
     actor.can(LOAD_PLAN_PERMISSIONS.create);
   const owner = access.isOwner ? S.you : session.packerId ? shortId(session.packerId) : S.waiting;

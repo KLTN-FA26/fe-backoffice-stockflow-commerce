@@ -3,6 +3,7 @@
 import { Controller } from "react-hook-form";
 
 import {
+  DELIVERY_MODE,
   DELIVERY_MODES,
   TRANSFER_DELIVERY_MODE_LABELS,
   TRANSFER_REASON_LABELS,
@@ -83,9 +84,9 @@ export function TransferHeaderFields({ form }: { form: TransferForm }) {
           render={({ field }) => (
             <Select
               // Chưa có giá trị (form dựng không kèm hình thức) = mặc định của BE
-              value={field.value ?? "FULL_TRUCKLOAD"}
+              value={field.value ?? DELIVERY_MODE.FULL_TRUCKLOAD}
               onValueChange={(v) =>
-                field.onChange(DELIVERY_MODES.find((m) => m === v) ?? "FULL_TRUCKLOAD")
+                field.onChange(DELIVERY_MODES.find((m) => m === v) ?? DELIVERY_MODE.FULL_TRUCKLOAD)
               }
             >
               <SelectTrigger

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { TRANSFER_PACK_ERROR_MESSAGES, TRANSFER_PACK_FIELD_MESSAGES, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
+import { toast } from "@/components/shared/Toast";
 
 import { pickSelectOption } from "../__fixtures__/render";
 import { stubUuids } from "../__fixtures__/packing-render";
@@ -79,6 +80,24 @@ describe("đóng gói chuyển kho — mở kiện", () => {
       expect(post).toHaveBeenCalledWith(`${PACK_PATH}/packages`, { packageType: "CARTON" }),
     );
     expect(await screen.findByText(P.packages.cardTitle(1))).toBeInTheDocument();
+  });
+});
+
+describe("đóng gói chuyển kho — lỗi khi mở kiện", () => {
+  it("BE từ chối (PACKING_TAKEN): đúng MỘT toast tiếng Việt (factory toast, component không toast lại)", async () => {
+    const user = userEvent.setup();
+    const toastError = vi.spyOn(toast, "error").mockImplementation(() => "id");
+    renderTransferPackStation({
+      post: () => ({
+        [`${PACK_PATH}/packages`]: () => {
+          throw new ApiError(409, "PACKING_TAKEN", "taken");
+        },
+      }),
+    });
+    await user.click(await screen.findByRole("button", { name: P.action.openPackage }));
+    await waitFor(() => expect(toastError).toHaveBeenCalled());
+    expect(toastError).toHaveBeenCalledTimes(1);
+    expect(toastError).toHaveBeenCalledWith(TRANSFER_PACK_ERROR_MESSAGES.PACKING_TAKEN);
   });
 });
 

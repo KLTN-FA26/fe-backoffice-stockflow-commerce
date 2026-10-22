@@ -6,6 +6,7 @@
 import { z } from "zod";
 
 import {
+  DELIVERY_MODE,
   DELIVERY_MODES,
   TRANSFER_FIELD_MESSAGES as MSG,
   TRANSFER_LIMITS,
@@ -34,7 +35,7 @@ export const transferFormSchema = z
     reason: z.union([z.literal(""), z.enum(TRANSFER_REASONS)]).default(""),
     expectedDate: z.union([z.literal(""), isoDate]).default(""),
     // LP2-8: mặc định nguyên chuyến (FTL); đổi được khi lệnh còn DRAFT (PUT)
-    deliveryMode: z.enum(DELIVERY_MODES).default("FULL_TRUCKLOAD"),
+    deliveryMode: z.enum(DELIVERY_MODES).default(DELIVERY_MODE.FULL_TRUCKLOAD),
     lines: z
       .array(transferLineInputSchema)
       .min(1, MSG.linesRequired)

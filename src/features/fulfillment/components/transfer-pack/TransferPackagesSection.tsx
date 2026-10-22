@@ -8,9 +8,7 @@ import {
   visibleTransferParcels,
   voidedTransferParcels,
 } from "@/features/fulfillment/transfer-pack-selectors";
-import { transferPackErrorMessage } from "@/features/fulfillment/transfer-pack-errors";
 import { useOpenTransferPackage } from "@/features/fulfillment/transfer-pack-mutations";
-import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 
 import { Section } from "../primitives";
@@ -56,12 +54,7 @@ export function TransferPackagesSection({
               type="button"
               size="sm"
               disabled={open.isPending}
-              onClick={() =>
-                open.mutate(
-                  { packId: session.packId, packageType: type },
-                  { onError: (error) => toast.error(transferPackErrorMessage(error)) },
-                )
-              }
+              onClick={() => open.mutate({ packId: session.packId, packageType: type })}
               className="rounded-[var(--r-sm)]"
             >
               <PackagePlus className="size-3.5" /> {UI_LABELS.packing.action.openPackage}

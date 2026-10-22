@@ -1,3 +1,4 @@
+import { LOAD_PLAN_SOURCE } from "@/constants";
 import {
   createPlanFingerprint,
   hasCreatePlanRequestId,
@@ -35,7 +36,7 @@ export function transferIdsToSend(
   const replay = hasCreatePlanRequestId(
     createPlanFingerprint({
       ...rest,
-      sourceType: "TRANSFER",
+      sourceType: LOAD_PLAN_SOURCE.TRANSFER,
       shipmentIds: [],
       transferOrderIds: [...selected],
     }),

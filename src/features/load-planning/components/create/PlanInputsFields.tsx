@@ -1,6 +1,6 @@
 "use client";
 
-import { UI_LABELS } from "@/constants";
+import { LOAD_PLAN_SOURCE, UI_LABELS } from "@/constants";
 import { knownLoadPlanReadError } from "@/features/load-planning/errors";
 
 import { ModePicker } from "./ModePicker";
@@ -50,7 +50,7 @@ export function PlanInputsFields({
   types: UseQueryResult<VehicleTypeOption[]>;
   inputs: PlanInputsState;
 }) {
-  const transfer = inputs.sourceType === "TRANSFER";
+  const transfer = inputs.sourceType === LOAD_PLAN_SOURCE.TRANSFER;
   return (
     <div className="space-y-5">
       {showSource && (

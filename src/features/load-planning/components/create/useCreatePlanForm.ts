@@ -38,7 +38,9 @@ export function useCreatePlanForm() {
   const [note, setNote] = useState("");
   const [fieldError, setFieldError] = useState<string | null>(null);
   const inputs = usePlanInputsState(
-    seeded ? { sourceType: "TRANSFER", transferOrderIds: [seed.transferOrderId ?? ""] } : undefined,
+    seeded
+      ? { sourceType: LOAD_PLAN_SOURCE.TRANSFER, transferOrderIds: [seed.transferOrderId ?? ""] }
+      : undefined,
   );
   const transfer = inputs.sourceType === LOAD_PLAN_SOURCE.TRANSFER;
   const candidates = useLoadPlanCandidates(warehouseId);
@@ -74,7 +76,11 @@ export function useCreatePlanForm() {
         return;
       }
       setFieldError(null);
-      void starter.start({ ...parsed.data, sourceType: "TRANSFER", shipmentIds: [] });
+      void starter.start({
+        ...parsed.data,
+        sourceType: LOAD_PLAN_SOURCE.TRANSFER,
+        shipmentIds: [],
+      });
       return;
     }
     const known = new Set(candidates.data?.map(candidateKey));
