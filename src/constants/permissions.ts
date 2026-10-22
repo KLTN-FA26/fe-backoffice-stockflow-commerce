@@ -46,6 +46,7 @@ export const ORDER_PERMISSIONS = {
   // Đọc dữ liệu (GET /orders, /orders/{id}, /orders/{id}/history) — seed BE: SALES_STAFF,
   // ORDER_COORDINATOR và (BE PR #148, "ACCREAD") ACCOUNTANT
   read: "sales-orders:READ",
+  create: "sales-orders:CREATE",
   approve: "sales-orders:APPROVE",
   cancel: "sales-order-cancellations:UPDATE",
   // Cho phép / dừng giao một phần của đơn (`PUT /orders/{id}/partial-shipment`, BE PR #150) — resource
@@ -288,6 +289,94 @@ export const FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS = {
 } as const;
 
 /**
+ * Khách hàng B2B — resource `customer-customers` (BE CustomerController + CustomerOnboardingController,
+ * SCRUM-450). CREATE = Sales tạo khách + gửi / gửi lại lời mời portal (seed V20261017000100: SALES_STAFF,
+ * ECOMMERCE_ADMIN, SYSTEM_ADMIN). Đổi trạng thái dùng resource `customer-status` riêng;
+ * Sales có quyền duyệt khách nhưng không được khoá / mở lại tài khoản.
+ */
+export const CUSTOMER_PERMISSIONS = {
+  viewPage: "customer-customers:VIEW_PAGE",
+  read: "customer-customers:READ",
+  create: "customer-customers:CREATE",
+  update: "customer-customers:UPDATE",
+  approve: "customer-status:APPROVE",
+} as const;
+
+/**
+ * Điều khoản thanh toán của khách — resource `customer-credit-profiles` (BE CreditProfileController).
+ * APPROVE = người duyệt công nợ hiện có (BR-02). Quyết định B1 (2026-10-13): Sales chỉ chọn
+ * PREPAID / DEPOSIT lúc tạo khách, KHÔNG có quyền cấp CREDIT.
+ */
+export const CREDIT_PROFILE_PERMISSIONS = {
+  read: "customer-credit-profiles:READ",
+  approve: "customer-credit-profiles:APPROVE",
+} as const;
+
+/**
+ * Báo giá B2B — resource `sales-quotes` (BE QuoteController, SCRUM-448).
+ * Chuyển báo giá đã chấp nhận thành đơn dùng `sales-quote-conversions:CREATE` riêng,
+ * để điều phối đơn được chuyển mà không có quyền sửa nội dung báo giá.
+ */
+export const QUOTE_PERMISSIONS = {
+  viewPage: "sales-quotes:VIEW_PAGE",
+  read: "sales-quotes:READ",
+  create: "sales-quotes:CREATE",
+  // Sửa nháp, gửi, mở bản sửa, huỷ
+  update: "sales-quotes:UPDATE",
+  convert: "sales-quote-conversions:CREATE",
+  // Phía khách: chấp nhận / yêu cầu sửa
+  approve: "sales-quotes:APPROVE",
+} as const;
+
+/**
+ * Yêu cầu làm mẫu — resource `production-sample-requests` (BE SampleRequestController, SCRUM-403;
+ * seed V20261010000500 + V20261017000200: CUSTOMER V/R/APPROVE, SALES_STAFF có APPROVE).
+ */
+export const SAMPLE_REQUEST_PERMISSIONS = {
+  viewPage: "production-sample-requests:VIEW_PAGE",
+  read: "production-sample-requests:READ",
+  create: "production-sample-requests:CREATE",
+  update: "production-sample-requests:UPDATE",
+  approve: "production-sample-requests:APPROVE",
+} as const;
+
+/**
+ * Lệnh sản xuất (LSX) — resource `production-orders` (BE ProductionOrderController, SCRUM-405..415).
+ * UPDATE = prepress, treo, in, ghi sản lượng · APPROVE = huỷ / dừng / tiếp tục, tách gia công.
+ */
+export const PRODUCTION_ORDER_PERMISSIONS = {
+  viewPage: "production-orders:VIEW_PAGE",
+  read: "production-orders:READ",
+  update: "production-orders:UPDATE",
+  approve: "production-orders:APPROVE",
+} as const;
+
+/** Bảng giá theo khách — `catalog-customer-prices` (BE d215f6e, P7): Sales chỉ đọc. */
+export const CATALOG_CUSTOMER_PRICE_PERMISSIONS = {
+  read: "catalog-customer-prices:READ",
+} as const;
+
+/**
+ * Thiết kế đã khách xác nhận — `design-snapshots` (BE PR #109 `DesignSnapshotController`, cấp cho SALES_STAFF ở
+ * V20261017000800). Chỉ back-office; BE từ chối khách hàng dù khách cũng có mã quyền này.
+ */
+export const DESIGN_SNAPSHOT_PERMISSIONS = {
+  read: "design-snapshots:READ",
+} as const;
+
+/** Xuất phôi cho LSX + gửi / nhận gia công — `production-material-issues` (seed V20261017000400). */
+export const MATERIAL_ISSUE_PERMISSIONS = {
+  read: "production-material-issues:READ",
+  create: "production-material-issues:CREATE",
+} as const;
+
+/** QC thành phẩm LSX — `production-qc-results` (seed V20261017000420: QC_STAFF, WAREHOUSE_MANAGER). */
+export const PRODUCTION_QC_PERMISSIONS = {
+  read: "production-qc-results:READ",
+  create: "production-qc-results:CREATE",
+} as const;
+
+/**
  * Lệnh chuyển kho — resource `inventory-transfer-orders` (BE TransferOrderController, SCRUM-326/327).
  * Tạo / sửa nháp / gửi duyệt / huỷ = CREATE; lấy hàng / xuất kho ở kho nguồn = UPDATE; duyệt / từ chối
  * = APPROVE (seed BE: chỉ WAREHOUSE_MANAGER).
@@ -348,6 +437,7 @@ export const FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS = {
  */
 export const WAREHOUSE_PERMISSIONS = {
   read: "warehouse-warehouses:READ",
+  locationsRead: "warehouse-locations:READ",
 } as const;
 
 /** BE develop IdentityResources / IdentityController: read-only RBAC screen APIs. */

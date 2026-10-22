@@ -1,4 +1,8 @@
+"use client";
+
 import { useQueryClient } from "@tanstack/react-query";
+
+import { isStaleApiError } from "./error-message";
 
 import type { QueryKey } from "@tanstack/react-query";
 import type { createMutation } from "./query-factory";
@@ -10,15 +14,13 @@ export type MutationHook<TInput, TResult> = ReturnType<typeof createMutation<TIn
 export type StaleKeys<TInput> = readonly QueryKey[] | ((variables: TInput) => readonly QueryKey[]);
 
 /**
- * Bọc một mutation hook: lỗi do dữ liệu trên màn đã cũ (`isStale`, vd OPTIMISTIC_LOCK / *_NOT_FOUND /
- * chuyển trạng thái không còn hợp lệ) → tải lại các khoá liên quan rồi mới gọi `onError` của màn
- * hình, để câu "Dữ liệu đã được tải lại" là thật và lần thử sau gửi đúng `version` / trạng thái.
- * Invalidate nằm ở tầng mutation (api-conventions §2.3), component không tự gọi lại.
+ * Lỗi dữ liệu cũ: tải lại query liên quan trước khi gọi onError của màn hình.
+ * Mặc định dùng mã lỗi chung; module có thể bổ sung mã hoặc truyền predicate riêng.
  */
 export function withStaleRefetch<TInput, TResult>(
   useBase: MutationHook<TInput, TResult>,
   staleKeys: StaleKeys<TInput>,
-  isStale: (error: unknown) => boolean,
+  staleRule?: ((error: unknown) => boolean) | readonly string[],
 ): MutationHook<TInput, TResult> {
   return function useWithStaleRefetch(options) {
     const queryClient = useQueryClient();
@@ -26,7 +28,11 @@ export function withStaleRefetch<TInput, TResult>(
       ...options,
       onError: (...args) => {
         const [error, variables] = args;
-        if (isStale(error)) {
+        const isStale =
+          typeof staleRule === "function"
+            ? staleRule(error)
+            : isStaleApiError(error, staleRule ?? []);
+        if (isStale) {
           const keys = typeof staleKeys === "function" ? staleKeys(variables) : staleKeys;
           for (const queryKey of keys) void queryClient.invalidateQueries({ queryKey });
         }

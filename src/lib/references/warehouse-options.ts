@@ -81,10 +81,12 @@ export function useWarehouseDirectory(enabled = true) {
   });
 }
 
-export function useWarehouseOptions() {
+/** `enabled=false` khi người dùng không có `warehouse-warehouses:READ` (tránh gọi để nhận 403). */
+export function useWarehouseOptions(enabled = true) {
   return useQuery({
     queryKey: warehouseOptionKeys.active(),
     queryFn: ({ signal }) => fetchActiveWarehouseOptions(signal),
+    enabled,
     ...QUERY_TIMES.master,
   });
 }

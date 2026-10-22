@@ -483,6 +483,139 @@ export type OrderStatus = (typeof ORDER_STATUSES)[number];
 export type SupplierStatus = (typeof SUPPLIER_STATUSES)[number];
 export type SupplierApiStatus = (typeof SUPPLIER_API_STATUSES)[number];
 export type SupplierChannel = (typeof SUPPLIER_CHANNELS)[number];
+
+/* ── Bán hàng B2B & sản xuất (BE local integration d215f6e, chưa merge develop) ─────────── */
+
+/**
+ * Khách hàng — BE `CustomerStatus`. Nhãn theo vòng đời docs 18 §5 (handoff SCRUM-429):
+ * PENDING_ACTIVATION = Pending Activation, BLOCKED = Suspended, INACTIVE = Closed.
+ */
+export const CUSTOMER_API_STATUSES = [
+  "PENDING_ACTIVATION",
+  "ACTIVE",
+  "BLOCKED",
+  "INACTIVE",
+] as const;
+export type CustomerApiStatus = (typeof CUSTOMER_API_STATUSES)[number];
+export const CUSTOMER_STATUS_BY_API = {
+  PENDING_ACTIVATION: "Pending Activation",
+  ACTIVE: "Active",
+  BLOCKED: "Suspended",
+  INACTIVE: "Closed",
+} as const satisfies Record<CustomerApiStatus, string>;
+
+/** Điều khoản thanh toán — BE `CommercialTerm` / `PaymentTerm`. */
+export const PAYMENT_TERMS = ["PREPAID", "DEPOSIT", "CREDIT"] as const;
+export type PaymentTerm = (typeof PAYMENT_TERMS)[number];
+export const PAYMENT_TERM_LABELS = {
+  PREPAID: "Trả trước",
+  DEPOSIT: "Đặt cọc",
+  CREDIT: "Công nợ",
+} as const satisfies Record<PaymentTerm, string>;
+/** Quyết định B1 (2026-10-13): Sales chỉ được chọn hai điều khoản này khi tạo khách. */
+export const SALES_ONBOARDING_PAYMENT_TERMS = [
+  "PREPAID",
+  "DEPOSIT",
+] as const satisfies readonly PaymentTerm[];
+
+/** Báo giá — BE `QuoteStatus` (SCRUM-448). EXPIRED/CANCELLED/CONVERTED là trạng thái cuối. */
+export const QUOTE_API_STATUSES = [
+  "DRAFT",
+  "SENT",
+  "CHANGES_REQUESTED",
+  "ACCEPTED",
+  "EXPIRED",
+  "CANCELLED",
+  "CONVERTED",
+] as const;
+export type QuoteApiStatus = (typeof QUOTE_API_STATUSES)[number];
+export const QUOTE_STATUS_BY_API = {
+  DRAFT: "Draft",
+  SENT: "Sent",
+  CHANGES_REQUESTED: "Changes Requested",
+  ACCEPTED: "Accepted",
+  EXPIRED: "Expired",
+  CANCELLED: "Cancelled",
+  CONVERTED: "Converted",
+} as const satisfies Record<QuoteApiStatus, string>;
+
+/** Yêu cầu mẫu — BE `SampleStatus` (SCRUM-403). */
+export const SAMPLE_API_STATUSES = [
+  "DRAFT",
+  "SUBMITTED",
+  "IN_PRODUCTION",
+  "READY",
+  "SENT_TO_CUSTOMER",
+  "CHANGES_REQUESTED",
+  "APPROVED",
+  "CANCELLED",
+] as const;
+export type SampleApiStatus = (typeof SAMPLE_API_STATUSES)[number];
+export const SAMPLE_STATUS_BY_API = {
+  DRAFT: "Draft",
+  SUBMITTED: "Submitted",
+  IN_PRODUCTION: "In Production",
+  READY: "Ready",
+  SENT_TO_CUSTOMER: "Sent to Customer",
+  CHANGES_REQUESTED: "Changes Requested",
+  APPROVED: "Approved",
+  CANCELLED: "Cancelled",
+} as const satisfies Record<SampleApiStatus, string>;
+
+/** Lệnh sản xuất — BE `ProductionOrder.Status` (SCRUM-405..420). */
+export const PRODUCTION_API_STATUSES = [
+  "PENDING_PREPRESS",
+  "READY",
+  "MATERIAL_ISSUED",
+  "PRINTING",
+  "SUBCONTRACTED",
+  "QC",
+  "ON_HOLD",
+  "COMPLETED",
+  "CANCELLED",
+] as const;
+export type ProductionApiStatus = (typeof PRODUCTION_API_STATUSES)[number];
+export const PRODUCTION_STATUS_BY_API = {
+  PENDING_PREPRESS: "Pending Prepress",
+  READY: "Ready",
+  MATERIAL_ISSUED: "Material Issued",
+  PRINTING: "Printing",
+  SUBCONTRACTED: "Subcontracted",
+  QC: "QC",
+  ON_HOLD: "On Hold",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
+} as const satisfies Record<ProductionApiStatus, string>;
+export const PRODUCTION_ORDER_TYPES = ["SAMPLE", "ORDER"] as const;
+export type ProductionOrderType = (typeof PRODUCTION_ORDER_TYPES)[number];
+export const PRODUCTION_ORDER_MODES = ["IN_HOUSE", "SUBCONTRACTED"] as const;
+export type ProductionOrderMode = (typeof PRODUCTION_ORDER_MODES)[number];
+
+/** Nhóm trạng thái đơn khách đọc — BE `CustomerOrderCardResponse.statusGroup` (develop). */
+export const ORDER_STATUS_GROUPS = [
+  "AWAITING_PAYMENT",
+  "UNDER_REVIEW",
+  "CONFIRMED",
+  "IN_PRODUCTION",
+  "PREPARING",
+  "SHIPPING",
+  "DELIVERED",
+  "CANCELLED",
+  "RETURNED",
+] as const;
+export type OrderStatusGroup = (typeof ORDER_STATUS_GROUPS)[number];
+/** Nhóm → chuỗi status-map (nhãn Việt + tone dùng chung). */
+export const ORDER_STATUS_GROUP_DISPLAY = {
+  AWAITING_PAYMENT: "Pending Payment",
+  UNDER_REVIEW: "Under Review",
+  CONFIRMED: "Confirmed",
+  IN_PRODUCTION: "In Production",
+  PREPARING: "Preparing",
+  SHIPPING: "Shipping",
+  DELIVERED: "Delivered",
+  CANCELLED: "Cancelled",
+  RETURNED: "Returned",
+} as const satisfies Record<OrderStatusGroup, string>;
 export type TransferStatus = (typeof TRANSFER_STATUSES)[number];
 export type TransferReason = (typeof TRANSFER_REASONS)[number];
 export type LoadStatus = (typeof LOAD_STATUSES)[number];

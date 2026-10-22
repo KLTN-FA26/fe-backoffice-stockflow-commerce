@@ -10,6 +10,10 @@ export const STORAGE_KEYS = {
   adminPackingConfig: "stockflow:admin:packing:config",
   adminPickingConfig: "stockflow:admin:picking:config",
   adminSuppliersConfig: "stockflow:admin:suppliers:config",
+  adminCustomersConfig: "stockflow:admin:customers:config",
+  adminQuotesConfig: "stockflow:admin:quotes:config",
+  adminSampleRequestsConfig: "stockflow:admin:sample-requests:config",
+  adminProductionOrdersConfig: "stockflow:admin:production-orders:config",
   /** Tab "Danh mục hàng" trên chi tiết NCC — số dòng/trang (dùng chung mọi NCC). */
   adminSupplierItemsConfig: "stockflow:admin:suppliers:items:config",
   adminTaxonomyBrandsConfig: "stockflow:admin:taxonomy:brands:config",

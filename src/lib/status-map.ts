@@ -15,6 +15,8 @@ export type { SemanticTone };
 
 const TONE: Record<SemanticTone, readonly string[]> = {
   positive: [
+    // Dòng báo giá đã có mẫu khách duyệt (BE QuoteLine.sample.satisfied)
+    "Sample Approved",
     // Stock adjustment (BE StockAdjustmentStatus, SCRUM-424)
     STOCK_ADJUSTMENT_STATUS.POSTED,
     "DELIVERED",
@@ -53,11 +55,21 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Staged",
     "Picked",
     "Allocated",
+    "ACCEPTED",
+    "RECEIVED_COMPLETED",
     // Chuyển kho (BE TransferStatus) + chuyến xe (LoadStatus, BE 03-state-machines §11)
     "COMPLETED",
     "DISPATCHED",
   ],
   info: [
+    // Bán hàng B2B & sản xuất (BE d215f6e)
+    "Sent",
+    "Repeat Design",
+    "Preparing",
+    "Shipping",
+    "Submitted",
+    "Material Issued",
+    "Sent to Customer",
     "QUEUED",
     "SENT",
     "In Progress",
@@ -72,6 +84,9 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Published",
     "In Putaway",
     "Partially Completed",
+    "IN_PRODUCTION",
+    "Printing",
+    "QC",
     "Out for Delivery",
     "Pending (COD)",
     "Reserved",
@@ -89,6 +104,12 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "LOADING",
   ],
   warning: [
+    // Bán hàng B2B & sản xuất (BE d215f6e)
+    "Pending Activation",
+    "Sample Required",
+    "Subcontractor Late",
+    "Not Reconciled",
+    "Under Review",
     "RETRYING",
     "PENDING",
     "PARTIALLY_RECEIVED",
@@ -118,6 +139,9 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Return Requested",
     "Pending Verification",
     "Draft Proposal",
+    "RECEIVED_PARTIAL",
+    "Pending Prepress",
+    "Hold",
     // Receipt — còn dòng cần QC chưa kết luận, chặn putaway (docs 03 §5.1)
     "In QC",
   ],
@@ -134,6 +158,7 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Returned",
     "Returning",
     "Suspended",
+    "SUSPENDED",
     "Out of stock",
     "Fail",
     "Obsolete",
@@ -141,6 +166,9 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Payment Failed",
     "Unpaid",
     "Timeout",
+    "Changes Requested",
+    "CHANGES_REQUESTED",
+    "EXPIRED",
   ],
   neutral: [
     "NOT_SENT",
@@ -153,10 +181,14 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Guest",
     "New",
     "Requested",
+    "INVITED",
+    "PENDING_ACTIVATION",
     // Chuyến xe mới lập kế hoạch, chưa đặt xe
     "PLANNED",
   ],
   muted: [
+    // Bán hàng B2B & sản xuất (BE d215f6e)
+    "Expired",
     "UNKNOWN",
     "SUPPRESSED",
     // BE #36 cancellationDeliveryStatus: PO huỷ trước khi gửi NCC → không cần báo huỷ.
@@ -180,7 +212,14 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     // QC dòng nhận — SKU không bật cờ Yêu cầu QC, đi luồng 2 bước (docs 03 §5.2)
     "Not Required",
   ],
-  special: ["Refunded", "Partially Refunded", "In Production"],
+  special: [
+    "Refunded",
+    "Partially Refunded",
+    "In Production",
+    "SAMPLE",
+    // Gia công ngoài — tách khỏi in tại xưởng (BE d215f6e)
+    "Subcontracted",
+  ],
 };
 
 /** Thứ tự ưu tiên khi status trùng nhiều tone (CLAUDE.md). */
@@ -355,6 +394,40 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   Anonymized: "Đã ẩn danh",
   Merged: "Đã gộp",
   Voided: "Đã vô hiệu",
+  // Print & Packaging Production
+  "Pending Prepress": "Chờ Prepress",
+  Printing: "Đang in",
+  QC: "Kiểm tra QC",
+  Hold: "Tạm dừng (Hold)",
+  "Changes Requested": "Yêu cầu sửa",
+  // Bán hàng B2B & sản xuất (BE d215f6e)
+  Sent: "Đã gửi khách",
+  Expired: "Hết hiệu lực",
+  Submitted: "Đã gửi sản xuất",
+  "Sent to Customer": "Đã gửi mẫu cho khách",
+  "Material Issued": "Đã xuất phôi",
+  Subcontracted: "Gia công ngoài",
+  "Pending Activation": "Chờ kích hoạt",
+  // Nhóm trạng thái đơn khách thấy (BE CustomerOrderCardResponse.statusGroup)
+  "Under Review": "Đang xem xét",
+  Preparing: "Đang chuẩn bị hàng",
+  Shipping: "Đang giao",
+  "Sample Approved": "Mẫu đã duyệt",
+  "Sample Required": "Cần duyệt mẫu",
+  "Repeat Design": "In lại thiết kế cũ",
+  "Subcontractor Late": "Nhà gia công trễ hạn",
+  "Not Reconciled": "Chưa đối soát phôi",
+  IN_PRODUCTION: "Đang gia công",
+  RECEIVED_PARTIAL: "Nhận một phần",
+  RECEIVED_COMPLETED: "Hoàn tất nhận",
+  EXPIRED: "Hết hiệu lực",
+  ACCEPTED: "Khách đã duyệt",
+  CHANGES_REQUESTED: "Yêu cầu sửa giá",
+  INVITED: "Đã mời",
+  PENDING_ACTIVATION: "Chờ kích hoạt",
+  SAMPLE: "Mẫu thử",
+  "ĐƠN HÀNG": "Đơn hàng",
+  ORDER: "Đơn hàng",
   Superseded: "Đã thay thế",
   Empty: "Trống",
   Full: "Đầy",

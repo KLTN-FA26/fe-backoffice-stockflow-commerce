@@ -12,11 +12,12 @@
 
 "use client";
 
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { makeQueryClient } from "@/lib/api/query-client";
 import { activateMockAdapter } from "@/lib/api/mock-adapter";
+import { useAuthStore } from "@/lib/auth/auth-store";
 
 const MockModeContext = createContext(false);
 
@@ -39,6 +40,19 @@ export function AppProviders({ children, isMock }: { children: React.ReactNode; 
   useState(() => {
     if (isMock && typeof window !== "undefined") activateMockAdapter();
   });
+
+  // Query keys carry no user scope: when a known identity ends (logout, incl. from another tab or a
+  // 401) or is replaced by another user, drop every cached response so the next user never sees the
+  // previous one's quotes / orders / customers while refetching. Bootstrap (no user → first user)
+  // keeps the cache.
+  useEffect(
+    () =>
+      useAuthStore.subscribe((state, previous) => {
+        const before = previous.user?.userId;
+        if (before && before !== state.user?.userId) queryClient.clear();
+      }),
+    [queryClient],
+  );
 
   return (
     <MockModeContext.Provider value={isMock}>
