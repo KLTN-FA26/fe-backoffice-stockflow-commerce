@@ -178,3 +178,53 @@ describe("computeLandingGhosts", () => {
     expect(ghosts.length).toBeLessThanOrEqual(LOAD_PLANNING_LIMITS.landingGhostsMax);
   });
 });
+
+describe("computeLandingGhosts options (PR F5)", () => {
+  const BOX_ORIG = { l: 400, w: 300, h: 200 };
+  const placed = [block(0, 0, 0, 100, 100, 100)];
+
+  it("uses precomputed spaces (from the worker) and gives the same ghosts as computing inline", () => {
+    const box = { origMm: BOX_ORIG, rotatable: true };
+    const spaces = computeEmptySpaces(EXTENT, placed);
+    expect(computeLandingGhosts(EXTENT, placed, box, { spaces })).toEqual(
+      computeLandingGhosts(EXTENT, placed, box),
+    );
+  });
+
+  it("with an orientation, only that pose is offered and ghosts carry its code and extents", () => {
+    const box = { origMm: BOX_ORIG, rotatable: true };
+    const ghosts = computeLandingGhosts(EXTENT, placed, box, { orientation: "WLH" });
+    expect(ghosts.length).toBeGreaterThan(0);
+    for (const g of ghosts) {
+      // WLH reads (z, x, y) = (W, L, H) → z 300, x 400, y 200
+      expect(g.orientation).toBe("WLH");
+      expect([g.dMm, g.wMm, g.hMm]).toEqual([300, 400, 200]);
+    }
+  });
+
+  it("a parcel that may not rotate has no ghost for any pose but LWH", () => {
+    const fixed = { origMm: BOX_ORIG, rotatable: false };
+    expect(computeLandingGhosts(EXTENT, placed, fixed, { orientation: "WLH" })).toEqual([]);
+    expect(
+      computeLandingGhosts(EXTENT, placed, fixed, { orientation: "LWH" }).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("the door removes poses whose door-facing side is too big and falls back to one that passes", () => {
+    const box = { origMm: BOX_ORIG, rotatable: true };
+    // door 250 wide x 450 tall: only poses with width <= 250 and height <= 450 pass
+    const door = { widthMm: 250, heightMm: 450 };
+    const ghosts = computeLandingGhosts(EXTENT, placed, box, { door });
+    expect(ghosts.length).toBeGreaterThan(0);
+    for (const g of ghosts) {
+      expect(g.wMm).toBeLessThanOrEqual(250);
+      expect(g.hMm).toBeLessThanOrEqual(450);
+    }
+    // a door nothing fits through
+    expect(
+      computeLandingGhosts(EXTENT, placed, box, { door: { widthMm: 100, heightMm: 100 } }),
+    ).toEqual([]);
+    // an explicitly requested pose that does not pass the door is refused too
+    expect(computeLandingGhosts(EXTENT, placed, box, { door, orientation: "LWH" })).toEqual([]);
+  });
+});

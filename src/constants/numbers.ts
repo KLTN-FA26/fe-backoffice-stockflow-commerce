@@ -237,6 +237,14 @@ export const LOAD_PLANNING_LIMITS = {
   lowUtilizationRatio: 0.5,
   /** Chiều cao khung 3D (px) — skeleton khi tải dùng cùng giá trị để bố cục không nhảy (gốc: 360). */
   viewerHeightPx: 360,
+  /** Chiều cao khung 3D của trình soạn xếp tay (px; gốc `canvasHeight` = 560, thu lại để vừa cạnh khay). */
+  editorViewerHeightPx: 520,
+  /** Bước nhích tay (mm) — `NUDGE_STEP` của `manual-packing-editor.tsx`; nhích dừng sát vật cản nếu gần hơn. */
+  nudgeStepMm: 50,
+  /** Số bước hoàn tác giữ lại (gốc 20; trạng thái chia sẻ mảng kiện nên giữ nhiều cũng nhẹ). */
+  editorHistoryMax: 50,
+  /** Lớp phủ "xem chỗ trống" chỉ vẽ chừng này khoảng trống lớn nhất (gốc `slice(0, 40)`). */
+  emptySpacesShownMax: 40,
   /** Số bước xếp chụp ảnh liền một nhịp trên trang in trước khi nhường luồng để thanh tiến độ cập nhật. */
   captureChunkSteps: 6,
 } as const;
@@ -260,4 +268,8 @@ export const LOAD_PLAN_LIMITS = {
   estimateTolerancePct: 10,
   /** Số loại xe tải về một lần cho ô chọn loại xe (danh mục tối đa vài chục). */
   vehicleTypePickerSize: 100,
+  /** `LoadPlacementsRequest.vehicles` @Size(max = 100). */
+  placementVehiclesMax: 100,
+  /** `LoadPlacementsRequest.Vehicle.boxes` và `tray` @Size(max = 2000). */
+  placementBoxesMax: 2000,
 } as const;

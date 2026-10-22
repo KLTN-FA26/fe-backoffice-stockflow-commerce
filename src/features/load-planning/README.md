@@ -4,8 +4,8 @@
 - **PR F4**: màn **Kế hoạch xếp xe** nối BE PR #161 — danh sách, lập mới, chi tiết (xem phần "PR F4" bên dưới). Từ
   đây feature có đủ `api.ts`, `queries.ts`, `mutations.ts`, `lifecycle.ts`, `errors.ts` (thiết kế:
   `be-backoffice-stockflow-commerce/docs/business-design/2026-10-22-scrum-287-load-planning-plan-v2.md`).
+- **PR F5**: trình soạn xếp tay `PUT …/placements` (`editor/`, `components/editor/`) — xem phần "PR F5" bên dưới.
 - **PR F6**: phiếu xếp hàng in được của một xe — `/admin/load-plans/[id]/vehicles/[seq]/print` (xem phần "PR F6").
-- Chưa làm: trình soạn xếp tay `PUT …/placements` (F5).
 
 Code là bản port từ dự án `nesting-standalone` của anh Tú (chỉ đọc, không sửa) sang framework của repo này:
 Next 16 + TS strict, zod, nhãn tiếng Việt trong `constants/`, giới hạn 200 dòng/file feature, 150 dòng/component.
@@ -117,12 +117,11 @@ Cố ý chưa port (đến ở PR sau): bảng "hướng dẫn xếp theo bướ
 - **Hằng số có nguồn** trong `LOAD_PLANNING_LIMITS` (`constants/numbers.ts`): 98% đỡ, dung sai hình học, dung sai gộp khối,
   giới hạn số kiện dựng.
 
-## Known limits (ghi lại cho PR sau, chưa sửa ở F1)
+## Known limits
 
-- **Chưa dùng instancing**: mỗi kiện là một `<mesh>` + `Edges`. Ổn ở 438 kiện (fixture 40HC); viewer dừng ở
-  `renderBoxesMax` = 600 và hiện thông báo. F5 phải chuyển sang `InstancedMesh` hoặc nêu lý do nếu cần vẽ vượt ~600 kiện.
-- **`computeEmptySpaces` chậm**: khoảng 1,9 s trên 40HC (438 kiện) ở bản dev. F5 phải memo hoá (chỉ tính lại khi
-  danh sách kiện đổi) hoặc chuyển sang web worker trước khi gọi mỗi lần chọn/kéo.
+- **Viewer xem (F1) chưa dùng instancing**: mỗi kiện là một `<mesh>` + `Edges`, dừng ở `renderBoxesMax` = 600 và hiện thông báo.
+  Trình soạn (F5) KHÔNG bị giới hạn này — nó vẽ bằng `InstancedMesh` (xem phần F5).
+- ~~`computeEmptySpaces` chậm~~ — F5 tính trong web worker (xem phần F5).
 - `deriveKitDefs` không phát hiện cả kế hoạch cùng thiếu một món (xem trên).
 
 ## Dùng thế nào
@@ -183,6 +182,44 @@ Route: `/admin/load-plans` (danh sách), `/admin/load-plans/create` (lập mới
 - **Mock** (`lib/api/mock-routes-load-plans.ts` + `mock-load-plan-*.ts`): bốn kế hoạch seed (PLANNED dựng từ `LAYOUT_PICKUP_KIT`
   của F1, DRAFT, CANCELLED, CONFIRMED có xe đang LOADING để thử BR-14); bộ xếp giả xếp theo lớp trên sàn (không giữ bộ, không bảo
   đảm đỡ 98%) — chỉ để có bố cục xem được, solver thật là của BE.
+
+## PR F5: trình soạn xếp tay
+
+Nút **"Chỉnh xếp tay"** ở chi tiết kế hoạch (`LoadPlanActions.editPlacements` = có `fulfillment-load-plans:UPDATE` + kế hoạch
+`PLANNED` + còn xe; BE `LoadPlan.editPlacements` chỉ nhận `PLANNED`). Trình soạn thay phần tab tới khi **Lưu** (một
+`PUT …/placements`, nguyên tử, BE kiểm lại toàn bộ) hoặc **Thoát** (hỏi nếu còn thay đổi chưa lưu; `beforeunload` khi đóng trang).
+
+| File gốc (`nesting-standalone/web`)                                                                          | File mới                                                                                                                                                                                                                        |
+| ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `components/nesting/manual-packing-editor.tsx` — trạng thái, chọn kiện, nhích, xoay, khay, ô gợi ý, hoàn tác | `editor/` (thuần, có test): `apply.ts` + `moves.ts` (đặt / nhích / xoay / hạ lơ lửng), `history.ts` (hoàn tác + làm lại), `selectors.ts` (dòng khay, kiện cùng loại / cùng bộ, bảng mặt hàng), `use-editor.ts` (trạng thái màn) |
+| — cột phải "Mặt hàng" (`linesPanel`, `moveOutType`)                                                          | `components/editor/LinesPanel.tsx`                                                                                                                                                                                              |
+| — thanh nút chọn / nhích / xoay (`moveGrid`, `rotateSelection`)                                              | `components/editor/SelectionPanel.tsx`, `NudgePad.tsx`, `RotateGrid.tsx`                                                                                                                                                        |
+| — khay chung + chọn hướng (`allOrient`)                                                                      | `components/editor/TrayPanel.tsx`                                                                                                                                                                                               |
+| `components/nesting/manual-edit-view.tsx` — chuyển giữa các container, khay dùng chung                       | `components/editor/PlacementEditor.tsx`, `EditorVehicleTabs.tsx`; khay `EditorState.tray` chung mọi xe                                                                                                                          |
+| `lib/nesting-report/manual-packing.ts`                                                                       | đã port ở F1 (`lib/manual-packing.ts`, `lib/empty-spaces.ts`); F5 thêm `passesDoor`, tuỳ chọn `spaces` / `orientation` / `door` cho `computeLandingGhosts`                                                                      |
+| `nesting-3d-viewer.tsx` (ghost, kiện đang chọn)                                                              | `components/editor/EditorViewport.tsx`, `EditorBoxes.tsx` (instancing), `GhostBlocks.tsx`; vỏ xe + lưới dùng chung `viewer/VehicleShell.tsx`                                                                                    |
+
+**Luật kiểm trước khi lưu** (`editor/precheck.ts`): `checkLayout` của F1 (trong lòng xe, chồng, đỡ ≥ 98%, hướng, xoay, gia cố, quá tải)
+cộng `DOOR` (cửa lấy từ loại xe đang dùng; không đọc được danh mục thì bỏ vế này, BE vẫn kiểm) và `KIT_SPLIT` (khay tính là một chỗ).
+Còn vi phạm thì Lưu hỏi lại; BE vẫn là nơi quyết định.
+
+**Lỗi khi lưu** (`editor/use-save-flow.ts`, luôn giữ bản đang soạn):
+
+- 422 `PLACEMENT_RULE_VIOLATION` → `fieldErrors[{field: ref | "vehicle:<seq>", code}]` tô đỏ đúng kiện + lý do tiếng Việt; vi phạm cũ tự hết khi kiện đó bị sửa (chữ ký chỗ đặt, `editor/issues.ts`).
+- 409 `OPTIMISTIC_LOCK` → **Tải lại** (bỏ chỉnh sửa, lấy bản mới) hoặc **Ghi đè sau khi xem** (so bản mới với bản lúc mở, `editor/diff.ts`; chỉ ghi đè được khi cùng tập xe và tập kiện, vì BE đòi mọi xe và mọi kiện đúng một lần). Lưu luôn gửi `version` của lúc MỞ trình soạn, ghi đè gửi `version` mới.
+
+**Hiệu năng**
+
+- Vẽ bằng một `InstancedMesh` + một `LineSegments` gộp cạnh (2 lệnh vẽ cho cả xe, không cắt ở 600 kiện); chọn kiện qua `instanceId`; hình học cạnh tự tạo được giải phóng khi đổi / gỡ (`use-edge-geometry.ts`), phần còn lại R3F giải phóng.
+- `computeEmptySpaces` chạy trong web worker (`editor/empty-spaces.worker.ts`, `use-empty-spaces.ts`): kết quả của yêu cầu cũ bị bỏ, chỉ tính khi chọn kiện ở khay hoặc bật "Xem chỗ trống", không có Worker thì tính ở luồng chính sau một nhịp. Khoảng trống tính MỘT lần cho cả dòng khay (`computeLandingGhosts(..., { spaces })`).
+- Trạng thái chia sẻ mảng kiện của xe không đổi → hoàn tác rẻ, và kiểm luật chỉ tính lại xe vừa sửa.
+
+**Khác bản gốc và vì sao**
+
+- Không port: thêm SKU, chạy thử, giải lại bằng solver, đổi loại container (design v2 §4); **tự xếp khay** (`autoFitTray`) và **dồn góc** (`compact`) — chưa có yêu cầu và chúng có thể tách bộ; **nhãn trên mặt kiện** (nhãn khi rê chuột vẫn có) và ✓ "còn vừa" từng dòng khay (tốn một lần tính chỗ trống cho mỗi dòng; thay bằng "n vị trí đặt được" của dòng đang chọn).
+- **Thiếu đỡ là lỗi chặn** (như F1), không phải cảnh báo: không đặt được kiện thiếu đỡ, xoay / nhích ra chỗ thiếu đỡ bị từ chối; kiện bị mất chỗ tựa do dời kiện bên dưới hiện ở kiểm tra và xử lý bằng **Hạ kiện lơ lửng** (`settleFloaters`, bản gốc làm ngầm khi Áp dụng).
+- **Chuyển xe** đi qua khay chung rồi đặt vào ô xanh của xe kia (đúng bản gốc); nút "Chuyển sang xe #n" chỉ làm hai bước đầu giúp. Một bộ phải đi cùng một xe (LP-3) nên có "Chọn cả bộ".
+- Hộp gửi lên có `wMm/hMm/dMm` (BE `LoadPlacementsRequest.Box` bắt buộc; kích thước quyết định) cùng `orientation`.
 
 ## PR F6 — phiếu xếp hàng in được (LP-10)
 

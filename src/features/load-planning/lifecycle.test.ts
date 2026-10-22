@@ -138,3 +138,27 @@ describe("loadPlanActions — confirm is blocked with a reason (BR-13, needs rec
     );
   });
 });
+
+describe("loadPlanActions — editPlacements (PR F5, BE LoadPlan.editPlacements)", () => {
+  it("needs :UPDATE, a PLANNED plan and at least one vehicle", () => {
+    expect(loadPlanActions(planFixture(), worker).editPlacements).toBe(true);
+    expect(loadPlanActions(planFixture(), viewer).editPlacements).toBe(false);
+    expect(loadPlanActions(planFixture(), actor(P.viewPage, P.read, P.create)).editPlacements).toBe(
+      false,
+    );
+    expect(loadPlanActions(planFixture({ vehicles: [] }), worker).editPlacements).toBe(false);
+  });
+
+  it("is off in every other status, terminal ones included", () => {
+    for (const status of LOAD_PLAN_STATUSES.filter((s) => s !== "PLANNED"))
+      expect(loadPlanActions(planFixture({ status }), worker).editPlacements).toBe(false);
+  });
+
+  it("stays available while a vehicle needs recalculation (an edit clears the flag) and while parcels are unplaced", () => {
+    const flagged = planFixture({
+      vehicles: [vehicleOfLayout(LAYOUT_PICKUP_KIT, { needsRecalculation: true })],
+    });
+    expect(loadPlanActions(flagged, worker).editPlacements).toBe(true);
+    expect(loadPlanActions(planWithUnplaced(), worker).editPlacements).toBe(true);
+  });
+});
