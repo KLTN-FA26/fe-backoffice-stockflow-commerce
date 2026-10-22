@@ -3,6 +3,7 @@
  */
 
 import { INVENTORY_ITEM_TOAST_MESSAGES, INVENTORY_ITEM_UI_LABELS } from "./labels-inventory-item";
+import { LOAD_PLAN_TOAST_MESSAGES, LOAD_PLAN_UI_LABELS } from "./labels-load-plan";
 import { PACKING_TOAST_MESSAGES, PACKING_UI_LABELS } from "./labels-packing";
 import { PRODUCT_UI_LABELS } from "./labels-product";
 import { SHIPPING_TOAST_MESSAGES, SHIPPING_UI_LABELS } from "./labels-shipping";
@@ -345,6 +346,7 @@ export const UI_LABELS = {
   transfer: TRANSFER_UI_LABELS,
   shipping: SHIPPING_UI_LABELS,
   vehicleType: VEHICLE_TYPE_UI_LABELS,
+  loadPlan: LOAD_PLAN_UI_LABELS,
   taxonomy: TAXONOMY_UI_LABELS,
   inventoryItem: INVENTORY_ITEM_UI_LABELS,
   product: PRODUCT_UI_LABELS,
@@ -725,6 +727,7 @@ export const TOAST_MESSAGES = {
   transfer: TRANSFER_TOAST_MESSAGES,
   shipping: SHIPPING_TOAST_MESSAGES,
   vehicleType: VEHICLE_TYPE_TOAST_MESSAGES,
+  loadPlan: LOAD_PLAN_TOAST_MESSAGES,
   taxonomy: TAXONOMY_TOAST_MESSAGES,
   inventoryItem: INVENTORY_ITEM_TOAST_MESSAGES,
   fulfillment: {

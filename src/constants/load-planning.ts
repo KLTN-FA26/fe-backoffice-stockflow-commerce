@@ -16,8 +16,10 @@ export type LayoutOrientation = (typeof LAYOUT_ORIENTATIONS)[number];
 
 /**
  * Mã luật xếp do solver BE quy định (BR-10/BR-11, docs 09-shipping §6) — cũng là `rule` trong
- * `PLACEMENT_RULE_VIOLATION [{ref, rule}]`: ngoài lòng thùng, chồng nhau, thiếu đỡ (< 98% đáy),
- * quá tải trọng xe, xoay kiện không được xoay, vướng khối gia cố góc.
+ * `PLACEMENT_RULE_VIOLATION` (`fieldErrors[{field: ref, code: rule}]`; BE PR #161): ngoài lòng thùng, chồng nhau,
+ * thiếu đỡ (< 98% đáy), quá tải trọng xe, xoay kiện không được xoay, vướng khối gia cố góc, kiện không lọt cửa
+ * xe (`DOOR`), một bộ bị tách khỏi một xe (`KIT_SPLIT`, LP-3), kích thước đã xếp không khớp hướng đặt
+ * (`ORIENTATION_MISMATCH`).
  */
 export const PLACEMENT_RULES = [
   "OUT_OF_BOUNDS",
@@ -26,6 +28,9 @@ export const PLACEMENT_RULES = [
   "OVERWEIGHT",
   "ROTATION_NOT_ALLOWED",
   "GUSSET",
+  "DOOR",
+  "KIT_SPLIT",
+  "ORIENTATION_MISMATCH",
 ] as const;
 export type PlacementRule = (typeof PLACEMENT_RULES)[number];
 

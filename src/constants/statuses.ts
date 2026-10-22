@@ -505,3 +505,60 @@ export const STOCK_ADJUSTMENT_STATUS = {
 } as const satisfies Record<string, StockAdjustmentStatus>;
 
 export type StockAdjustmentStatus = (typeof STOCK_ADJUSTMENT_STATUSES)[number];
+
+/**
+ * Kế hoạch xếp xe — BE `LoadPlanStatus` (SCRUM-287 PR D, docs 09 §5 "Trạng thái Kế hoạch chuyến xe"):
+ * DRAFT → PLANNED → CONFIRMED → DISPATCHED, và CANCELLED. DISPATCHED / CANCELLED là trạng thái kết thúc.
+ */
+export const LOAD_PLAN_STATUSES = [
+  "DRAFT",
+  "PLANNED",
+  "CONFIRMED",
+  "DISPATCHED",
+  "CANCELLED",
+] as const;
+
+export type LoadPlanStatus = (typeof LOAD_PLAN_STATUSES)[number];
+
+export const LOAD_PLAN_STATUS = {
+  DRAFT: "DRAFT",
+  PLANNED: "PLANNED",
+  CONFIRMED: "CONFIRMED",
+  DISPATCHED: "DISPATCHED",
+  CANCELLED: "CANCELLED",
+} as const satisfies Record<string, LoadPlanStatus>;
+
+/** BE `SelectionMode` (LP-6): một loại xe (mặc định) hoặc trộn loại để ít xe nhất. */
+export const LOAD_PLAN_SELECTION_MODES = ["SINGLE_TYPE", "FEWEST_VEHICLES"] as const;
+
+export type LoadPlanSelectionMode = (typeof LOAD_PLAN_SELECTION_MODES)[number];
+
+/**
+ * BE `LoadPlanUnplacedReason`: lý do của solver (`UnplacedReason`) cộng MANUAL — kiện người điều phối
+ * tự đưa xuống khay chưa xếp (PR F5).
+ */
+export const LOAD_PLAN_UNPLACED_REASONS = [
+  "TOO_LARGE",
+  "TOO_HEAVY",
+  "NO_VEHICLE_AVAILABLE",
+  "NO_SPACE",
+  "SEARCH_CUT_OFF",
+  "MANUAL",
+] as const;
+
+export type LoadPlanUnplacedReason = (typeof LOAD_PLAN_UNPLACED_REASONS)[number];
+
+/** Cờ của `vsEstimate.flags` (BE `LoadPlans.EstimateComparison`) — chỉ để tham khảo, không chặn thao tác. */
+export const LOAD_PLAN_ESTIMATE_FLAGS = [
+  "NO_ESTIMATE",
+  "ESTIMATE_INCOMPLETE",
+  "ESTIMATE_UNPLACED",
+  "MORE_VEHICLES",
+  "FEWER_VEHICLES",
+  "MORE_PARCELS",
+  "FEWER_PARCELS",
+  "VOLUME_ABOVE",
+  "WEIGHT_ABOVE",
+] as const;
+
+export type LoadPlanEstimateFlag = (typeof LOAD_PLAN_ESTIMATE_FLAGS)[number];
