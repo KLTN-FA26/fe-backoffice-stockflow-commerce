@@ -77,6 +77,27 @@ describe("loadPlanActions — by status", () => {
     });
   });
 
+  it("BR-14: once a vehicle's load is LOADING or DISPATCHED, reopen and cancel are gone", () => {
+    for (const status of ["LOADING", "DISPATCHED"]) {
+      const plan = planFixture({
+        status: "CONFIRMED",
+        vehicles: [
+          vehicleOfLayout(LAYOUT_PICKUP_KIT, { load: { loadId: "l-1", code: "LD-1", status } }),
+        ],
+      });
+      expect(loadPlanActions(plan, worker)).toMatchObject({ reopen: false, cancel: false });
+    }
+    const booked = planFixture({
+      status: "CONFIRMED",
+      vehicles: [
+        vehicleOfLayout(LAYOUT_PICKUP_KIT, {
+          load: { loadId: "l-1", code: "LD-1", status: "VEHICLE_BOOKED" },
+        }),
+      ],
+    });
+    expect(loadPlanActions(booked, worker)).toMatchObject({ reopen: true, cancel: true });
+  });
+
   it("DISPATCHED and CANCELLED show no mutating button", () => {
     for (const status of ["DISPATCHED", "CANCELLED"] as const) {
       // `create` là quyền lập kế hoạch mới, không thuộc kế hoạch đang xem

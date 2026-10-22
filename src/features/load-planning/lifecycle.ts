@@ -51,6 +51,11 @@ const NONE: LoadPlanActions = {
   confirmBlocked: null,
 };
 
+/** Chuyến của một xe đã bắt đầu xếp hàng hoặc đã đi: BE không cho mở lại / huỷ nữa (BR-14, `LOAD_PLAN_LOADING_STARTED`). */
+const LOADING_LOAD_STATUSES: ReadonlySet<string> = new Set(["LOADING", "DISPATCHED"]);
+const loadingStarted = (plan: PlanDetail): boolean =>
+  plan.vehicles.some((vehicle) => !!vehicle.load && LOADING_LOAD_STATUSES.has(vehicle.load.status));
+
 const allows = (from: LoadPlanStatus, to: LoadPlanStatus): boolean =>
   (LOAD_PLAN_TRANSITIONS[from] as readonly LoadPlanStatus[]).includes(to);
 
@@ -78,8 +83,11 @@ export function loadPlanActions(plan: PlanDetail | null, actor: LoadPlanActor): 
     recalculateVehicle: planned,
     acknowledge: planned && plan.unplacedCount > 0 && !acknowledged,
     confirm: planned && allows(status, LOAD_PLAN_STATUS.CONFIRMED),
-    reopen: status === LOAD_PLAN_STATUS.CONFIRMED && allows(status, LOAD_PLAN_STATUS.PLANNED),
-    cancel: allows(status, LOAD_PLAN_STATUS.CANCELLED),
+    reopen:
+      status === LOAD_PLAN_STATUS.CONFIRMED &&
+      allows(status, LOAD_PLAN_STATUS.PLANNED) &&
+      !loadingStarted(plan),
+    cancel: allows(status, LOAD_PLAN_STATUS.CANCELLED) && !loadingStarted(plan),
     confirmBlocked,
   };
 }
