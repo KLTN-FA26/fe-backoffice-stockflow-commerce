@@ -68,6 +68,7 @@ export function LoadingTab({
         <>
           <VehicleSwitcher vehicles={plan.vehicles} selectedSeq={vehicle.seq} onSelect={setSeq} />
           <VehiclePanel
+            planId={plan.loadPlanId}
             vehicle={vehicle}
             layout={layouts?.find((layout) => layout.seq === vehicle.seq)}
             colorMap={colorMap}

@@ -237,6 +237,8 @@ export const LOAD_PLANNING_LIMITS = {
   lowUtilizationRatio: 0.5,
   /** Chiều cao khung 3D (px) — skeleton khi tải dùng cùng giá trị để bố cục không nhảy (gốc: 360). */
   viewerHeightPx: 360,
+  /** Số bước xếp chụp ảnh liền một nhịp trên trang in trước khi nhường luồng để thanh tiến độ cập nhật. */
+  captureChunkSteps: 6,
 } as const;
 
 /**

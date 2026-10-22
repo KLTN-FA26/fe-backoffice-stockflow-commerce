@@ -49,6 +49,7 @@ import {
   INVENTORY_OVERVIEW_PERMISSIONS,
   INVENTORY_PERMISSIONS,
   LOAD_PLAN_PERMISSIONS,
+  LOAD_PLAN_PRINT_LABELS,
   ORDER_PERMISSIONS,
   PO_PERMISSIONS,
   PRODUCT_PERMISSIONS,
@@ -366,6 +367,8 @@ interface BreadcrumbItem {
 const SUBPAGE_LABELS: Record<string, string> = {
   edit: "Chỉnh sửa",
   manifest: UI_LABELS.shipping.manifest.title,
+  /** `/load-plans/<id>/vehicles/<seq>/print` — phiếu xếp hàng của một xe (SCRUM-287 PR F6). */
+  print: LOAD_PLAN_PRINT_LABELS.documentTitle,
 };
 
 const DETAIL_LABEL_BY_ROUTE: Record<string, string> = {
@@ -421,7 +424,8 @@ export function buildBreadcrumbItems(
     const subpage =
       rest.length >= 2 && Object.hasOwn(SUBPAGE_LABELS, last) ? SUBPAGE_LABELS[last] : undefined;
     if (subpage) {
-      const id = rest.slice(0, -1).join("/");
+      // Trang in nằm sâu hơn một cấp (`<id>/vehicles/<seq>/print`): bản ghi vẫn là đoạn đầu tiên
+      const id = (last === "print" ? rest.slice(0, 1) : rest.slice(0, -1)).join("/");
       items.push({
         label: labelFor(id) ?? decodeURIComponent(id),
         href: linkable ? `${navItem.href}/${id}` : undefined,

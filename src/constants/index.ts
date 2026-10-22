@@ -55,6 +55,7 @@ export {
   LOAD_PLAN_STATUS_LABELS,
   LOAD_PLAN_UNPLACED_REASON_LABELS,
 } from "./labels-load-plan";
+export { LOAD_PLAN_PRINT_LABELS } from "./labels-load-plan-print";
 export { LOAD_PLANNING_LABELS, PLACEMENT_RULE_LABELS } from "./labels-load-planning";
 export { SHIPPING_ERROR_MESSAGES, SHIPPING_FIELD_MESSAGES } from "./labels-shipping";
 export { TAXONOMY_ERROR_MESSAGES } from "./labels-taxonomy";

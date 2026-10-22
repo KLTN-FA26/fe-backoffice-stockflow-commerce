@@ -1,0 +1,101 @@
+/**
+ * Nhãn của phiếu xếp hàng in được (SCRUM-287 PR F6, quyết định LP-10: trang in HTML dựng từ API bố cục, không xuất PDF).
+ * Nội dung theo báo cáo PDF EasyCargo của dự án gốc (`easycargo-pdf.ts`): đầu phiếu, bảng kê hàng, ảnh từng bước, ô ký.
+ */
+
+export const LOAD_PLAN_PRINT_LABELS = {
+  documentTitle: "Phiếu xếp hàng",
+  printButton: "In phiếu xếp hàng",
+  printHint:
+    "In bằng hộp thoại của trình duyệt (Ctrl+P / ⌘P): chọn khổ A4, có thể lưu thành PDF từ đó.",
+  back: "Quay lại kế hoạch",
+  noRead: "Bạn không có quyền xem kế hoạch xếp xe này.",
+  badSeq: "Số thứ tự xe không hợp lệ.",
+  vehicleNotFound: "Kế hoạch này không có xe này.",
+  planNotLoaded: "Không tải được kế hoạch xếp xe.",
+  layoutNotLoaded: "Không tải được bố cục xe.",
+  retry: "Thử lại",
+  capturing: (done: number, total: number) => `Đang dựng ảnh 3D… ${done}/${total}`,
+  capturingHint: "Phiếu chỉ hiện khi đủ ảnh để bản in không thiếu hình.",
+  captureFailed: "Không dựng được ảnh 3D (trình duyệt không bật WebGL?).",
+  printWithoutImages: "Xem phiếu không có ảnh",
+  header: {
+    plan: "Kế hoạch",
+    vehicleLabel: "Xe",
+    vehicle: (seq: number, code: string) => `Xe #${seq} · ${code}`,
+    innerDims: "Lòng xe (D×R×C)",
+    payload: "Tải trọng tối đa",
+    volumeFill: "Lấp đầy thể tích",
+    weightFill: "Lấp đầy khối lượng",
+    parcels: "Số kiện",
+    printedAt: "Ngày in",
+    booking: "Đặt xe",
+    carrier: "Hãng vận chuyển",
+    plate: "Biển số",
+    driver: "Tài xế",
+    notBooked: "Chưa đặt xe",
+    dispatchLoad: "Chuyến",
+  },
+  overview: {
+    title: "Tổng quan xếp hàng",
+    left: "Bên trái",
+    right: "Bên phải",
+    contents: "Bảng kê hàng",
+    legend: "Ký hiệu",
+    item: "Mặt hàng",
+    pieces: "Số kiện",
+    size: "Kích thước (cm)",
+    weight: "Khối lượng (kg)",
+    volume: "Thể tích (m³)",
+    total: "Tổng",
+  },
+  steps: {
+    title: "Trình tự xếp hàng",
+    intro:
+      "Xếp lần lượt từng bước, từ sát vách đầu xe ra phía cửa. Ảnh thể hiện xe sau khi xếp xong bước đó.",
+    step: (n: number, total: number) => `Bước ${n}/${total}`,
+    summary: (count: number, name: string) => `${count} kiện · ${name}`,
+    position: "Vị trí D/R/C (cm)",
+    block: "Khối D×R×C (cm)",
+    imageAlt: (n: number) => `Ảnh 3D sau bước ${n}`,
+    overviewAlt: (side: string) => `Ảnh 3D tổng quan, ${side}`,
+  },
+  parcel: {
+    title: "Danh sách kiện",
+    step: "Bước",
+    label: "Mã kiện",
+    item: "Mặt hàng",
+    order: "Đơn hàng",
+    size: "Kích thước (cm)",
+    weight: "Khối lượng (kg)",
+    kit: "Bộ",
+    orientation: "Hướng đặt",
+    kitPart: (no: number, count: number) => `Bộ ${no}/${count}`,
+    kitOther: "Thuộc bộ",
+    asIs: "Giữ nguyên",
+    /** Cạnh nào của kiện (D/R/C) nằm dọc xe, ngang xe và hướng lên khi đặt. */
+    rotated: (alongTruck: string, acrossTruck: string, up: string) =>
+      `Xoay: ${alongTruck} dọc xe, ${acrossTruck} ngang xe, ${up} đứng`,
+    total: "Tổng",
+    axisLetters: { L: "D", W: "R", H: "C" },
+  },
+  unplaced: {
+    title: "Kiện chưa lên xe này",
+    otherVehicles: (count: number) =>
+      `${count} kiện đã xếp ở xe khác của kế hoạch (không có trên phiếu này).`,
+    left: (count: number) =>
+      `${count} kiện chưa xếp được lên xe nào của kế hoạch và không có trên phiếu này.`,
+    acknowledged: "Đã xác nhận để lại; các kiện này quay về khu chờ xuất.",
+    notAcknowledged: "Chưa xác nhận để lại: kế hoạch chưa thể chốt.",
+    item: "Mặt hàng",
+    quantity: "Số lượng",
+    reason: "Lý do",
+  },
+  signatures: {
+    note: "ký, ghi rõ họ tên",
+    warehouse: "Thủ kho / người xếp hàng",
+    driver: "Tài xế",
+    checker: "Người kiểm hàng",
+  },
+  footer: (code: string, seq: number) => `${code} · xe #${seq}`,
+} as const;

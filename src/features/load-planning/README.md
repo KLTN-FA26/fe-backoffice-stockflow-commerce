@@ -4,7 +4,8 @@
 - **PR F4**: màn **Kế hoạch xếp xe** nối BE PR #161 — danh sách, lập mới, chi tiết (xem phần "PR F4" bên dưới). Từ
   đây feature có đủ `api.ts`, `queries.ts`, `mutations.ts`, `lifecycle.ts`, `errors.ts` (thiết kế:
   `be-backoffice-stockflow-commerce/docs/business-design/2026-10-22-scrum-287-load-planning-plan-v2.md`).
-- Chưa làm: trình soạn xếp tay `PUT …/placements` (F5), trang in (F6).
+- **PR F6**: phiếu xếp hàng in được của một xe — `/admin/load-plans/[id]/vehicles/[seq]/print` (xem phần "PR F6").
+- Chưa làm: trình soạn xếp tay `PUT …/placements` (F5).
 
 Code là bản port từ dự án `nesting-standalone` của anh Tú (chỉ đọc, không sửa) sang framework của repo này:
 Next 16 + TS strict, zod, nhãn tiếng Việt trong `constants/`, giới hạn 200 dòng/file feature, 150 dòng/component.
@@ -182,3 +183,15 @@ Route: `/admin/load-plans` (danh sách), `/admin/load-plans/create` (lập mới
 - **Mock** (`lib/api/mock-routes-load-plans.ts` + `mock-load-plan-*.ts`): bốn kế hoạch seed (PLANNED dựng từ `LAYOUT_PICKUP_KIT`
   của F1, DRAFT, CANCELLED, CONFIRMED có xe đang LOADING để thử BR-14); bộ xếp giả xếp theo lớp trên sàn (không giữ bộ, không bảo
   đảm đỡ 98%) — chỉ để có bố cục xem được, solver thật là của BE.
+
+## PR F6 — phiếu xếp hàng in được (LP-10)
+
+Trang HTML dựng từ API bố cục (`GET load-plans/{id}` + `/layouts`), in bằng hộp thoại của trình duyệt (Ctrl+P, khổ A4,
+lưu PDF từ đó) — không có xuất PDF trong ứng dụng, không jsPDF. Nội dung theo báo cáo PDF EasyCargo của dự án gốc.
+
+- Quyền: `fulfillment-load-plans:READ`. Ô hãng / biển số / tài xế lấy từ chuyến của xe (`GET /fulfillment/loads/{id}`,
+  `fulfillment-shipments:READ`, `print-booking.ts`); thiếu quyền hoặc lỗi thì để trống, không chặn in.
+- `lib/print-sheet.ts` dựng dữ liệu (đầu phiếu, bảng kê hàng, các bước từ `loading-steps.ts` kèm kiện đã nối với kế hoạch,
+  danh sách kiện, ghi chú kiện chưa xếp); `lib/print-capture.ts` chụp ảnh 3D theo lô để thanh tiến độ cập nhật.
+- Trang chỉ dựng phiếu khi đủ ảnh. Không dựng được ảnh (không WebGL) → "Thử lại" hoặc "Xem phiếu không có ảnh".
+- In: `@page` A4 ngay trong phiếu, mỗi bước xếp một trang, khung back-office ẩn, token màu ép về bảng sáng (`globals.css`).
