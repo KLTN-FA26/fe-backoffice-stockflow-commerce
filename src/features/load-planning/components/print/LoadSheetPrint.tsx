@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Loader2, Printer, Truck } from "lucide-react";
+import { Printer } from "lucide-react";
 
 import {
   ADMIN_ROUTES,
@@ -12,9 +12,7 @@ import {
 import { useCan } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
-import { Alert } from "@/components/shared/Alert";
 import { BackLink } from "@/components/shared/BackLink";
-import { EmptyState } from "@/components/shared/EmptyState";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
 
@@ -23,63 +21,12 @@ import { colorMapForPrint } from "../../lib/palette";
 import { buildPrintSheet } from "../../lib/print-sheet";
 import { useLoadPlan, useLoadPlanLayouts } from "../../queries";
 import { DetailLoadError } from "../detail/DetailLoadError";
+import { CaptureStatus } from "./CaptureStatus";
 import { LoadSheetDocument } from "./LoadSheetDocument";
 import { usePrintImages } from "./usePrintImages";
+import { VehicleMissing } from "./VehicleMissing";
 
 const L = LOAD_PLAN_PRINT_LABELS;
-
-/** Tiến độ dựng ảnh 3D; lỗi (thường là không có WebGL) cho thử lại hoặc xem phiếu không ảnh. */
-function CaptureStatus({
-  state,
-  onRetry,
-  onSkip,
-}: {
-  state: ReturnType<typeof usePrintImages>["state"];
-  onRetry: () => void;
-  onSkip: () => void;
-}) {
-  if (state.status === "error") {
-    return (
-      <Alert tone="danger" title={L.captureFailed}>
-        <div className="flex gap-2 pt-1">
-          <Button type="button" size="sm" variant="outline" onClick={onRetry}>
-            {L.retry}
-          </Button>
-          <Button type="button" size="sm" variant="outline" onClick={onSkip}>
-            {L.printWithoutImages}
-          </Button>
-        </div>
-      </Alert>
-    );
-  }
-  if (state.status !== "capturing") return null;
-  return (
-    <div role="status" className="border-border-default space-y-2 rounded-[var(--r-sm)] border p-4">
-      <p className="text-ink-primary flex items-center gap-2 text-sm font-medium">
-        <Loader2 className="size-4 animate-spin" aria-hidden />
-        {L.capturing(state.done, state.total)}
-      </p>
-      <progress
-        className="h-2 w-full"
-        max={state.total}
-        value={state.done}
-        aria-label={L.capturing(state.done, state.total)}
-      />
-      <p className="text-ink-tertiary text-xs">{L.capturingHint}</p>
-    </div>
-  );
-}
-
-/** Xe không có trong kế hoạch (hoặc số xe trong URL sai): báo rõ và dẫn về chi tiết kế hoạch. */
-function VehicleMissing({ id, message }: { id: string; message: string }) {
-  return (
-    <EmptyState
-      icon={<Truck className="size-8" />}
-      title={message}
-      action={<BackLink href={ADMIN_ROUTES.loadPlans.detail(id)} label={L.back} />}
-    />
-  );
-}
 
 function PrintBody({ id, seq }: { id: string; seq: number }) {
   const plan = useLoadPlan(id, { enabled: true });
