@@ -5,7 +5,7 @@
 
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { resetLoadPlanMockStore } from "@/lib/api/mock-load-plan-store";
+import { getMockShipments, resetLoadPlanMockStore } from "@/lib/api/mock-load-plan-store";
 import { resetVehicleTypeMockStore } from "@/lib/api/mock-vehicle-type-store";
 
 import {
@@ -257,6 +257,89 @@ describe("tính xếp xe và kiện chưa xếp (BR-13, LP-4)", () => {
     );
     expect(again.version).toBe(plan.version + 1);
     expect(again.placedCount + again.unplacedCount).toBe(plan.packageCount);
+  });
+});
+
+describe("khớp BE ở các ca biên (review)", () => {
+  it("every parcel too large for every type is still PLANNED, with the whole shipment on the tray and no vehicle", async () => {
+    const shipment = getMockShipments().find((s) => s.shipmentId === SEED.hcmShipment);
+    if (!shipment) throw new Error("seed");
+    shipment.packages = shipment.packages.filter((p) => p.partName === "Kệ sách");
+    const { plan, response } = await planOf(SEED.hcmShipment, "WH-HCM-01", "PICKUP");
+    expect(response.status).toBe(200);
+    expect(plan).toMatchObject({
+      status: "PLANNED",
+      vehicles: [],
+      placedCount: 0,
+      unplacedCount: 4,
+    });
+    expect(plan.packages.every((p) => p.unplacedReason === "TOO_LARGE")).toBe(true);
+    const confirm = await call("POST", `${PATH}/${plan.loadPlanId}/confirmation`, {
+      expectedVersion: plan.version,
+    });
+    expect(errorCode(confirm)).toBe("LOAD_PLAN_EMPTY");
+  });
+
+  it("an empty input is what LOAD_PLAN_EMPTY is for: no parcels or no vehicle types", async () => {
+    const created = bePlanDetailSchema.parse(
+      (await call("POST", PATH, { requestId: newRequestId(), warehouseId: "WH-HN-01" })).data,
+    );
+    const res = await call("POST", `${PATH}/${created.loadPlanId}/calculation`, {
+      expectedVersion: created.version,
+    });
+    expect([res.status, errorCode(res)]).toEqual([409, "LOAD_PLAN_EMPTY"]);
+  });
+
+  it("recalculating a vehicle keeps the BR-13 acknowledgement while the tray is unchanged", async () => {
+    const { plan } = await planOf(SEED.hcmShipment, "WH-HCM-01", "PICKUP");
+    const acked = bePlanDetailSchema.parse(
+      (
+        await call("POST", `${PATH}/${plan.loadPlanId}/unplaced-acknowledgement`, {
+          expectedVersion: plan.version,
+        })
+      ).data,
+    );
+    expect(acked.unplacedAcknowledgement).toBeDefined();
+    const again = bePlanDetailSchema.parse(
+      (
+        await call("POST", `${PATH}/${plan.loadPlanId}/vehicles/1/recalculation`, {
+          expectedVersion: acked.version,
+        })
+      ).data,
+    );
+    expect(again.unplacedAcknowledgement).toBeDefined();
+    expect(again.version).toBe(acked.version + 1);
+  });
+
+  it("LP-4 sends one fieldError per offending order, like the BE", async () => {
+    const [, big, chairs] = getMockShipments();
+    chairs.allowPartialShipment = false;
+    chairs.packages.push({ ...chairs.packages[0], packageId: "chair-huge", lengthMm: 9000 });
+    const typeId = await vehicleTypeId("PICKUP");
+    const updated = bePlanDetailSchema.parse(
+      (
+        await call("PUT", `${PATH}/${SEED.draft}/inputs`, {
+          expectedVersion: 1,
+          shipmentIds: [big.shipmentId, chairs.shipmentId],
+          vehicleTypeIds: [typeId],
+        })
+      ).data,
+    );
+    const plan = bePlanDetailSchema.parse(
+      (
+        await call("POST", `${PATH}/${SEED.draft}/calculation`, {
+          expectedVersion: updated.version,
+        })
+      ).data,
+    );
+    const ack = await call("POST", `${PATH}/${SEED.draft}/unplaced-acknowledgement`, {
+      expectedVersion: plan.version,
+    });
+    expect(errorCode(ack)).toBe("ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED");
+    expect(fieldsOf(ack)).toEqual([
+      { field: "orderNumber", message: "SO-20261006-000004" },
+      { field: "orderNumber", message: "SO-20261007-000002" },
+    ]);
   });
 });
 

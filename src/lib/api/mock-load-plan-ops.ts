@@ -118,9 +118,11 @@ export function calculate(plan: MockPlan): Err {
   const types = plan.vehicleTypeIds.flatMap((id) => getVehicleTypeStore().get(id) ?? []);
   if (types.some((type) => type.status !== "ACTIVE"))
     return fail(409, "VEHICLE_TYPE_INACTIVE", "This vehicle type is no longer in use");
-  const result = solveMock(heldParcels(plan), types, plan.selectionMode);
-  if (result.vehicles.length === 0)
+  const parcels = heldParcels(plan);
+  // BE chỉ chặn khi ĐẦU VÀO rỗng; kiện không xếp được vẫn cho ra PLANNED kèm khay chưa xếp (lý do từng kiện)
+  if (parcels.length === 0 || types.length === 0)
     return fail(409, "LOAD_PLAN_EMPTY", "The load plan has nothing to plan or confirm");
+  const result = solveMock(parcels, types, plan.selectionMode);
   plan.vehicles = placeInto(plan, result.vehicles);
   plan.unplaced = new Map(result.unplaced.map((u) => [u.parcel.packageId, u.reason]));
   plan.acknowledgement = null;
@@ -150,12 +152,16 @@ export function recalculateVehicle(
   // Một xe thôi (loại của chính xe này, một chiếc): phần không vừa quay về khay
   const result = solveMock([...own, ...added], [{ ...type, availableCount: 1 }], "SINGLE_TYPE");
   const [solved] = placeInto(plan, result.vehicles.slice(0, 1));
+  const before = new Set(plan.unplaced.keys());
   for (const id of added.map((p) => p.packageId)) plan.unplaced.delete(id);
   for (const item of result.unplaced) plan.unplaced.set(item.parcel.packageId, item.reason);
   plan.vehicles = plan.vehicles.map((v) =>
     v.seq === seq ? { ...v, boxes: solved?.boxes ?? [], needsRecalculation: false } : v,
   );
-  plan.acknowledgement = null;
+  // BE chỉ xoá xác nhận BR-13 khi tập kiện trên khay thật sự đổi (LoadPlan.applyVehicleRecalculation)
+  const after = new Set(plan.unplaced.keys());
+  if (before.size !== after.size || [...before].some((id) => !after.has(id)))
+    plan.acknowledgement = null;
   stamp(plan);
   return null;
 }
@@ -173,7 +179,11 @@ function partialShipmentError(plan: MockPlan): Err {
         409,
         "ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED",
         "This order does not allow partial shipments",
-        [{ field: "orderNumber", message: [...new Set(blocked)].join(", ") }],
+        // Như BE (`LoadPlanService`): mỗi đơn vi phạm một FieldError
+        [...new Set(blocked)].map((orderNumber) => ({
+          field: "orderNumber",
+          message: orderNumber,
+        })),
       );
 }
 

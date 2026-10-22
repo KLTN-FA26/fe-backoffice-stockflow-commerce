@@ -259,6 +259,8 @@ export const LOAD_PLAN_UI_LABELS = {
       description:
         "Đổi lô giao, loại xe hoặc chế độ. Kế hoạch đã tính sẽ về bản nháp và bỏ các xe hiện có; cần tính xếp xe lại.",
       confirm: "Lưu đầu vào",
+      inactiveDropped: (codes: string) =>
+        `Loại xe ${codes} đã ngừng dùng nên không còn trong lựa chọn; chọn loại xe khác nếu cần.`,
     },
     keepOpen: "Quay lại",
   },
@@ -308,9 +310,9 @@ export const LOAD_PLAN_ERROR_MESSAGES = {
   NETWORK_ERROR: "Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.",
 } as const;
 
-/** Tên đơn trong câu LP-4 khi BE nêu `fieldErrors.orderNumber`. */
-export const LOAD_PLAN_PARTIAL_SHIPMENT_ORDER = (orders: string) =>
-  `Đơn ${orders} không cho giao một phần mà kế hoạch để lại một phần kiện của đơn: xếp đủ hoặc nhờ Sales cho phép giao một phần (LP-4).`;
+/** Câu LP-4 nêu MỌI đơn vi phạm BE báo ở `fieldErrors[].orderNumber`. */
+export const LOAD_PLAN_PARTIAL_SHIPMENT_ORDER = (orders: readonly string[]) =>
+  `${orders.length > 1 ? "Các đơn" : "Đơn"} ${orders.join(", ")} không cho giao một phần mà kế hoạch để lại một phần kiện của ${orders.length > 1 ? "từng đơn" : "đơn"}: xếp đủ hoặc nhờ Sales cho phép giao một phần (LP-4).`;
 
 /** Lỗi nhập ở form lập kế hoạch / lý do (zod). */
 export const LOAD_PLAN_FIELD_MESSAGES = {

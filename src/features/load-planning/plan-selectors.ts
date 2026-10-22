@@ -83,3 +83,15 @@ export function totalsOf(
     packages: chosen.reduce((sum, c) => sum + c.packageCount - c.packagesInOtherPlans, 0),
   };
 }
+
+/**
+ * Kiện đã tick ở khay mà HIỆN CÒN trên khay: sau khi tính lại / đổi đầu vào, kiện đã lên xe rời khay nên không còn ô để
+ * bỏ tick — nếu vẫn gửi `addPackageIds` thì BE từ chối cả request (`LOAD_PLAN_PACKAGE_NOT_ON_TRAY`).
+ */
+export function pickedOnTray(
+  picked: ReadonlySet<string>,
+  tray: readonly Pick<PlanParcel, "packageId">[],
+): Set<string> {
+  const onTray = new Set(tray.map((parcel) => parcel.packageId));
+  return new Set([...picked].filter((id) => onTray.has(id)));
+}

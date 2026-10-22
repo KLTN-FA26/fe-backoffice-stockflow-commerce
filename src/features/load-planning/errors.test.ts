@@ -40,6 +40,26 @@ describe("loadPlanErrorMessage", () => {
     expect(text).toContain("LP-4");
   });
 
+  it("LP-4 names EVERY order when the BE sends one fieldError per order", () => {
+    const error = new ApiError(
+      409,
+      "ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED",
+      "x",
+      { orderNumber: "SO-1" },
+      undefined,
+      undefined,
+      [
+        { field: "orderNumber", message: "SO-1" },
+        { field: "orderNumber", message: "SO-2" },
+        { field: "orderNumber", message: "SO-1" },
+      ],
+    );
+    const text = loadPlanErrorMessage(error);
+    expect(text).toContain("SO-1, SO-2");
+    expect(text.startsWith("Các đơn")).toBe(true);
+    expect(text.match(/SO-1/g)).toHaveLength(1);
+  });
+
   it("LP-4 without an order number still gives the general sentence", () => {
     expect(loadPlanErrorMessage(api("ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED"))).toBe(
       M.ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED,

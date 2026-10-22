@@ -6,6 +6,7 @@ import { UI_LABELS } from "@/constants";
 import { colorMapForLayouts } from "@/features/load-planning/lib/palette";
 import {
   layoutsForItemTable,
+  pickedOnTray,
   unplacedLinesOf,
   unplacedParcels,
 } from "@/features/load-planning/plan-selectors";
@@ -49,6 +50,8 @@ export function LoadingTab({
   const tray = unplacedParcels(plan);
   const vehicle = plan.vehicles.find((v) => v.seq === seq) ?? plan.vehicles[0];
   const colorMap = colorMapForLayouts(layouts ?? []);
+  // Chỉ kiện còn trên khay mới được gửi: kiện đã lên xe sau một lần tính lại phải rời lựa chọn
+  const selected = pickedOnTray(picked, tray);
 
   const toggle = (id: string) =>
     setPicked((current) => {
@@ -88,10 +91,12 @@ export function LoadingTab({
         canReturn={actions.recalculateVehicle}
         canAcknowledge={actions.acknowledge}
         vehicleSeq={vehicle?.seq ?? null}
-        selected={picked}
+        selected={selected}
         pending={recalc.pending}
         onToggle={toggle}
-        onReturn={() => vehicle && recalc.run(vehicle.seq, [...picked], () => setPicked(new Set()))}
+        onReturn={() =>
+          vehicle && recalc.run(vehicle.seq, [...selected], () => setPicked(new Set()))
+        }
         onAcknowledge={onAcknowledge}
       />
     </div>

@@ -9,6 +9,7 @@ import {
   isFinalLoadPlan,
   layoutsForItemTable,
   loadPlanStatusTone,
+  pickedOnTray,
   summarizePlan,
   totalsOf,
   unplacedLinesOf,
@@ -86,5 +87,15 @@ describe("summaries", () => {
       packages: 13,
     });
     expect(totalsOf(candidates, new Set())).toEqual({ shipments: 0, packages: 0 });
+  });
+});
+
+describe("pickedOnTray", () => {
+  it("drops ticked parcels that left the tray, so they are never sent as addPackageIds", () => {
+    const tray = [unplacedParcel("NO_SPACE", 1), unplacedParcel("NO_SPACE", 2)];
+    const picked = new Set(["unplaced-NO_SPACE-1", "unplaced-NO_SPACE-9"]);
+    expect([...pickedOnTray(picked, tray)]).toEqual(["unplaced-NO_SPACE-1"]);
+    expect(pickedOnTray(picked, []).size).toBe(0);
+    expect(pickedOnTray(new Set(), tray).size).toBe(0);
   });
 });

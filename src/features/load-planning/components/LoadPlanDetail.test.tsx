@@ -318,6 +318,28 @@ describe("LoadPlanDetail — hộp thoại xác nhận ngay trong trang", () => 
     ]);
   });
 
+  it("a plan with a vehicle type that went INACTIVE: it is left out of the inputs sent, with a notice", async () => {
+    const user = userEvent.setup();
+    const base = planFixture();
+    const retired = {
+      ...base.vehicleTypes[0],
+      vehicleTypeId: "retired-type",
+      code: "OLD-TRUCK",
+      status: "INACTIVE" as const,
+    };
+    const { put } = renderDetail(
+      ACTORS.dispatcher,
+      planFixture({ status: "DRAFT", vehicles: [], vehicleTypes: [base.vehicleTypes[0], retired] }),
+    );
+    await user.click(await screen.findByRole("button", { name: L.actions.editInputs }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(D.editInputs.inactiveDropped("OLD-TRUCK"))).toBeInTheDocument();
+    await within(dialog).findByText(candidateFixture().code);
+    await user.click(within(dialog).getByRole("button", { name: D.editInputs.confirm }));
+    await waitFor(() => expect(calls(put, `${PATH}/inputs`)).toHaveLength(1));
+    expect(calls(put, `${PATH}/inputs`)[0][1]).toMatchObject({ vehicleTypeIds: [VEHICLE_TYPE_ID] });
+  });
+
   it("changing the inputs (PUT) sends the whole selection with the version; the plan's own parcels count as free", async () => {
     const user = userEvent.setup();
     const { get, put } = renderDetail(
@@ -365,6 +387,32 @@ describe("LoadPlanDetail — tính lại xe và đưa kiện lại vào xe", () 
     expect(calls(post, `${PATH}/vehicles/1/recalculation`)[0][1]).toEqual({
       expectedVersion: 4,
       addPackageIds: ["unplaced-NO_SPACE-1"],
+    });
+  });
+
+  it("a ticked parcel that left the tray meanwhile is dropped: it is not sent in addPackageIds", async () => {
+    const user = userEvent.setup();
+    const base = planFixture();
+    const [a, b] = [unplacedParcel("NO_SPACE", 1), unplacedParcel("NO_SPACE", 2)];
+    const withTray = (tray: typeof base.packages, version: number) =>
+      planFixture({
+        packages: [...base.packages, ...tray],
+        packageCount: base.packageCount + 2,
+        unplacedCount: tray.filter((p) => p.vehicleSeq == null).length,
+        version,
+      });
+    const { post } = renderDetail(ACTORS.dispatcher, withTray([a, b], 4));
+    await user.click(await screen.findByRole("checkbox", { name: /PKG-U1/ }));
+    await user.click(screen.getByRole("checkbox", { name: /PKG-U2/ }));
+    // Another recalculation put A on vehicle 1: after the refetch only B is still on the tray
+    latest.plan = withTray([{ ...a, vehicleSeq: 1, unplacedReason: null }, b], 5);
+    await user.click(screen.getByRole("button", { name: L.actions.recalculate }));
+    await waitFor(() => expect(screen.queryByRole("checkbox", { name: /PKG-U1/ })).toBeNull());
+    await user.click(screen.getByRole("button", { name: L.unplaced.returnToVehicle(1) }));
+    await waitFor(() => expect(calls(post, `${PATH}/vehicles/1/recalculation`)).toHaveLength(2));
+    expect(calls(post, `${PATH}/vehicles/1/recalculation`)[1][1]).toEqual({
+      expectedVersion: 5,
+      addPackageIds: [b.packageId],
     });
   });
 

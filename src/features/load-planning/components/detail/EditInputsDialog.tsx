@@ -11,6 +11,7 @@ import {
   useLoadPlan,
   useLoadPlanCandidates,
 } from "@/features/load-planning/queries";
+import { Alert } from "@/components/shared/Alert";
 import { DialogScrollArea } from "@/components/shared/DialogScrollArea";
 import { FormDialogBody } from "@/components/shared/FormDialog";
 import { LayeredDialogContent } from "@/components/shared/LayeredDialogContent";
@@ -31,9 +32,14 @@ const D = UI_LABELS.loadPlan.dialog.editInputs;
 export function EditInputsDialog({ plan, onClose }: { plan: PlanDetail; onClose: () => void }) {
   const update = useSetLoadPlanInputs();
   const current = useLoadPlan(plan.loadPlanId).data ?? plan;
+  // Loại xe đã ngừng dùng không có ô trong danh sách chọn (chỉ liệt kê loại ACTIVE) nên không đưa vào lựa chọn ban
+  // đầu: BE từ chối cả request (409 VEHICLE_TYPE_INACTIVE) nếu còn gửi lại id đó mà người dùng không bỏ chọn được.
+  const inactive = plan.vehicleTypes.filter((t) => t.status !== "ACTIVE");
   const inputs = usePlanInputsState({
     shipmentIds: plan.shipments.map((s) => s.shipmentId),
-    vehicleTypeIds: plan.vehicleTypes.map((t) => t.vehicleTypeId),
+    vehicleTypeIds: plan.vehicleTypes
+      .filter((t) => t.status === "ACTIVE")
+      .map((t) => t.vehicleTypeId),
     selectionMode: plan.selectionMode,
   });
   const candidates = useLoadPlanCandidates(plan.warehouseId, plan.loadPlanId);
@@ -41,10 +47,11 @@ export function EditInputsDialog({ plan, onClose }: { plan: PlanDetail; onClose:
   const [error, setError] = useState<string | null>(null);
 
   const submit = () => {
-    const known = new Set(candidates.data?.map((c) => c.shipmentId));
+    const knownShipments = new Set(candidates.data?.map((c) => c.shipmentId));
+    const knownTypes = new Set(types.data?.map((t) => t.vehicleTypeId));
     const parsed = planInputsSchema.safeParse({
-      shipmentIds: [...inputs.shipments].filter((id) => known.has(id)),
-      vehicleTypeIds: [...inputs.vehicleTypes],
+      shipmentIds: [...inputs.shipments].filter((id) => knownShipments.has(id)),
+      vehicleTypeIds: [...inputs.vehicleTypes].filter((id) => knownTypes.has(id)),
       selectionMode: inputs.mode,
     });
     if (!parsed.success) {
@@ -72,6 +79,11 @@ export function EditInputsDialog({ plan, onClose }: { plan: PlanDetail; onClose:
           onCancel={onClose}
         >
           <DialogScrollArea>
+            {inactive.length > 0 && (
+              <Alert tone="warning">
+                {D.inactiveDropped(inactive.map((t) => t.code).join(", "))}
+              </Alert>
+            )}
             <PlanInputsFields
               idPrefix="lp-edit"
               warehouseId={current.warehouseId}

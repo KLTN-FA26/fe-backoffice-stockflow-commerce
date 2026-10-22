@@ -16,12 +16,22 @@ type KnownCode = Exclude<keyof typeof MESSAGES, "generic">;
 const isKnownCode = (code: string): code is KnownCode =>
   code !== "generic" && Object.hasOwn(MESSAGES, code);
 
+/** Số mọi đơn vi phạm LP-4: từ mảng `fieldErrors` nguyên dạng, dự phòng bản đồ (chỉ còn một đơn). */
+function orderNumbersOf(error: ApiError): string[] {
+  const listed = (error.fieldErrorList ?? [])
+    .filter((entry) => entry.field === "orderNumber")
+    .map((entry) => entry.message);
+  const fallback = error.fieldErrors?.orderNumber;
+  const orders = listed.length > 0 ? listed : fallback ? [fallback] : [];
+  return [...new Set(orders)];
+}
+
 export function loadPlanErrorMessage(error: unknown): string {
   if (!(error instanceof ApiError)) return MESSAGES.generic;
-  // LP-4: BE nêu số đơn vi phạm trong `fieldErrors.orderNumber`
+  // LP-4: BE trả MỖI đơn vi phạm một `fieldErrors[{field: "orderNumber"}]`
   if (error.code === "ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED") {
-    const orders = error.fieldErrors?.orderNumber;
-    return orders
+    const orders = orderNumbersOf(error);
+    return orders.length > 0
       ? LOAD_PLAN_PARTIAL_SHIPMENT_ORDER(orders)
       : MESSAGES.ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED;
   }
