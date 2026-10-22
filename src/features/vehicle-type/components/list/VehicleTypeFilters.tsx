@@ -37,7 +37,7 @@ export function VehicleTypeFilters({
       hasStatusFilter={status !== null}
       summaryItems={[
         {
-          label: "Search chính",
+          label: L.summarySearch,
           value: s.q || UI_LABELS.common.notEntered,
           active: s.q !== "",
           onClear: () => s.setQ(""),

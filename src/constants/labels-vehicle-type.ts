@@ -32,6 +32,7 @@ export const VEHICLE_TYPE_UI_LABELS = {
   deactivate: "Ngừng dùng",
   searchPlaceholder: "Tìm theo mã hoặc tên loại xe",
   statusFilter: "Trạng thái",
+  summarySearch: "Search chính",
   all: "Tất cả",
   clearFilters: "Bỏ bộ lọc",
   listCaption: "loại xe",
