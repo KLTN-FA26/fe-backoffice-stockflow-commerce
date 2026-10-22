@@ -30,6 +30,8 @@ export interface EditorViewportProps {
   colorMap: ColorMap;
   tones: ReadonlyMap<string, BoxTone>;
   ghosts: readonly LandingGhost[];
+  /** Ô đang chọn bằng bàn phím trong danh sách vị trí: sáng hơn các ô khác. */
+  activeGhostId?: string | null;
   /** Khác null = đang xem chỗ trống: ẩn hàng, chỉ vẽ các khoảng trống lớn nhất. */
   emptySpaces: readonly Space[] | null;
   onBoxPick: (ref: string, additive: boolean) => void;
@@ -46,6 +48,7 @@ export function EditorViewport({
   colorMap,
   tones,
   ghosts,
+  activeGhostId = null,
   emptySpaces,
   onBoxPick,
   onGhostPlace,
@@ -107,7 +110,7 @@ export function EditorViewport({
           <EmptySpaceBlocks blocks={emptyBlocks} />
         )}
         <GussetBlocks blocks={gussets} />
-        <GhostBlocks blocks={ghostBlocks} onPlace={onGhostPlace} />
+        <GhostBlocks blocks={ghostBlocks} activeId={activeGhostId} onPlace={onGhostPlace} />
         <OrbitControls
           makeDefault
           enableDamping

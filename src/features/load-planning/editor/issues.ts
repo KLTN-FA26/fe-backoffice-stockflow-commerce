@@ -1,13 +1,15 @@
 /**
  * Lỗi 422 `PLACEMENT_RULE_VIOLATION` của BE → vi phạm theo kiện. `fieldErrors[{field: ref | "vehicle:<seq>", code: rule}]`
- * (BE PR #161). Mỗi vi phạm nhớ "chữ ký" chỗ đặt của kiện lúc bị báo; kiện đã được người dùng sửa (chữ ký đổi) thì vi phạm
- * cũ không còn hiện — nó nói về vị trí cũ.
+ * (BE PR #161). Mỗi vi phạm nhớ TRẠNG THÁI đã gửi đi; chỉ hiện khi bố cục đang soạn chính là trạng thái đó. Mọi thay đổi
+ * (nhích, xoay, đưa ra khay, đặt, hoàn tác, làm lại) làm vi phạm cũ hết hiệu lực: luật nhiều kiện (KIT_SPLIT, OVERLAP,
+ * UNSUPPORTED) được sửa bằng cách dời MỘT KIỆN KHÁC hoặc hoàn tác, nên không thể chỉ gạt theo kiện bị báo. Hoàn tác về đúng
+ * trạng thái đã gửi thì vi phạm hiện lại — đúng, vì bố cục lại y hệt.
  */
 
 import { PLACEMENT_RULES } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
-import { indexParcels, weightOf } from "./parcels";
+import { indexParcels } from "./parcels";
 import { isVehicleKey, vehicleKey } from "./precheck";
 
 import type { PlacementRule } from "@/constants";
@@ -17,47 +19,39 @@ import type { EditorState } from "./types";
 export const PLACEMENT_VIOLATION_CODE = "PLACEMENT_RULE_VIOLATION";
 
 export interface ServerIssue extends EditorIssue {
-  signature: string;
+  /** Trạng thái soạn lúc gửi (so sánh theo tham chiếu: trạng thái bất biến). */
+  sent: EditorState;
 }
 
 const isRule = (code: string | undefined): code is PlacementRule =>
   PLACEMENT_RULES.some((rule) => rule === code);
 
-/** Chữ ký chỗ đặt hiện tại của một khoá; `null` nếu khoá không còn trong kế hoạch. */
-export function signatureOf(state: EditorState, key: string): string | null {
-  if (isVehicleKey(key)) {
-    const vehicle = state.vehicles.find((v) => vehicleKey(v.seq) === key);
-    return vehicle ? `${vehicle.boxes.length}|${weightOf(vehicle.boxes)}` : null;
-  }
-  const found = indexParcels(state).get(key);
-  if (!found) return null;
-  const { box } = found;
-  return box
-    ? `${found.seq}|${box.xMm}|${box.yMm}|${box.zMm}|${box.wMm}|${box.hMm}|${box.dMm}`
-    : "tray";
+/** Khoá (`ref` hoặc `vehicle:<seq>`) có thật trong trạng thái này không. */
+function keyExists(state: EditorState, key: string): boolean {
+  return isVehicleKey(key)
+    ? state.vehicles.some((v) => vehicleKey(v.seq) === key)
+    : indexParcels(state).has(key);
 }
 
 export const isPlacementViolation = (error: unknown): boolean =>
   error instanceof ApiError && error.code === PLACEMENT_VIOLATION_CODE;
 
-/** Các vi phạm BE báo, gắn chữ ký của `sent` (trạng thái đã gửi đi). Mã lạ / khoá lạ bị bỏ. */
+/** Các vi phạm BE báo, gắn trạng thái `sent` đã gửi đi. Mã lạ / khoá lạ bị bỏ. */
 export function serverIssuesOf(error: unknown, sent: EditorState): ServerIssue[] {
   if (!(error instanceof ApiError) || !isPlacementViolation(error)) return [];
-  const out: ServerIssue[] = [];
-  for (const entry of error.fieldErrorList ?? []) {
-    const signature = isRule(entry.code) ? signatureOf(sent, entry.field) : null;
-    if (isRule(entry.code) && signature !== null)
-      out.push({ key: entry.field, rule: entry.code, signature });
-  }
-  return out;
+  return (error.fieldErrorList ?? []).flatMap((entry) =>
+    isRule(entry.code) && keyExists(sent, entry.field)
+      ? [{ key: entry.field, rule: entry.code, sent }]
+      : [],
+  );
 }
 
-/** Vi phạm của BE còn đúng với trạng thái đang soạn (kiện chưa bị sửa kể từ lần gửi). */
+/** Vi phạm của BE còn đúng: bố cục đang soạn vẫn là bố cục đã gửi. */
 export function activeServerIssues(
   issues: readonly ServerIssue[],
   state: EditorState,
 ): ServerIssue[] {
-  return issues.filter((issue) => signatureOf(state, issue.key) === issue.signature);
+  return issues.filter((issue) => issue.sent === state);
 }
 
 /** Gộp vi phạm tại chỗ và của BE; cùng khoá + luật chỉ hiện một lần. */

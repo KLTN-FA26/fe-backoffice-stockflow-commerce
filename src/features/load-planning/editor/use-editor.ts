@@ -29,6 +29,8 @@ export function useEditor(initial: EditorState) {
   const [trayChoice, setTrayChoice] = useState<string | null>(null);
   const [orientation, setOrientation] = useState<LayoutOrientation | null>(null);
   const [showEmpty, setShowEmpty] = useState(false);
+  /** Ô gợi ý đang chọn bằng bàn phím (sáng lên trong 3D). */
+  const [activeSpot, setActiveSpot] = useState<string | null>(null);
 
   const state = history.present;
   const vehicle: EditVehicle = state.vehicles.find((v) => v.seq === seqChoice) ?? state.vehicles[0];
@@ -92,6 +94,8 @@ export function useEditor(initial: EditorState) {
     orientation,
     showEmpty,
     ghosts,
+    activeSpot: ghosts.some((g) => g.id === activeSpot) ? activeSpot : null,
+    setActiveSpot,
     emptyShown,
     computing,
     notice: history.notice,

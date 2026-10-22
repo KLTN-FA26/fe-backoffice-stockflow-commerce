@@ -40,7 +40,10 @@ export function EditorSidebar({
         selectedKey={editor.trayLine?.key ?? null}
         flaggedKeys={flaggedKeys}
         orientation={editor.orientation}
-        spots={editor.ghosts.length}
+        ghosts={editor.ghosts}
+        vehicleSeq={editor.vehicle.seq}
+        onPlace={editor.placeGhost}
+        onActiveSpot={editor.setActiveSpot}
         computing={editor.computing}
         onPick={editor.pickTrayLine}
         onOrientation={editor.setOrientation}

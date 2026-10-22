@@ -224,6 +224,77 @@ describe("trình soạn xếp tay — thao tác", () => {
   });
 });
 
+describe("trình soạn xếp tay — đặt kiện từ khay bằng bàn phím", () => {
+  const spotName = /^Xe #1 · vị trí \((\d+), (\d+), (\d+)\) mm · .+ · đỡ \d+%$/;
+
+  async function trayStool(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(stoolButtons()[2]);
+    await user.click(screen.getByRole("button", { name: E.selection.toTray }));
+  }
+
+  it("a tray item is focusable and Enter selects it; its landing spots are a labelled listbox with accessible names", async () => {
+    const user = userEvent.setup();
+    renderEditor(ACTORS.dispatcher);
+    await openEditor(user);
+    await trayStool(user);
+    const chip = screen.getByRole("button", { name: /Chọn Ghế bar/ });
+    chip.focus();
+    await user.keyboard("{Enter}");
+    expect(chip).toHaveAttribute("aria-pressed", "true");
+    const list = await screen.findByRole("listbox", { name: E.tray.spotList.aria });
+    const options = within(list).getAllByRole("option");
+    expect(options.length).toBeGreaterThan(1);
+    for (const option of options) expect(option).toHaveAccessibleName(spotName);
+  });
+
+  it("arrow keys move through the spots, Enter places the chosen one, and that exact spot is what is saved", async () => {
+    const user = userEvent.setup();
+    const { put } = renderEditor(ACTORS.dispatcher);
+    await openEditor(user);
+    await trayStool(user);
+    await user.click(screen.getByRole("button", { name: /Chọn Ghế bar/ }));
+    const list = await screen.findByRole("listbox", { name: E.tray.spotList.aria });
+    list.focus();
+    const options = () => within(list).getAllByRole("option");
+    expect(options()[0]).toHaveAttribute("aria-selected", "true");
+    await user.keyboard("{ArrowDown}");
+    expect(options()[1]).toHaveAttribute("aria-selected", "true");
+    expect(options()[0]).toHaveAttribute("aria-selected", "false");
+    expect(list).toHaveAttribute("aria-activedescendant", options()[1].id);
+    await user.keyboard("{ArrowUp}{ArrowUp}");
+    expect(options()[0]).toHaveAttribute("aria-selected", "true");
+    await user.keyboard("{End}");
+    expect(options().at(-1)).toHaveAttribute("aria-selected", "true");
+    await user.keyboard("{ArrowUp}");
+    const chosen = options()[options().length - 2];
+    const [, x, y, z] =
+      spotName.exec(chosen.getAttribute("aria-label") ?? chosen.textContent ?? "") ?? [];
+    await user.keyboard("{Enter}");
+    expect(await screen.findByText(E.tray.empty)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: E.save.save }));
+    await waitFor(() => expect(putCalls(put)).toHaveLength(1));
+    const body = putCalls(put)[0][1] as {
+      vehicles: { boxes: { ref: string; xMm: number; yMm: number; zMm: number }[] }[];
+    };
+    const placed = body.vehicles[0].boxes.at(-1);
+    expect([placed?.xMm, placed?.yMm, placed?.zMm]).toEqual([Number(x), Number(y), Number(z)]);
+  });
+
+  it("Space also places; arrow keys alone place nothing", async () => {
+    const user = userEvent.setup();
+    renderEditor(ACTORS.dispatcher);
+    await openEditor(user);
+    await trayStool(user);
+    await user.click(screen.getByRole("button", { name: /Chọn Ghế bar/ }));
+    const list = await screen.findByRole("listbox", { name: E.tray.spotList.aria });
+    list.focus();
+    await user.keyboard("{ArrowDown}");
+    expect(screen.queryByText(E.tray.empty)).not.toBeInTheDocument();
+    await user.keyboard(" ");
+    expect(await screen.findByText(E.tray.empty)).toBeInTheDocument();
+  });
+});
+
 describe("trình soạn xếp tay — kiểm tra trước khi lưu", () => {
   it("taking one part of a kit out flags the whole kit (LP-3) and Save asks before sending", async () => {
     const user = userEvent.setup();

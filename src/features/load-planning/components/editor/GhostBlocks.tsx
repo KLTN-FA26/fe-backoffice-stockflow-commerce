@@ -14,9 +14,12 @@ import type { SceneBlock } from "../../lib/scene";
  */
 export function GhostBlocks({
   blocks,
+  activeId = null,
   onPlace,
 }: {
   blocks: readonly SceneBlock[];
+  /** Ô đang chọn bằng bàn phím. */
+  activeId?: string | null;
   onPlace: (id: string) => void;
 }) {
   const [hovered, setHovered] = useState<string | null>(null);
@@ -40,7 +43,7 @@ export function GhostBlocks({
           <meshStandardMaterial
             color={SCENE_COLORS.landing}
             transparent
-            opacity={hovered === block.id ? 0.7 : 0.38}
+            opacity={hovered === block.id || activeId === block.id ? 0.8 : 0.38}
             depthWrite={false}
           />
           <Edges color={SCENE_COLORS.landingEdge} />

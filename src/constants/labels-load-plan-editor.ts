@@ -99,6 +99,13 @@ export const LOAD_PLAN_EDITOR_LABELS = {
     pick: (name: string) => `Chọn ${name} để đặt vào xe`,
     selected: (name: string, n: number) => `Đang đặt: ${name} (còn ${n})`,
     allOrientations: "Mọi hướng",
+    spotList: {
+      title: "Chọn vị trí đặt bằng bàn phím",
+      aria: "Vị trí đặt được cho kiện đang chọn",
+      hint: "Mũi tên lên / xuống chọn vị trí (ô xanh tương ứng sáng lên trong khung 3D), Enter hoặc Space để đặt.",
+      option: (seq: number, x: number, y: number, z: number, size: string, supportPct: number) =>
+        `Xe #${seq} · vị trí (${x}, ${y}, ${z}) mm · ${size} · đỡ ${supportPct}%`,
+    },
     spots: (n: number) => `${n} vị trí đặt được`,
     noSpots: "Không còn chỗ nào cho kiện này trên xe đang xem.",
     computing: "Đang tính chỗ đặt…",

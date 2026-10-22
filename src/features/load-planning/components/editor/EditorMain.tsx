@@ -48,6 +48,7 @@ export function EditorMain({
         colorMap={colorMap}
         tones={tones}
         ghosts={editor.ghosts}
+        activeGhostId={editor.activeSpot}
         emptySpaces={editor.emptyShown}
         onBoxPick={editor.pickBox}
         onGhostPlace={editor.placeGhost}

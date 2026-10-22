@@ -262,3 +262,74 @@ describe("thoát khi còn thay đổi chưa lưu", () => {
     expect(putCalls(view.put)).toHaveLength(0);
   });
 });
+
+describe("vi phạm do máy chủ báo hết hiệu lực khi bố cục đổi", () => {
+  it("undoing the move that caused a KIT_SPLIT clears the banner and the issue, and the next save no longer asks 'Vẫn gửi'", async () => {
+    const user = userEvent.setup();
+    const server = onePlan();
+    const parts = server.layouts[0].boxes;
+    const leg = parts.find((b) => b.label === "BAN-CB")?.ref ?? "";
+    const top = parts.find((b) => b.label === "BAN-MB")?.ref ?? "";
+    let calls = 0;
+    const view = renderEditor(ACTORS.dispatcher, server, {
+      put: () => {
+        calls += 1;
+        if (calls === 1)
+          throw new ApiError(
+            422,
+            "PLACEMENT_RULE_VIOLATION",
+            "x",
+            undefined,
+            undefined,
+            undefined,
+            [
+              { field: leg, code: "KIT_SPLIT", message: "x" },
+              { field: top, code: "KIT_SPLIT", message: "x" },
+            ],
+          );
+        return { ...server.plan, version: server.plan.version + 1 };
+      },
+    });
+    await openEditor(user);
+    await user.click(screen.getAllByRole("button", { name: /kiện BAN-CB/ })[0]);
+    await user.click(screen.getByRole("button", { name: E.selection.toTray }));
+    await user.click(screen.getByRole("button", { name: E.save.save }));
+    await user.click(
+      within(await screen.findByRole("dialog")).getByRole("button", { name: E.save.confirmSend }),
+    );
+    expect(await screen.findByText(E.save.violation(2))).toBeInTheDocument();
+    // undo the move: the layout is back to a valid one
+    await user.click(screen.getByRole("button", { name: E.toolbar.undo }));
+    await waitFor(() => expect(screen.queryByText(E.save.violation(2))).not.toBeInTheDocument());
+    expect(screen.getByText(E.issues.ok)).toBeInTheDocument();
+    expect(screen.queryByText(/Máy chủ báo/)).not.toBeInTheDocument();
+    // a different valid edit saves straight away, no confirmation about leftover violations
+    await user.click(stoolButtons()[0]);
+    await user.click(screen.getByRole("button", { name: E.selection.nudge.toDoor }));
+    await user.click(screen.getByRole("button", { name: E.save.save }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await waitFor(() => expect(putCalls(view.put)).toHaveLength(2));
+  });
+
+  it("fixing a multi-box violation by moving a DIFFERENT box also clears it", async () => {
+    const user = userEvent.setup();
+    const server = onePlan();
+    const flagged = server.layouts[0].boxes.filter((b) => b.label === "GB-01")[0].ref;
+    renderEditor(ACTORS.dispatcher, server, {
+      put: () => {
+        throw new ApiError(422, "PLACEMENT_RULE_VIOLATION", "x", undefined, undefined, undefined, [
+          { field: flagged, code: "OVERLAP", message: "x" },
+        ]);
+      },
+    });
+    await openEditor(user);
+    await user.click(stoolButtons()[1]);
+    await user.click(screen.getByRole("button", { name: E.selection.nudge.toDoor }));
+    await user.click(screen.getByRole("button", { name: E.save.save }));
+    expect(await screen.findByText(E.save.violation(1))).toBeInTheDocument();
+    // move another box (the third stool), not the flagged one
+    await user.click(stoolButtons()[2]);
+    await user.click(screen.getByRole("button", { name: E.selection.nudge.toDoor }));
+    await waitFor(() => expect(screen.queryByText(E.save.violation(1))).not.toBeInTheDocument());
+  });
+});

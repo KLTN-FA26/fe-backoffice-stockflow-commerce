@@ -9,6 +9,9 @@ import { formatLWH } from "../../lib/dims";
 import { orientationsOf } from "../../lib/empty-spaces";
 
 import type { LayoutOrientation } from "@/constants";
+import { LandingSpotList } from "./LandingSpotList";
+
+import type { LandingGhost } from "../../lib/empty-spaces";
 import type { ColorMap } from "../../lib/palette";
 import type { TrayLine } from "../../editor/selectors";
 
@@ -21,7 +24,11 @@ export interface TrayPanelProps {
   /** Dòng có kiện vi phạm luật (vd bộ bị tách). */
   flaggedKeys: ReadonlySet<string>;
   orientation: LayoutOrientation | null;
-  spots: number;
+  /** Ô gợi ý chỗ đặt của dòng đang chọn trên xe đang xem. */
+  ghosts: readonly LandingGhost[];
+  vehicleSeq: number;
+  onPlace: (id: string) => void;
+  onActiveSpot: (id: string | null) => void;
   computing: boolean;
   onPick: (key: string) => void;
   onOrientation: (orientation: LayoutOrientation | null) => void;
@@ -110,11 +117,22 @@ export function TrayPanel(props: TrayPanelProps) {
             role="status"
             className={cn(
               "text-xs",
-              props.spots === 0 && !props.computing ? "text-danger" : "text-positive",
+              props.ghosts.length === 0 && !props.computing ? "text-danger" : "text-positive",
             )}
           >
-            {props.computing ? T.computing : props.spots === 0 ? T.noSpots : T.spots(props.spots)}
+            {props.computing
+              ? T.computing
+              : props.ghosts.length === 0
+                ? T.noSpots
+                : T.spots(props.ghosts.length)}
           </p>
+          <LandingSpotList
+            key={selected.key}
+            ghosts={props.ghosts}
+            vehicleSeq={props.vehicleSeq}
+            onPlace={props.onPlace}
+            onActive={props.onActiveSpot}
+          />
         </div>
       )}
     </section>
