@@ -186,3 +186,28 @@ export const SUPPLIER_ITEM_LIMITS = {
  * `Pages.DEFAULT_PAGE_SIZE` của BE (tối đa `Pages.MAX_PAGE_SIZE` 200); gõ thêm để thu hẹp.
  */
 export const INVENTORY_ITEM_OPTIONS_PAGE_SIZE = 20;
+
+/**
+ * Giới hạn danh mục loại xe — `VehicleTypeRequest` / `ck_vehicle_type_*` của BE PR #153. Kích thước
+ * trong xe tính bằng mm, tải trọng kg; khe góc (gusset) chừa ở mỗi góc trên trần (docs 09 BR-10).
+ */
+export const VEHICLE_TYPE_LIMITS = {
+  codeMin: 2,
+  codeMax: 32,
+  nameMax: 120,
+  /** `innerLengthMm` / `innerWidthMm` / `innerHeightMm` @Min(1) @Max(30000). */
+  dimensionMaxMm: 30000,
+  /** `gussetMm` @Min(0) @Max(1000). */
+  gussetMaxMm: 1000,
+  /** `maxPayloadKg` @DecimalMax("100000") (> 0), tối đa 3 số lẻ. */
+  payloadMaxKg: 100000,
+  payloadFractionDigits: 3,
+  /** `availableCount` @Min(0) @Max(10000). */
+  availableCountMax: 10000,
+  /** `rentalPrice` @Digits(integer = 15, fraction = 4): giá thuê tham khảo (VND). */
+  rentalPriceIntegerDigits: 15,
+  rentalPriceFractionDigits: 4,
+  /** mm → m, và mm³ → m³ (giá trị = mm³ / 1e9). */
+  mmPerMetre: 1000,
+  cubicMmPerCubicMetre: 1_000_000_000,
+} as const;

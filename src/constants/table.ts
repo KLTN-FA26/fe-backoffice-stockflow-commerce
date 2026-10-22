@@ -136,6 +136,19 @@ export const LOAD_COLUMNS = {
   VEHICLE: "vehicle",
 } as const;
 
+/** Cột danh sách loại xe (BE `VehicleTypeResponse`). */
+export const VEHICLE_TYPE_COLUMNS = {
+  ACTIONS: "actions",
+  AVAILABLE_COUNT: "availableCount",
+  CODE: "code",
+  GUSSET: "gusset",
+  INNER_SIZE: "innerSize",
+  KIND: "kind",
+  NAME: "name",
+  PAYLOAD: "payload",
+  STATUS: "status",
+} as const;
+
 /** Cột danh sách lô giao (BE `ShipmentRowResponse`). */
 export const SHIPMENT_COLUMNS = {
   ACTIONS: "actions",

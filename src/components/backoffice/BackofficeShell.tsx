@@ -30,6 +30,7 @@ import {
   ShoppingCart,
   SlidersHorizontal,
   Truck,
+  TruckElectric,
   Users,
   Warehouse as WarehouseIcon,
 } from "lucide-react";
@@ -54,6 +55,7 @@ import {
   SUPPLIER_PERMISSIONS,
   TRANSFER_PERMISSIONS,
   UI_LABELS,
+  VEHICLE_TYPE_PERMISSIONS,
 } from "@/constants";
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 
@@ -324,6 +326,13 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: CalendarClock,
         // Chưa có resource quyền riêng (SCRUM-452) — tạm theo quyền xem màn xếp xe
         permission: SHIPMENT_PERMISSIONS.viewPage,
+      },
+      {
+        label: UI_LABELS.vehicleType.pageTitle,
+        tooltip: UI_LABELS.vehicleType.navTooltip,
+        href: ADMIN_ROUTES.vehicleTypes,
+        icon: TruckElectric,
+        permission: VEHICLE_TYPE_PERMISSIONS.viewPage,
       },
       {
         label: UI_LABELS.shipping.shipments.title,
