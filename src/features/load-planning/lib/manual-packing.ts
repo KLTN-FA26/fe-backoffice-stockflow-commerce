@@ -1,5 +1,6 @@
 /**
- * Hình học xếp tay (Cube-IQ) — hàm thuần cho trình soạn kế hoạch (PR F5).
+ * Hình học xếp tay (Cube-IQ) — hàm thuần cho trình soạn kế hoạch (PR F5). Luật: BR-10/BR-11
+ * (docs 09-shipping §6) — chỉnh tay vẫn phải thoả luật xếp, vị trí vi phạm bị từ chối.
  *
  * Toạ độ khớp solver BE: gốc ở góc sàn trong sát vách đầu xe, mm, y hướng lên. Luật kiểm tra phản
  * chiếu solver: trong lòng xe, không chồng nhau, đáy được đỡ ≥ `minSupportRatio`.

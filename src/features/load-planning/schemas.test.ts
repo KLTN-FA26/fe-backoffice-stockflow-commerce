@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { LAYOUT_40HC, LAYOUT_PICKUP_KIT } from "./__fixtures__/layouts";
-import { BlockMmSchema, LayoutBoxSchema, LayoutSchema } from "./schemas";
+import { BlockMmSchema, LayoutBoxSchema, LayoutSchema, UnplacedLineSchema } from "./schemas";
 
 const BOX = LAYOUT_PICKUP_KIT.boxes[0];
 
@@ -59,6 +59,8 @@ describe("LayoutBoxSchema", () => {
     ["a negative weight", { ...BOX, weightKg: -0.1 }],
     ["string coordinates", { ...BOX, yMm: "0" }],
     ["incomplete nominal dims", { ...BOX, origMm: { l: 1, w: 1 } }],
+    ["a missing rotatable flag (BR-10 needs it)", { ...BOX, rotatable: undefined }],
+    ["a non-boolean rotatable flag", { ...BOX, rotatable: "true" }],
   ])("rejects %s", (_name, value) => {
     expect(LayoutBoxSchema.safeParse(value).success).toBe(false);
   });
@@ -79,5 +81,27 @@ describe("BlockMmSchema", () => {
     expect(
       BlockMmSchema.safeParse({ xMm: 0, yMm: 0, zMm: 0, wMm: 1, hMm: 1, dMm: 1 }).success,
     ).toBe(true);
+  });
+});
+
+describe("UnplacedLineSchema", () => {
+  const line = {
+    label: "BT-C",
+    partName: "Bàn trà",
+    origMm: { l: 1000, w: 600, h: 500 },
+    quantity: 12,
+  };
+
+  it("parses a solver leftover line", () => {
+    expect(UnplacedLineSchema.parse(line)).toEqual(line);
+  });
+
+  it.each([
+    ["a missing quantity", { ...line, quantity: undefined }],
+    ["a fractional quantity", { ...line, quantity: 1.5 }],
+    ["a negative quantity", { ...line, quantity: -1 }],
+    ["NaN", { ...line, quantity: Number.NaN }],
+  ])("rejects %s (the original silently counted it as 1 or 0)", (_name, value) => {
+    expect(UnplacedLineSchema.safeParse(value).success).toBe(false);
   });
 });

@@ -5,7 +5,9 @@
  * phía cửa. Gốc toạ độ là góc sàn bên trong, sát vách đầu xe (vách đối diện cửa). Mỗi khối
  * (`xMm,yMm,zMm`) là góc nhỏ nhất của khối; `wMm` dọc x, `hMm` dọc y, `dMm` dọc z.
  *
- * Đây là hợp đồng FE đề xuất cho BE PR D — tên trường dưới đây là tên BE cần trả về.
+ * Đây là hợp đồng FE đề xuất cho BE PR D — tên trường dưới đây là tên BE cần trả về. Luật xếp mà
+ * hợp đồng phải đủ dữ liệu để kiểm là BR-10/BR-11 (docs 09-shipping §6): đỡ ≥ 98% đáy, trong lòng
+ * thùng, tải trọng từng xe, cờ xoay, chừa góc gia cố, đặt vuông góc.
  */
 
 import { z } from "zod";
@@ -41,7 +43,20 @@ export const LayoutBoxSchema = BlockMmSchema.extend({
   origMm: DimsMmSchema,
   /** Hướng đặt: xem `LAYOUT_ORIENTATIONS`. `wMm/hMm/dMm` phải khớp `origMm` theo hướng này. */
   orientation: z.enum(LAYOUT_ORIENTATIONS),
+  /**
+   * Kiện có được xoay không. BR-10 (docs 09-shipping §6): kiện có cờ xoay được đặt theo 6 hướng,
+   * kiện không có cờ giữ nguyên hướng đặt (`LWH`). BE đã có cờ này ở `PackageResponse.rotatable`.
+   */
+  rotatable: z.boolean(),
   weightKg: nonNegative,
+});
+
+/** Dòng hàng solver không xếp được: khoá nhận dạng + kích thước danh định + số lượng còn lại. */
+export const UnplacedLineSchema = z.object({
+  label: z.string(),
+  partName: z.string(),
+  origMm: DimsMmSchema,
+  quantity: z.number().int().nonnegative(),
 });
 
 export const LayoutSchema = z.object({

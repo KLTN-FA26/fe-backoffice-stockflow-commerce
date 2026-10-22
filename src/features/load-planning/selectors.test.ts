@@ -26,6 +26,22 @@ describe("summarizeLayouts", () => {
     expect(s.capacityMm3).toBe(12032 * 2352 * 2698 + 1800 * 1500 * 500);
   });
 
+  it("counts overweight vehicles one by one, never from the plan total (BR-10 is per vehicle)", () => {
+    // xe 1: 1200/1000 kg (quá tải), xe 2: 100/5000 kg — tổng 1300/6000 trông vẫn ổn
+    const heavy = { ...LAYOUT_PICKUP_KIT, seq: 1, usedWeightKg: 1200, maxPayloadKg: 1000 };
+    const light = { ...LAYOUT_PICKUP_KIT, seq: 2, usedWeightKg: 100, maxPayloadKg: 5000 };
+    expect(summarizeLayouts([heavy, light]).overweightVehicles).toBe(1);
+    expect(summarizeLayouts([light]).overweightVehicles).toBe(0);
+    expect(summarizeLayouts([heavy, { ...heavy, seq: 2 }]).overweightVehicles).toBe(2);
+  });
+
+  it("a vehicle exactly at its payload is not overweight", () => {
+    expect(
+      summarizeLayouts([{ ...LAYOUT_PICKUP_KIT, usedWeightKg: 1000, maxPayloadKg: 1000 }])
+        .overweightVehicles,
+    ).toBe(0);
+  });
+
   it("has zero utilisation without vehicles, not NaN", () => {
     expect(summarizeLayouts([]).utilization).toBe(0);
   });

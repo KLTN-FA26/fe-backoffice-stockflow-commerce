@@ -39,6 +39,8 @@ const SHELF: CartonType = {
   partName: "Kệ sách",
   origMm: { l: 1200, w: 300, h: 1800 },
   weightKg: 22,
+  // Kệ cao không được xoay nằm/dựng ngược (BR-10: cờ cho phép xoay).
+  rotatable: false,
 };
 const FITTING: CartonType = {
   ref: "LINE-005",

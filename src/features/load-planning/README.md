@@ -30,6 +30,7 @@ Box   = Block & {
   kitGroup: string | null         // mã bộ; vắng hoặc null nếu không thuộc bộ
   origMm: { l, w, h }             // kích thước danh định trước khi xoay
   orientation: "LWH"|"LHW"|"WLH"|"WHL"|"HLW"|"HWL"
+  rotatable: boolean              // BR-10: false = giữ nguyên hướng đặt (LWH); BE đã có ở PackageResponse.rotatable
   weightKg: number ≥ 0
 }
 ```
@@ -42,10 +43,16 @@ sát vách đầu xe (vách đối diện cửa). `wMm` dọc x, `hMm` dọc y, 
 `dMm/wMm/hMm` = `origMm` hoán vị theo `orientation` (`orientedExtent` trong `lib/dims.ts`; `checkLayout`
 báo `ORIENTATION_MISMATCH` nếu lệch hơn 1 mm).
 
+**Luật xếp là BR-10/BR-11 (docs 09-shipping §6):** đỡ ≥ 98% mặt đáy, không chìa ra ngoài lòng thùng, tổng khối lượng
+từng xe ≤ tải trọng, kiện không có cờ xoay giữ nguyên hướng, chừa góc gia cố, đặt vuông góc. `rotatable` có trong hợp
+đồng để FE kiểm được vế xoay (`ROTATION_NOT_ALLOWED` khi `!rotatable && orientation !== "LWH"`), vì `ref` không bắt buộc
+duy nhất nên không thể tra cờ ngược về kiện nguồn. Tải trọng kiểm theo TỪNG xe (`summarizeLayouts().overweightVehicles`).
+
 **Điểm cần BE PR D chốt:** (1) `ref` có duy nhất theo từng kiện hay chỉ theo dòng nguồn — FE không phụ thuộc
 (khoá React dùng `index-ref`), nhưng `PLACEMENT_RULE_VIOLATION [{ref, rule}]` chỉ chỉ đúng kiện nếu `ref` duy nhất;
-(2) tên luật `OUT_OF_BOUNDS`, `OVERLAP`, `INSUFFICIENT_SUPPORT` (+ `ORIENTATION_MISMATCH`, `PAYLOAD_EXCEEDED`
-ở `lib/layout-check.ts`) là đề xuất của FE; (3) schema không chặn số lẻ mm — BE làm tròn thế nào thì FE nhận thế đó.
+(2) tên luật `OUT_OF_BOUNDS`, `OVERLAP`, `INSUFFICIENT_SUPPORT` (+ `ORIENTATION_MISMATCH`, `ROTATION_NOT_ALLOWED`,
+`PAYLOAD_EXCEEDED` ở `lib/layout-check.ts`) là đề xuất của FE; (3) schema không chặn số lẻ mm — BE làm tròn thế nào thì
+FE nhận thế đó; (4) `rotatable` là trường mới so với design §5, cần BE thêm vào `Layout.boxes[]`.
 
 ## Ánh xạ file: nesting-standalone → repo này
 

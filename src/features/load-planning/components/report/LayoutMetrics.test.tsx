@@ -33,6 +33,14 @@ describe("LayoutMetrics", () => {
     expect(valueOf("Hiệu suất")).toHaveClass("text-warning");
   });
 
+  it("tones the weight as a problem when ONE vehicle is overloaded even though the totals fit", () => {
+    const heavy = { ...LAYOUT_PICKUP_KIT, seq: 1, usedWeightKg: 1200, maxPayloadKg: 1000 };
+    const light = { ...LAYOUT_PICKUP_KIT, seq: 2, usedWeightKg: 100, maxPayloadKg: 5000 };
+    render(<LayoutMetrics summary={summarizeLayouts([heavy, light])} />);
+    expect(valueOf("Khối lượng")).toHaveTextContent("1.300 / 6.000 kg");
+    expect(valueOf("Khối lượng")).toHaveClass("text-danger");
+  });
+
   it("tones an overweight plan as a problem", () => {
     render(
       <LayoutMetrics summary={summarizeLayouts([{ ...LAYOUT_PICKUP_KIT, maxPayloadKg: 100 }])} />,

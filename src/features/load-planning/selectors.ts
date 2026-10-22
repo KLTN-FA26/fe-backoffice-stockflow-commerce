@@ -13,6 +13,8 @@ export interface LayoutSummary {
   utilization: number;
   usedWeightKg: number;
   payloadKg: number;
+  /** Số xe chở quá tải trọng của chính nó — BR-10 áp cho TỪNG xe, nên không cộng gộp được. */
+  overweightVehicles: number;
   unplacedPieces: number;
 }
 
@@ -29,6 +31,7 @@ export function summarizeLayouts(layouts: readonly Layout[], unplacedPieces = 0)
     utilization: capacityMm3 > 0 ? usedVolumeMm3 / capacityMm3 : 0,
     usedWeightKg: sum((l) => l.usedWeightKg),
     payloadKg: sum((l) => l.maxPayloadKg),
+    overweightVehicles: layouts.filter((l) => l.usedWeightKg > l.maxPayloadKg).length,
     unplacedPieces,
   };
 }

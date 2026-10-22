@@ -2,7 +2,13 @@
 
 import type { z } from "zod";
 
-import type { BlockMmSchema, DimsMmSchema, LayoutBoxSchema, LayoutSchema } from "./schemas";
+import type {
+  BlockMmSchema,
+  DimsMmSchema,
+  LayoutBoxSchema,
+  LayoutSchema,
+  UnplacedLineSchema,
+} from "./schemas";
 
 export type BlockMm = z.infer<typeof BlockMmSchema>;
 export type DimsMm = z.infer<typeof DimsMmSchema>;
@@ -13,9 +19,4 @@ export type Layout = z.infer<typeof LayoutSchema>;
 export type ExtentMm = Pick<BlockMm, "wMm" | "hMm" | "dMm">;
 
 /** Dòng hàng chưa xếp được: chỉ cần số lượng + khoá nhận dạng để so với kiện đã xếp. */
-export interface UnplacedLine {
-  label: string;
-  partName: string;
-  origMm: DimsMm;
-  quantity: number;
-}
+export type UnplacedLine = z.infer<typeof UnplacedLineSchema>;

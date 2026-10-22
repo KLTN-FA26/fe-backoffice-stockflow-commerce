@@ -12,6 +12,8 @@ export interface CartonType {
   kitGroup?: string;
   origMm: DimsMm;
   weightKg: number;
+  /** Mặc định true. */
+  rotatable?: boolean;
 }
 
 export interface GridBlock {
@@ -41,6 +43,7 @@ export function gridBlock({ carton, orientation = "LWH", origin, counts }: GridB
           ...extent,
           origMm: carton.origMm,
           orientation,
+          rotatable: carton.rotatable ?? true,
           weightKg: carton.weightKg,
         });
       }

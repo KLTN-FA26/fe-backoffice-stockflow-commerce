@@ -192,7 +192,7 @@ export const INVENTORY_ITEM_OPTIONS_PAGE_SIZE = 20;
  * (`nesting-standalone`: `solver_3d_kit.py`, `manual-packing.ts`, `steps.ts`, `nesting-3d-viewer.tsx`).
  */
 export const LOAD_PLANNING_LIMITS = {
-  /** Mỗi kiện phải được đỡ ≥ 98% diện tích đáy (solver `_support`, design §1 "Rules"). */
+  /** BR-10 (docs 09-shipping §6): kiện phải được đỡ ≥ 98% mặt đáy — khớp solver `_support`, design §1 "Rules". */
   minSupportRatio: 0.98,
   /** Dung sai hình học (mm) cho "chạm/chồng nhau" — cùng cỡ `_EPS` của solver. */
   geometryEpsilonMm: 0.5,

@@ -1,7 +1,8 @@
 /**
- * Kiểm tra một `Layout` đầy đủ theo luật xếp của solver: trong lòng xe, không chồng nhau, đáy được
- * đỡ, đúng kích thước theo hướng đặt và không quá tải trọng. Dùng cho trình soạn (PR F5) và để
- * xác nhận dữ liệu BE trả về hợp lệ hình học; BE vẫn là nơi kiểm tra có hiệu lực.
+ * Kiểm tra một `Layout` đầy đủ theo BR-10/BR-11 (docs 09-shipping §6): trong lòng thùng, không
+ * chồng nhau (kể cả khối gia cố), đáy được đỡ ≥ 98%, đúng kích thước theo hướng đặt, kiện không
+ * cho xoay giữ nguyên hướng và tổng khối lượng không vượt tải trọng xe. Dùng cho trình soạn (PR F5)
+ * và để xác nhận dữ liệu BE trả về hợp lệ hình học; BE vẫn là nơi kiểm tra có hiệu lực.
  */
 
 import { extentOf, matchesOrientation } from "./dims";
@@ -10,7 +11,8 @@ import { validatePlacement } from "./manual-packing";
 import type { PlacementRule } from "./manual-packing";
 import type { Layout } from "../types";
 
-export type LayoutRule = PlacementRule | "ORIENTATION_MISMATCH" | "PAYLOAD_EXCEEDED";
+export type LayoutRule =
+  PlacementRule | "ORIENTATION_MISMATCH" | "ROTATION_NOT_ALLOWED" | "PAYLOAD_EXCEEDED";
 
 export interface LayoutIssue {
   /** Chỉ số kiện trong `layout.boxes`; null cho lỗi cấp xe (quá tải). */
@@ -29,6 +31,10 @@ export function checkLayout(layout: Layout): LayoutIssue[] {
     }
     if (!matchesOrientation(box))
       issues.push({ index, ref: box.ref, rule: "ORIENTATION_MISMATCH" });
+    // BR-10: kiện không có cờ xoay giữ nguyên hướng đặt.
+    if (!box.rotatable && box.orientation !== "LWH") {
+      issues.push({ index, ref: box.ref, rule: "ROTATION_NOT_ALLOWED" });
+    }
   });
   const weight = layout.boxes.reduce((sum, box) => sum + box.weightKg, 0);
   if (weight > layout.maxPayloadKg)

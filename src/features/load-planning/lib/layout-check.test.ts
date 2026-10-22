@@ -48,6 +48,29 @@ describe("checkLayout", () => {
     });
   });
 
+  it("flags a non-rotatable box that is not in its original pose (BR-10)", () => {
+    const shelf = LAYOUT_40HC.boxes.findIndex((b) => b.partName === "Kệ sách");
+    expect(LAYOUT_40HC.boxes[shelf].rotatable).toBe(false);
+    // xoay kệ cao nằm xuống: kích thước đã xếp khớp hướng mới, nên chỉ vi phạm cờ xoay
+    const original = LAYOUT_40HC.boxes[shelf];
+    const turned = {
+      ...original,
+      orientation: "HWL" as const,
+      wMm: original.origMm.w,
+      hMm: original.origMm.l,
+      dMm: original.origMm.h,
+    };
+    const boxes = LAYOUT_40HC.boxes.map((b, i) => (i === shelf ? turned : b));
+    const issues = checkLayout({ ...LAYOUT_40HC, boxes });
+    expect(issues).toContainEqual({ index: shelf, ref: "LINE-004", rule: "ROTATION_NOT_ALLOWED" });
+  });
+
+  it("lets a rotatable box be turned freely", () => {
+    // Bàn trà trong fixture đã xoay WLH và hợp lệ
+    expect(LAYOUT_40HC.boxes.some((b) => b.orientation === "WLH" && b.rotatable)).toBe(true);
+    expect(checkLayout(LAYOUT_40HC)).toEqual([]);
+  });
+
   it("flags a vehicle over its payload", () => {
     expect(checkLayout({ ...LAYOUT_PICKUP_KIT, maxPayloadKg: 100 })).toContainEqual({
       index: null,

@@ -45,7 +45,7 @@ export function LayoutMetrics({ summary }: { summary: LayoutSummary }) {
       label: labels.weight,
       value: `${formatNumber(summary.usedWeightKg)} / ${formatNumber(summary.payloadKg)} kg`,
       icon: <Scale className="size-4" />,
-      tone: summary.usedWeightKg > summary.payloadKg ? "bad" : "default",
+      tone: summary.overweightVehicles > 0 ? "bad" : "default",
     },
     {
       label: labels.unplaced,
