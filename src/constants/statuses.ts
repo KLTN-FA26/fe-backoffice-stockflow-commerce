@@ -446,6 +446,12 @@ export const CARRIER_STATUSES = ["ACTIVE", "INACTIVE"] as const;
 /** BE `VehicleTypeRequest.kind` — loại phương tiện trong danh mục loại xe (docs 09 §3). */
 export const VEHICLE_TYPE_KINDS = ["CONTAINER", "TRUCK", "PICKUP"] as const;
 
+export const VEHICLE_TYPE_KIND = {
+  CONTAINER: "CONTAINER",
+  TRUCK: "TRUCK",
+  PICKUP: "PICKUP",
+} as const satisfies Record<string, (typeof VEHICLE_TYPE_KINDS)[number]>;
+
 /** BE `VehicleTypeResponse.status` — loại xe ngừng dùng thì không đưa vào kế hoạch xếp xe mới. */
 export const VEHICLE_TYPE_STATUSES = ["ACTIVE", "INACTIVE"] as const;
 

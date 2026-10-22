@@ -5,8 +5,12 @@
  * Chỉ dùng khi USE_MOCK=true.
  */
 
-export type MockVehicleKind = "CONTAINER" | "TRUCK" | "PICKUP";
-export type MockVehicleStatus = "ACTIVE" | "INACTIVE";
+import { VEHICLE_TYPE_KIND as K, VEHICLE_TYPE_STATUS } from "@/constants";
+
+import type { VEHICLE_TYPE_KINDS, VEHICLE_TYPE_STATUSES } from "@/constants";
+
+export type MockVehicleKind = (typeof VEHICLE_TYPE_KINDS)[number];
+export type MockVehicleStatus = (typeof VEHICLE_TYPE_STATUSES)[number];
 
 export interface MockVehicleType {
   vehicleTypeId: string;
@@ -38,16 +42,16 @@ type PresetSpec = [
 
 /** code, tên, loại, D × R × C (mm), khe góc (mm), tải trọng (kg) — như migration của BE. */
 const PRESETS: PresetSpec[] = [
-  ["20DC", "Container 20' Dry (20DC)", "CONTAINER", 5898, 2352, 2393, 100, 28200],
-  ["40DC", "Container 40' Dry (40DC)", "CONTAINER", 12032, 2352, 2393, 100, 26700],
-  ["40HC", "Container 40' High Cube (40HC)", "CONTAINER", 12032, 2352, 2698, 100, 26500],
-  ["45HC", "Container 45' High Cube (45HC)", "CONTAINER", 13556, 2352, 2698, 100, 27700],
-  ["PICKUP", "Pickup truck (xe bán tải)", "PICKUP", 1500, 1500, 500, 0, 800],
-  ["TRUCK-1T25", "Box truck 1.25 t (xe tải 1,25 tấn)", "TRUCK", 3100, 1600, 1600, 50, 1250],
-  ["TRUCK-2T5", "Box truck 2.5 t (xe tải 2,5 tấn)", "TRUCK", 4300, 1800, 1800, 50, 2500],
-  ["TRUCK-5T", "Box truck 5 t (xe tải 5 tấn)", "TRUCK", 5200, 2050, 2050, 50, 5000],
-  ["TRUCK-8T", "Box truck 8 t (xe tải 8 tấn)", "TRUCK", 6200, 2350, 2300, 50, 8000],
-  ["TRUCK-15T", "Box truck 15 t (xe tải 15 tấn)", "TRUCK", 9300, 2350, 2400, 50, 15000],
+  ["20DC", "Container 20' Dry (20DC)", K.CONTAINER, 5898, 2352, 2393, 100, 28200],
+  ["40DC", "Container 40' Dry (40DC)", K.CONTAINER, 12032, 2352, 2393, 100, 26700],
+  ["40HC", "Container 40' High Cube (40HC)", K.CONTAINER, 12032, 2352, 2698, 100, 26500],
+  ["45HC", "Container 45' High Cube (45HC)", K.CONTAINER, 13556, 2352, 2698, 100, 27700],
+  ["PICKUP", "Pickup truck (xe bán tải)", K.PICKUP, 1500, 1500, 500, 0, 800],
+  ["TRUCK-1T25", "Box truck 1.25 t (xe tải 1,25 tấn)", K.TRUCK, 3100, 1600, 1600, 50, 1250],
+  ["TRUCK-2T5", "Box truck 2.5 t (xe tải 2,5 tấn)", K.TRUCK, 4300, 1800, 1800, 50, 2500],
+  ["TRUCK-5T", "Box truck 5 t (xe tải 5 tấn)", K.TRUCK, 5200, 2050, 2050, 50, 5000],
+  ["TRUCK-8T", "Box truck 8 t (xe tải 8 tấn)", K.TRUCK, 6200, 2350, 2300, 50, 8000],
+  ["TRUCK-15T", "Box truck 15 t (xe tải 15 tấn)", K.TRUCK, 9300, 2350, 2400, 50, 15000],
 ];
 
 /** Số xe sẵn có của loại xe mặc định (migration: 10). */
@@ -69,7 +73,7 @@ function seed(): Map<string, MockVehicleType> {
         availableCount: PRESET_AVAILABLE_COUNT,
         rentalPrice: null,
         preset: true,
-        status: "ACTIVE",
+        status: VEHICLE_TYPE_STATUS.ACTIVE,
         version: 0,
       }) satisfies MockVehicleType,
   );

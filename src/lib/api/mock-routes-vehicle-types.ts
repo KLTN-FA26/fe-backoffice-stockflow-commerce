@@ -5,7 +5,14 @@
  * OPTIMISTIC_LOCK); `gussetMm` / `status` vắng = tạo mới lấy 0 / ACTIVE, sửa giữ nguyên; `rentalPrice` vắng = xoá.
  */
 
-import { VEHICLE_TYPE_LIMITS, VEHICLE_TYPE_PERMISSIONS } from "@/constants";
+import {
+  VEHICLE_TYPE_KIND,
+  VEHICLE_TYPE_KINDS,
+  VEHICLE_TYPE_LIMITS,
+  VEHICLE_TYPE_PERMISSIONS,
+  VEHICLE_TYPE_STATUS,
+  VEHICLE_TYPE_STATUSES,
+} from "@/constants";
 
 import { registerMockRoute } from "./mock-adapter";
 import { fail, ok } from "./mock-route-utils";
@@ -30,8 +37,9 @@ import type {
 } from "./mock-vehicle-type-store";
 
 const PATH = "/fulfillment/vehicle-types";
-const KINDS: readonly string[] = ["CONTAINER", "TRUCK", "PICKUP"];
-const STATUSES: readonly string[] = ["ACTIVE", "INACTIVE"];
+// `includes` trên chuỗi người dùng gửi lên nên nới kiểu tuple về `readonly string[]`
+const KINDS: readonly string[] = VEHICLE_TYPE_KINDS;
+const STATUSES: readonly string[] = VEHICLE_TYPE_STATUSES;
 const CODE = /^[A-Z0-9][A-Z0-9_-]{1,31}$/;
 const L = VEHICLE_TYPE_LIMITS;
 
@@ -144,7 +152,7 @@ export function registerVehicleTypeMockRoutes(): void {
         vehicleTypeId: nextVehicleTypeId(),
         code,
         name: "",
-        kind: "TRUCK",
+        kind: VEHICLE_TYPE_KIND.TRUCK,
         innerLengthMm: 1,
         innerWidthMm: 1,
         innerHeightMm: 1,
@@ -153,7 +161,7 @@ export function registerVehicleTypeMockRoutes(): void {
         availableCount: 0,
         rentalPrice: null,
         preset: false,
-        status: "ACTIVE",
+        status: VEHICLE_TYPE_STATUS.ACTIVE,
         version: 0,
       };
       const { next, problems } = fill(body, created);

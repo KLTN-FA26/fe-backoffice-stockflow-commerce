@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-import { UI_LABELS, VEHICLE_TYPE_STATUS } from "@/constants";
+import { UI_LABELS, VEHICLE_TYPE_KIND, VEHICLE_TYPE_STATUS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { isStaleVehicleTypeError, vehicleTypeErrorMessage } from "@/features/vehicle-type/errors";
@@ -37,7 +37,7 @@ const SERVER_FIELDS = [
 const EMPTY: VehicleTypeFormInput = {
   code: "",
   name: "",
-  kind: "TRUCK",
+  kind: VEHICLE_TYPE_KIND.TRUCK,
   innerLengthMm: "",
   innerWidthMm: "",
   innerHeightMm: "",
