@@ -23,6 +23,7 @@ import {
   INVENTORY_OVERVIEW_PERMISSIONS,
   INVENTORY_PERMISSIONS,
   LOAD_ESTIMATE_PERMISSIONS,
+  LOAD_PLAN_PERMISSIONS,
   ORDER_PERMISSIONS,
   PO_PERMISSIONS,
   PRODUCT_PERMISSIONS,
@@ -77,8 +78,14 @@ const VEHICLE_TYPE_ALL = Object.values(VT);
 // Seed BE V20261022001200 (BE PR #160): fulfillment-load-estimates CREATE + READ cho ORDER_COORDINATOR /
 // WAREHOUSE_MANAGER / SYSTEM_ADMIN (không có dispatcher; WAREHOUSE_STAFF không có).
 const LOAD_ESTIMATE = Object.values(LOAD_ESTIMATE_PERMISSIONS);
+// Seed BE V20261022001300 (BE PR #161): fulfillment-load-plans VIEW_PAGE + READ cho WAREHOUSE_STAFF /
+// WAREHOUSE_MANAGER / ORDER_COORDINATOR / SYSTEM_ADMIN; CREATE + UPDATE chỉ WAREHOUSE_STAFF / WAREHOUSE_MANAGER /
+// SYSTEM_ADMIN (docs 09 §2: nhân viên điều phối kho lập và chốt kế hoạch).
+const LP = LOAD_PLAN_PERMISSIONS;
+const LOAD_PLAN_READ = [LP.viewPage, LP.read];
+const LOAD_PLAN_ALL = Object.values(LP);
 // WAREHOUSE_STAFF: lấy hàng + đóng gói (READ/UPDATE) + xếp xe / bàn giao.
-const FLOOR_WORK = [...PICKING, ...PACKING_WORK, ...DISPATCH];
+const FLOOR_WORK = [...PICKING, ...PACKING_WORK, ...DISPATCH, ...LOAD_PLAN_ALL];
 // WAREHOUSE_MANAGER: toàn bộ nhóm kho + gán / giám sát task, kiểm tra lại thiết kế, hãng, huỷ chuyến,
 // ghi nhận hàng hoàn (delivery-outcomes:UPDATE, không có APPROVE).
 const MANAGER_WORK = [
@@ -92,6 +99,7 @@ const MANAGER_WORK = [
   ...LOAD_CANCEL,
   ...VEHICLE_TYPE_ALL,
   ...LOAD_ESTIMATE,
+  ...LOAD_PLAN_ALL,
   OUTCOME.update,
 ];
 // ORDER_COORDINATOR: gán / giám sát task + ghi nhận kết quả giao (đã giao / thất bại cần APPROVE).
@@ -101,6 +109,7 @@ const COORDINATOR_WORK = [
   ...Object.values(OUTCOME),
   ...VEHICLE_TYPE_READ,
   ...LOAD_ESTIMATE,
+  ...LOAD_PLAN_READ,
 ];
 const INV = INVENTORY_PERMISSIONS;
 // Seed BE V20260928006000: ECOMMERCE_ADMIN có product-attributes và product-variants đủ quyền (admin mock

@@ -247,3 +247,24 @@ export const LOAD_PLANNING_LIMITS = {
   /** Chiều cao khung 3D (px) — skeleton khi tải dùng cùng giá trị để bố cục không nhảy (gốc: 360). */
   viewerHeightPx: 360,
 } as const;
+
+/**
+ * Kế hoạch xếp xe — giới hạn của `CreateLoadPlanRequest` / `LoadPlanInputsRequest` / `LoadPlanReasonRequest` /
+ * `VehicleRecalculationRequest` (BE PR #161) và ngưỡng cờ so với ước lượng.
+ */
+export const LOAD_PLAN_LIMITS = {
+  /** `shipmentIds` @Size(max = 200). */
+  shipmentsMax: 200,
+  /** `vehicleTypeIds` @Size(max = 50). */
+  vehicleTypesMax: 50,
+  /** `reason` @NotBlank @Size(max = 500) khi mở lại / huỷ. */
+  reasonMax: 500,
+  /** `note` @Size(max = 500). */
+  noteMax: 500,
+  /** `addPackageIds` @Size(max = 500). */
+  addPackagesMax: 500,
+  /** Cờ VOLUME_ABOVE / WEIGHT_ABOVE / MORE_PARCELS: vượt ước lượng quá 10% (BE `LoadPlanEstimateComparison`). */
+  estimateTolerancePct: 10,
+  /** Số loại xe tải về một lần cho ô chọn loại xe (danh mục tối đa vài chục). */
+  vehicleTypePickerSize: 100,
+} as const;

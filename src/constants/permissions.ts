@@ -163,6 +163,18 @@ export const LOAD_ESTIMATE_PERMISSIONS = {
 } as const;
 
 /**
+ * Kế hoạch xếp xe (SCRUM-287 PR D) — resource `fulfillment-load-plans`, BE `LoadPlanController`. READ: xem
+ * danh sách, chi tiết, bố cục, đối chiếu (nhân viên kho, quản lý kho, điều phối đơn); CREATE: lập kế hoạch;
+ * UPDATE: đổi đầu vào, tính, tính lại xe, xác nhận kiện chưa xếp, chốt, mở lại, huỷ (nhân viên kho, quản lý kho).
+ */
+export const LOAD_PLAN_PERMISSIONS = {
+  viewPage: "fulfillment-load-plans:VIEW_PAGE",
+  read: "fulfillment-load-plans:READ",
+  create: "fulfillment-load-plans:CREATE",
+  update: "fulfillment-load-plans:UPDATE",
+} as const;
+
+/**
  * Điều chỉnh tồn + sổ kho — BE `StockOperationsController` (develop 0f18f24), resource
  * `InventoryResources.STOCK_ITEMS` / `STOCK_ADJUSTMENTS` / `STOCK_MOVEMENTS`.
  */

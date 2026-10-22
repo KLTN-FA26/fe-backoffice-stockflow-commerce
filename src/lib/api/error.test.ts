@@ -44,4 +44,25 @@ describe("ApiError", () => {
     expect(ApiError.from(error).fieldCodes).toEqual({ code: "VEHICLE_TYPE_CODE_IMMUTABLE" });
     expect(new ApiError(400, "X", "m", { a: "b" }).fieldCodes).toBeUndefined();
   });
+
+  it("keeps every entry of the array form, so several errors on one field are not lost", () => {
+    const error = new AxiosError("Conflict", undefined, undefined, undefined, {
+      config: { headers: new AxiosHeaders() },
+      data: {
+        errorCode: "ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED",
+        fieldErrors: [
+          { field: "orderNumber", message: "SO-1" },
+          { field: "orderNumber", message: "SO-2" },
+        ],
+      },
+      headers: {},
+      status: 409,
+      statusText: "Conflict",
+    });
+    const apiError = ApiError.from(error);
+    // the map form keeps the first entry of a field; the list keeps them all
+    expect(apiError.fieldErrors).toEqual({ orderNumber: "SO-1" });
+    expect(apiError.fieldErrorList?.map((entry) => entry.message)).toEqual(["SO-1", "SO-2"]);
+    expect(new ApiError(409, "X", "m", { a: "b" }).fieldErrorList).toBeUndefined();
+  });
 });

@@ -4,7 +4,7 @@ globs:
   - "src/app/admin/**"
   - "src/app/(backoffice)/**"
   - "src/components/backoffice/**"
-  - "src/features/{product,purchase-order,receipt,invoice,putaway,warehouse-map,picking,packing,shipping,transfer,move,inventory,dashboard,supplier,order,fulfillment,inventory-item,permission-management,home,vehicle-type}/**"
+  - "src/features/{product,purchase-order,receipt,invoice,putaway,warehouse-map,picking,packing,shipping,transfer,move,inventory,dashboard,supplier,order,fulfillment,inventory-item,permission-management,home,vehicle-type,load-planning}/**"
 ---
 
 # Mode A — Back-office (Kho vận)

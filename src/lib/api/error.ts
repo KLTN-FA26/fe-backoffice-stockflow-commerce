@@ -33,6 +33,11 @@ export class ApiError extends Error {
   readonly traceId?: string;
   /** Mã lỗi của từng trường (BE `fieldErrors[].code`) khi có — để rẽ nhánh theo mã thay vì theo câu chữ. */
   readonly fieldCodes?: Record<string, string>;
+  /**
+   * `fieldErrors[]` nguyên dạng của BE khi là mảng. `fieldErrors` / `fieldCodes` chỉ giữ phần tử đầu của mỗi trường;
+   * lỗi có nhiều phần tử cùng một trường (vd mỗi đơn vi phạm LP-4 một `orderNumber`) đọc ở đây.
+   */
+  readonly fieldErrorList?: readonly ApiFieldErrorBody[];
 
   constructor(
     status: number,
@@ -41,6 +46,7 @@ export class ApiError extends Error {
     fieldErrors?: Record<string, string>,
     traceId?: string,
     fieldCodes?: Record<string, string>,
+    fieldErrorList?: readonly ApiFieldErrorBody[],
   ) {
     super(message);
     this.name = "ApiError";
@@ -49,6 +55,7 @@ export class ApiError extends Error {
     this.fieldErrors = fieldErrors;
     this.traceId = traceId;
     this.fieldCodes = fieldCodes;
+    this.fieldErrorList = fieldErrorList;
   }
 
   /** Create from an AxiosError (used in response interceptor). */
@@ -72,6 +79,7 @@ export class ApiError extends Error {
       normalizeFieldErrors(data?.fieldErrors),
       data?.correlationId ?? data?.traceId,
       normalizeFieldCodes(data?.fieldErrors),
+      Array.isArray(data?.fieldErrors) ? data.fieldErrors : undefined,
     );
   }
 

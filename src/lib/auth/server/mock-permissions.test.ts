@@ -206,6 +206,24 @@ describe("Fulfillment / order grants (BE PR #148, V20261022000200)", () => {
     }
   });
 
+  it("kế hoạch xếp xe (BE PR #161): nhân viên kho lập và sửa, tài khoản điều phối kiêm nhân viên kho cũng xem được, vai khác không thấy", () => {
+    expect(grants("USER-WH-01")).toEqual(
+      expect.arrayContaining([
+        "fulfillment-load-plans:VIEW_PAGE",
+        "fulfillment-load-plans:READ",
+        "fulfillment-load-plans:CREATE",
+        "fulfillment-load-plans:UPDATE",
+      ]),
+    );
+    const coordinator = grants("USER-COORD-01");
+    expect(coordinator).toEqual(
+      expect.arrayContaining(["fulfillment-load-plans:VIEW_PAGE", "fulfillment-load-plans:READ"]),
+    );
+    expect(grants("USER-ADMIN-01")).toContain("fulfillment-load-plans:UPDATE");
+    for (const userId of ["USER-QC-01", "USER-PROC-01", "USER-PLAN-01"])
+      expect(grants(userId)).not.toContain("fulfillment-load-plans:READ");
+  });
+
   it("không còn mã quyền cũ không bảo vệ endpoint nào trong bộ quyền demo", () => {
     for (const userId of ["USER-ADMIN-01", "USER-WH-01", "USER-COORD-01", "USER-QC-01"]) {
       const codes = grants(userId);

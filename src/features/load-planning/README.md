@@ -1,9 +1,12 @@
 # load-planning — xếp hàng lên xe (SCRUM-287/391/392)
 
-PR F1: **thư viện + khung 3D**; PR F3: **ước tính xếp xe** (xem mục "Ước tính xếp xe (F3)" bên dưới). Route và trang
-kế hoạch đến ở F4–F9 (thiết kế: `be-backoffice-stockflow-commerce/docs/business-design/2026-10-22-scrum-287-load-planning-plan-v2.md`).
-Feature này cố ý chưa có `lifecycle.ts` (như `home`, xem `feature-architecture.md`) — kế hoạch xếp xe (F4) mới có vòng đời.
-API / query của ước tính nằm ở `estimate-*.ts` (đặt tên riêng để F4 thêm `api.ts` / `queries.ts` của kế hoạch mà không đụng nhau).
+- **PR F1**: thư viện + khung 3D (`lib/`, `components/viewer`, `components/report`, hợp đồng `Layout`).
+- **PR F4**: màn **Kế hoạch xếp xe** nối BE PR #161 — danh sách, lập mới, chi tiết (xem phần "PR F4" bên dưới). Từ
+  đây feature có đủ `api.ts`, `queries.ts`, `mutations.ts`, `lifecycle.ts`, `errors.ts` (thiết kế:
+  `be-backoffice-stockflow-commerce/docs/business-design/2026-10-22-scrum-287-load-planning-plan-v2.md`).
+- **PR F3**: **ước tính xếp xe** của một đơn (ngăn kéo, BE PR #160) — xem mục "Ước tính xếp xe (F3)" bên dưới.
+  API / query của ước tính nằm ở `estimate-*.ts`, tách khỏi `api.ts` / `queries.ts` của kế hoạch.
+- Chưa làm: trình soạn xếp tay `PUT …/placements` (F5), trang in (F6).
 
 Code là bản port từ dự án `nesting-standalone` của anh Tú (chỉ đọc, không sửa) sang framework của repo này:
 Next 16 + TS strict, zod, nhãn tiếng Việt trong `constants/`, giới hạn 200 dòng/file feature, 150 dòng/component.
@@ -54,9 +57,12 @@ ngược về kiện nguồn. Tải trọng kiểm theo TỪNG xe (`summarizeLay
 `lib/layout-check.ts` phát hiện, và BE là nơi bảo đảm) kèm `sourceRef`; mã `orientation` như trên, BE phát ra cùng chuỗi, đọc theo (z, x, y).
 
 **Mã luật** do solver BE quy định (`PLACEMENT_RULES` trong `src/constants/load-planning.ts`, nhãn tiếng Việt
-`PLACEMENT_RULE_LABELS`): `OUT_OF_BOUNDS | OVERLAP | UNSUPPORTED | OVERWEIGHT | ROTATION_NOT_ALLOWED | GUSSET`.
+`PLACEMENT_RULE_LABELS`): `OUT_OF_BOUNDS | OVERLAP | UNSUPPORTED | OVERWEIGHT | ROTATION_NOT_ALLOWED | GUSSET`, và từ BE
+PR #161 thêm `DOOR` (kiện không lọt cửa xe), `KIT_SPLIT` (một bộ bị tách khỏi một xe, LP-3), `ORIENTATION_MISMATCH`
+(BE cũng kiểm). Lỗi `PLACEMENT_RULE_VIOLATION` mang mã luật ở `fieldErrors[{field: ref, code: rule}]`; riêng `OVERWEIGHT`
+dùng `field: "vehicle:<seq>"`.
 `validatePlacement` trả `UNSUPPORTED` khi đáy được đỡ < 98%, `GUSSET` khi chạm khối gia cố; `checkLayout` thêm
-`OVERWEIGHT` (cấp xe) và `ROTATION_NOT_ALLOWED`, và một mã chỉ FE dùng là `ORIENTATION_MISMATCH` (kích thước đã xếp
+`OVERWEIGHT` (cấp xe) và `ROTATION_NOT_ALLOWED`, và `ORIENTATION_MISMATCH` (kích thước đã xếp
 không khớp `origMm` theo `orientation`, sai lệch > 1 mm). Schema không chặn số lẻ mm: BE làm tròn thế nào FE nhận thế đó.
 
 ## Ánh xạ file: nesting-standalone → repo này
@@ -183,3 +189,39 @@ sửa loại xe làm mới luôn ô chọn; schema riêng chỉ giữ trường 
 **Mock** (`USE_MOCK=true`): `lib/api/mock-routes-load-estimates.ts` + `mock-load-estimate-builder.ts` dựng từ fixture F1
 (SINGLE_TYPE → 40HC; FEWEST_VEHICLES → thêm xe bán tải + hết thời gian tính; đơn từ hai dòng → dòng cuối thiếu dữ liệu).
 Test fixture: `__fixtures__/estimate.ts`, `render-estimate.tsx`.
+
+## PR F4: danh sách, lập mới, chi tiết kế hoạch
+
+Route: `/admin/load-plans` (danh sách), `/admin/load-plans/create` (lập mới), `/admin/load-plans/[id]` (chi tiết, tab
+`?tab=loading|reconciliation`). Quyền theo mã (không theo vai trò): trang cần `fulfillment-load-plans:VIEW_PAGE`, xem
+`:READ`, lập `:CREATE`, mọi bước sau `:UPDATE` (UI-only — BE re-check).
+
+| Endpoint (BE PR #161)                                                                          | Chỗ dùng                                                               |
+| ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `GET load-plans` (`warehouseId`, `status`, `search`, `page`, `size`)                           | `LoadPlanList` (bộ lọc ở URL qua nuqs)                                 |
+| `GET load-plan-candidates?warehouseId[&loadPlanId]`                                            | `ShipmentPicker` (lô nguyên xe chờ xuất, nguyên lô)                    |
+| `POST load-plans` `{requestId, warehouseId, shipmentIds, vehicleTypeIds, selectionMode, note}` | `useStartLoadPlan` (idempotent theo `requestId`)                       |
+| `POST …/calculation` `{expectedVersion}`                                                       | ngay sau khi tạo; nút "Tính xếp xe"                                    |
+| `PUT …/inputs`                                                                                 | `EditInputsDialog` (DRAFT / PLANNED)                                   |
+| `GET …/{id}`, `…/layouts`, `…/reconciliation`                                                  | `LoadPlanDetail`, `LoadingTab`, `ReconciliationTab`                    |
+| `POST …/vehicles/{seq}/recalculation` `{expectedVersion, addPackageIds?}`                      | "Tính lại xe", "Đưa lại vào xe" từ khay chưa xếp                       |
+| `POST …/unplaced-acknowledgement` · `confirmation` · `reopening` · `cancellation`              | `PlanStepDialog` (mở lại / huỷ bắt buộc lý do)                         |
+| `GET fulfillment/vehicle-types?status=ACTIVE`                                                  | `VehicleTypePicker` (query riêng, không import feature `vehicle-type`) |
+
+- **`requestId` ở client** (`request-ids.ts`): sinh UUID, nhớ trong sessionStorage theo nội dung ý định (kho, lô, loại xe,
+  chế độ, ghi chú); bấm lại sau lỗi mạng gửi cùng id nên BE trả đúng kế hoạch đã tạo; đổi nội dung → id mới.
+- **Đồng thời**: mọi thay đổi gửi `expectedVersion` (version của bản mới nhất trong cache). 409 `OPTIMISTIC_LOCK` (và các lỗi
+  "dữ liệu đã cũ": trạng thái đã khác, xe vừa bị bỏ kiện…) làm mutation tải lại kế hoạch + bố cục + đối chiếu, hộp thoại hiện câu
+  "đã tải lại" và giữ nguyên để bấm lại với version mới (`withStaleRefetch` + `isStaleLoadPlanError`).
+- **Mã lỗi thật của BE** (`ErrorCode`): `LOAD_PLAN_UNPLACED_NOT_ACKNOWLEDGED` (BR-13), `LOAD_PLAN_PACKAGE_TAKEN` và
+  `PACKAGE_IN_LOAD_PLAN` (BR-09), `LOAD_PLAN_NEEDS_RECALCULATION`, `LOAD_PLAN_LOADING_STARTED` (BR-14),
+  `ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED` (LP-4, số đơn ở `fieldErrors.orderNumber`), `LOAD_MANAGED_BY_PLAN`, `OPTIMISTIC_LOCK`…;
+  bảng đầy đủ ở `constants/labels-load-plan.ts` (`LOAD_PLAN_ERROR_MESSAGES`).
+- **Bảng "số kiện theo xe"**: BE đặt `label` của hộp là mã nhãn kiện (khác nhau từng kiện) nên `layoutsForItemTable` bỏ `label`
+  để `buildItemTable` gom theo SKU + cỡ thay vì ra mỗi kiện một dòng.
+- **Danh sách không có cột "% lấp đầy"**: `PlanRow` của BE không có số này (chỉ chi tiết từng xe có `volumeFillPct` /
+  `weightFillPct`); danh sách hiện số xe, số kiện, số kiện chưa xếp.
+- **vsEstimate chỉ để tham khảo**: cờ hiện như cảnh báo mềm, không chặn việc chốt; số xe chỉ so khi kế hoạch có một đơn.
+- **Mock** (`lib/api/mock-routes-load-plans.ts` + `mock-load-plan-*.ts`): bốn kế hoạch seed (PLANNED dựng từ `LAYOUT_PICKUP_KIT`
+  của F1, DRAFT, CANCELLED, CONFIRMED có xe đang LOADING để thử BR-14); bộ xếp giả xếp theo lớp trên sàn (không giữ bộ, không bảo
+  đảm đỡ 98%) — chỉ để có bố cục xem được, solver thật là của BE.
