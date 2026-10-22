@@ -121,6 +121,7 @@ export function VehicleTypeListBody({
         rowKey={(row) => row.vehicleTypeId}
         caption={`${UI_LABELS.common.showing} ${page.items.length} / ${page.totalElements} ${L.listCaption}`}
         onRowClick={onRowClick}
+        stickyHeader
         pageSize={s.config.pageSize}
         pageSizeOptions={PAGE_SIZE_OPTIONS}
         serverPagination={{

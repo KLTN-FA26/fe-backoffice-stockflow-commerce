@@ -25,8 +25,6 @@ export const VEHICLE_TYPE_STATUS_LABELS: Record<VehicleTypeStatus, string> = {
 
 export const VEHICLE_TYPE_UI_LABELS = {
   pageTitle: "Loại xe",
-  pageSubtitle:
-    "Danh mục container, xe tải và xe bán tải dùng cho kế hoạch xếp xe. Không xoá được — ngừng dùng để ẩn khỏi kế hoạch mới.",
   navTooltip: "Vehicle types",
   create: "Thêm loại xe",
   edit: "Sửa",

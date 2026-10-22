@@ -1,53 +1,57 @@
 "use client";
 
 import { UI_LABELS, VEHICLE_TYPE_STATUS_LABELS, VEHICLE_TYPE_STATUSES } from "@/constants";
-import { SearchBar } from "@/components/shared/SearchBar";
-import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ListToolbar } from "@/components/shared/ListToolbar";
 
+import type { ReactNode } from "react";
 import type { VehicleTypeListState } from "./useVehicleTypeListState";
 
 const L = UI_LABELS.vehicleType;
+type Status = (typeof VEHICLE_TYPE_STATUSES)[number];
+const STATUS_OPTIONS = VEHICLE_TYPE_STATUSES.map((value) => ({
+  value,
+  label: VEHICLE_TYPE_STATUS_LABELS[value],
+}));
 
-/** Lọc theo mã / tên và trạng thái (BE `search`, `status`). */
-export function VehicleTypeFilters({ s }: { s: VehicleTypeListState }) {
+/**
+ * Toolbar data-table Mode A: tìm theo mã / tên, lọc trạng thái (BE nhận MỘT trạng thái nên là chọn
+ * một), thanh cấu hình. `actions` = nút tạo mới (góc phải, cùng cỡ `TOOLBAR_ACTION_CLASS`).
+ */
+export function VehicleTypeFilters({
+  s,
+  actions,
+}: {
+  s: VehicleTypeListState;
+  actions?: ReactNode;
+}) {
+  const status: Status | null = s.status === "ALL" ? null : s.status;
   return (
-    <div className="mb-3 flex flex-wrap items-center gap-3">
-      <SearchBar
-        value={s.q}
-        onChange={s.setQ}
-        placeholder={L.searchPlaceholder}
-        aria-label={L.searchPlaceholder}
-        className="max-w-xs"
-      />
-      <div className="flex items-center gap-2">
-        <Label htmlFor="vehicle-type-status" className="text-ink-secondary text-[0.8125rem]">
-          {L.statusFilter}
-        </Label>
-        <Select value={s.status} onValueChange={s.setStatus}>
-          <SelectTrigger
-            id="vehicle-type-status"
-            className="border-border-default bg-bg-surface h-8 w-[12rem] rounded-[var(--r-sm)] text-[0.8125rem]"
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <TitledSelectContent title={L.statusFilter}>
-            <SelectItem value="ALL">{L.all}</SelectItem>
-            {VEHICLE_TYPE_STATUSES.map((value) => (
-              <SelectItem key={value} value={value}>
-                {VEHICLE_TYPE_STATUS_LABELS[value]}
-              </SelectItem>
-            ))}
-          </TitledSelectContent>
-        </Select>
-      </div>
-      {s.hasFilters && (
-        <Button type="button" variant="ghost" size="xs" onClick={s.clearFilters}>
-          {L.clearFilters}
-        </Button>
-      )}
-    </div>
+    <ListToolbar<Status, string, string>
+      search={s.q}
+      onSearchChange={s.setQ}
+      searchPlaceholder={L.searchPlaceholder}
+      statusOptions={STATUS_OPTIONS}
+      selectedStatuses={status ? [status] : []}
+      onToggleStatus={(value) => s.setStatus(status === value ? "ALL" : value)}
+      onClearStatuses={() => s.setStatus("ALL")}
+      hasStatusFilter={status !== null}
+      summaryItems={[
+        {
+          label: "Search chính",
+          value: s.q || UI_LABELS.common.notEntered,
+          active: s.q !== "",
+          onClear: () => s.setQ(""),
+        },
+        {
+          label: L.statusFilter,
+          value: status ? VEHICLE_TYPE_STATUS_LABELS[status] : L.all,
+          active: status !== null,
+          onClear: () => s.setStatus("ALL"),
+        },
+      ]}
+      actions={actions}
+      onResetAll={s.clearFilters}
+      resetDisabled={!s.hasFilters}
+    />
   );
 }

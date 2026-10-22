@@ -6,7 +6,7 @@ import { Plus } from "lucide-react";
 import { UI_LABELS, VEHICLE_TYPE_PERMISSIONS } from "@/constants";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { useCan, usePermissionChecker } from "@/lib/auth";
-import { PageHeader } from "@/components/shared/PageHeader";
+import { TOOLBAR_ACTION_CLASS } from "@/components/shared/ListToolbar";
 import { Button } from "@/components/ui/button";
 import { vehicleTypeActions } from "@/features/vehicle-type/lifecycle";
 
@@ -43,23 +43,25 @@ function VehicleTypeListContent() {
   const close = () => setDialog(null);
 
   return (
-    <>
-      <PageHeader
-        title={L.pageTitle}
-        subtitle={L.pageSubtitle}
-        actions={
-          actionsOf(null).create && (
-            <Button
-              size="sm"
-              className="bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse rounded-[var(--r-sm)]"
-              onClick={() => setDialog({ kind: "create" })}
-            >
-              <Plus className="size-3.5" /> {L.create}
-            </Button>
-          )
-        }
-      />
-      {canRead && <VehicleTypeFilters s={s} />}
+    // Giao diện kiểu Vercel (`.surface-soft`): không title hiển thị — tên trang nằm ở breadcrumb topbar
+    <div className="surface-soft">
+      <h1 className="sr-only">{L.pageTitle}</h1>
+      {canRead && (
+        <VehicleTypeFilters
+          s={s}
+          actions={
+            actionsOf(null).create && (
+              <Button
+                size="sm"
+                className={`${TOOLBAR_ACTION_CLASS} bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse`}
+                onClick={() => setDialog({ kind: "create" })}
+              >
+                <Plus className="size-3.5" /> {L.create}
+              </Button>
+            )
+          }
+        />
+      )}
       <VehicleTypeListBody
         s={s}
         columns={columns}
@@ -80,7 +82,7 @@ function VehicleTypeListContent() {
           onClose={close}
         />
       )}
-    </>
+    </div>
   );
 }
 

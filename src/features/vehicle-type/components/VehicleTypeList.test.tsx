@@ -26,9 +26,16 @@ const L = UI_LABELS.vehicleType;
 const PATH = "/fulfillment/vehicle-types";
 const ROWS = [apiVehicleType(), apiCustomTruck()];
 
+/** Bản dòng 20DC mà BE trả cho GET chi tiết — đổi giữa chừng để mô phỏng người khác sửa. */
+const latest: { current: VehicleType } = { current: apiVehicleType() };
+
 function renderList(actor: TestActor, search = "", rows: VehicleType[] = ROWS) {
+  latest.current = rows.find((row) => row.vehicleTypeId === VT_20DC_ID) ?? apiVehicleType();
   const spies = mockVehicleTypeApi(actor, {
-    get: { [PATH]: () => bePage(rows) },
+    get: {
+      [PATH]: () => bePage(rows),
+      [`${PATH}/${VT_20DC_ID}`]: () => latest.current,
+    },
     put: {
       [`${PATH}/${VT_20DC_ID}`]: (_params, body) => ({
         ...apiVehicleType(),
@@ -82,10 +89,12 @@ describe("VehicleTypeList — hiển thị danh sách", () => {
     renderList(ACTORS.viewOnly, "?q=zzz", []);
     expect(await screen.findByText(UI_LABELS.emptyList.noResultsTitle)).toBeInTheDocument();
     expect(screen.getByText(L.empty.noResultsDescription)).toBeInTheDocument();
-    // Một nút ở thanh lọc, một nút trong vùng rỗng
-    expect(screen.getAllByRole("button", { name: UI_LABELS.emptyList.clearFilters })).toHaveLength(
-      2,
-    );
+    expect(
+      screen.getByRole("button", { name: UI_LABELS.emptyList.clearFilters }),
+    ).toBeInTheDocument();
+    // Thanh công cụ giữ từ khoá trên URL và cho đặt lại
+    expect(screen.getByLabelText(L.searchPlaceholder)).toHaveValue("zzz");
+    expect(screen.getByRole("button", { name: "Đặt lại" })).toBeEnabled();
   });
 
   it("lỗi tải: hiện câu lỗi và nút thử lại", async () => {
@@ -169,6 +178,31 @@ describe("VehicleTypeList — ngừng dùng / dùng lại", () => {
     );
     await waitFor(() => expect(put).toHaveBeenCalled());
     expect(put.mock.calls[0]?.[1]).toMatchObject({ status: "ACTIVE" });
+  });
+
+  it("OPTIMISTIC_LOCK: bấm xác nhận lần nữa gửi version mới đã tải lại, không lặp 409", async () => {
+    const { put } = renderList(ACTORS.warehouseManager);
+    await userEvent.click(await screen.findByRole("button", { name: `${L.deactivate} 20DC` }));
+    const dialog = await screen.findByRole("dialog");
+    // Người khác sửa 20DC trước: BE đã ở version 1
+    latest.current = apiVehicleType({ version: 1, availableCount: 7 });
+    put.mockRejectedValueOnce(new ApiError(409, "OPTIMISTIC_LOCK", "changed"));
+    await userEvent.click(within(dialog).getByRole("button", { name: L.deactivate }));
+    expect(
+      await screen.findByText(VEHICLE_TYPE_ERROR_MESSAGES.OPTIMISTIC_LOCK),
+    ).toBeInTheDocument();
+    // Chi tiết được tải lại → lần gửi sau dùng version 1
+    await waitFor(async () => {
+      await userEvent.click(
+        within(screen.getByRole("dialog")).getByRole("button", { name: L.deactivate }),
+      );
+      expect(put).toHaveBeenCalledTimes(2);
+    });
+    expect(put.mock.calls[1]?.[1]).toMatchObject({
+      version: 1,
+      availableCount: 7,
+      status: "INACTIVE",
+    });
   });
 
   it("OPTIMISTIC_LOCK: báo trong dialog bằng tiếng Việt, dialog giữ nguyên", async () => {

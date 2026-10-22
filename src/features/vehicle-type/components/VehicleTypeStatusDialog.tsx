@@ -6,6 +6,7 @@ import { UI_LABELS, VEHICLE_TYPE_STATUS } from "@/constants";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { vehicleTypeErrorMessage } from "@/features/vehicle-type/errors";
 import { useSetVehicleTypeStatus } from "@/features/vehicle-type/mutations";
+import { useVehicleType } from "@/features/vehicle-type/queries";
 
 import type { VehicleType } from "@/features/vehicle-type/types";
 
@@ -26,13 +27,16 @@ export function VehicleTypeStatusDialog({
   onClose: () => void;
 }) {
   const mutation = useSetVehicleTypeStatus();
+  // Bản mới nhất của dòng: sau 409 OPTIMISTIC_LOCK mutation tải lại chi tiết, bấm xác nhận lần nữa
+  // gửi đúng version mới thay vì bản chụp lúc mở dialog (nếu không sẽ 409 mãi)
+  const current = useVehicleType(vehicleType.vehicleTypeId).data ?? vehicleType;
   const [error, setError] = useState<string | null>(null);
   const deactivating = target === VEHICLE_TYPE_STATUS.INACTIVE;
   return (
     <ConfirmDialog
       open
       onOpenChange={(open) => !open && onClose()}
-      title={`${deactivating ? C.deactivateTitle : C.activateTitle} ${vehicleType.code}`}
+      title={`${deactivating ? C.deactivateTitle : C.activateTitle} ${current.code}`}
       description={deactivating ? C.deactivateDescription : C.activateDescription}
       confirmLabel={deactivating ? L.deactivate : L.activate}
       variant={deactivating ? "danger" : "default"}
@@ -42,7 +46,7 @@ export function VehicleTypeStatusDialog({
       onConfirm={() => {
         setError(null);
         mutation.mutate(
-          { vehicleType, status: target },
+          { vehicleType: current, status: target },
           { onSuccess: onClose, onError: (e) => setError(vehicleTypeErrorMessage(e)) },
         );
       }}
