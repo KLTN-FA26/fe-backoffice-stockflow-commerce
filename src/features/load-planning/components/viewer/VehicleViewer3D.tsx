@@ -4,7 +4,7 @@ import { Edges, OrbitControls } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { useDeferredValue, useMemo, useState } from "react";
 
-import { LOAD_PLANNING_LABELS, SCENE_COLORS } from "@/constants";
+import { LOAD_PLANNING_LABELS, LOAD_PLANNING_LIMITS, SCENE_COLORS } from "@/constants";
 
 import { blockToScene, prepareScene } from "../../lib/scene";
 
@@ -34,7 +34,6 @@ export interface VehicleViewer3DProps {
   heightPx?: number;
 }
 
-const DEFAULT_HEIGHT_PX = 360;
 const EMPTY_SPACE_SHRINK = 0.99;
 
 /**
@@ -48,7 +47,7 @@ export function VehicleViewer3D({
   showLabels = false,
   showGussets = true,
   emptySpaces,
-  heightPx = DEFAULT_HEIGHT_PX,
+  heightPx = LOAD_PLANNING_LIMITS.viewerHeightPx,
 }: VehicleViewer3DProps) {
   const [viewRequest, setViewRequest] = useState<ViewRequest | null>(null);
   const requestView = (kind: ViewKind) =>

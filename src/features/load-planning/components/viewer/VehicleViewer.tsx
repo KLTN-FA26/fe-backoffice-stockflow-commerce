@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 
-import { LOAD_PLANNING_LABELS } from "@/constants";
+import { LOAD_PLANNING_LABELS, LOAD_PLANNING_LIMITS } from "@/constants";
 
 import { Skeleton } from "@/components/shared/Skeleton";
 
@@ -19,7 +19,8 @@ export const VehicleViewer = dynamic(
       <Skeleton
         role="status"
         aria-label={LOAD_PLANNING_LABELS.viewer.loading}
-        className="h-[360px] w-full"
+        className="w-full"
+        style={{ height: LOAD_PLANNING_LIMITS.viewerHeightPx }}
       />
     ),
   },

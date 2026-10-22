@@ -206,4 +206,8 @@ export const LOAD_PLANNING_LIMITS = {
   landingGhostsMax: 300,
   /** Viewer chỉ dựng tối đa chừng này kiện (gốc: `slice(0, 600)`); quá mức thì hiện cảnh báo. */
   renderBoxesMax: 600,
+  /** Hiệu suất thể tích dưới mức này bị tô cảnh báo (viewer gốc dùng 50%). */
+  lowUtilizationRatio: 0.5,
+  /** Chiều cao khung 3D (px) — skeleton khi tải dùng cùng giá trị để bố cục không nhảy (gốc: 360). */
+  viewerHeightPx: 360,
 } as const;

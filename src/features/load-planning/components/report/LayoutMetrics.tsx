@@ -1,6 +1,6 @@
 import { Boxes, Gauge, Package, Ruler, Scale, TriangleAlert } from "lucide-react";
 
-import { LOAD_PLANNING_LABELS } from "@/constants";
+import { LOAD_PLANNING_LABELS, LOAD_PLANNING_LIMITS } from "@/constants";
 
 import { formatNumber, formatPercent } from "@/lib/format";
 
@@ -10,9 +10,6 @@ import { MetricsStrip } from "./MetricsStrip";
 
 import type { LayoutSummary } from "../../selectors";
 import type { MetricItem } from "./MetricsStrip";
-
-/** Hiệu suất dưới mức này bị tô cảnh báo (gốc: 50%). */
-const LOW_UTILIZATION = 0.5;
 
 /** Dải số liệu của một kế hoạch/ước lượng: xe, kiện, thể tích, hiệu suất, khối lượng, hàng chưa xếp. */
 export function LayoutMetrics({ summary }: { summary: LayoutSummary }) {
@@ -39,7 +36,7 @@ export function LayoutMetrics({ summary }: { summary: LayoutSummary }) {
       label: labels.utilization,
       value: formatPercent(summary.utilization, 2),
       icon: <Gauge className="size-4" />,
-      tone: summary.utilization < LOW_UTILIZATION ? "warn" : "good",
+      tone: summary.utilization < LOAD_PLANNING_LIMITS.lowUtilizationRatio ? "warn" : "good",
     },
     {
       label: labels.weight,
