@@ -17,6 +17,7 @@ export default {
         "picking",
         "packing",
         "shipping",
+        "load-planning",
         "transfer",
         "move",
         "inventory",
