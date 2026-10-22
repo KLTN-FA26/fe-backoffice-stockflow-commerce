@@ -32,8 +32,9 @@ export function useStartLoadPlan() {
     try {
       plan = await create.mutateAsync({ ...input, requestId });
     } catch (e: unknown) {
-      // CONFLICT: BE đã gắn mã này với kế hoạch khác — bỏ mã đã nhớ để lần thử sau sinh mã mới
-      if (e instanceof ApiError && e.code === "CONFLICT") clearCreatePlanRequestId();
+      // BE từ chối hẳn (4xx: CONFLICT mã đã gắn với kế hoạch khác, LOAD_PLAN_PACKAGE_TAKEN, VALIDATION…) thì chưa tạo gì:
+      // bỏ mã đã nhớ, nếu không lần bấm sau replay đúng yêu cầu vừa bị từ chối. Mất mạng / 5xx giữ mã để replay.
+      if (e instanceof ApiError && e.isClientError) clearCreatePlanRequestId();
       setError(loadPlanErrorMessage(e));
       return;
     }

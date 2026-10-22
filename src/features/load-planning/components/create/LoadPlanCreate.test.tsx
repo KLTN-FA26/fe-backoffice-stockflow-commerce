@@ -222,12 +222,20 @@ describe("LoadPlanCreate — lập kế hoạch rồi tính xếp xe", () => {
   it("BE refusals (BR-09 taken) are shown in Vietnamese and nothing is calculated", async () => {
     const { post } = renderCreate(ACTORS.dispatcher);
     post.mockRejectedValueOnce(new ApiError(409, "LOAD_PLAN_PACKAGE_TAKEN", "A package ..."));
-    await fillAndSubmit();
+    const user = await fillAndSubmit();
     expect(
       await screen.findByText(LOAD_PLAN_ERROR_MESSAGES.LOAD_PLAN_PACKAGE_TAKEN),
     ).toBeInTheDocument();
     expect(post).toHaveBeenCalledTimes(1);
     expect(push).not.toHaveBeenCalled();
+    // The BE refused outright (no plan made): the next try must NOT replay the refused requestId
+    await user.click(screen.getByRole("button", { name: L.submit }));
+    await waitFor(() => expect(push).toHaveBeenCalled());
+    const ids = post.mock.calls
+      .filter(([url]) => url === PATH)
+      .map(([, body]) => (body as { requestId: string }).requestId);
+    expect(ids).toHaveLength(2);
+    expect(ids[0]).not.toBe(ids[1]);
   });
 
   it("when the plan is created but the calculation fails, it still opens the draft", async () => {
