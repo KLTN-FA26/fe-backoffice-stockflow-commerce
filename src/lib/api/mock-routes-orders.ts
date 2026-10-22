@@ -9,6 +9,7 @@
  */
 
 import { paginatePage, registerMockRoute } from "./mock-adapter";
+import { registerDeliveryModeMockRoutes } from "./mock-routes-order-delivery-mode";
 
 import type { AxiosRequestConfig } from "axios";
 import type { Order, OrderLine, OrderStatus } from "@/lib/mock-data";
@@ -112,6 +113,9 @@ const CANCELLATION_REASONS = [
 /** Người Sales của phiên demo — tên hiện ở lịch sử đơn (BE trả `actorName` của người quyết). */
 const MOCK_SALES_ACTOR = { id: "USER-SALE-01", name: "Nhân viên Sales" } as const;
 
+/** Điều phối viên của phiên demo — tên hiện ở lịch sử đơn khi đổi hình thức giao (BE PR #157). */
+const MOCK_COORDINATOR_ACTOR = { id: "USER-COORD-01", name: "Điều phối đơn" } as const;
+
 /** BE `Order#decidePartialShipment`: các trạng thái còn đổi được cách giao. */
 const PARTIAL_SHIPMENT_OPEN_STATUSES: readonly BackendOrderStatus[] = [
   "DRAFT",
@@ -165,6 +169,21 @@ interface MockLifecycle {
   allowPartialShipment?: boolean;
   /** Quyết định giao một phần, cũ nhất trước (BE `order_partial_shipment_decision`). */
   decisions: MockPartialDecision[];
+  /** Hình thức giao (BE PR #157); chưa đặt = PARCEL (mặc định BE). */
+  deliveryMode?: MockDeliveryMode;
+  /** Kho đã release đơn (đơn mock-data đã release có kho riêng `fulfillmentWarehouseId`). */
+  warehouseId?: string;
+  /** Các lần đổi hình thức giao, cũ nhất trước (BE `order_delivery_mode_change`). */
+  deliveryModeChanges: MockDeliveryModeChange[];
+}
+
+export type MockDeliveryMode = "PARCEL" | "FULL_TRUCKLOAD";
+
+export interface MockDeliveryModeChange {
+  mode: MockDeliveryMode;
+  previousMode: MockDeliveryMode;
+  note: string | null;
+  changedAt: string;
 }
 
 interface MockPartialDecision {
@@ -182,13 +201,13 @@ export function resetOrderMockStore(): void {
 function lifecycleOf(orderId: string): MockLifecycle {
   let state = lifecycleStore.get(orderId);
   if (!state) {
-    state = { closedUnits: {}, decisions: [] };
+    state = { closedUnits: {}, decisions: [], deliveryModeChanges: [] };
     lifecycleStore.set(orderId, state);
   }
   return state;
 }
 
-function backendStatus(order: Order): BackendOrderStatus {
+export function backendStatus(order: Order): BackendOrderStatus {
   return lifecycleStore.get(order.orderId)?.status ?? MOCK_TO_BACKEND_STATUS[order.status];
 }
 
@@ -211,7 +230,7 @@ export async function mockOrderAllowsPartialShipment(orderId: string): Promise<b
 }
 
 /** Đơn có dòng in (thiết kế khách chốt) — BE `Order#hasPrintLines`. */
-const hasPrintLines = (order: Order) => order.lines.some((line) => line.designId);
+export const hasPrintLines = (order: Order) => order.lines.some((line) => line.designId);
 
 /**
  * BE `Order#printLinesReady`: hàng in đã về bàn đóng gói — không có dòng in, hoặc không còn trong sản xuất
@@ -236,12 +255,33 @@ function packedOnlyAheadOfPrints(status: BackendOrderStatus, state: MockLifecycl
   return state.packedAt !== undefined && printing && (state.shipments ?? []).length === 0;
 }
 
+/** BE `Order#deliveryModeLocked` (PR #157): các trạng thái còn đổi được hình thức giao, tới khi bắt đầu đóng gói. */
+const DELIVERY_MODE_OPEN_STATUSES: readonly BackendOrderStatus[] = [
+  "DRAFT",
+  "PENDING_PAYMENT",
+  "CONFIRMED",
+  "IN_PRODUCTION",
+  "READY_TO_FULFILL",
+  "PICKING",
+];
+
+/**
+ * Khoá khi đã đóng gói xong (`packedAt`) hoặc trạng thái hiệu lực (trước khi giữ, với ON_HOLD) đã qua đóng gói / huỷ
+ * / đóng; mở với giữ công nợ (không có trạng thái để quay về). Mock không biết kiện đầu tiên đã mở chưa (BE
+ * `packing_started_at`), nên PICKING vẫn mở.
+ */
+export function isDeliveryModeLocked(status: BackendOrderStatus, state: MockLifecycle): boolean {
+  if (state.packedAt !== undefined) return true;
+  const effective = status === "ON_HOLD" ? state.statusBeforeHold : status;
+  return effective !== undefined && !DELIVERY_MODE_OPEN_STATUSES.includes(effective);
+}
+
 /**
  * Dữ liệu seed theo trạng thái mock-data (mock-data không có các field này): đơn "On Hold" giữ vì
  * ADDRESS từ PICKING; đơn "Partially Fulfilled" đã bàn giao một lô (thiếu 2 đơn vị — ghi chú
  * "Pick Short 2" của mock-data); đơn "Delivery Failed" do khách vắng mặt.
  */
-function seedLifecycle(order: Order): MockLifecycle {
+export function seedLifecycle(order: Order): MockLifecycle {
   const state = lifecycleOf(order.orderId);
   if (state.holdReason === undefined && MOCK_TO_BACKEND_STATUS[order.status] === "ON_HOLD") {
     state.holdReason = "ADDRESS";
@@ -340,7 +380,7 @@ const STATUS_FILTER_ALIAS: Readonly<Record<string, readonly string[]>> = {
 };
 
 /** mock-data `Order` → BE `OrderResponse`. Chỉ field có trong hợp đồng BE. */
-function toOrderResponse(order: Order) {
+export function toOrderResponse(order: Order) {
   const address = {
     recipientName: order.recipientName,
     phone: order.recipientPhone,
@@ -430,6 +470,8 @@ function toOrderResponse(order: Order) {
     creditTermDays: null,
     allowPartialShipment: allowsPartialShipment(order),
     printLinesReady: printLinesReady(order, status, state),
+    deliveryMode: state.deliveryMode ?? "PARCEL",
+    deliveryModeLocked: isDeliveryModeLocked(status, state),
     shipments: shipments.length
       ? shipments.map((shipment) => ({
           shipmentId: shipment.shipmentId,
@@ -627,6 +669,17 @@ export function registerOrderMockRoutes(): void {
         actorName: MOCK_SALES_ACTOR.name,
         partialShipmentAllowed: decision.allowed,
       })),
+      ...state.deliveryModeChanges.map((change) => ({
+        type: "DELIVERY_MODE_CHANGE",
+        from: null,
+        to: null,
+        reason: change.note,
+        occurredAt: change.changedAt,
+        actorId: MOCK_COORDINATOR_ACTOR.id,
+        actorName: MOCK_COORDINATOR_ACTOR.name,
+        deliveryMode: change.mode,
+        previousDeliveryMode: change.previousMode,
+      })),
     ]);
   });
 
@@ -663,6 +716,7 @@ export function registerOrderMockRoutes(): void {
   });
 
   registerLifecycleRoutes();
+  registerDeliveryModeMockRoutes();
 }
 
 /* ── Giữ / gỡ giữ / giao thất bại / đóng phần còn lại (BE PR #133) ───── */

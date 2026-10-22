@@ -186,6 +186,26 @@ describe("Fulfillment / order grants (BE PR #148, V20261022000200)", () => {
       expect(grants(userId)).not.toContain("fulfillment-vehicle-types:READ");
   });
 
+  it("hình thức giao + ước tính xếp xe (BE PR #157 / #160): điều phối đơn và quản lý kho; Sales và nhân viên kho không", () => {
+    // sales-order-delivery-modes:UPDATE — seed ORDER_COORDINATOR + SYSTEM_ADMIN (không phải SALES_STAFF)
+    for (const userId of ["USER-COORD-01", "USER-ADMIN-01"])
+      expect(grants(userId)).toContain("sales-order-delivery-modes:UPDATE");
+    for (const userId of ["USER-SALE-01", "USER-WH-01", "USER-ACC-01"])
+      expect(grants(userId)).not.toContain("sales-order-delivery-modes:UPDATE");
+    // fulfillment-load-estimates CREATE + READ — ORDER_COORDINATOR, WAREHOUSE_MANAGER, SYSTEM_ADMIN
+    for (const userId of ["USER-COORD-01", "USER-ADMIN-01"])
+      expect(grants(userId)).toEqual(
+        expect.arrayContaining([
+          "fulfillment-load-estimates:CREATE",
+          "fulfillment-load-estimates:READ",
+        ]),
+      );
+    for (const userId of ["USER-WH-01", "USER-SALE-01", "USER-QC-01", "USER-PLAN-01"]) {
+      expect(grants(userId)).not.toContain("fulfillment-load-estimates:CREATE");
+      expect(grants(userId)).not.toContain("fulfillment-load-estimates:READ");
+    }
+  });
+
   it("không còn mã quyền cũ không bảo vệ endpoint nào trong bộ quyền demo", () => {
     for (const userId of ["USER-ADMIN-01", "USER-WH-01", "USER-COORD-01", "USER-QC-01"]) {
       const codes = grants(userId);

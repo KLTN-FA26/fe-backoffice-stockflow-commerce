@@ -22,6 +22,12 @@ import {
   type RemainderClosureInput,
   type ResolveOrderHoldInput,
 } from "./api";
+import {
+  changeDeliveryMode,
+  releaseOrder,
+  type ChangeDeliveryModeInput,
+  type ReleaseOrderInput,
+} from "./delivery-mode-api";
 import { decidePartialShipment, type PartialShipmentInput } from "./partial-shipment-api";
 import { orderKeys } from "./queries";
 
@@ -97,6 +103,27 @@ export const useDecidePartialShipment = createMutation<PartialShipmentInput, voi
       [SHARED_QUERY_ROOTS.fulfillmentTasks],
       [SHARED_QUERY_ROOTS.fulfillmentLoads],
     ],
+    showErrorToast: false,
+  },
+);
+
+/* ── Release đơn + hình thức giao (BE PR #157) ───────────────────────── */
+
+/**
+ * Release đưa đơn CONFIRMED sang IN_PRODUCTION / READY_TO_FULFILL: đổi đơn (+ lịch sử, nếu đổi hình thức giao) và
+ * làm đơn thành ứng viên của kho (task xuất kho). Không có `successMessage` / toast lỗi của factory: toast thành công do
+ * call site phát (như giao một phần), còn dialog map lỗi (409 FTL_NO_COD…) tại chỗ.
+ */
+export const useReleaseOrder = createMutation<ReleaseOrderInput, void>(releaseOrder, {
+  invalidate: [orderKeys.all, [SHARED_QUERY_ROOTS.fulfillmentTasks]],
+  showErrorToast: false,
+});
+
+/** Đổi hình thức giao: đổi `deliveryMode` của đơn và thêm mục `DELIVERY_MODE_CHANGE` vào lịch sử (cùng root). */
+export const useChangeDeliveryMode = createMutation<ChangeDeliveryModeInput, void>(
+  changeDeliveryMode,
+  {
+    invalidate: [orderKeys.all],
     showErrorToast: false,
   },
 );

@@ -22,6 +22,7 @@ import {
   INVENTORY_ITEM_PERMISSIONS,
   INVENTORY_OVERVIEW_PERMISSIONS,
   INVENTORY_PERMISSIONS,
+  LOAD_ESTIMATE_PERMISSIONS,
   ORDER_PERMISSIONS,
   PO_PERMISSIONS,
   PRODUCT_PERMISSIONS,
@@ -73,6 +74,9 @@ const OUTCOME = FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS;
 const VT = VEHICLE_TYPE_PERMISSIONS;
 const VEHICLE_TYPE_READ = [VT.viewPage, VT.read];
 const VEHICLE_TYPE_ALL = Object.values(VT);
+// Seed BE V20261022001200 (BE PR #160): fulfillment-load-estimates CREATE + READ cho ORDER_COORDINATOR /
+// WAREHOUSE_MANAGER / SYSTEM_ADMIN (không có dispatcher; WAREHOUSE_STAFF không có).
+const LOAD_ESTIMATE = Object.values(LOAD_ESTIMATE_PERMISSIONS);
 // WAREHOUSE_STAFF: lấy hàng + đóng gói (READ/UPDATE) + xếp xe / bàn giao.
 const FLOOR_WORK = [...PICKING, ...PACKING_WORK, ...DISPATCH];
 // WAREHOUSE_MANAGER: toàn bộ nhóm kho + gán / giám sát task, kiểm tra lại thiết kế, hãng, huỷ chuyến,
@@ -87,10 +91,17 @@ const MANAGER_WORK = [
   ...CARRIER,
   ...LOAD_CANCEL,
   ...VEHICLE_TYPE_ALL,
+  ...LOAD_ESTIMATE,
   OUTCOME.update,
 ];
 // ORDER_COORDINATOR: gán / giám sát task + ghi nhận kết quả giao (đã giao / thất bại cần APPROVE).
-const COORDINATOR_WORK = [...TA, ...OVERSIGHT, ...Object.values(OUTCOME), ...VEHICLE_TYPE_READ];
+const COORDINATOR_WORK = [
+  ...TA,
+  ...OVERSIGHT,
+  ...Object.values(OUTCOME),
+  ...VEHICLE_TYPE_READ,
+  ...LOAD_ESTIMATE,
+];
 const INV = INVENTORY_PERMISSIONS;
 // Seed BE V20260928006000: ECOMMERCE_ADMIN có product-attributes và product-variants đủ quyền (admin mock
 // là System Admin: toàn quyền như mọi nhóm khác ở đây).

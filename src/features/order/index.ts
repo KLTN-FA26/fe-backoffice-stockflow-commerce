@@ -49,6 +49,9 @@ export type { OrderErrorView } from "./errors";
 // Mutation hooks
 export { useAdminCancelOrder } from "./mutations";
 
+// Khe "Ước tính xếp xe" (SCRUM-287 F3): chỗ ghép truyền vào, feature không import chéo
+export type { OrderEstimateSlot, OrderEstimateSlotProps } from "./estimate-slot";
+
 // API (for direct use in non-hook contexts)
 export type { AdminCancelOrderInput, ListOrderParams } from "./api";
 

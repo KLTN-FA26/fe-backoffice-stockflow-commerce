@@ -5,6 +5,7 @@ import { allowedOrderActions, isOrderTerminal } from "../lifecycle";
 
 import { OrderCancelAction } from "./OrderCancelAction";
 import { OrderHoldNotice } from "./OrderHoldNotice";
+import { OrderReleaseAction } from "./OrderReleaseAction";
 import { OrderRemainderClosureAction } from "./OrderRemainderClosureAction";
 import {
   OrderDeliveryFailureAction,
@@ -13,6 +14,7 @@ import {
 } from "./OrderStatusActions";
 
 import type { PermissionCode } from "@/lib/auth";
+import type { OrderEstimateSlot } from "../estimate-slot";
 import type { Order } from "../types";
 
 interface OrderActionCardProps {
@@ -27,8 +29,12 @@ interface OrderActionCardProps {
     | "statusBeforeHold"
     | "shipments"
     | "packedAt"
+    | "deliveryMode"
+    | "balancePolicy"
   >;
   can: (code: PermissionCode) => boolean;
+  /** Khe "Ước tính xếp xe" trong hộp thoại release (xem `estimate-slot.ts`). */
+  estimateSlot?: OrderEstimateSlot;
 }
 
 /** Vì sao không có nút thao tác — để người dùng không tưởng là lỗi. */
@@ -71,7 +77,7 @@ function holdGuidanceFor(
  * Gate theo trạng thái + mã quyền + ngữ cảnh đơn qua `allowedOrderActions` — Backend phải re-check
  * (bảng chuyển trạng thái BE PR #133).
  */
-export function OrderActionCard({ order, can }: OrderActionCardProps) {
+export function OrderActionCard({ order, can, estimateSlot }: OrderActionCardProps) {
   const actions = allowedOrderActions(order.status, can, {
     holdReason: order.holdReason,
     hasShipments: order.shipments.length > 0,
@@ -99,6 +105,9 @@ export function OrderActionCard({ order, can }: OrderActionCardProps) {
       {onHold && <OrderHoldNotice order={order} />}
       {actions.length > 0 ? (
         <div className="space-y-2">
+          {has("release") && (
+            <OrderReleaseAction order={order} can={can} estimateSlot={estimateSlot} />
+          )}
           {has("hold") && <OrderHoldAction order={order} />}
           {has("resolve-hold") && <OrderResolveHoldAction order={order} />}
           {has("delivery-failure") && <OrderDeliveryFailureAction order={order} />}

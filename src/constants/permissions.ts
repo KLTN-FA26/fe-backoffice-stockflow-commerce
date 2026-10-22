@@ -51,6 +51,10 @@ export const ORDER_PERMISSIONS = {
   // Cho phép / dừng giao một phần của đơn (`PUT /orders/{id}/partial-shipment`, BE PR #150) — resource
   // `sales-order-partial-shipments` (UPDATE, scope ALL; seed: SALES_STAFF + SYSTEM_ADMIN)
   partialShipment: "sales-order-partial-shipments:UPDATE",
+  // Chọn / đổi hình thức giao của đơn (`POST /orders/{id}/release` với `deliveryMode` khác của đơn và
+  // `PUT /orders/{id}/delivery-mode`, BE PR #157, LP-1) — resource `sales-order-delivery-modes` (UPDATE,
+  // scope ALL; seed: ORDER_COORDINATOR + SYSTEM_ADMIN). Đọc hình thức giao đi kèm `sales-orders:READ`.
+  deliveryModes: "sales-order-delivery-modes:UPDATE",
 } as const;
 
 /**
@@ -145,6 +149,17 @@ export const VEHICLE_TYPE_PERMISSIONS = {
   viewPage: "fulfillment-vehicle-types:VIEW_PAGE",
   read: "fulfillment-vehicle-types:READ",
   update: "fulfillment-vehicle-types:UPDATE",
+} as const;
+
+/**
+ * Ước tính xếp xe trước đóng gói (SCRUM-287 PR EST, BE PR #160 `LoadEstimateController`) — resource
+ * `fulfillment-load-estimates`. CREATE: tính ước tính (`POST /fulfillment/load-estimates`); READ: xem ước
+ * tính hiện hành (`GET`). Seed: ORDER_COORDINATOR, WAREHOUSE_MANAGER, SYSTEM_ADMIN. Không có VIEW_PAGE:
+ * ước tính mở từ chi tiết đơn, không có trang riêng.
+ */
+export const LOAD_ESTIMATE_PERMISSIONS = {
+  create: "fulfillment-load-estimates:CREATE",
+  read: "fulfillment-load-estimates:READ",
 } as const;
 
 /**

@@ -16,16 +16,15 @@ import {
   ORDER_SHIPMENT_STATUSES,
 } from "@/constants/labels-order";
 
+import { orderDeliveryModeDtoSchema } from "./delivery-mode-schemas";
+
 /**
  * BE `OrderResponse.currency` — mã ISO 4217 bất kỳ (không chỉ VND/USD). Chỉ kiểm định dạng
  * để một mã lạ không làm hỏng cả trang danh sách; hiển thị qua `formatMoney`.
  */
 export const currencyCode = z.string().regex(/^[A-Z]{3}$/, "Mã tiền tệ không hợp lệ");
 
-/**
- * BE `order/api/OrderStatus.java` — 19 giá trị (BE PR #133: bỏ IN_FULFILMENT / PAID, thêm PICKING, PACKED,
- * PARTIALLY_FULFILLED, DELIVERY_FAILED, RETURN_REQUESTED, REFUNDED, PARTIALLY_REFUNDED, CLOSED…). Giá trị lạ → "UNKNOWN".
- */
+/** BE `order/api/OrderStatus.java` — 19 giá trị (BE PR #133: bỏ IN_FULFILMENT / PAID…). Giá trị lạ → "UNKNOWN". */
 export const BACKEND_ORDER_STATUSES = [
   "DRAFT",
   "PENDING_PAYMENT",
@@ -69,11 +68,7 @@ export const orderBalancePolicyDtoSchema = z
 /** BE `OrderShipmentStatus` — tolerant. */
 export const orderShipmentStatusDtoSchema = z.enum(ORDER_SHIPMENT_STATUSES).catch("UNKNOWN");
 
-/**
- * Field có thể null dùng `.nullish()` (cho phép vắng key): BE bật Jackson
- * `default-property-inclusion: non_null` (application.yml) nên field null bị BỎ HẲN khỏi JSON
- * (vd đơn guest không có key `customerId`). Chỉ cho null mà bắt buộc có key → parse fail.
- */
+/** Field có thể null dùng `.nullish()`: BE Jackson `non_null` BỎ HẲN key null (vd đơn guest không có `customerId`). */
 
 /** BE `OrderResponse.Address` — mọi field có thể vắng (đơn guest/địa chỉ thiếu). */
 export const orderAddressDtoSchema = z.object({
@@ -186,6 +181,10 @@ export const orderDtoSchema = z.object({
    * hoặc đã giao hàng có sẵn trước khi sản xuất xong (PACK-EARLY); vắng trên dòng danh sách.
    */
   printLinesReady: z.boolean().nullish(),
+  /** Hình thức giao (BE PR #157, LP-1); vắng trên dòng không mang field này. */
+  deliveryMode: orderDeliveryModeDtoSchema.nullish(),
+  /** true khi không còn đổi được (đã đóng gói / qua đóng gói / huỷ / đóng); vắng = không biết. */
+  deliveryModeLocked: z.boolean().nullish(),
 });
 
 /** BE `PageResponse<OrderResponse>` — trang đánh số từ 0. */

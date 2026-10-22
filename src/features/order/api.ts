@@ -84,6 +84,8 @@ export function toOrder(dto: OrderDto): Order {
     creditTermDays: dto.creditTermDays ?? null,
     allowPartialShipment: dto.allowPartialShipment ?? null,
     printLinesReady: dto.printLinesReady ?? null,
+    deliveryMode: dto.deliveryMode ?? null,
+    deliveryModeLocked: dto.deliveryModeLocked ?? null,
   };
 }
 
