@@ -61,6 +61,9 @@ export const ORDER_RELEASE_LABELS = {
   warehousePlaceholder: "Chọn kho",
   warehousesLoading: "Đang tải danh sách kho…",
   warehousesFailed: "Không tải được danh sách kho.",
+  /** 403: seed BE chưa cấp `warehouse-warehouses:READ` cho ORDER_COORDINATOR — nói rõ mã quyền thay vì "không tải được". */
+  warehousesForbidden:
+    "Bạn chưa có quyền xem danh sách kho (warehouse-warehouses:READ) — nhờ quản trị cấp quyền",
   warehouseRequired: "Chọn kho xuất hàng",
   submit: "Release đơn",
   success: "Đã release đơn cho kho",

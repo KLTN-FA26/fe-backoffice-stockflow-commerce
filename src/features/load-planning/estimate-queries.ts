@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 
+import { SHARED_QUERY_ROOTS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { QUERY_TIMES } from "@/lib/api/query-client";
 import { createMutation } from "@/lib/api/query-factory";
@@ -18,10 +19,10 @@ export const loadEstimateKeys = {
   all: ["fulfillment-load-estimates"] as const,
   current: (orderId: string) => [...loadEstimateKeys.all, "current", orderId] as const,
   /**
-   * Ô chọn loại xe dùng chung root `fulfillment-vehicle-types` với danh mục loại xe (feature `vehicle-type`, không
+   * Ô chọn loại xe dùng chung root `SHARED_QUERY_ROOTS.vehicleTypes` với danh mục loại xe (feature `vehicle-type`, không
    * import chéo): thêm / sửa / ngừng dùng một loại xe làm mới luôn ô chọn này.
    */
-  vehicleTypes: () => ["fulfillment-vehicle-types", "estimate-options"] as const,
+  vehicleTypes: () => [SHARED_QUERY_ROOTS.vehicleTypes, "estimate-options"] as const,
 };
 
 /** Chỉ retry lỗi tạm thời (mạng / 5xx), tối đa 2 lần — 4xx (kể cả 403 thiếu quyền) lặp lại y hệt. */

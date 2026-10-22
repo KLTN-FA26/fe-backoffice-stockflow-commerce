@@ -15,7 +15,7 @@ import type { DeliveryModeValues } from "../input-schemas";
 import type { Order, OrderDeliveryMode } from "../types";
 
 interface OrderDeliveryModeDialogProps {
-  order: Pick<Order, "orderNumber" | "balancePolicy">;
+  order: Pick<Order, "orderNumber" | "paymentTerm" | "balancePolicy">;
   /** Hình thức hiện tại của đơn — chọn lại đúng nó thì không có gì để đổi. */
   current: OrderDeliveryMode;
   isPending: boolean;

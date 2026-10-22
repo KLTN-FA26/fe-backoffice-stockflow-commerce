@@ -8,8 +8,8 @@
  * - PUT /orders/:id/delivery-mode {deliveryMode, note?≤500} — cần `:UPDATE`; 409 DELIVERY_MODE_LOCKED khi đã khoá,
  *   409 DELIVERY_MODE_FTL_NO_COD; đặt lại đúng hình thức hiện tại thì không ghi lịch sử.
  *
- * mock-data không có cách thu COD ở cấp đơn hàng cọc, nên mock coi đơn có `paymentMethodType === "COD"` là đơn thu
- * tiền khi giao (để màn chạm được lỗi FTL_NO_COD). Trạng thái nằm chung `lifecycleStore` của `mock-routes-orders`.
+ * "COD" theo luật BE `ck_order_ftl_no_cod`: đơn CỌC có cách thu phần còn lại ON_DELIVERY (`isCodDeposit`), KHÔNG phải
+ * phương thức thanh toán "COD" của mock-data. Trạng thái nằm chung `lifecycleStore` của `mock-routes-orders`.
  */
 
 import { ORDER_DELIVERY_MODES, ORDER_PERMISSIONS } from "@/constants";
@@ -19,6 +19,7 @@ import { fail, ok } from "./mock-route-utils";
 import {
   backendStatus,
   hasPrintLines,
+  isCodDeposit,
   isDeliveryModeLocked,
   seedLifecycle,
   setMockOrderStatus,
@@ -52,7 +53,7 @@ async function canChangeMode(): Promise<boolean> {
 
 /** LP-2: giao nguyên xe không đi cùng thu tiền khi giao. */
 const ftlCollidesWithCod = (order: Order, mode: MockDeliveryMode) =>
-  mode === "FULL_TRUCKLOAD" && order.paymentMethodType === "COD";
+  mode === "FULL_TRUCKLOAD" && isCodDeposit(order);
 
 const ftlNoCod = (order: Order) =>
   fail(

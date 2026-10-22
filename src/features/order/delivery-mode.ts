@@ -36,12 +36,17 @@ export function deliveryModeControl(
 }
 
 /**
- * LP-2 (BE `ck_order_ftl_no_cod`): giao nguyên xe không đi cùng thu tiền khi giao. Đơn cọc có cách thu phần còn
- * lại ON_DELIVERY mà chọn FTL → BE 409 DELIVERY_MODE_FTL_NO_COD. FE báo trước; BE vẫn là bên quyết.
+ * LP-2 (BE `ck_order_ftl_no_cod`): giao nguyên xe không đi cùng thu tiền khi giao. "COD" ở đây là đơn CỌC (DEPOSIT)
+ * có cách thu phần còn lại ON_DELIVERY — không phải phương thức thanh toán COD. Chọn FTL cho đơn đó → BE 409
+ * DELIVERY_MODE_FTL_NO_COD. FE báo trước theo cùng luật; BE vẫn là bên quyết.
  */
 export function ftlConflictsWithCod(
-  order: Pick<Order, "balancePolicy">,
+  order: Pick<Order, "paymentTerm" | "balancePolicy">,
   mode: OrderDeliveryMode,
 ): boolean {
-  return mode === "FULL_TRUCKLOAD" && order.balancePolicy === "ON_DELIVERY";
+  return (
+    mode === "FULL_TRUCKLOAD" &&
+    order.paymentTerm === "DEPOSIT" &&
+    order.balancePolicy === "ON_DELIVERY"
+  );
 }

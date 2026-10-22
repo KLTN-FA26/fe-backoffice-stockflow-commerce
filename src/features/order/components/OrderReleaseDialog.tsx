@@ -3,6 +3,7 @@
 import { useId, useState } from "react";
 
 import { ORDER_DELIVERY_MODE_UI, ORDER_RELEASE_LABELS } from "@/constants";
+import { ApiError } from "@/lib/api/error";
 import { useWarehouseOptions } from "@/lib/references/warehouse-options";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { Label } from "@/components/ui/label";
@@ -24,7 +25,7 @@ import type { OrderEstimateSlot } from "../estimate-slot";
 import type { Order, OrderDeliveryMode } from "../types";
 
 interface OrderReleaseDialogProps {
-  order: Pick<Order, "orderId" | "orderNumber" | "deliveryMode" | "balancePolicy">;
+  order: Pick<Order, "orderId" | "orderNumber" | "deliveryMode" | "paymentTerm" | "balancePolicy">;
   /** Có mã quyền `sales-order-delivery-modes:UPDATE` — không có thì hình thức giao chỉ đọc. */
   canChangeMode: boolean;
   /** Khe "Ước tính xếp xe": nhận kho đang chọn (đơn CONFIRMED chưa có kho). */
@@ -52,6 +53,9 @@ export function OrderReleaseDialog({
   const L = ORDER_RELEASE_LABELS;
   const warehouseFieldId = useId();
   const warehouses = useWarehouseOptions();
+  // UI-only — Backend phải re-check; chỉ rẽ nhánh lời báo, hộp thoại vẫn dùng được (huỷ, xem ước tính…)
+  const warehousesForbidden =
+    warehouses.error instanceof ApiError && warehouses.error.status === 403;
   const [warehouseId, setWarehouseId] = useState("");
   const current: OrderDeliveryMode =
     order.deliveryMode === "FULL_TRUCKLOAD" ? "FULL_TRUCKLOAD" : "PARCEL";
@@ -101,7 +105,7 @@ export function OrderReleaseDialog({
           )}
           {warehouses.isError && (
             <p role="alert" className="text-danger mt-1 text-xs">
-              {L.warehousesFailed}
+              {warehousesForbidden ? L.warehousesForbidden : L.warehousesFailed}
             </p>
           )}
         </div>

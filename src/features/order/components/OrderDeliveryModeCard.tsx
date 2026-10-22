@@ -20,7 +20,13 @@ import type { Order } from "../types";
 interface OrderDeliveryModeCardProps {
   order: Pick<
     Order,
-    "orderId" | "orderNumber" | "status" | "deliveryMode" | "deliveryModeLocked" | "balancePolicy"
+    | "orderId"
+    | "orderNumber"
+    | "status"
+    | "deliveryMode"
+    | "deliveryModeLocked"
+    | "paymentTerm"
+    | "balancePolicy"
   >;
   can: (code: PermissionCode) => boolean;
   /** Khe "Ước tính xếp xe" cho đơn đã release (xem `estimate-slot.ts`). */

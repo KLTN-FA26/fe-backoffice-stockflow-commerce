@@ -196,6 +196,48 @@ describe("Release đơn — lỗi", () => {
   });
 });
 
+describe("Release đơn — danh sách kho lỗi", () => {
+  async function renderWithWarehouses(error: ApiError) {
+    mockOrderApiGet(ORDER_PERMISSION_SETS.coordinatorWithModes, {
+      [DETAIL_PATH]: () =>
+        apiOrderDelivery("CONFIRMED", { deliveryMode: "PARCEL", deliveryModeLocked: false }),
+      [HISTORY_PATH]: () => [],
+      "/warehouses": () => {
+        throw error;
+      },
+    });
+    await renderDetailScreen(() => <span>khe ước tính</span>);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Release đơn" }));
+    return { user, dialog: await screen.findByRole("dialog") };
+  }
+
+  it("403 (điều phối chưa có warehouse-warehouses:READ) → câu thiếu quyền rõ ràng thay vì 'Không tải được'; hộp thoại vẫn dùng được", async () => {
+    const { user, dialog } = await renderWithWarehouses(
+      new ApiError(403, "FORBIDDEN", "Forbidden"),
+    );
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "Bạn chưa có quyền xem danh sách kho (warehouse-warehouses:READ) — nhờ quản trị cấp quyền",
+    );
+    expect(within(dialog).queryByText("Không tải được danh sách kho.")).not.toBeInTheDocument();
+    // vẫn dùng được: đổi hình thức giao, khe ước tính; chưa có kho nên chưa release được; huỷ đóng được
+    expect(within(dialog).getByText("khe ước tính")).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("radio", { name: /Nguyên xe \(FTL\)/ }));
+    expect(within(dialog).getByRole("radio", { name: /Nguyên xe \(FTL\)/ })).toBeChecked();
+    expect(within(dialog).getByRole("button", { name: "Release đơn" })).toBeDisabled();
+    await user.click(within(dialog).getByRole("button", { name: "Huỷ" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("lỗi khác (5xx) → vẫn là câu 'Không tải được danh sách kho.'", async () => {
+    const { dialog } = await renderWithWarehouses(new ApiError(500, "HTTP_500", "x"));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "Không tải được danh sách kho.",
+    );
+    expect(within(dialog).queryByText(/warehouse-warehouses:READ/)).not.toBeInTheDocument();
+  });
+});
+
 describe("Release đơn — khe 'Ước tính xếp xe'", () => {
   it("nhận kho đang chọn (null khi chưa chọn) và released = false cho đơn CONFIRMED", async () => {
     const slot = vi.fn<OrderEstimateSlot>(() => <span>khe ước tính</span>);

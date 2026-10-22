@@ -30,6 +30,7 @@ interface OrderActionCardProps {
     | "shipments"
     | "packedAt"
     | "deliveryMode"
+    | "paymentTerm"
     | "balancePolicy"
   >;
   can: (code: PermissionCode) => boolean;

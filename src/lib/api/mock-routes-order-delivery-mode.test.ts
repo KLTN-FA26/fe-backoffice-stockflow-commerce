@@ -15,7 +15,11 @@ import { useAuthStore } from "@/lib/auth/auth-store";
 import { orders } from "@/lib/mock-data";
 
 import { activateMockAdapter } from "./mock-adapter";
-import { resetOrderMockStore, setMockOrderStatus } from "./mock-routes-orders";
+import {
+  resetOrderMockStore,
+  setMockOrderBalancePolicy,
+  setMockOrderStatus,
+} from "./mock-routes-orders";
 
 const originalAdapter = api.defaults.adapter;
 
@@ -69,9 +73,14 @@ afterAll(() => {
 
 const WH = "WH-HN-01";
 
-/** Đơn thu COD chưa đóng gói (mock-data: ORD-2026-0011, đang In Production) — mở khoá hình thức giao. */
+/**
+ * Đơn CỌC thu phần còn lại khi giao (luật BE `ck_order_ftl_no_cod`): mock-data không có đơn cọc, nên đặt cách thu
+ * ON_DELIVERY cho một đơn In Production chưa đóng gói (mở khoá hình thức giao).
+ */
 function codOrder() {
-  return firstOrderWith("In Production", "COD");
+  const order = firstOrderWith("In Production");
+  setMockOrderBalancePolicy(order.orderId, "ON_DELIVERY");
+  return order;
 }
 
 describe("OrderResponse.deliveryMode / deliveryModeLocked", () => {
@@ -112,7 +121,7 @@ describe("POST /orders/:id/release", () => {
     expect((await getOrder(order.orderId)).status).toBe("Confirmed");
   });
 
-  it("FTL với đơn thu COD → 409 DELIVERY_MODE_FTL_NO_COD và đơn vẫn Confirmed (không release gì)", async () => {
+  it("FTL với đơn cọc thu khi giao → 409 DELIVERY_MODE_FTL_NO_COD và đơn vẫn Confirmed (không release gì)", async () => {
     const order = codOrder();
     setMockOrderStatus(order.orderId, "CONFIRMED");
     const error = await captureError(
@@ -174,7 +183,7 @@ describe("PUT /orders/:id/delivery-mode", () => {
     expect((await getOrder(order.orderId)).deliveryModeLocked).toBe(true);
   });
 
-  it("FTL với đơn COD → 409 FTL_NO_COD; thiếu quyền → 403; ghi chú > 500 → 400", async () => {
+  it("FTL với đơn cọc thu khi giao → 409 FTL_NO_COD; thiếu quyền → 403; ghi chú > 500 → 400", async () => {
     const cod = codOrder();
     expect(
       (
@@ -203,5 +212,37 @@ describe("PUT /orders/:id/delivery-mode", () => {
         )
       ).status,
     ).toBe(403);
+  });
+});
+
+describe("luật FTL + COD của BE: chỉ đơn CỌC có cách thu ON_DELIVERY", () => {
+  it("phương thức thanh toán 'COD' của mock-data KHÔNG chặn FTL (đó là cách khách trả, không phải cách thu phần còn lại)", async () => {
+    const order = firstOrderWith("In Production", "COD");
+    await changeDeliveryMode({ id: order.orderId, deliveryMode: "FULL_TRUCKLOAD", note: "" });
+    expect((await getOrder(order.orderId)).deliveryMode).toBe("FULL_TRUCKLOAD");
+  });
+
+  it("đơn cọc thu trước khi giao / ghi công nợ → FTL được; chỉ ON_DELIVERY bị 409; OrderResponse phản ánh đơn cọc", async () => {
+    const order = firstOrderWith("In Production");
+    for (const policy of ["BEFORE_DELIVERY", "ON_CREDIT"] as const) {
+      setMockOrderBalancePolicy(order.orderId, policy);
+      const view = await getOrder(order.orderId);
+      expect(view).toMatchObject({ paymentTerm: "DEPOSIT", balancePolicy: policy });
+      await changeDeliveryMode({ id: order.orderId, deliveryMode: "FULL_TRUCKLOAD", note: "" });
+      await changeDeliveryMode({ id: order.orderId, deliveryMode: "PARCEL", note: "" });
+    }
+    setMockOrderBalancePolicy(order.orderId, "ON_DELIVERY");
+    expect(
+      (
+        await captureError(
+          changeDeliveryMode({ id: order.orderId, deliveryMode: "FULL_TRUCKLOAD", note: "" }),
+        )
+      ).code,
+    ).toBe("DELIVERY_MODE_FTL_NO_COD");
+  });
+
+  it("đơn trả trước (không phải đơn cọc) không có cách thu phần còn lại", async () => {
+    const view = await getOrder(firstOrderWith("Confirmed", "Credit Card").orderId);
+    expect(view).toMatchObject({ paymentTerm: "PREPAID", balancePolicy: null });
   });
 });

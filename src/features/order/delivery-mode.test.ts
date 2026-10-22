@@ -19,6 +19,7 @@ import { orderDtoSchema } from "./schemas";
 import { apiOrder } from "./__fixtures__/order";
 
 import type { PermissionCode } from "@/lib/auth";
+import type { Order } from "./types";
 
 const canOf =
   (...codes: PermissionCode[]) =>
@@ -90,12 +91,28 @@ describe("deliveryModeControl — cổng quyền theo mã sales-order-delivery-m
 });
 
 describe("LP-2 — FTL không đi cùng thu tiền khi giao (COD)", () => {
-  it("chỉ FTL + cách thu phần còn lại ON_DELIVERY mới xung đột", () => {
-    expect(ftlConflictsWithCod({ balancePolicy: "ON_DELIVERY" }, "FULL_TRUCKLOAD")).toBe(true);
-    expect(ftlConflictsWithCod({ balancePolicy: "ON_DELIVERY" }, "PARCEL")).toBe(false);
-    expect(ftlConflictsWithCod({ balancePolicy: "BEFORE_DELIVERY" }, "FULL_TRUCKLOAD")).toBe(false);
-    expect(ftlConflictsWithCod({ balancePolicy: "ON_CREDIT" }, "FULL_TRUCKLOAD")).toBe(false);
-    expect(ftlConflictsWithCod({ balancePolicy: null }, "FULL_TRUCKLOAD")).toBe(false);
+  it("chỉ FTL + đơn CỌC có cách thu phần còn lại ON_DELIVERY mới xung đột (luật của BE ck_order_ftl_no_cod)", () => {
+    const deposit = (balancePolicy: Order["balancePolicy"]) => ({
+      paymentTerm: "DEPOSIT",
+      balancePolicy,
+    });
+    expect(ftlConflictsWithCod(deposit("ON_DELIVERY"), "FULL_TRUCKLOAD")).toBe(true);
+    expect(ftlConflictsWithCod(deposit("ON_DELIVERY"), "PARCEL")).toBe(false);
+    expect(ftlConflictsWithCod(deposit("BEFORE_DELIVERY"), "FULL_TRUCKLOAD")).toBe(false);
+    expect(ftlConflictsWithCod(deposit("ON_CREDIT"), "FULL_TRUCKLOAD")).toBe(false);
+    expect(ftlConflictsWithCod(deposit(null), "FULL_TRUCKLOAD")).toBe(false);
+  });
+
+  it("không phải đơn cọc thì không xung đột, dù cách thu ghi ON_DELIVERY hay phương thức thanh toán là COD", () => {
+    expect(
+      ftlConflictsWithCod(
+        { paymentTerm: "PREPAID", balancePolicy: "ON_DELIVERY" },
+        "FULL_TRUCKLOAD",
+      ),
+    ).toBe(false);
+    expect(ftlConflictsWithCod({ paymentTerm: null, balancePolicy: null }, "FULL_TRUCKLOAD")).toBe(
+      false,
+    );
   });
 
   it("câu báo đúng lời yêu cầu: Sale đổi cách thu trước", () => {

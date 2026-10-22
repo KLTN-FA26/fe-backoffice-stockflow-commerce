@@ -16,6 +16,11 @@ export const SHARED_QUERY_ROOTS = {
    * (Sales cho phép / dừng giao một phần) đổi việc kho được phép làm, nên Order invalidate qua root này.
    */
   fulfillmentTasks: "fulfillment-tasks",
+  /**
+   * Danh mục loại xe (`GET /fulfillment/vehicle-types`) — feature `vehicle-type` sở hữu, còn ô chọn loại xe của ước tính xếp xe
+   * (`load-planning`, không import chéo) build key dưới đúng root này nên thêm / sửa / ngừng dùng loại xe làm mới cả hai.
+   */
+  vehicleTypes: "fulfillment-vehicle-types",
   /** Chuyến xe giao hãng vận chuyển — thêm lô vào chuyến / bàn giao phụ thuộc cờ giao một phần của đơn. */
   fulfillmentLoads: "fulfillment-loads",
 } as const;
