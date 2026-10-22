@@ -110,7 +110,7 @@ function Form({
       onSubmit={() => void submit()}
       onCancel={onClose}
     >
-      <VehicleTypeFields form={form} editing={Boolean(vehicleType)} />
+      <VehicleTypeFields form={form} editing={Boolean(vehicleType)} preset={vehicleType?.preset} />
     </FormDialogBody>
   );
 }

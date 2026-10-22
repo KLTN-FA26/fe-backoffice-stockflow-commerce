@@ -16,6 +16,7 @@ import { beVehicleTypePageSchema, beVehicleTypeSchema } from "./schemas";
 
 import type { AxiosRequestConfig } from "axios";
 import type { PermissionCode } from "@/lib/auth";
+import type { VehicleType } from "./types";
 
 registerVehicleTypeMockRoutes();
 
@@ -68,6 +69,11 @@ const body = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
+/** Body PUT đủ trường của một dòng (loại xe mặc định giữ kind, nên gửi đúng kind của nó). */
+function presetBody(row: VehicleType | undefined, overrides: Record<string, unknown> = {}) {
+  return { ...row, rentalPrice: undefined, ...overrides };
+}
+
 async function list(params?: unknown) {
   return beVehicleTypePageSchema.parse((await call("GET", PATH, undefined, params)).data);
 }
@@ -101,11 +107,19 @@ describe("mock danh mục loại xe — 10 loại mặc định theo migration B
       innerLengthMm: 5898,
       innerWidthMm: 2352,
       innerHeightMm: 2393,
-      gussetMm: 100,
+      gussetMm: 150,
       maxPayloadKg: 28200,
     });
     expect(byCode["40HC"]).toMatchObject({ innerHeightMm: 2698, maxPayloadKg: 26500 });
-    expect(byCode.PICKUP).toMatchObject({ kind: "PICKUP", gussetMm: 0, maxPayloadKg: 800 });
+    // Sau review của BE #153: container 150 mm, xe tải và bán tải không khe góc
+    expect(byCode["45HC"]).toMatchObject({ gussetMm: 150, innerLengthMm: 13556 });
+    expect(byCode.PICKUP).toMatchObject({
+      kind: "PICKUP",
+      innerWidthMm: 1140,
+      gussetMm: 0,
+      maxPayloadKg: 800,
+    });
+    expect(byCode["TRUCK-8T"]).toMatchObject({ innerLengthMm: 7400, gussetMm: 0 });
     expect(byCode["TRUCK-15T"]).toMatchObject({ innerLengthMm: 9300, maxPayloadKg: 15000 });
     for (const row of page.items) {
       expect(row).toMatchObject({ preset: true, status: "ACTIVE", availableCount: 10, version: 0 });
@@ -179,9 +193,10 @@ describe("mock danh mục loại xe — tạo, sửa, ngừng dùng", () => {
     expect(errorCode(await call("POST", PATH, body({ code: "A" })))).toBe("VALIDATION_FAILED");
   });
 
-  it("sửa: version tăng; khe góc / trạng thái vắng thì giữ; giá thuê vắng thì xoá", async () => {
+  it("sửa là thay thế toàn bộ: khe góc vắng = 0, giá thuê vắng = xoá, status vắng giữ nguyên", async () => {
     const created = beVehicleTypeSchema.parse(
-      (await call("POST", PATH, body({ gussetMm: 40, rentalPrice: 900000 }))).data,
+      (await call("POST", PATH, body({ gussetMm: 40, rentalPrice: 900000, status: "INACTIVE" })))
+        .data,
     );
     const res = await call("PUT", `${PATH}/${created.vehicleTypeId}`, {
       ...body({ name: "Xe tải 3,5 tấn" }),
@@ -190,18 +205,46 @@ describe("mock danh mục loại xe — tạo, sửa, ngừng dùng", () => {
     const saved = beVehicleTypeSchema.parse(res.data);
     expect(saved).toMatchObject({
       name: "Xe tải 3,5 tấn",
-      gussetMm: 40,
-      status: "ACTIVE",
+      gussetMm: 0,
+      status: "INACTIVE",
       version: 1,
     });
     expect(saved.rentalPrice).toBeUndefined();
+  });
+
+  it("loại xe mặc định giữ kind: đổi kind → 400 trên trường kind; giữ nguyên thì được", async () => {
+    const [preset] = (await list({ search: "20DC" })).items;
+    const url = `${PATH}/${preset?.vehicleTypeId}`;
+    const wrong = await call("PUT", url, { ...presetBody(preset), kind: "TRUCK", version: 0 });
+    expect([wrong.status, errorCode(wrong), fieldsOf(wrong)]).toEqual([
+      400,
+      "VALIDATION_FAILED",
+      ["kind"],
+    ]);
+    expect((await call("PUT", url, { ...presetBody(preset), version: 0 })).status).toBe(200);
+    // Loại xe tự thêm đổi kind được
+    const own = beVehicleTypeSchema.parse((await call("POST", PATH, body())).data);
+    const changed = await call("PUT", `${PATH}/${own.vehicleTypeId}`, {
+      ...body({ kind: "PICKUP" }),
+      version: 0,
+    });
+    expect(beVehicleTypeSchema.parse(changed.data).kind).toBe("PICKUP");
+  });
+
+  it("khe góc phải vừa thùng: 2 × khe góc < rộng và khe góc < cao (ck_vehicle_type_gusset_fits)", async () => {
+    // Rộng 1900: 2 × 950 = 1900 không nhỏ hơn rộng
+    expect(fieldsOf(await call("POST", PATH, body({ gussetMm: 950 })))).toEqual(["gussetMm"]);
+    expect((await call("POST", PATH, body({ gussetMm: 949, code: "OK-1" }))).status).toBe(201);
+    // Cao 500: khe góc 500 không nhỏ hơn cao
+    const low = body({ code: "LOW", innerHeightMm: 500, gussetMm: 500 });
+    expect(fieldsOf(await call("POST", PATH, low))).toEqual(["gussetMm"]);
   });
 
   it("ngừng dùng bằng status INACTIVE (không có DELETE); loại xe mặc định vẫn còn trong danh sách", async () => {
     const [preset] = (await list({ search: "20DC" })).items;
     expect(preset).toBeDefined();
     const res = await call("PUT", `${PATH}/${preset?.vehicleTypeId}`, {
-      ...body({ code: "20DC", kind: "CONTAINER", status: "INACTIVE" }),
+      ...presetBody(preset, { status: "INACTIVE" }),
       version: 0,
     });
     expect(beVehicleTypeSchema.parse(res.data)).toMatchObject({ status: "INACTIVE", preset: true });
@@ -212,20 +255,22 @@ describe("mock danh mục loại xe — tạo, sửa, ngừng dùng", () => {
   it("mã không đổi: PUT mã khác → 400 trên trường code; gửi lại đúng mã (kể cả khác hoa thường) thì được", async () => {
     const [preset] = (await list({ search: "40HC" })).items;
     const url = `${PATH}/${preset?.vehicleTypeId}`;
-    const other = await call("PUT", url, { ...body({ code: "40HC-X" }), version: 0 });
+    const other = await call("PUT", url, { ...presetBody(preset, { code: "40HC-X" }), version: 0 });
     expect([other.status, errorCode(other), fieldsOf(other)]).toEqual([
       400,
       "VALIDATION_FAILED",
       ["code"],
     ]);
-    expect((await call("PUT", url, { ...body({ code: "40hc" }), version: 0 })).status).toBe(200);
+    expect(
+      (await call("PUT", url, { ...presetBody(preset, { code: "40hc" }), version: 0 })).status,
+    ).toBe(200);
   });
 
   it("version cũ → 409 OPTIMISTIC_LOCK; không tồn tại → 404 VEHICLE_TYPE_NOT_FOUND", async () => {
     const [preset] = (await list({ search: "45HC" })).items;
     const url = `${PATH}/${preset?.vehicleTypeId}`;
-    await call("PUT", url, { ...body({ code: "45HC" }), version: 0 });
-    expect(errorCode(await call("PUT", url, { ...body({ code: "45HC" }), version: 0 }))).toBe(
+    await call("PUT", url, { ...presetBody(preset), version: 0 });
+    expect(errorCode(await call("PUT", url, { ...presetBody(preset), version: 0 }))).toBe(
       "OPTIMISTIC_LOCK",
     );
     const missing = await call("GET", `${PATH}/00000000-0000-4000-8000-000000000000`);

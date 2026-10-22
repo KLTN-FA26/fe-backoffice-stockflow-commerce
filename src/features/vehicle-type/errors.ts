@@ -6,10 +6,16 @@
 import { VEHICLE_TYPE_ERROR_MESSAGES as MESSAGES, VEHICLE_TYPE_FIELD_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
-type KnownCode = Exclude<keyof typeof MESSAGES, "generic" | "VALIDATION_CODE_IMMUTABLE">;
+type KnownCode = Exclude<
+  keyof typeof MESSAGES,
+  "generic" | "VALIDATION_CODE_IMMUTABLE" | "VALIDATION_KIND_IMMUTABLE"
+>;
 
 const isKnownCode = (code: string): code is KnownCode =>
-  code !== "generic" && code !== "VALIDATION_CODE_IMMUTABLE" && Object.hasOwn(MESSAGES, code);
+  code !== "generic" &&
+  code !== "VALIDATION_CODE_IMMUTABLE" &&
+  code !== "VALIDATION_KIND_IMMUTABLE" &&
+  Object.hasOwn(MESSAGES, code);
 
 export function vehicleTypeErrorMessage(error: unknown): string {
   if (!(error instanceof ApiError)) return MESSAGES.generic;
@@ -17,6 +23,8 @@ export function vehicleTypeErrorMessage(error: unknown): string {
     const [field] = Object.keys(error.fieldErrors ?? {});
     // PUT với mã khác mã hiện tại: BE trả 400 trên trường `code`
     if (field === "code") return MESSAGES.VALIDATION_CODE_IMMUTABLE;
+    // Form chỉ cho đổi loại khi thêm mới; BE từ chối đổi loại của loại xe mặc định
+    if (field === "kind") return MESSAGES.VALIDATION_KIND_IMMUTABLE;
     const label = field
       ? Object.hasOwn(VEHICLE_TYPE_FIELD_LABELS, field)
         ? VEHICLE_TYPE_FIELD_LABELS[field]

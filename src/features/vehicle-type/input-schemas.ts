@@ -1,7 +1,8 @@
 /**
  * Form tạo / sửa loại xe — phản chiếu `VehicleTypeRequest` / `VehicleTypeUpdateRequest` của BE PR #153
  * (docs 09 §3). Ô nhập là chuỗi; schema kiểm rồi đổi sang số. Backend phải re-check mọi rule dưới đây.
- *  - Kích thước trong 1..30000 mm; khe góc 0..1000 mm (BR-10, tuỳ chọn, trống = 0 / giữ nguyên);
+ *  - Kích thước trong 1..30000 mm; khe góc 0..1000 mm (BR-10, tuỳ chọn, trống = 0) và phải vừa thùng:
+ *    2 × khe góc < rộng trong, khe góc < cao trong (`ck_vehicle_type_gusset_fits`);
  *  - tải trọng > 0 và ≤ 100000 kg, tối đa 3 số lẻ; số xe 0..10000;
  *  - giá thuê ≥ 0 (tuỳ chọn, chỉ để tham khảo — docs 09 §4.2).
  */
@@ -39,7 +40,7 @@ function wholeNumber(min: number, max: number, belowMessage: string, aboveMessag
     .transform(Number);
 }
 
-/** Số nguyên tuỳ chọn: trống → `undefined` (BE: 0 khi tạo, giữ nguyên khi sửa). */
+/** Số nguyên tuỳ chọn: trống → 0 (BE: PUT thay thế toàn bộ, khe góc vắng = 0). */
 function optionalWholeNumber(max: number, belowMessage: string, aboveMessage: string) {
   return z
     .string()
@@ -47,13 +48,13 @@ function optionalWholeNumber(max: number, belowMessage: string, aboveMessage: st
     .refine((v) => v === "" || INTEGER.test(v), MSG.integerRequired)
     .refine((v) => v === "" || Number(v) >= 0, belowMessage)
     .refine((v) => v === "" || Number(v) <= max, aboveMessage)
-    .transform((v) => (v === "" ? undefined : Number(v)));
+    .transform((v) => (v === "" ? 0 : Number(v)));
 }
 
 const dimension = () =>
   wholeNumber(1, LIMITS.dimensionMaxMm, MSG.dimensionPositive, MSG.dimensionTooLarge);
 
-export const vehicleTypeFormSchema = z.object({
+const vehicleTypeFields = z.object({
   code: z
     .string()
     .trim()
@@ -91,6 +92,18 @@ export const vehicleTypeFormSchema = z.object({
   status: z.enum(VEHICLE_TYPE_STATUSES),
 });
 
+/**
+ * Khe góc phải vừa thùng (BE `VEHICLE_TYPE_GUSSET_TOO_LARGE`): bộ xếp bỏ khe không vừa nên BE từ chối.
+ * Chỉ kiểm khi ba số đã hợp lệ — lỗi từng ô đã nói trước.
+ */
+export const vehicleTypeFormSchema = vehicleTypeFields.superRefine((v, ctx) => {
+  const { gussetMm, innerWidthMm, innerHeightMm } = v;
+  if (![gussetMm, innerWidthMm, innerHeightMm].every((n) => typeof n === "number")) return;
+  if (gussetMm > LIMITS.gussetMaxMm) return;
+  if (2 * gussetMm >= innerWidthMm || gussetMm >= innerHeightMm)
+    ctx.addIssue({ code: "custom", path: ["gussetMm"], message: MSG.gussetTooLargeForBox });
+});
+
 /** Giá trị ô nhập (chuỗi) và giá trị đã kiểm (số) của form. */
 export type VehicleTypeFormInput = z.input<typeof vehicleTypeFormSchema>;
 export type VehicleTypeFormValues = z.output<typeof vehicleTypeFormSchema>;
@@ -103,7 +116,8 @@ export interface VehicleTypeBody {
   innerLengthMm: number;
   innerWidthMm: number;
   innerHeightMm: number;
-  gussetMm?: number;
+  /** Luôn gửi (PUT thay thế toàn bộ): trống = 0. */
+  gussetMm: number;
   maxPayloadKg: number;
   availableCount: number;
   rentalPrice?: number;

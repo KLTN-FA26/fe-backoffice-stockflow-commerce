@@ -42,8 +42,22 @@ describe("vehicleTypeFormSchema — phản chiếu VehicleTypeRequest của BE",
     expect(result.rentalPrice).toBeUndefined();
   });
 
-  it("khe góc trống = undefined (BE: 0 khi tạo, giữ nguyên khi sửa)", () => {
-    expect(vehicleTypeFormSchema.parse({ ...valid, gussetMm: "" }).gussetMm).toBeUndefined();
+  it("khe góc trống = 0 (BE: PUT thay thế toàn bộ, khe góc vắng = 0) — form luôn gửi số", () => {
+    expect(vehicleTypeFormSchema.parse({ ...valid, gussetMm: "" }).gussetMm).toBe(0);
+  });
+
+  it("khe góc phải vừa thùng: 2 × khe góc < rộng trong và khe góc < cao trong", () => {
+    // Rộng 1900: 950 × 2 = 1900 không nhỏ hơn rộng; 949 thì được
+    expect(issues({ gussetMm: "950" }).gussetMm).toBe(MSG.gussetTooLargeForBox);
+    expect(issues({ gussetMm: "949" }).gussetMm).toBeUndefined();
+    // Cao 500: khe góc 500 không nhỏ hơn cao
+    expect(issues({ innerHeightMm: "500", gussetMm: "500" }).gussetMm).toBe(
+      MSG.gussetTooLargeForBox,
+    );
+    expect(issues({ innerHeightMm: "500", gussetMm: "499" }).gussetMm).toBeUndefined();
+    // Số nhập chưa hợp lệ: chỉ báo lỗi của chính ô đó, không thêm lỗi vừa thùng
+    expect(issues({ innerWidthMm: "0", gussetMm: "10" }).gussetMm).toBeUndefined();
+    expect(issues({ gussetMm: "1001" }).gussetMm).toBe(MSG.gussetTooLarge);
   });
 
   it("kích thước phải > 0 và ≤ 30.000 mm, số nguyên", () => {

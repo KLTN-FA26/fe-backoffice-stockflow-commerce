@@ -39,6 +39,12 @@ describe("vehicleTypeErrorMessage — mọi errorCode của BE PR #153", () => {
     );
   });
 
+  it("BE từ chối đổi loại của loại xe mặc định (400 trên trường kind)", () => {
+    expect(
+      vehicleTypeErrorMessage(err(400, "VALIDATION_FAILED", { kind: "a preset keeps its kind" })),
+    ).toBe(MESSAGES.VALIDATION_KIND_IMMUTABLE);
+  });
+
   it("PUT với mã khác (400 trên trường code) → mã không đổi được", () => {
     expect(
       vehicleTypeErrorMessage(err(400, "VALIDATION_FAILED", { code: "cannot be changed" })),

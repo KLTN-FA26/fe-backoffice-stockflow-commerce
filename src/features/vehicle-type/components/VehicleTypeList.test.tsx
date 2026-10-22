@@ -63,7 +63,7 @@ describe("VehicleTypeList — hiển thị danh sách", () => {
       "5.898 × 2.352 × 2.393 mm",
     );
     expect(inRow.getByText("28.200 kg")).toBeInTheDocument();
-    expect(inRow.getByText("100 mm")).toBeInTheDocument();
+    expect(inRow.getByText("150 mm")).toBeInTheDocument();
     expect(inRow.getByText("Đang dùng")).toBeInTheDocument();
     // Loại xe tự thêm: không có nhãn mặc định
     const custom = within(screen.getByText("TRUCK-3T").closest("tr") as HTMLElement);
@@ -160,7 +160,7 @@ describe("VehicleTypeList — ngừng dùng / dùng lại", () => {
         innerLengthMm: 5898,
         maxPayloadKg: 28200,
         availableCount: 10,
-        gussetMm: 100,
+        gussetMm: 150,
         status: "INACTIVE",
         version: 0,
       }),

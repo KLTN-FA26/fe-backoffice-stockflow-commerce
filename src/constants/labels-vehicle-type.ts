@@ -90,8 +90,9 @@ export const VEHICLE_TYPE_UI_LABELS = {
       "Khai báo kích thước thùng bên trong (mm) và tải trọng. Mã viết hoa, chỉ gồm chữ, số, '-' và '_'; không đổi được sau khi tạo.",
     editDescription:
       "Mã không đổi được sau khi tạo. Ngừng dùng để loại xe không được chọn cho kế hoạch mới.",
+    presetLockedHint: "Loại xe mặc định: mã và loại không đổi được.",
     codeHint: `${VEHICLE_TYPE_LIMITS.codeMin}–${VEHICLE_TYPE_LIMITS.codeMax} ký tự; tự in hoa.`,
-    gussetHint: `Chừa ở mỗi góc trên trần (0–${VEHICLE_TYPE_LIMITS.gussetMaxMm} mm); trống = 0.`,
+    gussetHint: `Cạnh khối lập phương gia cố (0–${VEHICLE_TYPE_LIMITS.gussetMaxMm} mm, trống = 0) chừa ở hai góc trên phía đầu thùng; container 45' có 4 khối ở vị trí trụ góc. 2 × khe góc < rộng trong và khe góc < cao trong.`,
     rentalHint: "Chỉ để tham khảo — kế hoạch không chọn xe theo giá.",
     volumeLabel: "Thể tích thùng",
     volumeEmpty: "Nhập đủ dài, rộng, cao để xem thể tích.",
@@ -135,6 +136,8 @@ export const VEHICLE_TYPE_FIELD_MESSAGES = {
   dimensionTooLarge: `Tối đa ${VEHICLE_TYPE_LIMITS.dimensionMaxMm.toLocaleString("vi-VN")} mm`,
   gussetNegative: "Không được âm",
   gussetTooLarge: `Tối đa ${VEHICLE_TYPE_LIMITS.gussetMaxMm} mm`,
+  gussetTooLargeForBox:
+    "Khe góc quá lớn: 2 lần khe góc phải nhỏ hơn rộng trong, và khe góc nhỏ hơn cao trong",
   payloadPositive: "Tải trọng phải lớn hơn 0",
   payloadTooLarge: `Tối đa ${VEHICLE_TYPE_LIMITS.payloadMaxKg.toLocaleString("vi-VN")} kg`,
   payloadFraction: `Tối đa ${VEHICLE_TYPE_LIMITS.payloadFractionDigits} số lẻ`,
@@ -151,6 +154,7 @@ export const VEHICLE_TYPE_ERROR_MESSAGES = {
   VEHICLE_TYPE_CODE_EXISTS: "Mã loại xe này đã tồn tại. Hãy chọn mã khác.",
   OPTIMISTIC_LOCK: "Loại xe vừa được người khác sửa. Đã tải lại, hãy kiểm tra rồi thử lại.",
   VALIDATION_FAILED: "Dữ liệu chưa hợp lệ.",
+  VALIDATION_KIND_IMMUTABLE: "Loại xe mặc định không đổi được loại.",
   VALIDATION_CODE_IMMUTABLE: "Mã loại xe không đổi được sau khi tạo.",
   FORBIDDEN: "Bạn không có quyền thực hiện thao tác này.",
 } as const;

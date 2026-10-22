@@ -12,7 +12,7 @@ export function apiVehicleType(overrides: Partial<VehicleType> = {}): VehicleTyp
     innerLengthMm: 5898,
     innerWidthMm: 2352,
     innerHeightMm: 2393,
-    gussetMm: 100,
+    gussetMm: 150,
     maxPayloadKg: 28200,
     availableCount: 10,
     preset: true,

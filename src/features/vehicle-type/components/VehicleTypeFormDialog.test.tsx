@@ -96,6 +96,7 @@ describe("VehicleTypeFormDialog — thêm loại xe", () => {
       innerLengthMm: 4200,
       innerWidthMm: 1900,
       innerHeightMm: 1900,
+      gussetMm: 0,
       maxPayloadKg: 3000,
       availableCount: 1,
       status: "ACTIVE",
@@ -141,6 +142,47 @@ describe("VehicleTypeFormDialog — sửa loại xe", () => {
     expect(screen.getByText("33,20 m³")).toBeInTheDocument();
   });
 
+  it("loại xe mặc định: mã và loại bị khoá, có gợi ý; loại xe tự thêm đổi được loại", async () => {
+    renderDialog(apiVehicleType());
+    const kind = await screen.findByRole("combobox", { name: new RegExp(`^${L.field.kind}`) });
+    expect(kind).toBeDisabled();
+    expect(field(L.field.code)).toBeDisabled();
+    expect(screen.getByText(L.form.presetLockedHint)).toBeInTheDocument();
+  });
+
+  it("loại xe tự thêm: loại chọn được, chỉ mã bị khoá", async () => {
+    renderDialog(apiCustomTruck());
+    const kind = await screen.findByRole("combobox", { name: new RegExp(`^${L.field.kind}`) });
+    expect(kind).toBeEnabled();
+    expect(field(L.field.code)).toBeDisabled();
+    expect(screen.queryByText(L.form.presetLockedHint)).not.toBeInTheDocument();
+  });
+
+  it("khe góc quá lớn so với thùng: báo ngay ở ô khe góc và khoá nút Lưu; trống gửi 0", async () => {
+    const { put } = renderDialog(apiVehicleType());
+    const user = userEvent.setup();
+    const gusset = await screen.findByDisplayValue("150");
+    const width = field(L.field.innerWidthMm);
+    await user.clear(width);
+    await user.type(width, "1900");
+    await user.clear(gusset);
+    // Rộng trong 1900: 2 × 950 không nhỏ hơn rộng
+    await user.type(gusset, "950");
+    expect(
+      await screen.findByText(VEHICLE_TYPE_FIELD_MESSAGES.gussetTooLargeForBox),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: L.form.submitEdit })).toBeDisabled();
+    await user.clear(gusset);
+    await user.click(screen.getByRole("button", { name: L.form.submitEdit }));
+    await waitFor(() => expect(put).toHaveBeenCalled());
+    // PUT thay thế toàn bộ: khe góc trống gửi 0, không bỏ trường
+    expect(put.mock.calls[0]?.[1]).toMatchObject({
+      gussetMm: 0,
+      kind: "CONTAINER",
+      status: "ACTIVE",
+    });
+  });
+
   it("gửi PUT kèm version của lần đọc và mã hiện tại", async () => {
     const { put, onClose } = renderDialog(apiVehicleType({ version: 3 }));
     const user = userEvent.setup();
@@ -154,7 +196,7 @@ describe("VehicleTypeFormDialog — sửa loại xe", () => {
       expect.objectContaining({
         code: "20DC",
         maxPayloadKg: 28000,
-        gussetMm: 100,
+        gussetMm: 150,
         status: "ACTIVE",
         version: 3,
       }),

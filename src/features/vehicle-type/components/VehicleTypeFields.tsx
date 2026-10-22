@@ -25,8 +25,19 @@ const NUM = "text-right tabular-nums";
 type Form = UseFormReturn<VehicleTypeFormInput, unknown, VehicleTypeFormValues>;
 type TextName = Exclude<keyof VehicleTypeFormInput, "kind" | "status">;
 
-/** Các ô của form loại xe; mã chỉ nhập lúc tạo (`editing` khoá), trạng thái chỉ chọn lúc sửa. */
-export function VehicleTypeFields({ form, editing }: { form: Form; editing: boolean }) {
+/**
+ * Các ô của form loại xe; mã chỉ nhập lúc tạo (`editing` khoá), trạng thái chỉ chọn lúc sửa. Loại xe
+ * mặc định (`preset`) còn khoá thêm loại xe — BE từ chối đổi (`VEHICLE_TYPE_KIND_IMMUTABLE`).
+ */
+export function VehicleTypeFields({
+  form,
+  editing,
+  preset = false,
+}: {
+  form: Form;
+  editing: boolean;
+  preset?: boolean;
+}) {
   const errors = form.formState.errors;
   const text = (
     name: TextName,
@@ -60,13 +71,20 @@ export function VehicleTypeFields({ form, editing }: { form: Form; editing: bool
     name: "kind" | "status",
     options: readonly string[],
     labels: Record<string, string>,
+    opts: { disabled?: boolean; hint?: string } = {},
   ) => (
-    <FormField id={`vt-${name}`} label={L.field[name]} required error={errors[name]?.message}>
+    <FormField
+      id={`vt-${name}`}
+      label={L.field[name]}
+      required
+      hint={opts.hint}
+      error={errors[name]?.message}
+    >
       <Controller
         control={form.control}
         name={name}
         render={({ field }) => (
-          <Select value={field.value} onValueChange={field.onChange}>
+          <Select value={field.value} onValueChange={field.onChange} disabled={opts.disabled}>
             <SelectTrigger id={`vt-${name}`} className={FORM_SELECT_CLASS}>
               <SelectValue />
             </SelectTrigger>
@@ -87,7 +105,10 @@ export function VehicleTypeFields({ form, editing }: { form: Form; editing: bool
     <>
       {text("code", { required: true, hint: L.form.codeHint, disabled: editing })}
       {text("name", { required: true })}
-      {select("kind", VEHICLE_TYPE_KINDS, VEHICLE_TYPE_KIND_LABELS)}
+      {select("kind", VEHICLE_TYPE_KINDS, VEHICLE_TYPE_KIND_LABELS, {
+        disabled: preset,
+        hint: preset ? L.form.presetLockedHint : undefined,
+      })}
       <div className="grid grid-cols-3 gap-3">
         {text("innerLengthMm", { required: true, numeric: true })}
         {text("innerWidthMm", { required: true, numeric: true })}

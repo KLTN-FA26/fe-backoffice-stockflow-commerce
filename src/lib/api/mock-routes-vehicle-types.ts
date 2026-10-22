@@ -2,17 +2,11 @@
  * Mock routes — danh mục loại xe (docs 09 §3), theo hợp đồng BE PR #153 (`VehicleTypeController`,
  * `VehicleTypeService`): đọc cần `fulfillment-vehicle-types:READ`, tạo / sửa cần `:UPDATE` (lấy từ phiên
  * mock như `@RequiresPermission`). Mã viết hoa và không đổi; không có DELETE; sửa kèm `version` (409
- * OPTIMISTIC_LOCK); `gussetMm` / `status` vắng = tạo mới lấy 0 / ACTIVE, sửa giữ nguyên; `rentalPrice` vắng = xoá.
+ * OPTIMISTIC_LOCK). PUT thay thế toàn bộ như hãng vận chuyển: `gussetMm` vắng = 0, `rentalPrice` vắng = xoá, chỉ
+ * `status` vắng thì giữ nguyên (tạo mới: ACTIVE); loại xe mặc định giữ `kind`; khe góc phải vừa thùng.
  */
 
-import {
-  VEHICLE_TYPE_KIND,
-  VEHICLE_TYPE_KINDS,
-  VEHICLE_TYPE_LIMITS,
-  VEHICLE_TYPE_PERMISSIONS,
-  VEHICLE_TYPE_STATUS,
-  VEHICLE_TYPE_STATUSES,
-} from "@/constants";
+import { VEHICLE_TYPE_KIND, VEHICLE_TYPE_PERMISSIONS, VEHICLE_TYPE_STATUS } from "@/constants";
 
 import { registerMockRoute } from "./mock-adapter";
 import { fail, ok } from "./mock-route-utils";
@@ -26,79 +20,19 @@ import {
   readParams,
   readString,
 } from "./mock-routes-purchase-orders-store";
+import { fill, STATUSES } from "./mock-vehicle-type-rules";
 import { getVehicleTypeStore, nextVehicleTypeId } from "./mock-vehicle-type-store";
 
 import type { AxiosRequestConfig } from "axios";
 import type { MockResponseShape } from "./mock-route-utils";
-import type {
-  MockVehicleKind,
-  MockVehicleStatus,
-  MockVehicleType,
-} from "./mock-vehicle-type-store";
+import type { Problems } from "./mock-vehicle-type-rules";
+import type { MockVehicleType } from "./mock-vehicle-type-store";
 
 const PATH = "/fulfillment/vehicle-types";
-// `includes` trên chuỗi người dùng gửi lên nên nới kiểu tuple về `readonly string[]`
-const KINDS: readonly string[] = VEHICLE_TYPE_KINDS;
-const STATUSES: readonly string[] = VEHICLE_TYPE_STATUSES;
 const CODE = /^[A-Z0-9][A-Z0-9_-]{1,31}$/;
-const L = VEHICLE_TYPE_LIMITS;
 
 const forbidden = () => fail(403, "FORBIDDEN", "Access denied");
 const notFound = () => fail(404, "VEHICLE_TYPE_NOT_FOUND", "Vehicle type not found");
-
-type Problems = { field: string; message: string }[];
-
-const intIn = (value: unknown, min: number, max: number): value is number =>
-  typeof value === "number" && Number.isInteger(value) && value >= min && value <= max;
-
-/** `VehicleTypeService.fill`: kiểm các trường dùng chung; trả bản ghi mới + danh sách lỗi theo trường. */
-function fill(
-  body: Record<string, unknown>,
-  row: MockVehicleType,
-): { next: MockVehicleType; problems: Problems } {
-  const problems: Problems = [];
-  const name = readString(body.name);
-  if (!name || name.length > L.nameMax)
-    problems.push({ field: "name", message: "required, at most 120 characters" });
-  const kind = readString(body.kind).toUpperCase();
-  if (!KINDS.includes(kind))
-    problems.push({ field: "kind", message: "CONTAINER, TRUCK or PICKUP" });
-  const sides = (["innerLengthMm", "innerWidthMm", "innerHeightMm"] as const).map((field) => {
-    const ok = intIn(body[field], 1, L.dimensionMaxMm);
-    if (!ok) problems.push({ field, message: `1 to ${L.dimensionMaxMm} mm` });
-    return ok ? (body[field] as number) : 1;
-  });
-  const gusset =
-    body.gussetMm === undefined || body.gussetMm === null ? row.gussetMm : body.gussetMm;
-  if (!intIn(gusset, 0, L.gussetMaxMm))
-    problems.push({ field: "gussetMm", message: `0 to ${L.gussetMaxMm} mm` });
-  const payload = body.maxPayloadKg;
-  const payloadOk = typeof payload === "number" && payload > 0 && payload <= L.payloadMaxKg;
-  if (!payloadOk)
-    problems.push({ field: "maxPayloadKg", message: "more than 0 and at most 100000 kg" });
-  if (!intIn(body.availableCount, 0, L.availableCountMax))
-    problems.push({ field: "availableCount", message: `0 to ${L.availableCountMax}` });
-  const price = typeof body.rentalPrice === "number" ? body.rentalPrice : null;
-  if (price !== null && price < 0) problems.push({ field: "rentalPrice", message: "0 or more" });
-  const status = readString(body.status).toUpperCase() || row.status;
-  if (!STATUSES.includes(status)) problems.push({ field: "status", message: "ACTIVE or INACTIVE" });
-  return {
-    problems,
-    next: {
-      ...row,
-      name,
-      kind: kind as MockVehicleKind,
-      innerLengthMm: sides[0] ?? 1,
-      innerWidthMm: sides[1] ?? 1,
-      innerHeightMm: sides[2] ?? 1,
-      gussetMm: typeof gusset === "number" ? gusset : 0,
-      maxPayloadKg: payloadOk ? payload : 1,
-      availableCount: typeof body.availableCount === "number" ? body.availableCount : 0,
-      rentalPrice: price,
-      status: status as MockVehicleStatus,
-    },
-  };
-}
 
 const invalid = (problems: Problems) =>
   fail(400, "VALIDATION_FAILED", "Invalid vehicle type", problems);

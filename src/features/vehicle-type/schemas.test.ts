@@ -12,7 +12,7 @@ describe("beVehicleTypeSchema — BE PR #153 VehicleTypeResponse", () => {
       code: "20DC",
       kind: "CONTAINER",
       innerLengthMm: 5898,
-      gussetMm: 100,
+      gussetMm: 150,
       preset: true,
       status: "ACTIVE",
       version: 0,
