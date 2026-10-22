@@ -74,9 +74,39 @@ jobs:
         if: steps.gate.outputs.enabled == 'true'
         run: pnpm exec next typegen
 
+      # Coverage over ALL of src, not just the files in coverage.include (vitest.config.mts). Sonar
+      # counts every source file that has no coverage data as 0%, so with the narrow include list the
+      # new-code coverage would look near zero. The override lives here only: `validate` in ci.yml and
+      # the thresholds in vitest.config.mts are untouched. The exclude list mirrors
+      # sonar.coverage.exclusions in sonar-project.properties - change both together.
+      #
+      # --testTimeout: v8 coverage slows every test, and the RTL-heavy ones can pass the 5 s default on
+      # a loaded runner (seen locally as "Test timed out in 5000ms"). Raised here only, so `validate`
+      # keeps the default.
       - name: Test with coverage
         if: steps.gate.outputs.enabled == 'true'
-        run: pnpm run test:coverage
+        run: |
+          pnpm exec vitest run --coverage --testTimeout=30000 \
+            --coverage.include='src/**/*.{ts,tsx}' \
+            --coverage.exclude='**/*.test.ts' \
+            --coverage.exclude='**/*.test.tsx' \
+            --coverage.exclude='**/*.spec.ts' \
+            --coverage.exclude='**/*.spec.tsx' \
+            --coverage.exclude='**/__tests__/**' \
+            --coverage.exclude='**/__fixtures__/**' \
+            --coverage.exclude='**/__mocks__/**' \
+            --coverage.exclude='**/mock/**' \
+            --coverage.exclude='**/mocks/**' \
+            --coverage.exclude='src/test/**' \
+            --coverage.exclude='src/lib/**/mock*' \
+            --coverage.exclude='src/lib/**/mock*/**' \
+            --coverage.exclude='**/*.d.ts' \
+            --coverage.exclude='src/_design/**' \
+            --coverage.exclude='src/components/ui/**' \
+            --coverage.exclude='src/app/**/layout.tsx' \
+            --coverage.exclude='src/app/**/loading.tsx' \
+            --coverage.exclude='src/app/**/error.tsx' \
+            --coverage.exclude='src/app/**/not-found.tsx'
 
       # Pinned to a commit (v8.2.2). Reads sonar-project.properties; the project key lives there.
       - name: SonarQube Cloud scan
