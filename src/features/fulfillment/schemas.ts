@@ -97,6 +97,11 @@ export const fulfillmentOrderSchema = z.object({
   // null tới khi đơn được release (SCRUM-423)
   warehouseId: z.string().nullish(),
   lines: z.array(fulfillmentOrderLineSchema).default([]),
+  /**
+   * Hàng in đã về bàn đóng gói (BE PR #150, PACK-EARLY): false khi đơn còn đang in, hoặc đã giao hàng có
+   * sẵn trước khi sản xuất xong. Vắng = BE không trả.
+   */
+  printLinesReady: z.boolean().nullish(),
 });
 
 export const fulfillmentOrderPageSchema = bePageSchema(fulfillmentOrderSchema);

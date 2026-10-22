@@ -371,6 +371,10 @@ export const SHIPPING_ERROR_MESSAGES = {
     "Số tiền thu hộ trên nhãn kiện khác số đơn hàng cần thu bây giờ — in lại nhãn rồi ký bàn giao lại.",
   ORDER_BALANCE_NOT_PAID: "Đơn của lô này chưa thanh toán đủ trước khi giao — chưa bàn giao được.",
   ORDER_INVALID_TRANSITION: "Đơn của lô này đang tạm giữ hoặc không ở trạng thái cho bàn giao.",
+  // BE PR #150: lô sẽ tách đơn ra nhiều lần giao mà Sales chưa cho phép giao một phần (thêm lô vào chuyến,
+  // mở chuyến với lô, bàn giao)
+  ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED:
+    "Đơn của lô này chưa được phép giao một phần — nhờ Sale bật “Cho phép giao một phần” trên đơn, hoặc đưa các lô còn lại của đơn đi cùng chuyến.",
   // BE gắn tên lô vào mọi từ chối phía đơn khi bàn giao (đơn huỷ, lô xung đột, vượt số lượng…)
   shipmentRefused:
     "Đơn của lô này không cho phép bàn giao lúc này (đơn huỷ, lô xung đột hoặc vượt số lượng).",

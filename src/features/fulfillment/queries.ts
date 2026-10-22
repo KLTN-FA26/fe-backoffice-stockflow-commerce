@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
+import { SHARED_QUERY_ROOTS } from "@/constants";
 import { QUERY_TIMES } from "@/lib/api/query-client";
 import { createDetailQuery, createListQuery, createQueryKeys } from "@/lib/api/query-factory";
 
@@ -14,7 +15,9 @@ import {
 import type { ListFulfillmentTaskParams } from "./api";
 import type { ArtifactUrlInput, FulfillmentTask } from "./types";
 
-export const fulfillmentKeys = createQueryKeys<ListFulfillmentTaskParams>("fulfillment-tasks");
+export const fulfillmentKeys = createQueryKeys<ListFulfillmentTaskParams>(
+  SHARED_QUERY_ROOTS.fulfillmentTasks,
+);
 
 /**
  * Dữ liệu phụ trợ đọc từ module khác — key riêng của feature (không dùng chung `orderKeys`,

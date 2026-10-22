@@ -43,6 +43,7 @@ describe("shippingErrorMessage — mọi mã lỗi BE có câu tiếng Việt", 
       "SHIPMENT_ON_ANOTHER_LOAD",
       "LOAD_SCAN_ID_CONFLICT",
       "CARRIER_INACTIVE",
+      "ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED",
     ];
     for (const code of required) expect(SHIPPING_ERROR_MESSAGES).toHaveProperty(code);
   });
@@ -143,5 +144,28 @@ describe("reprintLabelHref", () => {
     expect(reprintLabelHref("task-1")).toBe("/admin/packing/task-1");
     expect(reprintLabelHref(undefined)).toBe("/admin/picking");
     expect(reprintLabelHref(null)).toBe("/admin/picking");
+  });
+});
+
+describe("ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED (BE PR #150) — mở chuyến, thêm lô, bàn giao", () => {
+  it("câu tiếng Việt: nhờ Sale bật giao một phần trên đơn", () => {
+    expect(shippingErrorMessage(err("ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED"))).toBe(
+      SHIPPING_ERROR_MESSAGES.ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED,
+    );
+    expect(SHIPPING_ERROR_MESSAGES.ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED).toContain(
+      "Cho phép giao một phần",
+    );
+  });
+
+  it("bàn giao nêu tên lô → có tiền tố 'Lô <mã>' và đánh dấu đúng lô bị chặn", () => {
+    const error = err("ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED", 409, { shipmentCode: "SO-1-S2" });
+    expect(shippingErrorMessage(error)).toBe(
+      `Lô SO-1-S2: ${SHIPPING_ERROR_MESSAGES.ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED}`,
+    );
+    expect(handoverRefusalOf(error)).toMatchObject({
+      code: "ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED",
+      shipmentCode: "SO-1-S2",
+      reprintLabel: false,
+    });
   });
 });

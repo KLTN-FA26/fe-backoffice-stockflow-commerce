@@ -17,7 +17,8 @@ import type { PermissionCode } from "@/lib/auth";
 
 /**
  * Theo seed BE: ORDER_COORDINATOR có sales-orders:APPROVE (giữ / gỡ giữ / giao thất bại) và
- * sales-order-cancellations:UPDATE (huỷ, đóng phần còn lại); SALES_STAFF chỉ có cancellations:UPDATE.
+ * sales-order-cancellations:UPDATE (huỷ, đóng phần còn lại); SALES_STAFF có cancellations:UPDATE và
+ * sales-order-partial-shipments:UPDATE (cho phép giao một phần, BE PR #150) nhưng không có APPROVE.
  */
 export const ORDER_PERMISSION_SETS = {
   // WAREHOUSE_STAFF: không có quyền sales-orders nào
@@ -25,7 +26,12 @@ export const ORDER_PERMISSION_SETS = {
   viewOnly: ["sales-orders:VIEW_PAGE"],
   // Chỉ đọc (tài khoản được cấp VIEW_PAGE + READ, không có quyền thao tác)
   readOnly: ["sales-orders:VIEW_PAGE", "sales-orders:READ"],
-  salesStaff: ["sales-orders:VIEW_PAGE", "sales-orders:READ", ORDER_PERMISSIONS.cancel],
+  salesStaff: [
+    "sales-orders:VIEW_PAGE",
+    "sales-orders:READ",
+    ORDER_PERMISSIONS.cancel,
+    ORDER_PERMISSIONS.partialShipment,
+  ],
   coordinator: [
     "sales-orders:VIEW_PAGE",
     "sales-orders:READ",
@@ -48,6 +54,8 @@ export function mockOrderApiGet(
         return { data: { roles: ["TEST"], permissions: [...permissions], dataScope: "ALL" } };
       }
       const handler = routes[url];
+      // Lịch sử đơn: mặc định rỗng — test về lịch sử khai báo handler riêng
+      if (!handler && url.endsWith("/history")) return { data: [] };
       if (!handler) throw new Error(`Không có mock cho GET ${url}`);
       const params = config?.params instanceof URLSearchParams ? config.params : undefined;
       return { data: handler(params) };

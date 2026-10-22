@@ -3,11 +3,13 @@
  */
 
 import { INVENTORY_ITEM_TOAST_MESSAGES, INVENTORY_ITEM_UI_LABELS } from "./labels-inventory-item";
+import { LOAD_PLAN_TOAST_MESSAGES, LOAD_PLAN_UI_LABELS } from "./labels-load-plan";
 import { PACKING_TOAST_MESSAGES, PACKING_UI_LABELS } from "./labels-packing";
 import { PRODUCT_UI_LABELS } from "./labels-product";
 import { SHIPPING_TOAST_MESSAGES, SHIPPING_UI_LABELS } from "./labels-shipping";
 import { TAXONOMY_TOAST_MESSAGES, TAXONOMY_UI_LABELS } from "./labels-taxonomy";
 import { TRANSFER_TOAST_MESSAGES, TRANSFER_UI_LABELS } from "./labels-transfer";
+import { VEHICLE_TYPE_TOAST_MESSAGES, VEHICLE_TYPE_UI_LABELS } from "./labels-vehicle-type";
 
 export const UI_LABELS = {
   common: {
@@ -343,6 +345,8 @@ export const UI_LABELS = {
   },
   transfer: TRANSFER_UI_LABELS,
   shipping: SHIPPING_UI_LABELS,
+  vehicleType: VEHICLE_TYPE_UI_LABELS,
+  loadPlan: LOAD_PLAN_UI_LABELS,
   taxonomy: TAXONOMY_UI_LABELS,
   inventoryItem: INVENTORY_ITEM_UI_LABELS,
   product: PRODUCT_UI_LABELS,
@@ -450,7 +454,7 @@ export const FULFILLMENT_ERROR_MESSAGES = {
   stale:
     "Task hoặc đơn hàng đã đổi trạng thái nên không thực hiện được thao tác này. Dữ liệu đã được tải lại.",
   createConflict:
-    "Chỉ đơn đã release (sẵn sàng xuất kho) mới đưa vào xuất kho; đơn mới xác nhận phải release trước, đơn có dòng in phải release sản xuất trước.",
+    "Chỉ đơn đã release (sẵn sàng xuất kho) mới đưa vào xuất kho; đơn mới xác nhận phải release trước. Đơn đang sản xuất chỉ vào xuất kho khi có dòng hàng có sẵn (lấy trước hàng in); đơn toàn hàng in phải chờ sản xuất xong.",
   orderNotFound: "Không tìm thấy đơn hàng",
   assignConflict: "Chỉ gán lại được khi task chưa bắt đầu lấy hàng. Dữ liệu đã được tải lại.",
   assigneeInvalid: "Người được gán phải là nhân viên kho hoặc quản lý kho đang hoạt động",
@@ -722,6 +726,8 @@ export const TOAST_MESSAGES = {
   },
   transfer: TRANSFER_TOAST_MESSAGES,
   shipping: SHIPPING_TOAST_MESSAGES,
+  vehicleType: VEHICLE_TYPE_TOAST_MESSAGES,
+  loadPlan: LOAD_PLAN_TOAST_MESSAGES,
   taxonomy: TAXONOMY_TOAST_MESSAGES,
   inventoryItem: INVENTORY_ITEM_TOAST_MESSAGES,
   fulfillment: {

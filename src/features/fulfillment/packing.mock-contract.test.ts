@@ -4,6 +4,7 @@
  */
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { activateMockAdapter } from "@/lib/api/mock-adapter";
 import { resetFulfillmentMockStore } from "@/lib/api/mock-routes-fulfillment-store";
@@ -300,6 +301,11 @@ describe("packing mock ↔ hợp đồng BE PR #136", () => {
       expect(await codeOf(completePacking({ taskId: id, requestId, partial: false }))).toBe(
         "PACKING_INCOMPLETE",
       );
+      // BE PR #150: giao một phần do Sales bật trên đơn — chưa bật thì 409 dù có ghi chú
+      expect(
+        await codeOf(completePacking({ taskId: id, requestId, partial: true, note: "thiếu áo" })),
+      ).toBe("PACK_PARTIAL_NOT_ALLOWED");
+      await api.put(`/orders/${task.orderId}/partial-shipment`, { allowed: true });
       expect(await codeOf(completePacking({ taskId: id, requestId, partial: true }))).toBe(
         "VALIDATION_FAILED",
       );

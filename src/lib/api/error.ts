@@ -31,6 +31,13 @@ export class ApiError extends Error {
   readonly code: string;
   readonly fieldErrors?: Record<string, string>;
   readonly traceId?: string;
+  /** Mã lỗi của từng trường (BE `fieldErrors[].code`) khi có — để rẽ nhánh theo mã thay vì theo câu chữ. */
+  readonly fieldCodes?: Record<string, string>;
+  /**
+   * `fieldErrors[]` nguyên dạng của BE khi là mảng. `fieldErrors` / `fieldCodes` chỉ giữ phần tử đầu của mỗi trường;
+   * lỗi có nhiều phần tử cùng một trường (vd mỗi đơn vi phạm LP-4 một `orderNumber`) đọc ở đây.
+   */
+  readonly fieldErrorList?: readonly ApiFieldErrorBody[];
 
   constructor(
     status: number,
@@ -38,6 +45,8 @@ export class ApiError extends Error {
     message: string,
     fieldErrors?: Record<string, string>,
     traceId?: string,
+    fieldCodes?: Record<string, string>,
+    fieldErrorList?: readonly ApiFieldErrorBody[],
   ) {
     super(message);
     this.name = "ApiError";
@@ -45,6 +54,8 @@ export class ApiError extends Error {
     this.code = code;
     this.fieldErrors = fieldErrors;
     this.traceId = traceId;
+    this.fieldCodes = fieldCodes;
+    this.fieldErrorList = fieldErrorList;
   }
 
   /** Create from an AxiosError (used in response interceptor). */
@@ -67,6 +78,8 @@ export class ApiError extends Error {
       data?.message ?? err.message ?? "Đã xảy ra lỗi",
       normalizeFieldErrors(data?.fieldErrors),
       data?.correlationId ?? data?.traceId,
+      normalizeFieldCodes(data?.fieldErrors),
+      Array.isArray(data?.fieldErrors) ? data.fieldErrors : undefined,
     );
   }
 
@@ -87,4 +100,16 @@ function normalizeFieldErrors(
     if (!(error.field in normalized)) normalized[error.field] = error.message;
   }
   return Object.keys(normalized).length > 0 ? normalized : undefined;
+}
+
+/** Mã lỗi theo trường từ dạng mảng `fieldErrors[{ field, message, code }]`; dạng bản đồ không có mã. */
+function normalizeFieldCodes(
+  errors: ApiErrorBody["fieldErrors"],
+): Record<string, string> | undefined {
+  if (!errors || !Array.isArray(errors)) return undefined;
+  const codes: Record<string, string> = {};
+  for (const error of errors) {
+    if (error.code && !(error.field in codes)) codes[error.field] = error.code;
+  }
+  return Object.keys(codes).length > 0 ? codes : undefined;
 }

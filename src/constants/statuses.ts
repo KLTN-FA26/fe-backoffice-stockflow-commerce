@@ -443,6 +443,23 @@ export const DELIVERY_OUTCOMES = ["DELIVERED", "DELIVERY_FAILED", "RETURNED"] as
 /** BE `CarrierResponse.status` — hãng ngừng dùng thì không nhận chuyến mới. */
 export const CARRIER_STATUSES = ["ACTIVE", "INACTIVE"] as const;
 
+/** BE `VehicleTypeRequest.kind` — loại phương tiện trong danh mục loại xe (docs 09 §3). */
+export const VEHICLE_TYPE_KINDS = ["CONTAINER", "TRUCK", "PICKUP"] as const;
+
+export const VEHICLE_TYPE_KIND = {
+  CONTAINER: "CONTAINER",
+  TRUCK: "TRUCK",
+  PICKUP: "PICKUP",
+} as const satisfies Record<string, (typeof VEHICLE_TYPE_KINDS)[number]>;
+
+/** BE `VehicleTypeResponse.status` — loại xe ngừng dùng thì không đưa vào kế hoạch xếp xe mới. */
+export const VEHICLE_TYPE_STATUSES = ["ACTIVE", "INACTIVE"] as const;
+
+export const VEHICLE_TYPE_STATUS = {
+  ACTIVE: "ACTIVE",
+  INACTIVE: "INACTIVE",
+} as const satisfies Record<string, (typeof VEHICLE_TYPE_STATUSES)[number]>;
+
 export type PoStatus = (typeof PO_STATUSES)[number];
 export type SupplierConfirmationStatus = (typeof SUPPLIER_CONFIRMATION_STATUSES)[number];
 export type PoDeliveryStatus = (typeof PO_DELIVERY_STATUSES)[number];
@@ -621,3 +638,60 @@ export const STOCK_ADJUSTMENT_STATUS = {
 } as const satisfies Record<string, StockAdjustmentStatus>;
 
 export type StockAdjustmentStatus = (typeof STOCK_ADJUSTMENT_STATUSES)[number];
+
+/**
+ * Kế hoạch xếp xe — BE `LoadPlanStatus` (SCRUM-287 PR D, docs 09 §5 "Trạng thái Kế hoạch chuyến xe"):
+ * DRAFT → PLANNED → CONFIRMED → DISPATCHED, và CANCELLED. DISPATCHED / CANCELLED là trạng thái kết thúc.
+ */
+export const LOAD_PLAN_STATUSES = [
+  "DRAFT",
+  "PLANNED",
+  "CONFIRMED",
+  "DISPATCHED",
+  "CANCELLED",
+] as const;
+
+export type LoadPlanStatus = (typeof LOAD_PLAN_STATUSES)[number];
+
+export const LOAD_PLAN_STATUS = {
+  DRAFT: "DRAFT",
+  PLANNED: "PLANNED",
+  CONFIRMED: "CONFIRMED",
+  DISPATCHED: "DISPATCHED",
+  CANCELLED: "CANCELLED",
+} as const satisfies Record<string, LoadPlanStatus>;
+
+/** BE `SelectionMode` (LP-6): một loại xe (mặc định) hoặc trộn loại để ít xe nhất. */
+export const LOAD_PLAN_SELECTION_MODES = ["SINGLE_TYPE", "FEWEST_VEHICLES"] as const;
+
+export type LoadPlanSelectionMode = (typeof LOAD_PLAN_SELECTION_MODES)[number];
+
+/**
+ * BE `LoadPlanUnplacedReason`: lý do của solver (`UnplacedReason`) cộng MANUAL — kiện người điều phối
+ * tự đưa xuống khay chưa xếp (PR F5).
+ */
+export const LOAD_PLAN_UNPLACED_REASONS = [
+  "TOO_LARGE",
+  "TOO_HEAVY",
+  "NO_VEHICLE_AVAILABLE",
+  "NO_SPACE",
+  "SEARCH_CUT_OFF",
+  "MANUAL",
+] as const;
+
+export type LoadPlanUnplacedReason = (typeof LOAD_PLAN_UNPLACED_REASONS)[number];
+
+/** Cờ của `vsEstimate.flags` (BE `LoadPlans.EstimateComparison`) — chỉ để tham khảo, không chặn thao tác. */
+export const LOAD_PLAN_ESTIMATE_FLAGS = [
+  "NO_ESTIMATE",
+  "ESTIMATE_INCOMPLETE",
+  "ESTIMATE_UNPLACED",
+  "MORE_VEHICLES",
+  "FEWER_VEHICLES",
+  "MORE_PARCELS",
+  "FEWER_PARCELS",
+  "VOLUME_ABOVE",
+  "WEIGHT_ABOVE",
+] as const;
+
+export type LoadPlanEstimateFlag = (typeof LOAD_PLAN_ESTIMATE_FLAGS)[number];

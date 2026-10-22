@@ -136,6 +136,32 @@ export const LOAD_COLUMNS = {
   VEHICLE: "vehicle",
 } as const;
 
+/** Cột danh sách loại xe (BE `VehicleTypeResponse`). */
+export const VEHICLE_TYPE_COLUMNS = {
+  ACTIONS: "actions",
+  AVAILABLE_COUNT: "availableCount",
+  CODE: "code",
+  DOOR: "door",
+  GUSSET: "gusset",
+  INNER_SIZE: "innerSize",
+  KIND: "kind",
+  NAME: "name",
+  PAYLOAD: "payload",
+  STATUS: "status",
+} as const;
+
+/** Cột danh sách kế hoạch xếp xe (BE `LoadPlans.PlanRow`). */
+export const LOAD_PLAN_COLUMNS = {
+  CODE: "code",
+  CREATED_AT: "createdAt",
+  MODE: "mode",
+  PACKAGES: "packages",
+  SHIPMENTS: "shipments",
+  STATUS: "status",
+  UNPLACED: "unplaced",
+  VEHICLES: "vehicles",
+} as const;
+
 /** Cột danh sách lô giao (BE `ShipmentRowResponse`). */
 export const SHIPMENT_COLUMNS = {
   ACTIONS: "actions",

@@ -116,8 +116,14 @@ export const ADMIN_ROUTES = {
     detail: (id: string) => `${ADMIN_BASE}/loads/${id}`,
     manifest: (id: string) => `${ADMIN_BASE}/loads/${id}/manifest`,
   },
-  /** Kế hoạch xếp xe — SCRUM-452, đang phát triển. */
-  loadPlans: `${ADMIN_BASE}/load-plans`,
+  /** Danh mục loại xe (container, xe tải, bán tải) — BE `VehicleTypeController`, PR #153. */
+  vehicleTypes: `${ADMIN_BASE}/vehicle-types`,
+  /** Kế hoạch xếp xe (SCRUM-287 PR F4): danh sách, lập mới, chi tiết — BE `LoadPlanController`, PR #161. */
+  loadPlans: {
+    list: `${ADMIN_BASE}/load-plans`,
+    create: `${ADMIN_BASE}/load-plans/create`,
+    detail: (id: string) => `${ADMIN_BASE}/load-plans/${id}`,
+  },
   suppliers: {
     list: `${ADMIN_BASE}/suppliers`,
     create: `${ADMIN_BASE}/suppliers/create`,

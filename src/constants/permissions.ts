@@ -37,6 +37,8 @@ export const SUPPLIER_ITEM_PERMISSIONS = {
  * - `cancel`: huỷ đơn phía admin (`POST /orders/{id}/admin-cancellation`) và đóng phần còn lại của
  *   đơn giao một phần (`POST /orders/{id}/remainder-closure`) — BE tách sang resource
  *   `sales-order-cancellations` (UPDATE, scope ALL; seed: ORDER_COORDINATOR + SALES_STAFF).
+ * - `partialShipment`: Sales cho phép / dừng giao một phần của đơn — resource
+ *   `sales-order-partial-shipments` (UPDATE, scope ALL; seed: SALES_STAFF + SYSTEM_ADMIN).
  */
 export const ORDER_PERMISSIONS = {
   // Mở trang (menu + chặn route) — BE Action.VIEW_PAGE, ADR-0004
@@ -47,6 +49,9 @@ export const ORDER_PERMISSIONS = {
   create: "sales-orders:CREATE",
   approve: "sales-orders:APPROVE",
   cancel: "sales-order-cancellations:UPDATE",
+  // Cho phép / dừng giao một phần của đơn (`PUT /orders/{id}/partial-shipment`, BE PR #150) — resource
+  // `sales-order-partial-shipments` (UPDATE, scope ALL; seed: SALES_STAFF + SYSTEM_ADMIN)
+  partialShipment: "sales-order-partial-shipments:UPDATE",
 } as const;
 
 /**
@@ -130,6 +135,29 @@ export const ATTRIBUTE_PERMISSIONS = {
   create: "product-attributes:CREATE",
   update: "product-attributes:UPDATE",
   delete: "product-attributes:DELETE",
+} as const;
+
+/**
+ * Danh mục loại xe cho kế hoạch xếp xe (SCRUM-287) — resource `fulfillment-vehicle-types`
+ * (BE PR #153 `VehicleTypeController`). READ: danh sách + chi tiết (nhân viên kho, quản lý kho,
+ * điều phối đơn); UPDATE: thêm / sửa / ngừng dùng (quản lý kho). Không có DELETE.
+ */
+export const VEHICLE_TYPE_PERMISSIONS = {
+  viewPage: "fulfillment-vehicle-types:VIEW_PAGE",
+  read: "fulfillment-vehicle-types:READ",
+  update: "fulfillment-vehicle-types:UPDATE",
+} as const;
+
+/**
+ * Kế hoạch xếp xe (SCRUM-287 PR D) — resource `fulfillment-load-plans`, BE `LoadPlanController`. READ: xem
+ * danh sách, chi tiết, bố cục, đối chiếu (nhân viên kho, quản lý kho, điều phối đơn); CREATE: lập kế hoạch;
+ * UPDATE: đổi đầu vào, tính, tính lại xe, xác nhận kiện chưa xếp, chốt, mở lại, huỷ (nhân viên kho, quản lý kho).
+ */
+export const LOAD_PLAN_PERMISSIONS = {
+  viewPage: "fulfillment-load-plans:VIEW_PAGE",
+  read: "fulfillment-load-plans:READ",
+  create: "fulfillment-load-plans:CREATE",
+  update: "fulfillment-load-plans:UPDATE",
 } as const;
 
 /**

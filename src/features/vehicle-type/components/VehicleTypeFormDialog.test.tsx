@@ -1,0 +1,383 @@
+import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { UI_LABELS, VEHICLE_TYPE_ERROR_MESSAGES, VEHICLE_TYPE_FIELD_MESSAGES } from "@/constants";
+import { ApiError } from "@/lib/api/error";
+
+import { VT_20DC_ID, apiCustomTruck, apiVehicleType } from "../__fixtures__/vehicle-type";
+import {
+  VEHICLE_TYPE_ACTORS as ACTORS,
+  mockVehicleTypeApi,
+  renderVehicleTypeScreen,
+} from "../__fixtures__/render";
+import { VehicleTypeFormDialog } from "./VehicleTypeFormDialog";
+
+import type { VehicleType } from "../types";
+
+afterEach(() => vi.restoreAllMocks());
+
+const L = UI_LABELS.vehicleType;
+const PATH = "/fulfillment/vehicle-types";
+const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const field = (name: string) => screen.getByLabelText(new RegExp(`^${escape(name)}`));
+
+/** Response BE: body đi qua JSON nên trường `undefined` (bỏ trống) không đè lên giá trị mặc định. */
+const echo = (base: VehicleType, body: unknown): VehicleType => ({
+  ...base,
+  ...(JSON.parse(JSON.stringify(body)) as Partial<VehicleType>),
+});
+
+function renderDialog(vehicleType?: VehicleType, onClose = vi.fn()) {
+  let latest = vehicleType;
+  const spies = mockVehicleTypeApi(ACTORS.warehouseManager, {
+    get: { [`${PATH}/${vehicleType?.vehicleTypeId}`]: () => latest },
+    post: { [PATH]: (_p, body) => echo(apiCustomTruck(), body) },
+    put: {
+      [`${PATH}/${vehicleType?.vehicleTypeId}`]: (_p, body) => echo(apiVehicleType(), body),
+    },
+  });
+  renderVehicleTypeScreen(<VehicleTypeFormDialog vehicleType={vehicleType} onClose={onClose} />);
+  return { ...spies, onClose, setServerRow: (row: VehicleType) => (latest = row) };
+}
+
+async function fillCreateForm() {
+  const user = userEvent.setup();
+  await user.type(field(L.field.code), "truck-3t");
+  await user.type(field(L.field.name), "Xe tải 3 tấn");
+  await user.type(field(L.field.innerLengthMm), "4200");
+  await user.type(field(L.field.innerWidthMm), "1900");
+  await user.type(field(L.field.innerHeightMm), "1900");
+  await user.type(field(L.field.maxPayloadKg), "3000");
+  return user;
+}
+
+describe("VehicleTypeFormDialog — thêm loại xe", () => {
+  it("chưa đủ dữ liệu thì nút Thêm bị khoá; xem trước thể tích m³ cập nhật theo ba cạnh", async () => {
+    renderDialog();
+    const submit = await screen.findByRole("button", { name: L.form.submitCreate });
+    expect(submit).toBeDisabled();
+    expect(screen.getByText(L.form.volumeEmpty)).toBeInTheDocument();
+    await fillCreateForm();
+    // 4,2 × 1,9 × 1,9 = 15,162 m³
+    expect(await screen.findByText("15,16 m³")).toBeInTheDocument();
+    await waitFor(() => expect(submit).toBeEnabled());
+  });
+
+  it("báo lỗi từng ô theo luật BE: kích thước > 0, tải trọng > 0, số xe ≥ 0, khe góc ≥ 0", async () => {
+    renderDialog();
+    const user = userEvent.setup();
+    await screen.findByRole("button", { name: L.form.submitCreate });
+    await user.type(field(L.field.innerLengthMm), "0");
+    await user.type(field(L.field.maxPayloadKg), "0");
+    await user.clear(field(L.field.availableCount));
+    await user.type(field(L.field.availableCount), "-1");
+    await user.type(field(L.field.gussetMm), "-5");
+    expect(
+      await screen.findAllByText(VEHICLE_TYPE_FIELD_MESSAGES.dimensionPositive),
+    ).not.toHaveLength(0);
+    expect(screen.getByText(VEHICLE_TYPE_FIELD_MESSAGES.payloadPositive)).toBeInTheDocument();
+    // Số xe và khe góc dùng chung câu "Không được âm" — mỗi ô một câu
+    expect(screen.getAllByText(VEHICLE_TYPE_FIELD_MESSAGES.countNegative)).toHaveLength(2);
+    expect(screen.getByRole("button", { name: L.form.submitCreate })).toBeDisabled();
+  });
+
+  it("gửi POST với số đã đổi từ chuỗi, bỏ trường tuỳ chọn để trống, rồi đóng", async () => {
+    const { post, onClose } = renderDialog();
+    const user = await fillCreateForm();
+    await user.click(await screen.findByRole("button", { name: L.form.submitCreate }));
+    await waitFor(() => expect(post).toHaveBeenCalled());
+    const [url, sent] = post.mock.calls[0] ?? [];
+    expect(url).toBe(PATH);
+    expect(sent).toEqual({
+      code: "TRUCK-3T",
+      name: "Xe tải 3 tấn",
+      kind: "TRUCK",
+      innerLengthMm: 4200,
+      innerWidthMm: 1900,
+      innerHeightMm: 1900,
+      gussetMm: 0,
+      // Cửa để trống: gửi null (không giới hạn cửa), không bỏ trường
+      doorWidthMm: null,
+      doorHeightMm: null,
+      maxPayloadKg: 3000,
+      availableCount: 1,
+      status: "ACTIVE",
+    });
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+  });
+
+  it("409 VEHICLE_TYPE_CODE_EXISTS: hiện câu tiếng Việt trong dialog, form giữ nguyên", async () => {
+    const { post, onClose } = renderDialog();
+    post.mockRejectedValueOnce(new ApiError(409, "VEHICLE_TYPE_CODE_EXISTS", "taken"));
+    const user = await fillCreateForm();
+    await user.click(await screen.findByRole("button", { name: L.form.submitCreate }));
+    expect(
+      await screen.findByText(VEHICLE_TYPE_ERROR_MESSAGES.VEHICLE_TYPE_CODE_EXISTS),
+    ).toBeInTheDocument();
+    expect(field(L.field.code)).toHaveValue("truck-3t");
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("400 VALIDATION_FAILED: nêu tên ô và gắn lỗi vào đúng ô", async () => {
+    const { post } = renderDialog();
+    post.mockRejectedValueOnce(
+      new ApiError(400, "VALIDATION_FAILED", "bad", { innerHeightMm: "1 to 30000 mm" }),
+    );
+    const user = await fillCreateForm();
+    await user.click(await screen.findByRole("button", { name: L.form.submitCreate }));
+    // Banner: nhãn ô + câu BE cho ô đó; cùng câu BE nằm dưới ô
+    expect(await screen.findByText("Cao trong (mm): 1 to 30000 mm")).toBeInTheDocument();
+    expect(screen.getByText("1 to 30000 mm")).toBeInTheDocument();
+    expect(field(L.field.innerHeightMm)).toHaveAttribute("aria-invalid", "true");
+  });
+});
+
+describe("VehicleTypeFormDialog — sửa loại xe", () => {
+  it("nạp sẵn giá trị; mã chỉ đọc; có ô trạng thái", async () => {
+    renderDialog(apiVehicleType());
+    expect(await screen.findByDisplayValue("Container 20' Dry (20DC)")).toBeInTheDocument();
+    expect(field(L.field.code)).toBeDisabled();
+    expect(field(L.field.code)).toHaveValue("20DC");
+    expect(field(L.field.innerLengthMm)).toHaveValue("5898");
+    expect(field(L.field.maxPayloadKg)).toHaveValue("28200");
+    expect(field(L.field.status)).toBeInTheDocument();
+    expect(screen.getByText("33,20 m³")).toBeInTheDocument();
+  });
+
+  it("loại xe mặc định: mã và loại bị khoá, có gợi ý; loại xe tự thêm đổi được loại", async () => {
+    renderDialog(apiVehicleType());
+    const kind = await screen.findByRole("combobox", { name: new RegExp(`^${L.field.kind}`) });
+    expect(kind).toBeDisabled();
+    expect(field(L.field.code)).toBeDisabled();
+    expect(screen.getByText(L.form.presetLockedHint)).toBeInTheDocument();
+  });
+
+  it("loại xe tự thêm: loại chọn được, chỉ mã bị khoá", async () => {
+    renderDialog(apiCustomTruck());
+    const kind = await screen.findByRole("combobox", { name: new RegExp(`^${L.field.kind}`) });
+    expect(kind).toBeEnabled();
+    expect(field(L.field.code)).toBeDisabled();
+    expect(screen.queryByText(L.form.presetLockedHint)).not.toBeInTheDocument();
+  });
+
+  it("khe góc quá lớn so với thùng: báo ngay ở ô khe góc và khoá nút Lưu; trống gửi 0", async () => {
+    // Không cửa: đổi rộng trong xuống 1900 không đụng luật cửa ≤ thùng
+    const { put } = renderDialog(apiVehicleType({ doorWidthMm: null, doorHeightMm: null }));
+    const user = userEvent.setup();
+    const gusset = await screen.findByDisplayValue("150");
+    const width = field(L.field.innerWidthMm);
+    await user.clear(width);
+    await user.type(width, "1900");
+    await user.clear(gusset);
+    // Rộng trong 1900: 2 × 950 không nhỏ hơn rộng
+    await user.type(gusset, "950");
+    expect(
+      await screen.findByText(VEHICLE_TYPE_FIELD_MESSAGES.gussetTooLargeForBox),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: L.form.submitEdit })).toBeDisabled();
+    await user.clear(gusset);
+    await user.click(screen.getByRole("button", { name: L.form.submitEdit }));
+    await waitFor(() => expect(put).toHaveBeenCalled());
+    // PUT thay thế toàn bộ: khe góc trống gửi 0, không bỏ trường
+    expect(put.mock.calls[0]?.[1]).toMatchObject({
+      gussetMm: 0,
+      kind: "CONTAINER",
+      status: "ACTIVE",
+    });
+  });
+
+  describe("cửa thùng (tuỳ chọn)", () => {
+    it("nạp sẵn cửa của dòng; loại xe không cửa thì hai ô trống; có gợi ý để trống nếu không giới hạn", async () => {
+      renderDialog(apiVehicleType());
+      expect(await screen.findByDisplayValue("Container 20' Dry (20DC)")).toBeInTheDocument();
+      expect(field(L.field.doorWidthMm)).toHaveValue("2340");
+      expect(field(L.field.doorHeightMm)).toHaveValue("2280");
+      expect(screen.getByText(L.form.doorHint)).toBeInTheDocument();
+    });
+
+    it("xoá hai ô cửa rồi lưu: PUT gửi null cho cả hai (thay thế toàn bộ, không bỏ trường)", async () => {
+      const { put } = renderDialog(apiVehicleType());
+      const user = userEvent.setup();
+      await user.clear(await screen.findByDisplayValue("2340"));
+      await user.clear(field(L.field.doorHeightMm));
+      await user.click(screen.getByRole("button", { name: L.form.submitEdit }));
+      await waitFor(() => expect(put).toHaveBeenCalled());
+      const sent = put.mock.calls[0]?.[1] as Record<string, unknown>;
+      expect(sent).toHaveProperty("doorWidthMm", null);
+      expect(sent).toHaveProperty("doorHeightMm", null);
+    });
+
+    it("không đụng ô cửa: PUT vẫn gửi lại số của dòng", async () => {
+      const { put } = renderDialog(apiVehicleType());
+      const user = userEvent.setup();
+      await user.click(await screen.findByRole("button", { name: L.form.submitEdit }));
+      await waitFor(() => expect(put).toHaveBeenCalled());
+      expect(put.mock.calls[0]?.[1]).toMatchObject({ doorWidthMm: 2340, doorHeightMm: 2280 });
+    });
+
+    it("sửa cửa thành số mới: PUT gửi số đã đổi từ chuỗi", async () => {
+      const { put } = renderDialog(apiVehicleType());
+      const user = userEvent.setup();
+      const height = await screen.findByDisplayValue("2280");
+      await user.clear(height);
+      await user.type(height, "2200");
+      await user.click(screen.getByRole("button", { name: L.form.submitEdit }));
+      await waitFor(() => expect(put).toHaveBeenCalled());
+      expect(put.mock.calls[0]?.[1]).toMatchObject({ doorWidthMm: 2340, doorHeightMm: 2200 });
+    });
+
+    it("cửa lớn hơn thùng: báo ngay ở ô và khoá nút Lưu; sửa lại thì mở khoá", async () => {
+      renderDialog(apiVehicleType());
+      const user = userEvent.setup();
+      const width = await screen.findByDisplayValue("2340");
+      await user.clear(width);
+      // Rộng trong 2352
+      await user.type(width, "2353");
+      expect(
+        await screen.findByText(VEHICLE_TYPE_FIELD_MESSAGES.doorTooLargeForWidth),
+      ).toBeInTheDocument();
+      expect(width).toHaveAttribute("aria-invalid", "true");
+      const submit = screen.getByRole("button", { name: L.form.submitEdit });
+      expect(submit).toBeDisabled();
+      await user.clear(width);
+      await user.type(width, "2352");
+      await waitFor(() => expect(submit).toBeEnabled());
+    });
+
+    it("cửa ngoài 1..30.000 mm: báo ở ô cửa", async () => {
+      renderDialog();
+      const user = userEvent.setup();
+      await screen.findByRole("button", { name: L.form.submitCreate });
+      await user.type(field(L.field.doorHeightMm), "0");
+      expect(await screen.findByText(VEHICLE_TYPE_FIELD_MESSAGES.doorInvalid)).toBeInTheDocument();
+    });
+
+    it("BE trả VEHICLE_TYPE_DOOR_TOO_LARGE: câu tiếng Việt ở ô và trên banner, không lộ câu tiếng Anh", async () => {
+      const { post, onClose } = renderDialog();
+      post.mockRejectedValueOnce(
+        new ApiError(
+          400,
+          "VALIDATION_FAILED",
+          "bad",
+          { doorHeightMm: "must not be larger than the inner height" },
+          undefined,
+          { doorHeightMm: "VEHICLE_TYPE_DOOR_TOO_LARGE" },
+        ),
+      );
+      const user = await fillCreateForm();
+      await user.click(await screen.findByRole("button", { name: L.form.submitCreate }));
+      const message = VEHICLE_TYPE_FIELD_MESSAGES.doorTooLargeForHeight;
+      expect(await screen.findByText(`${L.field.doorHeightMm}: ${message}`)).toBeInTheDocument();
+      expect(screen.getByText(message)).toBeInTheDocument();
+      expect(screen.queryByText(/must not be larger/)).not.toBeInTheDocument();
+      expect(field(L.field.doorHeightMm)).toHaveAttribute("aria-invalid", "true");
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it("BE trả VEHICLE_TYPE_DOOR_INVALID trên ô rộng cửa: câu tiếng Việt gắn đúng ô", async () => {
+      const { post } = renderDialog();
+      post.mockRejectedValueOnce(
+        new ApiError(400, "VALIDATION_FAILED", "bad", { doorWidthMm: "1 to 30000 mm" }, undefined, {
+          doorWidthMm: "VEHICLE_TYPE_DOOR_INVALID",
+        }),
+      );
+      const user = await fillCreateForm();
+      await user.click(await screen.findByRole("button", { name: L.form.submitCreate }));
+      expect(
+        await screen.findByText(
+          `${L.field.doorWidthMm}: ${VEHICLE_TYPE_FIELD_MESSAGES.doorInvalid}`,
+        ),
+      ).toBeInTheDocument();
+      expect(field(L.field.doorWidthMm)).toHaveAttribute("aria-invalid", "true");
+    });
+  });
+
+  it("gửi PUT kèm version của lần đọc và mã hiện tại", async () => {
+    const { put, onClose } = renderDialog(apiVehicleType({ version: 3 }));
+    const user = userEvent.setup();
+    const payload = await screen.findByDisplayValue("28200");
+    await user.clear(payload);
+    await user.type(payload, "28000");
+    await user.click(screen.getByRole("button", { name: L.form.submitEdit }));
+    await waitFor(() => expect(put).toHaveBeenCalled());
+    expect(put).toHaveBeenCalledWith(
+      `${PATH}/${VT_20DC_ID}`,
+      expect.objectContaining({
+        code: "20DC",
+        maxPayloadKg: 28000,
+        gussetMm: 150,
+        status: "ACTIVE",
+        version: 3,
+      }),
+    );
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+  });
+
+  describe("OPTIMISTIC_LOCK — giữ phần người dùng đã nhập", () => {
+    /** Người khác sửa trước (BE ở version 1, tên và số xe mới); người dùng gõ thêm vào tên rồi lưu → 409. */
+    async function conflict() {
+      const ctx = renderDialog(apiVehicleType({ version: 0 }));
+      const user = userEvent.setup();
+      const name = await screen.findByDisplayValue("Container 20' Dry (20DC)");
+      ctx.setServerRow(
+        apiVehicleType({ version: 1, name: "Container 20 ft (đã đổi)", availableCount: 7 }),
+      );
+      ctx.put.mockRejectedValueOnce(new ApiError(409, "OPTIMISTIC_LOCK", "changed"));
+      await user.type(name, "!");
+      await user.click(screen.getByRole("button", { name: L.form.submitEdit }));
+      await screen.findByText(L.form.conflictTitle);
+      return { ...ctx, user, name };
+    }
+
+    it("báo OPTIMISTIC_LOCK, giữ nguyên chữ đã gõ và hiện cạnh nhau các ô người khác đổi", async () => {
+      const { name } = await conflict();
+      expect(screen.getByText(VEHICLE_TYPE_ERROR_MESSAGES.OPTIMISTIC_LOCK)).toBeInTheDocument();
+      expect(name).toHaveValue("Container 20' Dry (20DC)!");
+      const panel = within(screen.getByRole("status", { name: L.form.conflictTitle }));
+      expect(panel.getByText("Container 20 ft (đã đổi)")).toBeInTheDocument();
+      expect(panel.getByText("Container 20' Dry (20DC)!")).toBeInTheDocument();
+      expect(panel.getByText("7")).toBeInTheDocument();
+      // Ô chưa ai đổi không bị liệt kê
+      expect(panel.queryByText(L.field.maxPayloadKg)).not.toBeInTheDocument();
+    });
+
+    it("Giữ thay đổi của tôi: lưu lại gửi version mới và đúng chữ của người dùng", async () => {
+      const { put, user } = await conflict();
+      await user.click(screen.getByRole("button", { name: L.form.keepMine }));
+      expect(screen.queryByText(L.form.conflictTitle)).not.toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: L.form.submitEdit }));
+      await waitFor(() => expect(put).toHaveBeenCalledTimes(2));
+      expect(put.mock.calls[1]?.[1]).toMatchObject({
+        version: 1,
+        name: "Container 20' Dry (20DC)!",
+        availableCount: 10,
+      });
+    });
+
+    it("Nạp lại dữ liệu mới: form lấy giá trị của người khác, lưu lại gửi version mới", async () => {
+      const { put, user, name } = await conflict();
+      await user.click(screen.getByRole("button", { name: L.form.reloadLatest }));
+      expect(name).toHaveValue("Container 20 ft (đã đổi)");
+      expect(field(L.field.availableCount)).toHaveValue("7");
+      expect(screen.queryByText(L.form.conflictTitle)).not.toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: L.form.submitEdit }));
+      await waitFor(() => expect(put).toHaveBeenCalledTimes(2));
+      expect(put.mock.calls[1]?.[1]).toMatchObject({ version: 1, availableCount: 7 });
+    });
+  });
+
+  it("xem trước thể tích: ngoài giới hạn BE thì hiện '—', không hiện số vô nghĩa", async () => {
+    renderDialog();
+    const user = userEvent.setup();
+    await screen.findByRole("button", { name: L.form.submitCreate });
+    await user.type(field(L.field.innerLengthMm), "2716000000");
+    await user.type(field(L.field.innerWidthMm), "2352000000");
+    await user.type(field(L.field.innerHeightMm), "3157000000");
+    expect(
+      await screen.findAllByText(VEHICLE_TYPE_FIELD_MESSAGES.dimensionTooLarge),
+    ).not.toHaveLength(0);
+    expect(screen.queryByText(/m³/)).not.toBeInTheDocument();
+    expect(screen.getByText(L.form.volumeEmpty)).toBeInTheDocument();
+  });
+});

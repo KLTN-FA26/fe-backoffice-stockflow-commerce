@@ -5,10 +5,10 @@ import { allowedOrderActions, isOrderTerminal } from "../lifecycle";
 
 import { OrderCancelAction } from "./OrderCancelAction";
 import { OrderHoldNotice } from "./OrderHoldNotice";
+import { OrderRemainderClosureAction } from "./OrderRemainderClosureAction";
 import {
   OrderDeliveryFailureAction,
   OrderHoldAction,
-  OrderRemainderClosureAction,
   OrderResolveHoldAction,
 } from "./OrderStatusActions";
 
@@ -76,6 +76,7 @@ export function OrderActionCard({ order, can }: OrderActionCardProps) {
     holdReason: order.holdReason,
     hasShipments: order.shipments.length > 0,
     packedAt: order.packedAt,
+    statusBeforeHold: order.statusBeforeHold,
   });
   const has = (code: string) => actions.some((a) => a.code === code);
   const onHold = order.status === "On Hold";
