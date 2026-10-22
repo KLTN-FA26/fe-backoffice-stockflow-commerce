@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { handoverRefusalOf, shippingErrorMessage } from "@/features/shipping/errors";
+import { isFtlLoad } from "@/features/shipping/ftl-selectors";
 import { handoverInputSchema } from "@/features/shipping/input-schemas";
 import { useHandoverLoad } from "@/features/shipping/mutations";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
@@ -19,6 +20,7 @@ import type { HandoverRefusal } from "@/features/shipping/errors";
 import type { HandoverFormInput, HandoverValues, Load } from "@/features/shipping/types";
 
 const H = UI_LABELS.shipping.handover;
+const FTL = UI_LABELS.shipping.ftl.handover;
 
 interface HandoverDialogProps {
   load: Load;
@@ -101,7 +103,7 @@ export function HandoverDialog({ load, onClose, onDone, onRefused }: HandoverDia
     <FormDialog open onOpenChange={(next) => !next && !handover.isPending && onClose()}>
       <FormDialogBody
         title={`${H.title} · ${load.code}`}
-        description={H.description}
+        description={isFtlLoad(load) ? FTL.description : H.description}
         submitLabel={H.title}
         canSubmit={form.formState.isValid}
         isPending={handover.isPending}

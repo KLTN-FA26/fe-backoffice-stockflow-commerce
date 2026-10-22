@@ -35,6 +35,15 @@ export function buildLoadColumns(open: (row: LoadRow) => void): ColumnDef<LoadRo
         </Link>
       ),
     },
+    textCell<LoadRow>(C.MODE, L.ftl.modeColumn, (row) => L.load.mode[row.mode]),
+    // Chuyến nguyên xe: mã kế hoạch + số xe (kế hoạch chưa có trang chi tiết ở PR này → chữ, không link)
+    stackCell<LoadRow>(
+      C.PLAN,
+      L.ftl.planColumn,
+      (row) => row.loadPlanCode,
+      (row) => (row.vehicleSeq != null ? `${L.ftl.vehicleSeq} ${row.vehicleSeq}` : null),
+      { mono: true },
+    ),
     textCell<LoadRow>(C.CARRIER, L.field.carrier, (row) => row.carrierName ?? ""),
     // Ô hai dòng: biển số (mono) + tài xế
     stackCell<LoadRow>(

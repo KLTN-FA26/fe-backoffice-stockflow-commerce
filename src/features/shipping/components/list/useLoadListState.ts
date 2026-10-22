@@ -5,9 +5,15 @@ import { parseAsInteger, parseAsString, parseAsStringLiteral, useQueryState } fr
 import { ADMIN_ROUTES, STORAGE_KEYS } from "@/constants";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { usePageConfig } from "@/hooks/use-page-config";
+import { filterLoadsByMode } from "@/features/shipping/ftl-selectors";
 import { useLoads } from "@/features/shipping/queries";
 
-import { DEFAULT_CONFIG, LOAD_STATUS_FILTERS, mergeStoredConfig } from "./constants";
+import {
+  DEFAULT_CONFIG,
+  LOAD_MODE_FILTERS,
+  LOAD_STATUS_FILTERS,
+  mergeStoredConfig,
+} from "./constants";
 
 import type { LoadRow } from "@/features/shipping/types";
 
@@ -21,6 +27,10 @@ export function useLoadListState(canRead: boolean) {
   const [status, setStatus] = useQueryState(
     "status",
     parseAsStringLiteral(LOAD_STATUS_FILTERS).withDefault("ALL"),
+  );
+  const [mode, setMode] = useQueryState(
+    "mode",
+    parseAsStringLiteral(LOAD_MODE_FILTERS).withDefault("ALL"),
   );
   const [warehouseId, setWarehouseId] = useQueryState("warehouse", parseAsString.withDefault(""));
   const [carrierId, setCarrierId] = useQueryState("carrier", parseAsString.withDefault(""));
@@ -36,19 +46,25 @@ export function useLoadListState(canRead: boolean) {
       size: config.pageSize,
       search: debouncedQ,
       status: status === "ALL" ? undefined : status,
+      mode: mode === "ALL" ? undefined : mode,
       warehouseId: warehouseId || undefined,
       carrierId: carrierId || undefined,
     },
     { enabled: canRead },
   );
 
-  const hasFilters = q.trim() !== "" || status !== "ALL" || warehouseId !== "" || carrierId !== "";
+  const hasFilters =
+    q.trim() !== "" || status !== "ALL" || mode !== "ALL" || warehouseId !== "" || carrierId !== "";
   // Empty state theo tham số của dữ liệu đang hiện (search sau debounce)
-  const dataFiltered = debouncedQ.trim() !== "" || status !== "ALL" || !!warehouseId || !!carrierId;
+  const dataFiltered =
+    debouncedQ.trim() !== "" || status !== "ALL" || mode !== "ALL" || !!warehouseId || !!carrierId;
   const data = query.data;
+  // BE chưa lọc theo hình thức → lọc thêm các dòng của trang đang xem (bảng đủ dòng khi BE hỗ trợ `mode`)
+  const rows = data ? filterLoadsByMode(data.items, mode) : [];
   let emptyState: LoadListEmptyState = "none";
   if (data && data.totalElements === 0) emptyState = dataFiltered ? "no-results" : "no-loads";
   else if (data && data.items.length === 0) emptyState = "invalid-page";
+  else if (data && rows.length === 0) emptyState = "no-results";
 
   const navigateToLoad = useCallback(
     (row: LoadRow) => router.push(ADMIN_ROUTES.loads.detail(row.loadId)),
@@ -68,6 +84,8 @@ export function useLoadListState(canRead: boolean) {
     config,
     q,
     status,
+    mode,
+    rows,
     warehouseId,
     carrierId,
     hasFilters,
@@ -76,6 +94,9 @@ export function useLoadListState(canRead: boolean) {
     setQ: filter((value: string) => setQ(value)),
     setStatus: filter((value: string) =>
       setStatus(LOAD_STATUS_FILTERS.find((known) => known === value) ?? "ALL"),
+    ),
+    setMode: filter((value: string) =>
+      setMode(LOAD_MODE_FILTERS.find((known) => known === value) ?? "ALL"),
     ),
     setWarehouseId: filter((value: string) => setWarehouseId(value || null)),
     setCarrierId: filter((value: string) => setCarrierId(value || null)),
@@ -87,6 +108,7 @@ export function useLoadListState(canRead: boolean) {
     clearFilters: () => {
       void setQ(null);
       void setStatus(null);
+      void setMode(null);
       void setWarehouseId(null);
       void setCarrierId(null);
       void setPage(1);

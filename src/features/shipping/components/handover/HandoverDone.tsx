@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
 import { formatMoney } from "@/lib/format/money";
+import { isFtlLoad } from "@/features/shipping/ftl-selectors";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { StatusDot } from "@/components/shared/StatusDot";
 
@@ -12,6 +13,7 @@ import { MONO } from "../primitives";
 import type { Load } from "@/features/shipping/types";
 
 const H = UI_LABELS.shipping.handover.done;
+const FTL = UI_LABELS.shipping.ftl.handover;
 
 /** Kết quả bàn giao: chuyến DISPATCHED và các lô đã đi cùng hãng (COD đơn chốt từng lô). */
 export function HandoverDone({ load, onClose }: { load: Load; onClose: () => void }) {
@@ -19,7 +21,7 @@ export function HandoverDone({ load, onClose }: { load: Load; onClose: () => voi
     <FormDialog open onOpenChange={(next) => !next && onClose()}>
       <FormDialogBody
         title={`${H.title} · ${load.code}`}
-        description={H.description}
+        description={isFtlLoad(load) ? FTL.doneDescription : H.description}
         submitLabel={H.close}
         canSubmit
         isPending={false}

@@ -93,9 +93,9 @@ function Content({ s, columns }: { s: LoadListState; columns: ColumnDef<LoadRow>
       <RefetchBar active={query.isFetching} label={L.refetching} />
       <DataTable
         columns={columns}
-        data={page.items}
+        data={s.rows}
         rowKey={(row) => row.loadId}
-        caption={`${UI_LABELS.common.showing} ${page.items.length} / ${page.totalElements} ${L.listCaption}`}
+        caption={`${UI_LABELS.common.showing} ${s.rows.length} / ${page.totalElements} ${L.listCaption}`}
         onRowClick={s.navigateToLoad}
         pageSize={s.config.pageSize}
         pageSizeOptions={PAGE_SIZE_OPTIONS}

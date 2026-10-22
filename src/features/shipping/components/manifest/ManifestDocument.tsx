@@ -9,6 +9,7 @@ import { formatNumber } from "@/lib/format/number";
 
 import { InfoItem, MONO } from "../primitives";
 import { ManifestShipmentRows } from "./ManifestShipmentRows";
+import { ManifestVehicleInfo, ManifestVehicleNote } from "./ManifestVehicleInfo";
 
 import type { Manifest } from "@/features/shipping/types";
 
@@ -46,6 +47,7 @@ export function ManifestDocument({ manifest, draft }: { manifest: Manifest; draf
         <p className={`text-ink-secondary text-[0.8125rem] ${MONO}`}>
           {M.loadPrefix} {manifest.loadCode}
         </p>
+        <ManifestVehicleNote manifest={manifest} />
       </header>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 print:grid-cols-3">
         <InfoItem label={M.warehouse} value={manifest.warehouseName ?? "—"} />
@@ -75,6 +77,7 @@ export function ManifestDocument({ manifest, draft }: { manifest: Manifest; draf
           label={M.handedOverAt}
           value={manifest.dispatchedAt ? formatDateTime(manifest.dispatchedAt) : M.handedOverBlank}
         />
+        <ManifestVehicleInfo manifest={manifest} />
       </div>
       <div className="border-border-default overflow-x-auto rounded-[var(--r-sm)] border print:overflow-visible">
         <table className="w-full text-[0.8125rem]">
