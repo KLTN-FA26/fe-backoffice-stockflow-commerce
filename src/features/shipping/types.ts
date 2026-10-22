@@ -1,12 +1,15 @@
 import type { z } from "zod";
 
 import type {
+  bookingInputSchema,
+  cancelBookingInputSchema,
   cancelLoadInputSchema,
   deliveryOutcomeInputSchema,
   handoverInputSchema,
   openLoadInputSchema,
   scanPackageInputSchema,
 } from "./input-schemas";
+import type { kitPartSchema, pendingUnloadSchema } from "./ftl-schemas";
 import type {
   beLoadParcelSchema,
   beLoadRowSchema,
@@ -33,6 +36,8 @@ export type Load = z.infer<typeof beLoadSchema>;
 export type LoadRow = z.infer<typeof beLoadRowSchema>;
 export type LoadShipment = z.infer<typeof beLoadShipmentSchema>;
 export type LoadParcel = z.infer<typeof beLoadParcelSchema>;
+export type KitPart = z.infer<typeof kitPartSchema>;
+export type PendingUnload = z.infer<typeof pendingUnloadSchema>;
 export type Manifest = z.infer<typeof beManifestSchema>;
 export type ManifestShipment = z.infer<typeof beManifestShipmentSchema>;
 
@@ -45,6 +50,9 @@ export type OpenLoadValues = z.output<typeof openLoadInputSchema>;
 export type HandoverFormInput = z.input<ReturnType<typeof handoverInputSchema>>;
 export type HandoverValues = z.output<ReturnType<typeof handoverInputSchema>>;
 export type CancelLoadValues = z.output<typeof cancelLoadInputSchema>;
+export type BookingFormInput = z.input<typeof bookingInputSchema>;
+export type BookingValues = z.output<typeof bookingInputSchema>;
+export type CancelBookingValues = z.output<typeof cancelBookingInputSchema>;
 export type ScanPackageValues = z.output<typeof scanPackageInputSchema>;
 export type DeliveryOutcomeFormInput = z.input<typeof deliveryOutcomeInputSchema>;
 export type DeliveryOutcomeValues = z.output<typeof deliveryOutcomeInputSchema>;
@@ -98,4 +106,25 @@ export interface AssignCarrierInput {
 export interface RecordOutcomeInput {
   shipmentId: string;
   values: DeliveryOutcomeValues;
+}
+
+/** Đặt xe / sửa thông tin đặt xe của một xe trong kế hoạch (BE PR #162). */
+export interface BookLoadInput {
+  loadId: string;
+  values: BookingValues;
+}
+
+export interface CancelBookingInput {
+  loadId: string;
+  reason: string;
+}
+
+export interface StartLoadingInput {
+  loadId: string;
+}
+
+/** Dỡ một kiện của đơn đã huỷ khỏi xe: mã in trên nhãn. */
+export interface UnloadPackageInput {
+  loadId: string;
+  packageCode: string;
 }

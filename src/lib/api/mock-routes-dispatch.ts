@@ -14,6 +14,7 @@ import {
 } from "@/constants";
 
 import { registerMockRoute } from "./mock-adapter";
+import { book, cancelBooking, startLoading, unload } from "./mock-dispatch-ftl-rules";
 import { handover, recordOutcome } from "./mock-dispatch-handover";
 import {
   addShipments,
@@ -233,6 +234,25 @@ export function registerDispatchMockRoutes(): void {
   registerMockRoute("POST", `${LOADS}/:id/handover`, (config) =>
     withLoad(config, DISPATCH_UPDATE, (state, load) =>
       handover(state, load, parseJsonBody(config.data)),
+    ),
+  );
+  // Chuyến nguyên xe — một xe của kế hoạch xếp xe (BE PR #162): cùng mã quyền `fulfillment-dispatch:UPDATE`
+  registerMockRoute("POST", `${LOADS}/:id/booking`, (config) =>
+    withLoad(config, DISPATCH_UPDATE, (state, load) =>
+      book(state, load, parseJsonBody(config.data)),
+    ),
+  );
+  registerMockRoute("POST", `${LOADS}/:id/booking-cancellation`, (config) =>
+    withLoad(config, DISPATCH_UPDATE, (state, load) =>
+      cancelBooking(state, load, readString(parseJsonBody(config.data).reason)),
+    ),
+  );
+  registerMockRoute("POST", `${LOADS}/:id/loading-start`, (config) =>
+    withLoad(config, DISPATCH_UPDATE, (state, load) => startLoading(state, load)),
+  );
+  registerMockRoute("POST", `${LOADS}/:id/unloads`, (config) =>
+    withLoad(config, DISPATCH_UPDATE, (state, load) =>
+      unload(state, load, parseJsonBody(config.data)),
     ),
   );
   registerMockRoute("POST", `${LOADS}/:id/cancellation`, (config) =>

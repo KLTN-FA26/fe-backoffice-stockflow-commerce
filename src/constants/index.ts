@@ -47,6 +47,7 @@ export type { OrderErrorCode } from "./labels-order";
 export { PRODUCT_ERROR_MESSAGES, PRODUCT_REJECT_LABELS } from "./labels-product";
 export { LOAD_PLANNING_LABELS, PLACEMENT_RULE_LABELS } from "./labels-load-planning";
 export { SHIPPING_ERROR_MESSAGES, SHIPPING_FIELD_MESSAGES } from "./labels-shipping";
+export { SHIPPING_WRONG_VEHICLE_MESSAGE } from "./labels-shipping-ftl";
 export { TAXONOMY_ERROR_MESSAGES } from "./labels-taxonomy";
 export {
   VEHICLE_TYPE_DOOR_ERROR_CODES,
@@ -211,6 +212,7 @@ export type {
   DesignArtifactRole,
   InvoiceStatus,
   LoadStatus,
+  DeliveryMode,
   OrderStatus,
   PackApiStatus,
   PackStatus,

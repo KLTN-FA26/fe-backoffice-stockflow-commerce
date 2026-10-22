@@ -3,7 +3,12 @@
  * bàn giao (dữ liệu cũ → tải lại; lỗi tạm thời → gửi lại cùng id; lô nào chặn bàn giao).
  */
 
-import { ADMIN_ROUTES, SHIPPING_ERROR_MESSAGES } from "@/constants";
+import {
+  ADMIN_ROUTES,
+  SHIPPING_ERROR_MESSAGES,
+  SHIPPING_WRONG_VEHICLE_MESSAGE,
+  UI_LABELS,
+} from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
 type KnownErrorCode = Exclude<keyof typeof SHIPPING_ERROR_MESSAGES, "generic" | "shipmentRefused">;
@@ -20,12 +25,30 @@ export function shipmentCodeOf(error: unknown): string | undefined {
 }
 
 /**
+ * Chuyến nguyên xe: kiện đã được kế hoạch xếp lên xe khác → BE 409 PACKAGE_NOT_IN_LOAD kèm `vehicleSeq` và
+ * `loadCode` của xe đúng (BE PR #162). Thiếu một trong hai thì không nêu được xe → câu chung.
+ */
+export function wrongVehicleOf(error: unknown): { seq: string; loadCode: string } | undefined {
+  if (!(error instanceof ApiError) || error.code !== "PACKAGE_NOT_IN_LOAD") return undefined;
+  const seq = error.fieldErrors?.vehicleSeq;
+  const loadCode = error.fieldErrors?.loadCode;
+  return seq && loadCode ? { seq, loadCode } : undefined;
+}
+
+/**
  * Câu tiếng Việt cho lỗi; BE nêu tên lô giao thì thêm tiền tố "Lô <mã>". BE gắn `shipmentCode` vào MỌI
  * lỗi phía đơn khi bàn giao (đơn huỷ, lô xung đột, vượt số lượng…): mã chưa biết mà có tên lô vẫn nói
  * được lô nào bị chặn, kèm lý do chung.
  */
 export function shippingErrorMessage(error: unknown): string {
   if (!(error instanceof ApiError)) return SHIPPING_ERROR_MESSAGES.generic;
+  const wrongVehicle = wrongVehicleOf(error);
+  if (wrongVehicle) {
+    return SHIPPING_WRONG_VEHICLE_MESSAGE.replace("{seq}", wrongVehicle.seq).replace(
+      "{code}",
+      wrongVehicle.loadCode,
+    );
+  }
   const shipmentCode = shipmentCodeOf(error);
   if (!isKnownErrorCode(error.code)) {
     return shipmentCode
@@ -36,9 +59,19 @@ export function shippingErrorMessage(error: unknown): string {
   return shipmentCode ? `Lô ${shipmentCode}: ${message}` : message;
 }
 
+/** Lỗi dỡ kiện: 409 PACKAGE_NOT_IN_LOAD ở đây nghĩa là kiện không nằm trong danh sách cần dỡ của xe này. */
+export function unloadErrorMessage(error: unknown): string {
+  return error instanceof ApiError && error.code === "PACKAGE_NOT_IN_LOAD"
+    ? UI_LABELS.shipping.ftl.unload.notPending
+    : shippingErrorMessage(error);
+}
+
 /** Mã lỗi cho biết dữ liệu hiển thị đã cũ (người khác đã đổi chuyến / lô) → tải lại. */
 const STALE_CODES: ReadonlySet<string> = new Set([
   "INVALID_LOAD_TRANSITION",
+  // BE PR #162: kế hoạch đã đổi trạng thái / còn kiện cần dỡ mà màn chưa thấy → tải lại chuyến
+  "INVALID_LOAD_PLAN_TRANSITION",
+  "LOAD_UNLOAD_PENDING",
   "OPTIMISTIC_LOCK",
   "LOAD_NOT_FULLY_LOADED",
   "LOAD_EMPTY",

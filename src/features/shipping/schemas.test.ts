@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from "vitest";
 
+import { ftlLoad, ftlManifest, ftlRow, kit, pendingUnload } from "./__fixtures__/ftl-load";
 import { apiLoad, apiManifest, apiShipment, shipmentRow } from "./__fixtures__/load";
 import { beLoadPageSchema, beLoadSchema, beManifestSchema } from "./load-schemas";
 import { beCarrierSchema, beShipmentPageSchema, beShipmentSchema } from "./schemas";
@@ -114,5 +115,71 @@ describe("lô giao + hãng", () => {
     });
     expect(carrier.status).toBe("UNKNOWN");
     expect(carrier.contactName).toBeUndefined();
+  });
+});
+
+describe("chuyến nguyên xe (BE PR #162)", () => {
+  it("chuyến FTL: kế hoạch, số xe, đặt xe, kiện cần dỡ, kiện thuộc bộ", () => {
+    const load = beLoadSchema.parse(
+      ftlLoad({ pendingUnloads: [pendingUnload()], carrierBookingToCancel: true }),
+    );
+    expect(load).toMatchObject({
+      mode: "FULL_TRUCKLOAD",
+      loadPlanCode: "LP-2026-0001",
+      vehicleSeq: 1,
+      vehicleTypeCode: "TRUCK-1T25",
+      bookedAt: "2026-10-21T01:00:00Z",
+      carrierBookingToCancel: true,
+    });
+    expect(load.pendingUnloads?.[0]).toMatchObject({
+      labelCode: "PKG-SO-9-1",
+      shipmentCode: "SO-9-S1",
+    });
+    expect(load.shipments[0]?.packages[0]?.kit).toEqual({ ...kit(1) });
+  });
+
+  it("chuyến gửi kiện (không có trường FTL) vẫn parse: mọi trường mới vắng", () => {
+    const load = beLoadSchema.parse(apiLoad());
+    expect(load.loadPlanCode).toBeUndefined();
+    expect(load.pendingUnloads).toBeUndefined();
+    expect(load.carrierBookingToCancel).toBeUndefined();
+    expect(load.shipments[0]?.packages[0]?.kit).toBeUndefined();
+  });
+
+  it("kit sai hợp đồng (partNo < 1) bị từ chối, không hạ chuẩn", () => {
+    const bad = ftlLoad();
+    const shipment = bad.shipments[0];
+    if (!shipment?.packages[0]) throw new Error("fixture");
+    shipment.packages[0] = {
+      ...shipment.packages[0],
+      kit: { groupId: "k", partNo: 0, partCount: 2 },
+    };
+    expect(() => beLoadSchema.parse(bad)).toThrow();
+  });
+
+  it("dòng danh sách: mã kế hoạch + số xe; biên bản: mode, kế hoạch, xe, loại xe, kiện thuộc bộ", () => {
+    const rows = beLoadPageSchema.parse(page([ftlRow()]));
+    expect(rows.items[0]).toMatchObject({ loadPlanCode: "LP-2026-0001", vehicleSeq: 1 });
+    const manifest = beManifestSchema.parse(
+      ftlManifest({
+        shipments: [
+          {
+            shipmentCode: "SO-1-S1",
+            packageCount: 1,
+            codChangedSinceLabel: false,
+            packages: [{ labelCode: "PKG-SO-1-1", loaded: true, kit: kit(1), labelOutdated: true }],
+          },
+        ],
+      }),
+    );
+    expect(manifest).toMatchObject({
+      mode: "FULL_TRUCKLOAD",
+      loadPlanCode: "LP-2026-0001",
+      vehicleSeq: 1,
+      vehicleTypeCode: "TRUCK-1T25",
+    });
+    expect(manifest.shipments[0]?.packages[0]).toMatchObject({ kit: kit(1), labelOutdated: true });
+    // Biên bản BE cũ không có mode → vắng, không phải UNKNOWN
+    expect(beManifestSchema.parse(apiManifest()).mode).toBeUndefined();
   });
 });

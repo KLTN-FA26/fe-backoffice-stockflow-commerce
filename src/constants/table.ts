@@ -126,6 +126,8 @@ export const INVENTORY_ITEM_COLUMNS = {
 /** Cột danh sách chuyến xe (BE `LoadRowResponse`). */
 export const LOAD_COLUMNS = {
   ACTIONS: "actions",
+  MODE: "mode",
+  PLAN: "plan",
   CARRIER: "carrier",
   COD: "cod",
   CODE: "code",

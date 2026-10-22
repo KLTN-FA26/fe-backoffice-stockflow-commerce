@@ -115,11 +115,11 @@ describe("allowedLoadActions — mã quyền + trạng thái (BE PR #148)", () =
     ).toBeUndefined();
   });
 
-  it("đã bàn giao / đã huỷ → không còn thao tác; chuyến nguyên xe không xử lý ở đây (trừ huỷ)", () => {
+  it("đã bàn giao / đã huỷ → không còn thao tác (cả chuyến nguyên xe)", () => {
     expect(codes(gate({ status: "DISPATCHED" }), MANAGER)).toEqual([]);
     expect(codes(gate({ status: "CANCELLED" }), MANAGER)).toEqual([]);
-    expect(codes(gate({ mode: "FULL_TRUCKLOAD" }), STAFF)).toEqual([]);
-    expect(codes(gate({ mode: "FULL_TRUCKLOAD" }), MANAGER)).toEqual(["cancel"]);
+    expect(codes(gate({ status: "DISPATCHED", mode: "FULL_TRUCKLOAD" }), ADMIN)).toEqual([]);
+    expect(codes(gate({ status: "CANCELLED", mode: "FULL_TRUCKLOAD" }), ADMIN)).toEqual([]);
   });
 
   it("trạng thái lạ (BE thêm sau) → không mở thao tác nào", () => {
@@ -135,11 +135,85 @@ describe("allowedLoadActions — mã quyền + trạng thái (BE PR #148)", () =
   });
 });
 
+describe("allowedLoadActions — chuyến nguyên xe (FTL, BE PR #162)", () => {
+  const ftl = (patch: Partial<LoadGateState> = {}) => gate({ mode: "FULL_TRUCKLOAD", ...patch });
+
+  it("PLANNED: chỉ đặt xe; VEHICLE_BOOKED: đặt lại / huỷ đặt xe / bắt đầu xếp; LOADING: quét, gỡ, dỡ, bàn giao", () => {
+    expect(codes(ftl({ status: "PLANNED" }), STAFF)).toEqual(["book"]);
+    expect(codes(ftl({ status: "VEHICLE_BOOKED" }), STAFF)).toEqual([
+      "book",
+      "cancelBooking",
+      "startLoading",
+    ]);
+    expect(codes(ftl({ status: "LOADING" }), STAFF)).toEqual([
+      "scan",
+      "unscan",
+      "handover",
+      "unload",
+    ]);
+  });
+
+  it("gate theo mã quyền fulfillment-dispatch:UPDATE, không theo vai trò: chỉ xem / điều phối không có thao tác", () => {
+    for (const status of ["PLANNED", "VEHICLE_BOOKED", "LOADING"] as const) {
+      expect(codes(ftl({ status }), COORDINATOR)).toEqual([]);
+      expect(codes(ftl({ status }), actor(READ))).toEqual([]);
+    }
+    // Mọi thao tác FTL cần đúng mã UPDATE: tập quyền chỉ có CREATE (mở chuyến) vẫn không đặt xe được
+    expect(codes(ftl({ status: "PLANNED" }), actor([...READ, DISPATCH.create]))).toEqual([]);
+    expect(codes(ftl({ status: "PLANNED" }), actor([...READ, DISPATCH.update]))).toEqual(["book"]);
+  });
+
+  it("lô của chuyến do kế hoạch quản lý: không thêm / bỏ lô, không huỷ chuyến — kể cả quản lý kho", () => {
+    for (const status of ["PLANNED", "VEHICLE_BOOKED", "LOADING"] as const) {
+      const list = codes(ftl({ status }), ADMIN);
+      for (const blocked of ["addShipment", "removeShipment", "cancel"] as const) {
+        expect(list).not.toContain(blocked);
+      }
+    }
+  });
+
+  it("chuyến gửi kiện không có thao tác đặt xe / dỡ kiện", () => {
+    const parcel = codes(gate({ status: "LOADING" }), ADMIN);
+    for (const only of ["book", "cancelBooking", "startLoading", "unload"] as const) {
+      expect(parcel).not.toContain(only);
+    }
+    expect(codes(gate({ status: "VEHICLE_BOOKED" }), ADMIN)).not.toContain("book");
+  });
+
+  it("còn kiện của đơn đã huỷ trên xe: bàn giao bị khoá và nói lý do (BE 409 LOAD_UNLOAD_PENDING)", () => {
+    const pending = [
+      {
+        packageId: "p1",
+        labelCode: "PKG-1",
+        shipmentId: "s1",
+        shipmentCode: "S1",
+      },
+    ];
+    const blocked = hasLoadAction(
+      allowedLoadActions(ftl({ status: "LOADING", pendingUnloads: pending }), STAFF),
+      "handover",
+    );
+    expect(blocked?.disabledReason).toMatch(/dỡ xuống/);
+    const free = hasLoadAction(allowedLoadActions(ftl({ status: "LOADING" }), STAFF), "handover");
+    expect(free?.disabledReason).toBeUndefined();
+  });
+
+  it("bảng chuyển trạng thái: huỷ đặt xe đưa VEHICLE_BOOKED về PLANNED", () => {
+    expect(LOAD_TRANSITIONS.VEHICLE_BOOKED).toEqual(["PLANNED", "LOADING", "CANCELLED"]);
+    expect(LOAD_TRANSITIONS.PLANNED).toEqual(["VEHICLE_BOOKED", "CANCELLED"]);
+  });
+});
+
 describe("loadNoActionReason", () => {
   it("nói đúng vì sao không có ô quét / nút", () => {
     expect(loadNoActionReason(gate({ status: "DISPATCHED" }))).toMatch(/Đã bàn giao/);
     expect(loadNoActionReason(gate({ status: "CANCELLED" }))).toMatch(/huỷ/);
-    expect(loadNoActionReason(gate({ mode: "FULL_TRUCKLOAD" }))).toMatch(/nguyên xe/);
+    expect(loadNoActionReason(gate({ mode: "FULL_TRUCKLOAD", status: "PLANNED" }))).toMatch(
+      /Chưa đặt xe/,
+    );
+    expect(loadNoActionReason(gate({ mode: "FULL_TRUCKLOAD", status: "VEHICLE_BOOKED" }))).toMatch(
+      /Bắt đầu xếp hàng/,
+    );
     expect(loadNoActionReason(gate())).toMatch(/chỉ có quyền xem/);
   });
 });
