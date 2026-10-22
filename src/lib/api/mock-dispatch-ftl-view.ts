@@ -15,10 +15,13 @@ export const parcelsOn = (load: MockLoad, shipment: MockShipment): MockParcel[] 
 export const modeOf = (load: MockLoad): "PARCEL" | "FULL_TRUCKLOAD" =>
   load.ftl ? "FULL_TRUCKLOAD" : "PARCEL";
 
-/** Kiện: bộ (n/N) và cờ nhãn cũ (chỉ khi có — BE bỏ trường vắng). */
+const LABEL_OUTDATED_AT = "2026-10-21T02:10:00Z";
+
+/** Kiện: bộ (n/N, vắng với kiện thường) và cờ nhãn cũ — BE PR #165: `labelOutdated` luôn có, `labelOutdatedAt` bỏ khi null. */
 export const parcelExtras = (parcel: MockParcel) => ({
   kit: parcel.kit,
-  labelOutdated: parcel.labelOutdated,
+  labelOutdated: parcel.labelOutdated === true,
+  labelOutdatedAt: parcel.labelOutdated ? LABEL_OUTDATED_AT : null,
 });
 
 export const ftlRowFields = (load: MockLoad) => ({

@@ -113,43 +113,56 @@ describe("LoadList — chuyến nguyên xe (BE PR #162)", () => {
     expect(screen.getByText("Đã lập kế hoạch")).toBeInTheDocument();
   });
 
-  it("bộ lọc hình thức: gửi `mode` cho BE và lọc thêm trên trang trả về (BE chưa lọc theo hình thức)", async () => {
-    const { get } = renderList(ACTORS.warehouseStaff, "?mode=FULL_TRUCKLOAD", [ROW, FTL]);
+  it("bộ lọc hình thức chạy ở máy chủ: gửi `mode` cho BE, bảng hiện đúng các dòng BE trả (không lọc lại ở FE)", async () => {
+    const { get } = renderList(ACTORS.warehouseStaff, "?mode=FULL_TRUCKLOAD", [FTL]);
     await screen.findByRole("link", { name: "LD-F001" });
-    expect(screen.queryByRole("link", { name: LOAD_ID })).not.toBeInTheDocument();
     await waitFor(() => {
       const params = get.mock.calls.find(([url]) => url === "/fulfillment/loads")?.[1]?.params;
       expect(params).toMatchObject({ mode: "FULL_TRUCKLOAD" });
     });
+    expect(screen.queryByText(/chỉ lọc các chuyến trong trang này/)).not.toBeInTheDocument();
   });
 
-  it("chọn hình thức trong bộ lọc → chỉ còn chuyến thuộc hình thức đó", async () => {
+  it("chọn hình thức trong bộ lọc → gọi lại BE với `mode`; chọn Tất cả → hiện lại mọi hình thức", async () => {
     const user = userEvent.setup();
-    renderList(ACTORS.warehouseStaff, "", [ROW, FTL]);
-    await screen.findByRole("link", { name: "LD-F001" });
-    await user.click(screen.getByRole("combobox", { name: L.ftl.modeFilter }));
-    await user.click(await screen.findByRole("option", { name: L.load.mode.PARCEL }));
-    await waitFor(() =>
-      expect(screen.queryByRole("link", { name: "LD-F001" })).not.toBeInTheDocument(),
-    );
-    expect(screen.getByRole("link", { name: LOAD_ID })).toBeInTheDocument();
+    const { get } = mockShippingApi(ACTORS.warehouseStaff, {
+      get: {
+        "/fulfillment/loads": (params) => {
+          const mode = (params as { mode?: string }).mode;
+          return bePage([ROW, FTL].filter((row) => !mode || row.mode === mode));
+        },
+      },
+    });
+    renderShippingScreen(<LoadList />);
+    await screen.findByRole("link", { name: LOAD_ID });
+    expect(screen.getByRole("link", { name: "LD-F001" })).toBeInTheDocument();
     await user.click(screen.getByRole("combobox", { name: L.ftl.modeFilter }));
     await user.click(await screen.findByRole("option", { name: L.load.mode.FULL_TRUCKLOAD }));
     await waitFor(() =>
       expect(screen.queryByRole("link", { name: LOAD_ID })).not.toBeInTheDocument(),
     );
     expect(screen.getByRole("link", { name: "LD-F001" })).toBeInTheDocument();
+    const modes = () =>
+      get.mock.calls
+        .filter(([url]) => url === "/fulfillment/loads")
+        .map(([, c]) => (c?.params as { mode?: string } | undefined)?.mode);
+    expect(modes().at(-1)).toBe("FULL_TRUCKLOAD");
+    await user.click(screen.getByRole("combobox", { name: L.ftl.modeFilter }));
+    await user.click(await screen.findByRole("option", { name: L.ftl.modeAll }));
+    await waitFor(() => expect(screen.getByRole("link", { name: LOAD_ID })).toBeInTheDocument());
+    // Tất cả → khoá truy vấn không có `mode` (đã có trong cache) → cả hai chuyến hiện lại
+    expect(screen.getByRole("link", { name: "LD-F001" })).toBeInTheDocument();
+    expect(modes()[0]).toBeUndefined();
   });
 
-  it("trang này toàn chuyến gửi kiện mà lọc nguyên xe: giữ bảng + phân trang để sang trang có chuyến nguyên xe, không báo 'không có kết quả'", async () => {
+  it("server phân trang đúng khi lọc: giữ phân trang, sang trang sau gửi page=1 kèm mode", async () => {
     const user = userEvent.setup();
     const { get } = mockShippingApi(ACTORS.warehouseStaff, {
       get: {
         "/fulfillment/loads": (params) => {
           const page = (params as { page?: number }).page ?? 0;
-          // BE không lọc theo hình thức: trang 0 toàn chuyến gửi kiện, chuyến nguyên xe nằm ở trang 1
           return {
-            ...bePage(page === 0 ? [ROW] : [FTL], page),
+            ...bePage([page === 0 ? FTL : PLANNED], page),
             totalElements: 2,
             totalPages: 2,
             hasNext: page === 0,
@@ -158,17 +171,14 @@ describe("LoadList — chuyến nguyên xe (BE PR #162)", () => {
       },
     });
     renderShippingScreen(<LoadList />, "?mode=FULL_TRUCKLOAD");
-    expect(await screen.findByText(L.ftl.modeFilterPageNote)).toBeInTheDocument();
-    expect(screen.queryByText(UI_LABELS.emptyList.noResultsTitle)).not.toBeInTheDocument();
-    expect(screen.queryByText(L.loads.empty.noDataTitle)).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: LOAD_ID })).not.toBeInTheDocument();
-    await user.click(await screen.findByRole("button", { name: "Sau" }));
-    expect(await screen.findByRole("link", { name: "LD-F001" })).toBeInTheDocument();
-    expect(
-      get.mock.calls
-        .filter(([url]) => url === "/fulfillment/loads")
-        .some(([, c]) => (c?.params as { page?: number } | undefined)?.page === 1),
-    ).toBe(true);
+    await screen.findByRole("link", { name: "LD-F001" });
+    await user.click(screen.getByRole("button", { name: "Sau" }));
+    expect(await screen.findByRole("link", { name: "LD-F002" })).toBeInTheDocument();
+    const second = get.mock.calls
+      .filter(([url]) => url === "/fulfillment/loads")
+      .map(([, c]) => c?.params as { page?: number; mode?: string })
+      .find((p) => p.page === 1);
+    expect(second?.mode).toBe("FULL_TRUCKLOAD");
   });
 
   it("BE không có chuyến nào (totalElements 0) khi đang lọc → 'không có kết quả', khác 'chưa có chuyến'", async () => {

@@ -8,6 +8,7 @@
  */
 
 import {
+  DELIVERY_MODES,
   FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS as OUTCOME,
   FULFILLMENT_DISPATCH_PERMISSIONS,
   FULFILLMENT_LOAD_CANCELLATION_PERMISSIONS,
@@ -15,6 +16,7 @@ import {
 
 import { registerMockRoute } from "./mock-adapter";
 import { book, cancelBooking, startLoading, unload } from "./mock-dispatch-ftl-rules";
+import { modeOf } from "./mock-dispatch-ftl-view";
 import { handover, recordOutcome } from "./mock-dispatch-handover";
 import {
   addShipments,
@@ -173,22 +175,32 @@ export function registerDispatchMockRoutes(): void {
 
   registerMockRoute("GET", LOADS, async (config) => {
     const params = readParams(config);
-    const [warehouse, status, carrier, search] = [
+    const [warehouse, status, carrier, search, mode] = [
       "warehouseId",
       "status",
       "carrierId",
       "search",
+      "mode",
     ].map((key) => readString(params[key]));
+    // BE PR #165: `mode` lọc ở máy chủ; giá trị khác PARCEL / FULL_TRUCKLOAD → 400
+    if (mode && !DELIVERY_MODES.some((known) => known === mode)) {
+      return fail(400, "UNSUPPORTED_PARAMETER", `Unsupported value for mode: ${mode}`, [
+        { field: "mode", message: "must be PARCEL or FULL_TRUCKLOAD" },
+      ]);
+    }
     const state = await getDispatchState();
     const rows = [...state.loads.values()]
       .filter((l) => !warehouse || l.warehouseId === warehouse)
+      .filter((l) => !mode || modeOf(l) === mode)
       .filter((l) => !status || l.status === status)
       .filter((l) => !carrier || l.carrierId === carrier)
       .filter(
         (l) =>
           !search ||
           l.code.toUpperCase().includes(search.toUpperCase()) ||
-          (l.vehiclePlate ?? "").toUpperCase().includes(search.toUpperCase()),
+          (l.vehiclePlate ?? "").toUpperCase().includes(search.toUpperCase()) ||
+          // BE PR #165: tìm cả theo mã kế hoạch xếp xe
+          (l.ftl?.loadPlanCode ?? "").toUpperCase().includes(search.toUpperCase()),
       )
       .sort((a, b) => b.code.localeCompare(a.code))
       .map((l) => loadRowView(state, l));

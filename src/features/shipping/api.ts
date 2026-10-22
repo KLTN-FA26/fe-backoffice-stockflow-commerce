@@ -48,7 +48,7 @@ export interface ListLoadParams extends ListQueryParams {
   /** BE nhận MỘT trạng thái. */
   status?: LoadStatus;
   carrierId?: string;
-  /** PARCEL | FULL_TRUCKLOAD. BE chưa lọc theo hình thức (SCRUM-392) → FE lọc thêm trên trang trả về. */
+  /** PARCEL | FULL_TRUCKLOAD — BE lọc (PR #165); giá trị khác → 400 UNSUPPORTED_PARAMETER. */
   mode?: DeliveryMode;
   /** So khớp mã chuyến / biển số xe. */
   search?: string;

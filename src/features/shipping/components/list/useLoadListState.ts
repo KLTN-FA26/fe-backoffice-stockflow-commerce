@@ -5,7 +5,6 @@ import { parseAsInteger, parseAsString, parseAsStringLiteral, useQueryState } fr
 import { ADMIN_ROUTES, STORAGE_KEYS } from "@/constants";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { usePageConfig } from "@/hooks/use-page-config";
-import { filterLoadsByMode } from "@/features/shipping/ftl-selectors";
 import { useLoads } from "@/features/shipping/queries";
 
 import {
@@ -59,9 +58,6 @@ export function useLoadListState(canRead: boolean) {
   const dataFiltered =
     debouncedQ.trim() !== "" || status !== "ALL" || mode !== "ALL" || !!warehouseId || !!carrierId;
   const data = query.data;
-  // BE chưa lọc theo hình thức → lọc thêm các dòng của trang đang xem (bảng đủ dòng khi BE hỗ trợ `mode`).
-  // Trang lọc ra rỗng vẫn giữ bảng + phân trang để sang trang khác (chỉ `totalElements === 0` mới là "không có kết quả")
-  const rows = data ? filterLoadsByMode(data.items, mode) : [];
   let emptyState: LoadListEmptyState = "none";
   if (data && data.totalElements === 0) emptyState = dataFiltered ? "no-results" : "no-loads";
   else if (data && data.items.length === 0) emptyState = "invalid-page";
@@ -85,7 +81,6 @@ export function useLoadListState(canRead: boolean) {
     q,
     status,
     mode,
-    rows,
     warehouseId,
     carrierId,
     hasFilters,

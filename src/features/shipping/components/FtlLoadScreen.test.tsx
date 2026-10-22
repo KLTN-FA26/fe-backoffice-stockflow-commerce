@@ -375,7 +375,7 @@ describe("Biên bản theo xe", () => {
                 codAmount: 0,
                 codChangedSinceLabel: false,
                 packages: [
-                  { labelCode: "PKG-SO-1-1", loaded: true, kit: kit(1) },
+                  { labelCode: "PKG-SO-1-1", loaded: true, kit: kit(1), labelOutdated: false },
                   { labelCode: "PKG-SO-1-2", loaded: true, labelOutdated: true },
                 ],
               },

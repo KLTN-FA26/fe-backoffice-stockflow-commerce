@@ -27,10 +27,14 @@ export const pendingUnloadSchema = z.object({
   requestedAt: isoInstant.nullish(),
 });
 
-/** Kiện: bộ (n/N) và cờ nhãn đã cũ. BE hiện chỉ báo nhãn cũ bằng 409 LABEL_OUTDATED khi quét — cờ này đọc nếu BE gửi. */
+/**
+ * Kiện: bộ (n/N) và cờ nhãn đã cũ (BE PR #165: `labelOutdated` luôn có mặt — kiện chuyển lô hoặc đổi n/N sau khi
+ * in nhãn; `labelOutdatedAt` bị bỏ khi null). Thiếu cờ (BE cũ) = nhãn còn đúng.
+ */
 export const parcelFtlFields = {
   kit: kitPartSchema.nullish(),
-  labelOutdated: z.boolean().nullish(),
+  labelOutdated: z.boolean().default(false),
+  labelOutdatedAt: isoInstant.nullish(),
 };
 
 /** `LoadRowResponse`: kế hoạch của xe và số thứ tự xe. */

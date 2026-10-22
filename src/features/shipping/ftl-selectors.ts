@@ -4,7 +4,7 @@
 
 import { DELIVERY_MODE, LOAD_STATUS } from "@/constants";
 
-import type { KitPart, Load, LoadParcel, LoadRow, PendingUnload } from "./types";
+import type { KitPart, Load, LoadParcel, PendingUnload } from "./types";
 
 type ModeOf = Pick<Load, "mode">;
 
@@ -36,19 +36,11 @@ export function isAutoCancelled(load: Pick<Load, "cancelReason">): boolean {
 }
 
 /** Nhãn kiện đã cũ (chuyển sang lô khác sau khi in) — phải in lại trước khi quét. */
-export function isLabelOutdated(parcel: Pick<LoadParcel, "labelOutdated">): boolean {
+export function isLabelOutdated(parcel: Partial<Pick<LoadParcel, "labelOutdated">>): boolean {
   return parcel.labelOutdated === true;
 }
 
 /** Bộ mà kiện là một phần (BE bỏ `kit` với kiện thường) → hiện "Bộ x/N". */
 export function kitOf(parcel: { kit?: KitPart | null }): KitPart | null {
   return parcel.kit ?? null;
-}
-
-/** Lọc danh sách theo hình thức giao (bộ lọc "Hình thức"). */
-export function filterLoadsByMode(
-  rows: readonly LoadRow[],
-  mode: LoadRow["mode"] | "ALL",
-): LoadRow[] {
-  return mode === "ALL" ? [...rows] : rows.filter((row) => row.mode === mode);
 }

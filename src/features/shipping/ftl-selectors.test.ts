@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { ftlLoad, ftlRow, kit, pendingUnload } from "./__fixtures__/ftl-load";
+import { ftlLoad, kit, pendingUnload } from "./__fixtures__/ftl-load";
 import { apiLoad } from "./__fixtures__/load";
 import {
-  filterLoadsByMode,
   hasPendingUnloads,
   isAutoCancelled,
   isFtlLoad,
@@ -52,14 +51,5 @@ describe("ftl-selectors", () => {
     expect(isLabelOutdated({ labelOutdated: true })).toBe(true);
     expect(isLabelOutdated({ labelOutdated: false })).toBe(false);
     expect(isLabelOutdated({})).toBe(false);
-  });
-
-  it("lọc danh sách theo hình thức giao", () => {
-    const rows = [ftlRow(), ftlRow({ loadId: "p", mode: "PARCEL" })];
-    expect(filterLoadsByMode(rows, "ALL")).toHaveLength(2);
-    expect(filterLoadsByMode(rows, "FULL_TRUCKLOAD").map((r) => r.loadId)).toEqual([
-      rows[0]?.loadId,
-    ]);
-    expect(filterLoadsByMode(rows, "PARCEL").map((r) => r.loadId)).toEqual(["p"]);
   });
 });

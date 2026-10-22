@@ -78,6 +78,7 @@ export function shipmentDetailView(state: DispatchState, shipment: MockShipment)
       packageId: parcel.packageId,
       labelCode: parcel.labelCode,
       status: "SEALED",
+      ...parcelExtras(parcel),
       weightKg: parcel.weightKg,
       lengthCm: parcel.lengthCm,
       widthCm: parcel.widthCm,

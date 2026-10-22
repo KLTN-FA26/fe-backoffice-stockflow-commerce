@@ -454,6 +454,50 @@ describe("mock chuyến nguyên xe — đặt xe, bắt đầu xếp, dỡ kiệ
     expect(page.items.filter((l) => l.mode === "PARCEL").every((l) => !l.loadPlanCode)).toBe(true);
   });
 
+  it("lọc theo hình thức ở máy chủ: mode=FULL_TRUCKLOAD / PARCEL; giá trị khác → 400 UNSUPPORTED_PARAMETER; tìm theo mã kế hoạch", async () => {
+    const list = async (params: Record<string, string>) =>
+      beLoadPageSchema.parse((await call("GET", LOADS, undefined, { size: "50", ...params })).data)
+        .items;
+    const ftl = await list({ mode: "FULL_TRUCKLOAD" });
+    expect(ftl).toHaveLength(4);
+    expect(ftl.every((l) => l.mode === "FULL_TRUCKLOAD")).toBe(true);
+    const parcel = await list({ mode: "PARCEL" });
+    expect(parcel.length).toBeGreaterThan(0);
+    expect(parcel.every((l) => l.mode === "PARCEL")).toBe(true);
+    const bad = await call("GET", LOADS, undefined, { mode: "DRONE" });
+    expect(bad.status).toBe(400);
+    expect(errorCode(bad)).toBe("UNSUPPORTED_PARAMETER");
+    expect((await list({ search: "lp-2026-0001" })).map((l) => l.mode)).toEqual(
+      Array(4).fill("FULL_TRUCKLOAD"),
+    );
+  });
+
+  it("cờ nhãn cũ: chuyến, biên bản và chi tiết lô gửi labelOutdated (+ labelOutdatedAt khi cũ)", async () => {
+    const booked = await readLoad(FTL_BOOKED);
+    const parcels = booked.shipments.flatMap((s) => s.packages);
+    const outdated = parcels.filter((p) => p.labelOutdated);
+    expect(outdated).toHaveLength(1);
+    expect(outdated[0]?.labelOutdatedAt).toBeDefined();
+    expect(
+      parcels.filter((p) => !p.labelOutdated).every((p) => p.labelOutdatedAt === undefined),
+    ).toBe(true);
+    const manifest = beManifestSchema.parse(
+      (await call("GET", `${LOADS}/${FTL_BOOKED}/manifest`)).data,
+    );
+    expect(
+      manifest.shipments.flatMap((s) => s.packages).filter((p) => p.labelOutdated),
+    ).toHaveLength(1);
+    const detail = beShipmentSchema.parse(
+      (
+        await call(
+          "GET",
+          `${SHIPMENTS}/${booked.shipments.find((s) => s.packages.some((p) => p.labelOutdated))?.shipmentId}`,
+        )
+      ).data,
+    );
+    expect(detail.packages.some((p) => p.labelOutdated)).toBe(true);
+  });
+
   it("chi tiết xe: kiện của riêng xe, thuộc bộ, nhãn cũ, COD 0; biên bản theo xe", async () => {
     const booked = await readLoad(FTL_BOOKED);
     expect(booked).toMatchObject({ mode: "FULL_TRUCKLOAD", vehicleSeq: 2, codTotal: 0 });
