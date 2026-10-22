@@ -8,7 +8,7 @@
  * Trong số khối sẵn sàng thì ưu tiên sâu nhất (z nhỏ = sát vách đầu xe, xa cửa) → thấp nhất → trái
  * nhất (x nhỏ), để người xếp đi từ cuối xe ra phía cửa. (Gốc chỉ xét hộp bao nên có thể treo.)
  *
- * Nếu các khối tựa vào nhau thành vòng (khối X đỡ Y đỡ lại X) thì tách khối theo tầng, rồi theo
+ * Nếu các khối tựa vào nhau thành vòng (khối X đỡ Y đỡ lại X) thì CHỈ tách các khối trong vòng, theo tầng, rồi theo
  * từng kiện, cho tới khi có thứ tự hợp lệ. Dữ liệu hỏng đến mức vòng tồn tại ở cấp kiện (kiện đỡ
  * lẫn nhau trong dung sai) thì xếp theo vị trí thay vì lặp vô hạn.
  */
@@ -71,6 +71,42 @@ function splitBlock(block: Block): Block[] {
   return layers.length > 1 ? layers : block.boxes.map((box) => toBlock([box]));
 }
 
+/**
+ * Các khối thật sự nằm trong một vòng phụ thuộc (khối X đỡ Y đỡ lại X). Khối chỉ ĐANG CHỜ một khối
+ * trong vòng (vd chồng nằm trên đỉnh vòng) thì không thuộc vòng, nên không bị tách.
+ */
+function blocksInCycle(
+  open: readonly Block[],
+  supports: ReadonlyMap<LayoutBox, readonly LayoutBox[]>,
+): Block[] {
+  const blockOf = new Map(open.flatMap((block) => block.boxes.map((box) => [box, block] as const)));
+  const deps = new Map(
+    open.map((block) => {
+      const waitingOn = new Set<Block>();
+      for (const box of block.boxes) {
+        for (const lower of supports.get(box) ?? []) {
+          const owner = blockOf.get(lower);
+          if (owner && owner !== block) waitingOn.add(owner);
+        }
+      }
+      return [block, waitingOn] as const;
+    }),
+  );
+  const reachesItself = (start: Block): boolean => {
+    const seen = new Set<Block>();
+    const stack = [...(deps.get(start) ?? [])];
+    while (stack.length > 0) {
+      const next = stack.pop() as Block;
+      if (next === start) return true;
+      if (seen.has(next)) continue;
+      seen.add(next);
+      stack.push(...(deps.get(next) ?? []));
+    }
+    return false;
+  };
+  return open.filter(reachesItself);
+}
+
 function orderBlocks(
   initial: readonly Block[],
   supports: ReadonlyMap<LayoutBox, readonly LayoutBox[]>,
@@ -89,10 +125,15 @@ function orderBlocks(
       take(firstByPosition(ready));
       continue;
     }
-    const split = open.flatMap(splitBlock);
-    // Không tách thêm được mà vẫn kẹt: dữ liệu hỏng (kiện đỡ lẫn nhau) — xếp theo vị trí để kết thúc.
-    if (split.length === open.length) take(firstByPosition(open));
-    else open = split;
+    // Kẹt: chỉ tách các khối nằm trong vòng, giữ nguyên mọi khối khác (kể cả khối đang chờ vòng).
+    const cyclic = blocksInCycle(open, supports);
+    const pieces = cyclic.flatMap(splitBlock);
+    if (pieces.length > cyclic.length) {
+      open = [...open.filter((block) => !cyclic.includes(block)), ...pieces];
+    } else {
+      // Không tách thêm được mà vẫn kẹt: dữ liệu hỏng (kiện đỡ lẫn nhau) — xếp theo vị trí để kết thúc.
+      take(firstByPosition(cyclic.length > 0 ? cyclic : open));
+    }
   }
   return ordered;
 }

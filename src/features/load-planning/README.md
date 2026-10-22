@@ -46,11 +46,12 @@ báo `ORIENTATION_MISMATCH` nếu lệch hơn 1 mm).
 
 **Luật xếp là BR-10/BR-11 (docs 09-shipping §6):** đỡ ≥ 98% mặt đáy, không chìa ra ngoài lòng thùng, tổng khối lượng
 từng xe ≤ tải trọng, kiện không có cờ xoay giữ nguyên hướng, chừa góc gia cố, đặt vuông góc. `rotatable` có trong hợp
-đồng để FE kiểm được vế xoay (`ROTATION_NOT_ALLOWED` khi `!rotatable && orientation !== "LWH"`), vì `ref` không bắt buộc
-duy nhất nên không thể tra cờ ngược về kiện nguồn. Tải trọng kiểm theo TỪNG xe (`summarizeLayouts().overweightVehicles`).
+đồng để FE kiểm được vế xoay (`ROTATION_NOT_ALLOWED` khi `!rotatable && orientation !== "LWH"`) mà không phải tra cờ
+ngược về kiện nguồn. Tải trọng kiểm theo TỪNG xe (`summarizeLayouts().overweightVehicles`).
 
-**Đã chốt với BE (PR D khớp theo):** `rotatable` nằm trong Box; `ref` duy nhất theo từng kiện (schema từ chối `ref`
-trùng trong một xe) kèm `sourceRef`; mã `orientation` như trên, BE phát ra cùng chuỗi, đọc theo (z, x, y).
+**Đã chốt với BE (PR D khớp theo):** `rotatable` nằm trong Box; `ref` duy nhất theo từng kiện **trong một kế hoạch**
+(schema chỉ kiểm theo từng xe — từ chối `ref` trùng trong một xe; trùng giữa các xe do `findDuplicateRefs` trong
+`lib/layout-check.ts` phát hiện, và BE là nơi bảo đảm) kèm `sourceRef`; mã `orientation` như trên, BE phát ra cùng chuỗi, đọc theo (z, x, y).
 
 **Mã luật** do solver BE quy định (`PLACEMENT_RULES` trong `src/constants/load-planning.ts`, nhãn tiếng Việt
 `PLACEMENT_RULE_LABELS`): `OUT_OF_BOUNDS | OVERLAP | UNSUPPORTED | OVERWEIGHT | ROTATION_NOT_ALLOWED | GUSSET`.
@@ -91,7 +92,16 @@ Cố ý chưa port (đến ở PR sau): bảng "hướng dẫn xếp theo bướ
 - **Cắt bớt kiện có thông báo**: gốc lặng lẽ `slice(0, 600)`; nay khung 3D hiện "chỉ dựng N/M kiện" khi vượt `renderBoxesMax`.
 - **`checkPieces` không coi số lượng hỏng là 0**: gốc `Number(q) || 0` che đúng loại lỗi mà phép đối chiếu sinh ra để bắt;
   nay dòng hỏng được đếm (`malformedLines`) và làm phép đối chiếu thất bại.
-- **Cân bằng bộ theo tỉ lệ `perSet`** (1 mặt + 4 chân), không chỉ "bằng nhau"; chỉ ra xe/bộ lệch.
+- **Cân bằng bộ theo tỉ lệ `perSet`** (1 mặt + 4 chân), không chỉ "bằng nhau"; chỉ ra xe/bộ lệch. Hợp đồng không có
+  `perSet`, nên mặc định bộ được **suy ra từ chính các kiện** (`deriveKitDefs`): gom theo `kitGroup`, thành phần theo
+  `partName`, `perSet` = tổng số kiện của thành phần trong cả kế hoạch ÷ ƯCLN các tổng. Cách này bắt được bộ bị chia lệch
+  tỉ lệ giữa các xe nhưng KHÔNG bắt được cả kế hoạch cùng thiếu một món (tỉ lệ suy ra theo số đang có) — muốn kiểm chặt
+  thì truyền định nghĩa chính thức (`computeKitBalance(layouts, kits)`, vd từ `kitParts` của dòng ước lượng); khi đó
+  `kitGroup` không có định nghĩa bị báo "bộ lạ" thay vì bỏ qua. Xe không có kiện nào thuộc bộ thì không có mục và huy
+  hiệu không hiện.
+- **Tách khối khi tựa vòng chỉ áp cho khối trong vòng** (`loading-steps.ts`): chồng hàng chỉ đang chờ vòng giữ nguyên một bước.
+- **Màu cảnh 3D theo theme** (`lib/scene-theme.ts`, `useSceneTheme`): nền/khung/lưới đọc từ token `--bg-subtle`,
+  `--bg-muted`, `--ink-secondary`, `--border-*` qua `getComputedStyle` và đọc lại khi `useTheme()` đổi, nên sáng/tối theo app.
 - **Khoá dòng gồm mã + tên + cỡ danh định đã sắp** (như gốc) nhưng dùng chung một hàm cho bước xếp và bảng.
 - **Capture dùng một renderer dùng chung** (đúng bản `easycargo-capture`, sửa lỗi rò context WebGL) và bỏ phần PDF;
   nhả được qua `disposeSharedRenderer()`. Khối gia cố vẫn không vẽ vào ảnh in.
@@ -101,6 +111,14 @@ Cố ý chưa port (đến ở PR sau): bảng "hướng dẫn xếp theo bướ
   Tailwind), phần DOM dùng token (`bg-bg-surface`, `text-ink-*`, `text-positive/warning/danger`).
 - **Hằng số có nguồn** trong `LOAD_PLANNING_LIMITS` (`constants/numbers.ts`): 98% đỡ, dung sai hình học, dung sai gộp khối,
   giới hạn số kiện dựng.
+
+## Known limits (ghi lại cho PR sau, chưa sửa ở F1)
+
+- **Chưa dùng instancing**: mỗi kiện là một `<mesh>` + `Edges`. Ổn ở 438 kiện (fixture 40HC); viewer dừng ở
+  `renderBoxesMax` = 600 và hiện thông báo. F5 phải chuyển sang `InstancedMesh` hoặc nêu lý do nếu cần vẽ vượt ~600 kiện.
+- **`computeEmptySpaces` chậm**: khoảng 1,9 s trên 40HC (438 kiện) ở bản dev. F5 phải memo hoá (chỉ tính lại khi
+  danh sách kiện đổi) hoặc chuyển sang web worker trước khi gọi mỗi lần chọn/kéo.
+- `deriveKitDefs` không phát hiện cả kế hoạch cùng thiếu một món (xem trên).
 
 ## Dùng thế nào
 

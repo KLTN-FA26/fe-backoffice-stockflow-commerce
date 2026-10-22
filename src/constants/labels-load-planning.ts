@@ -50,5 +50,7 @@ export const LOAD_PLANNING_LABELS = {
     unbalanced: "Bộ bị lệch",
     unbalancedDetail: (vehicleSeq: number, group: string) =>
       `Xe #${vehicleSeq}: bộ ${group} không đủ tỉ lệ`,
+    unknownGroupDetail: (vehicleSeq: number, group: string) =>
+      `Xe #${vehicleSeq}: bộ ${group} chưa được khai báo`,
   },
 } as const;

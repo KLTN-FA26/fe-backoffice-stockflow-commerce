@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { LAYOUT_40HC, LAYOUT_PICKUP_KIT } from "../__fixtures__/layouts";
 
-import { checkLayout } from "./layout-check";
+import { checkLayout, findDuplicateRefs } from "./layout-check";
 
 describe("checkLayout", () => {
   it("accepts the realistic fixtures (they are physically valid)", () => {
@@ -81,5 +81,24 @@ describe("checkLayout", () => {
       ref: null,
       rule: "OVERWEIGHT",
     });
+  });
+});
+
+describe("findDuplicateRefs (ref is unique per box within a plan)", () => {
+  it("accepts a plan whose refs never repeat", () => {
+    expect(findDuplicateRefs([LAYOUT_40HC, LAYOUT_PICKUP_KIT])).toEqual([]);
+  });
+
+  it("finds a ref reused in another vehicle, which the per-vehicle schema cannot see", () => {
+    const second = { ...LAYOUT_PICKUP_KIT, seq: 2 };
+    expect(findDuplicateRefs([LAYOUT_PICKUP_KIT, second])).toHaveLength(
+      LAYOUT_PICKUP_KIT.boxes.length,
+    );
+    expect(findDuplicateRefs([LAYOUT_PICKUP_KIT, second])).toContain("PKG-101-001");
+  });
+
+  it("reports each repeated ref once", () => {
+    const box = LAYOUT_PICKUP_KIT.boxes[0];
+    expect(findDuplicateRefs([{ boxes: [box, box, box] }])).toEqual(["PKG-101-001"]);
   });
 });

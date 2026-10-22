@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { KIT_BAN, LAYOUT_PICKUP_KIT } from "../../__fixtures__/layouts";
+import { KIT_BAN, LAYOUT_40HC, LAYOUT_PICKUP_KIT } from "../../__fixtures__/layouts";
 import { computeKitBalance } from "../../lib/kit-balance";
 
 import { KitBalanceBadge } from "./KitBalanceBadge";
@@ -24,9 +24,22 @@ describe("KitBalanceBadge", () => {
   });
 
   it("shows nothing when the plan has no kits", () => {
+    const { container } = render(<KitBalanceBadge balance={computeKitBalance([LAYOUT_40HC])} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("shows nothing for a vehicle without kit pieces even when kits are declared (40HC)", () => {
     const { container } = render(
-      <KitBalanceBadge balance={computeKitBalance([LAYOUT_PICKUP_KIT], [])} />,
+      <KitBalanceBadge balance={computeKitBalance([LAYOUT_40HC], [KIT_BAN])} />,
     );
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it("flags an undeclared kit group in the tooltip", () => {
+    render(<KitBalanceBadge balance={computeKitBalance([LAYOUT_PICKUP_KIT], [])} />);
+    expect(screen.getByText("Bộ bị lệch")).toHaveAttribute(
+      "title",
+      "Xe #1: bộ KIT-BAN-01 chưa được khai báo",
+    );
   });
 });

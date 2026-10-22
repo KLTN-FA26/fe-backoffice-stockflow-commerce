@@ -4,13 +4,14 @@ import { Edges, OrbitControls } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { useDeferredValue, useMemo, useState } from "react";
 
-import { LOAD_PLANNING_LABELS, LOAD_PLANNING_LIMITS, SCENE_COLORS } from "@/constants";
+import { LOAD_PLANNING_LABELS, LOAD_PLANNING_LIMITS } from "@/constants";
 
 import { blockToScene, prepareScene } from "../../lib/scene";
 
 import { CameraPreset } from "./CameraPreset";
 import { CargoBoxes } from "./CargoBoxes";
 import { EmptySpaceBlocks, GussetBlocks } from "./SpaceBlocks";
+import { useSceneTheme } from "./useSceneTheme";
 import { ViewButtons } from "./ViewButtons";
 
 import type { ViewKind } from "@/constants";
@@ -49,6 +50,7 @@ export function VehicleViewer3D({
   emptySpaces,
   heightPx = LOAD_PLANNING_LIMITS.viewerHeightPx,
 }: VehicleViewer3DProps) {
+  const sceneTheme = useSceneTheme();
   const [viewRequest, setViewRequest] = useState<ViewRequest | null>(null);
   const requestView = (kind: ViewKind) =>
     setViewRequest((cur) => ({ kind, nonce: (cur?.nonce ?? 0) + 1 }));
@@ -87,7 +89,7 @@ export function VehicleViewer3D({
         gl={{ antialias: true, preserveDrawingBuffer: true }}
         style={{ height: "100%", width: "100%" }}
       >
-        <color attach="background" args={[SCENE_COLORS.background]} />
+        <color attach="background" args={[sceneTheme.background]} />
         <ambientLight intensity={0.65} />
         <directionalLight position={[8, 10, 6]} intensity={1.1} />
         <directionalLight position={[-8, 4, -6]} intensity={0.35} />
@@ -95,15 +97,16 @@ export function VehicleViewer3D({
         <mesh>
           <boxGeometry args={[width, height, depth]} />
           <meshBasicMaterial
-            color={SCENE_COLORS.shellFill}
+            color={sceneTheme.shellFill}
             transparent
             opacity={0.08}
             depthWrite={false}
           />
-          <Edges color={SCENE_COLORS.shellEdge} />
+          <Edges color={sceneTheme.shellEdge} />
         </mesh>
         <gridHelper
-          args={[Math.max(width, depth), 12, SCENE_COLORS.gridMajor, SCENE_COLORS.gridMinor]}
+          key={`${sceneTheme.gridMajor}${sceneTheme.gridMinor}`}
+          args={[Math.max(width, depth), 12, sceneTheme.gridMajor, sceneTheme.gridMinor]}
           position={[0, -height / 2, 0]}
         />
 

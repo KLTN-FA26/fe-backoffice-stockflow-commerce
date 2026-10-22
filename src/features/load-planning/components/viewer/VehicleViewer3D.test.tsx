@@ -25,6 +25,9 @@ vi.mock("@react-three/fiber", () => ({
   },
   useThree: () => ({}),
 }));
+vi.mock("@/components/theme-provider", () => ({
+  useTheme: () => ({ theme: "light", toggleTheme: () => {} }),
+}));
 vi.mock("@react-three/drei", () => ({
   Edges: () => null,
   Html: () => null,

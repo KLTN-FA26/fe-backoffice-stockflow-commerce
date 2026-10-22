@@ -43,3 +43,17 @@ export function checkLayout(layout: Layout): LayoutIssue[] {
   if (weight > layout.maxPayloadKg) issues.push({ index: null, ref: null, rule: "OVERWEIGHT" });
   return issues;
 }
+
+/**
+ * `ref` trùng giữa các kiện của CẢ kế hoạch (schema chỉ kiểm trong từng xe). Trả về các `ref` bị trùng,
+ * rỗng nếu hợp lệ. BE vẫn là nơi bảo đảm tính duy nhất; hàm này để FE phát hiện sớm dữ liệu hỏng.
+ */
+export function findDuplicateRefs(layouts: readonly Pick<Layout, "boxes">[]): string[] {
+  const seen = new Set<string>();
+  const duplicates = new Set<string>();
+  for (const box of layouts.flatMap((layout) => layout.boxes)) {
+    if (seen.has(box.ref)) duplicates.add(box.ref);
+    seen.add(box.ref);
+  }
+  return [...duplicates];
+}

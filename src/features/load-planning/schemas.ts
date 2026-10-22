@@ -32,8 +32,10 @@ export const DimsMmSchema = z.object({ l: positive, w: positive, h: positive });
 
 export const LayoutBoxSchema = BlockMmSchema.extend({
   /**
-   * Mã của TỪNG kiện, duy nhất trong xe (và trong kế hoạch): kiện đã đóng gói = id kiện (package);
-   * thùng ước lượng = `<lineId>#<n>`. `PLACEMENT_RULE_VIOLATION [{ref, rule}]` chỉ vào đúng kiện này.
+   * Mã của TỪNG kiện: kiện đã đóng gói = id kiện (package); thùng ước lượng = `<lineId>#<n>`.
+   * `PLACEMENT_RULE_VIOLATION [{ref, rule}]` chỉ vào đúng kiện này. Duy nhất theo kế hoạch: schema chỉ
+   * kiểm trong TỪNG xe (xem `LayoutSchema`); trùng giữa các xe do `findDuplicateRefs` (lib/layout-check)
+   * phát hiện, và BE là nơi bảo đảm.
    */
   ref: z.string().min(1),
   /** Dòng ước lượng sinh ra thùng này (`lineId`); null với kiện đã đóng gói. Gom dòng dùng cái này, không dùng `ref`. */

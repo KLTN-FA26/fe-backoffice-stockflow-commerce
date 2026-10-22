@@ -90,4 +90,26 @@ describe("buildLoadingSteps support ordering", () => {
     expect(steps.map((s) => `${s.partName}${s.count}`)).toEqual(["X2", "Y1", "X1", "X1"]);
     expect(hangingBoxes(layout, steps)).toBe(0);
   });
+  it("splits only the blocks inside a cycle: an unrelated 3-layer stack waiting on it stays one step", () => {
+    // Vòng như trên (X = {A, D, E, B}, C tựa A, B tựa C và E) — cộng một chồng Z 3 tầng nằm trên đỉnh
+    // B. Chồng Z chỉ ĐANG CHỜ vòng, không thuộc vòng: phải giữ nguyên một bước, không bị tách thành 3.
+    const stack = [3000, 4000, 5000].flatMap((yMm) => cubeAt("Z", 500, yMm));
+    const layout = makeLayout({
+      seq: 1,
+      code: "X",
+      innerMm: { l: 3000, w: 3000, h: 7000 },
+      maxPayloadKg: 100,
+      boxes: [
+        ...cubeAt("X", 0, 0), // A
+        ...cubeAt("X", 1000, 0), // D
+        ...cubeAt("X", 1000, 1000), // E
+        ...cubeAt("Y", 0, 1000), // C
+        ...cubeAt("X", 500, 2000), // B
+        ...stack,
+      ],
+    });
+    const steps = buildLoadingSteps([layout]);
+    expect(steps.map((s) => `${s.partName}${s.count}`)).toEqual(["X2", "Y1", "X1", "X1", "Z3"]);
+    expect(hangingBoxes(layout, steps)).toBe(0);
+  });
 });
