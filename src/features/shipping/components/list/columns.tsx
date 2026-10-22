@@ -36,11 +36,22 @@ export function buildLoadColumns(open: (row: LoadRow) => void): ColumnDef<LoadRo
       ),
     },
     textCell<LoadRow>(C.MODE, L.ftl.modeColumn, (row) => L.load.mode[row.mode]),
-    // Chuyến nguyên xe: mã kế hoạch + số xe (kế hoạch chưa có trang chi tiết ở PR này → chữ, không link)
+    // Chuyến nguyên xe: mã kế hoạch (liên kết sang chi tiết kế hoạch) + số xe
     stackCell<LoadRow>(
       C.PLAN,
       L.ftl.planColumn,
-      (row) => row.loadPlanCode,
+      (row) =>
+        row.loadPlanId && row.loadPlanCode ? (
+          <Link
+            href={ADMIN_ROUTES.loadPlans.detail(row.loadPlanId)}
+            className="hover:underline"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {row.loadPlanCode}
+          </Link>
+        ) : (
+          row.loadPlanCode
+        ),
       (row) => (row.vehicleSeq != null ? `${L.ftl.vehicleSeq} ${row.vehicleSeq}` : null),
       { mono: true },
     ),

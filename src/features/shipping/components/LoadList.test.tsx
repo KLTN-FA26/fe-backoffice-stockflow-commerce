@@ -102,7 +102,9 @@ describe("LoadList — chuyến nguyên xe (BE PR #162)", () => {
   it("dòng nguyên xe hiện hình thức, mã kế hoạch + số xe, trạng thái Đã lập kế hoạch / Đã đặt xe; chuyến gửi kiện để trống cột kế hoạch", async () => {
     renderList(ACTORS.warehouseStaff, "", [ROW, FTL, PLANNED]);
     await screen.findByRole("link", { name: "LD-F001" });
-    expect(screen.getAllByText("LP-2026-0001")).toHaveLength(2);
+    const planLinks = screen.getAllByRole("link", { name: "LP-2026-0001" });
+    expect(planLinks).toHaveLength(2);
+    expect(planLinks[0]).toHaveAttribute("href", "/admin/load-plans/lp-1");
     expect(screen.getByText(`${L.ftl.vehicleSeq} 1`)).toBeInTheDocument();
     expect(screen.getByText(`${L.ftl.vehicleSeq} 2`)).toBeInTheDocument();
     expect(screen.getAllByText(L.load.mode.FULL_TRUCKLOAD)).toHaveLength(2);
