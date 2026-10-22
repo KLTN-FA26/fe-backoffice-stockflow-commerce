@@ -8,11 +8,12 @@ import { SignatureBoxes, UnplacedNote } from "./SheetNotes";
 import { SheetStep } from "./SheetStep";
 import { SECTION_TITLE } from "./primitives";
 
-import type { LoadBooking } from "../../print-booking";
+import type { BookingView } from "../../lib/booking-view";
 import type { ColorMap } from "../../lib/palette";
 import type { PrintImages } from "../../lib/print-capture";
 import type { PrintSheet } from "../../lib/print-sheet";
 
+const L = LOAD_PLAN_PRINT_LABELS;
 const S = LOAD_PLAN_PRINT_LABELS.steps;
 const P = LOAD_PLAN_PRINT_LABELS.parcel;
 
@@ -32,15 +33,22 @@ export function LoadSheetDocument({
   planCode: string;
   sheet: PrintSheet;
   images: PrintImages | null;
-  booking: LoadBooking | null | undefined;
+  booking: BookingView;
   colorMap: ColorMap;
   printedAt: string;
 }) {
   const colorFor = (partName: string) => colorOf(colorMap, partName);
   return (
     <article className="border-border-default bg-bg-surface space-y-5 rounded-[var(--card-radius)] border p-[var(--card-pad)] print:border-0 print:p-0">
-      {/* A4 dọc, lề 12 mm (khớp bản PDF gốc); chỉ trang này khai báo nên không đổi các trang in khác */}
-      <style>{"@page { size: A4 portrait; margin: 12mm; }"}</style>
+      {/*
+        A4 dọc, lề 12 mm (chừa 16 mm ở dưới cho chân trang). Chỉ trang này khai báo nên không đổi các trang in khác.
+        Số trang do trình duyệt đếm (`counter(page)` ở lề cuối trang; trình duyệt chưa hỗ trợ thì chỉ còn chân trang cố định).
+      */}
+      <style>{`@page { size: A4 portrait; margin: 12mm 12mm 16mm; @bottom-right { content: "${L.pageWord} " counter(page) "/" counter(pages); font-size: 8pt; } }`}</style>
+      {/* `fixed` lặp lại ở MỌI trang in; ẩn trên màn hình */}
+      <footer className="text-ink-tertiary fixed inset-x-0 -bottom-[10mm] hidden text-center text-[0.6875rem] print:block">
+        {L.footer(planCode, sheet.layout.seq)}
+      </footer>
       <SheetHeader planCode={planCode} sheet={sheet} booking={booking} printedAt={printedAt} />
       <SheetOverview sheet={sheet} images={images} colorOf={colorFor} />
       {sheet.unplaced && <UnplacedNote unplaced={sheet.unplaced} />}

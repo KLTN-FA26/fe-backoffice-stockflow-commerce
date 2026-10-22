@@ -4,11 +4,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LAYOUT_40HC, LAYOUT_PICKUP_KIT } from "../__fixtures__/layouts";
 
 import { fitDistance } from "./capture-fit";
-import { captureStepImages, captureVehicleViews, STEP_ASPECT } from "./capture";
+import { OVERVIEW_MIN_WIDTH, STEP_ASPECT, captureStepImages, captureVehicleViews } from "./capture";
 import { acquireRenderer, disposeSharedRenderer } from "./capture-renderer";
 import { buildLoadingSteps } from "./loading-steps";
 
 import type { Scene } from "three";
+
+import { extentOf } from "./dims";
+import { sceneScale } from "./scene";
 
 /**
  * jsdom không có WebGL: thay `WebGLRenderer` bằng bản giả đếm số lần tạo, nhả context và render —
@@ -23,6 +26,7 @@ const { created, FakeRenderer } = vi.hoisted(() => {
     setPixelRatio = vi.fn();
     setSize = vi.fn();
     renderedMeshCounts: number[] = [];
+    renderedCameras: PerspectiveCamera[] = [];
     domElement = {
       width: 1200,
       height: 760,
@@ -34,7 +38,11 @@ const { created, FakeRenderer } = vi.hoisted(() => {
     getContext() {
       return { isContextLost: () => this.lost };
     }
-    render(scene: Scene) {
+    render(scene: Scene, camera?: PerspectiveCamera) {
+      if (camera) {
+        camera.updateMatrixWorld(true);
+        this.renderedCameras.push(camera.clone());
+      }
       let meshes = 0;
       scene.traverse((o) => {
         if ((o as { isMesh?: boolean }).isMesh) meshes += 1;
@@ -101,7 +109,48 @@ describe("captureStepImages", () => {
   });
 });
 
+/** Mức lấp khung: toạ độ NDC lớn nhất của 8 góc lòng xe (1 = chạm mép khung). */
+function frameFill(camera: PerspectiveCamera, inner: { l: number; w: number; h: number }): number {
+  const extent = extentOf(inner);
+  const k = sceneScale(extent);
+  const half = [extent.wMm * k, extent.hMm * k, extent.dMm * k].map((v) => v / 2);
+  let fill = 0;
+  for (const x of [-half[0], half[0]]) {
+    for (const y of [-half[1], half[1]]) {
+      for (const z of [-half[2], half[2]]) {
+        const p = new Vector3(x, y, z).project(camera);
+        fill = Math.max(fill, Math.abs(p.x), Math.abs(p.y));
+      }
+    }
+  }
+  return fill;
+}
+
 describe("captureVehicleViews", () => {
+  it.each([
+    ["pickup", LAYOUT_PICKUP_KIT],
+    ["40HC", LAYOUT_40HC],
+  ])(
+    "%s: the camera is fitted so the vehicle fills the frame, not a speck in it",
+    (_name, layout) => {
+      captureVehicleViews(layout, colorOf);
+      const cameras = created[0].renderedCameras;
+      expect(cameras).toHaveLength(2);
+      for (const camera of cameras) {
+        // distance applied once (regression: it was squared, leaving the vehicle ~60 px wide in an 1800 px frame)
+        const fill = frameFill(camera, layout.innerMm);
+        expect(fill).toBeGreaterThan(0.85);
+        expect(fill).toBeLessThanOrEqual(1);
+      }
+    },
+  );
+
+  it("renders the overview large enough to stay sharp after trimming (>= 1200 px wide)", () => {
+    captureVehicleViews(LAYOUT_PICKUP_KIT, colorOf);
+    const [width] = created[0].setSize.mock.calls[0];
+    expect(width).toBeGreaterThanOrEqual(OVERVIEW_MIN_WIDTH * 1.5);
+  });
+
   it("renders two opposite views through the shared renderer", () => {
     const { left, right } = captureVehicleViews(LAYOUT_PICKUP_KIT, colorOf);
     expect(left).toEqual({ dataUrl: "data:image/jpeg;base64,TRIMMED", aspect: 0.5 });

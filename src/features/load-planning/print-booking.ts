@@ -38,7 +38,7 @@ export async function getLoadBooking(loadId: string, signal?: AbortSignal): Prom
 export const loadBookingKey = (loadId: string) =>
   [SHARED_QUERY_ROOTS.fulfillmentLoads, "booking", loadId] as const;
 
-/** Chỉ tải khi xe đã thành chuyến VÀ người xem có quyền đọc lô; thiếu quyền / lỗi thì phiếu để trống ô, không chặn in. */
+/** Chỉ tải khi `bookingNeedsFetch` (xe đã đặt xe và người xem có quyền đọc lô); thiếu quyền / lỗi thì phiếu ghi đúng lý do. */
 export function useLoadBooking(loadId: string | undefined, enabled: boolean) {
   return useQuery({
     queryKey: loadBookingKey(loadId ?? ""),

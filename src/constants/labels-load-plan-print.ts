@@ -9,11 +9,8 @@ export const LOAD_PLAN_PRINT_LABELS = {
   printHint:
     "In bằng hộp thoại của trình duyệt (Ctrl+P / ⌘P): chọn khổ A4, có thể lưu thành PDF từ đó.",
   back: "Quay lại kế hoạch",
-  noRead: "Bạn không có quyền xem kế hoạch xếp xe này.",
   badSeq: "Số thứ tự xe không hợp lệ.",
   vehicleNotFound: "Kế hoạch này không có xe này.",
-  planNotLoaded: "Không tải được kế hoạch xếp xe.",
-  layoutNotLoaded: "Không tải được bố cục xe.",
   retry: "Thử lại",
   capturing: (done: number, total: number) => `Đang dựng ảnh 3D… ${done}/${total}`,
   capturingHint: "Phiếu chỉ hiện khi đủ ảnh để bản in không thiếu hình.",
@@ -33,7 +30,14 @@ export const LOAD_PLAN_PRINT_LABELS = {
     carrier: "Hãng vận chuyển",
     plate: "Biển số",
     driver: "Tài xế",
+    /** Chỉ khi chuyến của xe ở trạng thái PLANNED (chưa đặt xe với hãng). */
     notBooked: "Chưa đặt xe",
+    booked: "Đã đặt xe",
+    noLoad: "Chưa có chuyến (kế hoạch chưa chốt)",
+    bookingLoading: "Đang tải thông tin đặt xe…",
+    bookingError: "Không tải được thông tin đặt xe",
+    bookingNoPermission: "Cần quyền xem lô giao để hiện thông tin đặt xe",
+    bookingCancelled: "Chuyến đã huỷ",
     dispatchLoad: "Chuyến",
   },
   overview: {
@@ -81,8 +85,6 @@ export const LOAD_PLAN_PRINT_LABELS = {
   },
   unplaced: {
     title: "Kiện chưa lên xe này",
-    otherVehicles: (count: number) =>
-      `${count} kiện đã xếp ở xe khác của kế hoạch (không có trên phiếu này).`,
     left: (count: number) =>
       `${count} kiện chưa xếp được lên xe nào của kế hoạch và không có trên phiếu này.`,
     acknowledged: "Đã xác nhận để lại; các kiện này quay về khu chờ xuất.",
@@ -97,5 +99,7 @@ export const LOAD_PLAN_PRINT_LABELS = {
     driver: "Tài xế",
     checker: "Người kiểm hàng",
   },
-  footer: (code: string, seq: number) => `${code} · xe #${seq}`,
+  footer: (code: string, seq: number) => `${code} · Xe #${seq}`,
+  /** Tiền tố số trang ở lề cuối trang in ("Trang 2/9"; số do trình duyệt đếm). */
+  pageWord: "Trang",
 } as const;

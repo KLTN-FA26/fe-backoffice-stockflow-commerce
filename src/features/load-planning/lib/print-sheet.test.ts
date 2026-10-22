@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { gridBlock, makeLayout } from "../__fixtures__/build";
 import { LAYOUT_PICKUP_KIT } from "../__fixtures__/layouts";
+import { LAYOUT_UNIQUE_LABELS } from "../__fixtures__/layouts-real-labels";
 import { parcelsOfLayout, planFixture, planWithUnplaced } from "../__fixtures__/plans";
 
 import { letterFor, orientationText } from "./print-labels";
@@ -168,6 +169,22 @@ describe("buildPrintSheet", () => {
       1,
     );
     expect(sheet?.parcels).toHaveLength(4);
+  });
+});
+
+describe("buildPrintSheet — real BE labels", () => {
+  it("prints 8 parcels with unique labels as 2 steps (2 pages), listing every label once", () => {
+    const plan = planFixture({
+      vehicles: [planFixture().vehicles[0]],
+      packages: parcelsOfLayout(LAYOUT_UNIQUE_LABELS),
+    });
+    const sheet = buildPrintSheet(plan, [LAYOUT_UNIQUE_LABELS], 1);
+    expect(sheet?.steps.map((s) => s.parcels.length)).toEqual([6, 2]);
+    expect(sheet?.parcels).toHaveLength(8);
+    expect(sheet?.lines.map((l) => [l.partName, l.pieces])).toEqual([
+      ["SKU-CHAIR-02", 2],
+      ["SKU-TABLE-01", 6],
+    ]);
   });
 });
 

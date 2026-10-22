@@ -5,6 +5,7 @@ import { formatKg } from "../../lib/print-labels";
 import { formatNominalCm } from "../../lib/dims";
 import { EMPTY, Field } from "./primitives";
 
+import type { BookingView } from "../../lib/booking-view";
 import type { LoadBooking } from "../../print-booking";
 import type { PrintSheet } from "../../lib/print-sheet";
 
@@ -16,23 +17,32 @@ const carrierOf = (booking: LoadBooking): string =>
 const driverOf = (booking: LoadBooking): string =>
   [booking.driverName, booking.driverPhone].filter(Boolean).join(" · ") || EMPTY;
 
+const BOOKING_TEXT: Record<Exclude<BookingView["kind"], "booked">, string> = {
+  "no-load": H.noLoad,
+  "not-booked": H.notBooked,
+  cancelled: H.bookingCancelled,
+  "no-permission": H.bookingNoPermission,
+  loading: H.bookingLoading,
+  error: H.bookingError,
+};
+
 /**
  * Đầu phiếu: mã kế hoạch, xe (loại, số thứ tự, lòng xe, tải trọng, mức lấp đầy), thông tin đặt xe nếu xe đã thành chuyến
- * có hãng / biển số / tài xế, ngày in. Chuyến chưa đặt xe thì các ô để trống cho người xếp hàng ghi tay.
+ * có hãng / biển số / tài xế, ngày in. Chưa có thông tin đặt xe thì các ô ghi "—" và ô "Đặt xe" nêu lý do (`BookingView`).
  */
 export function SheetHeader({
   planCode,
   sheet,
-  booking,
+  booking: view,
   printedAt,
 }: {
   planCode: string;
   sheet: PrintSheet;
-  booking: LoadBooking | null | undefined;
+  booking: BookingView;
   printedAt: string;
 }) {
   const { vehicle, layout } = sheet;
-  const booked = !!booking && !!(booking.carrierName || booking.vehiclePlate || booking.driverName);
+  const booking = view.kind === "booked" ? view.booking : null;
   return (
     <header className="space-y-3">
       <div className="flex flex-wrap items-end justify-between gap-2">
@@ -52,12 +62,14 @@ export function SheetHeader({
           {formatPercent(vehicle.weightFillPct / 100, 1)} ({formatKg(sheet.totalWeightKg)} kg)
         </Field>
         <Field label={H.parcels}>{formatNumber(layout.boxes.length)}</Field>
-        <Field label={H.carrier}>{booked ? carrierOf(booking) : EMPTY}</Field>
+        <Field label={H.carrier}>{booking ? carrierOf(booking) : EMPTY}</Field>
         <Field label={H.plate}>{booking?.vehiclePlate || EMPTY}</Field>
-        <Field label={H.driver}>{booked ? driverOf(booking) : EMPTY}</Field>
+        <Field label={H.driver}>{booking ? driverOf(booking) : EMPTY}</Field>
         <Field label={H.printedAt}>{formatDate(printedAt)}</Field>
         {vehicle.load && <Field label={H.dispatchLoad}>{vehicle.load.code}</Field>}
-        {!booked && <Field label={H.booking}>{H.notBooked}</Field>}
+        <Field label={H.booking}>
+          {view.kind === "booked" ? H.booked : BOOKING_TEXT[view.kind]}
+        </Field>
       </dl>
     </header>
   );

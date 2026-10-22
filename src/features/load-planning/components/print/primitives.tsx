@@ -35,18 +35,18 @@ export function Field({ label, children }: { label: string; children: ReactNode 
   );
 }
 
-/** Ảnh chụp 3D (data URL JPEG do `capture.ts` dựng) — không qua next/image vì không có URL để tối ưu. */
+/**
+ * Ảnh chụp 3D (data URL JPEG do `capture.ts` dựng) — không qua next/image vì không có URL để tối ưu. Cao tối đa 100 mm
+ * khi in để bảng kiện của bước còn chỗ trên cùng trang A4.
+ */
 export function CapturedImage({
   src,
   alt,
   caption,
-  maxHeightClass = "max-h-[100mm]",
 }: {
   src: string;
   alt: string;
   caption?: string;
-  /** Giới hạn chiều cao khi in để bảng kiện của bước còn chỗ trên cùng trang A4. */
-  maxHeightClass?: string;
 }) {
   return (
     <figure className="break-inside-avoid space-y-1">
@@ -54,7 +54,7 @@ export function CapturedImage({
         <figcaption className="text-ink-secondary text-xs font-medium">{caption}</figcaption>
       )}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={src} alt={alt} className={cn("mx-auto w-full object-contain", maxHeightClass)} />
+      <img src={src} alt={alt} className={"mx-auto max-h-[100mm] w-full object-contain"} />
     </figure>
   );
 }

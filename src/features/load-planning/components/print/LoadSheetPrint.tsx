@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 
 import { useLoadBooking } from "../../print-booking";
 import { colorMapForPrint } from "../../lib/palette";
+import { bookingNeedsFetch, bookingViewOf, bookingSettled } from "../../lib/booking-view";
 import { buildPrintSheet } from "../../lib/print-sheet";
 import { useLoadPlan, useLoadPlanLayouts } from "../../queries";
 import { DetailLoadError } from "../detail/DetailLoadError";
@@ -37,7 +38,14 @@ function PrintBody({ id, seq }: { id: string; seq: number }) {
     [plan.data, layouts.data, seq],
   );
   const canReadLoads = useCan(SHIPMENT_PERMISSIONS.read);
-  const booking = useLoadBooking(sheet?.vehicle.load?.loadId, canReadLoads);
+  const load = sheet?.vehicle.load;
+  const booking = useLoadBooking(load?.loadId, bookingNeedsFetch(load, canReadLoads));
+  const bookingView = bookingViewOf({
+    load,
+    canReadLoads,
+    data: booking.data,
+    isError: booking.isError,
+  });
   const { state, retry } = usePrintImages(sheet?.layout, layouts.data, colorMap);
   const [skipImages, setSkipImages] = useState(false);
   const [printedAt] = useState(() => new Date().toISOString());
@@ -56,7 +64,12 @@ function PrintBody({ id, seq }: { id: string; seq: number }) {
     <>
       <div className="flex flex-wrap items-center gap-3 print:hidden">
         <BackLink href={ADMIN_ROUTES.loadPlans.detail(id)} label={L.back} />
-        <Button type="button" size="sm" disabled={!ready} onClick={() => window.print()}>
+        <Button
+          type="button"
+          size="sm"
+          disabled={!ready || !bookingSettled(bookingView)}
+          onClick={() => window.print()}
+        >
           <Printer className="size-3.5" /> {L.printButton}
         </Button>
         <p className="text-ink-tertiary text-xs">{L.printHint}</p>
@@ -71,7 +84,7 @@ function PrintBody({ id, seq }: { id: string; seq: number }) {
           planCode={plan.data.code}
           sheet={sheet}
           images={images}
-          booking={booking.data}
+          booking={bookingView}
           colorMap={colorMap}
           printedAt={printedAt}
         />

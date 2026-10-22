@@ -50,7 +50,23 @@ const WITH_LOADS = {
   permissions: [...ACTORS.viewOnly.permissions, SHIPMENT_PERMISSIONS.read],
 };
 
-function renderSheet(actor: { permissions: string[] }, plan: PlanDetail = planFixture(), seq = 1) {
+const H = L.header;
+const planWithLoad = (status: string) =>
+  planFixture({
+    vehicles: [
+      vehicleOfLayout(LAYOUT_PICKUP_KIT, {
+        load: { loadId: LOAD_ID, code: "LOAD-20261022-0001", status },
+      }),
+    ],
+  });
+
+/** `gate`: giữ yêu cầu `/fulfillment/loads/*` cho tới khi test mở cổng (mô phỏng mạng chậm). */
+function renderSheet(
+  actor: { permissions: string[] },
+  plan: PlanDetail = planFixture(),
+  seq = 1,
+  gate?: Promise<void>,
+) {
   const spies = mockLoadPlanApi(actor as never, {
     get: {
       [PATH]: () => plan,
@@ -58,6 +74,13 @@ function renderSheet(actor: { permissions: string[] }, plan: PlanDetail = planFi
       [`/fulfillment/loads/${LOAD_ID}`]: () => BOOKED,
     },
   });
+  if (gate) {
+    const original = spies.get.getMockImplementation();
+    spies.get.mockImplementation(async (url: string, config?: { params?: unknown }) => {
+      if (url.startsWith("/fulfillment/loads/")) await gate;
+      return original ? original(url, config) : { data: undefined };
+    });
+  }
   renderLoadPlanScreen(<LoadSheetPrint id={PLAN_ID} seq={seq} />);
   return spies;
 }
@@ -102,7 +125,7 @@ describe("LoadSheetPrint — images and layout", () => {
     renderSheet(ACTORS.viewOnly);
     await screen.findByRole("heading", { name: L.documentTitle, level: 2 });
 
-    expect(screen.getByText(/LP-20261022-0001/)).toBeInTheDocument();
+    expect(screen.getByText(/^Kế hoạch LP-20261022-0001/)).toBeInTheDocument();
     expect(screen.getByText(/PICKUP-1T/)).toBeInTheDocument();
     expect(screen.getByText("1.000 kg")).toBeInTheDocument();
     expect(screen.getByAltText(/tổng quan, Bên trái/)).toHaveAttribute(
@@ -193,9 +216,13 @@ describe("LoadSheetPrint — booking, unplaced note, bad input", () => {
     const { get } = renderSheet(ACTORS.viewOnly, PLAN_WITH_LOAD);
     await screen.findByRole("heading", { name: L.documentTitle, level: 2 });
     expect(screen.queryByText("51C-123.45")).not.toBeInTheDocument();
+    // booked (VEHICLE_BOOKED) but unreadable for this viewer: neutral dash + the reason, never "not booked"
+    expect(screen.getByText(H.bookingNoPermission)).toBeInTheDocument();
+    expect(screen.queryByText(H.notBooked)).not.toBeInTheDocument();
     expect(get.mock.calls.some(([url]) => String(url).startsWith("/fulfillment/loads"))).toBe(
       false,
     );
+    expect(screen.getByRole("button", { name: L.printButton })).toBeEnabled();
   });
 
   it("still prints when the load cannot be read (404) — blanks instead of an error", async () => {
@@ -210,6 +237,57 @@ describe("LoadSheetPrint — booking, unplaced note, bad input", () => {
       await screen.findByRole("heading", { name: L.documentTitle, level: 2 }),
     ).toBeInTheDocument();
     expect(screen.queryByText("51C-123.45")).not.toBeInTheDocument();
+    expect(await screen.findByText(H.bookingError)).toBeInTheDocument();
+    expect(screen.queryByText(H.notBooked)).not.toBeInTheDocument();
+  });
+
+  it("says 'Chưa đặt xe' only when the load is PLANNED, even without permission, and never calls the load API", async () => {
+    const { get } = renderSheet(ACTORS.viewOnly, planWithLoad("PLANNED"));
+    await screen.findByRole("heading", { name: L.documentTitle, level: 2 });
+    expect(screen.getByText(H.notBooked)).toBeInTheDocument();
+    expect(get.mock.calls.some(([url]) => String(url).startsWith("/fulfillment/loads"))).toBe(
+      false,
+    );
+  });
+
+  it("says the plan has no load yet (not 'not booked') when the vehicle has no dispatch load", async () => {
+    renderSheet(WITH_LOADS);
+    await screen.findByRole("heading", { name: L.documentTitle, level: 2 });
+    expect(screen.getByText(H.noLoad)).toBeInTheDocument();
+    expect(screen.queryByText(H.notBooked)).not.toBeInTheDocument();
+  });
+
+  it("shows a cancelled load as such, without fetching it", async () => {
+    renderSheet(WITH_LOADS, planWithLoad("CANCELLED"));
+    await screen.findByRole("heading", { name: L.documentTitle, level: 2 });
+    expect(screen.getByText(H.bookingCancelled)).toBeInTheDocument();
+  });
+
+  it("keeps the print button disabled while the booking loads, with a loading text instead of 'not booked'", async () => {
+    let open: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      open = resolve;
+    });
+    renderSheet(WITH_LOADS, PLAN_WITH_LOAD, 1, gate);
+    // images are ready (document rendered) but the booking has not settled
+    expect(await screen.findByText(H.bookingLoading)).toBeInTheDocument();
+    expect(screen.queryByText(H.notBooked)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: L.printButton })).toBeDisabled();
+
+    open();
+    expect(await screen.findByText("51C-123.45")).toBeInTheDocument();
+    expect(screen.getByText(H.booked)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: L.printButton })).toBeEnabled();
+  });
+
+  it("prints a per-page footer with the plan code and the vehicle, and numbers pages in the @page margin", async () => {
+    renderSheet(ACTORS.viewOnly);
+    await screen.findByRole("heading", { name: L.documentTitle, level: 2 });
+    expect(screen.getByText(L.footer("LP-20261022-0001", 1))).toBeInTheDocument();
+    const css = document.querySelector("article style")?.textContent ?? "";
+    expect(css).toContain("@page");
+    expect(css).toContain("counter(page)");
+    expect(css).toContain(L.pageWord);
   });
 
   it("adds the unplaced note, saying those parcels are not on this sheet", async () => {
