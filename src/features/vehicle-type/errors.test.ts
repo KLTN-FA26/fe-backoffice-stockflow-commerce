@@ -28,10 +28,12 @@ describe("vehicleTypeErrorMessage — mọi errorCode của BE PR #153", () => {
     }
   });
 
-  it("VALIDATION_FAILED nêu tên ô cần sửa bằng nhãn tiếng Việt", () => {
+  it("VALIDATION_FAILED nêu nhãn tiếng Việt của ô kèm câu BE đã dịch cho ô đó", () => {
     expect(
-      vehicleTypeErrorMessage(err(400, "VALIDATION_FAILED", { innerLengthMm: "1 to 30000 mm" })),
-    ).toBe("Dữ liệu chưa hợp lệ. (Dài trong (mm))");
+      vehicleTypeErrorMessage(
+        err(400, "VALIDATION_FAILED", { innerLengthMm: "Từ 1 đến 30000 mm" }),
+      ),
+    ).toBe("Dài trong (mm): Từ 1 đến 30000 mm");
     expect(vehicleTypeErrorMessage(err(400, "VALIDATION_FAILED"))).toBe(MESSAGES.VALIDATION_FAILED);
     // Trường BE lạ: vẫn không vỡ, nêu nguyên tên trường
     expect(vehicleTypeErrorMessage(err(400, "VALIDATION_FAILED", { weird: "x" }))).toContain(
@@ -39,16 +41,49 @@ describe("vehicleTypeErrorMessage — mọi errorCode của BE PR #153", () => {
     );
   });
 
-  it("BE từ chối đổi loại của loại xe mặc định (400 trên trường kind)", () => {
-    expect(
-      vehicleTypeErrorMessage(err(400, "VALIDATION_FAILED", { kind: "a preset keeps its kind" })),
-    ).toBe(MESSAGES.VALIDATION_KIND_IMMUTABLE);
-  });
+  describe("mã và loại: chỉ nói 'không đổi được' khi đúng là vậy", () => {
+    const withCodes = (fieldErrors: Record<string, string>, fieldCodes: Record<string, string>) =>
+      new ApiError(400, "VALIDATION_FAILED", "m", fieldErrors, undefined, fieldCodes);
 
-  it("PUT với mã khác (400 trên trường code) → mã không đổi được", () => {
-    expect(
-      vehicleTypeErrorMessage(err(400, "VALIDATION_FAILED", { code: "cannot be changed" })),
-    ).toBe(MESSAGES.VALIDATION_CODE_IMMUTABLE);
+    it("mã trường của BE nói bất biến → không đổi được (mã, loại)", () => {
+      expect(
+        vehicleTypeErrorMessage(
+          withCodes({ code: "cannot be changed" }, { code: "VEHICLE_TYPE_CODE_IMMUTABLE" }),
+        ),
+      ).toBe(MESSAGES.VALIDATION_CODE_IMMUTABLE);
+      expect(
+        vehicleTypeErrorMessage(
+          withCodes({ kind: "a preset keeps its kind" }, { kind: "VEHICLE_TYPE_KIND_IMMUTABLE" }),
+        ),
+      ).toBe(MESSAGES.VALIDATION_KIND_IMMUTABLE);
+    });
+
+    it("sửa loại xe mặc định: lỗi trên code / kind là không đổi được dù BE không kèm mã", () => {
+      const ctx = { updatingPreset: true };
+      expect(vehicleTypeErrorMessage(err(400, "VALIDATION_FAILED", { code: "x" }), ctx)).toBe(
+        MESSAGES.VALIDATION_CODE_IMMUTABLE,
+      );
+      expect(vehicleTypeErrorMessage(err(400, "VALIDATION_FAILED", { kind: "x" }), ctx)).toBe(
+        MESSAGES.VALIDATION_KIND_IMMUTABLE,
+      );
+    });
+
+    it("mã sai định dạng khi thêm mới: hiện câu của BE, không phải 'không đổi được'", () => {
+      const invalidCode = withCodes(
+        { code: "Mã gồm 2-32 ký tự" },
+        { code: "VEHICLE_TYPE_CODE_INVALID" },
+      );
+      expect(vehicleTypeErrorMessage(invalidCode)).toBe("Mã loại xe: Mã gồm 2-32 ký tự");
+      // Sửa loại xe tự thêm (không phải mặc định) với lỗi định dạng cũng vậy
+      expect(vehicleTypeErrorMessage(invalidCode, { updatingPreset: false })).toBe(
+        "Mã loại xe: Mã gồm 2-32 ký tự",
+      );
+      expect(
+        vehicleTypeErrorMessage(
+          err(400, "VALIDATION_FAILED", { kind: "CONTAINER, TRUCK hoặc PICKUP" }),
+        ),
+      ).toBe("Loại: CONTAINER, TRUCK hoặc PICKUP");
+    });
   });
 });
 

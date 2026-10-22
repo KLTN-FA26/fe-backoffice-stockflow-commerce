@@ -6,6 +6,7 @@ import {
   formatInnerSizeMm,
   formatMetres,
   formatPayload,
+  isValidDimensionMm,
   formatVolume,
   volumeM3,
 } from "./selectors";
@@ -29,6 +30,16 @@ describe("hiển thị kích thước và thể tích", () => {
     expect(volumeM3(1000, 0, 1000)).toBeNull();
     expect(volumeM3(1000, 1000, -5)).toBeNull();
     expect(volumeM3(Number.NaN, 1, 1)).toBeNull();
+  });
+
+  it("ngoài giới hạn BE (1..30.000 mm, số nguyên) → null, không hiện thể tích vô nghĩa", () => {
+    // Cả ba cạnh quá lớn từng cho ra "20.166.048.604.820,16 m³"
+    expect(volumeM3(2_716_000_000, 2_352_000_000, 3_157_000_000)).toBeNull();
+    expect(volumeM3(30_001, 2352, 2393)).toBeNull();
+    expect(volumeM3(5898.5, 2352, 2393)).toBeNull();
+    expect(volumeM3(30_000, 30_000, 30_000)).toBe(27_000);
+    expect(isValidDimensionMm(1)).toBe(true);
+    expect(isValidDimensionMm(0)).toBe(false);
   });
 
   it("tải trọng kèm đơn vị", () => {

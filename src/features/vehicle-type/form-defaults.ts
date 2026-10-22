@@ -47,3 +47,27 @@ export const formValuesOf = (row: VehicleType): VehicleTypeFormInput => ({
   rentalPrice: row.rentalPrice == null ? "" : String(row.rentalPrice),
   status: row.status,
 });
+
+/** Một ô mà bản mới của BE (người khác vừa lưu) khác giá trị người dùng đang nhập. */
+export interface FormConflict {
+  field: Exclude<keyof VehicleTypeFormInput, "code">;
+  mine: string;
+  theirs: string;
+}
+
+/**
+ * So giá trị đang nhập với bản mới của BE sau khi người khác sửa trước: chỉ liệt kê ô khác nhau, để người
+ * dùng quyết định giữ phần mình hay nạp bản mới — không ô nào bị ghi đè âm thầm. Mã không đổi nên bỏ qua.
+ */
+export function conflictsOf(
+  server: VehicleType,
+  mine: Partial<VehicleTypeFormInput>,
+): FormConflict[] {
+  const theirs = formValuesOf(server);
+  const fields = (Object.keys(theirs) as (keyof VehicleTypeFormInput)[]).filter(
+    (field): field is FormConflict["field"] => field !== "code",
+  );
+  return fields
+    .filter((field) => (mine[field] ?? "").trim() !== theirs[field].trim())
+    .map((field) => ({ field, mine: (mine[field] ?? "").trim(), theirs: theirs[field] }));
+}

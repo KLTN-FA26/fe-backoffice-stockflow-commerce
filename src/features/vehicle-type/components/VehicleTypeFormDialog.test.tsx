@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -123,9 +123,9 @@ describe("VehicleTypeFormDialog — thêm loại xe", () => {
     );
     const user = await fillCreateForm();
     await user.click(await screen.findByRole("button", { name: L.form.submitCreate }));
-    expect(
-      await screen.findByText(/Dữ liệu chưa hợp lệ\. \(Cao trong \(mm\)\)/),
-    ).toBeInTheDocument();
+    // Banner: nhãn ô + câu BE cho ô đó; cùng câu BE nằm dưới ô
+    expect(await screen.findByText("Cao trong (mm): 1 to 30000 mm")).toBeInTheDocument();
+    expect(screen.getByText("1 to 30000 mm")).toBeInTheDocument();
     expect(field(L.field.innerHeightMm)).toHaveAttribute("aria-invalid", "true");
   });
 });
@@ -204,16 +204,70 @@ describe("VehicleTypeFormDialog — sửa loại xe", () => {
     await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 
-  it("OPTIMISTIC_LOCK: tải lại dòng — form nạp bản mới và báo đã nạp lại", async () => {
-    const { put, setServerRow } = renderDialog(apiVehicleType({ version: 0 }));
+  describe("OPTIMISTIC_LOCK — giữ phần người dùng đã nhập", () => {
+    /** Người khác sửa trước (BE ở version 1, tên và số xe mới); người dùng gõ thêm vào tên rồi lưu → 409. */
+    async function conflict() {
+      const ctx = renderDialog(apiVehicleType({ version: 0 }));
+      const user = userEvent.setup();
+      const name = await screen.findByDisplayValue("Container 20' Dry (20DC)");
+      ctx.setServerRow(
+        apiVehicleType({ version: 1, name: "Container 20 ft (đã đổi)", availableCount: 7 }),
+      );
+      ctx.put.mockRejectedValueOnce(new ApiError(409, "OPTIMISTIC_LOCK", "changed"));
+      await user.type(name, "!");
+      await user.click(screen.getByRole("button", { name: L.form.submitEdit }));
+      await screen.findByText(L.form.conflictTitle);
+      return { ...ctx, user, name };
+    }
+
+    it("báo OPTIMISTIC_LOCK, giữ nguyên chữ đã gõ và hiện cạnh nhau các ô người khác đổi", async () => {
+      const { name } = await conflict();
+      expect(screen.getByText(VEHICLE_TYPE_ERROR_MESSAGES.OPTIMISTIC_LOCK)).toBeInTheDocument();
+      expect(name).toHaveValue("Container 20' Dry (20DC)!");
+      const panel = within(screen.getByRole("status", { name: L.form.conflictTitle }));
+      expect(panel.getByText("Container 20 ft (đã đổi)")).toBeInTheDocument();
+      expect(panel.getByText("Container 20' Dry (20DC)!")).toBeInTheDocument();
+      expect(panel.getByText("7")).toBeInTheDocument();
+      // Ô chưa ai đổi không bị liệt kê
+      expect(panel.queryByText(L.field.maxPayloadKg)).not.toBeInTheDocument();
+    });
+
+    it("Giữ thay đổi của tôi: lưu lại gửi version mới và đúng chữ của người dùng", async () => {
+      const { put, user } = await conflict();
+      await user.click(screen.getByRole("button", { name: L.form.keepMine }));
+      expect(screen.queryByText(L.form.conflictTitle)).not.toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: L.form.submitEdit }));
+      await waitFor(() => expect(put).toHaveBeenCalledTimes(2));
+      expect(put.mock.calls[1]?.[1]).toMatchObject({
+        version: 1,
+        name: "Container 20' Dry (20DC)!",
+        availableCount: 10,
+      });
+    });
+
+    it("Nạp lại dữ liệu mới: form lấy giá trị của người khác, lưu lại gửi version mới", async () => {
+      const { put, user, name } = await conflict();
+      await user.click(screen.getByRole("button", { name: L.form.reloadLatest }));
+      expect(name).toHaveValue("Container 20 ft (đã đổi)");
+      expect(field(L.field.availableCount)).toHaveValue("7");
+      expect(screen.queryByText(L.form.conflictTitle)).not.toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: L.form.submitEdit }));
+      await waitFor(() => expect(put).toHaveBeenCalledTimes(2));
+      expect(put.mock.calls[1]?.[1]).toMatchObject({ version: 1, availableCount: 7 });
+    });
+  });
+
+  it("xem trước thể tích: ngoài giới hạn BE thì hiện '—', không hiện số vô nghĩa", async () => {
+    renderDialog();
     const user = userEvent.setup();
-    const name = await screen.findByDisplayValue("Container 20' Dry (20DC)");
-    // Người khác sửa trước: BE đã ở version 1 với tên mới
-    setServerRow(apiVehicleType({ version: 1, name: "Container 20 ft (đã đổi)" }));
-    put.mockRejectedValueOnce(new ApiError(409, "OPTIMISTIC_LOCK", "changed"));
-    await user.type(name, "!");
-    await user.click(screen.getByRole("button", { name: L.form.submitEdit }));
-    expect(await screen.findByDisplayValue("Container 20 ft (đã đổi)")).toBeInTheDocument();
-    expect(screen.getByText(L.form.reloaded)).toBeInTheDocument();
+    await screen.findByRole("button", { name: L.form.submitCreate });
+    await user.type(field(L.field.innerLengthMm), "2716000000");
+    await user.type(field(L.field.innerWidthMm), "2352000000");
+    await user.type(field(L.field.innerHeightMm), "3157000000");
+    expect(
+      await screen.findAllByText(VEHICLE_TYPE_FIELD_MESSAGES.dimensionTooLarge),
+    ).not.toHaveLength(0);
+    expect(screen.queryByText(/m³/)).not.toBeInTheDocument();
+    expect(screen.getByText(L.form.volumeEmpty)).toBeInTheDocument();
   });
 });

@@ -28,6 +28,8 @@ import type { VehicleType } from "@/features/vehicle-type/types";
 const L = UI_LABELS.vehicleType;
 
 export interface VehicleTypeColumnHandlers {
+  /** Người dùng có thao tác nào trên dòng (quyền cập nhật) — không có thì ẩn hẳn cột thao tác. */
+  showActions: boolean;
   actionsOf: (row: VehicleType) => VehicleTypeActions;
   onEdit: (row: VehicleType) => void;
   onToggleStatus: (row: VehicleType) => void;
@@ -83,7 +85,7 @@ function RowActions({ row, h }: { row: VehicleType; h: VehicleTypeColumnHandlers
 /** Cột bảng loại xe: kích thước hiện mét, mm ở tooltip; loại xe mặc định có nhãn riêng. */
 export function buildVehicleTypeColumns(h: VehicleTypeColumnHandlers): ColumnDef<VehicleType>[] {
   const col = L.column;
-  return [
+  const columns: ColumnDef<VehicleType>[] = [
     {
       ...codeCell<VehicleType>(C.CODE, col.code, (row) => row.code),
       cell: (row) => (
@@ -129,4 +131,6 @@ export function buildVehicleTypeColumns(h: VehicleTypeColumnHandlers): ColumnDef
     { key: C.STATUS, header: col.status, cell: (row) => <StatusCell status={row.status} /> },
     { key: C.ACTIONS, header: "", cell: (row) => <RowActions row={row} h={h} /> },
   ];
+  // Chỉ xem: cột thao tác sẽ trống hoàn toàn nên bỏ đi
+  return h.showActions ? columns : columns.filter((column) => column.key !== C.ACTIONS);
 }

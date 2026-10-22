@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -119,6 +119,16 @@ describe("VehicleTypeList — cổng quyền theo mã", () => {
     expect(screen.getByRole("button", { name: L.create })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: `${L.edit} 20DC` })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: `${L.deactivate} 20DC` })).toBeInTheDocument();
+  });
+
+  it("cột thao tác chỉ có khi có quyền cập nhật: chỉ xem thì ẩn hẳn, không để cột trống", async () => {
+    renderList(ACTORS.warehouseManager);
+    await screen.findByText("20DC");
+    const withActions = screen.getAllByRole("columnheader").length;
+    cleanup();
+    renderList(ACTORS.viewOnly);
+    await screen.findByText("20DC");
+    expect(screen.getAllByRole("columnheader")).toHaveLength(withActions - 1);
   });
 
   it("chỉ xem (READ): thấy bảng nhưng không có nút Thêm / Sửa / Ngừng dùng, bấm dòng không mở form", async () => {

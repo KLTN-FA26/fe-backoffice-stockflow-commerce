@@ -36,6 +36,7 @@ function VehicleTypeListContent() {
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const actionsOf = (row: VehicleType | null) => vehicleTypeActions(row, { can });
   const columns = buildVehicleTypeColumns({
+    showActions: actionsOf(null).create,
     actionsOf,
     onEdit: (vehicleType) => setDialog({ kind: "edit", vehicleType }),
     onToggleStatus: (vehicleType) => {

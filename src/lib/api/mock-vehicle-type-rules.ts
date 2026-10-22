@@ -19,7 +19,7 @@ const KINDS: readonly string[] = VEHICLE_TYPE_KINDS;
 export const STATUSES: readonly string[] = VEHICLE_TYPE_STATUSES;
 const L = VEHICLE_TYPE_LIMITS;
 
-export type Problems = { field: string; message: string }[];
+export type Problems = { field: string; message: string; code?: string }[];
 
 const intIn = (value: unknown, min: number, max: number): value is number =>
   typeof value === "number" && Number.isInteger(value) && value >= min && value <= max;
@@ -37,7 +37,11 @@ export function fill(
   if (!KINDS.includes(kind))
     problems.push({ field: "kind", message: "CONTAINER, TRUCK or PICKUP" });
   else if (row.preset && kind !== row.kind)
-    problems.push({ field: "kind", message: "a preset keeps its kind" });
+    problems.push({
+      field: "kind",
+      message: "a preset keeps its kind",
+      code: "VEHICLE_TYPE_KIND_IMMUTABLE",
+    });
   const sides = (["innerLengthMm", "innerWidthMm", "innerHeightMm"] as const).map((field) => {
     const ok = intIn(body[field], 1, L.dimensionMaxMm);
     if (!ok) problems.push({ field, message: `1 to ${L.dimensionMaxMm} mm` });

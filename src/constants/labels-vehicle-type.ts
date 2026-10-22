@@ -95,10 +95,16 @@ export const VEHICLE_TYPE_UI_LABELS = {
     gussetHint: `Cạnh khối lập phương gia cố (0–${VEHICLE_TYPE_LIMITS.gussetMaxMm} mm, trống = 0) chừa ở hai góc trên phía đầu thùng; container 45' có 4 khối ở vị trí trụ góc. 2 × khe góc < rộng trong và khe góc < cao trong.`,
     rentalHint: "Chỉ để tham khảo — kế hoạch không chọn xe theo giá.",
     volumeLabel: "Thể tích thùng",
-    volumeEmpty: "Nhập đủ dài, rộng, cao để xem thể tích.",
+    volumeEmpty: "—",
     submitCreate: "Thêm loại xe",
     submitEdit: "Lưu",
-    reloaded: "Dữ liệu vừa được người khác sửa — form đã nạp lại bản mới nhất.",
+    conflictTitle: "Người khác vừa sửa loại xe này",
+    conflictDescription:
+      "Các thay đổi bạn đã nhập vẫn được giữ nguyên. Lần lưu tiếp theo sẽ ghi đè các ô dưới đây — hoặc nạp lại dữ liệu mới để bỏ phần của bạn.",
+    conflictMine: "Của bạn",
+    conflictTheirs: "Bản mới",
+    reloadLatest: "Nạp lại dữ liệu mới",
+    keepMine: "Giữ thay đổi của tôi",
   },
   confirm: {
     deactivateTitle: "Ngừng dùng loại xe?",

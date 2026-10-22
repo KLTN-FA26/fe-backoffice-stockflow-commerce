@@ -31,14 +31,20 @@ export function formatInnerSizeMm(
   return `${sides.join(" × ")} ${L.unitMm}`;
 }
 
-/** Thể tích thùng (m³) từ ba cạnh bằng mm; thiếu / không hợp lệ → `null`. */
+/** Một cạnh hợp lệ theo BE (`@Min(1) @Max(30000)`, số nguyên mm). */
+export function isValidDimensionMm(mm: number | undefined): mm is number {
+  return mm !== undefined && Number.isInteger(mm) && mm >= 1 && mm <= LIMITS.dimensionMaxMm;
+}
+
+/** Thể tích thùng (m³) từ ba cạnh bằng mm; thiếu hoặc ngoài giới hạn BE → `null`. */
 export function volumeM3(
   lengthMm: number | undefined,
   widthMm: number | undefined,
   heightMm: number | undefined,
 ): number | null {
   const sides = [lengthMm, widthMm, heightMm];
-  if (sides.some((side) => side === undefined || !Number.isFinite(side) || side <= 0)) return null;
+  // Cùng luật với form / BE: số nguyên 1..30.000 mm — nằm ngoài thì không có thể tích đáng tin để hiện
+  if (sides.some((side) => !isValidDimensionMm(side))) return null;
   const [l = 0, w = 0, h = 0] = sides;
   return (l * w * h) / LIMITS.cubicMmPerCubicMetre;
 }

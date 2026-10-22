@@ -78,7 +78,13 @@ export function registerVehicleTypeMockRoutes(): void {
       const body = parseJsonBody(config.data);
       const code = readString(body.code).toUpperCase();
       if (!CODE.test(code))
-        return invalid([{ field: "code", message: "2-32 letters, digits, '-' or '_'" }]);
+        return invalid([
+          {
+            field: "code",
+            message: "2-32 letters, digits, '-' or '_'",
+            code: "VEHICLE_TYPE_CODE_INVALID",
+          },
+        ]);
       const store = getVehicleTypeStore();
       if ([...store.values()].some((row) => row.code === code))
         return fail(409, "VEHICLE_TYPE_CODE_EXISTS", `Vehicle type code ${code} is taken`);
@@ -113,7 +119,9 @@ export function registerVehicleTypeMockRoutes(): void {
       const body = parseJsonBody(config.data);
       const code = readString(body.code).toUpperCase();
       if (code && code !== row.code)
-        return invalid([{ field: "code", message: "cannot be changed" }]);
+        return invalid([
+          { field: "code", message: "cannot be changed", code: "VEHICLE_TYPE_CODE_IMMUTABLE" },
+        ]);
       if (body.version !== row.version)
         return fail(
           409,
