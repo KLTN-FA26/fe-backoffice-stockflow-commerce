@@ -8,6 +8,11 @@ import { VehicleItemTable } from "./VehicleItemTable";
 const rowOf = (name: string) => screen.getByRole("row", { name: new RegExp(name) });
 
 describe("VehicleItemTable", () => {
+  it("names the table for assistive tech with a caption", () => {
+    render(<VehicleItemTable layouts={[LAYOUT_40HC]} />);
+    expect(screen.getByRole("table", { name: "Số kiện đã xếp theo xe" })).toBeInTheDocument();
+  });
+
   it("lists one row per item with the nominal D×R×C in cm and the per-vehicle count", () => {
     render(<VehicleItemTable layouts={[LAYOUT_40HC]} />);
     expect(screen.getByText("Số kiện đã xếp theo xe")).toBeInTheDocument();

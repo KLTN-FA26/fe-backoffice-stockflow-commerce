@@ -3,6 +3,7 @@ import { LOAD_PLANNING_LABELS } from "@/constants";
 import {
   Table,
   TableBody,
+  TableCaption,
   TableCell,
   TableFooter,
   TableHead,
@@ -38,6 +39,7 @@ export function VehicleItemTable({
       </div>
       <div className="overflow-x-auto">
         <Table>
+          <TableCaption className="sr-only">{labels.title}</TableCaption>
           <TableHeader>
             <TableRow>
               <TableHead>{labels.item}</TableHead>
