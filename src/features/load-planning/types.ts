@@ -20,3 +20,9 @@ export type ExtentMm = Pick<BlockMm, "wMm" | "hMm" | "dMm">;
 
 /** Dòng hàng chưa xếp được: chỉ cần số lượng + khoá nhận dạng để so với kiện đã xếp. */
 export type UnplacedLine = z.infer<typeof UnplacedLineSchema>;
+
+/** Cửa xe (mm) theo loại xe (LP3-DOOR): ô nào `null` là không giới hạn chiều đó. */
+export interface DoorMm {
+  widthMm: number | null;
+  heightMm: number | null;
+}

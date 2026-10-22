@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { LOAD_PLAN_ERROR_MESSAGES as M } from "@/constants";
+import { LOAD_PLAN_EDITOR_STALE_MESSAGES, LOAD_PLAN_ERROR_MESSAGES as M } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
 import {
@@ -148,5 +148,24 @@ describe("stale-data detection", () => {
   it("isOptimisticLockError matches only the 409 OPTIMISTIC_LOCK", () => {
     expect(isOptimisticLockError(api("OPTIMISTIC_LOCK"))).toBe(true);
     expect(isOptimisticLockError(api("INVALID_LOAD_PLAN_TRANSITION"))).toBe(false);
+  });
+});
+
+describe("placement edit errors (VALIDATION_FAILED + field code)", () => {
+  const withCode = (code: string) =>
+    new ApiError(400, "VALIDATION_FAILED", "x", undefined, undefined, undefined, [
+      { field: "p", message: "x", code },
+    ]);
+
+  it("each way the edit can disagree with the plan has its own Vietnamese sentence and reloads the plan", () => {
+    for (const [code, message] of Object.entries(LOAD_PLAN_EDITOR_STALE_MESSAGES)) {
+      expect(loadPlanErrorMessage(withCode(code))).toBe(message);
+      expect(isStaleLoadPlanError(withCode(code))).toBe(true);
+    }
+  });
+
+  it("an unrelated field code is still the plain validation message and not stale", () => {
+    expect(loadPlanErrorMessage(withCode("SOMETHING_ELSE"))).toBe(M.VALIDATION_FAILED);
+    expect(isStaleLoadPlanError(withCode("SOMETHING_ELSE"))).toBe(false);
   });
 });

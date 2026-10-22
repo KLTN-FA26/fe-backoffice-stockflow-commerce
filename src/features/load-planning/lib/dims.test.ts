@@ -11,6 +11,7 @@ import {
   formatNominalCm,
   matchesOrientation,
   orientedExtent,
+  passesDoor,
   volumeMm3,
 } from "./dims";
 
@@ -75,5 +76,23 @@ describe("formatM3", () => {
   it("shows cubic metres with two decimals (vi-VN)", () => {
     expect(formatM3(1_234_000_000)).toBe("1,23 m³");
     expect(formatM3(0)).toBe("0,00 m³");
+  });
+});
+
+describe("passesDoor (LP3-DOOR, BE VehicleSpec.passesDoor)", () => {
+  const extent = { wMm: 800, hMm: 600 };
+
+  it("compares the door-facing side: width (x) and height (y), never the length", () => {
+    expect(passesDoor(extent, { widthMm: 800, heightMm: 600 })).toBe(true);
+    expect(passesDoor(extent, { widthMm: 799, heightMm: 600 })).toBe(false);
+    expect(passesDoor(extent, { widthMm: 800, heightMm: 599 })).toBe(false);
+  });
+
+  it("a missing door or a missing side means no limit", () => {
+    expect(passesDoor(extent, null)).toBe(true);
+    expect(passesDoor(extent, undefined)).toBe(true);
+    expect(passesDoor(extent, { widthMm: null, heightMm: null })).toBe(true);
+    expect(passesDoor(extent, { widthMm: 100, heightMm: null })).toBe(false);
+    expect(passesDoor(extent, { widthMm: null, heightMm: 1000 })).toBe(true);
   });
 });

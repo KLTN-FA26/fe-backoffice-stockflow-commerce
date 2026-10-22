@@ -4,6 +4,7 @@
  * `labels-load-planning.ts`.
  */
 
+import { LOAD_PLAN_EDITOR_LABELS } from "./labels-load-plan-editor";
 import { LOAD_PLAN_LIMITS } from "./numbers";
 
 import type {
@@ -57,6 +58,8 @@ export const LOAD_PLAN_ESTIMATE_FLAG_LABELS: Record<LoadPlanEstimateFlag, string
 };
 
 export const LOAD_PLAN_UI_LABELS = {
+  /** Trình soạn xếp tay (PR F5). */
+  editor: LOAD_PLAN_EDITOR_LABELS,
   pageTitle: "Kế hoạch xếp xe",
   navTooltip: "Load planning",
   create: "Lập kế hoạch xếp xe",
@@ -277,6 +280,7 @@ export const LOAD_PLAN_TOAST_MESSAGES = {
   confirmed: "Đã chốt kế hoạch",
   reopened: "Đã mở lại kế hoạch",
   cancelled: "Đã huỷ kế hoạch",
+  placementsSaved: "Đã lưu bố cục xếp tay",
 } as const;
 
 /** Mã lỗi BE (`ErrorCode`, PR #161) → câu tiếng Việt. `generic` là câu dự phòng. */

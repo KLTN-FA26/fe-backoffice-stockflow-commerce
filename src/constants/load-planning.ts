@@ -87,4 +87,9 @@ export const SCENE_COLORS = {
   captureBackground: "#ffffff",
   captureShellEdge: "#94a3b8",
   captureBoxEdge: "#1e293b",
+  /** Trình soạn xếp tay: kiện đang chọn, kiện vi phạm luật, ô gợi ý chỗ đặt. */
+  selected: "#2563eb",
+  violation: "#dc2626",
+  landing: "#16a34a",
+  landingEdge: "#15803d",
 } as const;
