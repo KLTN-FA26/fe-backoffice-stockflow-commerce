@@ -8,14 +8,17 @@
 import { extentOf, matchesOrientation } from "./dims";
 import { validatePlacement } from "./manual-packing";
 
-import type { PlacementRule } from "./manual-packing";
+import type { PlacementRule } from "@/constants";
 import type { Layout } from "../types";
 
-export type LayoutRule =
-  PlacementRule | "ORIENTATION_MISMATCH" | "ROTATION_NOT_ALLOWED" | "PAYLOAD_EXCEEDED";
+/**
+ * Mã luật của solver BE (`PLACEMENT_RULES`), cộng `ORIENTATION_MISMATCH` — lỗi toàn vẹn dữ liệu chỉ FE
+ * kiểm (kích thước đã xếp không khớp kích thước danh định theo `orientation`), BE không có mã này.
+ */
+export type LayoutRule = PlacementRule | "ORIENTATION_MISMATCH";
 
 export interface LayoutIssue {
-  /** Chỉ số kiện trong `layout.boxes`; null cho lỗi cấp xe (quá tải). */
+  /** Chỉ số kiện trong `layout.boxes`; null cho lỗi cấp xe (OVERWEIGHT). */
   index: number | null;
   ref: string | null;
   rule: LayoutRule;
@@ -25,8 +28,8 @@ export function checkLayout(layout: Layout): LayoutIssue[] {
   const extent = extentOf(layout.innerMm);
   const issues: LayoutIssue[] = [];
   layout.boxes.forEach((box, index) => {
-    const others = [...layout.gussets, ...layout.boxes.filter((_, i) => i !== index)];
-    for (const rule of validatePlacement(box, extent, others).violations) {
+    const others = layout.boxes.filter((_, i) => i !== index);
+    for (const rule of validatePlacement(box, extent, others, layout.gussets).violations) {
       issues.push({ index, ref: box.ref, rule });
     }
     if (!matchesOrientation(box))
@@ -37,7 +40,6 @@ export function checkLayout(layout: Layout): LayoutIssue[] {
     }
   });
   const weight = layout.boxes.reduce((sum, box) => sum + box.weightKg, 0);
-  if (weight > layout.maxPayloadKg)
-    issues.push({ index: null, ref: null, rule: "PAYLOAD_EXCEEDED" });
+  if (weight > layout.maxPayloadKg) issues.push({ index: null, ref: null, rule: "OVERWEIGHT" });
   return issues;
 }

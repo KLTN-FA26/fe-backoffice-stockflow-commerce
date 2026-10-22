@@ -5,8 +5,23 @@
  * nhãn đi qua `constants/`. `constants/` là tầng thấp nhất — không import gì ngoài chính nó.
  */
 
+import { LOAD_PLANNING_LIMITS } from "./numbers";
+
+import type { PlacementRule } from "./load-planning";
+
+/** Lý do vi phạm luật xếp (BR-10) theo mã luật của solver BE — hiện khi vị trí bị từ chối. */
+export const PLACEMENT_RULE_LABELS: Record<PlacementRule, string> = {
+  OUT_OF_BOUNDS: "Kiện chìa ra ngoài lòng thùng",
+  OVERLAP: "Kiện chồng lên kiện khác",
+  UNSUPPORTED: `Đáy kiện được đỡ chưa đủ ${LOAD_PLANNING_LIMITS.minSupportRatio * 100}%`,
+  OVERWEIGHT: "Xe vượt tải trọng cho phép",
+  ROTATION_NOT_ALLOWED: "Kiện này không được xoay khỏi hướng đặt ban đầu",
+  GUSSET: "Kiện vướng khối gia cố ở góc trần thùng",
+};
+
 export const LOAD_PLANNING_LABELS = {
   unnamed: "(chưa đặt tên)",
+  orientationMismatch: "Kích thước đã xếp không khớp kích thước danh định theo hướng đặt",
   viewer: {
     loading: "Đang tải khung 3D…",
     ariaLabel: (vehicleCode: string) => `Mô hình 3D xe ${vehicleCode}`,

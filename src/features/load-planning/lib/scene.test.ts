@@ -45,7 +45,7 @@ describe("prepareScene", () => {
     expect(scene.boxes[0].size[2]).toBeCloseTo((600 * 10) / 12032, 6);
   });
 
-  it("gives every scene box a unique id even when many boxes share one ref", () => {
+  it("gives every scene box a unique id even when refs repeat (corrupt data)", () => {
     expect(new Set(scene.boxes.map((b) => b.id)).size).toBe(scene.boxes.length);
   });
 

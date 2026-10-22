@@ -31,8 +31,13 @@ export const BlockMmSchema = z.object({
 export const DimsMmSchema = z.object({ l: positive, w: positive, h: positive });
 
 export const LayoutBoxSchema = BlockMmSchema.extend({
-  /** Mã dòng/kiện nguồn do BE truyền xuyên qua solver; KHÔNG bắt buộc duy nhất giữa các kiện. */
+  /**
+   * Mã của TỪNG kiện, duy nhất trong xe (và trong kế hoạch): kiện đã đóng gói = id kiện (package);
+   * thùng ước lượng = `<lineId>#<n>`. `PLACEMENT_RULE_VIOLATION [{ref, rule}]` chỉ vào đúng kiện này.
+   */
   ref: z.string().min(1),
+  /** Dòng ước lượng sinh ra thùng này (`lineId`); null với kiện đã đóng gói. Gom dòng dùng cái này, không dùng `ref`. */
+  sourceRef: z.string().min(1).nullable().default(null),
   /** Mã ngắn in trên mặt kiện (thường là SKU). */
   label: z.string(),
   /** Tên mặt hàng/chi tiết — khoá chọn màu và nhóm dòng trong bảng. */
@@ -59,17 +64,22 @@ export const UnplacedLineSchema = z.object({
   quantity: z.number().int().nonnegative(),
 });
 
-export const LayoutSchema = z.object({
-  /** Số thứ tự xe trong kế hoạch, bắt đầu từ 1. */
-  seq: z.number().int().positive(),
-  /** Mã loại xe (vd `40HC`, `PICKUP-1T`). */
-  code: z.string().min(1),
-  /** Lòng xe: l = dài (trục z), w = rộng (trục x), h = cao (trục y). */
-  innerMm: DimsMmSchema,
-  maxPayloadKg: nonNegative,
-  /** Khối gia cố ở góc trên (không xếp hàng vào), cùng hệ toạ độ với `boxes`. */
-  gussets: z.array(BlockMmSchema),
-  boxes: z.array(LayoutBoxSchema),
-  usedVolumeMm3: nonNegative,
-  usedWeightKg: nonNegative,
-});
+export const LayoutSchema = z
+  .object({
+    /** Số thứ tự xe trong kế hoạch, bắt đầu từ 1. */
+    seq: z.number().int().positive(),
+    /** Mã loại xe (vd `40HC`, `PICKUP-1T`). */
+    code: z.string().min(1),
+    /** Lòng xe: l = dài (trục z), w = rộng (trục x), h = cao (trục y). */
+    innerMm: DimsMmSchema,
+    maxPayloadKg: nonNegative,
+    /** Khối gia cố ở góc trên (không xếp hàng vào), cùng hệ toạ độ với `boxes`. */
+    gussets: z.array(BlockMmSchema),
+    boxes: z.array(LayoutBoxSchema),
+    usedVolumeMm3: nonNegative,
+    usedWeightKg: nonNegative,
+  })
+  .refine((layout) => new Set(layout.boxes.map((box) => box.ref)).size === layout.boxes.length, {
+    message: "Mã kiện (ref) phải duy nhất trong xe",
+    path: ["boxes"],
+  });

@@ -6,7 +6,12 @@ import type { LayoutOrientation } from "@/constants";
 import type { BlockMm, DimsMm, Layout, LayoutBox } from "../types";
 
 export interface CartonType {
+  /**
+   * Dòng ước lượng (`lineId`) hoặc tiền tố id kiện đóng gói. Mỗi thùng sinh ra có `ref` riêng:
+   * `estimate` → `<ref>#<n>` kèm `sourceRef = ref`; `package` → `<ref>-<nnn>`, `sourceRef = null`.
+   */
   ref: string;
+  source?: "estimate" | "package";
   label: string;
   partName: string;
   kitGroup?: string;
@@ -25,6 +30,12 @@ export interface GridBlock {
   counts: { nx: number; ny: number; nz: number };
 }
 
+function refOf(carton: CartonType, n: number): string {
+  return carton.source === "package"
+    ? `${carton.ref}-${String(n).padStart(3, "0")}`
+    : `${carton.ref}#${n}`;
+}
+
 /** Xếp `nx × ny × nz` thùng sát nhau; z ngoài cùng, rồi y, rồi x (thứ tự xếp từ đầu xe ra cửa). */
 export function gridBlock({ carton, orientation = "LWH", origin, counts }: GridBlock): LayoutBox[] {
   const extent = orientedExtent(carton.origMm, orientation);
@@ -33,7 +44,8 @@ export function gridBlock({ carton, orientation = "LWH", origin, counts }: GridB
     for (let iy = 0; iy < counts.ny; iy++) {
       for (let ix = 0; ix < counts.nx; ix++) {
         boxes.push({
-          ref: carton.ref,
+          ref: refOf(carton, boxes.length + 1),
+          sourceRef: carton.source === "package" ? null : carton.ref,
           label: carton.label,
           partName: carton.partName,
           kitGroup: carton.kitGroup ?? null,

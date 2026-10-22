@@ -102,7 +102,8 @@ export const UNPLACED_40HC: UnplacedLine[] = [
 
 const KIT_GROUP = "KIT-BAN-01";
 const TABLE_TOP: CartonType = {
-  ref: "LINE-101",
+  ref: "PKG-101",
+  source: "package",
   label: "BAN-MB",
   partName: "Mặt bàn",
   kitGroup: KIT_GROUP,
@@ -110,7 +111,8 @@ const TABLE_TOP: CartonType = {
   weightKg: 18,
 };
 const TABLE_LEG: CartonType = {
-  ref: "LINE-102",
+  ref: "PKG-102",
+  source: "package",
   label: "BAN-CB",
   partName: "Chân bàn",
   kitGroup: KIT_GROUP,
@@ -118,7 +120,8 @@ const TABLE_LEG: CartonType = {
   weightKg: 2.5,
 };
 const STOOL: CartonType = {
-  ref: "LINE-103",
+  ref: "PKG-103",
+  source: "package",
   label: "GB-01",
   partName: "Ghế bar",
   origMm: { l: 500, w: 500, h: 400 },

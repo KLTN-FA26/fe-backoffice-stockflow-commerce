@@ -79,9 +79,9 @@ describe("validatePlacement — support is a blocking error, not a warning", () 
     });
   });
 
-  it("flags a floating box as INSUFFICIENT_SUPPORT and not ok", () => {
+  it("flags a floating box as UNSUPPORTED and not ok", () => {
     const check = validatePlacement(block(0, 300, 0, 100, 100, 100), EXTENT, []);
-    expect(check.violations).toEqual(["INSUFFICIENT_SUPPORT"]);
+    expect(check.violations).toEqual(["UNSUPPORTED"]);
     expect(check.ok).toBe(false);
   });
 
@@ -90,7 +90,7 @@ describe("validatePlacement — support is a blocking error, not a warning", () 
     const on = (width: number) =>
       validatePlacement(block(0, 100, 0, 100, 100, 100), EXTENT, [block(0, 0, 0, width, 100, 100)]);
     expect(on(98).ok).toBe(true);
-    expect(on(97).violations).toEqual(["INSUFFICIENT_SUPPORT"]);
+    expect(on(97).violations).toEqual(["UNSUPPORTED"]);
   });
 
   it("flags OUT_OF_BOUNDS for every wall", () => {
@@ -109,7 +109,14 @@ describe("validatePlacement — support is a blocking error, not a warning", () 
     const check = validatePlacement(block(50, 0, 0, 100, 100, 100), EXTENT, [FLOOR_SLAB]);
     expect(check.violations).toEqual(["OVERLAP"]);
     const both = validatePlacement(block(950, 400, 0, 100, 100, 100), EXTENT, []);
-    expect(both.violations).toEqual(["OUT_OF_BOUNDS", "INSUFFICIENT_SUPPORT"]);
+    expect(both.violations).toEqual(["OUT_OF_BOUNDS", "UNSUPPORTED"]);
+  });
+
+  it("reports a corner gusset as GUSSET, not OVERLAP, when passed as gussets", () => {
+    const gusset = block(0, 850, 0, 150, 150, 150);
+    const check = validatePlacement(block(0, 800, 0, 100, 100, 100), EXTENT, [], [gusset]);
+    expect(check.violations).toEqual(["GUSSET", "UNSUPPORTED"]);
+    expect(validatePlacement(block(500, 0, 0, 100, 100, 100), EXTENT, [], [gusset]).ok).toBe(true);
   });
 
   it("treats a gusset passed as an obstacle like any other block", () => {

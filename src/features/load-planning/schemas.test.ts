@@ -22,6 +22,21 @@ describe("LayoutSchema (design v2 §5)", () => {
     expect(LayoutBoxSchema.parse({ ...BOX, kitGroup: "KIT-1" }).kitGroup).toBe("KIT-1");
   });
 
+  it("reads sourceRef as null for a packed parcel and keeps the estimate line id for a carton", () => {
+    expect(LAYOUT_PICKUP_KIT.boxes.every((b) => b.sourceRef === null)).toBe(true);
+    expect(LAYOUT_40HC.boxes[0]).toMatchObject({ ref: "LINE-001#1", sourceRef: "LINE-001" });
+    const { sourceRef: _sourceRef, ...withoutSource } = BOX;
+    expect(LayoutBoxSchema.parse(withoutSource).sourceRef).toBeNull();
+  });
+
+  it("requires box refs to be unique within a vehicle", () => {
+    const dup = {
+      ...LAYOUT_PICKUP_KIT,
+      boxes: LAYOUT_PICKUP_KIT.boxes.map((b) => ({ ...b, ref: "SAME" })),
+    };
+    expect(LayoutSchema.safeParse(dup).success).toBe(false);
+  });
+
   it("accepts an empty vehicle", () => {
     expect(
       LayoutSchema.safeParse({ ...LAYOUT_PICKUP_KIT, boxes: [], usedVolumeMm3: 0, usedWeightKg: 0 })
@@ -56,6 +71,7 @@ describe("LayoutBoxSchema", () => {
     ["a lowercase orientation", { ...BOX, orientation: "lwh" }],
     ["a repeated-axis orientation", { ...BOX, orientation: "LLH" }],
     ["an empty ref", { ...BOX, ref: "" }],
+    ["an empty sourceRef", { ...BOX, sourceRef: "" }],
     ["a negative weight", { ...BOX, weightKg: -0.1 }],
     ["string coordinates", { ...BOX, yMm: "0" }],
     ["incomplete nominal dims", { ...BOX, origMm: { l: 1, w: 1 } }],

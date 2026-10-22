@@ -13,6 +13,7 @@
 
 import { LOAD_PLANNING_LIMITS } from "@/constants";
 
+import type { PlacementRule } from "@/constants";
 import type { BlockMm, ExtentMm } from "../types";
 
 const EPS = LOAD_PLANNING_LIMITS.geometryEpsilonMm;
@@ -136,9 +137,6 @@ export function maxSlide(
   return Math.max(0, lo(block, axis) - limit);
 }
 
-/** Mã luật, dùng chung tên với `PLACEMENT_RULE_VIOLATION` của BE (design §5). */
-export type PlacementRule = "OUT_OF_BOUNDS" | "OVERLAP" | "INSUFFICIENT_SUPPORT";
-
 export interface PlacementCheck {
   violations: PlacementRule[];
   supportRatio: number;
@@ -146,10 +144,15 @@ export interface PlacementCheck {
   ok: boolean;
 }
 
+/**
+ * `others`: các kiện khác (chồng lên → OVERLAP, cũng là chỗ tựa). `gussets`: khối gia cố góc
+ * trần — chạm vào thì báo riêng GUSSET (BR-10 "chừa các góc gia cố"), không lẫn với OVERLAP.
+ */
 export function validatePlacement(
   block: BlockMm,
   extent: ExtentMm,
   others: readonly BlockMm[],
+  gussets: readonly BlockMm[] = [],
 ): PlacementCheck {
   const inBounds =
     block.xMm >= -EPS &&
@@ -162,6 +165,7 @@ export function validatePlacement(
   const violations: PlacementRule[] = [];
   if (!inBounds) violations.push("OUT_OF_BOUNDS");
   if (overlapsAny(block, others)) violations.push("OVERLAP");
-  if (support < LOAD_PLANNING_LIMITS.minSupportRatio) violations.push("INSUFFICIENT_SUPPORT");
+  if (overlapsAny(block, gussets)) violations.push("GUSSET");
+  if (support < LOAD_PLANNING_LIMITS.minSupportRatio) violations.push("UNSUPPORTED");
   return { violations, supportRatio: support, ok: violations.length === 0 };
 }

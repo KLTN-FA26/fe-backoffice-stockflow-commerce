@@ -24,7 +24,8 @@ Layout = {
 }
 Block = { xMm, yMm, zMm, wMm, hMm, dMm }                 // góc nhỏ nhất + kích thước theo x, y, z
 Box   = Block & {
-  ref: string                     // mã dòng/kiện nguồn BE truyền xuyên qua solver; KHÔNG bắt buộc duy nhất
+  ref: string                     // mã TỪNG kiện, duy nhất trong xe: kiện đóng gói = package id; thùng ước lượng = "<lineId>#<n>"
+  sourceRef: string | null        // dòng ước lượng (lineId) sinh ra thùng; null với kiện đóng gói. Gom dòng theo partName/sourceRef, không theo ref
   label: string                   // mã ngắn in trên mặt kiện (SKU)
   partName: string                // tên mặt hàng — khoá chọn màu và nhóm dòng
   kitGroup: string | null         // mã bộ; vắng hoặc null nếu không thuộc bộ
@@ -48,11 +49,14 @@ từng xe ≤ tải trọng, kiện không có cờ xoay giữ nguyên hướng,
 đồng để FE kiểm được vế xoay (`ROTATION_NOT_ALLOWED` khi `!rotatable && orientation !== "LWH"`), vì `ref` không bắt buộc
 duy nhất nên không thể tra cờ ngược về kiện nguồn. Tải trọng kiểm theo TỪNG xe (`summarizeLayouts().overweightVehicles`).
 
-**Điểm cần BE PR D chốt:** (1) `ref` có duy nhất theo từng kiện hay chỉ theo dòng nguồn — FE không phụ thuộc
-(khoá React dùng `index-ref`), nhưng `PLACEMENT_RULE_VIOLATION [{ref, rule}]` chỉ chỉ đúng kiện nếu `ref` duy nhất;
-(2) tên luật `OUT_OF_BOUNDS`, `OVERLAP`, `INSUFFICIENT_SUPPORT` (+ `ORIENTATION_MISMATCH`, `ROTATION_NOT_ALLOWED`,
-`PAYLOAD_EXCEEDED` ở `lib/layout-check.ts`) là đề xuất của FE; (3) schema không chặn số lẻ mm — BE làm tròn thế nào thì
-FE nhận thế đó; (4) `rotatable` là trường mới so với design §5, cần BE thêm vào `Layout.boxes[]`.
+**Đã chốt với BE (PR D khớp theo):** `rotatable` nằm trong Box; `ref` duy nhất theo từng kiện (schema từ chối `ref`
+trùng trong một xe) kèm `sourceRef`; mã `orientation` như trên, BE phát ra cùng chuỗi, đọc theo (z, x, y).
+
+**Mã luật** do solver BE quy định (`PLACEMENT_RULES` trong `src/constants/load-planning.ts`, nhãn tiếng Việt
+`PLACEMENT_RULE_LABELS`): `OUT_OF_BOUNDS | OVERLAP | UNSUPPORTED | OVERWEIGHT | ROTATION_NOT_ALLOWED | GUSSET`.
+`validatePlacement` trả `UNSUPPORTED` khi đáy được đỡ < 98%, `GUSSET` khi chạm khối gia cố; `checkLayout` thêm
+`OVERWEIGHT` (cấp xe) và `ROTATION_NOT_ALLOWED`, và một mã chỉ FE dùng là `ORIENTATION_MISMATCH` (kích thước đã xếp
+không khớp `origMm` theo `orientation`, sai lệch > 1 mm). Schema không chặn số lẻ mm: BE làm tròn thế nào FE nhận thế đó.
 
 ## Ánh xạ file: nesting-standalone → repo này
 
@@ -80,7 +84,7 @@ Cố ý chưa port (đến ở PR sau): bảng "hướng dẫn xếp theo bướ
 
 - **Dữ liệu là `Layout` camelCase `…Mm`** thay cho `NestingContainerPlacement` snake_case; thứ tự D×R×C và hệ trục giữ nguyên.
 - **Khối gia cố lấy từ `layout.gussets`** (BE cấp theo loại xe), không tính trong FE: bỏ `gussetBoxes` 45'/40' của bản gốc.
-- **Thiếu đỡ là lỗi, không phải cảnh báo** (`validatePlacement`: `INSUFFICIENT_SUPPORT` khi đáy được đỡ < 98%). Bản gốc cho
+- **Thiếu đỡ là lỗi, không phải cảnh báo** (`validatePlacement`: `UNSUPPORTED` khi đáy được đỡ < 98%). Bản gốc cho
   đặt tay kiện treo; kế hoạch xếp xe thật có thể đổ, và BE trả `PLACEMENT_RULE_VIOLATION` cùng luật. Ô gợi ý thiếu đỡ bị loại.
 - **Màu theo tập tên đã sắp xếp** (`lib/palette.ts`), không theo thứ tự gặp đầu tiên: đảo thứ tự kiện không đổi màu;
   tạo một map cho cả kế hoạch để một mặt hàng cùng màu ở mọi xe. Hai bảng màu (viewer 8 màu, ảnh in 14 màu nhạt); các màu hồng/magenta của bản gốc được thay bằng cam/chanh/xanh vì luật cứng của repo (CLAUDE.md), có test chặn.

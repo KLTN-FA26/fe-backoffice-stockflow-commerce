@@ -14,6 +14,21 @@
 export const LAYOUT_ORIENTATIONS = ["LWH", "LHW", "WLH", "WHL", "HLW", "HWL"] as const;
 export type LayoutOrientation = (typeof LAYOUT_ORIENTATIONS)[number];
 
+/**
+ * Mã luật xếp do solver BE quy định (BR-10/BR-11, docs 09-shipping §6) — cũng là `rule` trong
+ * `PLACEMENT_RULE_VIOLATION [{ref, rule}]`: ngoài lòng thùng, chồng nhau, thiếu đỡ (< 98% đáy),
+ * quá tải trọng xe, xoay kiện không được xoay, vướng khối gia cố góc.
+ */
+export const PLACEMENT_RULES = [
+  "OUT_OF_BOUNDS",
+  "OVERLAP",
+  "UNSUPPORTED",
+  "OVERWEIGHT",
+  "ROTATION_NOT_ALLOWED",
+  "GUSSET",
+] as const;
+export type PlacementRule = (typeof PLACEMENT_RULES)[number];
+
 /** Bốn góc nhìn nhanh của khung 3D: chéo, từ trên, từ bên hông, từ phía cửa. */
 export const VIEW_KINDS = ["iso", "top", "side", "end"] as const;
 export type ViewKind = (typeof VIEW_KINDS)[number];
