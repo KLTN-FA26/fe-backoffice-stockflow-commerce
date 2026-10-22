@@ -77,7 +77,8 @@ export function mockLoadPlanApi(actor: TestActor, routes: ApiRoutes = {}) {
       const handler = routes.get?.[url];
       if (url === "/warehouses" && !handler) return { data: WAREHOUSES };
       if (!handler) throw missing("GET", url);
-      return { data: handler(config?.params) };
+      // `await`: un handler có thể trả Promise để test mô phỏng đường truyền chậm / tải lại treo
+      return { data: await handler(config?.params) };
     });
   const withBody = (verb: string, table?: Routes) => async (url: string, body?: unknown) => {
     const handler = table?.[url];

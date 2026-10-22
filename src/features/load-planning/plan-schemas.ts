@@ -166,6 +166,9 @@ export const beVehicleTypeOptionSchema = z.object({
   innerWidthMm: z.number().int(),
   innerHeightMm: z.number().int(),
   maxPayloadKg: beDecimal,
+  /** Cửa thùng (LP3-DOOR): vắng = không giới hạn; trình soạn xếp tay dùng để kiểm trước vế cửa. */
+  doorWidthMm: z.number().int().nullish(),
+  doorHeightMm: z.number().int().nullish(),
   availableCount: z.number().int(),
   status: z.enum(VEHICLE_TYPE_STATUSES),
 });

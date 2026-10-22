@@ -31,6 +31,8 @@ export interface LoadPlanActions {
   calculate: boolean;
   editInputs: boolean;
   recalculateVehicle: boolean;
+  /** Chỉnh xếp tay `PUT …/placements` (BE `LoadPlan.editPlacements`: chỉ khi PLANNED, và phải còn xe để đặt). */
+  editPlacements: boolean;
   acknowledge: boolean;
   confirm: boolean;
   reopen: boolean;
@@ -44,6 +46,7 @@ const NONE: LoadPlanActions = {
   calculate: false,
   editInputs: false,
   recalculateVehicle: false,
+  editPlacements: false,
   acknowledge: false,
   confirm: false,
   reopen: false,
@@ -84,6 +87,7 @@ export function loadPlanActions(plan: PlanDetail | null, actor: LoadPlanActor): 
     calculate: status === LOAD_PLAN_STATUS.DRAFT || planned,
     editInputs: status === LOAD_PLAN_STATUS.DRAFT || planned,
     recalculateVehicle: planned,
+    editPlacements: planned && plan.vehicles.length > 0,
     acknowledge: planned && plan.unplacedCount > 0 && !acknowledged,
     confirm: planned && allows(status, LOAD_PLAN_STATUS.CONFIRMED),
     reopen:

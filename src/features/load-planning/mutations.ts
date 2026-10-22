@@ -11,7 +11,7 @@ import { withStaleRefetch } from "@/lib/api/stale-refetch";
 import { toast } from "@/components/shared/Toast";
 
 import { createLoadPlan, setLoadPlanInputs } from "./api";
-import { recalculateVehicle, runPlanStep } from "./api-steps";
+import { recalculateVehicle, runPlanStep, savePlacements } from "./api-steps";
 import { isStaleLoadPlanError } from "./errors";
 import { loadPlanKeys } from "./queries";
 
@@ -54,6 +54,16 @@ export const usePlanStep = withStaleRefetch(
 
 export const useRecalculateVehicle = withStaleRefetch(
   createMutation(recalculateVehicle, { ...base, successMessage: T.vehicleRecalculated }),
+  ROOT,
+  isStaleLoadPlanError,
+);
+
+/**
+ * Lưu bố cục xếp tay. Không toast lỗi: 422 (vi phạm theo kiện) và 409 (đổi từ nơi khác) do trình soạn tự hiện để giữ
+ * nguyên bản chỉnh; 409 và các lỗi "dữ liệu đã cũ" vẫn tải lại kế hoạch + bố cục (qua `withStaleRefetch`).
+ */
+export const useSavePlacements = withStaleRefetch(
+  createMutation(savePlacements, { ...base, successMessage: T.placementsSaved }),
   ROOT,
   isStaleLoadPlanError,
 );
