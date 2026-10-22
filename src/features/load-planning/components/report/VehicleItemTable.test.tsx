@@ -15,7 +15,7 @@ describe("VehicleItemTable", () => {
 
   it("lists one row per item with the nominal D×R×C in cm and the per-vehicle count", () => {
     render(<VehicleItemTable layouts={[LAYOUT_40HC]} />);
-    expect(screen.getByText("Số kiện đã xếp theo xe")).toBeInTheDocument();
+    expect(screen.getAllByText("Số kiện đã xếp theo xe")).toHaveLength(2); // tiêu đề hiện + caption sr-only
     const row = within(rowOf("Thùng sofa"));
     expect(row.getByText("60×40×40")).toBeInTheDocument();
     expect(row.getByText("SF-A")).toBeInTheDocument();
