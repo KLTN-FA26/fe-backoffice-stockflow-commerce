@@ -5,12 +5,15 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { UI_LABELS, VEHICLE_TYPE_KIND, VEHICLE_TYPE_STATUS } from "@/constants";
+
 import { ApiError } from "@/lib/api/error";
-import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
+
 import { isStaleVehicleTypeError, vehicleTypeErrorMessage } from "@/features/vehicle-type/errors";
 import { vehicleTypeFormSchema } from "@/features/vehicle-type/input-schemas";
 import { useCreateVehicleType, useUpdateVehicleType } from "@/features/vehicle-type/mutations";
 import { useVehicleType } from "@/features/vehicle-type/queries";
+
+import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 
 import { VehicleTypeFields } from "./VehicleTypeFields";
 

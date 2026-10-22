@@ -3,10 +3,12 @@
 import { useState } from "react";
 
 import { UI_LABELS, VEHICLE_TYPE_STATUS } from "@/constants";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+
 import { vehicleTypeErrorMessage } from "@/features/vehicle-type/errors";
 import { useSetVehicleTypeStatus } from "@/features/vehicle-type/mutations";
 import { useVehicleType } from "@/features/vehicle-type/queries";
+
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 import type { VehicleType } from "@/features/vehicle-type/types";
 

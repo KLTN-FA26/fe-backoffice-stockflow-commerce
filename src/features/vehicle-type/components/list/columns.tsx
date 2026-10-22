@@ -9,14 +9,17 @@ import {
   VEHICLE_TYPE_STATUS,
   VEHICLE_TYPE_STATUS_LABELS,
 } from "@/constants";
+
 import { formatNumber } from "@/lib/format";
-import { CELL, codeCell, ToneDot, textCell } from "@/components/shared/column-helpers";
-import { Badge } from "@/components/ui/badge";
+
 import {
   formatInnerSizeMetres,
   formatInnerSizeMm,
   formatPayload,
 } from "@/features/vehicle-type/selectors";
+
+import { CELL, codeCell, ToneDot, textCell } from "@/components/shared/column-helpers";
+import { Badge } from "@/components/ui/badge";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { VehicleTypeActions } from "@/features/vehicle-type/lifecycle";

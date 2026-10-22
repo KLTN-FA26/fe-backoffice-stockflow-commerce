@@ -4,11 +4,14 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 
 import { UI_LABELS, VEHICLE_TYPE_PERMISSIONS } from "@/constants";
+
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { useCan, usePermissionChecker } from "@/lib/auth";
+
+import { vehicleTypeActions } from "@/features/vehicle-type/lifecycle";
+
 import { TOOLBAR_ACTION_CLASS } from "@/components/shared/ListToolbar";
 import { Button } from "@/components/ui/button";
-import { vehicleTypeActions } from "@/features/vehicle-type/lifecycle";
 
 import { buildVehicleTypeColumns } from "./list/columns";
 import { useVehicleTypeListState } from "./list/useVehicleTypeListState";
