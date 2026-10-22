@@ -1,9 +1,9 @@
-import { OrderDetail } from "@/features/order";
+import { OrderDetailWithLoadEstimate } from "@/components/backoffice/OrderDetailWithLoadEstimate";
 
 interface OrderDetailPageProps {
   params: Promise<{ id: string }>;
 }
 
 export default function OrderDetailPage({ params }: OrderDetailPageProps) {
-  return <OrderDetail params={params} />;
+  return <OrderDetailWithLoadEstimate params={params} />;
 }

@@ -1,9 +1,9 @@
 # load-planning — xếp hàng lên xe (SCRUM-287/391/392)
 
-PR F1: **thư viện + khung 3D**. Chưa có API, route hay trang — những thứ đó đến ở F2–F9
-(thiết kế: `be-backoffice-stockflow-commerce/docs/business-design/2026-10-22-scrum-287-load-planning-plan-v2.md`).
-Vì vậy feature này cố ý chưa có `api.ts`, `queries.ts`, `mutations.ts`, `lifecycle.ts` (như `home`,
-xem `feature-architecture.md`); chúng được thêm khi có endpoint BE.
+PR F1: **thư viện + khung 3D**; PR F3: **ước tính xếp xe** (xem mục "Ước tính xếp xe (F3)" bên dưới). Route và trang
+kế hoạch đến ở F4–F9 (thiết kế: `be-backoffice-stockflow-commerce/docs/business-design/2026-10-22-scrum-287-load-planning-plan-v2.md`).
+Feature này cố ý chưa có `lifecycle.ts` (như `home`, xem `feature-architecture.md`) — kế hoạch xếp xe (F4) mới có vòng đời.
+API / query của ước tính nằm ở `estimate-*.ts` (đặt tên riêng để F4 thêm `api.ts` / `queries.ts` của kế hoạch mà không đụng nhau).
 
 Code là bản port từ dự án `nesting-standalone` của anh Tú (chỉ đọc, không sửa) sang framework của repo này:
 Next 16 + TS strict, zod, nhãn tiếng Việt trong `constants/`, giới hạn 200 dòng/file feature, 150 dòng/component.
@@ -142,3 +142,44 @@ luật hình học, khoảng trống, capture (renderer giả: đúng MỘT cont
 Fixture (`__fixtures__/layouts.ts`): 40HC 438 kiện hỗn hợp (có gusset, Bàn trà xoay) và bán tải chở 4 bộ bàn A+B;
 test xác nhận cả hai hợp lệ hình học. Jsdom không có WebGL nên viewer chỉ có smoke test với fiber được mock
 (lớp DOM: nhãn truy cập, nút góc nhìn, cảnh báo cắt bớt); hình học cảnh test ở `lib/scene.test.ts`.
+
+## Ước tính xếp xe (F3, BE PR #160)
+
+Ngăn kéo "Ước tính xếp xe" của một đơn: tính thử đơn xếp lên xe nào **trước khi đóng gói**, từ kích thước và khối lượng trong
+hồ sơ hàng tồn. **LP2-1: chỉ để tham khảo** — không chốt kế hoạch hay đặt xe; ngăn kéo luôn ghi "Ước tính — chỉ để tham khảo".
+
+```
+POST /fulfillment/load-estimates {sources:[{type:"ORDER",id}], warehouseId?, vehicleTypeIds, selectionMode}   (…:CREATE)
+GET  /fulfillment/load-estimates?sourceType=ORDER&sourceId=        → bản hiện hành; 404 LOAD_ESTIMATE_NOT_FOUND = chưa có (…:READ)
+GET  /fulfillment/vehicle-types?status=ACTIVE                      → ô chọn loại xe
+```
+
+| File                                | Việc                                                                                                     |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `estimate-schemas.ts` / `-types.ts` | zod DTO (parse tại biên) + kiểu suy ra; `vehicles` dùng `LayoutSchema` của F1                            |
+| `estimate-api.ts`                   | `createLoadEstimate`, `getCurrentLoadEstimate` (404 → `null`), `listEstimateVehicleTypes`                |
+| `estimate-queries.ts`               | `useCurrentEstimate`, `useEstimateVehicleTypes`, `useCreateLoadEstimate`, `loadEstimateKeys`             |
+| `estimate-errors.ts`                | mã lỗi BE → câu tiếng Việt; `VALIDATION_FAILED` rẽ theo `fieldErrors[].code` của kho / loại xe           |
+| `lib/estimate-view.ts`              | dẫn xuất thuần: tổng kiện chưa xếp, "hết thời gian tính", nhãn trường thiếu / cảnh báo                   |
+| `components/estimate/*`             | `LoadEstimateButton` (cổng quyền) → `LoadEstimateDrawer` → `EstimatePanel` → controls + `EstimateResult` |
+
+**Quyền (UI-only, Backend re-check):** nút hiện khi có `fulfillment-load-estimates:READ` **hoặc** `:CREATE`. Chỉ READ → xem bản
+hiện hành, không có ô chọn / nút tính. Chỉ CREATE → không gọi GET hiện hành, vẫn tính được.
+
+**Khe `estimateSlot`.** Feature không import chéo nhau, mà ngăn kéo cần mở từ màn đơn. `features/order` chỉ định nghĩa khe
+(`estimate-slot.ts`); `components/backoffice/OrderDetailWithLoadEstimate.tsx` (lớp ghép của `page.tsx`) đưa `LoadEstimateButton`
+vào. Mở từ **hộp thoại release** (đơn CONFIRMED, truyền kho đang chọn — BE bắt buộc `warehouseId`) và từ **thẻ hình thức giao**
+của đơn đã release (BE dùng kho của đơn, không gửi `warehouseId`).
+
+**Hiển thị.** Dải số liệu (`LayoutMetrics`), khung 3D từng xe (`VehicleViewer` + `VehicleSwitcher`), bảng dòng (quy tắc, đơn vị,
+thùng, thùng lẻ, kích thước, kg), kiện chưa xếp kèm lý do tiếng Việt, cảnh báo dịch theo **mã** (BE gửi câu tiếng Anh).
+`meta.budgetExhausted` hoặc kiện `SEARCH_CUT_OFF` → "Dừng do hết thời gian tính" (không phải lỗi: là phương án tốt nhất tìm
+được). `incomplete` → banner cảnh báo liệt kê dòng thiếu + trường còn trống + link sang hồ sơ hàng tồn (chỉ khi có
+`inventory-inventory-items:VIEW_PAGE`); 422 `LOAD_ESTIMATE_PACKAGING_MISSING` liệt kê id mặt hàng từ `inventoryItems[<id>]`.
+
+**Ô chọn loại xe** dùng root key `fulfillment-vehicle-types` của danh mục loại xe (feature `vehicle-type`, không import chéo) nên
+sửa loại xe làm mới luôn ô chọn; schema riêng chỉ giữ trường màn dùng.
+
+**Mock** (`USE_MOCK=true`): `lib/api/mock-routes-load-estimates.ts` + `mock-load-estimate-builder.ts` dựng từ fixture F1
+(SINGLE_TYPE → 40HC; FEWEST_VEHICLES → thêm xe bán tải + hết thời gian tính; đơn từ hai dòng → dòng cuối thiếu dữ liệu).
+Test fixture: `__fixtures__/estimate.ts`, `render-estimate.tsx`.

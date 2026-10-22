@@ -25,3 +25,13 @@ export { LayoutMetrics } from "./components/report/LayoutMetrics";
 export { MetricsStrip } from "./components/report/MetricsStrip";
 export { VehicleItemTable } from "./components/report/VehicleItemTable";
 export { KitBalanceBadge } from "./components/report/KitBalanceBadge";
+
+// Ước tính xếp xe (SCRUM-287 F3, BE PR #160)
+export * from "./estimate-types";
+export * from "./estimate-schemas";
+export * from "./estimate-api";
+export * from "./estimate-queries";
+export * from "./estimate-errors";
+export * from "./lib/estimate-view";
+export { LoadEstimateButton } from "./components/estimate/LoadEstimateButton";
+export type { LoadEstimateButtonProps } from "./components/estimate/LoadEstimateButton";
