@@ -2,8 +2,8 @@ import { cn } from "cn";
 
 import { LOAD_PLAN_PRINT_LABELS } from "@/constants";
 
-import { CapturedImage, LetterChip } from "./primitives";
 import { ParcelTable } from "./ParcelTable";
+import { CapturedImage, LetterChip } from "./primitives";
 
 import type { PrintStep } from "../../lib/print-sheet";
 

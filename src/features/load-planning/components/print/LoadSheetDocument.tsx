@@ -3,11 +3,11 @@ import { LOAD_PLAN_PRINT_LABELS } from "@/constants";
 import { colorOf } from "../../lib/palette";
 
 import { ParcelTable } from "./ParcelTable";
+import { SECTION_TITLE } from "./primitives";
 import { SheetHeader } from "./SheetHeader";
 import { SignatureBoxes, UnplacedNote } from "./SheetNotes";
 import { SheetOverview } from "./SheetOverview";
 import { SheetStep } from "./SheetStep";
-import { SECTION_TITLE } from "./primitives";
 
 import type { BookingView } from "../../lib/booking-view";
 import type { ColorMap } from "../../lib/palette";
