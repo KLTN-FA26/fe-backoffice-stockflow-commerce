@@ -9,6 +9,7 @@ import {
   VEHICLE_TYPE_STATUS,
   VEHICLE_TYPE_STATUS_LABELS,
 } from "@/constants";
+import { formatNumber } from "@/lib/format";
 import { CELL, codeCell, ToneDot, textCell } from "@/components/shared/column-helpers";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -114,9 +115,7 @@ export function buildVehicleTypeColumns(h: VehicleTypeColumnHandlers): ColumnDef
       key: C.AVAILABLE_COUNT,
       header: col.availableCount,
       align: "right",
-      cell: (row) => (
-        <span className={CELL.number}>{row.availableCount.toLocaleString("vi-VN")}</span>
-      ),
+      cell: (row) => <span className={CELL.number}>{formatNumber(row.availableCount)}</span>,
     },
     {
       key: C.GUSSET,
