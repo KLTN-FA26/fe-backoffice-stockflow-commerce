@@ -67,6 +67,12 @@ export function createPlanRequestId(fingerprint: string): string {
   return entry.id;
 }
 
+/** Đã có id nhớ cho đúng ý định này (một lần gửi trước đó chưa được xác nhận thành công)? */
+export function hasCreatePlanRequestId(fingerprint: string): boolean {
+  const stored = readStored() ?? fallback;
+  return stored?.fingerprint === fingerprint;
+}
+
 /** Quên id — gọi khi lập kế hoạch đã thành công (lần lập sau là kế hoạch khác). */
 export function clearCreatePlanRequestId(): void {
   fallback = undefined;

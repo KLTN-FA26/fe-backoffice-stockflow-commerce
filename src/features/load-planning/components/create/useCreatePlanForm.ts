@@ -4,6 +4,7 @@ import { useAppStore } from "@/lib/store/use-app-store";
 import { createPlanFormSchema } from "@/features/load-planning/input-schemas";
 import { useActiveVehicleTypes, useLoadPlanCandidates } from "@/features/load-planning/queries";
 
+import { shipmentIdsToSend } from "./shipment-selection";
 import { usePlanInputsState } from "./usePlanInputsState";
 import { useStartLoadPlan } from "./useStartLoadPlan";
 
@@ -30,10 +31,17 @@ export function useCreatePlanForm() {
 
   const submit = () => {
     const known = new Set(candidates.data?.map((c) => c.shipmentId));
+    const vehicleTypeIds = [...inputs.vehicleTypes];
+    const shipmentIds = shipmentIdsToSend([...inputs.shipments], known, {
+      warehouseId,
+      vehicleTypeIds,
+      selectionMode: inputs.mode,
+      note,
+    });
     const parsed = createPlanFormSchema.safeParse({
       warehouseId,
-      shipmentIds: [...inputs.shipments].filter((id) => known.has(id)),
-      vehicleTypeIds: [...inputs.vehicleTypes],
+      shipmentIds,
+      vehicleTypeIds,
       selectionMode: inputs.mode,
       note,
     });
