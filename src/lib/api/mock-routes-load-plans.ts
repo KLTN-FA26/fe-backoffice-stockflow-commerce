@@ -2,12 +2,13 @@
  * Mock routes — kế hoạch xếp xe (docs 09 §4.2, §5), theo hợp đồng BE PR #161 (`LoadPlanController`): đọc cần
  * `fulfillment-load-plans:READ`, lập cần `:CREATE`, mọi bước sau cần `:UPDATE` (lấy từ phiên mock như
  * `@RequiresPermission`). Mọi thay đổi gửi `expectedVersion` (409 OPTIMISTIC_LOCK); lập kế hoạch idempotent theo
- * `requestId`. Chỉnh tay `PUT …/placements` thuộc PR F5 nên chưa có route.
+ * `requestId`. Chỉnh tay `PUT …/placements` (PR F5) kiểm đủ luật BR-10 ở `mock-load-plan-edit.ts`.
  */
 
 import { LOAD_PLAN_PERMISSIONS, LOAD_PLAN_SELECTION_MODES, LOAD_PLAN_STATUSES } from "@/constants";
 
 import { registerMockRoute } from "./mock-adapter";
+import { editPlacements } from "./mock-load-plan-edit";
 import * as ops from "./mock-load-plan-ops";
 import { reconciliationView } from "./mock-load-plan-reconciliation";
 import {
@@ -214,6 +215,16 @@ export function registerLoadPlanMockRoutes(): void {
     }),
   );
 
+  registerMockRoute("PUT", `${PATH}/:id/placements`, (config) =>
+    guarded(P.update, () => {
+      const plan = planOf(routeParam(config, "id"));
+      if (!plan) return notFound();
+      const body = parseJsonBody(config.data);
+      if (body.expectedVersion !== plan.version)
+        return fail(409, "OPTIMISTIC_LOCK", `Load plan ${plan.code} changed meanwhile; reload it`);
+      return editPlacements(plan, body) ?? ok(planDetail(plan));
+    }),
+  );
   step(`${PATH}/:id/calculation`, (plan) => ops.calculate(plan));
   step(`${PATH}/:id/vehicles/:seq/recalculation`, (plan, body, config) =>
     ops.recalculateVehicle(plan, Number(routeParam(config, "seq")), strings(body.addPackageIds)),

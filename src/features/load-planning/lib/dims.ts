@@ -9,7 +9,7 @@
 import { formatNumber } from "@/lib/format";
 
 import type { LayoutOrientation } from "@/constants";
-import type { DimsMm, ExtentMm, LayoutBox } from "../types";
+import type { DimsMm, DoorMm, ExtentMm, LayoutBox } from "../types";
 
 const MM3_PER_M3 = 1_000_000_000;
 
@@ -41,6 +41,21 @@ export function orientedExtent(orig: DimsMm, orientation: LayoutOrientation): Ex
   const pick = (axis: "L" | "W" | "H"): number =>
     axis === "L" ? orig.l : axis === "W" ? orig.w : orig.h;
   return { dMm: pick(alongZ), wMm: pick(alongX), hMm: pick(alongY) };
+}
+
+/**
+ * Kiện đi vào cửa theo chiều dài xe nên mặt hướng ra cửa là rộng (x) × cao (y) đã đặt (LP3-DOOR, BE
+ * `VehicleSpec.passesDoor`). `door` null hoặc ô nào null = không giới hạn.
+ */
+export function passesDoor(
+  extent: Pick<ExtentMm, "wMm" | "hMm">,
+  door: DoorMm | null | undefined,
+): boolean {
+  if (!door) return true;
+  return (
+    (door.widthMm == null || extent.wMm <= door.widthMm) &&
+    (door.heightMm == null || extent.hMm <= door.heightMm)
+  );
 }
 
 export function volumeMm3(extent: ExtentMm): number {
