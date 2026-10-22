@@ -22,6 +22,9 @@ export const beVehicleTypeSchema = z.object({
   innerHeightMm: z.number().int(),
   /** Khe chừa ở mỗi góc trên trần (docs 09 BR-10). */
   gussetMm: z.number().int(),
+  /** Cửa thùng (mm), tuỳ chọn: BE bỏ trường null → vắng = không giới hạn cửa (LP3-DOOR). */
+  doorWidthMm: z.number().int().nullish(),
+  doorHeightMm: z.number().int().nullish(),
   maxPayloadKg: beDecimal,
   availableCount: z.number().int(),
   rentalPrice: beDecimal.nullish(),

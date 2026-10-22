@@ -43,6 +43,7 @@ export const VEHICLE_TYPE_UI_LABELS = {
   presetHint:
     "Loại xe mặc định của hệ thống: sửa được kích thước, tải trọng, số xe; không xoá và không đổi mã.",
   noPrice: "—",
+  noDoor: "—",
   unitM: "m",
   unitM3: "m³",
   unitKg: "kg",
@@ -66,6 +67,7 @@ export const VEHICLE_TYPE_UI_LABELS = {
     innerSize: "Kích thước trong (D × R × C)",
     payload: "Tải trọng",
     availableCount: "Số xe",
+    door: "Cửa (R × C, mm)",
     gusset: "Khe góc",
     status: "Trạng thái",
     actions: "Thao tác",
@@ -78,6 +80,8 @@ export const VEHICLE_TYPE_UI_LABELS = {
     innerWidthMm: "Rộng trong (mm)",
     innerHeightMm: "Cao trong (mm)",
     gussetMm: "Khe góc trần (mm)",
+    doorWidthMm: "Cửa rộng (mm)",
+    doorHeightMm: "Cửa cao (mm)",
     maxPayloadKg: "Tải trọng tối đa (kg)",
     availableCount: "Số xe sẵn có",
     rentalPrice: "Giá thuê tham khảo (VND)",
@@ -93,6 +97,8 @@ export const VEHICLE_TYPE_UI_LABELS = {
     presetLockedHint: "Loại xe mặc định: mã và loại không đổi được.",
     codeHint: `${VEHICLE_TYPE_LIMITS.codeMin}–${VEHICLE_TYPE_LIMITS.codeMax} ký tự; tự in hoa.`,
     gussetHint: `Cạnh khối lập phương gia cố (0–${VEHICLE_TYPE_LIMITS.gussetMaxMm} mm, trống = 0) chừa ở hai góc trên phía đầu thùng; container 45' có 4 khối ở vị trí trụ góc. 2 × khe góc < rộng trong và khe góc < cao trong.`,
+    doorHint:
+      "Kích thước lối vào của thùng. Để trống nếu không giới hạn cửa; kiện không lọt cửa sẽ không được xếp vào xe.",
     rentalHint: "Chỉ để tham khảo — kế hoạch không chọn xe theo giá.",
     volumeLabel: "Thể tích thùng",
     volumeEmpty: "—",
@@ -124,6 +130,8 @@ export const VEHICLE_TYPE_FIELD_LABELS: Record<string, string> = {
   innerWidthMm: VEHICLE_TYPE_UI_LABELS.field.innerWidthMm,
   innerHeightMm: VEHICLE_TYPE_UI_LABELS.field.innerHeightMm,
   gussetMm: VEHICLE_TYPE_UI_LABELS.field.gussetMm,
+  doorWidthMm: VEHICLE_TYPE_UI_LABELS.field.doorWidthMm,
+  doorHeightMm: VEHICLE_TYPE_UI_LABELS.field.doorHeightMm,
   maxPayloadKg: VEHICLE_TYPE_UI_LABELS.field.maxPayloadKg,
   availableCount: VEHICLE_TYPE_UI_LABELS.field.availableCount,
   rentalPrice: VEHICLE_TYPE_UI_LABELS.field.rentalPrice,
@@ -144,6 +152,9 @@ export const VEHICLE_TYPE_FIELD_MESSAGES = {
   gussetTooLarge: `Tối đa ${VEHICLE_TYPE_LIMITS.gussetMaxMm} mm`,
   gussetTooLargeForBox:
     "Khe góc quá lớn: 2 lần khe góc phải nhỏ hơn rộng trong, và khe góc nhỏ hơn cao trong",
+  doorInvalid: `Từ 1 đến ${VEHICLE_TYPE_LIMITS.doorMaxMm.toLocaleString("vi-VN")} mm`,
+  doorTooLargeForWidth: "Cửa rộng không được lớn hơn rộng trong",
+  doorTooLargeForHeight: "Cửa cao không được lớn hơn cao trong",
   payloadPositive: "Tải trọng phải lớn hơn 0",
   payloadTooLarge: `Tối đa ${VEHICLE_TYPE_LIMITS.payloadMaxKg.toLocaleString("vi-VN")} kg`,
   payloadFraction: `Tối đa ${VEHICLE_TYPE_LIMITS.payloadFractionDigits} số lẻ`,
@@ -151,6 +162,12 @@ export const VEHICLE_TYPE_FIELD_MESSAGES = {
   countTooLarge: `Tối đa ${VEHICLE_TYPE_LIMITS.availableCountMax.toLocaleString("vi-VN")} xe`,
   priceNegative: "Giá thuê không được âm",
   priceDigits: `Tối đa ${VEHICLE_TYPE_LIMITS.rentalPriceIntegerDigits} chữ số nguyên và ${VEHICLE_TYPE_LIMITS.rentalPriceFractionDigits} số lẻ`,
+} as const;
+
+/** Mã lỗi theo trường của BE (`fieldErrors[].code`, PR #158) → câu tiếng Việt cho ô cửa. */
+export const VEHICLE_TYPE_DOOR_ERROR_CODES = {
+  INVALID: "VEHICLE_TYPE_DOOR_INVALID",
+  TOO_LARGE: "VEHICLE_TYPE_DOOR_TOO_LARGE",
 } as const;
 
 /** `errorCode` của BE (PR #153 + mã chung) → câu tiếng Việt; không lộ message tiếng Anh. */

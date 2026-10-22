@@ -13,6 +13,7 @@ import {
 import { formatNumber } from "@/lib/format";
 
 import {
+  formatDoorMm,
   formatInnerSizeMetres,
   formatInnerSizeMm,
   formatPayload,
@@ -121,6 +122,12 @@ export function buildVehicleTypeColumns(h: VehicleTypeColumnHandlers): ColumnDef
       header: col.availableCount,
       align: "right",
       cell: (row) => <span className={CELL.number}>{formatNumber(row.availableCount)}</span>,
+    },
+    {
+      key: C.DOOR,
+      header: col.door,
+      align: "right",
+      cell: (row) => <span className={CELL.number}>{formatDoorMm(row)}</span>,
     },
     {
       key: C.GUSSET,

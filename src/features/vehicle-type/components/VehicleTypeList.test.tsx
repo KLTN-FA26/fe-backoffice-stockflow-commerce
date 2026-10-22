@@ -64,11 +64,14 @@ describe("VehicleTypeList — hiển thị danh sách", () => {
     );
     expect(inRow.getByText("28.200 kg")).toBeInTheDocument();
     expect(inRow.getByText("150 mm")).toBeInTheDocument();
+    // Cửa thùng: rộng×cao (mm); không giới hạn cửa → "—"
+    expect(inRow.getByText("2340×2280")).toBeInTheDocument();
     expect(inRow.getByText("Đang dùng")).toBeInTheDocument();
     // Loại xe tự thêm: không có nhãn mặc định
     const custom = within(screen.getByText("TRUCK-3T").closest("tr") as HTMLElement);
     expect(custom.queryByText(L.presetBadge)).not.toBeInTheDocument();
     expect(custom.getByText("Xe tải")).toBeInTheDocument();
+    expect(custom.getByText(L.noDoor)).toBeInTheDocument();
   });
 
   it("lọc / tìm / trang trên URL gửi đúng tham số BE (một trạng thái, search, trang từ 0)", async () => {
@@ -171,11 +174,28 @@ describe("VehicleTypeList — ngừng dùng / dùng lại", () => {
         maxPayloadKg: 28200,
         availableCount: 10,
         gussetMm: 150,
+        // PUT thay thế toàn bộ: cửa của dòng được gửi lại nguyên
+        doorWidthMm: 2340,
+        doorHeightMm: 2280,
         status: "INACTIVE",
         version: 0,
       }),
     );
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("dòng không có cửa: PUT gửi doorWidthMm / doorHeightMm là null, không bỏ trường", async () => {
+    const { put } = renderList(ACTORS.warehouseManager, "", [
+      apiVehicleType({ doorWidthMm: null, doorHeightMm: null }),
+    ]);
+    await userEvent.click(await screen.findByRole("button", { name: `${L.deactivate} 20DC` }));
+    await userEvent.click(
+      within(await screen.findByRole("dialog")).getByRole("button", { name: L.deactivate }),
+    );
+    await waitFor(() => expect(put).toHaveBeenCalled());
+    const sent = put.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(sent).toHaveProperty("doorWidthMm", null);
+    expect(sent).toHaveProperty("doorHeightMm", null);
   });
 
   it("dòng đang ngừng dùng có nút Dùng lại (status ACTIVE)", async () => {

@@ -7,7 +7,7 @@
  *   PUT  /fulfillment/vehicle-types/{id} {…, version}         → 409 OPTIMISTIC_LOCK; mã khác → 400 VALIDATION_FAILED
  *
  * Không có DELETE: ngừng dùng bằng `status: INACTIVE`. PUT thay thế toàn bộ (như hãng vận chuyển): đủ
- * tên, loại, kích thước, tải trọng, số xe; `rentalPrice` vắng = xoá giá; `gussetMm` vắng = 0; chỉ
+ * tên, loại, kích thước, tải trọng, số xe; `rentalPrice` vắng = xoá giá; `gussetMm` vắng = 0; cửa vắng = xoá (null = không giới hạn, BE PR #158); chỉ
  * `status` vắng thì giữ nguyên. Loại xe mặc định giữ `kind` (và `code`). Form luôn gửi đủ mọi trường.
  */
 
@@ -87,6 +87,8 @@ export function bodyOfVehicleType(
     innerWidthMm: row.innerWidthMm,
     innerHeightMm: row.innerHeightMm,
     gussetMm: row.gussetMm,
+    doorWidthMm: row.doorWidthMm ?? null,
+    doorHeightMm: row.doorHeightMm ?? null,
     maxPayloadKg: row.maxPayloadKg,
     availableCount: row.availableCount,
     rentalPrice: row.rentalPrice ?? undefined,

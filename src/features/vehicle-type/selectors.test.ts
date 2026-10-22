@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { apiVehicleType } from "./__fixtures__/vehicle-type";
 import {
+  formatDoorMm,
   formatInnerSizeMetres,
   formatInnerSizeMm,
   formatMetres,
@@ -45,5 +46,19 @@ describe("hiển thị kích thước và thể tích", () => {
   it("tải trọng kèm đơn vị", () => {
     expect(formatPayload(28200)).toBe("28.200 kg");
     expect(formatPayload(1250.5)).toBe("1.250,5 kg");
+  });
+});
+
+describe("formatDoorMm — cửa thùng trên bảng", () => {
+  it("đủ hai phía: rộng×cao bằng mm", () => {
+    expect(formatDoorMm(apiVehicleType())).toBe("2340×2280");
+  });
+  it("không giới hạn cửa (null hoặc vắng): '—'", () => {
+    expect(formatDoorMm({ doorWidthMm: null, doorHeightMm: null })).toBe("—");
+    expect(formatDoorMm({})).toBe("—");
+  });
+  it("chỉ một phía: phía còn lại là '—'", () => {
+    expect(formatDoorMm({ doorWidthMm: 1500, doorHeightMm: null })).toBe("1500×—");
+    expect(formatDoorMm({ doorHeightMm: 1900 })).toBe("—×1900");
   });
 });

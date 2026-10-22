@@ -3,7 +3,12 @@
  * không lộ message tiếng Anh. `VALIDATION_FAILED` nêu tên ô kèm câu BE đã dịch cho ô đó (BE trả theo locale).
  */
 
-import { VEHICLE_TYPE_ERROR_MESSAGES as MESSAGES, VEHICLE_TYPE_FIELD_LABELS } from "@/constants";
+import {
+  VEHICLE_TYPE_DOOR_ERROR_CODES as DOOR_CODES,
+  VEHICLE_TYPE_ERROR_MESSAGES as MESSAGES,
+  VEHICLE_TYPE_FIELD_LABELS,
+  VEHICLE_TYPE_FIELD_MESSAGES as FIELD_MESSAGES,
+} from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
 type KnownCode = Exclude<
@@ -22,6 +27,23 @@ const IMMUTABLE_FIELD_CODES: Readonly<Record<string, string>> = {
   code: "VEHICLE_TYPE_CODE_IMMUTABLE",
   kind: "VEHICLE_TYPE_KIND_IMMUTABLE",
 };
+
+/**
+ * Câu tiếng Việt cho lỗi theo trường của ô cửa, rẽ nhánh theo `fieldErrors[].code` của BE (PR #158):
+ * `VEHICLE_TYPE_DOOR_INVALID` (ngoài 1..30000) và `VEHICLE_TYPE_DOOR_TOO_LARGE` (lớn hơn thùng).
+ * Mã khác hoặc ô khác → `undefined`, để người gọi dùng câu BE đã dịch cho ô đó.
+ */
+export function doorFieldMessage(
+  field: string | undefined,
+  code: string | undefined,
+): string | undefined {
+  if (field !== "doorWidthMm" && field !== "doorHeightMm") return undefined;
+  if (code === DOOR_CODES.INVALID) return FIELD_MESSAGES.doorInvalid;
+  if (code !== DOOR_CODES.TOO_LARGE) return undefined;
+  return field === "doorWidthMm"
+    ? FIELD_MESSAGES.doorTooLargeForWidth
+    : FIELD_MESSAGES.doorTooLargeForHeight;
+}
 
 export interface VehicleTypeErrorContext {
   /** Đang sửa một loại xe mặc định: mã và loại của nó không đổi được. */
@@ -60,7 +82,9 @@ export function vehicleTypeErrorMessage(
         ? VEHICLE_TYPE_FIELD_LABELS[field]
         : field
       : "";
-    const detail = field ? error.fieldErrors?.[field] : undefined;
+    const detail = field
+      ? (doorFieldMessage(field, error.fieldCodes?.[field]) ?? error.fieldErrors?.[field])
+      : undefined;
     if (label && detail) return `${label}: ${detail}`;
     return label ? `${MESSAGES.VALIDATION_FAILED} (${label})` : MESSAGES.VALIDATION_FAILED;
   }

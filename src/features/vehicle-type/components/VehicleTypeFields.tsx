@@ -120,6 +120,10 @@ export function VehicleTypeFields({
         {text("availableCount", { required: true, numeric: true })}
       </div>
       <div className="grid grid-cols-2 gap-3">
+        {text("doorWidthMm", { numeric: true, hint: L.form.doorHint })}
+        {text("doorHeightMm", { numeric: true })}
+      </div>
+      <div className="grid grid-cols-2 gap-3">
         {text("gussetMm", { numeric: true, hint: L.form.gussetHint })}
         {text("rentalPrice", { numeric: true, hint: L.form.rentalHint })}
       </div>
