@@ -1,0 +1,48 @@
+# Weekly dependency updates, Monday 08:00 Vietnam time.
+#
+# Minor and patch updates are grouped into ONE pull request per ecosystem; a major update always
+# gets its own pull request so it can be reviewed (and reverted) alone. Pull requests target
+# `develop`, the integration branch. Titles follow commitlint.config.mjs: "chore(deps): ...".
+#
+# Dependabot pull requests run CI without repository secrets, so the Sonar job skips for them.
+
+version: 2
+updates:
+  # pnpm is covered by the "npm" ecosystem (it reads pnpm-lock.yaml).
+  - package-ecosystem: npm
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: Asia/Ho_Chi_Minh
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - dependencies
+    groups:
+      npm-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: Asia/Ho_Chi_Minh
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - dependencies
+    groups:
+      actions-minor-patch:
+        update-types:
+          - minor
+          - patch

@@ -1,0 +1,89 @@
+# =============================================================================
+# SonarQube Cloud analysis.
+#
+# A separate workflow so it never touches the required `validate` check in ci.yml: it runs in
+# parallel, and a Sonar outage, a missing project or a failing quality gate cannot block a merge.
+# WARNING-ONLY for the first week - the quality gate is not awaited (no sonar.qualitygate.wait).
+#
+# Skips cleanly until the repository owner has added the SONAR_TOKEN secret and the
+# SONAR_ORGANIZATION variable (see "CI & quality checks" in README.md). Also skipped for fork and
+# Dependabot pull requests, which GitHub runs without repository secrets.
+#
+# The tests run once more here, with coverage, because ci.yml's `validate` runs plain `vitest run`
+# and must stay unchanged (the coverage thresholds in vitest.config.mts would otherwise gate it).
+# =============================================================================
+
+name: sonar
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  sonar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      # The secret is read by this one shell step and by the scan step at the end - not by the
+      # install step, which runs third-party lifecycle scripts.
+      - name: Check SonarQube Cloud is configured
+        id: gate
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION }}
+        run: |
+          if [ -n "$SONAR_TOKEN" ] && [ -n "$SONAR_ORGANIZATION" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::SonarQube Cloud analysis skipped: SONAR_TOKEN secret or SONAR_ORGANIZATION variable is not available."
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.enabled == 'true'
+        with:
+          # Full history: Sonar needs it for blame and to find the new-code baseline.
+          fetch-depth: 0
+
+      # Phiên bản pnpm lấy từ "packageManager" trong package.json - không khai báo lại ở đây.
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        if: steps.gate.outputs.enabled == 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.gate.outputs.enabled == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        if: steps.gate.outputs.enabled == 'true'
+        run: pnpm install --frozen-lockfile
+
+      # Same reason as in ci.yml: App Router's global types come from .next/types.
+      - name: Generate route types
+        if: steps.gate.outputs.enabled == 'true'
+        run: pnpm exec next typegen
+
+      - name: Test with coverage
+        if: steps.gate.outputs.enabled == 'true'
+        run: pnpm run test:coverage
+
+      # Pinned to a commit (v8.2.2). Reads sonar-project.properties; the project key lives there.
+      - name: SonarQube Cloud scan
+        if: steps.gate.outputs.enabled == 'true'
+        uses: SonarSource/sonarqube-scan-action@ba9859eae8dd6bd29e412f25ddbbef3d032000f4 # v8.2.2
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >-
+            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
