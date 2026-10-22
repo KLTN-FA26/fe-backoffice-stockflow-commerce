@@ -3,8 +3,9 @@ import { cn } from "cn";
 import { LOAD_PLAN_PRINT_LABELS, LOAD_PLAN_UNPLACED_REASON_LABELS } from "@/constants";
 import { formatNumber } from "@/lib/format";
 
-import { formatNominalCm } from "../../lib/dims";
 import { Alert } from "@/components/shared/Alert";
+
+import { formatNominalCm } from "../../lib/dims";
 import { PRINT_EXACT, SECTION_TITLE, TABLE_FRAME, TD, TH } from "./primitives";
 
 import type { PrintUnplaced } from "../../lib/print-sheet";

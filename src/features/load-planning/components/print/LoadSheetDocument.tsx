@@ -1,4 +1,5 @@
 import { LOAD_PLAN_PRINT_LABELS } from "@/constants";
+
 import { colorOf } from "../../lib/palette";
 
 import { ParcelTable } from "./ParcelTable";
