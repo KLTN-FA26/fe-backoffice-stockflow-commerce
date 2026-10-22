@@ -6,12 +6,11 @@ import { LAYOUT_40HC, LAYOUT_PICKUP_KIT } from "../__fixtures__/layouts";
 import { fitDistance } from "./capture-fit";
 import { OVERVIEW_MIN_WIDTH, STEP_ASPECT, captureStepImages, captureVehicleViews } from "./capture";
 import { acquireRenderer, disposeSharedRenderer } from "./capture-renderer";
+import { extentOf } from "./dims";
 import { buildLoadingSteps } from "./loading-steps";
+import { sceneScale } from "./scene";
 
 import type { Scene } from "three";
-
-import { extentOf } from "./dims";
-import { sceneScale } from "./scene";
 
 /**
  * jsdom không có WebGL: thay `WebGLRenderer` bằng bản giả đếm số lần tạo, nhả context và render —
