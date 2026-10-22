@@ -4,7 +4,7 @@ import { PLACEMENT_RULES } from "./load-planning";
 import { PLACEMENT_RULE_LABELS } from "./labels-load-planning";
 
 describe("PLACEMENT_RULES (codes fixed by the BE solver)", () => {
-  it("lists exactly the six BE rule codes", () => {
+  it("lists exactly the nine rule codes (BE solver + the orientation integrity check)", () => {
     expect([...PLACEMENT_RULES]).toEqual([
       "OUT_OF_BOUNDS",
       "OVERLAP",
@@ -12,6 +12,9 @@ describe("PLACEMENT_RULES (codes fixed by the BE solver)", () => {
       "OVERWEIGHT",
       "ROTATION_NOT_ALLOWED",
       "GUSSET",
+      "DOOR",
+      "KIT_SPLIT",
+      "ORIENTATION_MISMATCH",
     ]);
   });
 
