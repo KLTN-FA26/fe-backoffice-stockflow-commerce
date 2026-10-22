@@ -4,11 +4,16 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-import { UI_LABELS, VEHICLE_TYPE_KIND, VEHICLE_TYPE_STATUS } from "@/constants";
+import { UI_LABELS } from "@/constants";
 
 import { ApiError } from "@/lib/api/error";
 
 import { isStaleVehicleTypeError, vehicleTypeErrorMessage } from "@/features/vehicle-type/errors";
+import {
+  EMPTY_VEHICLE_TYPE_FORM,
+  formValuesOf,
+  SERVER_FIELDS,
+} from "@/features/vehicle-type/form-defaults";
 import { vehicleTypeFormSchema } from "@/features/vehicle-type/input-schemas";
 import { useCreateVehicleType, useUpdateVehicleType } from "@/features/vehicle-type/mutations";
 import { useVehicleType } from "@/features/vehicle-type/queries";
@@ -24,47 +29,6 @@ import type {
 } from "@/features/vehicle-type/types";
 
 const F = UI_LABELS.vehicleType.form;
-const SERVER_FIELDS = [
-  "name",
-  "kind",
-  "innerLengthMm",
-  "innerWidthMm",
-  "innerHeightMm",
-  "gussetMm",
-  "maxPayloadKg",
-  "availableCount",
-  "rentalPrice",
-  "status",
-] as const;
-
-const EMPTY: VehicleTypeFormInput = {
-  code: "",
-  name: "",
-  kind: VEHICLE_TYPE_KIND.TRUCK,
-  innerLengthMm: "",
-  innerWidthMm: "",
-  innerHeightMm: "",
-  gussetMm: "",
-  maxPayloadKg: "",
-  availableCount: "1",
-  rentalPrice: "",
-  status: VEHICLE_TYPE_STATUS.ACTIVE,
-};
-
-const valuesOf = (row: VehicleType): VehicleTypeFormInput => ({
-  code: row.code,
-  name: row.name,
-  kind: row.kind,
-  innerLengthMm: String(row.innerLengthMm),
-  innerWidthMm: String(row.innerWidthMm),
-  innerHeightMm: String(row.innerHeightMm),
-  gussetMm: String(row.gussetMm),
-  maxPayloadKg: String(row.maxPayloadKg),
-  availableCount: String(row.availableCount),
-  rentalPrice: row.rentalPrice == null ? "" : String(row.rentalPrice),
-  status: row.status,
-});
-
 /**
  * Thêm hoặc sửa loại xe (BE `POST` / `PUT /fulfillment/vehicle-types`). Mã khoá khi sửa. Sửa gửi `version`
  * của lần đọc; gặp OPTIMISTIC_LOCK mutation tải lại chi tiết và form nạp lại bản mới (key = version).
@@ -111,7 +75,7 @@ function Form({
   const form = useForm<VehicleTypeFormInput, unknown, VehicleTypeFormValues>({
     resolver: zodResolver(vehicleTypeFormSchema),
     mode: "onChange",
-    defaultValues: vehicleType ? valuesOf(vehicleType) : EMPTY,
+    defaultValues: vehicleType ? formValuesOf(vehicleType) : EMPTY_VEHICLE_TYPE_FORM,
   });
 
   const submit = form.handleSubmit((body) => {
