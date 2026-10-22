@@ -19,8 +19,8 @@ import { releaseDeliveryMode } from "../delivery-mode-api";
 
 import { DeliveryModeField } from "./DeliveryModeField";
 
-import type { OrderEstimateSlot } from "../estimate-slot";
 import type { ReleaseOrderInput } from "../delivery-mode-api";
+import type { OrderEstimateSlot } from "../estimate-slot";
 import type { Order, OrderDeliveryMode } from "../types";
 
 interface OrderReleaseDialogProps {

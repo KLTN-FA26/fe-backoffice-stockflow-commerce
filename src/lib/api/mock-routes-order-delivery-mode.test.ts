@@ -6,8 +6,8 @@
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { changeDeliveryMode, releaseOrder } from "@/features/order/delivery-mode-api";
 import { getOrder } from "@/features/order/api";
+import { changeDeliveryMode, releaseOrder } from "@/features/order/delivery-mode-api";
 import { getOrderHistory } from "@/features/order/history-api";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";

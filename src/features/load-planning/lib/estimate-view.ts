@@ -8,13 +8,13 @@ import {
 
 import { summarizeLayouts } from "../selectors";
 
-import type { LayoutSummary } from "../selectors";
 import type {
   EstimateUnplaced,
   EstimateWarning,
   KitWarning,
   LoadEstimate,
 } from "../estimate-types";
+import type { LayoutSummary } from "../selectors";
 
 /** Lý do BE khi hết thời gian tính mà xe còn chỗ (`UnplacedReason.SEARCH_CUT_OFF`). */
 export const SEARCH_CUT_OFF = "SEARCH_CUT_OFF";

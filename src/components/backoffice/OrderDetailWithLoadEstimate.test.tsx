@@ -9,8 +9,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { LOAD_ESTIMATE_PERMISSIONS } from "@/constants";
 import { apiEstimate } from "@/features/load-planning/__fixtures__/estimate";
-import { apiOrder, apiOrderDelivery } from "@/features/order/__fixtures__/order";
 import { DETAIL_PATH, HISTORY_PATH } from "@/features/order/__fixtures__/detail";
+import { apiOrder, apiOrderDelivery } from "@/features/order/__fixtures__/order";
 import {
   mockOrderApiGet,
   ORDER_PERMISSION_SETS,

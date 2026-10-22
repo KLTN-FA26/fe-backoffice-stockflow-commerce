@@ -5,13 +5,13 @@
 
 import { z } from "zod";
 
+import { ORDER_DELIVERY_MODES } from "@/constants/labels-delivery-mode";
 import {
   ORDER_DELIVERY_FAILURE_REASONS,
   ORDER_MANUAL_HOLD_REASONS,
   ORDER_REMAINDER_CLOSURE_REASONS,
   ORDER_REMAINDER_FEE_LABELS,
 } from "@/constants/labels-order";
-import { ORDER_DELIVERY_MODES } from "@/constants/labels-delivery-mode";
 import { ORDER_LIMITS } from "@/constants/numbers";
 
 /**

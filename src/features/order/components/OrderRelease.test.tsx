@@ -13,8 +13,8 @@ import { toast } from "@/components/shared/Toast";
 
 import { OrderDetail } from "./OrderDetail";
 
-import { apiOrder, apiOrderDelivery } from "../__fixtures__/order";
 import { DETAIL_PATH, HISTORY_PATH } from "../__fixtures__/detail";
+import { apiOrder, apiOrderDelivery } from "../__fixtures__/order";
 import {
   mockOrderApiGet,
   ORDER_PERMISSION_SETS,
