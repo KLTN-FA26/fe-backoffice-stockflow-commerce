@@ -4,8 +4,8 @@ import { colorOf } from "../../lib/palette";
 
 import { ParcelTable } from "./ParcelTable";
 import { SheetHeader } from "./SheetHeader";
-import { SheetOverview } from "./SheetOverview";
 import { SignatureBoxes, UnplacedNote } from "./SheetNotes";
+import { SheetOverview } from "./SheetOverview";
 import { SheetStep } from "./SheetStep";
 import { SECTION_TITLE } from "./primitives";
 

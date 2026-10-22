@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 
-import { buildLoadingSteps } from "../../lib/loading-steps";
 import { disposeSharedRenderer } from "../../lib/capture-renderer";
+import { buildLoadingSteps } from "../../lib/loading-steps";
+import { colorOf } from "../../lib/palette";
 import { CaptureCancelled, capturePrintImages } from "../../lib/print-capture";
 import { letterMapOf } from "../../lib/print-labels";
-import { colorOf } from "../../lib/palette";
 
 import type { ColorMap } from "../../lib/palette";
 import type { PrintImages } from "../../lib/print-capture";

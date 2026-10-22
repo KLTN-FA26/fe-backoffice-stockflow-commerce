@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { Printer } from "lucide-react";
+import Link from "next/link";
 
 import { ADMIN_ROUTES, LOAD_PLAN_PRINT_LABELS, LOAD_PLANNING_LABELS, UI_LABELS } from "@/constants";
 import { formatNumber, formatPercent } from "@/lib/format";

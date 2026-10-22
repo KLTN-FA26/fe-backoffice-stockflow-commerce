@@ -9,9 +9,9 @@ import { LOAD_PLANNING_LIMITS } from "@/constants";
 
 import { captureStepImages, captureVehicleViews } from "./capture";
 
+import type { Layout, LayoutBox } from "../types";
 import type { CapturedView, ColorOf, LabelOf } from "./capture";
 import type { LoadingStep } from "./loading-steps";
-import type { Layout, LayoutBox } from "../types";
 
 export interface PrintImages {
   left: CapturedView;

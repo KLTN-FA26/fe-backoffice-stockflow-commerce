@@ -6,8 +6,8 @@
 
 import { LOAD_STATUS } from "@/constants";
 
-import type { LoadBooking } from "../print-booking";
 import type { PlanVehicle } from "../plan-types";
+import type { LoadBooking } from "../print-booking";
 
 export type BookingView =
   | { kind: "no-load" }

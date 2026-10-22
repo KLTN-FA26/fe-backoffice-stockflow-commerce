@@ -1,13 +1,13 @@
 import { LOAD_PLAN_PRINT_LABELS } from "@/constants";
 import { formatDate, formatNumber, formatPercent } from "@/lib/format";
 
-import { formatKg } from "../../lib/print-labels";
 import { formatNominalCm } from "../../lib/dims";
+import { formatKg } from "../../lib/print-labels";
 import { EMPTY, Field } from "./primitives";
 
 import type { BookingView } from "../../lib/booking-view";
-import type { LoadBooking } from "../../print-booking";
 import type { PrintSheet } from "../../lib/print-sheet";
+import type { LoadBooking } from "../../print-booking";
 
 const H = LOAD_PLAN_PRINT_LABELS.header;
 

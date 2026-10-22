@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import { Printer } from "lucide-react";
+import { useMemo, useState } from "react";
 
 import {
   ADMIN_ROUTES,
@@ -16,10 +16,10 @@ import { BackLink } from "@/components/shared/BackLink";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
 
-import { useLoadBooking } from "../../print-booking";
+import { bookingNeedsFetch, bookingSettled, bookingViewOf } from "../../lib/booking-view";
 import { colorMapForPrint } from "../../lib/palette";
-import { bookingNeedsFetch, bookingViewOf, bookingSettled } from "../../lib/booking-view";
 import { buildPrintSheet } from "../../lib/print-sheet";
+import { useLoadBooking } from "../../print-booking";
 import { useLoadPlan, useLoadPlanLayouts } from "../../queries";
 import { DetailLoadError } from "../detail/DetailLoadError";
 import { CaptureStatus } from "./CaptureStatus";

@@ -4,15 +4,15 @@
  * bước (`loading-steps.ts`), danh sách kiện. Hàm thuần — không đụng DOM, không gọi API.
  */
 
+import { unplacedLinesOf, unplacedParcels } from "../plan-selectors";
 import { formatNominalCm, mmToCm } from "./dims";
 import { itemKey } from "./item-rows";
 import { buildLoadingSteps } from "./loading-steps";
 import { kitText, letterMapOf, orientationText } from "./print-labels";
-import { unplacedLinesOf, unplacedParcels } from "../plan-selectors";
 
 import type { LoadPlanUnplacedReason } from "@/constants";
-import type { LayoutBox, Layout, UnplacedLine } from "../types";
 import type { PlanDetail, PlanParcel, PlanVehicle } from "../plan-types";
+import type { Layout, LayoutBox, UnplacedLine } from "../types";
 
 const MM3_PER_M3 = 1_000_000_000;
 
