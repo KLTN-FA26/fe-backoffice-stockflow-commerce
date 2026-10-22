@@ -8,6 +8,8 @@ export const SHIPPING_FTL_LABELS = {
   modeFilter: "Hình thức",
   modeAll: "Tất cả",
   modeColumn: "Hình thức",
+  modeFilterPageNote:
+    "Bộ lọc hình thức hiện chỉ lọc các chuyến trong trang này (máy chủ chưa lọc theo hình thức) — chuyển trang để xem tiếp.",
   planColumn: "Kế hoạch / xe",
   planCode: "Kế hoạch",
   vehicleSeq: "Xe số",

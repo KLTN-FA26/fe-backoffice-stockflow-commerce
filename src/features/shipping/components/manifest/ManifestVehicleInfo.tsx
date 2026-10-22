@@ -1,4 +1,4 @@
-import { UI_LABELS } from "@/constants";
+import { DELIVERY_MODE, UI_LABELS } from "@/constants";
 
 import { InfoItem } from "../primitives";
 
@@ -11,7 +11,7 @@ const F = UI_LABELS.shipping.ftl;
  * chú chỉ gồm kiện kế hoạch xếp lên xe này, COD luôn 0. Chuyến gửi kiện không có phần này.
  */
 export function ManifestVehicleInfo({ manifest }: { manifest: Manifest }) {
-  if (manifest.mode !== "FULL_TRUCKLOAD") return null;
+  if (manifest.mode !== DELIVERY_MODE.FULL_TRUCKLOAD) return null;
   return (
     <>
       <InfoItem
@@ -26,6 +26,6 @@ export function ManifestVehicleInfo({ manifest }: { manifest: Manifest }) {
 
 /** Dòng ghi chú dưới tiêu đề biên bản của chuyến nguyên xe. */
 export function ManifestVehicleNote({ manifest }: { manifest: Manifest }) {
-  if (manifest.mode !== "FULL_TRUCKLOAD") return null;
+  if (manifest.mode !== DELIVERY_MODE.FULL_TRUCKLOAD) return null;
   return <p className="text-ink-secondary text-center text-xs">{F.manifest.perVehicleNote}</p>;
 }

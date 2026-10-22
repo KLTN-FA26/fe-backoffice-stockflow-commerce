@@ -11,6 +11,7 @@
  */
 
 import {
+  DELIVERY_MODE,
   DELIVERY_MODES,
   FULFILLMENT_DISPATCH_PERMISSIONS,
   FULFILLMENT_LOAD_CANCELLATION_PERMISSIONS,
@@ -19,7 +20,7 @@ import {
 } from "@/constants";
 import { LOAD_TRANSITIONS } from "@/lib/domain/lifecycle";
 
-import { hasPendingUnloads } from "./ftl-selectors";
+import { hasPendingUnloads, isFtlLoad } from "./ftl-selectors";
 
 import type { DeliveryMode, LoadStatus } from "@/constants";
 import type { PermissionCode } from "@/lib/auth";
@@ -46,8 +47,8 @@ export type LoadActionCode =
   | "startLoading"
   | "unload";
 
-const PARCEL_ONLY: readonly DeliveryMode[] = ["PARCEL"];
-const FTL_ONLY: readonly DeliveryMode[] = ["FULL_TRUCKLOAD"];
+const PARCEL_ONLY: readonly DeliveryMode[] = [DELIVERY_MODE.PARCEL];
+const FTL_ONLY: readonly DeliveryMode[] = [DELIVERY_MODE.FULL_TRUCKLOAD];
 const BOTH_MODES = DELIVERY_MODES;
 
 interface LoadAction {
@@ -182,7 +183,7 @@ export function hasLoadAction(
 export function loadNoActionReason(load: LoadGateState): string {
   if (load.status === LOAD_STATUS.DISPATCHED) return N.dispatched;
   if (load.status === LOAD_STATUS.CANCELLED) return N.cancelled;
-  if (load.mode === "FULL_TRUCKLOAD") {
+  if (isFtlLoad(load)) {
     if (load.status === LOAD_STATUS.PLANNED) return F.noActions.planned;
     if (load.status === LOAD_STATUS.VEHICLE_BOOKED) return F.noActions.booked;
   }

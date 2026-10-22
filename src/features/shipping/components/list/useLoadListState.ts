@@ -59,12 +59,12 @@ export function useLoadListState(canRead: boolean) {
   const dataFiltered =
     debouncedQ.trim() !== "" || status !== "ALL" || mode !== "ALL" || !!warehouseId || !!carrierId;
   const data = query.data;
-  // BE chưa lọc theo hình thức → lọc thêm các dòng của trang đang xem (bảng đủ dòng khi BE hỗ trợ `mode`)
+  // BE chưa lọc theo hình thức → lọc thêm các dòng của trang đang xem (bảng đủ dòng khi BE hỗ trợ `mode`).
+  // Trang lọc ra rỗng vẫn giữ bảng + phân trang để sang trang khác (chỉ `totalElements === 0` mới là "không có kết quả")
   const rows = data ? filterLoadsByMode(data.items, mode) : [];
   let emptyState: LoadListEmptyState = "none";
   if (data && data.totalElements === 0) emptyState = dataFiltered ? "no-results" : "no-loads";
   else if (data && data.items.length === 0) emptyState = "invalid-page";
-  else if (data && rows.length === 0) emptyState = "no-results";
 
   const navigateToLoad = useCallback(
     (row: LoadRow) => router.push(ADMIN_ROUTES.loads.detail(row.loadId)),

@@ -1,5 +1,6 @@
 "use client";
 
+import { LOAD_STATUS } from "@/constants";
 import { isLoadOpen } from "@/features/shipping/lifecycle";
 
 import { BookingDialog } from "../ftl/BookingDialog";
@@ -31,7 +32,7 @@ export function LoadDialogs({
   onRefused: (refusal: HandoverRefusal) => void;
   onDone: (load: Load) => void;
 }) {
-  if (dialog === "handover" && load.status === "LOADING") {
+  if (dialog === "handover" && load.status === LOAD_STATUS.LOADING) {
     return <HandoverDialog load={load} onClose={onClose} onRefused={onRefused} onDone={onDone} />;
   }
   if (dialog === "cancel" && isLoadOpen(load.status)) {
@@ -41,13 +42,16 @@ export function LoadDialogs({
     return <AddShipmentsDialog load={load} onClose={onClose} />;
   }
   // Đặt xe / huỷ đặt xe / bắt đầu xếp hàng (chuyến nguyên xe, BE PR #162) — chỉ ở đúng trạng thái của bước
-  if (dialog === "book" && ["PLANNED", "VEHICLE_BOOKED"].includes(load.status)) {
+  if (
+    dialog === "book" &&
+    (load.status === LOAD_STATUS.PLANNED || load.status === LOAD_STATUS.VEHICLE_BOOKED)
+  ) {
     return <BookingDialog load={load} onClose={onClose} />;
   }
-  if (dialog === "cancelBooking" && load.status === "VEHICLE_BOOKED") {
+  if (dialog === "cancelBooking" && load.status === LOAD_STATUS.VEHICLE_BOOKED) {
     return <CancelBookingDialog load={load} onClose={onClose} />;
   }
-  if (dialog === "startLoading" && load.status === "VEHICLE_BOOKED") {
+  if (dialog === "startLoading" && load.status === LOAD_STATUS.VEHICLE_BOOKED) {
     return <StartLoadingDialog load={load} onClose={onClose} />;
   }
   return null;

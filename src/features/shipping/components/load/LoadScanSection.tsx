@@ -1,5 +1,6 @@
 "use client";
 
+import { LOAD_STATUS } from "@/constants";
 import { loadNoActionReason, hasLoadAction } from "@/features/shipping/lifecycle";
 import { hasPendingUnloads, isFtlLoad } from "@/features/shipping/ftl-selectors";
 import { loadedLabelCodes } from "@/features/shipping/selectors";
@@ -29,7 +30,7 @@ export function LoadScanSection({
 }) {
   const canScan = !!hasLoadAction(actions, "scan");
   const rejectedItems = withoutLoaded(rejected.items, loadedLabelCodes(load));
-  if (load.status === "LOADING" && hasPendingUnloads(load)) {
+  if (load.status === LOAD_STATUS.LOADING && hasPendingUnloads(load)) {
     return (
       <>
         <UnloadPanel load={load} canUnload={!!hasLoadAction(actions, "unload")} />
@@ -47,13 +48,16 @@ export function LoadScanSection({
     );
   }
   // Chuyến nguyên xe chưa tới bước xếp hàng: thẻ Đặt xe đã chỉ bước kế tiếp
-  if (isFtlLoad(load) && (load.status === "PLANNED" || load.status === "VEHICLE_BOOKED"))
+  if (
+    isFtlLoad(load) &&
+    (load.status === LOAD_STATUS.PLANNED || load.status === LOAD_STATUS.VEHICLE_BOOKED)
+  )
     return null;
   return (
     <>
       <Alert tone="info">{loadNoActionReason(load)}</Alert>
       {/* Ô quét vừa biến mất giữa lúc còn danh sách kiện cần gỡ → vẫn hiện (chỉ khi chuyến còn xếp) */}
-      {load.status === "LOADING" && (
+      {load.status === LOAD_STATUS.LOADING && (
         <RejectedScans items={rejectedItems} onClear={rejected.clear} />
       )}
     </>

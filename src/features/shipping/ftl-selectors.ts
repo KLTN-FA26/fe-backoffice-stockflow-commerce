@@ -2,7 +2,7 @@
  * Shipping — selector thuần cho chuyến nguyên xe (FTL, BE PR #162).
  */
 
-import { LOAD_STATUS } from "@/constants";
+import { DELIVERY_MODE, LOAD_STATUS } from "@/constants";
 
 import type { KitPart, Load, LoadParcel, LoadRow, PendingUnload } from "./types";
 
@@ -10,7 +10,7 @@ type ModeOf = Pick<Load, "mode">;
 
 /** Chuyến nguyên xe: một xe của kế hoạch xếp xe (không phải chuyến gửi kiện). */
 export function isFtlLoad(load: ModeOf): boolean {
-  return load.mode === "FULL_TRUCKLOAD";
+  return load.mode === DELIVERY_MODE.FULL_TRUCKLOAD;
 }
 
 /** Kiện của đơn đã huỷ còn trên xe (BE `pendingUnloads`; vắng = không có). */

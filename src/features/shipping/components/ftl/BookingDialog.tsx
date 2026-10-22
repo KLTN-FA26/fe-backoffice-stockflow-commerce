@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-import { SHIPPING_LIMITS, UI_LABELS } from "@/constants";
+import { LOAD_STATUS, SHIPPING_LIMITS, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { shippingErrorMessage } from "@/features/shipping/errors";
 import { bookingInputSchema } from "@/features/shipping/input-schemas";
@@ -89,7 +89,7 @@ export function BookingDialog({ load, onClose }: { load: Load; onClose: () => vo
   return (
     <FormDialog open onOpenChange={(next) => !next && !book.isPending && onClose()}>
       <FormDialogBody
-        title={load.status === "VEHICLE_BOOKED" ? D.rebookTitle : D.title}
+        title={load.status === LOAD_STATUS.VEHICLE_BOOKED ? D.rebookTitle : D.title}
         description={D.description}
         submitLabel={D.submit}
         canSubmit={form.formState.isValid}

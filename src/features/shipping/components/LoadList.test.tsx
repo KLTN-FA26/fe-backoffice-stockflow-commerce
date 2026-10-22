@@ -123,7 +123,7 @@ describe("LoadList — chuyến nguyên xe (BE PR #162)", () => {
     });
   });
 
-  it("chọn hình thức trong bộ lọc → chỉ còn chuyến thuộc hình thức đó; trang không còn dòng nào → 'không có kết quả'", async () => {
+  it("chọn hình thức trong bộ lọc → chỉ còn chuyến thuộc hình thức đó", async () => {
     const user = userEvent.setup();
     renderList(ACTORS.warehouseStaff, "", [ROW, FTL]);
     await screen.findByRole("link", { name: "LD-F001" });
@@ -141,8 +141,38 @@ describe("LoadList — chuyến nguyên xe (BE PR #162)", () => {
     expect(screen.getByRole("link", { name: "LD-F001" })).toBeInTheDocument();
   });
 
-  it("lọc nguyên xe mà trang này toàn chuyến gửi kiện → báo không có kết quả (không phải 'chưa có chuyến')", async () => {
-    renderList(ACTORS.warehouseStaff, "?mode=FULL_TRUCKLOAD", [ROW]);
+  it("trang này toàn chuyến gửi kiện mà lọc nguyên xe: giữ bảng + phân trang để sang trang có chuyến nguyên xe, không báo 'không có kết quả'", async () => {
+    const user = userEvent.setup();
+    const { get } = mockShippingApi(ACTORS.warehouseStaff, {
+      get: {
+        "/fulfillment/loads": (params) => {
+          const page = (params as { page?: number }).page ?? 0;
+          // BE không lọc theo hình thức: trang 0 toàn chuyến gửi kiện, chuyến nguyên xe nằm ở trang 1
+          return {
+            ...bePage(page === 0 ? [ROW] : [FTL], page),
+            totalElements: 2,
+            totalPages: 2,
+            hasNext: page === 0,
+          };
+        },
+      },
+    });
+    renderShippingScreen(<LoadList />, "?mode=FULL_TRUCKLOAD");
+    expect(await screen.findByText(L.ftl.modeFilterPageNote)).toBeInTheDocument();
+    expect(screen.queryByText(UI_LABELS.emptyList.noResultsTitle)).not.toBeInTheDocument();
+    expect(screen.queryByText(L.loads.empty.noDataTitle)).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: LOAD_ID })).not.toBeInTheDocument();
+    await user.click(await screen.findByRole("button", { name: "Sau" }));
+    expect(await screen.findByRole("link", { name: "LD-F001" })).toBeInTheDocument();
+    expect(
+      get.mock.calls
+        .filter(([url]) => url === "/fulfillment/loads")
+        .some(([, c]) => (c?.params as { page?: number } | undefined)?.page === 1),
+    ).toBe(true);
+  });
+
+  it("BE không có chuyến nào (totalElements 0) khi đang lọc → 'không có kết quả', khác 'chưa có chuyến'", async () => {
+    renderList(ACTORS.warehouseStaff, "?mode=FULL_TRUCKLOAD", []);
     expect(await screen.findByText(UI_LABELS.emptyList.noResultsTitle)).toBeInTheDocument();
     expect(screen.queryByText(L.loads.empty.noDataTitle)).not.toBeInTheDocument();
   });

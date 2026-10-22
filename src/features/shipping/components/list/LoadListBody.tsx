@@ -3,6 +3,7 @@
 import { Truck } from "lucide-react";
 
 import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
+import { Alert } from "@/components/shared/Alert";
 import { DataTable } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
@@ -91,6 +92,11 @@ function Content({ s, columns }: { s: LoadListState; columns: ColumnDef<LoadRow>
   return (
     <>
       <RefetchBar active={query.isFetching} label={L.refetching} />
+      {s.mode !== "ALL" && (
+        <Alert tone="info" className="mb-3">
+          {UI_LABELS.shipping.ftl.modeFilterPageNote}
+        </Alert>
+      )}
       <DataTable
         columns={columns}
         data={s.rows}

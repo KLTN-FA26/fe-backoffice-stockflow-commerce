@@ -2,7 +2,7 @@
 
 import { Ban, CalendarCheck, Play, Pencil } from "lucide-react";
 
-import { UI_LABELS } from "@/constants";
+import { LOAD_STATUS, UI_LABELS } from "@/constants";
 import { formatDateTime } from "@/lib/format/date";
 import { hasLoadAction } from "@/features/shipping/lifecycle";
 import { Alert } from "@/components/shared/Alert";
@@ -22,8 +22,8 @@ const PRIMARY =
 export type BookingDialogKind = "book" | "cancelBooking" | "startLoading";
 
 function hint(load: Load): string {
-  if (load.status === "PLANNED") return B.hintPlanned;
-  if (load.status === "VEHICLE_BOOKED") return B.hintBooked;
+  if (load.status === LOAD_STATUS.PLANNED) return B.hintPlanned;
+  if (load.status === LOAD_STATUS.VEHICLE_BOOKED) return B.hintBooked;
   return B.hintLocked;
 }
 
@@ -44,7 +44,8 @@ export function BookingCard({
   const book = hasLoadAction(actions, "book");
   const cancelBooking = hasLoadAction(actions, "cancelBooking");
   const start = hasLoadAction(actions, "startLoading");
-  const booked = load.status !== "PLANNED" && load.status !== "CANCELLED";
+  const planned = load.status === LOAD_STATUS.PLANNED;
+  const booked = load.status !== LOAD_STATUS.PLANNED && load.status !== LOAD_STATUS.CANCELLED;
   return (
     <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -52,7 +53,7 @@ export function BookingCard({
         <StatusDot domain="shipment" status={load.status} size="md" withIcon />
       </div>
       <p className="text-ink-secondary mb-3 text-[0.8125rem]">{hint(load)}</p>
-      {load.status === "PLANNED" && load.bookingCancelReason && (
+      {planned && load.bookingCancelReason && (
         <Alert tone="warning" className="mb-3">
           {B.lastCancelled}
           {load.bookingCancelledAt &&
@@ -80,16 +81,12 @@ export function BookingCard({
             <Button
               type="button"
               size="sm"
-              variant={load.status === "PLANNED" ? "default" : "outline"}
-              className={load.status === "PLANNED" ? PRIMARY : undefined}
+              variant={planned ? "default" : "outline"}
+              className={planned ? PRIMARY : undefined}
               onClick={() => onOpen("book")}
             >
-              {load.status === "PLANNED" ? (
-                <CalendarCheck className="size-3.5" />
-              ) : (
-                <Pencil className="size-3.5" />
-              )}{" "}
-              {load.status === "PLANNED" ? B.book : B.rebook}
+              {planned ? <CalendarCheck className="size-3.5" /> : <Pencil className="size-3.5" />}{" "}
+              {planned ? B.book : B.rebook}
             </Button>
           )}
           {cancelBooking && (
