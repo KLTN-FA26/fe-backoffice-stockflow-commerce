@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { UI_LABELS } from "@/constants";
+import { UI_LABELS, VEHICLE_TYPE_STATUS } from "@/constants";
 import { loadPlanErrorMessage } from "@/features/load-planning/errors";
 import { planInputsSchema } from "@/features/load-planning/input-schemas";
 import { useSetLoadPlanInputs } from "@/features/load-planning/mutations";
@@ -34,11 +34,11 @@ export function EditInputsDialog({ plan, onClose }: { plan: PlanDetail; onClose:
   const current = useLoadPlan(plan.loadPlanId).data ?? plan;
   // Loại xe đã ngừng dùng không có ô trong danh sách chọn (chỉ liệt kê loại ACTIVE) nên không đưa vào lựa chọn ban
   // đầu: BE từ chối cả request (409 VEHICLE_TYPE_INACTIVE) nếu còn gửi lại id đó mà người dùng không bỏ chọn được.
-  const inactive = plan.vehicleTypes.filter((t) => t.status !== "ACTIVE");
+  const inactive = plan.vehicleTypes.filter((t) => t.status !== VEHICLE_TYPE_STATUS.ACTIVE);
   const inputs = usePlanInputsState({
     shipmentIds: plan.shipments.map((s) => s.shipmentId),
     vehicleTypeIds: plan.vehicleTypes
-      .filter((t) => t.status === "ACTIVE")
+      .filter((t) => t.status === VEHICLE_TYPE_STATUS.ACTIVE)
       .map((t) => t.vehicleTypeId),
     selectionMode: plan.selectionMode,
   });

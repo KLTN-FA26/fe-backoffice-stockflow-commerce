@@ -11,7 +11,7 @@
  * `expectedVersion`; 409 `OPTIMISTIC_LOCK` nếu đã đổi.
  */
 
-import { LOAD_PLAN_LIMITS, PAGE_SIZE } from "@/constants";
+import { LOAD_PLAN_LIMITS, PAGE_SIZE, VEHICLE_TYPE_STATUS } from "@/constants";
 import { api } from "@/lib/api/client";
 
 import {
@@ -102,7 +102,11 @@ export async function listLoadPlanCandidates(
 /** Loại xe đang dùng cho ô chọn (danh mục chung `fulfillment-vehicle-types:READ`; không import feature loại xe). */
 export async function listActiveVehicleTypes(signal?: AbortSignal): Promise<VehicleTypeOption[]> {
   const { data } = await api.get<unknown>(VEHICLE_TYPES_PATH, {
-    params: { status: "ACTIVE", page: 0, size: LOAD_PLAN_LIMITS.vehicleTypePickerSize },
+    params: {
+      status: VEHICLE_TYPE_STATUS.ACTIVE,
+      page: 0,
+      size: LOAD_PLAN_LIMITS.vehicleTypePickerSize,
+    },
     signal,
   });
   return beVehicleTypeOptionPageSchema.parse(data).items;
