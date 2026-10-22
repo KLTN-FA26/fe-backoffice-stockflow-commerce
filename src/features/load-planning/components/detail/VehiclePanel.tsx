@@ -1,6 +1,9 @@
 "use client";
 
-import { LOAD_PLANNING_LABELS, UI_LABELS } from "@/constants";
+import { Printer } from "lucide-react";
+import Link from "next/link";
+
+import { ADMIN_ROUTES, LOAD_PLAN_PRINT_LABELS, LOAD_PLANNING_LABELS, UI_LABELS } from "@/constants";
 import { formatNumber, formatPercent } from "@/lib/format";
 import { VehicleViewer } from "../viewer/VehicleViewer";
 import { Button } from "@/components/ui/button";
@@ -18,6 +21,7 @@ const L = UI_LABELS.loadPlan.detail;
  * (`needsRecalculation`) có huy hiệu ở bộ chọn xe và thông báo đầu trang — BE từ chối chốt cho tới khi tính lại.
  */
 export function VehiclePanel({
+  planId,
   vehicle,
   layout,
   colorMap,
@@ -25,6 +29,7 @@ export function VehiclePanel({
   pending,
   onRecalculate,
 }: {
+  planId: string;
   vehicle: PlanVehicle;
   layout: Layout | undefined;
   colorMap: ColorMap;
@@ -56,17 +61,24 @@ export function VehiclePanel({
             </div>
           )}
         </dl>
-        {canRecalculate && (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={pending}
-            onClick={onRecalculate}
-          >
-            {L.actions.recalculate}
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" size="sm" variant="outline" asChild>
+            <Link href={ADMIN_ROUTES.loadPlans.print(planId, vehicle.seq)}>
+              <Printer className="size-3.5" /> {LOAD_PLAN_PRINT_LABELS.printButton}
+            </Link>
           </Button>
-        )}
+          {canRecalculate && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={pending}
+              onClick={onRecalculate}
+            >
+              {L.actions.recalculate}
+            </Button>
+          )}
+        </div>
       </div>
       {layout ? (
         <>

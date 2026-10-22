@@ -245,6 +245,8 @@ export const LOAD_PLANNING_LIMITS = {
   editorHistoryMax: 50,
   /** Lớp phủ "xem chỗ trống" chỉ vẽ chừng này khoảng trống lớn nhất (gốc `slice(0, 40)`). */
   emptySpacesShownMax: 40,
+  /** Số bước xếp chụp ảnh liền một nhịp trên trang in trước khi nhường luồng để thanh tiến độ cập nhật. */
+  captureChunkSteps: 6,
 } as const;
 
 /**

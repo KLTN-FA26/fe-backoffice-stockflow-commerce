@@ -5,7 +5,7 @@
   đây feature có đủ `api.ts`, `queries.ts`, `mutations.ts`, `lifecycle.ts`, `errors.ts` (thiết kế:
   `be-backoffice-stockflow-commerce/docs/business-design/2026-10-22-scrum-287-load-planning-plan-v2.md`).
 - **PR F5**: trình soạn xếp tay `PUT …/placements` (`editor/`, `components/editor/`) — xem phần "PR F5" bên dưới.
-- Chưa làm: trang in (F6).
+- **PR F6**: phiếu xếp hàng in được của một xe — `/admin/load-plans/[id]/vehicles/[seq]/print` (xem phần "PR F6").
 
 Code là bản port từ dự án `nesting-standalone` của anh Tú (chỉ đọc, không sửa) sang framework của repo này:
 Next 16 + TS strict, zod, nhãn tiếng Việt trong `constants/`, giới hạn 200 dòng/file feature, 150 dòng/component.
@@ -220,3 +220,15 @@ Còn vi phạm thì Lưu hỏi lại; BE vẫn là nơi quyết định.
 - **Thiếu đỡ là lỗi chặn** (như F1), không phải cảnh báo: không đặt được kiện thiếu đỡ, xoay / nhích ra chỗ thiếu đỡ bị từ chối; kiện bị mất chỗ tựa do dời kiện bên dưới hiện ở kiểm tra và xử lý bằng **Hạ kiện lơ lửng** (`settleFloaters`, bản gốc làm ngầm khi Áp dụng).
 - **Chuyển xe** đi qua khay chung rồi đặt vào ô xanh của xe kia (đúng bản gốc); nút "Chuyển sang xe #n" chỉ làm hai bước đầu giúp. Một bộ phải đi cùng một xe (LP-3) nên có "Chọn cả bộ".
 - Hộp gửi lên có `wMm/hMm/dMm` (BE `LoadPlacementsRequest.Box` bắt buộc; kích thước quyết định) cùng `orientation`.
+
+## PR F6 — phiếu xếp hàng in được (LP-10)
+
+Trang HTML dựng từ API bố cục (`GET load-plans/{id}` + `/layouts`), in bằng hộp thoại của trình duyệt (Ctrl+P, khổ A4,
+lưu PDF từ đó) — không có xuất PDF trong ứng dụng, không jsPDF. Nội dung theo báo cáo PDF EasyCargo của dự án gốc.
+
+- Quyền: `fulfillment-load-plans:READ`. Ô hãng / biển số / tài xế lấy từ chuyến của xe (`GET /fulfillment/loads/{id}`,
+  `fulfillment-shipments:READ`, `print-booking.ts`); thiếu quyền hoặc lỗi thì để trống, không chặn in.
+- `lib/print-sheet.ts` dựng dữ liệu (đầu phiếu, bảng kê hàng, các bước từ `loading-steps.ts` kèm kiện đã nối với kế hoạch,
+  danh sách kiện, ghi chú kiện chưa xếp); `lib/print-capture.ts` chụp ảnh 3D theo lô để thanh tiến độ cập nhật.
+- Trang chỉ dựng phiếu khi đủ ảnh. Không dựng được ảnh (không WebGL) → "Thử lại" hoặc "Xem phiếu không có ảnh".
+- In: `@page` A4 ngay trong phiếu, mỗi bước xếp một trang, khung back-office ẩn, token màu ép về bảng sáng (`globals.css`).

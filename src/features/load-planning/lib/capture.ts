@@ -18,8 +18,14 @@ import type { Layout, LayoutBox } from "../types";
 export type { CapturedView } from "./capture-fit";
 export type { ColorOf, LabelOf } from "./capture-scene";
 
-const VIEW_WIDTH = 1800;
-const VIEW_HEIGHT = 1120;
+/**
+ * Ảnh tổng quan được cắt sát xe nên chỉ còn ~65–70% bề rộng khung (xe dài, nhìn chéo); 2400 px giữ ảnh cắt xong vẫn
+ * ≥ `OVERVIEW_MIN_WIDTH` px (phiếu in rộng ~186 mm ≈ 1200 px ở 164 dpi).
+ */
+const VIEW_WIDTH = 2400;
+const VIEW_HEIGHT = 1500;
+/** Bề rộng tối thiểu (px) của mỗi ảnh tổng quan sau khi cắt, với xe có tỉ lệ thường gặp. */
+export const OVERVIEW_MIN_WIDTH = 1200;
 const STEP_WIDTH = 1200;
 const STEP_HEIGHT = 760;
 const FOV = 34;
@@ -55,7 +61,10 @@ export function captureVehicleViews(
 
   const renderFrom = (dx: number, dz: number): CapturedView => {
     const direction = new Vector3(dx, VIEW_ELEVATION, dz).normalize();
-    camera.position.copy(direction).multiplyScalar(fitDistance(camera, direction, corners));
+    // `fitDistance` đặt chính `camera.position` ở mỗi vòng lặp. Viết gộp `position.copy(d).multiplyScalar(fitDistance())`
+    // nhân vị trí đã đặt với khoảng cách lần nữa (bình phương) → xe chỉ còn vài chục px trong khung 1800 px.
+    const distance = fitDistance(camera, direction, corners);
+    camera.position.copy(direction).multiplyScalar(distance);
     camera.lookAt(0, 0, 0);
     camera.updateProjectionMatrix();
     renderer.render(scene, camera);
