@@ -143,6 +143,7 @@ export const LOAD_PLAN_EDITOR_LABELS = {
     description:
       "Bản chỉnh của bạn vẫn được giữ. Tải lại sẽ bỏ chỉnh sửa và lấy bản mới; hoặc xem người khác đã đổi gì rồi quyết định ghi đè.",
     loading: "Đang tải bản mới…",
+    refreshFailed: "Không tải được bản mới của kế hoạch. Thử lại rồi chọn tiếp.",
     reload: "Tải lại",
     review: "Ghi đè sau khi xem",
     reviewTitle: "Xem trước khi ghi đè",
@@ -164,5 +165,8 @@ export const LOAD_PLAN_EDITOR_LABELS = {
     landingAria: (n: number) => `${n} ô gợi ý chỗ đặt`,
   },
   notReady: "Dữ liệu kế hoạch đang được tải lại. Thử lại sau giây lát.",
+  loadFailed: "Không tải được bố cục các xe nên chưa mở được trình soạn.",
+  closedByStatus:
+    "Kế hoạch đã đổi trạng thái nên không chỉnh xếp tay được nữa; trình soạn đã đóng và các chỉnh sửa chưa lưu không còn áp dụng.",
   loadingEditor: "Đang chuẩn bị trình soạn…",
 } as const;

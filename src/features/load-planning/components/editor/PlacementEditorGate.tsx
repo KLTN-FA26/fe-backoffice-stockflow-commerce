@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 
 import { UI_LABELS } from "@/constants";
 import { Alert } from "@/components/shared/Alert";
+import { Button } from "@/components/ui/button";
 
 import { buildEditorState } from "../../editor/build-state";
 import { useActiveVehicleTypes } from "../../queries";
@@ -23,10 +24,15 @@ const E = UI_LABELS.loadPlan.editor;
 export function PlacementEditorGate({
   plan,
   layouts,
+  layoutsFailed,
+  onRetry,
   onExit,
 }: {
   plan: PlanDetail;
   layouts: readonly Layout[] | undefined;
+  /** Tải bố cục thất bại: không có dữ liệu để mở, phải có lối ra (Thử lại / Thoát). */
+  layoutsFailed: boolean;
+  onRetry: () => void;
   onExit: () => void;
 }) {
   const types = useActiveVehicleTypes();
@@ -49,12 +55,26 @@ export function PlacementEditorGate({
   const [opened, setOpened] = useState<{ state: EditorState; version: number } | null>(null);
   if (!opened && built) setOpened({ state: built, version: plan.version });
 
-  if (!opened)
+  if (!opened) {
+    const failed = layoutsFailed && !layouts;
     return (
-      <Alert tone="info">
-        <span role="status">{layouts && typesSettled ? E.notReady : E.loadingEditor}</span>
+      <Alert tone={failed ? "danger" : "info"}>
+        <p role="status">
+          {failed ? E.loadFailed : layouts && typesSettled ? E.notReady : E.loadingEditor}
+        </p>
+        <div className="mt-2 flex gap-2">
+          {(failed || (layouts && typesSettled)) && (
+            <Button type="button" size="sm" variant="outline" onClick={onRetry}>
+              {UI_LABELS.common.retry}
+            </Button>
+          )}
+          <Button type="button" size="sm" variant="outline" onClick={onExit}>
+            {E.exit}
+          </Button>
+        </div>
       </Alert>
     );
+  }
   return (
     <PlacementEditor
       loadPlanId={plan.loadPlanId}

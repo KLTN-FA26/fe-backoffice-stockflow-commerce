@@ -98,6 +98,8 @@ export function PlacementEditor({
           message={save.conflict.message}
           diff={save.diff}
           ready={save.serverReady}
+          failed={save.refreshFailed}
+          onRetry={save.retry}
           saving={save.saving}
           onReload={save.reload}
           onOverwrite={save.overwrite}

@@ -2,11 +2,7 @@ import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  LOAD_PLAN_EDITOR_STALE_MESSAGES,
-  LOAD_PLAN_ERROR_MESSAGES as ERRORS,
-  UI_LABELS,
-} from "@/constants";
+import { LOAD_PLAN_EDITOR_STALE_MESSAGES, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
 import {
@@ -162,8 +158,58 @@ describe("lưu bị 409 OPTIMISTIC_LOCK", () => {
   });
 });
 
+describe("bản máy chủ sau 409 phải là bản mới nhất của CẢ kế hoạch lẫn bố cục", () => {
+  it("while the layouts are still being refetched, Reload and Overwrite stay disabled (no plan-new / layout-old mix)", async () => {
+    const user = userEvent.setup();
+    const server = onePlan();
+    let release: () => void = () => {};
+    const view = renderEditor(ACTORS.dispatcher, server, {
+      put: lockedOnce(server, someoneElseMovesAStool),
+    });
+    await openEditor(user);
+    // from now on the layouts GET hangs until released
+    const original = view.get.getMockImplementation();
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    view.get.mockImplementation(async (url: string, config?: { params?: unknown }) => {
+      if (url.endsWith("/layouts")) await gate;
+      return original ? original(url, config) : { data: null };
+    });
+    await editAndSave(user);
+    expect(await screen.findByText(C.title)).toBeInTheDocument();
+    expect(screen.getByText(C.loading)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: C.reload })).toBeDisabled();
+    expect(screen.getByRole("button", { name: C.review })).toBeDisabled();
+    release();
+    await waitFor(() => expect(screen.getByRole("button", { name: C.reload })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: C.review }));
+    // the server's real change is visible: the review is NOT "nothing changed"
+    expect(await screen.findByText(C.changes(1))).toBeInTheDocument();
+  });
+
+  it("a failed refresh says so and offers Retry instead of waiting forever", async () => {
+    const user = userEvent.setup();
+    const server = onePlan();
+    const view = renderEditor(ACTORS.dispatcher, server, {
+      put: lockedOnce(server, someoneElseMovesAStool),
+    });
+    await openEditor(user);
+    const original = view.get.getMockImplementation();
+    let broken = true;
+    view.get.mockImplementation(async (url: string, config?: { params?: unknown }) => {
+      if (broken && url.endsWith("/layouts")) throw new ApiError(500, "INTERNAL_ERROR", "boom");
+      return original ? original(url, config) : { data: null };
+    });
+    await editAndSave(user);
+    expect(await screen.findByText(C.refreshFailed)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: C.reload })).toBeDisabled();
+    broken = false;
+    await user.click(screen.getByRole("button", { name: UI_LABELS.common.retry }));
+    await waitFor(() => expect(screen.getByRole("button", { name: C.reload })).toBeEnabled());
+  });
+});
+
 describe("lưu bị từ chối vì dữ liệu cũ theo cách khác", () => {
-  it("INVALID_LOAD_PLAN_TRANSITION (someone confirmed the plan): message + reload only, no overwrite", async () => {
+  it("the plan leaving PLANNED (someone confirmed it) closes the editor with an explanation instead of leaving a dead end", async () => {
     const user = userEvent.setup();
     const server = onePlan();
     renderEditor(ACTORS.dispatcher, server, {
@@ -174,10 +220,9 @@ describe("lưu bị từ chối vì dữ liệu cũ theo cách khác", () => {
     });
     await openEditor(user);
     await editAndSave(user);
-    expect(await screen.findByText(ERRORS.INVALID_LOAD_PLAN_TRANSITION)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: C.reload })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: C.review })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: E.toolbar.undo })).toBeEnabled();
+    expect(await screen.findByText(E.closedByStatus)).toBeInTheDocument();
+    expect(screen.queryByRole("toolbar", { name: E.toolbar.group })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: E.open })).not.toBeInTheDocument();
   });
 
   it("BE's 'package missing' (the plan gained a parcel) is explained, not shown as a generic failure", async () => {

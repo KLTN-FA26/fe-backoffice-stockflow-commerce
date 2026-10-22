@@ -64,7 +64,7 @@ export function toneColor(base: string, tone: BoxTone): string {
     case "selected":
       return SCENE_COLORS.selected;
     case "hover":
-      return mixHex(base, "#ffffff", HOVER_LIGHTEN);
+      return mixHex(base, SCENE_COLORS.hoverMix, HOVER_LIGHTEN);
     default:
       return base;
   }

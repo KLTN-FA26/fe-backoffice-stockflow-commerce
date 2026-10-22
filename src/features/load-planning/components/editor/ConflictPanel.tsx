@@ -51,25 +51,35 @@ export function ConflictPanel({
   message,
   diff,
   ready,
+  failed,
   saving,
   onReload,
   onOverwrite,
+  onRetry,
 }: {
   kind: ConflictKind;
   message: string;
   diff: StateDiff | null;
   ready: boolean;
+  /** Tải bản máy chủ mới thất bại. */
+  failed: boolean;
   saving: boolean;
   onReload: () => void;
   onOverwrite: () => void;
+  onRetry: () => void;
 }) {
   const [reviewing, setReviewing] = useState(false);
   return (
     <>
       <Alert tone="danger" title={C.title}>
         <p>{kind === "lock" ? C.description : message}</p>
-        {!ready && <p role="status">{C.loading}</p>}
+        {!ready && <p role="status">{failed ? C.refreshFailed : C.loading}</p>}
         <div className="mt-2 flex flex-wrap gap-2">
+          {failed && (
+            <Button type="button" size="sm" variant="outline" onClick={onRetry}>
+              {UI_LABELS.common.retry}
+            </Button>
+          )}
           <Button
             type="button"
             size="sm"

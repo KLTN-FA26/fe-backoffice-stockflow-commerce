@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from "react";
 
-import { isOptimisticLockError, loadPlanErrorMessage } from "../errors";
+import { LOAD_PLAN_STATUS } from "@/constants";
+
+import { isOptimisticLockError, isStaleLoadPlanError, loadPlanErrorMessage } from "../errors";
 import { useSavePlacements } from "../mutations";
 import { useLoadPlan, useLoadPlanLayouts } from "../queries";
 
@@ -38,20 +40,44 @@ export type ConflictKind = "lock" | "stale";
 export function useSaveFlow(input: SaveFlowInput) {
   const { loadPlanId, state, baseline, doors } = input;
   const mutation = useSavePlacements();
-  const latestPlan = useLoadPlan(loadPlanId).data;
-  const latestLayouts = useLoadPlanLayouts(loadPlanId, true);
+  const planQuery = useLoadPlan(loadPlanId);
+  const latestPlan = planQuery.data;
+  const layoutsQuery = useLoadPlanLayouts(loadPlanId, true);
   const [version, setVersion] = useState(input.openedVersion);
   const [serverIssues, setServerIssues] = useState<readonly ServerIssue[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [conflict, setConflict] = useState<{ kind: ConflictKind; message: string } | null>(null);
+  const [conflict, setConflict] = useState<{
+    kind: ConflictKind;
+    message: string;
+    /** Lúc gửi lần lưu bị từ chối: chỉ dữ liệu tải về SAU đó mới là bản máy chủ hiện tại. */
+    sentAt: number;
+  } | null>(null);
 
+  // Toạ độ kiện chỉ có ở `layouts` còn version ở `plan`, hai query tải lại song song: chỉ tin bản máy chủ khi CẢ HAI đã
+  // tải xong sau lần lưu bị từ chối, không thì plan mới ghép với bố cục cũ sẽ cho một so sánh "không đổi gì" sai.
+  const fresh = (q: { isFetching: boolean; dataUpdatedAt: number }) =>
+    conflict !== null && !q.isFetching && q.dataUpdatedAt >= conflict.sentAt;
+  const planFresh = fresh(planQuery);
+  const layoutsFresh = fresh(layoutsQuery);
   const serverState = useMemo(
     () =>
-      conflict && latestPlan && latestPlan.version !== version && latestLayouts.data
-        ? buildEditorState(latestPlan, latestLayouts.data, doors)
+      conflict &&
+      latestPlan &&
+      latestPlan.status === LOAD_PLAN_STATUS.PLANNED &&
+      layoutsQuery.data &&
+      planFresh &&
+      layoutsFresh &&
+      // 409 OPTIMISTIC_LOCK nghĩa là version máy chủ đã khác bản bạn mở
+      (conflict.kind !== "lock" || latestPlan.version !== version)
+        ? buildEditorState(latestPlan, layoutsQuery.data, doors)
         : null,
-    [conflict, latestPlan, latestLayouts.data, version, doors],
+    [conflict, latestPlan, layoutsQuery.data, planFresh, layoutsFresh, version, doors],
   );
+  const refreshFailed =
+    conflict !== null &&
+    !planQuery.isFetching &&
+    !layoutsQuery.isFetching &&
+    (planQuery.isError || layoutsQuery.isError);
   const diff: StateDiff | null = useMemo(
     () => (serverState ? diffEditorStates(baseline, serverState) : null),
     [serverState, baseline],
@@ -59,6 +85,7 @@ export function useSaveFlow(input: SaveFlowInput) {
 
   const send = (expectedVersion: number) => {
     const sent = state;
+    const sentAt = Date.now();
     setError(null);
     mutation.mutate(
       { loadPlanId, payload: buildPlacementsPayload(sent, expectedVersion) },
@@ -67,9 +94,9 @@ export function useSaveFlow(input: SaveFlowInput) {
         onError: (e) => {
           if (isPlacementViolation(e)) setServerIssues(serverIssuesOf(e, sent));
           else if (isOptimisticLockError(e))
-            setConflict({ kind: "lock", message: loadPlanErrorMessage(e) });
-          else if (e.status === 409 || e.status === 404)
-            setConflict({ kind: "stale", message: loadPlanErrorMessage(e) });
+            setConflict({ kind: "lock", message: loadPlanErrorMessage(e), sentAt });
+          else if (e.status === 409 || e.status === 404 || isStaleLoadPlanError(e))
+            setConflict({ kind: "stale", message: loadPlanErrorMessage(e), sentAt });
           else setError(loadPlanErrorMessage(e));
         },
       },
@@ -90,6 +117,12 @@ export function useSaveFlow(input: SaveFlowInput) {
     diff,
     /** Bản máy chủ mới đã sẵn sàng để tải lại / so sánh. */
     serverReady: serverState !== null,
+    /** Tải lại bản máy chủ lỗi (mạng, 5xx): hiện nút "Thử lại" thay vì chờ mãi. */
+    refreshFailed,
+    retry: () => {
+      void planQuery.refetch();
+      void layoutsQuery.refetch();
+    },
     save: () => send(version),
     overwrite: () => latestPlan && diff?.canOverwrite && send(latestPlan.version),
     reload: () => {

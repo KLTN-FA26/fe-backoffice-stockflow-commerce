@@ -19,29 +19,61 @@ import type { Layout } from "../../types";
 vi.mock("./EditorViewer", () => ({ EditorViewer: () => <div data-testid="editor-viewer" /> }));
 
 afterEach(() => {
+  onRetry.mockClear();
+  onExit.mockClear();
   cleanup();
   vi.restoreAllMocks();
 });
 
 const E = UI_LABELS.loadPlan.editor;
-function Harness({ initial }: { initial: Layout[] | undefined }) {
+const onRetry = vi.fn();
+const onExit = vi.fn();
+
+function Harness({ initial, failed = false }: { initial: Layout[] | undefined; failed?: boolean }) {
   const [layouts, setLayouts] = useState(initial);
   return (
     <>
       <button type="button" onClick={() => setLayouts([])}>
         refetch-breaks-data
       </button>
-      <PlacementEditorGate plan={onePlan().plan} layouts={layouts} onExit={() => {}} />
+      <PlacementEditorGate
+        plan={onePlan().plan}
+        layouts={layouts}
+        layoutsFailed={failed}
+        onRetry={onRetry}
+        onExit={onExit}
+      />
     </>
   );
 }
 
-function setup(layouts: Layout[] | undefined, vehicleTypes: () => unknown = () => typesPage()) {
+function setup(
+  layouts: Layout[] | undefined,
+  vehicleTypes: () => unknown = () => typesPage(),
+  failed = false,
+) {
   mockLoadPlanApi(ACTORS.dispatcher, { get: { "/fulfillment/vehicle-types": vehicleTypes } });
-  renderLoadPlanScreen(<Harness initial={layouts} />);
+  renderLoadPlanScreen(<Harness initial={layouts} failed={failed} />);
 }
 
 describe("PlacementEditorGate", () => {
+  it("when the layouts failed to load it says so and offers Retry and Exit (never an endless spinner)", async () => {
+    const user = userEvent.setup();
+    setup(undefined, () => typesPage(), true);
+    expect(await screen.findByText(E.loadFailed)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: UI_LABELS.common.retry }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+    await user.click(screen.getByRole("button", { name: E.exit }));
+    expect(onExit).toHaveBeenCalledTimes(1);
+  });
+
+  it("the loading and 'data disagree' states always have a way out", async () => {
+    setup([]);
+    expect(await screen.findByText(E.notReady)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: E.exit })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: UI_LABELS.common.retry })).toBeInTheDocument();
+  });
+
   it("waits while the layouts have not arrived", async () => {
     setup(undefined);
     expect(await screen.findByText(E.loadingEditor)).toBeInTheDocument();

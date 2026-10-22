@@ -92,4 +92,6 @@ export const SCENE_COLORS = {
   violation: "#dc2626",
   landing: "#16a34a",
   landingEdge: "#15803d",
+  /** Màu trộn vào để làm sáng kiện đang rê chuột. */
+  hoverMix: "#ffffff",
 } as const;
