@@ -37,6 +37,8 @@ export const ADMIN_ROUTES = {
   packing: {
     detail: (id: string) => `${ADMIN_BASE}/packing/${id}`,
     list: `${ADMIN_BASE}/packing`,
+    /** Trạm đóng gói của một lệnh chuyển kho nguyên chuyến (SCRUM-287 PR F9, BE `TransferPackController`). */
+    transfer: (transferId: string) => `${ADMIN_BASE}/packing/transfers/${transferId}`,
   },
   picking: {
     detail: (id: string) => `${ADMIN_BASE}/picking/${id}`,
@@ -82,6 +84,9 @@ export const ADMIN_ROUTES = {
   loadPlans: {
     list: `${ADMIN_BASE}/load-plans`,
     create: `${ADMIN_BASE}/load-plans/create`,
+    /** "Lập kế hoạch xe" từ lệnh chuyển kho đã đóng gói (SCRUM-287 PR F9): nguồn TRANSFER, kho nguồn và lệnh chọn sẵn. */
+    createFromTransfer: (transferId: string, warehouseId: string) =>
+      `${ADMIN_BASE}/load-plans/create?sourceType=TRANSFER&transferOrderId=${encodeURIComponent(transferId)}&warehouseId=${encodeURIComponent(warehouseId)}`,
     detail: (id: string) => `${ADMIN_BASE}/load-plans/${id}`,
     /** Phiếu xếp hàng in được của một xe (SCRUM-287 PR F6). */
     print: (id: string, seq: number) => `${ADMIN_BASE}/load-plans/${id}/vehicles/${seq}/print`,

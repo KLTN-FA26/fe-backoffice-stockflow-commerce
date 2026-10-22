@@ -7,11 +7,13 @@
 
 import { z } from "zod";
 
-import { TRANSFER_REASONS, TRANSFER_STATUSES } from "@/constants";
+import { DELIVERY_MODES, TRANSFER_REASONS, TRANSFER_STATUSES } from "@/constants";
 import { bePageSchema } from "@/lib/api/page-schema";
 
 export const transferStatusSchema = z.enum(TRANSFER_STATUSES);
 export const transferReasonSchema = z.enum(TRANSFER_REASONS);
+/** BE `TransferDeliveryMode` (SCRUM-287 PR T, LP2-8): FULL_TRUCKLOAD (mặc định) hoặc PARCEL. */
+export const transferDeliveryModeSchema = z.enum(DELIVERY_MODES);
 
 /** BE `TransferOrderResponse.Line` — `shipped` = SL đã xuất ở kho nguồn (0 trước khi dispatch). */
 export const beTransferLineSchema = z.object({
@@ -43,6 +45,10 @@ export const beTransferOrderSchema = z.object({
   createdAt: z.string(),
   // Gửi lại khi sửa nháp (PUT) — OPTIMISTIC_LOCK nếu lệnh đã đổi
   version: z.number().int(),
+  // SCRUM-287 PR T (BE PR #164): hình thức giao — sửa được khi DRAFT; đóng gói xong; hàng đã rời kho (xe đầu ký nhận)
+  deliveryMode: transferDeliveryModeSchema,
+  packedAt: z.string().nullish(),
+  goodsLeftAt: z.string().nullish(),
 });
 
 /** BE `TransferOrderRowResponse` — dòng danh sách, không kèm dòng hàng. */

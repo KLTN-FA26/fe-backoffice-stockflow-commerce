@@ -94,6 +94,11 @@ export interface MockShipment {
   recipient: { name: string; phone: string; address: string };
   timeline: MockStep[];
   version: number;
+  /**
+   * SCRUM-287 PR T: đây là MỘT lệnh chuyển kho trên xe của kế hoạch nguồn TRANSFER (dòng biên bản của nó), không phải lô
+   * giao của đơn khách — không hiện trong danh sách lô giao; người nhận là kho đích.
+   */
+  transferOrderId?: string;
 }
 
 export interface MockLoadedParcel {

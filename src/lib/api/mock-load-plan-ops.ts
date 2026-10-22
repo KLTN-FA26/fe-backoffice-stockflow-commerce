@@ -29,18 +29,40 @@ function requireStatus(plan: MockPlan, ...allowed: MockPlan["status"][]): Err {
   return allowed.includes(plan.status) ? null : transition();
 }
 
-/** Lô, loại xe của kế hoạch phải hợp lệ: BR-09, `VEHICLE_TYPE_INACTIVE`, lô cùng kho. */
+/**
+ * Lô (hoặc MỘT lệnh chuyển kho với nguồn TRANSFER), loại xe của kế hoạch phải hợp lệ: BR-09, `VEHICLE_TYPE_INACTIVE`,
+ * cùng kho, không trộn nguồn (`LOAD_PLAN_SOURCE_MISMATCH`), lệnh đã đóng gói (`TRANSFER_NOT_PACKED`).
+ */
 export function checkInputs(
   warehouseId: string,
   shipmentIds: readonly string[],
   vehicleTypeIds: readonly string[],
   exceptPlanId?: string,
+  sourceType: MockPlan["sourceType"] = "ORDER",
 ): Err {
   const held = heldPackageIds(exceptPlanId);
+  if (sourceType === "TRANSFER" && shipmentIds.length > 1)
+    return fail(400, "VALIDATION_FAILED", "A transfer plan carries one transfer order", [
+      { field: "transferOrderIds", message: "at most one" },
+    ]);
   for (const id of shipmentIds) {
     const shipment = getMockShipments().find((s) => s.shipmentId === id);
+    if (sourceType === "TRANSFER" && !shipment?.transfer)
+      return fail(
+        409,
+        "TRANSFER_NOT_PACKED",
+        "The transfer order is not packed: only a packed full truckload being picked is planned",
+      );
+    if (sourceType === "ORDER" && shipment?.transfer)
+      return fail(
+        409,
+        "LOAD_PLAN_SOURCE_MISMATCH",
+        "This load plan holds customer orders' shipments only (09 §3)",
+      );
     if (!shipment || shipment.warehouseId !== warehouseId)
-      return fail(409, "SHIPMENT_NOT_FOR_LOAD", "This shipment does not leave on this load");
+      return sourceType === "TRANSFER"
+        ? fail(409, "LOAD_PLAN_SOURCE_MISMATCH", "The transfer leaves from another warehouse")
+        : fail(409, "SHIPMENT_NOT_FOR_LOAD", "This shipment does not leave on this load");
     if (shipment.packages.some((p) => held.has(p.packageId)))
       return fail(
         409,
@@ -96,6 +118,7 @@ export function setInputs(
     input.shipmentIds,
     input.vehicleTypeIds,
     plan.loadPlanId,
+    plan.sourceType,
   );
   if (invalid) return invalid;
   plan.shipmentIds = input.shipmentIds;
@@ -166,9 +189,17 @@ export function recalculateVehicle(
   return null;
 }
 
+/** BE `requireTransferWhole`: lệnh chuyển kho đi nguyên — kế hoạch TRANSFER không để lại kiện nào. */
+function transferWholeError(plan: MockPlan): Err {
+  return plan.sourceType === "TRANSFER" && plan.unplaced.size > 0
+    ? fail(409, "TRANSFER_SHIPS_WHOLE", "A transfer order leaves whole with its load plan")
+    : null;
+}
+
 /** LP-4: đơn không cho giao một phần mà kế hoạch để lại một phần kiện của đơn. */
 function partialShipmentError(plan: MockPlan): Err {
   const blocked = shipmentsOf(plan)
+    .filter((s) => !s.transfer)
     .filter(
       (s) => !s.allowPartialShipment && s.packages.some((p) => plan.unplaced.has(p.packageId)),
     )
@@ -190,7 +221,7 @@ function partialShipmentError(plan: MockPlan): Err {
 export function acknowledgeUnplaced(plan: MockPlan, note: string | null): Err {
   const wrongStatus = requireStatus(plan, "PLANNED");
   if (wrongStatus) return wrongStatus;
-  const blocked = partialShipmentError(plan);
+  const blocked = partialShipmentError(plan) ?? transferWholeError(plan);
   if (blocked) return blocked;
   plan.acknowledgement = { at: new Date().toISOString(), note };
   stamp(plan);
@@ -208,6 +239,8 @@ export function confirm(plan: MockPlan): Err {
       "LOAD_PLAN_NEEDS_RECALCULATION",
       "A vehicle of this load plan lost parcels and must be recalculated first",
     );
+  const whole = transferWholeError(plan);
+  if (whole) return whole;
   if (plan.unplaced.size > 0 && !plan.acknowledgement)
     return fail(
       409,

@@ -3,12 +3,12 @@
 import { useState } from "react";
 import { PackagePlus } from "lucide-react";
 
-import { PACKAGE_TYPES, UI_LABELS } from "@/constants";
+import { UI_LABELS } from "@/constants";
 import { isRetryablePackingError } from "@/features/fulfillment/packing-errors";
 import { useOpenPackage } from "@/features/fulfillment/packing-mutations";
-import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Button } from "@/components/ui/button";
-import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+import { PackageTypeSelect } from "./PackageTypeSelect";
 
 import type { PackageType } from "@/features/fulfillment/packing-types";
 
@@ -37,24 +37,7 @@ export function OpenPackageButton({ taskId }: { taskId: string }) {
 
   return (
     <div className="flex items-center gap-2">
-      <Select
-        value={type}
-        onValueChange={(value) => setType(PACKAGE_TYPES.find((t) => t === value) ?? "CARTON")}
-      >
-        <SelectTrigger
-          aria-label={L.packages.typeLabel}
-          className="border-border-default bg-bg-surface h-8 w-[9.5rem] rounded-[var(--r-sm)] text-[0.8125rem]"
-        >
-          <SelectValue />
-        </SelectTrigger>
-        <TitledSelectContent title={L.packages.typeLabel}>
-          {PACKAGE_TYPES.map((value) => (
-            <SelectItem key={value} value={value}>
-              {L.packages.typeOption[value]}
-            </SelectItem>
-          ))}
-        </TitledSelectContent>
-      </Select>
+      <PackageTypeSelect value={type} onChange={setType} />
       <Button
         type="button"
         size="sm"

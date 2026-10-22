@@ -24,6 +24,7 @@ export const EMPTY_TRANSFER_FORM: TransferFormInput = {
   toWarehouseId: "",
   reason: "",
   expectedDate: "",
+  deliveryMode: "FULL_TRUCKLOAD",
   lines: [{ sku: "", lotNumber: "", quantity: 1 }],
 };
 

@@ -61,11 +61,12 @@ export function LoadShipments({
       {load.shipments.length === 0 && <EmptyState title={L.noShipments} description="" />}
       {load.shipments.map((shipment) => (
         <ShipmentCard
-          key={shipment.shipmentId}
+          key={shipment.shipmentId ?? shipment.transferOrderId ?? shipment.code}
           shipment={shipment}
           currency={load.currency}
           refusal={activeRefusal?.shipmentCode === shipment.code ? activeRefusal : null}
-          canRemove={canEditShipments}
+          // Lệnh chuyển kho trên xe do kế hoạch quản lý (không có lô giao để gỡ)
+          canRemove={canEditShipments && !!shipment.shipmentId}
           canUnscan={canUnscan}
           unscanning={unscan.isPending}
           onRemove={setRemoving}
@@ -90,7 +91,7 @@ export function LoadShipments({
           closeOnConfirm={false}
           onConfirm={() =>
             remove.mutate(
-              { loadId: load.loadId, shipmentId: removing.shipmentId },
+              { loadId: load.loadId, shipmentId: removing.shipmentId ?? "" },
               { onSuccess: () => setRemoving(null), onError: () => setRemoving(null) },
             )
           }

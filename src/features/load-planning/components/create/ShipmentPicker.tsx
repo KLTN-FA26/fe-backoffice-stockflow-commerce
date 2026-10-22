@@ -3,7 +3,7 @@
 import { LOAD_PLAN_LIMITS, UI_LABELS } from "@/constants";
 import { formatDateTime, formatFixed, formatNumber } from "@/lib/format";
 import { formatM3 } from "@/features/load-planning/lib/dims";
-import { totalsOf } from "@/features/load-planning/plan-selectors";
+import { candidateKey, totalsOf } from "@/features/load-planning/plan-selectors";
 import { Alert } from "@/components/shared/Alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,7 +52,7 @@ export function ShipmentPicker({
   if (!candidates || candidates.length === 0)
     return <p className="text-ink-tertiary text-sm">{L.shipmentsEmpty}</p>;
   const totals = totalsOf(candidates, selected);
-  const allSelected = candidates.every((c) => selected.has(c.shipmentId));
+  const allSelected = candidates.every((c) => selected.has(candidateKey(c)));
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
@@ -67,7 +67,7 @@ export function ShipmentPicker({
             onSetAll(
               allSelected
                 ? []
-                : candidates.slice(0, LOAD_PLAN_LIMITS.shipmentsMax).map((c) => c.shipmentId),
+                : candidates.slice(0, LOAD_PLAN_LIMITS.shipmentsMax).map(candidateKey),
             )
           }
         >
@@ -90,13 +90,13 @@ export function ShipmentPicker({
           <TableBody>
             {candidates.map((candidate) => (
               <TableRow
-                key={candidate.shipmentId}
-                data-state={selected.has(candidate.shipmentId) ? "selected" : undefined}
+                key={candidateKey(candidate)}
+                data-state={selected.has(candidateKey(candidate)) ? "selected" : undefined}
               >
                 <TableCell>
                   <Checkbox
-                    checked={selected.has(candidate.shipmentId)}
-                    onCheckedChange={() => onToggle(candidate.shipmentId)}
+                    checked={selected.has(candidateKey(candidate))}
+                    onCheckedChange={() => onToggle(candidateKey(candidate))}
                     aria-label={`${L.shipmentCode} ${candidate.code}`}
                   />
                 </TableCell>

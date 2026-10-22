@@ -62,6 +62,22 @@ describe("LoadPlanList — hiển thị", () => {
       expect(inRow.getAllByText(value).length).toBeGreaterThan(0);
   });
 
+  it("shows the source of each plan: customer orders (also when the BE omits it) or a transfer order (BE PR #164)", async () => {
+    renderList(ACTORS.viewOnly, "", [
+      row({ loadPlanId: "a", code: "LP-A" }),
+      row({ loadPlanId: "b", code: "LP-B", sourceType: "ORDER" }),
+      row({ loadPlanId: "c", code: "LP-C", sourceType: "TRANSFER", shipmentCount: 1 }),
+    ]);
+    expect(
+      await screen.findByRole("columnheader", { name: L.transfer.column.source }),
+    ).toBeInTheDocument();
+    const sourceOf = (code: string) => within(screen.getByText(code).closest("tr") as HTMLElement);
+    expect(sourceOf("LP-A").getByText(L.source.ORDER)).toBeInTheDocument();
+    expect(sourceOf("LP-B").getByText(L.source.ORDER)).toBeInTheDocument();
+    expect(sourceOf("LP-C").getByText(L.source.TRANSFER)).toBeInTheDocument();
+    expect(sourceOf("LP-C").queryByText(L.source.ORDER)).not.toBeInTheDocument();
+  });
+
   it("shows each BE status with its Vietnamese label", async () => {
     renderList(ACTORS.viewOnly, "", [
       row({ loadPlanId: "a", code: "LP-A", status: "DRAFT" }),

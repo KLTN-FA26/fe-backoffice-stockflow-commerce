@@ -21,10 +21,27 @@ export const planInputsSchema = z.object({
   selectionMode: z.enum(LOAD_PLAN_SELECTION_MODES),
 });
 
-export const createPlanFormSchema = planInputsSchema.extend({
+/**
+ * Đầu vào của kế hoạch nguồn TRANSFER (BE PR #164, LP-9; docs 09 §4.2 bước 1): đúng MỘT lệnh chuyển kho, đi nguyên.
+ * `transferOrderIds` @Size(max = 1); BE từ chối trộn với lô giao (`LOAD_PLAN_SOURCE_MISMATCH`).
+ */
+export const transferPlanInputsSchema = z.object({
+  transferOrderIds: z
+    .array(z.string().min(1))
+    .min(1, M.transferRequired)
+    .max(LIMITS.transferOrdersMax, M.transferOnlyOne),
+  vehicleTypeIds: ids(M.vehicleTypesRequired, LIMITS.vehicleTypesMax, M.vehicleTypesTooMany),
+  selectionMode: z.enum(LOAD_PLAN_SELECTION_MODES),
+});
+
+const planHeader = {
   warehouseId: z.string().min(1, M.warehouseRequired),
   note: z.string().trim().max(LIMITS.noteMax, M.noteTooLong).optional(),
-});
+};
+
+export const createPlanFormSchema = planInputsSchema.extend(planHeader);
+
+export const createTransferPlanFormSchema = transferPlanInputsSchema.extend(planHeader);
 
 /** Lý do mở lại / huỷ: bắt buộc, tối đa 500 ký tự (LP-11: lý do đi tới các chuyến bị huỷ). */
 export const planReasonSchema = z.object({
@@ -36,3 +53,4 @@ export const addPackagesSchema = z
   .max(LIMITS.addPackagesMax, M.packagesTooMany);
 
 export type CreatePlanFormValues = z.infer<typeof createPlanFormSchema>;
+export type CreateTransferPlanFormValues = z.infer<typeof createTransferPlanFormSchema>;

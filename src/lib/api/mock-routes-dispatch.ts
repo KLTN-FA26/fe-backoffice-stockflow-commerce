@@ -114,6 +114,8 @@ function registerCarrierAndShipmentRoutes(): void {
     ].map((key) => readString(params[key]));
     const state = await getDispatchState();
     const rows = [...state.shipments.values()]
+      // Dòng của lệnh chuyển kho trên xe (kế hoạch TRANSFER) không phải lô giao
+      .filter((s) => !s.transferOrderId)
       .filter((s) => !warehouse || s.warehouseId === warehouse)
       .filter((s) => !status || s.status === status)
       .filter((s) => !carrier || s.carrierId === carrier)

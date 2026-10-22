@@ -46,7 +46,7 @@ const packagePath = ({ taskId, packageId }: PackageRef) =>
   `${taskPath(taskId)}/packages/${encodeURIComponent(packageId)}`;
 
 /** `PackStatus` BE → tên hiển thị; giá trị lạ (đã được schema đổi thành UNKNOWN) → "Unknown". */
-function displayPackStatus(status: string): SessionPackStatus {
+export function displayPackStatus(status: string): SessionPackStatus {
   const known = PACK_API_STATUSES.find(
     (candidate): candidate is PackApiStatus => candidate === status,
   );

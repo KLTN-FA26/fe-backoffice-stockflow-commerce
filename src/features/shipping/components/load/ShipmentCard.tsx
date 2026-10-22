@@ -3,15 +3,15 @@
 import Link from "next/link";
 import { CheckCircle2, ExternalLink, Trash2 } from "lucide-react";
 
-import { ADMIN_ROUTES, PACK_SHIPMENT_STATUS_DISPLAY, UI_LABELS } from "@/constants";
+import { UI_LABELS } from "@/constants";
 import { formatMoney } from "@/lib/format/money";
 import { reprintLabelHref } from "@/features/shipping/errors";
 import { isShipmentComplete } from "@/features/shipping/selectors";
 import { Alert } from "@/components/shared/Alert";
-import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
 
-import { LoadProgress, MONO } from "../primitives";
+import { LoadProgress } from "../primitives";
+import { ShipmentIdentity } from "./ShipmentIdentity";
 import { ShipmentParcels } from "./ShipmentParcels";
 
 import type { HandoverRefusal } from "@/features/shipping/errors";
@@ -63,19 +63,7 @@ export function ShipmentCard({
     >
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-3">
-          <Link
-            href={ADMIN_ROUTES.shipments.detail(shipment.shipmentId)}
-            className={`text-accent text-[0.875rem] font-semibold hover:underline ${MONO}`}
-          >
-            {shipment.code}
-          </Link>
-          <Link
-            href={ADMIN_ROUTES.orders.detail(shipment.orderId)}
-            className={`text-ink-secondary text-xs hover:underline ${MONO}`}
-          >
-            {shipment.orderNumber ?? shipment.orderId}
-          </Link>
-          <StatusDot domain="shipment" status={PACK_SHIPMENT_STATUS_DISPLAY[shipment.status]} />
+          <ShipmentIdentity shipment={shipment} />
           {complete && (
             <span className="text-positive inline-flex items-center gap-1 text-xs font-medium">
               <CheckCircle2 className="size-3.5" aria-hidden /> {L.shipmentComplete}

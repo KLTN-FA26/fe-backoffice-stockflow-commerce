@@ -159,6 +159,8 @@ export const LOAD_PLAN_COLUMNS = {
   MODE: "mode",
   PACKAGES: "packages",
   SHIPMENTS: "shipments",
+  /** Nguồn của kế hoạch: đơn khách hay lệnh chuyển kho (SCRUM-287 PR F9). */
+  SOURCE: "source",
   STATUS: "status",
   UNPLACED: "unplaced",
   VEHICLES: "vehicles",

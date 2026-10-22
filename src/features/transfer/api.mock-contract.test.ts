@@ -59,6 +59,87 @@ async function createDraftOverThreshold() {
   return beTransferOrderSchema.parse(res.data);
 }
 
+describe("mock /inventory/transfer-orders khớp BE PR #164 (hình thức giao, xuất kho, dừng lấy hàng)", () => {
+  const post = (path: string, body?: unknown) => call("POST", path, body);
+
+  async function draft(deliveryMode?: string) {
+    const seed = [...(await getTransferStore()).values()][0];
+    if (!seed) throw new Error("seed thiếu lệnh chuyển kho");
+    const res = await post("/inventory/transfer-orders", {
+      fromWarehouseId: seed.fromWarehouseId,
+      toWarehouseId: seed.toWarehouseId,
+      deliveryMode,
+      lines: [{ sku: "SOFA-3S-GREY", quantity: 10 }],
+    });
+    return res;
+  }
+
+  it("tạo: mặc định FULL_TRUCKLOAD, chưa đóng gói, hàng chưa rời kho; PARCEL được nhận; giá trị lạ → 400", async () => {
+    signInAs("USER-PLAN-01");
+    const created = beTransferOrderSchema.parse((await draft()).data);
+    expect(created).toMatchObject({ deliveryMode: "FULL_TRUCKLOAD" });
+    expect(created.packedAt ?? undefined).toBeUndefined();
+    expect(created.goodsLeftAt ?? undefined).toBeUndefined();
+    expect(beTransferOrderSchema.parse((await draft("PARCEL")).data).deliveryMode).toBe("PARCEL");
+    expect((await draft("DRONE")).status).toBe(400);
+  });
+
+  it("sửa nháp đổi được hình thức giao; ngoài DRAFT → 409 TRANSFER_ORDER_NOT_EDITABLE", async () => {
+    signInAs("USER-PLAN-01");
+    const created = beTransferOrderSchema.parse((await draft()).data);
+    const put = (version: number, deliveryMode: string) =>
+      call("PUT", `/inventory/transfer-orders/${created.transferId}`, {
+        version,
+        fromWarehouseId: created.fromWarehouseId,
+        toWarehouseId: created.toWarehouseId,
+        deliveryMode,
+        lines: [{ sku: "SOFA-3S-GREY", quantity: 10 }],
+      });
+    const edited = beTransferOrderSchema.parse((await put(created.version, "PARCEL")).data);
+    expect(edited.deliveryMode).toBe("PARCEL");
+    await post(`/inventory/transfer-orders/${created.transferId}/submission`);
+    const locked = await put(edited.version + 1, "FULL_TRUCKLOAD");
+    expect(locked.data).toMatchObject({ errorCode: "TRANSFER_ORDER_NOT_EDITABLE" });
+  });
+
+  it("xuất kho tay: FULL_TRUCKLOAD → 409 TRANSFER_DISPATCH_BY_LOAD_PLAN; PARCEL xuất được", async () => {
+    signInAs("USER-PLAN-01");
+    for (const [mode, expectedOk] of [
+      ["FULL_TRUCKLOAD", false],
+      ["PARCEL", true],
+    ] as const) {
+      const created = beTransferOrderSchema.parse((await draft(mode)).data);
+      const base = `/inventory/transfer-orders/${created.transferId}`;
+      await post(`${base}/submission`);
+      await post(`${base}/picking`);
+      const dispatched = await post(`${base}/dispatch`, {
+        lines: [{ lineId: created.lines[0]?.lineId, shippedQuantity: 5 }],
+      });
+      if (expectedOk) expect(dispatched.status).toBe(200);
+      else {
+        expect(dispatched.status).toBe(409);
+        expect(dispatched.data).toMatchObject({ errorCode: "TRANSFER_DISPATCH_BY_LOAD_PLAN" });
+      }
+    }
+  });
+
+  it("dừng lấy hàng khi hàng đã rời kho → 409 TRANSFER_GOODS_LEFT, lệnh giữ nguyên", async () => {
+    signInAs("USER-PLAN-01");
+    const created = beTransferOrderSchema.parse((await draft()).data);
+    const base = `/inventory/transfer-orders/${created.transferId}`;
+    await post(`${base}/submission`);
+    await post(`${base}/picking`);
+    const store = await getTransferStore();
+    const current = store.get(created.transferId);
+    if (!current) throw new Error("mất lệnh");
+    store.set(created.transferId, { ...current, goodsLeftAt: "2026-10-22T06:00:00Z" });
+    const res = await post(`${base}/picking-cancellation`);
+    expect(res.status).toBe(409);
+    expect(res.data).toMatchObject({ errorCode: "TRANSFER_GOODS_LEFT" });
+    expect(store.get(created.transferId)?.status).toBe("PICKING");
+  });
+});
+
 describe("mock /inventory/transfer-orders khớp BE", () => {
   it("four-eyes: người gửi duyệt tự duyệt / từ chối → 409 TRANSFER_SELF_APPROVAL; người khác duyệt được", async () => {
     signInAs("USER-PLAN-01");

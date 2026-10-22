@@ -118,3 +118,63 @@ export function ftlManifest(patch: Partial<Manifest> = {}): Manifest {
     ...patch,
   };
 }
+
+/* ── Xe của kế hoạch nguồn TRANSFER (BE PR #164): dòng của xe là MỘT lệnh chuyển kho ───────────────────────────── */
+
+export const TRANSFER_ORDER_ID = "to-ftl-1";
+export const TRANSFER_NUMBER = "TO-20261022-0001";
+
+/**
+ * Dòng biên bản của lệnh chuyển kho: `shipmentId` / `orderId` / `orderNumber` / `taskId` vắng, `code` là số lệnh, chỉ có
+ * `transferOrderId`; không thu hộ.
+ */
+export function transferShipment(
+  parcels: LoadParcel[],
+  patch: Partial<Load["shipments"][number]> = {},
+): Load["shipments"][number] {
+  return {
+    code: TRANSFER_NUMBER,
+    transferOrderId: TRANSFER_ORDER_ID,
+    status: "UNKNOWN",
+    packageCount: parcels.length,
+    loadedCount: parcels.filter((p) => p.loaded).length,
+    labelCodAmount: 0,
+    packages: parcels,
+    ...patch,
+  };
+}
+
+/** Xe số 1 của một kế hoạch TRANSFER đã đặt xe, chở một lệnh chuyển kho (hai kiện, chưa quét). */
+export function transferLoad(patch: Partial<Load> = {}): Load {
+  return ftlLoad({
+    shipments: [transferShipment([ftlParcel("PKG-TO-1-1", false), ftlParcel("PKG-TO-1-2", false)])],
+    loadPlanCode: "LP-2026-0005",
+    ...patch,
+  });
+}
+
+export function transferManifest(patch: Partial<Manifest> = {}): Manifest {
+  return ftlManifest({
+    shipments: [
+      {
+        shipmentCode: TRANSFER_NUMBER,
+        transferOrderId: TRANSFER_ORDER_ID,
+        recipientName: "Kho Đà Nẵng",
+        deliveryAddress: "12 Nguyễn Văn Linh, Đà Nẵng",
+        packageCount: 2,
+        weightKg: 37,
+        codAmount: 0,
+        codChangedSinceLabel: false,
+        packages: [
+          { labelCode: "PKG-TO-1-1", weightKg: 18.5, loaded: true, labelOutdated: false },
+          { labelCode: "PKG-TO-1-2", weightKg: 18.5, loaded: false, labelOutdated: false },
+        ],
+      },
+    ],
+    shipmentCount: 1,
+    packageCount: 2,
+    totalWeightKg: 37,
+    codTotal: 0,
+    ...patch,
+  });
+}

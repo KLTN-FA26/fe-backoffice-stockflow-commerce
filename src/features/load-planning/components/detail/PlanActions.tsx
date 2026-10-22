@@ -10,6 +10,7 @@ const L = UI_LABELS.loadPlan.detail;
 const BLOCK_TEXT: Record<ConfirmBlock, string> = {
   noVehicles: L.noVehicles,
   needsRecalculation: L.needsRecalculationAlert,
+  transferShipsWhole: UI_LABELS.loadPlan.transfer.detail.shipsWholeBlocked,
   unplacedPending: L.unplaced.pending,
 };
 

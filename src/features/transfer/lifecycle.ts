@@ -9,7 +9,9 @@
 import { TRANSFER_PERMISSIONS, TRANSFER_STATUS, UI_LABELS } from "@/constants";
 import { TRANSFER_TRANSITIONS } from "@/lib/domain/lifecycle";
 
-import type { TransferStatus } from "@/constants";
+import { FTL_TRANSFER_ACTIONS, isFtl } from "./ftl-lifecycle";
+
+import type { DeliveryMode, TransferStatus } from "@/constants";
 import type { PermissionCode } from "@/lib/auth";
 
 const LABEL = UI_LABELS.transfer.action;
@@ -24,7 +26,10 @@ export type TransferActionCode =
   | "startPicking"
   | "cancelPicking"
   | "dispatch"
-  | "cancel";
+  | "cancel"
+  // SCRUM-287 PR F9: lệnh nguyên chuyến (FTL) — chuyển sang trạm đóng gói / màn lập kế hoạch xe
+  | "packTransfer"
+  | "planVehicle";
 
 export interface TransferAction {
   readonly code: TransferActionCode;
@@ -38,11 +43,21 @@ export interface TransferAction {
   readonly requiresReason?: boolean;
   /** Người gửi duyệt không tự duyệt / từ chối — four-eyes (docs 10 §2: Approver phê duyệt TO; BE TransferOrder TRANSFER_SELF_APPROVAL / ck_transfer_order_four_eyes). */
   readonly fourEyes?: boolean;
+  /** Điều kiện thêm ngoài trạng thái + quyền (hình thức giao, đã đóng gói, đã có hàng rời kho). */
+  readonly when?: (transfer: TransferGateState) => boolean;
+  /** Hiện nút nhưng khoá kèm lý do (khác với `when`: ẩn hẳn). */
+  readonly lockedReason?: (transfer: TransferGateState) => string | undefined;
 }
 
 export interface TransferGateState {
   status: TransferStatus;
   submittedBy?: string | null;
+  /** LP2-8: nguyên chuyến (FTL, mặc định) hay giao lẻ — quyết định đóng gói / kế hoạch xe / xuất kho thủ công. */
+  deliveryMode: DeliveryMode;
+  /** Đóng gói xong (sẵn sàng lập kế hoạch xe). */
+  packedAt?: string | null;
+  /** BR-04 (docs 10): chiếc xe đầu tiên đã được ký nhận — hàng đã rời kho nguồn. */
+  goodsLeftAt?: string | null;
 }
 
 export interface AllowedTransferAction {
@@ -60,7 +75,10 @@ export const TRANSFER_ACTIONS: readonly TransferAction[] = [
     fromStatuses: [S.PICKING],
     targetStatus: S.IN_TRANSIT,
     tone: "primary",
+    // BE 409 TRANSFER_DISPATCH_BY_LOAD_PLAN: lệnh nguyên chuyến do xe cuối của kế hoạch xe xuất, không xuất thủ công
+    when: (transfer) => !isFtl(transfer),
   },
+  ...FTL_TRANSFER_ACTIONS,
   {
     code: "startPicking",
     label: LABEL.startPicking,
@@ -112,6 +130,11 @@ export const TRANSFER_ACTIONS: readonly TransferAction[] = [
     fromStatuses: [S.PICKING],
     targetStatus: S.APPROVED,
     tone: "secondary",
+    // BE 409 TRANSFER_GOODS_LEFT (docs 10 BR-04): xe đầu đã ký nhận thì không dừng lấy hàng nữa
+    lockedReason: (transfer) =>
+      transfer.goodsLeftAt
+        ? UI_LABELS.transfer.deliveryMode.goodsLeftCannotCancelPicking
+        : undefined,
   },
   {
     code: "cancel",
@@ -141,13 +164,16 @@ export function allowedTransferActions(
     return (
       action.fromStatuses.includes(transfer.status) &&
       allowedByTable &&
-      action.permissions.every(can)
+      action.permissions.every(can) &&
+      (action.when?.(transfer) ?? true)
     );
-  }).map((action) =>
-    action.fourEyes && isOwnSubmission(transfer.submittedBy, currentUserId)
-      ? { action, disabledReason: UI_LABELS.transfer.disabledReason.selfApproval }
-      : { action },
-  );
+  }).map((action) => {
+    const reason =
+      action.fourEyes && isOwnSubmission(transfer.submittedBy, currentUserId)
+        ? UI_LABELS.transfer.disabledReason.selfApproval
+        : action.lockedReason?.(transfer);
+    return reason ? { action, disabledReason: reason } : { action };
+  });
 }
 
 export function isOwnSubmission(
@@ -157,38 +183,10 @@ export function isOwnSubmission(
   return Boolean(submittedBy && currentUserId && submittedBy === currentUserId);
 }
 
-const NO_ACTIONS = UI_LABELS.transfer.noActions;
-
-/**
- * Câu thay cho nút khi người dùng không còn thao tác nào với lệnh — `Record` để thêm trạng thái mới
- * mà quên câu thì compiler báo.
- */
-export const TRANSFER_NO_ACTION_REASON: Record<TransferStatus, string> = {
-  DRAFT: NO_ACTIONS.viewOnly,
-  PENDING_APPROVAL: NO_ACTIONS.pendingApproval,
-  APPROVED: NO_ACTIONS.viewOnly,
-  PICKING: NO_ACTIONS.viewOnly,
-  IN_TRANSIT: NO_ACTIONS.inTransit,
-  PARTIALLY_RECEIVED: NO_ACTIONS.partiallyReceived,
-  RECEIVED: NO_ACTIONS.received,
-  COMPLETED: NO_ACTIONS.terminal,
-  CLOSED: NO_ACTIONS.terminal,
-  CANCELLED: NO_ACTIONS.terminal,
-};
-
-/** Chỉ DRAFT sửa được (BE TRANSFER_ORDER_NOT_EDITABLE, SCRUM-462). */
-export function isTransferEditable(status: TransferStatus): boolean {
-  return status === S.DRAFT;
-}
-
-/** Hàng đang trên đường tới kho đích (chưa nhận đủ). */
-export function isTransferInTransit(status: TransferStatus): boolean {
-  return status === S.IN_TRANSIT || status === S.PARTIALLY_RECEIVED;
-}
-
-/** Đã rời kho nguồn: hiện SL xuất + thời điểm xuất. */
-export function isTransferDispatched(status: TransferStatus): boolean {
-  return (
-    [S.IN_TRANSIT, S.PARTIALLY_RECEIVED, S.RECEIVED, S.COMPLETED, S.CLOSED] as TransferStatus[]
-  ).includes(status);
-}
+export {
+  TRANSFER_NO_ACTION_REASON,
+  isTransferDispatched,
+  isTransferEditable,
+  isTransferInTransit,
+} from "./status-helpers";
+export { dispatchExplanation, nextStepHint } from "./ftl-lifecycle";

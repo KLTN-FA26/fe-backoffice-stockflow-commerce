@@ -15,6 +15,13 @@ export const SHIPPING_FTL_LABELS = {
   planCard: "Xe của kế hoạch xếp xe",
   planCardHint:
     "Chuyến nguyên xe do kế hoạch xếp xe tạo ra: kiện của xe này do kế hoạch xếp, không thêm / bớt lô tay. Thay đổi phải đi qua kế hoạch.",
+  /* ── Lệnh chuyển kho trên xe (kế hoạch nguồn TRANSFER, BE PR #164) ── */
+  transfer: {
+    badge: "Lệnh chuyển kho",
+    badgeTitle:
+      "Xe này chở một lệnh chuyển kho nguyên chuyến: người nhận là kho đích, không thu hộ. Hàng chỉ rời kho nguồn khi xe cuối cùng của kế hoạch được bàn giao.",
+    manageByPlan: "Lệnh chuyển kho do kế hoạch xếp xe quản lý — thay đổi qua kế hoạch.",
+  },
   /* ── Đặt xe ─────────────────────────────────────────────────────── */
   booking: {
     title: "Đặt xe với hãng",

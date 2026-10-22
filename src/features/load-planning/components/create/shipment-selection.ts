@@ -21,3 +21,24 @@ export function shipmentIdsToSend(
   );
   return replay ? [...selected] : selected.filter((id) => known.has(id));
 }
+
+/**
+ * Lệnh chuyển kho gửi đi khi lập kế hoạch nguồn TRANSFER — cùng quy tắc `shipmentIdsToSend`: chỉ gửi lệnh còn trong danh
+ * sách ứng viên, trừ khi đã có `requestId` nhớ cho đúng lựa chọn này (một lần gửi trước mất phản hồi: BE có thể đã tạo bản
+ * nháp giữ các kiện của lệnh nên lệnh không còn là ứng viên) — khi đó gửi nguyên để replay.
+ */
+export function transferIdsToSend(
+  selected: readonly string[],
+  known: ReadonlySet<string>,
+  rest: Omit<CreatePlanInput, "requestId" | "shipmentIds" | "transferOrderIds" | "sourceType">,
+): string[] {
+  const replay = hasCreatePlanRequestId(
+    createPlanFingerprint({
+      ...rest,
+      sourceType: "TRANSFER",
+      shipmentIds: [],
+      transferOrderIds: [...selected],
+    }),
+  );
+  return replay ? [...selected] : selected.filter((id) => known.has(id));
+}

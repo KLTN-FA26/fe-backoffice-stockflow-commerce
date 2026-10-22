@@ -5,6 +5,7 @@ import { useState } from "react";
 import { UI_LABELS } from "@/constants";
 import { colorMapForLayouts } from "@/features/load-planning/lib/palette";
 import {
+  isTransferPlan,
   layoutsForItemTable,
   pickedOnTray,
   unplacedLinesOf,
@@ -91,6 +92,7 @@ export function LoadingTab({
         acknowledged={!!plan.unplacedAcknowledgement}
         canReturn={actions.recalculateVehicle}
         canAcknowledge={actions.acknowledge}
+        shipsWhole={isTransferPlan(plan)}
         vehicleSeq={vehicle?.seq ?? null}
         selected={selected}
         pending={recalc.pending}

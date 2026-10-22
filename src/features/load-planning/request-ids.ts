@@ -44,7 +44,9 @@ function readStored(): StoredRequest | undefined {
 export function createPlanFingerprint(intent: Omit<CreatePlanInput, "requestId">): string {
   return JSON.stringify([
     intent.warehouseId,
+    intent.sourceType ?? "ORDER",
     [...intent.shipmentIds].sort(),
+    [...(intent.transferOrderIds ?? [])].sort(),
     [...intent.vehicleTypeIds].sort(),
     intent.selectionMode,
     intent.note?.trim() ?? "",

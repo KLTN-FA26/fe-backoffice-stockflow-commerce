@@ -104,8 +104,55 @@ export function seedFtlScenario(
     },
   });
 
+  seedTransferVehicle(state, warehouseId);
+
   // Lô của kế hoạch giữ trên xe đầu tiên của nó (BE: lô FTL không đưa lên chuyến khác)
   shipA.loadId = v1.loadId;
   shipB.loadId = v1.loadId;
   shipD.loadId = v3.loadId;
+}
+
+/** Số kiện của lệnh chuyển kho seed trên xe mẫu (khớp `TO-2026-0006` của kế hoạch xếp xe). */
+const TRANSFER_PARCELS = 2;
+
+/**
+ * Xe thứ năm là của kế hoạch nguồn TRANSFER (BE PR #164): một lệnh chuyển kho đã đóng gói đi nguyên chuyến — dòng biên
+ * bản mang số lệnh và `transferOrderId`, người nhận là kho đích, không COD.
+ */
+function seedTransferVehicle(state: DispatchState, warehouseId: string): void {
+  const parcels = Array.from({ length: TRANSFER_PARCELS }, (_, i) =>
+    parcel("TO-2026-0006", i + 1, { lengthCm: 60, widthCm: 40, heightCm: 35, weightKg: 18.5 }),
+  );
+  const base = shipmentOf(
+    { orderId: "TO-2026-0006", orderNumber: "TO-2026-0006", recipientName: "Kho Đà Nẵng" },
+    warehouseId,
+    parcels,
+  );
+  const transfer = {
+    ...base,
+    shipmentId: "to-ftl-TO-2026-0006",
+    code: "TO-2026-0006",
+    orderId: "",
+    orderNumber: "",
+    transferOrderId: "TO-2026-0006",
+  };
+  state.shipments.set(transfer.shipmentId, transfer);
+  const v5 = vehicle(state, 5, warehouseId, "VEHICLE_BOOKED", {
+    placed: parcels,
+    members: [transfer],
+    ftl: {
+      loadPlanId: "LP-2026-0005",
+      loadPlanCode: "LP-2026-0005",
+      vehicleSeq: 1,
+      vehicleTypeCode: TRUCK,
+      placed: new Set(parcels.map((p) => p.packageId)),
+      bookedAt: "2026-10-22T05:00:00Z",
+      bookedBy: DISPATCHER,
+      bookingCancelledAt: null,
+      bookingCancelReason: null,
+      pendingUnloads: [],
+      carrierBookingToCancel: false,
+    },
+  });
+  transfer.loadId = v5.loadId;
 }

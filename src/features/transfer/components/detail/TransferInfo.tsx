@@ -1,6 +1,6 @@
 "use client";
 
-import { TRANSFER_REASON_LABELS, UI_LABELS } from "@/constants";
+import { TRANSFER_DELIVERY_MODE_LABELS, TRANSFER_REASON_LABELS, UI_LABELS } from "@/constants";
 import { useAuthStore } from "@/lib/auth";
 import { formatDate, formatDateTime } from "@/lib/format/date";
 import { isTransferDispatched, isTransferInTransit } from "@/features/transfer/lifecycle";
@@ -51,6 +51,24 @@ export function TransferInfo({ transfer }: { transfer: TransferOrder }) {
         <InfoItem
           label={UI_LABELS.transfer.column.dispatchedAt}
           value={dt(transfer.dispatchedAt)}
+        />
+        <InfoItem
+          label={UI_LABELS.transfer.deliveryMode.label}
+          value={TRANSFER_DELIVERY_MODE_LABELS[transfer.deliveryMode]}
+        />
+        <InfoItem
+          label={UI_LABELS.transfer.deliveryMode.packedAt}
+          value={
+            transfer.packedAt ? dt(transfer.packedAt) : UI_LABELS.transfer.deliveryMode.notPacked
+          }
+        />
+        <InfoItem
+          label={UI_LABELS.transfer.deliveryMode.goodsLeftAt}
+          value={
+            transfer.goodsLeftAt
+              ? dt(transfer.goodsLeftAt)
+              : UI_LABELS.transfer.deliveryMode.notLeft
+          }
         />
       </div>
       {transfer.cancelReason && (
