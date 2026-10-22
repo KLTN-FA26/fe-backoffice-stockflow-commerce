@@ -6,7 +6,7 @@
  * (`fulfillment-load-plans:CREATE` trên POST, `:UPDATE` trên mọi bước sau; BR-13, BR-14, LP-4).
  */
 
-import { LOAD_PLAN_PERMISSIONS, LOAD_PLAN_STATUS } from "@/constants";
+import { LOAD_PLAN_PERMISSIONS, LOAD_PLAN_STATUS, LOAD_STATUS } from "@/constants";
 
 import type { LoadPlanStatus } from "@/constants";
 import type { PermissionCode } from "@/lib/auth";
@@ -52,7 +52,10 @@ const NONE: LoadPlanActions = {
 };
 
 /** Chuyến của một xe đã bắt đầu xếp hàng hoặc đã đi: BE không cho mở lại / huỷ nữa (BR-14, `LOAD_PLAN_LOADING_STARTED`). */
-const LOADING_LOAD_STATUSES: ReadonlySet<string> = new Set(["LOADING", "DISPATCHED"]);
+const LOADING_LOAD_STATUSES: ReadonlySet<string> = new Set([
+  LOAD_STATUS.LOADING,
+  LOAD_STATUS.DISPATCHED,
+]);
 const loadingStarted = (plan: PlanDetail): boolean =>
   plan.vehicles.some((vehicle) => !!vehicle.load && LOADING_LOAD_STATUSES.has(vehicle.load.status));
 
