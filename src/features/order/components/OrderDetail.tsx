@@ -12,8 +12,6 @@ import { BackLink } from "@/components/shared/BackLink";
 
 import { useOrder } from "../queries";
 
-import type { OrderEstimateSlot } from "../estimate-slot";
-
 import { OrderActionCard } from "./OrderActionCard";
 import { OrderDeliveryModeCard } from "./OrderDeliveryModeCard";
 import { OrderFinanceCard } from "./OrderFinanceCard";
@@ -25,6 +23,8 @@ import { OrderPartialShipmentCard } from "./OrderPartialShipmentCard";
 import { OrderPermissionGate } from "./OrderPermissionGate";
 import { OrderShipments } from "./OrderShipments";
 import { OrderDetailSkeleton } from "./OrderSkeletons";
+
+import type { OrderEstimateSlot } from "../estimate-slot";
 
 interface OrderDetailProps {
   params: Promise<{ id: string }>;

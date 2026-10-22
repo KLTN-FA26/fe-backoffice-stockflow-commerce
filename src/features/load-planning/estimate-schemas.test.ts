@@ -92,7 +92,8 @@ describe("LoadEstimateSchema — hợp đồng BE PR #160", () => {
   it("Layout sai hợp đồng (ref trùng trong xe) bị từ chối ở biên", () => {
     const body = apiEstimate();
     const [vehicle] = body.vehicles;
-    const dup = { ...vehicle, boxes: [vehicle!.boxes[0], vehicle!.boxes[0]] };
+    if (!vehicle) throw new Error("fixture apiEstimate() phải có ít nhất một xe");
+    const dup = { ...vehicle, boxes: [vehicle.boxes[0], vehicle.boxes[0]] };
     expect(LoadEstimateSchema.safeParse({ ...body, vehicles: [dup] }).success).toBe(false);
   });
 });
