@@ -14,6 +14,7 @@ import { useLoadPlan, useLoadPlanLayouts } from "@/features/load-planning/querie
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { PageTabs } from "@/components/shared/PageTabs";
 
+import { PlacementEditorGate } from "./editor/PlacementEditorGate";
 import { LayoutMetrics } from "./report/LayoutMetrics";
 
 import { DetailLoadError } from "./detail/DetailLoadError";
@@ -40,6 +41,8 @@ function DetailBody({ id }: { id: string }) {
   const [tab, setTab] = useQueryState("tab", parseAsStringLiteral(TABS).withDefault("loading"));
   const [dialog, setDialog] = useState<PlanDialogKind | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // Chỉnh xếp tay (PR F5): thay phần tab bằng trình soạn tới khi lưu hoặc thoát
+  const [editing, setEditing] = useState(false);
   useBreadcrumbLabel(id, plan?.code);
 
   if (!canRead) return <DetailLoadError error={null} kind="no-read" />;
@@ -67,7 +70,11 @@ function DetailBody({ id }: { id: string }) {
       <PlanHeaderCard
         plan={plan}
         warehouseLabel={warehouseLabel}
-        actions={<PlanActions actions={actions} onOpen={setDialog} />}
+        actions={
+          editing ? null : (
+            <PlanActions actions={actions} onOpen={setDialog} onEdit={() => setEditing(true)} />
+          )
+        }
       />
       <PlanNotices
         plan={plan}
@@ -78,31 +85,43 @@ function DetailBody({ id }: { id: string }) {
         onRetry={() => void query.refetch()}
         onDismiss={() => setNotice(null)}
       />
-      {layouts.data && hasVehicles && <LayoutMetrics summary={summarizePlan(layouts.data, plan)} />}
-      <PageTabs
-        tabs={[
-          { value: "loading", label: L.tabs.loading, count: plan.vehicles.length },
-          { value: "reconciliation", label: L.tabs.reconciliation },
-        ]}
-        value={tab}
-        onChange={(next) => void setTab(next)}
-        idPrefix="load-plan"
-        ariaLabel={L.tabsAria}
-      />
-      <div id={`load-plan-panel-${tab}`} role="tabpanel" aria-labelledby={`load-plan-tab-${tab}`}>
-        {tab === "loading" ? (
-          <LoadingTab
-            plan={plan}
-            layouts={layouts.data}
-            layoutsFailed={layouts.isError}
-            actions={actions}
-            onNotice={setNotice}
-            onAcknowledge={() => setDialog("acknowledge")}
+      {editing ? (
+        <PlacementEditorGate plan={plan} layouts={layouts.data} onExit={() => setEditing(false)} />
+      ) : (
+        <>
+          {layouts.data && hasVehicles && (
+            <LayoutMetrics summary={summarizePlan(layouts.data, plan)} />
+          )}
+          <PageTabs
+            tabs={[
+              { value: "loading", label: L.tabs.loading, count: plan.vehicles.length },
+              { value: "reconciliation", label: L.tabs.reconciliation },
+            ]}
+            value={tab}
+            onChange={(next) => void setTab(next)}
+            idPrefix="load-plan"
+            ariaLabel={L.tabsAria}
           />
-        ) : (
-          <ReconciliationTab loadPlanId={plan.loadPlanId} />
-        )}
-      </div>
+          <div
+            id={`load-plan-panel-${tab}`}
+            role="tabpanel"
+            aria-labelledby={`load-plan-tab-${tab}`}
+          >
+            {tab === "loading" ? (
+              <LoadingTab
+                plan={plan}
+                layouts={layouts.data}
+                layoutsFailed={layouts.isError}
+                actions={actions}
+                onNotice={setNotice}
+                onAcknowledge={() => setDialog("acknowledge")}
+              />
+            ) : (
+              <ReconciliationTab loadPlanId={plan.loadPlanId} />
+            )}
+          </div>
+        </>
+      )}
       <PlanDialogs plan={plan} dialog={dialog} onClose={() => setDialog(null)} />
     </>
   );
