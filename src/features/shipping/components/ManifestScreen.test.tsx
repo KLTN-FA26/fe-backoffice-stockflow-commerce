@@ -52,7 +52,7 @@ describe("ManifestScreen — biên bản bàn giao in được", () => {
       shipments: [
         {
           ...(base.shipments[0] as NonNullable<(typeof base.shipments)[0]>),
-          packages: [{ labelCode: "PKG-SO-1-1", loaded: false }],
+          packages: [{ labelCode: "PKG-SO-1-1", loaded: false, labelOutdated: false }],
         },
       ],
     });

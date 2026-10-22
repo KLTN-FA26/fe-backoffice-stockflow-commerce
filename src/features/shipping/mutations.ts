@@ -39,7 +39,9 @@ import type {
 
 /** = `orderKeys.all` của features/order — khai báo lại để không import chéo feature. */
 const ORDER_ROOT_KEY = ["orders"] as const;
-const LOAD_LIST_KEY = [...loadKeys.all, "list"] as const;
+/** = `loadPlanKeys.all` của features/load-planning — xe bàn giao / bắt đầu xếp làm đổi trạng thái kế hoạch. */
+export const LOAD_PLAN_ROOT_KEY = ["fulfillment-load-plans"] as const;
+export const LOAD_LIST_KEY = [...loadKeys.all, "list"] as const;
 const T = TOAST_MESSAGES.shipping;
 
 /**
@@ -48,7 +50,7 @@ const T = TOAST_MESSAGES.shipping;
  * SAU response sẽ ghi đè bằng bản cũ (kiện vừa quét nhảy về "Chưa lên xe", bàn giao dùng version cũ
  * → OPTIMISTIC_LOCK).
  */
-function withLoadCache<TInput>(
+export function withLoadCache<TInput>(
   useBase: ReturnType<typeof createMutation<TInput, Load>>,
   loadIdOf?: (input: TInput) => string,
 ) {
@@ -86,10 +88,10 @@ function withLoadCache<TInput>(
   };
 }
 
-const toastError = (error: unknown) => toast.error(shippingErrorMessage(error));
+export const toastError = (error: unknown) => toast.error(shippingErrorMessage(error));
 
 /** Dialog hiện lỗi inline (`showErrorToast: false`); lỗi dữ liệu cũ vẫn toast vì dialog có thể đóng ngay. */
-const toastIfStale = (error: unknown) => {
+export const toastIfStale = (error: unknown) => {
   if (isStaleLoadError(error)) toastError(error);
 };
 
@@ -143,7 +145,7 @@ export const useUnscanPackage = withLoadCache(
 
 export const useHandoverLoad = withLoadCache(
   createMutation<HandoverLoadInput, Load>(handoverLoad, {
-    invalidate: [loadKeys.all, shipmentKeys.all, ORDER_ROOT_KEY],
+    invalidate: [loadKeys.all, shipmentKeys.all, ORDER_ROOT_KEY, LOAD_PLAN_ROOT_KEY],
     successMessage: T.handedOver,
     // Dialog bàn giao hiện lỗi inline; lỗi dữ liệu cũ thì toast (dialog có thể đóng ngay khi tải lại)
     showErrorToast: false,

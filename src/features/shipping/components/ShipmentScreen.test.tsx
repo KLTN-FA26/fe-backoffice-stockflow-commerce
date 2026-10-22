@@ -40,6 +40,29 @@ function renderShipment(
   return spies;
 }
 
+describe("ShipmentScreen — nhãn kiện cũ", () => {
+  it("kiện có labelOutdated hiện 'Cần in lại nhãn'; kiện còn đúng nhãn thì không", async () => {
+    const base = shipment();
+    renderShipment(ACTORS.warehouseStaff, {
+      ...base,
+      packages: [
+        { packageId: "p1", labelCode: "PKG-SO-1-1", status: "SEALED", labelOutdated: true },
+        { packageId: "p2", labelCode: "PKG-SO-1-2", status: "SEALED", labelOutdated: false },
+      ],
+    });
+    await screen.findByRole("heading", { name: `${L.title} · SO-1-S1` });
+    const rows = screen.getAllByRole("row");
+    const outdated = rows.find((row) => within(row).queryByText("PKG-SO-1-1"));
+    const fine = rows.find((row) => within(row).queryByText("PKG-SO-1-2"));
+    expect(
+      within(outdated as HTMLElement).getByText(UI_LABELS.shipping.ftl.parcel.labelOutdated),
+    ).toBeInTheDocument();
+    expect(
+      within(fine as HTMLElement).queryByText(UI_LABELS.shipping.ftl.parcel.labelOutdated),
+    ).not.toBeInTheDocument();
+  });
+});
+
 describe("ShipmentScreen — chi tiết lô giao", () => {
   it("hiện đơn (liên kết), kho, kiện, lịch sử với người ghi nhận; không mã vận đơn", async () => {
     renderShipment(

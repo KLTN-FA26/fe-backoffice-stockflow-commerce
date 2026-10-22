@@ -1,6 +1,6 @@
 /**
  * Shipping (module 09) — zod DTO chuyến xe khớp BE PR #137: `LoadRowResponse`, `LoadResponse`,
- * `ManifestResponse`. Quy ước null / enum khoan dung như `schemas.ts`.
+ * `ManifestResponse`; trường chuyến nguyên xe (BE PR #162) ở `ftl-schemas.ts`. Quy ước null / enum khoan dung như `schemas.ts`.
  */
 
 import { z } from "zod";
@@ -8,6 +8,7 @@ import { z } from "zod";
 import { LOAD_STATUSES } from "@/constants";
 import { bePageSchema } from "@/lib/api/page-schema";
 
+import { ftlLoadFields, ftlManifestFields, ftlRowFields, parcelFtlFields } from "./ftl-schemas";
 import {
   count,
   deliveryModeSchema,
@@ -37,6 +38,7 @@ export const beLoadRowSchema = z.object({
   loadingStartedAt: isoInstant.nullish(),
   dispatchedAt: isoInstant.nullish(),
   version: z.number().int(),
+  ...ftlRowFields,
 });
 
 export const beLoadPageSchema = bePageSchema(beLoadRowSchema);
@@ -50,6 +52,7 @@ export const beLoadParcelSchema = z.object({
   loaded: z.boolean(),
   loadedAt: isoInstant.nullish(),
   loadedBy: z.string().nullish(),
+  ...parcelFtlFields,
 });
 
 /** BE `LoadResponse.Shipment` — `labelCodAmount`: COD trên nhãn; `codAmount`: số đơn chốt, chỉ có sau bàn giao. */
@@ -104,6 +107,7 @@ export const beLoadSchema = z.object({
   currency: z.string().nullish(),
   version: z.number().int(),
   shipments: z.array(beLoadShipmentSchema),
+  ...ftlLoadFields,
 });
 
 /* ── Biên bản in ─────────────────────────────────────────────────────── */
@@ -115,6 +119,7 @@ export const beManifestParcelSchema = z.object({
   widthCm: measure.nullish(),
   heightCm: measure.nullish(),
   loaded: z.boolean(),
+  ...parcelFtlFields,
 });
 
 /** BE `ManifestResponse.Shipment` — `codChangedSinceLabel`: số thu theo đơn khác nhãn (tiền về sau khi in nhãn). */
@@ -156,4 +161,5 @@ export const beManifestSchema = z.object({
   codTotal: measure.nullish(),
   currency: z.string().nullish(),
   printedAt: isoInstant,
+  ...ftlManifestFields,
 });

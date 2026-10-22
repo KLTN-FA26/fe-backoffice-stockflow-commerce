@@ -122,13 +122,17 @@ describe("mock giao hàng cho hãng khớp schema FE", () => {
     const carriers = beCarrierPageSchema.parse((await call("GET", "/fulfillment/carriers")).data);
     expect(carriers.items.length).toBeGreaterThan(0);
     const all = await shipments();
+    // CANCELLED: lô của đơn đã huỷ khi xe nguyên xe đang xếp (kiện cần dỡ)
     expect(new Set(all.map((s) => s.status))).toEqual(
-      new Set(["READY_TO_DISPATCH", "HANDED_OVER", "DELIVERY_FAILED"]),
+      new Set(["READY_TO_DISPATCH", "HANDED_OVER", "DELIVERY_FAILED", "CANCELLED"]),
     );
     const loads = beLoadPageSchema.parse(
       (await call("GET", LOADS, undefined, { size: "50" })).data,
     );
-    expect(new Set(loads.items.map((l) => l.status))).toEqual(new Set(["LOADING", "DISPATCHED"]));
+    expect(new Set(loads.items.map((l) => l.status))).toEqual(
+      new Set(["PLANNED", "VEHICLE_BOOKED", "LOADING", "DISPATCHED", "CANCELLED"]),
+    );
+    expect(new Set(loads.items.map((l) => l.mode))).toEqual(new Set(["PARCEL", "FULL_TRUCKLOAD"]));
     const loading = loads.items.find((l) => l.status === "LOADING");
     const manifest = beManifestSchema.parse(
       (await call("GET", `${LOADS}/${loading?.loadId}/manifest`)).data,
@@ -424,5 +428,258 @@ describe("mock mã quyền BE — lên xe cần fulfillment-dispatch, kết qu�
       carrierId: "CAR-VTP",
     });
     expect(errorCode(blocked)).toBe("SHIPMENT_ON_ANOTHER_LOAD");
+  });
+});
+
+/* ── Chuyến nguyên xe (BE PR #162): seed một kế hoạch bốn xe ─────────────────────────────────── */
+
+const FTL_PLANNED = "LD-2026-F003";
+const FTL_BOOKED = "LD-2026-F002";
+const FTL_LOADING = "LD-2026-F001";
+const FTL_CANCELLED = "LD-2026-F004";
+const body = (extra: Record<string, unknown> = {}) => ({
+  carrierId: "CAR-GHN",
+  vehiclePlate: "51C-1",
+  ...extra,
+});
+const post = (id: string, path: string, data?: unknown) =>
+  call("POST", `${LOADS}/${id}/${path}`, data);
+
+describe("mock chuyến nguyên xe — đặt xe, bắt đầu xếp, dỡ kiện, bàn giao theo xe", () => {
+  it("danh sách có mã kế hoạch + số xe cho chuyến nguyên xe, chuyến gửi kiện thì không", async () => {
+    const page = beLoadPageSchema.parse((await call("GET", LOADS, undefined, { size: "50" })).data);
+    const ftl = page.items.filter((l) => l.mode === "FULL_TRUCKLOAD");
+    expect(ftl.map((l) => l.vehicleSeq).sort()).toEqual([1, 2, 3, 4]);
+    expect(new Set(ftl.map((l) => l.loadPlanCode))).toEqual(new Set(["LP-2026-0001"]));
+    expect(page.items.filter((l) => l.mode === "PARCEL").every((l) => !l.loadPlanCode)).toBe(true);
+  });
+
+  it("lọc theo hình thức ở máy chủ: mode=FULL_TRUCKLOAD / PARCEL; giá trị khác → 400 UNSUPPORTED_PARAMETER; tìm theo mã kế hoạch", async () => {
+    const list = async (params: Record<string, string>) =>
+      beLoadPageSchema.parse((await call("GET", LOADS, undefined, { size: "50", ...params })).data)
+        .items;
+    const ftl = await list({ mode: "FULL_TRUCKLOAD" });
+    expect(ftl).toHaveLength(4);
+    expect(ftl.every((l) => l.mode === "FULL_TRUCKLOAD")).toBe(true);
+    const parcel = await list({ mode: "PARCEL" });
+    expect(parcel.length).toBeGreaterThan(0);
+    expect(parcel.every((l) => l.mode === "PARCEL")).toBe(true);
+    const bad = await call("GET", LOADS, undefined, { mode: "DRONE" });
+    expect(bad.status).toBe(400);
+    expect(errorCode(bad)).toBe("UNSUPPORTED_PARAMETER");
+    expect((await list({ search: "lp-2026-0001" })).map((l) => l.mode)).toEqual(
+      Array(4).fill("FULL_TRUCKLOAD"),
+    );
+  });
+
+  it("cờ nhãn cũ: chuyến, biên bản và chi tiết lô gửi labelOutdated (+ labelOutdatedAt khi cũ)", async () => {
+    const booked = await readLoad(FTL_BOOKED);
+    const parcels = booked.shipments.flatMap((s) => s.packages);
+    const outdated = parcels.filter((p) => p.labelOutdated);
+    expect(outdated).toHaveLength(1);
+    expect(outdated[0]?.labelOutdatedAt).toBeDefined();
+    expect(
+      parcels.filter((p) => !p.labelOutdated).every((p) => p.labelOutdatedAt === undefined),
+    ).toBe(true);
+    const manifest = beManifestSchema.parse(
+      (await call("GET", `${LOADS}/${FTL_BOOKED}/manifest`)).data,
+    );
+    expect(
+      manifest.shipments.flatMap((s) => s.packages).filter((p) => p.labelOutdated),
+    ).toHaveLength(1);
+    const detail = beShipmentSchema.parse(
+      (
+        await call(
+          "GET",
+          `${SHIPMENTS}/${booked.shipments.find((s) => s.packages.some((p) => p.labelOutdated))?.shipmentId}`,
+        )
+      ).data,
+    );
+    expect(detail.packages.some((p) => p.labelOutdated)).toBe(true);
+  });
+
+  it("chi tiết xe: kiện của riêng xe, thuộc bộ, nhãn cũ, COD 0; biên bản theo xe", async () => {
+    const booked = await readLoad(FTL_BOOKED);
+    expect(booked).toMatchObject({ mode: "FULL_TRUCKLOAD", vehicleSeq: 2, codTotal: 0 });
+    const parcels = booked.shipments.flatMap((s) => s.packages);
+    expect(parcels.some((p) => p.labelOutdated)).toBe(true);
+    const loading = await readLoad(FTL_LOADING);
+    expect(loading.shipments.flatMap((s) => s.packages).some((p) => p.kit)).toBe(true);
+    // Lô chở trên hai xe: mỗi xe chỉ liệt kê kiện của mình
+    const shared = loading.shipments.find((s) =>
+      booked.shipments.some((other) => other.code === s.code),
+    );
+    const sharedOnBooked = booked.shipments.find((s) => s.code === shared?.code);
+    expect(shared?.packages.map((p) => p.labelCode)).not.toEqual(
+      sharedOnBooked?.packages.map((p) => p.labelCode),
+    );
+    const manifest = beManifestSchema.parse(
+      (await call("GET", `${LOADS}/${FTL_LOADING}/manifest`)).data,
+    );
+    expect(manifest).toMatchObject({ mode: "FULL_TRUCKLOAD", vehicleSeq: 1, codTotal: 0 });
+    expect(manifest.packageCount).toBe(loading.expectedPackageCount);
+  });
+
+  it("đặt xe: PLANNED → VEHICLE_BOOKED; chỉ fulfillment-dispatch:UPDATE; hãng không tồn tại / ngừng dùng; chuyến gửi kiện không đặt xe được", async () => {
+    actAs(ORDER_COORDINATOR);
+    expect((await post(FTL_PLANNED, "booking", body())).status).toBe(403);
+    actAs(WAREHOUSE_STAFF);
+    expect(errorCode(await post(FTL_PLANNED, "booking", body({ carrierId: "NOPE" })))).toBe(
+      "CARRIER_NOT_FOUND",
+    );
+    const res = await post(FTL_PLANNED, "booking", body({ driverName: "Lê Văn Xế" }));
+    const load = beLoadSchema.parse(res.data);
+    expect(load).toMatchObject({
+      status: "VEHICLE_BOOKED",
+      carrierId: "CAR-GHN",
+      vehiclePlate: "51C-1",
+      driverName: "Lê Văn Xế",
+    });
+    expect(load.bookedAt).toBeDefined();
+    // Đặt lại khi còn VEHICLE_BOOKED = thay thông tin
+    const again = beLoadSchema.parse(
+      (await post(FTL_PLANNED, "booking", body({ vehiclePlate: "51C-2" }))).data,
+    );
+    expect(again).toMatchObject({ status: "VEHICLE_BOOKED", vehiclePlate: "51C-2" });
+    // Đang xếp: không đặt lại
+    expect(errorCode(await post(FTL_LOADING, "booking", body()))).toBe("INVALID_LOAD_TRANSITION");
+    const parcelLoad = beLoadPageSchema
+      .parse((await call("GET", LOADS, undefined, { status: "LOADING" })).data)
+      .items.find((l) => l.mode === "PARCEL");
+    expect(errorCode(await post(parcelLoad?.loadId ?? "", "booking", body()))).toBe(
+      "INVALID_LOAD_TRANSITION",
+    );
+  });
+
+  it("huỷ đặt xe: về PLANNED, xoá hãng, giữ lý do; không huỷ được khi đã LOADING; bắt đầu xếp cần đã đặt", async () => {
+    expect(errorCode(await post(FTL_PLANNED, "loading-start"))).toBe("INVALID_LOAD_TRANSITION");
+    expect((await post(FTL_BOOKED, "booking-cancellation", { reason: " " })).status).toBe(400);
+    const cancelled = beLoadSchema.parse(
+      (await post(FTL_BOOKED, "booking-cancellation", { reason: "Hãng hết xe" })).data,
+    );
+    expect(cancelled).toMatchObject({ status: "PLANNED", bookingCancelReason: "Hãng hết xe" });
+    expect(cancelled.carrierId).toBeUndefined();
+    expect(errorCode(await post(FTL_LOADING, "booking-cancellation", { reason: "x" }))).toBe(
+      "INVALID_LOAD_TRANSITION",
+    );
+    await post(FTL_PLANNED, "booking", body());
+    const started = beLoadSchema.parse((await post(FTL_PLANNED, "loading-start")).data);
+    expect(started.status).toBe("LOADING");
+    expect(started.loadingStartedAt).toBeDefined();
+  });
+
+  it("lô của kế hoạch không thêm / bỏ tay, không huỷ chuyến: 409 LOAD_MANAGED_BY_PLAN", async () => {
+    const load = await readLoad(FTL_LOADING);
+    expect(errorCode(await post(FTL_LOADING, "shipments", { shipmentIds: ["x"] }))).toBe(
+      "LOAD_MANAGED_BY_PLAN",
+    );
+    expect(
+      errorCode(
+        await call("DELETE", `${LOADS}/${FTL_LOADING}/shipments/${load.shipments[0]?.shipmentId}`),
+      ),
+    ).toBe("LOAD_MANAGED_BY_PLAN");
+    expect(errorCode(await post(FTL_LOADING, "cancellation", { reason: "x" }))).toBe(
+      "LOAD_MANAGED_BY_PLAN",
+    );
+  });
+
+  it("quét kiện của xe khác → 409 PACKAGE_NOT_IN_LOAD kèm vehicleSeq + loadCode; nhãn cũ → LABEL_OUTDATED; chuyến gửi kiện không nhận kiện của kế hoạch", async () => {
+    const loading = await readLoad(FTL_LOADING);
+    const booked = await readLoad(FTL_BOOKED);
+    const onBooked = booked.shipments.flatMap((s) => s.packages).find((p) => !p.labelOutdated);
+    const wrong = await post(FTL_LOADING, "scans", { packageCode: onBooked?.labelCode });
+    expect(wrong.status).toBe(409);
+    expect(errorCode(wrong)).toBe("PACKAGE_NOT_IN_LOAD");
+    expect((wrong.data as { fieldErrors: unknown }).fieldErrors).toEqual([
+      { field: "vehicleSeq", message: "2" },
+      { field: "loadCode", message: FTL_BOOKED },
+    ]);
+    const outdated = booked.shipments.flatMap((s) => s.packages).find((p) => p.labelOutdated);
+    await post(FTL_BOOKED, "loading-start");
+    expect(errorCode(await post(FTL_BOOKED, "scans", { packageCode: outdated?.labelCode }))).toBe(
+      "LABEL_OUTDATED",
+    );
+    const parcelLoad = beLoadPageSchema
+      .parse((await call("GET", LOADS, undefined, { status: "LOADING" })).data)
+      .items.find((l) => l.mode === "PARCEL");
+    const own = loading.shipments.flatMap((s) => s.packages).find((p) => !p.loaded);
+    expect(
+      errorCode(await post(parcelLoad?.loadId ?? "", "scans", { packageCode: own?.labelCode })),
+    ).toBe("PACKAGE_REQUIRES_LOAD_PLAN");
+  });
+
+  it("kiện cần dỡ: bàn giao 409 LOAD_UNLOAD_PENDING; dỡ sai kiện → PACKAGE_NOT_IN_LOAD; dỡ hết rồi bàn giao; lô còn kiện trên xe khác chưa HANDED_OVER", async () => {
+    const before = await readLoad(FTL_LOADING);
+    expect(before.pendingUnloads).toHaveLength(1);
+    const handoverBody = (version: number) => ({
+      version,
+      carrierRepresentative: "Anh Tài",
+      vehiclePlate: "29C-123.45",
+      signed: true,
+    });
+    expect(errorCode(await post(FTL_LOADING, "handover", handoverBody(before.version)))).toBe(
+      "LOAD_UNLOAD_PENDING",
+    );
+    const other = before.shipments.flatMap((s) => s.packages)[0];
+    expect(errorCode(await post(FTL_LOADING, "unloads", { packageCode: other?.labelCode }))).toBe(
+      "PACKAGE_NOT_IN_LOAD",
+    );
+    expect(errorCode(await post(FTL_LOADING, "unloads", { packageCode: "NOPE-1" }))).toBe(
+      "PACKAGE_NOT_FOUND",
+    );
+    const pending = before.pendingUnloads?.[0];
+    const unloaded = beLoadSchema.parse(
+      (await post(FTL_LOADING, "unloads", { packageCode: pending?.labelCode.toLowerCase() })).data,
+    );
+    expect(unloaded.pendingUnloads).toEqual([]);
+    // Còn kiện chưa quét → chưa bàn giao
+    expect(errorCode(await post(FTL_LOADING, "handover", handoverBody(unloaded.version)))).toBe(
+      "LOAD_NOT_FULLY_LOADED",
+    );
+    let latest = unloaded;
+    for (const parcel of unloaded.shipments.flatMap((s) => s.packages).filter((p) => !p.loaded)) {
+      latest = beLoadSchema.parse(
+        (await post(FTL_LOADING, "scans", { packageCode: parcel.labelCode })).data,
+      );
+    }
+    const done = beLoadSchema.parse(
+      (await post(FTL_LOADING, "handover", handoverBody(latest.version))).data,
+    );
+    expect(done).toMatchObject({ status: "DISPATCHED", codTotal: 0 });
+    // Cả hai lô còn kiện trên xe số 2 chưa đi → chỉ HANDED_OVER ở xe cuối cùng (LP-3), lúc này vẫn chờ xuất
+    const states = (await shipments()).filter((s) => done.shipments.some((m) => m.code === s.code));
+    expect(states).toHaveLength(2);
+    expect(states.every((s) => s.status === "READY_TO_DISPATCH")).toBe(true);
+  });
+
+  it("xe chỉ chở lô của riêng nó: đặt xe → bắt đầu xếp → quét đủ → ký → lô HANDED_OVER với COD 0", async () => {
+    await post(FTL_PLANNED, "booking", body());
+    await post(FTL_PLANNED, "loading-start");
+    const load = await readLoad(FTL_PLANNED);
+    let latest = load;
+    for (const parcel of load.shipments.flatMap((s) => s.packages)) {
+      latest = beLoadSchema.parse(
+        (await post(FTL_PLANNED, "scans", { packageCode: parcel.labelCode })).data,
+      );
+    }
+    const done = beLoadSchema.parse(
+      (
+        await post(FTL_PLANNED, "handover", {
+          version: latest.version,
+          carrierRepresentative: "Anh Tài",
+          signed: true,
+        })
+      ).data,
+    );
+    expect(done.status).toBe("DISPATCHED");
+    const [shipment] = done.shipments;
+    const row = (await shipments()).find((s) => s.code === shipment?.code);
+    expect(row).toMatchObject({ status: "HANDED_OVER", deliveryMode: "FULL_TRUCKLOAD" });
+  });
+
+  it("xe huỷ sau khi đã đặt: carrierBookingToCancel và lý do tự huỷ", async () => {
+    const cancelled = await readLoad(FTL_CANCELLED);
+    expect(cancelled).toMatchObject({ status: "CANCELLED", carrierBookingToCancel: true });
+    expect(cancelled.cancelReason).toMatch(/^auto-cancelled/);
   });
 });

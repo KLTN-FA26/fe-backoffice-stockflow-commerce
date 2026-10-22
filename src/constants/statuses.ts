@@ -255,8 +255,14 @@ export const PACK_SHIPMENT_API_STATUSES = [
   "CANCELLED",
 ] as const;
 
-/** BE `DeliveryMode.java` — hiện mọi lô là PARCEL (BE: chờ G3-4). */
+/** BE `DeliveryMode.java` — PARCEL (gửi kiện cho hãng) hoặc FULL_TRUCKLOAD (nguyên xe, kế hoạch xếp xe). */
 export const DELIVERY_MODES = ["PARCEL", "FULL_TRUCKLOAD"] as const;
+export type DeliveryMode = (typeof DELIVERY_MODES)[number];
+
+export const DELIVERY_MODE = {
+  PARCEL: "PARCEL",
+  FULL_TRUCKLOAD: "FULL_TRUCKLOAD",
+} as const satisfies Record<string, DeliveryMode>;
 
 /** Trạng thái kiện / lô giao → chuỗi status của `StatusDot` (nhãn + màu ở `lib/status-map.ts`). */
 export const PACKAGE_STATUS_DISPLAY = {

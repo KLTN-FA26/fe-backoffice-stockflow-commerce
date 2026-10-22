@@ -61,6 +61,10 @@ export {
 } from "./labels-load-plan-editor";
 export { LOAD_PLANNING_LABELS, PLACEMENT_RULE_LABELS } from "./labels-load-planning";
 export { SHIPPING_ERROR_MESSAGES, SHIPPING_FIELD_MESSAGES } from "./labels-shipping";
+export {
+  SHIPPING_WRONG_VEHICLE_MESSAGE,
+  SHIPPING_WRONG_VEHICLE_NO_CODE_MESSAGE,
+} from "./labels-shipping-ftl";
 export { TAXONOMY_ERROR_MESSAGES } from "./labels-taxonomy";
 export {
   VEHICLE_TYPE_DOOR_ERROR_CODES,
@@ -162,6 +166,7 @@ export {
 } from "./table";
 export {
   CARRIER_STATUSES,
+  DELIVERY_MODE,
   DELIVERY_MODES,
   DELIVERY_OUTCOMES,
   DESIGN_ARTIFACT_ROLES,
@@ -237,6 +242,7 @@ export type {
   LoadPlanStatus,
   LoadPlanUnplacedReason,
   LoadStatus,
+  DeliveryMode,
   OrderStatus,
   PackApiStatus,
   PackStatus,

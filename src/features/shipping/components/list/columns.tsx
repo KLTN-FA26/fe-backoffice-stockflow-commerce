@@ -35,6 +35,26 @@ export function buildLoadColumns(open: (row: LoadRow) => void): ColumnDef<LoadRo
         </Link>
       ),
     },
+    textCell<LoadRow>(C.MODE, L.ftl.modeColumn, (row) => L.load.mode[row.mode]),
+    // Chuyến nguyên xe: mã kế hoạch (liên kết sang chi tiết kế hoạch) + số xe
+    stackCell<LoadRow>(
+      C.PLAN,
+      L.ftl.planColumn,
+      (row) =>
+        row.loadPlanId && row.loadPlanCode ? (
+          <Link
+            href={ADMIN_ROUTES.loadPlans.detail(row.loadPlanId)}
+            className="hover:underline"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {row.loadPlanCode}
+          </Link>
+        ) : (
+          row.loadPlanCode
+        ),
+      (row) => (row.vehicleSeq != null ? `${L.ftl.vehicleSeq} ${row.vehicleSeq}` : null),
+      { mono: true },
+    ),
     textCell<LoadRow>(C.CARRIER, L.field.carrier, (row) => row.carrierName ?? ""),
     // Ô hai dòng: biển số (mono) + tài xế
     stackCell<LoadRow>(
