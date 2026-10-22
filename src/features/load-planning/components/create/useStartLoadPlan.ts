@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
+import { ApiError } from "@/lib/api/error";
 import { toast } from "@/components/shared/Toast";
 import { loadPlanErrorMessage } from "@/features/load-planning/errors";
 import { useCreateLoadPlan, usePlanStep } from "@/features/load-planning/mutations";
@@ -31,6 +32,8 @@ export function useStartLoadPlan() {
     try {
       plan = await create.mutateAsync({ ...input, requestId });
     } catch (e: unknown) {
+      // CONFLICT: BE đã gắn mã này với kế hoạch khác — bỏ mã đã nhớ để lần thử sau sinh mã mới
+      if (e instanceof ApiError && e.code === "CONFLICT") clearCreatePlanRequestId();
       setError(loadPlanErrorMessage(e));
       return;
     }

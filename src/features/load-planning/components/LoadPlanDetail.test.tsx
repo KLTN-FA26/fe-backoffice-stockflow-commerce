@@ -52,7 +52,7 @@ const TWO_VEHICLES = planFixture({
 /** Bản kế hoạch mà BE trả cho GET chi tiết — đổi giữa chừng để mô phỏng người khác sửa. */
 const latest: { plan: PlanDetail } = { plan: planFixture() };
 
-const RECONCILIATION = {
+const RECONCILIATION: Record<string, unknown> = {
   pieceCheck: {
     key: PLAN_ID,
     code: "LP-20261022-0001",
@@ -95,7 +95,14 @@ const RECONCILIATION = {
   },
 };
 
-function renderDetail(actor: TestActor, plan: PlanDetail = planFixture(), search = "") {
+const reconciliation: { current: Record<string, unknown> } = { current: RECONCILIATION };
+
+function renderDetail(
+  actor: TestActor,
+  plan: PlanDetail = planFixture(),
+  search = "",
+  extraGet: Record<string, () => unknown> = {},
+) {
   latest.plan = plan;
   const layouts = plan.vehicles.map((v) => ({ ...LAYOUT_PICKUP_KIT, seq: v.seq }));
   const step = (kind: string) => () => ({
@@ -107,7 +114,8 @@ function renderDetail(actor: TestActor, plan: PlanDetail = planFixture(), search
     get: {
       [PATH]: () => latest.plan,
       [`${PATH}/layouts`]: () => layouts,
-      [`${PATH}/reconciliation`]: () => RECONCILIATION,
+      [`${PATH}/reconciliation`]: () => reconciliation.current,
+      ...extraGet,
       "/fulfillment/load-plan-candidates": () => [candidateFixture()],
       "/fulfillment/vehicle-types": () => ({
         items: [
@@ -232,6 +240,52 @@ describe("LoadPlanDetail — hiển thị", () => {
     expect(screen.getByText(R.notEstimated(1))).toBeInTheDocument();
     expect(screen.getByText(R.vehiclesNotCompared)).toBeInTheDocument();
     expect(screen.getByText("+20,00%")).toBeInTheDocument();
+  });
+});
+
+describe("LoadPlanDetail — dữ liệu BE bỏ trường null", () => {
+  it("reconciliation with NO order estimated (volume / weight omitted, only NO_ESTIMATE) renders, no generic error", async () => {
+    reconciliation.current = {
+      pieceCheck: RECONCILIATION.pieceCheck,
+      shipments: [],
+      orders: [],
+      vsEstimate: {
+        estimateIds: [],
+        notEstimated: ["o-1"],
+        vehiclesCompared: false,
+        vehiclesByType: [],
+        orders: [],
+        cartonsByLine: [],
+        flags: ["NO_ESTIMATE"],
+      },
+    };
+    renderDetail(ACTORS.viewOnly, planFixture(), "?tab=reconciliation");
+    expect(
+      await screen.findByText("Có đơn chưa có ước lượng nên không so được"),
+    ).toBeInTheDocument();
+    expect(screen.getByText(L.reconciliation.notEstimated(1))).toBeInTheDocument();
+    expect(screen.getByText(L.reconciliation.advisory)).toBeInTheDocument();
+    expect(screen.queryByText(ERRORS.generic)).not.toBeInTheDocument();
+    // Nothing was estimated: no measures table and no "several orders" note
+    expect(screen.queryByText(L.reconciliation.volume)).not.toBeInTheDocument();
+    expect(screen.queryByText(L.reconciliation.vehiclesNotCompared)).not.toBeInTheDocument();
+  });
+
+  it("a user who may not read the warehouse directory (403) never sees a raw warehouse id", async () => {
+    renderDetail(
+      ACTORS.viewOnly,
+      planFixture({ warehouseId: "8f0c5d52-1111-4222-8333-944455556666" }),
+      "",
+      {
+        "/warehouses": () => {
+          throw new ApiError(403, "FORBIDDEN", "Access denied");
+        },
+      },
+    );
+    expect(await screen.findByText("LP-20261022-0001")).toBeInTheDocument();
+    const field = screen.getByText(L.warehouse).closest("div") as HTMLElement;
+    await waitFor(() => expect(within(field).getByText(L.unknownWarehouse)).toBeInTheDocument());
+    expect(screen.queryByText(/8f0c5d52/)).not.toBeInTheDocument();
   });
 });
 
@@ -416,6 +470,27 @@ describe("LoadPlanDetail — tính lại xe và đưa kiện lại vào xe", () 
     });
   });
 
+  it("LOAD_PLAN_PACKAGE_NOT_ON_TRAY (VALIDATION_FAILED) says the parcel left the tray and reloads the plan", async () => {
+    const user = userEvent.setup();
+    const { get, post } = renderDetail(ACTORS.dispatcher, planWithUnplaced("NO_SPACE"));
+    post.mockRejectedValueOnce(
+      new ApiError(
+        400,
+        "VALIDATION_FAILED",
+        "x",
+        { p: "not on the plan's tray" },
+        undefined,
+        { p: "LOAD_PLAN_PACKAGE_NOT_ON_TRAY" },
+        [{ field: "p", message: "not on the plan's tray", code: "LOAD_PLAN_PACKAGE_NOT_ON_TRAY" }],
+      ),
+    );
+    await user.click(await screen.findByRole("checkbox", { name: /PKG-U1/ }));
+    const before = calls(get, PATH).length;
+    await user.click(screen.getByRole("button", { name: L.unplaced.returnToVehicle(1) }));
+    expect(await screen.findByText(ERRORS.LOAD_PLAN_PACKAGE_NOT_ON_TRAY)).toBeInTheDocument();
+    await waitFor(() => expect(calls(get, PATH).length).toBeGreaterThan(before));
+  });
+
   it("a recalculation refused by the BE shows its Vietnamese reason on the page", async () => {
     const user = userEvent.setup();
     const { post } = renderDetail(ACTORS.dispatcher);
@@ -487,4 +562,5 @@ describe("LoadPlanDetail — cổng quyền và trạng thái", () => {
 
 beforeEach(() => {
   latest.plan = planFixture();
+  reconciliation.current = RECONCILIATION;
 });

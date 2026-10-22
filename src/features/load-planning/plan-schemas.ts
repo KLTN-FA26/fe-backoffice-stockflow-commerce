@@ -44,9 +44,10 @@ export const beCandidateShipmentSchema = z.object({
   shipmentId: z.string(),
   code: z.string(),
   orderId: z.string(),
-  orderNumber: z.string(),
+  /** Vắng khi BE không tra được đơn của lô. */
+  orderNumber: z.string().nullish(),
   allowPartialShipment: z.boolean(),
-  readyAt: z.string(),
+  readyAt: z.string().nullish(),
   packageCount: z.number().int(),
   /** Kiện của lô mà kế hoạch khác đang giữ (chỉ xảy ra sau khi một kế hoạch để lại kiện). */
   packagesInOtherPlans: z.number().int(),
@@ -89,7 +90,7 @@ const beShipmentInPlanSchema = z.object({
   shipmentId: z.string(),
   code: z.string(),
   orderId: z.string(),
-  orderNumber: z.string(),
+  orderNumber: z.string().nullish(),
   allowPartialShipment: z.boolean(),
   packageCount: z.number().int(),
 });

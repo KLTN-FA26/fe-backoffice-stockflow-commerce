@@ -47,7 +47,7 @@ export function WarehouseSelect({
       <TitledSelectContent title={L.createForm.warehouse}>
         {allLabel && <SelectItem value={ALL}>{allLabel}</SelectItem>}
         {value && !active.some((w) => w.warehouseId === value) && (
-          <SelectItem value={value}>{value}</SelectItem>
+          <SelectItem value={value}>{L.detail.unknownWarehouse}</SelectItem>
         )}
         {active.map((warehouse) => (
           <SelectItem key={warehouse.warehouseId} value={warehouse.warehouseId}>

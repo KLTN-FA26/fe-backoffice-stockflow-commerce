@@ -19,21 +19,25 @@ const R = UI_LABELS.loadPlan.detail.reconciliation;
 const delta = (pct: number | null | undefined) =>
   pct === null || pct === undefined ? "—" : `${pct > 0 ? "+" : ""}${formatFixed(pct, 2)}%`;
 
+/** Thể tích / khối lượng chỉ có khi ít nhất một đơn có ước lượng; vắng thì không vẽ bảng. */
 function Measures({ vs }: { vs: EstimateComparison }) {
-  const rows: [string, string, string, number | null | undefined][] = [
-    [
+  const { volumeMm3, weightKg } = vs;
+  const rows: [string, string, string, number | null | undefined][] = [];
+  if (volumeMm3)
+    rows.push([
       R.volume,
-      formatM3(vs.volumeMm3.estimated),
-      formatM3(vs.volumeMm3.actual),
-      vs.volumeMm3.deltaPct,
-    ],
-    [
+      formatM3(volumeMm3.estimated),
+      formatM3(volumeMm3.actual),
+      volumeMm3.deltaPct,
+    ]);
+  if (weightKg)
+    rows.push([
       R.weight,
-      `${formatFixed(vs.weightKg.estimated, 1)} kg`,
-      `${formatFixed(vs.weightKg.actual, 1)} kg`,
-      vs.weightKg.deltaPct,
-    ],
-  ];
+      `${formatFixed(weightKg.estimated, 1)} kg`,
+      `${formatFixed(weightKg.actual, 1)} kg`,
+      weightKg.deltaPct,
+    ]);
+  if (rows.length === 0) return null;
   return (
     <Table>
       <TableHeader>
@@ -114,30 +118,39 @@ export function EstimateComparisonPanel({ vs }: { vs: EstimateComparison | null 
           {R.notEstimated(vs.notEstimated.length)}
         </p>
       )}
-      <div className="border-border-default overflow-x-auto rounded border">
-        <Measures vs={vs} />
-      </div>
-      <div className="border-border-default overflow-x-auto rounded border">
-        {vs.vehiclesCompared ? (
-          <Counts
-            head={R.vehiclesByType}
-            rows={vs.vehiclesByType.map((v) => ({ key: v.code, label: v.code, ...v }))}
-          />
-        ) : (
-          <p className="text-ink-tertiary p-3 text-xs">{R.vehiclesNotCompared}</p>
-        )}
-      </div>
-      <div className="border-border-default overflow-x-auto rounded border">
-        <Counts
-          head={R.cartons}
-          rows={vs.cartonsByLine.map((line) => ({
-            key: line.orderLineId,
-            label: line.sku,
-            estimated: line.estimated,
-            actual: line.actual,
-          }))}
-        />
-      </div>
+      {/* Không đơn nào có ước lượng: BE bỏ thể tích / khối lượng / từng dòng, chỉ còn cờ NO_ESTIMATE */}
+      {vs.estimateIds.length > 0 && (
+        <>
+          {(vs.volumeMm3 || vs.weightKg) && (
+            <div className="border-border-default overflow-x-auto rounded border">
+              <Measures vs={vs} />
+            </div>
+          )}
+          <div className="border-border-default overflow-x-auto rounded border">
+            {vs.vehiclesCompared ? (
+              <Counts
+                head={R.vehiclesByType}
+                rows={vs.vehiclesByType.map((v) => ({ key: v.code, label: v.code, ...v }))}
+              />
+            ) : (
+              <p className="text-ink-tertiary p-3 text-xs">{R.vehiclesNotCompared}</p>
+            )}
+          </div>
+          {vs.cartonsByLine.length > 0 && (
+            <div className="border-border-default overflow-x-auto rounded border">
+              <Counts
+                head={R.cartons}
+                rows={vs.cartonsByLine.map((line) => ({
+                  key: line.orderLineId,
+                  label: line.sku,
+                  estimated: line.estimated,
+                  actual: line.actual,
+                }))}
+              />
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

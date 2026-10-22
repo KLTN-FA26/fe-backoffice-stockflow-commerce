@@ -173,6 +173,39 @@ describe("bePlanRowPageSchema and candidates", () => {
   });
 });
 
+describe("fields the BE omits when null (non_null)", () => {
+  it("a candidate / plan shipment whose order is unresolved has no orderNumber, and may have no readyAt", () => {
+    const [candidate] = beCandidateListSchema.parse([
+      {
+        shipmentId: "s-1",
+        code: "S-1",
+        orderId: "o-1",
+        allowPartialShipment: true,
+        packageCount: 1,
+        packagesInOtherPlans: 0,
+        weightKg: 1,
+        volumeMm3: 1,
+        packages: [],
+      },
+    ]);
+    expect(candidate.orderNumber).toBeUndefined();
+    expect(candidate.readyAt).toBeUndefined();
+    const plan = bePlanDetailSchema.parse({
+      ...BE_DETAIL,
+      shipments: [
+        {
+          shipmentId: "s-1",
+          code: "S-1",
+          orderId: "o-1",
+          allowPartialShipment: true,
+          packageCount: 1,
+        },
+      ],
+    });
+    expect(plan.shipments[0].orderNumber).toBeUndefined();
+  });
+});
+
 describe("layouts of a plan (BE Layout from Layouts.of)", () => {
   const BE_BOX = {
     xMm: 0,
@@ -265,9 +298,32 @@ describe("beReconciliationSchema (pieceCheck + vsEstimate)", () => {
     });
     const vs = result.vsEstimate;
     expect(vs?.vehiclesCompared).toBe(false);
-    expect(vs?.weightKg.estimated).toBe(50.5);
-    expect(vs?.weightKg.deltaPct).toBeUndefined();
+    expect(vs?.weightKg?.estimated).toBe(50.5);
+    expect(vs?.weightKg?.deltaPct).toBeUndefined();
     expect(vs?.notEstimated).toEqual(["o-2"]);
+  });
+
+  it("parses the REAL BE shape when no order has an estimate: volumeMm3 / weightKg / orders omitted, only NO_ESTIMATE", () => {
+    // Reproduced against the live BE (`non_null` drops the null Measure fields and the empty comparison lists stay)
+    const result = beReconciliationSchema.parse({
+      pieceCheck: piece,
+      shipments: [{ ...piece, code: undefined }],
+      orders: [],
+      vsEstimate: {
+        estimateIds: [],
+        notEstimated: ["o-1"],
+        vehiclesCompared: false,
+        vehiclesByType: [],
+        orders: [],
+        cartonsByLine: [],
+        flags: ["NO_ESTIMATE"],
+      },
+    });
+    expect(result.vsEstimate?.volumeMm3).toBeUndefined();
+    expect(result.vsEstimate?.weightKg).toBeUndefined();
+    expect(result.vsEstimate?.flags).toEqual(["NO_ESTIMATE"]);
+    // A piece count whose order the BE could not resolve has no code
+    expect(result.shipments[0].code).toBeUndefined();
   });
 
   it("knownFlags keeps only the flags with a Vietnamese label, in a fixed order", () => {

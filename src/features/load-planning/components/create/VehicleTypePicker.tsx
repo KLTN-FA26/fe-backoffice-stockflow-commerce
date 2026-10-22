@@ -48,6 +48,7 @@ export function VehicleTypePicker({
             >
               <Checkbox
                 id={id}
+                aria-label={`${type.code} · ${type.name}`}
                 checked={selected.has(type.vehicleTypeId)}
                 onCheckedChange={() => onToggle(type.vehicleTypeId)}
               />

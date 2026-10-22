@@ -26,7 +26,8 @@ interface ShipmentPickerProps {
   warehouseId: string;
   candidates: readonly CandidateShipment[] | undefined;
   loading: boolean;
-  failed: boolean;
+  /** Lỗi tải danh sách lô: câu của BE đã biết (vd kho ngoài phạm vi) hoặc câu chung. */
+  failed: string | null;
   selected: ReadonlySet<string>;
   onToggle: (shipmentId: string) => void;
   onSetAll: (shipmentIds: readonly string[]) => void;
@@ -47,7 +48,7 @@ export function ShipmentPicker({
 }: ShipmentPickerProps) {
   if (!warehouseId) return <p className="text-ink-tertiary text-sm">{L.pickWarehouseFirst}</p>;
   if (loading) return <Skeleton className="h-24 w-full" aria-label={L.shipmentsTitle} />;
-  if (failed) return <Alert tone="danger">{L.candidatesFailed}</Alert>;
+  if (failed !== null) return <Alert tone="danger">{failed}</Alert>;
   if (!candidates || candidates.length === 0)
     return <p className="text-ink-tertiary text-sm">{L.shipmentsEmpty}</p>;
   const totals = totalsOf(candidates, selected);
@@ -101,7 +102,7 @@ export function ShipmentPicker({
                 </TableCell>
                 <TableCell className="font-mono text-[0.8125rem]">{candidate.code}</TableCell>
                 <TableCell className="text-[0.8125rem]">
-                  <span className="font-mono">{candidate.orderNumber}</span>
+                  <span className="font-mono">{candidate.orderNumber ?? "—"}</span>
                   <Badge variant="outline" className="ml-2">
                     {candidate.allowPartialShipment ? L.partialAllowed : L.partialNotAllowed}
                   </Badge>
@@ -121,7 +122,7 @@ export function ShipmentPicker({
                   {formatM3(candidate.volumeMm3)}
                 </TableCell>
                 <TableCell className="text-ink-secondary text-[0.8125rem] whitespace-nowrap">
-                  {formatDateTime(candidate.readyAt)}
+                  {candidate.readyAt ? formatDateTime(candidate.readyAt) : "—"}
                 </TableCell>
               </TableRow>
             ))}

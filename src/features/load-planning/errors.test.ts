@@ -3,7 +3,12 @@ import { describe, expect, it } from "vitest";
 import { LOAD_PLAN_ERROR_MESSAGES as M } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
-import { isOptimisticLockError, isStaleLoadPlanError, loadPlanErrorMessage } from "./errors";
+import {
+  isOptimisticLockError,
+  isStaleLoadPlanError,
+  knownLoadPlanReadError,
+  loadPlanErrorMessage,
+} from "./errors";
 
 const api = (code: string, status = 409, fields?: Record<string, string>) =>
   new ApiError(status, code, "Tiếng Anh của BE", fields);
@@ -26,6 +31,11 @@ describe("loadPlanErrorMessage", () => {
     ["SHIPMENT_NOT_FOR_LOAD", M.SHIPMENT_NOT_FOR_LOAD],
     ["LOAD_PLAN_NOT_FOUND", M.LOAD_PLAN_NOT_FOUND],
     ["LOAD_PLAN_VEHICLE_NOT_FOUND", M.LOAD_PLAN_VEHICLE_NOT_FOUND],
+    ["WAREHOUSE_NOT_FOUND", M.WAREHOUSE_NOT_FOUND],
+    ["VEHICLE_TYPE_NOT_FOUND", M.VEHICLE_TYPE_NOT_FOUND],
+    ["SHIPMENT_NOT_FOUND", M.SHIPMENT_NOT_FOUND],
+    ["CONFLICT", M.CONFLICT],
+    ["OUT_OF_DATA_SCOPE", M.OUT_OF_DATA_SCOPE],
   ] as const)("%s → Vietnamese message, never the BE English", (code, message) => {
     const text = loadPlanErrorMessage(api(code));
     expect(text).toBe(message);
@@ -77,6 +87,45 @@ describe("loadPlanErrorMessage", () => {
 
   it("the optimistic-lock message says the data was reloaded", () => {
     expect(M.OPTIMISTIC_LOCK).toContain("tải lại");
+  });
+});
+
+describe("LOAD_PLAN_PACKAGE_NOT_ON_TRAY (VALIDATION_FAILED with a field code)", () => {
+  const notOnTray = () =>
+    new ApiError(
+      400,
+      "VALIDATION_FAILED",
+      "x",
+      { "pkg-1": "not on the plan's tray" },
+      undefined,
+      { "pkg-1": "LOAD_PLAN_PACKAGE_NOT_ON_TRAY" },
+      [
+        {
+          field: "pkg-1",
+          message: "not on the plan's tray",
+          code: "LOAD_PLAN_PACKAGE_NOT_ON_TRAY",
+        },
+      ],
+    );
+
+  it("is mapped from the field error code to a clear message, not the generic validation one", () => {
+    expect(loadPlanErrorMessage(notOnTray())).toBe(M.LOAD_PLAN_PACKAGE_NOT_ON_TRAY);
+    expect(loadPlanErrorMessage(api("VALIDATION_FAILED", 400))).toBe(M.VALIDATION_FAILED);
+  });
+
+  it("counts as stale data so the plan is reloaded", () => {
+    expect(isStaleLoadPlanError(notOnTray())).toBe(true);
+    expect(isStaleLoadPlanError(api("VALIDATION_FAILED", 400))).toBe(false);
+  });
+});
+
+describe("knownLoadPlanReadError", () => {
+  it("gives the scope message for a 403, a known message for a known code, null for anything else", () => {
+    expect(knownLoadPlanReadError(api("HTTP_403", 403))).toBe(M.OUT_OF_DATA_SCOPE);
+    expect(knownLoadPlanReadError(api("OUT_OF_DATA_SCOPE", 403))).toBe(M.OUT_OF_DATA_SCOPE);
+    expect(knownLoadPlanReadError(api("WAREHOUSE_NOT_FOUND", 404))).toBe(M.WAREHOUSE_NOT_FOUND);
+    expect(knownLoadPlanReadError(api("HTTP_500", 500))).toBeNull();
+    expect(knownLoadPlanReadError(new Error("x"))).toBeNull();
   });
 });
 

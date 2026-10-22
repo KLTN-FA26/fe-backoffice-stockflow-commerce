@@ -103,6 +103,34 @@ describe("LoadPlanCreate — lập kế hoạch rồi tính xếp xe", () => {
     });
   });
 
+  it("every vehicle-type checkbox has an accessible name (code · name)", async () => {
+    renderCreate(ACTORS.dispatcher);
+    expect(
+      await screen.findByRole("checkbox", { name: "PICKUP · Pickup truck" }),
+    ).toBeInTheDocument();
+  });
+
+  it("a warehouse outside the caller's scope (403 on the candidates) says so instead of a generic failure", async () => {
+    mockLoadPlanApi(ACTORS.dispatcher, {
+      get: {
+        [CANDIDATES]: () => {
+          throw new ApiError(403, "OUT_OF_DATA_SCOPE", "Not authorised for this data");
+        },
+        [VEHICLE_TYPES]: () => ({
+          items: [vehicleType],
+          page: 0,
+          size: 100,
+          totalElements: 1,
+          totalPages: 1,
+          hasNext: false,
+          hasPrevious: false,
+        }),
+      },
+    });
+    renderLoadPlanScreen(<LoadPlanCreate />);
+    expect(await screen.findByText(LOAD_PLAN_ERROR_MESSAGES.OUT_OF_DATA_SCOPE)).toBeInTheDocument();
+  });
+
   it("shows the LP-4 hint and the parcels another plan holds", async () => {
     mockLoadPlanApi(ACTORS.dispatcher, {
       get: {
@@ -175,6 +203,20 @@ describe("LoadPlanCreate — lập kế hoạch rồi tính xếp xe", () => {
       .map(([, body]) => (body as { requestId: string }).requestId);
     expect(ids).toHaveLength(2);
     expect(ids[0]).toBe(ids[1]);
+  });
+
+  it("CONFLICT (requestId already used elsewhere) is explained and the retry gets a NEW requestId", async () => {
+    const { post } = renderCreate(ACTORS.dispatcher);
+    post.mockRejectedValueOnce(new ApiError(409, "CONFLICT", "Conflicting state"));
+    const user = await fillAndSubmit();
+    expect(await screen.findByText(LOAD_PLAN_ERROR_MESSAGES.CONFLICT)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: L.submit }));
+    await waitFor(() => expect(push).toHaveBeenCalled());
+    const ids = post.mock.calls
+      .filter(([url]) => url === PATH)
+      .map(([, body]) => (body as { requestId: string }).requestId);
+    expect(ids).toHaveLength(2);
+    expect(ids[0]).not.toBe(ids[1]);
   });
 
   it("BE refusals (BR-09 taken) are shown in Vietnamese and nothing is calculated", async () => {

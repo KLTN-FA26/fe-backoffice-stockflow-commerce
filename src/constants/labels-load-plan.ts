@@ -135,6 +135,8 @@ export const LOAD_PLAN_UI_LABELS = {
     code: "Mã kế hoạch",
     status: "Trạng thái",
     warehouse: "Kho",
+    /** Không tra được tên kho (danh mục kho bị từ chối) — không hiện UUID. */
+    unknownWarehouse: "—",
     mode: "Chế độ chọn xe",
     shipments: "Lô giao",
     vehicleTypes: "Loại xe cho phép",
@@ -306,6 +308,15 @@ export const LOAD_PLAN_ERROR_MESSAGES = {
   SHIPMENT_NOT_FOR_LOAD: "Có lô giao không phải lô giao nguyên xe, hoặc thuộc kho khác.",
   ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED:
     "Đơn không cho giao một phần mà kế hoạch để lại một phần kiện của đơn: xếp đủ hoặc nhờ Sales cho phép giao một phần (LP-4).",
+  WAREHOUSE_NOT_FOUND: "Không tìm thấy kho đã chọn. Chọn lại kho.",
+  VEHICLE_TYPE_NOT_FOUND: "Có loại xe không còn trong danh mục: bỏ chọn loại đó rồi thử lại.",
+  SHIPMENT_NOT_FOUND: "Có lô giao không còn tồn tại: tải lại danh sách lô rồi chọn lại.",
+  CONFLICT:
+    "Mã yêu cầu này đã dùng cho một kế hoạch khác (kho hoặc nội dung khác). Bấm thử lại để gửi với mã mới.",
+  OUT_OF_DATA_SCOPE: "Kho này nằm ngoài phạm vi kho bạn phụ trách.",
+  /** `VALIDATION_FAILED` kèm mã trường `LOAD_PLAN_PACKAGE_NOT_ON_TRAY`: kiện đã rời khay chưa xếp. */
+  LOAD_PLAN_PACKAGE_NOT_ON_TRAY:
+    "Có kiện không còn ở khay chưa xếp (vừa được xếp hoặc bị gỡ khỏi kế hoạch). Đã tải lại kế hoạch — chọn lại các kiện rồi thử lại.",
   VALIDATION_FAILED: "Dữ liệu gửi lên chưa hợp lệ.",
   NETWORK_ERROR: "Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.",
 } as const;

@@ -1,6 +1,7 @@
 "use client";
 
 import { UI_LABELS } from "@/constants";
+import { knownLoadPlanReadError } from "@/features/load-planning/errors";
 
 import { ModePicker } from "./ModePicker";
 import { ShipmentPicker } from "./ShipmentPicker";
@@ -38,7 +39,11 @@ export function PlanInputsFields({
           warehouseId={warehouseId}
           candidates={candidates.data}
           loading={!!warehouseId && candidates.isPending}
-          failed={candidates.isError}
+          failed={
+            candidates.isError
+              ? (knownLoadPlanReadError(candidates.error) ?? L.candidatesFailed)
+              : null
+          }
           selected={inputs.shipments}
           onToggle={inputs.toggleShipment}
           onSetAll={inputs.setShipments}

@@ -15,7 +15,8 @@ import type { LoadPlanEstimateFlag } from "@/constants";
 /** `LoadPlans.PieceCount`: `key` là id, `code` là mã của kế hoạch / lô giao / đơn. */
 export const bePieceCountSchema = z.object({
   key: z.string(),
-  code: z.string(),
+  /** Vắng khi BE không tra được đơn (`order == null ? null : orderNumber`). */
+  code: z.string().nullish(),
   packagesIn: z.number().int(),
   placed: z.number().int(),
   unplaced: z.number().int(),
@@ -60,8 +61,12 @@ const beEstimateComparisonSchema = z.object({
       actual: z.number().int(),
     }),
   ),
-  volumeMm3: beMeasureSchema,
-  weightKg: beMeasureSchema,
+  /**
+   * Vắng (BE bỏ null, `default-property-inclusion: non_null`) khi KHÔNG đơn nào có ước lượng — trường hợp thường gặp,
+   * cờ chỉ có `NO_ESTIMATE`.
+   */
+  volumeMm3: beMeasureSchema.nullish(),
+  weightKg: beMeasureSchema.nullish(),
   flags: z.array(z.string()),
 });
 

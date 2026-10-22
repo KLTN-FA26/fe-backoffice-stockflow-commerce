@@ -11,6 +11,8 @@ import {
 } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
+const NOT_ON_TRAY = "LOAD_PLAN_PACKAGE_NOT_ON_TRAY";
+
 type KnownCode = Exclude<keyof typeof MESSAGES, "generic">;
 
 const isKnownCode = (code: string): code is KnownCode =>
@@ -26,8 +28,19 @@ function orderNumbersOf(error: ApiError): string[] {
   return [...new Set(orders)];
 }
 
+/** Mã lỗi theo trường (`fieldErrors[].code`) có trong lỗi không — BE gói lỗi kiểm tra theo kiện vào `VALIDATION_FAILED`. */
+function hasFieldCode(error: ApiError, code: string): boolean {
+  return (
+    (error.fieldErrorList ?? []).some((entry) => entry.code === code) ||
+    Object.values(error.fieldCodes ?? {}).includes(code)
+  );
+}
+
 export function loadPlanErrorMessage(error: unknown): string {
   if (!(error instanceof ApiError)) return MESSAGES.generic;
+  // `addPackageIds` có kiện không còn trên khay: BE từ chối cả request bằng VALIDATION_FAILED
+  if (error.code === "VALIDATION_FAILED" && hasFieldCode(error, NOT_ON_TRAY))
+    return MESSAGES.LOAD_PLAN_PACKAGE_NOT_ON_TRAY;
   // LP-4: BE trả MỖI đơn vi phạm một `fieldErrors[{field: "orderNumber"}]`
   if (error.code === "ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED") {
     const orders = orderNumbersOf(error);
@@ -57,7 +70,22 @@ const STALE_CODES: ReadonlySet<string> = new Set([
 ]);
 
 export function isStaleLoadPlanError(error: unknown): boolean {
-  return error instanceof ApiError && STALE_CODES.has(error.code);
+  if (!(error instanceof ApiError)) return false;
+  // Kiện đã rời khay: khay trên màn đã cũ
+  return (
+    STALE_CODES.has(error.code) ||
+    (error.code === "VALIDATION_FAILED" && hasFieldCode(error, NOT_ON_TRAY))
+  );
+}
+
+/**
+ * Câu cho lỗi tải dữ liệu đọc (danh sách lô, kế hoạch) khi BE trả mã đã biết hoặc 403 (kho ngoài phạm vi); `null` khi
+ * lỗi lạ để màn dùng câu chung của nó.
+ */
+export function knownLoadPlanReadError(error: unknown): string | null {
+  if (!(error instanceof ApiError)) return null;
+  if (isKnownCode(error.code) && error.code !== "VALIDATION_FAILED") return MESSAGES[error.code];
+  return error.status === 403 ? MESSAGES.OUT_OF_DATA_SCOPE : null;
 }
 
 /** 409 OPTIMISTIC_LOCK: màn phải tải lại rồi báo (mọi thay đổi gửi `expectedVersion`). */

@@ -48,7 +48,7 @@ export function PieceCheckTable({ data }: { data: Reconciliation }) {
               <TableRow key={`${scope}-${row.key}`}>
                 <TableCell className="text-[0.8125rem]">
                   <span className="text-ink-tertiary mr-2 text-xs">{scope}</span>
-                  <span className="font-mono">{row.code}</span>
+                  <span className="font-mono">{row.code ?? "—"}</span>
                 </TableCell>
                 {[row.packagesIn, row.placed, row.unplaced, row.leftBehind, row.notInPlan].map(
                   (value, index) => (

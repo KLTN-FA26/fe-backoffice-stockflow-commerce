@@ -53,11 +53,13 @@ function DetailBody({ id }: { id: string }) {
 
   const actions = loadPlanActions(plan, { can });
   const warehouse = warehouses?.find((w) => w.warehouseId === plan.warehouseId);
+  // Kế hoạch chỉ mang `warehouseId`. Danh mục kho (`/warehouses`) có thể 403 với tài khoản không có quyền kho (điều phối
+  // đơn): khi đó "—", không bao giờ hiện UUID thô.
   const warehouseLabel = warehouse
     ? warehouse.code
       ? `${warehouse.code} · ${warehouse.name}`
       : warehouse.name
-    : plan.warehouseId;
+    : UI_LABELS.loadPlan.detail.unknownWarehouse;
   const final = isFinalLoadPlan(plan.status);
 
   return (

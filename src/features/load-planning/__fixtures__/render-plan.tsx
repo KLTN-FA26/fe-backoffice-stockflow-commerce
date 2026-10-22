@@ -74,8 +74,8 @@ export function mockLoadPlanApi(actor: TestActor, routes: ApiRoutes = {}) {
       if (url === "/identity/me/permissions") {
         return { data: { roles: ["TEST"], permissions: actor.permissions, dataScope: "ALL" } };
       }
-      if (url === "/warehouses") return { data: WAREHOUSES };
       const handler = routes.get?.[url];
+      if (url === "/warehouses" && !handler) return { data: WAREHOUSES };
       if (!handler) throw missing("GET", url);
       return { data: handler(config?.params) };
     });
