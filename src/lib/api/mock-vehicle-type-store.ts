@@ -21,6 +21,9 @@ export interface MockVehicleType {
   innerWidthMm: number;
   innerHeightMm: number;
   gussetMm: number;
+  /** Cửa thùng (mm), null = không giới hạn cửa (migration V20261022001100, LP3-DOOR). */
+  doorWidthMm: number | null;
+  doorHeightMm: number | null;
   maxPayloadKg: number;
   availableCount: number;
   rentalPrice: number | null;
@@ -38,14 +41,41 @@ type PresetSpec = [
   heightMm: number,
   gussetMm: number,
   maxPayloadKg: number,
+  doorWidthMm?: number,
+  doorHeightMm?: number,
 ];
 
-/** code, tên, loại, D × R × C (mm), khe góc (mm), tải trọng (kg) — như migration của BE. */
+/**
+ * code, tên, loại, D × R × C (mm), khe góc (mm), tải trọng (kg), cửa R × C (mm) — như migration của BE. Cửa:
+ * 20DC / 40DC 2340 × 2280, 40HC / 45HC 2340 × 2585; xe tải và bán tải không đặt (null).
+ */
 const PRESETS: PresetSpec[] = [
-  ["20DC", "Container 20' Dry (20DC)", K.CONTAINER, 5898, 2352, 2393, 150, 28200],
-  ["40DC", "Container 40' Dry (40DC)", K.CONTAINER, 12032, 2352, 2393, 150, 26700],
-  ["40HC", "Container 40' High Cube (40HC)", K.CONTAINER, 12032, 2352, 2698, 150, 26500],
-  ["45HC", "Container 45' High Cube (45HC)", K.CONTAINER, 13556, 2352, 2698, 150, 27700],
+  ["20DC", "Container 20' Dry (20DC)", K.CONTAINER, 5898, 2352, 2393, 150, 28200, 2340, 2280],
+  ["40DC", "Container 40' Dry (40DC)", K.CONTAINER, 12032, 2352, 2393, 150, 26700, 2340, 2280],
+  [
+    "40HC",
+    "Container 40' High Cube (40HC)",
+    K.CONTAINER,
+    12032,
+    2352,
+    2698,
+    150,
+    26500,
+    2340,
+    2585,
+  ],
+  [
+    "45HC",
+    "Container 45' High Cube (45HC)",
+    K.CONTAINER,
+    13556,
+    2352,
+    2698,
+    150,
+    27700,
+    2340,
+    2585,
+  ],
   ["PICKUP", "Pickup truck (xe bán tải)", K.PICKUP, 1500, 1140, 500, 0, 800],
   ["TRUCK-1T25", "Box truck 1.25 t (xe tải 1,25 tấn)", K.TRUCK, 3100, 1600, 1600, 0, 1250],
   ["TRUCK-2T5", "Box truck 2.5 t (xe tải 2,5 tấn)", K.TRUCK, 4300, 1800, 1800, 0, 2500],
@@ -59,7 +89,21 @@ const PRESET_AVAILABLE_COUNT = 10;
 
 function seed(): Map<string, MockVehicleType> {
   const rows = PRESETS.map(
-    ([code, name, kind, innerLengthMm, innerWidthMm, innerHeightMm, gussetMm, maxPayloadKg], i) =>
+    (
+      [
+        code,
+        name,
+        kind,
+        innerLengthMm,
+        innerWidthMm,
+        innerHeightMm,
+        gussetMm,
+        maxPayloadKg,
+        doorWidthMm,
+        doorHeightMm,
+      ],
+      i,
+    ) =>
       ({
         vehicleTypeId: `00000000-0000-4000-8000-0000000f1${String(i).padStart(3, "0")}`,
         code,
@@ -69,6 +113,8 @@ function seed(): Map<string, MockVehicleType> {
         innerWidthMm,
         innerHeightMm,
         gussetMm,
+        doorWidthMm: doorWidthMm ?? null,
+        doorHeightMm: doorHeightMm ?? null,
         maxPayloadKg,
         availableCount: PRESET_AVAILABLE_COUNT,
         rentalPrice: null,

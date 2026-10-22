@@ -199,6 +199,8 @@ export const VEHICLE_TYPE_LIMITS = {
   dimensionMaxMm: 30000,
   /** `gussetMm` @Min(0) @Max(1000). */
   gussetMaxMm: 1000,
+  /** `doorWidthMm` / `doorHeightMm` @Min(1) @Max(30000): cùng trần với kích thước trong. */
+  doorMaxMm: 30000,
   /** `maxPayloadKg` @DecimalMax("100000") (> 0), tối đa 3 số lẻ. */
   payloadMaxKg: 100000,
   payloadFractionDigits: 3,

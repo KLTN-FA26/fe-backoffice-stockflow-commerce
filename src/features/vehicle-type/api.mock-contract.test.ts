@@ -5,78 +5,23 @@
 
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { VEHICLE_TYPE_PERMISSIONS } from "@/constants";
 import { resolveMockRoute } from "@/lib/api/mock-adapter";
-import { registerVehicleTypeMockRoutes } from "@/lib/api/mock-routes-vehicle-types";
 import { resetVehicleTypeMockStore } from "@/lib/api/mock-vehicle-type-store";
-import { MOCK_USER_GRANTS } from "@/lib/api/mock-user-grants";
-import { useAuthStore } from "@/lib/auth/auth-store";
 
-import { beVehicleTypePageSchema, beVehicleTypeSchema } from "./schemas";
-
-import type { AxiosRequestConfig } from "axios";
-import type { PermissionCode } from "@/lib/auth";
-import type { VehicleType } from "./types";
-
-registerVehicleTypeMockRoutes();
-
-async function call(method: string, url: string, data?: unknown, params?: unknown) {
-  const route = resolveMockRoute(method, url);
-  if (!route) throw new Error(`Không có route mock ${method} ${url}`);
-  const config = {
-    url,
-    data: data === undefined ? undefined : JSON.stringify(data),
-    params,
-    _mockParams: route.params,
-  };
-  return route.handler(config as AxiosRequestConfig);
-}
-
-const VT = VEHICLE_TYPE_PERMISSIONS;
-const MANAGER: PermissionCode[] = [VT.viewPage, VT.read, VT.update];
-const STAFF: PermissionCode[] = [VT.viewPage, VT.read];
-
-function actAs(grants: readonly PermissionCode[]) {
-  MOCK_USER_GRANTS["u-test"] = grants;
-  useAuthStore.setState({
-    user: {
-      userId: "u-test",
-      fullName: "T",
-      email: "t@t.vn",
-      roles: [],
-      username: "t",
-      status: "ACTIVE",
-      lastLoginAt: null,
-    },
-    status: "authenticated",
-  });
-}
-
-const PATH = "/fulfillment/vehicle-types";
-const errorCode = (res: { data: unknown }) => (res.data as { errorCode?: string }).errorCode;
-const fieldsOf = (res: { data: unknown }) =>
-  ((res.data as { fieldErrors?: { field: string }[] }).fieldErrors ?? []).map((f) => f.field);
-
-const body = (overrides: Record<string, unknown> = {}) => ({
-  code: "truck-3t",
-  name: "Xe tải 3 tấn",
-  kind: "TRUCK",
-  innerLengthMm: 4200,
-  innerWidthMm: 1900,
-  innerHeightMm: 1900,
-  maxPayloadKg: 3000,
-  availableCount: 2,
-  ...overrides,
-});
-
-/** Body PUT đủ trường của một dòng (loại xe mặc định giữ kind, nên gửi đúng kind của nó). */
-function presetBody(row: VehicleType | undefined, overrides: Record<string, unknown> = {}) {
-  return { ...row, rentalPrice: undefined, ...overrides };
-}
-
-async function list(params?: unknown) {
-  return beVehicleTypePageSchema.parse((await call("GET", PATH, undefined, params)).data);
-}
+import {
+  MANAGER,
+  PATH,
+  STAFF,
+  VT,
+  actAs,
+  body,
+  call,
+  errorCode,
+  fieldsOf,
+  list,
+  presetBody,
+} from "./__fixtures__/mock-contract";
+import { beVehicleTypeSchema } from "./schemas";
 
 beforeEach(() => {
   resetVehicleTypeMockStore();

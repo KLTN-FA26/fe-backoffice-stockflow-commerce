@@ -20,6 +20,20 @@ describe("beVehicleTypeSchema — BE PR #153 VehicleTypeResponse", () => {
     expect(row.rentalPrice).toBeUndefined();
   });
 
+  it("cửa thùng tuỳ chọn: có số thì giữ, BE bỏ trường null (vắng) hoặc null đều nhận", () => {
+    expect(beVehicleTypeSchema.parse(wire())).toMatchObject({
+      doorWidthMm: 2340,
+      doorHeightMm: 2280,
+    });
+    const bare = beVehicleTypeSchema.parse(
+      wire({ doorWidthMm: undefined, doorHeightMm: undefined }),
+    );
+    expect(bare.doorWidthMm).toBeUndefined();
+    expect(beVehicleTypeSchema.parse(wire({ doorWidthMm: null })).doorWidthMm).toBeNull();
+    expect(beVehicleTypeSchema.safeParse(wire({ doorWidthMm: "2340" })).success).toBe(false);
+    expect(beVehicleTypeSchema.safeParse(wire({ doorHeightMm: 22.5 })).success).toBe(false);
+  });
+
   it("BigDecimal đến dạng số hoặc chuỗi số đều thành number; NaN bị chặn", () => {
     expect(beVehicleTypeSchema.parse(wire({ maxPayloadKg: "28200.500" })).maxPayloadKg).toBe(
       28200.5,

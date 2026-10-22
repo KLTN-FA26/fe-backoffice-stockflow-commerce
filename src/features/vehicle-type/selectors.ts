@@ -31,6 +31,13 @@ export function formatInnerSizeMm(
   return `${sides.join(" × ")} ${L.unitMm}`;
 }
 
+/** Cửa thùng: "2340×2280"; một phía chưa đặt hiện "—" ở phía đó; cả hai null = không giới hạn → "—". */
+export function formatDoorMm(row: Pick<VehicleType, "doorWidthMm" | "doorHeightMm">): string {
+  const { doorWidthMm: width, doorHeightMm: height } = row;
+  if (width == null && height == null) return L.noDoor;
+  return `${width ?? L.noDoor}×${height ?? L.noDoor}`;
+}
+
 /** Một cạnh hợp lệ theo BE (`@Min(1) @Max(30000)`, số nguyên mm). */
 export function isValidDimensionMm(mm: number | undefined): mm is number {
   return mm !== undefined && Number.isInteger(mm) && mm >= 1 && mm <= LIMITS.dimensionMaxMm;

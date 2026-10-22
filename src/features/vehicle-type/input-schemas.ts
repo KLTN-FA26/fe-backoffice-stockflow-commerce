@@ -3,6 +3,8 @@
  * (docs 09 §3). Ô nhập là chuỗi; schema kiểm rồi đổi sang số. Backend phải re-check mọi rule dưới đây.
  *  - Kích thước trong 1..30000 mm; khe góc 0..1000 mm (BR-10, tuỳ chọn, trống = 0) và phải vừa thùng:
  *    2 × khe góc < rộng trong, khe góc < cao trong (`ck_vehicle_type_gusset_fits`);
+ *  - cửa thùng (tuỳ chọn, trống = không giới hạn cửa): 1..30000 mm, rộng cửa ≤ rộng trong, cao cửa ≤ cao
+ *    trong (`ck_vehicle_type_door_*`; LP3-DOOR: bộ xếp từ chối kiện không lọt cửa);
  *  - tải trọng > 0 và ≤ 100000 kg, tối đa 3 số lẻ; số xe 0..10000;
  *  - giá thuê ≥ 0 (tuỳ chọn, chỉ để tham khảo — docs 09 §4.2).
  */
@@ -51,6 +53,16 @@ function optionalWholeNumber(max: number, belowMessage: string, aboveMessage: st
     .transform((v) => (v === "" ? 0 : Number(v)));
 }
 
+/** Số nguyên tuỳ chọn trong [1, max]: trống → `null` (BE: PUT thay thế toàn bộ, cửa vắng = không giới hạn). */
+function optionalPositiveNumber(max: number, message: string) {
+  return z
+    .string()
+    .trim()
+    .refine((v) => v === "" || INTEGER.test(v), MSG.integerRequired)
+    .refine((v) => v === "" || !INTEGER.test(v) || (Number(v) >= 1 && Number(v) <= max), message)
+    .transform((v) => (v === "" ? null : Number(v)));
+}
+
 const dimension = () =>
   wholeNumber(1, LIMITS.dimensionMaxMm, MSG.dimensionPositive, MSG.dimensionTooLarge);
 
@@ -66,6 +78,8 @@ const vehicleTypeFields = z.object({
   innerWidthMm: dimension(),
   innerHeightMm: dimension(),
   gussetMm: optionalWholeNumber(LIMITS.gussetMaxMm, MSG.gussetNegative, MSG.gussetTooLarge),
+  doorWidthMm: optionalPositiveNumber(LIMITS.doorMaxMm, MSG.doorInvalid),
+  doorHeightMm: optionalPositiveNumber(LIMITS.doorMaxMm, MSG.doorInvalid),
   maxPayloadKg: z
     .string()
     .transform(normalise)
@@ -94,14 +108,31 @@ const vehicleTypeFields = z.object({
 
 /**
  * Khe góc phải vừa thùng (BE `VEHICLE_TYPE_GUSSET_TOO_LARGE`): bộ xếp bỏ khe không vừa nên BE từ chối.
- * Chỉ kiểm khi ba số đã hợp lệ — lỗi từng ô đã nói trước.
+ * Cửa không được lớn hơn thùng (BE `VEHICLE_TYPE_DOOR_TOO_LARGE`): rộng cửa ≤ rộng trong, cao cửa ≤ cao trong.
+ * Chỉ kiểm khi các số đã hợp lệ — lỗi từng ô đã nói trước.
  */
 export const vehicleTypeFormSchema = vehicleTypeFields.superRefine((v, ctx) => {
-  const { gussetMm, innerWidthMm, innerHeightMm } = v;
-  if (![gussetMm, innerWidthMm, innerHeightMm].every((n) => typeof n === "number")) return;
-  if (gussetMm > LIMITS.gussetMaxMm) return;
-  if (2 * gussetMm >= innerWidthMm || gussetMm >= innerHeightMm)
-    ctx.addIssue({ code: "custom", path: ["gussetMm"], message: MSG.gussetTooLargeForBox });
+  const { gussetMm, innerWidthMm, innerHeightMm, doorWidthMm, doorHeightMm } = v;
+  if (typeof innerWidthMm === "number" && typeof innerHeightMm === "number") {
+    if (
+      typeof gussetMm === "number" &&
+      gussetMm <= LIMITS.gussetMaxMm &&
+      (2 * gussetMm >= innerWidthMm || gussetMm >= innerHeightMm)
+    )
+      ctx.addIssue({ code: "custom", path: ["gussetMm"], message: MSG.gussetTooLargeForBox });
+    if (
+      typeof doorWidthMm === "number" &&
+      doorWidthMm <= LIMITS.doorMaxMm &&
+      doorWidthMm > innerWidthMm
+    )
+      ctx.addIssue({ code: "custom", path: ["doorWidthMm"], message: MSG.doorTooLargeForWidth });
+    if (
+      typeof doorHeightMm === "number" &&
+      doorHeightMm <= LIMITS.doorMaxMm &&
+      doorHeightMm > innerHeightMm
+    )
+      ctx.addIssue({ code: "custom", path: ["doorHeightMm"], message: MSG.doorTooLargeForHeight });
+  }
 });
 
 /** Giá trị ô nhập (chuỗi) và giá trị đã kiểm (số) của form. */
@@ -118,6 +149,9 @@ export interface VehicleTypeBody {
   innerHeightMm: number;
   /** Luôn gửi (PUT thay thế toàn bộ): trống = 0. */
   gussetMm: number;
+  /** Luôn gửi (PUT thay thế toàn bộ): trống = null = không giới hạn cửa. */
+  doorWidthMm: number | null;
+  doorHeightMm: number | null;
   maxPayloadKg: number;
   availableCount: number;
   rentalPrice?: number;

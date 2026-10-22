@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { VEHICLE_TYPE_ERROR_MESSAGES as MESSAGES } from "@/constants";
+import {
+  VEHICLE_TYPE_ERROR_MESSAGES as MESSAGES,
+  VEHICLE_TYPE_FIELD_MESSAGES as FIELD,
+} from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
-import { isStaleVehicleTypeError, vehicleTypeErrorMessage } from "./errors";
+import { doorFieldMessage, isStaleVehicleTypeError, vehicleTypeErrorMessage } from "./errors";
 
 const err = (status: number, code: string, fieldErrors?: Record<string, string>) =>
   new ApiError(status, code, "English message from BE", fieldErrors);
@@ -84,6 +87,51 @@ describe("vehicleTypeErrorMessage — mọi errorCode của BE PR #153", () => {
         ),
       ).toBe("Loại: CONTAINER, TRUCK hoặc PICKUP");
     });
+  });
+});
+
+describe("lỗi trường cửa thùng (BE PR #158)", () => {
+  const door = (fieldErrors: Record<string, string>, fieldCodes: Record<string, string>) =>
+    new ApiError(400, "VALIDATION_FAILED", "m", fieldErrors, undefined, fieldCodes);
+
+  it("doorFieldMessage rẽ nhánh theo mã trường và theo ô rộng / cao", () => {
+    expect(doorFieldMessage("doorWidthMm", "VEHICLE_TYPE_DOOR_INVALID")).toBe(FIELD.doorInvalid);
+    expect(doorFieldMessage("doorHeightMm", "VEHICLE_TYPE_DOOR_INVALID")).toBe(FIELD.doorInvalid);
+    expect(doorFieldMessage("doorWidthMm", "VEHICLE_TYPE_DOOR_TOO_LARGE")).toBe(
+      FIELD.doorTooLargeForWidth,
+    );
+    expect(doorFieldMessage("doorHeightMm", "VEHICLE_TYPE_DOOR_TOO_LARGE")).toBe(
+      FIELD.doorTooLargeForHeight,
+    );
+  });
+
+  it("mã lạ, thiếu mã hoặc ô khác → undefined để dùng câu BE", () => {
+    expect(doorFieldMessage("doorWidthMm", undefined)).toBeUndefined();
+    expect(doorFieldMessage("doorWidthMm", "SOMETHING_ELSE")).toBeUndefined();
+    expect(doorFieldMessage("innerWidthMm", "VEHICLE_TYPE_DOOR_TOO_LARGE")).toBeUndefined();
+    expect(doorFieldMessage(undefined, "VEHICLE_TYPE_DOOR_INVALID")).toBeUndefined();
+  });
+
+  it("VALIDATION_FAILED nêu nhãn ô cửa kèm câu tiếng Việt, không lộ câu tiếng Anh của BE", () => {
+    expect(
+      vehicleTypeErrorMessage(
+        door(
+          { doorHeightMm: "must not be larger than the inner height" },
+          { doorHeightMm: "VEHICLE_TYPE_DOOR_TOO_LARGE" },
+        ),
+      ),
+    ).toBe(`Cửa cao (mm): ${FIELD.doorTooLargeForHeight}`);
+    expect(
+      vehicleTypeErrorMessage(
+        door({ doorWidthMm: "1 to 30000 mm" }, { doorWidthMm: "VEHICLE_TYPE_DOOR_INVALID" }),
+      ),
+    ).toBe(`Cửa rộng (mm): ${FIELD.doorInvalid}`);
+  });
+
+  it("không có mã trường (BE trả dạng bản đồ): dùng câu BE đã dịch cho ô đó", () => {
+    expect(
+      vehicleTypeErrorMessage(err(400, "VALIDATION_FAILED", { doorWidthMm: "Từ 1 đến 30000 mm" })),
+    ).toBe("Cửa rộng (mm): Từ 1 đến 30000 mm");
   });
 });
 

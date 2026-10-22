@@ -141,6 +141,7 @@ export const VEHICLE_TYPE_COLUMNS = {
   ACTIONS: "actions",
   AVAILABLE_COUNT: "availableCount",
   CODE: "code",
+  DOOR: "door",
   GUSSET: "gusset",
   INNER_SIZE: "innerSize",
   KIND: "kind",

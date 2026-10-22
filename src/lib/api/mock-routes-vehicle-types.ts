@@ -2,7 +2,7 @@
  * Mock routes — danh mục loại xe (docs 09 §3), theo hợp đồng BE PR #153 (`VehicleTypeController`,
  * `VehicleTypeService`): đọc cần `fulfillment-vehicle-types:READ`, tạo / sửa cần `:UPDATE` (lấy từ phiên
  * mock như `@RequiresPermission`). Mã viết hoa và không đổi; không có DELETE; sửa kèm `version` (409
- * OPTIMISTIC_LOCK). PUT thay thế toàn bộ như hãng vận chuyển: `gussetMm` vắng = 0, `rentalPrice` vắng = xoá, chỉ
+ * OPTIMISTIC_LOCK). PUT thay thế toàn bộ như hãng vận chuyển: `gussetMm` vắng = 0, cửa vắng = null, `rentalPrice` vắng = xoá, chỉ
  * `status` vắng thì giữ nguyên (tạo mới: ACTIVE); loại xe mặc định giữ `kind`; khe góc phải vừa thùng.
  */
 
@@ -97,6 +97,8 @@ export function registerVehicleTypeMockRoutes(): void {
         innerWidthMm: 1,
         innerHeightMm: 1,
         gussetMm: 0,
+        doorWidthMm: null,
+        doorHeightMm: null,
         maxPayloadKg: 1,
         availableCount: 0,
         rentalPrice: null,

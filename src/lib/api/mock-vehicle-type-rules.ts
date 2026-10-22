@@ -1,10 +1,16 @@
 /**
  * Quy tắc của mock danh mục loại xe — theo `VehicleTypeService.fill` của BE PR #153: kiểm các trường dùng chung
  * của POST / PUT. PUT thay thế toàn bộ (khe góc vắng = 0, giá thuê vắng = xoá, status vắng = giữ nguyên), loại xe
- * mặc định giữ `kind`, khe góc phải vừa thùng (`ck_vehicle_type_gusset_fits`).
+ * mặc định giữ `kind`, khe góc phải vừa thùng (`ck_vehicle_type_gusset_fits`),
+ * cửa tuỳ chọn (vắng = xoá = không giới hạn; BE PR #158) phải trong 1..30000 và không lớn hơn thùng.
  */
 
-import { VEHICLE_TYPE_KINDS, VEHICLE_TYPE_LIMITS, VEHICLE_TYPE_STATUSES } from "@/constants";
+import {
+  VEHICLE_TYPE_DOOR_ERROR_CODES as DOOR_CODES,
+  VEHICLE_TYPE_KINDS,
+  VEHICLE_TYPE_LIMITS,
+  VEHICLE_TYPE_STATUSES,
+} from "@/constants";
 
 import { readString } from "./mock-routes-purchase-orders-store";
 
@@ -23,6 +29,24 @@ export type Problems = { field: string; message: string; code?: string }[];
 
 const intIn = (value: unknown, min: number, max: number): value is number =>
   typeof value === "number" && Number.isInteger(value) && value >= min && value <= max;
+
+/** Một phía cửa (`VehicleTypeService.door`): null / vắng = không giới hạn; ngoài 1..30000 hoặc lớn hơn phía trong → lỗi trường. */
+function door(value: unknown, inner: number, field: string, problems: Problems): number | null {
+  if (value === undefined || value === null) return null;
+  if (!intIn(value, 1, L.doorMaxMm)) {
+    problems.push({ field, message: `1 to ${L.doorMaxMm} mm`, code: DOOR_CODES.INVALID });
+    return null;
+  }
+  if (value > inner) {
+    problems.push({
+      field,
+      message: `must not be larger than the inner ${field === "doorWidthMm" ? "width" : "height"}`,
+      code: DOOR_CODES.TOO_LARGE,
+    });
+    return null;
+  }
+  return value;
+}
 
 /** `VehicleTypeService.fill`: kiểm các trường dùng chung; trả bản ghi mới + danh sách lỗi theo trường. */
 export function fill(
@@ -57,6 +81,8 @@ export function fill(
       message:
         "twice the gusset must be less than the inner width, and the gusset less than the inner height",
     });
+  const doorWidth = door(body.doorWidthMm, sides[1] ?? 1, "doorWidthMm", problems);
+  const doorHeight = door(body.doorHeightMm, sides[2] ?? 1, "doorHeightMm", problems);
   const payload = body.maxPayloadKg;
   const payloadOk = typeof payload === "number" && payload > 0 && payload <= L.payloadMaxKg;
   if (!payloadOk)
@@ -77,6 +103,8 @@ export function fill(
       innerWidthMm: sides[1] ?? 1,
       innerHeightMm: sides[2] ?? 1,
       gussetMm: typeof gusset === "number" ? gusset : 0,
+      doorWidthMm: doorWidth,
+      doorHeightMm: doorHeight,
       maxPayloadKg: payloadOk ? payload : 1,
       availableCount: typeof body.availableCount === "number" ? body.availableCount : 0,
       rentalPrice: price,

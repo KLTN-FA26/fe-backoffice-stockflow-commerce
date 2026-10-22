@@ -97,6 +97,9 @@ describe("VehicleTypeFormDialog — thêm loại xe", () => {
       innerWidthMm: 1900,
       innerHeightMm: 1900,
       gussetMm: 0,
+      // Cửa để trống: gửi null (không giới hạn cửa), không bỏ trường
+      doorWidthMm: null,
+      doorHeightMm: null,
       maxPayloadKg: 3000,
       availableCount: 1,
       status: "ACTIVE",
@@ -159,7 +162,8 @@ describe("VehicleTypeFormDialog — sửa loại xe", () => {
   });
 
   it("khe góc quá lớn so với thùng: báo ngay ở ô khe góc và khoá nút Lưu; trống gửi 0", async () => {
-    const { put } = renderDialog(apiVehicleType());
+    // Không cửa: đổi rộng trong xuống 1900 không đụng luật cửa ≤ thùng
+    const { put } = renderDialog(apiVehicleType({ doorWidthMm: null, doorHeightMm: null }));
     const user = userEvent.setup();
     const gusset = await screen.findByDisplayValue("150");
     const width = field(L.field.innerWidthMm);
@@ -180,6 +184,112 @@ describe("VehicleTypeFormDialog — sửa loại xe", () => {
       gussetMm: 0,
       kind: "CONTAINER",
       status: "ACTIVE",
+    });
+  });
+
+  describe("cửa thùng (tuỳ chọn)", () => {
+    it("nạp sẵn cửa của dòng; loại xe không cửa thì hai ô trống; có gợi ý để trống nếu không giới hạn", async () => {
+      renderDialog(apiVehicleType());
+      expect(await screen.findByDisplayValue("Container 20' Dry (20DC)")).toBeInTheDocument();
+      expect(field(L.field.doorWidthMm)).toHaveValue("2340");
+      expect(field(L.field.doorHeightMm)).toHaveValue("2280");
+      expect(screen.getByText(L.form.doorHint)).toBeInTheDocument();
+    });
+
+    it("xoá hai ô cửa rồi lưu: PUT gửi null cho cả hai (thay thế toàn bộ, không bỏ trường)", async () => {
+      const { put } = renderDialog(apiVehicleType());
+      const user = userEvent.setup();
+      await user.clear(await screen.findByDisplayValue("2340"));
+      await user.clear(field(L.field.doorHeightMm));
+      await user.click(screen.getByRole("button", { name: L.form.submitEdit }));
+      await waitFor(() => expect(put).toHaveBeenCalled());
+      const sent = put.mock.calls[0]?.[1] as Record<string, unknown>;
+      expect(sent).toHaveProperty("doorWidthMm", null);
+      expect(sent).toHaveProperty("doorHeightMm", null);
+    });
+
+    it("không đụng ô cửa: PUT vẫn gửi lại số của dòng", async () => {
+      const { put } = renderDialog(apiVehicleType());
+      const user = userEvent.setup();
+      await user.click(await screen.findByRole("button", { name: L.form.submitEdit }));
+      await waitFor(() => expect(put).toHaveBeenCalled());
+      expect(put.mock.calls[0]?.[1]).toMatchObject({ doorWidthMm: 2340, doorHeightMm: 2280 });
+    });
+
+    it("sửa cửa thành số mới: PUT gửi số đã đổi từ chuỗi", async () => {
+      const { put } = renderDialog(apiVehicleType());
+      const user = userEvent.setup();
+      const height = await screen.findByDisplayValue("2280");
+      await user.clear(height);
+      await user.type(height, "2200");
+      await user.click(screen.getByRole("button", { name: L.form.submitEdit }));
+      await waitFor(() => expect(put).toHaveBeenCalled());
+      expect(put.mock.calls[0]?.[1]).toMatchObject({ doorWidthMm: 2340, doorHeightMm: 2200 });
+    });
+
+    it("cửa lớn hơn thùng: báo ngay ở ô và khoá nút Lưu; sửa lại thì mở khoá", async () => {
+      renderDialog(apiVehicleType());
+      const user = userEvent.setup();
+      const width = await screen.findByDisplayValue("2340");
+      await user.clear(width);
+      // Rộng trong 2352
+      await user.type(width, "2353");
+      expect(
+        await screen.findByText(VEHICLE_TYPE_FIELD_MESSAGES.doorTooLargeForWidth),
+      ).toBeInTheDocument();
+      expect(width).toHaveAttribute("aria-invalid", "true");
+      const submit = screen.getByRole("button", { name: L.form.submitEdit });
+      expect(submit).toBeDisabled();
+      await user.clear(width);
+      await user.type(width, "2352");
+      await waitFor(() => expect(submit).toBeEnabled());
+    });
+
+    it("cửa ngoài 1..30.000 mm: báo ở ô cửa", async () => {
+      renderDialog();
+      const user = userEvent.setup();
+      await screen.findByRole("button", { name: L.form.submitCreate });
+      await user.type(field(L.field.doorHeightMm), "0");
+      expect(await screen.findByText(VEHICLE_TYPE_FIELD_MESSAGES.doorInvalid)).toBeInTheDocument();
+    });
+
+    it("BE trả VEHICLE_TYPE_DOOR_TOO_LARGE: câu tiếng Việt ở ô và trên banner, không lộ câu tiếng Anh", async () => {
+      const { post, onClose } = renderDialog();
+      post.mockRejectedValueOnce(
+        new ApiError(
+          400,
+          "VALIDATION_FAILED",
+          "bad",
+          { doorHeightMm: "must not be larger than the inner height" },
+          undefined,
+          { doorHeightMm: "VEHICLE_TYPE_DOOR_TOO_LARGE" },
+        ),
+      );
+      const user = await fillCreateForm();
+      await user.click(await screen.findByRole("button", { name: L.form.submitCreate }));
+      const message = VEHICLE_TYPE_FIELD_MESSAGES.doorTooLargeForHeight;
+      expect(await screen.findByText(`${L.field.doorHeightMm}: ${message}`)).toBeInTheDocument();
+      expect(screen.getByText(message)).toBeInTheDocument();
+      expect(screen.queryByText(/must not be larger/)).not.toBeInTheDocument();
+      expect(field(L.field.doorHeightMm)).toHaveAttribute("aria-invalid", "true");
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it("BE trả VEHICLE_TYPE_DOOR_INVALID trên ô rộng cửa: câu tiếng Việt gắn đúng ô", async () => {
+      const { post } = renderDialog();
+      post.mockRejectedValueOnce(
+        new ApiError(400, "VALIDATION_FAILED", "bad", { doorWidthMm: "1 to 30000 mm" }, undefined, {
+          doorWidthMm: "VEHICLE_TYPE_DOOR_INVALID",
+        }),
+      );
+      const user = await fillCreateForm();
+      await user.click(await screen.findByRole("button", { name: L.form.submitCreate }));
+      expect(
+        await screen.findByText(
+          `${L.field.doorWidthMm}: ${VEHICLE_TYPE_FIELD_MESSAGES.doorInvalid}`,
+        ),
+      ).toBeInTheDocument();
+      expect(field(L.field.doorWidthMm)).toHaveAttribute("aria-invalid", "true");
     });
   });
 

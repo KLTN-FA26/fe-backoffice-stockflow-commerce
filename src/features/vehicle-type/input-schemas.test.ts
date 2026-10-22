@@ -14,6 +14,8 @@ const valid: VehicleTypeFormInput = {
   innerWidthMm: "1900",
   innerHeightMm: "1900",
   gussetMm: "50",
+  doorWidthMm: "",
+  doorHeightMm: "",
   maxPayloadKg: "3000",
   availableCount: "2",
   rentalPrice: "",
@@ -58,6 +60,51 @@ describe("vehicleTypeFormSchema — phản chiếu VehicleTypeRequest của BE",
     // Số nhập chưa hợp lệ: chỉ báo lỗi của chính ô đó, không thêm lỗi vừa thùng
     expect(issues({ innerWidthMm: "0", gussetMm: "10" }).gussetMm).toBeUndefined();
     expect(issues({ gussetMm: "1001" }).gussetMm).toBe(MSG.gussetTooLarge);
+  });
+
+  it("cửa trống = null (không giới hạn cửa) — form luôn gửi cả hai ô", () => {
+    const result = vehicleTypeFormSchema.parse(valid);
+    expect(result.doorWidthMm).toBeNull();
+    expect(result.doorHeightMm).toBeNull();
+    expect(vehicleTypeFormSchema.parse({ ...valid, doorWidthMm: "   " }).doorWidthMm).toBeNull();
+  });
+
+  it("cửa có số: đổi sang số; mỗi phía đặt riêng được", () => {
+    expect(
+      vehicleTypeFormSchema.parse({ ...valid, doorWidthMm: " 1800 ", doorHeightMm: "1900" }),
+    ).toMatchObject({ doorWidthMm: 1800, doorHeightMm: 1900 });
+    const one = vehicleTypeFormSchema.parse({ ...valid, doorHeightMm: "1500" });
+    expect(one.doorWidthMm).toBeNull();
+    expect(one.doorHeightMm).toBe(1500);
+  });
+
+  it("cửa phải là số nguyên trong 1..30.000 mm", () => {
+    expect(issues({ doorWidthMm: "0" }).doorWidthMm).toBe(MSG.doorInvalid);
+    expect(issues({ doorWidthMm: "-5" }).doorWidthMm).toBe(MSG.doorInvalid);
+    expect(issues({ doorHeightMm: "30001" }).doorHeightMm).toBe(MSG.doorInvalid);
+    expect(issues({ doorWidthMm: "12.5" }).doorWidthMm).toBe(MSG.integerRequired);
+    expect(issues({ doorHeightMm: "abc" }).doorHeightMm).toBe(MSG.integerRequired);
+    expect(issues({ doorWidthMm: "1" }).doorWidthMm).toBeUndefined();
+  });
+
+  it("cửa không lớn hơn thùng: rộng cửa ≤ rộng trong, cao cửa ≤ cao trong (bằng thì được)", () => {
+    // Thùng 1900 × 1900
+    expect(issues({ doorWidthMm: "1901" }).doorWidthMm).toBe(MSG.doorTooLargeForWidth);
+    expect(issues({ doorWidthMm: "1900" }).doorWidthMm).toBeUndefined();
+    expect(issues({ doorHeightMm: "1901" }).doorHeightMm).toBe(MSG.doorTooLargeForHeight);
+    expect(issues({ doorHeightMm: "1900" }).doorHeightMm).toBeUndefined();
+    // Rộng cửa so với rộng, không so với cao (và ngược lại)
+    expect(issues({ innerHeightMm: "1000", doorWidthMm: "1500" }).doorWidthMm).toBeUndefined();
+    expect(issues({ innerWidthMm: "1000", doorHeightMm: "1500" }).doorHeightMm).toBeUndefined();
+    expect(issues({ innerWidthMm: "1000", doorWidthMm: "1500" }).doorWidthMm).toBe(
+      MSG.doorTooLargeForWidth,
+    );
+  });
+
+  it("số nhập chưa hợp lệ: chỉ báo lỗi của chính ô đó, không thêm lỗi vừa thùng", () => {
+    expect(issues({ doorWidthMm: "30001" }).doorWidthMm).toBe(MSG.doorInvalid);
+    expect(issues({ innerWidthMm: "0", doorWidthMm: "10" }).doorWidthMm).toBeUndefined();
+    expect(issues({ innerHeightMm: "", doorHeightMm: "10" }).doorHeightMm).toBeUndefined();
   });
 
   it("kích thước phải > 0 và ≤ 30.000 mm, số nguyên", () => {

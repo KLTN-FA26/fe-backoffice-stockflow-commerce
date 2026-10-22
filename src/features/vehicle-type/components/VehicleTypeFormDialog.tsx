@@ -8,7 +8,11 @@ import { UI_LABELS } from "@/constants";
 
 import { ApiError } from "@/lib/api/error";
 
-import { isStaleVehicleTypeError, vehicleTypeErrorMessage } from "@/features/vehicle-type/errors";
+import {
+  doorFieldMessage,
+  isStaleVehicleTypeError,
+  vehicleTypeErrorMessage,
+} from "@/features/vehicle-type/errors";
 import {
   conflictsOf,
   EMPTY_VEHICLE_TYPE_FORM,
@@ -82,7 +86,8 @@ function Form({ vehicleType, onClose }: { vehicleType?: VehicleType; onClose: ()
         setServerError(vehicleTypeErrorMessage(error, context));
         if (!(error instanceof ApiError)) return;
         for (const name of SERVER_FIELDS) {
-          const message = error.fieldErrors?.[name];
+          const message =
+            doorFieldMessage(name, error.fieldCodes?.[name]) ?? error.fieldErrors?.[name];
           if (message) form.setError(name, { type: "server", message });
         }
       },
