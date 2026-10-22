@@ -63,6 +63,29 @@ describe("CustomerCreate (SCRUM-451)", () => {
     });
   });
 
+  it("PR #70 review: an invalid % left in the hidden deposit field does not block a PREPAID customer", async () => {
+    const api = mockApi("SALES_STAFF", {
+      post: {
+        "/customers": (_params, body) => created((body as { companyName: string }).companyName),
+      },
+    });
+    renderScreen(<CustomerCreate />, "SALES_STAFF");
+    await fillRequired();
+    await userEvent.click(screen.getByRole("radio", { name: "Đặt cọc" }));
+    await userEvent.type(screen.getByLabelText(/Tỷ lệ cọc/), "100");
+    await userEvent.click(screen.getByRole("radio", { name: "Trả trước" }));
+    expect(screen.queryByLabelText(/Tỷ lệ cọc/)).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /Tạo khách và gửi lời mời/ }));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/admin/customers/c-9"));
+    expect(api.post).toHaveBeenCalledWith("/customers", {
+      companyName: "Quán Cà Phê Nhỏ",
+      contactName: "Nguyễn An",
+      email: "an@example.com",
+      paymentTerm: "PREPAID",
+    });
+  });
+
   it("maps BE duplicate tax code (409) to the tax code field and keeps the form", async () => {
     mockApi("SALES_STAFF", {
       post: {
