@@ -443,6 +443,23 @@ export const DELIVERY_OUTCOMES = ["DELIVERED", "DELIVERY_FAILED", "RETURNED"] as
 /** BE `CarrierResponse.status` — hãng ngừng dùng thì không nhận chuyến mới. */
 export const CARRIER_STATUSES = ["ACTIVE", "INACTIVE"] as const;
 
+/** BE `VehicleTypeRequest.kind` — loại phương tiện trong danh mục loại xe (docs 09 §3). */
+export const VEHICLE_TYPE_KINDS = ["CONTAINER", "TRUCK", "PICKUP"] as const;
+
+export const VEHICLE_TYPE_KIND = {
+  CONTAINER: "CONTAINER",
+  TRUCK: "TRUCK",
+  PICKUP: "PICKUP",
+} as const satisfies Record<string, (typeof VEHICLE_TYPE_KINDS)[number]>;
+
+/** BE `VehicleTypeResponse.status` — loại xe ngừng dùng thì không đưa vào kế hoạch xếp xe mới. */
+export const VEHICLE_TYPE_STATUSES = ["ACTIVE", "INACTIVE"] as const;
+
+export const VEHICLE_TYPE_STATUS = {
+  ACTIVE: "ACTIVE",
+  INACTIVE: "INACTIVE",
+} as const satisfies Record<string, (typeof VEHICLE_TYPE_STATUSES)[number]>;
+
 export type PoStatus = (typeof PO_STATUSES)[number];
 export type SupplierConfirmationStatus = (typeof SUPPLIER_CONFIRMATION_STATUSES)[number];
 export type PoDeliveryStatus = (typeof PO_DELIVERY_STATUSES)[number];

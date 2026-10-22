@@ -137,6 +137,17 @@ export const ATTRIBUTE_PERMISSIONS = {
 } as const;
 
 /**
+ * Danh mục loại xe cho kế hoạch xếp xe (SCRUM-287) — resource `fulfillment-vehicle-types`
+ * (BE PR #153 `VehicleTypeController`). READ: danh sách + chi tiết (nhân viên kho, quản lý kho,
+ * điều phối đơn); UPDATE: thêm / sửa / ngừng dùng (quản lý kho). Không có DELETE.
+ */
+export const VEHICLE_TYPE_PERMISSIONS = {
+  viewPage: "fulfillment-vehicle-types:VIEW_PAGE",
+  read: "fulfillment-vehicle-types:READ",
+  update: "fulfillment-vehicle-types:UPDATE",
+} as const;
+
+/**
  * Điều chỉnh tồn + sổ kho — BE `StockOperationsController` (develop 0f18f24), resource
  * `InventoryResources.STOCK_ITEMS` / `STOCK_ADJUSTMENTS` / `STOCK_MOVEMENTS`.
  */

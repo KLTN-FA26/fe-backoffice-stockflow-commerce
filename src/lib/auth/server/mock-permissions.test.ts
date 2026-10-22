@@ -170,6 +170,22 @@ describe("Fulfillment / order grants (BE PR #148, V20261022000200)", () => {
     expect(grants("USER-COORD-01")).toContain("fulfillment-delivery-outcomes:APPROVE");
   });
 
+  it("loại xe (BE PR #153): nhân viên kho / điều phối chỉ xem, quản lý kho (admin demo) được cập nhật", () => {
+    for (const userId of ["USER-WH-01", "USER-COORD-01"]) {
+      const codes = grants(userId);
+      expect(codes).toEqual(
+        expect.arrayContaining([
+          "fulfillment-vehicle-types:VIEW_PAGE",
+          "fulfillment-vehicle-types:READ",
+        ]),
+      );
+      expect(codes).not.toContain("fulfillment-vehicle-types:UPDATE");
+    }
+    expect(grants("USER-ADMIN-01")).toContain("fulfillment-vehicle-types:UPDATE");
+    for (const userId of ["USER-QC-01", "USER-PROC-01", "USER-PLAN-01"])
+      expect(grants(userId)).not.toContain("fulfillment-vehicle-types:READ");
+  });
+
   it("không còn mã quyền cũ không bảo vệ endpoint nào trong bộ quyền demo", () => {
     for (const userId of ["USER-ADMIN-01", "USER-WH-01", "USER-COORD-01", "USER-QC-01"]) {
       const codes = grants(userId);

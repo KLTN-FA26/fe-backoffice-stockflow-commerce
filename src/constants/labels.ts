@@ -8,6 +8,7 @@ import { PRODUCT_UI_LABELS } from "./labels-product";
 import { SHIPPING_TOAST_MESSAGES, SHIPPING_UI_LABELS } from "./labels-shipping";
 import { TAXONOMY_TOAST_MESSAGES, TAXONOMY_UI_LABELS } from "./labels-taxonomy";
 import { TRANSFER_TOAST_MESSAGES, TRANSFER_UI_LABELS } from "./labels-transfer";
+import { VEHICLE_TYPE_TOAST_MESSAGES, VEHICLE_TYPE_UI_LABELS } from "./labels-vehicle-type";
 
 export const UI_LABELS = {
   common: {
@@ -343,6 +344,7 @@ export const UI_LABELS = {
   },
   transfer: TRANSFER_UI_LABELS,
   shipping: SHIPPING_UI_LABELS,
+  vehicleType: VEHICLE_TYPE_UI_LABELS,
   taxonomy: TAXONOMY_UI_LABELS,
   inventoryItem: INVENTORY_ITEM_UI_LABELS,
   product: PRODUCT_UI_LABELS,
@@ -722,6 +724,7 @@ export const TOAST_MESSAGES = {
   },
   transfer: TRANSFER_TOAST_MESSAGES,
   shipping: SHIPPING_TOAST_MESSAGES,
+  vehicleType: VEHICLE_TYPE_TOAST_MESSAGES,
   taxonomy: TAXONOMY_TOAST_MESSAGES,
   inventoryItem: INVENTORY_ITEM_TOAST_MESSAGES,
   fulfillment: {

@@ -7,6 +7,14 @@ export function formatNumber(n: number): string {
   return n.toLocaleString("vi-VN");
 }
 
+/** Fixed fraction digits: (12.032, 3) → "12,032"; (33.1966, 2) → "33,20" (vi-VN). */
+export function formatFixed(n: number, fractionDigits: number): string {
+  return n.toLocaleString("vi-VN", {
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  });
+}
+
 /** Compact number: 1500 → "1,5K", 1200000 → "1,2M". */
 export function formatCompactNumber(n: number): string {
   return new Intl.NumberFormat("vi-VN", {

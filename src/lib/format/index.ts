@@ -14,4 +14,4 @@ export {
   isToday,
   toLocalIsoDate,
 } from "./date";
-export { formatNumber, formatCompactNumber, formatPercent } from "./number";
+export { formatNumber, formatFixed, formatCompactNumber, formatPercent } from "./number";

@@ -26,4 +26,22 @@ describe("ApiError", () => {
       traceId: "corr-123",
     });
   });
+
+  it("keeps the per-field error codes of the array form for callers that branch on them", () => {
+    const error = new AxiosError("Bad request", undefined, undefined, undefined, {
+      config: { headers: new AxiosHeaders() },
+      data: {
+        errorCode: "VALIDATION_FAILED",
+        fieldErrors: [
+          { field: "code", message: "cannot change", code: "VEHICLE_TYPE_CODE_IMMUTABLE" },
+          { field: "name", message: "required" },
+        ],
+      },
+      headers: {},
+      status: 400,
+      statusText: "Bad Request",
+    });
+    expect(ApiError.from(error).fieldCodes).toEqual({ code: "VEHICLE_TYPE_CODE_IMMUTABLE" });
+    expect(new ApiError(400, "X", "m", { a: "b" }).fieldCodes).toBeUndefined();
+  });
 });

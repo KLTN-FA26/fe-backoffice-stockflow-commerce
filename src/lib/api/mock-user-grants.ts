@@ -31,6 +31,7 @@ import {
   SUPPLIER_PERMISSIONS,
   TRANSFER_PERMISSIONS,
   VARIANT_PERMISSIONS,
+  VEHICLE_TYPE_PERMISSIONS,
   WAREHOUSE_LOCATION_PERMISSIONS,
   WAREHOUSE_PERMISSIONS,
 } from "@/constants/permissions";
@@ -67,6 +68,11 @@ const DISPATCH = Object.values(FULFILLMENT_DISPATCH_PERMISSIONS);
 const LOAD_CANCEL = Object.values(FULFILLMENT_LOAD_CANCELLATION_PERMISSIONS);
 const CARRIER = Object.values(FULFILLMENT_CARRIER_PERMISSIONS);
 const OUTCOME = FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS;
+// Seed BE V20261022000700 (BE PR #153): fulfillment-vehicle-types VIEW_PAGE + READ cho WAREHOUSE_STAFF /
+// WAREHOUSE_MANAGER / ORDER_COORDINATOR / SYSTEM_ADMIN; UPDATE chỉ WAREHOUSE_MANAGER / SYSTEM_ADMIN.
+const VT = VEHICLE_TYPE_PERMISSIONS;
+const VEHICLE_TYPE_READ = [VT.viewPage, VT.read];
+const VEHICLE_TYPE_ALL = Object.values(VT);
 // WAREHOUSE_STAFF: lấy hàng + đóng gói (READ/UPDATE) + xếp xe / bàn giao.
 const FLOOR_WORK = [...PICKING, ...PACKING_WORK, ...DISPATCH];
 // WAREHOUSE_MANAGER: toàn bộ nhóm kho + gán / giám sát task, kiểm tra lại thiết kế, hãng, huỷ chuyến,
@@ -80,10 +86,11 @@ const MANAGER_WORK = [
   ...REVERIFY,
   ...CARRIER,
   ...LOAD_CANCEL,
+  ...VEHICLE_TYPE_ALL,
   OUTCOME.update,
 ];
 // ORDER_COORDINATOR: gán / giám sát task + ghi nhận kết quả giao (đã giao / thất bại cần APPROVE).
-const COORDINATOR_WORK = [...TA, ...OVERSIGHT, ...Object.values(OUTCOME)];
+const COORDINATOR_WORK = [...TA, ...OVERSIGHT, ...Object.values(OUTCOME), ...VEHICLE_TYPE_READ];
 const INV = INVENTORY_PERMISSIONS;
 // Seed BE V20260928006000: ECOMMERCE_ADMIN có product-attributes và product-variants đủ quyền (admin mock
 // là System Admin: toàn quyền như mọi nhóm khác ở đây).
@@ -125,6 +132,7 @@ const WH_WORK = [
   WAREHOUSE_READ,
   WAREHOUSE_LOCATION_PERMISSIONS.read,
   ...ITEM_READ,
+  ...VEHICLE_TYPE_READ,
 ];
 
 /** Explicit demo session responses keyed by existing staff IDs, never computed from roles. */
