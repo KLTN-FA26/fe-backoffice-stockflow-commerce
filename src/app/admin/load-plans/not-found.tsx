@@ -4,17 +4,17 @@ import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/button";
 
-const { common, shipping } = UI_LABELS;
+const { common, loadPlan } = UI_LABELS;
 
-/** Route nhóm bắt buộc có not-found (api-conventions §8) — kế hoạch xếp xe đang phát triển. */
+/** Route nhóm bắt buộc có not-found (api-conventions §8). */
 export default function LoadPlansNotFound() {
   return (
     <EmptyState
-      title={shipping.loadPlanTitle}
-      description={shipping.loadPlanInProgress}
+      title={loadPlan.notFoundTitle}
+      description={loadPlan.notFoundDescription}
       action={
         <Button variant="outline" size="sm" asChild>
-          <Link href={ADMIN_ROUTES.shipments.list}>{common.backToList}</Link>
+          <Link href={ADMIN_ROUTES.loadPlans.list}>{common.backToList}</Link>
         </Button>
       }
     />

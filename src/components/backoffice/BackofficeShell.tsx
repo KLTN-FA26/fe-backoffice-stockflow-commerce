@@ -48,6 +48,7 @@ import {
   INVENTORY_ITEM_PERMISSIONS,
   INVENTORY_OVERVIEW_PERMISSIONS,
   INVENTORY_PERMISSIONS,
+  LOAD_PLAN_PERMISSIONS,
   ORDER_PERMISSIONS,
   PO_PERMISSIONS,
   PRODUCT_PERMISSIONS,
@@ -320,12 +321,12 @@ export const NAV_GROUPS: NavGroup[] = [
         permission: FULFILLMENT_PACKAGE_PERMISSIONS.viewPage,
       },
       {
-        label: UI_LABELS.shipping.loadPlanTitle,
-        tooltip: "Load planning",
-        href: ADMIN_ROUTES.loadPlans,
+        label: UI_LABELS.loadPlan.pageTitle,
+        tooltip: UI_LABELS.loadPlan.navTooltip,
+        href: ADMIN_ROUTES.loadPlans.list,
         icon: CalendarClock,
-        // Chưa có resource quyền riêng (SCRUM-452) — tạm theo quyền xem màn xếp xe
-        permission: SHIPMENT_PERMISSIONS.viewPage,
+        // Resource riêng `fulfillment-load-plans` (BE PR #161)
+        permission: LOAD_PLAN_PERMISSIONS.viewPage,
       },
       {
         label: UI_LABELS.vehicleType.pageTitle,
@@ -373,6 +374,7 @@ const DETAIL_LABEL_BY_ROUTE: Record<string, string> = {
   "/admin/suppliers/create": "Tạo nhà cung cấp",
   [INVENTORY_ROUTES.createAdjustment]: INVENTORY_LABELS.createAdjustment,
   "/admin/transfers/create": "Tạo lệnh chuyển kho",
+  [ADMIN_ROUTES.loadPlans.create]: UI_LABELS.loadPlan.create,
 };
 
 /** Required capabilities fail closed; unassigned items remain visible; mock-only items need mock mode. */

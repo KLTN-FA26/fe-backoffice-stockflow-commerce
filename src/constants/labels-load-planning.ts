@@ -17,6 +17,9 @@ export const PLACEMENT_RULE_LABELS: Record<PlacementRule, string> = {
   OVERWEIGHT: "Xe vượt tải trọng cho phép",
   ROTATION_NOT_ALLOWED: "Kiện này không được xoay khỏi hướng đặt ban đầu",
   GUSSET: "Kiện vướng khối gia cố ở góc trần thùng",
+  DOOR: "Kiện không lọt qua cửa xe",
+  KIT_SPLIT: "Các kiện của một bộ phải đi cùng một xe",
+  ORIENTATION_MISMATCH: "Kích thước đã xếp không khớp hướng đặt của kiện",
 };
 
 export const LOAD_PLANNING_LABELS = {

@@ -12,10 +12,10 @@ import type { PlacementRule } from "@/constants";
 import type { Layout } from "../types";
 
 /**
- * Mã luật của solver BE (`PLACEMENT_RULES`), cộng `ORIENTATION_MISMATCH` — lỗi toàn vẹn dữ liệu chỉ FE
- * kiểm (kích thước đã xếp không khớp kích thước danh định theo `orientation`), BE không có mã này.
+ * Mã luật (`PLACEMENT_RULES`). `ORIENTATION_MISMATCH` (kích thước đã xếp không khớp kích thước danh định theo
+ * `orientation`) FE kiểm được ngay trên `Layout`; từ BE PR #161 BE cũng trả mã này, cùng `DOOR` và `KIT_SPLIT`.
  */
-export type LayoutRule = PlacementRule | "ORIENTATION_MISMATCH";
+export type LayoutRule = PlacementRule;
 
 export interface LayoutIssue {
   /** Chỉ số kiện trong `layout.boxes`; null cho lỗi cấp xe (OVERWEIGHT). */

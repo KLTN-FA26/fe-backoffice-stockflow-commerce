@@ -8,6 +8,7 @@ import {
   IDENTITY_PERMISSIONS,
   INVENTORY_ITEM_PERMISSIONS,
   INVENTORY_OVERVIEW_PERMISSIONS,
+  LOAD_PLAN_PERMISSIONS,
   PRODUCT_PERMISSIONS,
   SHIPMENT_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
@@ -152,7 +153,21 @@ describe("declared navigation permissions", () => {
       "/admin/shipments",
     );
     expect(screen.getByRole("link", { name: "Chuyến xe" })).toHaveAttribute("href", "/admin/loads");
-    expect(screen.getByRole("link", { name: "Kế hoạch xếp xe" })).toBeInTheDocument();
+    // Kế hoạch xếp xe có resource quyền riêng: quyền xem màn giao hàng không đủ
+    expect(screen.queryByRole("link", { name: "Kế hoạch xếp xe" })).not.toBeInTheDocument();
+  });
+  it("Kế hoạch xếp xe theo fulfillment-load-plans:VIEW_PAGE (BE PR #161)", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [], permissions: [LOAD_PLAN_PERMISSIONS.viewPage], dataScope: "ALL" },
+    });
+    mockMode.isMock = false;
+    mount();
+    expect(screen.queryByRole("link", { name: "Kế hoạch xếp xe" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Kế hoạch xếp xe" })).toHaveAttribute(
+      "href",
+      "/admin/load-plans",
+    );
+    expect(screen.queryByRole("link", { name: "Chuyến xe" })).not.toBeInTheDocument();
   });
   it("thiếu quyền xem màn giao hàng → ẩn Lô giao và Chuyến xe", async () => {
     vi.spyOn(api, "get").mockResolvedValue({
