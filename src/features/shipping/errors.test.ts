@@ -201,9 +201,15 @@ describe("chuyến nguyên xe (BE PR #162)", () => {
     );
   });
 
-  it("PACKAGE_NOT_IN_LOAD thiếu vehicleSeq / loadCode → câu chung; mã khác không bao giờ thành 'sai xe'", () => {
+  it("BE bỏ loadCode nhưng gửi vehicleSeq → vẫn nêu số xe (không kèm mã chuyến)", () => {
+    const error = err("PACKAGE_NOT_IN_LOAD", 409, { vehicleSeq: "3" });
+    expect(wrongVehicleOf(error)).toEqual({ seq: "3", loadCode: undefined });
+    expect(shippingErrorMessage(error)).toBe("Kiện này thuộc xe số 3 — không xếp lên xe này.");
+  });
+
+  it("PACKAGE_NOT_IN_LOAD thiếu vehicleSeq → câu chung (kể cả khi chỉ có loadCode); mã khác không bao giờ thành 'sai xe'", () => {
     expect(wrongVehicleOf(err("PACKAGE_NOT_IN_LOAD"))).toBeUndefined();
-    expect(wrongVehicleOf(err("PACKAGE_NOT_IN_LOAD", 409, { vehicleSeq: "2" }))).toBeUndefined();
+    expect(wrongVehicleOf(err("PACKAGE_NOT_IN_LOAD", 409, { loadCode: "LD-1" }))).toBeUndefined();
     expect(shippingErrorMessage(err("PACKAGE_NOT_IN_LOAD"))).toBe(
       SHIPPING_ERROR_MESSAGES.PACKAGE_NOT_IN_LOAD,
     );

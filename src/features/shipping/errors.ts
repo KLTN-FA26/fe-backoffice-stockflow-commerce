@@ -7,6 +7,7 @@ import {
   ADMIN_ROUTES,
   SHIPPING_ERROR_MESSAGES,
   SHIPPING_WRONG_VEHICLE_MESSAGE,
+  SHIPPING_WRONG_VEHICLE_NO_CODE_MESSAGE,
   UI_LABELS,
 } from "@/constants";
 import { ApiError } from "@/lib/api/error";
@@ -26,13 +27,13 @@ export function shipmentCodeOf(error: unknown): string | undefined {
 
 /**
  * Chuyến nguyên xe: kiện đã được kế hoạch xếp lên xe khác → BE 409 PACKAGE_NOT_IN_LOAD kèm `vehicleSeq` và
- * `loadCode` của xe đúng (BE PR #162). Thiếu một trong hai thì không nêu được xe → câu chung.
+ * `loadCode` của xe đúng (BE PR #162). Có số xe là đủ để nêu xe; thiếu `loadCode` thì bỏ phần mã chuyến.
+ * Không có `vehicleSeq` → không nêu được xe → câu chung.
  */
-export function wrongVehicleOf(error: unknown): { seq: string; loadCode: string } | undefined {
+export function wrongVehicleOf(error: unknown): { seq: string; loadCode?: string } | undefined {
   if (!(error instanceof ApiError) || error.code !== "PACKAGE_NOT_IN_LOAD") return undefined;
   const seq = error.fieldErrors?.vehicleSeq;
-  const loadCode = error.fieldErrors?.loadCode;
-  return seq && loadCode ? { seq, loadCode } : undefined;
+  return seq ? { seq, loadCode: error.fieldErrors?.loadCode || undefined } : undefined;
 }
 
 /**
@@ -44,10 +45,12 @@ export function shippingErrorMessage(error: unknown): string {
   if (!(error instanceof ApiError)) return SHIPPING_ERROR_MESSAGES.generic;
   const wrongVehicle = wrongVehicleOf(error);
   if (wrongVehicle) {
-    return SHIPPING_WRONG_VEHICLE_MESSAGE.replace("{seq}", wrongVehicle.seq).replace(
-      "{code}",
-      wrongVehicle.loadCode,
-    );
+    return wrongVehicle.loadCode
+      ? SHIPPING_WRONG_VEHICLE_MESSAGE.replace("{seq}", wrongVehicle.seq).replace(
+          "{code}",
+          wrongVehicle.loadCode,
+        )
+      : SHIPPING_WRONG_VEHICLE_NO_CODE_MESSAGE.replace("{seq}", wrongVehicle.seq);
   }
   const shipmentCode = shipmentCodeOf(error);
   if (!isKnownErrorCode(error.code)) {

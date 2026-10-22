@@ -50,6 +50,7 @@ interface Handlers {
   loadingStart?: Handler;
   unloads?: Handler;
   scans?: Handler;
+  handover?: Handler;
 }
 
 function renderFtl(actor: TestActor, load: Load, handlers: Handlers = {}) {
@@ -63,6 +64,7 @@ function renderFtl(actor: TestActor, load: Load, handlers: Handlers = {}) {
       [`${PATH}/loading-start`]: run(handlers.loadingStart),
       [`${PATH}/unloads`]: run(handlers.unloads),
       [`${PATH}/scans`]: run(handlers.scans),
+      [`${PATH}/handover`]: run(handlers.handover),
     },
   });
   renderShippingScreen(<LoadScreen id={FTL_ID} />);
@@ -215,10 +217,32 @@ describe("Chuyến nguyên xe — xe của kế hoạch và đặt xe", () => {
     expect(await screen.findByText(F.bookingToCancel.title)).toBeInTheDocument();
     const notice = screen.getByText(F.bookingToCancel.title).parentElement as HTMLElement;
     expect(within(notice).getByText(/51C-628\.14/)).toBeInTheDocument();
-    expect(
-      within(notice).getByText(new RegExp(F.bookingToCancel.autoCancelled)),
-    ).toBeInTheDocument();
+    // Chỉ câu tiếng Việt — lý do tiếng Anh của BE không được in ra
+    expect(within(notice).getByText(F.bookingToCancel.autoCancelled)).toBeInTheDocument();
+    expect(screen.queryByText(/auto-cancelled/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/nothing to carry/i)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: F.booking.rebook })).not.toBeInTheDocument();
+  });
+
+  it("xe huỷ do người dùng (không phải tự huỷ) và còn đặt xe ngoài: hiện nguyên lý do người nhập", async () => {
+    renderFtl(
+      ACTORS.warehouseStaff,
+      ftlLoad({
+        status: "CANCELLED",
+        carrierBookingToCancel: true,
+        cancelledAt: "2026-10-21T04:00:00Z",
+        cancelReason: "Kế hoạch mở lại",
+        shipments: [],
+        shipmentCount: 0,
+        expectedPackageCount: 0,
+        loadedPackageCount: 0,
+      }),
+    );
+    const notice = (await screen.findByText(F.bookingToCancel.title)).parentElement as HTMLElement;
+    expect(
+      within(notice).getByText(`${F.bookingToCancel.reason} Kế hoạch mở lại`),
+    ).toBeInTheDocument();
+    expect(within(notice).queryByText(F.bookingToCancel.autoCancelled)).not.toBeInTheDocument();
   });
 
   it("xe huỷ mà không còn đặt xe ngoài hệ thống: không hiện nhắc huỷ", async () => {
@@ -400,5 +424,42 @@ describe("Biên bản theo xe", () => {
     await screen.findByRole("heading", { name: L.manifest.docTitle });
     expect(screen.queryByText(F.manifest.perVehicleNote)).not.toBeInTheDocument();
     expect(screen.queryByText(F.manifest.vehicle)).not.toBeInTheDocument();
+  });
+});
+
+describe("Bàn giao theo xe — kết quả", () => {
+  it("xe không phải xe cuối: lô còn READY_TO_DISPATCH hiện 'Chờ xe cuối', lô đã đi hiện 'Đã bàn giao'; tiêu đề 'Xe đã bàn giao'", async () => {
+    const user = userEvent.setup();
+    const full = loadingFtl({
+      shipments: [
+        loadShipment("SO-1-S1", [ftlParcel("PKG-SO-1-1", true)]),
+        loadShipment("SO-2-S1", [ftlParcel("PKG-SO-2-1", true)]),
+      ],
+    });
+    const done: Load = {
+      ...full,
+      status: "DISPATCHED",
+      shipments: [
+        { ...(full.shipments[0] as Load["shipments"][number]), status: "READY_TO_DISPATCH" },
+        { ...(full.shipments[1] as Load["shipments"][number]), status: "HANDED_OVER" },
+      ],
+    };
+    renderFtl(ACTORS.warehouseStaff, full, { handover: () => done });
+    await user.click(await screen.findByRole("button", { name: L.load.actions.handover }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(
+      within(dialog).getByLabelText(L.handover.representative, { exact: false }),
+      "Anh Tài",
+    );
+    await user.click(within(dialog).getByRole("checkbox"));
+    await user.click(within(dialog).getByRole("button", { name: L.handover.title }));
+    const result = await screen.findByRole("dialog", { name: new RegExp(F.handover.doneTitle) });
+    const rows = within(result).getAllByRole("listitem");
+    expect(
+      within(rows[0] as HTMLElement).getByText(F.handover.shipmentStatus.READY_TO_DISPATCH),
+    ).toBeInTheDocument();
+    expect(
+      within(rows[1] as HTMLElement).getByText(F.handover.shipmentStatus.HANDED_OVER),
+    ).toBeInTheDocument();
   });
 });

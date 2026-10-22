@@ -24,10 +24,15 @@ export function CarrierBookingNotice({ load }: { load: Load }) {
     <Alert tone="warning" title={N.title}>
       <p>{N.body}</p>
       {details.length > 0 && <p className="mt-1">{details.join(" · ")}</p>}
-      {load.cancelReason && (
-        <p className="mt-1">
-          {isAutoCancelled(load) ? N.autoCancelled : N.reason} {load.cancelReason}
-        </p>
+      {/* Lý do tự huỷ do BE viết bằng tiếng Anh → chỉ hiện câu tiếng Việt; lý do do người nhập thì hiện nguyên văn */}
+      {isAutoCancelled(load) ? (
+        <p className="mt-1">{N.autoCancelled}</p>
+      ) : (
+        load.cancelReason && (
+          <p className="mt-1">
+            {N.reason} {load.cancelReason}
+          </p>
+        )
       )}
     </Alert>
   );

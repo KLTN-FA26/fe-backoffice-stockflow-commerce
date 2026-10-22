@@ -88,6 +88,19 @@ describe("LoadList — chuyến xe", () => {
   });
 });
 
+describe("LoadList — tìm kiếm", () => {
+  it("ô tìm kiếm nói rõ tìm theo mã chuyến, biển số và mã kế hoạch; gửi `search` cho BE", async () => {
+    const { get } = renderList(ACTORS.warehouseStaff, "?q=LP-2026");
+    const box = await screen.findByPlaceholderText(/mã kế hoạch/);
+    expect(box).toHaveAttribute("placeholder", L.loads.searchPlaceholder);
+    expect(L.loads.searchScope).toMatch(/mã kế hoạch/);
+    await waitFor(() => {
+      const params = get.mock.calls.find(([url]) => url === "/fulfillment/loads")?.[1]?.params;
+      expect(params).toMatchObject({ search: "LP-2026" });
+    });
+  });
+});
+
 describe("LoadList — chuyến nguyên xe (BE PR #162)", () => {
   const FTL = ftlRow({ loadId: "LD-F001", code: "LD-F001", status: "VEHICLE_BOOKED" });
   const PLANNED = ftlRow({

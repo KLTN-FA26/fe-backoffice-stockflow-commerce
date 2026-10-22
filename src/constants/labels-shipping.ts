@@ -71,8 +71,8 @@ export const SHIPPING_UI_LABELS = {
     title: "Chuyến xe",
     subtitle:
       "Mỗi chuyến là một lần bàn giao cho một hãng: quét kiện lên xe, in biên bản, hai bên ký.",
-    searchPlaceholder: "Tìm theo mã chuyến hoặc biển số xe",
-    searchScope: "Mã chuyến, biển số xe",
+    searchPlaceholder: "Tìm theo mã chuyến, biển số hoặc mã kế hoạch",
+    searchScope: "Mã chuyến, biển số xe, mã kế hoạch",
     listCaption: "chuyến xe",
     refetching: "Đang tải lại danh sách chuyến xe",
     open: "Mở chuyến",

@@ -11,7 +11,8 @@ import {
   type MockLoad,
   type MockShipment,
 } from "./mock-dispatch-store";
-import { ftlScanCheck, managedByPlan } from "./mock-dispatch-ftl-rules";
+import { managedByPlan } from "./mock-dispatch-ftl-rules";
+import { ftlScanCheck } from "./mock-dispatch-ftl-scan";
 import { loadDetailView } from "./mock-dispatch-view";
 import { fail, ok, validationFailed } from "./mock-route-utils";
 

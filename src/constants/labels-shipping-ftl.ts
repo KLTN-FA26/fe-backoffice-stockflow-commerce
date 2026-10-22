@@ -58,7 +58,7 @@ export const SHIPPING_FTL_LABELS = {
   bookingToCancel: {
     title: "Nhớ huỷ xe đã đặt với nhà xe",
     body: "Chuyến này đã huỷ nhưng xe vẫn còn đặt ở ngoài hệ thống — hãy liên hệ hãng để huỷ.",
-    autoCancelled: "Hệ thống tự huỷ vì xe không còn gì để chở:",
+    autoCancelled: "Hệ thống tự huỷ chuyến này vì xe không còn gì để chở (các đơn trên xe đã huỷ).",
     reason: "Lý do huỷ:",
   },
   /* ── Dỡ kiện của đơn đã huỷ ─────────────────────────────────────── */
@@ -95,6 +95,8 @@ export const SHIPPING_FTL_LABELS = {
       "Biên bản của riêng xe này — chỉ gồm kiện kế hoạch xếp lên xe; thu hộ (COD) của chuyến nguyên xe luôn bằng 0.",
   },
   handover: {
+    doneTitle: "Xe đã bàn giao",
+    shipmentStatus: { HANDED_OVER: "Đã bàn giao", READY_TO_DISPATCH: "Chờ xe cuối" },
     description:
       "Hai bên đã ký biên bản giấy của riêng xe này. Lô chở trên nhiều xe chỉ chuyển Đã bàn giao ở xe cuối cùng chở lô đó; kế hoạch xếp xe chuyển Đã xuất khi mọi xe đã đi.",
     doneDescription:
@@ -117,5 +119,8 @@ export const SHIPPING_FTL_TOAST_MESSAGES = {
 } as const;
 
 /** Lỗi quét kiện sai xe (BE 409 PACKAGE_NOT_IN_LOAD kèm `vehicleSeq`, `loadCode`) — `{seq}` / `{code}` được thay. */
+export const SHIPPING_WRONG_VEHICLE_NO_CODE_MESSAGE =
+  "Kiện này thuộc xe số {seq} — không xếp lên xe này.";
+
 export const SHIPPING_WRONG_VEHICLE_MESSAGE =
   "Kiện này thuộc xe số {seq} ({code}) — không xếp lên xe này.";

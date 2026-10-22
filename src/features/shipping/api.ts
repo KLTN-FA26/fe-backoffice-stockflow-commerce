@@ -50,7 +50,7 @@ export interface ListLoadParams extends ListQueryParams {
   carrierId?: string;
   /** PARCEL | FULL_TRUCKLOAD — BE lọc (PR #165); giá trị khác → 400 UNSUPPORTED_PARAMETER. */
   mode?: DeliveryMode;
-  /** So khớp mã chuyến / biển số xe. */
+  /** So khớp mã chuyến / biển số xe / mã kế hoạch xếp xe (BE PR #165). */
   search?: string;
 }
 
