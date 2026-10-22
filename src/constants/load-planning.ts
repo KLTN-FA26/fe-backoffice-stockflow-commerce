@@ -18,30 +18,33 @@ export type LayoutOrientation = (typeof LAYOUT_ORIENTATIONS)[number];
 export const VIEW_KINDS = ["iso", "top", "side", "end"] as const;
 export type ViewKind = (typeof VIEW_KINDS)[number];
 
-/** Bảng màu mỗi mặt hàng trong khung 3D (`PALETTE` của `packing-shared.ts`). */
+/**
+ * Bảng màu mỗi mặt hàng trong khung 3D (`PALETTE` của `packing-shared.ts`). Đã thay các màu hồng/
+ * magenta của bản gốc (`#f472b6`, `#fb7185`) bằng cam và chanh — luật cứng của repo (CLAUDE.md).
+ */
 export const VIEWER_PALETTE = [
   "#60a5fa",
   "#34d399",
   "#fbbf24",
   "#a78bfa",
-  "#f472b6",
+  "#fb923c",
   "#22d3ee",
-  "#fb7185",
+  "#a3e635",
   "#818cf8",
 ] as const;
 
 /** Bảng màu nhạt hơn cho ảnh chụp từng bước xếp (in trắng đen vẫn đọc được). */
 export const CAPTURE_PALETTE = [
   "#fde047",
-  "#f9a8d4",
+  "#7dd3fc",
   "#67e8f9",
   "#c4b5fd",
   "#fb923c",
   "#86efac",
-  "#fca5a5",
+  "#d6b588",
   "#93c5fd",
   "#fcd34d",
-  "#f0abfc",
+  "#6ee7b7",
   "#5eead4",
   "#a5b4fc",
   "#fdba74",

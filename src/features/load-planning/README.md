@@ -76,7 +76,7 @@ Cố ý chưa port (đến ở PR sau): bảng "hướng dẫn xếp theo bướ
 - **Thiếu đỡ là lỗi, không phải cảnh báo** (`validatePlacement`: `INSUFFICIENT_SUPPORT` khi đáy được đỡ < 98%). Bản gốc cho
   đặt tay kiện treo; kế hoạch xếp xe thật có thể đổ, và BE trả `PLACEMENT_RULE_VIOLATION` cùng luật. Ô gợi ý thiếu đỡ bị loại.
 - **Màu theo tập tên đã sắp xếp** (`lib/palette.ts`), không theo thứ tự gặp đầu tiên: đảo thứ tự kiện không đổi màu;
-  tạo một map cho cả kế hoạch để một mặt hàng cùng màu ở mọi xe. Hai bảng màu (viewer 8 màu, ảnh in 14 màu nhạt).
+  tạo một map cho cả kế hoạch để một mặt hàng cùng màu ở mọi xe. Hai bảng màu (viewer 8 màu, ảnh in 14 màu nhạt); các màu hồng/magenta của bản gốc được thay bằng cam/chanh/xanh vì luật cứng của repo (CLAUDE.md), có test chặn.
 - **Cắt bớt kiện có thông báo**: gốc lặng lẽ `slice(0, 600)`; nay khung 3D hiện "chỉ dựng N/M kiện" khi vượt `renderBoxesMax`.
 - **`checkPieces` không coi số lượng hỏng là 0**: gốc `Number(q) || 0` che đúng loại lỗi mà phép đối chiếu sinh ra để bắt;
   nay dòng hỏng được đếm (`malformedLines`) và làm phép đối chiếu thất bại.

@@ -37,7 +37,7 @@ export function MetricsStrip({
         <div key={item.label} className="flex min-w-0 items-center gap-2">
           {item.icon && <div className="text-ink-tertiary shrink-0">{item.icon}</div>}
           <div className="min-w-0">
-            <dt className="text-ink-tertiary text-[11px] uppercase">{item.label}</dt>
+            <dt className="text-ink-tertiary text-[11px]">{item.label}</dt>
             <dd
               className={cn("truncate text-sm font-semibold", TONE_CLASS[item.tone ?? "default"])}
             >
