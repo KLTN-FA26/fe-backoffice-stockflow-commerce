@@ -534,6 +534,19 @@ export const LOAD_PLAN_STATUS = {
   CANCELLED: "CANCELLED",
 } as const satisfies Record<string, LoadPlanStatus>;
 
+/**
+ * BE `LoadPlan.SOURCE_*` (SCRUM-287 PR T, docs 09 §3 "LoadPlan.source_type"): kế hoạch chứa các lô giao của đơn khách
+ * (`ORDER`, mặc định) hoặc kiện của MỘT lệnh chuyển kho (`TRANSFER`, LP-9). Một kế hoạch không trộn hai loại.
+ */
+export const LOAD_PLAN_SOURCE_TYPES = ["ORDER", "TRANSFER"] as const;
+
+export type LoadPlanSourceType = (typeof LOAD_PLAN_SOURCE_TYPES)[number];
+
+export const LOAD_PLAN_SOURCE = {
+  ORDER: "ORDER",
+  TRANSFER: "TRANSFER",
+} as const satisfies Record<string, LoadPlanSourceType>;
+
 /** BE `SelectionMode` (LP-6): một loại xe (mặc định) hoặc trộn loại để ít xe nhất. */
 export const LOAD_PLAN_SELECTION_MODES = ["SINGLE_TYPE", "FEWEST_VEHICLES"] as const;
 

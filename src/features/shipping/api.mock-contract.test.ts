@@ -449,8 +449,11 @@ describe("mock chuyến nguyên xe — đặt xe, bắt đầu xếp, dỡ kiệ
   it("danh sách có mã kế hoạch + số xe cho chuyến nguyên xe, chuyến gửi kiện thì không", async () => {
     const page = beLoadPageSchema.parse((await call("GET", LOADS, undefined, { size: "50" })).data);
     const ftl = page.items.filter((l) => l.mode === "FULL_TRUCKLOAD");
-    expect(ftl.map((l) => l.vehicleSeq).sort()).toEqual([1, 2, 3, 4]);
-    expect(new Set(ftl.map((l) => l.loadPlanCode))).toEqual(new Set(["LP-2026-0001"]));
+    // Bốn xe của kế hoạch đơn khách + một xe của kế hoạch nguồn TRANSFER (BE PR #164)
+    expect(ftl.map((l) => l.vehicleSeq).sort()).toEqual([1, 1, 2, 3, 4]);
+    expect(new Set(ftl.map((l) => l.loadPlanCode))).toEqual(
+      new Set(["LP-2026-0001", "LP-2026-0005"]),
+    );
     expect(page.items.filter((l) => l.mode === "PARCEL").every((l) => !l.loadPlanCode)).toBe(true);
   });
 
@@ -459,7 +462,7 @@ describe("mock chuyến nguyên xe — đặt xe, bắt đầu xếp, dỡ kiệ
       beLoadPageSchema.parse((await call("GET", LOADS, undefined, { size: "50", ...params })).data)
         .items;
     const ftl = await list({ mode: "FULL_TRUCKLOAD" });
-    expect(ftl).toHaveLength(4);
+    expect(ftl).toHaveLength(5);
     expect(ftl.every((l) => l.mode === "FULL_TRUCKLOAD")).toBe(true);
     const parcel = await list({ mode: "PARCEL" });
     expect(parcel.length).toBeGreaterThan(0);
@@ -681,5 +684,49 @@ describe("mock chuyến nguyên xe — đặt xe, bắt đầu xếp, dỡ kiệ
     const cancelled = await readLoad(FTL_CANCELLED);
     expect(cancelled).toMatchObject({ status: "CANCELLED", carrierBookingToCancel: true });
     expect(cancelled.cancelReason).toMatch(/^auto-cancelled/);
+  });
+});
+
+/* ── Xe của kế hoạch nguồn TRANSFER (BE PR #164) ─────────────────────────────────────────────── */
+
+const FTL_TRANSFER = "LD-2026-F005";
+
+describe("mock xe của kế hoạch nguồn TRANSFER — dòng là một lệnh chuyển kho", () => {
+  it("chi tiết chuyến: dòng mang transferOrderId + số lệnh, không có lô giao / đơn / task; kiện chưa quét; không COD", async () => {
+    const load = await readLoad(FTL_TRANSFER);
+    expect(load).toMatchObject({
+      mode: "FULL_TRUCKLOAD",
+      status: "VEHICLE_BOOKED",
+      loadPlanCode: "LP-2026-0005",
+      codTotal: 0,
+    });
+    const [line] = load.shipments;
+    expect(line).toMatchObject({
+      code: "TO-2026-0006",
+      transferOrderId: "TO-2026-0006",
+      packageCount: 2,
+      loadedCount: 0,
+    });
+    expect(line?.shipmentId).toBeUndefined();
+    expect(line?.orderId).toBeUndefined();
+    expect(line?.taskId).toBeUndefined();
+  });
+
+  it("biên bản: dòng của lệnh có transferOrderId, người nhận là kho đích, không số đơn", async () => {
+    const manifest = beManifestSchema.parse(
+      (await call("GET", `${LOADS}/${FTL_TRANSFER}/manifest`)).data,
+    );
+    const [line] = manifest.shipments;
+    expect(line).toMatchObject({
+      shipmentCode: "TO-2026-0006",
+      transferOrderId: "TO-2026-0006",
+      packageCount: 2,
+    });
+    expect(line?.orderNumber).toBeUndefined();
+    expect(line?.recipientName).toBeTruthy();
+  });
+
+  it("lệnh chuyển kho không phải lô giao: không xuất hiện trong danh sách lô giao", async () => {
+    expect((await shipments()).some((s) => s.code === "TO-2026-0006")).toBe(false);
   });
 });

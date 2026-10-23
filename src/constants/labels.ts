@@ -9,6 +9,7 @@ import { PRODUCT_UI_LABELS } from "./labels-product";
 import { SHIPPING_TOAST_MESSAGES, SHIPPING_UI_LABELS } from "./labels-shipping";
 import { TAXONOMY_TOAST_MESSAGES, TAXONOMY_UI_LABELS } from "./labels-taxonomy";
 import { TRANSFER_TOAST_MESSAGES, TRANSFER_UI_LABELS } from "./labels-transfer";
+import { TRANSFER_PACK_TOAST_MESSAGES, TRANSFER_PACK_UI_LABELS } from "./labels-transfer-pack";
 import { VEHICLE_TYPE_TOAST_MESSAGES, VEHICLE_TYPE_UI_LABELS } from "./labels-vehicle-type";
 
 export const UI_LABELS = {
@@ -344,6 +345,7 @@ export const UI_LABELS = {
     dateRangeInvalid: "Ngày bắt đầu sau ngày kết thúc — không có phiếu nào khớp.",
   },
   transfer: TRANSFER_UI_LABELS,
+  transferPack: TRANSFER_PACK_UI_LABELS,
   shipping: SHIPPING_UI_LABELS,
   vehicleType: VEHICLE_TYPE_UI_LABELS,
   loadPlan: LOAD_PLAN_UI_LABELS,
@@ -725,6 +727,7 @@ export const TOAST_MESSAGES = {
     inspected: "Đã ghi nhận kết luận QC",
   },
   transfer: TRANSFER_TOAST_MESSAGES,
+  transferPack: TRANSFER_PACK_TOAST_MESSAGES,
   shipping: SHIPPING_TOAST_MESSAGES,
   vehicleType: VEHICLE_TYPE_TOAST_MESSAGES,
   loadPlan: LOAD_PLAN_TOAST_MESSAGES,

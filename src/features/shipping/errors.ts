@@ -77,6 +77,9 @@ const STALE_CODES: ReadonlySet<string> = new Set([
   "LOAD_UNLOAD_PENDING",
   "OPTIMISTIC_LOCK",
   "LOAD_NOT_FULLY_LOADED",
+  // BE PR #164: lệnh chuyển kho trên xe đã đổi / phần giữ đã nhả → tải lại chuyến
+  "TRANSFER_NOT_PACKED",
+  "RESERVATION_NOT_ACTIVE",
   "LOAD_EMPTY",
   "LOAD_NOT_FOUND",
   "SHIPMENT_NOT_FOUND",

@@ -32,7 +32,9 @@ export function ManifestShipmentRows({
             <td className="px-3 py-2 align-top">
               <div className={`text-ink-primary font-medium ${MONO}`}>{shipment.shipmentCode}</div>
               <div className={`text-ink-tertiary text-xs ${MONO}`}>
-                {shipment.orderNumber ?? ""}
+                {shipment.transferOrderId
+                  ? UI_LABELS.shipping.ftl.transfer.badge
+                  : (shipment.orderNumber ?? "")}
               </div>
             </td>
             <td className="px-3 py-2 align-top">

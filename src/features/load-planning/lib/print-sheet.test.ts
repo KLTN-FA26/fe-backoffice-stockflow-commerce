@@ -3,7 +3,13 @@ import { describe, expect, it } from "vitest";
 import { gridBlock, makeLayout } from "../__fixtures__/build";
 import { LAYOUT_PICKUP_KIT } from "../__fixtures__/layouts";
 import { LAYOUT_UNIQUE_LABELS } from "../__fixtures__/layouts-real-labels";
-import { parcelsOfLayout, planFixture, planWithUnplaced } from "../__fixtures__/plans";
+import {
+  TRANSFER_NUMBER,
+  parcelsOfLayout,
+  planFixture,
+  planWithUnplaced,
+  transferPlanFixture,
+} from "../__fixtures__/plans";
 
 import { letterFor, orientationText } from "./print-labels";
 import { buildPrintSheet } from "./print-sheet";
@@ -199,5 +205,14 @@ describe("letterFor", () => {
       "AZ",
       "BA",
     ]);
+  });
+});
+
+describe("buildPrintSheet — kế hoạch nguồn TRANSFER (BE PR #164)", () => {
+  it("kiện của lệnh chuyển kho in số lệnh ở cột đơn (không có lô giao để tra)", () => {
+    const sheet = buildPrintSheet(transferPlanFixture(), [LAYOUT_PICKUP_KIT], 1);
+    expect(sheet).not.toBeNull();
+    expect(sheet?.parcels).toHaveLength(LAYOUT_PICKUP_KIT.boxes.length);
+    expect(sheet?.parcels.every((p) => p.orderNo === TRANSFER_NUMBER)).toBe(true);
   });
 });

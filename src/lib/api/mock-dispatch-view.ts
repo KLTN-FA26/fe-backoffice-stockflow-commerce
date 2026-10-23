@@ -157,11 +157,13 @@ export function loadDetailView(state: DispatchState, load: MockLoad) {
     version: load.version,
     ...ftlDetailFields(load),
     shipments: members.map((shipment) => ({
-      shipmentId: shipment.shipmentId,
+      // Lệnh chuyển kho (BE PR #164): không có lô giao / đơn / task, `code` là số lệnh, chỉ có `transferOrderId`
+      shipmentId: shipment.transferOrderId ? undefined : shipment.shipmentId,
       code: shipment.code,
-      orderId: shipment.orderId,
-      orderNumber: shipment.orderNumber,
-      taskId: shipment.taskId,
+      orderId: shipment.transferOrderId ? undefined : shipment.orderId,
+      orderNumber: shipment.transferOrderId ? undefined : shipment.orderNumber,
+      taskId: shipment.transferOrderId ? undefined : shipment.taskId,
+      transferOrderId: shipment.transferOrderId,
       currency: CURRENCY,
       status: shipment.status,
       packageCount: parcelsOn(load, shipment).length,
@@ -218,7 +220,8 @@ export function manifestView(state: DispatchState, load: MockLoad) {
     dispatchedByName: dispatched ? "Nhân viên kho (mock)" : null,
     shipments: members.map((shipment) => ({
       shipmentCode: shipment.code,
-      orderNumber: shipment.orderNumber,
+      orderNumber: shipment.transferOrderId ? undefined : shipment.orderNumber,
+      transferOrderId: shipment.transferOrderId,
       recipientName: shipment.recipient.name,
       recipientPhone: shipment.recipient.phone,
       deliveryAddress: shipment.recipient.address,

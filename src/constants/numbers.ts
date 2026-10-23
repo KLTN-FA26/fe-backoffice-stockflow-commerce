@@ -96,6 +96,19 @@ export const PACKING_LIMITS = {
   scanFeedbackMs: 1500,
 } as const;
 
+/** Giới hạn đóng gói chuyển kho — request BE `TransferCartonRequest`, `TransferKitRequest`, `PackingCompletionRequest`. */
+export const TRANSFER_PACK_LIMITS = {
+  /** `TransferCartonRequest.lpn` @NotBlank @Size(max = 30). */
+  lpnMax: 30,
+  /** `TransferKitRequest.partCount` @Min(2) @Max(99). */
+  kitPartsMin: 2,
+  kitPartsMax: 99,
+  /** `PackingCompletionRequest.note` @Size(max = 500) — bắt buộc khi chỉ chuyển phần đã đóng. */
+  noteMax: 500,
+  /** `kitOverrideReason` @Size(max = 500) (KIT-FORCE). */
+  kitReasonMax: 500,
+} as const;
+
 /** Giới hạn lệnh chuyển kho — đúng ràng buộc request BE (CreateTransferOrderRequest, ReasonRequest). */
 export const TRANSFER_LIMITS = {
   /** `lines` @Size(max = 200). */
@@ -256,6 +269,8 @@ export const LOAD_PLANNING_LIMITS = {
 export const LOAD_PLAN_LIMITS = {
   /** `shipmentIds` @Size(max = 200). */
   shipmentsMax: 200,
+  /** `transferOrderIds` @Size(max = 1): kế hoạch nguồn TRANSFER chứa đúng một lệnh chuyển kho (BE PR #164). */
+  transferOrdersMax: 1,
   /** `vehicleTypeIds` @Size(max = 50). */
   vehicleTypesMax: 50,
   /** `reason` @NotBlank @Size(max = 500) khi mở lại / huỷ. */

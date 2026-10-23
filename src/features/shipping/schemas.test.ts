@@ -5,7 +5,17 @@
 
 import { describe, expect, it } from "vitest";
 
-import { ftlLoad, ftlManifest, ftlRow, kit, pendingUnload } from "./__fixtures__/ftl-load";
+import {
+  TRANSFER_NUMBER,
+  TRANSFER_ORDER_ID,
+  ftlLoad,
+  ftlManifest,
+  ftlRow,
+  kit,
+  pendingUnload,
+  transferLoad,
+  transferManifest,
+} from "./__fixtures__/ftl-load";
 import { apiLoad, apiManifest, apiShipment, shipmentRow } from "./__fixtures__/load";
 import { beLoadPageSchema, beLoadSchema, beManifestSchema } from "./load-schemas";
 import { beCarrierSchema, beShipmentPageSchema, beShipmentSchema } from "./schemas";
@@ -221,5 +231,52 @@ describe("chuyến nguyên xe (BE PR #162)", () => {
     expect(manifest.shipments[0]?.packages[0]).toMatchObject({ kit: kit(1), labelOutdated: true });
     // Biên bản BE cũ không có mode → vắng, không phải UNKNOWN
     expect(beManifestSchema.parse(apiManifest()).mode).toBeUndefined();
+  });
+});
+
+describe("xe của kế hoạch nguồn TRANSFER (BE PR #164): dòng là một lệnh chuyển kho", () => {
+  it("chuyến: dòng có transferOrderId, số lệnh ở code; shipmentId / orderId / orderNumber / taskId vắng vẫn parse được", () => {
+    const load = beLoadSchema.parse(transferLoad());
+    const [line] = load.shipments;
+    expect(line).toMatchObject({ code: TRANSFER_NUMBER, transferOrderId: TRANSFER_ORDER_ID });
+    expect(line?.shipmentId).toBeUndefined();
+    expect(line?.orderId).toBeUndefined();
+    expect(line?.orderNumber).toBeUndefined();
+    expect(line?.taskId).toBeUndefined();
+    expect(line?.packages).toHaveLength(2);
+    // Trạng thái của lệnh (PICKING…) không phải trạng thái lô giao → khoan dung thành UNKNOWN, không làm hỏng chuyến
+    expect(
+      beLoadSchema.parse({
+        ...transferLoad(),
+        shipments: [{ ...transferLoad().shipments[0], status: "PICKING" }],
+      }).shipments[0]?.status,
+    ).toBe("UNKNOWN");
+  });
+
+  it("chuyến của đơn khách vẫn có lô giao + đơn và không có transferOrderId", () => {
+    const [line] = beLoadSchema.parse(ftlLoad()).shipments;
+    expect(line?.shipmentId).toBeDefined();
+    expect(line?.orderId).toBeDefined();
+    expect(line?.transferOrderId).toBeUndefined();
+  });
+
+  it("dòng thiếu mã (code) vẫn là lỗi: BE luôn gửi số lệnh / mã lô", () => {
+    const [line] = transferLoad().shipments;
+    expect(() =>
+      beLoadSchema.parse({ ...transferLoad(), shipments: [{ ...line, code: undefined }] }),
+    ).toThrow();
+  });
+
+  it("biên bản: dòng của lệnh mang transferOrderId, người nhận là kho đích", () => {
+    const manifest = beManifestSchema.parse(transferManifest());
+    const [line] = manifest.shipments;
+    expect(line).toMatchObject({
+      shipmentCode: TRANSFER_NUMBER,
+      transferOrderId: TRANSFER_ORDER_ID,
+      recipientName: "Kho Đà Nẵng",
+      codAmount: 0,
+    });
+    expect(line?.orderNumber).toBeUndefined();
+    expect(manifest.codTotal).toBe(0);
   });
 });

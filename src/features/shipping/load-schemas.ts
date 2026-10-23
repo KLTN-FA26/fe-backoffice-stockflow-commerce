@@ -55,11 +55,16 @@ export const beLoadParcelSchema = z.object({
   ...parcelFtlFields,
 });
 
-/** BE `LoadResponse.Shipment` — `labelCodAmount`: COD trên nhãn; `codAmount`: số đơn chốt, chỉ có sau bàn giao. */
+/**
+ * BE `LoadResponse.Shipment` — `labelCodAmount`: COD trên nhãn; `codAmount`: số đơn chốt, chỉ có sau bàn giao.
+ * Trên xe của kế hoạch nguồn TRANSFER (BE PR #164) dòng này là MỘT LỆNH CHUYỂN KHO: `shipmentId` / `orderId` /
+ * `orderNumber` / `taskId` vắng, `code` là số lệnh, `status` là trạng thái của lệnh (không phải lô giao), chỉ có `transferOrderId`.
+ */
 export const beLoadShipmentSchema = z.object({
-  shipmentId: z.string(),
+  shipmentId: z.string().nullish(),
+  transferOrderId: z.string().nullish(),
   code: z.string(),
-  orderId: z.string(),
+  orderId: z.string().nullish(),
   orderNumber: z.string().nullish(),
   status: shipmentStatusSchema,
   packageCount: count,
@@ -126,6 +131,8 @@ export const beManifestParcelSchema = z.object({
 export const beManifestShipmentSchema = z.object({
   shipmentCode: z.string(),
   orderNumber: z.string().nullish(),
+  /** Dòng của lệnh chuyển kho (kế hoạch nguồn TRANSFER): `shipmentCode` là số lệnh, người nhận / địa chỉ là kho đích. */
+  transferOrderId: z.string().nullish(),
   recipientName: z.string().nullish(),
   recipientPhone: z.string().nullish(),
   deliveryAddress: z.string().nullish(),

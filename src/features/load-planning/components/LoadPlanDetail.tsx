@@ -61,12 +61,20 @@ function DetailBody({ id }: { id: string }) {
       : warehouse.name
     : UI_LABELS.loadPlan.detail.unknownWarehouse;
   const final = isFinalLoadPlan(plan.status);
+  // Kho đích của lệnh chuyển kho (kế hoạch nguồn TRANSFER) tra như kho của kế hoạch
+  const destination = warehouses?.find((w) => w.warehouseId === plan.transferOrder?.toWarehouseId);
+  const destinationLabel = destination
+    ? destination.code
+      ? `${destination.code} · ${destination.name}`
+      : destination.name
+    : undefined;
 
   return (
     <>
       <PlanHeaderCard
         plan={plan}
         warehouseLabel={warehouseLabel}
+        destinationLabel={destinationLabel}
         actions={
           editing ? null : (
             <PlanActions actions={actions} onOpen={setDialog} onEdit={() => setEditing(true)} />

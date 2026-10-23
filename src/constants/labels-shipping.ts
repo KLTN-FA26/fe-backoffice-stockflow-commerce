@@ -384,6 +384,13 @@ export const SHIPPING_ERROR_MESSAGES = {
   // mở chuyến với lô, bàn giao)
   ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED:
     "Đơn của lô này chưa được phép giao một phần — nhờ Sale bật “Cho phép giao một phần” trên đơn, hoặc đưa các lô còn lại của đơn đi cùng chuyến.",
+  // BE PR #164 (xe của kế hoạch nguồn TRANSFER): bàn giao xe cuối chuyển hàng giữ của lệnh sang đang vận chuyển
+  TRANSFER_NOT_PACKED:
+    "Lệnh chuyển kho trên xe không còn ở trạng thái đã đóng gói / đang lấy hàng (đã dừng lấy hàng hoặc đã đổi) — tải lại; muốn đi tiếp phải đóng gói và lập kế hoạch xe lại.",
+  RESERVATION_NOT_ACTIVE:
+    "Phần hàng đã giữ cho lệnh chuyển kho không còn hiệu lực (đã nhả hoặc hết hạn) nên chưa bàn giao được — nhờ quản lý kho kiểm tra tồn nguồn.",
+  STOCK_CARTON_NOT_SHIPPABLE:
+    "Thùng giao nguyên của lệnh chuyển kho không còn khớp hàng đang giữ (thùng đã mở hoặc đổi) — nhờ quản lý kho kiểm tra tồn nguồn.",
   // BE gắn tên lô vào mọi từ chối phía đơn khi bàn giao (đơn huỷ, lô xung đột, vượt số lượng…)
   shipmentRefused:
     "Đơn của lô này không cho phép bàn giao lúc này (đơn huỷ, lô xung đột hoặc vượt số lượng).",

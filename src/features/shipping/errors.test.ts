@@ -241,3 +241,21 @@ describe("chuyến nguyên xe (BE PR #162)", () => {
     ).toBe(`Lô SO-1-S1: ${SHIPPING_ERROR_MESSAGES.ORDER_NOT_CANCELLABLE}`);
   });
 });
+
+describe("mã của BE PR #164 ở bàn giao xe chở lệnh chuyển kho", () => {
+  it.each(["TRANSFER_NOT_PACKED", "RESERVATION_NOT_ACTIVE", "STOCK_CARTON_NOT_SHIPPABLE"] as const)(
+    "%s → câu tiếng Việt riêng, không lộ tiếng Anh, không phải câu chung",
+    (code) => {
+      const message = shippingErrorMessage(err(code));
+      expect(message).toBe(SHIPPING_ERROR_MESSAGES[code]);
+      expect(message).not.toBe(SHIPPING_ERROR_MESSAGES.generic);
+      expect(message).not.toBe("en");
+    },
+  );
+
+  it("lệnh không còn đã đóng gói / phần giữ hàng đã nhả → dữ liệu chuyến đã cũ: tải lại; thùng không khớp thì không", () => {
+    expect(isStaleLoadError(err("TRANSFER_NOT_PACKED"))).toBe(true);
+    expect(isStaleLoadError(err("RESERVATION_NOT_ACTIVE"))).toBe(true);
+    expect(isStaleLoadError(err("STOCK_CARTON_NOT_SHIPPABLE"))).toBe(false);
+  });
+});

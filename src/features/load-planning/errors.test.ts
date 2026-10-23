@@ -169,3 +169,35 @@ describe("placement edit errors (VALIDATION_FAILED + field code)", () => {
     expect(isStaleLoadPlanError(withCode("SOMETHING_ELSE"))).toBe(false);
   });
 });
+
+describe("codes of BE PR #164 (transfer load planning)", () => {
+  it.each([
+    ["TRANSFER_SHIPS_WHOLE", M.TRANSFER_SHIPS_WHOLE],
+    ["LOAD_PLAN_SOURCE_MISMATCH", M.LOAD_PLAN_SOURCE_MISMATCH],
+    ["TRANSFER_NOT_PACKED", M.TRANSFER_NOT_PACKED],
+    ["TRANSFER_ORDER_NOT_FOUND", M.TRANSFER_ORDER_NOT_FOUND],
+    ["TRANSFER_NOT_FULL_TRUCKLOAD", M.TRANSFER_NOT_FULL_TRUCKLOAD],
+    ["TRANSFER_GOODS_LEFT", M.TRANSFER_GOODS_LEFT],
+  ] as const)("%s → its own Vietnamese sentence, never the BE English", (code, message) => {
+    const text = loadPlanErrorMessage(api(code));
+    expect(text).toBe(message);
+    expect(text).not.toBe(M.generic);
+    expect(text).not.toContain("Tiếng Anh");
+  });
+
+  it("TRANSFER_SHIPS_WHOLE tells the user what to do: place every parcel", () => {
+    expect(M.TRANSFER_SHIPS_WHOLE).toMatch(/không để lại/);
+  });
+
+  it("a stale transfer candidate list (not packed any more, source mismatch) reloads the screen; ships-whole does not", () => {
+    expect(isStaleLoadPlanError(api("TRANSFER_NOT_PACKED"))).toBe(true);
+    expect(isStaleLoadPlanError(api("LOAD_PLAN_SOURCE_MISMATCH"))).toBe(true);
+    expect(isStaleLoadPlanError(api("TRANSFER_SHIPS_WHOLE"))).toBe(false);
+  });
+
+  it("read errors on the candidate list say the Vietnamese sentence for the known transfer codes", () => {
+    expect(knownLoadPlanReadError(api("TRANSFER_ORDER_NOT_FOUND", 404))).toBe(
+      M.TRANSFER_ORDER_NOT_FOUND,
+    );
+  });
+});
