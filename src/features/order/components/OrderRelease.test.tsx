@@ -44,6 +44,8 @@ async function renderDetailScreen(estimateSlot?: OrderEstimateSlot) {
 }
 
 const RELEASE_PATH = `${DETAIL_PATH}/release`;
+/** Mỗi lần thử release mang một Idempotency-Key (UUID). */
+const KEY = { headers: { "Idempotency-Key": expect.stringMatching(/^[0-9a-f-]{36}$/) } };
 const WAREHOUSES = {
   items: [
     { id: "wh-hn", prefix: "HN01", name: "Kho Hà Nội", status: "ACTIVE" },
@@ -104,7 +106,9 @@ describe("Release đơn — payload (hình thức chỉ gửi khi đổi)", () =
     await pickSelectOption(user, /Kho xuất hàng/, "HN01 — Kho Hà Nội");
     await user.click(within(dialog).getByRole("button", { name: "Release đơn" }));
 
-    await waitFor(() => expect(post).toHaveBeenCalledWith(RELEASE_PATH, { warehouseId: "wh-hn" }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(RELEASE_PATH, { warehouseId: "wh-hn" }, KEY),
+    );
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith("Đã release đơn cho kho"));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
@@ -116,10 +120,14 @@ describe("Release đơn — payload (hình thức chỉ gửi khi đổi)", () =
     await user.click(within(dialog).getByRole("radio", { name: /Nguyên xe \(FTL\)/ }));
     await user.click(within(dialog).getByRole("button", { name: "Release đơn" }));
     await waitFor(() =>
-      expect(post).toHaveBeenCalledWith(RELEASE_PATH, {
-        warehouseId: "wh-hcm",
-        deliveryMode: "FULL_TRUCKLOAD",
-      }),
+      expect(post).toHaveBeenCalledWith(
+        RELEASE_PATH,
+        {
+          warehouseId: "wh-hcm",
+          deliveryMode: "FULL_TRUCKLOAD",
+        },
+        KEY,
+      ),
     );
   });
 
@@ -130,7 +138,9 @@ describe("Release đơn — payload (hình thức chỉ gửi khi đổi)", () =
     await user.click(within(dialog).getByRole("radio", { name: /Nguyên xe \(FTL\)/ }));
     await user.click(within(dialog).getByRole("radio", { name: /Giao lẻ/ }));
     await user.click(within(dialog).getByRole("button", { name: "Release đơn" }));
-    await waitFor(() => expect(post).toHaveBeenCalledWith(RELEASE_PATH, { warehouseId: "wh-hn" }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(RELEASE_PATH, { warehouseId: "wh-hn" }, KEY),
+    );
   });
 
   it("thiếu mã sales-order-delivery-modes:UPDATE → hình thức chỉ đọc (không có ô chọn), body không bao giờ có deliveryMode", async () => {
@@ -146,7 +156,9 @@ describe("Release đơn — payload (hình thức chỉ gửi khi đổi)", () =
     const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiOrder });
     await pickSelectOption(user, /Kho xuất hàng/, "HN01 — Kho Hà Nội");
     await user.click(within(dialog).getByRole("button", { name: "Release đơn" }));
-    await waitFor(() => expect(post).toHaveBeenCalledWith(RELEASE_PATH, { warehouseId: "wh-hn" }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(RELEASE_PATH, { warehouseId: "wh-hn" }, KEY),
+    );
   });
 
   it("chưa chọn kho → nút Release bị khoá", async () => {

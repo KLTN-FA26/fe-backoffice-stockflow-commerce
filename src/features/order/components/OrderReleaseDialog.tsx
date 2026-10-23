@@ -1,117 +1,110 @@
 "use client";
 
-import { useId, useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm, useWatch } from "react-hook-form";
 
 import { ORDER_DELIVERY_MODE_UI, ORDER_RELEASE_LABELS } from "@/constants";
-import { ApiError } from "@/lib/api/error";
-import { useWarehouseOptions } from "@/lib/references/warehouse-options";
+import { toast } from "@/components/shared/Toast";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 import { ftlConflictsWithCod } from "../delivery-mode";
 import { releaseDeliveryMode } from "../delivery-mode-api";
+import { useReleaseOrder } from "../mutations";
+import { releaseFormSchema } from "../release-schemas";
 
 import { DeliveryModeField } from "./DeliveryModeField";
+import { OrderRefusalAlert } from "./OrderRefusalAlert";
+import { ReleaseWarehouseField } from "./ReleaseWarehouseField";
+import { useReleaseAttempt } from "./useReleaseAttempt";
 
-import type { ReleaseOrderInput } from "../delivery-mode-api";
 import type { OrderEstimateSlot } from "../estimate-slot";
-import type { Order, OrderDeliveryMode } from "../types";
+import type { ReleaseFormValues } from "../release-schemas";
+import type { Order } from "../types";
 
 interface OrderReleaseDialogProps {
-  order: Pick<Order, "orderId" | "orderNumber" | "deliveryMode" | "paymentTerm" | "balancePolicy">;
+  order: Pick<
+    Order,
+    "orderId" | "orderNumber" | "deliveryMode" | "paymentTerm" | "balancePolicy" | "printLineCount"
+  >;
   /** Có mã quyền `sales-order-delivery-modes:UPDATE` — không có thì hình thức giao chỉ đọc. */
   canChangeMode: boolean;
   /** Khe "Ước tính xếp xe": nhận kho đang chọn (đơn CONFIRMED chưa có kho). */
   estimateSlot?: OrderEstimateSlot;
-  isPending: boolean;
-  error: string | null;
-  onSubmit: (input: ReleaseOrderInput) => void;
   onClose: () => void;
 }
 
 /**
- * Release đơn cho kho (`POST /orders/{id}/release`): chọn kho + hình thức giao (LP-1). Hình thức gửi đi CHỈ khi
- * khác hình thức hiện tại của đơn (`releaseDeliveryMode`); thiếu mã quyền thì chỉ đọc nên không bao giờ gửi.
- * Đơn thu COD mà chọn nguyên xe: báo trước (LP-2), BE vẫn là bên quyết (409 DELIVERY_MODE_FTL_NO_COD, chưa release gì).
+ * Release đơn cho kho (`POST /orders/{id}/release`): chọn kho + hình thức giao (LP-1), kiểm bằng zod (react-hook-form).
+ * Hình thức CHỈ gửi khi khác hình thức hiện tại (`releaseDeliveryMode`); thiếu mã quyền thì chỉ đọc nên không bao giờ
+ * gửi. Mỗi lần thử mang một `Idempotency-Key`; lý do BE từ chối (BR-PRD-08 / 09, công nợ, FTL + COD…) hiện trong hộp
+ * thoại, không đóng. Đơn thu COD mà chọn nguyên xe: báo trước (LP-2) — BE vẫn là bên quyết.
  */
 export function OrderReleaseDialog({
   order,
   canChangeMode,
   estimateSlot,
-  isPending,
-  error,
-  onSubmit,
   onClose,
 }: OrderReleaseDialogProps) {
   const L = ORDER_RELEASE_LABELS;
-  const warehouseFieldId = useId();
-  const warehouses = useWarehouseOptions();
-  // UI-only — Backend phải re-check; chỉ rẽ nhánh lời báo, hộp thoại vẫn dùng được (huỷ, xem ước tính…)
-  const warehousesForbidden =
-    warehouses.error instanceof ApiError && warehouses.error.status === 403;
-  const [warehouseId, setWarehouseId] = useState("");
-  const current: OrderDeliveryMode =
-    order.deliveryMode === "FULL_TRUCKLOAD" ? "FULL_TRUCKLOAD" : "PARCEL";
-  const [mode, setMode] = useState<OrderDeliveryMode>(current);
+  const { mutate, isPending } = useReleaseOrder();
+  const release = useReleaseAttempt(onClose);
+  const form = useForm<ReleaseFormValues>({
+    resolver: zodResolver(releaseFormSchema),
+    mode: "onChange",
+    defaultValues: {
+      warehouseId: "",
+      deliveryMode: order.deliveryMode === "FULL_TRUCKLOAD" ? "FULL_TRUCKLOAD" : "PARCEL",
+    },
+  });
+  const warehouseId = useWatch({ control: form.control, name: "warehouseId" });
+  const mode = useWatch({ control: form.control, name: "deliveryMode" });
 
-  const submit = () =>
-    onSubmit({
+  const submit = form.handleSubmit((values) => {
+    release.clearRefusal();
+    const request = {
       id: order.orderId,
-      warehouseId,
-      deliveryMode: canChangeMode ? releaseDeliveryMode(mode, order.deliveryMode) : undefined,
-    });
+      warehouseId: values.warehouseId,
+      deliveryMode: canChangeMode
+        ? releaseDeliveryMode(values.deliveryMode, order.deliveryMode)
+        : undefined,
+    };
+    mutate(
+      { ...request, idempotencyKey: release.idempotencyKeyFor(request) },
+      {
+        onSuccess: () => {
+          release.finishAttempt();
+          toast.success(L.success);
+          onClose();
+        },
+        onError: (error) =>
+          release.onError(error, (message) =>
+            form.setError("warehouseId", { type: "server", message }),
+          ),
+      },
+    );
+  });
 
   return (
     <FormDialog open onOpenChange={(open) => !open && !isPending && onClose()}>
       <FormDialogBody
         title={L.title}
-        description={`${L.description} (${order.orderNumber})`}
+        description={L.description(order.orderNumber, order.printLineCount)}
         submitLabel={L.submit}
-        canSubmit={warehouseId !== ""}
+        canSubmit={form.formState.isValid}
         isPending={isPending}
-        error={error}
-        onSubmit={submit}
+        error={null}
+        onSubmit={() => void submit()}
         onCancel={onClose}
       >
-        <div>
-          <Label htmlFor={warehouseFieldId} className="text-[0.8125rem]">
-            {L.warehouseLabel} <span className="text-danger">*</span>
-          </Label>
-          <Select value={warehouseId} onValueChange={setWarehouseId}>
-            <SelectTrigger
-              id={warehouseFieldId}
-              autoFocus
-              className="border-border-default bg-bg-surface text-ink-primary mt-1 w-full rounded-[var(--r-sm)] text-[0.8125rem]"
-            >
-              <SelectValue placeholder={L.warehousePlaceholder} />
-            </SelectTrigger>
-            <SelectContent>
-              {(warehouses.data ?? []).map((warehouse) => (
-                <SelectItem key={warehouse.warehouseId} value={warehouse.warehouseId}>
-                  {warehouse.code ? `${warehouse.code} — ${warehouse.name}` : warehouse.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {warehouses.isPending && (
-            <p className="text-ink-tertiary mt-1 text-xs">{L.warehousesLoading}</p>
-          )}
-          {warehouses.isError && (
-            <p role="alert" className="text-danger mt-1 text-xs">
-              {warehousesForbidden ? L.warehousesForbidden : L.warehousesFailed}
-            </p>
-          )}
-        </div>
+        <ReleaseWarehouseField
+          value={warehouseId}
+          onChange={(value) => form.setValue("warehouseId", value, { shouldValidate: true })}
+          error={form.formState.errors.warehouseId?.message}
+        />
+        {order.printLineCount > 0 && <p className="text-ink-tertiary text-xs">{L.printHint}</p>}
         <DeliveryModeField
           value={mode}
-          onChange={setMode}
+          onChange={(value) => form.setValue("deliveryMode", value, { shouldValidate: true })}
           readOnly={!canChangeMode}
           name="release-delivery-mode"
         />
@@ -126,6 +119,7 @@ export function OrderReleaseDialog({
           warehouseId: warehouseId || null,
           released: false,
         })}
+        {release.refusal && <OrderRefusalAlert view={release.refusal} />}
       </FormDialogBody>
     </FormDialog>
   );

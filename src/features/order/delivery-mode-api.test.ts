@@ -10,22 +10,26 @@ describe("releaseOrder — POST /orders/{id}/release", () => {
   it("không có deliveryMode → body chỉ có warehouseId (BE giữ hình thức của đơn)", async () => {
     const post = vi.spyOn(api, "post").mockResolvedValue({ data: {} });
     await releaseOrder({ id: "o-1", warehouseId: "wh-1" });
-    expect(post).toHaveBeenCalledWith("/orders/o-1/release", { warehouseId: "wh-1" });
+    expect(post).toHaveBeenCalledWith("/orders/o-1/release", { warehouseId: "wh-1" }, undefined);
   });
 
   it("có deliveryMode → gửi kèm", async () => {
     const post = vi.spyOn(api, "post").mockResolvedValue({ data: {} });
     await releaseOrder({ id: "o-1", warehouseId: "wh-1", deliveryMode: "FULL_TRUCKLOAD" });
-    expect(post).toHaveBeenCalledWith("/orders/o-1/release", {
-      warehouseId: "wh-1",
-      deliveryMode: "FULL_TRUCKLOAD",
-    });
+    expect(post).toHaveBeenCalledWith(
+      "/orders/o-1/release",
+      {
+        warehouseId: "wh-1",
+        deliveryMode: "FULL_TRUCKLOAD",
+      },
+      undefined,
+    );
   });
 
   it("id được mã hoá trong path", async () => {
     const post = vi.spyOn(api, "post").mockResolvedValue({ data: {} });
     await releaseOrder({ id: "a/b", warehouseId: "wh-1" });
-    expect(post).toHaveBeenCalledWith("/orders/a%2Fb/release", { warehouseId: "wh-1" });
+    expect(post).toHaveBeenCalledWith("/orders/a%2Fb/release", { warehouseId: "wh-1" }, undefined);
   });
 
   it("ghép với releaseDeliveryMode: chọn lại đúng hình thức hiện tại → không gửi", async () => {

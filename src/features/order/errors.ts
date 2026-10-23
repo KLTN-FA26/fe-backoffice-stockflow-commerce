@@ -21,6 +21,10 @@ import type { ApiError } from "@/lib/api/error";
 export interface OrderErrorView {
   title: string;
   detail: string;
+  /** Mã quy tắc nghiệp vụ bị vi phạm (vd BR-PRD-08) — để đối chiếu docs; chỉ release dùng. */
+  rule?: string;
+  /** Chi tiết rút từ máy chủ (vd danh sách SKU thiếu mẫu duyệt). */
+  serverDetail?: string;
   traceId?: string;
 }
 

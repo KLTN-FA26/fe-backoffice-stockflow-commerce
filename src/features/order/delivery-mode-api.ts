@@ -11,6 +11,7 @@
  */
 
 import { api } from "@/lib/api/client";
+import { idempotencyRequestConfig } from "@/lib/api/idempotency";
 
 import type { DeliveryModeValues } from "./input-schemas";
 import type { Order, OrderDeliveryMode } from "./types";
@@ -23,14 +24,20 @@ export interface ReleaseOrderInput {
   warehouseId: string;
   /** Chỉ truyền khi KHÁC hình thức hiện tại của đơn (xem `releaseDeliveryMode`). */
   deliveryMode?: OrderDeliveryMode;
+  /**
+   * `Idempotency-Key` của lần thử (BE `IdempotencyFilter` áp cho mọi POST): bấm lại sau lỗi nhả claim / mất mạng gửi
+   * CÙNG key nên release không bị làm hai lần. Vòng đời key: `lib/api/idempotency.ts`.
+   */
+  idempotencyKey?: string;
 }
 
 export async function releaseOrder(input: ReleaseOrderInput): Promise<void> {
-  const { id, warehouseId, deliveryMode } = input;
-  await api.post(`${orderPath(id)}/release`, {
-    warehouseId,
-    ...(deliveryMode ? { deliveryMode } : {}),
-  });
+  const { id, warehouseId, deliveryMode, idempotencyKey } = input;
+  await api.post(
+    `${orderPath(id)}/release`,
+    { warehouseId, ...(deliveryMode ? { deliveryMode } : {}) },
+    idempotencyRequestConfig(idempotencyKey),
+  );
 }
 
 /**

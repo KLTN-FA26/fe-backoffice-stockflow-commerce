@@ -86,6 +86,9 @@ export function toOrder(dto: OrderDto): Order {
     printLinesReady: dto.printLinesReady ?? null,
     deliveryMode: dto.deliveryMode ?? null,
     deliveryModeLocked: dto.deliveryModeLocked ?? null,
+    depositRequired: dto.depositRequired ?? null,
+    depositReceivedAt: dto.depositReceivedAt ?? null,
+    printLineCount: dto.lines.filter((line) => line.designSnapshotId).length,
   };
 }
 

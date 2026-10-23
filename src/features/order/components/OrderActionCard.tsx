@@ -1,7 +1,13 @@
-import { ORDER_ACTION_LABELS, ORDER_HOLD_GUIDANCE, ORDER_PERMISSIONS } from "@/constants";
+import {
+  ORDER_ACTION_LABELS,
+  ORDER_HOLD_GUIDANCE,
+  ORDER_PERMISSIONS,
+  ORDER_RELEASE_BLOCKER_LABELS,
+} from "@/constants";
 import { StatusDot } from "@/components/shared/StatusDot";
 
 import { allowedOrderActions, isOrderTerminal } from "../lifecycle";
+import { releaseBlockers } from "../release-rules";
 
 import { OrderCancelAction } from "./OrderCancelAction";
 import { OrderHoldNotice } from "./OrderHoldNotice";
@@ -32,6 +38,8 @@ interface OrderActionCardProps {
     | "deliveryMode"
     | "paymentTerm"
     | "balancePolicy"
+    | "depositReceivedAt"
+    | "printLineCount"
   >;
   can: (code: PermissionCode) => boolean;
   /** Khe "Ước tính xếp xe" trong hộp thoại release (xem `estimate-slot.ts`). */
@@ -97,6 +105,9 @@ export function OrderActionCard({ order, can, estimateSlot }: OrderActionCardPro
       : null;
 
   const guidance = holdGuidance ?? shipmentsHint;
+  // Lý do biết trước chưa release được (đơn cọc chưa nhận cọc): chỉ cho người có quyền release; nói ra thay vì ẩn nút.
+  // UI-only — Backend phải re-check (OrderReleaseService: BR-PRD-09).
+  const blockers = can(ORDER_PERMISSIONS.approve) ? releaseBlockers(order) : [];
 
   return (
     <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
@@ -116,8 +127,21 @@ export function OrderActionCard({ order, can, estimateSlot }: OrderActionCardPro
           {has("admin-cancel") && <OrderCancelAction order={order} />}
         </div>
       ) : null}
+      {blockers.length > 0 && (
+        <div className="border-border-default bg-bg-subtle mt-3 rounded-[var(--r-sm)] border px-3 py-2 text-xs">
+          <p className="text-ink-primary font-medium">{ORDER_RELEASE_BLOCKER_LABELS.title}</p>
+          <ul className="text-ink-secondary mt-1 space-y-0.5">
+            {blockers.map((blocker) => (
+              <li key={blocker.rule}>
+                <span className="font-[family-name:var(--font-mono)]">{blocker.rule}</span> ·{" "}
+                {blocker.message}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {guidance && <p className="text-ink-secondary mt-3 text-center text-xs">{guidance}</p>}
-      {actions.length === 0 && !guidance && (
+      {actions.length === 0 && !guidance && blockers.length === 0 && (
         <p className="text-ink-tertiary text-center text-xs">{noActionReason(order)}</p>
       )}
     </section>

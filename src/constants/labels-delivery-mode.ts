@@ -55,8 +55,17 @@ export const ORDER_DELIVERY_MODE_UI = {
 export const ORDER_RELEASE_LABELS = {
   button: "Release đơn",
   title: "Release đơn cho kho",
-  description:
-    "Chọn kho sẽ xuất hàng và hình thức giao. Đơn có dòng in chuyển sang sản xuất, còn lại sẵn sàng cho kho lấy hàng.",
+  /** Mô tả theo số dòng in: có dòng in → sinh lệnh sản xuất (đơn In Production); chỉ hàng sẵn → Ready to Fulfill. */
+  description: (orderNumber: string, printLines: number) =>
+    `Chọn kho xuất hàng và hình thức giao cho đơn ${orderNumber}. ${
+      printLines > 0
+        ? `Đơn có ${printLines} dòng in — mỗi dòng sinh một lệnh sản xuất tại kho đã chọn.`
+        : "Đơn chỉ gồm hàng sẵn — chuyển sang Sẵn sàng thực hiện."
+    }`,
+  /** docs 17 §4.2 bước 4: dòng in chỉ giao cho kho có khu PRODUCTION + trạm in Active; mẫu duyệt do BE kiểm. */
+  printHint:
+    "Dòng in chỉ release được cho kho có xưởng in. Thiết kế mới cần mẫu được khách duyệt (BR-PRD-08) — máy chủ kiểm khi release.",
+  warehousesEmpty: "Chưa có kho nào đang hoạt động.",
   warehouseLabel: "Kho xuất hàng",
   warehousePlaceholder: "Chọn kho",
   warehousesLoading: "Đang tải danh sách kho…",
@@ -68,4 +77,45 @@ export const ORDER_RELEASE_LABELS = {
   submit: "Release đơn",
   success: "Đã release đơn cho kho",
   failedTitle: "Không release được đơn",
+} as const;
+
+/** Lý do biết trước chưa release được (suy từ dữ liệu đơn) — hiện thay cho nút, không chỉ ẩn nút. */
+export const ORDER_RELEASE_BLOCKER_LABELS = {
+  title: "Chưa release được",
+  /** docs 19 BR-09 / BE ORDER_DEPOSIT_NOT_RECEIVED: đơn cọc phải nhận đủ cọc trước khi release. */
+  depositNotReceived: "Đơn đặt cọc chưa nhận đủ tiền cọc.",
+  depositRule: "BR-PRD-09",
+} as const;
+
+/** Lý do máy chủ từ chối release — kèm mã quy tắc để Coordinator đối chiếu docs. */
+export const ORDER_RELEASE_REFUSAL_LABELS = {
+  ruleLabel: "Quy tắc",
+  /** BR-PRD-08 (docs 19 BR-08 / 17 BR-09): dòng in dùng thiết kế mới cần mẫu khách đã duyệt. */
+  sampleNotApproved:
+    "Đơn có dòng in dùng thiết kế mới chưa có mẫu được khách duyệt. Cần mẫu Approved trước khi sản xuất.",
+  sampleRule: "BR-PRD-08",
+  missingSamples: (skus: string) => `SKU chưa có mẫu duyệt: ${skus}`,
+  /** BR-PRD-09 (docs 19 BR-09 / 15 BR-02). */
+  depositNotReceived:
+    "Đơn đặt cọc chưa nhận đủ tiền cọc. Chờ kế toán ghi nhận cọc rồi release lại.",
+  depositRule: "BR-PRD-09",
+  /** BR-02 (docs 14 edge case, 17 BR-02). */
+  creditOverdue:
+    "Khách đang có công nợ quá hạn. Cần thu phần quá hạn trước khi release đơn công nợ.",
+  creditRule: "BR-02",
+  /** LP-2: FTL không đi cùng thu tiền khi giao; chưa release gì. */
+  ftlNoCodRule: "LP-2",
+  /** Đơn đã đổi trạng thái từ lúc mở màn (đã release, đang giữ, đã huỷ): dữ liệu được tải lại. */
+  notReleasable:
+    "Đơn không còn ở trạng thái được release (đã release, đang tạm giữ hoặc đã huỷ). Dữ liệu đã được tải lại.",
+  notReleasableRule: "BR-02",
+  /** Tranh chấp đồng thời (BE `ErrorCode.isRetryable`, 409): giữ hộp thoại, không tự gửi lại. */
+  optimisticLock:
+    "Đơn vừa được người khác cập nhật. Dữ liệu đơn đã được tải lại — kiểm tra lại rồi bấm thử lại nếu vẫn cần.",
+  lockTimeout: "Đơn đang được xử lý ở nơi khác. Đợi vài giây rồi bấm thử lại.",
+  inProgress: "Yêu cầu vừa gửi vẫn đang được máy chủ xử lý. Đợi vài giây rồi bấm thử lại.",
+  /** 422 từ `IdempotencyFilter`: key đã gắn với một yêu cầu khác — yêu cầu này CHƯA được thực hiện. */
+  keyReused:
+    "Yêu cầu chưa được gửi đi do trùng mã với yêu cầu trước. Kiểm tra lại rồi bấm gửi lần nữa.",
+  warehouseField: "Chọn kho xuất hàng.",
 } as const;

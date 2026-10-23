@@ -91,4 +91,9 @@ export const orderSchema = z.object({
   deliveryMode: orderDeliveryModeDtoSchema.nullable(),
   /** null = BE không trả; true = không còn đổi được hình thức giao. */
   deliveryModeLocked: z.boolean().nullable(),
+  /** Tiền cọc cần có (đơn cọc) và lúc đã nhận; null = vắng (đơn không cọc / chưa nhận). */
+  depositRequired: z.number().nullable(),
+  depositReceivedAt: z.string().nullable(),
+  /** Số dòng in (dòng có thiết kế đã khoá) — BE `Order#printLines`: release dòng in cần mẫu duyệt (BR-PRD-08). */
+  printLineCount: z.number().int().nonnegative(),
 });

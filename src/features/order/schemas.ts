@@ -16,7 +16,7 @@ import {
   ORDER_SHIPMENT_STATUSES,
 } from "@/constants/labels-order";
 
-import { orderDeliveryModeDtoSchema } from "./delivery-mode-schemas";
+import { orderReleaseFactsShape } from "./delivery-mode-schemas";
 
 /**
  * BE `OrderResponse.currency` — mã ISO 4217 bất kỳ (không chỉ VND/USD). Chỉ kiểm định dạng
@@ -181,10 +181,7 @@ export const orderDtoSchema = z.object({
    * hoặc đã giao hàng có sẵn trước khi sản xuất xong (PACK-EARLY); vắng trên dòng danh sách.
    */
   printLinesReady: z.boolean().nullish(),
-  /** Hình thức giao (BE PR #157, LP-1); vắng trên dòng không mang field này. */
-  deliveryMode: orderDeliveryModeDtoSchema.nullish(),
-  /** true khi không còn đổi được (đã đóng gói / qua đóng gói / huỷ / đóng); vắng = không biết. */
-  deliveryModeLocked: z.boolean().nullish(),
+  ...orderReleaseFactsShape,
 });
 
 /** BE `PageResponse<OrderResponse>` — trang đánh số từ 0. */
