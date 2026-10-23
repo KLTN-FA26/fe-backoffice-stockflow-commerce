@@ -26,6 +26,7 @@ import {
   Receipt,
   Search as SearchIcon,
   ShieldCheck,
+  UserCog,
   ShoppingBag,
   ShoppingCart,
   SlidersHorizontal,
@@ -183,6 +184,14 @@ export const NAV_GROUPS: NavGroup[] = [
         href: ADMIN_ROUTES.permissions,
         icon: ShieldCheck,
         permission: IDENTITY_PERMISSIONS.rbacRead,
+      },
+      {
+        label: "Người dùng",
+        tooltip: "User management",
+        href: ADMIN_ROUTES.users.list,
+        icon: UserCog,
+        // Cổng theo READ (BE `identity-users:READ`), cùng kiểu menu "Phân quyền" ngay trên
+        permission: IDENTITY_PERMISSIONS.usersRead,
       },
     ],
   },

@@ -2,6 +2,7 @@
  * Nhãn UI + nội dung toast dùng lại ≥2 lần (§15 — không hardcode string).
  */
 
+import { IDENTITY_TOAST_MESSAGES } from "./labels-identity";
 import { INVENTORY_ITEM_TOAST_MESSAGES, INVENTORY_ITEM_UI_LABELS } from "./labels-inventory-item";
 import { LOAD_PLAN_TOAST_MESSAGES, LOAD_PLAN_UI_LABELS } from "./labels-load-plan";
 import { PACKING_TOAST_MESSAGES, PACKING_UI_LABELS } from "./labels-packing";
@@ -732,6 +733,8 @@ export const TOAST_MESSAGES = {
   vehicleType: VEHICLE_TYPE_TOAST_MESSAGES,
   loadPlan: LOAD_PLAN_TOAST_MESSAGES,
   taxonomy: TAXONOMY_TOAST_MESSAGES,
+  user: IDENTITY_TOAST_MESSAGES.user,
+  role: IDENTITY_TOAST_MESSAGES.role,
   inventoryItem: INVENTORY_ITEM_TOAST_MESSAGES,
   fulfillment: {
     created: "Đã tạo task lấy hàng",

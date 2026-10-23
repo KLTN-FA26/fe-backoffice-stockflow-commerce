@@ -14,6 +14,7 @@ import { usePermissionEditor } from "../use-permission-editor";
 
 import { errorStatus, RetryState, UnauthorizedState } from "./MatrixLoadStates";
 import { MatrixState } from "./MatrixState";
+import { RoleAdminBar } from "./RoleAdminBar";
 import { RoleSelector } from "./RoleSelector";
 
 export function PermissionManagementPage() {
@@ -63,6 +64,12 @@ export function PermissionManagementPage() {
           roles={roles}
           value={selectedRoleCode}
           onChange={selectRole}
+          disabled={editor.pending}
+        />
+        <RoleAdminBar
+          roles={roles}
+          selected={roles.find((role) => role.code === selectedRoleCode)}
+          onSelect={selectRole}
           disabled={editor.pending}
         />
         {selectedRoleCode && (

@@ -368,8 +368,21 @@ export const WAREHOUSE_PERMISSIONS = {
 /** BE develop IdentityResources / IdentityController: read-only RBAC screen APIs. */
 export const IDENTITY_PERMISSIONS = {
   rolesRead: "identity-roles:READ",
+  /** Tạo vai trò tuỳ chỉnh — `POST /identity/roles` (BE PR #72, SCRUM-455). */
+  rolesCreate: "identity-roles:CREATE",
+  /** Đổi tên / mô tả / phạm vi dữ liệu của vai trò tuỳ chỉnh — `PATCH /identity/roles/{code}`. */
+  rolesUpdate: "identity-roles:UPDATE",
+  /** Xoá vai trò tuỳ chỉnh không còn ai giữ — `DELETE /identity/roles/{code}` (chỉ SYSTEM_ADMIN trong seed). */
+  rolesDelete: "identity-roles:DELETE",
   rbacRead: "identity-rbac:READ",
   rbacApprove: "identity-rbac:APPROVE",
+  /**
+   * Tài khoản nhân viên — BE `UserManagementController` (PR #72, SCRUM-454): danh sách / chi tiết = READ,
+   * tạo = CREATE; sửa hồ sơ, gán vai trò / kho, khoá, vô hiệu hoá, đặt lại mật khẩu đều là UPDATE.
+   */
+  usersRead: "identity-users:READ",
+  usersCreate: "identity-users:CREATE",
+  usersUpdate: "identity-users:UPDATE",
 } as const;
 
 export const PERMISSION_QUERY = {

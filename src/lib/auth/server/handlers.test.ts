@@ -86,6 +86,26 @@ describe("server-only auth boundary", () => {
       `Bearer ${credential}`,
     );
   });
+  it("login succeeds when the backend omits null fields (user without a full name or last login)", async () => {
+    const { fullName: _f, lastLoginAt: _l, ...omitted } = user;
+    fetchMock
+      .mockResolvedValueOnce(
+        envelope({ accessToken: credential, tokenType: "Bearer", expiresInSeconds: 1234 }),
+      )
+      .mockResolvedValueOnce(envelope(omitted));
+    const response = await loginHandler(
+      request("/api/auth/login", "POST", JSON.stringify({ username: "staff", password: "secret" })),
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(user);
+  });
+  it("session bootstrap accepts a /me response without nullable fields", async () => {
+    const { fullName: _f, lastLoginAt: _l, ...omitted } = user;
+    fetchMock.mockResolvedValue(envelope(omitted));
+    const response = await meHandler(request("/api/auth/me"));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(user);
+  });
   it("uses Secure cookies in production", async () => {
     vi.stubEnv("NODE_ENV", "production");
     fetchMock

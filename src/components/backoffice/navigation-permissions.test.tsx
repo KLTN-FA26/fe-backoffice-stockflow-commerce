@@ -142,6 +142,26 @@ describe("declared navigation permissions", () => {
     mount();
     expect(await screen.findByRole("link", { name: "Phân quyền" })).toBeInTheDocument();
   });
+  it("Người dùng theo identity-users:READ, không theo quyền Phân quyền (SCRUM-458)", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [], permissions: [IDENTITY_PERMISSIONS.usersRead], dataScope: "ALL" },
+    });
+    mount();
+    expect(screen.queryByRole("link", { name: "Người dùng" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Người dùng" })).toHaveAttribute(
+      "href",
+      "/admin/users",
+    );
+    expect(screen.queryByRole("link", { name: "Phân quyền" })).not.toBeInTheDocument();
+  });
+  it("chỉ có quyền Phân quyền thì không thấy menu Người dùng", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [], permissions: [IDENTITY_PERMISSIONS.rbacRead], dataScope: "ALL" },
+    });
+    mount();
+    expect(await screen.findByRole("link", { name: "Phân quyền" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Người dùng" })).not.toBeInTheDocument();
+  });
   it("giao cho hãng (Lô giao, Chuyến xe) nối BE thật theo quyền xem màn, không còn chỉ-mock", async () => {
     vi.spyOn(api, "get").mockResolvedValue({
       data: { roles: [], permissions: [SHIPMENT_PERMISSIONS.viewPage], dataScope: "ALL" },

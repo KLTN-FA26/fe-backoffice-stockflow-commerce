@@ -39,7 +39,7 @@ export function backendUrl(path: string, query = ""): URL {
 export async function backendFetch(path: string, init: RequestInit, query = ""): Promise<Response> {
   if (IS_MOCK) {
     const { mockAuthBackend } = await import("./mock");
-    return mockAuthBackend(path, init);
+    return mockAuthBackend(path, init, query);
   }
   return fetch(backendUrl(path, query), {
     ...init,

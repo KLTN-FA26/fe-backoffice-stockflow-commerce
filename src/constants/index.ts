@@ -16,6 +16,14 @@ export {
 } from "./labels";
 export { INVENTORY_ITEM_ERROR_MESSAGES } from "./labels-inventory-item";
 export {
+  DATA_SCOPE_LABELS,
+  IDENTITY_ERROR_MESSAGES,
+  IDENTITY_FIELD_ERROR_CODES,
+  IDENTITY_TOAST_MESSAGES,
+  NON_STAFF_ROLE_CODES,
+} from "./labels-identity";
+export type { IdentityErrorCode } from "./labels-identity";
+export {
   PACKING_ERROR_MESSAGES,
   PACKING_FIELD_MESSAGES,
   PACKING_INVALID_RESPONSE_MESSAGE,
@@ -263,6 +271,8 @@ export {
   TRANSFER_REASONS,
   TRANSFER_STATUS,
   TRANSFER_STATUSES,
+  USER_STATUS,
+  USER_STATUSES,
   VEHICLE_TYPE_KIND,
   VEHICLE_TYPE_KINDS,
   VEHICLE_TYPE_STATUS,

@@ -7,7 +7,7 @@
  * (CLAUDE.md + FRONTEND-AI-RULES.md §6.1)
  */
 
-import { STOCK_ADJUSTMENT_STATUS } from "@/constants/statuses";
+import { STOCK_ADJUSTMENT_STATUS, USER_STATUS } from "@/constants/statuses";
 
 import type { SemanticTone, StatusDomain } from "@/lib/mock-data";
 
@@ -101,6 +101,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Quarantine",
     "Blocked",
     "BLOCKED",
+    // Tài khoản bị quản trị viên khoá (BE UserStatus.LOCKED, PR #72)
+    USER_STATUS.LOCKED,
     "Low stock",
     "Awaiting Confirmation",
     "Verification Failed",
@@ -174,6 +176,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Empty",
     "Full",
     "Disabled",
+    // Tài khoản đã vô hiệu hoá, giữ lại cho lịch sử (BE UserStatus.DISABLED, PR #72)
+    USER_STATUS.DISABLED,
     "Archived",
     "Discontinued",
     "Abandoned",
@@ -359,6 +363,8 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   Empty: "Trống",
   Full: "Đầy",
   Disabled: "Vô hiệu hóa",
+  [USER_STATUS.LOCKED]: "Đã khoá",
+  [USER_STATUS.DISABLED]: "Đã vô hiệu hoá",
   Archived: "Lưu trữ",
   Discontinued: "Ngừng kinh doanh",
   Abandoned: "Bỏ dở",

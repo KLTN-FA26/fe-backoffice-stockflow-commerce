@@ -8,6 +8,11 @@ export const APP_ROUTES = {
 export const ADMIN_ROUTES = {
   home: ADMIN_BASE,
   permissions: `${ADMIN_BASE}/permissions`,
+  /** Quản lý tài khoản nhân viên — BE `UserManagementController` (PR #72, SCRUM-458). */
+  users: {
+    list: `${ADMIN_BASE}/users`,
+    detail: (id: string) => `${ADMIN_BASE}/users/${encodeURIComponent(id)}`,
+  },
   /** Hồ sơ hàng tồn — BE PR #119 `InventoryItemController` (`/api/v1/inventory/items`). */
   inventoryItems: {
     list: `${ADMIN_BASE}/inventory-items`,
