@@ -39,13 +39,18 @@ function validationMessage(error: ApiError): string {
     : FULFILLMENT_ERROR_MESSAGES.VALIDATION_FAILED;
 }
 
-/** BE `InsufficientStockException`: "Insufficient stock for SKU X: requested N, available M" → nêu SKU + số cần / khả dụng. */
-const INSUFFICIENT_DETAIL = /SKU (\S+): requested (\d+), available (\d+)/;
-
+/**
+ * BE #164 (`TransferOrderServiceImpl#rehold`): `INSUFFICIENT_STOCK` kèm `fieldErrors` `sku` (SKU thiếu) và `shortfall` (số đơn
+ * vị thiếu) — đọc từ đó, không phân tích message tiếng Anh. Thiếu field thì dùng câu chung.
+ */
 function insufficientStockMessage(error: ApiError): string {
-  const match = INSUFFICIENT_DETAIL.exec(error.message);
   const base = TRANSFER_PACK_ERROR_MESSAGES.INSUFFICIENT_STOCK;
-  return match ? `${base} SKU ${match[1]}: cần ${match[2]}, khả dụng ${match[3]}.` : base;
+  const sku = error.fieldErrors?.sku;
+  const shortfall = Number(error.fieldErrors?.shortfall);
+  if (!sku) return base;
+  return Number.isFinite(shortfall) && shortfall > 0
+    ? `${base} SKU ${sku}: thiếu ${shortfall}.`
+    : `${base} SKU ${sku}.`;
 }
 
 /** Câu tiếng Việt cho một lỗi ở trạm đóng gói chuyển kho. */

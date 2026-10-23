@@ -107,6 +107,8 @@ export const TRANSFER_PACK_UI_LABELS = {
     asIsHint:
       "Thùng chưa mở giao nguyên: kích thước và khối lượng đã điền sẵn theo đơn vị đóng gói, hãy cân đo lại.",
     kitReason: "Lý do đóng kiện thường",
+    /** BE ghi sẵn lý do tiếng Anh cho kiện nguyên thùng (`TransferPackService.CARTON_AS_IS`) — hiện bằng tiếng Việt. */
+    cartonAsIsReason: "Thùng nguyên chưa mở, gửi nguyên trạng",
     removeKit: "Huỷ cả bộ",
     labelOutdated: "Cần in lại nhãn",
     labelOutdatedTitle:
