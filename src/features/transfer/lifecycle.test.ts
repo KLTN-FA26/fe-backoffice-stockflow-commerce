@@ -161,7 +161,7 @@ describe("allowedTransferActions — lệnh nguyên chuyến (FTL)", () => {
 
   it("PICKING + FTL đã đóng gói: Lập kế hoạch xe + Dừng lấy hàng (hết nút đóng gói)", () => {
     const patch = { status: "PICKING" as const, packedAt: "2026-10-22T04:00:00Z" };
-    expect(codesOf(patch, "floorStaff")).toEqual(["planVehicle", "cancelPicking"]);
+    expect(codesOf(patch, "floorStaff")).toEqual(["viewPacking", "planVehicle", "cancelPicking"]);
   });
 
   it("PICKING + giao lẻ: vẫn Xuất kho thủ công như SCRUM-327", () => {
@@ -176,15 +176,16 @@ describe("allowedTransferActions — lệnh nguyên chuyến (FTL)", () => {
       { status: "PICKING", packedAt: "2026-10-22T04:00:00Z", goodsLeftAt: "2026-10-22T06:00:00Z" },
       "floorStaff",
     );
-    expect(list.map((a) => a.action.code)).toEqual(["cancelPicking"]);
-    expect(list[0]?.disabledReason).toBe(
+    expect(list.map((a) => a.action.code)).toEqual(["viewPacking", "cancelPicking"]);
+    expect(list.find((a) => a.action.code === "cancelPicking")?.disabledReason).toBe(
       UI_LABELS.transfer.deliveryMode.goodsLeftCannotCancelPicking,
     );
   });
 
   it("quyền theo mã: chỉ đóng gói → không thấy Lập kế hoạch xe; chỉ kế hoạch xe → không thấy Đóng gói", () => {
     const packed = { status: "PICKING" as const, packedAt: "2026-10-22T04:00:00Z" };
-    expect(codesOf(packed, "packerOnly")).toEqual(["cancelPicking"]);
+    expect(codesOf(packed, "packerOnly")).toEqual(["viewPacking", "cancelPicking"]);
+    // plannerOnly không có packages:READ nên cũng không có "Xem đóng gói"
     expect(codesOf({ status: "PICKING" }, "plannerOnly")).toEqual(["cancelPicking"]);
     expect(codesOf(packed, "plannerOnly")).toEqual(["planVehicle", "cancelPicking"]);
     // Nhân viên chỉ có transfer:UPDATE (không packing / load-plans) không thấy cả hai
@@ -206,6 +207,38 @@ describe("allowedTransferActions — lệnh nguyên chuyến (FTL)", () => {
       expect(list).not.toContain("packTransfer");
       expect(list).not.toContain("planVehicle");
     }
+  });
+
+  it("'Xem đóng gói' (BE GET ?transferOrderId=): người chỉ có packages:READ vào được phiên của lệnh nguyên chuyến, cả khi đã đóng xong / đã xuất", () => {
+    const readOnlyPacks = (patch: Parameters<typeof apiTransfer>[0]) =>
+      allowedTransferActions(
+        apiTransfer(patch),
+        (code) =>
+          (ROLES.packerOnly as readonly PermissionCode[]).includes(code) &&
+          code !== "fulfillment-packing:UPDATE",
+        "me",
+      ).map((a) => a.action.code);
+    expect(readOnlyPacks({ status: "PICKING" })).toContain("viewPacking");
+    expect(readOnlyPacks({ status: "PICKING", packedAt: "2026-10-22T04:00:00Z" })).toContain(
+      "viewPacking",
+    );
+    expect(readOnlyPacks({ status: "IN_TRANSIT", packedAt: "x", goodsLeftAt: "y" })).toContain(
+      "viewPacking",
+    );
+    expect(readOnlyPacks({ status: "COMPLETED", packedAt: "x" })).toContain("viewPacking");
+    // Không có phiên để xem: Đã duyệt / Nháp / Huỷ, và lệnh giao lẻ
+    for (const status of ["DRAFT", "APPROVED", "CANCELLED"] as const) {
+      expect(readOnlyPacks({ status })).not.toContain("viewPacking");
+    }
+    expect(readOnlyPacks({ status: "PICKING", deliveryMode: "PARCEL" })).not.toContain(
+      "viewPacking",
+    );
+    // Thiếu packages:READ → không có
+    expect(codesOf({ status: "PICKING" }, "viewOnly")).not.toContain("viewPacking");
+  });
+
+  it("'Xem đóng gói' không hiện cùng 'Đóng gói chuyển kho' (cùng một lối vào trạm)", () => {
+    expect(codesOf({ status: "PICKING" }, "floorStaff")).toEqual(["packTransfer", "cancelPicking"]);
   });
 
   it("dispatchExplanation: câu giải thích thay nút Xuất kho khi lệnh FTL đang PICKING và người dùng có quyền xuất kho", () => {

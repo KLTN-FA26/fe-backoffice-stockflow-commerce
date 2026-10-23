@@ -9,7 +9,7 @@
 import { TRANSFER_PERMISSIONS, TRANSFER_STATUS, UI_LABELS } from "@/constants";
 import { TRANSFER_TRANSITIONS } from "@/lib/domain/lifecycle";
 
-import { FTL_TRANSFER_ACTIONS, isFtl } from "./ftl-lifecycle";
+import { FTL_TRANSFER_ACTIONS, isFtl, withoutRedundantViewPacking } from "./ftl-lifecycle";
 
 import type { DeliveryMode, TransferStatus } from "@/constants";
 import type { PermissionCode } from "@/lib/auth";
@@ -29,6 +29,7 @@ export type TransferActionCode =
   | "cancel"
   // SCRUM-287 PR F9: lệnh nguyên chuyến (FTL) — chuyển sang trạm đóng gói / màn lập kế hoạch xe
   | "packTransfer"
+  | "viewPacking"
   | "planVehicle";
 
 export interface TransferAction {
@@ -167,13 +168,15 @@ export function allowedTransferActions(
       action.permissions.every(can) &&
       (action.when?.(transfer) ?? true)
     );
-  }).map((action) => {
-    const reason =
-      action.fourEyes && isOwnSubmission(transfer.submittedBy, currentUserId)
-        ? UI_LABELS.transfer.disabledReason.selfApproval
-        : action.lockedReason?.(transfer);
-    return reason ? { action, disabledReason: reason } : { action };
-  });
+  })
+    .filter(withoutRedundantViewPacking)
+    .map((action) => {
+      const reason =
+        action.fourEyes && isOwnSubmission(transfer.submittedBy, currentUserId)
+          ? UI_LABELS.transfer.disabledReason.selfApproval
+          : action.lockedReason?.(transfer);
+      return reason ? { action, disabledReason: reason } : { action };
+    });
 }
 
 export function isOwnSubmission(

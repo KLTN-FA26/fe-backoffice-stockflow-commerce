@@ -54,7 +54,10 @@ export function TransferPackStatusCard({
     session.packStatus === PACK_STATUS.PACKED &&
     actor.can(LOAD_PLAN_PERMISSIONS.read) &&
     actor.can(LOAD_PLAN_PERMISSIONS.create);
-  const owner = access.isOwner ? S.you : session.packerId ? shortId(session.packerId) : S.waiting;
+  // BE PR #164 final: `packerName` là tên hiển thị người đóng; chưa có tên (dữ liệu cũ) thì id rút gọn
+  const owner = access.isOwner
+    ? S.you
+    : (session.packerName ?? (session.packerId ? shortId(session.packerId) : S.waiting));
 
   return (
     <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">

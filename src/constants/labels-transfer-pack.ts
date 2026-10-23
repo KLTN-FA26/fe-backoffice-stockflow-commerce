@@ -28,6 +28,11 @@ export const TRANSFER_PACK_UI_LABELS = {
     opening: "Đang mở phiên…",
     noPermission:
       "Bạn chưa được cấp quyền đóng gói (fulfillment-packing:UPDATE) nên chưa mở được phiên.",
+    /** Tra phiên hiện hành của lệnh (không mở gì) — chưa từng đóng gói. */
+    lookingUp: "Đang tìm phiên đóng gói của lệnh…",
+    noneYet: "Lệnh này chưa có phiên đóng gói.",
+    noneYetReadOnly:
+      "Lệnh này chưa có phiên đóng gói. Bạn chỉ có quyền xem nên chưa mở được phiên — nhờ nhân viên có quyền đóng gói (fulfillment-packing:UPDATE).",
   },
   status: {
     pack: "Phiên đóng gói",
@@ -46,6 +51,8 @@ export const TRANSFER_PACK_UI_LABELS = {
     openKit: "Đóng bộ",
     shipCarton: "Giao nguyên thùng",
     planVehicle: "Lập kế hoạch xe",
+    reopen: "Mở lại kiện",
+    label: "In nhãn",
   },
   notice: {
     packedTitle: "Đã đóng gói xong",
@@ -101,6 +108,20 @@ export const TRANSFER_PACK_UI_LABELS = {
       "Thùng chưa mở giao nguyên: kích thước và khối lượng đã điền sẵn theo đơn vị đóng gói, hãy cân đo lại.",
     kitReason: "Lý do đóng kiện thường",
     removeKit: "Huỷ cả bộ",
+    labelOutdated: "Cần in lại nhãn",
+    labelOutdatedTitle:
+      "Nhãn đã in không còn khớp kiện (đổi số kiện n/N hoặc kiện đã đổi) — in lại nhãn trước khi quét lên xe.",
+    reopenTitle: "Mở lại kiện đã niêm phong?",
+    reopenDescription: (no: number) =>
+      `Kiện ${no} trở lại đang mở để thêm / bớt hàng; phải cân, đo và niêm phong lại, nhãn đã in coi như cũ. Chỉ làm được khi phiên chưa hoàn tất.`,
+  },
+  label: {
+    title: (no: number) => `Nhãn kiện ${no}`,
+    transfer: "Lệnh chuyển kho",
+    from: "Từ kho",
+    to: "Đến kho (người nhận)",
+    outdatedFixed: "Nhãn này đã cũ và vừa được làm mới khi in — dán nhãn mới lên kiện.",
+    noCod: "Không thu hộ",
   },
   kit: {
     title: "Đóng bộ",
@@ -151,6 +172,7 @@ export const TRANSFER_PACK_TOAST_MESSAGES = {
   packageOpened: "Đã mở kiện mới",
   kitOpened: "Đã mở các kiện của bộ",
   sealed: "Đã niêm phong kiện",
+  reopened: "Đã mở lại kiện — cân, đo và niêm phong lại",
   voided: "Đã huỷ kiện",
   cartonOpened: "Đã mở kiện nguyên thùng — kiểm tra kích thước và khối lượng rồi niêm phong",
   completed: "Đã đóng gói xong — lệnh sẵn sàng lập kế hoạch xe",
@@ -187,6 +209,13 @@ export const TRANSFER_PACK_ERROR_MESSAGES = {
     "Mã vừa quét không có trong lệnh chuyển kho — để riêng, không cho vào kiện.",
   PACK_QUANTITY_EXCEEDS_ORDER:
     "Vượt quá số lượng còn cần của dòng này trong lệnh. Dữ liệu đã được tải lại.",
+  // BE PR #164 final: mở phiên và mở lại / niêm phong kiện giữ hàng ở kho nguồn cho lệnh — có thể không đủ
+  INSUFFICIENT_STOCK:
+    "Kho nguồn không còn đủ hàng khả dụng để giữ cho lệnh này (hàng đã giữ cho đơn khác hoặc đã xuất). Báo quản lý kho kiểm tra tồn rồi thử lại.",
+  RESERVATION_NOT_ACTIVE:
+    "Phần hàng đã giữ cho lệnh không còn hiệu lực (đã nhả hoặc hết hạn). Tải lại phiên rồi thử lại.",
+  INVENTORY_POLICY_STOCK_CONFLICT:
+    "Tồn của SKU chưa khớp chính sách xuất (FIFO/FEFO) — liên hệ quản lý kho kiểm tra lại tồn.",
   PACK_SCAN_AMBIGUOUS: "Mã này có ở nhiều dòng của lệnh — chọn đúng dòng rồi quét lại.",
   PACKING_INCOMPLETE:
     "Chưa đóng đủ số lượng của lệnh. Đóng nốt, hoặc chọn chỉ chuyển phần đã đóng và ghi lý do.",
@@ -218,6 +247,7 @@ export const TRANSFER_PACK_STALE_ERROR_CODES = [
   "KIT_INCOMPLETE",
   "INVALID_TRANSFER_TRANSITION",
   "NOT_FOUND",
+  "RESERVATION_NOT_ACTIVE",
 ] as const;
 
 /** Tên field BE của `VALIDATION_FAILED` → câu tiếng Việt (gồm các field riêng của chuyển kho). */

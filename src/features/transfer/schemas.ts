@@ -61,6 +61,9 @@ export const beTransferRowSchema = z.object({
   expectedDate: z.string().nullish(),
   createdAt: z.string(),
   dispatchedAt: z.string().nullish(),
+  // BE PR #164 (row): hình thức giao và lúc đóng gói xong — để danh sách phân biệt lệnh nguyên chuyến
+  deliveryMode: transferDeliveryModeSchema,
+  packedAt: z.string().nullish(),
 });
 
 export const beTransferPageSchema = bePageSchema(beTransferRowSchema);

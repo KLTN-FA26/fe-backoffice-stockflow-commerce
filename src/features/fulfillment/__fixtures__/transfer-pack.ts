@@ -200,3 +200,31 @@ export function cartonResponse(withSuggestion = true): TransferCarton {
       : undefined,
   };
 }
+
+/** Nhãn kiện của lệnh chuyển kho (BE `TransferPacks.Label`): n/N trong các kiện đã niêm phong, kho đi / đến, không COD. */
+export function transferLabel(
+  overrides: Partial<import("../transfer-pack-types").TransferLabel> = {},
+): import("../transfer-pack-types").TransferLabel {
+  return {
+    labelCode: "PKG-TO-20261012-0001-1",
+    packageId: PARCEL_1_ID,
+    transferOrderId: TRANSFER_ORDER_ID,
+    transferNumber: "TO-20261012-0001",
+    packageNo: 1,
+    packageCount: 2,
+    fromWarehouseName: "Kho Hà Nội",
+    fromWarehouseAddress: "Lô CN2, Đông Anh, Hà Nội",
+    toWarehouseName: "Kho HCM",
+    toWarehouseAddress: "12 Nguyễn Văn Linh, TP.HCM",
+    packageType: "CARTON",
+    weightKg: 4.5,
+    lengthCm: 40,
+    widthCm: 30,
+    heightCm: 20,
+    dimWeightKg: 4.8,
+    fragile: true,
+    rotatable: true,
+    contents: [{ transferLineId: PLAIN_LINE_ID, sku: "TEE-BLK-M", quantity: 10 }],
+    ...overrides,
+  };
+}

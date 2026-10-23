@@ -52,11 +52,13 @@ export function ShipmentCard({
     amount != null && (shipment.currency ?? currency)
       ? formatMoney(amount, (shipment.currency ?? currency) as string)
       : null;
-  const labelCod = money(shipment.labelCodAmount);
-  const fixedCod = money(shipment.codAmount);
+  // Lệnh chuyển kho không thu hộ: không hiện "COD trên nhãn" / "COD chốt" cho dòng của lệnh
+  const transfer = !!shipment.transferOrderId;
+  const labelCod = transfer ? null : money(shipment.labelCodAmount);
+  const fixedCod = transfer ? null : money(shipment.codAmount);
   return (
     <section
-      aria-label={`${UI_LABELS.shipping.shipments.title} ${shipment.code}`}
+      aria-label={`${transfer ? UI_LABELS.shipping.ftl.transfer.cardAria : UI_LABELS.shipping.shipments.title} ${shipment.code}`}
       className={`bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] ${
         refusal ? "border-danger" : "border-border-default"
       }`}

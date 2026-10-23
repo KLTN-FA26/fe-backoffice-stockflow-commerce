@@ -61,7 +61,7 @@ describe("trạm đóng gói chuyển kho — vào trạm và mở phiên", () =
         ],
       },
     });
-    expect(await screen.findByText(L.start.noPermission)).toBeInTheDocument();
+    expect(await screen.findByText(L.start.noneYetReadOnly)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: L.start.action })).not.toBeInTheDocument();
   });
 

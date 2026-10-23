@@ -51,7 +51,7 @@ export function TransferActions({ transfer }: { transfer: TransferOrder }) {
   // Sửa nháp, đóng gói và lập kế hoạch xe là màn khác (không phải hộp thoại xác nhận)
   const open = (code: TransferActionCode) => {
     if (code === "edit") router.push(ADMIN_ROUTES.transfers.edit(transfer.transferId));
-    else if (code === "packTransfer")
+    else if (code === "packTransfer" || code === "viewPacking")
       router.push(ADMIN_ROUTES.packing.transfer(transfer.transferId));
     else if (code === "planVehicle")
       router.push(

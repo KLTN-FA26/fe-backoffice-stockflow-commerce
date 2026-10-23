@@ -88,6 +88,8 @@ export const beTransferPackSessionSchema = z.object({
   /** PACKING → PACKED (sẵn sàng lập kế hoạch xe); CANCELLED khi lệnh dừng lấy hàng. */
   packStatus: packSessionStatusSchema,
   packerId: z.string().nullish(),
+  /** Tên hiển thị người đóng (BE PR #164 final) — để nêu "đang được <tên> đóng gói". */
+  packerName: z.string().nullish(),
   startedAt: z.string().nullish(),
   packedAt: z.string().nullish(),
   lines: z.array(beTransferPackLineSchema),
@@ -117,4 +119,32 @@ export const beTransferCartonSchema = z.object({
   lpn: z.string(),
   unitOfMeasure: z.string().nullish(),
   suggested: beTransferMeasuresSchema.nullish(),
+});
+
+/**
+ * `TransferPacks.Label` — nhãn kiện nội bộ của lệnh chuyển kho (BE PR #164 final): số lệnh, kiện n/N trong các kiện đã niêm
+ * phong, kho đi và kho đến (người nhận), số đo, cờ, nội dung, phần của bộ. Không COD. In nhãn đã cũ làm nhãn hiện hành lại.
+ */
+export const beTransferLabelSchema = z.object({
+  labelCode: z.string(),
+  packageId: z.string(),
+  transferOrderId: z.string(),
+  transferNumber: z.string(),
+  packageNo: z.number().int().positive(),
+  packageCount: z.number().int().positive(),
+  fromWarehouseName: z.string().nullish(),
+  fromWarehouseAddress: z.string().nullish(),
+  toWarehouseName: z.string().nullish(),
+  toWarehouseAddress: z.string().nullish(),
+  packageType: tolerantEnum(PACKAGE_TYPES),
+  weightKg: measure.nullish(),
+  lengthCm: measure.nullish(),
+  widthCm: measure.nullish(),
+  heightCm: measure.nullish(),
+  dimWeightKg: measure.nullish(),
+  fragile: z.boolean(),
+  rotatable: z.boolean(),
+  contents: z.array(beTransferPackContentSchema),
+  kit: beTransferPackKitSchema.nullish(),
+  stockPackageId: z.string().nullish(),
 });

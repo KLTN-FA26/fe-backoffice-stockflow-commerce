@@ -21,6 +21,7 @@ import {
   openTransferKit,
   openTransferPack,
   openTransferPackage,
+  reopenTransferPackage,
   scanIntoTransferPackage,
   sealTransferPackage,
   shipTransferCarton,
@@ -46,12 +47,20 @@ const TRANSFER_ROOT = [SHARED_QUERY_ROOTS.transferOrders] as const;
 const LOAD_PLAN_ROOT = [SHARED_QUERY_ROOTS.fulfillmentLoadPlans] as const;
 const SESSION_KEYS = [transferPackKeys.sessions()] as const;
 
-const toastError = (error: unknown) => toast.error(transferPackErrorMessage(error));
+const packIdOf = (input: unknown): string | undefined => {
+  const value: unknown =
+    typeof input === "object" && input !== null ? Reflect.get(input, "packId") : undefined;
+  return typeof value === "string" ? value : undefined;
+};
 
-/** Bọc hook mutation: lỗi do phiên đã cũ → tải lại; kết quả là phiên → ghi vào cache phiên. */
+/**
+ * Bọc hook mutation: lỗi do phiên đã cũ → tải lại; kết quả là phiên → ghi vào cache phiên (và phiên hiện hành của lệnh).
+ * `toastError`: toast câu tiếng Việt của lỗi — nêu tên người đang đóng (từ phiên đã tải) khi BE trả `PACKING_TAKEN`.
+ */
 function withTransferPack<TInput, TResult>(
   useBase: ReturnType<typeof createMutation<TInput, TResult>>,
   toSession?: (result: TResult) => TransferPackSession | undefined,
+  { toastError = false }: { toastError?: boolean } = {},
 ) {
   return function useWithTransferPack(options?: Parameters<typeof useBase>[0]) {
     const queryClient = useQueryClient();
@@ -59,10 +68,21 @@ function withTransferPack<TInput, TResult>(
       ...options,
       onSuccess: (...args) => {
         const session = toSession?.(args[0]);
-        if (session) queryClient.setQueryData(transferPackKeys.session(session.packId), session);
+        if (session) {
+          queryClient.setQueryData(transferPackKeys.session(session.packId), session);
+          queryClient.setQueryData(transferPackKeys.byTransfer(session.transferOrderId), session);
+        }
         options?.onSuccess?.(...args);
       },
       onError: (...args) => {
+        if (toastError) {
+          const packId = packIdOf(args[1]);
+          const packerName = packId
+            ? queryClient.getQueryData<TransferPackSession>(transferPackKeys.session(packId))
+                ?.packerName
+            : undefined;
+          toast.error(transferPackErrorMessage(args[0], { packerName }));
+        }
         if (isStaleTransferPackError(args[0])) {
           for (const queryKey of [transferPackKeys.all, TRANSFER_ROOT]) {
             void queryClient.invalidateQueries({ queryKey });
@@ -90,8 +110,9 @@ export const useOpenTransferPackage = withTransferPack(
     invalidate: SESSION_KEYS,
     successMessage: TOAST.packageOpened,
     showErrorToast: false,
-    onError: toastError,
   }),
+  undefined,
+  { toastError: true },
 );
 
 export const useOpenTransferKit = withTransferPack(
@@ -122,9 +143,20 @@ export const useVoidTransferPackage = withTransferPack(
   createMutation<TransferPackageRef, TransferPackSession>(voidTransferPackage, {
     successMessage: TOAST.voided,
     showErrorToast: false,
-    onError: toastError,
   }),
   asSession,
+  { toastError: true },
+);
+
+/** Mở lại kiện đã niêm phong (phiên chưa hoàn tất): kiện về OPEN, cân đo niêm phong lại. Lỗi toast (có tên người đóng). */
+export const useReopenTransferPackage = withTransferPack(
+  createMutation<TransferPackageRef, TransferParcel>(reopenTransferPackage, {
+    invalidate: SESSION_KEYS,
+    successMessage: TOAST.reopened,
+    showErrorToast: false,
+  }),
+  undefined,
+  { toastError: true },
 );
 
 /** Kiện nguyên thùng mở xong thì dialog xác nhận số đo mở tiếp; toast nhắc kiểm tra số đo. */

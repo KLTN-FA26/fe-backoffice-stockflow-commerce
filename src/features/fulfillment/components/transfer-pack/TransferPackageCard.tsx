@@ -1,19 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { PackageCheck, Trash2 } from "lucide-react";
-
 import { PACKAGE_STATUS_DISPLAY, UI_LABELS } from "@/constants";
 import { transferParcelUnits } from "@/features/fulfillment/transfer-pack-selectors";
-import { useVoidTransferPackage } from "@/features/fulfillment/transfer-pack-mutations";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { StatusDot } from "@/components/shared/StatusDot";
-import { Button } from "@/components/ui/button";
 
 import { MONO } from "../primitives";
 import { Chip, PackageMeasures } from "../packing/PackageMeasures";
 import { PackageContents } from "../packing/PackageContents";
-import { TransferSealDialog } from "./TransferSealDialog";
+import { TransferPackageActions } from "./TransferPackageActions";
 
 import type { TransferPackAccess } from "@/features/fulfillment/transfer-pack-lifecycle";
 import type { TransferParcel } from "@/features/fulfillment/transfer-pack-types";
@@ -23,26 +17,24 @@ const PK = P.packages;
 const T = UI_LABELS.transferPack;
 
 /**
- * Một kiện của lệnh chuyển kho: nội dung, số đo, thao tác theo trạng thái (mở → niêm phong; niêm phong → huỷ). BE
- * không cho mở lại kiện đã niêm phong ở chuyển kho: sai thì huỷ kiện (cả bộ) rồi đóng lại.
+ * Một kiện của lệnh chuyển kho: nội dung, số đo, nhãn cũ (cần in lại), thao tác theo trạng thái (`TransferPackageActions`).
  */
 export function TransferPackageCard({
   packId,
   pkg,
   access,
   kitReasonNeeded,
+  onShowLabel,
 }: {
   packId: string;
   pkg: TransferParcel;
   access: TransferPackAccess;
   /** Kiện chứa hàng nên đóng bộ mà đóng kiện thường: hỏi lý do khi niêm phong (KIT-FORCE). */
   kitReasonNeeded: boolean;
+  /** Mở nhãn của kiện (`?label=` trên URL). */
+  onShowLabel: (packageId: string) => void;
 }) {
-  const [dialog, setDialog] = useState<"seal" | "void" | null>(null);
-  const voidPkg = useVoidTransferPackage();
-  const open = pkg.status === "OPEN";
   const asIs = !!pkg.stockPackageId;
-  const close = () => setDialog(null);
 
   return (
     <article className="border-border-default bg-bg-surface space-y-3 rounded-[var(--r-sm)] border p-3">
@@ -59,63 +51,29 @@ export function TransferPackageCard({
           </span>
           {pkg.kit && <Chip>{T.packages.kitPart(pkg.kit.partNo, pkg.kit.partCount)}</Chip>}
           {asIs && <Chip>{T.packages.asIs}</Chip>}
+          {pkg.labelOutdated && pkg.status === "SEALED" && (
+            <span title={T.packages.labelOutdatedTitle}>
+              <Chip>{T.packages.labelOutdated}</Chip>
+            </span>
+          )}
         </div>
-        {access.canWork && (
-          <div className="flex flex-wrap items-center gap-2">
-            {open && (
-              <Button
-                type="button"
-                size="xs"
-                disabled={pkg.contents.length === 0}
-                onClick={() => setDialog("seal")}
-              >
-                <PackageCheck className="size-3" /> {P.action.seal}
-              </Button>
-            )}
-            <Button
-              type="button"
-              size="xs"
-              variant="ghost"
-              onClick={() => setDialog("void")}
-              className="text-ink-tertiary hover:text-danger"
-            >
-              <Trash2 className="size-3" /> {pkg.kit ? T.packages.removeKit : P.action.voidPackage}
-            </Button>
-          </div>
-        )}
+        <TransferPackageActions
+          packId={packId}
+          pkg={pkg}
+          access={access}
+          kitReasonNeeded={kitReasonNeeded}
+          onShowLabel={onShowLabel}
+        />
       </header>
-      {asIs && open && <p className="text-ink-tertiary text-xs">{T.packages.asIsHint}</p>}
+      {asIs && pkg.status === "OPEN" && (
+        <p className="text-ink-tertiary text-xs">{T.packages.asIsHint}</p>
+      )}
       <PackageMeasures pkg={pkg} />
       <PackageContents contents={pkg.contents} showSerial={false} />
       {pkg.kitOverrideReason && (
         <p className="text-ink-tertiary text-xs">
           {T.packages.kitReason}: {pkg.kitOverrideReason}
         </p>
-      )}
-      {dialog === "seal" && (
-        <TransferSealDialog
-          packId={packId}
-          pkg={pkg}
-          askKitReason={kitReasonNeeded}
-          onClose={close}
-        />
-      )}
-      {dialog === "void" && (
-        <ConfirmDialog
-          open
-          onOpenChange={(next) => !next && close()}
-          title={PK.voidConfirmTitle}
-          description={PK.voidConfirmDescription(pkg.packageNo)}
-          confirmLabel={P.action.voidPackage}
-          loading={voidPkg.isPending}
-          closeOnConfirm={false}
-          onConfirm={() =>
-            voidPkg.mutate(
-              { packId, packageId: pkg.packageId },
-              { onSuccess: close, onError: close },
-            )
-          }
-        />
       )}
     </article>
   );

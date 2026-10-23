@@ -35,6 +35,7 @@ export function TransferPackStart({
 
   return (
     <Section title={S.title} description={S.description}>
+      <p className="text-ink-secondary mb-3 text-[0.8125rem]">{S.noneYet}</p>
       {error && (
         <Alert tone="danger" className="mb-3">
           {error}
@@ -56,7 +57,7 @@ export function TransferPackStart({
           <PlayCircle className="size-3.5" /> {open.isPending ? S.opening : S.action}
         </Button>
       ) : (
-        <Alert tone="info">{S.noPermission}</Alert>
+        <Alert tone="info">{S.noneYetReadOnly}</Alert>
       )}
     </Section>
   );

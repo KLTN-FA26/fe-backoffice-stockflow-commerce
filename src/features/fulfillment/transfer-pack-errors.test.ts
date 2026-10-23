@@ -36,6 +36,7 @@ const NEW_CODES = [
   "PACKAGE_NOT_SEALED",
   "OUT_OF_DATA_SCOPE",
   "NOT_FOUND",
+  "RESERVATION_NOT_ACTIVE",
 ] as const;
 
 describe("transferPackErrorMessage — mã BE → tiếng Việt", () => {
@@ -107,5 +108,27 @@ describe("isStaleTransferPackError", () => {
     expect(isStaleTransferPackError(api("VALIDATION_FAILED", 400))).toBe(false);
     expect(isStaleTransferPackError(new ZodError([]))).toBe(true);
     expect(isStaleTransferPackError(new Error("x"))).toBe(false);
+  });
+});
+
+describe("BE PR #164 final: mở phiên giữ hàng ở kho nguồn → INSUFFICIENT_STOCK", () => {
+  it("INSUFFICIENT_STOCK có câu riêng; message BE nêu SKU thì kèm cần / khả dụng", () => {
+    expect(transferPackErrorMessage(api("INSUFFICIENT_STOCK"))).toBe(
+      TRANSFER_PACK_ERROR_MESSAGES.INSUFFICIENT_STOCK,
+    );
+    const detailed = new ApiError(
+      409,
+      "INSUFFICIENT_STOCK",
+      "Insufficient stock for SKU TEE-BLK-M: requested 30, available 12",
+    );
+    expect(transferPackErrorMessage(detailed)).toBe(
+      `${TRANSFER_PACK_ERROR_MESSAGES.INSUFFICIENT_STOCK} SKU TEE-BLK-M: cần 30, khả dụng 12.`,
+    );
+    expect(transferPackErrorMessage(detailed)).not.toMatch(/Insufficient/);
+  });
+
+  it("phần giữ hàng hết hiệu lực → tải lại phiên", () => {
+    expect(isStaleTransferPackError(api("RESERVATION_NOT_ACTIVE"))).toBe(true);
+    expect(isStaleTransferPackError(api("INSUFFICIENT_STOCK"))).toBe(false);
   });
 });

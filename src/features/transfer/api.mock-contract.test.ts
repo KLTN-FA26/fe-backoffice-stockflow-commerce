@@ -13,7 +13,7 @@ import {
 } from "@/lib/api/mock-routes-transfer-orders-store";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
-import { beTransferOrderSchema } from "./schemas";
+import { beTransferOrderSchema, beTransferPageSchema } from "./schemas";
 
 import type { AxiosRequestConfig } from "axios";
 
@@ -73,6 +73,26 @@ describe("mock /inventory/transfer-orders khớp BE PR #164 (hình thức giao, 
     });
     return res;
   }
+
+  it("danh sách: mỗi dòng có deliveryMode; lệnh seed đã đóng gói có packedAt, lệnh giao lẻ là PARCEL (BE PR #164 final)", async () => {
+    const res = await call("GET", "/inventory/transfer-orders", undefined);
+    const page = beTransferPageSchema.parse(res.data);
+    expect(
+      page.items.every(
+        (row) => row.deliveryMode === "FULL_TRUCKLOAD" || row.deliveryMode === "PARCEL",
+      ),
+    ).toBe(true);
+    expect(page.items.find((r) => r.number === "TO-2026-0006")).toMatchObject({
+      deliveryMode: "FULL_TRUCKLOAD",
+    });
+    expect(page.items.find((r) => r.number === "TO-2026-0006")?.packedAt).toBeTruthy();
+    expect(page.items.find((r) => r.number === "TO-20261022-0002")).toMatchObject({
+      deliveryMode: "PARCEL",
+    });
+    expect(
+      page.items.find((r) => r.number === "TO-20261022-0001")?.packedAt ?? undefined,
+    ).toBeUndefined();
+  });
 
   it("tạo: mặc định FULL_TRUCKLOAD, chưa đóng gói, hàng chưa rời kho; PARCEL được nhận; giá trị lạ → 400", async () => {
     signInAs("USER-PLAN-01");

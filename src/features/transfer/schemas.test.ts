@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { apiTransfer } from "./__fixtures__/transfer";
-import { beTransferOrderSchema, transferDeliveryModeSchema } from "./schemas";
+import { beTransferOrderSchema, beTransferRowSchema, transferDeliveryModeSchema } from "./schemas";
 
 describe("beTransferOrderSchema — BE PR #164 (LP2-8)", () => {
   it("deliveryMode FULL_TRUCKLOAD / PARCEL; packedAt và goodsLeftAt tuỳ chọn (BE bỏ khi null)", () => {
@@ -31,5 +31,38 @@ describe("beTransferOrderSchema — BE PR #164 (LP2-8)", () => {
       beTransferOrderSchema.parse({ ...apiTransfer(), deliveryMode: "DRONE" }),
     ).toThrow();
     expect(transferDeliveryModeSchema.options).toEqual(["PARCEL", "FULL_TRUCKLOAD"]);
+  });
+});
+
+describe("beTransferRowSchema — BE PR #164 final: dòng danh sách có deliveryMode và packedAt", () => {
+  const row = {
+    transferId: "t-1",
+    number: "TO-1",
+    fromWarehouseId: "a",
+    toWarehouseId: "b",
+    status: "PICKING",
+    createdAt: "2026-10-12T02:00:00Z",
+    deliveryMode: "FULL_TRUCKLOAD",
+  };
+
+  it("deliveryMode bắt buộc; packedAt tuỳ chọn (BE bỏ khi null)", () => {
+    expect(beTransferRowSchema.parse(row)).toMatchObject({ deliveryMode: "FULL_TRUCKLOAD" });
+    expect(beTransferRowSchema.parse(row).packedAt).toBeUndefined();
+    expect(
+      beTransferRowSchema.parse({
+        ...row,
+        deliveryMode: "PARCEL",
+        packedAt: "2026-10-22T04:00:00Z",
+      }),
+    ).toMatchObject({
+      deliveryMode: "PARCEL",
+      packedAt: "2026-10-22T04:00:00Z",
+    });
+  });
+
+  it("thiếu hoặc giá trị lạ → lỗi parse", () => {
+    const { deliveryMode: _mode, ...missing } = row;
+    expect(() => beTransferRowSchema.parse(missing)).toThrow();
+    expect(() => beTransferRowSchema.parse({ ...row, deliveryMode: "DRONE" })).toThrow();
   });
 });

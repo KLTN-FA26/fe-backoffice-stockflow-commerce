@@ -27,11 +27,13 @@ export function TransferPackagesSection({
   session,
   access,
   onOpenKit,
+  onShowLabel,
 }: {
   session: TransferPackSession;
   access: TransferPackAccess;
   /** Mở hộp thoại đóng bộ (nằm ở trạm vì bảng dòng hàng cũng mở được, kèm dòng chọn sẵn). */
   onOpenKit: () => void;
+  onShowLabel: (packageId: string) => void;
 }) {
   const packages = visibleTransferParcels(session);
   const voided = voidedTransferParcels(session);
@@ -80,6 +82,7 @@ export function TransferPackagesSection({
               pkg={pkg}
               access={access}
               kitReasonNeeded={!pkg.kit && needsKitReason(pkg.contents)}
+              onShowLabel={onShowLabel}
             />
           ))}
         </div>

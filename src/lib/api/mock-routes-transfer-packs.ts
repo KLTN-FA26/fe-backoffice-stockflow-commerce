@@ -13,13 +13,19 @@ import { PackError } from "./mock-packing-session";
 import { fail, ok } from "./mock-route-utils";
 import { currentActor, routeParam } from "./mock-routes-fulfillment-store";
 import { getTransferStore } from "./mock-routes-transfer-orders-store";
-import { parseJsonBody, readInt, readString } from "./mock-routes-purchase-orders-store";
+import {
+  parseJsonBody,
+  readInt,
+  readParams,
+  readString,
+} from "./mock-routes-purchase-orders-store";
 import {
   applyScan,
   completePack,
   newPack,
   openKit,
   openParcel,
+  reopenParcel,
   sealParcel,
   shipCarton,
   voidParcel,
@@ -40,6 +46,12 @@ import type { MockTransferPack } from "./mock-transfer-pack-session";
 const BASE = "/fulfillment/transfer-packs";
 const PACK = `${BASE}/:packId`;
 const PACKAGE = `${PACK}/packages/:packageId`;
+
+/** Tên hiển thị người đóng (`packerName`): `staffUsers.fullName` của mock. */
+async function packerNameOf(userId: string): Promise<string | undefined> {
+  const { staffUsers } = await import("@/lib/mock-data");
+  return staffUsers.find((u) => u.userId === userId)?.fullName;
+}
 
 const asFailure = (error: unknown): MockResponseShape => {
   if (error instanceof PackError)
@@ -130,9 +142,25 @@ export function registerTransferPackMockRoutes(): void {
         status: "PICKING",
         version: transfer.version + 1,
       });
-    const pack = newPack(transfer, actor.userId);
+    const pack = newPack(transfer, actor.userId, await packerNameOf(actor.userId));
     getTransferPacks().set(pack.packId, pack);
     return ok(sessionView(pack, store.get(transfer.transferId) ?? transfer), 201);
+  });
+
+  // BE PR #164 final: phiên hiện hành của lệnh (đang đóng / đã xong), không thì phiên mới nhất; không mở gì; 404 khi chưa
+  // từng đóng gói. Quyền packages:READ
+  registerMockRoute("GET", BASE, async (config) => {
+    if (!(await currentActor()).can(FULFILLMENT_PACKAGE_PERMISSIONS.read))
+      return fail(403, "FORBIDDEN", "Access denied");
+    const transferId = readString(readParams(config).transferOrderId);
+    const transfer = (await getTransferStore()).get(transferId);
+    const sessions = [...getTransferPacks().values()].filter(
+      (p) => p.transferOrderId === transferId,
+    );
+    const chosen = livePackOf(transferId) ?? sessions.at(-1);
+    if (!transfer || !chosen)
+      return fail(404, "NOT_FOUND", `Transfer ${transferId} was never packed`);
+    return ok(sessionView(chosen, transfer));
   });
 
   registerMockRoute("GET", PACK, async (config) => {
@@ -211,6 +239,66 @@ export function registerTransferPackMockRoutes(): void {
       return ok(parcelView(parcel, transfer));
     }),
   );
+
+  registerMockRoute("POST", `${PACKAGE}/reopening`, (config) =>
+    write(config, ({ pack, transfer }) =>
+      ok(parcelView(reopenParcel(pack, routeParam(config, "packageId")), transfer)),
+    ),
+  );
+
+  // Nhãn kiện đã niêm phong (packing:READ): in lại nhãn cũ làm nhãn hiện hành
+  registerMockRoute("GET", `${PACKAGE}/label`, async (config) => {
+    const actor = await currentActor();
+    if (!actor.can(FULFILLMENT_PACKING_PERMISSIONS.read))
+      return fail(403, "FORBIDDEN", "Access denied");
+    const pack = getTransferPacks().get(routeParam(config, "packId"));
+    const transfer = pack ? (await getTransferStore()).get(pack.transferOrderId) : undefined;
+    if (!pack || !transfer) return fail(404, "NOT_FOUND", "No transfer packing session");
+    const parcel = pack.parcels.find((p) => p.packageId === routeParam(config, "packageId"));
+    if (!parcel) return fail(404, "PACKAGE_NOT_FOUND", "Package not found");
+    if (parcel.status !== "SEALED")
+      return fail(409, "PACK_STATE_CONFLICT", `Package ${parcel.packageNo} is ${parcel.status}`);
+    parcel.labelPrinted = true;
+    parcel.labelOutdated = false;
+    const sealed = pack.parcels.filter((p) => p.status === "SEALED");
+    const { warehouses } = await import("@/lib/mock-data");
+    const place = (id: string) => {
+      const w = warehouses.find((x) => x.warehouseId === id);
+      const a = w?.address;
+      return {
+        name: w?.name,
+        address: a
+          ? [a.street, a.ward, a.district, a.province].filter(Boolean).join(", ")
+          : undefined,
+      };
+    };
+    const from = place(transfer.fromWarehouseId);
+    const to = place(transfer.toWarehouseId);
+    const view = parcelView(parcel, transfer);
+    return ok({
+      labelCode: parcel.labelCode,
+      packageId: parcel.packageId,
+      transferOrderId: transfer.transferId,
+      transferNumber: transfer.number,
+      packageNo: sealed.indexOf(parcel) + 1,
+      packageCount: sealed.length,
+      fromWarehouseName: from.name,
+      fromWarehouseAddress: from.address,
+      toWarehouseName: to.name,
+      toWarehouseAddress: to.address,
+      packageType: parcel.packageType,
+      weightKg: parcel.weightKg,
+      lengthCm: parcel.lengthCm,
+      widthCm: parcel.widthCm,
+      heightCm: parcel.heightCm,
+      dimWeightKg: parcel.dimWeightKg,
+      fragile: parcel.fragile,
+      rotatable: parcel.rotatable,
+      contents: view.contents,
+      kit: parcel.kit,
+      stockPackageId: parcel.stockPackageId,
+    });
+  });
 
   registerMockRoute("DELETE", PACKAGE, (config) =>
     write(config, (ctx) => {

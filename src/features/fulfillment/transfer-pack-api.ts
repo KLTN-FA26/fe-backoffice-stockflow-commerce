@@ -12,6 +12,7 @@ import { displayPackStatus } from "./packing-api";
 import {
   beTransferCartonSchema,
   beTransferKitSchema,
+  beTransferLabelSchema,
   beTransferPackSessionSchema,
   beTransferParcelSchema,
 } from "./transfer-pack-schemas";
@@ -25,6 +26,7 @@ import type {
   ShipCartonInput,
   TransferCarton,
   TransferKit,
+  TransferLabel,
   TransferPackSession,
   TransferPackSessionDto,
   TransferPackageRef,
@@ -50,6 +52,22 @@ const parseSession = (data: unknown): TransferPackSession =>
  */
 export async function openTransferPack(transferOrderId: string): Promise<TransferPackSession> {
   const { data } = await api.post<unknown>(TRANSFER_PACKS_PATH, { transferOrderId });
+  return parseSession(data);
+}
+
+/**
+ * Phiên đóng gói HIỆN HÀNH của lệnh (đang đóng / đã đóng xong), không thì phiên mới nhất — không mở gì cả (BE PR #164:
+ * `GET /transfer-packs?transferOrderId=`, quyền `packages:READ`). 404 `NOT_FOUND` khi lệnh chưa từng được đóng gói. TO không có
+ * `packId`, nên đây là cách duy nhất người chỉ-đọc tới được phiên của lệnh.
+ */
+export async function findTransferPack(
+  transferOrderId: string,
+  signal?: AbortSignal,
+): Promise<TransferPackSession> {
+  const { data } = await api.get<unknown>(TRANSFER_PACKS_PATH, {
+    params: { transferOrderId },
+    signal,
+  });
   return parseSession(data);
 }
 
@@ -106,6 +124,27 @@ export async function sealTransferPackage({
 }: SealTransferPackageInput): Promise<TransferParcel> {
   const { data } = await api.post<unknown>(`${packagePath({ packId, packageId })}/seal`, values);
   return beTransferParcelSchema.parse(data);
+}
+
+/**
+ * Mở lại kiện đã niêm phong khi phiên chưa hoàn tất (BE PR #164, như bàn đóng gói đơn): kiện về OPEN để thêm / bớt hàng, phải
+ * cân đo niêm phong lại. `packing:UPDATE`; 409 `PACK_STATE_CONFLICT` khi phiên đã xong.
+ */
+export async function reopenTransferPackage(ref: TransferPackageRef): Promise<TransferParcel> {
+  const { data } = await api.post<unknown>(`${packagePath(ref)}/reopening`);
+  return beTransferParcelSchema.parse(data);
+}
+
+/**
+ * Nhãn kiện đã niêm phong (BE `GET …/packages/{id}/label`, quyền `packing:READ`): in lại nhãn cũ làm nhãn hiện hành. Kiện
+ * chưa niêm phong / đã huỷ → 409 `PACK_STATE_CONFLICT`.
+ */
+export async function getTransferPackageLabel(
+  ref: TransferPackageRef,
+  signal?: AbortSignal,
+): Promise<TransferLabel> {
+  const { data } = await api.get<unknown>(`${packagePath(ref)}/label`, { signal });
+  return beTransferLabelSchema.parse(data);
 }
 
 /** Huỷ kiện trước khi rời kho (cả bộ nếu là kiện của bộ): hàng trong kiện tính là chưa đóng. */

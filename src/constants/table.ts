@@ -105,10 +105,12 @@ export const VARIANT_COLUMNS = {
 export const TRANSFER_COLUMNS = {
   ACTIONS: "actions",
   CREATED_AT: "createdAt",
+  DELIVERY_MODE: "deliveryMode",
   DISPATCHED_AT: "dispatchedAt",
   EXPECTED_DATE: "expectedDate",
   FROM_WAREHOUSE: "fromWarehouse",
   NUMBER: "number",
+  PACKED_AT: "packedAt",
   STATUS: "status",
   TO_WAREHOUSE: "toWarehouse",
 } as const;

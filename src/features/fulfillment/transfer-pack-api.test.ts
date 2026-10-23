@@ -11,11 +11,15 @@ import {
   kitResponse,
   sealedParcel,
   tParcel,
+  transferLabel,
   tSession,
 } from "./__fixtures__/transfer-pack";
 import {
   completeTransferPack,
+  findTransferPack,
   getTransferPack,
+  getTransferPackageLabel,
+  reopenTransferPackage,
   openTransferKit,
   openTransferPack,
   openTransferPackage,
@@ -151,5 +155,35 @@ describe("transfer-pack API — hợp đồng BE TransferPackController (BE PR #
   it("response sai hợp đồng (deliveryMode lạ) → ném lỗi parse, không đưa dữ liệu hỏng vào UI", async () => {
     vi.spyOn(api, "post").mockResolvedValue({ data: { ...tSession(), deliveryMode: "DRONE" } });
     await expect(openTransferPack(TRANSFER_ORDER_ID)).rejects.toThrow();
+  });
+
+  it("tìm phiên hiện hành: GET /fulfillment/transfer-packs?transferOrderId= (không mở gì), trả phiên có packerName", async () => {
+    const get = vi.spyOn(api, "get").mockResolvedValueOnce({
+      data: tSession({ packerName: "Nguyễn Lan", packStatus: "PACKED" }),
+    });
+    const session = await findTransferPack(TRANSFER_ORDER_ID);
+    expect(get.mock.calls[0]?.[0]).toBe("/fulfillment/transfer-packs");
+    expect(get.mock.calls[0]?.[1]).toMatchObject({
+      params: { transferOrderId: TRANSFER_ORDER_ID },
+    });
+    expect(session).toMatchObject({ packerName: "Nguyễn Lan", packStatus: "Packed" });
+  });
+
+  it("mở lại kiện: POST …/packages/{id}/reopening không body, trả kiện OPEN", async () => {
+    const post = vi.spyOn(api, "post").mockResolvedValueOnce({ data: tParcel() });
+    const parcel = await reopenTransferPackage({ packId: PACK_ID, packageId: PARCEL_1_ID });
+    expect(post.mock.calls[0]?.[0]).toBe(`${PKG}/reopening`);
+    expect(parcel.status).toBe("OPEN");
+  });
+
+  it("nhãn: GET …/packages/{id}/label, parse nhãn kiện của lệnh", async () => {
+    const get = vi.spyOn(api, "get").mockResolvedValueOnce({ data: transferLabel() });
+    const label = await getTransferPackageLabel({ packId: PACK_ID, packageId: PARCEL_1_ID });
+    expect(get.mock.calls[0]?.[0]).toBe(`${PKG}/label`);
+    expect(label).toMatchObject({
+      packageNo: 1,
+      packageCount: 2,
+      transferNumber: "TO-20261012-0001",
+    });
   });
 });

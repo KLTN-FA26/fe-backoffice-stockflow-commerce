@@ -53,6 +53,8 @@ const toRow = (t: MockTransfer) => ({
   expectedDate: t.expectedDate,
   createdAt: t.createdAt,
   dispatchedAt: t.dispatchedAt,
+  deliveryMode: t.deliveryMode,
+  packedAt: t.packedAt,
 });
 
 /** BE `CreateTransferOrderRequest` → dòng; lỗi → response 400 như BE. */

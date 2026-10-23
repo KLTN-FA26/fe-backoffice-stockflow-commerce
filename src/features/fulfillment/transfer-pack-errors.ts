@@ -39,6 +39,15 @@ function validationMessage(error: ApiError): string {
     : FULFILLMENT_ERROR_MESSAGES.VALIDATION_FAILED;
 }
 
+/** BE `InsufficientStockException`: "Insufficient stock for SKU X: requested N, available M" → nêu SKU + số cần / khả dụng. */
+const INSUFFICIENT_DETAIL = /SKU (\S+): requested (\d+), available (\d+)/;
+
+function insufficientStockMessage(error: ApiError): string {
+  const match = INSUFFICIENT_DETAIL.exec(error.message);
+  const base = TRANSFER_PACK_ERROR_MESSAGES.INSUFFICIENT_STOCK;
+  return match ? `${base} SKU ${match[1]}: cần ${match[2]}, khả dụng ${match[3]}.` : base;
+}
+
 /** Câu tiếng Việt cho một lỗi ở trạm đóng gói chuyển kho. */
 export function transferPackErrorMessage(
   error: unknown,
@@ -49,6 +58,7 @@ export function transferPackErrorMessage(
   if (error.code === "PACKING_TAKEN" && state.packerName) {
     return UI_LABELS.transferPack.notice.takenByOther(state.packerName);
   }
+  if (error.code === "INSUFFICIENT_STOCK") return insufficientStockMessage(error);
   if (isKnownCode(error.code)) return TRANSFER_PACK_ERROR_MESSAGES[error.code];
   if (error.code === "VALIDATION_FAILED") return validationMessage(error);
   if (error.code === "NETWORK_ERROR") return FULFILLMENT_ERROR_MESSAGES.NETWORK_ERROR;

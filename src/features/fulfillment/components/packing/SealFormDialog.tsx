@@ -6,12 +6,11 @@ import { PACKAGE_TYPES, UI_LABELS } from "@/constants";
 import { sealInputSchema } from "@/features/fulfillment/packing-input-schemas";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-import { FieldError, MONO, fieldClass } from "../primitives";
 import { FlagSelect } from "./FlagSelect";
+import { SealMeasureFields } from "./SealMeasureFields";
 
 import type { ReactNode } from "react";
 import type { FlagChoice, PackingSealValues } from "@/features/fulfillment/packing-input-schemas";
@@ -21,11 +20,6 @@ const L = UI_LABELS.packing;
 const SEAL = L.seal;
 const TRIGGER =
   "border-border-default bg-bg-surface h-8 w-full rounded-[var(--r-sm)] text-[0.8125rem]";
-const MEASURES = [
-  { key: "lengthCm", label: SEAL.length },
-  { key: "widthCm", label: SEAL.width },
-  { key: "heightCm", label: SEAL.height },
-] as const;
 
 export type SealMeasures = Partial<
   Record<"weightKg" | "lengthCm" | "widthCm" | "heightCm", number>
@@ -107,39 +101,7 @@ export function SealFormDialog({
         onCancel={onClose}
       >
         {hint}
-        <div>
-          <Label htmlFor="seal-weight" className="text-[0.8125rem]">
-            {SEAL.weight}
-          </Label>
-          <Input
-            id="seal-weight"
-            autoFocus
-            inputMode="decimal"
-            value={text.weightKg}
-            aria-invalid={errors.weightKg ? true : undefined}
-            onChange={edit("weightKg")}
-            className={`${fieldClass(!!errors.weightKg)} ${MONO}`}
-          />
-          <FieldError>{errors.weightKg}</FieldError>
-        </div>
-        <div className="grid grid-cols-3 gap-3">
-          {MEASURES.map(({ key, label }) => (
-            <div key={key}>
-              <Label htmlFor={`seal-${key}`} className="text-[0.8125rem]">
-                {label}
-              </Label>
-              <Input
-                id={`seal-${key}`}
-                inputMode="decimal"
-                value={text[key]}
-                aria-invalid={errors[key] ? true : undefined}
-                onChange={edit(key)}
-                className={`${fieldClass(!!errors[key])} ${MONO}`}
-              />
-              <FieldError>{errors[key]}</FieldError>
-            </div>
-          ))}
-        </div>
+        <SealMeasureFields text={text} errors={errors} onEdit={edit} />
         <div>
           <Label htmlFor="seal-type" className="text-[0.8125rem]">
             {SEAL.packageType}

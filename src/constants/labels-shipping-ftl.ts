@@ -18,6 +18,9 @@ export const SHIPPING_FTL_LABELS = {
   /* ── Lệnh chuyển kho trên xe (kế hoạch nguồn TRANSFER, BE PR #164) ── */
   transfer: {
     badge: "Lệnh chuyển kho",
+    /** Thay chữ "Lô giao" ở xe chở lệnh chuyển kho (không có lô giao, không COD). */
+    sectionTitle: "Lệnh chuyển kho trên xe",
+    cardAria: "Lệnh chuyển kho",
     badgeTitle:
       "Xe này chở một lệnh chuyển kho nguyên chuyến: người nhận là kho đích, không thu hộ. Hàng chỉ rời kho nguồn khi xe cuối cùng của kế hoạch được bàn giao.",
     manageByPlan: "Lệnh chuyển kho do kế hoạch xếp xe quản lý — thay đổi qua kế hoạch.",

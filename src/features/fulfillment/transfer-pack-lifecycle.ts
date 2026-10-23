@@ -35,6 +35,8 @@ export interface TransferPackAccess {
   takenByOther: boolean;
   /** Người có quyền tiếp quản thao tác trong phiên của người khác. */
   managerAssist: boolean;
+  /** Xem / in nhãn kiện (packing:READ — BE `GET …/label`). */
+  canLabel: boolean;
 }
 
 export function transferPackAccess(
@@ -54,5 +56,6 @@ export function transferPackAccess(
     canWork: canPack && packing && (isOwner || canTakeOver),
     takenByOther: canPack && packing && !isOwner && !canTakeOver,
     managerAssist: canPack && packing && canTakeOver && !isOwner && !!session.packerId,
+    canLabel: actor.can(PACKING.read),
   };
 }

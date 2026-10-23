@@ -2,6 +2,7 @@ import type { z } from "zod";
 
 import type {
   beTransferCartonSchema,
+  beTransferLabelSchema,
   beTransferKitSchema,
   beTransferMeasuresSchema,
   beTransferPackContentSchema,
@@ -22,6 +23,7 @@ export type TransferPackContent = z.infer<typeof beTransferPackContentSchema>;
 export type TransferPackKitPart = z.infer<typeof beTransferPackKitSchema>;
 export type TransferKit = z.infer<typeof beTransferKitSchema>;
 export type TransferCarton = z.infer<typeof beTransferCartonSchema>;
+export type TransferLabel = z.infer<typeof beTransferLabelSchema>;
 export type TransferMeasures = z.infer<typeof beTransferMeasuresSchema>;
 
 /** Model FE: `packStatus` đổi sang tên hiển thị như phiên đóng gói đơn (giá trị lạ → "Unknown"). */

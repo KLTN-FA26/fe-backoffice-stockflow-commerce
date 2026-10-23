@@ -7,12 +7,14 @@ import {
   kitResponse,
   sealedParcel,
   tLine,
+  transferLabel,
   tParcel,
   tSession,
 } from "./__fixtures__/transfer-pack";
 import {
   beTransferCartonSchema,
   beTransferKitSchema,
+  beTransferLabelSchema,
   beTransferPackLineSchema,
   beTransferPackSessionSchema,
   beTransferParcelSchema,
@@ -82,5 +84,35 @@ describe("transfer-pack zod DTO — khớp BE TransferPacks.* (BE PR #164)", () 
     });
     expect(withSuggestion.unitOfMeasure).toBe("CARTON");
     expect(beTransferCartonSchema.parse(cartonResponse(false)).suggested).toBeUndefined();
+  });
+});
+
+describe("BE PR #164 final: packerName và nhãn kiện", () => {
+  it("phiên: packerName (tên hiển thị người đóng) parse được; vắng (dữ liệu cũ) vẫn hợp lệ", () => {
+    expect(
+      beTransferPackSessionSchema.parse(tSession({ packerName: "Nguyễn Lan" })).packerName,
+    ).toBe("Nguyễn Lan");
+    expect(beTransferPackSessionSchema.parse(tSession()).packerName).toBeUndefined();
+  });
+
+  it("nhãn: kho đi / đến, kiện n/N, số đo, cờ, nội dung; địa chỉ kho và số đo có thể vắng", () => {
+    const label = beTransferLabelSchema.parse(transferLabel());
+    expect(label).toMatchObject({
+      packageNo: 1,
+      packageCount: 2,
+      toWarehouseName: "Kho HCM",
+      fragile: true,
+    });
+    const { toWarehouseAddress: _a, lengthCm: _l, ...bare } = transferLabel();
+    const sparse = beTransferLabelSchema.parse(bare);
+    expect(sparse.toWarehouseAddress).toBeUndefined();
+    expect(sparse.lengthCm).toBeUndefined();
+  });
+
+  it("nhãn thiếu số kiện hoặc cờ → lỗi parse (BE luôn gửi)", () => {
+    const { packageCount: _c, ...noCount } = transferLabel();
+    expect(() => beTransferLabelSchema.parse(noCount)).toThrow();
+    const { fragile: _f, ...noFlag } = transferLabel();
+    expect(() => beTransferLabelSchema.parse(noFlag)).toThrow();
   });
 });

@@ -43,6 +43,7 @@ function seedPacked(): MockTransferPack {
     transferOrderId: SEED_PACKED_TRANSFER_ID,
     // Cùng người seed ở mọi phiên khác của mock: phiên đã xong nên không ai cần là chủ
     packerId: MOCK_SUBMITTER,
+    packerName: "Nhân viên kho (mock)",
     packStatus: "PACKED",
     startedAt: "2026-10-22T03:00:00Z",
     packedAt: SEED_PACKED_TRANSFER_PACKED_AT,
@@ -88,7 +89,8 @@ export function parcelView(parcel: MockTransferParcel, transfer: MockTransfer) {
     kit: parcel.kit,
     kitOverrideReason: parcel.kitOverrideReason,
     stockPackageId: parcel.stockPackageId,
-    labelOutdated: false,
+    labelOutdated: parcel.labelOutdated === true,
+    labelOutdatedAt: parcel.labelOutdated ? "2026-10-22T05:00:00Z" : undefined,
   };
 }
 
@@ -103,6 +105,7 @@ export function sessionView(pack: MockTransferPack, transfer: MockTransfer) {
     deliveryMode: transfer.deliveryMode,
     packStatus: pack.packStatus,
     packerId: pack.packerId,
+    packerName: pack.packerName,
     startedAt: pack.startedAt,
     packedAt: pack.packedAt,
     lines: transfer.lines.map((line) => {

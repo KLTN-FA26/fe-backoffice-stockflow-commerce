@@ -46,11 +46,16 @@ export function LoadShipments({
   const activeRefusal =
     refusal?.shipmentCode && findShipmentByCode(load, refusal.shipmentCode) ? refusal : null;
 
+  // Xe của kế hoạch nguồn TRANSFER chở lệnh chuyển kho, không phải "lô giao"
+  const transferOnly =
+    load.shipments.length > 0 && load.shipments.every((s) => !!s.transferOrderId);
+  const title = transferOnly ? UI_LABELS.shipping.ftl.transfer.sectionTitle : L.shipmentsTitle;
+
   return (
-    <section aria-label={L.shipmentsTitle} className="space-y-3">
+    <section aria-label={title} className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-ink-primary text-[0.9375rem] font-semibold">
-          {L.shipmentsTitle} ({load.shipments.length})
+          {title} ({load.shipments.length})
         </h2>
         {canEditShipments && (
           <Button type="button" variant="outline" size="sm" onClick={onAdd}>

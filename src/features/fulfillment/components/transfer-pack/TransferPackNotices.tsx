@@ -26,7 +26,11 @@ export function TransferPackNotices({
         </Alert>
       )}
       {cancelled && <Alert tone="warning">{N.cancelled}</Alert>}
-      {access.takenByOther && <Alert tone="info">{N.takenByOtherNoName}</Alert>}
+      {access.takenByOther && (
+        <Alert tone="info">
+          {session.packerName ? N.takenByOther(session.packerName) : N.takenByOtherNoName}
+        </Alert>
+      )}
       {access.managerAssist && <Alert tone="info">{N.managerAssist}</Alert>}
       {!access.canPack && !packed && !cancelled && <Alert tone="info">{N.viewOnly}</Alert>}
       {kitHint && <Alert tone="info">{N.kitSuggested}</Alert>}

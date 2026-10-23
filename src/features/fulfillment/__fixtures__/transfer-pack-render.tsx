@@ -10,12 +10,20 @@ import { render } from "@testing-library/react";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 
 import { LOAD_PLAN_PERMISSIONS } from "@/constants";
+import { ApiError } from "@/lib/api/error";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
 import { TransferPackStation } from "../components/TransferPackStation";
 import { IDENTITIES, mockFulfillmentApi } from "./render";
 import { EMPTY_ORDERS_PAGE } from "./packing-render";
-import { PACKER_ID, PACK_ID, PACK_PATH, TRANSFER_ORDER_ID, tSession } from "./transfer-pack";
+import {
+  PACKER_ID,
+  PACKS_PATH,
+  PACK_ID,
+  PACK_PATH,
+  TRANSFER_ORDER_ID,
+  tSession,
+} from "./transfer-pack";
 
 import type { PermissionCode } from "@/lib/auth";
 import type { RouteHandler, TestIdentity } from "./render";
@@ -29,8 +37,12 @@ interface Options {
   identity?: TestIdentity;
   session?: TransferPackSessionDto;
   userId?: string;
-  /** Mở thẳng trạm không kèm `?pack=` (cổng "Mở phiên đóng gói"). */
+  /** Mở thẳng trạm không kèm `?pack=`: trạm TRA phiên hiện hành của lệnh (`GET ?transferOrderId=`). */
   withoutPack?: boolean;
+  /** Với `withoutPack`: lệnh đã có phiên (mặc định chưa từng đóng gói → 404 → cổng "Mở phiên đóng gói"). */
+  existingPack?: boolean;
+  /** Mở thẳng nhãn của kiện này (`?label=`). */
+  labelId?: string;
   post?: (state: TransferPackState) => Record<string, RouteHandler>;
   del?: (state: TransferPackState) => Record<string, RouteHandler>;
   get?: (state: TransferPackState) => Record<string, RouteHandler>;
@@ -69,12 +81,24 @@ const WAREHOUSES = {
   hasPrevious: false,
 };
 
+const searchOf = (options: Options) => {
+  const params = new URLSearchParams();
+  if (!options.withoutPack) params.set("pack", PACK_ID);
+  if (options.labelId) params.set("label", options.labelId);
+  const text = params.toString();
+  return text ? `?${text}` : "";
+};
+
 export function renderTransferPackStation(options: Options = {}) {
   const state: TransferPackState = { session: options.session ?? tSession() };
   const spies = mockFulfillmentApi(
     options.identity ?? IDENTITIES.warehouseStaff,
     {
       [PACK_PATH]: () => state.session,
+      [PACKS_PATH]: () => {
+        if (options.existingPack) return state.session;
+        throw new ApiError(404, "NOT_FOUND", "never packed");
+      },
       "/warehouses": () => WAREHOUSES,
       "/orders": () => EMPTY_ORDERS_PAGE,
       ...options.get?.(state),
@@ -100,7 +124,7 @@ export function renderTransferPackStation(options: Options = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={client}>
-      <NuqsTestingAdapter searchParams={options.withoutPack ? "" : `?pack=${PACK_ID}`} hasMemory>
+      <NuqsTestingAdapter searchParams={searchOf(options)} hasMemory>
         <Suspense fallback={<div>loading</div>}>
           <TransferPackStation transferId={TRANSFER_ORDER_ID} />
         </Suspense>

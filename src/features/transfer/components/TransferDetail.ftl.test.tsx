@@ -1,8 +1,8 @@
-import { screen } from "@testing-library/react";
+import { cleanup, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
+import { ADMIN_ROUTES, FULFILLMENT_PACKAGE_PERMISSIONS, UI_LABELS } from "@/constants";
 
 import {
   TRANSFER_ROLE_PERMISSIONS as ROLES,
@@ -128,5 +128,67 @@ describe("TransferDetail — lệnh nguyên chuyến (FTL, LP2-8)", HEAVY_TEST, 
     for (const label of Object.values(A)) {
       expect(screen.queryByRole("button", { name: label })).not.toBeInTheDocument();
     }
+  });
+
+  it("lệnh giao lẻ đã xuất kho: không hiện 'Chưa đóng gói / Chưa rời kho' (không có đóng gói, không có xe ký nhận)", async () => {
+    renderDetail(
+      ROLES.viewOnly,
+      apiTransfer({
+        status: "IN_TRANSIT",
+        deliveryMode: "PARCEL",
+        dispatchedAt: "2026-10-22T06:00:00Z",
+      }),
+    );
+    expect(await screen.findByText("Giao lẻ")).toBeInTheDocument();
+    expect(screen.queryByText(D.notPacked)).not.toBeInTheDocument();
+    expect(screen.queryByText(D.notLeft)).not.toBeInTheDocument();
+    expect(screen.queryByText(D.packedAt)).not.toBeInTheDocument();
+    expect(screen.queryByText(D.goodsLeftAt)).not.toBeInTheDocument();
+  });
+
+  it("lệnh nguyên chuyến đã xuất: hiện mốc đóng gói và hàng rời kho; thiếu mốc cũ thì lấy lúc xuất kho / '—', không 'Chưa …'", async () => {
+    renderDetail(
+      ROLES.viewOnly,
+      apiTransfer({
+        status: "IN_TRANSIT",
+        packedAt: "2026-10-22T04:00:00Z",
+        goodsLeftAt: "2026-10-22T06:00:00Z",
+        dispatchedAt: "2026-10-22T06:00:00Z",
+      }),
+    );
+    expect(await screen.findByText(D.packedAt)).toBeInTheDocument();
+    expect(screen.getByText(D.goodsLeftAt)).toBeInTheDocument();
+    expect(screen.queryByText(D.notPacked)).not.toBeInTheDocument();
+    expect(screen.queryByText(D.notLeft)).not.toBeInTheDocument();
+    cleanup();
+    vi.restoreAllMocks();
+    renderDetail(
+      ROLES.viewOnly,
+      apiTransfer({ status: "IN_TRANSIT", dispatchedAt: "2026-10-22T06:00:00Z" }),
+    );
+    expect(await screen.findByText(D.goodsLeftAt)).toBeInTheDocument();
+    expect(screen.queryByText(D.notPacked)).not.toBeInTheDocument();
+    expect(screen.queryByText(D.notLeft)).not.toBeInTheDocument();
+  });
+
+  it("'Xem đóng gói': người chỉ có packages:READ (không mở được phiên) vào trạm của lệnh đã đóng gói / đã xuất; không có nút 'Đóng gói chuyển kho'", async () => {
+    const user = userEvent.setup();
+    renderDetail(
+      [...ROLES.viewOnly, FULFILLMENT_PACKAGE_PERMISSIONS.read],
+      apiTransfer({
+        status: "IN_TRANSIT",
+        packedAt: "2026-10-22T04:00:00Z",
+        goodsLeftAt: "2026-10-22T06:00:00Z",
+      }),
+    );
+    await user.click(await screen.findByRole("button", { name: A.viewPacking }));
+    expect(push).toHaveBeenCalledWith(ADMIN_ROUTES.packing.transfer(TRANSFER_ID));
+    expect(screen.queryByRole("button", { name: A.packTransfer })).not.toBeInTheDocument();
+  });
+
+  it("lệnh Đã duyệt chưa có phiên: không có 'Xem đóng gói' (chưa có gì để xem); người có quyền đóng gói thấy 'Đóng gói chuyển kho' thay vào đó", async () => {
+    renderDetail(ROLES.floorStaff, apiTransfer({ status: "APPROVED" }));
+    expect(await screen.findByRole("button", { name: A.packTransfer })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: A.viewPacking })).not.toBeInTheDocument();
   });
 });

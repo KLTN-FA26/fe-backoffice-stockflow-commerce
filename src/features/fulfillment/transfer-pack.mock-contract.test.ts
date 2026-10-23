@@ -14,7 +14,10 @@ import { useAuthStore } from "@/lib/auth/auth-store";
 
 import {
   completeTransferPack,
+  findTransferPack,
   getTransferPack,
+  getTransferPackageLabel,
+  reopenTransferPackage,
   openTransferKit,
   openTransferPack,
   openTransferPackage,
@@ -318,6 +321,121 @@ describe("transfer-pack mock ↔ hợp đồng BE PR #164", () => {
       expect(await transferOf(PACKED_TRANSFER)).toMatchObject({ status: "APPROVED" });
       expect((await getTransferPack(session.packId)).packStatus).toBe("Cancelled");
       expect(await candidates()).not.toContain(PACKED_TRANSFER);
+    },
+    FLOW_TIMEOUT_MS,
+  );
+});
+
+describe("transfer-pack mock — BE PR #164 final: tra phiên, packerName, nhãn, mở lại kiện", () => {
+  it(
+    "GET ?transferOrderId=: 404 khi chưa từng đóng gói và không mở gì; lệnh đã có phiên trả phiên có packerName; người chỉ-đọc (packages:READ) tra được",
+    async () => {
+      actAs(USERS.packer);
+      expect(await codeOf(findTransferPack("TO-2026-0009"))).toBe("NOT_FOUND");
+      expect((await transferOf("TO-2026-0009")).status).toBe("DRAFT");
+      const found = await findTransferPack(KIT_TRANSFER);
+      expect(found).toMatchObject({ transferOrderId: KIT_TRANSFER, packStatus: "Packed" });
+      expect(found.packerName).toBeTruthy();
+      actAs(USERS.qc);
+      expect((await findTransferPack(KIT_TRANSFER)).packId).toBe(found.packId);
+      expect(await codeOf(findTransferPack("TO-2026-0009"))).toBe("NOT_FOUND");
+    },
+    FLOW_TIMEOUT_MS,
+  );
+
+  it(
+    "nhãn: chỉ kiện đã niêm phong (409 PACK_STATE_CONFLICT với kiện đang mở); n/N theo các kiện niêm phong; kho đi / đến; không COD",
+    async () => {
+      actAs(USERS.packer);
+      const { packId } = await openTransferPack("TO-2026-0007");
+      const first = await openTransferPackage({ packId });
+      expect(await codeOf(getTransferPackageLabel({ packId, packageId: first.packageId }))).toBe(
+        "PACK_STATE_CONFLICT",
+      );
+      await scanIntoTransferPackage({
+        packId,
+        packageId: first.packageId,
+        scan: { scanId: crypto.randomUUID(), scannedCode: "SKU-001-BLK-M", quantity: 2 },
+      });
+      await sealTransferPackage({ packId, packageId: first.packageId, values: SEAL });
+      const label = await getTransferPackageLabel({ packId, packageId: first.packageId });
+      expect(label).toMatchObject({
+        transferNumber: "TO-2026-0007",
+        packageNo: 1,
+        packageCount: 1,
+        weightKg: 5,
+        fragile: false,
+      });
+      expect(label.fromWarehouseName).toBeTruthy();
+      expect(label.toWarehouseName).toBeTruthy();
+      expect(label.contents).toMatchObject([{ sku: "SKU-001-BLK-M", quantity: 2 }]);
+      actAs(USERS.otherPacker);
+      expect(
+        (await getTransferPackageLabel({ packId, packageId: first.packageId })).packageCount,
+      ).toBe(1);
+    },
+    FLOW_TIMEOUT_MS,
+  );
+
+  it(
+    "nhãn đã in rồi đổi số kiện niêm phong → labelOutdated; in lại làm nhãn hiện hành (cờ xuống)",
+    async () => {
+      actAs(USERS.manager);
+      const { packId } = await findTransferPack("TO-2026-0007");
+      const sealedNow = (await getTransferPack(packId)).packages.find((p) => p.status === "SEALED");
+      if (!sealedNow) throw new Error("thiếu kiện đã niêm phong");
+      expect(sealedNow.labelOutdated).toBe(false);
+      // Nhãn của kiện 1 đã in ở test trước; niêm phong thêm một kiện làm n/N đổi
+      const second = await openTransferPackage({ packId });
+      await scanIntoTransferPackage({
+        packId,
+        packageId: second.packageId,
+        scan: { scanId: crypto.randomUUID(), scannedCode: "SKU-001-BLK-M", quantity: 1 },
+      });
+      await sealTransferPackage({ packId, packageId: second.packageId, values: SEAL });
+      const after = await getTransferPack(packId);
+      expect(after.packages.find((p) => p.packageId === sealedNow.packageId)?.labelOutdated).toBe(
+        true,
+      );
+      await getTransferPackageLabel({ packId, packageId: sealedNow.packageId });
+      expect(
+        (await getTransferPack(packId)).packages.find((p) => p.packageId === sealedNow.packageId)
+          ?.labelOutdated,
+      ).toBe(false);
+    },
+    FLOW_TIMEOUT_MS,
+  );
+
+  it(
+    "mở lại kiện đã niêm phong: về OPEN (409 PACK_STATE_CONFLICT nếu đang mở); phải niêm phong lại; phiên đã xong → 409; cần packing:UPDATE",
+    async () => {
+      actAs(USERS.manager);
+      const { packId } = await findTransferPack("TO-2026-0007");
+      const sealed = (await getTransferPack(packId)).packages.filter((p) => p.status === "SEALED");
+      const target = sealed[0];
+      if (!target) throw new Error("thiếu kiện đã niêm phong");
+      actAs(USERS.qc);
+      expect(await codeOf(reopenTransferPackage({ packId, packageId: target.packageId }))).toBe(
+        "FORBIDDEN",
+      );
+      actAs(USERS.manager);
+      const reopened = await reopenTransferPackage({ packId, packageId: target.packageId });
+      expect(reopened.status).toBe("OPEN");
+      expect(await codeOf(reopenTransferPackage({ packId, packageId: target.packageId }))).toBe(
+        "PACK_STATE_CONFLICT",
+      );
+      expect(
+        (await sealTransferPackage({ packId, packageId: target.packageId, values: SEAL })).status,
+      ).toBe("SEALED");
+      // Phiên của lệnh KIT_TRANSFER đã hoàn tất ở test đầu: không mở lại được
+      const done = await findTransferPack(KIT_TRANSFER);
+      const doneParcel = done.packages[0];
+      if (!doneParcel) throw new Error("thiếu kiện");
+      expect(
+        await codeOf(
+          reopenTransferPackage({ packId: done.packId, packageId: doneParcel.packageId }),
+        ),
+      ).toBe("PACK_STATE_CONFLICT");
     },
     FLOW_TIMEOUT_MS,
   );

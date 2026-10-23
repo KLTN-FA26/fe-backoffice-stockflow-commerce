@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
 import { parseAsString, useQueryState } from "nuqs";
 
 import { ADMIN_ROUTES, FULFILLMENT_PACKAGE_PERMISSIONS, UI_LABELS } from "@/constants";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { transferPackAccess } from "@/features/fulfillment/transfer-pack-lifecycle";
-import { useTransferPack } from "@/features/fulfillment/transfer-pack-queries";
+import {
+  useCurrentTransferPack,
+  useTransferPack,
+} from "@/features/fulfillment/transfer-pack-queries";
+import { ApiError } from "@/lib/api/error";
 import { Alert } from "@/components/shared/Alert";
 import { BackLink } from "@/components/shared/BackLink";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -14,27 +17,24 @@ import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
 
 import { FulfillmentPermissionGate } from "./FulfillmentPermissionGate";
-import { TransferKitDialog } from "./transfer-pack/TransferKitDialog";
-import { TransferPackLines } from "./transfer-pack/TransferPackLines";
 import { TransferPackLoadError } from "./transfer-pack/TransferPackLoadError";
-import { TransferPackNotices } from "./transfer-pack/TransferPackNotices";
+import { TransferPackageLabelView } from "./transfer-pack/TransferPackageLabelView";
 import { TransferPackStart } from "./transfer-pack/TransferPackStart";
-import { TransferPackStatusCard } from "./transfer-pack/TransferPackStatusCard";
-import { TransferPackagesSection } from "./transfer-pack/TransferPackagesSection";
-import { TransferScanSection } from "./transfer-pack/TransferScanSection";
+import { TransferPackWorkArea } from "./transfer-pack/TransferPackWorkArea";
 import { useFulfillmentActor } from "./useFulfillmentActor";
 
 const L = UI_LABELS.transferPack;
-
-/** Hộp thoại đóng bộ: `lineId` có = bấm từ bảng dòng (chọn sẵn dòng); `""` = bấm từ nút chung. */
-type KitDialogState = { lineId: string } | null;
 
 function StationBody({ transferId }: { transferId: string }) {
   const actor = useFulfillmentActor();
   const canRead = actor.can(FULFILLMENT_PACKAGE_PERMISSIONS.read);
   const [packId, setPackId] = useQueryState("pack", parseAsString);
-  const query = useTransferPack(packId, { enabled: canRead });
-  const [kit, setKit] = useState<KitDialogState>(null);
+  const [labelId, setLabelId] = useQueryState("label", parseAsString);
+  // Có ?pack → đọc đúng phiên đó; không có → TRA phiên hiện hành của lệnh (BE `GET ?transferOrderId=`, không mở gì) để
+  // người chỉ có packages:READ và người quay lại sau khi đã đóng xong vào thẳng phiên. 404 = chưa từng đóng gói
+  const byPack = useTransferPack(packId, { enabled: canRead });
+  const current = useCurrentTransferPack(transferId, { enabled: canRead && !packId });
+  const query = packId ? byPack : current;
   const session = query.data;
   useBreadcrumbLabel(transferId, session?.transferNumber);
 
@@ -56,7 +56,8 @@ function StationBody({ transferId }: { transferId: string }) {
       </>
     );
   }
-  if (!packId) {
+  const neverPacked = !packId && current.error instanceof ApiError && current.error.status === 404;
+  if (neverPacked) {
     return (
       <>
         {header}
@@ -79,7 +80,22 @@ function StationBody({ transferId }: { transferId: string }) {
   }
 
   const access = transferPackAccess(session, actor);
-  const kitLines = session.lines.filter((line) => line.packageCount > 1);
+  const labelParcel = labelId ? session.packages.find((p) => p.packageId === labelId) : undefined;
+
+  // Nhãn thay vùng nội dung (`?label=` trên URL); khung back-office ẩn khi in nên `window.print()` ra đúng tờ nhãn
+  if (labelId) {
+    return (
+      <>
+        <div className="print:hidden">{header}</div>
+        <TransferPackageLabelView
+          packId={session.packId}
+          packageId={labelId}
+          wasOutdated={!!labelParcel?.labelOutdated}
+          onBack={() => void setLabelId(null)}
+        />
+      </>
+    );
+  }
 
   return (
     <>
@@ -97,32 +113,12 @@ function StationBody({ transferId }: { transferId: string }) {
           </Button>
         </Alert>
       )}
-      <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
-        <div className="min-w-0 space-y-5">
-          <TransferPackNotices session={session} access={access} />
-          <TransferPackLines
-            session={session}
-            onOpenKit={access.canWork ? (lineId) => setKit({ lineId }) : undefined}
-          />
-          {access.canWork && <TransferScanSection session={session} />}
-          <TransferPackagesSection
-            session={session}
-            access={access}
-            onOpenKit={() => setKit({ lineId: "" })}
-          />
-        </div>
-        <div className="space-y-5">
-          <TransferPackStatusCard session={session} access={access} actor={actor} />
-        </div>
-      </div>
-      {kit && (
-        <TransferKitDialog
-          packId={session.packId}
-          lines={kitLines}
-          initialLineId={kit.lineId || undefined}
-          onClose={() => setKit(null)}
-        />
-      )}
+      <TransferPackWorkArea
+        session={session}
+        access={access}
+        actor={actor}
+        onShowLabel={(packageId) => void setLabelId(packageId)}
+      />
     </>
   );
 }

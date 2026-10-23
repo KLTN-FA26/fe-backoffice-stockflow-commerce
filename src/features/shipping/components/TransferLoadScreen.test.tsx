@@ -10,6 +10,7 @@ import {
   FTL_ID,
   TRANSFER_NUMBER,
   TRANSFER_ORDER_ID,
+  ftlLoad,
   ftlParcel,
   loadingFtl,
   transferLoad,
@@ -55,7 +56,7 @@ describe("Xe của kế hoạch nguồn TRANSFER — dòng là một lệnh chuy
   it("dòng hiện số lệnh liên kết sang lệnh chuyển kho + nhãn 'Lệnh chuyển kho'; không có liên kết lô giao / đơn, không có trạng thái lô", async () => {
     renderLoad(ACTORS.warehouseManager, transferLoad());
     await ready();
-    const card = screen.getByRole("region", { name: `${L.shipments.title} ${TRANSFER_NUMBER}` });
+    const card = screen.getByRole("region", { name: `${T.cardAria} ${TRANSFER_NUMBER}` });
     expect(within(card).getByRole("link", { name: TRANSFER_NUMBER })).toHaveAttribute(
       "href",
       ADMIN_ROUTES.transfers.detail(TRANSFER_ORDER_ID),
@@ -65,6 +66,28 @@ describe("Xe của kế hoạch nguồn TRANSFER — dòng là một lệnh chuy
     // Trạng thái "lô giao" không áp dụng cho lệnh chuyển kho (BE trả trạng thái của lệnh)
     expect(within(card).queryByText(PACK_SHIPMENT_STATUS_DISPLAY.UNKNOWN)).not.toBeInTheDocument();
     expect(within(card).queryByText(/Không rõ/)).not.toBeInTheDocument();
+  });
+
+  it("dòng của lệnh không có chữ 'Lô giao' và không hiện COD (trên nhãn / chốt) — lệnh chuyển kho không thu hộ", async () => {
+    renderLoad(ACTORS.warehouseManager, transferLoad());
+    await ready();
+    expect(screen.getByRole("heading", { name: `${T.sectionTitle} (1)` })).toBeInTheDocument();
+    expect(screen.queryByText(new RegExp(L.load.shipmentsTitle))).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("region", { name: new RegExp(`^${L.shipments.title}`) }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(new RegExp(L.load.labelCod))).not.toBeInTheDocument();
+    expect(screen.queryByText(new RegExp(L.load.fixedCod))).not.toBeInTheDocument();
+  });
+
+  it("xe chở lô giao của đơn khách vẫn có tiêu đề 'Lô giao trên chuyến' và COD trên nhãn (không đổi hành vi cũ)", async () => {
+    renderLoad(ACTORS.warehouseManager, ftlLoad());
+    await ready();
+    expect(
+      screen.getByRole("heading", { name: `${L.load.shipmentsTitle} (1)` }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(L.load.labelCod))).toBeInTheDocument();
+    expect(screen.queryByText(T.badge)).not.toBeInTheDocument();
   });
 
   it("lệnh trên xe do kế hoạch quản lý: không có nút gỡ lô dù là quản lý kho; không thêm lô", async () => {

@@ -64,6 +64,23 @@ export const FTL_TRANSFER_ACTIONS: readonly TransferAction[] = [
     when: (transfer) => isFtl(transfer) && !isPacked(transfer),
   },
   {
+    code: "viewPacking",
+    label: UI_LABELS.transfer.action.viewPacking,
+    // BE `GET /transfer-packs?transferOrderId=` (BE PR #164): người chỉ có packages:READ vẫn xem được phiên của lệnh; không
+    // gọi mở phiên nên không đổi gì. Có từ lúc lệnh được lấy hàng và cả sau khi đã đóng xong / xuất kho
+    permissions: [FULFILLMENT_PACKAGE_PERMISSIONS.read],
+    fromStatuses: [
+      TRANSFER_STATUS.PICKING,
+      TRANSFER_STATUS.IN_TRANSIT,
+      TRANSFER_STATUS.PARTIALLY_RECEIVED,
+      TRANSFER_STATUS.RECEIVED,
+      TRANSFER_STATUS.COMPLETED,
+      TRANSFER_STATUS.CLOSED,
+    ],
+    tone: "secondary",
+    when: (transfer) => isFtl(transfer),
+  },
+  {
     code: "planVehicle",
     label: UI_LABELS.transfer.action.planVehicle,
     // Màn lập kế hoạch cần đọc lô ứng viên (READ) và lập (CREATE)
@@ -73,3 +90,10 @@ export const FTL_TRANSFER_ACTIONS: readonly TransferAction[] = [
     when: (transfer) => isFtl(transfer) && isPacked(transfer) && !transfer.goodsLeftAt,
   },
 ];
+
+/** Đã có "Đóng gói chuyển kho" (mở được phiên) thì không thêm "Xem đóng gói" cho cùng một việc. */
+export const withoutRedundantViewPacking = (
+  action: TransferAction,
+  _index: number,
+  list: readonly TransferAction[],
+): boolean => action.code !== "viewPacking" || !list.some((other) => other.code === "packTransfer");

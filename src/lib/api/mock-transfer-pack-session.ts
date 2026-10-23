@@ -33,12 +33,17 @@ export interface MockTransferParcel {
   kit?: { groupId: string; partNo: number; partCount: number; transferLineId: string };
   kitOverrideReason?: string;
   stockPackageId?: string;
+  /** Nhãn đã in (GET …/label) — đổi số kiện n/N sau đó làm nhãn cũ. */
+  labelPrinted?: boolean;
+  labelOutdated?: boolean;
 }
 
 export interface MockTransferPack {
   packId: string;
   transferOrderId: string;
   packerId: string;
+  /** Tên hiển thị người đóng (BE PR #164 final `packerName`). */
+  packerName?: string;
   packStatus: "PACKING" | "PACKED" | "CANCELLED";
   startedAt: string;
   packedAt?: string;
@@ -62,11 +67,16 @@ export function packedOf(pack: MockTransferPack, transferLineId: string): number
   );
 }
 
-export function newPack(transfer: MockTransfer, packerId: string): MockTransferPack {
+export function newPack(
+  transfer: MockTransfer,
+  packerId: string,
+  packerName?: string,
+): MockTransferPack {
   return {
     packId: crypto.randomUUID(),
     transferOrderId: transfer.transferId,
     packerId,
+    packerName,
     packStatus: "PACKING",
     startedAt: new Date().toISOString(),
     parcels: [],
@@ -287,6 +297,7 @@ export function sealParcel(
     status: "SEALED",
     sealedAt: new Date().toISOString(),
   });
+  markPrintedLabelsOutdated(pack);
   if (typeof input.packageType === "string") parcel.packageType = input.packageType;
   if (typeof input.rotatable === "boolean") parcel.rotatable = input.rotatable;
   if (typeof input.fragile === "boolean") parcel.fragile = input.fragile;
@@ -305,6 +316,7 @@ export function voidParcel(pack: MockTransferPack, packageId: string) {
       other.contents = [];
     }
   }
+  markPrintedLabelsOutdated(pack);
 }
 
 /** LP2-8: thùng tồn kho chưa mở giao nguyên — kiện chứa mọi hàng của thùng, số đo gợi ý theo đơn vị đóng gói. */
@@ -365,4 +377,26 @@ export function completePack(
     throw invalid("note", "A note is required with a partial packing");
   pack.packStatus = "PACKED";
   pack.packedAt = new Date().toISOString();
+}
+
+/** BE: số kiện niêm phong đổi (niêm phong / mở lại / huỷ) làm n/N của nhãn đã in không còn đúng → `labelOutdated`. */
+export function markPrintedLabelsOutdated(pack: MockTransferPack): void {
+  for (const parcel of pack.parcels) {
+    if (parcel.status === "SEALED" && parcel.labelPrinted) parcel.labelOutdated = true;
+  }
+}
+
+/** Mở lại kiện đã niêm phong khi phiên chưa hoàn tất: kiện về OPEN (số đo giữ lại, phải niêm phong lại). */
+export function reopenParcel(pack: MockTransferPack, packageId: string): MockTransferParcel {
+  requireWorkable(pack);
+  const parcel = pack.parcels.find((p) => p.packageId === packageId && p.status !== "VOIDED");
+  if (!parcel) throw new PackError(404, "PACKAGE_NOT_FOUND", "Package not found");
+  if (parcel.status !== "SEALED")
+    throw conflict("PACK_STATE_CONFLICT", "Only a sealed package is opened again");
+  parcel.status = "OPEN";
+  parcel.sealedAt = undefined;
+  parcel.labelPrinted = false;
+  parcel.labelOutdated = false;
+  markPrintedLabelsOutdated(pack);
+  return parcel;
 }

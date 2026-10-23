@@ -92,7 +92,7 @@ export function useTransferScanFlow({
         });
         queue.current.shift();
       } catch (error: unknown) {
-        const message = transferPackErrorMessage(error);
+        const message = transferPackErrorMessage(error, { packerName: session.packerName });
         show({ tone: "danger", message: `${item.scan.scannedCode} — ${message}` });
         if (isRetryablePackingError(error)) {
           halted.current = true;
