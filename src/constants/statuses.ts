@@ -581,3 +581,15 @@ export const LOAD_PLAN_ESTIMATE_FLAGS = [
 ] as const;
 
 export type LoadPlanEstimateFlag = (typeof LOAD_PLAN_ESTIMATE_FLAGS)[number];
+
+/**
+ * BE `UserStatus` (identity/internal/domain/UserStatus.java): ACTIVE, DISABLED, LOCKED. Nguồn của zod enum,
+ * bộ lọc danh sách, bảng chuyển trạng thái (`features/user-management/lifecycle.ts`) và status-map.
+ */
+export const USER_STATUSES = ["ACTIVE", "LOCKED", "DISABLED"] as const;
+
+export const USER_STATUS = {
+  ACTIVE: "ACTIVE",
+  LOCKED: "LOCKED",
+  DISABLED: "DISABLED",
+} as const satisfies Record<string, (typeof USER_STATUSES)[number]>;

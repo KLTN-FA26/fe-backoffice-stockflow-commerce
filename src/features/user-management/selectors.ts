@@ -1,8 +1,18 @@
+import { NON_STAFF_ROLE_CODES } from "@/constants";
+
 import type { CreateUserFormValues, UserDto } from "./types";
 
 /** Tên hiển thị: họ tên nếu có, không thì tên đăng nhập. */
 export function userDisplayName(user: Pick<UserDto, "fullName" | "username">): string {
   return user.fullName?.trim() || user.username;
+}
+
+/**
+ * Vai trò gán được cho tài khoản nhân viên — loại vai trò khách hàng (BE `ROLE_NOT_ASSIGNABLE`).
+ * Luật về người được gán, không phải kiểm quyền của người gọi.
+ */
+export function isAssignableRole(code: string): boolean {
+  return !NON_STAFF_ROLE_CODES.includes(code);
 }
 
 /** Thêm / bỏ một giá trị khỏi danh sách, giữ thứ tự và không trùng. */

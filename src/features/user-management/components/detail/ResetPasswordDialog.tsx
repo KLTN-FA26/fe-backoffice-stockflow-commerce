@@ -5,7 +5,7 @@ import { useState } from "react";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { identityErrorMessage } from "@/lib/api/identity-errors";
 
-import { USER_LIMITS } from "../../constants";
+import { USER_LIMITS, USER_UI } from "../../constants";
 import { useResetPassword } from "../../mutations";
 import { resetPasswordFormSchema } from "../../schemas";
 import { TextField } from "@/components/shared/TextField";
@@ -33,9 +33,9 @@ function ResetForm({
 
   return (
     <FormDialogBody
-      title="Đặt lại mật khẩu"
+      title={USER_UI.resetPassword}
       description={`Đặt mật khẩu tạm cho ${accountLabel}. Tài khoản bị đăng xuất khỏi mọi thiết bị và phải đổi mật khẩu ở lần đăng nhập tới.`}
-      submitLabel="Đặt lại mật khẩu"
+      submitLabel={USER_UI.resetPassword}
       canSubmit={!invalid}
       isPending={mutation.isPending}
       error={mutation.error ? identityErrorMessage(mutation.error) : null}

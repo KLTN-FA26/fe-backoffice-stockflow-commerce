@@ -9,7 +9,7 @@ import { RefetchBar } from "@/components/shared/RefetchBar";
 import { Button } from "@/components/ui/button";
 import { identityErrorMessage } from "@/lib/api/identity-errors";
 
-import { USER_LIMITS, USER_UI } from "../../constants";
+import { USER_PAGE_SIZE_OPTIONS, USER_UI } from "../../constants";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { UserDto } from "../../types";
@@ -90,7 +90,7 @@ export function UserListBody({
         flagRow={(user) => user.status !== "ACTIVE"}
         onRowClick={s.openDetail}
         pageSize={s.size}
-        pageSizeOptions={USER_LIMITS.pageSizes}
+        pageSizeOptions={USER_PAGE_SIZE_OPTIONS}
         serverPagination={{
           page: page.page,
           size: page.size,

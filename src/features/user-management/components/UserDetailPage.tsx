@@ -1,10 +1,8 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 import { EmptyState } from "@/components/shared/EmptyState";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
 import { ADMIN_ROUTES, IDENTITY_PERMISSIONS } from "@/constants";
@@ -62,18 +60,8 @@ export function UserDetailPage({ id }: { id: string }) {
   const label = userDisplayName(user);
 
   return (
-    <>
-      <PageHeader
-        title={label}
-        subtitle={`${user.username} · ${user.email}`}
-        actions={
-          <Button asChild size="sm" variant="outline">
-            <Link href={ADMIN_ROUTES.users.list}>
-              <ArrowLeft className="size-3.5" /> Quay lại danh sách
-            </Link>
-          </Button>
-        }
-      />
+    <div className="surface-soft surface-compact">
+      <h1 className="sr-only">{label}</h1>
       {isSelf && (
         <p role="status" className="text-ink-secondary mb-4 text-[0.8125rem]">
           {USER_UI.selfNotice}
@@ -81,7 +69,7 @@ export function UserDetailPage({ id }: { id: string }) {
       )}
       <div className="grid gap-4 xl:grid-cols-2">
         <div className="space-y-4 xl:col-span-2">
-          <ProfileCard user={user} canEdit={canEdit} />
+          <ProfileCard user={user} canEdit={canEdit} title={label} />
         </div>
         <RolesCard user={user} canEdit={canEdit} roles={refs.canReadRoles ? refs.roles : null} />
         <WarehousesCard
@@ -92,6 +80,6 @@ export function UserDetailPage({ id }: { id: string }) {
         />
         <AccountActionsCard user={user} canEdit={canEdit} accountLabel={label} />
       </div>
-    </>
+    </div>
   );
 }

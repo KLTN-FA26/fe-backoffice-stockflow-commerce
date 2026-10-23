@@ -4,10 +4,10 @@ import { useRouter } from "next/navigation";
 import { parseAsString, useQueryState } from "nuqs";
 import { useState } from "react";
 
-import { ADMIN_ROUTES } from "@/constants";
+import { ADMIN_ROUTES, PAGE_SIZE, USER_STATUSES } from "@/constants";
 import { useUrlFilters } from "@/hooks/use-url-filters";
 
-import { USER_LIMITS, USER_SORT_FIELDS, USER_STATUSES } from "../../constants";
+import { USER_SORT_FIELDS } from "../../constants";
 import { useUsers } from "../../queries";
 import { singleStatus } from "../../selectors";
 
@@ -33,7 +33,7 @@ export function useUserListState(canRead: boolean) {
   const router = useRouter();
   const filters = useUrlFilters(USER_STATUSES);
   const [role, setRoleState] = useQueryState("role", parseAsString.withDefault(""));
-  const [size, setSize] = useState<number>(USER_LIMITS.defaultPageSize);
+  const [size, setSize] = useState<number>(PAGE_SIZE.lg);
   const sort = parseSort(filters.sort);
   const status = singleStatus<UserStatus>(filters.status);
 

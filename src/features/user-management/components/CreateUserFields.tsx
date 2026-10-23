@@ -4,6 +4,7 @@ import { useFormContext } from "react-hook-form";
 
 import { TextField } from "@/components/shared/TextField";
 
+import { USER_UI } from "../constants";
 import { toggleValue, warehouseBoundRoles } from "../selectors";
 import { useReferenceData } from "../use-reference-data";
 
@@ -28,14 +29,14 @@ export function CreateUserFields() {
   return (
     <>
       <TextField
-        label="Tên đăng nhập"
+        label={USER_UI.usernameLabel}
         required
         autoComplete="off"
         error={fieldMessage("username")}
         {...form.register("username")}
       />
       <TextField
-        label="Email"
+        label={USER_UI.emailLabel}
         type="text"
         inputMode="email"
         required
@@ -44,7 +45,7 @@ export function CreateUserFields() {
         {...form.register("email")}
       />
       <TextField
-        label="Họ tên"
+        label={USER_UI.fullNameLabel}
         autoComplete="off"
         error={fieldMessage("fullName")}
         {...form.register("fullName")}
@@ -58,7 +59,7 @@ export function CreateUserFields() {
         {...form.register("password")}
       />
       <Checklist
-        legend="Vai trò *"
+        legend={`${USER_UI.rolesLabel} *`}
         items={refs.roleItems}
         selected={roles}
         onToggle={(code) => set("roles", toggleValue(roles, code))}
@@ -71,11 +72,11 @@ export function CreateUserFields() {
       />
       {refs.canReadWarehouses && (
         <Checklist
-          legend="Kho làm việc"
+          legend={USER_UI.warehousesLabel}
           items={refs.warehouseItems}
           selected={warehouseIds}
           onToggle={(id) => set("warehouseIds", toggleValue(warehouseIds, id))}
-          emptyText="Chưa có kho nào."
+          emptyText={USER_UI.noWarehousesAtAll}
         />
       )}
       {needsWarehouse && (

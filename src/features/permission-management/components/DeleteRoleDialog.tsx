@@ -24,7 +24,7 @@ export function DeleteRoleDialog({
     <ConfirmDialog
       open={open}
       onOpenChange={(next) => {
-        if (next) mutation.reset();
+        if (!next) mutation.reset();
         onOpenChange(next);
       }}
       title={ROLE_ADMIN.deleteTitle}

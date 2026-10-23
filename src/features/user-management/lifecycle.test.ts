@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { USER_STATUSES } from "./constants";
+import { USER_STATUSES } from "@/constants";
 import { allowedStatusActions, hasTemporaryLock, USER_TRANSITIONS } from "./lifecycle";
 
 const NOW = new Date("2026-10-23T10:00:00Z");

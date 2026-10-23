@@ -8,6 +8,7 @@ import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 import { identityErrorMessage } from "@/lib/api/identity-errors";
 
+import { USER_UI } from "../../constants";
 import { allowedStatusActions } from "../../lifecycle";
 import { STATUS_SUCCESS_MESSAGES, useChangeUserStatus } from "../../mutations";
 import { TemporaryPasswordDialog } from "../TemporaryPasswordDialog";
@@ -51,7 +52,7 @@ export function AccountActionsCard({
             </Button>
           ))}
           <Button type="button" size="sm" variant="outline" onClick={() => setResetting(true)}>
-            Đặt lại mật khẩu
+            {USER_UI.resetPassword}
           </Button>
         </div>
       )}

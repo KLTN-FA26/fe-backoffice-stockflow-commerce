@@ -5,6 +5,8 @@ import { useCan } from "@/lib/auth";
 import { useRoleOptions } from "@/lib/references/role-options";
 import { useWarehouseDirectory } from "@/lib/references/warehouse-options";
 
+import { isAssignableRole } from "./selectors";
+
 import type { ChecklistItem } from "./components/Checklist";
 
 const EMPTY_ROLES: never[] = [];
@@ -21,11 +23,13 @@ export function useReferenceData(selectedWarehouseIds: readonly string[] = []) {
   const roles = rolesQuery.data ?? EMPTY_ROLES;
   const warehouses = warehousesQuery.data;
 
-  const roleItems: ChecklistItem[] = roles.map((role) => ({
-    value: role.code,
-    label: role.name,
-    hint: role.code === role.name ? undefined : role.code,
-  }));
+  const roleItems: ChecklistItem[] = roles
+    .filter((role) => isAssignableRole(role.code))
+    .map((role) => ({
+      value: role.code,
+      label: role.name,
+      hint: role.code === role.name ? undefined : role.code,
+    }));
   // Kho đã ngừng hoạt động chỉ hiện khi đang được gán, để người quản trị gỡ được.
   const keep = new Set(selectedWarehouseIds);
   const warehouseItems: ChecklistItem[] = (warehouses ?? [])

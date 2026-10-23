@@ -14,6 +14,7 @@ import { roleLabel } from "@/lib/references/role-options";
 
 import { USER_UI } from "../../constants";
 import { useAssignRole, useRevokeRole } from "../../mutations";
+import { isAssignableRole } from "../../selectors";
 
 import type { RoleOption } from "@/lib/references/role-options";
 import type { UserDto } from "../../types";
@@ -32,11 +33,13 @@ export function RolesCard({ user, canEdit, roles }: RolesCardProps) {
   const [picked, setPicked] = useState("");
   const [removing, setRemoving] = useState<string | null>(null);
   const held = new Set(user.roles);
-  const available = (roles ?? []).filter((role) => !held.has(role.code));
+  const available = (roles ?? []).filter(
+    (role) => !held.has(role.code) && isAssignableRole(role.code),
+  );
 
   return (
     <Card>
-      <h2 className="text-ink-primary mb-3 text-sm font-semibold">Vai trò</h2>
+      <h2 className="text-ink-primary mb-3 text-sm font-semibold">{USER_UI.rolesLabel}</h2>
       {user.roles.length === 0 ? (
         <p className="text-ink-tertiary text-xs">{USER_UI.noRoles}</p>
       ) : (

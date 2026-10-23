@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/lib/api/error";
 
 import { PERMISSION_SETS, renderIdentityScreen, stubIdentityApi } from "../__fixtures__/render";
-import { userFixture } from "../__fixtures__/users";
+import { rawRoles, userFixture } from "../__fixtures__/users";
 
 import { UserDetailPage } from "./UserDetailPage";
 
@@ -36,7 +36,10 @@ function setup(
 describe("UserDetailPage — gating by permission codes", () => {
   it("READ only → profile is read-only and no action buttons exist", async () => {
     setup({}, PERMISSION_SETS.readOnly);
-    expect(await screen.findByRole("heading", { name: "Nguyễn Thị Lan" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Nguyễn Thị Lan" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Nguyễn Thị Lan" })).toBeInTheDocument();
     expect(screen.getByLabelText("Họ tên")).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Khoá tài khoản" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Đặt lại mật khẩu" })).not.toBeInTheDocument();
@@ -262,6 +265,26 @@ describe("UserDetailPage — roles and warehouses", () => {
     await waitFor(() =>
       expect(api.of("post", `${url}/roles`)[0]?.body).toEqual({ roleCode: "SHIFT_LEAD" }),
     );
+  });
+
+  it("does not list the customer role among the roles that can be assigned", async () => {
+    const { user } = setup({}, PERMISSION_SETS.editor, {
+      "GET /identity/roles": () => [
+        ...rawRoles,
+        {
+          code: "CUSTOMER",
+          name: "Customer",
+          system: true,
+          version: 0,
+          holderCount: 9,
+          dataScope: "OWN",
+          createdAt: "2026-09-03T00:00:00Z",
+        },
+      ],
+    });
+    await user.click(await screen.findByRole("combobox", { name: "Chọn vai trò để gán" }));
+    expect(await screen.findByRole("option", { name: "Tổ trưởng ca" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Customer" })).not.toBeInTheDocument();
   });
 
   it("removes a role only after confirmation and shows BE refusals", async () => {

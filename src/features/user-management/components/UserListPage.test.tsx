@@ -68,7 +68,7 @@ describe("UserListPage — table", () => {
     expect(cells.getByText(/Kho Hà Nội, Kho TP.HCM \+1/)).toBeInTheDocument();
     expect(cells.getByText("Đã khoá")).toBeInTheDocument();
     expect(cells.getByText("Chưa đăng nhập")).toBeInTheDocument();
-    expect(screen.getAllByText("Đang hoạt động").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Đang dùng").length).toBeGreaterThan(0);
   });
 
   it("shows a warehouse count when the caller cannot read the warehouse directory", async () => {
@@ -98,19 +98,21 @@ describe("UserListPage — filters and paging go to the server", () => {
     await screen.findByText("lan.nguyen");
     expect(api.of("get", "/identity/users")[0]?.params?.get("page")).toBe("2");
 
-    await user.click(screen.getByRole("button", { name: "Đã khoá" }));
+    await user.click(screen.getByRole("button", { name: "Lọc trạng thái" }));
+    await user.click(await screen.findByRole("option", { name: "Đã khoá" }));
+    await user.keyboard("{Escape}");
     await waitFor(() => {
       const last = api.of("get", "/identity/users").at(-1)?.params;
       expect(last?.get("status")).toBe("LOCKED");
       expect(last?.get("page")).toBe("0");
     });
 
-    await user.type(screen.getByRole("searchbox"), "binh");
+    await user.type(screen.getByLabelText("Tìm theo tên đăng nhập, họ tên, email…"), "binh");
     await waitFor(() =>
       expect(api.of("get", "/identity/users").at(-1)?.params?.get("q")).toBe("binh"),
     );
 
-    await user.click(screen.getByRole("button", { name: "Bỏ bộ lọc" }));
+    await user.click(screen.getByRole("button", { name: "Đặt lại" }));
     await waitFor(() =>
       expect(api.of("get", "/identity/users").at(-1)?.params?.get("status")).toBeNull(),
     );

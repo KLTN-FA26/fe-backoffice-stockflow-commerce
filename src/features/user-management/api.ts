@@ -4,6 +4,7 @@
  * Base URL của env đã gồm `/api/v1` → path không ghi `v1`. Parse tại biên (api-conventions §3.2).
  */
 
+import { PAGE_SIZE } from "@/constants";
 import { api } from "@/lib/api/client";
 
 import {
@@ -47,7 +48,7 @@ export async function listUsers(
   params: ListUserParams,
   signal?: AbortSignal,
 ): Promise<PaginatedResponse<UserDto>> {
-  const { page = 0, size = 20, q, status, role, sort } = params;
+  const { page = 0, size = PAGE_SIZE.lg, q, status, role, sort } = params;
   const query = new URLSearchParams({ page: String(Math.max(0, page)), size: String(size) });
   if (q?.trim()) query.set("q", q.trim());
   if (status) query.set("status", status);

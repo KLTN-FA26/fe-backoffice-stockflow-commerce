@@ -175,6 +175,20 @@ describe("RoleAdminBar — edit and delete", () => {
     await waitFor(() => expect(onSelect).toHaveBeenCalledWith("ROLE_A"));
   });
 
+  it("does not show a stale delete error when the dialog is opened again", async () => {
+    vi.spyOn(api, "delete").mockRejectedValue(new ApiError(409, "ROLE_IN_USE", "English"));
+    const { user } = setup();
+    await user.click(screen.getByRole("button", { name: /Xoá vai trò/ }));
+    let dialog = within(await screen.findByRole("dialog"));
+    await user.click(dialog.getByRole("button", { name: "Xoá vai trò" }));
+    expect(await dialog.findByRole("alert")).toBeInTheDocument();
+    await user.click(dialog.getByRole("button", { name: "Quay lại" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: /Xoá vai trò/ }));
+    dialog = within(await screen.findByRole("dialog"));
+    expect(dialog.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it("keeps the dialog open with ROLE_IN_USE when the BE refuses", async () => {
     vi.spyOn(api, "delete").mockRejectedValue(new ApiError(409, "ROLE_IN_USE", "English"));
     const { user } = setup();

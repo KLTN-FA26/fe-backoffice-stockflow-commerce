@@ -6,6 +6,7 @@ import { Card } from "@/components/shared/Card";
 import { Button } from "@/components/ui/button";
 import { identityErrorMessage } from "@/lib/api/identity-errors";
 
+import { USER_UI } from "../../constants";
 import { useAssignWarehouses } from "../../mutations";
 import { sameSet, toggleValue, warehouseBoundRoles } from "../../selectors";
 import { Checklist } from "../Checklist";
@@ -36,7 +37,7 @@ export function WarehousesCard({ user, canEdit, items, roles }: WarehousesCardPr
 
   return (
     <Card>
-      <h2 className="text-ink-primary mb-3 text-sm font-semibold">Kho làm việc</h2>
+      <h2 className="text-ink-primary mb-3 text-sm font-semibold">{USER_UI.warehousesLabel}</h2>
       {items ? (
         <Checklist
           legend="Kho được phép thao tác"
@@ -44,7 +45,7 @@ export function WarehousesCard({ user, canEdit, items, roles }: WarehousesCardPr
           selected={current}
           disabled={!canEdit || mutation.isPending}
           onToggle={(id) => setDraft({ version: user.version, ids: toggleValue(current, id) })}
-          emptyText="Chưa có kho nào."
+          emptyText={USER_UI.noWarehousesAtAll}
         />
       ) : (
         <p className="text-ink-secondary text-[0.8125rem]">
@@ -66,7 +67,7 @@ export function WarehousesCard({ user, canEdit, items, roles }: WarehousesCardPr
           disabled={!dirty || mutation.isPending}
           onClick={() => mutation.mutate({ userId: user.userId, warehouseIds: current })}
         >
-          {mutation.isPending ? "Đang lưu…" : "Lưu kho"}
+          {mutation.isPending ? USER_UI.saving : "Lưu kho"}
         </Button>
       )}
       {mutation.error && (

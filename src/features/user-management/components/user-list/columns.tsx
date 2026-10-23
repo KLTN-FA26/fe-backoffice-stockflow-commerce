@@ -39,7 +39,7 @@ export function buildUserColumns({ roles, warehouseNames }: ColumnContext): Colu
   return [
     {
       key: "username",
-      header: "Tên đăng nhập",
+      header: USER_UI.usernameLabel,
       sortable: true,
       cell: (user) => (
         <Link
@@ -51,11 +51,16 @@ export function buildUserColumns({ roles, warehouseNames }: ColumnContext): Colu
         </Link>
       ),
     },
-    { key: "fullName", header: "Họ tên", sortable: true, cell: (user) => userDisplayName(user) },
-    { key: "email", header: "Email", cell: (user) => user.email },
+    {
+      key: "fullName",
+      header: USER_UI.fullNameLabel,
+      sortable: true,
+      cell: (user) => userDisplayName(user),
+    },
+    { key: "email", header: USER_UI.emailLabel, cell: (user) => user.email },
     {
       key: "roles",
-      header: "Vai trò",
+      header: USER_UI.rolesLabel,
       cell: (user) =>
         user.roles.length === 0 ? (
           <span className="text-ink-tertiary">{USER_UI.noRoles}</span>
@@ -63,16 +68,20 @@ export function buildUserColumns({ roles, warehouseNames }: ColumnContext): Colu
           user.roles.map((code) => roleLabel(roles, code)).join(", ")
         ),
     },
-    { key: "warehouses", header: "Kho", cell: (user) => warehouseCell(user, warehouseNames) },
+    {
+      key: "warehouses",
+      header: USER_UI.warehousesShort,
+      cell: (user) => warehouseCell(user, warehouseNames),
+    },
     {
       key: "status",
-      header: "Trạng thái",
+      header: USER_UI.statusLabel,
       sortable: true,
       cell: (user) => <UserStatusBadge status={user.status} />,
     },
     {
       key: "lastLoginAt",
-      header: "Đăng nhập gần nhất",
+      header: USER_UI.lastLoginLabel,
       sortable: true,
       cell: (user) =>
         user.lastLoginAt ? (

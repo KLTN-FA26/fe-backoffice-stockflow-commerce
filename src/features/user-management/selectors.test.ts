@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  isAssignableRole,
   sameSet,
   singleStatus,
   toCreateUserRequest,
@@ -14,6 +15,11 @@ describe("selectors", () => {
     expect(userDisplayName({ username: "lan", fullName: "Lan Nguyễn" })).toBe("Lan Nguyễn");
     expect(userDisplayName({ username: "lan", fullName: "  " })).toBe("lan");
     expect(userDisplayName({ username: "lan" })).toBe("lan");
+  });
+
+  it("isAssignableRole refuses the customer role (BE ROLE_NOT_ASSIGNABLE)", () => {
+    expect(isAssignableRole("CUSTOMER")).toBe(false);
+    expect(isAssignableRole("SHIFT_LEAD")).toBe(true);
   });
 
   it("toggleValue adds and removes without duplicating", () => {

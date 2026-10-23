@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/lib/api/error";
 
 import { PERMISSION_SETS, renderIdentityScreen, stubIdentityApi } from "../__fixtures__/render";
-import { userFixture, userPage } from "../__fixtures__/users";
+import { rawRoles, userFixture, userPage } from "../__fixtures__/users";
 
 import { UserListPage } from "./UserListPage";
 
@@ -125,6 +125,25 @@ describe("CreateUserDialog", () => {
     await user.click(dialog.getByRole("checkbox", { name: "Role A" }));
     await user.click(dialog.getByRole("button", { name: "Tạo tài khoản" }));
     expect(await dialog.findByText(message)).toBeInTheDocument();
+  });
+
+  it("does not offer the customer role: the BE always refuses it for staff accounts", async () => {
+    const { dialog } = await openDialog(PERMISSION_SETS.full, {
+      "GET /identity/roles": () => [
+        ...rawRoles,
+        {
+          code: "CUSTOMER",
+          name: "Customer",
+          system: true,
+          version: 0,
+          holderCount: 9,
+          dataScope: "OWN",
+          createdAt: "2026-09-03T00:00:00Z",
+        },
+      ],
+    });
+    expect(dialog.getByRole("checkbox", { name: "Role A" })).toBeInTheDocument();
+    expect(dialog.queryByRole("checkbox", { name: "Customer" })).not.toBeInTheDocument();
   });
 
   it("warns when a warehouse-scoped role is picked without any warehouse", async () => {

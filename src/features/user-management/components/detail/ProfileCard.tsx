@@ -27,7 +27,16 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
 }
 
 /** Hồ sơ: sửa email / họ tên (gửi kèm `version` đã tải — BE 409 OPTIMISTIC_LOCK nếu đã đổi). Tên đăng nhập không đổi được. */
-export function ProfileCard({ user, canEdit }: { user: UserDto; canEdit: boolean }) {
+export function ProfileCard({
+  user,
+  canEdit,
+  title,
+}: {
+  user: UserDto;
+  canEdit: boolean;
+  /** Tên hiển thị của tài khoản — tên nằm ở "Thông tin chung" vì trang chi tiết không có title. */
+  title: string;
+}) {
   const form = useForm<UpdateUserFormValues>({
     resolver: zodResolver(updateUserFormSchema),
     values: { email: user.email, fullName: user.fullName ?? "" },
@@ -44,17 +53,18 @@ export function ProfileCard({ user, canEdit }: { user: UserDto; canEdit: boolean
 
   return (
     <Card>
-      <h2 className="text-ink-primary mb-3 text-sm font-semibold">Hồ sơ</h2>
+      <h2 className="text-ink-primary text-base font-semibold">{title}</h2>
+      <p className="text-ink-secondary mb-3 text-xs">{user.email}</p>
       <form onSubmit={(event) => void submit(event)} className="grid gap-3 sm:grid-cols-2">
-        <TextField label="Tên đăng nhập" value={user.username} readOnly disabled />
+        <TextField label={USER_UI.usernameLabel} value={user.username} readOnly disabled />
         <TextField
-          label="Họ tên"
+          label={USER_UI.fullNameLabel}
           disabled={!canEdit}
           error={message("fullName")}
           {...form.register("fullName")}
         />
         <TextField
-          label="Email"
+          label={USER_UI.emailLabel}
           type="text"
           inputMode="email"
           disabled={!canEdit}
@@ -64,7 +74,7 @@ export function ProfileCard({ user, canEdit }: { user: UserDto; canEdit: boolean
         <div className="flex items-end">
           {canEdit && (
             <Button type="submit" size="sm" disabled={!isDirty || mutation.isPending}>
-              {mutation.isPending ? "Đang lưu…" : "Lưu hồ sơ"}
+              {mutation.isPending ? USER_UI.saving : "Lưu hồ sơ"}
             </Button>
           )}
         </div>
@@ -75,10 +85,10 @@ export function ProfileCard({ user, canEdit }: { user: UserDto; canEdit: boolean
         </p>
       )}
       <dl className="border-border-default mt-4 grid gap-3 border-t pt-4 sm:grid-cols-3">
-        <Fact label="Trạng thái">
+        <Fact label={USER_UI.statusLabel}>
           <UserStatusBadge status={user.status} />
         </Fact>
-        <Fact label="Đăng nhập gần nhất">
+        <Fact label={USER_UI.lastLoginLabel}>
           {user.lastLoginAt ? formatDateTime(user.lastLoginAt) : USER_UI.neverSignedIn}
         </Fact>
         <Fact label="Tạo lúc">

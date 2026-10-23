@@ -40,7 +40,7 @@ describe("user management API", () => {
     const get = vi.spyOn(api, "get").mockResolvedValue({ data: userPage([]) });
     await listUsers({ q: " ", sort: " " });
     expect(String((get.mock.calls[0]?.[1] as { params: URLSearchParams }).params)).toBe(
-      "page=0&size=20",
+      "page=0&size=25",
     );
   });
 

@@ -57,13 +57,6 @@ export const IDENTITY_FIELD_ERROR_CODES = {
   ROLE_CODE_ALREADY_EXISTS: "code",
 } as const;
 
-/** Nhãn hiển thị của trạng thái tài khoản (BE `UserStatus`). */
-export const USER_STATUS_LABELS = {
-  ACTIVE: "Đang hoạt động",
-  LOCKED: "Đã khoá",
-  DISABLED: "Đã vô hiệu hoá",
-} as const;
-
 /** Nhãn phạm vi dữ liệu của vai trò (BE `app_role.data_scope`, PR #73). */
 export const DATA_SCOPE_LABELS = {
   OWN: "Chỉ dữ liệu của chính mình",
@@ -92,3 +85,10 @@ export const IDENTITY_TOAST_MESSAGES = {
     deleted: "Đã xoá vai trò",
   },
 } as const;
+
+/**
+ * Vai trò không bao giờ gán cho tài khoản nhân viên: CUSTOMER thuộc tài khoản khách hàng
+ * (BE `IdentityServiceImpl` → `ROLE_NOT_ASSIGNABLE`, PR #72 SCRUM-456). Đây là luật về NGƯỜI ĐƯỢC GÁN,
+ * không phải kiểm quyền của người gọi.
+ */
+export const NON_STAFF_ROLE_CODES: readonly string[] = ["CUSTOMER"];

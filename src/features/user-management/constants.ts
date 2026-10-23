@@ -1,5 +1,4 @@
-/** BE `UserStatus` (identity/internal/domain/UserStatus.java). */
-export const USER_STATUSES = ["ACTIVE", "LOCKED", "DISABLED"] as const;
+import { PAGE_SIZE } from "@/constants";
 
 /** Hành động đổi trạng thái — mỗi giá trị là một đoạn cuối của `POST /identity/users/{id}/{action}`. */
 export const USER_STATUS_ACTIONS = ["lock", "unlock", "disable", "enable"] as const;
@@ -26,9 +25,10 @@ export const USER_LIMITS = {
   passwordPattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/,
   rolesMax: 20,
   warehousesMax: 50,
-  pageSizes: [10, 20, 50] as const,
-  defaultPageSize: 20,
 } as const;
+
+/** Cỡ trang chọn được: dùng lại `PAGE_SIZE` chung; BE chấp nhận tới `Pages.MAX_PAGE_SIZE` = 200. */
+export const USER_PAGE_SIZE_OPTIONS = [PAGE_SIZE.sm, PAGE_SIZE.lg, PAGE_SIZE.xl] as const;
 
 /** Chuỗi hiển thị của màn Quản lý người dùng. */
 export const USER_UI = {
@@ -36,6 +36,19 @@ export const USER_UI = {
   subtitle: "Tài khoản nhân viên: vai trò, kho làm việc, khoá / vô hiệu hoá và đặt lại mật khẩu.",
   createButton: "Thêm người dùng",
   searchPlaceholder: "Tìm theo tên đăng nhập, họ tên, email…",
+  summarySearch: "Tìm kiếm",
+  // Nhãn trường dùng lại ở bảng, hồ sơ và form tạo
+  usernameLabel: "Tên đăng nhập",
+  fullNameLabel: "Họ tên",
+  emailLabel: "Email",
+  rolesLabel: "Vai trò",
+  statusLabel: "Trạng thái",
+  lastLoginLabel: "Đăng nhập gần nhất",
+  warehousesLabel: "Kho làm việc",
+  warehousesShort: "Kho",
+  noWarehousesAtAll: "Chưa có kho nào.",
+  resetPassword: "Đặt lại mật khẩu",
+  saving: "Đang lưu…",
   allStatuses: "Tất cả",
   allRoles: "Tất cả vai trò",
   roleFilter: "Lọc theo vai trò",

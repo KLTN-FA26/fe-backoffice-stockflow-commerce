@@ -1,8 +1,9 @@
 import { z } from "zod";
 
+import { USER_STATUSES } from "@/constants";
 import { bePageSchema } from "@/lib/api/page-schema";
 
-import { USER_LIMITS, USER_SORT_FIELDS, USER_STATUSES } from "./constants";
+import { USER_LIMITS, USER_SORT_FIELDS } from "./constants";
 
 export const userStatusSchema = z.enum(USER_STATUSES);
 
