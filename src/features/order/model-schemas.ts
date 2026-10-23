@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { ORDER_STATUSES } from "@/constants/statuses";
 
+import { orderDeliveryModeDtoSchema } from "./delivery-mode-schemas";
 import {
   currencyCode,
   orderBalancePolicyDtoSchema,
@@ -86,4 +87,13 @@ export const orderSchema = z.object({
   /** null = BE không trả (dòng danh sách) — màn chi tiết không đoán, ẩn điều khiển. */
   allowPartialShipment: z.boolean().nullable(),
   printLinesReady: z.boolean().nullable(),
+  /** null = BE không trả (dòng danh sách) — màn chi tiết không đoán, ẩn điều khiển. */
+  deliveryMode: orderDeliveryModeDtoSchema.nullable(),
+  /** null = BE không trả; true = không còn đổi được hình thức giao. */
+  deliveryModeLocked: z.boolean().nullable(),
+  /** Tiền cọc cần có (đơn cọc) và lúc đã nhận; null = vắng (đơn không cọc / chưa nhận). */
+  depositRequired: z.number().nullable(),
+  depositReceivedAt: z.string().nullable(),
+  /** Số dòng in (dòng có thiết kế đã khoá) — BE `Order#printLines`: release dòng in cần mẫu duyệt (BR-PRD-08). */
+  printLineCount: z.number().int().nonnegative(),
 });

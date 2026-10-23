@@ -5,6 +5,7 @@
 
 import { z } from "zod";
 
+import { ORDER_DELIVERY_MODES } from "@/constants/labels-delivery-mode";
 import {
   ORDER_DELIVERY_FAILURE_REASONS,
   ORDER_MANUAL_HOLD_REASONS,
@@ -135,9 +136,25 @@ export const partialShipmentSchema = z.object({
     ),
 });
 
+/**
+ * Đổi hình thức giao (`PUT /orders/{id}/delivery-mode`, `DeliveryModeRequest`, BE PR #157, LP-1):
+ * `deliveryMode` bắt buộc (PARCEL | FULL_TRUCKLOAD), `note` ≤ 500 không bắt buộc (vào lịch sử đơn).
+ */
+export const deliveryModeSchema = z.object({
+  deliveryMode: z.enum(ORDER_DELIVERY_MODES, { error: "Chọn hình thức giao" }),
+  note: z
+    .string()
+    .trim()
+    .max(
+      ORDER_LIMITS.deliveryModeNoteMax,
+      `Ghi chú tối đa ${ORDER_LIMITS.deliveryModeNoteMax} ký tự`,
+    ),
+});
+
 export type HoldOrderValues = z.infer<typeof holdOrderSchema>;
 export type ResolveOrderHoldValues = z.infer<typeof resolveOrderHoldSchema>;
 export type DeliveryFailureValues = z.infer<typeof deliveryFailureSchema>;
 export type RemainderClosureValues = z.infer<typeof remainderClosureSchema>;
 export type AgreedFeeValues = z.infer<typeof agreedFeeSchema>;
 export type PartialShipmentValues = z.infer<typeof partialShipmentSchema>;
+export type DeliveryModeValues = z.infer<typeof deliveryModeSchema>;

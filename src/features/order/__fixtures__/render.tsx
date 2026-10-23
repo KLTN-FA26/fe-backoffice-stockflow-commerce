@@ -38,6 +38,15 @@ export const ORDER_PERMISSION_SETS = {
     ORDER_PERMISSIONS.approve,
     ORDER_PERMISSIONS.cancel,
   ],
+  // Seed BE PR #157: ORDER_COORDINATOR có thêm sales-order-delivery-modes:UPDATE (chọn / đổi hình thức giao).
+  // Giữ `coordinator` ở trên không có mã này để test "thiếu quyền → chỉ đọc".
+  coordinatorWithModes: [
+    "sales-orders:VIEW_PAGE",
+    "sales-orders:READ",
+    ORDER_PERMISSIONS.approve,
+    ORDER_PERMISSIONS.cancel,
+    ORDER_PERMISSIONS.deliveryModes,
+  ],
 } satisfies Record<string, PermissionCode[]>;
 
 /** Handler theo path: trả data, hoặc throw (vd ApiError) để giả lập lỗi. */

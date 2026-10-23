@@ -39,6 +39,8 @@ export const ORDER_LIMITS = {
   remainderClosureNoteMax: 1000,
   /** `PartialShipmentRequest.note` @Size(max = 500) — BE PR #150. */
   partialShipmentNoteMax: 500,
+  /** `DeliveryModeRequest.note` @Size(max = 500) — BE PR #157. */
+  deliveryModeNoteMax: 500,
   /** `CancellationFeeRequest.reason` @Size(max = 500) — `CloseRemainderRequest.agreedFee` (BE PR #150). */
   feeReasonMax: 500,
   /** `CancellationFeeRequest.detail` @Size(max = 2000). */
@@ -231,6 +233,13 @@ export const VEHICLE_TYPE_LIMITS = {
  * Xếp hàng lên xe (SCRUM-287/391/392, design v2 §1) — số lấy nguyên từ solver và viewer gốc
  * (`nesting-standalone`: `solver_3d_kit.py`, `manual-packing.ts`, `steps.ts`, `nesting-3d-viewer.tsx`).
  */
+export const LOAD_ESTIMATE_LIMITS = {
+  /** `LoadEstimateRequest.vehicleTypeIds` @Size(max = 20) — BE PR #160. */
+  vehicleTypesMax: 20,
+  /** Một trang tối đa của BE (`Pages.MAX_PAGE_SIZE`): đủ để chọn loại xe đang dùng mà không phân trang. */
+  vehicleTypesPageSize: 200,
+} as const;
+
 export const LOAD_PLANNING_LIMITS = {
   /** BR-10 (docs 09-shipping §6): kiện phải được đỡ ≥ 98% mặt đáy — khớp solver `_support`, design §1 "Rules". */
   minSupportRatio: 0.98,

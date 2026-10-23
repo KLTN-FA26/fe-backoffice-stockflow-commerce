@@ -5,6 +5,8 @@
  * (`order/api/HoldReason`, `DeliveryFailureReason`, `CancellationReasonCode`, `OrderShipmentStatus`).
  */
 
+import { ORDER_DELIVERY_MODE_UI } from "./labels-delivery-mode";
+
 /* ── Lý do giữ đơn (BE HoldReason) ───────────────────────────────────── */
 
 /** Mọi lý do một đơn có thể đang ON_HOLD (BE `HoldReason`). */
@@ -179,7 +181,11 @@ export const ORDER_PARTIAL_SHIPMENT_LABELS = {
 /* ── Lịch sử đơn (BE GET /orders/{id}/history) ───────────────────────── */
 
 /** BE `OrderStatusChangeResponse.type`. */
-export const ORDER_HISTORY_ENTRY_TYPES = ["STATUS_CHANGE", "PARTIAL_SHIPMENT_DECISION"] as const;
+export const ORDER_HISTORY_ENTRY_TYPES = [
+  "STATUS_CHANGE",
+  "PARTIAL_SHIPMENT_DECISION",
+  "DELIVERY_MODE_CHANGE",
+] as const;
 
 export const ORDER_HISTORY_LABELS = {
   title: "Lịch sử đơn",
@@ -301,6 +307,15 @@ export const ORDER_ERROR_MESSAGES = {
     "Điều khoản của khách chưa hợp lệ: “Ghi công nợ phần còn lại” cần bật công nợ (allowCredit) cùng hạn mức và số ngày nợ.",
   CANCELLATION_FEE_BEFORE_PRINTING:
     "Đơn chưa bắt đầu in nên hoàn tiền đủ, không giữ phí — bỏ khoản phí rồi gửi lại.",
+  // BE PR #157 — hình thức giao (LP-1, LP-2)
+  DELIVERY_MODE_LOCKED: ORDER_DELIVERY_MODE_UI.lockedError,
+  DELIVERY_MODE_FTL_NO_COD: ORDER_DELIVERY_MODE_UI.ftlNoCod,
+  // Release đơn (BE `OrderReleaseService`)
+  WAREHOUSE_NOT_FOUND: "Không tìm thấy kho đã chọn. Chọn lại kho.",
+  WAREHOUSE_INACTIVE: "Kho đã chọn không còn hoạt động. Chọn kho khác.",
+  DESIGN_SAMPLE_NOT_APPROVED:
+    "Đơn có thiết kế mới chưa có mẫu thử khách đã duyệt — chưa release được (BR-PRD-08).",
+  ORDER_DEPOSIT_NOT_RECEIVED: "Tiền cọc của đơn chưa về — chưa release được (BR-PRD-09).",
 } as const;
 
 export type OrderErrorCode = keyof typeof ORDER_ERROR_MESSAGES;

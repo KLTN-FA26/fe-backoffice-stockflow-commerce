@@ -270,6 +270,7 @@ export function activateMockAdapter(): void {
     import("./mock-routes-dispatch"),
     import("./mock-routes-taxonomy"),
     import("./mock-routes-vehicle-types"),
+    import("./mock-routes-load-estimates"),
     import("./mock-routes-load-plans"),
   ]).then(
     ([
@@ -293,6 +294,7 @@ export function activateMockAdapter(): void {
       { registerDispatchMockRoutes },
       { registerTaxonomyMockRoutes },
       { registerVehicleTypeMockRoutes },
+      { registerLoadEstimateMockRoutes },
       { registerLoadPlanMockRoutes },
     ]) => {
       registerAllMockRoutes();
@@ -315,6 +317,7 @@ export function activateMockAdapter(): void {
       registerDispatchMockRoutes();
       registerTaxonomyMockRoutes();
       registerVehicleTypeMockRoutes();
+      registerLoadEstimateMockRoutes();
       registerLoadPlanMockRoutes();
     },
   );

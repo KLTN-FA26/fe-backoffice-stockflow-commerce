@@ -7,6 +7,7 @@
 
 import type { z } from "zod";
 
+import type { orderDeliveryModeDtoSchema } from "./delivery-mode-schemas";
 import type { orderHistoryEntryDtoSchema, orderHistoryEntrySchema } from "./history-schemas";
 import type { orderLineSchema, orderSchema } from "./model-schemas";
 import type {
@@ -23,6 +24,7 @@ export type OrderDto = z.infer<typeof orderDtoSchema>;
 export type OrderPageDto = z.infer<typeof orderPageDtoSchema>;
 export type Order = z.infer<typeof orderSchema>;
 export type OrderLine = z.infer<typeof orderLineSchema>;
+export type OrderDeliveryMode = Exclude<z.infer<typeof orderDeliveryModeDtoSchema>, "UNKNOWN">;
 export type OrderBalancePolicy = z.infer<typeof orderBalancePolicyDtoSchema>;
 export type OrderHistoryEntryDto = z.infer<typeof orderHistoryEntryDtoSchema>;
 export type OrderHistoryEntry = z.infer<typeof orderHistoryEntrySchema>;

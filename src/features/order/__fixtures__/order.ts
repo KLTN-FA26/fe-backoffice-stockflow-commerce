@@ -146,3 +146,12 @@ export const apiPartialOrder: OrderDto = {
     },
   ],
 };
+
+/** Đơn BE ở trạng thái `status` kèm hình thức giao (BE PR #157) và cờ khoá. */
+export function apiOrderDelivery(
+  status: OrderDto["status"],
+  delivery: { deliveryMode: "PARCEL" | "FULL_TRUCKLOAD"; deliveryModeLocked: boolean },
+  patch: Record<string, unknown> = {},
+): OrderDto {
+  return apiOrderWith({ status, ...delivery, ...patch });
+}
