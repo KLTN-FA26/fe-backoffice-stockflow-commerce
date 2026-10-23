@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
+import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DASHBOARD_LABELS } from "@/constants/dashboard";
@@ -55,7 +56,10 @@ function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={client}>
-      <AdminDashboardPage />
+      {/* The app mounts NuqsAdapter in providers; the sales range lives in the URL. */}
+      <NuqsTestingAdapter>
+        <AdminDashboardPage />
+      </NuqsTestingAdapter>
     </QueryClientProvider>,
   );
 }

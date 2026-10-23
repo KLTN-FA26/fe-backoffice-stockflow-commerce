@@ -397,3 +397,14 @@ export const PERMISSION_UI = {
   productCreateDenied: "Bạn không có quyền tạo sản phẩm.",
   demoContext: "Chỉ đổi nhãn vai trò demo; quyền vẫn lấy từ phiên đăng nhập.",
 } as const;
+
+/**
+ * Báo cáo bán hàng (SCRUM-345) — resource `reporting-reports` (BE `ReportController`,
+ * `/api/v1/reports`). READ: doanh số theo ngày, top SKU, đơn theo trạng thái, tổng hợp; EXPORT:
+ * tính lại số liệu (`POST /reports/rebuild`, chỉ quản trị). Truy cập theo READ (quyết định DASH-KPI).
+ */
+export const REPORTING_PERMISSIONS = {
+  viewPage: "reporting-reports:VIEW_PAGE",
+  read: "reporting-reports:READ",
+  export: "reporting-reports:EXPORT",
+} as const;
