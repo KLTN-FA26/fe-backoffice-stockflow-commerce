@@ -16,6 +16,14 @@ export {
 } from "./labels";
 export { INVENTORY_ITEM_ERROR_MESSAGES } from "./labels-inventory-item";
 export {
+  DATA_SCOPE_LABELS,
+  IDENTITY_ERROR_MESSAGES,
+  IDENTITY_FIELD_ERROR_CODES,
+  IDENTITY_TOAST_MESSAGES,
+  USER_STATUS_LABELS,
+} from "./labels-identity";
+export type { IdentityErrorCode } from "./labels-identity";
+export {
   PACKING_ERROR_MESSAGES,
   PACKING_FIELD_MESSAGES,
   PACKING_INVALID_RESPONSE_MESSAGE,
