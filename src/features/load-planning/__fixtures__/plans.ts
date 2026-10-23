@@ -156,3 +156,75 @@ export function candidateFixture(overrides: Partial<CandidateShipment> = {}): Ca
     ...overrides,
   };
 }
+
+/* ── Nguồn TRANSFER (BE PR #164, LP-9): MỘT lệnh chuyển kho đã đóng gói, đi nguyên ─────────────────────────────────── */
+
+export const TRANSFER_ORDER_ID = "44444444-0000-4000-8000-000000000001";
+export const TRANSFER_NUMBER = "TO-20261022-0001";
+export const TRANSFER_TO_WAREHOUSE_ID = "WH-HCM-01";
+
+/** Kiện của lệnh chuyển kho: không có lô giao / mã lô giao, chỉ có `transferOrderId`. */
+export function transferParcelsOfLayout(layout: Layout): PlanParcel[] {
+  return parcelsOfLayout(layout).map((parcel) => {
+    const { shipmentId: _shipmentId, shipmentCode: _shipmentCode, ...rest } = parcel;
+    return {
+      ...rest,
+      transferOrderId: TRANSFER_ORDER_ID,
+      labelCode: `PKG-${TRANSFER_NUMBER}-${parcel.labelCode}`,
+    };
+  });
+}
+
+/** Ứng viên nguồn TRANSFER: `shipmentId` / `orderId` / `orderNumber` vắng, `code` là số lệnh. */
+export function transferCandidateFixture(
+  overrides: Partial<CandidateShipment> = {},
+): CandidateShipment {
+  const packages = transferParcelsOfLayout(LAYOUT_PICKUP_KIT).map((p) => ({
+    ...p,
+    vehicleSeq: null,
+  }));
+  return {
+    sourceType: "TRANSFER",
+    transferOrderId: TRANSFER_ORDER_ID,
+    toWarehouseId: TRANSFER_TO_WAREHOUSE_ID,
+    code: TRANSFER_NUMBER,
+    allowPartialShipment: false,
+    readyAt: "2026-10-22T04:00:00Z",
+    packageCount: packages.length,
+    packagesInOtherPlans: 0,
+    weightKg: 201,
+    volumeMm3: 8_023_920_000,
+    packages,
+    ...overrides,
+  };
+}
+
+/** Kế hoạch nguồn TRANSFER: `shipments` rỗng, lệnh chuyển kho ở `transferOrder`. */
+export function transferPlanFixture(overrides: Partial<PlanDetail> = {}): PlanDetail {
+  const packages = transferParcelsOfLayout(LAYOUT_PICKUP_KIT);
+  return planFixture({
+    sourceType: "TRANSFER",
+    shipments: [],
+    transferOrder: {
+      transferOrderId: TRANSFER_ORDER_ID,
+      number: TRANSFER_NUMBER,
+      fromWarehouseId: WAREHOUSE_ID,
+      toWarehouseId: TRANSFER_TO_WAREHOUSE_ID,
+      status: "PICKING",
+      packageCount: packages.length,
+    },
+    packages,
+    ...overrides,
+  });
+}
+
+/** Kế hoạch TRANSFER còn một kiện ở khay (lệnh đi nguyên nên không chốt được). */
+export function transferPlanWithUnplaced() {
+  const base = transferPlanFixture();
+  const { shipmentId: _s, shipmentCode: _c, ...parcel } = unplacedParcel("TOO_LARGE");
+  return transferPlanFixture({
+    packages: [...base.packages, { ...parcel, transferOrderId: TRANSFER_ORDER_ID }],
+    packageCount: base.packageCount + 1,
+    unplacedCount: 1,
+  });
+}

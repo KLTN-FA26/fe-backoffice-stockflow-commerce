@@ -5,7 +5,7 @@
 
 import { TRANSFER_LIMITS } from "./numbers";
 
-import type { TransferReason } from "./statuses";
+import type { DeliveryMode, TransferReason } from "./statuses";
 
 export const TRANSFER_UI_LABELS = {
   pageTitle: "Chuyển kho liên kho",
@@ -30,6 +30,26 @@ export const TRANSFER_UI_LABELS = {
     cancel: "Huỷ lệnh",
     save: "Lưu nháp",
     addLine: "Thêm dòng",
+    // SCRUM-287 PR F9: lệnh nguyên chuyến (FTL) đi qua đóng gói chuyển kho và kế hoạch xe
+    packTransfer: "Đóng gói chuyển kho",
+    viewPacking: "Xem đóng gói",
+    planVehicle: "Lập kế hoạch xe",
+  },
+  /** SCRUM-287 PR F9 (LP2-8): hình thức giao của lệnh, đóng gói và kế hoạch xe. */
+  deliveryMode: {
+    label: "Hình thức giao",
+    hint: "Nguyên xe (FTL): đóng gói tại kho nguồn, lập kế hoạch xe và xuất kho khi xe cuối bàn giao. Giao lẻ: xuất kho thủ công như trước.",
+    editableOnlyInDraft: "Chỉ đổi được hình thức giao khi lệnh còn Nháp.",
+    packedAt: "Đóng gói xong lúc",
+    goodsLeftAt: "Hàng rời kho lúc",
+    notPacked: "Chưa đóng gói",
+    notLeft: "Chưa rời kho",
+    /** Thay cho nút Xuất kho của lệnh nguyên chuyến (BE 409 `TRANSFER_DISPATCH_BY_LOAD_PLAN`). */
+    dispatchByLoadPlan:
+      "Lệnh nguyên chuyến không xuất kho thủ công: hàng được xuất khi xe cuối cùng của kế hoạch xe được bàn giao.",
+    packFirst: "Đóng gói xong lệnh rồi mới lập được kế hoạch xe.",
+    planVehicleHint: "Đã đóng gói xong — lập kế hoạch xe để xếp hàng lên xe.",
+    goodsLeftCannotCancelPicking: "Hàng đã rời kho nguồn trên xe — không dừng lấy hàng được nữa.",
   },
   disabledReason: {
     // Người gửi duyệt không tự duyệt / từ chối — four-eyes (docs 10 §2: Approver phê duyệt TO; BE TransferOrder TRANSFER_SELF_APPROVAL / ck_transfer_order_four_eyes)
@@ -124,6 +144,12 @@ export const TRANSFER_UI_LABELS = {
   searchPlaceholder: "Tìm theo số lệnh chuyển (TO-…)",
 } as const;
 
+/** BE `TransferDeliveryMode` (LP2-8). */
+export const TRANSFER_DELIVERY_MODE_LABELS: Record<DeliveryMode, string> = {
+  PARCEL: "Giao lẻ",
+  FULL_TRUCKLOAD: "Nguyên xe (FTL)",
+};
+
 export const TRANSFER_REASON_LABELS: Record<TransferReason, string> = {
   REBALANCING: "Cân bằng tồn",
   DEMAND: "Theo nhu cầu",
@@ -154,6 +180,14 @@ export const TRANSFER_ERROR_MESSAGES = {
   TRANSFER_SELF_APPROVAL: "Người gửi duyệt không được tự duyệt hoặc từ chối lệnh của mình.",
   TRANSFER_ORDER_NOT_EDITABLE: "Chỉ sửa được lệnh ở trạng thái Nháp.",
   OPTIMISTIC_LOCK: "Lệnh vừa được người khác sửa — thao tác chưa được lưu.",
+  // SCRUM-287 PR F9 (BE PR #164)
+  TRANSFER_DISPATCH_BY_LOAD_PLAN:
+    "Lệnh nguyên chuyến được xuất khi xe cuối cùng của kế hoạch xe bàn giao — không xuất kho thủ công.",
+  TRANSFER_GOODS_LEFT: "Hàng của lệnh đã rời kho nguồn trên xe nên không dừng lấy hàng được nữa.",
+  LOAD_PLAN_LOADING_STARTED:
+    "Một xe của kế hoạch xe đã bắt đầu xếp hàng nên chưa dừng lấy hàng được. Đợi xe xong hoặc dỡ hàng trước.",
+  TRANSFER_NOT_FULL_TRUCKLOAD: "Lệnh này giao lẻ nên không đóng gói để lập kế hoạch xe.",
+  TRANSFER_NOT_PACKED: "Lệnh chuyển kho chưa đóng gói xong để lập kế hoạch xe.",
   WAREHOUSE_INACTIVE: "Kho nguồn hoặc kho đích đang ngừng hoạt động.",
   WAREHOUSE_NOT_FOUND: "Không tìm thấy kho đã chọn.",
   TRANSFER_ORDER_NOT_FOUND: "Không tìm thấy lệnh chuyển kho.",

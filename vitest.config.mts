@@ -10,6 +10,8 @@ export default defineConfig({
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
     coverage: {
       provider: "v8",
+      // lcov is what SonarQube Cloud reads (sonar-project.properties); text-summary keeps the CI log short.
+      reporter: ["text-summary", "lcov"],
       include: [
         "src/lib/domain/**",
         "src/lib/auth/**",

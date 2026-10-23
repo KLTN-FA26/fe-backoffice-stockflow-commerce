@@ -1,3 +1,4 @@
+import { SHARED_QUERY_ROOTS } from "@/constants";
 import { createDetailQuery, createListQuery, createQueryKeys } from "@/lib/api/query-factory";
 
 import { getTransferOrder, listTransferOrders } from "./api";
@@ -5,7 +6,7 @@ import { getTransferOrder, listTransferOrders } from "./api";
 import type { ListTransferParams } from "./api";
 import type { TransferOrder, TransferOrderRow } from "./types";
 
-export const transferKeys = createQueryKeys<ListTransferParams>("transfer-orders");
+export const transferKeys = createQueryKeys<ListTransferParams>(SHARED_QUERY_ROOTS.transferOrders);
 
 export const useTransferOrders = createListQuery<TransferOrderRow, ListTransferParams>(
   transferKeys,

@@ -47,6 +47,9 @@ function CreateForm() {
           idPrefix="lp-create"
           warehouseId={form.warehouseId}
           candidates={form.candidates}
+          transferCandidates={form.transferCandidates}
+          preselectedGone={form.preselectedGone}
+          showSource
           types={form.types}
           inputs={form.inputs}
         />

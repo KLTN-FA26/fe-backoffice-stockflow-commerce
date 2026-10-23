@@ -2,12 +2,13 @@
  * Mock routes — kế hoạch xếp xe (docs 09 §4.2, §5), theo hợp đồng BE PR #161 (`LoadPlanController`): đọc cần
  * `fulfillment-load-plans:READ`, lập cần `:CREATE`, mọi bước sau cần `:UPDATE` (lấy từ phiên mock như
  * `@RequiresPermission`). Mọi thay đổi gửi `expectedVersion` (409 OPTIMISTIC_LOCK); lập kế hoạch idempotent theo
- * `requestId`. Chỉnh tay `PUT …/placements` thuộc PR F5 nên chưa có route.
+ * `requestId`. Chỉnh tay `PUT …/placements` (PR F5) kiểm đủ luật BR-10 ở `mock-load-plan-edit.ts`.
  */
 
 import { LOAD_PLAN_PERMISSIONS, LOAD_PLAN_SELECTION_MODES, LOAD_PLAN_STATUSES } from "@/constants";
 
 import { registerMockRoute } from "./mock-adapter";
+import { editPlacements } from "./mock-load-plan-edit";
 import * as ops from "./mock-load-plan-ops";
 import { reconciliationView } from "./mock-load-plan-reconciliation";
 import {
@@ -87,7 +88,12 @@ export function registerLoadPlanMockRoutes(): void {
       const warehouseId = readString(params.warehouseId);
       if (!warehouseId) return invalid("warehouseId", "must not be null");
       const held = heldPackageIds(readString(params.loadPlanId) || undefined);
+      const sourceType = readString(params.sourceType) || "ORDER";
+      if (sourceType !== "ORDER" && sourceType !== "TRANSFER")
+        return invalid("sourceType", "ORDER or TRANSFER");
       const rows = getMockShipments()
+        // Nguồn TRANSFER: lệnh chuyển kho đã đóng gói của kho; nguồn ORDER: lô giao của đơn khách
+        .filter((s) => !!s.transfer === (sourceType === "TRANSFER"))
         .filter((s) => s.warehouseId === warehouseId)
         .map((s) => candidateView(s, held))
         // Lô mà mọi kiện đều thuộc kế hoạch khác thì không còn là ứng viên
@@ -108,9 +114,24 @@ export function registerLoadPlanMockRoutes(): void {
       if (replay) return ok(planDetail(replay), 201);
       const mode = body.selectionMode === undefined ? "SINGLE_TYPE" : modeOf(body.selectionMode);
       if (!mode) return invalid("selectionMode", "must be SINGLE_TYPE or FEWEST_VEHICLES");
-      const shipmentIds = strings(body.shipmentIds);
+      const sourceType = body.sourceType === undefined ? "ORDER" : readString(body.sourceType);
+      if (sourceType !== "ORDER" && sourceType !== "TRANSFER")
+        return fail(400, "VALIDATION_FAILED", "Invalid request data", [
+          { field: "sourceType", message: "ORDER or TRANSFER", code: "LOAD_PLAN_SOURCE_INVALID" },
+        ]);
+      // BE `requireOneSource`: ORDER nhận shipmentIds, TRANSFER nhận transferOrderIds — gửi nhầm loại là LOAD_PLAN_SOURCE_MISMATCH
+      const transferIds = strings(body.transferOrderIds);
+      if (sourceType === "TRANSFER" ? strings(body.shipmentIds).length > 0 : transferIds.length > 0)
+        return fail(409, "LOAD_PLAN_SOURCE_MISMATCH", "A load plan holds one kind of source only");
+      const shipmentIds = sourceType === "TRANSFER" ? transferIds : strings(body.shipmentIds);
       const vehicleTypeIds = strings(body.vehicleTypeIds);
-      const refused = ops.checkInputs(warehouseId, shipmentIds, vehicleTypeIds);
+      const refused = ops.checkInputs(
+        warehouseId,
+        shipmentIds,
+        vehicleTypeIds,
+        undefined,
+        sourceType,
+      );
       if (refused) return refused;
       const { loadPlanId, code } = nextLoadPlan();
       const plan: MockPlan = {
@@ -118,6 +139,7 @@ export function registerLoadPlanMockRoutes(): void {
         code,
         requestId,
         warehouseId,
+        sourceType,
         selectionMode: mode,
         status: "DRAFT",
         note: readString(body.note) || null,
@@ -205,8 +227,13 @@ export function registerLoadPlanMockRoutes(): void {
       const mode =
         body.selectionMode === undefined ? plan.selectionMode : modeOf(body.selectionMode);
       if (!mode) return invalid("selectionMode", "must be SINGLE_TYPE or FEWEST_VEHICLES");
+      const sentSource = plan.sourceType === "TRANSFER" ? "shipmentIds" : "transferOrderIds";
+      if (strings(body[sentSource]).length > 0)
+        return fail(409, "LOAD_PLAN_SOURCE_MISMATCH", "A load plan holds one kind of source only");
       const refused = ops.setInputs(plan, {
-        shipmentIds: strings(body.shipmentIds),
+        shipmentIds: strings(
+          plan.sourceType === "TRANSFER" ? body.transferOrderIds : body.shipmentIds,
+        ),
         vehicleTypeIds: strings(body.vehicleTypeIds),
         selectionMode: mode,
       });
@@ -214,6 +241,16 @@ export function registerLoadPlanMockRoutes(): void {
     }),
   );
 
+  registerMockRoute("PUT", `${PATH}/:id/placements`, (config) =>
+    guarded(P.update, () => {
+      const plan = planOf(routeParam(config, "id"));
+      if (!plan) return notFound();
+      const body = parseJsonBody(config.data);
+      if (body.expectedVersion !== plan.version)
+        return fail(409, "OPTIMISTIC_LOCK", `Load plan ${plan.code} changed meanwhile; reload it`);
+      return editPlacements(plan, body) ?? ok(planDetail(plan));
+    }),
+  );
   step(`${PATH}/:id/calculation`, (plan) => ops.calculate(plan));
   step(`${PATH}/:id/vehicles/:seq/recalculation`, (plan, body, config) =>
     ops.recalculateVehicle(plan, Number(routeParam(config, "seq")), strings(body.addPackageIds)),

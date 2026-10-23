@@ -1,8 +1,10 @@
 /**
  * Kế hoạch xếp xe (docs 09 §4.2, §5; BE PR #161 `LoadPlanController`), base `/api/v1/fulfillment`:
  *
- *   GET  /fulfillment/load-plan-candidates?warehouseId[&loadPlanId]   → lô giao nguyên xe chờ xuất  (…:READ)
- *   POST /fulfillment/load-plans {requestId, warehouseId, shipmentIds, vehicleTypeIds, selectionMode, note}  (…:CREATE)
+ *   GET  /fulfillment/load-plan-candidates?warehouseId[&loadPlanId][&sourceType=TRANSFER]  → lô giao nguyên xe chờ xuất
+ *        (hoặc lệnh chuyển kho đã đóng gói, BE PR #164)                                                    (…:READ)
+ *   POST /fulfillment/load-plans {requestId, warehouseId, shipmentIds | sourceType+transferOrderIds, vehicleTypeIds,
+ *        selectionMode, note}                                                                              (…:CREATE)
  *   GET  /fulfillment/load-plans?warehouseId&status&search&page&size  → PageResponse<PlanRow>
  *   GET  /fulfillment/load-plans/{id} · /layouts · /reconciliation                                  (…:READ)
  *   PUT  /fulfillment/load-plans/{id}/inputs                                                        (…:UPDATE)
@@ -11,7 +13,7 @@
  * `expectedVersion`; 409 `OPTIMISTIC_LOCK` nếu đã đổi.
  */
 
-import { LOAD_PLAN_LIMITS, PAGE_SIZE, VEHICLE_TYPE_STATUS } from "@/constants";
+import { LOAD_PLAN_LIMITS, LOAD_PLAN_SOURCE, PAGE_SIZE, VEHICLE_TYPE_STATUS } from "@/constants";
 import { api } from "@/lib/api/client";
 
 import {
@@ -29,6 +31,7 @@ import type {
   CandidateShipment,
   CreatePlanInput,
   PlanDetail,
+  PlanInputs,
   PlanRow,
   Reconciliation,
   SetInputsInput,
@@ -99,6 +102,26 @@ export async function listLoadPlanCandidates(
   return beCandidateListSchema.parse(data);
 }
 
+/**
+ * Lệnh chuyển kho nguyên chuyến đã đóng gói xong, xuất phát từ kho, chưa kế hoạch nào giữ (BE PR #164,
+ * `sourceType=TRANSFER`): mỗi ứng viên là MỘT lệnh, nguyên lệnh. `loadPlanId`: kiện của chính kế hoạch đó là còn trống.
+ */
+export async function listTransferPlanCandidates(
+  warehouseId: string,
+  loadPlanId?: string,
+  signal?: AbortSignal,
+): Promise<CandidateShipment[]> {
+  const { data } = await api.get<unknown>(LOAD_PLAN_CANDIDATES_PATH, {
+    params: {
+      warehouseId,
+      loadPlanId: loadPlanId || undefined,
+      sourceType: LOAD_PLAN_SOURCE.TRANSFER,
+    },
+    signal,
+  });
+  return beCandidateListSchema.parse(data);
+}
+
 /** Loại xe đang dùng cho ô chọn (danh mục chung `fulfillment-vehicle-types:READ`; không import feature loại xe). */
 export async function listActiveVehicleTypes(signal?: AbortSignal): Promise<VehicleTypeOption[]> {
   const { data } = await api.get<unknown>(VEHICLE_TYPES_PATH, {
@@ -112,12 +135,21 @@ export async function listActiveVehicleTypes(signal?: AbortSignal): Promise<Vehi
   return beVehicleTypeOptionPageSchema.parse(data).items;
 }
 
+/**
+ * Phần nguồn của body: kế hoạch ORDER (mặc định, không gửi `sourceType`) mang `shipmentIds`; kế hoạch TRANSFER mang
+ * `sourceType` + `transferOrderIds` (đúng một lệnh) — BE từ chối gửi nhầm loại (409 `LOAD_PLAN_SOURCE_MISMATCH`).
+ */
+const sourceBody = (input: PlanInputs) =>
+  input.sourceType === LOAD_PLAN_SOURCE.TRANSFER
+    ? { sourceType: input.sourceType, transferOrderIds: input.transferOrderIds ?? [] }
+    : { shipmentIds: input.shipmentIds };
+
 /** Lập kế hoạch nháp kèm đầu vào; idempotent theo `requestId` (gửi lại trả đúng kế hoạch đã tạo). */
 export async function createLoadPlan(input: CreatePlanInput): Promise<PlanDetail> {
   const { data } = await api.post<unknown>(LOAD_PLANS_PATH, {
     requestId: input.requestId,
     warehouseId: input.warehouseId,
-    shipmentIds: input.shipmentIds,
+    ...sourceBody(input),
     vehicleTypeIds: input.vehicleTypeIds,
     selectionMode: input.selectionMode,
     note: input.note?.trim() || undefined,
@@ -125,11 +157,11 @@ export async function createLoadPlan(input: CreatePlanInput): Promise<PlanDetail
   return bePlanDetailSchema.parse(data);
 }
 
-/** Thay nguyên cả lô, loại xe và chế độ; kế hoạch đã tính (PLANNED) về DRAFT và bỏ các xe. */
+/** Thay nguyên cả lô (hoặc lệnh chuyển kho), loại xe và chế độ; kế hoạch đã tính (PLANNED) về DRAFT và bỏ các xe. */
 export async function setLoadPlanInputs(input: SetInputsInput): Promise<PlanDetail> {
   const { data } = await api.put<unknown>(`${loadPlanPath(input.loadPlanId)}/inputs`, {
     expectedVersion: input.expectedVersion,
-    shipmentIds: input.shipmentIds,
+    ...sourceBody(input),
     vehicleTypeIds: input.vehicleTypeIds,
     selectionMode: input.selectionMode,
   });

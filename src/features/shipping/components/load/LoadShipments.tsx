@@ -46,11 +46,16 @@ export function LoadShipments({
   const activeRefusal =
     refusal?.shipmentCode && findShipmentByCode(load, refusal.shipmentCode) ? refusal : null;
 
+  // Xe của kế hoạch nguồn TRANSFER chở lệnh chuyển kho, không phải "lô giao"
+  const transferOnly =
+    load.shipments.length > 0 && load.shipments.every((s) => !!s.transferOrderId);
+  const title = transferOnly ? UI_LABELS.shipping.ftl.transfer.sectionTitle : L.shipmentsTitle;
+
   return (
-    <section aria-label={L.shipmentsTitle} className="space-y-3">
+    <section aria-label={title} className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-ink-primary text-[0.9375rem] font-semibold">
-          {L.shipmentsTitle} ({load.shipments.length})
+          {title} ({load.shipments.length})
         </h2>
         {canEditShipments && (
           <Button type="button" variant="outline" size="sm" onClick={onAdd}>
@@ -61,11 +66,12 @@ export function LoadShipments({
       {load.shipments.length === 0 && <EmptyState title={L.noShipments} description="" />}
       {load.shipments.map((shipment) => (
         <ShipmentCard
-          key={shipment.shipmentId}
+          key={shipment.shipmentId ?? shipment.transferOrderId ?? shipment.code}
           shipment={shipment}
           currency={load.currency}
           refusal={activeRefusal?.shipmentCode === shipment.code ? activeRefusal : null}
-          canRemove={canEditShipments}
+          // Lệnh chuyển kho trên xe do kế hoạch quản lý (không có lô giao để gỡ)
+          canRemove={canEditShipments && !!shipment.shipmentId}
           canUnscan={canUnscan}
           unscanning={unscan.isPending}
           onRemove={setRemoving}
@@ -90,7 +96,7 @@ export function LoadShipments({
           closeOnConfirm={false}
           onConfirm={() =>
             remove.mutate(
-              { loadId: load.loadId, shipmentId: removing.shipmentId },
+              { loadId: load.loadId, shipmentId: removing.shipmentId ?? "" },
               { onSuccess: () => setRemoving(null), onError: () => setRemoving(null) },
             )
           }

@@ -3,10 +3,18 @@ import { describe, expect, it } from "vitest";
 import { LOAD_PLAN_STATUSES } from "@/constants";
 
 import { LAYOUT_PICKUP_KIT } from "./__fixtures__/layouts";
-import { planFixture, planWithUnplaced, unplacedParcel } from "./__fixtures__/plans";
+import {
+  planFixture,
+  planWithUnplaced,
+  transferCandidateFixture,
+  transferPlanFixture,
+  unplacedParcel,
+} from "./__fixtures__/plans";
 import { buildItemTable } from "./lib/item-rows";
 import {
+  candidateKey,
   isFinalLoadPlan,
+  isTransferPlan,
   layoutsForItemTable,
   loadPlanStatusTone,
   pickedOnTray,
@@ -97,5 +105,34 @@ describe("pickedOnTray", () => {
     expect([...pickedOnTray(picked, tray)]).toEqual(["unplaced-NO_SPACE-1"]);
     expect(pickedOnTray(picked, []).size).toBe(0);
     expect(pickedOnTray(new Set(), tray).size).toBe(0);
+  });
+});
+
+describe("TRANSFER source (BE PR #164)", () => {
+  it("isTransferPlan: by sourceType or by the transfer order; an order plan is not", () => {
+    expect(isTransferPlan(transferPlanFixture())).toBe(true);
+    expect(isTransferPlan({ sourceType: "TRANSFER", transferOrder: undefined })).toBe(true);
+    expect(
+      isTransferPlan({ sourceType: undefined, transferOrder: transferPlanFixture().transferOrder }),
+    ).toBe(true);
+    expect(isTransferPlan(planFixture())).toBe(false);
+    expect(isTransferPlan({ sourceType: "ORDER" })).toBe(false);
+  });
+
+  it("candidateKey: the shipment id for an order candidate, the transfer order id for a transfer one", () => {
+    expect(candidateKey({ shipmentId: "s-1" })).toBe("s-1");
+    expect(candidateKey(transferCandidateFixture())).toBe(
+      transferCandidateFixture().transferOrderId,
+    );
+    expect(candidateKey({})).toBe("");
+  });
+
+  it("totalsOf counts a selected transfer candidate through its transfer order id", () => {
+    const candidate = transferCandidateFixture({ packageCount: 5, packagesInOtherPlans: 1 });
+    expect(totalsOf([candidate], new Set([candidateKey(candidate)]))).toEqual({
+      shipments: 1,
+      packages: 4,
+    });
+    expect(totalsOf([candidate], new Set())).toEqual({ shipments: 0, packages: 0 });
   });
 });

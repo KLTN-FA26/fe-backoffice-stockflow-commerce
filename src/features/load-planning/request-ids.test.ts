@@ -65,3 +65,39 @@ describe("createPlanRequestId — idempotent create", () => {
     }
   });
 });
+
+describe("createPlanFingerprint — source of the plan (BE PR #164)", () => {
+  it("a transfer plan never shares an id with an order plan, even over the same ids", () => {
+    const order = createPlanFingerprint(intent);
+    const transfer = createPlanFingerprint({
+      ...intent,
+      sourceType: "TRANSFER",
+      shipmentIds: [],
+      transferOrderIds: ["s-2", "s-1"],
+    });
+    expect(transfer).not.toBe(order);
+    expect(createPlanRequestId(order)).not.toBe(createPlanRequestId(transfer));
+  });
+
+  it("is stable across the order of transfer ids and treats a missing source as ORDER", () => {
+    const base = { ...intent, shipmentIds: [] as string[] };
+    expect(
+      createPlanFingerprint({ ...base, sourceType: "TRANSFER", transferOrderIds: ["a", "b"] }),
+    ).toBe(
+      createPlanFingerprint({ ...base, sourceType: "TRANSFER", transferOrderIds: ["b", "a"] }),
+    );
+    expect(createPlanFingerprint(intent)).toBe(
+      createPlanFingerprint({ ...intent, sourceType: "ORDER" }),
+    );
+  });
+
+  it("another transfer order means another id (an old id would replay the OLD plan)", () => {
+    const base = { ...intent, shipmentIds: [] as string[], sourceType: "TRANSFER" as const };
+    const first = createPlanRequestId(
+      createPlanFingerprint({ ...base, transferOrderIds: ["to-1"] }),
+    );
+    expect(
+      createPlanRequestId(createPlanFingerprint({ ...base, transferOrderIds: ["to-2"] })),
+    ).not.toBe(first);
+  });
+});

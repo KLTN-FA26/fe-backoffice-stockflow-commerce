@@ -10,6 +10,8 @@ import { LOAD_PLAN_PERMISSIONS, LOAD_PLAN_STATUS, LOAD_STATUS } from "@/constant
 
 import type { LoadPlanStatus } from "@/constants";
 import type { PermissionCode } from "@/lib/auth";
+import { isTransferPlan } from "./plan-selectors";
+
 import type { PlanDetail } from "./plan-types";
 
 export interface LoadPlanActor {
@@ -24,13 +26,17 @@ export const LOAD_PLAN_TRANSITIONS = {
   CANCELLED: [],
 } as const satisfies Record<LoadPlanStatus, readonly LoadPlanStatus[]>;
 
-export type ConfirmBlock = "noVehicles" | "needsRecalculation" | "unplacedPending";
+/** `transferShipsWhole`: lệnh chuyển kho đi nguyên (BE PR #164 `TRANSFER_SHIPS_WHOLE`) — còn kiện chưa xếp thì chưa chốt được. */
+export type ConfirmBlock =
+  "noVehicles" | "needsRecalculation" | "transferShipsWhole" | "unplacedPending";
 
 export interface LoadPlanActions {
   create: boolean;
   calculate: boolean;
   editInputs: boolean;
   recalculateVehicle: boolean;
+  /** Chỉnh xếp tay `PUT …/placements` (BE `LoadPlan.editPlacements`: chỉ khi PLANNED, và phải còn xe để đặt). */
+  editPlacements: boolean;
   acknowledge: boolean;
   confirm: boolean;
   reopen: boolean;
@@ -44,6 +50,7 @@ const NONE: LoadPlanActions = {
   calculate: false,
   editInputs: false,
   recalculateVehicle: false,
+  editPlacements: false,
   acknowledge: false,
   confirm: false,
   reopen: false,
@@ -73,10 +80,13 @@ export function loadPlanActions(plan: PlanDetail | null, actor: LoadPlanActor): 
   const { status } = plan;
   const planned = status === LOAD_PLAN_STATUS.PLANNED;
   const acknowledged = !!plan.unplacedAcknowledgement;
+  // BE `requireTransferWhole`: kế hoạch chuyển kho không để lại kiện nào — không có "để lại" để xác nhận
+  const transfer = isTransferPlan(plan);
   const needsRecalc = plan.vehicles.some((vehicle) => vehicle.needsRecalculation);
   let confirmBlocked: LoadPlanActions["confirmBlocked"] = null;
   if (plan.vehicles.length === 0) confirmBlocked = "noVehicles";
   else if (needsRecalc) confirmBlocked = "needsRecalculation";
+  else if (plan.unplacedCount > 0 && transfer) confirmBlocked = "transferShipsWhole";
   else if (plan.unplacedCount > 0 && !acknowledged) confirmBlocked = "unplacedPending";
   return {
     create,
@@ -84,7 +94,8 @@ export function loadPlanActions(plan: PlanDetail | null, actor: LoadPlanActor): 
     calculate: status === LOAD_PLAN_STATUS.DRAFT || planned,
     editInputs: status === LOAD_PLAN_STATUS.DRAFT || planned,
     recalculateVehicle: planned,
-    acknowledge: planned && plan.unplacedCount > 0 && !acknowledged,
+    editPlacements: planned && plan.vehicles.length > 0,
+    acknowledge: planned && plan.unplacedCount > 0 && !acknowledged && !transfer,
     confirm: planned && allows(status, LOAD_PLAN_STATUS.CONFIRMED),
     reopen:
       status === LOAD_PLAN_STATUS.CONFIRMED &&

@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 
-import { UI_LABELS } from "@/constants";
+import { DELIVERY_MODE, UI_LABELS } from "@/constants";
 import { transferFormSchema } from "@/features/transfer/input-schemas";
 import { Alert } from "@/components/shared/Alert";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ export const EMPTY_TRANSFER_FORM: TransferFormInput = {
   toWarehouseId: "",
   reason: "",
   expectedDate: "",
+  deliveryMode: DELIVERY_MODE.FULL_TRUCKLOAD,
   lines: [{ sku: "", lotNumber: "", quantity: 1 }],
 };
 

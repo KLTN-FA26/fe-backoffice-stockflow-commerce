@@ -10,6 +10,7 @@ const L = UI_LABELS.loadPlan.detail;
 const BLOCK_TEXT: Record<ConfirmBlock, string> = {
   noVehicles: L.noVehicles,
   needsRecalculation: L.needsRecalculationAlert,
+  transferShipsWhole: UI_LABELS.loadPlan.transfer.detail.shipsWholeBlocked,
   unplacedPending: L.unplaced.pending,
 };
 
@@ -25,9 +26,12 @@ const PRIMARY = "bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-i
 export function PlanActions({
   actions,
   onOpen,
+  onEdit,
 }: {
   actions: LoadPlanActions;
   onOpen: (kind: PlanDialogKind) => void;
+  /** Mở trình soạn xếp tay (PR F5). */
+  onEdit: () => void;
 }) {
   const A = L.actions;
   const blocked = actions.confirmBlocked;
@@ -36,6 +40,11 @@ export function PlanActions({
       {actions.editInputs && (
         <Button type="button" size="sm" variant="outline" onClick={() => onOpen("editInputs")}>
           {A.editInputs}
+        </Button>
+      )}
+      {actions.editPlacements && (
+        <Button type="button" size="sm" variant="outline" onClick={onEdit}>
+          {UI_LABELS.loadPlan.editor.open}
         </Button>
       )}
       {actions.calculate && (

@@ -23,8 +23,10 @@ export const beDecimal = z.union([z.number(), z.string()]).transform(Number).pip
 export const beParcelSchema = z.object({
   packageId: z.string(),
   labelCode: z.string(),
-  shipmentId: z.string(),
-  shipmentCode: z.string(),
+  /** Vắng khi kiện thuộc một lệnh chuyển kho (nguồn TRANSFER): khi đó chỉ có `transferOrderId` (BE PR #164). */
+  shipmentId: z.string().nullish(),
+  shipmentCode: z.string().nullish(),
+  transferOrderId: z.string().nullish(),
   /** SKU; kiện của bộ là `SKU n/N`, kiện hỗn hợp là `SKU1 + SKU2`. */
   partName: z.string(),
   lengthMm: z.number().int(),
@@ -39,11 +41,18 @@ export const beParcelSchema = z.object({
   unplacedReason: z.enum(LOAD_PLAN_UNPLACED_REASONS).nullish(),
 });
 
-/** `LoadPlans.CandidateShipment`: lô giao nguyên xe chờ xuất, nguyên lô (LP-5). */
+/**
+ * `LoadPlans.CandidateShipment`: lô giao nguyên xe chờ xuất, nguyên lô (LP-5). Với `sourceType=TRANSFER` (BE PR #164)
+ * là MỘT lệnh chuyển kho đã đóng gói: `shipmentId` / `orderId` / `orderNumber` vắng, `code` là số lệnh, `readyAt` lúc đóng gói
+ * xong, `transferOrderId` + `toWarehouseId` nêu lệnh và kho đích.
+ */
 export const beCandidateShipmentSchema = z.object({
-  shipmentId: z.string(),
+  sourceType: z.string().nullish(),
+  shipmentId: z.string().nullish(),
+  transferOrderId: z.string().nullish(),
+  toWarehouseId: z.string().nullish(),
   code: z.string(),
-  orderId: z.string(),
+  orderId: z.string().nullish(),
   /** Vắng khi BE không tra được đơn của lô. */
   orderNumber: z.string().nullish(),
   allowPartialShipment: z.boolean(),
@@ -64,6 +73,8 @@ export const bePlanRowSchema = z.object({
   code: z.string(),
   warehouseId: z.string(),
   status: z.enum(LOAD_PLAN_STATUSES),
+  /** ORDER / TRANSFER (BE PR #164); vắng ở BE cũ = ORDER. */
+  sourceType: z.string().nullish(),
   selectionMode: z.enum(LOAD_PLAN_SELECTION_MODES),
   shipmentCount: z.number().int(),
   packageCount: z.number().int(),
@@ -117,6 +128,16 @@ export const beVehicleSummarySchema = z.object({
   needsRecalculation: z.boolean().default(false),
 });
 
+/** `LoadPlans.TransferInPlan`: lệnh chuyển kho của kế hoạch nguồn TRANSFER (số lệnh, hai kho, trạng thái, số kiện). */
+export const beTransferInPlanSchema = z.object({
+  transferOrderId: z.string(),
+  number: z.string(),
+  fromWarehouseId: z.string(),
+  toWarehouseId: z.string(),
+  status: z.string(),
+  packageCount: z.number().int(),
+});
+
 const beAcknowledgementSchema = z.object({
   at: z.string(),
   by: z.string().nullish(),
@@ -133,7 +154,10 @@ export const bePlanDetailSchema = z.object({
   status: z.enum(LOAD_PLAN_STATUSES),
   note: z.string().nullish(),
   vehicleTypes: z.array(beVehicleTypeChoiceSchema),
+  /** Rỗng ở kế hoạch nguồn TRANSFER (lệnh chuyển kho nằm ở `transferOrder`). */
   shipments: z.array(beShipmentInPlanSchema),
+  /** Chỉ có ở kế hoạch nguồn TRANSFER (BE PR #164). */
+  transferOrder: beTransferInPlanSchema.nullish(),
   vehicles: z.array(beVehicleSummarySchema),
   packages: z.array(beParcelSchema),
   packageCount: z.number().int(),
@@ -166,6 +190,9 @@ export const beVehicleTypeOptionSchema = z.object({
   innerWidthMm: z.number().int(),
   innerHeightMm: z.number().int(),
   maxPayloadKg: beDecimal,
+  /** Cửa thùng (LP3-DOOR): vắng = không giới hạn; trình soạn xếp tay dùng để kiểm trước vế cửa. */
+  doorWidthMm: z.number().int().nullish(),
+  doorHeightMm: z.number().int().nullish(),
   availableCount: z.number().int(),
   status: z.enum(VEHICLE_TYPE_STATUSES),
 });

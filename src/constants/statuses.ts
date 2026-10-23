@@ -255,8 +255,14 @@ export const PACK_SHIPMENT_API_STATUSES = [
   "CANCELLED",
 ] as const;
 
-/** BE `DeliveryMode.java` — hiện mọi lô là PARCEL (BE: chờ G3-4). */
+/** BE `DeliveryMode.java` — PARCEL (gửi kiện cho hãng) hoặc FULL_TRUCKLOAD (nguyên xe, kế hoạch xếp xe). */
 export const DELIVERY_MODES = ["PARCEL", "FULL_TRUCKLOAD"] as const;
+export type DeliveryMode = (typeof DELIVERY_MODES)[number];
+
+export const DELIVERY_MODE = {
+  PARCEL: "PARCEL",
+  FULL_TRUCKLOAD: "FULL_TRUCKLOAD",
+} as const satisfies Record<string, DeliveryMode>;
 
 /** Trạng thái kiện / lô giao → chuỗi status của `StatusDot` (nhãn + màu ở `lib/status-map.ts`). */
 export const PACKAGE_STATUS_DISPLAY = {
@@ -527,6 +533,19 @@ export const LOAD_PLAN_STATUS = {
   DISPATCHED: "DISPATCHED",
   CANCELLED: "CANCELLED",
 } as const satisfies Record<string, LoadPlanStatus>;
+
+/**
+ * BE `LoadPlan.SOURCE_*` (SCRUM-287 PR T, docs 09 §3 "LoadPlan.source_type"): kế hoạch chứa các lô giao của đơn khách
+ * (`ORDER`, mặc định) hoặc kiện của MỘT lệnh chuyển kho (`TRANSFER`, LP-9). Một kế hoạch không trộn hai loại.
+ */
+export const LOAD_PLAN_SOURCE_TYPES = ["ORDER", "TRANSFER"] as const;
+
+export type LoadPlanSourceType = (typeof LOAD_PLAN_SOURCE_TYPES)[number];
+
+export const LOAD_PLAN_SOURCE = {
+  ORDER: "ORDER",
+  TRANSFER: "TRANSFER",
+} as const satisfies Record<string, LoadPlanSourceType>;
 
 /** BE `SelectionMode` (LP-6): một loại xe (mặc định) hoặc trộn loại để ít xe nhất. */
 export const LOAD_PLAN_SELECTION_MODES = ["SINGLE_TYPE", "FEWEST_VEHICLES"] as const;

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { parseAsStringLiteral, useQueryState } from "nuqs";
 
 import { LOAD_PLAN_PERMISSIONS, UI_LABELS } from "@/constants";
 import { useCan, usePermissionChecker } from "@/lib/auth";
@@ -9,25 +8,20 @@ import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { useWarehouseDirectory } from "@/lib/references/warehouse-options";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { loadPlanActions } from "@/features/load-planning/lifecycle";
-import { isFinalLoadPlan, summarizePlan } from "@/features/load-planning/plan-selectors";
+import { isFinalLoadPlan } from "@/features/load-planning/plan-selectors";
 import { useLoadPlan, useLoadPlanLayouts } from "@/features/load-planning/queries";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
-import { PageTabs } from "@/components/shared/PageTabs";
 
-import { LayoutMetrics } from "./report/LayoutMetrics";
+import { PlacementEditorGate } from "./editor/PlacementEditorGate";
 
 import { DetailLoadError } from "./detail/DetailLoadError";
-import { LoadingTab } from "./detail/LoadingTab";
 import { PlanActions } from "./detail/PlanActions";
+import { PlanBody } from "./detail/PlanBody";
 import { PlanDialogs } from "./detail/PlanDialogs";
 import { PlanHeaderCard } from "./detail/PlanHeaderCard";
 import { PlanNotices } from "./detail/PlanNotices";
-import { ReconciliationTab } from "./detail/ReconciliationTab";
 
 import type { PlanDialogKind } from "./detail/PlanActions";
-
-const L = UI_LABELS.loadPlan.detail;
-const TABS = ["loading", "reconciliation"] as const;
 
 function DetailBody({ id }: { id: string }) {
   const canRead = useCan(LOAD_PLAN_PERMISSIONS.read);
@@ -37,9 +31,10 @@ function DetailBody({ id }: { id: string }) {
   const hasVehicles = (plan?.vehicles.length ?? 0) > 0;
   const layouts = useLoadPlanLayouts(id, canRead && hasVehicles);
   const warehouses = useWarehouseDirectory(canRead).data;
-  const [tab, setTab] = useQueryState("tab", parseAsStringLiteral(TABS).withDefault("loading"));
   const [dialog, setDialog] = useState<PlanDialogKind | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // Chỉnh xếp tay (PR F5): thay phần tab bằng trình soạn tới khi lưu hoặc thoát
+  const [editing, setEditing] = useState(false);
   useBreadcrumbLabel(id, plan?.code);
 
   if (!canRead) return <DetailLoadError error={null} kind="no-read" />;
@@ -52,6 +47,11 @@ function DetailBody({ id }: { id: string }) {
   if (!plan) return <DetailLoadError error={query.error} onRetry={() => void query.refetch()} />;
 
   const actions = loadPlanActions(plan, { can });
+  // Kế hoạch rời PLANNED (người khác chốt / huỷ) hoặc mất quyền: BE từ chối mọi lần lưu, nên đóng trình soạn và báo
+  if (editing && !actions.editPlacements) {
+    setEditing(false);
+    setNotice(UI_LABELS.loadPlan.editor.closedByStatus);
+  }
   const warehouse = warehouses?.find((w) => w.warehouseId === plan.warehouseId);
   // Kế hoạch chỉ mang `warehouseId`. Danh mục kho (`/warehouses`) có thể 403 với tài khoản không có quyền kho (điều phối
   // đơn): khi đó "—", không bao giờ hiện UUID thô.
@@ -61,13 +61,25 @@ function DetailBody({ id }: { id: string }) {
       : warehouse.name
     : UI_LABELS.loadPlan.detail.unknownWarehouse;
   const final = isFinalLoadPlan(plan.status);
+  // Kho đích của lệnh chuyển kho (kế hoạch nguồn TRANSFER) tra như kho của kế hoạch
+  const destination = warehouses?.find((w) => w.warehouseId === plan.transferOrder?.toWarehouseId);
+  const destinationLabel = destination
+    ? destination.code
+      ? `${destination.code} · ${destination.name}`
+      : destination.name
+    : undefined;
 
   return (
     <>
       <PlanHeaderCard
         plan={plan}
         warehouseLabel={warehouseLabel}
-        actions={<PlanActions actions={actions} onOpen={setDialog} />}
+        destinationLabel={destinationLabel}
+        actions={
+          editing ? null : (
+            <PlanActions actions={actions} onOpen={setDialog} onEdit={() => setEditing(true)} />
+          )
+        }
       />
       <PlanNotices
         plan={plan}
@@ -78,31 +90,24 @@ function DetailBody({ id }: { id: string }) {
         onRetry={() => void query.refetch()}
         onDismiss={() => setNotice(null)}
       />
-      {layouts.data && hasVehicles && <LayoutMetrics summary={summarizePlan(layouts.data, plan)} />}
-      <PageTabs
-        tabs={[
-          { value: "loading", label: L.tabs.loading, count: plan.vehicles.length },
-          { value: "reconciliation", label: L.tabs.reconciliation },
-        ]}
-        value={tab}
-        onChange={(next) => void setTab(next)}
-        idPrefix="load-plan"
-        ariaLabel={L.tabsAria}
-      />
-      <div id={`load-plan-panel-${tab}`} role="tabpanel" aria-labelledby={`load-plan-tab-${tab}`}>
-        {tab === "loading" ? (
-          <LoadingTab
-            plan={plan}
-            layouts={layouts.data}
-            layoutsFailed={layouts.isError}
-            actions={actions}
-            onNotice={setNotice}
-            onAcknowledge={() => setDialog("acknowledge")}
-          />
-        ) : (
-          <ReconciliationTab loadPlanId={plan.loadPlanId} />
-        )}
-      </div>
+      {editing ? (
+        <PlacementEditorGate
+          plan={plan}
+          layouts={layouts.data}
+          layoutsFailed={layouts.isError}
+          onRetry={() => void layouts.refetch()}
+          onExit={() => setEditing(false)}
+        />
+      ) : (
+        <PlanBody
+          plan={plan}
+          layouts={layouts.data}
+          layoutsFailed={layouts.isError}
+          actions={actions}
+          onNotice={setNotice}
+          onAcknowledge={() => setDialog("acknowledge")}
+        />
+      )}
       <PlanDialogs plan={plan} dialog={dialog} onClose={() => setDialog(null)} />
     </>
   );

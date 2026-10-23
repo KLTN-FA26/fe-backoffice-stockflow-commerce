@@ -8,6 +8,8 @@
  * một chuyến đã bàn giao với lô HANDED_OVER và DELIVERY_FAILED để ghi kết quả giao.
  */
 
+import { seedFtlScenario } from "./mock-dispatch-ftl-store";
+
 export type MockShipmentStatus =
   "READY_TO_DISPATCH" | "HANDED_OVER" | "DELIVERED" | "DELIVERY_FAILED" | "RETURNED" | "CANCELLED";
 
@@ -24,6 +26,36 @@ export interface MockParcel {
   lengthCm: number;
   widthCm: number;
   heightCm: number;
+  /** Bộ nhiều kiện (BE `KitPartResponse`): kiện là phần `partNo/partCount` của bộ `groupId`. */
+  kit?: { groupId: string; partNo: number; partCount: number };
+  /** BE `package.label_outdated_at`: kiện đã chuyển lô sau khi in nhãn → quét lên xe bị 409 LABEL_OUTDATED. */
+  labelOutdated?: boolean;
+}
+
+/** Kiện của đơn đã huỷ còn trên xe — phải quét dỡ xuống trước bàn giao (BE `LoadResponse.PendingUnload`). */
+export interface MockPendingUnload {
+  packageId: string;
+  labelCode: string;
+  shipmentId: string;
+  shipmentCode: string;
+  reason: string;
+  requestedAt: string;
+}
+
+/** Phần của chuyến nguyên xe (FTL, BE PR #162): xe của một kế hoạch xếp xe, kiện kế hoạch xếp lên xe, đặt xe. */
+export interface MockFtlPart {
+  loadPlanId: string;
+  loadPlanCode: string;
+  vehicleSeq: number;
+  vehicleTypeCode: string;
+  /** Kiện (packageId) kế hoạch xếp lên xe này — chuyến chỉ nhận và hiện đúng các kiện đó. */
+  placed: Set<string>;
+  bookedAt: string | null;
+  bookedBy: string | null;
+  bookingCancelledAt: string | null;
+  bookingCancelReason: string | null;
+  pendingUnloads: MockPendingUnload[];
+  carrierBookingToCancel: boolean;
 }
 
 /** Điều kiện làm BE từ chối bàn giao đúng lô này (G3-Q4 + BR-04) — để thử màn lỗi theo lô. */
@@ -62,6 +94,11 @@ export interface MockShipment {
   recipient: { name: string; phone: string; address: string };
   timeline: MockStep[];
   version: number;
+  /**
+   * SCRUM-287 PR T: đây là MỘT lệnh chuyển kho trên xe của kế hoạch nguồn TRANSFER (dòng biên bản của nó), không phải lô
+   * giao của đơn khách — không hiện trong danh sách lô giao; người nhận là kho đích.
+   */
+  transferOrderId?: string;
 }
 
 export interface MockLoadedParcel {
@@ -76,13 +113,15 @@ export interface MockLoad {
   code: string;
   warehouseId: string;
   status: MockLoadStatus;
-  carrierId: string;
+  /** Chuyến nguyên xe chưa đặt xe (PLANNED) thì chưa có hãng. */
+  carrierId: string | null;
   vehiclePlate: string | null;
   driverName: string | null;
   driverPhone: string | null;
   shipmentIds: string[];
   loaded: Map<string, MockLoadedParcel>;
-  loadingStartedAt: string;
+  /** Chuyến nguyên xe chưa bắt đầu xếp hàng thì chưa có. */
+  loadingStartedAt: string | null;
   dispatchedAt: string | null;
   carrierRepresentative: string | null;
   signatureRef: string | null;
@@ -92,6 +131,8 @@ export interface MockLoad {
   /** codTotal chốt khi bàn giao; trước đó tính theo nhãn. */
   fixedCodTotal: number | null;
   version: number;
+  /** Có = chuyến nguyên xe (FULL_TRUCKLOAD) của kế hoạch xếp xe; vắng = chuyến gửi kiện (PARCEL). */
+  ftl?: MockFtlPart;
 }
 
 export interface MockCarrier {
@@ -225,6 +266,7 @@ async function buildState(): Promise<DispatchState> {
     state.shipments.set(shipment.shipmentId, shipment);
   });
   seedScenarios(state, [...state.shipments.values()]);
+  seedFtlScenario(state, orders, [...state.loads.values()][0]?.warehouseId ?? "");
   // Lô giao mà mock đơn hàng đã dựng sẵn (`<id đơn>-SHIP-1`, đơn giao một phần): cùng id để liên kết từ
   // chi tiết đơn sang chi tiết lô mở được (BE `fk_order_shipment_shipment`: lô của đơn = lô của kho)
   const dispatched = [...state.loads.values()].find((l) => l.status === "DISPATCHED");
