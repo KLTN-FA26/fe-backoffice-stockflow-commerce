@@ -4,7 +4,10 @@
  * màn Người dùng thấy ngay vai trò mới / đổi tên / đã xoá.
  */
 
+import { useQueryClient } from "@tanstack/react-query";
+
 import { TOAST_MESSAGES } from "@/constants";
+import { isStaleError } from "@/lib/api/identity-errors";
 import { createMutation } from "@/lib/api/query-factory";
 import { meKeys } from "@/lib/auth/me-permissions";
 import { roleOptionKeys } from "@/lib/references/role-options";
@@ -22,12 +25,23 @@ export const useCreateRole = createMutation(createRole, {
   successMessage: TOAST_MESSAGES.role.created,
 });
 
-export const useUpdateRole = createMutation(updateRole, {
+const useUpdateRoleBase = createMutation(updateRole, {
   ...base,
   // Tên hiển thị của ma trận (`roleLabel`) và quyền của chính người gọi có thể đổi theo
   invalidate: [...base.invalidate, permissionManagementKeys.all, meKeys.permissions()],
   successMessage: TOAST_MESSAGES.role.updated,
 });
+
+/** OPTIMISTIC_LOCK / ROLE_NOT_FOUND: the role list is stale — reload it so the next attempt uses the current version. */
+export function useUpdateRole() {
+  const client = useQueryClient();
+  return useUpdateRoleBase({
+    onError: (error) => {
+      if (isStaleError(error) || error.code === "ROLE_NOT_FOUND")
+        void client.invalidateQueries({ queryKey: permissionManagementKeys.all });
+    },
+  });
+}
 
 export const useDeleteRole = createMutation(deleteRole, {
   ...base,

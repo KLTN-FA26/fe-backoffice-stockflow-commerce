@@ -64,6 +64,6 @@ export const USER_UI = {
   noWarehouse: "Chưa gán kho",
   noRoles: "Chưa có vai trò",
   selfNotice: "Đây là tài khoản của bạn — hệ thống không cho tự thay đổi tại màn này.",
-  mustChangePassword: "Phải đổi mật khẩu ở lần đăng nhập tới",
+  mustChangePassword: "Đang dùng mật khẩu tạm — nên đổi sau khi đăng nhập",
   temporaryLock: "Đang bị khoá tạm thời do nhập sai mật khẩu, đến",
 } as const;

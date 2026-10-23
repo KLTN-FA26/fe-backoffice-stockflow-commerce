@@ -34,14 +34,22 @@ function ResetForm({
   return (
     <FormDialogBody
       title={USER_UI.resetPassword}
-      description={`Đặt mật khẩu tạm cho ${accountLabel}. Tài khoản bị đăng xuất khỏi mọi thiết bị và phải đổi mật khẩu ở lần đăng nhập tới.`}
+      description={`Đặt mật khẩu tạm cho ${accountLabel}. Tài khoản bị đăng xuất khỏi mọi thiết bị; người dùng nên đổi mật khẩu sau khi đăng nhập.`}
       submitLabel={USER_UI.resetPassword}
       canSubmit={!invalid}
       isPending={mutation.isPending}
       error={mutation.error ? identityErrorMessage(mutation.error) : null}
       danger
       onSubmit={() =>
-        mutation.mutate({ userId, newPassword: password || undefined }, { onSuccess: onDone })
+        mutation.mutate(
+          { userId, newPassword: password || undefined },
+          {
+            onSuccess: (result) => {
+              onDone(result);
+              mutation.reset();
+            },
+          },
+        )
       }
       onCancel={onCancel}
     >

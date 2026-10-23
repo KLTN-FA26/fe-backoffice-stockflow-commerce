@@ -4,7 +4,12 @@ import { api } from "@/lib/api/client";
 
 import { customRole, roleFixture } from "./__fixtures__/roles";
 import { createRole, deleteRole, updateRole } from "./api";
-import { createRoleFormSchema, roleResponseSchema, updateRoleFormSchema } from "./schemas";
+import {
+  createRoleFormSchema,
+  roleResponseSchema,
+  updateRoleFormSchema,
+  updateRoleInputSchema,
+} from "./schemas";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -39,11 +44,16 @@ describe("role schemas mirror BE CreateRoleRequest / UpdateRoleRequest", () => {
   it("accepts only OWN / WAREHOUSE / ALL as a data scope (TEAM has no rows to apply to yet)", () => {
     for (const dataScope of ["OWN", "WAREHOUSE", "ALL"])
       expect(
-        updateRoleFormSchema.safeParse({ name: "x", description: "", dataScope }).success,
+        updateRoleInputSchema.safeParse({ name: "x", description: "", dataScope }).success,
       ).toBe(true);
     expect(
-      updateRoleFormSchema.safeParse({ name: "x", description: "", dataScope: "TEAM" }).success,
+      updateRoleInputSchema.safeParse({ name: "x", description: "", dataScope: "TEAM" }).success,
     ).toBe(false);
+    // the edit FORM keeps a TEAM role as TEAM; the request omits the scope unless it changed
+    expect(
+      updateRoleFormSchema.safeParse({ name: "x", description: "", dataScope: "TEAM" }).success,
+    ).toBe(true);
+    expect(updateRoleInputSchema.safeParse({ name: "x", description: "" }).success).toBe(true);
   });
 
   it("parses the extended role response and rejects one without the new fields", () => {
@@ -101,6 +111,9 @@ describe("role API", () => {
       dataScope: "OWN",
       version: 2,
     });
+    patch.mockClear();
+    await updateRole({ roleCode: "A", values: { name: "N", description: "" }, version: 3 });
+    expect(Object.keys(patch.mock.calls[0]?.[1] ?? {})).not.toContain("dataScope");
   });
 
   it("deletes by code", async () => {

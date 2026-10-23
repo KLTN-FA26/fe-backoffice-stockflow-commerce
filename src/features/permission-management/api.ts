@@ -4,7 +4,7 @@ import {
   createRoleFormSchema,
   roleMatrixSchema,
   roleResponseSchema,
-  updateRoleFormSchema,
+  updateRoleInputSchema,
   updateRolePermissionsSchema,
 } from "./schemas";
 
@@ -12,7 +12,7 @@ import type {
   CreateRoleFormValues,
   RoleMatrix,
   RoleResponse,
-  UpdateRoleFormValues,
+  UpdateRoleInputValues,
   UpdateRolePermissions,
 } from "./schemas";
 
@@ -61,7 +61,7 @@ export async function createRole(values: CreateRoleFormValues): Promise<RoleResp
 
 export interface UpdateRoleInput {
   roleCode: string;
-  values: UpdateRoleFormValues;
+  values: UpdateRoleInputValues;
   /** `version` của vai trò lúc tải — BE 409 OPTIMISTIC_LOCK nếu đã đổi. */
   version: number;
 }
@@ -72,11 +72,11 @@ export async function updateRole({
   values,
   version,
 }: UpdateRoleInput): Promise<RoleResponse> {
-  const { name, description, dataScope } = updateRoleFormSchema.parse(values);
+  const { name, description, dataScope } = updateRoleInputSchema.parse(values);
   const { data } = await api.patch<unknown>(rolePath(roleCode), {
     name,
     description,
-    dataScope,
+    ...(dataScope ? { dataScope } : {}),
     version,
   });
   return roleResponseSchema.parse(data);

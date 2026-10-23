@@ -150,9 +150,45 @@ describe("RoleAdminBar — edit and delete", () => {
     expect(patch).toHaveBeenCalledWith("/identity/roles/SHIFT_LEAD", {
       name: "Mới",
       description: "",
-      dataScope: "ALL",
       version: 2,
     });
+    // scope not changed → not sent, so the BE keeps it
+    expect(Object.keys(patch.mock.calls[0]?.[1] ?? {})).not.toContain("dataScope");
+  });
+
+  it("a TEAM role is not silently widened to ALL when only the name changes", async () => {
+    const patch = vi.spyOn(api, "patch").mockResolvedValue({ data: custom });
+    const { user } = setup(customRole({ dataScope: "TEAM" }));
+    await user.click(screen.getByRole("button", { name: /Đổi tên/ }));
+    const dialog = within(await screen.findByRole("dialog"));
+    await user.type(dialog.getByLabelText(/Tên vai trò/), "!");
+    await user.click(dialog.getByRole("button", { name: "Lưu" }));
+    await waitFor(() => expect(patch).toHaveBeenCalledTimes(1));
+    expect(Object.keys(patch.mock.calls[0]?.[1] ?? {})).not.toContain("dataScope");
+  });
+
+  it("sends the scope when the user changes it", async () => {
+    const patch = vi.spyOn(api, "patch").mockResolvedValue({ data: custom });
+    const { user } = setup();
+    await user.click(screen.getByRole("button", { name: /Đổi tên/ }));
+    const dialog = within(await screen.findByRole("dialog"));
+    await user.click(dialog.getByRole("combobox", { name: "Phạm vi dữ liệu" }));
+    await user.click(await screen.findByRole("option", { name: "Theo kho được gán" }));
+    await user.click(dialog.getByRole("button", { name: "Lưu" }));
+    await waitFor(() => expect(patch).toHaveBeenCalledTimes(1));
+    expect(patch.mock.calls[0]?.[1]).toMatchObject({ dataScope: "WAREHOUSE" });
+  });
+
+  it("is fully disabled while a matrix save is pending", () => {
+    const client = new QueryClient();
+    render(
+      <QueryClientProvider client={client}>
+        <RoleAdminBar roles={roles} selected={custom} onSelect={vi.fn()} disabled />
+      </QueryClientProvider>,
+    );
+    expect(screen.getByRole("button", { name: /Tạo vai trò/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Đổi tên/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Xoá vai trò/ })).toBeDisabled();
   });
 
   it("shows SYSTEM_ROLE_IMMUTABLE / OPTIMISTIC_LOCK in Vietnamese", async () => {

@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
+import { DATA_SCOPE_LABELS } from "@/constants";
+
 import { ROLE_ADMIN } from "../role-admin-constants";
 
 import type { UpdateRoleFormValues } from "../types";
@@ -17,12 +19,19 @@ import type { UpdateRoleFormValues } from "../types";
  * Ô chung của hộp thoại tạo / sửa vai trò: tên, mô tả, phạm vi dữ liệu. Đọc form qua `FormProvider`
  * của hộp thoại (form tạo là tập cha của form sửa nên các ô này có mặt ở cả hai).
  */
-export function RoleFormFields() {
+export function RoleFormFields({ currentScope }: { currentScope?: string }) {
   const {
     register,
     control,
     formState: { errors },
   } = useFormContext<UpdateRoleFormValues>();
+  // Phạm vi hiện tại mà BE không cho đặt mới (TEAM): vẫn hiện để chọn lại, không bị đổi ngầm
+  const extraScope =
+    currentScope &&
+    currentScope in DATA_SCOPE_LABELS &&
+    ROLE_ADMIN.scopeOptions.filter((option) => option.value === currentScope).length === 0
+      ? (currentScope as keyof typeof DATA_SCOPE_LABELS)
+      : null;
   return (
     <>
       <TextField
@@ -59,6 +68,11 @@ export function RoleFormFields() {
                 <SelectValue />
               </SelectTrigger>
               <TitledSelectContent title="Phạm vi dữ liệu">
+                {extraScope && (
+                  <SelectItem value={extraScope}>
+                    {DATA_SCOPE_LABELS[extraScope]} (hiện tại)
+                  </SelectItem>
+                )}
                 {ROLE_ADMIN.scopeOptions.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}

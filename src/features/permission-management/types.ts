@@ -1,6 +1,7 @@
 export type {
   CreateRoleFormValues,
   UpdateRoleFormValues,
+  UpdateRoleInputValues,
   UpdateRolePermissions,
   RoleMatrix,
   RoleMatrixAction,

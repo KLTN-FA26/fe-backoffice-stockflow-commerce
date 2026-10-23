@@ -25,10 +25,13 @@ export function RoleAdminBar({
   roles,
   selected,
   onSelect,
+  disabled = false,
 }: {
   roles: readonly RoleResponse[];
   selected: RoleResponse | undefined;
   onSelect: (roleCode: string) => void;
+  /** Đang lưu / tải lại ma trận: khoá mọi thao tác trên vai trò để không đổi vai trò giữa chừng. */
+  disabled?: boolean;
 }) {
   const canCreate = useCan(IDENTITY_PERMISSIONS.rolesCreate);
   const canUpdate = useCan(IDENTITY_PERMISSIONS.rolesUpdate);
@@ -48,12 +51,18 @@ export function RoleAdminBar({
       )}
       <div className="flex flex-wrap gap-2">
         {canCreate && (
-          <Button type="button" size="sm" onClick={() => setDialog("create")}>
+          <Button type="button" size="sm" disabled={disabled} onClick={() => setDialog("create")}>
             <Plus className="size-3.5" /> {ROLE_ADMIN.create}
           </Button>
         )}
         {canUpdate && custom && (
-          <Button type="button" size="sm" variant="outline" onClick={() => setDialog("edit")}>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={disabled}
+            onClick={() => setDialog("edit")}
+          >
             <Pencil className="size-3.5" /> {ROLE_ADMIN.edit}
           </Button>
         )}
@@ -62,7 +71,7 @@ export function RoleAdminBar({
             type="button"
             size="sm"
             variant="outline"
-            disabled={custom.holderCount > 0}
+            disabled={disabled || custom.holderCount > 0}
             title={custom.holderCount > 0 ? ROLE_ADMIN.inUse : undefined}
             onClick={() => setDialog("delete")}
           >

@@ -55,7 +55,11 @@ function CreateUserForm({
 
   const submit = form.handleSubmit((values) =>
     mutation.mutate(values, {
-      onSuccess: onCreated,
+      onSuccess: (created) => {
+        onCreated(created);
+        // Mật khẩu (gõ vào và BE sinh) chỉ còn trong state của màn; bỏ khỏi MutationCache ngay
+        mutation.reset();
+      },
       onError: (error) => {
         for (const { field, message } of identityFieldErrors(error)) {
           if (field in EMPTY) form.setError(field as keyof CreateUserFormValues, { message });

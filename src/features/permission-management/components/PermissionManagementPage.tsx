@@ -70,6 +70,7 @@ export function PermissionManagementPage() {
           roles={roles}
           selected={roles.find((role) => role.code === selectedRoleCode)}
           onSelect={selectRole}
+          disabled={editor.pending}
         />
         {selectedRoleCode && (
           <MatrixState roleCode={selectedRoleCode} matrixQuery={matrixQuery} editor={editor} />

@@ -14,12 +14,14 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.f
 
 afterEach(() => vi.restoreAllMocks());
 
+let currentClient: ReturnType<typeof renderIdentityScreen>["client"];
+
 async function openDialog(permissions = PERMISSION_SETS.full, routes = {}) {
   const api = stubIdentityApi(permissions, {
     "GET /identity/users": () => userPage([userFixture()]),
     ...routes,
   });
-  renderIdentityScreen(<UserListPage />);
+  currentClient = renderIdentityScreen(<UserListPage />).client;
   const user = userEvent.setup();
   await user.click(await screen.findByRole("button", { name: /Thêm người dùng/ }));
   const dialog = await screen.findByRole("dialog");
@@ -65,6 +67,33 @@ describe("CreateUserDialog", () => {
 
     await user.click(screen.getByRole("button", { name: "Đã lưu lại, đóng" }));
     await waitFor(() => expect(screen.queryByText("Gen3rated9Pw")).not.toBeInTheDocument());
+  });
+
+  it("does not keep the typed or the generated password in the react-query MutationCache", async () => {
+    const { user, dialog } = await openDialog(PERMISSION_SETS.full, {
+      "POST /identity/users": () => ({ user: userFixture(), temporaryPassword: "Gen3rated9Pw" }),
+    });
+    await user.type(dialog.getByLabelText(/Tên đăng nhập/), "secret.user");
+    await user.type(dialog.getByLabelText(/^Email/), "s@stockflow.vn");
+    await user.type(dialog.getByLabelText(/Mật khẩu ban đầu/), "Typed1Passw0rd");
+    await user.click(dialog.getByRole("checkbox", { name: "Role A" }));
+    await user.click(dialog.getByRole("button", { name: "Tạo tài khoản" }));
+    // the one-time password is on screen (component state) ...
+    expect(await screen.findByText("Gen3rated9Pw")).toBeInTheDocument();
+    // ... but neither it nor the typed one lives in the cache, even before the dialog is closed
+    const dump = () =>
+      JSON.stringify(
+        currentClient
+          .getMutationCache()
+          .getAll()
+          .map((m) => [m.state.variables, m.state.data]),
+      );
+    expect(dump()).not.toContain("Gen3rated9Pw");
+    expect(dump()).not.toContain("Typed1Passw0rd");
+    await user.click(screen.getByRole("button", { name: "Đã lưu lại, đóng" }));
+    await waitFor(() => expect(screen.queryByText("Gen3rated9Pw")).not.toBeInTheDocument());
+    expect(dump()).not.toContain("Gen3rated9Pw");
+    expect(dump()).not.toContain("Typed1Passw0rd");
   });
 
   it("sends a chosen password and shows no temporary-password dialog", async () => {

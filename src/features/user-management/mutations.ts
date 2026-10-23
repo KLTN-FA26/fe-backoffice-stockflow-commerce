@@ -42,9 +42,16 @@ const base = { invalidate: [userKeys.all], showErrorToast: false } as const;
 const withRoles = { ...base, invalidate: [userKeys.all, roleOptionKeys.all] };
 const T = TOAST_MESSAGES.user;
 
+/**
+ * Mutation mang mật khẩu: `variables` giữ mật khẩu người quản trị gõ, `data` giữ mật khẩu tạm BE sinh (hiện đúng
+ * một lần). `gcTime: 0` bỏ chúng khỏi MutationCache ngay khi form / hộp thoại gỡ, không để ~5 phút mặc định.
+ */
+const SECRET_OPTIONS = { gcTime: 0 } as const;
+
 export const useCreateUser = createMutation(createUser, {
   ...withRoles,
   successMessage: T.created,
+  options: SECRET_OPTIONS,
 });
 
 const useUpdateUserBase = createMutation(updateUser, { ...base, successMessage: T.updated });
@@ -69,6 +76,7 @@ export function useChangeUserStatus() {
 const useResetPasswordBase = createMutation(resetPassword, {
   ...base,
   successMessage: T.passwordReset,
+  options: SECRET_OPTIONS,
 });
 export function useResetPassword() {
   return useResetPasswordBase({ onError: useStaleRefresh() });

@@ -29,8 +29,8 @@ function setup(
   viewerId = "u-admin",
 ) {
   const api = stubIdentityApi(permissions, { [`GET ${url}`]: () => userFixture(user), ...routes });
-  renderIdentityScreen(<UserDetailPage id={ID} />, "", viewerId);
-  return { api, user: userEvent.setup() };
+  const { client } = renderIdentityScreen(<UserDetailPage id={ID} />, "", viewerId);
+  return { api, user: userEvent.setup(), client };
 }
 
 describe("UserDetailPage — gating by permission codes", () => {
@@ -150,7 +150,7 @@ describe("UserDetailPage — profile", () => {
 
   it("explains a running wrong-password lock and a forced password change", async () => {
     setup({ mustChangePassword: true, lockedUntil: "2999-01-01T00:00:00Z" });
-    expect(await screen.findByText(/Phải đổi mật khẩu ở lần đăng nhập tới/)).toBeInTheDocument();
+    expect(await screen.findByText(/Đang dùng mật khẩu tạm/)).toBeInTheDocument();
     expect(screen.getByText(/khoá tạm thời do nhập sai mật khẩu/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Mở khoá" })).toBeInTheDocument();
   });
@@ -232,6 +232,43 @@ describe("UserDetailPage — password reset", () => {
     expect(screen.getByText(/đăng xuất 2 phiên đang mở/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Đã lưu lại, đóng" }));
     await waitFor(() => expect(screen.queryByText("Reset3dPass9")).not.toBeInTheDocument());
+  });
+
+  it("keeps neither the reset password nor the generated one in the MutationCache", async () => {
+    const { user, client } = setup({}, PERMISSION_SETS.editor, {
+      [`POST ${url}/password-reset`]: () => ({
+        temporaryPassword: "Reset3dPass9",
+        sessionsEnded: 1,
+      }),
+    });
+    await user.click(await screen.findByRole("button", { name: "Đặt lại mật khẩu" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    await user.type(dialog.getByLabelText("Mật khẩu mới"), "Typed1Passw0rd");
+    await user.click(dialog.getByRole("button", { name: "Đặt lại mật khẩu" }));
+    expect(await screen.findByText("Reset3dPass9")).toBeInTheDocument();
+    const dump = JSON.stringify(
+      client
+        .getMutationCache()
+        .getAll()
+        .map((m) => [m.state.variables, m.state.data]),
+    );
+    expect(dump).not.toContain("Reset3dPass9");
+    expect(dump).not.toContain("Typed1Passw0rd");
+  });
+
+  it("does not claim the password change is enforced", async () => {
+    const { user } = setup({}, PERMISSION_SETS.editor, {
+      [`POST ${url}/password-reset`]: () => ({
+        temporaryPassword: "Reset3dPass9",
+        sessionsEnded: 0,
+      }),
+    });
+    await user.click(await screen.findByRole("button", { name: "Đặt lại mật khẩu" }));
+    await user.click(
+      within(await screen.findByRole("dialog")).getByRole("button", { name: "Đặt lại mật khẩu" }),
+    );
+    expect(await screen.findByText(/nên đổi mật khẩu sau khi đăng nhập/)).toBeInTheDocument();
+    expect(screen.queryByText(/phải đổi mật khẩu/i)).not.toBeInTheDocument();
   });
 
   it("validates a chosen password like the BE and sends it when valid", async () => {

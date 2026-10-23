@@ -8,7 +8,7 @@ import { identityErrorMessage } from "@/lib/api/identity-errors";
 
 import { ROLE_ADMIN } from "../role-admin-constants";
 import { useUpdateRole } from "../role-mutations";
-import { updateRoleFormSchema } from "../schemas";
+import { assignableDataScopeSchema, updateRoleFormSchema } from "../schemas";
 
 import { RoleFormFields } from "./RoleFormFields";
 
@@ -33,12 +33,26 @@ function EditForm({
     defaultValues: {
       name: role.name,
       description: role.description ?? "",
-      dataScope: role.dataScope === "TEAM" ? "ALL" : role.dataScope,
+      dataScope: role.dataScope,
     },
   });
   const mutation = useUpdateRole();
   const submit = form.handleSubmit((values) =>
-    mutation.mutate({ roleCode: role.code, values, version: role.version }, { onSuccess: onSaved }),
+    mutation.mutate(
+      {
+        roleCode: role.code,
+        // Không gửi phạm vi khi không đổi — BE giữ nguyên, không bị ép về ALL
+        values: {
+          ...values,
+          dataScope:
+            values.dataScope === role.dataScope
+              ? undefined
+              : assignableDataScopeSchema.safeParse(values.dataScope).data,
+        },
+        version: role.version,
+      },
+      { onSuccess: onSaved },
+    ),
   );
   return (
     <FormProvider {...form}>
@@ -52,7 +66,7 @@ function EditForm({
         onSubmit={() => void submit()}
         onCancel={onCancel}
       >
-        <RoleFormFields />
+        <RoleFormFields currentScope={role.dataScope} />
       </FormDialogBody>
     </FormProvider>
   );

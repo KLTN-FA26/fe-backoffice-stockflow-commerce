@@ -108,11 +108,18 @@ export const createRoleFormSchema = z.object({
   dataScope: assignableDataScopeSchema,
 });
 
+/** Form: giữ đúng phạm vi hiện tại của vai trò (kể cả TEAM, BE không cho đặt mới) để không tự đổi quyền truy cập. */
 export const updateRoleFormSchema = z.object({
   name: roleNameSchema,
   description: roleDescriptionSchema,
-  dataScope: assignableDataScopeSchema,
+  dataScope: dataScopeSchema,
+});
+
+/** `UpdateRoleRequest`: bỏ `dataScope` = giữ nguyên; chỉ gửi khi người dùng đổi và là giá trị BE nhận. */
+export const updateRoleInputSchema = updateRoleFormSchema.extend({
+  dataScope: assignableDataScopeSchema.optional(),
 });
 
 export type CreateRoleFormValues = z.infer<typeof createRoleFormSchema>;
 export type UpdateRoleFormValues = z.infer<typeof updateRoleFormSchema>;
+export type UpdateRoleInputValues = z.infer<typeof updateRoleInputSchema>;

@@ -67,9 +67,7 @@ export function TemporaryPasswordDialog({
             <Copy className="size-3.5" /> {copied ? "Đã chép" : "Chép"}
           </Button>
         </div>
-        <p className="text-ink-secondary text-xs">
-          Người dùng phải đổi mật khẩu ngay ở lần đăng nhập đầu tiên.
-        </p>
+        <p className="text-ink-secondary text-xs">Người dùng nên đổi mật khẩu sau khi đăng nhập.</p>
       </FormDialogBody>
     </FormDialog>
   );
