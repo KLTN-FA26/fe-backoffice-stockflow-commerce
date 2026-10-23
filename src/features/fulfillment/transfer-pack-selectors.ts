@@ -27,6 +27,15 @@ export const transferParcelUnits = (pkg: Pick<TransferParcel, "contents">): numb
 export const isAsIsCarton = (pkg: Pick<TransferParcel, "stockPackageId">): boolean =>
   !!pkg.stockPackageId;
 
+/** Lý do tiếng Anh BE ghi cho kiện nguyên thùng (`TransferPackService.CARTON_AS_IS`, có thể kèm hậu tố). */
+const CARTON_AS_IS_REASON = /^Unopened stock carton shipped as it is/i;
+
+export const isCartonAsIsReason = (reason: string): boolean => CARTON_AS_IS_REASON.test(reason);
+
+/** Lý do của kiện để hiện: lý do tự động của kiện nguyên thùng → tiếng Việt; lý do người đóng gõ thì giữ nguyên. */
+export const parcelReasonText = (reason: string, asIsLabel: string): string =>
+  isCartonAsIsReason(reason) ? asIsLabel : reason;
+
 /** Kiện của một bộ: phần `partNo/partCount`. */
 export const isKitPart = (pkg: Pick<TransferParcel, "kit">): boolean => !!pkg.kit;
 

@@ -111,20 +111,37 @@ describe("isStaleTransferPackError", () => {
   });
 });
 
+function detailedNoEnglish() {
+  return api("INSUFFICIENT_STOCK", 409, { sku: "A-1", shortfall: "2" });
+}
+
 describe("BE PR #164 final: mở phiên giữ hàng ở kho nguồn → INSUFFICIENT_STOCK", () => {
-  it("INSUFFICIENT_STOCK có câu riêng; message BE nêu SKU thì kèm cần / khả dụng", () => {
+  it("INSUFFICIENT_STOCK có câu riêng; fieldErrors sku + shortfall (BE #164) → nêu SKU và số thiếu", () => {
     expect(transferPackErrorMessage(api("INSUFFICIENT_STOCK"))).toBe(
       TRANSFER_PACK_ERROR_MESSAGES.INSUFFICIENT_STOCK,
     );
-    const detailed = new ApiError(
+    const detailed = api("INSUFFICIENT_STOCK", 409, { sku: "TEE-BLK-M", shortfall: "18" });
+    expect(transferPackErrorMessage(detailed)).toBe(
+      `${TRANSFER_PACK_ERROR_MESSAGES.INSUFFICIENT_STOCK} SKU TEE-BLK-M: thiếu 18.`,
+    );
+  });
+
+  it("không đọc message tiếng Anh: message cũ mà không có fieldErrors → câu chung; chỉ có sku → nêu SKU; shortfall lạ → bỏ", () => {
+    const english = new ApiError(
       409,
       "INSUFFICIENT_STOCK",
-      "Insufficient stock for SKU TEE-BLK-M: requested 30, available 12",
+      "Transfer TO-1: SKU TEE-BLK-M needs 30 unit(s) at HN, only 12 are free there - short by 18",
     );
-    expect(transferPackErrorMessage(detailed)).toBe(
-      `${TRANSFER_PACK_ERROR_MESSAGES.INSUFFICIENT_STOCK} SKU TEE-BLK-M: cần 30, khả dụng 12.`,
+    expect(transferPackErrorMessage(english)).toBe(TRANSFER_PACK_ERROR_MESSAGES.INSUFFICIENT_STOCK);
+    expect(transferPackErrorMessage(api("INSUFFICIENT_STOCK", 409, { sku: "A-1" }))).toBe(
+      `${TRANSFER_PACK_ERROR_MESSAGES.INSUFFICIENT_STOCK} SKU A-1.`,
     );
-    expect(transferPackErrorMessage(detailed)).not.toMatch(/Insufficient/);
+    for (const shortfall of ["abc", "0", "-3"]) {
+      expect(
+        transferPackErrorMessage(api("INSUFFICIENT_STOCK", 409, { sku: "A-1", shortfall })),
+      ).toBe(`${TRANSFER_PACK_ERROR_MESSAGES.INSUFFICIENT_STOCK} SKU A-1.`);
+    }
+    expect(transferPackErrorMessage(detailedNoEnglish())).not.toMatch(/Transfer|short by/);
   });
 
   it("phần giữ hàng hết hiệu lực → tải lại phiên", () => {

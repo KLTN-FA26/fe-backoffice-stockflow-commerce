@@ -644,3 +644,28 @@ describe("đóng gói chuyển kho — hoàn tất", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("đóng gói chuyển kho — lý do của kiện nguyên thùng", () => {
+  it("lý do tiếng Anh BE ghi cho thùng nguyên được hiện bằng tiếng Việt, không có nhãn 'Lý do đóng kiện thường'", async () => {
+    renderTransferPackStation({
+      session: openSession({
+        packages: [
+          sealedParcel({
+            stockPackageId: "s-1",
+            kitOverrideReason: "Unopened stock carton shipped as it is (LP2-8)",
+          }),
+        ],
+      }),
+    });
+    expect(await screen.findByText(L.packages.cartonAsIsReason)).toBeInTheDocument();
+    expect(screen.queryByText(/Unopened stock carton/)).not.toBeInTheDocument();
+    expect(screen.queryByText(new RegExp(L.packages.kitReason))).not.toBeInTheDocument();
+  });
+
+  it("lý do KIT-FORCE của người đóng vẫn hiện nguyên văn kèm nhãn", async () => {
+    renderTransferPackStation({
+      session: openSession({ packages: [sealedParcel({ kitOverrideReason: "Khách lấy rời" })] }),
+    });
+    expect(await screen.findByText(`${L.packages.kitReason}: Khách lấy rời`)).toBeInTheDocument();
+  });
+});

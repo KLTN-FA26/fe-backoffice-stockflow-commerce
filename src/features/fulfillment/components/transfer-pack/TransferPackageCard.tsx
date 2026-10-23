@@ -1,7 +1,11 @@
 "use client";
 
 import { PACKAGE_STATUS_DISPLAY, UI_LABELS } from "@/constants";
-import { transferParcelUnits } from "@/features/fulfillment/transfer-pack-selectors";
+import {
+  isCartonAsIsReason,
+  parcelReasonText,
+  transferParcelUnits,
+} from "@/features/fulfillment/transfer-pack-selectors";
 import { StatusDot } from "@/components/shared/StatusDot";
 
 import { MONO } from "../primitives";
@@ -72,7 +76,10 @@ export function TransferPackageCard({
       <PackageContents contents={pkg.contents} showSerial={false} />
       {pkg.kitOverrideReason && (
         <p className="text-ink-tertiary text-xs">
-          {T.packages.kitReason}: {pkg.kitOverrideReason}
+          {/* Lý do tự động của kiện nguyên thùng không phải lý do KIT-FORCE của người đóng: không gắn nhãn đó */}
+          {isCartonAsIsReason(pkg.kitOverrideReason)
+            ? T.packages.cartonAsIsReason
+            : `${T.packages.kitReason}: ${parcelReasonText(pkg.kitOverrideReason, T.packages.cartonAsIsReason)}`}
         </p>
       )}
     </article>

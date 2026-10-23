@@ -13,7 +13,9 @@ import {
 import {
   isAsIsCarton,
   isKitPart,
+  isCartonAsIsReason,
   kitCandidateLines,
+  parcelReasonText,
   openTransferParcels,
   planTransferScan,
   transferCompletionReadiness,
@@ -124,5 +126,22 @@ describe("transferCompletionReadiness — điều kiện hoàn tất (BE Transfe
     });
     const voided = { ...sealedParcel(), status: "VOIDED" as const };
     expect(transferCompletionReadiness(tSession({ packages: [voided] })).sealed).toHaveLength(0);
+  });
+});
+
+describe("lý do của kiện nguyên thùng (BE ghi sẵn tiếng Anh)", () => {
+  const BE_REASON = "Unopened stock carton shipped as it is (LP2-8)";
+
+  it("nhận ra lý do tự động của kiện nguyên thùng (không phân biệt hoa thường, kèm hậu tố)", () => {
+    expect(isCartonAsIsReason(BE_REASON)).toBe(true);
+    expect(isCartonAsIsReason("unopened stock carton shipped as it is")).toBe(true);
+    expect(isCartonAsIsReason("Khách lấy rời")).toBe(false);
+  });
+
+  it("hiện tiếng Việt cho lý do của BE; lý do người đóng gõ giữ nguyên", () => {
+    expect(parcelReasonText(BE_REASON, "Thùng nguyên chưa mở, gửi nguyên trạng")).toBe(
+      "Thùng nguyên chưa mở, gửi nguyên trạng",
+    );
+    expect(parcelReasonText("Khách lấy rời", "x")).toBe("Khách lấy rời");
   });
 });
