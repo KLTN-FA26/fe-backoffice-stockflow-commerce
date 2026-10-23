@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { onlineManager } from "@tanstack/react-query";
 import { use } from "react";
 
-import { ADMIN_ROUTES, ORDER_PERMISSIONS } from "@/constants";
+import { ADMIN_ROUTES, ORDER_PERMISSIONS, PRODUCTION_ORDER_PERMISSIONS } from "@/constants";
 import { usePermissionChecker } from "@/lib/auth";
 import { formatDateTime } from "@/lib/format/date";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
@@ -21,6 +21,7 @@ import { OrderLines } from "./OrderLines";
 import { OrderLoadError } from "./OrderLoadError";
 import { OrderPermissionGate } from "./OrderPermissionGate";
 import { LineProductionOrdersView, ProductionStatusNotice } from "./OrderProductionOrders";
+import { OrderShipments } from "./OrderShipments";
 import { OrderStatusHistory } from "./OrderStatusHistory";
 import { OrderDetailSkeleton } from "./OrderSkeletons";
 
@@ -43,9 +44,14 @@ function OrderDetailContent({ id }: { id: string }) {
   // UI-only — Backend phải re-check (@RequiresPermission sales-orders:READ trên OrderController)
   const canRead = can(ORDER_PERMISSIONS.read);
   const query = useOrder(id, { enabled: canRead });
-  // Lệnh sản xuất chỉ có với dòng in (docs 19 BR-01) — đơn chỉ hàng sẵn không gọi API
+  // Lệnh sản xuất chỉ có với dòng in (docs 19 BR-01) — đơn chỉ hàng sẵn không gọi API.
+  // UI-only — Backend phải re-check (@RequiresPermission production-orders:READ, ProductionOrderController)
+  const canReadProduction = can(PRODUCTION_ORDER_PERMISSIONS.read);
   const hasCustomLines = !!query.data && customLineCount(query.data) > 0;
-  const production = useOrderProductionOrders(id, { enabled: canRead && hasCustomLines });
+  // Lọc theo `orderId` của BE (UUID) — đơn đã tải xong mới gọi
+  const production = useOrderProductionOrders(query.data?.orderId ?? "", {
+    enabled: canRead && canReadProduction && hasCustomLines,
+  });
   // Breadcrumb hiện mã đơn (SO-…) thay vì orderId (UUID của BE), như NCC
   useBreadcrumbLabel(id, query.data?.orderNumber);
 
@@ -66,11 +72,12 @@ function OrderDetailContent({ id }: { id: string }) {
 
   const order = query.data;
   const productionByLine = groupProductionOrdersByLine(production.data ?? []);
-  const productionState = production.isError
-    ? "unavailable"
-    : production.isPending
-      ? "loading"
-      : "ready";
+  const productionState =
+    !canReadProduction || production.isError
+      ? "unavailable"
+      : production.isPending
+        ? "loading"
+        : "ready";
   const subtitle = [order.recipientName, formatDateTime(order.placedAt)]
     .filter(Boolean)
     .join(" · ");
@@ -89,10 +96,13 @@ function OrderDetailContent({ id }: { id: string }) {
 
       <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
         <div className="min-w-0 space-y-5">
-          <ProductionStatusNotice query={production} />
+          {hasCustomLines && (
+            <ProductionStatusNotice query={production} canRead={canReadProduction} />
+          )}
           <OrderLines
             lines={order.lines}
             currency={order.currency}
+            hasShipments={order.shipments.length > 0}
             renderCustomLineExtra={(line) => (
               <LineProductionOrdersView
                 entry={productionByLine.get(line.lineId)}
@@ -105,6 +115,7 @@ function OrderDetailContent({ id }: { id: string }) {
 
         <div className="space-y-5">
           <OrderActionCard order={order} can={can} />
+          <OrderShipments order={order} />
           <OrderInfoCard order={order} />
           <OrderFinanceCard order={order} />
         </div>

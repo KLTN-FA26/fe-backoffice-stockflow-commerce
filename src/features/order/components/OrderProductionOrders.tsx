@@ -13,7 +13,7 @@ import { Alert } from "@/components/shared/Alert";
 import { Skeleton } from "@/components/shared/Skeleton";
 import { StatusDot } from "@/components/shared/StatusDot";
 
-import { isProductionApiUnavailable } from "../errors";
+import { isProductionForbidden } from "../errors";
 
 import { OrderLoadError } from "./OrderLoadError";
 
@@ -28,22 +28,34 @@ interface ProductionQueryState {
   refetch: () => unknown;
 }
 
+const NO_PRODUCTION_PERMISSION = (
+  <Alert tone="info" title="Không xem được lệnh sản xuất">
+    Tài khoản chưa có quyền xem lệnh sản xuất (production-orders:READ). Thông tin đơn khác vẫn hiển
+    thị bình thường.
+  </Alert>
+);
+
 /**
- * Trạng thái tải lệnh sản xuất của đơn. CONTRACT PENDING: BE chưa có endpoint → 404/405 hiện
- * thông báo trung thực, KHÔNG dựng dữ liệu giả; lỗi khác (5xx, mạng) vẫn báo lỗi + Thử lại.
+ * Trạng thái tải lệnh sản xuất ở cấp đơn — lỗi chỉ báo ở đây, KHÔNG làm hỏng trang đơn. Thiếu quyền
+ * (FE biết trước, hoặc BE trả 403) → báo không có quyền, không gọi lại; lỗi khác (5xx, mạng, dữ liệu
+ * sai định dạng) → báo lỗi + Thử lại. Danh sách rỗng KHÔNG phải lỗi — từng dòng tự báo "chưa có".
  */
-export function ProductionStatusNotice({ query }: { query: ProductionQueryState }) {
+export function ProductionStatusNotice({
+  query,
+  canRead,
+}: {
+  query: ProductionQueryState;
+  /** `production-orders:READ` — UI-only, Backend phải re-check (ProductionOrderController#list). */
+  canRead: boolean;
+}) {
+  if (!canRead) return NO_PRODUCTION_PERMISSION;
   if (!query.isError) return null;
-  const apiError = query.error instanceof ApiError ? query.error : null;
-  if (apiError && isProductionApiUnavailable(apiError)) {
-    return (
-      <Alert tone="info" title="Chưa có dữ liệu lệnh sản xuất">
-        Máy chủ chưa cung cấp API lệnh sản xuất của đơn. Trạng thái lệnh sản xuất (gốc và gia công
-        ngoài) sẽ hiển thị khi BE bổ sung endpoint.
-      </Alert>
-    );
+  if (query.error instanceof ApiError && isProductionForbidden(query.error)) {
+    return NO_PRODUCTION_PERMISSION;
   }
-  return <OrderLoadError inline error={apiError} onRetry={() => void query.refetch()} />;
+  // Lỗi gốc (không chỉ ApiError): sai hợp đồng (ZodError) phải báo "dữ liệu sai định dạng", không
+  // rơi về "không tìm thấy đơn"
+  return <OrderLoadError inline error={query.error} onRetry={() => void query.refetch()} />;
 }
 
 /* ── Theo từng dòng in ───────────────────────────────────────────────── */
@@ -68,7 +80,6 @@ function ProductionRow({ po, child = false }: { po: ProductionOrder; child?: boo
       <span className="text-ink-secondary">
         {child ? "LSX con · " : "LSX gốc · "}
         {PRODUCTION_ORDER_MODE_LABELS[po.mode]}
-        {po.subcontractorName ? ` · ${po.subcontractorName}` : ""}
       </span>
       <StatusDot domain="order" status={PRODUCTION_ORDER_STATUS_DISPLAY[po.status]} />
       {holdReason && (

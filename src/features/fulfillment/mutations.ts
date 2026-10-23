@@ -2,8 +2,8 @@
  * Fulfillment task — mutations + invalidation map (api-conventions §2.3).
  *
  * - Mọi mutation đổi task → `fulfillmentKeys.all` (list + detail của cả hai màn).
- * - Tạo task / đóng gói / kiểm tra lại còn đổi trạng thái ĐƠN (CONFIRMED → IN_FULFILMENT,
- *   IN_FULFILMENT ⇄ ON_HOLD — docs 17 §5) → màn đơn hàng và dữ liệu đơn của feature này.
+ * - Tạo task / đóng gói / kiểm tra lại còn đổi trạng thái ĐƠN (READY_TO_FULFILL → PICKING,
+ *   → PACKED, PICKING ⇄ ON_HOLD khi lệch thiết kế — BE PR #133, docs 17 §5) → màn đơn hàng và dữ liệu đơn của feature này.
  *   Tồn kho chưa đổi ở các bước này (BE chưa có dòng lấy hàng) nên không invalidate tồn.
  * - Đóng gói và kiểm tra lại KHÔNG có `successMessage` cố định: BE trả 200 cả khi lệch checksum
  *   (pack `On Hold`), toast chọn theo `packStatus` của kết quả.

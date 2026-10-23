@@ -25,6 +25,12 @@ export const PO_STATUS = {
   CANCELLED: "CANCELLED",
 } as const satisfies Record<string, PoStatus>;
 
+/** BE `PurchaseOrder.Type`: chỉ PO thường (STANDARD) sửa nháp được (`PurchaseOrder#reviseDraft`). */
+export const PO_TYPE = {
+  STANDARD: "STANDARD",
+  SUBCONTRACT: "SUBCONTRACT",
+} as const;
+
 /** BE `purchase_order_lines.status`. */
 export const PO_LINE_STATUSES = [
   "OPEN",
@@ -240,8 +246,11 @@ export const DESIGN_ARTIFACT_ROLES = [
   "PRODUCTION_INSTRUCTION",
 ] as const;
 
-/** Trạng thái đơn BE cho phép tạo task xuất kho (FulfillmentServiceImpl#createTask). */
-export const FULFILLABLE_ORDER_API_STATUSES = ["CONFIRMED", "READY_TO_FULFILL"] as const;
+/**
+ * Trạng thái đơn BE cho phép tạo task xuất kho: chỉ READY_TO_FULFILL (đã release, đã chọn kho, hàng
+ * in đã sản xuất xong) — đơn CONFIRMED phải release trước (BE PR #133, FulfillmentServiceImpl#createTask).
+ */
+export const FULFILLABLE_ORDER_API_STATUSES = ["READY_TO_FULFILL"] as const;
 
 export const PRODUCT_STATUSES = [
   "Draft",
@@ -251,6 +260,8 @@ export const PRODUCT_STATUSES = [
   "Published",
   "Inactive",
   "Discontinued",
+  // Trạng thái BE chưa biết (BE mở rộng danh sách) — hiển thị "Không rõ", không chặn cả trang.
+  "UNKNOWN",
 ] as const;
 
 export const PRODUCT_STATUS = {
@@ -261,6 +272,7 @@ export const PRODUCT_STATUS = {
   INACTIVE: "Inactive",
   PENDING_APPROVAL: "Pending Approval",
   PUBLISHED: "Published",
+  UNKNOWN: "UNKNOWN",
 } as const satisfies Record<string, ProductStatus>;
 
 export const SKU_STATUSES = ["Active", "Blocked", "Obsolete"] as const;
@@ -292,17 +304,12 @@ export const INVOICE_STATUS = {
 } as const satisfies Record<string, InvoiceStatus>;
 
 /**
- * Order — đúng 12 trạng thái của BE `order/api/OrderStatus.java` (develop, sau SCRUM-460/423/427),
+ * Order — đúng 19 trạng thái của BE `order/api/OrderStatus.java` (BE PR #133, SCRUM-239/246/247),
  * ánh xạ 1-1 với mã wire (PENDING_PAYMENT ↔ "Pending Payment"…, xem features/order/status-map.ts).
- * SCRUM-460 bỏ PAID → CONFIRMED; SCRUM-423 thêm IN_PRODUCTION / READY_TO_FULFILL (release).
+ * `IN_FULFILMENT` đã bị BE bỏ (tách PICKING / PACKED), `PAID` cũ là CONFIRMED.
  *
- * QUYẾT ĐỊNH (lệch quy tắc "docs thắng" của CLAUDE.md, chủ đích cho module order): FE khớp BE,
- * KHÔNG dựng theo 20 trạng thái của docs 17 §5 — docs tách nhiều bước (Picking, Packed…) mà BE
- * gộp vào IN_FULFILMENT, hiển thị chúng là hứa trạng thái BE không bao giờ trả.
- * mock-data.ts vẫn dùng 20 trạng thái docs; route mock gộp về trạng thái BE trước khi trả.
- *
- * Đây là các trạng thái FE HIỂU — nguồn cho bộ lọc, URL và tham số gửi BE. Trạng thái BE mới mà
- * FE chưa hỗ trợ đọc về thành `ORDER_STATUS_UNKNOWN` (xem `ORDER_READ_STATUSES`), không thêm ở đây.
+ * Đây là các trạng thái FE HIỂU — nguồn cho bộ lọc, URL và tham số gửi BE. KHÔNG gồm `UNKNOWN`:
+ * trạng thái BE lạ đọc về thành `ORDER_STATUS_UNKNOWN` (xem `ORDER_READ_STATUSES`).
  */
 export const ORDER_STATUSES = [
   "Draft",
@@ -310,19 +317,26 @@ export const ORDER_STATUSES = [
   "Confirmed",
   "In Production",
   "Ready to Fulfill",
-  "In Fulfilment",
+  "Picking",
+  "Partially Fulfilled",
+  "Packed",
   "On Hold",
   "Shipped",
+  "Delivery Failed",
   "Delivered",
+  "Return Requested",
+  "Returned",
+  "Refunded",
+  "Partially Refunded",
   "Completed",
   "Cancelled",
-  "Returned",
+  "Closed",
 ] as const;
 
 /**
- * Trạng thái phòng thủ khi đọc: BE trả giá trị ngoài `ORDER_STATUSES` (BE thêm trạng thái mới
- * trước FE) → hiển thị "Không rõ" (lib/status-map), không có thao tác nào. Chỉ để ĐỌC — không bao
- * giờ là giá trị lọc / gửi BE.
+ * Trạng thái phòng thủ khi đọc: BE trả chuỗi ngoài 19 trạng thái đã biết (BE thêm sau, hoặc mã cũ
+ * IN_FULFILMENT / PAID) → hiển thị "Không rõ", không có chuyển tiếp / thao tác nào. Chỉ để ĐỌC —
+ * không bao giờ là giá trị lọc / gửi BE.
  */
 export const ORDER_STATUS_UNKNOWN = "UNKNOWN";
 
@@ -427,3 +441,20 @@ export type SupplierChannel = (typeof SUPPLIER_CHANNELS)[number];
 export type TransferStatus = (typeof TRANSFER_STATUSES)[number];
 export type TransferReason = (typeof TRANSFER_REASONS)[number];
 export type LoadStatus = (typeof LOAD_STATUSES)[number];
+
+// Backend StockAdjustmentStatus (SCRUM-424); preserve wire values.
+export const STOCK_ADJUSTMENT_STATUSES = [
+  "PENDING_APPROVAL",
+  "POSTED",
+  "REJECTED",
+  "WITHDRAWN",
+] as const;
+
+export const STOCK_ADJUSTMENT_STATUS = {
+  PENDING_APPROVAL: "PENDING_APPROVAL",
+  POSTED: "POSTED",
+  REJECTED: "REJECTED",
+  WITHDRAWN: "WITHDRAWN",
+} as const satisfies Record<string, StockAdjustmentStatus>;
+
+export type StockAdjustmentStatus = (typeof STOCK_ADJUSTMENT_STATUSES)[number];

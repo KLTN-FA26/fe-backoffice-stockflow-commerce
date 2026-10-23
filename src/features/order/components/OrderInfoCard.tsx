@@ -1,5 +1,9 @@
+import { Fragment } from "react";
+
+import { ORDER_DELIVERY_FAILURE_LABELS, WAREHOUSE_PERMISSIONS } from "@/constants";
+import { usePermissionChecker } from "@/lib/auth";
 import { formatDate, formatDateTime } from "@/lib/format/date";
-import { useWarehouseOptions } from "@/lib/references/warehouse-options";
+import { useWarehouseDirectory } from "@/lib/references/warehouse-options";
 
 import type { Order } from "../types";
 
@@ -10,20 +14,39 @@ interface OrderInfoCardProps {
 const EMPTY = "—";
 
 /**
- * Kho xuất đã chọn khi release (SCRUM-423). Tên kho tra qua `GET /warehouses` — ORDER_COORDINATOR
- * chưa được cấp `warehouse-warehouses:READ` (BE seed) nên có thể 403 → hiện mã kho thay vì lỗi.
+ * Kho xuất đã chọn khi release (SCRUM-423). Tên kho tra qua danh mục `GET /warehouses` (mọi trạng
+ * thái — kho có thể đã ngừng hoạt động sau khi release), chỉ khi có `warehouse-warehouses:READ`:
+ * thiếu quyền (vd ORDER_COORDINATOR trước BE V20261022000100) thì không gọi API, báo không xem được tên.
+ * UI-only — Backend phải re-check (WarehouseController @RequiresPermission warehouse-warehouses:READ).
  */
 function WarehouseName({ warehouseId }: { warehouseId: string }) {
-  const { data } = useWarehouseOptions();
+  const can = usePermissionChecker();
+  const canRead = can(WAREHOUSE_PERMISSIONS.read);
+  const { data } = useWarehouseDirectory(canRead);
   const warehouse = data?.find((w) => w.warehouseId === warehouseId);
-  return warehouse ? (
-    <span>{warehouse.name}</span>
-  ) : (
+  if (warehouse) return <span>{warehouse.name}</span>;
+  if (!canRead) {
+    return (
+      <span className="text-ink-secondary" title={warehouseId}>
+        Đã chọn kho — tài khoản chưa có quyền xem tên kho
+      </span>
+    );
+  }
+  return (
     <span className="font-[family-name:var(--font-mono)] text-xs" title={warehouseId}>
       {warehouseId}
     </span>
   );
 }
+
+/** Mốc thời gian vòng đời đơn (BE PR #133) — chỉ hiện mốc đã có. */
+const MILESTONES = [
+  ["packedAt", "Đóng gói xong"],
+  ["shippedAt", "Bàn giao vận chuyển"],
+  ["deliveredAt", "Đã giao"],
+  ["completedAt", "Hoàn tất"],
+  ["closedAt", "Đã đóng sổ"],
+] as const satisfies readonly (readonly [keyof Order, string])[];
 
 export function OrderInfoCard({ order }: OrderInfoCardProps) {
   return (
@@ -57,6 +80,25 @@ export function OrderInfoCard({ order }: OrderInfoCardProps) {
           <>
             <dt className="text-ink-secondary">Release lúc</dt>
             <dd className="text-ink-primary tabular-nums">{formatDateTime(order.releasedAt)}</dd>
+          </>
+        )}
+        {MILESTONES.map(([key, label]) => {
+          const value = order[key];
+          return value ? (
+            <Fragment key={key}>
+              <dt className="text-ink-secondary">{label}</dt>
+              <dd className="text-ink-primary tabular-nums">{formatDateTime(value)}</dd>
+            </Fragment>
+          ) : null;
+        })}
+        {order.deliveryFailureReason && (
+          <>
+            <dt className="text-ink-secondary">Giao thất bại</dt>
+            <dd className="text-ink-primary">
+              {order.deliveryFailureReason === "UNKNOWN"
+                ? "Không rõ"
+                : ORDER_DELIVERY_FAILURE_LABELS[order.deliveryFailureReason]}
+            </dd>
           </>
         )}
       </dl>

@@ -1,46 +1,64 @@
 /**
- * Lệnh sản xuất của đơn — HỢP ĐỒNG ĐÃ THỐNG NHẤT, BE CHƯA CÓ ENDPOINT.
+ * Lệnh sản xuất của đơn — `GET /production/orders?salesOrderId=…` (BE ProductionOrderController#list,
+ * `production-orders:READ`). Hợp đồng chép từ BE develop 5683fe14:
+ * `ApiResponse<PageResponse<ProductionOrderRowResponse>>` — client đã bóc `data`, còn lại trang
+ * `{items, page, size, totalElements, totalPages, hasNext, hasPrevious}`. Jackson `non_null` → field
+ * null bị BỎ khỏi JSON (không phải `null`) nên field tuỳ chọn là `nullish`.
  *
- * CONTRACT PENDING (coordinator duyệt B0, 2026-10-11): BE develop chỉ có bảng
- * `production.production_order` (V20261010000200) và quyền `production-orders`, chưa có
- * controller. FE gọi `GET /orders/{orderId}/production-orders`; chỉ mock trả dữ liệu. Với BE
- * thật endpoint trả 404/405 → UI báo "chưa có API sản xuất", KHÔNG dựng dữ liệu giả.
- * Tên field lấy từ cột DB (snake_case → camelCase) để BE dựng DTO không lệch.
+ * `salesOrderId` không tồn tại → 200 trang rỗng (BE chỉ lọc, không kiểm đơn). Row không có tên nhà
+ * gia công / trạng thái trước khi treo — chỉ có ở endpoint chi tiết, FE không gọi.
  *
- * docs 19 BR-01: mỗi dòng tuỳ chỉnh có đúng 1 LSX gốc; ngoại lệ duy nhất là LSX con khi tách
- * gia công (BR-12) — `parentId` trỏ về LSX gốc, mode luôn SUBCONTRACTED.
+ * docs 19 BR-01: mỗi dòng tuỳ chỉnh có đúng 1 LSX gốc; LSX con (tách gia công BR-12, bù thiếu /
+ * làm lại) kế thừa `salesOrderLineId` của gốc và có `parentId` trỏ về gốc.
  */
 
 import { z } from "zod";
 
 import { PRODUCTION_ORDER_MODES, PRODUCTION_ORDER_STATUSES } from "@/constants/orders";
 
+/** BE `ProductionOrder.Type` — LSX mẫu (SAMPLE) không gắn đơn bán. */
+export const PRODUCTION_ORDER_TYPES = ["SAMPLE", "ORDER"] as const;
+
+/** BE `ProductionOrderRowResponse` — chỉ các field FE dùng + định danh (zod bỏ field thừa). */
 export const productionOrderDtoSchema = z.object({
-  productionOrderId: z.string(),
-  /** Cột `order_number` — mã LSX hiển thị. */
-  productionOrderNumber: z.string(),
-  salesOrderLineId: z.string(),
-  /** LSX gốc của LSX con gia công; null với LSX gốc. */
-  parentId: z.string().nullish(),
+  id: z.string(),
+  /** Mã LSX hiển thị, dạng `LSX-yyyyMMdd-NNNN`. */
+  orderNumber: z.string(),
+  type: z.enum(PRODUCTION_ORDER_TYPES),
   mode: z.enum(PRODUCTION_ORDER_MODES),
   status: z.enum(PRODUCTION_ORDER_STATUSES),
-  /** Trạng thái trước khi treo — chỉ có khi status = ON_HOLD. */
-  statusBeforeHold: z.enum(PRODUCTION_ORDER_STATUSES).nullish(),
   holdReason: z.string().nullish(),
   plannedQuantity: z.number().int(),
   goodQuantity: z.number().int(),
   dueDate: z.string().nullish(),
-  /** Nhà gia công — chỉ LSX SUBCONTRACTED. */
-  subcontractorName: z.string().nullish(),
+  /** Null (vắng) với LSX mẫu. */
+  salesOrderId: z.string().nullish(),
+  salesOrderLineId: z.string().nullish(),
+  /** LSX gốc của LSX con; vắng với LSX gốc. */
+  parentId: z.string().nullish(),
+  createdAt: z.string(),
 });
 
-export const productionOrderListDtoSchema = z.array(productionOrderDtoSchema);
+export const productionOrderPageDtoSchema = z.object({
+  items: z.array(productionOrderDtoSchema),
+  page: z.number().int().nonnegative(),
+  size: z.number().int().positive(),
+  totalElements: z.number().int().nonnegative(),
+  totalPages: z.number().int().nonnegative(),
+  hasNext: z.boolean(),
+  hasPrevious: z.boolean(),
+});
 
-/** Model FE — nullish → nullable để UI không phải phân biệt vắng key / null. */
-export const productionOrderSchema = productionOrderDtoSchema.extend({
+/** Model FE — LSX của một dòng đơn (đã lọc LSX mẫu / thiếu dòng); nullish → nullable. */
+export const productionOrderSchema = z.object({
+  productionOrderId: z.string(),
+  productionOrderNumber: z.string(),
+  salesOrderLineId: z.string(),
   parentId: z.string().nullable(),
-  statusBeforeHold: z.enum(PRODUCTION_ORDER_STATUSES).nullable(),
+  mode: z.enum(PRODUCTION_ORDER_MODES),
+  status: z.enum(PRODUCTION_ORDER_STATUSES),
   holdReason: z.string().nullable(),
+  plannedQuantity: z.number().int(),
+  goodQuantity: z.number().int(),
   dueDate: z.string().nullable(),
-  subcontractorName: z.string().nullable(),
 });

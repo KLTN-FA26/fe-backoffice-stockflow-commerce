@@ -14,9 +14,9 @@ import type { CreditHold, Order, OrderReadStatus, ProductionOrder } from "./type
 
 /**
  * Trạng thái cần người xử lý tay → gắn viền cảnh báo ở row (data-table-mode-a).
- * Trong các trạng thái BE chỉ ON_HOLD là "đang chờ xử lý ngoại lệ".
+ * Ngoại lệ chờ nhân viên quyết: ON_HOLD (giữ đơn) và DELIVERY_FAILED (giao thất bại — giao lại hoặc trả về).
  */
-const FLAGGED_STATUSES: readonly OrderReadStatus[] = ["On Hold"];
+const FLAGGED_STATUSES: readonly OrderReadStatus[] = ["On Hold", "Delivery Failed"];
 
 export function shouldFlagOrderRow(order: Pick<Order, "status">): boolean {
   return FLAGGED_STATUSES.includes(order.status);
@@ -40,13 +40,15 @@ export function depositState(
 export type CreditState = "not-applicable" | "on-hold" | "within-limit";
 
 /**
- * Trạng thái công nợ — BE không có field riêng. Đơn CREDIT ở On Hold = đang tạm giữ; `OrderResponse`
- * KHÔNG cho biết vì sao (vượt hạn mức, nợ quá hạn, hay giữ vì lý do khác) → không suy ra nguyên nhân
- * từ đây (xem `creditHoldSummary`). Đơn CREDIT trạng thái khác đã qua kiểm hạn mức.
+ * Trạng thái công nợ — BE không có field riêng. Chờ duyệt vượt hạn mức ⇔ On Hold với lý do CREDIT
+ * (BE `Order#submitOnCredit` + `holdReason`, PR #133). Đơn CREDIT bị giữ vì lý do khác (địa chỉ, thiết
+ * kế, giữ tay) đã qua kiểm hạn mức lúc xác nhận → "within-limit". Số liệu vượt bao nhiêu: `creditHoldSummary`.
  */
-export function creditState(order: Pick<Order, "paymentTerm" | "status">): CreditState {
+export function creditState(
+  order: Pick<Order, "paymentTerm" | "status" | "holdReason">,
+): CreditState {
   if (order.paymentTerm !== "CREDIT") return "not-applicable";
-  return order.status === "On Hold" ? "on-hold" : "within-limit";
+  return order.status === "On Hold" && order.holdReason === "CREDIT" ? "on-hold" : "within-limit";
 }
 
 /** Phần vượt hạn mức: dư nợ + giá trị đơn − hạn mức (docs 14 BR-06). Không âm. */
@@ -181,16 +183,20 @@ export interface ReleaseBlocker {
  * bấm thử. BR-PRD-08 (mẫu duyệt) và công nợ quá hạn FE không biết trước → chỉ BE báo khi release.
  */
 export function releaseBlockers(
-  order: Pick<Order, "status" | "paymentTerm" | "depositReceivedAt">,
+  order: Pick<Order, "status" | "paymentTerm" | "depositReceivedAt" | "holdReason">,
 ): ReleaseBlocker[] {
   const blockers: ReleaseBlocker[] = [];
   // docs 19 BR-09 / BE ORDER_DEPOSIT_NOT_RECEIVED: đơn cọc chưa đủ cọc
   if (order.status === "Pending Payment" && depositState(order) === "awaiting") {
     blockers.push({ rule: "BR-PRD-09", message: "Đơn đặt cọc chưa nhận đủ tiền cọc." });
   }
-  // docs 17 BR-02 / docs 14 BR-06: đơn công nợ đang tạm giữ chưa được duyệt. Đơn không mang lý do
-  // giữ (vượt hạn mức / nợ quá hạn) → không nêu nguyên nhân cụ thể.
-  if (order.status === "On Hold" && order.paymentTerm === "CREDIT") {
+  // docs 17 BR-02 / docs 14 BR-06: đơn công nợ vượt hạn mức chưa được duyệt — chỉ giữ lý do CREDIT
+  // (BE ORDER_NOT_ON_CREDIT_HOLD với lý do khác); đơn giữ vì lý do khác không bị nói là "chưa duyệt".
+  if (
+    order.status === "On Hold" &&
+    order.paymentTerm === "CREDIT" &&
+    order.holdReason === "CREDIT"
+  ) {
     blockers.push({ rule: "BR-02", message: "Đơn công nợ đang tạm giữ, chưa được duyệt." });
   }
   return blockers;
@@ -198,13 +204,27 @@ export function releaseBlockers(
 
 /* ── Huỷ đơn ──────────────────────────────────────────────────────────── */
 
-/** Hệ quả huỷ theo trạng thái — docs 17 §4.4–4.5, docs 19 BR-10. */
-export function cancelConsequence(status: OrderReadStatus): string | null {
-  if (status === "In Production") {
-    return "Đơn đang sản xuất: lệnh chưa in sẽ huỷ và trả phôi về kho; lệnh đã in tính phí sản xuất (docs 19 BR-10).";
+/**
+ * Hệ quả huỷ theo trạng thái — docs 17 §4.4–4.5, docs 19 BR-10, BE `Order#cancel` (PR #133).
+ * Đơn On Hold: theo trạng thái đã bị giữ (`statusBeforeHold`) nếu biết. Packed / Partially Fulfilled
+ * trở đi BE không cho huỷ (`requireNotPacked`, BR-ORD-004) → không có câu nào gợi ý huỷ được.
+ */
+export function cancelConsequence(
+  status: OrderReadStatus,
+  statusBeforeHold?: OrderReadStatus | null,
+): string | null {
+  const effective = status === "On Hold" && statusBeforeHold ? statusBeforeHold : status;
+  switch (effective) {
+    // BE PrintRunService#onOrderCancelled: LSX chưa in → huỷ; đang in / gia công ngoài → treo để xưởng
+    // dừng việc, quản lý xử lý phôi + hàng đã in (BR-PRD-10). Form huỷ KHÔNG gửi retainedPercent /
+    // agreedFee (OrderCancelForm) → không hứa phí sản xuất (docs 19 BR-10 chỉ áp dụng khi giữ phí).
+    case "In Production":
+      return "Đơn đang sản xuất: lệnh sản xuất chưa in sẽ được huỷ; lệnh đang in hoặc gia công ngoài sẽ được treo để xưởng xử lý phôi và hàng đã in. Thao tác huỷ này không áp dụng phí huỷ.";
+    case "Ready to Fulfill":
+      return "Đơn đã release cho kho nhưng chưa lấy hàng: huỷ sẽ nhả giữ chỗ tồn (docs 17 BR-03).";
+    case "Picking":
+      return "Kho đang lấy hàng: huỷ sẽ dừng lấy hàng và put-back hàng đã lấy về vị trí (docs 17 BR-03).";
+    default:
+      return null;
   }
-  if (status === "Ready to Fulfill" || status === "In Fulfilment") {
-    return "Đơn đã giao kho: huỷ sẽ dừng lấy hàng và put-back hàng đã lấy (docs 17 BR-03).";
-  }
-  return null;
 }

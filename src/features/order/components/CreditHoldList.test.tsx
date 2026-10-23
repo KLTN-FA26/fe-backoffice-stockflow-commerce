@@ -21,11 +21,13 @@ import type { RouteHandler } from "../__fixtures__/render";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
+// BE CreditHoldResponse.order (staff) luôn mang holdReason CREDIT cho đơn vượt hạn mức (PR #133)
 const heldOrder = {
   ...apiOrder,
   status: "ON_HOLD" as const,
   paymentTerm: "CREDIT" as const,
   paymentStatus: "ON_CREDIT" as const,
+  holdReason: "CREDIT" as const,
 };
 const hold = {
   order: heldOrder,

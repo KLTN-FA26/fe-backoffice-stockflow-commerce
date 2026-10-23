@@ -31,6 +31,19 @@ describe("fulfillmentErrorMessage — cùng mã BE, nghĩa khác theo thao tác"
     );
   });
 
+  it("PICK_TASK_STATE_CONFLICT (mã thật của BE khi task / đơn sai trạng thái) dùng câu của CONFLICT", () => {
+    const stateConflict = new ApiError(409, "PICK_TASK_STATE_CONFLICT", "English");
+    expect(fulfillmentErrorMessage(stateConflict, "create")).toBe(MSG.createConflict);
+    expect(fulfillmentErrorMessage(stateConflict, "assign")).toBe(MSG.assignConflict);
+    expect(fulfillmentErrorMessage(stateConflict, "pick")).toBe(MSG.stale);
+    expect(fulfillmentErrorMessage(stateConflict, "reverify")).toBe(MSG.reverifyConflict);
+    expect(fulfillmentErrorMessage(stateConflict, "artifact", { onDesignHold: true })).toBe(
+      MSG.artifactMismatch,
+    );
+    expect(fulfillmentErrorMessage(stateConflict, "artifact")).toBe(MSG.artifactUnavailable);
+    expect(isStaleFulfillmentError(stateConflict)).toBe(true);
+  });
+
   it("VALIDATION_FAILED khi gán / tạo = người được gán không hợp lệ; chỗ khác = câu chung", () => {
     expect(fulfillmentErrorMessage(invalid, "assign")).toBe(MSG.assigneeInvalid);
     expect(fulfillmentErrorMessage(invalid, "create")).toBe(MSG.assigneeInvalid);

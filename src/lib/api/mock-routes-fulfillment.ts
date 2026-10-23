@@ -7,6 +7,8 @@
  * VALIDATION_FAILED kèm message tiếng Anh — FE tự dịch theo ngữ cảnh.
  */
 
+import { PICK_API_STATUSES } from "@/constants";
+
 import { registerMockRoute } from "./mock-adapter";
 import { toBackendRoles } from "./mock-backend-roles";
 import {
@@ -27,6 +29,7 @@ import {
 import {
   backendOrderStatusOf,
   lockedChecksumOf,
+  putMockOrderOnDesignHold,
   setMockOrderStatus,
 } from "./mock-routes-orders-store";
 import {
@@ -123,8 +126,15 @@ function registerTaskReadRoutes(): void {
     if (page < 0 || size < 1 || size > BE_MAX_PAGE_SIZE) {
       return beError(400, "UNSUPPORTED_PARAMETER", "Unsupported page parameters");
     }
+    // BE `parseStatus`: PickStatus (any case), unknown value → 400 UNSUPPORTED_PARAMETER.
+    const status = readString(([] as unknown[]).concat(params.status ?? [])[0]).toUpperCase();
+    if (status && !PICK_API_STATUSES.some((known) => known === status)) {
+      return beError(400, "UNSUPPORTED_PARAMETER", "Unknown pick status");
+    }
     const actor = await currentActor();
-    const all = [...(await getFulfillmentStore()).values()].sort(newestFirst);
+    const all = [...(await getFulfillmentStore()).values()]
+      .filter((task) => !status || task.pickStatus === status)
+      .sort(newestFirst);
     // BE `listTasks`: quản lý / điều phối thấy hết → QC chỉ thấy kiện đang giữ → NV kho thấy của mình
     let visible: MockTask[];
     if (hasAnyRole(actor, "WAREHOUSE_MANAGER", "ORDER_COORDINATOR")) visible = all;
@@ -208,15 +218,14 @@ function registerAssignmentRoutes(): void {
     }
     const order = await findMockOrder(orderId);
     if (!order) return taskNotFound();
-    // BE `createTask`: READY_TO_FULFILL (đã release, sản xuất xong nếu có) hoặc CONFIRMED chưa ai
-    // release; `Order#startFulfilment` từ chối đơn CONFIRMED còn dòng in (BR-PRD-06)
-    const status = await backendOrderStatusOf(orderId);
-    if (status !== "CONFIRMED" && status !== "READY_TO_FULFILL") {
-      return conflict(`Only a confirmed or released order can enter fulfillment; it is ${status}`);
-    }
-    if (status === "CONFIRMED" && order.lines.some((line) => line.designId)) {
-      return conflict(
-        `Order ${order.orderNumber} cannot be released from status CONFIRMED; release it to production first: it has lines to print`,
+    // BE PR #133: chỉ đơn READY_TO_FULFILL (đã release) mới vào xuất kho — đơn CONFIRMED phải release trước
+    const orderStatus = await backendOrderStatusOf(orderId);
+    if (orderStatus !== "READY_TO_FULFILL") {
+      // BE `FulfillmentServiceImpl#createTask`: PICK_TASK_STATE_CONFLICT (409), không phải CONFLICT chung
+      return beError(
+        409,
+        "PICK_TASK_STATE_CONFLICT",
+        `Only a released order (READY_TO_FULFILL) can enter fulfillment; it is ${orderStatus ?? "UNKNOWN"}`,
       );
     }
     const now = new Date().toISOString();
@@ -231,7 +240,8 @@ function registerAssignmentRoutes(): void {
       evidence: [],
     };
     store.set(task.taskId, task);
-    setMockOrderStatus(orderId, "IN_FULFILMENT");
+    // READY_TO_FULFILL → PICKING, cùng giao dịch với việc tạo task (BE `orders.startPicking`)
+    setMockOrderStatus(orderId, "PICKING");
     return beOk(toTaskResponse(task), 201);
   });
 
@@ -269,10 +279,11 @@ function registerPackRoutes(): void {
     if (verifyDesigns(task, order, false)) {
       task.packStatus = "PACKED";
       task.packedAt = new Date().toISOString();
+      setMockOrderStatus(task.orderId, "PACKED");
     } else {
-      // X-CHK: lệch → pack + đơn ON_HOLD, vẫn HTTP 200
+      // X-CHK: lệch → pack + đơn ON_HOLD (lý do DESIGN_MISMATCH, về lại bước đang làm), vẫn HTTP 200
       task.packStatus = "ON_HOLD";
-      setMockOrderStatus(task.orderId, "ON_HOLD");
+      await putMockOrderOnDesignHold(task.orderId);
     }
     return beOk(toTaskResponse(task));
   });
@@ -295,7 +306,8 @@ function registerPackRoutes(): void {
     if (verifyDesigns(task, order, true)) {
       task.packStatus = "PACKED";
       task.packedAt = new Date().toISOString();
-      setMockOrderStatus(task.orderId, "IN_FULFILMENT");
+      // Kiểm tra lại đạt: gỡ giữ DESIGN_MISMATCH rồi đóng gói xong → PACKED (BE `markPacked`)
+      setMockOrderStatus(task.orderId, "PACKED");
     }
     return beOk(toTaskResponse(task));
   });

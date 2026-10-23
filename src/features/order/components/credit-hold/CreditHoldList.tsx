@@ -19,7 +19,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { RefetchBar } from "@/components/shared/RefetchBar";
 
-import { allowedOrderActions } from "../../lifecycle";
+import { allowedOrderActions, orderActionContextOf } from "../../lifecycle";
 import { useCreditHolds } from "../../queries";
 import { OrderLoadError } from "../OrderLoadError";
 import { OrderPermissionGate } from "../OrderPermissionGate";
@@ -83,10 +83,10 @@ function CreditHoldListContent() {
     { enabled: canRead },
   );
   const columns = buildCreditHoldColumns((row: CreditHold) => {
-    // Cùng gate với trang chi tiết: On Hold + CREDIT + quyền APPROVE
-    const codes = allowedOrderActions(row.order.status, can, {
-      paymentTerm: row.order.paymentTerm,
-    }).map((a) => a.code);
+    // Cùng gate với trang chi tiết: On Hold + CREDIT + lý do giữ CREDIT + quyền APPROVE
+    const codes = allowedOrderActions(row.order.status, can, orderActionContextOf(row.order)).map(
+      (a) => a.code,
+    );
     return (
       <div className="flex justify-end gap-1.5">
         {codes.includes("credit-approve") && <CreditApproveAction order={row.order} compact />}

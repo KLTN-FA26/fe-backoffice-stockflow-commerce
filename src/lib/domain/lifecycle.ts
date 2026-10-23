@@ -42,14 +42,15 @@ import type {
   PutawayStatus,
   MoveTaskStatus,
 } from "@/lib/mock-data";
-// OrderStatus lấy từ constants/statuses.ts (không phải mock-data) — 12 trạng thái BE
-// (OrderStatus.java) FE hỗ trợ, dùng cho zod enum / lifecycle / filter UI; OrderReadStatus thêm
-// UNKNOWN (trạng thái BE mới FE chưa hỗ trợ) — chỉ đọc, không chuyển tiếp được.
+// OrderStatus lấy từ constants/statuses.ts (không phải mock-data) — đúng 19 trạng thái BE
+// (OrderStatus.java, PR #133), dùng cho zod enum / lifecycle / filter UI; OrderReadStatus thêm
+// UNKNOWN (trạng thái BE FE chưa hiểu) — chỉ đọc, không chuyển tiếp được, không là đích.
 // ReceiptStatus cũng vậy — 6 trạng thái docs 03 §5.1 (mock-data chỉ có 5, thiếu "In QC").
 // PickStatus / PackStatus: các trạng thái BE `/fulfillment/tasks` phát ra được (SCRUM-437).
 import type {
   LoadStatus,
   OrderReadStatus,
+  OrderStatus,
   PackStatus,
   PickStatus,
   ReceiptStatus,
@@ -220,31 +221,51 @@ export const MOVE_TRANSITIONS: Record<MoveTaskStatus, readonly MoveTaskStatus[]>
 
 /* ── Module 14: Order ────────────────────────────────────────────────── */
 
-// Chép nguyên BE `order/api/OrderStatus.java#canTransitionTo` (develop, 12 trạng thái sau
-// SCRUM-460/423/427) — FE khớp BE, không dựng theo docs 17 (xem QUYẾT ĐỊNH ở ORDER_STATUSES).
-// Mã wire ↔ nhãn FE: features/order/status-map.ts (CONFIRMED ↔ "Confirmed"…).
-export const ORDER_TRANSITIONS: Record<OrderReadStatus, readonly OrderReadStatus[]> = {
-  // DRAFT → CONFIRMED / ON_HOLD: đơn công nợ trong / vượt hạn mức (docs 14 BR-06, SCRUM-427)
+// Chép nguyên BE `order/api/OrderStatus.java#canTransitionTo` (19 trạng thái, BE PR #133 — bảng chuyển
+// cũng nằm ở DB `ordering.order_status_transition`, trigger chặn mọi nhảy cóc). FE khớp BE, không dựng
+// theo docs 17. Mã wire ↔ nhãn FE: features/order/status-map.ts (PENDING_PAYMENT ↔ "Pending Payment"…).
+export const ORDER_TRANSITIONS: Record<OrderReadStatus, readonly OrderStatus[]> = {
   Draft: ["Pending Payment", "Confirmed", "On Hold", "Cancelled"],
-  // docs 15 BR-02: đơn cọc chỉ Confirmed khi đủ cọc; không đi thẳng sang sản xuất / kho
   "Pending Payment": ["Confirmed", "Cancelled"],
-  // Release (SCRUM-423, docs 17 §4.2 bước 5–6): có dòng in → In Production, chỉ hàng sẵn →
-  // Ready to Fulfill; In Fulfilment: kho nhận đơn chỉ-hàng-sẵn chưa release
-  Confirmed: ["In Production", "Ready to Fulfill", "In Fulfilment", "On Hold", "Cancelled"],
-  // docs 19 BR-06: rời In Production khi mọi lệnh sản xuất (gốc + con) Completed
+  Confirmed: ["In Production", "Ready to Fulfill", "On Hold", "Cancelled"],
   "In Production": ["Ready to Fulfill", "On Hold", "Cancelled"],
-  "Ready to Fulfill": ["In Fulfilment", "On Hold", "Cancelled"],
-  "In Fulfilment": ["Shipped", "On Hold", "Cancelled"],
-  // Duyệt công nợ → Confirmed; từ chối + đổi sang trả trước/cọc → Pending Payment (docs 15 §4.3)
-  "On Hold": ["Confirmed", "Pending Payment", "In Fulfilment", "Cancelled"],
-  // BE BR-031 (OrderStatus#canTransitionTo); docs 17 BR-03 (§6 / §4.5): từ SHIPPED hàng đã ở
-  // chỗ hãng vận chuyển — không còn Cancelled, phải đi flow trả hàng.
-  Shipped: ["Delivered"],
-  Delivered: ["Completed", "Returned"],
-  // Terminal (OrderStatus#isTerminal) — docs 17 BR-05: bất biến về nội dung
-  Completed: [],
+  // PACKED trực tiếp: đơn chỉ có hàng in (17 §4.2.6)
+  "Ready to Fulfill": ["Picking", "Packed", "On Hold", "Cancelled"],
+  Picking: ["Packed", "Partially Fulfilled", "On Hold", "Cancelled"],
+  // Giao một phần (G4-Q3): phần còn lại đóng gói / bàn giao / đóng bởi nhân viên → đơn theo các lô giao
+  "Partially Fulfilled": [
+    "Packed",
+    "Shipped",
+    "Delivery Failed",
+    "Delivered",
+    "Returned",
+    "On Hold",
+  ],
+  // Không còn Cancelled: kiện đã đóng xong thì đi luồng trả hàng (quyết định 17/10, BR-ORD-004)
+  Packed: ["Shipped", "Partially Fulfilled", "On Hold"],
+  // Quay lại đúng trạng thái đã bị giữ; CONFIRMED / PENDING_PAYMENT cũng là quyết định công nợ (15 §4.3)
+  "On Hold": [
+    "Confirmed",
+    "Pending Payment",
+    "In Production",
+    "Ready to Fulfill",
+    "Picking",
+    "Partially Fulfilled",
+    "Packed",
+    "Cancelled",
+  ],
+  Shipped: ["Delivered", "Delivery Failed", "Partially Fulfilled"],
+  "Delivery Failed": ["Delivered", "Returned", "Partially Fulfilled"],
+  Delivered: ["Completed", "Return Requested"],
+  // Yêu cầu trả bị từ chối → về Delivered (quyết định 21/10)
+  "Return Requested": ["Returned", "Delivered"],
+  Returned: ["Refunded", "Partially Refunded"],
+  Refunded: ["Closed"],
+  "Partially Refunded": ["Closed"],
+  Completed: ["Closed"],
+  // Terminal (OrderStatus#isTerminal)
   Cancelled: [],
-  Returned: [],
-  // Trạng thái BE mới FE chưa hiểu → không mở thao tác nào chỉ vì parse được (KHÔNG phải terminal).
+  Closed: [],
+  // Trạng thái BE chưa biết: không suy đoán chuyển tiếp
   UNKNOWN: [],
 };

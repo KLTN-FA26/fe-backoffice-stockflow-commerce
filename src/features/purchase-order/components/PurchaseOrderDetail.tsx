@@ -86,12 +86,13 @@ function PurchaseOrderDetailBody({ id }: { id: string }) {
             actions={d.actions}
             isMutating={d.isMutating}
             conflictError={d.conflictError}
-            // "Nhận hàng" = tạo phiếu nhận cho PO này (SCRUM-436), không còn dialog nhận thẳng
-            onAction={(act) =>
-              act.code === "receive"
-                ? router.push(ADMIN_ROUTES.receipts.createFromPo(po.poId))
-                : d.open(act.code)
-            }
+            // "Nhận hàng" = tạo phiếu nhận cho PO này (SCRUM-436), không còn dialog nhận thẳng;
+            // "Sửa nháp" = màn sửa PO nháp (BE SCRUM-462). Còn lại mở dialog xác nhận.
+            onAction={(act) => {
+              if (act.code === "receive") router.push(ADMIN_ROUTES.receipts.createFromPo(po.poId));
+              else if (act.code === "edit") router.push(ADMIN_ROUTES.purchaseOrders.edit(po.poId));
+              else d.open(act.code);
+            }}
           />
           <PoOverview po={po} />
           <PoLifecycleTimeline status={po.status} />

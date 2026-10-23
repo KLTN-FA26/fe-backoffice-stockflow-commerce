@@ -29,8 +29,8 @@ type FieldErrors = Partial<Record<"orderId" | "assignedUserId", string>>;
 
 /**
  * Đưa một đơn vào xuất kho và gán người lấy hàng (BE `POST /fulfillment/tasks`).
- * BR-01 (docs 07 §6): chỉ picking khi đơn đã Confirmed — BE nhận đơn CONFIRMED / READY_TO_FULFILL;
- * đơn có dòng in phải release sản xuất trước (BR-06).
+ * BR-01 (docs 07 §6): chỉ picking khi đơn đã release — BE (PR #133) chỉ nhận đơn READY_TO_FULFILL;
+ * đơn CONFIRMED phải release trước, đơn có dòng in phải release sản xuất trước (BR-06).
  */
 export function CreateTaskDialog({ onClose }: { onClose: () => void }) {
   const canReadOrders = useCan(ORDER_PERMISSIONS.read);
@@ -66,7 +66,7 @@ export function CreateTaskDialog({ onClose }: { onClose: () => void }) {
     <FormDialog open onOpenChange={(open) => !open && onClose()}>
       <FormDialogBody
         title={fulfillment.action.create}
-        description="Chọn đơn đã xác nhận để đưa vào xuất kho và gán nhân viên lấy hàng. Mỗi đơn chỉ có một task."
+        description="Chọn đơn đã release (sẵn sàng xuất kho) để đưa vào xuất kho và gán nhân viên lấy hàng. Mỗi đơn chỉ có một task."
         submitLabel={fulfillment.action.create}
         canSubmit={canReadOrders && canReadUsers && !orders.isError}
         isPending={create.isPending}

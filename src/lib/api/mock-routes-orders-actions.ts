@@ -1,6 +1,6 @@
 /**
  * Mock routes — thao tác điều phối đơn: release (SCRUM-423), credit hold (SCRUM-427), lệnh sản
- * xuất của đơn (CONTRACT PENDING — BE chưa có endpoint, chỉ mock trả dữ liệu).
+ * xuất của đơn (`GET /production/orders`, khớp hợp đồng BE ProductionOrderController#list).
  *
  * Thứ tự kiểm + mã lỗi chép theo BE develop: OrderReleaseService, CreditHoldService.
  */
@@ -15,7 +15,9 @@ import {
   creditProfileOf,
   error,
   findOrder,
+  holdOf,
   idParam,
+  isCreditHold,
   isCustomLine,
   mockCustomerUuid,
   ok,
@@ -33,12 +35,25 @@ async function hasApprovedSample(designId: string): Promise<boolean> {
   return designs.find((d) => d.designId === designId)?.status === "Locked";
 }
 
+/**
+ * Đơn công nợ còn tính vào dư nợ: không huỷ, và không phải đơn đang chờ quyết định công nợ (BE
+ * `CreditChecks#undeliveredCreditExposure` bỏ giữ CREDIT — chưa phải tín dụng đã cấp). Đơn công nợ bị
+ * giữ vì lý do khác (ADDRESS…) vẫn tính (BE `OrderStatus#countsTowardCreditExposure`: ON_HOLD).
+ */
+function countsTowardExposure(order: Order): boolean {
+  return (
+    paymentTermOf(order) === "CREDIT" &&
+    backendStatus(order) !== "CANCELLED" &&
+    !isCreditHold(order)
+  );
+}
+
 /** Dư nợ của khách = tổng phần chưa thu của các đơn công nợ khác còn hiệu lực. */
 async function exposureOf(order: Order): Promise<number> {
   const { orders } = await import("@/lib/mock-data");
   return orders
     .filter((o) => o.orderId !== order.orderId && o.customerId === order.customerId)
-    .filter((o) => paymentTermOf(o) === "CREDIT" && backendStatus(o) !== "CANCELLED")
+    .filter(countsTowardExposure)
     .reduce((sum, o) => sum + Math.max(0, o.grandTotal - o.amountPaid), 0);
 }
 
@@ -51,8 +66,8 @@ async function creditPositionOf(mockCustomerId: string, currency: string) {
   const profile = creditProfileOf(mockCustomerId);
   const allowsCredit = profile.allowedTerms.includes("CREDIT");
   const exposure = orders
-    .filter((o) => o.customerId === mockCustomerId && paymentTermOf(o) === "CREDIT")
-    .filter((o) => !["CANCELLED", "ON_HOLD"].includes(backendStatus(o)))
+    .filter((o) => o.customerId === mockCustomerId)
+    .filter(countsTowardExposure)
     .reduce((sum, o) => sum + Math.max(0, o.grandTotal - o.amountPaid), 0);
   return {
     customerId: mockCustomerUuid(mockCustomerId),
@@ -69,10 +84,6 @@ async function creditPositionOf(mockCustomerId: string, currency: string) {
 }
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function isCreditHold(order: Order): boolean {
-  return backendStatus(order) === "ON_HOLD" && paymentTermOf(order) === "CREDIT";
-}
 
 function readNote(body: Record<string, unknown>): string {
   return typeof body.note === "string" ? body.note.trim() : "";
@@ -100,15 +111,16 @@ function readDepositPercent(body: Record<string, unknown>): number | undefined |
 function registerReleaseRoute(): void {
   // POST /orders/:id/release {warehouseId} — BE OrderReleaseService#release
   registerMockRoute("POST", "/orders/:id/release", async (config) => {
-    const order = await findOrder(idParam(config));
-    if (!order) return error(404, "NOT_FOUND", "Resource not found");
-
+    // ReleaseOrderRequest.warehouseId @NotNull — bean validation chạy trước service (trước 404)
     const warehouseId = readBody(config).warehouseId;
     if (typeof warehouseId !== "string" || !warehouseId) {
       return error(400, "VALIDATION_FAILED", "Invalid request data", [
         { field: "warehouseId", message: "must not be null", code: "NotNull" },
       ]);
     }
+    const order = await findOrder(idParam(config));
+    if (!order) return error(404, "NOT_FOUND", "Resource not found");
+
     const { warehouses } = await import("@/lib/mock-data");
     if (!warehouses.some((w) => w.warehouseId === warehouseId)) {
       return error(404, "WAREHOUSE_NOT_FOUND", `Warehouse ${warehouseId} not found`);
@@ -127,13 +139,24 @@ function registerReleaseRoute(): void {
       );
     }
 
+    // docs 15 §4.3 bước 4, 17 BR-02: không release đơn công nợ của khách đang nợ quá hạn
+    // (BE OrderReleaseService — kiểm trước Order#release)
+    if (paymentTermOf(order) === "CREDIT" && creditProfileOf(order.customerId).hasOverdue) {
+      return error(409, "CUSTOMER_CREDIT_OVERDUE", "The customer has overdue receivables");
+    }
+
     const status = backendStatus(order);
     // BR-PRD-09 (docs 19 BR-09): đơn đặt cọc chưa nhận đủ cọc
     if (status === "PENDING_PAYMENT" && paymentTermOf(order) === "DEPOSIT") {
       return error(409, "ORDER_DEPOSIT_NOT_RECEIVED", "The deposit has not been received");
     }
+    // BE Order#release: chỉ đơn CONFIRMED — InvalidOrderTransitionException → ORDER_INVALID_TRANSITION
     if (status !== "CONFIRMED") {
-      return error(409, "CONFLICT", `Order cannot be released from status ${status}`);
+      return error(
+        409,
+        "ORDER_INVALID_TRANSITION",
+        `Order ${order.orderNumber} cannot move from ${status}: only a confirmed order can be released`,
+      );
     }
 
     // Order.java#release: có dòng in → IN_PRODUCTION, chỉ hàng sẵn → READY_TO_FULFILL
@@ -188,7 +211,8 @@ function registerCreditRoutes(): void {
     if (!isCreditHold(order)) {
       return error(409, "ORDER_NOT_ON_CREDIT_HOLD", "Order is not held over its credit limit");
     }
-    applyTransition(order, "CONFIRMED", note);
+    // BE Order#approveCredit: lý do bước lịch sử = "CREDIT_APPROVED" (ghi chú lưu ở order_credit_check)
+    applyTransition(order, "CONFIRMED", "CREDIT_APPROVED");
     return ok(toOrderResponse(order));
   });
 
@@ -220,11 +244,15 @@ function registerCreditRoutes(): void {
             reasonCode: "CREDIT_REJECTED",
             reason: `CREDIT_REJECTED: ${note}`,
             retainedAmount: 0,
+            feeReason: null,
+            feeDetail: null,
+            feeAmount: null,
           },
         });
         break;
+      // BE Order#switchTermsAfterCreditRefusal: lý do bước lịch sử = "CREDIT_REJECTED"
       case "SWITCH_TO_PREPAID":
-        applyTransition(order, "PENDING_PAYMENT", note, { paymentTerm: "PREPAID" });
+        applyTransition(order, "PENDING_PAYMENT", "CREDIT_REJECTED", { paymentTerm: "PREPAID" });
         break;
       case "SWITCH_TO_DEPOSIT": {
         const depositPercent = readDepositPercent(body);
@@ -232,7 +260,7 @@ function registerCreditRoutes(): void {
           return error(400, "VALIDATION_FAILED", "Invalid request data", DEPOSIT_PERCENT_INVALID);
         }
         // Bỏ trống → % cọc mặc định của hồ sơ khách (BE `terms.depositPercent()`)
-        applyTransition(order, "PENDING_PAYMENT", note, {
+        applyTransition(order, "PENDING_PAYMENT", "CREDIT_REJECTED", {
           paymentTerm: "DEPOSIT",
           depositPercent: depositPercent ?? profile.depositPercent ?? undefined,
         });
@@ -245,17 +273,29 @@ function registerCreditRoutes(): void {
   });
 }
 
-/** Trạng thái LSX gốc suy từ trạng thái đơn (docs 19 §5.1 + docs 17 §4.2 bước 5–6). */
-function parentStatusFor(status: string): string | null {
-  switch (status) {
+/**
+ * Trạng thái LSX gốc suy từ trạng thái đơn (docs 19 §5.1 + docs 17 §4.2 bước 5–6). Đơn ON_HOLD theo
+ * trạng thái đã bị giữ (giữ công nợ: chưa release → chưa có LSX).
+ */
+function parentStatusFor(order: Order): string | null {
+  const status = backendStatus(order);
+  const effective = status === "ON_HOLD" ? holdOf(order)?.statusBeforeHold : status;
+  switch (effective) {
     case "IN_PRODUCTION":
       return "PRINTING";
     case "READY_TO_FULFILL":
-    case "IN_FULFILMENT":
+    case "PICKING":
+    case "PARTIALLY_FULFILLED":
+    case "PACKED":
     case "SHIPPED":
+    case "DELIVERY_FAILED":
     case "DELIVERED":
-    case "COMPLETED":
+    case "RETURN_REQUESTED":
     case "RETURNED":
+    case "REFUNDED":
+    case "PARTIALLY_REFUNDED":
+    case "COMPLETED":
+    case "CLOSED":
       return "COMPLETED";
     case "CANCELLED":
       return "CANCELLED";
@@ -264,49 +304,71 @@ function parentStatusFor(status: string): string | null {
   }
 }
 
-function registerProductionRoute(): void {
-  // GET /orders/:id/production-orders — CONTRACT PENDING (features/order/production-schemas.ts)
-  registerMockRoute("GET", "/orders/:id/production-orders", async (config) => {
-    const order = await findOrder(idParam(config));
-    if (!order) return error(404, "NOT_FOUND", "Resource not found");
-    const parentStatus = parentStatusFor(backendStatus(order));
-    // Đơn chưa release → chưa có LSX (docs 17 §4.2 bước 5: LSX sinh khi release)
-    if (!parentStatus) return ok([]);
-    const { suppliers } = await import("@/lib/mock-data");
+/** `LSX-yyyyMMdd-NNNN` như BE `ProductionOrder` — ngày đặt đơn + số thứ tự trong đơn (mock-only). */
+function productionNumber(order: Order, seq: number): string {
+  const day = order.placedAt.slice(0, 10).replaceAll("-", "");
+  return `LSX-${day}-${String(seq).padStart(4, "0")}`;
+}
 
-    return ok(
-      order.lines.filter(isCustomLine).flatMap((line, index) => {
-        const parentId = `PRD-${line.lineId}`;
-        const inProduction = parentStatus === "PRINTING";
-        // ASSUMPTION (mock-only, docs 19 BR-12): dòng in đầu tiên của đơn đang sản xuất tách
-        // 40% phần chưa xuất phôi sang gia công ngoài → có LSX con để demo cây gốc/con.
-        const splitQty = inProduction && index === 0 ? Math.floor(line.quantity * 0.4) : 0;
-        const parent = {
-          productionOrderId: parentId,
-          productionOrderNumber: `LSX-${line.lineId.replace("ORDL-", "")}`,
-          salesOrderLineId: line.lineId,
-          mode: "IN_HOUSE",
-          status: parentStatus,
-          plannedQuantity: line.quantity - splitQty,
-          goodQuantity: parentStatus === "COMPLETED" ? line.quantity - splitQty : 0,
-        };
-        if (!splitQty) return [parent];
-        return [
-          parent,
-          {
-            productionOrderId: `${parentId}-S1`,
-            productionOrderNumber: `${parent.productionOrderNumber}-S1`,
-            salesOrderLineId: line.lineId,
-            parentId,
-            mode: "SUBCONTRACTED",
-            status: "SUBCONTRACTED",
-            plannedQuantity: splitQty,
-            goodQuantity: 0,
-            subcontractorName: suppliers[0]?.name ?? null,
-          },
-        ];
-      }),
-    );
+function registerProductionRoute(): void {
+  // GET /production/orders — BE ProductionOrderController#list: trang `PageResponse` của
+  // ProductionOrderRowResponse. Mock chỉ hỗ trợ lọc `salesOrderId` (+ `type`) mà FE dùng; BE không
+  // kiểm đơn tồn tại → đơn lạ trả trang rỗng, không 404.
+  registerMockRoute("GET", "/production/orders", async (config) => {
+    const params = readParams(config);
+    const page = Math.max(0, Number(params.get("page")) || 0);
+    const size = Math.max(1, Number(params.get("size")) || 20);
+    const salesOrderId = params.get("salesOrderId");
+    const types = params.getAll("type").flatMap((t) => t.split(","));
+    const order = salesOrderId ? await findOrder(salesOrderId) : undefined;
+    // Đơn chưa release → chưa có LSX (docs 17 §4.2 bước 5: LSX sinh khi release)
+    const parentStatus = order ? parentStatusFor(order) : null;
+    if (!order || !parentStatus || (types.length > 0 && !types.includes("ORDER"))) {
+      return ok(paginatePage([], page, size));
+    }
+    const { lines, warehouseId } = toOrderResponse(order);
+    let seq = 0;
+
+    const rows = order.lines.filter(isCustomLine).flatMap((line, index) => {
+      const parentId = `PRD-${line.lineId}`;
+      const inProduction = parentStatus === "PRINTING";
+      // ASSUMPTION (mock-only, docs 19 BR-12): dòng in đầu tiên của đơn đang sản xuất tách
+      // 40% phần chưa xuất phôi sang gia công ngoài → có LSX con để demo cây gốc/con.
+      const splitQty = inProduction && index === 0 ? Math.floor(line.quantity * 0.4) : 0;
+      const common = {
+        type: "ORDER",
+        warehouseId,
+        blankSku: line.skuId,
+        designSnapshotId: lines.find((l) => l.lineId === line.lineId)?.designSnapshotId ?? null,
+        salesOrderId: order.orderId,
+        salesOrderLineId: line.lineId,
+        createdAt: order.placedAt,
+      };
+      const parent = {
+        ...common,
+        id: parentId,
+        orderNumber: productionNumber(order, ++seq),
+        mode: "IN_HOUSE",
+        status: parentStatus,
+        plannedQuantity: line.quantity - splitQty,
+        goodQuantity: parentStatus === "COMPLETED" ? line.quantity - splitQty : 0,
+      };
+      if (!splitQty) return [parent];
+      return [
+        parent,
+        {
+          ...common,
+          id: `${parentId}-S1`,
+          orderNumber: productionNumber(order, ++seq),
+          parentId,
+          mode: "SUBCONTRACTED",
+          status: "SUBCONTRACTED",
+          plannedQuantity: splitQty,
+          goodQuantity: 0,
+        },
+      ];
+    });
+    return ok(paginatePage(rows, page, size));
   });
 }
 

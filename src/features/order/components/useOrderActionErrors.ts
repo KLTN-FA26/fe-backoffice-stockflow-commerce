@@ -1,13 +1,13 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { createIdempotencyAttempt } from "@/lib/api/idempotency";
 
 import { toast } from "@/components/shared/Toast";
 
-import { isOrderConcurrencyError, mapServerFieldErrors } from "../errors";
+import { ORDER_STALE_ERROR_CODES, isOrderConcurrencyError, mapServerFieldErrors } from "../errors";
 import { orderKeys } from "../queries";
 
 import type { ApiError } from "@/lib/api/error";
@@ -44,8 +44,12 @@ export function useOrderActionErrors<F extends string>(
   const [refusal, setRefusal] = useState<OrderErrorView | null>(null);
   // Một lần thử logic theo vòng đời dialog (form chỉ mount khi mở → đóng là bỏ key)
   const [attempt] = useState(() => createIdempotencyAttempt());
+  // Chặn gửi lặp (double-click / Enter lặp): `isPending` chỉ đổi ở lần render sau, nên cú bấm thứ
+  // hai trước lúc đó vẫn lọt qua `FormDialogBody` → 2 request cùng key. Ref đổi ngay, đồng bộ.
+  const inFlight = useRef(false);
 
   const onError = (error: ApiError) => {
+    inFlight.current = false;
     attempt.settle(error);
     const view = toView(error);
     if (staleCodes.includes(error.code)) {
@@ -77,16 +81,30 @@ export function useOrderActionErrors<F extends string>(
     refusal,
     clearRefusal: () => setRefusal(null),
     onError,
+    /** Bắt đầu một lần gửi; `false` = request trước của dialog chưa có kết quả → bỏ qua cú bấm này. */
+    beginSubmit: () => {
+      if (inFlight.current) return false;
+      inFlight.current = true;
+      return true;
+    },
     /** Key cho đúng biến mutation này (cùng nội dung → cùng key). */
     idempotencyKeyFor: attempt.keyFor,
     /** Gọi khi thành công — lần thử logic đã xong. */
-    finishAttempt: attempt.reset,
+    finishAttempt: () => {
+      inFlight.current = false;
+      attempt.reset();
+    },
   };
 }
 
-/** Mã "dữ liệu cũ" theo thao tác — BE ErrorCode (develop). */
+/**
+ * Mã "dữ liệu cũ" theo thao tác — một danh sách chung `ORDER_STALE_ERROR_CODES` (errors.ts, BE
+ * ErrorCode 5683fe14): release từ trạng thái khác Confirmed trả ORDER_INVALID_TRANSITION; huỷ đơn đã
+ * đóng gói trả ORDER_NOT_CANCELLABLE; người khác đã quyết công nợ trả ORDER_NOT_ON_CREDIT_HOLD. KHÔNG
+ * gồm LOCK_TIMEOUT / ORDER_BALANCE_NOT_PAID / PAYMENT_TERM_NOT_ALLOWED (không phải dữ liệu cũ).
+ */
 export const STALE_CODES = {
-  release: ["CONFLICT", "NOT_FOUND"],
-  credit: ["ORDER_NOT_ON_CREDIT_HOLD", "NOT_FOUND"],
-  cancel: ["ORDER_NOT_CANCELLABLE", "CONFLICT", "NOT_FOUND"],
+  release: ORDER_STALE_ERROR_CODES,
+  credit: ORDER_STALE_ERROR_CODES,
+  cancel: ORDER_STALE_ERROR_CODES,
 } as const satisfies Record<string, readonly string[]>;

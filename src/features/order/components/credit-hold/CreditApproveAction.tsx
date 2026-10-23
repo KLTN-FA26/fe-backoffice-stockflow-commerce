@@ -2,7 +2,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckCircle2 } from "lucide-react";
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { ORDER_LIMITS, UI_LABELS } from "@/constants";
@@ -17,6 +16,7 @@ import { useApproveCreditHold } from "../../mutations";
 import { FormFieldError, RequiredMark } from "../FormFieldError";
 import { OrderRefusalAlert } from "../OrderRefusalAlert";
 import { STALE_CODES, useOrderActionErrors } from "../useOrderActionErrors";
+import { usePendingSafeDialog } from "../usePendingSafeDialog";
 
 import { CreditPositionPanel } from "./CreditPositionPanel";
 import { useCustomerCreditPosition } from "./useCustomerCreditPosition";
@@ -38,7 +38,9 @@ export function CreditApproveAction({
   order: CreditHoldTarget;
   compact?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  // Mutation ở đây (không ở form) để Esc / bấm ra ngoài không đóng dialog khi đang gửi
+  const mutation = useApproveCreditHold();
+  const dialog = usePendingSafeDialog(mutation.isPending);
   const label = UI_LABELS.order.actions.creditApprove;
   return (
     <>
@@ -47,37 +49,42 @@ export function CreditApproveAction({
         size="sm"
         aria-label={compact ? `${label} đơn ${order.orderNumber}` : undefined}
         className={compact ? "rounded-[var(--r-sm)]" : "w-full rounded-[var(--r-sm)]"}
-        onClick={() => setOpen(true)}
+        onClick={dialog.show}
       >
         <CheckCircle2 className="size-3.5" /> {compact ? "Duyệt" : label}
       </Button>
-      <FormDialog open={open} onOpenChange={setOpen}>
-        <ApproveForm order={order} onClose={() => setOpen(false)} />
+      <FormDialog open={dialog.open} onOpenChange={dialog.onOpenChange}>
+        <ApproveForm order={order} mutation={mutation} onClose={dialog.close} />
       </FormDialog>
     </>
   );
 }
 
-function ApproveForm({ order, onClose }: { order: CreditHoldTarget; onClose: () => void }) {
-  const { mutate: approve, isPending } = useApproveCreditHold();
+function ApproveForm({
+  order,
+  mutation,
+  onClose,
+}: {
+  order: CreditHoldTarget;
+  mutation: ReturnType<typeof useApproveCreditHold>;
+  onClose: () => void;
+}) {
+  const { mutate: approve, isPending } = mutation;
   const position = useCustomerCreditPosition(order.customerId);
   const form = useForm<CreditApprovalFormValues, unknown, CreditApprovalInput>({
     resolver: zodResolver(creditApprovalFormSchema),
     mode: "onTouched",
     defaultValues: CREDIT_APPROVAL_FORM_DEFAULTS,
   });
-  const { refusal, clearRefusal, onError, idempotencyKeyFor, finishAttempt } = useOrderActionErrors(
-    creditDecisionErrorView,
-    STALE_CODES.credit,
-    onClose,
-    {
+  const { refusal, clearRefusal, onError, beginSubmit, idempotencyKeyFor, finishAttempt } =
+    useOrderActionErrors(creditDecisionErrorView, STALE_CODES.credit, onClose, {
       map: CREDIT_APPROVAL_FIELD_ERRORS,
       setError: (field, message) => form.setError(field, { type: "server", message }),
-    },
-  );
+    });
   const noteError = form.formState.errors.note?.message;
 
   const submit = form.handleSubmit((input) => {
+    if (!beginSubmit()) return;
     clearRefusal();
     // Một lần bấm = một request; cùng nội dung bấm lại sau lỗi tạm thời → cùng Idempotency-Key
     const variables = { id: order.orderId, ...input };

@@ -10,7 +10,7 @@
  * UI-only: chỉ ẩn/hiện nút. // Backend phải re-check (BE @RequiresPermission + open-PO guard)
  */
 
-import { SUPPLIER_PERMISSIONS } from "@/constants";
+import { SUPPLIER_ITEM_PERMISSIONS, SUPPLIER_PERMISSIONS, SUPPLIER_STATUS } from "@/constants";
 
 import type { PermissionCode } from "@/lib/auth";
 import type { SupplierStatus } from "./types";
@@ -56,3 +56,27 @@ export function allowedSupplierActions(
 
 /** Alias theo tên chuẩn của feature-architecture.md. */
 export const allowedActions = allowedSupplierActions;
+
+export interface SupplierItemActions {
+  create: boolean;
+  edit: boolean;
+  remove: boolean;
+}
+
+/**
+ * Thao tác trên danh mục hàng của NCC (tab "Danh mục hàng").
+ * BE `SupplierItemServiceImpl#activeSupplier`: thêm / sửa chỉ khi NCC `ACTIVE` (ngược lại 409
+ * `SUPPLIER_INACTIVE`); xoá được ở mọi trạng thái (gỡ SKU khỏi NCC đã ngừng hợp tác).
+ * UI-only. // Backend phải re-check (@RequiresPermission procurement-supplier-items)
+ */
+export function supplierItemActions(
+  status: SupplierStatus,
+  can: (code: PermissionCode) => boolean,
+): SupplierItemActions {
+  const active = status === SUPPLIER_STATUS.ACTIVE;
+  return {
+    create: active && can(SUPPLIER_ITEM_PERMISSIONS.create),
+    edit: active && can(SUPPLIER_ITEM_PERMISSIONS.update),
+    remove: can(SUPPLIER_ITEM_PERMISSIONS.delete),
+  };
+}

@@ -1,9 +1,12 @@
 /**
  * Order — types. Chỉ `z.infer` từ schemas, không khai báo tay (api-conventions §3.1).
  *
- * `OrderStatus` lấy từ `@/constants/statuses` (12 trạng thái BE FE hỗ trợ, ánh xạ 1-1 với mã wire;
- * dùng cho lọc / gửi BE) — KHÔNG phải `OrderStatus` nội bộ 20 giá trị docs của mock-data.ts.
- * `OrderReadStatus` = `OrderStatus` | `UNKNOWN`: trạng thái trên model đã đọc từ BE.
+ * Bốn kiểu trạng thái, KHÔNG chồng nghĩa:
+ * - `BackendOrderStatus`: mã wire BE đã biết (19 giá trị `OrderStatus.java`) — giá trị được GỬI (lọc).
+ * - `BackendOrderReadStatus`: mã BE sau khi parse response — thêm `UNKNOWN` cho chuỗi lạ.
+ * - `OrderStatus` (`@/constants/statuses`): trạng thái FE đã biết — lọc, URL, lifecycle, thao tác.
+ *   KHÔNG phải `OrderStatus` nội bộ 20 giá trị docs của mock-data.ts.
+ * - `OrderReadStatus`: trạng thái FE trên model đã đọc — `OrderStatus` | `UNKNOWN` (chỉ hiển thị).
  */
 
 import type { z } from "zod";
@@ -18,10 +21,12 @@ import type {
 import type { productionOrderDtoSchema, productionOrderSchema } from "./production-schemas";
 import type {
   BACKEND_ORDER_STATUSES,
+  orderCancellationSchema,
   orderDtoSchema,
   orderLineSchema,
   orderPageDtoSchema,
   orderSchema,
+  orderShipmentSchema,
   orderStatusChangeDtoSchema,
   orderStatusChangeSchema,
   orderStatusDtoSchema,
@@ -33,18 +38,24 @@ export type {
   CreditApprovalInput,
   CreditRejectionFormInput,
   CreditRejectionInput,
+  DeliveryFailureValues,
+  HoldOrderValues,
   ReleaseOrderInput,
+  RemainderClosureValues,
+  ResolveOrderHoldValues,
 } from "./action-schemas";
 
 /** Mã BE gửi lên được (lọc) — chỉ giá trị đã biết, không có `UNKNOWN`. */
 export type BackendOrderStatus = (typeof BACKEND_ORDER_STATUSES)[number];
 /** Mã BE sau khi parse response — có thể là `UNKNOWN`. */
-export type BackendOrderReadStatus = z.infer<typeof orderStatusDtoSchema>;
-export type OrderDto = z.infer<typeof orderDtoSchema>;
-export type OrderPageDto = z.infer<typeof orderPageDtoSchema>;
+export type BackendOrderReadStatus = z.output<typeof orderStatusDtoSchema>;
+export type OrderDto = z.output<typeof orderDtoSchema>;
+export type OrderPageDto = z.output<typeof orderPageDtoSchema>;
 export type Order = z.infer<typeof orderSchema>;
 export type OrderLine = z.infer<typeof orderLineSchema>;
-export type OrderStatusChangeDto = z.infer<typeof orderStatusChangeDtoSchema>;
+export type OrderShipment = z.infer<typeof orderShipmentSchema>;
+export type OrderCancellation = z.infer<typeof orderCancellationSchema>;
+export type OrderStatusChangeDto = z.output<typeof orderStatusChangeDtoSchema>;
 export type OrderStatusChange = z.infer<typeof orderStatusChangeSchema>;
 export type CreditHoldDto = z.infer<typeof creditHoldDtoSchema>;
 export type CreditHoldPageDto = z.infer<typeof creditHoldPageDtoSchema>;

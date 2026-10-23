@@ -69,3 +69,11 @@ export const phone = z.string().regex(/^(\+84|0)\d{9,10}$/, "Số điện thoạ
  * version/variant RFC 4122 mà BE không đòi — FE không được chặt hơn BE với id của chính BE.
  */
 export const uuid = (msg = "Mã định danh phải là UUID hợp lệ") => z.guid(msg);
+
+/**
+ * Field DTO có thể null của BE. BE bật Jackson `default-property-inclusion: non_null`
+ * (application.yml) — giá trị null bị BỎ khỏi JSON chứ không gửi `null`. Nhận cả thiếu lẫn null,
+ * chuẩn hoá về `null`. Dùng cho mọi cột nullable thay vì `.nullable()` (sẽ vỡ khi field vắng).
+ */
+export const omittedOrNull = <T extends z.ZodType>(schema: T) =>
+  schema.nullish().transform((value) => value ?? null);

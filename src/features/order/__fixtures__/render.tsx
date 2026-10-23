@@ -13,6 +13,7 @@ import {
   CREDIT_HOLD_PERMISSIONS,
   CUSTOMER_CREDIT_PROFILE_PERMISSIONS,
   ORDER_PERMISSIONS,
+  PRODUCTION_ORDER_PERMISSIONS,
 } from "@/constants";
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -20,16 +21,17 @@ import { useAuthStore } from "@/lib/auth/auth-store";
 import type { PermissionCode } from "@/lib/auth";
 
 /**
- * Theo seed BE develop: `sales-orders` APPROVE (release) chỉ ORDER_COORDINATOR;
- * `sales-order-cancellations:UPDATE` cho SALES_STAFF + ORDER_COORDINATOR;
- * `sales-order-credit-holds:APPROVE` chỉ ACCOUNTANT (Sales/Coordinator chỉ READ);
- * `customer-credit-profiles:READ` cho ACCOUNTANT / SALES_STAFF / ORDER_COORDINATOR (V20261013000400).
+ * Theo seed BE develop (5683fe14):
+ * - `sales-orders:APPROVE` (release, giữ / gỡ giữ / giao thất bại) chỉ ORDER_COORDINATOR;
+ * - `sales-order-cancellations:UPDATE` (huỷ, đóng phần còn lại) cho SALES_STAFF + ORDER_COORDINATOR;
+ * - `sales-order-credit-holds:APPROVE` chỉ ACCOUNTANT (Sales/Coordinator chỉ VIEW_PAGE / READ);
+ * - `customer-credit-profiles:READ` cho ACCOUNTANT / SALES_STAFF / ORDER_COORDINATOR (V20261013000400).
  */
 export const ORDER_PERMISSION_SETS = {
   // WAREHOUSE_STAFF: không có quyền đơn bán nào
   none: [],
   viewOnly: [ORDER_PERMISSIONS.viewPage],
-  // Chỉ đọc đơn — không huỷ / release / duyệt công nợ
+  // Chỉ đọc đơn (VIEW_PAGE + READ) — không huỷ / release / giữ / duyệt công nợ
   readOnly: [ORDER_PERMISSIONS.viewPage, ORDER_PERMISSIONS.read],
   salesStaff: [
     ORDER_PERMISSIONS.viewPage,
@@ -38,15 +40,20 @@ export const ORDER_PERMISSION_SETS = {
     CREDIT_HOLD_PERMISSIONS.viewPage,
     CREDIT_HOLD_PERMISSIONS.read,
     CUSTOMER_CREDIT_PROFILE_PERMISSIONS.read,
+    // BE V20261010000500: SALES_STAFF + ORDER_COORDINATOR có production-orders READ (ACCOUNTANT không)
+    PRODUCTION_ORDER_PERMISSIONS.read,
   ],
   coordinator: [
     ORDER_PERMISSIONS.viewPage,
     ORDER_PERMISSIONS.read,
+    // `approve` và `release` cùng mã sales-orders:APPROVE — giữ cả hai tên cho rõ nghĩa
+    ORDER_PERMISSIONS.approve,
     ORDER_PERMISSIONS.release,
     ORDER_PERMISSIONS.cancel,
     CREDIT_HOLD_PERMISSIONS.viewPage,
     CREDIT_HOLD_PERMISSIONS.read,
     CUSTOMER_CREDIT_PROFILE_PERMISSIONS.read,
+    PRODUCTION_ORDER_PERMISSIONS.read,
   ],
   accountant: [
     CREDIT_HOLD_PERMISSIONS.viewPage,
@@ -119,3 +126,6 @@ export async function pickOrderSelectOption(
   await user.click(await screen.findByRole("combobox", { name: trigger }));
   await user.click(await screen.findByRole("option", { name: option }));
 }
+
+/** Cùng helper, tên develop dùng trong test vòng đời. */
+export const pickSelectOption = pickOrderSelectOption;

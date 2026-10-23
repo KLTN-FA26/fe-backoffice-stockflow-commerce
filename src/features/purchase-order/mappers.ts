@@ -44,6 +44,7 @@ export function mapBePoToFe(be: BePurchaseOrderDto): PurchaseOrder {
     closeKind: be.closeKind ?? undefined,
     note: be.note ?? undefined,
     revisionNo: be.revisionNo,
+    version: be.version,
     submittedBy: be.submittedBy ?? undefined,
     approvedBy: be.approvedBy ?? undefined,
     subtotal: be.subtotal,

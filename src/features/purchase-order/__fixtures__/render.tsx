@@ -10,7 +10,12 @@ import { render, screen } from "@testing-library/react";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { vi } from "vitest";
 
-import { GOODS_RECEIPT_PERMISSIONS, PO_PERMISSIONS, SUPPLIER_PERMISSIONS } from "@/constants";
+import {
+  GOODS_RECEIPT_PERMISSIONS,
+  PO_PERMISSIONS,
+  SUPPLIER_ITEM_PERMISSIONS,
+  SUPPLIER_PERMISSIONS,
+} from "@/constants";
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
@@ -31,6 +36,8 @@ export const PO_PERMISSION_SETS = {
     P.update,
     P.export,
     SUPPLIER_PERMISSIONS.read,
+    // Seed BE PROCUREMENT_STAFF: đọc danh mục hàng NCC để chọn SKU (#30)
+    SUPPLIER_ITEM_PERMISSIONS.read,
     // Seed BE PROCUREMENT_STAFF: goods-receipts VIEW_PAGE/READ/CREATE/UPDATE
     GOODS_RECEIPT_PERMISSIONS.viewPage,
     GOODS_RECEIPT_PERMISSIONS.create,
@@ -40,6 +47,7 @@ export const PO_PERMISSION_SETS = {
   full: [
     ...Object.values(P),
     SUPPLIER_PERMISSIONS.read,
+    SUPPLIER_ITEM_PERMISSIONS.read,
     GOODS_RECEIPT_PERMISSIONS.viewPage,
     GOODS_RECEIPT_PERMISSIONS.create,
   ],
@@ -88,7 +96,8 @@ export function renderPoScreen(ui: React.ReactElement, searchParams = "") {
     impersonatedRole: null,
   });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  // `client` trả kèm để test kích refetch (vd refetch nền thất bại).
+  const view = render(
     <QueryClientProvider client={client}>
       {/* hasMemory: URL đổi thì giữ lại như trình duyệt thật (không quay về searchParams đầu). */}
       <NuqsTestingAdapter searchParams={searchParams} hasMemory>
@@ -96,6 +105,7 @@ export function renderPoScreen(ui: React.ReactElement, searchParams = "") {
       </NuqsTestingAdapter>
     </QueryClientProvider>,
   );
+  return { ...view, client };
 }
 
 /** PurchaseOrderResponse đúng hình BE (nhánh `test`), ghi đè field theo case. */
@@ -126,6 +136,7 @@ export function bePo(overrides: Record<string, unknown> = {}) {
     lastModifiedBy: "procurement",
     possibleDuplicate: false,
     revisionNo: 0,
+    version: 0,
     submittedBy: null,
     submittedAt: null,
     approvedBy: null,

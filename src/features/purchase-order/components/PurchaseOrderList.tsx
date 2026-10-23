@@ -3,8 +3,9 @@
 import { ADMIN_ROUTES, PO_PERMISSIONS } from "@/constants";
 import { useUrlTab } from "@/hooks/use-url-filters";
 import { useCan } from "@/lib/auth";
+import { PageTabPanel } from "@/components/shared/PageTabs";
 
-import { PO_LIST_TABS, PoListHeader, PoListTabs } from "./list/PoListHeader";
+import { PO_LIST_TAB_ID_PREFIX, PO_LIST_TABS, PoListHeader, PoListTabs } from "./list/PoListHeader";
 import { PoOrdersTab } from "./list/PoOrdersTab";
 import { SupplierSpendSection } from "./list/SupplierSpendSection";
 import { usePoListController } from "./list/usePoListController";
@@ -38,7 +39,14 @@ function PurchaseOrderListBody() {
         orderCount={c.page?.totalElements ?? 0}
         onChange={setActiveTab}
       />
-      {activeTab === "orders" ? <PoOrdersTab c={c} /> : <SupplierSpendSection canRead={canRead} />}
+      {/* Cùng `idPrefix` với `PoListTabs` để `aria-controls` của tab trỏ đúng vùng nội dung */}
+      <PageTabPanel idPrefix={PO_LIST_TAB_ID_PREFIX} value={activeTab}>
+        {activeTab === "orders" ? (
+          <PoOrdersTab c={c} />
+        ) : (
+          <SupplierSpendSection canRead={canRead} />
+        )}
+      </PageTabPanel>
     </>
   );
 }

@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
 import { XCircle } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 
 import { CREDIT_REJECTION_ACTION_LABELS, ORDER_LIMITS, UI_LABELS } from "@/constants";
@@ -28,6 +28,7 @@ import { DANGER_OUTLINE_BUTTON } from "../button-styles";
 import { FormFieldError, RequiredMark } from "../FormFieldError";
 import { OrderRefusalAlert } from "../OrderRefusalAlert";
 import { STALE_CODES, useOrderActionErrors } from "../useOrderActionErrors";
+import { usePendingSafeDialog } from "../usePendingSafeDialog";
 
 import { CreditPositionPanel } from "./CreditPositionPanel";
 import { DepositPercentField } from "./DepositPercentField";
@@ -56,7 +57,9 @@ export function CreditRejectAction({
   order: CreditHoldTarget;
   compact?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  // Mutation ở đây (không ở form) để Esc / bấm ra ngoài không đóng dialog khi đang gửi
+  const mutation = useRejectCreditHold();
+  const dialog = usePendingSafeDialog(mutation.isPending);
   const label = UI_LABELS.order.actions.creditReject;
   return (
     <>
@@ -66,20 +69,28 @@ export function CreditRejectAction({
         size="sm"
         aria-label={compact ? `${label} vượt hạn mức đơn ${order.orderNumber}` : undefined}
         className={`${DANGER_OUTLINE_BUTTON} ${compact ? "" : "w-full"}`}
-        onClick={() => setOpen(true)}
+        onClick={dialog.show}
       >
         <XCircle className="size-3.5" /> {label}
       </Button>
-      <FormDialog open={open} onOpenChange={setOpen}>
-        <RejectForm order={order} onClose={() => setOpen(false)} />
+      <FormDialog open={dialog.open} onOpenChange={dialog.onOpenChange}>
+        <RejectForm order={order} mutation={mutation} onClose={dialog.close} />
       </FormDialog>
     </>
   );
 }
 
-function RejectForm({ order, onClose }: { order: CreditHoldTarget; onClose: () => void }) {
+function RejectForm({
+  order,
+  mutation,
+  onClose,
+}: {
+  order: CreditHoldTarget;
+  mutation: ReturnType<typeof useRejectCreditHold>;
+  onClose: () => void;
+}) {
   const queryClient = useQueryClient();
-  const { mutate: reject, isPending } = useRejectCreditHold();
+  const { mutate: reject, isPending } = mutation;
   const position = useCustomerCreditPosition(order.customerId);
   const allowedTerms = position.data?.allowedTerms ?? null;
   const options = availableRefusalActions(allowedTerms);
@@ -88,15 +99,11 @@ function RejectForm({ order, onClose }: { order: CreditHoldTarget; onClose: () =
     mode: "onChange",
     defaultValues: CREDIT_REJECTION_FORM_DEFAULTS,
   });
-  const { refusal, clearRefusal, onError, idempotencyKeyFor, finishAttempt } = useOrderActionErrors(
-    creditDecisionErrorView,
-    STALE_CODES.credit,
-    onClose,
-    {
+  const { refusal, clearRefusal, onError, beginSubmit, idempotencyKeyFor, finishAttempt } =
+    useOrderActionErrors(creditDecisionErrorView, STALE_CODES.credit, onClose, {
       map: CREDIT_REJECTION_FIELD_ERRORS,
       setError: (field, message) => form.setError(field, { type: "server", message }),
-    },
-  );
+    });
   const action = useWatch({ control: form.control, name: "action" });
   const { errors } = form.formState;
 
@@ -134,6 +141,7 @@ function RejectForm({ order, onClose }: { order: CreditHoldTarget; onClose: () =
       form.setError("action", { message: TERM_NOT_ALLOWED });
       return;
     }
+    if (!beginSubmit()) return;
     clearRefusal();
     // Một lần bấm = một request; cùng nội dung bấm lại sau lỗi tạm thời → cùng Idempotency-Key
     const variables = { id: order.orderId, ...input };

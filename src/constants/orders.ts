@@ -1,11 +1,22 @@
 /**
  * Đơn bán (module 14/17) — enum wire của BE + nhãn hiển thị. Nguồn: BE develop
  * `order/api/*.java` (SCRUM-423 release, SCRUM-427 credit hold, SCRUM-460 payment status).
- * Production order: chỉ có ràng buộc DB `V20261010000200__production_schema.sql` — chưa có HTTP.
+ * Production order: enum của BE `production/domain/ProductionOrder.java` (ProductionOrderRowResponse).
  */
 
 /** BE `order/api/PaymentTerm.java` — phương thức thanh toán của đơn (docs 14 §4.3 bước 12). */
 export const ORDER_PAYMENT_TERMS = ["PREPAID", "DEPOSIT", "CREDIT"] as const;
+
+/**
+ * BE `order/api/BalancePolicy.java` — đơn cọc thu phần còn lại trước khi giao (chuyển khoản) hay hãng
+ * vận chuyển thu khi giao (G2-3). null với phương thức khác.
+ */
+export const ORDER_BALANCE_POLICIES = ["BEFORE_DELIVERY", "ON_DELIVERY"] as const;
+
+export const ORDER_BALANCE_POLICY_LABELS = {
+  BEFORE_DELIVERY: "Chuyển khoản trước khi giao",
+  ON_DELIVERY: "Hãng vận chuyển thu khi giao",
+} as const satisfies Record<(typeof ORDER_BALANCE_POLICIES)[number], string>;
 
 export const ORDER_PAYMENT_TERM_LABELS = {
   PREPAID: "Trả trước 100%",

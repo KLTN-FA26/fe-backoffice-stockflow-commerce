@@ -83,7 +83,11 @@ Gọi qua biến density của mode, **không** gọi thẳng `p-4` trong compon
 
 ## Z-index — cố định, không tự bịa
 
-`dropdown:50 · floating(cart/chat):800 · sticky:100 · overlay:900 · modal:1000 · drawer/sheet:1100 · toast:1200 · tooltip:1300`
+`dropdown:50 · floating(cart/chat):800 · sticky:100 · overlay:900 · modal:1000 · drawer/sheet:1100 · dialog-on-drawer:1150 · dropdown-on-dialog:1160 · toast:1200 · tooltip:1300`
+
+Hai tầng 1150/1160: dialog mở từ trong drawer phải nằm trên drawer, và Select/Popover mở trong
+dialog đó phải nằm trên dialog — vẫn dưới toast/tooltip. Biến `--z-*` khai báo ở `:root` của
+`globals.css`; dùng `z-(--z-dialog-on-drawer)` / `var(--z-dropdown-on-dialog)`, không gõ số trần.
 
 ## Typography — quy tắc hay quên
 

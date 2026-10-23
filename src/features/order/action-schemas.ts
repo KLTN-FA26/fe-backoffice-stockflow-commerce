@@ -6,6 +6,11 @@
 
 import { z } from "zod";
 
+import {
+  ORDER_DELIVERY_FAILURE_REASONS,
+  ORDER_MANUAL_HOLD_REASONS,
+  ORDER_REMAINDER_CLOSURE_REASONS,
+} from "@/constants/labels-order";
 import { ORDER_LIMITS } from "@/constants/numbers";
 import { CREDIT_REJECTION_ACTIONS, ORDER_CANCELLATION_REASON_CODES } from "@/constants/orders";
 
@@ -64,8 +69,30 @@ export const creditRejectionSchema = z
 /* ── Admin cancel ────────────────────────────────────────────────────── */
 
 /**
- * BE `AdminCancelOrderRequest(reasonCode, note, retainedPercent)` — `reason` cũ đã deprecated.
- * docs 17 §4.5 bước 14: nguồn huỷ (khách yêu cầu, hết hạn thanh toán, hết hàng, nghi gian lận…).
+ * BE `CancellationFeeRequest(amount, reason, detail)` — khoản thoả thuận với khách thay cho phần
+ * trăm (decision Q2): amount > 0 (BE còn kiểm số nguyên đơn vị tiền và ≤ tổng đơn → 400).
+ */
+const agreedFeeSchema = z.object({
+  amount: z.number().positive("Khoản thoả thuận phải lớn hơn 0"),
+  reason: z
+    .string()
+    .trim()
+    .min(1, "Nhập lý do giữ khoản thoả thuận")
+    .max(ORDER_LIMITS.cancelFeeReasonMax, `Lý do tối đa ${ORDER_LIMITS.cancelFeeReasonMax} ký tự`),
+  detail: z
+    .string()
+    .trim()
+    .min(1, "Nhập nội dung đã thoả thuận")
+    .max(
+      ORDER_LIMITS.cancelFeeDetailMax,
+      `Nội dung tối đa ${ORDER_LIMITS.cancelFeeDetailMax} ký tự`,
+    ),
+});
+
+/**
+ * BE `AdminCancelOrderRequest(reasonCode, note, retainedPercent, agreedFee)` — `reason` (chữ tự do)
+ * đã deprecated, FE không gửi. docs 17 §4.5 bước 14: nguồn huỷ (khách yêu cầu, hết hạn thanh toán,
+ * hết hàng, nghi gian lận…). Response: `OrderResponse`.
  */
 export const adminCancelOrderSchema = z
   .object({
@@ -80,16 +107,89 @@ export const adminCancelOrderSchema = z
       .min(ORDER_LIMITS.retainedPercentMin, "Tỷ lệ giữ lại không được âm")
       .max(ORDER_LIMITS.retainedPercentMax, "Tỷ lệ giữ lại tối đa 100%")
       .optional(),
+    agreedFee: agreedFeeSchema.optional(),
   })
   .superRefine((value, ctx) => {
-    // BE Order#cancelByAdmin: reasonCode OTHER bắt buộc có note (VALIDATION_FAILED)
+    // BE Order#cancel: reasonCode OTHER bắt buộc có note (VALIDATION_FAILED)
     if (value.reasonCode === "OTHER" && !value.note) {
       ctx.addIssue({ code: "custom", path: ["note"], message: "Lý do khác cần ghi chú" });
     }
+    // BE Order#requireAgreedFee: giữ phần trăm HOẶC khoản thoả thuận, không cả hai
+    if (value.agreedFee && value.retainedPercent !== undefined) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["agreedFee"],
+        message: "Chỉ giữ theo phần trăm hoặc khoản thoả thuận, không cả hai",
+      });
+    }
   });
+
+/* ── Giữ / gỡ giữ / giao thất bại / đóng phần còn lại (BE PR #133) ───── */
+
+const NOTE_REQUIRED = "Ghi chú là bắt buộc khi chọn “Lý do khác”";
+
+/**
+ * Lý do + ghi chú: BE `Order#putOnHold`, `#markDeliveryFailed`, `#closeRemainder` — OTHER bắt buộc
+ * có ghi chú (400 VALIDATION_FAILED nếu thiếu). `note` được trim; rỗng → bỏ khỏi body (api.ts).
+ */
+function reasonWithNote<const R extends readonly [string, ...string[]]>(
+  reasons: R,
+  noteMax: number,
+  noteLabel: string,
+) {
+  return z
+    .object({
+      reasonCode: z.enum(reasons, { error: "Chọn lý do" }),
+      note: z.string().trim().max(noteMax, `${noteLabel} tối đa ${noteMax} ký tự`),
+    })
+    .refine((value) => value.reasonCode !== "OTHER" || value.note.length > 0, {
+      path: ["note"],
+      message: NOTE_REQUIRED,
+    });
+}
+
+/**
+ * Giữ đơn (`POST /orders/{id}/hold`, `HoldOrderRequest`). Chỉ lý do tự nêu — CREDIT và
+ * DESIGN_MISMATCH là của hệ thống (`HoldReason#raisedByHand`), BE trả 400.
+ */
+export const holdOrderSchema = reasonWithNote(
+  ORDER_MANUAL_HOLD_REASONS,
+  ORDER_LIMITS.holdNoteMax,
+  "Ghi chú",
+);
+
+/** Gỡ giữ (`POST /orders/{id}/hold/resolution`, `ResolveHoldRequest`): ghi chú @NotBlank. */
+export const resolveOrderHoldSchema = z.object({
+  note: z
+    .string()
+    .trim()
+    .min(1, "Hãy ghi cách đã xử lý")
+    .max(ORDER_LIMITS.resolveNoteMax, `Ghi chú tối đa ${ORDER_LIMITS.resolveNoteMax} ký tự`),
+});
+
+/** Ghi giao thất bại (`POST /orders/{id}/delivery-failure`, `DeliveryFailureRequest`). */
+export const deliveryFailureSchema = reasonWithNote(
+  ORDER_DELIVERY_FAILURE_REASONS,
+  ORDER_LIMITS.deliveryFailureNoteMax,
+  "Ghi chú",
+);
+
+/**
+ * Đóng phần còn lại (`POST /orders/{id}/remainder-closure`, `CloseRemainderRequest`). BE nhận mọi
+ * `CancellationReasonCode`; danh sách chọn chỉ giữ lý do hợp với việc không giao nổi phần còn lại.
+ */
+export const remainderClosureSchema = reasonWithNote(
+  ORDER_REMAINDER_CLOSURE_REASONS,
+  ORDER_LIMITS.remainderClosureNoteMax,
+  "Ghi chú",
+);
 
 export type ReleaseOrderInput = z.infer<typeof releaseOrderSchema>;
 export type CreditApprovalInput = z.infer<typeof creditApprovalSchema>;
 export type CreditRejectionFormInput = z.input<typeof creditRejectionSchema>;
 export type CreditRejectionInput = z.output<typeof creditRejectionSchema>;
 export type AdminCancelOrderInput = z.infer<typeof adminCancelOrderSchema>;
+export type HoldOrderValues = z.infer<typeof holdOrderSchema>;
+export type ResolveOrderHoldValues = z.infer<typeof resolveOrderHoldSchema>;
+export type DeliveryFailureValues = z.infer<typeof deliveryFailureSchema>;
+export type RemainderClosureValues = z.infer<typeof remainderClosureSchema>;

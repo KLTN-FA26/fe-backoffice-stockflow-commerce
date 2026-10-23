@@ -11,6 +11,7 @@ import {
   backendOrderStatusOf,
   fakeSha256,
   lockedChecksumOf,
+  putMockOrderOnDesignHold,
   setMockOrderStatus,
   snapshotIdOf,
 } from "./mock-routes-orders-store";
@@ -57,7 +58,11 @@ interface SeedSpec {
   tamperedReverifyFailures?: number;
 }
 
-/** Đơn mock theo trạng thái → task seed. Đơn `Confirmed` không có task: để demo tạo task. */
+/**
+ * Đơn mock theo trạng thái → task seed. Có task thì đơn đã ở khâu kho (BE PR #133: tạo task chuyển
+ * READY_TO_FULFILL → PICKING), nên `getFulfillmentStore` đặt trạng thái BE của đơn cho khớp. Đơn
+ * `Confirmed` không có task: coi như đã được điều phối release (READY_TO_FULFILL) để demo tạo task.
+ */
 const SEED_BY_ORDER_STATUS: Partial<Record<OrderStatus, SeedSpec>> = {
   "Ready to Fulfill": {
     pick: "PENDING",
@@ -144,15 +149,7 @@ function seedTask(order: Order, spec: SeedSpec): MockTask {
   if (spec.tamperedReverifyFailures !== undefined) {
     tampered.set(order.orderId, spec.tamperedReverifyFailures);
   }
-  if (spec.pack === "ON_HOLD") {
-    verifyDesigns(task, order, false, at(100));
-    // BE: lệch checksum → đơn ON_HOLD (reason DESIGN_MISMATCH)
-    setMockOrderStatus(order.orderId, "ON_HOLD");
-  } else if (spec.pick !== "CANCELLED") {
-    // BE `createTask` → `Order#startFulfilment`: đơn có task thì đã IN_FULFILMENT (đơn mock
-    // "Ready to Fulfill" gộp về READY_TO_FULFILL, task seed coi như đã tạo)
-    setMockOrderStatus(order.orderId, "IN_FULFILMENT");
-  }
+  if (spec.pack === "ON_HOLD") verifyDesigns(task, order, false, at(100));
   return task;
 }
 
@@ -168,7 +165,12 @@ export async function getFulfillmentStore(): Promise<Map<string, MockTask>> {
     used.add(order.status);
     const task = seedTask(order, spec);
     seeded.set(task.taskId, task);
+    if (task.pickStatus === "PENDING") setMockOrderStatus(order.orderId, "PICKING");
+    // BE: lệch checksum → đơn ON_HOLD (reason DESIGN_MISMATCH), về lại bước đang làm khi gỡ giữ
+    if (task.packStatus === "ON_HOLD") await putMockOrderOnDesignHold(order.orderId);
   }
+  const demoOrder = orders.find((order) => order.status === "Confirmed");
+  if (demoOrder) setMockOrderStatus(demoOrder.orderId, "READY_TO_FULFILL");
   store = seeded;
   return seeded;
 }
@@ -221,10 +223,20 @@ export const taskNotFound = () => beError(404, "NOT_FOUND", "Resource not found"
 export const forbidden = () => beError(403, "FORBIDDEN", "Access denied");
 export const conflict = (message = "Conflicting state") => beError(409, "CONFLICT", message);
 
-/** BE `requireOrderInFulfilment`: task chỉ thao tác được khi đơn IN_FULFILMENT / ON_HOLD. */
+/**
+ * BE `TaskAccess` (PR #133): task chỉ thao tác được khi đơn ở khâu kho — PICKING, PACKED,
+ * PARTIALLY_FULFILLED — hoặc đang ON_HOLD từ một trong số đó.
+ */
 export async function orderClosedError(orderId: string) {
   const status = await backendOrderStatusOf(orderId);
-  if (status === "IN_FULFILMENT" || status === "ON_HOLD") return null;
+  if (
+    status === "PICKING" ||
+    status === "PACKED" ||
+    status === "PARTIALLY_FULFILLED" ||
+    status === "ON_HOLD"
+  ) {
+    return null;
+  }
   return conflict(`The order is ${status ?? "UNKNOWN"}; this fulfillment task is closed`);
 }
 

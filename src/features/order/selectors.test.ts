@@ -33,11 +33,25 @@ describe("depositState — docs 15 BR-02 / docs 19 BR-09", () => {
 });
 
 describe("creditState / creditOverage — docs 14 BR-06", () => {
-  it("đơn CREDIT On Hold = đang tạm giữ (chỉ trạng thái, không phải nguyên nhân)", () => {
-    expect(creditState({ paymentTerm: "CREDIT", status: "On Hold" })).toBe("on-hold");
-    expect(creditState({ paymentTerm: "CREDIT", status: "Confirmed" })).toBe("within-limit");
-    expect(creditState({ paymentTerm: "DEPOSIT", status: "On Hold" })).toBe("not-applicable");
+  it("chờ duyệt vượt hạn mức ⇔ đơn CREDIT On Hold với lý do CREDIT (BE PR #133 holdReason)", () => {
+    expect(creditState({ paymentTerm: "CREDIT", status: "On Hold", holdReason: "CREDIT" })).toBe(
+      "on-hold",
+    );
+    expect(creditState({ paymentTerm: "CREDIT", status: "Confirmed", holdReason: null })).toBe(
+      "within-limit",
+    );
+    expect(creditState({ paymentTerm: "DEPOSIT", status: "On Hold", holdReason: "ADDRESS" })).toBe(
+      "not-applicable",
+    );
   });
+  it.each(["ADDRESS", "DESIGN_MISMATCH", "FRAUD", "UNKNOWN", null] as const)(
+    "đơn CREDIT giữ vì %s → không phải chờ duyệt công nợ (đã qua kiểm hạn mức)",
+    (holdReason) => {
+      expect(creditState({ paymentTerm: "CREDIT", status: "On Hold", holdReason })).toBe(
+        "within-limit",
+      );
+    },
+  );
   it("phần vượt = dư nợ + giá trị đơn − hạn mức, không âm", () => {
     expect(creditOverage({ creditLimit: 100, exposure: 60, orderAmount: 70 })).toBe(30);
     expect(creditOverage({ creditLimit: 100, exposure: 10, orderAmount: 20 })).toBe(0);
@@ -83,21 +97,38 @@ describe("releaseBlockers — lý do chưa release biết trước", () => {
         status: "Pending Payment",
         paymentTerm: "DEPOSIT",
         depositReceivedAt: null,
+        holdReason: null,
       }),
     ).toEqual([{ rule: "BR-PRD-09", message: "Đơn đặt cọc chưa nhận đủ tiền cọc." }]);
   });
-  it("BR-02: đơn công nợ On Hold chờ duyệt — không đoán nguyên nhân giữ", () => {
+  it("BR-02: đơn công nợ giữ vì CREDIT chờ duyệt — không đoán nợ quá hạn", () => {
     const [blocker] = releaseBlockers({
       status: "On Hold",
       paymentTerm: "CREDIT",
       depositReceivedAt: null,
+      holdReason: "CREDIT",
     });
     expect(blocker?.rule).toBe("BR-02");
-    expect(blocker?.message).not.toMatch(/vượt hạn mức|quá hạn/i);
+    expect(blocker?.message).not.toMatch(/quá hạn/i);
+  });
+  it("đơn CREDIT giữ vì lý do khác (ADDRESS) → không bị nói là chưa duyệt công nợ", () => {
+    expect(
+      releaseBlockers({
+        status: "On Hold",
+        paymentTerm: "CREDIT",
+        depositReceivedAt: null,
+        holdReason: "ADDRESS",
+      }),
+    ).toEqual([]);
   });
   it("đơn Confirmed → không có lý do biết trước (BR-PRD-08 do BE kiểm)", () => {
     expect(
-      releaseBlockers({ status: "Confirmed", paymentTerm: "DEPOSIT", depositReceivedAt: "x" }),
+      releaseBlockers({
+        status: "Confirmed",
+        paymentTerm: "DEPOSIT",
+        depositReceivedAt: "x",
+        holdReason: null,
+      }),
     ).toEqual([]);
   });
 });
@@ -110,6 +141,9 @@ describe("dòng đơn & lệnh sản xuất", () => {
     unitPrice: 1,
     lineTotal: 1,
     reservationIds: [],
+    shippedQuantity: null,
+    deliveredQuantity: null,
+    cancelledQuantity: null,
   };
   it("customLineCount đếm dòng in", () => {
     expect(
@@ -130,12 +164,10 @@ describe("dòng đơn & lệnh sản xuất", () => {
       parentId: null,
       mode: "IN_HOUSE",
       status: "PRINTING",
-      statusBeforeHold: null,
       holdReason: null,
       plannedQuantity: 10,
       goodQuantity: 0,
       dueDate: null,
-      subcontractorName: null,
     };
     const grouped = groupProductionOrdersByLine([
       base,
@@ -147,22 +179,44 @@ describe("dòng đơn & lệnh sản xuất", () => {
     expect(grouped.get("L2")?.parents).toHaveLength(1);
   });
 
-  it("shouldFlagOrderRow — chỉ On Hold", () => {
+  it("shouldFlagOrderRow — On Hold và Delivery Failed (ngoại lệ chờ nhân viên quyết)", () => {
     expect(shouldFlagOrderRow({ status: "On Hold" })).toBe(true);
+    expect(shouldFlagOrderRow({ status: "Delivery Failed" })).toBe(true);
     expect(shouldFlagOrderRow({ status: "In Production" })).toBe(false);
   });
 });
 
-describe("cancelConsequence — hệ quả huỷ theo trạng thái", () => {
-  it("In Production → nhắc phí sản xuất (docs 19 BR-10)", () => {
-    expect(cancelConsequence("In Production")).toContain("BR-10");
+describe("cancelConsequence — hệ quả huỷ theo trạng thái (19 trạng thái, BE PR #133)", () => {
+  it("In Production → hệ quả với lệnh sản xuất theo BE, KHÔNG hứa phí huỷ (form không gửi phí)", () => {
+    const text = cancelConsequence("In Production") ?? "";
+    expect(text).toMatch(/lệnh sản xuất chưa in sẽ được huỷ/);
+    expect(text).toMatch(/đang in hoặc gia công ngoài sẽ được treo/);
+    expect(text).toMatch(/không áp dụng phí huỷ/);
+    expect(text).not.toMatch(/tính phí|BR-10|hoàn đủ|đã hoàn/);
   });
-  it("đã giao kho → dừng pick + put-back (docs 17 BR-03)", () => {
-    expect(cancelConsequence("Ready to Fulfill")).toContain("BR-03");
-    expect(cancelConsequence("In Fulfilment")).toContain("put-back");
+  it("Ready to Fulfill → đã release, chưa lấy hàng: nhả giữ chỗ, KHÔNG nói put-back", () => {
+    const text = cancelConsequence("Ready to Fulfill");
+    expect(text).toContain("BR-03");
+    expect(text).toContain("chưa lấy hàng");
+    expect(text).not.toContain("put-back");
   });
-  it("chưa giao kho / sản xuất → không có cảnh báo thêm", () => {
+  it("Picking → dừng lấy hàng + put-back (docs 17 BR-03)", () => {
+    expect(cancelConsequence("Picking")).toContain("put-back");
+  });
+  it("Packed / Partially Fulfilled trở đi (BE không cho huỷ) → không có câu nào gợi ý huỷ được", () => {
+    for (const status of ["Packed", "Partially Fulfilled", "Shipped", "Delivered"] as const) {
+      expect(cancelConsequence(status)).toBeNull();
+    }
+  });
+  it("On Hold → theo trạng thái đã bị giữ; không biết thì không cảnh báo thêm", () => {
+    expect(cancelConsequence("On Hold", "Picking")).toContain("put-back");
+    expect(cancelConsequence("On Hold", "In Production")).toBe(cancelConsequence("In Production"));
+    expect(cancelConsequence("On Hold", null)).toBeNull();
+    expect(cancelConsequence("On Hold")).toBeNull();
+  });
+  it("chưa giao kho / sản xuất, UNKNOWN → không có cảnh báo thêm", () => {
     expect(cancelConsequence("Pending Payment")).toBeNull();
+    expect(cancelConsequence("UNKNOWN")).toBeNull();
   });
 });
 

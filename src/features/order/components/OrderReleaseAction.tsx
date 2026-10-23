@@ -2,7 +2,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Send } from "lucide-react";
-import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import { UI_LABELS } from "@/constants";
@@ -27,6 +26,7 @@ import { customLineCount } from "../selectors";
 import { FormFieldError, RequiredMark } from "./FormFieldError";
 import { OrderRefusalAlert } from "./OrderRefusalAlert";
 import { STALE_CODES, useOrderActionErrors } from "./useOrderActionErrors";
+import { usePendingSafeDialog } from "./usePendingSafeDialog";
 
 import type { ReleaseFormValues } from "../form-schemas";
 import type { Order, ReleaseOrderInput } from "../types";
@@ -39,41 +39,47 @@ type ReleaseOrder = Pick<Order, "orderId" | "orderNumber" | "lines">;
  * (BR-PRD-08 mẫu chưa duyệt, BR-PRD-09 chưa đủ cọc, công nợ quá hạn…) hiện ngay trong dialog.
  */
 export function OrderReleaseAction({ order }: { order: ReleaseOrder }) {
-  const [open, setOpen] = useState(false);
+  // Mutation ở đây (không ở form) để Esc / bấm ra ngoài không đóng dialog khi đang gửi
+  const mutation = useReleaseOrder();
+  const dialog = usePendingSafeDialog(mutation.isPending);
   return (
     <>
       <Button
         type="button"
         size="sm"
         className="w-full rounded-[var(--r-sm)]"
-        onClick={() => setOpen(true)}
+        onClick={dialog.show}
       >
         <Send className="size-3.5" /> {UI_LABELS.order.actions.release}
       </Button>
-      <FormDialog open={open} onOpenChange={setOpen}>
-        <ReleaseForm order={order} onClose={() => setOpen(false)} />
+      <FormDialog open={dialog.open} onOpenChange={dialog.onOpenChange}>
+        <ReleaseForm order={order} mutation={mutation} onClose={dialog.close} />
       </FormDialog>
     </>
   );
 }
 
-function ReleaseForm({ order, onClose }: { order: ReleaseOrder; onClose: () => void }) {
+function ReleaseForm({
+  order,
+  mutation,
+  onClose,
+}: {
+  order: ReleaseOrder;
+  mutation: ReturnType<typeof useReleaseOrder>;
+  onClose: () => void;
+}) {
   const warehouses = useWarehouseOptions();
-  const { mutate: release, isPending } = useReleaseOrder();
+  const { mutate: release, isPending } = mutation;
   const form = useForm<ReleaseFormValues, unknown, ReleaseOrderInput>({
     resolver: zodResolver(releaseFormSchema),
     mode: "onChange",
     defaultValues: RELEASE_FORM_DEFAULTS,
   });
-  const { refusal, clearRefusal, onError, idempotencyKeyFor, finishAttempt } = useOrderActionErrors(
-    releaseErrorView,
-    STALE_CODES.release,
-    onClose,
-    {
+  const { refusal, clearRefusal, onError, beginSubmit, idempotencyKeyFor, finishAttempt } =
+    useOrderActionErrors(releaseErrorView, STALE_CODES.release, onClose, {
       map: RELEASE_FIELD_ERRORS,
       setError: (field, message) => form.setError(field, { type: "server", message }),
-    },
-  );
+    });
   const warehouseError = form.formState.errors.warehouseId?.message;
   const printLines = customLineCount(order);
   // BE seed chưa cấp warehouse-warehouses:READ cho ORDER_COORDINATOR → GET /warehouses 403
@@ -81,6 +87,7 @@ function ReleaseForm({ order, onClose }: { order: ReleaseOrder; onClose: () => v
     warehouses.error instanceof ApiError && warehouses.error.status === 403;
 
   const submit = form.handleSubmit((input) => {
+    if (!beginSubmit()) return;
     clearRefusal();
     // Một lần bấm = một request; cùng nội dung bấm lại sau lỗi tạm thời → cùng Idempotency-Key
     const variables = { id: order.orderId, ...input };

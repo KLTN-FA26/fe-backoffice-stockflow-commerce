@@ -21,14 +21,15 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
+import { formatMoney } from "@/lib/format";
+
 import { ADMIN_CANCEL_FIELD_ERRORS, adminCancelErrorView } from "../errors";
 import { ADMIN_CANCEL_FORM_DEFAULTS, adminCancelFormSchema } from "../form-schemas";
-import { useAdminCancelOrder } from "../mutations";
+import type { useAdminCancelOrder } from "../mutations";
 import { cancelConsequence } from "../selectors";
 
 import { FormFieldError, RequiredMark } from "./FormFieldError";
 import { OrderRefusalAlert } from "./OrderRefusalAlert";
-import { RetainedPercentField } from "./RetainedPercentField";
 import { STALE_CODES, useOrderActionErrors } from "./useOrderActionErrors";
 
 import type { AdminCancelFormValues } from "../form-schemas";
@@ -36,41 +37,61 @@ import type { AdminCancelOrderInput, Order } from "../types";
 
 export type CancelOrder = Pick<
   Order,
-  "orderId" | "orderNumber" | "status" | "paidAmount" | "currency"
+  "orderId" | "orderNumber" | "status" | "statusBeforeHold" | "paidAmount" | "currency"
 >;
 
 const LABEL = "text-ink-secondary text-xs font-medium";
 
-/** Form huỷ đơn admin (mã lý do, ghi chú, % giữ lại) — trong `FormDialog` của OrderCancelAction. */
-export function CancelForm({ order, onClose }: { order: CancelOrder; onClose: () => void }) {
-  const { mutate: adminCancel, isPending } = useAdminCancelOrder();
+/**
+ * Chỉ các ô form này có — fieldErrors của ô khác (retainedPercent, agreedFee.*) không gắn được vào ô
+ * nào nên đi vào thông báo chung (không được mất lặng lẽ).
+ */
+const CANCEL_FORM_FIELD_ERRORS = {
+  reasonCode: ADMIN_CANCEL_FIELD_ERRORS.reasonCode,
+  note: ADMIN_CANCEL_FIELD_ERRORS.note,
+} as const;
+
+/**
+ * Form huỷ đơn admin (mã lý do, ghi chú) — trong `FormDialog` của OrderCancelAction.
+ *
+ * KHÔNG có ô giữ phí (% giữ lại / khoản thoả thuận): BE chỉ cho giữ phí khi đã bắt đầu in
+ * (`Order#cancel`, CANCELLATION_FEE_BEFORE_PRINTING) nhưng `OrderResponse` không trả mốc bắt đầu in
+ * (`printingStartedAt` chỉ có trong domain BE). Tiền đã thu, trạng thái, dòng in hay `releasedAt` đều
+ * không chứng minh đã in → FE không đoán. Schema / API vẫn hỗ trợ `retainedPercent` / `agreedFee` để
+ * nối lại khi BE trả tín hiệu này; lỗi CANCELLATION_FEE_BEFORE_PRINTING vẫn được map.
+ */
+export function CancelForm({
+  order,
+  mutation,
+  onClose,
+}: {
+  order: CancelOrder;
+  /** Của `OrderCancelAction` — dialog cần biết đang gửi để không cho đóng (usePendingSafeDialog). */
+  mutation: ReturnType<typeof useAdminCancelOrder>;
+  onClose: () => void;
+}) {
+  const { mutate: adminCancel, isPending } = mutation;
   const form = useForm<AdminCancelFormValues, unknown, AdminCancelOrderInput>({
     resolver: zodResolver(adminCancelFormSchema),
     mode: "onChange",
     defaultValues: ADMIN_CANCEL_FORM_DEFAULTS,
   });
-  const { refusal, clearRefusal, onError, idempotencyKeyFor, finishAttempt } = useOrderActionErrors(
-    adminCancelErrorView,
-    STALE_CODES.cancel,
-    onClose,
-    {
-      map: ADMIN_CANCEL_FIELD_ERRORS,
+  const { refusal, clearRefusal, onError, beginSubmit, idempotencyKeyFor, finishAttempt } =
+    useOrderActionErrors(adminCancelErrorView, STALE_CODES.cancel, onClose, {
+      map: CANCEL_FORM_FIELD_ERRORS,
       setError: (field, message) => form.setError(field, { type: "server", message }),
-    },
-  );
-  const [reasonCode, retained] = useWatch({
-    control: form.control,
-    name: ["reasonCode", "retainedPercent"],
-  });
+    });
+  const reasonCode = useWatch({ control: form.control, name: "reasonCode" });
   const { errors } = form.formState;
   const paid = order.paidAmount ?? 0;
-  const consequence = cancelConsequence(order.status);
+  const consequence = cancelConsequence(order.status, order.statusBeforeHold);
   // Lỗi "OTHER cần ghi chú" chỉ hiện khi đã chọn OTHER (BE Order#cancelByAdmin); lỗi máy chủ
   // trả về cho ô ghi chú (vd quá dài) thì luôn hiện
   const noteError =
     reasonCode === "OTHER" || errors.note?.type === "server" ? errors.note?.message : undefined;
 
   const submit = form.handleSubmit((input) => {
+    if (!beginSubmit()) return;
     clearRefusal();
     // Một lần bấm = một request; cùng nội dung bấm lại sau lỗi tạm thời → cùng Idempotency-Key
     const variables = { id: order.orderId, ...input };
@@ -157,15 +178,13 @@ export function CancelForm({ order, onClose }: { order: CancelOrder; onClose: ()
         />
         <FormFieldError id="cancel-note-error" message={noteError} />
       </div>
-      {/* Chỉ có ý nghĩa khi đã thu tiền: phần giữ lại cho công việc đã làm (docs 17 §4.5) */}
+      {/* Không giữ phí (retained = 0) → BE tạo refund PENDING cho khoản đã thu; kế toán xử lý chi trả */}
       {paid > 0 && (
-        <RetainedPercentField
-          registration={form.register("retainedPercent")}
-          value={retained}
-          paidAmount={paid}
-          currency={order.currency}
-          error={errors.retainedPercent?.message}
-        />
+        <p className="text-ink-secondary text-xs">
+          Khi huỷ đơn, hệ thống sẽ tạo yêu cầu hoàn tiền cho toàn bộ số tiền đã thu (
+          {formatMoney(paid, order.currency)}). Yêu cầu này cần kế toán xử lý; việc huỷ đơn không
+          đồng nghĩa tiền đã được hoàn.
+        </p>
       )}
       {refusal && <OrderRefusalAlert view={refusal} />}
     </FormDialogBody>

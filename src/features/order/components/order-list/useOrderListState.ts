@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 
-import { ADMIN_ROUTES, ORDER_STATUSES, STORAGE_KEYS } from "@/constants";
+import { ADMIN_ROUTES, STORAGE_KEYS } from "@/constants";
 import { usePageConfig } from "@/hooks/use-page-config";
 import { useUrlFilters } from "@/hooks/use-url-filters";
 
@@ -12,6 +12,7 @@ import { useOrderExtraFilters } from "./useOrderExtraFilters";
 import {
   DEFAULT_COLUMNS,
   DEFAULT_CONFIG,
+  FILTERABLE_STATUSES,
   SERVER_SORT_FIELDS,
   mergeStoredConfig,
 } from "./constants";
@@ -39,7 +40,7 @@ function parseSort(raw: string): { key: ServerSortField | null; direction: SortD
  */
 export function useOrderListState(canRead = true) {
   const router = useRouter();
-  const filters = useUrlFilters(ORDER_STATUSES);
+  const filters = useUrlFilters(FILTERABLE_STATUSES);
   const { config, updateConfig } = usePageConfig<OrderPageConfig>(
     STORAGE_KEYS.adminOrdersConfig,
     DEFAULT_CONFIG,

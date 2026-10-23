@@ -5,6 +5,7 @@ import {
   recoverDeliveryInputSchema,
   sendPoInputSchema,
   supplierConfirmationInputSchema,
+  updatePoSchema,
 } from "./schemas";
 
 const validPo = {
@@ -164,5 +165,46 @@ describe("supplierConfirmationInputSchema (BE SupplierConfirmationRequest)", () 
   it("NCC từ chối: bắt buộc ghi lý do", () => {
     const v = { status: "REJECTED", supplierReference: "", note: "" };
     expect(pathsOf(supplierConfirmationInputSchema.safeParse(v))).toContain("note");
+  });
+});
+
+describe("createPoSchema — đơn giá tuỳ chọn (BE #118 CreatePOLineRequest)", () => {
+  it("createPoSchema chấp nhận dòng không có unitPrice", () => {
+    const lines = [{ sku: "SKU-001", description: "", quantityOrdered: 10 }];
+    expect(createPoSchema.safeParse({ ...validPo, lines }).success).toBe(true);
+  });
+});
+
+describe("updatePoSchema — Input (BE UpdatePurchaseOrderRequest, SCRUM-462)", () => {
+  const line = { sku: "SKU-001", description: "", quantityOrdered: 1, unitPrice: 1000 };
+  const valid = {
+    version: 0,
+    warehouseId: "d99123fd-2997-4751-6bb9-e10a2e6d9949",
+    expectedAt: "2026-10-07",
+    lines: [line],
+  };
+  const parse = (over: Record<string, unknown>) => updatePoSchema.safeParse({ ...valid, ...over });
+  const withLines = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({ ...line, sku: `S-${i}` }));
+
+  it("hợp lệ: nháp tối thiểu", () => {
+    expect(parse({}).success).toBe(true);
+  });
+
+  it("lineId phải là uuid", () => {
+    expect(parse({ lines: [{ ...line, lineId: "abc" }] }).success).toBe(false);
+    const ok = { ...line, lineId: "33333333-3333-4333-8333-333333333333" };
+    expect(parse({ lines: [ok] }).success).toBe(true);
+  });
+
+  it("expectedAt bắt buộc (khác lúc tạo)", () => {
+    expect(parse({ expectedAt: undefined }).success).toBe(false);
+    expect(parse({ expectedAt: "07/10/2026" }).success).toBe(false);
+  });
+
+  it("lines 1..200: 0 và 201 bị từ chối", () => {
+    expect(parse({ lines: [] }).success).toBe(false);
+    expect(parse({ lines: withLines(200) }).success).toBe(true);
+    expect(parse({ lines: withLines(201) }).success).toBe(false);
   });
 });

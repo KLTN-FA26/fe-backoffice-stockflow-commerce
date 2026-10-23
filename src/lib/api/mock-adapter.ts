@@ -252,34 +252,61 @@ export function activateMockAdapter(): void {
   routesReady = Promise.all([
     import("./mock-routes"),
     import("./mock-routes-suppliers"),
+    import("./mock-routes-supplier-items"),
     import("./mock-routes-purchase-orders"),
+    import("./mock-routes-purchase-orders-draft"),
     import("./mock-routes-orders"),
     import("./mock-routes-goods-receipts"),
     import("./mock-routes-variants"),
+    import("./mock-routes-attributes"),
+    import("./mock-routes-product-attributes"),
+    import("./mock-routes-product-commerce"),
+    import("./mock-routes-inventory"),
+    import("./mock-routes-inventory-items"),
+    import("./mock-routes-stock-alerts"),
     import("./mock-routes-fulfillment"),
     import("./mock-routes-transfer-orders"),
     import("./mock-routes-loads"),
+    import("./mock-routes-taxonomy"),
   ]).then(
     ([
       { registerAllMockRoutes },
       { registerSupplierMockRoutes },
+      { registerSupplierItemMockRoutes },
       { registerPurchaseOrderMockRoutes },
+      { registerPoDraftMockRoutes },
       { registerOrderMockRoutes },
       { registerGoodsReceiptMockRoutes },
       { registerVariantMockRoutes },
+      { registerAttributeMockRoutes },
+      { registerProductAttributeMockRoutes },
+      { registerProductCommerceMockRoutes },
+      { registerInventoryMockRoutes },
+      { registerInventoryItemMockRoutes },
+      { registerStockAlertMockRoutes },
       { registerFulfillmentMockRoutes },
       { registerTransferOrderMockRoutes },
       { registerLoadMockRoutes },
+      { registerTaxonomyMockRoutes },
     ]) => {
       registerAllMockRoutes();
       registerSupplierMockRoutes();
+      registerSupplierItemMockRoutes();
       registerPurchaseOrderMockRoutes();
+      registerPoDraftMockRoutes();
       registerOrderMockRoutes();
       registerGoodsReceiptMockRoutes();
       registerVariantMockRoutes();
+      registerAttributeMockRoutes();
+      registerProductAttributeMockRoutes();
+      registerProductCommerceMockRoutes();
+      registerInventoryMockRoutes();
+      registerInventoryItemMockRoutes();
+      registerStockAlertMockRoutes();
       registerFulfillmentMockRoutes();
       registerTransferOrderMockRoutes();
       registerLoadMockRoutes();
+      registerTaxonomyMockRoutes();
     },
   );
 

@@ -22,10 +22,14 @@ import { mapBackendOrderStatus, toBackendOrderStatuses } from "./status-map";
 import type { ListQueryParams, PaginatedResponse } from "@/lib/api/query-factory";
 import type {
   AdminCancelOrderInput,
+  DeliveryFailureValues,
+  HoldOrderValues,
   Order,
   OrderDto,
   OrderStatus,
   OrderStatusChange,
+  RemainderClosureValues,
+  ResolveOrderHoldValues,
 } from "./types";
 
 export const ORDERS_PATH = "/orders";
@@ -67,6 +71,35 @@ export function toOrder(dto: OrderDto): Order {
       isCustom: line.designSnapshotId != null,
       designSnapshotId: line.designSnapshotId ?? null,
       reservationIds: line.reservationIds,
+      shippedQuantity: line.shippedQuantity ?? null,
+      deliveredQuantity: line.deliveredQuantity ?? null,
+      cancelledQuantity: line.cancelledQuantity ?? null,
+    })),
+    holdReason: dto.holdReason ?? null,
+    holdReasonPublic: dto.holdReasonPublic ?? null,
+    statusBeforeHold: dto.statusBeforeHold ? mapBackendOrderStatus(dto.statusBeforeHold) : null,
+    holdNote: dto.holdNote ?? null,
+    packedAt: dto.packedAt ?? null,
+    shippedAt: dto.shippedAt ?? null,
+    deliveredAt: dto.deliveredAt ?? null,
+    deliveryFailureReason: dto.deliveryFailureReason ?? null,
+    completedAt: dto.completedAt ?? null,
+    closedAt: dto.closedAt ?? null,
+    billedAmount: dto.billedAmount ?? null,
+    effectiveTotal: dto.effectiveTotal ?? null,
+    amountDue: dto.amountDue ?? null,
+    amountDueBeforeHandover: dto.amountDueBeforeHandover ?? null,
+    amountDueOnDelivery: dto.amountDueOnDelivery ?? null,
+    shipments: (dto.shipments ?? []).map((shipment) => ({
+      shipmentId: shipment.shipmentId,
+      status: shipment.status,
+      amount: shipment.amount ?? null,
+      billedAmount: shipment.billedAmount ?? null,
+      handedOverAt: shipment.handedOverAt ?? null,
+      outcomeAt: shipment.outcomeAt ?? null,
+      failureReason: shipment.failureReason ?? null,
+      lines: shipment.lines ?? [],
+      codAmount: shipment.codAmount ?? null,
     })),
     paymentTerm: dto.paymentTerm ?? null,
     paymentStatus: dto.paymentStatus ?? null,
@@ -75,6 +108,7 @@ export function toOrder(dto: OrderDto): Order {
     depositReceivedAt: dto.depositReceivedAt ?? null,
     paidInFullAt: dto.paidInFullAt ?? null,
     creditTermDays: dto.creditTermDays ?? null,
+    balancePolicy: dto.balancePolicy ?? null,
     warehouseId: dto.warehouseId ?? null,
     releasedAt: dto.releasedAt ?? null,
     cancellation: cancellation
@@ -82,6 +116,9 @@ export function toOrder(dto: OrderDto): Order {
           reasonCode: cancellation.reasonCode ?? null,
           reason: cancellation.reason ?? null,
           retainedAmount: cancellation.retainedAmount ?? null,
+          feeReason: cancellation.feeReason ?? null,
+          feeDetail: cancellation.feeDetail ?? null,
+          feeAmount: cancellation.feeAmount ?? null,
         }
       : null,
   };
@@ -161,6 +198,8 @@ export async function getOrderHistory(
       to: mapBackendOrderStatus(change.to),
       reason: change.reason ?? null,
       occurredAt: change.occurredAt,
+      actorId: change.actorId ?? null,
+      actorName: change.actorName ?? null,
     }));
 }
 
@@ -171,14 +210,59 @@ export async function getOrderHistory(
 /** Biến của thao tác ghi đơn: id + input + `Idempotency-Key` (header, không vào body). */
 export type OrderMutationVars<T> = T & { id: string; idempotencyKey?: string };
 
-export async function adminCancelOrder(
-  input: OrderMutationVars<AdminCancelOrderInput>,
+/** POST một thao tác ghi đơn: key chỉ ở header, response là `OrderResponse` → model FE. */
+async function postOrderAction(
+  id: string,
+  suffix: string,
+  body: object,
+  idempotencyKey: string | undefined,
 ): Promise<Order> {
-  const { id, idempotencyKey, ...body } = input;
   const { data } = await api.post<unknown>(
-    orderPath(id, "/admin-cancellation"),
+    orderPath(id, suffix),
     body,
     idempotencyRequestConfig(idempotencyKey),
   );
   return toOrder(orderDtoSchema.parse(data));
+}
+
+/**
+ * Body đúng `AdminCancelOrderRequest` (reasonCode, note?, retainedPercent?, agreedFee?) — `id` và
+ * `idempotencyKey` không vào body; trả `OrderResponse` đã huỷ.
+ */
+export function adminCancelOrder(input: OrderMutationVars<AdminCancelOrderInput>): Promise<Order> {
+  const { id, idempotencyKey, ...body } = input;
+  return postOrderAction(id, "/admin-cancellation", body, idempotencyKey);
+}
+
+/* ── Hold / resolve / delivery-failure / remainder-closure ───────────── */
+// BE PR #133 — `OrderReleaseController` / `OrderController`, mỗi endpoint trả `OrderResponse`.
+// Body bỏ `note` khi trống (BE `@Size`, null hợp lệ trừ OTHER / gỡ giữ).
+// - POST /orders/{id}/hold              {reasonCode, note?}   — sales-orders:APPROVE
+// - POST /orders/{id}/hold/resolution   {note}                — sales-orders:APPROVE
+// - POST /orders/{id}/delivery-failure  {reasonCode, note?}   — sales-orders:APPROVE
+// - POST /orders/{id}/remainder-closure {reasonCode, note?}   — sales-order-cancellations:UPDATE
+
+export type HoldOrderInput = OrderMutationVars<HoldOrderValues>;
+export type ResolveOrderHoldInput = OrderMutationVars<ResolveOrderHoldValues>;
+export type DeliveryFailureInput = OrderMutationVars<DeliveryFailureValues>;
+export type RemainderClosureInput = OrderMutationVars<RemainderClosureValues>;
+
+function reasonBody({ reasonCode, note }: { reasonCode: string; note: string }) {
+  return note ? { reasonCode, note } : { reasonCode };
+}
+
+export function holdOrder(input: HoldOrderInput): Promise<Order> {
+  return postOrderAction(input.id, "/hold", reasonBody(input), input.idempotencyKey);
+}
+
+export function resolveOrderHold(input: ResolveOrderHoldInput): Promise<Order> {
+  return postOrderAction(input.id, "/hold/resolution", { note: input.note }, input.idempotencyKey);
+}
+
+export function recordDeliveryFailure(input: DeliveryFailureInput): Promise<Order> {
+  return postOrderAction(input.id, "/delivery-failure", reasonBody(input), input.idempotencyKey);
+}
+
+export function closeOrderRemainder(input: RemainderClosureInput): Promise<Order> {
+  return postOrderAction(input.id, "/remainder-closure", reasonBody(input), input.idempotencyKey);
 }

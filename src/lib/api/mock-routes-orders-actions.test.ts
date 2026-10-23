@@ -74,14 +74,15 @@ describe("POST /orders/:id/release (SCRUM-423)", () => {
     expect(error.code).toBe("DESIGN_SAMPLE_NOT_APPROVED");
   });
 
-  it("release lần 2 / trạng thái không phải Confirmed → CONFLICT", async () => {
+  // BE Order#release: InvalidOrderTransitionException → 409 ORDER_INVALID_TRANSITION
+  it("release lần 2 / trạng thái không phải Confirmed → ORDER_INVALID_TRANSITION", async () => {
     await releaseOrder({ id: CONFIRMED_STANDARD, warehouseId: "WH-HN-01" });
     const error = await captureError(
       releaseOrder({ id: CONFIRMED_STANDARD, warehouseId: "WH-HN-01" }),
     );
-    expect(error.code).toBe("CONFLICT");
+    expect(error.code).toBe("ORDER_INVALID_TRANSITION");
     expect((await captureError(releaseOrder({ id: SHIPPED, warehouseId: "WH-HN-01" }))).code).toBe(
-      "CONFLICT",
+      "ORDER_INVALID_TRANSITION",
     );
   });
 });
@@ -161,7 +162,7 @@ describe("credit hold (SCRUM-427)", () => {
   });
 });
 
-describe("GET /orders/:id/production-orders (contract pending)", () => {
+describe("GET /production/orders?salesOrderId= (hợp đồng BE ProductionOrderController#list)", () => {
   it("đơn In Production → LSX gốc + LSX con gia công trỏ về gốc (docs 19 BR-12)", async () => {
     const list = await listOrderProductionOrders(IN_PRODUCTION);
     const parent = list.find((po) => po.parentId === null);
@@ -169,12 +170,31 @@ describe("GET /orders/:id/production-orders (contract pending)", () => {
     expect(parent?.mode).toBe("IN_HOUSE");
     expect(child?.parentId).toBe(parent?.productionOrderId);
     expect(child?.mode).toBe("SUBCONTRACTED");
-    expect(child?.subcontractorName).toBeTruthy();
+    expect(child?.salesOrderLineId).toBe(parent?.salesOrderLineId);
+  });
+
+  it("mock trả đúng hình BE: trang PageResponse, row ProductionOrderRowResponse (không mảng trần)", async () => {
+    const { data } = await api.get<{ items: Record<string, unknown>[]; hasNext: boolean }>(
+      "/production/orders",
+      { params: new URLSearchParams({ salesOrderId: IN_PRODUCTION, type: "ORDER" }) },
+    );
+    expect(data.hasNext).toBe(false);
+    expect(data.items[0]).toMatchObject({
+      type: "ORDER",
+      salesOrderId: IN_PRODUCTION,
+      orderNumber: expect.stringMatching(/^LSX-\d{8}-\d{4}$/),
+    });
+    expect(data.items[0]).toHaveProperty("id");
+    expect(data.items[0]).not.toHaveProperty("productionOrderId");
   });
 
   it("đơn chưa release → chưa có LSX", async () => {
     expect(await listOrderProductionOrders(DEPOSIT_PENDING)).toEqual([]);
     expect((await getOrder(DEPOSIT_PENDING)).paymentTerm).toBe("DEPOSIT");
+  });
+
+  it("salesOrderId không tồn tại → trang rỗng, không 404 (BE chỉ lọc)", async () => {
+    expect(await listOrderProductionOrders("ORD-KHONG-CO")).toEqual([]);
   });
 });
 
@@ -229,7 +249,8 @@ describe("GET /orders/credit-position/:customerId (CreditHoldController#position
     const target = orders.find((o) => o.customerId === "CUS-0006");
     if (!target) throw new Error("seed thiếu đơn của CUS-0006");
     const { applyTransition } = await import("./mock-routes-orders-store");
-    applyTransition(target, "ON_HOLD", null, { paymentTerm: "CREDIT" });
+    // Giữ công nợ thật: ON_HOLD + CREDIT + lý do CREDIT (BE Order#submitOnCredit)
+    applyTransition(target, "ON_HOLD", "CREDIT", { paymentTerm: "CREDIT", holdReason: "CREDIT" });
 
     const error = await captureError(
       rejectCreditHold({ id: target.orderId, action: "SWITCH_TO_DEPOSIT", note: "Thử" }),

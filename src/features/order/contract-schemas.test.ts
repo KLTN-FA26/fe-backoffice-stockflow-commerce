@@ -12,7 +12,7 @@ import {
   creditHoldPageDtoSchema,
   creditPositionDtoSchema,
 } from "./credit-hold-schemas";
-import { productionOrderDtoSchema, productionOrderListDtoSchema } from "./production-schemas";
+import { productionOrderDtoSchema, productionOrderPageDtoSchema } from "./production-schemas";
 import { orderDtoSchema, orderStatusChangeDtoSchema } from "./schemas";
 
 const hold = {
@@ -48,9 +48,13 @@ describe("CreditHoldResponse", () => {
   });
 });
 
+/** Dòng danh sách BE không mang `paymentTerm` ("null on list rows that do not carry it" → key vắng). */
+const { paymentTerm: _listRowOmits, ...listRow } = apiOrder;
+void _listRowOmits;
+
 describe("OrderResponse — field SCRUM-423/427/460", () => {
   it("dòng danh sách không mang paymentTerm / payment fields (key vắng) → vẫn parse", () => {
-    expect(orderDtoSchema.safeParse(apiOrder).success).toBe(true);
+    expect(orderDtoSchema.safeParse(listRow).success).toBe(true);
   });
 
   it("paymentStatus: lạ → UNKNOWN; đã biết giữ nguyên; null giữ null; vắng key giữ undefined", () => {
@@ -70,7 +74,7 @@ describe("OrderResponse — field SCRUM-423/427/460", () => {
     for (const term of ["PREPAID", "DEPOSIT", "CREDIT"] as const) expect(parse(term)).toBe(term);
     expect(parse(null)).toBeNull();
     // Vắng key (Jackson non_null) → undefined ở DTO; toOrder chuẩn hoá về null (api.test)
-    expect(orderDtoSchema.parse(apiOrder).paymentTerm).toBeUndefined();
+    expect(orderDtoSchema.parse(listRow).paymentTerm).toBeUndefined();
   });
 
   it("sai KIỂU (không phải chuỗi) vẫn fail — chỉ chuỗi lạ mới được dung thứ", () => {
@@ -86,13 +90,20 @@ describe("OrderResponse — field SCRUM-423/427/460", () => {
     ).toBe("UNKNOWN");
   });
 
-  it("history: from lạ → UNKNOWN; to lạ → UNKNOWN; from null giữ null", () => {
+  it("history: trạng thái PR #133 giữ nguyên; from / to lạ (hoặc mã đã bỏ) → UNKNOWN; from null giữ null", () => {
     const at = "2026-09-07T03:15:00Z";
     expect(
       orderStatusChangeDtoSchema.parse({ from: "PACKED", to: "SHIPPED", occurredAt: at }).from,
-    ).toBe("UNKNOWN");
+    ).toBe("PACKED");
     expect(
       orderStatusChangeDtoSchema.parse({ from: "CONFIRMED", to: "PICKING", occurredAt: at }).to,
+    ).toBe("PICKING");
+    expect(
+      orderStatusChangeDtoSchema.parse({ from: "IN_FULFILMENT", to: "SHIPPED", occurredAt: at })
+        .from,
+    ).toBe("UNKNOWN");
+    expect(
+      orderStatusChangeDtoSchema.parse({ from: "CONFIRMED", to: "REVIEWING", occurredAt: at }).to,
     ).toBe("UNKNOWN");
     expect(
       orderStatusChangeDtoSchema.parse({ from: null, to: "PENDING_PAYMENT", occurredAt: at }).from,
@@ -113,43 +124,69 @@ describe("OrderResponse — field SCRUM-423/427/460", () => {
   });
 });
 
-describe("Production order (CONTRACT PENDING)", () => {
+describe("ProductionOrderRowResponse (GET /production/orders, BE develop 5683fe14)", () => {
+  // Hình thật của BE row (Jackson non_null: parentId / holdReason / dueDate / packingLocation vắng)
   const parent = {
-    productionOrderId: "PRD-1",
-    productionOrderNumber: "LSX-1",
-    salesOrderLineId: "L1",
+    id: "0b0b0b0b-0000-4000-8000-000000000001",
+    orderNumber: "LSX-20261020-0001",
+    type: "ORDER",
     mode: "IN_HOUSE",
     status: "PENDING_PREPRESS",
+    warehouseId: "8f8f8f8f-0000-4000-8000-000000000001",
+    blankSku: "CUP-12OZ-WHT",
+    designSnapshotId: "c0ffee00-0000-4000-8000-000000000001",
     plannedQuantity: 100,
     goodQuantity: 0,
+    salesOrderId: "5e5e5e5e-0000-4000-8000-000000000001",
+    salesOrderLineId: "5e5e5e5e-0000-4000-8000-000000000002",
+    createdAt: "2026-10-20T03:00:00Z",
   };
-
-  it("LSX gốc: không có parentId / subcontractor (non_null bỏ key)", () => {
-    expect(productionOrderDtoSchema.parse(parent).parentId).toBeUndefined();
+  const page = (items: unknown[]) => ({
+    items,
+    page: 0,
+    size: 200,
+    totalElements: items.length,
+    totalPages: items.length ? 1 : 0,
+    hasNext: false,
+    hasPrevious: false,
   });
 
-  it("LSX con gia công + treo (statusBeforeHold, holdReason)", () => {
-    const list = productionOrderListDtoSchema.parse([
-      parent,
-      {
-        ...parent,
-        productionOrderId: "PRD-1-S1",
-        parentId: "PRD-1",
-        mode: "SUBCONTRACTED",
-        status: "ON_HOLD",
-        statusBeforeHold: "SUBCONTRACTED",
-        holdReason: "SUBCONTRACTOR_LATE",
-        subcontractorName: "NCC A",
-      },
-    ]);
-    expect(list[1]?.parentId).toBe("PRD-1");
+  it("LSX gốc: field null bị bỏ khỏi JSON (non_null) vẫn parse; field thừa của BE bị bỏ", () => {
+    const parsed = productionOrderDtoSchema.parse(parent);
+    expect(parsed.parentId).toBeUndefined();
+    expect(parsed).not.toHaveProperty("blankSku");
   });
 
-  it("status / mode ngoài ràng buộc DB → fail", () => {
+  it("trang PageResponse: LSX con gia công + treo (parentId, holdReason)", () => {
+    const parsed = productionOrderPageDtoSchema.parse(
+      page([
+        parent,
+        {
+          ...parent,
+          id: "0b0b0b0b-0000-4000-8000-000000000002",
+          orderNumber: "LSX-20261020-0002",
+          parentId: parent.id,
+          mode: "SUBCONTRACTED",
+          status: "ON_HOLD",
+          holdReason: "SUBCONTRACTOR_LATE",
+        },
+      ]),
+    );
+    expect(parsed.items[1]?.parentId).toBe(parent.id);
+    expect(parsed.items[1]?.holdReason).toBe("SUBCONTRACTOR_LATE");
+  });
+
+  it("trang rỗng (salesOrderId không có LSX) là hợp lệ", () => {
+    expect(productionOrderPageDtoSchema.parse(page([])).items).toEqual([]);
+  });
+
+  it("status / mode / type ngoài enum BE → fail; mảng trần (hợp đồng mock cũ) → fail", () => {
     expect(productionOrderDtoSchema.safeParse({ ...parent, status: "DONE" }).success).toBe(false);
     expect(productionOrderDtoSchema.safeParse({ ...parent, mode: "OUTSOURCE" }).success).toBe(
       false,
     );
+    expect(productionOrderDtoSchema.safeParse({ ...parent, type: "RUSH" }).success).toBe(false);
+    expect(productionOrderPageDtoSchema.safeParse([parent]).success).toBe(false);
   });
 });
 

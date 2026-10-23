@@ -18,19 +18,38 @@ export const SUPPLIER_PERMISSIONS = {
 } as const;
 
 /**
- * Đơn hàng — resource `sales-orders` (BE `OrderResources.ORDERS`, develop). Seed BE
- * V20260903000100: SALES_STAFF + ORDER_COORDINATOR có VIEW_PAGE/READ/CREATE/UPDATE; chỉ
- * ORDER_COORDINATOR có APPROVE = release đơn (`POST /orders/{id}/release`, SCRUM-423).
+ * Danh mục hàng của NCC — resource `procurement-supplier-items` (BE SupplierItemController).
+ * Seed V20260928006000 chỉ cấp đủ 5 action cho PROCUREMENT_STAFF (ACCOUNTANT,
+ * ECOMMERCE_ADMIN không có).
+ */
+export const SUPPLIER_ITEM_PERMISSIONS = {
+  viewPage: "procurement-supplier-items:VIEW_PAGE",
+  read: "procurement-supplier-items:READ",
+  create: "procurement-supplier-items:CREATE",
+  update: "procurement-supplier-items:UPDATE",
+  delete: "procurement-supplier-items:DELETE",
+} as const;
+
+/**
+ * Đơn hàng — resource `sales-orders` (BE `OrderResources.ORDERS`).
+ * - `approve` / `release` (cùng APPROVE, scope ALL — `OrderReleaseController`): giữ đơn, gỡ giữ,
+ *   ghi giao thất bại, release đơn sang kho / sản xuất (`POST /orders/{id}/release`, SCRUM-423);
+ *   seed BE chỉ cấp cho ORDER_COORDINATOR (SALES_STAFF chỉ có VIEW_PAGE/READ/CREATE/UPDATE).
+ * - `cancel`: huỷ đơn phía admin (`POST /orders/{id}/admin-cancellation`) và đóng phần còn lại của
+ *   đơn giao một phần (`POST /orders/{id}/remainder-closure`) — BE tách sang resource
+ *   `sales-order-cancellations` (UPDATE, scope ALL; seed: ORDER_COORDINATOR + SALES_STAFF).
  */
 export const ORDER_PERMISSIONS = {
   // Mở trang (menu + chặn route) — BE Action.VIEW_PAGE, ADR-0004
   viewPage: "sales-orders:VIEW_PAGE",
   // Đọc dữ liệu (GET /orders, /orders/{id}, /orders/{id}/history)
   read: "sales-orders:READ",
-  // Release đơn sang kho / sản xuất — OrderReleaseController, APPROVE scope ALL
+  // Giữ / gỡ giữ / ghi giao thất bại — OrderReleaseController, APPROVE scope ALL (BE PR #133)
+  approve: "sales-orders:APPROVE",
+  // Release đơn sang kho / sản xuất — OrderReleaseController, cùng APPROVE scope ALL (SCRUM-423)
   release: "sales-orders:APPROVE",
-  // Huỷ đơn phía admin — resource riêng `sales-order-cancellations` (BE V20261013000200):
-  // SALES_STAFF + ORDER_COORDINATOR có UPDATE.
+  // Huỷ đơn phía admin + đóng phần còn lại — resource riêng `sales-order-cancellations`
+  // (BE V20261013000200): SALES_STAFF + ORDER_COORDINATOR có UPDATE.
   cancel: "sales-order-cancellations:UPDATE",
 } as const;
 
@@ -53,6 +72,16 @@ export const CREDIT_HOLD_PERMISSIONS = {
  */
 export const CUSTOMER_CREDIT_PROFILE_PERMISSIONS = {
   read: "customer-credit-profiles:READ",
+} as const;
+
+/**
+ * Lệnh sản xuất — resource `production-orders` (BE ProductionOrderController#list
+ * `@RequiresPermission READ`, seed V20261010000500): ORDER_COORDINATOR, SALES_STAFF,
+ * PROCUREMENT_STAFF, WAREHOUSE_STAFF / MANAGER, QC_STAFF, PRODUCTION_STAFF có READ; ACCOUNTANT
+ * không có. FE chỉ đọc LSX của một đơn trên trang chi tiết đơn.
+ */
+export const PRODUCTION_ORDER_PERMISSIONS = {
+  read: "production-orders:READ",
 } as const;
 
 /**
@@ -93,17 +122,104 @@ export const PO_PERMISSIONS = {
 } as const;
 
 /**
- * Sản phẩm, biến thể, logistics theo SKU, ảnh theo biến thể — resource `product-products`
- * (BE ProductResources.PRODUCTS, PR #71).
+ * Sản phẩm, giá bán, ảnh theo biến thể — resource `product-products` (BE ProductResources.PRODUCTS,
+ * PR #71). Logistics / chính sách tồn của SKU là `inventory-inventory-items` (BE PR #119).
  */
 export const PRODUCT_PERMISSIONS = {
   viewPage: "product-products:VIEW_PAGE",
   read: "product-products:READ",
   create: "product-products:CREATE",
-  // Sửa nháp, thêm / sửa / chặn biến thể, logistics, tải ảnh lên
+  // Sửa nháp, listing / giá bán, tải ảnh lên (biến thể là `product-variants`)
   update: "product-products:UPDATE",
-  // Duyệt (bốn mắt), kích hoạt / ngừng biến thể, xuất bản ảnh
+  // Duyệt (bốn mắt), xuất bản / gỡ xuất bản, xuất bản ảnh
   approve: "product-products:APPROVE",
+  // Tạm ngưng / tiếp tục / ngừng kinh doanh — resource riêng `product-lifecycle` (BE
+  // `ProductLifecycleController`, PR #123): kltn-docs 01 §5.1 chỉ giao cho System Admin
+  lifecycle: "product-lifecycle:APPROVE",
+  // Xoá sản phẩm Nháp (`DELETE /products/{id}`) — quyền riêng, có thể cấp hoặc thu hồi tách biệt
+  delete: "product-products:DELETE",
+} as const;
+
+/**
+ * Cấu trúc biến thể — resource `product-variants` (BE `ProductResources.VARIANTS`, khai báo ở
+ * `ProductAttributeController`): trục biến thể (`PUT /products/{id}/axes`), thêm biến thể và sinh ma
+ * trận là CREATE, sửa / chặn là UPDATE, kích hoạt / ngừng dùng là APPROVE. Khác với nội dung sản phẩm
+ * (`product-products`), nên SALES_STAFF có quyền này mà không có quyền duyệt sản phẩm.
+ */
+export const VARIANT_PERMISSIONS = {
+  viewPage: "product-variants:VIEW_PAGE",
+  read: "product-variants:READ",
+  create: "product-variants:CREATE",
+  update: "product-variants:UPDATE",
+  approve: "product-variants:APPROVE",
+} as const;
+
+/**
+ * Từ điển thuộc tính — resource `product-attributes` (BE `AttributeController`,
+ * `CategoryAttributeController`). Thêm / sửa / xoá một giá trị là UPDATE của thuộc tính (không có
+ * quyền riêng cho giá trị); gán bộ thuộc tính cho danh mục cũng là UPDATE.
+ */
+export const ATTRIBUTE_PERMISSIONS = {
+  viewPage: "product-attributes:VIEW_PAGE",
+  read: "product-attributes:READ",
+  create: "product-attributes:CREATE",
+  update: "product-attributes:UPDATE",
+  delete: "product-attributes:DELETE",
+} as const;
+
+/**
+ * Điều chỉnh tồn + sổ kho — BE `StockOperationsController` (develop 0f18f24), resource
+ * `InventoryResources.STOCK_ITEMS` / `STOCK_ADJUSTMENTS` / `STOCK_MOVEMENTS`.
+ */
+export const INVENTORY_PERMISSIONS = {
+  // GET /inventory/adjustments, /inventory/adjustments/{id}
+  adjustmentRead: "inventory-stock-adjustments:READ",
+  // POST …/approval và …/rejection — bốn mắt vẫn do lifecycle + BE kiểm
+  adjustmentApprove: "inventory-stock-adjustments:APPROVE",
+  // POST /inventory/adjustments (tạo) và …/withdrawal (rút) — việc của NV kho
+  stockUpdate: "inventory-stock-items:UPDATE",
+  // GET /inventory/movements
+  movementRead: "inventory-stock-movements:READ",
+  // GET /inventory/stock-items?sku= (tồn theo SKU và vị trí) — gợi ý nguồn khi chuyển vị trí
+  stockRead: "inventory-stock-items:READ",
+  // GET /inventory/alerts, /inventory/alerts/summary (BE StockAlertController, resource inventory-alerts)
+  alertRead: "inventory-alerts:READ",
+} as const;
+
+/**
+ * Hồ sơ hàng tồn (logistics + chính sách tồn của một SKU) — resource `inventory-inventory-items`
+ * (BE PR #119 `InventoryItemController`, chỉ khai báo VIEW_PAGE / READ / UPDATE). Seed
+ * V20260928006000: WAREHOUSE_MANAGER, INVENTORY_PLANNER mọi quyền; WAREHOUSE_STAFF,
+ * PROCUREMENT_STAFF chỉ VIEW_PAGE / READ. Role catalog (ECOMMERCE_ADMIN, SALES_STAFF) không có quyền.
+ */
+export const INVENTORY_ITEM_PERMISSIONS = {
+  viewPage: "inventory-inventory-items:VIEW_PAGE",
+  // GET /inventory/items, GET /inventory/items/{id}
+  read: "inventory-inventory-items:READ",
+  // PUT /inventory/items/{id}/logistics, PUT …/policy
+  update: "inventory-inventory-items:UPDATE",
+} as const;
+
+/**
+ * Sơ đồ kho — resource `warehouse-locations` (BE `LayoutController`): `GET /warehouses/{id}/layout`
+ * và `GET /locations/{code}`. WAREHOUSE_STAFF có VIEW_PAGE/READ (seed V20260928006000).
+ */
+export const WAREHOUSE_LOCATION_PERMISSIONS = {
+  read: "warehouse-locations:READ",
+} as const;
+
+/**
+ * Tổng quan tồn kho (SCRUM-438) — resource `InventoryResources.STOCK_ITEMS` / `RESERVATIONS` /
+ * `ALERTS`. Tồn kho và giữ chỗ là hai resource riêng; seed BE V20260903000100.
+ */
+export const INVENTORY_OVERVIEW_PERMISSIONS = {
+  stockViewPage: "inventory-stock-items:VIEW_PAGE",
+  stockRead: "inventory-stock-items:READ",
+  reservationViewPage: "inventory-reservations:VIEW_PAGE",
+  reservationRead: "inventory-reservations:READ",
+  // GET /inventory/alerts (StockAlertController, READ) — cảnh báo nhúng trong màn tổng quan, không
+  // có menu riêng nên không cần VIEW_PAGE. Seed V20261014000900.
+  alertRead: "inventory-alerts:READ",
 } as const;
 
 /**
@@ -190,6 +306,15 @@ export const SHIPMENT_PERMISSIONS = {
   read: "fulfillment-shipments:READ",
   create: "fulfillment-shipments:CREATE",
   update: "fulfillment-shipments:UPDATE",
+} as const;
+
+/**
+ * Danh mục kho — resource `warehouse-warehouses` (BE WarehouseController: GET /warehouses = READ).
+ * Seed V20260928006000: WAREHOUSE_MANAGER, WAREHOUSE_STAFF, INVENTORY_PLANNER, PROCUREMENT_STAFF;
+ * V20261017000800 thêm SALES_STAFF; QC_STAFF không có.
+ */
+export const WAREHOUSE_PERMISSIONS = {
+  read: "warehouse-warehouses:READ",
 } as const;
 
 /** BE develop IdentityResources / IdentityController: read-only RBAC screen APIs. */

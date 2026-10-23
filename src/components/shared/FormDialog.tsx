@@ -5,17 +5,19 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 
+import { LayeredDialogContent } from "./LayeredDialogContent";
+
 /**
  * Khung dialog có form — cùng kiểu với `ConfirmDialog` (header viền dưới, body có padding, footer
- * nền `bg.subtle`). Form đặt trong con của `DialogContent`: Radix unmount khi đóng nên dữ liệu đã
- * nhập tự reset mỗi lần mở lại. Dùng chung cho thao tác PO và biến thể sản phẩm.
+ * nền `bg.subtle`). Form đặt trong con của `LayeredDialogContent`: Radix unmount khi đóng nên dữ liệu
+ * đã nhập tự reset mỗi lần mở lại. Dùng chung cho thao tác PO và biến thể sản phẩm; nằm trên
+ * `SlideOverPanel` nên mở được từ trong panel.
  */
 export function FormDialog({
   open,
@@ -28,12 +30,9 @@ export function FormDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        showCloseButton={false}
-        className="border-border-default bg-bg-surface gap-0 rounded-[var(--r-xl)] border p-0 shadow-[var(--sh-lg)] ring-0 sm:max-w-[520px]"
-      >
+      <LayeredDialogContent className="border-border-default bg-bg-surface gap-0 rounded-[var(--r-xl)] border p-0 shadow-[var(--sh-lg)] ring-0 sm:max-w-[520px]">
         {children}
-      </DialogContent>
+      </LayeredDialogContent>
     </Dialog>
   );
 }
@@ -46,6 +45,8 @@ export function FormDialogBody({
   isPending,
   error,
   danger = false,
+  hideCancel = false,
+  readOnly = false,
   onSubmit,
   onCancel,
   children,
@@ -58,6 +59,10 @@ export function FormDialogBody({
   /** Lỗi từ server (đã map tiếng Việt) — hiện ngay trong dialog, form giữ nguyên. */
   error: string | null;
   danger?: boolean;
+  /** Hộp thoại chỉ báo kết quả (một nút "Đóng"): không cần thêm nút Huỷ. */
+  hideCancel?: boolean;
+  /** Chỉ xem (thiếu quyền sửa): khoá mọi ô qua `fieldset disabled`, footer chỉ còn nút Đóng. */
+  readOnly?: boolean;
   onSubmit: () => void;
   onCancel: () => void;
   children?: React.ReactNode;
@@ -66,7 +71,7 @@ export function FormDialogBody({
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        if (canSubmit && !isPending) onSubmit();
+        if (canSubmit && !isPending && !readOnly) onSubmit();
       }}
     >
       <DialogHeader className="border-border-default border-b px-[18px] py-4">
@@ -78,7 +83,13 @@ export function FormDialogBody({
         <DialogDescription className="text-ink-secondary text-[0.875rem] leading-relaxed">
           {description}
         </DialogDescription>
-        {children}
+        {readOnly ? (
+          <fieldset disabled className="m-0 min-w-0 space-y-3 border-0 p-0">
+            {children}
+          </fieldset>
+        ) : (
+          children
+        )}
         {error && (
           <p role="alert" className="text-danger text-[0.8125rem]">
             {error}
@@ -86,27 +97,31 @@ export function FormDialogBody({
         )}
       </div>
       <DialogFooter className="border-border-default bg-bg-subtle mx-0 mb-0 rounded-b-[var(--r-xl)] border-t px-[18px] py-[14px]">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onCancel}
-          // Đang gửi thì không huỷ được (giống ConfirmDialog) — khoá luôn để không trông như bấm được
-          disabled={isPending}
-          className="border-border-strong bg-bg-surface text-ink-primary hover:bg-bg-muted rounded-[var(--r-sm)]"
-        >
-          Huỷ
-        </Button>
-        <Button
-          type="submit"
-          size="sm"
-          variant={danger ? "destructive" : "default"}
-          disabled={!canSubmit || isPending}
-          className="rounded-[var(--r-sm)] disabled:opacity-50"
-        >
-          {isPending && <Loader2 className="size-3.5 animate-spin" />}
-          {submitLabel}
-        </Button>
+        {!hideCancel && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onCancel}
+            // Đang gửi thì không huỷ được (giống ConfirmDialog) — khoá luôn để không trông như bấm được
+            disabled={isPending}
+            className="border-border-strong bg-bg-surface text-ink-primary hover:bg-bg-muted rounded-[var(--r-sm)]"
+          >
+            {readOnly ? "Đóng" : "Huỷ"}
+          </Button>
+        )}
+        {!readOnly && (
+          <Button
+            type="submit"
+            size="sm"
+            variant={danger ? "destructive" : "default"}
+            disabled={!canSubmit || isPending}
+            className="rounded-[var(--r-sm)] disabled:opacity-50"
+          >
+            {isPending && <Loader2 className="size-3.5 animate-spin" />}
+            {submitLabel}
+          </Button>
+        )}
       </DialogFooter>
     </form>
   );

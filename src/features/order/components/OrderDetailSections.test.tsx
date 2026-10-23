@@ -87,19 +87,36 @@ describe("OrderDetail — thanh toán / cọc / công nợ / huỷ", () => {
     return within(heading.closest("section") as HTMLElement);
   }
 
-  it("E/F. đơn công nợ On Hold → trạng thái 'Tạm giữ', KHÔNG đoán 'Vượt hạn mức' (đơn không mang lý do)", async () => {
+  it("E/F. đơn công nợ giữ vì CREDIT → trạng thái 'Tạm giữ', KHÔNG đoán 'nợ quá hạn'", async () => {
     await renderDetail({
       ...apiOrder,
       status: "ON_HOLD",
       paymentTerm: "CREDIT",
       paymentStatus: "ON_CREDIT",
       creditTermDays: 30,
+      holdReason: "CREDIT",
     });
 
     const card = await financeCard();
     expect(card.getByText("Tạm giữ")).toBeInTheDocument();
     expect(card.queryByText(/Vượt hạn mức|công nợ quá hạn/)).not.toBeInTheDocument();
     expect(card.getByText("Kỳ hạn 30 ngày")).toBeInTheDocument();
+  });
+
+  it("E/F'. đơn công nợ giữ vì ADDRESS (đã qua kiểm hạn mức lúc xác nhận) → KHÔNG 'Tạm giữ' công nợ", async () => {
+    await renderDetail({
+      ...apiOrder,
+      status: "ON_HOLD",
+      paymentTerm: "CREDIT",
+      paymentStatus: "ON_CREDIT",
+      creditTermDays: 30,
+      holdReason: "ADDRESS",
+      statusBeforeHold: "PICKING",
+    });
+
+    const card = await financeCard();
+    expect(card.queryByText("Tạm giữ")).not.toBeInTheDocument();
+    expect(card.getByText(/Đã qua kiểm hạn mức/)).toBeInTheDocument();
   });
 
   it("G. đơn công nợ không On Hold → giữ nguyên 'Đã qua kiểm hạn mức'", async () => {

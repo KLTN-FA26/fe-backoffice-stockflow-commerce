@@ -12,6 +12,8 @@ export const PO_LIMITS = {
   closeReasonMax: 255,
   /** BE lý do từ chối duyệt — `purchase_order_approvals.reason VARCHAR(500)`. */
   rejectReasonMax: 500,
+  /** BE `UpdatePurchaseOrderRequest.lines` @Size(max = 200). */
+  linesMax: 200,
   /** BE `purchase_orders.note TEXT`, giới hạn ở request 2000. */
   noteMax: 2000,
   /** BE `SupplierConfirmationRequest.supplierReference` @Size(max = 100). */
@@ -41,6 +43,18 @@ export const ORDER_LIMITS = {
    * cũng chấp nhận số thập phân → "any" để validation gốc của trình duyệt không chặn 30.5%.
    */
   percentInputStep: "any",
+  /** BE `CancellationFeeRequest.reason` @NotBlank @Size(max = 500). */
+  cancelFeeReasonMax: 500,
+  /** BE `CancellationFeeRequest.detail` @NotBlank @Size(max = 2000). */
+  cancelFeeDetailMax: 2000,
+  /** `HoldOrderRequest.note` @Size(max = 1000) — BE PR #133. */
+  holdNoteMax: 1000,
+  /** `ResolveHoldRequest.note` @NotBlank @Size(max = 1000). */
+  resolveNoteMax: 1000,
+  /** `DeliveryFailureRequest.note` @Size(max = 500). */
+  deliveryFailureNoteMax: 500,
+  /** `CloseRemainderRequest.note` @Size(max = 1000). */
+  remainderClosureNoteMax: 1000,
 } as const;
 
 /** Giới hạn phiếu nhận — đúng ràng buộc request BE goods receipt (PR #62, SCRUM-435). */
@@ -87,6 +101,31 @@ export const TRANSFER_LIMITS = {
   approvalThresholdUnits: 100,
 } as const;
 
+/** Giới hạn thương hiệu / danh mục — BE `Create*Request` / `Update*Request` + migration PIM dictionary. */
+export const TAXONOMY_LIMITS = {
+  /** `name` @Size(max = 255). */
+  nameMax: 255,
+  /** `CreateCategoryRequest.seoTitle` @Size(max = 255). */
+  seoTitleMax: 255,
+  /**
+   * Cấp sâu nhất còn nhận con: `ProductTaxonomyService.createCategory` từ chối cha có depth ≥ 10
+   * (400 VALIDATION_FAILED, cây tối đa 11 cấp — CHECK `ck_categories_depth` 0–10).
+   */
+  maxParentDepth: 9,
+  /**
+   * Ô chọn danh mục cha / cây danh mục tải hết các trang 200 dòng (`Pages.MAX_PAGE_SIZE`) thay vì
+   * cắt ở trang đầu; chặn trên 25 trang (5000 bản ghi) để không lặp vô hạn nếu BE trả sai `hasNext`.
+   */
+  maxLookupPages: 25,
+} as const;
+
+/** Giới hạn chính sách tồn — BE PR #119. */
+export const INVENTORY_POLICY_LIMITS = {
+  /** `UpdateItemPolicyRequest.maxShelfLifeDays` @Min(1) @Max(36500). */
+  maxShelfLifeDaysMin: 1,
+  maxShelfLifeDaysMax: 36500,
+} as const;
+
 /** Ô quét mã vạch dùng chung (`use-scan-tone`). */
 export const SCAN_LIMITS = {
   /** Chờ trình duyệt mở AudioContext tối đa — quá thì bỏ tiếng báo đang chờ. */
@@ -103,3 +142,24 @@ export const SHIPPING_LIMITS = {
   /** Biên bản đang đối soát (LOADING): tự tải lại để thấy kiện quét từ máy khác. */
   manifestPollMs: 15_000,
 } as const;
+
+/**
+ * Danh mục hàng NCC — nguồn BE: `SupplierItemTerms` (mã NCC, lead time), `PurchasePrices`
+ * (số lẻ giá, tối đa 2 và không vượt số lẻ tiền tệ), `Pages.MAX_PAGE_SIZE`.
+ */
+export const SUPPLIER_ITEM_LIMITS = {
+  supplierSkuCodeMax: 50,
+  leadTimeDaysMax: 365,
+  priceMaxScale: 2,
+  // BE `SaveSupplierItemRequest.price` @Digits(integer = 16) + `PurchasePrices.MAX` (numeric(18,2))
+  priceIntegerDigitsMax: 16,
+  // BE `moq` / `packSize` là `Integer` Java — quá int32 thì Jackson không bind được (400 chung)
+  intMax: 2_147_483_647,
+  catalogPageSize: 200,
+} as const;
+
+/**
+ * Số gợi ý mỗi lần tìm hồ sơ hàng tồn (`GET /inventory/items?q=`) ở ô chọn SKU — bằng
+ * `Pages.DEFAULT_PAGE_SIZE` của BE (tối đa `Pages.MAX_PAGE_SIZE` 200); gõ thêm để thu hẹp.
+ */
+export const INVENTORY_ITEM_OPTIONS_PAGE_SIZE = 20;

@@ -1,5 +1,5 @@
 import { ORDER_STATUSES, PAGE_SIZE } from "@/constants";
-import { STATUS_LABEL_VI } from "@/lib/status-map";
+import { statusLabelVi } from "@/lib/status-map";
 
 import type { OrderStatus } from "../../types";
 
@@ -64,15 +64,18 @@ export const COLUMN_LABELS: Record<string, string> = {
 };
 
 /**
- * Đúng 12 trạng thái BE FE hỗ trợ (ORDER_STATUSES) — gồm On Hold, In Production. KHÔNG có
- * `UNKNOWN`: đó là trạng thái chỉ để đọc, không phải giá trị lọc gửi BE.
+ * 19 trạng thái BE (ORDER_STATUSES, PR #133). KHÔNG có `UNKNOWN`: đó là trạng thái chỉ để đọc
+ * (`ORDER_READ_STATUSES`), không phải giá trị lọc gửi BE — kiểu `OrderStatus` đã loại nó.
  */
 export const STATUS_OPTIONS: { label: string; value: OrderStatus }[] = ORDER_STATUSES.map(
   (value) => ({
-    label: STATUS_LABEL_VI[value] ?? value,
+    label: statusLabelVi(value, "order") ?? value,
     value,
   }),
 );
+
+/** Giá trị trạng thái hợp lệ trên URL (`?status=`) — không gồm "UNKNOWN", mã cũ (Paid / In Fulfilment) bị bỏ. */
+export const FILTERABLE_STATUSES: readonly OrderStatus[] = STATUS_OPTIONS.map((o) => o.value);
 
 export function mergeStoredConfig(
   stored: Partial<OrderPageConfig>,

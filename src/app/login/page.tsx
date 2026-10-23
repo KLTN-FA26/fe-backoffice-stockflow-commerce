@@ -28,6 +28,7 @@ import { useAuthLifecycle } from "@/lib/auth/use-auth-lifecycle";
 
 import { useIsMock } from "@/providers/app-providers";
 
+import { CarPageLoader } from "@/components/shared/CarPageLoader";
 import { Logo } from "@/components/shared/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,11 +55,7 @@ export default function LoginPage() {
 function LoginPageFallback() {
   return (
     <main className="bg-bg-base flex min-h-screen items-center justify-center px-6">
-      <div className="flex flex-col items-center gap-4" role="status">
-        <Logo height={38} />
-        <LoaderCircle className="text-accent size-5 animate-spin" aria-hidden="true" />
-        <span className="sr-only">Đang tải trang đăng nhập</span>
-      </div>
+      <CarPageLoader label="Đang tải trang đăng nhập" />
     </main>
   );
 }

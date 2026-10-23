@@ -12,6 +12,8 @@ interface OrderLinesProps {
   currency: Currency;
   /** Vùng hiển thị thêm dưới dòng in (lệnh sản xuất — B4). */
   renderCustomLineExtra?: (line: OrderLine) => ReactNode;
+  /** Đơn đã có lô giao (BE `shipments` không rỗng) — hiện tiến độ giao từng dòng. */
+  hasShipments?: boolean;
 }
 
 const BADGE =
@@ -52,7 +54,41 @@ function Reservations({ ids }: { ids: readonly string[] }) {
   );
 }
 
-export function OrderLines({ lines, currency, renderCustomLineExtra }: OrderLinesProps) {
+/**
+ * Tiến độ giao từng dòng (BE PR #133). Chỉ hiện khi đơn đã có lô giao hoặc đã đóng bớt đơn vị.
+ * `shippedQuantity` = mọi đơn vị đã bàn giao và chưa trả về (gồm cả đã giao). Số BE không gửi (null)
+ * KHÔNG hiện thành 0 — không bịa số; đơn vị đã đóng tách riêng, không lẫn với đã bàn giao.
+ */
+function LineProgress({ line, hasShipments }: { line: OrderLine; hasShipments: boolean }) {
+  const closed = line.cancelledQuantity;
+  const hasClosed = closed !== null && closed > 0;
+  if (!hasShipments && !hasClosed) return null;
+  const parts: { label: string; value: number }[] = [];
+  if (hasShipments && line.shippedQuantity !== null) {
+    parts.push({ label: "Đã bàn giao", value: line.shippedQuantity });
+  }
+  if (hasShipments && line.deliveredQuantity !== null) {
+    parts.push({ label: "Đã giao", value: line.deliveredQuantity });
+  }
+  if (hasClosed) parts.push({ label: "Không giao (đã đóng)", value: closed });
+  if (parts.length === 0) return null;
+  return (
+    <div className="text-ink-secondary mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
+      {parts.map((part) => (
+        <span key={part.label}>
+          {part.label}: <span className="text-ink-primary tabular-nums">{part.value}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+export function OrderLines({
+  lines,
+  currency,
+  renderCustomLineExtra,
+  hasShipments = false,
+}: OrderLinesProps) {
   const customCount = lines.filter((line) => line.isCustom).length;
   return (
     <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
@@ -96,6 +132,7 @@ export function OrderLines({ lines, currency, renderCustomLineExtra }: OrderLine
                 <div className="mt-1.5 text-xs">
                   <Reservations ids={line.reservationIds} />
                 </div>
+                <LineProgress line={line} hasShipments={hasShipments} />
               </div>
             </div>
             {line.isCustom && renderCustomLineExtra?.(line)}

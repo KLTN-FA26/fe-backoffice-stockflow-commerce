@@ -9,13 +9,22 @@
 
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { adminCancelOrder, getOrder, getOrderHistory, listOrders } from "@/features/order/api";
+import {
+  adminCancelOrder,
+  closeOrderRemainder,
+  getOrder,
+  getOrderHistory,
+  holdOrder,
+  listOrders,
+  recordDeliveryFailure,
+  resolveOrderHold,
+} from "@/features/order/api";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { orders } from "@/lib/mock-data";
 
 import { activateMockAdapter } from "./mock-adapter";
-import { resetOrderMockStore } from "./mock-routes-orders";
+import { resetOrderMockStore, setMockOrderStatus } from "./mock-routes-orders";
 import { mockCustomerUuid } from "./mock-routes-orders-store";
 
 const originalAdapter = api.defaults.adapter;
@@ -196,6 +205,7 @@ describe("POST /orders/:id/admin-cancellation", () => {
       adminCancelOrder({ id: order.orderId, reasonCode: "CUSTOMER_REQUEST" }),
     );
     expect(error.status).toBe(409);
+    // BE Order#cancel: CANCELLED không có cạnh → CANCELLED → ORDER_NOT_CANCELLABLE (không có ORDER_CANCELLED ở đây)
     expect(error.code).toBe("ORDER_NOT_CANCELLABLE");
   });
 
@@ -210,14 +220,20 @@ describe("POST /orders/:id/admin-cancellation", () => {
     expect(error.fieldErrors?.note).toBeTruthy();
   });
 
-  it("BE BR-031; docs BR-03: đơn Shipped → ORDER_NOT_CANCELLABLE", async () => {
-    const order = firstOrderWith("Shipped");
-    const error = await captureError(
-      adminCancelOrder({ id: order.orderId, reasonCode: "CUSTOMER_REQUEST" }),
+  it("BE BR-031 + BR-ORD-004: đơn Packed (packedAt) và Shipped → ORDER_NOT_CANCELLABLE", async () => {
+    const packed = firstOrderWith("Packed");
+    const packedError = await captureError(
+      adminCancelOrder({ id: packed.orderId, reasonCode: "CUSTOMER_REQUEST" }),
     );
+    expect(packedError.status).toBe(409);
+    expect(packedError.code).toBe("ORDER_NOT_CANCELLABLE");
 
-    expect(error.status).toBe(409);
-    expect(error.code).toBe("ORDER_NOT_CANCELLABLE");
+    const shipped = firstOrderWith("Shipped");
+    const shippedError = await captureError(
+      adminCancelOrder({ id: shipped.orderId, reasonCode: "CUSTOMER_REQUEST" }),
+    );
+    expect(shippedError.status).toBe(409);
+    expect(shippedError.code).toBe("ORDER_NOT_CANCELLABLE");
   });
 
   it("đơn không tồn tại → NOT_FOUND (không tiết lộ quyền)", async () => {
@@ -225,5 +241,260 @@ describe("POST /orders/:id/admin-cancellation", () => {
       adminCancelOrder({ id: "ORD-KHONG-TON-TAI", reasonCode: "CUSTOMER_REQUEST" }),
     );
     expect(error.code).toBe("NOT_FOUND");
+  });
+});
+
+describe("GET /orders — bộ lọc status (BE PR #133)", () => {
+  it("lọc trạng thái mới: PARTIALLY_FULFILLED, ON_HOLD, DELIVERY_FAILED, CLOSED", async () => {
+    const page = await listOrders({
+      page: 0,
+      size: 200,
+      status: ["Partially Fulfilled", "On Hold", "Delivery Failed", "Closed"],
+    });
+    expect(new Set(page.items.map((o) => o.status))).toEqual(
+      new Set(["Partially Fulfilled", "On Hold", "Delivery Failed", "Closed"]),
+    );
+  });
+
+  it("tên cũ BE còn nhận một sprint: IN_FULFILMENT → PICKING/PARTIALLY_FULFILLED/PACKED, PAID → CONFIRMED", async () => {
+    const { data } = await api.get<{
+      data?: { items: { status: string }[] };
+      items?: { status: string }[];
+    }>("/orders", {
+      params: new URLSearchParams([
+        ["page", "0"],
+        ["size", "200"],
+        ["status", "IN_FULFILMENT"],
+      ]),
+    });
+    const items = data.items ?? data.data?.items ?? [];
+    expect(new Set(items.map((o) => o.status))).toEqual(
+      new Set(["PICKING", "PARTIALLY_FULFILLED", "PACKED"]),
+    );
+  });
+
+  it("omit null (non_null): đơn không giữ không có key holdReason / packedAt; shipments luôn là danh sách", async () => {
+    const source = firstOrderWith("Pending Payment");
+    const { data } = await api.get<Record<string, unknown>>(`/orders/${source.orderId}`);
+    const body = ("data" in data && typeof data.data === "object" ? data.data : data) as Record<
+      string,
+      unknown
+    >;
+    expect(body).not.toHaveProperty("holdReason");
+    expect(body).not.toHaveProperty("packedAt");
+    // BE OrderWebMapper: `lifecycle == null ? List.of() : …` — danh sách rỗng vẫn được gửi (non_null)
+    expect(body.shipments).toEqual([]);
+    expect(body).toHaveProperty("effectiveTotal");
+  });
+});
+
+describe("POST /orders/:id/hold + hold/resolution", () => {
+  it("giữ đơn Confirmed → ON_HOLD, nhớ trạng thái trước; gỡ giữ về đúng chỗ cũ", async () => {
+    const order = firstOrderWith("Confirmed");
+    await holdOrder({ id: order.orderId, reasonCode: "ADDRESS", note: "Sai phường" });
+
+    const held = await getOrder(order.orderId);
+    expect(held).toMatchObject({
+      status: "On Hold",
+      holdReason: "ADDRESS",
+      holdNote: "Sai phường",
+      statusBeforeHold: "Confirmed",
+    });
+
+    // Giữ lần hai → ORDER_INVALID_TRANSITION
+    const again = await captureError(
+      holdOrder({ id: order.orderId, reasonCode: "FRAUD", note: "" }),
+    );
+    expect(again.code).toBe("ORDER_INVALID_TRANSITION");
+
+    await resolveOrderHold({ id: order.orderId, note: "Khách xác nhận" });
+    const resolved = await getOrder(order.orderId);
+    expect(resolved.status).toBe("Confirmed");
+    expect(resolved.holdReason).toBeNull();
+
+    const notOnHold = await captureError(resolveOrderHold({ id: order.orderId, note: "x" }));
+    expect(notOnHold.code).toBe("ORDER_NOT_ON_HOLD");
+  });
+
+  it("OTHER không có ghi chú → 400; lý do của hệ thống (CREDIT) → 400; đơn Delivered → ORDER_INVALID_TRANSITION", async () => {
+    const order = firstOrderWith("Confirmed");
+    const other = await captureError(
+      holdOrder({ id: order.orderId, reasonCode: "OTHER", note: "" }),
+    );
+    expect(other.status).toBe(400);
+    expect(other.code).toBe("VALIDATION_FAILED");
+    const credit = await captureError(
+      holdOrder({ id: order.orderId, reasonCode: "CREDIT" as never, note: "" }),
+    );
+    expect(credit.status).toBe(400);
+
+    const delivered = firstOrderWith("Delivered");
+    const invalid = await captureError(
+      holdOrder({ id: delivered.orderId, reasonCode: "FRAUD", note: "" }),
+    );
+    expect(invalid.code).toBe("ORDER_INVALID_TRANSITION");
+  });
+
+  it("đơn On Hold seed là giữ công nợ (CREDIT): gỡ tay → ORDER_CREDIT_HOLD_USE_APPROVAL; ghi chú bắt buộc", async () => {
+    // Seed: đơn "On Hold" duy nhất của mock-data là đơn chuyển khoản (CREDIT) chờ duyệt công nợ (SCRUM-427)
+    const order = firstOrderWith("On Hold");
+    const view = await getOrder(order.orderId);
+    expect(view).toMatchObject({ holdReason: "CREDIT", statusBeforeHold: null });
+
+    // ResolveHoldRequest.note @NotBlank — 400 trước mọi kiểm tra nghiệp vụ
+    const blank = await captureError(resolveOrderHold({ id: order.orderId, note: "  " }));
+    expect(blank.status).toBe(400);
+    const credit = await captureError(resolveOrderHold({ id: order.orderId, note: "ok" }));
+    expect(credit.code).toBe("ORDER_CREDIT_HOLD_USE_APPROVAL");
+    expect((await getOrder(order.orderId)).status).toBe("On Hold");
+  });
+
+  it("giữ ADDRESS từ Picking rồi gỡ → về đúng Picking", async () => {
+    const order = firstOrderWith("Picking");
+    await holdOrder({ id: order.orderId, reasonCode: "ADDRESS", note: "Sai phường" });
+    expect(await getOrder(order.orderId)).toMatchObject({
+      status: "On Hold",
+      holdReason: "ADDRESS",
+      statusBeforeHold: "Picking",
+    });
+    await resolveOrderHold({ id: order.orderId, note: "Khách xác nhận địa chỉ" });
+    expect((await getOrder(order.orderId)).status).toBe("Picking");
+  });
+});
+
+describe("POST /orders/:id/delivery-failure", () => {
+  it("đơn Shipped chưa chia lô → DELIVERY_FAILED kèm lý do; OTHER cần ghi chú", async () => {
+    const order = firstOrderWith("Shipped");
+    const other = await captureError(
+      recordDeliveryFailure({ id: order.orderId, reasonCode: "OTHER", note: "" }),
+    );
+    expect(other.code).toBe("VALIDATION_FAILED");
+
+    await recordDeliveryFailure({ id: order.orderId, reasonCode: "REFUSED", note: "" });
+    expect(await getOrder(order.orderId)).toMatchObject({
+      status: "Delivery Failed",
+      deliveryFailureReason: "REFUSED",
+    });
+  });
+
+  it("đơn đã chia lô → 409 ORDER_DELIVERY_VIA_SHIPMENT; đơn Delivered → ORDER_INVALID_TRANSITION", async () => {
+    const partial = firstOrderWith("Partially Fulfilled");
+    const viaShipment = await captureError(
+      recordDeliveryFailure({ id: partial.orderId, reasonCode: "LOST", note: "" }),
+    );
+    expect(viaShipment.code).toBe("ORDER_DELIVERY_VIA_SHIPMENT");
+
+    const delivered = firstOrderWith("Delivered");
+    const invalid = await captureError(
+      recordDeliveryFailure({ id: delivered.orderId, reasonCode: "LOST", note: "" }),
+    );
+    expect(invalid.code).toBe("ORDER_INVALID_TRANSITION");
+  });
+});
+
+describe("POST /orders/:id/remainder-closure", () => {
+  it("đơn giao một phần: đóng phần chưa giao, đơn theo lô (Shipped), effectiveTotal giảm", async () => {
+    const source = firstOrderWith("Partially Fulfilled");
+    const before = await getOrder(source.orderId);
+    expect(before.shipments).toHaveLength(1);
+    expect(before.lines[0]?.shippedQuantity).toBeGreaterThan(0);
+
+    await closeOrderRemainder({ id: source.orderId, reasonCode: "OUT_OF_STOCK", note: "" });
+
+    const after = await getOrder(source.orderId);
+    expect(after.status).toBe("Shipped");
+    expect(after.lines[0]?.cancelledQuantity).toBeGreaterThan(0);
+    expect(after.effectiveTotal).toBeLessThan(before.totalAmount);
+
+    // Đóng lần hai: đơn không còn PARTIALLY_FULFILLED
+    const again = await captureError(
+      closeOrderRemainder({ id: source.orderId, reasonCode: "OUT_OF_STOCK", note: "" }),
+    );
+    expect(again.code).toBe("ORDER_INVALID_TRANSITION");
+  });
+
+  it("đơn không giao một phần → ORDER_INVALID_TRANSITION; OTHER thiếu ghi chú → 400", async () => {
+    const shipped = firstOrderWith("Shipped");
+    const invalid = await captureError(
+      closeOrderRemainder({ id: shipped.orderId, reasonCode: "OUT_OF_STOCK", note: "" }),
+    );
+    expect(invalid.code).toBe("ORDER_INVALID_TRANSITION");
+
+    const partial = firstOrderWith("Partially Fulfilled");
+    const noNote = await captureError(
+      closeOrderRemainder({ id: partial.orderId, reasonCode: "OTHER", note: "" }),
+    );
+    expect(noNote.status).toBe(400);
+  });
+});
+
+describe("OrderResponse — hình dạng thật của BE (số liệu luôn được gửi)", () => {
+  async function rawOrder(orderId: string): Promise<Record<string, unknown>> {
+    const { data } = await api.get<Record<string, unknown>>(`/orders/${orderId}`);
+    return ("data" in data && typeof data.data === "object" ? data.data : data) as Record<
+      string,
+      unknown
+    >;
+  }
+
+  it("dòng hàng luôn có shippedQuantity / deliveredQuantity / cancelledQuantity = 0 khi chưa có lô", async () => {
+    const body = await rawOrder(firstOrderWith("Confirmed").orderId);
+    const [line] = body.lines as Record<string, unknown>[];
+    expect(line).toMatchObject({ shippedQuantity: 0, deliveredQuantity: 0, cancelledQuantity: 0 });
+  });
+
+  it("billedAmount = 0 luôn được gửi; amountDue tính từ tổng đơn kể cả đơn đã huỷ; amountDueBeforeHandover theo paymentTerm", async () => {
+    // Đơn huỷ seed thanh toán COD → CREDIT (mock): công nợ không phải trả trước khi giao
+    const cancelled = firstOrderWith("Cancelled");
+    const body = await rawOrder(cancelled.orderId);
+    expect(body).toMatchObject({ billedAmount: 0, paymentTerm: "CREDIT" });
+    expect(body.amountDue).toBe(Math.max(0, cancelled.grandTotal - cancelled.amountPaid));
+    expect(body.amountDueBeforeHandover).toBe(0);
+    // BE Order#amountDueBeforeHandover: PREPAID và DEPOSIT (thu trước khi giao) = amountDue
+    for (const status of ["Confirmed", "Pending Payment"]) {
+      const other = await rawOrder(firstOrderWith(status).orderId);
+      expect(["PREPAID", "DEPOSIT"]).toContain(other.paymentTerm);
+      expect(other.amountDueBeforeHandover).toBe(other.amountDue);
+    }
+  });
+
+  it("packedAt có với đơn đã đóng gói (Packed, Partially Fulfilled, Shipped…), không có với đơn đang lấy hàng", async () => {
+    for (const status of ["Packed", "Partially Fulfilled", "Shipped", "Delivered"]) {
+      expect(await rawOrder(firstOrderWith(status).orderId)).toHaveProperty("packedAt");
+    }
+    for (const status of ["Picking", "Confirmed", "On Hold"]) {
+      expect(await rawOrder(firstOrderWith(status).orderId)).not.toHaveProperty("packedAt");
+    }
+  });
+
+  it("đơn giữ từ PACKED / PARTIALLY_FULFILLED giữ packedAt và không huỷ được (ORDER_NOT_CANCELLABLE)", async () => {
+    for (const status of ["Packed", "Partially Fulfilled"]) {
+      const order = firstOrderWith(status);
+      await holdOrder({ id: order.orderId, reasonCode: "FRAUD", note: "" });
+      expect(await rawOrder(order.orderId)).toMatchObject({
+        status: "ON_HOLD",
+        packedAt: expect.any(String),
+      });
+      const error = await captureError(
+        adminCancelOrder({ id: order.orderId, reasonCode: "CUSTOMER_REQUEST" }),
+      );
+      expect(error.code).toBe("ORDER_NOT_CANCELLABLE");
+    }
+  });
+
+  it("đơn giữ từ PICKING (chưa đóng gói) vẫn huỷ được", async () => {
+    const order = firstOrderWith("Picking");
+    await holdOrder({ id: order.orderId, reasonCode: "FRAUD", note: "" });
+    const cancelled = await adminCancelOrder({ id: order.orderId, reasonCode: "SUSPECTED_FRAUD" });
+    expect(cancelled.status).toBe("Cancelled");
+    // Rời ON_HOLD vì huỷ → dữ liệu giữ bị xoá (BE Order#cancel → clearHold)
+    expect(cancelled.holdReason).toBeNull();
+  });
+
+  it("đơn vào PACKED qua mock xuất kho được đóng dấu packedAt", async () => {
+    const order = firstOrderWith("Ready to Fulfill");
+    expect(await rawOrder(order.orderId)).not.toHaveProperty("packedAt");
+    setMockOrderStatus(order.orderId, "PACKED");
+    expect(await rawOrder(order.orderId)).toHaveProperty("packedAt");
   });
 });

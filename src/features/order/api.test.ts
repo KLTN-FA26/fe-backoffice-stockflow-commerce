@@ -7,12 +7,21 @@ import { ORDER_STATUSES } from "@/constants";
 import {
   adminCancelOrder,
   buildOrderListQuery,
+  closeOrderRemainder,
   getOrder,
   getOrderHistory,
+  holdOrder,
   listOrders,
+  recordDeliveryFailure,
+  resolveOrderHold,
   toOrder,
 } from "./api";
-import { apiCreditPosition, apiGuestOrder } from "./__fixtures__/order";
+import {
+  apiCancelledOrder,
+  apiCreditPosition,
+  apiGuestOrder,
+  apiPartialOrder,
+} from "./__fixtures__/order";
 import { approveCreditHold, getCreditPosition, rejectCreditHold, releaseOrder } from "./action-api";
 import { STATUS_OPTIONS } from "./components/order-list/constants";
 import { orderDtoSchema } from "./schemas";
@@ -97,8 +106,13 @@ describe("order API contract (BE OrderResponse)", () => {
         isCustom: false,
         designSnapshotId: null,
         reservationIds: ["7a7a7a7a-0000-4000-8000-000000000001"],
+        shippedQuantity: null,
+        deliveredQuantity: null,
+        cancelledQuantity: null,
       },
     ]);
+    // BE non_null: field vòng đời vắng → null / mảng rỗng, không parse fail
+    expect(order).toMatchObject({ holdReason: null, shipments: [], effectiveTotal: null });
   });
 
   it("docs 14 BR-02: dòng có designSnapshotId là dòng in (custom); field thanh toán thiếu → null", () => {
@@ -180,13 +194,20 @@ describe("order API contract (BE OrderResponse)", () => {
     ["CONFIRMED", "Confirmed"],
     ["IN_PRODUCTION", "In Production"],
     ["READY_TO_FULFILL", "Ready to Fulfill"],
-    ["IN_FULFILMENT", "In Fulfilment"],
+    ["PICKING", "Picking"],
+    ["PARTIALLY_FULFILLED", "Partially Fulfilled"],
+    ["PACKED", "Packed"],
     ["ON_HOLD", "On Hold"],
     ["SHIPPED", "Shipped"],
+    ["DELIVERY_FAILED", "Delivery Failed"],
     ["DELIVERED", "Delivered"],
+    ["RETURN_REQUESTED", "Return Requested"],
+    ["RETURNED", "Returned"],
+    ["REFUNDED", "Refunded"],
+    ["PARTIALLY_REFUNDED", "Partially Refunded"],
     ["COMPLETED", "Completed"],
     ["CANCELLED", "Cancelled"],
-    ["RETURNED", "Returned"],
+    ["CLOSED", "Closed"],
   ])("status BE %s ↔ FE %s (1-1)", (be, fe) => {
     const order = toOrder(orderDtoSchema.parse({ ...beOrder, status: be }));
     expect(order.status).toBe(fe);
@@ -201,24 +222,55 @@ describe("order API contract (BE OrderResponse)", () => {
     expect(() => orderDtoSchema.parse({ ...beOrder, currency: "vnd" })).toThrow();
   });
 
-  it("PAID đã bị BE bỏ (SCRUM-460) → UNKNOWN, không đoán thành Confirmed", () => {
-    expect(toOrder(orderDtoSchema.parse({ ...beOrder, status: "PAID" })).status).toBe("UNKNOWN");
+  it("mã đã bị BE bỏ (IN_FULFILMENT / PAID, SCRUM-460 / PR #133) và mã lạ → UNKNOWN, không đoán thành trạng thái khác", () => {
+    for (const status of ["PAID", "IN_FULFILMENT", "REVIEWING"]) {
+      expect(toOrder(orderDtoSchema.parse({ ...beOrder, status })).status).toBe("UNKNOWN");
+    }
   });
 
-  it("thiếu status (field bắt buộc) vẫn fail — bug hợp đồng, không phải trạng thái mới", () => {
+  it("thiếu status / null / sai kiểu (field bắt buộc) vẫn fail — bug hợp đồng, không phải trạng thái mới", () => {
     const { status: _omit, ...withoutStatus } = beOrder;
     void _omit;
     expect(() => orderDtoSchema.parse(withoutStatus)).toThrow();
     expect(() => orderDtoSchema.parse({ ...beOrder, status: null })).toThrow();
+    expect(() => orderDtoSchema.parse({ ...beOrder, status: 3 })).toThrow();
+  });
+
+  it("enum vòng đời / thanh toán sai KIỂU vẫn fail; chỉ CHUỖI lạ mới được dung thứ", () => {
+    for (const patch of [
+      { holdReason: 1 },
+      { deliveryFailureReason: false },
+      { statusBeforeHold: 2 },
+      { paymentStatus: true },
+      { paymentTerm: 1 },
+      { shipments: [{ shipmentId: "s-1", status: 7 }] },
+    ]) {
+      expect(
+        orderDtoSchema.safeParse({ ...beOrder, ...patch }).success,
+        JSON.stringify(patch),
+      ).toBe(false);
+    }
   });
 });
 
 describe("order API — trạng thái BE mới FE chưa hỗ trợ (forward-compat)", () => {
-  it("chi tiết: status lạ (PICKING) → parse được, status UNKNOWN", async () => {
-    vi.spyOn(api, "get").mockResolvedValue({ data: { ...beOrder, status: "PICKING" } });
+  it("chi tiết: status lạ (BE thêm sau) → parse được, status UNKNOWN", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({ data: { ...beOrder, status: "SOME_FUTURE_STATUS" } });
     const order = await getOrder(beOrder.orderId);
     expect(order.status).toBe("UNKNOWN");
     expect(order.orderNumber).toBe(beOrder.orderNumber);
+  });
+
+  it("chi tiết: trạng thái mới của PR #133 (PICKING / PACKED / PARTIALLY_FULFILLED / DELIVERY_FAILED) được hiểu, không phải UNKNOWN", async () => {
+    for (const [be, fe] of [
+      ["PICKING", "Picking"],
+      ["PACKED", "Packed"],
+      ["PARTIALLY_FULFILLED", "Partially Fulfilled"],
+      ["DELIVERY_FAILED", "Delivery Failed"],
+    ]) {
+      vi.spyOn(api, "get").mockResolvedValue({ data: { ...beOrder, status: be } });
+      expect((await getOrder(beOrder.orderId)).status).toBe(fe);
+    }
   });
 
   it("danh sách: một dòng status lạ không làm hỏng cả trang", async () => {
@@ -234,20 +286,30 @@ describe("order API — trạng thái BE mới FE chưa hỗ trợ (forward-comp
     expect(page.items.map((o) => o.status)).toEqual(["Pending Payment", "UNKNOWN"]);
   });
 
-  it("lịch sử: from / to lạ → UNKNOWN từng vị trí; from vắng vẫn null", async () => {
+  it("lịch sử: trạng thái PR #133 map đúng; from / to lạ → UNKNOWN từng vị trí; from vắng vẫn null; người thao tác", async () => {
     vi.spyOn(api, "get").mockResolvedValue({
       data: [
         { to: "PENDING_PAYMENT", occurredAt: "2026-09-07T03:15:00Z" },
-        { from: "PENDING_PAYMENT", to: "PICKING", occurredAt: "2026-09-07T04:00:00Z" },
-        { from: "PACKED", to: "SHIPPED", occurredAt: "2026-09-07T05:00:00Z" },
+        {
+          from: "READY_TO_FULFILL",
+          to: "PICKING",
+          occurredAt: "2026-09-07T04:00:00Z",
+          actorId: "u-1",
+          actorName: "Điều phối A",
+        },
+        { from: "PACKED", to: "SOME_FUTURE_STATUS", occurredAt: "2026-09-07T05:00:00Z" },
+        { from: "IN_FULFILMENT", to: "SHIPPED", occurredAt: "2026-09-07T06:00:00Z" },
       ],
     });
     const history = await getOrderHistory(beOrder.orderId);
     expect(history.map(({ from, to }) => ({ from, to }))).toEqual([
       { from: null, to: "Pending Payment" },
-      { from: "Pending Payment", to: "UNKNOWN" },
+      { from: "Ready to Fulfill", to: "Picking" },
+      { from: "Packed", to: "UNKNOWN" },
       { from: "UNKNOWN", to: "Shipped" },
     ]);
+    expect(history[1]).toMatchObject({ actorId: "u-1", actorName: "Điều phối A" });
+    expect(history[0]).toMatchObject({ actorId: null, actorName: null, reason: null });
   });
 
   it("paymentStatus lạ → UNKNOWN; paymentTerm lạ → null (không thành lựa chọn mới)", async () => {
@@ -272,33 +334,189 @@ describe("order list filter — UNKNOWN chỉ để đọc, không bao giờ g�
   it("UNKNOWN không có trong lựa chọn lọc trạng thái lẫn tập trạng thái URL", () => {
     expect(STATUS_OPTIONS.map((option) => option.value)).not.toContain("UNKNOWN");
     expect(STATUS_OPTIONS.map((option) => option.value)).toEqual([...ORDER_STATUSES]);
-    // useOrderListState: useUrlFilters(ORDER_STATUSES) — ?status=UNKNOWN bị nuqs bỏ
+    // useOrderListState: useUrlFilters(FILTERABLE_STATUSES) — ?status=UNKNOWN bị nuqs bỏ
     expect(ORDER_STATUSES).not.toContain("UNKNOWN");
+    expect(ORDER_STATUSES).toHaveLength(19);
   });
 
-  it("serializer bỏ UNKNOWN / chuỗi lạ lọt vào lúc chạy, giữ mã đã biết", () => {
-    // Kiểu đã chặn UNKNOWN; ép kiểu để mô phỏng giá trị lọt vào lúc chạy (vd config cũ)
-    const leaked = ["UNKNOWN", "Shipped", "PICKING"] as unknown as OrderStatus[];
+  it("serializer bỏ UNKNOWN / mã cũ / chuỗi lạ lọt vào lúc chạy, giữ trạng thái đã biết", () => {
+    // Kiểu đã chặn UNKNOWN; ép kiểu để mô phỏng giá trị lọt vào lúc chạy (vd config / link cũ)
+    const leaked = [
+      "UNKNOWN",
+      "Shipped",
+      "PICKING",
+      "In Fulfilment",
+      "Paid",
+    ] as unknown as OrderStatus[];
     expect(buildOrderListQuery({ status: leaked }).getAll("status")).toEqual(["SHIPPED"]);
   });
 
-  it("mọi trạng thái đã biết vẫn serialize đúng mã BE như trước", () => {
+  it("mọi trạng thái đã biết serialize đúng 19 mã BE hiện hành (không phát bí danh IN_FULFILMENT / PAID)", () => {
     expect(buildOrderListQuery({ status: [...ORDER_STATUSES] }).getAll("status")).toEqual([
       "DRAFT",
       "PENDING_PAYMENT",
       "CONFIRMED",
       "IN_PRODUCTION",
       "READY_TO_FULFILL",
-      "IN_FULFILMENT",
+      "PICKING",
+      "PARTIALLY_FULFILLED",
+      "PACKED",
       "ON_HOLD",
       "SHIPPED",
+      "DELIVERY_FAILED",
       "DELIVERED",
+      "RETURN_REQUESTED",
+      "RETURNED",
+      "REFUNDED",
+      "PARTIALLY_REFUNDED",
       "COMPLETED",
       "CANCELLED",
-      "RETURNED",
+      "CLOSED",
     ]);
   });
+});
 
+describe("OrderResponse vòng đời + tiền (BE PR #133)", () => {
+  it("OrderResponse đầy đủ vòng đời (BE PR #133): giữ đơn, mốc thời gian, tiền, lô giao, số lượng dòng", () => {
+    const order = toOrder(
+      orderDtoSchema.parse({
+        ...beOrder,
+        status: "ON_HOLD",
+        holdReason: "ADDRESS",
+        holdReasonPublic: "UNDER_REVIEW",
+        statusBeforeHold: "PICKING",
+        holdNote: "Sai phường",
+        packedAt: "2026-09-08T01:00:00Z",
+        shippedAt: "2026-09-08T02:00:00Z",
+        deliveredAt: "2026-09-09T02:00:00Z",
+        deliveryFailureReason: "CUSTOMER_ABSENT",
+        completedAt: "2026-09-16T02:00:00Z",
+        closedAt: "2026-10-16T02:00:00Z",
+        billedAmount: 100000,
+        effectiveTotal: 250000,
+        amountDue: 50000,
+        amountDueBeforeHandover: 0,
+        lines: [
+          { ...beOrder.lines[0], shippedQuantity: 1, deliveredQuantity: 0, cancelledQuantity: 1 },
+        ],
+        shipments: [
+          {
+            shipmentId: "s-1",
+            status: "HANDED_OVER",
+            amount: 175000,
+            handedOverAt: "2026-09-08T02:00:00Z",
+            lines: [{ lineId: beOrder.lines[0]?.lineId, quantity: 1 }],
+          },
+          { shipmentId: "s-2", status: "SOMETHING_NEW" },
+        ],
+      }),
+    );
+
+    expect(order).toMatchObject({
+      status: "On Hold",
+      holdReason: "ADDRESS",
+      statusBeforeHold: "Picking",
+      holdNote: "Sai phường",
+      packedAt: "2026-09-08T01:00:00Z",
+      deliveryFailureReason: "CUSTOMER_ABSENT",
+      closedAt: "2026-10-16T02:00:00Z",
+      billedAmount: 100000,
+      effectiveTotal: 250000,
+      amountDue: 50000,
+      amountDueBeforeHandover: 0,
+    });
+    expect(order.lines[0]).toMatchObject({
+      shippedQuantity: 1,
+      deliveredQuantity: 0,
+      cancelledQuantity: 1,
+    });
+    expect(order.shipments).toHaveLength(2);
+    expect(order.shipments[0]).toMatchObject({
+      status: "HANDED_OVER",
+      billedAmount: null,
+      amount: 175000,
+    });
+    // Trạng thái lô lạ → UNKNOWN, lô không có `lines` → []
+    expect(order.shipments[1]).toMatchObject({ status: "UNKNOWN", lines: [] });
+  });
+
+  it("lý do giữ lạ → UNKNOWN (không cho gỡ giữ), không parse fail", () => {
+    const order = toOrder(
+      orderDtoSchema.parse({ ...beOrder, status: "ON_HOLD", holdReason: "NEW_REASON" }),
+    );
+    expect(order.holdReason).toBe("UNKNOWN");
+  });
+
+  it("giao một phần: số lượng theo dòng + lô giao + tiền sau khi đóng phần còn lại giữ nguyên số BE", () => {
+    const order = toOrder(orderDtoSchema.parse(apiPartialOrder));
+    expect(order.status).toBe("Partially Fulfilled");
+    expect(order.lines[0]).toMatchObject({
+      quantity: 2,
+      shippedQuantity: 1,
+      deliveredQuantity: 0,
+      cancelledQuantity: 0,
+    });
+    expect(order.shipments).toEqual([
+      {
+        shipmentId: "6c5e0a10-1111-4222-8333-444455556666",
+        status: "HANDED_OVER",
+        amount: 175000,
+        billedAmount: null,
+        handedOverAt: "2026-09-08T02:00:00Z",
+        outcomeAt: null,
+        failureReason: null,
+        lines: [{ lineId: "9f0e1d2c-aaaa-4bbb-8ccc-dddd00001111", quantity: 1 }],
+        codAmount: null,
+      },
+    ]);
+    // Mapper không tự tính tiền: số nào BE gửi thì giữ nguyên, vắng → null
+    expect(order).toMatchObject({
+      effectiveTotal: 350000,
+      amountDue: 100000,
+      amountDueBeforeHandover: 0,
+      billedAmount: 0,
+      amountDueOnDelivery: null,
+      packedAt: "2026-09-08T01:00:00Z",
+    });
+  });
+
+  it("huỷ có khoản thoả thuận: cancellation đủ field BE (fee*), thanh toán + release giữ nguyên", () => {
+    const order = toOrder(orderDtoSchema.parse(apiCancelledOrder));
+    expect(order).toMatchObject({
+      status: "Cancelled",
+      paymentTerm: "DEPOSIT",
+      paymentStatus: "PARTIALLY_PAID",
+      depositReceivedAt: "2026-09-07T04:00:00Z",
+      releasedAt: "2026-09-07T05:00:00Z",
+      cancellation: {
+        reasonCode: "CUSTOMER_REQUEST",
+        reason: "CUSTOMER_REQUEST: Khách đổi ý",
+        retainedAmount: 50000,
+        feeReason: "Đã in",
+        feeDetail: "Thoả thuận giữ 50.000 ₫ tiền in",
+        feeAmount: 50000,
+      },
+    });
+    expect(order.lines[0]).toMatchObject({ isCustom: true });
+  });
+
+  it("đơn cọc thu khi giao (G2-3): balancePolicy + amountDueOnDelivery; giá trị policy lạ → null", () => {
+    const order = toOrder(
+      orderDtoSchema.parse({
+        ...beOrder,
+        paymentTerm: "DEPOSIT",
+        balancePolicy: "ON_DELIVERY",
+        amountDueOnDelivery: 245000,
+      }),
+    );
+    expect(order).toMatchObject({ balancePolicy: "ON_DELIVERY", amountDueOnDelivery: 245000 });
+    expect(
+      toOrder(orderDtoSchema.parse({ ...beOrder, balancePolicy: "LATER" })).balancePolicy,
+    ).toBeNull();
+  });
+});
+
+describe("GET /orders — danh sách trắng tham số (BE OrderController#list)", () => {
   it("listOrders mặc định chỉ gửi page/size — không có search rỗng", async () => {
     const get = vi.spyOn(api, "get").mockResolvedValue({ data: emptyBePage });
 
@@ -439,5 +657,126 @@ describe("Idempotency-Key — chỉ thao tác ghi đơn, header riêng từng re
     for (const [, config] of get.mock.calls) {
       expect(JSON.stringify(config ?? {})).not.toContain("Idempotency-Key");
     }
+  });
+});
+
+describe("POST /orders/{id}/admin-cancellation — AdminCancelOrderRequest → OrderResponse", () => {
+  it("body chỉ gồm field BE (reasonCode, note, retainedPercent / agreedFee) — id & key không vào body", async () => {
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiCancelledOrder });
+    const agreedFee = { amount: 50000, reason: "Đã in", detail: "Giữ tiền in" };
+    const order = await adminCancelOrder({
+      id: beOrder.orderId,
+      idempotencyKey: "k-1",
+      reasonCode: "CUSTOMER_REQUEST",
+      note: "Khách đổi ý",
+      agreedFee,
+    });
+    expect(post).toHaveBeenCalledWith(
+      `/orders/${beOrder.orderId}/admin-cancellation`,
+      { reasonCode: "CUSTOMER_REQUEST", note: "Khách đổi ý", agreedFee },
+      { headers: { "Idempotency-Key": "k-1" } },
+    );
+    // Response OrderResponse được parse + map như GET
+    expect(order).toMatchObject({ status: "Cancelled", cancellation: { feeAmount: 50000 } });
+  });
+
+  it("response sai hợp đồng (thiếu status) → lỗi, không trả đơn bịa", async () => {
+    const { status: _omit, ...broken } = apiCancelledOrder;
+    void _omit;
+    vi.spyOn(api, "post").mockResolvedValue({ data: broken });
+    await expect(
+      adminCancelOrder({ id: beOrder.orderId, reasonCode: "CUSTOMER_REQUEST" }),
+    ).rejects.toThrow();
+  });
+});
+
+describe("thao tác trạng thái đơn (BE PR #133) — mỗi endpoint trả OrderResponse", () => {
+  const ID = "0b6f7c1e-4c5d-4f1a-9a77-2f3e6f1d2a10";
+
+  it("giữ đơn: POST /hold {reasonCode, note}; bỏ note khi trống; trả đơn đã map", async () => {
+    const post = vi
+      .spyOn(api, "post")
+      .mockResolvedValue({ data: { ...beOrder, status: "ON_HOLD", holdReason: "ADDRESS" } });
+    const held = await holdOrder({ id: ID, reasonCode: "ADDRESS", note: "Sai phường" });
+    await holdOrder({ id: ID, reasonCode: "FRAUD", note: "" });
+    expect(post).toHaveBeenNthCalledWith(
+      1,
+      `/orders/${ID}/hold`,
+      { reasonCode: "ADDRESS", note: "Sai phường" },
+      undefined,
+    );
+    expect(post).toHaveBeenNthCalledWith(
+      2,
+      `/orders/${ID}/hold`,
+      { reasonCode: "FRAUD" },
+      undefined,
+    );
+    expect(held).toMatchObject({ status: "On Hold", holdReason: "ADDRESS" });
+  });
+
+  it("gỡ giữ: POST /hold/resolution {note}", async () => {
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: beOrder });
+    const resolved = await resolveOrderHold({ id: ID, note: "Khách xác nhận địa chỉ mới" });
+    expect(post).toHaveBeenCalledWith(
+      `/orders/${ID}/hold/resolution`,
+      { note: "Khách xác nhận địa chỉ mới" },
+      undefined,
+    );
+    expect(resolved.status).toBe("Pending Payment");
+  });
+
+  it("ghi giao thất bại và đóng phần còn lại gọi đúng endpoint, đúng body", async () => {
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiPartialOrder });
+    await recordDeliveryFailure({ id: ID, reasonCode: "CUSTOMER_ABSENT", note: "" });
+    const closed = await closeOrderRemainder({
+      id: ID,
+      reasonCode: "OTHER",
+      note: "Hết hàng cả kho",
+    });
+    expect(post).toHaveBeenNthCalledWith(
+      1,
+      `/orders/${ID}/delivery-failure`,
+      { reasonCode: "CUSTOMER_ABSENT" },
+      undefined,
+    );
+    expect(post).toHaveBeenNthCalledWith(
+      2,
+      `/orders/${ID}/remainder-closure`,
+      { reasonCode: "OTHER", note: "Hết hàng cả kho" },
+      undefined,
+    );
+    expect(closed.shipments).toHaveLength(1);
+  });
+
+  it.each([
+    [
+      "giữ đơn",
+      () => holdOrder({ id: ID, reasonCode: "FRAUD", note: "", idempotencyKey: "k-h" }),
+      "k-h",
+    ],
+    ["gỡ giữ", () => resolveOrderHold({ id: ID, note: "ok", idempotencyKey: "k-r" }), "k-r"],
+    [
+      "giao thất bại",
+      () => recordDeliveryFailure({ id: ID, reasonCode: "LOST", note: "", idempotencyKey: "k-d" }),
+      "k-d",
+    ],
+    [
+      "đóng phần còn lại",
+      () =>
+        closeOrderRemainder({
+          id: ID,
+          reasonCode: "OUT_OF_STOCK",
+          note: "",
+          idempotencyKey: "k-c",
+        }),
+      "k-c",
+    ],
+  ])("%s → Idempotency-Key ở header, không vào body", async (_, call, key) => {
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: beOrder });
+    await call();
+    const [, body, config] = post.mock.calls[0] ?? [];
+    expect(config).toEqual({ headers: { "Idempotency-Key": key } });
+    expect(JSON.stringify(body)).not.toContain(key);
+    expect(body).not.toHaveProperty("id");
   });
 });

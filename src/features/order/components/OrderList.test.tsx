@@ -61,6 +61,30 @@ describe("OrderList — phân trang/lọc phía server", () => {
   });
 });
 
+describe("OrderList — liên kết từ tile 'Đơn chờ xử lý' của dashboard", () => {
+  it("?status=Pending Payment,Confirmed,In Production,Ready to Fulfill,On Hold → gửi đúng 5 mã BE", async () => {
+    renderList(
+      () => apiOrderPage([]),
+      "?status=Pending%20Payment,Confirmed,In%20Production,Ready%20to%20Fulfill,On%20Hold",
+    );
+
+    await waitFor(() => expect(lastListQuery().getAll("status")).toHaveLength(5));
+    expect(lastListQuery().getAll("status")).toEqual([
+      "PENDING_PAYMENT",
+      "CONFIRMED",
+      "IN_PRODUCTION",
+      "READY_TO_FULFILL",
+      "ON_HOLD",
+    ]);
+  });
+
+  it("URL cũ ?status=Paid / In Fulfilment bị bỏ — không gửi lọc nào", async () => {
+    renderList(() => apiOrderPage([]), "?status=Paid,In%20Fulfilment");
+
+    await waitFor(() => expect(String(lastListQuery())).toBe("page=0&size=15"));
+  });
+});
+
 describe("OrderList — 4 trạng thái màn hình (api-conventions §8)", () => {
   it("đang tải → giữ header thật, skeleton bảng hiện bên dưới", async () => {
     // Dựng mock TRƯỚC khi render: /identity/me trả quyền, /orders treo (không bao giờ trả) để

@@ -6,7 +6,7 @@
  * action-schemas.ts → input release / credit / huỷ; credit-hold-schemas.ts, production-schemas.ts
  * status-map.ts → BE→FE status mapping
  * api.ts      → axios calls (list, detail, history, admin-cancel)
- * action-api.ts → release, credit hold, lệnh sản xuất (contract pending)
+ * action-api.ts → release, credit hold, lệnh sản xuất (GET /production/orders)
  * queries.ts  → React Query hooks
  * mutations.ts → mutation hooks
  * lifecycle.ts → transition table + action-gating
@@ -85,7 +85,7 @@ export {
 export {
   adminCancelErrorView,
   creditDecisionErrorView,
-  isProductionApiUnavailable,
+  isProductionForbidden,
   releaseErrorView,
 } from "./errors";
 export type { OrderErrorView } from "./errors";

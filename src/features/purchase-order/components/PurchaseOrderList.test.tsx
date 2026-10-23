@@ -166,4 +166,12 @@ describe("PurchaseOrderList", () => {
     renderList(PO_PERMISSION_SETS.procurement, "", []);
     expect(await screen.findByText("Chưa có đơn đặt hàng")).toBeInTheDocument();
   });
+
+  it("tab Đơn đặt / Chi tiêu: aria-controls trỏ đúng vùng nội dung (tabpanel)", async () => {
+    renderList(PO_PERMISSION_SETS.procurement);
+    const tab = await screen.findByRole("tab", { name: /Đơn đặt/ });
+    const panel = screen.getByRole("tabpanel");
+    expect(tab).toHaveAttribute("aria-controls", panel.id);
+    expect(panel).toHaveAttribute("aria-labelledby", tab.id);
+  });
 });

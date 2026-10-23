@@ -71,7 +71,7 @@ export function useOrderHistory(id: string, options: { enabled?: boolean } = {})
   });
 }
 
-/** CONTRACT PENDING — xem `production-schemas.ts`. 404/405 không retry (lỗi 4xx). */
+/** LSX của đơn (`production-schemas.ts`). Lỗi 4xx (403 thiếu quyền…) không retry. */
 export function useOrderProductionOrders(id: string, options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: orderKeys.productionOrders(id),

@@ -80,10 +80,10 @@ describe("Release — action-gating (SCRUM-423, docs 17 BR-02)", () => {
 });
 
 describe("Credit hold trên trang chi tiết (SCRUM-427)", () => {
-  it("On Hold + CREDIT + quyền duyệt công nợ (như System Admin) → Duyệt / Từ chối, không Release", async () => {
+  it("On Hold + CREDIT + lý do giữ CREDIT + quyền duyệt công nợ (như System Admin) → Duyệt / Từ chối, không Release", async () => {
     await renderDetail(
       [...ORDER_PERMISSION_SETS.coordinator, ...ORDER_PERMISSION_SETS.accountant],
-      { ...apiOrder, status: "ON_HOLD", paymentTerm: "CREDIT" },
+      { ...apiOrder, status: "ON_HOLD", paymentTerm: "CREDIT", holdReason: "CREDIT" },
     );
     const card = await screen.findByRole("region", { name: "Thao tác đơn" });
     expect(within(card).getByRole("button", { name: "Duyệt vượt hạn mức" })).toBeInTheDocument();

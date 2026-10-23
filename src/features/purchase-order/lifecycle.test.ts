@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { GOODS_RECEIPT_PERMISSIONS, PO_STATUSES } from "@/constants";
+import { GOODS_RECEIPT_PERMISSIONS, PO_STATUSES, SUPPLIER_ITEM_PERMISSIONS } from "@/constants";
 
 import { PO_PERMISSION_SETS } from "./__fixtures__/render";
 import { PO_TRANSITIONS, allowedPoActions, isPoTerminal, nextPoStatuses } from "./lifecycle";
@@ -13,6 +13,7 @@ type SetName = keyof typeof PO_PERMISSION_SETS;
 
 const gate = (status: PoStatus, extra: Partial<PoGateState> = {}): PoGateState => ({
   status,
+  type: "STANDARD",
   supplierConfirmationStatus: "NOT_SENT",
   deliveryStatus: "NOT_SENT",
   ...extra,
@@ -23,6 +24,7 @@ const codes = (po: PoGateState, set: SetName) => {
 };
 const MUTATING = [
   "submit",
+  "edit",
   "approve",
   "reject",
   "send",
@@ -70,8 +72,8 @@ describe("allowedPoActions — gate theo MÃ QUYỀN (/identity/me/permissions),
     );
   });
 
-  it("DRAFT + UPDATE (procurement): Gửi duyệt, Huỷ — không có Phê duyệt", () => {
-    expect(codes(gate("DRAFT"), "procurement")).toEqual(["submit", "cancel"]);
+  it("DRAFT + UPDATE (procurement): Gửi duyệt, Sửa nháp, Huỷ — không có Phê duyệt", () => {
+    expect(codes(gate("DRAFT"), "procurement")).toEqual(["submit", "edit", "cancel"]);
     expect(codes(gate("DRAFT"), "approver")).toEqual([]);
   });
 
@@ -130,6 +132,33 @@ describe("allowedPoActions — gate theo MÃ QUYỀN (/identity/me/permissions),
     expect(codes(partial, "procurement")).toEqual(["receive", "closeShort"]);
     const received = gate("RECEIVED", { supplierConfirmationStatus: "CONFIRMED" });
     expect(codes(received, "procurement")).toEqual(["close"]);
+  });
+
+  // BE PurchaseOrderController#update: @RequiresPermission procurement-purchase-orders:UPDATE;
+  // PurchaseOrder#reviseDraft: PURCHASE_ORDER_NOT_EDITABLE ngoài DRAFT + STANDARD.
+  it("Draft + PO:UPDATE → có Sửa nháp", () => {
+    expect(codes(gate("DRAFT"), "procurement")).toContain("edit");
+    expect(codes(gate("DRAFT"), "full")).toContain("edit");
+  });
+
+  it("PO:UPDATE nhưng thiếu procurement-supplier-items:READ → vẫn có Sửa nháp (BE PUT chỉ đòi UPDATE)", () => {
+    const procurement: readonly PermissionCode[] = PO_PERMISSION_SETS.procurement;
+    const perms = procurement.filter((p) => p !== SUPPLIER_ITEM_PERMISSIONS.read);
+    const can = (code: PermissionCode) => perms.includes(code);
+    expect(allowedPoActions(gate("DRAFT"), can).map((a) => a.code)).toContain("edit");
+  });
+
+  it("Pending Approval → không có Sửa nháp (kể cả đủ quyền)", () => {
+    expect(codes(gate("PENDING_APPROVAL"), "full")).not.toContain("edit");
+  });
+
+  it("Draft SUBCONTRACT → không có Sửa nháp", () => {
+    expect(codes(gate("DRAFT", { type: "SUBCONTRACT" }), "full")).not.toContain("edit");
+  });
+
+  it("chỉ có PO:READ → không có Sửa nháp", () => {
+    expect(codes(gate("DRAFT"), "readOnly")).not.toContain("edit");
+    expect(codes(gate("DRAFT"), "approver")).not.toContain("edit");
   });
 
   it("không có quyền nào → không có thao tác", () => {

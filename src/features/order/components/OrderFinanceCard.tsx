@@ -1,4 +1,8 @@
-import { ORDER_PAYMENT_STATUS_DISPLAY, ORDER_PAYMENT_TERM_LABELS } from "@/constants";
+import {
+  ORDER_BALANCE_POLICY_LABELS,
+  ORDER_PAYMENT_STATUS_DISPLAY,
+  ORDER_PAYMENT_TERM_LABELS,
+} from "@/constants";
 import { formatMoney } from "@/lib/format";
 import { StatusDot } from "@/components/shared/StatusDot";
 
@@ -24,15 +28,42 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+/** Đơn không còn khoản phải thu: nháp, đã huỷ, đã đóng sổ — BE vẫn tính `amountDue` từ tổng đơn. */
+const NO_RECEIVABLE_STATUSES: readonly Order["status"][] = ["Draft", "Cancelled", "Closed"];
+
 /**
- * Thanh toán của đơn. BE `OrderResponse` không có tạm tính / phí ship / thuế / giảm giá — không
- * tự tính các dòng đó. Trạng thái cọc / công nợ suy từ field BE (selectors), không có enum riêng.
+ * Thanh toán + tài chính của đơn. BE `OrderResponse` không có tạm tính / phí ship / thuế / giảm giá —
+ * không tự tính các dòng đó. Trạng thái cọc / công nợ suy từ field BE (selectors), không có enum riêng.
+ * Số tiền BE vắng (null) hiện "—", KHÔNG thành 0; không cộng các số khác nghĩa với nhau.
+ * Số tiền vòng đời (BE PR #133) chỉ hiện khi có nghĩa:
+ * - `effectiveTotal` khi khác tổng gốc (đã đóng phần còn lại).
+ * - `billedAmount` (bắt đầu từ 0) chỉ với đơn công nợ (CREDIT) hoặc khi đã > 0.
+ * - `amountDue` / `amountDueBeforeHandover` ẩn với đơn nháp / đã huỷ / đã đóng sổ (huỷ chưa thanh
+ *   toán không "còn nợ" cả tổng đơn); phải-trả-trước-khi-xuất chỉ hiện khi > 0.
+ * - `amountDueOnDelivery` (hãng thu khi giao, đơn cọc ON_DELIVERY) chỉ hiện khi > 0.
  */
 export function OrderFinanceCard({ order }: OrderFinanceCardProps) {
   const { cancellation } = order;
   const cancellationNote = cancellation
     ? parseCancellationReason(cancellation.reason, cancellation.reasonCode).note
     : null;
+  const rows: { label: string; value: number }[] = [];
+  if (order.effectiveTotal !== null && order.effectiveTotal !== order.totalAmount) {
+    rows.push({ label: "Giá trị sau khi đóng phần còn lại", value: order.effectiveTotal });
+  }
+  if (order.billedAmount !== null && (order.paymentTerm === "CREDIT" || order.billedAmount > 0)) {
+    rows.push({ label: "Đã ghi công nợ", value: order.billedAmount });
+  }
+  if (!NO_RECEIVABLE_STATUSES.includes(order.status)) {
+    if (order.amountDue !== null) rows.push({ label: "Khách còn nợ", value: order.amountDue });
+    if (order.amountDueBeforeHandover !== null && order.amountDueBeforeHandover > 0) {
+      rows.push({ label: "Phải trả trước khi xuất hàng", value: order.amountDueBeforeHandover });
+    }
+    if (order.amountDueOnDelivery !== null && order.amountDueOnDelivery > 0) {
+      rows.push({ label: "Hãng vận chuyển thu khi giao", value: order.amountDueOnDelivery });
+    }
+  }
+
   return (
     <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
       <h2 className="text-ink-primary mb-3 text-[0.9375rem] font-semibold">Thanh toán</h2>
@@ -66,6 +97,9 @@ export function OrderFinanceCard({ order }: OrderFinanceCardProps) {
             <DepositValue order={order} />
           </Row>
         )}
+        {order.paymentTerm === "DEPOSIT" && order.balancePolicy && (
+          <Row label="Thu phần còn lại">{ORDER_BALANCE_POLICY_LABELS[order.balancePolicy]}</Row>
+        )}
         {order.paymentTerm === "CREDIT" && (
           <Row label="Công nợ">
             <CreditValue order={order} />
@@ -79,15 +113,40 @@ export function OrderFinanceCard({ order }: OrderFinanceCardProps) {
             {/* `reason` của BE là "CODE: ghi chú" — chỉ hiện phần ghi chú */}
             {cancellationNote && <Row label="Ghi chú huỷ">{cancellationNote}</Row>}
             {cancellation.retainedAmount !== null && (
-              <Row label="Giữ lại">
+              <Row label="Giữ lại từ tiền đã thu">
                 <span className="font-mono tabular-nums">
                   {formatMoney(cancellation.retainedAmount, order.currency)}
                 </span>
               </Row>
             )}
+            {/* Khoản thoả thuận (decision Q2): tiền đã thu trả trước, phần vượt thành công nợ —
+                khác "giữ lại", không cộng hai số với nhau */}
+            {cancellation.feeAmount !== null && (
+              <Row label="Phí thoả thuận">
+                <span className="font-mono tabular-nums">
+                  {formatMoney(cancellation.feeAmount, order.currency)}
+                </span>
+              </Row>
+            )}
+            {cancellation.feeReason && <Row label="Lý do giữ phí">{cancellation.feeReason}</Row>}
+            {cancellation.feeDetail && (
+              <Row label="Nội dung thoả thuận">{cancellation.feeDetail}</Row>
+            )}
           </>
         )}
       </dl>
+      {rows.length > 0 && (
+        <dl className="border-border-default mt-3 space-y-1.5 border-t pt-3 text-[0.8125rem]">
+          {rows.map((row) => (
+            <div key={row.label} className="flex items-baseline justify-between gap-3">
+              <dt className="text-ink-secondary">{row.label}</dt>
+              <dd className="text-ink-primary font-mono tabular-nums">
+                {formatMoney(row.value, order.currency)}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
     </section>
   );
 }
