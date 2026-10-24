@@ -91,12 +91,9 @@ export function taskCode(taskId: string): string {
   return shortId(taskId);
 }
 
-/** Số đơn nếu tra được, không thì id rút gọn (kèm `title` là id đầy đủ ở nơi dùng). */
-export function orderLabel(
-  orderId: string,
-  orderNumbers: Readonly<Record<string, string>> | undefined,
-): string {
-  return orderNumbers?.[orderId] ?? shortId(orderId);
+/** Số đơn BE trả kèm task (SCRUM-466); thiếu thì id rút gọn (kèm `title` là id đầy đủ ở nơi dùng). */
+export function orderLabel(orderId: string, orderNumber?: string | null): string {
+  return orderNumber || shortId(orderId);
 }
 
 /** Tên người được gán: chính mình → "Tôi"; BE trả `assignedUserName` → tên; không thì id rút gọn. */

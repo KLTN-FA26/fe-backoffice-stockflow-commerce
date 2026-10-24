@@ -66,10 +66,7 @@ export const IDENTITIES = {
   },
   // Không có VIEW_PAGE ở cả hai resource; chỉ kiểm tra lại thiết kế
   qcStaff: { permissions: [PICK.read, PACK.read, ...Object.values(REVERIFY)] },
-  // Quản lý kho được admin cấp thêm quyền đọc đơn (để xem số đơn và dòng đơn)
-  managerWithReferences: {
-    permissions: [...MANAGER, ORDER_PERMISSIONS.read],
-  },
+  // NV kho được admin cấp thêm quyền đọc đơn — trạm đóng gói đọc cờ `printLinesReady` của đơn (BE PR #150)
   staffWithOrders: {
     permissions: [...FLOOR, ORDER_PERMISSIONS.read],
   },
@@ -123,8 +120,12 @@ export function mockFulfillmentApi(
   return { get, post, put, del };
 }
 
-/** `userId` mặc định là người được gán của fixture `apiTask()`. */
-export function renderFulfillmentScreen(ui: React.ReactElement, userId: string = PICKER_ID) {
+/** `userId` mặc định là người được gán của fixture `apiTask()`; `searchParams` = URL ban đầu (nuqs). */
+export function renderFulfillmentScreen(
+  ui: React.ReactElement,
+  userId: string = PICKER_ID,
+  searchParams = "",
+) {
   useAuthStore.setState({
     user: {
       userId,
@@ -142,7 +143,7 @@ export function renderFulfillmentScreen(ui: React.ReactElement, userId: string =
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <NuqsTestingAdapter hasMemory>
+      <NuqsTestingAdapter searchParams={searchParams} hasMemory>
         <Suspense fallback={<div>loading</div>}>{ui}</Suspense>
       </NuqsTestingAdapter>
     </QueryClientProvider>,

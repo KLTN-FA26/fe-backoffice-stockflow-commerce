@@ -375,10 +375,24 @@ export const UI_LABELS = {
       openPacking: "Mở trạm đóng gói",
       openPicking: "Xem lấy hàng",
     },
-    // Thiếu quyền đọc dữ liệu phụ trợ của module khác (seed BE chưa cấp cho vai trò kho)
-    noOrderReadTitle: "Chưa đủ quyền xem dòng đơn hàng",
-    noOrderReadDescription:
-      "Danh sách SKU cần lấy đọc từ đơn hàng. Tài khoản chưa được cấp quyền xem đơn hàng — liên hệ quản trị để được cấp.",
+    // Lọc danh sách task (BE `GET /fulfillment/tasks?status&warehouseId&assignedUserId`, SCRUM-466)
+    filter: {
+      warehouse: "Kho",
+      status: "Trạng thái",
+      assignee: "Người được gán",
+      allWarehouses: "Tất cả kho",
+      allStatuses: "Tất cả trạng thái",
+      allAssignees: "Tất cả người",
+      pickWarehouseFirst: "Chọn kho trước",
+      // Lọc người từ link (?assignee=) mà chưa có tên để hiện — không lộ id người dùng
+      filteredAssignee: "Người đang lọc",
+      clear: "Bỏ lọc",
+      clearWarehouse: "Bỏ lọc kho",
+      noMatchTitle: "Không có task khớp bộ lọc",
+      noMatchDescription: "Thử bỏ bớt bộ lọc để xem thêm task.",
+      outOfScope: "Kho này nằm ngoài phạm vi dữ liệu của bạn.",
+      assigneesFailed: "Không tải được danh sách người được gán.",
+    },
     // Dialog tạo task: đơn chờ xuất kho đọc từ GET /fulfillment/task-candidates (cần fulfillment-task-assignment:CREATE)
     noCreateTitle: "Chưa đủ quyền tạo task lấy hàng",
     noCreateDescription:
@@ -412,6 +426,7 @@ export const UI_LABELS = {
     artifactDisclaimer:
       "File tải về từ bundle đã khoá; đường dẫn chỉ dùng được trong thời gian ngắn.",
     noDesignLines: "Đơn không có dòng tuỳ chỉnh — không cần đối chiếu thiết kế.",
+    noTaskLines: "Task chưa có dòng hàng.",
     noActions: {
       viewOnly: "Bạn chỉ có quyền xem task này.",
       notAssignee: "Chỉ nhân viên được gán mới thao tác được trên task này.",
@@ -465,9 +480,8 @@ export const FULFILLMENT_ERROR_MESSAGES = {
   reverifyConflict:
     "Kiện không còn bị giữ, hoặc đơn hàng không còn ở khâu xuất kho. Dữ liệu đã được tải lại.",
   artifactMissing: "Bundle thiết kế đã chốt không có file này",
-  // 409 khi task CHƯA bị giữ: BE dùng cùng mã cho "lệch checksum" và "đơn không còn ở khâu xuất kho"
-  artifactUnavailable:
-    "Không lấy được file thiết kế: đơn hàng không còn ở khâu xuất kho, hoặc file không khớp checksum đã chốt.",
+  // 409 PICK_TASK_STATE_CONFLICT khi tải file (BE `TaskAccess.orderInFulfilment`) — khác CONFLICT lệch checksum
+  artifactOrderClosed: "Đơn đã rời khâu xuất kho nên không tải được file thiết kế.",
   // URL ký BE trả không phải http(s) — không mở để tránh chạy `javascript:` trong tab
   artifactUrlInvalid: "Đường dẫn file thiết kế không hợp lệ — không mở được. Báo bộ phận kỹ thuật.",
   popupBlocked:
@@ -483,6 +497,10 @@ export const FULFILLMENT_ERROR_MESSAGES = {
   OUT_OF_DATA_SCOPE:
     "Kho này nằm ngoài phạm vi dữ liệu của bạn — bạn chỉ xem được đơn của kho mình phụ trách.",
   warehouseNotFound: "Không tìm thấy kho.",
+  // 409 khi tạo task / bắt đầu lấy hàng / phân bổ lại: hàng giữ cho đơn nằm ở kho khác kho xuất (BE
+  // FulfillmentServiceImpl#pickingWarehouse, PickList.plan / replaceShort — release không kiểm nơi giữ hàng)
+  FULFILLMENT_HOLDS_OUTSIDE_WAREHOUSE:
+    "Hàng giữ cho đơn đang nằm ở kho khác kho xuất — cần lệnh chuyển kho đưa hàng về đúng kho rồi mới lấy hàng.",
   OPTIMISTIC_LOCK: "Task vừa được người khác cập nhật. Dữ liệu đã được tải lại, hãy thử lại.",
   LOCK_TIMEOUT: "Task đang được người khác thao tác. Thử lại sau giây lát.",
   STORAGE_ERROR: "Kho lưu trữ file thiết kế đang không truy cập được. Thử lại sau.",

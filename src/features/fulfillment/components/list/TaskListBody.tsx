@@ -1,8 +1,9 @@
 "use client";
 
-import { PackageSearch } from "lucide-react";
+import { FilterX, PackageSearch } from "lucide-react";
 
 import { UI_LABELS } from "@/constants";
+import { isOutOfDataScope } from "@/features/fulfillment/errors";
 import { isOnDesignHold } from "@/features/fulfillment/selectors";
 import { DataTable } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -18,10 +19,11 @@ import type { ColumnDef } from "@/components/shared/DataTable";
 import type { TaskListState } from "./useTaskListState";
 
 const { fulfillment } = UI_LABELS;
+const F = fulfillment.filter;
 
 /**
- * Vùng bảng — tách các trạng thái (api-conventions §8): tải lần đầu, lỗi tải, chưa có task,
- * trang vượt quá dữ liệu. BE chưa có lọc nên không có trạng thái "lọc không ra kết quả".
+ * Vùng bảng — tách các trạng thái (api-conventions §8): tải lần đầu, lỗi tải, kho lọc ngoài phạm vi,
+ * chưa có task, lọc không ra kết quả (EmptyState riêng + Bỏ lọc), trang vượt quá dữ liệu.
  * EmptyState không lặp lại nút tạo task — nút duy nhất nằm ở PageHeader (người dùng chốt).
  */
 export function TaskListBody({
@@ -35,6 +37,20 @@ export function TaskListBody({
   const title = scope === "picking" ? fulfillment.pickingTitle : fulfillment.packingTitle;
 
   if (!s.canRead) return <FulfillmentLoadError inline scope={scope} error={null} kind="no-read" />;
+  // Lọc theo kho ngoài phạm vi → BE 403 (SCRUM-466), không phải lỗi tải chung
+  if (query.isError && s.warehouse && isOutOfDataScope(query.error)) {
+    return (
+      <EmptyState
+        icon={<FilterX className="size-8" />}
+        title={F.outOfScope}
+        action={
+          <Button type="button" variant="outline" size="sm" onClick={() => s.setWarehouse(null)}>
+            {F.clearWarehouse}
+          </Button>
+        }
+      />
+    );
+  }
   if (query.isError) {
     return (
       <FulfillmentLoadError
@@ -65,6 +81,20 @@ export function TaskListBody({
         icon={<PackageSearch className="size-8" />}
         title="Chưa có task xuất kho"
         description="Chưa có đơn nào được đưa vào xuất kho trong phạm vi bạn được xem."
+      />
+    );
+  }
+  if (s.emptyState === "no-match") {
+    return (
+      <EmptyState
+        icon={<FilterX className="size-8" />}
+        title={F.noMatchTitle}
+        description={F.noMatchDescription}
+        action={
+          <Button type="button" variant="outline" size="sm" onClick={s.clearFilters}>
+            {F.clear}
+          </Button>
+        }
       />
     );
   }

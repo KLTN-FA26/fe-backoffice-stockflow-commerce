@@ -31,6 +31,7 @@ import {
   orderClosedError,
   routeParam,
   taskNotFound,
+  taskLinesOf,
   toTaskResponse,
   verifyDesigns,
 } from "./mock-routes-fulfillment-store";
@@ -87,6 +88,20 @@ async function isValidAssignee(userId: string): Promise<boolean> {
   const user = staffUsers.find((candidate) => candidate.userId === userId);
   return !!user && isWarehouseAssignee(user);
 }
+
+/**
+ * BE `WarehouseScope.requireWarehouse`: kho nằm ngoài các kho của người gọi → 403 OUT_OF_DATA_SCOPE;
+ * người không bị giới hạn kho (danh sách kho rỗng) thì qua.
+ */
+async function outOfWarehouseScope(userId: string, warehouseId: string): Promise<boolean> {
+  const { staffUsers } = await import("@/lib/mock-data");
+  const scope: readonly string[] =
+    staffUsers.find((user) => user.userId === userId)?.warehouseIds ?? [];
+  return scope.length > 0 && !scope.includes(warehouseId);
+}
+
+const outOfScope = () =>
+  beError(403, "OUT_OF_DATA_SCOPE", "The warehouse is outside your data scope");
 
 const invalidAssignee = () =>
   beError(
@@ -154,12 +169,18 @@ function registerTaskReadRoutes(): void {
       return beError(400, "UNSUPPORTED_PARAMETER", "Unknown pick status");
     }
     const actor = await currentActor();
-    const all = [...(await getFulfillmentStore()).values()]
-      .filter((task) => !status || task.pickStatus === status)
-      .sort(newestFirst);
     // BE `listTasks`: endpoint cần pick-lists:READ; phạm vi theo quyền — task-oversight:READ thấy hết →
     // design-reverification:READ chỉ thấy kiện đang giữ → còn lại thấy task của mình
     if (!actor.can(PICK.read)) return forbidden();
+    // SCRUM-466: lọc kho / người được gán chỉ thu hẹp trong phạm vi; kho ngoài phạm vi → 403 trước
+    const warehouseId = readString(params.warehouseId);
+    const assignedUserId = readString(params.assignedUserId);
+    if (warehouseId && (await outOfWarehouseScope(actor.userId, warehouseId))) return outOfScope();
+    const all = [...(await getFulfillmentStore()).values()]
+      .filter((task) => !status || task.pickStatus === status)
+      .filter((task) => !warehouseId || task.warehouseId === warehouseId)
+      .filter((task) => !assignedUserId || task.assignedUserId === assignedUserId)
+      .sort(newestFirst);
     let visible: MockTask[];
     if (actor.can(OVERSIGHT.read)) visible = all;
     else if (actor.can(REVERIFY.read)) visible = all.filter((t) => t.packStatus === "ON_HOLD");
@@ -170,7 +191,8 @@ function registerTaskReadRoutes(): void {
   registerMockRoute("GET", `${PATH}/:id`, async (config) => {
     const { task, actor } = await loadTask(config);
     if (!task || !canSee(task, actor)) return taskNotFound();
-    return beOk(toTaskResponse(task));
+    // Chỉ chi tiết kèm `lines` (BE `FulfillmentServiceImpl#getTask`, SCRUM-466)
+    return beOk({ ...toTaskResponse(task), lines: await taskLinesOf(task) });
   });
 
   registerMockRoute(
@@ -326,11 +348,7 @@ function registerAssigneeRoutes(): void {
     if (!warehouses.some((warehouse) => warehouse.warehouseId === warehouseId)) {
       return beError(404, "WAREHOUSE_NOT_FOUND", "Warehouse not found");
     }
-    const caller = staffUsers.find((user) => user.userId === actor.userId);
-    const callerScope: readonly string[] = caller?.warehouseIds ?? [];
-    if (callerScope.length > 0 && !callerScope.includes(warehouseId)) {
-      return beError(403, "OUT_OF_DATA_SCOPE", "The warehouse is outside your data scope");
-    }
+    if (await outOfWarehouseScope(actor.userId, warehouseId)) return outOfScope();
     const assignees = staffUsers
       .filter(
         (user) =>

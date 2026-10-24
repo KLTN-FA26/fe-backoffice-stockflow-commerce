@@ -11,6 +11,7 @@ import type {
   beArtifactAccessSchema,
   beFulfillmentTaskSchema,
   beIntegrityEvidenceSchema,
+  beTaskLineSchema,
   fulfillmentOrderLineSchema,
   fulfillmentOrderSchema,
   taskCandidateLineSchema,
@@ -22,6 +23,7 @@ import type {
 
 export type FulfillmentTaskApiDto = z.infer<typeof beFulfillmentTaskSchema>;
 export type IntegrityEvidence = z.infer<typeof beIntegrityEvidenceSchema>;
+export type TaskLine = z.infer<typeof beTaskLineSchema>;
 export type ArtifactAccess = z.infer<typeof beArtifactAccessSchema>;
 export type FulfillmentOrder = z.infer<typeof fulfillmentOrderSchema>;
 export type FulfillmentOrderLine = z.infer<typeof fulfillmentOrderLineSchema>;

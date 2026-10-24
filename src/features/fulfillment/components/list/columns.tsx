@@ -22,7 +22,6 @@ import type { IntegrityOutcome } from "@/features/fulfillment/selectors";
 import type { FulfillmentTask } from "@/features/fulfillment/types";
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { FulfillmentScope } from "../primitives";
-import type { TaskReferences } from "../useFulfillmentActor";
 
 const C = FULFILLMENT_COLUMNS;
 const INTEGRITY = UI_LABELS.fulfillment.integrity;
@@ -46,15 +45,13 @@ function dateTimeCell(
 export interface TaskColumnContext {
   scope: FulfillmentScope;
   actor: FulfillmentActor;
-  refs: TaskReferences;
   onAssign: (task: FulfillmentTask) => void;
 }
 
-/** Cột bảng task — chỉ field có trong BE `FulfillmentTaskResponse`; số đơn / tên tra qua `refs`. */
+/** Cột bảng task — chỉ field có trong BE `FulfillmentTaskResponse` (số đơn, tên người gán đi kèm task). */
 export function buildTaskColumns({
   scope,
   actor,
-  refs,
   onAssign,
 }: TaskColumnContext): ColumnDef<FulfillmentTask>[] {
   return [
@@ -77,7 +74,7 @@ export function buildTaskColumns({
       header: COLUMN_LABELS[C.ORDER] ?? C.ORDER,
       cell: (row) => (
         <span className={CELL.ref} title={row.orderId}>
-          {orderLabel(row.orderId, refs.orderNumbers)}
+          {orderLabel(row.orderId, row.orderNumber)}
         </span>
       ),
     },

@@ -5,12 +5,7 @@ import { QUERY_TIMES } from "@/lib/api/query-client";
 import { createDetailQuery, createListQuery, createQueryKeys } from "@/lib/api/query-factory";
 
 import { getDesignArtifactUrl, getFulfillmentTask, listFulfillmentTasks } from "./api";
-import {
-  getFulfillmentOrder,
-  listAssignees,
-  listOrderNumbers,
-  listTaskCandidates,
-} from "./reference-api";
+import { getFulfillmentOrder, listAssignees, listTaskCandidates } from "./reference-api";
 
 import type { ListFulfillmentTaskParams } from "./api";
 import type { ArtifactUrlInput, FulfillmentTask } from "./types";
@@ -34,7 +29,6 @@ export const fulfillmentReferenceKeys = {
    */
   taskCandidates: (warehouseId?: string) =>
     [...fulfillmentReferenceKeys.orders(), "task-candidates", warehouseId ?? "all"] as const,
-  orderNumbers: () => [...fulfillmentReferenceKeys.orders(), "numbers"] as const,
   /** Người nhận task theo kho — không đổi theo thao tác trên task → không nằm dưới nhánh đơn hàng. */
   assignees: (warehouseId: string) =>
     [...fulfillmentReferenceKeys.all, "assignees", warehouseId] as const,
@@ -70,16 +64,6 @@ export function useTaskCandidates(enabled: boolean, warehouseId?: string) {
     queryFn: ({ signal }) => listTaskCandidates({ warehouseId }, signal),
     enabled,
     ...QUERY_TIMES.list,
-  });
-}
-
-/** id đơn → số đơn (cột danh sách). Thiếu `sales-orders:READ` → tắt, cột hiện id rút gọn. */
-export function useOrderNumbers(enabled: boolean) {
-  return useQuery({
-    queryKey: fulfillmentReferenceKeys.orderNumbers(),
-    queryFn: ({ signal }) => listOrderNumbers(signal),
-    enabled,
-    ...QUERY_TIMES.master,
   });
 }
 

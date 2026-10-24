@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 import {
   FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS,
   FULFILLMENT_PICK_PERMISSIONS,
+  FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS,
   FULFILLMENT_TASK_OVERSIGHT_PERMISSIONS,
   UI_LABELS,
 } from "@/constants";
@@ -18,9 +19,11 @@ import { CreateTaskDialog } from "./assign/CreateTaskDialog";
 import { FulfillmentPermissionGate } from "./FulfillmentPermissionGate";
 import { buildTaskColumns } from "./list/columns";
 import { TaskListBody } from "./list/TaskListBody";
+import { TaskListFilters } from "./list/TaskListFilters";
 import { TaskListToolbar } from "./list/TaskListToolbar";
+import { useTaskFilterLabels } from "./list/useTaskFilterLabels";
 import { useTaskListState } from "./list/useTaskListState";
-import { useFulfillmentActor, useTaskReferences } from "./useFulfillmentActor";
+import { useFulfillmentActor } from "./useFulfillmentActor";
 
 import type { FulfillmentActor } from "@/features/fulfillment/lifecycle";
 import type { FulfillmentTask } from "@/features/fulfillment/types";
@@ -51,11 +54,16 @@ function TaskListContent({ scope }: { scope: FulfillmentScope }) {
   // READ = đọc dữ liệu (tách khỏi VIEW_PAGE mở trang — BE ADR-0004): thiếu thì không gọi API
   const canRead = actor.can(FULFILLMENT_PICK_PERMISSIONS.read);
   const s = useTaskListState(scope, canRead);
-  const refs = useTaskReferences(actor);
+  // Lọc người được gán: danh sách người lấy từ `/fulfillment/assignees` (task-assignment) và chỉ có ý nghĩa
+  // khi thấy task của người khác (task-oversight). UI-only — Backend phải re-check (BE listTasks).
+  const canFilterAssignee =
+    actor.can(FULFILLMENT_TASK_OVERSIGHT_PERMISSIONS.read) &&
+    actor.can(FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS.update);
+  const labels = useTaskFilterLabels(s, canFilterAssignee);
   const [assigning, setAssigning] = useState<FulfillmentTask | null>(null);
   const [creating, setCreating] = useState(false);
   const canCreate = scope === "picking" && canCreateTask(actor);
-  const columns = buildTaskColumns({ scope, actor, refs, onAssign: setAssigning });
+  const columns = buildTaskColumns({ scope, actor, onAssign: setAssigning });
   const visibleColumns = columns.filter((c) => s.config.visibleColumns.includes(c.key));
 
   return (
@@ -76,7 +84,16 @@ function TaskListContent({ scope }: { scope: FulfillmentScope }) {
           ) : undefined
         }
       />
-      {canRead && <TaskListToolbar s={s} scopeNote={scopeNote(actor)} />}
+      {canRead && (
+        <>
+          <TaskListToolbar s={s} scopeNote={scopeNote(actor)} labels={labels} />
+          <TaskListFilters
+            s={s}
+            canFilterAssignee={canFilterAssignee}
+            assigneeLabel={labels.assignee}
+          />
+        </>
+      )}
       <TaskListBody s={s} columns={visibleColumns} />
       {assigning && <AssignDialog task={assigning} onClose={() => setAssigning(null)} />}
       {creating && <CreateTaskDialog onClose={() => setCreating(false)} />}
