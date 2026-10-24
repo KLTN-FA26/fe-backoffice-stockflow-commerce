@@ -11,6 +11,7 @@ import { resetFulfillmentMockStore } from "@/lib/api/mock-routes-fulfillment-sto
 import { backendOrderStatusOf, resetOrderMockStore } from "@/lib/api/mock-routes-orders";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
+import { pickAllOpenLines } from "./__fixtures__/pick-all-lines";
 import {
   completePicking,
   getFulfillmentTask,
@@ -113,6 +114,7 @@ describe("packing mock ↔ hợp đồng BE PR #136", () => {
       // Chưa lấy xong → chưa vào hàng chờ, chưa nhận đơn được (409 PACKING_NOT_READY)
       actAs(USERS.picker);
       expect(await codeOf(startPacking(id))).toBe("PACKING_NOT_READY");
+      await pickAllOpenLines(id);
       expect((await completePicking(id)).pickStatus).toBe("Picked");
 
       // Hàng chờ: task vừa lấy xong + kiện đang giữ do lệch thiết kế; không có đơn đã đóng xong / đã huỷ

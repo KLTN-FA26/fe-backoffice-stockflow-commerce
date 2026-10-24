@@ -501,6 +501,8 @@ export const FULFILLMENT_ERROR_MESSAGES = {
   // FulfillmentServiceImpl#pickingWarehouse, PickList.plan / replaceShort — release không kiểm nơi giữ hàng)
   FULFILLMENT_HOLDS_OUTSIDE_WAREHOUSE:
     "Hàng giữ cho đơn đang nằm ở kho khác kho xuất — cần lệnh chuyển kho đưa hàng về đúng kho rồi mới lấy hàng.",
+  // 409 khi hoàn tất mà BE còn dòng chưa lấy (BE `PickList.requireAllPicked` / task chưa lập dòng)
+  PICK_LINES_INCOMPLETE: "Còn dòng chưa lấy xong nên chưa hoàn tất được. Dữ liệu đã được tải lại.",
   OPTIMISTIC_LOCK: "Task vừa được người khác cập nhật. Dữ liệu đã được tải lại, hãy thử lại.",
   LOCK_TIMEOUT: "Task đang được người khác thao tác. Thử lại sau giây lát.",
   STORAGE_ERROR: "Kho lưu trữ file thiết kế đang không truy cập được. Thử lại sau.",
@@ -514,6 +516,11 @@ export const FULFILLMENT_FIELD_MESSAGES = {
   assigneeRequired: "Chọn nhân viên được gán",
   resolutionNoteRequired: "Nhập cách đã xử lý",
   resolutionNoteTooLong: "Tối đa 1000 ký tự",
+  // BE ConfirmPickRequest / ShortPickRequest: @NotBlank @Size(max = 64), quantity @NotNull @Positive
+  locationRequired: "Chọn vị trí",
+  codeRequired: "Chọn mã hàng",
+  codeTooLong: "Tối đa 64 ký tự",
+  quantityRequired: "Nhập số lượng là số nguyên lớn hơn 0",
 } as const;
 
 /**
@@ -763,6 +770,11 @@ export const TOAST_MESSAGES = {
     pickingCompleted: "Đã hoàn tất lấy hàng",
     held: "Lệch checksum thiết kế — kiện bị giữ, chờ kiểm tra lại thiết kế",
     reverified: "Thiết kế khớp — đã gỡ giữ, người đóng gói hoàn tất lại",
+    // Phân bổ lại dòng thiếu (BE `POST …/pick-lines/{lineId}/reallocation`, PR #147)
+    lineReallocated: "Đã phân bổ lại dòng thiếu",
+    linesPlanned: "Đã tạo danh sách dòng lấy hàng",
+    // Báo thiếu hàng (BE `POST …/pick-lines/{lineId}/short`, PR #147): đơn tạm giữ, chờ phân bổ lại
+    shortReported: (sku: string, quantity: number) => `Đã báo thiếu ${quantity} × ${sku}`,
   },
   packing: PACKING_TOAST_MESSAGES,
 } as const;

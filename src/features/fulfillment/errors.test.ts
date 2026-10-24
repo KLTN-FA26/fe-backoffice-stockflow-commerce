@@ -97,6 +97,13 @@ describe("isStaleFulfillmentError", () => {
     expect(isStaleFulfillmentError(notFound)).toBe(true);
     expect(isStaleFulfillmentError(conflict)).toBe(true);
     expect(isStaleFulfillmentError(new ApiError(409, "OPTIMISTIC_LOCK", "x"))).toBe(true);
+    // Dòng đã lấy / báo thiếu / huỷ ở máy khác (BE PickList)
+    expect(isStaleFulfillmentError(new ApiError(409, "PICK_LINE_NOT_OPEN", "x"))).toBe(true);
+    // Hoàn tất khi BE còn dòng chưa lấy (dòng mới lập / phân bổ lại ở máy khác) → tải lại
+    expect(isStaleFulfillmentError(new ApiError(409, "PICK_LINES_INCOMPLETE", "x"))).toBe(true);
+    expect(fulfillmentErrorMessage(new ApiError(409, "PICK_LINES_INCOMPLETE", "x"), "pick")).toBe(
+      MSG.PICK_LINES_INCOMPLETE,
+    );
   });
 
   it("lỗi validate / mạng / lỗi lạ → không", () => {
