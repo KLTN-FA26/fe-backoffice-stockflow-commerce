@@ -13,7 +13,7 @@ export function InfoRow({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="border-border-default flex items-baseline justify-between gap-3 border-b py-2 last:border-b-0">
+    <div className="flex items-baseline justify-between gap-3 border-b border-(--table-line) py-2 last:border-b-0">
       <span className="text-ink-tertiary shrink-0 text-xs font-medium">{label}</span>
       {children ? (
         <span className="text-ink-primary min-w-0 text-right text-[0.8125rem] break-words">

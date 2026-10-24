@@ -13,9 +13,9 @@ import type { PoStatus } from "@/features/purchase-order";
 export function PoLifecycleTimeline({ status }: { status: PoStatus }) {
   const steps = getLifecycleSteps(status);
   return (
-    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
+    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)">
       <h2 className="text-ink-primary mb-4 flex items-center gap-2 text-[0.9375rem] font-semibold">
-        <CircleDot className="text-accent size-4" />
+        <CircleDot className="text-accent size-3.5" />
         Vòng đời PO
       </h2>
       <div className="relative pl-6">

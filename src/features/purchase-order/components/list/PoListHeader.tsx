@@ -4,7 +4,7 @@ import { BarChart3, FileText, Plus, Wallet } from "lucide-react";
 import { cn } from "cn";
 
 import { UI_LABELS } from "@/constants";
-import { PageHeader } from "@/components/shared/PageHeader";
+import { TOOLBAR_ACTION_CLASS } from "@/components/shared/ListToolbar";
 import { PageTabs } from "@/components/shared/PageTabs";
 import { Button } from "@/components/ui/button";
 
@@ -18,7 +18,8 @@ const TABS: { key: PoTabKey; label: string; icon: typeof FileText }[] = [
   { key: "spend", label: "Chi tiêu NCC", icon: Wallet },
 ];
 
-export function PoListHeader({
+/** Nút của trang danh sách PO — nằm cuối toolbar (`ListToolbar actions`), cỡ `TOOLBAR_ACTION_CLASS`. */
+export function PoListActions({
   showStats,
   showStatsToggle,
   onToggleStats,
@@ -31,41 +32,39 @@ export function PoListHeader({
   onCreate?: () => void;
 }) {
   return (
-    <PageHeader
-      title="Đơn đặt NCC"
-      subtitle="Theo dõi vòng đời PO, nhà cung cấp, giá trị và tiến độ nhận hàng."
-      actions={
-        <div className="flex items-center gap-2">
-          {showStatsToggle && (
-            <Button
-              type="button"
-              variant={showStats ? "secondary" : "outline"}
-              size="sm"
-              onClick={onToggleStats}
-              className={cn(
-                "rounded-[var(--r-sm)]",
-                showStats &&
-                  "border-brand bg-brand/10 text-brand hover:bg-brand/10 hover:text-brand border",
-              )}
-            >
-              <BarChart3 className="size-3.5" />
-              {showStats ? "Ẩn thống kê" : "Hiện thống kê"}
-            </Button>
+    <>
+      {showStatsToggle && (
+        <Button
+          type="button"
+          variant={showStats ? "secondary" : "outline"}
+          size="sm"
+          onClick={onToggleStats}
+          className={cn(
+            "border-border-default bg-bg-surface text-ink-primary hover:bg-bg-muted",
+            TOOLBAR_ACTION_CLASS,
+            showStats &&
+              "border-brand bg-brand/10 text-brand hover:bg-brand/10 hover:text-brand border",
           )}
-          {onCreate && (
-            <Button
-              type="button"
-              size="sm"
-              onClick={onCreate}
-              className="bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse rounded-[var(--r-sm)]"
-            >
-              <Plus className="size-3.5" />
-              {UI_LABELS.purchaseOrder.createAction}
-            </Button>
+        >
+          <BarChart3 className="text-dot-info size-3.5" />
+          {showStats ? "Ẩn thống kê" : "Hiện thống kê"}
+        </Button>
+      )}
+      {onCreate && (
+        <Button
+          type="button"
+          size="sm"
+          onClick={onCreate}
+          className={cn(
+            "bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse",
+            TOOLBAR_ACTION_CLASS,
           )}
-        </div>
-      }
-    />
+        >
+          <Plus className="size-3.5" />
+          {UI_LABELS.purchaseOrder.createAction}
+        </Button>
+      )}
+    </>
   );
 }
 
