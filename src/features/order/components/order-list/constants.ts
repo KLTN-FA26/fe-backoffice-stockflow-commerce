@@ -11,8 +11,11 @@ export interface OrderPageConfig {
 
 export const DEFAULT_COLUMNS = [
   "orderNumber",
+  "customer",
   "recipient",
   "placedAt",
+  "paymentTerm",
+  "paymentStatus",
   "totalAmount",
   "status",
   "actions",
@@ -32,26 +35,44 @@ export const DEFAULT_CONFIG: OrderPageConfig = {
 export const SERVER_SORT_FIELDS = ["orderNumber", "placedAt", "totalAmount", "status"] as const;
 export type ServerSortField = (typeof SERVER_SORT_FIELDS)[number];
 
-/** ASSUMPTION: phạm vi search phía server (mock đang quét các field này). */
-export const SEARCH_SCOPE_LABEL = "Mã đơn, người nhận, SĐT";
+/** BE OrderRepositoryAdapter: search "contains" trên mã đơn, tên/SĐT liên hệ, tên/SĐT người nhận. */
+export const SEARCH_SCOPE_LABEL = "Mã đơn, người liên hệ / người nhận, SĐT";
+
+/** Nhãn bộ lọc riêng — dùng ở hàng bộ lọc và thanh Cấu hình. */
+export const FILTER_LABELS = {
+  // BE lọc theo UUID khách (`customerId`), không phải mã khách hiển thị
+  customer: "ID khách hàng",
+  customerPlaceholder: "Nhập UUID khách, Enter để lọc",
+  customerInvalid: "ID khách hàng phải là UUID hợp lệ.",
+  placedAt: "Ngày đặt",
+  from: "Từ ngày",
+  to: "Đến ngày",
+  invalidRange: "Ngày kết thúc phải sau hoặc bằng ngày bắt đầu — chưa áp dụng lọc ngày.",
+} as const;
 
 /** Tiêu đề cột — dùng chung cho bảng, popover ẩn/hiện cột và thanh Cấu hình. */
 export const COLUMN_LABELS: Record<string, string> = {
   orderNumber: "Mã đơn",
+  customer: "Khách hàng",
   recipient: "Người nhận",
+  paymentTerm: "Phương thức TT",
+  paymentStatus: "Thanh toán",
   placedAt: "Ngày đặt",
   totalAmount: "Tổng tiền",
   status: "Trạng thái",
   actions: "Thao tác",
 };
 
-/** 19 trạng thái BE (ORDER_STATUSES, PR #133) — "UNKNOWN" không phải trạng thái lọc được. */
-export const STATUS_OPTIONS: { label: string; value: OrderStatus }[] = ORDER_STATUSES.filter(
-  (value) => value !== "UNKNOWN",
-).map((value) => ({
-  label: statusLabelVi(value, "order") ?? value,
-  value,
-}));
+/**
+ * 19 trạng thái BE (ORDER_STATUSES, PR #133). KHÔNG có `UNKNOWN`: đó là trạng thái chỉ để đọc
+ * (`ORDER_READ_STATUSES`), không phải giá trị lọc gửi BE — kiểu `OrderStatus` đã loại nó.
+ */
+export const STATUS_OPTIONS: { label: string; value: OrderStatus }[] = ORDER_STATUSES.map(
+  (value) => ({
+    label: statusLabelVi(value, "order") ?? value,
+    value,
+  }),
+);
 
 /** Giá trị trạng thái hợp lệ trên URL (`?status=`) — không gồm "UNKNOWN", mã cũ (Paid / In Fulfilment) bị bỏ. */
 export const FILTERABLE_STATUSES: readonly OrderStatus[] = STATUS_OPTIONS.map((o) => o.value);

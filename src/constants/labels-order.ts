@@ -115,9 +115,10 @@ export const ORDER_SHIPMENT_STATUSES = [
   "DELIVERED",
   "DELIVERY_FAILED",
   "RETURNED",
-  // Giá trị BE thêm sau — hiển thị "Không rõ" thay vì làm hỏng cả trang chi tiết
-  "UNKNOWN",
 ] as const;
+
+/** Trạng thái lô sau khi đọc: giá trị BE thêm sau → "UNKNOWN" (hiển thị "Không rõ"). */
+export const ORDER_SHIPMENT_READ_STATUSES = [...ORDER_SHIPMENT_STATUSES, "UNKNOWN"] as const;
 
 /** Lô giao → chuỗi status của `StatusDot` (nhãn + màu dùng chung ở `lib/status-map.ts`). */
 export const ORDER_SHIPMENT_STATUS_DISPLAY = {
@@ -126,7 +127,7 @@ export const ORDER_SHIPMENT_STATUS_DISPLAY = {
   DELIVERY_FAILED: "Delivery Failed",
   RETURNED: "Returned",
   UNKNOWN: "UNKNOWN",
-} as const satisfies Record<(typeof ORDER_SHIPMENT_STATUSES)[number], string>;
+} as const satisfies Record<(typeof ORDER_SHIPMENT_READ_STATUSES)[number], string>;
 
 /* ── Cách thu phần còn lại của đơn cọc (BE BalancePolicy / DepositBalancePolicy) ── */
 
@@ -288,8 +289,10 @@ export const ORDER_ERROR_MESSAGES = {
   ORDER_SHIPMENT_CONFLICT: "Lô giao này đã được bàn giao cùng hàng khác.",
   ORDER_SHIPMENT_QUANTITY_EXCEEDED: "Vượt quá số lượng còn lại cần giao của dòng đơn.",
   ORDER_SHIPMENT_INVALID_TRANSITION: "Lô giao không thể chuyển sang trạng thái này lúc này.",
+  // BE trả cùng mã cho đơn đã huỷ / đã đóng sổ / đã đóng gói hoặc qua bước không còn cạnh → CANCELLED
+  // (Order#cancel, requireNotPacked) — không được đoán là "đã đóng gói".
   ORDER_NOT_CANCELLABLE:
-    "Đơn hàng không thể huỷ nữa — hàng đã đóng gói, hãy xử lý qua luồng trả hàng.",
+    "Không thể huỷ đơn ở trạng thái hiện tại — đơn có thể đã được huỷ, đã đóng gói hoặc đã sang bước không cho huỷ.",
   ORDER_CANCELLED: "Đơn hàng đã bị huỷ.",
   // BE PR #150 — giao một phần do Sales quyết trên đơn
   ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED:

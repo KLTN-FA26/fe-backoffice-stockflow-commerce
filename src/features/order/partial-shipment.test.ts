@@ -5,7 +5,7 @@ import { ORDER_PERMISSIONS } from "@/constants";
 import { isAwaitingProduction, partialShipmentControl } from "./partial-shipment";
 
 import type { PermissionCode } from "@/lib/auth";
-import type { OrderStatus } from "./types";
+import type { OrderReadStatus } from "./types";
 
 /** SALES_STAFF (và SYSTEM_ADMIN) có mã quyền; điều phối viên / kho thì không — theo seed BE PR #150. */
 const SALES: readonly PermissionCode[] = [ORDER_PERMISSIONS.partialShipment];
@@ -15,10 +15,10 @@ const checkerFor =
 
 describe("partialShipmentControl — Giao một phần (sales-order-partial-shipments:UPDATE)", () => {
   const order = (
-    status: OrderStatus,
+    status: OrderReadStatus,
     allowPartialShipment: boolean | null,
     printLinesReady: boolean | null = true,
-    statusBeforeHold: OrderStatus | null = null,
+    statusBeforeHold: OrderReadStatus | null = null,
   ) => ({ status, statusBeforeHold, allowPartialShipment, printLinesReady });
 
   it("BE không trả cờ (dòng danh sách) → null, không đoán", () => {

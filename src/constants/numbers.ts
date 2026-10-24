@@ -23,12 +23,25 @@ export const PO_LIMITS = {
 } as const;
 
 export const ORDER_LIMITS = {
+  /** BE `AdminCancelOrderRequest.note` @Size(max = 1000); bắt buộc khi reasonCode = OTHER. */
+  cancelNoteMax: 1000,
+  /** BE `AdminCancelOrderRequest.retainedPercent` 0..100 — phần tiền giữ lại khi huỷ. */
+  retainedPercentMin: 0,
+  retainedPercentMax: 100,
+  /** BE `CreditDecisionRequest.note` / `CreditRefusalRequest.note` @NotBlank @Size(max = 1000). */
+  creditNoteMax: 1000,
+  /** BE `CreditRefusalRequest.depositPercent` — 0 < x < 100 (biên mở). */
+  depositPercentMin: 0,
+  depositPercentMax: 100,
   /**
-   * Độ dài tối đa lý do huỷ đơn — cột `ordering.orders.cancellation_reason VARCHAR(500)`
-   * (BE migration V20260901000300__ordering_orders.sql). `AdminCancelOrderRequest` chỉ có
-   * @NotBlank nên FE phải chặn, quá dài → DB từ chối → BE trả 500.
+   * `step` của ô nhập %: BE nhận BigDecimal (không ép số nguyên, không giới hạn scale) và zod
+   * cũng chấp nhận số thập phân → "any" để validation gốc của trình duyệt không chặn 30.5%.
    */
-  cancelReasonMax: 500,
+  percentInputStep: "any",
+  /** BE `CancellationFeeRequest.reason` @NotBlank @Size(max = 500). */
+  cancelFeeReasonMax: 500,
+  /** BE `CancellationFeeRequest.detail` @NotBlank @Size(max = 2000). */
+  cancelFeeDetailMax: 2000,
   /** `HoldOrderRequest.note` @Size(max = 1000) — BE PR #133. */
   holdNoteMax: 1000,
   /** `ResolveHoldRequest.note` @NotBlank @Size(max = 1000). */

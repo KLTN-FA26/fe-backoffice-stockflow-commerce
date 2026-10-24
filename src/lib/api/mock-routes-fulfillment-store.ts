@@ -15,7 +15,7 @@ import {
   putMockOrderOnDesignHold,
   setMockOrderStatus,
   snapshotIdOf,
-} from "./mock-routes-orders";
+} from "./mock-routes-orders-store";
 import { beError, isRecord } from "./mock-routes-purchase-orders-store";
 
 import type { AxiosRequestConfig } from "axios";

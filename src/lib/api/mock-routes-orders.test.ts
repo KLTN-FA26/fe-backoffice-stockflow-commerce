@@ -26,6 +26,7 @@ import { orders } from "@/lib/mock-data";
 
 import { activateMockAdapter } from "./mock-adapter";
 import { resetOrderMockStore, setMockOrderStatus } from "./mock-routes-orders";
+import { mockCustomerUuid } from "./mock-routes-orders-store";
 
 const originalAdapter = api.defaults.adapter;
 
@@ -134,44 +135,112 @@ describe("GET /orders/:id — OrderResponse", () => {
   });
 });
 
-describe("POST /orders/:id/admin-cancellation", () => {
-  it("huỷ hợp lệ → thành công; huỷ lần 2 → ORDER_CANCELLED", async () => {
-    const order = firstOrderWith("Pending Payment");
-
-    await expect(adminCancelOrder({ id: order.orderId, reason: "Khách đổi ý" })).resolves.toBe(
-      undefined,
-    );
-    expect((await getOrder(order.orderId)).status).toBe("Cancelled");
-
-    const error = await captureError(adminCancelOrder({ id: order.orderId, reason: "Lần 2" }));
-    expect(error.status).toBe(409);
-    expect(error.code).toBe("ORDER_CANCELLED");
+describe("GET /orders — lọc khách / ngày", () => {
+  it("customerId (UUID cố định của khách mock) chỉ trả đơn của khách đó", async () => {
+    const customerId = mockCustomerUuid("CUS-0008");
+    const page = await listOrders({ page: 0, size: 200, customerId });
+    expect(page.items.length).toBeGreaterThan(0);
+    expect(page.items.every((o) => o.customerId === customerId)).toBe(true);
   });
 
-  it("thiếu lý do → VALIDATION_FAILED, fieldErrors.reason", async () => {
+  it("id mock thô CUS-… không phải UUID → FE không gửi, trả mọi khách", async () => {
+    const all = await listOrders({ page: 0, size: 200 });
+    const page = await listOrders({ page: 0, size: 200, customerId: "CUS-0008" });
+    expect(page.totalElements).toBe(all.totalElements);
+  });
+
+  it("placedFrom/placedTo tính cả hai đầu theo ngày VN", async () => {
+    const page = await listOrders({
+      page: 0,
+      size: 200,
+      placedFrom: "2026-06-11",
+      placedTo: "2026-06-11",
+    });
+    expect(page.items.length).toBeGreaterThan(0);
+    expect(page.items.every((o) => o.placedAt.startsWith("2026-06-11"))).toBe(true);
+  });
+
+  it("placedTo trước placedFrom → VALIDATION_FAILED (BE OrderServiceImpl)", async () => {
+    const error = await captureError(
+      listOrders({ placedFrom: "2026-06-30", placedTo: "2026-06-01" }),
+    );
+    expect(error.code).toBe("VALIDATION_FAILED");
+  });
+
+  it("BE GET /orders không lọc theo paymentTerm: tham số lạ không được gửi, mọi phương thức trả về", async () => {
+    // ListQueryParams có index signature nên kiểu không chặn được — chặn ở serializer
+    const page = await listOrders({ page: 0, size: 200, paymentTerm: "CREDIT" });
+    expect(new Set(page.items.map((o) => o.paymentTerm)).size).toBeGreaterThan(1);
+  });
+
+  it("dòng danh sách không mang lines (như BE OrderPersistenceMapper)", async () => {
+    const page = await listOrders({ page: 0, size: 5 });
+    expect(page.items.every((o) => o.lines.length === 0)).toBe(true);
+  });
+});
+
+describe("GET /orders/:id/history", () => {
+  it("bước đầu from=null lúc đặt đơn, sau đó theo thời gian", async () => {
+    const history = await getOrderHistory("ORD-2026-0007");
+    expect(history[0]).toMatchObject({ kind: "status-change", from: null });
+    expect(history.length).toBeGreaterThan(1);
+  });
+});
+
+describe("POST /orders/:id/admin-cancellation", () => {
+  it("huỷ hợp lệ → trả OrderResponse CANCELLED + cancellation; huỷ lần 2 → ORDER_NOT_CANCELLABLE", async () => {
     const order = firstOrderWith("Pending Payment");
-    const error = await captureError(adminCancelOrder({ id: order.orderId, reason: "  " }));
+
+    const cancelled = await adminCancelOrder({
+      id: order.orderId,
+      reasonCode: "CUSTOMER_REQUEST",
+      note: "Khách đổi ý",
+    });
+    expect(cancelled.status).toBe("Cancelled");
+    expect(cancelled.cancellation?.reasonCode).toBe("CUSTOMER_REQUEST");
+    expect((await getOrder(order.orderId)).status).toBe("Cancelled");
+    const history = await getOrderHistory(order.orderId);
+    expect(history.at(-1)).toMatchObject({ from: "Pending Payment", to: "Cancelled" });
+
+    const error = await captureError(
+      adminCancelOrder({ id: order.orderId, reasonCode: "CUSTOMER_REQUEST" }),
+    );
+    expect(error.status).toBe(409);
+    // BE Order#cancel: CANCELLED không có cạnh → CANCELLED → ORDER_NOT_CANCELLABLE (không có ORDER_CANCELLED ở đây)
+    expect(error.code).toBe("ORDER_NOT_CANCELLABLE");
+  });
+
+  it("OTHER không có ghi chú → VALIDATION_FAILED, fieldErrors.note", async () => {
+    const order = firstOrderWith("Pending Payment");
+    const error = await captureError(
+      adminCancelOrder({ id: order.orderId, reasonCode: "OTHER", note: "  " }),
+    );
 
     expect(error.status).toBe(400);
     expect(error.code).toBe("VALIDATION_FAILED");
-    expect(error.fieldErrors?.reason).toBeTruthy();
+    expect(error.fieldErrors?.note).toBeTruthy();
   });
 
-  it("BR-ORD-004: đã đóng gói (packedAt) → ORDER_NOT_CANCELLABLE, kể cả Shipped", async () => {
+  it("BE BR-031 + BR-ORD-004: đơn Packed (packedAt) và Shipped → ORDER_NOT_CANCELLABLE", async () => {
     const packed = firstOrderWith("Packed");
-    const packedError = await captureError(adminCancelOrder({ id: packed.orderId, reason: "Thử" }));
+    const packedError = await captureError(
+      adminCancelOrder({ id: packed.orderId, reasonCode: "CUSTOMER_REQUEST" }),
+    );
     expect(packedError.status).toBe(409);
     expect(packedError.code).toBe("ORDER_NOT_CANCELLABLE");
 
     const shipped = firstOrderWith("Shipped");
     const shippedError = await captureError(
-      adminCancelOrder({ id: shipped.orderId, reason: "Thử" }),
+      adminCancelOrder({ id: shipped.orderId, reasonCode: "CUSTOMER_REQUEST" }),
     );
+    expect(shippedError.status).toBe(409);
     expect(shippedError.code).toBe("ORDER_NOT_CANCELLABLE");
   });
 
   it("đơn không tồn tại → NOT_FOUND (không tiết lộ quyền)", async () => {
-    const error = await captureError(adminCancelOrder({ id: "ORD-KHONG-TON-TAI", reason: "Thử" }));
+    const error = await captureError(
+      adminCancelOrder({ id: "ORD-KHONG-TON-TAI", reasonCode: "CUSTOMER_REQUEST" }),
+    );
     expect(error.code).toBe("NOT_FOUND");
   });
 });
@@ -205,7 +274,7 @@ describe("GET /orders — bộ lọc status (BE PR #133)", () => {
     );
   });
 
-  it("omit null (non_null): đơn không giữ không có key holdReason / shipments", async () => {
+  it("omit null (non_null): đơn không giữ không có key holdReason / packedAt; shipments luôn là danh sách", async () => {
     const source = firstOrderWith("Pending Payment");
     const { data } = await api.get<Record<string, unknown>>(`/orders/${source.orderId}`);
     const body = ("data" in data && typeof data.data === "object" ? data.data : data) as Record<
@@ -213,8 +282,9 @@ describe("GET /orders — bộ lọc status (BE PR #133)", () => {
       unknown
     >;
     expect(body).not.toHaveProperty("holdReason");
-    expect(body).not.toHaveProperty("shipments");
     expect(body).not.toHaveProperty("packedAt");
+    // BE OrderWebMapper: `lifecycle == null ? List.of() : …` — danh sách rỗng vẫn được gửi (non_null)
+    expect(body.shipments).toEqual([]);
     expect(body).toHaveProperty("effectiveTotal");
   });
 });
@@ -266,14 +336,29 @@ describe("POST /orders/:id/hold + hold/resolution", () => {
     expect(invalid.code).toBe("ORDER_INVALID_TRANSITION");
   });
 
-  it("đơn On Hold seed (ADDRESS) gỡ giữ được; ghi chú gỡ giữ bắt buộc", async () => {
+  it("đơn On Hold seed là giữ công nợ (CREDIT): gỡ tay → ORDER_CREDIT_HOLD_USE_APPROVAL; ghi chú bắt buộc", async () => {
+    // Seed: đơn "On Hold" duy nhất của mock-data là đơn chuyển khoản (CREDIT) chờ duyệt công nợ (SCRUM-427)
     const order = firstOrderWith("On Hold");
     const view = await getOrder(order.orderId);
-    expect(view).toMatchObject({ holdReason: "ADDRESS", statusBeforeHold: "Picking" });
+    expect(view).toMatchObject({ holdReason: "CREDIT", statusBeforeHold: null });
 
+    // ResolveHoldRequest.note @NotBlank — 400 trước mọi kiểm tra nghiệp vụ
     const blank = await captureError(resolveOrderHold({ id: order.orderId, note: "  " }));
     expect(blank.status).toBe(400);
-    await resolveOrderHold({ id: order.orderId, note: "ok" });
+    const credit = await captureError(resolveOrderHold({ id: order.orderId, note: "ok" }));
+    expect(credit.code).toBe("ORDER_CREDIT_HOLD_USE_APPROVAL");
+    expect((await getOrder(order.orderId)).status).toBe("On Hold");
+  });
+
+  it("giữ ADDRESS từ Picking rồi gỡ → về đúng Picking", async () => {
+    const order = firstOrderWith("Picking");
+    await holdOrder({ id: order.orderId, reasonCode: "ADDRESS", note: "Sai phường" });
+    expect(await getOrder(order.orderId)).toMatchObject({
+      status: "On Hold",
+      holdReason: "ADDRESS",
+      statusBeforeHold: "Picking",
+    });
+    await resolveOrderHold({ id: order.orderId, note: "Khách xác nhận địa chỉ" });
     expect((await getOrder(order.orderId)).status).toBe("Picking");
   });
 });
@@ -360,11 +445,18 @@ describe("OrderResponse — hình dạng thật của BE (số liệu luôn đư
   });
 
   it("billedAmount = 0 luôn được gửi; amountDue tính từ tổng đơn kể cả đơn đã huỷ; amountDueBeforeHandover theo paymentTerm", async () => {
+    // Đơn huỷ seed thanh toán COD → CREDIT (mock): công nợ không phải trả trước khi giao
     const cancelled = firstOrderWith("Cancelled");
     const body = await rawOrder(cancelled.orderId);
-    expect(body).toMatchObject({ billedAmount: 0, paymentTerm: "PREPAID" });
+    expect(body).toMatchObject({ billedAmount: 0, paymentTerm: "CREDIT" });
     expect(body.amountDue).toBe(Math.max(0, cancelled.grandTotal - cancelled.amountPaid));
-    expect(body.amountDueBeforeHandover).toBe(body.amountDue);
+    expect(body.amountDueBeforeHandover).toBe(0);
+    // BE Order#amountDueBeforeHandover: PREPAID và DEPOSIT (thu trước khi giao) = amountDue
+    for (const status of ["Confirmed", "Pending Payment"]) {
+      const other = await rawOrder(firstOrderWith(status).orderId);
+      expect(["PREPAID", "DEPOSIT"]).toContain(other.paymentTerm);
+      expect(other.amountDueBeforeHandover).toBe(other.amountDue);
+    }
   });
 
   it("packedAt có với đơn đã đóng gói (Packed, Partially Fulfilled, Shipped…), không có với đơn đang lấy hàng", async () => {
@@ -384,7 +476,9 @@ describe("OrderResponse — hình dạng thật của BE (số liệu luôn đư
         status: "ON_HOLD",
         packedAt: expect.any(String),
       });
-      const error = await captureError(adminCancelOrder({ id: order.orderId, reason: "Thử" }));
+      const error = await captureError(
+        adminCancelOrder({ id: order.orderId, reasonCode: "CUSTOMER_REQUEST" }),
+      );
       expect(error.code).toBe("ORDER_NOT_CANCELLABLE");
     }
   });
@@ -392,9 +486,10 @@ describe("OrderResponse — hình dạng thật của BE (số liệu luôn đư
   it("đơn giữ từ PICKING (chưa đóng gói) vẫn huỷ được", async () => {
     const order = firstOrderWith("Picking");
     await holdOrder({ id: order.orderId, reasonCode: "FRAUD", note: "" });
-    await expect(adminCancelOrder({ id: order.orderId, reason: "Gian lận" })).resolves.toBe(
-      undefined,
-    );
+    const cancelled = await adminCancelOrder({ id: order.orderId, reasonCode: "SUSPECTED_FRAUD" });
+    expect(cancelled.status).toBe("Cancelled");
+    // Rời ON_HOLD vì huỷ → dữ liệu giữ bị xoá (BE Order#cancel → clearHold)
+    expect(cancelled.holdReason).toBeNull();
   });
 
   it("đơn vào PACKED qua mock xuất kho được đóng dấu packedAt", async () => {
@@ -555,12 +650,16 @@ describe("POST /orders/:id/admin-cancellation — hàng có sẵn đóng trướ
     if (!first || !second) throw new Error("mock-data thiếu hai đơn đang trong khâu kho");
     setMockOrderStatus(first.orderId, "PACKED");
     setMockOrderStatus(first.orderId, "IN_PRODUCTION");
-    await adminCancelOrder({ id: first.orderId, reason: "Khách huỷ" });
+    await adminCancelOrder({
+      id: first.orderId,
+      reasonCode: "CUSTOMER_REQUEST",
+      note: "Khách huỷ",
+    });
     expect((await getOrder(first.orderId)).status).toBe("Cancelled");
 
     setMockOrderStatus(second.orderId, "PACKED");
     const refused = await captureError(
-      adminCancelOrder({ id: second.orderId, reason: "Khách huỷ" }),
+      adminCancelOrder({ id: second.orderId, reasonCode: "CUSTOMER_REQUEST", note: "Khách huỷ" }),
     );
     expect(refused.code).toBe("ORDER_NOT_CANCELLABLE");
   });

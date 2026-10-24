@@ -6,6 +6,8 @@
 
 import {
   ATTRIBUTE_PERMISSIONS,
+  CREDIT_HOLD_PERMISSIONS,
+  CUSTOMER_CREDIT_PROFILE_PERMISSIONS,
   FULFILLMENT_CARRIER_PERMISSIONS,
   FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS,
   FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS,
@@ -27,6 +29,7 @@ import {
   ORDER_PERMISSIONS,
   PO_PERMISSIONS,
   PRODUCT_PERMISSIONS,
+  PRODUCTION_ORDER_PERMISSIONS,
   QC_TASK_PERMISSIONS,
   REPORTING_PERMISSIONS,
   SHIPMENT_PERMISSIONS,
@@ -156,6 +159,18 @@ const WH_WORK = [
   ...VEHICLE_TYPE_READ,
 ];
 
+// Seed BE develop (đơn bán, SCRUM-427 / SCRUM-440):
+// - V20261013000400: sales-order-credit-holds APPROVE chỉ ACCOUNTANT; Sales/Coordinator chỉ xem.
+// - V20261013000400: customer-credit-profiles READ cho ACCOUNTANT / SALES_STAFF / ORDER_COORDINATOR
+//   (FE chỉ dùng READ — `GET /orders/credit-position/{customerId}`).
+// - V20261010000500: production-orders READ cho SALES_STAFF / ORDER_COORDINATOR (không ACCOUNTANT) —
+//   FE chỉ dùng để xem LSX trên trang chi tiết đơn.
+const CREDIT_VIEW = [CREDIT_HOLD_PERMISSIONS.viewPage, CREDIT_HOLD_PERMISSIONS.read];
+const CREDIT_ALL = Object.values(CREDIT_HOLD_PERMISSIONS);
+const CREDIT_PROFILE_READ = CUSTOMER_CREDIT_PROFILE_PERMISSIONS.read;
+const PRODUCTION_READ = PRODUCTION_ORDER_PERMISSIONS.read;
+const ORDER_SALES_EXTRA = [...CREDIT_VIEW, CREDIT_PROFILE_READ, PRODUCTION_READ];
+
 /** Explicit demo session responses keyed by existing staff IDs, never computed from roles. */
 export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
   "USER-ADMIN-01": [
@@ -163,6 +178,9 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...Object.values(SUPPLIER_ITEM_PERMISSIONS),
     ...Object.values(PO_PERMISSIONS),
     ...Object.values(ORDER_PERMISSIONS),
+    ...CREDIT_ALL,
+    CREDIT_PROFILE_READ,
+    PRODUCTION_READ,
     ...Object.values(REPORTING_PERMISSIONS),
     ...Object.values(PRODUCT_PERMISSIONS),
     ...PRODUCT_STRUCTURE,
@@ -234,6 +252,9 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     SUPPLIER_PERMISSIONS.read,
     ORDER_PERMISSIONS.viewPage,
     ORDER_PERMISSIONS.read,
+    // SCRUM-427: duyệt / từ chối vượt hạn mức công nợ
+    ...CREDIT_ALL,
+    CREDIT_PROFILE_READ,
   ],
   // ECOMMERCE_ADMIN: duyệt / xuất bản nhưng không tạm ngưng / ngừng kinh doanh (product-lifecycle chỉ
   // System Admin, BE PR #123)
@@ -248,6 +269,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ORDER_PERMISSIONS.cancel,
     // Seed BE: SALES_STAFF + SYSTEM_ADMIN (không phải ORDER_COORDINATOR) quyết đơn có giao một phần không
     ORDER_PERMISSIONS.partialShipment,
+    ...ORDER_SALES_EXTRA,
     WAREHOUSE_READ,
   ],
   "USER-SALE-02": [
@@ -256,6 +278,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ORDER_PERMISSIONS.cancel,
     // Seed BE: SALES_STAFF + SYSTEM_ADMIN (không phải ORDER_COORDINATOR) quyết đơn có giao một phần không
     ORDER_PERMISSIONS.partialShipment,
+    ...ORDER_SALES_EXTRA,
     WAREHOUSE_READ,
   ],
   "USER-SALE-03": [
@@ -264,6 +287,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ORDER_PERMISSIONS.cancel,
     // Seed BE: SALES_STAFF + SYSTEM_ADMIN (không phải ORDER_COORDINATOR) quyết đơn có giao một phần không
     ORDER_PERMISSIONS.partialShipment,
+    ...ORDER_SALES_EXTRA,
     WAREHOUSE_READ,
   ],
   // Seed BE: SALES_STAFF có sales-order-cancellations:UPDATE (huỷ đơn, đóng phần còn lại) nhưng không có APPROVE
@@ -273,6 +297,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...Object.values(ORDER_PERMISSIONS).filter(
       (code) => code !== ORDER_PERMISSIONS.partialShipment,
     ),
+    ...ORDER_SALES_EXTRA,
     ...FULFILLMENT_READ,
     ...COORDINATOR_WORK,
     ...FLOOR_WORK,

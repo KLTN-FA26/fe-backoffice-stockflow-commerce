@@ -49,7 +49,7 @@ export function OrderHoldAction({ order }: { order: ActionOrder }) {
           schema={holdOrderSchema}
           isPending={isPending}
           error={dialog.error}
-          onSubmit={(values) => mutate({ id: order.orderId, ...values })}
+          onSubmit={(values) => dialog.submit(mutate, { id: order.orderId, ...values })}
           onClose={dialog.close}
         />
       )}
@@ -83,7 +83,7 @@ export function OrderResolveHoldAction({ order }: { order: ActionOrder }) {
           schema={resolveOrderHoldSchema}
           isPending={isPending}
           error={dialog.error}
-          onSubmit={(values) => mutate({ id: order.orderId, ...values })}
+          onSubmit={(values) => dialog.submit(mutate, { id: order.orderId, ...values })}
           onClose={dialog.close}
         />
       )}
@@ -118,7 +118,7 @@ export function OrderDeliveryFailureAction({ order }: { order: ActionOrder }) {
           schema={deliveryFailureSchema}
           isPending={isPending}
           error={dialog.error}
-          onSubmit={(values) => mutate({ id: order.orderId, ...values })}
+          onSubmit={(values) => dialog.submit(mutate, { id: order.orderId, ...values })}
           onClose={dialog.close}
         />
       )}

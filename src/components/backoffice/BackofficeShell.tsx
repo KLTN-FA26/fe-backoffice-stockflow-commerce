@@ -26,6 +26,7 @@ import {
   Receipt,
   Search as SearchIcon,
   ShieldCheck,
+  ShieldAlert,
   UserCog,
   ShoppingBag,
   ShoppingCart,
@@ -42,6 +43,7 @@ import { useMemo } from "react";
 import {
   ADMIN_ROUTES,
   ATTRIBUTE_PERMISSIONS,
+  CREDIT_HOLD_PERMISSIONS,
   FULFILLMENT_PACKAGE_PERMISSIONS,
   FULFILLMENT_PICK_PERMISSIONS,
   GOODS_RECEIPT_PERMISSIONS,
@@ -316,6 +318,15 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: ClipboardList,
         permission: ORDER_PERMISSIONS.viewPage,
       },
+      // Mục riêng, gate bằng quyền credit hold — ACCOUNTANT duyệt công nợ nhưng không có
+      // sales-orders:VIEW_PAGE nên không đi qua được mục "Đơn hàng" (BE V20261013000400).
+      {
+        label: UI_LABELS.order.creditHoldsTitle,
+        tooltip: "Credit holds",
+        href: ADMIN_ROUTES.orders.creditHolds,
+        icon: ShieldAlert,
+        permission: CREDIT_HOLD_PERMISSIONS.viewPage,
+      },
       {
         label: "Lấy hàng",
         tooltip: "Picking",
@@ -397,6 +408,30 @@ export function useCanSeeNavItem(): (item: NavItem) => boolean {
     (!item.mockOnly || isMock) &&
     (!item.permission || can(item.permission)) &&
     (!item.anyPermission || item.anyPermission.some(can));
+}
+
+/** Mỗi mục tự gate theo quyền của chính nó; nhóm không còn mục nào thì bỏ (không hiện tiêu đề rỗng). */
+export function visibleNavGroups(canSeeItem: (item: NavItem) => boolean): NavGroup[] {
+  return NAV_GROUPS.map((group) => ({ ...group, items: group.items.filter(canSeeItem) })).filter(
+    (group) => group.items.length > 0,
+  );
+}
+
+/**
+ * Mục menu đang mở: khớp dài nhất trong các mục được thấy — `/admin/orders/credit-holds` sáng
+ * mục hàng đợi công nợ, không sáng kèm "Đơn hàng" (`/admin/orders`). `/admin` chỉ khớp đúng.
+ */
+export function findActiveNavHref(
+  pathname: string,
+  items: readonly Pick<NavItem, "href">[],
+): string | undefined {
+  return items
+    .filter((item) =>
+      item.href === ADMIN_ROUTES.home
+        ? pathname === item.href
+        : pathname === item.href || pathname.startsWith(`${item.href}/`),
+    )
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 }
 
 function findNavItem(pathname: string): NavItem | undefined {
@@ -530,6 +565,11 @@ function BackofficeSidebar() {
     [isMock],
   );
   const canSeeItem = useCanSeeNavItem();
+  const visibleGroups = visibleNavGroups(canSeeItem);
+  const activeHref = findActiveNavHref(
+    pathname,
+    visibleGroups.flatMap((group) => group.items),
+  );
 
   return (
     <Sidebar
@@ -565,7 +605,7 @@ function BackofficeSidebar() {
       <SidebarContent className="[&::-webkit-scrollbar-thumb]:bg-border-strong min-h-0 flex-1 gap-0 overflow-y-auto px-2 py-2 [&::-webkit-scrollbar]:block [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-button]:hidden [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
         <SidebarNav
           groups={NAV_GROUPS}
-          activeHref={findNavItem(pathname)?.href}
+          activeHref={activeHref}
           canSeeItem={canSeeItem}
           warningCounts={warningCounts}
           collapsed={collapsed}

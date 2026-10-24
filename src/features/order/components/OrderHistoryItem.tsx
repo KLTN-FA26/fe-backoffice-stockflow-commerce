@@ -10,6 +10,8 @@ import {
 import { formatDateTime } from "@/lib/format/date";
 import { StatusDot } from "@/components/shared/StatusDot";
 
+import { formatCancellationReason } from "../selectors";
+
 import type { OrderHistoryEntry } from "../types";
 
 const L = ORDER_HISTORY_LABELS;
@@ -31,10 +33,15 @@ function EntryMeta({ entry }: { entry: OrderHistoryEntry }) {
 /** Ghi chú của Sales (hoặc lý do / mã của bước đổi trạng thái). Trống thì không hiện. */
 function EntryNote({ entry }: { entry: OrderHistoryEntry }) {
   if (!entry.reason) return null;
+  // BE ghi lý do huỷ dạng "CODE: ghi chú" → nhãn tiếng Việt (lý do cũ tự do giữ nguyên)
+  const reason =
+    entry.kind === "status-change" && entry.to === "Cancelled"
+      ? formatCancellationReason(entry.reason)
+      : entry.reason;
   return (
     <p className="text-ink-secondary mt-1 text-[0.8125rem] break-words whitespace-pre-wrap">
       <span className="text-ink-tertiary">{L.noteLabel}: </span>
-      {entry.reason}
+      {reason}
     </p>
   );
 }
