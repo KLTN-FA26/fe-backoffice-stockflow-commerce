@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { cn } from "cn";
 import { Truck } from "lucide-react";
 
 import { FULFILLMENT_DISPATCH_PERMISSIONS, SHIPMENT_PERMISSIONS, UI_LABELS } from "@/constants";
 import { useCan } from "@/lib/auth";
 import { canAssignCarrier } from "@/features/shipping/shipment-lifecycle";
 import { summarizeSelection } from "@/features/shipping/selectors";
-import { PageHeader } from "@/components/shared/PageHeader";
+import { TOOLBAR_ACTION_CLASS } from "@/components/shared/ListToolbar";
 import { Button } from "@/components/ui/button";
 
 import { OpenLoadDialog } from "./OpenLoadDialog";
@@ -31,11 +32,11 @@ function ShipmentListContent() {
   const selection = summarizeSelection(selected);
 
   return (
-    <>
-      <PageHeader title={L.shipments.title} subtitle={L.shipments.subtitle} />
+    <div className="surface-soft">
+      <h1 className="sr-only">{L.shipments.title}</h1>
       {canRead && <ShipmentFilters s={s} />}
       {canOpen && s.status === "READY_TO_DISPATCH" && (
-        <div className="border-border-default bg-bg-surface mb-3 flex flex-wrap items-center gap-3 rounded-[var(--r-sm)] border px-3 py-2 text-[0.8125rem]">
+        <div className="border-border-default bg-bg-surface mb-3 flex flex-wrap items-center gap-3 rounded-(--section-radius) border px-3 py-2 text-[0.8125rem] shadow-(--card-shadow)">
           <span className="text-ink-secondary">
             {selected.length > 0
               ? `${selected.length} ${L.shipments.selected}`
@@ -48,7 +49,7 @@ function ShipmentListContent() {
           )}
           <Button
             size="sm"
-            className="ml-auto rounded-[var(--r-sm)]"
+            className={cn("ml-auto", TOOLBAR_ACTION_CLASS)}
             disabled={selected.length === 0 || selection.mixedWarehouses}
             onClick={() => setOpening(true)}
           >
@@ -63,7 +64,7 @@ function ShipmentListContent() {
       />
       <p className="text-ink-tertiary mt-3 text-xs">{L.noTracking}</p>
       {opening && <OpenLoadDialog shipments={selected} onClose={() => setOpening(false)} />}
-    </>
+    </div>
   );
 }
 
