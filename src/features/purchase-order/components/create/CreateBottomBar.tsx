@@ -42,7 +42,7 @@ export function CreateBottomBar({
             size="sm"
             onClick={onBack}
             disabled={currentStepIndex === 0}
-            className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted rounded-[var(--r-sm)] border px-3 py-1.5 text-[0.8125rem] font-medium transition-colors disabled:opacity-40"
+            className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted h-(--action-h) rounded-(--action-radius) border px-(--action-px) text-[0.8125rem] font-medium transition-colors disabled:opacity-40"
           >
             Quay lại
           </Button>
@@ -52,7 +52,7 @@ export function CreateBottomBar({
               type="button"
               size="sm"
               onClick={onNext}
-              className="bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse inline-flex items-center gap-1.5 rounded-[var(--r-sm)] px-3 py-1.5 text-[0.8125rem] font-medium transition-colors"
+              className="bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse inline-flex h-(--action-h) items-center gap-1.5 rounded-(--action-radius) px-(--action-px) text-[0.8125rem] font-medium transition-colors"
             >
               Tiếp tục
               <ArrowRight className="size-3.5" />
@@ -64,7 +64,7 @@ export function CreateBottomBar({
               size="sm"
               onClick={onSubmit}
               disabled={isPending || submitDisabled}
-              className="bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse inline-flex items-center gap-1.5 rounded-[var(--r-sm)] px-3 py-1.5 text-[0.8125rem] font-medium transition-colors"
+              className="bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse inline-flex h-(--action-h) items-center gap-1.5 rounded-(--action-radius) px-(--action-px) text-[0.8125rem] font-medium transition-colors"
             >
               <Send className="size-3.5" />
               {isPending ? pendingLabel : submitLabel}

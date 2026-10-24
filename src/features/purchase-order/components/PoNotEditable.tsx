@@ -2,7 +2,6 @@ import Link from "next/link";
 
 import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 
 import type { PurchaseOrder } from "@/features/purchase-order";
@@ -12,8 +11,8 @@ const L = UI_LABELS.purchaseOrder;
 /** Màn sửa nháp mở với PO không sửa được (không phải nháp thường, hoặc thiếu quyền). */
 export function PoNotEditable({ po }: { po: PurchaseOrder }) {
   return (
-    <>
-      <PageHeader title={po.poNumber} />
+    <div className="surface-soft surface-compact">
+      <h1 className="sr-only">{po.poNumber}</h1>
       <EmptyState
         title={L.draftEdit.notEditableTitle}
         description={L.draftEdit.notEditableDescription}
@@ -25,6 +24,6 @@ export function PoNotEditable({ po }: { po: PurchaseOrder }) {
           </Button>
         }
       />
-    </>
+    </div>
   );
 }
