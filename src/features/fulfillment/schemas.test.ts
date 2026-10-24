@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import { FULFILLMENT_FIELD_MESSAGES, FULFILLMENT_LIMITS } from "@/constants";
 
 import {
+  DESIGN_LINE_ID,
   apiTask,
+  apiTaskLines,
   assignees,
   bePage,
   fulfillmentOrder,
@@ -28,6 +30,16 @@ describe("fulfillment DTO schemas — hợp đồng BE FulfillmentController", (
     expect(parsed.pickedAt).toBeUndefined();
     expect(parsed.packedAt).toBeUndefined();
     expect(parsed.integrityEvidence).toEqual([]);
+  });
+
+  it("task chi tiết parse lines (SCRUM-466)", () => {
+    const parsed = beFulfillmentTaskSchema.parse({ ...apiTask(), lines: apiTaskLines });
+    expect(parsed.lines).toHaveLength(3);
+    expect(parsed.lines?.find((line) => line.lineId === DESIGN_LINE_ID)?.printLine).toBe(true);
+  });
+
+  it("task danh sách không có lines vẫn hợp lệ", () => {
+    expect(beFulfillmentTaskSchema.parse(apiTask()).lines).toBeUndefined();
   });
 
   it("thiếu `integrityEvidence` → mặc định mảng rỗng", () => {

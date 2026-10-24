@@ -6,6 +6,7 @@ import {
   ADMIN_ROUTES,
   FULFILLMENT_PACKAGE_PERMISSIONS,
   FULFILLMENT_PICK_PERMISSIONS,
+  ORDER_PERMISSIONS,
   PICK_STATUS,
   UI_LABELS,
 } from "@/constants";
@@ -33,21 +34,22 @@ import { PackingStatusCard } from "./packing/PackingStatusCard";
 import { ScanSection } from "./packing/ScanSection";
 import { ShipmentsSection } from "./packing/ShipmentsSection";
 import { Section, taskCode } from "./primitives";
-import { useFulfillmentActor, useTaskReferences } from "./useFulfillmentActor";
+import { useFulfillmentActor } from "./useFulfillmentActor";
 
 const { fulfillment, common, packing } = UI_LABELS;
 
 function PackingStationBody({ id }: { id: string }) {
   const actor = useFulfillmentActor();
   const canRead = actor.can(FULFILLMENT_PACKAGE_PERMISSIONS.read);
-  const refs = useTaskReferences(actor);
+  // Chỉ để đọc cờ `printLinesReady` của đơn (BE PR #150): dòng thiết kế đã đi kèm task (SCRUM-466)
+  const canReadOrders = actor.can(ORDER_PERMISSIONS.read);
   const [labelId, setLabelId] = useQueryState("label", parseAsString);
   const sessionQuery = usePackingSession(id, { enabled: canRead });
   // Task (thiết kế đã khoá, lịch sử đối chiếu, trạng thái lấy hàng) tách khỏi phiên
   const taskQuery = useFulfillmentTask(id, {
     enabled: canRead && actor.can(FULFILLMENT_PICK_PERMISSIONS.read),
   });
-  const order = useFulfillmentOrder(taskQuery.data?.orderId, refs.canReadOrders);
+  const order = useFulfillmentOrder(taskQuery.data?.orderId, canReadOrders);
   const session = sessionQuery.data;
   useBreadcrumbLabel(id, session ? (session.orderNumber ?? taskCode(session.taskId)) : undefined);
 
@@ -123,12 +125,7 @@ function PackingStationBody({ id }: { id: string }) {
             <ShipmentsSection session={session} />
             {showDesign && task && (
               <>
-                <DesignLinesSection
-                  task={task}
-                  canReadOrders={refs.canReadOrders}
-                  order={order}
-                  canDownload={canDownloadArtifact(task, actor)}
-                />
+                <DesignLinesSection task={task} canDownload={canDownloadArtifact(task, actor)} />
                 <Section
                   title="Lịch sử đối chiếu thiết kế"
                   description="Mỗi lần hoàn tất đóng gói hoặc kiểm tra lại, hệ thống ghi một bản cho mỗi dòng tuỳ chỉnh."

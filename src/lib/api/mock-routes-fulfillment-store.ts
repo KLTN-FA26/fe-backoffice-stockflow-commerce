@@ -204,6 +204,21 @@ export function nextTaskId(): string {
   return mockTaskId(`new-${sequence}`);
 }
 
+/**
+ * `FulfillmentTaskResponse.lines` của `GET /tasks/{id}` (SCRUM-466): dòng của đơn, dòng in kèm snapshot thiết kế
+ * — cùng nguồn với `toOrderResponse` để số liệu khớp giữa hai endpoint. Danh sách task KHÔNG kèm (như BE).
+ */
+export async function taskLinesOf(task: MockTask) {
+  const order = await findMockOrder(task.orderId);
+  return (order?.lines ?? []).map((line) => ({
+    lineId: line.lineId,
+    sku: line.skuId,
+    quantity: line.quantity,
+    printLine: !!line.designId,
+    ...(line.designId ? { designSnapshotId: snapshotIdOf(line) } : {}),
+  }));
+}
+
 /** `FulfillmentTaskResponse` — field chưa có giá trị bị bỏ (Jackson non_null). */
 export function toTaskResponse(task: MockTask) {
   const { createdAt: _createdAt, evidence, ...rest } = task;

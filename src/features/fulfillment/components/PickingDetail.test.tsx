@@ -7,13 +7,11 @@ import { ApiError } from "@/lib/api/error";
 
 import { IDENTITIES, mockFulfillmentApi, renderFulfillmentScreen } from "../__fixtures__/render";
 import {
-  ORDER_ID,
   OTHER_PICKER_ID,
   PICKER_ID,
   TASK_ID,
   apiTask,
-  bePage,
-  fulfillmentOrder,
+  apiTaskLines,
   pickedTask,
 } from "../__fixtures__/task";
 import { PickingDetail } from "./PickingDetail";
@@ -38,11 +36,7 @@ function renderDetail(
   let task = initial;
   const spies = mockFulfillmentApi(
     identity,
-    {
-      [PATH]: () => task,
-      [`/orders/${ORDER_ID}`]: () => fulfillmentOrder,
-      "/orders": () => bePage([fulfillmentOrder]),
-    },
+    { [PATH]: () => task },
     {
       [`${PATH}/picking-start`]: () => (task = { ...task, pickStatus: "PICKING" }),
       [`${PATH}/picking-completion`]: () => (task = { ...task, pickStatus: "PICKED" }),
@@ -100,10 +94,14 @@ describe("PickingDetail — action-gating theo trạng thái + quyền + vai tr�
   });
 
   it("điều phối đơn: Gán lại khi Pending, không có nút lấy hàng", async () => {
-    renderDetail(IDENTITIES.orderCoordinator, apiTask(), "coordinator-id");
+    renderDetail(
+      IDENTITIES.orderCoordinator,
+      { ...apiTask(), lines: apiTaskLines },
+      "coordinator-id",
+    );
     expect(await screen.findByRole("button", { name: action.assign })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: action.startPicking })).toBeNull();
-    // Có sales-orders:READ → thấy dòng đơn
+    // Dòng hàng đi kèm task (SCRUM-466) — không phụ thuộc quyền đọc đơn
     expect(await screen.findByText("TEE-BLK-M")).toBeInTheDocument();
   });
 
@@ -128,20 +126,31 @@ describe("PickingDetail — action-gating theo trạng thái + quyền + vai tr�
 });
 
 describe("PickingDetail — dữ liệu phụ trợ và lỗi", () => {
-  it("NV kho theo seed BE (thiếu sales-orders:READ) → báo thiếu quyền thay cho bảng dòng, không gọi /orders", async () => {
-    const { get } = renderDetail(IDENTITIES.warehouseStaff, apiTask());
-    expect(await screen.findByText(fulfillment.noOrderReadTitle)).toBeInTheDocument();
+  it("dòng hàng lấy từ task, không gọi /orders", async () => {
+    const { get } = renderDetail(IDENTITIES.warehouseStaff, {
+      ...apiTask(),
+      lines: apiTaskLines,
+    });
+    const table = await screen.findByRole("table", { name: /Dòng hàng của task/ });
+    const rows = within(table).getAllByRole("row");
+    expect(rows).toHaveLength(4);
+    expect(within(rows[1] as HTMLElement).getByText("TEE-BLK-M")).toBeInTheDocument();
+    expect(within(rows[1] as HTMLElement).getByText("3")).toBeInTheDocument();
+    expect(within(rows[2] as HTMLElement).getByText("MUG-WHT-11")).toBeInTheDocument();
+    expect(
+      within(rows[3] as HTMLElement).getByText(/Tuỳ chỉnh · có thiết kế đã khoá/),
+    ).toBeInTheDocument();
     expect(get.mock.calls.some(([url]) => String(url).startsWith("/orders"))).toBe(false);
   });
 
-  it("có quyền đọc đơn → bảng dòng đơn: SKU, SL, đánh dấu dòng tuỳ chỉnh", async () => {
-    renderDetail(IDENTITIES.staffWithOrders, apiTask());
-    const table = await screen.findByRole("table", { name: /Dòng của đơn SO-20261010-000431/ });
-    const rows = within(table).getAllByRole("row");
-    expect(rows).toHaveLength(3);
-    expect(within(rows[1] as HTMLElement).getByText("TEE-BLK-M")).toBeInTheDocument();
-    expect(within(rows[1] as HTMLElement).getByText("3")).toBeInTheDocument();
-    expect(within(rows[2] as HTMLElement).getByText(/Tuỳ chỉnh/)).toBeInTheDocument();
+  it("task chưa kèm dòng → câu 'Task chưa có dòng hàng.'", async () => {
+    renderDetail(IDENTITIES.warehouseStaff, apiTask());
+    expect(await screen.findByText(fulfillment.noTaskLines)).toBeInTheDocument();
+  });
+
+  it("số đơn trên tiêu đề lấy từ task", async () => {
+    renderDetail(IDENTITIES.warehouseStaff, apiTask({ orderNumber: "SO-20261010-000431" }));
+    expect(await screen.findByText(/Đơn SO-20261010-000431/)).toBeInTheDocument();
   });
 
   it("BE trả 404 (task không được gán cho người gọi) → màn không tìm thấy, không có nút thử lại", async () => {
@@ -155,22 +164,6 @@ describe("PickingDetail — dữ liệu phụ trợ và lỗi", () => {
     expect(await screen.findByText(fulfillment.notFoundTitle)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: UI_LABELS.common.retry })).toBeNull();
     expect(spies.post).not.toHaveBeenCalled();
-  });
-
-  it("BE trả 403 khi đọc đơn hàng → báo thiếu quyền xem đơn, không phải lỗi tải chung", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    mockFulfillmentApi(IDENTITIES.staffWithOrders, {
-      [PATH]: () => apiTask(),
-      "/orders": () => bePage([]),
-      [`/orders/${ORDER_ID}`]: () => {
-        throw new ApiError(403, "FORBIDDEN", "Access denied");
-      },
-    });
-    renderFulfillmentScreen(<PickingDetail id={TASK_ID} />);
-    expect(await screen.findByText(fulfillment.noOrderReadTitle)).toBeInTheDocument();
-    expect(screen.queryByText(UI_LABELS.loadError.serverTitle)).toBeNull();
-    // Task vẫn dùng được bình thường
-    expect(screen.getByRole("button", { name: action.startPicking })).toBeInTheDocument();
   });
 
   it("BE PICKED hiện đúng tên BE (Picked → Đã lấy), không đổi sang tên docs", async () => {
