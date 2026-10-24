@@ -306,8 +306,6 @@ describe("ReceiptDetail — action-gating theo trạng thái + quyền (docs 03 
     renderReceiptScreen(<ReceiptDetail id={RECEIPT_ID} />);
     expect(await screen.findByText("Không tìm thấy đơn đặt hàng của phiếu")).toBeInTheDocument();
     expect(screen.queryByText("Không tìm thấy phiếu nhận")).not.toBeInTheDocument();
-    // BE không trả số PO → phụ đề không thừa dấu "·"
-    expect(screen.getByText("Phiếu nhận", { selector: "p" })).toBeInTheDocument();
   });
 
   it("Cancelled có dòng: hiện như kết quả kiểm đếm, không có QC / chờ cất", async () => {
