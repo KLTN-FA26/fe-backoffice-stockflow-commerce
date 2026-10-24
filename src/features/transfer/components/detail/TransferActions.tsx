@@ -22,7 +22,8 @@ import type { TransferActionCode } from "@/features/transfer/lifecycle";
 import type { TransferOrder } from "@/features/transfer/types";
 
 const L = UI_LABELS.transfer;
-const BUTTON_BASE = "w-full rounded-[var(--r-sm)] border px-3 py-2 text-[0.8125rem] font-medium";
+const BUTTON_BASE =
+  "h-(--action-h) w-full rounded-(--action-radius) border px-3 text-[0.8125rem] font-medium";
 const TONE_CLASS = {
   primary:
     "border-border-default bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse",
@@ -61,7 +62,7 @@ export function TransferActions({ transfer }: { transfer: TransferOrder }) {
   };
 
   return (
-    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
+    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)">
       <div className="mb-4 flex justify-center">
         <StatusDot domain="to" status={transfer.status} size="md" withIcon />
       </div>

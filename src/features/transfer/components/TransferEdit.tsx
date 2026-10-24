@@ -17,7 +17,6 @@ import { useUpdateTransferOrder } from "@/features/transfer/mutations";
 import { useTransferOrderForEdit } from "@/features/transfer/queries";
 import { toTransferFormValues } from "@/features/transfer/selectors";
 import { Alert } from "@/components/shared/Alert";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
 
@@ -56,8 +55,10 @@ function TransferEditBody({ id }: { id: string }) {
   const detailHref = ADMIN_ROUTES.transfers.detail(transfer.transferId);
 
   return (
-    <>
-      <PageHeader title={`${L.editTitle} ${transfer.number}`} subtitle={L.subtitle} />
+    // Giao diện kiểu Vercel như wizard sản phẩm (globals.css `.surface-soft`). Không hiện tiêu đề —
+    // breadcrumb topbar đã có số lệnh; h1 giữ cho screen reader.
+    <div className="surface-soft surface-compact">
+      <h1 className="sr-only">{`${L.editTitle} ${transfer.number}`}</h1>
       {query.isError && (
         <RefetchErrorNotice
           onRetry={() => {
@@ -107,7 +108,7 @@ function TransferEditBody({ id }: { id: string }) {
           </Button>
         </Alert>
       )}
-    </>
+    </div>
   );
 }
 
