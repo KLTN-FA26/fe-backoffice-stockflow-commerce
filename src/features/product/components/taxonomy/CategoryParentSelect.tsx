@@ -5,7 +5,8 @@ import { Controller } from "react-hook-form";
 import { TAXONOMY_LIMITS, UI_LABELS } from "@/constants";
 import { FormSelect } from "@/components/shared/FormSelect";
 import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
-import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 
 import { useCategoryParentOptions } from "../../taxonomy-queries";
 
@@ -49,7 +50,7 @@ export function CategoryParentSelect({ form }: { form: UseFormReturn<CategoryFor
                   )}
                 </SelectValue>
               </SelectTrigger>
-              <SelectContent>
+              <TitledSelectContent title={L.field.parent}>
                 <SelectItem value={ROOT}>{L.rootCategory}</SelectItem>
                 {rows.map((c) => (
                   <SelectItem
@@ -70,7 +71,7 @@ export function CategoryParentSelect({ form }: { form: UseFormReturn<CategoryFor
                     </span>
                   </SelectItem>
                 ))}
-              </SelectContent>
+              </TitledSelectContent>
             </FormSelect>
           );
         }}

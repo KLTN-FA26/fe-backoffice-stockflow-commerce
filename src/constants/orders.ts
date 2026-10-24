@@ -7,16 +7,7 @@
 /** BE `order/api/PaymentTerm.java` — phương thức thanh toán của đơn (docs 14 §4.3 bước 12). */
 export const ORDER_PAYMENT_TERMS = ["PREPAID", "DEPOSIT", "CREDIT"] as const;
 
-/**
- * BE `order/api/BalancePolicy.java` — đơn cọc thu phần còn lại trước khi giao (chuyển khoản) hay hãng
- * vận chuyển thu khi giao (G2-3). null với phương thức khác.
- */
-export const ORDER_BALANCE_POLICIES = ["BEFORE_DELIVERY", "ON_DELIVERY"] as const;
-
-export const ORDER_BALANCE_POLICY_LABELS = {
-  BEFORE_DELIVERY: "Chuyển khoản trước khi giao",
-  ON_DELIVERY: "Hãng vận chuyển thu khi giao",
-} as const satisfies Record<(typeof ORDER_BALANCE_POLICIES)[number], string>;
+// BalancePolicy (BE PR #150, có ON_CREDIT): `ORDER_BALANCE_POLICIES` ở `labels-order.ts`.
 
 export const ORDER_PAYMENT_TERM_LABELS = {
   PREPAID: "Trả trước 100%",

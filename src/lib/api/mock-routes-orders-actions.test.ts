@@ -1,6 +1,6 @@
 /**
- * Mock routes release / credit hold / lệnh sản xuất — chạy qua axios thật + lớp api của
- * feature, kiểm mã lỗi + thứ tự kiểm khớp BE (OrderReleaseService, CreditHoldService).
+ * Mock routes credit hold / lệnh sản xuất — chạy qua axios thật + lớp api của feature, kiểm mã
+ * lỗi + thứ tự kiểm khớp BE (CreditHoldService). Release (PR #74): `mock-routes-order-delivery-mode.test.ts`.
  * `Math.random` cố định 0.05 → không dính lỗi 500 ngẫu nhiên của adapter.
  */
 
@@ -12,7 +12,6 @@ import {
   listCreditHolds,
   listOrderProductionOrders,
   rejectCreditHold,
-  releaseOrder,
 } from "@/features/order/action-api";
 import { getOrder } from "@/features/order/api";
 import { api } from "@/lib/api/client";
@@ -25,11 +24,9 @@ import { mockCustomerUuid } from "./mock-routes-orders-store";
 const originalAdapter = api.defaults.adapter;
 
 // Đơn cụ thể trong mock-data (không sửa được) — xem dump trạng thái trong mock-routes-orders-store
-const CONFIRMED_STANDARD = "ORD-2026-0013"; // Confirmed, chỉ hàng sẵn
 const CREDIT_ON_HOLD = "ORD-2026-0006"; // On Hold, chuyển khoản → CREDIT
 const DEPOSIT_PENDING = "ORD-2026-0014"; // Pending Payment, dòng in → DEPOSIT, thiết kế Draft/Ready
 const IN_PRODUCTION = "ORD-2026-0011"; // In Production, 1 dòng in
-const SHIPPED = "ORD-2026-0007";
 
 async function captureError(promise: Promise<unknown>): Promise<ApiError> {
   try {
@@ -53,39 +50,7 @@ afterAll(() => {
   vi.restoreAllMocks();
 });
 
-describe("POST /orders/:id/release (SCRUM-423)", () => {
-  it("đơn Confirmed chỉ hàng sẵn → Ready to Fulfill, ghi kho xuất", async () => {
-    const released = await releaseOrder({ id: CONFIRMED_STANDARD, warehouseId: "WH-HN-01" });
-    expect(released.status).toBe("Ready to Fulfill");
-    expect(released.warehouseId).toBe("WH-HN-01");
-    expect(released.releasedAt).toBeTruthy();
-  });
-
-  it("kho không tồn tại → WAREHOUSE_NOT_FOUND", async () => {
-    const error = await captureError(releaseOrder({ id: CONFIRMED_STANDARD, warehouseId: "WH-X" }));
-    expect(error.code).toBe("WAREHOUSE_NOT_FOUND");
-  });
-
-  it("BR-PRD-08: dòng in chưa có mẫu duyệt → DESIGN_SAMPLE_NOT_APPROVED (kiểm trước cọc)", async () => {
-    const error = await captureError(
-      releaseOrder({ id: DEPOSIT_PENDING, warehouseId: "WH-HN-01" }),
-    );
-    expect(error.status).toBe(409);
-    expect(error.code).toBe("DESIGN_SAMPLE_NOT_APPROVED");
-  });
-
-  // BE Order#release: InvalidOrderTransitionException → 409 ORDER_INVALID_TRANSITION
-  it("release lần 2 / trạng thái không phải Confirmed → ORDER_INVALID_TRANSITION", async () => {
-    await releaseOrder({ id: CONFIRMED_STANDARD, warehouseId: "WH-HN-01" });
-    const error = await captureError(
-      releaseOrder({ id: CONFIRMED_STANDARD, warehouseId: "WH-HN-01" }),
-    );
-    expect(error.code).toBe("ORDER_INVALID_TRANSITION");
-    expect((await captureError(releaseOrder({ id: SHIPPED, warehouseId: "WH-HN-01" }))).code).toBe(
-      "ORDER_INVALID_TRANSITION",
-    );
-  });
-});
+// POST /orders/:id/release: mock của PR #74 — `mock-routes-order-delivery-mode.test.ts`.
 
 describe("credit hold (SCRUM-427)", () => {
   it("GET /orders/credit-holds chỉ trả đơn On Hold công nợ, kèm số liệu vượt hạn mức", async () => {

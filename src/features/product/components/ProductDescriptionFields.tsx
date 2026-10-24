@@ -13,7 +13,7 @@ export function ProductDescriptionFields({
 }) {
   const { register } = form;
   return (
-    <section className="border-border-default bg-bg-surface rounded-[var(--r-sm)] border p-4">
+    <section className="border-border-default bg-bg-surface rounded-(--section-radius) border p-4 shadow-(--card-shadow)">
       <h2 className="text-ink-primary text-sm font-semibold">Mô tả</h2>
       <p className="text-ink-secondary mt-1 text-xs">
         Hình ảnh quản lý theo từng biến thể; kích thước, khối lượng theo từng SKU.

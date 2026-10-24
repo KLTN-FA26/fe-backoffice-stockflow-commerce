@@ -40,6 +40,14 @@ export const expiryAfter = (receiveDate: string) =>
 
 /* ── Identifiers ─────────────────────────────────────────────────────── */
 
+/**
+ * Id kiểu `UUID` do BE cấp. Chỉ kiểm dạng 8-4-4-4-12 hex: `z.uuid()` của zod v4 còn kiểm
+ * version/variant RFC 9562, trong khi Java `UUID` và Postgres `uuid` nhận mọi 128 bit — seed test
+ * của BE (`md5('seed:' || key)::uuid`) và user hệ thống `md5('legacy:user:…')::uuid` sẽ bị từ chối
+ * và làm hỏng cả trang. FE không được chặt hơn BE với id của chính BE.
+ */
+export const beUuid = z.guid();
+
 /** Barcode: 4-64 chars. */
 export const barcode = z.string().min(4, "Barcode quá ngắn").max(64, "Barcode quá dài");
 

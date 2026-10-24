@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { IDENTITY_USER_PERMISSIONS, UI_LABELS } from "@/constants";
+import { FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS, UI_LABELS } from "@/constants";
 import { useCan } from "@/lib/auth";
 import { fulfillmentErrorMessage } from "@/features/fulfillment/errors";
 import { assignInputSchema } from "@/features/fulfillment/input-schemas";
@@ -16,7 +16,7 @@ import type { FulfillmentTask } from "@/features/fulfillment/types";
 
 /** Gán lại task cho nhân viên khác — BE chỉ cho khi chưa bắt đầu lấy hàng (pick `PENDING`). */
 export function AssignDialog({ task, onClose }: { task: FulfillmentTask; onClose: () => void }) {
-  const canReadUsers = useCan(IDENTITY_USER_PERMISSIONS.read);
+  const canAssign = useCan(FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS.update);
   const assign = useAssignFulfillmentTask();
   const [assignedUserId, setAssignedUserId] = useState("");
   const [fieldError, setFieldError] = useState<string | undefined>();
@@ -45,7 +45,7 @@ export function AssignDialog({ task, onClose }: { task: FulfillmentTask; onClose
         title={`${UI_LABELS.fulfillment.action.assign} task ${taskCode(task.taskId)}`}
         description="Chỉ gán lại được khi task chưa bắt đầu lấy hàng. Người được gán phải là nhân viên kho hoặc quản lý kho đang hoạt động."
         submitLabel={UI_LABELS.fulfillment.action.assign}
-        canSubmit={canReadUsers && !unchanged}
+        canSubmit={canAssign && !unchanged}
         isPending={assign.isPending}
         error={serverError}
         onSubmit={submit}
@@ -53,7 +53,8 @@ export function AssignDialog({ task, onClose }: { task: FulfillmentTask; onClose
       >
         <AssigneeSelect
           autoFocus
-          canReadUsers={canReadUsers}
+          canAssign={canAssign}
+          warehouseId={task.warehouseId}
           value={assignedUserId}
           currentUserId={task.assignedUserId}
           // Chọn lại đúng người đang được gán → nút gửi khoá, nói rõ lý do ngay dưới ô

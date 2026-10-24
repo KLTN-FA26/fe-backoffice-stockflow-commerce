@@ -1,8 +1,9 @@
 /**
- * Mock routes — thao tác điều phối đơn: release (SCRUM-423), credit hold (SCRUM-427), lệnh sản
- * xuất của đơn (`GET /production/orders`, khớp hợp đồng BE ProductionOrderController#list).
+ * Mock routes — thao tác điều phối đơn: credit hold (SCRUM-427), lệnh sản xuất của đơn
+ * (`GET /production/orders`, khớp hợp đồng BE ProductionOrderController#list). Release (SCRUM-423):
+ * `mock-routes-order-delivery-mode.ts` (PR #74).
  *
- * Thứ tự kiểm + mã lỗi chép theo BE develop: OrderReleaseService, CreditHoldService.
+ * Thứ tự kiểm + mã lỗi chép theo BE develop: CreditHoldService.
  */
 
 import { ORDER_LIMITS } from "@/constants";
@@ -28,12 +29,6 @@ import {
 } from "./mock-routes-orders-store";
 
 import type { Order } from "@/lib/mock-data";
-
-/** ASSUMPTION (mock-only): mẫu được khách duyệt ⇔ thiết kế đã `Locked` (docs 12: khoá khi chốt mẫu). */
-async function hasApprovedSample(designId: string): Promise<boolean> {
-  const { designs } = await import("@/lib/mock-data");
-  return designs.find((d) => d.designId === designId)?.status === "Locked";
-}
 
 /**
  * Đơn công nợ còn tính vào dư nợ: không huỷ, và không phải đơn đang chờ quyết định công nợ (BE
@@ -106,64 +101,6 @@ function readDepositPercent(body: Record<string, unknown>): number | undefined |
   return value > ORDER_LIMITS.depositPercentMin && value < ORDER_LIMITS.depositPercentMax
     ? value
     : INVALID;
-}
-
-function registerReleaseRoute(): void {
-  // POST /orders/:id/release {warehouseId} — BE OrderReleaseService#release
-  registerMockRoute("POST", "/orders/:id/release", async (config) => {
-    // ReleaseOrderRequest.warehouseId @NotNull — bean validation chạy trước service (trước 404)
-    const warehouseId = readBody(config).warehouseId;
-    if (typeof warehouseId !== "string" || !warehouseId) {
-      return error(400, "VALIDATION_FAILED", "Invalid request data", [
-        { field: "warehouseId", message: "must not be null", code: "NotNull" },
-      ]);
-    }
-    const order = await findOrder(idParam(config));
-    if (!order) return error(404, "NOT_FOUND", "Resource not found");
-
-    const { warehouses } = await import("@/lib/mock-data");
-    if (!warehouses.some((w) => w.warehouseId === warehouseId)) {
-      return error(404, "WAREHOUSE_NOT_FOUND", `Warehouse ${warehouseId} not found`);
-    }
-
-    // BR-PRD-08 (docs 19 BR-08): dòng thiết kế mới chưa có mẫu duyệt không được release
-    const blocked: string[] = [];
-    for (const line of order.lines.filter(isCustomLine)) {
-      if (line.designId && !(await hasApprovedSample(line.designId))) blocked.push(line.skuId);
-    }
-    if (blocked.length) {
-      return error(
-        409,
-        "DESIGN_SAMPLE_NOT_APPROVED",
-        `No approved sample for design on lines: ${blocked.join(", ")}`,
-      );
-    }
-
-    // docs 15 §4.3 bước 4, 17 BR-02: không release đơn công nợ của khách đang nợ quá hạn
-    // (BE OrderReleaseService — kiểm trước Order#release)
-    if (paymentTermOf(order) === "CREDIT" && creditProfileOf(order.customerId).hasOverdue) {
-      return error(409, "CUSTOMER_CREDIT_OVERDUE", "The customer has overdue receivables");
-    }
-
-    const status = backendStatus(order);
-    // BR-PRD-09 (docs 19 BR-09): đơn đặt cọc chưa nhận đủ cọc
-    if (status === "PENDING_PAYMENT" && paymentTermOf(order) === "DEPOSIT") {
-      return error(409, "ORDER_DEPOSIT_NOT_RECEIVED", "The deposit has not been received");
-    }
-    // BE Order#release: chỉ đơn CONFIRMED — InvalidOrderTransitionException → ORDER_INVALID_TRANSITION
-    if (status !== "CONFIRMED") {
-      return error(
-        409,
-        "ORDER_INVALID_TRANSITION",
-        `Order ${order.orderNumber} cannot move from ${status}: only a confirmed order can be released`,
-      );
-    }
-
-    // Order.java#release: có dòng in → IN_PRODUCTION, chỉ hàng sẵn → READY_TO_FULFILL
-    const next = order.lines.some(isCustomLine) ? "IN_PRODUCTION" : "READY_TO_FULFILL";
-    applyTransition(order, next, null, { warehouseId, releasedAt: new Date().toISOString() });
-    return ok(toOrderResponse(order));
-  });
 }
 
 function registerCreditRoutes(): void {
@@ -374,6 +311,5 @@ function registerProductionRoute(): void {
 
 export function registerOrderActionMockRoutes(): void {
   registerCreditRoutes();
-  registerReleaseRoute();
   registerProductionRoute();
 }

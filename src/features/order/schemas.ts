@@ -1,32 +1,32 @@
 /**
  * Order — zod schemas + BR traceability.
  *
- * Hai lớp, KHÔNG trộn (api-conventions §3.1):
- * - DTO (`*DtoSchema`): hình dạng BE trả về — `OrderResponse.java`, `OrderStatusChangeResponse.java`
- *   (order/internal/controller/dto, BE develop sau PR #133). Parse MỘT lần ở `api.ts`.
- * - Model FE (`orderSchema`…): kiểu UI đọc, sau khi map status BE → FE.
- * - Input (release / credit / huỷ / giữ / gỡ giữ / giao thất bại / đóng phần còn lại):
- *   `action-schemas.ts`. Credit hold: `credit-hold-schemas.ts`. Lệnh sản xuất: `production-schemas.ts`.
+ * Hai lớp, KHÔNG trộn (api-conventions §3.1), mỗi lớp một file (giới hạn 200 dòng / file):
+ * - DTO (`*DtoSchema`, file này): hình dạng BE trả về (`OrderResponse.java`). Parse MỘT lần ở `api.ts`.
+ * - Model FE (`orderSchema`, `model-schemas.ts`): kiểu UI đọc, sau khi map status BE → FE.
+ * - Lịch sử đơn (`history-schemas.ts`); input form gửi đi: giữ / gỡ giữ / giao thất bại / đóng phần còn
+ *   lại / giao một phần / hình thức giao (`input-schemas.ts`), huỷ + duyệt công nợ (`action-schemas.ts`),
+ *   release (`release-schemas.ts`). Credit hold: `credit-hold-schemas.ts`. Lệnh sản xuất: `production-schemas.ts`.
  */
 
 import { z } from "zod";
 
 import {
+  ORDER_BALANCE_POLICIES,
   ORDER_DELIVERY_FAILURE_REASONS,
   ORDER_HOLD_REASONS,
-  ORDER_SHIPMENT_READ_STATUSES,
   ORDER_SHIPMENT_STATUSES,
 } from "@/constants/labels-order";
 import {
-  ORDER_BALANCE_POLICIES,
-  ORDER_PAYMENT_READ_STATUSES,
   ORDER_PAYMENT_STATUS_UNKNOWN,
   ORDER_PAYMENT_STATUSES,
   ORDER_PAYMENT_TERMS,
 } from "@/constants/orders";
-import { ORDER_READ_STATUSES, ORDER_STATUS_UNKNOWN } from "@/constants/statuses";
+import { ORDER_STATUS_UNKNOWN } from "@/constants/statuses";
 
 import { uuid } from "@/lib/validation/primitives";
+
+import { orderReleaseFactsShape } from "./delivery-mode-schemas";
 
 /* ── DTO (BE wire) ───────────────────────────────────────────────────── */
 
@@ -34,7 +34,7 @@ import { uuid } from "@/lib/validation/primitives";
  * BE `OrderResponse.currency` — mã ISO 4217 bất kỳ (không chỉ VND/USD). Chỉ kiểm định dạng
  * để một mã lạ không làm hỏng cả trang danh sách; hiển thị qua `formatMoney`.
  */
-const currencyCode = z.string().regex(/^[A-Z]{3}$/, "Mã tiền tệ không hợp lệ");
+export const currencyCode = z.string().regex(/^[A-Z]{3}$/, "Mã tiền tệ không hợp lệ");
 
 /**
  * Enum BE dễ mở rộng (cùng tinh thần `deliveryStatus` của PO): chuỗi ngoài `values` → `fallback`
@@ -106,8 +106,13 @@ export const orderPaymentStatusDtoSchema = tolerantEnum(
 /** BE `PaymentTerm` — phương thức lạ → null ("chưa rõ phương thức"), KHÔNG thành lựa chọn mới. */
 export const orderPaymentTermDtoSchema = tolerantEnum(ORDER_PAYMENT_TERMS, null);
 
-/** BE `BalancePolicy` (G2-3) — giá trị lạ → null. */
-export const orderBalancePolicyDtoSchema = tolerantEnum(ORDER_BALANCE_POLICIES, null);
+/**
+ * BE `BalancePolicy` — cách thu phần còn lại của đơn cọc (BE PR #150: thêm ON_CREDIT). Tolerant: giá trị
+ * lạ → "UNKNOWN" (hiện "Không rõ"), không làm hỏng cả trang.
+ */
+export const orderBalancePolicyDtoSchema = z
+  .enum([...ORDER_BALANCE_POLICIES, "UNKNOWN"])
+  .catch("UNKNOWN");
 
 /**
  * Field có thể null dùng `.nullish()` (cho phép vắng key): BE bật Jackson
@@ -206,9 +211,6 @@ export const orderDtoSchema = z.object({
   warehouseId: z.string().nullish(),
   releasedAt: z.string().nullish(),
   paidAmount: z.number().nullish(),
-  /** Tiền cọc cần có trước khi Confirmed — chỉ đơn DEPOSIT. */
-  depositRequired: z.number().nullish(),
-  depositReceivedAt: z.string().nullish(),
   paidInFullAt: z.string().nullish(),
   paymentStatus: orderPaymentStatusDtoSchema.nullish(),
   creditTermDays: z.number().int().nullish(),
@@ -242,6 +244,18 @@ export const orderDtoSchema = z.object({
   amountDueOnDelivery: z.number().nullish(),
   /** BE luôn gửi danh sách (rỗng khi chưa chia lô); nullish để dòng danh sách / BE cũ vẫn parse. */
   shipments: z.array(orderShipmentDtoSchema).nullish(),
+  /**
+   * Sales cho phép giao một phần (PACK-PARTIAL, BE PR #150); mặc định false. Vắng (null) trên dòng
+   * danh sách không mang field này.
+   */
+  allowPartialShipment: z.boolean().nullish(),
+  /**
+   * Hàng in của đơn đã về bàn đóng gói (không có dòng in, hoặc sản xuất xong). False khi đơn còn đang in,
+   * hoặc đã giao hàng có sẵn trước khi sản xuất xong (PACK-EARLY); vắng trên dòng danh sách.
+   */
+  printLinesReady: z.boolean().nullish(),
+  // Hình thức giao + khoá (BE PR #157) và tiền cọc (`depositRequired` / `depositReceivedAt`, BR-PRD-09)
+  ...orderReleaseFactsShape,
 });
 
 /** BE `PageResponse<OrderResponse>` — trang đánh số từ 0. */
@@ -255,20 +269,6 @@ export const orderPageDtoSchema = z.object({
   hasPrevious: z.boolean(),
 });
 
-/**
- * BE `OrderStatusChangeResponse` — `GET /orders/{id}/history`, cũ → mới; `from` vắng ở bước đầu.
- * Trạng thái lạ ở `from` / `to` → `UNKNOWN`, không làm hỏng cả lịch sử. `actorId` / `actorName`
- * (G3-2): ai đổi — chỉ nhân viên đọc; vắng với hệ thống và bước ghi trước G3-2.
- */
-export const orderStatusChangeDtoSchema = z.object({
-  from: orderStatusDtoSchema.nullish(),
-  to: orderStatusDtoSchema,
-  reason: z.string().nullish(),
-  occurredAt: z.string(),
-  actorId: z.string().nullish(),
-  actorName: z.string().nullish(),
-});
-
 /* ── Tham số lọc `GET /orders` ───────────────────────────────────────── */
 
 /** BE `OrderController#list`: `@RequestParam UUID customerId` — giá trị khác → 400 UNSUPPORTED_PARAMETER. */
@@ -277,111 +277,3 @@ export const orderListCustomerIdSchema = uuid("ID khách hàng phải là UUID h
 export function isValidOrderCustomerId(value: string): boolean {
   return orderListCustomerIdSchema.safeParse(value).success;
 }
-
-/* ── Model FE ────────────────────────────────────────────────────────── */
-
-/**
- * Dòng đơn. `isCustom`: dòng in theo thiết kế ⇔ `designSnapshotId != null`
- * (BE `OrderLine#isMadeToOrder`, docs 14 BR-02) — BE không có cờ riêng.
- */
-export const orderLineSchema = z.object({
-  lineId: z.string(),
-  sku: z.string(),
-  quantity: z.number().int(),
-  unitPrice: z.number(),
-  lineTotal: z.number(),
-  isCustom: z.boolean(),
-  designSnapshotId: z.string().nullable(),
-  /** Phiếu giữ hàng của dòng — BE chỉ trả mã, chưa có API xem chi tiết reservation. */
-  reservationIds: z.array(z.string()),
-  /** null khi BE không trả (dòng danh sách / BE cũ). */
-  shippedQuantity: z.number().int().nullable(),
-  deliveredQuantity: z.number().int().nullable(),
-  cancelledQuantity: z.number().int().nullable(),
-});
-
-export const orderShipmentSchema = z.object({
-  shipmentId: z.string(),
-  status: z.enum(ORDER_SHIPMENT_READ_STATUSES),
-  amount: z.number().nullable(),
-  billedAmount: z.number().nullable(),
-  handedOverAt: z.string().nullable(),
-  outcomeAt: z.string().nullable(),
-  failureReason: z.enum([...ORDER_DELIVERY_FAILURE_REASONS, ORDER_STATUS_UNKNOWN]).nullable(),
-  /** Rỗng khi BE không gửi `lines`. */
-  lines: z.array(orderShipmentLineDtoSchema),
-  codAmount: z.number().nullable(),
-});
-
-export const orderCancellationSchema = z.object({
-  reasonCode: z.string().nullable(),
-  reason: z.string().nullable(),
-  retainedAmount: z.number().nullable(),
-  feeReason: z.string().nullable(),
-  feeDetail: z.string().nullable(),
-  feeAmount: z.number().nullable(),
-});
-
-/**
- * Kiểu UI đọc. Người nhận lấy từ `shippingAddress`, fallback `contact*`.
- * BE không trả subtotal/phí ship/thuế/giảm giá → UI không hiển thị các field đó (không bịa số).
- * Field BE vắng → null (mảng → []); mapper không tự tính số tiền nào.
- */
-export const orderSchema = z.object({
-  orderId: z.string(),
-  orderNumber: z.string(),
-  customerId: z.string().nullable(),
-  status: z.enum(ORDER_READ_STATUSES),
-  totalAmount: z.number(),
-  currency: currencyCode,
-  placedAt: z.string(),
-  recipientName: z.string(),
-  recipientPhone: z.string(),
-  contactEmail: z.string().nullable(),
-  /** Địa chỉ giao đã ghép sẵn (line1, line2, phường/xã, tỉnh); null khi BE không có. */
-  shippingAddressText: z.string().nullable(),
-  lines: z.array(orderLineSchema),
-  // Thanh toán / release / huỷ (SCRUM-423/427/460)
-  paymentTerm: z.enum(ORDER_PAYMENT_TERMS).nullable(),
-  paymentStatus: z.enum(ORDER_PAYMENT_READ_STATUSES).nullable(),
-  paidAmount: z.number().nullable(),
-  depositRequired: z.number().nullable(),
-  depositReceivedAt: z.string().nullable(),
-  paidInFullAt: z.string().nullable(),
-  creditTermDays: z.number().nullable(),
-  balancePolicy: z.enum(ORDER_BALANCE_POLICIES).nullable(),
-  warehouseId: z.string().nullable(),
-  releasedAt: z.string().nullable(),
-  cancellation: orderCancellationSchema.nullable(),
-  // Vòng đời (BE PR #133)
-  /** Staff: lý do đang giữ; null khi đơn không ON_HOLD. */
-  holdReason: z.enum([...ORDER_HOLD_REASONS, ORDER_STATUS_UNKNOWN]).nullable(),
-  holdReasonPublic: z.string().nullable(),
-  /** Trạng thái FE đơn quay về khi gỡ giữ; null với giữ công nợ. */
-  statusBeforeHold: z.enum(ORDER_READ_STATUSES).nullable(),
-  holdNote: z.string().nullable(),
-  packedAt: z.string().nullable(),
-  shippedAt: z.string().nullable(),
-  deliveredAt: z.string().nullable(),
-  deliveryFailureReason: z
-    .enum([...ORDER_DELIVERY_FAILURE_REASONS, ORDER_STATUS_UNKNOWN])
-    .nullable(),
-  completedAt: z.string().nullable(),
-  closedAt: z.string().nullable(),
-  billedAmount: z.number().nullable(),
-  effectiveTotal: z.number().nullable(),
-  amountDue: z.number().nullable(),
-  amountDueBeforeHandover: z.number().nullable(),
-  amountDueOnDelivery: z.number().nullable(),
-  /** Rỗng khi BE không trả `shipments` (đơn chưa chia lô). */
-  shipments: z.array(orderShipmentSchema),
-});
-
-export const orderStatusChangeSchema = z.object({
-  from: z.enum(ORDER_READ_STATUSES).nullable(),
-  to: z.enum(ORDER_READ_STATUSES),
-  reason: z.string().nullable(),
-  occurredAt: z.string(),
-  actorId: z.string().nullable(),
-  actorName: z.string().nullable(),
-});

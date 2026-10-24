@@ -1,14 +1,15 @@
 /**
  * Cache liên module: thao tác Order đổi giữ chỗ tồn phải làm cache tồn / phiếu giữ hàng của
- * Inventory hết hạn (BE OrderServiceImpl.cancelLoaded, OrderReleaseService.release,
- * CreditHoldService.refuse). Chạy hook thật qua mock adapter, cache Inventory seed sẵn bằng
+ * Inventory hết hạn (BE OrderServiceImpl.cancelLoaded, CreditHoldService.refuse). Release (PR #74):
+ * `OrderRelease.test.tsx`. Chạy hook thật qua mock adapter, cache Inventory seed sẵn bằng
  * đúng chuỗi key nhánh Inventory đang dùng (`INVENTORY_QUERY_KEYS.stock`).
  */
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { SHARED_QUERY_ROOTS } from "@/constants";
 import { api } from "@/lib/api/client";
 import { activateMockAdapter } from "@/lib/api/mock-adapter";
 import { resetOrderMockStore } from "@/lib/api/mock-routes-orders";
@@ -17,10 +18,10 @@ import {
   useAdminCancelOrder,
   useApproveCreditHold,
   useCloseOrderRemainder,
+  useDecidePartialShipment,
   useHoldOrder,
   useRecordDeliveryFailure,
   useRejectCreditHold,
-  useReleaseOrder,
   useResolveOrderHold,
 } from "./mutations";
 import { orderKeys } from "./queries";
@@ -88,16 +89,6 @@ describe("Order mutation → cache tồn / giữ chỗ của Inventory", () => {
       reasonCode: "CUSTOMER_REQUEST" as const,
     });
     expect(invalidated(orderKeys.all)).toBe(true);
-    expect(invalidated(STOCK_KEY)).toBe(true);
-    expect(invalidated(RESERVATION_KEY)).toBe(true);
-    expect(invalidated(MOVEMENT_KEY)).toBe(false);
-  });
-
-  it("release (ghim giữ chỗ vào kho xuất) → tồn + phiếu giữ hàng tải lại", async () => {
-    const invalidated = await run(() => useReleaseOrder(), {
-      id: CONFIRMED_STANDARD,
-      warehouseId: "WH-HN-01",
-    });
     expect(invalidated(STOCK_KEY)).toBe(true);
     expect(invalidated(RESERVATION_KEY)).toBe(true);
     expect(invalidated(MOVEMENT_KEY)).toBe(false);
@@ -237,5 +228,35 @@ describe("Order mutation — Idempotency-Key đi tới API ở header, không v�
       { reasonCode: "OUT_OF_STOCK" },
       { headers: { "Idempotency-Key": "k-r" } },
     ]);
+  });
+});
+
+describe("useDecidePartialShipment — làm mới những gì phụ thuộc cờ giao một phần", () => {
+  it("invalidate đơn + lịch sử, task / phiên đóng gói và chuyến xe; không đụng dữ liệu khác", async () => {
+    vi.spyOn(api, "put").mockResolvedValue({ data: null });
+    const client = new QueryClient();
+    const keys = {
+      detail: orderKeys.detail("o1"),
+      history: orderKeys.history("o1"),
+      packing: [SHARED_QUERY_ROOTS.fulfillmentTasks, "packing", "session", "t1"],
+      tasks: [SHARED_QUERY_ROOTS.fulfillmentTasks, "list", {}],
+      loads: [SHARED_QUERY_ROOTS.fulfillmentLoads, "list", {}],
+      unrelated: ["suppliers", "list"],
+    } as const;
+    for (const key of Object.values(keys)) client.setQueryData(key, { cached: true });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    const { result } = renderHook(() => useDecidePartialShipment(), { wrapper });
+
+    await act(async () => result.current.mutate({ id: "o1", allowed: true, note: "" }));
+
+    const stale = (key: readonly unknown[]) => client.getQueryState(key)?.isInvalidated;
+    await waitFor(() => expect(stale(keys.detail)).toBe(true));
+    expect(stale(keys.history)).toBe(true);
+    expect(stale(keys.packing)).toBe(true);
+    expect(stale(keys.tasks)).toBe(true);
+    expect(stale(keys.loads)).toBe(true);
+    expect(stale(keys.unrelated)).toBe(false);
   });
 });

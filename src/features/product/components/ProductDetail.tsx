@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useMemo } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, History, Palette, Tag } from "lucide-react";
+import { History, Palette, Tag } from "lucide-react";
 
 import { ADMIN_ROUTES, PRODUCT_STATUS } from "@/constants";
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -16,7 +15,6 @@ import {
   useProduct,
   useVariants,
 } from "@/features/product";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 
 import { ProductActionCard } from "./ProductActionCard";
@@ -66,20 +64,10 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
   const gate = productChangeGate(product.status);
 
   return (
-    <>
-      <PageHeader
-        title={product.name}
-        subtitle={product.nameEn}
-        actions={
-          <Link
-            href={ADMIN_ROUTES.products.list}
-            className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary inline-flex items-center gap-1.5 rounded-[var(--r-sm)] border px-3 py-1.5 text-[0.8125rem] font-medium transition-colors"
-          >
-            <ArrowLeft className="size-3.5" />
-            Quay lại
-          </Link>
-        }
-      />
+    // Giao diện kiểu Vercel như trang danh sách (globals.css `.surface-soft`). Không hiện tiêu đề —
+    // breadcrumb topbar đã có mã sản phẩm và link về danh sách; h1 giữ cho screen reader.
+    <div className="surface-soft surface-compact">
+      <h1 className="sr-only">{product.name}</h1>
 
       <ProductLifecycleDialogs
         product={product}
@@ -137,6 +125,6 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
           />
         </div>
       </div>
-    </>
+    </div>
   );
 }

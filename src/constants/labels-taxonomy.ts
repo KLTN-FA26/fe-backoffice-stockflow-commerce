@@ -25,6 +25,7 @@ export const TAXONOMY_UI_LABELS = {
   expandAll: "Mở tất cả",
   collapseAll: "Thu gọn tất cả",
   expandRow: "Mở danh mục con của",
+  viewRow: "Xem",
   collapseRow: "Thu gọn danh mục con của",
   categoryNoun: "danh mục",
   activeHint: "Bỏ chọn để ngưng dùng — sản phẩm mới không chọn được nữa, sản phẩm cũ giữ nguyên.",
@@ -37,7 +38,7 @@ export const TAXONOMY_UI_LABELS = {
   maxDepthReached: "đã đủ 11 cấp",
   allStatuses: "Tất cả",
   active: "Đang dùng",
-  inactive: "Đã ngưng",
+  inactive: "Ngừng dùng",
   field: {
     code: "Mã",
     name: "Tên",

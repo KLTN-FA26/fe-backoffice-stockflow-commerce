@@ -2,16 +2,23 @@
 
 import { Controller } from "react-hook-form";
 
-import { TRANSFER_REASON_LABELS, TRANSFER_REASONS, UI_LABELS } from "@/constants";
+import {
+  DELIVERY_MODE,
+  DELIVERY_MODES,
+  TRANSFER_DELIVERY_MODE_LABELS,
+  TRANSFER_REASON_LABELS,
+  TRANSFER_REASONS,
+  UI_LABELS,
+} from "@/constants";
 import { Input } from "@/components/ui/input";
 import {
   Select,
-  SelectContent,
   SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 
 import { fieldClass } from "../primitives";
 import { Field } from "./FormField";
@@ -56,7 +63,7 @@ export function TransferHeaderFields({ form }: { form: TransferForm }) {
               >
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <TitledSelectContent title={UI_LABELS.transfer.field.reason}>
                 <SelectGroup>
                   <SelectItem value={NO_REASON}>{UI_LABELS.transfer.field.noReason}</SelectItem>
                   {TRANSFER_REASONS.map((r) => (
@@ -65,7 +72,40 @@ export function TransferHeaderFields({ form }: { form: TransferForm }) {
                     </SelectItem>
                   ))}
                 </SelectGroup>
-              </SelectContent>
+              </TitledSelectContent>
+            </Select>
+          )}
+        />
+      </Field>
+      <Field id="transfer-delivery-mode" label={UI_LABELS.transfer.deliveryMode.label}>
+        <Controller
+          control={form.control}
+          name="deliveryMode"
+          render={({ field }) => (
+            <Select
+              // Chưa có giá trị (form dựng không kèm hình thức) = mặc định của BE
+              value={field.value ?? DELIVERY_MODE.FULL_TRUCKLOAD}
+              onValueChange={(v) =>
+                field.onChange(DELIVERY_MODES.find((m) => m === v) ?? DELIVERY_MODE.FULL_TRUCKLOAD)
+              }
+            >
+              <SelectTrigger
+                ref={field.ref}
+                onBlur={field.onBlur}
+                id="transfer-delivery-mode"
+                className={fieldClass()}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <TitledSelectContent title={UI_LABELS.transfer.deliveryMode.label}>
+                <SelectGroup>
+                  {DELIVERY_MODES.map((mode) => (
+                    <SelectItem key={mode} value={mode}>
+                      {TRANSFER_DELIVERY_MODE_LABELS[mode]}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </TitledSelectContent>
             </Select>
           )}
         />
@@ -84,6 +124,9 @@ export function TransferHeaderFields({ form }: { form: TransferForm }) {
           {...form.register("expectedDate")}
         />
       </Field>
+      <p className="text-ink-tertiary text-xs md:col-span-2">
+        {UI_LABELS.transfer.deliveryMode.hint} {UI_LABELS.transfer.deliveryMode.editableOnlyInDraft}
+      </p>
       <p className="text-ink-tertiary text-xs md:col-span-2">
         {UI_LABELS.transfer.sameWarehouseHint}
       </p>

@@ -41,7 +41,6 @@ const PACKED_CREDIT = "ORD-2026-0005"; // Packed, COD → CREDIT
 const PARTIAL = "ORD-2026-0009"; // Partially Fulfilled — 1 lô đã bàn giao (thiếu 2)
 const SHIPPED = "ORD-2026-0007";
 const DEPOSIT_PENDING = "ORD-2026-0014"; // Pending Payment, dòng in → DEPOSIT
-const OVERDUE_CUSTOMER_ORDER = "ORD-2026-0008"; // CUS-0006 có nợ quá hạn, COD → CREDIT
 
 type Json = Record<string, unknown>;
 
@@ -100,7 +99,11 @@ describe("đăng ký route — mỗi METHOD + PATH đúng một chủ", () => {
     "POST /orders/:id/hold/resolution",
     "POST /orders/:id/delivery-failure",
     "POST /orders/:id/remainder-closure",
+    // Release + đổi hình thức giao: mock của PR #74 (`mock-routes-order-delivery-mode.ts`)
     "POST /orders/:id/release",
+    "PUT /orders/:id/delivery-mode",
+    // Giao một phần (BE PR #150)
+    "PUT /orders/:id/partial-shipment",
     "GET /orders/credit-position/:id",
     "GET /orders/credit-holds",
     "POST /orders/:id/credit-approval",
@@ -400,10 +403,15 @@ describe("giao thất bại / đóng phần còn lại", () => {
 
 describe("release + quyết định công nợ dùng chung store", () => {
   it("release → READY_TO_FULFILL thấy được ở list / detail / mock xuất kho / lịch sử", async () => {
-    const released = await data("POST", `/orders/${CONFIRMED_STOCK}/release`, {
+    // Release do mock của PR #74 xử lý (trả OrderResponse trần) — đọc lại qua store dùng chung
+    const { status } = await call("POST", `/orders/${CONFIRMED_STOCK}/release`, {
       warehouseId: "WH-HN-01",
     });
-    expect(released).toMatchObject({ status: "READY_TO_FULFILL", warehouseId: "WH-HN-01" });
+    expect(status).toBe(200);
+    expect(await order(CONFIRMED_STOCK)).toMatchObject({
+      status: "READY_TO_FULFILL",
+      warehouseId: "WH-HN-01",
+    });
     expect(await backendOrderStatusOf(CONFIRMED_STOCK)).toBe("READY_TO_FULFILL");
     expect((await listItems("&status=READY_TO_FULFILL")).map((o) => o.orderId)).toContain(
       CONFIRMED_STOCK,
@@ -412,25 +420,14 @@ describe("release + quyết định công nợ dùng chung store", () => {
       from: "CONFIRMED",
       to: "READY_TO_FULFILL",
     });
+    // Release lần 2: không còn CONFIRMED (mock PR #74 trả CONFLICT — `release-errors.ts` coi như ORDER_INVALID_TRANSITION)
     expect(
       await errorCode("POST", `/orders/${CONFIRMED_STOCK}/release`, { warehouseId: "WH-HN-01" }),
-    ).toBe("ORDER_INVALID_TRANSITION");
+    ).toBe("CONFLICT");
   });
 
-  it("release: khách nợ quá hạn → CUSTOMER_CREDIT_OVERDUE; đơn cọc chưa đủ cọc → ORDER_DEPOSIT_NOT_RECEIVED", async () => {
-    expect(
-      await errorCode("POST", `/orders/${OVERDUE_CUSTOMER_ORDER}/release`, {
-        warehouseId: "WH-HN-01",
-      }),
-    ).toBe("CUSTOMER_CREDIT_OVERDUE");
-    const deposit = await call("POST", `/orders/${DEPOSIT_PENDING}/release`, {
-      warehouseId: "WH-HN-01",
-    });
-    // BR-PRD-08 (mẫu duyệt) kiểm trước cọc — đơn này có thiết kế chưa khoá
-    expect(["DESIGN_SAMPLE_NOT_APPROVED", "ORDER_DEPOSIT_NOT_RECEIVED"]).toContain(
-      deposit.body.errorCode,
-    );
-  });
+  // Lý do từ chối release (BR-PRD-08 / BR-PRD-09 / nợ quá hạn) thuộc mock release của PR #74 — xem
+  // `mock-routes-order-delivery-mode.test.ts`.
 
   it("duyệt công nợ → CONFIRMED, xoá dữ liệu giữ, rời hàng đợi, lịch sử CREDIT_APPROVED", async () => {
     const approved = await data("POST", `/orders/${CREDIT_ON_HOLD}/credit-approval`, {

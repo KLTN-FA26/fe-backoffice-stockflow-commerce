@@ -7,7 +7,6 @@ import {
   ADMIN_CANCEL_FIELD_ERRORS,
   CREDIT_REJECTION_FIELD_ERRORS,
   ORDER_STALE_ERROR_CODES,
-  RELEASE_FIELD_ERRORS,
   adminCancelErrorView,
   creditDecisionErrorView,
   isOrderConcurrencyError,
@@ -15,7 +14,6 @@ import {
   mapServerFieldErrors,
   orderActionErrorView,
   orderErrorCategory,
-  releaseErrorView,
 } from "./errors";
 
 function apiError(status: number, code: string, message = "server message in English") {
@@ -63,36 +61,6 @@ describe("adminCancelErrorView — branch theo errorCode BE", () => {
   });
 });
 
-describe("releaseErrorView — lý do từ chối release (SCRUM-423)", () => {
-  it("DESIGN_SAMPLE_NOT_APPROVED → BR-PRD-08, giữ chi tiết SKU từ máy chủ", () => {
-    const view = releaseErrorView(
-      apiError(409, "DESIGN_SAMPLE_NOT_APPROVED", "No approved sample for: CUP-01"),
-    );
-    expect(view.rule).toBe("BR-PRD-08");
-    expect(view.detail).toContain("mẫu");
-    expect(view.serverDetail).toContain("CUP-01");
-  });
-
-  it("ORDER_DEPOSIT_NOT_RECEIVED → BR-PRD-09", () => {
-    const view = releaseErrorView(apiError(409, "ORDER_DEPOSIT_NOT_RECEIVED"));
-    expect(view.rule).toBe("BR-PRD-09");
-    expect(view.detail).toContain("cọc");
-  });
-
-  it("CUSTOMER_CREDIT_OVERDUE → công nợ quá hạn", () => {
-    expect(releaseErrorView(apiError(409, "CUSTOMER_CREDIT_OVERDUE")).detail).toContain("quá hạn");
-  });
-
-  it("WAREHOUSE_NOT_FOUND / CONFLICT có câu riêng, không dùng câu chung", () => {
-    expect(releaseErrorView(apiError(404, "WAREHOUSE_NOT_FOUND")).detail).toContain("Kho");
-    expect(releaseErrorView(apiError(409, "CONFLICT")).detail).toContain("trạng thái");
-  });
-
-  it("FORBIDDEN → không có quyền release", () => {
-    expect(releaseErrorView(apiError(403, "FORBIDDEN")).detail).toContain("không có quyền");
-  });
-});
-
 describe("creditDecisionErrorView (SCRUM-427)", () => {
   it("ORDER_NOT_ON_CREDIT_HOLD → đã có người xử lý", () => {
     expect(creditDecisionErrorView(apiError(409, "ORDER_NOT_ON_CREDIT_HOLD")).detail).toContain(
@@ -118,7 +86,8 @@ describe("isProductionForbidden — GET /production/orders", () => {
 });
 
 describe("tranh chấp đồng thời — OPTIMISTIC_LOCK / LOCK_TIMEOUT (BE 409, isRetryable)", () => {
-  const VIEWS = [adminCancelErrorView, releaseErrorView, creditDecisionErrorView];
+  // Release: `release-errors.test.ts` (PR #74)
+  const VIEWS = [adminCancelErrorView, creditDecisionErrorView];
 
   it("phân loại đúng hai mã khoá; mã 409 khác KHÔNG phải tranh chấp đồng thời", () => {
     expect(isOrderConcurrencyError(apiError(409, "OPTIMISTIC_LOCK"))).toBe(true);
@@ -149,7 +118,6 @@ describe("tranh chấp đồng thời — OPTIMISTIC_LOCK / LOCK_TIMEOUT (BE 409
     expect(creditDecisionErrorView(apiError(409, "ORDER_NOT_ON_CREDIT_HOLD")).detail).toMatch(
       /người khác xử lý/,
     );
-    expect(releaseErrorView(apiError(409, "CONFLICT")).rule).toBe("BR-02");
     expect(adminCancelErrorView(apiError(409, "ORDER_NOT_CANCELLABLE")).rule).toBe("BR-ORD-004");
   });
 
@@ -165,8 +133,11 @@ describe("mapServerFieldErrors — fieldErrors BE → ô form (map riêng từng
 
   it("A. một field nhận ra → đúng ô, câu tiếng Việt", () => {
     expect(
-      mapServerFieldErrors(withFields({ warehouseId: "must not be null" }), RELEASE_FIELD_ERRORS),
-    ).toEqual({ mapped: [{ field: "warehouseId", message: "Chọn kho xuất." }], unmapped: [] });
+      mapServerFieldErrors(
+        withFields({ reasonCode: "must not be null" }),
+        ADMIN_CANCEL_FIELD_ERRORS,
+      ),
+    ).toEqual({ mapped: [ADMIN_CANCEL_FIELD_ERRORS.reasonCode], unmapped: [] });
   });
 
   it("B. nhiều field nhận ra → giữ tất cả", () => {
@@ -189,12 +160,12 @@ describe("mapServerFieldErrors — fieldErrors BE → ô form (map riêng từng
     });
     // Tên trùng thuộc tính Object.prototype không bị coi là field biết
     expect(
-      mapServerFieldErrors(withFields({ toString: "x" }), RELEASE_FIELD_ERRORS).mapped,
+      mapServerFieldErrors(withFields({ toString: "x" }), ADMIN_CANCEL_FIELD_ERRORS).mapped,
     ).toEqual([]);
   });
 
   it("D. không có fieldErrors → không gì để gắn", () => {
-    expect(mapServerFieldErrors(withFields(undefined), RELEASE_FIELD_ERRORS)).toEqual({
+    expect(mapServerFieldErrors(withFields(undefined), ADMIN_CANCEL_FIELD_ERRORS)).toEqual({
       mapped: [],
       unmapped: [],
     });
@@ -202,7 +173,8 @@ describe("mapServerFieldErrors — fieldErrors BE → ô form (map riêng từng
 });
 
 describe("mã idempotency (BE IdempotencyFilter)", () => {
-  const VIEWS = [adminCancelErrorView, releaseErrorView, creditDecisionErrorView];
+  // Release: `release-errors.test.ts` (PR #74)
+  const VIEWS = [adminCancelErrorView, creditDecisionErrorView];
 
   it("IDEMPOTENT_REQUEST_IN_PROGRESS (409) → nhóm 'thử lại sau', câu riêng, không phải lỗi ô", () => {
     expect(isOrderConcurrencyError(apiError(409, "IDEMPOTENT_REQUEST_IN_PROGRESS"))).toBe(true);
@@ -329,20 +301,6 @@ describe("orderActionErrorView — mọi mã ORDER_* mới đều có câu tiế
   });
 });
 
-describe("releaseErrorView — BE PR #133", () => {
-  it("ORDER_INVALID_TRANSITION (Order#release từ trạng thái khác Confirmed) → câu trạng thái, BR-02", () => {
-    const view = releaseErrorView(apiError(409, "ORDER_INVALID_TRANSITION"));
-    expect(view.detail).toContain("trạng thái được release");
-    expect(view.rule).toBe("BR-02");
-  });
-
-  it("VALIDATION_FAILED (warehouseId @NotNull) → yêu cầu chọn kho, không lộ message server", () => {
-    const view = releaseErrorView(apiError(400, "VALIDATION_FAILED"));
-    expect(view.detail).toContain("kho xuất");
-    expect(view.detail).not.toContain("English");
-  });
-});
-
 describe("orderActionErrorView — tranh chấp / idempotency / nghiệp vụ", () => {
   it("gỡ giữ PAYMENT chưa đủ tiền (ORDER_BALANCE_NOT_PAID) → ghi nhận thanh toán trước, không phải dữ liệu cũ", () => {
     const view = orderActionErrorView(apiError(409, "ORDER_BALANCE_NOT_PAID"), "resolveHold");
@@ -433,5 +391,56 @@ describe("ADMIN_CANCEL_FIELD_ERRORS — agreedFee (BE CancellationFeeRequest)", 
     expect(mapped.map((m) => m.field)).toEqual(["agreedFee.amount", "agreedFee.detail"]);
     expect(mapped.every((m) => !/is required|more than/.test(m.message))).toBe(true);
     expect(unmapped).toEqual(["reason is at most 500 characters"]);
+  });
+});
+
+describe("orderActionErrorView — mã lỗi mới của BE PR #150", () => {
+  const NEW_CODES = [
+    "ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED",
+    "ORDER_PARTIAL_SHIPMENT_LOCKED",
+    "BALANCE_CREDIT_LIMIT_EXCEEDED",
+    "CUSTOMER_CREDIT_OVERDUE",
+    "BALANCE_POLICY_NOT_ALLOWED",
+    "CREDIT_PROFILE_INVALID",
+    "CANCELLATION_FEE_BEFORE_PRINTING",
+  ] as const;
+
+  it.each(NEW_CODES)("%s → câu tiếng Việt riêng, không lộ message server", (code) => {
+    const view = orderActionErrorView(apiError(409, code), "remainderClosure");
+    expect(view.detail).toBe(ORDER_ERROR_MESSAGES[code]);
+    expect(view.detail).not.toContain("English");
+    expect(view.detail).toMatch(
+      /[ạảãàáâấầẩẫậăắằẳẵặẹẻẽèéêếềểễệỉĩịọỏõòóôốồổỗộơớờởỡợụủũùúưứừửữựỳỷỹýđ]/i,
+    );
+  });
+
+  it("ORDER_PARTIAL_SHIPMENT_LOCKED có tiêu đề riêng của giao một phần và buộc tải lại đơn", () => {
+    const view = orderActionErrorView(
+      apiError(409, "ORDER_PARTIAL_SHIPMENT_LOCKED"),
+      "partialShipment",
+    );
+    expect(view.title).toBe("Không cập nhật được giao một phần");
+    expect(view.detail).toContain("Không đổi được cách giao");
+    expect(ORDER_STALE_ERROR_CODES).toContain("ORDER_PARTIAL_SHIPMENT_LOCKED");
+  });
+
+  it("CANCELLATION_FEE_BEFORE_PRINTING không phải lỗi 'dữ liệu cũ' — dialog giữ nguyên để bỏ phí rồi gửi lại", () => {
+    expect(ORDER_STALE_ERROR_CODES).not.toContain("CANCELLATION_FEE_BEFORE_PRINTING");
+    expect(
+      orderActionErrorView(apiError(409, "CANCELLATION_FEE_BEFORE_PRINTING"), "remainderClosure")
+        .detail,
+    ).toContain("chưa bắt đầu in");
+  });
+
+  it("400 khi phí vượt giá trị hàng in (VALIDATION_FAILED) → câu về phí, không lộ message tiếng Anh", () => {
+    const view = orderActionErrorView(apiError(400, "VALIDATION_FAILED"), "remainderClosure");
+    expect(view.detail).toContain("không vượt giá trị phần hàng in bị đóng");
+    expect(view.detail).not.toContain("English");
+  });
+
+  it("VALIDATION_FAILED của giao một phần → nhắc giới hạn ghi chú", () => {
+    expect(
+      orderActionErrorView(apiError(400, "VALIDATION_FAILED"), "partialShipment").detail,
+    ).toContain("500");
   });
 });

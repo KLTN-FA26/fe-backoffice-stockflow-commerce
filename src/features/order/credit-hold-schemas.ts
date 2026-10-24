@@ -10,7 +10,8 @@ import { z } from "zod";
 
 import { ORDER_PAYMENT_TERMS } from "@/constants/orders";
 
-import { orderDtoSchema, orderSchema } from "./schemas";
+import { orderSchema } from "./model-schemas";
+import { orderDtoSchema } from "./schemas";
 
 import type { OrderPaymentTerm } from "@/constants/orders";
 

@@ -3,6 +3,7 @@
 import { UI_LABELS } from "@/constants";
 import { ListToolbar } from "@/components/shared/ListToolbar";
 
+import type { ReactNode } from "react";
 import type { TaxonomyListState, TaxonomyStatusFilter } from "./useTaxonomyListState";
 
 const L = UI_LABELS.taxonomy;
@@ -24,11 +25,14 @@ export function TaxonomyToolbar({
   searchPlaceholder,
   columnLabels,
   lockedColumn,
+  tools,
 }: {
   s: TaxonomyListState;
   searchPlaceholder: string;
   columnLabels: Record<string, string>;
   lockedColumn: string;
+  /** Công cụ riêng của tab (mở / thu gọn cây danh mục). */
+  tools?: ReactNode;
 }) {
   const allColumns = Object.keys(columnLabels);
   return (
@@ -49,6 +53,7 @@ export function TaxonomyToolbar({
       onToggleColumn={s.toggleColumn}
       onResetColumns={s.resetColumns}
       hasColumnConfig={s.hasColumnConfig}
+      tools={tools}
       summaryItems={[
         {
           label: "Search chính",

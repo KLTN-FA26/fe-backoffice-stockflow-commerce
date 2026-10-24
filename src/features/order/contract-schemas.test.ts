@@ -13,7 +13,9 @@ import {
   creditPositionDtoSchema,
 } from "./credit-hold-schemas";
 import { productionOrderDtoSchema, productionOrderPageDtoSchema } from "./production-schemas";
-import { orderDtoSchema, orderStatusChangeDtoSchema } from "./schemas";
+import { toOrderHistoryEntry } from "./history-api";
+import { orderHistoryEntryDtoSchema } from "./history-schemas";
+import { orderDtoSchema } from "./schemas";
 
 const hold = {
   order: { ...apiOrder, status: "ON_HOLD", paymentTerm: "CREDIT" },
@@ -90,33 +92,34 @@ describe("OrderResponse — field SCRUM-423/427/460", () => {
     ).toBe("UNKNOWN");
   });
 
+  // Lịch sử đơn: DTO của develop (`history-schemas.ts`, BE PR #150/#157) thay `orderStatusChangeDtoSchema`
   it("history: trạng thái PR #133 giữ nguyên; from / to lạ (hoặc mã đã bỏ) → UNKNOWN; from null giữ null", () => {
     const at = "2026-09-07T03:15:00Z";
     expect(
-      orderStatusChangeDtoSchema.parse({ from: "PACKED", to: "SHIPPED", occurredAt: at }).from,
+      orderHistoryEntryDtoSchema.parse({ from: "PACKED", to: "SHIPPED", occurredAt: at }).from,
     ).toBe("PACKED");
     expect(
-      orderStatusChangeDtoSchema.parse({ from: "CONFIRMED", to: "PICKING", occurredAt: at }).to,
+      orderHistoryEntryDtoSchema.parse({ from: "CONFIRMED", to: "PICKING", occurredAt: at }).to,
     ).toBe("PICKING");
     expect(
-      orderStatusChangeDtoSchema.parse({ from: "IN_FULFILMENT", to: "SHIPPED", occurredAt: at })
+      orderHistoryEntryDtoSchema.parse({ from: "IN_FULFILMENT", to: "SHIPPED", occurredAt: at })
         .from,
     ).toBe("UNKNOWN");
     expect(
-      orderStatusChangeDtoSchema.parse({ from: "CONFIRMED", to: "REVIEWING", occurredAt: at }).to,
+      orderHistoryEntryDtoSchema.parse({ from: "CONFIRMED", to: "REVIEWING", occurredAt: at }).to,
     ).toBe("UNKNOWN");
     expect(
-      orderStatusChangeDtoSchema.parse({ from: null, to: "PENDING_PAYMENT", occurredAt: at }).from,
+      orderHistoryEntryDtoSchema.parse({ from: null, to: "PENDING_PAYMENT", occurredAt: at }).from,
     ).toBeNull();
-    // `to` bắt buộc: vắng → vẫn fail
-    expect(orderStatusChangeDtoSchema.safeParse({ from: null, occurredAt: at }).success).toBe(
-      false,
-    );
+    // Bước đổi trạng thái thiếu `to` không đoán được → mục "unknown", không làm hỏng cả lịch sử
+    expect(
+      toOrderHistoryEntry(orderHistoryEntryDtoSchema.parse({ from: null, occurredAt: at })).kind,
+    ).toBe("unknown");
   });
 
   it("history: bước đầu không có key `from`", () => {
     expect(
-      orderStatusChangeDtoSchema.parse({
+      orderHistoryEntryDtoSchema.parse({
         to: "PENDING_PAYMENT",
         occurredAt: "2026-09-07T03:15:00Z",
       }).from,

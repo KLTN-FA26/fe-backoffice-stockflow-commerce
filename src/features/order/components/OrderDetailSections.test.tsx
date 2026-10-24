@@ -188,7 +188,7 @@ describe("OrderDetail — thanh toán / cọc / công nợ / huỷ", () => {
 });
 
 describe("OrderDetail — lịch sử trạng thái", () => {
-  it("GET /orders/{id}/history → mới nhất ở trên, có lý do", async () => {
+  it("GET /orders/{id}/history → cũ nhất trước (lịch sử đơn của develop), có lý do", async () => {
     await renderDetail(
       { ...apiOrder, status: "CONFIRMED" },
       {
@@ -204,11 +204,11 @@ describe("OrderDetail — lịch sử trạng thái", () => {
       },
     );
 
-    const history = await screen.findByRole("region", { name: "Lịch sử trạng thái" });
+    const history = await screen.findByRole("region", { name: "Lịch sử đơn" });
     const items = await within(history).findAllByRole("listitem");
     expect(items).toHaveLength(2);
-    expect(within(items[0] as HTMLElement).getByText("Đã nhận đủ cọc")).toBeInTheDocument();
-    expect(within(items[1] as HTMLElement).getByText(/Tạo đơn/)).toBeInTheDocument();
+    expect(within(items[0] as HTMLElement).getByText("Đặt đơn")).toBeInTheDocument();
+    expect(within(items[1] as HTMLElement).getByText("Đã nhận đủ cọc")).toBeInTheDocument();
   });
 
   it('bước huỷ: lý do BE "CODE: ghi chú" → "Khách yêu cầu — khách đổi ý"; lý do cũ tự do giữ nguyên', async () => {
@@ -227,7 +227,7 @@ describe("OrderDetail — lịch sử trạng thái", () => {
       },
     );
 
-    const history = await screen.findByRole("region", { name: "Lịch sử trạng thái" });
+    const history = await screen.findByRole("region", { name: "Lịch sử đơn" });
     expect(await within(history).findByText("Khách yêu cầu — khách đổi ý")).toBeInTheDocument();
     expect(within(history).queryByText(/CUSTOMER_REQUEST/)).not.toBeInTheDocument();
   });

@@ -4,19 +4,15 @@
  * Base URL của env đã gồm `/api/v1` → path không ghi `v1`. Envelope `{success, data}`
  * đã được interceptor ở `lib/api/client.ts` bóc. Parse tại biên (api-conventions §3.2):
  * zod validate một lần ở đây rồi map DTO BE → model FE; component chỉ thấy `Order`.
- * Release / credit hold / lệnh sản xuất: `action-api.ts`.
+ * Credit hold / lệnh sản xuất: `action-api.ts`. Release + hình thức giao (PR #74): `delivery-mode-api.ts`.
+ * Lịch sử: `history-api.ts`. Giao một phần: `partial-shipment-api.ts`.
  */
 
 import { PAGE_SIZE } from "@/constants";
 import { api } from "@/lib/api/client";
 import { idempotencyRequestConfig } from "@/lib/api/idempotency";
 
-import {
-  isValidOrderCustomerId,
-  orderDtoSchema,
-  orderPageDtoSchema,
-  orderStatusChangeDtoSchema,
-} from "./schemas";
+import { isValidOrderCustomerId, orderDtoSchema, orderPageDtoSchema } from "./schemas";
 import { mapBackendOrderStatus, toBackendOrderStatuses } from "./status-map";
 
 import type { ListQueryParams, PaginatedResponse } from "@/lib/api/query-factory";
@@ -27,7 +23,6 @@ import type {
   Order,
   OrderDto,
   OrderStatus,
-  OrderStatusChange,
   RemainderClosureValues,
   ResolveOrderHoldValues,
 } from "./types";
@@ -104,8 +99,6 @@ export function toOrder(dto: OrderDto): Order {
     paymentTerm: dto.paymentTerm ?? null,
     paymentStatus: dto.paymentStatus ?? null,
     paidAmount: dto.paidAmount ?? null,
-    depositRequired: dto.depositRequired ?? null,
-    depositReceivedAt: dto.depositReceivedAt ?? null,
     paidInFullAt: dto.paidInFullAt ?? null,
     creditTermDays: dto.creditTermDays ?? null,
     balancePolicy: dto.balancePolicy ?? null,
@@ -121,6 +114,13 @@ export function toOrder(dto: OrderDto): Order {
           feeAmount: cancellation.feeAmount ?? null,
         }
       : null,
+    allowPartialShipment: dto.allowPartialShipment ?? null,
+    printLinesReady: dto.printLinesReady ?? null,
+    deliveryMode: dto.deliveryMode ?? null,
+    deliveryModeLocked: dto.deliveryModeLocked ?? null,
+    depositRequired: dto.depositRequired ?? null,
+    depositReceivedAt: dto.depositReceivedAt ?? null,
+    printLineCount: dto.lines.filter((line) => line.designSnapshotId).length,
   };
 }
 
@@ -184,24 +184,7 @@ export async function getOrder(id: string, signal?: AbortSignal): Promise<Order>
   return toOrder(orderDtoSchema.parse(data));
 }
 
-/** `GET /orders/{id}/history` — lịch sử trạng thái, cũ → mới (BE OrderStatusChangeResponse). */
-export async function getOrderHistory(
-  id: string,
-  signal?: AbortSignal,
-): Promise<OrderStatusChange[]> {
-  const { data } = await api.get<unknown>(orderPath(id, "/history"), { signal });
-  return orderStatusChangeDtoSchema
-    .array()
-    .parse(data)
-    .map((change) => ({
-      from: change.from ? mapBackendOrderStatus(change.from) : null,
-      to: mapBackendOrderStatus(change.to),
-      reason: change.reason ?? null,
-      occurredAt: change.occurredAt,
-      actorId: change.actorId ?? null,
-      actorName: change.actorName ?? null,
-    }));
-}
+// Lịch sử đơn (`GET /orders/{id}/history`): `history-api.ts`.
 
 /* ── Admin cancel ────────────────────────────────────────────────────── */
 // POST /orders/{orderId}/admin-cancellation — BE `sales-order-cancellations:UPDATE` scope ALL.
@@ -240,7 +223,8 @@ export function adminCancelOrder(input: OrderMutationVars<AdminCancelOrderInput>
 // - POST /orders/{id}/hold              {reasonCode, note?}   — sales-orders:APPROVE
 // - POST /orders/{id}/hold/resolution   {note}                — sales-orders:APPROVE
 // - POST /orders/{id}/delivery-failure  {reasonCode, note?}   — sales-orders:APPROVE
-// - POST /orders/{id}/remainder-closure {reasonCode, note?}   — sales-order-cancellations:UPDATE
+// - POST /orders/{id}/remainder-closure {reasonCode, note?, agreedFee?{amount, reason, detail}}
+//                                                             — sales-order-cancellations:UPDATE
 
 export type HoldOrderInput = OrderMutationVars<HoldOrderValues>;
 export type ResolveOrderHoldInput = OrderMutationVars<ResolveOrderHoldValues>;
@@ -263,6 +247,15 @@ export function recordDeliveryFailure(input: DeliveryFailureInput): Promise<Orde
   return postOrderAction(input.id, "/delivery-failure", reasonBody(input), input.idempotencyKey);
 }
 
+/**
+ * `agreedFee` (BE PR #150) chỉ gửi khi có: số tiền khách thoả thuận cho phần hàng in đã in. BE trả `Order`
+ * — không mang số hoàn / giữ / còn nợ của lần đóng này (chúng nằm trong sự kiện `OrderRemainderClosed`),
+ * chỉ `amountDue` / `effectiveTotal` mới, nên màn chi tiết tải lại đơn thay vì đọc phản hồi.
+ */
 export function closeOrderRemainder(input: RemainderClosureInput): Promise<Order> {
-  return postOrderAction(input.id, "/remainder-closure", reasonBody(input), input.idempotencyKey);
+  const body = {
+    ...reasonBody(input),
+    ...(input.agreedFee ? { agreedFee: input.agreedFee } : {}),
+  };
+  return postOrderAction(input.id, "/remainder-closure", body, input.idempotencyKey);
 }

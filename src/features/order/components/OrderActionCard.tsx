@@ -3,32 +3,36 @@ import {
   ORDER_ACTION_LABELS,
   ORDER_HOLD_GUIDANCE,
   ORDER_PERMISSIONS,
+  ORDER_RELEASE_BLOCKER_LABELS,
   ORDER_STATUS_UNKNOWN,
 } from "@/constants";
 import { StatusDot } from "@/components/shared/StatusDot";
 
 import { allowedOrderActions, isOrderTerminal, orderActionContextOf } from "../lifecycle";
-import { releaseBlockers } from "../selectors";
+import { releaseBlockers } from "../release-rules";
 
 import { CreditApproveAction } from "./credit-hold/CreditApproveAction";
 import { CreditRejectAction } from "./credit-hold/CreditRejectAction";
 import { OrderCancelAction } from "./OrderCancelAction";
 import { OrderHoldNotice } from "./OrderHoldNotice";
 import { OrderReleaseAction } from "./OrderReleaseAction";
+import { OrderRemainderClosureAction } from "./OrderRemainderClosureAction";
 import {
   OrderDeliveryFailureAction,
   OrderHoldAction,
-  OrderRemainderClosureAction,
   OrderResolveHoldAction,
 } from "./OrderStatusActions";
 
 import type { PermissionCode } from "@/lib/auth";
+import type { OrderEstimateSlot } from "../estimate-slot";
 import type { OrderActionCode } from "../lifecycle";
 import type { Order, OrderReadStatus } from "../types";
 
 interface OrderActionCardProps {
   order: Order;
   can: (code: PermissionCode) => boolean;
+  /** Khe "Ước tính xếp xe" trong hộp thoại release (xem `estimate-slot.ts`). */
+  estimateSlot?: OrderEstimateSlot;
 }
 
 /** Trạng thái đã đóng gói / bàn giao — BE không cho huỷ (BR-ORD-004), xử lý qua luồng trả hàng. */
@@ -102,12 +106,9 @@ function holdGuidanceFor(
  * UI-only gating — Backend phải re-check (bảng chuyển trạng thái BE PR #133, OrderReleaseService,
  * CreditHoldService, Order#requireNotPacked).
  */
-export function OrderActionCard({ order, can }: OrderActionCardProps) {
+export function OrderActionCard({ order, can, estimateSlot }: OrderActionCardProps) {
   const actions = allowedOrderActions(order.status, can, orderActionContextOf(order));
   const has = (code: OrderActionCode) => actions.some((a) => a.code === code);
-  // Lý do chưa release biết trước — chỉ cho người có quyền release (Coordinator). UI-only —
-  // Backend phải re-check (OrderReleaseService: BR-PRD-08/09, công nợ quá hạn).
-  const blockers = can(ORDER_PERMISSIONS.release) ? releaseBlockers(order) : [];
   const onHold = order.status === "On Hold";
   // Giữ do hệ thống: nói rõ phải xử lý ở đâu thay vì để người dùng tìm nút "Gỡ giữ" không có
   const holdGuidance =
@@ -119,6 +120,9 @@ export function OrderActionCard({ order, can }: OrderActionCardProps) {
       ? ORDER_ACTION_LABELS.shipmentsHint
       : null;
   const guidance = holdGuidance ?? shipmentsHint;
+  // Lý do biết trước chưa release được (đơn cọc chưa nhận cọc): chỉ cho người có quyền release; nói ra thay vì ẩn nút.
+  // UI-only — Backend phải re-check (OrderReleaseService: BR-PRD-09).
+  const blockers = can(ORDER_PERMISSIONS.approve) ? releaseBlockers(order) : [];
 
   return (
     <section
@@ -129,29 +133,33 @@ export function OrderActionCard({ order, can }: OrderActionCardProps) {
         <StatusDot domain="order" status={order.status} size="md" withIcon />
       </div>
       {onHold && <OrderHoldNotice order={order} />}
-      <div className="space-y-2">
-        {has("release") && <OrderReleaseAction order={order} />}
-        {has("credit-approve") && <CreditApproveAction order={order} />}
-        {has("credit-reject") && <CreditRejectAction order={order} />}
-        {blockers.length > 0 && (
-          <div className="border-border-default bg-bg-subtle rounded-[var(--r-sm)] border px-3 py-2 text-xs">
-            <p className="text-ink-primary font-medium">Chưa release được</p>
-            <ul className="text-ink-secondary mt-1 space-y-0.5">
-              {blockers.map((b) => (
-                <li key={b.rule}>
-                  <span className="font-[family-name:var(--font-mono)]">{b.rule}</span> ·{" "}
-                  {b.message}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-        {has("hold") && <OrderHoldAction order={order} />}
-        {has("resolve-hold") && <OrderResolveHoldAction order={order} />}
-        {has("delivery-failure") && <OrderDeliveryFailureAction order={order} />}
-        {has("remainder-closure") && <OrderRemainderClosureAction order={order} />}
-        {has("admin-cancel") && <OrderCancelAction order={order} />}
-      </div>
+      {actions.length > 0 ? (
+        <div className="space-y-2">
+          {has("release") && (
+            <OrderReleaseAction order={order} can={can} estimateSlot={estimateSlot} />
+          )}
+          {has("credit-approve") && <CreditApproveAction order={order} />}
+          {has("credit-reject") && <CreditRejectAction order={order} />}
+          {has("hold") && <OrderHoldAction order={order} />}
+          {has("resolve-hold") && <OrderResolveHoldAction order={order} />}
+          {has("delivery-failure") && <OrderDeliveryFailureAction order={order} />}
+          {has("remainder-closure") && <OrderRemainderClosureAction order={order} />}
+          {has("admin-cancel") && <OrderCancelAction order={order} />}
+        </div>
+      ) : null}
+      {blockers.length > 0 && (
+        <div className="border-border-default bg-bg-subtle mt-3 rounded-[var(--r-sm)] border px-3 py-2 text-xs">
+          <p className="text-ink-primary font-medium">{ORDER_RELEASE_BLOCKER_LABELS.title}</p>
+          <ul className="text-ink-secondary mt-1 space-y-0.5">
+            {blockers.map((blocker) => (
+              <li key={blocker.rule}>
+                <span className="font-[family-name:var(--font-mono)]">{blocker.rule}</span> ·{" "}
+                {blocker.message}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {guidance && <p className="text-ink-secondary mt-3 text-center text-xs">{guidance}</p>}
       {actions.length === 0 && blockers.length === 0 && !guidance && (
         <p className="text-ink-tertiary text-center text-xs">{noActionReason(order, can)}</p>

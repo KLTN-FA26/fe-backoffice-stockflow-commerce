@@ -11,7 +11,6 @@ import {
   adminCancelOrderSchema,
   creditApprovalSchema,
   creditRejectionSchema,
-  releaseOrderSchema,
 } from "./action-schemas";
 
 /**
@@ -33,9 +32,6 @@ function parseInto<T extends z.ZodType>(target: T) {
 function optionalNumber(raw: string): number | undefined {
   return raw.trim() === "" ? undefined : Number(raw);
 }
-
-export const releaseFormSchema = releaseOrderSchema;
-export const RELEASE_FORM_DEFAULTS: z.input<typeof releaseFormSchema> = { warehouseId: "" };
 
 export const creditApprovalFormSchema = creditApprovalSchema;
 export const CREDIT_APPROVAL_FORM_DEFAULTS: z.input<typeof creditApprovalFormSchema> = { note: "" };
@@ -69,7 +65,6 @@ export const ADMIN_CANCEL_FORM_DEFAULTS: z.input<typeof adminCancelFormSchema> =
   retainedPercent: "",
 };
 
-export type ReleaseFormValues = z.input<typeof releaseFormSchema>;
 export type CreditApprovalFormValues = z.input<typeof creditApprovalFormSchema>;
 export type CreditRejectionFormValues = z.input<typeof creditRejectionFormSchema>;
 export type AdminCancelFormValues = z.input<typeof adminCancelFormSchema>;

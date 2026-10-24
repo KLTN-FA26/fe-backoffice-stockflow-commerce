@@ -4,10 +4,11 @@
  */
 
 import type {
-  AssignableUser,
+  Assignee,
   FulfillmentOrder,
   FulfillmentTaskApiDto,
   IntegrityEvidence,
+  TaskCandidate,
 } from "../types";
 
 export const TASK_ID = "3f2c9a10-7b1d-4e55-9c0a-1d2e3f4a5b6c";
@@ -15,6 +16,7 @@ export const ORDER_ID = "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
 export const PLAIN_LINE_ID = "11111111-aaaa-4bbb-8ccc-000000000001";
 export const DESIGN_LINE_ID = "22222222-aaaa-4bbb-8ccc-000000000002";
 export const SNAPSHOT_ID = "55555555-aaaa-4bbb-8ccc-000000000005";
+export const WAREHOUSE_ID = "wh-hcm-0001";
 export const PICKER_ID = "7e1d0c2b-3a4f-4b5c-9d6e-8f7a6b5c4d3e";
 export const OTHER_PICKER_ID = "8f2e1d3c-4b5a-4c6d-8e7f-9a8b7c6d5e4f";
 
@@ -40,6 +42,7 @@ export function apiTask(overrides: Partial<FulfillmentTaskApiDto> = {}): Fulfill
   return {
     taskId: TASK_ID,
     orderId: ORDER_ID,
+    warehouseId: WAREHOUSE_ID,
     assignedUserId: PICKER_ID,
     pickStatus: "PENDING",
     packStatus: "PENDING",
@@ -62,6 +65,7 @@ export const fulfillmentOrder: FulfillmentOrder = {
   orderId: ORDER_ID,
   orderNumber: "SO-20261010-000431",
   status: "PICKING",
+  warehouseId: WAREHOUSE_ID,
   lines: [
     { lineId: PLAIN_LINE_ID, sku: "TEE-BLK-M", quantity: 3 },
     {
@@ -74,19 +78,27 @@ export const fulfillmentOrder: FulfillmentOrder = {
   ],
 };
 
-export const assignableUsers: AssignableUser[] = [
-  {
-    userId: PICKER_ID,
-    username: "tuan.hoang",
-    fullName: "Hoàng Anh Tuấn",
-    roles: ["WAREHOUSE_STAFF"],
-  },
-  {
-    userId: OTHER_PICKER_ID,
-    username: "dat.nguyen",
-    fullName: "Nguyễn Văn Đạt",
-    roles: ["WAREHOUSE_STAFF"],
-  },
+/** `GET /fulfillment/task-candidates` — đơn READY_TO_FULFILL chưa có task (BE `TaskCandidateResponse`). */
+export const taskCandidate: TaskCandidate = {
+  orderId: ORDER_ID,
+  orderNumber: "SO-20261010-000431",
+  customerId: "cus-0010",
+  customerName: "Nguyễn Hoài Nam",
+  warehouseId: WAREHOUSE_ID,
+  placedAt: "2026-10-09T03:00:00Z",
+  releasedAt: "2026-10-10T01:00:00Z",
+  lineCount: 2,
+  totalQuantity: 5,
+  lines: [
+    { orderLineId: PLAIN_LINE_ID, sku: "TEE-BLK-M", quantity: 3, printed: false },
+    { orderLineId: DESIGN_LINE_ID, sku: "TEE-CUSTOM-L", quantity: 2, printed: true },
+  ],
+};
+
+/** `GET /fulfillment/assignees` — chỉ tên + vai trò (BE `AssigneeResponse`). */
+export const assignees: Assignee[] = [
+  { userId: PICKER_ID, displayName: "Hoàng Anh Tuấn", roles: ["WAREHOUSE_STAFF"] },
+  { userId: OTHER_PICKER_ID, displayName: "Nguyễn Văn Đạt", roles: ["WAREHOUSE_STAFF"] },
 ];
 
 /** PageResponse BE (trang từ 0). */

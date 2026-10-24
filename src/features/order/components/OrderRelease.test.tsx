@@ -1,322 +1,306 @@
+/**
+ * Release đơn cho kho (BE `OrderReleaseController` + LP-1): chọn kho + hình thức giao. Hình thức chỉ gửi khi đổi
+ * và chỉ chọn được với mã quyền sales-order-delivery-modes:UPDATE; 409 FTL_NO_COD không release gì; nút "Ước tính
+ * xếp xe" nhận kho đang chọn qua khe `estimateSlot`.
+ */
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
+import { toast } from "@/components/shared/Toast";
 
-import { apiOrder } from "../__fixtures__/order";
-import {
-  ORDER_PERMISSION_SETS,
-  mockOrderApiGet,
-  pickOrderSelectOption,
-  renderOrderScreen,
-} from "../__fixtures__/render";
 import { OrderDetail } from "./OrderDetail";
 
+import { DETAIL_PATH, HISTORY_PATH } from "../__fixtures__/detail";
+import { apiOrder, apiOrderDelivery } from "../__fixtures__/order";
+import {
+  mockOrderApiGet,
+  ORDER_PERMISSION_SETS,
+  pickSelectOption,
+  renderOrderScreen,
+} from "../__fixtures__/render";
+
 import type { PermissionCode } from "@/lib/auth";
-import type { OrderDto } from "../types";
+import type { OrderEstimateSlot } from "../estimate-slot";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
-const DETAIL_PATH = `/orders/${apiOrder.orderId}`;
-const RELEASE_PATH = `${DETAIL_PATH}/release`;
-const WAREHOUSE_ID = "8f8f8f8f-0000-4000-8000-000000000001";
-const confirmed: OrderDto = { ...apiOrder, status: "CONFIRMED", paymentTerm: "PREPAID" };
-
-async function renderDetail(permissions: readonly PermissionCode[], order: OrderDto) {
-  const get = mockOrderApiGet(permissions, {
-    [DETAIL_PATH]: () => order,
-    "/warehouses": () => ({ items: [{ id: WAREHOUSE_ID, prefix: "HN", name: "Kho Hà Nội" }] }),
-  });
-  await act(async () => {
-    renderOrderScreen(<OrderDetail params={Promise.resolve({ id: apiOrder.orderId })} />);
-  });
-  return get;
-}
-
-const detailCalls = (get: Awaited<ReturnType<typeof renderDetail>>) =>
-  get.mock.calls.filter(([url]) => url === DETAIL_PATH).length;
-
-async function openAndPick(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(await screen.findByRole("button", { name: "Release đơn" }));
-  await pickOrderSelectOption(user, /Kho xuất/, /HN — Kho Hà Nội/);
-  await user.click(screen.getByRole("button", { name: "Release" }));
-}
-
-/** Mọi thao tác ghi đơn gửi kèm Idempotency-Key (header riêng request, không vào body). */
-const WITH_IDEMPOTENCY_KEY = expect.objectContaining({
-  headers: { "Idempotency-Key": expect.any(String) },
-});
-
 afterEach(() => vi.restoreAllMocks());
 
-const DIALOG_FLOW_TIMEOUT_MS = 15_000;
+/** `OrderDetail` dùng `use(params)` — phải render trong `act` để Suspense giải xong. */
+async function renderDetailScreen(estimateSlot?: OrderEstimateSlot) {
+  let view!: ReturnType<typeof renderOrderScreen>;
+  await act(async () => {
+    view = renderOrderScreen(
+      <OrderDetail
+        params={Promise.resolve({ id: apiOrder.orderId })}
+        estimateSlot={estimateSlot}
+      />,
+    );
+  });
+  return view;
+}
 
-describe("Release — action-gating (SCRUM-423, docs 17 BR-02)", () => {
-  it("Confirmed + ORDER_COORDINATOR → có nút Release đơn", async () => {
-    await renderDetail(ORDER_PERMISSION_SETS.coordinator, confirmed);
-    expect(await screen.findByRole("button", { name: "Release đơn" })).toBeInTheDocument();
+const RELEASE_PATH = `${DETAIL_PATH}/release`;
+/** Mỗi lần thử release mang một Idempotency-Key (UUID). */
+const KEY = { headers: { "Idempotency-Key": expect.stringMatching(/^[0-9a-f-]{36}$/) } };
+const WAREHOUSES = {
+  items: [
+    { id: "wh-hn", prefix: "HN01", name: "Kho Hà Nội", status: "ACTIVE" },
+    { id: "wh-hcm", prefix: "HCM01", name: "Kho TP.HCM", status: "ACTIVE" },
+  ],
+};
+
+async function renderConfirmed(
+  permissions: readonly PermissionCode[],
+  patch: Record<string, unknown> = {},
+  estimateSlot?: OrderEstimateSlot,
+) {
+  mockOrderApiGet(permissions, {
+    [DETAIL_PATH]: () =>
+      apiOrderDelivery("CONFIRMED", { deliveryMode: "PARCEL", deliveryModeLocked: false }, patch),
+    [HISTORY_PATH]: () => [],
+    "/warehouses": () => WAREHOUSES,
+  });
+  await renderDetailScreen(estimateSlot);
+  const user = userEvent.setup();
+  await user.click(await screen.findByRole("button", { name: "Release đơn" }));
+  return { user, dialog: await screen.findByRole("dialog") };
+}
+
+describe("Release đơn — gate theo trạng thái và mã quyền", () => {
+  it("điều phối viên (sales-orders:APPROVE) thấy nút trên đơn Confirmed; Sales / chỉ đọc không thấy", async () => {
+    mockOrderApiGet(ORDER_PERMISSION_SETS.salesStaff, {
+      [DETAIL_PATH]: () =>
+        apiOrderDelivery("CONFIRMED", { deliveryMode: "PARCEL", deliveryModeLocked: false }),
+      [HISTORY_PATH]: () => [],
+    });
+    await renderDetailScreen();
+    await screen.findByRole("heading", { name: apiOrder.orderNumber });
+    await waitFor(() =>
+      expect(api.get).toHaveBeenCalledWith("/identity/me/permissions", expect.anything()),
+    );
+    expect(screen.queryByRole("button", { name: "Release đơn" })).not.toBeInTheDocument();
   });
 
-  it("Confirmed + SALES_STAFF (không có sales-orders:APPROVE) → không có nút Release", async () => {
-    await renderDetail(ORDER_PERMISSION_SETS.salesStaff, confirmed);
+  it("đơn đã release (Ready to Fulfill) → không còn nút Release", async () => {
+    mockOrderApiGet(ORDER_PERMISSION_SETS.coordinatorWithModes, {
+      [DETAIL_PATH]: () =>
+        apiOrderDelivery("READY_TO_FULFILL", { deliveryMode: "PARCEL", deliveryModeLocked: false }),
+      [HISTORY_PATH]: () => [],
+    });
+    await renderDetailScreen();
     await screen.findByRole("heading", { name: apiOrder.orderNumber });
     expect(screen.queryByRole("button", { name: "Release đơn" })).not.toBeInTheDocument();
   });
-
-  it("đơn cọc chưa nhận cọc → Coordinator thấy 'Chưa release được · BR-PRD-09', không có nút", async () => {
-    await renderDetail(ORDER_PERMISSION_SETS.coordinator, {
-      ...apiOrder,
-      status: "PENDING_PAYMENT",
-      paymentTerm: "DEPOSIT",
-      depositRequired: 105_000,
-    });
-    const card = await screen.findByRole("region", { name: "Thao tác đơn" });
-    expect(within(card).getByText("Chưa release được")).toBeInTheDocument();
-    expect(within(card).getByText("BR-PRD-09")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Release đơn" })).not.toBeInTheDocument();
-  });
 });
 
-describe("Credit hold trên trang chi tiết (SCRUM-427)", () => {
-  it("On Hold + CREDIT + lý do giữ CREDIT + quyền duyệt công nợ (như System Admin) → Duyệt / Từ chối, không Release", async () => {
-    await renderDetail(
-      [...ORDER_PERMISSION_SETS.coordinator, ...ORDER_PERMISSION_SETS.accountant],
-      { ...apiOrder, status: "ON_HOLD", paymentTerm: "CREDIT", holdReason: "CREDIT" },
+describe("Release đơn — payload (hình thức chỉ gửi khi đổi)", () => {
+  it("giữ nguyên hình thức → body chỉ có warehouseId", async () => {
+    const { user, dialog } = await renderConfirmed(ORDER_PERMISSION_SETS.coordinatorWithModes);
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiOrder });
+    const toastSuccess = vi.spyOn(toast, "success");
+
+    await pickSelectOption(user, /Kho xuất hàng/, "HN01 — Kho Hà Nội");
+    await user.click(within(dialog).getByRole("button", { name: "Release đơn" }));
+
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(RELEASE_PATH, { warehouseId: "wh-hn" }, KEY),
     );
-    const card = await screen.findByRole("region", { name: "Thao tác đơn" });
-    expect(within(card).getByRole("button", { name: "Duyệt vượt hạn mức" })).toBeInTheDocument();
-    expect(within(card).getByRole("button", { name: "Từ chối" })).toBeInTheDocument();
-    expect(within(card).queryByRole("button", { name: "Release đơn" })).not.toBeInTheDocument();
-    // BR-02: Coordinator thấy lý do chưa release
-    expect(within(card).getByText("BR-02")).toBeInTheDocument();
+    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith("Đã release đơn cho kho"));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
-});
 
-// Dialog nhiều bước (Radix Select trong jsdom) chậm khi chạy song song cả bộ test → nới timeout
-describe("Release — gửi & lý do từ chối", { timeout: DIALOG_FLOW_TIMEOUT_MS }, () => {
-  it("chọn kho → POST /release {warehouseId}, đóng dialog", async () => {
-    const user = userEvent.setup();
-    await renderDetail(ORDER_PERMISSION_SETS.coordinator, confirmed);
-    const post = vi.spyOn(api, "post").mockResolvedValue({
-      data: { ...confirmed, status: "READY_TO_FULFILL", warehouseId: WAREHOUSE_ID },
-    });
-
-    await openAndPick(user);
-
+  it("đổi sang Nguyên xe (FTL) → body có deliveryMode", async () => {
+    const { user, dialog } = await renderConfirmed(ORDER_PERMISSION_SETS.coordinatorWithModes);
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiOrder });
+    await pickSelectOption(user, /Kho xuất hàng/, "HCM01 — Kho TP.HCM");
+    await user.click(within(dialog).getByRole("radio", { name: /Nguyên xe \(FTL\)/ }));
+    await user.click(within(dialog).getByRole("button", { name: "Release đơn" }));
     await waitFor(() =>
       expect(post).toHaveBeenCalledWith(
         RELEASE_PATH,
-        { warehouseId: WAREHOUSE_ID },
-        WITH_IDEMPOTENCY_KEY,
+        {
+          warehouseId: "wh-hcm",
+          deliveryMode: "FULL_TRUCKLOAD",
+        },
+        KEY,
       ),
     );
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("đổi rồi chọn lại hình thức cũ → coi như không đổi, không gửi deliveryMode", async () => {
+    const { user, dialog } = await renderConfirmed(ORDER_PERMISSION_SETS.coordinatorWithModes);
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiOrder });
+    await pickSelectOption(user, /Kho xuất hàng/, "HN01 — Kho Hà Nội");
+    await user.click(within(dialog).getByRole("radio", { name: /Nguyên xe \(FTL\)/ }));
+    await user.click(within(dialog).getByRole("radio", { name: /Giao lẻ/ }));
+    await user.click(within(dialog).getByRole("button", { name: "Release đơn" }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(RELEASE_PATH, { warehouseId: "wh-hn" }, KEY),
+    );
+  });
+
+  it("thiếu mã sales-order-delivery-modes:UPDATE → hình thức chỉ đọc (không có ô chọn), body không bao giờ có deliveryMode", async () => {
+    const { user, dialog } = await renderConfirmed(ORDER_PERMISSION_SETS.coordinator, {
+      deliveryMode: "FULL_TRUCKLOAD",
+    });
+    expect(within(dialog).queryByRole("radio")).not.toBeInTheDocument();
+    expect(within(dialog).getByText("Nguyên xe (FTL)")).toBeInTheDocument();
+    expect(
+      within(dialog).getByText(/Chỉ điều phối viên đơn hàng mới đổi được/),
+    ).toBeInTheDocument();
+
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiOrder });
+    await pickSelectOption(user, /Kho xuất hàng/, "HN01 — Kho Hà Nội");
+    await user.click(within(dialog).getByRole("button", { name: "Release đơn" }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(RELEASE_PATH, { warehouseId: "wh-hn" }, KEY),
+    );
   });
 
   it("chưa chọn kho → nút Release bị khoá", async () => {
-    const user = userEvent.setup();
-    await renderDetail(ORDER_PERMISSION_SETS.coordinator, confirmed);
-    await user.click(await screen.findByRole("button", { name: "Release đơn" }));
-    expect(screen.getByRole("button", { name: "Release" })).toBeDisabled();
-  });
-
-  it("BR-PRD-08: DESIGN_SAMPLE_NOT_APPROVED → lý do + mã quy tắc + SKU hiện trong dialog, dialog giữ nguyên", async () => {
-    const user = userEvent.setup();
-    await renderDetail(ORDER_PERMISSION_SETS.coordinator, confirmed);
-    vi.spyOn(api, "post").mockRejectedValue(
-      new ApiError(
-        409,
-        "DESIGN_SAMPLE_NOT_APPROVED",
-        "No approved sample for: CUP-PRINT-12OZ",
-        undefined,
-        "corr-9",
-      ),
-    );
-
-    await openAndPick(user);
-
-    const dialog = await screen.findByRole("dialog");
-    const alert = await within(dialog).findByRole("alert");
-    expect(alert).toHaveTextContent("mẫu được khách duyệt");
-    expect(alert).toHaveTextContent("BR-PRD-08");
-    expect(alert).toHaveTextContent("CUP-PRINT-12OZ");
-    expect(alert).toHaveTextContent("corr-9");
-  });
-
-  it("BR-PRD-09: ORDER_DEPOSIT_NOT_RECEIVED → lý do chưa đủ cọc", async () => {
-    const user = userEvent.setup();
-    await renderDetail(ORDER_PERMISSION_SETS.coordinator, confirmed);
-    vi.spyOn(api, "post").mockRejectedValue(new ApiError(409, "ORDER_DEPOSIT_NOT_RECEIVED", "x"));
-
-    await openAndPick(user);
-
-    const alert = await within(await screen.findByRole("dialog")).findByRole("alert");
-    expect(alert).toHaveTextContent("chưa nhận đủ tiền cọc");
-    expect(alert).toHaveTextContent("BR-PRD-09");
-  });
-
-  it("danh sách kho 403 (Coordinator chưa có warehouse-warehouses:READ) → báo rõ quyền", async () => {
-    const user = userEvent.setup();
-    mockOrderApiGet(ORDER_PERMISSION_SETS.coordinator, {
-      [DETAIL_PATH]: () => confirmed,
-      "/warehouses": () => {
-        throw new ApiError(403, "FORBIDDEN", "Forbidden");
-      },
-    });
-    await act(async () => {
-      renderOrderScreen(<OrderDetail params={Promise.resolve({ id: apiOrder.orderId })} />);
-    });
-
-    await user.click(await screen.findByRole("button", { name: "Release đơn" }));
-    expect(await screen.findByText(/warehouse-warehouses:READ/)).toBeInTheDocument();
+    const { dialog } = await renderConfirmed(ORDER_PERMISSION_SETS.coordinatorWithModes);
+    expect(within(dialog).getByRole("button", { name: "Release đơn" })).toBeDisabled();
   });
 });
 
-describe(
-  "Release — tranh chấp đồng thời + fieldErrors (Step 8)",
-  { timeout: DIALOG_FLOW_TIMEOUT_MS },
-  () => {
-    it("A. OPTIMISTIC_LOCK → báo trong dialog, giữ kho đã chọn, tải lại đơn, KHÔNG tự gửi lại; bấm lại → gửi lần 2", async () => {
-      const user = userEvent.setup();
-      const get = await renderDetail(ORDER_PERMISSION_SETS.coordinator, confirmed);
-      const post = vi
-        .spyOn(api, "post")
-        .mockRejectedValueOnce(new ApiError(409, "OPTIMISTIC_LOCK", "The record changed meanwhile"))
-        .mockResolvedValueOnce({ data: { ...confirmed, status: "READY_TO_FULFILL" } });
-      await user.click(await screen.findByRole("button", { name: "Release đơn" }));
-      await pickOrderSelectOption(user, /Kho xuất/, /HN — Kho Hà Nội/);
-      const dialog = screen.getByRole("dialog");
-      // Đếm ngay trước khi gửi — mọi lần GET chi tiết sau đó là do lỗi khoá kích hoạt
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      const before = detailCalls(get);
-      await user.click(within(dialog).getByRole("button", { name: "Release" }));
-      expect(await within(dialog).findByText(/vừa được người khác cập nhật/)).toBeInTheDocument();
-      await waitFor(() => expect(detailCalls(get)).toBeGreaterThan(before));
-      expect(post).toHaveBeenCalledTimes(1);
-      // Kho đã chọn vẫn còn — bấm lại là gửi lại (người dùng chủ động)
-      await user.click(within(dialog).getByRole("button", { name: "Release" }));
-      await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
-      expect(post).toHaveBeenLastCalledWith(
-        RELEASE_PATH,
-        { warehouseId: WAREHOUSE_ID },
-        WITH_IDEMPOTENCY_KEY,
-      );
-    });
+describe("Release đơn — lỗi", () => {
+  it("409 DELIVERY_MODE_FTL_NO_COD → giữ dialog, báo 'Sale đổi cách thu trước' (chưa release gì)", async () => {
+    const { user, dialog } = await renderConfirmed(ORDER_PERMISSION_SETS.coordinatorWithModes);
+    vi.spyOn(api, "post").mockRejectedValue(
+      new ApiError(409, "DELIVERY_MODE_FTL_NO_COD", "English server message"),
+    );
+    await pickSelectOption(user, /Kho xuất hàng/, "HN01 — Kho Hà Nội");
+    await user.click(within(dialog).getByRole("radio", { name: /Nguyên xe \(FTL\)/ }));
+    await user.click(within(dialog).getByRole("button", { name: "Release đơn" }));
 
-    it("B. LOCK_TIMEOUT → 'đang được xử lý ở nơi khác', không tải lại vội, không tự gửi lại, vẫn bấm lại được", async () => {
-      const user = userEvent.setup();
-      const get = await renderDetail(ORDER_PERMISSION_SETS.coordinator, confirmed);
-      const post = vi
-        .spyOn(api, "post")
-        .mockRejectedValue(new ApiError(409, "LOCK_TIMEOUT", "The record is busy"));
-
-      await openAndPick(user);
-      const dialog = await screen.findByRole("dialog");
-      expect(await within(dialog).findByText(/đang được xử lý ở nơi khác/)).toBeInTheDocument();
-      const after = detailCalls(get);
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      expect(detailCalls(get)).toBe(after);
-      expect(post).toHaveBeenCalledTimes(1);
-      expect(within(dialog).getByRole("button", { name: "Release" })).toBeEnabled();
-    });
-
-    it("fieldErrors.warehouseId (400 VALIDATION_FAILED) → lỗi tại ô Kho xuất", async () => {
-      const user = userEvent.setup();
-      await renderDetail(ORDER_PERMISSION_SETS.coordinator, confirmed);
-      vi.spyOn(api, "post").mockRejectedValue(
-        new ApiError(400, "VALIDATION_FAILED", "Invalid request data", {
-          warehouseId: "must not be null",
-        }),
-      );
-
-      await openAndPick(user);
-      const dialog = await screen.findByRole("dialog");
-      expect(await within(dialog).findByText("Chọn kho xuất.")).toBeInTheDocument();
-      expect(within(dialog).getByRole("combobox", { name: /Kho xuất/ })).toHaveAttribute(
-        "aria-invalid",
-        "true",
-      );
-      expect(within(dialog).queryByText("must not be null")).not.toBeInTheDocument();
-    });
-  },
-);
-
-/* ── Step 9: Idempotency-Key — vòng đời theo BE IdempotencyFilter ───────── */
-
-type PostSpy = { mock: { calls: unknown[][] } };
-
-function keyOf(post: PostSpy, call: number): string | undefined {
-  const config = post.mock.calls[call]?.[2] as { headers?: Record<string, string> } | undefined;
-  return config?.headers?.["Idempotency-Key"];
-}
-
-describe("Release — Idempotency-Key", { timeout: DIALOG_FLOW_TIMEOUT_MS }, () => {
-  it("A/B. lần đầu có key K1; LOCK_TIMEOUT (BE nhả claim) → bấm lại cùng nội dung dùng lại K1, mỗi lần bấm đúng 1 request", async () => {
-    const user = userEvent.setup();
-    await renderDetail(ORDER_PERMISSION_SETS.coordinator, confirmed);
-    const post = vi
-      .spyOn(api, "post")
-      .mockRejectedValueOnce(new ApiError(409, "LOCK_TIMEOUT", "busy"))
-      .mockResolvedValueOnce({ data: { ...confirmed, status: "READY_TO_FULFILL" } });
-
-    await openAndPick(user);
-    const dialog = await screen.findByRole("dialog");
-    await within(dialog).findByText(/đang được xử lý ở nơi khác/);
-    expect(post).toHaveBeenCalledTimes(1);
-    const k1 = keyOf(post, 0);
-    expect(k1).toMatch(/^[A-Za-z0-9\-_:.]{8,255}$/);
-
-    await user.click(within(dialog).getByRole("button", { name: "Release" }));
-    await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
-    expect(keyOf(post, 1)).toBe(k1);
+    const alert = await within(dialog).findByRole("alert");
+    expect(alert).toHaveTextContent(
+      "Đơn thu tiền khi giao (COD) không giao nguyên xe được — Sale đổi cách thu trước.",
+    );
+    expect(screen.queryByText("English server message")).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
-  it("15. lỗi BE đã LƯU (400) → bấm lại cùng nội dung dùng key MỚI (không bị trả lại 400 cũ)", async () => {
-    const user = userEvent.setup();
-    await renderDetail(ORDER_PERMISSION_SETS.coordinator, confirmed);
-    const post = vi
-      .spyOn(api, "post")
-      .mockRejectedValueOnce(new ApiError(400, "VALIDATION_FAILED", "Invalid request data"))
-      .mockResolvedValueOnce({ data: { ...confirmed, status: "READY_TO_FULFILL" } });
-
-    await openAndPick(user);
-    const dialog = await screen.findByRole("dialog");
-    await within(dialog).findByRole("alert");
-    await user.click(within(dialog).getByRole("button", { name: "Release" }));
-    await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
-    expect(keyOf(post, 1)).not.toBe(keyOf(post, 0));
+  it("đơn cọc thu khi giao + chọn FTL → báo trước ngay trong dialog", async () => {
+    const { user, dialog } = await renderConfirmed(ORDER_PERMISSION_SETS.coordinatorWithModes, {
+      paymentTerm: "DEPOSIT",
+      balancePolicy: "ON_DELIVERY",
+    });
+    expect(within(dialog).queryByRole("status")).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole("radio", { name: /Nguyên xe \(FTL\)/ }));
+    expect(within(dialog).getByRole("status")).toHaveTextContent(/Sale đổi cách thu trước/);
   });
 
-  it("D/F. thành công → dialog đóng; mở lại + gửi → key mới, không thừa key cũ", async () => {
-    const user = userEvent.setup();
-    await renderDetail(ORDER_PERMISSION_SETS.coordinator, confirmed);
-    const post = vi.spyOn(api, "post").mockResolvedValue({ data: confirmed });
-
-    await openAndPick(user);
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-    await openAndPick(user);
-    await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
-    expect(keyOf(post, 1)).not.toBe(keyOf(post, 0));
+  it("403 (chọn hình thức khác khi thiếu quyền) → câu tiếng Việt, không lộ message tiếng Anh", async () => {
+    const { user, dialog } = await renderConfirmed(ORDER_PERMISSION_SETS.coordinatorWithModes);
+    vi.spyOn(api, "post").mockRejectedValue(
+      new ApiError(403, "FORBIDDEN", "English server message"),
+    );
+    await pickSelectOption(user, /Kho xuất hàng/, "HN01 — Kho Hà Nội");
+    await user.click(within(dialog).getByRole("button", { name: "Release đơn" }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      /không có quyền đổi hình thức giao/,
+    );
   });
+});
 
-  it("E. đóng dialog (Huỷ) sau lỗi tạm thời rồi mở lại → lần thử mới, key mới", async () => {
+describe("Release đơn — danh sách kho lỗi", () => {
+  async function renderWithWarehouses(error: ApiError) {
+    mockOrderApiGet(ORDER_PERMISSION_SETS.coordinatorWithModes, {
+      [DETAIL_PATH]: () =>
+        apiOrderDelivery("CONFIRMED", { deliveryMode: "PARCEL", deliveryModeLocked: false }),
+      [HISTORY_PATH]: () => [],
+      "/warehouses": () => {
+        throw error;
+      },
+    });
+    await renderDetailScreen(() => <span>khe ước tính</span>);
     const user = userEvent.setup();
-    await renderDetail(ORDER_PERMISSION_SETS.coordinator, confirmed);
-    const post = vi
-      .spyOn(api, "post")
-      .mockRejectedValueOnce(new ApiError(409, "LOCK_TIMEOUT", "busy"))
-      .mockResolvedValueOnce({ data: confirmed });
+    await user.click(await screen.findByRole("button", { name: "Release đơn" }));
+    return { user, dialog: await screen.findByRole("dialog") };
+  }
 
-    await openAndPick(user);
-    const dialog = await screen.findByRole("dialog");
-    await within(dialog).findByText(/đang được xử lý ở nơi khác/);
+  it("403 (điều phối chưa có warehouse-warehouses:READ) → câu thiếu quyền rõ ràng thay vì 'Không tải được'; hộp thoại vẫn dùng được", async () => {
+    const { user, dialog } = await renderWithWarehouses(
+      new ApiError(403, "FORBIDDEN", "Forbidden"),
+    );
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "Bạn chưa có quyền xem danh sách kho (warehouse-warehouses:READ) — nhờ quản trị cấp quyền",
+    );
+    expect(within(dialog).queryByText("Không tải được danh sách kho.")).not.toBeInTheDocument();
+    // vẫn dùng được: đổi hình thức giao, khe ước tính; chưa có kho nên chưa release được; huỷ đóng được
+    expect(within(dialog).getByText("khe ước tính")).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("radio", { name: /Nguyên xe \(FTL\)/ }));
+    expect(within(dialog).getByRole("radio", { name: /Nguyên xe \(FTL\)/ })).toBeChecked();
+    expect(within(dialog).getByRole("button", { name: "Release đơn" })).toBeDisabled();
     await user.click(within(dialog).getByRole("button", { name: "Huỷ" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
 
-    await openAndPick(user);
-    await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
-    expect(keyOf(post, 1)).not.toBe(keyOf(post, 0));
+  it("lỗi khác (5xx) → vẫn là câu 'Không tải được danh sách kho.'", async () => {
+    const { dialog } = await renderWithWarehouses(new ApiError(500, "HTTP_500", "x"));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "Không tải được danh sách kho.",
+    );
+    expect(within(dialog).queryByText(/warehouse-warehouses:READ/)).not.toBeInTheDocument();
+  });
+});
+
+describe("Release đơn — khe 'Ước tính xếp xe'", () => {
+  it("nhận kho đang chọn (null khi chưa chọn) và released = false cho đơn CONFIRMED", async () => {
+    const slot = vi.fn<OrderEstimateSlot>(() => <span>khe ước tính</span>);
+    const { user, dialog } = await renderConfirmed(
+      ORDER_PERMISSION_SETS.coordinatorWithModes,
+      {},
+      slot,
+    );
+    expect(within(dialog).getByText("khe ước tính")).toBeInTheDocument();
+    expect(slot).toHaveBeenLastCalledWith({
+      orderId: apiOrder.orderId,
+      orderNumber: apiOrder.orderNumber,
+      warehouseId: null,
+      released: false,
+    });
+    await pickSelectOption(user, /Kho xuất hàng/, "HCM01 — Kho TP.HCM");
+    expect(slot).toHaveBeenLastCalledWith(
+      expect.objectContaining({ warehouseId: "wh-hcm", released: false }),
+    );
+  });
+
+  it("chi tiết đơn đã release có khe với released = true và không cần kho", async () => {
+    const slot = vi.fn<OrderEstimateSlot>(() => <span>khe ước tính</span>);
+    mockOrderApiGet(ORDER_PERMISSION_SETS.readOnly, {
+      [DETAIL_PATH]: () =>
+        apiOrderDelivery("READY_TO_FULFILL", { deliveryMode: "PARCEL", deliveryModeLocked: false }),
+      [HISTORY_PATH]: () => [],
+    });
+    await renderDetailScreen(slot);
+    expect(await screen.findByText("khe ước tính")).toBeInTheDocument();
+    expect(slot).toHaveBeenCalledWith({
+      orderId: apiOrder.orderId,
+      orderNumber: apiOrder.orderNumber,
+      warehouseId: null,
+      released: true,
+    });
+  });
+
+  it("đơn chưa release / đã giao / đang giữ không có khe trong thẻ hình thức giao", async () => {
+    const slot = vi.fn<OrderEstimateSlot>(() => <span>khe ước tính</span>);
+    for (const status of ["PENDING_PAYMENT", "SHIPPED", "ON_HOLD"] as const) {
+      mockOrderApiGet(ORDER_PERMISSION_SETS.readOnly, {
+        [DETAIL_PATH]: () =>
+          apiOrderDelivery(status, { deliveryMode: "PARCEL", deliveryModeLocked: true }),
+        [HISTORY_PATH]: () => [],
+      });
+      const view = await renderDetailScreen(slot);
+      await screen.findByRole("heading", { name: apiOrder.orderNumber });
+      expect(screen.queryByText("khe ước tính")).not.toBeInTheDocument();
+      view.unmount();
+      vi.restoreAllMocks();
+    }
   });
 });

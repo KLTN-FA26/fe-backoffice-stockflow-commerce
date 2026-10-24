@@ -12,6 +12,7 @@ import {
   STOCK_STATUSES,
 } from "@/constants/inventory";
 
+import { beUuid } from "@/lib/validation/primitives";
 import { skuSchema } from "@/lib/validation/sku";
 
 import { inventoryPageDto } from "./schemas";
@@ -40,7 +41,7 @@ export const stockLevelsDto = z.array(stockLevelDto);
 
 /** WarehouseStockItemResponse (SCRUM-462): one stock row of a warehouse, in any status. */
 export const warehouseStockItemDto = z.object({
-  stockItemId: z.uuid(),
+  stockItemId: beUuid,
   sku: z.string(),
   locationCode: z.string(),
   lotNumber: z.string().nullish(),
@@ -58,9 +59,9 @@ export const atpDto = quantity;
 
 /** ReservationRowResponse (SCRUM-462). The backend exposes the order's id, not its number. */
 export const reservationRowDto = z.object({
-  reservationId: z.uuid(),
-  orderId: z.uuid(),
-  stockItemId: z.uuid(),
+  reservationId: beUuid,
+  orderId: beUuid,
+  stockItemId: beUuid,
   sku: z.string(),
   locationCode: z.string(),
   lotNumber: z.string().nullish(),
@@ -75,7 +76,7 @@ export const reservationPageDto = inventoryPageDto(reservationRowDto);
 
 /** StockAlertResponse. REORDER/SAFETY are SKU-wide: no warehouse, no lot, no expiry. */
 export const stockAlertDto = z.object({
-  id: z.uuid(),
+  id: beUuid,
   kind: z.string(),
   sku: z.string(),
   warehouseId: warehouseId.nullish(),
@@ -89,7 +90,7 @@ export const stockAlertDto = z.object({
   status: z.string(),
   openedAt: z.iso.datetime(),
   lastObservedAt: z.iso.datetime(),
-  acknowledgedBy: z.uuid().nullish(),
+  acknowledgedBy: beUuid.nullish(),
   acknowledgedByName: z.string().nullish(),
   acknowledgedAt: z.iso.datetime().nullish(),
   ackNote: z.string().nullish(),
@@ -156,7 +157,7 @@ export const warehouseStockItemsInput = z.object({
 export const atpInput = z.object({ sku, warehouse: optionalText });
 
 export const reservationListInput = z.object({
-  orderId: z.uuid().optional(),
+  orderId: beUuid.optional(),
   sku: optionalSku,
   status: commaList(RESERVATION_STATUSES),
   warehouse: optionalText,

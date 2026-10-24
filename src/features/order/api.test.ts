@@ -9,7 +9,6 @@ import {
   buildOrderListQuery,
   closeOrderRemainder,
   getOrder,
-  getOrderHistory,
   holdOrder,
   listOrders,
   recordDeliveryFailure,
@@ -22,8 +21,10 @@ import {
   apiGuestOrder,
   apiPartialOrder,
 } from "./__fixtures__/order";
-import { approveCreditHold, getCreditPosition, rejectCreditHold, releaseOrder } from "./action-api";
+import { approveCreditHold, getCreditPosition, rejectCreditHold } from "./action-api";
 import { STATUS_OPTIONS } from "./components/order-list/constants";
+import { releaseOrder } from "./delivery-mode-api";
+import { getOrderHistory } from "./history-api";
 import { orderDtoSchema } from "./schemas";
 
 import type { OrderStatus } from "./types";
@@ -301,15 +302,20 @@ describe("order API — trạng thái BE mới FE chưa hỗ trợ (forward-comp
         { from: "IN_FULFILMENT", to: "SHIPPED", occurredAt: "2026-09-07T06:00:00Z" },
       ],
     });
+    // Lịch sử đơn của develop (`history-api.ts`): mục đổi trạng thái có `kind: "status-change"`
     const history = await getOrderHistory(beOrder.orderId);
-    expect(history.map(({ from, to }) => ({ from, to }))).toEqual([
+    expect(
+      history.map((entry) =>
+        entry.kind === "status-change" ? { from: entry.from, to: entry.to } : entry.kind,
+      ),
+    ).toEqual([
       { from: null, to: "Pending Payment" },
       { from: "Ready to Fulfill", to: "Picking" },
       { from: "Packed", to: "UNKNOWN" },
       { from: "UNKNOWN", to: "Shipped" },
     ]);
-    expect(history[1]).toMatchObject({ actorId: "u-1", actorName: "Điều phối A" });
-    expect(history[0]).toMatchObject({ actorId: null, actorName: null, reason: null });
+    expect(history[1]).toMatchObject({ actorName: "Điều phối A" });
+    expect(history[0]).toMatchObject({ actorName: null, reason: null });
   });
 
   it("paymentStatus lạ → UNKNOWN; paymentTerm lạ → null (không thành lựa chọn mới)", async () => {
@@ -500,7 +506,8 @@ describe("OrderResponse vòng đời + tiền (BE PR #133)", () => {
     expect(order.lines[0]).toMatchObject({ isCustom: true });
   });
 
-  it("đơn cọc thu khi giao (G2-3): balancePolicy + amountDueOnDelivery; giá trị policy lạ → null", () => {
+  // Giá trị policy lạ → "UNKNOWN" ("Không rõ"), theo BE PR #150 của develop (PR #74 dựa vào để chặn FTL + COD)
+  it("đơn cọc thu khi giao (G2-3): balancePolicy + amountDueOnDelivery; giá trị policy lạ → UNKNOWN", () => {
     const order = toOrder(
       orderDtoSchema.parse({
         ...beOrder,
@@ -512,7 +519,7 @@ describe("OrderResponse vòng đời + tiền (BE PR #133)", () => {
     expect(order).toMatchObject({ balancePolicy: "ON_DELIVERY", amountDueOnDelivery: 245000 });
     expect(
       toOrder(orderDtoSchema.parse({ ...beOrder, balancePolicy: "LATER" })).balancePolicy,
-    ).toBeNull();
+    ).toBe("UNKNOWN");
   });
 });
 
@@ -608,6 +615,7 @@ describe("Idempotency-Key — chỉ thao tác ghi đơn, header riêng từng re
       { reasonCode: "OTHER", note: "x" },
     ],
     [
+      // Release của PR #74 (`delivery-mode-api.ts`) — cùng hợp đồng header
       "release",
       () => releaseOrder({ id: ID, warehouseId: "W1", idempotencyKey: KEY }),
       `/orders/${ID}/release`,

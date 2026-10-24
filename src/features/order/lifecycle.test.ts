@@ -12,6 +12,7 @@ import {
   nextOrderStatuses,
   orderActionContextOf,
 } from "./lifecycle";
+import { isPackedOnlyAheadOfPrints } from "./partial-shipment";
 
 import type { PermissionCode } from "@/lib/auth";
 import type { OrderActionContext } from "./lifecycle";
@@ -131,6 +132,8 @@ const ROLE_PERMISSIONS: Record<string, readonly PermissionCode[]> = {
     "sales-order-cancellations:UPDATE",
     "sales-order-credit-holds:VIEW_PAGE",
     "sales-order-credit-holds:READ",
+    // BE PR #150: SALES_STAFF (và SYSTEM_ADMIN) quyết đơn có giao một phần; điều phối viên thì không
+    "sales-order-partial-shipments:UPDATE",
   ],
   ACCOUNTANT: [
     "sales-order-credit-holds:VIEW_PAGE",
@@ -153,6 +156,7 @@ const BASE_CONTEXT: OrderActionContext = {
   holdReason: null,
   hasShipments: false,
   packedAt: null,
+  statusBeforeHold: null,
 };
 
 const codes = (status: OrderReadStatus, role: Role, context?: Partial<OrderActionContext>) =>
@@ -463,7 +467,53 @@ describe("allowedOrderActions — trạng thái lạ + định nghĩa action", (
         holdReason: "CREDIT",
         shipments: [],
         packedAt: null,
+        statusBeforeHold: null,
       }),
-    ).toEqual({ paymentTerm: "CREDIT", holdReason: "CREDIT", hasShipments: false, packedAt: null });
+    ).toEqual({
+      paymentTerm: "CREDIT",
+      holdReason: "CREDIT",
+      hasShipments: false,
+      packedAt: null,
+      statusBeforeHold: null,
+    });
+  });
+});
+
+describe("allowedOrderActions — huỷ đơn khi hàng có sẵn đã đóng trước hàng in (BE PR #150)", () => {
+  const packedAt = "2026-10-22T01:00:00Z";
+
+  it("IN_PRODUCTION đã đóng sẵn hàng có sẵn, chưa lô nào bàn giao → vẫn huỷ được (Order#packedOnlyAheadOfPrints)", () => {
+    expect(codes("In Production", "ORDER_COORDINATOR", { packedAt })).toContain("admin-cancel");
+    expect(codes("In Production", "SALES_STAFF", { packedAt })).toEqual(["admin-cancel"]);
+  });
+
+  it("đã có lô rời kho → phải đi luồng trả hàng, không huỷ", () => {
+    expect(
+      codes("In Production", "ORDER_COORDINATOR", { packedAt, hasShipments: true }),
+    ).not.toContain("admin-cancel");
+  });
+
+  it("ON_HOLD giữ từ IN_PRODUCTION mà chưa lô nào đi → huỷ được; giữ từ PACKED → không", () => {
+    expect(
+      codes("On Hold", "ORDER_COORDINATOR", {
+        holdReason: "FRAUD",
+        packedAt,
+        statusBeforeHold: "In Production",
+      }),
+    ).toContain("admin-cancel");
+    expect(
+      codes("On Hold", "ORDER_COORDINATOR", {
+        holdReason: "FRAUD",
+        packedAt,
+        statusBeforeHold: "Packed",
+      }),
+    ).not.toContain("admin-cancel");
+  });
+
+  it("PACKED trở đi vẫn không huỷ được (ngoại lệ chỉ cho đơn còn đang in)", () => {
+    expect(codes("Picking", "ORDER_COORDINATOR", { packedAt })).not.toContain("admin-cancel");
+    expect(
+      isPackedOnlyAheadOfPrints("Partially Fulfilled", { hasShipments: false, packedAt }),
+    ).toBe(false);
   });
 });

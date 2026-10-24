@@ -152,8 +152,8 @@ export async function logoutHandler(request: NextRequest): Promise<NextResponse>
   return expireSessionCookie(new NextResponse(null, { status: 204, headers: NO_STORE }));
 }
 
-// Idempotency-Key: BE IdempotencyFilter khoá theo (key, người gọi) + vân tay body — BFF chuyển
-// nguyên header (body đã chuyển nguyên byte) để thao tác ghi bấm lại không bị làm hai lần.
+// Idempotency-Key: BE `IdempotencyFilter` khoá theo (key, người gọi) + vân tay body; BFF chuyển nguyên header (body đã
+// chuyển nguyên byte) để thao tác ghi bấm lại (release đơn…) không bị làm hai lần.
 const SAFE_REQUEST_HEADERS = [
   "Content-Type",
   "Accept",

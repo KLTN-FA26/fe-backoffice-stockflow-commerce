@@ -116,6 +116,25 @@ export const PRODUCT_UI_LABELS = {
       `Hệ thống tạo sản phẩm, trục và ${count} biến thể Nháp trong cùng một lần; biến thể đầu tiên là biến thể mặc định. Bị từ chối thì không có gì được tạo.`,
     confirm: "Tạo sản phẩm",
   },
+  // Wizard tạo / sửa sản phẩm — cùng bố cục wizard PO / NCC (stepper, thanh dưới, bước rà soát)
+  wizard: {
+    process: "Quy trình",
+    next: "Tiếp tục",
+    create: "Tạo bản nháp",
+    save: "Lưu thay đổi",
+    saving: "Đang lưu...",
+    stepIssuesTitle: "Cần xử lý trước khi tiếp tục",
+    // Ô của bước rà soát chưa có trong `edit.fields` (mã bất biến khi sửa nên không ở đó)
+    fields: {
+      productCode: "Mã sản phẩm",
+      name: "Tên",
+      kind: "Loại",
+    },
+    kind: {
+      customizable: "Tùy chỉnh / In ấn",
+      standard: "Tiêu chuẩn",
+    },
+  },
   // Ô chọn trục biến thể (dialog "Trục biến thể" + form tạo) — lý do khoá hiện thành chữ, không chỉ
   // `title` trên nút bị vô hiệu (trình duyệt không hiện). Luật: BE `ProductAttributeSet.replaceAxes`.
   axes: {

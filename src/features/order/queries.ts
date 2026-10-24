@@ -9,6 +9,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { ApiError } from "@/lib/api/error";
+import { QUERY_TIMES } from "@/lib/api/query-client";
 import { createDetailQuery, createListQuery, createQueryKeys } from "@/lib/api/query-factory";
 
 import {
@@ -17,10 +18,11 @@ import {
   listOrderProductionOrders,
   type ListCreditHoldParams,
 } from "./action-api";
-import { getOrder, getOrderHistory, listOrders, type ListOrderParams } from "./api";
+import { getOrder, listOrders, type ListOrderParams } from "./api";
+import { getOrderHistory } from "./history-api";
 import { isValidOrderCustomerId } from "./schemas";
 
-import type { CreditHold, Order } from "./types";
+import type { CreditHold, Order, OrderHistoryEntry } from "./types";
 
 /* ── Query keys ──────────────────────────────────────────────────────── */
 
@@ -28,7 +30,8 @@ const baseOrderKeys = createQueryKeys<ListOrderParams>("orders");
 
 export const orderKeys = {
   ...baseOrderKeys,
-  history: (id: string) => [...baseOrderKeys.detail(id), "history"] as const,
+  /** Lịch sử một đơn — dưới root `orders` nên mọi mutation của đơn (invalidate `orderKeys.all`) làm mới luôn. */
+  history: (id: string) => [...baseOrderKeys.all, "history", id] as const,
   productionOrders: (id: string) => [...baseOrderKeys.detail(id), "production-orders"] as const,
   creditHolds: (params?: ListCreditHoldParams) =>
     [...baseOrderKeys.all, "credit-holds", params] as const,
@@ -62,11 +65,16 @@ export const useCreditHolds = createListQuery<CreditHold, ListCreditHoldParams>(
 
 export const useOrder = createDetailQuery<Order>(orderKeys, getOrder, { retry: retryTransient });
 
+/**
+ * Lịch sử đơn (cần `sales-orders:READ`): chỉ gọi khi `enabled`. Mutation của đơn invalidate
+ * `orderKeys.all` nên lịch sử (có thêm một mục quyết định / đổi trạng thái) tự tải lại.
+ */
 export function useOrderHistory(id: string, options: { enabled?: boolean } = {}) {
-  return useQuery({
+  return useQuery<OrderHistoryEntry[], ApiError>({
     queryKey: orderKeys.history(id),
     queryFn: ({ signal }) => getOrderHistory(id, signal),
-    enabled: !!id && (options.enabled ?? true),
+    ...QUERY_TIMES.detail,
+    enabled: options.enabled ?? true,
     retry: retryTransient,
   });
 }

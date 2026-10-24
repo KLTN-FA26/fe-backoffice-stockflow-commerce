@@ -74,6 +74,7 @@ export function toTransferRequest(values: TransferFormValues) {
     toWarehouseId: values.toWarehouseId,
     reason: values.reason || undefined,
     expectedDate: values.expectedDate || undefined,
+    deliveryMode: values.deliveryMode,
     lines: values.lines.map((line) => ({
       sku: line.sku,
       lotNumber: line.lotNumber || undefined,

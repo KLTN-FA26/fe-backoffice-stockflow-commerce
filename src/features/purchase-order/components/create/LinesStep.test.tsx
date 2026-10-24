@@ -55,7 +55,7 @@ describe("LinesStep — dòng đã lưu của PO nháp", () => {
     renderPoScreen(<EditHarness />);
     const locked = await screen.findByRole("combobox", { name: "SKU dòng 1" });
     expect(locked).toBeDisabled();
-    expect(locked).toHaveTextContent("SOFA-3S-GREY");
+    expect(locked).toHaveValue("SOFA-3S-GREY");
 
     await user.click(screen.getByRole("button", { name: /Thêm dòng hàng/ }));
     const fresh = await screen.findByRole("combobox", { name: "SKU dòng 2" });

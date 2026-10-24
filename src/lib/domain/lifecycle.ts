@@ -54,6 +54,7 @@ import type {
   PackStatus,
   PickStatus,
   ReceiptStatus,
+  ShipmentApiStatus,
   TransferStatus,
 } from "@/constants/statuses";
 
@@ -158,29 +159,45 @@ export const PICK_TRANSITIONS: Record<PickStatus, readonly PickStatus[]> = {
 
 /* ── Module 08: Packing ──────────────────────────────────────────────── */
 
-// HỆ QUY CHIẾU LÀ BE: chép đúng các chuyển trạng thái BE `PackJpaEntity` đang cho phép
-// (complete / hold / cancel). Docs 08 §5 chỉ để tham khảo — BE đổi thì FE mới đổi theo.
-// BR-DSG-003 (BE): thiết kế lệch checksum → `On Hold`, chỉ ra `Packed` khi kiểm tra lại khớp
-// (flow X-CHK). `PACKED` là trạng thái cuối ở BE hiện tại.
+// HỆ QUY CHIẾU LÀ BE: chép đúng phiên đóng gói BE `PackingSession` (PR #136, 03-state-machines):
+// PENDING → PACKING (packer nhận đơn, `packing-start`) → PACKED (không còn gì chờ giao), PACKING ⇄
+// ON_HOLD (thiết kế dòng in lệch checksum, BR-DSG-003; QC / quản lý kho kiểm tra lại thì phiên về
+// PACKING — docs 08 §5 "Verification Failed → In Progress" — chứ KHÔNG ra PACKED), → CANCELLED khi
+// đơn huỷ. Giao một phần giữ phiên ở PACKING. `PACKED` / `CANCELLED` là trạng thái cuối.
 export const PACK_TRANSITIONS: Record<PackStatus, readonly PackStatus[]> = {
-  Pending: ["Packed", "On Hold", "Cancelled"],
+  Pending: ["Packing", "Cancelled"],
   Packing: ["Packed", "On Hold", "Cancelled"],
-  "On Hold": ["Packed", "Cancelled"],
+  "On Hold": ["Packing", "Cancelled"],
   Packed: [],
   Cancelled: [],
 };
 
 /* ── Module 09: Shipping — chuyến xe (load) ──────────────────────────── */
 
-// BE business-design 03-state-machines §11 (rescope 2026-10-06: hãng là bên thứ ba, không tracking).
-// PLANNED → VEHICLE_BOOKED (đặt xe ngoài hệ thống, SCRUM-287/452) → LOADING (xe đến, quét kiện)
-// → DISPATCHED (đủ kiện + biên bản ký, SCRUM-288). Huỷ chỉ khi còn PLANNED.
-// ASSUMPTION: BE SCRUM-288 chưa có enum — khớp lại khi BE lên.
+// BE `LoadStatus` (PR #137): chuyến gửi kiện (PARCEL) bắt đầu ở LOADING khi tài xế hãng tới →
+// DISPATCHED khi hai bên ký biên bản. PLANNED → VEHICLE_BOOKED → LOADING là đường của chuyến nguyên
+// xe (FTL, SCRUM-287/392); huỷ đặt xe (`booking-cancellation`, BE PR #162) đưa VEHICLE_BOOKED về
+// PLANNED. Huỷ chuyến được ở mọi trạng thái còn mở (kiện về khu chờ xuất) — chuyến của kế hoạch xếp xe
+// thì huỷ qua kế hoạch (409 LOAD_MANAGED_BY_PLAN).
 export const LOAD_TRANSITIONS: Record<LoadStatus, readonly LoadStatus[]> = {
   PLANNED: ["VEHICLE_BOOKED", "CANCELLED"],
-  VEHICLE_BOOKED: ["LOADING"],
-  LOADING: ["DISPATCHED"],
+  VEHICLE_BOOKED: ["PLANNED", "LOADING", "CANCELLED"],
+  LOADING: ["DISPATCHED", "CANCELLED"],
   DISPATCHED: [],
+  CANCELLED: [],
+};
+
+/**
+ * Lô giao (BE `ShipmentStatus`, docs 09 §5): READY_TO_DISPATCH → HANDED_OVER (ký biên bản) hoặc
+ * CANCELLED; kết quả hãng báo: HANDED_OVER → DELIVERED / DELIVERY_FAILED; DELIVERY_FAILED → DELIVERED
+ * (giao lại) / RETURNED. DELIVERED, RETURNED, CANCELLED là cuối.
+ */
+export const SHIPMENT_TRANSITIONS: Record<ShipmentApiStatus, readonly ShipmentApiStatus[]> = {
+  READY_TO_DISPATCH: ["HANDED_OVER", "CANCELLED"],
+  HANDED_OVER: ["DELIVERED", "DELIVERY_FAILED"],
+  DELIVERY_FAILED: ["DELIVERED", "RETURNED"],
+  DELIVERED: [],
+  RETURNED: [],
   CANCELLED: [],
 };
 

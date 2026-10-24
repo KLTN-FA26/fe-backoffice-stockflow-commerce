@@ -14,9 +14,16 @@ import type { CreditHold, Order, OrderReadStatus, ProductionOrder } from "./type
 
 /**
  * Trạng thái cần người xử lý tay → gắn viền cảnh báo ở row (data-table-mode-a).
- * Ngoại lệ chờ nhân viên quyết: ON_HOLD (giữ đơn) và DELIVERY_FAILED (giao thất bại — giao lại hoặc trả về).
+ * Ngoại lệ chờ nhân viên quyết: ON_HOLD (giữ đơn), DELIVERY_FAILED (giao thất bại — giao lại hoặc trả
+ * về), PARTIALLY_FULFILLED (giao một phần — đóng phần còn lại hoặc chờ phần sau) và RETURN_REQUESTED
+ * (khách yêu cầu trả hàng). Chốt với lead 22/10.
  */
-const FLAGGED_STATUSES: readonly OrderReadStatus[] = ["On Hold", "Delivery Failed"];
+const FLAGGED_STATUSES: readonly OrderReadStatus[] = [
+  "On Hold",
+  "Delivery Failed",
+  "Partially Fulfilled",
+  "Return Requested",
+];
 
 export function shouldFlagOrderRow(order: Pick<Order, "status">): boolean {
   return FLAGGED_STATUSES.includes(order.status);
@@ -24,18 +31,9 @@ export function shouldFlagOrderRow(order: Pick<Order, "status">): boolean {
 
 /* ── Thanh toán ──────────────────────────────────────────────────────── */
 
-export type DepositState = "not-applicable" | "awaiting" | "received";
-
-/**
- * Trạng thái cọc — BE không có enum riêng, suy từ `paymentTerm` + `depositReceivedAt`
- * (docs 15 BR-02: đơn cọc chỉ Confirmed khi đủ cọc; docs 19 BR-09 chặn release khi chưa đủ).
- */
-export function depositState(
-  order: Pick<Order, "paymentTerm" | "depositReceivedAt">,
-): DepositState {
-  if (order.paymentTerm !== "DEPOSIT") return "not-applicable";
-  return order.depositReceivedAt ? "received" : "awaiting";
-}
+// Trạng thái cọc (docs 15 BR-02, docs 19 BR-09) — một định nghĩa, ở luật release của PR #74
+export { depositState } from "./release-rules";
+export type { DepositState } from "./release-rules";
 
 export type CreditState = "not-applicable" | "on-hold" | "within-limit";
 
@@ -170,37 +168,7 @@ export function groupProductionOrdersByLine(
   return byLine;
 }
 
-/* ── Release (SCRUM-423) ─────────────────────────────────────────────── */
-
-export interface ReleaseBlocker {
-  /** Mã BR để đối chiếu docs. */
-  rule: string;
-  message: string;
-}
-
-/**
- * Lý do CHẮC CHẮN chưa release được, suy từ dữ liệu đơn — hiện trước để Coordinator không phải
- * bấm thử. BR-PRD-08 (mẫu duyệt) và công nợ quá hạn FE không biết trước → chỉ BE báo khi release.
- */
-export function releaseBlockers(
-  order: Pick<Order, "status" | "paymentTerm" | "depositReceivedAt" | "holdReason">,
-): ReleaseBlocker[] {
-  const blockers: ReleaseBlocker[] = [];
-  // docs 19 BR-09 / BE ORDER_DEPOSIT_NOT_RECEIVED: đơn cọc chưa đủ cọc
-  if (order.status === "Pending Payment" && depositState(order) === "awaiting") {
-    blockers.push({ rule: "BR-PRD-09", message: "Đơn đặt cọc chưa nhận đủ tiền cọc." });
-  }
-  // docs 17 BR-02 / docs 14 BR-06: đơn công nợ vượt hạn mức chưa được duyệt — chỉ giữ lý do CREDIT
-  // (BE ORDER_NOT_ON_CREDIT_HOLD với lý do khác); đơn giữ vì lý do khác không bị nói là "chưa duyệt".
-  if (
-    order.status === "On Hold" &&
-    order.paymentTerm === "CREDIT" &&
-    order.holdReason === "CREDIT"
-  ) {
-    blockers.push({ rule: "BR-02", message: "Đơn công nợ đang tạm giữ, chưa được duyệt." });
-  }
-  return blockers;
-}
+// Lý do chưa release biết trước (BR-PRD-09…): `release-rules.ts` (PR #74).
 
 /* ── Huỷ đơn ──────────────────────────────────────────────────────────── */
 

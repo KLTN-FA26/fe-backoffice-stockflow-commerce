@@ -13,7 +13,7 @@ const DISPLAYABLE_URL = /^(https?:\/\/|\/(?!\/))/i;
  */
 export function TaxonomyThumb({ url, name }: { url: string | null | undefined; name: string }) {
   const [failed, setFailed] = useState(false);
-  const box = "border-border-default size-8 shrink-0 rounded-[var(--r-sm)] border";
+  const box = "border-border-default size-7 shrink-0 rounded-[var(--r-sm)] border";
   if (!url || failed || !DISPLAYABLE_URL.test(url)) {
     return (
       <span

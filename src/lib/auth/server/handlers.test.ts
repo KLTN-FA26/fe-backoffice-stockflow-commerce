@@ -86,6 +86,26 @@ describe("server-only auth boundary", () => {
       `Bearer ${credential}`,
     );
   });
+  it("login succeeds when the backend omits null fields (user without a full name or last login)", async () => {
+    const { fullName: _f, lastLoginAt: _l, ...omitted } = user;
+    fetchMock
+      .mockResolvedValueOnce(
+        envelope({ accessToken: credential, tokenType: "Bearer", expiresInSeconds: 1234 }),
+      )
+      .mockResolvedValueOnce(envelope(omitted));
+    const response = await loginHandler(
+      request("/api/auth/login", "POST", JSON.stringify({ username: "staff", password: "secret" })),
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(user);
+  });
+  it("session bootstrap accepts a /me response without nullable fields", async () => {
+    const { fullName: _f, lastLoginAt: _l, ...omitted } = user;
+    fetchMock.mockResolvedValue(envelope(omitted));
+    const response = await meHandler(request("/api/auth/me"));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(user);
+  });
   it("uses Secure cookies in production", async () => {
     vi.stubEnv("NODE_ENV", "production");
     fetchMock
@@ -220,6 +240,23 @@ describe("constrained backend proxy", () => {
         "X-Unsafe": "ignored",
       }),
       ["orders", "o-1", "credit-approval"],
+    );
+    const init = fetchMock.mock.calls[0][1];
+    expect(new Headers(init?.headers).get("Idempotency-Key")).toBe("k-1234-5678");
+    expect(new TextDecoder().decode(init?.body as ArrayBuffer)).toBe(body);
+    expect(new Headers(init?.headers).has("X-Unsafe")).toBe(false);
+  });
+
+  it("forwards Idempotency-Key (and only it, besides the safe list) with the JSON body byte-for-byte", async () => {
+    const body = '{"warehouseId":"wh-1"}';
+    fetchMock.mockResolvedValue(Response.json({ ok: true }));
+    await backendProxyHandler(
+      request("/api/backend/orders/o-1/release", "POST", body, {
+        "Content-Type": "application/json",
+        "Idempotency-Key": "k-1234-5678",
+        "X-Unsafe": "ignored",
+      }),
+      ["orders", "o-1", "release"],
     );
     const init = fetchMock.mock.calls[0][1];
     expect(new Headers(init?.headers).get("Idempotency-Key")).toBe("k-1234-5678");

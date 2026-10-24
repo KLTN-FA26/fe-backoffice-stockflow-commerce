@@ -388,6 +388,34 @@ interface MockOrderState {
   /** lineId → số đơn vị đã đóng (đóng phần còn lại — BE `OrderLine#cancelledQuantity`). */
   closedUnits: Record<string, number>;
   history: SessionStep[];
+  /** Sales cho phép giao một phần (BE PR #150); chưa đặt = theo mặc định BE (xem `allowsPartialShipment`). */
+  allowPartialShipment?: boolean;
+  /** Quyết định giao một phần, cũ nhất trước (BE `order_partial_shipment_decision`). */
+  decisions: MockPartialDecision[];
+  /** Hình thức giao (BE PR #157); chưa đặt = PARCEL (mặc định BE). */
+  deliveryMode?: MockDeliveryMode;
+  /**
+   * Cách thu phần còn lại của đơn CỌC (BE PR #150); chỉ đặt qua `setMockOrderBalancePolicy` — đặt cách thu cũng biến
+   * đơn thành đơn cọc. Chưa đặt = BEFORE_DELIVERY.
+   */
+  balancePolicy?: "BEFORE_DELIVERY" | "ON_DELIVERY" | "ON_CREDIT";
+  /** Các lần đổi hình thức giao, cũ nhất trước (BE `order_delivery_mode_change`). */
+  deliveryModeChanges: MockDeliveryModeChange[];
+}
+
+export type MockDeliveryMode = "PARCEL" | "FULL_TRUCKLOAD";
+
+export interface MockDeliveryModeChange {
+  mode: MockDeliveryMode;
+  previousMode: MockDeliveryMode;
+  note: string | null;
+  changedAt: string;
+}
+
+export interface MockPartialDecision {
+  allowed: boolean;
+  note: string | null;
+  decidedAt: string;
 }
 
 const states = new Map<string, MockOrderState>();
@@ -400,7 +428,14 @@ export function resetOrderMockStore(): void {
 function stateById(orderId: string): MockOrderState {
   let state = states.get(orderId);
   if (!state) {
-    state = { seeded: false, shipments: [], closedUnits: {}, history: [] };
+    state = {
+      seeded: false,
+      shipments: [],
+      closedUnits: {},
+      history: [],
+      decisions: [],
+      deliveryModeChanges: [],
+    };
     states.set(orderId, state);
   }
   return state;
@@ -467,6 +502,93 @@ export function backendStatus(order: Order): BeOrderStatus {
   return stateOf(order).status ?? MOCK_TO_BACKEND_STATUS[order.status];
 }
 
+/** Trạng thái phiên của đơn (đã seed) — cho mock release / hình thức giao / ước tính xếp xe (PR #74). */
+export const seedLifecycle = (order: Order): MockOrderState => stateOf(order);
+
+/** Cách thu phần còn lại: đặt cho một đơn mock (biến nó thành đơn cọc) — để test / demo chạm luật FTL + COD. */
+export function setMockOrderBalancePolicy(
+  orderId: string,
+  policy: NonNullable<MockOrderState["balancePolicy"]>,
+): void {
+  stateById(orderId).balancePolicy = policy;
+}
+
+/**
+ * BE `ck_order_ftl_no_cod` (PR #157): "COD" = đơn CỌC có cách thu phần còn lại ON_DELIVERY (thu khi giao). Phương thức
+ * thanh toán "COD" của mock-data KHÔNG tính — đó là cách khách trả, không phải cách thu phần còn lại.
+ */
+export function isCodDeposit(order: Order): boolean {
+  const state = stateOf(order);
+  return (
+    paymentTermOf(order) === "DEPOSIT" &&
+    (state.balancePolicy ?? "BEFORE_DELIVERY") === "ON_DELIVERY"
+  );
+}
+
+/**
+ * BE backfill (V20261022000400): `allow_partial_shipment = true` chỉ cho đơn đã đang giao từng phần; còn lại
+ * false cho tới khi Sales bật.
+ */
+export function allowsPartialShipment(order: Order): boolean {
+  return stateById(order.orderId).allowPartialShipment ?? order.status === "Partially Fulfilled";
+}
+
+/** Mock đóng gói hỏi cờ này như BE `PackingService` (PACK_PARTIAL_NOT_ALLOWED khi chưa bật). */
+export async function mockOrderAllowsPartialShipment(orderId: string): Promise<boolean> {
+  const order = await findOrder(orderId);
+  return order ? allowsPartialShipment(order) : false;
+}
+
+/** Đơn có dòng in (thiết kế khách chốt) — BE `Order#hasPrintLines`. */
+export const hasPrintLines = (order: Order) => order.lines.some(isCustomLine);
+
+/** Đơn còn đang in: IN_PRODUCTION, hoặc bị giữ từ IN_PRODUCTION. */
+function stillPrinting(status: BeOrderStatus, state: MockOrderState): boolean {
+  return (
+    status === "IN_PRODUCTION" ||
+    (status === "ON_HOLD" && state.statusBeforeHold === "IN_PRODUCTION")
+  );
+}
+
+/** BE `Order#printLinesReady`: hàng in đã về bàn đóng gói — không có dòng in, hoặc không còn trong sản xuất. */
+function printLinesReady(order: Order, status: BeOrderStatus, state: MockOrderState): boolean {
+  return !hasPrintLines(order) || !stillPrinting(status, state);
+}
+
+/**
+ * BE `Order#packedOnlyAheadOfPrints` (BE PR #150): hàng có sẵn đã đóng trước hàng in và chưa lô nào rời kho —
+ * vẫn huỷ được.
+ */
+export function packedOnlyAheadOfPrints(order: Order): boolean {
+  const state = stateOf(order);
+  return (
+    state.packedAt !== undefined &&
+    stillPrinting(backendStatus(order), state) &&
+    state.shipments.length === 0
+  );
+}
+
+/** BE `Order#deliveryModeLocked` (PR #157): các trạng thái còn đổi được hình thức giao, tới khi bắt đầu đóng gói. */
+const DELIVERY_MODE_OPEN_STATUSES: readonly BeOrderStatus[] = [
+  "DRAFT",
+  "PENDING_PAYMENT",
+  "CONFIRMED",
+  "IN_PRODUCTION",
+  "READY_TO_FULFILL",
+  "PICKING",
+];
+
+/**
+ * Khoá khi đã đóng gói xong (`packedAt`) hoặc trạng thái hiệu lực (trước khi giữ, với ON_HOLD) đã qua đóng gói / huỷ
+ * / đóng; mở với giữ công nợ (không có trạng thái để quay về). Mock không biết kiện đầu tiên đã mở chưa (BE
+ * `packing_started_at`), nên PICKING vẫn mở.
+ */
+export function isDeliveryModeLocked(status: BeOrderStatus, state: MockOrderState): boolean {
+  if (state.packedAt !== undefined) return true;
+  const effective = status === "ON_HOLD" ? state.statusBeforeHold : status;
+  return effective !== undefined && !DELIVERY_MODE_OPEN_STATUSES.includes(effective);
+}
+
 /**
  * Đổi trạng thái như BE `Order#transitionTo`: ghi một bước lịch sử, đóng gói xong thì ghi `packedAt`
  * (một lần), rời ON_HOLD thì xoá dữ liệu giữ, rời DELIVERY_FAILED thì xoá lý do giao thất bại.
@@ -516,8 +638,18 @@ export async function putMockOrderOnDesignHold(orderId: string): Promise<void> {
   state.holdNote = undefined;
 }
 
+/**
+ * Mock kiểm tra lại thiết kế khớp: gỡ giữ DESIGN_MISMATCH, đơn về đúng bước đang làm trước khi bị giữ
+ * (BE `OrderService.resolveDesignHold`) — KHÔNG sang PACKED, người đóng gói hoàn tất lại (BE PR #136).
+ */
+export function resolveMockDesignHold(orderId: string): void {
+  setMockOrderStatus(orderId, stateById(orderId).statusBeforeHold ?? "PICKING");
+}
+
+/** Đã đặt cách thu phần còn lại (`setMockOrderBalancePolicy`) thì đơn là đơn CỌC (develop, BE PR #150). */
 export function paymentTermOf(order: Order): BePaymentTerm {
-  return stateOf(order).paymentTerm ?? deriveTerm(order);
+  const state = stateOf(order);
+  return state.paymentTerm ?? (state.balancePolicy !== undefined ? "DEPOSIT" : deriveTerm(order));
 }
 
 /** Dữ liệu giữ đơn hiện tại (chỉ đọc) — undefined khi đơn không ON_HOLD. */
@@ -837,8 +969,8 @@ export function toOrderResponse(order: Order) {
     paymentStatus: paymentStatus(term, order.amountPaid, order.grandTotal),
     // ASSUMPTION (mock-only, D13): kỳ hạn công nợ 30 ngày
     creditTermDays: term === "CREDIT" ? 30 : null,
-    // balancePolicy null = thu phần còn lại trước khi giao (BE mặc định) — mock không có ON_DELIVERY
-    balancePolicy: null,
+    // Đơn cọc: BE ghi cách thu phần còn lại (mặc định BEFORE_DELIVERY, BE PR #150 thêm ON_CREDIT); đơn khác null
+    balancePolicy: term === "DEPOSIT" ? (state.balancePolicy ?? "BEFORE_DELIVERY") : null,
     cancellation: state.cancellation ?? null,
     holdReason: hold?.reason ?? null,
     statusBeforeHold: hold?.statusBeforeHold ?? null,
@@ -873,8 +1005,12 @@ export function toOrderResponse(order: Order) {
       lines: shipment.lines,
       codAmount: 0,
     })),
-    // Chỉ đơn cọc ON_DELIVERY mới để hãng thu — mock không có
+    // Chỉ đơn cọc ON_DELIVERY mới để hãng thu — mock không tính số này
     amountDueOnDelivery: 0,
+    allowPartialShipment: allowsPartialShipment(order),
+    printLinesReady: printLinesReady(order, status, state),
+    deliveryMode: state.deliveryMode ?? "PARCEL",
+    deliveryModeLocked: isDeliveryModeLocked(status, state),
   };
 }
 

@@ -106,6 +106,18 @@ describe("transferFormSchema (CreateTransferOrderRequest + BR docs 10 §6)", () 
   });
 });
 
+describe("transferFormSchema.deliveryMode (LP2-8, BE PR #164)", () => {
+  it("mặc định nguyên chuyến (FULL_TRUCKLOAD) như BE; nhận PARCEL; giá trị lạ → lỗi", () => {
+    expect(transferFormSchema.parse(valid).deliveryMode).toBe("FULL_TRUCKLOAD");
+    expect(transferFormSchema.parse({ ...valid, deliveryMode: "PARCEL" }).deliveryMode).toBe(
+      "PARCEL",
+    );
+    const bad = transferFormSchema.safeParse({ ...valid, deliveryMode: "DRONE" });
+    expect(bad.success).toBe(false);
+    expect(bad.error?.issues[0]?.path).toEqual(["deliveryMode"]);
+  });
+});
+
 describe("buildDispatchSchema (TransferOrderServiceImpl#dispatch)", () => {
   const schema = buildDispatchSchema([
     { lineId: "l-1", requested: 40 },

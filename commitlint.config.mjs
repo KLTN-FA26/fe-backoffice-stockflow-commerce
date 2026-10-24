@@ -9,6 +9,7 @@ export default {
       [
         "product",
         "po",
+        "order",
         "receipt",
         "invoice",
         "putaway",
@@ -16,6 +17,7 @@ export default {
         "picking",
         "packing",
         "shipping",
+        "load-planning",
         "transfer",
         "move",
         "inventory",

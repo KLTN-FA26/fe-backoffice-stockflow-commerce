@@ -17,8 +17,17 @@ interface SlideOverPanelProps {
   subtitle?: ReactNode;
   /** Badge trạng thái cạnh nút đóng. */
   badge?: ReactNode;
+  /** Độ rộng: `md` (mặc định, `max-w-md`) cho chi tiết ngắn; `xl` cho nội dung rộng như khung 3D + bảng. */
+  size?: "md" | "xl";
+  /**
+   * Mở được từ TRONG một dialog: panel nằm trên dialog (`--z-dropdown-on-dialog`) thay vì dưới nó
+   * (`--z-drawer` < `--z-dialog-on-drawer`). Mặc định false — panel ở lớp drawer như thang z-index.
+   */
+  aboveDialogs?: boolean;
   children: ReactNode;
 }
+
+const SIZE_CLASS = { md: "max-w-md", xl: "max-w-[min(72rem,100vw)]" } as const;
 
 /**
  * Panel chi tiết trượt từ phải — dựng từ Radix Dialog (cùng primitive với `components/ui/sheet`):
@@ -34,13 +43,26 @@ export function SlideOverPanel({
   monoTitle = false,
   subtitle,
   badge,
+  size = "md",
+  aboveDialogs = false,
   children,
 }: SlideOverPanelProps) {
   return (
     <SheetPrimitive.Root open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetPrimitive.Portal>
-        <SheetPrimitive.Overlay className="data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 fixed inset-0 z-[900] bg-black/20 backdrop-blur-xs motion-reduce:animate-none" />
-        <SheetPrimitive.Content className="border-border-default bg-bg-surface text-ink-primary data-open:animate-in data-open:slide-in-from-right-10 data-closed:animate-out data-closed:slide-out-to-right-10 fixed inset-y-0 right-0 z-[1100] flex h-full w-full max-w-md flex-col border-l shadow-[var(--sh-lg)] motion-reduce:animate-none">
+        <SheetPrimitive.Overlay
+          className={cn(
+            "data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 fixed inset-0 bg-black/20 backdrop-blur-xs motion-reduce:animate-none",
+            aboveDialogs ? "z-(--z-dropdown-on-dialog)" : "z-[900]",
+          )}
+        />
+        <SheetPrimitive.Content
+          className={cn(
+            "border-border-default bg-bg-surface text-ink-primary data-open:animate-in data-open:slide-in-from-right-10 data-closed:animate-out data-closed:slide-out-to-right-10 fixed inset-y-0 right-0 flex h-full w-full flex-col border-l shadow-[var(--sh-lg)] motion-reduce:animate-none",
+            SIZE_CLASS[size],
+            aboveDialogs ? "z-(--z-dropdown-on-dialog)" : "z-[1100]",
+          )}
+        >
           <div className="border-border-default flex items-center justify-between gap-3 border-b px-5 py-4">
             <div className="min-w-0">
               <SheetPrimitive.Title

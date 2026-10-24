@@ -10,10 +10,12 @@ import {
   IDENTITY_PERMISSIONS,
   INVENTORY_ITEM_PERMISSIONS,
   INVENTORY_OVERVIEW_PERMISSIONS,
+  LOAD_PLAN_PERMISSIONS,
   ORDER_PERMISSIONS,
   PRODUCT_PERMISSIONS,
   SHIPMENT_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
+  VEHICLE_TYPE_PERMISSIONS,
 } from "@/constants/permissions";
 
 import { api } from "@/lib/api/client";
@@ -151,20 +153,81 @@ describe("declared navigation permissions", () => {
     mount();
     expect(await screen.findByRole("link", { name: "Phân quyền" })).toBeInTheDocument();
   });
-  it("màn chỉ chạy trên mock (xếp xe & bàn giao) ẩn khi nối BE thật dù có quyền", async () => {
+  it("Người dùng theo identity-users:READ, không theo quyền Phân quyền (SCRUM-458)", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [], permissions: [IDENTITY_PERMISSIONS.usersRead], dataScope: "ALL" },
+    });
+    mount();
+    expect(screen.queryByRole("link", { name: "Người dùng" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Người dùng" })).toHaveAttribute(
+      "href",
+      "/admin/users",
+    );
+    expect(screen.queryByRole("link", { name: "Phân quyền" })).not.toBeInTheDocument();
+  });
+  it("chỉ có quyền Phân quyền thì không thấy menu Người dùng", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [], permissions: [IDENTITY_PERMISSIONS.rbacRead], dataScope: "ALL" },
+    });
+    mount();
+    expect(await screen.findByRole("link", { name: "Phân quyền" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Người dùng" })).not.toBeInTheDocument();
+  });
+  it("giao cho hãng (Lô giao, Chuyến xe) nối BE thật theo quyền xem màn, không còn chỉ-mock", async () => {
     vi.spyOn(api, "get").mockResolvedValue({
       data: { roles: [], permissions: [SHIPMENT_PERMISSIONS.viewPage], dataScope: "ALL" },
     });
     mockMode.isMock = false;
     mount();
-    expect(await screen.findByRole("link", { name: "Kế hoạch xếp xe" })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Xếp xe & bàn giao" })).not.toBeInTheDocument();
-
-    cleanup();
-    mockMode.isMock = true;
-    mount();
-    expect(await screen.findByRole("link", { name: "Xếp xe & bàn giao" })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Lô giao" })).toHaveAttribute(
+      "href",
+      "/admin/shipments",
+    );
+    expect(screen.getByRole("link", { name: "Chuyến xe" })).toHaveAttribute("href", "/admin/loads");
+    // Kế hoạch xếp xe có resource quyền riêng: quyền xem màn giao hàng không đủ
+    expect(screen.queryByRole("link", { name: "Kế hoạch xếp xe" })).not.toBeInTheDocument();
+  });
+  it("Kế hoạch xếp xe theo fulfillment-load-plans:VIEW_PAGE (BE PR #161)", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [], permissions: [LOAD_PLAN_PERMISSIONS.viewPage], dataScope: "ALL" },
+    });
     mockMode.isMock = false;
+    mount();
+    expect(screen.queryByRole("link", { name: "Kế hoạch xếp xe" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Kế hoạch xếp xe" })).toHaveAttribute(
+      "href",
+      "/admin/load-plans",
+    );
+    expect(screen.queryByRole("link", { name: "Chuyến xe" })).not.toBeInTheDocument();
+  });
+  it("thiếu quyền xem màn giao hàng → ẩn Lô giao và Chuyến xe", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [], permissions: [], dataScope: "ALL" },
+    });
+    mockMode.isMock = false;
+    mount();
+    expect(await screen.findByRole("link", { name: "Tổng quan" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Lô giao" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Chuyến xe" })).not.toBeInTheDocument();
+  });
+  it("Loại xe theo fulfillment-vehicle-types:VIEW_PAGE (BE PR #153)", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [], permissions: [VEHICLE_TYPE_PERMISSIONS.viewPage], dataScope: "ALL" },
+    });
+    mount();
+    expect(screen.queryByRole("link", { name: "Loại xe" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Loại xe" })).toHaveAttribute(
+      "href",
+      "/admin/vehicle-types",
+    );
+  });
+  it("quyền xem màn giao hàng không đủ để thấy Loại xe (resource riêng)", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [], permissions: [SHIPMENT_PERMISSIONS.viewPage], dataScope: "ALL" },
+    });
+    mount();
+    expect(await screen.findByRole("link", { name: "Chuyến xe" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Loại xe" })).not.toBeInTheDocument();
   });
   it("Đề xuất nhập hàng (BE chưa có API) chỉ hiện ở mock, không phụ thuộc quyền", async () => {
     vi.spyOn(api, "get").mockResolvedValue({
@@ -317,7 +380,9 @@ describe("mockOnly đi chung pipeline hiển thị + mục đang mở (một t�
     );
   }
 
-  const SHIPMENT_DETAIL = ADMIN_ROUTES.shipments.loading("trip-1");
+  // Mục mockOnly hiện tại (BE chưa có API hoá đơn NCC); Chuyến xe / Vận đơn đã có BE nên không còn mockOnly
+  const MOCK_ONLY_ROUTE = "/admin/invoices";
+  const SHIPMENT_DETAIL = ADMIN_ROUTES.shipments.detail("trip-1");
 
   afterEach(() => {
     mockMode.isMock = false;
@@ -325,20 +390,18 @@ describe("mockOnly đi chung pipeline hiển thị + mục đang mở (một t�
 
   it("A/B. ngoài mock: mục mockOnly ẩn và KHÔNG thành mục đang mở dù đúng route của nó", async () => {
     mockMode.isMock = false;
-    probe(SHIPMENT_DETAIL, [SHIPMENT_PERMISSIONS.viewPage]);
+    probe(MOCK_ONLY_ROUTE, [SHIPMENT_PERMISSIONS.viewPage]);
     await waitFor(() =>
-      expect(screen.getByLabelText("visible")).toHaveTextContent(ADMIN_ROUTES.loadPlans),
+      expect(screen.getByLabelText("visible")).toHaveTextContent(ADMIN_ROUTES.shipments.list),
     );
-    expect(screen.getByLabelText("visible")).not.toHaveTextContent(ADMIN_ROUTES.shipments.list);
+    expect(screen.getByLabelText("visible")).not.toHaveTextContent(MOCK_ONLY_ROUTE);
     expect(screen.getByLabelText("active")).toHaveTextContent("none");
   });
 
   it("C. trong mock: mục mockOnly hiện và sáng theo route như mọi mục khác", async () => {
     mockMode.isMock = true;
-    probe(SHIPMENT_DETAIL, [SHIPMENT_PERMISSIONS.viewPage]);
-    await waitFor(() =>
-      expect(screen.getByLabelText("active")).toHaveTextContent(ADMIN_ROUTES.shipments.list),
-    );
+    probe(MOCK_ONLY_ROUTE, [SHIPMENT_PERMISSIONS.viewPage]);
+    await waitFor(() => expect(screen.getByLabelText("active")).toHaveTextContent(MOCK_ONLY_ROUTE));
   });
 
   it("D. trong mock nhưng thiếu quyền của mục → vẫn ẩn, không sáng (quyền vẫn áp dụng)", async () => {

@@ -10,6 +10,7 @@ import { useAttributes } from "../attribute-queries";
 import { axesDraftIssue, previewMatrix } from "../axes-draft";
 import { MATRIX_MAX_PER_CALL } from "../axes-schemas";
 import { AxesPicker } from "./AxesPicker";
+import { MatrixPreviewBox } from "./MatrixPreviewBox";
 import { useCategoryAxisPrefill } from "./useCategoryAxisPrefill";
 
 import type { AxisDraft } from "../axes-draft";
@@ -68,7 +69,7 @@ export function ProductAxesFields({
   );
 
   return (
-    <section className="border-border-default bg-bg-surface rounded-[var(--r-sm)] border p-4">
+    <section className="border-border-default bg-bg-surface rounded-(--section-radius) border p-4 shadow-(--card-shadow)">
       <h2 className="text-ink-primary text-sm font-semibold">Trục biến thể (tuỳ chọn)</h2>
       <p className="text-ink-secondary mt-1 text-xs">
         Chọn thuộc tính (màu, cỡ…) và các giá trị để tạo sẵn mọi biến thể cùng lúc. Bỏ trống thì sản
@@ -109,29 +110,7 @@ export function ProductAxesFields({
             ))}
           </div>
         )}
-        {value.length > 0 && preview.total > 0 && (
-          <div className="border-border-default bg-bg-subtle space-y-1 rounded-[var(--r-sm)] border p-3 text-[0.8125rem]">
-            <p>
-              Sẽ tạo{" "}
-              <span className="text-ink-primary font-medium tabular-nums">{preview.total}</span>{" "}
-              biến thể (Nháp)
-            </p>
-            {preview.samples.length > 0 && (
-              <ul className="text-ink-secondary space-y-0.5 text-xs">
-                {preview.samples.map((s) => (
-                  <li key={s.sku}>
-                    <span className="text-ink-primary font-[family-name:var(--font-mono)]">
-                      {s.sku}
-                    </span>{" "}
-                    — {s.label}
-                    {s.tooLong && <span className="text-danger"> (SKU quá dài)</span>}
-                  </li>
-                ))}
-                {preview.total > preview.samples.length && <li>…</li>}
-              </ul>
-            )}
-          </div>
-        )}
+        {value.length > 0 && preview.total > 0 && <MatrixPreviewBox preview={preview} />}
         {issue && (
           <p role="alert" className="text-danger text-xs">
             {issue}

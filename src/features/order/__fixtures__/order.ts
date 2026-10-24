@@ -117,6 +117,14 @@ export const apiCreditPosition = {
   hasOverdue: false,
 };
 
+/** Đơn BE ở trạng thái `status` kèm hai cờ giao một phần của BE PR #150. */
+export function apiOrderPartialShipment(
+  status: OrderDto["status"],
+  flags: { allowPartialShipment: boolean; printLinesReady?: boolean },
+): OrderDto {
+  return { ...apiOrder, status, printLinesReady: true, ...flags };
+}
+
 /** Biến thể của `apiOrder` — dựng nhanh các trạng thái cho test thao tác. */
 export function apiOrderWith(patch: Record<string, unknown>) {
   return { ...apiOrder, ...patch } as OrderDto;
@@ -193,3 +201,12 @@ export const apiCancelledOrder: OrderDto = {
   amountDue: 245000,
   amountDueBeforeHandover: 245000,
 };
+
+/** Đơn BE ở trạng thái `status` kèm hình thức giao (BE PR #157) và cờ khoá. */
+export function apiOrderDelivery(
+  status: OrderDto["status"],
+  delivery: { deliveryMode: "PARCEL" | "FULL_TRUCKLOAD"; deliveryModeLocked: boolean },
+  patch: Record<string, unknown> = {},
+): OrderDto {
+  return apiOrderWith({ status, ...delivery, ...patch });
+}

@@ -23,7 +23,7 @@ import { DataTable, type ColumnDef } from "@/components/shared/DataTable";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
-import { numberCell, statusCell, textCell } from "@/components/shared/column-helpers";
+import { CELL, numberCell, statusCell, textCell } from "@/components/shared/column-helpers";
 import {
   replenishmentProposals,
   skus,
@@ -172,7 +172,7 @@ function shouldFlag(row: ReplenishmentProposal): boolean {
 /**
  * Đề xuất nhập hàng — BE chưa có API (chỉ có đánh giá ngưỡng tồn ở inventory), màn này chạy hoàn
  * toàn trên mock-data. Ngoài chế độ mock phải báo "đang phát triển" thay vì hiện dữ liệu mẫu như
- * thể là dữ liệu thật (cùng cách với `ShippingGate`).
+ * thể là dữ liệu thật (màn mock-only có cổng riêng).
  */
 export default function ReplenishmentPage() {
   const isMock = useIsMock();
@@ -312,11 +312,7 @@ function ReplenishmentMockView() {
           onChange={(value) => updateColumnSearch("skuId", value)}
         />
       ),
-      cell: (row) => (
-        <span className="text-accent font-[family-name:var(--font-mono)] text-[0.8125rem] font-medium">
-          {row.skuId}
-        </span>
-      ),
+      cell: (row) => <span className={CELL.code}>{row.skuId}</span>,
     },
     {
       ...textCell<ReplenishmentProposal>("variantLabel", "Tên SKU", (row) => skuLabel(row) || "—", {
@@ -350,9 +346,7 @@ function ReplenishmentMockView() {
       sortable: true,
       compare: (a, b) => computeIncoming(a.skuId) - computeIncoming(b.skuId),
       cell: (row) => (
-        <span className="text-ink-primary font-[family-name:var(--font-mono)] text-[0.8125rem] font-medium tabular-nums">
-          {computeIncoming(row.skuId).toLocaleString("vi-VN")}
-        </span>
+        <span className={CELL.number}>{computeIncoming(row.skuId).toLocaleString("vi-VN")}</span>
       ),
     },
     numberCell<ReplenishmentProposal>(
@@ -366,7 +360,7 @@ function ReplenishmentMockView() {
     ) as ColumnDef<ReplenishmentProposal> & { key: ProposalTableColumnKey },
     numberCell<ReplenishmentProposal>(
       "reorderPoint",
-      "Reorder point",
+      "Điểm đặt hàng lại",
       (row) => skuNumber(row, "reorderPoint"),
       {
         sortable: true,
@@ -380,9 +374,7 @@ function ReplenishmentMockView() {
       sortable: true,
       compare: (a, b) => a.suggestedQty - b.suggestedQty,
       cell: (row) => (
-        <span className="text-accent font-[family-name:var(--font-mono)] text-[0.8125rem] font-bold tabular-nums">
-          {row.suggestedQty.toLocaleString("vi-VN")}
-        </span>
+        <span className={CELL.number}>{row.suggestedQty.toLocaleString("vi-VN")}</span>
       ),
     },
     {
@@ -429,7 +421,7 @@ function ReplenishmentMockView() {
           return (
             <Link
               href={`/admin/purchase-orders/${row.convertedToPoId}`}
-              className="text-accent inline-flex items-center gap-1 text-xs font-medium hover:underline"
+              className={`${CELL.code} hover:underline`}
             >
               {row.convertedToPoId}
             </Link>

@@ -1,28 +1,15 @@
 /**
- * Order — Input schemas (body form gửi đi), tách khỏi DTO (api-conventions §3.1).
+ * Order — Input schemas của duyệt / từ chối công nợ và huỷ đơn (body form gửi đi), tách khỏi DTO
+ * (api-conventions §3.1). Giữ / gỡ giữ / giao thất bại / đóng phần còn lại: `input-schemas.ts`;
+ * release (PR #74): `release-schemas.ts`.
  *
  * Mỗi schema khớp đúng request record của BE develop; BR cite theo docs + mã BE.
  */
 
 import { z } from "zod";
 
-import {
-  ORDER_DELIVERY_FAILURE_REASONS,
-  ORDER_MANUAL_HOLD_REASONS,
-  ORDER_REMAINDER_CLOSURE_REASONS,
-} from "@/constants/labels-order";
 import { ORDER_LIMITS } from "@/constants/numbers";
 import { CREDIT_REJECTION_ACTIONS, ORDER_CANCELLATION_REASON_CODES } from "@/constants/orders";
-
-/* ── Release (SCRUM-423) ─────────────────────────────────────────────── */
-
-/**
- * BE `ReleaseOrderRequest(@NotNull UUID warehouseId)`.
- * docs 17 §4.2 bước 4: Order Coordinator chọn kho xuất trước khi release.
- */
-export const releaseOrderSchema = z.object({
-  warehouseId: z.string().trim().min(1, "Chọn kho xuất"),
-});
 
 /* ── Credit hold (SCRUM-427) ─────────────────────────────────────────── */
 
@@ -124,72 +111,7 @@ export const adminCancelOrderSchema = z
     }
   });
 
-/* ── Giữ / gỡ giữ / giao thất bại / đóng phần còn lại (BE PR #133) ───── */
-
-const NOTE_REQUIRED = "Ghi chú là bắt buộc khi chọn “Lý do khác”";
-
-/**
- * Lý do + ghi chú: BE `Order#putOnHold`, `#markDeliveryFailed`, `#closeRemainder` — OTHER bắt buộc
- * có ghi chú (400 VALIDATION_FAILED nếu thiếu). `note` được trim; rỗng → bỏ khỏi body (api.ts).
- */
-function reasonWithNote<const R extends readonly [string, ...string[]]>(
-  reasons: R,
-  noteMax: number,
-  noteLabel: string,
-) {
-  return z
-    .object({
-      reasonCode: z.enum(reasons, { error: "Chọn lý do" }),
-      note: z.string().trim().max(noteMax, `${noteLabel} tối đa ${noteMax} ký tự`),
-    })
-    .refine((value) => value.reasonCode !== "OTHER" || value.note.length > 0, {
-      path: ["note"],
-      message: NOTE_REQUIRED,
-    });
-}
-
-/**
- * Giữ đơn (`POST /orders/{id}/hold`, `HoldOrderRequest`). Chỉ lý do tự nêu — CREDIT và
- * DESIGN_MISMATCH là của hệ thống (`HoldReason#raisedByHand`), BE trả 400.
- */
-export const holdOrderSchema = reasonWithNote(
-  ORDER_MANUAL_HOLD_REASONS,
-  ORDER_LIMITS.holdNoteMax,
-  "Ghi chú",
-);
-
-/** Gỡ giữ (`POST /orders/{id}/hold/resolution`, `ResolveHoldRequest`): ghi chú @NotBlank. */
-export const resolveOrderHoldSchema = z.object({
-  note: z
-    .string()
-    .trim()
-    .min(1, "Hãy ghi cách đã xử lý")
-    .max(ORDER_LIMITS.resolveNoteMax, `Ghi chú tối đa ${ORDER_LIMITS.resolveNoteMax} ký tự`),
-});
-
-/** Ghi giao thất bại (`POST /orders/{id}/delivery-failure`, `DeliveryFailureRequest`). */
-export const deliveryFailureSchema = reasonWithNote(
-  ORDER_DELIVERY_FAILURE_REASONS,
-  ORDER_LIMITS.deliveryFailureNoteMax,
-  "Ghi chú",
-);
-
-/**
- * Đóng phần còn lại (`POST /orders/{id}/remainder-closure`, `CloseRemainderRequest`). BE nhận mọi
- * `CancellationReasonCode`; danh sách chọn chỉ giữ lý do hợp với việc không giao nổi phần còn lại.
- */
-export const remainderClosureSchema = reasonWithNote(
-  ORDER_REMAINDER_CLOSURE_REASONS,
-  ORDER_LIMITS.remainderClosureNoteMax,
-  "Ghi chú",
-);
-
-export type ReleaseOrderInput = z.infer<typeof releaseOrderSchema>;
 export type CreditApprovalInput = z.infer<typeof creditApprovalSchema>;
 export type CreditRejectionFormInput = z.input<typeof creditRejectionSchema>;
 export type CreditRejectionInput = z.output<typeof creditRejectionSchema>;
 export type AdminCancelOrderInput = z.infer<typeof adminCancelOrderSchema>;
-export type HoldOrderValues = z.infer<typeof holdOrderSchema>;
-export type ResolveOrderHoldValues = z.infer<typeof resolveOrderHoldSchema>;
-export type DeliveryFailureValues = z.infer<typeof deliveryFailureSchema>;
-export type RemainderClosureValues = z.infer<typeof remainderClosureSchema>;

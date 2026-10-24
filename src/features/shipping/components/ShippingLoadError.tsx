@@ -39,6 +39,8 @@ interface ShippingLoadErrorProps {
   onRetry?: () => void;
   /** Trong vùng nội dung: không vẽ PageHeader, không có nút quay lại. */
   inline?: boolean;
+  /** Nơi nút "Quay lại danh sách" dẫn tới; mặc định danh sách lô giao. */
+  backHref?: string;
 }
 
 /** Trạng thái lỗi các màn xếp xe & bàn giao — 403 / 404 / 5xx / mất mạng tách riêng (api-conventions §8). */
@@ -47,6 +49,7 @@ export function ShippingLoadError({
   kind: forcedKind,
   onRetry,
   inline = false,
+  backHref = ADMIN_ROUTES.shipments.list,
 }: ShippingLoadErrorProps) {
   const kind = forcedKind ?? (error ? classifyLoadError(error) : "not-found");
   const copy = COPY[kind];
@@ -57,7 +60,7 @@ export function ShippingLoadError({
   const back =
     isPermissionKind && !canOpenList
       ? { href: ADMIN_ROUTES.home, label: common.backToHome }
-      : { href: ADMIN_ROUTES.shipments.list, label: common.backToList };
+      : { href: backHref, label: common.backToList };
 
   return (
     <>

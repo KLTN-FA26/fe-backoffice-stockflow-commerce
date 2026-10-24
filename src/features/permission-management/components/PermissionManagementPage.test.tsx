@@ -4,6 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 
 import { ApiError } from "@/lib/api/error";
 
+import { roleFixture } from "../__fixtures__/roles";
 import { clearRbacEditor } from "../editor-store";
 
 import type { RoleMatrix, RoleResponse } from "../types";
@@ -13,7 +14,8 @@ const { useRolesMock, useMatrixMock } = vi.hoisted(() => ({
   useMatrixMock: vi.fn(),
 }));
 
-vi.mock("../queries", () => ({
+vi.mock("../queries", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../queries")>()),
   useRoles: useRolesMock,
   useRolePermissionMatrix: useMatrixMock,
 }));
@@ -40,24 +42,8 @@ afterAll(() => {
 });
 
 const roles: RoleResponse[] = [
-  {
-    code: "ROLE_A",
-    name: "Role A",
-    description: null,
-    createdAt: "2026-09-03T00:00:00Z",
-    createdBy: null,
-    lastModifiedAt: null,
-    lastModifiedBy: null,
-  },
-  {
-    code: "ROLE_B",
-    name: "Role B",
-    description: "Second role",
-    createdAt: "2026-09-03T00:00:00Z",
-    createdBy: "flyway",
-    lastModifiedAt: null,
-    lastModifiedBy: null,
-  },
+  roleFixture({ code: "ROLE_A", name: "Role A" }),
+  roleFixture({ code: "ROLE_B", name: "Role B", description: "Second role", createdBy: "flyway" }),
 ];
 
 const matrix = (roleCode: string, roleLabel = roleCode): RoleMatrix => ({

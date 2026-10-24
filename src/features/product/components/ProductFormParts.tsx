@@ -1,14 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Save } from "lucide-react";
 
 import { PRODUCT_STATUS, UI_LABELS } from "@/constants";
 
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
-import { Button } from "@/components/ui/button";
 
 import { ProductFormBackLink, ProductFormForbidden } from "./ProductFormNavigation";
 
@@ -68,23 +66,20 @@ export function ProductFormServerAlert({ message }: { message: string | undefine
   );
 }
 
-export function ProductFormSaveBar({
-  isEditing,
-  isPending,
-}: {
-  isEditing: boolean;
-  isPending: boolean;
-}) {
+/** Lỗi của bước đang đứng của wizard — hiện sau khi bấm "Tiếp tục" ở bước đó. */
+export function ProductStepIssues({ issues }: { issues: readonly string[] }) {
+  if (issues.length === 0) return null;
   return (
-    <div className="border-border-default bg-bg-subtle sticky bottom-0 flex justify-end border-t p-3">
-      <Button
-        type="submit"
-        disabled={isPending}
-        className="bg-brand text-ink-inverse hover:bg-brand-hover rounded-[var(--r-sm)]"
-      >
-        <Save className="size-4" />
-        {isPending ? "Đang lưu..." : isEditing ? "Lưu thay đổi" : "Tạo bản nháp"}
-      </Button>
+    <div
+      role="alert"
+      className="border-danger/30 bg-danger/5 text-danger rounded-[var(--r-sm)] border px-4 py-3 text-[0.8125rem]"
+    >
+      <p className="font-semibold">{UI_LABELS.product.wizard.stepIssuesTitle}</p>
+      <ul className="mt-1 list-disc space-y-0.5 pl-4">
+        {issues.map((message) => (
+          <li key={message}>{message}</li>
+        ))}
+      </ul>
     </div>
   );
 }

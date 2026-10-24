@@ -3,6 +3,7 @@
 import { DASHBOARD_LABELS } from "@/constants/dashboard";
 
 import { DashboardKpis, MockDashboardPanels, StockAlertsWidget } from "@/features/dashboard";
+import { SalesSection } from "@/features/reporting";
 
 import { PageHeader } from "@/components/shared/PageHeader";
 import { useIsMock } from "@/providers/app-providers";
@@ -15,6 +16,7 @@ export default function AdminDashboardPage() {
     <>
       <PageHeader title={DASHBOARD_LABELS.title} subtitle={DASHBOARD_LABELS.subtitle} />
       <DashboardKpis />
+      <SalesSection />
       <StockAlertsWidget />
       {isMock && <MockDashboardPanels />}
     </>

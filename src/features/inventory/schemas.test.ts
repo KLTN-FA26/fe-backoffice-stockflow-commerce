@@ -179,6 +179,31 @@ describe("stock adjustment response contract", () => {
     ).toMatchObject({ reason: "COUNT_VARIANCE", status: "APPROVED" });
   });
 
+  // BE tools/db/seed/seed_test_data.sql: id = md5('seed:' || key)::uuid — đúng dạng 8-4-4-4-12
+  // nhưng không đúng version/variant RFC 9562. Dòng ADJ-20261011-0001 và movement của ADJ-20260905-0001.
+  it("parses seeded rows whose ids are md5-derived", () => {
+    expect(
+      stockAdjustmentDto.safeParse({
+        ...adjustment,
+        adjustmentId: "3e61c961-f65c-6aa1-f4b6-bd405feff853",
+        requestedBy: "a9609637-006a-05a8-6fb0-eb4cb5b18c70",
+        decidedBy: "b5205f3d-6f81-b2d8-10d5-2b1bdf24a55c",
+      }).success,
+    ).toBe(true);
+    expect(
+      movementPageDto.safeParse(
+        movementPage([
+          {
+            ...movement,
+            movementId: "68dd0ee7-02e7-135e-dce9-cc92509d7a51",
+            referenceId: "ad95bf27-4af5-17fd-4480-4da77cb52728",
+            actorId: "b5205f3d-6f81-b2d8-10d5-2b1bdf24a55c",
+          },
+        ]),
+      ).success,
+    ).toBe(true);
+  });
+
   it("read tolerance does not widen the create or list-query contract", () => {
     expect(stockAdjustmentDto.safeParse({ ...adjustment, reason: "COUNT_VARIANCE" }).success).toBe(
       true,

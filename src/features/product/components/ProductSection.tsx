@@ -11,7 +11,7 @@ import type { ReactNode } from "react";
 
 /** Khung thẻ dùng chung của trang chi tiết sản phẩm (cột trái lẫn cột phải). */
 export const PRODUCT_CARD_CLASS =
-  "border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]";
+  "border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)";
 
 /** Mục thu gọn được của trang chi tiết; `actions` nằm trên dòng tiêu đề, chỉ hiện khi mục mở. */
 export function Section({
@@ -37,7 +37,7 @@ export function Section({
           onClick={() => setOpen((o) => !o)}
           className="text-ink-primary hover:text-accent h-auto flex-1 justify-start gap-2 bg-transparent p-0 text-left text-[0.9375rem] font-semibold hover:bg-transparent"
         >
-          {Icon && <Icon className="text-accent size-4" />}
+          {Icon && <Icon className="text-accent size-3.5" />}
           {title}
           {open ? (
             <ChevronDown className="text-ink-tertiary size-3.5" />

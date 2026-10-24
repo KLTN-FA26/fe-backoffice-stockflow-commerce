@@ -4,7 +4,8 @@ import { useState } from "react";
 import { ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 
 import { STORAGE_KEYS, TAXONOMY_CATEGORY_COLUMNS, UI_LABELS } from "@/constants";
-import { Button } from "@/components/ui/button";
+import { viewColumn } from "@/components/shared/column-helpers";
+import { ToolbarIconButton } from "@/components/shared/ListToolbar";
 
 import { useCategoryTreePage } from "../../taxonomy-queries";
 import { CATEGORY_COLUMN_LABELS, buildCategoryColumns } from "./taxonomy-columns";
@@ -12,6 +13,8 @@ import { CategoryFormDialog } from "./CategoryFormDialog";
 import { TaxonomyListBody } from "./TaxonomyListBody";
 import { TaxonomyToolbar } from "./TaxonomyToolbar";
 import { useTaxonomyListState } from "./useTaxonomyListState";
+
+import type { CategoryRow } from "./taxonomy-columns";
 
 const L = UI_LABELS.taxonomy;
 const ALL_COLUMNS = Object.values(TAXONOMY_CATEGORY_COLUMNS);
@@ -44,9 +47,15 @@ export function CategoryList() {
       else next.add(path);
       return next;
     });
-  const columns = buildCategoryColumns(asTree ? { expanded, onToggle: toggle } : null).filter((c) =>
-    s.config.visibleColumns.includes(c.key),
-  );
+  const columns = [
+    ...buildCategoryColumns(asTree ? { expanded, onToggle: toggle } : null).filter((c) =>
+      s.config.visibleColumns.includes(c.key),
+    ),
+    viewColumn<CategoryRow>((row) => ({
+      label: `${L.viewRow} ${row.name}`,
+      onOpen: () => setSelectedId(row.categoryId),
+    })),
+  ];
   const expandable = query.data?.expandable ?? [];
 
   return (
@@ -56,30 +65,26 @@ export function CategoryList() {
         searchPlaceholder={L.categorySearchPlaceholder}
         columnLabels={CATEGORY_COLUMN_LABELS}
         lockedColumn={TAXONOMY_CATEGORY_COLUMNS.CODE}
+        tools={
+          // Mở / thu gọn cây: icon cạnh các công cụ khác, chỉ khi đang xem dạng cây
+          asTree &&
+          expandable.length > 0 && (
+            <>
+              <ToolbarIconButton
+                label={L.expandAll}
+                icon={<ChevronsUpDown className="size-4" />}
+                onClick={() => setExpanded(new Set(expandable))}
+              />
+              <ToolbarIconButton
+                label={L.collapseAll}
+                icon={<ChevronsDownUp className="size-4" />}
+                onClick={() => setExpanded(new Set())}
+              />
+            </>
+          )
+        }
       />
       {query.data?.truncated && <p className="text-warning mb-2 text-xs">{L.listTruncated}</p>}
-      {asTree && expandable.length > 0 && (
-        <div className="mb-2 flex justify-end gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setExpanded(new Set(expandable))}
-            className="text-ink-secondary rounded-[var(--r-sm)]"
-          >
-            <ChevronsUpDown className="size-3.5" /> {L.expandAll}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setExpanded(new Set())}
-            className="text-ink-secondary rounded-[var(--r-sm)]"
-          >
-            <ChevronsDownUp className="size-3.5" /> {L.collapseAll}
-          </Button>
-        </div>
-      )}
       <TaxonomyListBody
         s={s}
         query={query}

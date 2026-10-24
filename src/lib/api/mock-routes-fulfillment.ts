@@ -7,7 +7,16 @@
  * VALIDATION_FAILED kèm message tiếng Anh — FE tự dịch theo ngữ cảnh.
  */
 
-import { PICK_API_STATUSES } from "@/constants";
+import {
+  FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS as REVERIFY,
+  FULFILLMENT_PACKAGE_PERMISSIONS as PACK,
+  FULFILLMENT_PACKING_PERMISSIONS as PACKING,
+  FULFILLMENT_PICK_PERMISSIONS as PICK,
+  FULFILLMENT_PICKING_PERMISSIONS as PICKING,
+  FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS as ASSIGNMENT,
+  FULFILLMENT_TASK_OVERSIGHT_PERMISSIONS as OVERSIGHT,
+  PICK_API_STATUSES,
+} from "@/constants";
 
 import { registerMockRoute } from "./mock-adapter";
 import { toBackendRoles } from "./mock-backend-roles";
@@ -17,7 +26,6 @@ import {
   findMockOrder,
   forbidden,
   getFulfillmentStore,
-  hasAnyRole,
   isTampered,
   nextTaskId,
   orderClosedError,
@@ -26,10 +34,11 @@ import {
   toTaskResponse,
   verifyDesigns,
 } from "./mock-routes-fulfillment-store";
+import { registerPackingMockRoutes } from "./mock-routes-packing";
 import {
   backendOrderStatusOf,
   lockedChecksumOf,
-  putMockOrderOnDesignHold,
+  resolveMockDesignHold,
   setMockOrderStatus,
 } from "./mock-routes-orders-store";
 import {
@@ -62,14 +71,21 @@ const MOCK_ARTIFACT_DIR = "/mock/design-artifacts";
 
 const newestFirst = (a: MockTask, b: MockTask) => b.createdAt.localeCompare(a.createdAt);
 
-/** BE `requireWarehouseAssignee`: ACTIVE + WAREHOUSE_STAFF hoặc WAREHOUSE_MANAGER. */
+/**
+ * BE `requireWarehouseAssignee`: ACTIVE + WAREHOUSE_STAFF hoặc WAREHOUSE_MANAGER. Đây là điều kiện của
+ * NGƯỜI ĐƯỢC GÁN (ai nhận việc), không phải quyền của người gọi — nên vẫn đọc vai trò.
+ */
+function isWarehouseAssignee(user: { active: boolean; roles: readonly string[] }): boolean {
+  return (
+    user.active &&
+    user.roles.some((role) => role === "Warehouse Staff" || role === "Warehouse Manager")
+  );
+}
+
 async function isValidAssignee(userId: string): Promise<boolean> {
   const { staffUsers } = await import("@/lib/mock-data");
   const user = staffUsers.find((candidate) => candidate.userId === userId);
-  return (
-    !!user?.active &&
-    user.roles.some((role) => role === "Warehouse Staff" || role === "Warehouse Manager")
-  );
+  return !!user && isWarehouseAssignee(user);
 }
 
 const invalidAssignee = () =>
@@ -84,11 +100,17 @@ const missingField = (field: string) =>
     { field, message: "must not be null" },
   ]);
 
-/** BE `visible`: người được gán, hoặc quản lý kho / QC / điều phối. */
+/**
+ * BE `TaskAccess.requireVisible` (BE PR #148): người được gán; người có task-oversight:READ hoặc
+ * design-reverification:READ; và người đóng gói (packing:UPDATE) khi lấy hàng đã xong — người đóng gói
+ * không nhất thiết là người lấy hàng.
+ */
 function canSee(task: MockTask, actor: MockActor): boolean {
   return (
     task.assignedUserId === actor.userId ||
-    hasAnyRole(actor, "WAREHOUSE_MANAGER", "QC_STAFF", "ORDER_COORDINATOR")
+    actor.can(OVERSIGHT.read) ||
+    actor.can(REVERIFY.read) ||
+    (task.pickStatus === "PICKED" && actor.can(PACKING.update))
   );
 }
 
@@ -97,7 +119,7 @@ async function loadTask(config: AxiosRequestConfig) {
   return { store, task: store.get(routeParam(config, "id")), actor: await currentActor() };
 }
 
-/** Khung chung của start / complete picking: vai trò → người được gán → đơn còn mở → chuyển. */
+/** Khung chung của start / complete picking: quyền → người được gán → đơn còn mở → chuyển. */
 function registerPickStep(
   suffix: string,
   from: MockTask["pickStatus"],
@@ -105,7 +127,7 @@ function registerPickStep(
 ) {
   registerMockRoute("POST", `${PATH}/:id/${suffix}`, async (config) => {
     const { task, actor } = await loadTask(config);
-    if (!hasAnyRole(actor, "WAREHOUSE_STAFF", "WAREHOUSE_MANAGER")) return forbidden();
+    if (!actor.can(PICKING.update)) return forbidden();
     if (!task) return taskNotFound();
     if (task.assignedUserId !== actor.userId) {
       return beError(404, "NOT_FOUND", "Fulfillment task is not assigned to this user");
@@ -135,13 +157,13 @@ function registerTaskReadRoutes(): void {
     const all = [...(await getFulfillmentStore()).values()]
       .filter((task) => !status || task.pickStatus === status)
       .sort(newestFirst);
-    // BE `listTasks`: quản lý / điều phối thấy hết → QC chỉ thấy kiện đang giữ → NV kho thấy của mình
+    // BE `listTasks`: endpoint cần pick-lists:READ; phạm vi theo quyền — task-oversight:READ thấy hết →
+    // design-reverification:READ chỉ thấy kiện đang giữ → còn lại thấy task của mình
+    if (!actor.can(PICK.read)) return forbidden();
     let visible: MockTask[];
-    if (hasAnyRole(actor, "WAREHOUSE_MANAGER", "ORDER_COORDINATOR")) visible = all;
-    else if (hasAnyRole(actor, "QC_STAFF")) visible = all.filter((t) => t.packStatus === "ON_HOLD");
-    else if (hasAnyRole(actor, "WAREHOUSE_STAFF")) {
-      visible = all.filter((t) => t.assignedUserId === actor.userId);
-    } else return forbidden();
+    if (actor.can(OVERSIGHT.read)) visible = all;
+    else if (actor.can(REVERIFY.read)) visible = all.filter((t) => t.packStatus === "ON_HOLD");
+    else visible = all.filter((t) => t.assignedUserId === actor.userId);
     return beOk(bePage(visible.map(toTaskResponse), page, size));
   });
 
@@ -156,13 +178,14 @@ function registerTaskReadRoutes(): void {
     `${PATH}/:id/lines/:lineId/design-artifacts/:role/download-url`,
     async (config) => {
       const { task, actor } = await loadTask(config);
-      if (!hasAnyRole(actor, "WAREHOUSE_STAFF", "WAREHOUSE_MANAGER", "QC_STAFF"))
-        return forbidden();
+      if (!actor.can(PACK.read)) return forbidden();
       if (!task) return taskNotFound();
-      // BE `requireArtifactAccess`: người được gán, hoặc quản lý kho / QC (không có điều phối)
+      // BE `requireArtifactAccess`: người được gán, người có design-reverification:READ, hoặc người đóng
+      // gói (packing:UPDATE) khi lấy hàng đã xong — không có điều phối
       if (
         task.assignedUserId !== actor.userId &&
-        !hasAnyRole(actor, "WAREHOUSE_MANAGER", "QC_STAFF")
+        !actor.can(REVERIFY.read) &&
+        !(task.pickStatus === "PICKED" && actor.can(PACKING.update))
       ) {
         return taskNotFound();
       }
@@ -203,7 +226,7 @@ function registerTaskReadRoutes(): void {
 function registerAssignmentRoutes(): void {
   registerMockRoute("POST", PATH, async (config) => {
     const actor = await currentActor();
-    if (!hasAnyRole(actor, "ORDER_COORDINATOR", "WAREHOUSE_MANAGER")) return forbidden();
+    if (!actor.can(ASSIGNMENT.create)) return forbidden();
     const body = parseJsonBody(config.data);
     const orderId = readString(body.orderId);
     const assignedUserId = readString(body.assignedUserId);
@@ -232,6 +255,8 @@ function registerAssignmentRoutes(): void {
     const task: MockTask = {
       taskId: nextTaskId(),
       orderId,
+      orderNumber: order.orderNumber,
+      warehouseId: order.fulfillmentWarehouseId,
       assignedUserId,
       pickStatus: "PENDING",
       packStatus: "PENDING",
@@ -247,7 +272,7 @@ function registerAssignmentRoutes(): void {
 
   registerMockRoute("PUT", `${PATH}/:id/assignment`, async (config) => {
     const { task, actor } = await loadTask(config);
-    if (!hasAnyRole(actor, "ORDER_COORDINATOR", "WAREHOUSE_MANAGER")) return forbidden();
+    if (!actor.can(ASSIGNMENT.update)) return forbidden();
     const assignedUserId = readString(parseJsonBody(config.data).assignedUserId);
     if (!assignedUserId) return missingField("assignedUserId");
     if (!(await isValidAssignee(assignedUserId))) return invalidAssignee();
@@ -259,38 +284,11 @@ function registerAssignmentRoutes(): void {
   });
 }
 
+/** Đóng gói (nhận đơn, kiện, quét, hoàn tất) ở `mock-routes-packing.ts`; ở đây còn kiểm tra lại thiết kế. */
 function registerPackRoutes(): void {
-  registerMockRoute("POST", `${PATH}/:id/packing-completion`, async (config) => {
-    const { task, actor } = await loadTask(config);
-    if (!hasAnyRole(actor, "WAREHOUSE_STAFF", "WAREHOUSE_MANAGER")) return forbidden();
-    if (!task) return taskNotFound();
-    if (task.assignedUserId !== actor.userId) {
-      return beError(404, "NOT_FOUND", "Fulfillment task is not assigned to this user");
-    }
-    if (task.pickStatus !== "PICKED") return conflict("Picking must finish before packing");
-    const closed = await orderClosedError(task.orderId);
-    if (closed) return closed;
-    if (task.packStatus === "ON_HOLD") {
-      return conflict("A checksum hold requires QC or warehouse-manager reverification");
-    }
-    if (task.packStatus !== "PENDING" && task.packStatus !== "PACKING") return conflict();
-    const order = await findMockOrder(task.orderId);
-    if (!order) return taskNotFound();
-    if (verifyDesigns(task, order, false)) {
-      task.packStatus = "PACKED";
-      task.packedAt = new Date().toISOString();
-      setMockOrderStatus(task.orderId, "PACKED");
-    } else {
-      // X-CHK: lệch → pack + đơn ON_HOLD (lý do DESIGN_MISMATCH, về lại bước đang làm), vẫn HTTP 200
-      task.packStatus = "ON_HOLD";
-      await putMockOrderOnDesignHold(task.orderId);
-    }
-    return beOk(toTaskResponse(task));
-  });
-
   registerMockRoute("POST", `${PATH}/:id/design-integrity-reverification`, async (config) => {
     const { task, actor } = await loadTask(config);
-    if (!hasAnyRole(actor, "QC_STAFF", "WAREHOUSE_MANAGER")) return forbidden();
+    if (!actor.can(REVERIFY.update)) return forbidden();
     const note = readString(parseJsonBody(config.data).resolutionNote);
     if (!note) {
       return beError(400, "VALIDATION_FAILED", "Invalid request data", [
@@ -304,36 +302,119 @@ function registerPackRoutes(): void {
     const order = await findMockOrder(task.orderId);
     if (!order) return taskNotFound();
     if (verifyDesigns(task, order, true)) {
-      task.packStatus = "PACKED";
-      task.packedAt = new Date().toISOString();
-      // Kiểm tra lại đạt: gỡ giữ DESIGN_MISMATCH rồi đóng gói xong → PACKED (BE `markPacked`)
-      setMockOrderStatus(task.orderId, "PACKED");
+      // BE PR #136: kiểm tra lại đạt → gỡ giữ DESIGN_MISMATCH, phiên về PACKING (docs 08 §5
+      // "Verification Failed → In Progress"); người đóng gói hoàn tất lại, đơn chưa PACKED
+      task.packStatus = "PACKING";
+      resolveMockDesignHold(task.orderId);
     }
     return beOk(toTaskResponse(task));
   });
 }
 
-/** `GET /identity/users` (BE UserManagementController) — phần màn gán task dùng: role + status. */
-function registerUserRoutes(): void {
-  registerMockRoute("GET", "/identity/users", async (config) => {
-    const { staffUsers } = await import("@/lib/mock-data");
-    const params = readParams(config);
-    const role = readString(params.role);
-    const status = readString(params.status);
-    const users = staffUsers
+/**
+ * `GET /fulfillment/assignees?warehouseId=` (BE `FulfillmentServiceImpl#assignees`, guard
+ * `fulfillment-task-assignment:UPDATE`): nhân viên kho / quản lý kho đang hoạt động được gán cho kho đó.
+ * Kho bắt buộc (400); kho lạ → 404 WAREHOUSE_NOT_FOUND; người gọi chỉ hỏi được kho trong phạm vi của mình.
+ */
+function registerAssigneeRoutes(): void {
+  registerMockRoute("GET", "/fulfillment/assignees", async (config) => {
+    const actor = await currentActor();
+    if (!actor.can(ASSIGNMENT.update)) return forbidden();
+    const warehouseId = readString(readParams(config).warehouseId);
+    if (!warehouseId) return missingField("warehouseId");
+    const { staffUsers, warehouses } = await import("@/lib/mock-data");
+    if (!warehouses.some((warehouse) => warehouse.warehouseId === warehouseId)) {
+      return beError(404, "WAREHOUSE_NOT_FOUND", "Warehouse not found");
+    }
+    const caller = staffUsers.find((user) => user.userId === actor.userId);
+    const callerScope: readonly string[] = caller?.warehouseIds ?? [];
+    if (callerScope.length > 0 && !callerScope.includes(warehouseId)) {
+      return beError(403, "OUT_OF_DATA_SCOPE", "The warehouse is outside your data scope");
+    }
+    const assignees = staffUsers
+      .filter(
+        (user) =>
+          isWarehouseAssignee(user) &&
+          ((user.warehouseIds as readonly string[]).length === 0 ||
+            (user.warehouseIds as readonly string[]).includes(warehouseId)),
+      )
       .map((user) => ({
         userId: user.userId,
-        username: user.email.split("@")[0] ?? user.email,
-        email: user.email,
-        fullName: user.fullName,
-        status: user.active ? "ACTIVE" : "DISABLED",
+        displayName: user.fullName,
         roles: toBackendRoles(user.roles),
-        warehouseIds: user.warehouseIds,
       }))
-      .filter((user) => (!role || user.roles.includes(role)) && (!status || user.status === status))
-      .sort((a, b) => a.username.localeCompare(b.username));
+      .sort((a, b) => a.displayName.localeCompare(b.displayName, "vi"));
+    return beOk(assignees);
+  });
+}
+
+/**
+ * `GET /fulfillment/task-candidates` (BE PR #151, `FulfillmentServiceImpl#taskCandidates`, guard
+ * `fulfillment-task-assignment:CREATE`): đơn READY_TO_FULFILL chưa có task, release cũ nhất trước.
+ * `warehouseId` tuỳ chọn: bỏ qua → mọi kho trong phạm vi của người gọi; kho ngoài phạm vi → 403
+ * OUT_OF_DATA_SCOPE (kiểm trước); người gọi không bị giới hạn kho gửi kho lạ → 404 WAREHOUSE_NOT_FOUND;
+ * `size` > 200 → 400.
+ */
+function registerTaskCandidateRoutes(): void {
+  registerMockRoute("GET", "/fulfillment/task-candidates", async (config) => {
+    const actor = await currentActor();
+    if (!actor.can(ASSIGNMENT.create)) return forbidden();
+    const params = readParams(config);
+    const page = Math.max(0, readInt(params.page, 0));
     const size = readInt(params.size, BE_DEFAULT_PAGE_SIZE);
-    return beOk(bePage(users, readInt(params.page, 0), size));
+    if (size < 1 || size > BE_MAX_PAGE_SIZE) {
+      return beError(
+        400,
+        "UNSUPPORTED_PARAMETER",
+        `size must be between 1 and ${BE_MAX_PAGE_SIZE}`,
+      );
+    }
+    const { customers, orders, staffUsers, warehouses } = await import("@/lib/mock-data");
+    const warehouseId = readString(params.warehouseId);
+    const caller = staffUsers.find((user) => user.userId === actor.userId);
+    const callerScope: readonly string[] = caller?.warehouseIds ?? [];
+    // Như BE `TaskCandidateService`: kiểm phạm vi trước, rồi mới tới kho có tồn tại không — người ngoài
+    // phạm vi không được biết kho khác có thật hay không
+    if (warehouseId && callerScope.length > 0 && !callerScope.includes(warehouseId)) {
+      return beError(403, "OUT_OF_DATA_SCOPE", "The warehouse is outside your data scope");
+    }
+    if (warehouseId && !warehouses.some((warehouse) => warehouse.warehouseId === warehouseId)) {
+      return beError(404, "WAREHOUSE_NOT_FOUND", "Warehouse not found");
+    }
+    // Chạy sau khi store khởi tạo: seed đặt trạng thái BE của đơn theo task đã có
+    const store = await getFulfillmentStore();
+    const withTask = new Set([...store.values()].map((task) => task.orderId));
+    const candidates = [];
+    for (const order of orders) {
+      if (withTask.has(order.orderId)) continue;
+      if ((await backendOrderStatusOf(order.orderId)) !== "READY_TO_FULFILL") continue;
+      if (
+        warehouseId
+          ? order.fulfillmentWarehouseId !== warehouseId
+          : callerScope.length > 0 && !callerScope.includes(order.fulfillmentWarehouseId)
+      ) {
+        continue;
+      }
+      candidates.push({
+        orderId: order.orderId,
+        orderNumber: order.orderNumber,
+        customerId: order.customerId,
+        customerName: customers.find((c) => c.customerId === order.customerId)?.fullName,
+        warehouseId: order.fulfillmentWarehouseId,
+        placedAt: order.placedAt,
+        releasedAt: order.confirmedAt ?? order.placedAt,
+        lineCount: order.lines.length,
+        totalQuantity: order.lines.reduce((sum, line) => sum + line.quantity, 0),
+        lines: order.lines.map((line) => ({
+          orderLineId: line.lineId,
+          sku: line.skuId,
+          quantity: line.quantity,
+          printed: Boolean(line.designId),
+        })),
+      });
+    }
+    candidates.sort((a, b) => a.releasedAt.localeCompare(b.releasedAt));
+    return beOk(bePage(candidates, page, size));
   });
 }
 
@@ -349,5 +430,7 @@ export function registerFulfillmentMockRoutes(): void {
     task.pickedAt = now;
   });
   registerPackRoutes();
-  registerUserRoutes();
+  registerPackingMockRoutes();
+  registerAssigneeRoutes();
+  registerTaskCandidateRoutes();
 }

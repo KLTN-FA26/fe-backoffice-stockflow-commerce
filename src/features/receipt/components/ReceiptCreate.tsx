@@ -1,12 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-
 import { ADMIN_ROUTES, GOODS_RECEIPT_PERMISSIONS, PO_PERMISSIONS, UI_LABELS } from "@/constants";
 import { useCan } from "@/lib/auth";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { Button } from "@/components/ui/button";
+import { BackLink } from "@/components/shared/BackLink";
 
 import { ReceiptCreateForm } from "./create/ReceiptCreateForm";
 import { ReceiptLoadError } from "./ReceiptLoadError";
@@ -20,13 +17,7 @@ function ReceiptCreateContent() {
       <PageHeader
         title={UI_LABELS.receipt.action.create}
         subtitle="Chọn đơn đặt hàng đã chốt để bắt đầu kiểm đếm hàng về."
-        actions={
-          <Button variant="outline" size="sm" asChild>
-            <Link href={ADMIN_ROUTES.receipts.list}>
-              <ArrowLeft className="size-3.5" /> {UI_LABELS.common.backToList}
-            </Link>
-          </Button>
-        }
+        actions={<BackLink href={ADMIN_ROUTES.receipts.list} />}
       />
       {canReadPo ? (
         <ReceiptCreateForm />

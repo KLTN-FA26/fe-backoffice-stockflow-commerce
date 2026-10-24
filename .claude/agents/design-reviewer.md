@@ -16,8 +16,8 @@ Dự án có hai design mode độc lập, trộn lẫn là lỗi nặng nhất:
 
 - **Mode A — Back-office** (`/admin/*`, `components/backoffice`, feature 01–11):
   Ink + Blue. `brand.ink` `#1A1B18`, `accent.blue` `#1E88E5`/`#4EA6F0`.
-  Data-dense, desktop-first (≥1024), radius `sm` (4px), card padding 16px,
-  ưu tiên **border** hơn shadow.
+  Data-dense, desktop-first (≥1024), **style Vercel**: khối/card/nút hành động bo 8px, viền +
+  bóng nhẹ `--card-shadow`; ô nhập/badge 4px; card padding 16px. Nền `bg.base` `#F6F6F6`.
 - **Mode B — Storefront** (`components/storefront`, feature 12–18):
   Caramel. `#A9682F` light / `#C98D4E` dark, nền `bg.warm` `#F7F2EB`.
   Airy, mobile-first (320→1440), radius `lg`/`xl`, card padding 24px, được dùng shadow.
@@ -26,6 +26,9 @@ Caramel lọt vào mode A, hoặc blue/ink làm CTA ở mode B → báo ngay, m�
 
 7 semantic status dùng chung hai mode, không đổi: positive `#1F9D55`, info `#2B7FC4`,
 warning `#D98207`, danger `#D23B3B`, neutral `#6B6E68`, muted `#9A9C95`, special `#7C5CBF`.
+Chấm trạng thái + icon công cụ dùng thang tươi `--dot-*`: positive `#12A594`, info `#0090FF`,
+warning `#F76B15`, danger `#E5484D`, special `#8E4EC6` — **chỉ** chấm/icon; chữ, viền, nền badge
+vẫn màu status gốc (dot làm chữ là vi phạm tương phản).
 
 ## Checklist
 
@@ -35,9 +38,14 @@ warning `#D98207`, danger `#D23B3B`, neutral `#6B6E68`, muted `#9A9C95`, special
    Tone theo thứ tự ưu tiên: special > danger > positive > warning > info > muted > neutral.
    Text trạng thái phải **nguyên văn** union type trong docs — không dịch, không viết lại.
 3. **Shared components**: dùng lại Card / FilterBar / SearchBar / DataTable / StatTile /
-   EmptyState / Skeleton / Toast / Alert / ConfirmDialog / PageHeader thay vì viết mới.
+   EmptyState / Skeleton / Toast / Alert / ConfirmDialog / InputCombobox thay vì viết mới
+   (Mode A không dùng PageHeader có title — xem mục 4b).
    `components/ui/*` là shadcn nguyên bản — không được sửa tay.
 4. **Density đúng mode**: radius, card padding, gap như bảng trên.
+   4b. **Style Vercel (Mode A)**: trang thuộc đúng 1 trong 3 loại (`.claude/rules/mode-a-backoffice.md`
+   → _3 loại trang_): danh sách `surface-soft`, chi tiết/form `surface-soft surface-compact`;
+   không PageHeader có title hiển thị (`h1` sr-only); nút trang trong `ListToolbar actions`;
+   combobox dùng `InputCombobox`. Trang chưa chuyển → ghi "nợ migrate", không phải vi phạm nặng.
 5. **Typography**: số tiền/SL/mã có `tabular-nums`; mã định danh (SKU, PO, AWB) dùng mono;
    không all-caps cho label thường; body ≤ 75 ký tự/dòng.
 6. **Mọi trạng thái có UI**: loading, error, empty (2 loại: chưa có data ≠ lọc không ra).

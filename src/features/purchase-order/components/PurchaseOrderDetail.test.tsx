@@ -273,78 +273,34 @@ describe("PurchaseOrderDetail — giao NCC (BE #36)", () => {
     expect(within(dialog).getByRole("button", { name: "Xác nhận & gửi NCC" })).toBeEnabled();
   });
 
-  it("đang gửi NCC (QUEUED) → tự tải lại, chuyển sang 'Đã gửi tới NCC' không cần F5", async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    try {
-      let calls = 0;
-      const sent = {
-        status: "CONFIRMED",
-        supplierConfirmationStatus: "PENDING",
-        sentAt: "2026-10-01T03:00:00Z",
-      };
-      mockApi(PO_PERMISSION_SETS.procurement, {
-        ...routesFor(bePo()),
-        [`/purchase-orders/${PO_ID}`]: () =>
-          bePo({ ...sent, deliveryStatus: ++calls === 1 ? "QUEUED" : "DELIVERED" }),
-      });
-      renderPoScreen(<PurchaseOrderDetail id={PO_ID} />);
-      expect(await screen.findByText("Đang chờ gửi")).toBeInTheDocument();
-      await vi.advanceTimersByTimeAsync(3500);
-      expect(await screen.findByText("Đã gửi tới NCC")).toBeInTheDocument();
-      // Đã có kết quả cuối → dừng tải lại
-      const after = calls;
-      await vi.advanceTimersByTimeAsync(7000);
-      expect(calls).toBe(after);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("đang gửi → tự tải lại; có kết quả → lịch sử có dòng vừa gửi, rồi dừng tải lại", async () => {
+  it("đang gửi NCC (QUEUED) → KHÔNG tự tải lại PO lẫn lịch sử gửi, người dùng tự F5", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       let poCalls = 0;
       let attemptCalls = 0;
-      let servedSentRow = false;
-      const sent = {
-        status: "CONFIRMED",
-        supplierConfirmationStatus: "PENDING",
-        sentAt: "2026-10-01T03:00:00Z",
-      };
       mockApi(PO_PERMISSION_SETS.procurement, {
         ...routesFor(bePo()),
-        [`/purchase-orders/${PO_ID}`]: () =>
-          bePo({ ...sent, deliveryStatus: ++poCalls === 1 ? "QUEUED" : "DELIVERED" }),
-        // BE chỉ ghi dòng lần gửi sau khi gửi xong: lúc PO còn QUEUED thì lịch sử trống.
+        [`/purchase-orders/${PO_ID}`]: () => {
+          poCalls += 1;
+          return bePo({
+            status: "CONFIRMED",
+            supplierConfirmationStatus: "PENDING",
+            sentAt: "2026-10-01T03:00:00Z",
+            deliveryStatus: "QUEUED",
+          });
+        },
         [`/purchase-orders/${PO_ID}/deliveries`]: () => {
           attemptCalls += 1;
-          if (poCalls < 2) return bePage([]);
-          servedSentRow = true;
-          return bePage([
-            {
-              id: "d-1",
-              channel: "EMAIL",
-              status: "SENT",
-              attemptedAt: "2026-10-01T03:00:01Z",
-              sentAt: "2026-10-01T03:00:01Z",
-              failure: null,
-              generation: 0,
-              recipient: "po@gohoaphat.vn",
-              templateCode: "purchase-order.sent",
-            },
-          ]);
+          return bePage([]);
         },
       });
       renderPoScreen(<PurchaseOrderDetail id={PO_ID} />);
       expect(await screen.findByText("Đang chờ gửi")).toBeInTheDocument();
-      await vi.advanceTimersByTimeAsync(5_000);
-      expect(servedSentRow).toBe(true);
-      // Thẻ (deliveryStatus DELIVERED) + dòng lần gửi SENT dùng cùng một nhãn
-      await waitFor(() => expect(screen.getAllByText("Đã gửi tới NCC")).toHaveLength(2));
-      // Đã có kết quả cuối → dừng tải lại
-      const after = attemptCalls;
-      await vi.advanceTimersByTimeAsync(10_000);
-      expect(attemptCalls).toBe(after);
+      await waitFor(() => expect(attemptCalls).toBe(1));
+      const [po, attempts] = [poCalls, attemptCalls];
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(poCalls).toBe(po);
+      expect(attemptCalls).toBe(attempts);
     } finally {
       vi.useRealTimers();
     }

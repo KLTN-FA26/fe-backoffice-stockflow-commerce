@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { INVENTORY_PERMISSIONS } from "@/constants";
@@ -72,6 +73,10 @@ async function renderShell(
         .some((query) => query.state.status === "success"),
     ).toBe(true),
   );
+  // Sidebar drill-down: mục kho nằm trong màn con của item cha "Kho" — mở nó nếu đang ở màn gốc
+  const sidebar = document.querySelector<HTMLElement>('[data-sidebar="content"]');
+  const inventoryGroup = sidebar && within(sidebar).queryByRole("button", { name: /^Kho/ });
+  if (inventoryGroup) await userEvent.click(inventoryGroup);
 }
 
 // Sidebar only — sub-pages also show the parent menu as a breadcrumb link.
@@ -165,10 +170,32 @@ describe("Inventory sidebar entries follow backend permission codes", () => {
 describe("shell shows no demo data against the real backend", () => {
   it("has no mock-only entries, no warning badges and no mock warehouse switcher", async () => {
     await renderShell([]);
-    for (const name of ["Hoá đơn NCC", "Đề xuất nhập hàng", "Xếp xe & bàn giao"]) {
+    for (const name of ["Hoá đơn NCC", "Đề xuất nhập hàng"]) {
       expect(navLink(name)).not.toBeInTheDocument();
     }
     expect(document.querySelector('[data-sidebar="menu-badge"]')).toBeNull();
     expect(screen.queryByRole("button", { name: "Tất cả kho" })).not.toBeInTheDocument();
+  });
+});
+
+describe("sidebar drill-down kiểu Vercel", () => {
+  it("bấm item cha → thay bằng item con; tên item cha ở đầu là nút quay lại danh sách item cha", async () => {
+    // renderShell tự mở màn con "Kho" khi đang ở màn gốc
+    await renderShell([INVENTORY_PERMISSIONS.adjustmentRead, INVENTORY_PERMISSIONS.movementRead]);
+    const sidebar = document.querySelector<HTMLElement>('[data-sidebar="content"]');
+    if (!sidebar) throw new Error("Sidebar content not rendered");
+    expect(navLink(ADJUSTMENTS)).toBeInTheDocument();
+    expect(within(sidebar).queryByRole("button", { name: /^Kho/ })).not.toBeInTheDocument();
+
+    await userEvent.click(within(sidebar).getByRole("button", { name: /^Quay lại Kho/ }));
+    expect(navLink(ADJUSTMENTS)).not.toBeInTheDocument();
+    expect(within(sidebar).getByRole("button", { name: /^Kho/ })).toBeInTheDocument();
+  });
+
+  it("đang ở trang thuộc nhóm → mở sẵn màn con của nhóm đó", async () => {
+    navigation.pathname = INVENTORY_ROUTES.movements;
+    await renderShell([INVENTORY_PERMISSIONS.adjustmentRead, INVENTORY_PERMISSIONS.movementRead]);
+    expect(navLink(MOVEMENTS)).toHaveAttribute("data-active", "true");
+    expect(screen.getByRole("button", { name: /^Quay lại Kho/ })).toBeInTheDocument();
   });
 });

@@ -12,7 +12,6 @@ import {
   PICKER_ID,
   TASK_ID,
   apiTask,
-  assignableUsers,
   bePage,
   fulfillmentOrder,
   pickedTask,
@@ -43,7 +42,6 @@ function renderDetail(
       [PATH]: () => task,
       [`/orders/${ORDER_ID}`]: () => fulfillmentOrder,
       "/orders": () => bePage([fulfillmentOrder]),
-      "/identity/users": () => bePage(assignableUsers),
     },
     {
       [`${PATH}/picking-start`]: () => (task = { ...task, pickStatus: "PICKING" }),

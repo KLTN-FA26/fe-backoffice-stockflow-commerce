@@ -6,12 +6,13 @@ import {
   adminCancelOrderSchema,
   creditApprovalSchema,
   creditRejectionSchema,
+} from "./action-schemas";
+import {
   deliveryFailureSchema,
   holdOrderSchema,
-  releaseOrderSchema,
   remainderClosureSchema,
   resolveOrderHoldSchema,
-} from "./action-schemas";
+} from "./input-schemas";
 
 describe("adminCancelOrderSchema — BE AdminCancelOrderRequest", () => {
   it("mã lý do + ghi chú trim", () => {
@@ -48,14 +49,7 @@ describe("adminCancelOrderSchema — BE AdminCancelOrderRequest", () => {
   });
 });
 
-describe("releaseOrderSchema — BE ReleaseOrderRequest", () => {
-  it("docs 17 §4.2 bước 4: bắt buộc chọn kho xuất", () => {
-    expect(releaseOrderSchema.safeParse({ warehouseId: "" }).success).toBe(false);
-    expect(releaseOrderSchema.parse({ warehouseId: "WH-HN-01" })).toEqual({
-      warehouseId: "WH-HN-01",
-    });
-  });
-});
+// Release (warehouseId bắt buộc): `releaseFormSchema` — `release-errors.test.ts` (PR #74).
 
 describe("credit hold — BE CreditDecisionRequest / CreditRefusalRequest", () => {
   it("duyệt bắt buộc ghi chú (BE @NotBlank)", () => {

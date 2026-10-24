@@ -12,11 +12,10 @@ import {
   customLineCount,
   depositState,
   groupProductionOrdersByLine,
-  releaseBlockers,
   shouldFlagOrderRow,
 } from "./selectors";
 
-import type { ProductionOrder } from "./types";
+import type { OrderStatus, ProductionOrder } from "./types";
 
 describe("depositState — docs 15 BR-02 / docs 19 BR-09", () => {
   it("không phải đơn cọc → not-applicable", () => {
@@ -87,49 +86,6 @@ describe("creditHoldSummary — chỉ nêu tình trạng số liệu BE chứng 
       kind: "over-limit",
       excess: expect.closeTo(0.01, 6),
     });
-  });
-});
-
-describe("releaseBlockers — lý do chưa release biết trước", () => {
-  it("BR-PRD-09: đơn cọc Pending Payment chưa nhận cọc", () => {
-    expect(
-      releaseBlockers({
-        status: "Pending Payment",
-        paymentTerm: "DEPOSIT",
-        depositReceivedAt: null,
-        holdReason: null,
-      }),
-    ).toEqual([{ rule: "BR-PRD-09", message: "Đơn đặt cọc chưa nhận đủ tiền cọc." }]);
-  });
-  it("BR-02: đơn công nợ giữ vì CREDIT chờ duyệt — không đoán nợ quá hạn", () => {
-    const [blocker] = releaseBlockers({
-      status: "On Hold",
-      paymentTerm: "CREDIT",
-      depositReceivedAt: null,
-      holdReason: "CREDIT",
-    });
-    expect(blocker?.rule).toBe("BR-02");
-    expect(blocker?.message).not.toMatch(/quá hạn/i);
-  });
-  it("đơn CREDIT giữ vì lý do khác (ADDRESS) → không bị nói là chưa duyệt công nợ", () => {
-    expect(
-      releaseBlockers({
-        status: "On Hold",
-        paymentTerm: "CREDIT",
-        depositReceivedAt: null,
-        holdReason: "ADDRESS",
-      }),
-    ).toEqual([]);
-  });
-  it("đơn Confirmed → không có lý do biết trước (BR-PRD-08 do BE kiểm)", () => {
-    expect(
-      releaseBlockers({
-        status: "Confirmed",
-        paymentTerm: "DEPOSIT",
-        depositReceivedAt: "x",
-        holdReason: null,
-      }),
-    ).toEqual([]);
   });
 });
 
@@ -278,5 +234,28 @@ describe("retainedAmountPreview — như BE Order#cancel (làm tròn theo số l
   it("USD giữ xu (cách cũ làm tròn về đô la nguyên), không lộ sai số số thực", () => {
     expect(retainedAmountPreview(100.1, 33.3, "USD")).toBe(33.33);
     expect(retainedAmountPreview(0.3, 10, "USD")).toBe(0.03);
+  });
+});
+
+describe("shouldFlagOrderRow — ngoại lệ chờ nhân viên quyết (lead 22/10)", () => {
+  it.each<OrderStatus>(["On Hold", "Delivery Failed", "Partially Fulfilled", "Return Requested"])(
+    "%s → có viền cảnh báo",
+    (status) => {
+      expect(shouldFlagOrderRow({ status })).toBe(true);
+    },
+  );
+
+  it.each<OrderStatus>([
+    "Pending Payment",
+    "Confirmed",
+    "Picking",
+    "Packed",
+    "Shipped",
+    "Delivered",
+    "Returned",
+    "Cancelled",
+    "Completed",
+  ])("%s → không cảnh báo", (status) => {
+    expect(shouldFlagOrderRow({ status })).toBe(false);
   });
 });

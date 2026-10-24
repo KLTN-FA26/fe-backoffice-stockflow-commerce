@@ -5,6 +5,7 @@
  */
 
 import { registerMockRoute } from "./mock-adapter";
+import { dropMockTransferShipment } from "./mock-load-plan-transfer";
 import { currentActor } from "./mock-routes-fulfillment-store";
 import {
   BE_DEFAULT_PAGE_SIZE,
@@ -28,6 +29,7 @@ import {
   nextTransferNumber,
   transferNotFound,
 } from "./mock-routes-transfer-orders-store";
+import { getTransferPacks } from "./mock-routes-transfer-packs-store";
 
 import type { AxiosRequestConfig } from "axios";
 import type {
@@ -51,6 +53,8 @@ const toRow = (t: MockTransfer) => ({
   expectedDate: t.expectedDate,
   createdAt: t.createdAt,
   dispatchedAt: t.dispatchedAt,
+  deliveryMode: t.deliveryMode,
+  packedAt: t.packedAt,
 });
 
 /** BE `CreateTransferOrderRequest` → dòng; lỗi → response 400 như BE. */
@@ -79,6 +83,16 @@ function readDraft(body: Record<string, unknown>) {
       ),
     };
   }
+  // LP2-8: mặc định nguyên chuyến; giá trị lạ → 400 như Jackson từ chối enum
+  const sentMode =
+    body.deliveryMode === undefined ? "FULL_TRUCKLOAD" : readString(body.deliveryMode);
+  if (sentMode !== "FULL_TRUCKLOAD" && sentMode !== "PARCEL") {
+    return {
+      ok: false as const,
+      error: beError(400, "MALFORMED_REQUEST", "deliveryMode must be FULL_TRUCKLOAD or PARCEL"),
+    };
+  }
+  const deliveryMode: MockTransfer["deliveryMode"] = sentMode;
   const seen = new Set<string>();
   const lines: MockTransferLine[] = [];
   for (const [index, line] of raw.entries()) {
@@ -108,6 +122,7 @@ function readDraft(body: Record<string, unknown>) {
       toWarehouseId: to,
       reason: readString(body.reason) || null,
       expectedDate: readString(body.expectedDate) || null,
+      deliveryMode,
       lines,
     },
   };
@@ -257,6 +272,8 @@ export function registerTransferOrderMockRoutes(): void {
       cancelReason: null,
       createdAt: new Date().toISOString(),
       version: 0,
+      packedAt: null,
+      goodsLeftAt: null,
     };
     (await getTransferStore()).set(transfer.transferId, transfer);
     return beOk(transfer, 201);
@@ -335,7 +352,31 @@ export function registerTransferOrderMockRoutes(): void {
   transition(
     "picking-cancellation",
     () => "APPROVED",
-    (t) => t,
+    // BE PR #164: hàng đã rời kho trên xe → TRANSFER_GOODS_LEFT; xe đang xếp → LOAD_PLAN_LOADING_STARTED; còn lại huỷ
+    // kế hoạch xe + phiên đóng gói của lệnh (kiện bị huỷ, lệnh hết đóng gói xong)
+    (t) => {
+      if (t.goodsLeftAt) {
+        return beError(
+          409,
+          "TRANSFER_GOODS_LEFT",
+          "Goods of this transfer order already left the source warehouse",
+        );
+      }
+      if (!dropMockTransferShipment(t.transferId)) {
+        return beError(
+          409,
+          "LOAD_PLAN_LOADING_STARTED",
+          "A vehicle of this load plan is already being loaded",
+        );
+      }
+      for (const pack of getTransferPacks().values()) {
+        if (pack.transferOrderId === t.transferId && pack.packStatus !== "CANCELLED") {
+          pack.packStatus = "CANCELLED";
+          for (const parcel of pack.parcels) parcel.status = "VOIDED";
+        }
+      }
+      return { ...t, packedAt: null };
+    },
   );
   transition(
     "cancellation",
@@ -347,6 +388,14 @@ export function registerTransferOrderMockRoutes(): void {
     "dispatch",
     () => "IN_TRANSIT",
     (t, body, actorId) => {
+      // BE PR #164: lệnh nguyên chuyến do xe cuối của kế hoạch xe xuất, không xuất tay (có hay không có phiên đóng gói)
+      if (t.deliveryMode === "FULL_TRUCKLOAD") {
+        return beError(
+          409,
+          "TRANSFER_DISPATCH_BY_LOAD_PLAN",
+          "This transfer order is dispatched by its load plan's last vehicle",
+        );
+      }
       const shipped = new Map<string, number>();
       for (const line of Array.isArray(body.lines) ? body.lines.filter(isRecord) : []) {
         // = BE controller: lineId lặp thì cộng dồn (`merge(…, Integer::sum)`)

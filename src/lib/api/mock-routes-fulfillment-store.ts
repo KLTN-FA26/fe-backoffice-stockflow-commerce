@@ -6,7 +6,8 @@
  * chỉnh, mang snapshot + checksum như BE.
  */
 
-import { toBackendRoles } from "./mock-backend-roles";
+import { mockGrantsOf } from "./mock-user-grants";
+import { resetPackingMockStore } from "./mock-routes-packing-store";
 import {
   backendOrderStatusOf,
   fakeSha256,
@@ -19,6 +20,7 @@ import { beError, isRecord } from "./mock-routes-purchase-orders-store";
 
 import type { AxiosRequestConfig } from "axios";
 import type { Order, OrderStatus } from "@/lib/mock-data";
+import type { PermissionCode } from "@/lib/auth/me-permissions";
 
 export type MockPickStatus = "PENDING" | "PICKING" | "PICKED" | "SHORT" | "CANCELLED";
 export type MockPackStatus = "PENDING" | "PACKING" | "ON_HOLD" | "PACKED" | "CANCELLED";
@@ -35,6 +37,9 @@ export interface MockEvidence {
 export interface MockTask {
   taskId: string;
   orderId: string;
+  /** BE PR #136 trả thêm số đơn + kho trên task. */
+  orderNumber: string;
+  warehouseId: string;
   assignedUserId: string;
   pickStatus: MockPickStatus;
   packStatus: MockPackStatus;
@@ -87,6 +92,7 @@ const tampered = new Map<string, number>();
 let sequence = 0;
 
 export function resetFulfillmentMockStore(): void {
+  resetPackingMockStore();
   store = undefined;
   tampered.clear();
   sequence = 0;
@@ -136,6 +142,8 @@ function seedTask(order: Order, spec: SeedSpec): MockTask {
   const task: MockTask = {
     taskId: mockTaskId(order.orderId),
     orderId: order.orderId,
+    orderNumber: order.orderNumber,
+    warehouseId: order.fulfillmentWarehouseId,
     assignedUserId: spec.assignee,
     pickStatus: spec.pick,
     packStatus: spec.pack,
@@ -153,9 +161,13 @@ function seedTask(order: Order, spec: SeedSpec): MockTask {
   return task;
 }
 
+/** userId → tên hiển thị (BE trả `assignedUserName` trên task); nạp cùng lúc với store. */
+const staffNameById = new Map<string, string>();
+
 export async function getFulfillmentStore(): Promise<Map<string, MockTask>> {
   if (store) return store;
-  const { orders } = await import("@/lib/mock-data");
+  const { orders, staffUsers } = await import("@/lib/mock-data");
+  for (const user of staffUsers) staffNameById.set(user.userId, user.fullName);
   const seeded = new Map<string, MockTask>();
   const used = new Set<OrderStatus>();
   for (const order of orders) {
@@ -195,26 +207,30 @@ export function nextTaskId(): string {
 /** `FulfillmentTaskResponse` — field chưa có giá trị bị bỏ (Jackson non_null). */
 export function toTaskResponse(task: MockTask) {
   const { createdAt: _createdAt, evidence, ...rest } = task;
-  return { ...rest, integrityEvidence: evidence.map((entry) => ({ ...entry })) };
+  return {
+    ...rest,
+    assignedUserName: staffNameById.get(task.assignedUserId),
+    integrityEvidence: evidence.map((entry) => ({ ...entry })),
+  };
 }
 
 /* ── Người gọi ───────────────────────────────────────────────────────── */
 
 export interface MockActor {
   userId: string;
-  roles: readonly string[];
+  /** Có mã quyền này không — như `@RequiresPermission` / `CurrentUser.can` của BE (BE PR #148). */
+  can: (code: PermissionCode) => boolean;
 }
 
-/** Vai trò thật của phiên (vai trò giả lập chỉ đổi nhãn, không đổi quyền — như BFF mock). */
+/**
+ * Người gọi thật của phiên và quyền của họ (vai trò giả lập chỉ đổi nhãn, không đổi quyền — như BFF
+ * mock; quyền lấy từ `mock-user-grants`, cùng nguồn với `/identity/me/permissions`).
+ */
 export async function currentActor(): Promise<MockActor> {
   const { useAuthStore } = await import("@/lib/auth/auth-store");
-  const user = useAuthStore.getState().user;
-  return { userId: user?.userId ?? "", roles: toBackendRoles(user?.roles ?? []) };
-}
-
-/** SYSTEM_ADMIN qua mọi cổng vai trò (BE RoleHierarchyConfig). */
-export function hasAnyRole(actor: MockActor, ...roles: string[]): boolean {
-  return actor.roles.some((role) => role === "SYSTEM_ADMIN" || roles.includes(role));
+  const userId = useAuthStore.getState().user?.userId ?? "";
+  const grants = mockGrantsOf(userId);
+  return { userId, can: (code) => grants.has(code) };
 }
 
 /* ── Lỗi BE (mã chung, message tiếng Anh như FulfillmentServiceImpl) ──── */

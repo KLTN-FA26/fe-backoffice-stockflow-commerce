@@ -24,6 +24,7 @@ import type { PermissionCode } from "@/lib/auth";
  * Theo seed BE develop (5683fe14):
  * - `sales-orders:APPROVE` (release, giữ / gỡ giữ / giao thất bại) chỉ ORDER_COORDINATOR;
  * - `sales-order-cancellations:UPDATE` (huỷ, đóng phần còn lại) cho SALES_STAFF + ORDER_COORDINATOR;
+ * - `sales-order-partial-shipments:UPDATE` (cho phép giao một phần, BE PR #150) cho SALES_STAFF, không có APPROVE;
  * - `sales-order-credit-holds:APPROVE` chỉ ACCOUNTANT (Sales/Coordinator chỉ VIEW_PAGE / READ);
  * - `customer-credit-profiles:READ` cho ACCOUNTANT / SALES_STAFF / ORDER_COORDINATOR (V20261013000400).
  */
@@ -37,6 +38,7 @@ export const ORDER_PERMISSION_SETS = {
     ORDER_PERMISSIONS.viewPage,
     ORDER_PERMISSIONS.read,
     ORDER_PERMISSIONS.cancel,
+    ORDER_PERMISSIONS.partialShipment,
     CREDIT_HOLD_PERMISSIONS.viewPage,
     CREDIT_HOLD_PERMISSIONS.read,
     CUSTOMER_CREDIT_PROFILE_PERMISSIONS.read,
@@ -61,6 +63,15 @@ export const ORDER_PERMISSION_SETS = {
     CREDIT_HOLD_PERMISSIONS.approve,
     CUSTOMER_CREDIT_PROFILE_PERMISSIONS.read,
   ],
+  // Seed BE PR #157: ORDER_COORDINATOR có thêm sales-order-delivery-modes:UPDATE (chọn / đổi hình thức giao).
+  // Giữ `coordinator` ở trên không có mã này để test "thiếu quyền → chỉ đọc".
+  coordinatorWithModes: [
+    "sales-orders:VIEW_PAGE",
+    "sales-orders:READ",
+    ORDER_PERMISSIONS.approve,
+    ORDER_PERMISSIONS.cancel,
+    ORDER_PERMISSIONS.deliveryModes,
+  ],
 } satisfies Record<string, PermissionCode[]>;
 
 /** Handler theo path: trả data, hoặc throw (vd ApiError) để giả lập lỗi. */
@@ -77,6 +88,8 @@ export function mockOrderApiGet(
         return { data: { roles: ["TEST"], permissions: [...permissions], dataScope: "ALL" } };
       }
       const handler = routes[url];
+      // Lịch sử đơn: mặc định rỗng — test về lịch sử khai báo handler riêng
+      if (!handler && url.endsWith("/history")) return { data: [] };
       if (!handler) throw new Error(`Không có mock cho GET ${url}`);
       const params = config?.params instanceof URLSearchParams ? config.params : undefined;
       return { data: handler(params) };

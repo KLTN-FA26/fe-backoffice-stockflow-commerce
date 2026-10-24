@@ -29,6 +29,11 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /** Đơn không còn khoản phải thu: nháp, đã huỷ, đã đóng sổ — BE vẫn tính `amountDue` từ tổng đơn. */
+/** "Thu phần còn lại" của đơn cọc: nhãn Việt của `balancePolicy` (BE PR #150: có thêm ON_CREDIT). */
+function balancePolicyLabel(policy: NonNullable<Order["balancePolicy"]>): string {
+  return policy === "UNKNOWN" ? "Không rõ" : ORDER_BALANCE_POLICY_LABELS[policy];
+}
+
 const NO_RECEIVABLE_STATUSES: readonly Order["status"][] = ["Draft", "Cancelled", "Closed"];
 
 /**
@@ -97,8 +102,14 @@ export function OrderFinanceCard({ order }: OrderFinanceCardProps) {
             <DepositValue order={order} />
           </Row>
         )}
-        {order.paymentTerm === "DEPOSIT" && order.balancePolicy && (
-          <Row label="Thu phần còn lại">{ORDER_BALANCE_POLICY_LABELS[order.balancePolicy]}</Row>
+        {order.balancePolicy && (
+          <Row label="Thu phần còn lại">{balancePolicyLabel(order.balancePolicy)}</Row>
+        )}
+        {/* Đơn cọc ON_CREDIT: phần còn lại thành công nợ (BE PR #150); đơn CREDIT hiện kỳ hạn ở "Công nợ" */}
+        {order.paymentTerm === "DEPOSIT" && order.creditTermDays !== null && (
+          <Row label="Hạn công nợ">
+            <span className="tabular-nums">{order.creditTermDays} ngày sau khi giao</span>
+          </Row>
         )}
         {order.paymentTerm === "CREDIT" && (
           <Row label="Công nợ">

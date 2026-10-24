@@ -1,8 +1,6 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 
 import { ADMIN_ROUTES, GOODS_RECEIPT_PERMISSIONS, RECEIPT_STATUS, UI_LABELS } from "@/constants";
 import { useCan, usePermissionChecker } from "@/lib/auth";
@@ -11,7 +9,7 @@ import { allowedReceiptActions } from "@/features/receipt/lifecycle";
 import { useGoodsReceipt } from "@/features/receipt/queries";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
-import { Button } from "@/components/ui/button";
+import { BackLink } from "@/components/shared/BackLink";
 
 import { InspectDialog } from "./detail/InspectDialog";
 import { MoveToQcDialog } from "./detail/MoveToQcDialog";
@@ -56,13 +54,7 @@ function ReceiptDetailBody({ id }: { id: string }) {
         subtitle={[UI_LABELS.receipt.pageTitle, receipt.purchaseOrderNumber]
           .filter(Boolean)
           .join(" · ")}
-        actions={
-          <Button variant="outline" size="sm" asChild>
-            <Link href={ADMIN_ROUTES.receipts.list}>
-              <ArrowLeft className="size-3.5" /> {UI_LABELS.common.backToList}
-            </Link>
-          </Button>
-        }
+        actions={<BackLink href={ADMIN_ROUTES.receipts.list} />}
       />
       <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
         <div className="min-w-0 space-y-5">

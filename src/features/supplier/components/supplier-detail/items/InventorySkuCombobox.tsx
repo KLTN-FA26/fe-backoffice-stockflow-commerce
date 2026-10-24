@@ -1,16 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { cn } from "cn";
-import { ChevronsUpDown } from "lucide-react";
 
 import { SUPPLIER_ITEM_UI_LABELS } from "@/constants";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useInventoryItemOptions } from "@/lib/references/inventory-item-options";
 import { useSupplierCatalog } from "@/lib/references/supplier-items";
-import { Button } from "@/components/ui/button";
-import { Command, CommandGroup, CommandInput, CommandList } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { InputCombobox } from "@/components/shared/InputCombobox";
+import { CommandGroup, CommandList } from "@/components/ui/command";
 
 import { InventorySkuOption } from "./InventorySkuOption";
 import { InventorySkuOptionsStatus } from "./InventorySkuOptionsStatus";
@@ -59,79 +56,59 @@ export function InventorySkuCombobox({
   const hasMore = options.data?.hasMore ?? false;
 
   return (
-    <Popover
+    <InputCombobox
+      id={id}
       open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        if (!next) onBlur?.();
-      }}
+      onOpenChange={setOpen}
+      displayValue={value}
+      placeholder={P.placeholder}
+      searchPlaceholder={P.search}
+      ariaLabel={SUPPLIER_ITEM_UI_LABELS.field.sku}
+      // BE lọc theo `q` → tắt lọc phía cmdk
+      search={search}
+      onSearchChange={setSearch}
+      shouldFilter={false}
+      hasError={hasError}
+      describedBy={describedBy}
+      autoFocus={autoFocus}
+      mono
+      onBlur={onBlur}
     >
-      <PopoverTrigger asChild>
-        <Button
-          id={id}
-          type="button"
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          aria-label={SUPPLIER_ITEM_UI_LABELS.field.sku}
-          aria-invalid={hasError ? true : undefined}
-          aria-describedby={describedBy}
-          autoFocus={autoFocus}
-          className={cn(
-            "bg-bg-surface hover:bg-bg-surface hover:text-ink-primary h-8 w-full justify-between rounded-[var(--r-sm)] border px-2.5 text-left text-[0.8125rem] font-normal shadow-none",
-            !value && "text-ink-tertiary",
-            hasError
-              ? "border-danger focus-visible:border-danger focus-visible:ring-danger/20"
-              : "border-border-default focus-visible:border-brand focus-visible:ring-brand/20",
-          )}
-        >
-          <span className={cn("truncate", value && "font-[family-name:var(--font-mono)]")}>
-            {value || P.placeholder}
-          </span>
-          <ChevronsUpDown className="ml-2 size-3.5 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-        {/* BE lọc theo `q` → tắt lọc phía cmdk */}
-        <Command shouldFilter={false}>
-          <CommandInput placeholder={P.search} value={search} onValueChange={setSearch} />
-          {(catalog.data?.truncated || (catalog.isError && !catalog.data)) && (
-            <p className="text-ink-tertiary border-border-default border-b px-3 py-1.5 text-xs">
-              {catalog.data ? P.truncatedNotice : P.catalogFailedNotice}
-            </p>
-          )}
-          <CommandList>
-            {items.length === 0 ? (
-              <InventorySkuOptionsStatus
-                isPending={options.isPending || catalogLoading}
-                // Lỗi khi đã có kết quả cũ (placeholder) → vẫn hiện kết quả cũ, không chặn
-                isError={options.isError && !options.data}
-                hasMore={hasMore}
-                onRetry={() => void options.refetch()}
+      {(catalog.data?.truncated || (catalog.isError && !catalog.data)) && (
+        <p className="text-ink-tertiary border-border-default border-b px-3 py-1.5 text-xs">
+          {catalog.data ? P.truncatedNotice : P.catalogFailedNotice}
+        </p>
+      )}
+      <CommandList>
+        {items.length === 0 ? (
+          <InventorySkuOptionsStatus
+            isPending={options.isPending || catalogLoading}
+            // Lỗi khi đã có kết quả cũ (placeholder) → vẫn hiện kết quả cũ, không chặn
+            isError={options.isError && !options.data}
+            hasMore={hasMore}
+            onRetry={() => void options.refetch()}
+          />
+        ) : (
+          <CommandGroup>
+            {items.map((item) => (
+              <InventorySkuOption
+                key={item.id}
+                item={item}
+                selected={value === item.sku}
+                onSelect={() => {
+                  onSelect(item.sku);
+                  setOpen(false);
+                }}
               />
-            ) : (
-              <CommandGroup>
-                {items.map((item) => (
-                  <InventorySkuOption
-                    key={item.id}
-                    item={item}
-                    selected={value === item.sku}
-                    onSelect={() => {
-                      onSelect(item.sku);
-                      setOpen(false);
-                    }}
-                  />
-                ))}
-              </CommandGroup>
-            )}
-            {items.length > 0 && hasMore && (
-              <p className="text-ink-tertiary border-border-default border-t px-3 py-1.5 text-xs">
-                {P.moreResults}
-              </p>
-            )}
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+            ))}
+          </CommandGroup>
+        )}
+        {items.length > 0 && hasMore && (
+          <p className="text-ink-tertiary border-border-default border-t px-3 py-1.5 text-xs">
+            {P.moreResults}
+          </p>
+        )}
+      </CommandList>
+    </InputCombobox>
   );
 }

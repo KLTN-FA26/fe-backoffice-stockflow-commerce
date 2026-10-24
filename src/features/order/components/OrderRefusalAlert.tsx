@@ -1,11 +1,11 @@
-import { UI_LABELS } from "@/constants";
+import { ORDER_RELEASE_REFUSAL_LABELS, UI_LABELS } from "@/constants";
 import { Alert } from "@/components/shared/Alert";
 
 import type { OrderErrorView } from "../errors";
 
 /**
- * Lý do máy chủ từ chối thao tác (release / duyệt công nợ / huỷ) — hiện NGAY trong dialog, kèm
- * mã BR để Coordinator đối chiếu docs, chi tiết gốc (vd SKU thiếu mẫu) và traceId để báo lỗi.
+ * Lý do máy chủ từ chối release, hiện NGAY trong hộp thoại: câu tiếng Việt, mã quy tắc để đối chiếu docs (BR-PRD-08 /
+ * 09…), chi tiết rút từ máy chủ (SKU thiếu mẫu duyệt) và traceId để báo lỗi. Hộp thoại giữ nguyên dữ liệu đã nhập.
  */
 export function OrderRefusalAlert({ view }: { view: OrderErrorView }) {
   return (
@@ -14,11 +14,12 @@ export function OrderRefusalAlert({ view }: { view: OrderErrorView }) {
         <p>{view.detail}</p>
         {view.rule && (
           <p className="mt-1 text-xs">
-            Quy tắc: <span className="font-[family-name:var(--font-mono)]">{view.rule}</span>
+            {ORDER_RELEASE_REFUSAL_LABELS.ruleLabel}:{" "}
+            <span className="font-[family-name:var(--font-mono)]">{view.rule}</span>
           </p>
         )}
         {view.serverDetail && (
-          <p className="mt-1 font-[family-name:var(--font-mono)] text-xs break-words opacity-80">
+          <p className="mt-1 font-[family-name:var(--font-mono)] text-xs break-words">
             {view.serverDetail}
           </p>
         )}

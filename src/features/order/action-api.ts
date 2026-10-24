@@ -1,6 +1,6 @@
 /**
- * Order — API thao tác điều phối: release (SCRUM-423), credit hold (SCRUM-427) và lệnh sản xuất
- * của đơn (đọc từ module production của BE). Parse tại biên như `api.ts`.
+ * Order — API thao tác điều phối: credit hold (SCRUM-427) và lệnh sản xuất của đơn (đọc từ module
+ * production của BE). Parse tại biên như `api.ts`. Release đơn (PR #74): `delivery-mode-api.ts`.
  */
 
 import { PAGE_SIZE } from "@/constants";
@@ -21,25 +21,7 @@ import type {
   Order,
   ProductionOrder,
   ProductionOrderDto,
-  ReleaseOrderInput,
 } from "./types";
-
-/* ── Release ─────────────────────────────────────────────────────────── */
-
-/**
- * `POST /orders/{id}/release {warehouseId}` — BE OrderReleaseController, `sales-orders:APPROVE`.
- * Thành công: có dòng in → IN_PRODUCTION (sinh lệnh sản xuất), chỉ hàng sẵn → READY_TO_FULFILL.
- * Từ chối (409/404) mang `errorCode` — map ở `errors.ts#releaseErrorView`.
- */
-export async function releaseOrder(input: OrderMutationVars<ReleaseOrderInput>): Promise<Order> {
-  const { id, warehouseId, idempotencyKey } = input;
-  const { data } = await api.post<unknown>(
-    orderPath(id, "/release"),
-    { warehouseId },
-    idempotencyRequestConfig(idempotencyKey),
-  );
-  return toOrder(orderDtoSchema.parse(data));
-}
 
 /* ── Credit hold ─────────────────────────────────────────────────────── */
 
