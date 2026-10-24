@@ -60,7 +60,7 @@ export function PickLineConfirmCard({
   const { errors } = form.formState;
   const quantity = form.register("quantity");
   return (
-    <section className="border-border-default bg-bg-surface space-y-3 rounded-[var(--card-radius)] border p-[var(--card-pad)]">
+    <section className="border-border-default bg-bg-surface space-y-3 rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)">
       <div>
         <h2 className="text-ink-primary text-sm font-semibold">
           {L.confirmTitle(line.sequenceNo)}

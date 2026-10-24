@@ -118,6 +118,7 @@ export function TaskListBody({
     <>
       <RefetchBar active={query.isFetching} label={`Đang tải lại ${title.toLowerCase()}`} />
       <DataTable
+        stickyHeader
         columns={columns}
         data={page.items}
         rowKey={(row) => row.taskId}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { cn } from "cn";
 import { Plus } from "lucide-react";
 
 import {
@@ -11,7 +12,7 @@ import {
   UI_LABELS,
 } from "@/constants";
 import { canCreateTask } from "@/features/fulfillment/lifecycle";
-import { PageHeader } from "@/components/shared/PageHeader";
+import { TOOLBAR_ACTION_CLASS } from "@/components/shared/ListToolbar";
 import { Button } from "@/components/ui/button";
 
 import { AssignDialog } from "./assign/AssignDialog";
@@ -65,39 +66,40 @@ function TaskListContent({ scope }: { scope: FulfillmentScope }) {
   const canCreate = scope === "picking" && canCreateTask(actor);
   const columns = buildTaskColumns({ scope, actor, onAssign: setAssigning });
   const visibleColumns = columns.filter((c) => s.config.visibleColumns.includes(c.key));
+  const createAction = canCreate ? (
+    <Button
+      type="button"
+      size="sm"
+      onClick={() => setCreating(true)}
+      className={cn("bg-brand hover:bg-brand-hover", TOOLBAR_ACTION_CLASS)}
+    >
+      <Plus className="size-3.5" /> {fulfillment.action.create}
+    </Button>
+  ) : undefined;
 
   return (
-    <>
-      <PageHeader
-        title={SCOPE_COPY[scope].title}
-        subtitle={SCOPE_COPY[scope].subtitle}
-        actions={
-          canCreate ? (
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => setCreating(true)}
-              className="rounded-[var(--r-sm)]"
-            >
-              <Plus className="size-3.5" /> {fulfillment.action.create}
-            </Button>
-          ) : undefined
-        }
-      />
-      {canRead && (
+    // Giao diện kiểu Vercel như danh sách sản phẩm (globals.css `.surface-soft`): không tiêu đề hiển
+    // thị — breadcrumb là tên trang. BE không có tìm kiếm task → hàng lọc đứng đầu (thay ô tìm), nút
+    // tạo ở cuối hàng; thanh "Cấu hình" ngay dưới.
+    <div className="surface-soft">
+      <h1 className="sr-only">{SCOPE_COPY[scope].title}</h1>
+      {canRead ? (
         <>
-          <TaskListToolbar s={s} scopeNote={scopeNote(actor)} labels={labels} />
           <TaskListFilters
             s={s}
             canFilterAssignee={canFilterAssignee}
             assigneeLabel={labels.assignee}
+            actions={createAction}
           />
+          <TaskListToolbar s={s} scopeNote={scopeNote(actor)} labels={labels} />
         </>
+      ) : (
+        createAction && <div className="mb-3 flex justify-end">{createAction}</div>
       )}
       <TaskListBody s={s} columns={visibleColumns} />
       {assigning && <AssignDialog task={assigning} onClose={() => setAssigning(null)} />}
       {creating && <CreateTaskDialog onClose={() => setCreating(false)} />}
-    </>
+    </div>
   );
 }
 

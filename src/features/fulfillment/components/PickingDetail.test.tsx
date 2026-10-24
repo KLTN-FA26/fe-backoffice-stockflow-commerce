@@ -212,9 +212,9 @@ describe("PickingDetail — dữ liệu phụ trợ và lỗi", () => {
     expect(await screen.findByText(fulfillment.noTaskLines)).toBeInTheDocument();
   });
 
-  it("số đơn trên tiêu đề lấy từ task", async () => {
+  it("số đơn ở ô Đơn hàng của Thông tin task lấy từ task", async () => {
     renderDetail(IDENTITIES.warehouseStaff, apiTask({ orderNumber: "SO-20261010-000431" }));
-    expect(await screen.findByText(/Đơn SO-20261010-000431/)).toBeInTheDocument();
+    expect(await screen.findByText("SO-20261010-000431")).toBeInTheDocument();
   });
 
   it("BE trả 404 (task không được gán cho người gọi) → màn không tìm thấy, không có nút thử lại", async () => {

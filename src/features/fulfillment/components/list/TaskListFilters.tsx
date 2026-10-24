@@ -31,11 +31,14 @@ export function TaskListFilters({
   s,
   canFilterAssignee,
   assigneeLabel,
+  actions,
 }: {
   s: TaskListState;
   canFilterAssignee: boolean;
   /** Tên người đang lọc (`useTaskFilterLabels`) — cho mục chưa có trong danh sách người của kho. */
   assigneeLabel: string | null;
+  /** Nút của trang (tạo task) — cuối hàng, cỡ `TOOLBAR_ACTION_CLASS`. */
+  actions?: React.ReactNode;
 }) {
   // UI-only — Backend phải re-check (BE listTasks giới hạn phạm vi theo mã quyền + kho của người gọi)
   const assignees = useAssignees(s.warehouse, canFilterAssignee);
@@ -105,6 +108,7 @@ export function TaskListFilters({
           {assignees.isError && <span className="text-danger text-xs">{F.assigneesFailed}</span>}
         </div>
       )}
+      {actions && <div className="ml-auto flex items-center gap-2">{actions}</div>}
     </div>
   );
 }
