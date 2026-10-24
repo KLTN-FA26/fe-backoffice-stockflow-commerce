@@ -98,7 +98,7 @@ function MoveCreateContent() {
   return (
     <form
       onSubmit={(event) => void form.handleSubmit(submitValid)(event)}
-      className="border-border-default bg-bg-surface space-y-[var(--card-pad)] rounded-[var(--r-sm)] border p-[var(--card-pad)]"
+      className="border-border-default bg-bg-surface space-y-[var(--card-pad)] rounded-(--section-radius) border p-[var(--card-pad)] shadow-(--card-shadow)"
     >
       <h2 className="text-ink-primary text-[0.9375rem] font-semibold">{MOVE_LABELS.formTitle}</h2>
       {result && <MoveResult move={result} />}
@@ -134,7 +134,7 @@ function MoveCreateContent() {
       )}
       <div className="flex justify-end">
         <Button
-          className="rounded-[var(--r-sm)]"
+          className="h-(--action-h) rounded-(--action-radius) px-(--action-px)"
           type="submit"
           disabled={!form.formState.isValid || mutation.isPending}
           aria-busy={mutation.isPending}
