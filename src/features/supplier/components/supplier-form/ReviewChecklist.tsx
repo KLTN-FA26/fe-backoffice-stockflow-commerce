@@ -13,7 +13,7 @@ export function ReviewChecklist({ getIssues }: { getIssues: (k: StepKey) => stri
         return (
           <div
             key={step.key}
-            className="border-border-default flex items-start gap-3 border-b px-3 py-2 last:border-b-0"
+            className="flex items-start gap-3 border-b border-(--table-line) px-3 py-2 last:border-b-0"
           >
             <div
               className={cn(

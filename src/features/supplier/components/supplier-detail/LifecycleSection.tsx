@@ -8,9 +8,9 @@ import type { SupplierStatus } from "@/features/supplier/types";
 
 export function LifecycleSection({ status }: { status: SupplierStatus }) {
   return (
-    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
+    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)">
       <h2 className="text-ink-primary mb-4 flex items-center gap-2 text-[0.9375rem] font-semibold">
-        <CircleDot className="text-accent size-4" /> Vòng đời NCC
+        <CircleDot className="text-accent size-3.5" /> Vòng đời NCC
       </h2>
       <div className="relative pl-6">
         <div className="bg-border-default absolute top-1 bottom-1 left-[6px] w-0.5" />

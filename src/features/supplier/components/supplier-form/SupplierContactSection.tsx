@@ -20,9 +20,9 @@ export function SupplierContactSection({
   errors: FieldErrors<SupplierFormValues>;
 }) {
   return (
-    <section className="bg-bg-surface border-border-default rounded-[var(--r-sm)] border p-4">
+    <section className="bg-bg-surface border-border-default rounded-(--section-radius) border p-4">
       <h2 className="text-ink-primary mb-3 flex items-center gap-2 text-sm font-semibold">
-        <Contact size={16} /> Liên hệ
+        <Contact className="size-3.5" /> Liên hệ
       </h2>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1">
