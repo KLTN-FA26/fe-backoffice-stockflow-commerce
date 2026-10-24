@@ -32,6 +32,7 @@ import {
   SlidersHorizontal,
   Truck,
   TruckElectric,
+  Undo2,
   Users,
   Warehouse as WarehouseIcon,
 } from "lucide-react";
@@ -44,6 +45,7 @@ import {
   ATTRIBUTE_PERMISSIONS,
   FULFILLMENT_PACKAGE_PERMISSIONS,
   FULFILLMENT_PICK_PERMISSIONS,
+  FULFILLMENT_PICKING_PERMISSIONS,
   GOODS_RECEIPT_PERMISSIONS,
   IDENTITY_PERMISSIONS,
   INVENTORY_ITEM_PERMISSIONS,
@@ -54,6 +56,7 @@ import {
   ORDER_PERMISSIONS,
   PO_PERMISSIONS,
   PRODUCT_PERMISSIONS,
+  PUT_BACK_LABELS,
   SHIPMENT_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
   TRANSFER_PERMISSIONS,
@@ -329,6 +332,14 @@ export const NAV_GROUPS: NavGroup[] = [
         href: ADMIN_ROUTES.packing.list,
         icon: PackageCheck,
         permission: FULFILLMENT_PACKAGE_PERMISSIONS.viewPage,
+      },
+      {
+        label: PUT_BACK_LABELS.title,
+        tooltip: "Put-back",
+        href: ADMIN_ROUTES.putBacks.list,
+        icon: Undo2,
+        // BE `GET /fulfillment/put-backs` — fulfillment-picking:READ (resource không có VIEW_PAGE)
+        permission: FULFILLMENT_PICKING_PERMISSIONS.read,
       },
       {
         label: UI_LABELS.loadPlan.pageTitle,

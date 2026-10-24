@@ -351,12 +351,17 @@ export async function backendOrderStatusOf(
   return order ? backendStatus(order) : undefined;
 }
 
+/** Đếm số lần mock huỷ đơn (tăng dần, không reset) — mock xuất kho chỉ đồng bộ task khi số này đổi. */
+let cancellations = 0;
+export const mockOrderCancellations = () => cancellations;
+
 /**
  * Mock xuất kho đổi trạng thái đơn như BE (READY_TO_FULFILL → PICKING → PACKED). Rời ON_HOLD thì xoá
  * dữ liệu giữ.
  */
 export function setMockOrderStatus(orderId: string, status: BackendOrderStatus): void {
   const state = lifecycleOf(orderId);
+  if (status === "CANCELLED" && state.status !== "CANCELLED") cancellations += 1;
   state.status = status;
   if (status === "PACKED") state.packedAt ??= new Date().toISOString();
   if (status !== "ON_HOLD") {

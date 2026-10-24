@@ -132,3 +132,25 @@ export function awaitingPutBackCount(
 ): number {
   return task.pickStatus === PICK_STATUS.CANCELLED ? lines.filter(isPicked).length : 0;
 }
+
+/**
+ * Vị trí trả hàng về kệ: chỉ bin đang dùng được của kho task — BE `PickList.putBack` từ chối khu chứa,
+ * bin bị khoá và vị trí kho khác (PUT_BACK_LOCATION_INVALID).
+ */
+export function putBackLocationOptions(
+  locations: readonly WarehouseLocation[] | undefined,
+): CodeOption[] {
+  return (locations ?? [])
+    .filter((location) => location.kind === "BIN" && location.usable)
+    .map((location) => ({ value: location.locationCode, label: location.locationCode }));
+}
+
+/** Mặc định trả về đúng bin đã lấy ra nếu bin đó vẫn dùng được; không thì để người dùng chọn. */
+export function defaultPutBackLocation(
+  fromLocationCode: string,
+  locations: readonly WarehouseLocation[] | undefined,
+): string {
+  return putBackLocationOptions(locations).some((option) => option.value === fromLocationCode)
+    ? fromLocationCode
+    : "";
+}

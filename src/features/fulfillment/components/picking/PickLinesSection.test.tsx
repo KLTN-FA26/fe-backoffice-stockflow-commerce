@@ -2,10 +2,10 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { PICK_LINE_LABELS as L } from "@/constants";
+import { PICK_LINE_LABELS as L, PUT_BACK_LABELS } from "@/constants";
 
 import { PICK_LINE_2, PICK_LINE_3, apiPickLines } from "../../__fixtures__/pick-lines";
-import { apiTask, apiTaskLines } from "../../__fixtures__/task";
+import { WAREHOUSE_ID, apiTask, apiTaskLines } from "../../__fixtures__/task";
 import { toFulfillmentTask } from "../../api";
 import { toPickLine } from "../../pick-line-api";
 import { PickLinesSection } from "./PickLinesSection";
@@ -101,8 +101,33 @@ describe("PickLinesSection — bảng dòng lấy hàng theo lộ trình", () =>
   });
 
   it("task huỷ còn dòng đã lấy → báo chờ trả về kệ", () => {
+    renderSection({
+      task: task("CANCELLED"),
+      lines: lines(["Picked", "Cancelled", "Cancelled"]),
+      canOpenPutBacks: true,
+    });
+    expect(screen.getByText(L.awaitingPutBack(1))).toBeInTheDocument();
+    // Nối sang hàng đợi trả về kệ, lọc sẵn kho của task
+    expect(screen.getByRole("link", { name: PUT_BACK_LABELS.openQueue })).toHaveAttribute(
+      "href",
+      `/admin/put-backs?warehouse=${WAREHOUSE_ID}`,
+    );
+  });
+
+  it("không có quyền xem hàng đợi trả về kệ → chỉ có câu báo, không có link", () => {
     renderSection({ task: task("CANCELLED"), lines: lines(["Picked", "Cancelled", "Cancelled"]) });
     expect(screen.getByText(L.awaitingPutBack(1))).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: PUT_BACK_LABELS.openQueue })).toBeNull();
+  });
+
+  it("dòng đã trả về kệ → hiện SL và bin đã trả (có thể khác bin lấy ra)", () => {
+    const returned = lines(["Put Back", "Cancelled", "Cancelled"]).map((line, index) =>
+      index === 0
+        ? { ...line, pickedQty: 3, putBackQty: 3, putBackLocationCode: "HN-A02-03-01-A" }
+        : line,
+    );
+    renderSection({ task: task("CANCELLED"), lines: returned });
+    expect(screen.getByText(PUT_BACK_LABELS.returnedTo(3, "HN-A02-03-01-A"))).toBeInTheDocument();
   });
 
   it("lỗi tải → thông báo + Thử lại", async () => {

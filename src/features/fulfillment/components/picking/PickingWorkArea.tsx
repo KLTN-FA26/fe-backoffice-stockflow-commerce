@@ -8,6 +8,7 @@ import { useWarehouseLocations } from "@/lib/references/warehouse-locations";
 import {
   canConfirmPickLines,
   canReallocate,
+  canViewPutBacks,
   canReportShort,
   isConfirmableLine,
   isReallocatableLine,
@@ -17,10 +18,8 @@ import {
   nextOpenLine,
   pickIncompleteReason,
   pickLocationOptions,
-  shortLineCount,
 } from "@/features/fulfillment/pick-line-selectors";
 import { usePickLines } from "@/features/fulfillment/queries";
-import { Alert } from "@/components/shared/Alert";
 
 import { TaskActionCard } from "../detail/TaskActionCard";
 import { PickLineConfirmCard } from "./PickLineConfirmCard";
@@ -62,7 +61,6 @@ export function PickingWorkArea({
   const selected = data?.find((line) => line.lineId === selectedId && isConfirmableLine(line));
   const active = data ? (selected ?? nextOpenLine(data)) : undefined;
   const picking = task.pickStatus === PICK_STATUS.PICKING;
-  const shortLines = picking && data ? shortLineCount(data) : 0;
   // Chưa tải xong dòng thì chưa cho hoàn tất (BE requireAllPicked)
   const complete = !!data && linesComplete(data, task);
   const incompleteReason = pickIncompleteReason(data, lines.isError, task);
@@ -76,6 +74,7 @@ export function PickingWorkArea({
     <div className="grid gap-5 xl:grid-cols-[1fr_340px]">
       <div className="min-w-0 space-y-5">
         <PickLinesSection
+          canOpenPutBacks={canViewPutBacks(actor)}
           task={task}
           lines={data}
           isPending={lines.isPending}
@@ -84,13 +83,6 @@ export function PickingWorkArea({
           activeLineId={canConfirm ? active?.lineId : undefined}
           onSelect={setSelectedId}
           canSelect={canConfirm}
-          notice={
-            shortLines > 0 && (
-              <Alert tone="warning" title={L.onHoldForShort(shortLines)}>
-                {null}
-              </Alert>
-            )
-          }
           lineAction={
             canRealloc
               ? (line) =>

@@ -14,7 +14,12 @@ export {
   TOAST_MESSAGES,
   UI_LABELS,
 } from "./labels";
-export { PICK_LINE_ERROR_MESSAGES, PICK_LINE_LABELS } from "./labels-fulfillment-lines";
+export {
+  PICK_LINE_ERROR_MESSAGES,
+  PICK_LINE_LABELS,
+  PUT_BACK_ERROR_MESSAGES,
+  PUT_BACK_LABELS,
+} from "./labels-fulfillment-lines";
 export { INVENTORY_ITEM_ERROR_MESSAGES } from "./labels-inventory-item";
 export {
   DATA_SCOPE_LABELS,

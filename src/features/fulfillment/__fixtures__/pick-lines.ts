@@ -3,9 +3,9 @@
  * object (Jackson non_null) chứ không gán null; số nguyên (`putBackQty`, `shortQty`) luôn có.
  */
 
-import { PLAIN_LINE_ID, TASK_ID } from "./task";
+import { PLAIN_LINE_ID, TASK_ID, WAREHOUSE_ID } from "./task";
 
-import type { PickLineApiDto } from "../types";
+import type { PickLineApiDto, PutBackRowApiDto } from "../types";
 
 export const PICK_LINE_1 = "aaaa0001-1111-4222-8333-000000000001";
 export const PICK_LINE_2 = "aaaa0002-1111-4222-8333-000000000002";
@@ -55,4 +55,20 @@ export function apiPickLines(): PickLineApiDto[] {
       allocatedQty: 5,
     }),
   ];
+}
+
+/** BE `PutBackRowResponse` — dòng đã lấy của task bị huỷ, chờ trả về kệ (SCRUM-275). */
+export function apiPutBackRow(overrides: Partial<PutBackRowApiDto> = {}): PutBackRowApiDto {
+  return {
+    taskId: TASK_ID,
+    orderNumber: "SO-20261010-000431",
+    warehouseId: WAREHOUSE_ID,
+    lineId: PICK_LINE_1,
+    sku: "TEE-BLK-M",
+    lotNumber: "L001",
+    pickedQty: 3,
+    fromLocationCode: "HN-A01-01-01-A",
+    pickedAt: "2026-10-10T02:00:00Z",
+    ...overrides,
+  };
 }

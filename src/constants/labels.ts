@@ -775,6 +775,9 @@ export const TOAST_MESSAGES = {
     linesPlanned: "Đã tạo danh sách dòng lấy hàng",
     // Báo thiếu hàng (BE `POST …/pick-lines/{lineId}/short`, PR #147): đơn tạm giữ, chờ phân bổ lại
     shortReported: (sku: string, quantity: number) => `Đã báo thiếu ${quantity} × ${sku}`,
+    // Trả hàng về kệ (BE `POST …/pick-lines/{lineId}/put-back`, SCRUM-275)
+    putBack: (quantity: number, sku: string, bin: string) =>
+      `Đã trả ${quantity} × ${sku} về ${bin}`,
   },
   packing: PACKING_TOAST_MESSAGES,
 } as const;

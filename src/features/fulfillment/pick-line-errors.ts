@@ -3,7 +3,11 @@
  * `errors.ts` (giới hạn 200 dòng / file feature); câu chung của task dùng `fulfillmentErrorMessage`.
  */
 
-import { FULFILLMENT_ERROR_MESSAGES, PICK_LINE_ERROR_MESSAGES } from "@/constants";
+import {
+  FULFILLMENT_ERROR_MESSAGES,
+  PICK_LINE_ERROR_MESSAGES,
+  PUT_BACK_ERROR_MESSAGES,
+} from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
 import { STATE_CONFLICT_CODE, fulfillmentErrorMessage } from "./errors";
@@ -102,4 +106,25 @@ export function reallocateError(error: unknown): string {
   // BE reallocateShort không gọi requireAssigned: 404 = task / đơn / dòng không còn, không phải "không được gán"
   if (error.code === "NOT_FOUND") return PL.lineMissing;
   return commonLineError(error).message;
+}
+
+/** Lỗi trả hàng về kệ (BE `PickList.putBack`, SCRUM-275): bin không hợp lệ → ô Vị trí trả; dòng hết chờ → tải lại. */
+export function putBackError(error: unknown): LineError<"locationCode"> {
+  const M = PUT_BACK_ERROR_MESSAGES;
+  if (!(error instanceof ApiError))
+    return { message: FULFILLMENT_ERROR_MESSAGES.generic, stale: false };
+  switch (error.code) {
+    case "PUT_BACK_LOCATION_INVALID":
+      return { field: "locationCode", message: M.locationInvalid, stale: false };
+    case "PUT_BACK_NOT_REQUIRED":
+      return { message: M.notRequired, stale: true };
+    case "NOT_FOUND":
+      return { message: M.notFound, stale: true };
+    case "OUT_OF_DATA_SCOPE":
+      return { message: M.outOfScope, stale: false };
+    case "NETWORK_ERROR":
+      return { message: M.network, stale: false };
+    default:
+      return { message: commonLineError(error).message, stale: false };
+  }
 }

@@ -6,6 +6,7 @@ import { createDetailQuery, createListQuery, createQueryKeys } from "@/lib/api/q
 
 import { getDesignArtifactUrl, getFulfillmentTask, listFulfillmentTasks } from "./api";
 import { listPickLines } from "./pick-line-api";
+import { listPutBacks } from "./put-back-api";
 import { getFulfillmentOrder, listAssignees, listTaskCandidates } from "./reference-api";
 
 import type { ListFulfillmentTaskParams } from "./api";
@@ -23,6 +24,22 @@ export const pickLineKeys = {
   all: [...fulfillmentKeys.all, "pick-lines"] as const,
   task: (taskId: string) => [...pickLineKeys.all, taskId] as const,
 };
+
+/** Hàng đợi trả về kệ — dưới `fulfillmentKeys.all`: trả xong, huỷ đơn, lấy hàng đều làm mới. */
+export const putBackKeys = {
+  all: [...fulfillmentKeys.all, "put-backs"] as const,
+  list: (warehouseId?: string) => [...putBackKeys.all, warehouseId ?? "all"] as const,
+};
+
+/** Hàng đợi một trang (200 dòng cũ nhất); `warehouseId` null = mọi kho trong phạm vi người gọi. */
+export function usePutBacks(warehouseId: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: putBackKeys.list(warehouseId ?? undefined),
+    queryFn: ({ signal }) => listPutBacks({ warehouseId: warehouseId ?? undefined }, signal),
+    enabled,
+    ...QUERY_TIMES.list,
+  });
+}
 
 /** Mọi dòng của task theo lộ trình. Chưa biết task hoặc thiếu quyền đọc → không gọi. */
 export function usePickLines(taskId: string | undefined, enabled: boolean) {

@@ -4,8 +4,10 @@ import { IDENTITIES } from "./__fixtures__/render";
 import {
   allowedTaskActions,
   canConfirmPickLines,
+  canPutBack,
   canReallocate,
   canReportShort,
+  canViewPutBacks,
   isConfirmableLine,
   isReallocatableLine,
 } from "./pick-line-lifecycle";
@@ -102,5 +104,17 @@ describe("isReallocatableLine — chỉ dòng Thiếu (BE reallocateShort: SHORT
     for (const status of ["Open", "Picked", "Cancelled", "Put Back"] as const) {
       expect(isReallocatableLine({ status })).toBe(false);
     }
+  });
+});
+
+describe("trả hàng về kệ — BE putBacks (fulfillment-picking:READ) / putBack (fulfillment-picking:UPDATE)", () => {
+  it.each([
+    ["NV kho (kể cả không phải người đã lấy)", otherStaff, true, true],
+    ["quản lý kho", manager, true, true],
+    ["điều phối (không có fulfillment-picking)", coordinator, false, false],
+    ["QC", qc, false, false],
+  ])("%s → xem %s, trả %s", (_, who, view, put) => {
+    expect(canViewPutBacks(who)).toBe(view);
+    expect(canPutBack(who)).toBe(put);
   });
 });

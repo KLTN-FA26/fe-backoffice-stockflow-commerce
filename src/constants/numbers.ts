@@ -79,6 +79,8 @@ export const PICK_LINE_LIMITS = {
   codeMax: 64,
   /** Một trang dòng lấy hàng — `Pages.MAX_PAGE_SIZE` (task dài hơn thì tải tiếp trang sau). */
   pageSize: 200,
+  /** Ô tìm của hàng đợi trả về kệ lọc ở client — debounce 300ms (api-conventions §9). */
+  searchDebounceMs: 300,
 } as const;
 
 /**

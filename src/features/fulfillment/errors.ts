@@ -75,10 +75,11 @@ const STALE_CODES: readonly string[] = [
   "NOT_FOUND",
   "CONFLICT",
   STATE_CONFLICT_CODE,
-  // Dòng đã lấy / báo thiếu / huỷ ở máy khác (BE PickList)
+  // Dòng đã lấy / báo thiếu / huỷ / trả về kệ ở máy khác (BE PickList)
   "PICK_LINE_NOT_OPEN",
   // Hoàn tất khi BE còn dòng chưa lấy (dòng vừa lập / phân bổ lại ở máy khác)
   "PICK_LINES_INCOMPLETE",
+  "PUT_BACK_NOT_REQUIRED",
   "OPTIMISTIC_LOCK",
 ];
 
