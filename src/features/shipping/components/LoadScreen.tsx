@@ -8,8 +8,6 @@ import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { isFtlLoad } from "@/features/shipping/ftl-selectors";
 import { allowedLoadActions, hasLoadAction } from "@/features/shipping/lifecycle";
 import { useLoad } from "@/features/shipping/queries";
-import { BackLink } from "@/components/shared/BackLink";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 
 import { FtlLoadCards } from "./ftl/FtlLoadCards";
@@ -71,25 +69,23 @@ function LoadBody({ id }: { id: string }) {
   const close = () => setDialog(null);
 
   return (
-    <>
-      <PageHeader
-        title={`${L.load.title} · ${load.code}`}
-        subtitle={L.noTracking}
-        actions={
-          <>
-            <BackLink href={ADMIN_ROUTES.loads.list} label={L.load.back} />
+    // Giao diện kiểu Vercel như chi tiết load plan (globals.css `.surface-soft`): không tiêu đề hiển
+    // thị — breadcrumb đã có mã chuyến; mã chuyến + nút thao tác nằm ở thẻ thông tin đầu trang.
+    <div className="surface-soft surface-compact">
+      <h1 className="sr-only">{`${L.load.title} · ${load.code}`}</h1>
+      {query.isError && <RefetchErrorNotice onRetry={() => void query.refetch()} />}
+      <div className="space-y-5">
+        <LoadInfoCard
+          load={load}
+          actions={
             <LoadActions
               load={load}
               actions={actions}
               onHandover={() => setDialog("handover")}
               onCancel={() => setDialog("cancel")}
             />
-          </>
-        }
-      />
-      {query.isError && <RefetchErrorNotice onRetry={() => void query.refetch()} />}
-      <div className="space-y-5">
-        <LoadInfoCard load={load} />
+          }
+        />
         {isFtlLoad(load) && <FtlLoadCards load={load} actions={actions} onOpen={setDialog} />}
         <LoadScanSection load={load} actions={actions} rejected={rejected} />
         <LoadShipments
@@ -112,8 +108,9 @@ function LoadBody({ id }: { id: string }) {
           close();
         }}
       />
+      <p className="text-ink-tertiary mt-3 text-xs">{L.noTracking}</p>
       {done && <HandoverDone load={done} onClose={() => setDone(null)} />}
-    </>
+    </div>
   );
 }
 

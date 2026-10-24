@@ -18,7 +18,14 @@ const TRIGGER =
   "border-border-default bg-bg-surface h-8 w-[12rem] rounded-[var(--r-sm)] text-[0.8125rem]";
 
 /** Lọc chuyến theo mã / biển số, trạng thái, kho, hãng (BE `search`, `status`, `warehouseId`, `carrierId`). */
-export function LoadFilters({ s }: { s: LoadListState }) {
+export function LoadFilters({
+  s,
+  actions,
+}: {
+  s: LoadListState;
+  /** Nút của trang (lập kế hoạch, mở chuyến) — cuối hàng. */
+  actions?: React.ReactNode;
+}) {
   const F = L.shipments;
   return (
     <div className="mb-3 flex flex-wrap items-center gap-3">
@@ -98,6 +105,7 @@ export function LoadFilters({ s }: { s: LoadListState }) {
           {F.clearFilters}
         </Button>
       )}
+      {actions && <div className="ml-auto flex items-center gap-2">{actions}</div>}
     </div>
   );
 }

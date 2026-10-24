@@ -29,22 +29,35 @@ function failureLabel(reason: string): string {
 }
 
 /** Thông tin lô giao: đơn, kho, hãng (chọn được khi còn chờ xuất), chuyến, mốc thời gian, kết quả. */
-export function ShipmentInfoCard({ data, canAssign }: { data: Shipment; canAssign: boolean }) {
+export function ShipmentInfoCard({
+  data,
+  canAssign,
+  actions,
+}: {
+  data: Shipment;
+  canAssign: boolean;
+  /** Nút ghi nhận kết quả giao (trang không còn tiêu đề) — cạnh trạng thái. */
+  actions?: React.ReactNode;
+}) {
   const { shipment } = data;
   const { data: warehouses } = useWarehouseDirectory();
   const warehouse = warehouses?.find((w) => w.warehouseId === shipment.warehouseId);
   return (
-    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="text-ink-primary text-[0.9375rem] font-semibold">{L.info}</h2>
-        <StatusDot
-          domain="shipment"
-          status={PACK_SHIPMENT_STATUS_DISPLAY[shipment.status]}
-          size="md"
-          withIcon
-        />
+    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-3">
+          <h2 className="text-ink-primary text-[0.9375rem] font-semibold">{L.info}</h2>
+          <StatusDot
+            domain="shipment"
+            status={PACK_SHIPMENT_STATUS_DISPLAY[shipment.status]}
+            size="md"
+            withIcon
+          />
+        </div>
+        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <InfoItem label={L.code} value={shipment.code} mono />
         <InfoItem
           label={L.order}
           value={
