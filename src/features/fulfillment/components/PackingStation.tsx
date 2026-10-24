@@ -3,7 +3,6 @@
 import { parseAsString, useQueryState } from "nuqs";
 
 import {
-  ADMIN_ROUTES,
   FULFILLMENT_PACKAGE_PERMISSIONS,
   FULFILLMENT_PICK_PERMISSIONS,
   ORDER_PERMISSIONS,
@@ -17,10 +16,8 @@ import { usePackingSession } from "@/features/fulfillment/packing-queries";
 import { hasPrintLines, printLinesWaiting } from "@/features/fulfillment/packing-selectors";
 import { useFulfillmentOrder, useFulfillmentTask } from "@/features/fulfillment/queries";
 import { Alert } from "@/components/shared/Alert";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
-import { BackLink } from "@/components/shared/BackLink";
 
 import { FulfillmentLoadError } from "./FulfillmentLoadError";
 import { FulfillmentPermissionGate } from "./FulfillmentPermissionGate";
@@ -36,7 +33,7 @@ import { ShipmentsSection } from "./packing/ShipmentsSection";
 import { Section, taskCode } from "./primitives";
 import { useFulfillmentActor } from "./useFulfillmentActor";
 
-const { fulfillment, common, packing } = UI_LABELS;
+const { common, packing } = UI_LABELS;
 
 function PackingStationBody({ id }: { id: string }) {
   const actor = useFulfillmentActor();
@@ -76,17 +73,10 @@ function PackingStationBody({ id }: { id: string }) {
   const printWaiting = printLinesWaiting(session, order.data?.printLinesReady);
 
   return (
-    <>
-      <PageHeader
-        title={`${packing.stationTitle} — ${session.orderNumber ?? taskCode(session.taskId)}`}
-        subtitle={fulfillment.packingSubtitle}
-        actions={
-          <div className="print:hidden">
-            <BackLink href={ADMIN_ROUTES.packing.list} />
-          </div>
-        }
-        className="print:hidden"
-      />
+    // Giao diện kiểu Vercel như chi tiết sản phẩm (globals.css `.surface-soft`). Không hiện tiêu đề —
+    // breadcrumb topbar đã có số đơn và link về hàng chờ; số đơn nằm ở đầu thẻ trạng thái.
+    <div className="surface-soft surface-compact">
+      <h1 className="sr-only">{`${packing.stationTitle} — ${session.orderNumber ?? taskCode(session.taskId)}`}</h1>
       {sessionQuery.isError && (
         <Alert tone="warning" className="mb-3 print:hidden">
           {packing.notice.refetchFailed}{" "}
@@ -145,7 +135,7 @@ function PackingStationBody({ id }: { id: string }) {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
 

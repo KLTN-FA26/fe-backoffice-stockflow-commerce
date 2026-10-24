@@ -12,7 +12,6 @@ import {
 import { ApiError } from "@/lib/api/error";
 import { Alert } from "@/components/shared/Alert";
 import { BackLink } from "@/components/shared/BackLink";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
 
@@ -38,14 +37,17 @@ function StationBody({ transferId }: { transferId: string }) {
   const session = query.data;
   useBreadcrumbLabel(transferId, session?.transferNumber);
 
+  // Kiểu Vercel: không tiêu đề hiển thị (h1 sr-only). Breadcrumb của trạm không dẫn về lệnh chuyển nên giữ
+  // link "Về lệnh chuyển" thành một dòng nhỏ góc phải.
   const header = (
-    <PageHeader
-      title={session ? `${L.stationTitle} — ${session.transferNumber}` : L.stationTitle}
-      subtitle={L.subtitle}
-      actions={
+    <>
+      <h1 className="sr-only">
+        {session ? `${L.stationTitle} — ${session.transferNumber}` : L.stationTitle}
+      </h1>
+      <div className="mb-3 flex justify-end">
         <BackLink href={ADMIN_ROUTES.transfers.detail(transferId)} label={L.backToTransfer} />
-      }
-    />
+      </div>
+    </>
   );
 
   if (!canRead) {
@@ -135,7 +137,10 @@ export function TransferPackStation({ transferId }: { transferId: string }) {
       scope="packing"
       permissions={[FULFILLMENT_PACKAGE_PERMISSIONS.viewPage]}
     >
-      <StationBody transferId={transferId} />
+      {/* Giao diện kiểu Vercel như chi tiết sản phẩm (globals.css `.surface-soft`) */}
+      <div className="surface-soft surface-compact">
+        <StationBody transferId={transferId} />
+      </div>
     </FulfillmentPermissionGate>
   );
 }
