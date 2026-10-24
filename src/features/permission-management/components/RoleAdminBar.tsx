@@ -41,7 +41,7 @@ export function RoleAdminBar({
   const close = (open: boolean) => !open && setDialog(null);
 
   return (
-    <div className="border-border-default bg-bg-surface space-y-3 rounded-[var(--r-sm)] border p-4">
+    <div className="border-border-default bg-bg-surface space-y-3 rounded-[var(--card-radius)] border p-4 shadow-(--card-shadow)">
       {selected && (
         <p className="text-ink-secondary text-xs">
           <span className="text-ink-primary font-medium">{selected.code}</span> ·{" "}
