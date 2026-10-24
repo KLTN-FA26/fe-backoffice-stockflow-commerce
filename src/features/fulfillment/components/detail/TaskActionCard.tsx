@@ -34,7 +34,7 @@ import type { FulfillmentScope } from "../primitives";
 
 const { fulfillment } = UI_LABELS;
 
-const BUTTON = "w-full rounded-[var(--r-sm)]";
+const BUTTON = "h-(--action-h) w-full rounded-(--action-radius)";
 
 /**
  * Card thao tác cột phải: trạng thái pick + pack và các nút theo `scopeActions`. "Hoàn tất lấy hàng" cần đủ
@@ -80,7 +80,7 @@ export function TaskActionCard({
         };
 
   return (
-    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
+    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)">
       <dl className="mb-4 space-y-2 text-[0.8125rem]">
         <div className="flex items-center justify-between">
           <dt className="text-ink-secondary">{fulfillment.field.pick}</dt>

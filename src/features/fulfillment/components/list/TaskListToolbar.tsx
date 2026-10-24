@@ -53,7 +53,7 @@ export function TaskListToolbar({
   const visible = s.config.visibleColumns;
   const canReset = s.hasColumnConfig || s.hasFilters;
   return (
-    <div className="border-border-default bg-bg-subtle/70 mb-4 flex flex-wrap items-center gap-2 rounded-[var(--r-sm)] border px-3 py-2 text-[0.8125rem]">
+    <div className="border-border-default mb-4 flex flex-wrap items-center gap-2 rounded-(--section-radius) border bg-(--summary-bg) px-3 py-2 text-[0.8125rem] shadow-(--card-shadow)">
       <div className="text-ink-primary mr-1 flex items-center gap-2 font-medium">
         <Settings2 className="text-accent size-3.5" />
         Cấu hình
@@ -92,7 +92,7 @@ export function TaskListToolbar({
             aria-label="Ẩn hiện cột"
             className={`${TOOL_BUTTON} ${s.hasColumnConfig ? TOOL_BUTTON_ACTIVE : ""}`}
           >
-            <Columns3 className={s.hasColumnConfig ? "size-3.5" : "text-warning size-3.5"} />
+            <Columns3 className={s.hasColumnConfig ? "size-3.5" : "text-dot-warning size-3.5"} />
           </Button>
         </PopoverTrigger>
         <PopoverContent align="end" className="w-80 p-0">
