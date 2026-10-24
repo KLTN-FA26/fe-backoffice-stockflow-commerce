@@ -20,7 +20,7 @@ export type FulfillmentErrorContext =
  * nên dùng chung câu và cùng coi là "dữ liệu đã cũ". Tải file thiết kế: `CONFLICT` = lệch checksum
  * (DesignServiceImpl), `PICK_TASK_STATE_CONFLICT` = đơn đã rời khâu xuất kho (TaskAccess) — hai câu riêng.
  */
-const STATE_CONFLICT_CODE = "PICK_TASK_STATE_CONFLICT";
+export const STATE_CONFLICT_CODE = "PICK_TASK_STATE_CONFLICT";
 
 const BY_CONTEXT: Record<FulfillmentErrorContext, Readonly<Record<string, MessageKey>>> = {
   // 404 = không có đơn; 409 = đơn sai trạng thái / có dòng in chưa release sản xuất
@@ -75,6 +75,10 @@ const STALE_CODES: readonly string[] = [
   "NOT_FOUND",
   "CONFLICT",
   STATE_CONFLICT_CODE,
+  // Dòng đã lấy / báo thiếu / huỷ ở máy khác (BE PickList)
+  "PICK_LINE_NOT_OPEN",
+  // Hoàn tất khi BE còn dòng chưa lấy (dòng vừa lập / phân bổ lại ở máy khác)
+  "PICK_LINES_INCOMPLETE",
   "OPTIMISTIC_LOCK",
 ];
 

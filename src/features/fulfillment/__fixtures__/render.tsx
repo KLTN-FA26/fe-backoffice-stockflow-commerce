@@ -96,26 +96,26 @@ export function mockFulfillmentApi(
       }
       const handler = getRoutes[url];
       if (!handler) throw new Error(`Không có mock cho GET ${url}`);
-      return { data: handler(config?.params) };
+      return { data: await handler(config?.params) };
     });
   const post = vi
     .spyOn(api, "post")
     .mockImplementation(async (url: string, body?: unknown, config?: unknown) => {
       const handler = postRoutes[url];
       if (!handler) throw new Error(`Không có mock cho POST ${url}`);
-      return { data: handler(undefined, body, config) };
+      return { data: await handler(undefined, body, config) };
     });
   const del = vi
     .spyOn(api, "delete")
     .mockImplementation(async (url: string, config?: { params?: unknown }) => {
       const handler = deleteRoutes[url];
       if (!handler) throw new Error(`Không có mock cho DELETE ${url}`);
-      return { data: handler(config?.params) };
+      return { data: await handler(config?.params) };
     });
   const put = vi.spyOn(api, "put").mockImplementation(async (url: string, body?: unknown) => {
     const handler = putRoutes[url];
     if (!handler) throw new Error(`Không có mock cho PUT ${url}`);
-    return { data: handler(undefined, body) };
+    return { data: await handler(undefined, body) };
   });
   return { get, post, put, del };
 }
@@ -163,5 +163,29 @@ export async function pickSelectOption(
   Element.prototype.releasePointerCapture ??= () => {};
   Element.prototype.scrollIntoView ??= () => {};
   await user.click(await screen.findByRole("combobox", { name: trigger }));
+  await user.click(await screen.findByRole("option", { name: option }));
+}
+
+/**
+ * Chọn một mục của combobox gõ-thẳng (`InputCombobox`, vd `CodeCombobox`): bấm ô theo nhãn, gõ chữ để lọc rồi
+ * bấm option khớp tên. jsdom thiếu `ResizeObserver` / `scrollIntoView` mà `cmdk` dùng → vá trước.
+ */
+export async function pickInputComboboxOption(
+  user: {
+    click: (el: Element) => Promise<void>;
+    type: (el: Element, text: string) => Promise<void>;
+  },
+  label: string | RegExp,
+  option: string,
+) {
+  globalThis.ResizeObserver ??= class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+  Element.prototype.scrollIntoView ??= () => {};
+  const box = await screen.findByRole("combobox", { name: label });
+  await user.click(box);
+  await user.type(box, option);
   await user.click(await screen.findByRole("option", { name: option }));
 }

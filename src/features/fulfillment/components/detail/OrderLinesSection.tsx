@@ -19,7 +19,7 @@ export function OrderLinesSection({ lines }: { lines: readonly TaskLine[] | unde
   return (
     <Section
       title="Dòng đơn hàng"
-      description="SKU và số lượng theo đơn. Hệ thống chưa ghi nhận lấy hàng theo từng dòng."
+      description="SKU và số lượng theo đơn. Lấy hàng ghi nhận theo từng dòng ở danh sách lấy hàng phía trên."
     >
       {!lines || lines.length === 0 ? (
         <p className="text-ink-secondary text-[0.8125rem]">{fulfillment.noTaskLines}</p>

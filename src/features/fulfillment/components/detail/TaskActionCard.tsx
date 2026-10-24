@@ -11,7 +11,6 @@ import {
   PICK_STATUS,
   UI_LABELS,
 } from "@/constants";
-import { allowedFulfillmentActions } from "@/features/fulfillment/lifecycle";
 import { useCompletePicking, useStartPicking } from "@/features/fulfillment/mutations";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { StatusDot } from "@/components/shared/StatusDot";
@@ -24,8 +23,8 @@ import {
   ACTION_ICON,
   CONFIRM_COPY,
   DEFAULT_ACTION_ICON,
-  SCOPE_ACTIONS,
   isConfirmCode,
+  scopeActions,
 } from "./action-config";
 import { noActionText } from "./no-action-text";
 
@@ -38,26 +37,29 @@ const { fulfillment } = UI_LABELS;
 const BUTTON = "w-full rounded-[var(--r-sm)]";
 
 /**
- * Card thao tác cột phải: trạng thái pick + pack và các nút theo `allowedFulfillmentActions`.
+ * Card thao tác cột phải: trạng thái pick + pack và các nút theo `scopeActions`. "Hoàn tất lấy hàng" cần đủ
+ * dòng (`linesComplete`, màn đóng gói không truyền); thiếu thì hiện `incompleteReason`.
  * Thao tác đổi trạng thái qua ConfirmDialog; đang chạy → khoá nút, chặn bấm hai lần.
  */
 export function TaskActionCard({
   task,
   scope,
   actor,
+  linesComplete = true,
+  incompleteReason,
 }: {
   task: FulfillmentTask;
   scope: FulfillmentScope;
   actor: FulfillmentActor;
+  linesComplete?: boolean;
+  incompleteReason?: string;
 }) {
   const mutations = {
     startPicking: useStartPicking(),
     completePicking: useCompletePicking(),
   };
   const [dialog, setDialog] = useState<FulfillmentActionCode | null>(null);
-  const actions = allowedFulfillmentActions(task, actor).filter((action) =>
-    SCOPE_ACTIONS[scope].includes(action.code),
-  );
+  const actions = scopeActions(task, actor, scope, linesComplete);
   const pending = Object.values(mutations).some((mutation) => mutation.isPending);
   const confirming = isConfirmCode(dialog) ? dialog : null;
   // Lỗi dữ liệu cũ đã được mutation tự tải lại (withStaleRefetch) — ở đây chỉ đóng dialog
@@ -113,7 +115,7 @@ export function TaskActionCard({
         })}
         {actions.length === 0 && (
           <p className="text-ink-tertiary text-center text-xs">
-            {noActionText(task, actor, scope)}
+            {noActionText(task, actor, scope, incompleteReason)}
           </p>
         )}
         {other.show && (

@@ -5,6 +5,7 @@ import { QUERY_TIMES } from "@/lib/api/query-client";
 import { createDetailQuery, createListQuery, createQueryKeys } from "@/lib/api/query-factory";
 
 import { getDesignArtifactUrl, getFulfillmentTask, listFulfillmentTasks } from "./api";
+import { listPickLines } from "./pick-line-api";
 import { getFulfillmentOrder, listAssignees, listTaskCandidates } from "./reference-api";
 
 import type { ListFulfillmentTaskParams } from "./api";
@@ -13,6 +14,25 @@ import type { ArtifactUrlInput, FulfillmentTask } from "./types";
 export const fulfillmentKeys = createQueryKeys<ListFulfillmentTaskParams>(
   SHARED_QUERY_ROOTS.fulfillmentTasks,
 );
+
+/**
+ * Dòng lấy hàng — nằm dưới `fulfillmentKeys.all` để mọi mutation của task (bắt đầu lấy hàng sinh
+ * dòng, hoàn tất…) cũng làm mới danh sách dòng.
+ */
+export const pickLineKeys = {
+  all: [...fulfillmentKeys.all, "pick-lines"] as const,
+  task: (taskId: string) => [...pickLineKeys.all, taskId] as const,
+};
+
+/** Mọi dòng của task theo lộ trình. Chưa biết task hoặc thiếu quyền đọc → không gọi. */
+export function usePickLines(taskId: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: pickLineKeys.task(taskId ?? ""),
+    queryFn: ({ signal }) => listPickLines(taskId ?? "", signal),
+    enabled: enabled && !!taskId,
+    ...QUERY_TIMES.detail,
+  });
+}
 
 /**
  * Dữ liệu phụ trợ đọc từ module khác — key riêng của feature (không dùng chung `orderKeys`,

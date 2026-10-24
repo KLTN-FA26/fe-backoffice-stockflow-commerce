@@ -385,6 +385,27 @@ export function resolveMockDesignHold(orderId: string): void {
   setMockOrderStatus(orderId, state.statusBeforeHold ?? "PICKING");
 }
 
+/**
+ * Mock báo thiếu hàng giữ đơn (BE `HoldReason.INVENTORY`, X-SHORT bước 02). Đơn đã ON_HOLD (dòng thiếu thứ
+ * hai, hoặc đang giữ vì lý do khác) giữ nguyên — không chồng giữ lên giữ (BE `holdForInventory`).
+ */
+export async function putMockOrderOnInventoryHold(orderId: string): Promise<void> {
+  const before = (await backendOrderStatusOf(orderId)) ?? "PICKING";
+  if (before === "ON_HOLD") return;
+  const state = lifecycleOf(orderId);
+  state.status = "ON_HOLD";
+  state.holdReason = "INVENTORY";
+  state.statusBeforeHold = before;
+  state.holdNote = undefined;
+}
+
+/** Hết dòng thiếu sau khi phân bổ lại: gỡ giữ INVENTORY, đơn về bước đang làm (BE `resumeAfterInventory`). */
+export function resolveMockInventoryHold(orderId: string): void {
+  const state = lifecycleOf(orderId);
+  if (state.status !== "ON_HOLD" || state.holdReason !== "INVENTORY") return;
+  setMockOrderStatus(orderId, state.statusBeforeHold ?? "PICKING");
+}
+
 /** SHA-256 giả 64 hex, ổn định theo seed (FNV-1a lặp 8 lần). */
 export function fakeSha256(seed: string): string {
   let out = "";

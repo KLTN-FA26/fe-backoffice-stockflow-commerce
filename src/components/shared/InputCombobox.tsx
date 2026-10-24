@@ -9,6 +9,9 @@ import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
 
 import type { KeyboardEvent, ReactNode } from "react";
 
+const FIRST_ITEM = '[cmdk-item]:not([aria-disabled="true"])';
+const SELECTED_ITEM = '[cmdk-item][data-selected="true"]';
+
 /** Class `CommandItem` trong combobox: dòng đang highlight theo ↑/↓ (`data-selected`) nền muted nhẹ. */
 export const COMBOBOX_ITEM_CLASS = "data-selected:bg-bg-muted data-selected:text-ink-primary";
 
@@ -89,7 +92,19 @@ function ComboboxField({
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (open) return; // ↑/↓/Enter do cmdk xử lý ở thẻ gốc
+    if (open) {
+      // ↑/↓/Enter do cmdk xử lý ở thẻ gốc. Riêng khi gõ thẳng vào ô đang đóng (bàn phím / máy quét), danh sách
+      // vừa mở có thể chưa có mục nào được đánh dấu → Enter của cmdk không làm gì; khi đó chọn mục đầu khớp.
+      if (e.key === "Enter") {
+        const list = document.getElementById(listboxId);
+        const first = list?.querySelector<HTMLElement>(FIRST_ITEM);
+        if (first && !list?.querySelector(SELECTED_ITEM)) {
+          e.preventDefault();
+          first.click();
+        }
+      }
+      return;
+    }
     if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter") {
       // Enter không submit form khi danh sách đang đóng — mở danh sách như bấm vào ô
       e.preventDefault();

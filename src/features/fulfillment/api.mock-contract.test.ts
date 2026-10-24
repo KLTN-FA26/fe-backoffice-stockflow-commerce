@@ -16,6 +16,7 @@ import { backendOrderStatusOf, resetOrderMockStore } from "@/lib/api/mock-routes
 import { MOCK_USER_GRANTS } from "@/lib/api/mock-user-grants";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
+import { pickAllOpenLines } from "./__fixtures__/pick-all-lines";
 import {
   assignFulfillmentTask,
   completePicking,
@@ -178,6 +179,9 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
       ).toBe("CONFLICT");
 
       actAs(USERS.picker);
+      // SCRUM-267: hoàn tất chỉ khi mọi dòng lấy hàng đã xác nhận
+      expect(await codeOf(completePicking(id))).toBe("PICK_LINES_INCOMPLETE");
+      await pickAllOpenLines(id);
       const picked = await completePicking(id);
       expect(picked.pickStatus).toBe("Picked");
       // BE PR #136 trả thêm số đơn + kho trên task
@@ -285,7 +289,7 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
   );
 
   it(
-    "task của đơn đã huỷ: mọi thao tác trả CONFLICT (task đã đóng)",
+    "task của đơn đã huỷ: thao tác trả PICK_TASK_STATE_CONFLICT (task đã đóng)",
     async () => {
       const cancelled = required(
         (await allTasks()).find((t) => t.pickStatus === "Cancelled"),
@@ -295,7 +299,8 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
         userId: required(cancelled.assignedUserId ?? undefined, "người được gán"),
         roles: ["Warehouse Staff"],
       });
-      expect(await codeOf(startPicking(cancelled.taskId))).toBe("CONFLICT");
+      // BE `TaskAccess.orderInFulfilment`: đơn rời khâu kho → PICK_TASK_STATE_CONFLICT (không phải CONFLICT chung)
+      expect(await codeOf(startPicking(cancelled.taskId))).toBe("PICK_TASK_STATE_CONFLICT");
     },
     FLOW_TIMEOUT_MS,
   );

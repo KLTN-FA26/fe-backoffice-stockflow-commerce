@@ -8,10 +8,10 @@ import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { BackLink } from "@/components/shared/BackLink";
 
 import { OrderLinesSection } from "./detail/OrderLinesSection";
-import { TaskActionCard } from "./detail/TaskActionCard";
 import { TaskInfo } from "./detail/TaskInfo";
 import { FulfillmentLoadError } from "./FulfillmentLoadError";
 import { FulfillmentPermissionGate } from "./FulfillmentPermissionGate";
+import { PickingWorkArea } from "./picking/PickingWorkArea";
 import { orderLabel, taskCode } from "./primitives";
 import { useFulfillmentActor } from "./useFulfillmentActor";
 
@@ -45,20 +45,21 @@ function PickingDetailBody({ id }: { id: string }) {
         subtitle={`${fulfillment.pickingTitle} · Đơn ${orderLabel(task.orderId, orderNumber)}`}
         actions={<BackLink href={ADMIN_ROUTES.picking.list} />}
       />
-      <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
-        <div className="min-w-0 space-y-5">
-          <TaskInfo task={task} actor={actor} orderNumber={orderNumber} />
-          <OrderLinesSection lines={task.lines} />
-        </div>
-        <div className="space-y-5">
-          <TaskActionCard task={task} scope="picking" actor={actor} />
-        </div>
-      </div>
+      <PickingWorkArea
+        task={task}
+        actor={actor}
+        info={
+          <>
+            <TaskInfo task={task} actor={actor} orderNumber={orderNumber} />
+            <OrderLinesSection lines={task.lines} />
+          </>
+        }
+      />
     </>
   );
 }
 
-/** Chi tiết lấy hàng của một task: bắt đầu / hoàn tất lấy hàng, gán lại. */
+/** Chi tiết lấy hàng của một task: xác nhận từng dòng, bắt đầu / hoàn tất lấy hàng, gán lại. */
 export function PickingDetail({ id }: { id: string }) {
   return (
     <FulfillmentPermissionGate

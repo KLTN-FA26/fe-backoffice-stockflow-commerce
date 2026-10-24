@@ -73,6 +73,14 @@ export const FULFILLMENT_LIMITS = {
   shortIdLength: 8,
 } as const;
 
+/** Dòng lấy hàng — đúng ràng buộc BE (SCRUM-267/275, PR #147). */
+export const PICK_LINE_LIMITS = {
+  /** `ConfirmPickRequest.locationCode / scannedCode`, `ShortPickRequest.locationCode` @Size(max = 64). */
+  codeMax: 64,
+  /** Một trang dòng lấy hàng — `Pages.MAX_PAGE_SIZE` (task dài hơn thì tải tiếp trang sau). */
+  pageSize: 200,
+} as const;
+
 /**
  * Giới hạn trạm đóng gói — đúng ràng buộc request BE PR #136 (`PackScanRequest`, `SealPackageRequest`,
  * `PackingCompletionRequest`, `OpenPackageRequest`).

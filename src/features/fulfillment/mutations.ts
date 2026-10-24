@@ -4,7 +4,8 @@
  * - Mọi mutation đổi task → `fulfillmentKeys.all` (list + detail của cả hai màn).
  * - Tạo task / kiểm tra lại còn đổi trạng thái ĐƠN (READY_TO_FULFILL → PICKING,
  *   → PACKED, PICKING ⇄ ON_HOLD khi lệch thiết kế — BE PR #133, docs 17 §5) → màn đơn hàng và dữ liệu đơn của feature này.
- *   Tồn kho chưa đổi ở các bước này (BE chưa có dòng lấy hàng) nên không invalidate tồn.
+ *   Tồn kho chưa đổi ở các bước này nên không invalidate tồn (trừ tồn ở bước xác nhận dòng —
+ *   `pick-line-mutations.ts`).
  * - Kiểm tra lại KHÔNG có `successMessage` cố định: BE trả 200 cả khi vẫn lệch checksum (pack
  *   `On Hold`), toast chọn theo `packStatus` của kết quả. Thao tác của trạm đóng gói (nhận đơn, quét,
  *   kiện, hoàn tất) nằm ở `packing-mutations.ts`.
@@ -44,7 +45,7 @@ const ORDER_ROOT_KEY = ["orders"] as const;
 
 const TOAST = TOAST_MESSAGES.fulfillment;
 const TASK_KEYS = [fulfillmentKeys.all] as const;
-const TASK_AND_ORDER_KEYS = [
+export const TASK_AND_ORDER_KEYS = [
   fulfillmentKeys.all,
   fulfillmentReferenceKeys.orders(),
   ORDER_ROOT_KEY,
@@ -53,8 +54,11 @@ const TASK_AND_ORDER_KEYS = [
 const toastError = (context: FulfillmentErrorContext) => (error: unknown) =>
   toast.error(fulfillmentErrorMessage(error, context));
 
-/** Bọc hook mutation: lỗi do dữ liệu cũ → invalidate task + đơn, rồi mới gọi onError của màn. */
-function withStaleRefetch<TInput, TResult>(
+/**
+ * Bọc hook mutation: lỗi do dữ liệu cũ → invalidate task + đơn (dòng lấy hàng nằm dưới `fulfillmentKeys.all`),
+ * rồi mới gọi onError của màn.
+ */
+export function withStaleRefetch<TInput, TResult>(
   useBase: ReturnType<typeof createMutation<TInput, TResult>>,
 ) {
   return function useWithStaleRefetch(options?: Parameters<typeof useBase>[0]) {

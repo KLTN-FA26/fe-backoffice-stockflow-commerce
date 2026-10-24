@@ -24,7 +24,7 @@ import type { LegacyPaginatedResponse, PaginatedResponse } from "./query-factory
 
 /* ── Types ───────────────────────────────────────────────────────────── */
 
-interface MockResponse<T = unknown> {
+export interface MockResponse<T = unknown> {
   status: number;
   data: T;
   headers: Record<string, string>;
@@ -268,6 +268,7 @@ export function activateMockAdapter(): void {
     import("./mock-routes-stock-alerts"),
     import("./mock-routes-reports"),
     import("./mock-routes-fulfillment"),
+    import("./mock-routes-warehouse-layout"),
     import("./mock-routes-transfer-orders"),
     import("./mock-routes-transfer-packs"),
     import("./mock-routes-dispatch"),
@@ -293,6 +294,7 @@ export function activateMockAdapter(): void {
       { registerStockAlertMockRoutes },
       { registerReportMockRoutes },
       { registerFulfillmentMockRoutes },
+      { registerWarehouseLayoutMockRoutes },
       { registerTransferOrderMockRoutes },
       { registerTransferPackMockRoutes },
       { registerDispatchMockRoutes },
@@ -317,6 +319,7 @@ export function activateMockAdapter(): void {
       registerStockAlertMockRoutes();
       registerReportMockRoutes();
       registerFulfillmentMockRoutes();
+      registerWarehouseLayoutMockRoutes();
       registerTransferOrderMockRoutes();
       registerTransferPackMockRoutes();
       registerDispatchMockRoutes();
