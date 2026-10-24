@@ -13,7 +13,7 @@ interface RoleSelectorProps {
 
 export function RoleSelector({ roles, value, onChange, disabled }: RoleSelectorProps) {
   return (
-    <div className="border-border-default bg-bg-surface rounded-[var(--r-sm)] border p-4">
+    <div className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-4 shadow-(--card-shadow)">
       <Label htmlFor="permission-role" className="text-ink-primary text-sm font-semibold">
         Vai trò
       </Label>

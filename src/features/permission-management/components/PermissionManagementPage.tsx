@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 
 import { useRbacEditorStore } from "../editor-store";
@@ -57,8 +56,10 @@ export function PermissionManagementPage() {
   }
 
   return (
-    <>
-      <PageHeader title="Quản lý phân quyền" subtitle={RBAC_EDITOR.subtitle} />
+    // Giao diện kiểu Vercel (globals.css `.surface-soft`): không tiêu đề hiển thị — breadcrumb là tên
+    // trang; các khối chọn vai trò / ma trận bo 8px + bóng nhẹ.
+    <div className="surface-soft">
+      <h1 className="sr-only">Quản lý phân quyền</h1>
       <div className="space-y-4">
         <RoleSelector
           roles={roles}
@@ -88,6 +89,6 @@ export function PermissionManagementPage() {
           if (pendingRole !== null) setSelectedRoleCode(pendingRole);
         }}
       />
-    </>
+    </div>
   );
 }
