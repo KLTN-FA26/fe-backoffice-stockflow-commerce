@@ -74,7 +74,7 @@ export function ShipmentPicker({
           {allSelected ? L.clearAll : L.selectAll}
         </Button>
       </div>
-      <div className="border-border-default overflow-x-auto rounded border">
+      <div className="border-border-default overflow-x-auto rounded-[var(--r-sm)] border">
         <Table>
           <TableHeader>
             <TableRow>

@@ -75,7 +75,7 @@ export function TransferPicker({
               ? L.selectedSummary(chosen.code, chosen.packageCount - chosen.packagesInOtherPlans)
               : L.noneSelected}
           </span>
-          <div className="border-border-default overflow-x-auto rounded border">
+          <div className="border-border-default overflow-x-auto rounded-[var(--r-sm)] border">
             <Table>
               <TableHeader>
                 <TableRow>

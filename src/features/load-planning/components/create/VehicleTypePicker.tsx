@@ -44,7 +44,7 @@ export function VehicleTypePicker({
           <li key={type.vehicleTypeId}>
             <label
               htmlFor={id}
-              className="border-border-default bg-bg-surface hover:bg-bg-subtle flex cursor-pointer items-start gap-2 rounded border p-2.5 text-[0.8125rem]"
+              className="border-border-default bg-bg-surface hover:bg-bg-subtle flex cursor-pointer items-start gap-2 rounded-[var(--r-sm)] border p-2.5 text-[0.8125rem]"
             >
               <Checkbox
                 id={id}

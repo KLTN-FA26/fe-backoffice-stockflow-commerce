@@ -30,7 +30,7 @@ export function ModePicker({
           <label
             key={mode}
             htmlFor={id}
-            className="border-border-default bg-bg-surface hover:bg-bg-subtle has-[:checked]:border-brand flex cursor-pointer items-start gap-2 rounded border p-2.5 text-[0.8125rem]"
+            className="border-border-default bg-bg-surface hover:bg-bg-subtle has-[:checked]:border-brand flex cursor-pointer items-start gap-2 rounded-[var(--r-sm)] border p-2.5 text-[0.8125rem]"
           >
             <input
               id={id}
