@@ -30,7 +30,7 @@ export function SourcePicker({
           <label
             key={source}
             htmlFor={id}
-            className="border-border-default bg-bg-surface hover:bg-bg-subtle has-[:checked]:border-brand flex cursor-pointer items-center gap-2 rounded border px-3 py-1.5 text-[0.8125rem]"
+            className="border-border-default bg-bg-surface hover:bg-bg-subtle has-[:checked]:border-brand flex cursor-pointer items-center gap-2 rounded-[var(--r-sm)] border px-3 py-1.5 text-[0.8125rem]"
           >
             <input
               id={id}
