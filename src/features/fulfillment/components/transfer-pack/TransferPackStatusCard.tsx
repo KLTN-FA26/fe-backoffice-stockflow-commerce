@@ -25,7 +25,7 @@ import type { TransferPackSession } from "@/features/fulfillment/transfer-pack-t
 
 const S = UI_LABELS.transferPack.status;
 const A = UI_LABELS.transferPack.action;
-const BUTTON = "w-full rounded-[var(--r-sm)]";
+const BUTTON = "h-(--action-h) w-full rounded-(--action-radius)";
 
 /**
  * Cột phải: trạng thái phiên, người đóng, hai kho, và thao tác cấp phiên — hoàn tất đóng gói; khi đã đóng xong thì
@@ -60,7 +60,7 @@ export function TransferPackStatusCard({
     : (session.packerName ?? (session.packerId ? shortId(session.packerId) : S.waiting));
 
   return (
-    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
+    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)">
       <dl className="mb-4 space-y-2 text-[0.8125rem]">
         <div className="flex items-center justify-between">
           <dt className="text-ink-secondary">{S.pack}</dt>

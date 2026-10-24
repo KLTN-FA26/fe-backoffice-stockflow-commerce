@@ -13,6 +13,7 @@ import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
 
 import { CompleteDialog } from "./CompleteDialog";
+import { MONO, taskCode } from "../primitives";
 import { ReverifyDialog } from "./ReverifyDialog";
 
 import type { FulfillmentActor } from "@/features/fulfillment/lifecycle";
@@ -21,7 +22,7 @@ import type { PackingSession } from "@/features/fulfillment/packing-types";
 
 const S = UI_LABELS.packing.status;
 const N = UI_LABELS.packing.notice;
-const BUTTON = "w-full rounded-[var(--r-sm)]";
+const BUTTON = "h-(--action-h) w-full rounded-(--action-radius)";
 
 function noActionText(session: PackingSession, access: PackingAccess): string | null {
   if (session.packStatus === "Packed") return N.readOnlyDone;
@@ -54,8 +55,15 @@ export function PackingStatusCard({
   const owner = access.isOwner ? S.you : (session.packerName ?? S.waiting);
 
   return (
-    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
+    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)">
       <dl className="mb-4 space-y-2 text-[0.8125rem]">
+        {/* Trạm không có tiêu đề — số đơn của phiên nằm ở đây */}
+        <div className="flex items-center justify-between gap-3">
+          <dt className="text-ink-secondary">{UI_LABELS.fulfillment.field.order}</dt>
+          <dd className={`text-ink-primary truncate font-medium ${MONO}`}>
+            {session.orderNumber ?? taskCode(session.taskId)}
+          </dd>
+        </div>
         <div className="flex items-center justify-between">
           <dt className="text-ink-secondary">{S.pack}</dt>
           <dd>
