@@ -2,13 +2,11 @@
 
 import { useState } from "react";
 
-import { ADMIN_ROUTES, INVENTORY_ITEM_PERMISSIONS, UI_LABELS } from "@/constants";
+import { INVENTORY_ITEM_PERMISSIONS } from "@/constants";
 import { usePermissionChecker } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
-import { BackLink } from "@/components/shared/BackLink";
 
 import { inventoryItemCapabilities } from "../../lifecycle";
 import { useInventoryItem } from "../../queries";
@@ -18,8 +16,6 @@ import { ItemLogisticsCard } from "./ItemLogisticsCard";
 import { ItemPolicyCard } from "./ItemPolicyCard";
 
 export type ItemEditing = "logistics" | "policy" | null;
-
-const L = UI_LABELS.inventoryItem;
 
 function InventoryItemDetailContent({ id }: { id: string }) {
   const [editing, setEditing] = useState<ItemEditing>(null);
@@ -42,12 +38,10 @@ function InventoryItemDetailContent({ id }: { id: string }) {
   const done = () => setEditing(null);
 
   return (
-    <>
-      <PageHeader
-        title={item.sku}
-        subtitle={L.version(item.version)}
-        actions={<BackLink href={ADMIN_ROUTES.inventoryItems.list} />}
-      />
+    // Giao diện kiểu Vercel như chi tiết sản phẩm (globals.css `.surface-soft`). Không hiện tiêu đề —
+    // breadcrumb topbar đã có SKU và link về danh sách; h1 giữ cho screen reader.
+    <div className="surface-soft surface-compact">
+      <h1 className="sr-only">{item.sku}</h1>
       <div className="grid items-start gap-5 xl:grid-cols-[1fr_320px]">
         {/* Logistics và chính sách tồn đứng cạnh nhau, mỗi khối một cột */}
         <div className="grid items-start gap-5 lg:grid-cols-2">
@@ -68,7 +62,7 @@ function InventoryItemDetailContent({ id }: { id: string }) {
         </div>
         <ItemEvaluationCard item={item} />
       </div>
-    </>
+    </div>
   );
 }
 
