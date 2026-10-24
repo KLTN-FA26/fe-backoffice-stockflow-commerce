@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
+import { cn } from "cn";
 import { Plus } from "lucide-react";
 
 import {
@@ -14,8 +15,7 @@ import {
 import { useCan, usePermissionChecker } from "@/lib/auth";
 import { RECEIPT_CREATE_PERMISSIONS } from "@/features/receipt/lifecycle";
 import { usePurchaseOrderNumbers } from "@/features/receipt/queries";
-import { ListToolbar } from "@/components/shared/ListToolbar";
-import { PageHeader } from "@/components/shared/PageHeader";
+import { ListToolbar, TOOLBAR_ACTION_CLASS } from "@/components/shared/ListToolbar";
 import { Button } from "@/components/ui/button";
 
 import { buildReceiptColumns } from "./list/columns";
@@ -46,22 +46,21 @@ function ReceiptListContent() {
   const visibleColumns = columns.filter((c) => s.config.visibleColumns.includes(c.key));
   const poNumber = s.po ? poNumbers?.[s.po] : undefined;
   const { filters } = s;
+  const createAction = canCreate ? (
+    <Button asChild size="sm" className={cn("bg-brand hover:bg-brand-hover", TOOLBAR_ACTION_CLASS)}>
+      <Link href={ADMIN_ROUTES.receipts.create}>
+        <Plus className="size-3.5" /> {UI_LABELS.receipt.action.create}
+      </Link>
+    </Button>
+  ) : undefined;
 
   return (
-    <>
-      <PageHeader
-        title={UI_LABELS.receipt.pageTitle}
-        subtitle="Kiểm đếm hàng về theo đơn đặt hàng, QC đầu vào và bàn giao cất hàng."
-        actions={
-          canCreate ? (
-            <Button asChild size="sm" className="rounded-[var(--r-sm)]">
-              <Link href={ADMIN_ROUTES.receipts.create}>
-                <Plus className="size-3.5" /> {UI_LABELS.receipt.action.create}
-              </Link>
-            </Button>
-          ) : undefined
-        }
-      />
+    // Giao diện kiểu Vercel như danh sách sản phẩm (globals.css `.surface-soft`): không tiêu đề hiển
+    // thị — breadcrumb là tên trang; nút tạo nằm cuối toolbar.
+    <div className="surface-soft">
+      <h1 className="sr-only">{UI_LABELS.receipt.pageTitle}</h1>
+      {/* Thiếu READ nhưng có CREATE: không có toolbar nên nút tạo đứng riêng */}
+      {!canRead && createAction && <div className="mb-3 flex justify-end">{createAction}</div>}
       {canRead && (
         <>
           <ListToolbar
@@ -86,12 +85,13 @@ function ReceiptListContent() {
             summaryItems={buildReceiptSummary(s, poNumber)}
             onResetAll={s.resetAll}
             resetDisabled={!s.hasFilters && !s.hasColumnConfig && s.sort.key === null}
+            actions={createAction}
           />
           <ReceiptListFilters s={s} poNumber={poNumber} />
         </>
       )}
       <ReceiptListBody s={s} columns={visibleColumns} canCreate={canCreate} />
-    </>
+    </div>
   );
 }
 

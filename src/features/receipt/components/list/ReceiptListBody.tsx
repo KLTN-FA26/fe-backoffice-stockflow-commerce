@@ -95,6 +95,7 @@ export function ReceiptListBody({
         label={`Đang tải lại ${UI_LABELS.receipt.pageTitle.toLowerCase()}`}
       />
       <DataTable
+        stickyHeader
         columns={columns}
         data={page.items}
         rowKey={(row) => row.id}
