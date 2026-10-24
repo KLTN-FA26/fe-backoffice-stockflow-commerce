@@ -13,28 +13,41 @@ import { BackLink } from "@/components/shared/BackLink";
 import { useOrder } from "../queries";
 
 import { OrderActionCard } from "./OrderActionCard";
+import { OrderDeliveryModeCard } from "./OrderDeliveryModeCard";
 import { OrderFinanceCard } from "./OrderFinanceCard";
 import { OrderInfoCard } from "./OrderInfoCard";
+import { OrderHistory } from "./OrderHistory";
 import { OrderLines } from "./OrderLines";
 import { OrderLoadError } from "./OrderLoadError";
+import { OrderPartialShipmentCard } from "./OrderPartialShipmentCard";
 import { OrderPermissionGate } from "./OrderPermissionGate";
 import { OrderShipments } from "./OrderShipments";
 import { OrderDetailSkeleton } from "./OrderSkeletons";
 
+import type { OrderEstimateSlot } from "../estimate-slot";
+
 interface OrderDetailProps {
   params: Promise<{ id: string }>;
+  /** Khe "Ước tính xếp xe" do chỗ ghép truyền vào (feature không import chéo — xem `estimate-slot.ts`). */
+  estimateSlot?: OrderEstimateSlot;
 }
 
-export function OrderDetail({ params }: OrderDetailProps) {
+export function OrderDetail({ params, estimateSlot }: OrderDetailProps) {
   const { id } = use(params);
   return (
     <OrderPermissionGate permissions={[ORDER_PERMISSIONS.viewPage]}>
-      <OrderDetailContent id={id} />
+      <OrderDetailContent id={id} estimateSlot={estimateSlot} />
     </OrderPermissionGate>
   );
 }
 
-function OrderDetailContent({ id }: { id: string }) {
+function OrderDetailContent({
+  id,
+  estimateSlot,
+}: {
+  id: string;
+  estimateSlot?: OrderEstimateSlot;
+}) {
   const can = usePermissionChecker();
   // READ = đọc dữ liệu (tách khỏi VIEW_PAGE mở trang — BE ADR-0004): thiếu thì không gọi API
   const canRead = can(ORDER_PERMISSIONS.read);
@@ -71,14 +84,19 @@ function OrderDetailContent({ id }: { id: string }) {
       />
 
       <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
-        <OrderLines
-          lines={order.lines}
-          currency={order.currency}
-          hasShipments={order.shipments.length > 0}
-        />
+        <div className="min-w-0 space-y-5">
+          <OrderLines
+            lines={order.lines}
+            currency={order.currency}
+            hasShipments={order.shipments.length > 0}
+          />
+          <OrderHistory orderId={order.orderId} />
+        </div>
 
         <div className="space-y-5">
-          <OrderActionCard order={order} can={can} />
+          <OrderActionCard order={order} can={can} estimateSlot={estimateSlot} />
+          <OrderDeliveryModeCard order={order} can={can} estimateSlot={estimateSlot} />
+          <OrderPartialShipmentCard order={order} can={can} />
           <OrderShipments order={order} />
           <OrderInfoCard order={order} />
           <OrderFinanceCard order={order} />

@@ -97,9 +97,42 @@ export const fulfillmentOrderSchema = z.object({
   // null tới khi đơn được release (SCRUM-423)
   warehouseId: z.string().nullish(),
   lines: z.array(fulfillmentOrderLineSchema).default([]),
+  /**
+   * Hàng in đã về bàn đóng gói (BE PR #150, PACK-EARLY): false khi đơn còn đang in, hoặc đã giao hàng có
+   * sẵn trước khi sản xuất xong. Vắng = BE không trả.
+   */
+  printLinesReady: z.boolean().nullish(),
 });
 
 export const fulfillmentOrderPageSchema = bePageSchema(fulfillmentOrderSchema);
+
+/**
+ * BE `TaskCandidateResponse` (`GET /fulfillment/task-candidates`, guard
+ * `fulfillment-task-assignment:CREATE`, BE PR #151): đơn đã release (READY_TO_FULFILL) chưa có task,
+ * cũ nhất trước. Thay cho `GET /orders` (cần `sales-orders:READ`, quản lý kho không có). Một dòng
+ * `printed` là dòng in tuỳ chỉnh (BR-06 — đã release sản xuất mới vào được danh sách này).
+ */
+export const taskCandidateLineSchema = z.object({
+  orderLineId: z.string(),
+  sku: z.string(),
+  quantity: z.number().int(),
+  printed: z.boolean(),
+});
+
+export const taskCandidateSchema = z.object({
+  orderId: z.string(),
+  orderNumber: z.string(),
+  customerId: z.string().nullish(),
+  customerName: z.string().nullish(),
+  warehouseId: z.string(),
+  placedAt: z.string().nullish(),
+  releasedAt: z.string().nullish(),
+  lineCount: z.number().int().min(0),
+  totalQuantity: z.number().int().min(0),
+  lines: z.array(taskCandidateLineSchema).default([]),
+});
+
+export const taskCandidatePageSchema = bePageSchema(taskCandidateSchema);
 
 /**
  * BE `AssigneeResponse` (`GET /fulfillment/assignees?warehouseId=`, guard

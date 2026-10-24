@@ -8,9 +8,11 @@ import {
   IDENTITY_PERMISSIONS,
   INVENTORY_ITEM_PERMISSIONS,
   INVENTORY_OVERVIEW_PERMISSIONS,
+  LOAD_PLAN_PERMISSIONS,
   PRODUCT_PERMISSIONS,
   SHIPMENT_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
+  VEHICLE_TYPE_PERMISSIONS,
 } from "@/constants/permissions";
 
 import { api } from "@/lib/api/client";
@@ -140,6 +142,26 @@ describe("declared navigation permissions", () => {
     mount();
     expect(await screen.findByRole("link", { name: "Phân quyền" })).toBeInTheDocument();
   });
+  it("Người dùng theo identity-users:READ, không theo quyền Phân quyền (SCRUM-458)", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [], permissions: [IDENTITY_PERMISSIONS.usersRead], dataScope: "ALL" },
+    });
+    mount();
+    expect(screen.queryByRole("link", { name: "Người dùng" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Người dùng" })).toHaveAttribute(
+      "href",
+      "/admin/users",
+    );
+    expect(screen.queryByRole("link", { name: "Phân quyền" })).not.toBeInTheDocument();
+  });
+  it("chỉ có quyền Phân quyền thì không thấy menu Người dùng", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [], permissions: [IDENTITY_PERMISSIONS.rbacRead], dataScope: "ALL" },
+    });
+    mount();
+    expect(await screen.findByRole("link", { name: "Phân quyền" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Người dùng" })).not.toBeInTheDocument();
+  });
   it("giao cho hãng (Lô giao, Chuyến xe) nối BE thật theo quyền xem màn, không còn chỉ-mock", async () => {
     vi.spyOn(api, "get").mockResolvedValue({
       data: { roles: [], permissions: [SHIPMENT_PERMISSIONS.viewPage], dataScope: "ALL" },
@@ -151,7 +173,21 @@ describe("declared navigation permissions", () => {
       "/admin/shipments",
     );
     expect(screen.getByRole("link", { name: "Chuyến xe" })).toHaveAttribute("href", "/admin/loads");
-    expect(screen.getByRole("link", { name: "Kế hoạch xếp xe" })).toBeInTheDocument();
+    // Kế hoạch xếp xe có resource quyền riêng: quyền xem màn giao hàng không đủ
+    expect(screen.queryByRole("link", { name: "Kế hoạch xếp xe" })).not.toBeInTheDocument();
+  });
+  it("Kế hoạch xếp xe theo fulfillment-load-plans:VIEW_PAGE (BE PR #161)", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [], permissions: [LOAD_PLAN_PERMISSIONS.viewPage], dataScope: "ALL" },
+    });
+    mockMode.isMock = false;
+    mount();
+    expect(screen.queryByRole("link", { name: "Kế hoạch xếp xe" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Kế hoạch xếp xe" })).toHaveAttribute(
+      "href",
+      "/admin/load-plans",
+    );
+    expect(screen.queryByRole("link", { name: "Chuyến xe" })).not.toBeInTheDocument();
   });
   it("thiếu quyền xem màn giao hàng → ẩn Lô giao và Chuyến xe", async () => {
     vi.spyOn(api, "get").mockResolvedValue({
@@ -162,6 +198,25 @@ describe("declared navigation permissions", () => {
     expect(await screen.findByRole("link", { name: "Tổng quan" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Lô giao" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Chuyến xe" })).not.toBeInTheDocument();
+  });
+  it("Loại xe theo fulfillment-vehicle-types:VIEW_PAGE (BE PR #153)", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [], permissions: [VEHICLE_TYPE_PERMISSIONS.viewPage], dataScope: "ALL" },
+    });
+    mount();
+    expect(screen.queryByRole("link", { name: "Loại xe" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Loại xe" })).toHaveAttribute(
+      "href",
+      "/admin/vehicle-types",
+    );
+  });
+  it("quyền xem màn giao hàng không đủ để thấy Loại xe (resource riêng)", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [], permissions: [SHIPMENT_PERMISSIONS.viewPage], dataScope: "ALL" },
+    });
+    mount();
+    expect(await screen.findByRole("link", { name: "Chuyến xe" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Loại xe" })).not.toBeInTheDocument();
   });
   it("Đề xuất nhập hàng (BE chưa có API) chỉ hiện ở mock, không phụ thuộc quyền", async () => {
     vi.spyOn(api, "get").mockResolvedValue({

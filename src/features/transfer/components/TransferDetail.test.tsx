@@ -49,7 +49,10 @@ function renderDetail(permissions: readonly PermissionCode[], transfer: Transfer
 describe("TransferDetail — action-gating + xuất kho", HEAVY_TEST, () => {
   it("PICKING + NV kho → thấy Xuất kho; xuất thiếu gửi đúng SL từng dòng", async () => {
     const user = userEvent.setup();
-    const { post } = renderDetail(ROLES.warehouseStaff, apiTransfer({ status: "PICKING" }));
+    const { post } = renderDetail(
+      ROLES.warehouseStaff,
+      apiTransfer({ status: "PICKING", deliveryMode: "PARCEL" }),
+    );
 
     await user.click(await screen.findByRole("button", { name: A.dispatch }));
     const dialog = await screen.findByRole("dialog");
@@ -71,7 +74,7 @@ describe("TransferDetail — action-gating + xuất kho", HEAVY_TEST, () => {
 
   it("SL xuất vượt SL yêu cầu → khoá nút xuất, báo lỗi inline", async () => {
     const user = userEvent.setup();
-    renderDetail(ROLES.warehouseStaff, apiTransfer({ status: "PICKING" }));
+    renderDetail(ROLES.warehouseStaff, apiTransfer({ status: "PICKING", deliveryMode: "PARCEL" }));
     await user.click(await screen.findByRole("button", { name: A.dispatch }));
     const dialog = await screen.findByRole("dialog");
     const first = within(dialog).getByLabelText(/CUP-PP-500/);

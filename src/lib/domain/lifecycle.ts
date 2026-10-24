@@ -174,10 +174,12 @@ export const PACK_TRANSITIONS: Record<PackStatus, readonly PackStatus[]> = {
 
 // BE `LoadStatus` (PR #137): chuyến gửi kiện (PARCEL) bắt đầu ở LOADING khi tài xế hãng tới →
 // DISPATCHED khi hai bên ký biên bản. PLANNED → VEHICLE_BOOKED → LOADING là đường của chuyến nguyên
-// xe (FTL, SCRUM-287/452). Huỷ được ở mọi trạng thái còn mở (kiện về khu chờ xuất).
+// xe (FTL, SCRUM-287/392); huỷ đặt xe (`booking-cancellation`, BE PR #162) đưa VEHICLE_BOOKED về
+// PLANNED. Huỷ chuyến được ở mọi trạng thái còn mở (kiện về khu chờ xuất) — chuyến của kế hoạch xếp xe
+// thì huỷ qua kế hoạch (409 LOAD_MANAGED_BY_PLAN).
 export const LOAD_TRANSITIONS: Record<LoadStatus, readonly LoadStatus[]> = {
   PLANNED: ["VEHICLE_BOOKED", "CANCELLED"],
-  VEHICLE_BOOKED: ["LOADING", "CANCELLED"],
+  VEHICLE_BOOKED: ["PLANNED", "LOADING", "CANCELLED"],
   LOADING: ["DISPATCHED", "CANCELLED"],
   DISPATCHED: [],
   CANCELLED: [],

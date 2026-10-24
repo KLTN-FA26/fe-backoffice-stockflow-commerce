@@ -9,7 +9,12 @@ import { render } from "@testing-library/react";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { vi } from "vitest";
 
-import { TRANSFER_PERMISSIONS } from "@/constants";
+import {
+  FULFILLMENT_PACKAGE_PERMISSIONS as PACKAGES,
+  FULFILLMENT_PACKING_PERMISSIONS as PACKING,
+  LOAD_PLAN_PERMISSIONS as LP,
+  TRANSFER_PERMISSIONS,
+} from "@/constants";
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
@@ -26,6 +31,24 @@ export const TRANSFER_ROLE_PERMISSIONS = {
   warehouseManager: [TO.viewPage, TO.read, TO.create, TO.update, TO.approve],
   inventoryPlanner: [TO.viewPage, TO.read, TO.create, TO.update],
   warehouseStaff: [TO.viewPage, TO.read, TO.update],
+  // BE PR #164 + seed fulfillment: nhân viên kho đóng gói (packing:UPDATE + packages:READ) và lập kế hoạch xe (load-plans)
+  floorStaff: [
+    TO.viewPage,
+    TO.read,
+    TO.update,
+    PACKING.update,
+    PACKING.read,
+    PACKAGES.viewPage,
+    PACKAGES.read,
+    LP.viewPage,
+    LP.read,
+    LP.create,
+    LP.update,
+  ],
+  // Đóng gói được nhưng không lập kế hoạch xe
+  packerOnly: [TO.viewPage, TO.read, TO.update, PACKING.update, PACKAGES.read],
+  // Lập kế hoạch xe được nhưng không đóng gói
+  plannerOnly: [TO.viewPage, TO.read, TO.update, LP.read, LP.create],
 } satisfies Record<string, PermissionCode[]>;
 
 export type RouteHandler = (params: unknown, body?: unknown) => unknown;

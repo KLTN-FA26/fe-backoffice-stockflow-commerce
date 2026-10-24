@@ -3,6 +3,7 @@ import { formatDateTime } from "@/lib/format/date";
 import { formatNumber } from "@/lib/format/number";
 import { StatusDot } from "@/components/shared/StatusDot";
 
+import { ParcelBadges } from "../ftl/ParcelBadges";
 import { MONO, NUM, Section } from "../primitives";
 
 import type { Shipment } from "@/features/shipping/types";
@@ -35,6 +36,7 @@ export function ShipmentDetails({ data }: { data: Shipment }) {
                 <tr key={parcel.packageId} className="border-border-default border-t">
                   <td className={`text-ink-primary px-3 py-2 font-medium ${MONO}`}>
                     {parcel.labelCode}
+                    <ParcelBadges parcel={parcel} />
                   </td>
                   <td className="px-3 py-2">
                     <StatusDot domain="shipment" status={PACKAGE_STATUS_DISPLAY[parcel.status]} />

@@ -8,7 +8,7 @@
 
 import { createMutation } from "@/lib/api/query-factory";
 
-import { ORDER_ACTION_LABELS } from "@/constants";
+import { ORDER_ACTION_LABELS, SHARED_QUERY_ROOTS } from "@/constants";
 
 import {
   adminCancelOrder,
@@ -22,6 +22,13 @@ import {
   type RemainderClosureInput,
   type ResolveOrderHoldInput,
 } from "./api";
+import {
+  changeDeliveryMode,
+  releaseOrder,
+  type ChangeDeliveryModeInput,
+  type ReleaseOrderInput,
+} from "./delivery-mode-api";
+import { decidePartialShipment, type PartialShipmentInput } from "./partial-shipment-api";
 import { orderKeys } from "./queries";
 
 /* ── Admin cancel ────────────────────────────────────────────────────── */
@@ -75,6 +82,48 @@ export const useCloseOrderRemainder = createMutation<RemainderClosureInput, void
   {
     invalidate: [orderKeys.all],
     successMessage: ORDER_ACTION_LABELS.remainderClosure.success,
+    showErrorToast: false,
+  },
+);
+
+/* ── Giao một phần (BE PR #150) ──────────────────────────────────────── */
+
+/**
+ * Cho phép / dừng giao một phần của đơn. Đổi cờ `allowPartialShipment` của đơn (detail + list) và thêm một mục
+ * vào lịch sử đơn — cả hai nằm dưới `orderKeys.all`. Cờ này còn quyết việc kho được làm (hoàn tất đóng gói
+ * một phần, thêm lô vào chuyến, bàn giao) nên làm mới luôn task / phiên đóng gói và chuyến xe qua root dùng chung.
+ * Không có `successMessage` cố định: lời báo phụ thuộc `allowed` nên call site phát toast; `showErrorToast: false`
+ * vì call site map lỗi (409 ORDER_PARTIAL_SHIPMENT_LOCKED…) ngay trong dialog.
+ */
+export const useDecidePartialShipment = createMutation<PartialShipmentInput, void>(
+  decidePartialShipment,
+  {
+    invalidate: [
+      orderKeys.all,
+      [SHARED_QUERY_ROOTS.fulfillmentTasks],
+      [SHARED_QUERY_ROOTS.fulfillmentLoads],
+    ],
+    showErrorToast: false,
+  },
+);
+
+/* ── Release đơn + hình thức giao (BE PR #157) ───────────────────────── */
+
+/**
+ * Release đưa đơn CONFIRMED sang IN_PRODUCTION / READY_TO_FULFILL: đổi đơn (+ lịch sử, nếu đổi hình thức giao) và
+ * làm đơn thành ứng viên của kho (task xuất kho). Không có `successMessage` / toast lỗi của factory: toast thành công do
+ * call site phát (như giao một phần), còn dialog map lỗi (409 FTL_NO_COD…) tại chỗ.
+ */
+export const useReleaseOrder = createMutation<ReleaseOrderInput, void>(releaseOrder, {
+  invalidate: [orderKeys.all, [SHARED_QUERY_ROOTS.fulfillmentTasks]],
+  showErrorToast: false,
+});
+
+/** Đổi hình thức giao: đổi `deliveryMode` của đơn và thêm mục `DELIVERY_MODE_CHANGE` vào lịch sử (cùng root). */
+export const useChangeDeliveryMode = createMutation<ChangeDeliveryModeInput, void>(
+  changeDeliveryMode,
+  {
+    invalidate: [orderKeys.all],
     showErrorToast: false,
   },
 );

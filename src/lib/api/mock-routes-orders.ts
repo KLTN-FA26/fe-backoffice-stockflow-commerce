@@ -9,6 +9,7 @@
  */
 
 import { paginatePage, registerMockRoute } from "./mock-adapter";
+import { registerDeliveryModeMockRoutes } from "./mock-routes-order-delivery-mode";
 
 import type { AxiosRequestConfig } from "axios";
 import type { Order, OrderLine, OrderStatus } from "@/lib/mock-data";
@@ -63,7 +64,8 @@ const MOCK_TO_BACKEND_STATUS: Record<OrderStatus, BackendOrderStatus> = {
 
 /**
  * BE `OrderStatus#canTransitionTo` → CANCELLED (PR #133): DRAFT, PENDING_PAYMENT, CONFIRMED,
- * IN_PRODUCTION, READY_TO_FULFILL, PICKING, ON_HOLD. PACKED trở đi phải đi luồng trả hàng (BR-ORD-004).
+ * IN_PRODUCTION, READY_TO_FULFILL, PICKING, ON_HOLD. PACKED trở đi phải đi luồng trả hàng (BR-ORD-004) —
+ * trừ hàng có sẵn đóng trước hàng in chưa bàn giao (BE PR #150, `packedOnlyAheadOfPrints`).
  */
 const CANCELLABLE_STATUSES: readonly BackendOrderStatus[] = [
   "DRAFT",
@@ -108,6 +110,25 @@ const CANCELLATION_REASONS = [
   "OTHER",
 ];
 
+/** Người Sales của phiên demo — tên hiện ở lịch sử đơn (BE trả `actorName` của người quyết). */
+const MOCK_SALES_ACTOR = { id: "USER-SALE-01", name: "Nhân viên Sales" } as const;
+
+/** Điều phối viên của phiên demo — tên hiện ở lịch sử đơn khi đổi hình thức giao (BE PR #157). */
+const MOCK_COORDINATOR_ACTOR = { id: "USER-COORD-01", name: "Điều phối đơn" } as const;
+
+/** BE `Order#decidePartialShipment`: các trạng thái còn đổi được cách giao. */
+const PARTIAL_SHIPMENT_OPEN_STATUSES: readonly BackendOrderStatus[] = [
+  "DRAFT",
+  "PENDING_PAYMENT",
+  "CONFIRMED",
+  "IN_PRODUCTION",
+  "READY_TO_FULFILL",
+  "PICKING",
+  "PARTIALLY_FULFILLED",
+  "PACKED",
+  "ON_HOLD",
+];
+
 type ShipmentStatus = "HANDED_OVER" | "DELIVERED" | "DELIVERY_FAILED" | "RETURNED";
 
 interface MockShipment {
@@ -144,6 +165,63 @@ interface MockLifecycle {
   deliveryFailureReason?: string;
   shipments?: MockShipment[];
   closedUnits: Record<string, number>;
+  /** Sales cho phép giao một phần (BE PR #150); chưa đặt = theo mặc định BE (xem `allowsPartialShipment`). */
+  allowPartialShipment?: boolean;
+  /** Quyết định giao một phần, cũ nhất trước (BE `order_partial_shipment_decision`). */
+  decisions: MockPartialDecision[];
+  /** Hình thức giao (BE PR #157); chưa đặt = PARCEL (mặc định BE). */
+  deliveryMode?: MockDeliveryMode;
+  /** Kho đã release đơn (đơn mock-data đã release có kho riêng `fulfillmentWarehouseId`). */
+  warehouseId?: string;
+  /**
+   * Cách thu phần còn lại của đơn CỌC (BE PR #150); chỉ đặt qua `setMockOrderBalancePolicy` — mock-data không có đơn
+   * cọc, nên đặt cách thu cũng biến đơn thành đơn cọc. Chưa đặt = BEFORE_DELIVERY.
+   */
+  balancePolicy?: "BEFORE_DELIVERY" | "ON_DELIVERY" | "ON_CREDIT";
+  /** Các lần đổi hình thức giao, cũ nhất trước (BE `order_delivery_mode_change`). */
+  deliveryModeChanges: MockDeliveryModeChange[];
+}
+
+/** Cách thu phần còn lại: đặt cho một đơn mock (biến nó thành đơn cọc) — để test / demo chạm luật FTL + COD. */
+export function setMockOrderBalancePolicy(
+  orderId: string,
+  policy: NonNullable<MockLifecycle["balancePolicy"]>,
+): void {
+  lifecycleOf(orderId).balancePolicy = policy;
+}
+
+/** Đơn mock là đơn CỌC: phương thức thanh toán "Deposit", hoặc đã được đặt cách thu phần còn lại. */
+function paymentTermOf(order: Order, state: MockLifecycle): "DEPOSIT" | "PREPAID" {
+  return order.paymentMethodType === "Deposit" || state.balancePolicy !== undefined
+    ? "DEPOSIT"
+    : "PREPAID";
+}
+
+/**
+ * BE `ck_order_ftl_no_cod` (PR #157): "COD" = đơn CỌC có cách thu phần còn lại ON_DELIVERY (thu khi giao). Phương thức
+ * thanh toán "COD" của mock-data KHÔNG tính — đó là cách khách trả, không phải cách thu phần còn lại.
+ */
+export function isCodDeposit(order: Order): boolean {
+  const state = seedLifecycle(order);
+  return (
+    paymentTermOf(order, state) === "DEPOSIT" &&
+    (state.balancePolicy ?? "BEFORE_DELIVERY") === "ON_DELIVERY"
+  );
+}
+
+export type MockDeliveryMode = "PARCEL" | "FULL_TRUCKLOAD";
+
+export interface MockDeliveryModeChange {
+  mode: MockDeliveryMode;
+  previousMode: MockDeliveryMode;
+  note: string | null;
+  changedAt: string;
+}
+
+interface MockPartialDecision {
+  allowed: boolean;
+  note: string | null;
+  decidedAt: string;
 }
 
 const lifecycleStore = new Map<string, MockLifecycle>();
@@ -155,14 +233,79 @@ export function resetOrderMockStore(): void {
 function lifecycleOf(orderId: string): MockLifecycle {
   let state = lifecycleStore.get(orderId);
   if (!state) {
-    state = { closedUnits: {} };
+    state = { closedUnits: {}, decisions: [], deliveryModeChanges: [] };
     lifecycleStore.set(orderId, state);
   }
   return state;
 }
 
-function backendStatus(order: Order): BackendOrderStatus {
+export function backendStatus(order: Order): BackendOrderStatus {
   return lifecycleStore.get(order.orderId)?.status ?? MOCK_TO_BACKEND_STATUS[order.status];
+}
+
+/**
+ * BE backfill (V20261022000400): `allow_partial_shipment = true` chỉ cho đơn đã đang giao từng phần; còn lại
+ * false cho tới khi Sales bật.
+ */
+function allowsPartialShipment(order: Order): boolean {
+  return (
+    lifecycleStore.get(order.orderId)?.allowPartialShipment ??
+    order.status === "Partially Fulfilled"
+  );
+}
+
+/** Mock đóng gói hỏi cờ này như BE `PackingService` (PACK_PARTIAL_NOT_ALLOWED khi chưa bật). */
+export async function mockOrderAllowsPartialShipment(orderId: string): Promise<boolean> {
+  const { orders } = await import("@/lib/mock-data");
+  const order = orders.find((o) => o.orderId === orderId);
+  return order ? allowsPartialShipment(order) : false;
+}
+
+/** Đơn có dòng in (thiết kế khách chốt) — BE `Order#hasPrintLines`. */
+export const hasPrintLines = (order: Order) => order.lines.some((line) => line.designId);
+
+/**
+ * BE `Order#printLinesReady`: hàng in đã về bàn đóng gói — không có dòng in, hoặc không còn trong sản xuất
+ * (đơn IN_PRODUCTION hoặc giữ từ đó thì chưa).
+ */
+function printLinesReady(order: Order, status: BackendOrderStatus, state: MockLifecycle): boolean {
+  if (!hasPrintLines(order)) return true;
+  const printing =
+    status === "IN_PRODUCTION" ||
+    (status === "ON_HOLD" && state.statusBeforeHold === "IN_PRODUCTION");
+  return !printing;
+}
+
+/**
+ * BE `Order#packedOnlyAheadOfPrints` (BE PR #150): hàng có sẵn đã đóng trước hàng in và chưa lô nào rời kho —
+ * vẫn huỷ được.
+ */
+function packedOnlyAheadOfPrints(status: BackendOrderStatus, state: MockLifecycle): boolean {
+  const printing =
+    status === "IN_PRODUCTION" ||
+    (status === "ON_HOLD" && state.statusBeforeHold === "IN_PRODUCTION");
+  return state.packedAt !== undefined && printing && (state.shipments ?? []).length === 0;
+}
+
+/** BE `Order#deliveryModeLocked` (PR #157): các trạng thái còn đổi được hình thức giao, tới khi bắt đầu đóng gói. */
+const DELIVERY_MODE_OPEN_STATUSES: readonly BackendOrderStatus[] = [
+  "DRAFT",
+  "PENDING_PAYMENT",
+  "CONFIRMED",
+  "IN_PRODUCTION",
+  "READY_TO_FULFILL",
+  "PICKING",
+];
+
+/**
+ * Khoá khi đã đóng gói xong (`packedAt`) hoặc trạng thái hiệu lực (trước khi giữ, với ON_HOLD) đã qua đóng gói / huỷ
+ * / đóng; mở với giữ công nợ (không có trạng thái để quay về). Mock không biết kiện đầu tiên đã mở chưa (BE
+ * `packing_started_at`), nên PICKING vẫn mở.
+ */
+export function isDeliveryModeLocked(status: BackendOrderStatus, state: MockLifecycle): boolean {
+  if (state.packedAt !== undefined) return true;
+  const effective = status === "ON_HOLD" ? state.statusBeforeHold : status;
+  return effective !== undefined && !DELIVERY_MODE_OPEN_STATUSES.includes(effective);
 }
 
 /**
@@ -170,7 +313,7 @@ function backendStatus(order: Order): BackendOrderStatus {
  * ADDRESS từ PICKING; đơn "Partially Fulfilled" đã bàn giao một lô (thiếu 2 đơn vị — ghi chú
  * "Pick Short 2" của mock-data); đơn "Delivery Failed" do khách vắng mặt.
  */
-function seedLifecycle(order: Order): MockLifecycle {
+export function seedLifecycle(order: Order): MockLifecycle {
   const state = lifecycleOf(order.orderId);
   if (state.holdReason === undefined && MOCK_TO_BACKEND_STATUS[order.status] === "ON_HOLD") {
     state.holdReason = "ADDRESS";
@@ -269,7 +412,7 @@ const STATUS_FILTER_ALIAS: Readonly<Record<string, readonly string[]>> = {
 };
 
 /** mock-data `Order` → BE `OrderResponse`. Chỉ field có trong hợp đồng BE. */
-function toOrderResponse(order: Order) {
+export function toOrderResponse(order: Order) {
   const address = {
     recipientName: order.recipientName,
     phone: order.recipientPhone,
@@ -298,7 +441,7 @@ function toOrderResponse(order: Order) {
   const effectiveTotal = order.grandTotal - closedValue;
   const onHold = status === "ON_HOLD";
   // mock-data chỉ có phương thức thanh toán: cọc → DEPOSIT, còn lại trả trước
-  const paymentTerm = order.paymentMethodType === "Deposit" ? "DEPOSIT" : "PREPAID";
+  const paymentTerm = paymentTermOf(order, state);
   const amountDue = Math.max(0, effectiveTotal - order.amountPaid);
   return {
     orderId: order.orderId,
@@ -354,6 +497,13 @@ function toOrderResponse(order: Order) {
     effectiveTotal,
     amountDue,
     amountDueBeforeHandover: paymentTerm === "PREPAID" ? amountDue : 0,
+    // Đơn cọc: BE ghi cách thu phần còn lại (mặc định BEFORE_DELIVERY, BE PR #150 thêm ON_CREDIT); đơn khác null
+    balancePolicy: paymentTerm === "DEPOSIT" ? (state.balancePolicy ?? "BEFORE_DELIVERY") : null,
+    creditTermDays: null,
+    allowPartialShipment: allowsPartialShipment(order),
+    printLinesReady: printLinesReady(order, status, state),
+    deliveryMode: state.deliveryMode ?? "PARCEL",
+    deliveryModeLocked: isDeliveryModeLocked(status, state),
     shipments: shipments.length
       ? shipments.map((shipment) => ({
           shipmentId: shipment.shipmentId,
@@ -427,6 +577,18 @@ function readBodyString(data: unknown, key: string): string {
 
 const readReason = (data: unknown) => readBodyString(data, "reason");
 
+function readBody(data: unknown): Record<string, unknown> {
+  let parsed: unknown = data;
+  if (typeof data === "string") {
+    try {
+      parsed = JSON.parse(data);
+    } catch {
+      parsed = {};
+    }
+  }
+  return typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>) : {};
+}
+
 type OrderResponse = ReturnType<typeof toOrderResponse>;
 
 function compareOrders(a: OrderResponse, b: OrderResponse, field: string): number {
@@ -499,7 +661,9 @@ export function registerOrderMockRoutes(): void {
     // BE PR #133: đã có packedAt → 409 ORDER_NOT_CANCELLABLE (`Order#requireNotPacked`, kể cả đơn ON_HOLD
     // bị giữ từ PACKED / PARTIALLY_FULFILLED); trạng thái không có cạnh → CANCELLED → ORDER_INVALID_TRANSITION.
     if (current === "CANCELLED") return error(409, "ORDER_CANCELLED", "This order is cancelled");
-    if (seedLifecycle(order).packedAt !== undefined) {
+    const lifecycle = seedLifecycle(order);
+    // BE PR #150: đã đóng gói thì không huỷ — trừ hàng có sẵn đóng trước hàng in mà chưa lô nào rời kho
+    if (lifecycle.packedAt !== undefined && !packedOnlyAheadOfPrints(current, lifecycle)) {
       return error(
         409,
         "ORDER_NOT_CANCELLABLE",
@@ -518,7 +682,73 @@ export function registerOrderMockRoutes(): void {
     return ok(null);
   });
 
+  // GET /orders/:id/history — BE `OrderStatusChangeResponse` (BE PR #150): mỗi mục có `type`. Mock không giữ
+  // nhật ký đổi trạng thái; chỉ có bước đặt đơn + các quyết định giao một phần Sales đã ghi.
+  registerMockRoute("GET", "/orders/:id/history", async (config) => {
+    const { orders } = await import("@/lib/mock-data");
+    const order = orders.find((o) => o.orderId === idParam(config));
+    if (!order) return error(404, "NOT_FOUND", "Resource not found");
+    const state = seedLifecycle(order);
+    return ok([
+      { type: "STATUS_CHANGE", from: null, to: "PENDING_PAYMENT", occurredAt: order.placedAt },
+      ...state.decisions.map((decision) => ({
+        type: "PARTIAL_SHIPMENT_DECISION",
+        from: null,
+        to: null,
+        reason: decision.note,
+        occurredAt: decision.decidedAt,
+        actorId: MOCK_SALES_ACTOR.id,
+        actorName: MOCK_SALES_ACTOR.name,
+        partialShipmentAllowed: decision.allowed,
+      })),
+      ...state.deliveryModeChanges.map((change) => ({
+        type: "DELIVERY_MODE_CHANGE",
+        from: null,
+        to: null,
+        reason: change.note,
+        occurredAt: change.changedAt,
+        actorId: MOCK_COORDINATOR_ACTOR.id,
+        actorName: MOCK_COORDINATOR_ACTOR.name,
+        deliveryMode: change.mode,
+        previousDeliveryMode: change.previousMode,
+      })),
+    ]);
+  });
+
+  // PUT /orders/:id/partial-shipment {allowed, note?} — BE `sales-order-partial-shipments:UPDATE` (BE PR #150)
+  registerMockRoute("PUT", "/orders/:id/partial-shipment", async (config) => {
+    const { orders } = await import("@/lib/mock-data");
+    const order = orders.find((o) => o.orderId === idParam(config));
+    if (!order) return error(404, "NOT_FOUND", "Resource not found");
+    const body = readBody(config.data);
+    const note = readBodyString(config.data, "note");
+    if (typeof body.allowed !== "boolean") return validation("allowed", "allowed is required");
+    if (note.length > 500) return validation("note", "note is at most 500 characters");
+
+    const state = seedLifecycle(order);
+    const current = backendStatus(order);
+    // BE `Order#decidePartialShipment`: từ SHIPPED trở đi (và đơn huỷ / đóng) không đổi được
+    if (!PARTIAL_SHIPMENT_OPEN_STATUSES.includes(current)) {
+      return error(
+        409,
+        "ORDER_PARTIAL_SHIPMENT_LOCKED",
+        `Order ${order.orderNumber} is ${current}: whether it ships in parts can no longer change`,
+      );
+    }
+    // Quyết định không đổi gì thì BE không ghi vào lịch sử
+    if (allowsPartialShipment(order) !== body.allowed) {
+      state.allowPartialShipment = body.allowed;
+      state.decisions.push({
+        allowed: body.allowed,
+        note: note || null,
+        decidedAt: new Date().toISOString(),
+      });
+    }
+    return ok(toOrderResponse(order));
+  });
+
   registerLifecycleRoutes();
+  registerDeliveryModeMockRoutes();
 }
 
 /* ── Giữ / gỡ giữ / giao thất bại / đóng phần còn lại (BE PR #133) ───── */
@@ -619,7 +849,7 @@ function registerLifecycleRoutes(): void {
     return ok(toOrderResponse(found.order));
   });
 
-  // POST /orders/:id/remainder-closure {reasonCode, note?} — sales-order-cancellations:UPDATE
+  // POST /orders/:id/remainder-closure {reasonCode, note?, agreedFee?} — sales-order-cancellations:UPDATE
   registerMockRoute("POST", "/orders/:id/remainder-closure", async (config) => {
     const found = await load(config);
     if (!found) return error(404, "NOT_FOUND", "Resource not found");
@@ -633,12 +863,51 @@ function registerLifecycleRoutes(): void {
       return invalid(found.order, found.current, "a closed remainder");
     }
     const shipments = found.state.shipments ?? [];
-    for (const line of found.order.lines) {
+    const leftOf = (line: Order["lines"][number]) => {
       const shipped = shipments
         .flatMap((shipment) => shipment.lines)
         .filter((l) => l.lineId === line.lineId)
         .reduce((sum, l) => sum + l.quantity, 0);
-      const left = line.quantity - (found.state.closedUnits[line.lineId] ?? 0) - shipped;
+      return line.quantity - (found.state.closedUnits[line.lineId] ?? 0) - shipped;
+    };
+
+    // Phí đã thoả thuận (BE PR #150, `Order#requireRemainderFee`): chỉ khi hàng in đã in; > 0, nguyên VND,
+    // lý do ≤ 500 + chi tiết ≤ 2000 bắt buộc, tối đa giá trị phần hàng in bị đóng. Kiểm tra trước khi đổi gì.
+    const fee = readBody(config.data).agreedFee;
+    if (fee !== undefined && fee !== null) {
+      // Mock coi đơn có dòng in là đã bắt đầu in (mock-data không có mốc bắt đầu in)
+      if (!hasPrintLines(found.order)) {
+        return error(
+          409,
+          "CANCELLATION_FEE_BEFORE_PRINTING",
+          `Order ${found.order.orderNumber} has not started printing: its rest is closed without a fee`,
+        );
+      }
+      const body = typeof fee === "object" ? (fee as Record<string, unknown>) : {};
+      const amount = body.amount;
+      const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+      const detail = typeof body.detail === "string" ? body.detail.trim() : "";
+      if (typeof amount !== "number" || !Number.isInteger(amount) || amount <= 0)
+        return validation("agreedFee.amount", "The agreed amount is more than zero, in whole VND");
+      const closedPrints = found.order.lines
+        .filter((line) => line.designId)
+        .reduce((sum, line) => sum + Math.max(0, leftOf(line)) * line.unitPrice, 0);
+      if (amount > closedPrints) {
+        return error(
+          400,
+          "VALIDATION_FAILED",
+          `The agreed amount is at most the value of the print units closed, ${closedPrints} VND`,
+        );
+      }
+      if (!reason || reason.length > 500 || !detail || detail.length > 2000)
+        return validation(
+          "agreedFee",
+          "An agreed amount needs its reason (at most 500 characters) and its detail (at most 2000)",
+        );
+    }
+
+    for (const line of found.order.lines) {
+      const left = leftOf(line);
       if (left > 0)
         found.state.closedUnits[line.lineId] = (found.state.closedUnits[line.lineId] ?? 0) + left;
     }

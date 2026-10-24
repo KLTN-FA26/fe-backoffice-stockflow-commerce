@@ -131,3 +131,54 @@ describe("orderActionErrorView — mọi mã ORDER_* mới đều có câu tiế
     expect(ORDER_STALE_ERROR_CODES).not.toContain("ORDER_BALANCE_NOT_PAID");
   });
 });
+
+describe("orderActionErrorView — mã lỗi mới của BE PR #150", () => {
+  const NEW_CODES = [
+    "ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED",
+    "ORDER_PARTIAL_SHIPMENT_LOCKED",
+    "BALANCE_CREDIT_LIMIT_EXCEEDED",
+    "CUSTOMER_CREDIT_OVERDUE",
+    "BALANCE_POLICY_NOT_ALLOWED",
+    "CREDIT_PROFILE_INVALID",
+    "CANCELLATION_FEE_BEFORE_PRINTING",
+  ] as const;
+
+  it.each(NEW_CODES)("%s → câu tiếng Việt riêng, không lộ message server", (code) => {
+    const view = orderActionErrorView(apiError(409, code), "remainderClosure");
+    expect(view.detail).toBe(ORDER_ERROR_MESSAGES[code]);
+    expect(view.detail).not.toContain("English");
+    expect(view.detail).toMatch(
+      /[ạảãàáâấầẩẫậăắằẳẵặẹẻẽèéêếềểễệỉĩịọỏõòóôốồổỗộơớờởỡợụủũùúưứừửữựỳỷỹýđ]/i,
+    );
+  });
+
+  it("ORDER_PARTIAL_SHIPMENT_LOCKED có tiêu đề riêng của giao một phần và buộc tải lại đơn", () => {
+    const view = orderActionErrorView(
+      apiError(409, "ORDER_PARTIAL_SHIPMENT_LOCKED"),
+      "partialShipment",
+    );
+    expect(view.title).toBe("Không cập nhật được giao một phần");
+    expect(view.detail).toContain("Không đổi được cách giao");
+    expect(ORDER_STALE_ERROR_CODES).toContain("ORDER_PARTIAL_SHIPMENT_LOCKED");
+  });
+
+  it("CANCELLATION_FEE_BEFORE_PRINTING không phải lỗi 'dữ liệu cũ' — dialog giữ nguyên để bỏ phí rồi gửi lại", () => {
+    expect(ORDER_STALE_ERROR_CODES).not.toContain("CANCELLATION_FEE_BEFORE_PRINTING");
+    expect(
+      orderActionErrorView(apiError(409, "CANCELLATION_FEE_BEFORE_PRINTING"), "remainderClosure")
+        .detail,
+    ).toContain("chưa bắt đầu in");
+  });
+
+  it("400 khi phí vượt giá trị hàng in (VALIDATION_FAILED) → câu về phí, không lộ message tiếng Anh", () => {
+    const view = orderActionErrorView(apiError(400, "VALIDATION_FAILED"), "remainderClosure");
+    expect(view.detail).toContain("không vượt giá trị phần hàng in bị đóng");
+    expect(view.detail).not.toContain("English");
+  });
+
+  it("VALIDATION_FAILED của giao một phần → nhắc giới hạn ghi chú", () => {
+    expect(
+      orderActionErrorView(apiError(400, "VALIDATION_FAILED"), "partialShipment").detail,
+    ).toContain("500");
+  });
+});

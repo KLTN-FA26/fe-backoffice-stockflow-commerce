@@ -41,6 +41,7 @@ import {
 } from "./mock-routes-fulfillment-store";
 import {
   backendOrderStatusOf,
+  mockOrderAllowsPartialShipment,
   putMockOrderOnDesignHold,
   setMockOrderStatus,
 } from "./mock-routes-orders";
@@ -430,6 +431,14 @@ function registerCompletion(): void {
       return respond(state.shipments[state.shipments.length - 1]?.shipmentId);
     const blocked = requireWorkable(ctx) ?? (await requirePackable(ctx));
     if (blocked) return blocked;
+    // BE PR #150: giao một phần do Sales bật trên đơn, kho không tự quyết
+    if (body.partial === true && !(await mockOrderAllowsPartialShipment(order.orderId))) {
+      return beError(
+        409,
+        "PACK_PARTIAL_NOT_ALLOWED",
+        `Order ${order.orderNumber} does not allow partial shipments: ask Sales to allow them on the order`,
+      );
+    }
     try {
       const plan = planCompletion(state, body.partial === true, readString(body.note) || undefined);
       const printed = state.lines.some((l) => l.printLine && plan.lineTotals.has(l.orderLineId));

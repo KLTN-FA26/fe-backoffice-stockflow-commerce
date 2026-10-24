@@ -26,10 +26,12 @@ import {
   Receipt,
   Search as SearchIcon,
   ShieldCheck,
+  UserCog,
   ShoppingBag,
   ShoppingCart,
   SlidersHorizontal,
   Truck,
+  TruckElectric,
   Users,
   Warehouse as WarehouseIcon,
 } from "lucide-react";
@@ -47,6 +49,8 @@ import {
   INVENTORY_ITEM_PERMISSIONS,
   INVENTORY_OVERVIEW_PERMISSIONS,
   INVENTORY_PERMISSIONS,
+  LOAD_PLAN_PERMISSIONS,
+  LOAD_PLAN_PRINT_LABELS,
   ORDER_PERMISSIONS,
   PO_PERMISSIONS,
   PRODUCT_PERMISSIONS,
@@ -54,6 +58,7 @@ import {
   SUPPLIER_PERMISSIONS,
   TRANSFER_PERMISSIONS,
   UI_LABELS,
+  VEHICLE_TYPE_PERMISSIONS,
 } from "@/constants";
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 
@@ -179,6 +184,14 @@ export const NAV_GROUPS: NavGroup[] = [
         href: ADMIN_ROUTES.permissions,
         icon: ShieldCheck,
         permission: IDENTITY_PERMISSIONS.rbacRead,
+      },
+      {
+        label: "Người dùng",
+        tooltip: "User management",
+        href: ADMIN_ROUTES.users.list,
+        icon: UserCog,
+        // Cổng theo READ (BE `identity-users:READ`), cùng kiểu menu "Phân quyền" ngay trên
+        permission: IDENTITY_PERMISSIONS.usersRead,
       },
     ],
   },
@@ -318,12 +331,19 @@ export const NAV_GROUPS: NavGroup[] = [
         permission: FULFILLMENT_PACKAGE_PERMISSIONS.viewPage,
       },
       {
-        label: UI_LABELS.shipping.loadPlanTitle,
-        tooltip: "Load planning",
-        href: ADMIN_ROUTES.loadPlans,
+        label: UI_LABELS.loadPlan.pageTitle,
+        tooltip: UI_LABELS.loadPlan.navTooltip,
+        href: ADMIN_ROUTES.loadPlans.list,
         icon: CalendarClock,
-        // Chưa có resource quyền riêng (SCRUM-452) — tạm theo quyền xem màn xếp xe
-        permission: SHIPMENT_PERMISSIONS.viewPage,
+        // Resource riêng `fulfillment-load-plans` (BE PR #161)
+        permission: LOAD_PLAN_PERMISSIONS.viewPage,
+      },
+      {
+        label: UI_LABELS.vehicleType.pageTitle,
+        tooltip: UI_LABELS.vehicleType.navTooltip,
+        href: ADMIN_ROUTES.vehicleTypes,
+        icon: TruckElectric,
+        permission: VEHICLE_TYPE_PERMISSIONS.viewPage,
       },
       {
         label: UI_LABELS.shipping.shipments.title,
@@ -356,6 +376,8 @@ interface BreadcrumbItem {
 const SUBPAGE_LABELS: Record<string, string> = {
   edit: "Chỉnh sửa",
   manifest: UI_LABELS.shipping.manifest.title,
+  /** `/load-plans/<id>/vehicles/<seq>/print` — phiếu xếp hàng của một xe (SCRUM-287 PR F6). */
+  print: LOAD_PLAN_PRINT_LABELS.documentTitle,
 };
 
 const DETAIL_LABEL_BY_ROUTE: Record<string, string> = {
@@ -364,6 +386,7 @@ const DETAIL_LABEL_BY_ROUTE: Record<string, string> = {
   "/admin/suppliers/create": "Tạo nhà cung cấp",
   [INVENTORY_ROUTES.createAdjustment]: INVENTORY_LABELS.createAdjustment,
   "/admin/transfers/create": "Tạo lệnh chuyển kho",
+  [ADMIN_ROUTES.loadPlans.create]: UI_LABELS.loadPlan.create,
 };
 
 /** Required capabilities fail closed; unassigned items remain visible; mock-only items need mock mode. */
@@ -410,7 +433,8 @@ export function buildBreadcrumbItems(
     const subpage =
       rest.length >= 2 && Object.hasOwn(SUBPAGE_LABELS, last) ? SUBPAGE_LABELS[last] : undefined;
     if (subpage) {
-      const id = rest.slice(0, -1).join("/");
+      // Trang in nằm sâu hơn một cấp (`<id>/vehicles/<seq>/print`): bản ghi vẫn là đoạn đầu tiên
+      const id = (last === "print" ? rest.slice(0, 1) : rest.slice(0, -1)).join("/");
       items.push({
         label: labelFor(id) ?? decodeURIComponent(id),
         href: linkable ? `${navItem.href}/${id}` : undefined,

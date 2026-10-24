@@ -85,6 +85,9 @@ export const PACKING_UI_LABELS = {
     paymentTitle: "Đơn còn khoản phải thu trước khi bàn giao",
     paymentDescription: (amount: string) =>
       `Còn ${amount} phải thanh toán trước khi giao cho hãng. Vẫn đóng gói bình thường, nhưng bước bàn giao sẽ bị từ chối cho tới khi đơn được thanh toán.`,
+    printWaitingTitle: "Hàng in chưa về bàn đóng gói",
+    printWaitingDescription:
+      "Dòng in chưa sẵn sàng — chỉ đóng được phần hàng có sẵn; muốn giao trước phần này thì đơn phải được Sale cho phép giao một phần. Hàng in sẽ về bàn đóng gói sau khi sản xuất xong.",
     refetchFailed: "Không tải lại được dữ liệu mới nhất — đang hiện bản đã tải trước đó.",
     voidedPackages: (labels: string) => `Kiện đã huỷ: ${labels}`,
   },
@@ -103,6 +106,7 @@ export const PACKING_UI_LABELS = {
     lotTracked: "Theo lô",
     serialTracked: "Theo serial",
     done: "Đủ",
+    printWaiting: "Chờ in",
     shortOfPicked: (available: number, wanted: number) =>
       `Mới có ${available}/${wanted} về bàn đóng gói`,
     lotCell: (lot: string, packed: number, available: number) => `${lot}: ${packed}/${available}`,
@@ -327,7 +331,9 @@ export const PACKING_ERROR_MESSAGES = {
   PACKAGE_NOT_SEALED: "Còn kiện đang mở có hàng — niêm phong hoặc huỷ kiện đó trước khi hoàn tất.",
   PACKAGE_SHIPPED: "Kiện đã nằm trong lô giao nên không sửa được.",
   PACKING_INCOMPLETE: "Chưa đóng đủ hàng của đơn. Đóng nốt, hoặc chọn giao một phần và ghi lý do.",
-  PACK_PARTIAL_NOT_ALLOWED: "Hệ thống không cho giao một phần — phải đóng đủ cả đơn.",
+  // BE PR #150: giao một phần do Sales bật trên đơn (kho không còn tự quyết); cũng trả khi đóng gói
+  // hàng có sẵn của đơn đang sản xuất mà đơn chưa được phép giao một phần
+  PACK_PARTIAL_NOT_ALLOWED: "Đơn chưa được phép giao một phần — nhờ Sale bật trên đơn",
   PACK_NOTHING_TO_SHIP: "Chưa có kiện nào đã niêm phong đang chờ giao.",
   PACKAGE_NOT_FOUND: "Không tìm thấy kiện (có thể đã bị huỷ ở nơi khác). Dữ liệu đã được tải lại.",
   OUT_OF_DATA_SCOPE: "Đơn này thuộc kho ngoài phạm vi bạn được thao tác.",

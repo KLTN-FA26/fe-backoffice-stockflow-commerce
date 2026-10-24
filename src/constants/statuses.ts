@@ -255,8 +255,14 @@ export const PACK_SHIPMENT_API_STATUSES = [
   "CANCELLED",
 ] as const;
 
-/** BE `DeliveryMode.java` — hiện mọi lô là PARCEL (BE: chờ G3-4). */
+/** BE `DeliveryMode.java` — PARCEL (gửi kiện cho hãng) hoặc FULL_TRUCKLOAD (nguyên xe, kế hoạch xếp xe). */
 export const DELIVERY_MODES = ["PARCEL", "FULL_TRUCKLOAD"] as const;
+export type DeliveryMode = (typeof DELIVERY_MODES)[number];
+
+export const DELIVERY_MODE = {
+  PARCEL: "PARCEL",
+  FULL_TRUCKLOAD: "FULL_TRUCKLOAD",
+} as const satisfies Record<string, DeliveryMode>;
 
 /** Trạng thái kiện / lô giao → chuỗi status của `StatusDot` (nhãn + màu ở `lib/status-map.ts`). */
 export const PACKAGE_STATUS_DISPLAY = {
@@ -283,12 +289,6 @@ export const DESIGN_ARTIFACT_ROLES = [
   "PRINT_READY",
   "PRODUCTION_INSTRUCTION",
 ] as const;
-
-/**
- * Trạng thái đơn BE cho phép tạo task xuất kho: chỉ READY_TO_FULFILL (đã release, đã chọn kho, hàng
- * in đã sản xuất xong) — đơn CONFIRMED phải release trước (BE PR #133, FulfillmentServiceImpl#createTask).
- */
-export const FULFILLABLE_ORDER_API_STATUSES = ["READY_TO_FULFILL"] as const;
 
 export const PRODUCT_STATUSES = [
   "Draft",
@@ -449,6 +449,23 @@ export const DELIVERY_OUTCOMES = ["DELIVERED", "DELIVERY_FAILED", "RETURNED"] as
 /** BE `CarrierResponse.status` — hãng ngừng dùng thì không nhận chuyến mới. */
 export const CARRIER_STATUSES = ["ACTIVE", "INACTIVE"] as const;
 
+/** BE `VehicleTypeRequest.kind` — loại phương tiện trong danh mục loại xe (docs 09 §3). */
+export const VEHICLE_TYPE_KINDS = ["CONTAINER", "TRUCK", "PICKUP"] as const;
+
+export const VEHICLE_TYPE_KIND = {
+  CONTAINER: "CONTAINER",
+  TRUCK: "TRUCK",
+  PICKUP: "PICKUP",
+} as const satisfies Record<string, (typeof VEHICLE_TYPE_KINDS)[number]>;
+
+/** BE `VehicleTypeResponse.status` — loại xe ngừng dùng thì không đưa vào kế hoạch xếp xe mới. */
+export const VEHICLE_TYPE_STATUSES = ["ACTIVE", "INACTIVE"] as const;
+
+export const VEHICLE_TYPE_STATUS = {
+  ACTIVE: "ACTIVE",
+  INACTIVE: "INACTIVE",
+} as const satisfies Record<string, (typeof VEHICLE_TYPE_STATUSES)[number]>;
+
 export type PoStatus = (typeof PO_STATUSES)[number];
 export type SupplierConfirmationStatus = (typeof SUPPLIER_CONFIRMATION_STATUSES)[number];
 export type PoDeliveryStatus = (typeof PO_DELIVERY_STATUSES)[number];
@@ -494,3 +511,85 @@ export const STOCK_ADJUSTMENT_STATUS = {
 } as const satisfies Record<string, StockAdjustmentStatus>;
 
 export type StockAdjustmentStatus = (typeof STOCK_ADJUSTMENT_STATUSES)[number];
+
+/**
+ * Kế hoạch xếp xe — BE `LoadPlanStatus` (SCRUM-287 PR D, docs 09 §5 "Trạng thái Kế hoạch chuyến xe"):
+ * DRAFT → PLANNED → CONFIRMED → DISPATCHED, và CANCELLED. DISPATCHED / CANCELLED là trạng thái kết thúc.
+ */
+export const LOAD_PLAN_STATUSES = [
+  "DRAFT",
+  "PLANNED",
+  "CONFIRMED",
+  "DISPATCHED",
+  "CANCELLED",
+] as const;
+
+export type LoadPlanStatus = (typeof LOAD_PLAN_STATUSES)[number];
+
+export const LOAD_PLAN_STATUS = {
+  DRAFT: "DRAFT",
+  PLANNED: "PLANNED",
+  CONFIRMED: "CONFIRMED",
+  DISPATCHED: "DISPATCHED",
+  CANCELLED: "CANCELLED",
+} as const satisfies Record<string, LoadPlanStatus>;
+
+/**
+ * BE `LoadPlan.SOURCE_*` (SCRUM-287 PR T, docs 09 §3 "LoadPlan.source_type"): kế hoạch chứa các lô giao của đơn khách
+ * (`ORDER`, mặc định) hoặc kiện của MỘT lệnh chuyển kho (`TRANSFER`, LP-9). Một kế hoạch không trộn hai loại.
+ */
+export const LOAD_PLAN_SOURCE_TYPES = ["ORDER", "TRANSFER"] as const;
+
+export type LoadPlanSourceType = (typeof LOAD_PLAN_SOURCE_TYPES)[number];
+
+export const LOAD_PLAN_SOURCE = {
+  ORDER: "ORDER",
+  TRANSFER: "TRANSFER",
+} as const satisfies Record<string, LoadPlanSourceType>;
+
+/** BE `SelectionMode` (LP-6): một loại xe (mặc định) hoặc trộn loại để ít xe nhất. */
+export const LOAD_PLAN_SELECTION_MODES = ["SINGLE_TYPE", "FEWEST_VEHICLES"] as const;
+
+export type LoadPlanSelectionMode = (typeof LOAD_PLAN_SELECTION_MODES)[number];
+
+/**
+ * BE `LoadPlanUnplacedReason`: lý do của solver (`UnplacedReason`) cộng MANUAL — kiện người điều phối
+ * tự đưa xuống khay chưa xếp (PR F5).
+ */
+export const LOAD_PLAN_UNPLACED_REASONS = [
+  "TOO_LARGE",
+  "TOO_HEAVY",
+  "NO_VEHICLE_AVAILABLE",
+  "NO_SPACE",
+  "SEARCH_CUT_OFF",
+  "MANUAL",
+] as const;
+
+export type LoadPlanUnplacedReason = (typeof LOAD_PLAN_UNPLACED_REASONS)[number];
+
+/** Cờ của `vsEstimate.flags` (BE `LoadPlans.EstimateComparison`) — chỉ để tham khảo, không chặn thao tác. */
+export const LOAD_PLAN_ESTIMATE_FLAGS = [
+  "NO_ESTIMATE",
+  "ESTIMATE_INCOMPLETE",
+  "ESTIMATE_UNPLACED",
+  "MORE_VEHICLES",
+  "FEWER_VEHICLES",
+  "MORE_PARCELS",
+  "FEWER_PARCELS",
+  "VOLUME_ABOVE",
+  "WEIGHT_ABOVE",
+] as const;
+
+export type LoadPlanEstimateFlag = (typeof LOAD_PLAN_ESTIMATE_FLAGS)[number];
+
+/**
+ * BE `UserStatus` (identity/internal/domain/UserStatus.java): ACTIVE, DISABLED, LOCKED. Nguồn của zod enum,
+ * bộ lọc danh sách, bảng chuyển trạng thái (`features/user-management/lifecycle.ts`) và status-map.
+ */
+export const USER_STATUSES = ["ACTIVE", "LOCKED", "DISABLED"] as const;
+
+export const USER_STATUS = {
+  ACTIVE: "ACTIVE",
+  LOCKED: "LOCKED",
+  DISABLED: "DISABLED",
+} as const satisfies Record<string, (typeof USER_STATUSES)[number]>;

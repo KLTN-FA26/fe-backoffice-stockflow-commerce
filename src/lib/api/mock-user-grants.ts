@@ -22,15 +22,19 @@ import {
   INVENTORY_ITEM_PERMISSIONS,
   INVENTORY_OVERVIEW_PERMISSIONS,
   INVENTORY_PERMISSIONS,
+  LOAD_ESTIMATE_PERMISSIONS,
+  LOAD_PLAN_PERMISSIONS,
   ORDER_PERMISSIONS,
   PO_PERMISSIONS,
   PRODUCT_PERMISSIONS,
   QC_TASK_PERMISSIONS,
+  REPORTING_PERMISSIONS,
   SHIPMENT_PERMISSIONS,
   SUPPLIER_ITEM_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
   TRANSFER_PERMISSIONS,
   VARIANT_PERMISSIONS,
+  VEHICLE_TYPE_PERMISSIONS,
   WAREHOUSE_LOCATION_PERMISSIONS,
   WAREHOUSE_PERMISSIONS,
 } from "@/constants/permissions";
@@ -67,8 +71,22 @@ const DISPATCH = Object.values(FULFILLMENT_DISPATCH_PERMISSIONS);
 const LOAD_CANCEL = Object.values(FULFILLMENT_LOAD_CANCELLATION_PERMISSIONS);
 const CARRIER = Object.values(FULFILLMENT_CARRIER_PERMISSIONS);
 const OUTCOME = FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS;
+// Seed BE V20261022000700 (BE PR #153): fulfillment-vehicle-types VIEW_PAGE + READ cho WAREHOUSE_STAFF /
+// WAREHOUSE_MANAGER / ORDER_COORDINATOR / SYSTEM_ADMIN; UPDATE chỉ WAREHOUSE_MANAGER / SYSTEM_ADMIN.
+const VT = VEHICLE_TYPE_PERMISSIONS;
+const VEHICLE_TYPE_READ = [VT.viewPage, VT.read];
+const VEHICLE_TYPE_ALL = Object.values(VT);
+// Seed BE V20261022001200 (BE PR #160): fulfillment-load-estimates CREATE + READ cho ORDER_COORDINATOR /
+// WAREHOUSE_MANAGER / SYSTEM_ADMIN (không có dispatcher; WAREHOUSE_STAFF không có).
+const LOAD_ESTIMATE = Object.values(LOAD_ESTIMATE_PERMISSIONS);
+// Seed BE V20261022001300 (BE PR #161): fulfillment-load-plans VIEW_PAGE + READ cho WAREHOUSE_STAFF /
+// WAREHOUSE_MANAGER / ORDER_COORDINATOR / SYSTEM_ADMIN; CREATE + UPDATE chỉ WAREHOUSE_STAFF / WAREHOUSE_MANAGER /
+// SYSTEM_ADMIN (docs 09 §2: nhân viên điều phối kho lập và chốt kế hoạch).
+const LP = LOAD_PLAN_PERMISSIONS;
+const LOAD_PLAN_READ = [LP.viewPage, LP.read];
+const LOAD_PLAN_ALL = Object.values(LP);
 // WAREHOUSE_STAFF: lấy hàng + đóng gói (READ/UPDATE) + xếp xe / bàn giao.
-const FLOOR_WORK = [...PICKING, ...PACKING_WORK, ...DISPATCH];
+const FLOOR_WORK = [...PICKING, ...PACKING_WORK, ...DISPATCH, ...LOAD_PLAN_ALL];
 // WAREHOUSE_MANAGER: toàn bộ nhóm kho + gán / giám sát task, kiểm tra lại thiết kế, hãng, huỷ chuyến,
 // ghi nhận hàng hoàn (delivery-outcomes:UPDATE, không có APPROVE).
 const MANAGER_WORK = [
@@ -80,10 +98,20 @@ const MANAGER_WORK = [
   ...REVERIFY,
   ...CARRIER,
   ...LOAD_CANCEL,
+  ...VEHICLE_TYPE_ALL,
+  ...LOAD_ESTIMATE,
+  ...LOAD_PLAN_ALL,
   OUTCOME.update,
 ];
 // ORDER_COORDINATOR: gán / giám sát task + ghi nhận kết quả giao (đã giao / thất bại cần APPROVE).
-const COORDINATOR_WORK = [...TA, ...OVERSIGHT, ...Object.values(OUTCOME)];
+const COORDINATOR_WORK = [
+  ...TA,
+  ...OVERSIGHT,
+  ...Object.values(OUTCOME),
+  ...VEHICLE_TYPE_READ,
+  ...LOAD_ESTIMATE,
+  ...LOAD_PLAN_READ,
+];
 const INV = INVENTORY_PERMISSIONS;
 // Seed BE V20260928006000: ECOMMERCE_ADMIN có product-attributes và product-variants đủ quyền (admin mock
 // là System Admin: toàn quyền như mọi nhóm khác ở đây).
@@ -125,6 +153,7 @@ const WH_WORK = [
   WAREHOUSE_READ,
   WAREHOUSE_LOCATION_PERMISSIONS.read,
   ...ITEM_READ,
+  ...VEHICLE_TYPE_READ,
 ];
 
 /** Explicit demo session responses keyed by existing staff IDs, never computed from roles. */
@@ -134,6 +163,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...Object.values(SUPPLIER_ITEM_PERMISSIONS),
     ...Object.values(PO_PERMISSIONS),
     ...Object.values(ORDER_PERMISSIONS),
+    ...Object.values(REPORTING_PERMISSIONS),
     ...Object.values(PRODUCT_PERMISSIONS),
     ...PRODUCT_STRUCTURE,
     ...Object.values(IDENTITY_PERMISSIONS),
@@ -216,25 +246,33 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ORDER_PERMISSIONS.viewPage,
     ORDER_PERMISSIONS.read,
     ORDER_PERMISSIONS.cancel,
+    // Seed BE: SALES_STAFF + SYSTEM_ADMIN (không phải ORDER_COORDINATOR) quyết đơn có giao một phần không
+    ORDER_PERMISSIONS.partialShipment,
     WAREHOUSE_READ,
   ],
   "USER-SALE-02": [
     ORDER_PERMISSIONS.viewPage,
     ORDER_PERMISSIONS.read,
     ORDER_PERMISSIONS.cancel,
+    // Seed BE: SALES_STAFF + SYSTEM_ADMIN (không phải ORDER_COORDINATOR) quyết đơn có giao một phần không
+    ORDER_PERMISSIONS.partialShipment,
     WAREHOUSE_READ,
   ],
   "USER-SALE-03": [
     ORDER_PERMISSIONS.viewPage,
     ORDER_PERMISSIONS.read,
     ORDER_PERMISSIONS.cancel,
+    // Seed BE: SALES_STAFF + SYSTEM_ADMIN (không phải ORDER_COORDINATOR) quyết đơn có giao một phần không
+    ORDER_PERMISSIONS.partialShipment,
     WAREHOUSE_READ,
   ],
   // Seed BE: SALES_STAFF có sales-order-cancellations:UPDATE (huỷ đơn, đóng phần còn lại) nhưng không có APPROVE
   // (giữ / gỡ giữ / ghi giao thất bại là của ORDER_COORDINATOR)
   // Order Coordinator + Warehouse Staff → thêm quyền kho xuất của WAREHOUSE_STAFF
   "USER-COORD-01": [
-    ...Object.values(ORDER_PERMISSIONS),
+    ...Object.values(ORDER_PERMISSIONS).filter(
+      (code) => code !== ORDER_PERMISSIONS.partialShipment,
+    ),
     ...FULFILLMENT_READ,
     ...COORDINATOR_WORK,
     ...FLOOR_WORK,

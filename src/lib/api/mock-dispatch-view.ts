@@ -4,6 +4,14 @@
  * `ok()` bỏ khỏi JSON như Jackson `non_null`.
  */
 
+import {
+  ftlDetailFields,
+  ftlManifestFields,
+  ftlRowFields,
+  modeOf,
+  parcelExtras,
+  parcelsOn,
+} from "./mock-dispatch-ftl-view";
 import { codTotalOf } from "./mock-dispatch-store";
 
 import type {
@@ -43,7 +51,7 @@ export function shipmentRowView(state: DispatchState, shipment: MockShipment) {
     currency: CURRENCY,
     warehouseId: shipment.warehouseId,
     status: shipment.status,
-    deliveryMode: "PARCEL",
+    deliveryMode: load?.ftl ? "FULL_TRUCKLOAD" : "PARCEL",
     packageCount: shipment.parcels.length,
     // Số hãng thu: của nhãn tới khi bàn giao chốt (docs 09 BR-04)
     codAmount:
@@ -70,6 +78,7 @@ export function shipmentDetailView(state: DispatchState, shipment: MockShipment)
       packageId: parcel.packageId,
       labelCode: parcel.labelCode,
       status: "SEALED",
+      ...parcelExtras(parcel),
       weightKg: parcel.weightKg,
       lengthCm: parcel.lengthCm,
       widthCm: parcel.widthCm,
@@ -90,7 +99,7 @@ const membersOf = (state: DispatchState, load: MockLoad): MockShipment[] =>
   load.shipmentIds.map((id) => state.shipments.get(id)).filter((s): s is MockShipment => !!s);
 
 const loadedCount = (load: MockLoad, shipment: MockShipment) =>
-  shipment.parcels.filter((parcel) => load.loaded.has(parcel.packageId)).length;
+  parcelsOn(load, shipment).filter((parcel) => load.loaded.has(parcel.packageId)).length;
 
 export function loadRowView(state: DispatchState, load: MockLoad) {
   const members = membersOf(state, load);
@@ -99,7 +108,7 @@ export function loadRowView(state: DispatchState, load: MockLoad) {
     loadId: load.loadId,
     code: load.code,
     warehouseId: load.warehouseId,
-    mode: "PARCEL",
+    mode: modeOf(load),
     status: load.status,
     carrierId: load.carrierId,
     carrierName: carrier?.name,
@@ -111,19 +120,20 @@ export function loadRowView(state: DispatchState, load: MockLoad) {
     loadingStartedAt: load.loadingStartedAt,
     dispatchedAt: load.dispatchedAt,
     version: load.version,
+    ...ftlRowFields(load),
   };
 }
 
 export function loadDetailView(state: DispatchState, load: MockLoad) {
   const members = membersOf(state, load);
   const carrier = carrierOf(state, load.carrierId);
-  const expected = members.reduce((sum, s) => sum + s.parcels.length, 0);
+  const expected = members.reduce((sum, s) => sum + parcelsOn(load, s).length, 0);
   const loaded = members.reduce((sum, s) => sum + loadedCount(load, s), 0);
   return {
     loadId: load.loadId,
     code: load.code,
     warehouseId: load.warehouseId,
-    mode: "PARCEL",
+    mode: modeOf(load),
     status: load.status,
     carrierId: load.carrierId,
     carrierCode: carrier?.code,
@@ -145,21 +155,25 @@ export function loadDetailView(state: DispatchState, load: MockLoad) {
     codTotal: codTotalOf(state, load),
     currency: CURRENCY,
     version: load.version,
+    ...ftlDetailFields(load),
     shipments: members.map((shipment) => ({
-      shipmentId: shipment.shipmentId,
+      // Lệnh chuyển kho (BE PR #164): không có lô giao / đơn / task, `code` là số lệnh, chỉ có `transferOrderId`
+      shipmentId: shipment.transferOrderId ? undefined : shipment.shipmentId,
       code: shipment.code,
-      orderId: shipment.orderId,
-      orderNumber: shipment.orderNumber,
-      taskId: shipment.taskId,
+      orderId: shipment.transferOrderId ? undefined : shipment.orderId,
+      orderNumber: shipment.transferOrderId ? undefined : shipment.orderNumber,
+      taskId: shipment.transferOrderId ? undefined : shipment.taskId,
+      transferOrderId: shipment.transferOrderId,
       currency: CURRENCY,
       status: shipment.status,
-      packageCount: shipment.parcels.length,
+      packageCount: parcelsOn(load, shipment).length,
       loadedCount: loadedCount(load, shipment),
       labelCodAmount: shipment.labelCodAmount,
       codAmount: load.status === "DISPATCHED" ? shipment.codAmount : null,
-      packages: shipment.parcels.map((parcel) => {
+      packages: parcelsOn(load, shipment).map((parcel) => {
         const scan = load.loaded.get(parcel.packageId);
         return {
+          ...parcelExtras(parcel),
           packageId: parcel.packageId,
           labelCode: parcel.labelCode,
           weightKg: parcel.weightKg,
@@ -179,6 +193,7 @@ const parcelView = (load: MockLoad, parcel: MockParcel) => ({
   widthCm: parcel.widthCm,
   heightCm: parcel.heightCm,
   loaded: load.loaded.has(parcel.packageId),
+  ...parcelExtras(parcel),
 });
 
 export function manifestView(state: DispatchState, load: MockLoad) {
@@ -205,23 +220,25 @@ export function manifestView(state: DispatchState, load: MockLoad) {
     dispatchedByName: dispatched ? "Nhân viên kho (mock)" : null,
     shipments: members.map((shipment) => ({
       shipmentCode: shipment.code,
-      orderNumber: shipment.orderNumber,
+      orderNumber: shipment.transferOrderId ? undefined : shipment.orderNumber,
+      transferOrderId: shipment.transferOrderId,
       recipientName: shipment.recipient.name,
       recipientPhone: shipment.recipient.phone,
       deliveryAddress: shipment.recipient.address,
-      packageCount: shipment.parcels.length,
-      weightKg: round(shipment.parcels.reduce((sum, p) => sum + p.weightKg, 0)),
+      packageCount: parcelsOn(load, shipment).length,
+      weightKg: round(parcelsOn(load, shipment).reduce((sum, p) => sum + p.weightKg, 0)),
       codAmount: dispatched ? shipment.codAmount : shipment.labelCodAmount,
       codChangedSinceLabel: dispatched && shipment.codAmount !== shipment.labelCodAmount,
-      packages: shipment.parcels.map((parcel) => parcelView(load, parcel)),
+      packages: parcelsOn(load, shipment).map((parcel) => parcelView(load, parcel)),
     })),
     shipmentCount: members.length,
-    packageCount: members.reduce((sum, s) => sum + s.parcels.length, 0),
+    packageCount: members.reduce((sum, s) => sum + parcelsOn(load, s).length, 0),
     totalWeightKg: round(
-      members.reduce((sum, s) => sum + s.parcels.reduce((w, p) => w + p.weightKg, 0), 0),
+      members.reduce((sum, s) => sum + parcelsOn(load, s).reduce((w, p) => w + p.weightKg, 0), 0),
     ),
     codTotal: codTotalOf(state, load),
     currency: CURRENCY,
     printedAt: new Date().toISOString(),
+    ...ftlManifestFields(load),
   };
 }

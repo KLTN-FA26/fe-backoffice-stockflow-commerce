@@ -1,6 +1,7 @@
 "use client";
 
 import { UI_LABELS } from "@/constants";
+import { isAutoCancelled } from "@/features/shipping/ftl-selectors";
 import { formatDateTime } from "@/lib/format/date";
 import { formatMoney } from "@/lib/format/money";
 import { useWarehouseDirectory } from "@/lib/references/warehouse-options";
@@ -56,7 +57,15 @@ export function LoadInfoCard({ load }: { load: Load }) {
         {load.cancelledAt && (
           <>
             <InfoItem label={L.cancelledAt} value={dt(load.cancelledAt)} />
-            <InfoItem label={L.cancelReason} value={load.cancelReason ?? "—"} />
+            <InfoItem
+              label={L.cancelReason}
+              // Lý do tự huỷ do BE viết bằng tiếng Anh → câu tiếng Việt
+              value={
+                isAutoCancelled(load)
+                  ? UI_LABELS.shipping.ftl.bookingToCancel.autoCancelled
+                  : (load.cancelReason ?? "—")
+              }
+            />
           </>
         )}
       </div>

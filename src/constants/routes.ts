@@ -8,6 +8,11 @@ export const APP_ROUTES = {
 export const ADMIN_ROUTES = {
   home: ADMIN_BASE,
   permissions: `${ADMIN_BASE}/permissions`,
+  /** Quản lý tài khoản nhân viên — BE `UserManagementController` (PR #72, SCRUM-458). */
+  users: {
+    list: `${ADMIN_BASE}/users`,
+    detail: (id: string) => `${ADMIN_BASE}/users/${encodeURIComponent(id)}`,
+  },
   /** Hồ sơ hàng tồn — BE PR #119 `InventoryItemController` (`/api/v1/inventory/items`). */
   inventoryItems: {
     list: `${ADMIN_BASE}/inventory-items`,
@@ -37,6 +42,8 @@ export const ADMIN_ROUTES = {
   packing: {
     detail: (id: string) => `${ADMIN_BASE}/packing/${id}`,
     list: `${ADMIN_BASE}/packing`,
+    /** Trạm đóng gói của một lệnh chuyển kho nguyên chuyến (SCRUM-287 PR F9, BE `TransferPackController`). */
+    transfer: (transferId: string) => `${ADMIN_BASE}/packing/transfers/${transferId}`,
   },
   picking: {
     detail: (id: string) => `${ADMIN_BASE}/picking/${id}`,
@@ -76,8 +83,19 @@ export const ADMIN_ROUTES = {
     detail: (id: string) => `${ADMIN_BASE}/loads/${id}`,
     manifest: (id: string) => `${ADMIN_BASE}/loads/${id}/manifest`,
   },
-  /** Kế hoạch xếp xe — SCRUM-452, đang phát triển. */
-  loadPlans: `${ADMIN_BASE}/load-plans`,
+  /** Danh mục loại xe (container, xe tải, bán tải) — BE `VehicleTypeController`, PR #153. */
+  vehicleTypes: `${ADMIN_BASE}/vehicle-types`,
+  /** Kế hoạch xếp xe (SCRUM-287 PR F4): danh sách, lập mới, chi tiết — BE `LoadPlanController`, PR #161. */
+  loadPlans: {
+    list: `${ADMIN_BASE}/load-plans`,
+    create: `${ADMIN_BASE}/load-plans/create`,
+    /** "Lập kế hoạch xe" từ lệnh chuyển kho đã đóng gói (SCRUM-287 PR F9): nguồn TRANSFER, kho nguồn và lệnh chọn sẵn. */
+    createFromTransfer: (transferId: string, warehouseId: string) =>
+      `${ADMIN_BASE}/load-plans/create?sourceType=TRANSFER&transferOrderId=${encodeURIComponent(transferId)}&warehouseId=${encodeURIComponent(warehouseId)}`,
+    detail: (id: string) => `${ADMIN_BASE}/load-plans/${id}`,
+    /** Phiếu xếp hàng in được của một xe (SCRUM-287 PR F6). */
+    print: (id: string, seq: number) => `${ADMIN_BASE}/load-plans/${id}/vehicles/${seq}/print`,
+  },
   suppliers: {
     list: `${ADMIN_BASE}/suppliers`,
     create: `${ADMIN_BASE}/suppliers/create`,

@@ -6,13 +6,25 @@
  * nào; code là contract (BE `common/error/ErrorCode.java`).
  */
 
-import { ORDER_ACTION_LABELS, ORDER_ERROR_MESSAGES, ORDER_LIMITS, UI_LABELS } from "@/constants";
+import {
+  ORDER_ACTION_LABELS,
+  ORDER_DELIVERY_MODE_UI,
+  ORDER_ERROR_MESSAGES,
+  ORDER_LIMITS,
+  ORDER_PARTIAL_SHIPMENT_LABELS,
+  ORDER_RELEASE_LABELS,
+  UI_LABELS,
+} from "@/constants";
 
 import type { ApiError } from "@/lib/api/error";
 
 export interface OrderErrorView {
   title: string;
   detail: string;
+  /** Mã quy tắc nghiệp vụ bị vi phạm (vd BR-PRD-08) — để đối chiếu docs; chỉ release dùng. */
+  rule?: string;
+  /** Chi tiết rút từ máy chủ (vd danh sách SKU thiếu mẫu duyệt). */
+  serverDetail?: string;
   traceId?: string;
 }
 
@@ -74,7 +86,38 @@ export function adminCancelErrorView(error: ApiError): OrderErrorView {
 
 /* ── Giữ / gỡ giữ / giao thất bại / đóng phần còn lại ───────────────── */
 
-export type OrderStatusActionKey = "hold" | "resolveHold" | "deliveryFailure" | "remainderClosure";
+export type OrderStatusActionKey =
+  | "hold"
+  | "resolveHold"
+  | "deliveryFailure"
+  | "remainderClosure"
+  | "partialShipment"
+  | "release"
+  | "deliveryMode";
+
+/** Tiêu đề lỗi theo thao tác (giao một phần có bộ nhãn riêng — nút đổi theo bật / tắt). */
+const FAILED_TITLES: Readonly<Record<OrderStatusActionKey, string>> = {
+  hold: ORDER_ACTION_LABELS.hold.failedTitle,
+  resolveHold: ORDER_ACTION_LABELS.resolveHold.failedTitle,
+  deliveryFailure: ORDER_ACTION_LABELS.deliveryFailure.failedTitle,
+  remainderClosure: ORDER_ACTION_LABELS.remainderClosure.failedTitle,
+  partialShipment: ORDER_PARTIAL_SHIPMENT_LABELS.failedTitle,
+  release: ORDER_RELEASE_LABELS.failedTitle,
+  deliveryMode: ORDER_DELIVERY_MODE_UI.dialog.failedTitle,
+};
+
+/** Câu cho 400 VALIDATION_FAILED theo thao tác — BE trả fieldErrors / message tiếng Anh, không hiện thẳng. */
+const VALIDATION_DETAIL: Readonly<Record<OrderStatusActionKey, string>> = {
+  hold: "Hãy chọn lý do; “Lý do khác” bắt buộc có ghi chú.",
+  resolveHold: "Hãy ghi cách đã xử lý (bắt buộc).",
+  deliveryFailure: "Hãy chọn lý do; “Lý do khác” bắt buộc có ghi chú.",
+  // BE `Order#requireRemainderFee`: > 0, nguyên VND, ≤ giá trị phần hàng in bị đóng, kèm lý do + chi tiết
+  remainderClosure:
+    "Hãy chọn lý do (“Lý do khác” cần ghi chú). Khoản phí phải là số tiền nguyên VND lớn hơn 0, không vượt giá trị phần hàng in bị đóng, kèm lý do và chi tiết.",
+  partialShipment: `Ghi chú tối đa ${ORDER_LIMITS.partialShipmentNoteMax} ký tự.`,
+  release: "Hãy chọn kho xuất hàng và hình thức giao hợp lệ.",
+  deliveryMode: `Hãy chọn hình thức giao; ghi chú tối đa ${ORDER_LIMITS.deliveryModeNoteMax} ký tự.`,
+};
 
 /**
  * Mã lỗi cho thấy dữ liệu trên màn đã cũ (đơn đã đổi trạng thái / không còn trong phạm vi) →
@@ -90,6 +133,10 @@ export const ORDER_STALE_ERROR_CODES: readonly string[] = [
   "ORDER_DELIVERY_VIA_SHIPMENT",
   "ORDER_NOT_CANCELLABLE",
   "ORDER_CANCELLED",
+  // BE PR #150: đơn đã đi / đóng (hoặc đã tách vì hàng có sẵn đi trước hàng in) — tải lại để thấy trạng thái thật
+  "ORDER_PARTIAL_SHIPMENT_LOCKED",
+  // BE PR #157: hình thức giao đã khoá (kho bắt đầu đóng gói / đơn qua đóng gói) — tải lại để thấy trạng thái thật
+  "DELIVERY_MODE_LOCKED",
 ];
 
 function isOrderErrorCode(code: string): code is keyof typeof ORDER_ERROR_MESSAGES {
@@ -105,20 +152,13 @@ export function orderActionErrorView(
   action: OrderStatusActionKey,
 ): OrderErrorView {
   const traceId = error.traceId;
-  const title = ORDER_ACTION_LABELS[action].failedTitle;
+  const title = FAILED_TITLES[action];
   if (isOrderErrorCode(error.code))
     return { title, detail: ORDER_ERROR_MESSAGES[error.code], traceId };
   switch (error.code) {
     case "VALIDATION_FAILED":
       // BE trả fieldErrors tiếng Anh ("reasonCode is required"…) — không hiện thẳng.
-      return {
-        title,
-        detail:
-          action === "resolveHold"
-            ? "Hãy ghi cách đã xử lý (bắt buộc)."
-            : "Hãy chọn lý do; “Lý do khác” bắt buộc có ghi chú.",
-        traceId,
-      };
+      return { title, detail: VALIDATION_DETAIL[action], traceId };
     case "NOT_FOUND":
       return {
         title: UI_LABELS.order.notFoundTitle,
@@ -126,6 +166,15 @@ export function orderActionErrorView(
         traceId,
       };
     case "FORBIDDEN":
+      // Release: 403 khi chọn hình thức khác của đơn mà thiếu `sales-order-delivery-modes:UPDATE` (BE PR #157)
+      return {
+        title,
+        detail:
+          action === "release" || action === "deliveryMode"
+            ? ORDER_DELIVERY_MODE_UI.forbidden
+            : "Bạn không có quyền thực hiện thao tác này.",
+        traceId,
+      };
     case "OUT_OF_DATA_SCOPE":
       return { title, detail: "Bạn không có quyền thực hiện thao tác này.", traceId };
     case "NETWORK_ERROR":

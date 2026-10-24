@@ -2,12 +2,16 @@
  * Nhãn UI + nội dung toast dùng lại ≥2 lần (§15 — không hardcode string).
  */
 
+import { IDENTITY_TOAST_MESSAGES } from "./labels-identity";
 import { INVENTORY_ITEM_TOAST_MESSAGES, INVENTORY_ITEM_UI_LABELS } from "./labels-inventory-item";
+import { LOAD_PLAN_TOAST_MESSAGES, LOAD_PLAN_UI_LABELS } from "./labels-load-plan";
 import { PACKING_TOAST_MESSAGES, PACKING_UI_LABELS } from "./labels-packing";
 import { PRODUCT_UI_LABELS } from "./labels-product";
 import { SHIPPING_TOAST_MESSAGES, SHIPPING_UI_LABELS } from "./labels-shipping";
 import { TAXONOMY_TOAST_MESSAGES, TAXONOMY_UI_LABELS } from "./labels-taxonomy";
 import { TRANSFER_TOAST_MESSAGES, TRANSFER_UI_LABELS } from "./labels-transfer";
+import { TRANSFER_PACK_TOAST_MESSAGES, TRANSFER_PACK_UI_LABELS } from "./labels-transfer-pack";
+import { VEHICLE_TYPE_TOAST_MESSAGES, VEHICLE_TYPE_UI_LABELS } from "./labels-vehicle-type";
 
 export const UI_LABELS = {
   common: {
@@ -342,7 +346,10 @@ export const UI_LABELS = {
     dateRangeInvalid: "Ngày bắt đầu sau ngày kết thúc — không có phiếu nào khớp.",
   },
   transfer: TRANSFER_UI_LABELS,
+  transferPack: TRANSFER_PACK_UI_LABELS,
   shipping: SHIPPING_UI_LABELS,
+  vehicleType: VEHICLE_TYPE_UI_LABELS,
+  loadPlan: LOAD_PLAN_UI_LABELS,
   taxonomy: TAXONOMY_UI_LABELS,
   inventoryItem: INVENTORY_ITEM_UI_LABELS,
   product: PRODUCT_UI_LABELS,
@@ -372,6 +379,27 @@ export const UI_LABELS = {
     noOrderReadTitle: "Chưa đủ quyền xem dòng đơn hàng",
     noOrderReadDescription:
       "Danh sách SKU cần lấy đọc từ đơn hàng. Tài khoản chưa được cấp quyền xem đơn hàng — liên hệ quản trị để được cấp.",
+    // Dialog tạo task: đơn chờ xuất kho đọc từ GET /fulfillment/task-candidates (cần fulfillment-task-assignment:CREATE)
+    noCreateTitle: "Chưa đủ quyền tạo task lấy hàng",
+    noCreateDescription:
+      "Tài khoản chưa được cấp quyền tạo task xuất kho — liên hệ quản trị để được cấp.",
+    candidate: {
+      fieldLabel: "Đơn hàng",
+      loading: "Đang tải đơn hàng…",
+      placeholder: "Chọn đơn hàng",
+      empty: "Không có đơn nào chờ xuất kho",
+      emptyTitle: "Chưa có đơn nào chờ xuất kho",
+      emptyDescription:
+        "Chỉ đơn đã release (sẵn sàng xuất kho) và chưa có task mới hiện ở đây. Đơn mới xác nhận cần release trước.",
+      loadFailed: "Không tải được danh sách đơn hàng chờ xuất kho.",
+      printed: "Có dòng in",
+      guestCustomer: "Khách vãng lai",
+      truncated: (shown: number, total: number) =>
+        `Chỉ hiện ${shown}/${total} đơn cũ nhất đang chờ — tạo task cho các đơn này trước để thấy tiếp.`,
+      summary: (lineCount: number, totalQuantity: number) =>
+        `${lineCount} dòng · ${totalQuantity} sản phẩm`,
+      placed: (date: string) => `Đặt ${date}`,
+    },
     noAssignTitle: "Chưa đủ quyền chọn người nhận task",
     noAssignDescription:
       "Danh sách người nhận task chỉ hiện cho tài khoản được cấp quyền gán task — liên hệ quản trị để được cấp.",
@@ -429,7 +457,7 @@ export const FULFILLMENT_ERROR_MESSAGES = {
   stale:
     "Task hoặc đơn hàng đã đổi trạng thái nên không thực hiện được thao tác này. Dữ liệu đã được tải lại.",
   createConflict:
-    "Chỉ đơn đã release (sẵn sàng xuất kho) mới đưa vào xuất kho; đơn mới xác nhận phải release trước, đơn có dòng in phải release sản xuất trước.",
+    "Chỉ đơn đã release (sẵn sàng xuất kho) mới đưa vào xuất kho; đơn mới xác nhận phải release trước. Đơn đang sản xuất chỉ vào xuất kho khi có dòng hàng có sẵn (lấy trước hàng in); đơn toàn hàng in phải chờ sản xuất xong.",
   orderNotFound: "Không tìm thấy đơn hàng",
   assignConflict: "Chỉ gán lại được khi task chưa bắt đầu lấy hàng. Dữ liệu đã được tải lại.",
   assigneeInvalid: "Người được gán phải là nhân viên kho hoặc quản lý kho đang hoạt động",
@@ -448,6 +476,13 @@ export const FULFILLMENT_ERROR_MESSAGES = {
     "File thiết kế trong kho lưu trữ không khớp checksum đã chốt — không tải được. Báo QC kiểm tra.",
   VALIDATION_FAILED: "Dữ liệu không hợp lệ",
   FORBIDDEN: "Bạn không có quyền thực hiện thao tác này",
+  // Danh sách đơn chờ xuất kho (GET /fulfillment/task-candidates): 403 thiếu quyền tạo task, 403 kho ngoài
+  // phạm vi dữ liệu, 404 kho không tồn tại
+  candidatesForbidden:
+    "Bạn chưa được cấp quyền tạo task xuất kho nên không xem được đơn chờ xuất kho.",
+  OUT_OF_DATA_SCOPE:
+    "Kho này nằm ngoài phạm vi dữ liệu của bạn — bạn chỉ xem được đơn của kho mình phụ trách.",
+  warehouseNotFound: "Không tìm thấy kho.",
   OPTIMISTIC_LOCK: "Task vừa được người khác cập nhật. Dữ liệu đã được tải lại, hãy thử lại.",
   LOCK_TIMEOUT: "Task đang được người khác thao tác. Thử lại sau giây lát.",
   STORAGE_ERROR: "Kho lưu trữ file thiết kế đang không truy cập được. Thử lại sau.",
@@ -693,8 +728,13 @@ export const TOAST_MESSAGES = {
     inspected: "Đã ghi nhận kết luận QC",
   },
   transfer: TRANSFER_TOAST_MESSAGES,
+  transferPack: TRANSFER_PACK_TOAST_MESSAGES,
   shipping: SHIPPING_TOAST_MESSAGES,
+  vehicleType: VEHICLE_TYPE_TOAST_MESSAGES,
+  loadPlan: LOAD_PLAN_TOAST_MESSAGES,
   taxonomy: TAXONOMY_TOAST_MESSAGES,
+  user: IDENTITY_TOAST_MESSAGES.user,
+  role: IDENTITY_TOAST_MESSAGES.role,
   inventoryItem: INVENTORY_ITEM_TOAST_MESSAGES,
   fulfillment: {
     created: "Đã tạo task lấy hàng",

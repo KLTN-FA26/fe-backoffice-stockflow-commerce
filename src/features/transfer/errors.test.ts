@@ -91,3 +91,28 @@ describe("stockErrorsByLine — thiếu tồn theo dòng (SKU + lô)", () => {
     );
   });
 });
+
+describe("lỗi mới của BE PR #164 (đóng gói chuyển kho, kế hoạch xe)", () => {
+  it.each([
+    "TRANSFER_DISPATCH_BY_LOAD_PLAN",
+    "TRANSFER_GOODS_LEFT",
+    "LOAD_PLAN_LOADING_STARTED",
+    "TRANSFER_NOT_FULL_TRUCKLOAD",
+    "TRANSFER_NOT_PACKED",
+  ] as const)("%s → câu tiếng Việt riêng, không lộ message tiếng Anh", (code) => {
+    const message = transferErrorMessage(new ApiError(409, code, "english message"));
+    expect(message).toBe(TRANSFER_ERROR_MESSAGES[code]);
+    expect(message).not.toBe(TRANSFER_ERROR_MESSAGES.generic);
+  });
+
+  it("xuất tay lệnh nguyên chuyến / dừng lấy hàng khi hàng đã rời kho / xe đang xếp → lệnh đã đổi: tải lại", () => {
+    for (const code of [
+      "TRANSFER_DISPATCH_BY_LOAD_PLAN",
+      "TRANSFER_GOODS_LEFT",
+      "LOAD_PLAN_LOADING_STARTED",
+    ]) {
+      expect(isStaleTransferError(new ApiError(409, code, ""))).toBe(true);
+    }
+    expect(isStaleTransferError(new ApiError(409, "TRANSFER_NOT_FULL_TRUCKLOAD", ""))).toBe(false);
+  });
+});

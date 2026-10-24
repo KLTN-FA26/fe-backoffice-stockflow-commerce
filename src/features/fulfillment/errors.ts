@@ -12,7 +12,7 @@ import { ApiError } from "@/lib/api/error";
 type MessageKey = keyof typeof FULFILLMENT_ERROR_MESSAGES;
 
 export type FulfillmentErrorContext =
-  "create" | "assign" | "pick" | "pack" | "reverify" | "artifact";
+  "create" | "assign" | "pick" | "pack" | "reverify" | "artifact" | "candidates";
 
 /**
  * Lỗi trạng thái của task / đơn: BE (FulfillmentServiceImpl, PickList, PickJpaEntity) trả
@@ -42,6 +42,13 @@ const BY_CONTEXT: Record<FulfillmentErrorContext, Readonly<Record<string, Messag
   // 404 = bundle không có vai trò file đó / dòng không có thiết kế; 409 khi task đang bị giữ =
   // lệch checksum lúc tải (trường hợp chưa bị giữ xử lý riêng trong `fulfillmentErrorMessage`)
   artifact: { NOT_FOUND: "artifactMissing", CONFLICT: "artifactMismatch" },
+  // GET /fulfillment/task-candidates: 403 FORBIDDEN (thiếu fulfillment-task-assignment:CREATE),
+  // 403 OUT_OF_DATA_SCOPE (kho ngoài phạm vi), 404 WAREHOUSE_NOT_FOUND
+  candidates: {
+    FORBIDDEN: "candidatesForbidden",
+    OUT_OF_DATA_SCOPE: "OUT_OF_DATA_SCOPE",
+    WAREHOUSE_NOT_FOUND: "warehouseNotFound",
+  },
 };
 
 function isMessageKey(code: string): code is MessageKey {

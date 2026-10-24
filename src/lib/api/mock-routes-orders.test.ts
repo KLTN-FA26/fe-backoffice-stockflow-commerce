@@ -18,6 +18,8 @@ import {
   recordDeliveryFailure,
   resolveOrderHold,
 } from "@/features/order/api";
+import { getOrderHistory } from "@/features/order/history-api";
+import { decidePartialShipment } from "@/features/order/partial-shipment-api";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { orders } from "@/lib/mock-data";
@@ -400,5 +402,166 @@ describe("OrderResponse — hình dạng thật của BE (số liệu luôn đư
     expect(await rawOrder(order.orderId)).not.toHaveProperty("packedAt");
     setMockOrderStatus(order.orderId, "PACKED");
     expect(await rawOrder(order.orderId)).toHaveProperty("packedAt");
+  });
+});
+
+describe("PUT /orders/:id/partial-shipment + GET /orders/:id/history (BE PR #150)", () => {
+  it("mặc định theo BE: chỉ đơn đang giao từng phần là true; còn lại false", async () => {
+    const partial = await getOrder(firstOrderWith("Partially Fulfilled").orderId);
+    const picking = await getOrder(firstOrderWith("Picking").orderId);
+    expect(partial.allowPartialShipment).toBe(true);
+    expect(picking.allowPartialShipment).toBe(false);
+  });
+
+  it("bật rồi tắt: cờ đổi, lịch sử có hai mục PARTIAL_SHIPMENT_DECISION kèm ghi chú và người quyết", async () => {
+    const source = firstOrderWith("Picking");
+    await decidePartialShipment({ id: source.orderId, allowed: true, note: "Khách đồng ý" });
+    expect((await getOrder(source.orderId)).allowPartialShipment).toBe(true);
+    await decidePartialShipment({ id: source.orderId, allowed: false, note: "" });
+    expect((await getOrder(source.orderId)).allowPartialShipment).toBe(false);
+
+    const history = await getOrderHistory(source.orderId);
+    expect(history.map((entry) => entry.kind)).toEqual([
+      "status-change",
+      "partial-shipment",
+      "partial-shipment",
+    ]);
+    expect(history[1]).toMatchObject({ allowed: true, reason: "Khách đồng ý" });
+    expect(history[1]?.actorName).toBeTruthy();
+    expect(history[2]).toMatchObject({ allowed: false, reason: null });
+  });
+
+  it("quyết định không đổi gì (bật khi đã bật) → BE không ghi vào lịch sử", async () => {
+    const source = firstOrderWith("Picking");
+    await decidePartialShipment({ id: source.orderId, allowed: false, note: "" });
+    expect(await getOrderHistory(source.orderId)).toHaveLength(1);
+  });
+
+  it("đơn đã SHIPPED → 409 ORDER_PARTIAL_SHIPMENT_LOCKED; thiếu allowed → 400; note > 500 → 400", async () => {
+    const shipped = await captureError(
+      decidePartialShipment({ id: firstOrderWith("Shipped").orderId, allowed: true, note: "" }),
+    );
+    expect(shipped).toMatchObject({ status: 409, code: "ORDER_PARTIAL_SHIPMENT_LOCKED" });
+
+    const picking = firstOrderWith("Picking");
+    const noAllowed = await captureError(
+      api.put(`/orders/${picking.orderId}/partial-shipment`, {}),
+    );
+    expect(noAllowed.status).toBe(400);
+    const longNote = await captureError(
+      decidePartialShipment({ id: picking.orderId, allowed: true, note: "a".repeat(501) }),
+    );
+    expect(longNote.status).toBe(400);
+  });
+
+  it("đơn không tồn tại → 404", async () => {
+    const missing = await captureError(
+      decidePartialShipment({ id: "KHONG-CO", allowed: true, note: "" }),
+    );
+    expect(missing.status).toBe(404);
+  });
+});
+
+describe("OrderResponse — printLinesReady / balancePolicy (BE PR #150)", () => {
+  it("đơn có dòng in đang IN_PRODUCTION → printLinesReady=false; đơn không in → true", async () => {
+    const printed = orders.find((o) => o.lines.some((line) => line.designId));
+    const plain = orders.find((o) => !o.lines.some((line) => line.designId));
+    if (!printed || !plain) throw new Error("mock-data thiếu đơn in / đơn thường");
+    setMockOrderStatus(printed.orderId, "IN_PRODUCTION");
+    setMockOrderStatus(plain.orderId, "IN_PRODUCTION");
+    expect((await getOrder(printed.orderId)).printLinesReady).toBe(false);
+    expect((await getOrder(plain.orderId)).printLinesReady).toBe(true);
+  });
+
+  it("đơn trả trước: balancePolicy và creditTermDays là null (chỉ đơn cọc có cách thu phần còn lại)", async () => {
+    const prepaid = orders.find((o) => o.paymentMethodType !== "Deposit");
+    if (!prepaid) throw new Error("mock-data thiếu đơn trả trước");
+    expect(await getOrder(prepaid.orderId)).toMatchObject({
+      balancePolicy: null,
+      creditTermDays: null,
+    });
+  });
+});
+
+describe("POST /orders/:id/remainder-closure — agreedFee (BE PR #150)", () => {
+  const fee = (amount: number) => ({ amount, reason: "Đã in 2 lô", detail: "Khách đồng ý" });
+
+  it("phí ≤ giá trị phần hàng in bị đóng → 200, đơn đóng phần còn lại", async () => {
+    const source = firstOrderWith("Partially Fulfilled");
+    // ORD-2026-0009: 6 áo in, giao 4 → còn 2 × 149.000 = 298.000
+    await closeOrderRemainder({
+      id: source.orderId,
+      reasonCode: "CUSTOMER_REQUEST",
+      note: "",
+      agreedFee: fee(298_000),
+    });
+    expect((await getOrder(source.orderId)).status).toBe("Shipped");
+  });
+
+  it("phí vượt giá trị hàng in bị đóng → 400, đơn không đổi", async () => {
+    const source = firstOrderWith("Partially Fulfilled");
+    const refused = await captureError(
+      closeOrderRemainder({
+        id: source.orderId,
+        reasonCode: "CUSTOMER_REQUEST",
+        note: "",
+        agreedFee: fee(298_001),
+      }),
+    );
+    expect(refused).toMatchObject({ status: 400, code: "VALIDATION_FAILED" });
+    expect((await getOrder(source.orderId)).status).toBe("Partially Fulfilled");
+  });
+
+  it("đơn chưa in (không có dòng in) → 409 CANCELLATION_FEE_BEFORE_PRINTING", async () => {
+    const plain = orders.find((o) => !o.lines.some((line) => line.designId));
+    if (!plain) throw new Error("mock-data thiếu đơn không in");
+    setMockOrderStatus(plain.orderId, "PARTIALLY_FULFILLED");
+    const refused = await captureError(
+      closeOrderRemainder({
+        id: plain.orderId,
+        reasonCode: "CUSTOMER_REQUEST",
+        note: "",
+        agreedFee: fee(1000),
+      }),
+    );
+    expect(refused).toMatchObject({ status: 409, code: "CANCELLATION_FEE_BEFORE_PRINTING" });
+  });
+
+  it("số tiền không nguyên / thiếu lý do hoặc chi tiết → 400", async () => {
+    const source = firstOrderWith("Partially Fulfilled");
+    for (const agreedFee of [
+      { ...fee(1000), amount: 10.5 },
+      { ...fee(1000), reason: "" },
+      { ...fee(1000), detail: " " },
+    ]) {
+      const refused = await captureError(
+        closeOrderRemainder({
+          id: source.orderId,
+          reasonCode: "OUT_OF_STOCK",
+          note: "",
+          agreedFee,
+        }),
+      );
+      expect(refused.status).toBe(400);
+    }
+  });
+});
+
+describe("POST /orders/:id/admin-cancellation — hàng có sẵn đóng trước hàng in (BE PR #150)", () => {
+  it("IN_PRODUCTION đã đóng sẵn, chưa lô nào đi → huỷ được; PACKED → vẫn ORDER_NOT_CANCELLABLE", async () => {
+    const [first, second] = orders.filter((o) =>
+      ["Picking", "In Production", "Ready to Fulfill"].includes(o.status),
+    );
+    if (!first || !second) throw new Error("mock-data thiếu hai đơn đang trong khâu kho");
+    setMockOrderStatus(first.orderId, "PACKED");
+    setMockOrderStatus(first.orderId, "IN_PRODUCTION");
+    await adminCancelOrder({ id: first.orderId, reason: "Khách huỷ" });
+    expect((await getOrder(first.orderId)).status).toBe("Cancelled");
+
+    setMockOrderStatus(second.orderId, "PACKED");
+    const refused = await captureError(
+      adminCancelOrder({ id: second.orderId, reason: "Khách huỷ" }),
+    );
+    expect(refused.code).toBe("ORDER_NOT_CANCELLABLE");
   });
 });

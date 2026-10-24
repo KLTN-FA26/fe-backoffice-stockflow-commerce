@@ -100,6 +100,14 @@ export const apiGuestOrder = {
   },
 };
 
+/** Đơn BE ở trạng thái `status` kèm hai cờ giao một phần của BE PR #150. */
+export function apiOrderPartialShipment(
+  status: OrderDto["status"],
+  flags: { allowPartialShipment: boolean; printLinesReady?: boolean },
+): OrderDto {
+  return { ...apiOrder, status, printLinesReady: true, ...flags };
+}
+
 /** Đơn BE PICKING — dựng nhanh các biến thể cho test thao tác trạng thái. */
 export function apiOrderWith(patch: Record<string, unknown>) {
   return { ...apiOrder, ...patch } as OrderDto;
@@ -138,3 +146,12 @@ export const apiPartialOrder: OrderDto = {
     },
   ],
 };
+
+/** Đơn BE ở trạng thái `status` kèm hình thức giao (BE PR #157) và cờ khoá. */
+export function apiOrderDelivery(
+  status: OrderDto["status"],
+  delivery: { deliveryMode: "PARCEL" | "FULL_TRUCKLOAD"; deliveryModeLocked: boolean },
+  patch: Record<string, unknown> = {},
+): OrderDto {
+  return apiOrderWith({ status, ...delivery, ...patch });
+}

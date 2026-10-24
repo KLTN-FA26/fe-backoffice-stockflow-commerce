@@ -17,6 +17,10 @@ export const STORAGE_KEYS = {
   adminTransfersConfig: "stockflow:admin:transfers:config",
   adminShipmentsConfig: "stockflow:admin:shipments:config",
   adminLoadsConfig: "stockflow:admin:loads:config",
+  adminVehicleTypesConfig: "stockflow:admin:vehicle-types:config",
+  adminLoadPlansConfig: "stockflow:admin:load-plans:config",
+  /** sessionStorage — `requestId` của lần lập kế hoạch xếp xe (BE trả lại kế hoạch cũ khi gửi lại cùng id). */
+  loadPlanRequest: "stockflow:admin:load-plans:create-request",
   /** sessionStorage — `requestId` của lần mở chuyến (BE trả lại chuyến cũ khi gửi lại cùng id). */
   loadOpenRequest: "stockflow:admin:loads:open-request",
   /** sessionStorage — mã quét không thành công theo chuyến (màn xếp hàng). */

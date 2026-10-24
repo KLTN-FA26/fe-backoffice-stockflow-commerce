@@ -10,8 +10,9 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
 
-import { MONO, formatMeasure } from "../primitives";
+import { MONO } from "../primitives";
 import { PackageContents } from "./PackageContents";
+import { PackageMeasures } from "./PackageMeasures";
 import { RemoveUnitsDialog } from "./RemoveUnitsDialog";
 import { SealDialog } from "./SealDialog";
 
@@ -20,48 +21,6 @@ import type { PackContent, PackPackage } from "@/features/fulfillment/packing-ty
 
 const P = UI_LABELS.packing;
 const PK = P.packages;
-
-function Chip({ children }: { children: string }) {
-  return (
-    <span className="border-border-default text-ink-secondary rounded-[var(--r-sm)] border px-1.5 py-0.5 text-[0.6875rem]">
-      {children}
-    </span>
-  );
-}
-
-/** Số đo của kiện đã cân + đo, kèm cờ xoay / dễ vỡ (đánh dấu khi người đóng ghi đè mặc định từ SKU). */
-function Measures({ pkg }: { pkg: PackPackage }) {
-  if (pkg.weightKg == null) return null;
-  const size = [pkg.lengthCm, pkg.widthCm, pkg.heightCm]
-    .map((v) => (v == null ? "?" : formatMeasure(v, 2)))
-    .join(" × ");
-  return (
-    <dl className="text-ink-secondary flex flex-wrap gap-x-5 gap-y-1 text-[0.8125rem]">
-      <div className="flex gap-1.5">
-        <dt className="text-ink-tertiary">{PK.weight}</dt>
-        <dd className={`text-ink-primary ${MONO}`}>{formatMeasure(pkg.weightKg)} kg</dd>
-      </div>
-      <div className="flex gap-1.5">
-        <dt className="text-ink-tertiary">{PK.size}</dt>
-        <dd className={`text-ink-primary ${MONO}`}>{size} cm</dd>
-      </div>
-      {pkg.dimWeightKg != null && (
-        <div className="flex gap-1.5">
-          <dt className="text-ink-tertiary">{PK.dimWeight}</dt>
-          <dd className={`text-ink-primary ${MONO}`}>{formatMeasure(pkg.dimWeightKg)} kg</dd>
-        </div>
-      )}
-      <div className="flex flex-wrap gap-1">
-        <Chip>
-          {`${pkg.rotatable ? PK.rotatable : PK.notRotatable}${pkg.rotatableOverridden ? ` (${PK.overridden})` : ""}`}
-        </Chip>
-        {pkg.fragile && (
-          <Chip>{`${PK.fragile}${pkg.fragileOverridden ? ` (${PK.overridden})` : ""}`}</Chip>
-        )}
-      </div>
-    </dl>
-  );
-}
 
 type DialogState = "seal" | "reopen" | "void" | { remove: PackContent } | null;
 
@@ -149,7 +108,7 @@ export function PackageCard({
           )}
         </div>
       </header>
-      <Measures pkg={pkg} />
+      <PackageMeasures pkg={pkg} />
       <PackageContents
         contents={pkg.contents}
         onRemove={editable && open ? (content) => setDialog({ remove: content }) : undefined}

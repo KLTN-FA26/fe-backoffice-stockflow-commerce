@@ -37,6 +37,14 @@ export const ORDER_LIMITS = {
   deliveryFailureNoteMax: 500,
   /** `CloseRemainderRequest.note` @Size(max = 1000). */
   remainderClosureNoteMax: 1000,
+  /** `PartialShipmentRequest.note` @Size(max = 500) — BE PR #150. */
+  partialShipmentNoteMax: 500,
+  /** `DeliveryModeRequest.note` @Size(max = 500) — BE PR #157. */
+  deliveryModeNoteMax: 500,
+  /** `CancellationFeeRequest.reason` @Size(max = 500) — `CloseRemainderRequest.agreedFee` (BE PR #150). */
+  feeReasonMax: 500,
+  /** `CancellationFeeRequest.detail` @Size(max = 2000). */
+  feeDetailMax: 2000,
 } as const;
 
 /** Giới hạn phiếu nhận — đúng ràng buộc request BE goods receipt (PR #62, SCRUM-435). */
@@ -88,6 +96,19 @@ export const PACKING_LIMITS = {
   dimensionCmScale: 2,
   /** Thời gian giữ màu phản hồi sau mỗi lần quét đúng. */
   scanFeedbackMs: 1500,
+} as const;
+
+/** Giới hạn đóng gói chuyển kho — request BE `TransferCartonRequest`, `TransferKitRequest`, `PackingCompletionRequest`. */
+export const TRANSFER_PACK_LIMITS = {
+  /** `TransferCartonRequest.lpn` @NotBlank @Size(max = 30). */
+  lpnMax: 30,
+  /** `TransferKitRequest.partCount` @Min(2) @Max(99). */
+  kitPartsMin: 2,
+  kitPartsMax: 99,
+  /** `PackingCompletionRequest.note` @Size(max = 500) — bắt buộc khi chỉ chuyển phần đã đóng. */
+  noteMax: 500,
+  /** `kitOverrideReason` @Size(max = 500) (KIT-FORCE). */
+  kitReasonMax: 500,
 } as const;
 
 /** Giới hạn lệnh chuyển kho — đúng ràng buộc request BE (CreateTransferOrderRequest, ReasonRequest). */
@@ -180,3 +201,99 @@ export const SUPPLIER_ITEM_LIMITS = {
  * `Pages.DEFAULT_PAGE_SIZE` của BE (tối đa `Pages.MAX_PAGE_SIZE` 200); gõ thêm để thu hẹp.
  */
 export const INVENTORY_ITEM_OPTIONS_PAGE_SIZE = 20;
+
+/**
+ * Giới hạn danh mục loại xe — `VehicleTypeRequest` / `ck_vehicle_type_*` của BE PR #153. Kích thước
+ * trong xe tính bằng mm, tải trọng kg; khe góc (gusset) chừa ở mỗi góc trên trần (docs 09 BR-10).
+ */
+export const VEHICLE_TYPE_LIMITS = {
+  codeMin: 2,
+  codeMax: 32,
+  nameMax: 120,
+  /** `innerLengthMm` / `innerWidthMm` / `innerHeightMm` @Min(1) @Max(30000). */
+  dimensionMaxMm: 30000,
+  /** `gussetMm` @Min(0) @Max(1000). */
+  gussetMaxMm: 1000,
+  /** `doorWidthMm` / `doorHeightMm` @Min(1) @Max(30000): cùng trần với kích thước trong. */
+  doorMaxMm: 30000,
+  /** `maxPayloadKg` @DecimalMax("100000") (> 0), tối đa 3 số lẻ. */
+  payloadMaxKg: 100000,
+  payloadFractionDigits: 3,
+  /** `availableCount` @Min(0) @Max(10000). */
+  availableCountMax: 10000,
+  /** `rentalPrice` @Digits(integer = 15, fraction = 4): giá thuê tham khảo (VND). */
+  rentalPriceIntegerDigits: 15,
+  rentalPriceFractionDigits: 4,
+  /** mm → m, và mm³ → m³ (giá trị = mm³ / 1e9). */
+  mmPerMetre: 1000,
+  cubicMmPerCubicMetre: 1_000_000_000,
+} as const;
+
+/**
+ * Xếp hàng lên xe (SCRUM-287/391/392, design v2 §1) — số lấy nguyên từ solver và viewer gốc
+ * (`nesting-standalone`: `solver_3d_kit.py`, `manual-packing.ts`, `steps.ts`, `nesting-3d-viewer.tsx`).
+ */
+export const LOAD_ESTIMATE_LIMITS = {
+  /** `LoadEstimateRequest.vehicleTypeIds` @Size(max = 20) — BE PR #160. */
+  vehicleTypesMax: 20,
+  /** Một trang tối đa của BE (`Pages.MAX_PAGE_SIZE`): đủ để chọn loại xe đang dùng mà không phân trang. */
+  vehicleTypesPageSize: 200,
+} as const;
+
+export const LOAD_PLANNING_LIMITS = {
+  /** BR-10 (docs 09-shipping §6): kiện phải được đỡ ≥ 98% mặt đáy — khớp solver `_support`, design §1 "Rules". */
+  minSupportRatio: 0.98,
+  /** Dung sai hình học (mm) cho "chạm/chồng nhau" — cùng cỡ `_EPS` của solver. */
+  geometryEpsilonMm: 0.5,
+  /** Dung sai (mm) khi gộp các kiện cùng mặt hàng thành một khối xếp (`steps.ts` TOL). */
+  blockAdjacencyToleranceMm: 3,
+  /** Khoảng trống nhỏ hơn mức này (mm) không chứa nổi thùng nào nên bỏ (`computeEmptySpaces`). */
+  minEmptySpaceMm: 50,
+  /** Van an toàn: tối đa số khoảng trống giữ lại khi tính vùng trống (`MAX_SPACES`). */
+  emptySpacesMax: 1500,
+  /** Tối đa số ô gợi ý chỗ đặt hiển thị cùng lúc (hàng trăm mesh làm chậm khung 3D). */
+  landingGhostsMax: 300,
+  /** Viewer chỉ dựng tối đa chừng này kiện (gốc: `slice(0, 600)`); quá mức thì hiện cảnh báo. */
+  renderBoxesMax: 600,
+  /** Hiệu suất thể tích dưới mức này bị tô cảnh báo (viewer gốc dùng 50%). */
+  lowUtilizationRatio: 0.5,
+  /** Chiều cao khung 3D (px) — skeleton khi tải dùng cùng giá trị để bố cục không nhảy (gốc: 360). */
+  viewerHeightPx: 360,
+  /** Chiều cao khung 3D của trình soạn xếp tay (px; gốc `canvasHeight` = 560, thu lại để vừa cạnh khay). */
+  editorViewerHeightPx: 520,
+  /** Bước nhích tay (mm) — `NUDGE_STEP` của `manual-packing-editor.tsx`; nhích dừng sát vật cản nếu gần hơn. */
+  nudgeStepMm: 50,
+  /** Số bước hoàn tác giữ lại (gốc 20; trạng thái chia sẻ mảng kiện nên giữ nhiều cũng nhẹ). */
+  editorHistoryMax: 50,
+  /** Lớp phủ "xem chỗ trống" chỉ vẽ chừng này khoảng trống lớn nhất (gốc `slice(0, 40)`). */
+  emptySpacesShownMax: 40,
+  /** Số bước xếp chụp ảnh liền một nhịp trên trang in trước khi nhường luồng để thanh tiến độ cập nhật. */
+  captureChunkSteps: 6,
+} as const;
+
+/**
+ * Kế hoạch xếp xe — giới hạn của `CreateLoadPlanRequest` / `LoadPlanInputsRequest` / `LoadPlanReasonRequest` /
+ * `VehicleRecalculationRequest` (BE PR #161) và ngưỡng cờ so với ước lượng.
+ */
+export const LOAD_PLAN_LIMITS = {
+  /** `shipmentIds` @Size(max = 200). */
+  shipmentsMax: 200,
+  /** `transferOrderIds` @Size(max = 1): kế hoạch nguồn TRANSFER chứa đúng một lệnh chuyển kho (BE PR #164). */
+  transferOrdersMax: 1,
+  /** `vehicleTypeIds` @Size(max = 50). */
+  vehicleTypesMax: 50,
+  /** `reason` @NotBlank @Size(max = 500) khi mở lại / huỷ. */
+  reasonMax: 500,
+  /** `note` @Size(max = 500). */
+  noteMax: 500,
+  /** `addPackageIds` @Size(max = 500). */
+  addPackagesMax: 500,
+  /** Cờ VOLUME_ABOVE / WEIGHT_ABOVE / MORE_PARCELS: vượt ước lượng quá 10% (BE `LoadPlanEstimateComparison`). */
+  estimateTolerancePct: 10,
+  /** Số loại xe tải về một lần cho ô chọn loại xe (danh mục tối đa vài chục). */
+  vehicleTypePickerSize: 100,
+  /** `LoadPlacementsRequest.vehicles` @Size(max = 100). */
+  placementVehiclesMax: 100,
+  /** `LoadPlacementsRequest.Vehicle.boxes` và `tray` @Size(max = 2000). */
+  placementBoxesMax: 2000,
+} as const;

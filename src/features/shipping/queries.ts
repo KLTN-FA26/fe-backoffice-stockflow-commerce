@@ -1,4 +1,4 @@
-import { LOAD_STATUS, SHIPPING_LIMITS } from "@/constants";
+import { LOAD_STATUS, SHARED_QUERY_ROOTS, SHIPPING_LIMITS } from "@/constants";
 import { useQuery } from "@tanstack/react-query";
 import { QUERY_TIMES } from "@/lib/api/query-client";
 import { createDetailQuery, createListQuery, createQueryKeys } from "@/lib/api/query-factory";
@@ -10,7 +10,7 @@ import type { ListLoadParams } from "./api";
 import type { ListCarrierParams, ListShipmentParams } from "./shipment-api";
 import type { Carrier, Load, LoadRow, Shipment, ShipmentRow } from "./types";
 
-export const loadKeys = createQueryKeys<ListLoadParams>("fulfillment-loads");
+export const loadKeys = createQueryKeys<ListLoadParams>(SHARED_QUERY_ROOTS.fulfillmentLoads);
 export const shipmentKeys = createQueryKeys<ListShipmentParams>("fulfillment-shipments");
 export const carrierKeys = createQueryKeys<ListCarrierParams>("fulfillment-carriers");
 

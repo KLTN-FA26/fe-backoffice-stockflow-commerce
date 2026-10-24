@@ -37,6 +37,8 @@ export const SUPPLIER_ITEM_PERMISSIONS = {
  * - `cancel`: huỷ đơn phía admin (`POST /orders/{id}/admin-cancellation`) và đóng phần còn lại của
  *   đơn giao một phần (`POST /orders/{id}/remainder-closure`) — BE tách sang resource
  *   `sales-order-cancellations` (UPDATE, scope ALL; seed: ORDER_COORDINATOR + SALES_STAFF).
+ * - `partialShipment`: Sales cho phép / dừng giao một phần của đơn — resource
+ *   `sales-order-partial-shipments` (UPDATE, scope ALL; seed: SALES_STAFF + SYSTEM_ADMIN).
  */
 export const ORDER_PERMISSIONS = {
   // Mở trang (menu + chặn route) — BE Action.VIEW_PAGE, ADR-0004
@@ -46,6 +48,13 @@ export const ORDER_PERMISSIONS = {
   read: "sales-orders:READ",
   approve: "sales-orders:APPROVE",
   cancel: "sales-order-cancellations:UPDATE",
+  // Cho phép / dừng giao một phần của đơn (`PUT /orders/{id}/partial-shipment`, BE PR #150) — resource
+  // `sales-order-partial-shipments` (UPDATE, scope ALL; seed: SALES_STAFF + SYSTEM_ADMIN)
+  partialShipment: "sales-order-partial-shipments:UPDATE",
+  // Chọn / đổi hình thức giao của đơn (`POST /orders/{id}/release` với `deliveryMode` khác của đơn và
+  // `PUT /orders/{id}/delivery-mode`, BE PR #157, LP-1) — resource `sales-order-delivery-modes` (UPDATE,
+  // scope ALL; seed: ORDER_COORDINATOR + SYSTEM_ADMIN). Đọc hình thức giao đi kèm `sales-orders:READ`.
+  deliveryModes: "sales-order-delivery-modes:UPDATE",
 } as const;
 
 /**
@@ -129,6 +138,40 @@ export const ATTRIBUTE_PERMISSIONS = {
   create: "product-attributes:CREATE",
   update: "product-attributes:UPDATE",
   delete: "product-attributes:DELETE",
+} as const;
+
+/**
+ * Danh mục loại xe cho kế hoạch xếp xe (SCRUM-287) — resource `fulfillment-vehicle-types`
+ * (BE PR #153 `VehicleTypeController`). READ: danh sách + chi tiết (nhân viên kho, quản lý kho,
+ * điều phối đơn); UPDATE: thêm / sửa / ngừng dùng (quản lý kho). Không có DELETE.
+ */
+export const VEHICLE_TYPE_PERMISSIONS = {
+  viewPage: "fulfillment-vehicle-types:VIEW_PAGE",
+  read: "fulfillment-vehicle-types:READ",
+  update: "fulfillment-vehicle-types:UPDATE",
+} as const;
+
+/**
+ * Ước tính xếp xe trước đóng gói (SCRUM-287 PR EST, BE PR #160 `LoadEstimateController`) — resource
+ * `fulfillment-load-estimates`. CREATE: tính ước tính (`POST /fulfillment/load-estimates`); READ: xem ước
+ * tính hiện hành (`GET`). Seed: ORDER_COORDINATOR, WAREHOUSE_MANAGER, SYSTEM_ADMIN. Không có VIEW_PAGE:
+ * ước tính mở từ chi tiết đơn, không có trang riêng.
+ */
+export const LOAD_ESTIMATE_PERMISSIONS = {
+  create: "fulfillment-load-estimates:CREATE",
+  read: "fulfillment-load-estimates:READ",
+} as const;
+
+/**
+ * Kế hoạch xếp xe (SCRUM-287 PR D) — resource `fulfillment-load-plans`, BE `LoadPlanController`. READ: xem
+ * danh sách, chi tiết, bố cục, đối chiếu (nhân viên kho, quản lý kho, điều phối đơn); CREATE: lập kế hoạch;
+ * UPDATE: đổi đầu vào, tính, tính lại xe, xác nhận kiện chưa xếp, chốt, mở lại, huỷ (nhân viên kho, quản lý kho).
+ */
+export const LOAD_PLAN_PERMISSIONS = {
+  viewPage: "fulfillment-load-plans:VIEW_PAGE",
+  read: "fulfillment-load-plans:READ",
+  create: "fulfillment-load-plans:CREATE",
+  update: "fulfillment-load-plans:UPDATE",
 } as const;
 
 /**
@@ -325,8 +368,21 @@ export const WAREHOUSE_PERMISSIONS = {
 /** BE develop IdentityResources / IdentityController: read-only RBAC screen APIs. */
 export const IDENTITY_PERMISSIONS = {
   rolesRead: "identity-roles:READ",
+  /** Tạo vai trò tuỳ chỉnh — `POST /identity/roles` (BE PR #72, SCRUM-455). */
+  rolesCreate: "identity-roles:CREATE",
+  /** Đổi tên / mô tả / phạm vi dữ liệu của vai trò tuỳ chỉnh — `PATCH /identity/roles/{code}`. */
+  rolesUpdate: "identity-roles:UPDATE",
+  /** Xoá vai trò tuỳ chỉnh không còn ai giữ — `DELETE /identity/roles/{code}` (chỉ SYSTEM_ADMIN trong seed). */
+  rolesDelete: "identity-roles:DELETE",
   rbacRead: "identity-rbac:READ",
   rbacApprove: "identity-rbac:APPROVE",
+  /**
+   * Tài khoản nhân viên — BE `UserManagementController` (PR #72, SCRUM-454): danh sách / chi tiết = READ,
+   * tạo = CREATE; sửa hồ sơ, gán vai trò / kho, khoá, vô hiệu hoá, đặt lại mật khẩu đều là UPDATE.
+   */
+  usersRead: "identity-users:READ",
+  usersCreate: "identity-users:CREATE",
+  usersUpdate: "identity-users:UPDATE",
 } as const;
 
 export const PERMISSION_QUERY = {
@@ -340,4 +396,15 @@ export const PERMISSION_UI = {
   retry: "Thử lại",
   productCreateDenied: "Bạn không có quyền tạo sản phẩm.",
   demoContext: "Chỉ đổi nhãn vai trò demo; quyền vẫn lấy từ phiên đăng nhập.",
+} as const;
+
+/**
+ * Báo cáo bán hàng (SCRUM-345) — resource `reporting-reports` (BE `ReportController`,
+ * `/api/v1/reports`). READ: doanh số theo ngày, top SKU, đơn theo trạng thái, tổng hợp; EXPORT:
+ * tính lại số liệu (`POST /reports/rebuild`, chỉ quản trị). Truy cập theo READ (quyết định DASH-KPI).
+ */
+export const REPORTING_PERMISSIONS = {
+  viewPage: "reporting-reports:VIEW_PAGE",
+  read: "reporting-reports:READ",
+  export: "reporting-reports:EXPORT",
 } as const;
