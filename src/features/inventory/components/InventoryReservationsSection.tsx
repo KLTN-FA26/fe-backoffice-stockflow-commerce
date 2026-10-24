@@ -52,7 +52,7 @@ export function InventoryReservationsSection({
     <section
       aria-labelledby="inventory-reservations"
       aria-busy={query.isFetching}
-      className="border-border-default bg-bg-surface rounded-[var(--r-sm)] border"
+      className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border shadow-(--card-shadow)"
     >
       <div className="flex flex-wrap items-center justify-between gap-[var(--el-gap)] p-[var(--card-pad)]">
         <h2 id="inventory-reservations" className="text-ink-primary font-semibold">

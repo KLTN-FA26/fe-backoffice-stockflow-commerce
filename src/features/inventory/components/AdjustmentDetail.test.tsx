@@ -108,7 +108,7 @@ describe("adjustment detail", () => {
     const fixture = adjustmentFixture({ requestedBy: requester });
     server.use(inventoryPermissions([adjustmentRead]), serve(fixture));
     renderInventory(<AdjustmentDetail id={fixture.adjustmentId} />);
-    await screen.findByText(fixture.number);
+    await screen.findByRole("heading", { name: fixture.number });
     expectNoDecisionControls();
   });
 
@@ -117,7 +117,7 @@ describe("adjustment detail", () => {
     const fixture = adjustmentFixture();
     server.use(inventoryPermissions([adjustmentRead, stockUpdate]), serve(fixture));
     renderInventory(<AdjustmentDetail id={fixture.adjustmentId} />);
-    await screen.findByText(fixture.number);
+    await screen.findByRole("heading", { name: fixture.number });
     expectNoDecisionControls();
   });
 
@@ -148,7 +148,7 @@ describe("adjustment detail", () => {
     const fixture = adjustmentFixture();
     server.use(inventoryPermissions([adjustmentRead]), serve(fixture));
     renderInventory(<AdjustmentDetail id={fixture.adjustmentId} />);
-    await screen.findByText(fixture.number);
+    await screen.findByRole("heading", { name: fixture.number });
     expectNoDecisionControls();
   });
 
@@ -160,7 +160,7 @@ describe("adjustment detail", () => {
       serve(fixture),
     );
     renderInventory(<AdjustmentDetail id={fixture.adjustmentId} />);
-    await screen.findByText(fixture.number);
+    await screen.findByRole("heading", { name: fixture.number });
     expectNoDecisionControls();
   });
 

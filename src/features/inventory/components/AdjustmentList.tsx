@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { cn } from "cn";
+import { History } from "lucide-react";
 
 import {
   INVENTORY_LABELS,
@@ -15,7 +17,7 @@ import { useCan } from "@/lib/auth";
 
 import { EmptyState } from "@/components/shared/EmptyState";
 import { DataTable } from "@/components/shared/DataTable";
-import { PageHeader } from "@/components/shared/PageHeader";
+import { TOOLBAR_ACTION_CLASS } from "@/components/shared/ListToolbar";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
 
@@ -56,26 +58,39 @@ function AdjustmentListContent() {
     status: state.filters.status ?? undefined,
   });
   const createAction = canCreate ? (
-    <Button className="rounded-[var(--r-sm)]" asChild size="sm">
+    <Button className={cn("bg-brand hover:bg-brand-hover", TOOLBAR_ACTION_CLASS)} asChild size="sm">
       <Link href={INVENTORY_ROUTES.createAdjustment}>{INVENTORY_LABELS.createAdjustment}</Link>
     </Button>
   ) : undefined;
   return (
-    <div className="space-y-[var(--card-pad)]">
-      <PageHeader
-        title={INVENTORY_LABELS.adjustmentTitle}
-        subtitle={INVENTORY_LABELS.approvalPolicy}
+    // Giao diện kiểu Vercel như danh sách sản phẩm (globals.css `.surface-soft`): không tiêu đề hiển
+    // thị — breadcrumb là tên trang; link sang Lịch sử biến động + nút tạo ở cuối toolbar.
+    <div className="surface-soft space-y-[var(--card-pad)]">
+      <h1 className="sr-only">{INVENTORY_LABELS.adjustmentTitle}</h1>
+      <InventoryOffline />
+      <InventoryToolbar
+        state={state}
+        mode="adjustment"
         actions={
           <>
-            <Button className="rounded-[var(--r-sm)]" asChild variant="outline" size="sm">
-              <Link href={INVENTORY_ROUTES.movements}>{INVENTORY_LABELS.movementTitle}</Link>
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className={cn(
+                "border-border-default bg-bg-surface text-ink-primary hover:bg-bg-muted",
+                TOOLBAR_ACTION_CLASS,
+              )}
+            >
+              <Link href={INVENTORY_ROUTES.movements}>
+                <History className="text-dot-info size-3.5" />
+                {INVENTORY_LABELS.movementTitle}
+              </Link>
             </Button>
             {createAction}
           </>
         }
       />
-      <InventoryOffline />
-      <InventoryToolbar state={state} mode="adjustment" />
       {query.isFetching && !query.isLoading && (
         <div role="status" aria-label={INVENTORY_LABELS.fetching} className="bg-info h-1" />
       )}
@@ -88,6 +103,7 @@ function AdjustmentListContent() {
           <section aria-busy={query.isFetching}>
             {query.data.items.length ? (
               <DataTable
+                stickyHeader
                 columns={ADJUSTMENT_COLUMNS}
                 data={query.data.items}
                 rowKey={(row) => row.adjustmentId}

@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { cn } from "cn";
+import { SlidersHorizontal } from "lucide-react";
 
 import {
   INVENTORY_LABELS,
@@ -13,7 +15,7 @@ import { INVENTORY_PERMISSIONS } from "@/constants/permissions";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 import { DataTable } from "@/components/shared/DataTable";
-import { PageHeader } from "@/components/shared/PageHeader";
+import { TOOLBAR_ACTION_CLASS } from "@/components/shared/ListToolbar";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
 
@@ -54,18 +56,31 @@ function MovementHistoryContent() {
     type: state.filters.type ?? undefined,
   });
   return (
-    <div className="space-y-[var(--card-pad)]">
-      <PageHeader
-        title={INVENTORY_LABELS.movementTitle}
-        subtitle={INVENTORY_LABELS.movementSubtitle}
+    // Giao diện kiểu Vercel như danh sách sản phẩm (globals.css `.surface-soft`): không tiêu đề hiển
+    // thị — breadcrumb là tên trang; link sang Điều chỉnh tồn ở cuối toolbar.
+    <div className="surface-soft space-y-[var(--card-pad)]">
+      <h1 className="sr-only">{INVENTORY_LABELS.movementTitle}</h1>
+      <InventoryOffline />
+      <InventoryToolbar
+        state={state}
+        mode="movement"
         actions={
-          <Button className="rounded-[var(--r-sm)]" asChild variant="outline" size="sm">
-            <Link href={INVENTORY_ROUTES.adjustments}>{INVENTORY_LABELS.adjustmentTitle}</Link>
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className={cn(
+              "border-border-default bg-bg-surface text-ink-primary hover:bg-bg-muted",
+              TOOLBAR_ACTION_CLASS,
+            )}
+          >
+            <Link href={INVENTORY_ROUTES.adjustments}>
+              <SlidersHorizontal className="text-dot-info size-3.5" />
+              {INVENTORY_LABELS.adjustmentTitle}
+            </Link>
           </Button>
         }
       />
-      <InventoryOffline />
-      <InventoryToolbar state={state} mode="movement" />
       {query.isFetching && !query.isLoading && (
         <div role="status" aria-label={INVENTORY_LABELS.fetching} className="bg-info h-1" />
       )}
@@ -78,6 +93,7 @@ function MovementHistoryContent() {
           <section aria-busy={query.isFetching}>
             {query.data.items.length ? (
               <DataTable
+                stickyHeader
                 columns={MOVEMENT_COLUMNS}
                 data={query.data.items}
                 rowKey={(row) => row.movementId}
