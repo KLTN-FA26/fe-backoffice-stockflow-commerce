@@ -14,6 +14,7 @@ import { TaxonomyListBody } from "./TaxonomyListBody";
 import { TaxonomyToolbar } from "./TaxonomyToolbar";
 import { useTaxonomyListState } from "./useTaxonomyListState";
 
+import type { ReactNode } from "react";
 import type { CategoryRow } from "./taxonomy-columns";
 
 const L = UI_LABELS.taxonomy;
@@ -25,7 +26,7 @@ const ALL_COLUMNS = Object.values(TAXONOMY_CATEGORY_COLUMNS);
  * mã có '-' / trùng tiền tố hay cha ở trang khác.
  * Bấm dòng để sửa (hoặc xem khi thiếu quyền sửa).
  */
-export function CategoryList() {
+export function CategoryList({ actions }: { actions?: ReactNode }) {
   const s = useTaxonomyListState(STORAGE_KEYS.adminTaxonomyCategoriesConfig, ALL_COLUMNS);
   // Path đang mở — mặc định chỉ thấy danh mục gốc, như duyệt thư mục trên Drive (UI state cục bộ)
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
@@ -64,6 +65,7 @@ export function CategoryList() {
         s={s}
         searchPlaceholder={L.categorySearchPlaceholder}
         columnLabels={CATEGORY_COLUMN_LABELS}
+        actions={actions}
         lockedColumn={TAXONOMY_CATEGORY_COLUMNS.CODE}
         tools={
           // Mở / thu gọn cây: icon cạnh các công cụ khác, chỉ khi đang xem dạng cây
@@ -72,12 +74,12 @@ export function CategoryList() {
             <>
               <ToolbarIconButton
                 label={L.expandAll}
-                icon={<ChevronsUpDown className="size-4" />}
+                icon={<ChevronsUpDown className="size-3.5" />}
                 onClick={() => setExpanded(new Set(expandable))}
               />
               <ToolbarIconButton
                 label={L.collapseAll}
-                icon={<ChevronsDownUp className="size-4" />}
+                icon={<ChevronsDownUp className="size-3.5" />}
                 onClick={() => setExpanded(new Set())}
               />
             </>
