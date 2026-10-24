@@ -1,11 +1,20 @@
 "use client";
 
-import { PICK_LINE_LABELS, PICK_STATUS, UI_LABELS } from "@/constants";
+import Link from "next/link";
+
+import {
+  ADMIN_ROUTES,
+  PICK_LINE_LABELS,
+  PICK_STATUS,
+  PUT_BACK_LABELS,
+  UI_LABELS,
+} from "@/constants";
 import {
   awaitingPutBackCount,
   needsLinePlanning,
   pickProgress,
   printLineCount,
+  shortLineCount,
 } from "@/features/fulfillment/pick-line-selectors";
 import { Alert } from "@/components/shared/Alert";
 import { Skeleton } from "@/components/shared/Skeleton";
@@ -16,14 +25,14 @@ import { PickLinesTable } from "./PickLinesTable";
 import { PlanLinesNotice } from "./PlanLinesNotice";
 
 import type { FulfillmentTask, PickLine } from "@/features/fulfillment/types";
-import type { ComponentProps, ReactNode } from "react";
+import type { ComponentProps } from "react";
 
 const L = PICK_LINE_LABELS;
 
 /**
  * Danh sách dòng lấy hàng của task (BE `GET /tasks/{id}/pick-lines`, SCRUM-267): tiến độ, bảng theo
- * lộ trình, ghi chú dòng in (BR-06, docs 07 §6) và số dòng chờ trả về kệ khi đơn đã huỷ. `notice` là ghi chú
- * thêm trên bảng (vd đơn tạm giữ vì thiếu hàng).
+ * lộ trình, ghi chú dòng in (BR-06, docs 07 §6), số dòng chờ trả về kệ khi đơn đã huỷ và đơn tạm giữ vì
+ * dòng thiếu (X-SHORT: BE đưa đơn sang ON_HOLD tới khi phân bổ lại).
  */
 export function PickLinesSection({
   task,
@@ -31,7 +40,7 @@ export function PickLinesSection({
   isPending,
   error,
   onRetry,
-  notice,
+  canOpenPutBacks = false,
   ...table
 }: {
   task: FulfillmentTask;
@@ -39,7 +48,8 @@ export function PickLinesSection({
   isPending: boolean;
   error: unknown;
   onRetry: () => void;
-  notice?: ReactNode;
+  /** Người xem có `fulfillment-picking:READ` → hiện link sang hàng đợi trả về kệ. */
+  canOpenPutBacks?: boolean;
 } & Omit<ComponentProps<typeof PickLinesTable>, "lines">) {
   const printLines = printLineCount(task);
 
@@ -69,15 +79,28 @@ export function PickLinesSection({
       return <p className="text-ink-secondary text-[0.8125rem]">{text}</p>;
     }
     const awaiting = awaitingPutBackCount(task, lines);
+    // Đơn huỷ thì dòng Thiếu vẫn giữ SHORT (BE chỉ huỷ dòng Open) — "tạm giữ chờ phân bổ lại" chỉ khi đang lấy
+    const shortLines = task.pickStatus === PICK_STATUS.PICKING ? shortLineCount(lines) : 0;
     const { picked, total } = pickProgress(lines);
     return (
       <div className="space-y-3">
         {awaiting > 0 && (
           <Alert tone="warning" title={L.awaitingPutBack(awaiting)}>
+            {canOpenPutBacks && task.warehouseId ? (
+              <Link
+                href={ADMIN_ROUTES.putBacks.listInWarehouse(task.warehouseId)}
+                className="text-accent font-medium hover:underline"
+              >
+                {PUT_BACK_LABELS.openQueue}
+              </Link>
+            ) : null}
+          </Alert>
+        )}
+        {shortLines > 0 && (
+          <Alert tone="warning" title={L.onHoldForShort(shortLines)}>
             {null}
           </Alert>
         )}
-        {notice}
         <div className="flex items-center gap-3">
           <span className="text-ink-primary text-[0.8125rem] font-medium tabular-nums">
             {L.progress(picked, total)}

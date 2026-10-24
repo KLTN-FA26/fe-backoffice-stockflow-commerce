@@ -7,6 +7,7 @@ import { apiTaskLines } from "./__fixtures__/task";
 import { toPickLine } from "./pick-line-api";
 import {
   awaitingPutBackCount,
+  defaultPutBackLocation,
   itemOptions,
   linesComplete,
   needsLinePlanning,
@@ -16,6 +17,7 @@ import {
   pickLocationOptions,
   pickProgress,
   printLineCount,
+  putBackLocationOptions,
   shortLineCount,
 } from "./pick-line-selectors";
 
@@ -125,5 +127,24 @@ describe("pick-line selectors", () => {
     const picked = withStatus(["Picked", "Cancelled", "Cancelled"]);
     expect(awaitingPutBackCount({ pickStatus: "Cancelled" }, picked)).toBe(1);
     expect(awaitingPutBackCount({ pickStatus: "Picked" }, picked)).toBe(0);
+  });
+});
+
+describe("vị trí trả hàng về kệ — BE PickList.putBack: chỉ bin đang dùng được của kho task", () => {
+  const LOCATIONS = [
+    { locationCode: "HN-A01-01-01-A", kind: "BIN" as const, usable: true },
+    { locationCode: "HN-A01-01-02-A", kind: "BIN" as const, usable: false },
+    { locationCode: "HN-STAGE-01", kind: "AREA" as const, usable: true },
+  ];
+
+  it("putBackLocationOptions bỏ khu chứa và bin không dùng được", () => {
+    expect(putBackLocationOptions(LOCATIONS).map((o) => o.value)).toEqual(["HN-A01-01-01-A"]);
+    expect(putBackLocationOptions(undefined)).toEqual([]);
+  });
+
+  it("defaultPutBackLocation: bin cũ còn dùng được → chọn sẵn; không thì để trống", () => {
+    expect(defaultPutBackLocation("HN-A01-01-01-A", LOCATIONS)).toBe("HN-A01-01-01-A");
+    expect(defaultPutBackLocation("HN-A01-01-02-A", LOCATIONS)).toBe("");
+    expect(defaultPutBackLocation("HN-STAGE-01", LOCATIONS)).toBe("");
   });
 });

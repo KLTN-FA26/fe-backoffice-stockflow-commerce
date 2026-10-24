@@ -2,7 +2,7 @@
 
 import { cn } from "cn";
 
-import { PICK_LINE_LABELS } from "@/constants";
+import { PICK_LINE_LABELS, PICK_LINE_STATUS, PUT_BACK_LABELS } from "@/constants";
 import { isConfirmableLine } from "@/features/fulfillment/pick-line-lifecycle";
 import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
@@ -99,6 +99,11 @@ export function PickLinesTable({
                 )}
                 <td className={TD}>
                   <StatusDot domain="pick" status={line.status} />
+                  {line.status === PICK_LINE_STATUS.PUT_BACK && line.putBackLocationCode && (
+                    <span className="text-ink-tertiary block text-xs">
+                      {PUT_BACK_LABELS.returnedTo(line.putBackQty, line.putBackLocationCode)}
+                    </span>
+                  )}
                 </td>
                 {hasActionColumn && (
                   <td className={`${TD} text-right`}>

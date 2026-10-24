@@ -1,9 +1,19 @@
 import { describe, expect, it } from "vitest";
 
-import { FULFILLMENT_ERROR_MESSAGES as MSG, PICK_LINE_ERROR_MESSAGES as PL } from "@/constants";
+import {
+  FULFILLMENT_ERROR_MESSAGES as MSG,
+  PICK_LINE_ERROR_MESSAGES as PL,
+  PUT_BACK_ERROR_MESSAGES as PB,
+} from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
-import { confirmLineError, reallocateError, shortPickError } from "./pick-line-errors";
+import { isStaleFulfillmentError } from "./errors";
+import {
+  confirmLineError,
+  putBackError,
+  reallocateError,
+  shortPickError,
+} from "./pick-line-errors";
 
 const LINE = { locationCode: "HN-A01-01-01-A", sku: "TEE-BLK-M", allocatedQty: 3 };
 const be = (status: number, code: string) => new ApiError(status, code, "x");
@@ -75,5 +85,32 @@ describe("reallocateError — BE reallocateShort", () => {
   it("404: BE reallocateShort không xét người được gán → 'task / dòng không còn', không phải 'không được gán cho bạn'", () => {
     expect(reallocateError(be(404, "NOT_FOUND"))).toBe(PL.lineMissing);
     expect(PL.lineMissing).not.toBe(PL.notAssignee);
+  });
+});
+
+describe("putBackError — BE PickList.putBack (SCRUM-275)", () => {
+  it("PUT_BACK_LOCATION_INVALID → lỗi dưới ô Vị trí trả", () => {
+    expect(putBackError(be(409, "PUT_BACK_LOCATION_INVALID"))).toEqual({
+      field: "locationCode",
+      message: PB.locationInvalid,
+      stale: false,
+    });
+  });
+
+  it("dòng đã trả / không cần trả / không còn → tải lại", () => {
+    expect(putBackError(be(409, "PUT_BACK_NOT_REQUIRED"))).toEqual({
+      message: PB.notRequired,
+      stale: true,
+    });
+    expect(putBackError(be(404, "NOT_FOUND"))).toEqual({ message: PB.notFound, stale: true });
+    expect(isStaleFulfillmentError(be(409, "PUT_BACK_NOT_REQUIRED"))).toBe(true);
+  });
+
+  it("kho ngoài phạm vi / mất mạng → banner, không tải lại", () => {
+    expect(putBackError(be(403, "OUT_OF_DATA_SCOPE"))).toEqual({
+      message: PB.outOfScope,
+      stale: false,
+    });
+    expect(putBackError(be(0, "NETWORK_ERROR"))).toEqual({ message: PB.network, stale: false });
   });
 });

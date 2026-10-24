@@ -40,6 +40,7 @@ import {
 } from "./mock-routes-fulfillment-store";
 import { registerPackingMockRoutes } from "./mock-routes-packing";
 import { registerPickLineMockRoutes } from "./mock-routes-pick-lines";
+import { registerPutBackMockRoutes } from "./mock-routes-put-backs";
 import { getMockPickLines } from "./mock-routes-pick-lines-store";
 import {
   backendOrderStatusOf,
@@ -442,4 +443,5 @@ export function registerFulfillmentMockRoutes(): void {
   registerAssigneeRoutes();
   registerTaskCandidateRoutes();
   registerPickLineMockRoutes();
+  registerPutBackMockRoutes();
 }

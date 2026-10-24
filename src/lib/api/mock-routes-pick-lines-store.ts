@@ -4,7 +4,7 @@
  * đơn mock (dòng in không lấy từ kệ — BR-06), vị trí từ bin mock của kho task. Chỉ dùng khi USE_MOCK=true.
  */
 
-import { fakeSha256 } from "./mock-routes-orders";
+import { backendOrderStatusOf, fakeSha256 } from "./mock-routes-orders";
 import { beError } from "./mock-routes-purchase-orders-store";
 import { mockPickableBinCodes } from "./mock-routes-warehouse-layout";
 
@@ -182,4 +182,24 @@ export async function withIdempotency(
     idempotent.set(scoped, { body, response });
   }
   return response;
+}
+
+/**
+ * BE `OrderCancellationListener` + `PickJpaEntity#cancel`: đơn bị huỷ → pick + pack huỷ; đã bắt đầu lấy thì đánh
+ * dấu trả về kệ; chỉ dòng OPEN huỷ theo (`PickList.cancelOpenLines`) — dòng SHORT giữ nguyên, dòng PICKED giữ
+ * nguyên chờ trả. Đơn đã đóng gói không huỷ được
+ * (mock đơn hàng chặn từ trước).
+ */
+export async function syncCancelledOrders(tasks: readonly MockTask[]): Promise<void> {
+  for (const task of tasks) {
+    if (task.pickStatus === "CANCELLED") continue;
+    if ((await backendOrderStatusOf(task.orderId)) !== "CANCELLED") continue;
+    const lines = await getMockPickLines(task);
+    task.needsPutBack = task.pickStatus !== "PENDING";
+    task.pickStatus = "CANCELLED";
+    task.packStatus = "CANCELLED";
+    for (const line of lines) {
+      if (line.status === "OPEN") line.status = "CANCELLED";
+    }
+  }
 }

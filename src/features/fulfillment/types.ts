@@ -11,6 +11,7 @@ import type {
   confirmPickInputSchema,
   shortPickInputSchema,
 } from "./pick-line-schemas";
+import type { bePutBackRowSchema, putBackInputSchema } from "./put-back-schemas";
 import type {
   assigneeSchema,
   beArtifactAccessSchema,
@@ -94,3 +95,16 @@ export interface ReportShortPickInput extends PickLineWriteInput {
 }
 
 export type ReallocateShortLineInput = PickLineWriteInput;
+
+/* ── Trả hàng về kệ (SCRUM-275) ──────────────────────────────────────── */
+
+export type PutBackRowApiDto = z.infer<typeof bePutBackRowSchema>;
+export type PutBackRow = PutBackRowApiDto;
+export type PutBackValues = z.output<typeof putBackInputSchema>;
+
+export interface PutBackLineInput extends PutBackValues {
+  taskId: string;
+  lineId: string;
+  /** Mỗi lần thử một key; gửi lại đúng nội dung thì dùng lại key (BE IdempotencyFilter). */
+  idempotencyKey: string;
+}

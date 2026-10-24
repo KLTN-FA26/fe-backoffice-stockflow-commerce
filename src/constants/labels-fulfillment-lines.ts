@@ -90,3 +90,48 @@ export const PICK_LINE_ERROR_MESSAGES = {
   // BE PickList.reportShort: 0 ≤ số tìm thấy < SL phân bổ (ngoài khoảng → 400 VALIDATION_FAILED)
   shortFoundRange: (max: number) => `Số tìm thấy từ 0 đến ${max}`,
 } as const;
+
+/** Màn "Trả hàng về kệ" (BE `GET /fulfillment/put-backs`, SCRUM-275). */
+export const PUT_BACK_LABELS = {
+  title: "Trả hàng về kệ",
+  searchPlaceholder: "Tìm số đơn, SKU hoặc vị trí lấy",
+  // Badge thanh "Cấu hình" — tách "Search chính" khỏi bộ lọc (data-table-mode-a §3)
+  searchSummary: "Search chính",
+  searchUnused: "Chưa dùng",
+  action: "Trả về kệ",
+  actionFor: (sku: string, orderNumber: string) => `Trả ${sku} của đơn ${orderNumber} về kệ`,
+  location: "Vị trí trả",
+  locationPlaceholder: "Chọn bin đang hoạt động",
+  summary: (qty: number, sku: string, lot: string | null | undefined, orderNumber: string) =>
+    `Trả ${qty} × ${sku}${lot ? ` (lô ${lot})` : ""} của đơn ${orderNumber} về kệ.`,
+  empty: "Không có hàng chờ trả về kệ",
+  emptyDescription: "Hàng đã lấy của các đơn bị huỷ sẽ xuất hiện ở đây.",
+  emptyInWarehouse: "Kho này không có hàng chờ trả",
+  noMatch: "Không tìm thấy dòng khớp",
+  noMatchDescription: "Thử từ khoá khác hoặc bỏ bộ lọc.",
+  truncated: (shown: number, total: number) =>
+    `Đang hiện ${shown}/${total} dòng cũ nhất — trả bớt rồi tải lại để thấy phần còn lại.`,
+  // Không tải được sơ đồ kho (thiếu warehouse-locations:READ / mạng) → vẫn trả về bin đã lấy ra; BE tự kiểm bin
+  locationsFallback: "Không tải được sơ đồ kho — chỉ chọn được bin đã lấy ra.",
+  openQueue: "Mở hàng đợi trả về kệ",
+  // Dòng Put Back trong bảng dòng lấy hàng: BE `putBackQty` / `putBackLocationCode` (có thể khác bin lấy ra)
+  returnedTo: (qty: number, locationCode: string) => `Đã trả ${qty} về ${locationCode}`,
+  column: {
+    order: "Đơn hàng",
+    sku: "SKU",
+    lot: "Lô",
+    pickedQty: "SL đã lấy",
+    fromLocation: "Vị trí lấy",
+    pickedAt: "Lấy lúc",
+    actions: "Thao tác",
+  },
+} as const;
+
+/** Lỗi `POST …/pick-lines/{lineId}/put-back` và `GET /fulfillment/put-backs`. */
+export const PUT_BACK_ERROR_MESSAGES = {
+  locationInvalid: "Vị trí trả phải là bin đang hoạt động của kho này",
+  notRequired: "Dòng này đã được trả về kệ hoặc không cần trả. Danh sách đã được tải lại.",
+  notFound: "Không tìm thấy dòng này nữa. Danh sách đã được tải lại.",
+  outOfScope: "Kho này nằm ngoài phạm vi kho bạn phụ trách.",
+  network: "Không gửi được — kiểm tra mạng rồi thử lại.",
+} as const;

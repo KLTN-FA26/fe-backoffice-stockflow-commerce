@@ -14,11 +14,12 @@ import {
 
 import { mockGrantsOf } from "./mock-user-grants";
 import { resetPackingMockStore } from "./mock-routes-packing-store";
-import { resetPickLineMockStore } from "./mock-routes-pick-lines-store";
+import { resetPickLineMockStore, syncCancelledOrders } from "./mock-routes-pick-lines-store";
 import {
   backendOrderStatusOf,
   fakeSha256,
   lockedChecksumOf,
+  mockOrderCancellations,
   putMockOrderOnDesignHold,
   setMockOrderStatus,
   snapshotIdOf,
@@ -57,6 +58,8 @@ export interface MockTask {
   createdAt: string;
   /** Append-only; trả ra mới nhất trước như BE. */
   evidence: MockEvidence[];
+  /** Đơn huỷ sau khi đã bắt đầu lấy → hàng đã lấy phải trả về kệ (BE `pick.needs_put_back`). */
+  needsPutBack?: boolean;
 }
 
 interface SeedSpec {
@@ -97,8 +100,11 @@ let store: Map<string, MockTask> | undefined;
 /** orderId → số lần kiểm tra lại còn thất bại (có key = file đang lệch). */
 const tampered = new Map<string, number>();
 let sequence = 0;
+/** Lần huỷ đơn mock đã đồng bộ sang task (-1 = chưa lần nào). */
+let syncedCancellations = -1;
 
 export function resetFulfillmentMockStore(): void {
+  syncedCancellations = -1;
   resetPickLineMockStore();
   resetPackingMockStore();
   store = undefined;
@@ -161,6 +167,8 @@ function seedTask(order: Order, spec: SeedSpec): MockTask {
     packedAt: spec.pack === "PACKED" ? at(95) : undefined,
     createdAt: at(30),
     evidence: [],
+    // Seed: đơn huỷ sau khi đã lấy — dòng đầu đã lấy chờ trả về kệ (xem `getMockPickLines`)
+    needsPutBack: spec.pick === "CANCELLED",
   };
   if (spec.tamperedReverifyFailures !== undefined) {
     tampered.set(order.orderId, spec.tamperedReverifyFailures);
@@ -172,7 +180,22 @@ function seedTask(order: Order, spec: SeedSpec): MockTask {
 /** userId → tên hiển thị (BE trả `assignedUserName` trên task); nạp cùng lúc với store. */
 const staffNameById = new Map<string, string>();
 
+/**
+ * Store task; mỗi lần đọc đồng bộ đơn đã bị huỷ ở mock đơn hàng (BE `OrderCancellationListener` chạy sau sự
+ * kiện OrderCancelled) — kéo theo task, dòng mở và cờ trả về kệ.
+ */
 export async function getFulfillmentStore(): Promise<Map<string, MockTask>> {
+  const tasks = await loadStore();
+  // Chỉ duyệt lại task khi có đơn vừa bị huỷ, không phải ở mọi request
+  const cancellations = mockOrderCancellations();
+  if (cancellations !== syncedCancellations) {
+    await syncCancelledOrders([...tasks.values()]);
+    syncedCancellations = cancellations;
+  }
+  return tasks;
+}
+
+async function loadStore(): Promise<Map<string, MockTask>> {
   if (store) return store;
   const { orders, staffUsers } = await import("@/lib/mock-data");
   for (const user of staffUsers) staffNameById.set(user.userId, user.fullName);

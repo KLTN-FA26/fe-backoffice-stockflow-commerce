@@ -6,8 +6,10 @@
  */
 
 import {
+  FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS,
   FULFILLMENT_PICKING_PERMISSIONS,
   FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS,
+  FULFILLMENT_TASK_OVERSIGHT_PERMISSIONS,
   PICK_LINE_STATUS,
   PICK_STATUS,
 } from "@/constants";
@@ -67,5 +69,30 @@ export function allowedTaskActions(
 ): readonly FulfillmentAction[] {
   return allowedFulfillmentActions(task, actor).filter(
     (action) => action.code !== "completePicking" || gates.linesComplete,
+  );
+}
+
+/**
+ * Hàng đợi trả về kệ — BE `FulfillmentController#putBacks` (`fulfillment-picking:READ`) / `#putBack`
+ * (`fulfillment-picking:UPDATE`); bất kỳ ai có quyền của kho đó, không cần là người đã lấy.
+ * UI-only — Backend phải re-check (kể cả phạm vi kho: OUT_OF_DATA_SCOPE).
+ */
+export function canViewPutBacks(actor: FulfillmentActor): boolean {
+  return actor.can(FULFILLMENT_PICKING_PERMISSIONS.read);
+}
+
+export function canPutBack(actor: FulfillmentActor): boolean {
+  return canViewPutBacks(actor) && actor.can(FULFILLMENT_PICKING_PERMISSIONS.update);
+}
+
+/**
+ * Mở được chi tiết task của người khác (vd từ hàng đợi trả về kệ) — BE `TaskAccess.requireVisible`: ngoài người
+ * được gán, chỉ ai có `fulfillment-task-oversight:READ` hoặc `fulfillment-design-reverification:READ`; còn lại 404.
+ * UI-only — Backend phải re-check (kể cả phạm vi kho).
+ */
+export function canOpenOthersTask(actor: FulfillmentActor): boolean {
+  return (
+    actor.can(FULFILLMENT_TASK_OVERSIGHT_PERMISSIONS.read) ||
+    actor.can(FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS.read)
   );
 }
