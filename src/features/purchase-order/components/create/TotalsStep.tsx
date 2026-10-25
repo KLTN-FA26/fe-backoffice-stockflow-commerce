@@ -31,7 +31,7 @@ export function TotalsStep({
         title={UI_LABELS.purchaseOrder.totals}
         description="Tổng giá trị PO = tạm tính (Σ số lượng × đơn giá) + thuế từng dòng; chưa gồm chiết khấu."
       />
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <div className="border-border-default rounded-[var(--r-sm)] border px-3 py-2">
           <div className="text-ink-tertiary text-xs">Tạm tính</div>
           <div className="text-ink-primary mt-1 truncate font-[family-name:var(--font-mono)] text-[1rem] font-semibold tabular-nums">
@@ -60,7 +60,7 @@ export function TotalsStep({
           lines.map((line, i) => (
             <div
               key={i}
-              className="border-border-default grid gap-2 border-b px-3 py-2 text-[0.8125rem] last:border-b-0 md:grid-cols-[1fr_90px_120px_120px]"
+              className="border-border-default grid grid-cols-1 gap-2 border-b px-3 py-2 text-[0.8125rem] last:border-b-0 md:grid-cols-[minmax(0,1fr)_90px_120px_120px]"
             >
               <div className="min-w-0">
                 <div className="text-ink-primary truncate font-medium">

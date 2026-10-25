@@ -9,7 +9,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PRODUCT_PERMISSIONS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
-import { goToLastStep, installApi, pickOption, renderApp } from "../product-test-utils";
+import {
+  goToLastStep,
+  installApi,
+  pickOption,
+  pickTreeOption,
+  renderApp,
+} from "../product-test-utils";
 import { ProductCreate } from "./ProductCreate";
 
 const { pushMock } = vi.hoisted(() => ({ pushMock: vi.fn() }));
@@ -83,7 +89,7 @@ async function fillMaster(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText(/^Tên sản phẩm/), "Túi tote");
   await user.type(screen.getByLabelText(/Tên tiếng Anh/), "Tote bag");
   await pickOption(user, /Thương hiệu/, "Thương hiệu A");
-  await pickOption(user, /Danh mục/, "Ly giấy");
+  await pickTreeOption(user, /Danh mục/, "Ly giấy");
 }
 
 const stepButton = (name: RegExp) => screen.getByRole("button", { name });

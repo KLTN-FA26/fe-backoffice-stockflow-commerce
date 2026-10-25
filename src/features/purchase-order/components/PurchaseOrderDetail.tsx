@@ -51,9 +51,9 @@ function PurchaseOrderDetailBody({ id }: { id: string }) {
         </Alert>
       )}
       {/* min-w-0: cột lưới không giãn theo nội dung (bảng, tên NCC dài) → hết tràn ngang < 1280px. */}
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-5">
-          <div className="grid gap-5 md:grid-cols-2 [&>*]:min-w-0">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 [&>*]:min-w-0">
             <PoGeneralInfo po={po} />
             <PoSupplierInfo po={po} supplier={d.supplier} supplierName={supplierName} />
           </div>

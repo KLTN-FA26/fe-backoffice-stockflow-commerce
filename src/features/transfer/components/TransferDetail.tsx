@@ -43,7 +43,7 @@ function TransferDetailBody({ id }: { id: string }) {
     <div className="surface-soft surface-compact">
       <h1 className="sr-only">{transfer.number}</h1>
       {query.isError && <RefetchErrorNotice onRetry={() => void query.refetch()} />}
-      <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-5">
           <TransferInfo transfer={transfer} />
           <Section title={L.sectionLines}>

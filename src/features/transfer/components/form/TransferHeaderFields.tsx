@@ -10,7 +10,7 @@ import {
   TRANSFER_REASONS,
   UI_LABELS,
 } from "@/constants";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/shared/DatePicker";
 import {
   Select,
   SelectGroup,
@@ -35,7 +35,7 @@ const NO_REASON = "__none__";
 export function TransferHeaderFields({ form }: { form: TransferForm }) {
   const errors = form.formState.errors;
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
       <WarehouseField
         form={form}
         name="fromWarehouseId"
@@ -115,13 +115,22 @@ export function TransferHeaderFields({ form }: { form: TransferForm }) {
         label={UI_LABELS.transfer.field.expectedDate}
         error={errors.expectedDate?.message}
       >
-        <Input
-          id="transfer-expected"
-          type="date"
-          aria-invalid={errors.expectedDate ? true : undefined}
-          aria-describedby={errors.expectedDate ? "transfer-expected-error" : undefined}
-          className={`${fieldClass(!!errors.expectedDate)} tabular-nums`}
-          {...form.register("expectedDate")}
+        <Controller
+          control={form.control}
+          name="expectedDate"
+          render={({ field }) => (
+            <DatePicker
+              id="transfer-expected"
+              value={field.value ?? ""}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              ref={field.ref}
+              clearable
+              aria-invalid={errors.expectedDate ? true : undefined}
+              aria-describedby={errors.expectedDate ? "transfer-expected-error" : undefined}
+              className={fieldClass(!!errors.expectedDate)}
+            />
+          )}
         />
       </Field>
       <p className="text-ink-tertiary text-xs md:col-span-2">

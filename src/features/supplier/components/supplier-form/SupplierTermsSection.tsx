@@ -54,7 +54,7 @@ export function SupplierTermsSection({
       <h2 className="text-ink-primary mb-3 flex items-center gap-2 text-sm font-semibold">
         <Landmark className="size-3.5" /> Điều khoản &amp; kênh gửi PO
       </h2>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-1">
           <Label htmlFor={fieldId("paymentTermDays")} required>
             {L.paymentTermDays} (ngày)

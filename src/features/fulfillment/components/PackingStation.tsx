@@ -97,7 +97,7 @@ function PackingStationBody({ id }: { id: string }) {
           onBack={() => void setLabelId(null)}
         />
       ) : (
-        <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
           <div className="min-w-0 space-y-5">
             <PackingNotices
               session={session}

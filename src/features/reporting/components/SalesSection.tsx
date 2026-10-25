@@ -21,14 +21,19 @@ export function SalesSection() {
   if (!canRead) return null;
   return (
     <section aria-label={REPORTING_LABELS.title} className="mb-6 space-y-3">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <h2 className="text-ink-primary text-base font-semibold">{REPORTING_LABELS.title}</h2>
-        <RebuildAction range={range} />
+      {/* Một hàng: tiêu đề trái — bộ lọc khoảng ngày + "Tính lại" phải (xuống dòng khi hẹp) */}
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+        <h2 className="text-ink-primary text-base leading-8 font-semibold">
+          {REPORTING_LABELS.title}
+        </h2>
+        <div className="flex flex-wrap items-start justify-end gap-2">
+          <SalesRangeFilter range={range} preset={preset} onPreset={setPreset} onRange={setRange} />
+          <RebuildAction range={range} />
+        </div>
       </div>
-      <SalesRangeFilter range={range} preset={preset} onPreset={setPreset} onRange={setRange} />
       <SalesSummaryCards range={range} />
       <SalesDailyWidget range={range} />
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <TopProductsWidget range={range} />
         <OrderStatusWidget />
       </div>

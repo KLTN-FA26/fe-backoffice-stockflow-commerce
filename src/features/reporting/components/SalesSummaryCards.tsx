@@ -1,10 +1,13 @@
 "use client";
 
+import { Banknote, ReceiptText, ShoppingBag } from "lucide-react";
+
 import { REPORTING_LABELS } from "@/constants/reporting";
 
 import { formatMoney, formatNumber } from "@/lib/format";
 
 import { Skeleton } from "@/components/shared/Skeleton";
+import { StatCell, StatStrip } from "@/components/shared/StatStrip";
 import { Button } from "@/components/ui/button";
 
 import { useSalesSummary } from "../queries";
@@ -20,18 +23,20 @@ const LABELS = {
   orders: L.orders,
   averageOrderValue: L.averageOrderValue,
 } as const;
+const ICONS = { revenue: Banknote, orders: ShoppingBag, averageOrderValue: ReceiptText } as const;
+const TONES = { revenue: "positive", orders: "info", averageOrderValue: "special" } as const;
+
+function direction(change: number) {
+  if (change > 0) return "up" as const;
+  if (change < 0) return "down" as const;
+  return "flat" as const;
+}
 
 /** Revenue / orders / average order value with the change against the previous period. */
 export function SalesSummaryCards({ range }: { range: DateRange }) {
   const query = useSalesSummary(range, true);
   if (query.isPending) {
-    return (
-      <div className="grid gap-3 sm:grid-cols-3" aria-busy="true">
-        {Object.keys(LABELS).map((key) => (
-          <Skeleton key={key} className="h-[92px] rounded-[var(--card-radius)]" />
-        ))}
-      </div>
-    );
+    return <Skeleton className="h-[66px] rounded-[var(--card-radius)]" aria-busy="true" />;
   }
   if (query.isError) {
     return (
@@ -51,22 +56,28 @@ export function SalesSummaryCards({ range }: { range: DateRange }) {
   }
   const { currency } = query.data;
   return (
-    <div className="grid gap-3 sm:grid-cols-3">
+    <StatStrip columns="grid-cols-1 sm:grid-cols-3">
       {summaryCards(query.data).map((card) => (
-        <div key={card.key} className={CARD}>
-          <p className="text-ink-secondary text-xs">{LABELS[card.key]}</p>
-          <p className="text-ink-primary mt-1 font-mono text-xl font-semibold tabular-nums">
-            {card.key === "orders" ? formatNumber(card.value) : formatMoney(card.value, currency)}
-          </p>
-          {card.change !== undefined && (
-            <p
-              className={`mt-1 text-xs tabular-nums ${card.change < 0 ? "text-danger" : "text-positive"}`}
-            >
-              {formatChange(card.change)} {L.changeVsPrevious}
-            </p>
-          )}
-        </div>
+        <StatCell
+          key={card.key}
+          label={LABELS[card.key]}
+          icon={ICONS[card.key]}
+          tone={TONES[card.key]}
+          mono={card.key !== "orders"}
+          value={
+            card.key === "orders" ? formatNumber(card.value) : formatMoney(card.value, currency)
+          }
+          delta={
+            card.change === undefined
+              ? undefined
+              : {
+                  text: formatChange(card.change),
+                  hint: L.changeVsPrevious,
+                  direction: direction(card.change),
+                }
+          }
+        />
       ))}
-    </div>
+    </StatStrip>
   );
 }

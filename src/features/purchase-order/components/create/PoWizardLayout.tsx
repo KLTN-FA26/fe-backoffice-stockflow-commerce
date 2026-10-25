@@ -45,7 +45,7 @@ export function PoWizardLayout({ w, title, draft }: PoWizardLayoutProps) {
     // breadcrumb topbar đã có tên trang và link quay lại; h1 giữ cho screen reader.
     <div className="surface-soft surface-compact">
       <h1 className="sr-only">{title}</h1>
-      <div className="grid gap-4 xl:grid-cols-[260px_1fr]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[260px_minmax(0,1fr)]">
         <CreateStepper
           stepStatus={w.stepStatus}
           canGoTo={w.canGoTo}

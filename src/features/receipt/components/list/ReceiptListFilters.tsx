@@ -4,9 +4,9 @@ import { X } from "lucide-react";
 
 import { UI_LABELS } from "@/constants";
 
+import { DatePicker } from "@/components/shared/DatePicker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 import type { ReceiptListState } from "./useReceiptListState";
@@ -31,12 +31,12 @@ export function ReceiptListFilters({
         <Label htmlFor="receipt-from" className="text-ink-secondary text-[0.8125rem]">
           Ngày nhận từ
         </Label>
-        <Input
+        <DatePicker
           id="receipt-from"
-          type="date"
           value={s.receivedFrom}
           max={s.receivedTo || undefined}
-          onChange={(event) => s.setFrom(event.target.value)}
+          clearable
+          onChange={s.setFrom}
           className={DATE_INPUT}
         />
       </div>
@@ -44,12 +44,12 @@ export function ReceiptListFilters({
         <Label htmlFor="receipt-to" className="text-ink-secondary text-[0.8125rem]">
           đến
         </Label>
-        <Input
+        <DatePicker
           id="receipt-to"
-          type="date"
           value={s.receivedTo}
           min={s.receivedFrom || undefined}
-          onChange={(event) => s.setTo(event.target.value)}
+          clearable
+          onChange={s.setTo}
           className={DATE_INPUT}
         />
       </div>

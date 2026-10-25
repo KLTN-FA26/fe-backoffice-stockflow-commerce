@@ -76,7 +76,7 @@ export function EstimateControls(props: EstimateControlsProps) {
         {props.vehicleTypesState === "ready" && vehicleTypes?.length === 0 && (
           <p className="text-ink-tertiary mt-2 text-xs">{L.vehicleTypesEmpty}</p>
         )}
-        <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
+        <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
           {vehicleTypes?.map((type) => {
             const checked = selectedIds.includes(type.vehicleTypeId);
             return (

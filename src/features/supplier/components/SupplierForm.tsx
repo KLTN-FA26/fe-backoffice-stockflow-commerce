@@ -22,7 +22,7 @@ export function SupplierForm({ existingSupplier }: { existingSupplier?: Supplier
       <h1 className="sr-only">
         {w.isEdit ? `Chỉnh sửa NCC — ${existingSupplier?.name}` : "Tạo nhà cung cấp mới"}
       </h1>
-      <div className="grid gap-4 xl:grid-cols-[260px_1fr]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[260px_minmax(0,1fr)]">
         <Card className="h-fit p-0">
           <div className="border-b border-(--table-line) px-4 py-3">
             <div className="text-ink-tertiary text-xs font-semibold tracking-[0.08em] uppercase">

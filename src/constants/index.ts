@@ -140,6 +140,7 @@ export {
 export type { LayoutOrientation, PlacementRule, ViewKind } from "./load-planning";
 export { SHARED_QUERY_ROOTS } from "./query-roots";
 export {
+  DATE_PICKER_YEAR_SPAN,
   FULFILLMENT_LIMITS,
   INVENTORY_ITEM_OPTIONS_PAGE_SIZE,
   INVENTORY_POLICY_LIMITS,

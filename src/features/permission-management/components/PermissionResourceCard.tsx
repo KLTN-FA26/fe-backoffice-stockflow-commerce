@@ -52,7 +52,7 @@ export function PermissionResourceCard({
         </div>
       )}
       {resource.actions.length > 0 ? (
-        <div className="mt-4 grid gap-2 md:grid-cols-2">
+        <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-2">
           {resource.actions.map((action) => (
             <PermissionActionChip
               key={action.action}

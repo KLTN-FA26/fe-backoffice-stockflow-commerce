@@ -7,8 +7,8 @@ import { formatDate } from "@/lib/format";
 import { isExpectedDatePast } from "@/features/purchase-order";
 import { Alert } from "@/components/shared/Alert";
 import { Card } from "@/components/shared/Card";
+import { DatePicker } from "@/components/shared/DatePicker";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 import { CurrencyField } from "./CurrencyField";
@@ -36,7 +36,7 @@ export function InfoStep({ w, supplierLabel }: { w: CreatePoWizard; supplierLabe
         description="Chọn nhà cung cấp đang hợp tác, kho nhận hàng, tiền tệ của đơn và ngày giao dự kiến."
       />
       <div className="space-y-4">
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {isEdit ? (
             <ReadOnlyField id="po-supplier" label={L.supplier} value={supplierLabel} />
           ) : (
@@ -63,7 +63,7 @@ export function InfoStep({ w, supplierLabel }: { w: CreatePoWizard; supplierLabe
           )}
           <WarehouseField w={w} />
         </div>
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {isEdit ? (
             <ReadOnlyField id="po-currency" label={L.currencyOfPo} value={values.currency} />
           ) : (
@@ -83,7 +83,7 @@ export function InfoStep({ w, supplierLabel }: { w: CreatePoWizard; supplierLabe
             <FieldError id="po-note-error">{errors.note?.message}</FieldError>
           </div>
         </div>
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <div>
             <label
               htmlFor="po-expected"
@@ -91,13 +91,22 @@ export function InfoStep({ w, supplierLabel }: { w: CreatePoWizard; supplierLabe
             >
               Ngày giao dự kiến
             </label>
-            <Input
-              id="po-expected"
-              type="date"
-              aria-invalid={errors.expectedDate ? true : undefined}
-              aria-describedby={errors.expectedDate ? "po-expected-error" : undefined}
-              {...register("expectedDate")}
-              className={fieldClass(!!errors.expectedDate)}
+            <Controller
+              control={control}
+              name="expectedDate"
+              render={({ field }) => (
+                <DatePicker
+                  id="po-expected"
+                  value={field.value ?? ""}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  ref={field.ref}
+                  clearable
+                  aria-invalid={errors.expectedDate ? true : undefined}
+                  aria-describedby={errors.expectedDate ? "po-expected-error" : undefined}
+                  className={fieldClass(!!errors.expectedDate)}
+                />
+              )}
             />
             <FieldError id="po-expected-error">{errors.expectedDate?.message}</FieldError>
             {/* BR-06 (docs 02 §6): so với HÔM NAY — chỉ cảnh báo, không chặn tạo PO. */}

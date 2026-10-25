@@ -34,7 +34,7 @@ afterEach(() => {
 afterAll(() => server.close());
 
 function tile(label: string) {
-  return screen.getByText(label).closest("a, div[class*='min-h']") as HTMLElement;
+  return screen.getByText(label).closest("a, div[title]") as HTMLElement;
 }
 
 describe("KPI tiles — real list endpoints, gated by the endpoint's own permission", () => {
@@ -135,9 +135,11 @@ describe("KPI tiles — real list endpoints, gated by the endpoint's own permiss
         within(tile(DASHBOARD_LABELS.ordersPending)).getByText(DASHBOARD_LABELS.unavailable),
       ).toBeInTheDocument(),
     );
-    expect(
-      within(tile(DASHBOARD_LABELS.ordersPending)).getByText(DASHBOARD_LABELS.unavailableHint),
-    ).toBeInTheDocument();
+    // Lý do nằm ở tooltip của ô, không thêm dòng chữ
+    expect(tile(DASHBOARD_LABELS.ordersPending)).toHaveAttribute(
+      "title",
+      DASHBOARD_LABELS.unavailableHint,
+    );
     await waitFor(() =>
       expect(within(tile(DASHBOARD_LABELS.poPending)).getByText("0")).toBeInTheDocument(),
     );
@@ -179,8 +181,9 @@ describe("KPI tiles — real list endpoints, gated by the endpoint's own permiss
     await waitFor(() =>
       expect(within(tile(DASHBOARD_LABELS.alertsOpen)).getByText("10")).toBeInTheDocument(),
     );
+    // Chi tiết theo loại chỉ nằm ở tooltip của ô — không chiếm thêm dòng
     expect(
-      screen.getByText("Đến điểm đặt hàng 2 · Sắp hết hạn 3 · Đã hết hạn 1 · FUTURE_KIND 4"),
+      screen.getByTitle("Đến điểm đặt hàng 2 · Sắp hết hạn 3 · Đã hết hạn 1 · FUTURE_KIND 4"),
     ).toBeInTheDocument();
   });
 

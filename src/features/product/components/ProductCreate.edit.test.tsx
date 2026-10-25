@@ -19,7 +19,6 @@ vi.mock("@/providers/app-providers", () => ({ useIsMock: () => false }));
 const PRODUCT = "11111111-1111-4111-8111-111111111111";
 const BRAND = "0b6a2f4e-9a43-4c55-8f0e-0c1c6e8c1b11";
 const LATE_BRAND = "0b6a2f4e-9a43-4c55-8f0e-0c1c6e8c1b22";
-const NBSP = " ";
 
 const category = (code: string, name: string, depth: number, active = true) => ({
   categoryId: `cat-${code}`,
@@ -126,13 +125,13 @@ describe("ProductCreate — ô thương hiệu / danh mục", { timeout: 15_000 
     );
   });
 
-  it("tạo: chọn được danh mục cấp 5 và thương hiệu ở trang thứ hai, danh sách thụt lề theo cấp", async () => {
+  it("tạo: chọn được danh mục cấp 5 (tìm trong cây) và thương hiệu ở trang thứ hai", async () => {
     setup(PRODUCT_PERMISSIONS.create);
     const user = userEvent.setup();
     renderApp(<ProductCreate />);
     await user.click(await screen.findByRole("combobox", { name: /Danh mục/ }));
-    const deep = await screen.findByRole("option", { name: /Ly giấy cấp 5/ });
-    expect(deep.textContent).toBe(`${NBSP.repeat(8)}Ly giấy cấp 5`);
+    await user.type(screen.getByRole("textbox", { name: /Tìm danh mục/ }), "cấp 5");
+    const deep = await screen.findByRole("treeitem", { name: /Ly giấy cấp 5/ });
     await user.click(deep);
     expect(screen.getByRole("combobox", { name: /Danh mục/ }).textContent).toBe("Ly giấy cấp 5");
 
