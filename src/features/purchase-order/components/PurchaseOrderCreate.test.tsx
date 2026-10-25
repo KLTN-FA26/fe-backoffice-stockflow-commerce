@@ -4,6 +4,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
+import { pickDate } from "@/test/date-picker";
 
 import {
   WAREHOUSE_REF,
@@ -94,7 +95,7 @@ describe("PurchaseOrderCreate", () => {
   it("BR-06: ngày giao đã qua chỉ cảnh báo (so với hôm nay)", async () => {
     const user = userEvent.setup();
     renderCreate();
-    await user.type(await screen.findByLabelText("Ngày giao dự kiến"), "2020-01-01");
+    await pickDate(user, await screen.findByLabelText("Ngày giao dự kiến"), "2020-01-01");
     expect(await screen.findByText(/Ngày giao dự kiến đã qua/)).toBeInTheDocument();
   });
 
@@ -103,7 +104,7 @@ describe("PurchaseOrderCreate", () => {
     const { post } = renderCreate();
     await pickSupplier(user);
     await pickSelectOption(user, /Tiền tệ của PO/, "USD");
-    await user.type(screen.getByLabelText("Ngày giao dự kiến"), "2099-01-01");
+    await pickDate(user, screen.getByLabelText("Ngày giao dự kiến"), "2030-01-01");
     await user.type(screen.getByLabelText("Ghi chú"), " Giao trước 10h ");
     await next(user);
 
@@ -129,7 +130,7 @@ describe("PurchaseOrderCreate", () => {
         supplierId: SUPPLIER_REF.supplierId,
         warehouseId: WAREHOUSE_REF.id,
         currency: "USD",
-        expectedAt: "2099-01-01",
+        expectedAt: "2030-01-01",
         note: "Giao trước 10h",
         lines: [
           {

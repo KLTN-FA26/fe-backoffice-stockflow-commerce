@@ -2,6 +2,12 @@
  * Ngưỡng số dùng ≥2 chỗ. Mỗi giá trị cite nguồn (docs hoặc ràng buộc BE).
  */
 
+/**
+ * Dropdown năm của `DatePicker`: số năm trước / sau năm hiện tại. Chỉ là phạm vi điều hướng của UI
+ * (hạn dùng, ngày giao…), không phải ràng buộc BE — `min` / `max` của từng ô vẫn chặn riêng.
+ */
+export const DATE_PICKER_YEAR_SPAN = { back: 10, ahead: 10 } as const;
+
 /** Giới hạn đơn đặt NCC — lấy đúng ràng buộc DB/BE nhánh `test` (BE request chưa có @Size). */
 export const PO_LIMITS = {
   /** BE `purchase_order_lines.note VARCHAR(255)` (BE PR #71). */

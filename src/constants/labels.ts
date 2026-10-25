@@ -25,6 +25,17 @@ export const UI_LABELS = {
     /** Badge thanh Cấu hình khi ô search chưa có nội dung. */
     notEntered: "Chưa nhập",
   },
+  // Ô chọn ngày dùng chung (components/shared/DatePicker)
+  datePicker: {
+    placeholder: "Chọn ngày",
+    today: "Hôm nay",
+    clear: "Xoá ngày",
+  },
+  // Ô chọn dạng cây dùng chung (components/shared/TreeSelect)
+  treeSelect: {
+    expand: (label: string) => `Mở ${label}`,
+    collapse: (label: string) => `Thu gọn ${label}`,
+  },
   // Khung back-office (sidebar / topbar)
   shell: {
     appName: "StockFlowCommerce",
