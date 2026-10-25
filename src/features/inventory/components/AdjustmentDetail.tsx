@@ -56,7 +56,7 @@ function AdjustmentDetailContent({ id }: { id: string }) {
       <h1 className="sr-only">{item.number}</h1>
       <InventoryOffline />
       <StatusDot domain="stock" status={item.status} />
-      <dl className="border-border-default bg-bg-surface grid gap-[var(--card-pad)] rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow) md:grid-cols-2">
+      <dl className="border-border-default bg-bg-surface grid grid-cols-1 gap-[var(--card-pad)] rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow) md:grid-cols-2">
         {evidence.map(([label, value]) => (
           <div key={label}>
             <dt className="text-ink-secondary text-sm">{label}</dt>

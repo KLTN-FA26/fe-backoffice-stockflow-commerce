@@ -71,7 +71,7 @@ export function PickingWorkArea({
   };
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[1fr_340px]">
+    <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
       <div className="min-w-0 space-y-5">
         <PickLinesSection
           canOpenPutBacks={canViewPutBacks(actor)}

@@ -98,7 +98,7 @@ export function LinesStep({ w }: { w: CreatePoWizard }) {
       {fields.length > 0 && <FieldError>{rootError}</FieldError>}
 
       {/* BE chưa có thuế / chiết khấu → tạm tính = tổng, chỉ hiện một số. */}
-      <div className="bg-bg-surface border-border-default sticky bottom-0 mt-4 grid gap-3 border-t pt-4 sm:grid-cols-2">
+      <div className="bg-bg-surface border-border-default sticky bottom-0 mt-4 grid grid-cols-1 gap-3 border-t pt-4 sm:grid-cols-2">
         <SummaryItem label={UI_LABELS.purchaseOrder.lineCount} value={String(fields.length)} mono />
         <SummaryItem
           label={UI_LABELS.purchaseOrder.grandTotal}

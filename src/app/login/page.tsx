@@ -180,7 +180,7 @@ function LoginForm() {
             phân quyền theo vai trò.
           </p>
 
-          <div className="mt-10 grid gap-4 sm:grid-cols-3">
+          <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
             {[
               { label: "Nhập hàng", icon: Boxes },
               { label: "Kiểm soát kho", icon: ShieldCheck },

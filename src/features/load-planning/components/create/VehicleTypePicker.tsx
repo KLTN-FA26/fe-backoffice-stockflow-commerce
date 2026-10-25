@@ -37,7 +37,7 @@ export function VehicleTypePicker({
   if (!types || types.length === 0)
     return <p className="text-ink-tertiary text-sm">{L.vehicleTypesEmpty}</p>;
   return (
-    <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+    <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
       {types.map((type) => {
         const id = `lp-vehicle-type-${type.vehicleTypeId}`;
         return (

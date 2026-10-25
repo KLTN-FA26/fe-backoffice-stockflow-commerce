@@ -74,7 +74,7 @@ export function PoLineCard({
         </Button>
       </div>
       <div className="grid gap-2.5">
-        <div className="grid gap-2.5 sm:grid-cols-[1.5fr_1fr]">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
           <div className="min-w-0">
             <label className="text-ink-secondary mb-0.5 block text-[11px] leading-4 font-medium">
               SKU <span className="text-danger">*</span>

@@ -138,7 +138,7 @@ export function InvoiceDetail({ params }: InvoiceDetailProps) {
     <div className="surface-soft surface-compact space-y-4">
       <h1 className="sr-only">{invoice.invoiceNumber}</h1>
 
-      <section className="grid gap-4 lg:grid-cols-[1fr_300px]">
+      <section className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="border-border-default bg-bg-surface overflow-hidden rounded-[var(--card-radius)] border shadow-(--card-shadow)">
           <div className="border-border-default bg-bg-subtle flex items-start justify-between gap-3 border-b px-4 py-3">
             <div>
@@ -155,9 +155,9 @@ export function InvoiceDetail({ params }: InvoiceDetailProps) {
             </div>
           </div>
 
-          <div className="grid gap-4 p-4 lg:grid-cols-[1fr_260px]">
+          <div className="grid grid-cols-1 gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_260px]">
             <div className="space-y-4">
-              <dl className="grid gap-3 text-sm sm:grid-cols-3">
+              <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
                 <div className="border-border-default bg-bg-subtle rounded-[var(--r-sm)] border px-3 py-2">
                   <dt className="text-ink-tertiary text-xs">Nhà cung cấp</dt>
                   <dd className="text-ink-primary mt-1 font-medium">{invoice.supplierId}</dd>
@@ -177,11 +177,11 @@ export function InvoiceDetail({ params }: InvoiceDetailProps) {
               </dl>
 
               <div className="border-border-default rounded-[var(--r-sm)] border">
-                <div className="border-border-default grid grid-cols-[140px_1fr] border-b px-3 py-2 text-sm last:border-b-0">
+                <div className="border-border-default grid grid-cols-[140px_minmax(0,1fr)] border-b px-3 py-2 text-sm last:border-b-0">
                   <span className="text-ink-tertiary">PO tham chiếu</span>
                   <span className="text-ink-primary font-mono">{invoice.poId}</span>
                 </div>
-                <div className="grid grid-cols-[140px_1fr] px-3 py-2 text-sm">
+                <div className="grid grid-cols-[140px_minmax(0,1fr)] px-3 py-2 text-sm">
                   <span className="text-ink-tertiary">Receipt tham chiếu</span>
                   <span className="text-ink-primary font-mono">{invoice.receiptId}</span>
                 </div>
@@ -297,7 +297,7 @@ export function InvoiceDetail({ params }: InvoiceDetailProps) {
             <AlertTriangle className="text-warning size-3.5" />
             <h2 className="text-ink-primary text-sm font-semibold">Variance cần xử lý</h2>
           </div>
-          <div className="grid gap-2 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
             {variances.map((variance) => (
               <div
                 key={`${variance.lineId}-${variance.type}`}

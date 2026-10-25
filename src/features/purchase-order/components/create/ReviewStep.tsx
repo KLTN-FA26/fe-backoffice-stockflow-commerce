@@ -50,13 +50,13 @@ export function ReviewStep({
   const isEdit = mode === "edit";
   const submitLabel = isEdit ? L.editAction : L.createAction;
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
       <Card>
         <SectionTitle
           title={isEdit ? L.draftEdit.reviewTitle : R.title}
           description={isEdit ? L.draftEdit.reviewDescription : R.description}
         />
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <SummaryItem label={L.supplier} value={supplierLabel} />
           <SummaryItem label={R.warehouse} value={warehouseName ?? "—"} />
           <SummaryItem
