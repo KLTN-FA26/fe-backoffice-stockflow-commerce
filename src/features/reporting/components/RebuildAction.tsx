@@ -25,7 +25,13 @@ export function RebuildAction({ range }: { range: DateRange }) {
   if (!canRebuild) return null;
   return (
     <>
-      <Button type="button" size="sm" variant="outline" onClick={() => setOpen(true)}>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        className="h-8"
+        onClick={() => setOpen(true)}
+      >
         <RefreshCw className="size-3.5" />
         {L.rebuild}
       </Button>
