@@ -14,8 +14,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { KPI_DEFINITIONS } from "../kpis";
 import { AlertsKpiTile, KpiTile } from "./KpiTile";
 
-// Một dải gọn: 6 ô một hàng từ xl (laptop 1280), hẹp hơn thì 3 × 2.
-const GRID = "mb-6 grid-cols-2 md:grid-cols-3 xl:grid-cols-6";
+/**
+ * Số cột theo số ô thấy được (ô lọc theo quyền) để dải luôn đầy: đủ 6 ô thì một hàng từ xl (laptop
+ * 1280), hẹp hơn 3 × 2. Map tĩnh để Tailwind quét được class.
+ */
+const COLUMNS: Record<number, string> = {
+  1: "grid-cols-1",
+  2: "grid-cols-2",
+  3: "grid-cols-1 sm:grid-cols-3",
+  4: "grid-cols-2 xl:grid-cols-4",
+  5: "grid-cols-2 md:grid-cols-3 xl:grid-cols-5",
+  6: "grid-cols-2 md:grid-cols-3 xl:grid-cols-6",
+};
 
 /**
  * Row of KPI tiles from the real list endpoints. A tile appears only for a user who holds the BE
@@ -50,7 +60,10 @@ export function DashboardKpis() {
   const showAlerts = hasPermission(permissions.data, DASHBOARD_ALERT_PERMISSION);
   if (visible.length === 0 && !showAlerts) return null;
   return (
-    <StatStrip className={GRID}>
+    <StatStrip
+      className="mb-6"
+      columns={COLUMNS[visible.length + (showAlerts ? 1 : 0)] ?? COLUMNS[6]}
+    >
       {visible.map((definition) => (
         <KpiTile key={definition.key} definition={definition} />
       ))}

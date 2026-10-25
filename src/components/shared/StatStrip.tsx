@@ -24,18 +24,30 @@ const DELTA: Record<DeltaDirection, { color: string; Icon: typeof TrendingUp }> 
 };
 
 /**
- * Dải số liệu gọn kiểu Vercel: MỘT khung bo 8px + bóng nhẹ, các ô ngăn bằng vạch mảnh (gap-px trên nền
- * vạch). Truyền số cột qua `className` (vd `grid-cols-3 xl:grid-cols-6`). Ô là `StatCell`.
+ * Dải số liệu gọn kiểu Vercel: MỘT khung bo 8px + bóng nhẹ, các ô ngăn bằng vạch mảnh. Số cột qua
+ * `columns` (vd `grid-cols-3 xl:grid-cols-6`). Ô là `StatCell`.
+ *
+ * Vạch là viền phải / dưới của từng ô; lưới lệch -1px để viền ở cột cuối / hàng cuối bị khung cắt đi.
+ * Ô trống ở hàng cuối (số ô không chia hết số cột) chỉ là nền trắng — không lộ mảng xám như khi vẽ
+ * vạch bằng `gap-px` trên nền khung.
  */
-export function StatStrip({ className, children }: { className?: string; children: ReactNode }) {
+export function StatStrip({
+  columns,
+  className,
+  children,
+}: {
+  columns: string;
+  className?: string;
+  children: ReactNode;
+}) {
   return (
     <div
       className={cn(
-        "border-border-default grid gap-px overflow-hidden rounded-[var(--card-radius)] border bg-(--table-line) shadow-[var(--card-shadow)]",
+        "border-border-default bg-bg-surface overflow-hidden rounded-[var(--card-radius)] border shadow-[var(--card-shadow)]",
         className,
       )}
     >
-      {children}
+      <div className={cn("-mr-px -mb-px grid", columns)}>{children}</div>
     </div>
   );
 }
@@ -113,7 +125,7 @@ export function StatCell({
       </div>
     </>
   );
-  const cell = "bg-bg-surface block min-w-0 px-3.5 py-3";
+  const cell = "border-(--table-line) block min-w-0 border-r border-b px-3.5 py-3";
   return href ? (
     <Link
       href={href}

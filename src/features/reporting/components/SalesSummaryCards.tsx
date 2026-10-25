@@ -56,7 +56,7 @@ export function SalesSummaryCards({ range }: { range: DateRange }) {
   }
   const { currency } = query.data;
   return (
-    <StatStrip className="grid-cols-1 sm:grid-cols-3">
+    <StatStrip columns="grid-cols-1 sm:grid-cols-3">
       {summaryCards(query.data).map((card) => (
         <StatCell
           key={card.key}
