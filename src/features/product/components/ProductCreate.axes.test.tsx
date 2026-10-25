@@ -9,7 +9,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PRODUCT_PERMISSIONS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
-import { goToLastStep, installApi, nextStep, pickOption, renderApp } from "../product-test-utils";
+import {
+  goToLastStep,
+  installApi,
+  nextStep,
+  pickOption,
+  pickTreeOption,
+  renderApp,
+} from "../product-test-utils";
 import { ProductCreate } from "./ProductCreate";
 
 const { pushMock } = vi.hoisted(() => ({ pushMock: vi.fn() }));
@@ -102,7 +109,7 @@ async function fillMaster(user: ReturnType<typeof userEvent.setup>, code = "cup"
   await user.type(screen.getByLabelText(/^Tên sản phẩm/), "Ly");
   await user.type(screen.getByLabelText(/Tên tiếng Anh/), "Cup");
   await pickOption(user, /Thương hiệu/, "Thương hiệu A");
-  await pickOption(user, /Danh mục/, "Ly giấy");
+  await pickTreeOption(user, /Danh mục/, "Ly giấy");
 }
 
 /** Thông tin chung → Mô tả → Trục biến thể. */
