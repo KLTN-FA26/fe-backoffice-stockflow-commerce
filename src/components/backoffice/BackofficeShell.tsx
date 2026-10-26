@@ -38,7 +38,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import {
   ADMIN_ROUTES,
@@ -573,14 +573,23 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
 
   const canSeeItem = useCanSeeNavItem();
   const breadcrumbLabels = useBreadcrumbLabelStore((s) => s.labels);
-  // Chế độ mở rộng (vd bảng dòng PO) ép sidebar thu gọn; tắt thì về lại trạng thái người dùng chọn
+  // Chế độ mở rộng (vd bảng dòng PO) ép sidebar thu gọn; tắt thì về lại trạng thái người dùng chọn.
+  // Sidebar điều khiển từ đây: đang mở rộng mà bấm thu/mở (nút, Ctrl/⌘+B) = thoát chế độ mở rộng
+  // rồi áp lựa chọn đó — không để nút "chết" và không ngầm đổi trạng thái của người dùng.
   const focusMode = useAppStore((s) => s.focusMode);
+  const setFocusMode = useAppStore((s) => s.setFocusMode);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const onSidebarOpenChange = (open: boolean) => {
+    if (focusMode) setFocusMode(false);
+    setSidebarOpen(open);
+  };
   const breadcrumbItems = buildBreadcrumbItems(pathname, canSeeItem, (id) => breadcrumbLabels[id]);
 
   return (
     <TooltipProvider>
       <SidebarProvider
-        open={focusMode ? false : undefined}
+        open={focusMode ? false : sidebarOpen}
+        onOpenChange={onSidebarOpenChange}
         // h-svh + overflow-hidden ghi đè `min-h-svh` của SidebarProvider: chiều cao phải
         // BỊ CHẶN để `overflow-auto` của <main> có hiệu lực, nhờ đó topbar/sidebar đứng yên
         // và chỉ vùng nội dung cuộn. Dùng min-h-* thì cả trang cuộn, topbar trôi theo.
