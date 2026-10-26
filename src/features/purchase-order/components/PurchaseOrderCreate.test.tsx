@@ -14,6 +14,7 @@ import {
   pickSupplier,
   renderCreate,
   submitFromReview,
+  typeDescription,
 } from "../__fixtures__/create";
 import { PO_PERMISSION_SETS, SUPPLIER_REF, pickSelectOption } from "../__fixtures__/render";
 
@@ -33,7 +34,7 @@ async function fillAndCreate(user: User) {
   await pickSupplier(user);
   await next(user);
   await pickSku(user, /SOFA-3S-GREY/);
-  await user.type(screen.getByLabelText(/Mô tả sản phẩm/), "Sofa 3 chỗ");
+  await typeDescription(user, "Sofa 3 chỗ");
   await next(user);
   await next(user);
   await submitFromReview(user);
@@ -109,7 +110,7 @@ describe("PurchaseOrderCreate", () => {
     await next(user);
 
     await pickSku(user, /SOFA-3S-GREY/);
-    await user.type(screen.getByLabelText(/Mô tả sản phẩm/), "  Sofa 3 chỗ xám ");
+    await typeDescription(user, "  Sofa 3 chỗ xám ");
     const [qty, price, tax] = screen.getAllByRole("spinbutton");
     if (!qty || !price || !tax) throw new Error("thiếu ô SL / đơn giá / thuế");
     expect(price).toHaveValue(null); // danh mục VND, PO USD → không điền giá

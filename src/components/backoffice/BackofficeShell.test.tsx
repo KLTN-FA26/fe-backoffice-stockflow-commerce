@@ -1,13 +1,14 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { INVENTORY_PERMISSIONS } from "@/constants";
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
+import { useAppStore } from "@/lib/store/use-app-store";
 
 import { ThemeProvider } from "@/components/theme-provider";
 
@@ -29,6 +30,7 @@ afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   navigation.pathname = "/admin";
+  useAppStore.setState({ focusMode: false });
 });
 
 async function renderShell(
@@ -197,5 +199,34 @@ describe("sidebar drill-down kiểu Vercel", () => {
     await renderShell([INVENTORY_PERMISSIONS.adjustmentRead, INVENTORY_PERMISSIONS.movementRead]);
     expect(navLink(MOVEMENTS)).toHaveAttribute("data-active", "true");
     expect(screen.getByRole("button", { name: /^Quay lại Kho/ })).toBeInTheDocument();
+  });
+});
+
+describe("Chế độ mở rộng (focusMode) và nút thu / mở sidebar", () => {
+  // Tooltip (Radix popper) của nút thu / mở dùng ResizeObserver — jsdom không có
+  beforeAll(() => {
+    globalThis.ResizeObserver ??= class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    };
+  });
+  const toggle = (name: string) => screen.getByRole("button", { name });
+
+  it("bật rồi tắt chế độ mở rộng → sidebar về đúng lựa chọn của người dùng", async () => {
+    await renderShell([]);
+    await userEvent.click(toggle("Thu nhỏ sidebar"));
+    act(() => useAppStore.getState().setFocusMode(true));
+    expect(toggle("Mở rộng sidebar")).toBeInTheDocument();
+    act(() => useAppStore.getState().setFocusMode(false));
+    expect(toggle("Mở rộng sidebar")).toBeInTheDocument();
+  });
+
+  it("đang mở rộng mà bấm mở sidebar → thoát chế độ mở rộng và sidebar mở", async () => {
+    await renderShell([]);
+    act(() => useAppStore.getState().setFocusMode(true));
+    await userEvent.click(toggle("Mở rộng sidebar"));
+    expect(useAppStore.getState().focusMode).toBe(false);
+    expect(toggle("Thu nhỏ sidebar")).toBeInTheDocument();
   });
 });

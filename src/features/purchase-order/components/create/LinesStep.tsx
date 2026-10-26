@@ -1,26 +1,26 @@
 "use client";
 
-import { useState } from "react";
-import { Plus } from "lucide-react";
+import { useEffect, useState } from "react";
 import { cn } from "cn";
 
 import { PO_LIMITS, UI_LABELS } from "@/constants";
-import { formatMoney } from "@/features/purchase-order";
+import { useAppStore } from "@/lib/store/use-app-store";
 import { Card } from "@/components/shared/Card";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { Button } from "@/components/ui/button";
 
 import { CatalogNotice } from "./CatalogNotice";
-import { FieldError, SummaryItem } from "./CreateFormPrimitives";
+import { FieldError } from "./CreateFormPrimitives";
 import { createEmptyLine } from "./helpers";
-import { PoLineCard } from "./PoLineCard";
+import { LinesStepHeader } from "./LinesStepHeader";
+import { LinesTotalsBar } from "./LinesTotalsBar";
+import { PoLinesEditor } from "./PoLinesEditor";
+import { SkuMultiPickDialog } from "./SkuMultiPickDialog";
 
 import type { CreatePoWizard } from "./useCreateForm";
 
-const S = UI_LABELS.purchaseOrder.linesStep;
 const D = UI_LABELS.purchaseOrder.draftEdit;
 
-/** Bước 2 — dòng hàng (`useFieldArray`, api-conventions §4). Lỗi từng ô hiện inline. */
+/** Bước 2 — bảng dòng hàng (`useFieldArray`, api-conventions §4). Lỗi từng ô hiện inline. */
 export function LinesStep({ w }: { w: CreatePoWizard }) {
   const { fields, append, remove } = w.lines;
   const rootError = w.errors.lines?.root?.message ?? w.errors.lines?.message;
@@ -29,10 +29,12 @@ export function LinesStep({ w }: { w: CreatePoWizard }) {
   // Sửa nháp thiếu quyền đọc danh mục NCC: không chọn được SKU cho dòng mới → khoá thêm dòng.
   const noCatalog = w.mode === "edit" && !w.catalog.canRead;
   const cannotAdd = atLimit || noCatalog;
+  const pickable = w.catalog.canRead && w.catalog.items.length > 0;
   // Không thêm lại được dòng đã lưu khi thiếu quyền danh mục → hỏi trước khi xoá. Giữ `removing` sau
   // khi đóng để nội dung hộp không đổi trong lúc animation đóng.
   const [removing, setRemoving] = useState<{ index: number; sku: string } | null>(null);
   const [confirmRemove, setConfirmRemove] = useState(false);
+  const [multiPickOpen, setMultiPickOpen] = useState(false);
   const requestRemove = (index: number) => {
     const line = w.values.lines[index];
     if (!noCatalog || !line || line.lineId === "") return remove(index);
@@ -40,38 +42,33 @@ export function LinesStep({ w }: { w: CreatePoWizard }) {
     setConfirmRemove(true);
   };
 
+  // Chế độ mở rộng chỉ sống trong bước này: rời bước / rời trang thì trả sidebar + stepper.
+  const expanded = useAppStore((s) => s.focusMode);
+  const setExpanded = useAppStore((s) => s.setFocusMode);
+  useEffect(() => () => setExpanded(false), [setExpanded]);
+
+  const usedSkus = new Set(w.values.lines.flatMap((l) => (l.skuId !== "" ? [l.skuId] : [])));
+  // Dòng mới còn trống bị thay khi thêm nhiều SKU ⇒ không tính vào trần dòng.
+  const kept = w.values.lines.filter((l) => l.lineId !== "" || l.skuId !== "" || l.description);
+  const errorCount = w.errors.lines ? fields.filter((_, i) => w.errors.lines?.[i]).length : 0;
+
   return (
     <Card>
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-ink-primary font-[family-name:var(--font-display)] text-[1rem] font-semibold">
-            {S.title}
-          </h2>
-          <p className="text-ink-secondary mt-1 text-[0.8125rem]">
-            {noCatalog
-              ? S.editDescriptionNoCatalog
-              : w.mode === "edit"
-                ? S.editDescription
-                : S.description}
-          </p>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => append(createEmptyLine())}
-          disabled={cannotAdd}
-          className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary inline-flex shrink-0 items-center gap-1.5 rounded-[var(--r-sm)] border px-3 py-1.5 text-[0.8125rem] font-medium transition-colors"
-        >
-          <Plus className="size-3.5" />
-          {S.add}
-        </Button>
-      </div>
+      <LinesStepHeader
+        w={w}
+        summary={UI_LABELS.purchaseOrder.linesStep.lineSummary(fields.length, errorCount)}
+        expanded={expanded}
+        onToggleExpanded={() => setExpanded(!expanded)}
+        canAdd={!cannotAdd}
+        canAddMany={!cannotAdd && pickable}
+        onAdd={() => append(createEmptyLine())}
+        onAddMany={() => setMultiPickOpen(true)}
+      />
 
       <CatalogNotice w={w} className="mb-3" />
       {atLimit && (
         <p className="text-warning mb-3 text-[0.8125rem]" role="status">
-          {UI_LABELS.purchaseOrder.draftEdit.linesLimit(PO_LIMITS.linesMax)}
+          {D.linesLimit(PO_LIMITS.linesMax)}
         </p>
       )}
 
@@ -84,26 +81,25 @@ export function LinesStep({ w }: { w: CreatePoWizard }) {
               : "border-border-default bg-bg-subtle text-ink-tertiary",
           )}
         >
-          {w.mode === "edit"
-            ? UI_LABELS.purchaseOrder.draftEdit.linesEmpty
-            : UI_LABELS.purchaseOrder.linesEmpty}
+          {w.mode === "edit" ? D.linesEmpty : UI_LABELS.purchaseOrder.linesEmpty}
         </div>
       ) : (
-        <div className="max-h-[min(58vh,520px)] space-y-3 overflow-y-auto pr-1">
-          {fields.map((field, index) => (
-            <PoLineCard key={field.id} w={w} index={index} onRemove={() => requestRemove(index)} />
-          ))}
-        </div>
+        <PoLinesEditor w={w} expanded={expanded} onRemove={requestRemove} />
       )}
       {fields.length > 0 && <FieldError>{rootError}</FieldError>}
 
-      {/* BE chưa có thuế / chiết khấu → tạm tính = tổng, chỉ hiện một số. */}
-      <div className="bg-bg-surface border-border-default sticky bottom-0 mt-4 grid grid-cols-1 gap-3 border-t pt-4 sm:grid-cols-2">
-        <SummaryItem label={UI_LABELS.purchaseOrder.lineCount} value={String(fields.length)} mono />
-        <SummaryItem
-          label={UI_LABELS.purchaseOrder.grandTotal}
-          value={formatMoney(w.totals.grandTotal, w.values.currency)}
-          mono
+      <LinesTotalsBar totals={w.totals} currency={w.values.currency} />
+
+      {/* Dialog portal ra ngoài nhưng sự kiện React vẫn nổi lên form wizard — chặn submit lọt ra
+          ngoài để "Thêm N dòng" không kích hoạt "Tiếp tục". */}
+      <div onSubmit={(e) => e.stopPropagation()}>
+        <SkuMultiPickDialog
+          open={multiPickOpen}
+          onOpenChange={setMultiPickOpen}
+          items={w.catalog.items}
+          usedSkus={usedSkus}
+          remaining={w.mode === "edit" ? PO_LIMITS.linesMax - kept.length : undefined}
+          onAdd={w.catalog.addSkus}
         />
       </div>
       <ConfirmDialog

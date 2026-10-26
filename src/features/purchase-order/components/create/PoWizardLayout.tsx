@@ -1,6 +1,9 @@
 "use client";
 
+import { cn } from "cn";
+
 import { UI_LABELS } from "@/constants";
+import { useAppStore } from "@/lib/store/use-app-store";
 import { formatMoney } from "@/features/purchase-order";
 import { Alert } from "@/components/shared/Alert";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -30,6 +33,8 @@ export type PoWizardLayoutProps = {
 
 /** Bố cục wizard PO (tạo + sửa nháp), như wizard NCC: stepper, nội dung bước, thanh dưới, xác nhận. */
 export function PoWizardLayout({ w, title, draft }: PoWizardLayoutProps) {
+  // Bước Dòng hàng bật chế độ mở rộng: ẩn stepper để bảng chiếm hết chiều ngang
+  const expanded = useAppStore((s) => s.focusMode);
   if (w.suppliersQuery.isPending) return <PageSkeleton variant="form" />;
   const isEdit = w.mode === "edit";
   const submitLabel = isEdit ? L.editAction : L.createAction;
@@ -45,14 +50,18 @@ export function PoWizardLayout({ w, title, draft }: PoWizardLayoutProps) {
     // breadcrumb topbar đã có tên trang và link quay lại; h1 giữ cho screen reader.
     <div className="surface-soft surface-compact">
       <h1 className="sr-only">{title}</h1>
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[260px_minmax(0,1fr)]">
-        <CreateStepper
-          stepStatus={w.stepStatus}
-          canGoTo={w.canGoTo}
-          lineCount={w.values.lines.length}
-          onStepChange={w.goToStep}
-          reviewLabel={submitLabel}
-        />
+      <div
+        className={cn("grid grid-cols-1 gap-4", !expanded && "xl:grid-cols-[260px_minmax(0,1fr)]")}
+      >
+        {!expanded && (
+          <CreateStepper
+            stepStatus={w.stepStatus}
+            canGoTo={w.canGoTo}
+            lineCount={w.values.lines.length}
+            onStepChange={w.goToStep}
+            reviewLabel={submitLabel}
+          />
+        )}
         <div className="min-w-0 space-y-4 pb-24">
           {/* Màn sửa: NCC cố định (BR-07) — danh sách NCC chỉ để hiển thị điều khoản, không cần báo */}
           {!isEdit && w.suppliersQuery.isError && (
