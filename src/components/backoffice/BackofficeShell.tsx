@@ -119,7 +119,6 @@ function computeWarningCounts(): Record<string, number> {
 
 export interface NavItem {
   label: string;
-  tooltip: string;
   href: string;
   icon: LucideIcon;
   /** Mã quyền BE cần có để thấy menu (đọc từ /identity/me/permissions). Không khai báo = luôn hiện. */
@@ -141,7 +140,7 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     title: "Tổng quan",
     icon: LayoutDashboard,
-    items: [{ label: "Tổng quan", tooltip: "Dashboard", href: "/admin", icon: LayoutDashboard }],
+    items: [{ label: "Tổng quan", href: "/admin", icon: LayoutDashboard }],
   },
   {
     title: "Master data",
@@ -149,20 +148,17 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       {
         label: "Sản phẩm & SKU",
-        tooltip: "Products & SKUs",
         href: "/admin/products",
         icon: Package,
       },
       {
         label: "Từ điển thuộc tính",
-        tooltip: "Attribute dictionary",
         href: ADMIN_ROUTES.attributes,
         icon: Palette,
         permission: ATTRIBUTE_PERMISSIONS.viewPage,
       },
       {
         label: "Thương hiệu & danh mục",
-        tooltip: "Brands & Categories",
         href: ADMIN_ROUTES.taxonomy.list,
         icon: FolderTree,
         // BE gate mọi endpoint /brands, /categories bằng product-products (ProductTaxonomyController)
@@ -170,7 +166,6 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       {
         label: "Nhà cung cấp",
-        tooltip: "Suppliers",
         href: "/admin/suppliers",
         icon: Users,
         permission: SUPPLIER_PERMISSIONS.viewPage,
@@ -183,14 +178,12 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       {
         label: "Phân quyền",
-        tooltip: "Permission management",
         href: ADMIN_ROUTES.permissions,
         icon: ShieldCheck,
         permission: IDENTITY_PERMISSIONS.rbacRead,
       },
       {
         label: "Người dùng",
-        tooltip: "User management",
         href: ADMIN_ROUTES.users.list,
         icon: UserCog,
         // Cổng theo READ (BE `identity-users:READ`), cùng kiểu menu "Phân quyền" ngay trên
@@ -204,7 +197,6 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       {
         label: "Đề xuất nhập hàng",
-        tooltip: "Replenishment",
         href: "/admin/replenishment",
         icon: Lightbulb,
         // BE chưa có API đề xuất nhập hàng (chỉ có đánh giá ngưỡng tồn) — màn chạy trên dữ liệu mẫu
@@ -212,14 +204,12 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       {
         label: "Đơn đặt NCC",
-        tooltip: "Purchase Orders",
         href: "/admin/purchase-orders",
         icon: ShoppingCart,
         permission: PO_PERMISSIONS.viewPage,
       },
       {
         label: "Hoá đơn NCC",
-        tooltip: "Supplier Invoices",
         href: "/admin/invoices",
         icon: Receipt,
         // BE chưa có API hoá đơn NCC (`/invoices`) — màn chạy trên dữ liệu mẫu
@@ -233,12 +223,11 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       {
         label: "Phiếu nhận",
-        tooltip: "Goods receipts",
         href: ADMIN_ROUTES.receipts.list,
         icon: FileText,
         permission: GOODS_RECEIPT_PERMISSIONS.viewPage,
       },
-      { label: "Cất hàng", tooltip: "Putaway", href: "/admin/putaway", icon: PackageCheck },
+      { label: "Cất hàng", href: "/admin/putaway", icon: PackageCheck },
     ],
   },
   {
@@ -247,7 +236,6 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       {
         label: INVENTORY_LABELS.overviewTitle,
-        tooltip: "Inventory Overview",
         href: INVENTORY_ROUTES.overview,
         icon: Boxes,
         // Same rule as the page gate: stock READ or reservation READ; alert READ alone is not enough.
@@ -258,7 +246,6 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       {
         label: "Hồ sơ hàng tồn",
-        tooltip: "Inventory items",
         href: ADMIN_ROUTES.inventoryItems.list,
         // Hồ sơ cấu hình SKU — khác icon Boxes của "Tổng quan tồn kho" (số lượng tồn)
         icon: FileBox,
@@ -267,26 +254,22 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       {
         label: "Kho map & slotting",
-        tooltip: "Warehouse Map",
         href: "/admin/warehouse-map",
         icon: MapPin,
       },
       {
         label: "Gợi ý vị trí",
-        tooltip: "Slotting Suggestions",
         href: "/admin/slotting",
         icon: Lightbulb,
       },
       {
         label: UI_LABELS.transfer.pageTitle,
-        tooltip: "Inter-warehouse Transfers",
         href: ADMIN_ROUTES.transfers.list,
         icon: ArrowRightLeft,
         permission: TRANSFER_PERMISSIONS.viewPage,
       },
       {
         label: "Di chuyển nội bộ",
-        tooltip: "Intra-warehouse Moves",
         href: "/admin/moves",
         icon: Move,
         // BE StockOperationsController: POST /inventory/movements là inventory-stock-items:UPDATE
@@ -294,14 +277,12 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       {
         label: "Điều chỉnh tồn",
-        tooltip: "Stock adjustments",
         href: INVENTORY_ROUTES.adjustments,
         icon: SlidersHorizontal,
         permission: INVENTORY_PERMISSIONS.adjustmentRead,
       },
       {
         label: "Lịch sử biến động",
-        tooltip: "Stock movement history",
         href: INVENTORY_ROUTES.movements,
         icon: HistoryIcon,
         permission: INVENTORY_PERMISSIONS.movementRead,
@@ -314,28 +295,24 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       {
         label: "Đơn hàng",
-        tooltip: "Orders",
         href: ADMIN_ROUTES.orders.list,
         icon: ClipboardList,
         permission: ORDER_PERMISSIONS.viewPage,
       },
       {
         label: "Lấy hàng",
-        tooltip: "Picking",
         href: ADMIN_ROUTES.picking.list,
         icon: WarehouseIcon,
         permission: FULFILLMENT_PICK_PERMISSIONS.viewPage,
       },
       {
         label: "Đóng gói",
-        tooltip: "Packing",
         href: ADMIN_ROUTES.packing.list,
         icon: PackageCheck,
         permission: FULFILLMENT_PACKAGE_PERMISSIONS.viewPage,
       },
       {
         label: PUT_BACK_LABELS.title,
-        tooltip: "Put-back",
         href: ADMIN_ROUTES.putBacks.list,
         icon: Undo2,
         // BE `GET /fulfillment/put-backs` — fulfillment-picking:READ (resource không có VIEW_PAGE)
@@ -343,7 +320,6 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       {
         label: UI_LABELS.loadPlan.pageTitle,
-        tooltip: UI_LABELS.loadPlan.navTooltip,
         href: ADMIN_ROUTES.loadPlans.list,
         icon: CalendarClock,
         // Resource riêng `fulfillment-load-plans` (BE PR #161)
@@ -351,21 +327,18 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       {
         label: UI_LABELS.vehicleType.pageTitle,
-        tooltip: UI_LABELS.vehicleType.navTooltip,
         href: ADMIN_ROUTES.vehicleTypes,
         icon: TruckElectric,
         permission: VEHICLE_TYPE_PERMISSIONS.viewPage,
       },
       {
         label: UI_LABELS.shipping.shipments.title,
-        tooltip: "Shipments waiting for dispatch",
         href: ADMIN_ROUTES.shipments.list,
         icon: PackageOpen,
         permission: SHIPMENT_PERMISSIONS.viewPage,
       },
       {
         label: UI_LABELS.shipping.loads.title,
-        tooltip: "Loading & carrier handover",
         href: ADMIN_ROUTES.loads.list,
         icon: Truck,
         permission: SHIPMENT_PERMISSIONS.viewPage,

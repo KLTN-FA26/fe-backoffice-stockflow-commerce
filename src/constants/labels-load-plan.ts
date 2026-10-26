@@ -70,7 +70,6 @@ export const LOAD_PLAN_UI_LABELS = {
   transfer: LOAD_PLAN_TRANSFER_LABELS,
   source: LOAD_PLAN_SOURCE_LABELS,
   pageTitle: "Kế hoạch xếp xe",
-  navTooltip: "Load planning",
   create: "Lập kế hoạch xếp xe",
   searchPlaceholder: "Tìm theo mã kế hoạch",
   statusFilter: "Trạng thái",

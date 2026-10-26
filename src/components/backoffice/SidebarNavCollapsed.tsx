@@ -64,7 +64,8 @@ function CollapsedItem({
       <SidebarMenuButton
         asChild
         isActive={active}
-        tooltip={item.tooltip}
+        // Cùng tên với menu mở rộng (tiếng Việt)
+        tooltip={item.label}
         className={cn(
           "h-auto justify-center gap-0 rounded-[var(--r-md)] transition-colors duration-150 group-data-[collapsible=icon]:overflow-visible [&>svg]:size-3.5",
           active ? ITEM_ACTIVE : ITEM_IDLE,
