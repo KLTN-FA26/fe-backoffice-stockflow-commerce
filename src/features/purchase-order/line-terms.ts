@@ -42,6 +42,14 @@ export function orderQuantityIssues(
   return issues;
 }
 
+/**
+ * SL nhỏ nhất thoả cả MOQ lẫn bội số quy cách (cùng luật `orderQuantityIssues`, BE BR-PO-001) —
+ * SL điền sẵn khi thêm dòng từ danh mục, để dòng mới không báo lỗi ngay.
+ */
+export function minimumOrderQuantity(terms: Pick<PoLineTerms, "moq" | "packSize">): number {
+  return Math.ceil(terms.moq / terms.packSize) * terms.packSize;
+}
+
 export function poQuantityTermsMessage(terms: Pick<PoLineTerms, "moq" | "packSize">): string {
   return UI_LABELS.purchaseOrder.validation.quantityTerms
     .replace("{moq}", String(terms.moq))

@@ -66,6 +66,7 @@ import {
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 
 import { usePermissionChecker } from "@/lib/auth/components/Can";
+import { useAppStore } from "@/lib/store/use-app-store";
 import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
 import { invoices, purchaseOrders, putawayTasks } from "@/lib/mock-data";
 import { useIsMock } from "@/providers/app-providers";
@@ -572,11 +573,14 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
 
   const canSeeItem = useCanSeeNavItem();
   const breadcrumbLabels = useBreadcrumbLabelStore((s) => s.labels);
+  // Chế độ mở rộng (vd bảng dòng PO) ép sidebar thu gọn; tắt thì về lại trạng thái người dùng chọn
+  const focusMode = useAppStore((s) => s.focusMode);
   const breadcrumbItems = buildBreadcrumbItems(pathname, canSeeItem, (id) => breadcrumbLabels[id]);
 
   return (
     <TooltipProvider>
       <SidebarProvider
+        open={focusMode ? false : undefined}
         // h-svh + overflow-hidden ghi đè `min-h-svh` của SidebarProvider: chiều cao phải
         // BỊ CHẶN để `overflow-auto` của <main> có hiệu lực, nhờ đó topbar/sidebar đứng yên
         // và chỉ vùng nội dung cuộn. Dùng min-h-* thì cả trang cuộn, topbar trôi theo.

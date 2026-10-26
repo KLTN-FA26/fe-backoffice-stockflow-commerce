@@ -156,6 +156,41 @@ export const UI_LABELS = {
       description:
         "Chọn SKU trong danh mục của nhà cung cấp, số lượng theo MOQ và quy cách; đơn giá điền sẵn theo danh mục khi cùng tiền tệ PO — tổng = số lượng × đơn giá.",
       add: "Thêm dòng hàng",
+      addMany: "Thêm nhiều SKU",
+      // Chế độ mở rộng: ẩn sidebar + stepper để bảng dòng hàng chiếm hết chiều ngang
+      expand: "Mở rộng",
+      collapse: "Thu gọn",
+      columns: {
+        index: "#",
+        sku: "SKU",
+        qty: "SL đặt",
+        price: "Đơn giá",
+        tax: "Thuế (%)",
+        total: "Thành tiền",
+        actions: "Thao tác",
+      },
+      caption: "Dòng hàng của đơn đặt NCC",
+      lineSummary: (lines: number, errors: number) =>
+        errors > 0 ? `${lines} dòng · ${errors} dòng có lỗi` : `${lines} dòng`,
+      qtyAria: (line: number) => `SL đặt dòng ${line}`,
+      priceAria: (line: number) => `Đơn giá dòng ${line}`,
+      taxAria: (line: number) => `Thuế suất (%) dòng ${line}`,
+      removeAria: (line: number) => `Xóa dòng hàng ${line}`,
+      descriptionButton: (line: number) => `Mô tả dòng ${line}`,
+      descriptionLabel: (line: number) => `Mô tả sản phẩm dòng ${line}`,
+      descriptionDone: "Xong",
+      subtotal: "Tạm tính",
+      tax: "Thuế",
+      // Hộp chọn nhiều SKU trong danh mục NCC — mỗi SKU tick thành một dòng mới
+      multiPick: {
+        title: "Thêm nhiều SKU",
+        description:
+          "Tick các SKU trong danh mục của nhà cung cấp. Mỗi SKU thành một dòng, số lượng điền sẵn mức tối thiểu theo MOQ và quy cách.",
+        allUsed: "Mọi SKU trong danh mục đã có trong đơn.",
+        selected: (n: number) => `Đã chọn ${n}`,
+        limit: (n: number) => `Chỉ thêm được ${n} dòng nữa.`,
+        submit: (n: number) => (n > 0 ? `Thêm ${n} dòng` : "Thêm dòng"),
+      },
       // Sửa nháp: dòng đã lưu giữ giá đã thương lượng (issue #30 §2), chỉ dòng mới điền giá danh mục
       // Sửa nháp thiếu quyền đọc danh mục NCC: không thêm được dòng mới
       editDescriptionNoCatalog:

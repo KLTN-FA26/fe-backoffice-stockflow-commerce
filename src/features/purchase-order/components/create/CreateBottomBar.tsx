@@ -30,7 +30,7 @@ export function CreateBottomBar({
   onSubmit: () => void;
 }) {
   return (
-    <div className="border-border-default bg-bg-surface/95 fixed right-0 bottom-0 left-0 z-40 border-t px-4 py-3 backdrop-blur lg:left-[240px]">
+    <div className="border-border-default bg-bg-surface/95 fixed right-0 bottom-0 left-0 z-40 border-t px-4 py-3 backdrop-blur lg:left-(--sidebar-width) lg:group-has-data-[state=collapsed]/sidebar-wrapper:left-(--sidebar-width-icon)">
       <div className="flex items-center justify-between gap-3">
         <div className="text-ink-tertiary text-xs">
           Bước {currentStepIndex + 1}/{STEPS.length} · {STEPS[currentStepIndex]?.label}
