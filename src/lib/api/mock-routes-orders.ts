@@ -351,12 +351,17 @@ export async function backendOrderStatusOf(
   return order ? backendStatus(order) : undefined;
 }
 
+/** Đếm số lần mock huỷ đơn (tăng dần, không reset) — mock xuất kho chỉ đồng bộ task khi số này đổi. */
+let cancellations = 0;
+export const mockOrderCancellations = () => cancellations;
+
 /**
  * Mock xuất kho đổi trạng thái đơn như BE (READY_TO_FULFILL → PICKING → PACKED). Rời ON_HOLD thì xoá
  * dữ liệu giữ.
  */
 export function setMockOrderStatus(orderId: string, status: BackendOrderStatus): void {
   const state = lifecycleOf(orderId);
+  if (status === "CANCELLED" && state.status !== "CANCELLED") cancellations += 1;
   state.status = status;
   if (status === "PACKED") state.packedAt ??= new Date().toISOString();
   if (status !== "ON_HOLD") {
@@ -382,6 +387,27 @@ export async function putMockOrderOnDesignHold(orderId: string): Promise<void> {
  */
 export function resolveMockDesignHold(orderId: string): void {
   const state = lifecycleOf(orderId);
+  setMockOrderStatus(orderId, state.statusBeforeHold ?? "PICKING");
+}
+
+/**
+ * Mock báo thiếu hàng giữ đơn (BE `HoldReason.INVENTORY`, X-SHORT bước 02). Đơn đã ON_HOLD (dòng thiếu thứ
+ * hai, hoặc đang giữ vì lý do khác) giữ nguyên — không chồng giữ lên giữ (BE `holdForInventory`).
+ */
+export async function putMockOrderOnInventoryHold(orderId: string): Promise<void> {
+  const before = (await backendOrderStatusOf(orderId)) ?? "PICKING";
+  if (before === "ON_HOLD") return;
+  const state = lifecycleOf(orderId);
+  state.status = "ON_HOLD";
+  state.holdReason = "INVENTORY";
+  state.statusBeforeHold = before;
+  state.holdNote = undefined;
+}
+
+/** Hết dòng thiếu sau khi phân bổ lại: gỡ giữ INVENTORY, đơn về bước đang làm (BE `resumeAfterInventory`). */
+export function resolveMockInventoryHold(orderId: string): void {
+  const state = lifecycleOf(orderId);
+  if (state.status !== "ON_HOLD" || state.holdReason !== "INVENTORY") return;
   setMockOrderStatus(orderId, state.statusBeforeHold ?? "PICKING");
 }
 

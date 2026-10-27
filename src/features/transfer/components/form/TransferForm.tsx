@@ -105,7 +105,7 @@ export function TransferForm({
           variant="outline"
           size="sm"
           asChild
-          className={`rounded-[var(--r-sm)] ${busy ? "pointer-events-none opacity-50" : ""}`}
+          className={`h-(--action-h) rounded-(--action-radius) px-(--action-px) ${busy ? "pointer-events-none opacity-50" : ""}`}
         >
           <Link href={cancelHref} aria-disabled={busy} tabIndex={busy ? -1 : undefined}>
             {UI_LABELS.common.back}
@@ -115,7 +115,7 @@ export function TransferForm({
           type="submit"
           size="sm"
           disabled={busy}
-          className="bg-brand text-ink-inverse hover:bg-brand-hover rounded-[var(--r-sm)]"
+          className="bg-brand text-ink-inverse hover:bg-brand-hover h-(--action-h) rounded-(--action-radius) px-(--action-px)"
         >
           {busy && <Loader2 className="size-3.5 animate-spin" />}
           {submitLabel}

@@ -1,14 +1,12 @@
 "use client";
 
-import { ADMIN_ROUTES, TRANSFER_PERMISSIONS, UI_LABELS } from "@/constants";
+import { TRANSFER_PERMISSIONS, UI_LABELS } from "@/constants";
 import { useCan } from "@/lib/auth";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { useTransferOrder } from "@/features/transfer/queries";
 import { isPartialDispatch } from "@/features/transfer/selectors";
 import { Alert } from "@/components/shared/Alert";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
-import { BackLink } from "@/components/shared/BackLink";
 
 import { TransferActions } from "./detail/TransferActions";
 import { TransferInfo, TransferTimelineCard } from "./detail/TransferInfo";
@@ -40,14 +38,12 @@ function TransferDetailBody({ id }: { id: string }) {
   }
 
   return (
-    <>
-      <PageHeader
-        title={transfer.number}
-        subtitle={L.pageTitle}
-        actions={<BackLink href={ADMIN_ROUTES.transfers.list} />}
-      />
+    // Giao diện kiểu Vercel như chi tiết sản phẩm (globals.css `.surface-soft`). Không hiện tiêu đề —
+    // breadcrumb topbar đã có số lệnh và link về danh sách; h1 giữ cho screen reader.
+    <div className="surface-soft surface-compact">
+      <h1 className="sr-only">{transfer.number}</h1>
       {query.isError && <RefetchErrorNotice onRetry={() => void query.refetch()} />}
-      <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-5">
           <TransferInfo transfer={transfer} />
           <Section title={L.sectionLines}>
@@ -64,7 +60,7 @@ function TransferDetailBody({ id }: { id: string }) {
           <TransferTimelineCard transfer={transfer} />
         </div>
       </div>
-    </>
+    </div>
   );
 }
 

@@ -11,6 +11,7 @@ import { expect, vi } from "vitest";
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
+import type { UserEvent } from "@testing-library/user-event";
 import type { ReactElement } from "react";
 
 type Handler = (url: string, config?: unknown) => unknown;
@@ -64,6 +65,17 @@ export async function pickOption(
   patchJsdomForRadix();
   await user.click(await screen.findByRole("combobox", { name: trigger }));
   await user.click(await screen.findByRole("option", { name: option }));
+}
+
+/**
+ * Chọn một nút của `TreeSelect` (ô danh mục dạng cây): mở ô, gõ tên vào ô tìm (nút sâu nằm trong nhánh
+ * đang thu gọn) rồi bấm dòng khớp.
+ */
+export async function pickTreeOption(user: UserEvent, trigger: string | RegExp, label: string) {
+  patchJsdomForRadix();
+  await user.click(await screen.findByRole("combobox", { name: trigger }));
+  await user.type(await screen.findByRole("textbox", { name: /Tìm danh mục/ }), label);
+  await user.click(await screen.findByRole("treeitem", { name: new RegExp(label) }));
 }
 
 type Clicker = { click: (el: Element) => Promise<void> };

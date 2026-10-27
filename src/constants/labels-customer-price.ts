@@ -52,7 +52,6 @@ export const CUSTOMER_PRICE_UI_LABELS = {
   // Giá BE trả về vượt độ chính xác số của trình duyệt (> 9.007.199.254.740.991)
   priceInexact: "Đơn giá vượt độ chính xác hiển thị của trình duyệt — không sửa bậc này ở đây.",
   navLabel: "Bảng giá khách hàng",
-  navTooltip: "Customer price lists",
   picker: {
     label: "Khách hàng",
     placeholder: "Chọn khách hàng…",

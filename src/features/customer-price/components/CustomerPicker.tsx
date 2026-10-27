@@ -35,6 +35,9 @@ export function CustomerPicker({
   const page = paging.q === q ? paging.page : 0;
   const options = useCustomerOptions(q, open, page);
   const data = options.data;
+  // Danh sách đang hiện chưa phải kết quả của chữ đang gõ (chờ debounce / còn dữ liệu cũ) → khoá các mục:
+  // Enter của `InputCombobox` chọn mục đầu chưa khoá, không được chọn nhầm khách của lần tìm trước
+  const stale = search !== q || options.isPlaceholderData;
   const goTo = (next: number) => setPaging({ q, page: next });
 
   return (
@@ -72,6 +75,7 @@ export function CustomerPicker({
               <CommandItem
                 key={c.customerId}
                 value={c.customerId}
+                disabled={stale}
                 className={COMBOBOX_ITEM_CLASS}
                 onSelect={() => {
                   onSelect(c.customerId);
@@ -95,6 +99,7 @@ export function CustomerPicker({
             {data.page > 0 && (
               <CommandItem
                 value="page-previous"
+                disabled={stale}
                 className={COMBOBOX_ITEM_CLASS}
                 onSelect={() => goTo(data.page - 1)}
               >
@@ -104,6 +109,7 @@ export function CustomerPicker({
             {data.hasMore && (
               <CommandItem
                 value="page-next"
+                disabled={stale}
                 className={COMBOBOX_ITEM_CLASS}
                 onSelect={() => goTo(data.page + 1)}
               >

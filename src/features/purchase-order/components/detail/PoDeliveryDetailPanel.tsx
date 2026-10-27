@@ -48,7 +48,7 @@ export function PoDeliveryDetailPanel({
       }
     >
       {detail && (
-        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2.5 text-[0.8125rem]">
+        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2.5 text-[0.8125rem]">
           {detail.kind === "attempt" ? <AttemptRows row={detail.row} /> : null}
           {detail.kind === "decision" ? <DecisionRows row={detail.row} /> : null}
         </dl>

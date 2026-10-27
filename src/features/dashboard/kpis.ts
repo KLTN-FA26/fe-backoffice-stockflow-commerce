@@ -20,6 +20,7 @@ import {
 } from "@/constants/permissions";
 
 import type { LucideIcon } from "lucide-react";
+import type { StatTone } from "@/components/shared/StatStrip";
 import type { PermissionCode } from "@/lib/auth";
 import type { CountSource } from "./types";
 
@@ -32,6 +33,8 @@ export interface KpiDefinition {
   key: string;
   label: string;
   icon: LucideIcon;
+  /** Màu icon trong dải số liệu — chỉ để phân biệt ô, không mang nghĩa trạng thái. */
+  tone: StatTone;
   /** BE `@RequiresPermission` of the list endpoint the number comes from. */
   permission: PermissionCode;
   source: CountSource;
@@ -43,6 +46,7 @@ export interface KpiDefinition {
 export const KPI_DEFINITIONS: readonly KpiDefinition[] = [
   {
     key: "orders",
+    tone: "info",
     label: DASHBOARD_LABELS.ordersPending,
     icon: ClipboardList,
     permission: ORDER_PERMISSIONS.read,
@@ -56,6 +60,7 @@ export const KPI_DEFINITIONS: readonly KpiDefinition[] = [
   },
   {
     key: "purchase-orders",
+    tone: "warning",
     label: DASHBOARD_LABELS.poPending,
     icon: ShoppingCart,
     permission: PO_PERMISSIONS.read,
@@ -68,6 +73,7 @@ export const KPI_DEFINITIONS: readonly KpiDefinition[] = [
   },
   {
     key: "receipts",
+    tone: "positive",
     label: DASHBOARD_LABELS.receiptsProcessing,
     icon: Receipt,
     permission: GOODS_RECEIPT_PERMISSIONS.read,
@@ -80,6 +86,7 @@ export const KPI_DEFINITIONS: readonly KpiDefinition[] = [
   },
   {
     key: "picks",
+    tone: "special",
     label: DASHBOARD_LABELS.picksOpen,
     icon: PackageCheck,
     permission: FULFILLMENT_PICK_PERMISSIONS.read,
@@ -92,6 +99,7 @@ export const KPI_DEFINITIONS: readonly KpiDefinition[] = [
   },
   {
     key: "transfers",
+    tone: "info",
     label: DASHBOARD_LABELS.transfersInTransit,
     icon: ArrowRightLeft,
     permission: TRANSFER_PERMISSIONS.read,

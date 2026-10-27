@@ -23,7 +23,7 @@ export function Section({
   children: ReactNode;
 }) {
   return (
-    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
+    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)">
       <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
         <div>
           <h2 className="text-ink-primary text-[0.9375rem] font-semibold">{title}</h2>

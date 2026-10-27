@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { CheckCircle2, PackageX, Undo2 } from "lucide-react";
 
-import { ADMIN_ROUTES, SHIPMENT_PERMISSIONS, UI_LABELS } from "@/constants";
+import { SHIPMENT_PERMISSIONS, UI_LABELS } from "@/constants";
 import { useCan } from "@/lib/auth";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import {
@@ -13,8 +13,6 @@ import {
 } from "@/features/shipping/shipment-lifecycle";
 import { useShipment } from "@/features/shipping/queries";
 import { Alert } from "@/components/shared/Alert";
-import { BackLink } from "@/components/shared/BackLink";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
 
@@ -56,39 +54,37 @@ function ShipmentBody({ id }: { id: string }) {
   const outcomes = allowedOutcomes(shipment, actor);
 
   return (
-    <>
-      <PageHeader
-        title={`${L.title} · ${shipment.code}`}
-        subtitle={UI_LABELS.shipping.noTracking}
-        actions={
-          <>
-            <BackLink href={ADMIN_ROUTES.shipments.list} label={L.back} />
-            {outcomes.map((value) => {
-              const Icon = OUTCOME_ICON[value];
-              return (
-                <Button
-                  key={value}
-                  size="sm"
-                  variant={value === "DELIVERED" ? "default" : "outline"}
-                  onClick={() => setOutcome(value)}
-                >
-                  <Icon className="size-3.5" /> {L.outcomeAction[value]}
-                </Button>
-              );
-            })}
-          </>
-        }
-      />
+    // Giao diện kiểu Vercel như chi tiết load plan (globals.css `.surface-soft`): không tiêu đề hiển
+    // thị — breadcrumb đã có mã lô; mã lô + nút ghi nhận kết quả nằm ở thẻ thông tin đầu trang.
+    <div className="surface-soft surface-compact">
+      <h1 className="sr-only">{`${L.title} · ${shipment.code}`}</h1>
       {query.isError && <RefetchErrorNotice onRetry={() => void query.refetch()} />}
       <div className="space-y-5">
         {outcomes.length === 0 && <Alert tone="info">{noOutcomeReason(shipment, actor)}</Alert>}
-        <ShipmentInfoCard data={data} canAssign={canAssignCarrier(shipment, actor)} />
+        <ShipmentInfoCard
+          data={data}
+          canAssign={canAssignCarrier(shipment, actor)}
+          actions={outcomes.map((value) => {
+            const Icon = OUTCOME_ICON[value];
+            return (
+              <Button
+                key={value}
+                size="sm"
+                variant={value === "DELIVERED" ? "default" : "outline"}
+                onClick={() => setOutcome(value)}
+              >
+                <Icon className="size-3.5" /> {L.outcomeAction[value]}
+              </Button>
+            );
+          })}
+        />
         <ShipmentDetails data={data} />
       </div>
+      <p className="text-ink-tertiary mt-3 text-xs">{UI_LABELS.shipping.noTracking}</p>
       {outcome && outcomes.includes(outcome) && (
         <OutcomeDialog shipment={shipment} outcome={outcome} onClose={() => setOutcome(null)} />
       )}
-    </>
+    </div>
   );
 }
 

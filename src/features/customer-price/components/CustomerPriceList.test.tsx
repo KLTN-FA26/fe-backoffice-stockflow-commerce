@@ -245,3 +245,34 @@ describe("trạng thái", () => {
     expect(await screen.findByText(L.customer.statusWarning, {}, WAIT)).toBeInTheDocument();
   });
 });
+
+/**
+ * Tích hợp develop (Step 6C): `InputCombobox` giờ bấm Enter khi chưa có mục nào được đánh dấu thì chọn MỤC
+ * ĐẦU. Ô chọn khách giữ kết quả cũ trong lúc chờ debounce / tải `q` mới → Enter không được chọn nhầm khách
+ * của lần tìm trước; chỉ chọn khi danh sách đúng là kết quả của chữ đang gõ.
+ */
+describe("Enter trong ô chọn khách sau khi tích hợp develop", () => {
+  it("gõ từ khoá mới rồi Enter ngay → không chọn khách của kết quả cũ; có kết quả mới thì Enter chọn đúng", async () => {
+    stubPermissions(ALL);
+    const view = render();
+    const user = userEvent.setup();
+    const box = await screen.findByRole("combobox", { name: L.picker.label });
+    await user.click(box);
+    // kết quả của từ khoá rỗng (trang đầu mọi khách) đã hiện
+    await screen.findAllByRole("option", {}, WAIT);
+    await user.type(box, "khach1@");
+    await user.keyboard("{Enter}");
+    expect(view.urlUpdates).toEqual([]);
+
+    // kết quả của "khach1@" về → Enter chọn đúng khách đó
+    await screen.findByRole("option", { name: /In Ấn Sài Gòn/ }, WAIT);
+    await waitFor(() =>
+      expect(screen.getByRole("option", { name: /In Ấn Sài Gòn/ })).not.toHaveAttribute(
+        "aria-disabled",
+        "true",
+      ),
+    );
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(view.urlUpdates.at(-1)).toBe(`?customerId=${A}`));
+  });
+});

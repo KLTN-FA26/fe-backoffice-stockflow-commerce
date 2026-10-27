@@ -105,6 +105,7 @@ function Content({
     <>
       <RefetchBar active={query.isFetching} label={L.refetching} />
       <DataTable
+        stickyHeader
         columns={columns}
         data={page.items}
         rowKey={(row) => row.shipmentId}

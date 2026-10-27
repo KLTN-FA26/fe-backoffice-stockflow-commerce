@@ -4,7 +4,7 @@
 
 import { FULFILLMENT_LIMITS, PACK_STATUS } from "@/constants";
 
-import type { FulfillmentOrderLine, FulfillmentTask, IntegrityEvidence } from "./types";
+import type { FulfillmentTask, IntegrityEvidence, TaskLine } from "./types";
 
 /** Scheme được phép mở cho URL ký của file thiết kế — chặn `javascript:` / `data:` / `blob:`… */
 const ARTIFACT_URL_PROTOCOLS: readonly string[] = ["https:", "http:"];
@@ -58,40 +58,41 @@ export function verificationCount(task: Pick<FulfillmentTask, "integrityEvidence
 }
 
 /** Dòng tuỳ chỉnh: có thiết kế đã khoá kèm theo. */
-export function designedLines(
-  lines: readonly FulfillmentOrderLine[],
-): readonly FulfillmentOrderLine[] {
+export function designedLines(lines: readonly TaskLine[]): readonly TaskLine[] {
   return lines.filter((line) => !!line.designSnapshotId);
 }
 
 export interface DesignLineView {
   /** Id dòng đơn hàng — tham số `{lineId}` của endpoint tải artifact. */
   lineId: string;
-  /** Thiếu khi không đọc được đơn hàng (chỉ biết dòng qua evidence). */
+  /** Thiếu khi task không kèm `lines` (câu trả lời thao tác ghi — chỉ biết dòng qua evidence). */
   sku?: string;
   quantity?: number;
-  /** Checksum đã khoá lúc khách chốt thiết kế. */
+  /** Checksum đã khoá lúc khách chốt thiết kế — từ lần đối chiếu gần nhất (TaskLine BE không có). */
   lockedChecksum?: string;
   latestEvidence?: IntegrityEvidence;
 }
 
 /**
- * Dòng cần đối chiếu thiết kế ở trạm đóng gói. Ưu tiên dòng đơn (đủ SKU / SL); không đọc được đơn
- * thì suy từ evidence — chỉ có sau lần đóng gói đầu tiên.
+ * Dòng cần đối chiếu thiết kế ở trạm đóng gói: dòng in của `task.lines` (SKU / SL, SCRUM-466). TaskLine BE
+ * không có checksum đã khoá → lấy `expectedChecksum` của lần đối chiếu mới nhất (chưa đối chiếu thì chưa có).
+ * Task không kèm `lines` → suy từ evidence.
  */
 export function designLineViews(
-  task: Pick<FulfillmentTask, "integrityEvidence">,
-  orderLines: readonly FulfillmentOrderLine[] | undefined,
+  task: Pick<FulfillmentTask, "integrityEvidence" | "lines">,
 ): readonly DesignLineView[] {
   const latest = latestEvidenceByLine(task.integrityEvidence);
-  if (orderLines) {
-    return designedLines(orderLines).map((line) => ({
-      lineId: line.lineId,
-      sku: line.sku,
-      quantity: line.quantity,
-      lockedChecksum: line.designChecksum ?? undefined,
-      latestEvidence: latest.get(line.lineId),
-    }));
+  if (task.lines) {
+    return designedLines(task.lines).map((line) => {
+      const evidence = latest.get(line.lineId);
+      return {
+        lineId: line.lineId,
+        sku: line.sku,
+        quantity: line.quantity,
+        lockedChecksum: evidence?.expectedChecksum,
+        latestEvidence: evidence,
+      };
+    });
   }
   return [...latest.values()].map((entry) => ({
     lineId: entry.orderLineId,

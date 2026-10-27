@@ -1,6 +1,6 @@
 "use client";
 
-import { ADMIN_ROUTES, PO_PERMISSIONS, UI_LABELS } from "@/constants";
+import { PO_PERMISSIONS, UI_LABELS } from "@/constants";
 
 import { PoWizardLayout } from "./create/PoWizardLayout";
 import { useCreateForm } from "./create/useCreateForm";
@@ -16,12 +16,5 @@ export function PurchaseOrderCreate() {
 
 function PurchaseOrderCreateBody() {
   const w = useCreateForm();
-  return (
-    <PoWizardLayout
-      w={w}
-      title={UI_LABELS.purchaseOrder.createAction}
-      subtitle={UI_LABELS.purchaseOrder.createSubtitle}
-      back={{ href: ADMIN_ROUTES.purchaseOrders.list, label: UI_LABELS.purchaseOrder.backToList }}
-    />
-  );
+  return <PoWizardLayout w={w} title={UI_LABELS.purchaseOrder.createAction} />;
 }

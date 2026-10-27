@@ -3,7 +3,6 @@
 import { useState } from "react";
 
 import {
-  ADMIN_ROUTES,
   PO_PERMISSIONS,
   PO_STATUS,
   PO_TYPE,
@@ -128,8 +127,6 @@ function EditForm({
     <PoWizardLayout
       w={w}
       title={L.draftEdit.title(po.poNumber)}
-      subtitle={L.draftEdit.subtitle}
-      back={{ href: ADMIN_ROUTES.purchaseOrders.detail(po.poId), label: L.draftEdit.backToDetail }}
       draft={{
         poNumber: po.poNumber,
         supplierLabel: po.supplierName ?? L.supplierUnavailable,

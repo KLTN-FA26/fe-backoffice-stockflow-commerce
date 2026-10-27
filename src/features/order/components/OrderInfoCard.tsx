@@ -29,7 +29,7 @@ export function OrderInfoCard({ order }: OrderInfoCardProps) {
   return (
     <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
       <h2 className="text-ink-primary mb-3 text-[0.9375rem] font-semibold">Thông tin</h2>
-      <dl className="grid grid-cols-[auto_1fr] gap-x-3.5 gap-y-1.5 text-[0.8125rem]">
+      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3.5 gap-y-1.5 text-[0.8125rem]">
         <dt className="text-ink-secondary">Mã đơn</dt>
         <dd className="text-ink-primary font-[family-name:var(--font-mono)] font-medium">
           {order.orderNumber}

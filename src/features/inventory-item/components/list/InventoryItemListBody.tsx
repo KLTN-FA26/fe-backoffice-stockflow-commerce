@@ -102,6 +102,7 @@ export function InventoryItemListBody({
       {/* Đổi trang/lọc: giữ dữ liệu cũ (keepPreviousData) + thanh mảnh báo đang tải lại (§8) */}
       <RefetchBar active={query.isFetching} label={L.listRefetching} />
       <DataTable
+        stickyHeader
         columns={columns}
         data={page.items}
         rowKey={(row) => row.id}

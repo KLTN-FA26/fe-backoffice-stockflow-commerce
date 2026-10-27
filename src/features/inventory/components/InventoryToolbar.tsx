@@ -35,9 +35,12 @@ const STATUS_OPTIONS = STOCK_ADJUSTMENT_STATUSES.map((value) => ({
 export function InventoryToolbar({
   state,
   mode,
+  actions,
 }: {
   state: ListState;
   mode: "adjustment" | "movement";
+  /** Nút của trang (tạo phiếu, link sang trang kho còn lại) — cuối toolbar. */
+  actions?: React.ReactNode;
 }) {
   const { filters } = state;
   const status = filters.status;
@@ -87,6 +90,7 @@ export function InventoryToolbar({
         summaryItems={summary}
         onResetAll={() => void state.reset()}
         resetDisabled={!state.hasFilters}
+        actions={actions}
         facets={
           <>
             <FacetField id={`${mode}-location`} label={L.location}>

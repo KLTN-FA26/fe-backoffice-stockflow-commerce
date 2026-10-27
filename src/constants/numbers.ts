@@ -2,6 +2,12 @@
  * Ngưỡng số dùng ≥2 chỗ. Mỗi giá trị cite nguồn (docs hoặc ràng buộc BE).
  */
 
+/**
+ * Dropdown năm của `DatePicker`: số năm trước / sau năm hiện tại. Chỉ là phạm vi điều hướng của UI
+ * (hạn dùng, ngày giao…), không phải ràng buộc BE — `min` / `max` của từng ô vẫn chặn riêng.
+ */
+export const DATE_PICKER_YEAR_SPAN = { back: 10, ahead: 10 } as const;
+
 /** Giới hạn đơn đặt NCC — lấy đúng ràng buộc DB/BE nhánh `test` (BE request chưa có @Size). */
 export const PO_LIMITS = {
   /** BE `purchase_order_lines.note VARCHAR(255)` (BE PR #71). */
@@ -71,6 +77,16 @@ export const FULFILLMENT_LIMITS = {
   checksumPreviewLength: 12,
   /** Số ký tự CUỐI của UUID hiện khi BE không trả mã đọc được (task, đơn, người được gán). */
   shortIdLength: 8,
+} as const;
+
+/** Dòng lấy hàng — đúng ràng buộc BE (SCRUM-267/275, PR #147). */
+export const PICK_LINE_LIMITS = {
+  /** `ConfirmPickRequest.locationCode / scannedCode`, `ShortPickRequest.locationCode` @Size(max = 64). */
+  codeMax: 64,
+  /** Một trang dòng lấy hàng — `Pages.MAX_PAGE_SIZE` (task dài hơn thì tải tiếp trang sau). */
+  pageSize: 200,
+  /** Ô tìm của hàng đợi trả về kệ lọc ở client — debounce 300ms (api-conventions §9). */
+  searchDebounceMs: 300,
 } as const;
 
 /**

@@ -68,7 +68,7 @@ export function LineQcPanel({
         </div>
       }
     >
-      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2.5 text-[0.8125rem]">
+      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2.5 text-[0.8125rem]">
         <Row label="Chuyển QC">
           {line.movedToQcAt ? (
             <span className="tabular-nums">{formatDateTime(line.movedToQcAt)}</span>

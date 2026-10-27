@@ -85,7 +85,7 @@ export function AdjustmentActions({ adjustment }: { adjustment: StockAdjustment 
       <div className="flex gap-[var(--el-gap)]">
         {actions.map((value) => (
           <Button
-            className="rounded-[var(--r-sm)]"
+            className="h-(--action-h) rounded-(--action-radius) px-(--action-px)"
             key={value}
             type="button"
             disabled={pending}

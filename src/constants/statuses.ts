@@ -218,6 +218,27 @@ export const PICK_API_STATUSES = ["PENDING", "PICKING", "PICKED", "SHORT", "CANC
 export const PICK_STATUS_BY_API = PICK_STATUS;
 
 /**
+ * Trạng thái một DÒNG lấy hàng — HỆ QUY CHIẾU LÀ BE `fulfillment/internal/domain/PickLineStatus.java`
+ * (SCRUM-267/275; SHORT = báo thiếu hàng, BE PR #147), tên enum BE viết Title Case 1-1 như `PICK_STATUSES`.
+ * Dòng SHORT được phân bổ lại thì thành CANCELLED (giữ `shortQty`) và sinh dòng OPEN mới.
+ */
+export const PICK_LINE_STATUSES = ["Open", "Picked", "Short", "Cancelled", "Put Back"] as const;
+
+/** BE `PickLineStatus` — giá trị nhận qua API. */
+export const PICK_LINE_API_STATUSES = ["OPEN", "PICKED", "SHORT", "CANCELLED", "PUT_BACK"] as const;
+
+export const PICK_LINE_STATUS = {
+  OPEN: "Open",
+  PICKED: "Picked",
+  SHORT: "Short",
+  CANCELLED: "Cancelled",
+  PUT_BACK: "Put Back",
+} as const satisfies Record<PickLineApiStatus, PickLineStatus>;
+
+/** Đổi 1-1 giá trị BE → tên hiển thị; khoá theo enum BE. */
+export const PICK_LINE_STATUS_BY_API = PICK_LINE_STATUS;
+
+/**
  * Trạng thái đóng gói — HỆ QUY CHIẾU LÀ BE `fulfillment/internal/domain/PackStatus.java`, cùng quy
  * tắc với `PICK_STATUSES` (tên enum BE viết Title Case; docs 08 §5 chỉ để tham khảo).
  * `PACKING` = packer đã nhận đơn tại bàn đóng gói (BE PR #136: `POST /tasks/{id}/packing-start`; sau
@@ -478,6 +499,8 @@ export type QcOutcomeApi = (typeof QC_OUTCOME_API)[number];
 export type QcOutcomeStatus = (typeof QC_OUTCOME_STATUSES)[number];
 export type PickStatus = (typeof PICK_STATUSES)[number];
 export type PickApiStatus = (typeof PICK_API_STATUSES)[number];
+export type PickLineStatus = (typeof PICK_LINE_STATUSES)[number];
+export type PickLineApiStatus = (typeof PICK_LINE_API_STATUSES)[number];
 export type PackStatus = (typeof PACK_STATUSES)[number];
 export type PackApiStatus = (typeof PACK_API_STATUSES)[number];
 export type DesignArtifactRole = (typeof DESIGN_ARTIFACT_ROLES)[number];

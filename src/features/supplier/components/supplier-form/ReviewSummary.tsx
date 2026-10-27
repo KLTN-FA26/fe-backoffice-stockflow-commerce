@@ -14,7 +14,7 @@ export function ReviewSummary({ values }: { values: SupplierFormValues }) {
         title="Rà soát trước khi lưu"
         description="Kiểm tra lại hồ sơ trước khi lưu — mọi lỗi sẽ được đánh dấu theo bước."
       />
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <SummaryItem label={L.codeShort} value={values.code || "—"} mono />
         <SummaryItem label={L.name} value={values.name || "—"} />
         <SummaryItem label={L.taxCode} value={values.taxCode || "—"} mono />

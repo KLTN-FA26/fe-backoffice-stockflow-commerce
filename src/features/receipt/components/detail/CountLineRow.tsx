@@ -1,14 +1,16 @@
 "use client";
 
 import { Copy, Trash2 } from "lucide-react";
+import { Controller } from "react-hook-form";
 
 import { RECEIPT_LIMITS } from "@/constants";
+import { DatePicker } from "@/components/shared/DatePicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 import { FieldError } from "../primitives";
 
-import type { FieldErrors, UseFormRegister } from "react-hook-form";
+import type { Control, FieldErrors, UseFormRegister } from "react-hook-form";
 import type { ReceiptLinesFormInput, ReceivablePoLine } from "@/features/receipt/types";
 
 const CELL = "border-border-default bg-bg-surface h-8 rounded-[var(--r-sm)] text-[0.8125rem]";
@@ -18,7 +20,9 @@ export function CountLineRow({
   index,
   poLine,
   register,
+  control,
   errors,
+  onEdit,
   overOpen,
   autoFocus,
   onSplit,
@@ -27,7 +31,9 @@ export function CountLineRow({
   index: number;
   poLine: ReceivablePoLine | undefined;
   register: UseFormRegister<ReceiptLinesFormInput>;
+  control: Control<ReceiptLinesFormInput>;
   errors: FieldErrors<ReceiptLinesFormInput>["lines"];
+  onEdit: () => void;
   /** Tổng SL đang đếm của dòng PO vượt SL còn mở → cảnh báo, vẫn cho lưu. */
   overOpen: boolean;
   autoFocus: boolean;
@@ -82,14 +88,26 @@ export function CountLineRow({
         <FieldError id={`${id("lot")}-error`}>{e?.lotNumber?.message}</FieldError>
       </td>
       <td className="w-40 px-2 py-2">
-        <Input
-          id={id("expiry")}
-          type="date"
-          aria-label={`Hạn dùng dòng ${index + 1}`}
-          aria-invalid={e?.expiryDate ? true : undefined}
-          aria-describedby={describedBy("expiry", !!e?.expiryDate)}
-          className={`${CELL} tabular-nums`}
-          {...register(`lines.${index}.expiryDate`)}
+        <Controller
+          control={control}
+          name={`lines.${index}.expiryDate`}
+          render={({ field }) => (
+            <DatePicker
+              id={id("expiry")}
+              value={field.value ?? ""}
+              onChange={(value) => {
+                field.onChange(value);
+                onEdit();
+              }}
+              onBlur={field.onBlur}
+              ref={field.ref}
+              clearable
+              aria-label={`Hạn dùng dòng ${index + 1}`}
+              aria-invalid={e?.expiryDate ? true : undefined}
+              aria-describedby={describedBy("expiry", !!e?.expiryDate)}
+              className={CELL}
+            />
+          )}
         />
         <FieldError id={`${id("expiry")}-error`}>{e?.expiryDate?.message}</FieldError>
       </td>

@@ -26,6 +26,7 @@ export function TaxonomyToolbar({
   columnLabels,
   lockedColumn,
   tools,
+  actions,
 }: {
   s: TaxonomyListState;
   searchPlaceholder: string;
@@ -33,6 +34,8 @@ export function TaxonomyToolbar({
   lockedColumn: string;
   /** Công cụ riêng của tab (mở / thu gọn cây danh mục). */
   tools?: ReactNode;
+  /** Nút hành động của trang (Thêm thương hiệu / danh mục). */
+  actions?: ReactNode;
 }) {
   const allColumns = Object.keys(columnLabels);
   return (
@@ -54,6 +57,7 @@ export function TaxonomyToolbar({
       onResetColumns={s.resetColumns}
       hasColumnConfig={s.hasColumnConfig}
       tools={tools}
+      actions={actions}
       summaryItems={[
         {
           label: "Search chính",

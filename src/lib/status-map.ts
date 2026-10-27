@@ -159,8 +159,12 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Requested",
     // Chuyến xe mới lập kế hoạch, chưa đặt xe
     "PLANNED",
+    // Dòng lấy hàng chưa lấy (BE PickLineStatus.OPEN, SCRUM-267)
+    "Open",
   ],
   muted: [
+    // Dòng lấy hàng đã trả về kệ sau khi đơn huỷ — kết thúc (BE PickLineStatus.PUT_BACK, SCRUM-275)
+    "Put Back",
     "UNKNOWN",
     "SUPPRESSED",
     // BE #36 cancellationDeliveryStatus: PO huỷ trước khi gửi NCC → không cần báo huỷ.
@@ -352,7 +356,9 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   Guest: "Khách vãng lai",
   New: "Mới",
   Requested: "Đã yêu cầu",
+  Open: "Chờ lấy",
   // Muted
+  "Put Back": "Đã trả về kệ",
   Closed: "Đã đóng",
   Inactive: "Không hoạt động",
   Blacklisted: "Danh sách đen",

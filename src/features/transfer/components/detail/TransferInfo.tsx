@@ -46,6 +46,8 @@ export function TransferInfo({ transfer }: { transfer: TransferOrder }) {
   return (
     <Section title={L.sectionInfo}>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+        {/* Trang chi tiết không có tiêu đề — số lệnh nằm ở đây */}
+        <InfoItem label={UI_LABELS.transfer.column.number} value={transfer.number} mono />
         <InfoItem
           label={UI_LABELS.transfer.field.fromWarehouse}
           value={warehouseLabel(transfer.fromWarehouseId)}
@@ -102,7 +104,7 @@ export function TransferTimelineCard({ transfer }: { transfer: TransferOrder }) 
     { label: L.action.dispatch, at: transfer.dispatchedAt, by: transfer.dispatchedBy },
   ];
   return (
-    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
+    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)">
       <h2 className="text-ink-primary mb-3 text-[0.9375rem] font-semibold">{L.sectionTimeline}</h2>
       <dl className="space-y-2 text-[0.8125rem]">
         <div className="flex justify-between">

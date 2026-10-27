@@ -21,6 +21,7 @@ import {
 import { registerMockRoute } from "./mock-adapter";
 import { toBackendRoles } from "./mock-backend-roles";
 import {
+  canSee,
   conflict,
   currentActor,
   findMockOrder,
@@ -29,12 +30,18 @@ import {
   isTampered,
   nextTaskId,
   orderClosedError,
+  outOfScope,
+  outOfWarehouseScope,
   routeParam,
   taskNotFound,
+  taskLinesOf,
   toTaskResponse,
   verifyDesigns,
 } from "./mock-routes-fulfillment-store";
 import { registerPackingMockRoutes } from "./mock-routes-packing";
+import { registerPickLineMockRoutes } from "./mock-routes-pick-lines";
+import { registerPutBackMockRoutes } from "./mock-routes-put-backs";
+import { getMockPickLines } from "./mock-routes-pick-lines-store";
 import {
   backendOrderStatusOf,
   lockedChecksumOf,
@@ -54,7 +61,7 @@ import {
 } from "./mock-routes-purchase-orders-store";
 
 import type { AxiosRequestConfig } from "axios";
-import type { MockActor, MockTask } from "./mock-routes-fulfillment-store";
+import type { MockTask } from "./mock-routes-fulfillment-store";
 
 const PATH = "/fulfillment/tasks";
 const ARTIFACT_ROLES = [
@@ -100,20 +107,6 @@ const missingField = (field: string) =>
     { field, message: "must not be null" },
   ]);
 
-/**
- * BE `TaskAccess.requireVisible` (BE PR #148): người được gán; người có task-oversight:READ hoặc
- * design-reverification:READ; và người đóng gói (packing:UPDATE) khi lấy hàng đã xong — người đóng gói
- * không nhất thiết là người lấy hàng.
- */
-function canSee(task: MockTask, actor: MockActor): boolean {
-  return (
-    task.assignedUserId === actor.userId ||
-    actor.can(OVERSIGHT.read) ||
-    actor.can(REVERIFY.read) ||
-    (task.pickStatus === "PICKED" && actor.can(PACKING.update))
-  );
-}
-
 async function loadTask(config: AxiosRequestConfig) {
   const store = await getFulfillmentStore();
   return { store, task: store.get(routeParam(config, "id")), actor: await currentActor() };
@@ -135,6 +128,17 @@ function registerPickStep(
     const closed = await orderClosedError(task.orderId);
     if (closed) return closed;
     if (task.pickStatus !== from) return conflict();
+    // BE `planLines` (lúc tạo task / lười ở picking-start) + `requireAllPicked` lúc hoàn tất: mọi dòng
+    // PICKED hoặc CANCELLED (dòng thiếu đã phân bổ lại) — còn OPEN / SHORT → 409
+    const lines = await getMockPickLines(task);
+    const open = lines.filter((line) => line.status !== "PICKED" && line.status !== "CANCELLED");
+    if (suffix === "picking-completion" && open.length > 0) {
+      return beError(
+        409,
+        "PICK_LINES_INCOMPLETE",
+        `${open.length} of ${lines.length} lines are not picked yet`,
+      );
+    }
     apply(task, new Date().toISOString());
     return beOk(toTaskResponse(task));
   });
@@ -154,12 +158,18 @@ function registerTaskReadRoutes(): void {
       return beError(400, "UNSUPPORTED_PARAMETER", "Unknown pick status");
     }
     const actor = await currentActor();
-    const all = [...(await getFulfillmentStore()).values()]
-      .filter((task) => !status || task.pickStatus === status)
-      .sort(newestFirst);
     // BE `listTasks`: endpoint cần pick-lists:READ; phạm vi theo quyền — task-oversight:READ thấy hết →
     // design-reverification:READ chỉ thấy kiện đang giữ → còn lại thấy task của mình
     if (!actor.can(PICK.read)) return forbidden();
+    // SCRUM-466: lọc kho / người được gán chỉ thu hẹp trong phạm vi; kho ngoài phạm vi → 403 trước
+    const warehouseId = readString(params.warehouseId);
+    const assignedUserId = readString(params.assignedUserId);
+    if (warehouseId && (await outOfWarehouseScope(actor.userId, warehouseId))) return outOfScope();
+    const all = [...(await getFulfillmentStore()).values()]
+      .filter((task) => !status || task.pickStatus === status)
+      .filter((task) => !warehouseId || task.warehouseId === warehouseId)
+      .filter((task) => !assignedUserId || task.assignedUserId === assignedUserId)
+      .sort(newestFirst);
     let visible: MockTask[];
     if (actor.can(OVERSIGHT.read)) visible = all;
     else if (actor.can(REVERIFY.read)) visible = all.filter((t) => t.packStatus === "ON_HOLD");
@@ -170,7 +180,8 @@ function registerTaskReadRoutes(): void {
   registerMockRoute("GET", `${PATH}/:id`, async (config) => {
     const { task, actor } = await loadTask(config);
     if (!task || !canSee(task, actor)) return taskNotFound();
-    return beOk(toTaskResponse(task));
+    // Chỉ chi tiết kèm `lines` (BE `FulfillmentServiceImpl#getTask`, SCRUM-466)
+    return beOk({ ...toTaskResponse(task), lines: await taskLinesOf(task) });
   });
 
   registerMockRoute(
@@ -265,6 +276,8 @@ function registerAssignmentRoutes(): void {
       evidence: [],
     };
     store.set(task.taskId, task);
+    // BE `createTask` lập luôn dòng lấy hàng (mọi dòng OPEN)
+    await getMockPickLines(task);
     // READY_TO_FULFILL → PICKING, cùng giao dịch với việc tạo task (BE `orders.startPicking`)
     setMockOrderStatus(orderId, "PICKING");
     return beOk(toTaskResponse(task), 201);
@@ -326,11 +339,7 @@ function registerAssigneeRoutes(): void {
     if (!warehouses.some((warehouse) => warehouse.warehouseId === warehouseId)) {
       return beError(404, "WAREHOUSE_NOT_FOUND", "Warehouse not found");
     }
-    const caller = staffUsers.find((user) => user.userId === actor.userId);
-    const callerScope: readonly string[] = caller?.warehouseIds ?? [];
-    if (callerScope.length > 0 && !callerScope.includes(warehouseId)) {
-      return beError(403, "OUT_OF_DATA_SCOPE", "The warehouse is outside your data scope");
-    }
+    if (await outOfWarehouseScope(actor.userId, warehouseId)) return outOfScope();
     const assignees = staffUsers
       .filter(
         (user) =>
@@ -433,4 +442,6 @@ export function registerFulfillmentMockRoutes(): void {
   registerPackingMockRoutes();
   registerAssigneeRoutes();
   registerTaskCandidateRoutes();
+  registerPickLineMockRoutes();
+  registerPutBackMockRoutes();
 }

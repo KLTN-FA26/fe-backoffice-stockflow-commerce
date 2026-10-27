@@ -53,6 +53,12 @@ export const ADMIN_ROUTES = {
     detail: (id: string) => `${ADMIN_BASE}/picking/${id}`,
     list: `${ADMIN_BASE}/picking`,
   },
+  /** Hàng đợi trả hàng về kệ (BE `GET /fulfillment/put-backs`, SCRUM-275) — lọc kho trên URL. */
+  putBacks: {
+    list: `${ADMIN_BASE}/put-backs`,
+    listInWarehouse: (warehouseId: string) =>
+      `${ADMIN_BASE}/put-backs?warehouse=${encodeURIComponent(warehouseId)}`,
+  },
   receipts: {
     create: `${ADMIN_BASE}/receipts/create`,
     // Tạo phiếu từ một PO đã chọn sẵn (vd nút "Nhận hàng" ở màn PO)

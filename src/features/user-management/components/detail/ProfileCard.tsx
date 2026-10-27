@@ -55,7 +55,10 @@ export function ProfileCard({
     <Card>
       <h2 className="text-ink-primary text-base font-semibold">{title}</h2>
       <p className="text-ink-secondary mb-3 text-xs">{user.email}</p>
-      <form onSubmit={(event) => void submit(event)} className="grid gap-3 sm:grid-cols-2">
+      <form
+        onSubmit={(event) => void submit(event)}
+        className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+      >
         <TextField label={USER_UI.usernameLabel} value={user.username} readOnly disabled />
         <TextField
           label={USER_UI.fullNameLabel}
@@ -84,7 +87,7 @@ export function ProfileCard({
           {identityErrorMessage(mutation.error)}
         </p>
       )}
-      <dl className="border-border-default mt-4 grid gap-3 border-t pt-4 sm:grid-cols-3">
+      <dl className="border-border-default mt-4 grid grid-cols-1 gap-3 border-t pt-4 sm:grid-cols-3">
         <Fact label={USER_UI.statusLabel}>
           <UserStatusBadge status={user.status} />
         </Fact>

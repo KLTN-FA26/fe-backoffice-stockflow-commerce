@@ -18,16 +18,21 @@ const ASSIGNEE_ONLY: Record<FulfillmentScope, readonly FulfillmentActionCode[]> 
   packing: [],
 };
 
-/** Câu thay cho nút khi task không còn thao tác nào trong màn này với người dùng này. */
+/**
+ * Câu thay cho nút khi task không còn thao tác nào trong màn này với người dùng này. `incompleteReason`: người
+ * được gán chưa hoàn tất được vì còn dòng chưa lấy / thiếu hàng ("Còn n dòng…").
+ */
 export function noActionText(
   task: FulfillmentTask,
   actor: FulfillmentActor,
   scope: FulfillmentScope,
+  incompleteReason?: string,
 ): string {
   if (isTaskCancelled(task)) return `${STATUS_LABEL_VI.Cancelled} — không còn thao tác.`;
   if (scope === "picking" && task.pickStatus === PICK_STATUS.PICKED) {
     return `${STATUS_LABEL_VI[task.pickStatus]} — không còn thao tác lấy hàng.`;
   }
+  if (scope === "picking" && incompleteReason) return incompleteReason;
   if (scope === "packing") {
     if (isTaskClosed(task)) return `${STATUS_LABEL_VI[task.packStatus]} — không còn thao tác.`;
     if (isOnDesignHold(task)) return UI_LABELS.packing.notice.holdReadOnly;
