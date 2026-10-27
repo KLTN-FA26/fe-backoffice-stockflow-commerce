@@ -20,9 +20,11 @@ type ChangeType =
   | "VARIANT_STATUS"
   | "MEDIA"
   | "LOGISTICS"
-  | "INVENTORY_CONTROL";
+  | "INVENTORY_CONTROL"
+  // BE #121: thông tin mua hàng của một SKU (`SkuPurchasingService.describe`)
+  | "PURCHASING";
 
-type Subject = "PRODUCT" | "VARIANT" | "MEDIA" | "LOGISTICS" | "INVENTORY_CONTROL";
+type Subject = "PRODUCT" | "VARIANT" | "MEDIA" | "LOGISTICS" | "INVENTORY_CONTROL" | "PURCHASING";
 
 const SUBJECT: Record<ChangeType, Subject> = {
   CREATED: "PRODUCT",
@@ -39,6 +41,7 @@ const SUBJECT: Record<ChangeType, Subject> = {
   MEDIA: "MEDIA",
   LOGISTICS: "LOGISTICS",
   INVENTORY_CONTROL: "INVENTORY_CONTROL",
+  PURCHASING: "PURCHASING",
 };
 
 /** BE `ProductWebMapper#auditActionOf`. */

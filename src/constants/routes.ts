@@ -18,6 +18,10 @@ export const ADMIN_ROUTES = {
     list: `${ADMIN_BASE}/inventory-items`,
     detail: (id: string) => `${ADMIN_BASE}/inventory-items/${id}`,
   },
+  /** Bảng giá riêng của khách hàng — BE `CustomerPriceController` (`?customerId=` giữ khách đang chọn). */
+  customerPrices: {
+    list: `${ADMIN_BASE}/customer-prices`,
+  },
   products: {
     create: `${ADMIN_BASE}/products/create`,
     detail: (id: string) => `${ADMIN_BASE}/products/${id}`,

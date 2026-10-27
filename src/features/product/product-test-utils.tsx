@@ -110,11 +110,13 @@ export function renderApp(ui: ReactElement, options: { searchParams?: string } =
     impersonatedRole: null,
   });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  const result = render(
     <QueryClientProvider client={client}>
       <NuqsTestingAdapter searchParams={options.searchParams ?? ""} hasMemory>
         {ui}
       </NuqsTestingAdapter>
     </QueryClientProvider>,
   );
+  // `client` cho test cần đẩy dữ liệu mới vào cache (vd refetch nền khi form đang sửa)
+  return { ...result, client };
 }

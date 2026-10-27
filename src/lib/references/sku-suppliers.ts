@@ -6,7 +6,7 @@
  * tối đa BE trả (200 dòng) nên SKU không nằm trong `fetchSupplierCatalog`.
  */
 
-import { useQueries } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 
 import { api } from "@/lib/api/client";
@@ -45,6 +45,20 @@ export async function fetchSkuSuppliers(
     { signal },
   );
   return z.array(skuSupplierSchema).parse(data);
+}
+
+/**
+ * Mọi NCC đang bán một SKU (NCC mặc định đứng đầu). `enabled` gồm quyền `procurement-supplier-items:READ`
+ * (UI-only — BE re-check): thiếu quyền thì không gọi API. Cùng khoá `bySku` với `useSupplierTermsForSkus`
+ * nên sửa danh mục NCC / NCC mặc định làm mới cả hai.
+ */
+export function useSkuSuppliers(sku: string, enabled: boolean) {
+  return useQuery({
+    queryKey: skuSupplierKeys.bySku(sku),
+    queryFn: ({ signal }) => fetchSkuSuppliers(sku, signal),
+    enabled: enabled && sku !== "",
+    ...QUERY_TIMES.master,
+  });
 }
 
 /**

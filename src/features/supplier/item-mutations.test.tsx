@@ -2,6 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { SHARED_QUERY_ROOTS } from "@/constants";
 import { api } from "@/lib/api/client";
 import { inventoryItemKeys } from "@/lib/references/inventory-item-keys";
 import { supplierItemKeys, supplierItemSchema } from "@/lib/references/supplier-items";
@@ -66,6 +67,10 @@ describe("supplier item mutations — invalidation", () => {
       );
       expect(invalidate).toHaveBeenCalledWith(
         expect.objectContaining({ queryKey: inventoryItemKeys.all }),
+      );
+      // thông tin mua hàng của SKU đọc cùng `version` + `defaultSupplierId` của hồ sơ hàng tồn
+      expect(invalidate).toHaveBeenCalledWith(
+        expect.objectContaining({ queryKey: [SHARED_QUERY_ROOTS.skuPurchasing] }),
       );
     }
   });

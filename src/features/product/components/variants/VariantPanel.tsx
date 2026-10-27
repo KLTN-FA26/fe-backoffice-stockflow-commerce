@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 
-import { INVENTORY_ITEM_PERMISSIONS, PRODUCT_PERMISSIONS, UI_LABELS } from "@/constants";
+import {
+  INVENTORY_ITEM_PERMISSIONS,
+  PRODUCT_PERMISSIONS,
+  SUPPLIER_ITEM_PERMISSIONS,
+  UI_LABELS,
+} from "@/constants";
 import { usePermissionChecker } from "@/lib/auth";
 import { SlideOverPanel } from "@/components/shared/SlideOverPanel";
 import { StatusDot } from "@/components/shared/StatusDot";
@@ -13,12 +18,13 @@ import { VariantFormDialog } from "./VariantFormDialog";
 import { VariantInventorySummary } from "./VariantInventorySummary";
 import { VariantMediaGallery } from "./VariantMediaGallery";
 import { VariantOverview } from "./VariantOverview";
+import { VariantPurchasing } from "./VariantPurchasing";
 
 import type { Variant } from "../../variant-schemas";
 
 /**
  * Chi tiết một biến thể: trạng thái, tóm tắt hồ sơ hàng tồn (logistics — sửa ở trang Hồ sơ hàng tồn,
- * BE PR #119), giá bán, ảnh.
+ * BE PR #119), thông tin mua hàng, giá bán, ảnh.
  */
 export function VariantPanel({
   productId,
@@ -73,6 +79,24 @@ export function VariantPanel({
             <VariantInventorySummary
               inventoryItemId={variant.inventoryItemId}
               canRead={can(INVENTORY_ITEM_PERMISSIONS.read)}
+            />
+          </section>
+
+          <section>
+            <h3 className="text-ink-primary mb-2 text-sm font-semibold">
+              {UI_LABELS.skuPurchasing.title}
+            </h3>
+            {/* `key`: đổi biến thể là một mục mới — không giữ trạng thái của biến thể trước */}
+            <VariantPurchasing
+              key={variant.variantId}
+              productId={productId}
+              variantId={variant.variantId}
+              canRead={can(PRODUCT_PERMISSIONS.read)}
+              canReadSuppliers={can(SUPPLIER_ITEM_PERMISSIONS.read)}
+              // BE `SkuPurchasingService.describe`: 409 khi sản phẩm chờ duyệt / ngừng kinh doanh, biến
+              // thể ngừng. Đổi NCC mặc định cần thêm quyền đọc danh mục NCC (xét trong form)
+              canEdit={can(PRODUCT_PERMISSIONS.read) && canUpdate && acceptsChanges && !obsolete}
+              open={open}
             />
           </section>
 

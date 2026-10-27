@@ -30,6 +30,7 @@ import {
   ShoppingBag,
   ShoppingCart,
   SlidersHorizontal,
+  Tags,
   Truck,
   TruckElectric,
   Users,
@@ -42,6 +43,8 @@ import { useMemo } from "react";
 import {
   ADMIN_ROUTES,
   ATTRIBUTE_PERMISSIONS,
+  CUSTOMER_PRICE_PERMISSIONS,
+  CUSTOMER_PRICE_UI_LABELS,
   FULFILLMENT_PACKAGE_PERMISSIONS,
   FULFILLMENT_PICK_PERMISSIONS,
   GOODS_RECEIPT_PERMISSIONS,
@@ -171,6 +174,14 @@ export const NAV_GROUPS: NavGroup[] = [
         href: "/admin/suppliers",
         icon: Users,
         permission: SUPPLIER_PERMISSIONS.viewPage,
+      },
+      {
+        label: CUSTOMER_PRICE_UI_LABELS.navLabel,
+        tooltip: CUSTOMER_PRICE_UI_LABELS.navTooltip,
+        href: ADMIN_ROUTES.customerPrices.list,
+        icon: Tags,
+        // BE `@PermissionResource(catalog-customer-prices)`: VIEW_PAGE mở trang (seed: ECOMMERCE_ADMIN, SALES_STAFF)
+        permission: CUSTOMER_PRICE_PERMISSIONS.viewPage,
       },
     ],
   },

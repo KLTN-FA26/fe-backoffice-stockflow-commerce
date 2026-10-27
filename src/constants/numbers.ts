@@ -197,6 +197,40 @@ export const SUPPLIER_ITEM_LIMITS = {
 } as const;
 
 /**
+ * Thông tin mua hàng của SKU — BE `SkuPurchasingRequest` + `ItemPurchasingRules` (docs 01 §3
+ * "Thông tin mua hàng"). Cùng giới hạn với danh mục NCC (`SupplierItemTerms`).
+ */
+export const SKU_PURCHASING_LIMITS = {
+  // `referencePurchasePrice` @Digits(integer = 16, fraction = 2); `MAX_PRICE` 9999999999999999.99
+  priceIntegerDigitsMax: 16,
+  // `stripTrailingZeros().scale() > 2` bị từ chối → "1.500" hợp lệ, "1.005" không
+  priceMaxScale: 2,
+  // `ItemPurchasingRules.MAX_LEAD_TIME_DAYS`
+  leadTimeDaysMax: 365,
+  moqMin: 1,
+  // `leadTimeDays` / `moq` là `Integer` Java — quá int32 thì Jackson không bind được (400 chung)
+  intMax: 2_147_483_647,
+} as const;
+
+/**
+ * Bảng giá riêng của khách hàng — BE `CustomerPriceRequest` (`@NotEmpty @Size(max = 20) tiers`,
+ * `Tier.@Min(1) int minQuantity`, `@Size(max = 500) note`), `CustomerPrice.MAX_TIERS`, `SellingPrice`
+ * (VND số nguyên dương, tối đa 16 chữ số phần nguyên).
+ */
+export const CUSTOMER_PRICE_LIMITS = {
+  tiersMax: 20,
+  minQuantityMin: 1,
+  // `minQuantity` là `int` Java — quá int32 thì Jackson không bind được (400 chung)
+  intMax: 2_147_483_647,
+  noteMax: 500,
+  priceIntegerDigitsMax: 16,
+} as const;
+
+/** Số khách mỗi trang gợi ý ở ô chọn khách (`GET /customers?q=`) — `Pages.DEFAULT_PAGE_SIZE` của BE (tối đa 200). */
+export const CUSTOMER_OPTIONS_PAGE_SIZE = 20;
+
+/**
+ * Số gợi ý mỗi lần tìm hồ sơ hàng tồn/**
  * Số gợi ý mỗi lần tìm hồ sơ hàng tồn (`GET /inventory/items?q=`) ở ô chọn SKU — bằng
  * `Pages.DEFAULT_PAGE_SIZE` của BE (tối đa `Pages.MAX_PAGE_SIZE` 200); gõ thêm để thu hẹp.
  */

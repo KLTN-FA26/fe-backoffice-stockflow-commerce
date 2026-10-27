@@ -208,6 +208,31 @@ export const INVENTORY_ITEM_PERMISSIONS = {
 } as const;
 
 /**
+ * Bảng giá riêng của khách hàng — resource `catalog-customer-prices` (BE `CustomerPriceController`,
+ * `/api/v1/catalog/customer-prices`). Seed V20261017000510: ECOMMERCE_ADMIN đủ quyền; SALES_STAFF
+ * VIEW_PAGE / READ; ORDER_COORDINATOR chỉ READ. Xoá (DELETE) chưa dùng ở FE nên không khai báo.
+ */
+export const CUSTOMER_PRICE_PERMISSIONS = {
+  viewPage: "catalog-customer-prices:VIEW_PAGE",
+  // GET /catalog/customer-prices?customerId=, GET …/{customerId}/{sku}
+  read: "catalog-customer-prices:READ",
+  // POST …/{customerId}/{sku}
+  create: "catalog-customer-prices:CREATE",
+  // PUT …/{customerId}/{sku} (thay toàn bộ, cần version)
+  update: "catalog-customer-prices:UPDATE",
+} as const;
+
+/**
+ * Khách hàng — resource `customer-customers` (BE `CustomerController`). Tách khỏi quyền bảng giá: một
+ * role có thể đọc bảng giá mà không tra được danh sách khách (vd ORDER_COORDINATOR — không thấy seed
+ * cấp `customer-customers:READ`).
+ */
+export const CUSTOMER_PERMISSIONS = {
+  // GET /customers (phân trang, `q`), GET /customers/{id} — chỉ nhân viên back-office
+  read: "customer-customers:READ",
+} as const;
+
+/**
  * Sơ đồ kho — resource `warehouse-locations` (BE `LayoutController`): `GET /warehouses/{id}/layout`
  * và `GET /locations/{code}`. WAREHOUSE_STAFF có VIEW_PAGE/READ (seed V20260928006000).
  */
