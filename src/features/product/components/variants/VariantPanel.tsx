@@ -18,6 +18,7 @@ import { VariantFormDialog } from "./VariantFormDialog";
 import { VariantInventorySummary } from "./VariantInventorySummary";
 import { VariantMediaGallery } from "./VariantMediaGallery";
 import { VariantOverview } from "./VariantOverview";
+import { usePurchasingCloseGuard } from "./purchasing-close-guard";
 import { VariantPurchasing } from "./VariantPurchasing";
 
 import type { Variant } from "../../variant-schemas";
@@ -52,11 +53,13 @@ export function VariantPanel({
   const [editing, setEditing] = useState(false);
   const obsolete = variant?.status === "OBSOLETE";
   const media = mediaCapabilities({ acceptsChanges, approved: productApproved }, can, obsolete);
+  // Mọi lối đóng panel đi qua đây: không làm mất thông tin mua hàng đang sửa dở / đang lưu
+  const closeGuard = usePurchasingCloseGuard(onClose);
 
   return (
     <SlideOverPanel
       open={open}
-      onClose={onClose}
+      onClose={closeGuard.requestClose}
       title={variant?.sku ?? ""}
       monoTitle
       subtitle={variant?.name}
@@ -97,6 +100,7 @@ export function VariantPanel({
               // thể ngừng. Đổi NCC mặc định cần thêm quyền đọc danh mục NCC (xét trong form)
               canEdit={can(PRODUCT_PERMISSIONS.read) && canUpdate && acceptsChanges && !obsolete}
               open={open}
+              closeGuardRef={closeGuard.guard}
             />
           </section>
 
@@ -131,6 +135,7 @@ export function VariantPanel({
           onOpenChange={setEditing}
         />
       )}
+      {closeGuard.confirm}
     </SlideOverPanel>
   );
 }

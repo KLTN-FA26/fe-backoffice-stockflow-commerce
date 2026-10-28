@@ -13,6 +13,8 @@ import { VariantPurchasingForm } from "./VariantPurchasingForm";
 import { supplierLookup } from "./VariantPurchasingSupplier";
 import { VariantPurchasingView } from "./VariantPurchasingView";
 
+import type { PurchasingCloseGuard } from "./purchasing-close-guard";
+
 const L = UI_LABELS.skuPurchasing;
 const NOTE = "text-ink-tertiary text-xs";
 
@@ -31,6 +33,7 @@ export function VariantPurchasing({
   canReadSuppliers,
   canEdit,
   open,
+  closeGuardRef,
 }: {
   productId: string;
   variantId: string;
@@ -40,6 +43,8 @@ export function VariantPurchasing({
   canEdit: boolean;
   /** Panel đang mở — đóng thì không tải. */
   open: boolean;
+  /** Panel cha hỏi form đang sửa trước khi đóng (Esc / bấm nền / nút Đóng). */
+  closeGuardRef?: PurchasingCloseGuard;
 }) {
   const query = useSkuPurchasing(productId, variantId, canRead && open);
   const [editing, setEditing] = useState(false);
@@ -91,6 +96,7 @@ export function VariantPurchasing({
         supplierRows={canReadSuppliers ? (suppliers.data ?? null) : null}
         canSave={canEdit}
         onDone={() => setEditing(false)}
+        closeGuardRef={closeGuardRef}
       />
     );
   }

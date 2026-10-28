@@ -64,6 +64,14 @@ export const SKU_PURCHASING_UI_LABELS = {
   },
   // Panel còn nút "Sửa" của biến thể — tên nút phải nói rõ sửa gì
   edit: "Sửa thông tin mua hàng",
+  // Đóng panel biến thể khi form mua hàng đang sửa dở (Esc / bấm nền / nút Đóng)
+  closeGuard: {
+    title: "Bỏ thay đổi chưa lưu?",
+    description:
+      "Thông tin mua hàng đang sửa sẽ mất nếu đóng panel. Hành động này không hoàn tác được.",
+    keepEditing: "Tiếp tục sửa",
+    discard: "Bỏ thay đổi và đóng",
+  },
   save: "Lưu thông tin mua hàng",
   saving: "Đang lưu…",
   cancel: "Huỷ",

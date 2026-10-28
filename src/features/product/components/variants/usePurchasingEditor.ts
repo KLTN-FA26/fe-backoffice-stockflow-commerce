@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 
@@ -17,6 +17,7 @@ import {
 import { useSaveSkuPurchasing } from "../../purchasing-queries";
 
 import type { Path } from "react-hook-form";
+import type { PurchasingCloseCheck, PurchasingCloseGuard } from "./purchasing-close-guard";
 import type { Refetch } from "@/lib/api/fresh-refetch";
 import type { PurchasingFormValues } from "../../purchasing-form";
 import type { SkuPurchasing } from "../../purchasing-schemas";
@@ -38,6 +39,7 @@ export function usePurchasingEditor({
   reload,
   supplierEditable,
   onDone,
+  closeGuardRef,
 }: {
   productId: string;
   variantId: string;
@@ -46,6 +48,8 @@ export function usePurchasingEditor({
   /** Ô NCC chọn được; không → gửi đúng NCC mặc định của `base`. */
   supplierEditable: boolean;
   onDone: () => void;
+  /** Panel cha hỏi trạng thái form khi bị đóng (Step 6E). */
+  closeGuardRef?: PurchasingCloseGuard;
 }) {
   const [base, setBase] = useState(latest);
   const [conflict, setConflict] = useState(false);
@@ -58,35 +62,61 @@ export function usePurchasingEditor({
     defaultValues: purchasingToForm(base),
   });
   const save = useSaveSkuPurchasing();
+  // Cờ ĐỒNG BỘ của lần lưu đang chạy: `isPending` của TanStack tới React sau một tick (Step 5B.5a), nên
+  // đóng panel / bấm Lưu lần nữa ngay sau khi PUT bắt đầu vẫn phải bị chặn bằng cờ này
+  const inFlight = useRef(false);
 
-  const submit = form.handleSubmit((raw) => {
-    // Chặn gửi trùng khi lần lưu trước chưa xong (nút cũng bị khoá)
-    if (save.isPending) return;
-    setError(null);
-    setConflict(false);
-    const values = formToPurchasingValues(raw);
-    // Ô NCC chỉ đọc → không bao giờ đổi / xoá NCC mặc định vì thiếu thông tin NCC
-    if (!supplierEditable) values.defaultSupplierId = base.defaultSupplierId;
-    save.mutate(
-      { productId, variantId, version: base.version, values },
-      {
-        onSuccess: () => {
-          toast.success(L.saved);
-          onDone();
-        },
-        onError: (e) => {
-          const failure = purchasingSaveFailure(e);
-          if (failure.kind === "versionConflict") setConflict(true);
-          if (failure.kind === "fields") {
-            for (const [name, message] of Object.entries(failure.fields)) {
-              form.setError(name as Path<PurchasingFormValues>, { type: "server", message });
+  // Đăng ký hàm kiểm cho panel cha: có thay đổi so với `base` (so giá trị ô, không dựa `isDirty` của lần
+  // render trước) và đang lưu hay không — đọc đúng lúc người dùng đóng panel
+  useEffect(() => {
+    if (!closeGuardRef) return;
+    const check: PurchasingCloseCheck = () => {
+      const now = form.getValues();
+      const initial = purchasingToForm(base);
+      const keys = Object.keys(initial) as (keyof PurchasingFormValues)[];
+      return { saving: inFlight.current, dirty: keys.some((k) => now[k] !== initial[k]) };
+    };
+    closeGuardRef.current = check;
+    return () => {
+      if (closeGuardRef.current === check) closeGuardRef.current = null;
+    };
+  }, [closeGuardRef, form, base]);
+
+  // `handleSubmit` dựng lúc bấm (không lúc render): callback đọc ref `inFlight` chỉ trong sự kiện
+  const submit = () =>
+    form.handleSubmit((raw) => {
+      // Chặn gửi trùng khi lần lưu trước chưa xong (nút cũng bị khoá)
+      if (save.isPending || inFlight.current) return;
+      setError(null);
+      setConflict(false);
+      const values = formToPurchasingValues(raw);
+      // Ô NCC chỉ đọc → không bao giờ đổi / xoá NCC mặc định vì thiếu thông tin NCC
+      if (!supplierEditable) values.defaultSupplierId = base.defaultSupplierId;
+      inFlight.current = true;
+      save.mutate(
+        { productId, variantId, version: base.version, values },
+        {
+          onSuccess: () => {
+            toast.success(L.saved);
+            onDone();
+          },
+          onError: (e) => {
+            const failure = purchasingSaveFailure(e);
+            if (failure.kind === "versionConflict") setConflict(true);
+            if (failure.kind === "fields") {
+              for (const [name, message] of Object.entries(failure.fields)) {
+                form.setError(name as Path<PurchasingFormValues>, { type: "server", message });
+              }
             }
-          }
-          setError(failure.message);
+            setError(failure.message);
+          },
+          // Luôn nhả cờ khi có kết quả (kể cả lỗi về trước khi React kịp thấy "đang lưu")
+          onSettled: () => {
+            inFlight.current = false;
+          },
         },
-      },
-    );
-  });
+      );
+    })();
 
   /** Người dùng chọn bỏ bản nháp: tải bản mới nhất từ BE rồi mới đổi `base` + ô nhập theo nó. */
   const reloadLatest = async () => {

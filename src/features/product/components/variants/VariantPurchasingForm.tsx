@@ -11,6 +11,7 @@ import { usePurchasingEditor } from "./usePurchasingEditor";
 
 import type { Refetch } from "@/lib/api/fresh-refetch";
 import type { SkuSupplierRef } from "@/lib/references/sku-suppliers";
+import type { PurchasingCloseGuard } from "./purchasing-close-guard";
 import type { PurchasingFormValues } from "../../purchasing-form";
 import type { SkuPurchasing } from "../../purchasing-schemas";
 import type { SupplierLookup } from "./VariantPurchasingSupplier";
@@ -46,6 +47,7 @@ export function VariantPurchasingForm({
   supplierRows,
   canSave,
   onDone,
+  closeGuardRef,
 }: {
   productId: string;
   variantId: string;
@@ -57,6 +59,7 @@ export function VariantPurchasingForm({
   supplierRows: readonly SkuSupplierRef[] | null;
   canSave: boolean;
   onDone: () => void;
+  closeGuardRef?: PurchasingCloseGuard;
 }) {
   const editor = usePurchasingEditor({
     productId,
@@ -65,6 +68,7 @@ export function VariantPurchasingForm({
     reload,
     supplierEditable: supplierRows !== null,
     onDone,
+    closeGuardRef,
   });
   const { form, conflict, outdated, error, isPending, reloading, reloadFailed } = editor;
   const { errors, isValid } = form.formState;
