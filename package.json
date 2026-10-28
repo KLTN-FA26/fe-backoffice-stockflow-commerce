@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
+    "test:coverage": "vitest run --coverage",
     "validate": "npm run typecheck && npm run lint && npm run test && npm run build",
     "prepare": "husky"
   },
@@ -31,6 +32,7 @@
     "nuqs": "^2.10.1",
     "radix-ui": "^1.6.7",
     "react": "19.2.8",
+    "react-day-picker": "^10.0.2",
     "react-dom": "19.2.8",
     "react-hook-form": "^7.87.0",
     "recharts": "^3.10.1",

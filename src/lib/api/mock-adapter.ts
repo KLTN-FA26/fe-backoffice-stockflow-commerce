@@ -24,7 +24,7 @@ import type { LegacyPaginatedResponse, PaginatedResponse } from "./query-factory
 
 /* ── Types ───────────────────────────────────────────────────────────── */
 
-interface MockResponse<T = unknown> {
+export interface MockResponse<T = unknown> {
   status: number;
   data: T;
   headers: Record<string, string>;
@@ -165,7 +165,9 @@ async function mockAdapter(config: InternalAxiosRequestConfig): Promise<AxiosRes
       Object.values(AUTH_PATHS).some((path) => path === config.url)) ||
     config.url === PERMISSION_QUERY.path ||
     config.url === "/identity/roles" ||
-    config.url?.startsWith("/identity/roles/")
+    config.url?.startsWith("/identity/roles/") ||
+    config.url === "/identity/users" ||
+    config.url?.startsWith("/identity/users/")
   )
     return networkAdapter(config);
   if (routesReady) await routesReady;
@@ -252,37 +254,88 @@ export function activateMockAdapter(): void {
   routesReady = Promise.all([
     import("./mock-routes"),
     import("./mock-routes-suppliers"),
+    import("./mock-routes-supplier-items"),
     import("./mock-routes-purchase-orders"),
+    import("./mock-routes-purchase-orders-draft"),
     import("./mock-routes-orders"),
     import("./mock-routes-goods-receipts"),
     import("./mock-routes-variants"),
+    import("./mock-routes-sku-purchasing"),
+    import("./mock-routes-customers"),
+    import("./mock-routes-customer-prices"),
+    import("./mock-routes-attributes"),
+    import("./mock-routes-product-attributes"),
+    import("./mock-routes-product-commerce"),
     import("./mock-routes-inventory"),
+    import("./mock-routes-inventory-items"),
+    import("./mock-routes-stock-alerts"),
+    import("./mock-routes-reports"),
     import("./mock-routes-fulfillment"),
+    import("./mock-routes-warehouse-layout"),
     import("./mock-routes-transfer-orders"),
-    import("./mock-routes-loads"),
+    import("./mock-routes-transfer-packs"),
+    import("./mock-routes-dispatch"),
+    import("./mock-routes-taxonomy"),
+    import("./mock-routes-vehicle-types"),
+    import("./mock-routes-load-estimates"),
+    import("./mock-routes-load-plans"),
   ]).then(
     ([
       { registerAllMockRoutes },
       { registerSupplierMockRoutes },
+      { registerSupplierItemMockRoutes },
       { registerPurchaseOrderMockRoutes },
+      { registerPoDraftMockRoutes },
       { registerOrderMockRoutes },
       { registerGoodsReceiptMockRoutes },
       { registerVariantMockRoutes },
+      { registerSkuPurchasingMockRoutes },
+      { registerCustomerMockRoutes },
+      { registerCustomerPriceMockRoutes },
+      { registerAttributeMockRoutes },
+      { registerProductAttributeMockRoutes },
+      { registerProductCommerceMockRoutes },
       { registerInventoryMockRoutes },
+      { registerInventoryItemMockRoutes },
+      { registerStockAlertMockRoutes },
+      { registerReportMockRoutes },
       { registerFulfillmentMockRoutes },
+      { registerWarehouseLayoutMockRoutes },
       { registerTransferOrderMockRoutes },
-      { registerLoadMockRoutes },
+      { registerTransferPackMockRoutes },
+      { registerDispatchMockRoutes },
+      { registerTaxonomyMockRoutes },
+      { registerVehicleTypeMockRoutes },
+      { registerLoadEstimateMockRoutes },
+      { registerLoadPlanMockRoutes },
     ]) => {
       registerAllMockRoutes();
       registerSupplierMockRoutes();
+      registerSupplierItemMockRoutes();
       registerPurchaseOrderMockRoutes();
+      registerPoDraftMockRoutes();
       registerOrderMockRoutes();
       registerGoodsReceiptMockRoutes();
       registerVariantMockRoutes();
+      registerSkuPurchasingMockRoutes();
+      registerCustomerMockRoutes();
+      registerCustomerPriceMockRoutes();
+      registerAttributeMockRoutes();
+      registerProductAttributeMockRoutes();
+      registerProductCommerceMockRoutes();
       registerInventoryMockRoutes();
+      registerInventoryItemMockRoutes();
+      registerStockAlertMockRoutes();
+      registerReportMockRoutes();
       registerFulfillmentMockRoutes();
+      registerWarehouseLayoutMockRoutes();
       registerTransferOrderMockRoutes();
-      registerLoadMockRoutes();
+      registerTransferPackMockRoutes();
+      registerDispatchMockRoutes();
+      registerTaxonomyMockRoutes();
+      registerVehicleTypeMockRoutes();
+      registerLoadEstimateMockRoutes();
+      registerLoadPlanMockRoutes();
     },
   );
 

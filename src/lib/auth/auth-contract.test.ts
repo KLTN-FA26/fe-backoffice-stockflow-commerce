@@ -56,6 +56,11 @@ describe("safe browser auth contract", () => {
     expect(useAuthStore.getState()).not.toHaveProperty("tokens");
     expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBeNull();
   });
+  it("accepts a user whose nullable fields the backend omitted and normalises them to null", async () => {
+    const { fullName: _f, lastLoginAt: _l, ...omitted } = user;
+    data = omitted;
+    expect(await loginApi({ username: "staff", password: "secret" })).toEqual(user);
+  });
   it("loads a safe identity from BFF session bootstrap", async () => {
     expect(await getCurrentUserApi()).toEqual(user);
     expect(requests[0]).toMatchObject({ baseURL: AUTH_API_BASE, url: AUTH_PATHS.me });

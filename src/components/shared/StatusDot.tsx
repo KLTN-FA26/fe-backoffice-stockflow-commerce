@@ -13,13 +13,13 @@ interface StatusDotProps {
 }
 
 const DOT_TONE_CLASSES: Record<SemanticTone, string> = {
-  danger: "bg-danger",
-  info: "bg-info",
+  danger: "bg-dot-danger",
+  info: "bg-dot-info",
   muted: "bg-muted-tone",
   neutral: "bg-neutral",
-  positive: "bg-positive",
-  special: "bg-special",
-  warning: "bg-warning",
+  positive: "bg-dot-positive",
+  special: "bg-dot-special",
+  warning: "bg-dot-warning",
 };
 
 export function StatusDot({ domain, status, size = "sm", className }: StatusDotProps) {

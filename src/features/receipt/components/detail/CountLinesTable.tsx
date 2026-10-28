@@ -2,7 +2,7 @@
 
 import { CountLineRow } from "./CountLineRow";
 
-import type { FieldErrors, UseFormRegister } from "react-hook-form";
+import type { Control, FieldErrors, UseFormRegister } from "react-hook-form";
 import type { ReceiptLinesFormInput, ReceivablePoLine } from "@/features/receipt/types";
 
 const HEADERS = ["SKU", "SL nhận", "Số lô", "Hạn dùng", "Vị trí nhận", "Ghi chú", ""];
@@ -15,7 +15,9 @@ export function CountLinesTable({
   poLineById,
   overOpen,
   register,
+  control,
   errors,
+  onEdit,
   onSplit,
   onRemove,
 }: {
@@ -26,7 +28,10 @@ export function CountLinesTable({
   poLineById: ReadonlyMap<string, ReceivablePoLine>;
   overOpen: ReadonlySet<string>;
   register: UseFormRegister<ReceiptLinesFormInput>;
+  control: Control<ReceiptLinesFormInput>;
   errors: FieldErrors<ReceiptLinesFormInput>["lines"];
+  /** Ô ngày (DatePicker) không phát sự kiện `change` gốc lên `<form>` nên báo sửa riêng. */
+  onEdit: () => void;
   onSplit: (index: number) => void;
   onRemove: (index: number) => void;
 }) {
@@ -56,7 +61,9 @@ export function CountLinesTable({
                 index={index}
                 poLine={poLineById.get(poLineId)}
                 register={register}
+                control={control}
                 errors={errors}
+                onEdit={onEdit}
                 overOpen={overOpen.has(poLineId)}
                 autoFocus={index === 0}
                 onSplit={() => onSplit(index)}

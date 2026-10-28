@@ -1,12 +1,12 @@
 "use client";
 
 import { UI_LABELS } from "@/constants";
-import { formatMoney } from "@/features/purchase-order";
+import { effectiveUnitPrice, formatMoney } from "@/features/purchase-order";
 
 import { Card } from "@/components/shared/Card";
 
 import { SectionTitle } from "./CreateFormPrimitives";
-import { lineTotal } from "./helpers";
+import { lineTotal, usesCatalogPrice } from "./helpers";
 import type { PoCreateFormLine } from "@/features/purchase-order";
 import type { Totals } from "./types";
 
@@ -31,7 +31,7 @@ export function TotalsStep({
         title={UI_LABELS.purchaseOrder.totals}
         description="Tổng giá trị PO = tạm tính (Σ số lượng × đơn giá) + thuế từng dòng; chưa gồm chiết khấu."
       />
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <div className="border-border-default rounded-[var(--r-sm)] border px-3 py-2">
           <div className="text-ink-tertiary text-xs">Tạm tính</div>
           <div className="text-ink-primary mt-1 truncate font-[family-name:var(--font-mono)] text-[1rem] font-semibold tabular-nums">
@@ -60,7 +60,7 @@ export function TotalsStep({
           lines.map((line, i) => (
             <div
               key={i}
-              className="border-border-default grid gap-2 border-b px-3 py-2 text-[0.8125rem] last:border-b-0 md:grid-cols-[1fr_90px_120px_120px]"
+              className="border-border-default grid grid-cols-1 gap-2 border-b px-3 py-2 text-[0.8125rem] last:border-b-0 md:grid-cols-[minmax(0,1fr)_90px_120px_120px]"
             >
               <div className="min-w-0">
                 <div className="text-ink-primary truncate font-medium">
@@ -72,10 +72,15 @@ export function TotalsStep({
                 {formatQty(line.orderedQty)}
               </div>
               <div className="text-ink-secondary text-right font-[family-name:var(--font-mono)] tabular-nums">
-                {formatMoney(Number(line.unitPrice) || 0, currency)}
+                {formatMoney(effectiveUnitPrice(line, currency) ?? 0, currency)}
+                {usesCatalogPrice(line, currency) && (
+                  <div className="text-ink-tertiary font-[family-name:var(--font-sans)] text-[11px]">
+                    {UI_LABELS.purchaseOrder.catalog.priceFromCatalog}
+                  </div>
+                )}
               </div>
               <div className="text-ink-primary text-right font-[family-name:var(--font-mono)] font-medium tabular-nums">
-                {formatMoney(lineTotal(line), currency)}
+                {formatMoney(lineTotal(line, currency), currency)}
               </div>
             </div>
           ))

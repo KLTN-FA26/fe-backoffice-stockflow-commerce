@@ -13,6 +13,7 @@ import {
 } from "@/constants";
 import { formatMoney } from "@/lib/format";
 
+import type { PoCreateFormLine } from "./create-form-schema";
 import type { PurchaseOrder, PoLine } from "./types";
 
 export { formatMoney };
@@ -107,7 +108,7 @@ const IN_FLIGHT: readonly string[] = [PO_DELIVERY_STATUS.QUEUED, PO_DELIVERY_STA
 /**
  * Đang gửi thư tới NCC — BE chưa có kết quả cuối (QUEUED: chờ worker, RETRYING: đang thử lại),
  * cho thư gửi đơn (`deliveryStatus`) lẫn thư báo huỷ (`cancellationDeliveryStatus`, BE #36).
- * Màn chi tiết tự tải lại trong lúc này để không phải F5 (re-review PR #14, mục 3).
+ * Hết "đang gửi" → màn chi tiết làm mới bảng lần gửi một lần (không poll — người dùng tự F5).
  */
 export function isDeliveryInFlight(
   po: Pick<PurchaseOrder, "deliveryStatus" | "cancellationDeliveryStatus"> | undefined,
@@ -153,4 +154,31 @@ export function poAttentionReason(po: PoGateState): PoAttentionReason | null {
 
 export function shouldFlagPoRow(po: PurchaseOrder): boolean {
   return poAttentionReason(po) !== null;
+}
+
+/**
+ * Đơn giá hiệu lực của dòng form: giá gõ tay thắng; trống + cùng tiền tệ PO (BR-07, docs 02 §6)
+ * ⇒ giá danh mục NCC (BE #118: thiếu giá thì BE lấy giá danh mục). Còn lại: chưa có giá (null).
+ */
+export function effectiveUnitPrice(line: PoCreateFormLine, poCurrency: string): number | null {
+  const typed = Number(line.unitPrice);
+  if (line.unitPrice.trim() !== "" && Number.isFinite(typed)) return typed;
+  // Trống chỉ hợp lệ khi được lấy giá danh mục (cùng luật ô bắt buộc — `isUnitPriceRequired`)
+  if (line.terms && !isUnitPriceRequired(line, poCurrency)) return line.terms.price;
+  return null;
+}
+
+/**
+ * Ô đơn giá có bắt buộc không — cùng luật `checkCatalogTerms` (create-form-schema): chỉ dòng MỚI có
+ * điều khoản danh mục cùng tiền tệ PO được để trống (BE #118 lấy giá danh mục, BR-07 docs 02 §6);
+ * dòng đã lưu phải giữ giá thương lượng (issue #30 §2).
+ */
+export function isUnitPriceRequired(line: PoCreateFormLine, poCurrency: string): boolean {
+  return line.lineId !== "" || line.terms === null || line.terms.currency !== poCurrency;
+}
+
+/** Lead time kế hoạch của PO = lớn nhất `effectiveLeadTimeDays` các dòng (BE: expectedAt mặc định). */
+export function planLeadTimeDays(lines: readonly PoCreateFormLine[]): number | null {
+  const days = lines.flatMap((l) => (l.terms ? [l.terms.effectiveLeadTimeDays] : []));
+  return days.length === 0 ? null : Math.max(...days);
 }

@@ -25,7 +25,8 @@ function noActionText(status: GoodsReceipt["status"]): string {
   return NO_ACTIONS.viewOnly;
 }
 
-const BUTTON_BASE = "w-full rounded-[var(--r-sm)] border px-3 py-2 text-[0.8125rem] font-medium";
+const BUTTON_BASE =
+  "h-(--action-h) w-full rounded-(--action-radius) border px-3 text-[0.8125rem] font-medium";
 
 /**
  * Card thao tác cột phải (cùng bố cục `ActionCard` của supplier): trạng thái + nút
@@ -53,7 +54,7 @@ export function ReceiptActions({
   const callbacks = { onSuccess: () => setDialog(null), onError: () => setDialog(null) };
 
   return (
-    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
+    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)">
       <div className="mb-4 flex justify-center">
         <StatusDot domain="receipt" status={receipt.status} size="md" withIcon />
       </div>

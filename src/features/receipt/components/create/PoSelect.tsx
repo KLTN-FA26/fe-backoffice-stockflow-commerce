@@ -1,12 +1,7 @@
 "use client";
 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 
 import type { ReceivablePo } from "@/features/receipt/types";
 
@@ -42,14 +37,14 @@ export function PoSelect({
           placeholder={options.length ? "Chọn đơn đặt hàng" : "Không có đơn nào chờ nhận"}
         />
       </SelectTrigger>
-      <SelectContent>
+      <TitledSelectContent title={"Đơn đặt hàng"}>
         {options.map((option) => (
           <SelectItem key={option.purchaseOrderId} value={option.purchaseOrderId}>
             <span className="font-[family-name:var(--font-mono)]">{option.poNumber}</span>
           </SelectItem>
         ))}
         {showCurrent && <SelectItem value={current.purchaseOrderId}>{current.poNumber}</SelectItem>}
-      </SelectContent>
+      </TitledSelectContent>
     </Select>
   );
 }

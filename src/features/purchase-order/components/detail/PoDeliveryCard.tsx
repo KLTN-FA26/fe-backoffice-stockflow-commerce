@@ -29,9 +29,9 @@ export function PoDeliveryCard({ po }: { po: PurchaseOrder }) {
   const alert = deliveryAlert(po);
 
   return (
-    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
+    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)">
       <h2 className="text-ink-primary mb-3 flex items-center gap-2 text-[0.9375rem] font-semibold">
-        <Send className="text-accent size-4" />
+        <Send className="text-accent size-3.5" />
         Gửi nhà cung cấp
       </h2>
       {alert && (
@@ -77,8 +77,8 @@ export function PoDeliveryCard({ po }: { po: PurchaseOrder }) {
         </div>
       </div>
 
-      <h3 className="text-ink-secondary mt-4 mb-2 text-xs font-semibold">Lịch sử gửi</h3>
-      <PoDeliveryTables poId={po.poId} poll={isDeliveryInFlight(po)} />
+      <h3 className="text-ink-primary mt-5 mb-2 text-[0.875rem] font-semibold">Lịch sử gửi</h3>
+      <PoDeliveryTables poId={po.poId} inFlight={isDeliveryInFlight(po)} />
     </section>
   );
 }

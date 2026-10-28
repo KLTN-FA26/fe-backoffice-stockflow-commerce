@@ -5,6 +5,13 @@ import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 import { buildBreadcrumbItems } from "./BackofficeShell";
 
 describe("buildBreadcrumbItems", () => {
+  it("đăng ký route Inventory trong điều hướng back-office", () => {
+    expect(buildBreadcrumbItems(INVENTORY_ROUTES.overview)).toEqual([
+      { label: "Back-office", href: "/admin" },
+      { label: INVENTORY_LABELS.overviewTitle, href: undefined },
+    ]);
+  });
+
   it("trang sửa hiện '… / <mã> / Chỉnh sửa', không hiện chữ 'edit'", () => {
     expect(buildBreadcrumbItems("/admin/suppliers/SUP-001/edit")).toEqual([
       { label: "Back-office", href: "/admin" },
@@ -15,14 +22,26 @@ describe("buildBreadcrumbItems", () => {
   });
 
   it("biên bản bàn giao của chuyến hiện '… / <chuyến> / Biên bản bàn giao'", () => {
-    expect(buildBreadcrumbItems("/admin/shipments/LOAD-2026-0001/manifest").slice(1)).toEqual([
-      { label: "Xếp xe & bàn giao", href: "/admin/shipments" },
-      { label: "LOAD-2026-0001", href: "/admin/shipments/LOAD-2026-0001" },
+    expect(buildBreadcrumbItems("/admin/loads/LOAD-2026-0001/manifest").slice(1)).toEqual([
+      { label: "Chuyến xe", href: "/admin/loads" },
+      { label: "LOAD-2026-0001", href: "/admin/loads/LOAD-2026-0001" },
       { label: "Biên bản bàn giao" },
     ]);
     expect(buildBreadcrumbItems("/admin/transfers/create").at(-1)).toEqual({
       label: "Tạo lệnh chuyển kho",
     });
+  });
+
+  it("phiếu xếp hàng của xe hiện '… / <mã kế hoạch> / Phiếu xếp hàng', liên kết về kế hoạch", () => {
+    expect(
+      buildBreadcrumbItems("/admin/load-plans/plan-1/vehicles/2/print", undefined, (id) =>
+        id === "plan-1" ? "LP-20261022-0001" : undefined,
+      ).slice(1),
+    ).toEqual([
+      { label: "Kế hoạch xếp xe", href: "/admin/load-plans" },
+      { label: "LP-20261022-0001", href: "/admin/load-plans/plan-1" },
+      { label: "Phiếu xếp hàng" },
+    ]);
   });
 
   it("trang chi tiết và trang tạo giữ nguyên như cũ", () => {

@@ -7,7 +7,6 @@ import { ApiError } from "@/lib/api/error";
 import { classifyLoadError } from "@/lib/api/load-error";
 import { useCan } from "@/lib/auth";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 
 import type { LoadErrorKind } from "@/lib/api/load-error";
@@ -67,9 +66,8 @@ export function ReceiptLoadError({
       ? { href: ADMIN_ROUTES.home, label: common.backToHome }
       : { href: ADMIN_ROUTES.receipts.list, label: common.backToList };
 
-  return (
+  const body = (
     <>
-      {!inline && <PageHeader title={receipt.pageTitle} />}
       <EmptyState
         title={copy.title}
         description={copy.description}
@@ -95,5 +93,13 @@ export function ReceiptLoadError({
         </p>
       )}
     </>
+  );
+  if (inline) return body;
+  return (
+    // Cùng khung kiểu Vercel với trang chi tiết — không tiêu đề hiển thị, breadcrumb đã có.
+    <div className="surface-soft surface-compact">
+      <h1 className="sr-only">{receipt.pageTitle}</h1>
+      {body}
+    </div>
   );
 }

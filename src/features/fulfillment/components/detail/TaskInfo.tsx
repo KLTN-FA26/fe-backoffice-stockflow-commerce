@@ -13,18 +13,16 @@ import type { FulfillmentTask } from "@/features/fulfillment/types";
 const FIELD = UI_LABELS.fulfillment.field;
 const dt = (iso: string | null | undefined) => (iso ? formatDateTime(iso) : "—");
 
-/** Thông tin task — chỉ field BE trả; số đơn / tên người được gán tra thêm nếu đủ quyền. */
+/** Thông tin task — chỉ field BE trả; số đơn tra thêm nếu đủ quyền. */
 export function TaskInfo({
   task,
   actor,
   orderNumber,
-  userNames,
 }: {
   task: FulfillmentTask;
   actor: FulfillmentActor;
   /** Số đơn đã tra được; thiếu → hiện id. */
   orderNumber: string | undefined;
-  userNames: Readonly<Record<string, string>>;
 }) {
   const orderText = orderNumber ?? task.orderId;
   return (
@@ -52,7 +50,7 @@ export function TaskInfo({
           label={FIELD.assignee}
           value={
             <span title={task.assignedUserId ?? undefined}>
-              {assigneeLabel(task.assignedUserId, userNames, actor.userId)}
+              {assigneeLabel(task.assignedUserId, task.assignedUserName, actor.userId)}
             </span>
           }
         />

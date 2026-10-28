@@ -11,12 +11,7 @@ import {
   PICK_STATUS,
   UI_LABELS,
 } from "@/constants";
-import { allowedFulfillmentActions } from "@/features/fulfillment/lifecycle";
-import {
-  useCompletePacking,
-  useCompletePicking,
-  useStartPicking,
-} from "@/features/fulfillment/mutations";
+import { useCompletePicking, useStartPicking } from "@/features/fulfillment/mutations";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
@@ -28,8 +23,8 @@ import {
   ACTION_ICON,
   CONFIRM_COPY,
   DEFAULT_ACTION_ICON,
-  SCOPE_ACTIONS,
   isConfirmCode,
+  scopeActions,
 } from "./action-config";
 import { noActionText } from "./no-action-text";
 
@@ -39,30 +34,32 @@ import type { FulfillmentScope } from "../primitives";
 
 const { fulfillment } = UI_LABELS;
 
-const BUTTON = "w-full rounded-[var(--r-sm)]";
+const BUTTON = "h-(--action-h) w-full rounded-(--action-radius)";
 
 /**
- * Card thao tác cột phải: trạng thái pick + pack và các nút theo `allowedFulfillmentActions`.
+ * Card thao tác cột phải: trạng thái pick + pack và các nút theo `scopeActions`. "Hoàn tất lấy hàng" cần đủ
+ * dòng (`linesComplete`, màn đóng gói không truyền); thiếu thì hiện `incompleteReason`.
  * Thao tác đổi trạng thái qua ConfirmDialog; đang chạy → khoá nút, chặn bấm hai lần.
  */
 export function TaskActionCard({
   task,
   scope,
   actor,
+  linesComplete = true,
+  incompleteReason,
 }: {
   task: FulfillmentTask;
   scope: FulfillmentScope;
   actor: FulfillmentActor;
+  linesComplete?: boolean;
+  incompleteReason?: string;
 }) {
   const mutations = {
     startPicking: useStartPicking(),
     completePicking: useCompletePicking(),
-    completePacking: useCompletePacking(),
   };
   const [dialog, setDialog] = useState<FulfillmentActionCode | null>(null);
-  const actions = allowedFulfillmentActions(task, actor).filter((action) =>
-    SCOPE_ACTIONS[scope].includes(action.code),
-  );
+  const actions = scopeActions(task, actor, scope, linesComplete);
   const pending = Object.values(mutations).some((mutation) => mutation.isPending);
   const confirming = isConfirmCode(dialog) ? dialog : null;
   // Lỗi dữ liệu cũ đã được mutation tự tải lại (withStaleRefetch) — ở đây chỉ đóng dialog
@@ -83,7 +80,7 @@ export function TaskActionCard({
         };
 
   return (
-    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
+    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)">
       <dl className="mb-4 space-y-2 text-[0.8125rem]">
         <div className="flex items-center justify-between">
           <dt className="text-ink-secondary">{fulfillment.field.pick}</dt>
@@ -118,7 +115,7 @@ export function TaskActionCard({
         })}
         {actions.length === 0 && (
           <p className="text-ink-tertiary text-center text-xs">
-            {noActionText(task, actor, scope)}
+            {noActionText(task, actor, scope, incompleteReason)}
           </p>
         )}
         {other.show && (
@@ -143,7 +140,9 @@ export function TaskActionCard({
         />
       )}
       {dialog === "assign" && <AssignDialog task={task} onClose={() => setDialog(null)} />}
-      {dialog === "reverify" && <ReverifyDialog task={task} onClose={() => setDialog(null)} />}
+      {dialog === "reverify" && (
+        <ReverifyDialog taskId={task.taskId} onClose={() => setDialog(null)} />
+      )}
     </section>
   );
 }

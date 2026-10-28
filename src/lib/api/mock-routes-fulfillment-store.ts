@@ -6,18 +6,30 @@
  * chỉnh, mang snapshot + checksum như BE.
  */
 
-import { toBackendRoles } from "./mock-backend-roles";
 import {
+  FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS as REVERIFY,
+  FULFILLMENT_PACKING_PERMISSIONS as PACKING,
+  FULFILLMENT_TASK_OVERSIGHT_PERMISSIONS as OVERSIGHT,
+} from "@/constants";
+
+import { mockGrantsOf } from "./mock-user-grants";
+import { resetPackingMockStore } from "./mock-routes-packing-store";
+import { resetPickLineMockStore, syncCancelledOrders } from "./mock-routes-pick-lines-store";
+import {
+  MOCK_TO_BACKEND_STATUS,
   backendOrderStatusOf,
   fakeSha256,
   lockedChecksumOf,
+  mockOrderCancellations,
+  putMockOrderOnDesignHold,
   setMockOrderStatus,
   snapshotIdOf,
-} from "./mock-routes-orders";
+} from "./mock-routes-orders-store";
 import { beError, isRecord } from "./mock-routes-purchase-orders-store";
 
 import type { AxiosRequestConfig } from "axios";
 import type { Order, OrderStatus } from "@/lib/mock-data";
+import type { PermissionCode } from "@/lib/auth/me-permissions";
 
 export type MockPickStatus = "PENDING" | "PICKING" | "PICKED" | "SHORT" | "CANCELLED";
 export type MockPackStatus = "PENDING" | "PACKING" | "ON_HOLD" | "PACKED" | "CANCELLED";
@@ -34,6 +46,9 @@ export interface MockEvidence {
 export interface MockTask {
   taskId: string;
   orderId: string;
+  /** BE PR #136 trả thêm số đơn + kho trên task. */
+  orderNumber: string;
+  warehouseId: string;
   assignedUserId: string;
   pickStatus: MockPickStatus;
   packStatus: MockPackStatus;
@@ -44,6 +59,8 @@ export interface MockTask {
   createdAt: string;
   /** Append-only; trả ra mới nhất trước như BE. */
   evidence: MockEvidence[];
+  /** Đơn huỷ sau khi đã bắt đầu lấy → hàng đã lấy phải trả về kệ (BE `pick.needs_put_back`). */
+  needsPutBack?: boolean;
 }
 
 interface SeedSpec {
@@ -57,7 +74,11 @@ interface SeedSpec {
   tamperedReverifyFailures?: number;
 }
 
-/** Đơn mock theo trạng thái → task seed. Đơn `Confirmed` không có task: để demo tạo task. */
+/**
+ * Đơn mock theo trạng thái → task seed. Có task thì đơn đã ở khâu kho (BE PR #133: tạo task chuyển
+ * READY_TO_FULFILL → PICKING), nên `getFulfillmentStore` đặt trạng thái BE của đơn cho khớp. Đơn
+ * `Confirmed` không có task: coi như đã được điều phối release (READY_TO_FULFILL) để demo tạo task.
+ */
 const SEED_BY_ORDER_STATUS: Partial<Record<OrderStatus, SeedSpec>> = {
   "Ready to Fulfill": {
     pick: "PENDING",
@@ -80,8 +101,13 @@ let store: Map<string, MockTask> | undefined;
 /** orderId → số lần kiểm tra lại còn thất bại (có key = file đang lệch). */
 const tampered = new Map<string, number>();
 let sequence = 0;
+/** Lần huỷ đơn mock đã đồng bộ sang task (-1 = chưa lần nào). */
+let syncedCancellations = -1;
 
 export function resetFulfillmentMockStore(): void {
+  syncedCancellations = -1;
+  resetPickLineMockStore();
+  resetPackingMockStore();
   store = undefined;
   tampered.clear();
   sequence = 0;
@@ -131,6 +157,8 @@ function seedTask(order: Order, spec: SeedSpec): MockTask {
   const task: MockTask = {
     taskId: mockTaskId(order.orderId),
     orderId: order.orderId,
+    orderNumber: order.orderNumber,
+    warehouseId: order.fulfillmentWarehouseId,
     assignedUserId: spec.assignee,
     pickStatus: spec.pick,
     packStatus: spec.pack,
@@ -140,23 +168,44 @@ function seedTask(order: Order, spec: SeedSpec): MockTask {
     packedAt: spec.pack === "PACKED" ? at(95) : undefined,
     createdAt: at(30),
     evidence: [],
+    // Seed: đơn huỷ sau khi đã lấy — dòng đầu đã lấy chờ trả về kệ (xem `getMockPickLines`)
+    needsPutBack: spec.pick === "CANCELLED",
   };
   if (spec.tamperedReverifyFailures !== undefined) {
     tampered.set(order.orderId, spec.tamperedReverifyFailures);
   }
-  if (spec.pack === "ON_HOLD") {
-    verifyDesigns(task, order, false, at(100));
-    // BE: lệch checksum → đơn ON_HOLD (reason DESIGN_MISMATCH)
-    setMockOrderStatus(order.orderId, "ON_HOLD");
-  }
+  if (spec.pack === "ON_HOLD") verifyDesigns(task, order, false, at(100));
   return task;
 }
 
+/** userId → tên hiển thị (BE trả `assignedUserName` trên task); nạp cùng lúc với store. */
+const staffNameById = new Map<string, string>();
+
+/**
+ * Store task; mỗi lần đọc đồng bộ đơn đã bị huỷ ở mock đơn hàng (BE `OrderCancellationListener` chạy sau sự
+ * kiện OrderCancelled) — kéo theo task, dòng mở và cờ trả về kệ.
+ */
 export async function getFulfillmentStore(): Promise<Map<string, MockTask>> {
+  const tasks = await loadStore();
+  // Chỉ duyệt lại task khi có đơn vừa bị huỷ, không phải ở mọi request
+  const cancellations = mockOrderCancellations();
+  if (cancellations !== syncedCancellations) {
+    await syncCancelledOrders([...tasks.values()]);
+    syncedCancellations = cancellations;
+  }
+  return tasks;
+}
+
+async function loadStore(): Promise<Map<string, MockTask>> {
   if (store) return store;
-  const { orders } = await import("@/lib/mock-data");
+  const { orders, staffUsers } = await import("@/lib/mock-data");
+  for (const user of staffUsers) staffNameById.set(user.userId, user.fullName);
   const seeded = new Map<string, MockTask>();
   const used = new Set<OrderStatus>();
+  // Seed chỉ đổi trạng thái đơn còn nguyên như mock-data — không ghi đè vòng đời đã đổi trong phiên (vd đơn
+  // đã huỷ trước khi store này nạp; task của nó vẫn seed, rồi bị huỷ theo ở `getFulfillmentStore`)
+  const untouched = async (order: Order) =>
+    (await backendOrderStatusOf(order.orderId)) === MOCK_TO_BACKEND_STATUS[order.status];
   for (const order of orders) {
     const spec = SEED_BY_ORDER_STATUS[order.status];
     // Mỗi trạng thái đơn một task — đủ phủ mọi trạng thái pick/pack
@@ -164,6 +213,14 @@ export async function getFulfillmentStore(): Promise<Map<string, MockTask>> {
     used.add(order.status);
     const task = seedTask(order, spec);
     seeded.set(task.taskId, task);
+    if (!(await untouched(order))) continue;
+    if (task.pickStatus === "PENDING") setMockOrderStatus(order.orderId, "PICKING");
+    // BE: lệch checksum → đơn ON_HOLD (reason DESIGN_MISMATCH), về lại bước đang làm khi gỡ giữ
+    if (task.packStatus === "ON_HOLD") await putMockOrderOnDesignHold(order.orderId);
+  }
+  const demoOrder = orders.find((order) => order.status === "Confirmed");
+  if (demoOrder && (await untouched(demoOrder))) {
+    setMockOrderStatus(demoOrder.orderId, "READY_TO_FULFILL");
   }
   store = seeded;
   return seeded;
@@ -186,30 +243,77 @@ export function nextTaskId(): string {
   return mockTaskId(`new-${sequence}`);
 }
 
+/**
+ * `FulfillmentTaskResponse.lines` của `GET /tasks/{id}` (SCRUM-466): dòng của đơn, dòng in kèm snapshot thiết kế
+ * — cùng nguồn với `toOrderResponse` để số liệu khớp giữa hai endpoint. Danh sách task KHÔNG kèm (như BE).
+ */
+export async function taskLinesOf(task: MockTask) {
+  const order = await findMockOrder(task.orderId);
+  return (order?.lines ?? []).map((line) => ({
+    lineId: line.lineId,
+    sku: line.skuId,
+    quantity: line.quantity,
+    printLine: !!line.designId,
+    ...(line.designId ? { designSnapshotId: snapshotIdOf(line) } : {}),
+  }));
+}
+
 /** `FulfillmentTaskResponse` — field chưa có giá trị bị bỏ (Jackson non_null). */
 export function toTaskResponse(task: MockTask) {
   const { createdAt: _createdAt, evidence, ...rest } = task;
-  return { ...rest, integrityEvidence: evidence.map((entry) => ({ ...entry })) };
+  return {
+    ...rest,
+    assignedUserName: staffNameById.get(task.assignedUserId),
+    integrityEvidence: evidence.map((entry) => ({ ...entry })),
+  };
 }
 
 /* ── Người gọi ───────────────────────────────────────────────────────── */
 
 export interface MockActor {
   userId: string;
-  roles: readonly string[];
+  /** Có mã quyền này không — như `@RequiresPermission` / `CurrentUser.can` của BE (BE PR #148). */
+  can: (code: PermissionCode) => boolean;
 }
 
-/** Vai trò thật của phiên (vai trò giả lập chỉ đổi nhãn, không đổi quyền — như BFF mock). */
+/**
+ * Người gọi thật của phiên và quyền của họ (vai trò giả lập chỉ đổi nhãn, không đổi quyền — như BFF
+ * mock; quyền lấy từ `mock-user-grants`, cùng nguồn với `/identity/me/permissions`).
+ */
 export async function currentActor(): Promise<MockActor> {
   const { useAuthStore } = await import("@/lib/auth/auth-store");
-  const user = useAuthStore.getState().user;
-  return { userId: user?.userId ?? "", roles: toBackendRoles(user?.roles ?? []) };
+  const userId = useAuthStore.getState().user?.userId ?? "";
+  const grants = mockGrantsOf(userId);
+  return { userId, can: (code) => grants.has(code) };
 }
 
-/** SYSTEM_ADMIN qua mọi cổng vai trò (BE RoleHierarchyConfig). */
-export function hasAnyRole(actor: MockActor, ...roles: string[]): boolean {
-  return actor.roles.some((role) => role === "SYSTEM_ADMIN" || roles.includes(role));
+/**
+ * BE `TaskAccess.requireVisible` (BE PR #148): người được gán; người có task-oversight:READ hoặc
+ * design-reverification:READ; và người đóng gói (packing:UPDATE) khi lấy hàng đã xong — người đóng gói
+ * không nhất thiết là người lấy hàng. Dùng chung cho task và dòng lấy hàng.
+ */
+export function canSee(task: MockTask, actor: MockActor): boolean {
+  return (
+    task.assignedUserId === actor.userId ||
+    actor.can(OVERSIGHT.read) ||
+    actor.can(REVERIFY.read) ||
+    (task.pickStatus === "PICKED" && actor.can(PACKING.update))
+  );
 }
+
+/**
+ * BE `WarehouseScope.requireWarehouse`: kho nằm ngoài các kho của người gọi → 403 OUT_OF_DATA_SCOPE;
+ * người không bị giới hạn kho (danh sách kho rỗng) thì qua.
+ */
+export async function outOfWarehouseScope(userId: string, warehouseId: string): Promise<boolean> {
+  const { staffUsers } = await import("@/lib/mock-data");
+  const scope: readonly string[] =
+    staffUsers.find((user) => user.userId === userId)?.warehouseIds ?? [];
+  return scope.length > 0 && !scope.includes(warehouseId);
+}
+
+export const outOfScope = () =>
+  beError(403, "OUT_OF_DATA_SCOPE", "The warehouse is outside your data scope");
 
 /* ── Lỗi BE (mã chung, message tiếng Anh như FulfillmentServiceImpl) ──── */
 
@@ -217,11 +321,28 @@ export const taskNotFound = () => beError(404, "NOT_FOUND", "Resource not found"
 export const forbidden = () => beError(403, "FORBIDDEN", "Access denied");
 export const conflict = (message = "Conflicting state") => beError(409, "CONFLICT", message);
 
-/** BE `requireOrderInFulfilment`: task chỉ thao tác được khi đơn IN_FULFILMENT / ON_HOLD. */
+/** BE `TaskAccess.WORKABLE`: trạng thái đơn mà task xuất kho còn thao tác được (kể cả ON_HOLD từ các bước này). */
+const WORKABLE_ORDER_STATUSES: ReadonlySet<string> = new Set([
+  "IN_PRODUCTION",
+  "READY_TO_FULFILL",
+  "PICKING",
+  "PACKED",
+  "PARTIALLY_FULFILLED",
+  "ON_HOLD",
+]);
+
+/**
+ * BE `TaskAccess.orderInFulfilment`: đơn rời khâu kho (vd đã huỷ / đã giao xong) → 409 PICK_TASK_STATE_CONFLICT,
+ * task coi như đã đóng.
+ */
 export async function orderClosedError(orderId: string) {
   const status = await backendOrderStatusOf(orderId);
-  if (status === "IN_FULFILMENT" || status === "ON_HOLD") return null;
-  return conflict(`The order is ${status ?? "UNKNOWN"}; this fulfillment task is closed`);
+  if (status && WORKABLE_ORDER_STATUSES.has(status)) return null;
+  return beError(
+    409,
+    "PICK_TASK_STATE_CONFLICT",
+    `The order is ${status ?? "UNKNOWN"}; this fulfillment task is closed`,
+  );
 }
 
 export function routeParam(config: AxiosRequestConfig, name: string): string {

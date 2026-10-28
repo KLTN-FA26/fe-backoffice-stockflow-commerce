@@ -6,10 +6,25 @@ import { describe, expect, it, vi } from "vitest";
 
 import { AUTH_COOKIE_NAME, MOCK_LOGIN_PASSWORD } from "@/constants/auth";
 import {
+  ATTRIBUTE_PERMISSIONS,
+  CREDIT_HOLD_PERMISSIONS,
+  CUSTOMER_CREDIT_PROFILE_PERMISSIONS,
+  CUSTOMER_PERMISSIONS,
+  CUSTOMER_PRICE_PERMISSIONS,
+  FULFILLMENT_PICK_PERMISSIONS,
+  INVENTORY_ITEM_PERMISSIONS as ITEM_PERMISSIONS,
+  SUPPLIER_ITEM_PERMISSIONS,
+  INVENTORY_ITEM_PERMISSIONS,
+  INVENTORY_OVERVIEW_PERMISSIONS,
   INVENTORY_PERMISSIONS,
+  ORDER_PERMISSIONS,
   PERMISSION_QUERY,
+  PRODUCT_PERMISSIONS,
+  SHIPMENT_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
   TRANSFER_PERMISSIONS,
+  VARIANT_PERMISSIONS,
+  WAREHOUSE_PERMISSIONS,
 } from "@/constants/permissions";
 
 import { getMockStaffUsers } from "@/lib/api/mock-adapter";
@@ -40,6 +55,120 @@ describe("explicit mock permission responses", () => {
     expect(mockSessionPermissions("USER-PROC-01", []).permissions).toContain(
       SUPPLIER_PERMISSIONS.create,
     );
+  });
+  // Seed BE: V20260903000100 (sales-orders APPROVE chỉ ORDER_COORDINATOR), V20261013000200
+  // (sales-order-cancellations:UPDATE cho SALES_STAFF + ORDER_COORDINATOR), V20261013000400
+  // (sales-order-credit-holds APPROVE chỉ ACCOUNTANT; Sales/Coordinator chỉ VIEW_PAGE/READ).
+  it("order / cancellation / credit-hold grants match the BE seed exactly, per role", () => {
+    const orderScope = (userId: string) =>
+      mockSessionPermissions(userId, []).permissions.filter((code) =>
+        code.startsWith("sales-order"),
+      );
+    const ORDER = ORDER_PERMISSIONS;
+    const CREDIT = CREDIT_HOLD_PERMISSIONS;
+    // BE PR #150: SALES_STAFF quyết giao một phần (không phải ORDER_COORDINATOR); BE PR #157: ORDER_COORDINATOR
+    // chọn / đổi hình thức giao; BE PR #148 ("ACCREAD"): ACCOUNTANT xem đơn
+    const sales = [
+      ORDER.viewPage,
+      ORDER.read,
+      ORDER.cancel,
+      ORDER.partialShipment,
+      CREDIT.viewPage,
+      CREDIT.read,
+    ];
+    const coordinator = [
+      ...new Set([
+        ...Object.values(ORDER).filter((code) => code !== ORDER.partialShipment),
+        CREDIT.viewPage,
+        CREDIT.read,
+      ]),
+    ];
+    const accountant = [ORDER.viewPage, ORDER.read, CREDIT.viewPage, CREDIT.read, CREDIT.approve];
+    const admin = [...new Set([...Object.values(ORDER), ...Object.values(CREDIT)])];
+
+    for (const id of ["USER-SALE-01", "USER-SALE-02", "USER-SALE-03"]) {
+      expect(orderScope(id)).toEqual([...sales].sort());
+    }
+    expect(orderScope("USER-COORD-01")).toEqual([...coordinator].sort());
+    expect(orderScope("USER-ACC-01")).toEqual([...accountant].sort());
+    expect(orderScope("USER-ADMIN-01")).toEqual([...admin].sort());
+
+    // Vắng mặt quan trọng: không role nào được nới quyền do merge
+    expect(orderScope("USER-ACC-01")).not.toContain(ORDER.approve);
+    expect(orderScope("USER-COORD-01")).not.toContain(CREDIT.approve);
+    expect(orderScope("USER-SALE-01")).not.toContain(ORDER.release);
+    expect(orderScope("USER-SALE-01")).not.toContain(CREDIT.approve);
+    // Quyền không thuộc đơn bán của develop vẫn giữ (kho xuất của Coordinator, NCC của Accountant)
+    expect(mockSessionPermissions("USER-COORD-01", []).permissions).toContain(
+      FULFILLMENT_PICK_PERMISSIONS.read,
+    );
+    expect(mockSessionPermissions("USER-ACC-01", []).permissions).toContain(
+      SUPPLIER_PERMISSIONS.read,
+    );
+  });
+  it("customer-credit-profiles:READ theo seed BE V20261013000400 — chỉ vai trò được cấp", () => {
+    const read = CUSTOMER_CREDIT_PROFILE_PERMISSIONS.read;
+    for (const id of ["USER-ACC-01", "USER-SALE-01", "USER-COORD-01", "USER-ADMIN-01"]) {
+      expect(mockSessionPermissions(id, []).permissions).toContain(read);
+    }
+    for (const id of ["USER-WH-01", "USER-QC-01", "USER-PROC-01", "USER-ECAD-01", "USER-PLAN-01"]) {
+      expect(mockSessionPermissions(id, []).permissions).not.toContain(read);
+    }
+  });
+
+  it("USER-COORD-01 giữ đủ quyền đơn bán / công nợ (PR #27) VÀ chuyển kho / chuyến xe (PR #28)", () => {
+    const coord = mockSessionPermissions("USER-COORD-01", []).permissions;
+    // Đơn bán + công nợ (chỉ xem công nợ, release được, huỷ được, đọc hồ sơ công nợ)
+    for (const code of [
+      ORDER_PERMISSIONS.viewPage,
+      ORDER_PERMISSIONS.read,
+      ORDER_PERMISSIONS.release,
+      ORDER_PERMISSIONS.cancel,
+      CREDIT_HOLD_PERMISSIONS.viewPage,
+      CREDIT_HOLD_PERMISSIONS.read,
+      CUSTOMER_CREDIT_PROFILE_PERMISSIONS.read,
+    ]) {
+      expect(coord).toContain(code);
+    }
+    // Chuyển kho (phần WAREHOUSE_STAFF) + chuyến xe
+    for (const code of [
+      TRANSFER_PERMISSIONS.viewPage,
+      TRANSFER_PERMISSIONS.read,
+      TRANSFER_PERMISSIONS.update,
+      ...Object.values(SHIPMENT_PERMISSIONS),
+    ]) {
+      expect(coord).toContain(code);
+    }
+    // Không nới: duyệt công nợ chỉ ACCOUNTANT; duyệt / tạo chuyển kho không phải phần Coordinator
+    expect(coord).not.toContain(CREDIT_HOLD_PERMISSIONS.approve);
+    expect(coord).not.toContain(TRANSFER_PERMISSIONS.approve);
+    expect(coord).not.toContain(TRANSFER_PERMISSIONS.create);
+  });
+
+  it("admin và E-commerce Admin có product-attributes / product-variants (seed BE V20260928006000); nhân viên kho thì không", () => {
+    for (const userId of ["USER-ADMIN-01", "USER-ECAD-01"]) {
+      const { permissions } = mockSessionPermissions(userId, []);
+      for (const code of [
+        ...Object.values(ATTRIBUTE_PERMISSIONS),
+        ...Object.values(VARIANT_PERMISSIONS),
+      ])
+        expect(permissions).toContain(code);
+    }
+    const warehouse = mockSessionPermissions("USER-WH-01", []).permissions;
+    expect(warehouse).not.toContain(ATTRIBUTE_PERMISSIONS.viewPage);
+    expect(warehouse).not.toContain(VARIANT_PERMISSIONS.create);
+  });
+  it("chỉ System Admin có product-lifecycle:APPROVE (BE V20261019000700); E-commerce Admin vẫn duyệt", () => {
+    expect(mockSessionPermissions("USER-ADMIN-01", []).permissions).toContain(
+      PRODUCT_PERMISSIONS.lifecycle,
+    );
+    const ecommerce = mockSessionPermissions("USER-ECAD-01", []).permissions;
+    expect(ecommerce).not.toContain(PRODUCT_PERMISSIONS.lifecycle);
+    expect(ecommerce).toContain(PRODUCT_PERMISSIONS.approve);
+    for (const userId of ["USER-WH-01", "USER-PROC-01", "USER-SALE-01", "USER-PLAN-01"])
+      expect(mockSessionPermissions(userId, []).permissions).not.toContain(
+        PRODUCT_PERMISSIONS.lifecycle,
+      );
   });
   it("BFF permissions return the cookie-selected user's validated list despite frontend impersonation", async () => {
     vi.stubEnv("APP_ORIGIN", "");
@@ -88,6 +217,125 @@ describe("explicit mock permission responses", () => {
   });
 });
 
+describe("Fulfillment / order grants (BE PR #148, V20261022000200)", () => {
+  const grants = (userId: string) => mockSessionPermissions(userId, []).permissions;
+
+  it("nhân viên kho: lấy hàng + đóng gói + xếp xe; không gán / giám sát / huỷ chuyến / kết quả giao", () => {
+    const staff = grants("USER-WH-01");
+    for (const code of [
+      "fulfillment-picking:READ",
+      "fulfillment-picking:UPDATE",
+      "fulfillment-packing:READ",
+      "fulfillment-packing:UPDATE",
+      "fulfillment-dispatch:CREATE",
+      "fulfillment-dispatch:UPDATE",
+    ])
+      expect(staff).toContain(code);
+    for (const code of [
+      "fulfillment-packing:APPROVE",
+      "fulfillment-task-assignment:UPDATE",
+      "fulfillment-task-oversight:READ",
+      "fulfillment-design-reverification:UPDATE",
+      "fulfillment-load-cancellations:UPDATE",
+      "fulfillment-carriers:UPDATE",
+      "fulfillment-delivery-outcomes:UPDATE",
+    ])
+      expect(staff).not.toContain(code);
+  });
+
+  it("admin demo (đồng thời quản lý kho): đủ các nhóm kho", () => {
+    const manager = grants("USER-ADMIN-01");
+    for (const code of [
+      "fulfillment-packing:APPROVE",
+      "fulfillment-task-assignment:CREATE",
+      "fulfillment-task-oversight:READ",
+      "fulfillment-design-reverification:READ",
+      "fulfillment-load-cancellations:UPDATE",
+      "fulfillment-carriers:UPDATE",
+      "fulfillment-delivery-outcomes:UPDATE",
+    ])
+      expect(manager).toContain(code);
+  });
+
+  it("QC chỉ kiểm tra lại thiết kế; kế toán đọc được đơn (BE PR #148 ACCREAD); điều phối ghi đã giao", () => {
+    const qc = grants("USER-QC-01");
+    expect(qc).toContain("fulfillment-design-reverification:UPDATE");
+    expect(qc).not.toContain("fulfillment-packing:UPDATE");
+    const accountant = grants("USER-ACC-01");
+    expect(accountant).toEqual(
+      expect.arrayContaining(["sales-orders:VIEW_PAGE", "sales-orders:READ"]),
+    );
+    expect(grants("USER-COORD-01")).toContain("fulfillment-delivery-outcomes:APPROVE");
+  });
+
+  it("loại xe (BE PR #153): nhân viên kho / điều phối chỉ xem, quản lý kho (admin demo) được cập nhật", () => {
+    for (const userId of ["USER-WH-01", "USER-COORD-01"]) {
+      const codes = grants(userId);
+      expect(codes).toEqual(
+        expect.arrayContaining([
+          "fulfillment-vehicle-types:VIEW_PAGE",
+          "fulfillment-vehicle-types:READ",
+        ]),
+      );
+      expect(codes).not.toContain("fulfillment-vehicle-types:UPDATE");
+    }
+    expect(grants("USER-ADMIN-01")).toContain("fulfillment-vehicle-types:UPDATE");
+    for (const userId of ["USER-QC-01", "USER-PROC-01", "USER-PLAN-01"])
+      expect(grants(userId)).not.toContain("fulfillment-vehicle-types:READ");
+  });
+
+  it("hình thức giao + ước tính xếp xe (BE PR #157 / #160): điều phối đơn và quản lý kho; Sales và nhân viên kho không", () => {
+    // sales-order-delivery-modes:UPDATE — seed ORDER_COORDINATOR + SYSTEM_ADMIN (không phải SALES_STAFF)
+    for (const userId of ["USER-COORD-01", "USER-ADMIN-01"])
+      expect(grants(userId)).toContain("sales-order-delivery-modes:UPDATE");
+    for (const userId of ["USER-SALE-01", "USER-WH-01", "USER-ACC-01"])
+      expect(grants(userId)).not.toContain("sales-order-delivery-modes:UPDATE");
+    // fulfillment-load-estimates CREATE + READ — ORDER_COORDINATOR, WAREHOUSE_MANAGER, SYSTEM_ADMIN
+    for (const userId of ["USER-COORD-01", "USER-ADMIN-01"])
+      expect(grants(userId)).toEqual(
+        expect.arrayContaining([
+          "fulfillment-load-estimates:CREATE",
+          "fulfillment-load-estimates:READ",
+        ]),
+      );
+    for (const userId of ["USER-WH-01", "USER-SALE-01", "USER-QC-01", "USER-PLAN-01"]) {
+      expect(grants(userId)).not.toContain("fulfillment-load-estimates:CREATE");
+      expect(grants(userId)).not.toContain("fulfillment-load-estimates:READ");
+    }
+  });
+
+  it("kế hoạch xếp xe (BE PR #161): nhân viên kho lập và sửa, tài khoản điều phối kiêm nhân viên kho cũng xem được, vai khác không thấy", () => {
+    expect(grants("USER-WH-01")).toEqual(
+      expect.arrayContaining([
+        "fulfillment-load-plans:VIEW_PAGE",
+        "fulfillment-load-plans:READ",
+        "fulfillment-load-plans:CREATE",
+        "fulfillment-load-plans:UPDATE",
+      ]),
+    );
+    const coordinator = grants("USER-COORD-01");
+    expect(coordinator).toEqual(
+      expect.arrayContaining(["fulfillment-load-plans:VIEW_PAGE", "fulfillment-load-plans:READ"]),
+    );
+    expect(grants("USER-ADMIN-01")).toContain("fulfillment-load-plans:UPDATE");
+    for (const userId of ["USER-QC-01", "USER-PROC-01", "USER-PLAN-01"])
+      expect(grants(userId)).not.toContain("fulfillment-load-plans:READ");
+  });
+
+  it("không còn mã quyền cũ không bảo vệ endpoint nào trong bộ quyền demo", () => {
+    for (const userId of ["USER-ADMIN-01", "USER-WH-01", "USER-COORD-01", "USER-QC-01"]) {
+      const codes = grants(userId);
+      for (const dead of [
+        "fulfillment-pick-lists:UPDATE",
+        "fulfillment-packages:CREATE",
+        "fulfillment-shipments:CREATE",
+        "fulfillment-shipments:UPDATE",
+      ])
+        expect(codes).not.toContain(dead);
+    }
+  });
+});
+
 describe("Inventory grants in the authoritative server session", () => {
   it.each([
     ["System Admin", ["USER-ADMIN-01"], true],
@@ -111,9 +359,132 @@ describe("Inventory grants in the authoritative server session", () => {
       );
       const expected =
         role === "QC Staff"
-          ? []
+          ? [INVENTORY_PERMISSIONS.stockRead]
           : codes.filter((code) => approves || code !== INVENTORY_PERMISSIONS.adjustmentApprove);
       expect(actual).toEqual(expected.sort());
     }
+  });
+});
+
+describe("Inventory item grants (BE PR #119, seed V20260928006000)", () => {
+  const ITEM = INVENTORY_ITEM_PERMISSIONS;
+  const ALL = Object.values(ITEM);
+  const READ = [ITEM.viewPage, ITEM.read];
+  it.each([
+    // System Admin + Warehouse Manager
+    ["USER-ADMIN-01", ALL],
+    ["USER-PLAN-01", ALL],
+    ["USER-WH-01", READ],
+    ["USER-WH-04", READ],
+    // Order Coordinator + Warehouse Staff
+    ["USER-COORD-01", READ],
+    ["USER-PROC-01", READ],
+    ["USER-QC-01", []],
+    ["USER-ACC-01", []],
+    ["USER-ECAD-01", []],
+    ["USER-SALE-01", []],
+  ] as const)("%s nhận đúng quyền hồ sơ hàng tồn theo seed", (userId, expected) => {
+    const codes: readonly string[] = ALL;
+    const actual = mockSessionPermissions(userId, []).permissions.filter((code) =>
+      codes.includes(code),
+    );
+    expect(actual).toEqual([...expected].sort());
+  });
+});
+
+describe("Overview grants match backend seeds", () => {
+  const OV = INVENTORY_OVERVIEW_PERMISSIONS;
+  it.each([
+    ["USER-ADMIN-01", true, true, true, true],
+    ["USER-WH-01", true, true, true, true],
+    ["USER-PLAN-01", true, false, true, true],
+    ["USER-QC-01", true, false, false, false],
+    ["USER-PROC-01", false, false, false, true],
+    ["USER-ECAD-01", false, false, false, false],
+    ["USER-SALE-01", false, false, false, true],
+  ] as const)(
+    "%s has seeded stock, reservation, alert and directory reads",
+    (id, stock, holds, alerts, directory) => {
+      const { permissions } = mockSessionPermissions(id, []);
+      for (const [code, allowed] of [
+        [OV.stockRead, stock],
+        [OV.reservationRead, holds],
+        [OV.alertRead, alerts],
+        [WAREHOUSE_PERMISSIONS.read, directory],
+      ] as const) {
+        expect(permissions.includes(code)).toBe(allowed);
+      }
+      expect(new Set(permissions).size).toBe(permissions.length);
+    },
+  );
+});
+
+describe("Customer price grants after a real mock login (seed V20261017000510 + V20260919001600)", () => {
+  const CP = CUSTOMER_PRICE_PERMISSIONS;
+  const LOOKUP = CUSTOMER_PERMISSIONS.read;
+  const origin = "http://localhost:3000";
+
+  /** Đăng nhập mock bằng email + mật khẩu demo rồi đọc quyền qua BFF như trình duyệt. */
+  async function sessionPermissions(userId: string): Promise<string[]> {
+    vi.stubEnv("APP_ORIGIN", "");
+    const staff = (await getMockStaffUsers()).find((candidate) => candidate.userId === userId);
+    if (!staff) throw new Error(`Missing demo staff ${userId}`);
+    const login = await loginHandler(
+      new NextRequest(`${origin}/api/auth/login`, {
+        method: "POST",
+        headers: { Origin: origin },
+        body: JSON.stringify({ username: staff.email, password: MOCK_LOGIN_PASSWORD }),
+      }),
+    );
+    const cookie = login.cookies.get(AUTH_COOKIE_NAME);
+    const response = await backendProxyHandler(
+      new NextRequest(`${origin}/api/backend${PERMISSION_QUERY.path}`, {
+        headers: { Cookie: `${AUTH_COOKIE_NAME}=${cookie?.value}` },
+      }),
+      ["identity", "me", "permissions"],
+    );
+    vi.unstubAllEnvs();
+    expect(response.status).toBe(200);
+    return myPermissionsSchema.parse(await response.json()).permissions;
+  }
+  const customerCodes = (permissions: readonly string[]) =>
+    permissions
+      .filter((code) => /^(catalog-customer-prices|customer-customers):/.test(code))
+      .sort();
+
+  it.each([
+    // SYSTEM_ADMIN (+ Warehouse Manager): mọi quyền FE khai báo
+    ["USER-ADMIN-01", [...Object.values(CP), LOOKUP]],
+    // ECOMMERCE_ADMIN: VIEW_PAGE / READ / CREATE / UPDATE (+ DELETE của BE, FE chưa dùng) + tra khách
+    ["USER-ECAD-01", [...Object.values(CP), LOOKUP]],
+    // SALES_STAFF: chỉ xem + tra khách, KHÔNG tạo / sửa
+    ["USER-SALE-01", [CP.viewPage, CP.read, LOOKUP]],
+    ["USER-SALE-02", [CP.viewPage, CP.read, LOOKUP]],
+    ["USER-SALE-03", [CP.viewPage, CP.read, LOOKUP]],
+    // ORDER_COORDINATOR (+ Warehouse Staff): chỉ READ — không VIEW_PAGE, không tra khách (khoảng trống G8 của BE)
+    ["USER-COORD-01", [CP.read]],
+    // Không có trong seed catalog-customer-prices / customer-customers
+    ["USER-PROC-01", []],
+    ["USER-PLAN-01", []],
+    ["USER-WH-01", []],
+    ["USER-QC-01", []],
+    ["USER-ACC-01", []],
+  ])("%s đăng nhập → quyền bảng giá / khách đúng seed BE", async (userId, expected) => {
+    expect(customerCodes(await sessionPermissions(userId))).toEqual([...expected].sort());
+  });
+
+  it("G quyền sản phẩm / mua hàng / hồ sơ hàng tồn không bị nới theo bảng giá", async () => {
+    const procurement = await sessionPermissions("USER-PROC-01");
+    expect(procurement).not.toContain(PRODUCT_PERMISSIONS.update);
+    expect(procurement).not.toContain(PRODUCT_PERMISSIONS.read);
+    expect(procurement).not.toContain(ITEM_PERMISSIONS.update);
+    expect(procurement).toContain(SUPPLIER_ITEM_PERMISSIONS.read);
+    for (const userId of ["USER-ECAD-01", "USER-SALE-01", "USER-COORD-01"]) {
+      const permissions = await sessionPermissions(userId);
+      expect(permissions).not.toContain(SUPPLIER_ITEM_PERMISSIONS.read);
+      expect(permissions).not.toContain(ITEM_PERMISSIONS.update);
+    }
+    for (const userId of ["USER-SALE-01", "USER-COORD-01"])
+      expect(await sessionPermissions(userId)).not.toContain(PRODUCT_PERMISSIONS.update);
   });
 });

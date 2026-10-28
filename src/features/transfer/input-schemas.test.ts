@@ -24,6 +24,17 @@ describe("transferFormSchema (CreateTransferOrderRequest + BR docs 10 §6)", () 
     expect(transferFormSchema.safeParse(valid).success).toBe(true);
   });
 
+  it.each(["CUP_12", "A.B", "x", "cup-pp.500_a"])(
+    "SKU %s hợp lệ theo BE @ValidSku (có '_' / '.', 1 ký tự, chữ thường)",
+    (sku) => {
+      const result = transferFormSchema.safeParse({
+        ...valid,
+        lines: [{ sku, lotNumber: "", quantity: 1 }],
+      });
+      expect(result.success).toBe(true);
+    },
+  );
+
   it("BR-01: kho nguồn trùng kho đích → lỗi ở kho đích", () => {
     const result = transferFormSchema.safeParse({ ...valid, toWarehouseId: "wh-a" });
     expect(result.success).toBe(false);
@@ -92,6 +103,18 @@ describe("transferFormSchema (CreateTransferOrderRequest + BR docs 10 §6)", () 
     expect(messages(transferFormSchema.safeParse({ ...valid, lines: [] }))).toContain(
       MSG.linesRequired,
     );
+  });
+});
+
+describe("transferFormSchema.deliveryMode (LP2-8, BE PR #164)", () => {
+  it("mặc định nguyên chuyến (FULL_TRUCKLOAD) như BE; nhận PARCEL; giá trị lạ → lỗi", () => {
+    expect(transferFormSchema.parse(valid).deliveryMode).toBe("FULL_TRUCKLOAD");
+    expect(transferFormSchema.parse({ ...valid, deliveryMode: "PARCEL" }).deliveryMode).toBe(
+      "PARCEL",
+    );
+    const bad = transferFormSchema.safeParse({ ...valid, deliveryMode: "DRONE" });
+    expect(bad.success).toBe(false);
+    expect(bad.error?.issues[0]?.path).toEqual(["deliveryMode"]);
   });
 });
 

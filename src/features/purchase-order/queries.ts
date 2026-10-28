@@ -6,8 +6,6 @@
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 
-import { PO_LIMITS } from "@/constants";
-
 import { QUERY_TIMES } from "@/lib/api/query-client";
 import { createDetailQuery, createListQuery, createQueryKeys } from "@/lib/api/query-factory";
 
@@ -19,7 +17,6 @@ import {
   listPurchaseOrders,
   listSupplierSpend,
 } from "./api";
-import { isDeliveryInFlight } from "./selectors";
 
 import type { PaginatedResponse } from "@/lib/api/query-factory";
 import type { ListPoParams, PoHistoryParams, SupplierSpendParams } from "./api";
@@ -44,11 +41,31 @@ export const usePurchaseOrders = createListQuery<PurchaseOrder, ListPoParams>(
   listPurchaseOrders,
 );
 
-/** Chi tiết PO — tự tải lại khi đang gửi NCC (`isDeliveryInFlight`), dừng khi có kết quả. */
-export const usePurchaseOrder = createDetailQuery<PurchaseOrder>(poKeys, getPurchaseOrder, {
-  refetchInterval: (query) =>
-    isDeliveryInFlight(query.state.data) ? PO_LIMITS.deliveryPollMs : false,
-});
+/** Chi tiết PO — không poll khi đang gửi NCC: BE thử lại mỗi phút, người dùng tự F5 xem trạng thái. */
+export const usePurchaseOrder = createDetailQuery<PurchaseOrder>(poKeys, getPurchaseOrder);
+
+/**
+ * Tải lại chi tiết PO ngay từ server (`staleTime: 0`) cho màn sửa nháp sau lỗi lưu. Dùng `fetchQuery`
+ * thay `refetch()`: lỗi (kể cả bị refetch khác huỷ) ném ra → `{ error }`, không bao giờ trả data cũ
+ * React Query còn giữ như kết quả của `refetch()` bị huỷ.
+ */
+export function usePurchaseOrderReload(id: string) {
+  const queryClient = useQueryClient();
+  return async (): Promise<{ po?: PurchaseOrder; error?: unknown }> => {
+    try {
+      const po = await queryClient.fetchQuery({
+        queryKey: poKeys.detail(id),
+        queryFn: ({ signal }) => getPurchaseOrder(id, signal),
+        staleTime: 0,
+        // Chỉ để phân loại lỗi vừa gặp: báo ngay, không giữ nút lưu khoá trong lúc thử lại (backoff)
+        retry: false,
+      });
+      return { po };
+    } catch (error) {
+      return { error };
+    }
+  };
+}
 
 export const useSupplierSpend = createListQuery<SupplierSpendRow, SupplierSpendParams>(
   supplierSpendKeys,
@@ -68,24 +85,21 @@ export function usePoStatusDashboard(options?: { enabled?: boolean }) {
 export function usePoDeliveries(
   poId: string,
   params: PoHistoryParams,
-  /** `poll`: PO đang gửi NCC → tải lại bảng lần gửi theo chu kỳ (lần gửi được ghi bất đồng bộ). */
-  options?: { enabled?: boolean; poll?: boolean },
+  options?: { enabled?: boolean },
 ) {
   return useQuery<PaginatedResponse<DeliveryAttempt>>({
     queryKey: poDeliveryKeys.attempts(poId, params),
     queryFn: ({ signal }) => listPoDeliveries(poId, params, signal),
     placeholderData: keepPreviousData,
     ...QUERY_TIMES.detail,
-    refetchInterval: options?.poll ? PO_LIMITS.deliveryPollMs : false,
     enabled: !!poId && options?.enabled !== false,
   });
 }
 
 /**
  * PO vừa hết "đang gửi" (QUEUED/RETRYING → kết quả cuối) → tải lại lịch sử gửi MỘT lần.
- * BE chỉ ghi dòng lần gửi sau khi worker gửi xong (SENT/FAILED), và PO + bảng tải lại theo hai
- * chu kỳ riêng: lần tải cuối của bảng có thể trước lúc có dòng → không có bước này bảng sẽ thiếu
- * dòng vừa gửi tới khi F5.
+ * BE chỉ ghi dòng lần gửi sau khi worker gửi xong (SENT/FAILED); PO có thể tải lại riêng (focus
+ * tab, sau mutation) mà bảng vẫn cache bản cũ → không có bước này bảng thiếu dòng vừa gửi.
  */
 export function useRefreshDeliveriesOnSettle(poId: string, inFlight: boolean) {
   const queryClient = useQueryClient();

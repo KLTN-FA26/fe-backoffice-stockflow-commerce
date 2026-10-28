@@ -21,7 +21,7 @@ export function SearchBar({
 }: SearchBarProps) {
   return (
     <div className={cn("relative flex min-w-[200px] flex-1 items-center", className)}>
-      <SearchIcon className="text-ink-tertiary pointer-events-none absolute left-[11px] size-4" />
+      <SearchIcon className="text-ink-tertiary pointer-events-none absolute left-[11px] size-3.5" />
       <Input
         type="search"
         value={value}

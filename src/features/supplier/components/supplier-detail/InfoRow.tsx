@@ -14,7 +14,7 @@ export function InfoRow({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="border-border-default flex items-baseline justify-between border-b py-2 last:border-b-0">
+    <div className="flex items-baseline justify-between border-b border-(--table-line) py-2 last:border-b-0">
       <span className="text-ink-tertiary text-xs font-medium">{label}</span>
       {children ? (
         <span className="text-ink-primary text-[0.8125rem]">{children}</span>

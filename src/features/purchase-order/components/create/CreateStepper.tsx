@@ -15,16 +15,19 @@ export function CreateStepper({
   canGoTo,
   lineCount,
   onStepChange,
+  reviewLabel,
 }: {
   stepStatus: (step: StepKey) => StepStatus;
   /** Như wizard NCC: không nhảy cóc tới bước khi bước trước chưa qua / còn lỗi. */
   canGoTo: (step: StepKey) => boolean;
   lineCount: number;
   onStepChange: (step: StepKey) => void;
+  /** Nhãn bước cuối: "Tạo đơn đặt hàng" (tạo) / "Lưu thay đổi" (sửa nháp). */
+  reviewLabel?: string;
 }) {
   return (
     <Card className="h-fit p-0">
-      <div className="border-border-default border-b px-4 py-3">
+      <div className="border-b border-(--table-line) px-4 py-3">
         <div className="text-ink-tertiary text-xs font-semibold tracking-[0.08em] uppercase">
           Quy trình
         </div>
@@ -46,7 +49,7 @@ export function CreateStepper({
               disabled={!canGoTo(step.key)}
               aria-current={status === "active" ? "step" : undefined}
               className={cn(
-                "mb-1 flex w-full justify-start gap-2 rounded-[var(--r-sm)] px-2.5 py-2 text-left text-[0.8125rem] transition-colors",
+                "mb-1 flex w-full justify-start gap-2 rounded-[var(--r-md)] px-2.5 py-2 text-left text-[0.8125rem] transition-colors",
                 status === "active" &&
                   "bg-brand text-ink-inverse hover:bg-brand hover:text-ink-inverse font-medium",
                 status !== "active" &&
@@ -58,7 +61,9 @@ export function CreateStepper({
                 {status === "done" ? <Check className="size-3" /> : index + 1}
               </span>
               <Icon className="size-3.5" />
-              <span className="flex-1">{step.label}</span>
+              <span className="flex-1">
+                {step.key === "review" && reviewLabel ? reviewLabel : step.label}
+              </span>
             </Button>
           );
         })}

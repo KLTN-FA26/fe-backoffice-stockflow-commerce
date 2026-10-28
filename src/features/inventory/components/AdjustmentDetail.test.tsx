@@ -109,7 +109,7 @@ describe("adjustment detail", () => {
     const fixture = adjustmentFixture({ requestedBy: requester });
     server.use(inventoryPermissions([adjustmentViewPage, adjustmentRead]), serve(fixture));
     renderInventory(<AdjustmentDetail id={fixture.adjustmentId} />);
-    await screen.findByText(fixture.number);
+    await screen.findByRole("heading", { name: fixture.number });
     expectNoDecisionControls();
   });
 
@@ -121,7 +121,7 @@ describe("adjustment detail", () => {
       serve(fixture),
     );
     renderInventory(<AdjustmentDetail id={fixture.adjustmentId} />);
-    await screen.findByText(fixture.number);
+    await screen.findByRole("heading", { name: fixture.number });
     expectNoDecisionControls();
   });
 
@@ -147,12 +147,31 @@ describe("adjustment detail", () => {
     expect(screen.queryByText(/Already decided/)).not.toBeInTheDocument();
   });
 
+  // Route needs VIEW_PAGE (open the screen) AND READ (GET /inventory/adjustments/{id}) — BE ADR-0004
+  it.each([
+    ["READ only", [adjustmentRead]],
+    ["VIEW_PAGE only", [adjustmentViewPage]],
+  ] as const)("%s cannot open the detail and never reads it", async (_label, permissions) => {
+    const fixture = adjustmentFixture();
+    const read = vi.fn();
+    server.use(
+      inventoryPermissions(permissions),
+      http.get(endpoint, () => {
+        read();
+        return HttpResponse.json({ success: true, data: fixture });
+      }),
+    );
+    renderInventory(<AdjustmentDetail id={fixture.adjustmentId} />);
+    expect(await screen.findByText(INVENTORY_LABELS.denied)).toBeInTheDocument();
+    expect(read).not.toHaveBeenCalled();
+  });
+
   it("READ only sees detail without decision controls", async () => {
     setInventoryTestActor("Inventory Planner");
     const fixture = adjustmentFixture();
     server.use(inventoryPermissions([adjustmentViewPage, adjustmentRead]), serve(fixture));
     renderInventory(<AdjustmentDetail id={fixture.adjustmentId} />);
-    await screen.findByText(fixture.number);
+    await screen.findByRole("heading", { name: fixture.number });
     expectNoDecisionControls();
   });
 
@@ -164,7 +183,7 @@ describe("adjustment detail", () => {
       serve(fixture),
     );
     renderInventory(<AdjustmentDetail id={fixture.adjustmentId} />);
-    await screen.findByText(fixture.number);
+    await screen.findByRole("heading", { name: fixture.number });
     expectNoDecisionControls();
   });
 

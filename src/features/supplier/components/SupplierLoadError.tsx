@@ -6,7 +6,6 @@ import { ADMIN_ROUTES, SUPPLIER_PERMISSIONS, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { useCan } from "@/lib/auth";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 
 import { classifyLoadError } from "./load-error";
@@ -37,8 +36,10 @@ interface SupplierLoadErrorProps {
   /** Ép loại lỗi (vd `forbidden` khi thiếu quyền, `network` khi query bị pause vì offline). */
   kind?: LoadErrorKind;
   onRetry?: () => void;
-  /** Hiện trong vùng bảng (trang danh sách): không vẽ PageHeader, không có nút "Về danh sách". */
+  /** Hiện trong vùng bảng (trang danh sách): không bọc khung trang, không có nút "Về danh sách". */
   inline?: boolean;
+  /** Thay câu mô tả theo loại lỗi (vd tab danh mục hàng: 403 nói về danh mục, không về NCC). */
+  descriptions?: Partial<Record<LoadErrorKind, string>>;
 }
 
 /** Trạng thái lỗi dùng chung cho trang chi tiết + sửa NCC. */
@@ -47,11 +48,14 @@ export function SupplierLoadError({
   kind: forcedKind,
   onRetry,
   inline = false,
+  descriptions,
 }: SupplierLoadErrorProps) {
   const kind = forcedKind ?? (error ? classifyLoadError(error) : "not-found");
   const copy = COPY[kind];
   const apiErr = error instanceof ApiError ? error : undefined;
-  const description = kind === "server" && apiErr?.message ? apiErr.message : copy.description;
+  const description =
+    descriptions?.[kind] ??
+    (kind === "server" && apiErr?.message ? apiErr.message : copy.description);
   const isPermissionKind = kind === "forbidden" || kind === "no-read";
   const canRetry = onRetry !== undefined && kind !== "not-found" && !isPermissionKind;
   // Danh sách chỉ xem được khi có cả VIEW_PAGE (mở trang) lẫn READ (đọc dữ liệu); thiếu thì
@@ -63,9 +67,8 @@ export function SupplierLoadError({
       ? { href: ADMIN_ROUTES.home, label: common.backToHome }
       : { href: ADMIN_ROUTES.suppliers.list, label: common.backToList };
 
-  return (
+  const body = (
     <>
-      {!inline && <PageHeader title={supplier.pageTitle} />}
       <EmptyState
         title={copy.title}
         description={description}
@@ -91,5 +94,13 @@ export function SupplierLoadError({
         </p>
       ) : null}
     </>
+  );
+  if (inline) return body;
+  return (
+    // Cùng khung kiểu Vercel với trang chi tiết — không tiêu đề hiển thị, breadcrumb đã có.
+    <div className="surface-soft surface-compact">
+      <h1 className="sr-only">{supplier.pageTitle}</h1>
+      {body}
+    </div>
   );
 }

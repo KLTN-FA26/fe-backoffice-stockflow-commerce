@@ -33,13 +33,8 @@ import { Logo } from "@/components/shared/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 
 import type { MockLoginUser } from "@/lib/auth/auth-api";
 import type { FormEvent } from "react";
@@ -185,7 +180,7 @@ function LoginForm() {
             phân quyền theo vai trò.
           </p>
 
-          <div className="mt-10 grid gap-4 sm:grid-cols-3">
+          <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
             {[
               { label: "Nhập hàng", icon: Boxes },
               { label: "Kiểm soát kho", icon: ShieldCheck },
@@ -268,13 +263,13 @@ function LoginForm() {
                       placeholder={isLoadingUsers ? "Đang tải tài khoản..." : "Chọn tài khoản"}
                     />
                   </SelectTrigger>
-                  <SelectContent>
+                  <TitledSelectContent title={"Tài khoản nhân sự"}>
                     {mockUsers.map((user) => (
                       <SelectItem key={user.userId} value={user.userId}>
                         {user.fullName} — {user.roles.join(", ")}
                       </SelectItem>
                     ))}
-                  </SelectContent>
+                  </TitledSelectContent>
                 </Select>
               </div>
 

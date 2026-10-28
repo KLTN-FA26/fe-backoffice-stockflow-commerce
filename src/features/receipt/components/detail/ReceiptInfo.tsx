@@ -22,6 +22,8 @@ export function ReceiptInfo({ receipt }: { receipt: GoodsReceipt }) {
   return (
     <Section title="Thông tin phiếu">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+        {/* Trang chi tiết không có tiêu đề — số phiếu nằm ở đây */}
+        <InfoItem label="Số phiếu" value={receipt.number} mono />
         <InfoItem label="Đơn đặt hàng" value={receipt.purchaseOrderNumber ?? "—"} mono />
         <InfoItem label="Phiếu giao NCC" value={receipt.deliveryNote ?? "—"} mono />
         <InfoItem label="Ngày nhận" value={dt(receipt.receivedAt)} />
@@ -53,7 +55,7 @@ export function ReceiptOverviewCard({ receipt }: { receipt: GoodsReceipt }) {
     { label: "Dòng chờ QC", value: pendingQcLineCount(receipt) },
   ];
   return (
-    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
+    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)">
       <h2 className="text-ink-primary mb-3 text-[0.9375rem] font-semibold">Tổng quan</h2>
       <dl className="space-y-2 text-[0.8125rem]">
         {rows.map((row) => (

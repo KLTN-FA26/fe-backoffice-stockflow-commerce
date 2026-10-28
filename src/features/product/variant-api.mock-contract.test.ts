@@ -1,24 +1,23 @@
 /**
- * Contract test: mock adapter nói đúng hợp đồng BE PR #71 cho biến thể / logistics / ảnh, để
- * `variant-api.ts` (zod parse) chạy y hệt trên mock và BE thật.
+ * Contract test: mock adapter nói đúng hợp đồng BE PR #71 cho biến thể / ảnh (và `inventoryItemId`
+ * của BE PR #119), để `variant-api.ts` (zod parse) chạy y hệt trên mock và BE thật.
  */
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "@/lib/api/error";
 import { activateMockAdapter } from "@/lib/api/mock-adapter";
 import { resetVariantMockStore } from "@/lib/api/mock-routes-variants";
+import { fetchInventoryItemSummary } from "@/lib/references/inventory-item-lookup";
 
+import { getProductAttributes } from "./axes-api";
 import {
   addVariant,
   deleteVariantMedia,
-  getSkuLogistics,
   listVariantMedia,
   listVariants,
   makePrimaryMedia,
   mediaViewUrl,
   publishVariantMedia,
-  saveSkuLogistics,
-  toLogisticsRequest,
   transitionVariant,
   updateVariant,
   uploadVariantMedia,
@@ -26,9 +25,9 @@ import {
 } from "./variant-api";
 import { variantErrorMessage } from "./variant-errors";
 
-import type { LogisticsFormValues } from "./variant-schemas";
-
 const PRODUCT = "PRD-001";
+/** Sản phẩm mock không có trục (SKU duy nhất / không đủ bộ thuộc tính) — nhập SKU tay. */
+const NO_AXES_PRODUCT = "PRD-005";
 
 beforeAll(() => {
   // Ghim độ trễ + lỗi 500 ngẫu nhiên 5% của adapter để test ổn định.
@@ -49,25 +48,6 @@ async function apiError(p: Promise<unknown>) {
   return e as ApiError;
 }
 
-const form: LogisticsFormValues = {
-  unitOfMeasure: "EACH",
-  barcode: "",
-  weightKg: "0.25",
-  lengthCm: "10",
-  widthCm: "",
-  heightCm: "",
-  packageWeightKg: "",
-  packageLengthCm: "",
-  packageWidthCm: "",
-  packageHeightCm: "",
-  packageCount: "",
-  packSize: "50",
-  storageClass: "FRAGILE",
-  requiresAdultSignature: false,
-  shippingRestrictionNote: "",
-  qcRequired: true,
-};
-
 describe("biến thể", () => {
   it("liệt kê theo sản phẩm, đúng một biến thể mặc định, sắp theo vị trí", async () => {
     const variants = await listVariants(PRODUCT);
@@ -77,20 +57,31 @@ describe("biến thể", () => {
   });
 
   it("thêm (SKU in hoa, DRAFT) → kích hoạt → tạm chặn → ngừng dùng; SKU trùng → 409", async () => {
+    // Biến thể đầu tiên của sản phẩm là mặc định (không ngừng dùng riêng được) → thêm một cái trước.
+    await addVariant({
+      productId: NO_AXES_PRODUCT,
+      sku: "NOAXES-DEFAULT",
+      name: "Mặc định",
+      optionValueIds: [],
+    });
     const created = await addVariant({
-      productId: PRODUCT,
+      productId: NO_AXES_PRODUCT,
       sku: "cup-mock-12oz",
       name: "Ly 12oz",
-      attributeSignature: "",
+      optionValueIds: [],
     });
-    expect(created).toMatchObject({ sku: "CUP-MOCK-12OZ", status: "DRAFT", defaultVariant: false });
-    expect(created.attributeSignature).toBe("SKU=CUP-MOCK-12OZ");
+    expect(created).toMatchObject({ sku: "CUP-MOCK-12OZ", status: "DRAFT", options: [] });
     const dup = await apiError(
-      addVariant({ productId: PRODUCT, sku: "CUP-MOCK-12OZ", name: "x", attributeSignature: "" }),
+      addVariant({
+        productId: NO_AXES_PRODUCT,
+        sku: "CUP-MOCK-12OZ",
+        name: "x",
+        optionValueIds: [],
+      }),
     );
-    expect(variantErrorMessage(dup, "save")).toBe("Mã SKU đã được dùng cho biến thể khác.");
+    expect(variantErrorMessage(dup, "save")).toMatch(/đã có ở một biến thể khác/);
 
-    const id = { productId: PRODUCT, variantId: created.variantId };
+    const id = { productId: NO_AXES_PRODUCT, variantId: created.variantId };
     expect((await transitionVariant({ ...id, action: "activate" })).status).toBe("ACTIVE");
     // SKU cố định khi đã rời DRAFT.
     const renamed = await apiError(
@@ -99,7 +90,7 @@ describe("biến thể", () => {
         position: created.position,
         sku: "OTHER",
         name: "Ly",
-        attributeSignature: "",
+        optionValueIds: [],
       }),
     );
     expect(variantErrorMessage(renamed, "save")).toMatch(/chỉ đổi được khi biến thể còn Nháp/);
@@ -120,46 +111,91 @@ describe("biến thể", () => {
   });
 });
 
-describe("logistics theo SKU", () => {
-  it("đọc → lưu (gửi version) → version tăng; ghi bằng version cũ → 409 OPTIMISTIC_LOCK", async () => {
-    const [v] = await listVariants(PRODUCT);
-    if (!v) throw new Error("no variant");
-    const before = await getSkuLogistics(PRODUCT, v.variantId);
-    const saved = await saveSkuLogistics({
-      productId: PRODUCT,
-      variantId: v.variantId,
-      version: before.version,
-      values: form,
-    });
-    expect(saved).toMatchObject({
-      version: before.version + 1,
-      weightKg: 0.25,
-      lengthCm: 10,
-      widthCm: null,
-      packSize: 50,
-      storageClass: "FRAGILE",
-      qcRequired: true,
-    });
-    const stale = await apiError(
-      saveSkuLogistics({
-        productId: PRODUCT,
-        variantId: v.variantId,
-        version: before.version,
-        values: form,
-      }),
-    );
-    expect(variantErrorMessage(stale, "logistics")).toMatch(/vừa được người khác sửa/);
+describe("biến thể theo trục (BE PR #115/#116: optionValueIds, không còn attributeSignature)", () => {
+  it("đọc trục của sản phẩm; sản phẩm không có trục trả danh sách rỗng", async () => {
+    const axes = (await getProductAttributes(PRODUCT)).axes;
+    expect(axes.map((a) => a.code)).toEqual(["COLOR", "SIZE"]);
+    expect(axes[0]?.options.length).toBeGreaterThan(1);
+    expect((await getProductAttributes(NO_AXES_PRODUCT)).axes).toEqual([]);
   });
 
-  it("form → SkuLogisticsRequest: ô trống là null, không phải 0", () => {
-    expect(toLogisticsRequest(form, 3)).toMatchObject({
-      version: 3,
-      barcode: null,
-      widthCm: null,
-      packageCount: null,
-      packSize: 50,
-      shippingRestrictionNote: null,
+  it("thêm bằng optionValueIds: SKU / tên bỏ trống do BE sinh, options trả về, trùng tổ hợp → 409", async () => {
+    const axes = (await getProductAttributes(PRODUCT)).axes;
+    const pick = (label: string, axisCode: string) =>
+      axes.find((a) => a.code === axisCode)?.options.find((o) => o.label === label)?.valueId ?? "";
+    const optionValueIds = [pick("Navy", "COLOR"), pick("M", "SIZE")];
+
+    const created = await addVariant({ productId: PRODUCT, sku: "", name: "", optionValueIds });
+    expect(created.status).toBe("DRAFT");
+    expect(created.sku).toMatch(/^PRD-001-/);
+    expect(created.options.map((o) => o.label)).toEqual(["Navy", "M"]);
+
+    const dup = await apiError(
+      addVariant({ productId: PRODUCT, sku: "", name: "", optionValueIds }),
+    );
+    expect(dup.code).toBe("VARIANT_SKU_ALREADY_EXISTS");
+
+    // Sửa không gửi sku / name: BE giữ giá trị hiện tại.
+    const renamed = await updateVariant({
+      productId: PRODUCT,
+      variantId: created.variantId,
+      position: created.position,
+      sku: "",
+      name: "Navy M",
+      optionValueIds,
     });
+    expect(renamed).toMatchObject({ sku: created.sku, name: "Navy M" });
+  });
+
+  it("thiếu một trục / tuỳ chọn không thuộc sản phẩm / sản phẩm không trục mà gửi tuỳ chọn → 400 VARIANT_OPTIONS_INVALID", async () => {
+    const [color] = (await getProductAttributes(PRODUCT)).axes;
+    const onlyColor = [color?.options[0]?.valueId ?? ""];
+    const missing = await apiError(
+      addVariant({ productId: PRODUCT, sku: "", name: "", optionValueIds: onlyColor }),
+    );
+    expect(missing.code).toBe("VARIANT_OPTIONS_INVALID");
+    expect(variantErrorMessage(missing, "save")).toMatch(/đúng một giá trị/);
+
+    const noAxes = await apiError(
+      addVariant({
+        productId: NO_AXES_PRODUCT,
+        sku: "NOAXES-1",
+        name: "x",
+        optionValueIds: onlyColor,
+      }),
+    );
+    expect(noAxes.code).toBe("VARIANT_OPTIONS_INVALID");
+  });
+});
+
+// BE PR #119: logistics của SKU không còn dưới sản phẩm — nằm ở hồ sơ hàng tồn của biến thể.
+describe("hồ sơ hàng tồn của biến thể (BE PR #119)", () => {
+  it("biến thể mang inventoryItemId, tra được ở /inventory/items/{id} cùng SKU", async () => {
+    const variants = await listVariants(PRODUCT);
+    expect(variants.every((v) => typeof v.inventoryItemId === "string")).toBe(true);
+    const [v] = variants;
+    if (!v?.inventoryItemId) throw new Error("variant has no inventory item");
+    const item = await fetchInventoryItemSummary(v.inventoryItemId);
+    expect(item).toMatchObject({ id: v.inventoryItemId, sku: v.sku });
+    expect(item.logistics.unitOfMeasure).toBeTruthy();
+  });
+
+  it("biến thể vừa thêm cũng có hồ sơ (BE tạo item cùng biến thể)", async () => {
+    const created = await addVariant({
+      productId: NO_AXES_PRODUCT,
+      sku: "NOAXES-ITEM",
+      name: "Có hồ sơ",
+      optionValueIds: [],
+    });
+    expect(created.inventoryItemId).toBeTruthy();
+    const item = await fetchInventoryItemSummary(created.inventoryItemId ?? "");
+    expect(item.sku).toBe("NOAXES-ITEM");
+    const activated = await transitionVariant({
+      productId: NO_AXES_PRODUCT,
+      variantId: created.variantId,
+      action: "activate",
+    });
+    expect(activated.inventoryItemId).toBe(created.inventoryItemId);
   });
 });
 

@@ -15,18 +15,30 @@ import type { PermissionCode } from "@/lib/auth";
 
 const { loadError } = UI_LABELS;
 
+type PermissionCodes = readonly [PermissionCode, ...PermissionCode[]];
+
+/**
+ * Exactly one of: a single required code, `anyOf` — any one listed code opens the screen, or
+ * `allOf` — every listed code is required (e.g. VIEW_PAGE to open the page AND READ for its data;
+ * BE ADR-0004 keeps them separate, so neither implies the other).
+ */
+type GateRequirement =
+  | { permission: PermissionCode; anyOf?: never; allOf?: never }
+  | { anyOf: PermissionCodes; permission?: never; allOf?: never }
+  | { allOf: PermissionCodes; permission?: never; anyOf?: never };
+
 /**
  * Chặn màn tồn kho theo mã quyền BE (theo mẫu `PoPermissionGate`): đang tải → skeleton,
  * không tải được quyền → báo lỗi + thử lại, thiếu quyền → từ chối. Không suy từ tên vai trò.
  * UI-only — Backend phải re-check (@RequiresPermission trên StockOperationsController).
  */
 export function InventoryPermissionGate({
-  permissions,
+  permission,
+  anyOf,
+  allOf,
   variant = "detail",
   children,
-}: {
-  /** Thiếu BẤT KỲ mã nào → từ chối (cùng hợp đồng với `PoPermissionGate`). */
-  permissions: readonly PermissionCode[];
+}: GateRequirement & {
   variant?: "detail" | "list" | "form";
   children: React.ReactNode;
 }) {
@@ -53,6 +65,11 @@ export function InventoryPermissionGate({
       />
     );
   }
-  if (!permissions.every((code) => hasPermission(data, code))) return <InventoryDenied />;
+  const allowed = permission
+    ? hasPermission(data, permission)
+    : anyOf
+      ? anyOf.some((code) => hasPermission(data, code))
+      : allOf.every((code) => hasPermission(data, code));
+  if (!allowed) return <InventoryDenied />;
   return <>{children}</>;
 }

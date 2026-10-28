@@ -1,8 +1,9 @@
 "use client";
 
-import { TRANSFER_REASON_LABELS, UI_LABELS } from "@/constants";
+import { TRANSFER_DELIVERY_MODE_LABELS, TRANSFER_REASON_LABELS, UI_LABELS } from "@/constants";
 import { useAuthStore } from "@/lib/auth";
 import { formatDate, formatDateTime } from "@/lib/format/date";
+import { isFtl } from "@/features/transfer/ftl-lifecycle";
 import { isTransferDispatched, isTransferInTransit } from "@/features/transfer/lifecycle";
 import { totalRequested, totalShipped } from "@/features/transfer/selectors";
 import { Alert } from "@/components/shared/Alert";
@@ -13,6 +14,20 @@ import type { TransferOrder } from "@/features/transfer/types";
 
 const L = UI_LABELS.transfer;
 const dt = (iso: string | null | undefined) => (iso ? formatDateTime(iso) : "—");
+
+/** Đóng gói xong lúc nào; lệnh đã xuất mà không có mốc (dữ liệu cũ) → "—" chứ không "Chưa đóng gói". */
+const packedText = (t: TransferOrder) =>
+  t.packedAt
+    ? dt(t.packedAt)
+    : isTransferDispatched(t.status)
+      ? "—"
+      : UI_LABELS.transfer.deliveryMode.notPacked;
+
+/** Hàng rời kho lúc nào: xe đầu ký nhận, hoặc lúc xuất kho của lệnh đã xuất. */
+const leftText = (t: TransferOrder) =>
+  t.goodsLeftAt || t.dispatchedAt
+    ? dt(t.goodsLeftAt ?? t.dispatchedAt)
+    : UI_LABELS.transfer.deliveryMode.notLeft;
 
 /** BE chỉ trả UUID người thao tác (chưa có API tra tên) — người hiện tại hiện "Bạn". */
 function Actor({ id }: { id: string | null | undefined }) {
@@ -31,6 +46,8 @@ export function TransferInfo({ transfer }: { transfer: TransferOrder }) {
   return (
     <Section title={L.sectionInfo}>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+        {/* Trang chi tiết không có tiêu đề — số lệnh nằm ở đây */}
+        <InfoItem label={UI_LABELS.transfer.column.number} value={transfer.number} mono />
         <InfoItem
           label={UI_LABELS.transfer.field.fromWarehouse}
           value={warehouseLabel(transfer.fromWarehouseId)}
@@ -52,6 +69,23 @@ export function TransferInfo({ transfer }: { transfer: TransferOrder }) {
           label={UI_LABELS.transfer.column.dispatchedAt}
           value={dt(transfer.dispatchedAt)}
         />
+        <InfoItem
+          label={UI_LABELS.transfer.deliveryMode.label}
+          value={TRANSFER_DELIVERY_MODE_LABELS[transfer.deliveryMode]}
+        />
+        {/* Chỉ lệnh nguyên chuyến (FTL) có đóng gói + xe ký nhận; lệnh giao lẻ không có hai mốc này */}
+        {isFtl(transfer) && (
+          <>
+            <InfoItem
+              label={UI_LABELS.transfer.deliveryMode.packedAt}
+              value={packedText(transfer)}
+            />
+            <InfoItem
+              label={UI_LABELS.transfer.deliveryMode.goodsLeftAt}
+              value={leftText(transfer)}
+            />
+          </>
+        )}
       </div>
       {transfer.cancelReason && (
         <Alert tone="danger" title={L.confirm.cancelReason} className="mt-3">
@@ -70,7 +104,7 @@ export function TransferTimelineCard({ transfer }: { transfer: TransferOrder }) 
     { label: L.action.dispatch, at: transfer.dispatchedAt, by: transfer.dispatchedBy },
   ];
   return (
-    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
+    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)">
       <h2 className="text-ink-primary mb-3 text-[0.9375rem] font-semibold">{L.sectionTimeline}</h2>
       <dl className="space-y-2 text-[0.8125rem]">
         <div className="flex justify-between">

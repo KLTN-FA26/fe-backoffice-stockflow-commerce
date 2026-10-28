@@ -7,6 +7,7 @@ import { getMockStaffUsers } from "@/lib/api/mock-adapter";
 import { loginRequestSchema } from "@/lib/auth/auth-schemas";
 
 import { BACKEND_AUTH_PATHS } from "./backend";
+import { mockUsersBackend } from "./mock-identity-users";
 import { mockRbacBackend } from "./mock-rbac";
 import { mockSessionPermissions } from "./mock-permissions";
 
@@ -16,7 +17,11 @@ const mockRuntime = globalThis as typeof globalThis & {
   stockflowMockSessions?: Map<string, MockSession>;
 };
 const sessions = (mockRuntime.stockflowMockSessions ??= new Map<string, MockSession>());
-export async function mockAuthBackend(path: string, init: RequestInit): Promise<Response> {
+export async function mockAuthBackend(
+  path: string,
+  init: RequestInit,
+  query = "",
+): Promise<Response> {
   if (path === BACKEND_AUTH_PATHS.login && init.method === "POST") {
     const body: unknown = JSON.parse(typeof init.body === "string" ? init.body : "null");
     const parsed = loginRequestSchema.safeParse(body);
@@ -59,6 +64,20 @@ export async function mockAuthBackend(path: string, init: RequestInit): Promise<
       path,
       init,
       mockSessionPermissions(user.userId, user.roles).permissions,
+    );
+    if (response) return response;
+  }
+  if (path.startsWith("identity/users")) {
+    const user = (await getMockStaffUsers()).find(
+      (candidate) => candidate.userId === session.userId,
+    );
+    if (!user) return Response.json({}, { status: 401 });
+    const response = await mockUsersBackend(
+      path,
+      init,
+      mockSessionPermissions(user.userId, user.roles).permissions,
+      user.userId,
+      new URLSearchParams(query),
     );
     if (response) return response;
   }

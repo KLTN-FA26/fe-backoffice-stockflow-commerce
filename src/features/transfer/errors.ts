@@ -70,9 +70,15 @@ export function transferErrorMessage(error: unknown): string {
 export function isStaleTransferError(error: unknown): boolean {
   return (
     error instanceof ApiError &&
-    ["INVALID_TRANSFER_TRANSITION", "OPTIMISTIC_LOCK", "TRANSFER_ORDER_NOT_EDITABLE"].includes(
-      error.code,
-    )
+    [
+      "INVALID_TRANSFER_TRANSITION",
+      "OPTIMISTIC_LOCK",
+      "TRANSFER_ORDER_NOT_EDITABLE",
+      // SCRUM-287 PR F9: lệnh đã được đóng gói / xe đầu đã ký nhận ở nơi khác → tải lại để nút đúng trạng thái
+      "TRANSFER_GOODS_LEFT",
+      "TRANSFER_DISPATCH_BY_LOAD_PLAN",
+      "LOAD_PLAN_LOADING_STARTED",
+    ].includes(error.code)
   );
 }
 

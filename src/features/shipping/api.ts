@@ -1,47 +1,56 @@
 /**
- * Shipping — API chuyến xe (load) theo CONTRACT ĐỀ XUẤT cho BE SCRUM-288.
+ * Shipping — API chuyến xe (BE `DispatchController`, PR #137, SCRUM-288/292). Base `/api/v1` đã nằm
+ * trong axios client. Xem: `fulfillment-shipments:READ`; mở chuyến `fulfillment-dispatch:CREATE`, quét / bàn giao
+ * `fulfillment-dispatch:UPDATE`, huỷ chuyến `fulfillment-load-cancellations:UPDATE` (BE PR #148).
  *
- * ASSUMPTION: chờ BE SCRUM-288 — đề xuất gửi BE (resource quyền `fulfillment-shipments` đã seed):
- *   GET  /fulfillment/loads?status&search&page&size   → PageResponse<LoadRow>     (READ)
- *   GET  /fulfillment/loads/{id}                       → Load (kèm lines, manifest) (READ)
- *   POST /fulfillment/loads/{id}/loading-start         VEHICLE_BOOKED → LOADING     (UPDATE)
- *   POST /fulfillment/loads/{id}/scans {packageCode}   → Load; IDEMPOTENT: quét lại kiện đã lên
- *        ĐÚNG chuyến này → 200 trả chuyến hiện tại. 409 PACKAGE_NOT_IN_LOAD (không thuộc chuyến),
- *        PACKAGE_ALREADY_LOADED (đã lên xe chuyến khác); 404 PACKAGE_NOT_FOUND       (UPDATE)
- *   POST /fulfillment/loads/{id}/handover {version, carrierRepresentative, note, signed}
- *        header `Idempotency-Key` (BE `common/idempotency`, như PO / Shelf / Design): bàn giao
- *        sinh manifest + outbox event — gửi lại cùng key (mạng chập chờn) không bàn giao hai lần.
- *        → Load DISPATCHED; 409 LOAD_NOT_FULLY_LOADED / OPTIMISTIC_LOCK; 400 khi `signed`
- *        ≠ true (guard "manifest signed" của 03 §11). BE: shipment → HANDED_OVER, publish
- *        ShipmentDispatched → order SHIPPED khi mọi kiện của đơn đã bàn giao (BR-03) — bất đồng
- *        bộ qua outbox (04c F-SHP bước 05–06)                                       (UPDATE)
- * Lỗi chung mọi thao tác: 409 INVALID_LOAD_TRANSITION (sai trạng thái chuyến), 404 LOAD_NOT_FOUND,
- * 403 OUT_OF_DATA_SCOPE (không phụ trách kho), 400 VALIDATION_FAILED (`fieldErrors` theo field).
- * Phạm vi kho: BE lọc theo kho được phân công (WarehouseScope, như lệnh chuyển kho) — BE hiện không
- * đọc header `X-Warehouse-Id`. Cần chốt với BE: `/loading-start` riêng (03 §11 "xe đến") hay lần quét
- * đầu tự chuyển LOADING (04c F-SHP bước 04). Base URL đã gồm `/api/v1`.
+ *   GET  /fulfillment/loads?warehouseId&status&carrierId&search&page&size   → PageResponse<LoadRow>
+ *   GET  /fulfillment/loads/{id}            → Load (các lô, kiện, kiện nào đã lên xe, `version`)
+ *   GET  /fulfillment/loads/{id}/manifest   → Manifest (biên bản để in)
+ *   POST /fulfillment/loads                 → 201 Load; idempotent theo `requestId`
+ *   POST /fulfillment/loads/{id}/shipments {shipmentIds}; DELETE …/shipments/{shipmentId}
+ *   POST /fulfillment/loads/{id}/scans {scanId?, packageCode}: quét lại kiện đã lên ĐÚNG chuyến → 200
+ *   DELETE /fulfillment/loads/{id}/scans/{packageId}: gỡ kiện khỏi xe trước bàn giao
+ *   POST /fulfillment/loads/{id}/handover {version, carrierRepresentative, …, signed}
+ *   POST /fulfillment/loads/{id}/cancellation {reason}
+ * Lỗi: 400 HANDOVER_NOT_SIGNED; 404 LOAD_NOT_FOUND, PACKAGE_NOT_FOUND; 409 PACKAGE_NOT_IN_LOAD,
+ * PACKAGE_ALREADY_LOADED, PACKAGE_NOT_READY, PACKAGE_OTHER_CARRIER, LOAD_NOT_FULLY_LOADED, LOAD_EMPTY,
+ * LABEL_OUTDATED, ORDER_BALANCE_NOT_PAID, OPTIMISTIC_LOCK, INVALID_LOAD_TRANSITION… (xem `errors.ts`).
  */
 
 import { PAGE_SIZE } from "@/constants";
 import { api } from "@/lib/api/client";
 
-import { beLoadPageSchema, beLoadSchema } from "./schemas";
+import { beLoadPageSchema, beLoadSchema, beManifestSchema } from "./load-schemas";
 
-import type { LoadStatus } from "@/constants";
+import type { DeliveryMode, LoadStatus } from "@/constants";
 import type { ListQueryParams, PaginatedResponse } from "@/lib/api/query-factory";
-import type { HandoverLoadInput, Load, LoadRow, ScanPackageInput } from "./types";
+import type {
+  CancelLoadInput,
+  HandoverLoadInput,
+  Load,
+  LoadRow,
+  LoadShipmentsInput,
+  Manifest,
+  OpenLoadInput,
+  RemoveLoadShipmentInput,
+  ScanPackageInput,
+  UnscanInput,
+} from "./types";
 
 export const LOADS_PATH = "/fulfillment/loads";
-
-const REPEAT_ARRAY_PARAMS = { indexes: null } as const;
 
 export const loadPath = (id: string) => `${LOADS_PATH}/${encodeURIComponent(id)}`;
 
 export interface ListLoadParams extends ListQueryParams {
   page?: number;
   size?: number;
-  status?: LoadStatus[];
-  /** So khớp số chuyến / biển số xe. */
+  warehouseId?: string;
+  /** BE nhận MỘT trạng thái. */
+  status?: LoadStatus;
+  carrierId?: string;
+  /** PARCEL | FULL_TRUCKLOAD — BE lọc (PR #165); giá trị khác → 400 UNSUPPORTED_PARAMETER. */
+  mode?: DeliveryMode;
+  /** So khớp mã chuyến / biển số xe / mã kế hoạch xếp xe (BE PR #165). */
   search?: string;
 }
 
@@ -53,10 +62,12 @@ export async function listLoads(
     params: {
       page: Math.max(0, params.page ?? 0),
       size: params.size ?? PAGE_SIZE.md,
-      status: params.status?.length ? params.status : undefined,
+      warehouseId: params.warehouseId || undefined,
+      status: params.status || undefined,
+      carrierId: params.carrierId || undefined,
+      mode: params.mode || undefined,
       search: params.search?.trim() || undefined,
     },
-    paramsSerializer: REPEAT_ARRAY_PARAMS,
     signal,
   });
   return beLoadPageSchema.parse(data);
@@ -67,36 +78,73 @@ export async function getLoad(id: string, signal?: AbortSignal): Promise<Load> {
   return beLoadSchema.parse(data);
 }
 
-const IDEMPOTENCY_HEADER = "Idempotency-Key";
+/** Biên bản để in (docs 09 §4.1 bước 3): lô, người nhận, kiện, COD từng lô và tổng. */
+export async function getManifest(id: string, signal?: AbortSignal): Promise<Manifest> {
+  const { data } = await api.get<unknown>(`${loadPath(id)}/manifest`, { signal });
+  return beManifestSchema.parse(data);
+}
 
-async function postLoad(
-  path: string,
-  body?: unknown,
-  headers?: Record<string, string>,
-): Promise<Load> {
-  const { data } = headers
-    ? await api.post<unknown>(path, body, { headers })
-    : await api.post<unknown>(path, body);
+/**
+ * Tài xế hãng tới: mở chuyến (LOADING) với các lô cho hãng đó. Gửi lại cùng `requestId` BE trả đúng
+ * chuyến đã mở (kể cả hai yêu cầu cùng lúc). Không gửi `shipmentIds` = lấy các lô chờ xuất của kho
+ * đã gán cho hãng này.
+ */
+export async function openLoad({ shipmentIds, ...input }: OpenLoadInput): Promise<Load> {
+  const { data } = await api.post<unknown>(LOADS_PATH, {
+    ...input,
+    shipmentIds: shipmentIds?.length ? [...shipmentIds] : undefined,
+  });
   return beLoadSchema.parse(data);
 }
 
-/** Xe đã đến dock: VEHICLE_BOOKED → LOADING. */
-export const startLoading = (loadId: string) => postLoad(`${loadPath(loadId)}/loading-start`);
+/** Đưa lô lên biên bản: chờ xuất, cùng kho, cùng hãng (hoặc chưa gán hãng). */
+export async function addLoadShipments({ loadId, shipmentIds }: LoadShipmentsInput): Promise<Load> {
+  const { data } = await api.post<unknown>(`${loadPath(loadId)}/shipments`, {
+    shipmentIds: [...shipmentIds],
+  });
+  return beLoadSchema.parse(data);
+}
 
-/** Quét một kiện lên xe — BE chặn kiện không thuộc chuyến (F-SHP bước 04). */
-export const scanPackage = ({ loadId, packageCode }: ScanPackageInput) =>
-  postLoad(`${loadPath(loadId)}/scans`, { packageCode });
-
-/** Bàn giao: chuyến → DISPATCHED, ghi biên bản. Không gửi mã vận đơn (hãng bên thứ ba). */
-export const handoverLoad = ({ loadId, version, values, idempotencyKey }: HandoverLoadInput) =>
-  postLoad(
-    `${loadPath(loadId)}/handover`,
-    {
-      version,
-      carrierRepresentative: values.carrierRepresentative,
-      note: values.note || undefined,
-      // Xác nhận hai bên đã ký biên bản giấy — BE re-check guard "manifest signed" (03 §11)
-      signed: values.signed,
-    },
-    { [IDEMPOTENCY_HEADER]: idempotencyKey },
+/** Bỏ lô (cùng các kiện đã quét của nó) khỏi biên bản trước bàn giao. */
+export async function removeLoadShipment({
+  loadId,
+  shipmentId,
+}: RemoveLoadShipmentInput): Promise<Load> {
+  const { data } = await api.delete<unknown>(
+    `${loadPath(loadId)}/shipments/${encodeURIComponent(shipmentId)}`,
   );
+  return beLoadSchema.parse(data);
+}
+
+/** Quét một kiện lên xe theo mã nhãn — chỉ nhận kiện của các lô trên biên bản (BR-03). */
+export async function scanPackage({
+  loadId,
+  packageCode,
+  scanId,
+}: ScanPackageInput): Promise<Load> {
+  const { data } = await api.post<unknown>(`${loadPath(loadId)}/scans`, { scanId, packageCode });
+  return beLoadSchema.parse(data);
+}
+
+/** Gỡ một kiện đã quét khỏi xe trước bàn giao. */
+export async function unscanPackage({ loadId, packageId }: UnscanInput): Promise<Load> {
+  const { data } = await api.delete<unknown>(
+    `${loadPath(loadId)}/scans/${encodeURIComponent(packageId)}`,
+  );
+  return beLoadSchema.parse(data);
+}
+
+/**
+ * Hai bên ký biên bản: chuyến DISPATCHED, các lô HANDED_OVER với COD đơn chốt. Gọi lại khi đã bàn
+ * giao → 200 trả nguyên chuyến. Không gửi mã vận đơn (hãng bên thứ ba).
+ */
+export async function handoverLoad({ loadId, version, values }: HandoverLoadInput): Promise<Load> {
+  const { data } = await api.post<unknown>(`${loadPath(loadId)}/handover`, { version, ...values });
+  return beLoadSchema.parse(data);
+}
+
+/** Gọi huỷ chuyến chưa rời kho; các lô và kiện về khu chờ xuất (quản lý kho). */
+export async function cancelLoad({ loadId, reason }: CancelLoadInput): Promise<Load> {
+  const { data } = await api.post<unknown>(`${loadPath(loadId)}/cancellation`, { reason });
+  return beLoadSchema.parse(data);
+}

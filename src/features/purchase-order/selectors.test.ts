@@ -7,6 +7,9 @@ import {
   isDeliveryFailing,
   isDeliveryInFlight,
   deliveryRound,
+  effectiveUnitPrice,
+  isUnitPriceRequired,
+  planLeadTimeDays,
   isFirstDelivery,
   isExpectedDatePast,
   openQuantity,
@@ -18,6 +21,7 @@ import {
   totalReceivedQuantity,
 } from "./selectors";
 
+import type { PoCreateFormLine } from "./create-form-schema";
 import type { PoLine, PurchaseOrder } from "./types";
 
 function line(lineId: string, openQuantity: number): PoLine {
@@ -45,6 +49,7 @@ describe("PO quantity selectors", () => {
     supplierId: "sup-1",
     warehouseId: "wh-1",
     revisionNo: 0,
+    version: 0,
     subtotal: 20000,
     taxTotal: 0,
     status: "PARTIALLY_RECEIVED",
@@ -174,7 +179,7 @@ describe("linesMissingDescription (BE #36 PO_LINE_DESCRIPTION_REQUIRED khi gửi
   });
 });
 
-describe("isDeliveryInFlight (tự tải lại khi đang gửi)", () => {
+describe("isDeliveryInFlight (đang gửi NCC)", () => {
   it("thư gửi đơn hoặc thư báo huỷ đang QUEUED/RETRYING → đang gửi", () => {
     expect(isDeliveryInFlight({ deliveryStatus: "QUEUED" })).toBe(true);
     expect(isDeliveryInFlight({ deliveryStatus: "RETRYING" })).toBe(true);
@@ -186,5 +191,48 @@ describe("isDeliveryInFlight (tự tải lại khi đang gửi)", () => {
     ).toBe(false);
     expect(isDeliveryInFlight({ deliveryStatus: "FAILED" })).toBe(false);
     expect(isDeliveryInFlight(undefined)).toBe(false);
+  });
+});
+
+describe("giá & lead time theo danh mục (form PO)", () => {
+  const terms = (leadDays: number, currency = "VND") => ({
+    moq: 1,
+    packSize: 1,
+    price: 900,
+    currency,
+    effectiveLeadTimeDays: leadDays,
+  });
+  const formLine = (over: Partial<PoCreateFormLine>): PoCreateFormLine => ({
+    skuId: "SKU-1",
+    description: "",
+    orderedQty: "2",
+    unitPrice: "",
+    taxRate: "",
+    lineId: "",
+    terms: terms(3),
+    ...over,
+  });
+
+  it("effectiveUnitPrice: giá gõ tay thắng; trống + cùng tiền tệ → giá danh mục; còn lại null", () => {
+    expect(effectiveUnitPrice(formLine({ unitPrice: "1200" }), "VND")).toBe(1200);
+    expect(effectiveUnitPrice(formLine({}), "VND")).toBe(900);
+    expect(effectiveUnitPrice(formLine({ terms: terms(3, "USD") }), "VND")).toBeNull();
+    expect(effectiveUnitPrice(formLine({ terms: null }), "VND")).toBeNull();
+    // Dòng đã lưu phải giữ giá thương lượng — trống là lỗi, không tính theo giá danh mục
+    expect(effectiveUnitPrice(formLine({ lineId: "line-1" }), "VND")).toBeNull();
+  });
+
+  it("isUnitPriceRequired: chỉ để trống được ở dòng mới, có danh mục cùng tiền tệ PO", () => {
+    expect(isUnitPriceRequired(formLine({}), "VND")).toBe(false);
+    expect(isUnitPriceRequired(formLine({ lineId: "line-1" }), "VND")).toBe(true);
+    expect(isUnitPriceRequired(formLine({ terms: null }), "VND")).toBe(true);
+    expect(isUnitPriceRequired(formLine({ terms: terms(3, "USD") }), "VND")).toBe(true);
+  });
+
+  it("planLeadTimeDays lấy max effectiveLeadTimeDays", () => {
+    expect(planLeadTimeDays([formLine({ terms: terms(3) }), formLine({ terms: terms(9) })])).toBe(
+      9,
+    );
+    expect(planLeadTimeDays([formLine({ terms: null })])).toBeNull();
   });
 });

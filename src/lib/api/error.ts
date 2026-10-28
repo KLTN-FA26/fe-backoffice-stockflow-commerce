@@ -4,9 +4,10 @@
  * Every axios error is converted into an ApiError so consuming code never
  * needs to inspect raw AxiosError shapes.
  *
- * `fieldErrors` (when present) maps directly to react-hook-form `setError`:
- *   for (const [k, msg] of Object.entries(e.fieldErrors))
- *     form.setError(k as Path<T>, { type: "server", message: msg });
+ * `fieldErrors` (when present) keeps the server's field names verbatim (`{ field: message }`).
+ * Each form maps the server fields it recognises explicitly (e.g. `ServerFieldMap` in
+ * `features/order/errors.ts`, `poCreateFieldErrors`) — never cast an arbitrary server field name to
+ * a form path type; unknown fields go to the form's general error instead.
  */
 
 import { type AxiosError } from "axios";
@@ -31,6 +32,13 @@ export class ApiError extends Error {
   readonly code: string;
   readonly fieldErrors?: Record<string, string>;
   readonly traceId?: string;
+  /** Mã lỗi của từng trường (BE `fieldErrors[].code`) khi có — để rẽ nhánh theo mã thay vì theo câu chữ. */
+  readonly fieldCodes?: Record<string, string>;
+  /**
+   * `fieldErrors[]` nguyên dạng của BE khi là mảng. `fieldErrors` / `fieldCodes` chỉ giữ phần tử đầu của mỗi trường;
+   * lỗi có nhiều phần tử cùng một trường (vd mỗi đơn vi phạm LP-4 một `orderNumber`) đọc ở đây.
+   */
+  readonly fieldErrorList?: readonly ApiFieldErrorBody[];
 
   constructor(
     status: number,
@@ -38,6 +46,8 @@ export class ApiError extends Error {
     message: string,
     fieldErrors?: Record<string, string>,
     traceId?: string,
+    fieldCodes?: Record<string, string>,
+    fieldErrorList?: readonly ApiFieldErrorBody[],
   ) {
     super(message);
     this.name = "ApiError";
@@ -45,6 +55,8 @@ export class ApiError extends Error {
     this.code = code;
     this.fieldErrors = fieldErrors;
     this.traceId = traceId;
+    this.fieldCodes = fieldCodes;
+    this.fieldErrorList = fieldErrorList;
   }
 
   /** Create from an AxiosError (used in response interceptor). */
@@ -67,6 +79,8 @@ export class ApiError extends Error {
       data?.message ?? err.message ?? "Đã xảy ra lỗi",
       normalizeFieldErrors(data?.fieldErrors),
       data?.correlationId ?? data?.traceId,
+      normalizeFieldCodes(data?.fieldErrors),
+      Array.isArray(data?.fieldErrors) ? data.fieldErrors : undefined,
     );
   }
 
@@ -76,15 +90,41 @@ export class ApiError extends Error {
   }
 }
 
-function normalizeFieldErrors(
-  errors: ApiErrorBody["fieldErrors"],
-): Record<string, string> | undefined {
-  if (!errors) return undefined;
-  if (!Array.isArray(errors)) return errors;
+/**
+ * BE `ApiResponse.fieldErrors`: `[{ field, message, code? }]` (field đầu tiên thắng). Phần tử sai
+ * hình (không phải object, thiếu / không phải chuỗi `field` hoặc `message`) bị bỏ — body lỗi đến từ
+ * mạng, không được làm hỏng luồng xử lý lỗi.
+ */
+function normalizeFieldErrors(errors: unknown): Record<string, string> | undefined {
+  if (typeof errors !== "object" || errors === null) return undefined;
+  const entries: [unknown, unknown][] = Array.isArray(errors)
+    ? errors.map((error: unknown) =>
+        typeof error === "object" && error !== null && "field" in error && "message" in error
+          ? [error.field, error.message]
+          : [undefined, undefined],
+      )
+    : Object.entries(errors);
 
   const normalized: Record<string, string> = {};
-  for (const error of errors) {
-    if (!(error.field in normalized)) normalized[error.field] = error.message;
+  for (const [field, message] of entries) {
+    if (typeof field !== "string" || field === "" || typeof message !== "string") continue;
+    if (!Object.hasOwn(normalized, field)) normalized[field] = message;
   }
   return Object.keys(normalized).length > 0 ? normalized : undefined;
+}
+
+/** Mã lỗi theo trường từ dạng mảng `fieldErrors[{ field, message, code }]`; dạng bản đồ không có mã. */
+function normalizeFieldCodes(
+  errors: ApiErrorBody["fieldErrors"],
+): Record<string, string> | undefined {
+  if (!errors || !Array.isArray(errors)) return undefined;
+  const codes: Record<string, string> = {};
+  // Body lỗi đến từ mạng có thể sai hình (phần tử null / chuỗi) — bỏ qua thay vì vỡ
+  for (const error of errors as unknown[]) {
+    if (typeof error !== "object" || error === null) continue;
+    const { field, code } = error as Partial<ApiFieldErrorBody>;
+    if (typeof field !== "string" || typeof code !== "string" || !code) continue;
+    if (!Object.hasOwn(codes, field)) codes[field] = code;
+  }
+  return Object.keys(codes).length > 0 ? codes : undefined;
 }

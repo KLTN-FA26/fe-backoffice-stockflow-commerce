@@ -8,6 +8,10 @@
  * State nằm trong bộ nhớ module và bắt đầu RỖNG — không thêm bản ghi vào mock-data.ts. Phiếu
  * và dòng sổ kho chỉ sinh ra từ chính các thao tác tạo / duyệt trong phiên mock.
  *
+ * Chuyển vị trí (`POST /inventory/movements`, StockOperationsServiceImpl.relocate) kiểm @Valid, hai vị
+ * trí khác nhau, cùng kho (MOVE_ACROSS_WAREHOUSES theo tiền tố mã vị trí) và idempotent theo requestId;
+ * `GET /inventory/stock-items` luôn rỗng vì mock không có tồn.
+ *
  * Không mô phỏng (mock không có dữ liệu tồn kho thật để quyết định): STOCK_ITEM_NOT_FOUND,
  * INSUFFICIENT_STOCK, INVENTORY_POLICY_STOCK_CONFLICT, OUT_OF_DATA_SCOPE và `status`/`toStatus`
  * của dòng sổ kho (BE lấy từ trạng thái thật của stock item).
@@ -22,7 +26,12 @@ import {
 } from "@/constants/inventory";
 import { STOCK_ADJUSTMENT_STATUS, STOCK_ADJUSTMENT_STATUSES } from "@/constants/statuses";
 
+import { MOVE_API, MOVE_LIMITS } from "@/constants/move";
+
+import { SKU_INPUT_PATTERN } from "@/lib/validation/sku";
+
 import { registerMockRoute } from "./mock-adapter";
+import { registerInventoryStockMockRoutes } from "./mock-routes-inventory-stock";
 import {
   beError,
   parseJsonBody,
@@ -65,7 +74,7 @@ interface MockMovement {
   quantity: number;
   referenceType: string;
   referenceId: string;
-  reason: string;
+  reason: string | null;
   actorId: string;
   occurredAt: string;
   seq: number;
@@ -275,7 +284,7 @@ function requestFieldErrors(body: Record<string, unknown>): MockFieldError[] {
     add("locationCode", "locationCode is at most 64 characters", "Size");
   const sku = readString(body.sku);
   if (!sku) add("sku", "sku is required", "NotBlank");
-  else if (!/^[A-Za-z0-9-]{3,64}$/.test(sku)) add("sku", "malformed SKU", "Pattern");
+  else if (!SKU_INPUT_PATTERN.test(sku)) add("sku", "malformed SKU", "Pattern");
   if (typeof body.lotNumber === "string" && body.lotNumber.length > INVENTORY_LIMITS.lotLength)
     add("lotNumber", "lotNumber is at most 64 characters", "Size");
   const delta = body.quantityDelta;
@@ -463,6 +472,116 @@ function listMovements(config: AxiosRequestConfig) {
   return ok(pageOf(rows, page, size));
 }
 
+/* ── Move (POST /inventory/movements) ────────────────────────────────── */
+
+const MOVE_REFERENCE_TYPE = "MOVE_TASK"; // StockOperationsController: MoveReference.MOVE_TASK
+
+/** MoveStockRequest (@Valid) → 400 VALIDATION_FAILED kèm fieldErrors. */
+function moveFieldErrors(body: Record<string, unknown>): MockFieldError[] {
+  const errors: MockFieldError[] = [];
+  const add = (field: string, message: string, rule: string) =>
+    errors.push({ field, message, code: rule });
+  if (body.requestId === undefined || body.requestId === null)
+    add("requestId", "requestId is required", "NotNull");
+  const sku = readString(body.sku);
+  if (!sku) add("sku", "sku is required", "NotBlank");
+  else if (!SKU_INPUT_PATTERN.test(sku)) add("sku", "malformed SKU", "Pattern");
+  if (typeof body.lotNumber === "string" && body.lotNumber.length > MOVE_LIMITS.lotLength)
+    add("lotNumber", "lotNumber is at most 64 characters", "Size");
+  for (const field of ["fromLocation", "toLocation"] as const) {
+    const value = readString(body[field]);
+    if (!value) add(field, `${field} is required`, "NotBlank");
+    else if (value.length > MOVE_LIMITS.locationLength)
+      add(field, `${field} is at most 64 characters`, "Size");
+  }
+  const quantity = body.quantity;
+  if (typeof quantity === "number" && quantity < MOVE_LIMITS.quantityMin)
+    add("quantity", "quantity must be at least 1", "Min");
+  if (typeof quantity === "number" && quantity > MOVE_LIMITS.quantityMax)
+    add("quantity", "quantity is at most 1,000,000", "Max");
+  return errors;
+}
+
+/** LocationId.warehouseCode(): đoạn trước dấu gạch đầu tiên. */
+function warehouseCode(location: string): string {
+  const dash = location.indexOf("-");
+  return dash > 0 ? location.slice(0, dash) : location;
+}
+
+async function createMove(config: AxiosRequestConfig) {
+  const actor = await currentActor();
+  if (!actor) return unauthenticated();
+  const body = parseJsonBody(config.data);
+  // Jackson: requestId không phải UUID / quantity không phải số nguyên → body không đọc được.
+  if (
+    (typeof body.requestId === "string" && !UUID_PATTERN.test(body.requestId)) ||
+    (body.requestId !== undefined &&
+      body.requestId !== null &&
+      typeof body.requestId !== "string") ||
+    (body.quantity !== undefined && !Number.isInteger(body.quantity))
+  ) {
+    return beError(400, "MALFORMED_REQUEST", "The request body could not be read");
+  }
+  const fieldErrors = moveFieldErrors(body);
+  if (fieldErrors.length) return validationFailed("Invalid request data", fieldErrors);
+
+  const requestId = String(body.requestId).toLowerCase();
+  // Replay first: a retried move must not move the goods again.
+  const done = movements.find(
+    (row) =>
+      row.type === "MOVE" &&
+      row.referenceType === MOVE_REFERENCE_TYPE &&
+      row.referenceId === requestId,
+  );
+  const from = code(body.fromLocation);
+  const to = code(body.toLocation);
+  if (!done) {
+    if (from === to) return validationFailed("A move needs two different locations");
+    // Docs 11 BR-01.
+    if (warehouseCode(from) !== warehouseCode(to)) {
+      return beError(
+        409,
+        "MOVE_ACROSS_WAREHOUSES",
+        `${from} and ${to} are in different warehouses; use a transfer order`,
+      );
+    }
+  }
+  const move =
+    done ??
+    (() => {
+      seq += 1;
+      const line: MockMovement = {
+        movementId: crypto.randomUUID(),
+        type: "MOVE",
+        sku: code(body.sku),
+        lotNumber: readString(body.lotNumber) || null,
+        fromLocation: from,
+        toLocation: to,
+        quantity: Number(body.quantity),
+        referenceType: MOVE_REFERENCE_TYPE,
+        referenceId: requestId,
+        reason: null,
+        actorId: actor,
+        occurredAt: new Date().toISOString(),
+        seq,
+      };
+      movements.push(line);
+      return line;
+    })();
+  return ok(
+    nonNull({
+      movementId: move.movementId,
+      sku: move.sku,
+      lotNumber: move.lotNumber,
+      fromLocation: move.fromLocation,
+      toLocation: move.toLocation,
+      quantity: move.quantity,
+      occurredAt: move.occurredAt,
+    }),
+    201,
+  );
+}
+
 export function registerInventoryMockRoutes(): void {
   const one = `${INVENTORY_API.adjustments}/:id`;
   registerMockRoute("GET", INVENTORY_API.adjustments, listAdjustments);
@@ -475,4 +594,8 @@ export function registerInventoryMockRoutes(): void {
   registerMockRoute("POST", `${one}/rejection`, reject);
   registerMockRoute("POST", `${one}/withdrawal`, withdraw);
   registerMockRoute("GET", INVENTORY_API.movements, listMovements);
+  registerInventoryStockMockRoutes();
+  registerMockRoute("POST", MOVE_API.move, createMove);
+  // Mock không có tồn theo vị trí: danh sách rỗng (BE trả mảng rỗng khi SKU chưa có tồn).
+  registerMockRoute("GET", MOVE_API.stockItems, () => ok([]));
 }

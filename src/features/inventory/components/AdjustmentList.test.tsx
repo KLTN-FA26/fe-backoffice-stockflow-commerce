@@ -29,9 +29,17 @@ const emptyPage = {
   hasNext: false,
   hasPrevious: false,
 };
-const { adjustmentRead, adjustmentViewPage, movementViewPage, stockUpdate } = INVENTORY_PERMISSIONS;
+const { adjustmentRead, adjustmentViewPage, movementRead, movementViewPage, stockUpdate } =
+  INVENTORY_PERMISSIONS;
 beforeAll(() => {
   server.listen({ onUnhandledRequest: "error" });
+  // jsdom không có ResizeObserver / scrollIntoView mà `cmdk` (popover lọc trạng thái) dùng
+  globalThis.ResizeObserver ??= class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+  Element.prototype.scrollIntoView ??= () => undefined;
 });
 beforeEach(() => {
   localStorage.clear();
@@ -53,7 +61,13 @@ describe("adjustment queue", () => {
   it("loads the URL approval queue and links its detail", async () => {
     const fixture = adjustmentFixture();
     server.use(
-      inventoryPermissions([adjustmentViewPage, adjustmentRead, stockUpdate, movementViewPage]),
+      inventoryPermissions([
+        adjustmentViewPage,
+        adjustmentRead,
+        stockUpdate,
+        movementViewPage,
+        movementRead,
+      ]),
       http.get(endpoint, ({ request }) => {
         const params = new URL(request.url).searchParams;
         expect(params.get("status")).toBe(STOCK_ADJUSTMENT_STATUS.PENDING_APPROVAL);
@@ -87,8 +101,16 @@ describe("adjustment queue", () => {
     ).toBeInTheDocument();
   });
 
-  it("hides the movement-history shortcut without its page permission", async () => {
-    server.use(inventoryPermissions([adjustmentViewPage, adjustmentRead]), emptyList());
+  // The ledger page is gated by movement VIEW_PAGE AND READ — never link to a page that denies
+  it.each([
+    ["no movement codes", []],
+    ["movement VIEW_PAGE without READ", [movementViewPage]],
+    ["movement READ without VIEW_PAGE", [movementRead]],
+  ] as const)("hides the movement-history shortcut with %s", async (_label, movement) => {
+    server.use(
+      inventoryPermissions([adjustmentViewPage, adjustmentRead, ...movement]),
+      emptyList(),
+    );
     renderInventory(<AdjustmentList />);
     expect(
       await screen.findByRole("heading", { name: INVENTORY_LABELS.adjustmentTitle }),
@@ -218,20 +240,18 @@ describe("adjustment queue", () => {
     );
     renderInventory(<AdjustmentList />);
     await screen.findByText(INVENTORY_LABELS.noAdjustments);
-    const select = screen.getByLabelText(INVENTORY_LABELS.status);
-    expect(
-      within(select)
-        .getAllByRole("option")
-        .map((option) => [option.getAttribute("value"), option.textContent]),
-    ).toEqual([
-      ["", INVENTORY_LABELS.all],
-      ["PENDING_APPROVAL", "Chờ duyệt"],
-      ["POSTED", "Đã ghi sổ"],
-      ["REJECTED", "Từ chối"],
-      ["WITHDRAWN", "Đã rút yêu cầu"],
+    // Lọc trạng thái qua nút Filter của toolbar chuẩn (popover chọn một)
+    await userEvent.click(screen.getByRole("button", { name: "Lọc trạng thái" }));
+    // Chỉ lấy option trong popover (trang còn ô chọn "Dòng/trang" của InventoryPager)
+    const options = within(await screen.findByRole("listbox")).getAllByRole("option");
+    expect(options.map((option) => option.textContent)).toEqual([
+      "Chờ duyệt",
+      "Đã ghi sổ",
+      "Từ chối",
+      "Đã rút yêu cầu",
     ]);
-    expect(within(select).queryByText("NCC từ chối")).not.toBeInTheDocument();
-    await userEvent.selectOptions(select, "REJECTED");
+    expect(screen.queryByText("NCC từ chối")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("option", { name: "Từ chối" }));
     await waitFor(() => expect(statuses).toHaveBeenLastCalledWith("REJECTED"));
   });
 

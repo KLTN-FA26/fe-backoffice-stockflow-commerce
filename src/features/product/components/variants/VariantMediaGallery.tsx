@@ -6,6 +6,7 @@ import { ImageOff, Star, Trash2, Upload } from "lucide-react";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 
 import { variantErrorMessage } from "../../variant-errors";
 import {
@@ -29,19 +30,27 @@ const MAX_BYTES = 10 * 1024 * 1024;
 
 /**
  * Ảnh của một biến thể (BE PR #71). Ảnh mới riêng tư cho tới khi được xuất bản; người xuất bản
- * phải khác người tải lên (BE 409 SELF_APPROVAL_NOT_ALLOWED) và sản phẩm phải đã duyệt.
+ * phải khác người tải lên (BE 409 SELF_APPROVAL_NOT_ALLOWED) và sản phẩm phải đã duyệt. Các cờ
+ * `can*` lấy từ `mediaCapabilities` (product-capabilities.ts), không tự suy từ trạng thái ở đây.
  */
 export function VariantMediaGallery({
   productId,
   variantId,
   canUpload,
+  canManage,
   canPublish,
+  canWithdraw,
   compact = false,
 }: {
   productId: string;
   variantId: string;
+  /** Tải ảnh mới — BE `requireAcceptsImages` chặn biến thể ngừng dùng. */
   canUpload: boolean;
+  /** Xoá / đặt ảnh bìa — BE chỉ `requireChangeable`, biến thể ngừng dùng vẫn làm được. */
+  canManage: boolean;
   canPublish: boolean;
+  /** Gỡ khỏi cửa hàng — BE chỉ cần SP nhận thay đổi (Nháp / Tạm ngưng vẫn gỡ được), khác xuất bản. */
+  canWithdraw: boolean;
   /** Chỉ xem (thẻ bên phải trang sản phẩm): không có thao tác. */
   compact?: boolean;
 }) {
@@ -90,12 +99,11 @@ export function VariantMediaGallery({
               <label className="relative block">
                 <Thumb productId={productId} variantId={variantId} media={m} />
                 {!compact && canPublish && !m.published && (
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     aria-label={`Chọn ảnh ${m.originalName ?? m.mediaId} để xuất bản`}
                     checked={selected.has(m.mediaId)}
-                    onChange={() => toggle(m.mediaId)}
-                    className="accent-brand absolute top-1.5 left-1.5 size-4"
+                    onCheckedChange={() => toggle(m.mediaId)}
+                    className="absolute top-1.5 left-1.5"
                   />
                 )}
                 <span className="absolute top-1.5 right-1.5 flex gap-1">
@@ -107,7 +115,7 @@ export function VariantMediaGallery({
               </label>
               {!compact && (
                 <div className="flex flex-wrap items-center gap-1">
-                  {canUpload && !m.primary && (
+                  {canManage && !m.primary && (
                     <IconButton
                       label="Đặt làm ảnh bìa"
                       disabled={makePrimary.isPending}
@@ -118,7 +126,7 @@ export function VariantMediaGallery({
                       <Star className="size-3.5" />
                     </IconButton>
                   )}
-                  {canPublish && m.published && (
+                  {canWithdraw && m.published && (
                     <Button
                       type="button"
                       variant="outline"
@@ -135,7 +143,7 @@ export function VariantMediaGallery({
                       Gỡ khỏi cửa hàng
                     </Button>
                   )}
-                  {canUpload && (
+                  {canManage && (
                     <IconButton label="Xoá ảnh" onClick={() => setDeleting(m)} danger>
                       <Trash2 className="size-3.5" />
                     </IconButton>

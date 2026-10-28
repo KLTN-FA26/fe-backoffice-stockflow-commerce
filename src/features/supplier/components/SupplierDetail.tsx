@@ -1,74 +1,53 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { parseAsInteger, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 
-import { ADMIN_ROUTES, SUPPLIER_PERMISSIONS } from "@/constants";
+import {
+  SUPPLIER_ITEM_PERMISSIONS,
+  SUPPLIER_ITEM_UI_LABELS,
+  SUPPLIER_PERMISSIONS,
+} from "@/constants";
 import { usePermissionChecker } from "@/lib/auth";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
-import {
-  useActivateSupplier,
-  useBlacklistSupplier,
-  useDeactivateSupplier,
-  useSupplier,
-} from "@/features/supplier";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { PageHeader } from "@/components/shared/PageHeader";
+import { useSupplier } from "@/features/supplier";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
+import { PageTabPanel, PageTabs } from "@/components/shared/PageTabs";
 
-import { ContactChannelCard } from "./supplier-detail/ContactChannelCard";
-import { GeneralInfoCard } from "./supplier-detail/GeneralInfoCard";
-import { LifecycleSection } from "./supplier-detail/LifecycleSection";
-import { PurchaseOrdersSection } from "./supplier-detail/PurchaseOrdersSection";
-import { ActionCard, OverviewCard } from "./supplier-detail/SidebarCards";
-import { TermsOpsCard } from "./supplier-detail/TermsOpsCard";
+import { SupplierItemsTab } from "./supplier-detail/items/SupplierItemsTab";
+import { SupplierProfileTab } from "./supplier-detail/SupplierProfileTab";
 import { SupplierLoadError } from "./SupplierLoadError";
 import { SupplierPermissionGate } from "./SupplierPermissionGate";
 
-import type { SupplierActionKey } from "@/features/supplier/lifecycle";
-
-const CONFIRM_DIALOG: Record<
-  SupplierActionKey,
-  { title: string; description: string; confirmLabel: string; variant: "danger" | "default" }
-> = {
-  activate: {
-    title: "Kích hoạt lại nhà cung cấp?",
-    description: "Nhà cung cấp sẽ hoạt động trở lại và xuất hiện trong bộ chọn khi tạo PO.",
-    confirmLabel: "Kích hoạt lại",
-    variant: "default",
-  },
-  deactivate: {
-    title: "Ngừng hợp tác với nhà cung cấp?",
-    description:
-      "NCC sẽ không xuất hiện khi tạo PO mới. Nếu NCC còn đơn đặt hàng đang mở, hệ thống sẽ từ chối.",
-    confirmLabel: "Ngừng hợp tác",
-    variant: "danger",
-  },
-  blacklist: {
-    title: "Đưa nhà cung cấp vào danh sách đen?",
-    description:
-      "NCC sẽ không nhận PO mới và được đánh dấu không hợp tác lại. Có thể gỡ bằng Kích hoạt lại.",
-    confirmLabel: "Đưa vào danh sách đen",
-    variant: "danger",
-  },
+const L = SUPPLIER_ITEM_UI_LABELS;
+const TABS = ["profile", "items"] as const;
+const TAB_ITEMS = [
+  { value: "profile", label: L.tabProfile },
+  { value: "items", label: L.tabTitle },
+] as const;
+// Tab + khoá danh sách của tab danh mục (`useSupplierItemsState`) — đổi tab thì xoá cả bộ
+const URL_PARSERS = {
+  tab: parseAsStringLiteral(TABS).withDefault("profile"),
+  itemPage: parseAsInteger,
+  itemSort: parseAsString,
 };
 
 function SupplierDetailContent({ supplierId }: { supplierId: string }) {
-  const [confirming, setConfirming] = useState<SupplierActionKey | null>(null);
   const can = usePermissionChecker();
   // READ = đọc dữ liệu (tách khỏi VIEW_PAGE mở trang — BE ADR-0004): thiếu thì không gọi API
   const canRead = can(SUPPLIER_PERMISSIONS.read);
+  // UI-only — Backend phải re-check (@RequiresPermission procurement-supplier-items)
+  const canReadItems = can(SUPPLIER_ITEM_PERMISSIONS.read);
+  const [url, setUrl] = useQueryStates(URL_PARSERS);
+  // Thiếu quyền đọc danh mục: `?tab=items` rơi về Hồ sơ và không gọi `/items`
+  const tab = canReadItems ? url.tab : "profile";
   const query = useSupplier(supplierId, { enabled: canRead });
   // Breadcrumb hiện mã NCC thay vì supplierId (UUID của BE)
   useBreadcrumbLabel(supplierId, query.data?.code);
-  const activate = useActivateSupplier();
-  const deactivate = useDeactivateSupplier();
-  const blacklist = useBlacklistSupplier();
-  const isToggling = activate.isPending || deactivate.isPending || blacklist.isPending;
 
   if (!canRead) return <SupplierLoadError error={null} kind="no-read" />;
-  if (query.isError) {
+  // React Query v5 giữ `data` khi refetch nền lỗi — chỉ báo lỗi khi chưa có data, kẻo gỡ cả trang
+  // (tab, dialog thêm / sửa SKU đang mở) giữa chừng.
+  if (query.isError && !query.data) {
     return <SupplierLoadError error={query.error} onRetry={() => void query.refetch()} />;
   }
   if (query.isPending) {
@@ -80,61 +59,35 @@ function SupplierDetailContent({ supplierId }: { supplierId: string }) {
   }
 
   const supplier = query.data;
-  const dialog = CONFIRM_DIALOG[confirming ?? "activate"];
-  const handleConfirm = () => {
-    const onSettled = () => setConfirming(null);
-    if (confirming === "deactivate") deactivate.mutate(supplier, { onSettled });
-    else if (confirming === "blacklist") blacklist.mutate(supplier, { onSettled });
-    else activate.mutate(supplier, { onSettled });
-  };
-
   return (
-    <>
-      <PageHeader
-        title={supplier.name}
-        subtitle={`${supplier.code} — hồ sơ nhà cung cấp`}
-        actions={
-          <Link
-            href={ADMIN_ROUTES.suppliers.list}
-            className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary inline-flex items-center gap-1.5 rounded-[var(--r-sm)] border px-3 py-1.5 text-[0.8125rem] font-medium transition-colors"
-          >
-            <ArrowLeft className="size-3.5" /> Quay lại
-          </Link>
-        }
-      />
-
-      <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
-        <div className="space-y-5">
-          <div className="grid gap-5 md:grid-cols-2">
-            <GeneralInfoCard supplier={supplier} />
-            <ContactChannelCard supplier={supplier} />
-          </div>
-          <TermsOpsCard supplier={supplier} />
-          <PurchaseOrdersSection supplierId={supplier.supplierId} />
-          <LifecycleSection status={supplier.status} />
-        </div>
-        <div className="space-y-5">
-          <ActionCard
-            supplier={supplier}
-            can={can}
-            isToggling={isToggling}
-            onConfirm={setConfirming}
-          />
-          <OverviewCard supplier={supplier} />
-        </div>
-      </div>
-
-      <ConfirmDialog
-        open={confirming !== null}
-        onOpenChange={(open) => !open && setConfirming(null)}
-        title={dialog.title}
-        description={dialog.description}
-        confirmLabel={dialog.confirmLabel}
-        variant={dialog.variant}
-        loading={isToggling}
-        onConfirm={handleConfirm}
-      />
-    </>
+    // Giao diện kiểu Vercel như chi tiết sản phẩm (globals.css `.surface-soft`). Không hiện tiêu đề —
+    // breadcrumb topbar đã có mã NCC và link về danh sách; h1 giữ cho screen reader.
+    <div className="surface-soft surface-compact">
+      <h1 className="sr-only">{supplier.name}</h1>
+      {canReadItems && (
+        <PageTabs
+          tabs={TAB_ITEMS}
+          value={tab}
+          onChange={(next) =>
+            void setUrl({ tab: next === "profile" ? null : next, itemPage: null, itemSort: null })
+          }
+          idPrefix="supplier-detail"
+          ariaLabel={L.tabsAria}
+        />
+      )}
+      {/* Không có tablist (thiếu quyền danh mục) thì không bọc tabpanel — tránh aria-labelledby treo */}
+      {canReadItems ? (
+        <PageTabPanel idPrefix="supplier-detail" value={tab}>
+          {tab === "items" ? (
+            <SupplierItemsTab supplier={supplier} />
+          ) : (
+            <SupplierProfileTab supplier={supplier} can={can} />
+          )}
+        </PageTabPanel>
+      ) : (
+        <SupplierProfileTab supplier={supplier} can={can} />
+      )}
+    </div>
   );
 }
 

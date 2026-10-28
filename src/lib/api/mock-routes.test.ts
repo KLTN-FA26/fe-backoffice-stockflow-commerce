@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import {
   createProduct,
+  discontinueProduct,
   getProduct,
   listBrands,
   listCategories,
@@ -10,6 +11,7 @@ import {
   unpublishProduct,
   updateProduct,
 } from "@/features/product/api";
+import { ApiError } from "@/lib/api/error";
 import { api } from "@/lib/api/client";
 
 import { activateMockAdapter } from "./mock-adapter";
@@ -69,12 +71,60 @@ describe("product mock ↔ BE PR #71 contract", () => {
       ...draftInput(created.productId),
       brandId: otherBrandId,
       shortDescription: "Cốc giấy 12oz",
+      version: created.version,
     });
     expect(await getProduct(created.productId)).toMatchObject({
       brandId: otherBrandId,
       type: "Standard",
       shortDescription: "Cốc giấy 12oz",
     });
+  });
+});
+
+describe("product mock ↔ BE version / discontinuation contract", () => {
+  it("sửa với version cũ → 409 OPTIMISTIC_LOCK; version tăng sau mỗi lần ghi", async () => {
+    const created = await createProduct(draftInput(`MOCK-VERSION-${Date.now()}`));
+    const saved = await updateProduct({
+      id: created.productId,
+      ...draftInput(created.productId),
+      version: created.version,
+    });
+    expect(saved.version).toBe(created.version + 1);
+
+    const stale = await updateProduct({
+      id: created.productId,
+      ...draftInput(created.productId),
+      version: created.version,
+    }).then(
+      () => null,
+      (error: unknown) => error,
+    );
+    expect(stale).toBeInstanceOf(ApiError);
+    expect((stale as ApiError).code).toBe("OPTIMISTIC_LOCK");
+  });
+
+  it("ngừng kinh doanh cần lý do + version, từ Approved; sau đó là trạng thái cuối", async () => {
+    const created = await createProduct(draftInput(`MOCK-DISC-${Date.now()}`));
+    await transitionProduct({ id: created.productId, action: "submit" });
+    const approved = await transitionProduct({ id: created.productId, action: "approve" });
+
+    const stale = await discontinueProduct({
+      id: created.productId,
+      reason: "Hết mẫu",
+      version: approved.version - 1,
+    }).then(
+      () => null,
+      (error: unknown) => error,
+    );
+    expect((stale as ApiError).code).toBe("OPTIMISTIC_LOCK");
+
+    const result = await discontinueProduct({
+      id: created.productId,
+      reason: "Hết mẫu",
+      version: approved.version,
+    });
+    expect(result.product.status).toBe("Discontinued");
+    expect(result.warnings).toEqual([]);
   });
 });
 

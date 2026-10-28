@@ -3,15 +3,17 @@ import { describe, expect, it } from "vitest";
 import { FULFILLMENT_FIELD_MESSAGES, FULFILLMENT_LIMITS } from "@/constants";
 
 import {
+  DESIGN_LINE_ID,
   apiTask,
-  assignableUsers,
+  apiTaskLines,
+  assignees,
   bePage,
   fulfillmentOrder,
   mismatchEvidence,
 } from "./__fixtures__/task";
 import { assignInputSchema, createTaskInputSchema, reverifyInputSchema } from "./input-schemas";
 import {
-  assignableUserPageSchema,
+  assigneeListSchema,
   beArtifactAccessSchema,
   beFulfillmentTaskPageSchema,
   beFulfillmentTaskSchema,
@@ -28,6 +30,16 @@ describe("fulfillment DTO schemas — hợp đồng BE FulfillmentController", (
     expect(parsed.pickedAt).toBeUndefined();
     expect(parsed.packedAt).toBeUndefined();
     expect(parsed.integrityEvidence).toEqual([]);
+  });
+
+  it("task chi tiết parse lines (SCRUM-466)", () => {
+    const parsed = beFulfillmentTaskSchema.parse({ ...apiTask(), lines: apiTaskLines });
+    expect(parsed.lines).toHaveLength(3);
+    expect(parsed.lines?.find((line) => line.lineId === DESIGN_LINE_ID)?.printLine).toBe(true);
+  });
+
+  it("task danh sách không có lines vẫn hợp lệ", () => {
+    expect(beFulfillmentTaskSchema.parse(apiTask()).lines).toBeUndefined();
   });
 
   it("thiếu `integrityEvidence` → mặc định mảng rỗng", () => {
@@ -114,10 +126,11 @@ describe("fulfillment DTO schemas — hợp đồng BE FulfillmentController", (
     expect(parsed).not.toHaveProperty("totalAmount");
   });
 
-  it("danh sách nhân viên: roles mặc định rỗng", () => {
-    const [first] = assignableUsers;
+  it("người nhận task (BE AssigneeResponse): roles mặc định rỗng, displayName có thể thiếu", () => {
+    const [first] = assignees;
     const { roles: _roles, ...withoutRoles } = first ?? { userId: "u" };
-    expect(assignableUserPageSchema.parse(bePage([withoutRoles])).items[0]?.roles).toEqual([]);
+    expect(assigneeListSchema.parse([withoutRoles])[0]?.roles).toEqual([]);
+    expect(assigneeListSchema.parse([{ userId: "u" }])[0]?.displayName).toBeUndefined();
   });
 });
 

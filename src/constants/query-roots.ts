@@ -11,4 +11,31 @@
 export const SHARED_QUERY_ROOTS = {
   /** Tồn theo SKU / lô / vị trí — reserved + available đổi khi giữ chỗ đổi. */
   inventoryStock: "inventory-stock-items",
+  /** Phiếu giữ hàng (reservation) — trạng thái + hạn giữ chỗ. */
+  inventoryReservations: "inventory-stock-reservations",
+  /**
+   * Task xuất kho — gồm cả hàng chờ và phiên đóng gói (`packingKeys` nằm dưới root này). Đổi cách giao của đơn
+   * (Sales cho phép / dừng giao một phần) đổi việc kho được phép làm, nên Order invalidate qua root này.
+   */
+  fulfillmentTasks: "fulfillment-tasks",
+  /**
+   * Danh mục loại xe (`GET /fulfillment/vehicle-types`) — feature `vehicle-type` sở hữu, còn ô chọn loại xe của ước tính xếp xe
+   * (`load-planning`, không import chéo) build key dưới đúng root này nên thêm / sửa / ngừng dùng loại xe làm mới cả hai.
+   */
+  vehicleTypes: "fulfillment-vehicle-types",
+  /** Chuyến xe giao hãng vận chuyển — thêm lô vào chuyến / bàn giao phụ thuộc cờ giao một phần của đơn. */
+  fulfillmentLoads: "fulfillment-loads",
+  /**
+   * Lệnh chuyển kho — đóng gói xong / hoàn tất đóng gói đổi `packedAt`, trạng thái PICKING của lệnh (SCRUM-287 PR F9),
+   * nên trạm đóng gói chuyển kho invalidate qua root này. `transferKeys` của feature Transfer build dưới đúng root này.
+   */
+  transferOrders: "transfer-orders",
+  /** Kế hoạch xếp xe — đóng gói xong một lệnh chuyển kho làm lệnh đó thành ứng viên của kế hoạch (PR F9). */
+  fulfillmentLoadPlans: "fulfillment-load-plans",
+  /**
+   * Thông tin mua hàng của SKU (`/products/{id}/variants/{variantId}/purchasing`) — `features/product` sở hữu.
+   * Lưu trên hồ sơ hàng tồn: logistics / chính sách tồn (`inventory-item`) và "NCC ưu tiên" của danh mục NCC
+   * (`supplier`) tăng cùng một `version` (BE `ItemPurchasingService`), nên hai feature đó invalidate qua root này.
+   */
+  skuPurchasing: "sku-purchasing",
 } as const;

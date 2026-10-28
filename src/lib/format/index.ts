@@ -2,6 +2,7 @@ export {
   currencyFractionDigits,
   fitsCurrencyScale,
   formatCompact,
+  formatDecimalMoney,
   formatMoney,
   formatVND,
 } from "./money";
@@ -14,4 +15,4 @@ export {
   isToday,
   toLocalIsoDate,
 } from "./date";
-export { formatNumber, formatCompactNumber, formatPercent } from "./number";
+export { formatNumber, formatFixed, formatCompactNumber, formatPercent } from "./number";

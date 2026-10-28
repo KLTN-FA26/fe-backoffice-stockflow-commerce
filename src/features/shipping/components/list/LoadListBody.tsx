@@ -2,7 +2,7 @@
 
 import { Truck } from "lucide-react";
 
-import { UI_LABELS } from "@/constants";
+import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
 import { DataTable } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
@@ -18,6 +18,7 @@ import type { LoadRow } from "@/features/shipping/types";
 import type { LoadListState } from "./useLoadListState";
 
 const E = UI_LABELS.emptyList;
+const L = UI_LABELS.shipping.loads;
 
 /**
  * Vùng bảng — tách trạng thái (api-conventions §8): tải lần đầu, lỗi tải, chưa có chuyến, lọc không
@@ -29,15 +30,17 @@ export function LoadListBody({ s, columns }: { s: LoadListState; columns: Column
   return (
     <>
       {query.isError && query.data && <RefetchErrorNotice onRetry={() => void query.refetch()} />}
-      <LoadListContent s={s} columns={columns} />
+      <Content s={s} columns={columns} />
     </>
   );
 }
 
-function LoadListContent({ s, columns }: { s: LoadListState; columns: ColumnDef<LoadRow>[] }) {
-  const { query, filters } = s;
-
-  if (!s.canRead) return <ShippingLoadError inline error={null} kind="no-read" />;
+function Content({ s, columns }: { s: LoadListState; columns: ColumnDef<LoadRow>[] }) {
+  const { query } = s;
+  if (!s.canRead)
+    return (
+      <ShippingLoadError inline error={null} kind="no-read" backHref={ADMIN_ROUTES.loads.list} />
+    );
   if (query.isError && !query.data) {
     return <ShippingLoadError inline error={query.error} onRetry={() => void query.refetch()} />;
   }
@@ -58,8 +61,8 @@ function LoadListContent({ s, columns }: { s: LoadListState; columns: ColumnDef<
     return (
       <EmptyState
         icon={<Truck className="size-8" />}
-        title={UI_LABELS.shipping.empty.noDataTitle}
-        description={UI_LABELS.shipping.empty.noDataDescription}
+        title={L.empty.noDataTitle}
+        description={L.empty.noDataDescription}
       />
     );
   }
@@ -69,15 +72,13 @@ function LoadListContent({ s, columns }: { s: LoadListState; columns: ColumnDef<
       <EmptyState
         icon={<Truck className="size-8" />}
         title={invalidPage ? E.invalidPageTitle : E.noResultsTitle}
-        description={
-          invalidPage ? E.invalidPageDescription : UI_LABELS.shipping.empty.noResultsDescription
-        }
+        description={invalidPage ? E.invalidPageDescription : L.empty.noResultsDescription}
         action={
           <Button
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => (invalidPage ? void filters.setPage(1) : s.clearFilters())}
+            onClick={() => (invalidPage ? s.setPage(1) : s.clearFilters())}
           >
             {invalidPage ? E.firstPage : E.clearFilters}
           </Button>
@@ -85,18 +86,18 @@ function LoadListContent({ s, columns }: { s: LoadListState; columns: ColumnDef<
       />
     );
   }
-
   const page = query.data;
   if (!page) return <PageSkeleton variant="list" />;
   return (
     <>
-      <RefetchBar active={query.isFetching} label={UI_LABELS.shipping.refetching} />
+      <RefetchBar active={query.isFetching} label={L.refetching} />
       <DataTable
+        stickyHeader
         columns={columns}
         data={page.items}
         rowKey={(row) => row.loadId}
-        caption={`${UI_LABELS.common.showing} ${page.items.length} / ${page.totalElements} ${UI_LABELS.shipping.listCaption}`}
-        onRowClick={s.navigateToLoading}
+        caption={`${UI_LABELS.common.showing} ${page.items.length} / ${page.totalElements} ${L.listCaption}`}
+        onRowClick={s.navigateToLoad}
         pageSize={s.config.pageSize}
         pageSizeOptions={PAGE_SIZE_OPTIONS}
         serverPagination={{
@@ -106,7 +107,7 @@ function LoadListContent({ s, columns }: { s: LoadListState; columns: ColumnDef<
           totalPages: page.totalPages,
           hasNext: page.hasNext,
           hasPrevious: page.hasPrevious,
-          onPageChange: (p) => void filters.setPage(p + 1),
+          onPageChange: (p) => s.setPage(p + 1),
           onPageSizeChange: s.changePageSize,
         }}
       />

@@ -9,14 +9,15 @@ import {
 } from "@/constants/inventory";
 import { STOCK_ADJUSTMENT_STATUSES } from "@/constants/statuses";
 
-import { requiredString } from "@/lib/validation/primitives";
+import { beUuid, requiredString } from "@/lib/validation/primitives";
+import { skuSchema } from "@/lib/validation/sku";
 
 // Source: backend develop 0f18f24 StockAdjustmentResponse; nullable fields
 // may be omitted by the backend Jackson NON_NULL policy. `reason` and `status`
 // are Strings on the wire: read them open so a newer code does not invalidate
 // the response. Write-side enums stay strict in adjustmentCreateInput/list input.
 export const stockAdjustmentDto = z.object({
-  adjustmentId: z.uuid(),
+  adjustmentId: beUuid,
   number: z.string(),
   locationCode: z.string(),
   sku: z.string(),
@@ -25,9 +26,9 @@ export const stockAdjustmentDto = z.object({
   reason: z.string(),
   note: z.string().nullish(),
   status: z.string(),
-  requestedBy: z.uuid(),
+  requestedBy: beUuid,
   requestedAt: z.iso.datetime(),
-  decidedBy: z.uuid().nullish(),
+  decidedBy: beUuid.nullish(),
   decidedAt: z.iso.datetime().nullish(),
   rejectionReason: z.string().nullish(),
   postedAt: z.iso.datetime().nullish(),
@@ -39,7 +40,7 @@ export const stockAdjustmentDto = z.object({
 // `toStatus` and `referenceType` are Strings; keep them open so one newer code
 // does not invalidate the whole ledger page. status/toStatus may be null/omitted.
 export const stockMovementDto = z.object({
-  movementId: z.uuid(),
+  movementId: beUuid,
   type: z.string(),
   sku: z.string(),
   lotNumber: z.string().nullish(),
@@ -49,19 +50,20 @@ export const stockMovementDto = z.object({
   status: z.string().nullish(),
   toStatus: z.string().nullish(),
   referenceType: z.string(),
-  referenceId: z.uuid().nullish(),
+  referenceId: beUuid.nullish(),
   reason: z.string().nullish(),
-  actorId: z.uuid().nullish(),
+  actorId: beUuid.nullish(),
   occurredAt: z.iso.datetime(),
 });
 
 export const adjustmentCreateInput = z
   .object({
     locationCode: requiredString(INVENTORY_MESSAGES.required).max(INVENTORY_LIMITS.locationLength),
-    sku: requiredString(INVENTORY_MESSAGES.required)
-      .min(INVENTORY_LIMITS.skuMinLength)
-      .max(INVENTORY_LIMITS.skuMaxLength)
-      .regex(/^[A-Za-z0-9-]+$/, INVENTORY_MESSAGES.invalidSku),
+    // BE `@ValidSku` (common.domain.Sku): 1–64, chữ/số/'.'/'_'/'-' — xem lib/validation/sku.ts.
+    sku: skuSchema({
+      required: INVENTORY_MESSAGES.required,
+      format: INVENTORY_MESSAGES.invalidSku,
+    }),
     lotNumber: z.string().trim().max(INVENTORY_LIMITS.lotLength).optional(),
     quantityDelta: z
       .number()

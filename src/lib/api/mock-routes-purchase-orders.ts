@@ -7,6 +7,8 @@
  * Gửi NCC / khôi phục / NCC xác nhận / lịch sử gửi: `mock-routes-purchase-orders-delivery.ts`.
  */
 
+import { SKU_CODE_PATTERN } from "@/lib/validation/sku";
+
 import { registerMockRoute } from "./mock-adapter";
 import { registerPoDeliveryMockRoutes } from "./mock-routes-purchase-orders-delivery";
 import {
@@ -37,6 +39,7 @@ import {
   suppressQueuedDelivery,
   touch,
 } from "./mock-routes-purchase-orders-store";
+import { addDaysVn, catalogTermsViolations } from "./mock-routes-supplier-items-store";
 import { findMockSupplier } from "./mock-routes-suppliers";
 
 import type { AxiosRequestConfig } from "axios";
@@ -49,8 +52,6 @@ import type {
 
 /** BE `ProcurementServiceImpl.SORT` whitelist. */
 const PO_SORT_WHITELIST = ["poNumber", "expectedAt", "createdAt", "lastModifiedAt", "status"];
-/** BE `common.domain.Sku` — mã được trim + upper-case rồi phải khớp mẫu này. */
-const BE_SKU_PATTERN = /^[A-Z0-9][A-Z0-9._-]{0,63}$/;
 const poNumberSequence = new Map<string, number>();
 /** PO đã từng có revision (gửi duyệt) — lần gửi lại sau khi bị từ chối là revision kế tiếp. */
 const revisedPos = new Set<string>();
@@ -100,14 +101,17 @@ function nextPoNumber(): string {
 }
 
 /** BE `CreatePurchaseOrderRequest` + `CreatePOLineRequest` bean validation. */
-function readCreateLines(rawLines: unknown[], fieldErrors: MockFieldError[]): MockBePoLine[] {
+export function readCreateLines(
+  rawLines: unknown[],
+  fieldErrors: MockFieldError[],
+): MockBePoLine[] {
   return rawLines.map((raw, idx) => {
     const r = isRecord(raw) ? raw : {};
     const sku = readString(r.sku).toUpperCase();
     const qty = r.quantityOrdered;
     const price = r.unitPrice;
     const tax = r.taxRate ?? 0;
-    if (!BE_SKU_PATTERN.test(sku)) {
+    if (!SKU_CODE_PATTERN.test(sku)) {
       fieldErrors.push({ field: `lines[${idx}].sku`, message: "sku is required" });
     }
     if (typeof qty !== "number" || !Number.isInteger(qty) || qty <= 0) {
@@ -116,7 +120,8 @@ function readCreateLines(rawLines: unknown[], fieldErrors: MockFieldError[]): Mo
         message: "quantityOrdered must be positive",
       });
     }
-    if (typeof price !== "number" || !Number.isFinite(price) || price <= 0) {
+    // BE #118: unitPrice tuỳ chọn — thiếu thì lấy giá danh mục (xử lý ở `catalogTermsViolations`).
+    if (price != null && (typeof price !== "number" || !Number.isFinite(price) || price <= 0)) {
       fieldErrors.push({
         field: `lines[${idx}].unitPrice`,
         message: "unitPrice must be positive",
@@ -150,12 +155,44 @@ function readCreateLines(rawLines: unknown[], fieldErrors: MockFieldError[]): Mo
   });
 }
 
+/** `unitPrice` gõ tay của một dòng thô; null khi thiếu (BE #118: lấy giá danh mục). */
+export function typedUnitPrice(raw: unknown): number | null {
+  const price = isRecord(raw) ? raw.unitPrice : null;
+  return typeof price === "number" ? price : null;
+}
+
+export function withUnitPrice(line: MockBePoLine, unitPrice: number): MockBePoLine {
+  return { ...line, unitPrice, lineTotal: line.quantityOrdered * unitPrice };
+}
+
+/**
+ * BR-PO-003 (BE isPossibleDuplicate): PO chưa đóng khác, cùng NCC + ngày giao + ≥1 SKU trùng.
+ * `self` loại chính PO đang sửa.
+ */
+export function isPossibleDuplicate(
+  store: ReadonlyMap<string, MockBePo>,
+  po: Pick<MockBePo, "supplierId" | "expectedAt" | "lines"> & { purchaseOrderId?: string },
+): boolean {
+  const skuSet = new Set(po.lines.map((l) => l.sku));
+  return (
+    po.expectedAt !== null &&
+    [...store.values()].some(
+      (other) =>
+        other.purchaseOrderId !== po.purchaseOrderId &&
+        other.supplierId === po.supplierId &&
+        other.expectedAt === po.expectedAt &&
+        !["CANCELLED", "CLOSED"].includes(other.status) &&
+        other.lines.some((l) => skuSet.has(l.sku)),
+    )
+  );
+}
+
 async function createPurchaseOrder(config: AxiosRequestConfig) {
   const body = parseJsonBody(config.data);
   const supplierId = readString(body.supplierId);
   const warehouseId = readString(body.warehouseId);
   const currency = readString(body.currency) || "VND";
-  const expectedAt = readString(body.expectedAt) || null;
+  const typedExpectedAt = readString(body.expectedAt) || null;
   const note = readString(body.note) || null;
   const rawLines: unknown[] = Array.isArray(body.lines) ? body.lines : [];
   const fieldErrors: MockFieldError[] = [];
@@ -167,7 +204,7 @@ async function createPurchaseOrder(config: AxiosRequestConfig) {
   if (rawLines.length === 0) {
     fieldErrors.push({ field: "lines", message: "at least one line is required" });
   }
-  const lines = readCreateLines(rawLines, fieldErrors);
+  const parsedLines = readCreateLines(rawLines, fieldErrors);
   if (fieldErrors.length > 0) {
     return beError(400, "VALIDATION_FAILED", BE_GENERIC_VALIDATION_MESSAGE, fieldErrors);
   }
@@ -179,18 +216,31 @@ async function createPurchaseOrder(config: AxiosRequestConfig) {
   if (warehouseId !== MOCK_WAREHOUSE.id) {
     return beError(404, "WAREHOUSE_NOT_FOUND", `No warehouse with id ${warehouseId}`);
   }
-  const store = await getPoStore();
-  // BR-PO-003 (BE isPossibleDuplicate): PO chưa đóng, cùng NCC + ngày giao + ≥1 SKU trùng → cảnh báo.
-  const skuSet = new Set(lines.map((l) => l.sku));
-  const possibleDuplicate =
-    expectedAt !== null &&
-    [...store.values()].some(
-      (po) =>
-        po.supplierId === supplierId &&
-        po.expectedAt === expectedAt &&
-        !["CANCELLED", "CLOSED"].includes(po.status) &&
-        po.lines.some((l) => skuSet.has(l.sku)),
+  // BR-PO-001 (BE checkLines): dòng phải nằm trong danh mục NCC, đạt MOQ + bội số quy cách; thiếu
+  // `unitPrice` thì lấy giá danh mục (cùng tiền tệ). Giá gõ tay thắng giá danh mục.
+  const check = await catalogTermsViolations(
+    supplierId,
+    currency,
+    parsedLines.map((l, i) => ({
+      sku: l.sku,
+      quantityOrdered: l.quantityOrdered,
+      unitPrice: typedUnitPrice(rawLines[i]),
+    })),
+  );
+  if (check.fieldErrors.length > 0) {
+    return beError(
+      409,
+      "SUPPLIER_TERMS_VIOLATED",
+      `${check.fieldErrors.length} line(s) break the supplier's catalog terms`,
+      check.fieldErrors,
     );
+  }
+  const lines = parsedLines.map((l, i) => withUnitPrice(l, check.prices[i] ?? l.unitPrice));
+  const store = await getPoStore();
+  // BE: thiếu expectedAt ⇒ hôm nay + lead time lớn nhất của các dòng (SupplierItem#effectiveLeadTimeDays).
+  const expectedAt = typedExpectedAt ?? addDaysVn(check.leadTimeDays);
+  // BR-PO-003 (BE isPossibleDuplicate): PO chưa đóng, cùng NCC + ngày giao + ≥1 SKU trùng → cảnh báo.
+  const possibleDuplicate = isPossibleDuplicate(store, { supplierId, expectedAt, lines });
   const now = new Date().toISOString();
   const subtotal = sumLines(lines);
   const taxTotal = sumTax(lines);
@@ -220,6 +270,7 @@ async function createPurchaseOrder(config: AxiosRequestConfig) {
     lastModifiedBy: MOCK_PO_ACTOR,
     possibleDuplicate: false,
     revisionNo: 0,
+    version: 0,
     submittedBy: null,
     submittedAt: null,
     approvedBy: null,

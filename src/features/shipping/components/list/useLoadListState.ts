@@ -1,100 +1,112 @@
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { parseAsInteger, parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
 
-import { ADMIN_ROUTES, LOAD_COLUMNS, LOAD_STATUSES, STORAGE_KEYS } from "@/constants";
+import { ADMIN_ROUTES, STORAGE_KEYS } from "@/constants";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { usePageConfig } from "@/hooks/use-page-config";
-import { useUrlFilters } from "@/hooks/use-url-filters";
 import { useLoads } from "@/features/shipping/queries";
 
-import { DEFAULT_COLUMNS, DEFAULT_CONFIG, mergeStoredConfig } from "./constants";
+import {
+  DEFAULT_CONFIG,
+  LOAD_MODE_FILTERS,
+  LOAD_STATUS_FILTERS,
+  mergeStoredConfig,
+} from "./constants";
 
-import type { LoadStatus } from "@/constants";
 import type { LoadRow } from "@/features/shipping/types";
-import type { LoadPageConfig } from "./constants";
 
 export type LoadListEmptyState = "none" | "no-loads" | "no-results" | "invalid-page";
 
-const ACTIONS = LOAD_COLUMNS.ACTIONS;
-
-/** State danh sách chuyến xe — search / trạng thái / trang trên URL, cột + số dòng ở localStorage. */
-export function useLoadListState(canRead = true) {
+/** State danh sách chuyến xe — trang, tìm kiếm, trạng thái, kho, hãng trên URL; số dòng / trang ở localStorage. */
+export function useLoadListState(canRead: boolean) {
   const router = useRouter();
-  const filters = useUrlFilters(LOAD_STATUSES);
-  const { config, updateConfig } = usePageConfig<LoadPageConfig>(
-    STORAGE_KEYS.adminShipmentsConfig,
+  const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
+  const [q, setQ] = useQueryState("q", parseAsString.withDefault(""));
+  const [status, setStatus] = useQueryState(
+    "status",
+    parseAsStringLiteral(LOAD_STATUS_FILTERS).withDefault("ALL"),
+  );
+  const [mode, setMode] = useQueryState(
+    "mode",
+    parseAsStringLiteral(LOAD_MODE_FILTERS).withDefault("ALL"),
+  );
+  const [warehouseId, setWarehouseId] = useQueryState("warehouse", parseAsString.withDefault(""));
+  const [carrierId, setCarrierId] = useQueryState("carrier", parseAsString.withDefault(""));
+  const debouncedQ = useDebouncedValue(q, 300);
+  const { config, updateConfig } = usePageConfig(
+    STORAGE_KEYS.adminLoadsConfig,
     DEFAULT_CONFIG,
     mergeStoredConfig,
   );
   const query = useLoads(
     {
-      page: Math.max(0, filters.page - 1),
+      page: Math.max(0, page - 1),
       size: config.pageSize,
-      search: filters.debouncedQ,
-      status: filters.status,
+      search: debouncedQ,
+      status: status === "ALL" ? undefined : status,
+      mode: mode === "ALL" ? undefined : mode,
+      warehouseId: warehouseId || undefined,
+      carrierId: carrierId || undefined,
     },
     { enabled: canRead },
   );
 
-  const hasFilters = filters.q.trim() !== "" || filters.status.length > 0;
-  // Empty state theo tham số của dữ liệu đang hiện (search sau debounce): xoá ô search thì trang cũ
-  // (0 kết quả) còn hiện thêm ~300ms + lúc tải — không được báo "chưa có chuyến xe"
-  const dataHasFilters = filters.debouncedQ.trim() !== "" || filters.status.length > 0;
-  const page = query.data;
-  const emptyState: LoadListEmptyState = !page
-    ? "none"
-    : page.totalElements === 0
-      ? dataHasFilters
-        ? "no-results"
-        : "no-loads"
-      : page.items.length === 0
-        ? "invalid-page"
-        : "none";
+  const hasFilters =
+    q.trim() !== "" || status !== "ALL" || mode !== "ALL" || warehouseId !== "" || carrierId !== "";
+  // Empty state theo tham số của dữ liệu đang hiện (search sau debounce)
+  const dataFiltered =
+    debouncedQ.trim() !== "" || status !== "ALL" || mode !== "ALL" || !!warehouseId || !!carrierId;
+  const data = query.data;
+  let emptyState: LoadListEmptyState = "none";
+  if (data && data.totalElements === 0) emptyState = dataFiltered ? "no-results" : "no-loads";
+  else if (data && data.items.length === 0) emptyState = "invalid-page";
 
-  const navigateToLoading = useCallback(
-    (row: LoadRow) => router.push(ADMIN_ROUTES.shipments.loading(row.loadId)),
+  const navigateToLoad = useCallback(
+    (row: LoadRow) => router.push(ADMIN_ROUTES.loads.detail(row.loadId)),
     [router],
   );
 
-  const toggleStatus = (status: LoadStatus) =>
-    filters.setStatus(
-      filters.status.includes(status)
-        ? filters.status.filter((x) => x !== status)
-        : [...filters.status, status],
-    );
-
-  const toggleColumn = (column: string) => {
-    if (column === ACTIONS) return;
-    updateConfig((c) => {
-      const next = c.visibleColumns.includes(column)
-        ? c.visibleColumns.filter((x) => x !== column)
-        : [...c.visibleColumns, column];
-      return { ...c, visibleColumns: next.includes(ACTIONS) ? next : [...next, ACTIONS] };
-    });
+  const filter = <T>(setter: (value: T) => unknown) => {
+    return (value: T) => {
+      void setter(value);
+      void setPage(1);
+    };
   };
-
-  const visibleColumnCount = config.visibleColumns.filter((c) => c !== ACTIONS).length;
 
   return {
     canRead,
     query,
     config,
-    filters,
+    q,
+    status,
+    mode,
+    warehouseId,
+    carrierId,
     hasFilters,
     emptyState,
-    visibleColumnCount,
-    hasColumnConfig: visibleColumnCount !== DEFAULT_COLUMNS.length - 1,
-    updateConfig,
-    navigateToLoading,
-    toggleStatus,
-    toggleColumn,
+    setPage: (value: number) => void setPage(value),
+    setQ: filter((value: string) => setQ(value)),
+    setStatus: filter((value: string) =>
+      setStatus(LOAD_STATUS_FILTERS.find((known) => known === value) ?? "ALL"),
+    ),
+    setMode: filter((value: string) =>
+      setMode(LOAD_MODE_FILTERS.find((known) => known === value) ?? "ALL"),
+    ),
+    setWarehouseId: filter((value: string) => setWarehouseId(value || null)),
+    setCarrierId: filter((value: string) => setCarrierId(value || null)),
+    navigateToLoad,
     changePageSize: (pageSize: number) => {
-      updateConfig((c) => ({ ...c, pageSize }));
-      void filters.setPage(1);
+      updateConfig((current) => ({ ...current, pageSize }));
+      void setPage(1);
     },
-    clearFilters: () => filters.reset(),
-    resetAll: () => {
-      updateConfig(() => DEFAULT_CONFIG);
-      filters.reset();
+    clearFilters: () => {
+      void setQ(null);
+      void setStatus(null);
+      void setMode(null);
+      void setWarehouseId(null);
+      void setCarrierId(null);
+      void setPage(1);
     },
   };
 }

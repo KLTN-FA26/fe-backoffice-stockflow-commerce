@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { SUPPLIER_PERMISSIONS } from "@/constants";
+import { SUPPLIER_ITEM_PERMISSIONS, SUPPLIER_PERMISSIONS } from "@/constants";
 
-import { SUPPLIER_TRANSITIONS, allowedSupplierActions } from "./lifecycle";
+import { SUPPLIER_TRANSITIONS, allowedSupplierActions, supplierItemActions } from "./lifecycle";
 
 import type { PermissionCode } from "@/lib/auth";
 
@@ -60,5 +60,32 @@ describe("allowedSupplierActions — action-gating theo mã quyền", () => {
     expect(deactivate?.permission).toBe("procurement-suppliers:DELETE");
     expect(activate?.permission).toBe("procurement-suppliers:UPDATE");
     expect(blacklist?.permission).toBe("procurement-suppliers:UPDATE");
+  });
+});
+
+describe("supplierItemActions (BE SupplierItemServiceImpl#activeSupplier)", () => {
+  const all = checker(Object.values(SUPPLIER_ITEM_PERMISSIONS));
+
+  it("NCC Active + đủ quyền → thêm / sửa / xoá", () => {
+    expect(supplierItemActions("Active", all)).toEqual({ create: true, edit: true, remove: true });
+  });
+
+  it("NCC Inactive / Blacklisted → chỉ còn xoá", () => {
+    for (const status of ["Inactive", "Blacklisted"] as const) {
+      expect(supplierItemActions(status, all)).toEqual({
+        create: false,
+        edit: false,
+        remove: true,
+      });
+    }
+  });
+
+  it("chỉ READ → không thao tác nào", () => {
+    const readOnly = checker([SUPPLIER_ITEM_PERMISSIONS.read]);
+    expect(supplierItemActions("Active", readOnly)).toEqual({
+      create: false,
+      edit: false,
+      remove: false,
+    });
   });
 });

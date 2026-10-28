@@ -1,31 +1,22 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-
-import { ADMIN_ROUTES, FULFILLMENT_PICK_PERMISSIONS, UI_LABELS } from "@/constants";
+import { FULFILLMENT_PICK_PERMISSIONS } from "@/constants";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
-import { useFulfillmentOrder, useFulfillmentTask } from "@/features/fulfillment/queries";
-import { PageHeader } from "@/components/shared/PageHeader";
+import { useFulfillmentTask } from "@/features/fulfillment/queries";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
-import { Button } from "@/components/ui/button";
 
 import { OrderLinesSection } from "./detail/OrderLinesSection";
-import { TaskActionCard } from "./detail/TaskActionCard";
 import { TaskInfo } from "./detail/TaskInfo";
 import { FulfillmentLoadError } from "./FulfillmentLoadError";
 import { FulfillmentPermissionGate } from "./FulfillmentPermissionGate";
-import { orderLabel, taskCode } from "./primitives";
-import { useFulfillmentActor, useTaskReferences } from "./useFulfillmentActor";
-
-const { fulfillment, common } = UI_LABELS;
+import { PickingWorkArea } from "./picking/PickingWorkArea";
+import { taskCode } from "./primitives";
+import { useFulfillmentActor } from "./useFulfillmentActor";
 
 function PickingDetailBody({ id }: { id: string }) {
   const actor = useFulfillmentActor();
   const canRead = actor.can(FULFILLMENT_PICK_PERMISSIONS.read);
-  const refs = useTaskReferences(actor);
   const query = useFulfillmentTask(id, { enabled: canRead });
-  const order = useFulfillmentOrder(query.data?.orderId, refs.canReadOrders);
   // Breadcrumb hiện mã rút gọn thay vì UUID đầy đủ
   useBreadcrumbLabel(id, query.data ? taskCode(query.data.taskId) : undefined);
 
@@ -41,40 +32,28 @@ function PickingDetailBody({ id }: { id: string }) {
     );
   }
   const task = query.data;
-  const orderNumber = order.data?.orderNumber ?? refs.orderNumbers?.[task.orderId];
+  const orderNumber = task.orderNumber ?? undefined;
 
   return (
-    <>
-      <PageHeader
-        title={`Task ${taskCode(task.taskId)}`}
-        subtitle={`${fulfillment.pickingTitle} · Đơn ${orderNumber ?? orderLabel(task.orderId, undefined)}`}
-        actions={
-          <Button variant="outline" size="sm" asChild>
-            <Link href={ADMIN_ROUTES.picking.list}>
-              <ArrowLeft className="size-3.5" /> {common.backToList}
-            </Link>
-          </Button>
+    // Giao diện kiểu Vercel như chi tiết sản phẩm (globals.css `.surface-soft`). Không hiện tiêu đề —
+    // breadcrumb topbar đã có mã task và link về danh sách; mã task + đơn nằm ở "Thông tin task".
+    <div className="surface-soft surface-compact">
+      <h1 className="sr-only">{`Task ${taskCode(task.taskId)}`}</h1>
+      <PickingWorkArea
+        task={task}
+        actor={actor}
+        info={
+          <>
+            <TaskInfo task={task} actor={actor} orderNumber={orderNumber} />
+            <OrderLinesSection lines={task.lines} />
+          </>
         }
       />
-      <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
-        <div className="min-w-0 space-y-5">
-          <TaskInfo
-            task={task}
-            actor={actor}
-            orderNumber={orderNumber}
-            userNames={refs.userNames}
-          />
-          <OrderLinesSection scope="picking" canReadOrders={refs.canReadOrders} order={order} />
-        </div>
-        <div className="space-y-5">
-          <TaskActionCard task={task} scope="picking" actor={actor} />
-        </div>
-      </div>
-    </>
+    </div>
   );
 }
 
-/** Chi tiết lấy hàng của một task: bắt đầu / hoàn tất lấy hàng, gán lại. */
+/** Chi tiết lấy hàng của một task: xác nhận từng dòng, bắt đầu / hoàn tất lấy hàng, gán lại. */
 export function PickingDetail({ id }: { id: string }) {
   return (
     <FulfillmentPermissionGate

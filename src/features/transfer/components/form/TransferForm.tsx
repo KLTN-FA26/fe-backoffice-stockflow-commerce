@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 
-import { UI_LABELS } from "@/constants";
+import { DELIVERY_MODE, UI_LABELS } from "@/constants";
 import { transferFormSchema } from "@/features/transfer/input-schemas";
 import { Alert } from "@/components/shared/Alert";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ export const EMPTY_TRANSFER_FORM: TransferFormInput = {
   toWarehouseId: "",
   reason: "",
   expectedDate: "",
+  deliveryMode: DELIVERY_MODE.FULL_TRUCKLOAD,
   lines: [{ sku: "", lotNumber: "", quantity: 1 }],
 };
 
@@ -104,7 +105,7 @@ export function TransferForm({
           variant="outline"
           size="sm"
           asChild
-          className={`rounded-[var(--r-sm)] ${busy ? "pointer-events-none opacity-50" : ""}`}
+          className={`h-(--action-h) rounded-(--action-radius) px-(--action-px) ${busy ? "pointer-events-none opacity-50" : ""}`}
         >
           <Link href={cancelHref} aria-disabled={busy} tabIndex={busy ? -1 : undefined}>
             {UI_LABELS.common.back}
@@ -114,7 +115,7 @@ export function TransferForm({
           type="submit"
           size="sm"
           disabled={busy}
-          className="bg-brand text-ink-inverse hover:bg-brand-hover rounded-[var(--r-sm)]"
+          className="bg-brand text-ink-inverse hover:bg-brand-hover h-(--action-h) rounded-(--action-radius) px-(--action-px)"
         >
           {busy && <Loader2 className="size-3.5 animate-spin" />}
           {submitLabel}

@@ -1,13 +1,14 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { IDENTITY_PERMISSIONS, INVENTORY_PERMISSIONS } from "@/constants";
-import { INVENTORY_ROUTES } from "@/constants/inventory";
+import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
+import { useAppStore } from "@/lib/store/use-app-store";
 
 import { ThemeProvider } from "@/components/theme-provider";
 
@@ -24,10 +25,12 @@ vi.mock("next/navigation", () => ({
 
 const ADJUSTMENTS = "Điều chỉnh tồn";
 const MOVEMENTS = "Lịch sử biến động";
+const MOVES = "Di chuyển nội bộ";
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   navigation.pathname = "/admin";
+  useAppStore.setState({ focusMode: false });
 });
 
 async function renderShell(
@@ -73,6 +76,10 @@ async function renderShell(
         .some((query) => query.state.status === "success"),
     ).toBe(true),
   );
+  // Sidebar drill-down: mục kho nằm trong màn con của item cha "Kho" — mở nó nếu đang ở màn gốc
+  const sidebar = document.querySelector<HTMLElement>('[data-sidebar="content"]');
+  const inventoryGroup = sidebar && within(sidebar).queryByRole("button", { name: /^Kho/ });
+  if (inventoryGroup) await userEvent.click(inventoryGroup);
 }
 
 // Sidebar only — sub-pages also show the parent menu as a breadcrumb link.
@@ -137,7 +144,9 @@ describe("Inventory sidebar entries follow backend permission codes", () => {
     await renderShell([
       INVENTORY_PERMISSIONS.adjustmentViewPage,
       INVENTORY_PERMISSIONS.movementViewPage,
+      INVENTORY_PERMISSIONS.stockRead,
     ]);
+    expect(navLink(INVENTORY_LABELS.overviewTitle)).not.toHaveAttribute("data-active", "true");
     expect(navLink(ADJUSTMENTS)).toHaveAttribute("data-active", "true");
     expect(navLink(MOVEMENTS)).not.toHaveAttribute("data-active", "true");
   });
@@ -147,40 +156,145 @@ describe("Inventory sidebar entries follow backend permission codes", () => {
     await renderShell([
       INVENTORY_PERMISSIONS.adjustmentViewPage,
       INVENTORY_PERMISSIONS.movementViewPage,
+      INVENTORY_PERMISSIONS.stockUpdate,
     ]);
     expect(navLink(MOVEMENTS)).toHaveAttribute("data-active", "true");
     expect(navLink(ADJUSTMENTS)).not.toHaveAttribute("data-active", "true");
-    expect(navLink("Di chuyển nội bộ")).not.toHaveAttribute("data-active", "true");
+    expect(navLink(MOVES)).not.toHaveAttribute("data-active", "true");
+  });
+
+  it("Di chuyển nội bộ follows the backend guard of POST /inventory/movements (stock UPDATE)", async () => {
+    await renderShell([
+      INVENTORY_PERMISSIONS.movementViewPage,
+      INVENTORY_PERMISSIONS.adjustmentViewPage,
+    ]);
+    expect(navLink(ADJUSTMENTS)).toBeInTheDocument();
+    expect(navLink(MOVES)).not.toBeInTheDocument();
+    cleanup();
+    await renderShell([INVENTORY_PERMISSIONS.stockUpdate]);
+    expect(navLink(MOVES)).toHaveAttribute("href", "/admin/moves");
+  });
+
+  it("marks only Di chuyển nội bộ active on /admin/moves", async () => {
+    navigation.pathname = "/admin/moves";
+    await renderShell([INVENTORY_PERMISSIONS.stockUpdate, INVENTORY_PERMISSIONS.movementViewPage]);
+    expect(navLink(MOVES)).toHaveAttribute("data-active", "true");
+    expect(navLink(MOVEMENTS)).not.toHaveAttribute("data-active", "true");
   });
 });
 
-describe("sidebar groups", () => {
-  function groupLabel(title: string) {
+describe("shell shows no demo data against the real backend", () => {
+  it("has no mock-only entries, no warning badges and no mock warehouse switcher", async () => {
+    await renderShell([]);
+    for (const name of ["Hoá đơn NCC", "Đề xuất nhập hàng"]) {
+      expect(navLink(name)).not.toBeInTheDocument();
+    }
+    expect(document.querySelector('[data-sidebar="menu-badge"]')).toBeNull();
+    expect(screen.queryByRole("button", { name: "Tất cả kho" })).not.toBeInTheDocument();
+  });
+});
+
+describe("sidebar drill-down kiểu Vercel", () => {
+  it("bấm item cha → thay bằng item con; tên item cha ở đầu là nút quay lại danh sách item cha", async () => {
+    // renderShell tự mở màn con "Kho" khi đang ở màn gốc
+    await renderShell([
+      INVENTORY_PERMISSIONS.adjustmentViewPage,
+      INVENTORY_PERMISSIONS.movementViewPage,
+    ]);
     const sidebar = document.querySelector<HTMLElement>('[data-sidebar="content"]');
     if (!sidebar) throw new Error("Sidebar content not rendered");
-    return within(sidebar).queryByText(title);
+    expect(navLink(ADJUSTMENTS)).toBeInTheDocument();
+    expect(within(sidebar).queryByRole("button", { name: /^Kho/ })).not.toBeInTheDocument();
+
+    await userEvent.click(within(sidebar).getByRole("button", { name: /^Quay lại Kho/ }));
+    expect(navLink(ADJUSTMENTS)).not.toBeInTheDocument();
+    expect(within(sidebar).getByRole("button", { name: /^Kho/ })).toBeInTheDocument();
+  });
+
+  it("đang ở trang thuộc nhóm → mở sẵn màn con của nhóm đó", async () => {
+    navigation.pathname = INVENTORY_ROUTES.movements;
+    await renderShell([
+      INVENTORY_PERMISSIONS.adjustmentViewPage,
+      INVENTORY_PERMISSIONS.movementViewPage,
+    ]);
+    expect(navLink(MOVEMENTS)).toHaveAttribute("data-active", "true");
+    expect(screen.getByRole("button", { name: /^Quay lại Kho/ })).toBeInTheDocument();
+  });
+});
+
+describe("Chế độ mở rộng (focusMode) và nút thu / mở sidebar", () => {
+  // Tooltip (Radix popper) của nút thu / mở dùng ResizeObserver — jsdom không có
+  beforeAll(() => {
+    globalThis.ResizeObserver ??= class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    };
+  });
+  const toggle = (name: string) => screen.getByRole("button", { name });
+
+  it("bật rồi tắt chế độ mở rộng → sidebar về đúng lựa chọn của người dùng", async () => {
+    await renderShell([]);
+    await userEvent.click(toggle("Thu nhỏ sidebar"));
+    act(() => useAppStore.getState().setFocusMode(true));
+    expect(toggle("Mở rộng sidebar")).toBeInTheDocument();
+    act(() => useAppStore.getState().setFocusMode(false));
+    expect(toggle("Mở rộng sidebar")).toBeInTheDocument();
+  });
+
+  it("đang mở rộng mà bấm mở sidebar → thoát chế độ mở rộng và sidebar mở", async () => {
+    await renderShell([]);
+    act(() => useAppStore.getState().setFocusMode(true));
+    await userEvent.click(toggle("Mở rộng sidebar"));
+    expect(useAppStore.getState().focusMode).toBe(false);
+    expect(toggle("Thu nhỏ sidebar")).toBeInTheDocument();
+  });
+});
+
+describe("sidebar parent entries follow their visible items", () => {
+  function sidebar() {
+    const content = document.querySelector<HTMLElement>('[data-sidebar="content"]');
+    if (!content) throw new Error("Sidebar content not rendered");
+    return content;
+  }
+  const parent = (title: string) =>
+    within(sidebar()).queryByRole("button", { name: new RegExp(`^${title}`) });
+  // renderShell mở màn con "Kho" — quay về màn gốc để thấy các item cha
+  async function showRoot() {
+    const back = within(sidebar()).queryByRole("button", { name: /^Quay lại/ });
+    if (back) await userEvent.click(back);
   }
 
-  it("drops a group header when every item in it is denied", async () => {
+  it("drops a parent entry when every item in it is denied", async () => {
     await renderShell([]);
-    expect(groupLabel("PLATFORM")).not.toBeInTheDocument();
-    expect(groupLabel("TỔNG QUAN")).toBeInTheDocument();
+    await showRoot();
+    expect(parent("Platform")).not.toBeInTheDocument();
+    expect(navLink("Phân quyền")).not.toBeInTheDocument();
+    expect(navLink("Tổng quan")).toBeInTheDocument();
+  });
+
+  it("a group with one allowed item shows that item as a direct link", async () => {
+    await renderShell([IDENTITY_PERMISSIONS.rbacRead]);
+    await showRoot();
+    expect(navLink("Phân quyền")).toBeInTheDocument();
+    expect(parent("Platform")).not.toBeInTheDocument();
+  });
+
+  it("keeps the parent entry when several of its items are allowed", async () => {
+    await renderShell([IDENTITY_PERMISSIONS.rbacRead, IDENTITY_PERMISSIONS.usersRead]);
+    await showRoot();
+    expect(parent("Platform")).toBeInTheDocument();
   });
 
   it("collapsed sidebar renders no separator for a group with no visible item", async () => {
     await renderShell([]);
     await userEvent.click(screen.getByRole("button", { name: "Thu nhỏ sidebar" }));
-    const sidebar = document.querySelector<HTMLElement>('[data-sidebar="content"]');
-    if (!sidebar) throw new Error("Sidebar content not rendered");
-    const groups = sidebar.querySelectorAll<HTMLElement>('[data-sidebar="group"]');
+    // Thu gọn: mỗi nhóm là một khối (vạch ngăn + icon) — khối nào cũng phải có ít nhất một link
+    const menu = sidebar().querySelector<HTMLElement>('[data-sidebar="menu"]');
+    if (!menu) throw new Error("Collapsed menu not rendered");
+    const groups = menu.querySelectorAll<HTMLElement>(":scope > *");
     expect(groups.length).toBeGreaterThan(0);
     for (const group of groups)
       expect(within(group).queryAllByRole("link").length).toBeGreaterThan(0);
-  });
-
-  it("keeps the group header when one of its items is allowed", async () => {
-    await renderShell([IDENTITY_PERMISSIONS.rbacRead]);
-    expect(groupLabel("PLATFORM")).toBeInTheDocument();
-    expect(navLink("Phân quyền")).toBeInTheDocument();
   });
 });

@@ -1,18 +1,52 @@
 /**
- * Mock routes — biến thể, logistics theo SKU, ảnh theo biến thể (BE PR #71
- * `ProductVariantController`, `SkuLogisticsController`, `ProductMediaController`).
+ * Mock routes — biến thể, ảnh theo biến thể (BE PR #71 `ProductVariantController`,
+ * `ProductMediaController`).
  *
- * Trả đúng hình response BE (VariantResponse, SkuLogisticsResponse, MediaResponse) để
+ * Trả đúng hình response BE (VariantResponse kèm `inventoryItemId` của BE PR #119, MediaResponse) để
  * `features/product/variant-api.ts` chạy một luồng cho cả mock lẫn BE thật. Dữ liệu khởi tạo từ
- * các SKU trong mock-data (mỗi SKU mock = một biến thể).
+ * các SKU trong mock-data (mỗi SKU mock = một biến thể). Logistics của từng biến thể vẫn giữ ở đây
+ * (kho `logistics`) nhưng chỉ phục vụ mock `/inventory/items` — BE PR #119 đã bỏ route logistics
+ * theo SKU dưới sản phẩm.
  */
 
+import { SKU_INPUT_PATTERN } from "@/lib/validation/sku";
+
 import { registerMockRoute } from "./mock-adapter";
+import { mockCustomerPriceUsesSku } from "./mock-customer-price-store";
+import {
+  ensureAttributeStore,
+  mockAxesOf,
+  mockDictionary,
+  resetAttributeMockStore,
+  setMockAxes,
+} from "./mock-attribute-store";
+import { recordMockHistory } from "./mock-product-history";
+import { findMockProduct, mockProductAcceptsChanges } from "./mock-product-store";
+import {
+  bodyOf as body,
+  fail,
+  ok,
+  pathParams as params,
+  slugCode,
+  text as str,
+} from "./mock-route-utils";
+import { comboKey, matrixDefaultName, planMatrix } from "./mock-variant-matrix";
 
 import type { AxiosRequestConfig } from "axios";
 import type { Sku } from "@/lib/mock-data";
+import type { MockAttribute, MockAxisRow } from "./mock-attribute-store";
+import type { MatrixAxis } from "./mock-variant-matrix";
 
 type VariantStatus = "DRAFT" | "ACTIVE" | "BLOCKED" | "OBSOLETE";
+
+/** BE `VariantOptionResponse`. */
+interface MockOption {
+  attributeId: string;
+  attributeCode: string;
+  valueId: string;
+  valueCode: string;
+  label: string;
+}
 
 interface MockVariant {
   variantId: string;
@@ -25,9 +59,11 @@ interface MockVariant {
   position: number;
   obsoletedAt: string | null;
   version: number;
+  options: MockOption[];
 }
 
-interface MockLogistics {
+/** Logistics của hồ sơ hàng tồn (BE PR #119), khoá theo id biến thể — nguồn của mock `/inventory/items`. */
+export interface MockLogistics {
   skuId: string;
   sku: string;
   version: number;
@@ -47,6 +83,8 @@ interface MockLogistics {
   requiresAdultSignature: boolean;
   shippingRestrictionNote: string | null;
   qcRequired: boolean;
+  /** BE #121 — kiện được xoay 6 hướng khi xếp xe (docs 01 E13); mặc định true. */
+  rotatable: boolean;
 }
 
 interface MockMedia {
@@ -79,7 +117,6 @@ interface MockMedia {
 /** Người tải ảnh lên trong mock — khác người dùng mock, để demo được duyệt bốn mắt khi xuất bản. */
 const MOCK_UPLOADER = "mock-uploader";
 const MOCK_PUBLISHER = "mock-user";
-const SKU_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 const STATUS_FROM_SKU: Record<Sku["status"], VariantStatus> = {
   Active: "ACTIVE",
   Blocked: "BLOCKED",
@@ -92,21 +129,33 @@ const NEXT: Record<VariantStatus, readonly VariantStatus[]> = {
   OBSOLETE: [],
 };
 
-let variants: MockVariant[] | null = null;
+let variantsPromise: Promise<MockVariant[]> | null = null;
 const logistics = new Map<string, MockLogistics>();
 const media = new Map<string, MockMedia[]>();
 
 export function resetVariantMockStore(): void {
-  variants = null;
+  variantsPromise = null;
   logistics.clear();
   media.clear();
+  resetAttributeMockStore();
 }
 
-async function store(): Promise<MockVariant[]> {
-  if (variants) return variants;
+/** Biến thể mock: mỗi SKU của mock-data là một biến thể, tuỳ chọn suy ra từ trục + từ điển. */
+function store(): Promise<MockVariant[]> {
+  variantsPromise ??= buildStore();
+  return variantsPromise;
+}
+
+async function buildStore(): Promise<MockVariant[]> {
   const { skus } = await import("@/lib/mock-data");
+  await ensureAttributeStore();
+  const dictionary = await mockDictionary();
+  const axesByProduct = new Map<string, MockAxisRow[]>();
+  for (const productId of new Set(skus.map((sku) => sku.productId))) {
+    axesByProduct.set(productId, await mockAxesOf(productId));
+  }
   const seen = new Set<string>();
-  variants = skus.map((sku, i) => {
+  return skus.map((sku, i) => {
     const first = !seen.has(sku.productId);
     seen.add(sku.productId);
     const status = STATUS_FROM_SKU[sku.status];
@@ -143,9 +192,31 @@ async function store(): Promise<MockVariant[]> {
       position: i,
       obsoletedAt: status === "OBSOLETE" ? "2026-09-01T00:00:00Z" : null,
       version: 0,
+      options: optionsOfSku(sku, axesByProduct.get(sku.productId) ?? [], dictionary),
     };
   });
-  return variants;
+}
+
+/** Giá trị của SKU trên từng trục của sản phẩm (khớp theo khoá thuộc tính `ATTR-<KHOÁ>` và mã giá trị). */
+function optionsOfSku(sku: Sku, axes: MockAxisRow[], dictionary: MockAttribute[]): MockOption[] {
+  return axes.flatMap((axis) => {
+    const attribute = dictionary.find((a) => a.attributeId === axis.attributeId);
+    const raw = Object.entries(sku.attributes).find(
+      ([key]) => `ATTR-${slugCode(key)}` === axis.attributeId,
+    );
+    const value = raw && attribute?.values.find((v) => v.code === slugCode(raw[1]));
+    return attribute && value
+      ? [
+          {
+            attributeId: attribute.attributeId,
+            attributeCode: attribute.code,
+            valueId: value.valueId,
+            valueCode: value.code,
+            label: value.label,
+          },
+        ]
+      : [];
+  });
 }
 
 function defaultLogistics(skuId: string, sku: string): MockLogistics {
@@ -169,6 +240,7 @@ function defaultLogistics(skuId: string, sku: string): MockLogistics {
     requiresAdultSignature: false,
     shippingRestrictionNote: null,
     qcRequired: false,
+    rotatable: true,
   };
 }
 
@@ -197,27 +269,14 @@ function newMedia(variantId: string, over: Partial<MockMedia> = {}): MockMedia {
   };
 }
 
-const ok = (data: unknown, status = 200) => ({ status, data, headers: {} });
-const fail = (status: number, errorCode: string, message: string, fieldErrors: unknown[] = []) => ({
-  status,
-  data: { success: false, errorCode, message, fieldErrors },
-  headers: {},
+/** Hồ sơ hàng tồn (BE PR #119) 1-1 với biến thể theo SKU — id mock `item-<variantId>`. */
+export const inventoryItemIdOf = (variantId: string): string => `item-${variantId}`;
+
+/** BE `VariantResponse`: biến thể kèm `inventoryItemId` (null khi SKU chưa có hồ sơ hàng tồn). */
+const toResponse = (variant: MockVariant) => ({
+  ...variant,
+  inventoryItemId: logistics.has(variant.variantId) ? inventoryItemIdOf(variant.variantId) : null,
 });
-const params = (config: AxiosRequestConfig) =>
-  (config as Record<string, unknown>)._mockParams as Record<string, string>;
-const body = (config: AxiosRequestConfig): Record<string, unknown> => {
-  if (typeof config.data === "string") {
-    try {
-      return JSON.parse(config.data) as Record<string, unknown>;
-    } catch {
-      return {};
-    }
-  }
-  return config.data && typeof config.data === "object"
-    ? (config.data as Record<string, unknown>)
-    : {};
-};
-const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
 
 async function find(config: AxiosRequestConfig) {
   const { id, variantId } = params(config);
@@ -225,15 +284,135 @@ async function find(config: AxiosRequestConfig) {
 }
 
 const variantNotFound = () => fail(404, "VARIANT_NOT_FOUND", "Variant not found");
+const productNotFound = () => fail(404, "PRODUCT_NOT_FOUND", "Product not found");
 
-function readVariant(raw: Record<string, unknown>) {
-  const sku = str(raw.sku).toUpperCase();
-  const name = str(raw.name);
-  const signature = str(raw.attributeSignature) || `SKU=${sku}`;
+/**
+ * BE `ProductVariantService.requireChangeable`: sản phẩm phải tồn tại và nhận thay đổi (không chờ
+ * duyệt, không ngừng kinh doanh), kèm thông tin để sinh SKU / tên.
+ */
+async function changeableProduct(productId: string | undefined) {
+  const product = await findMockProduct(productId ?? "");
+  if (!product) return { error: productNotFound() };
+  if (!mockProductAcceptsChanges(product)) {
+    return {
+      error: fail(
+        409,
+        "INVALID_PRODUCT_STATUS_TRANSITION",
+        `Product ${product.productId} is ${product.status} and accepts no change`,
+      ),
+    };
+  }
+  return { product };
+}
+
+/** Trục của sản phẩm cùng từ điển, để đối chiếu tuỳ chọn gửi lên. */
+async function axesWithDictionary(productId: string | undefined) {
+  const dictionary = await mockDictionary();
+  const rows = await mockAxesOf(productId ?? "");
+  return rows.flatMap((row) => {
+    const attribute = dictionary.find((a) => a.attributeId === row.attributeId);
+    return attribute ? [{ row, attribute }] : [];
+  });
+}
+
+/** Tuỳ chọn gửi lên → đúng một giá trị mỗi trục, hoặc mã lỗi BE `VARIANT_OPTIONS_INVALID`. */
+async function resolveOptions(
+  productId: string | undefined,
+  raw: unknown,
+  /** Giá trị đang mang thì được giữ dù đã bị vô hiệu (BE: chỉ giá trị mới chọn phải còn dùng). */
+  keepValueIds: readonly string[] = [],
+): Promise<{ options: MockOption[] } | { error: ReturnType<typeof fail> }> {
+  const axes = await axesWithDictionary(productId);
+  const ids = Array.isArray(raw) ? raw.filter((v): v is string => typeof v === "string") : [];
+  if (axes.length === 0) {
+    return ids.length === 0
+      ? { options: [] }
+      : {
+          error: fail(
+            400,
+            "VARIANT_OPTIONS_INVALID",
+            "This product has no axes, so a variant carries no options",
+          ),
+        };
+  }
+  const options: MockOption[] = [];
+  for (const { row, attribute } of axes) {
+    const chosen = attribute.values.filter(
+      (v) => row.optionValueIds.includes(v.valueId) && ids.includes(v.valueId),
+    );
+    const value = chosen[0];
+    if (chosen.length !== 1 || !value) {
+      return {
+        error: fail(
+          400,
+          "VARIANT_OPTIONS_INVALID",
+          `Axis ${attribute.code} needs exactly one value`,
+        ),
+      };
+    }
+    if (!value.active && !keepValueIds.includes(value.valueId)) {
+      return {
+        error: fail(400, "VARIANT_OPTIONS_INVALID", `Value ${value.code} is inactive`),
+      };
+    }
+    options.push({
+      attributeId: attribute.attributeId,
+      attributeCode: attribute.code,
+      valueId: value.valueId,
+      valueCode: value.code,
+      label: value.label,
+    });
+  }
+  if (ids.length !== options.length) {
+    return {
+      error: fail(400, "VARIANT_OPTIONS_INVALID", "A value is not an option of this product"),
+    };
+  }
+  return { options };
+}
+
+const signatureOf = (options: MockOption[], sku: string) =>
+  options.length > 0
+    ? options.map((o) => `${o.attributeCode}=${o.valueCode}`).join(";")
+    : `SKU=${sku}`;
+
+/**
+ * BE `VariantRequest`: sản phẩm có trục → sku / name tuỳ chọn (sinh theo mã sản phẩm + tuỳ chọn);
+ * không có trục → sku / name bắt buộc. `current` = biến thể đang sửa (thiếu sku / name thì giữ).
+ */
+async function readVariant(
+  product: { productId: string; name: string },
+  raw: Record<string, unknown>,
+  current?: MockVariant,
+) {
+  const resolved = await resolveOptions(
+    product.productId,
+    raw.optionValueIds,
+    current?.options.map((o) => o.valueId),
+  );
+  const hasAxes = (await mockAxesOf(product.productId)).length > 0;
   const errors: { field: string; message: string }[] = [];
-  if (!SKU_PATTERN.test(sku)) errors.push({ field: "sku", message: "sku is invalid" });
+  let sku = str(raw.sku).toUpperCase();
+  let name = str(raw.name);
+  if ("error" in resolved) return { error: resolved.error, errors };
+  const { options } = resolved;
+  if (!sku) {
+    if (current) sku = current.sku;
+    else if (hasAxes)
+      sku = [product.productId, ...options.map((o) => o.valueCode)].join("-").toUpperCase();
+  }
+  if (!name) {
+    if (current) name = current.name;
+    else if (hasAxes)
+      name = matrixDefaultName(
+        product.name,
+        options.map((o) => ({ option: o })),
+      );
+  }
+  if (!sku || !SKU_INPUT_PATTERN.test(sku))
+    errors.push({ field: "sku", message: "sku is invalid" });
   if (!name) errors.push({ field: "name", message: "name is required" });
-  return { sku, name, signature, errors };
+  return { error: null, errors, sku, name, options, signature: signatureOf(options, sku) };
 }
 
 function transition(target: VariantStatus) {
@@ -246,19 +425,125 @@ function transition(target: VariantStatus) {
     ) {
       return fail(409, "INVALID_VARIANT_TRANSITION", `Variant cannot go to ${target}`);
     }
+    const from = variant.status;
     variant.status = target;
     variant.obsoletedAt = target === "OBSOLETE" ? new Date().toISOString() : null;
     variant.version += 1;
-    return ok(variant);
+    recordMockHistory(variant.productId, "VARIANT_STATUS", {
+      subjectId: variant.variantId,
+      fromStatus: from,
+      toStatus: target,
+    });
+    return ok(toResponse(variant));
   };
 }
+
+/**
+ * Kho mock khác giữ dữ liệu theo SKU (BE: bảng trỏ tới hồ sơ hàng tồn / mã SKU). `inUse` = BE
+ * `inventory.item_in_use` có tham chiếu → không đổi SKU được; `rename` = dữ liệu nằm TRÊN hồ sơ hàng tồn
+ * nên đi theo SKU mới (ON UPDATE CASCADE). Kho nào import ngược file này (vòng) thì tự đăng ký theo `key`
+ * — đăng ký lại (module nạp lại / HMR) THAY bản cũ, không nhân đôi; kho không vòng thì gọi thẳng bên dưới.
+ */
+interface MockSkuReferences {
+  inUse?: (sku: string) => boolean;
+  rename?: (from: string, to: string) => void;
+}
+const skuReferences = new Map<string, MockSkuReferences>();
+
+export function registerMockSkuReferences(key: string, references: MockSkuReferences): void {
+  skuReferences.set(key, references);
+}
+
+/** Bảng giá riêng của khách (`catalog.customer_price`) đọc thẳng — không phụ thuộc thứ tự nạp module. */
+const mockSkuInUse = (sku: string) =>
+  mockCustomerPriceUsesSku(sku) || [...skuReferences.values()].some((r) => r.inUse?.(sku) ?? false);
+
+/**
+ * BE `inventory.guard_item_sku_rename` (V20261008000200): hồ sơ hàng tồn giữ nguyên id, SKU đi theo biến
+ * thể, `version` + 1; dữ liệu trên hồ sơ (thông tin mua hàng, NCC mặc định) đi theo SKU mới.
+ */
+function renameMockSku(variant: MockVariant, next: string): void {
+  const row = logistics.get(variant.variantId);
+  if (row) logistics.set(variant.variantId, { ...row, sku: next, version: row.version + 1 });
+  for (const references of skuReferences.values()) references.rename?.(variant.sku, next);
+}
+
+/** Thêm một biến thể mới (không phải tổ hợp đầu tiên của biến thể mặc định chưa gán). */
+function newVariant(
+  all: MockVariant[],
+  productId: string,
+  fields: Pick<MockVariant, "sku" | "name" | "attributeSignature" | "options"> &
+    Partial<Pick<MockVariant, "defaultVariant" | "position">>,
+): MockVariant {
+  const variant: MockVariant = {
+    variantId: crypto.randomUUID(),
+    productId,
+    status: "DRAFT",
+    defaultVariant: fields.defaultVariant ?? !all.some((v) => v.productId === productId),
+    position: fields.position ?? all.filter((v) => v.productId === productId).length,
+    obsoletedAt: null,
+    version: 0,
+    sku: fields.sku,
+    name: fields.name,
+    attributeSignature: fields.attributeSignature,
+    options: fields.options,
+  };
+  all.push(variant);
+  logistics.set(variant.variantId, defaultLogistics(variant.variantId, variant.sku));
+  media.set(variant.variantId, []);
+  return variant;
+}
+
+/** Biến thể mặc định còn Nháp và chưa mang tuỳ chọn — sẽ nhận tổ hợp đầu tiên (BE `isUnassigned`). */
+const unassignedDefault = (all: MockVariant[], productId: string) =>
+  all.find(
+    (v) =>
+      v.productId === productId &&
+      v.defaultVariant &&
+      v.options.length === 0 &&
+      v.status === "DRAFT",
+  );
+
+/** Gán các tuỳ chọn cho biến thể mặc định (SKU giữ nguyên) — ghi vào lịch sử như một lần sửa biến thể. */
+function assignDefaultOptions(variant: MockVariant, options: MockOption[], name: string): void {
+  const changed = ["name", "attributeSignature"];
+  Object.assign(variant, {
+    name,
+    options,
+    attributeSignature: signatureOf(options, variant.sku),
+    version: variant.version + 1,
+  });
+  recordMockHistory(variant.productId, "VARIANT_UPDATED", {
+    subjectId: variant.variantId,
+    changedFields: changed,
+  });
+}
+
+const toMatrixAxes = (
+  axes: { row: { optionValueIds: string[] }; attribute: MockAttribute }[],
+  restriction?: Map<string, string[]>,
+): MatrixAxis[] =>
+  axes.map(({ row, attribute }) => ({
+    attributeId: attribute.attributeId,
+    code: attribute.code,
+    name: attribute.name,
+    options: [...attribute.values]
+      .filter(
+        (v) =>
+          v.active &&
+          row.optionValueIds.includes(v.valueId) &&
+          (restriction?.get(attribute.attributeId)?.includes(v.valueId) ?? true),
+      )
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.code.localeCompare(b.code))
+      .map((v) => ({ valueId: v.valueId, code: v.code, label: v.label })),
+  }));
 
 export function registerVariantMockRoutes(): void {
   registerMockRoute("GET", "/products/:id/variants", async (config) => {
     const { id } = params(config);
     const rows = (await store()).filter((v) => v.productId === id);
     return ok({
-      items: rows,
+      items: rows.map(toResponse),
       page: 0,
       size: Math.max(rows.length, 1),
       totalElements: rows.length,
@@ -270,84 +555,231 @@ export function registerVariantMockRoutes(): void {
 
   registerMockRoute("GET", "/products/:id/variants/:variantId", async (config) => {
     const variant = await find(config);
-    return variant ? ok(variant) : variantNotFound();
+    return variant ? ok(toResponse(variant)) : variantNotFound();
   });
 
   registerMockRoute("POST", "/products/:id/variants", async (config) => {
     const { id } = params(config);
     const all = await store();
-    const { sku, name, signature, errors } = readVariant(body(config));
-    if (errors.length) return fail(400, "VALIDATION_FAILED", "Invalid request data", errors);
-    if (all.some((v) => v.sku === sku)) {
-      return fail(409, "VARIANT_SKU_ALREADY_EXISTS", `SKU ${sku} is taken`);
+    const guard = await changeableProduct(id);
+    if (guard.error) return guard.error;
+    const read = await readVariant(guard.product, body(config));
+    if (read.error) return read.error;
+    const { sku, name, signature, options, errors } = read;
+    if (errors.length || sku === undefined || name === undefined) {
+      return fail(400, "VALIDATION_FAILED", "Invalid request data", errors);
     }
-    const variant: MockVariant = {
-      variantId: crypto.randomUUID(),
-      productId: id ?? "",
+    // BE: chỉ tổ hợp đầu tiên của ma trận đi vào biến thể mặc định chưa gán; SKU gửi kèm = đổi tên SKU.
+    const target = unassignedDefault(all, guard.product.productId);
+    const firstOptions = (await axesWithDictionary(id)).map(
+      ({ row, attribute }) =>
+        [...attribute.values]
+          .filter((v) => v.active && row.optionValueIds.includes(v.valueId))
+          .sort((a, b) => a.sortOrder - b.sortOrder || a.code.localeCompare(b.code))[0]?.valueId,
+    );
+    const isFirst = options.length > 0 && options.every((o, i) => o.valueId === firstOptions[i]);
+    if (target && isFirst) {
+      if (sku !== target.sku && all.some((v) => v.sku === sku)) {
+        return fail(409, "VARIANT_SKU_ALREADY_EXISTS", `SKU ${sku} is taken`);
+      }
+      if (str(body(config).sku) && sku !== target.sku) {
+        // BE `translate`: trigger đổi SKU từ chối SKU đã được dùng → 409 INVALID_VARIANT_TRANSITION
+        if (mockSkuInUse(target.sku)) {
+          return fail(
+            409,
+            "INVALID_VARIANT_TRANSITION",
+            "This SKU is referenced and can no longer be renamed",
+          );
+        }
+        renameMockSku(target, sku);
+        target.sku = sku;
+      }
+      assignDefaultOptions(target, options, name);
+      return ok(toResponse(target), 201);
+    }
+    if (
+      all.some((v) => v.sku === sku || (v.productId === id && v.attributeSignature === signature))
+    ) {
+      return fail(409, "VARIANT_SKU_ALREADY_EXISTS", `SKU ${sku} or its options are taken`);
+    }
+    const variant = newVariant(all, id ?? "", {
       sku,
       name,
-      status: "DRAFT",
-      defaultVariant: !all.some((v) => v.productId === id),
       attributeSignature: signature,
-      position: all.filter((v) => v.productId === id).length,
-      obsoletedAt: null,
-      version: 0,
-    };
-    all.push(variant);
-    logistics.set(variant.variantId, defaultLogistics(variant.variantId, sku));
-    media.set(variant.variantId, []);
-    return ok(variant, 201);
+      options,
+    });
+    recordMockHistory(variant.productId, "VARIANT_ADDED", { subjectId: variant.variantId });
+    return ok(toResponse(variant), 201);
+  });
+
+  // BE `POST /products/{id}/variants/generation`: tạo các tổ hợp còn thiếu của ma trận (tối đa 100
+  // mỗi lần, idempotent). `optionValueIds` (trục → giá trị) chỉ hạn chế các trục được nêu.
+  registerMockRoute("POST", "/products/:id/variants/generation", async (config) => {
+    const { id } = params(config);
+    const all = await store();
+    const guard = await changeableProduct(id);
+    if (guard.error) return guard.error;
+    const axes = await axesWithDictionary(id);
+    if (axes.length === 0) {
+      return fail(
+        400,
+        "VARIANT_OPTIONS_INVALID",
+        "This product has no axes to generate variants from",
+      );
+    }
+    const restriction = new Map<string, string[]>();
+    const raw = body(config).optionValueIds;
+    if (raw !== undefined && raw !== null) {
+      if (typeof raw !== "object" || Array.isArray(raw)) {
+        return fail(400, "VALIDATION_FAILED", "optionValueIds must map an axis to its values");
+      }
+      for (const [attributeId, ids] of Object.entries(raw as Record<string, unknown>)) {
+        if (!axes.some(({ attribute }) => attribute.attributeId === attributeId)) {
+          return fail(
+            400,
+            "VARIANT_OPTIONS_INVALID",
+            `Attribute ${attributeId} is not an axis of this product`,
+          );
+        }
+        restriction.set(attributeId, Array.isArray(ids) ? (ids as string[]) : []);
+      }
+    }
+    for (const { row, attribute } of axes) {
+      const offered = attribute.values.filter(
+        (v) => v.active && row.optionValueIds.includes(v.valueId),
+      );
+      if (offered.length === 0) {
+        return fail(
+          400,
+          "VARIANT_OPTIONS_INVALID",
+          `Axis ${attribute.code} has no active option to generate from`,
+        );
+      }
+      const wanted = restriction.get(attribute.attributeId);
+      if (
+        wanted &&
+        (wanted.length === 0 || !wanted.every((w) => offered.some((o) => o.valueId === w)))
+      ) {
+        return fail(
+          400,
+          "VARIANT_OPTIONS_INVALID",
+          `Axis ${attribute.code}: a value is not an active option`,
+        );
+      }
+    }
+    const mine = all.filter((v) => v.productId === id);
+    const plan = planMatrix({
+      productCode: guard.product.productId,
+      productName: guard.product.name,
+      axes: toMatrixAxes(axes, restriction),
+      existingCombos: new Set(
+        mine
+          .filter((v) => v.options.length > 0)
+          .map((v) => comboKey(v.options.map((o) => o.valueId))),
+      ),
+      existingSkus: new Set(all.map((v) => v.sku)),
+      defaultUnassigned: Boolean(unassignedDefault(all, guard.product.productId)),
+      bornWithMatrix: false,
+    });
+    if (plan.error) return plan.error;
+    const target = unassignedDefault(all, guard.product.productId);
+    if (plan.forDefault && target) {
+      assignDefaultOptions(
+        target,
+        plan.forDefault.map(({ axis, option }) => ({
+          attributeId: axis.attributeId,
+          attributeCode: axis.code,
+          valueId: option.valueId,
+          valueCode: option.code,
+          label: option.label,
+        })),
+        matrixDefaultName(guard.product.name, plan.forDefault),
+      );
+    }
+    const created = plan.toInsert.map((planned) => {
+      const options = planned.options.map(({ axis, option }) => ({
+        attributeId: axis.attributeId,
+        attributeCode: axis.code,
+        valueId: option.valueId,
+        valueCode: option.code,
+        label: option.label,
+      }));
+      const variant = newVariant(all, guard.product.productId, {
+        sku: planned.sku,
+        name: planned.name,
+        attributeSignature: signatureOf(options, planned.sku),
+        options,
+        defaultVariant: false,
+      });
+      recordMockHistory(variant.productId, "VARIANT_ADDED", { subjectId: variant.variantId });
+      return variant;
+    });
+    return ok({ created: created.map(toResponse), skipped: plan.skipped }, 201);
   });
 
   registerMockRoute("PUT", "/products/:id/variants/:variantId", async (config) => {
     const variant = await find(config);
     if (!variant) return variantNotFound();
-    const { sku, name, signature, errors } = readVariant(body(config));
-    if (errors.length) return fail(400, "VALIDATION_FAILED", "Invalid request data", errors);
-    if (sku !== variant.sku && variant.status !== "DRAFT") {
+    const guard = await changeableProduct(variant.productId);
+    if (guard.error) return guard.error;
+    // `optionValueIds` vắng = giữ tuỳ chọn hiện có (BE).
+    const raw = body(config);
+    const read = await readVariant(
+      guard.product,
+      raw.optionValueIds === undefined
+        ? { ...raw, optionValueIds: variant.options.map((o) => o.valueId) }
+        : raw,
+      variant,
+    );
+    if (read.error) return read.error;
+    const { sku, name, signature, options, errors } = read;
+    if (errors.length || sku === undefined || name === undefined) {
+      return fail(400, "VALIDATION_FAILED", "Invalid request data", errors);
+    }
+    const sameOptions =
+      options.map((o) => o.valueId).join("|") === variant.options.map((o) => o.valueId).join("|");
+    if ((sku !== variant.sku || !sameOptions) && variant.status !== "DRAFT") {
       return fail(
         409,
         "INVALID_VARIANT_TRANSITION",
-        "The SKU of a variant is fixed once it has left DRAFT",
+        "The SKU and options of a variant are fixed once it has left DRAFT",
       );
     }
+    // BE `requireSkuUnused`: SKU đã được dùng (vd có dòng danh mục NCC) thì không đổi được nữa
+    if (sku !== variant.sku && mockSkuInUse(variant.sku)) {
+      return fail(
+        409,
+        "INVALID_VARIANT_TRANSITION",
+        "This SKU is referenced and can no longer be renamed",
+      );
+    }
+    if (sku !== variant.sku) renameMockSku(variant, sku);
+    const nextSignature =
+      variant.options.length === 0 && options.length === 0 ? variant.attributeSignature : signature;
+    const changed = [
+      ...(sku !== variant.sku ? ["sku"] : []),
+      ...(name !== variant.name ? ["name"] : []),
+      ...(nextSignature !== variant.attributeSignature ? ["attributeSignature"] : []),
+    ];
     Object.assign(variant, {
       sku,
       name,
-      attributeSignature: signature,
+      options,
+      attributeSignature: nextSignature,
       version: variant.version + 1,
     });
-    return ok(variant);
+    if (changed.length > 0) {
+      recordMockHistory(variant.productId, "VARIANT_UPDATED", {
+        subjectId: variant.variantId,
+        changedFields: changed,
+      });
+    }
+    return ok(toResponse(variant));
   });
 
   registerMockRoute("POST", "/products/:id/variants/:variantId/activation", transition("ACTIVE"));
   registerMockRoute("POST", "/products/:id/variants/:variantId/blocking", transition("BLOCKED"));
   registerMockRoute("POST", "/products/:id/variants/:variantId/obsoletion", transition("OBSOLETE"));
-
-  registerMockRoute("GET", "/products/:id/skus/:variantId/logistics", async (config) => {
-    const variant = await find(config);
-    const row = variant && logistics.get(variant.variantId);
-    return row ? ok(row) : variantNotFound();
-  });
-
-  registerMockRoute("PUT", "/products/:id/skus/:variantId/logistics", async (config) => {
-    const variant = await find(config);
-    const row = variant && logistics.get(variant.variantId);
-    if (!row) return variantNotFound();
-    const b = body(config);
-    if (b.version !== row.version) {
-      return fail(409, "OPTIMISTIC_LOCK", "The item was changed by someone else");
-    }
-    const next: MockLogistics = {
-      ...row,
-      ...(b as Partial<MockLogistics>),
-      version: row.version + 1,
-    };
-    next.packageCount = next.packageCount ?? 1;
-    next.packSize = next.packSize ?? 1;
-    logistics.set(row.skuId, next);
-    return ok(next);
-  });
 
   registerMockRoute("GET", "/products/:id/variants/:variantId/media", async (config) => {
     const variant = await find(config);
@@ -376,6 +808,7 @@ export function registerVariantMockRoutes(): void {
       primary: list.length === 0,
     });
     media.set(variant.variantId, [...list, created]);
+    recordMockHistory(variant.productId, "MEDIA", { subjectId: created.mediaId });
     return ok(created, 201);
   });
 
@@ -403,6 +836,7 @@ export function registerVariantMockRoutes(): void {
         variant.variantId,
         list.filter((m) => m.mediaId !== params(config).mediaId),
       );
+      recordMockHistory(variant.productId, "MEDIA", { subjectId: params(config).mediaId });
       return { status: 204, data: null, headers: {} };
     },
   );
@@ -428,6 +862,9 @@ export function registerVariantMockRoutes(): void {
       chosen.forEach((m) =>
         Object.assign(m, { published: true, publishedAt: now, publishedBy: MOCK_PUBLISHER }),
       );
+      chosen.forEach((m) =>
+        recordMockHistory(variant.productId, "MEDIA", { subjectId: m.mediaId }),
+      );
       return ok(chosen);
     },
   );
@@ -442,6 +879,7 @@ export function registerVariantMockRoutes(): void {
         (media.get(variant.variantId) ?? []).find((m) => m.mediaId === params(config).mediaId);
       if (!target) return fail(404, "MEDIA_NOT_FOUND", "Media not found");
       Object.assign(target, { published: false, publishedAt: null, publishedBy: null });
+      recordMockHistory(variant.productId, "MEDIA", { subjectId: target.mediaId });
       return ok(target);
     },
   );
@@ -465,4 +903,276 @@ export function registerVariantMockRoutes(): void {
     "/products/:id/variants/:variantId/media/:mediaId/renditions/:edge/download-url",
     downloadUrl,
   );
+}
+
+/* ── Hàm dùng chung cho các file route mock khác ───────────────────────── */
+
+/** Logistics của mọi biến thể kèm id hồ sơ hàng tồn — nguồn của mock `/inventory/items`. */
+export async function mockInventoryItemRows(): Promise<{ id: string; row: MockLogistics }[]> {
+  return (await store()).flatMap((v) => {
+    const row = logistics.get(v.variantId);
+    return row ? [{ id: inventoryItemIdOf(v.variantId), row }] : [];
+  });
+}
+
+/** Ghi logistics của một biến thể — PUT `/inventory/items/{id}/logistics` (version là của hồ sơ). */
+export function saveMockLogistics(row: MockLogistics): void {
+  logistics.set(row.skuId, row);
+}
+
+/** Biến thể `variantId` của sản phẩm `productId` (BE `variantSku(productId, variantId)`), không có → undefined. */
+export async function findMockVariant(
+  productId: string,
+  variantId: string,
+): Promise<MockVariant | undefined> {
+  return (await store()).find((v) => v.productId === productId && v.variantId === variantId);
+}
+
+/**
+ * BE `ProductSkuRetirement.retired`: SKU đã ngừng = biến thể OBSOLETE (ngừng riêng, hoặc cả sản phẩm ngừng kinh
+ * doanh) — hồ sơ hàng tồn của nó chỉ còn xem. Đọc thẳng trạng thái biến thể, không giữ bản sao ở kho khác.
+ */
+export async function mockSkuRetired(sku: string): Promise<boolean> {
+  return (await store()).some((v) => v.sku === sku && v.status === "OBSOLETE");
+}
+
+/** BE `ProductService.nameForSku(code).isPresent()`: SKU có trong danh mục biến thể (mã đã chuẩn hoá). */
+export async function mockSkuExists(sku: string): Promise<boolean> {
+  return (await store()).some((v) => v.sku === sku);
+}
+
+/** Hồ sơ hàng tồn của biến thể (giữ `version` dùng chung); null khi SKU chưa có hồ sơ. */
+export function mockItemRowOf(variantId: string): MockLogistics | null {
+  return logistics.get(variantId) ?? null;
+}
+
+/**
+ * BE `ItemPurchasingRepository.assign/clearDefaultSupplier`: đổi NCC mặc định từ danh mục NCC tăng
+ * `version` của hồ sơ hàng tồn mang SKU đó. Hồ sơ chưa nạp thì không có version nào để lệch.
+ */
+export function bumpMockItemVersionForSku(sku: string): void {
+  for (const row of logistics.values()) {
+    if (row.sku === sku) logistics.set(row.skuId, { ...row, version: row.version + 1 });
+  }
+}
+
+/** Biến thể của một sản phẩm (đã sắp theo vị trí). */
+export async function mockVariantsOf(productId: string): Promise<MockVariant[]> {
+  return (await store())
+    .filter((v) => v.productId === productId)
+    .sort((a, b) => a.position - b.position);
+}
+
+/** BE `ProductServiceImpl.approve`: duyệt sản phẩm thì các biến thể nháp được kích hoạt cùng. */
+export async function activateMockDraftVariants(productId: string): Promise<void> {
+  for (const variant of await mockVariantsOf(productId)) {
+    if (variant.status !== "DRAFT") continue;
+    variant.status = "ACTIVE";
+    variant.version += 1;
+    recordMockHistory(productId, "VARIANT_STATUS", {
+      subjectId: variant.variantId,
+      fromStatus: "DRAFT",
+      toStatus: "ACTIVE",
+    });
+  }
+}
+
+/**
+ * BE `ProductVariantService.obsoleteAll`: ngừng kinh doanh sản phẩm thì MỌI biến thể thành OBSOLETE,
+ * kể cả biến thể mặc định; mỗi lần chuyển ghi lý do của sản phẩm vào lịch sử.
+ */
+export async function obsoleteMockVariants(productId: string, reason: string): Promise<void> {
+  for (const variant of await mockVariantsOf(productId)) {
+    if (variant.status === "OBSOLETE") continue;
+    const from = variant.status;
+    variant.status = "OBSOLETE";
+    variant.obsoletedAt = new Date().toISOString();
+    variant.version += 1;
+    recordMockHistory(productId, "VARIANT_STATUS", {
+      subjectId: variant.variantId,
+      fromStatus: from,
+      toStatus: "OBSOLETE",
+      reason,
+    });
+  }
+}
+
+/** `DELETE /products/{id}` xoá cả biến thể, logistics và ảnh của sản phẩm nháp. */
+export async function deleteMockProductVariants(productId: string): Promise<void> {
+  const all = await store();
+  for (const variant of all.filter((v) => v.productId === productId)) {
+    logistics.delete(variant.variantId);
+    media.delete(variant.variantId);
+    all.splice(all.indexOf(variant), 1);
+  }
+  const { dropMockProductAttributes } = await import("./mock-attribute-store");
+  dropMockProductAttributes(productId);
+}
+
+interface MockOpenReference {
+  kind: "PURCHASE_ORDER_LINE" | "SALES_ORDER_LINE";
+  documentNumber: string;
+  documentId: string;
+  sku: string;
+}
+
+/** Số chứng từ tối đa BE trả (`OpenReferences.LIMIT`). */
+const OPEN_REFERENCE_LIMIT = 20;
+/** PO đã gửi NCC mà chưa nhận đủ / đóng: dòng còn thiếu hàng là "còn mở" (BE `PoLineReferences.openLines`). */
+const OPEN_PO_STATUSES = ["Approved", "Confirmed", "Partially Received"];
+/** Đơn đã đặt mà chưa giao: dòng chưa shipped (BE `OrderLineReferences.unshippedLines`). */
+const UNSHIPPED_LINE_STATUSES = ["pending", "in-production", "picking", "picked", "packed"];
+const NOT_PLACED_ORDER_STATUSES = ["Pending Payment", "Payment Failed", "Cancelled"];
+
+/**
+ * BE `GET /products/{id}/open-references`: đơn mua và đơn bán còn mở tham chiếu SKU của sản phẩm,
+ * tối đa 20, lấy lần lượt từng loại. Mock đọc PO / đơn của mock-data.
+ */
+export async function mockOpenReferences(
+  productId: string,
+): Promise<{ references: MockOpenReference[]; truncated: boolean }> {
+  const { orders, purchaseOrders } = await import("@/lib/mock-data");
+  const skus = new Set((await mockVariantsOf(productId)).map((v) => v.sku));
+  const purchase: MockOpenReference[] = purchaseOrders
+    .filter((po) => OPEN_PO_STATUSES.includes(po.status))
+    .flatMap((po) =>
+      po.lines
+        .filter((line) => skus.has(line.skuId) && line.receivedQty < line.orderedQty)
+        .map((line) => ({
+          kind: "PURCHASE_ORDER_LINE" as const,
+          documentNumber: po.poNumber,
+          documentId: po.poId,
+          sku: line.skuId,
+        })),
+    );
+  const sales: MockOpenReference[] = orders
+    .filter((order) => !NOT_PLACED_ORDER_STATUSES.includes(order.status))
+    .flatMap((order) =>
+      order.lines
+        .filter(
+          (line) =>
+            skus.has(line.skuId) && UNSHIPPED_LINE_STATUSES.includes(line.fulfillmentStatus),
+        )
+        .map((line) => ({
+          kind: "SALES_ORDER_LINE" as const,
+          documentNumber: order.orderNumber,
+          documentId: order.orderId,
+          sku: line.skuId,
+        })),
+    );
+  const total = purchase.length + sales.length;
+  const sample: MockOpenReference[] = [];
+  for (let i = 0; sample.length < OPEN_REFERENCE_LIMIT && sample.length < total; i++) {
+    for (const list of [purchase, sales]) {
+      const item = list[i];
+      if (item && sample.length < OPEN_REFERENCE_LIMIT) sample.push(item);
+    }
+  }
+  return { references: sample, truncated: total > OPEN_REFERENCE_LIMIT };
+}
+
+/**
+ * BE `POST /products` (PR #116): không có `axes` → một biến thể mặc định có SKU = mã sản phẩm; có
+ * `axes` → ghi trục rồi tạo mọi tổ hợp giá trị đang dùng (SKU `MÃ-GIÁ_TRỊ-…`, tổ hợp đầu tiên là biến
+ * thể mặc định). Kiểm tra hết rồi mới ghi, nên bị từ chối thì không để lại gì (BE: rollback).
+ */
+export async function createMockProductMatrix(input: {
+  productId: string;
+  productName: string;
+  axes: unknown;
+}): Promise<{ error: ReturnType<typeof fail> | null }> {
+  const all = await store();
+  const requested = Array.isArray(input.axes) ? input.axes : [];
+  if (requested.length === 0) {
+    if (all.some((v) => v.sku === input.productId.toUpperCase())) {
+      return { error: fail(409, "VARIANT_SKU_ALREADY_EXISTS", `SKU ${input.productId} is taken`) };
+    }
+    newVariant(all, input.productId, {
+      sku: input.productId.toUpperCase(),
+      name: input.productName,
+      attributeSignature: `SKU=${input.productId.toUpperCase()}`,
+      options: [],
+      defaultVariant: true,
+    });
+    return { error: null };
+  }
+  const dictionary = await mockDictionary();
+  const rows: MockAxisRow[] = [];
+  const axes: MatrixAxis[] = [];
+  const seen = new Set<string>();
+  for (const [index, raw] of (requested as Record<string, unknown>[]).entries()) {
+    const attribute = dictionary.find((a) => a.attributeId === str(raw?.attributeId));
+    if (!attribute) {
+      return {
+        error: fail(404, "ATTRIBUTE_NOT_FOUND", `Attribute ${str(raw?.attributeId)} not found`),
+      };
+    }
+    const ids = Array.isArray(raw.optionValueIds) ? (raw.optionValueIds as string[]) : [];
+    const invalid = (message: string) => ({
+      error: fail(400, "VALIDATION_FAILED", message, [{ field: "axes", message }]),
+    });
+    if (seen.has(attribute.attributeId))
+      return invalid("An attribute appears twice among the axes");
+    seen.add(attribute.attributeId);
+    if (attribute.dataType !== "SELECT" && attribute.dataType !== "COLOR")
+      return invalid(
+        `A ${attribute.dataType} attribute (${attribute.code}) cannot be a variant axis`,
+      );
+    if (!attribute.active) return invalid(`Attribute ${attribute.code} is inactive`);
+    if (ids.length === 0) return invalid(`Axis ${attribute.code} needs at least one option`);
+    if (new Set(ids).size !== ids.length)
+      return invalid(`Axis ${attribute.code} lists the same value twice`);
+    const chosen = attribute.values.filter((v) => ids.includes(v.valueId));
+    if (chosen.length !== ids.length || chosen.some((v) => !v.active))
+      return invalid(`A value of axis ${attribute.code} is unknown or inactive`);
+    const sortOrder = typeof raw.sortOrder === "number" ? raw.sortOrder : index;
+    const ordered = [...chosen].sort(
+      (a, b) => a.sortOrder - b.sortOrder || a.code.localeCompare(b.code),
+    );
+    rows.push({
+      attributeId: attribute.attributeId,
+      sortOrder,
+      optionValueIds: ordered.map((v) => v.valueId),
+    });
+    axes.push({
+      attributeId: attribute.attributeId,
+      code: attribute.code,
+      name: attribute.name,
+      options: ordered.map((v) => ({ valueId: v.valueId, code: v.code, label: v.label })),
+    });
+  }
+  const ordered = rows
+    .map((row, i) => ({ row, axis: axes[i] as MatrixAxis }))
+    .sort((a, b) => a.row.sortOrder - b.row.sortOrder);
+  const plan = planMatrix({
+    productCode: input.productId,
+    productName: input.productName,
+    axes: ordered.map((o) => o.axis),
+    existingCombos: new Set(),
+    existingSkus: new Set(all.map((v) => v.sku)),
+    defaultUnassigned: false,
+    bornWithMatrix: true,
+  });
+  if (plan.error) return { error: plan.error };
+  await setMockAxes(
+    input.productId,
+    ordered.map((o) => o.row),
+  );
+  for (const planned of plan.toInsert) {
+    const options = planned.options.map(({ axis, option }) => ({
+      attributeId: axis.attributeId,
+      attributeCode: axis.code,
+      valueId: option.valueId,
+      valueCode: option.code,
+      label: option.label,
+    }));
+    newVariant(all, input.productId, {
+      sku: planned.sku,
+      name: planned.name,
+      attributeSignature: signatureOf(options, planned.sku),
+      options,
+      defaultVariant: planned.isDefault,
+    });
+  }
+  return { error: null };
 }

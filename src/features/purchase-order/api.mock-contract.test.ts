@@ -7,6 +7,10 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/lib/api/error";
 import { activateMockAdapter } from "@/lib/api/mock-adapter";
 import { resetPoMockStore } from "@/lib/api/mock-routes-purchase-orders-store";
+import {
+  resetSupplierItemMockStore,
+  seedMockSupplierItem,
+} from "@/lib/api/mock-routes-supplier-items-store";
 import { resetSupplierMockStore } from "@/lib/api/mock-routes-suppliers";
 
 import {
@@ -60,6 +64,14 @@ beforeAll(() => {
   vi.spyOn(console, "info").mockImplementation(() => {});
   resetPoMockStore();
   resetSupplierMockStore();
+  resetSupplierItemMockStore();
+  // BE #118: dòng PO phải nằm trong danh mục NCC — các SKU "mới" dùng trong test được niêm yết sẵn.
+  for (const sku of [
+    ...Array.from({ length: 9 }, (_, i) => `SKU-NEW-${i + 1}`),
+    "SKU-NOT-IN-CATALOG",
+  ]) {
+    seedMockSupplierItem({ supplierId: "SUP-001", sku, price: 1, currency: "VND" });
+  }
   activateMockAdapter();
 });
 

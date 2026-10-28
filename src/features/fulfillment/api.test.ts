@@ -8,16 +8,17 @@ import {
   OTHER_PICKER_ID,
   PICKER_ID,
   TASK_ID,
+  WAREHOUSE_ID,
   apiTask,
-  assignableUsers,
+  assignees,
   bePage,
   fulfillmentOrder,
+  taskCandidate,
   mismatchEvidence,
   pickedTask,
 } from "./__fixtures__/task";
 import {
   assignFulfillmentTask,
-  completePacking,
   completePicking,
   createFulfillmentTask,
   getDesignArtifactUrl,
@@ -26,12 +27,7 @@ import {
   reverifyDesignIntegrity,
   startPicking,
 } from "./api";
-import {
-  getFulfillmentOrder,
-  listAssignableUsers,
-  listFulfillableOrders,
-  listOrderNumbers,
-} from "./reference-api";
+import { getFulfillmentOrder, listAssignees, listTaskCandidates } from "./reference-api";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -53,6 +49,30 @@ describe("fulfillment task API — hợp đồng BE FulfillmentController", () =
       ["Pending", "Pending"],
       ["Picked", "On Hold"],
     ]);
+  });
+
+  it("list gửi status/warehouseId/assignedUserId khi có, bỏ khi trống (SCRUM-466)", async () => {
+    const get = vi.spyOn(api, "get").mockResolvedValue({ data: bePage([apiTask()]) });
+    await listFulfillmentTasks({
+      page: 0,
+      size: 15,
+      status: "PICKING",
+      warehouseId: WAREHOUSE_ID,
+      assignedUserId: PICKER_ID,
+    });
+    expect(get.mock.calls[0]?.[1]).toMatchObject({
+      params: {
+        page: 0,
+        size: 15,
+        status: "PICKING",
+        warehouseId: WAREHOUSE_ID,
+        assignedUserId: PICKER_ID,
+      },
+    });
+    await listFulfillmentTasks({ page: 0, size: 15, status: undefined, warehouseId: "" });
+    expect(get.mock.calls[1]?.[1]).toEqual(
+      expect.objectContaining({ params: { page: 0, size: 15 } }),
+    );
   });
 
   it("list: trang âm bị kẹp về 0 (BE trả 400 nếu page < 0)", async () => {
@@ -88,39 +108,35 @@ describe("fulfillment task API — hợp đồng BE FulfillmentController", () =
     expect(task.assignedUserId).toBe(OTHER_PICKER_ID);
   });
 
-  it("bắt đầu / hoàn tất lấy hàng và đóng gói là POST KHÔNG body", async () => {
+  it("bắt đầu / hoàn tất lấy hàng là POST KHÔNG body", async () => {
     const post = vi
       .spyOn(api, "post")
       .mockResolvedValueOnce({ data: apiTask({ pickStatus: "PICKING" }) })
-      .mockResolvedValueOnce({ data: pickedTask() })
-      .mockResolvedValueOnce({ data: pickedTask({ packStatus: "PACKED" }) });
+      .mockResolvedValueOnce({ data: pickedTask() });
 
     expect((await startPicking(TASK_ID)).pickStatus).toBe("Picking");
     expect((await completePicking(TASK_ID)).pickStatus).toBe("Picked");
-    expect((await completePacking(TASK_ID)).packStatus).toBe("Packed");
     expect(post.mock.calls).toEqual([
       [`${PATH}/picking-start`, undefined],
       [`${PATH}/picking-completion`, undefined],
-      [`${PATH}/packing-completion`, undefined],
     ]);
   });
 
-  it("X-CHK: đóng gói lệch checksum trả 200 → kết quả `On Hold` kèm evidence, không ném lỗi", async () => {
-    vi.spyOn(api, "post").mockResolvedValueOnce({
-      data: pickedTask({ packStatus: "ON_HOLD", integrityEvidence: [mismatchEvidence()] }),
-    });
-    const task = await completePacking(TASK_ID);
-    expect(task.packStatus).toBe("On Hold");
-    expect(task.packedAt).toBeUndefined();
-    expect(task.integrityEvidence[0]?.matching).toBe(false);
-  });
-
-  it("kiểm tra lại gửi `resolutionNote`", async () => {
+  it("kiểm tra lại gửi `resolutionNote`; khớp thì pack về Packing (BE PR #136), còn lệch thì vẫn On Hold", async () => {
     const post = vi
       .spyOn(api, "post")
-      .mockResolvedValueOnce({ data: pickedTask({ packStatus: "PACKED" }) });
-    await reverifyDesignIntegrity({ taskId: TASK_ID, resolutionNote: "đã khôi phục file" });
-    expect(post).toHaveBeenCalledWith(`${PATH}/design-integrity-reverification`, {
+      .mockResolvedValueOnce({
+        data: pickedTask({ packStatus: "ON_HOLD", integrityEvidence: [mismatchEvidence()] }),
+      })
+      .mockResolvedValueOnce({ data: pickedTask({ packStatus: "PACKING" }) });
+    const stillHeld = await reverifyDesignIntegrity({ taskId: TASK_ID, resolutionNote: "x" });
+    expect(stillHeld.packStatus).toBe("On Hold");
+    expect(stillHeld.integrityEvidence[0]?.matching).toBe(false);
+    expect(
+      (await reverifyDesignIntegrity({ taskId: TASK_ID, resolutionNote: "đã khôi phục file" }))
+        .packStatus,
+    ).toBe("Packing");
+    expect(post).toHaveBeenLastCalledWith(`${PATH}/design-integrity-reverification`, {
       resolutionNote: "đã khôi phục file",
     });
   });
@@ -163,37 +179,37 @@ describe("dữ liệu phụ trợ — đơn hàng và nhân viên", () => {
     expect(order.lines).toHaveLength(2);
   });
 
-  it("đơn chờ xuất kho lọc đúng CONFIRMED + READY_TO_FULFILL (key lặp cho Spring)", async () => {
-    const get = vi.spyOn(api, "get").mockResolvedValueOnce({ data: bePage([fulfillmentOrder]) });
-    await listFulfillableOrders();
-    expect(get.mock.calls[0]?.[1]).toMatchObject({
-      params: { page: 0, status: ["CONFIRMED", "READY_TO_FULFILL"] },
-      paramsSerializer: { indexes: null },
-    });
+  it("đơn chờ xuất kho: GET /fulfillment/task-candidates (không gọi /orders), parse trang + dòng in", async () => {
+    const get = vi.spyOn(api, "get").mockResolvedValueOnce({ data: bePage([taskCandidate]) });
+    const page = await listTaskCandidates();
+    expect(get.mock.calls[0]?.[0]).toBe("/fulfillment/task-candidates");
+    expect(get.mock.calls[0]?.[1]).toMatchObject({ params: { page: 0, size: 200 } });
+    expect(page.items[0]).toMatchObject({ lineCount: 2, totalQuantity: 5 });
+    expect(page.items[0]?.lines.map((line) => line.printed)).toEqual([false, true]);
   });
 
-  it("listOrderNumbers trả bản đồ id → số đơn", async () => {
-    vi.spyOn(api, "get").mockResolvedValueOnce({ data: bePage([fulfillmentOrder]) });
-    expect(await listOrderNumbers()).toEqual({ [ORDER_ID]: "SO-20261010-000431" });
+  it("đơn chờ xuất kho: truyền warehouseId khi có; khách vãng lai không có customerId / customerName", async () => {
+    const guest = { ...taskCandidate, customerId: undefined, customerName: undefined };
+    const get = vi.spyOn(api, "get").mockResolvedValueOnce({ data: bePage([guest]) });
+    const page = await listTaskCandidates({ warehouseId: WAREHOUSE_ID });
+    expect(get.mock.calls[0]?.[1]).toMatchObject({ params: { warehouseId: WAREHOUSE_ID } });
+    expect(page.items[0]?.customerName).toBeUndefined();
   });
 
-  it("nhân viên gán được: gọi riêng từng vai trò (BE nhận một role), ACTIVE, gộp bỏ trùng", async () => {
-    const [staff, other] = assignableUsers;
-    const get = vi
-      .spyOn(api, "get")
-      .mockResolvedValueOnce({ data: bePage([staff, other]) })
-      .mockResolvedValueOnce({ data: bePage([staff]) });
+  it("đơn chờ xuất kho: response sai hợp đồng (thiếu lineCount) → từ chối", async () => {
+    const { lineCount: _omit, ...broken } = taskCandidate;
+    vi.spyOn(api, "get").mockResolvedValueOnce({ data: bePage([broken]) });
+    await expect(listTaskCandidates()).rejects.toThrow();
+  });
 
-    const users = await listAssignableUsers();
+  it("người nhận task: GET /fulfillment/assignees?warehouseId=, xếp theo tên, không gọi /identity/users", async () => {
+    const get = vi.spyOn(api, "get").mockResolvedValueOnce({ data: [assignees[1], assignees[0]] });
 
-    expect(get.mock.calls.map((call) => call[1])).toEqual([
-      expect.objectContaining({
-        params: expect.objectContaining({ role: "WAREHOUSE_STAFF", status: "ACTIVE" }),
-      }),
-      expect.objectContaining({
-        params: expect.objectContaining({ role: "WAREHOUSE_MANAGER", status: "ACTIVE" }),
-      }),
-    ]);
-    expect(users.map((user) => user.userId).sort()).toEqual([PICKER_ID, OTHER_PICKER_ID].sort());
+    const users = await listAssignees(WAREHOUSE_ID);
+
+    expect(get).toHaveBeenCalledTimes(1);
+    expect(get.mock.calls[0]?.[0]).toBe("/fulfillment/assignees");
+    expect(get.mock.calls[0]?.[1]).toMatchObject({ params: { warehouseId: WAREHOUSE_ID } });
+    expect(users.map((user) => user.userId)).toEqual([PICKER_ID, OTHER_PICKER_ID]);
   });
 });

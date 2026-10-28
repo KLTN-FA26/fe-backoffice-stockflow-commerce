@@ -184,4 +184,22 @@ describe("ConfirmDialog", () => {
     expect(screen.getByRole("dialog")).toContainElement(screen.getByRole("alert"));
     expect(screen.getByRole("alert")).toHaveTextContent("Không thực hiện được");
   });
+
+  it("children hiện dưới phần mô tả, trước ô lý do", () => {
+    render(
+      <ConfirmDialog
+        open
+        onOpenChange={vi.fn()}
+        title="Ngừng kinh doanh?"
+        description="Mô tả"
+        requireReason
+        onConfirm={vi.fn()}
+      >
+        <p>Chi tiết bổ sung</p>
+      </ConfirmDialog>,
+    );
+    const extra = screen.getByText("Chi tiết bổ sung");
+    const reason = screen.getByRole("textbox");
+    expect(extra.compareDocumentPosition(reason) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 });

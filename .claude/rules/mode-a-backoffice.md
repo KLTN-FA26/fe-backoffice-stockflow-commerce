@@ -4,7 +4,7 @@ globs:
   - "src/app/admin/**"
   - "src/app/(backoffice)/**"
   - "src/components/backoffice/**"
-  - "src/features/{product,purchase-order,receipt,invoice,putaway,warehouse-map,picking,packing,shipping,transfer,move,inventory,dashboard}/**"
+  - "src/features/{product,purchase-order,receipt,invoice,putaway,warehouse-map,picking,packing,shipping,transfer,move,inventory,dashboard,supplier,order,fulfillment,inventory-item,permission-management,home,vehicle-type,load-planning}/**"
 ---
 
 # Mode A — Back-office (Kho vận)
@@ -24,16 +24,43 @@ Người dùng là nhân viên kho ngồi cả ca — ưu tiên tốc độ thao
 **CẤM caramel** (`#A9682F`, `#C98D4E`, `bg.warm`, `card.warm`, `ink.warm`, `line.warm`)
 lọt vào mode A. Đó là token của [mode B](mode-b-storefront.md).
 
-Mode A dùng `brand.ink` cho CTA, active tab underline/text/count badge và focus border/ring của mọi input/select/textarea. `accent.blue` chỉ dùng cho icon thông tin, progress, link phụ hoặc trạng thái info; không dùng làm focus chính.
+Mode A dùng `brand.ink` cho CTA, count badge của tab đang chọn và focus border/ring của mọi input/select/textarea. `accent.blue` chỉ dùng cho icon thông tin, progress, link phụ hoặc trạng thái info; không dùng làm focus chính.
 
 ## Density
 
 - Card padding: `space.lg` (16px)
 - Gap giữa phần tử: `space.sm` (8px)
 - Row bảng: `space.xs`–`space.sm` (4–8px)
-- Radius: `radius.sm` (4px) cho nút, ô nhập, badge, card
-- Elevation: **ưu tiên viền hơn bóng**. `shadow.none` cho phần lớn bề mặt, `shadow.sm`
-  cho card và dropdown. Dùng `border.default` để tách lớp — cảm giác công cụ, không phải card mềm.
+- Radius: khối/card/nút hành động **8px** qua `--section-radius` / `--card-radius` /
+  `--action-radius`; ô nhập, badge giữ **4px** (`radius.sm`).
+- Elevation: **viền `border.default` + bóng `--sh-sm`** (`--card-shadow`) cho khối dạng card —
+  tách lớp rõ trên nền `bg.base` `#F6F6F6`. Dropdown/popover giữ bóng của shadcn.
+- Đây là style Vercel — chuẩn mới, ghi đè FRONTEND-AI-RULES §3, xem
+  [Quyết định thiết kế 2026-10](design-tokens.md#quyết-định-thiết-kế-2026-10).
+
+## Khung app (đã áp toàn cục — không cần migrate)
+
+- **Sidebar** nền `bg.sidebar`, chữ item `ink.primary` 14px, icon 14px, scrollbar mảnh.
+  Menu dạng **drill-down** (`SidebarNav`): màn gốc là item cha; bấm item cha → danh sách item con,
+  tên item cha ở đầu là nút quay lại; đang ở trang thuộc nhóm nào thì mở sẵn nhóm đó; nhóm chỉ có
+  một item thấy được → link thẳng. Thu gọn → danh sách icon phẳng.
+- **Header sidebar**: chữ `StockFlowCommerce` (thu gọn: chữ `S`) + ô tìm nhanh. Không có chọn kho.
+- **Footer sidebar**: avatar + tên người dùng (không hiện role) + nút 3 chấm; avatar hoặc 3 chấm
+  mở cùng menu tài khoản (hồ sơ, cài đặt, đổi sáng/tối, đăng xuất).
+- **Topbar** nền `bg.base`, breadcrumb **căn giữa** 14px — breadcrumb là tiêu đề của trang.
+
+## 3 loại trang
+
+Mọi trang trong `/admin` thuộc đúng một loại; class bọc ngoài cùng của component trang:
+
+| Loại             | Class wrapper                  | Mẫu                 | Điểm chính                                                           |
+| ---------------- | ------------------------------ | ------------------- | -------------------------------------------------------------------- |
+| Danh sách (bảng) | `surface-soft`                 | `ProductList`       | không title, nút vào `ListToolbar actions`, `DataTable stickyHeader` |
+| Chi tiết         | `surface-soft surface-compact` | `ProductDetail`     | không title/Quay lại, tên ở "Thông tin chung", card bóng nhẹ         |
+| Form / wizard    | `surface-soft surface-compact` | `ProductWizardView` | khối form bo 8px + bóng, thanh dưới nút 34px                         |
+
+Không trang nào hiển thị title/subtitle — giữ `<h1 className="sr-only">` cho screen reader.
+Checklist chi tiết: skill `vercel-restyle`; chuyển cả module: `/restyle <module>`.
 
 ## Responsive
 
@@ -41,7 +68,7 @@ Desktop-first, tối thiểu **≥1024px**. Không cần tối ưu 320px cho mod
 
 ## Bảng dữ liệu — màn hình chính của mode A
 
-Pattern đầy đủ nằm ở [data-table-mode-a.md](data-table-mode-a.md) (PageHeader, toolbar,
+Pattern đầy đủ nằm ở [data-table-mode-a.md](data-table-mode-a.md) (tiêu đề ẩn, toolbar,
 config summary, column filter, footer pagination). Đọc file đó khi làm trang danh sách.
 
 Tóm tắt: sticky header · cột số canh phải + `tabular-nums` · cột mã dùng mono ·

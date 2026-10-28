@@ -81,3 +81,139 @@ export function renderInventory(ui: ReactNode, searchParams = "") {
     </NuqsTestingAdapter>,
   );
 }
+
+// ── Inventory Overview (SCRUM-438) ───────────────────────────────────────────────────────────
+// Test-only payloads in backend DTO shape (develop 0f18f24). Optional fields are omitted, as
+// Jackson NON_NULL does.
+
+export const OVERVIEW_WAREHOUSE = {
+  id: "0e380000-0000-4000-8000-0000000000a1",
+  prefix: "HN01",
+  name: "Kho Hà Nội",
+  status: "ACTIVE",
+};
+
+export const OVERVIEW_LEVELS = [
+  {
+    sku: "CUP-PP-500",
+    warehouseCode: "HCM01",
+    onHand: 90,
+    available: 80,
+    reserved: 80,
+    allocated: 0,
+    atp: 0,
+  },
+  {
+    sku: "CUP-PP-500",
+    warehouseCode: "HN01",
+    onHand: 423,
+    available: 350,
+    reserved: 25,
+    allocated: 0,
+    atp: 330,
+  },
+];
+
+export function overviewPage<T>(items: T[], meta: Partial<Record<string, unknown>> = {}) {
+  return {
+    items,
+    page: 0,
+    size: 15,
+    totalElements: items.length,
+    totalPages: items.length ? 1 : 0,
+    hasNext: false,
+    hasPrevious: false,
+    ...meta,
+  };
+}
+
+export const OVERVIEW_STOCK_ITEMS = [
+  {
+    stockItemId: "0e380000-0000-4000-8000-000000000002",
+    sku: "CUP-PP-500",
+    locationCode: "HN01-A01-02-B",
+    lotNumber: "L2602",
+    expiryDate: "2027-03-01",
+    onHand: 200,
+    reserved: 0,
+    available: 200,
+    status: "AVAILABLE",
+    receivedAt: "2026-09-10T02:00:00Z",
+  },
+  {
+    stockItemId: "0e380000-0000-4000-8000-000000000005",
+    sku: "CUP-PP-500",
+    locationCode: "HN01-A02-01-A",
+    onHand: 30,
+    reserved: 0,
+    available: 30,
+    status: "AVAILABLE",
+  },
+];
+
+export const OVERVIEW_RESERVATION = {
+  reservationId: "0e380000-0000-4000-8000-000000000101",
+  orderId: "0e380000-0000-4000-8000-000000000201",
+  stockItemId: "0e380000-0000-4000-8000-000000000002",
+  sku: "CUP-PP-500",
+  locationCode: "HN01-A01-02-B",
+  quantity: 20,
+  status: "HELD",
+  reservedAt: "2026-10-14T02:00:00Z",
+};
+
+export function overviewAlert(kind: string, extra: Record<string, unknown> = {}) {
+  return {
+    id: crypto.randomUUID(),
+    kind,
+    sku: "CUP-PP-500",
+    observedQty: 430,
+    reservationImpaired: false,
+    status: "OPEN",
+    openedAt: "2026-10-15T01:00:00Z",
+    lastObservedAt: "2026-10-16T01:00:00Z",
+    version: 0,
+    ...extra,
+  };
+}
+
+/**
+ * Backend + warehouse directory for the overview. Each override replaces one endpoint's answer;
+ * alerts answer by kind (low stock vs expiry), as the two panels ask separately.
+ */
+export function overviewHandlers(
+  overrides: {
+    levels?: unknown;
+    directory?: unknown;
+    items?: unknown;
+    atp?: unknown;
+    reservations?: unknown;
+    lowStock?: unknown;
+    expiry?: unknown;
+  } = {},
+) {
+  const ok = (data: unknown) => HttpResponse.json({ success: true, data });
+  const answer = (value: unknown, fallback: unknown) =>
+    value instanceof Response ? value : ok(value ?? fallback);
+  return [
+    http.get(inventoryEndpoint("/inventory/stock-levels"), () =>
+      answer(overrides.levels, OVERVIEW_LEVELS),
+    ),
+    http.get(inventoryEndpoint("/warehouses"), () =>
+      answer(overrides.directory, { items: [OVERVIEW_WAREHOUSE] }),
+    ),
+    http.get(inventoryEndpoint("/inventory/warehouses/:id/stock-items"), () =>
+      answer(overrides.items, overviewPage(OVERVIEW_STOCK_ITEMS)),
+    ),
+    http.get(inventoryEndpoint("/inventory/stock-items/atp"), () => answer(overrides.atp, 330)),
+    http.get(inventoryEndpoint("/inventory/reservations"), () =>
+      answer(overrides.reservations, overviewPage([OVERVIEW_RESERVATION])),
+    ),
+    http.get(inventoryEndpoint("/inventory/alerts"), ({ request }) => {
+      const kind = new URL(request.url).searchParams.get("kind") ?? "";
+      return kind.includes("REORDER")
+        ? answer(overrides.lowStock, overviewPage([]))
+        : answer(overrides.expiry, overviewPage([]));
+    }),
+  ];
+}

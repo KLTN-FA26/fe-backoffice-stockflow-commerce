@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import { ApiError } from "@/lib/api/error";
 
 import { poCreateFieldErrors } from "./create-form-errors";
-import { poCreateFormSchema } from "./create-form-schema";
+import { poCreateFormSchema, poFormSchema } from "./create-form-schema";
+import { minimumOrderQuantity, orderQuantityIssues } from "./line-terms";
 
 const valid = {
   supplierId: "22222222-2222-4222-8222-222222222222",
@@ -18,6 +19,8 @@ const valid = {
       orderedQty: "2",
       unitPrice: "1000",
       taxRate: "",
+      lineId: "",
+      terms: { moq: 1, packSize: 1, price: 900, currency: "VND", effectiveLeadTimeDays: 7 },
     },
   ],
 };
@@ -93,7 +96,118 @@ describe("poCreateFieldErrors — lỗi BE → ô form", () => {
     );
   });
 
+  it("kho nhận (requireReceivingWarehouse): 404 / 409 WAREHOUSE_INACTIVE / 403 ngoài phạm vi → ô Kho nhận", () => {
+    for (const [status, code] of [
+      [404, "WAREHOUSE_NOT_FOUND"],
+      [409, "WAREHOUSE_INACTIVE"],
+      [403, "OUT_OF_DATA_SCOPE"],
+    ] as const) {
+      const [first] = poCreateFieldErrors(new ApiError(status, code, "x"));
+      expect(first?.field).toBe("warehouseId");
+      expect(first?.message).toBeTruthy();
+    }
+  });
+
   it("lỗi không gắn field (IllegalArgumentException → 400 chung) → mảng rỗng, nơi gọi toast", () => {
     expect(poCreateFieldErrors(new ApiError(400, "VALIDATION_FAILED", "x"))).toEqual([]);
+  });
+});
+
+const catalogLine = (over: Record<string, unknown>) => ({ ...valid.lines[0], ...over });
+const withLine = (over: Record<string, unknown>, form: object = {}) => ({
+  ...valid,
+  ...form,
+  lines: [catalogLine(over)],
+});
+
+describe("điều khoản danh mục NCC trên dòng PO", () => {
+  it("orderQuantityIssues(3, {moq:10, packSize:5}) → cả hai lỗi; 15 → []; 12 → NOT_PACK_MULTIPLE", () => {
+    const t = { moq: 10, packSize: 5 };
+    expect(orderQuantityIssues(3, t)).toEqual(["BELOW_MOQ", "NOT_PACK_MULTIPLE"]);
+    expect(orderQuantityIssues(15, t)).toEqual([]);
+    expect(orderQuantityIssues(12, t)).toEqual(["NOT_PACK_MULTIPLE"]);
+  });
+
+  it("minimumOrderQuantity: bội số quy cách nhỏ nhất ≥ MOQ — không vướng orderQuantityIssues", () => {
+    expect(minimumOrderQuantity({ moq: 10, packSize: 5 })).toBe(10);
+    expect(minimumOrderQuantity({ moq: 12, packSize: 5 })).toBe(15);
+    expect(minimumOrderQuantity({ moq: 1, packSize: 24 })).toBe(24);
+    expect(
+      orderQuantityIssues(minimumOrderQuantity({ moq: 7, packSize: 3 }), { moq: 7, packSize: 3 }),
+    ).toEqual([]);
+  });
+
+  it("SL 3 với moq 10 → lỗi orderedQty có chữ 10 và 5", () => {
+    const terms = { moq: 10, packSize: 5, price: 900, currency: "VND", effectiveLeadTimeDays: 7 };
+    const r = poCreateFormSchema.safeParse(withLine({ orderedQty: "3", terms }));
+    const msg = r.success
+      ? ""
+      : r.error.issues.find((i) => i.path.join(".") === "lines.0.orderedQty")?.message;
+    expect(msg).toContain("10");
+    expect(msg).toContain("5");
+  });
+
+  it("giá trống, cùng tiền tệ, dòng mới → hợp lệ", () => {
+    expect(paths(withLine({ unitPrice: "" }))).toEqual([]);
+  });
+
+  it("giá trống, danh mục USD còn PO VND → lỗi unitPrice", () => {
+    const terms = { moq: 1, packSize: 1, price: 9, currency: "USD", effectiveLeadTimeDays: 7 };
+    expect(paths(withLine({ unitPrice: "", terms }))).toContain("lines.0.unitPrice");
+  });
+
+  it("giá trống ở dòng có lineId → lỗi unitPrice", () => {
+    expect(paths(withLine({ unitPrice: "", lineId: "line-1" }))).toContain("lines.0.unitPrice");
+  });
+
+  it("có skuId mà không có terms → lỗi skuId", () => {
+    expect(paths(withLine({ terms: null }))).toContain("lines.0.skuId");
+  });
+
+  it("tiền tệ: màn tạo chỉ VND/USD/CNY; màn sửa (cố định, BR-07) nhận đúng tiền tệ của PO", () => {
+    const eur = {
+      ...valid,
+      currency: "EUR",
+      lines: valid.lines.map((l) => ({ ...l, terms: null })),
+    };
+    const issuesOf = (r: { success: boolean; error?: { issues: { path: PropertyKey[] }[] } }) =>
+      r.success ? [] : (r.error?.issues ?? []).map((i) => i.path.join("."));
+    expect(issuesOf(poCreateFormSchema.safeParse(eur))).toContain("currency");
+    const edit = poFormSchema({ requireExpectedDate: true, currencyFixed: true });
+    expect(issuesOf(edit.safeParse({ ...eur, expectedDate: "2026-11-01" }))).not.toContain(
+      "currency",
+    );
+  });
+
+  it("maxLines (màn sửa nháp, BE @Size(max = 200)) → quá trần báo ở `lines`; màn tạo không giới hạn", () => {
+    const many = { ...valid, lines: Array.from({ length: 3 }, () => valid.lines[0]) };
+    const capped = poFormSchema({ requireExpectedDate: false, maxLines: 2 }).safeParse(many);
+    expect(capped.success ? [] : capped.error.issues.map((i) => i.path.join("."))).toContain(
+      "lines",
+    );
+    expect(paths(many)).not.toContain("lines");
+  });
+
+  it("savedLinesWithoutTerms (sửa nháp thiếu quyền danh mục) → dòng đã lưu không báo BR-01; dòng mới vẫn báo", () => {
+    const saved = {
+      ...valid.lines[0],
+      lineId: "33333333-3333-4333-8333-333333333333",
+      terms: null,
+    };
+    const fresh = { ...valid.lines[0], skuId: "SKU-NEW", terms: null };
+    const r = poFormSchema({ requireExpectedDate: false, savedLinesWithoutTerms: true }).safeParse({
+      ...valid,
+      lines: [saved, fresh],
+    });
+    const issues = r.success ? [] : r.error.issues.map((i) => i.path.join("."));
+    expect(issues).not.toContain("lines.0.skuId");
+    expect(issues).toContain("lines.1.skuId");
+    expect(paths({ ...valid, lines: [saved] })).toContain("lines.0.skuId");
+  });
+
+  it("requireExpectedDate: true + ngày trống → lỗi expectedDate", () => {
+    const r = poFormSchema({ requireExpectedDate: true }).safeParse(valid);
+    expect(r.success ? [] : r.error.issues.map((i) => i.path.join("."))).toContain("expectedDate");
+    expect(paths(valid)).not.toContain("expectedDate");
   });
 });

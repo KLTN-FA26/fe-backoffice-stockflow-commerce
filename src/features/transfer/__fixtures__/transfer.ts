@@ -38,6 +38,10 @@ export function apiTransfer(patch: Partial<TransferOrder> = {}): TransferOrder {
     cancelReason: null,
     createdAt: "2026-10-12T02:00:00Z",
     version: 3,
+    // BE PR #164: mặc định nguyên chuyến (FTL); chưa đóng gói, hàng chưa rời kho
+    deliveryMode: "FULL_TRUCKLOAD",
+    packedAt: null,
+    goodsLeftAt: null,
     ...patch,
   };
 }

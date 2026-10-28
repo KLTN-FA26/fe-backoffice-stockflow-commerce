@@ -6,14 +6,19 @@ import {
   BarChart3,
   CheckCircle,
   CircleDollarSign,
-  Eye,
   FileText,
   Wallet,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
-import { ADMIN_ROUTES, INVOICE_COLUMNS, INVOICE_STATUSES, STORAGE_KEYS } from "@/constants";
+import {
+  ADMIN_ROUTES,
+  INVOICE_COLUMNS,
+  INVOICE_STATUSES,
+  STORAGE_KEYS,
+  UI_LABELS,
+} from "@/constants";
 
 import { usePageConfig } from "@/hooks/use-page-config";
 import { useUrlFilters } from "@/hooks/use-url-filters";
@@ -30,13 +35,17 @@ import {
   codeCell,
   dateCell,
   moneyCell,
+  refCell,
   statusCell,
-  textCell,
+  viewColumn,
 } from "@/components/shared/column-helpers";
 import { DataTable, type ColumnDef } from "@/components/shared/DataTable";
 import { ListStatsPanel } from "@/components/shared/ListStatsPanel";
-import { ListToolbar, type ListSummaryItem } from "@/components/shared/ListToolbar";
-import { PageHeader } from "@/components/shared/PageHeader";
+import {
+  ListToolbar,
+  TOOLBAR_ACTION_CLASS,
+  type ListSummaryItem,
+} from "@/components/shared/ListToolbar";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
@@ -62,13 +71,13 @@ const STATUS_OPTIONS: { label: string; value: InvoiceStatus }[] = INVOICE_STATUS
 );
 
 const COLUMN_OPTIONS: { label: string; value: InvoiceColumnKey }[] = [
-  { label: "Invoice number", value: INVOICE_COLUMNS.INVOICE_NUMBER },
+  { label: "Số hoá đơn", value: INVOICE_COLUMNS.INVOICE_NUMBER },
   { label: "NCC", value: INVOICE_COLUMNS.SUPPLIER },
   { label: "PO tham chiếu", value: INVOICE_COLUMNS.PO_REFERENCE },
   { label: "Ngày hoá đơn", value: INVOICE_COLUMNS.INVOICE_DATE },
   { label: "Hạn thanh toán", value: INVOICE_COLUMNS.DUE_DATE },
   { label: "Tổng tiền", value: INVOICE_COLUMNS.GRAND_TOTAL },
-  { label: "InvoiceStatus", value: INVOICE_COLUMNS.STATUS },
+  { label: "Trạng thái", value: INVOICE_COLUMNS.STATUS },
   { label: "Hành động", value: INVOICE_COLUMNS.ACTIONS },
 ];
 
@@ -115,21 +124,16 @@ export function InvoiceList() {
 
   const columns = useMemo<ColumnDef<Invoice>[]>(
     () => [
-      codeCell(
-        INVOICE_COLUMNS.INVOICE_NUMBER,
-        "Invoice number",
-        (invoice) => invoice.invoiceNumber,
-        {
-          sortable: true,
-          compare: (a, b) => a.invoiceNumber.localeCompare(b.invoiceNumber),
-          onClick: (invoice) => router.push(ADMIN_ROUTES.invoices.detail(invoice.invoiceId)),
-        },
-      ),
-      textCell(INVOICE_COLUMNS.SUPPLIER, "NCC", (invoice) => invoice.supplierId, {
+      codeCell(INVOICE_COLUMNS.INVOICE_NUMBER, "Số hoá đơn", (invoice) => invoice.invoiceNumber, {
+        sortable: true,
+        compare: (a, b) => a.invoiceNumber.localeCompare(b.invoiceNumber),
+        onClick: (invoice) => router.push(ADMIN_ROUTES.invoices.detail(invoice.invoiceId)),
+      }),
+      refCell(INVOICE_COLUMNS.SUPPLIER, "NCC", (invoice) => invoice.supplierId, {
         sortable: true,
         compare: (a, b) => a.supplierId.localeCompare(b.supplierId),
       }),
-      textCell(INVOICE_COLUMNS.PO_REFERENCE, "PO tham chiếu", (invoice) => invoice.poId, {
+      refCell(INVOICE_COLUMNS.PO_REFERENCE, "PO tham chiếu", (invoice) => invoice.poId, {
         sortable: true,
         compare: (a, b) => a.poId.localeCompare(b.poId),
       }),
@@ -148,30 +152,17 @@ export function InvoiceList() {
         (amount) => formatMoney(amount, "VND"),
         { sortable: true, compare: (a, b) => a.grandTotal - b.grandTotal },
       ),
-      statusCell(INVOICE_COLUMNS.STATUS, "InvoiceStatus", (invoice) => invoice.status, "invoice", {
+      statusCell(INVOICE_COLUMNS.STATUS, "Trạng thái", (invoice) => invoice.status, "invoice", {
         sortable: true,
         compare: (a, b) => a.status.localeCompare(b.status),
         withIcon: true,
       }),
       {
+        ...viewColumn<Invoice>((invoice) => ({
+          label: "Xem chi tiết hoá đơn",
+          href: ADMIN_ROUTES.invoices.detail(invoice.invoiceId),
+        })),
         key: INVOICE_COLUMNS.ACTIONS,
-        header: "",
-        className: "w-[56px]",
-        cell: (invoice) => (
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            aria-label="Xem chi tiết hoá đơn"
-            onClick={(event) => {
-              event.stopPropagation();
-              router.push(ADMIN_ROUTES.invoices.detail(invoice.invoiceId));
-            }}
-            className="border-border-default bg-bg-surface text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary rounded-[var(--r-sm)]"
-          >
-            <Eye className="size-3.5" />
-          </Button>
-        ),
       },
     ],
     [router],
@@ -192,7 +183,7 @@ export function InvoiceList() {
       clearLabel: "Xoá search chính",
       label: "Search chính",
       onClear: hasGlobalSearch ? () => filters.setQ("") : undefined,
-      value: filters.q || "Chưa nhập",
+      value: filters.q || UI_LABELS.common.notEntered,
     },
     {
       active: hasStatusFilter,
@@ -260,29 +251,10 @@ export function InvoiceList() {
   if (invoicesQuery.isLoading) return <PageSkeleton variant="list" />;
 
   return (
-    <>
-      <PageHeader
-        title="Hoá đơn NCC"
-        subtitle="Đối chiếu hoá đơn nhà cung cấp với PO, Receipt và duyệt thanh toán."
-        actions={
-          <Button
-            type="button"
-            variant={config.showStats ? "secondary" : "outline"}
-            size="sm"
-            onClick={() =>
-              updateConfig((current) => ({ ...current, showStats: !current.showStats }))
-            }
-            className={cn(
-              "rounded-[var(--r-sm)]",
-              config.showStats &&
-                "border-brand bg-brand/10 text-brand hover:bg-brand/10 hover:text-brand border",
-            )}
-          >
-            <BarChart3 className="size-3.5" />
-            {config.showStats ? "Ẩn thống kê" : "Hiện thống kê"}
-          </Button>
-        }
-      />
+    // Giao diện kiểu Vercel như danh sách sản phẩm (globals.css `.surface-soft`): không tiêu đề hiển
+    // thị — breadcrumb là tên trang; nút thống kê nằm cuối toolbar.
+    <div className="surface-soft">
+      <h1 className="sr-only">Hoá đơn NCC</h1>
       <ListStatsPanel
         open={config.showStats}
         stats={[
@@ -351,8 +323,28 @@ export function InvoiceList() {
         summaryItems={summaryItems}
         onResetAll={resetAll}
         resetDisabled={resetDisabled}
+        actions={
+          <Button
+            type="button"
+            variant={config.showStats ? "secondary" : "outline"}
+            size="sm"
+            onClick={() =>
+              updateConfig((current) => ({ ...current, showStats: !current.showStats }))
+            }
+            className={cn(
+              "border-border-default bg-bg-surface text-ink-primary hover:bg-bg-muted",
+              TOOLBAR_ACTION_CLASS,
+              config.showStats &&
+                "border-brand bg-brand/10 text-brand hover:bg-brand/10 hover:text-brand border",
+            )}
+          >
+            <BarChart3 className="text-dot-info size-3.5" />
+            {config.showStats ? "Ẩn thống kê" : "Hiện thống kê"}
+          </Button>
+        }
       />
       <DataTable
+        stickyHeader
         data={filteredInvoices}
         columns={visibleColumns}
         rowKey={(invoice) => invoice.invoiceId}
@@ -364,6 +356,6 @@ export function InvoiceList() {
         onSelectionChange={setSelectedKeys}
         pageSize={15}
       />
-    </>
+    </div>
   );
 }

@@ -1,3 +1,5 @@
+import { Controller } from "react-hook-form";
+
 import {
   INVENTORY_LABELS,
   INVENTORY_LIMITS,
@@ -5,8 +7,11 @@ import {
   STOCK_ADJUSTMENT_REASONS,
 } from "@/constants/inventory";
 
+import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
 import type { UseFormReturn } from "react-hook-form";
@@ -17,9 +22,8 @@ export function AdjustmentFields({ form }: { form: UseFormReturn<CreateAdjustmen
     register,
     formState: { errors },
   } = form;
-  const reasonField = register("reason");
   return (
-    <div className="grid gap-[var(--card-pad)] md:grid-cols-2">
+    <div className="grid grid-cols-1 gap-[var(--card-pad)] md:grid-cols-2">
       {(
         [
           ["locationCode", INVENTORY_LABELS.location, INVENTORY_LIMITS.locationLength],
@@ -74,25 +78,36 @@ export function AdjustmentFields({ form }: { form: UseFormReturn<CreateAdjustmen
       </div>
       <div>
         <Label htmlFor="adjustment-reason">{INVENTORY_LABELS.adjustmentReason} *</Label>
-        <select
-          id="adjustment-reason"
-          {...reasonField}
-          onChange={async (event) => {
-            await reasonField.onChange(event);
-            await form.trigger(["reason", "note", "quantityDelta"]);
-          }}
-          defaultValue=""
-          aria-invalid={Boolean(errors.reason)}
-          aria-describedby="reason-error"
-          className="border-border-default bg-bg-surface focus-visible:ring-brand h-9 w-full rounded-[var(--r-sm)] border px-[var(--el-gap)] focus-visible:ring-2"
-        >
-          <option value="">{INVENTORY_LABELS.chooseReason}</option>
-          {STOCK_ADJUSTMENT_REASONS.map((reason) => (
-            <option key={reason} value={reason}>
-              {STOCK_ADJUSTMENT_REASON_LABELS[reason]}
-            </option>
-          ))}
-        </select>
+        <Controller
+          control={form.control}
+          name="reason"
+          render={({ field }) => (
+            <Select
+              value={field.value ?? ""}
+              onValueChange={async (value) => {
+                field.onChange(value);
+                await form.trigger(["reason", "note", "quantityDelta"]);
+              }}
+            >
+              <SelectTrigger
+                id="adjustment-reason"
+                onBlur={field.onBlur}
+                aria-invalid={Boolean(errors.reason)}
+                aria-describedby="reason-error"
+                className={FORM_SELECT_CLASS}
+              >
+                <SelectValue placeholder={INVENTORY_LABELS.chooseReason} />
+              </SelectTrigger>
+              <TitledSelectContent title={INVENTORY_LABELS.adjustmentReason}>
+                {STOCK_ADJUSTMENT_REASONS.map((reason) => (
+                  <SelectItem key={reason} value={reason}>
+                    {STOCK_ADJUSTMENT_REASON_LABELS[reason]}
+                  </SelectItem>
+                ))}
+              </TitledSelectContent>
+            </Select>
+          )}
+        />
         <p
           id="reason-error"
           role={errors.reason ? "alert" : undefined}

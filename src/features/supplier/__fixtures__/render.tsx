@@ -9,13 +9,27 @@ import { render } from "@testing-library/react";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { vi } from "vitest";
 
-import { SUPPLIER_PERMISSIONS } from "@/constants";
+import {
+  INVENTORY_ITEM_PERMISSIONS,
+  SUPPLIER_ITEM_PERMISSIONS,
+  SUPPLIER_PERMISSIONS,
+} from "@/constants";
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
 import type { PermissionCode } from "@/lib/auth";
 
+// jsdom không có ResizeObserver / scrollIntoView mà Radix Checkbox (ô "NCC ưu tiên") / Popover dùng.
+globalThis.ResizeObserver ??= class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};
+Element.prototype.scrollIntoView ??= () => {};
+
 const { viewPage, read, create, update } = SUPPLIER_PERMISSIONS;
+const ITEM = SUPPLIER_ITEM_PERMISSIONS;
+const ITEM_WRITE = [viewPage, read, create, update, ...Object.values(SUPPLIER_ITEM_PERMISSIONS)];
 
 export const PERMISSION_SETS = {
   none: [],
@@ -25,6 +39,18 @@ export const PERMISSION_SETS = {
   readOnly: [viewPage, read],
   editor: [viewPage, read, create, update],
   full: Object.values(SUPPLIER_PERMISSIONS),
+  // Seed BE V20260928006000: chỉ PROCUREMENT_STAFF có đủ 5 action `procurement-supplier-items`,
+  // kèm VIEW_PAGE / READ `inventory-inventory-items` (ô chọn SKU theo hồ sơ hàng tồn)
+  procurementStaff: [
+    ...ITEM_WRITE,
+    INVENTORY_ITEM_PERMISSIONS.viewPage,
+    INVENTORY_ITEM_PERMISSIONS.read,
+  ],
+  // Bị gỡ quyền đọc hồ sơ hàng tồn → ô SKU gõ tay
+  procurementNoInventory: ITEM_WRITE,
+  itemsReadOnly: [viewPage, read, ITEM.viewPage, ITEM.read],
+  // ACCOUNTANT: xem được NCC nhưng không có `procurement-supplier-items`
+  accountant: [viewPage, read],
 } satisfies Record<string, PermissionCode[]>;
 
 /** Handler theo path: trả data, hoặc throw (vd ApiError) để giả lập lỗi. */
@@ -64,11 +90,14 @@ export function renderSupplierScreen(ui: React.ReactElement, searchParams = "") 
     impersonatedRole: null,
   });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  const view = render(
     <QueryClientProvider client={client}>
-      <NuqsTestingAdapter searchParams={searchParams}>
+      {/* hasMemory: setUrl (đổi trang, tab) cập nhật state như trên trình duyệt */}
+      <NuqsTestingAdapter searchParams={searchParams} hasMemory>
         <Suspense fallback={<div>loading</div>}>{ui}</Suspense>
       </NuqsTestingAdapter>
     </QueryClientProvider>,
   );
+  // `client` để test kích refetch nền (vd refetch lỗi khi đã có data)
+  return { ...view, client };
 }

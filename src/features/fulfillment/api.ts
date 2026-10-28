@@ -3,8 +3,8 @@
  *
  * Base URL của env đã gồm `/api/v1` → path không ghi `v1`.
  * Parse tại biên (api-conventions §3.2): zod validate một lần ở đây, map status BE → nhãn docs.
- * BE chưa có: dòng lấy hàng / quét / shortfall (start, completion không có body) và lọc danh sách
- * (chỉ `page` + `size`; phạm vi do BE quyết theo vai trò người gọi).
+ * Danh sách lọc được theo trạng thái pick / kho / người được gán (SCRUM-466). Đóng gói (nhận đơn, kiện,
+ * quét, hoàn tất) ở `packing-api.ts`.
  */
 
 import { PACK_STATUS_BY_API, PAGE_SIZE, PICK_STATUS_BY_API } from "@/constants";
@@ -16,6 +16,7 @@ import {
   beFulfillmentTaskSchema,
 } from "./schemas";
 
+import type { PickApiStatus } from "@/constants";
 import type { ListQueryParams, PaginatedResponse } from "@/lib/api/query-factory";
 import type {
   ArtifactAccess,
@@ -55,18 +56,30 @@ export interface ListFulfillmentTaskParams extends ListQueryParams {
   page?: number;
   /** BE `Pages`: mặc định 20, tối đa 200; ngoài khoảng → 400 (không tự kẹp). */
   size?: number;
+  /** Một trạng thái pick (BE `parseStatus`); giá trị lạ → 400 `UNSUPPORTED_PARAMETER`. */
+  status?: PickApiStatus;
+  /** Kho ngoài phạm vi người gọi → 403 `OUT_OF_DATA_SCOPE` (SCRUM-466). */
+  warehouseId?: string;
+  assignedUserId?: string;
 }
 
 /**
- * BE trả theo vai trò: quản lý kho / điều phối thấy mọi task; QC chỉ thấy kiện đang giữ
- * (pack ON_HOLD); nhân viên kho chỉ thấy task gán cho mình. Mới nhất trước.
+ * Phạm vi theo mã quyền (BE `listTasks`): task-oversight:READ thấy mọi task; design-reverification:READ
+ * chỉ kiện đang giữ; còn lại chỉ task gán cho mình. Lọc chỉ thu hẹp trong phạm vi đó. Mới nhất trước.
  */
 export async function listFulfillmentTasks(
   params: ListFulfillmentTaskParams,
   signal?: AbortSignal,
 ): Promise<PaginatedResponse<FulfillmentTask>> {
   const { data } = await api.get<unknown>(TASKS_PATH, {
-    params: { page: Math.max(0, params.page ?? 0), size: params.size ?? PAGE_SIZE.md },
+    params: {
+      page: Math.max(0, params.page ?? 0),
+      size: params.size ?? PAGE_SIZE.md,
+      // Chỉ gửi tham số đang lọc — BE coi chuỗi rỗng là giá trị (400 / không khớp)
+      ...(params.status ? { status: params.status } : {}),
+      ...(params.warehouseId ? { warehouseId: params.warehouseId } : {}),
+      ...(params.assignedUserId ? { assignedUserId: params.assignedUserId } : {}),
+    },
     signal,
   });
   const page = beFulfillmentTaskPageSchema.parse(data);
@@ -108,13 +121,9 @@ export const completePicking = (taskId: string) =>
   postTask(`${taskPath(taskId)}/picking-completion`);
 
 /**
- * BE đối chiếu lại checksum mọi dòng có thiết kế. Lệch KHÔNG phải lỗi: vẫn HTTP 200 với pack
- * `On Hold` + evidence `matching: false` (flow X-CHK) — người gọi phải đọc `packStatus`.
+ * Kiểm tra lại kiện đang giữ (BE PR #136). Khớp → pack về `Packing` (KHÔNG phải `Packed`: người
+ * đóng gói hoàn tất lại). Còn lệch → vẫn 200, pack vẫn `On Hold`, ghi chú không được lưu.
  */
-export const completePacking = (taskId: string) =>
-  postTask(`${taskPath(taskId)}/packing-completion`);
-
-/** Kiểm tra lại kiện đang giữ. Còn lệch → vẫn 200, pack vẫn `On Hold`, ghi chú không được lưu. */
 export const reverifyDesignIntegrity = ({ taskId, resolutionNote }: ReverifyTaskInput) =>
   postTask(`${taskPath(taskId)}/design-integrity-reverification`, { resolutionNote });
 

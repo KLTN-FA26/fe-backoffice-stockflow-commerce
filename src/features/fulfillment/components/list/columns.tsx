@@ -4,13 +4,17 @@ import Link from "next/link";
 import { UserCog } from "lucide-react";
 
 import { ADMIN_ROUTES, FULFILLMENT_COLUMNS, UI_LABELS } from "@/constants";
-import { formatDateTime } from "@/lib/format/date";
 import { allowedFulfillmentActions } from "@/features/fulfillment/lifecycle";
 import { integrityOutcome, verificationCount } from "@/features/fulfillment/selectors";
-import { statusCell } from "@/components/shared/column-helpers";
-import { Button } from "@/components/ui/button";
+import {
+  CELL,
+  dateCell,
+  statusCell,
+  ToneDot,
+  ViewAction,
+} from "@/components/shared/column-helpers";
 
-import { MONO, assigneeLabel, orderLabel, taskCode } from "../primitives";
+import { assigneeLabel, orderLabel, taskCode } from "../primitives";
 import { COLUMN_LABELS } from "./constants";
 
 import type { FulfillmentActor } from "@/features/fulfillment/lifecycle";
@@ -18,48 +22,36 @@ import type { IntegrityOutcome } from "@/features/fulfillment/selectors";
 import type { FulfillmentTask } from "@/features/fulfillment/types";
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { FulfillmentScope } from "../primitives";
-import type { TaskReferences } from "../useFulfillmentActor";
 
 const C = FULFILLMENT_COLUMNS;
-const CELL = "text-[0.8125rem]";
 const INTEGRITY = UI_LABELS.fulfillment.integrity;
 
-const INTEGRITY_TEXT: Record<IntegrityOutcome, { label: string; className: string }> = {
-  unverified: { label: INTEGRITY.unverified, className: "text-ink-tertiary" },
-  match: { label: INTEGRITY.match, className: "text-positive" },
-  mismatch: { label: INTEGRITY.mismatch, className: "text-danger font-medium" },
+const INTEGRITY_TONE: Record<
+  IntegrityOutcome,
+  { label: string; tone: "neutral" | "positive" | "danger" }
+> = {
+  unverified: { label: INTEGRITY.unverified, tone: "neutral" },
+  match: { label: INTEGRITY.match, tone: "positive" },
+  mismatch: { label: INTEGRITY.mismatch, tone: "danger" },
 };
 
 function dateTimeCell(
   key: string,
   getValue: (row: FulfillmentTask) => string | null | undefined,
 ): ColumnDef<FulfillmentTask> {
-  return {
-    key,
-    header: COLUMN_LABELS[key] ?? key,
-    cell: (row) => {
-      const value = getValue(row);
-      return (
-        <span className={`text-ink-secondary tabular-nums ${CELL}`}>
-          {value ? formatDateTime(value) : "—"}
-        </span>
-      );
-    },
-  };
+  return dateCell(key, COLUMN_LABELS[key] ?? key, getValue, { withTime: true });
 }
 
 export interface TaskColumnContext {
   scope: FulfillmentScope;
   actor: FulfillmentActor;
-  refs: TaskReferences;
   onAssign: (task: FulfillmentTask) => void;
 }
 
-/** Cột bảng task — chỉ field có trong BE `FulfillmentTaskResponse`; số đơn / tên tra qua `refs`. */
+/** Cột bảng task — chỉ field có trong BE `FulfillmentTaskResponse` (số đơn, tên người gán đi kèm task). */
 export function buildTaskColumns({
   scope,
   actor,
-  refs,
   onAssign,
 }: TaskColumnContext): ColumnDef<FulfillmentTask>[] {
   return [
@@ -70,7 +62,7 @@ export function buildTaskColumns({
         <Link
           href={ADMIN_ROUTES[scope].detail(row.taskId)}
           title={row.taskId}
-          className={`text-accent font-medium hover:underline ${MONO} ${CELL}`}
+          className={`${CELL.code} hover:underline`}
           onClick={(event) => event.stopPropagation()}
         >
           {taskCode(row.taskId)}
@@ -81,8 +73,8 @@ export function buildTaskColumns({
       key: C.ORDER,
       header: COLUMN_LABELS[C.ORDER] ?? C.ORDER,
       cell: (row) => (
-        <span className={`text-ink-primary ${MONO} ${CELL}`} title={row.orderId}>
-          {orderLabel(row.orderId, refs.orderNumbers)}
+        <span className={CELL.ref} title={row.orderId}>
+          {orderLabel(row.orderId, row.orderNumber)}
         </span>
       ),
     },
@@ -90,8 +82,8 @@ export function buildTaskColumns({
       key: C.ASSIGNEE,
       header: COLUMN_LABELS[C.ASSIGNEE] ?? C.ASSIGNEE,
       cell: (row) => (
-        <span className={`text-ink-primary ${CELL}`} title={row.assignedUserId ?? undefined}>
-          {assigneeLabel(row.assignedUserId, refs.userNames, actor.userId)}
+        <span className={CELL.name} title={row.assignedUserId ?? undefined}>
+          {assigneeLabel(row.assignedUserId, row.assignedUserName, actor.userId)}
         </span>
       ),
     },
@@ -115,12 +107,12 @@ export function buildTaskColumns({
       key: C.INTEGRITY,
       header: COLUMN_LABELS[C.INTEGRITY] ?? C.INTEGRITY,
       cell: (row) => {
-        const { label, className } = INTEGRITY_TEXT[integrityOutcome(row)];
+        const { label, tone } = INTEGRITY_TONE[integrityOutcome(row)];
         const count = verificationCount(row);
         return (
-          <span className={`${className} ${CELL}`}>
-            {label}
-            {count > 0 && <span className="text-ink-tertiary tabular-nums"> · {count} lần</span>}
+          <span className="inline-flex items-center gap-1.5">
+            <ToneDot tone={tone} label={label} />
+            {count > 0 && <span className={`${CELL.sub} tabular-nums`}>· {count} lần</span>}
           </span>
         );
       },
@@ -128,23 +120,31 @@ export function buildTaskColumns({
     {
       key: C.ACTIONS,
       header: "",
+      // Nút xem luôn có (dòng cao chuẩn 43px); nút giao việc chỉ khi lifecycle cho phép
       cell: (row) => {
-        const canAssign = allowedFulfillmentActions(row, actor).some((a) => a.code === "assign");
-        if (scope !== "picking" || !canAssign) return null;
+        const canAssign =
+          scope === "picking" &&
+          allowedFulfillmentActions(row, actor).some((a) => a.code === "assign");
         return (
-          <Button
-            type="button"
-            variant="outline"
-            size="icon-sm"
-            onClick={(event) => {
-              event.stopPropagation();
-              onAssign(row);
-            }}
-            className="border-border-default bg-bg-surface text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary rounded-[var(--r-sm)]"
-            aria-label={`${UI_LABELS.fulfillment.action.assign} task ${taskCode(row.taskId)}`}
-          >
-            <UserCog className="size-3.5" />
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <ViewAction
+              label={`Xem task ${taskCode(row.taskId)}`}
+              href={ADMIN_ROUTES[scope].detail(row.taskId)}
+            />
+            {canAssign && (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onAssign(row);
+                }}
+                className={CELL.action}
+                aria-label={`${UI_LABELS.fulfillment.action.assign} task ${taskCode(row.taskId)}`}
+              >
+                <UserCog className="size-3.5" />
+              </button>
+            )}
+          </div>
         );
       },
     },

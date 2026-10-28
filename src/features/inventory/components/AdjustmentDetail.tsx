@@ -1,16 +1,12 @@
 "use client";
 
-import Link from "next/link";
-
-import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
+import { INVENTORY_LABELS } from "@/constants/inventory";
 import { INVENTORY_PERMISSIONS } from "@/constants/permissions";
 
 import { formatDateTime } from "@/lib/format/date";
 
-import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { StatusDot } from "@/components/shared/StatusDot";
-import { Button } from "@/components/ui/button";
 
 import { useAdjustment } from "../queries";
 import { adjustmentReasonLabel, formatSignedQuantity } from "../selectors";
@@ -21,7 +17,7 @@ import { InventoryPermissionGate } from "./InventoryPermissionGate";
 export function AdjustmentDetail({ id }: { id: string }) {
   return (
     <InventoryPermissionGate
-      permissions={[INVENTORY_PERMISSIONS.adjustmentViewPage, INVENTORY_PERMISSIONS.adjustmentRead]}
+      allOf={[INVENTORY_PERMISSIONS.adjustmentViewPage, INVENTORY_PERMISSIONS.adjustmentRead]}
     >
       <AdjustmentDetailContent id={id} />
     </InventoryPermissionGate>
@@ -36,6 +32,8 @@ function AdjustmentDetailContent({ id }: { id: string }) {
   if (!query.data) return null;
   const item = query.data;
   const evidence = [
+    // Trang chi tiết không có tiêu đề — mã phiếu nằm ở đầu khối thông tin
+    [INVENTORY_LABELS.adjustmentNumber, item.number],
     [INVENTORY_LABELS.sku, item.sku],
     [INVENTORY_LABELS.location, item.locationCode],
     [INVENTORY_LABELS.lot, item.lotNumber],
@@ -51,19 +49,16 @@ function AdjustmentDetailContent({ id }: { id: string }) {
     [INVENTORY_LABELS.rejectionReason, item.rejectionReason],
   ] as const;
   return (
-    <div className="space-y-[var(--card-pad)]" aria-busy={query.isFetching}>
-      <PageHeader
-        title={item.number}
-        subtitle={INVENTORY_LABELS.adjustmentDetail}
-        actions={
-          <Button className="rounded-[var(--r-sm)]" asChild variant="outline">
-            <Link href={INVENTORY_ROUTES.adjustments}>{INVENTORY_LABELS.back}</Link>
-          </Button>
-        }
-      />
+    // Giao diện kiểu Vercel như chi tiết sản phẩm (globals.css `.surface-soft`). Không hiện tiêu đề —
+    // breadcrumb topbar đã có link về danh sách; h1 giữ cho screen reader.
+    <div
+      className="surface-soft surface-compact space-y-[var(--card-pad)]"
+      aria-busy={query.isFetching}
+    >
+      <h1 className="sr-only">{item.number}</h1>
       <InventoryOffline />
       <StatusDot domain="stock" status={item.status} />
-      <dl className="border-border-default bg-bg-surface grid gap-[var(--card-pad)] rounded-[var(--r-sm)] border p-[var(--card-pad)] md:grid-cols-2">
+      <dl className="border-border-default bg-bg-surface grid grid-cols-1 gap-[var(--card-pad)] rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow) md:grid-cols-2">
         {evidence.map(([label, value]) => (
           <div key={label}>
             <dt className="text-ink-secondary text-sm">{label}</dt>

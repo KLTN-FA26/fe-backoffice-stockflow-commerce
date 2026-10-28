@@ -4,10 +4,13 @@ import { BarChart3, FileText, Plus, Wallet } from "lucide-react";
 import { cn } from "cn";
 
 import { UI_LABELS } from "@/constants";
-import { PageHeader } from "@/components/shared/PageHeader";
+import { TOOLBAR_ACTION_CLASS } from "@/components/shared/ListToolbar";
+import { PageTabs } from "@/components/shared/PageTabs";
 import { Button } from "@/components/ui/button";
 
 export const PO_LIST_TABS = ["orders", "spend"] as const;
+/** `idPrefix` chung của thanh tab và `PageTabPanel` ở `PurchaseOrderList`. */
+export const PO_LIST_TAB_ID_PREFIX = "po-list";
 export type PoTabKey = (typeof PO_LIST_TABS)[number];
 
 const TABS: { key: PoTabKey; label: string; icon: typeof FileText }[] = [
@@ -15,7 +18,8 @@ const TABS: { key: PoTabKey; label: string; icon: typeof FileText }[] = [
   { key: "spend", label: "Chi tiêu NCC", icon: Wallet },
 ];
 
-export function PoListHeader({
+/** Nút của trang danh sách PO — nằm cuối toolbar (`ListToolbar actions`), cỡ `TOOLBAR_ACTION_CLASS`. */
+export function PoListActions({
   showStats,
   showStatsToggle,
   onToggleStats,
@@ -28,41 +32,39 @@ export function PoListHeader({
   onCreate?: () => void;
 }) {
   return (
-    <PageHeader
-      title="Đơn đặt NCC"
-      subtitle="Theo dõi vòng đời PO, nhà cung cấp, giá trị và tiến độ nhận hàng."
-      actions={
-        <div className="flex items-center gap-2">
-          {showStatsToggle && (
-            <Button
-              type="button"
-              variant={showStats ? "secondary" : "outline"}
-              size="sm"
-              onClick={onToggleStats}
-              className={cn(
-                "rounded-[var(--r-sm)]",
-                showStats &&
-                  "border-brand bg-brand/10 text-brand hover:bg-brand/10 hover:text-brand border",
-              )}
-            >
-              <BarChart3 className="size-3.5" />
-              {showStats ? "Ẩn thống kê" : "Hiện thống kê"}
-            </Button>
+    <>
+      {showStatsToggle && (
+        <Button
+          type="button"
+          variant={showStats ? "secondary" : "outline"}
+          size="sm"
+          onClick={onToggleStats}
+          className={cn(
+            "border-border-default bg-bg-surface text-ink-primary hover:bg-bg-muted",
+            TOOLBAR_ACTION_CLASS,
+            showStats &&
+              "border-brand bg-brand/10 text-brand hover:bg-brand/10 hover:text-brand border",
           )}
-          {onCreate && (
-            <Button
-              type="button"
-              size="sm"
-              onClick={onCreate}
-              className="bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse rounded-[var(--r-sm)]"
-            >
-              <Plus className="size-3.5" />
-              {UI_LABELS.purchaseOrder.createAction}
-            </Button>
+        >
+          <BarChart3 className="text-dot-info size-3.5" />
+          {showStats ? "Ẩn thống kê" : "Hiện thống kê"}
+        </Button>
+      )}
+      {onCreate && (
+        <Button
+          type="button"
+          size="sm"
+          onClick={onCreate}
+          className={cn(
+            "bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse",
+            TOOLBAR_ACTION_CLASS,
           )}
-        </div>
-      }
-    />
+        >
+          <Plus className="size-3.5" />
+          {UI_LABELS.purchaseOrder.createAction}
+        </Button>
+      )}
+    </>
   );
 }
 
@@ -75,41 +77,19 @@ export function PoListTabs({
   orderCount: number;
   onChange: (tab: PoTabKey) => void;
 }) {
+  // Thanh tab dùng chung (kiểu Tabs shadcn) — đồng bộ với màn Thuộc tính, Thương hiệu & danh mục
   return (
-    <div role="tablist" className="border-border-default mb-4 flex gap-0 border-b">
-      {TABS.map((tab) => {
-        const isActive = active === tab.key;
-        const Icon = tab.icon;
-        return (
-          <Button
-            key={tab.key}
-            type="button"
-            role="tab"
-            aria-selected={isActive}
-            variant="ghost"
-            onClick={() => onChange(tab.key)}
-            className={cn(
-              "hover:bg-bg-muted/60 h-auto rounded-none border-b-2 bg-transparent px-4 py-2 text-[0.8125rem] font-medium transition-colors",
-              isActive
-                ? "border-brand text-brand hover:text-brand"
-                : "text-ink-tertiary hover:text-ink-primary border-transparent",
-            )}
-          >
-            <Icon className="size-3.5" />
-            {tab.label}
-            {tab.key === "orders" && (
-              <span
-                className={cn(
-                  "ml-1 rounded-full px-1.5 py-0.5 text-[0.625rem] font-semibold tabular-nums",
-                  isActive ? "bg-brand text-ink-inverse" : "bg-bg-muted text-ink-tertiary",
-                )}
-              >
-                {orderCount}
-              </span>
-            )}
-          </Button>
-        );
-      })}
-    </div>
+    <PageTabs
+      tabs={TABS.map((tab) => ({
+        value: tab.key,
+        label: tab.label,
+        icon: tab.icon,
+        count: tab.key === "orders" ? orderCount : undefined,
+      }))}
+      value={active}
+      onChange={onChange}
+      idPrefix={PO_LIST_TAB_ID_PREFIX}
+      ariaLabel="Đơn đặt NCC"
+    />
   );
 }
