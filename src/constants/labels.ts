@@ -8,6 +8,7 @@ import { LOAD_PLAN_TOAST_MESSAGES, LOAD_PLAN_UI_LABELS } from "./labels-load-pla
 import { PACKING_TOAST_MESSAGES, PACKING_UI_LABELS } from "./labels-packing";
 import { PRODUCT_UI_LABELS } from "./labels-product";
 import { SHIPPING_TOAST_MESSAGES, SHIPPING_UI_LABELS } from "./labels-shipping";
+import { SKU_PURCHASING_UI_LABELS } from "./labels-sku-purchasing";
 import { TAXONOMY_TOAST_MESSAGES, TAXONOMY_UI_LABELS } from "./labels-taxonomy";
 import { TRANSFER_TOAST_MESSAGES, TRANSFER_UI_LABELS } from "./labels-transfer";
 import { TRANSFER_PACK_TOAST_MESSAGES, TRANSFER_PACK_UI_LABELS } from "./labels-transfer-pack";
@@ -398,6 +399,7 @@ export const UI_LABELS = {
   loadPlan: LOAD_PLAN_UI_LABELS,
   taxonomy: TAXONOMY_UI_LABELS,
   inventoryItem: INVENTORY_ITEM_UI_LABELS,
+  skuPurchasing: SKU_PURCHASING_UI_LABELS,
   product: PRODUCT_UI_LABELS,
   packing: PACKING_UI_LABELS,
   fulfillment: {

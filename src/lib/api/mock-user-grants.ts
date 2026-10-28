@@ -6,6 +6,8 @@
 
 import {
   ATTRIBUTE_PERMISSIONS,
+  CUSTOMER_PERMISSIONS,
+  CUSTOMER_PRICE_PERMISSIONS,
   FULFILLMENT_CARRIER_PERMISSIONS,
   FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS,
   FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS,
@@ -144,6 +146,14 @@ const WAREHOUSE_READ = WAREHOUSE_PERMISSIONS.read;
 const ITEM = INVENTORY_ITEM_PERMISSIONS;
 const ITEM_READ = [ITEM.viewPage, ITEM.read];
 const ITEM_ALL = Object.values(ITEM);
+// Seed BE V20261017000510 (catalog-customer-prices): ECOMMERCE_ADMIN đủ quyền, SALES_STAFF VIEW_PAGE + READ,
+// ORDER_COORDINATOR chỉ READ (không VIEW_PAGE — khoảng trống của seed BE, giữ nguyên ở mock). Seed
+// V20260919001600: customer-customers cho ECOMMERCE_ADMIN / SALES_STAFF — FE chỉ dùng READ (ô chọn khách).
+// Chỉ cấp mã FE khai báo (DELETE của BE chưa dùng ở FE).
+const CP = CUSTOMER_PRICE_PERMISSIONS;
+const CUSTOMER_PRICE_ALL = Object.values(CP);
+const CUSTOMER_PRICE_READ = [CP.viewPage, CP.read];
+const CUSTOMER_LOOKUP = CUSTOMER_PERMISSIONS.read;
 const WH_WORK = [
   ...GR_WORK,
   ...FULFILLMENT_READ,
@@ -179,6 +189,8 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...Object.values(TO),
     ...SHIP,
     ...ITEM_ALL,
+    ...CUSTOMER_PRICE_ALL,
+    CUSTOMER_LOOKUP,
   ],
   "USER-PROC-01": [
     SUPPLIER_PERMISSIONS.viewPage,
@@ -241,6 +253,8 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...Object.values(PRODUCT_PERMISSIONS).filter((code) => code !== PRODUCT_PERMISSIONS.lifecycle),
     ...PRODUCT_STRUCTURE,
     ...Object.values(SUPPLIER_PERMISSIONS),
+    ...CUSTOMER_PRICE_ALL,
+    CUSTOMER_LOOKUP,
   ],
   "USER-SALE-01": [
     ORDER_PERMISSIONS.viewPage,
@@ -249,6 +263,8 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     // Seed BE: SALES_STAFF + SYSTEM_ADMIN (không phải ORDER_COORDINATOR) quyết đơn có giao một phần không
     ORDER_PERMISSIONS.partialShipment,
     WAREHOUSE_READ,
+    ...CUSTOMER_PRICE_READ,
+    CUSTOMER_LOOKUP,
   ],
   "USER-SALE-02": [
     ORDER_PERMISSIONS.viewPage,
@@ -257,6 +273,8 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     // Seed BE: SALES_STAFF + SYSTEM_ADMIN (không phải ORDER_COORDINATOR) quyết đơn có giao một phần không
     ORDER_PERMISSIONS.partialShipment,
     WAREHOUSE_READ,
+    ...CUSTOMER_PRICE_READ,
+    CUSTOMER_LOOKUP,
   ],
   "USER-SALE-03": [
     ORDER_PERMISSIONS.viewPage,
@@ -265,6 +283,8 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     // Seed BE: SALES_STAFF + SYSTEM_ADMIN (không phải ORDER_COORDINATOR) quyết đơn có giao một phần không
     ORDER_PERMISSIONS.partialShipment,
     WAREHOUSE_READ,
+    ...CUSTOMER_PRICE_READ,
+    CUSTOMER_LOOKUP,
   ],
   // Seed BE: SALES_STAFF có sales-order-cancellations:UPDATE (huỷ đơn, đóng phần còn lại) nhưng không có APPROVE
   // (giữ / gỡ giữ / ghi giao thất bại là của ORDER_COORDINATOR)
@@ -282,6 +302,8 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...TO_STAFF,
     ...SHIP,
     ...ITEM_READ,
+    // ORDER_COORDINATOR: chỉ READ — không VIEW_PAGE / customer-customers:READ nên không vào được màn bảng giá
+    CP.read,
   ],
 };
 

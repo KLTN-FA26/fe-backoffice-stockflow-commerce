@@ -1,7 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 
+import { SHARED_QUERY_ROOTS } from "@/constants";
 import { createMutation } from "@/lib/api/query-factory";
 import { withStaleRefetch } from "@/lib/api/stale-refetch";
+import { inventoryItemKeys } from "@/lib/references/inventory-item-keys";
 
 import { isStaleAttributeError } from "./attribute-errors";
 import { attributeKeys } from "./attribute-queries";
@@ -97,6 +99,12 @@ export function useMediaViewUrl(
 
 /** Mọi thay đổi biến thể / trục / ảnh đều ghi vào lịch sử thay đổi của sản phẩm. */
 const all = [variantKeys.all, PRODUCT_HISTORY_ROOT];
+/**
+ * Thêm / sửa biến thể có thể ĐỔI SKU của biến thể nháp (BE `ProductVariantService.update`, biến thể mặc
+ * định khi thêm): hồ sơ hàng tồn đi theo SKU mới và tăng `version` (BE `inventory.guard_item_sku_rename`),
+ * nên thông tin mua hàng (khoá theo biến thể, chứa SKU + version) và hồ sơ hàng tồn phải tải lại.
+ */
+const withSkuRename = [...all, [SHARED_QUERY_ROOTS.skuPurchasing], inventoryItemKeys.all];
 
 /**
  * Mutation biến thể / ảnh: thành công làm mới biến thể + lịch sử; lỗi dữ liệu cũ
@@ -105,15 +113,20 @@ const all = [variantKeys.all, PRODUCT_HISTORY_ROOT];
 const variantMutation = <TInput extends { productId: string }, TResult>(
   fn: (input: TInput) => Promise<TResult>,
   successMessage: string,
+  invalidate: readonly (readonly unknown[])[] = all,
 ) =>
   withStaleRefetch(
-    createMutation<TInput, TResult>(fn, { invalidate: all, showErrorToast: false, successMessage }),
+    createMutation<TInput, TResult>(fn, { invalidate, showErrorToast: false, successMessage }),
     (input: TInput) => [variantKeys.product(input.productId)],
     isStaleVariantError,
   );
 
-export const useAddVariant = variantMutation(addVariant, "Đã thêm biến thể");
-export const useUpdateVariant = variantMutation(updateVariant, "Đã cập nhật biến thể");
+export const useAddVariant = variantMutation(addVariant, "Đã thêm biến thể", withSkuRename);
+export const useUpdateVariant = variantMutation(
+  updateVariant,
+  "Đã cập nhật biến thể",
+  withSkuRename,
+);
 export const useTransitionVariant = variantMutation(
   transitionVariant,
   "Đã đổi trạng thái biến thể",

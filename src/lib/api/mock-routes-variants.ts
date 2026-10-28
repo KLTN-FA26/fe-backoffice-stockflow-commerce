@@ -12,6 +12,7 @@
 import { SKU_INPUT_PATTERN } from "@/lib/validation/sku";
 
 import { registerMockRoute } from "./mock-adapter";
+import { mockCustomerPriceUsesSku } from "./mock-customer-price-store";
 import {
   ensureAttributeStore,
   mockAxesOf,
@@ -437,6 +438,36 @@ function transition(target: VariantStatus) {
   };
 }
 
+/**
+ * Kho mock khác giữ dữ liệu theo SKU (BE: bảng trỏ tới hồ sơ hàng tồn / mã SKU). `inUse` = BE
+ * `inventory.item_in_use` có tham chiếu → không đổi SKU được; `rename` = dữ liệu nằm TRÊN hồ sơ hàng tồn
+ * nên đi theo SKU mới (ON UPDATE CASCADE). Kho nào import ngược file này (vòng) thì tự đăng ký theo `key`
+ * — đăng ký lại (module nạp lại / HMR) THAY bản cũ, không nhân đôi; kho không vòng thì gọi thẳng bên dưới.
+ */
+interface MockSkuReferences {
+  inUse?: (sku: string) => boolean;
+  rename?: (from: string, to: string) => void;
+}
+const skuReferences = new Map<string, MockSkuReferences>();
+
+export function registerMockSkuReferences(key: string, references: MockSkuReferences): void {
+  skuReferences.set(key, references);
+}
+
+/** Bảng giá riêng của khách (`catalog.customer_price`) đọc thẳng — không phụ thuộc thứ tự nạp module. */
+const mockSkuInUse = (sku: string) =>
+  mockCustomerPriceUsesSku(sku) || [...skuReferences.values()].some((r) => r.inUse?.(sku) ?? false);
+
+/**
+ * BE `inventory.guard_item_sku_rename` (V20261008000200): hồ sơ hàng tồn giữ nguyên id, SKU đi theo biến
+ * thể, `version` + 1; dữ liệu trên hồ sơ (thông tin mua hàng, NCC mặc định) đi theo SKU mới.
+ */
+function renameMockSku(variant: MockVariant, next: string): void {
+  const row = logistics.get(variant.variantId);
+  if (row) logistics.set(variant.variantId, { ...row, sku: next, version: row.version + 1 });
+  for (const references of skuReferences.values()) references.rename?.(variant.sku, next);
+}
+
 /** Thêm một biến thể mới (không phải tổ hợp đầu tiên của biến thể mặc định chưa gán). */
 function newVariant(
   all: MockVariant[],
@@ -551,7 +582,18 @@ export function registerVariantMockRoutes(): void {
       if (sku !== target.sku && all.some((v) => v.sku === sku)) {
         return fail(409, "VARIANT_SKU_ALREADY_EXISTS", `SKU ${sku} is taken`);
       }
-      if (str(body(config).sku) && sku !== target.sku) target.sku = sku;
+      if (str(body(config).sku) && sku !== target.sku) {
+        // BE `translate`: trigger đổi SKU từ chối SKU đã được dùng → 409 INVALID_VARIANT_TRANSITION
+        if (mockSkuInUse(target.sku)) {
+          return fail(
+            409,
+            "INVALID_VARIANT_TRANSITION",
+            "This SKU is referenced and can no longer be renamed",
+          );
+        }
+        renameMockSku(target, sku);
+        target.sku = sku;
+      }
       assignDefaultOptions(target, options, name);
       return ok(toResponse(target), 201);
     }
@@ -703,6 +745,15 @@ export function registerVariantMockRoutes(): void {
         "The SKU and options of a variant are fixed once it has left DRAFT",
       );
     }
+    // BE `requireSkuUnused`: SKU đã được dùng (vd có dòng danh mục NCC) thì không đổi được nữa
+    if (sku !== variant.sku && mockSkuInUse(variant.sku)) {
+      return fail(
+        409,
+        "INVALID_VARIANT_TRANSITION",
+        "This SKU is referenced and can no longer be renamed",
+      );
+    }
+    if (sku !== variant.sku) renameMockSku(variant, sku);
     const nextSignature =
       variant.options.length === 0 && options.length === 0 ? variant.attributeSignature : signature;
     const changed = [
@@ -867,6 +918,42 @@ export async function mockInventoryItemRows(): Promise<{ id: string; row: MockLo
 /** Ghi logistics của một biến thể — PUT `/inventory/items/{id}/logistics` (version là của hồ sơ). */
 export function saveMockLogistics(row: MockLogistics): void {
   logistics.set(row.skuId, row);
+}
+
+/** Biến thể `variantId` của sản phẩm `productId` (BE `variantSku(productId, variantId)`), không có → undefined. */
+export async function findMockVariant(
+  productId: string,
+  variantId: string,
+): Promise<MockVariant | undefined> {
+  return (await store()).find((v) => v.productId === productId && v.variantId === variantId);
+}
+
+/**
+ * BE `ProductSkuRetirement.retired`: SKU đã ngừng = biến thể OBSOLETE (ngừng riêng, hoặc cả sản phẩm ngừng kinh
+ * doanh) — hồ sơ hàng tồn của nó chỉ còn xem. Đọc thẳng trạng thái biến thể, không giữ bản sao ở kho khác.
+ */
+export async function mockSkuRetired(sku: string): Promise<boolean> {
+  return (await store()).some((v) => v.sku === sku && v.status === "OBSOLETE");
+}
+
+/** BE `ProductService.nameForSku(code).isPresent()`: SKU có trong danh mục biến thể (mã đã chuẩn hoá). */
+export async function mockSkuExists(sku: string): Promise<boolean> {
+  return (await store()).some((v) => v.sku === sku);
+}
+
+/** Hồ sơ hàng tồn của biến thể (giữ `version` dùng chung); null khi SKU chưa có hồ sơ. */
+export function mockItemRowOf(variantId: string): MockLogistics | null {
+  return logistics.get(variantId) ?? null;
+}
+
+/**
+ * BE `ItemPurchasingRepository.assign/clearDefaultSupplier`: đổi NCC mặc định từ danh mục NCC tăng
+ * `version` của hồ sơ hàng tồn mang SKU đó. Hồ sơ chưa nạp thì không có version nào để lệch.
+ */
+export function bumpMockItemVersionForSku(sku: string): void {
+  for (const row of logistics.values()) {
+    if (row.sku === sku) logistics.set(row.skuId, { ...row, version: row.version + 1 });
+  }
 }
 
 /** Biến thể của một sản phẩm (đã sắp theo vị trí). */

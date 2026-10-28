@@ -58,6 +58,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "DISPATCHED",
   ],
   info: [
+    // Khách hàng chưa kích hoạt tài khoản (BE CustomerStatus.PENDING_ACTIVATION)
+    "PENDING_ACTIVATION",
     "QUEUED",
     "SENT",
     "In Progress",
@@ -390,6 +392,14 @@ const STATUS_LABEL_VI_BY_DOMAIN: Partial<Record<StatusDomain, Record<string, str
   },
   stock: {
     [STOCK_ADJUSTMENT_STATUS.REJECTED]: "Từ chối",
+  },
+  // Khách hàng (BE CustomerStatus). Domain `customer` còn dùng cho trạng thái tài khoản người dùng
+  // (ACTIVE / LOCKED / DISABLED, `UserStatusBadge`) → không ghi đè ACTIVE; INACTIVE giữ tone mặc định
+  // vì chuỗi này còn dùng ở module khác
+  customer: {
+    PENDING_ACTIVATION: "Chờ kích hoạt",
+    INACTIVE: "Ngừng hoạt động",
+    BLOCKED: "Bị khoá",
   },
   // Đơn hàng (BE OrderStatus, PR #133): nhãn sát nghĩa nghiệp vụ hơn nhãn dùng chung với module khác
   order: {
