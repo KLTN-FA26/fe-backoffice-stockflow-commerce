@@ -79,6 +79,9 @@ const ALLOWED: Record<string, string> = {
     "mock `requireWarehouseAssignee` / `GET /fulfillment/assignees` (ai NHẬN việc phải là NV / quản lý kho đang hoạt động); quyền người gọi theo mã quyền",
   "src/lib/auth/server/mock-role-matrices.ts":
     "danh mục vai trò demo cho màn Phân quyền (dữ liệu mock của ma trận quyền)",
+  // Ngoại lệ duy nhất có hỏi vai trò của người đang đăng nhập (duyệt 2026-10-28, PR #27). Mọi chỗ khác vẫn cấm.
+  "src/lib/auth/back-office.ts":
+    "cổng back-office — phần UI tương ứng BE ScopeGuards (CurrentUser#isPortalCustomer): chỉ tách phạm vi dữ liệu tài khoản cửa hàng (CUSTOMER) khỏi phạm vi back-office; KHÔNG cấp quyền thao tác nghiệp vụ nào — quyền thao tác vẫn theo mã quyền (can()/OrderPermissionGate); gắn quyền theo vai trò ở nơi khác vẫn bị cấm",
   "src/features/permission-management/components/PermissionManagementPage.tsx":
     "`roles` là danh mục vai trò trên màn Phân quyền (chọn vai trò để sửa ma trận), không phải vai trò người dùng",
 };

@@ -83,6 +83,7 @@ export function UserListBody({
     <>
       <RefetchBar active={query.isFetching} label="Đang tải lại danh sách người dùng" />
       <DataTable
+        stickyHeader
         columns={columns}
         data={page.items}
         rowKey={(user) => user.userId}

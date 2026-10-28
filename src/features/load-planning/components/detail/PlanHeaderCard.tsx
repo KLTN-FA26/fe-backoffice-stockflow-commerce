@@ -68,7 +68,7 @@ export function PlanHeaderCard({
         </div>
         {actions}
       </div>
-      <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2 xl:grid-cols-4">
+      <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 xl:grid-cols-4">
         <Field label={L.warehouse}>{warehouseLabel}</Field>
         <Field label={L.mode}>{LOAD_PLAN_MODE_LABELS[plan.selectionMode]}</Field>
         {isTransferPlan(plan) ? (

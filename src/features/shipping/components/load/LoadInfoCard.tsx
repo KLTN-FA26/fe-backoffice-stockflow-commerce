@@ -16,16 +16,27 @@ const F = UI_LABELS.shipping.field;
 const dt = (iso: string | null | undefined) => (iso ? formatDateTime(iso) : "—");
 
 /** Thông tin chuyến: kho, hãng, xe, tài xế, mốc thời gian, kết quả ký; tiến độ quét kiện. */
-export function LoadInfoCard({ load }: { load: Load }) {
+export function LoadInfoCard({
+  load,
+  actions,
+}: {
+  load: Load;
+  /** Nút thao tác của chuyến (trang không còn tiêu đề) — cạnh trạng thái. */
+  actions?: React.ReactNode;
+}) {
   const { data: warehouses } = useWarehouseDirectory();
   const warehouse = warehouses?.find((w) => w.warehouseId === load.warehouseId);
   return (
-    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="text-ink-primary text-[0.9375rem] font-semibold">{L.info}</h2>
-        <StatusDot domain="shipment" status={load.status} size="md" withIcon />
+    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-3">
+          <h2 className="text-ink-primary text-[0.9375rem] font-semibold">{L.info}</h2>
+          <StatusDot domain="shipment" status={load.status} size="md" withIcon />
+        </div>
+        {actions}
       </div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <InfoItem label={L.code} value={load.code} mono />
         <InfoItem
           label={F.warehouse}
           value={warehouse ? `${warehouse.code} · ${warehouse.name}` : load.warehouseId}

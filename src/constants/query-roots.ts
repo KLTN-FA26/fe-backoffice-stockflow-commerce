@@ -32,4 +32,10 @@ export const SHARED_QUERY_ROOTS = {
   transferOrders: "transfer-orders",
   /** Kế hoạch xếp xe — đóng gói xong một lệnh chuyển kho làm lệnh đó thành ứng viên của kế hoạch (PR F9). */
   fulfillmentLoadPlans: "fulfillment-load-plans",
+  /**
+   * Thông tin mua hàng của SKU (`/products/{id}/variants/{variantId}/purchasing`) — `features/product` sở hữu.
+   * Lưu trên hồ sơ hàng tồn: logistics / chính sách tồn (`inventory-item`) và "NCC ưu tiên" của danh mục NCC
+   * (`supplier`) tăng cùng một `version` (BE `ItemPurchasingService`), nên hai feature đó invalidate qua root này.
+   */
+  skuPurchasing: "sku-purchasing",
 } as const;

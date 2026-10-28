@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { currencyFractionDigits, fitsCurrencyScale, formatCompact, formatMoney } from "./money";
+import {
+  currencyFractionDigits,
+  fitsCurrencyScale,
+  formatCompact,
+  formatDecimalMoney,
+  formatMoney,
+} from "./money";
 
 describe("formatMoney", () => {
   it("formats VND without decimals", () => {
@@ -47,5 +53,23 @@ describe("formatMoney theo số chữ số thập phân ISO", () => {
   it("JPY không có phần lẻ (giống VND), EUR giữ 2 chữ số", () => {
     expect(formatMoney(1234.5, "JPY")).not.toMatch(/[.,]50?/);
     expect(formatMoney(12.5, "EUR")).toMatch(/12,50/);
+  });
+});
+
+describe("formatDecimalMoney (chuỗi BigDecimal)", () => {
+  it("giữ chữ số lẻ có trong chuỗi, kể cả với VND, không làm tròn", () => {
+    expect(formatDecimalMoney("12500.5", "VND")).toMatch(/12\.500,5\s?₫/);
+    expect(formatDecimalMoney("100", "VND")).toMatch(/^100\s?₫$/);
+  });
+
+  it("không đi qua số thực: giá 18 chữ số có nghĩa hiện đúng từng chữ số", () => {
+    expect(formatDecimalMoney("9999999999999999.99", "VND")).toMatch(
+      /9\.999\.999\.999\.999\.999,99\s?₫/,
+    );
+  });
+
+  it("tiền tệ lạ → '<số> <MÃ>'; chuỗi không phải số giữ nguyên", () => {
+    expect(formatDecimalMoney("10.5", "ZZ")).toBe("10,5 ZZ");
+    expect(formatDecimalMoney("abc", "VND")).toBe("abc VND");
   });
 });

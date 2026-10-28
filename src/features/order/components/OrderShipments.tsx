@@ -68,7 +68,7 @@ export function OrderShipments({ order }: OrderShipmentsProps) {
                 status={ORDER_SHIPMENT_STATUS_DISPLAY[shipment.status]}
               />
             </div>
-            <dl className="text-ink-secondary mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+            <dl className="text-ink-secondary mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">
               {shipment.handedOverAt && (
                 <>
                   <dt>Bàn giao</dt>

@@ -71,14 +71,21 @@ function CreateForm() {
         </Alert>
       )}
       <div className="flex items-center justify-end gap-2">
-        <Button type="button" variant="outline" size="sm" asChild disabled={form.pending}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          asChild
+          disabled={form.pending}
+          className="h-(--action-h) rounded-(--action-radius) px-(--action-px)"
+        >
           <Link href={ADMIN_ROUTES.loadPlans.list}>{F.back}</Link>
         </Button>
         <Button
           type="submit"
           size="sm"
           disabled={form.pending}
-          className="bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse"
+          className="bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse h-(--action-h) rounded-(--action-radius) px-(--action-px)"
         >
           {form.pending ? F.submitting : F.submit}
         </Button>

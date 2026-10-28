@@ -1,10 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-
-import { ADMIN_ROUTES } from "@/constants";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { Card } from "@/components/shared/Card";
 import { StatusDot } from "@/components/shared/StatusDot";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -21,27 +16,15 @@ export function SupplierForm({ existingSupplier }: { existingSupplier?: Supplier
   const w = useSupplierWizard(existingSupplier);
 
   return (
-    <>
-      <PageHeader
-        title={w.isEdit ? `Chỉnh sửa NCC — ${existingSupplier?.name}` : "Tạo nhà cung cấp mới"}
-        subtitle={
-          w.isEdit
-            ? `${existingSupplier?.code} — hồ sơ nhà cung cấp`
-            : "Khai báo hồ sơ NCC, liên hệ, điều khoản và kênh gửi đơn đặt hàng."
-        }
-        actions={
-          <Link
-            href={ADMIN_ROUTES.suppliers.list}
-            className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary inline-flex items-center gap-1.5 rounded-[var(--r-sm)] border px-3 py-1.5 text-[0.8125rem] font-medium transition-colors"
-          >
-            <ArrowLeft className="size-3.5" /> Quay lại danh sách
-          </Link>
-        }
-      />
-
-      <div className="grid gap-4 xl:grid-cols-[260px_1fr]">
+    // Giao diện kiểu Vercel như wizard sản phẩm (globals.css `.surface-soft`). Không hiện tiêu đề —
+    // breadcrumb topbar đã có tên trang và link về danh sách; h1 giữ cho screen reader.
+    <div className="surface-soft surface-compact">
+      <h1 className="sr-only">
+        {w.isEdit ? `Chỉnh sửa NCC — ${existingSupplier?.name}` : "Tạo nhà cung cấp mới"}
+      </h1>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[260px_minmax(0,1fr)]">
         <Card className="h-fit p-0">
-          <div className="border-border-default border-b px-4 py-3">
+          <div className="border-b border-(--table-line) px-4 py-3">
             <div className="text-ink-tertiary text-xs font-semibold tracking-[0.08em] uppercase">
               Quy trình
             </div>
@@ -62,7 +45,7 @@ export function SupplierForm({ existingSupplier }: { existingSupplier?: Supplier
 
         <div className="min-w-0 space-y-4 pb-24">
           {w.showErrors && w.currentStepIssues.length > 0 && (
-            <div className="border-danger/30 bg-danger/5 text-danger rounded-[var(--r-sm)] border px-4 py-3 text-[0.8125rem]">
+            <div className="border-danger/30 bg-danger/5 text-danger rounded-(--section-radius) border px-4 py-3 text-[0.8125rem]">
               <div className="font-semibold">Cần xử lý trước khi lưu</div>
               <ul className="mt-1 list-disc space-y-0.5 pl-4">
                 {w.currentStepIssues.map((issue) => (
@@ -100,6 +83,6 @@ export function SupplierForm({ existingSupplier }: { existingSupplier?: Supplier
           onConfirm={w.handleConfirmCreate}
         />
       )}
-    </>
+    </div>
   );
 }

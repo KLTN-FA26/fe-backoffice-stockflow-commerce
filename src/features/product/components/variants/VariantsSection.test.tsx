@@ -121,6 +121,10 @@ function mockBe(permissions: readonly PermissionCode[], variants = [variant()]) 
     if (url === "/inventory/items/item-1") return { data: item };
     if (url === `/products/${PRODUCT}/skus/CUP-12OZ/base-price`) return { data: skuPrice };
     if (url === `/products/${PRODUCT}/variants/v-1/media`) return { data: [] };
+    // Mục "Thông tin mua hàng" của panel (product-products:READ): SKU chưa khai báo — BE bỏ field null
+    if (url === `/products/${PRODUCT}/variants/v-1/purchasing`) {
+      return { data: { variantId: "v-1", sku: "CUP-12OZ", version: 2 } };
+    }
     throw new Error(`Không có mock cho GET ${url}`);
   });
   const post = vi.spyOn(api, "post").mockImplementation(async (url: string) => {

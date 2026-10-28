@@ -590,12 +590,20 @@ export function isDeliveryModeLocked(status: BeOrderStatus, state: MockOrderStat
 }
 
 /**
+ * Đếm số lần mock huỷ đơn (tăng dần, không reset) — mock xuất kho chỉ đồng bộ task khi số này đổi.
+ * Đếm ở `moveTo` vì mọi đường huỷ (huỷ admin, từ chối công nợ, `setMockOrderStatus`) đều đi qua đây.
+ */
+let cancellations = 0;
+export const mockOrderCancellations = () => cancellations;
+
+/**
  * Đổi trạng thái như BE `Order#transitionTo`: ghi một bước lịch sử, đóng gói xong thì ghi `packedAt`
  * (một lần), rời ON_HOLD thì xoá dữ liệu giữ, rời DELIVERY_FAILED thì xoá lý do giao thất bại.
  * Không kiểm bảng chuyển — route kiểm trước, như service BE.
  */
 function moveTo(state: MockOrderState, to: BeOrderStatus, reason: string | null): void {
   const at = new Date().toISOString();
+  if (to === "CANCELLED" && state.status !== "CANCELLED") cancellations += 1;
   state.status = to;
   state.history.push({ to, reason, occurredAt: at });
   if (to === "PACKED") state.packedAt ??= at;
@@ -644,6 +652,29 @@ export async function putMockOrderOnDesignHold(orderId: string): Promise<void> {
  */
 export function resolveMockDesignHold(orderId: string): void {
   setMockOrderStatus(orderId, stateById(orderId).statusBeforeHold ?? "PICKING");
+}
+
+/**
+ * Mock báo thiếu hàng giữ đơn (BE `HoldReason.INVENTORY`, X-SHORT bước 02). Đơn đã ON_HOLD (dòng thiếu thứ
+ * hai, hoặc đang giữ vì lý do khác) giữ nguyên — không chồng giữ lên giữ (BE `holdForInventory`).
+ */
+export async function putMockOrderOnInventoryHold(orderId: string): Promise<void> {
+  const order = await findOrder(orderId);
+  if (!order) return;
+  const state = stateOf(order);
+  const before = backendStatus(order);
+  if (before === "ON_HOLD") return;
+  moveTo(state, "ON_HOLD", "INVENTORY");
+  state.holdReason = "INVENTORY";
+  state.statusBeforeHold = before;
+  state.holdNote = undefined;
+}
+
+/** Hết dòng thiếu sau khi phân bổ lại: gỡ giữ INVENTORY, đơn về bước đang làm (BE `resumeAfterInventory`). */
+export function resolveMockInventoryHold(orderId: string): void {
+  const state = stateById(orderId);
+  if (state.status !== "ON_HOLD" || state.holdReason !== "INVENTORY") return;
+  setMockOrderStatus(orderId, state.statusBeforeHold ?? "PICKING");
 }
 
 /** Đã đặt cách thu phần còn lại (`setMockOrderBalancePolicy`) thì đơn là đơn CỌC (develop, BE PR #150). */

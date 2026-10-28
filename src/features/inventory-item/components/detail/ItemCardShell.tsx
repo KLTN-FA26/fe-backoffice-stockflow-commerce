@@ -23,7 +23,7 @@ export function ItemCardShell({
     <Card>
       <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="text-ink-primary flex items-center gap-2 text-[0.9375rem] font-semibold">
-          <Icon className="text-accent size-4" aria-hidden="true" /> {title}
+          <Icon className="text-accent size-3.5" aria-hidden="true" /> {title}
         </h2>
         {action}
       </div>
@@ -46,7 +46,7 @@ export function DefinitionItem({
   mono?: boolean;
 }) {
   return (
-    <div className="border-border-default flex items-baseline justify-between gap-4 border-b py-2 last:border-b-0">
+    <div className="flex items-baseline justify-between gap-4 border-b border-(--table-line) py-2 last:border-b-0">
       <dt className="text-ink-tertiary text-xs font-medium">{label}</dt>
       <dd
         className={cn(

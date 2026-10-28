@@ -102,11 +102,35 @@ describe("admin layout — cổng back-office chung (BE ScopeGuards#requireBackO
     expect(replace).not.toHaveBeenCalled();
   });
 
-  it("CUSTOMER + vai trò tự tạo (BE không tính vào requireBackOffice) → vẫn bị chặn", async () => {
+  it("CUSTOMER + vai trò tự tạo (tài khoản BE hợp lệ không có — ROLE_NOT_ASSIGNABLE) → chặn để phòng thủ", async () => {
     signIn();
-    grant(["CUSTOMER", "VIP_CUSTOMER_CARE"], [ORDER_PERMISSIONS.read]);
+    grant(
+      ["CUSTOMER", "CUSTOM_SUPPORT_CUSTOM"],
+      [ORDER_PERMISSIONS.viewPage, ORDER_PERMISSIONS.read],
+    );
     renderAdmin();
     expect(await screen.findByText(DENIED)).toBeInTheDocument();
+    expect(screen.queryByText("Admin shell")).not.toBeInTheDocument();
+  });
+
+  it("không vai trò nào (kể cả có đủ quyền, vd BE tắt security) → chặn (fail closed)", async () => {
+    signIn();
+    grant(
+      [],
+      [ORDER_PERMISSIONS.viewPage, ORDER_PERMISSIONS.read, CREDIT_HOLD_PERMISSIONS.viewPage],
+    );
+    renderAdmin();
+    expect(await screen.findByText(DENIED)).toBeInTheDocument();
+    expect(screen.queryByText("Admin shell")).not.toBeInTheDocument();
+  });
+
+  it("tải quyền bị 403 → coi như không phải back-office: báo từ chối + Đăng xuất, không hiện shell", async () => {
+    signIn();
+    vi.spyOn(api, "get").mockRejectedValue(new ApiError(403, "FORBIDDEN", "denied"));
+    renderAdmin();
+    expect(await screen.findByText(DENIED)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Đăng xuất" })).toBeInTheDocument();
+    expect(screen.queryByText("Admin shell")).not.toBeInTheDocument();
   });
 
   it("bị chặn → nút Đăng xuất gọi logout rồi về /login", async () => {
@@ -184,6 +208,32 @@ describe("admin layout — sau cổng chung, cổng quyền từng trang vẫn q
   it("F. ACCOUNTANT qua cổng chung nhưng trang Đơn hàng (sales-orders:VIEW_PAGE) vẫn từ chối", async () => {
     signIn();
     grant(["ACCOUNTANT"], ACCOUNTANT);
+    renderAdmin(
+      <OrderPermissionGate permissions={[ORDER_PERMISSIONS.viewPage]} variant="list">
+        <div>Danh sách đơn</div>
+      </OrderPermissionGate>,
+    );
+    expect(await screen.findByText("Bạn không có quyền")).toBeInTheDocument();
+    expect(screen.getByText("Admin shell")).toBeInTheDocument();
+    expect(screen.queryByText("Danh sách đơn")).not.toBeInTheDocument();
+    expect(screen.queryByText(DENIED)).not.toBeInTheDocument();
+  });
+
+  it("nhân viên chỉ có vai trò tự tạo + sales-orders:VIEW_PAGE → qua cổng chung, vào được trang Đơn hàng", async () => {
+    signIn();
+    grant(["CUSTOM_SUPPORT_CUSTOM"], [ORDER_PERMISSIONS.viewPage, ORDER_PERMISSIONS.read]);
+    renderAdmin(
+      <OrderPermissionGate permissions={[ORDER_PERMISSIONS.viewPage]} variant="list">
+        <div>Danh sách đơn</div>
+      </OrderPermissionGate>,
+    );
+    expect(await screen.findByText("Danh sách đơn")).toBeInTheDocument();
+    expect(screen.getByText("Admin shell")).toBeInTheDocument();
+  });
+
+  it("vai trò tự tạo KHÔNG có quyền trang → cổng chung cho qua, cổng trang (OrderPermissionGate) từ chối", async () => {
+    signIn();
+    grant(["CUSTOM_SUPPORT_CUSTOM"], [CUSTOMER_CREDIT_PROFILE_PERMISSIONS.read]);
     renderAdmin(
       <OrderPermissionGate permissions={[ORDER_PERMISSIONS.viewPage]} variant="list">
         <div>Danh sách đơn</div>

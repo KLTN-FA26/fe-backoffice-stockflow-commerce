@@ -3,11 +3,12 @@
 import { useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 
-import { ATTRIBUTE_PERMISSIONS } from "@/constants";
+import { ATTRIBUTE_PERMISSIONS, UI_LABELS } from "@/constants";
 import { usePermissionChecker } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Select, SelectItem, SelectValue } from "@/components/ui/select";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
+import { TreeSelect } from "@/components/shared/TreeSelect";
 import { Checkbox } from "@/components/ui/checkbox";
 
 import { attributeErrorMessage } from "../attribute-errors";
@@ -20,7 +21,8 @@ import {
 } from "../attribute-queries";
 import { ATTRIBUTE_ROLES, canBeVariantAxis } from "../attribute-schemas";
 import { useCategories } from "../queries";
-import { ProductSelectTrigger } from "./form-controls";
+import { PRODUCT_SELECT_CLASS, ProductSelectTrigger } from "./form-controls";
+import { categoryTreeNodes } from "./ProductMasterSelects";
 
 import type { Attribute, AttributeRole, CategoryAttribute } from "../attribute-schemas";
 
@@ -51,19 +53,19 @@ export function CategoryAttributesEditor() {
         <label htmlFor="category-attr-select" className="text-ink-secondary text-xs font-medium">
           Danh mục
         </label>
-        <Select value={categoryId} onValueChange={setCategoryId}>
-          <ProductSelectTrigger id="category-attr-select">
-            <SelectValue placeholder={categories.isLoading ? "Đang tải…" : "Chọn danh mục"} />
-          </ProductSelectTrigger>
-          <TitledSelectContent title={"Danh mục"}>
-            {items.map((category) => (
-              <SelectItem key={category.categoryId} value={category.categoryId}>
-                {"— ".repeat(category.level - 1)}
-                {category.name.vi}
-              </SelectItem>
-            ))}
-          </TitledSelectContent>
-        </Select>
+        <TreeSelect
+          id="category-attr-select"
+          nodes={categoryTreeNodes(items)}
+          value={categoryId}
+          onChange={setCategoryId}
+          disabled={categories.isLoading}
+          placeholder={
+            categories.isLoading ? "Đang tải…" : UI_LABELS.taxonomy.categoryPickerPlaceholder
+          }
+          searchPlaceholder={UI_LABELS.taxonomy.categoryPickerSearch}
+          emptyText={UI_LABELS.taxonomy.categoryPickerEmpty}
+          className={PRODUCT_SELECT_CLASS}
+        />
       </div>
       {categoryId === "" ? (
         <p className="text-ink-tertiary text-[0.8125rem]">
@@ -122,7 +124,7 @@ function Editor({ categoryId, saved }: { categoryId: string; saved: CategoryAttr
         return (
           <div
             key={row.attributeId}
-            className="border-border-default flex flex-wrap items-center gap-3 rounded-[var(--r-sm)] border p-3"
+            className="border-border-default bg-bg-surface flex flex-wrap items-center gap-3 rounded-[var(--card-radius)] border p-3 shadow-(--card-shadow)"
           >
             <span className="text-ink-primary min-w-[10rem] flex-1 text-[0.8125rem] font-medium">
               {attribute?.name ?? row.attributeId}

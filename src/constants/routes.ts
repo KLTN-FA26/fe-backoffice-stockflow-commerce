@@ -18,6 +18,10 @@ export const ADMIN_ROUTES = {
     list: `${ADMIN_BASE}/inventory-items`,
     detail: (id: string) => `${ADMIN_BASE}/inventory-items/${id}`,
   },
+  /** Bảng giá riêng của khách hàng — BE `CustomerPriceController` (`?customerId=` giữ khách đang chọn). */
+  customerPrices: {
+    list: `${ADMIN_BASE}/customer-prices`,
+  },
   products: {
     create: `${ADMIN_BASE}/products/create`,
     detail: (id: string) => `${ADMIN_BASE}/products/${id}`,
@@ -50,6 +54,12 @@ export const ADMIN_ROUTES = {
   picking: {
     detail: (id: string) => `${ADMIN_BASE}/picking/${id}`,
     list: `${ADMIN_BASE}/picking`,
+  },
+  /** Hàng đợi trả hàng về kệ (BE `GET /fulfillment/put-backs`, SCRUM-275) — lọc kho trên URL. */
+  putBacks: {
+    list: `${ADMIN_BASE}/put-backs`,
+    listInWarehouse: (warehouseId: string) =>
+      `${ADMIN_BASE}/put-backs?warehouse=${encodeURIComponent(warehouseId)}`,
   },
   receipts: {
     create: `${ADMIN_BASE}/receipts/create`,

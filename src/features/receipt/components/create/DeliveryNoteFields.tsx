@@ -25,7 +25,7 @@ export function DeliveryNoteFields({
       title="Phiếu giao của nhà cung cấp"
       description="Khuyến nghị nhập để đối chiếu với xe hàng (docs 03 bước 2)."
     >
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <div>
           <Label htmlFor="receipt-delivery-note" className="text-[0.8125rem]">
             Số phiếu giao

@@ -115,7 +115,7 @@ export function PlacementEditor({
         flaggedSeqs={flaggedSeqs}
         onSelect={editor.selectVehicle}
       />
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
         <EditorMain editor={editor} colorMap={colorMap} tones={tones} rulesOf={rulesOf} />
         <EditorSidebar
           editor={editor}

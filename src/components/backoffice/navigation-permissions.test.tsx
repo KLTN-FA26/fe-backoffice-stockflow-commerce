@@ -7,6 +7,9 @@ import { INVENTORY_LABELS } from "@/constants/inventory";
 import {
   ATTRIBUTE_PERMISSIONS,
   CREDIT_HOLD_PERMISSIONS,
+  FULFILLMENT_PICKING_PERMISSIONS,
+  FULFILLMENT_PICK_PERMISSIONS,
+  FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS,
   IDENTITY_PERMISSIONS,
   INVENTORY_ITEM_PERMISSIONS,
   INVENTORY_OVERVIEW_PERMISSIONS,
@@ -134,6 +137,34 @@ describe("declared navigation permissions", () => {
       "/admin/taxonomy",
     );
     expect(screen.queryByRole("link", { name: "Từ điển thuộc tính" })).not.toBeInTheDocument();
+  });
+  it.each([
+    [
+      "fulfillment-picking:READ (NV kho / quản lý kho)",
+      [FULFILLMENT_PICKING_PERMISSIONS.read],
+      true,
+    ],
+    [
+      "điều phối (pick-lists + task-assignment, không có fulfillment-picking)",
+      [
+        ...Object.values(FULFILLMENT_PICK_PERMISSIONS),
+        FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS.update,
+      ],
+      false,
+    ],
+  ] as const)("menu Trả hàng về kệ với %s → hiện: %s", async (_, permissions, visible) => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: {
+        roles: [],
+        permissions: [...permissions, IDENTITY_PERMISSIONS.rbacRead],
+        dataScope: "ALL",
+      },
+    });
+    mount();
+    expect(await screen.findByRole("link", { name: "Phân quyền" })).toBeInTheDocument();
+    const link = screen.queryByRole("link", { name: "Trả hàng về kệ" });
+    expect(link !== null).toBe(visible);
+    if (link) expect(link).toHaveAttribute("href", "/admin/put-backs");
   });
   it("hồ sơ hàng tồn theo inventory-inventory-items:VIEW_PAGE (BE PR #119)", async () => {
     vi.spyOn(api, "get").mockResolvedValue({

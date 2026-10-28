@@ -1,13 +1,12 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { cn } from "cn";
 
 import { UI_LABELS } from "@/constants";
+import { useAppStore } from "@/lib/store/use-app-store";
 import { formatMoney } from "@/features/purchase-order";
 import { Alert } from "@/components/shared/Alert";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
 
@@ -26,15 +25,16 @@ const L = UI_LABELS.purchaseOrder;
 
 export type PoWizardLayoutProps = {
   w: PoWizard;
+  /** Tên màn — chỉ cho screen reader (`h1` sr-only); breadcrumb là tiêu đề hiển thị. */
   title: string;
-  subtitle: string;
-  back: { href: string; label: string };
-  /** Màn sửa nháp: số PO, tên NCC (chỉ đọc), `notice` = cảnh báo dưới PageHeader. */
+  /** Màn sửa nháp: số PO, tên NCC (chỉ đọc), `notice` = cảnh báo trên nội dung bước. */
   draft?: { poNumber: string; supplierLabel: string; notice?: React.ReactNode };
 };
 
 /** Bố cục wizard PO (tạo + sửa nháp), như wizard NCC: stepper, nội dung bước, thanh dưới, xác nhận. */
-export function PoWizardLayout({ w, title, subtitle, back, draft }: PoWizardLayoutProps) {
+export function PoWizardLayout({ w, title, draft }: PoWizardLayoutProps) {
+  // Bước Dòng hàng bật chế độ mở rộng: ẩn stepper để bảng chiếm hết chiều ngang
+  const expanded = useAppStore((s) => s.focusMode);
   if (w.suppliersQuery.isPending) return <PageSkeleton variant="form" />;
   const isEdit = w.mode === "edit";
   const submitLabel = isEdit ? L.editAction : L.createAction;
@@ -46,28 +46,22 @@ export function PoWizardLayout({ w, title, subtitle, back, draft }: PoWizardLayo
     : (draft?.supplierLabel ?? "—");
 
   return (
-    <>
-      <PageHeader
-        title={title}
-        subtitle={subtitle}
-        actions={
-          <Link
-            href={back.href}
-            className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary inline-flex items-center gap-1.5 rounded-[var(--r-sm)] border px-3 py-1.5 text-[0.8125rem] font-medium transition-colors"
-          >
-            <ArrowLeft className="size-3.5" />
-            {back.label}
-          </Link>
-        }
-      />
-      <div className="grid gap-4 xl:grid-cols-[260px_1fr]">
-        <CreateStepper
-          stepStatus={w.stepStatus}
-          canGoTo={w.canGoTo}
-          lineCount={w.values.lines.length}
-          onStepChange={w.goToStep}
-          reviewLabel={submitLabel}
-        />
+    // Giao diện kiểu Vercel như wizard sản phẩm (globals.css `.surface-soft`). Không hiện tiêu đề —
+    // breadcrumb topbar đã có tên trang và link quay lại; h1 giữ cho screen reader.
+    <div className="surface-soft surface-compact">
+      <h1 className="sr-only">{title}</h1>
+      <div
+        className={cn("grid grid-cols-1 gap-4", !expanded && "xl:grid-cols-[260px_minmax(0,1fr)]")}
+      >
+        {!expanded && (
+          <CreateStepper
+            stepStatus={w.stepStatus}
+            canGoTo={w.canGoTo}
+            lineCount={w.values.lines.length}
+            onStepChange={w.goToStep}
+            reviewLabel={submitLabel}
+          />
+        )}
         <div className="min-w-0 space-y-4 pb-24">
           {/* Màn sửa: NCC cố định (BR-07) — danh sách NCC chỉ để hiển thị điều khoản, không cần báo */}
           {!isEdit && w.suppliersQuery.isError && (
@@ -143,6 +137,6 @@ export function PoWizardLayout({ w, title, subtitle, back, draft }: PoWizardLayo
       />
       {/* Màn sửa không có đường đổi NCC (BR-07) nên dialog không bao giờ mở ở đó. */}
       {!isEdit && <SupplierChangeDialog w={w} />}
-    </>
+    </div>
   );
 }

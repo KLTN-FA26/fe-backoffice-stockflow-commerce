@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
@@ -7,6 +8,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import { REPORTING_API, REPORTING_LABELS } from "@/constants/reporting";
 import { REPORTING_PERMISSIONS } from "@/constants/permissions";
+import { pickDate } from "@/test/date-picker";
 
 import {
   dashboardEndpoint,
@@ -141,9 +143,10 @@ describe("sales section — permission gating (UI-only; BE re-checks)", () => {
 describe("sales section — data", () => {
   it("renders summary cards (hiding absent %), top SKUs with name fallback and charts", async () => {
     renderSection([READ], "?salesFrom=2026-10-01&salesTo=2026-10-07");
-    expect(await screen.findByText("+25,0% " + L.changeVsPrevious)).toBeInTheDocument();
+    // % ngắn hiện cạnh nhãn; "so với kỳ trước" là tooltip (title)
+    expect(await screen.findByText("+25,0%")).toHaveAttribute("title", L.changeVsPrevious);
     // only revenue carried a change percent
-    expect(screen.getAllByText(new RegExp(L.changeVsPrevious))).toHaveLength(1);
+    expect(screen.getAllByTitle(L.changeVsPrevious)).toHaveLength(1);
     expect(screen.getByText("Áo thun")).toBeInTheDocument();
     // SKU-B has no name: the SKU is shown in both columns
     expect(screen.getAllByText("SKU-B")).toHaveLength(2);
@@ -162,12 +165,13 @@ describe("sales section — data", () => {
   });
 
   it("an invalid custom range is not applied", async () => {
+    const user = userEvent.setup();
     renderSection([READ]);
-    fireEvent.change(await screen.findByLabelText(L.from), { target: { value: "2026-10-10" } });
-    fireEvent.change(screen.getByLabelText(L.to), { target: { value: "2026-10-01" } });
+    await pickDate(user, await screen.findByLabelText(L.from), "2026-10-10");
+    await pickDate(user, screen.getByLabelText(L.to), "2026-10-01");
     expect(screen.getByRole("alert")).toHaveTextContent(L.rangeReversed);
     expect(screen.getByRole("button", { name: L.apply })).toBeDisabled();
-  });
+  }, 20_000);
 
   it("shows the empty state for a range without orders", async () => {
     server.use(

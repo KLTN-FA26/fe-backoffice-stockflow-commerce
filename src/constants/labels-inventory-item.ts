@@ -9,6 +9,7 @@ export const INVENTORY_ITEM_UI_LABELS = {
   searchPlaceholder: "Tìm SKU hoặc mã vạch",
   field: {
     sku: "SKU",
+    version: "Phiên bản",
     unitOfMeasure: "Đơn vị tính",
     barcode: "Mã vạch",
     weightKg: "Khối lượng (kg)",

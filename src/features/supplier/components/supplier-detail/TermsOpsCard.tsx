@@ -20,11 +20,11 @@ const percent = (value: number | null | undefined) =>
 
 export function TermsOpsCard({ supplier }: { supplier: SupplierDto }) {
   return (
-    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
+    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)">
       <h2 className="text-ink-primary mb-3 flex items-center gap-2 text-[0.9375rem] font-semibold">
-        <Landmark className="text-accent size-4" /> Điều khoản thương mại
+        <Landmark className="text-accent size-3.5" /> Điều khoản thương mại
       </h2>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <TermTile
           label={SUPPLIER_FIELD_LABELS.paymentTermDays}
           value={`${supplier.paymentTermDays} ngày`}

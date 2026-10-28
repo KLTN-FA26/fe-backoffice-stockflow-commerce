@@ -5,12 +5,9 @@ import { QUERY_TIMES } from "@/lib/api/query-client";
 import { createDetailQuery, createListQuery, createQueryKeys } from "@/lib/api/query-factory";
 
 import { getDesignArtifactUrl, getFulfillmentTask, listFulfillmentTasks } from "./api";
-import {
-  getFulfillmentOrder,
-  listAssignees,
-  listOrderNumbers,
-  listTaskCandidates,
-} from "./reference-api";
+import { listPickLines } from "./pick-line-api";
+import { listPutBacks } from "./put-back-api";
+import { getFulfillmentOrder, listAssignees, listTaskCandidates } from "./reference-api";
 
 import type { ListFulfillmentTaskParams } from "./api";
 import type { ArtifactUrlInput, FulfillmentTask } from "./types";
@@ -18,6 +15,41 @@ import type { ArtifactUrlInput, FulfillmentTask } from "./types";
 export const fulfillmentKeys = createQueryKeys<ListFulfillmentTaskParams>(
   SHARED_QUERY_ROOTS.fulfillmentTasks,
 );
+
+/**
+ * Dòng lấy hàng — nằm dưới `fulfillmentKeys.all` để mọi mutation của task (bắt đầu lấy hàng sinh
+ * dòng, hoàn tất…) cũng làm mới danh sách dòng.
+ */
+export const pickLineKeys = {
+  all: [...fulfillmentKeys.all, "pick-lines"] as const,
+  task: (taskId: string) => [...pickLineKeys.all, taskId] as const,
+};
+
+/** Hàng đợi trả về kệ — dưới `fulfillmentKeys.all`: trả xong, huỷ đơn, lấy hàng đều làm mới. */
+export const putBackKeys = {
+  all: [...fulfillmentKeys.all, "put-backs"] as const,
+  list: (warehouseId?: string) => [...putBackKeys.all, warehouseId ?? "all"] as const,
+};
+
+/** Hàng đợi một trang (200 dòng cũ nhất); `warehouseId` null = mọi kho trong phạm vi người gọi. */
+export function usePutBacks(warehouseId: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: putBackKeys.list(warehouseId ?? undefined),
+    queryFn: ({ signal }) => listPutBacks({ warehouseId: warehouseId ?? undefined }, signal),
+    enabled,
+    ...QUERY_TIMES.list,
+  });
+}
+
+/** Mọi dòng của task theo lộ trình. Chưa biết task hoặc thiếu quyền đọc → không gọi. */
+export function usePickLines(taskId: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: pickLineKeys.task(taskId ?? ""),
+    queryFn: ({ signal }) => listPickLines(taskId ?? "", signal),
+    enabled: enabled && !!taskId,
+    ...QUERY_TIMES.detail,
+  });
+}
 
 /**
  * Dữ liệu phụ trợ đọc từ module khác — key riêng của feature (không dùng chung `orderKeys`,
@@ -34,7 +66,6 @@ export const fulfillmentReferenceKeys = {
    */
   taskCandidates: (warehouseId?: string) =>
     [...fulfillmentReferenceKeys.orders(), "task-candidates", warehouseId ?? "all"] as const,
-  orderNumbers: () => [...fulfillmentReferenceKeys.orders(), "numbers"] as const,
   /** Người nhận task theo kho — không đổi theo thao tác trên task → không nằm dưới nhánh đơn hàng. */
   assignees: (warehouseId: string) =>
     [...fulfillmentReferenceKeys.all, "assignees", warehouseId] as const,
@@ -70,16 +101,6 @@ export function useTaskCandidates(enabled: boolean, warehouseId?: string) {
     queryFn: ({ signal }) => listTaskCandidates({ warehouseId }, signal),
     enabled,
     ...QUERY_TIMES.list,
-  });
-}
-
-/** id đơn → số đơn (cột danh sách). Thiếu `sales-orders:READ` → tắt, cột hiện id rút gọn. */
-export function useOrderNumbers(enabled: boolean) {
-  return useQuery({
-    queryKey: fulfillmentReferenceKeys.orderNumbers(),
-    queryFn: ({ signal }) => listOrderNumbers(signal),
-    enabled,
-    ...QUERY_TIMES.master,
   });
 }
 

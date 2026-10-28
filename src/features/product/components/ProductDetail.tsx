@@ -76,7 +76,7 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
         onDeleted={() => router.push(ADMIN_ROUTES.products.list)}
       />
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-5">
           <ProductGeneralSection product={product} categories={categories} />
           <ProductDescriptionSection product={product} />

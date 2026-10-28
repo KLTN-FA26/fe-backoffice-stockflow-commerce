@@ -45,7 +45,7 @@ export function TransferScanSection({ session }: { session: TransferPackSession 
         <Alert tone="info">{T.noOpenPackage}</Alert>
       ) : (
         <div className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_10rem]">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_10rem]">
             <div>
               <Label htmlFor="transfer-scan-target" className="text-[0.8125rem]">
                 {T.targetPackage}

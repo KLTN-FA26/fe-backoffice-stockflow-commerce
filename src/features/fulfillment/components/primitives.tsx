@@ -49,7 +49,7 @@ export function Section({
   children: ReactNode;
 }) {
   return (
-    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
+    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)">
       <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
         <div>
           <h2 className="text-ink-primary text-[0.9375rem] font-semibold">{title}</h2>
@@ -91,12 +91,9 @@ export function taskCode(taskId: string): string {
   return shortId(taskId);
 }
 
-/** Số đơn nếu tra được, không thì id rút gọn (kèm `title` là id đầy đủ ở nơi dùng). */
-export function orderLabel(
-  orderId: string,
-  orderNumbers: Readonly<Record<string, string>> | undefined,
-): string {
-  return orderNumbers?.[orderId] ?? shortId(orderId);
+/** Số đơn BE trả kèm task (SCRUM-466); thiếu thì id rút gọn (kèm `title` là id đầy đủ ở nơi dùng). */
+export function orderLabel(orderId: string, orderNumber?: string | null): string {
+  return orderNumber || shortId(orderId);
 }
 
 /** Tên người được gán: chính mình → "Tôi"; BE trả `assignedUserName` → tên; không thì id rút gọn. */

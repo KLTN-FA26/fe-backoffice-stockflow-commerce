@@ -11,8 +11,11 @@ import { registerOrderMockRoutes } from "./mock-routes-orders";
 import {
   BE_ORDER_STATUSES,
   backendOrderStatusOf,
+  mockOrderCancellations,
   putMockOrderOnDesignHold,
+  putMockOrderOnInventoryHold,
   resetOrderMockStore,
+  resolveMockInventoryHold,
   setMockOrderStatus,
 } from "./mock-routes-orders-store";
 
@@ -489,6 +492,46 @@ describe("OrderResponse mang field của cả hai nhánh", () => {
   it("đơn cọc: depositRequired; dòng danh sách không mang lines", async () => {
     expect((await order(DEPOSIT_PENDING)).depositRequired).toEqual(expect.any(Number));
     expect((await listItems("")).every((o) => (o.lines as unknown[]).length === 0)).toBe(true);
+  });
+});
+
+// develop (SCRUM-468): mock xuất kho đồng bộ task khi đếm huỷ đổi; store PR #27 huỷ qua `applyTransition`
+describe("tích hợp mock xuất kho (develop SCRUM-468)", () => {
+  it("mọi đường huỷ đều tăng bộ đếm huỷ — huỷ admin, từ chối công nợ, setMockOrderStatus", async () => {
+    const start = mockOrderCancellations();
+    await data("POST", `/orders/${PICKING}/admin-cancellation`, { reasonCode: "CUSTOMER_REQUEST" });
+    expect(mockOrderCancellations()).toBe(start + 1);
+    await data("POST", `/orders/${CREDIT_ON_HOLD}/credit-rejection`, {
+      action: "CANCEL",
+      note: "Vượt hạn mức",
+    });
+    expect(mockOrderCancellations()).toBe(start + 2);
+    setMockOrderStatus(READY, "CANCELLED");
+    expect(mockOrderCancellations()).toBe(start + 3);
+    // Đã huỷ rồi thì không đếm lại
+    setMockOrderStatus(READY, "CANCELLED");
+    expect(mockOrderCancellations()).toBe(start + 3);
+  });
+
+  it("giữ INVENTORY khi báo thiếu → gỡ về đúng bước đang làm, có lịch sử", async () => {
+    setMockOrderStatus(PICKING, "PICKING");
+    await putMockOrderOnInventoryHold(PICKING);
+    expect(await order(PICKING)).toMatchObject({
+      status: "ON_HOLD",
+      holdReason: "INVENTORY",
+      statusBeforeHold: "PICKING",
+    });
+    expect((await history(PICKING)).at(-1)).toMatchObject({ from: "PICKING", to: "ON_HOLD" });
+    resolveMockInventoryHold(PICKING);
+    expect(await backendOrderStatusOf(PICKING)).toBe("PICKING");
+  });
+
+  it("đơn đang giữ lý do khác: không chồng giữ INVENTORY, gỡ INVENTORY không đụng tới", async () => {
+    await data("POST", `/orders/${READY}/hold`, { reasonCode: "ADDRESS", note: "" });
+    await putMockOrderOnInventoryHold(READY);
+    expect(await order(READY)).toMatchObject({ status: "ON_HOLD", holdReason: "ADDRESS" });
+    resolveMockInventoryHold(READY);
+    expect(await order(READY)).toMatchObject({ status: "ON_HOLD", holdReason: "ADDRESS" });
   });
 });
 

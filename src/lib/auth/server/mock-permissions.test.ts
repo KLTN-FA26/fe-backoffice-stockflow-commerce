@@ -9,7 +9,11 @@ import {
   ATTRIBUTE_PERMISSIONS,
   CREDIT_HOLD_PERMISSIONS,
   CUSTOMER_CREDIT_PROFILE_PERMISSIONS,
+  CUSTOMER_PERMISSIONS,
+  CUSTOMER_PRICE_PERMISSIONS,
   FULFILLMENT_PICK_PERMISSIONS,
+  INVENTORY_ITEM_PERMISSIONS as ITEM_PERMISSIONS,
+  SUPPLIER_ITEM_PERMISSIONS,
   INVENTORY_ITEM_PERMISSIONS,
   INVENTORY_OVERVIEW_PERMISSIONS,
   INVENTORY_PERMISSIONS,
@@ -413,4 +417,74 @@ describe("Overview grants match backend seeds", () => {
       expect(new Set(permissions).size).toBe(permissions.length);
     },
   );
+});
+
+describe("Customer price grants after a real mock login (seed V20261017000510 + V20260919001600)", () => {
+  const CP = CUSTOMER_PRICE_PERMISSIONS;
+  const LOOKUP = CUSTOMER_PERMISSIONS.read;
+  const origin = "http://localhost:3000";
+
+  /** Đăng nhập mock bằng email + mật khẩu demo rồi đọc quyền qua BFF như trình duyệt. */
+  async function sessionPermissions(userId: string): Promise<string[]> {
+    vi.stubEnv("APP_ORIGIN", "");
+    const staff = (await getMockStaffUsers()).find((candidate) => candidate.userId === userId);
+    if (!staff) throw new Error(`Missing demo staff ${userId}`);
+    const login = await loginHandler(
+      new NextRequest(`${origin}/api/auth/login`, {
+        method: "POST",
+        headers: { Origin: origin },
+        body: JSON.stringify({ username: staff.email, password: MOCK_LOGIN_PASSWORD }),
+      }),
+    );
+    const cookie = login.cookies.get(AUTH_COOKIE_NAME);
+    const response = await backendProxyHandler(
+      new NextRequest(`${origin}/api/backend${PERMISSION_QUERY.path}`, {
+        headers: { Cookie: `${AUTH_COOKIE_NAME}=${cookie?.value}` },
+      }),
+      ["identity", "me", "permissions"],
+    );
+    vi.unstubAllEnvs();
+    expect(response.status).toBe(200);
+    return myPermissionsSchema.parse(await response.json()).permissions;
+  }
+  const customerCodes = (permissions: readonly string[]) =>
+    permissions
+      .filter((code) => /^(catalog-customer-prices|customer-customers):/.test(code))
+      .sort();
+
+  it.each([
+    // SYSTEM_ADMIN (+ Warehouse Manager): mọi quyền FE khai báo
+    ["USER-ADMIN-01", [...Object.values(CP), LOOKUP]],
+    // ECOMMERCE_ADMIN: VIEW_PAGE / READ / CREATE / UPDATE (+ DELETE của BE, FE chưa dùng) + tra khách
+    ["USER-ECAD-01", [...Object.values(CP), LOOKUP]],
+    // SALES_STAFF: chỉ xem + tra khách, KHÔNG tạo / sửa
+    ["USER-SALE-01", [CP.viewPage, CP.read, LOOKUP]],
+    ["USER-SALE-02", [CP.viewPage, CP.read, LOOKUP]],
+    ["USER-SALE-03", [CP.viewPage, CP.read, LOOKUP]],
+    // ORDER_COORDINATOR (+ Warehouse Staff): chỉ READ — không VIEW_PAGE, không tra khách (khoảng trống G8 của BE)
+    ["USER-COORD-01", [CP.read]],
+    // Không có trong seed catalog-customer-prices / customer-customers
+    ["USER-PROC-01", []],
+    ["USER-PLAN-01", []],
+    ["USER-WH-01", []],
+    ["USER-QC-01", []],
+    ["USER-ACC-01", []],
+  ])("%s đăng nhập → quyền bảng giá / khách đúng seed BE", async (userId, expected) => {
+    expect(customerCodes(await sessionPermissions(userId))).toEqual([...expected].sort());
+  });
+
+  it("G quyền sản phẩm / mua hàng / hồ sơ hàng tồn không bị nới theo bảng giá", async () => {
+    const procurement = await sessionPermissions("USER-PROC-01");
+    expect(procurement).not.toContain(PRODUCT_PERMISSIONS.update);
+    expect(procurement).not.toContain(PRODUCT_PERMISSIONS.read);
+    expect(procurement).not.toContain(ITEM_PERMISSIONS.update);
+    expect(procurement).toContain(SUPPLIER_ITEM_PERMISSIONS.read);
+    for (const userId of ["USER-ECAD-01", "USER-SALE-01", "USER-COORD-01"]) {
+      const permissions = await sessionPermissions(userId);
+      expect(permissions).not.toContain(SUPPLIER_ITEM_PERMISSIONS.read);
+      expect(permissions).not.toContain(ITEM_PERMISSIONS.update);
+    }
+    for (const userId of ["USER-SALE-01", "USER-COORD-01"])
+      expect(await sessionPermissions(userId)).not.toContain(PRODUCT_PERMISSIONS.update);
+  });
 });

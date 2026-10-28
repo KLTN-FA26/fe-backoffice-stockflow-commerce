@@ -8,9 +8,9 @@ import type { SupplierDto } from "@/features/supplier/types";
 
 export function ContactChannelCard({ supplier }: { supplier: SupplierDto }) {
   return (
-    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
+    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)">
       <h2 className="text-ink-primary mb-3 flex items-center gap-2 text-[0.9375rem] font-semibold">
-        <Contact className="text-accent size-4" /> Liên hệ & kênh gửi PO
+        <Contact className="text-accent size-3.5" /> Liên hệ & kênh gửi PO
       </h2>
       <div>
         <InfoRow label={SUPPLIER_FIELD_LABELS.contactName} value={supplier.contactName ?? "—"} />

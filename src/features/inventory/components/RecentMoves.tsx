@@ -40,7 +40,7 @@ function RecentMovesList() {
   return (
     <section
       aria-label={MOVE_LABELS.recentTitle}
-      className="border-border-default bg-bg-surface space-y-[var(--el-gap)] rounded-[var(--r-sm)] border p-[var(--card-pad)]"
+      className="border-border-default bg-bg-surface space-y-[var(--el-gap)] rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)"
     >
       <div className="flex items-center justify-between gap-[var(--el-gap)]">
         <h2 className="text-ink-primary text-[0.9375rem] font-semibold">

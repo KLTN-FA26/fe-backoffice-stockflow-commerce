@@ -16,7 +16,7 @@ export function PermissionResourceCard({
   editor?: PermissionEditor;
 }) {
   return (
-    <article className="border-border-default bg-bg-surface rounded-[var(--r-sm)] border p-4">
+    <article className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-4 shadow-(--card-shadow)">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="text-ink-primary font-semibold">{resource.label}</h3>
@@ -52,7 +52,7 @@ export function PermissionResourceCard({
         </div>
       )}
       {resource.actions.length > 0 ? (
-        <div className="mt-4 grid gap-2 md:grid-cols-2">
+        <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-2">
           {resource.actions.map((action) => (
             <PermissionActionChip
               key={action.action}

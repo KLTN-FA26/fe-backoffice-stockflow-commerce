@@ -2,7 +2,7 @@
 
 import { Columns3, RotateCcw, Settings2 } from "lucide-react";
 
-import { FULFILLMENT_COLUMNS } from "@/constants";
+import { FULFILLMENT_COLUMNS, UI_LABELS } from "@/constants";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -24,7 +24,9 @@ import {
 } from "@/components/ui/popover";
 
 import { ALL_COLUMNS, COLUMN_LABELS } from "./constants";
+import { FilterBadge } from "./FilterBadge";
 
+import type { TaskFilterLabels } from "./useTaskFilterLabels";
 import type { TaskListState } from "./useTaskListState";
 
 const COLUMN_OPTIONS = ALL_COLUMNS.filter((c) => c !== FULFILLMENT_COLUMNS.ACTIONS);
@@ -32,16 +34,26 @@ const TOOL_BUTTON =
   "border-border-default bg-bg-surface text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary rounded-[var(--r-sm)] focus-visible:ring-0";
 const TOOL_BUTTON_ACTIVE =
   "border-warning bg-warning/10 text-warning hover:bg-warning/10 hover:text-warning";
+const F = UI_LABELS.fulfillment.filter;
 
 /**
  * Thanh cấu hình của danh sách task (data-table-mode-a §2–§3, bản rút gọn). `ListToolbar` dùng
- * chung bắt buộc có ô tìm kiếm và bộ lọc — BE chưa hỗ trợ cả hai cho task, nên ở đây chỉ còn
- * ẩn/hiện cột + ghi rõ phạm vi dữ liệu do BE quyết theo vai trò.
+ * chung bắt buộc có ô tìm kiếm — BE không có tìm kiếm task, nên ở đây là phạm vi dữ liệu (BE quyết
+ * theo mã quyền), bộ lọc đang bật (mỗi badge xoá riêng được), ẩn/hiện cột. "Đặt lại" xoá cả lọc lẫn cột.
  */
-export function TaskListToolbar({ s, scopeNote }: { s: TaskListState; scopeNote: string }) {
+export function TaskListToolbar({
+  s,
+  scopeNote,
+  labels,
+}: {
+  s: TaskListState;
+  scopeNote: string;
+  labels: TaskFilterLabels;
+}) {
   const visible = s.config.visibleColumns;
+  const canReset = s.hasColumnConfig || s.hasFilters;
   return (
-    <div className="border-border-default bg-bg-subtle/70 mb-4 flex flex-wrap items-center gap-2 rounded-[var(--r-sm)] border px-3 py-2 text-[0.8125rem]">
+    <div className="border-border-default mb-4 flex flex-wrap items-center gap-2 rounded-(--section-radius) border bg-(--summary-bg) px-3 py-2 text-[0.8125rem] shadow-(--card-shadow)">
       <div className="text-ink-primary mr-1 flex items-center gap-2 font-medium">
         <Settings2 className="text-accent size-3.5" />
         Cấu hình
@@ -50,6 +62,23 @@ export function TaskListToolbar({ s, scopeNote }: { s: TaskListState; scopeNote:
         <Badge variant="outline" className="bg-bg-subtle text-ink-secondary">
           Phạm vi: {scopeNote}
         </Badge>
+        {labels.status && (
+          <FilterBadge label={F.status} value={labels.status} onClear={() => s.setStatus(null)} />
+        )}
+        {labels.warehouse && (
+          <FilterBadge
+            label={F.warehouse}
+            value={labels.warehouse}
+            onClear={() => s.setWarehouse(null)}
+          />
+        )}
+        {labels.assignee && (
+          <FilterBadge
+            label={F.assignee}
+            value={labels.assignee}
+            onClear={() => s.setAssignee(null)}
+          />
+        )}
         <Badge variant="outline" className="bg-bg-subtle text-ink-secondary">
           Cột hiển thị: {s.visibleColumnCount}/{COLUMN_OPTIONS.length}
         </Badge>
@@ -63,7 +92,7 @@ export function TaskListToolbar({ s, scopeNote }: { s: TaskListState; scopeNote:
             aria-label="Ẩn hiện cột"
             className={`${TOOL_BUTTON} ${s.hasColumnConfig ? TOOL_BUTTON_ACTIVE : ""}`}
           >
-            <Columns3 className={s.hasColumnConfig ? "size-3.5" : "text-warning size-3.5"} />
+            <Columns3 className={s.hasColumnConfig ? "size-3.5" : "text-dot-warning size-3.5"} />
           </Button>
         </PopoverTrigger>
         <PopoverContent align="end" className="w-80 p-0">
@@ -101,8 +130,11 @@ export function TaskListToolbar({ s, scopeNote }: { s: TaskListState; scopeNote:
         type="button"
         variant="ghost"
         size="xs"
-        onClick={s.resetColumns}
-        disabled={!s.hasColumnConfig}
+        onClick={() => {
+          s.resetColumns();
+          s.clearFilters();
+        }}
+        disabled={!canReset}
         className="text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary rounded-[var(--r-sm)]"
       >
         <RotateCcw className="size-3" />

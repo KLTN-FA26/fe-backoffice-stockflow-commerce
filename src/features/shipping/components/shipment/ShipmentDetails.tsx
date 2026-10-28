@@ -13,7 +13,7 @@ const L = UI_LABELS.shipping.shipment;
 /** Kiện trong lô + lịch sử các bước (ai ghi nhận, lúc nào — docs 09 BR-02). */
 export function ShipmentDetails({ data }: { data: Shipment }) {
   return (
-    <div className="grid gap-5 xl:grid-cols-2">
+    <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
       <Section title={`${L.packages} (${data.packages.length})`}>
         <div className="border-border-default overflow-x-auto rounded-[var(--r-sm)] border">
           <table className="w-full text-[0.8125rem]">

@@ -2,6 +2,12 @@
  * Ngưỡng số dùng ≥2 chỗ. Mỗi giá trị cite nguồn (docs hoặc ràng buộc BE).
  */
 
+/**
+ * Dropdown năm của `DatePicker`: số năm trước / sau năm hiện tại. Chỉ là phạm vi điều hướng của UI
+ * (hạn dùng, ngày giao…), không phải ràng buộc BE — `min` / `max` của từng ô vẫn chặn riêng.
+ */
+export const DATE_PICKER_YEAR_SPAN = { back: 10, ahead: 10 } as const;
+
 /** Giới hạn đơn đặt NCC — lấy đúng ràng buộc DB/BE nhánh `test` (BE request chưa có @Size). */
 export const PO_LIMITS = {
   /** BE `purchase_order_lines.note VARCHAR(255)` (BE PR #71). */
@@ -84,6 +90,16 @@ export const FULFILLMENT_LIMITS = {
   checksumPreviewLength: 12,
   /** Số ký tự CUỐI của UUID hiện khi BE không trả mã đọc được (task, đơn, người được gán). */
   shortIdLength: 8,
+} as const;
+
+/** Dòng lấy hàng — đúng ràng buộc BE (SCRUM-267/275, PR #147). */
+export const PICK_LINE_LIMITS = {
+  /** `ConfirmPickRequest.locationCode / scannedCode`, `ShortPickRequest.locationCode` @Size(max = 64). */
+  codeMax: 64,
+  /** Một trang dòng lấy hàng — `Pages.MAX_PAGE_SIZE` (task dài hơn thì tải tiếp trang sau). */
+  pageSize: 200,
+  /** Ô tìm của hàng đợi trả về kệ lọc ở client — debounce 300ms (api-conventions §9). */
+  searchDebounceMs: 300,
 } as const;
 
 /**
@@ -210,6 +226,40 @@ export const SUPPLIER_ITEM_LIMITS = {
 } as const;
 
 /**
+ * Thông tin mua hàng của SKU — BE `SkuPurchasingRequest` + `ItemPurchasingRules` (docs 01 §3
+ * "Thông tin mua hàng"). Cùng giới hạn với danh mục NCC (`SupplierItemTerms`).
+ */
+export const SKU_PURCHASING_LIMITS = {
+  // `referencePurchasePrice` @Digits(integer = 16, fraction = 2); `MAX_PRICE` 9999999999999999.99
+  priceIntegerDigitsMax: 16,
+  // `stripTrailingZeros().scale() > 2` bị từ chối → "1.500" hợp lệ, "1.005" không
+  priceMaxScale: 2,
+  // `ItemPurchasingRules.MAX_LEAD_TIME_DAYS`
+  leadTimeDaysMax: 365,
+  moqMin: 1,
+  // `leadTimeDays` / `moq` là `Integer` Java — quá int32 thì Jackson không bind được (400 chung)
+  intMax: 2_147_483_647,
+} as const;
+
+/**
+ * Bảng giá riêng của khách hàng — BE `CustomerPriceRequest` (`@NotEmpty @Size(max = 20) tiers`,
+ * `Tier.@Min(1) int minQuantity`, `@Size(max = 500) note`), `CustomerPrice.MAX_TIERS`, `SellingPrice`
+ * (VND số nguyên dương, tối đa 16 chữ số phần nguyên).
+ */
+export const CUSTOMER_PRICE_LIMITS = {
+  tiersMax: 20,
+  minQuantityMin: 1,
+  // `minQuantity` là `int` Java — quá int32 thì Jackson không bind được (400 chung)
+  intMax: 2_147_483_647,
+  noteMax: 500,
+  priceIntegerDigitsMax: 16,
+} as const;
+
+/** Số khách mỗi trang gợi ý ở ô chọn khách (`GET /customers?q=`) — `Pages.DEFAULT_PAGE_SIZE` của BE (tối đa 200). */
+export const CUSTOMER_OPTIONS_PAGE_SIZE = 20;
+
+/**
+ * Số gợi ý mỗi lần tìm hồ sơ hàng tồn/**
  * Số gợi ý mỗi lần tìm hồ sơ hàng tồn (`GET /inventory/items?q=`) ở ô chọn SKU — bằng
  * `Pages.DEFAULT_PAGE_SIZE` của BE (tối đa `Pages.MAX_PAGE_SIZE` 200); gõ thêm để thu hẹp.
  */

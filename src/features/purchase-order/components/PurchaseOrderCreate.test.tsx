@@ -4,6 +4,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
+import { pickDate } from "@/test/date-picker";
 
 import {
   WAREHOUSE_REF,
@@ -13,6 +14,7 @@ import {
   pickSupplier,
   renderCreate,
   submitFromReview,
+  typeDescription,
 } from "../__fixtures__/create";
 import { PO_PERMISSION_SETS, SUPPLIER_REF, pickSelectOption } from "../__fixtures__/render";
 
@@ -32,7 +34,7 @@ async function fillAndCreate(user: User) {
   await pickSupplier(user);
   await next(user);
   await pickSku(user, /SOFA-3S-GREY/);
-  await user.type(screen.getByLabelText(/Mô tả sản phẩm/), "Sofa 3 chỗ");
+  await typeDescription(user, "Sofa 3 chỗ");
   await next(user);
   await next(user);
   await submitFromReview(user);
@@ -94,7 +96,7 @@ describe("PurchaseOrderCreate", () => {
   it("BR-06: ngày giao đã qua chỉ cảnh báo (so với hôm nay)", async () => {
     const user = userEvent.setup();
     renderCreate();
-    await user.type(await screen.findByLabelText("Ngày giao dự kiến"), "2020-01-01");
+    await pickDate(user, await screen.findByLabelText("Ngày giao dự kiến"), "2020-01-01");
     expect(await screen.findByText(/Ngày giao dự kiến đã qua/)).toBeInTheDocument();
   });
 
@@ -103,12 +105,12 @@ describe("PurchaseOrderCreate", () => {
     const { post } = renderCreate();
     await pickSupplier(user);
     await pickSelectOption(user, /Tiền tệ của PO/, "USD");
-    await user.type(screen.getByLabelText("Ngày giao dự kiến"), "2099-01-01");
+    await pickDate(user, screen.getByLabelText("Ngày giao dự kiến"), "2030-01-01");
     await user.type(screen.getByLabelText("Ghi chú"), " Giao trước 10h ");
     await next(user);
 
     await pickSku(user, /SOFA-3S-GREY/);
-    await user.type(screen.getByLabelText(/Mô tả sản phẩm/), "  Sofa 3 chỗ xám ");
+    await typeDescription(user, "  Sofa 3 chỗ xám ");
     const [qty, price, tax] = screen.getAllByRole("spinbutton");
     if (!qty || !price || !tax) throw new Error("thiếu ô SL / đơn giá / thuế");
     expect(price).toHaveValue(null); // danh mục VND, PO USD → không điền giá
@@ -129,7 +131,7 @@ describe("PurchaseOrderCreate", () => {
         supplierId: SUPPLIER_REF.supplierId,
         warehouseId: WAREHOUSE_REF.id,
         currency: "USD",
-        expectedAt: "2099-01-01",
+        expectedAt: "2030-01-01",
         note: "Giao trước 10h",
         lines: [
           {

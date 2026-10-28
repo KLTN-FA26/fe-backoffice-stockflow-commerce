@@ -9,12 +9,14 @@ import type {
   FulfillmentTaskApiDto,
   IntegrityEvidence,
   TaskCandidate,
+  TaskLine,
 } from "../types";
 
 export const TASK_ID = "3f2c9a10-7b1d-4e55-9c0a-1d2e3f4a5b6c";
 export const ORDER_ID = "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
 export const PLAIN_LINE_ID = "11111111-aaaa-4bbb-8ccc-000000000001";
 export const DESIGN_LINE_ID = "22222222-aaaa-4bbb-8ccc-000000000002";
+export const PLAIN_LINE_2_ID = "33333333-aaaa-4bbb-8ccc-000000000003";
 export const SNAPSHOT_ID = "55555555-aaaa-4bbb-8ccc-000000000005";
 export const WAREHOUSE_ID = "wh-hcm-0001";
 export const PICKER_ID = "7e1d0c2b-3a4f-4b5c-9d6e-8f7a6b5c4d3e";
@@ -60,6 +62,22 @@ export const pickedTask = (overrides: Partial<FulfillmentTaskApiDto> = {}) =>
     pickedAt: "2026-10-10T02:00:00Z",
     ...overrides,
   });
+
+/**
+ * `lines` của `GET /fulfillment/tasks/{id}` (BE `FulfillmentTaskResponse.TaskLine`, SCRUM-466) — chỉ có ở
+ * chi tiết, danh sách không trả. Dòng in có `designSnapshotId` + `printLine`.
+ */
+export const apiTaskLines: TaskLine[] = [
+  { lineId: PLAIN_LINE_ID, sku: "TEE-BLK-M", quantity: 3, printLine: false },
+  { lineId: PLAIN_LINE_2_ID, sku: "MUG-WHT-11", quantity: 4, printLine: false },
+  {
+    lineId: DESIGN_LINE_ID,
+    sku: "TEE-CUSTOM-L",
+    quantity: 2,
+    designSnapshotId: SNAPSHOT_ID,
+    printLine: true,
+  },
+];
 
 export const fulfillmentOrder: FulfillmentOrder = {
   orderId: ORDER_ID,

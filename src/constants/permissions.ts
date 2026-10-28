@@ -245,6 +245,31 @@ export const INVENTORY_ITEM_PERMISSIONS = {
 } as const;
 
 /**
+ * Bảng giá riêng của khách hàng — resource `catalog-customer-prices` (BE `CustomerPriceController`,
+ * `/api/v1/catalog/customer-prices`). Seed V20261017000510: ECOMMERCE_ADMIN đủ quyền; SALES_STAFF
+ * VIEW_PAGE / READ; ORDER_COORDINATOR chỉ READ. Xoá (DELETE) chưa dùng ở FE nên không khai báo.
+ */
+export const CUSTOMER_PRICE_PERMISSIONS = {
+  viewPage: "catalog-customer-prices:VIEW_PAGE",
+  // GET /catalog/customer-prices?customerId=, GET …/{customerId}/{sku}
+  read: "catalog-customer-prices:READ",
+  // POST …/{customerId}/{sku}
+  create: "catalog-customer-prices:CREATE",
+  // PUT …/{customerId}/{sku} (thay toàn bộ, cần version)
+  update: "catalog-customer-prices:UPDATE",
+} as const;
+
+/**
+ * Khách hàng — resource `customer-customers` (BE `CustomerController`). Tách khỏi quyền bảng giá: một
+ * role có thể đọc bảng giá mà không tra được danh sách khách (vd ORDER_COORDINATOR — không thấy seed
+ * cấp `customer-customers:READ`).
+ */
+export const CUSTOMER_PERMISSIONS = {
+  // GET /customers (phân trang, `q`), GET /customers/{id} — chỉ nhân viên back-office
+  read: "customer-customers:READ",
+} as const;
+
+/**
  * Sơ đồ kho — resource `warehouse-locations` (BE `LayoutController`): `GET /warehouses/{id}/layout`
  * và `GET /locations/{code}`. WAREHOUSE_STAFF có VIEW_PAGE/READ (seed V20260928006000).
  */
@@ -340,25 +365,11 @@ export const FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS = {
 } as const;
 
 /**
- * Vai trò back-office — đúng enum BE `common/security/Role.java` (develop) TRỪ `CUSTOMER`.
- * BE `ScopeGuards#requireBackOffice`: hợp lệ ⇔ có ít nhất một vai trò ≠ CUSTOMER trong
- * `CurrentUser.roles()` — mà `roles()` chỉ chứa vai trò BE biết tên. `/identity/me[/permissions]`
- * thì trả cả vai trò tự tạo (SCRUM-455), nên FE KHÔNG dùng "có vai trò ≠ CUSTOMER" mà dùng danh
- * sách vai trò đã biết này để khớp BE. Thêm vai trò vào enum BE → thêm ở đây.
+ * Mã vai trò tài khoản cửa hàng (storefront) — BE `Role.CUSTOMER`. CHỈ dùng ở cổng back-office
+ * (`lib/auth/back-office.ts`, gương BE `ScopeGuards` / `CurrentUser#isPortalCustomer`) để tách phạm vi dữ liệu
+ * khách hàng khỏi back-office. Không phải mã quyền: quyền thao tác luôn theo mã quyền ở file này.
  */
-export const BACKOFFICE_ROLES = [
-  "WAREHOUSE_STAFF",
-  "WAREHOUSE_MANAGER",
-  "INVENTORY_PLANNER",
-  "QC_STAFF",
-  "SALES_STAFF",
-  "ORDER_COORDINATOR",
-  "ECOMMERCE_ADMIN",
-  "PROCUREMENT_STAFF",
-  "ACCOUNTANT",
-  "PRODUCTION_STAFF",
-  "SYSTEM_ADMIN",
-] as const;
+export const PORTAL_CUSTOMER_ROLE = "CUSTOMER";
 
 /**
  * Lệnh chuyển kho — resource `inventory-transfer-orders` (BE TransferOrderController, SCRUM-326/327).

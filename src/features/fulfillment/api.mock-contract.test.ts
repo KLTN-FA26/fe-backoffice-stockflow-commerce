@@ -17,6 +17,7 @@ import { backendOrderStatusOf, setMockOrderStatus } from "@/lib/api/mock-routes-
 import { MOCK_USER_GRANTS } from "@/lib/api/mock-user-grants";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
+import { pickAllOpenLines } from "./__fixtures__/pick-all-lines";
 import {
   assignFulfillmentTask,
   completePicking,
@@ -28,7 +29,6 @@ import {
   startPicking,
 } from "./api";
 import { getFulfillmentOrder, listAssignees, listTaskCandidates } from "./reference-api";
-import { designedLines } from "./selectors";
 
 import type { RoleName } from "@/lib/auth";
 import type { FulfillmentTask } from "./types";
@@ -136,6 +136,23 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
   );
 
   it(
+    "GET /tasks/{id} trả lines (SCRUM-466), GET /tasks thì không",
+    async () => {
+      const all = await allTasks();
+      expect(all.every((t) => t.lines === undefined)).toBe(true);
+      const task = required(all[0], "task bất kỳ");
+      const detail = await getFulfillmentTask(task.taskId);
+      expect(detail.lines?.length).toBeGreaterThan(0);
+      const order = await getFulfillmentOrder(task.orderId);
+      expect(detail.lines?.map((line) => line.sku)).toEqual(order.lines.map((line) => line.sku));
+      expect(detail.lines?.filter((line) => line.printLine).map((line) => line.lineId)).toEqual(
+        order.lines.filter((line) => line.designSnapshotId).map((line) => line.lineId),
+      );
+    },
+    FLOW_TIMEOUT_MS,
+  );
+
+  it(
     "luồng lấy hàng: người được gán bắt đầu → hoàn tất; đóng gói do màn trạm (packing.mock-contract.test.ts) lo",
     async () => {
       const task = required(
@@ -163,6 +180,9 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
       ).toBe("CONFLICT");
 
       actAs(USERS.picker);
+      // SCRUM-267: hoàn tất chỉ khi mọi dòng lấy hàng đã xác nhận
+      expect(await codeOf(completePicking(id))).toBe("PICK_LINES_INCOMPLETE");
+      await pickAllOpenLines(id);
       const picked = await completePicking(id);
       expect(picked.pickStatus).toBe("Picked");
       // BE PR #136 trả thêm số đơn + kho trên task
@@ -216,7 +236,8 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
       const order = required((await listTaskCandidates()).items[0], "đơn chờ xuất kho");
       // BE PR #133: chỉ đơn READY_TO_FULFILL (đã release) mới vào xuất kho
       expect(await backendOrderStatusOf(order.orderId)).toBe("READY_TO_FULFILL");
-      expect(designedLines((await getFulfillmentOrder(order.orderId)).lines)).toEqual([]);
+      // Mock chỉ để đơn không có dòng in ở danh sách chờ (dòng in phải sản xuất xong mới vào)
+      expect(order.lines.filter((line) => line.printed)).toEqual([]);
       // Đơn chưa release → 409 PICK_TASK_STATE_CONFLICT (mã thật của BE), không tạo task
       const { orders } = await import("@/lib/mock-data");
       const inProduction = required(
@@ -269,7 +290,7 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
   );
 
   it(
-    "task của đơn đã huỷ: mọi thao tác trả CONFLICT (task đã đóng)",
+    "task của đơn đã huỷ: thao tác trả PICK_TASK_STATE_CONFLICT (task đã đóng)",
     async () => {
       const cancelled = required(
         (await allTasks()).find((t) => t.pickStatus === "Cancelled"),
@@ -279,7 +300,8 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
         userId: required(cancelled.assignedUserId ?? undefined, "người được gán"),
         roles: ["Warehouse Staff"],
       });
-      expect(await codeOf(startPicking(cancelled.taskId))).toBe("CONFLICT");
+      // BE `TaskAccess.orderInFulfilment`: đơn rời khâu kho → PICK_TASK_STATE_CONFLICT (không phải CONFLICT chung)
+      expect(await codeOf(startPicking(cancelled.taskId))).toBe("PICK_TASK_STATE_CONFLICT");
     },
     FLOW_TIMEOUT_MS,
   );
@@ -294,10 +316,10 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
       // Seed: ORD-2026-0011 có dòng in (DSN-2026-0028), chưa có task; ORD-2026-0013 chỉ hàng sẵn
       const printOrderId = "ORD-2026-0011";
       const stockOrderId = "ORD-2026-0013";
-      expect(designedLines((await getFulfillmentOrder(printOrderId)).lines).length).toBeGreaterThan(
-        0,
-      );
-      expect(designedLines((await getFulfillmentOrder(stockOrderId)).lines)).toEqual([]);
+      const printLinesOf = async (orderId: string) =>
+        (await getFulfillmentOrder(orderId)).lines.filter((line) => line.designSnapshotId);
+      expect((await printLinesOf(printOrderId)).length).toBeGreaterThan(0);
+      expect(await printLinesOf(stockOrderId)).toEqual([]);
 
       // Ngoài READY_TO_FULFILL → từ chối (đơn đang sản xuất); BE `FulfillmentServiceImpl#createTask`
       expect(await backendOrderStatusOf(printOrderId)).toBe("IN_PRODUCTION");
@@ -352,6 +374,23 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
     actAs(USERS.manager);
     expect(await codeOf(listAssignees(""))).toBe("VALIDATION_FAILED");
     expect(await codeOf(listAssignees("khong-co-kho"))).toBe("WAREHOUSE_NOT_FOUND");
+  });
+
+  it("lọc warehouseId/assignedUserId; kho ngoài phạm vi 403 OUT_OF_DATA_SCOPE (SCRUM-466)", async () => {
+    actAs(USERS.manager);
+    const task = required((await allTasks())[0], "task");
+    const warehouseId = required(task.warehouseId ?? undefined, "kho của task");
+    const assignedUserId = required(task.assignedUserId ?? undefined, "người được gán");
+    const inWarehouse = await listFulfillmentTasks({ size: 200, warehouseId });
+    expect(inWarehouse.items.length).toBeGreaterThan(0);
+    expect(inWarehouse.items.every((t) => t.warehouseId === warehouseId)).toBe(true);
+    const ofAssignee = await listFulfillmentTasks({ size: 200, assignedUserId });
+    expect(ofAssignee.items.length).toBeGreaterThan(0);
+    expect(ofAssignee.items.every((t) => t.assignedUserId === assignedUserId)).toBe(true);
+    // BE `WarehouseScope.requireWarehouse`: người bị giới hạn kho lọc kho khác → 403, không phải trang rỗng
+    expect(await codeOf(listFulfillmentTasks({ warehouseId: "khong-co-kho" }))).toBe(
+      "OUT_OF_DATA_SCOPE",
+    );
   });
 
   it("đơn chờ xuất kho: cần task-assignment:CREATE, cũ nhất trước, lọc theo kho, phạm vi kho trước 404", async () => {

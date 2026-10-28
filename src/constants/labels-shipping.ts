@@ -103,6 +103,7 @@ export const SHIPPING_UI_LABELS = {
   /* ── Chi tiết chuyến / quét ──────────────────────────────────────── */
   load: {
     title: "Chuyến xe",
+    code: "Mã chuyến",
     back: "Danh sách chuyến",
     info: "Thông tin chuyến",
     modeLabel: "Hình thức giao",
@@ -250,6 +251,7 @@ export const SHIPPING_UI_LABELS = {
   /* ── Chi tiết lô giao + kết quả giao ─────────────────────────────── */
   shipment: {
     title: "Lô giao",
+    code: "Mã lô",
     back: "Danh sách lô giao",
     info: "Thông tin lô",
     order: "Đơn hàng",

@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { cn } from "cn";
 import { Plus } from "lucide-react";
 import { parseAsInteger, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 
 import { PRODUCT_PERMISSIONS, UI_LABELS } from "@/constants";
 import { usePermissionChecker } from "@/lib/auth";
-import { PageHeader } from "@/components/shared/PageHeader";
+import { TOOLBAR_ACTION_CLASS } from "@/components/shared/ListToolbar";
 import { PageTabPanel, PageTabs } from "@/components/shared/PageTabs";
 import { Button } from "@/components/ui/button";
 
@@ -40,25 +41,22 @@ export function TaxonomyManager() {
   const [creating, setCreating] = useState(false);
   const isBrands = tab === "brands";
 
+  // UI-only — Backend phải re-check (@RequiresPermission product-products:CREATE)
+  const createAction = can(PRODUCT_PERMISSIONS.create) ? (
+    <Button
+      type="button"
+      size="sm"
+      onClick={() => setCreating(true)}
+      className={cn("bg-brand hover:bg-brand-hover", TOOLBAR_ACTION_CLASS)}
+    >
+      <Plus className="size-3.5" /> {isBrands ? L.createBrand : L.createCategory}
+    </Button>
+  ) : undefined;
+
   return (
-    <>
-      <PageHeader
-        title={L.pageTitle}
-        subtitle={L.pageSubtitle}
-        // UI-only — Backend phải re-check (@RequiresPermission product-products:CREATE)
-        actions={
-          can(PRODUCT_PERMISSIONS.create) ? (
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => setCreating(true)}
-              className="rounded-[var(--r-sm)]"
-            >
-              <Plus className="size-3.5" /> {isBrands ? L.createBrand : L.createCategory}
-            </Button>
-          ) : undefined
-        }
-      />
+    // Giao diện kiểu Vercel như trang danh sách sản phẩm (globals.css `.surface-soft`)
+    <div className="surface-soft">
+      <h1 className="sr-only">{L.pageTitle}</h1>
       <PageTabs
         tabs={TAB_ITEMS}
         value={tab}
@@ -69,13 +67,13 @@ export function TaxonomyManager() {
         ariaLabel={L.pageTitle}
       />
       <PageTabPanel idPrefix="taxonomy" value={tab}>
-        {isBrands ? <BrandList /> : <CategoryList />}
+        {isBrands ? <BrandList actions={createAction} /> : <CategoryList actions={createAction} />}
       </PageTabPanel>
       {isBrands ? (
         <BrandFormDialog open={creating} onOpenChange={setCreating} />
       ) : (
         <CategoryFormDialog open={creating} onOpenChange={setCreating} />
       )}
-    </>
+    </div>
   );
 }

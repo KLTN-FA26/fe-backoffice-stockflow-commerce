@@ -58,6 +58,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "DISPATCHED",
   ],
   info: [
+    // Khách hàng chưa kích hoạt tài khoản (BE CustomerStatus.PENDING_ACTIVATION)
+    "PENDING_ACTIVATION",
     "QUEUED",
     "SENT",
     "In Progress",
@@ -164,8 +166,12 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Pending Prepress",
     // Chuyến xe mới lập kế hoạch, chưa đặt xe
     "PLANNED",
+    // Dòng lấy hàng chưa lấy (BE PickLineStatus.OPEN, SCRUM-267)
+    "Open",
   ],
   muted: [
+    // Dòng lấy hàng đã trả về kệ sau khi đơn huỷ — kết thúc (BE PickLineStatus.PUT_BACK, SCRUM-275)
+    "Put Back",
     "UNKNOWN",
     "SUPPRESSED",
     // BE #36 cancellationDeliveryStatus: PO huỷ trước khi gửi NCC → không cần báo huỷ.
@@ -358,7 +364,9 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   Guest: "Khách vãng lai",
   New: "Mới",
   Requested: "Đã yêu cầu",
+  Open: "Chờ lấy",
   // Muted
+  "Put Back": "Đã trả về kệ",
   Closed: "Đã đóng",
   Inactive: "Không hoạt động",
   Blacklisted: "Danh sách đen",
@@ -400,6 +408,14 @@ const STATUS_LABEL_VI_BY_DOMAIN: Partial<Record<StatusDomain, Record<string, str
   },
   stock: {
     [STOCK_ADJUSTMENT_STATUS.REJECTED]: "Từ chối",
+  },
+  // Khách hàng (BE CustomerStatus). Domain `customer` còn dùng cho trạng thái tài khoản người dùng
+  // (ACTIVE / LOCKED / DISABLED, `UserStatusBadge`) → không ghi đè ACTIVE; INACTIVE giữ tone mặc định
+  // vì chuỗi này còn dùng ở module khác
+  customer: {
+    PENDING_ACTIVATION: "Chờ kích hoạt",
+    INACTIVE: "Ngừng hoạt động",
+    BLOCKED: "Bị khoá",
   },
   // Đơn hàng (BE OrderStatus, PR #133): nhãn sát nghĩa nghiệp vụ hơn nhãn dùng chung với module khác
   order: {

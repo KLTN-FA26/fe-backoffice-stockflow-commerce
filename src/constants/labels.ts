@@ -8,6 +8,7 @@ import { LOAD_PLAN_TOAST_MESSAGES, LOAD_PLAN_UI_LABELS } from "./labels-load-pla
 import { PACKING_TOAST_MESSAGES, PACKING_UI_LABELS } from "./labels-packing";
 import { PRODUCT_UI_LABELS } from "./labels-product";
 import { SHIPPING_TOAST_MESSAGES, SHIPPING_UI_LABELS } from "./labels-shipping";
+import { SKU_PURCHASING_UI_LABELS } from "./labels-sku-purchasing";
 import { TAXONOMY_TOAST_MESSAGES, TAXONOMY_UI_LABELS } from "./labels-taxonomy";
 import { TRANSFER_TOAST_MESSAGES, TRANSFER_UI_LABELS } from "./labels-transfer";
 import { TRANSFER_PACK_TOAST_MESSAGES, TRANSFER_PACK_UI_LABELS } from "./labels-transfer-pack";
@@ -24,6 +25,17 @@ export const UI_LABELS = {
     showing: "Hiển thị",
     /** Badge thanh Cấu hình khi ô search chưa có nội dung. */
     notEntered: "Chưa nhập",
+  },
+  // Ô chọn ngày dùng chung (components/shared/DatePicker)
+  datePicker: {
+    placeholder: "Chọn ngày",
+    today: "Hôm nay",
+    clear: "Xoá ngày",
+  },
+  // Ô chọn dạng cây dùng chung (components/shared/TreeSelect)
+  treeSelect: {
+    expand: (label: string) => `Mở ${label}`,
+    collapse: (label: string) => `Thu gọn ${label}`,
   },
   // Khung back-office (sidebar / topbar)
   shell: {
@@ -155,6 +167,41 @@ export const UI_LABELS = {
       description:
         "Chọn SKU trong danh mục của nhà cung cấp, số lượng theo MOQ và quy cách; đơn giá điền sẵn theo danh mục khi cùng tiền tệ PO — tổng = số lượng × đơn giá.",
       add: "Thêm dòng hàng",
+      addMany: "Thêm nhiều SKU",
+      // Chế độ mở rộng: ẩn sidebar + stepper để bảng dòng hàng chiếm hết chiều ngang
+      expand: "Mở rộng",
+      collapse: "Thu gọn",
+      columns: {
+        index: "#",
+        sku: "SKU",
+        qty: "SL đặt",
+        price: "Đơn giá",
+        tax: "Thuế (%)",
+        total: "Thành tiền",
+        actions: "Thao tác",
+      },
+      caption: "Dòng hàng của đơn đặt NCC",
+      lineSummary: (lines: number, errors: number) =>
+        errors > 0 ? `${lines} dòng · ${errors} dòng có lỗi` : `${lines} dòng`,
+      qtyAria: (line: number) => `SL đặt dòng ${line}`,
+      priceAria: (line: number) => `Đơn giá dòng ${line}`,
+      taxAria: (line: number) => `Thuế suất (%) dòng ${line}`,
+      removeAria: (line: number) => `Xóa dòng hàng ${line}`,
+      descriptionButton: (line: number) => `Mô tả dòng ${line}`,
+      descriptionLabel: (line: number) => `Mô tả sản phẩm dòng ${line}`,
+      descriptionDone: "Xong",
+      subtotal: "Tạm tính",
+      tax: "Thuế",
+      // Hộp chọn nhiều SKU trong danh mục NCC — mỗi SKU tick thành một dòng mới
+      multiPick: {
+        title: "Thêm nhiều SKU",
+        description:
+          "Tick các SKU trong danh mục của nhà cung cấp. Mỗi SKU thành một dòng, số lượng điền sẵn mức tối thiểu theo MOQ và quy cách.",
+        allUsed: "Mọi SKU trong danh mục đã có trong đơn.",
+        selected: (n: number) => `Đã chọn ${n}`,
+        limit: (n: number) => `Chỉ thêm được ${n} dòng nữa.`,
+        submit: (n: number) => (n > 0 ? `Thêm ${n} dòng` : "Thêm dòng"),
+      },
       // Sửa nháp: dòng đã lưu giữ giá đã thương lượng (issue #30 §2), chỉ dòng mới điền giá danh mục
       // Sửa nháp thiếu quyền đọc danh mục NCC: không thêm được dòng mới
       editDescriptionNoCatalog:
@@ -362,6 +409,7 @@ export const UI_LABELS = {
   loadPlan: LOAD_PLAN_UI_LABELS,
   taxonomy: TAXONOMY_UI_LABELS,
   inventoryItem: INVENTORY_ITEM_UI_LABELS,
+  skuPurchasing: SKU_PURCHASING_UI_LABELS,
   product: PRODUCT_UI_LABELS,
   packing: PACKING_UI_LABELS,
   fulfillment: {
@@ -385,10 +433,24 @@ export const UI_LABELS = {
       openPacking: "Mở trạm đóng gói",
       openPicking: "Xem lấy hàng",
     },
-    // Thiếu quyền đọc dữ liệu phụ trợ của module khác (seed BE chưa cấp cho vai trò kho)
-    noOrderReadTitle: "Chưa đủ quyền xem dòng đơn hàng",
-    noOrderReadDescription:
-      "Danh sách SKU cần lấy đọc từ đơn hàng. Tài khoản chưa được cấp quyền xem đơn hàng — liên hệ quản trị để được cấp.",
+    // Lọc danh sách task (BE `GET /fulfillment/tasks?status&warehouseId&assignedUserId`, SCRUM-466)
+    filter: {
+      warehouse: "Kho",
+      status: "Trạng thái",
+      assignee: "Người được gán",
+      allWarehouses: "Tất cả kho",
+      allStatuses: "Tất cả trạng thái",
+      allAssignees: "Tất cả người",
+      pickWarehouseFirst: "Chọn kho trước",
+      // Lọc người từ link (?assignee=) mà chưa có tên để hiện — không lộ id người dùng
+      filteredAssignee: "Người đang lọc",
+      clear: "Bỏ lọc",
+      clearWarehouse: "Bỏ lọc kho",
+      noMatchTitle: "Không có task khớp bộ lọc",
+      noMatchDescription: "Thử bỏ bớt bộ lọc để xem thêm task.",
+      outOfScope: "Kho này nằm ngoài phạm vi dữ liệu của bạn.",
+      assigneesFailed: "Không tải được danh sách người được gán.",
+    },
     // Dialog tạo task: đơn chờ xuất kho đọc từ GET /fulfillment/task-candidates (cần fulfillment-task-assignment:CREATE)
     noCreateTitle: "Chưa đủ quyền tạo task lấy hàng",
     noCreateDescription:
@@ -422,6 +484,7 @@ export const UI_LABELS = {
     artifactDisclaimer:
       "File tải về từ bundle đã khoá; đường dẫn chỉ dùng được trong thời gian ngắn.",
     noDesignLines: "Đơn không có dòng tuỳ chỉnh — không cần đối chiếu thiết kế.",
+    noTaskLines: "Task chưa có dòng hàng.",
     noActions: {
       viewOnly: "Bạn chỉ có quyền xem task này.",
       notAssignee: "Chỉ nhân viên được gán mới thao tác được trên task này.",
@@ -475,9 +538,8 @@ export const FULFILLMENT_ERROR_MESSAGES = {
   reverifyConflict:
     "Kiện không còn bị giữ, hoặc đơn hàng không còn ở khâu xuất kho. Dữ liệu đã được tải lại.",
   artifactMissing: "Bundle thiết kế đã chốt không có file này",
-  // 409 khi task CHƯA bị giữ: BE dùng cùng mã cho "lệch checksum" và "đơn không còn ở khâu xuất kho"
-  artifactUnavailable:
-    "Không lấy được file thiết kế: đơn hàng không còn ở khâu xuất kho, hoặc file không khớp checksum đã chốt.",
+  // 409 PICK_TASK_STATE_CONFLICT khi tải file (BE `TaskAccess.orderInFulfilment`) — khác CONFLICT lệch checksum
+  artifactOrderClosed: "Đơn đã rời khâu xuất kho nên không tải được file thiết kế.",
   // URL ký BE trả không phải http(s) — không mở để tránh chạy `javascript:` trong tab
   artifactUrlInvalid: "Đường dẫn file thiết kế không hợp lệ — không mở được. Báo bộ phận kỹ thuật.",
   popupBlocked:
@@ -493,6 +555,12 @@ export const FULFILLMENT_ERROR_MESSAGES = {
   OUT_OF_DATA_SCOPE:
     "Kho này nằm ngoài phạm vi dữ liệu của bạn — bạn chỉ xem được đơn của kho mình phụ trách.",
   warehouseNotFound: "Không tìm thấy kho.",
+  // 409 khi tạo task / bắt đầu lấy hàng / phân bổ lại: hàng giữ cho đơn nằm ở kho khác kho xuất (BE
+  // FulfillmentServiceImpl#pickingWarehouse, PickList.plan / replaceShort — release không kiểm nơi giữ hàng)
+  FULFILLMENT_HOLDS_OUTSIDE_WAREHOUSE:
+    "Hàng giữ cho đơn đang nằm ở kho khác kho xuất — cần lệnh chuyển kho đưa hàng về đúng kho rồi mới lấy hàng.",
+  // 409 khi hoàn tất mà BE còn dòng chưa lấy (BE `PickList.requireAllPicked` / task chưa lập dòng)
+  PICK_LINES_INCOMPLETE: "Còn dòng chưa lấy xong nên chưa hoàn tất được. Dữ liệu đã được tải lại.",
   OPTIMISTIC_LOCK: "Task vừa được người khác cập nhật. Dữ liệu đã được tải lại, hãy thử lại.",
   LOCK_TIMEOUT: "Task đang được người khác thao tác. Thử lại sau giây lát.",
   STORAGE_ERROR: "Kho lưu trữ file thiết kế đang không truy cập được. Thử lại sau.",
@@ -506,6 +574,11 @@ export const FULFILLMENT_FIELD_MESSAGES = {
   assigneeRequired: "Chọn nhân viên được gán",
   resolutionNoteRequired: "Nhập cách đã xử lý",
   resolutionNoteTooLong: "Tối đa 1000 ký tự",
+  // BE ConfirmPickRequest / ShortPickRequest: @NotBlank @Size(max = 64), quantity @NotNull @Positive
+  locationRequired: "Chọn vị trí",
+  codeRequired: "Chọn mã hàng",
+  codeTooLong: "Tối đa 64 ký tự",
+  quantityRequired: "Nhập số lượng là số nguyên lớn hơn 0",
 } as const;
 
 /**
@@ -761,6 +834,14 @@ export const TOAST_MESSAGES = {
     pickingCompleted: "Đã hoàn tất lấy hàng",
     held: "Lệch checksum thiết kế — kiện bị giữ, chờ kiểm tra lại thiết kế",
     reverified: "Thiết kế khớp — đã gỡ giữ, người đóng gói hoàn tất lại",
+    // Phân bổ lại dòng thiếu (BE `POST …/pick-lines/{lineId}/reallocation`, PR #147)
+    lineReallocated: "Đã phân bổ lại dòng thiếu",
+    linesPlanned: "Đã tạo danh sách dòng lấy hàng",
+    // Báo thiếu hàng (BE `POST …/pick-lines/{lineId}/short`, PR #147): đơn tạm giữ, chờ phân bổ lại
+    shortReported: (sku: string, quantity: number) => `Đã báo thiếu ${quantity} × ${sku}`,
+    // Trả hàng về kệ (BE `POST …/pick-lines/{lineId}/put-back`, SCRUM-275)
+    putBack: (quantity: number, sku: string, bin: string) =>
+      `Đã trả ${quantity} × ${sku} về ${bin}`,
   },
   packing: PACKING_TOAST_MESSAGES,
 } as const;

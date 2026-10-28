@@ -2,6 +2,8 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { pickDate } from "@/test/date-picker";
+
 import {
   PO_PERMISSION_SETS,
   bePage,
@@ -9,6 +11,7 @@ import {
   pickSelectOption,
   renderPoScreen,
 } from "../../__fixtures__/render";
+
 import { SupplierSpendSection } from "./SupplierSpendSection";
 
 afterEach(() => vi.restoreAllMocks());
@@ -48,11 +51,12 @@ describe("SupplierSpendSection", () => {
     const user = userEvent.setup();
     renderSpend();
     await screen.findByText("Chưa có chi tiêu bằng VND");
-    await user.type(screen.getByLabelText("Giao dự kiến từ"), "2026-02-10");
-    await user.type(screen.getByLabelText("Đến"), "2026-02-01");
+    // "Đến" khoá ngày trước "Từ" ⇒ chọn "Đến" trước rồi mới đặt "Từ" sau nó.
+    await pickDate(user, screen.getByLabelText("Đến"), "2026-02-01");
+    await pickDate(user, screen.getByLabelText("Giao dự kiến từ"), "2026-02-10");
     expect(screen.getByRole("alert")).toHaveTextContent("phải từ ngày");
     expect(screen.getByRole("button", { name: "Lọc" })).toBeDisabled();
-  });
+  }, 20_000);
 
   it("chọn 'Mã khác…' nhưng chưa nhập → nói rõ vẫn đang xem tiền tệ cũ", async () => {
     const user = userEvent.setup();
