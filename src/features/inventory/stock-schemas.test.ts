@@ -111,6 +111,20 @@ describe("WarehouseStockItemResponse", () => {
     expect(parsed.receivedAt).toBeUndefined();
   });
 
+  it("accepts a row masked during a cycle count: quantities absent, flag true (SCRUM-146)", () => {
+    const { onHand: _o, reserved: _r, available: _a, ...bare } = stockItem;
+    const parsed = warehouseStockItemDto.parse({ ...bare, hiddenDuringCount: true });
+    expect(parsed.hiddenDuringCount).toBe(true);
+    expect(parsed.onHand).toBeUndefined();
+    expect(parsed.reserved).toBeUndefined();
+    expect(parsed.available).toBeUndefined();
+  });
+
+  it("defaults hiddenDuringCount to false and still rejects a fractional quantity", () => {
+    expect(warehouseStockItemDto.parse(stockItem).hiddenDuringCount).toBe(false);
+    expect(warehouseStockItemDto.safeParse({ ...stockItem, onHand: 1.5 }).success).toBe(false);
+  });
+
   it("accepts explicit nulls for the same fields", () => {
     expect(
       warehouseStockItemDto.parse({

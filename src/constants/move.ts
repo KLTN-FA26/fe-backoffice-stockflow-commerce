@@ -60,6 +60,7 @@ export const MOVE_LABELS = {
   stockOnHand: "Tồn",
   stockReserved: "Giữ chỗ",
   stockMovable: "Chuyển được",
+  stockHiddenSource: "Đang kiểm kê — không chuyển hàng ra khỏi vị trí này",
   stockUnavailable: "Không xem được tồn của SKU — bạn vẫn có thể nhập vị trí nguồn thủ công.",
   resultTitle: "Đã chuyển vị trí",
   resultSummary: "Đã chuyển",
@@ -85,6 +86,8 @@ export const MOVE_MESSAGES = {
   // Docs 11 §6 BR-01: khác kho → dùng lệnh chuyển kho (docs 10); BE MOVE_ACROSS_WAREHOUSES.
   crossWarehouse: "Hai vị trí phải thuộc cùng một kho. Chuyển giữa các kho dùng Lệnh chuyển kho.",
   exceedsMovable: "Vượt số lượng chưa giữ chỗ tại vị trí nguồn.",
+  sourceUnderCount:
+    "Vị trí nguồn đang được kiểm kê — không thể chuyển hàng ra khỏi vị trí này cho đến khi kiểm kê xong.",
   invalidContract: "Dữ liệu di chuyển trả về không đúng định dạng.",
   requestFailed: "Không thực hiện được lệnh di chuyển.",
 } as const;
