@@ -135,6 +135,7 @@ export function renderFulfillmentScreen(
       status: "ACTIVE",
       roles: [],
       lastLoginAt: null,
+      mustChangePassword: false,
     },
     status: "authenticated",
     isAuthenticated: true,

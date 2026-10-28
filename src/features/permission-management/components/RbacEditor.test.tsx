@@ -61,6 +61,7 @@ beforeEach(() => {
       status: "ACTIVE",
       roles: ["display-context"],
       lastLoginAt: null,
+      mustChangePassword: false,
     },
     false,
   );
@@ -76,6 +77,7 @@ beforeEach(() => {
           status: "ACTIVE",
           roles: ["display-context"],
           lastLoginAt: null,
+          mustChangePassword: false,
         },
       };
     if (path === "/identity/me/permissions")

@@ -65,6 +65,7 @@ beforeEach(() => {
       roles: ["ROLE_SYSTEM_ADMIN"],
       status: "ACTIVE",
       lastLoginAt: null,
+      mustChangePassword: false,
     },
     false,
   );
@@ -91,7 +92,7 @@ describe("declared navigation permissions", () => {
     for (const name of ["Nhà cung cấp", "Đơn đặt NCC", "Đơn hàng", "Phân quyền"])
       expect(screen.queryByRole("link", { name })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Tổng quan" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Sản phẩm & SKU" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Sản phẩm & SKU" })).not.toBeInTheDocument();
     expect(await screen.findByRole("link", { name: "Nhà cung cấp" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Đơn đặt NCC" })).not.toBeInTheDocument();
   });
@@ -176,6 +177,28 @@ describe("declared navigation permissions", () => {
       "href",
       "/admin/inventory-items",
     );
+  });
+  it("Products requires product-products:VIEW_PAGE, not merely a signed-in session", async () => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [], permissions: [PRODUCT_PERMISSIONS.viewPage], dataScope: "ALL" },
+    });
+    mount();
+    expect(await screen.findByRole("link", { name: "Sản phẩm & SKU" })).toBeInTheDocument();
+
+    cleanup();
+    client.clear();
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [], permissions: [PRODUCT_PERMISSIONS.read], dataScope: "ALL" },
+    });
+    mount();
+    await waitFor(() =>
+      expect(
+        client.getQueryState(
+          meKeys.sessionPermissions("nav-user", useAuthStore.getState().authorizationVersion),
+        )?.status,
+      ).toBe("success"),
+    );
+    expect(screen.queryByRole("link", { name: "Sản phẩm & SKU" })).not.toBeInTheDocument();
   });
   it("read-only RBAC navigation uses the real backend READ capability", async () => {
     vi.spyOn(api, "get").mockResolvedValue({

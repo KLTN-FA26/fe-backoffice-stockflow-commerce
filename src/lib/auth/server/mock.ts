@@ -100,6 +100,7 @@ export async function mockAuthBackend(
       status: user.active ? "ACTIVE" : "INACTIVE",
       roles: user.roles,
       lastLoginAt: null,
+      mustChangePassword: false,
     });
   }
   return Response.json({ message: "Not found" }, { status: 404 });

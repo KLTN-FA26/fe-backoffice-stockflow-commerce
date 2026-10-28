@@ -156,6 +156,7 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "Sản phẩm & SKU",
         href: "/admin/products",
         icon: Package,
+        permission: PRODUCT_PERMISSIONS.viewPage,
       },
       {
         label: "Từ điển thuộc tính",
@@ -292,13 +293,13 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "Điều chỉnh tồn",
         href: INVENTORY_ROUTES.adjustments,
         icon: SlidersHorizontal,
-        permission: INVENTORY_PERMISSIONS.adjustmentRead,
+        permission: INVENTORY_PERMISSIONS.adjustmentViewPage,
       },
       {
         label: "Lịch sử biến động",
         href: INVENTORY_ROUTES.movements,
         icon: HistoryIcon,
-        permission: INVENTORY_PERMISSIONS.movementRead,
+        permission: INVENTORY_PERMISSIONS.movementViewPage,
       },
     ],
   },

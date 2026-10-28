@@ -3,7 +3,7 @@ import { act, cleanup, render, screen, waitFor, within } from "@testing-library/
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { INVENTORY_PERMISSIONS } from "@/constants";
+import { IDENTITY_PERMISSIONS, INVENTORY_PERMISSIONS } from "@/constants";
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 
 import { api } from "@/lib/api/client";
@@ -52,6 +52,7 @@ async function renderShell(
       username: "actor",
       status: "ACTIVE",
       lastLoginAt: null,
+      mustChangePassword: false,
     },
     status: "authenticated",
     isAuthenticated: true,
@@ -90,9 +91,15 @@ function navLink(name: string) {
 
 describe("Inventory sidebar entries follow backend permission codes", () => {
   it.each([
-    [[INVENTORY_PERMISSIONS.adjustmentRead, INVENTORY_PERMISSIONS.movementRead], true, true],
-    [[INVENTORY_PERMISSIONS.adjustmentRead], true, false],
-    [[INVENTORY_PERMISSIONS.movementRead], false, true],
+    [
+      [INVENTORY_PERMISSIONS.adjustmentViewPage, INVENTORY_PERMISSIONS.movementViewPage],
+      true,
+      true,
+    ],
+    [[INVENTORY_PERMISSIONS.adjustmentViewPage], true, false],
+    [[INVENTORY_PERMISSIONS.movementViewPage], false, true],
+    // READ is data access for other screens; the page needs VIEW_PAGE (BE ADR-0004)
+    [[INVENTORY_PERMISSIONS.adjustmentRead, INVENTORY_PERMISSIONS.movementRead], false, false],
     [[], false, false],
   ] as const)("%j → adjustments %s, movements %s", async (permissions, adjustments, movements) => {
     await renderShell(permissions);
@@ -101,7 +108,10 @@ describe("Inventory sidebar entries follow backend permission codes", () => {
   });
 
   it("links to the canonical Inventory routes", async () => {
-    await renderShell([INVENTORY_PERMISSIONS.adjustmentRead, INVENTORY_PERMISSIONS.movementRead]);
+    await renderShell([
+      INVENTORY_PERMISSIONS.adjustmentViewPage,
+      INVENTORY_PERMISSIONS.movementViewPage,
+    ]);
     expect(navLink(ADJUSTMENTS)).toHaveAttribute("href", INVENTORY_ROUTES.adjustments);
     expect(navLink(MOVEMENTS)).toHaveAttribute("href", INVENTORY_ROUTES.movements);
   });
@@ -112,7 +122,7 @@ describe("Inventory sidebar entries follow backend permission codes", () => {
   });
 
   it.each<RoleName>(["System Admin", "Warehouse Manager"])(
-    "%s without Inventory READ codes sees no Inventory entry",
+    "%s without Inventory page codes sees no Inventory entry",
     async (role) => {
       await renderShell([], role);
       expect(navLink(ADJUSTMENTS)).not.toBeInTheDocument();
@@ -120,8 +130,8 @@ describe("Inventory sidebar entries follow backend permission codes", () => {
     },
   );
 
-  it("a non-allowlisted role with movement READ sees Movement History", async () => {
-    await renderShell([INVENTORY_PERMISSIONS.movementRead], "Accountant");
+  it("a non-allowlisted role with movement VIEW_PAGE sees Movement History", async () => {
+    await renderShell([INVENTORY_PERMISSIONS.movementViewPage], "Accountant");
     expect(navLink(MOVEMENTS)).toBeInTheDocument();
   });
 
@@ -132,8 +142,8 @@ describe("Inventory sidebar entries follow backend permission codes", () => {
   ])("marks only the adjustment entry active on %s", async (pathname) => {
     navigation.pathname = pathname;
     await renderShell([
-      INVENTORY_PERMISSIONS.adjustmentRead,
-      INVENTORY_PERMISSIONS.movementRead,
+      INVENTORY_PERMISSIONS.adjustmentViewPage,
+      INVENTORY_PERMISSIONS.movementViewPage,
       INVENTORY_PERMISSIONS.stockRead,
     ]);
     expect(navLink(INVENTORY_LABELS.overviewTitle)).not.toHaveAttribute("data-active", "true");
@@ -144,8 +154,8 @@ describe("Inventory sidebar entries follow backend permission codes", () => {
   it("marks only Movement History active on its route", async () => {
     navigation.pathname = INVENTORY_ROUTES.movements;
     await renderShell([
-      INVENTORY_PERMISSIONS.adjustmentRead,
-      INVENTORY_PERMISSIONS.movementRead,
+      INVENTORY_PERMISSIONS.adjustmentViewPage,
+      INVENTORY_PERMISSIONS.movementViewPage,
       INVENTORY_PERMISSIONS.stockUpdate,
     ]);
     expect(navLink(MOVEMENTS)).toHaveAttribute("data-active", "true");
@@ -154,7 +164,11 @@ describe("Inventory sidebar entries follow backend permission codes", () => {
   });
 
   it("Di chuyển nội bộ follows the backend guard of POST /inventory/movements (stock UPDATE)", async () => {
-    await renderShell([INVENTORY_PERMISSIONS.movementRead, INVENTORY_PERMISSIONS.adjustmentRead]);
+    await renderShell([
+      INVENTORY_PERMISSIONS.movementViewPage,
+      INVENTORY_PERMISSIONS.adjustmentViewPage,
+    ]);
+    expect(navLink(ADJUSTMENTS)).toBeInTheDocument();
     expect(navLink(MOVES)).not.toBeInTheDocument();
     cleanup();
     await renderShell([INVENTORY_PERMISSIONS.stockUpdate]);
@@ -163,7 +177,7 @@ describe("Inventory sidebar entries follow backend permission codes", () => {
 
   it("marks only Di chuyển nội bộ active on /admin/moves", async () => {
     navigation.pathname = "/admin/moves";
-    await renderShell([INVENTORY_PERMISSIONS.stockUpdate, INVENTORY_PERMISSIONS.movementRead]);
+    await renderShell([INVENTORY_PERMISSIONS.stockUpdate, INVENTORY_PERMISSIONS.movementViewPage]);
     expect(navLink(MOVES)).toHaveAttribute("data-active", "true");
     expect(navLink(MOVEMENTS)).not.toHaveAttribute("data-active", "true");
   });
@@ -183,7 +197,10 @@ describe("shell shows no demo data against the real backend", () => {
 describe("sidebar drill-down kiểu Vercel", () => {
   it("bấm item cha → thay bằng item con; tên item cha ở đầu là nút quay lại danh sách item cha", async () => {
     // renderShell tự mở màn con "Kho" khi đang ở màn gốc
-    await renderShell([INVENTORY_PERMISSIONS.adjustmentRead, INVENTORY_PERMISSIONS.movementRead]);
+    await renderShell([
+      INVENTORY_PERMISSIONS.adjustmentViewPage,
+      INVENTORY_PERMISSIONS.movementViewPage,
+    ]);
     const sidebar = document.querySelector<HTMLElement>('[data-sidebar="content"]');
     if (!sidebar) throw new Error("Sidebar content not rendered");
     expect(navLink(ADJUSTMENTS)).toBeInTheDocument();
@@ -196,7 +213,10 @@ describe("sidebar drill-down kiểu Vercel", () => {
 
   it("đang ở trang thuộc nhóm → mở sẵn màn con của nhóm đó", async () => {
     navigation.pathname = INVENTORY_ROUTES.movements;
-    await renderShell([INVENTORY_PERMISSIONS.adjustmentRead, INVENTORY_PERMISSIONS.movementRead]);
+    await renderShell([
+      INVENTORY_PERMISSIONS.adjustmentViewPage,
+      INVENTORY_PERMISSIONS.movementViewPage,
+    ]);
     expect(navLink(MOVEMENTS)).toHaveAttribute("data-active", "true");
     expect(screen.getByRole("button", { name: /^Quay lại Kho/ })).toBeInTheDocument();
   });
@@ -228,5 +248,53 @@ describe("Chế độ mở rộng (focusMode) và nút thu / mở sidebar", () =
     await userEvent.click(toggle("Mở rộng sidebar"));
     expect(useAppStore.getState().focusMode).toBe(false);
     expect(toggle("Thu nhỏ sidebar")).toBeInTheDocument();
+  });
+});
+
+describe("sidebar parent entries follow their visible items", () => {
+  function sidebar() {
+    const content = document.querySelector<HTMLElement>('[data-sidebar="content"]');
+    if (!content) throw new Error("Sidebar content not rendered");
+    return content;
+  }
+  const parent = (title: string) =>
+    within(sidebar()).queryByRole("button", { name: new RegExp(`^${title}`) });
+  // renderShell mở màn con "Kho" — quay về màn gốc để thấy các item cha
+  async function showRoot() {
+    const back = within(sidebar()).queryByRole("button", { name: /^Quay lại/ });
+    if (back) await userEvent.click(back);
+  }
+
+  it("drops a parent entry when every item in it is denied", async () => {
+    await renderShell([]);
+    await showRoot();
+    expect(parent("Platform")).not.toBeInTheDocument();
+    expect(navLink("Phân quyền")).not.toBeInTheDocument();
+    expect(navLink("Tổng quan")).toBeInTheDocument();
+  });
+
+  it("a group with one allowed item shows that item as a direct link", async () => {
+    await renderShell([IDENTITY_PERMISSIONS.rbacRead]);
+    await showRoot();
+    expect(navLink("Phân quyền")).toBeInTheDocument();
+    expect(parent("Platform")).not.toBeInTheDocument();
+  });
+
+  it("keeps the parent entry when several of its items are allowed", async () => {
+    await renderShell([IDENTITY_PERMISSIONS.rbacRead, IDENTITY_PERMISSIONS.usersRead]);
+    await showRoot();
+    expect(parent("Platform")).toBeInTheDocument();
+  });
+
+  it("collapsed sidebar renders no separator for a group with no visible item", async () => {
+    await renderShell([]);
+    await userEvent.click(screen.getByRole("button", { name: "Thu nhỏ sidebar" }));
+    // Thu gọn: mỗi nhóm là một khối (vạch ngăn + icon) — khối nào cũng phải có ít nhất một link
+    const menu = sidebar().querySelector<HTMLElement>('[data-sidebar="menu"]');
+    if (!menu) throw new Error("Collapsed menu not rendered");
+    const groups = menu.querySelectorAll<HTMLElement>(":scope > *");
+    expect(groups.length).toBeGreaterThan(0);
+    for (const group of groups)
+      expect(within(group).queryAllByRole("link").length).toBeGreaterThan(0);
   });
 });

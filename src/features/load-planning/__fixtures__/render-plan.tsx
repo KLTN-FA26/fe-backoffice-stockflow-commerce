@@ -100,6 +100,7 @@ export function renderLoadPlanScreen(ui: React.ReactElement, searchParams = "") 
       username: "test",
       status: "ACTIVE",
       lastLoginAt: null,
+      mustChangePassword: false,
     },
     isAuthenticated: true,
     status: "authenticated",

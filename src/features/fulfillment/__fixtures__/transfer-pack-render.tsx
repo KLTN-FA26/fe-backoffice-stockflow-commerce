@@ -116,6 +116,7 @@ export function renderTransferPackStation(options: Options = {}) {
       status: "ACTIVE",
       roles: [],
       lastLoginAt: null,
+      mustChangePassword: false,
     },
     status: "authenticated",
     isAuthenticated: true,

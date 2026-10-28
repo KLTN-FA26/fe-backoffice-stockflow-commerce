@@ -42,6 +42,7 @@ function actAs(user: Who) {
       email: "t@t.vn",
       status: "ACTIVE",
       lastLoginAt: null,
+      mustChangePassword: false,
     },
     status: "authenticated",
     isAuthenticated: true,

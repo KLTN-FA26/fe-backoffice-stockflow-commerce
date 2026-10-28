@@ -55,6 +55,7 @@ function actAs(user: { userId: string; roles: RoleName[] }) {
       email: "t@t.vn",
       status: "ACTIVE",
       lastLoginAt: null,
+      mustChangePassword: false,
     },
     status: "authenticated",
     isAuthenticated: true,

@@ -64,6 +64,7 @@ export function renderCustomerPrices(ui: React.ReactElement, search = "") {
       username: "test",
       status: "ACTIVE",
       lastLoginAt: null,
+      mustChangePassword: false,
     },
     isAuthenticated: true,
     status: "authenticated",

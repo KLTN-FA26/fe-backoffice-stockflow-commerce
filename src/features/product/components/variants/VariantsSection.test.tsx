@@ -189,6 +189,7 @@ function renderSection(props: { acceptsChanges?: boolean; productDiscontinued?: 
       username: "test",
       status: "ACTIVE",
       lastLoginAt: null,
+      mustChangePassword: false,
     },
     isAuthenticated: true,
     status: "authenticated",

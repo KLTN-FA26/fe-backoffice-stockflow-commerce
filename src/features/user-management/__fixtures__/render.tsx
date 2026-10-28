@@ -104,6 +104,7 @@ export function renderIdentityScreen(
       username: "admin",
       status: "ACTIVE",
       lastLoginAt: null,
+      mustChangePassword: false,
     },
     isAuthenticated: true,
     status: "authenticated",

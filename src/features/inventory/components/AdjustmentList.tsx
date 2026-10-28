@@ -13,7 +13,7 @@ import {
 import { INVENTORY_PERMISSIONS } from "@/constants/permissions";
 
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { useCan } from "@/lib/auth";
+import { usePermissionChecker } from "@/lib/auth";
 
 import { EmptyState } from "@/components/shared/EmptyState";
 import { DataTable } from "@/components/shared/DataTable";
@@ -38,14 +38,21 @@ const ADJUSTMENT_COLUMNS = buildAdjustmentColumns();
 
 export function AdjustmentList() {
   return (
-    <InventoryPermissionGate permission={INVENTORY_PERMISSIONS.adjustmentRead} variant="list">
+    <InventoryPermissionGate
+      allOf={[INVENTORY_PERMISSIONS.adjustmentViewPage, INVENTORY_PERMISSIONS.adjustmentRead]}
+      variant="list"
+    >
       <AdjustmentListContent />
     </InventoryPermissionGate>
   );
 }
 
 function AdjustmentListContent() {
-  const canCreate = useCan(INVENTORY_PERMISSIONS.stockUpdate);
+  const can = usePermissionChecker();
+  const canCreate = can(INVENTORY_PERMISSIONS.stockUpdate);
+  // Shortcut chỉ hiện khi mở được trang đích — cùng điều kiện với gate của MovementHistory
+  const canViewMovements =
+    can(INVENTORY_PERMISSIONS.movementViewPage) && can(INVENTORY_PERMISSIONS.movementRead);
   const state = useInventoryListFilters(INVENTORY_STORAGE_KEYS.adjustments);
   // Ô gõ ghi URL ngay; request dùng giá trị debounce 300ms như các trang danh sách khác
   const sku = useDebouncedValue(state.filters.sku.trim(), 300);
@@ -73,20 +80,22 @@ function AdjustmentListContent() {
         mode="adjustment"
         actions={
           <>
-            <Button
-              asChild
-              variant="outline"
-              size="sm"
-              className={cn(
-                "border-border-default bg-bg-surface text-ink-primary hover:bg-bg-muted",
-                TOOLBAR_ACTION_CLASS,
-              )}
-            >
-              <Link href={INVENTORY_ROUTES.movements}>
-                <History className="text-dot-info size-3.5" />
-                {INVENTORY_LABELS.movementTitle}
-              </Link>
-            </Button>
+            {canViewMovements && (
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className={cn(
+                  "border-border-default bg-bg-surface text-ink-primary hover:bg-bg-muted",
+                  TOOLBAR_ACTION_CLASS,
+                )}
+              >
+                <Link href={INVENTORY_ROUTES.movements}>
+                  <History className="text-dot-info size-3.5" />
+                  {INVENTORY_LABELS.movementTitle}
+                </Link>
+              </Button>
+            )}
             {createAction}
           </>
         }

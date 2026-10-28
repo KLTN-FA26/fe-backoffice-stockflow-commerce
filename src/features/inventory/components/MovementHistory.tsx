@@ -13,6 +13,7 @@ import {
 import { INVENTORY_PERMISSIONS } from "@/constants/permissions";
 
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { usePermissionChecker } from "@/lib/auth";
 
 import { DataTable } from "@/components/shared/DataTable";
 import { TOOLBAR_ACTION_CLASS } from "@/components/shared/ListToolbar";
@@ -37,13 +38,20 @@ const MOVEMENT_COLUMNS = buildMovementColumns();
 
 export function MovementHistory() {
   return (
-    <InventoryPermissionGate permission={INVENTORY_PERMISSIONS.movementRead} variant="list">
+    <InventoryPermissionGate
+      allOf={[INVENTORY_PERMISSIONS.movementViewPage, INVENTORY_PERMISSIONS.movementRead]}
+      variant="list"
+    >
       <MovementHistoryContent />
     </InventoryPermissionGate>
   );
 }
 
 function MovementHistoryContent() {
+  const can = usePermissionChecker();
+  // Shortcut chỉ hiện khi mở được trang đích — cùng điều kiện với gate của AdjustmentList
+  const canViewAdjustments =
+    can(INVENTORY_PERMISSIONS.adjustmentViewPage) && can(INVENTORY_PERMISSIONS.adjustmentRead);
   const state = useInventoryListFilters(INVENTORY_STORAGE_KEYS.movements);
   // Ô gõ ghi URL ngay; request dùng giá trị debounce 300ms như các trang danh sách khác
   const sku = useDebouncedValue(state.filters.sku.trim(), 300);
@@ -65,20 +73,22 @@ function MovementHistoryContent() {
         state={state}
         mode="movement"
         actions={
-          <Button
-            asChild
-            variant="outline"
-            size="sm"
-            className={cn(
-              "border-border-default bg-bg-surface text-ink-primary hover:bg-bg-muted",
-              TOOLBAR_ACTION_CLASS,
-            )}
-          >
-            <Link href={INVENTORY_ROUTES.adjustments}>
-              <SlidersHorizontal className="text-dot-info size-3.5" />
-              {INVENTORY_LABELS.adjustmentTitle}
-            </Link>
-          </Button>
+          canViewAdjustments && (
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className={cn(
+                "border-border-default bg-bg-surface text-ink-primary hover:bg-bg-muted",
+                TOOLBAR_ACTION_CLASS,
+              )}
+            >
+              <Link href={INVENTORY_ROUTES.adjustments}>
+                <SlidersHorizontal className="text-dot-info size-3.5" />
+                {INVENTORY_LABELS.adjustmentTitle}
+              </Link>
+            </Button>
+          )
         }
       />
       {query.isFetching && !query.isLoading && (

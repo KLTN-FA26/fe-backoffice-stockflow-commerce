@@ -22,6 +22,7 @@ const user = {
   status: "ACTIVE",
   roles: [],
   lastLoginAt: null,
+  mustChangePassword: false,
 };
 const rejected = () => Promise.reject(new ApiError(401, "UNAUTHENTICATED", "Signed out"));
 const mount = () =>

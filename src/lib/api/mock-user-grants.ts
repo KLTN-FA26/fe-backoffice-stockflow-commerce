@@ -126,8 +126,12 @@ const PRODUCT_STRUCTURE = [
 ];
 // Seed BE: WAREHOUSE_STAFF / INVENTORY_PLANNER giữ inventory-stock-items:READ/UPDATE và
 // inventory-alerts:READ (V20261014000900); WAREHOUSE_STAFF thêm warehouse-locations:READ (V20260928006000).
+// Sổ kho + phiếu điều chỉnh: VIEW_PAGE + READ cho WAREHOUSE_STAFF (V20261013000200) và INVENTORY_PLANNER
+// (sổ kho V20260903000100, phiếu điều chỉnh V20261014001200).
 const INVENTORY_FLOOR = [
+  INV.adjustmentViewPage,
   INV.adjustmentRead,
+  INV.movementViewPage,
   INV.stockUpdate,
   INV.stockRead,
   INV.movementRead,

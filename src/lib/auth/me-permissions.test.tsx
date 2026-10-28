@@ -36,6 +36,7 @@ beforeEach(() => {
       username: "test",
       status: "ACTIVE",
       lastLoginAt: null,
+      mustChangePassword: false,
     },
     impersonatedRole: null,
     status: "authenticated",

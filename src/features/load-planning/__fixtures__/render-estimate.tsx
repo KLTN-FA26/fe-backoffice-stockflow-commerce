@@ -47,6 +47,7 @@ export async function renderWithEstimateProviders(ui: React.ReactElement) {
       username: "test",
       status: "ACTIVE",
       lastLoginAt: null,
+      mustChangePassword: false,
     },
     isAuthenticated: true,
     status: "authenticated",

@@ -40,6 +40,7 @@ function signInAs(userId: string) {
       roles: [],
       status: "ACTIVE",
       lastLoginAt: null,
+      mustChangePassword: false,
     },
   });
 }

@@ -116,6 +116,7 @@ export function renderApp(ui: ReactElement, options: { searchParams?: string } =
       username: "test",
       status: "ACTIVE",
       lastLoginAt: null,
+      mustChangePassword: false,
     },
     isAuthenticated: true,
     status: "authenticated",

@@ -62,6 +62,7 @@ export function setInventoryTestActor(role: RoleName, userId = crypto.randomUUID
       username: "actor",
       status: "ACTIVE",
       lastLoginAt: null,
+      mustChangePassword: false,
     },
     status: "authenticated",
     isAuthenticated: true,

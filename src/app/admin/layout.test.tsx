@@ -48,6 +48,7 @@ function signIn() {
       status: "ACTIVE",
       roles: [],
       lastLoginAt: null,
+      mustChangePassword: false,
     },
     false,
   );

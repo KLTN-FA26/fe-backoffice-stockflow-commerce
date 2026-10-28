@@ -44,6 +44,7 @@ function actAs(userId: string) {
       username: "t",
       status: "ACTIVE",
       lastLoginAt: null,
+      mustChangePassword: false,
     },
     isAuthenticated: true,
     status: "authenticated",
