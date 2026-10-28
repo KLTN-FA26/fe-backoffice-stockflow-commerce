@@ -29,8 +29,8 @@ export const DEFAULT_CONFIG: OrderPageConfig = {
 };
 
 /**
- * Cột sort phía server. ASSUMPTION (open-question Tú): BE chưa có `GET /orders` cho admin —
- * chọn theo field có trong `OrderResponse`; xác nhận whitelist khi BE bổ sung endpoint.
+ * Cột sort phía server — đúng whitelist của BE `GET /orders` (`OrderServiceImpl.LIST_SORT`, tham số
+ * `sort=field,dir`; mặc định `placedAt` giảm dần). Field ngoài danh sách → 400 UNSUPPORTED_PARAMETER.
  */
 export const SERVER_SORT_FIELDS = ["orderNumber", "placedAt", "totalAmount", "status"] as const;
 export type ServerSortField = (typeof SERVER_SORT_FIELDS)[number];

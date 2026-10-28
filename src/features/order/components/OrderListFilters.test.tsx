@@ -36,6 +36,12 @@ function neverSent(key: string): boolean {
 }
 
 const CUSTOMER_UUID = "550e8400-e29b-41d4-a716-446655440000";
+/**
+ * Render danh sách + nhập ô lọc + chờ GET /orders: dưới tải của cả bộ test có lúc vượt 5 giây mặc định
+ * (review PR #27) — cùng ngưỡng với các test dialog của đơn hàng.
+ */
+const FILTER_FLOW_TIMEOUT_MS = 15_000;
+const FILTER_SUITE = "OrderList — lọc khách / ngày đặt (URL), đúng hợp đồng BE GET /orders";
 
 /**
  * Nhập cả chuỗi bằng paste thay vì gõ từng phím (36 ký tự UUID) — cùng sự kiện onChange, nhưng
@@ -62,7 +68,7 @@ const prepaidOrder = {
 
 afterEach(() => vi.restoreAllMocks());
 
-describe("OrderList — lọc khách / ngày đặt (URL), đúng hợp đồng BE GET /orders", () => {
+describe(FILTER_SUITE, { timeout: FILTER_FLOW_TIMEOUT_MS }, () => {
   it("URL ?customer(UUID)&from&to → gửi customerId, placedFrom, placedTo", async () => {
     renderList(
       () => apiOrderPage([creditOrder]),
