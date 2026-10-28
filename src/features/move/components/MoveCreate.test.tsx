@@ -148,6 +148,7 @@ describe("move form — BE errors in Vietnamese", () => {
     ["LOCATION_NOT_FOUND", 404, MOVE_ERROR_MESSAGES.locationNotFound],
     ["LOCATION_NOT_USABLE", 409, MOVE_ERROR_MESSAGES.locationNotUsable],
     ["MOVE_ACROSS_WAREHOUSES", 409, MOVE_ERROR_MESSAGES.crossWarehouse],
+    ["STOCK_SLOT_UNDER_COUNT", 409, MOVE_ERROR_MESSAGES.slotUnderCount],
     ["STOCK_STATUS_MISMATCH", 409, MOVE_ERROR_MESSAGES.statusMismatch],
     ["INVENTORY_POLICY_STOCK_CONFLICT", 409, MOVE_ERROR_MESSAGES.policyConflict],
     ["OUT_OF_DATA_SCOPE", 403, MOVE_ERROR_MESSAGES.outOfScope],

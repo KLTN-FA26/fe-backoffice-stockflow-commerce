@@ -95,6 +95,8 @@ export const MOVE_MESSAGES = {
 // Mã lỗi BE (ErrorCode.java) của `POST /inventory/movements` → thông điệp. Không hiện `message` của
 // server: là tiếng Anh, không phải hợp đồng.
 export const MOVE_ERROR_MESSAGES = {
+  // SCRUM-146 MOVE-HELD: vị trí nguồn hoặc đích đang thuộc một phiếu kiểm kê (BE STOCK_SLOT_UNDER_COUNT).
+  slotUnderCount: "Vị trí đang kiểm kê — không thể chuyển hàng ra/vào cho tới khi kiểm kê xong.",
   // Docs 11 BR-01: vị trí nguồn và đích khác kho.
   crossWarehouse:
     "Hai vị trí thuộc hai kho khác nhau. Dùng Lệnh chuyển kho để chuyển giữa các kho.",
