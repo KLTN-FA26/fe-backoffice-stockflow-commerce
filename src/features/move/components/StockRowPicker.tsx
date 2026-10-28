@@ -1,5 +1,6 @@
 import { MOVE_LABELS } from "@/constants/move";
 
+import { HiddenDuringCountBadge } from "@/components/shared/HiddenDuringCountBadge";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -11,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import { movableQuantity } from "../selectors";
+import { isCountHidden, movableQuantity } from "../selectors";
 
 import type { StockRow } from "../types";
 
@@ -49,23 +50,38 @@ export function StockRowPicker({
         <TableBody>
           {rows.map((row) => {
             const movable = movableQuantity(row);
+            const hidden = isCountHidden(row);
             const picked = row.id === selectedId;
             return (
               <TableRow key={row.id} data-state={picked ? "selected" : undefined}>
                 <TableCell className="font-mono">{row.locationCode}</TableCell>
                 <TableCell className="font-mono">{row.lotNumber ?? MOVE_LABELS.missing}</TableCell>
                 <TableCell className="font-mono">{row.status}</TableCell>
-                <TableCell className="text-right font-mono tabular-nums">{row.onHand}</TableCell>
-                <TableCell className="text-right font-mono tabular-nums">{row.reserved}</TableCell>
-                <TableCell className="text-right font-mono tabular-nums">{movable}</TableCell>
+                {hidden ? (
+                  <TableCell colSpan={3} className="text-right">
+                    <HiddenDuringCountBadge />
+                  </TableCell>
+                ) : (
+                  <>
+                    <TableCell className="text-right font-mono tabular-nums">
+                      {row.onHand}
+                    </TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">
+                      {row.reserved}
+                    </TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">{movable}</TableCell>
+                  </>
+                )}
                 <TableCell className="text-right">
                   <Button
                     className="rounded-[var(--r-sm)]"
                     type="button"
                     size="sm"
                     variant={picked ? "default" : "outline"}
-                    disabled={movable === 0}
+                    disabled={hidden || movable === 0}
                     aria-pressed={picked}
+                    // A bin under count cannot be a source: say why instead of a mute disabled button.
+                    title={hidden ? MOVE_LABELS.stockHiddenSource : undefined}
                     onClick={() => onPick(row)}
                   >
                     {picked ? MOVE_LABELS.stockPicked : MOVE_LABELS.stockPick}

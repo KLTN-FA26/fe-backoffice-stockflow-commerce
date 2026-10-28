@@ -9,6 +9,7 @@ import { formatDate, formatDateTime } from "@/lib/format/date";
 import { formatNumber } from "@/lib/format/number";
 
 import { EmptyState } from "@/components/shared/EmptyState";
+import { HiddenDuringCountBadge } from "@/components/shared/HiddenDuringCountBadge";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import {
   Table,
@@ -100,15 +101,23 @@ export function WarehouseStockItems({
                       {item.expiryDate ? formatDate(item.expiryDate) : missing}
                     </TableCell>
                     <TableCell className="font-mono text-xs">{item.status}</TableCell>
-                    <TableCell className="text-right font-mono tabular-nums">
-                      {formatNumber(item.onHand)}
-                    </TableCell>
-                    <TableCell className="text-right font-mono tabular-nums">
-                      {formatNumber(item.reserved)}
-                    </TableCell>
-                    <TableCell className="text-right font-mono tabular-nums">
-                      {formatNumber(item.available)}
-                    </TableCell>
+                    {item.hiddenDuringCount ? (
+                      <TableCell colSpan={3} className="text-right">
+                        <HiddenDuringCountBadge />
+                      </TableCell>
+                    ) : (
+                      <>
+                        <TableCell className="text-right font-mono tabular-nums">
+                          {item.onHand === undefined ? missing : formatNumber(item.onHand)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono tabular-nums">
+                          {item.reserved === undefined ? missing : formatNumber(item.reserved)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono tabular-nums">
+                          {item.available === undefined ? missing : formatNumber(item.available)}
+                        </TableCell>
+                      </>
+                    )}
                     <TableCell className="tabular-nums">
                       {item.receivedAt ? formatDateTime(item.receivedAt) : missing}
                     </TableCell>

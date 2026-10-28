@@ -54,16 +54,19 @@ export const stockMoveDto = z.object({
 });
 
 // BE `StockItemResponse` (GET /inventory/stock-items?sku=): a bare list, not a page. `status` is a
-// String on the wire — kept open so a newer code does not invalidate the list.
+// String on the wire — kept open so a newer code does not invalidate the list. SCRUM-146 (BE #202):
+// for a caller without inventory-cycle-counts:APPROVE the quantities of a slot under an open count
+// are ABSENT (not null) and `hiddenDuringCount` is true.
 export const stockRowDto = z.object({
   id: beUuid,
   sku: z.string(),
   locationCode: z.string(),
   lotNumber: z.string().nullish(),
   expiryDate: z.string().nullish(),
-  onHand: z.number().int().nonnegative(),
-  reserved: z.number().int().nonnegative(),
-  available: z.number().int().nonnegative(),
+  onHand: z.number().int().nonnegative().optional(),
+  reserved: z.number().int().nonnegative().optional(),
+  available: z.number().int().nonnegative().optional(),
+  hiddenDuringCount: z.boolean().default(false),
   status: z.string(),
 });
 export const stockRowListDto = z.array(stockRowDto);

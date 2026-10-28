@@ -19,7 +19,7 @@ import { moveErrorView, moveFieldErrors } from "../errors";
 import { useCreateMove } from "../mutations";
 import { useDestinationCodes, useStockRows } from "../queries";
 import { moveCreateInput } from "../schemas";
-import { findSourceRow, movableQuantity } from "../selectors";
+import { findSourceRow, isCountHidden, movableQuantity } from "../selectors";
 import { useMoveRequestId } from "../use-move-request-id";
 import { MoveFields } from "./MoveFields";
 import { MovePermissionGate } from "./MovePermissionGate";
@@ -68,7 +68,8 @@ function MoveCreateContent() {
   );
   const destinations = useDestinationCodes(from, useCan(WAREHOUSE_LOCATION_PERMISSIONS.read));
   const source = findSourceRow(rows.data, from, lot);
-  const movable = source ? movableQuantity(source) : undefined;
+  const sourceHidden = source ? isCountHidden(source) : false;
+  const movable = source && !sourceHidden ? movableQuantity(source) : undefined;
   const pick = (row: StockRow) => {
     form.setValue("fromLocation", row.locationCode, { shouldDirty: true, shouldValidate: true });
     form.setValue("lotNumber", row.lotNumber ?? "", { shouldDirty: true, shouldValidate: true });
@@ -104,6 +105,7 @@ function MoveCreateContent() {
       {result && <MoveResult move={result} />}
       <fieldset disabled={mutation.isPending} className="space-y-[var(--card-pad)]">
         <MoveFields form={form} destinations={destinations.codes} movable={movable} />
+        {sourceHidden && <Alert tone="warning">{MOVE_MESSAGES.sourceUnderCount}</Alert>}
         {movable !== undefined && Number.isFinite(quantity) && quantity > movable && (
           <Alert tone="warning">{MOVE_MESSAGES.exceedsMovable}</Alert>
         )}
@@ -136,7 +138,7 @@ function MoveCreateContent() {
         <Button
           className="h-(--action-h) rounded-(--action-radius) px-(--action-px)"
           type="submit"
-          disabled={!form.formState.isValid || mutation.isPending}
+          disabled={!form.formState.isValid || mutation.isPending || sourceHidden}
           aria-busy={mutation.isPending}
         >
           {mutation.isPending ? MOVE_LABELS.submitting : MOVE_LABELS.submit}

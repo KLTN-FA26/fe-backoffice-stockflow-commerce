@@ -4,6 +4,7 @@ import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { INVENTORY_LABELS } from "@/constants/inventory";
 import { MOVE_API, MOVE_ERROR_MESSAGES, MOVE_LABELS, MOVE_MESSAGES } from "@/constants/move";
 import { INVENTORY_PERMISSIONS, WAREHOUSE_LOCATION_PERMISSIONS } from "@/constants/permissions";
 
@@ -289,5 +290,39 @@ describe("move form — stock aids (optional, separately permissioned)", () => {
       ...document.querySelectorAll<HTMLOptionElement>("#move-toLocation-options option"),
     ];
     expect(values.map((option) => option.value)).toEqual(["HCM-A01-1-B", "HCM-PACK01"]);
+  });
+});
+
+describe("move form — source slot under a cycle count (SCRUM-146)", () => {
+  it("warns and keeps submit disabled when the typed source is hidden during a count", async () => {
+    const sent = vi.fn();
+    server.use(
+      movePermissions([stockUpdate, INVENTORY_PERMISSIONS.stockRead]),
+      http.get(moveEndpoint(MOVE_API.stockItems), () =>
+        HttpResponse.json({
+          success: true,
+          data: [
+            {
+              id: crypto.randomUUID(),
+              sku: "CUP-PP-500",
+              locationCode: "HCM-A01-1-A",
+              status: "AVAILABLE",
+              hiddenDuringCount: true,
+            },
+          ],
+        }),
+      ),
+      http.post(moveUrl, async ({ request }) => {
+        sent(await request.json());
+        return failure(500, "UNEXPECTED");
+      }),
+    );
+    renderMove(<MoveCreate />);
+    await fill();
+    expect(await screen.findByText(MOVE_MESSAGES.sourceUnderCount)).toBeInTheDocument();
+    expect(await screen.findByText(INVENTORY_LABELS.hiddenDuringCount)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: MOVE_LABELS.stockPicked })).toBeDisabled();
+    expect(submit()).toBeDisabled();
+    expect(sent).not.toHaveBeenCalled();
   });
 });
