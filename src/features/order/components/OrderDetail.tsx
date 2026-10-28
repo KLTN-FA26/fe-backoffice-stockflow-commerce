@@ -3,14 +3,15 @@
 import { onlineManager } from "@tanstack/react-query";
 import { use } from "react";
 
-import { ADMIN_ROUTES, ORDER_PERMISSIONS } from "@/constants";
+import { ADMIN_ROUTES, ORDER_PERMISSIONS, PRODUCTION_ORDER_PERMISSIONS } from "@/constants";
 import { usePermissionChecker } from "@/lib/auth";
 import { formatDateTime } from "@/lib/format/date";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { BackLink } from "@/components/shared/BackLink";
 
-import { useOrder } from "../queries";
+import { useOrder, useOrderProductionOrders } from "../queries";
+import { customLineCount, groupProductionOrdersByLine } from "../selectors";
 
 import { OrderActionCard } from "./OrderActionCard";
 import { OrderDeliveryModeCard } from "./OrderDeliveryModeCard";
@@ -21,6 +22,7 @@ import { OrderLines } from "./OrderLines";
 import { OrderLoadError } from "./OrderLoadError";
 import { OrderPartialShipmentCard } from "./OrderPartialShipmentCard";
 import { OrderPermissionGate } from "./OrderPermissionGate";
+import { LineProductionOrdersView, ProductionStatusNotice } from "./OrderProductionOrders";
 import { OrderShipments } from "./OrderShipments";
 import { OrderDetailSkeleton } from "./OrderSkeletons";
 
@@ -50,8 +52,17 @@ function OrderDetailContent({
 }) {
   const can = usePermissionChecker();
   // READ = đọc dữ liệu (tách khỏi VIEW_PAGE mở trang — BE ADR-0004): thiếu thì không gọi API
+  // UI-only — Backend phải re-check (@RequiresPermission sales-orders:READ trên OrderController)
   const canRead = can(ORDER_PERMISSIONS.read);
   const query = useOrder(id, { enabled: canRead });
+  // Lệnh sản xuất chỉ có với dòng in (docs 19 BR-01) — đơn chỉ hàng sẵn không gọi API.
+  // UI-only — Backend phải re-check (@RequiresPermission production-orders:READ, ProductionOrderController)
+  const canReadProduction = can(PRODUCTION_ORDER_PERMISSIONS.read);
+  const hasCustomLines = !!query.data && customLineCount(query.data) > 0;
+  // Lọc theo `orderId` của BE (UUID) — đơn đã tải xong mới gọi
+  const production = useOrderProductionOrders(query.data?.orderId ?? "", {
+    enabled: canRead && canReadProduction && hasCustomLines,
+  });
   // Breadcrumb hiện mã đơn (SO-…) thay vì orderId (UUID của BE), như NCC
   useBreadcrumbLabel(id, query.data?.orderNumber);
 
@@ -71,6 +82,13 @@ function OrderDetailContent({
   }
 
   const order = query.data;
+  const productionByLine = groupProductionOrdersByLine(production.data ?? []);
+  const productionState =
+    !canReadProduction || production.isError
+      ? "unavailable"
+      : production.isPending
+        ? "loading"
+        : "ready";
   const subtitle = [order.recipientName, formatDateTime(order.placedAt)]
     .filter(Boolean)
     .join(" · ");
@@ -85,10 +103,19 @@ function OrderDetailContent({
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-5">
+          {hasCustomLines && (
+            <ProductionStatusNotice query={production} canRead={canReadProduction} />
+          )}
           <OrderLines
             lines={order.lines}
             currency={order.currency}
             hasShipments={order.shipments.length > 0}
+            renderCustomLineExtra={(line) => (
+              <LineProductionOrdersView
+                entry={productionByLine.get(line.lineId)}
+                state={productionState}
+              />
+            )}
           />
           <OrderHistory orderId={order.orderId} />
         </div>

@@ -363,12 +363,12 @@ export const INVOICE_STATUS = {
 } as const satisfies Record<string, InvoiceStatus>;
 
 /**
- * Order — 19 trạng thái của BE `order/api/OrderStatus.java` (BE PR #133, SCRUM-239/246/247),
+ * Order — đúng 19 trạng thái của BE `order/api/OrderStatus.java` (BE PR #133, SCRUM-239/246/247),
  * ánh xạ 1-1 với mã wire (PENDING_PAYMENT ↔ "Pending Payment"…, xem features/order/status-map.ts).
  * `IN_FULFILMENT` đã bị BE bỏ (tách PICKING / PACKED), `PAID` cũ là CONFIRMED.
  *
- * "UNKNOWN" không phải trạng thái BE: mã BE thêm sau này parse về đây (`.catch`) để một giá trị lạ
- * không làm hỏng cả danh sách đơn. Không có chuyển tiếp / thao tác nào từ UNKNOWN và không có ở bộ lọc.
+ * Đây là các trạng thái FE HIỂU — nguồn cho bộ lọc, URL và tham số gửi BE. KHÔNG gồm `UNKNOWN`:
+ * trạng thái BE lạ đọc về thành `ORDER_STATUS_UNKNOWN` (xem `ORDER_READ_STATUSES`).
  */
 export const ORDER_STATUSES = [
   "Draft",
@@ -390,8 +390,17 @@ export const ORDER_STATUSES = [
   "Completed",
   "Cancelled",
   "Closed",
-  "UNKNOWN",
 ] as const;
+
+/**
+ * Trạng thái phòng thủ khi đọc: BE trả chuỗi ngoài 19 trạng thái đã biết (BE thêm sau, hoặc mã cũ
+ * IN_FULFILMENT / PAID) → hiển thị "Không rõ", không có chuyển tiếp / thao tác nào. Chỉ để ĐỌC —
+ * không bao giờ là giá trị lọc / gửi BE.
+ */
+export const ORDER_STATUS_UNKNOWN = "UNKNOWN";
+
+/** Trạng thái đơn sau khi parse response BE: trạng thái đã biết hoặc `ORDER_STATUS_UNKNOWN`. */
+export const ORDER_READ_STATUSES = [...ORDER_STATUSES, ORDER_STATUS_UNKNOWN] as const;
 
 /** Nhà cung cấp (module 01) — BE: ACTIVE/INACTIVE (SCRUM-118). */
 export const SUPPLIER_STATUSES = ["Active", "Inactive", "Blacklisted"] as const;
@@ -509,6 +518,7 @@ export type ProposalStatus = (typeof PROPOSAL_STATUSES)[number];
 export type SkuStatus = (typeof SKU_STATUSES)[number];
 export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
+export type OrderReadStatus = (typeof ORDER_READ_STATUSES)[number];
 export type SupplierStatus = (typeof SUPPLIER_STATUSES)[number];
 export type SupplierApiStatus = (typeof SUPPLIER_API_STATUSES)[number];
 export type SupplierChannel = (typeof SUPPLIER_CHANNELS)[number];

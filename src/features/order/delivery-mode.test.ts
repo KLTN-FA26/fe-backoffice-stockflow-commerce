@@ -93,7 +93,7 @@ describe("deliveryModeControl — cổng quyền theo mã sales-order-delivery-m
 describe("LP-2 — FTL không đi cùng thu tiền khi giao (COD)", () => {
   it("chỉ FTL + đơn CỌC có cách thu phần còn lại ON_DELIVERY mới xung đột (luật của BE ck_order_ftl_no_cod)", () => {
     const deposit = (balancePolicy: Order["balancePolicy"]) => ({
-      paymentTerm: "DEPOSIT",
+      paymentTerm: "DEPOSIT" as const,
       balancePolicy,
     });
     expect(ftlConflictsWithCod(deposit("ON_DELIVERY"), "FULL_TRUCKLOAD")).toBe(true);

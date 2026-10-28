@@ -16,6 +16,7 @@ import { mockGrantsOf } from "./mock-user-grants";
 import { resetPackingMockStore } from "./mock-routes-packing-store";
 import { resetPickLineMockStore, syncCancelledOrders } from "./mock-routes-pick-lines-store";
 import {
+  MOCK_TO_BACKEND_STATUS,
   backendOrderStatusOf,
   fakeSha256,
   lockedChecksumOf,
@@ -23,7 +24,7 @@ import {
   putMockOrderOnDesignHold,
   setMockOrderStatus,
   snapshotIdOf,
-} from "./mock-routes-orders";
+} from "./mock-routes-orders-store";
 import { beError, isRecord } from "./mock-routes-purchase-orders-store";
 
 import type { AxiosRequestConfig } from "axios";
@@ -201,6 +202,10 @@ async function loadStore(): Promise<Map<string, MockTask>> {
   for (const user of staffUsers) staffNameById.set(user.userId, user.fullName);
   const seeded = new Map<string, MockTask>();
   const used = new Set<OrderStatus>();
+  // Seed chỉ đổi trạng thái đơn còn nguyên như mock-data — không ghi đè vòng đời đã đổi trong phiên (vd đơn
+  // đã huỷ trước khi store này nạp; task của nó vẫn seed, rồi bị huỷ theo ở `getFulfillmentStore`)
+  const untouched = async (order: Order) =>
+    (await backendOrderStatusOf(order.orderId)) === MOCK_TO_BACKEND_STATUS[order.status];
   for (const order of orders) {
     const spec = SEED_BY_ORDER_STATUS[order.status];
     // Mỗi trạng thái đơn một task — đủ phủ mọi trạng thái pick/pack
@@ -208,12 +213,15 @@ async function loadStore(): Promise<Map<string, MockTask>> {
     used.add(order.status);
     const task = seedTask(order, spec);
     seeded.set(task.taskId, task);
+    if (!(await untouched(order))) continue;
     if (task.pickStatus === "PENDING") setMockOrderStatus(order.orderId, "PICKING");
     // BE: lệch checksum → đơn ON_HOLD (reason DESIGN_MISMATCH), về lại bước đang làm khi gỡ giữ
     if (task.packStatus === "ON_HOLD") await putMockOrderOnDesignHold(order.orderId);
   }
   const demoOrder = orders.find((order) => order.status === "Confirmed");
-  if (demoOrder) setMockOrderStatus(demoOrder.orderId, "READY_TO_FULFILL");
+  if (demoOrder && (await untouched(demoOrder))) {
+    setMockOrderStatus(demoOrder.orderId, "READY_TO_FULFILL");
+  }
   store = seeded;
   return seeded;
 }

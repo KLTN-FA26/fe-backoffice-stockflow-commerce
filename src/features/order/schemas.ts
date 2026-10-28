@@ -4,7 +4,9 @@
  * Hai lớp, KHÔNG trộn (api-conventions §3.1), mỗi lớp một file (giới hạn 200 dòng / file):
  * - DTO (`*DtoSchema`, file này): hình dạng BE trả về (`OrderResponse.java`). Parse MỘT lần ở `api.ts`.
  * - Model FE (`orderSchema`, `model-schemas.ts`): kiểu UI đọc, sau khi map status BE → FE.
- * - Lịch sử đơn (`history-schemas.ts`) và input form gửi đi (`input-schemas.ts`).
+ * - Lịch sử đơn (`history-schemas.ts`); input form gửi đi: giữ / gỡ giữ / giao thất bại / đóng phần còn
+ *   lại / giao một phần / hình thức giao (`input-schemas.ts`), huỷ + duyệt công nợ (`action-schemas.ts`),
+ *   release (`release-schemas.ts`). Credit hold: `credit-hold-schemas.ts`. Lệnh sản xuất: `production-schemas.ts`.
  */
 
 import { z } from "zod";
@@ -15,8 +17,18 @@ import {
   ORDER_HOLD_REASONS,
   ORDER_SHIPMENT_STATUSES,
 } from "@/constants/labels-order";
+import {
+  ORDER_PAYMENT_STATUS_UNKNOWN,
+  ORDER_PAYMENT_STATUSES,
+  ORDER_PAYMENT_TERMS,
+} from "@/constants/orders";
+import { ORDER_STATUS_UNKNOWN } from "@/constants/statuses";
+
+import { uuid } from "@/lib/validation/primitives";
 
 import { orderReleaseFactsShape } from "./delivery-mode-schemas";
+
+/* ── DTO (BE wire) ───────────────────────────────────────────────────── */
 
 /**
  * BE `OrderResponse.currency` — mã ISO 4217 bất kỳ (không chỉ VND/USD). Chỉ kiểm định dạng
@@ -24,7 +36,24 @@ import { orderReleaseFactsShape } from "./delivery-mode-schemas";
  */
 export const currencyCode = z.string().regex(/^[A-Z]{3}$/, "Mã tiền tệ không hợp lệ");
 
-/** BE `order/api/OrderStatus.java` — 19 giá trị (BE PR #133: bỏ IN_FULFILMENT / PAID…). Giá trị lạ → "UNKNOWN". */
+/**
+ * Enum BE dễ mở rộng (cùng tinh thần `deliveryStatus` của PO): chuỗi ngoài `values` → `fallback`
+ * thay vì làm hỏng cả response. Khác `.catch()`: chỉ nhận CHUỖI — vắng key / null / sai kiểu ở
+ * field bắt buộc vẫn fail (đó là bug hợp đồng, không phải giá trị mới). Field cho phép null thì
+ * nối `.nullish()`.
+ */
+function tolerantEnum<const T extends readonly [string, ...string[]], const F>(
+  values: T,
+  fallback: F,
+) {
+  return z.union([z.enum(values), z.string().transform((): F => fallback)]);
+}
+
+/**
+ * BE `order/api/OrderStatus.java` — đúng 19 giá trị (BE PR #133: bỏ IN_FULFILMENT / PAID, thêm PICKING,
+ * PACKED, PARTIALLY_FULFILLED, DELIVERY_FAILED, RETURN_REQUESTED, REFUNDED, PARTIALLY_REFUNDED, CLOSED).
+ * Đây là tập giá trị ĐƯỢC GỬI lên BE (lọc `status=`) — không bao giờ chứa `UNKNOWN`.
+ */
 export const BACKEND_ORDER_STATUSES = [
   "DRAFT",
   "PENDING_PAYMENT",
@@ -47,15 +76,35 @@ export const BACKEND_ORDER_STATUSES = [
   "CLOSED",
 ] as const;
 
-export const orderStatusDtoSchema = z.enum([...BACKEND_ORDER_STATUSES, "UNKNOWN"]).catch("UNKNOWN");
+/**
+ * Trạng thái đọc từ BE: mã đã biết, hoặc `UNKNOWN` cho chuỗi lạ — trạng thái BE thêm sau, hoặc mã đã
+ * bị bỏ (IN_FULFILMENT / PAID) mà BE cũ còn trả. Thiếu / null / không phải chuỗi → parse fail.
+ */
+export const orderStatusDtoSchema = tolerantEnum(BACKEND_ORDER_STATUSES, ORDER_STATUS_UNKNOWN);
 
-/** BE `HoldReason` — tolerant: giá trị lạ → "UNKNOWN" (không cho phép gỡ giữ, xem lifecycle). */
-export const orderHoldReasonDtoSchema = z.enum([...ORDER_HOLD_REASONS, "UNKNOWN"]).catch("UNKNOWN");
+/** BE `HoldReason` — lý do lạ → `UNKNOWN` (không cho gỡ giữ, xem lifecycle). */
+export const orderHoldReasonDtoSchema = tolerantEnum(ORDER_HOLD_REASONS, ORDER_STATUS_UNKNOWN);
 
-/** BE `DeliveryFailureReason` — tolerant. */
-export const orderDeliveryFailureReasonDtoSchema = z
-  .enum([...ORDER_DELIVERY_FAILURE_REASONS, "UNKNOWN"])
-  .catch("UNKNOWN");
+/** BE `DeliveryFailureReason` — lý do lạ → `UNKNOWN`. */
+export const orderDeliveryFailureReasonDtoSchema = tolerantEnum(
+  ORDER_DELIVERY_FAILURE_REASONS,
+  ORDER_STATUS_UNKNOWN,
+);
+
+/** BE `OrderShipmentStatus` — trạng thái lô lạ → `UNKNOWN`. */
+export const orderShipmentStatusDtoSchema = tolerantEnum(
+  ORDER_SHIPMENT_STATUSES,
+  ORDER_STATUS_UNKNOWN,
+);
+
+/** BE `PaymentStatus` — giá trị lạ → `UNKNOWN` (hiển thị "Không rõ"). */
+export const orderPaymentStatusDtoSchema = tolerantEnum(
+  ORDER_PAYMENT_STATUSES,
+  ORDER_PAYMENT_STATUS_UNKNOWN,
+);
+
+/** BE `PaymentTerm` — phương thức lạ → null ("chưa rõ phương thức"), KHÔNG thành lựa chọn mới. */
+export const orderPaymentTermDtoSchema = tolerantEnum(ORDER_PAYMENT_TERMS, null);
 
 /**
  * BE `BalancePolicy` — cách thu phần còn lại của đơn cọc (BE PR #150: thêm ON_CREDIT). Tolerant: giá trị
@@ -65,10 +114,11 @@ export const orderBalancePolicyDtoSchema = z
   .enum([...ORDER_BALANCE_POLICIES, "UNKNOWN"])
   .catch("UNKNOWN");
 
-/** BE `OrderShipmentStatus` — tolerant. */
-export const orderShipmentStatusDtoSchema = z.enum(ORDER_SHIPMENT_STATUSES).catch("UNKNOWN");
-
-/** Field có thể null dùng `.nullish()`: BE Jackson `non_null` BỎ HẲN key null (vd đơn guest không có `customerId`). */
+/**
+ * Field có thể null dùng `.nullish()` (cho phép vắng key): BE bật Jackson
+ * `default-property-inclusion: non_null` (application.yml) nên field null bị BỎ HẲN khỏi JSON
+ * (vd đơn guest không có key `customerId`). Chỉ cho null mà bắt buộc có key → parse fail.
+ */
 
 /** BE `OrderResponse.Address` — mọi field có thể vắng (đơn guest/địa chỉ thiếu). */
 export const orderAddressDtoSchema = z.object({
@@ -118,8 +168,23 @@ export const orderShipmentDtoSchema = z.object({
   billedAmount: z.number().nullish(),
   handedOverAt: z.string().nullish(),
   outcomeAt: z.string().nullish(),
-  failureReason: z.string().nullish(),
+  failureReason: orderDeliveryFailureReasonDtoSchema.nullish(),
   lines: z.array(orderShipmentLineDtoSchema).nullish(),
+  /** Tiền hãng vận chuyển thu khi giao lô (đơn cọc ON_DELIVERY), chốt lúc bàn giao. */
+  codAmount: z.number().nullish(),
+});
+
+/**
+ * BE `OrderResponse.Cancellation` — có khi đơn CANCELLED. `reason` = "CODE" hoặc "CODE: ghi chú";
+ * fee* chỉ có khi huỷ giữ khoản thoả thuận (decision Q2); `feeDetail` chỉ nhân viên đọc.
+ */
+export const orderCancellationDtoSchema = z.object({
+  reasonCode: z.string().nullish(),
+  reason: z.string().nullish(),
+  retainedAmount: z.number().nullish(),
+  feeReason: z.string().nullish(),
+  feeDetail: z.string().nullish(),
+  feeAmount: z.number().nullish(),
 });
 
 export const orderDtoSchema = z.object({
@@ -139,9 +204,20 @@ export const orderDtoSchema = z.object({
   contactPhone: z.string().nullish(),
   shippingAddress: orderAddressDtoSchema.nullish(),
   billingAddress: orderAddressDtoSchema.nullish(),
-  /** BE `PaymentTerm`: PREPAID | DEPOSIT | CREDIT; null trên dòng danh sách không mang field này. */
-  paymentTerm: z.string().nullish(),
-  /** Staff: lý do đang giữ (ON_HOLD); null/vắng với đơn không bị giữ. */
+  // ── Thanh toán / release (SCRUM-423/427/460). Dòng danh sách có thể không mang một số field
+  // ("null on list rows that do not carry it") → nullish.
+  paymentTerm: orderPaymentTermDtoSchema.nullish(),
+  /** Kho xuất — null tới khi release (SCRUM-423). */
+  warehouseId: z.string().nullish(),
+  releasedAt: z.string().nullish(),
+  paidAmount: z.number().nullish(),
+  paidInFullAt: z.string().nullish(),
+  paymentStatus: orderPaymentStatusDtoSchema.nullish(),
+  creditTermDays: z.number().int().nullish(),
+  balancePolicy: orderBalancePolicyDtoSchema.nullish(),
+  cancellation: orderCancellationDtoSchema.nullish(),
+  // ── Vòng đời (BE PR #133). Field staff (holdReason, statusBeforeHold, holdNote) vắng với khách.
+  /** Staff: lý do đang giữ (ON_HOLD); vắng với đơn không bị giữ. */
   holdReason: orderHoldReasonDtoSchema.nullish(),
   /** Lý do giữ khách được đọc (AWAITING_CREDIT_APPROVAL | UNDER_REVIEW). */
   holdReasonPublic: z.string().nullish(),
@@ -155,6 +231,7 @@ export const orderDtoSchema = z.object({
   deliveryFailureReason: orderDeliveryFailureReasonDtoSchema.nullish(),
   completedAt: z.string().nullish(),
   closedAt: z.string().nullish(),
+  // ── Tiền của đơn giao một phần
   /** Các lô giao đã ghi công nợ (đơn công nợ). */
   billedAmount: z.number().nullish(),
   /** Tổng trừ số đơn vị đã đóng ở đơn giao một phần. */
@@ -163,14 +240,10 @@ export const orderDtoSchema = z.object({
   amountDue: z.number().nullish(),
   /** Phải trả trước khi hàng rời kho (G3-Q4): > 0 thì bàn giao bị từ chối. */
   amountDueBeforeHandover: z.number().nullish(),
+  /** Hãng vận chuyển thu khi giao (đơn cọc ON_DELIVERY), 0 với đơn khác. */
+  amountDueOnDelivery: z.number().nullish(),
+  /** BE luôn gửi danh sách (rỗng khi chưa chia lô); nullish để dòng danh sách / BE cũ vẫn parse. */
   shipments: z.array(orderShipmentDtoSchema).nullish(),
-  /**
-   * Cách thu phần còn lại của đơn cọc: BEFORE_DELIVERY | ON_DELIVERY | ON_CREDIT; null với đơn không
-   * cọc (BE PR #150).
-   */
-  balancePolicy: orderBalancePolicyDtoSchema.nullish(),
-  /** Số ngày trả sau khi giao (đơn CREDIT, hoặc đơn cọc ON_CREDIT); null nếu khác. */
-  creditTermDays: z.number().int().nullish(),
   /**
    * Sales cho phép giao một phần (PACK-PARTIAL, BE PR #150); mặc định false. Vắng (null) trên dòng
    * danh sách không mang field này.
@@ -181,6 +254,7 @@ export const orderDtoSchema = z.object({
    * hoặc đã giao hàng có sẵn trước khi sản xuất xong (PACK-EARLY); vắng trên dòng danh sách.
    */
   printLinesReady: z.boolean().nullish(),
+  // Hình thức giao + khoá (BE PR #157) và tiền cọc (`depositRequired` / `depositReceivedAt`, BR-PRD-09)
   ...orderReleaseFactsShape,
 });
 
@@ -194,3 +268,12 @@ export const orderPageDtoSchema = z.object({
   hasNext: z.boolean(),
   hasPrevious: z.boolean(),
 });
+
+/* ── Tham số lọc `GET /orders` ───────────────────────────────────────── */
+
+/** BE `OrderController#list`: `@RequestParam UUID customerId` — giá trị khác → 400 UNSUPPORTED_PARAMETER. */
+export const orderListCustomerIdSchema = uuid("ID khách hàng phải là UUID hợp lệ.");
+
+export function isValidOrderCustomerId(value: string): boolean {
+  return orderListCustomerIdSchema.safeParse(value).success;
+}

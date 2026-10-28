@@ -32,7 +32,8 @@ export const SUPPLIER_ITEM_PERMISSIONS = {
 
 /**
  * Đơn hàng — resource `sales-orders` (BE `OrderResources.ORDERS`).
- * - `approve` (APPROVE, scope ALL): giữ đơn, gỡ giữ, ghi giao thất bại (`OrderReleaseController`);
+ * - `approve` / `release` (cùng APPROVE, scope ALL — `OrderReleaseController`): giữ đơn, gỡ giữ,
+ *   ghi giao thất bại, release đơn sang kho / sản xuất (`POST /orders/{id}/release`, SCRUM-423);
  *   seed BE chỉ cấp cho ORDER_COORDINATOR (SALES_STAFF chỉ có VIEW_PAGE/READ/CREATE/UPDATE).
  * - `cancel`: huỷ đơn phía admin (`POST /orders/{id}/admin-cancellation`) và đóng phần còn lại của
  *   đơn giao một phần (`POST /orders/{id}/remainder-closure`) — BE tách sang resource
@@ -46,7 +47,12 @@ export const ORDER_PERMISSIONS = {
   // Đọc dữ liệu (GET /orders, /orders/{id}, /orders/{id}/history) — seed BE: SALES_STAFF,
   // ORDER_COORDINATOR và (BE PR #148, "ACCREAD") ACCOUNTANT
   read: "sales-orders:READ",
+  // Giữ / gỡ giữ / ghi giao thất bại — OrderReleaseController, APPROVE scope ALL (BE PR #133)
   approve: "sales-orders:APPROVE",
+  // Release đơn sang kho / sản xuất — OrderReleaseController, cùng APPROVE scope ALL (SCRUM-423)
+  release: "sales-orders:APPROVE",
+  // Huỷ đơn phía admin + đóng phần còn lại — resource riêng `sales-order-cancellations`
+  // (BE V20261013000200): SALES_STAFF + ORDER_COORDINATOR có UPDATE.
   cancel: "sales-order-cancellations:UPDATE",
   // Cho phép / dừng giao một phần của đơn (`PUT /orders/{id}/partial-shipment`, BE PR #150) — resource
   // `sales-order-partial-shipments` (UPDATE, scope ALL; seed: SALES_STAFF + SYSTEM_ADMIN)
@@ -55,6 +61,37 @@ export const ORDER_PERMISSIONS = {
   // `PUT /orders/{id}/delivery-mode`, BE PR #157, LP-1) — resource `sales-order-delivery-modes` (UPDATE,
   // scope ALL; seed: ORDER_COORDINATOR + SYSTEM_ADMIN). Đọc hình thức giao đi kèm `sales-orders:READ`.
   deliveryModes: "sales-order-delivery-modes:UPDATE",
+} as const;
+
+/**
+ * Đơn công nợ vượt hạn mức — resource `sales-order-credit-holds` (BE CreditHoldController,
+ * SCRUM-427, seed V20261013000400): ACCOUNTANT có VIEW_PAGE/READ/APPROVE; SALES_STAFF và
+ * ORDER_COORDINATOR chỉ VIEW_PAGE/READ (xem, không duyệt).
+ */
+export const CREDIT_HOLD_PERMISSIONS = {
+  viewPage: "sales-order-credit-holds:VIEW_PAGE",
+  read: "sales-order-credit-holds:READ",
+  // Duyệt (`/credit-approval`) và từ chối (`/credit-rejection`) đều là APPROVE
+  approve: "sales-order-credit-holds:APPROVE",
+} as const;
+
+/**
+ * Hồ sơ công nợ khách — resource `customer-credit-profiles` (BE seed V20261013000400): ACCOUNTANT
+ * VIEW_PAGE/READ/APPROVE, SALES_STAFF VIEW_PAGE/READ, ORDER_COORDINATOR READ. FE chỉ dùng READ —
+ * `GET /orders/credit-position/{customerId}` (CreditHoldController#position) đòi đúng quyền này.
+ */
+export const CUSTOMER_CREDIT_PROFILE_PERMISSIONS = {
+  read: "customer-credit-profiles:READ",
+} as const;
+
+/**
+ * Lệnh sản xuất — resource `production-orders` (BE ProductionOrderController#list
+ * `@RequiresPermission READ`, seed V20261010000500): ORDER_COORDINATOR, SALES_STAFF,
+ * PROCUREMENT_STAFF, WAREHOUSE_STAFF / MANAGER, QC_STAFF, PRODUCTION_STAFF có READ; ACCOUNTANT
+ * không có. FE chỉ đọc LSX của một đơn trên trang chi tiết đơn.
+ */
+export const PRODUCTION_ORDER_PERMISSIONS = {
+  read: "production-orders:READ",
 } as const;
 
 /**
@@ -328,6 +365,13 @@ export const FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS = {
 } as const;
 
 /**
+ * Mã vai trò tài khoản cửa hàng (storefront) — BE `Role.CUSTOMER`. CHỈ dùng ở cổng back-office
+ * (`lib/auth/back-office.ts`, gương BE `ScopeGuards` / `CurrentUser#isPortalCustomer`) để tách phạm vi dữ liệu
+ * khách hàng khỏi back-office. Không phải mã quyền: quyền thao tác luôn theo mã quyền ở file này.
+ */
+export const PORTAL_CUSTOMER_ROLE = "CUSTOMER";
+
+/**
  * Lệnh chuyển kho — resource `inventory-transfer-orders` (BE TransferOrderController, SCRUM-326/327).
  * Tạo / sửa nháp / gửi duyệt / huỷ = CREATE; lấy hàng / xuất kho ở kho nguồn = UPDATE; duyệt / từ chối
  * = APPROVE (seed BE: chỉ WAREHOUSE_MANAGER).
@@ -421,6 +465,10 @@ export const PERMISSION_UI = {
   retry: "Thử lại",
   productCreateDenied: "Bạn không có quyền tạo sản phẩm.",
   demoContext: "Chỉ đổi nhãn vai trò demo; quyền vẫn lấy từ phiên đăng nhập.",
+  backOfficeDeniedTitle: "Tài khoản không dùng được trang quản trị",
+  backOfficeDeniedDescription:
+    "Trang quản trị chỉ dành cho nhân viên. Tài khoản khách hàng không vào được khu vực này.",
+  logout: "Đăng xuất",
 } as const;
 
 /**

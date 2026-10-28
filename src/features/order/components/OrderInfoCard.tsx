@@ -1,7 +1,9 @@
 import { Fragment } from "react";
 
-import { ORDER_BALANCE_POLICY_LABELS, ORDER_DELIVERY_FAILURE_LABELS } from "@/constants";
+import { ORDER_DELIVERY_FAILURE_LABELS, WAREHOUSE_PERMISSIONS } from "@/constants";
+import { usePermissionChecker } from "@/lib/auth";
 import { formatDate, formatDateTime } from "@/lib/format/date";
+import { useWarehouseDirectory } from "@/lib/references/warehouse-options";
 
 import type { Order } from "../types";
 
@@ -11,9 +13,30 @@ interface OrderInfoCardProps {
 
 const EMPTY = "—";
 
-/** "Thu phần còn lại" của đơn cọc: nhãn Việt của `balancePolicy` (BE PR #150: có thêm ON_CREDIT). */
-function balancePolicyLabel(policy: NonNullable<Order["balancePolicy"]>): string {
-  return policy === "UNKNOWN" ? "Không rõ" : ORDER_BALANCE_POLICY_LABELS[policy];
+/**
+ * Kho xuất đã chọn khi release (SCRUM-423). Tên kho tra qua danh mục `GET /warehouses` (mọi trạng
+ * thái — kho có thể đã ngừng hoạt động sau khi release), chỉ khi có `warehouse-warehouses:READ`:
+ * thiếu quyền (vd ORDER_COORDINATOR trước BE V20261022000100) thì không gọi API, báo không xem được tên.
+ * UI-only — Backend phải re-check (WarehouseController @RequiresPermission warehouse-warehouses:READ).
+ */
+function WarehouseName({ warehouseId }: { warehouseId: string }) {
+  const can = usePermissionChecker();
+  const canRead = can(WAREHOUSE_PERMISSIONS.read);
+  const { data } = useWarehouseDirectory(canRead);
+  const warehouse = data?.find((w) => w.warehouseId === warehouseId);
+  if (warehouse) return <span>{warehouse.name}</span>;
+  if (!canRead) {
+    return (
+      <span className="text-ink-secondary" title={warehouseId}>
+        Đã chọn kho — tài khoản chưa có quyền xem tên kho
+      </span>
+    );
+  }
+  return (
+    <span className="font-[family-name:var(--font-mono)] text-xs" title={warehouseId}>
+      {warehouseId}
+    </span>
+  );
 }
 
 /** Mốc thời gian vòng đời đơn (BE PR #133) — chỉ hiện mốc đã có. */
@@ -34,6 +57,10 @@ export function OrderInfoCard({ order }: OrderInfoCardProps) {
         <dd className="text-ink-primary font-[family-name:var(--font-mono)] font-medium">
           {order.orderNumber}
         </dd>
+        <dt className="text-ink-secondary">Mã khách</dt>
+        <dd className="text-ink-primary truncate font-[family-name:var(--font-mono)] text-xs">
+          {order.customerId ?? EMPTY}
+        </dd>
         <dt className="text-ink-secondary">Ngày đặt</dt>
         <dd className="text-ink-primary tabular-nums">{formatDate(order.placedAt)}</dd>
         <dt className="text-ink-secondary">Người nhận</dt>
@@ -45,18 +72,14 @@ export function OrderInfoCard({ order }: OrderInfoCardProps) {
         <dd className="text-ink-primary">{order.contactEmail ?? EMPTY}</dd>
         <dt className="text-ink-secondary">Địa chỉ giao</dt>
         <dd className="text-ink-primary">{order.shippingAddressText ?? EMPTY}</dd>
-        {order.balancePolicy && (
+        <dt className="text-ink-secondary">Kho xuất</dt>
+        <dd className="text-ink-primary">
+          {order.warehouseId ? <WarehouseName warehouseId={order.warehouseId} /> : "Chưa release"}
+        </dd>
+        {order.releasedAt && (
           <>
-            <dt className="text-ink-secondary">Thu phần còn lại</dt>
-            <dd className="text-ink-primary">{balancePolicyLabel(order.balancePolicy)}</dd>
-          </>
-        )}
-        {order.creditTermDays !== null && (
-          <>
-            <dt className="text-ink-secondary">Hạn công nợ</dt>
-            <dd className="text-ink-primary tabular-nums">
-              {order.creditTermDays} ngày sau khi giao
-            </dd>
+            <dt className="text-ink-secondary">Release lúc</dt>
+            <dd className="text-ink-primary tabular-nums">{formatDateTime(order.releasedAt)}</dd>
           </>
         )}
         {MILESTONES.map(([key, label]) => {

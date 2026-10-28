@@ -1,8 +1,8 @@
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { SHIPMENT_PERMISSIONS, UI_LABELS } from "@/constants";
+import { PRODUCTION_ORDER_PERMISSIONS, SHIPMENT_PERMISSIONS, UI_LABELS } from "@/constants";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
@@ -12,6 +12,7 @@ import { apiGuestOrder, apiOrder, apiOrderWith, apiPartialOrder } from "../__fix
 import {
   ORDER_PERMISSION_SETS,
   mockOrderApiGet,
+  pickOrderSelectOption,
   pickSelectOption,
   renderOrderScreen,
 } from "../__fixtures__/render";
@@ -37,7 +38,14 @@ async function renderDetail(permissions: readonly PermissionCode[], handler: () 
 
 const withStatus = (status: OrderDto["status"]): OrderDto => ({ ...apiOrder, status });
 
+/** Mọi thao tác ghi đơn gửi kèm Idempotency-Key (header riêng request, không vào body). */
+const WITH_IDEMPOTENCY_KEY = expect.objectContaining({
+  headers: { "Idempotency-Key": expect.any(String) },
+});
+
 afterEach(() => vi.restoreAllMocks());
+
+const DIALOG_FLOW_TIMEOUT_MS = 15_000;
 
 describe("OrderDetail — action-gating theo mã quyền + trạng thái BE", () => {
   it("ORDER_COORDINATOR (sales-order-cancellations:UPDATE) + PENDING_PAYMENT → có nút Huỷ đơn", async () => {
@@ -47,7 +55,12 @@ describe("OrderDetail — action-gating theo mã quyền + trạng thái BE", ()
     expect(await screen.findByRole("button", { name: "Huỷ đơn" })).toBeInTheDocument();
   });
 
-  it("tài khoản chỉ đọc (không có quyền huỷ) → không có nút Huỷ đơn", async () => {
+  it("SALES_STAFF (sales-order-cancellations:UPDATE, BE V20261013000200) → có nút Huỷ đơn", async () => {
+    await renderDetail(ORDER_PERMISSION_SETS.salesStaff, () => apiOrder);
+    expect(await screen.findByRole("button", { name: "Huỷ đơn" })).toBeInTheDocument();
+  });
+
+  it("chỉ có quyền đọc (không có sales-order-cancellations:UPDATE) → không có nút Huỷ đơn", async () => {
     await renderDetail(ORDER_PERMISSION_SETS.readOnly, () => apiOrder);
 
     await screen.findByRole("heading", { name: apiOrder.orderNumber });
@@ -127,18 +140,36 @@ describe("OrderDetail — action-gating theo mã quyền + trạng thái BE", ()
 });
 
 describe("OrderDetail — card thao tác giải thích khi không có nút", () => {
-  it("tài khoản chỉ đọc → 'Bạn chỉ có quyền xem đơn hàng.'", async () => {
+  it("chỉ quyền đọc → 'Bạn chỉ có quyền xem đơn hàng.'", async () => {
     await renderDetail(ORDER_PERMISSION_SETS.readOnly, () => apiOrder);
     expect(await screen.findByText("Bạn chỉ có quyền xem đơn hàng.")).toBeInTheDocument();
   });
 
-  it("đơn PACKED → hướng dẫn đi luồng trả hàng (BR-ORD-004)", async () => {
-    await renderDetail(ORDER_PERMISSION_SETS.readOnly, () => withStatus("PACKED"));
+  it("đơn PACKED + quyền huỷ (Sales) → hướng dẫn đi luồng trả hàng (BR-ORD-004), không nói 'đã giao'", async () => {
+    await renderDetail(ORDER_PERMISSION_SETS.salesStaff, () => withStatus("PACKED"));
     expect(
       await screen.findByText(
-        "Đơn đã đóng gói / bàn giao vận chuyển — chỉ xử lý qua luồng trả hàng.",
+        "Đơn đã đóng gói / bàn giao vận chuyển — không huỷ được, xử lý qua luồng trả hàng.",
       ),
     ).toBeInTheDocument();
+  });
+
+  it("đơn PICKING + Sales (không có APPROVE, có quyền huỷ) → có Huỷ đơn; đơn PICKING đã đóng gói → giải thích theo quyền", async () => {
+    await renderDetail(ORDER_PERMISSION_SETS.salesStaff, () => withStatus("PICKING"));
+    expect(await screen.findByRole("button", { name: "Huỷ đơn" })).toBeInTheDocument();
+  });
+
+  it("đơn ON_HOLD (giữ tay) + Sales (không gỡ giữ được) → giải thích cần quyền khác, không nói 'đã bàn giao'", async () => {
+    await renderDetail(ORDER_PERMISSION_SETS.salesStaff, () =>
+      apiOrderWith({
+        status: "ON_HOLD",
+        holdReason: "ADDRESS",
+        statusBeforeHold: "PACKED",
+        packedAt: "2026-09-08T01:00:00Z",
+      }),
+    );
+    expect(await screen.findByText(/Đơn đang tạm giữ — việc gỡ giữ/)).toBeInTheDocument();
+    expect(screen.queryByText(/bàn giao vận chuyển/)).not.toBeInTheDocument();
   });
 
   it("đơn CANCELLED (terminal) → 'Đơn đã kết thúc — không còn thao tác.'", async () => {
@@ -147,75 +178,199 @@ describe("OrderDetail — card thao tác giải thích khi không có nút", () 
   });
 });
 
-describe("OrderDetail — luồng huỷ đơn", () => {
-  it("nhập lý do + Ctrl+Enter → POST admin-cancellation với lý do đã trim, đóng dialog", async () => {
-    await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => apiOrder);
-    const post = vi.spyOn(api, "post").mockResolvedValue({ data: null });
+type User = ReturnType<typeof userEvent.setup>;
 
-    await userEvent.click(await screen.findByRole("button", { name: "Huỷ đơn" }));
-    await userEvent.type(
-      screen.getByLabelText(/Lý do huỷ/),
-      "  Khách đổi ý  {Control>}{Enter}{/Control}",
-    );
+/** Mở dialog huỷ, chọn mã lý do (+ ghi chú) rồi bấm Huỷ đơn trong dialog. */
+async function cancelWith(user: User, reason: RegExp | string, note = "") {
+  await user.click(await screen.findByRole("button", { name: "Huỷ đơn" }));
+  await pickOrderSelectOption(user, /Lý do huỷ/, reason);
+  const dialog = screen.getByRole("dialog");
+  if (note) {
+    // paste thay vì gõ từng phím — nhanh, không phụ thuộc tải máy khi chạy cả bộ test
+    await user.click(within(dialog).getByLabelText(/Ghi chú/));
+    await user.paste(note);
+  }
+  await user.click(within(dialog).getByRole("button", { name: "Huỷ đơn" }));
+  return dialog;
+}
 
-    await waitFor(() => expect(post).toHaveBeenCalledWith(CANCEL_PATH, { reason: "Khách đổi ý" }));
-    await waitFor(() => expect(screen.queryByLabelText(/Lý do huỷ/)).not.toBeInTheDocument());
-  });
+// Dialog nhiều bước (Radix Select trong jsdom) chậm khi chạy song song cả bộ test → nới timeout
+describe(
+  "OrderDetail — luồng huỷ đơn (reasonCode / note / retainedPercent)",
+  { timeout: DIALOG_FLOW_TIMEOUT_MS },
+  () => {
+    it("chọn mã lý do + ghi chú → POST admin-cancellation {reasonCode, note đã trim}, đóng dialog", async () => {
+      const user = userEvent.setup();
+      await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => apiOrder);
+      // BE trả OrderResponse đã CANCELLED
+      const post = vi.spyOn(api, "post").mockResolvedValue({ data: withStatus("CANCELLED") });
 
-  it("lỗi mạng → dialog vẫn mở, giữ nguyên lý do để thử lại", async () => {
-    await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => apiOrder);
-    vi.spyOn(api, "post").mockRejectedValue(
-      new ApiError(0, "NETWORK_ERROR", "Không kết nối được máy chủ."),
-    );
+      await cancelWith(user, "Khách yêu cầu", "  Khách đổi ý  ");
 
-    await userEvent.click(await screen.findByRole("button", { name: "Huỷ đơn" }));
-    await userEvent.type(
-      screen.getByLabelText(/Lý do huỷ/),
-      "Khách đổi ý{Control>}{Enter}{/Control}",
-    );
+      await waitFor(() =>
+        expect(post).toHaveBeenCalledWith(
+          CANCEL_PATH,
+          {
+            reasonCode: "CUSTOMER_REQUEST",
+            note: "Khách đổi ý",
+          },
+          WITH_IDEMPOTENCY_KEY,
+        ),
+      );
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    });
 
-    await waitFor(() => expect(api.post).toHaveBeenCalled());
-    expect(screen.getByLabelText(/Lý do huỷ/)).toHaveValue("Khách đổi ý");
-  });
+    it("chưa chọn lý do → nút Huỷ đơn trong dialog bị khoá; 'Lý do khác' bắt buộc ghi chú", async () => {
+      const user = userEvent.setup();
+      await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => apiOrder);
 
-  it("lỗi có traceId → toast dùng nhãn chung 'TraceId', tiêu đề 'Không huỷ được đơn'", async () => {
-    await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => apiOrder);
-    const toastError = vi.spyOn(toast, "error");
-    vi.spyOn(api, "post").mockRejectedValue(
-      new ApiError(500, "INTERNAL_ERROR", "boom", undefined, "corr-77"),
-    );
+      await user.click(await screen.findByRole("button", { name: "Huỷ đơn" }));
+      const dialog = screen.getByRole("dialog");
+      expect(within(dialog).getByRole("button", { name: "Huỷ đơn" })).toBeDisabled();
+      await pickOrderSelectOption(user, /Lý do huỷ/, "Lý do khác");
+      expect(within(dialog).getByText("Lý do khác cần ghi chú")).toBeInTheDocument();
+      expect(within(dialog).getByRole("button", { name: "Huỷ đơn" })).toBeDisabled();
+    });
 
-    await userEvent.click(await screen.findByRole("button", { name: "Huỷ đơn" }));
-    await userEvent.type(
-      screen.getByLabelText(/Lý do huỷ/),
-      "Khách đổi ý{Control>}{Enter}{/Control}",
-    );
+    it("đơn đã thu tiền đang sản xuất → cảnh báo hệ quả với lệnh sản xuất, KHÔNG hứa phí, KHÔNG có ô giữ phí, báo tạo yêu cầu hoàn tiền chờ kế toán; body không có retainedPercent", async () => {
+      const user = userEvent.setup();
+      await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => ({
+        ...withStatus("IN_PRODUCTION"),
+        paidAmount: 200_000,
+      }));
+      const post = vi.spyOn(api, "post").mockResolvedValue({ data: withStatus("CANCELLED") });
 
-    await waitFor(() => expect(toastError).toHaveBeenCalled());
-    const [title, detail] = toastError.mock.calls[0] ?? [];
-    expect(title).toBe(UI_LABELS.order.cancelFailedTitle);
-    expect(detail).toContain(`${UI_LABELS.common.traceId}: corr-77`);
-  });
+      await user.click(await screen.findByRole("button", { name: "Huỷ đơn" }));
+      const dialog = screen.getByRole("dialog");
+      // BE PrintRunService#onOrderCancelled: LSX chưa in huỷ, đang in / gia công ngoài bị treo. Form không gửi
+      // phí → không được nói "tính phí sản xuất" mâu thuẫn với ghi chú hoàn toàn bộ tiền đã thu bên dưới
+      const consequence = within(dialog).getByText(/Đơn đang sản xuất/);
+      expect(consequence).toHaveTextContent(/lệnh sản xuất chưa in sẽ được huỷ/);
+      expect(consequence).toHaveTextContent(/không áp dụng phí huỷ/);
+      expect(within(dialog).queryByText(/tính phí/)).not.toBeInTheDocument();
+      // OrderResponse không có mốc bắt đầu in → FE không mở ô giữ phí (BE CANCELLATION_FEE_BEFORE_PRINTING)
+      expect(within(dialog).queryByLabelText(/Giữ lại/)).not.toBeInTheDocument();
+      // BE chỉ tạo refund PENDING; kế toán chi trả → không được hứa tiền đã/sẽ hoàn đủ
+      const refundNote = within(dialog).getByText(/tạo yêu cầu hoàn tiền/);
+      expect(refundNote).toHaveTextContent(/cần kế toán xử lý/);
+      expect(refundNote).toHaveTextContent(/không đồng nghĩa tiền đã được hoàn/);
+      expect(within(dialog).queryByText(/hoàn đủ/)).not.toBeInTheDocument();
+      await pickOrderSelectOption(user, /Lý do huỷ/, "Khách yêu cầu");
+      await user.click(within(dialog).getByRole("button", { name: "Huỷ đơn" }));
 
-  it("ORDER_INVALID_TRANSITION (đơn đã đổi trạng thái) → đóng dialog và tải lại đơn", async () => {
-    await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => apiOrder);
-    vi.spyOn(api, "post").mockRejectedValue(
-      new ApiError(409, "ORDER_INVALID_TRANSITION", "This order cannot move to that status now"),
-    );
+      await waitFor(() =>
+        expect(post).toHaveBeenCalledWith(
+          CANCEL_PATH,
+          { reasonCode: "CUSTOMER_REQUEST" },
+          WITH_IDEMPOTENCY_KEY,
+        ),
+      );
+    });
 
-    await userEvent.click(await screen.findByRole("button", { name: "Huỷ đơn" }));
-    await userEvent.type(
-      screen.getByLabelText(/Lý do huỷ/),
-      "Khách đổi ý{Control>}{Enter}{/Control}",
-    );
+    it("đơn ON_HOLD giữ từ PICKING → cảnh báo theo bước đã bị giữ (dừng lấy hàng + put-back)", async () => {
+      const user = userEvent.setup();
+      await renderDetail(ORDER_PERMISSION_SETS.coordinator, () =>
+        apiOrderWith({ status: "ON_HOLD", holdReason: "FRAUD", statusBeforeHold: "PICKING" }),
+      );
 
-    await waitFor(() => expect(screen.queryByLabelText(/Lý do huỷ/)).not.toBeInTheDocument());
-    // Lần 1 lúc mở trang, lần 2 do invalidate orderKeys.all sau CONFLICT
-    await waitFor(() =>
-      expect(vi.mocked(api.get).mock.calls.filter(([url]) => url === DETAIL_PATH)).toHaveLength(2),
-    );
-  });
-});
+      await user.click(await screen.findByRole("button", { name: "Huỷ đơn" }));
+      expect(within(screen.getByRole("dialog")).getByText(/put-back/)).toBeInTheDocument();
+    });
+
+    it("lỗi tạm thời rồi bấm lại cùng nội dung → cùng Idempotency-Key; thành công thì đóng dialog", async () => {
+      const user = userEvent.setup();
+      await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => apiOrder);
+      const post = vi
+        .spyOn(api, "post")
+        .mockRejectedValueOnce(new ApiError(0, "NETWORK_ERROR", "offline"))
+        .mockResolvedValueOnce({ data: withStatus("CANCELLED") });
+
+      const dialog = await cancelWith(user, "Khách yêu cầu");
+      await within(dialog).findByRole("alert");
+      await user.click(within(dialog).getByRole("button", { name: "Huỷ đơn" }));
+
+      await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
+      const keyOf = (call: unknown[] | undefined) =>
+        (call?.[2] as { headers: Record<string, string> } | undefined)?.headers["Idempotency-Key"];
+      expect(keyOf(post.mock.calls[0])).toBeTruthy();
+      expect(keyOf(post.mock.calls[1])).toBe(keyOf(post.mock.calls[0]));
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    });
+
+    it("lỗi mạng → dialog vẫn mở, báo lỗi trong dialog để thử lại", async () => {
+      const user = userEvent.setup();
+      await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => apiOrder);
+      vi.spyOn(api, "post").mockRejectedValue(
+        new ApiError(0, "NETWORK_ERROR", "Không kết nối được máy chủ."),
+      );
+
+      const dialog = await cancelWith(user, "Khách yêu cầu");
+
+      expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+        "Không kết nối được máy chủ",
+      );
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+    });
+
+    it("lỗi có traceId → tiêu đề 'Không huỷ được đơn' + nhãn chung 'TraceId' trong dialog", async () => {
+      const user = userEvent.setup();
+      await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => apiOrder);
+      vi.spyOn(api, "post").mockRejectedValue(
+        new ApiError(500, "INTERNAL_ERROR", "boom", undefined, "corr-77"),
+      );
+
+      const dialog = await cancelWith(user, "Khách yêu cầu");
+
+      const alert = await within(dialog).findByRole("alert");
+      expect(alert).toHaveTextContent(UI_LABELS.order.cancelFailedTitle);
+      expect(alert).toHaveTextContent(`${UI_LABELS.common.traceId}: corr-77`);
+    });
+
+    it("ORDER_NOT_CANCELLABLE (đơn đã đổi trạng thái) → đóng dialog, toast và tải lại đơn", async () => {
+      const user = userEvent.setup();
+      await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => apiOrder);
+      const toastError = vi.spyOn(toast, "error");
+      vi.spyOn(api, "post").mockRejectedValue(
+        new ApiError(409, "ORDER_NOT_CANCELLABLE", "Conflicting state"),
+      );
+
+      await cancelWith(user, "Khách yêu cầu");
+
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      expect(toastError).toHaveBeenCalledWith("Đơn không còn huỷ được", expect.any(String));
+      // Lần 1 lúc mở trang, lần 2 do invalidate orderKeys.all
+      await waitFor(() =>
+        expect(vi.mocked(api.get).mock.calls.filter(([url]) => url === DETAIL_PATH)).toHaveLength(
+          2,
+        ),
+      );
+    });
+  },
+);
+
+describe(
+  "OrderDetail — huỷ: ORDER_INVALID_TRANSITION (BE PR #133)",
+  { timeout: DIALOG_FLOW_TIMEOUT_MS },
+  () => {
+    it("đơn đã đổi trạng thái → đóng dialog và tải lại đơn", async () => {
+      const user = userEvent.setup();
+      await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => apiOrder);
+      vi.spyOn(api, "post").mockRejectedValue(
+        new ApiError(409, "ORDER_INVALID_TRANSITION", "This order cannot move to that status now"),
+      );
+
+      await cancelWith(user, "Khách yêu cầu");
+
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      // Lần 1 lúc mở trang, lần 2 do invalidate orderKeys.all
+      await waitFor(() =>
+        expect(vi.mocked(api.get).mock.calls.filter(([url]) => url === DETAIL_PATH)).toHaveLength(
+          2,
+        ),
+      );
+    });
+  },
+);
 
 describe("OrderDetail — kiểm quyền trước khi gọi API", () => {
   it("WAREHOUSE_STAFF (không có sales-orders) → 'Bạn không có quyền', không gọi GET /orders/{id}", async () => {
@@ -244,6 +399,79 @@ describe("OrderDetail — kiểm quyền trước khi gọi API", () => {
     expect(screen.getAllByText(UI_LABELS.order.forbiddenDescription)).toHaveLength(1);
   });
 });
+
+describe(
+  "OrderDetail — huỷ đơn: fieldErrors BE → ô form (Step 8)",
+  { timeout: DIALOG_FLOW_TIMEOUT_MS },
+  () => {
+    it("B. nhiều field (reasonCode + note) → lỗi tại cả hai ô, kể cả ghi chú khi lý do không phải 'khác'", async () => {
+      const user = userEvent.setup();
+      await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => apiOrder);
+      vi.spyOn(api, "post").mockRejectedValue(
+        new ApiError(400, "VALIDATION_FAILED", "Invalid request data", {
+          reasonCode: "must not be null",
+          note: "note is at most 1000 characters",
+        }),
+      );
+
+      const dialog = await cancelWith(user, "Khách yêu cầu", "Ghi chú");
+      expect(await within(dialog).findByText("Chọn lý do huỷ hợp lệ.")).toBeInTheDocument();
+      expect(within(dialog).getByText(/Ghi chú tối đa 1000 ký tự/)).toBeInTheDocument();
+      expect(within(dialog).getByLabelText(/Ghi chú/)).toHaveAttribute("aria-invalid", "true");
+    });
+
+    it("C. field lạ (`reason` cũ) → không crash, message máy chủ đi vào thông báo chung", async () => {
+      const user = userEvent.setup();
+      await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => apiOrder);
+      vi.spyOn(api, "post").mockRejectedValue(
+        new ApiError(400, "VALIDATION_FAILED", "Invalid request data", {
+          reason: "reason is at most 500 characters",
+        }),
+      );
+
+      const dialog = await cancelWith(user, "Khách yêu cầu");
+      const alert = await within(dialog).findByRole("alert");
+      expect(alert).toHaveTextContent("Kiểm tra lại lý do huỷ");
+      expect(alert).toHaveTextContent("reason is at most 500 characters");
+    });
+  },
+);
+
+describe(
+  "OrderDetail — huỷ: không có ô giữ phí (BE không trả mốc bắt đầu in)",
+  { timeout: DIALOG_FLOW_TIMEOUT_MS },
+  () => {
+    it("CANCELLATION_FEE_BEFORE_PRINTING (BE) → câu tiếng Việt an toàn trong dialog, không lộ message server", async () => {
+      const user = userEvent.setup();
+      await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => withStatus("CONFIRMED"));
+      vi.spyOn(api, "post").mockRejectedValue(
+        new ApiError(409, "CANCELLATION_FEE_BEFORE_PRINTING", "Printing has not started"),
+      );
+
+      const dialog = await cancelWith(user, "Khách yêu cầu");
+      const alert = await within(dialog).findByRole("alert");
+      expect(alert).toHaveTextContent("phí huỷ trước khi bắt đầu in");
+      expect(alert).toHaveTextContent("gửi lại yêu cầu huỷ đơn");
+      expect(alert).not.toHaveTextContent("hoàn đủ");
+      expect(alert).not.toHaveTextContent("Printing has not started");
+    });
+
+    it("fieldErrors của ô không có trên form (retainedPercent / agreedFee.*) → vào thông báo chung, không mất", async () => {
+      const user = userEvent.setup();
+      await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => apiOrder);
+      vi.spyOn(api, "post").mockRejectedValue(
+        new ApiError(400, "VALIDATION_FAILED", "Invalid request data", {
+          "agreedFee.amount": "amount is more than zero",
+        }),
+      );
+
+      const dialog = await cancelWith(user, "Khách yêu cầu");
+      const alert = await within(dialog).findByRole("alert");
+      expect(alert).toHaveTextContent("Kiểm tra lại lý do huỷ");
+      expect(alert).toHaveTextContent("amount is more than zero");
+    });
+  },
+);
 
 describe("OrderDetail — hiển thị vòng đời (BE PR #133)", () => {
   it("đơn ON_HOLD: lý do, ghi chú (staff) và bước sẽ quay về", async () => {
@@ -329,7 +557,7 @@ describe("OrderDetail — Giữ đơn", () => {
 
   it("chọn lý do + ghi chú → POST /hold {reasonCode, note}, đóng dialog", async () => {
     await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => withStatus("PICKING"));
-    const post = vi.spyOn(api, "post").mockResolvedValue({ data: null });
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiOrder });
     const user = userEvent.setup();
 
     await user.click(await screen.findByRole("button", { name: "Giữ đơn" }));
@@ -338,16 +566,20 @@ describe("OrderDetail — Giữ đơn", () => {
     await user.click(screen.getByRole("button", { name: "Giữ đơn", hidden: false }));
 
     await waitFor(() =>
-      expect(post).toHaveBeenCalledWith(`${DETAIL_PATH}/hold`, {
-        reasonCode: "ADDRESS",
-        note: "Sai phường",
-      }),
+      expect(post).toHaveBeenCalledWith(
+        `${DETAIL_PATH}/hold`,
+        {
+          reasonCode: "ADDRESS",
+          note: "Sai phường",
+        },
+        WITH_IDEMPOTENCY_KEY,
+      ),
     );
   });
 
   it("'Lý do khác' bắt buộc ghi chú — chặn trước khi gọi API", async () => {
     await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => withStatus("PICKING"));
-    const post = vi.spyOn(api, "post").mockResolvedValue({ data: null });
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiOrder });
     const user = userEvent.setup();
 
     await user.click(await screen.findByRole("button", { name: "Giữ đơn" }));
@@ -362,7 +594,7 @@ describe("OrderDetail — Giữ đơn", () => {
 
   it("không chọn lý do → 'Chọn lý do', không gọi API; danh sách không có CREDIT / DESIGN_MISMATCH", async () => {
     await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => withStatus("PICKING"));
-    const post = vi.spyOn(api, "post").mockResolvedValue({ data: null });
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiOrder });
     const user = userEvent.setup();
 
     await user.click(await screen.findByRole("button", { name: "Giữ đơn" }));
@@ -395,13 +627,48 @@ describe("OrderDetail — Giữ đơn", () => {
   });
 });
 
+describe("OrderDetail — Giữ đơn: Idempotency-Key theo lần thử", () => {
+  const keyOf = (call: unknown[] | undefined) =>
+    (call?.[2] as { headers: Record<string, string> } | undefined)?.headers["Idempotency-Key"];
+
+  it("lỗi tạm thời → bấm lại cùng nội dung dùng CÙNG key; đổi nội dung → key MỚI; không tự gửi lại", async () => {
+    await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => withStatus("PICKING"));
+    const post = vi
+      .spyOn(api, "post")
+      .mockRejectedValueOnce(new ApiError(0, "NETWORK_ERROR", "offline"))
+      .mockRejectedValueOnce(new ApiError(409, "LOCK_TIMEOUT", "busy"))
+      .mockResolvedValueOnce({ data: withStatus("ON_HOLD") });
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "Giữ đơn" }));
+    await pickSelectOption(user, /Lý do giữ/, "Vấn đề thanh toán");
+    const submit = () =>
+      user.click(screen.getAllByRole("button", { name: "Giữ đơn" }).at(-1) as HTMLElement);
+
+    await submit();
+    await screen.findByText(/Không kết nối được máy chủ/);
+    expect(post).toHaveBeenCalledTimes(1);
+    await submit();
+    await screen.findByText(/đang được xử lý ở nơi khác/);
+    expect(post).toHaveBeenCalledTimes(2);
+    expect(keyOf(post.mock.calls[0])).toBeTruthy();
+    expect(keyOf(post.mock.calls[1])).toBe(keyOf(post.mock.calls[0]));
+
+    // Đổi nội dung → lần thử khác, key mới
+    await user.type(screen.getByLabelText(/Ghi chú/), "Chờ đối soát");
+    await submit();
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(3));
+    expect(keyOf(post.mock.calls[2])).not.toBe(keyOf(post.mock.calls[0]));
+  });
+});
+
 describe("OrderDetail — Gỡ giữ", () => {
   const held = (holdReason: string) =>
     apiOrderWith({ status: "ON_HOLD", holdReason, statusBeforeHold: "PICKING" });
 
   it("giữ do điều phối viên → Gỡ giữ cần ghi chú, POST /hold/resolution {note}", async () => {
     await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => held("CUSTOMER"));
-    const post = vi.spyOn(api, "post").mockResolvedValue({ data: null });
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiOrder });
     const user = userEvent.setup();
 
     await user.click(await screen.findByRole("button", { name: "Gỡ giữ" }));
@@ -413,9 +680,13 @@ describe("OrderDetail — Gỡ giữ", () => {
     await user.type(screen.getByLabelText(/Cách đã xử lý/), "Khách xác nhận");
     await user.click(screen.getAllByRole("button", { name: "Gỡ giữ" }).at(-1) as HTMLElement);
     await waitFor(() =>
-      expect(post).toHaveBeenCalledWith(`${DETAIL_PATH}/hold/resolution`, {
-        note: "Khách xác nhận",
-      }),
+      expect(post).toHaveBeenCalledWith(
+        `${DETAIL_PATH}/hold/resolution`,
+        {
+          note: "Khách xác nhận",
+        },
+        WITH_IDEMPOTENCY_KEY,
+      ),
     );
   });
 
@@ -453,7 +724,7 @@ describe("OrderDetail — Gỡ giữ", () => {
 describe("OrderDetail — Ghi giao thất bại", () => {
   it("đơn SHIPPED chưa chia lô → POST /delivery-failure {reasonCode, note}", async () => {
     await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => withStatus("SHIPPED"));
-    const post = vi.spyOn(api, "post").mockResolvedValue({ data: null });
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiOrder });
     const user = userEvent.setup();
 
     await user.click(await screen.findByRole("button", { name: "Ghi giao thất bại" }));
@@ -463,9 +734,13 @@ describe("OrderDetail — Ghi giao thất bại", () => {
     );
 
     await waitFor(() =>
-      expect(post).toHaveBeenCalledWith(`${DETAIL_PATH}/delivery-failure`, {
-        reasonCode: "CUSTOMER_ABSENT",
-      }),
+      expect(post).toHaveBeenCalledWith(
+        `${DETAIL_PATH}/delivery-failure`,
+        {
+          reasonCode: "CUSTOMER_ABSENT",
+        },
+        WITH_IDEMPOTENCY_KEY,
+      ),
     );
   });
 
@@ -500,7 +775,7 @@ describe("OrderDetail — Ghi giao thất bại", () => {
 describe("OrderDetail — Đóng phần còn lại", () => {
   it("đơn giao một phần + quyền huỷ → POST /remainder-closure; có cả Giữ đơn cho coordinator", async () => {
     await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => apiPartialOrder);
-    const post = vi.spyOn(api, "post").mockResolvedValue({ data: null });
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiOrder });
     const user = userEvent.setup();
 
     expect(await screen.findByRole("button", { name: "Giữ đơn" })).toBeInTheDocument();
@@ -512,10 +787,14 @@ describe("OrderDetail — Đóng phần còn lại", () => {
     );
 
     await waitFor(() =>
-      expect(post).toHaveBeenCalledWith(`${DETAIL_PATH}/remainder-closure`, {
-        reasonCode: "OTHER",
-        note: "Hết hàng cả kho",
-      }),
+      expect(post).toHaveBeenCalledWith(
+        `${DETAIL_PATH}/remainder-closure`,
+        {
+          reasonCode: "OTHER",
+          note: "Hết hàng cả kho",
+        },
+        WITH_IDEMPOTENCY_KEY,
+      ),
     );
   });
 
@@ -639,4 +918,102 @@ describe("OrderDetail — giữ đơn không rõ lý do", () => {
     await screen.findByText("Đơn đang tạm giữ");
     expect(screen.queryByText(/chưa thể gỡ giữ/)).not.toBeInTheDocument();
   });
+});
+
+describe("OrderDetail — hồi quy tích hợp (credit hold / packed / UNKNOWN / lô + LSX)", () => {
+  /** Kế toán + quyền đọc đơn — để mở được chi tiết; mã quyền vẫn theo seed (không cấp thừa). */
+  const ACCOUNTANT_READING = [
+    ...ORDER_PERMISSION_SETS.accountant,
+    ...ORDER_PERMISSION_SETS.readOnly,
+  ] satisfies PermissionCode[];
+
+  it("1. đơn CREDIT giữ vì ADDRESS → kế toán KHÔNG thấy Duyệt / Từ chối công nợ", async () => {
+    await renderDetail(ACCOUNTANT_READING, () =>
+      apiOrderWith({
+        status: "ON_HOLD",
+        paymentTerm: "CREDIT",
+        holdReason: "ADDRESS",
+        statusBeforeHold: "PICKING",
+      }),
+    );
+    await screen.findByText("Đơn đang tạm giữ");
+    expect(screen.queryByRole("button", { name: /Duyệt vượt hạn mức/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Từ chối/ })).not.toBeInTheDocument();
+  });
+
+  it("2. giữ công nợ thật (CREDIT + lý do CREDIT) → kế toán thấy Duyệt vượt hạn mức", async () => {
+    await renderDetail(ACCOUNTANT_READING, () =>
+      apiOrderWith({ status: "ON_HOLD", paymentTerm: "CREDIT", holdReason: "CREDIT" }),
+    );
+    expect(await screen.findByRole("button", { name: /Duyệt vượt hạn mức/ })).toBeInTheDocument();
+    // Không có quyền huỷ / giữ → không có nút nào khác
+    expect(screen.queryByRole("button", { name: "Huỷ đơn" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Gỡ giữ" })).not.toBeInTheDocument();
+  });
+
+  it("4. trạng thái UNKNOWN → không có nút thao tác nào kể cả với Coordinator", async () => {
+    await renderDetail(ORDER_PERMISSION_SETS.coordinator, () => withStatus("SOME_FUTURE" as never));
+    await screen.findByText("Trạng thái đơn chưa được hỗ trợ — không có thao tác.");
+    const card = screen.getByRole("region", { name: "Thao tác đơn" });
+    expect(within(card).queryAllByRole("button")).toHaveLength(0);
+  });
+
+  it("7. LSX theo dòng in và lô giao cùng hiện trên một trang chi tiết", async () => {
+    const lineId = apiPartialOrder.lines[0]?.lineId ?? "";
+    // Chỉ đọc đơn + đọc LSX (production-orders:READ — BE ProductionOrderController#list)
+    mockOrderApiGet([...ORDER_PERMISSION_SETS.readOnly, PRODUCTION_ORDER_PERMISSIONS.read], {
+      [DETAIL_PATH]: () =>
+        apiOrderWith({
+          ...apiPartialOrder,
+          lines: [
+            {
+              ...apiPartialOrder.lines[0],
+              designSnapshotId: "c0ffee00-0000-4000-8000-000000000001",
+            },
+          ],
+        }),
+      // BE ProductionOrderController#list — PageResponse<ProductionOrderRowResponse>
+      "/production/orders": () => ({
+        items: [
+          {
+            id: "0b0b0b0b-0000-4000-8000-000000000001",
+            orderNumber: "LSX-0001",
+            type: "ORDER",
+            mode: "IN_HOUSE",
+            status: "COMPLETED",
+            plannedQuantity: 2,
+            goodQuantity: 2,
+            salesOrderId: apiOrder.orderId,
+            salesOrderLineId: lineId,
+            createdAt: "2026-10-20T03:00:00Z",
+          },
+        ],
+        page: 0,
+        size: 200,
+        totalElements: 1,
+        totalPages: 1,
+        hasNext: false,
+        hasPrevious: false,
+      }),
+      [`${DETAIL_PATH}/history`]: () => [],
+    });
+    await act(async () => {
+      renderOrderScreen(<OrderDetail params={Promise.resolve({ id: apiOrder.orderId })} />);
+    });
+
+    expect(
+      await screen.findByRole("listitem", { name: "Lệnh sản xuất LSX-0001" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Lô giao" })).toBeInTheDocument();
+    expect(screen.getByText("Đã bàn giao:")).toBeInTheDocument();
+  });
+
+  it.each(["CONFIRMED", "PICKING", "SHIPPED", "PARTIALLY_FULFILLED"] as const)(
+    "9. tài khoản chỉ đọc + %s → không có nút ghi nào",
+    async (status) => {
+      await renderDetail(ORDER_PERMISSION_SETS.readOnly, () => withStatus(status));
+      const card = await screen.findByRole("region", { name: "Thao tác đơn" });
+      expect(within(card).queryAllByRole("button")).toHaveLength(0);
+    },
+  );
 });

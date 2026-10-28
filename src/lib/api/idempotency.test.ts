@@ -5,6 +5,7 @@ import {
   idempotencyKeyStillUsable,
   idempotencyRequestConfig,
   IDEMPOTENCY_KEY_HEADER,
+  newIdempotencyKey,
 } from "./idempotency";
 
 const counter = () => {
@@ -81,5 +82,28 @@ describe("createIdempotencyAttempt", () => {
     const k1 = attempt.keyFor({ id: "o-1" });
     attempt.reset();
     expect(attempt.keyFor({ id: "o-1" })).not.toBe(k1);
+  });
+});
+
+// Dùng chung cho mọi thao tác ghi của đơn (huỷ, duyệt / từ chối công nợ, release…), không riêng release
+describe("Idempotency-Key — các thao tác ghi khác của đơn", () => {
+  it("key sinh ra hợp lệ với BE (8–255 ký tự letters/digits/-_:.), mỗi lần khác nhau", () => {
+    const a = newIdempotencyKey();
+    expect(a).toMatch(/^[A-Za-z0-9\-_:.]{8,255}$/);
+    expect(newIdempotencyKey()).not.toBe(a);
+  });
+
+  it("quay lại nội dung cũ là yêu cầu mới — không bao giờ một key cho hai nội dung", () => {
+    const attempt = createIdempotencyAttempt(counter());
+    const k1 = attempt.keyFor({ id: "o1", note: "a" });
+    attempt.keyFor({ id: "o1", note: "b" });
+    expect(attempt.keyFor({ id: "o1", note: "a" })).not.toBe(k1);
+  });
+
+  it("hai lần thử độc lập (hai dialog) không chia key", () => {
+    const generate = counter();
+    const a = createIdempotencyAttempt(generate);
+    const b = createIdempotencyAttempt(generate);
+    expect(a.keyFor({ id: "o1" })).not.toBe(b.keyFor({ id: "o1" }));
   });
 });

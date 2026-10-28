@@ -69,6 +69,15 @@ export const email = z.string().email("Email không hợp lệ");
 
 export const phone = z.string().regex(/^(\+84|0)\d{9,10}$/, "Số điện thoại không hợp lệ");
 
+/* ── Id ──────────────────────────────────────────────────────────────── */
+
+/**
+ * UUID dạng chuẩn 8-4-4-4-12 hex — đúng thứ Spring bind `@RequestParam UUID` nhận
+ * (`UUID.fromString`). Dùng `z.guid()` chứ không `.uuid()`: zod v4 `.uuid()` còn kiểm bit
+ * version/variant RFC 4122 mà BE không đòi — FE không được chặt hơn BE với id của chính BE.
+ */
+export const uuid = (msg = "Mã định danh phải là UUID hợp lệ") => z.guid(msg);
+
 /**
  * Field DTO có thể null của BE. BE bật Jackson `default-property-inclusion: non_null`
  * (application.yml) — giá trị null bị BỎ khỏi JSON chứ không gửi `null`. Nhận cả thiếu lẫn null,

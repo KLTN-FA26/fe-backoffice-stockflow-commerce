@@ -8,7 +8,7 @@
 
 import type { ReactNode } from "react";
 
-import type { OrderStatus } from "./types";
+import type { OrderReadStatus } from "./types";
 
 export interface OrderEstimateSlotProps {
   orderId: string;
@@ -30,7 +30,7 @@ export type OrderEstimateSlot = (props: OrderEstimateSlotProps) => ReactNode;
  * PACKED, PARTIALLY_FULFILLED (phần còn lại). ON_HOLD, đã giao trở đi, DRAFT, PENDING_PAYMENT → 409
  * LOAD_ESTIMATE_SOURCE_NOT_ELIGIBLE. CONFIRMED ước tính được ở hộp thoại release (kèm kho).
  */
-export const ESTIMABLE_RELEASED_STATUSES: readonly OrderStatus[] = [
+export const ESTIMABLE_RELEASED_STATUSES: readonly OrderReadStatus[] = [
   "In Production",
   "Ready to Fulfill",
   "Picking",

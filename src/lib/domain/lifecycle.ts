@@ -42,12 +42,14 @@ import type {
   PutawayStatus,
   MoveTaskStatus,
 } from "@/lib/mock-data";
-// OrderStatus lấy từ constants/statuses.ts (không phải mock-data) — đúng 10 trạng thái BE
-// (OrderStatus.java), dùng cho zod enum / lifecycle / filter UI.
+// OrderStatus lấy từ constants/statuses.ts (không phải mock-data) — đúng 19 trạng thái BE
+// (OrderStatus.java, PR #133), dùng cho zod enum / lifecycle / filter UI; OrderReadStatus thêm
+// UNKNOWN (trạng thái BE FE chưa hiểu) — chỉ đọc, không chuyển tiếp được, không là đích.
 // ReceiptStatus cũng vậy — 6 trạng thái docs 03 §5.1 (mock-data chỉ có 5, thiếu "In QC").
 // PickStatus / PackStatus: các trạng thái BE `/fulfillment/tasks` phát ra được (SCRUM-437).
 import type {
   LoadStatus,
+  OrderReadStatus,
   OrderStatus,
   PackStatus,
   PickStatus,
@@ -239,7 +241,7 @@ export const MOVE_TRANSITIONS: Record<MoveTaskStatus, readonly MoveTaskStatus[]>
 // Chép nguyên BE `order/api/OrderStatus.java#canTransitionTo` (19 trạng thái, BE PR #133 — bảng chuyển
 // cũng nằm ở DB `ordering.order_status_transition`, trigger chặn mọi nhảy cóc). FE khớp BE, không dựng
 // theo docs 17. Mã wire ↔ nhãn FE: features/order/status-map.ts (PENDING_PAYMENT ↔ "Pending Payment"…).
-export const ORDER_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
+export const ORDER_TRANSITIONS: Record<OrderReadStatus, readonly OrderStatus[]> = {
   Draft: ["Pending Payment", "Confirmed", "On Hold", "Cancelled"],
   "Pending Payment": ["Confirmed", "Cancelled"],
   Confirmed: ["In Production", "Ready to Fulfill", "On Hold", "Cancelled"],

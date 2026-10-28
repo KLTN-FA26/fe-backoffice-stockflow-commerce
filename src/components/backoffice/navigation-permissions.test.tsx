@@ -2,16 +2,19 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
 import { INVENTORY_LABELS } from "@/constants/inventory";
 import {
   ATTRIBUTE_PERMISSIONS,
-  FULFILLMENT_PICK_PERMISSIONS,
+  CREDIT_HOLD_PERMISSIONS,
   FULFILLMENT_PICKING_PERMISSIONS,
+  FULFILLMENT_PICK_PERMISSIONS,
   FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS,
   IDENTITY_PERMISSIONS,
   INVENTORY_ITEM_PERMISSIONS,
   INVENTORY_OVERVIEW_PERMISSIONS,
   LOAD_PLAN_PERMISSIONS,
+  ORDER_PERMISSIONS,
   PRODUCT_PERMISSIONS,
   SHIPMENT_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
@@ -23,7 +26,15 @@ import { ApiError } from "@/lib/api/error";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { meKeys } from "@/lib/auth/me-permissions";
 
-import { NAV_GROUPS, useCanSeeNavItem } from "./BackofficeShell";
+import {
+  NAV_GROUPS,
+  buildBreadcrumbItems,
+  findActiveNavHref,
+  useCanSeeNavItem,
+  visibleNavGroups,
+} from "./BackofficeShell";
+
+import type { PermissionCode } from "@/lib/auth/me-permissions";
 
 const mockMode = vi.hoisted(() => ({ isMock: false }));
 vi.mock("@/providers/app-providers", () => ({ useIsMock: () => mockMode.isMock }));
@@ -297,5 +308,140 @@ describe("declared navigation permissions", () => {
     await waitFor(() =>
       expect(screen.queryByRole("link", { name: "Từ điển thuộc tính" })).not.toBeInTheDocument(),
     );
+  });
+});
+
+describe("credit hold navigation — gate bằng quyền credit hold, không phụ thuộc trang Đơn hàng", () => {
+  const CREDIT_LABEL = UI_LABELS.order.creditHoldsTitle;
+  const ORDERS_LABEL = "Đơn hàng";
+
+  function mountWith(permissions: readonly PermissionCode[]) {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [], permissions, dataScope: "ALL" },
+    });
+    mount();
+  }
+
+  it("A/B. chỉ có credit-hold VIEW_PAGE (ACCOUNTANT) → thấy mục hàng đợi, KHÔNG thấy 'Đơn hàng'", async () => {
+    mountWith([CREDIT_HOLD_PERMISSIONS.viewPage, CREDIT_HOLD_PERMISSIONS.approve]);
+
+    const link = await screen.findByRole("link", { name: CREDIT_LABEL });
+    expect(link).toHaveAttribute("href", ADMIN_ROUTES.orders.creditHolds);
+    expect(screen.queryByRole("link", { name: ORDERS_LABEL })).not.toBeInTheDocument();
+  });
+
+  it("C. có cả hai quyền → thấy cả 'Đơn hàng' lẫn mục hàng đợi, mỗi mục một lần", async () => {
+    mountWith([ORDER_PERMISSIONS.viewPage, CREDIT_HOLD_PERMISSIONS.viewPage]);
+
+    expect(await screen.findByRole("link", { name: CREDIT_LABEL })).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: ORDERS_LABEL })).toHaveLength(1);
+    expect(screen.getAllByRole("link", { name: CREDIT_LABEL })).toHaveLength(1);
+  });
+
+  it("D. không có credit-hold VIEW_PAGE (chỉ quyền đơn) → không có mục hàng đợi", async () => {
+    mountWith([ORDER_PERMISSIONS.viewPage, ORDER_PERMISSIONS.read]);
+
+    expect(await screen.findByRole("link", { name: ORDERS_LABEL })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: CREDIT_LABEL })).not.toBeInTheDocument();
+  });
+
+  it("mục đang mở: khớp dài nhất — trang hàng đợi không sáng kèm 'Đơn hàng'", () => {
+    const items = NAV_GROUPS.flatMap((group) => group.items);
+    expect(findActiveNavHref(ADMIN_ROUTES.orders.creditHolds, items)).toBe(
+      ADMIN_ROUTES.orders.creditHolds,
+    );
+    expect(findActiveNavHref(ADMIN_ROUTES.orders.detail("o-1"), items)).toBe(
+      ADMIN_ROUTES.orders.list,
+    );
+    expect(findActiveNavHref(ADMIN_ROUTES.home, items)).toBe(ADMIN_ROUTES.home);
+    // Không thấy mục hàng đợi → khớp trong các mục được thấy (trang tự chặn nếu thiếu quyền)
+    const ordersOnly = items.filter((item) => item.href !== ADMIN_ROUTES.orders.creditHolds);
+    expect(findActiveNavHref(ADMIN_ROUTES.orders.creditHolds, ordersOnly)).toBe(
+      ADMIN_ROUTES.orders.list,
+    );
+  });
+
+  it("breadcrumb hàng đợi cho ACCOUNTANT không dẫn qua 'Đơn hàng' (trang bị chặn)", () => {
+    const accountantCanSee = (item: { permission?: PermissionCode }) =>
+      !item.permission || item.permission === CREDIT_HOLD_PERMISSIONS.viewPage;
+    expect(buildBreadcrumbItems(ADMIN_ROUTES.orders.creditHolds, accountantCanSee)).toEqual([
+      { label: "Back-office", href: ADMIN_ROUTES.home },
+      { label: CREDIT_LABEL, href: undefined },
+    ]);
+  });
+
+  it("nhóm chỉ còn mục bị ẩn thì bỏ cả nhóm; mục hàng đợi chỉ cần quyền của chính nó", () => {
+    const creditOnly = (item: { permission?: PermissionCode }) =>
+      item.permission === CREDIT_HOLD_PERMISSIONS.viewPage;
+    const groups = visibleNavGroups(creditOnly);
+    expect(groups.map((group) => group.items.map((item) => item.href))).toEqual([
+      [ADMIN_ROUTES.orders.creditHolds],
+    ]);
+    expect(groups.every((group) => group.items.length > 0)).toBe(true);
+  });
+});
+
+describe("mockOnly đi chung pipeline hiển thị + mục đang mở (một tập mục được thấy)", () => {
+  /** Chạy đúng pipeline của sidebar: quyền + mockOnly → nhóm được thấy → mục đang mở. */
+  function ActiveProbe({ pathname }: { pathname: string }) {
+    const canSee = useCanSeeNavItem();
+    const groups = visibleNavGroups(canSee);
+    const active = findActiveNavHref(
+      pathname,
+      groups.flatMap((group) => group.items),
+    );
+    return (
+      <>
+        <output aria-label="active">{active ?? "none"}</output>
+        <output aria-label="visible">
+          {groups.flatMap((group) => group.items.map((item) => item.href)).join(" ")}
+        </output>
+      </>
+    );
+  }
+
+  function probe(pathname: string, permissions: string[]) {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [], permissions, dataScope: "ALL" },
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <ActiveProbe pathname={pathname} />
+      </QueryClientProvider>,
+    );
+  }
+
+  // Mục mockOnly hiện tại (BE chưa có API hoá đơn NCC); Chuyến xe / Vận đơn đã có BE nên không còn mockOnly
+  const MOCK_ONLY_ROUTE = "/admin/invoices";
+  const SHIPMENT_DETAIL = ADMIN_ROUTES.shipments.detail("trip-1");
+
+  afterEach(() => {
+    mockMode.isMock = false;
+  });
+
+  it("A/B. ngoài mock: mục mockOnly ẩn và KHÔNG thành mục đang mở dù đúng route của nó", async () => {
+    mockMode.isMock = false;
+    probe(MOCK_ONLY_ROUTE, [SHIPMENT_PERMISSIONS.viewPage]);
+    await waitFor(() =>
+      expect(screen.getByLabelText("visible")).toHaveTextContent(ADMIN_ROUTES.shipments.list),
+    );
+    expect(screen.getByLabelText("visible")).not.toHaveTextContent(MOCK_ONLY_ROUTE);
+    expect(screen.getByLabelText("active")).toHaveTextContent("none");
+  });
+
+  it("C. trong mock: mục mockOnly hiện và sáng theo route như mọi mục khác", async () => {
+    mockMode.isMock = true;
+    probe(MOCK_ONLY_ROUTE, [SHIPMENT_PERMISSIONS.viewPage]);
+    await waitFor(() => expect(screen.getByLabelText("active")).toHaveTextContent(MOCK_ONLY_ROUTE));
+  });
+
+  it("D. trong mock nhưng thiếu quyền của mục → vẫn ẩn, không sáng (quyền vẫn áp dụng)", async () => {
+    mockMode.isMock = true;
+    probe(SHIPMENT_DETAIL, [ORDER_PERMISSIONS.viewPage]);
+    await waitFor(() =>
+      expect(screen.getByLabelText("visible")).toHaveTextContent(ADMIN_ROUTES.orders.list),
+    );
+    expect(screen.getByLabelText("visible")).not.toHaveTextContent(ADMIN_ROUTES.shipments.list);
+    expect(screen.getByLabelText("active")).toHaveTextContent("none");
   });
 });

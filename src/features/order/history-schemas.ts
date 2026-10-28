@@ -5,7 +5,7 @@
 import { z } from "zod";
 
 import { ORDER_HISTORY_ENTRY_TYPES } from "@/constants/labels-order";
-import { ORDER_STATUSES } from "@/constants/statuses";
+import { ORDER_READ_STATUSES } from "@/constants/statuses";
 
 import { orderDeliveryModeDtoSchema } from "./delivery-mode-schemas";
 import { orderStatusDtoSchema } from "./schemas";
@@ -47,9 +47,9 @@ export const orderHistoryEntrySchema = z.discriminatedUnion("kind", [
   z.object({
     ...historyEntryBase,
     kind: z.literal("status-change"),
-    /** null ở bước đầu (đơn vừa được đặt). */
-    from: z.enum(ORDER_STATUSES).nullable(),
-    to: z.enum(ORDER_STATUSES),
+    /** null ở bước đầu (đơn vừa được đặt). Trạng thái BE lạ → "UNKNOWN", không làm hỏng cả lịch sử. */
+    from: z.enum(ORDER_READ_STATUSES).nullable(),
+    to: z.enum(ORDER_READ_STATUSES),
   }),
   z.object({
     ...historyEntryBase,
