@@ -202,4 +202,32 @@ describe("ConfirmDialog", () => {
     const reason = screen.getByRole("textbox");
     expect(extra.compareDocumentPosition(reason) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
+
+  it("reasonMinLength: dưới ngưỡng thì khoá xác nhận và nhắc số ký tự; đủ rồi thì mở", async () => {
+    const onConfirm = vi.fn();
+    render(
+      <ConfirmDialog
+        open
+        onOpenChange={vi.fn()}
+        title="Khoá tài khoản"
+        description="Mô tả"
+        requireReason
+        reasonLabel="Lý do"
+        reasonMinLength={5}
+        reasonMaxLength={500}
+        confirmLabel="Khoá"
+        onConfirm={onConfirm}
+      />,
+    );
+    const confirm = screen.getByRole("button", { name: "Khoá" });
+
+    await userEvent.type(screen.getByLabelText(/Lý do/), "  ab  ");
+    expect(confirm).toBeDisabled();
+    expect(screen.getByText("Nhập tối thiểu 5 ký tự")).toBeInTheDocument();
+
+    await userEvent.type(screen.getByLabelText(/Lý do/), "cde");
+    expect(confirm).toBeEnabled();
+    await userEvent.click(confirm);
+    expect(onConfirm).toHaveBeenCalledWith("  ab  cde");
+  });
 });

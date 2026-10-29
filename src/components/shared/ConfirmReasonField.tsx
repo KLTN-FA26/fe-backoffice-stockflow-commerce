@@ -11,13 +11,21 @@ interface ConfirmReasonFieldProps {
   onChange: (value: string) => void;
   /** Giới hạn độ dài — chặn ở ô nhập + hiện bộ đếm. Không truyền = không giới hạn. */
   maxLength?: number;
+  /** Độ dài tối thiểu sau khi cắt khoảng trắng; > 1 thì hiện nhắc nhở khi chưa đủ. */
+  minLength?: number;
 }
 
 /**
  * Ô lý do bắt buộc của `ConfirmDialog` — textarea vì lý do có thể dài nhiều dòng.
  * Enter = xuống dòng; Ctrl/⌘ + Enter = xác nhận (gửi form bao ngoài).
  */
-export function ConfirmReasonField({ label, value, onChange, maxLength }: ConfirmReasonFieldProps) {
+export function ConfirmReasonField({
+  label,
+  value,
+  onChange,
+  maxLength,
+  minLength = 1,
+}: ConfirmReasonFieldProps) {
   // id riêng mỗi instance — hai dialog cùng mount không trùng id (label/aria-describedby)
   const inputId = useId();
   const hintId = `${inputId}-hint`;
@@ -48,7 +56,11 @@ export function ConfirmReasonField({ label, value, onChange, maxLength }: Confir
         id={hintId}
         className="text-ink-tertiary flex items-center justify-between text-xs tabular-nums"
       >
-        <span>Ctrl/⌘ + Enter để xác nhận</span>
+        {minLength > 1 && value.trim().length < minLength ? (
+          <span>Nhập tối thiểu {minLength} ký tự</span>
+        ) : (
+          <span>Ctrl/⌘ + Enter để xác nhận</span>
+        )}
         {maxLength !== undefined && (
           <span>
             {value.length}/{maxLength}

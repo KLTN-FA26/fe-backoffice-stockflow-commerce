@@ -4,11 +4,11 @@ import { IDENTITY_PERMISSIONS } from "@/constants/permissions";
 import { USER_LIMITS } from "@/features/user-management/constants";
 import { createUserFormSchema, updateUserFormSchema } from "@/features/user-management/schemas";
 
-import { holdsRole, roleStore, userStore } from "./mock-identity-store";
+import { holdsRole, roleStore, statusHistoryOf, userStore } from "./mock-identity-store";
 import { bodyOf, listUsers } from "./mock-identity-util";
 import { MOCK_TOP_ROLE } from "./mock-role-matrices";
 
-import type { MockUser } from "./mock-identity-store";
+import type { MockStatusChange, MockUser } from "./mock-identity-store";
 
 const json = (data: unknown, status = 200) => Response.json(data, { status });
 const fail = (status: number, errorCode: string, fields: string[] = []) =>
@@ -28,6 +28,13 @@ const losesLastAdmin = (users: MockUser[], user: MockUser) =>
   holdsRole(user, MOCK_TOP_ROLE) &&
   user.status === "ACTIVE" &&
   !users.some((u) => u !== user && u.status === "ACTIVE" && holdsRole(u, MOCK_TOP_ROLE));
+
+const ACTION_NAMES = {
+  lock: "LOCK",
+  unlock: "UNLOCK",
+  disable: "DISABLE",
+  enable: "ENABLE",
+} as const;
 
 const NEXT: Record<string, (user: MockUser) => MockUser["status"] | null> = {
   lock: (u) => (u.status === "DISABLED" ? null : "LOCKED"),
@@ -63,9 +70,27 @@ export async function mockUsersBackend(
   if (!id) return method === "GET" ? json(listUsers(users, query)) : create(users, bodyOf(init));
   const user = users.find((candidate) => candidate.userId === decodeURIComponent(id));
   if (!user) return fail(404, "USER_NOT_FOUND");
+  if (method === "GET" && action === "status-changes") return json(historyPage(user, query));
   if (method === "GET") return json(user);
   if (user.userId === callerId) return fail(403, "OWN_ACCOUNT_NOT_MANAGEABLE");
-  return mutate(users, user, method, action ?? "", bodyOf(init));
+  return mutate(users, user, method, action ?? "", bodyOf(init), callerId);
+}
+
+/** `GET /identity/users/{id}/status-changes`: paged like the BE `PageResponse`, newest first. */
+function historyPage(user: MockUser, query: URLSearchParams) {
+  const history = statusHistoryOf(user);
+  const size = Number(query.get("size") ?? 20);
+  const page = Number(query.get("page") ?? 0);
+  const totalPages = Math.ceil(history.length / size);
+  return {
+    items: history.slice(page * size, (page + 1) * size),
+    page,
+    size,
+    totalElements: history.length,
+    totalPages,
+    hasNext: page + 1 < totalPages,
+    hasPrevious: page > 0,
+  };
 }
 
 async function create(users: MockUser[], body: Record<string, unknown>) {
@@ -114,6 +139,7 @@ function mutate(
   method: string,
   action: string,
   body: Record<string, unknown>,
+  callerId: string,
 ) {
   const touch = () => {
     user.version += 1;
@@ -161,9 +187,26 @@ function mutate(
   }
   const next = method === "POST" ? NEXT[action]?.(user) : undefined;
   if (next === undefined) return fail(405, "METHOD_NOT_ALLOWED");
+  // SCRUM-474 LOCK-REASON: the BE checks the reason first - 5 to 500 characters after trimming.
+  const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+  const reasonLength = [...reason].length;
+  if (reasonLength < USER_LIMITS.reasonMin || reasonLength > USER_LIMITS.reasonMax)
+    return fail(400, "VALIDATION_FAILED", ["reason"]);
   if (next === null) return fail(409, "INVALID_USER_STATUS_TRANSITION");
   if (next !== "ACTIVE" && losesLastAdmin(users, user)) return fail(409, "LAST_SYSTEM_ADMIN");
+  const entry = {
+    id: crypto.randomUUID(),
+    action: ACTION_NAMES[action as keyof typeof ACTION_NAMES],
+    fromStatus: user.status,
+    toStatus: next,
+    reason,
+    actorId: callerId,
+    actorUsername: users.find((u) => u.userId === callerId)?.username ?? "mock",
+    changedAt: new Date().toISOString(),
+  } satisfies MockStatusChange;
   user.status = next;
   user.lockedUntil = null;
+  user.latestStatusChange = entry;
+  statusHistoryOf(user).unshift(entry);
   return touch();
 }

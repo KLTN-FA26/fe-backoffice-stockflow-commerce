@@ -157,7 +157,7 @@ describe("UserDetailPage — profile", () => {
 });
 
 describe("UserDetailPage — account actions with confirm dialogs", () => {
-  it("locks only after the confirm dialog, then toasts", async () => {
+  it("locks only after the confirm dialog with a reason, then toasts", async () => {
     const { api, user } = setup({}, PERMISSION_SETS.editor, {
       [`POST ${url}/lock`]: () => userFixture({ status: "LOCKED" }),
     });
@@ -165,8 +165,10 @@ describe("UserDetailPage — account actions with confirm dialogs", () => {
     const dialog = within(await screen.findByRole("dialog"));
     expect(dialog.getByText(/đăng xuất khỏi mọi thiết bị/)).toBeInTheDocument();
     expect(api.of("post", `${url}/lock`)).toHaveLength(0);
+    await user.type(dialog.getByLabelText(/Lý do/), "  Nghi ngờ lộ mật khẩu  ");
     await user.click(dialog.getByRole("button", { name: "Khoá tài khoản" }));
     await waitFor(() => expect(api.of("post", `${url}/lock`)).toHaveLength(1));
+    expect(api.of("post", `${url}/lock`)[0].body).toEqual({ reason: "Nghi ngờ lộ mật khẩu" });
     await waitFor(() =>
       expect(toast.success).toHaveBeenCalledWith("Đã khoá tài khoản và đăng xuất mọi phiên"),
     );
@@ -198,6 +200,7 @@ describe("UserDetailPage — account actions with confirm dialogs", () => {
     });
     await user.click(await screen.findByRole("button", { name: "Vô hiệu hoá" }));
     const dialog = within(await screen.findByRole("dialog"));
+    await user.type(dialog.getByLabelText(/Lý do/), "Nghỉ việc ngày 29/10");
     await user.click(dialog.getByRole("button", { name: "Vô hiệu hoá" }));
     expect(await dialog.findByRole("alert")).toHaveTextContent(message);
     expect(screen.getByRole("dialog")).toBeInTheDocument();
@@ -208,10 +211,11 @@ describe("UserDetailPage — account actions with confirm dialogs", () => {
       [`POST ${url}/enable`]: () => userFixture(),
     });
     await user.click(await screen.findByRole("button", { name: "Kích hoạt lại" }));
-    await user.click(
-      within(await screen.findByRole("dialog")).getByRole("button", { name: "Kích hoạt lại" }),
-    );
+    const dialog = within(await screen.findByRole("dialog"));
+    await user.type(dialog.getByLabelText(/Lý do/), "Ký lại hợp đồng");
+    await user.click(dialog.getByRole("button", { name: "Kích hoạt lại" }));
     await waitFor(() => expect(api.of("post", `${url}/enable`)).toHaveLength(1));
+    expect(api.of("post", `${url}/enable`)[0].body).toEqual({ reason: "Ký lại hợp đồng" });
   });
 });
 
@@ -400,5 +404,102 @@ describe("UserDetailPage — roles and warehouses", () => {
     await user.click(await screen.findByRole("checkbox", { name: "Kho TP.HCM" }));
     await user.click(screen.getByRole("button", { name: "Lưu kho" }));
     expect(await screen.findByText(/không còn tồn tại/)).toBeInTheDocument();
+  });
+});
+
+describe("UserDetailPage — reason for status changes (SCRUM-474 LOCK-REASON)", () => {
+  it.each([
+    ["Khoá tài khoản", "lock", {}],
+    ["Mở khoá", "unlock", { status: "LOCKED" as const }],
+    ["Vô hiệu hoá", "disable", {}],
+    ["Kích hoạt lại", "enable", { status: "DISABLED" as const }],
+  ])(
+    "%s needs a reason of at least 5 characters before it can be confirmed",
+    async (label, action, overrides) => {
+      const { api, user } = setup(overrides, PERMISSION_SETS.editor, {
+        [`POST ${url}/${action}`]: () => userFixture(),
+      });
+      await user.click(await screen.findByRole("button", { name: label }));
+      const dialog = within(await screen.findByRole("dialog"));
+      const confirm = dialog.getByRole("button", { name: label });
+
+      expect(confirm).toBeDisabled();
+      await user.type(dialog.getByLabelText(/Lý do/), "abcd");
+      expect(confirm).toBeDisabled();
+      expect(dialog.getByText(/Nhập tối thiểu 5 ký tự/)).toBeInTheDocument();
+      await user.type(dialog.getByLabelText(/Lý do/), "e");
+      expect(confirm).toBeEnabled();
+      await user.click(confirm);
+
+      await waitFor(() => expect(api.of("post", `${url}/${action}`)).toHaveLength(1));
+      expect(api.of("post", `${url}/${action}`)[0].body).toEqual({ reason: "abcde" });
+    },
+  );
+
+  it("a blank reason (spaces only) cannot be confirmed", async () => {
+    const { api, user } = setup();
+    await user.click(await screen.findByRole("button", { name: "Khoá tài khoản" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    await user.type(dialog.getByLabelText(/Lý do/), "          ");
+    expect(dialog.getByRole("button", { name: "Khoá tài khoản" })).toBeDisabled();
+    expect(api.of("post", `${url}/lock`)).toHaveLength(0);
+  });
+
+  it("the reason box stops at 500 characters", async () => {
+    const { user } = setup();
+    await user.click(await screen.findByRole("button", { name: "Khoá tài khoản" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    expect(dialog.getByLabelText(/Lý do/)).toHaveAttribute("maxlength", "500");
+    expect(dialog.getByText("0/500")).toBeInTheDocument();
+  });
+
+  it("shows the latest reason on the profile and the whole history below", async () => {
+    const latest = {
+      id: "c2",
+      action: "DISABLE" as const,
+      fromStatus: "ACTIVE" as const,
+      toStatus: "DISABLED" as const,
+      reason: "Nghỉ việc ngày 29/10",
+      actorId: "a1",
+      actorUsername: "an.admin",
+      changedAt: "2026-10-29T03:00:00Z",
+    };
+    const earlier = {
+      ...latest,
+      id: "c1",
+      action: "LOCK" as const,
+      toStatus: "LOCKED" as const,
+      reason: "Nghi ngờ lộ mật khẩu",
+      changedAt: "2026-10-28T03:00:00Z",
+    };
+    setup({ status: "DISABLED", latestStatusChange: latest }, PERMISSION_SETS.readOnly, {
+      [`GET ${url}/status-changes`]: () => ({
+        items: [latest, earlier],
+        page: 0,
+        size: 10,
+        totalElements: 2,
+        totalPages: 1,
+        hasNext: false,
+        hasPrevious: false,
+      }),
+    });
+
+    expect(await screen.findByText("Lý do thay đổi trạng thái gần nhất")).toBeInTheDocument();
+    await screen.findAllByText("Nghi ngờ lộ mật khẩu");
+    const items = screen
+      .getAllByRole("listitem")
+      .filter((item) => item.textContent?.includes("an.admin"));
+    expect(items).toHaveLength(2);
+    expect(items[0]).toHaveTextContent("Vô hiệu hoá");
+    expect(items[0]).toHaveTextContent("Nghỉ việc ngày 29/10");
+    expect(items[0]).toHaveTextContent("an.admin");
+    expect(items[1]).toHaveTextContent("Khoá");
+    expect(items[1]).toHaveTextContent("Nghi ngờ lộ mật khẩu");
+  });
+
+  it("says so when the account never had a status change", async () => {
+    setup();
+    expect(await screen.findByText("Chưa có thao tác nào.")).toBeInTheDocument();
+    expect(screen.queryByText("Lý do thay đổi trạng thái gần nhất")).not.toBeInTheDocument();
   });
 });

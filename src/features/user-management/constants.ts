@@ -25,7 +25,15 @@ export const USER_LIMITS = {
   passwordPattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/,
   rolesMax: 20,
   warehousesMax: 50,
+  /** BE `StatusChangeReason` (SCRUM-474 LOCK-REASON): the reason of lock / unlock / disable / enable, after trimming. */
+  reasonMin: 5,
+  reasonMax: 500,
 } as const;
+
+/** BE `UserStatusChange` enum, as the history reports it. */
+export const USER_STATUS_CHANGE_ACTIONS = ["LOCK", "UNLOCK", "DISABLE", "ENABLE"] as const;
+/** Trang lịch sử trạng thái trên chi tiết tài khoản. */
+export const STATUS_HISTORY_PAGE_SIZE = 10;
 
 /** Cỡ trang chọn được: dùng lại `PAGE_SIZE` chung; BE chấp nhận tới `Pages.MAX_PAGE_SIZE` = 200. */
 export const USER_PAGE_SIZE_OPTIONS = [PAGE_SIZE.sm, PAGE_SIZE.lg, PAGE_SIZE.xl] as const;
@@ -66,4 +74,26 @@ export const USER_UI = {
   selfNotice: "Đây là tài khoản của bạn — hệ thống không cho tự thay đổi tại màn này.",
   mustChangePassword: "Đang dùng mật khẩu tạm — nên đổi sau khi đăng nhập",
   temporaryLock: "Đang bị khoá tạm thời do nhập sai mật khẩu, đến",
+  // SCRUM-474 LOCK-REASON: lý do bắt buộc cho khoá / mở khoá / vô hiệu hoá / kích hoạt lại
+  reasonLabel: "Lý do",
+  reasonMinHint: `Nhập tối thiểu ${USER_LIMITS.reasonMin} ký tự.`,
+  latestReasonLabel: "Lý do thay đổi trạng thái gần nhất",
+  reasonColumn: "Lý do gần nhất",
+  noReason: "—",
+  historyTitle: "Lịch sử trạng thái",
+  historyDescription:
+    "Mỗi lần quản trị viên khoá, mở khoá, vô hiệu hoá hoặc kích hoạt lại, kèm lý do.",
+  historyEmpty: "Chưa có thao tác nào.",
+  historyLoadFailed: "Không tải được lịch sử trạng thái.",
+  historyPrevious: "Trang trước",
+  historyNext: "Trang sau",
+  historyBy: "bởi",
 } as const;
+
+/** Nhãn hiển thị của từng thao tác trong lịch sử trạng thái. */
+export const STATUS_CHANGE_LABELS = {
+  LOCK: "Khoá",
+  UNLOCK: "Mở khoá",
+  DISABLE: "Vô hiệu hoá",
+  ENABLE: "Kích hoạt lại",
+} as const satisfies Record<(typeof USER_STATUS_CHANGE_ACTIONS)[number], string>;

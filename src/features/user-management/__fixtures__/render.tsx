@@ -72,6 +72,17 @@ export function stubIdentityApi(
       "GET /identity/roles": () => rawRoles,
       "GET /warehouses": () => rawWarehouses,
     };
+    // The detail page always asks for the status history (SCRUM-474); a test that does not care gets an empty page.
+    if (method === "get" && /^\/identity\/users\/[^/]+\/status-changes$/.test(url))
+      defaults[`GET ${url}`] = () => ({
+        items: [],
+        page: 0,
+        size: 10,
+        totalElements: 0,
+        totalPages: 0,
+        hasNext: false,
+        hasPrevious: false,
+      });
     const handler =
       routes[`${method.toUpperCase()} ${url}`] ?? defaults[`${method.toUpperCase()} ${url}`];
     if (!handler) throw new Error(`Không có mock cho ${method.toUpperCase()} ${url}`);

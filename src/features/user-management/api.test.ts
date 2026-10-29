@@ -12,6 +12,7 @@ import {
   resetPassword,
   revokeRole,
   updateUser,
+  listUserStatusChanges,
 } from "./api";
 import { userFixture, userPage } from "./__fixtures__/users";
 
@@ -95,13 +96,61 @@ describe("user management API", () => {
   });
 
   it.each(["lock", "unlock", "disable", "enable"] as const)(
-    "POSTs %s with no body",
+    "POSTs %s with the trimmed reason (SCRUM-474 LOCK-REASON)",
     async (action) => {
       const post = vi.spyOn(api, "post").mockResolvedValue({ data: userFixture() });
-      await changeUserStatus({ userId: "u1", action });
-      expect(post).toHaveBeenCalledWith(`/identity/users/u1/${action}`);
+      await changeUserStatus({ userId: "u1", action, reason: "  Nghi ngờ lộ mật khẩu  " });
+      expect(post).toHaveBeenCalledWith(`/identity/users/u1/${action}`, {
+        reason: "Nghi ngờ lộ mật khẩu",
+      });
     },
   );
+
+  it.each(["", "    ", "abcd", " abcd ", "x".repeat(501)])(
+    "never sends a reason the BE would refuse (%j)",
+    async (reason) => {
+      const post = vi.spyOn(api, "post").mockResolvedValue({ data: userFixture() });
+      await expect(changeUserStatus({ userId: "u1", action: "lock", reason })).rejects.toThrow();
+      expect(post).not.toHaveBeenCalled();
+    },
+  );
+
+  it("accepts exactly 5 and exactly 500 characters", async () => {
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: userFixture() });
+    await changeUserStatus({ userId: "u1", action: "lock", reason: "abcde" });
+    await changeUserStatus({ userId: "u1", action: "lock", reason: "x".repeat(500) });
+    expect(post).toHaveBeenCalledTimes(2);
+  });
+
+  it("reads the status history, newest first, as a page", async () => {
+    const entry = {
+      id: "c1",
+      action: "LOCK",
+      fromStatus: "ACTIVE",
+      toStatus: "LOCKED",
+      reason: "Nghi ngờ lộ mật khẩu",
+      actorId: "a1",
+      actorUsername: "admin",
+      changedAt: "2026-10-29T03:00:00Z",
+    };
+    const get = vi.spyOn(api, "get").mockResolvedValue({
+      data: {
+        items: [entry],
+        page: 1,
+        size: 10,
+        totalElements: 11,
+        totalPages: 2,
+        hasNext: false,
+        hasPrevious: true,
+      },
+    });
+    const page = await listUserStatusChanges("u1", { page: 1 });
+    expect(get).toHaveBeenCalledWith("/identity/users/u1/status-changes", {
+      params: new URLSearchParams({ page: "1", size: "10" }),
+      signal: undefined,
+    });
+    expect(page.items).toEqual([entry]);
+  });
 
   it("resets the password with an optional new password", async () => {
     const post = vi

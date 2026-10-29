@@ -15,6 +15,7 @@ export function userFixture(overrides: Partial<UserDto> = {}): UserDto {
     lastLoginAt: "2026-10-20T03:00:00Z",
     createdAt: "2026-09-03T00:00:00Z",
     createdBy: "flyway",
+    latestStatusChange: null,
     version: 4,
     ...overrides,
   };

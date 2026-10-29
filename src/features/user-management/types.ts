@@ -9,11 +9,13 @@ import type {
   updateUserFormSchema,
   userDtoSchema,
   userSortSchema,
+  userStatusChangeSchema,
   userStatusSchema,
 } from "./schemas";
 
 export type UserDto = z.infer<typeof userDtoSchema>;
 export type UserStatus = z.infer<typeof userStatusSchema>;
+export type UserStatusChange = z.infer<typeof userStatusChangeSchema>;
 export type UserSortField = z.infer<typeof userSortSchema>;
 export type CreatedUser = z.infer<typeof createdUserSchema>;
 export type PasswordResetResult = z.infer<typeof passwordResetResultSchema>;
