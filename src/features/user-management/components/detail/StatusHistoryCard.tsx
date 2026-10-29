@@ -35,7 +35,7 @@ export function StatusHistoryCard({ userId }: { userId: string }) {
         </div>
       ) : !data ? (
         <p role="status" className="text-ink-tertiary text-xs">
-          Đang tải…
+          {USER_UI.loading}
         </p>
       ) : data.items.length === 0 ? (
         <p className="text-ink-tertiary text-xs">{USER_UI.historyEmpty}</p>

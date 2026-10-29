@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
+import { reasonLength } from "@/lib/format/reason";
+
 import { ConfirmReasonField } from "./ConfirmReasonField";
 import { LayeredDialogContent } from "./LayeredDialogContent";
 
@@ -74,7 +76,7 @@ export function ConfirmDialog({
     setPrevOpen(open);
     if (!open) setReason("");
   }
-  const canConfirm = (!requireReason || reason.trim().length >= reasonMinLength) && !loading;
+  const canConfirm = (!requireReason || reasonLength(reason) >= reasonMinLength) && !loading;
 
   const handleConfirm = () => {
     if (!canConfirm) return;

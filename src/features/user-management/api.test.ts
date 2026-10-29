@@ -115,6 +115,20 @@ describe("user management API", () => {
     },
   );
 
+  it("counts code points and trims Unicode spaces like the BE", async () => {
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: userFixture() });
+    // 5 emoji = 10 UTF-16 units but 5 characters; 500 of them are still allowed
+    await changeUserStatus({ userId: "u1", action: "lock", reason: "\u{1F512}".repeat(500) });
+    await changeUserStatus({ userId: "u1", action: "lock", reason: "\u00a0 abcde \u3000" });
+    expect(post).toHaveBeenLastCalledWith("/identity/users/u1/lock", { reason: "abcde" });
+    await expect(
+      changeUserStatus({ userId: "u1", action: "lock", reason: "\u00a0".repeat(6) }),
+    ).rejects.toThrow();
+    await expect(
+      changeUserStatus({ userId: "u1", action: "lock", reason: "\u{1F512}".repeat(501) }),
+    ).rejects.toThrow();
+  });
+
   it("accepts exactly 5 and exactly 500 characters", async () => {
     const post = vi.spyOn(api, "post").mockResolvedValue({ data: userFixture() });
     await changeUserStatus({ userId: "u1", action: "lock", reason: "abcde" });

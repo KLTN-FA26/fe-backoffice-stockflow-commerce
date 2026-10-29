@@ -75,6 +75,7 @@ export const USER_UI = {
   mustChangePassword: "Đang dùng mật khẩu tạm — nên đổi sau khi đăng nhập",
   temporaryLock: "Đang bị khoá tạm thời do nhập sai mật khẩu, đến",
   // SCRUM-474 LOCK-REASON: lý do bắt buộc cho khoá / mở khoá / vô hiệu hoá / kích hoạt lại
+  loading: "Đang tải…",
   reasonLabel: "Lý do",
   reasonMinHint: `Nhập tối thiểu ${USER_LIMITS.reasonMin} ký tự.`,
   latestReasonLabel: "Lý do thay đổi trạng thái gần nhất",

@@ -230,4 +230,30 @@ describe("ConfirmDialog", () => {
     await userEvent.click(confirm);
     expect(onConfirm).toHaveBeenCalledWith("  ab  cde");
   });
+
+  it("reasonMinLength counts code points after trimming Unicode spaces", async () => {
+    render(
+      <ConfirmDialog
+        open
+        onOpenChange={vi.fn()}
+        title="Khoá"
+        description="Mô tả"
+        requireReason
+        reasonLabel="Lý do"
+        reasonMinLength={5}
+        confirmLabel="Khoá"
+        onConfirm={vi.fn()}
+      />,
+    );
+    const box = screen.getByLabelText(/Lý do/);
+    const confirm = screen.getByRole("button", { name: "Khoá" });
+
+    await userEvent.type(box, "\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0");
+    expect(confirm).toBeDisabled();
+    await userEvent.clear(box);
+    await userEvent.type(box, "\u{1F512}\u{1F512}\u{1F512}\u{1F512}");
+    expect(confirm).toBeDisabled(); // 8 UTF-16 units, 4 characters
+    await userEvent.type(box, "\u{1F512}");
+    expect(confirm).toBeEnabled();
+  });
 });

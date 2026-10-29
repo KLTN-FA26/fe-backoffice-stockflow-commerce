@@ -2,6 +2,8 @@
 
 import { useId } from "react";
 
+import { reasonLength } from "@/lib/format/reason";
+
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -56,7 +58,7 @@ export function ConfirmReasonField({
         id={hintId}
         className="text-ink-tertiary flex items-center justify-between text-xs tabular-nums"
       >
-        {minLength > 1 && value.trim().length < minLength ? (
+        {minLength > 1 && reasonLength(value) < minLength ? (
           <span>Nhập tối thiểu {minLength} ký tự</span>
         ) : (
           <span>Ctrl/⌘ + Enter để xác nhận</span>

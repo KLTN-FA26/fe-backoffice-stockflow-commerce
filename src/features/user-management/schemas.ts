@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { USER_STATUSES } from "@/constants";
 import { bePageSchema } from "@/lib/api/page-schema";
+import { reasonLength, stripReason } from "@/lib/format/reason";
 
 import { USER_LIMITS, USER_SORT_FIELDS, USER_STATUS_CHANGE_ACTIONS } from "./constants";
 
@@ -44,9 +45,13 @@ export const userStatusChangePageSchema = bePageSchema(userStatusChangeSchema);
 /** The reason dialog (SCRUM-474 LOCK-REASON): 5-500 characters after trimming, like the BE. */
 export const statusReasonSchema = z
   .string()
-  .trim()
-  .min(USER_LIMITS.reasonMin, `Lý do tối thiểu ${USER_LIMITS.reasonMin} ký tự.`)
-  .max(USER_LIMITS.reasonMax, `Lý do tối đa ${USER_LIMITS.reasonMax} ký tự.`);
+  .transform(stripReason)
+  .refine((value) => reasonLength(value) >= USER_LIMITS.reasonMin, {
+    message: `Lý do tối thiểu ${USER_LIMITS.reasonMin} ký tự.`,
+  })
+  .refine((value) => reasonLength(value) <= USER_LIMITS.reasonMax, {
+    message: `Lý do tối đa ${USER_LIMITS.reasonMax} ký tự.`,
+  });
 
 /** BE `CreatedUserResponse`: mật khẩu tạm chỉ có khi BE tự sinh (không gửi `password`), chỉ hiện một lần. */
 export const createdUserSchema = z.object({
