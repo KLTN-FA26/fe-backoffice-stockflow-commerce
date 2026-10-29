@@ -5,8 +5,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Pencil, Plus, Save, Trash2 } from "lucide-react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 
-import { RECEIPT_LIMITS, UI_LABELS } from "@/constants";
+import { INVENTORY_ITEM_PERMISSIONS, RECEIPT_LIMITS, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
+import { usePermissionChecker } from "@/lib/auth";
 import { receiptErrorMessage, receiptLineFieldErrors } from "@/features/receipt/errors";
 import { buildBlindLinesSchema } from "@/features/receipt/input-schemas";
 import { useSaveBlindReceiptLines } from "@/features/receipt/mutations";
@@ -17,6 +18,7 @@ import {
 } from "@/features/receipt/selectors";
 import { Alert } from "@/components/shared/Alert";
 import { DatePicker } from "@/components/shared/DatePicker";
+import { InventoryItemCombobox } from "@/components/shared/InventoryItemCombobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -33,7 +35,8 @@ const HEADERS = ["SKU", "SL nhận", "Số lô", "Hạn dùng", "Vị trí nhậ
 
 /**
  * Kiểm đếm phiếu không có PO (BR-RCP-002, SCRUM-478): không có dòng PO nên mỗi dòng là một SKU (× một lô), gọi hàng
- * bằng SKU. Lô / hạn dùng / khu nhận kiểm như phiếu thường (BE trả lỗi từng ô qua `fieldErrors`). Lưu = PUT thay toàn
+ * bằng SKU — chọn từ MỌI hồ sơ hàng tồn (SCRUM-492, quyết định owner; không lọc theo danh mục NCC). Tài khoản không có
+ * `inventory-inventory-items:READ` thì gõ tay SKU, BE kiểm khi lưu. Lô / hạn dùng / khu nhận kiểm như phiếu thường (BE trả lỗi từng ô qua `fieldErrors`). Lưu = PUT thay toàn
  * bộ; sau khi lưu hiện kết quả BE trả về, "Sửa kiểm đếm" mở lại form. Xác nhận KHÔNG ghi nhận: phiếu luôn chờ Quản lý
  * kho duyệt.
  */
@@ -120,6 +123,9 @@ function BlindCountForm({
   });
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "lines" });
   const save = useSaveBlindReceiptLines();
+  const can = usePermissionChecker();
+  // UI-only — Backend phải re-check (@RequiresPermission inventory-inventory-items:READ)
+  const pickSku = can(INVENTORY_ITEM_PERMISSIONS.read);
   const [serverError, setServerError] = useState<string | null>(null);
   const isDirty = form.formState.isDirty || receipt.lines.length === 0;
   const watched = useWatch({ control: form.control, name: "lines" });
@@ -220,18 +226,42 @@ function BlindCountForm({
                 const id = (name: string) => `blind-${index}-${name}`;
                 return (
                   <tr key={field.id} className="border-border-default border-t align-top">
-                    <td className="w-44 px-2 py-2">
-                      <Input
-                        id={id("sku")}
-                        autoFocus={index === 0}
-                        aria-label={`SKU dòng ${index + 1}`}
-                        placeholder={B.skuPlaceholder}
-                        maxLength={RECEIPT_LIMITS.skuMax}
-                        aria-invalid={e?.sku ? true : undefined}
-                        aria-describedby={e?.sku ? `${id("sku")}-error` : undefined}
-                        className={`${CELL} font-[family-name:var(--font-mono)] uppercase`}
-                        {...form.register(`lines.${index}.sku`)}
-                      />
+                    <td className="w-52 px-2 py-2">
+                      {pickSku ? (
+                        <Controller
+                          control={form.control}
+                          name={`lines.${index}.sku`}
+                          render={({ field: sku }) => (
+                            <InventoryItemCombobox
+                              id={id("sku")}
+                              value={sku.value}
+                              ariaLabel={`SKU dòng ${index + 1}`}
+                              onSelect={(value) => {
+                                sku.onChange(value);
+                                setServerError(null);
+                              }}
+                              onBlur={sku.onBlur}
+                              hasError={!!e?.sku}
+                              describedBy={e?.sku ? `${id("sku")}-error` : undefined}
+                              autoFocus={index === 0}
+                              labels={B.skuPicker}
+                              contentClassName="min-w-64"
+                            />
+                          )}
+                        />
+                      ) : (
+                        <Input
+                          id={id("sku")}
+                          autoFocus={index === 0}
+                          aria-label={`SKU dòng ${index + 1}`}
+                          placeholder={B.skuPlaceholder}
+                          maxLength={RECEIPT_LIMITS.skuMax}
+                          aria-invalid={e?.sku ? true : undefined}
+                          aria-describedby={e?.sku ? `${id("sku")}-error` : undefined}
+                          className={`${CELL} font-[family-name:var(--font-mono)] uppercase`}
+                          {...form.register(`lines.${index}.sku`)}
+                        />
+                      )}
                       <FieldError id={`${id("sku")}-error`}>{e?.sku?.message}</FieldError>
                     </td>
                     <td className="w-28 px-2 py-2">
@@ -323,6 +353,7 @@ function BlindCountForm({
         </div>
         <button type="submit" hidden aria-hidden tabIndex={-1} />
       </form>
+      {!pickSku && <p className="text-ink-tertiary mt-2 text-xs">{B.skuManualNotice}</p>}
       <div className="mt-3">
         <Button
           type="button"

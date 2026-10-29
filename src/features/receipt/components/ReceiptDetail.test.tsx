@@ -536,6 +536,32 @@ describe("ReceiptDetail — phiếu không có PO (BR-RCP-002)", () => {
     qcProgress: "NOT_REQUIRED",
     quantityForPutaway: 4,
   });
+  /** Hình `InventoryItemSummary` BE — gồm SKU không thuộc danh mục NCC nào: ô chọn không lọc theo NCC. */
+  const INVENTORY = [
+    { sku: "SOFA-3S-GREY", barcode: "8930000000021" },
+    { sku: "TABLE-OAK-120" },
+    { sku: "LAMP-BRASS" },
+  ].map((row, i) => ({
+    id: `0b6f6a8e-0000-4000-8000-00000000000${i}`,
+    unitOfMeasure: "EACH",
+    storageClass: "NORMAL",
+    trackingMode: "NONE",
+    policyConfigured: false,
+    ...row,
+  }));
+  const inventoryPage = (params: unknown) => {
+    const q = (params as URLSearchParams | undefined)?.get("q")?.toLowerCase() ?? "";
+    const items = INVENTORY.filter((i) => !q || i.sku.toLowerCase().includes(q));
+    return {
+      items,
+      page: 0,
+      size: 20,
+      totalElements: items.length,
+      totalPages: items.length ? 1 : 0,
+      hasNext: false,
+      hasPrevious: false,
+    };
+  };
   const REFERENCED_PO = { ...receivablePo, purchaseOrderId: "po-ref", poNumber: "PO-REF-1" };
 
   /** Radix Select cần các hàm con trỏ mà jsdom không có (cùng cách các fixture khác). */
@@ -543,6 +569,12 @@ describe("ReceiptDetail — phiếu không có PO (BR-RCP-002)", () => {
     Element.prototype.hasPointerCapture ??= () => false;
     Element.prototype.releasePointerCapture ??= () => {};
     Element.prototype.scrollIntoView ??= () => {};
+    // `cmdk` (ô chọn SKU) cần ResizeObserver
+    globalThis.ResizeObserver ??= class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    };
   }
 
   function renderBlind(
@@ -556,6 +588,7 @@ describe("ReceiptDetail — phiếu không có PO (BR-RCP-002)", () => {
       permissions,
       {
         [PATH]: () => receipt,
+        "/inventory/items": inventoryPage,
         // Phiếu không có PO không đọc PO của chính nó; chỉ danh sách đơn của NCC để gắn tham chiếu
         "/purchase-orders": () => ({
           items: [REFERENCED_PO],
@@ -600,12 +633,19 @@ describe("ReceiptDetail — phiếu không có PO (BR-RCP-002)", () => {
     expect(get.mock.calls.some(([url]) => url === `/purchase-orders/${PO_ID}`)).toBe(false);
   });
 
-  it("Draft: form đếm gọi hàng bằng SKU; lưu gửi PUT với sku (không có dòng PO), không cần quyền đọc PO", async () => {
+  /** Mở ô SKU dòng 1 và chọn một SKU trong hồ sơ hàng tồn. */
+  async function pickSku(user: ReturnType<typeof userEvent.setup>, sku: string) {
+    await user.click(await screen.findByRole("combobox", { name: "SKU dòng 1" }));
+    await user.click(await screen.findByRole("option", { name: new RegExp(sku) }));
+  }
+
+  it("Draft: chọn SKU từ hồ sơ hàng tồn; lưu gửi PUT với sku (không có dòng PO), không cần quyền đọc PO", async () => {
     const user = userEvent.setup();
     // NV kho: thiếu purchase-orders:READ nhưng đếm phiếu không có PO được (chỉ cần goods-receipts:UPDATE)
     const { put } = renderBlind(ROLES.warehouseStaff);
     expect(await screen.findByText(/Kiểm đếm \(gọi hàng bằng SKU\)/)).toBeInTheDocument();
-    await user.type(screen.getByLabelText("SKU dòng 1"), "sofa-3s-grey");
+    await pickSku(user, "SOFA-3S-GREY");
+    expect(screen.getByRole("combobox", { name: "SKU dòng 1" })).toHaveValue("SOFA-3S-GREY");
     await user.clear(screen.getByLabelText("SL nhận dòng 1"));
     await user.type(screen.getByLabelText("SL nhận dòng 1"), "4");
     await user.type(screen.getByLabelText("Mã vị trí nhận dòng 1"), "hcm-rcv01");
@@ -629,23 +669,60 @@ describe("ReceiptDetail — phiếu không có PO (BR-RCP-002)", () => {
     expect(screen.getByText(/chờ Quản lý kho duyệt, chưa ghi nhận tồn/)).toBeInTheDocument();
   });
 
+  it("ô chọn SKU hiện MỌI hồ sơ hàng tồn (không lọc theo NCC của phiếu) và để BE tìm theo q", async () => {
+    const user = userEvent.setup();
+    const { get } = renderBlind(ROLES.warehouseStaff);
+    await user.click(await screen.findByRole("combobox", { name: "SKU dòng 1" }));
+    for (const item of INVENTORY) {
+      expect(await screen.findByRole("option", { name: new RegExp(item.sku) })).toBeInTheDocument();
+    }
+    // Không gọi danh mục của NCC để loại SKU nào
+    expect(get.mock.calls.some(([url]) => String(url).includes("/suppliers/"))).toBe(false);
+
+    await user.type(screen.getByPlaceholderText("Tìm theo SKU hoặc mã vạch"), "lamp");
+    await waitFor(() =>
+      expect(screen.queryByRole("option", { name: /TABLE-OAK-120/ })).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole("option", { name: /LAMP-BRASS/ })).toBeInTheDocument();
+    const search = get.mock.calls.filter(([url]) => url === "/inventory/items").at(-1);
+    expect((search?.[1]?.params as URLSearchParams).get("q")).toBe("lamp");
+  }, 20_000);
+
   it("Draft: thiếu SKU → lỗi inline, không gọi API; lỗi BE theo ô (SKU lạ) hiện đúng ô", async () => {
     const user = userEvent.setup();
     const { put } = renderBlind(ROLES.warehouseManager);
-    await screen.findByLabelText("SKU dòng 1");
+    await screen.findByRole("combobox", { name: "SKU dòng 1" });
     await user.click(screen.getByRole("button", { name: /Lưu kiểm đếm/ }));
     expect(await screen.findByText("Nhập SKU")).toBeInTheDocument();
     expect(put).not.toHaveBeenCalled();
 
     put.mockImplementationOnce(async () => {
-      throw new ApiError(409, "INVENTORY_ITEM_NOT_FOUND", "No inventory item with SKU NOPE", {
-        "lines[0].sku": "No inventory item with SKU NOPE",
+      throw new ApiError(409, "INVENTORY_ITEM_NOT_FOUND", "No inventory item with SKU LAMP-BRASS", {
+        "lines[0].sku": "No inventory item with SKU LAMP-BRASS",
       });
     });
-    await user.type(screen.getByLabelText("SKU dòng 1"), "nope");
+    await pickSku(user, "LAMP-BRASS");
     await user.type(screen.getByLabelText("Mã vị trí nhận dòng 1"), "HCM-RCV01");
     await user.click(screen.getByRole("button", { name: /Lưu kiểm đếm/ }));
-    expect(await screen.findAllByText("No inventory item with SKU NOPE")).not.toHaveLength(0);
+    expect(await screen.findAllByText("No inventory item with SKU LAMP-BRASS")).not.toHaveLength(0);
+  });
+
+  it("thiếu quyền xem hồ sơ hàng tồn → gõ tay SKU (kèm giải thích), không gọi /inventory/items", async () => {
+    const user = userEvent.setup();
+    const { get, put } = renderBlind(ROLES.warehouseStaffNoInventory);
+    await screen.findByText(/Kiểm đếm \(gọi hàng bằng SKU\)/);
+    expect(screen.queryByRole("combobox", { name: "SKU dòng 1" })).not.toBeInTheDocument();
+    expect(screen.getByText(/không có quyền xem hồ sơ hàng tồn/)).toBeInTheDocument();
+    await user.type(screen.getByLabelText("SKU dòng 1"), "sofa-3s-grey");
+    await user.clear(screen.getByLabelText("SL nhận dòng 1"));
+    await user.type(screen.getByLabelText("SL nhận dòng 1"), "4");
+    await user.type(screen.getByLabelText("Mã vị trí nhận dòng 1"), "hcm-rcv01");
+    await user.click(screen.getByRole("button", { name: /Lưu kiểm đếm/ }));
+    await waitFor(() => expect(put).toHaveBeenCalled());
+    expect((put.mock.calls[0]?.[1] as { lines: { sku: string }[] }).lines[0]?.sku).toBe(
+      "SOFA-3S-GREY",
+    );
+    expect(get.mock.calls.some(([url]) => url === "/inventory/items")).toBe(false);
   });
 
   it("Draft đã có dòng: xác nhận = 'Gửi Quản lý kho duyệt' (không ghi nhận), kể cả không vượt dung sai", async () => {

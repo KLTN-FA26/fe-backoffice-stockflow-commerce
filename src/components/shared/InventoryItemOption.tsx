@@ -1,23 +1,23 @@
 import { cn } from "cn";
 import { Check } from "lucide-react";
 
-import { SUPPLIER_ITEM_UI_LABELS } from "@/constants";
 import { COMBOBOX_ITEM_CLASS } from "@/components/shared/InputCombobox";
 import { CommandItem } from "@/components/ui/command";
 
-import type { InventoryItemOption } from "@/lib/references/inventory-item-options";
-
-const P = SUPPLIER_ITEM_UI_LABELS.skuPicker;
+import type { InventoryItemPickerLabels } from "@/constants";
+import type { InventoryItemOption as InventoryItemOptionData } from "@/lib/references/inventory-item-options";
 
 /** Một dòng gợi ý hồ sơ hàng tồn: SKU (mono) + mã vạch + ĐVT. */
-export function InventorySkuOption({
+export function InventoryItemOption({
   item,
   selected,
   onSelect,
+  barcodeLabel,
 }: {
-  item: InventoryItemOption;
+  item: InventoryItemOptionData;
   selected: boolean;
   onSelect: () => void;
+  barcodeLabel: InventoryItemPickerLabels["barcode"];
 }) {
   return (
     <CommandItem value={item.sku} className={COMBOBOX_ITEM_CLASS} onSelect={onSelect}>
@@ -28,7 +28,7 @@ export function InventorySkuOption({
         </div>
         {item.barcode && (
           <div className="text-ink-tertiary truncate font-[family-name:var(--font-mono)] text-[11px]">
-            {P.barcode(item.barcode)}
+            {barcodeLabel(item.barcode)}
           </div>
         )}
       </div>
