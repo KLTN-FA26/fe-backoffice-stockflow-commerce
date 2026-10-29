@@ -6,10 +6,12 @@ import { Pencil } from "lucide-react";
 import { UI_LABELS } from "@/constants";
 import { STATUS_LABEL_VI } from "@/lib/domain/status-map";
 import {
+  overToleranceLineCount,
   qcRequiredLineCount,
   statusAfterConfirm,
   totalReceivedQuantity,
 } from "@/features/receipt/selectors";
+import { Alert } from "@/components/shared/Alert";
 import { Button } from "@/components/ui/button";
 
 import { Section } from "../primitives";
@@ -80,6 +82,12 @@ export function DraftCountPanel({
       {hasSaved ? (
         <>
           <ReceiptLinesTable receipt={receipt} draft />
+          {/* BR-RCP-001: xác nhận phiếu vượt dung sai chỉ gửi Quản lý kho duyệt, chưa nhập kho */}
+          {overToleranceLineCount(receipt) > 0 && (
+            <Alert tone="warning" className="mt-3">
+              {L.overTolerance.draftAlert}
+            </Alert>
+          )}
           <p className="text-ink-secondary mt-3 text-[0.8125rem]" aria-live="polite">
             Tổng{" "}
             <span className="text-ink-primary font-semibold tabular-nums">

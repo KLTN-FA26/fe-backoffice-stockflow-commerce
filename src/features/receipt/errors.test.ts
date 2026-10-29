@@ -34,3 +34,19 @@ describe("receipt errors", () => {
     ]);
   });
 });
+
+describe("receipt errors — duyệt nhận vượt dung sai (BR-RCP-001)", () => {
+  it.each([
+    "RECEIPT_SELF_APPROVAL",
+    "RECEIPT_APPROVAL_REASON_REQUIRED",
+    "RECEIPT_PACKAGES_EXCEED_LINE",
+  ])("%s → câu tiếng Việt, không lộ message tiếng Anh của BE", (code) => {
+    const message = receiptErrorMessage(new ApiError(409, code, "English message from BE"));
+    expect(message).toBe(RECEIPT_ERROR_MESSAGES[code as keyof typeof RECEIPT_ERROR_MESSAGES]);
+    expect(message).not.toContain("English");
+  });
+
+  it("RECEIPT_SELF_APPROVAL không phải lỗi dữ liệu cũ: dialog giữ nguyên, không tải lại", () => {
+    expect(isStaleReceiptError(new ApiError(409, "RECEIPT_SELF_APPROVAL", "x"))).toBe(false);
+  });
+});

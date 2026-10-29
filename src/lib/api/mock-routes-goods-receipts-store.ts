@@ -17,7 +17,7 @@ import {
 import type { MockBePo } from "./mock-routes-purchase-orders-store";
 
 export type MockReceiptStatus =
-  "DRAFT" | "CONFIRMED" | "IN_QC" | "IN_PUTAWAY" | "CLOSED" | "CANCELLED";
+  "DRAFT" | "PENDING_APPROVAL" | "CONFIRMED" | "IN_QC" | "IN_PUTAWAY" | "CLOSED" | "CANCELLED";
 export type MockQcProgress = "NOT_REQUIRED" | "AWAITING_MOVE_TO_QC" | "IN_QC_AREA" | "INSPECTED";
 export type MockQcOutcome = "ACCEPTED" | "QUARANTINE" | "REJECTED";
 
@@ -48,6 +48,20 @@ export interface MockReceiptLine {
   movedToQcAt: string | null;
   quantityForPutaway: number;
   inspections: MockInspection[];
+  /** BE `OVER_TOLERANCE` (BR-RCP-001) — tính lúc trả phiếu Draft / Pending Approval, không lưu. */
+  warnings?: string[];
+}
+
+/** BE `GoodsReceiptResponse.Approval` (SCRUM-477). */
+export interface MockApproval {
+  requestedAt: string;
+  requestedBy: string;
+  requestedByName: string | null;
+  decision: "APPROVED" | "EXCESS_REJECTED" | null;
+  decidedAt: string | null;
+  decidedBy: string | null;
+  decidedByName: string | null;
+  reason: string | null;
 }
 
 export interface MockReceipt {
@@ -65,12 +79,16 @@ export interface MockReceipt {
   confirmedBy: string | null;
   closedAt: string | null;
   lines: MockReceiptLine[];
+  warnings?: string[];
+  approval?: MockApproval | null;
 }
 
 /* ── Kho & khu (chép seed demo BE: db/demo V20260928009000 + V20260929000270) ─ */
 
 export const MOCK_WAREHOUSE_ID = "d99123fd-2997-4751-6bb9-e10a2e6d9949";
 export const MOCK_RECEIPT_ACTOR = "mock-user";
+/** Người duyệt demo — khác người đếm để qua luật 4 mắt (BR-RCP-001, `RECEIPT_SELF_APPROVAL`). */
+export const MOCK_APPROVER_ACTOR = "mock-manager";
 
 export type MockAreaType = "RECEIVING" | "QUALITY_CONTROL" | "QUARANTINE";
 
@@ -362,9 +380,63 @@ export async function loadReceipt(config: Parameters<typeof readRouteId>[0]) {
   return { id, receipt };
 }
 
+/** BE `receipts.receivedOnOtherReceipts`: phiếu ĐÃ ghi nhận (không nháp / chờ duyệt / huỷ), trừ phiếu đang xét. */
+export async function receivedElsewhere(poLineId: string, receiptId: string): Promise<number> {
+  let total = 0;
+  for (const receipt of (await getReceiptStore()).values()) {
+    if (receipt.id === receiptId || NOT_POSTED.includes(receipt.status)) continue;
+    for (const line of receipt.lines) {
+      if (line.purchaseOrderLineId === poLineId) total += line.quantity;
+    }
+  }
+  return total;
+}
+
+const NOT_POSTED: readonly MockReceiptStatus[] = ["DRAFT", "PENDING_APPROVAL", "CANCELLED"];
+
+/** SL tối đa nhận được của dòng PO: đặt × (1 + dung sai), làm tròn xuống (BE `receivableLimit`). */
+export function mockReceivableLimit(quantityOrdered: number): number {
+  return Math.floor((quantityOrdered * (100 + MOCK_TOLERANCE_PERCENT)) / 100);
+}
+
+/** Dòng PO của phiếu có tổng (đã ghi nhận + phiếu này) vượt giới hạn — BR-RCP-001. */
+export async function overToleranceLines(receipt: MockReceipt): Promise<Set<string>> {
+  const po = (await getPoStore()).get(receipt.purchaseOrderId);
+  const over = new Set<string>();
+  if (!po) return over;
+  const counted = new Map<string, number>();
+  for (const line of receipt.lines) {
+    counted.set(
+      line.purchaseOrderLineId,
+      (counted.get(line.purchaseOrderLineId) ?? 0) + line.quantity,
+    );
+  }
+  for (const [poLineId, quantity] of counted) {
+    const poLine = po.lines.find((l) => l.lineId === poLineId);
+    if (!poLine) continue;
+    const total = (await receivedElsewhere(poLineId, receipt.id)) + quantity;
+    if (total > mockReceivableLimit(poLine.quantityOrdered)) over.add(poLineId);
+  }
+  return over;
+}
+
+/** Gắn `warnings` như BE `view()`: chỉ phiếu Draft / Pending Approval chưa ghi nhận. */
+export async function withWarnings(receipt: MockReceipt): Promise<MockReceipt> {
+  if (receipt.status !== "DRAFT" && receipt.status !== "PENDING_APPROVAL") return receipt;
+  const over = await overToleranceLines(receipt);
+  return {
+    ...receipt,
+    lines: receipt.lines.map((line) => ({
+      ...line,
+      warnings: over.has(line.purchaseOrderLineId) ? ["OVER_TOLERANCE"] : [],
+    })),
+    warnings: over.size > 0 ? ["OVER_TOLERANCE"] : [],
+  };
+}
+
 export async function saveReceipt(receipt: MockReceipt) {
   (await getReceiptStore()).set(receipt.id, receipt);
-  return beOk(receipt);
+  return beOk(await withWarnings(receipt));
 }
 
 export function requireStatus(receipt: MockReceipt, expected: MockReceiptStatus, verb: string) {

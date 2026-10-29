@@ -13,6 +13,7 @@ import { beGoodsReceiptPageSchema, beGoodsReceiptSchema } from "./schemas";
 import type { ReceiptStatus } from "@/constants";
 import type { ListQueryParams, PaginatedResponse } from "@/lib/api/query-factory";
 import type {
+  DecideReceiptInput,
   GoodsReceipt,
   GoodsReceiptApiDto,
   GoodsReceiptRow,
@@ -143,9 +144,19 @@ export async function replaceReceiptLines({
 export const confirmGoodsReceipt = (receiptId: string) =>
   postReceipt(`${receiptPath(receiptId)}/confirmation`);
 
-/** Chỉ huỷ được DRAFT (BR-05 docs 03 §6). */
+/** Chỉ huỷ được phiếu chưa ghi nhận: Draft, hoặc Pending Approval (BR-05 docs 03 §6, SCRUM-477). */
 export const cancelGoodsReceipt = (receiptId: string) =>
   postReceipt(`${receiptPath(receiptId)}/cancellation`);
+
+/* ── Duyệt ngoại lệ của Quản lý kho (BR-RCP-001, quyền `procurement-goods-receipts:APPROVE`) ── */
+
+/** Duyệt phiếu `Pending Approval`: ghi nhận ĐỦ SL đã đếm. BE `ReceiptDecisionRequest { reason }`. */
+export const approveGoodsReceipt = ({ receiptId, reason }: DecideReceiptInput) =>
+  postReceipt(`${receiptPath(receiptId)}/approval`, { reason });
+
+/** Từ chối phần vượt: chỉ ghi nhận tới dung sai (không còn gì → phiếu bị huỷ). */
+export const rejectReceiptExcess = ({ receiptId, reason }: DecideReceiptInput) =>
+  postReceipt(`${receiptPath(receiptId)}/excess-rejection`, { reason });
 
 /* ── QC ──────────────────────────────────────────────────────────────── */
 

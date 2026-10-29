@@ -8,19 +8,23 @@
 
 import { registerMockRoute } from "./mock-adapter";
 import {
+  MOCK_APPROVER_ACTOR,
   MOCK_RECEIPT_ACTOR,
-  MOCK_TOLERANCE_PERCENT,
   MOCK_WAREHOUSE_ID,
   getReceiptStore,
   invalidReceiptTransition,
   itemPolicy,
   loadReceipt,
+  mockReceivableLimit,
   nextReceiptNumber,
+  overToleranceLines,
   receiptNotFound,
+  receivedElsewhere,
   recordPoProgress,
   requireStatus,
   resolveArea,
   saveReceipt,
+  withWarnings,
 } from "./mock-routes-goods-receipts-store";
 import { registerGoodsReceiptQcMockRoutes } from "./mock-routes-goods-receipts-qc";
 import {
@@ -48,44 +52,6 @@ const SORTABLE: Record<string, (r: MockReceipt) => string> = {
 };
 // BR-01: chỉ nhận cho PO đã chốt (CONFIRMED, BE PR #71 D4) hoặc đang nhận dở.
 const RECEIVABLE_PO = ["CONFIRMED", "PARTIALLY_RECEIVED"];
-
-/** BE `receipts.receivedOnOtherReceipts`: mọi phiếu chưa huỷ, trừ phiếu đang xét. */
-async function receivedElsewhere(poLineId: string, receiptId: string): Promise<number> {
-  let total = 0;
-  for (const receipt of (await getReceiptStore()).values()) {
-    if (receipt.id === receiptId || receipt.status === "CANCELLED") continue;
-    for (const line of receipt.lines) {
-      if (line.purchaseOrderLineId === poLineId) total += line.quantity;
-    }
-  }
-  return total;
-}
-
-/** BR-02 (docs 03 §6) — BE `checkTolerance`. */
-async function checkTolerance(po: MockBePo, receiptId: string, lines: readonly MockReceiptLine[]) {
-  const perPoLine = new Map<string, number>();
-  for (const line of lines) {
-    perPoLine.set(
-      line.purchaseOrderLineId,
-      (perPoLine.get(line.purchaseOrderLineId) ?? 0) + line.quantity,
-    );
-  }
-  for (const [poLineId, qty] of perPoLine) {
-    const index = po.lines.findIndex((l) => l.lineId === poLineId);
-    const poLine = po.lines[index];
-    if (!poLine) continue;
-    const limit = Math.floor((poLine.quantityOrdered * (100 + MOCK_TOLERANCE_PERCENT)) / 100);
-    const total = (await receivedElsewhere(poLineId, receiptId)) + qty;
-    if (total > limit) {
-      return beError(
-        409,
-        "OVER_RECEIPT_TOLERANCE",
-        `Line ${index + 1} of ${po.poNumber} would be received ${total} of ${poLine.quantityOrdered} ordered; at most ${limit} with the supplier's ${MOCK_TOLERANCE_PERCENT}% tolerance (BR-02)`,
-      );
-    }
-  }
-  return null;
-}
 
 /* ── Kiểm đếm ────────────────────────────────────────────────────────── */
 
@@ -190,8 +156,7 @@ async function replaceLines(receipt: MockReceipt, body: Record<string, unknown>)
       inspections: [],
     });
   }
-  const tolerance = await checkTolerance(po, receipt.id, counted);
-  if (tolerance) return tolerance;
+  // BR-RCP-001: đếm vượt dung sai không còn bị từ chối — phiếu gắn cảnh báo, xác nhận thì chờ Quản lý kho duyệt
   // Aggregate: kiểm trạng thái sau phần tra cứu, như BE (load → policy → area → aggregate)
   if (notDraft) return notDraft;
   const keys = new Set<string>();
@@ -209,32 +174,163 @@ async function replaceLines(receipt: MockReceipt, body: Record<string, unknown>)
   return saveReceipt({ ...receipt, lines: counted });
 }
 
-async function confirm(receipt: MockReceipt) {
+/** BE `GoodsReceiptServiceImpl#requireReceivable` (BR-01). */
+function requireReceivablePo(po: MockBePo) {
+  return RECEIVABLE_PO.includes(po.status)
+    ? null
+    : beError(
+        409,
+        "PURCHASE_ORDER_NOT_RECEIVABLE",
+        `${po.poNumber} is ${po.status}; goods are received only against a CONFIRMED or PARTIALLY_RECEIVED order (BR-01)`,
+      );
+}
+
+async function loadPo(receipt: MockReceipt) {
   const po = (await getPoStore()).get(receipt.purchaseOrderId);
-  if (!po)
-    return beError(404, "PURCHASE_ORDER_NOT_FOUND", `No purchase order ${receipt.purchaseOrderId}`);
-  if (!RECEIVABLE_PO.includes(po.status)) {
-    return beError(
-      409,
-      "PURCHASE_ORDER_NOT_RECEIVABLE",
-      `${po.poNumber} is ${po.status}; goods are received only against a CONFIRMED or PARTIALLY_RECEIVED order (BR-01)`,
-    );
-  }
-  const tolerance = await checkTolerance(po, receipt.id, receipt.lines);
-  if (tolerance) return tolerance;
+  return po
+    ? { po }
+    : {
+        error: beError(
+          404,
+          "PURCHASE_ORDER_NOT_FOUND",
+          `No purchase order ${receipt.purchaseOrderId}`,
+        ),
+      };
+}
+
+/** Ghi nhận phiếu: tồn Inbound, tiến độ PO, trạng thái sau xác nhận (BE `post`). */
+async function post(receipt: MockReceipt, by: string, approval?: MockReceipt["approval"]) {
+  const posted: MockReceipt = {
+    ...receipt,
+    status: receipt.lines.some((l) => l.qcRequired) ? "IN_QC" : "IN_PUTAWAY",
+    confirmedAt: new Date().toISOString(),
+    confirmedBy: by,
+    approval: approval ?? receipt.approval ?? null,
+  };
+  await recordPoProgress(posted);
+  return saveReceipt(posted);
+}
+
+async function confirm(receipt: MockReceipt) {
+  const { po, error } = await loadPo(receipt);
+  if (error) return error;
+  const notReceivable = requireReceivablePo(po);
+  if (notReceivable) return notReceivable;
   const notDraft = requireStatus(receipt, "DRAFT", "confirm");
   if (notDraft) return notDraft;
   if (receipt.lines.length === 0)
     return invalidReceiptTransition(`Receipt ${receipt.number} has no lines to confirm`);
-  const now = new Date().toISOString();
-  const confirmed: MockReceipt = {
-    ...receipt,
-    status: receipt.lines.some((l) => l.qcRequired) ? "IN_QC" : "IN_PUTAWAY",
-    confirmedAt: now,
-    confirmedBy: MOCK_RECEIPT_ACTOR,
+  if ((await overToleranceLines(receipt)).size > 0) {
+    // BR-RCP-001: vượt dung sai → chờ Quản lý kho duyệt, chưa ghi nhận tồn
+    return saveReceipt({
+      ...receipt,
+      status: "PENDING_APPROVAL",
+      approval: {
+        requestedAt: new Date().toISOString(),
+        requestedBy: MOCK_RECEIPT_ACTOR,
+        requestedByName: null,
+        decision: null,
+        decidedAt: null,
+        decidedBy: null,
+        decidedByName: null,
+        reason: null,
+      },
+    });
+  }
+  return post(receipt, MOCK_RECEIPT_ACTOR);
+}
+
+/** Lý do bắt buộc (`@NotBlank` → 400) + 4 mắt của BE `GoodsReceipt#requireDecidable`. */
+function checkDecision(receipt: MockReceipt, body: Record<string, unknown>) {
+  const notPending = requireStatus(receipt, "PENDING_APPROVAL", "decide");
+  if (notPending) return notPending;
+  const reason = readString(body.reason);
+  if (!reason)
+    return beError(400, "VALIDATION_FAILED", "Invalid request data", [
+      { field: "reason", message: "must not be blank", code: "NotBlank" },
+    ]);
+  if (
+    MOCK_APPROVER_ACTOR === receipt.receivedBy ||
+    MOCK_APPROVER_ACTOR === receipt.approval?.requestedBy
+  ) {
+    return beError(
+      409,
+      "RECEIPT_SELF_APPROVAL",
+      `Receipt ${receipt.number} cannot be decided by the person who counted it or asked for its approval`,
+    );
+  }
+  return null;
+}
+
+function decided(
+  receipt: MockReceipt,
+  decision: "APPROVED" | "EXCESS_REJECTED",
+  reason: string,
+): NonNullable<MockReceipt["approval"]> {
+  const requested = receipt.approval;
+  return {
+    requestedAt: requested?.requestedAt ?? receipt.receivedAt,
+    requestedBy: requested?.requestedBy ?? receipt.receivedBy,
+    requestedByName: requested?.requestedByName ?? null,
+    decision,
+    decidedAt: new Date().toISOString(),
+    decidedBy: MOCK_APPROVER_ACTOR,
+    decidedByName: null,
+    reason,
   };
-  await recordPoProgress(confirmed);
-  return saveReceipt(confirmed);
+}
+
+/** BR-RCP-001: Quản lý kho duyệt — ghi nhận đủ SL đã đếm. */
+async function approve(receipt: MockReceipt, body: Record<string, unknown>) {
+  const refused = checkDecision(receipt, body);
+  if (refused) return refused;
+  const { po, error } = await loadPo(receipt);
+  if (error) return error;
+  const notReceivable = requireReceivablePo(po);
+  if (notReceivable) return notReceivable;
+  return post(receipt, MOCK_APPROVER_ACTOR, decided(receipt, "APPROVED", readString(body.reason)));
+}
+
+/**
+ * BR-RCP-001: từ chối phần vượt — mỗi dòng PO chỉ giữ phần giới hạn còn lại (đặt × (1 + dung sai) trừ phiếu đã
+ * ghi nhận); phần cắt lấy từ dòng đếm sau cùng; hết chỗ thì phiếu bị huỷ (BE `GoodsReceipt#cutBackTo`).
+ */
+async function rejectExcess(receipt: MockReceipt, body: Record<string, unknown>) {
+  const refused = checkDecision(receipt, body);
+  if (refused) return refused;
+  const { po, error } = await loadPo(receipt);
+  if (error) return error;
+  const toCut = new Map<string, number>();
+  for (const line of receipt.lines) {
+    toCut.set(line.purchaseOrderLineId, (toCut.get(line.purchaseOrderLineId) ?? 0) + line.quantity);
+  }
+  for (const [poLineId, counted] of toCut) {
+    const poLine = po.lines.find((l) => l.lineId === poLineId);
+    const allowed = poLine
+      ? Math.max(
+          mockReceivableLimit(poLine.quantityOrdered) -
+            (await receivedElsewhere(poLineId, receipt.id)),
+          0,
+        )
+      : counted;
+    toCut.set(poLineId, Math.max(counted - allowed, 0));
+  }
+  const kept: MockReceiptLine[] = [];
+  for (const line of [...receipt.lines].reverse()) {
+    const cut = Math.min(toCut.get(line.purchaseOrderLineId) ?? 0, line.quantity);
+    toCut.set(line.purchaseOrderLineId, (toCut.get(line.purchaseOrderLineId) ?? 0) - cut);
+    if (cut < line.quantity) {
+      const quantity = line.quantity - cut;
+      kept.unshift({ ...line, quantity, quantityForPutaway: line.qcRequired ? 0 : quantity });
+    }
+  }
+  const decision = decided(receipt, "EXCESS_REJECTED", readString(body.reason));
+  if (kept.length === 0) {
+    return saveReceipt({ ...receipt, lines: [], status: "CANCELLED", approval: decision });
+  }
+  const notReceivable = requireReceivablePo(po);
+  if (notReceivable) return notReceivable;
+  return post({ ...receipt, lines: kept }, MOCK_APPROVER_ACTOR, decision);
 }
 
 /* ── Đăng ký ─────────────────────────────────────────────────────────── */
@@ -280,14 +376,22 @@ export function registerGoodsReceiptMockRoutes(): void {
       .sort((a, b) => (sortDir === "asc" ? 1 : -1) * key(a).localeCompare(key(b)))
       // GoodsReceiptRowResponse: không kèm dòng
       .map(
-        ({ lines: _lines, purchaseOrderNumber: _po, note: _note, confirmedBy: _by, ...row }) => row,
+        ({
+          lines: _lines,
+          purchaseOrderNumber: _po,
+          note: _note,
+          confirmedBy: _by,
+          approval: _approval,
+          warnings: _warnings,
+          ...row
+        }) => row,
       );
     return beOk(bePage(rows, page, size));
   });
 
   registerMockRoute("GET", `${PATH}/:id`, async (config) => {
     const { id, receipt } = await loadReceipt(config);
-    return receipt ? beOk(receipt) : receiptNotFound(id);
+    return receipt ? beOk(await withWarnings(receipt)) : receiptNotFound(id);
   });
 
   registerMockRoute("POST", PATH, async (config) => {
@@ -339,12 +443,25 @@ export function registerGoodsReceiptMockRoutes(): void {
     return receipt ? confirm(receipt) : receiptNotFound(id);
   });
 
+  registerMockRoute("POST", `${PATH}/:id/approval`, async (config) => {
+    const { id, receipt } = await loadReceipt(config);
+    return receipt ? approve(receipt, parseJsonBody(config.data)) : receiptNotFound(id);
+  });
+
+  registerMockRoute("POST", `${PATH}/:id/excess-rejection`, async (config) => {
+    const { id, receipt } = await loadReceipt(config);
+    return receipt ? rejectExcess(receipt, parseJsonBody(config.data)) : receiptNotFound(id);
+  });
+
   registerMockRoute("POST", `${PATH}/:id/cancellation`, async (config) => {
     const { id, receipt } = await loadReceipt(config);
     if (!receipt) return receiptNotFound(id);
-    return (
-      requireStatus(receipt, "DRAFT", "cancel") ?? saveReceipt({ ...receipt, status: "CANCELLED" })
-    );
+    // BE `GoodsReceipt#cancel`: phiếu chưa ghi nhận — Draft hoặc đang chờ duyệt
+    if (receipt.status !== "DRAFT" && receipt.status !== "PENDING_APPROVAL")
+      return invalidReceiptTransition(
+        `Cannot cancel receipt ${receipt.number}: it is ${receipt.status}, not DRAFT or PENDING_APPROVAL`,
+      );
+    return saveReceipt({ ...receipt, status: "CANCELLED" });
   });
 
   registerGoodsReceiptQcMockRoutes();

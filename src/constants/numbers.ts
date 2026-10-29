@@ -80,6 +80,8 @@ export const RECEIPT_LIMITS = {
   noteMax: 2000,
   /** `QcDecisionRequest.Part.reason` @Size(max = 500). */
   qcReasonMax: 500,
+  /** `ReceiptDecisionRequest.reason` @NotBlank @Size(max = 500) — duyệt / từ chối phần vượt (SCRUM-477). */
+  approvalReasonMax: 500,
 } as const;
 
 /** Giới hạn task xuất kho — đúng ràng buộc request BE FulfillmentController. */

@@ -96,6 +96,7 @@ describe("ReceiptList — danh sách phiếu nhận (BE GET /goods-receipts)", (
   it("bộ lọc trạng thái không có 'Confirmed' — BE không lưu phiếu ở trạng thái này", () => {
     expect(STATUS_OPTIONS.map((o) => o.value)).toEqual([
       "Draft",
+      "Pending Approval",
       "In QC",
       "In Putaway",
       "Closed",

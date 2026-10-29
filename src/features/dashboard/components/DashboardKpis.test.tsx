@@ -114,7 +114,13 @@ describe("KPI tiles — real list endpoints, gated by the endpoint's own permiss
     await waitFor(() =>
       expect(within(tile(DASHBOARD_LABELS.receiptsProcessing)).getByText("5")).toBeInTheDocument(),
     );
-    expect(seen.receipts).toEqual(["DRAFT", "CONFIRMED", "IN_QC", "IN_PUTAWAY"]);
+    expect(seen.receipts).toEqual([
+      "DRAFT",
+      "PENDING_APPROVAL",
+      "CONFIRMED",
+      "IN_QC",
+      "IN_PUTAWAY",
+    ]);
     expect(seen.transfers).toEqual(["IN_TRANSIT", "PARTIALLY_RECEIVED"]);
   });
 

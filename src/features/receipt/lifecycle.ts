@@ -32,7 +32,7 @@ export const RECEIPT_CREATE_PERMISSIONS: readonly PermissionCode[] = [
 
 /* ── Cấp phiếu ───────────────────────────────────────────────────────── */
 
-export type ReceiptActionCode = "saveLines" | "confirm" | "cancel";
+export type ReceiptActionCode = "saveLines" | "confirm" | "approve" | "rejectExcess" | "cancel";
 
 export interface ReceiptAction {
   readonly code: ReceiptActionCode;
@@ -75,11 +75,31 @@ export const RECEIPT_ACTIONS: readonly ReceiptAction[] = [
     requiresLines: true,
   },
   {
+    // BR-RCP-001 (docs 03 §4 bước 5): Quản lý kho duyệt ngoại lệ — ghi nhận đủ SL đã đếm. Quyền duyệt riêng
+    // (`procurement-goods-receipts:APPROVE`); không dùng tên vai trò. Người duyệt ≠ người đếm: BE chặn
+    // `RECEIPT_SELF_APPROVAL` (4 mắt), FE không đoán trước vì phiếu chỉ mang tên người nhận / người gửi duyệt.
+    code: "approve",
+    label: LABEL.approve,
+    permissions: [GOODS_RECEIPT_PERMISSIONS.approve],
+    fromStatuses: [RECEIPT_STATUS.PENDING_APPROVAL],
+    targetStatus: RECEIPT_STATUS.IN_PUTAWAY,
+  },
+  {
+    // Từ chối phần vượt: chỉ ghi nhận tới dung sai (BE cắt dòng đếm sau cùng); hết chỗ thì phiếu bị huỷ
+    code: "rejectExcess",
+    label: LABEL.rejectExcess,
+    permissions: [GOODS_RECEIPT_PERMISSIONS.approve],
+    fromStatuses: [RECEIPT_STATUS.PENDING_APPROVAL],
+    targetStatus: RECEIPT_STATUS.IN_PUTAWAY,
+    destructive: true,
+  },
+  {
     code: "cancel",
     label: LABEL.cancel,
     permissions: [GOODS_RECEIPT_PERMISSIONS.update],
-    // BR-05 (docs 03 §6): chỉ huỷ khi chưa Confirmed; sau đó sửa bằng điều chỉnh tồn
-    fromStatuses: [RECEIPT_STATUS.DRAFT],
+    // BR-05 (docs 03 §6): chỉ huỷ khi chưa Confirmed (Draft, hoặc Pending Approval — chưa ghi nhận tồn);
+    // sau đó sửa bằng điều chỉnh tồn
+    fromStatuses: [RECEIPT_STATUS.DRAFT, RECEIPT_STATUS.PENDING_APPROVAL],
     targetStatus: RECEIPT_STATUS.CANCELLED,
     destructive: true,
   },
@@ -108,7 +128,7 @@ export function allowedReceiptActions(
   );
 }
 
-/** Chỉ DRAFT sửa được; phiếu đã xác nhận ("posted") chỉ đọc. */
+/** Chỉ DRAFT sửa được; phiếu chờ duyệt và phiếu đã xác nhận ("posted") chỉ đọc. */
 export function isReceiptEditable(status: ReceiptStatus): boolean {
   return status === RECEIPT_STATUS.DRAFT;
 }

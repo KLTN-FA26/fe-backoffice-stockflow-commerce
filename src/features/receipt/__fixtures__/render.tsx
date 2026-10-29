@@ -23,9 +23,11 @@ export const RECEIPT_ROLE_PERMISSIONS = {
   viewOnly: [GR.viewPage],
   // Seed BE: WAREHOUSE_STAFF — goods-receipts nhưng KHÔNG có purchase-orders:READ
   warehouseStaff: GR_WORK,
-  // Seed BE: WAREHOUSE_MANAGER — goods-receipts + PO VIEW_PAGE/READ/APPROVE
+  // Seed BE: WAREHOUSE_MANAGER — goods-receipts (cả APPROVE từ V20261029002000, duyệt nhận vượt dung sai
+  // BR-RCP-001) + PO VIEW_PAGE/READ/APPROVE
   warehouseManager: [
     ...GR_WORK,
+    GR.approve,
     PO_PERMISSIONS.viewPage,
     PO_PERMISSIONS.read,
     PO_PERMISSIONS.approve,

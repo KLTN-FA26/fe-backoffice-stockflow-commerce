@@ -1,5 +1,6 @@
 "use client";
 
+import { UI_LABELS } from "@/constants";
 import { classifyLoadError } from "@/lib/api/load-error";
 import { formatDateTime } from "@/lib/format/date";
 import { useReceivablePurchaseOrder } from "@/features/receipt/queries";
@@ -17,6 +18,12 @@ import { CountLinesForm } from "./CountLinesForm";
 import type { GoodsReceipt } from "@/features/receipt/types";
 
 const dt = (iso: string | null | undefined) => (iso ? formatDateTime(iso) : "—");
+const OVER = UI_LABELS.receipt.overTolerance;
+
+/** Người trong phiếu: tên BE trả kèm (nếu có), tooltip là id. */
+const person = (id: string | null | undefined, name: string | null | undefined) => (
+  <span title={id ?? undefined}>{name ?? id ?? "—"}</span>
+);
 
 export function ReceiptInfo({ receipt }: { receipt: GoodsReceipt }) {
   return (
@@ -42,7 +49,43 @@ export function ReceiptInfo({ receipt }: { receipt: GoodsReceipt }) {
         <InfoItem label="Ngày đóng" value={dt(receipt.closedAt)} />
         <InfoItem label="Ghi chú" value={receipt.note ?? "—"} />
       </div>
+      {receipt.approval && <ApprovalInfo approval={receipt.approval} />}
     </Section>
+  );
+}
+
+/**
+ * BR-RCP-001: phiếu từng đếm vượt dung sai — ai gửi duyệt, và khi đã quyết định thì Quản lý kho nào
+ * đã duyệt / từ chối phần vượt, lúc nào, vì sao.
+ */
+function ApprovalInfo({ approval }: { approval: NonNullable<GoodsReceipt["approval"]> }) {
+  return (
+    <div className="border-border-default mt-4 border-t pt-3">
+      <h3 className="text-ink-primary mb-2 text-[0.8125rem] font-semibold">
+        Duyệt nhận vượt dung sai
+      </h3>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+        <InfoItem
+          label={OVER.requestedBy}
+          value={person(approval.requestedBy, approval.requestedByName)}
+        />
+        <InfoItem label={OVER.requestedAt} value={dt(approval.requestedAt)} />
+        <InfoItem
+          label={OVER.decision}
+          value={approval.decision ? OVER.decisionLabels[approval.decision] : "Đang chờ"}
+        />
+        {approval.decision && (
+          <>
+            <InfoItem
+              label={OVER.decidedBy}
+              value={person(approval.decidedBy, approval.decidedByName)}
+            />
+            <InfoItem label={OVER.decidedAt} value={dt(approval.decidedAt)} />
+            <InfoItem label={OVER.reason} value={approval.reason ?? "—"} />
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 

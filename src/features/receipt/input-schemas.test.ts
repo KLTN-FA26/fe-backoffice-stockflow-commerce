@@ -7,6 +7,7 @@ import {
   buildQcDecisionSchema,
   buildReceiptLinesSchema,
   receiptCreateInputSchema,
+  receiptDecisionInputSchema,
 } from "./input-schemas";
 
 const line = (overrides: Record<string, unknown> = {}) => ({
@@ -125,5 +126,23 @@ describe("qcDecisionSchema — BR-08", () => {
       rejected: { quantity: 2, locationCode: "hcm-qc01", reason: "Nứt" },
     });
     expect(messages(result)).toContain(MSG.qcSameLocation);
+  });
+});
+
+describe("receiptDecisionInputSchema (BR-RCP-001: duyệt / từ chối phần vượt đều cần lý do)", () => {
+  it("lý do được trim; để trống hoặc chỉ khoảng trắng → lỗi", () => {
+    expect(receiptDecisionInputSchema.parse({ reason: "  hàng tặng  " })).toEqual({
+      reason: "hàng tặng",
+    });
+    for (const reason of ["", "   "]) {
+      const result = receiptDecisionInputSchema.safeParse({ reason });
+      expect(result.success).toBe(false);
+      expect(result.error?.issues[0]?.message).toBe(MSG.approvalReasonRequired);
+    }
+  });
+
+  it("tối đa 500 ký tự như BE `@Size(max = 500)`", () => {
+    expect(receiptDecisionInputSchema.safeParse({ reason: "a".repeat(500) }).success).toBe(true);
+    expect(receiptDecisionInputSchema.safeParse({ reason: "a".repeat(501) }).success).toBe(false);
   });
 });
