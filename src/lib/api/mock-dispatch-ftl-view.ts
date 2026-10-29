@@ -43,6 +43,8 @@ export function ftlDetailFields(load: MockLoad) {
     pendingUnloads: ftl.pendingUnloads,
     carrierBookingToCancel: ftl.carrierBookingToCancel,
     cancelReasonCode: ftl.cancelReasonCode ?? undefined,
+    replacementLoadId: ftl.replacementLoadId ?? undefined,
+    replacementLoadCode: ftl.replacementLoadId ? `${load.code}-R` : undefined,
   };
 }
 

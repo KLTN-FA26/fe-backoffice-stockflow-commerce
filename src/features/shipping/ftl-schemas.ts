@@ -67,6 +67,12 @@ export const ftlLoadFields = {
   pendingUnloads: z.array(pendingUnloadSchema).nullish(),
   /** Mã lý do huỷ có kiểm soát (SCRUM-474); `cancelReason` là ghi chú. Vắng với mọi cách huỷ khác. */
   cancelReasonCode: unloadReasonCodeSchema.nullish(),
+  /**
+   * Xe huỷ có kiểm soát: chuyến PLANNED đang thay nó (cùng xe của kế hoạch, cùng sơ đồ). Vắng khi không có chuyến thay thế
+   * (huỷ cả kế hoạch, hoặc xe không còn gì để chở) và ở mọi chuyến khác.
+   */
+  replacementLoadId: z.string().nullish(),
+  replacementLoadCode: z.string().nullish(),
   /** Chuyến CANCELLED sau khi đã đặt xe: đặt xe ngoài hệ thống vẫn còn → điều phối phải huỷ. */
   carrierBookingToCancel: z.boolean().nullish(),
 };

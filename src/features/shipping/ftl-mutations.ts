@@ -8,6 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { TOAST_MESSAGES } from "@/constants";
 import { createMutation } from "@/lib/api/query-factory";
+import { toast } from "@/components/shared/Toast";
 
 import {
   bookLoad,
@@ -24,7 +25,8 @@ import {
   toastIfStale,
   withLoadCache,
 } from "./mutations";
-import { loadKeys, shipmentKeys } from "./queries";
+import { isStaleLoadError } from "./errors";
+import { loadKeys, manifestKey, shipmentKeys } from "./queries";
 
 import type {
   BookLoadInput,
@@ -98,24 +100,49 @@ const useControlledCancelBase = createMutation<ControlledCancelLoadInput, Contro
   cancelLoadControlled,
   {
     invalidate: [LOAD_LIST_KEY, LOAD_PLAN_ROOT_KEY, shipmentKeys.all],
-    successMessage: T.controlledCancelled,
     showErrorToast: false,
   },
 );
 
 /**
- * Huỷ có kiểm soát MỘT xe (SCRUM-474): ghi cả chuyến đã huỷ lẫn chuyến thay thế vào cache chi tiết, tải lại danh sách chuyến,
- * kế hoạch và lô giao. Lỗi hiện trong hộp thoại.
+ * Huỷ có kiểm soát MỘT xe (SCRUM-474), bọc cache như `withLoadCache` (mutation trả hai chuyến): huỷ GET chi tiết đang chạy của
+ * chuyến vừa huỷ trước khi gửi và khi có kết quả (GET về sau sẽ ghi đè bản cũ), ghi chuyến đã huỷ lẫn chuyến thay thế vào cache
+ * chi tiết — không bản cũ hơn đang có —, và gặp lỗi dữ liệu cũ (`isStaleLoadError`, vd 409 INVALID_LOAD_TRANSITION khi xe vừa
+ * đổi trạng thái ở nơi khác) thì tải lại chuyến + lô giao và toast, như các mutation anh em. Lỗi hiện trong hộp thoại.
  */
 export function useCancelLoadControlled(options?: Parameters<typeof useControlledCancelBase>[0]) {
   const queryClient = useQueryClient();
   return useControlledCancelBase({
     ...options,
-    onSuccess: (result, ...rest) => {
+    onMutate: async (input, context) => {
+      await queryClient.cancelQueries({ queryKey: loadKeys.detail(input.loadId) });
+      return options?.onMutate?.(input, context);
+    },
+    onSuccess: async (result, ...rest) => {
       for (const load of [result.cancelled, result.replacement]) {
-        if (load) queryClient.setQueryData<Load>(loadKeys.detail(load.loadId), load);
+        if (!load) continue;
+        await queryClient.cancelQueries({ queryKey: loadKeys.detail(load.loadId) });
+        queryClient.setQueryData<Load>(loadKeys.detail(load.loadId), (cached) =>
+          cached && cached.version > load.version ? cached : load,
+        );
+        void queryClient.invalidateQueries({ queryKey: manifestKey(load.loadId) });
       }
+      toast.success(
+        result.replacement ? T.controlledCancelled : T.controlledCancelledNoReplacement,
+      );
       options?.onSuccess?.(result, ...rest);
+    },
+    onError: (...args) => {
+      const [error, input] = args;
+      if (isStaleLoadError(error)) {
+        void queryClient.invalidateQueries({ queryKey: loadKeys.all });
+        void queryClient.invalidateQueries({ queryKey: shipmentKeys.all });
+        toastIfStale(error);
+      } else {
+        // GET đã bị huỷ ở onMutate nên thay đổi từ máy khác (nếu có) chưa về
+        void queryClient.invalidateQueries({ queryKey: loadKeys.detail(input.loadId) });
+      }
+      options?.onError?.(...args);
     },
   });
 }

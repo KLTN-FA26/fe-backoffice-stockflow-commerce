@@ -60,6 +60,8 @@ export interface MockFtlPart {
   carrierBookingToCancel: boolean;
   /** Mã lý do của lần huỷ có kiểm soát (SCRUM-474); null với mọi cách huỷ khác. */
   cancelReasonCode?: string | null;
+  /** Chuyến PLANNED thay xe đã huỷ có kiểm soát (vắng khi xe không còn gì để chở). */
+  replacementLoadId?: string | null;
 }
 
 /** Điều kiện làm BE từ chối bàn giao đúng lô này (G3-Q4 + BR-04) — để thử màn lỗi theo lô. */

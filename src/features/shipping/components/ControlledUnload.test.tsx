@@ -2,7 +2,8 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { SHIPPING_FIELD_MESSAGES, UI_LABELS } from "@/constants";
+import { SHIPPING_ERROR_MESSAGES, SHIPPING_FIELD_MESSAGES, UI_LABELS } from "@/constants";
+import { ApiError } from "@/lib/api/error";
 import { useRejectedScansStore } from "@/features/shipping/rejected-scans-store";
 import { resetScanIds } from "@/features/shipping/scan-ids";
 
@@ -93,9 +94,12 @@ describe("Huỷ có kiểm soát một xe (SCRUM-474 UNLOAD-DESIGN)", () => {
     expect(screen.queryByRole("button", { name: C.cancelButton })).not.toBeInTheDocument();
   });
 
-  it("chọn mã lý do + ghi chú → POST /controlled-cancellation {reasonCode, note}, rồi mở chuyến thay thế", async () => {
+  it("chọn mã lý do + ghi chú → POST /controlled-cancellation {reasonCode, note}; Ở LẠI chuyến vừa huỷ (quét dỡ là việc gấp), biểu ngữ dẫn sang chuyến thay thế", async () => {
     const user = userEvent.setup();
-    const cancelled = controlledCancelled();
+    const cancelled = controlledCancelled({
+      replacementLoadId: REPLACEMENT_ID,
+      replacementLoadCode: `${FTL_ID}-R`,
+    });
     const replacement = plannedLoad({ loadId: REPLACEMENT_ID, code: `${FTL_ID}-R` });
     const { post } = render(ACTORS.warehouseManager, loadingFtl(), {
       "/controlled-cancellation": () => ({ cancelled, replacement }),
@@ -122,7 +126,32 @@ describe("Huỷ có kiểm soát một xe (SCRUM-474 UNLOAD-DESIGN)", () => {
         note: "Gãy trục sau",
       }),
     );
-    await waitFor(() => expect(push).toHaveBeenCalledWith(`/admin/loads/${REPLACEMENT_ID}`));
+    // Chuyến vừa huỷ hiện ngay với kiện cần dỡ; không chuyển trang
+    const banner = (await screen.findByText(C.cancelledBanner.title)).parentElement as HTMLElement;
+    expect(within(banner).getByRole("link", { name: `${FTL_ID}-R` })).toHaveAttribute(
+      "href",
+      `/admin/loads/${REPLACEMENT_ID}`,
+    );
+    expect(screen.getByRole("heading", { name: `${U.controlledTitle} (2)` })).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("409 INVALID_LOAD_TRANSITION (xe vừa đổi trạng thái ở nơi khác): lỗi trong hộp thoại và tải lại chuyến", async () => {
+    const user = userEvent.setup();
+    const { post, get } = render(ACTORS.warehouseManager, loadingFtl());
+    post.mockRejectedValueOnce(new ApiError(409, "INVALID_LOAD_TRANSITION", "en"));
+    await user.click(await screen.findByRole("button", { name: C.cancelButton }));
+    const dialog = await screen.findByRole("dialog");
+    await user.type(within(dialog).getByRole("textbox"), "Gãy trục");
+    await user.click(within(dialog).getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: C.reasonCode.XE_HONG }));
+    const loadGets = () => get.mock.calls.filter(([url]) => url === PATH).length;
+    const before = loadGets();
+    await user.click(within(dialog).getByRole("button", { name: C.vehicle.confirm }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      SHIPPING_ERROR_MESSAGES.INVALID_LOAD_TRANSITION,
+    );
+    await waitFor(() => expect(loadGets()).toBeGreaterThan(before));
   });
 
   it("bốn mã lý do đều chọn được", async () => {
@@ -138,6 +167,15 @@ describe("Huỷ có kiểm soát một xe (SCRUM-474 UNLOAD-DESIGN)", () => {
 });
 
 describe("Xe đã huỷ có kiểm soát — kiện bị khoá, quét dỡ và xác nhận không quét", () => {
+  it("huỷ cả kế hoạch (không có chuyến thay thế): biểu ngữ chỉ nêu lý do, không nhắc chuyến thay thế", async () => {
+    render(ACTORS.warehouseManager, controlledCancelled());
+    const banner = (await screen.findByText(C.cancelledBanner.title)).parentElement as HTMLElement;
+    expect(
+      within(banner).queryByText(new RegExp(C.cancelledBanner.replacement)),
+    ).not.toBeInTheDocument();
+    expect(within(banner).queryByRole("link")).not.toBeInTheDocument();
+  });
+
   it("hiện lý do (mã + ghi chú), danh sách kiện còn phải dỡ kèm mã lý do; không còn nút huỷ có kiểm soát", async () => {
     render(ACTORS.warehouseManager, controlledCancelled());
     await ready();

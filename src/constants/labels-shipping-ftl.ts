@@ -134,7 +134,7 @@ export const SHIPPING_FTL_LABELS = {
         "Đã có xe rời kho nên không huỷ cả kế hoạch được — huỷ có kiểm soát từng xe còn lại ở màn chuyến của xe đó.",
       pendingTitle: "Kiện còn phải dỡ khỏi xe",
       pendingDescription:
-        "Các kiện này bị khoá cho tới khi được quét dỡ xuống. Mở chuyến của xe để quét từng kiện (hoặc để quản lý kho xác nhận khi nhãn hỏng).",
+        "Các kiện này còn nằm trên xe (đơn đã huỷ hoặc xe đã huỷ có kiểm soát) và bị khoá cho tới khi được quét dỡ xuống. Mở chuyến của xe để quét từng kiện (hoặc để quản lý kho xác nhận khi nhãn hỏng).",
       pendingLoad: "Chuyến",
       pendingVehicle: "Xe số",
       pendingOpen: "Mở chuyến để dỡ",
@@ -186,6 +186,8 @@ export const SHIPPING_FTL_TOAST_MESSAGES = {
   loadingStarted: "Đã bắt đầu xếp hàng",
   unloaded: "Đã dỡ kiện khỏi xe",
   controlledCancelled: "Đã huỷ xe có kiểm soát — chuyến thay thế đã sẵn sàng để đặt xe",
+  controlledCancelledNoReplacement:
+    "Đã huỷ xe có kiểm soát — xe không còn gì để chở nên không có chuyến thay thế",
   planControlledCancelled: "Đã huỷ có kiểm soát kế hoạch",
   unloadOverridden: "Đã xác nhận dỡ kiện không quét",
 } as const;

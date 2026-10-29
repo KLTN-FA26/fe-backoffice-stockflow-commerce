@@ -156,6 +156,9 @@ export function cancelControlled(
   const note = text(body.note);
   if (!REASON_CODES.includes(code)) return validationFailed("reasonCode", "must be a reason code");
   if (!note) return validationFailed("note", "must not be blank");
+  // Huỷ bằng đường khác (huỷ thường, tự huỷ): không phải "huỷ lại" — BE 409, không trả 200 như có chuyến thay thế
+  if (load.status === "CANCELLED" && !load.ftl.cancelReasonCode)
+    return invalid(load, "be called off again: it was not cancelled under control");
   // Đã huỷ có kiểm soát: trả lại như cũ kèm chuyến thay thế còn sống (BE idempotent, không tạo thêm)
   if (load.status === "CANCELLED" && load.ftl.cancelReasonCode) {
     const live = state.loads.get(`${load.loadId}-r`);
@@ -189,35 +192,40 @@ export function cancelControlled(
       : [];
   });
   const carrying = load.shipmentIds.filter((id) => state.shipments.get(id)?.status !== "CANCELLED");
-  const replacement: MockLoad = {
-    ...load,
-    loadId: `${load.loadId}-r`,
-    code: `${load.code}-R`,
-    status: "PLANNED",
-    carrierId: null,
-    vehiclePlate: null,
-    driverName: null,
-    driverPhone: null,
-    shipmentIds: carrying,
-    loaded: new Map(),
-    loadingStartedAt: null,
-    cancelledAt: null,
-    cancelReason: null,
-    version: 0,
-    ftl: {
-      ...load.ftl,
-      placed: new Set(load.ftl.placed),
-      bookedAt: null,
-      bookedBy: null,
-      bookingCancelledAt: null,
-      bookingCancelReason: null,
-      pendingUnloads: [],
-      carrierBookingToCancel: false,
-      cancelReasonCode: null,
-    },
-  };
+  // Xe không còn gì để chở (mọi đơn trên xe đã huỷ): không mở chuyến thay thế rỗng (BE: kế hoạch không chờ xe đó)
+  const replacement: MockLoad | null =
+    carrying.length === 0
+      ? null
+      : {
+          ...load,
+          loadId: `${load.loadId}-r`,
+          code: `${load.code}-R`,
+          status: "PLANNED",
+          carrierId: null,
+          vehiclePlate: null,
+          driverName: null,
+          driverPhone: null,
+          shipmentIds: carrying,
+          loaded: new Map(),
+          loadingStartedAt: null,
+          cancelledAt: null,
+          cancelReason: null,
+          version: 0,
+          ftl: {
+            ...load.ftl,
+            placed: new Set(load.ftl.placed),
+            bookedAt: null,
+            bookedBy: null,
+            bookingCancelledAt: null,
+            bookingCancelReason: null,
+            pendingUnloads: [],
+            carrierBookingToCancel: false,
+            cancelReasonCode: null,
+          },
+        };
   load.ftl.pendingUnloads = [...load.ftl.pendingUnloads, ...pending];
   load.ftl.cancelReasonCode = code;
+  load.ftl.replacementLoadId = replacement?.loadId ?? null;
   load.ftl.carrierBookingToCancel = load.ftl.bookedAt !== null;
   load.status = "CANCELLED";
   load.cancelledAt = at;
@@ -225,10 +233,10 @@ export function cancelControlled(
   load.shipmentIds = [];
   load.loaded = new Map();
   load.version += 1;
-  state.loads.set(replacement.loadId, replacement);
+  if (replacement) state.loads.set(replacement.loadId, replacement);
   return ok({
     cancelled: loadDetailView(state, load),
-    replacement: loadDetailView(state, replacement),
+    replacement: replacement ? loadDetailView(state, replacement) : undefined,
   });
 }
 

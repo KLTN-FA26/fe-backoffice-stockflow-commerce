@@ -149,8 +149,8 @@ const beAcknowledgementSchema = z.object({
 });
 
 /**
- * `LoadPlans.PendingUnload` (SCRUM-474): kiện còn phải quét dỡ khỏi xe của kế hoạch đã huỷ có kiểm soát; bị khoá tới
- * khi dỡ. `loadId` là chuyến cần quét dỡ (`POST /loads/{loadId}/unloads`); `shipmentCode` là mã lô hoặc số lệnh chuyển kho.
+ * `LoadPlans.PendingUnload`: kiện còn phải quét dỡ khỏi xe của kế hoạch — của đơn đã huỷ khi xe đang xếp (không có `reasonCode`)
+ * hoặc của xe đã huỷ có kiểm soát (SCRUM-474, có `reasonCode`); bị khoá tới khi dỡ. `loadId` là chuyến cần quét dỡ (`POST /loads/{loadId}/unloads`); `shipmentCode` là mã lô hoặc số lệnh chuyển kho.
  */
 export const bePlanPendingUnloadSchema = z.object({
   loadId: z.string(),
@@ -197,7 +197,7 @@ export const bePlanDetailSchema = z.object({
   cancelReason: z.string().nullish(),
   /** Mã lý do khi huỷ có kiểm soát (SCRUM-474); `cancelReason` là ghi chú. */
   cancelReasonCode: unloadReasonCodeSchema.nullish(),
-  /** Kiện còn phải dỡ khỏi xe đã huỷ có kiểm soát; vắng = không có. */
+  /** Kiện còn phải dỡ khỏi xe (đơn đã huỷ hoặc xe đã huỷ có kiểm soát); vắng = không có. */
   pendingUnloads: z.array(bePlanPendingUnloadSchema).nullish(),
   createdAt: z.string(),
   version: z.number().int(),

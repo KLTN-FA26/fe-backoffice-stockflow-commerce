@@ -12,9 +12,10 @@ const U = UI_LABELS.shipping.ftl.unload;
 const MONO = "font-mono tabular-nums";
 
 /**
- * Kiện còn phải dỡ khỏi xe của kế hoạch đã huỷ có kiểm soát (SCRUM-474 UNLOAD-DESIGN điểm 4-5; BE `pendingUnloads`): bị khoá
- * — không vào kế hoạch mới, không xếp lên xe khác — tới khi quét dỡ xuống. Mỗi dòng dẫn tới chuyến của xe, nơi có ô quét dỡ và
- * (cho quản lý kho) nút xác nhận không quét. Không có kiện nào thì không hiện gì.
+ * Kiện còn phải dỡ khỏi xe của kế hoạch (BE `pendingUnloads`): của đơn đã huỷ khi xe đang xếp, hoặc của xe đã huỷ có kiểm soát
+ * (SCRUM-474 UNLOAD-DESIGN điểm 4-5; chỉ loại sau có mã lý do). Bị khoá — không vào kế hoạch mới, không xếp lên xe khác — tới
+ * khi quét dỡ xuống. Mỗi dòng dẫn tới chuyến của xe, nơi có ô quét dỡ và (cho quản lý kho) nút xác nhận không quét.
+ * Không có kiện nào thì không hiện gì.
  */
 export function PendingUnloadsCard({ plan }: { plan: PlanDetail }) {
   const items = plan.pendingUnloads ?? [];

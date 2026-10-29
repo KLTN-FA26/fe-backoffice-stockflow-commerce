@@ -733,6 +733,9 @@ describe("mock huỷ có kiểm soát một xe (SCRUM-474 UNLOAD-DESIGN)", () =>
       vehicleSeq: before.vehicleSeq,
     });
     expect(result.replacement?.loadedPackageCount).toBe(0);
+    // Chuyến đã huỷ nói rõ chuyến thay thế để biểu ngữ dẫn tới đúng chuyến đó
+    expect(result.cancelled.replacementLoadId).toBe(result.replacement?.loadId);
+    expect((await readLoad(FTL_LOADING)).replacementLoadId).toBe(result.replacement?.loadId);
     expect(result.replacement?.shipments.map((s) => s.code)).toEqual(
       before.shipments.map((s) => s.code),
     );
