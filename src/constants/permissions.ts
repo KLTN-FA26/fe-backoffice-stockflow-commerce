@@ -290,9 +290,12 @@ export const INVENTORY_OVERVIEW_PERMISSIONS = {
   stockRead: "inventory-stock-items:READ",
   reservationViewPage: "inventory-reservations:VIEW_PAGE",
   reservationRead: "inventory-reservations:READ",
-  // GET /inventory/alerts (StockAlertController, READ) — cảnh báo nhúng trong màn tổng quan, không
-  // có menu riêng nên không cần VIEW_PAGE. Seed V20261014000900.
+  // GET /inventory/alerts (StockAlertController, READ) — cảnh báo nhúng trong màn tổng quan và màn
+  // Cảnh báo tồn kho. Seed V20261014000900.
   alertRead: "inventory-alerts:READ",
+  // Màn Cảnh báo tồn kho (`/admin/inventory/alerts`, đích deep link thông báo SCRUM-147): BE khai báo
+  // VIEW_PAGE cho resource inventory-alerts; seed V20261014000900 cấp cùng READ.
+  alertViewPage: "inventory-alerts:VIEW_PAGE",
 } as const;
 
 /**

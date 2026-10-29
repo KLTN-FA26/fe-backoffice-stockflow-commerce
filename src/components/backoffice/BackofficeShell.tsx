@@ -3,6 +3,7 @@
 import { cn } from "cn";
 import {
   ArrowRightLeft,
+  BellRing,
   Boxes,
   CalendarClock,
   ClipboardList,
@@ -259,6 +260,13 @@ export const NAV_GROUPS: NavGroup[] = [
           INVENTORY_OVERVIEW_PERMISSIONS.stockRead,
           INVENTORY_OVERVIEW_PERMISSIONS.reservationRead,
         ],
+      },
+      {
+        label: INVENTORY_LABELS.alertListTitle,
+        href: INVENTORY_ROUTES.alerts,
+        icon: BellRing,
+        // BE StockAlertController khai báo VIEW_PAGE cho inventory-alerts (route của deep link thông báo)
+        permission: INVENTORY_OVERVIEW_PERMISSIONS.alertViewPage,
       },
       {
         label: "Hồ sơ hàng tồn",

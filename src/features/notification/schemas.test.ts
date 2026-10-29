@@ -38,14 +38,22 @@ describe("SCRUM-147 BE response contract", () => {
     );
   });
 
-  it.each(["https://outside.test", "//outside.test", "/\\outside.test", "javascript:alert(1)"])(
-    "rejects a non-local link %s",
-    (link) => {
-      expect(() =>
-        notificationPageDto.parse({ ...response, items: [{ ...response.items[0], link }] }),
-      ).toThrow();
-    },
-  );
+  it.each([
+    "https://outside.test",
+    "//outside.test",
+    "/\\outside.test",
+    "javascript:alert(1)",
+    "/\t/outside.test",
+    "/login",
+    42,
+  ])("drops unsafe link %s to null without rejecting the rest of the page", (link) => {
+    const healthy = { ...response.items[0], id: "88888888-8888-4888-8888-888888888888" };
+    const page = notificationPageDto.parse({
+      ...response,
+      items: [{ ...response.items[0], link }, healthy],
+    });
+    expect(page.items.map((item) => item.link)).toEqual([null, healthy.link]);
+  });
 
   it("rejects unknown severity and missing mandatory counts", () => {
     expect(() =>

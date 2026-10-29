@@ -238,6 +238,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...INVENTORY_FLOOR,
     ...STOCK_READ,
     OV.alertRead,
+    OV.alertViewPage,
     WAREHOUSE_READ,
     TO.viewPage,
     TO.read,

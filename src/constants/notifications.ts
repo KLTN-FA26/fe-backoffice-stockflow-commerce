@@ -11,6 +11,8 @@ export const NOTIFICATION_SEVERITIES = ["INFO", "WARN", "CRITICAL"] as const;
 export const NOTIFICATION_CONFIG = {
   pageSize: 10,
   pollingMs: 30_000,
+  // BE stores short system links (route + a code + a UUID); anything longer is not one of them.
+  maxLinkLength: 2048,
 } as const;
 
 export const NOTIFICATION_LABELS = {

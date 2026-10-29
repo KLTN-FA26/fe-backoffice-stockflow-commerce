@@ -2,6 +2,8 @@ import { z } from "zod";
 
 import { NOTIFICATION_SEVERITIES } from "@/constants/notifications";
 
+import { toSafeNotificationPath } from "./link";
+
 /** BE PR #102: nullable fields are omitted by Jackson NON_NULL. */
 export const notificationDto = z.object({
   id: z.uuid(),
@@ -9,11 +11,13 @@ export const notificationDto = z.object({
   severity: z.enum(NOTIFICATION_SEVERITIES),
   title: z.string().min(1),
   body: z.string().nullish(),
-  // Reject protocol-relative/external paths before passing them to the router.
+  // Only a canonical /admin path reaches the router (link.ts). An unsafe or malformed link drops to
+  // null for that one row — it must not reject the whole inbox page.
   link: z
     .string()
-    .regex(/^\/(?![\\/])[^\\]*$/)
-    .nullish(),
+    .nullish()
+    .catch(null)
+    .transform((link) => (link ? toSafeNotificationPath(link) : null)),
   sourceType: z.string().nullish(),
   sourceId: z.string().nullish(),
   createdAt: z.iso.datetime({ offset: true }),

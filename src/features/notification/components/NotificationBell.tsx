@@ -7,6 +7,8 @@ import { toast } from "sonner";
 
 import { NOTIFICATION_CONFIG, NOTIFICATION_LABELS } from "@/constants/notifications";
 
+import { useAuthStore } from "@/lib/auth/auth-store";
+
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
@@ -26,7 +28,12 @@ export function NotificationBell() {
   const count = useNotificationUnreadCount(inbox.isSuccess);
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
+  const authenticated = useAuthStore((state) => state.status === "authenticated" && !!state.user);
   const unreadCount = count.data ?? inbox.data?.unreadCount ?? 0;
+  // Mark-all-read (or rows read elsewhere) can shrink the unread filter below the current page;
+  // step back to the last page that exists instead of an empty page with no pager.
+  const lastPage = Math.max(0, (inbox.data?.totalPages ?? 1) - 1);
+  if (inbox.data && page > lastPage) setPage(lastPage);
   const openNotification = (item: Notification) => {
     if (!item.read) {
       markRead.mutate(item.id, { onError: () => toast.error(L.updateError) });
@@ -36,6 +43,9 @@ export function NotificationBell() {
       router.push(item.link);
     }
   };
+  // Signed out: nothing personal to show, and the dropdown must not stay open on another session.
+  if (!authenticated) return null;
+
   return (
     <Popover
       open={open}

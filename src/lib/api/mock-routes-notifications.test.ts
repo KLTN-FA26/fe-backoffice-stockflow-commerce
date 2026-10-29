@@ -1,8 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { INVENTORY_ROUTES } from "@/constants/inventory";
 import { NOTIFICATION_API } from "@/constants/notifications";
 
 import { useAuthStore } from "@/lib/auth/auth-store";
+
+import { toSafeNotificationPath } from "@/features/notification/link";
 
 import { api } from "./client";
 import { ApiError } from "./error";
@@ -14,8 +17,10 @@ import type { NotificationPage } from "@/features/notification/types";
 
 activateMockAdapter();
 
+// Demo accounts from mock-user-grants: two warehouse staff (inventory-alerts:READ) and an account
+// with no grants standing in for a customer.
 const staffA: AuthUser = {
-  userId: "a",
+  userId: "USER-WH-01",
   username: "a",
   email: "a@example.test",
   fullName: null,
@@ -24,8 +29,13 @@ const staffA: AuthUser = {
   lastLoginAt: null,
   mustChangePassword: false,
 };
-const staffB: AuthUser = { ...staffA, userId: "b", username: "b", email: "b@example.test" };
-const customer: AuthUser = { ...staffB, roles: ["CUSTOMER"] };
+const staffB: AuthUser = {
+  ...staffA,
+  userId: "USER-WH-02",
+  username: "b",
+  email: "b@example.test",
+};
+const customer: AuthUser = { ...staffB, userId: "CUSTOMER-01", roles: ["CUSTOMER"] };
 
 function signIn(user: AuthUser) {
   useAuthStore.getState().login(user, false);
@@ -65,6 +75,19 @@ describe("mock inbox: ownership and BE endpoint semantics", () => {
 
     signIn(staffA);
     expect((await page()).unreadCount).toBe(a.items.length);
+  });
+
+  it("stock-alert links follow BE InventoryAlertMessages (kind[, warehouseId]) and pass the safe-link policy", async () => {
+    signIn(staffA);
+    const links = (await page()).items.map((item) => item.link);
+    expect(links.length).toBeGreaterThan(0);
+    for (const link of links) {
+      expect(link).toMatch(
+        /^\/admin\/inventory\/alerts\?kind=(REORDER|SAFETY|EXPIRING|EXPIRED)(&warehouseId=[\w-]+)?$/,
+      );
+      expect(link?.startsWith(`${INVENTORY_ROUTES.alerts}?`)).toBe(true);
+      expect(link && toSafeNotificationPath(link)).toBe(link);
+    }
   });
 
   it("mark-one is idempotent, unreadOnly pages filter correctly, read-all stays per user", async () => {

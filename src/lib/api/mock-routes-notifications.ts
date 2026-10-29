@@ -1,11 +1,14 @@
 /** In-memory inbox mock, scoped to the authenticated user like BE SCRUM-147. */
+import { INVENTORY_ROUTES } from "@/constants/inventory";
 import { NOTIFICATION_API } from "@/constants/notifications";
+import { INVENTORY_OVERVIEW_PERMISSIONS } from "@/constants/permissions";
 
 import { useAuthStore } from "@/lib/auth/auth-store";
 
 import { registerMockRoute } from "./mock-adapter";
 import { MOCK_STOCK_ALERTS } from "./mock-routes-inventory-stock-data";
 import { fail, noContent, ok, pageOf, pathParams, queryOf, typeMismatch } from "./mock-route-utils";
+import { mockGrantsOf } from "./mock-user-grants";
 
 import type { Notification } from "@/features/notification/types";
 import type { MockResponseShape } from "./mock-route-utils";
@@ -23,8 +26,9 @@ function inbox(): Notification[] | null {
   let entries = inboxes.get(user.userId);
   if (!entries) {
     // Mock staff messages are based on existing inventory alert fixtures, not invented stock levels.
-    // Customers have an accessible but empty inbox; stock-alert links are staff-only.
-    entries = user.roles.includes("CUSTOMER")
+    // Only accounts that can read stock alerts get them (by permission code, not role name — BE
+    // picks recipients by role, which the FE never consults); everyone else has an empty inbox.
+    entries = !mockGrantsOf(user.userId).has(INVENTORY_OVERVIEW_PERMISSIONS.alertRead)
       ? []
       : MOCK_STOCK_ALERTS.filter((alert) => alert.status === "OPEN")
           .map((alert) => ({
@@ -33,7 +37,10 @@ function inbox(): Notification[] | null {
             severity: alert.kind === "EXPIRED" ? ("CRITICAL" as const) : ("WARN" as const),
             title: `${alert.kind} · ${alert.sku}`,
             body: `${alert.observedQty} sản phẩm cần kiểm tra`,
-            link: `/admin/inventory/alerts?sku=${encodeURIComponent(alert.sku)}`,
+            // Same shape as BE InventoryAlertMessages: kind, plus warehouseId for lot alerts.
+            link: `${INVENTORY_ROUTES.alerts}?kind=${alert.kind}${
+              alert.warehouseId ? `&warehouseId=${encodeURIComponent(alert.warehouseId)}` : ""
+            }`,
             sourceType: "STOCK_ALERT",
             sourceId: alert.id,
             createdAt: alert.openedAt,
