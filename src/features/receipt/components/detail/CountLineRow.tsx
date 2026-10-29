@@ -70,7 +70,7 @@ export function CountLineRow({
         <FieldError id={`${id("quantity")}-error`}>{e?.quantity?.message}</FieldError>
         {overOpen && !e?.quantity && (
           <p className="text-warning mt-1 text-xs">
-            Vượt SL còn mở — chỉ hợp lệ trong dung sai NCC
+            Vượt SL còn mở — vượt dung sai NCC thì phiếu chờ Quản lý kho duyệt
           </p>
         )}
       </td>

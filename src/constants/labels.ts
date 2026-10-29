@@ -369,6 +369,41 @@ export const UI_LABELS = {
       cancel: "Huỷ phiếu",
       moveToQc: "Chuyển sang khu QC",
       inspect: "Kết luận QC",
+      // BR-RCP-001 (docs 03 §4 bước 5): Quản lý kho duyệt ngoại lệ hoặc từ chối phần vượt
+      approve: "Duyệt nhận vượt dung sai",
+      rejectExcess: "Từ chối phần vượt",
+    },
+    // BR-RCP-001: SL đếm vượt dung sai của dòng PO → phiếu chờ Quản lý kho duyệt, chưa ghi nhận tồn
+    overTolerance: {
+      lineWarning: "Vượt dung sai NCC — cần Quản lý kho duyệt",
+      draftAlert:
+        "Có dòng đếm vượt SL đặt cộng dung sai của nhà cung cấp. Khi xác nhận, phiếu chuyển sang “Chờ duyệt” và CHƯA ghi nhận tồn cho tới khi Quản lý kho duyệt.",
+      confirmNote:
+        "Phiếu có dòng vượt dung sai: phiếu sẽ chờ Quản lý kho duyệt, chưa ghi nhận tồn và chưa cập nhật đơn đặt hàng.",
+      sendForApproval: "Gửi Quản lý kho duyệt",
+      pendingTitle: "Chờ Quản lý kho duyệt",
+      pendingDescription:
+        "Phiếu đếm vượt dung sai nên chưa ghi nhận tồn. Người duyệt phải khác người đếm và người gửi duyệt (4 mắt).",
+      requestedBy: "Gửi duyệt bởi",
+      requestedAt: "Gửi duyệt lúc",
+      decision: "Quyết định",
+      decidedBy: "Người quyết định",
+      decidedAt: "Quyết định lúc",
+      reason: "Lý do",
+      decisionLabels: {
+        APPROVED: "Đã duyệt — ghi nhận đủ SL đã đếm",
+        EXCESS_REJECTED: "Đã từ chối phần vượt — chỉ ghi nhận tới dung sai",
+      },
+      approveTitle: "Duyệt nhận vượt dung sai",
+      approveDescription:
+        "Ghi nhận ĐỦ số lượng đã đếm (kể cả phần vượt dung sai): hàng thành tồn Inbound ở khu nhận hàng và đơn đặt hàng cập nhật SL đã nhận. Cần nhập lý do.",
+      rejectTitle: "Từ chối phần vượt",
+      rejectDescription:
+        "Chỉ ghi nhận tới mức dung sai còn lại của từng dòng PO; phần vượt (cắt từ dòng đếm sau cùng) không nhập kho. Nếu không còn gì trong dung sai, phiếu bị huỷ. Cần nhập lý do.",
+      reasonLabel: "Lý do",
+      reasonPlaceholder: "Ví dụ: NCC giao thêm thùng hàng tặng, đã đối chiếu phiếu giao",
+      cancelPendingDescription:
+        "Huỷ phiếu đang chờ duyệt? Chưa ghi nhận tồn nên huỷ được; không thể khôi phục.",
     },
     poNotFoundTitle: "Không tìm thấy đơn đặt hàng của phiếu",
     poNotFoundDescription:
@@ -393,6 +428,7 @@ export const UI_LABELS = {
     // Card thao tác khi không còn nút cấp phiếu
     noActions: {
       viewOnly: "Bạn chỉ có quyền xem phiếu nhận.",
+      pendingApproval: "Đang chờ Quản lý kho duyệt (cần quyền duyệt phiếu nhận).",
       inQc: "QC thực hiện theo từng dòng ở bảng Dòng nhận.",
       inPutaway: "Đang chờ cất hàng lên vị trí lưu trữ (putaway).",
     },
@@ -400,6 +436,8 @@ export const UI_LABELS = {
     noCountLines: "Chưa có dòng kiểm đếm.",
     linesConfirmedDescription: "Phiếu đã xác nhận chỉ còn xem; QC thực hiện theo từng dòng.",
     linesCancelledDescription: "Phiếu đã huỷ trước khi xác nhận — không nhập kho, chỉ còn xem.",
+    linesPendingDescription:
+      "Số đã đếm đang chờ duyệt — chưa ghi nhận tồn, không sửa được. Dòng vượt dung sai được đánh dấu.",
     dateRangeInvalid: "Ngày bắt đầu sau ngày kết thúc — không có phiếu nào khớp.",
   },
   transfer: TRANSFER_UI_LABELS,
@@ -668,7 +706,8 @@ export const RECEIPT_ERROR_MESSAGES = {
   // BR-01 (docs 03 §6)
   PURCHASE_ORDER_NOT_RECEIVABLE:
     "Đơn đặt hàng chưa chốt hoặc đã nhận xong nên không nhận hàng được. Dữ liệu đã được tải lại.",
-  // BR-02 (docs 03 §6)
+  // BR-02 (docs 03 §6). Từ SCRUM-477 BE không còn từ chối đếm vượt dung sai (phiếu chờ Quản lý kho duyệt);
+  // giữ câu cho lỗi ràng buộc DB (trigger BR-04) nếu có
   OVER_RECEIPT_TOLERANCE: "Số lượng nhận vượt quá SL đặt cộng dung sai của nhà cung cấp",
   // BR-03 / BR-06 (docs 03 §6)
   RECEIPT_LOT_DATA_INVALID:
@@ -678,6 +717,15 @@ export const RECEIPT_ERROR_MESSAGES = {
   LOCATION_AREA_MISMATCH: "Mã vị trí không đúng loại khu của kho này (nhận hàng / QC / cách ly)",
   INVALID_RECEIPT_TRANSITION:
     "Phiếu nhận đã đổi trạng thái nên không thực hiện được thao tác này. Dữ liệu đã được tải lại.",
+  // BR-RCP-001 (docs 03 §4 bước 5): bốn mắt + bắt buộc lý do khi quyết định phiếu chờ duyệt
+  RECEIPT_SELF_APPROVAL:
+    "Người đã đếm hoặc đã gửi phiếu đi duyệt không được tự quyết định phiếu đó — cần Quản lý kho khác",
+  RECEIPT_APPROVAL_REASON_REQUIRED: "Nhập lý do",
+  // Từ chối phần vượt không cắt được dòng đã dán tem thùng: duyệt, hoặc huỷ phiếu rồi đếm lại
+  RECEIPT_PACKAGES_EXCEED_LINE:
+    "Cắt phần vượt sẽ làm dòng ít hơn số lượng trong các thùng đã dán tem — hãy duyệt phiếu, hoặc huỷ phiếu rồi đếm lại",
+  RECEIPT_LINE_HAS_PACKAGES:
+    "Cắt phần vượt sẽ bỏ một dòng đã dán tem thùng — hãy duyệt phiếu, hoặc huỷ phiếu rồi đếm lại",
   // BR-08 (docs 03 §6)
   QC_QUANTITY_MISMATCH: "Tổng Đạt + Cách ly + Không đạt phải bằng số lượng đã chuyển sang khu QC",
   // BE gap: cùng mã cho trùng dòng PO + lô, dòng không thuộc PO, khu cách ly trùng khu không đạt…
@@ -703,6 +751,7 @@ export const RECEIPT_FIELD_MESSAGES = {
   expiryNotAfterReceipt: "Hạn dùng phải sau ngày nhận",
   overLimit: "Tổng SL nhận của dòng PO vượt SL đặt cộng dung sai",
   duplicateLot: "Dòng PO này đã có một dòng cùng số lô — gộp SL của một lô vào một dòng",
+  approvalReasonRequired: "Nhập lý do",
   qcSum: "Tổng Đạt + Cách ly + Không đạt phải bằng SL đã chuyển sang khu QC",
   qcQuantity: "Số lượng phải là số nguyên ≥ 0",
   qcLocationRequired: "Nhập mã khu cách ly",
@@ -815,6 +864,11 @@ export const TOAST_MESSAGES = {
     cancelled: "Đã huỷ phiếu nhận",
     movedToQc: "Đã chuyển hàng sang khu QC",
     inspected: "Đã ghi nhận kết luận QC",
+    sentForApproval: "Phiếu vượt dung sai — đã gửi Quản lý kho duyệt, chưa ghi nhận tồn",
+    approved: "Đã duyệt — đã ghi nhận đủ số lượng nhận",
+    excessRejected: "Đã từ chối phần vượt — chỉ ghi nhận tới mức dung sai",
+    excessRejectedNothingLeft:
+      "Đã từ chối phần vượt — không còn gì trong dung sai, phiếu đã bị huỷ",
   },
   transfer: TRANSFER_TOAST_MESSAGES,
   transferPack: TRANSFER_PACK_TOAST_MESSAGES,

@@ -7,6 +7,7 @@ import { useCan, usePermissionChecker } from "@/lib/auth";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { allowedReceiptActions } from "@/features/receipt/lifecycle";
 import { useGoodsReceipt } from "@/features/receipt/queries";
+import { Alert } from "@/components/shared/Alert";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 
 import { InspectDialog } from "./detail/InspectDialog";
@@ -60,6 +61,19 @@ function ReceiptDetailBody({ id }: { id: string }) {
               canUpdate={can(GOODS_RECEIPT_PERMISSIONS.update)}
               onDirtyChange={onDirtyChange}
             />
+          ) : receipt.status === RECEIPT_STATUS.PENDING_APPROVAL ? (
+            // BR-RCP-001: đếm vượt dung sai → chờ Quản lý kho duyệt, CHƯA ghi nhận tồn; số đếm chỉ còn xem
+            <>
+              <Alert tone="warning" title={UI_LABELS.receipt.overTolerance.pendingTitle}>
+                {UI_LABELS.receipt.overTolerance.pendingDescription}
+              </Alert>
+              <Section
+                title="Dòng chờ duyệt"
+                description={UI_LABELS.receipt.linesPendingDescription}
+              >
+                <ReceiptLinesTable receipt={receipt} draft />
+              </Section>
+            </>
           ) : receipt.status === RECEIPT_STATUS.CANCELLED ? (
             // Huỷ chỉ từ DRAFT (BR-05) → chưa nhập kho, không có QC / putaway: hiện như kết quả kiểm đếm
             <Section

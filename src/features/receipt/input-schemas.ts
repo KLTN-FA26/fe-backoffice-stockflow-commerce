@@ -110,6 +110,17 @@ export function buildReceiptLinesSchema(ctx: ReceiptLinesContext) {
     });
 }
 
+/* ── Duyệt ngoại lệ (BR-RCP-001) ─────────────────────────────────────── */
+
+/** `ReceiptDecisionRequest.reason` @NotBlank @Size(max = 500): duyệt hoặc từ chối phần vượt đều cần lý do. */
+export const receiptDecisionInputSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(1, MSG.approvalReasonRequired)
+    .max(RECEIPT_LIMITS.approvalReasonMax, MSG.tooLong),
+});
+
 /* ── QC ──────────────────────────────────────────────────────────────── */
 
 export const moveToQcInputSchema = z.object({

@@ -51,6 +51,7 @@ export const DASHBOARD_PO_PENDING_STATUSES = ["PENDING_APPROVAL"] as const;
 // GoodsReceiptStatus.java / docs 03 §5.1: còn đang xử lý (chưa CLOSED / CANCELLED).
 export const DASHBOARD_RECEIPT_PROCESSING_STATUSES = [
   "DRAFT",
+  "PENDING_APPROVAL",
   "CONFIRMED",
   "IN_QC",
   "IN_PUTAWAY",

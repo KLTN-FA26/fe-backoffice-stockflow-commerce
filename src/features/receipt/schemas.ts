@@ -9,7 +9,12 @@
 
 import { z } from "zod";
 
-import { QC_OUTCOME_API, RECEIPT_API_STATUSES, RECEIPT_QC_PROGRESS_API } from "@/constants";
+import {
+  QC_OUTCOME_API,
+  RECEIPT_API_STATUSES,
+  RECEIPT_APPROVAL_DECISION_API,
+  RECEIPT_QC_PROGRESS_API,
+} from "@/constants";
 import { bePageSchema } from "@/lib/api/page-schema";
 
 /* ── Enums ───────────────────────────────────────────────────────────── */
@@ -17,6 +22,7 @@ import { bePageSchema } from "@/lib/api/page-schema";
 export const receiptApiStatusSchema = z.enum(RECEIPT_API_STATUSES);
 export const qcProgressSchema = z.enum(RECEIPT_QC_PROGRESS_API);
 export const qcOutcomeSchema = z.enum(QC_OUTCOME_API);
+export const receiptApprovalDecisionSchema = z.enum(RECEIPT_APPROVAL_DECISION_API);
 
 /* ── DTO: goods receipt ──────────────────────────────────────────────── */
 
@@ -51,6 +57,23 @@ export const beReceiptLineSchema = z.object({
   movedToQcAt: z.string().nullish(),
   quantityForPutaway: z.number().int().min(0),
   inspections: z.array(beInspectionSchema).default([]),
+  // Cảnh báo không chặn của BE: `OVER_TOLERANCE` (BR-RCP-001), `EXPIRY_NEAR` (BR-06)
+  warnings: z.array(z.string()).default([]),
+});
+
+/**
+ * BE `GoodsReceiptResponse.Approval` (SCRUM-477, BR-RCP-001) — duyệt ngoại lệ của Quản lý kho.
+ * `decision` và các field sau nó null khi phiếu còn chờ (`Pending Approval`).
+ */
+export const beReceiptApprovalSchema = z.object({
+  requestedAt: z.string(),
+  requestedBy: z.string(),
+  requestedByName: z.string().nullish(),
+  decision: receiptApprovalDecisionSchema.nullish(),
+  decidedAt: z.string().nullish(),
+  decidedBy: z.string().nullish(),
+  decidedByName: z.string().nullish(),
+  reason: z.string().nullish(),
 });
 
 /** BE `GoodsReceiptResponse` — một phiếu kèm dòng và kết quả QC. */
@@ -69,6 +92,9 @@ export const beGoodsReceiptSchema = z.object({
   confirmedBy: z.string().nullish(),
   closedAt: z.string().nullish(),
   lines: z.array(beReceiptLineSchema).default([]),
+  warnings: z.array(z.string()).default([]),
+  // null với phiếu chưa từng cần Quản lý kho duyệt
+  approval: beReceiptApprovalSchema.nullish(),
 });
 
 /** BE `GoodsReceiptRowResponse` — một dòng danh sách, không kèm dòng nhận. */

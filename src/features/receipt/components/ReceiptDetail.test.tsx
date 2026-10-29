@@ -321,3 +321,200 @@ describe("ReceiptDetail — action-gating theo trạng thái + quyền (docs 03 
     expect(await screen.findByText("Chưa có dòng kiểm đếm.")).toBeInTheDocument();
   });
 });
+
+/* ── BR-RCP-001 (SCRUM-477): nhận vượt dung sai chờ Quản lý kho duyệt ─────────────────────────── */
+
+describe("ReceiptDetail — đếm vượt dung sai chờ Quản lý kho duyệt (BR-RCP-001)", () => {
+  const OVER_LINE = apiLine({
+    id: "l-over",
+    quantity: 110,
+    warnings: ["OVER_TOLERANCE"],
+    // Phiếu chưa ghi nhận: dòng 3 bước vẫn báo AWAITING_MOVE_TO_QC (BE không tính theo trạng thái phiếu)
+  });
+  const REQUESTER = "c0ffee00-0000-4000-8000-0000000000aa";
+
+  const pending = (overrides: Partial<GoodsReceiptApiDto> = {}) =>
+    apiReceipt({
+      status: "PENDING_APPROVAL",
+      lines: [OVER_LINE],
+      warnings: ["OVER_TOLERANCE"],
+      approval: {
+        requestedAt: "2026-10-09T03:00:00Z",
+        requestedBy: REQUESTER,
+        requestedByName: "Lan (kho)",
+        decision: null,
+      },
+      ...overrides,
+    });
+
+  function renderPending(
+    permissions: readonly PermissionCode[],
+    receipt: GoodsReceiptApiDto = pending(),
+  ) {
+    const spies = mockReceiptApi(
+      permissions,
+      { [PATH]: () => receipt, [`/purchase-orders/${PO_ID}`]: () => receivablePo },
+      {
+        [`${PATH}/approval`]: () => ({ ...receipt, status: "IN_QC" }),
+        [`${PATH}/excess-rejection`]: () => ({ ...receipt, status: "IN_QC" }),
+        [`${PATH}/cancellation`]: () => ({ ...receipt, status: "CANCELLED" }),
+        [`${PATH}/confirmation`]: () => ({ ...receipt, status: "PENDING_APPROVAL" }),
+      },
+    );
+    renderReceiptScreen(<ReceiptDetail id={RECEIPT_ID} />);
+    return spies;
+  }
+
+  it("Draft đã lưu có dòng vượt dung sai: cảnh báo, phiếu sẽ sang 'Chờ duyệt'; xác nhận gửi duyệt", async () => {
+    const user = userEvent.setup();
+    const { post } = renderPending(
+      ROLES.warehouseManager,
+      apiReceipt({ lines: [OVER_LINE], warnings: ["OVER_TOLERANCE"] }),
+    );
+    expect(
+      await screen.findByText(/vượt SL đặt cộng dung sai của nhà cung cấp/),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Vượt dung sai NCC — cần Quản lý kho duyệt")).toBeInTheDocument();
+    expect(screen.getByText(/chuyển sang “Chờ duyệt”/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Gửi Quản lý kho duyệt/ }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/chưa ghi nhận tồn/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Gửi Quản lý kho duyệt" }));
+    await waitFor(() => expect(post).toHaveBeenCalledWith(`${PATH}/confirmation`, undefined));
+  });
+
+  it("Pending Approval: banner chờ duyệt + dòng đánh dấu vượt dung sai; không còn form đếm / xác nhận", async () => {
+    renderPending(ROLES.warehouseManager);
+    expect(await screen.findByText("Chờ Quản lý kho duyệt")).toBeInTheDocument();
+    expect(screen.getByText("Vượt dung sai NCC — cần Quản lý kho duyệt")).toBeInTheDocument();
+    expect(screen.queryByText("Kiểm đếm")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Xác nhận nhập kho/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Sửa kiểm đếm/ })).not.toBeInTheDocument();
+    // Ai gửi duyệt (tên BE trả kèm) và đang chờ quyết định
+    expect(screen.getByText("Lan (kho)")).toBeInTheDocument();
+    expect(screen.getByText("Đang chờ")).toBeInTheDocument();
+  });
+
+  it("có quyền goods-receipts:APPROVE → Duyệt / Từ chối phần vượt / Huỷ phiếu", async () => {
+    renderPending(ROLES.warehouseManager);
+    expect(await screen.findByRole("button", { name: /Duyệt nhận vượt dung sai/ })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /Từ chối phần vượt/ })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /Huỷ phiếu/ })).toBeEnabled();
+  });
+
+  it("thiếu quyền APPROVE (NV kho) → không thấy nút duyệt, vẫn huỷ được phiếu chờ duyệt", async () => {
+    renderPending(ROLES.warehouseStaff);
+    expect(await screen.findByRole("button", { name: /Huỷ phiếu/ })).toBeEnabled();
+    expect(
+      screen.queryByRole("button", { name: /Duyệt nhận vượt dung sai/ }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Từ chối phần vượt/ })).not.toBeInTheDocument();
+  });
+
+  it("chỉ xem → báo đang chờ Quản lý kho duyệt, không có nút nào", async () => {
+    renderPending(ROLES.qcStaff);
+    expect(await screen.findByText(/Đang chờ Quản lý kho duyệt/)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Duyệt|Từ chối|Huỷ phiếu/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("Duyệt: bắt buộc lý do; gửi POST /approval { reason }", async () => {
+    const user = userEvent.setup();
+    const { post } = renderPending(ROLES.warehouseManager);
+    await user.click(await screen.findByRole("button", { name: /Duyệt nhận vượt dung sai/ }));
+    const dialog = await screen.findByRole("dialog");
+    const submit = within(dialog).getByRole("button", { name: "Duyệt nhận vượt dung sai" });
+    expect(submit).toBeDisabled();
+    await user.type(within(dialog).getByRole("textbox"), "  NCC giao thêm hàng tặng ");
+    expect(submit).toBeEnabled();
+    await user.click(submit);
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(`${PATH}/approval`, { reason: "NCC giao thêm hàng tặng" }),
+    );
+  });
+
+  it("Từ chối phần vượt: bắt buộc lý do; gửi POST /excess-rejection { reason }", async () => {
+    const user = userEvent.setup();
+    const { post } = renderPending(ROLES.warehouseManager);
+    await user.click(await screen.findByRole("button", { name: /Từ chối phần vượt/ }));
+    const dialog = await screen.findByRole("dialog");
+    const submit = within(dialog).getByRole("button", { name: "Từ chối phần vượt" });
+    expect(submit).toBeDisabled();
+    await user.type(within(dialog).getByRole("textbox"), "Trả phần vượt cho NCC");
+    await user.click(submit);
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(`${PATH}/excess-rejection`, {
+        reason: "Trả phần vượt cho NCC",
+      }),
+    );
+  });
+
+  it("4 mắt: BE từ chối người tự duyệt → câu tiếng Việt TRONG dialog, lý do đã gõ được giữ", async () => {
+    const user = userEvent.setup();
+    const { post } = renderPending(ROLES.warehouseManager);
+    post.mockImplementation(async (url: string) => {
+      if (url === `${PATH}/approval`)
+        throw new ApiError(409, "RECEIPT_SELF_APPROVAL", "A goods receipt cannot be decided by …");
+      return { data: pending() };
+    });
+    await user.click(await screen.findByRole("button", { name: /Duyệt nhận vượt dung sai/ }));
+    const dialog = await screen.findByRole("dialog");
+    await user.type(within(dialog).getByRole("textbox"), "tôi duyệt");
+    await user.click(within(dialog).getByRole("button", { name: "Duyệt nhận vượt dung sai" }));
+    expect(
+      await within(dialog).findByText(/không được tự quyết định phiếu đó/),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByRole("textbox")).toHaveValue("tôi duyệt");
+  });
+
+  it("đã duyệt: phiếu hiện người duyệt, thời điểm và lý do; tồn đã ghi nhận nên có QC / chờ cất như thường", async () => {
+    renderPending(
+      ROLES.warehouseManager,
+      apiReceipt({
+        status: "IN_QC",
+        confirmedAt: "2026-10-09T04:00:00Z",
+        lines: [OVER_LINE],
+        approval: {
+          requestedAt: "2026-10-09T03:00:00Z",
+          requestedBy: REQUESTER,
+          requestedByName: "Lan (kho)",
+          decision: "APPROVED",
+          decidedAt: "2026-10-09T04:00:00Z",
+          decidedBy: "0dd0c0de-0000-4000-8000-0000000000bb",
+          decidedByName: "Minh (quản lý kho)",
+          reason: "NCC giao thêm hàng tặng",
+        },
+      }),
+    );
+    expect(await screen.findByText("Đã duyệt — ghi nhận đủ SL đã đếm")).toBeInTheDocument();
+    expect(screen.getByText("Minh (quản lý kho)")).toBeInTheDocument();
+    expect(screen.getByText("NCC giao thêm hàng tặng")).toBeInTheDocument();
+    expect(screen.queryByText("Chờ Quản lý kho duyệt")).not.toBeInTheDocument();
+  });
+
+  it("đã từ chối phần vượt: hiện quyết định EXCESS_REJECTED bằng tiếng Việt", async () => {
+    renderPending(
+      ROLES.warehouseManager,
+      apiReceipt({
+        status: "IN_PUTAWAY",
+        confirmedAt: "2026-10-09T04:00:00Z",
+        lines: [apiLine({ quantity: 105, qcProgress: "INSPECTED" })],
+        approval: {
+          requestedAt: "2026-10-09T03:00:00Z",
+          requestedBy: REQUESTER,
+          decision: "EXCESS_REJECTED",
+          decidedAt: "2026-10-09T04:00:00Z",
+          decidedBy: "0dd0c0de-0000-4000-8000-0000000000bb",
+          reason: "Trả 5 thùng",
+        },
+      }),
+    );
+    expect(
+      await screen.findByText("Đã từ chối phần vượt — chỉ ghi nhận tới dung sai"),
+    ).toBeInTheDocument();
+    // BE chưa trả tên: hiện id người duyệt
+    expect(screen.getByText("0dd0c0de-0000-4000-8000-0000000000bb")).toBeInTheDocument();
+  });
+});

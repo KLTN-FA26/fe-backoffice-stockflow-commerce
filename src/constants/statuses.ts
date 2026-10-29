@@ -116,9 +116,14 @@ export const PO_DELIVERY_ATTEMPT_STATUS = {
 
 export const PROPOSAL_STATUSES = ["Draft Proposal", "Reviewed", "Converted"] as const;
 
-/** Trạng thái phiếu nhận — nguyên văn docs 03 §5.1 (6 trạng thái, thứ tự vòng đời). */
+/**
+ * Trạng thái phiếu nhận — nguyên văn docs 03 §5.1 (6 trạng thái, thứ tự vòng đời), thêm `Pending Approval`
+ * (SCRUM-477, BR-RCP-001): đếm vượt dung sai chờ Quản lý kho duyệt, chưa ghi nhận tồn. Docs 03 §5.1 chưa
+ * có trạng thái này — tên theo `Pending Approval` của PO (docs 02 §5); cần bổ sung vào docs.
+ */
 export const RECEIPT_STATUSES = [
   "Draft",
+  "Pending Approval",
   "Confirmed",
   "In QC",
   "In Putaway",
@@ -133,11 +138,13 @@ export const RECEIPT_STATUS = {
   DRAFT: "Draft",
   IN_PUTAWAY: "In Putaway",
   IN_QC: "In QC",
+  PENDING_APPROVAL: "Pending Approval",
 } as const satisfies Record<string, ReceiptStatus>;
 
 /** Mã trạng thái BE `GoodsReceiptStatus` (PR #62, SCRUM-435) — map 1-1 với `RECEIPT_STATUSES`. */
 export const RECEIPT_API_STATUSES = [
   "DRAFT",
+  "PENDING_APPROVAL",
   "CONFIRMED",
   "IN_QC",
   "IN_PUTAWAY",
@@ -148,6 +155,7 @@ export const RECEIPT_API_STATUSES = [
 /** BE ↔ FE cho trạng thái phiếu nhận. Đảo chiều qua `RECEIPT_API_STATUS_BY_STATUS`. */
 export const RECEIPT_STATUS_BY_API = {
   DRAFT: "Draft",
+  PENDING_APPROVAL: "Pending Approval",
   CONFIRMED: "Confirmed",
   IN_QC: "In QC",
   IN_PUTAWAY: "In Putaway",
@@ -157,12 +165,22 @@ export const RECEIPT_STATUS_BY_API = {
 
 export const RECEIPT_API_STATUS_BY_STATUS = {
   Draft: "DRAFT",
+  "Pending Approval": "PENDING_APPROVAL",
   Confirmed: "CONFIRMED",
   "In QC": "IN_QC",
   "In Putaway": "IN_PUTAWAY",
   Closed: "CLOSED",
   Cancelled: "CANCELLED",
 } as const satisfies Record<ReceiptStatus, ReceiptApiStatus>;
+
+/**
+ * Quyết định của Quản lý kho với phiếu đếm vượt dung sai (BE `ReceiptApproval.Decision`, BR-RCP-001):
+ * `APPROVED` ghi nhận đủ SL đã đếm; `EXCESS_REJECTED` từ chối phần vượt — chỉ ghi nhận tới dung sai.
+ */
+export const RECEIPT_APPROVAL_DECISION_API = ["APPROVED", "EXCESS_REJECTED"] as const;
+
+/** Cảnh báo BE trên dòng / phiếu chưa ghi nhận mà SL đếm vượt dung sai của dòng PO (BR-RCP-001). */
+export const RECEIPT_WARNING_OVER_TOLERANCE = "OVER_TOLERANCE";
 
 /**
  * Tiến độ QC của một dòng nhận — BE `GoodsReceipts.QcProgress` (luồng 3 bước, docs 03 §5.2).
@@ -503,6 +521,7 @@ export type PoCancellationDeliveryStatus = (typeof PO_CANCELLATION_DELIVERY_STAT
 export type PoDeliveryAttemptStatus = (typeof PO_DELIVERY_ATTEMPT_STATUSES)[number];
 export type ReceiptStatus = (typeof RECEIPT_STATUSES)[number];
 export type ReceiptApiStatus = (typeof RECEIPT_API_STATUSES)[number];
+export type ReceiptApprovalDecisionApi = (typeof RECEIPT_APPROVAL_DECISION_API)[number];
 export type ReceiptQcProgressApi = (typeof RECEIPT_QC_PROGRESS_API)[number];
 export type QcOutcomeApi = (typeof QC_OUTCOME_API)[number];
 export type QcOutcomeStatus = (typeof QC_OUTCOME_STATUSES)[number];

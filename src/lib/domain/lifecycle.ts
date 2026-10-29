@@ -93,11 +93,15 @@ export const PO_TRANSITIONS: Record<PoStatus, readonly PoStatus[]> = {
 
 /* ── Module 03: Receipt ──────────────────────────────────────────────── */
 
-// ReceiptStatus = "Draft" | "Confirmed" | "In QC" | "In Putaway" | "Closed" | "Cancelled"
-// docs/warehouse/03-receipt §5.1 — bảng "Chuyển tiếp"; BE GoodsReceiptStatus (PR #62)
+// ReceiptStatus = "Draft" | "Pending Approval" | "Confirmed" | "In QC" | "In Putaway" | "Closed" | "Cancelled"
+// docs/warehouse/03-receipt §5.1 — bảng "Chuyển tiếp"; BE GoodsReceiptStatus (PR #62, SCRUM-477)
 export const RECEIPT_TRANSITIONS: Record<ReceiptStatus, readonly ReceiptStatus[]> = {
-  // BR-05: chỉ huỷ được khi chưa Confirmed; đã Confirmed thì sửa bằng điều chỉnh tồn
-  Draft: ["Confirmed", "Cancelled"],
+  // BR-05: chỉ huỷ được khi chưa Confirmed; đã Confirmed thì sửa bằng điều chỉnh tồn.
+  // BR-02 / BR-RCP-001 (docs 03 §4 bước 5): đếm vượt dung sai → Pending Approval, chờ Quản lý kho duyệt
+  Draft: ["Pending Approval", "Confirmed", "Cancelled"],
+  // Quản lý kho duyệt (đủ SL) hoặc từ chối phần vượt (tới dung sai) → ghi nhận như Confirmed; từ chối
+  // mà không còn gì trong dung sai thì phiếu Cancelled. Chưa ghi nhận tồn nên huỷ được như Draft.
+  "Pending Approval": ["In QC", "In Putaway", "Cancelled"],
   // Có dòng cần QC → In QC, không có → In Putaway (BR-07)
   Confirmed: ["In QC", "In Putaway"],
   // Hết phần Accepted phải putaway → đi thẳng Closed

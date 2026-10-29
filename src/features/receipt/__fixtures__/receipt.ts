@@ -56,6 +56,7 @@ export function apiLine(overrides: Partial<ReceiptLineDto> = {}): ReceiptLineDto
     movedToQcAt: null,
     quantityForPutaway: 0,
     inspections: [],
+    warnings: [],
     ...overrides,
   };
 }
@@ -77,6 +78,8 @@ export function apiReceipt(overrides: Partial<GoodsReceiptApiDto> = {}): GoodsRe
     confirmedBy: null,
     closedAt: null,
     lines: [],
+    warnings: [],
+    approval: null,
     ...overrides,
   };
 }
