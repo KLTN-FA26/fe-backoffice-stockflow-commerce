@@ -7,6 +7,8 @@ import { ApiError } from "@/lib/api/error";
 import {
   PO_ID,
   RECEIPT_ID,
+  SUPPLIER_ID,
+  apiBlindReceipt,
   SOFA_PO_LINE_ID,
   TABLE_PO_LINE_ID,
   apiLine,
@@ -516,5 +518,296 @@ describe("ReceiptDetail — đếm vượt dung sai chờ Quản lý kho duyệt
     ).toBeInTheDocument();
     // BE chưa trả tên: hiện id người duyệt
     expect(screen.getByText("0dd0c0de-0000-4000-8000-0000000000bb")).toBeInTheDocument();
+  });
+});
+
+/* ── BR-RCP-002 (SCRUM-478): hàng về không có PO ───────────────────────────────────────────── */
+
+describe("ReceiptDetail — phiếu không có PO (BR-RCP-002)", () => {
+  const SOFA_LINE = apiLine({
+    id: "b-sofa",
+    purchaseOrderLineId: null,
+    purchaseOrderLineNo: null,
+    sku: "SOFA-3S-GREY",
+    quantity: 4,
+    lotNumber: null,
+    expiryDate: null,
+    qcRequired: false,
+    qcProgress: "NOT_REQUIRED",
+    quantityForPutaway: 4,
+  });
+  const REFERENCED_PO = { ...receivablePo, purchaseOrderId: "po-ref", poNumber: "PO-REF-1" };
+
+  /** Radix Select cần các hàm con trỏ mà jsdom không có (cùng cách các fixture khác). */
+  function polyfillSelect() {
+    Element.prototype.hasPointerCapture ??= () => false;
+    Element.prototype.releasePointerCapture ??= () => {};
+    Element.prototype.scrollIntoView ??= () => {};
+  }
+
+  function renderBlind(
+    permissions: readonly PermissionCode[],
+    initial: GoodsReceiptApiDto = apiBlindReceipt(),
+  ) {
+    polyfillSelect();
+    // Phiếu "trên máy chủ": các PUT đổi nó, nên lần tải lại sau khi lưu thấy kết quả mới
+    let receipt = initial;
+    const spies = mockReceiptApi(
+      permissions,
+      {
+        [PATH]: () => receipt,
+        // Phiếu không có PO không đọc PO của chính nó; chỉ danh sách đơn của NCC để gắn tham chiếu
+        "/purchase-orders": () => ({
+          items: [REFERENCED_PO],
+          page: 0,
+          size: 200,
+          totalElements: 1,
+          totalPages: 1,
+          hasNext: false,
+          hasPrevious: false,
+        }),
+      },
+      {
+        [`${PATH}/confirmation`]: () => ({ ...receipt, status: "PENDING_APPROVAL" }),
+        [`${PATH}/approval`]: () => ({ ...receipt, status: "IN_PUTAWAY" }),
+        [`${PATH}/rejection`]: () => ({ ...receipt, status: "CANCELLED" }),
+        [`${PATH}/cancellation`]: () => ({ ...receipt, status: "CANCELLED" }),
+      },
+      {
+        [`${PATH}/lines`]: () => {
+          receipt = { ...receipt, lines: [SOFA_LINE] };
+          return receipt;
+        },
+        [`${PATH}/referenced-purchase-order`]: () => {
+          receipt = {
+            ...receipt,
+            referencedPurchaseOrderId: "po-ref",
+            referencedPurchaseOrderNumber: "PO-REF-1",
+          };
+          return receipt;
+        },
+      },
+    );
+    renderReceiptScreen(<ReceiptDetail id={RECEIPT_ID} />);
+    return spies;
+  }
+
+  it("hiện NCC, lý do và 'Không có PO' thay cho đơn đặt hàng; không đọc PO của phiếu", async () => {
+    const { get } = renderBlind(ROLES.warehouseManager);
+    expect(await screen.findByText("Xưởng gỗ Việt")).toBeInTheDocument();
+    expect(screen.getByText("NCC tặng kèm hàng mẫu")).toBeInTheDocument();
+    expect(screen.getByText("Không có PO")).toBeInTheDocument();
+    expect(get.mock.calls.some(([url]) => url === `/purchase-orders/${PO_ID}`)).toBe(false);
+  });
+
+  it("Draft: form đếm gọi hàng bằng SKU; lưu gửi PUT với sku (không có dòng PO), không cần quyền đọc PO", async () => {
+    const user = userEvent.setup();
+    // NV kho: thiếu purchase-orders:READ nhưng đếm phiếu không có PO được (chỉ cần goods-receipts:UPDATE)
+    const { put } = renderBlind(ROLES.warehouseStaff);
+    expect(await screen.findByText(/Kiểm đếm \(gọi hàng bằng SKU\)/)).toBeInTheDocument();
+    await user.type(screen.getByLabelText("SKU dòng 1"), "sofa-3s-grey");
+    await user.clear(screen.getByLabelText("SL nhận dòng 1"));
+    await user.type(screen.getByLabelText("SL nhận dòng 1"), "4");
+    await user.type(screen.getByLabelText("Mã vị trí nhận dòng 1"), "hcm-rcv01");
+    await user.click(screen.getByRole("button", { name: /Lưu kiểm đếm/ }));
+    await waitFor(() => expect(put).toHaveBeenCalled());
+    expect(put.mock.calls[0]?.[0]).toBe(`${PATH}/lines`);
+    expect(put.mock.calls[0]?.[1]).toEqual({
+      lines: [
+        {
+          sku: "SOFA-3S-GREY",
+          quantity: 4,
+          lotNumber: undefined,
+          expiryDate: undefined,
+          locationCode: "HCM-RCV01",
+          note: undefined,
+        },
+      ],
+    });
+    // Kết quả BE trả về: dòng theo SKU và nhắc phiếu sẽ chờ duyệt
+    expect(await screen.findByText("Kết quả kiểm đếm đã lưu")).toBeInTheDocument();
+    expect(screen.getByText(/chờ Quản lý kho duyệt, chưa ghi nhận tồn/)).toBeInTheDocument();
+  });
+
+  it("Draft: thiếu SKU → lỗi inline, không gọi API; lỗi BE theo ô (SKU lạ) hiện đúng ô", async () => {
+    const user = userEvent.setup();
+    const { put } = renderBlind(ROLES.warehouseManager);
+    await screen.findByLabelText("SKU dòng 1");
+    await user.click(screen.getByRole("button", { name: /Lưu kiểm đếm/ }));
+    expect(await screen.findByText("Nhập SKU")).toBeInTheDocument();
+    expect(put).not.toHaveBeenCalled();
+
+    put.mockImplementationOnce(async () => {
+      throw new ApiError(409, "INVENTORY_ITEM_NOT_FOUND", "No inventory item with SKU NOPE", {
+        "lines[0].sku": "No inventory item with SKU NOPE",
+      });
+    });
+    await user.type(screen.getByLabelText("SKU dòng 1"), "nope");
+    await user.type(screen.getByLabelText("Mã vị trí nhận dòng 1"), "HCM-RCV01");
+    await user.click(screen.getByRole("button", { name: /Lưu kiểm đếm/ }));
+    expect(await screen.findAllByText("No inventory item with SKU NOPE")).not.toHaveLength(0);
+  });
+
+  it("Draft đã có dòng: xác nhận = 'Gửi Quản lý kho duyệt' (không ghi nhận), kể cả không vượt dung sai", async () => {
+    const user = userEvent.setup();
+    const { post } = renderBlind(ROLES.warehouseManager, apiBlindReceipt({ lines: [SOFA_LINE] }));
+    await user.click(await screen.findByRole("button", { name: "Gửi Quản lý kho duyệt" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/không có PO không ghi nhận ngay/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Gửi Quản lý kho duyệt" }));
+    await waitFor(() => expect(post).toHaveBeenCalledWith(`${PATH}/confirmation`, undefined));
+  });
+
+  it("Pending Approval + APPROVE: Duyệt / Từ chối phiếu / Huỷ — không có 'Từ chối phần vượt'", async () => {
+    renderBlind(
+      ROLES.warehouseManager,
+      apiBlindReceipt({
+        status: "PENDING_APPROVAL",
+        lines: [SOFA_LINE],
+        approval: {
+          requestedAt: "2026-10-09T03:00:00Z",
+          requestedBy: "u-clerk",
+          requestedByName: "Lan (kho)",
+          decision: null,
+        },
+      }),
+    );
+    expect(
+      await screen.findByRole("button", { name: "Duyệt nhận hàng không có PO" }),
+    ).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Từ chối phiếu" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /Huỷ phiếu/ })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: /Từ chối phần vượt/ })).not.toBeInTheDocument();
+    expect(screen.getByText(/luôn cần Quản lý kho duyệt/)).toBeInTheDocument();
+  });
+
+  it("thiếu quyền APPROVE (NV kho) → chỉ huỷ được; không thấy Duyệt / Từ chối", async () => {
+    renderBlind(
+      ROLES.warehouseStaff,
+      apiBlindReceipt({ status: "PENDING_APPROVAL", lines: [SOFA_LINE] }),
+    );
+    expect(await screen.findByRole("button", { name: /Huỷ phiếu/ })).toBeEnabled();
+    expect(
+      screen.queryByRole("button", { name: /Duyệt nhận hàng không có PO/ }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Từ chối phiếu" })).not.toBeInTheDocument();
+  });
+
+  it("Từ chối phiếu: bắt buộc lý do; gửi POST /rejection { reason }", async () => {
+    const user = userEvent.setup();
+    const { post } = renderBlind(
+      ROLES.warehouseManager,
+      apiBlindReceipt({ status: "PENDING_APPROVAL", lines: [SOFA_LINE] }),
+    );
+    await user.click(await screen.findByRole("button", { name: "Từ chối phiếu" }));
+    const dialog = await screen.findByRole("dialog");
+    const submit = within(dialog).getByRole("button", { name: "Từ chối phiếu" });
+    expect(submit).toBeDisabled();
+    await user.type(within(dialog).getByRole("textbox"), " không phải hàng của ta ");
+    await user.click(submit);
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(`${PATH}/rejection`, { reason: "không phải hàng của ta" }),
+    );
+  });
+
+  it("Duyệt phiếu không có PO: POST /approval { reason }; 4 mắt: lỗi hiện trong dialog", async () => {
+    const user = userEvent.setup();
+    const { post } = renderBlind(
+      ROLES.warehouseManager,
+      apiBlindReceipt({ status: "PENDING_APPROVAL", lines: [SOFA_LINE] }),
+    );
+    post.mockImplementationOnce(async () => {
+      throw new ApiError(409, "RECEIPT_SELF_APPROVAL", "A goods receipt cannot be decided by …");
+    });
+    await user.click(await screen.findByRole("button", { name: "Duyệt nhận hàng không có PO" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.type(within(dialog).getByRole("textbox"), "đã đối chiếu");
+    await user.click(within(dialog).getByRole("button", { name: "Duyệt nhận hàng không có PO" }));
+    expect(
+      await within(dialog).findByText(/không được tự quyết định phiếu đó/),
+    ).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Duyệt nhận hàng không có PO" }));
+    await waitFor(() =>
+      expect(post).toHaveBeenLastCalledWith(`${PATH}/approval`, { reason: "đã đối chiếu" }),
+    );
+  });
+
+  it("đã từ chối: phiếu huỷ hiện quyết định REJECTED, người từ chối và lý do", async () => {
+    renderBlind(
+      ROLES.warehouseManager,
+      apiBlindReceipt({
+        status: "CANCELLED",
+        lines: [SOFA_LINE],
+        approval: {
+          requestedAt: "2026-10-09T03:00:00Z",
+          requestedBy: "u-clerk",
+          decision: "REJECTED",
+          decidedAt: "2026-10-09T04:00:00Z",
+          decidedBy: "u-mgr",
+          decidedByName: "Minh (quản lý kho)",
+          reason: "giao nhầm kho",
+        },
+      }),
+    );
+    expect(
+      await screen.findByText("Đã từ chối phiếu — không ghi nhận, phiếu đã huỷ"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Minh (quản lý kho)")).toBeInTheDocument();
+    expect(screen.getByText("giao nhầm kho")).toBeInTheDocument();
+    // Phiếu đã huỷ không gắn thêm PO được
+    expect(screen.queryByRole("button", { name: /Gắn đơn tham chiếu/ })).not.toBeInTheDocument();
+  });
+
+  it("gắn PO tham chiếu: chỉ đơn của NCC của phiếu, PUT /referenced-purchase-order; nói rõ chỉ là tham chiếu", async () => {
+    const user = userEvent.setup();
+    const { get, put } = renderBlind(
+      ROLES.warehouseManager,
+      apiBlindReceipt({
+        status: "IN_PUTAWAY",
+        lines: [SOFA_LINE],
+        confirmedAt: "2026-10-09T04:00:00Z",
+      }),
+    );
+    expect(await screen.findByText(/CHỈ để tham chiếu/)).toBeInTheDocument();
+    expect(screen.getByText("Chưa gắn đơn đặt hàng.")).toBeInTheDocument();
+    const list = get.mock.calls.find(([url]) => url === "/purchase-orders");
+    expect(list?.[1]?.params).toMatchObject({ supplierId: SUPPLIER_ID });
+
+    const attach = screen.getByRole("button", { name: /Gắn đơn tham chiếu/ });
+    expect(attach).toBeDisabled();
+    await user.click(screen.getByRole("combobox", { name: "Chọn đơn đặt hàng" }));
+    await user.click(await screen.findByRole("option", { name: "PO-REF-1" }));
+    await user.click(attach);
+    await waitFor(() =>
+      expect(put).toHaveBeenCalledWith(`${PATH}/referenced-purchase-order`, {
+        purchaseOrderId: "po-ref",
+      }),
+    );
+    expect(await screen.findByText("PO-REF-1")).toBeInTheDocument();
+  });
+
+  it("PO của NCC khác bị BE từ chối → câu tiếng Việt ngay dưới ô chọn", async () => {
+    const user = userEvent.setup();
+    const { put } = renderBlind(ROLES.warehouseManager, apiBlindReceipt({ lines: [SOFA_LINE] }));
+    put.mockImplementationOnce(async () => {
+      throw new ApiError(409, "RECEIPT_REFERENCE_SUPPLIER_MISMATCH", "The purchase order is not …");
+    });
+    await user.click(await screen.findByRole("combobox", { name: "Chọn đơn đặt hàng" }));
+    await user.click(await screen.findByRole("option", { name: "PO-REF-1" }));
+    await user.click(screen.getByRole("button", { name: /Gắn đơn tham chiếu/ }));
+    expect(await screen.findByText(/không thuộc nhà cung cấp của phiếu nhận/)).toBeInTheDocument();
+  });
+
+  it("thiếu quyền đọc PO → không có ô gắn tham chiếu (vẫn thấy PO đã gắn)", async () => {
+    renderBlind(
+      ROLES.warehouseStaff,
+      apiBlindReceipt({
+        lines: [SOFA_LINE],
+        referencedPurchaseOrderId: "po-ref",
+        referencedPurchaseOrderNumber: "PO-REF-1",
+      }),
+    );
+    expect(await screen.findByText("PO-REF-1")).toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Chọn đơn đặt hàng" })).not.toBeInTheDocument();
   });
 });

@@ -14,6 +14,9 @@ import type { ReceiptStatus } from "@/constants";
 import type { ListQueryParams, PaginatedResponse } from "@/lib/api/query-factory";
 import type {
   DecideReceiptInput,
+  ReferencePurchaseOrderInput,
+  ReceiptCreateWithoutPoValues,
+  SaveBlindLinesInput,
   GoodsReceipt,
   GoodsReceiptApiDto,
   GoodsReceiptRow,
@@ -67,6 +70,8 @@ export interface ListGoodsReceiptParams extends ListQueryParams {
   size?: number;
   status?: ReceiptStatus[];
   purchaseOrderId?: string;
+  /** true: chỉ phiếu không có PO (BR-RCP-002); false: chỉ phiếu theo PO; bỏ trống: cả hai. */
+  withoutPo?: boolean;
   /** BE so khớp số phiếu (`GoodsReceiptSearch.Criteria.number`). */
   search?: string;
   /** yyyy-MM-dd theo giờ VN. */
@@ -86,6 +91,7 @@ export async function listGoodsReceipts(
       size: params.size ?? PAGE_SIZE.md,
       status: params.status?.map((status) => RECEIPT_API_STATUS_BY_STATUS[status]),
       purchaseOrderId: params.purchaseOrderId || undefined,
+      withoutPo: params.withoutPo,
       search: params.search?.trim() || undefined,
       receivedFrom: params.receivedFrom ? dayStartInstant(params.receivedFrom) : undefined,
       receivedTo: params.receivedTo ? dayAfterStartInstant(params.receivedTo) : undefined,
@@ -122,6 +128,37 @@ export const createGoodsReceipt = (input: ReceiptCreateValues) =>
     note: emptyToUndefined(input.note),
   });
 
+/**
+ * Tạo phiếu DRAFT cho hàng về KHÔNG có PO (BE `CreateGoodsReceiptWithoutPoRequest`, BR-RCP-002): NCC, kho nhận và
+ * lý do bắt buộc (owner NOPO-SUPPLIER / NOPO-REASON).
+ */
+export const createGoodsReceiptWithoutPo = (input: ReceiptCreateWithoutPoValues) =>
+  postReceipt(`${RECEIPTS_PATH}/without-po`, {
+    supplierId: input.supplierId,
+    warehouseId: input.warehouseId,
+    reason: input.reason,
+    deliveryNote: emptyToUndefined(input.deliveryNote),
+    note: emptyToUndefined(input.note),
+  });
+
+/** Thay toàn bộ kiểm đếm của phiếu không có PO: dòng gọi hàng bằng `sku` (không có `purchaseOrderLineId`). */
+export async function replaceBlindReceiptLines({
+  receiptId,
+  lines,
+}: SaveBlindLinesInput): Promise<GoodsReceipt> {
+  const { data } = await api.put<unknown>(`${receiptPath(receiptId)}/lines`, {
+    lines: lines.map((line) => ({
+      sku: line.sku,
+      quantity: line.quantity,
+      lotNumber: emptyToUndefined(line.lotNumber),
+      expiryDate: emptyToUndefined(line.expiryDate),
+      locationCode: line.locationCode,
+      note: emptyToUndefined(line.note),
+    })),
+  });
+  return toReceipt(beGoodsReceiptSchema.parse(data));
+}
+
 /** Thay toàn bộ kiểm đếm của phiếu DRAFT (BE `ReceiptLinesRequest`). */
 export async function replaceReceiptLines({
   receiptId,
@@ -153,6 +190,24 @@ export const cancelGoodsReceipt = (receiptId: string) =>
 /** Duyệt phiếu `Pending Approval`: ghi nhận ĐỦ SL đã đếm. BE `ReceiptDecisionRequest { reason }`. */
 export const approveGoodsReceipt = ({ receiptId, reason }: DecideReceiptInput) =>
   postReceipt(`${receiptPath(receiptId)}/approval`, { reason });
+
+/** BR-RCP-002: từ chối phiếu không có PO — huỷ cả phiếu (quyền `procurement-goods-receipts:APPROVE`). */
+export const rejectBlindReceipt = ({ receiptId, reason }: DecideReceiptInput) =>
+  postReceipt(`${receiptPath(receiptId)}/rejection`, { reason });
+
+/**
+ * Gắn PO bổ sung cho phiếu không có PO (owner NOPO-ATTACH): CHỈ tham chiếu — BE không cộng SL đã nhận cho đơn.
+ * PO phải tồn tại và cùng NCC với phiếu.
+ */
+export async function referencePurchaseOrder({
+  receiptId,
+  purchaseOrderId,
+}: ReferencePurchaseOrderInput): Promise<GoodsReceipt> {
+  const { data } = await api.put<unknown>(`${receiptPath(receiptId)}/referenced-purchase-order`, {
+    purchaseOrderId,
+  });
+  return toReceipt(beGoodsReceiptSchema.parse(data));
+}
 
 /** Từ chối phần vượt: chỉ ghi nhận tới dung sai (không còn gì → phiếu bị huỷ). */
 export const rejectReceiptExcess = ({ receiptId, reason }: DecideReceiptInput) =>

@@ -11,7 +11,9 @@ import {
   PO_PERMISSIONS,
   QC_TASK_PERMISSIONS,
   RECEIPT_STATUS,
+  SUPPLIER_PERMISSIONS,
   UI_LABELS,
+  WAREHOUSE_PERMISSIONS,
 } from "@/constants";
 import { RECEIPT_TRANSITIONS } from "@/lib/domain/lifecycle";
 
@@ -30,9 +32,29 @@ export const RECEIPT_CREATE_PERMISSIONS: readonly PermissionCode[] = [
   PO_PERMISSIONS.read,
 ];
 
+/**
+ * Tạo phiếu hàng về KHÔNG có PO (BR-RCP-002, SCRUM-478): chọn NCC (`GET /suppliers`) và kho (`GET /warehouses`) nên
+ * cần thêm quyền xem NCC và kho. Seed BE chỉ cấp xem NCC cho WAREHOUSE_MANAGER / PROCUREMENT_STAFF (không cấp cho
+ * WAREHOUSE_STAFF) — NV kho tới khi admin cấp thêm sẽ không thấy nút này.
+ */
+export const RECEIPT_CREATE_WITHOUT_PO_PERMISSIONS: readonly PermissionCode[] = [
+  GOODS_RECEIPT_PERMISSIONS.create,
+  SUPPLIER_PERMISSIONS.read,
+  WAREHOUSE_PERMISSIONS.read,
+];
+
+/**
+ * Gắn PO tham chiếu cho phiếu không có PO (owner NOPO-ATTACH): sửa phiếu (UPDATE) + đọc đơn đặt hàng của NCC để chọn.
+ */
+export const RECEIPT_REFERENCE_PO_PERMISSIONS: readonly PermissionCode[] = [
+  GOODS_RECEIPT_PERMISSIONS.update,
+  PO_PERMISSIONS.read,
+];
+
 /* ── Cấp phiếu ───────────────────────────────────────────────────────── */
 
-export type ReceiptActionCode = "saveLines" | "confirm" | "approve" | "rejectExcess" | "cancel";
+export type ReceiptActionCode =
+  "saveLines" | "confirm" | "approve" | "rejectExcess" | "rejectBlind" | "cancel";
 
 export interface ReceiptAction {
   readonly code: ReceiptActionCode;
@@ -45,11 +67,18 @@ export interface ReceiptAction {
   readonly destructive?: boolean;
   /** BE `GoodsReceipt#confirm` từ chối phiếu chưa có dòng nào. */
   readonly requiresLines?: boolean;
+  /**
+   * Loại phiếu mà action áp dụng (BR-RCP-002): `po` = phiếu theo PO, `blind` = phiếu không có PO; thiếu = cả hai.
+   * Từ chối phần vượt chỉ có ở phiếu theo PO; từ chối cả phiếu chỉ có ở phiếu không có PO.
+   */
+  readonly appliesTo?: "po" | "blind";
 }
 
 export interface ReceiptGateState {
   status: ReceiptStatus;
   lineCount: number;
+  /** Phiếu không có PO (BR-RCP-002); thiếu = phiếu theo PO. */
+  withoutPo?: boolean;
 }
 
 export interface AllowedReceiptAction {
@@ -92,6 +121,18 @@ export const RECEIPT_ACTIONS: readonly ReceiptAction[] = [
     fromStatuses: [RECEIPT_STATUS.PENDING_APPROVAL],
     targetStatus: RECEIPT_STATUS.IN_PUTAWAY,
     destructive: true,
+    appliesTo: "po",
+  },
+  {
+    // BR-RCP-002: Quản lý kho từ chối phiếu không có PO → huỷ cả phiếu (owner NOPO: "rejecting = cancelling the
+    // whole receipt with a reason"). Cùng quyền APPROVE với duyệt.
+    code: "rejectBlind",
+    label: LABEL.rejectBlind,
+    permissions: [GOODS_RECEIPT_PERMISSIONS.approve],
+    fromStatuses: [RECEIPT_STATUS.PENDING_APPROVAL],
+    targetStatus: RECEIPT_STATUS.CANCELLED,
+    destructive: true,
+    appliesTo: "blind",
   },
   {
     code: "cancel",
@@ -114,6 +155,7 @@ export function allowedReceiptActions(
   can: (code: PermissionCode) => boolean,
 ): readonly AllowedReceiptAction[] {
   return RECEIPT_ACTIONS.filter((action) => {
+    if (action.appliesTo && action.appliesTo !== (receipt.withoutPo ? "blind" : "po")) return false;
     const allowedByTable =
       !action.targetStatus || RECEIPT_TRANSITIONS[receipt.status].includes(action.targetStatus);
     return (

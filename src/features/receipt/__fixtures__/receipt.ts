@@ -9,6 +9,8 @@ import type { GoodsReceiptApiDto, ReceiptLineDto, ReceivablePo } from "../types"
 export const PO_ID = "bd69ad30-f972-2fac-2cef-6f8eef44618c";
 export const SOFA_PO_LINE_ID = "931404fb-06e5-d326-c3f5-9e7bf831af8a";
 export const TABLE_PO_LINE_ID = "567a8afe-f4b4-aa3f-91d8-fee285876b74";
+export const SUPPLIER_ID = "be4cc8dd-0883-65f5-d979-488ffe0c14b6";
+export const HCM_ID = "d99123fd-2997-4751-6bb9-e10a2e6d9949";
 export const RECEIPT_ID = "0f3a7c1e-9b2d-4e8a-8c51-6d2f9e4b7a10";
 const CLERK = "7e1d0c2b-3a4f-4b5c-9d6e-8f7a6b5c4d3e";
 
@@ -80,8 +82,22 @@ export function apiReceipt(overrides: Partial<GoodsReceiptApiDto> = {}): GoodsRe
     lines: [],
     warnings: [],
     approval: null,
+    withoutPurchaseOrder: false,
     ...overrides,
   };
+}
+
+/** Phiếu hàng về KHÔNG có PO (BR-RCP-002): NCC + lý do của chính phiếu, dòng gọi hàng bằng SKU. */
+export function apiBlindReceipt(overrides: Partial<GoodsReceiptApiDto> = {}): GoodsReceiptApiDto {
+  return apiReceipt({
+    purchaseOrderId: null,
+    purchaseOrderNumber: null,
+    supplierId: SUPPLIER_ID,
+    supplierName: "Xưởng gỗ Việt",
+    withoutPurchaseOrder: true,
+    blindReason: "NCC tặng kèm hàng mẫu",
+    ...overrides,
+  });
 }
 
 export function apiReceiptPage(items = [apiReceipt()]) {

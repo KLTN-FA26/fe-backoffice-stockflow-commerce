@@ -7,6 +7,7 @@ import { UI_LABELS } from "@/constants";
 import { DatePicker } from "@/components/shared/DatePicker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 
 import type { ReceiptListState } from "./useReceiptListState";
@@ -58,6 +59,17 @@ export function ReceiptListFilters({
           {UI_LABELS.receipt.dateRangeInvalid}
         </p>
       )}
+      {/* BR-RCP-002: lọc phiếu hàng về không có PO */}
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id="receipt-no-po"
+          checked={s.noPo}
+          onCheckedChange={(checked) => s.setNoPo(checked === true)}
+        />
+        <Label htmlFor="receipt-no-po" className="text-ink-secondary text-[0.8125rem]">
+          {UI_LABELS.receipt.blind.filterLabel}
+        </Label>
+      </div>
       {s.po && (
         <Badge variant="outline" className="gap-1 rounded-[var(--r-sm)] font-normal">
           Đơn đặt hàng:{" "}

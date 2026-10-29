@@ -82,6 +82,10 @@ export const RECEIPT_LIMITS = {
   qcReasonMax: 500,
   /** `ReceiptDecisionRequest.reason` @NotBlank @Size(max = 500) — duyệt / từ chối phần vượt (SCRUM-477). */
   approvalReasonMax: 500,
+  /** `CreateGoodsReceiptWithoutPoRequest.reason` @NotBlank @Size(max = 500) — lý do không có PO (BR-RCP-002). */
+  blindReasonMax: 500,
+  /** `ReceiptLinesRequest.Line.sku` @Size(max = 64) — dòng của phiếu không có PO gọi hàng bằng SKU. */
+  skuMax: 64,
 } as const;
 
 /** Giới hạn task xuất kho — đúng ràng buộc request BE FulfillmentController. */

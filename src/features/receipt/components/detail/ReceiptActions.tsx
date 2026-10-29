@@ -17,6 +17,7 @@ import {
   useApproveGoodsReceipt,
   useCancelGoodsReceipt,
   useConfirmGoodsReceipt,
+  useRejectBlindReceipt,
   useRejectReceiptExcess,
 } from "@/features/receipt/mutations";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -28,6 +29,7 @@ import type { GoodsReceipt } from "@/features/receipt/types";
 
 const NO_ACTIONS = UI_LABELS.receipt.noActions;
 const OVER = UI_LABELS.receipt.overTolerance;
+const BLIND = UI_LABELS.receipt.blind;
 
 /** Câu thay cho nút khi phiếu không còn thao tác cấp phiếu nào với người dùng này. */
 function noActionText(status: GoodsReceipt["status"]): string {
@@ -36,6 +38,18 @@ function noActionText(status: GoodsReceipt["status"]): string {
   if (status === RECEIPT_STATUS.IN_QC) return NO_ACTIONS.inQc;
   if (status === RECEIPT_STATUS.IN_PUTAWAY) return NO_ACTIONS.inPutaway;
   return NO_ACTIONS.viewOnly;
+}
+
+/** Nhãn nút: xác nhận → "Gửi Quản lý kho duyệt" khi chỉ chờ duyệt; duyệt phiếu không có PO có nhãn riêng. */
+function actionLabel(
+  code: ReceiptActionCode,
+  label: string,
+  sendsForApproval: boolean,
+  withoutPo: boolean,
+): string {
+  if (code === "confirm" && sendsForApproval) return OVER.sendForApproval;
+  if (code === "approve" && withoutPo) return UI_LABELS.receipt.action.approveBlind;
+  return label;
 }
 
 const BUTTON_BASE =
@@ -61,16 +75,28 @@ export function ReceiptActions({
   const cancel = useCancelGoodsReceipt();
   const approve = useApproveGoodsReceipt();
   const rejectExcess = useRejectReceiptExcess();
+  const rejectBlind = useRejectBlindReceipt();
   const [dialog, setDialog] = useState<ReceiptActionCode | null>(null);
   // Lỗi của lần duyệt / từ chối vừa rồi — hiện trong dialog (ô lý do giữ nguyên để thử lại)
   const [decisionError, setDecisionError] = useState<string | null>(null);
   const actions = allowedReceiptActions(
-    { status: receipt.status, lineCount: receipt.lines.length },
+    {
+      status: receipt.status,
+      lineCount: receipt.lines.length,
+      withoutPo: receipt.withoutPurchaseOrder,
+    },
     can,
   ).filter(({ action }) => action.code !== "saveLines");
   const pending =
-    confirm.isPending || cancel.isPending || approve.isPending || rejectExcess.isPending;
+    confirm.isPending ||
+    cancel.isPending ||
+    approve.isPending ||
+    rejectExcess.isPending ||
+    rejectBlind.isPending;
+  const withoutPo = receipt.withoutPurchaseOrder;
   const overTolerance = receipt.warnings.includes(RECEIPT_WARNING_OVER_TOLERANCE);
+  // Xác nhận không ghi nhận ngay: phiếu vượt dung sai (BR-RCP-001) hoặc phiếu không có PO (BR-RCP-002) chờ duyệt
+  const sendsForApproval = overTolerance || withoutPo;
   // Lỗi dữ liệu cũ đã được mutation tự tải lại (withStaleRefetch) — ở đây chỉ đóng dialog
   const callbacks = { onSuccess: () => setDialog(null), onError: () => setDialog(null) };
   const closeDecision = (open: boolean) => {
@@ -114,7 +140,7 @@ export function ReceiptActions({
                 }
               >
                 <Icon className="size-3.5" />{" "}
-                {action.code === "confirm" && overTolerance ? OVER.sendForApproval : action.label}
+                {actionLabel(action.code, action.label, sendsForApproval, withoutPo)}
               </Button>
               {reason && <p className="text-ink-tertiary mt-1 text-center text-xs">{reason}</p>}
             </div>
@@ -129,11 +155,11 @@ export function ReceiptActions({
         onOpenChange={(open) => !open && setDialog(null)}
         title="Xác nhận nhập kho"
         description={
-          overTolerance
-            ? `Chốt số của ${receipt.number}. ${OVER.confirmNote}`
+          sendsForApproval
+            ? `Chốt số của ${receipt.number}. ${withoutPo ? BLIND.confirmNote : OVER.confirmNote}`
             : `Chốt số của ${receipt.number}: hàng thành tồn Inbound ở khu nhận hàng, đơn đặt hàng cập nhật SL đã nhận. Sau khi xác nhận phiếu chỉ còn xem, sai sót phải điều chỉnh tồn (BR-05).`
         }
-        confirmLabel={overTolerance ? OVER.sendForApproval : "Xác nhận nhập kho"}
+        confirmLabel={sendsForApproval ? OVER.sendForApproval : "Xác nhận nhập kho"}
         variant="default"
         loading={confirm.isPending}
         closeOnConfirm={false}
@@ -157,9 +183,11 @@ export function ReceiptActions({
       <ConfirmDialog
         open={dialog === "approve"}
         onOpenChange={closeDecision}
-        title={OVER.approveTitle}
-        description={`${receipt.number}: ${OVER.approveDescription}`}
-        confirmLabel={UI_LABELS.receipt.action.approve}
+        title={withoutPo ? UI_LABELS.receipt.action.approveBlind : OVER.approveTitle}
+        description={`${receipt.number}: ${withoutPo ? BLIND.approveDescription : OVER.approveDescription}`}
+        confirmLabel={
+          withoutPo ? UI_LABELS.receipt.action.approveBlind : UI_LABELS.receipt.action.approve
+        }
         variant="default"
         requireReason
         reasonLabel={OVER.reasonLabel}
@@ -169,6 +197,26 @@ export function ReceiptActions({
         error={decisionError}
         onConfirm={(reason) =>
           approve.mutate(
+            { receiptId: receipt.id, reason: (reason ?? "").trim() },
+            decisionCallbacks,
+          )
+        }
+      />
+      <ConfirmDialog
+        open={dialog === "rejectBlind"}
+        onOpenChange={closeDecision}
+        title={BLIND.rejectTitle}
+        description={`${receipt.number}: ${BLIND.rejectDescription}`}
+        confirmLabel={UI_LABELS.receipt.action.rejectBlind}
+        variant="danger"
+        requireReason
+        reasonLabel={OVER.reasonLabel}
+        reasonMaxLength={RECEIPT_LIMITS.approvalReasonMax}
+        loading={rejectBlind.isPending}
+        closeOnConfirm={false}
+        error={decisionError}
+        onConfirm={(reason) =>
+          rejectBlind.mutate(
             { receiptId: receipt.id, reason: (reason ?? "").trim() },
             decisionCallbacks,
           )

@@ -17,7 +17,8 @@ const { common, loadError, receipt } = UI_LABELS;
  * "no-po-read": có quyền phiếu nhận nhưng thiếu purchase-orders:READ (seed BE của NV kho).
  * "po-not-found": phiếu có nhưng API PO trả 404 cho PO của phiếu (trước C4: PO chưa có ở bảng cũ).
  */
-export type ReceiptLoadErrorKind = LoadErrorKind | "no-po-read" | "po-not-found";
+export type ReceiptLoadErrorKind =
+  LoadErrorKind | "no-po-read" | "po-not-found" | "no-blind-lookup";
 
 const COPY: Record<ReceiptLoadErrorKind, { title: string; description: string }> = {
   "not-found": { title: receipt.notFoundTitle, description: receipt.notFoundDescription },
@@ -25,6 +26,11 @@ const COPY: Record<ReceiptLoadErrorKind, { title: string; description: string }>
   "no-read": { title: loadError.noReadTitle, description: receipt.noReadDescription },
   "no-po-read": { title: receipt.noPoReadTitle, description: receipt.noPoReadDescription },
   "po-not-found": { title: receipt.poNotFoundTitle, description: receipt.poNotFoundDescription },
+  // BR-RCP-002: tạo phiếu không có PO cần quyền xem NCC và kho
+  "no-blind-lookup": {
+    title: receipt.blind.needsSupplierReadTitle,
+    description: receipt.blind.needsSupplierRead,
+  },
   "invalid-data": {
     title: loadError.invalidDataTitle,
     description: loadError.invalidDataDescription,
@@ -56,7 +62,11 @@ export function ReceiptLoadError({
   const kind = forcedKind ?? (error ? classifyLoadError(error) : "not-found");
   const copy = COPY[kind];
   const apiErr = error instanceof ApiError ? error : undefined;
-  const isPermissionKind = kind === "forbidden" || kind === "no-read" || kind === "no-po-read";
+  const isPermissionKind =
+    kind === "forbidden" ||
+    kind === "no-read" ||
+    kind === "no-po-read" ||
+    kind === "no-blind-lookup";
   const canRetry =
     onRetry !== undefined && kind !== "not-found" && kind !== "po-not-found" && !isPermissionKind;
   const canOpenList = useCan(GOODS_RECEIPT_PERMISSIONS.viewPage);

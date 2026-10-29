@@ -13,9 +13,11 @@ import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { InspectDialog } from "./detail/InspectDialog";
 import { MoveToQcDialog } from "./detail/MoveToQcDialog";
 import { ReceiptActions } from "./detail/ReceiptActions";
+import { BlindCountPanel } from "./detail/BlindCountPanel";
 import { DraftCountPanel } from "./detail/DraftCountPanel";
 import { ReceiptInfo, ReceiptOverviewCard } from "./detail/ReceiptInfo";
 import { ReceiptLinesTable } from "./detail/ReceiptLinesTable";
+import { ReferencedPoCard } from "./detail/ReferencedPoCard";
 import { Section } from "./primitives";
 import { ReceiptLoadError } from "./ReceiptLoadError";
 import { ReceiptPermissionGate } from "./ReceiptPermissionGate";
@@ -42,7 +44,11 @@ function ReceiptDetailBody({ id }: { id: string }) {
     return <ReceiptLoadError error={query.error} onRetry={() => void query.refetch()} />;
   const receipt = query.data;
   const canCount = allowedReceiptActions(
-    { status: receipt.status, lineCount: receipt.lines.length },
+    {
+      status: receipt.status,
+      lineCount: receipt.lines.length,
+      withoutPo: receipt.withoutPurchaseOrder,
+    },
     can,
   ).some(({ action }) => action.code === "saveLines");
 
@@ -54,7 +60,14 @@ function ReceiptDetailBody({ id }: { id: string }) {
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-5">
           <ReceiptInfo receipt={receipt} />
-          {receipt.status === RECEIPT_STATUS.DRAFT ? (
+          {receipt.status === RECEIPT_STATUS.DRAFT && receipt.withoutPurchaseOrder ? (
+            // BR-RCP-002: không có dòng PO → kiểm đếm bằng SKU, không cần đọc PO
+            <BlindCountPanel
+              receipt={receipt}
+              canCount={can(GOODS_RECEIPT_PERMISSIONS.update)}
+              onDirtyChange={onDirtyChange}
+            />
+          ) : receipt.status === RECEIPT_STATUS.DRAFT ? (
             <DraftCountPanel
               receipt={receipt}
               canCount={canCount}
@@ -65,7 +78,9 @@ function ReceiptDetailBody({ id }: { id: string }) {
             // BR-RCP-001: đếm vượt dung sai → chờ Quản lý kho duyệt, CHƯA ghi nhận tồn; số đếm chỉ còn xem
             <>
               <Alert tone="warning" title={UI_LABELS.receipt.overTolerance.pendingTitle}>
-                {UI_LABELS.receipt.overTolerance.pendingDescription}
+                {receipt.withoutPurchaseOrder
+                  ? UI_LABELS.receipt.blind.pendingDescription
+                  : UI_LABELS.receipt.overTolerance.pendingDescription}
               </Alert>
               <Section
                 title="Dòng chờ duyệt"
@@ -90,6 +105,8 @@ function ReceiptDetailBody({ id }: { id: string }) {
               />
             </Section>
           )}
+          {/* Owner NOPO-ATTACH: PO gắn bổ sung chỉ là tham chiếu, ở mọi bước trước khi huỷ */}
+          {receipt.withoutPurchaseOrder && <ReferencedPoCard receipt={receipt} />}
         </div>
         <div className="space-y-5">
           <ReceiptActions receipt={receipt} hasUnsavedCount={dirty} />

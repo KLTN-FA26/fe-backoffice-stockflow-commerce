@@ -33,7 +33,8 @@ export interface MockInspection {
 
 export interface MockReceiptLine {
   id: string;
-  purchaseOrderLineId: string;
+  /** null trên phiếu không có PO (BR-RCP-002): dòng gọi hàng bằng SKU. */
+  purchaseOrderLineId: string | null;
   purchaseOrderLineNo: number | null;
   inventoryItemId: string;
   sku: string | null;
@@ -57,7 +58,7 @@ export interface MockApproval {
   requestedAt: string;
   requestedBy: string;
   requestedByName: string | null;
-  decision: "APPROVED" | "EXCESS_REJECTED" | null;
+  decision: "APPROVED" | "EXCESS_REJECTED" | "REJECTED" | null;
   decidedAt: string | null;
   decidedBy: string | null;
   decidedByName: string | null;
@@ -67,9 +68,17 @@ export interface MockApproval {
 export interface MockReceipt {
   id: string;
   number: string;
-  purchaseOrderId: string;
-  purchaseOrderNumber: string;
+  /** null trên phiếu không có PO (BR-RCP-002, SCRUM-478). */
+  purchaseOrderId: string | null;
+  purchaseOrderNumber: string | null;
   warehouseId: string;
+  supplierId?: string | null;
+  supplierName?: string | null;
+  withoutPurchaseOrder?: boolean;
+  blindReason?: string | null;
+  /** PO gắn bổ sung — chỉ tham chiếu (owner NOPO-ATTACH). */
+  referencedPurchaseOrderId?: string | null;
+  referencedPurchaseOrderNumber?: string | null;
   status: MockReceiptStatus;
   deliveryNote: string | null;
   note: string | null;
@@ -130,6 +139,19 @@ export async function itemPolicy(sku: string): Promise<MockItemPolicy> {
     qcRequired: found?.lotTracking ?? false,
   };
 }
+
+/** SKU có trong catalog mock không (BE: `inventory.itemPolicy(Sku)` rỗng → `INVENTORY_ITEM_NOT_FOUND`). */
+export async function mockSkuExists(sku: string): Promise<boolean> {
+  const { skus } = await import("@/lib/mock-data");
+  return skus.some((s) => s.skuId === sku);
+}
+
+/** Kho demo duy nhất của mock (HCM) — cho ô chọn kho của phiếu không có PO. */
+export const MOCK_WAREHOUSE_OPTION = {
+  id: MOCK_WAREHOUSE_ID,
+  prefix: "HCM",
+  name: "Kho Hồ Chí Minh",
+} as const;
 
 /* ── Seed ────────────────────────────────────────────────────────────── */
 
@@ -302,7 +324,8 @@ async function seedSpecs(): Promise<SeedSpec[]> {
  */
 export async function recordPoProgress(receipt: MockReceipt): Promise<void> {
   const poStore = await getPoStore();
-  const po = poStore.get(receipt.purchaseOrderId);
+  // BR-RCP-002: phiếu không có PO không cộng gì cho đơn nào
+  const po = receipt.purchaseOrderId ? poStore.get(receipt.purchaseOrderId) : undefined;
   if (!po) return;
   const lines = po.lines.map((line) => {
     const added = receipt.lines
@@ -401,11 +424,14 @@ export function mockReceivableLimit(quantityOrdered: number): number {
 
 /** Dòng PO của phiếu có tổng (đã ghi nhận + phiếu này) vượt giới hạn — BR-RCP-001. */
 export async function overToleranceLines(receipt: MockReceipt): Promise<Set<string>> {
-  const po = (await getPoStore()).get(receipt.purchaseOrderId);
+  const po = receipt.purchaseOrderId
+    ? (await getPoStore()).get(receipt.purchaseOrderId)
+    : undefined;
   const over = new Set<string>();
   if (!po) return over;
   const counted = new Map<string, number>();
   for (const line of receipt.lines) {
+    if (!line.purchaseOrderLineId) continue;
     counted.set(
       line.purchaseOrderLineId,
       (counted.get(line.purchaseOrderLineId) ?? 0) + line.quantity,
@@ -428,7 +454,7 @@ export async function withWarnings(receipt: MockReceipt): Promise<MockReceipt> {
     ...receipt,
     lines: receipt.lines.map((line) => ({
       ...line,
-      warnings: over.has(line.purchaseOrderLineId) ? ["OVER_TOLERANCE"] : [],
+      warnings: over.has(line.purchaseOrderLineId ?? "") ? ["OVER_TOLERANCE"] : [],
     })),
     warnings: over.size > 0 ? ["OVER_TOLERANCE"] : [],
   };

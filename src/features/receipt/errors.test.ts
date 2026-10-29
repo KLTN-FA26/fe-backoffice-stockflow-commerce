@@ -50,3 +50,26 @@ describe("receipt errors — duyệt nhận vượt dung sai (BR-RCP-001)", () =
     expect(isStaleReceiptError(new ApiError(409, "RECEIPT_SELF_APPROVAL", "x"))).toBe(false);
   });
 });
+
+describe("receipt errors — phiếu không có PO (BR-RCP-002)", () => {
+  it.each([
+    "BLIND_RECEIPT_REASON_REQUIRED",
+    "RECEIPT_REFERENCE_SUPPLIER_MISMATCH",
+    "SUPPLIER_NOT_FOUND",
+    "INVENTORY_ITEM_NOT_FOUND",
+    "RECEIPT_LINE_NOT_ON_PO",
+  ])("%s → câu tiếng Việt, không lộ message tiếng Anh của BE", (code) => {
+    const message = receiptErrorMessage(new ApiError(409, code, "English message from BE"));
+    expect(message).toBe(RECEIPT_ERROR_MESSAGES[code as keyof typeof RECEIPT_ERROR_MESSAGES]);
+    expect(message).not.toContain("English");
+  });
+
+  it("lỗi theo ô của dòng gọi bằng SKU map về đúng ô", () => {
+    const error = new ApiError(409, "INVENTORY_ITEM_NOT_FOUND", "x", {
+      "lines[1].sku": "No inventory item with SKU NOPE",
+    });
+    expect(receiptLineFieldErrors(error)).toEqual([
+      { index: 1, field: "sku", message: "No inventory item with SKU NOPE" },
+    ]);
+  });
+});

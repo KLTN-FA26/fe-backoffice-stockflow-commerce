@@ -66,6 +66,8 @@ export const ADMIN_ROUTES = {
     // Tạo phiếu từ một PO đã chọn sẵn (vd nút "Nhận hàng" ở màn PO)
     createFromPo: (poId: string) =>
       `${ADMIN_BASE}/receipts/create?poId=${encodeURIComponent(poId)}`,
+    // Hàng về không có PO (BR-RCP-002, SCRUM-478): cùng trang tạo phiếu, chế độ "không có đơn đặt hàng"
+    createWithoutPo: `${ADMIN_BASE}/receipts/create?mode=without-po`,
     detail: (id: string) => `${ADMIN_BASE}/receipts/${id}`,
     list: `${ADMIN_BASE}/receipts`,
   },

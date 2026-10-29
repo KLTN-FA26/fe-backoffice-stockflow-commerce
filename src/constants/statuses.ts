@@ -175,9 +175,10 @@ export const RECEIPT_API_STATUS_BY_STATUS = {
 
 /**
  * Quyết định của Quản lý kho với phiếu đếm vượt dung sai (BE `ReceiptApproval.Decision`, BR-RCP-001):
- * `APPROVED` ghi nhận đủ SL đã đếm; `EXCESS_REJECTED` từ chối phần vượt — chỉ ghi nhận tới dung sai.
+ * `APPROVED` ghi nhận đủ SL đã đếm; `EXCESS_REJECTED` từ chối phần vượt — chỉ ghi nhận tới dung sai;
+ * `REJECTED` (SCRUM-478, BR-RCP-002): từ chối phiếu nhận không có PO — huỷ cả phiếu.
  */
-export const RECEIPT_APPROVAL_DECISION_API = ["APPROVED", "EXCESS_REJECTED"] as const;
+export const RECEIPT_APPROVAL_DECISION_API = ["APPROVED", "EXCESS_REJECTED", "REJECTED"] as const;
 
 /** Cảnh báo BE trên dòng / phiếu chưa ghi nhận mà SL đếm vượt dung sai của dòng PO (BR-RCP-001). */
 export const RECEIPT_WARNING_OVER_TOLERANCE = "OVER_TOLERANCE";
