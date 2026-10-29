@@ -19,6 +19,7 @@ import type { GoodsReceipt } from "@/features/receipt/types";
 
 const dt = (iso: string | null | undefined) => (iso ? formatDateTime(iso) : "—");
 const OVER = UI_LABELS.receipt.overTolerance;
+const OVER_BLIND = UI_LABELS.receipt.blind;
 
 /** Người trong phiếu: tên BE trả kèm (nếu có), tooltip là id. */
 const person = (id: string | null | undefined, name: string | null | undefined) => (
@@ -31,7 +32,16 @@ export function ReceiptInfo({ receipt }: { receipt: GoodsReceipt }) {
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
         {/* Trang chi tiết không có tiêu đề — số phiếu nằm ở đây */}
         <InfoItem label="Số phiếu" value={receipt.number} mono />
-        <InfoItem label="Đơn đặt hàng" value={receipt.purchaseOrderNumber ?? "—"} mono />
+        {receipt.withoutPurchaseOrder ? (
+          // BR-RCP-002: hàng về không có PO — hiện NCC và lý do thay cho đơn đặt hàng
+          <>
+            <InfoItem label="Đơn đặt hàng" value={OVER_BLIND.badge} />
+            <InfoItem label={OVER_BLIND.infoSupplier} value={receipt.supplierName ?? "—"} />
+            <InfoItem label={OVER_BLIND.infoReason} value={receipt.blindReason ?? "—"} />
+          </>
+        ) : (
+          <InfoItem label="Đơn đặt hàng" value={receipt.purchaseOrderNumber ?? "—"} mono />
+        )}
         <InfoItem label="Phiếu giao NCC" value={receipt.deliveryNote ?? "—"} mono />
         <InfoItem label="Ngày nhận" value={dt(receipt.receivedAt)} />
         {/* BE chỉ trả `receivedBy` / `confirmedBy` là UUID, chưa có API tra tên người dùng */}
@@ -49,7 +59,9 @@ export function ReceiptInfo({ receipt }: { receipt: GoodsReceipt }) {
         <InfoItem label="Ngày đóng" value={dt(receipt.closedAt)} />
         <InfoItem label="Ghi chú" value={receipt.note ?? "—"} />
       </div>
-      {receipt.approval && <ApprovalInfo approval={receipt.approval} />}
+      {receipt.approval && (
+        <ApprovalInfo approval={receipt.approval} withoutPo={receipt.withoutPurchaseOrder} />
+      )}
     </Section>
   );
 }
@@ -58,11 +70,17 @@ export function ReceiptInfo({ receipt }: { receipt: GoodsReceipt }) {
  * BR-RCP-001: phiếu từng đếm vượt dung sai — ai gửi duyệt, và khi đã quyết định thì Quản lý kho nào
  * đã duyệt / từ chối phần vượt, lúc nào, vì sao.
  */
-function ApprovalInfo({ approval }: { approval: NonNullable<GoodsReceipt["approval"]> }) {
+function ApprovalInfo({
+  approval,
+  withoutPo,
+}: {
+  approval: NonNullable<GoodsReceipt["approval"]>;
+  withoutPo: boolean;
+}) {
   return (
     <div className="border-border-default mt-4 border-t pt-3">
       <h3 className="text-ink-primary mb-2 text-[0.8125rem] font-semibold">
-        Duyệt nhận vượt dung sai
+        {withoutPo ? "Duyệt nhận hàng không có PO" : "Duyệt nhận vượt dung sai"}
       </h3>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
         <InfoItem

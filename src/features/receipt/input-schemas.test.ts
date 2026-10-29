@@ -5,8 +5,10 @@ import { RECEIPT_FIELD_MESSAGES as MSG } from "@/constants";
 import { SOFA_PO_LINE_ID, TABLE_PO_LINE_ID } from "./__fixtures__/receipt";
 import {
   buildQcDecisionSchema,
+  buildBlindLinesSchema,
   buildReceiptLinesSchema,
   receiptCreateInputSchema,
+  receiptCreateWithoutPoInputSchema,
   receiptDecisionInputSchema,
 } from "./input-schemas";
 
@@ -144,5 +146,83 @@ describe("receiptDecisionInputSchema (BR-RCP-001: duyệt / từ chối phần v
   it("tối đa 500 ký tự như BE `@Size(max = 500)`", () => {
     expect(receiptDecisionInputSchema.safeParse({ reason: "a".repeat(500) }).success).toBe(true);
     expect(receiptDecisionInputSchema.safeParse({ reason: "a".repeat(501) }).success).toBe(false);
+  });
+});
+
+describe("receiptCreateWithoutPoInputSchema (BR-RCP-002: NCC + kho + lý do bắt buộc)", () => {
+  const valid = { supplierId: "s-1", warehouseId: "w-1", reason: "  hàng mẫu  " };
+
+  it("hợp lệ: lý do được trim, phiếu giao / ghi chú mặc định rỗng", () => {
+    expect(receiptCreateWithoutPoInputSchema.parse(valid)).toEqual({
+      supplierId: "s-1",
+      warehouseId: "w-1",
+      reason: "hàng mẫu",
+      deliveryNote: "",
+      note: "",
+    });
+  });
+
+  it.each([
+    ["supplierId", MSG.supplierRequired],
+    ["warehouseId", MSG.warehouseRequired],
+    ["reason", MSG.blindReasonRequired],
+  ])("thiếu %s → lỗi đúng ô", (field, message) => {
+    // Ô chọn NCC / kho trả "" khi chưa chọn; ô lý do có thể chỉ toàn khoảng trắng
+    const result = receiptCreateWithoutPoInputSchema.safeParse({
+      ...valid,
+      [field]: field === "reason" ? "  " : "",
+    });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.find((i) => i.path[0] === field)?.message).toBe(message);
+  });
+
+  it("lý do tối đa 500 ký tự như BE", () => {
+    expect(
+      receiptCreateWithoutPoInputSchema.safeParse({ ...valid, reason: "a".repeat(501) }).success,
+    ).toBe(false);
+  });
+});
+
+describe("buildBlindLinesSchema (kiểm đếm phiếu không có PO: gọi hàng bằng SKU)", () => {
+  const schema = buildBlindLinesSchema({ receivedOn: "2026-10-09" });
+  const line = (overrides: Record<string, unknown> = {}) => ({
+    sku: " sofa-3s-grey ",
+    quantity: 3,
+    lotNumber: "",
+    expiryDate: "",
+    locationCode: " hcm-rcv01 ",
+    note: "",
+    ...overrides,
+  });
+
+  it("SKU được trim + viết hoa, mã khu viết hoa", () => {
+    const parsed = schema.parse({ lines: [line()] });
+    expect(parsed.lines[0]).toMatchObject({ sku: "SOFA-3S-GREY", locationCode: "HCM-RCV01" });
+  });
+
+  it("thiếu SKU / SL không hợp lệ / thiếu khu → lỗi từng ô", () => {
+    const result = schema.safeParse({
+      lines: [line({ sku: "", quantity: 0, locationCode: "" })],
+    });
+    expect(result.error?.issues.map((i) => `${i.path.join(".")}:${i.message}`)).toEqual([
+      `lines.0.sku:${MSG.skuRequired}`,
+      `lines.0.quantity:${MSG.quantity}`,
+      `lines.0.locationCode:${MSG.locationRequired}`,
+    ]);
+  });
+
+  it("cùng SKU + lô hai lần bị chặn (BE uk_goods_receipt_lines_blind_lot); khác lô thì được", () => {
+    const dup = schema.safeParse({ lines: [line(), line({ sku: "SOFA-3S-GREY" })] });
+    expect(dup.error?.issues[0]).toMatchObject({
+      path: ["lines", 1, "lotNumber"],
+      message: MSG.duplicateLot,
+    });
+    expect(schema.safeParse({ lines: [line(), line({ lotNumber: "L2" })] }).success).toBe(true);
+  });
+
+  it("hạn dùng phải sau ngày nhận (BR-06); cần ít nhất một dòng", () => {
+    const expired = schema.safeParse({ lines: [line({ expiryDate: "2026-10-09" })] });
+    expect(expired.error?.issues[0]?.message).toBe(MSG.expiryNotAfterReceipt);
+    expect(schema.safeParse({ lines: [] }).success).toBe(false);
   });
 });

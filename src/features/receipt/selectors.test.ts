@@ -9,6 +9,7 @@ import {
 } from "./__fixtures__/receipt";
 import {
   countedByPoLine,
+  initialBlindLines,
   initialCountLines,
   inspectionTotals,
   isLineOverTolerance,
@@ -129,5 +130,27 @@ describe("BR-RCP-001 — vượt dung sai", () => {
     expect(statusAfterConfirm({ lines: [within, over] })).toBe("Pending Approval");
     expect(statusAfterConfirm({ lines: [apiLine({ qcRequired: true })] })).toBe("In QC");
     expect(statusAfterConfirm({ lines: [apiLine({ qcRequired: false })] })).toBe("In Putaway");
+  });
+});
+
+describe("phiếu không có PO (BR-RCP-002)", () => {
+  it("xác nhận phiếu không có PO luôn → Pending Approval, kể cả không có dòng vượt dung sai", () => {
+    expect(
+      statusAfterConfirm({ lines: [apiLine({ qcRequired: true })], withoutPurchaseOrder: true }),
+    ).toBe("Pending Approval");
+    expect(statusAfterConfirm({ lines: [apiLine({ qcRequired: true })] })).toBe("In QC");
+  });
+
+  it("giá trị khởi tạo form đếm: dòng đã lưu theo SKU, hoặc một dòng trống", () => {
+    expect(initialBlindLines({ lines: [] })).toEqual([
+      { sku: "", quantity: 1, lotNumber: "", expiryDate: "", locationCode: "", note: "" },
+    ]);
+    expect(
+      initialBlindLines({
+        lines: [
+          apiLine({ purchaseOrderLineId: null, sku: "SOFA-3S-GREY", quantity: 4, lotNumber: null }),
+        ],
+      })[0],
+    ).toMatchObject({ sku: "SOFA-3S-GREY", quantity: 4, lotNumber: "", locationCode: "HCM-RCV01" });
   });
 });

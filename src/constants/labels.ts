@@ -372,6 +372,60 @@ export const UI_LABELS = {
       // BR-RCP-001 (docs 03 §4 bước 5): Quản lý kho duyệt ngoại lệ hoặc từ chối phần vượt
       approve: "Duyệt nhận vượt dung sai",
       rejectExcess: "Từ chối phần vượt",
+      // BR-RCP-002: phiếu không có PO — duyệt cũng là approve; từ chối là huỷ cả phiếu
+      approveBlind: "Duyệt nhận hàng không có PO",
+      rejectBlind: "Từ chối phiếu",
+      createWithoutPo: "Nhận hàng không có PO",
+    },
+    // BR-RCP-002 (docs 03: "Receipt không PO" — nhận khẩn, hàng mẫu, quà kèm): bắt buộc NCC + lý do, luôn cần
+    // Quản lý kho duyệt; gắn PO bổ sung chỉ là tham chiếu
+    blind: {
+      badge: "Không có PO",
+      modeWithPo: "Theo đơn đặt hàng",
+      modeWithoutPo: "Không có đơn đặt hàng",
+      formSectionTitle: "Hàng về không có đơn đặt hàng",
+      formSectionDescription:
+        "Nhận khẩn, hàng mẫu, quà kèm… Chọn nhà cung cấp và ghi lý do; phiếu luôn chờ Quản lý kho duyệt trước khi ghi nhận tồn.",
+      supplier: "Nhà cung cấp",
+      supplierPlaceholder: "Chọn nhà cung cấp",
+      warehouse: "Kho nhận",
+      warehousePlaceholder: "Chọn kho",
+      reason: "Lý do không có PO",
+      reasonPlaceholder: "Ví dụ: NCC tặng kèm hàng mẫu theo chuyến giao",
+      needsSupplierReadTitle: "Cần quyền xem nhà cung cấp và kho",
+      needsSupplierRead:
+        "Chọn nhà cung cấp cần quyền xem nhà cung cấp và kho — tài khoản chưa được cấp, liên hệ quản trị.",
+      sendLabel: "Gửi Quản lý kho duyệt",
+      countTitle: "Kiểm đếm (gọi hàng bằng SKU)",
+      countDescription:
+        "Phiếu không có PO nên không có dòng PO: mỗi dòng là một SKU (và lô). Lô, hạn dùng, khu nhận hàng kiểm như phiếu thường.",
+      addLine: "Thêm dòng",
+      removeLine: "Xoá dòng",
+      sku: "SKU",
+      skuPlaceholder: "Nhập / quét SKU",
+      confirmNote:
+        "Phiếu không có PO không ghi nhận ngay: sẽ chờ Quản lý kho duyệt, chưa ghi nhận tồn.",
+      pendingDescription:
+        "Phiếu không có PO luôn cần Quản lý kho duyệt; chưa ghi nhận tồn. Người duyệt phải khác người đếm và người gửi duyệt (4 mắt). Từ chối thì huỷ cả phiếu.",
+      approveDescription:
+        "Ghi nhận số lượng đã đếm: hàng thành tồn Inbound ở khu nhận hàng (theo nhà cung cấp, không thuộc đơn nào). Cần nhập lý do.",
+      rejectTitle: "Từ chối phiếu nhận không có PO",
+      rejectDescription:
+        "Hàng không được nhận: huỷ cả phiếu (chưa ghi nhận tồn). Lý do và người từ chối được lưu trên phiếu. Cần nhập lý do.",
+      infoSupplier: "Nhà cung cấp",
+      infoReason: "Lý do không có PO",
+      referenceTitle: "Đơn đặt hàng tham chiếu",
+      referenceDescription:
+        "Gắn PO bổ sung nếu có — CHỈ để tham chiếu: không cộng SL đã nhận cho đơn, không dung sai, không ảnh hưởng đối chiếu 3 bên. PO phải của cùng nhà cung cấp.",
+      referenceNone: "Chưa gắn đơn đặt hàng.",
+      referenceSelect: "Chọn đơn đặt hàng",
+      referenceSave: "Gắn đơn tham chiếu",
+      referenceChange: "Đổi đơn tham chiếu",
+      referenceNeedsPoRead:
+        "Gắn đơn tham chiếu cần quyền xem đơn đặt hàng — tài khoản chưa được cấp.",
+      referenceNoOrders: "Nhà cung cấp này chưa có đơn đặt hàng.",
+      referenceLoadError: "Không tải được đơn đặt hàng của nhà cung cấp.",
+      filterLabel: "Chỉ phiếu không có PO",
     },
     // BR-RCP-001: SL đếm vượt dung sai của dòng PO → phiếu chờ Quản lý kho duyệt, chưa ghi nhận tồn
     overTolerance: {
@@ -393,6 +447,7 @@ export const UI_LABELS = {
       decisionLabels: {
         APPROVED: "Đã duyệt — ghi nhận đủ SL đã đếm",
         EXCESS_REJECTED: "Đã từ chối phần vượt — chỉ ghi nhận tới dung sai",
+        REJECTED: "Đã từ chối phiếu — không ghi nhận, phiếu đã huỷ",
       },
       approveTitle: "Duyệt nhận vượt dung sai",
       approveDescription:
@@ -721,6 +776,15 @@ export const RECEIPT_ERROR_MESSAGES = {
   RECEIPT_SELF_APPROVAL:
     "Người đã đếm hoặc đã gửi phiếu đi duyệt không được tự quyết định phiếu đó — cần Quản lý kho khác",
   RECEIPT_APPROVAL_REASON_REQUIRED: "Nhập lý do",
+  // BR-RCP-002 / owner decisions NOPO-*: phiếu không có PO — bắt buộc lý do + NCC; PO tham chiếu phải của NCC đó
+  BLIND_RECEIPT_REASON_REQUIRED: "Nhập lý do không có PO",
+  RECEIPT_REFERENCE_SUPPLIER_MISMATCH:
+    "Đơn đặt hàng này không thuộc nhà cung cấp của phiếu nhận — chọn đơn của cùng nhà cung cấp",
+  SUPPLIER_NOT_FOUND: "Không tìm thấy nhà cung cấp",
+  WAREHOUSE_NOT_FOUND: "Không tìm thấy kho",
+  INVENTORY_ITEM_NOT_FOUND: "Không có SKU này trong danh mục mặt hàng kho",
+  RECEIPT_LINE_NOT_ON_PO:
+    "Dòng này không thuộc đơn đặt hàng của phiếu (phiếu không có PO gọi hàng bằng SKU)",
   // Từ chối phần vượt không cắt được dòng đã dán tem thùng: duyệt, hoặc huỷ phiếu rồi đếm lại
   RECEIPT_PACKAGES_EXCEED_LINE:
     "Cắt phần vượt sẽ làm dòng ít hơn số lượng trong các thùng đã dán tem — hãy duyệt phiếu, hoặc huỷ phiếu rồi đếm lại",
@@ -752,6 +816,10 @@ export const RECEIPT_FIELD_MESSAGES = {
   overLimit: "Tổng SL nhận của dòng PO vượt SL đặt cộng dung sai",
   duplicateLot: "Dòng PO này đã có một dòng cùng số lô — gộp SL của một lô vào một dòng",
   approvalReasonRequired: "Nhập lý do",
+  supplierRequired: "Chọn nhà cung cấp",
+  warehouseRequired: "Chọn kho nhận",
+  blindReasonRequired: "Nhập lý do không có PO",
+  skuRequired: "Nhập SKU",
   qcSum: "Tổng Đạt + Cách ly + Không đạt phải bằng SL đã chuyển sang khu QC",
   qcQuantity: "Số lượng phải là số nguyên ≥ 0",
   qcLocationRequired: "Nhập mã khu cách ly",
@@ -869,6 +937,9 @@ export const TOAST_MESSAGES = {
     excessRejected: "Đã từ chối phần vượt — chỉ ghi nhận tới mức dung sai",
     excessRejectedNothingLeft:
       "Đã từ chối phần vượt — không còn gì trong dung sai, phiếu đã bị huỷ",
+    blindCreated: "Đã tạo phiếu nhận không có PO",
+    blindRejected: "Đã từ chối phiếu — phiếu đã huỷ, không ghi nhận tồn",
+    referenced: "Đã gắn đơn đặt hàng tham chiếu",
   },
   transfer: TRANSFER_TOAST_MESSAGES,
   transferPack: TRANSFER_PACK_TOAST_MESSAGES,

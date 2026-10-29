@@ -27,6 +27,21 @@ export const receiptCreateInputSchema = z.object({
   note: optionalText(RECEIPT_LIMITS.noteMax),
 });
 
+/* ── Tạo phiếu không có PO (BR-RCP-002, SCRUM-478) ─────────────────────── */
+
+// Docs 03: "Receipt không PO" với lý do, cần duyệt. Owner NOPO-SUPPLIER: NCC bắt buộc; NOPO-REASON: lý do tự do bắt buộc
+export const receiptCreateWithoutPoInputSchema = z.object({
+  supplierId: z.string().min(1, MSG.supplierRequired),
+  warehouseId: z.string().min(1, MSG.warehouseRequired),
+  reason: z
+    .string()
+    .trim()
+    .min(1, MSG.blindReasonRequired)
+    .max(RECEIPT_LIMITS.blindReasonMax, MSG.tooLong),
+  deliveryNote: optionalText(RECEIPT_LIMITS.deliveryNoteMax),
+  note: optionalText(RECEIPT_LIMITS.noteMax),
+});
+
 /* ── Kiểm đếm ────────────────────────────────────────────────────────── */
 
 export const receiptLineInputSchema = z.object({
@@ -34,6 +49,21 @@ export const receiptLineInputSchema = z.object({
   quantity: z.number({ message: MSG.quantity }).int(MSG.quantity).positive(MSG.quantity),
   lotNumber: optionalText(RECEIPT_LIMITS.codeMax),
   // "" = không nhập; BE nhận LocalDate yyyy-MM-dd
+  expiryDate: z.union([z.literal(""), isoDate]).default(""),
+  locationCode: locationCodeInput,
+  note: optionalText(RECEIPT_LIMITS.lineNoteMax),
+});
+
+/** Dòng kiểm đếm của phiếu không có PO: gọi hàng bằng SKU (BE upper-case), không có dòng PO. */
+export const blindLineInputSchema = z.object({
+  sku: z
+    .string()
+    .trim()
+    .min(1, MSG.skuRequired)
+    .max(RECEIPT_LIMITS.skuMax, MSG.tooLong)
+    .transform((sku) => sku.toUpperCase()),
+  quantity: z.number({ message: MSG.quantity }).int(MSG.quantity).positive(MSG.quantity),
+  lotNumber: optionalText(RECEIPT_LIMITS.codeMax),
   expiryDate: z.union([z.literal(""), isoDate]).default(""),
   locationCode: locationCodeInput,
   note: optionalText(RECEIPT_LIMITS.lineNoteMax),
@@ -104,6 +134,41 @@ export function buildReceiptLinesSchema(ctx: ReceiptLinesContext) {
             code: "custom",
             path: ["lines", index, "quantity"],
             message: MSG.overLimit,
+          });
+        }
+      });
+    });
+}
+
+/**
+ * Kiểm đếm phiếu không có PO: mỗi cặp SKU + lô một dòng (BE `uk_goods_receipt_lines_blind_lot`); hạn dùng phải sau
+ * ngày nhận (BR-06). Lô / hạn dùng bắt buộc theo SKU (BR-03) do BE kiểm — FE chưa biết cờ theo dõi của SKU.
+ */
+export function buildBlindLinesSchema(ctx: Pick<ReceiptLinesContext, "receivedOn">) {
+  return z
+    .object({
+      lines: z
+        .array(blindLineInputSchema)
+        .min(1, MSG.linesRequired)
+        .max(RECEIPT_LIMITS.linesMax, MSG.linesTooMany),
+    })
+    .superRefine(({ lines }, issue) => {
+      const seen = new Set<string>();
+      lines.forEach((line, index) => {
+        const key = `${line.sku}|${line.lotNumber}`;
+        if (seen.has(key)) {
+          issue.addIssue({
+            code: "custom",
+            path: ["lines", index, "lotNumber"],
+            message: MSG.duplicateLot,
+          });
+        }
+        seen.add(key);
+        if (line.expiryDate && line.expiryDate <= ctx.receivedOn) {
+          issue.addIssue({
+            code: "custom",
+            path: ["lines", index, "expiryDate"],
+            message: MSG.expiryNotAfterReceipt,
           });
         }
       });

@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { parseAsString, useQueryState } from "nuqs";
+import { parseAsBoolean, parseAsString, useQueryState } from "nuqs";
 
 import { ADMIN_ROUTES, RECEIPT_COLUMNS, RECEIPT_STATUSES, STORAGE_KEYS } from "@/constants";
 import { usePageConfig } from "@/hooks/use-page-config";
@@ -45,6 +45,8 @@ export function useReceiptListState(canRead = true) {
   const router = useRouter();
   const filters = useUrlFilters(RECEIPT_STATUSES);
   const [po, setPo] = useQueryState("po", parseAsString.withDefault(""));
+  // BR-RCP-002: chỉ phiếu không có PO (?noPo=1); không có tham số = cả hai loại
+  const [noPo, setNoPo] = useQueryState("noPo", parseAsBoolean.withDefault(false));
   const [from, setFrom] = useQueryState("from", parseAsString.withDefault(""));
   const [to, setTo] = useQueryState("to", parseAsString.withDefault(""));
   const { config, updateConfig } = usePageConfig<ReceiptPageConfig>(
@@ -62,6 +64,7 @@ export function useReceiptListState(canRead = true) {
       search: filters.debouncedQ,
       status: filters.status,
       purchaseOrderId: po || undefined,
+      withoutPo: noPo || undefined,
       receivedFrom: receivedFrom || undefined,
       receivedTo: receivedTo || undefined,
       sort: sort.key ? `${SERVER_SORT_FIELDS[sort.key]},${sort.direction}` : undefined,
@@ -70,7 +73,12 @@ export function useReceiptListState(canRead = true) {
   );
 
   const hasFilters =
-    filters.q.trim() !== "" || filters.status.length > 0 || !!po || !!receivedFrom || !!receivedTo;
+    filters.q.trim() !== "" ||
+    filters.status.length > 0 ||
+    !!po ||
+    noPo ||
+    !!receivedFrom ||
+    !!receivedTo;
   const page = query.data;
   const emptyState: ReceiptListEmptyState = !page
     ? "none"
@@ -124,10 +132,11 @@ export function useReceiptListState(canRead = true) {
     void filters.setPage(1);
   };
 
-  /** Bỏ mọi bộ lọc dữ liệu (search, trạng thái, PO, ngày) — giữ cấu hình cột. */
+  /** Bỏ mọi bộ lọc dữ liệu (search, trạng thái, PO, chỉ-không-có-PO, ngày) — giữ cấu hình cột. */
   const clearFilters = () => {
     filters.reset();
     void setPo(null);
+    void setNoPo(null);
     void setFrom(null);
     void setTo(null);
   };
@@ -148,8 +157,10 @@ export function useReceiptListState(canRead = true) {
     filters,
     sort,
     po,
+    noPo,
     receivedFrom,
     receivedTo,
+    setNoPo: (value: boolean) => withPageReset(() => setNoPo(value || null)),
     setPo: (value: string) => withPageReset(() => setPo(value || null)),
     setFrom: (value: string) => withPageReset(() => setFrom(value || null)),
     setTo: (value: string) => withPageReset(() => setTo(value || null)),

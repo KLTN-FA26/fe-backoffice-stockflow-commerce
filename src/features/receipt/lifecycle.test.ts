@@ -13,6 +13,8 @@ import {
   allowedReceiptActions,
   isReceiptEditable,
   isReceiptTerminal,
+  RECEIPT_CREATE_WITHOUT_PO_PERMISSIONS,
+  RECEIPT_REFERENCE_PO_PERMISSIONS,
 } from "./lifecycle";
 
 import type { PermissionCode } from "@/lib/auth";
@@ -184,5 +186,61 @@ describe("allowedLineActions (docs 03 §4 chặng 2, BR-08)", () => {
     );
     expect(allowedLineActions("In QC", { qcProgress: "NOT_REQUIRED" }, all)).toEqual([]);
     expect(allowedLineActions("In QC", { qcProgress: "INSPECTED" }, canAs("qcStaff"))).toEqual([]);
+  });
+});
+
+describe("phiếu không có PO (BR-RCP-002, SCRUM-478)", () => {
+  const blind = (status: "Draft" | "Pending Approval", lineCount = 2) => ({
+    status,
+    lineCount,
+    withoutPo: true,
+  });
+
+  it("Pending Approval: người có APPROVE thấy Duyệt / Từ chối phiếu / Huỷ — KHÔNG có 'Từ chối phần vượt'", () => {
+    const actions = allowedReceiptActions(blind("Pending Approval"), canAs("warehouseManager"));
+    expect(codes(actions)).toEqual(["approve", "rejectBlind", "cancel"]);
+    expect(actions.find((a) => a.action.code === "rejectBlind")?.action.destructive).toBe(true);
+  });
+
+  it("phiếu theo PO không có nút 'Từ chối phiếu' (từ chối phần vượt mới là của nó)", () => {
+    const actions = allowedReceiptActions(
+      { status: "Pending Approval", lineCount: 2 },
+      canAs("warehouseManager"),
+    );
+    expect(codes(actions)).toEqual(["approve", "rejectExcess", "cancel"]);
+  });
+
+  it("gate theo MÃ QUYỀN: cả duyệt và từ chối phiếu chỉ cần APPROVE; thiếu APPROVE chỉ còn huỷ", () => {
+    expect(
+      codes(
+        allowedReceiptActions(
+          blind("Pending Approval"),
+          (code) => code === GOODS_RECEIPT_PERMISSIONS.approve,
+        ),
+      ),
+    ).toEqual(["approve", "rejectBlind"]);
+    expect(
+      codes(allowedReceiptActions(blind("Pending Approval"), canAs("warehouseStaff"))),
+    ).toEqual(["cancel"]);
+    expect(allowedReceiptActions(blind("Pending Approval"), canAs("viewer"))).toEqual([]);
+  });
+
+  it("Draft không có PO: đếm không cần đọc PO — chỉ cần quyền sửa phiếu; xác nhận hiện khi đã có dòng", () => {
+    // NV kho (không có purchase-orders:READ) vẫn lưu kiểm đếm bằng SKU được ở màn này; BE gate là goods-receipts:UPDATE
+    const actions = allowedReceiptActions(blind("Draft"), canAs("warehouseManager"));
+    expect(codes(actions)).toContain("confirm");
+    expect(codes(actions)).not.toContain("approve");
+  });
+
+  it("tạo phiếu không có PO cần CREATE + xem NCC + xem kho; gắn PO tham chiếu cần UPDATE + đọc PO", () => {
+    expect(RECEIPT_CREATE_WITHOUT_PO_PERMISSIONS).toEqual([
+      GOODS_RECEIPT_PERMISSIONS.create,
+      "procurement-suppliers:READ",
+      "warehouse-warehouses:READ",
+    ]);
+    expect(RECEIPT_REFERENCE_PO_PERMISSIONS).toEqual([
+      GOODS_RECEIPT_PERMISSIONS.update,
+      PO_PERMISSIONS.read,
+    ]);
   });
 });

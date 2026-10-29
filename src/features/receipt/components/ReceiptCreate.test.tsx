@@ -4,7 +4,16 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "@/lib/api/error";
 
-import { PO_ID, SOFA_PO_LINE_ID, apiLine, apiReceipt, receivablePo } from "../__fixtures__/receipt";
+import {
+  HCM_ID,
+  PO_ID,
+  SOFA_PO_LINE_ID,
+  SUPPLIER_ID,
+  apiBlindReceipt,
+  apiLine,
+  apiReceipt,
+  receivablePo,
+} from "../__fixtures__/receipt";
 import {
   RECEIPT_ROLE_PERMISSIONS as ROLES,
   bePage,
@@ -100,5 +109,96 @@ describe("ReceiptCreate — tạo phiếu nhận từ PO (BR-01)", () => {
     );
     expect(screen.getByText(/đã có phiếu nhận nháp/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Tạo phiếu nhận" })).toBeEnabled();
+  });
+});
+
+/* ── BR-RCP-002 (SCRUM-478): hàng về không có PO ───────────────────────────────────────────── */
+
+describe("ReceiptCreate — hàng về không có PO (BR-RCP-002)", () => {
+  function renderWithoutPo(permissions: Parameters<typeof mockReceiptApi>[0]) {
+    Element.prototype.hasPointerCapture ??= () => false;
+    Element.prototype.releasePointerCapture ??= () => {};
+    Element.prototype.scrollIntoView ??= () => {};
+    const spies = mockReceiptApi(
+      permissions,
+      {
+        "/suppliers": () =>
+          bePage([{ supplierId: SUPPLIER_ID, code: "GOVIET", name: "Xưởng gỗ Việt" }]),
+        "/warehouses": () => bePage([{ id: HCM_ID, prefix: "HCM", name: "Kho Hồ Chí Minh" }]),
+        "/purchase-orders": () => bePage([receivablePo]),
+        "/goods-receipts": () => bePage([]),
+      },
+      { "/goods-receipts/without-po": () => apiBlindReceipt() },
+    );
+    renderReceiptScreen(<ReceiptCreate />, "?mode=without-po");
+    return spies;
+  }
+
+  async function pick(user: ReturnType<typeof userEvent.setup>, trigger: RegExp, option: string) {
+    await user.click(await screen.findByRole("combobox", { name: trigger }));
+    await user.click(await screen.findByRole("option", { name: new RegExp(option) }));
+  }
+
+  it("có hai chế độ; chế độ không có PO: NCC + kho + lý do bắt buộc, thiếu thì lỗi inline và không gọi API", async () => {
+    const user = userEvent.setup();
+    const { post } = renderWithoutPo(ROLES.warehouseManager);
+    expect(await screen.findByRole("tab", { name: "Theo đơn đặt hàng" })).toHaveAttribute(
+      "aria-selected",
+      "false",
+    );
+    expect(screen.getByRole("tab", { name: "Không có đơn đặt hàng" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await user.click(await screen.findByRole("button", { name: "Tạo phiếu nhận" }));
+    await waitFor(() => expect(screen.getAllByRole("alert").length).toBeGreaterThanOrEqual(3));
+    const alerts = screen.getAllByRole("alert").map((element) => element.textContent);
+    expect(alerts).toEqual(
+      expect.arrayContaining(["Chọn nhà cung cấp", "Chọn kho nhận", "Nhập lý do không có PO"]),
+    );
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it("điền NCC, kho, lý do → POST /goods-receipts/without-po rồi sang chi tiết", async () => {
+    const user = userEvent.setup();
+    const { post } = renderWithoutPo(ROLES.warehouseManager);
+    await pick(user, /Nhà cung cấp/, "Xưởng gỗ Việt");
+    await pick(user, /Kho nhận/, "Kho Hồ Chí Minh");
+    await user.type(screen.getByLabelText(/Lý do không có PO/), "  NCC tặng kèm hàng mẫu ");
+    await user.type(screen.getByLabelText("Số phiếu giao"), "DN-9");
+    await user.click(screen.getByRole("button", { name: "Tạo phiếu nhận" }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith("/goods-receipts/without-po", {
+        supplierId: SUPPLIER_ID,
+        warehouseId: HCM_ID,
+        reason: "NCC tặng kèm hàng mẫu",
+        deliveryNote: "DN-9",
+        note: undefined,
+      }),
+    );
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/admin/receipts/${apiReceipt().id}`));
+  });
+
+  it("BE từ chối (NCC không tồn tại) → câu tiếng Việt, ở lại form", async () => {
+    const user = userEvent.setup();
+    const { post } = renderWithoutPo(ROLES.warehouseManager);
+    post.mockImplementationOnce(async () => {
+      throw new ApiError(404, "SUPPLIER_NOT_FOUND", "No supplier x");
+    });
+    await pick(user, /Nhà cung cấp/, "Xưởng gỗ Việt");
+    await pick(user, /Kho nhận/, "Kho Hồ Chí Minh");
+    await user.type(screen.getByLabelText(/Lý do không có PO/), "quà kèm");
+    await user.click(screen.getByRole("button", { name: "Tạo phiếu nhận" }));
+    expect(await screen.findByText("Không tìm thấy nhà cung cấp")).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("NV kho theo seed BE (thiếu xem NCC / kho): không có tab, báo cần quyền, không gọi API NCC / kho", async () => {
+    const { get } = renderWithoutPo(ROLES.warehouseStaff);
+    expect(await screen.findByText("Cần quyền xem nhà cung cấp và kho")).toBeInTheDocument();
+    expect(screen.queryByRole("tab")).not.toBeInTheDocument();
+    expect(get.mock.calls.some(([url]) => url === "/suppliers" || url === "/warehouses")).toBe(
+      false,
+    );
   });
 });

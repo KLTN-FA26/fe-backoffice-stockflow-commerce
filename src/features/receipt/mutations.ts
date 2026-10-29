@@ -24,9 +24,13 @@ import {
   cancelGoodsReceipt,
   confirmGoodsReceipt,
   createGoodsReceipt,
+  createGoodsReceiptWithoutPo,
   inspectLine,
   moveLineToQc,
+  referencePurchaseOrder,
+  rejectBlindReceipt,
   rejectReceiptExcess,
+  replaceBlindReceiptLines,
   replaceReceiptLines,
 } from "./api";
 import { isStaleReceiptError, receiptErrorMessage } from "./errors";
@@ -38,6 +42,9 @@ import type {
   InspectLineInput,
   MoveLineToQcInput,
   ReceiptCreateValues,
+  ReceiptCreateWithoutPoValues,
+  ReferencePurchaseOrderInput,
+  SaveBlindLinesInput,
   SaveReceiptLinesInput,
 } from "./types";
 
@@ -145,6 +152,43 @@ export const useInspectLine = withStaleRefetch(
   createMutation<InspectLineInput, GoodsReceipt>(inspectLine, {
     invalidate: [receiptKeys.all],
     successMessage: TOAST_MESSAGES.receipt.inspected,
+    showErrorToast: false,
+  }),
+);
+
+/* ── Phiếu không có PO (BR-RCP-002, SCRUM-478) ───────────────────────── */
+
+export const useCreateGoodsReceiptWithoutPo = withStaleRefetch(
+  createMutation<ReceiptCreateWithoutPoValues, GoodsReceipt>(createGoodsReceiptWithoutPo, {
+    invalidate: [receiptKeys.all],
+    successMessage: TOAST_MESSAGES.receipt.blindCreated,
+    showErrorToast: false,
+    onError: toastError,
+  }),
+);
+
+export const useSaveBlindReceiptLines = withStaleRefetch(
+  createMutation<SaveBlindLinesInput, GoodsReceipt>(replaceBlindReceiptLines, {
+    invalidate: [receiptKeys.all],
+    successMessage: TOAST_MESSAGES.receipt.linesSaved,
+    showErrorToast: false,
+  }),
+);
+
+/** Từ chối phiếu không có PO: huỷ cả phiếu, chưa ghi nhận gì. Lỗi hiện trong dialog (có ô lý do). */
+export const useRejectBlindReceipt = withStaleRefetch(
+  createMutation<DecideReceiptInput, GoodsReceipt>(rejectBlindReceipt, {
+    invalidate: [receiptKeys.all],
+    successMessage: TOAST_MESSAGES.receipt.blindRejected,
+    showErrorToast: false,
+  }),
+);
+
+/** Gắn PO tham chiếu — không đổi PO, nên KHÔNG invalidate PO. */
+export const useReferencePurchaseOrder = withStaleRefetch(
+  createMutation<ReferencePurchaseOrderInput, GoodsReceipt>(referencePurchaseOrder, {
+    invalidate: [receiptKeys.all],
+    successMessage: TOAST_MESSAGES.receipt.referenced,
     showErrorToast: false,
   }),
 );

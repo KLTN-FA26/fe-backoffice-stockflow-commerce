@@ -1,7 +1,14 @@
-import { screen, waitFor } from "@testing-library/react";
+import { cleanup, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { PO_ID, apiReceipt, apiReceiptPage, receivablePo } from "../__fixtures__/receipt";
+import {
+  PO_ID,
+  apiBlindReceipt,
+  apiReceipt,
+  apiReceiptPage,
+  receivablePo,
+} from "../__fixtures__/receipt";
 import {
   RECEIPT_ROLE_PERMISSIONS as ROLES,
   bePage,
@@ -107,5 +114,43 @@ describe("ReceiptList — danh sách phiếu nhận (BE GET /goods-receipts)", (
   it("khoảng ngày ngược (từ > đến) → cảnh báo ngay dưới bộ lọc", async () => {
     renderList(ROLES.warehouseManager, apiReceiptPage([]), "?from=2026-10-09&to=2026-10-01");
     expect(await screen.findByText(/Ngày bắt đầu sau ngày kết thúc/)).toBeInTheDocument();
+  });
+});
+
+describe("ReceiptList — hàng về không có PO (BR-RCP-002)", () => {
+  it("phiếu không có PO hiện huy hiệu 'Không có PO' + NCC thay cho số PO", async () => {
+    renderList(ROLES.warehouseManager, apiReceiptPage([apiBlindReceipt()]));
+    expect(await screen.findByText("Không có PO")).toBeInTheDocument();
+    expect(screen.getByText("Xưởng gỗ Việt")).toBeInTheDocument();
+  });
+
+  it("có nút 'Nhận hàng không có PO' khi có quyền xem NCC + kho; NV kho (thiếu) không thấy", async () => {
+    renderList(ROLES.warehouseManager);
+    expect(await screen.findByRole("link", { name: /Nhận hàng không có PO/ })).toHaveAttribute(
+      "href",
+      "/admin/receipts/create?mode=without-po",
+    );
+    cleanup();
+    renderList(ROLES.warehouseStaff);
+    await screen.findByRole("link", { name: "GR-20261009-0001" });
+    expect(screen.queryByRole("link", { name: /Nhận hàng không có PO/ })).not.toBeInTheDocument();
+  });
+
+  it("bộ lọc 'Chỉ phiếu không có PO' gửi withoutPo=true; URL ?noPo=true cũng vậy", async () => {
+    const user = userEvent.setup();
+    const { get } = renderList(ROLES.warehouseManager);
+    await screen.findByRole("link", { name: "GR-20261009-0001" });
+    await user.click(screen.getByRole("checkbox", { name: "Chỉ phiếu không có PO" }));
+    await waitFor(() => {
+      const calls = get.mock.calls.filter(([url]) => url === "/goods-receipts");
+      expect(calls.at(-1)?.[1]?.params).toMatchObject({ withoutPo: true });
+    });
+    cleanup();
+    const second = renderList(ROLES.warehouseManager, apiReceiptPage(), "?noPo=true");
+    await screen.findByRole("link", { name: "GR-20261009-0001" });
+    // Cùng spy `api.get` với lần render trước: lấy lần gọi cuối
+    expect(
+      second.get.mock.calls.filter(([url]) => url === "/goods-receipts").at(-1)?.[1]?.params,
+    ).toMatchObject({ withoutPo: true });
   });
 });
