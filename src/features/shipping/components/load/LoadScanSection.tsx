@@ -30,10 +30,16 @@ export function LoadScanSection({
 }) {
   const canScan = !!hasLoadAction(actions, "scan");
   const rejectedItems = withoutLoaded(rejected.items, loadedLabelCodes(load));
-  if (load.status === LOAD_STATUS.LOADING && hasPendingUnloads(load)) {
+  // Xe đã huỷ có kiểm soát (CANCELLED) còn kiện bị khoá cũng cần ô quét dỡ (SCRUM-474)
+  const unloadable = load.status === LOAD_STATUS.LOADING || load.status === LOAD_STATUS.CANCELLED;
+  if (unloadable && hasPendingUnloads(load)) {
     return (
       <>
-        <UnloadPanel load={load} canUnload={!!hasLoadAction(actions, "unload")} />
+        <UnloadPanel
+          load={load}
+          canUnload={!!hasLoadAction(actions, "unload")}
+          canOverride={!!hasLoadAction(actions, "overrideUnload")}
+        />
         <RejectedScans items={rejectedItems} onClear={rejected.clear} />
       </>
     );

@@ -492,6 +492,20 @@ export const LOAD_STATUS = {
   CANCELLED: "CANCELLED",
 } as const satisfies Record<string, LoadStatus>;
 
+/**
+ * BE `UnloadReasonCode` — lý do huỷ có kiểm soát sau khi đã bắt đầu xếp hàng (SCRUM-474 UNLOAD-DESIGN điểm 7,
+ * docs 09 BR-14): xe hỏng, sai xe, kiện không vừa, khác. Luôn kèm ghi chú.
+ */
+export const UNLOAD_REASON_CODES = ["XE_HONG", "SAI_XE", "KIEN_KHONG_VUA", "KHAC"] as const;
+export type UnloadReasonCode = (typeof UNLOAD_REASON_CODES)[number];
+
+export const UNLOAD_REASON_CODE = {
+  XE_HONG: "XE_HONG",
+  SAI_XE: "SAI_XE",
+  KIEN_KHONG_VUA: "KIEN_KHONG_VUA",
+  KHAC: "KHAC",
+} as const satisfies Record<string, UnloadReasonCode>;
+
 /** BE `DispatchController` / `DeliveryOutcomeRequest.outcome` — kết quả hãng báo lại (docs 09 §4.3). */
 export const DELIVERY_OUTCOMES = ["DELIVERED", "DELIVERY_FAILED", "RETURNED"] as const;
 

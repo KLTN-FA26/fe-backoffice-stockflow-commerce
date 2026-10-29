@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Ban, ClipboardList, Truck } from "lucide-react";
+import { Ban, ClipboardList, ShieldAlert, Truck } from "lucide-react";
 
 import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
 import { hasLoadAction } from "@/features/shipping/lifecycle";
@@ -11,6 +11,7 @@ import type { AllowedLoadAction } from "@/features/shipping/lifecycle";
 import type { Load } from "@/features/shipping/types";
 
 const A = UI_LABELS.shipping.load.actions;
+const CC = UI_LABELS.shipping.ftl.controlledCancel;
 const PRIMARY =
   "bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse rounded-[var(--r-sm)]";
 
@@ -23,19 +24,28 @@ export function LoadActions({
   actions,
   onHandover,
   onCancel,
+  onControlledCancel,
 }: {
   load: Load;
   actions: readonly AllowedLoadAction[];
   onHandover: () => void;
   onCancel: () => void;
+  /** Huỷ có kiểm soát một xe đang xếp hàng (SCRUM-474) — chỉ khi có quyền của quản lý kho. */
+  onControlledCancel: () => void;
 }) {
   const handover = hasLoadAction(actions, "handover");
   const cancel = hasLoadAction(actions, "cancel");
+  const controlledCancel = hasLoadAction(actions, "controlledCancel");
   return (
     <div className="flex flex-wrap items-center gap-2">
       {cancel && (
         <Button variant="outline" size="sm" onClick={onCancel}>
           <Ban className="size-3.5" /> {A.cancel}
+        </Button>
+      )}
+      {controlledCancel && (
+        <Button variant="outline" size="sm" onClick={onControlledCancel}>
+          <ShieldAlert className="size-3.5" /> {CC.cancelButton}
         </Button>
       )}
       <Button variant="outline" size="sm" asChild>

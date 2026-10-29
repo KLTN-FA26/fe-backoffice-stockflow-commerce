@@ -5,7 +5,12 @@
 
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { getMockShipments, resetLoadPlanMockStore } from "@/lib/api/mock-load-plan-store";
+import { FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS } from "@/constants";
+import {
+  getMockPlans,
+  getMockShipments,
+  resetLoadPlanMockStore,
+} from "@/lib/api/mock-load-plan-store";
 import { resetVehicleTypeMockStore } from "@/lib/api/mock-vehicle-type-store";
 
 import {
@@ -31,6 +36,8 @@ import {
 import { beReconciliationSchema } from "./reconciliation-schemas";
 
 import type { PlanDetail } from "./plan-types";
+
+const CONTROLLED = FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS.update;
 
 beforeEach(() => {
   resetLoadPlanMockStore();
@@ -427,6 +434,60 @@ describe("đồng thời, mở lại, huỷ (BR-14)", () => {
           }),
         ),
       ).toBe("LOAD_PLAN_LOADING_STARTED");
+  });
+
+  it("SCRUM-474 UNLOAD-DESIGN: a plan whose vehicle is loading is cancelled under control at once - code and note, its own permission, never a reopening", async () => {
+    const plan = await detailOf(SEED.loading);
+    const url = `${PATH}/${plan.loadPlanId}/controlled-cancellation`;
+    const body = { expectedVersion: plan.version, reasonCode: "SAI_XE", note: "Xe sai loại" };
+    // :UPDATE alone is not enough - the manager's code is its own (fulfillment-controlled-cancellations:UPDATE)
+    expect((await call("POST", url, body)).status).toBe(403);
+    actAs([...DISPATCHER, CONTROLLED]);
+    expect(errorCode(await call("POST", url, { ...body, reasonCode: "NOPE" }))).toBe(
+      "VALIDATION_FAILED",
+    );
+    expect(errorCode(await call("POST", url, { ...body, note: " " }))).toBe("VALIDATION_FAILED");
+    expect(errorCode(await call("POST", url, { ...body, expectedVersion: 999 }))).toBe(
+      "OPTIMISTIC_LOCK",
+    );
+    const cancelled = bePlanDetailSchema.parse((await call("POST", url, body)).data);
+    expect(cancelled).toMatchObject({
+      status: "CANCELLED",
+      cancelReasonCode: "SAI_XE",
+      cancelReason: "Xe sai loại",
+    });
+    expect(cancelled.cancelledAt).toBeTruthy();
+    // CONFIRMED only: a draft / planned / already cancelled plan is not cancelled this way
+    for (const id of [SEED.draft, SEED.planned, SEED.cancelled]) {
+      const other = await detailOf(id);
+      expect(
+        errorCode(
+          await call("POST", `${PATH}/${other.loadPlanId}/controlled-cancellation`, {
+            expectedVersion: other.version,
+            reasonCode: "KHAC",
+            note: "x",
+          }),
+        ),
+      ).toBe("INVALID_LOAD_PLAN_TRANSITION");
+    }
+  });
+
+  it("UNLOAD-DESIGN point 3: once a vehicle left (DISPATCHED) the whole plan is 409 LOAD_PLAN_VEHICLE_DISPATCHED", async () => {
+    actAs([...DISPATCHER, CONTROLLED]);
+    const plan = await detailOf(SEED.loading);
+    const vehicleLoad = getMockPlans().get(plan.loadPlanId)?.vehicles[0]?.load;
+    expect(vehicleLoad).toBeTruthy();
+    if (vehicleLoad) vehicleLoad.status = "DISPATCHED";
+    expect(
+      errorCode(
+        await call("POST", `${PATH}/${plan.loadPlanId}/controlled-cancellation`, {
+          expectedVersion: plan.version,
+          reasonCode: "XE_HONG",
+          note: "x",
+        }),
+      ),
+    ).toBe("LOAD_PLAN_VEHICLE_DISPATCHED");
+    expect((await detailOf(SEED.loading)).status).toBe("CONFIRMED");
   });
 
   it("every step needs :UPDATE", async () => {

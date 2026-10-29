@@ -79,6 +79,8 @@ const STALE_CODES: ReadonlySet<string> = new Set([
   "LOAD_PLAN_NEEDS_RECALCULATION",
   "LOAD_PLAN_UNPLACED_NOT_ACKNOWLEDGED",
   "LOAD_PLAN_LOADING_STARTED",
+  "LOAD_PLAN_VEHICLE_DISPATCHED",
+  "PACKAGE_UNLOAD_PENDING",
   "LOAD_PLAN_PACKAGE_TAKEN",
   "SHIPMENT_STATE_CONFLICT",
   // SCRUM-287 PR F9: lệnh chuyển kho đã đổi (dừng lấy hàng, đã có kế hoạch khác) — danh sách ứng viên đã cũ

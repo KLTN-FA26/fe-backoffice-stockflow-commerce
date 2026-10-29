@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { LOAD_PLAN_PERMISSIONS, LOAD_PLAN_STATUSES } from "@/constants";
+import {
+  FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS,
+  LOAD_PLAN_PERMISSIONS,
+  LOAD_PLAN_STATUSES,
+} from "@/constants";
 
 import {
   planFixture,
@@ -20,6 +24,8 @@ const actor = (...codes: PermissionCode[]) => ({
 });
 const worker = actor(P.viewPage, P.read, P.create, P.update);
 const viewer = actor(P.viewPage, P.read);
+const CONTROLLED = FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS.update;
+const manager = actor(P.viewPage, P.read, P.create, P.update, CONTROLLED);
 
 describe("LOAD_PLAN_TRANSITIONS (docs 09 §5, LoadPlan.requireStatus)", () => {
   it("terminal states have no way out", () => {
@@ -102,6 +108,64 @@ describe("loadPlanActions — by status", () => {
       ],
     });
     expect(loadPlanActions(booked, worker)).toMatchObject({ reopen: true, cancel: true });
+  });
+
+  it("SCRUM-474 UNLOAD-DESIGN: the controlled cancel needs its own permission code and a CONFIRMED plan whose loading started", () => {
+    const loading = (status: string) =>
+      planFixture({
+        status: "CONFIRMED",
+        vehicles: [
+          vehicleOfLayout(LAYOUT_PICKUP_KIT, { load: { loadId: "l-1", code: "LD-1", status } }),
+        ],
+      });
+    // The manager (permission code, never a role) sees it once a vehicle loads; the plain cancel is gone then
+    expect(loadPlanActions(loading("LOADING"), manager)).toMatchObject({
+      cancelControlled: true,
+      cancelControlledBlocked: null,
+      cancel: false,
+      reopen: false,
+    });
+    // Staff with :UPDATE but without the code never see it; neither does a viewer
+    expect(loadPlanActions(loading("LOADING"), worker).cancelControlled).toBe(false);
+    expect(loadPlanActions(loading("LOADING"), viewer).cancelControlled).toBe(false);
+    // The code alone is enough to see it (BE checks only that code), without :UPDATE
+    expect(
+      loadPlanActions(loading("LOADING"), actor(P.viewPage, P.read, CONTROLLED)),
+    ).toMatchObject({ cancelControlled: true, calculate: false, confirm: false });
+    // Nothing loading yet: the plain cancel / reopen still serve, no controlled button
+    const booked = planFixture({
+      status: "CONFIRMED",
+      vehicles: [
+        vehicleOfLayout(LAYOUT_PICKUP_KIT, {
+          load: { loadId: "l-1", code: "LD-1", status: "VEHICLE_BOOKED" },
+        }),
+      ],
+    });
+    expect(loadPlanActions(booked, manager)).toMatchObject({
+      cancelControlled: false,
+      cancel: true,
+    });
+    // Not CONFIRMED: never
+    for (const status of ["DRAFT", "PLANNED", "DISPATCHED", "CANCELLED"] as const) {
+      expect(loadPlanActions({ ...loading("LOADING"), status }, manager).cancelControlled).toBe(
+        false,
+      );
+    }
+  });
+
+  it("UNLOAD-DESIGN point 3: a vehicle that already left blocks the whole-plan controlled cancel (per vehicle instead)", () => {
+    const plan = planFixture({
+      status: "CONFIRMED",
+      vehicles: [
+        vehicleOfLayout(LAYOUT_PICKUP_KIT, {
+          load: { loadId: "l-1", code: "LD-1", status: "DISPATCHED" },
+        }),
+      ],
+    });
+    expect(loadPlanActions(plan, manager)).toMatchObject({
+      cancelControlled: true,
+      cancelControlledBlocked: "vehicleLeft",
+    });
   });
 
   it("DISPATCHED and CANCELLED show no mutating button", () => {

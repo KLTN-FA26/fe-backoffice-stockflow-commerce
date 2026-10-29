@@ -6,7 +6,12 @@
 
 import { z } from "zod";
 
+import { UNLOAD_REASON_CODES } from "@/constants";
+
 import { deliveryModeSchema, isoInstant } from "./schemas";
+
+/** BE `UnloadReasonCode` — XE_HONG, SAI_XE, KIEN_KHONG_VUA, KHAC (SCRUM-474 UNLOAD-DESIGN điểm 7); tập đóng. */
+export const unloadReasonCodeSchema = z.enum(UNLOAD_REASON_CODES);
 
 /** BE `KitPartResponse` — kiện là phần `partNo/partCount` của một bộ (SCRUM-287 LP2-6). */
 export const kitPartSchema = z.object({
@@ -16,15 +21,22 @@ export const kitPartSchema = z.object({
   orderLineId: z.string().nullish(),
 });
 
-/** BE `LoadResponse.PendingUnload` — kiện của đơn đã huỷ còn nằm trên xe, phải quét dỡ xuống trước bàn giao. */
+/**
+ * BE `LoadResponse.PendingUnload` — kiện còn nằm trên xe, phải quét dỡ xuống: của đơn đã huỷ (SCRUM-392, chặn bàn
+ * giao) hoặc của xe đã huỷ có kiểm soát (SCRUM-474, kiện bị khoá; có `reasonCode`). Trên xe của kế hoạch nguồn TRANSFER
+ * `shipmentId` vắng, `transferOrderId` có và `shipmentCode` là số lệnh.
+ */
 export const pendingUnloadSchema = z.object({
   packageId: z.string(),
   /** `PKG-<số đơn>-<n>` — mã quét. */
   labelCode: z.string(),
-  shipmentId: z.string(),
-  shipmentCode: z.string(),
+  shipmentId: z.string().nullish(),
+  transferOrderId: z.string().nullish(),
+  shipmentCode: z.string().nullish(),
   reason: z.string().nullish(),
   requestedAt: isoInstant.nullish(),
+  /** Chỉ có khi xe huỷ có kiểm soát; vắng = kiện của đơn đã huỷ. */
+  reasonCode: unloadReasonCodeSchema.nullish(),
 });
 
 /**
@@ -53,6 +65,8 @@ export const ftlLoadFields = {
   bookingCancelledAt: isoInstant.nullish(),
   bookingCancelReason: z.string().nullish(),
   pendingUnloads: z.array(pendingUnloadSchema).nullish(),
+  /** Mã lý do huỷ có kiểm soát (SCRUM-474); `cancelReason` là ghi chú. Vắng với mọi cách huỷ khác. */
+  cancelReasonCode: unloadReasonCodeSchema.nullish(),
   /** Chuyến CANCELLED sau khi đã đặt xe: đặt xe ngoài hệ thống vẫn còn → điều phối phải huỷ. */
   carrierBookingToCancel: z.boolean().nullish(),
 };

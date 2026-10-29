@@ -5,6 +5,7 @@ import { isLoadOpen } from "@/features/shipping/lifecycle";
 
 import { BookingDialog } from "../ftl/BookingDialog";
 import { CancelBookingDialog, StartLoadingDialog } from "../ftl/BookingConfirmDialogs";
+import { ControlledCancelLoadDialog } from "../ftl/ControlledCancelLoadDialog";
 import { HandoverDialog } from "../handover/HandoverDialog";
 import { AddShipmentsDialog } from "./AddShipmentsDialog";
 import { CancelLoadDialog } from "./CancelLoadDialog";
@@ -13,7 +14,14 @@ import type { HandoverRefusal } from "@/features/shipping/errors";
 import type { Load } from "@/features/shipping/types";
 
 export type LoadDialogKind =
-  "handover" | "cancel" | "add" | "book" | "cancelBooking" | "startLoading" | null;
+  | "handover"
+  | "cancel"
+  | "add"
+  | "book"
+  | "cancelBooking"
+  | "startLoading"
+  | "controlledCancel"
+  | null;
 
 /**
  * Hộp thoại của màn chuyến. Gắn với TRẠNG THÁI chuyến, không với quyền: ghi cache sau khi bàn giao /
@@ -34,6 +42,10 @@ export function LoadDialogs({
 }) {
   if (dialog === "handover" && load.status === LOAD_STATUS.LOADING) {
     return <HandoverDialog load={load} onClose={onClose} onRefused={onRefused} onDone={onDone} />;
+  }
+  // SCRUM-474: chỉ xe đang xếp hàng huỷ có kiểm soát được; sau khi huỷ chuyến sang CANCELLED nên hộp thoại tự gỡ
+  if (dialog === "controlledCancel" && load.status === LOAD_STATUS.LOADING) {
+    return <ControlledCancelLoadDialog load={load} onClose={onClose} />;
   }
   if (dialog === "cancel" && isLoadOpen(load.status)) {
     return <CancelLoadDialog load={load} onClose={onClose} />;

@@ -314,3 +314,31 @@ export function cancel(plan: MockPlan, reason: string): Err {
   stamp(plan);
   return null;
 }
+
+/**
+ * Huỷ có kiểm soát CẢ kế hoạch sau khi đã xếp hàng (BE `LoadPlan.cancelControlled`, SCRUM-474 UNLOAD-DESIGN điểm 1, 3, 7): chỉ
+ * kế hoạch CONFIRMED; đã có xe rời kho (DISPATCHED) → 409 LOAD_PLAN_VEHICLE_DISPATCHED. Mã lý do + ghi chú bắt buộc.
+ */
+export function cancelControlled(plan: MockPlan, reasonCode: string, note: string): Err {
+  const wrongStatus = requireStatus(plan, "CONFIRMED");
+  if (wrongStatus) return wrongStatus;
+  if (!["XE_HONG", "SAI_XE", "KIEN_KHONG_VUA", "KHAC"].includes(reasonCode))
+    return fail(400, "VALIDATION_FAILED", "Invalid request data", [
+      { field: "reasonCode", message: "must be a reason code" },
+    ]);
+  const invalid = note.trim() === "" ? reasonError("") : null;
+  if (invalid) return invalid;
+  if (plan.vehicles.some((v) => v.load?.status === "DISPATCHED"))
+    return fail(
+      409,
+      "LOAD_PLAN_VEHICLE_DISPATCHED",
+      "A vehicle of this load plan already left the warehouse",
+    );
+  plan.vehicles = plan.vehicles.map((v) => ({ ...v, load: null }));
+  plan.status = LOAD_PLAN_STATUS.CANCELLED;
+  plan.cancelledAt = new Date().toISOString();
+  plan.cancelReason = note.trim();
+  plan.cancelReasonCode = reasonCode;
+  stamp(plan);
+  return null;
+}

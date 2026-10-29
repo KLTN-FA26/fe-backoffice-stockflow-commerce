@@ -5,7 +5,12 @@
  * `requestId`. Chỉnh tay `PUT …/placements` (PR F5) kiểm đủ luật BR-10 ở `mock-load-plan-edit.ts`.
  */
 
-import { LOAD_PLAN_PERMISSIONS, LOAD_PLAN_SELECTION_MODES, LOAD_PLAN_STATUSES } from "@/constants";
+import {
+  FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS,
+  LOAD_PLAN_PERMISSIONS,
+  LOAD_PLAN_SELECTION_MODES,
+  LOAD_PLAN_STATUSES,
+} from "@/constants";
 
 import { registerMockRoute } from "./mock-adapter";
 import { editPlacements } from "./mock-load-plan-edit";
@@ -32,12 +37,12 @@ import {
 
 import type { AxiosRequestConfig } from "axios";
 import type { LoadPlanSelectionMode } from "@/constants";
+import type { PermissionCode } from "@/lib/auth/me-permissions";
 import type { MockResponseShape } from "./mock-route-utils";
 import type { MockPlan } from "./mock-load-plan-store";
 
 const PATH = "/fulfillment/load-plans";
 const P = LOAD_PLAN_PERMISSIONS;
-type Permission = (typeof P)[keyof typeof P];
 
 const notFound = () => fail(404, "LOAD_PLAN_NOT_FOUND", "Load plan not found");
 const invalid = (field: string, message: string) =>
@@ -52,7 +57,7 @@ const modeOf = (value: unknown): LoadPlanSelectionMode | null => {
 };
 
 async function guarded(
-  permission: Permission,
+  permission: PermissionCode,
   handle: () => MockResponseShape,
 ): Promise<MockResponseShape> {
   return (await currentActor()).can(permission)
@@ -68,9 +73,11 @@ function step(
     body: Record<string, unknown>,
     config: AxiosRequestConfig,
   ) => MockResponseShape | null,
+  /** Mã quyền BE đòi; mặc định `fulfillment-load-plans:UPDATE`. */
+  permission: PermissionCode = P.update,
 ): void {
   registerMockRoute("POST", pattern, (config) =>
-    guarded(P.update, () => {
+    guarded(permission, () => {
       const plan = planOf(routeParam(config, "id"));
       if (!plan) return notFound();
       const body = parseJsonBody(config.data);
@@ -261,4 +268,10 @@ export function registerLoadPlanMockRoutes(): void {
   step(`${PATH}/:id/confirmation`, (plan) => ops.confirm(plan));
   step(`${PATH}/:id/reopening`, (plan, body) => ops.reopen(plan, readString(body.reason)));
   step(`${PATH}/:id/cancellation`, (plan, body) => ops.cancel(plan, readString(body.reason)));
+  // SCRUM-474 UNLOAD-DESIGN: huỷ có kiểm soát — quyền riêng của quản lý kho, không phải `fulfillment-load-plans:UPDATE`
+  step(
+    `${PATH}/:id/controlled-cancellation`,
+    (plan, body) => ops.cancelControlled(plan, readString(body.reasonCode), readString(body.note)),
+    FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS.update,
+  );
 }

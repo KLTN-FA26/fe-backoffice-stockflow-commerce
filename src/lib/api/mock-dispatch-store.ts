@@ -40,6 +40,8 @@ export interface MockPendingUnload {
   shipmentCode: string;
   reason: string;
   requestedAt: string;
+  /** Có khi xe huỷ có kiểm soát (SCRUM-474): XE_HONG / SAI_XE / KIEN_KHONG_VUA / KHAC. */
+  reasonCode?: string;
 }
 
 /** Phần của chuyến nguyên xe (FTL, BE PR #162): xe của một kế hoạch xếp xe, kiện kế hoạch xếp lên xe, đặt xe. */
@@ -56,6 +58,8 @@ export interface MockFtlPart {
   bookingCancelReason: string | null;
   pendingUnloads: MockPendingUnload[];
   carrierBookingToCancel: boolean;
+  /** Mã lý do của lần huỷ có kiểm soát (SCRUM-474); null với mọi cách huỷ khác. */
+  cancelReasonCode?: string | null;
 }
 
 /** Điều kiện làm BE từ chối bàn giao đúng lô này (G3-Q4 + BR-04) — để thử màn lỗi theo lô. */
