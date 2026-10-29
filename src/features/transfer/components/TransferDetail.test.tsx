@@ -120,4 +120,34 @@ describe("TransferDetail — action-gating + xuất kho", HEAVY_TEST, () => {
     renderDetail(ROLES.viewOnly, apiTransfer());
     expect(await screen.findByText("HCM · Kho Hồ Chí Minh")).toBeInTheDocument();
   });
+  describe("lý do từ chối (SCRUM-493)", () => {
+    const R = UI_LABELS.transfer.rejection;
+    const rejected = {
+      rejectionReason: "Thiếu chứng từ nguồn",
+      rejectedBy: OTHER_USER,
+      rejectedAt: "2026-10-13T03:00:00Z",
+    };
+
+    it("DRAFT bị từ chối → alert nổi bật: lý do, người từ chối, lúc từ chối", async () => {
+      renderDetail(ROLES.viewOnly, apiTransfer({ status: "DRAFT", ...rejected }));
+      expect(await screen.findByText(rejected.rejectionReason)).toBeInTheDocument();
+      expect(screen.getByText(R.title)).toBeInTheDocument();
+      expect(screen.getByText(R.draftHint)).toBeInTheDocument();
+      expect(screen.getByText(`${OTHER_USER.slice(0, 8)}…`)).toBeInTheDocument();
+      expect(screen.getByText(R.at)).toBeInTheDocument();
+    });
+
+    it("đã gửi duyệt lại → vẫn hiện lý do như lịch sử, không có gợi ý sửa nháp", async () => {
+      renderDetail(ROLES.viewOnly, apiTransfer({ status: "PENDING_APPROVAL", ...rejected }));
+      expect(await screen.findByText(rejected.rejectionReason)).toBeInTheDocument();
+      expect(screen.getByText(R.title)).toBeInTheDocument();
+      expect(screen.queryByText(R.draftHint)).not.toBeInTheDocument();
+    });
+
+    it("chưa từng bị từ chối → không hiện khối lý do từ chối", async () => {
+      renderDetail(ROLES.viewOnly, apiTransfer());
+      await screen.findByText("HCM · Kho Hồ Chí Minh");
+      expect(screen.queryByText(R.title)).not.toBeInTheDocument();
+    });
+  });
 });

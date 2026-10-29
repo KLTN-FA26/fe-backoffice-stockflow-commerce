@@ -78,6 +78,12 @@ export const TRANSFER_UI_LABELS = {
     inactive: "đã ngừng hoạt động",
   },
   you: "Bạn",
+  rejection: {
+    title: "Lý do từ chối",
+    by: "Người từ chối",
+    at: "Lúc từ chối",
+    draftHint: "Lệnh đã được trả về Nháp — sửa lại rồi gửi duyệt lại.",
+  },
   linesCaption: "Dòng hàng của lệnh",
   totalRequested: "Tổng SL yêu cầu",
   totalShipped: "Tổng SL đã xuất",

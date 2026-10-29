@@ -36,6 +36,9 @@ export function apiTransfer(patch: Partial<TransferOrder> = {}): TransferOrder {
     dispatchedBy: null,
     dispatchedAt: null,
     cancelReason: null,
+    rejectionReason: null,
+    rejectedBy: null,
+    rejectedAt: null,
     createdAt: "2026-10-12T02:00:00Z",
     version: 3,
     // BE PR #164: mặc định nguyên chuyến (FTL); chưa đóng gói, hàng chưa rời kho

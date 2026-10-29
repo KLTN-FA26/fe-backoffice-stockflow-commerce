@@ -42,6 +42,10 @@ export const beTransferOrderSchema = z.object({
   dispatchedBy: z.string().nullish(),
   dispatchedAt: z.string().nullish(),
   cancelReason: z.string().nullish(),
+  // BE PR #211 (SCRUM-491): lần từ chối gần nhất — giữ lại, không xoá khi gửi duyệt lại; null nếu chưa từng bị từ chối
+  rejectionReason: z.string().nullish(),
+  rejectedBy: z.string().nullish(),
+  rejectedAt: z.string().nullish(),
   createdAt: z.string(),
   // Gửi lại khi sửa nháp (PUT) — OPTIMISTIC_LOCK nếu lệnh đã đổi
   version: z.number().int(),
