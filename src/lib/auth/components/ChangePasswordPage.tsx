@@ -73,15 +73,29 @@ export function ChangePasswordPage() {
     if (status === "unauthenticated") router.replace(APP_ROUTES.login);
   }, [status, router]);
 
+  async function logout() {
+    try {
+      await logoutApi();
+    } finally {
+      router.replace(APP_ROUTES.login);
+      router.refresh();
+    }
+  }
+
   if (!isAuthenticated) {
     return (
       <main className="bg-bg-base flex min-h-screen items-center justify-center px-6">
         {bootstrapError ? (
           <div role="alert" className="text-ink-primary flex flex-col items-center gap-3 text-sm">
             {bootstrapError}
-            <Button size="sm" onClick={retry}>
-              {AUTH_UI.retry}
-            </Button>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={retry}>
+                {AUTH_UI.retry}
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => void logout()}>
+                {CHANGE_PASSWORD_UI.logout}
+              </Button>
+            </div>
           </div>
         ) : (
           <CarPageLoader label={AUTH_UI.verifyingSession} />
@@ -111,15 +125,6 @@ export function ChangePasswordPage() {
       setPending(false);
     }
   });
-
-  async function logout() {
-    try {
-      await logoutApi();
-    } finally {
-      router.replace(APP_ROUTES.login);
-      router.refresh();
-    }
-  }
 
   const { errors } = form.formState;
   return (

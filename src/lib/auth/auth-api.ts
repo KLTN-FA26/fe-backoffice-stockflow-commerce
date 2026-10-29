@@ -57,7 +57,14 @@ export async function changePasswordApi(
     { baseURL: AUTH_API_BASE },
   );
   const result = changePasswordResultSchema.parse(data);
-  useAuthStore.getState().reconcileSession(await getCurrentUserApi());
+  // The password HAS changed here. A failing /me must not turn that into a reported failure: the BE already lifted
+  // the gate, so clear the flag locally and let the next focus / session check reconcile the profile.
+  useAuthStore.getState().markPasswordChanged();
+  try {
+    useAuthStore.getState().reconcileSession(await getCurrentUserApi());
+  } catch {
+    /* profile refresh is best effort */
+  }
   return result;
 }
 

@@ -50,6 +50,8 @@ interface AuthState {
   reconcileSession: (user: AuthUser) => void;
   /** The server answered PASSWORD_CHANGE_REQUIRED: whatever the cached profile said, the user must change it. */
   requirePasswordChange: () => void;
+  /** The password change succeeded: drop the forced flag without waiting for /me (which may be unreachable). */
+  markPasswordChanged: () => void;
   beginBootstrap: () => void;
   failBootstrap: (message: string) => void;
 }
@@ -113,6 +115,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   requirePasswordChange: () => {
     const { user } = get();
     if (user && !user.mustChangePassword) set({ user: { ...user, mustChangePassword: true } });
+  },
+  markPasswordChanged: () => {
+    const { user } = get();
+    if (user?.mustChangePassword) set({ user: { ...user, mustChangePassword: false } });
   },
   /** Foreground only: no verified session exists yet, so protected UI may not render. */
   beginBootstrap: () =>

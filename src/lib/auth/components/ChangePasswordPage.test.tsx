@@ -18,11 +18,12 @@ vi.mock("../auth-api", () => ({
   logoutApi: vi.fn(),
   getCurrentUserApi: vi.fn(),
 }));
+const lifecycle = vi.hoisted(() => ({ bootstrapError: null as string | null }));
 vi.mock("../use-auth-lifecycle", () => ({
   useAuthLifecycle: () => ({
     status: useAuthStore.getState().status,
     isAuthenticated: useAuthStore.getState().isAuthenticated,
-    bootstrapError: null,
+    bootstrapError: lifecycle.bootstrapError,
     retry: vi.fn(),
   }),
 }));
@@ -42,6 +43,7 @@ const NEXT = "Brand-new-Pass1";
 
 beforeEach(() => {
   vi.clearAllMocks();
+  lifecycle.bootstrapError = null;
   // Radix Checkbox measures itself; jsdom has no ResizeObserver.
   vi.stubGlobal(
     "ResizeObserver",
@@ -177,6 +179,20 @@ describe("self-service change-password page (SCRUM-474 FIRST-LOGIN)", () => {
     const actor = userEvent.setup();
     render(<ChangePasswordPage />);
 
+    await actor.click(screen.getByRole("button", { name: CHANGE_PASSWORD_UI.logout }));
+
+    await waitFor(() => expect(logoutApi).toHaveBeenCalled());
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/login"));
+  });
+
+  it("when the session cannot be verified, offers 'Thử lại' and 'Đăng xuất'", async () => {
+    lifecycle.bootstrapError = "Không thể xác minh phiên đăng nhập.";
+    vi.mocked(logoutApi).mockResolvedValue();
+    const actor = userEvent.setup();
+    render(<ChangePasswordPage />);
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Không thể xác minh phiên đăng nhập.");
+    expect(screen.getByRole("button", { name: "Thử lại" })).toBeVisible();
     await actor.click(screen.getByRole("button", { name: CHANGE_PASSWORD_UI.logout }));
 
     await waitFor(() => expect(logoutApi).toHaveBeenCalled());
