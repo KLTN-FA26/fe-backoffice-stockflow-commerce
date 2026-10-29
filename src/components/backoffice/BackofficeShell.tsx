@@ -9,6 +9,7 @@ import {
   Database,
   FileBox,
   FileText,
+  FlaskConical,
   FolderTree,
   History as HistoryIcon,
   LayoutDashboard,
@@ -56,6 +57,7 @@ import {
   INVENTORY_ITEM_PERMISSIONS,
   INVENTORY_OVERVIEW_PERMISSIONS,
   INVENTORY_PERMISSIONS,
+  LOAD_ESTIMATE_PERMISSIONS,
   LOAD_PLAN_PERMISSIONS,
   LOAD_PLAN_PRINT_LABELS,
   ORDER_PERMISSIONS,
@@ -65,6 +67,7 @@ import {
   SHIPMENT_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
   TRANSFER_PERMISSIONS,
+  TRIAL_LABELS,
   UI_LABELS,
   VEHICLE_TYPE_PERMISSIONS,
 } from "@/constants";
@@ -346,6 +349,13 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: CalendarClock,
         // Resource riêng `fulfillment-load-plans` (BE PR #161)
         permission: LOAD_PLAN_PERMISSIONS.viewPage,
+      },
+      {
+        label: TRIAL_LABELS.pageTitle,
+        href: ADMIN_ROUTES.loadEstimateTrial,
+        icon: FlaskConical,
+        // SCRUM-474 TRIAL-FLOW (LP2-9): chạy thử không lưu, quyền của BE `POST /load-estimates/trial`
+        permission: LOAD_ESTIMATE_PERMISSIONS.create,
       },
       {
         label: UI_LABELS.vehicleType.pageTitle,

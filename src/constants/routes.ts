@@ -110,6 +110,8 @@ export const ADMIN_ROUTES = {
     /** Phiếu xếp hàng in được của một xe (SCRUM-287 PR F6). */
     print: (id: string, seq: number) => `${ADMIN_BASE}/load-plans/${id}/vehicles/${seq}/print`,
   },
+  /** "Ước tính thử" từ file Excel EasyCargo (SCRUM-474 TRIAL-FLOW, LP2-9): chạy thử, không lưu — BE `POST /fulfillment/load-estimates/trial`. */
+  loadEstimateTrial: `${ADMIN_BASE}/load-estimates/trial`,
   suppliers: {
     list: `${ADMIN_BASE}/suppliers`,
     create: `${ADMIN_BASE}/suppliers/create`,
