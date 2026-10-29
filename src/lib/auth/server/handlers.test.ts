@@ -6,6 +6,7 @@ import { AUTH_COOKIE_NAME, LEGACY_AUTH_COOKIE_NAME } from "@/constants/auth";
 
 import {
   backendProxyHandler,
+  changePasswordHandler,
   isSameOrigin,
   loginHandler,
   logoutHandler,
@@ -384,5 +385,103 @@ describe("CSRF boundary", () => {
     );
     expect(response.status).toBe(403);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("self-service password change (SCRUM-474 FIRST-LOGIN)", () => {
+  const body = JSON.stringify({
+    currentPassword: "Temp0raryPass",
+    newPassword: "Brand-new-Pass1",
+    logoutOtherDevices: true,
+  });
+  it("forwards to the one explicit backend route with the cookie token, keeps the session cookie", async () => {
+    fetchMock.mockResolvedValue(envelope({ revokedSessions: 2 }));
+    const response = await changePasswordHandler(request("/api/auth/password", "PUT", body));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ revokedSessions: 2 });
+    expect(fetchMock.mock.calls[0][0].toString()).toBe(
+      "http://backend.example.com/api/v1/identity/auth/password",
+    );
+    expect(fetchMock.mock.calls[0][1]?.method).toBe("PUT");
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual(JSON.parse(body));
+    expect(new Headers(fetchMock.mock.calls[0][1]?.headers).get("Authorization")).toBe(
+      `Bearer ${credential}`,
+    );
+    // the BE keeps this session: the cookie is neither set nor expired
+    expect(response.cookies.get(AUTH_COOKIE_NAME)).toBeUndefined();
+  });
+  it("the generic proxy still refuses identity/auth/*, so the password route is the only way in", async () => {
+    const response = await backendProxyHandler(
+      request("/api/backend/identity/auth/password", "PUT", body),
+      ["identity", "auth", "password"],
+    );
+    expect(response.status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+  it.each([
+    [400, "INVALID_CURRENT_PASSWORD"],
+    [400, "PASSWORD_UNCHANGED"],
+    [400, "VALIDATION_FAILED"],
+    [403, "ACCOUNT_NOT_ACTIVE"],
+  ])("a %i %s from Spring reaches the browser as that code only", async (status, code) => {
+    fetchMock.mockResolvedValue(
+      Response.json(
+        { success: false, errorCode: code, message: "Temp0raryPass leaked" },
+        { status },
+      ),
+    );
+    const response = await changePasswordHandler(request("/api/auth/password", "PUT", body));
+    expect(response.status).toBe(status);
+    const text = JSON.stringify(await response.json());
+    expect(text).toContain(code);
+    expect(text).not.toContain("leaked");
+    expect(response.cookies.get(AUTH_COOKIE_NAME)).toBeUndefined();
+  });
+  it("an unknown Spring code collapses to the generic upstream failure", async () => {
+    fetchMock.mockResolvedValue(
+      Response.json({ success: false, errorCode: "SOME_FUTURE_CODE" }, { status: 409 }),
+    );
+    const response = await changePasswordHandler(request("/api/auth/password", "PUT", body));
+    expect(await response.json()).toMatchObject({ code: "AUTH_UPSTREAM_FAILURE" });
+  });
+  it("a 429 keeps Retry-After", async () => {
+    fetchMock.mockResolvedValue(
+      Response.json(
+        { success: false, errorCode: "RATE_LIMITED" },
+        { status: 429, headers: { "Retry-After": "120" } },
+      ),
+    );
+    const response = await changePasswordHandler(request("/api/auth/password", "PUT", body));
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBe("120");
+  });
+  it("a backend 401 expires the session cookie", async () => {
+    fetchMock.mockResolvedValue(Response.json({}, { status: 401 }));
+    const response = await changePasswordHandler(request("/api/auth/password", "PUT", body));
+    expect(response.status).toBe(401);
+    expectExpired(response);
+  });
+  it("refuses a cross-site call, a missing session and a malformed body without reaching Spring", async () => {
+    const csrf = await changePasswordHandler(
+      request("/api/auth/password", "PUT", body, { Origin: "https://evil.example.com" }),
+    );
+    expect(csrf.status).toBe(403);
+    const anonymous = await changePasswordHandler(
+      request("/api/auth/password", "PUT", body, { Cookie: "" }),
+    );
+    expect(anonymous.status).toBe(401);
+    const malformed = await changePasswordHandler(request("/api/auth/password", "PUT", "{nope"));
+    expect(malformed.status).toBe(400);
+    const missing = await changePasswordHandler(
+      request("/api/auth/password", "PUT", JSON.stringify({ currentPassword: "x" })),
+    );
+    expect(missing.status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+  it("an unreachable backend is a 502, not a sign-out", async () => {
+    fetchMock.mockRejectedValue(new Error("down"));
+    const response = await changePasswordHandler(request("/api/auth/password", "PUT", body));
+    expect(response.status).toBe(502);
+    expect(response.cookies.get(AUTH_COOKIE_NAME)).toBeUndefined();
   });
 });

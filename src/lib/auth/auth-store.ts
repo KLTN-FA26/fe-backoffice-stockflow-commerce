@@ -48,6 +48,8 @@ interface AuthState {
   login: (user: AuthUser, notify?: boolean) => void;
   logout: (notify?: boolean) => void;
   reconcileSession: (user: AuthUser) => void;
+  /** The server answered PASSWORD_CHANGE_REQUIRED: whatever the cached profile said, the user must change it. */
+  requirePasswordChange: () => void;
   beginBootstrap: () => void;
   failBootstrap: (message: string) => void;
 }
@@ -107,6 +109,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return;
     }
     get().login(identity, false);
+  },
+  requirePasswordChange: () => {
+    const { user } = get();
+    if (user && !user.mustChangePassword) set({ user: { ...user, mustChangePassword: true } });
   },
   /** Foreground only: no verified session exists yet, so protected UI may not render. */
   beginBootstrap: () =>

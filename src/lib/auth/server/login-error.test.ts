@@ -52,6 +52,7 @@ describe("login failure keeps only allow-listed backend codes", () => {
     [401, "UNAUTHORIZED"],
     [403, "ACCOUNT_NOT_ACTIVE"],
     [403, "ACCOUNT_TEMPORARILY_LOCKED"],
+    [403, "TEMPORARY_PASSWORD_EXPIRED"],
     [429, "RATE_LIMITED"],
   ])("%i %s keeps code and status, no session, stale cookies expired", async (status, code) => {
     fetchMock.mockResolvedValueOnce(springError(status, code));

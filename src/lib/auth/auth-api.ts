@@ -2,10 +2,21 @@ import { AUTH_API_BASE, AUTH_PATHS, MOCK_LOGIN_PASSWORD } from "@/constants/auth
 
 import { api } from "@/lib/api/client";
 
-import { authUserSchema, loginRequestSchema } from "./auth-schemas";
+import {
+  authUserSchema,
+  changePasswordRequestSchema,
+  changePasswordResultSchema,
+  loginRequestSchema,
+} from "./auth-schemas";
 import { useAuthStore } from "./auth-store";
 
-import type { AuthUser, LoginRequest, LoginResponse } from "./auth-schemas";
+import type {
+  AuthUser,
+  ChangePasswordRequest,
+  ChangePasswordResult,
+  LoginRequest,
+  LoginResponse,
+} from "./auth-schemas";
 
 export type { LoginRequest, LoginResponse } from "./auth-schemas";
 
@@ -30,6 +41,24 @@ export async function loginApi(credentials: LoginRequest): Promise<LoginResponse
 export async function getCurrentUserApi(): Promise<AuthUser> {
   const { data } = await api.get<unknown>(AUTH_PATHS.me, { baseURL: AUTH_API_BASE });
   return authUserSchema.parse(data);
+}
+
+/**
+ * Self-service password change (SCRUM-474 FIRST-LOGIN). The session is kept (the BFF cookie stays
+ * valid); when the change was forced the BE also signs every other device out. Afterwards /me is
+ * asked again so the store drops `mustChangePassword` and the guard lets the user in.
+ */
+export async function changePasswordApi(
+  request: ChangePasswordRequest,
+): Promise<ChangePasswordResult> {
+  const { data } = await api.put<unknown>(
+    AUTH_PATHS.password,
+    changePasswordRequestSchema.parse(request),
+    { baseURL: AUTH_API_BASE },
+  );
+  const result = changePasswordResultSchema.parse(data);
+  useAuthStore.getState().reconcileSession(await getCurrentUserApi());
+  return result;
 }
 
 /** User-triggered logout: ask the server to revoke first, always clear local state afterwards. */

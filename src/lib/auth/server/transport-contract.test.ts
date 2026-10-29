@@ -105,11 +105,12 @@ describe("BFF error envelope and codes are unchanged", () => {
     expect(await tooLarge.json()).toEqual({ code: "PAYLOAD_TOO_LARGE", message: MESSAGE });
     expect(fetchMock).not.toHaveBeenCalled();
   });
-  it("login allow-list is exactly the four Spring codes", () => {
+  it("login allow-list is exactly the five Spring codes", () => {
     expect([...LOGIN_ERROR_CODES]).toEqual([
       "UNAUTHORIZED",
       "ACCOUNT_NOT_ACTIVE",
       "ACCOUNT_TEMPORARILY_LOCKED",
+      "TEMPORARY_PASSWORD_EXPIRED", // SCRUM-474 FIRST-LOGIN: 72 h expiry of an administrator-set password
       "RATE_LIMITED",
     ]);
   });

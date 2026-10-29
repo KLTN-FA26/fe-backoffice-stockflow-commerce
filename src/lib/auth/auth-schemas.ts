@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { CHANGE_PASSWORD_UI, PASSWORD_LIMITS } from "@/constants/auth";
+
 export const loginRequestSchema = z.object({
   username: z.string().trim().min(1),
   password: z.string().min(1),
@@ -28,3 +30,40 @@ export const authUserSchema = z.object({
 export type LoginRequest = z.infer<typeof loginRequestSchema>;
 export type AuthUser = z.infer<typeof authUserSchema>;
 export type LoginResponse = AuthUser;
+
+/**
+ * Change-password form (BE `ChangePasswordRequest` + `PasswordPolicy`). The new password is checked
+ * here only so the user gets the message before a round trip; the BE re-checks everything.
+ */
+export const changePasswordFormSchema = z
+  .object({
+    currentPassword: z.string().min(1, CHANGE_PASSWORD_UI.currentRequired),
+    newPassword: z
+      .string()
+      .min(PASSWORD_LIMITS.min, CHANGE_PASSWORD_UI.newRequired)
+      .max(PASSWORD_LIMITS.max, CHANGE_PASSWORD_UI.newRequired)
+      .regex(PASSWORD_LIMITS.pattern, CHANGE_PASSWORD_UI.newRequired),
+    confirmPassword: z.string(),
+    logoutOtherDevices: z.boolean(),
+  })
+  .refine((value) => value.newPassword === value.confirmPassword, {
+    path: ["confirmPassword"],
+    message: CHANGE_PASSWORD_UI.confirmMismatch,
+  })
+  .refine((value) => value.newPassword !== value.currentPassword, {
+    path: ["newPassword"],
+    message: CHANGE_PASSWORD_UI.sameAsCurrent,
+  });
+export type ChangePasswordFormValues = z.infer<typeof changePasswordFormSchema>;
+
+/** What the browser sends to the BFF (and the BFF to Spring). */
+export const changePasswordRequestSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(1),
+  logoutOtherDevices: z.boolean().default(false),
+});
+export type ChangePasswordRequest = z.infer<typeof changePasswordRequestSchema>;
+
+/** BE `SessionsEndedResponse`: how many other sessions the change ended. */
+export const changePasswordResultSchema = z.object({ revokedSessions: z.number().int().min(0) });
+export type ChangePasswordResult = z.infer<typeof changePasswordResultSchema>;

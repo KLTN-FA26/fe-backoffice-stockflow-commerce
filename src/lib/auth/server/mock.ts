@@ -55,6 +55,20 @@ export async function mockAuthBackend(
     sessions.delete(token);
     return new Response(null, { status: 204 });
   }
+  if (path === BACKEND_AUTH_PATHS.password && init.method === "PUT") {
+    // Demo only: every demo account shares MOCK_LOGIN_PASSWORD and the new one is not stored.
+    const body: unknown = JSON.parse(typeof init.body === "string" ? init.body : "null");
+    const current =
+      typeof body === "object" && body !== null && "currentPassword" in body
+        ? body.currentPassword
+        : undefined;
+    if (current !== MOCK_LOGIN_PASSWORD)
+      return Response.json(
+        { success: false, errorCode: "INVALID_CURRENT_PASSWORD", message: "Sai mật khẩu." },
+        { status: 400 },
+      );
+    return Response.json({ revokedSessions: 0 });
+  }
   if (path === "identity/roles" || path.startsWith("identity/roles/")) {
     const user = (await getMockStaffUsers()).find(
       (candidate) => candidate.userId === session.userId,

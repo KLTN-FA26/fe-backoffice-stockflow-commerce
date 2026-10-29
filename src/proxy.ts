@@ -35,8 +35,11 @@ export function proxy(request: NextRequest) {
   const authToken = request.cookies.get(AUTH_COOKIE_NAME)?.value;
   const isAuthenticated = !!authToken;
 
-  // Protected routes: /admin/*
-  if (pathname.startsWith("/admin") && !isAuthenticated) {
+  // Protected routes: /admin/* and the change-password page (SCRUM-474 FIRST-LOGIN)
+  if (
+    (pathname.startsWith("/admin") || pathname.startsWith("/change-password")) &&
+    !isAuthenticated
+  ) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return finalize(NextResponse.redirect(loginUrl));

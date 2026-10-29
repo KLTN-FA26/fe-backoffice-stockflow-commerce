@@ -3,6 +3,8 @@ const ADMIN_BASE = "/admin";
 export const APP_ROUTES = {
   home: "/",
   login: "/login",
+  /** Tự đổi mật khẩu — mọi nhân viên; tài khoản còn mật khẩu tạm bị buộc vào đây (BE PASSWORD_CHANGE_REQUIRED). */
+  changePassword: "/change-password",
 } as const;
 
 export const ADMIN_ROUTES = {

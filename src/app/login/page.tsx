@@ -24,6 +24,7 @@ import { AUTH_UI } from "@/constants/auth";
 
 import { getMockLoginUsersApi, loginApi, mockLoginApi } from "@/lib/auth/auth-api";
 import { loginErrorMessage } from "@/lib/auth/login-error";
+import { useAuthStore } from "@/lib/auth/auth-store";
 import { useAuthLifecycle } from "@/lib/auth/use-auth-lifecycle";
 
 import { useIsMock } from "@/providers/app-providers";
@@ -36,7 +37,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 
-import type { MockLoginUser } from "@/lib/auth/auth-api";
+import type { LoginResponse, MockLoginUser } from "@/lib/auth/auth-api";
 import type { FormEvent } from "react";
 
 export default function LoginPage() {
@@ -64,10 +65,13 @@ function LoginForm() {
     : ADMIN_ROUTES.home;
   const isMock = useIsMock();
   const { status, isAuthenticated, bootstrapError, retry } = useAuthLifecycle();
+  const mustChangePassword = useAuthStore((state) => state.user?.mustChangePassword === true);
 
   useEffect(() => {
-    if (isAuthenticated) router.replace(callbackUrl);
-  }, [callbackUrl, isAuthenticated, router]);
+    // An administrator-set password has to be replaced first (SCRUM-474 FIRST-LOGIN).
+    if (isAuthenticated)
+      router.replace(mustChangePassword ? APP_ROUTES.changePassword : callbackUrl);
+  }, [callbackUrl, isAuthenticated, mustChangePassword, router]);
 
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -105,8 +109,8 @@ function LoginForm() {
     };
   }, [isMock]);
 
-  function completeLogin() {
-    router.replace(callbackUrl);
+  function completeLogin(user: LoginResponse) {
+    router.replace(user.mustChangePassword ? APP_ROUTES.changePassword : callbackUrl);
     router.refresh();
   }
 
@@ -116,8 +120,7 @@ function LoginForm() {
 
     startTransition(async () => {
       try {
-        await mockLoginApi(selectedUserId);
-        completeLogin();
+        completeLogin(await mockLoginApi(selectedUserId));
       } catch (loginError: unknown) {
         setError(loginErrorMessage(loginError));
       }
@@ -131,8 +134,7 @@ function LoginForm() {
 
     startTransition(async () => {
       try {
-        await loginApi({ username, password });
-        completeLogin();
+        completeLogin(await loginApi({ username, password }));
       } catch (loginError: unknown) {
         setError(loginErrorMessage(loginError));
       }
