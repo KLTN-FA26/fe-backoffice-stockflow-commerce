@@ -30,6 +30,9 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 afterEach(() => vi.restoreAllMocks());
 
 const PATH = `/goods-receipts/${RECEIPT_ID}`;
+// Ô chọn SKU: mở popover, debounce 300 ms, gọi API giả — chờ lâu hơn mặc định khi máy tải nặng
+const PICKER_WAIT = 8_000;
+const PICKER_TEST_TIMEOUT = 20_000;
 
 function renderDetail(permissions: readonly PermissionCode[], receipt: GoodsReceiptApiDto) {
   const spies = mockReceiptApi(
@@ -636,76 +639,103 @@ describe("ReceiptDetail — phiếu không có PO (BR-RCP-002)", () => {
   /** Mở ô SKU dòng 1 và chọn một SKU trong hồ sơ hàng tồn. */
   async function pickSku(user: ReturnType<typeof userEvent.setup>, sku: string) {
     await user.click(await screen.findByRole("combobox", { name: "SKU dòng 1" }));
-    await user.click(await screen.findByRole("option", { name: new RegExp(sku) }));
+    await user.click(
+      await screen.findByRole("option", { name: new RegExp(sku) }, { timeout: PICKER_WAIT }),
+    );
   }
 
-  it("Draft: chọn SKU từ hồ sơ hàng tồn; lưu gửi PUT với sku (không có dòng PO), không cần quyền đọc PO", async () => {
-    const user = userEvent.setup();
-    // NV kho: thiếu purchase-orders:READ nhưng đếm phiếu không có PO được (chỉ cần goods-receipts:UPDATE)
-    const { put } = renderBlind(ROLES.warehouseStaff);
-    expect(await screen.findByText(/Kiểm đếm \(gọi hàng bằng SKU\)/)).toBeInTheDocument();
-    await pickSku(user, "SOFA-3S-GREY");
-    expect(screen.getByRole("combobox", { name: "SKU dòng 1" })).toHaveValue("SOFA-3S-GREY");
-    await user.clear(screen.getByLabelText("SL nhận dòng 1"));
-    await user.type(screen.getByLabelText("SL nhận dòng 1"), "4");
-    await user.type(screen.getByLabelText("Mã vị trí nhận dòng 1"), "hcm-rcv01");
-    await user.click(screen.getByRole("button", { name: /Lưu kiểm đếm/ }));
-    await waitFor(() => expect(put).toHaveBeenCalled());
-    expect(put.mock.calls[0]?.[0]).toBe(`${PATH}/lines`);
-    expect(put.mock.calls[0]?.[1]).toEqual({
-      lines: [
-        {
-          sku: "SOFA-3S-GREY",
-          quantity: 4,
-          lotNumber: undefined,
-          expiryDate: undefined,
-          locationCode: "HCM-RCV01",
-          note: undefined,
-        },
-      ],
-    });
-    // Kết quả BE trả về: dòng theo SKU và nhắc phiếu sẽ chờ duyệt
-    expect(await screen.findByText("Kết quả kiểm đếm đã lưu")).toBeInTheDocument();
-    expect(screen.getByText(/chờ Quản lý kho duyệt, chưa ghi nhận tồn/)).toBeInTheDocument();
-  });
-
-  it("ô chọn SKU hiện MỌI hồ sơ hàng tồn (không lọc theo NCC của phiếu) và để BE tìm theo q", async () => {
-    const user = userEvent.setup();
-    const { get } = renderBlind(ROLES.warehouseStaff);
-    await user.click(await screen.findByRole("combobox", { name: "SKU dòng 1" }));
-    for (const item of INVENTORY) {
-      expect(await screen.findByRole("option", { name: new RegExp(item.sku) })).toBeInTheDocument();
-    }
-    // Không gọi danh mục của NCC để loại SKU nào
-    expect(get.mock.calls.some(([url]) => String(url).includes("/suppliers/"))).toBe(false);
-
-    await user.type(screen.getByPlaceholderText("Tìm theo SKU hoặc mã vạch"), "lamp");
-    await waitFor(() =>
-      expect(screen.queryByRole("option", { name: /TABLE-OAK-120/ })).not.toBeInTheDocument(),
-    );
-    expect(screen.getByRole("option", { name: /LAMP-BRASS/ })).toBeInTheDocument();
-    const search = get.mock.calls.filter(([url]) => url === "/inventory/items").at(-1);
-    expect((search?.[1]?.params as URLSearchParams).get("q")).toBe("lamp");
-  }, 20_000);
-
-  it("Draft: thiếu SKU → lỗi inline, không gọi API; lỗi BE theo ô (SKU lạ) hiện đúng ô", async () => {
-    const user = userEvent.setup();
-    const { put } = renderBlind(ROLES.warehouseManager);
-    await screen.findByRole("combobox", { name: "SKU dòng 1" });
-    await user.click(screen.getByRole("button", { name: /Lưu kiểm đếm/ }));
-    expect(await screen.findByText("Nhập SKU")).toBeInTheDocument();
-    expect(put).not.toHaveBeenCalled();
-
-    put.mockImplementationOnce(async () => {
-      throw new ApiError(409, "INVENTORY_ITEM_NOT_FOUND", "No inventory item with SKU LAMP-BRASS", {
-        "lines[0].sku": "No inventory item with SKU LAMP-BRASS",
+  it(
+    "Draft: chọn SKU từ hồ sơ hàng tồn; lưu gửi PUT với sku (không có dòng PO), không cần quyền đọc PO",
+    async () => {
+      const user = userEvent.setup();
+      // NV kho: thiếu purchase-orders:READ nhưng đếm phiếu không có PO được (chỉ cần goods-receipts:UPDATE)
+      const { put } = renderBlind(ROLES.warehouseStaff);
+      expect(await screen.findByText(/Kiểm đếm \(gọi hàng bằng SKU\)/)).toBeInTheDocument();
+      await pickSku(user, "SOFA-3S-GREY");
+      expect(screen.getByRole("combobox", { name: "SKU dòng 1" })).toHaveValue("SOFA-3S-GREY");
+      await user.clear(screen.getByLabelText("SL nhận dòng 1"));
+      await user.type(screen.getByLabelText("SL nhận dòng 1"), "4");
+      await user.type(screen.getByLabelText("Mã vị trí nhận dòng 1"), "hcm-rcv01");
+      await user.click(screen.getByRole("button", { name: /Lưu kiểm đếm/ }));
+      await waitFor(() => expect(put).toHaveBeenCalled());
+      expect(put.mock.calls[0]?.[0]).toBe(`${PATH}/lines`);
+      expect(put.mock.calls[0]?.[1]).toEqual({
+        lines: [
+          {
+            sku: "SOFA-3S-GREY",
+            quantity: 4,
+            lotNumber: undefined,
+            expiryDate: undefined,
+            locationCode: "HCM-RCV01",
+            note: undefined,
+          },
+        ],
       });
-    });
-    await pickSku(user, "LAMP-BRASS");
-    await user.type(screen.getByLabelText("Mã vị trí nhận dòng 1"), "HCM-RCV01");
-    await user.click(screen.getByRole("button", { name: /Lưu kiểm đếm/ }));
-    expect(await screen.findAllByText("No inventory item with SKU LAMP-BRASS")).not.toHaveLength(0);
-  });
+      // Kết quả BE trả về: dòng theo SKU và nhắc phiếu sẽ chờ duyệt
+      expect(await screen.findByText("Kết quả kiểm đếm đã lưu")).toBeInTheDocument();
+      expect(screen.getByText(/chờ Quản lý kho duyệt, chưa ghi nhận tồn/)).toBeInTheDocument();
+    },
+    PICKER_TEST_TIMEOUT,
+  );
+
+  it(
+    "ô chọn SKU hiện MỌI hồ sơ hàng tồn (không lọc theo NCC của phiếu) và để BE tìm theo q",
+    async () => {
+      const user = userEvent.setup();
+      const { get } = renderBlind(ROLES.warehouseStaff);
+      await user.click(await screen.findByRole("combobox", { name: "SKU dòng 1" }));
+      for (const item of INVENTORY) {
+        expect(
+          await screen.findByRole(
+            "option",
+            { name: new RegExp(item.sku) },
+            { timeout: PICKER_WAIT },
+          ),
+        ).toBeInTheDocument();
+      }
+      // Không gọi danh mục của NCC để loại SKU nào
+      expect(get.mock.calls.some(([url]) => String(url).includes("/suppliers/"))).toBe(false);
+
+      await user.type(screen.getByPlaceholderText("Tìm theo SKU hoặc mã vạch"), "lamp");
+      await waitFor(() =>
+        expect(screen.queryByRole("option", { name: /TABLE-OAK-120/ })).not.toBeInTheDocument(),
+      );
+      expect(screen.getByRole("option", { name: /LAMP-BRASS/ })).toBeInTheDocument();
+      const search = get.mock.calls.filter(([url]) => url === "/inventory/items").at(-1);
+      expect((search?.[1]?.params as URLSearchParams).get("q")).toBe("lamp");
+    },
+    PICKER_TEST_TIMEOUT,
+  );
+
+  it(
+    "Draft: thiếu SKU → lỗi inline, không gọi API; lỗi BE theo ô (SKU lạ) hiện đúng ô",
+    async () => {
+      const user = userEvent.setup();
+      const { put } = renderBlind(ROLES.warehouseManager);
+      await screen.findByRole("combobox", { name: "SKU dòng 1" });
+      await user.click(screen.getByRole("button", { name: /Lưu kiểm đếm/ }));
+      expect(await screen.findByText("Nhập SKU")).toBeInTheDocument();
+      expect(put).not.toHaveBeenCalled();
+
+      put.mockImplementationOnce(async () => {
+        throw new ApiError(
+          409,
+          "INVENTORY_ITEM_NOT_FOUND",
+          "No inventory item with SKU LAMP-BRASS",
+          {
+            "lines[0].sku": "No inventory item with SKU LAMP-BRASS",
+          },
+        );
+      });
+      await pickSku(user, "LAMP-BRASS");
+      await user.type(screen.getByLabelText("Mã vị trí nhận dòng 1"), "HCM-RCV01");
+      await user.click(screen.getByRole("button", { name: /Lưu kiểm đếm/ }));
+      expect(await screen.findAllByText("No inventory item with SKU LAMP-BRASS")).not.toHaveLength(
+        0,
+      );
+    },
+    PICKER_TEST_TIMEOUT,
+  );
 
   it("thiếu quyền xem hồ sơ hàng tồn → gõ tay SKU (kèm giải thích), không gọi /inventory/items", async () => {
     const user = userEvent.setup();

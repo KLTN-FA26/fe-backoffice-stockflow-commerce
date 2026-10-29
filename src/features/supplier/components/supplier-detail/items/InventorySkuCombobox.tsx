@@ -2,7 +2,7 @@
 
 import { SUPPLIER_ITEM_UI_LABELS } from "@/constants";
 import { useSupplierCatalog } from "@/lib/references/supplier-items";
-import { InventoryItemCombobox } from "@/components/shared/InventoryItemCombobox";
+import { InventoryItemCombobox } from "@/components/backoffice/InventoryItemCombobox";
 
 const P = SUPPLIER_ITEM_UI_LABELS.skuPicker;
 

@@ -18,7 +18,7 @@ import {
 } from "@/features/receipt/selectors";
 import { Alert } from "@/components/shared/Alert";
 import { DatePicker } from "@/components/shared/DatePicker";
-import { InventoryItemCombobox } from "@/components/shared/InventoryItemCombobox";
+import { InventoryItemCombobox } from "@/components/backoffice/InventoryItemCombobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
