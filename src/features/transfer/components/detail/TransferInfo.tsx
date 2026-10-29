@@ -1,6 +1,11 @@
 "use client";
 
-import { TRANSFER_DELIVERY_MODE_LABELS, TRANSFER_REASON_LABELS, UI_LABELS } from "@/constants";
+import {
+  TRANSFER_DELIVERY_MODE_LABELS,
+  TRANSFER_REASON_LABELS,
+  TRANSFER_STATUS,
+  UI_LABELS,
+} from "@/constants";
 import { useAuthStore } from "@/lib/auth";
 import { formatDate, formatDateTime } from "@/lib/format/date";
 import { isFtl } from "@/features/transfer/ftl-lifecycle";
@@ -38,6 +43,37 @@ function Actor({ id }: { id: string | null | undefined }) {
     <span className={MONO} title={id}>
       {id.slice(0, 8)}…
     </span>
+  );
+}
+
+/** Lần từ chối gần nhất (BE giữ lại, không xoá khi gửi lại) — nổi bật khi lệnh đang Nháp chờ sửa, còn lại chỉ là lịch sử. */
+function RejectionNote({ transfer }: { transfer: TransferOrder }) {
+  const R = L.rejection;
+  const meta = (
+    <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+      <dt className="text-ink-secondary">{R.by}</dt>
+      <dd className="text-ink-primary">
+        <Actor id={transfer.rejectedBy} />
+      </dd>
+      <dt className="text-ink-secondary">{R.at}</dt>
+      <dd className="text-ink-primary tabular-nums">{dt(transfer.rejectedAt)}</dd>
+    </dl>
+  );
+  if (transfer.status === TRANSFER_STATUS.DRAFT) {
+    return (
+      <Alert tone="danger" title={R.title} className="mt-3">
+        <p>{transfer.rejectionReason}</p>
+        {meta}
+        <p className="mt-2 text-xs">{R.draftHint}</p>
+      </Alert>
+    );
+  }
+  return (
+    <div className="border-border-default mt-3 border-t pt-3 text-[0.8125rem]">
+      <p className="text-ink-secondary">{R.title}</p>
+      <p className="text-ink-primary">{transfer.rejectionReason}</p>
+      {meta}
+    </div>
   );
 }
 
@@ -87,6 +123,7 @@ export function TransferInfo({ transfer }: { transfer: TransferOrder }) {
           </>
         )}
       </div>
+      {transfer.rejectionReason && <RejectionNote transfer={transfer} />}
       {transfer.cancelReason && (
         <Alert tone="danger" title={L.confirm.cancelReason} className="mt-3">
           {transfer.cancelReason}

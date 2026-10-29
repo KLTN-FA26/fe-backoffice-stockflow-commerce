@@ -34,6 +34,24 @@ describe("beTransferOrderSchema — BE PR #164 (LP2-8)", () => {
   });
 });
 
+describe("beTransferOrderSchema — BE PR #211 (SCRUM-491): lần từ chối gần nhất", () => {
+  it("ba trường tuỳ chọn: vắng/null khi chưa từng bị từ chối, có giá trị khi đã từ chối", () => {
+    const { rejectionReason: _a, rejectedBy: _b, rejectedAt: _c, ...bare } = apiTransfer();
+    const never = beTransferOrderSchema.parse(bare);
+    expect(never.rejectionReason).toBeUndefined();
+    expect(beTransferOrderSchema.parse(apiTransfer()).rejectedAt).toBeNull();
+    expect(
+      beTransferOrderSchema.parse(
+        apiTransfer({
+          rejectionReason: "Thiếu chứng từ",
+          rejectedBy: "u-1",
+          rejectedAt: "2026-10-13T03:00:00Z",
+        }),
+      ),
+    ).toMatchObject({ rejectionReason: "Thiếu chứng từ", rejectedBy: "u-1" });
+  });
+});
+
 describe("beTransferRowSchema — BE PR #164 final: dòng danh sách có deliveryMode và packedAt", () => {
   const row = {
     transferId: "t-1",
