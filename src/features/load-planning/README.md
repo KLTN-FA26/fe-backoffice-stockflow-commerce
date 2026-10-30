@@ -275,3 +275,29 @@ lưu PDF từ đó) — không có xuất PDF trong ứng dụng, không jsPDF. 
   danh sách kiện, ghi chú kiện chưa xếp); `lib/print-capture.ts` chụp ảnh 3D theo lô để thanh tiến độ cập nhật.
 - Trang chỉ dựng phiếu khi đủ ảnh. Không dựng được ảnh (không WebGL) → "Thử lại" hoặc "Xem phiếu không có ảnh".
 - In: `@page` A4 ngay trong phiếu, mỗi bước xếp một trang, khung back-office ẩn, token màu ép về bảng sáng (`globals.css`).
+
+## Ước tính thử từ file Excel EasyCargo (SCRUM-474 TRIAL-FLOW, LP2-9)
+
+Màn `/admin/load-estimates/trial` ("Ước tính thử", menu Thực hiện đơn): tải file .xlsx theo mẫu EasyCargo, xem trước,
+chọn loại xe rồi **chạy thử** — BE `POST /fulfillment/load-estimates/trial` KHÔNG lưu gì (không bản ghi ước tính, audit,
+event). Cần `fulfillment-load-estimates:CREATE` (cổng trang + mục menu theo mã quyền). Kết quả vẽ bằng khung 3D có sẵn
+kèm huy hiệu "Chạy thử — không lưu"; không có kiểm tra tải trọng (file không có khối lượng) nên ô khối lượng bị ẩn.
+
+File đọc **trong trình duyệt** (`read-excel-file`, MIT, nạp theo yêu cầu) rồi `trial/trial-parse.ts` — bản port từng bước
+của `nesting-standalone/api/nesting/parsers.py`:
+
+| Cột file (tên tiêu đề, không phân biệt hoa thường; bằng hoặc bắt đầu bằng) | Trường gửi BE                                                  |
+| -------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Group                                                                      | `group` (nhãn)                                                 |
+| Description / Desc / Name / Item                                           | `name` (rỗng → Group → `row-N`)                                |
+| Pieces / Piece / Pcs / Qty / Quantity / Count                              | `quantity` (cắt phần lẻ)                                       |
+| Length / Len                                                               | `lengthMm` — dọc xe (trục z, "depth" của solver)               |
+| Width                                                                      | `widthMm`                                                      |
+| Height                                                                     | `heightMm`                                                     |
+| Rotable / Rotatable / Rotate / Rotation                                    | `rotatable` (trống = true; n/no/false/0/f/không/khong = false) |
+| Total weight, Stackable, Tiltable                                          | không đọc                                                      |
+
+Dòng ngay dưới tiêu đề là dòng đơn vị (mm, cm, m, inch; không có = cm). Dòng thiếu Length/Width/Height bị bỏ im lặng
+(dòng đơn vị, dòng trống); dòng Pieces 0/thiếu hoặc kích thước ≤ 0 bị bỏ kèm cảnh báo liệt kê số dòng. Khác bản Python
+một chỗ: BE nhận mm nguyên nên kích thước làm tròn tới mm (tối thiểu 1). File mẫu: `public/templates/easycargo-trial-template.xlsx`
+(có test đọc bằng chính parser). Tối đa 3 000 kiện một lần (cùng giới hạn ước tính thật).
