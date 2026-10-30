@@ -15,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useMarkAllNotificationsRead, useMarkNotificationRead } from "../mutations";
 import { useNotificationInbox, useNotificationUnreadCount } from "../queries";
 import { NotificationItems } from "./NotificationItems";
+import { NotificationPager } from "./NotificationPager";
 
 import type { Notification } from "../types";
 
@@ -129,31 +130,7 @@ export function NotificationBell() {
             <NotificationItems items={inbox.data?.items ?? []} onSelect={openNotification} />
           )}
         </div>
-        {inbox.data && inbox.data.totalPages > 1 && (
-          <div className="border-border-default flex items-center justify-between gap-2 border-t px-3 py-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={!inbox.data.hasPrevious}
-              onClick={() => setPage((p) => p - 1)}
-            >
-              {L.previous}
-            </Button>
-            <span className="text-ink-tertiary text-xs tabular-nums">
-              {L.page(page + 1, inbox.data.totalPages)}
-            </span>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={!inbox.data.hasNext}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              {L.next}
-            </Button>
-          </div>
-        )}
+        {inbox.data && <NotificationPager page={page} data={inbox.data} onPageChange={setPage} />}
       </PopoverContent>
     </Popover>
   );
