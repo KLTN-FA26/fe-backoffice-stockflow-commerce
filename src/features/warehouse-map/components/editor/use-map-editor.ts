@@ -15,7 +15,7 @@ import {
 import { duplicatedGroup } from "@/features/warehouse-map/draft-group";
 import { historyFromLayout, historyReducer } from "@/features/warehouse-map/draft-history";
 import { validateDraft } from "@/features/warehouse-map/draft-rules";
-import { placeLocks } from "@/features/warehouse-map/lifecycle";
+import { groupRemovable, placeLocks } from "@/features/warehouse-map/lifecycle";
 import { usePlaceHasStock } from "@/features/warehouse-map/queries";
 
 import { stockProbe, useGroupStock } from "./use-group-stock";
@@ -122,8 +122,8 @@ export function useMapEditor(layout: WarehouseLayout, can: EditPermissions) {
         dispatch({ type: "remove", key: selected.key });
         return select(null);
       }
-      // Nhóm: chỉ xoá hình được phép (không còn hàng, đủ quyền — BR-04), báo số hình bỏ qua
-      const removable = group.filter((item) => !placeLocks(item, groupStock(item), can).remove);
+      // Nhóm: chỉ xoá hình đã biết không còn hàng và đủ quyền (BR-04), báo số hình bỏ qua
+      const removable = groupRemovable(group, groupStock, can);
       if (removable.length > 0)
         dispatch({ type: "removeMany", keys: removable.map((item) => item.key) });
       const skipped = group.length - removable.length;

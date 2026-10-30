@@ -5,18 +5,13 @@
 
 import { BOUNDARY_TYPE, UI_LABELS } from "@/constants";
 
-import {
-  DEFAULT_SHELF_BUILD,
-  draftFromLayout,
-  newKeyOf,
-  nextCode,
-  snapshot,
-  usedCodes,
-} from "./draft";
+import { DEFAULT_SHELF_BUILD, draftFromLayout, newKeyOf, nextCode, usedCodes } from "./draft";
 import { duplicatedItem } from "./draft-duplicate";
 import { withoutKeys, withPasted } from "./draft-group";
+import { synced } from "./draft-sync";
 
-import type { DraftArea, DraftBoundary, DraftItem, DraftShelf, DraftZone, MapDraft } from "./draft";
+import type { DraftArea, DraftBoundary, DraftItem, DraftShelf, MapDraft } from "./draft";
+import type { SavedRef } from "./draft-sync";
 import type { MapBox } from "./selectors";
 import type { WarehouseLayout } from "./types";
 
@@ -37,12 +32,7 @@ export type DraftTool = (typeof DRAFT_TOOLS)[number];
 export type DrawnShape =
   { kind: "shelf" | "area"; box: MapBox } | { kind: "wall" | "door"; line: MapLine };
 
-/** Kết quả một request lưu: hình / zone theo `key` nay có `id` + `version` của BE. */
-export interface SavedRef {
-  key: string;
-  id: string;
-  version: number;
-}
+export type { SavedRef };
 
 export type DraftAction =
   | { type: "reset"; layout: WarehouseLayout }
@@ -120,41 +110,6 @@ function drawnItem(draft: MapDraft, shape: DrawnShape, key: string): DraftItem {
     binExtent: null,
     hasPickableBins: false,
   } satisfies DraftShelf;
-}
-
-/** Kệ vừa tạo: bin sinh theo cạnh kệ → phạm vi bin = cạnh kệ; bỏ phần `build` (chỉ dùng lúc tạo). */
-function afterCreate(item: DraftItem): DraftItem {
-  if (item.kind !== "shelf" || !item.build) return item;
-  const withBins = item.build.generateBins && item.build.levelCount > 0;
-  return {
-    ...item,
-    build: null,
-    binExtent: withBins ? { width: item.footprint.width, length: item.footprint.length } : null,
-    hasPickableBins: withBins && item.build.pickable,
-  };
-}
-
-function synced(draft: MapDraft, saved: SavedRef[], removedKeys: string[]): MapDraft {
-  const refs = new Map(saved.map((ref) => [ref.key, ref]));
-  const base = { ...draft.base };
-  const apply = <T extends DraftItem | DraftZone>(value: T, ref: SavedRef): T => {
-    const next = { ...value, id: ref.id, version: ref.version };
-    base[ref.key] = snapshot(next);
-    return next;
-  };
-  return {
-    ...draft,
-    zones: draft.zones.map((z) => {
-      const ref = refs.get(z.key);
-      return ref ? apply(z, ref) : z;
-    }),
-    items: draft.items.map((item) => {
-      const ref = refs.get(item.key);
-      return ref ? apply(item.id === null ? afterCreate(item) : item, ref) : item;
-    }),
-    removed: draft.removed.filter((item) => !removedKeys.includes(item.key)),
-    base,
-  };
 }
 
 export function draftReducer(draft: MapDraft, action: DraftAction): MapDraft {

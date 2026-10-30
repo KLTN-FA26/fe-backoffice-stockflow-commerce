@@ -36,7 +36,7 @@ export function duplicatedItem(draft: MapDraft, source: DraftItem, key: string):
     return { ...source, ...meta, code, name: D.areaName(code), footprint, wasStorage: false };
   }
   const code = nextCode(D.shelfCodeBase, usedCodes(draft, "shelf"));
-  const { copyBuild, ...shelf } = source;
+  const { copyBuild, builtLevelIds: _built, ...shelf } = source;
   return {
     ...shelf,
     ...meta,

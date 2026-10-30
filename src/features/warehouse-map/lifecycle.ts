@@ -93,3 +93,19 @@ export function placeLocks(item: DraftItem, stock: StockState, can: EditPermissi
   const busy = stock === "stocked" || stock === "checking";
   return { identity: noUpdate, geometry: noUpdate || busy, remove: noUpdate || busy };
 }
+
+/**
+ * Xoá cả vùng chọn: chỉ các hình ĐÃ BIẾT không còn hàng và đủ quyền (BR-04, docs 06 §6 — BE chưa kiểm
+ * tồn khi chuyển Inactive nên FE là lớp chặn). Tồn chưa kiểm xong hoặc kiểm lỗi (`unknown`) cũng bỏ
+ * qua — chọn lẻ thì Inspector cảnh báo, chọn nhóm không có chỗ cảnh báo từng hình. UI-only.
+ */
+export function groupRemovable(
+  items: readonly DraftItem[],
+  stockOf: (item: DraftItem) => StockState,
+  can: EditPermissions,
+): DraftItem[] {
+  return items.filter((item) => {
+    const stock = stockOf(item);
+    return stock !== "unknown" && !placeLocks(item, stock, can).remove;
+  });
+}

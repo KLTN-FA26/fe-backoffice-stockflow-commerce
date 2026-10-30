@@ -160,5 +160,5 @@ export const WAREHOUSE_MAP_SHORTCUTS: {
 export const WAREHOUSE_MAP_EDIT_TOASTS = {
   saved: "Đã lưu bản đồ",
   groupRemoveSkipped: (count: number) =>
-    `Bỏ qua ${count} hình còn hàng, chưa kiểm xong tồn hoặc không đủ quyền xoá — đang giữ chọn các hình đó.`,
+    `Bỏ qua ${count} hình còn hàng, chưa kiểm được tồn hoặc không đủ quyền xoá — đang giữ chọn các hình đó.`,
 } as const;

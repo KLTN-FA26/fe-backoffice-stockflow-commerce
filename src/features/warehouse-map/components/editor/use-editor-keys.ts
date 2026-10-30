@@ -10,6 +10,7 @@ import type { MapEditor } from "./use-map-editor";
 
 const TOOLS: Record<string, DraftTool> = {
   v: "select",
+  h: "pan",
   k: "shelf",
   a: "area",
   w: "wall",

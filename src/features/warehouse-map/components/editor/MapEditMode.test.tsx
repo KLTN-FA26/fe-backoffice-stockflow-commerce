@@ -84,6 +84,12 @@ describe("chế độ sửa bản đồ", () => {
       "aria-pressed",
       "true",
     );
+    // H = bàn tay, như modal phím tắt và tooltip ghi
+    await userEvent.keyboard("h");
+    expect(within(tools).getByRole("button", { name: /Bàn tay/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 
   it("BR-04: kệ đã lưu còn hàng → khoá vị trí và ngừng dùng, mã không sửa được (BR-13)", async () => {

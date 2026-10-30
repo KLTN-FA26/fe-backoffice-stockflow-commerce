@@ -10,6 +10,7 @@ import { LAYOUT } from "./__fixtures__/layout";
 import { draftFromLayout } from "./draft";
 import { draftReducer } from "./draft-edit";
 import {
+  groupRemovable,
   LOCATION_STATUS_TRANSITIONS,
   placeLocks,
   placeStatusTargets,
@@ -128,5 +129,33 @@ describe("chế độ sửa — phần nào của hình được sửa (placeLoc
     });
     expect(placeLocks(wall, "free", manager).remove).toBe(false);
     expect(placeLocks(wall, "free", { update: true, delete: false }).remove).toBe(true);
+  });
+});
+
+describe("xoá cả vùng chọn (groupRemovable) — BR-04", () => {
+  const items = draftFromLayout(LAYOUT).items;
+  const can = { update: true, delete: true };
+
+  it("chỉ xoá hình đã biết không còn hàng; còn hàng, đang kiểm hoặc KIỂM LỖI đều bỏ qua", () => {
+    const keysWhen = (stock: "free" | "stocked" | "checking" | "unknown") =>
+      groupRemovable(items, (item) => (item.kind === "boundary" ? "free" : stock), can).map(
+        (item) => item.key,
+      );
+    expect(keysWhen("free")).toEqual(["area-rcv", "shelf-a01", "wall-n"]);
+    // Tường / cửa không có tồn — vẫn xoá được
+    expect(keysWhen("stocked")).toEqual(["wall-n"]);
+    expect(keysWhen("checking")).toEqual(["wall-n"]);
+    expect(keysWhen("unknown")).toEqual(["wall-n"]);
+  });
+
+  it("thiếu quyền: không UPDATE thì không ngừng dùng kệ / khu, không DELETE thì không xoá tường", () => {
+    const free = () => "free" as const;
+    expect(groupRemovable(items, free, { update: false, delete: true }).map((i) => i.key)).toEqual([
+      "wall-n",
+    ]);
+    expect(groupRemovable(items, free, { update: true, delete: false }).map((i) => i.key)).toEqual([
+      "area-rcv",
+      "shelf-a01",
+    ]);
   });
 });

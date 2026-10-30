@@ -52,6 +52,8 @@ export interface DraftShelf extends Saved {
   build: ShelfBuild | null;
   /** Kệ đã lưu: thông số dựng lại y hệt (`shelfTemplate`) — bản sao Ctrl+D / Ctrl+V dùng cái này. */
   copyBuild?: ShelfBuild;
+  /** Kệ đã lưu nhưng dựng tầng / bin hỏng giữa chừng: tầng đã tạo — lần lưu sau dựng tiếp phần thiếu. */
+  builtLevelIds?: string[];
   /** Kệ đã lưu: phạm vi bin trong khung kệ (kệ không thu nhỏ quá, BR-07) và có bin cho lấy hàng (BR-08). */
   binExtent: { width: number; length: number } | null;
   hasPickableBins: boolean;

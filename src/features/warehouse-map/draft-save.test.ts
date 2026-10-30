@@ -5,6 +5,7 @@ import { saveArea, saveBoundary, saveShelf, saveZone } from "./api-draft";
 import { addShelfLevel, changePlaceStatus, deleteBoundary, generateShelfBins } from "./api";
 import { draftFromLayout } from "./draft";
 import { draftReducer } from "./draft-edit";
+import { planDraftSave } from "./draft-plan";
 import { DraftSaveError, saveMapDraft } from "./draft-save";
 
 import type { DraftAction } from "./draft-edit";
@@ -85,5 +86,39 @@ describe("lưu bản nháp tuần tự", () => {
     expect(error.step).toBe("Tạo kệ K01");
     expect(error.result.removedKeys).toEqual(["wall-n"]);
     expect(saveBoundary).not.toHaveBeenCalled();
+  });
+});
+
+describe("kệ mới dựng tầng / bin hỏng giữa chừng", () => {
+  it("giữ version mới nhất và phần còn thiếu; lần lưu sau dựng tiếp đúng chỗ dừng", async () => {
+    vi.mocked(addShelfLevel)
+      .mockResolvedValueOnce({ id: "level-1" })
+      .mockRejectedValueOnce(new Error("500"));
+    const draft = apply(NEW_SHELF);
+    const shelfKey = draft.items.at(-1)?.key ?? "";
+    const error = await saveMapDraft({ warehouseId: "wh-hcm", draft }).catch((e: unknown) => e);
+    if (!(error instanceof DraftSaveError)) throw new Error("phải là DraftSaveError");
+    // Version đọc lại sau lỗi (tạo tầng đổi version kệ) → lần PUT sau không bị 409
+    expect(error.result.saved).toContainEqual({
+      key: shelfKey,
+      id: "shelf-new",
+      version: 3,
+      pendingLevelIds: ["level-1"],
+    });
+
+    const resumed = draftReducer(draft, { type: "synced", ...error.result });
+    const shelf = resumed.items.find((item) => item.key === shelfKey);
+    expect(shelf?.kind === "shelf" && shelf.build).toBeTruthy();
+    expect(planDraftSave(resumed).map((op) => op.type)).toEqual(["shelf"]);
+
+    vi.mocked(addShelfLevel).mockClear();
+    const result = await saveMapDraft({ warehouseId: "wh-hcm", draft: resumed });
+    expect(vi.mocked(saveShelf).mock.lastCall?.[1]).toMatchObject({ id: "shelf-new", version: 3 });
+    expect(vi.mocked(addShelfLevel).mock.calls.map((call) => call[1])).toEqual([2]);
+    expect(vi.mocked(generateShelfBins).mock.lastCall?.[1]).toEqual(["level-1", "level-2"]);
+    const done = draftReducer(resumed, { type: "synced", ...result });
+    const built = done.items.find((item) => item.key === shelfKey);
+    expect(built?.kind === "shelf" && built.build).toBe(null);
+    expect(planDraftSave(done)).toEqual([]);
   });
 });

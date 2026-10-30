@@ -33,7 +33,8 @@ export function planDraftSave(draft: MapDraft): SaveOp[] {
       .map((zone) => ({ type: "zone" as const, zone })),
     ...draft.removed.map((item) => ({ type: "remove" as const, item })),
     ...draft.items
-      .filter((item) => isChanged(draft, item))
+      // Kệ đã lưu còn `build` = dựng tầng / bin dở lần trước → lên lịch dựng tiếp
+      .filter((item) => isChanged(draft, item) || (item.kind === "shelf" && item.build !== null))
       .map((item): SaveOp => {
         if (item.kind === "shelf") return { type: "shelf", item };
         if (item.kind === "area") return { type: "area", item };

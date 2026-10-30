@@ -41,17 +41,32 @@ export interface SaveDraftInput {
   onProgress?: (done: number, total: number) => void;
 }
 
-/** Tầng + bin của kệ vừa tạo; tạo tầng làm đổi `version` kệ → đọc lại để lần PUT sau không bị 409. */
-async function buildShelf(shelfId: string, shelf: DraftShelf): Promise<number | null> {
-  const build = shelf.build;
-  if (!build || build.levelCount === 0) return null;
-  const levelIds: string[] = [];
-  for (let index = 1; index <= build.levelCount; index += 1)
-    levelIds.push((await addShelfLevel(shelfId, index, build.levelHeight)).id);
-  // BR-14: gửi Idempotency-Key — thử lại không bị 409 SHELF_LEVEL_HAS_BINS
-  if (build.generateBins) await generateShelfBins(shelfId, levelIds, build, newIdempotencyKey());
+const shelfVersion = async (shelfId: string): Promise<number> => {
   const { data } = await api.get<unknown>(`/shelves/${encodeURIComponent(shelfId)}`);
   return savedRefDto.parse(data).version;
+};
+
+/**
+ * Tầng + bin của kệ vừa tạo (hoặc dựng dở lần trước — tiếp từ `builtLevelIds`). Tạo tầng làm đổi
+ * `version` kệ → đọc lại để lần PUT sau không bị 409. Hỏng giữa chừng: ghi các tầng đã tạo vào
+ * `saved.pendingLevelIds` + version mới nhất đọc được (cố gắng, không chắc) rồi ném tiếp — bản nháp giữ
+ * phần còn thiếu để lần lưu sau dựng tiếp.
+ */
+async function buildShelf(saved: SavedRef, shelf: DraftShelf): Promise<void> {
+  const build = shelf.build;
+  if (!build || build.levelCount === 0) return;
+  const levelIds = [...(shelf.builtLevelIds ?? [])];
+  try {
+    for (let index = levelIds.length + 1; index <= build.levelCount; index += 1)
+      levelIds.push((await addShelfLevel(saved.id, index, build.levelHeight)).id);
+    // BR-14: gửi Idempotency-Key — thử lại không bị 409 SHELF_LEVEL_HAS_BINS
+    if (build.generateBins) await generateShelfBins(saved.id, levelIds, build, newIdempotencyKey());
+  } catch (error) {
+    saved.pendingLevelIds = levelIds;
+    saved.version = await shelfVersion(saved.id).catch(() => saved.version);
+    throw error;
+  }
+  saved.version = await shelfVersion(saved.id);
 }
 
 async function runOp(
@@ -81,10 +96,11 @@ async function runOp(
     case "shelf": {
       const zoneId = op.item.zoneKey ? (zoneIds.get(op.item.zoneKey) ?? null) : null;
       const ref = await saveShelf(warehouseId, op.item, zoneId);
-      const saved = { key: op.item.key, id: ref.id, version: ref.version };
+      const saved: SavedRef = { key: op.item.key, id: ref.id, version: ref.version };
       // Ghi nhận kệ ngay: tầng / bin hỏng sau đó thì kệ vẫn đã có trên bản đồ
       result.saved.push(saved);
-      if (op.item.id === null) saved.version = (await buildShelf(ref.id, op.item)) ?? ref.version;
+      // Chỉ kệ mới hoặc kệ dựng dở còn `build`
+      await buildShelf(saved, op.item);
       return;
     }
     case "area":
