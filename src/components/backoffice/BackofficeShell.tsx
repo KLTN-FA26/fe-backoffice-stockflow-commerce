@@ -68,6 +68,8 @@ import {
   TRANSFER_PERMISSIONS,
   UI_LABELS,
   VEHICLE_TYPE_PERMISSIONS,
+  WAREHOUSE_LOCATION_PERMISSIONS,
+  WAREHOUSE_PERMISSIONS,
 } from "@/constants";
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 
@@ -277,9 +279,18 @@ export const NAV_GROUPS: NavGroup[] = [
         permission: INVENTORY_ITEM_PERMISSIONS.viewPage,
       },
       {
-        label: "Kho map & slotting",
-        href: "/admin/warehouse-map",
+        label: UI_LABELS.warehouseMap.listTitle,
+        href: ADMIN_ROUTES.warehouses.list,
+        icon: WarehouseIcon,
+        // BE WarehouseController @PermissionResource route `/admin/warehouses`
+        permission: WAREHOUSE_PERMISSIONS.viewPage,
+      },
+      {
+        label: UI_LABELS.warehouseMap.mapTitle,
+        href: ADMIN_ROUTES.warehouseMap.root,
         icon: MapPin,
+        // BE WarehouseLocationResourceDeclaration route `/admin/warehouse-map`
+        permission: WAREHOUSE_LOCATION_PERMISSIONS.viewPage,
       },
       {
         label: "Gợi ý vị trí",

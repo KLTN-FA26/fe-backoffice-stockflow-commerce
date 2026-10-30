@@ -280,6 +280,7 @@ export function activateMockAdapter(): void {
     import("./mock-routes-vehicle-types"),
     import("./mock-routes-load-estimates"),
     import("./mock-routes-load-plans"),
+    import("./mock-routes-warehouses"),
   ]).then(
     ([
       { registerAllMockRoutes },
@@ -310,6 +311,7 @@ export function activateMockAdapter(): void {
       { registerVehicleTypeMockRoutes },
       { registerLoadEstimateMockRoutes },
       { registerLoadPlanMockRoutes },
+      { registerWarehouseMockRoutes },
     ]) => {
       registerAllMockRoutes();
       registerSupplierMockRoutes();
@@ -339,6 +341,8 @@ export function activateMockAdapter(): void {
       registerVehicleTypeMockRoutes();
       registerLoadEstimateMockRoutes();
       registerLoadPlanMockRoutes();
+      // Sau goods-receipts: thay `GET /warehouses` rút gọn bằng danh mục kho đầy đủ của module 06
+      registerWarehouseMockRoutes();
     },
   );
 

@@ -1,6 +1,12 @@
-import { MapPin } from "lucide-react";
-import { ComingSoonPage } from "@/components/shared/ComingSoonPage";
+import { Suspense } from "react";
+
+import { PageSkeleton } from "@/components/shared/PageSkeleton";
+import { WarehouseMapView } from "@/features/warehouse-map/components/map/WarehouseMapView";
 
 export default function WarehouseMapPage() {
-  return <ComingSoonPage title="Kho map & slotting" icon={MapPin} />;
+  return (
+    <Suspense fallback={<PageSkeleton variant="detail" />}>
+      <WarehouseMapView />
+    </Suspense>
+  );
 }

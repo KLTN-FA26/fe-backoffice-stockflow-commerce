@@ -646,3 +646,61 @@ export const USER_STATUS = {
   LOCKED: "LOCKED",
   DISABLED: "DISABLED",
 } as const satisfies Record<string, (typeof USER_STATUSES)[number]>;
+
+/* ── Module 06 — bản đồ kho (BE `com.stockflow.warehouse.internal.domain`) ── */
+
+/** BE `WarehouseStatus` — kho ngưng thì mọi vị trí đọc là INACTIVE (docs 06 §4.2, BR-16). */
+export const WAREHOUSE_STATUSES = ["ACTIVE", "INACTIVE"] as const;
+
+export const WAREHOUSE_STATUS = {
+  ACTIVE: "ACTIVE",
+  INACTIVE: "INACTIVE",
+} as const satisfies Record<string, (typeof WAREHOUSE_STATUSES)[number]>;
+
+/** BE `LocationStatus` của kệ / bin / khu vực (docs 06 §5). `Full` không lưu — tính khi gợi ý. */
+export const LOCATION_STATUSES = ["ACTIVE", "BLOCKED", "MAINTENANCE", "INACTIVE"] as const;
+
+export const LOCATION_STATUS = {
+  ACTIVE: "ACTIVE",
+  BLOCKED: "BLOCKED",
+  MAINTENANCE: "MAINTENANCE",
+  INACTIVE: "INACTIVE",
+} as const satisfies Record<string, (typeof LOCATION_STATUSES)[number]>;
+
+/** BE `StorageClass` — lớp lưu trữ, ràng buộc cứng khi cất hàng (docs 06 BR-01). */
+export const STORAGE_CLASSES = ["NORMAL", "COLD", "HAZMAT", "FRAGILE", "OVERSIZE"] as const;
+
+/** BE `BinType` — chỉ để mô tả, chưa dùng trong gợi ý (docs 06 §5). */
+export const BIN_TYPES = ["STANDARD", "PALLET", "SMALL_PARTS"] as const;
+
+/** BE `AreaType` — mọi loại trừ NON_STORAGE là vị trí tồn kho (docs 06 BR-11). */
+export const AREA_TYPES = [
+  "RECEIVING",
+  "QUALITY_CONTROL",
+  "QUARANTINE",
+  "PACKING",
+  "DISPATCH",
+  "OVERFLOW",
+  "PRODUCTION",
+  "NON_STORAGE",
+] as const;
+
+export const AREA_TYPE = {
+  NON_STORAGE: "NON_STORAGE",
+} as const satisfies Record<string, (typeof AREA_TYPES)[number]>;
+
+/** BE `BoundaryType` — tường không có trạng thái, cửa có OPEN / CLOSED. */
+export const BOUNDARY_TYPES = ["WALL", "DOOR"] as const;
+
+export const BOUNDARY_TYPE = {
+  WALL: "WALL",
+  DOOR: "DOOR",
+} as const satisfies Record<string, (typeof BOUNDARY_TYPES)[number]>;
+
+export const DOOR_STATUSES = ["OPEN", "CLOSED"] as const;
+
+/** BE `BinNamingScheme` — kiểu đặt mã khi tự sinh bin (docs 06 §5, BR-14). */
+export const BIN_NAMING_SCHEMES = ["SEQUENTIAL", "ROW_LETTER_COLUMN"] as const;
+
+/** BE `MapUnit` — chỉ mét (docs 06 §5); không đổi sau khi tạo kho (BR-13). */
+export const MAP_UNITS = ["M"] as const;

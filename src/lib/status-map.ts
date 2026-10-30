@@ -108,6 +108,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Quarantine",
     "Blocked",
     "BLOCKED",
+    // Kệ / bin / khu vực đang hỏng, bảo trì (BE LocationStatus.MAINTENANCE, docs 06 §5)
+    "MAINTENANCE",
     // Tài khoản bị quản trị viên khoá (BE UserStatus.LOCKED, PR #72)
     USER_STATUS.LOCKED,
     "Low stock",
@@ -416,6 +418,13 @@ const STATUS_LABEL_VI_BY_DOMAIN: Partial<Record<StatusDomain, Record<string, str
     PENDING_ACTIVATION: "Chờ kích hoạt",
     INACTIVE: "Ngừng hoạt động",
     BLOCKED: "Bị khoá",
+  },
+  // Kệ / bin / khu vực (BE LocationStatus, docs 06 §5): BLOCKED = khoá kiểm kê / QC, INACTIVE = bỏ khỏi bố cục
+  location: {
+    ACTIVE: "Đang dùng",
+    BLOCKED: "Khoá kiểm kê / QC",
+    MAINTENANCE: "Bảo trì",
+    INACTIVE: "Ngừng dùng",
   },
   // Đơn hàng (BE OrderStatus, PR #133): nhãn sát nghĩa nghiệp vụ hơn nhãn dùng chung với module khác
   order: {

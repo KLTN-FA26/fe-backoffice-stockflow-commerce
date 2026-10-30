@@ -366,3 +366,37 @@ export const LOAD_PLAN_LIMITS = {
   /** `LoadPlacementsRequest.Vehicle.boxes` và `tray` @Size(max = 2000). */
   placementBoxesMax: 2000,
 } as const;
+
+/**
+ * Giới hạn bản đồ kho — BE `RegisterWarehouseRequest`, `ShelfRequests`, `BinGrid` (docs 06 §3, §6).
+ * Số đo tính bằng mét (`MapUnit.M`), tối đa 3 số lẻ (`@Digits(integer = 7, fraction = 3)`).
+ */
+export const WAREHOUSE_MAP_LIMITS = {
+  /** BR-10: prefix 1–10 ký tự A–Z0–9. */
+  prefixMax: 10,
+  nameMax: 200,
+  addressMax: 500,
+  zoneNameMax: 100,
+  /** BR-10: mã kệ / bin / khu vực ≤ 20 ký tự. */
+  codeMax: 20,
+  descriptionMax: 1000,
+  /** `@Digits(integer = 7)` — phần nguyên tối đa 7 chữ số. */
+  measureMax: 9_999_999,
+  measureFractionDigits: 3,
+  /** BR-15: tối đa 20 tầng mỗi kệ, 200 bin mỗi tầng. */
+  levelsPerShelfMax: 20,
+  binsPerLevelMax: 200,
+  /** `AddLevel.levelIndex` @Min(1) @Max(99). */
+  levelIndexMax: 99,
+  /** BR-14: ROW_LETTER_COLUMN dùng chữ A–Z cho hàng → tối đa 26 hàng. */
+  letterRowsMax: 26,
+  /** BR-09: góc xoay chỉ 0 / 90 / 180 / 270. */
+  rotations: [0, 90, 180, 270],
+  /** Gợi ý mặc định khi thêm kệ — chiều cao một tầng (m), dùng cho cao độ tầng kế tiếp. */
+  defaultLevelHeight: 1.5,
+  /** Bước lưới vẽ 2D (m): vạch mảnh mỗi 1 m, vạch đậm mỗi 5 m. */
+  gridMinor: 1,
+  gridMajor: 5,
+  /** Chiều cao tường vẽ 3D (m) — chỉ trực quan, BE không lưu chiều cao tường. */
+  wallHeight3d: 3,
+} as const;
