@@ -94,11 +94,15 @@ export function ShipmentPicker({
                 data-state={selected.has(candidateKey(candidate)) ? "selected" : undefined}
               >
                 <TableCell>
-                  <Checkbox
-                    checked={selected.has(candidateKey(candidate))}
-                    onCheckedChange={() => onToggle(candidateKey(candidate))}
-                    aria-label={`${L.shipmentCode} ${candidate.code}`}
-                  />
+                  {/* Bọc flex: input ẩn (absolute) của Checkbox nằm cạnh nút thay vì rơi xuống dưới ô, làm bảng
+                      có thanh cuộn dọc thừa */}
+                  <div className="flex">
+                    <Checkbox
+                      checked={selected.has(candidateKey(candidate))}
+                      onCheckedChange={() => onToggle(candidateKey(candidate))}
+                      aria-label={`${L.shipmentCode} ${candidate.code}`}
+                    />
+                  </div>
                 </TableCell>
                 <TableCell className="font-mono text-[0.8125rem]">{candidate.code}</TableCell>
                 <TableCell className="text-[0.8125rem]">

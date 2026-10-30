@@ -69,6 +69,8 @@ export function FormDialogBody({
 }) {
   return (
     <form
+      // Form là grid item của DialogContent: thiếu min-w-0 thì bảng / lưới rộng bên trong đẩy form tràn khỏi khung
+      className="min-w-0"
       onSubmit={(e) => {
         e.preventDefault();
         if (canSubmit && !isPending && !readOnly) onSubmit();
