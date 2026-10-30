@@ -5,17 +5,17 @@
  *   GET  /warehouses?page&size&q&status         → PageResponse<Warehouse>   (warehouse-warehouses:READ)
  *   POST /warehouses                            → 201; 409 WAREHOUSE_PREFIX_ALREADY_EXISTS  (…:CREATE)
  *   GET  /warehouses/{id}/layout                → WarehouseLayout            (warehouse-locations:READ)
- *   POST /warehouses/{id}/zones|shelves|areas|boundaries                    (warehouse-locations:CREATE)
  *   POST /shelves/{id}/levels · /shelves/{id}/bin-generation                (warehouse-locations:CREATE)
  *   PUT  /shelves/{id}/status · /areas/{id}/status                          (warehouse-locations:UPDATE)
- *   DELETE /boundaries/{id}                                                 (warehouse-locations:DELETE)
+ *   DELETE /boundaries/{id}?version=                                        (warehouse-locations:DELETE)
+ *
+ * Tạo / sửa zone, kệ, khu vực, tường-cửa của bản nháp bản đồ: `api-draft.ts`.
  */
 
 import { PAGE_SIZE } from "@/constants";
 import { api } from "@/lib/api/client";
 import { idempotencyRequestConfig } from "@/lib/api/idempotency";
 
-import { isStorageArea } from "./input-schemas-layout";
 import {
   createdRefDto,
   generatedBinsDto,
@@ -26,14 +26,11 @@ import {
 
 import type { PaginatedResponse } from "@/lib/api/query-factory";
 import type {
-  AreaCreateValues,
-  BoundaryCreateBody,
+  BinGeneration,
   PlaceStatusInput,
-  ShelfCreateValues,
   Warehouse,
   WarehouseCreateBody,
   WarehouseLayout,
-  ZoneCreateBody,
 } from "./types";
 
 export const WAREHOUSES_PATH = "/warehouses";
@@ -80,36 +77,6 @@ export async function getWarehouseLayout(
   return warehouseLayoutDto.parse(data);
 }
 
-export async function createZone(input: { warehouseId: string; body: ZoneCreateBody }) {
-  const { data } = await api.post<unknown>(
-    `${WAREHOUSES_PATH}/${id(input.warehouseId)}/zones`,
-    input.body,
-  );
-  return createdRefDto.parse(data);
-}
-
-const footprintOf = (v: Pick<ShelfCreateValues, "x" | "y" | "width" | "length" | "rotation">) => ({
-  x: v.x,
-  y: v.y,
-  width: v.width,
-  length: v.length,
-  rotation: v.rotation,
-});
-
-/** Bước 1 của "Thêm kệ" — chỉ kệ; tầng và bin là các request sau (BE không có API gộp). */
-export async function createShelf(warehouseId: string, v: ShelfCreateValues) {
-  const { data } = await api.post<unknown>(`${WAREHOUSES_PATH}/${id(warehouseId)}/shelves`, {
-    code: v.code,
-    name: v.name,
-    zoneId: v.zoneId || undefined,
-    footprint: footprintOf(v),
-    obstacle: v.obstacle,
-    pickFaces: { north: v.north, east: v.east, south: v.south, west: v.west },
-    defaultStorageClass: v.defaultStorageClass,
-  });
-  return createdRefDto.parse(data);
-}
-
 /** `levelIndex` không đổi được và nằm trong mã vị trí (BR-13); cao độ xếp đều theo chiều cao tầng. */
 export async function addShelfLevel(shelfId: string, levelIndex: number, levelHeight: number) {
   const { data } = await api.post<unknown>(`/shelves/${id(shelfId)}/levels`, {
@@ -124,7 +91,7 @@ export async function addShelfLevel(shelfId: string, levelIndex: number, levelHe
 export async function generateShelfBins(
   shelfId: string,
   levelIds: string[],
-  v: ShelfCreateValues,
+  v: BinGeneration,
   idempotencyKey: string,
 ) {
   const { data } = await api.post<unknown>(
@@ -147,38 +114,12 @@ export async function generateShelfBins(
   return generatedBinsDto.parse(data);
 }
 
-export async function createArea(input: { warehouseId: string; values: AreaCreateValues }) {
-  const v = input.values;
-  const { data } = await api.post<unknown>(`${WAREHOUSES_PATH}/${id(input.warehouseId)}/areas`, {
-    code: v.code,
-    type: v.type,
-    name: v.name,
-    footprint: footprintOf(v),
-    obstacle: v.obstacle,
-    // BR-11: khu NON_STORAGE không có vị trí tồn kho
-    location: isStorageArea(v.type)
-      ? {
-          storageClass: v.storageClass,
-          capacityUnits: v.capacityUnits ?? undefined,
-          maxWeight: v.maxWeight ?? undefined,
-          pickable: v.pickable,
-          putawayTarget: v.putawayTarget,
-        }
-      : undefined,
-  });
-  return createdRefDto.parse(data);
-}
-
-export async function createBoundary(input: { warehouseId: string; body: BoundaryCreateBody }) {
-  const { data } = await api.post<unknown>(
-    `${WAREHOUSES_PATH}/${id(input.warehouseId)}/boundaries`,
-    { ...input.body, operationalStatus: input.body.operationalStatus ?? undefined },
-  );
-  return createdRefDto.parse(data);
-}
-
-export async function deleteBoundary(boundaryId: string): Promise<void> {
-  await api.delete(`/boundaries/${id(boundaryId)}`);
+/**
+ * Xoá hẳn tường / cửa (BR-04). BE bắt buộc `?version=` của lần đọc gần nhất (thiếu → 400, cũ → 409
+ * OPTIMISTIC_LOCK) — xoá không hoàn tác được nên không được dựa trên bản đã cũ.
+ */
+export async function deleteBoundary(boundaryId: string, version: number): Promise<void> {
+  await api.delete(`/boundaries/${id(boundaryId)}`, { params: { version } });
 }
 
 /** Không lan xuống con: bin của kệ đọc là không dùng được qua `effectiveStatus` (BR-16). */

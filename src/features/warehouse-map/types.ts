@@ -1,5 +1,7 @@
 import type { z } from "zod";
 
+import type { ShelfBuild } from "./draft";
+
 import type {
   boundaryDto,
   footprintDto,
@@ -24,19 +26,11 @@ export type WarehouseLayout = z.infer<typeof warehouseLayoutDto>;
 export type LocationStatus = LayoutShelf["status"];
 
 export type {
-  BoundaryCreateBody,
-  BoundaryCreateInput,
   WarehouseCreateBody,
   WarehouseCreateInput,
   ZoneCreateBody,
   ZoneCreateInput,
 } from "./input-schemas";
-export type {
-  AreaCreateInput,
-  AreaCreateValues,
-  ShelfCreateInput,
-  ShelfCreateValues,
-} from "./input-schemas-layout";
 
 /** Đổi trạng thái kệ hoặc khu vực (`PUT /shelves|areas/{id}/status`). */
 export interface PlaceStatusInput {
@@ -45,6 +39,5 @@ export interface PlaceStatusInput {
   status: LocationStatus;
 }
 
-/** Các bước của "Thêm kệ": tạo kệ → tạo N tầng → sinh bin (docs 06 §4.1 bước 5–7). */
-export type ShelfCreateStep =
-  { phase: "shelf" } | { phase: "levels"; done: number; total: number } | { phase: "bins" };
+/** Thông số tự sinh bin (`GenerateBins`, BR-14) — phần lưới của `ShelfBuild` trong bản nháp. */
+export type BinGeneration = Omit<ShelfBuild, "levelCount" | "levelHeight" | "generateBins">;

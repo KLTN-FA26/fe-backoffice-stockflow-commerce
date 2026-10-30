@@ -43,6 +43,23 @@
   --dot-warning: #f76b15;
   --dot-danger: #e5484d;
   --dot-special: #8e4ec6;
+  /* Vật liệu cảnh 3D bản đồ kho (three.js đọc lúc chạy) — màu vật thể thật, giống nhau ở sáng / tối:
+     cột thép kệ, beam cam (kệ không thuộc zone), sàn lưới mạ kẽm, pallet gỗ, thùng nhựa, bê tông,
+     vạch sơn an toàn, tường, nhãn vị trí. */
+  --scene-steel: #1f7ae8;
+  --scene-beam: #ff6b12;
+  --scene-deck: #c4cdd6;
+  --scene-pallet: #e8c07e;
+  --scene-tote: #14b8a0;
+  --scene-ground: #c4c7cc;
+  --scene-tape: #ffc21a;
+  --scene-wall: #1c1d20;
+  --scene-label: #fbfbf9;
+  --scene-carton: #c98a4b;
+  --scene-carton-dark: #ad7036;
+  --scene-carton-light: #dda466;
+  --scene-carton-tape: #a99c86;
+  --scene-print: #2b2724;
   --r-sm: 4px;
   --r-md: 8px;
   --r-lg: 12px;

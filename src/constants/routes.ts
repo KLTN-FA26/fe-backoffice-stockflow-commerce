@@ -102,11 +102,16 @@ export const ADMIN_ROUTES = {
     // Khai báo kho mới là modal trên trang này (không có route riêng)
     list: `${ADMIN_BASE}/warehouses`,
   },
-  /** Bản đồ kho 2D/3D — BE `LayoutController` (resource `warehouse-locations`); `?warehouse=` giữ kho đang xem. */
+  /**
+   * Tab "Kho & bản đồ" (module 06) — `root` là bước chọn kho; trang làm việc theo một kho nằm dưới prefix
+   * kho (duy nhất, không đổi — BR-10 / BR-13). Tiền tố `/admin/warehouse-map` = route BE khai báo cho
+   * resource `warehouse-locations` (`LayoutController`).
+   */
   warehouseMap: {
     root: `${ADMIN_BASE}/warehouse-map`,
-    of: (warehouseId: string) =>
-      `${ADMIN_BASE}/warehouse-map?warehouse=${encodeURIComponent(warehouseId)}`,
+    of: (prefix: string) => `${ADMIN_BASE}/warehouse-map/${encodeURIComponent(prefix)}`,
+    slotting: (prefix: string) =>
+      `${ADMIN_BASE}/warehouse-map/${encodeURIComponent(prefix)}/slotting`,
   },
   /** Danh mục loại xe (container, xe tải, bán tải) — BE `VehicleTypeController`, PR #153. */
   vehicleTypes: `${ADMIN_BASE}/vehicle-types`,

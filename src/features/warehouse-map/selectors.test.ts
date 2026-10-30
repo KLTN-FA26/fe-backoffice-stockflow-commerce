@@ -9,10 +9,12 @@ import {
   fitsWithin,
   generatedBinSize,
   hasAtMostDecimals,
+  inactiveCount,
   layoutStats,
   levelSpan,
   overlappingCode,
   shelfTransform,
+  withoutInactive,
 } from "./selectors";
 
 const fp = (x: number, y: number, width: number, length: number, rotation = 0) => ({
@@ -71,6 +73,16 @@ describe("số liệu dẫn xuất", () => {
       height: 1.4,
     });
     expect(levelSpan({ levelIndex: 3, elevation: null, usableHeight: null }).bottom).toBe(3);
+  });
+
+  it("BR-04 / BR-07: kệ / khu vực ngừng dùng bị ẩn khỏi bản đồ mặc định và không vào số liệu", () => {
+    expect(inactiveCount(LAYOUT)).toBe(1);
+    const shown = withoutInactive(LAYOUT);
+    expect(shown.shelves.map((s) => s.code)).toEqual(["A01"]);
+    expect(layoutStats(shown).shelves).toBe(1);
+    // Không đụng tường / zone; bản gốc không bị sửa
+    expect(shown.boundaries).toBe(LAYOUT.boundaries);
+    expect(LAYOUT.shelves).toHaveLength(2);
   });
 
   it("đếm kệ, bin, bin dùng được (theo `usable` của BE), khu vực", () => {

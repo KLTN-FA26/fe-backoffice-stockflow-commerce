@@ -58,7 +58,7 @@ function WarehouseListContent() {
         s={s}
         columns={buildWarehouseColumns({ canOpenMap })}
         onRowClick={
-          canOpenMap ? (row) => router.push(ADMIN_ROUTES.warehouseMap.of(row.id)) : undefined
+          canOpenMap ? (row) => router.push(ADMIN_ROUTES.warehouseMap.of(row.prefix)) : undefined
         }
       />
       {creating && <WarehouseCreateDialog onClose={() => setCreating(false)} />}

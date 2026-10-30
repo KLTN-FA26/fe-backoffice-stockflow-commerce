@@ -1,12 +1,8 @@
-import { Suspense } from "react";
+import { redirect } from "next/navigation";
 
-import { PageSkeleton } from "@/components/shared/PageSkeleton";
-import { WarehouseMapView } from "@/features/warehouse-map/components/map/WarehouseMapView";
+import { ADMIN_ROUTES } from "@/constants";
 
-export default function WarehouseMapPage() {
-  return (
-    <Suspense fallback={<PageSkeleton variant="detail" />}>
-      <WarehouseMapView />
-    </Suspense>
-  );
+/** Tab "Kho & bản đồ" chọn kho ở trang Danh mục kho — vào gốc tab thì chuyển về đó. */
+export default function WarehouseWorkspacePage() {
+  redirect(ADMIN_ROUTES.warehouses.list);
 }

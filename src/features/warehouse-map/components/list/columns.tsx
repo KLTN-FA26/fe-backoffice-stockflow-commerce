@@ -52,7 +52,7 @@ export function buildWarehouseColumns({ canOpenMap }: { canOpenMap: boolean }) {
       cell: (row) => (
         <div className="flex justify-end">
           <Link
-            href={ADMIN_ROUTES.warehouseMap.of(row.id)}
+            href={ADMIN_ROUTES.warehouseMap.of(row.prefix)}
             aria-label={`${L.openMap} ${row.prefix}`}
             title={L.openMap}
             onClick={(event) => event.stopPropagation()}

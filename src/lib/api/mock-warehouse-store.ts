@@ -117,6 +117,8 @@ export interface MockWarehouseStore {
   shelves: MockShelf[];
   areas: MockArea[];
   boundaries: MockBoundary[];
+  /** Mã vị trí đang có dòng tồn — chỉ để biết vị trí còn hàng (BR-04), không mô phỏng số lượng. */
+  stockedLocations: Set<string>;
 }
 
 const fp = (x: number, y: number, width: number, length: number): MockFootprint => ({
@@ -258,6 +260,8 @@ function seed(): MockWarehouseStore {
         version: 0,
       },
     ],
+    // Seed BE §5: tồn demo được dời vào đúng các vị trí này của bản đồ
+    stockedLocations: new Set(["HCM-A01-2-B", "HCM-A02-1-A", "HCM-B01-1-A", "HCM-QC01"]),
   };
 }
 

@@ -4,6 +4,8 @@ import { FORM_INPUT_CLASS } from "@/components/shared/form-control-classes";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+import { HintButton } from "./HintButton";
+
 import type { ComponentProps, ReactNode } from "react";
 
 /** Lỗi inline dưới ô — `id` để ô nhập trỏ `aria-describedby` tới. */
@@ -16,7 +18,7 @@ export function FieldError({ id, children }: { id?: string; children?: string })
   );
 }
 
-/** Nhãn + ô nhập + gợi ý / lỗi của một trường form. */
+/** Nhãn (+ nút "?" lưu ý khi có `hint`) + ô nhập + lỗi của một trường form. */
 export function FormField({
   id,
   label,
@@ -34,11 +36,13 @@ export function FormField({
 }) {
   return (
     <div>
-      <Label htmlFor={id} className="text-ink-secondary mb-1 block text-xs font-medium">
-        {label} {required && <span className="text-danger">*</span>}
-      </Label>
+      <div className="mb-1 flex items-center gap-1">
+        <Label htmlFor={id} className="text-ink-secondary text-xs font-medium">
+          {label} {required && <span className="text-danger">*</span>}
+        </Label>
+        {hint && <HintButton label={label}>{hint}</HintButton>}
+      </div>
       {children}
-      {hint && !error && <p className="text-ink-tertiary mt-1 text-xs">{hint}</p>}
       <FieldError id={`${id}-error`}>{error}</FieldError>
     </div>
   );

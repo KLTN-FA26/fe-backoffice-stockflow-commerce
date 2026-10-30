@@ -1,106 +1,133 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
+import { useCursor } from "@react-three/drei";
+import { NeutralToneMapping } from "three";
 
-import { BOUNDARY_TYPE, WAREHOUSE_MAP_LIMITS as LIMITS } from "@/constants";
+import { WAREHOUSE_MAP_LIMITS as LIMITS } from "@/constants";
 
-import { boxOf } from "@/features/warehouse-map/selectors";
+import { shelfHeight, zoneColors } from "@/features/warehouse-map/selectors";
 
-import { Shelf3D } from "./Shelf3D";
-import { locationTone, TONE_VAR } from "./tone";
-import { useCssColor } from "./use-css-color";
+import { MapControls } from "../shared/MapControls";
+import { Areas3D } from "./scene3d/Areas3D";
+import { CameraRig } from "./scene3d/CameraRig";
+import { Cartons3D } from "./scene3d/Cartons3D";
+import { Floor3D } from "./scene3d/Floor3D";
+import { FocusCard } from "./scene3d/FocusCard";
+import { Racks3D } from "./scene3d/Racks3D";
+import { SceneLights } from "./scene3d/SceneLights";
+import { ShelfFocus3D } from "./scene3d/ShelfFocus3D";
+import { StaticShadows } from "./scene3d/StaticShadows";
+import { useSceneFocus } from "./scene3d/use-scene-focus";
+import { useScenePalette } from "./scene3d/use-scene-palette";
+import { Walls3D } from "./scene3d/Walls3D";
 
-import type { ThreeEvent } from "@react-three/fiber";
 import type { WarehouseLayout } from "@/features/warehouse-map/types";
-
-/** Bề dày tường / cửa vẽ 3D (m) — BE không lưu bề dày, chỉ để nhìn thấy. */
-const WALL = 0.08;
+import type { MapControlsProps } from "../shared/MapControls";
 
 /**
  * Cảnh 3D — dựng lại từ CÙNG dữ liệu bố cục với 2D (docs 06 §1): trục x = x bản đồ, trục z = y bản đồ,
- * trục y = cao độ tầng. Bin tô theo `effectiveStatus`. Chỉ trực quan (BR-05). Nạp lười qua `next/dynamic`.
+ * trục y = cao độ tầng. Kệ pallet thép, sàn epoxy, băng keo khu vực, tường cắt thấp. Bấm kệ → chỉ còn
+ * kệ đó trên sàn, camera bay tới và xoay vòng 360° quanh kệ; thùng carton hiện đúng bin có tồn, thẻ
+ * bên trái liệt kê hàng (tồn theo vị trí — bản đồ vẫn chỉ trực quan, BR-05). Nạp lười qua `next/dynamic`.
+ *
+ * Hiệu năng (không giật khi xoay): `InstancedMesh` tĩnh — vài lần vẽ cho cả kho, không tính lại ma trận
+ * mỗi frame; chỉ vẽ khi có thay đổi (`frameloop="demand"`); bóng đổ vẽ lại khi cảnh đổi chứ không theo
+ * camera; một đèn đổ bóng; phản chiếu dựng một lần; độ phân giải cố định (không nhảy mờ / nét).
  */
 export default function MapScene3D({
   layout,
   selectedId,
   onSelect,
+  onOpenDetail,
+  controls,
 }: {
   layout: WarehouseLayout;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
+  onOpenDetail: () => void;
+  controls: Omit<MapControlsProps, "zoom">;
 }) {
-  const color = useCssColor();
+  const palette = useScenePalette();
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  // Mất WebGL context (driver, quá nhiều context trên trang) → dựng lại Canvas thay vì để cảnh trống
+  const [glGeneration, setGlGeneration] = useState(0);
+  useCursor(hoveredId !== null);
+  const focus = useSceneFocus(layout, selectedId, onSelect);
+  const { shelf } = focus;
   const { mapWidth: w, mapHeight: h } = layout.warehouse;
   const span = Math.max(w, h);
+  // Trần của vùng camera: cao hơn kệ / tường cao nhất một chút
+  const top = Math.max(LIMITS.wallHeight3d, ...layout.shelves.map(shelfHeight)) + 2;
+  // Đang xem một kệ: chỉ giữ kệ đó (không khu vực, tường, kệ khác che tầm xoay quanh)
+  const shelves = useMemo(() => (shelf ? [shelf] : layout.shelves), [shelf, layout.shelves]);
+  const colorsByZone = useMemo(() => zoneColors(layout), [layout]);
+  const target = shelf ?? focus.area;
+
   return (
-    <Canvas
-      camera={{
-        position: [w / 2, span * 0.75, h + span * 0.45],
-        fov: 45,
-        near: 0.1,
-        far: span * 10,
-      }}
-      onPointerMissed={() => onSelect(null)}
-      className="bg-bg-subtle rounded-(--card-radius)"
-    >
-      <ambientLight intensity={0.7} />
-      <directionalLight position={[w, span, h]} intensity={0.8} />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[w / 2, 0, h / 2]}>
-        <planeGeometry args={[w, h]} />
-        <meshStandardMaterial color={color("--bg-surface")} />
-      </mesh>
-      {layout.areas.map((area) => {
-        const b = boxOf(area.footprint);
-        return (
-          <mesh
-            key={area.id}
-            position={[b.x + b.w / 2, 0.01, b.y + b.h / 2]}
-            rotation={[-Math.PI / 2, 0, 0]}
-            onClick={(event: ThreeEvent<MouseEvent>) => {
-              event.stopPropagation();
-              onSelect(area.id);
-            }}
-          >
-            <planeGeometry args={[b.w, b.h]} />
-            <meshStandardMaterial
-              color={color(TONE_VAR[locationTone(area.effectiveStatus)])}
-              transparent
-              opacity={area.id === selectedId ? 0.55 : 0.25}
-            />
-          </mesh>
-        );
-      })}
-      {layout.shelves.map((shelf) => (
-        <Shelf3D
-          key={shelf.id}
-          shelf={shelf}
-          selected={shelf.id === selectedId}
-          color={color}
-          onSelect={() => onSelect(shelf.id)}
+    <div className="relative h-full">
+      <Canvas
+        key={glGeneration}
+        shadows
+        frameloop="demand"
+        dpr={[1, 1.5]}
+        camera={{ position: focus.overview.position, fov: 40, near: 0.1, far: span * 12 }}
+        // Tone mapping trung tính giữ đúng sắc độ màu sơn (ACES mặc định của R3F làm bạc, nhợt màu)
+        onCreated={({ gl }) => {
+          gl.toneMapping = NeutralToneMapping;
+          // Phơi sáng thấp hơn mặc định một chút: sàn trắng không loá, màu sơn rõ
+          gl.toneMappingExposure = 0.85;
+          gl.domElement.addEventListener("webglcontextlost", () => setGlGeneration((n) => n + 1), {
+            once: true,
+          });
+        }}
+        onPointerMissed={() => onSelect(null)}
+        className="bg-bg-subtle rounded-(--card-radius)"
+      >
+        <SceneLights width={w} height={h} palette={palette} />
+        <Floor3D width={w} height={h} palette={palette} focus={shelf} />
+        {!shelf && (
+          <Areas3D
+            areas={layout.areas}
+            selectedId={selectedId}
+            palette={palette}
+            onSelect={onSelect}
+          />
+        )}
+        <Racks3D
+          shelves={shelves}
+          zoneColors={colorsByZone}
+          palette={palette}
+          focus={focus.rackFocus}
+          onSelect={onSelect}
+          onHover={setHoveredId}
         />
-      ))}
-      {layout.boundaries.map((boundary) => {
-        const dx = boundary.endX - boundary.startX;
-        const dz = boundary.endY - boundary.startY;
-        const door = boundary.type === BOUNDARY_TYPE.DOOR;
-        const height = door ? LIMITS.wallHeight3d * 0.7 : LIMITS.wallHeight3d;
-        return (
-          <mesh
-            key={boundary.id}
-            position={[boundary.startX + dx / 2, height / 2, boundary.startY + dz / 2]}
-            rotation={[0, -Math.atan2(dz, dx), 0]}
-          >
-            <boxGeometry args={[Math.hypot(dx, dz), height, WALL]} />
-            <meshStandardMaterial
-              color={color(door ? "--dot-info" : "--ink-tertiary")}
-              transparent={door}
-              opacity={door ? 0.35 : 1}
-            />
-          </mesh>
-        );
-      })}
-      <OrbitControls target={[w / 2, 0, h / 2]} maxPolarAngle={Math.PI / 2.05} makeDefault />
-    </Canvas>
+        {shelf && <Cartons3D shelf={shelf} stock={focus.stock} palette={palette} />}
+        {!shelf && <Walls3D boundaries={layout.boundaries} palette={palette} />}
+        {shelves
+          .filter((s) => s.id === selectedId || s.id === hoveredId)
+          .map((s) => (
+            <ShelfFocus3D key={s.id} shelf={s} color={palette.info} strong={s.id === selectedId} />
+          ))}
+        <StaticShadows layout={layout} focusId={selectedId} stock={focus.stock} />
+        <CameraRig
+          controlsRef={focus.cameraRef}
+          overview={focus.overview}
+          focus={focus.pose}
+          bounds={{ width: w, height: h, top }}
+        />
+      </Canvas>
+      {target && (
+        <FocusCard
+          code={target.code}
+          name={target.name}
+          stock={shelf ? focus.stockState : undefined}
+          onDetail={onOpenDetail}
+          onOverview={focus.toOverview}
+        />
+      )}
+      <MapControls {...controls} zoom={focus.zoom} />
+    </div>
   );
 }

@@ -44,13 +44,21 @@ export const boxOf = (f: MockFootprint) => {
   return { x: f.x, y: f.y, w: turned ? f.length : f.width, h: turned ? f.width : f.length };
 };
 
-/** BR-06 / BR-07 dưới "khoá theo kho": trong khung, không chồng lấn kệ / khu vực không INACTIVE. */
-export function placementError(warehouse: MockWarehouse, footprint: MockFootprint) {
+/**
+ * BR-06 / BR-07 dưới "khoá theo kho": trong khung, không chồng lấn kệ / khu vực không INACTIVE.
+ * `exceptId`: hình đang dời / đổi cỡ không tự chồng lấn chính nó (PUT).
+ */
+export function placementError(
+  warehouse: MockWarehouse,
+  footprint: MockFootprint,
+  exceptId?: string,
+) {
   const b = boxOf(footprint);
   if (b.x + b.w > warehouse.mapWidth || b.y + b.h > warehouse.mapHeight)
     return fail(409, "LAYOUT_OUT_OF_BOUNDS", "The shape leaves the warehouse map");
   const { shelves, areas } = getWarehouseStore();
   const clash = [...shelves, ...areas].some((place) => {
+    if (place.id === exceptId) return false;
     if (place.warehouseId !== warehouse.id || place.status === "INACTIVE") return false;
     const o = boxOf(place.footprint);
     return b.x < o.x + o.w && o.x < b.x + b.w && b.y < o.y + o.h && o.y < b.y + b.h;

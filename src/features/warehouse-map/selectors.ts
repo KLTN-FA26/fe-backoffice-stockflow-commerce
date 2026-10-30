@@ -144,6 +144,20 @@ export function layoutStats(layout: WarehouseLayout): LayoutStats {
   };
 }
 
+/**
+ * Bố cục chỉ còn kệ / khu vực đang dùng: vị trí INACTIVE (đã "xoá" — BR-04 chỉ cho ngừng dùng) không
+ * giữ chỗ (BR-07) nên vẽ ra sẽ chồng lấn hình mới → mặc định ẩn ở 2D / 3D / chế độ sửa và số liệu.
+ */
+export function withoutInactive(layout: WarehouseLayout): WarehouseLayout {
+  const live = <T extends { status: string }>(rows: T[]) =>
+    rows.filter((row) => row.status !== LOCATION_STATUS.INACTIVE);
+  return { ...layout, shelves: live(layout.shelves), areas: live(layout.areas) };
+}
+
+/** Số kệ + khu vực đã ngừng dùng — để nút "Hiện vị trí ngừng dùng" chỉ hiện khi có. */
+export const inactiveCount = (layout: WarehouseLayout): number =>
+  [...layout.shelves, ...layout.areas].filter((p) => p.status === LOCATION_STATUS.INACTIVE).length;
+
 export const isLayoutEmpty = (layout: WarehouseLayout): boolean =>
   layout.shelves.length + layout.areas.length + layout.boundaries.length === 0;
 

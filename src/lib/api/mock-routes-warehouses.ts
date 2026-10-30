@@ -1,6 +1,7 @@
 /**
  * Mock module 06 theo hợp đồng BE (`WarehouseController`, `ZoneController`): danh mục kho, khai báo kho,
- * zone. Kệ / khu vực / tường-cửa ở `mock-routes-warehouse-shelves.ts`; `GET /warehouses/{id}/layout` ở
+ * zone. Kệ / khu vực / tường-cửa ở `mock-routes-warehouse-shelves.ts`, sửa (PUT) ở
+ * `mock-routes-warehouse-edits.ts`; `GET /warehouses/{id}/layout` ở
  * `mock-routes-warehouse-layout.ts` (đọc store này trước). Chỉ dùng khi USE_MOCK=true.
  */
 
@@ -8,6 +9,7 @@ import { WAREHOUSE_LOCATION_PERMISSIONS, WAREHOUSE_PERMISSIONS } from "@/constan
 
 import { registerMockRoute } from "./mock-adapter";
 import { bodyOf, fail, ok, pageOf, pathParams, queryOf, text } from "./mock-route-utils";
+import { registerWarehouseEditMockRoutes } from "./mock-routes-warehouse-edits";
 import { registerWarehouseShelfMockRoutes } from "./mock-routes-warehouse-shelves";
 import {
   forbidden,
@@ -102,4 +104,5 @@ function registerWarehouseRoutes(): void {
 export function registerWarehouseMockRoutes(): void {
   registerWarehouseRoutes();
   registerWarehouseShelfMockRoutes();
+  registerWarehouseEditMockRoutes();
 }

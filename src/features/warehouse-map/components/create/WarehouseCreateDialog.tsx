@@ -14,10 +14,8 @@ import {
 } from "@/features/warehouse-map/input-schemas";
 import { useCreateWarehouse } from "@/features/warehouse-map/mutations";
 
-import { DialogScrollArea } from "@/components/shared/DialogScrollArea";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 
-import { MapFramePreview } from "./MapFramePreview";
 import { WarehouseCreateFields } from "./WarehouseCreateFields";
 
 import type { WarehouseCreateBody, WarehouseCreateInput } from "@/features/warehouse-map/types";
@@ -32,7 +30,8 @@ const L = UI_LABELS.warehouseMap;
  */
 export function WarehouseCreateDialog({ onClose }: { onClose: () => void }) {
   return (
-    <FormDialog open onOpenChange={(next) => !next && onClose()}>
+    // Hai cột (thông tin + địa chỉ | khung bản đồ + xem trước) → rộng hơn modal form mặc định
+    <FormDialog open onOpenChange={(next) => !next && onClose()} className="sm:max-w-[880px]">
       <WarehouseCreateForm onClose={onClose} />
     </FormDialog>
   );
@@ -54,7 +53,7 @@ function WarehouseCreateForm({ onClose }: { onClose: () => void }) {
       // Kho mới có bản đồ rỗng → mở ngay bản đồ để vẽ (docs 06 §4.1 bước 2–7)
       onSuccess: (warehouse) => {
         onClose();
-        router.push(ADMIN_ROUTES.warehouseMap.of(warehouse.id));
+        router.push(ADMIN_ROUTES.warehouseMap.of(warehouse.prefix));
       },
       onError: (error) => {
         const message = warehouseMapErrorMessage(error);
@@ -75,10 +74,9 @@ function WarehouseCreateForm({ onClose }: { onClose: () => void }) {
       onSubmit={() => void submit()}
       onCancel={onClose}
     >
-      <DialogScrollArea>
+      <div className="max-h-[calc(100vh-15rem)] overflow-y-auto pr-1">
         <WarehouseCreateFields form={form} />
-        <MapFramePreview control={form.control} />
-      </DialogScrollArea>
+      </div>
     </FormDialogBody>
   );
 }

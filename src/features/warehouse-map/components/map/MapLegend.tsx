@@ -17,8 +17,8 @@ import type { WarehouseLayout } from "@/features/warehouse-map/types";
 const M = UI_LABELS.warehouseMap.map;
 
 /**
- * Chú giải + số liệu đầu bản đồ: trạng thái hiệu lực (màu viền kệ / bin), tường / cửa, số kệ, bin,
- * bin dùng được, khu vực — đếm từ chính layout BE trả (không bịa KPI).
+ * Chú giải + số liệu của bản đồ (trong modal "?"): số kệ, bin, bin dùng được, khu vực — đếm từ chính
+ * layout BE trả (không bịa KPI); trạng thái hiệu lực (màu viền kệ / bin), tường / cửa.
  */
 export function MapLegend({ layout }: { layout: WarehouseLayout }) {
   const stats = layoutStats(layout);
@@ -29,18 +29,21 @@ export function MapLegend({ layout }: { layout: WarehouseLayout }) {
     [M.stats.areas, stats.areas],
   ];
   return (
-    <div className="border-border-default bg-bg-surface flex flex-wrap items-center gap-x-5 gap-y-2 rounded-(--card-radius) border px-3 py-2 shadow-(--card-shadow)">
-      <dl className="flex flex-wrap gap-x-4 gap-y-1">
+    <div className="space-y-3">
+      <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {items.map(([label, value]) => (
-          <div key={label} className="flex items-baseline gap-1.5 text-xs">
+          <div
+            key={label}
+            className="border-border-default bg-bg-subtle space-y-0.5 rounded-(--r-sm) border px-3 py-2 text-xs"
+          >
             <dt className="text-ink-tertiary">{label}</dt>
-            <dd className="text-ink-primary font-[family-name:var(--font-mono)] font-semibold tabular-nums">
+            <dd className="text-ink-primary font-[family-name:var(--font-mono)] text-sm font-semibold tabular-nums">
               {formatNumber(value)}
             </dd>
           </div>
         ))}
       </dl>
-      <div aria-label={M.legend} className="ml-auto flex flex-wrap items-center gap-x-4 gap-y-1">
+      <div aria-label={M.legend} className="flex flex-wrap items-center gap-x-4 gap-y-2">
         {LOCATION_STATUSES.map((status) => (
           <StatusDot key={status} domain="location" status={status} />
         ))}

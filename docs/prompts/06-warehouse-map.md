@@ -58,14 +58,26 @@ Enum: `WarehouseStatus` ACTIVE/INACTIVE · `LocationStatus` ACTIVE/BLOCKED/MAINT
    - `/admin/warehouse-map?warehouse=&view=2d|3d&selected=` — **Chi tiết**: chọn kho, bật 2D/3D, panel bên phải cho đối tượng đang chọn. State trên URL (nuqs) để gửi link được.
 3. **2D = SVG thuần** (không thêm dep): `viewBox` theo mét, lưới 1 m / 5 m, zoom bằng nút, kệ tô theo màu zone (màu là **dữ liệu** BE), viền theo `effectiveStatus`, khu vực nét đứt, tường nét dày, cửa nét đứt.
 4. **3D = react-three-fiber** lazy qua `next/dynamic` (`ssr:false`), fallback 2D khi WebGL lỗi. Kệ = khung + mặt tầng theo `elevation`, bin = khối trên tầng tô theo `effectiveStatus`; màu đọc từ CSS variable lúc chạy (không hex trong component).
-5. **Sửa bản đồ (giai đoạn 1 = form, chưa kéo-thả)**: Thêm zone · Thêm kệ (tạo kệ → tạo N tầng → sinh bin, 3 bước tuần tự) · Thêm khu vực · Thêm tường/cửa · Đổi trạng thái kệ/khu vực. FE kiểm trước BR-06/07/08/09/14 bằng zod refine; BE vẫn là nơi quyết định (409 map về field).
+5. **Chế độ sửa bản đồ (Konva, bản nháp — lưu một lần)**: nút "Chỉnh sửa bản đồ" → canvas Konva với
+   thanh công cụ **nổi ngang** (chọn · kệ · khu vực · tường · cửa · thêm zone · thông số · xoay · xoá, có
+   tooltip + phím tắt V/K/A/W/D, R, Delete, Enter, mũi tên) và **zoom nổi dọc** bên phải. Kéo trên nền để
+   vẽ (bám lưới 0,5 m), kéo hình để dời, kéo góc để đổi cỡ; bấm đúp / Enter mở **modal thông số** chỉnh
+   tinh tới mm. Mọi thay đổi chỉ nằm trong bản nháp (`draft*.ts`) tới khi bấm **Lưu N thay đổi**: gửi tuần
+   tự zone → gỡ hình → sửa hình cũ (`PUT` + `version`) → tạo hình mới (kệ: tạo → tầng → sinh bin) →
+   tường/cửa; hỏng giữa chừng thì dừng, phần đã lưu được ghi nhận, phần còn lại giữ trong bản nháp.
+   - **Xoá** (BR-04): hình chưa lưu xoá hẳn; kệ / khu vực đã lưu → `Inactive` (mã giữ, BR-13); tường /
+     cửa đã lưu → `DELETE`.
+   - **Kệ / khu vực còn hàng** (`GET /inventory/warehouses/{id}/stock-items?location=`): khoá dời, đổi
+     cỡ, xoay, lớp lưu trữ, ngừng dùng — chỉ sửa tên / mô tả / zone (BR-04, open-question C22).
+   - Luật kiểm ngay trên bản nháp (`draft-rules.ts`): BR-06/07/08/09/10/11/13/14/15; lỗi chặn nút Lưu.
+   - Chế độ xem: bấm kệ / khu vực mở **modal chi tiết** (tầng × bin, đổi trạng thái).
 6. Action-gating qua `lifecycle.ts` + quyền `warehouse-locations:CREATE/UPDATE`, `warehouse-warehouses:CREATE` — UI-only, BE re-check.
 7. Mock: store in-memory seed **đúng số liệu demo BE** (kho HCM 60×40 m, 2 zone, 3 kệ × 2 tầng × 2 bin, 5 khu vực, 1 tường + 1 cửa); kho mock-data cũ vẫn đọc layout qua nhánh cũ để không vỡ màn lấy hàng / cất hàng.
 
 ## 5. Ngoài phạm vi (giai đoạn sau, docs 06 §1 ⚠️)
 
-Kéo-thả / resize trực tiếp trên canvas · heatmap lấp đầy · lộ trình đi · sửa bin từng ô · in nhãn PDF ·
-sửa kho (PUT) và ngưng/kích hoạt kho từ danh sách.
+Heatmap lấp đầy · lộ trình đi · sửa bin từng ô / thêm tầng cho kệ đã lưu · in nhãn PDF · sửa kho (PUT)
+và ngưng/kích hoạt kho từ danh sách · sửa trong 3D.
 
 ## 6. Prompt triển khai (dùng lại cho AI agent)
 

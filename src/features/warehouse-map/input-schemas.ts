@@ -1,20 +1,14 @@
 /**
- * Form khai báo kho, zone, tường / cửa — phản chiếu `RegisterWarehouseRequest`, `CreateZoneRequest`,
- * `BoundaryRequests.CreateBoundary` của BE (docs 06 §3, §6). Ô nhập là chuỗi; schema kiểm rồi đổi
- * sang số. FE kiểm trước để báo lỗi tại ô — Backend phải re-check mọi rule dưới đây.
- * Form kệ / khu vực (cần bố cục hiện có để kiểm chồng lấn) nằm ở `input-schemas-layout.ts`.
+ * Form khai báo kho và zone — phản chiếu `RegisterWarehouseRequest`, `CreateZoneRequest` của BE
+ * (docs 06 §3, §6). Ô nhập là chuỗi; schema kiểm rồi đổi sang số. FE kiểm trước để báo lỗi tại ô —
+ * Backend phải re-check. Kệ / khu vực / tường-cửa vẽ trên bản nháp bản đồ: `draft-rules.ts`.
  */
 
 import { z } from "zod";
 
-import {
-  BOUNDARY_TYPE,
-  BOUNDARY_TYPES,
-  DOOR_STATUSES,
-  MAP_UNITS,
-  UI_LABELS,
-  WAREHOUSE_MAP_LIMITS as LIMITS,
-} from "@/constants";
+import { MAP_UNITS, UI_LABELS, WAREHOUSE_MAP_LIMITS as LIMITS } from "@/constants";
+
+import { joinVnAddress } from "@/lib/references/vn-divisions";
 
 import { hasAtMostDecimals } from "./selectors";
 
@@ -43,21 +37,6 @@ export function measure({ positive }: { positive: boolean }) {
     .refine((value) => hasAtMostDecimals(value, LIMITS.measureFractionDigits), V.fraction);
 }
 
-/** Số đo tuỳ chọn > 0 (sức chứa, tải trọng): trống → `null` = không kiểm ràng buộc đó (docs 06 §5). */
-export function optionalPositive({ integer }: { integer: boolean }) {
-  return z
-    .string()
-    .trim()
-    .refine((raw) => raw === "" || isNumeric(raw), V.positive)
-    .transform((raw) => (raw === "" ? null : Number(normalise(raw))))
-    .refine((value) => value === null || value > 0, V.positive)
-    .refine((value) => value === null || !integer || Number.isInteger(value), V.positive)
-    .refine(
-      (value) => value === null || hasAtMostDecimals(value, LIMITS.measureFractionDigits),
-      V.fraction,
-    );
-}
-
 /** Mã kệ / bin / khu vực — BR-10: ≤ 20 ký tự A–Z0–9; gửi chữ hoa như BE sẽ lưu. */
 export const locationPart = (max: number, message: string) =>
   z
@@ -77,21 +56,32 @@ const optionalText = (max: number) =>
 
 /* ── Khai báo kho (docs 06 §4.1 bước 1) ───────────────────────────────── */
 
-export const warehouseCreateSchema = z.object({
-  // BR-10 / BR-13: prefix 1–10 ký tự A–Z0–9, duy nhất toàn hệ thống, không đổi sau khi tạo
-  prefix: locationPart(LIMITS.prefixMax, V.prefixFormat),
-  name: z.string().trim().min(1, V.required).max(LIMITS.nameMax, V.tooLong(LIMITS.nameMax)),
-  address: z
-    .string()
-    .trim()
-    .min(1, V.required)
-    .max(LIMITS.addressMax, V.tooLong(LIMITS.addressMax)),
-  returnAddress: optionalText(LIMITS.addressMax),
-  // BR-13: đơn vị bản đồ chỉ mét và không đổi
-  mapUnit: z.enum(MAP_UNITS),
-  mapWidth: measure({ positive: true }),
-  mapHeight: measure({ positive: true }),
-});
+export const warehouseCreateSchema = z
+  .object({
+    // BR-10 / BR-13: prefix 1–10 ký tự A–Z0–9, duy nhất toàn hệ thống, không đổi sau khi tạo
+    prefix: locationPart(LIMITS.prefixMax, V.prefixFormat),
+    name: z.string().trim().min(1, V.required).max(LIMITS.nameMax, V.tooLong(LIMITS.nameMax)),
+    // Địa chỉ chọn theo đơn vị hành chính 2 cấp rồi ghép thành một dòng `address` như BE lưu
+    street: z.string().trim().min(1, V.required),
+    /** Mã tỉnh để tải phường / xã — chỉ dùng trong form, không gửi BE. */
+    provinceCode: z.string(),
+    provinceName: z.string().trim().min(1, V.provinceRequired),
+    wardName: z.string().trim().min(1, V.wardRequired),
+    returnAddress: optionalText(LIMITS.addressMax),
+    // BR-13: đơn vị bản đồ chỉ mét và không đổi
+    mapUnit: z.enum(MAP_UNITS),
+    mapWidth: measure({ positive: true }),
+    mapHeight: measure({ positive: true }),
+  })
+  .superRefine((value, ctx) => {
+    // RegisterWarehouseRequest.address @Size(max = 500) — tính trên chuỗi đã ghép
+    if (joinVnAddress(value.street, value.wardName, value.provinceName).length > LIMITS.addressMax)
+      ctx.addIssue({ code: "custom", message: V.tooLong(LIMITS.addressMax), path: ["street"] });
+  })
+  .transform(({ street, provinceCode: _code, provinceName, wardName, ...rest }) => ({
+    ...rest,
+    address: joinVnAddress(street, wardName, provinceName),
+  }));
 
 export type WarehouseCreateInput = z.input<typeof warehouseCreateSchema>;
 export type WarehouseCreateBody = z.output<typeof warehouseCreateSchema>;
@@ -99,7 +89,10 @@ export type WarehouseCreateBody = z.output<typeof warehouseCreateSchema>;
 export const EMPTY_WAREHOUSE_FORM: WarehouseCreateInput = {
   prefix: "",
   name: "",
-  address: "",
+  street: "",
+  provinceCode: "",
+  provinceName: "",
+  wardName: "",
   returnAddress: "",
   mapUnit: "M",
   mapWidth: "",
@@ -128,43 +121,3 @@ export function zoneCreateSchema(existingNames: readonly string[]) {
 
 export type ZoneCreateInput = z.input<ReturnType<typeof zoneCreateSchema>>;
 export type ZoneCreateBody = z.output<ReturnType<typeof zoneCreateSchema>>;
-
-/* ── Tường / cửa (docs 06 §4.1 bước 3) ────────────────────────────────── */
-
-export function boundaryCreateSchema(frame: { mapWidth: number; mapHeight: number }) {
-  const inside = (value: number, max: number) => value >= 0 && value <= max;
-  return (
-    z
-      .object({
-        type: z.enum(BOUNDARY_TYPES),
-        startX: measure({ positive: false }),
-        startY: measure({ positive: false }),
-        endX: measure({ positive: false }),
-        endY: measure({ positive: false }),
-        passable: z.boolean(),
-        operationalStatus: z.enum(DOOR_STATUSES),
-      })
-      .refine((b) => b.startX !== b.endX || b.startY !== b.endY, {
-        message: V.boundaryZero,
-        path: ["endX"],
-      })
-      // BR-06 (docs 06 §6): hai đầu tường / cửa nằm trong khung bản đồ (chạm mép = bên trong)
-      .refine(
-        (b) =>
-          inside(b.startX, frame.mapWidth) &&
-          inside(b.endX, frame.mapWidth) &&
-          inside(b.startY, frame.mapHeight) &&
-          inside(b.endY, frame.mapHeight),
-        { message: V.outOfBounds, path: ["endY"] },
-      )
-      // Tường luôn không đi qua được và không có trạng thái (BoundaryRequests: "Always false for a wall")
-      .transform((b) =>
-        b.type === BOUNDARY_TYPE.WALL
-          ? { ...b, passable: false, operationalStatus: null }
-          : { ...b, operationalStatus: b.operationalStatus },
-      )
-  );
-}
-
-export type BoundaryCreateInput = z.input<ReturnType<typeof boundaryCreateSchema>>;
-export type BoundaryCreateBody = z.output<ReturnType<typeof boundaryCreateSchema>>;

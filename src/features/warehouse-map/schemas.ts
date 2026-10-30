@@ -167,3 +167,20 @@ export const createdRefDto = z.object({ id: z.string() }).loose();
 export const generatedBinsDto = z.array(
   z.object({ id: z.string(), levelId: z.string(), locationCode: z.string() }).loose(),
 );
+
+/** Phản hồi sửa / tạo kệ, khu vực, tường, zone — `version` mới để lần PUT kế tiếp gửi lại (OPTIMISTIC_LOCK). */
+export const savedRefDto = z.object({ id: z.string(), version: z.number().int() }).loose();
+
+/** BE `WarehouseStockItemResponse` — bản đồ chỉ cần biết vị trí nào còn dòng tồn. */
+export const stockProbeDto = bePageSchema(z.object({ locationCode: z.string() }).loose());
+
+/** Hàng trên một kệ (3D): mã vị trí + SKU + tồn; `onHand` vắng khi vị trí đang kiểm kê (SCRUM-146). */
+export const locationStockDto = bePageSchema(
+  z
+    .object({
+      locationCode: z.string(),
+      sku: z.string().nullish(),
+      onHand: beDecimal.nullish(),
+    })
+    .loose(),
+);

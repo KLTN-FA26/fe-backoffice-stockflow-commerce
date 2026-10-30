@@ -1,31 +1,16 @@
 "use client";
 
-import { Box, DoorOpen, Grid2x2, Layers, Plus, Square, Tags } from "lucide-react";
+import { Box, Eye, EyeOff, Grid2x2, PencilRuler } from "lucide-react";
 
-import { PAGE_SIZE, UI_LABELS } from "@/constants";
+import { UI_LABELS } from "@/constants";
 
-import { useWarehouses } from "@/features/warehouse-map/queries";
-
-import { FORM_SELECT_CLASS } from "@/components/shared/form-control-classes";
 import { TOOLBAR_ACTION_CLASS } from "@/components/shared/ListToolbar";
-import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { Button } from "@/components/ui/button";
-import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import type { LucideIcon } from "lucide-react";
 import type { MapUrlState, MapView } from "./useMapUrlState";
 
 const M = UI_LABELS.warehouseMap.map;
-const A = UI_LABELS.warehouseMap.actions;
-
-export type EditorKind = "zone" | "shelf" | "area" | "boundary";
-
-const EDITORS: { kind: EditorKind; label: string; icon: LucideIcon }[] = [
-  { kind: "boundary", label: A.addBoundary, icon: DoorOpen },
-  { kind: "area", label: A.addArea, icon: Square },
-  { kind: "zone", label: A.addZone, icon: Tags },
-  { kind: "shelf", label: A.addShelf, icon: Plus },
-];
 const VIEWS: { view: MapView; label: string; icon: LucideIcon }[] = [
   { view: "2d", label: M.view2d, icon: Grid2x2 },
   { view: "3d", label: M.view3d, icon: Box },
@@ -34,39 +19,24 @@ const VIEWS: { view: MapView; label: string; icon: LucideIcon }[] = [
 const OUTLINE = `${TOOLBAR_ACTION_CLASS} border-border-default bg-bg-surface text-ink-primary hover:bg-bg-muted border`;
 
 /**
- * Hàng công cụ bản đồ (không khung, mỗi nút tự có viền — style Vercel): chọn kho, 2D / 3D, rồi các nút
- * vẽ bản đồ ở góc phải theo thứ tự docs 06 §4.1 (tường bao → khu vực → zone → kệ). `canEdit` = có
- * `warehouse-locations:CREATE`; thiếu thì không render nút vẽ (UI-only, BE re-check).
+ * Hàng công cụ bản đồ (không khung, mỗi nút tự có viền — style Vercel): 2D / 3D, góc phải là nút vào
+ * chế độ sửa (vẽ kéo-thả, lưu một lần). `canEdit` = có
+ * `warehouse-locations:CREATE`; thiếu thì không render nút (UI-only, BE re-check).
  */
 export function MapToolbar({
   url,
   canEdit,
   onEdit,
+  inactive,
 }: {
   url: MapUrlState;
   canEdit: boolean;
-  onEdit: (kind: EditorKind) => void;
+  onEdit: () => void;
+  /** Số kệ / khu vực ngừng dùng — có thì hiện nút bật / tắt vẽ chúng. */
+  inactive: number;
 }) {
-  const warehouses = useWarehouses({ page: 0, size: PAGE_SIZE.masterData });
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Select value={url.warehouseId ?? ""} onValueChange={url.setWarehouseId}>
-        <SelectTrigger
-          aria-label={M.selectWarehouse}
-          className={`${FORM_SELECT_CLASS} h-(--control-h) w-72`}
-        >
-          <Layers className="text-dot-info size-3.5" />
-          <SelectValue placeholder={M.selectWarehouse} />
-        </SelectTrigger>
-        <TitledSelectContent title={M.selectWarehouse}>
-          {(warehouses.data?.items ?? []).map((warehouse) => (
-            <SelectItem key={warehouse.id} value={warehouse.id}>
-              <span className="font-[family-name:var(--font-mono)]">{warehouse.prefix}</span> ·{" "}
-              {warehouse.name}
-            </SelectItem>
-          ))}
-        </TitledSelectContent>
-      </Select>
       <div role="group" aria-label={M.viewToggle} className="flex gap-1">
         {VIEWS.map(({ view, label, icon: Icon }) => (
           <Button
@@ -85,24 +55,31 @@ export function MapToolbar({
           </Button>
         ))}
       </div>
-      {canEdit && url.warehouseId && (
-        <div className="ml-auto flex flex-wrap gap-2">
-          {EDITORS.map(({ kind, label, icon: Icon }) => (
-            <Button
-              key={kind}
-              type="button"
-              size="sm"
-              onClick={() => onEdit(kind)}
-              className={
-                kind === "shelf"
-                  ? `${TOOLBAR_ACTION_CLASS} bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse`
-                  : OUTLINE
-              }
-            >
-              <Icon className={kind === "shelf" ? "size-3.5" : "text-dot-info size-3.5"} /> {label}
-            </Button>
-          ))}
-        </div>
+      {inactive > 0 && (
+        <Button
+          type="button"
+          size="sm"
+          aria-pressed={url.showInactive}
+          onClick={url.toggleInactive}
+          className={OUTLINE}
+        >
+          {url.showInactive ? (
+            <Eye className="text-dot-info size-3.5" />
+          ) : (
+            <EyeOff className="text-ink-tertiary size-3.5" />
+          )}
+          {M.showInactive(inactive)}
+        </Button>
+      )}
+      {canEdit && (
+        <Button
+          type="button"
+          size="sm"
+          onClick={onEdit}
+          className={`${TOOLBAR_ACTION_CLASS} bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse ml-auto`}
+        >
+          <PencilRuler className="size-3.5" /> {UI_LABELS.warehouseMap.edit.enter}
+        </Button>
       )}
     </div>
   );

@@ -7,7 +7,16 @@
 import { WAREHOUSE_LOCATION_PERMISSIONS as P } from "@/constants";
 
 import { registerMockRoute } from "./mock-adapter";
-import { bodyOf, fail, noContent, ok, pathParams, text } from "./mock-route-utils";
+import {
+  bodyOf,
+  fail,
+  noContent,
+  ok,
+  optimisticLock,
+  pathParams,
+  queryOf,
+  text,
+} from "./mock-route-utils";
 import {
   footprintOf,
   forbidden,
@@ -246,6 +255,10 @@ function registerAreaAndBoundaryRoutes(): void {
     const store = getWarehouseStore();
     const index = store.boundaries.findIndex((b) => b.id === pathParams(config).id);
     if (index < 0) return fail(404, "BOUNDARY_NOT_FOUND", "Boundary not found");
+    // BE: xoá hẳn nên bắt buộc `?version=` (thiếu → 400), bản cũ → 409 OPTIMISTIC_LOCK
+    const version = queryOf(config).get("version");
+    if (version === null || !/^\d+$/.test(version)) return invalid("version", "is required");
+    if (Number(version) !== store.boundaries[index]?.version) return optimisticLock();
     store.boundaries.splice(index, 1);
     return noContent();
   });
