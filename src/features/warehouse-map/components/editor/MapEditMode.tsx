@@ -102,11 +102,13 @@ export function MapEditMode({
                 tool={editor.tool}
                 zoom={zoom}
                 interactive={!panMode}
-                selectedKey={editor.selectedKey}
+                selectedKeys={editor.selectedKeys}
                 isEditable={editor.isEditable}
                 isChanged={editor.isChanged}
                 invalidKeys={new Set(editor.issues.keys())}
                 onSelect={editor.select}
+                onSelectMany={editor.selectMany}
+                onToggle={editor.toggle}
                 onOpen={(key) => {
                   editor.select(key);
                   mode.setInspecting(true);

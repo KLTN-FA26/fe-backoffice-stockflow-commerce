@@ -60,8 +60,9 @@ export default function MapScene3D({
   const span = Math.max(w, h);
   // Trần của vùng camera: cao hơn kệ / tường cao nhất một chút
   const top = Math.max(LIMITS.wallHeight3d, ...layout.shelves.map(shelfHeight)) + 2;
-  // Đang xem một kệ: chỉ giữ kệ đó (không khu vực, tường, kệ khác che tầm xoay quanh)
-  const shelves = useMemo(() => (shelf ? [shelf] : layout.shelves), [shelf, layout.shelves]);
+  // Đang xem một kệ: chỉ hiện kệ đó (không khu vực, tường, kệ khác che tầm xoay quanh)
+  const isolated = useMemo(() => (shelf ? [shelf] : []), [shelf]);
+  const shelves = shelf ? isolated : layout.shelves;
   const colorsByZone = useMemo(() => zoneColors(layout), [layout]);
   const target = shelf ?? focus.area;
 
@@ -95,14 +96,28 @@ export default function MapScene3D({
             onSelect={onSelect}
           />
         )}
-        <Racks3D
-          shelves={shelves}
-          zoneColors={colorsByZone}
-          palette={palette}
-          focus={focus.rackFocus}
-          onSelect={onSelect}
-          onHover={setHoveredId}
-        />
+        {/* Kệ cả kho luôn dựng sẵn, xem một kệ thì chỉ ẩn đi — thoát ra không phải dựng lại (không giật
+            đúng lúc camera bay về toàn cảnh) */}
+        <group visible={!shelf}>
+          <Racks3D
+            shelves={layout.shelves}
+            zoneColors={colorsByZone}
+            palette={palette}
+            onSelect={onSelect}
+            onHover={setHoveredId}
+            interactive={!shelf}
+          />
+        </group>
+        {shelf && (
+          <Racks3D
+            shelves={isolated}
+            zoneColors={colorsByZone}
+            palette={palette}
+            focus={focus.rackFocus}
+            onSelect={onSelect}
+            onHover={setHoveredId}
+          />
+        )}
         {shelf && <Cartons3D shelf={shelf} stock={focus.stock} palette={palette} />}
         {!shelf && <Walls3D boundaries={layout.boundaries} palette={palette} />}
         {shelves

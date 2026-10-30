@@ -26,6 +26,8 @@ export const WAREHOUSE_MAP_EDIT_LABELS = {
   toolbar: "Thanh công cụ sửa",
   editGroup: "Công cụ sửa",
   selectionGroup: "Thao tác với hình đang chọn",
+  groupSelected: (count: number) => `${count} hình đã chọn`,
+  clearSelection: "Bỏ chọn (Esc)",
   done: "Xong",
   cancel: "Thoát",
   save: (count: number) => (count > 0 ? `Lưu ${count} thay đổi` : "Lưu"),
@@ -131,15 +133,19 @@ export const WAREHOUSE_MAP_SHORTCUTS: {
     { keys: ["W", "D"], label: "Vẽ tường / vẽ cửa (giữ Shift khi kéo: thẳng ngang / dọc)" },
     { keys: ["Z"], label: "Thêm zone" },
     { keys: ["Tab", "Shift+Tab"], label: "Chọn hình kế tiếp / trước đó" },
+    { keys: ["Kéo trên nền"], label: "Chọn vùng (công cụ chọn) — giữ Shift để chọn thêm" },
+    { keys: ["Shift + bấm"], label: "Thêm / bớt một hình khỏi vùng chọn" },
+    { keys: ["Ctrl+A"], label: "Chọn tất cả" },
     { keys: ["Enter"], label: "Mở thông số hình đang chọn" },
     { keys: ["←", "→", "↑", "↓"], label: "Dời 0,1 m (Shift: 1 m)" },
     { keys: ["R"], label: "Xoay 90°" },
-    { keys: ["Ctrl+D"], label: "Nhân bản hình đang chọn" },
+    { keys: ["Ctrl+D"], label: "Nhân bản các hình đang chọn" },
     {
       keys: ["Ctrl+C", "Ctrl+V"],
-      label: "Sao chép / dán hình (bản dán nằm ngay dưới, dán tiếp ra một dãy)",
+      label:
+        "Sao chép / dán (cả vùng chọn giữ nguyên bố cục; bản dán nằm ngay dưới, dán tiếp ra một dãy)",
     },
-    { keys: ["Delete"], label: "Xoá / ngừng dùng hình đang chọn" },
+    { keys: ["Delete"], label: "Xoá / ngừng dùng các hình đang chọn (bỏ qua hình còn hàng)" },
     { keys: ["Ctrl+Z"], label: "Hoàn tác" },
     { keys: ["Ctrl+Shift+Z", "Ctrl+Y"], label: "Làm lại" },
     { keys: ["Ctrl+S"], label: "Lưu toàn bộ bản nháp" },
@@ -153,4 +159,6 @@ export const WAREHOUSE_MAP_SHORTCUTS: {
 
 export const WAREHOUSE_MAP_EDIT_TOASTS = {
   saved: "Đã lưu bản đồ",
+  groupRemoveSkipped: (count: number) =>
+    `Bỏ qua ${count} hình còn hàng, chưa kiểm xong tồn hoặc không đủ quyền xoá — đang giữ chọn các hình đó.`,
 } as const;

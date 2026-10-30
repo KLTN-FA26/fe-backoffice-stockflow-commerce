@@ -38,6 +38,7 @@ export function Racks3D({
   focus,
   onSelect,
   onHover,
+  interactive = true,
 }: {
   shelves: readonly LayoutShelf[];
   zoneColors: ReadonlyMap<string, string>;
@@ -46,6 +47,8 @@ export function Racks3D({
   focus?: { shelfId: string; stocked: ReadonlySet<string> };
   onSelect: (shelfId: string) => void;
   onHover: (shelfId: string | null) => void;
+  /** `false` khi đang ẩn (xem một kệ khác) — không bắt chuột. */
+  interactive?: boolean;
 }) {
   // Tính lại chi tiết + màu chỉ khi bố cục / bảng màu đổi — không phải khi xoay camera hay trỏ chuột
   const groups = useMemo(() => {
@@ -90,11 +93,19 @@ export function Racks3D({
             color={baseColor[kind]}
             castShadow={kind !== "label"}
             {...MATERIAL[kind]}
-            onPick={(index) => {
-              const part = parts[index];
-              if (part) onSelect(part.shelfId);
-            }}
-            onHover={(index) => onHover(index === null ? null : (parts[index]?.shelfId ?? null))}
+            onPick={
+              interactive
+                ? (index) => {
+                    const part = parts[index];
+                    if (part) onSelect(part.shelfId);
+                  }
+                : undefined
+            }
+            onHover={
+              interactive
+                ? (index) => onHover(index === null ? null : (parts[index]?.shelfId ?? null))
+                : undefined
+            }
           />
         ),
       )}

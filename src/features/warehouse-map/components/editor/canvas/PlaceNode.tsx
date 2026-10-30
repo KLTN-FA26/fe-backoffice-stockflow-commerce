@@ -30,7 +30,8 @@ export interface PlaceNodeProps {
   editable: boolean;
   invalid: boolean;
   changed: boolean;
-  onSelect: () => void;
+  /** `additive`: Shift + bấm — thêm / bớt khỏi vùng chọn. */
+  onSelect: (additive: boolean) => void;
   onOpen: () => void;
   onChange: (apply: (item: DraftItem) => DraftItem) => void;
 }
@@ -72,8 +73,8 @@ export function PlaceNode(props: PlaceNodeProps) {
         x={box.x}
         y={box.y}
         draggable={editable}
-        onMouseDown={props.onSelect}
-        onTap={props.onSelect}
+        onMouseDown={(event) => props.onSelect(event.evt.shiftKey)}
+        onTap={() => props.onSelect(false)}
         onDblClick={props.onOpen}
         onDblTap={props.onOpen}
         onDragMove={(event) => {

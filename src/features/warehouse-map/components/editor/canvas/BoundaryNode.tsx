@@ -23,7 +23,8 @@ interface BoundaryNodeProps {
   selected: boolean;
   editable: boolean;
   invalid: boolean;
-  onSelect: () => void;
+  /** `additive`: Shift + bấm — thêm / bớt khỏi vùng chọn. */
+  onSelect: (additive: boolean) => void;
   onOpen: () => void;
   onChange: (apply: (item: DraftItem) => DraftItem) => void;
 }
@@ -61,8 +62,8 @@ export function BoundaryNode(props: BoundaryNodeProps) {
     <Group>
       <Group
         draggable={editable && selected}
-        onMouseDown={props.onSelect}
-        onTap={props.onSelect}
+        onMouseDown={(event) => props.onSelect(event.evt.shiftKey)}
+        onTap={() => props.onSelect(false)}
         onDblClick={props.onOpen}
         onDblTap={props.onOpen}
         onDragMove={(event) => {

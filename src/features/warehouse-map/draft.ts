@@ -153,6 +153,9 @@ export function nextCode(base: string, used: Iterable<string>): string {
   }
 }
 
+/** Khoá của hình vừa tạo bởi action `draw` / `addZone` / dán — để chọn ngay hình đó. */
+export const newKeyOf = (draft: MapDraft): string => `new-${draft.seq}`;
+
 export const DEFAULT_SHELF_BUILD: ShelfBuild = {
   levelCount: LIMITS.defaultLevelCount,
   levelHeight: LIMITS.defaultLevelHeight,

@@ -5,8 +5,16 @@
 
 import { BOUNDARY_TYPE, UI_LABELS } from "@/constants";
 
-import { DEFAULT_SHELF_BUILD, draftFromLayout, nextCode, snapshot, usedCodes } from "./draft";
+import {
+  DEFAULT_SHELF_BUILD,
+  draftFromLayout,
+  newKeyOf,
+  nextCode,
+  snapshot,
+  usedCodes,
+} from "./draft";
 import { duplicatedItem } from "./draft-duplicate";
+import { withoutKeys, withPasted } from "./draft-group";
 
 import type { DraftArea, DraftBoundary, DraftItem, DraftShelf, DraftZone, MapDraft } from "./draft";
 import type { MapBox } from "./selectors";
@@ -45,10 +53,13 @@ export type DraftAction =
   | { type: "duplicate"; key: string }
   /** Ctrl+V: dán hình đã sao chép (Ctrl+C) — hình mới đặt ngay dưới hình được sao chép. */
   | { type: "paste"; item: DraftItem }
+  /** Chọn vùng: xoá / dán cả nhóm thành MỘT bước hoàn tác. */
+  | { type: "removeMany"; keys: string[] }
+  | { type: "pasteMany"; items: DraftItem[] }
   | { type: "synced"; saved: SavedRef[]; removedKeys: string[] };
 
-/** Khoá của hình vừa tạo bởi action `draw` / `addZone` — để chọn ngay hình đó. */
-export const newKeyOf = (draft: MapDraft): string => `new-${draft.seq}`;
+/** Khoá của hình vừa tạo — giữ export ở đây cho nơi đang dùng. */
+export { newKeyOf };
 
 function drawnItem(draft: MapDraft, shape: DrawnShape, key: string): DraftItem {
   const meta = { key, id: null, version: 0 };
@@ -159,15 +170,8 @@ export function draftReducer(draft: MapDraft, action: DraftAction): MapDraft {
         ...draft,
         items: draft.items.map((item) => (item.key === action.key ? action.apply(item) : item)),
       };
-    case "remove": {
-      const item = draft.items.find((candidate) => candidate.key === action.key);
-      if (!item) return draft;
-      return {
-        ...draft,
-        items: draft.items.filter((candidate) => candidate !== item),
-        removed: item.id === null ? draft.removed : [...draft.removed, item],
-      };
-    }
+    case "remove":
+      return withoutKeys(draft, [action.key]);
     case "duplicate":
     case "paste": {
       const source =
@@ -176,6 +180,10 @@ export function draftReducer(draft: MapDraft, action: DraftAction): MapDraft {
       const copy = duplicatedItem(draft, source, newKeyOf(draft));
       return { ...draft, items: [...draft.items, copy], seq: draft.seq + 1 };
     }
+    case "removeMany":
+      return withoutKeys(draft, action.keys);
+    case "pasteMany":
+      return withPasted(draft, action.items);
     case "addZone": {
       const zone = {
         key: newKeyOf(draft),

@@ -1,23 +1,21 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { Layer, Stage } from "react-konva";
 
-import { boxFromDrag, lineFromDrag } from "@/features/warehouse-map/draft-geometry";
 import { planLevel } from "@/features/warehouse-map/selectors";
 
 import { BoundaryNode } from "./BoundaryNode";
-import { DrawPreview } from "./CanvasOverlays";
+import { DrawPreview, MarqueeRect } from "./CanvasOverlays";
 import { GridLayer } from "./GridLayer";
 import { PlaceNode } from "./PlaceNode";
+import { useCanvasDrag } from "./use-canvas-drag";
 import { useCanvasPalette } from "./use-canvas-palette";
 import { fitScale, useElementSize } from "../../shared/use-element-size";
 
 import type Konva from "konva";
-import type { KonvaEventObject } from "konva/lib/Node";
 import type { DraftItem, MapDraft } from "@/features/warehouse-map/draft";
 import type { DraftTool, DrawnShape } from "@/features/warehouse-map/draft-edit";
-import type { MapPoint } from "@/features/warehouse-map/draft-geometry";
 import type { WarehouseLayout } from "@/features/warehouse-map/types";
 
 /** Lề quanh khung (m) để nét viền, tay nắm và nhãn mép không bị cắt. */
@@ -30,35 +28,34 @@ export interface EditorCanvasProps {
   zoom: number;
   /** `false` khi đang giữ Ctrl / ⌘ để dời bản đồ — canvas tạm không nhận chuột. */
   interactive: boolean;
-  selectedKey: string | null;
+  /** Vùng chọn — một hình: sửa được; nhiều hình: chỉ thao tác nhóm. */
+  selectedKeys: readonly string[];
   isEditable: (item: DraftItem) => boolean;
   isChanged: (item: DraftItem) => boolean;
   invalidKeys: ReadonlySet<string>;
   onSelect: (key: string | null) => void;
+  /** Kéo vùng (Shift: gộp thêm). */
+  onSelectMany: (keys: string[], additive: boolean) => void;
+  /** Shift + bấm một hình: thêm / bớt khỏi vùng chọn. */
+  onToggle: (key: string) => void;
   /** Bấm đúp một hình → mở modal thông số. */
   onOpen: (key: string) => void;
   onDraw: (shape: DrawnShape) => void;
   onChange: (key: string, apply: (item: DraftItem) => DraftItem) => void;
 }
 
-interface Drag {
-  start: MapPoint;
-  end: MapPoint;
-  orthogonal: boolean;
-}
-
 /**
  * Canvas sửa bản đồ (Konva, đơn vị mét, gốc góc trên-trái như BE `Footprint`). Công cụ vẽ: kéo trên nền
- * để tạo hình nháp; công cụ chọn: bấm hình để chọn, kéo để dời. Kệ / khu vực INACTIVE không vẽ (không
- * giữ chỗ — BR-07 — vẽ ra chỉ chồng lên hình đang dùng).
+ * để tạo hình nháp; công cụ chọn: bấm hình để chọn, kéo hình để dời, kéo trên nền để chọn vùng, Shift +
+ * bấm để thêm / bớt. Kệ / khu vực INACTIVE không vẽ (không giữ chỗ — BR-07 — vẽ ra chỉ chồng lên hình
+ * đang dùng).
  */
 export default function EditorCanvas(props: EditorCanvasProps) {
-  const { layout, draft, tool, selectedKey } = props;
+  const { layout, draft, tool, selectedKeys } = props;
   const frame = layout.warehouse;
   const palette = useCanvasPalette();
   const box = useRef<HTMLDivElement>(null);
   const layer = useRef<Konva.Layer>(null);
-  const [drag, setDrag] = useState<Drag | null>(null);
   // Zoom 1 = cả bản đồ nằm trọn trong khung (ngang lẫn dọc), không thanh cuộn
   const scale =
     fitScale(useElementSize(box), { width: frame.mapWidth, height: frame.mapHeight }, PAD) *
@@ -74,38 +71,15 @@ export default function EditorCanvas(props: EditorCanvasProps) {
     ]),
   );
 
-  const pointer = () => layer.current?.getRelativePointerPosition() ?? null;
-  const onMouseDown = (event: KonvaEventObject<MouseEvent>) => {
-    // Chỉ chuột trái vẽ / chọn — chuột giữa dành cho dời bản đồ
-    if (event.evt.button !== 0) return;
-    const target = event.target;
-    if (target !== target.getStage() && target.name() !== "background") return;
-    if (tool === "select") return props.onSelect(null);
-    const point = pointer();
-    if (point) setDrag({ start: point, end: point, orthogonal: event.evt.shiftKey });
-  };
-  const onMouseMove = (event: KonvaEventObject<MouseEvent>) => {
-    const point = pointer();
-    if (drag && point) setDrag({ ...drag, end: point, orthogonal: event.evt.shiftKey });
-  };
-  const onMouseUp = () => {
-    if (!drag) return;
-    setDrag(null);
-    if (tool === "shelf" || tool === "area") {
-      const drawn = boxFromDrag(drag.start, drag.end, frame);
-      // Bấm một cái trên nền (không kéo đủ để vẽ) = bỏ chọn, như ở công cụ chọn
-      if (drawn) props.onDraw({ kind: tool, box: drawn });
-      else props.onSelect(null);
-    } else if (tool === "wall" || tool === "door") {
-      const line = lineFromDrag(drag.start, drag.end, frame, drag.orthogonal);
-      if (line) props.onDraw({ kind: tool, line });
-      else props.onSelect(null);
-    }
-  };
-  const preview =
-    drag && (tool === "wall" || tool === "door")
-      ? lineFromDrag(drag.start, drag.end, frame, drag.orthogonal)
-      : drag && boxFromDrag(drag.start, drag.end, frame);
+  const { handlers, marquee, preview } = useCanvasDrag({
+    tool,
+    draft,
+    frame,
+    pointer: () => layer.current?.getRelativePointerPosition() ?? null,
+    onSelect: props.onSelect,
+    onSelectMany: props.onSelectMany,
+    onDraw: props.onDraw,
+  });
 
   return (
     // Khung đo = cả vùng nhìn; canvas lớn hơn (zoom) thì tràn để khung cuộn ngoài kéo được, nhỏ hơn thì
@@ -116,10 +90,7 @@ export default function EditorCanvas(props: EditorCanvasProps) {
           className="m-auto shrink-0"
           width={width}
           height={(frame.mapHeight + 2 * PAD) * scale}
-          onMouseDown={onMouseDown}
-          onMouseMove={onMouseMove}
-          onMouseUp={onMouseUp}
-          onMouseLeave={onMouseUp}
+          {...handlers}
           listening={props.interactive}
           style={{
             cursor: !props.interactive ? "inherit" : tool === "select" ? "default" : "crosshair",
@@ -131,10 +102,11 @@ export default function EditorCanvas(props: EditorCanvasProps) {
               const common = {
                 frame,
                 palette,
-                selected: item.key === selectedKey,
+                selected: selectedKeys.includes(item.key),
                 editable: props.isEditable(item),
                 invalid: props.invalidKeys.has(item.key),
-                onSelect: () => props.onSelect(item.key),
+                onSelect: (additive: boolean) =>
+                  additive ? props.onToggle(item.key) : props.onSelect(item.key),
                 onOpen: () => props.onOpen(item.key),
                 onChange: (apply: (item: DraftItem) => DraftItem) =>
                   props.onChange(item.key, apply),
@@ -155,6 +127,7 @@ export default function EditorCanvas(props: EditorCanvasProps) {
               );
             })}
             {preview && <DrawPreview shape={preview} palette={palette} />}
+            {marquee && <MarqueeRect box={marquee} palette={palette} />}
           </Layer>
         </Stage>
       )}

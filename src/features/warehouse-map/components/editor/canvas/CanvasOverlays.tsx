@@ -41,3 +41,14 @@ export function DrawPreview({
     />
   );
 }
+
+/** Khung chọn vùng (công cụ chọn, kéo trên nền) — nền xanh rất nhạt, viền nét đứt. */
+export function MarqueeRect({ box, palette }: { box: MapBox; palette: CanvasPalette }) {
+  const rect = { x: box.x, y: box.y, width: box.w, height: box.h, listening: false };
+  return (
+    <>
+      <Rect {...rect} fill={palette.info} opacity={0.08} />
+      <Rect {...rect} stroke={palette.info} strokeWidth={LINE.base} dash={DASH} />
+    </>
+  );
+}

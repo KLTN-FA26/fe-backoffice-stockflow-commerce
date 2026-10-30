@@ -8,8 +8,10 @@ import type { RefObject } from "react";
 import type { CameraControlsImpl } from "@react-three/drei";
 import type { CameraPose } from "@/features/warehouse-map/cartons-3d";
 
-/** Thời gian (s) camera trượt tới đích — đủ để thấy mình đang bay tới đâu, không chờ lâu. */
+/** Thời gian (s) camera trượt tới kệ — đủ để thấy mình đang bay tới đâu, không chờ lâu. */
 const SMOOTH_TIME = 0.45;
+/** Bay ra toàn cảnh xa hơn nhiều → trượt chậm hơn cho êm, không giật lùi một phát. */
+const SMOOTH_TIME_OUT = 0.85;
 /** Tâm nhìn không xuống thấp hơn mức này (m). */
 const FLOOR_CLEARANCE = 0.15;
 /** Tâm nhìn được ra ngoài khung kho bao nhiêu (m) khi dời camera. */
@@ -53,7 +55,13 @@ export function CameraRig({
 
   useEffect(() => {
     const pose = focus ?? overview;
-    void controlsRef.current?.setLookAt(...pose.position, ...pose.target, placed.current);
+    const controls = controlsRef.current;
+    if (!controls) return;
+    // Chỉ chuyến bay ra toàn cảnh trượt chậm; bay xong trả lại độ nhạy cũ cho lăn / kéo chuột
+    controls.smoothTime = focus ? SMOOTH_TIME : SMOOTH_TIME_OUT;
+    void controls.setLookAt(...pose.position, ...pose.target, placed.current).then(() => {
+      controls.smoothTime = SMOOTH_TIME;
+    });
     placed.current = true;
   }, [controlsRef, overview, focus]);
 

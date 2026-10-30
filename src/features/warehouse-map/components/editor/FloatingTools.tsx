@@ -16,6 +16,7 @@ import {
   Tags,
   Trash2,
   Undo2,
+  X,
 } from "lucide-react";
 
 import { UI_LABELS } from "@/constants";
@@ -49,7 +50,8 @@ export interface FloatingToolsProps {
 /**
  * Thanh công cụ sửa ở hàng trên bản đồ, cạnh Thoát / Lưu (zoom / toàn màn hình / "?" ở thanh dọc bên phải):
  * công cụ chọn / vẽ, thêm zone, hoàn tác / làm lại, dán; đang chọn một hình thì thêm Thông số · Sao chép ·
- * Nhân bản · Xoay · Xoá. Tooltip ghi kèm phím tắt.
+ * Nhân bản · Xoay · Xoá; chọn nhiều hình (kéo vùng / Shift + bấm) thì Sao chép · Nhân bản · Xoá cả nhóm ·
+ * Bỏ chọn. Tooltip ghi kèm phím tắt.
  */
 export function FloatingTools({ editor, onAddZone, onInspect }: FloatingToolsProps) {
   const selection =
@@ -113,6 +115,28 @@ export function FloatingTools({ editor, onAddZone, onInspect }: FloatingToolsPro
                 onClick={editor.remove}
               >
                 <Trash2 className="size-3.5" />
+              </IconTool>
+            </div>
+          </>
+        )}
+        {editor.groupSize > 1 && (
+          <>
+            <FloatingDivider />
+            <div role="group" aria-label={ED.selectionGroup} className="flex items-center gap-1">
+              <span className="text-ink-secondary px-1.5 text-xs whitespace-nowrap tabular-nums">
+                {ED.groupSelected(editor.groupSize)}
+              </span>
+              <IconTool label={ED.copy} onClick={editor.copy}>
+                <Copy className="size-3.5" />
+              </IconTool>
+              <IconTool label={ED.duplicate} onClick={editor.duplicate}>
+                <CopyPlus className="size-3.5" />
+              </IconTool>
+              <IconTool label={ED.remove} danger onClick={editor.remove}>
+                <Trash2 className="size-3.5" />
+              </IconTool>
+              <IconTool label={ED.clearSelection} onClick={() => editor.select(null)}>
+                <X className="size-3.5" />
               </IconTool>
             </div>
           </>

@@ -51,6 +51,11 @@ export function useEditorKeys(
     "mod+d": editor.duplicate,
     "mod+c": editor.copy,
     "mod+v": editor.paste,
+    "mod+a": () =>
+      editor.selectMany(
+        editor.draft.items.map((item) => item.key),
+        false,
+      ),
     "mod+z": editor.undo,
     "mod+shift+z": editor.redo,
     "mod+y": editor.redo,
