@@ -3,8 +3,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FormProvider, useForm } from "react-hook-form";
 
-import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { identityErrorMessage, identityFieldErrors } from "@/lib/api/identity-errors";
+
+import { DialogScrollArea } from "@/components/shared/DialogScrollArea";
+import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 
 import { createUserFormSchema } from "../schemas";
 import { useCreateUser } from "../mutations";
@@ -84,7 +86,9 @@ function CreateUserForm({
         onSubmit={() => void submit()}
         onCancel={onCancel}
       >
-        <CreateUserFields />
+        <DialogScrollArea>
+          <CreateUserFields />
+        </DialogScrollArea>
       </FormDialogBody>
     </FormProvider>
   );
