@@ -85,6 +85,8 @@ export const INVENTORY_ITEM_UI_LABELS = {
   saveLogistics: "Lưu logistics",
   savePolicy: "Lưu chính sách",
   saving: "Đang lưu…",
+  logisticsDialogDescription: "Đơn vị tính, mã vạch, khối lượng, kích thước và điều kiện lưu kho.",
+  policyDialogDescription: "Ngưỡng tồn, cách xuất kho, cách theo dõi và hạn dùng.",
   outdatedNotice:
     "Hồ sơ vừa được người khác cập nhật — kiểm tra lại trước khi lưu; lưu bây giờ sẽ bị từ chối (409) và tải lại.",
   notProvided: "Chưa có",
