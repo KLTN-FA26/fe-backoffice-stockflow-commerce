@@ -3,7 +3,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
-import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
+import { INVENTORY_LABELS } from "@/constants/inventory";
 import {
   ATTRIBUTE_PERMISSIONS,
   CREDIT_HOLD_PERMISSIONS,
@@ -166,23 +166,6 @@ describe("declared navigation permissions", () => {
     const link = screen.queryByRole("link", { name: "Trả hàng về kệ" });
     expect(link !== null).toBe(visible);
     if (link) expect(link).toHaveAttribute("href", "/admin/put-backs");
-  });
-  it.each([
-    ["inventory-alerts:VIEW_PAGE", [INVENTORY_OVERVIEW_PERMISSIONS.alertViewPage], true],
-    ["inventory-alerts:READ alone", [INVENTORY_OVERVIEW_PERMISSIONS.alertRead], false],
-  ] as const)("menu Cảnh báo tồn kho với %s → hiện: %s", async (_, permissions, visible) => {
-    vi.spyOn(api, "get").mockResolvedValue({
-      data: {
-        roles: [],
-        permissions: [...permissions, IDENTITY_PERMISSIONS.rbacRead],
-        dataScope: "ALL",
-      },
-    });
-    mount();
-    expect(await screen.findByRole("link", { name: "Phân quyền" })).toBeInTheDocument();
-    const link = screen.queryByRole("link", { name: INVENTORY_LABELS.alertListTitle });
-    expect(link !== null).toBe(visible);
-    if (link) expect(link).toHaveAttribute("href", INVENTORY_ROUTES.alerts);
   });
   it("hồ sơ hàng tồn theo inventory-inventory-items:VIEW_PAGE (BE PR #119)", async () => {
     vi.spyOn(api, "get").mockResolvedValue({

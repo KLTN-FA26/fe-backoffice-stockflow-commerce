@@ -16,15 +16,13 @@ import {
 
 import {
   adjustmentReasonLabel,
-  alertKindLabel,
-  alertStatusLabel,
   formatSignedQuantity,
   movementStatusLabel,
   movementTypeLabel,
 } from "../selectors";
 
 import type { ColumnDef } from "@/components/shared/DataTable";
-import type { StockAdjustment, StockAlert, StockMovement } from "../types";
+import type { StockAdjustment, StockMovement } from "../types";
 
 const L = INVENTORY_LABELS;
 
@@ -91,35 +89,5 @@ export function buildMovementColumns(): ColumnDef<StockMovement>[] {
     numberCell<StockMovement>("quantity", L.quantity, (row) => row.quantity),
     refCell<StockMovement>("reference", L.reference, (row) => row.referenceType),
     textCell<StockMovement>("reason", L.reason, (row) => row.reason ?? ""),
-  ];
-}
-
-/** Cảnh báo tồn (StockAlertResponse): REORDER/SAFETY không có kho, lô, hạn dùng — ô trống là "—". */
-export function buildAlertColumns(): ColumnDef<StockAlert>[] {
-  return [
-    textCell<StockAlert>("kind", L.alertKind, (row) => alertKindLabel(row.kind), {
-      color: "primary",
-    }),
-    {
-      key: "sku",
-      header: L.sku,
-      cell: (row) => <span className={CELL.code}>{row.sku}</span>,
-    },
-    refCell<StockAlert>("warehouse", L.warehouse, (row) => row.warehouseCode),
-    refCell<StockAlert>("lot", L.lot, (row) => row.lotNumber),
-    dateCell<StockAlert>("expiryDate", L.expiryDate, (row) => row.expiryDate),
-    numberCell<StockAlert>("observedQty", L.observedQty, (row) => row.observedQty),
-    {
-      key: "thresholdQty",
-      header: L.thresholdQty,
-      align: "right",
-      cell: (row) => (
-        <span className={CELL.number}>
-          {row.thresholdQty?.toLocaleString("vi-VN") ?? L.missing}
-        </span>
-      ),
-    },
-    textCell<StockAlert>("status", L.status, (row) => alertStatusLabel(row.status)),
-    dateCell<StockAlert>("openedAt", L.alertOpenedAt, (row) => row.openedAt, { withTime: true }),
   ];
 }

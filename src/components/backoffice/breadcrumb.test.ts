@@ -12,13 +12,6 @@ describe("buildBreadcrumbItems", () => {
     ]);
   });
 
-  it("đích deep link cảnh báo tồn là mục menu riêng, không rơi về Tổng quan tồn kho", () => {
-    expect(buildBreadcrumbItems(INVENTORY_ROUTES.alerts)).toEqual([
-      { label: "Back-office", href: "/admin" },
-      { label: INVENTORY_LABELS.alertListTitle, href: undefined },
-    ]);
-  });
-
   it("trang sửa hiện '… / <mã> / Chỉnh sửa', không hiện chữ 'edit'", () => {
     expect(buildBreadcrumbItems("/admin/suppliers/SUP-001/edit")).toEqual([
       { label: "Back-office", href: "/admin" },

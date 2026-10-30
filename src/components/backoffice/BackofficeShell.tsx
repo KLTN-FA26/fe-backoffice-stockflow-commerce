@@ -3,7 +3,6 @@
 import { cn } from "cn";
 import {
   ArrowRightLeft,
-  BellRing,
   Boxes,
   CalendarClock,
   ClipboardList,
@@ -70,8 +69,6 @@ import {
   VEHICLE_TYPE_PERMISSIONS,
 } from "@/constants";
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
-
-import { NotificationBell } from "@/features/notification";
 
 import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { useAppStore } from "@/lib/store/use-app-store";
@@ -260,13 +257,6 @@ export const NAV_GROUPS: NavGroup[] = [
           INVENTORY_OVERVIEW_PERMISSIONS.stockRead,
           INVENTORY_OVERVIEW_PERMISSIONS.reservationRead,
         ],
-      },
-      {
-        label: INVENTORY_LABELS.alertListTitle,
-        href: INVENTORY_ROUTES.alerts,
-        icon: BellRing,
-        // BE StockAlertController khai báo VIEW_PAGE cho inventory-alerts (route của deep link thông báo)
-        permission: INVENTORY_OVERVIEW_PERMISSIONS.alertViewPage,
       },
       {
         label: "Hồ sơ hàng tồn",
@@ -699,7 +689,6 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
                 ))}
               </nav>
             </div>
-            <NotificationBell />
           </header>
 
           {/* Content */}
