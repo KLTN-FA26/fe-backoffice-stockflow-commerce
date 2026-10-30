@@ -20,6 +20,11 @@ export function resetNotificationMockStore() {
   inboxes.clear();
 }
 
+/** Same as BE InventoryAlertMessages: SAFETY and EXPIRED are CRITICAL, REORDER and EXPIRING WARN. */
+export function stockAlertSeverity(kind: string): Notification["severity"] {
+  return kind === "SAFETY" || kind === "EXPIRED" ? "CRITICAL" : "WARN";
+}
+
 function inbox(): Notification[] | null {
   const user = useAuthStore.getState().user;
   if (!user || useAuthStore.getState().status !== "authenticated") return null;
@@ -34,7 +39,7 @@ function inbox(): Notification[] | null {
           .map((alert) => ({
             id: crypto.randomUUID(),
             category: "INVENTORY_ALERT",
-            severity: alert.kind === "EXPIRED" ? ("CRITICAL" as const) : ("WARN" as const),
+            severity: stockAlertSeverity(alert.kind),
             title: `${alert.kind} · ${alert.sku}`,
             body: `${alert.observedQty} sản phẩm cần kiểm tra`,
             // Same shape as BE InventoryAlertMessages: kind, plus warehouseId for lot alerts.

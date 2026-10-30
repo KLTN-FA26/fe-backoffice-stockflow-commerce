@@ -10,7 +10,7 @@ import { toSafeNotificationPath } from "@/features/notification/link";
 import { api } from "./client";
 import { ApiError } from "./error";
 import { activateMockAdapter } from "./mock-adapter";
-import { resetNotificationMockStore } from "./mock-routes-notifications";
+import { resetNotificationMockStore, stockAlertSeverity } from "./mock-routes-notifications";
 
 import type { AuthUser } from "@/lib/auth/auth-store";
 import type { NotificationPage } from "@/features/notification/types";
@@ -36,6 +36,13 @@ const staffB: AuthUser = {
   email: "b@example.test",
 };
 const customer: AuthUser = { ...staffB, userId: "CUSTOMER-01", roles: ["CUSTOMER"] };
+// Copied from the BE InventoryAlertMessages severity switch, not derived from the mock.
+const BE_ALERT_SEVERITY: Record<string, string> = {
+  SAFETY: "CRITICAL",
+  EXPIRED: "CRITICAL",
+  REORDER: "WARN",
+  EXPIRING: "WARN",
+};
 
 function signIn(user: AuthUser) {
   useAuthStore.getState().login(user, false);
@@ -87,6 +94,25 @@ describe("mock inbox: ownership and BE endpoint semantics", () => {
       );
       expect(link?.startsWith(`${INVENTORY_ROUTES.alerts}?`)).toBe(true);
       expect(link && toSafeNotificationPath(link)).toBe(link);
+    }
+  });
+
+  // BE InventoryAlertMessages severity switch (develop 878a1be). The seeded SAFETY alert is
+  // ACKNOWLEDGED, so it never reaches the inbox; the mapping is checked per kind instead.
+  it.each(Object.entries(BE_ALERT_SEVERITY))(
+    "a %s stock alert is %s, as BE sends it",
+    (kind, severity) => {
+      expect(stockAlertSeverity(kind)).toBe(severity);
+    },
+  );
+
+  it("every seeded stock-alert notice carries the BE severity of its kind", async () => {
+    signIn(staffA);
+    const items = (await page()).items;
+    expect(items.length).toBeGreaterThan(0);
+    for (const item of items) {
+      const kind = new URLSearchParams(item.link?.split("?")[1]).get("kind") ?? "";
+      expect(item.severity).toBe(BE_ALERT_SEVERITY[kind]);
     }
   });
 
