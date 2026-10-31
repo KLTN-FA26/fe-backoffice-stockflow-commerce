@@ -7,6 +7,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import type { ConfirmBlock, LoadPlanActions } from "@/features/load-planning/lifecycle";
 
 const L = UI_LABELS.loadPlan.detail;
+const CC = UI_LABELS.shipping.ftl.controlledCancel;
 const BLOCK_TEXT: Record<ConfirmBlock, string> = {
   noVehicles: L.noVehicles,
   needsRecalculation: L.needsRecalculationAlert,
@@ -15,7 +16,7 @@ const BLOCK_TEXT: Record<ConfirmBlock, string> = {
 };
 
 export type PlanDialogKind =
-  "calculate" | "acknowledge" | "confirm" | "reopen" | "cancel" | "editInputs";
+  "calculate" | "acknowledge" | "confirm" | "reopen" | "cancel" | "cancelControlled" | "editInputs";
 
 const PRIMARY = "bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse";
 
@@ -67,6 +68,28 @@ export function PlanActions({
           {A.cancel}
         </Button>
       )}
+      {actions.cancelControlled &&
+        (actions.cancelControlledBlocked ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span tabIndex={0}>
+                <Button type="button" size="sm" variant="outline" disabled>
+                  {CC.cancelButton}
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>{CC.plan.disabledVehicleLeft}</TooltipContent>
+          </Tooltip>
+        ) : (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => onOpen("cancelControlled")}
+          >
+            {CC.cancelButton}
+          </Button>
+        ))}
       {actions.confirm &&
         (blocked ? (
           <Tooltip>

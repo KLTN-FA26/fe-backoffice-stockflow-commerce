@@ -6,13 +6,15 @@
  * quét, bàn giao `fulfillment-dispatch:UPDATE`; huỷ chuyến `fulfillment-load-cancellations:UPDATE`.
  * Chuyến nguyên xe (FTL, BE PR #162) là một xe của kế hoạch xếp xe, cũng `fulfillment-dispatch:UPDATE`: đặt xe,
  * huỷ đặt xe, bắt đầu xếp, quét, dỡ kiện, bàn giao theo xe. Lô do kế hoạch quản lý nên thêm / bỏ lô và huỷ
- * chuyến chỉ cho chuyến gửi kiện (409 LOAD_MANAGED_BY_PLAN).
+ * chuyến chỉ cho chuyến gửi kiện (409 LOAD_MANAGED_BY_PLAN). Sau khi đã bắt đầu xếp hàng, quản lý kho huỷ có kiểm soát một
+ * xe và xác nhận dỡ kiện không quét bằng `fulfillment-controlled-cancellations:UPDATE` (SCRUM-474).
  * UI-only — Backend phải re-check (trạng thái chuyến, kiện thuộc biên bản, quyền + phạm vi kho).
  */
 
 import {
   DELIVERY_MODE,
   DELIVERY_MODES,
+  FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS,
   FULFILLMENT_DISPATCH_PERMISSIONS,
   FULFILLMENT_LOAD_CANCELLATION_PERMISSIONS,
   LOAD_STATUS,
@@ -45,7 +47,9 @@ export type LoadActionCode =
   | "book"
   | "cancelBooking"
   | "startLoading"
-  | "unload";
+  | "unload"
+  | "controlledCancel"
+  | "overrideUnload";
 
 const PARCEL_ONLY: readonly DeliveryMode[] = [DELIVERY_MODE.PARCEL];
 const FTL_ONLY: readonly DeliveryMode[] = [DELIVERY_MODE.FULL_TRUCKLOAD];
@@ -63,9 +67,10 @@ interface LoadAction {
   readonly requiresFullyLoaded?: boolean;
 }
 
-const { PLANNED, VEHICLE_BOOKED, LOADING } = LOAD_STATUS;
+const { PLANNED, VEHICLE_BOOKED, LOADING, CANCELLED } = LOAD_STATUS;
 const OPEN = [PLANNED, VEHICLE_BOOKED, LOADING] as const;
 const UPDATE = FULFILLMENT_DISPATCH_PERMISSIONS.update;
+const CONTROLLED = FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS.update;
 
 export const LOAD_ACTIONS: readonly LoadAction[] = [
   // BE `DispatchLoad`: lô vào / ra biên bản khi chuyến còn mở
@@ -126,7 +131,23 @@ export const LOAD_ACTIONS: readonly LoadAction[] = [
     targetStatus: LOADING,
     modes: FTL_ONLY,
   },
-  { code: "unload", permission: UPDATE, fromStatuses: [LOADING], modes: FTL_ONLY },
+  // Quét dỡ cả trên xe đã huỷ có kiểm soát: kiện của nó bị khoá tới khi dỡ (SCRUM-474 UNLOAD-DESIGN điểm 4)
+  { code: "unload", permission: UPDATE, fromStatuses: [LOADING, CANCELLED], modes: FTL_ONLY },
+  // SCRUM-474 UNLOAD-DESIGN điểm 2, 5, 6: huỷ có kiểm soát MỘT xe đang xếp hàng, và xác nhận dỡ kiện không quét (nhãn
+  // hỏng) — chung MỘT mã quyền của quản lý kho. Backend phải re-check (BR-14).
+  {
+    code: "controlledCancel",
+    permission: CONTROLLED,
+    fromStatuses: [LOADING],
+    targetStatus: LOAD_STATUS.CANCELLED,
+    modes: FTL_ONLY,
+  },
+  {
+    code: "overrideUnload",
+    permission: CONTROLLED,
+    fromStatuses: [LOADING, CANCELLED],
+    modes: FTL_ONLY,
+  },
 ];
 
 export type LoadGateState = Pick<
@@ -159,6 +180,8 @@ export function allowedLoadActions(
   return LOAD_ACTIONS.filter(
     (action) =>
       action.fromStatuses.includes(load.status) &&
+      // Xe đã huỷ chỉ còn việc dỡ khi còn kiện bị khoá (SCRUM-474): hết kiện thì không còn thao tác nào
+      (load.status !== LOAD_STATUS.CANCELLED || hasPendingUnloads(load)) &&
       transitionAllowed(load.status, action.targetStatus) &&
       actor.can(action.permission) &&
       load.mode !== "UNKNOWN" &&

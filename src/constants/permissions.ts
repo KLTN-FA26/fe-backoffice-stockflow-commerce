@@ -424,6 +424,17 @@ export const FULFILLMENT_LOAD_CANCELLATION_PERMISSIONS = {
   update: "fulfillment-load-cancellations:UPDATE",
 } as const;
 
+/**
+ * Huỷ có kiểm soát sau khi đã bắt đầu xếp hàng (SCRUM-474 UNLOAD-DESIGN, docs 09 BR-14) — resource
+ * `fulfillment-controlled-cancellations`, một mã quyền cho cả ba việc của quản lý kho: huỷ có kiểm soát cả kế hoạch
+ * (`POST /load-plans/{id}/controlled-cancellation`), huỷ có kiểm soát MỘT xe (`POST /loads/{id}/controlled-cancellation`)
+ * và xác nhận dỡ kiện không cần quét khi nhãn hỏng (`POST /loads/{id}/unload-overrides`).
+ * Seed V20261029007100: WAREHOUSE_MANAGER, SYSTEM_ADMIN. Quét dỡ kiện vẫn là `fulfillment-dispatch:UPDATE`.
+ */
+export const FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS = {
+  update: "fulfillment-controlled-cancellations:UPDATE",
+} as const;
+
 /** Danh mục hãng vận chuyển: thêm / sửa (`POST`, `PUT /fulfillment/carriers`) — seed: WAREHOUSE_MANAGER, SYSTEM_ADMIN. */
 export const FULFILLMENT_CARRIER_PERMISSIONS = {
   update: "fulfillment-carriers:UPDATE",

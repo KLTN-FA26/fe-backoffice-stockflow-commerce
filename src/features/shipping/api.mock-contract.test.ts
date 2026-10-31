@@ -6,6 +6,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
 import {
+  FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS,
   FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS,
   FULFILLMENT_DISPATCH_PERMISSIONS,
   FULFILLMENT_LOAD_CANCELLATION_PERMISSIONS,
@@ -16,7 +17,12 @@ import { registerDispatchMockRoutes } from "@/lib/api/mock-routes-dispatch";
 import { MOCK_USER_GRANTS } from "@/lib/api/mock-user-grants";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
-import { beLoadPageSchema, beLoadSchema, beManifestSchema } from "./load-schemas";
+import {
+  beControlledCancelSchema,
+  beLoadPageSchema,
+  beLoadSchema,
+  beManifestSchema,
+} from "./load-schemas";
 import { beCarrierPageSchema, beShipmentPageSchema, beShipmentSchema } from "./schemas";
 
 import type { AxiosRequestConfig } from "axios";
@@ -691,6 +697,133 @@ describe("mock chuyến nguyên xe — đặt xe, bắt đầu xếp, dỡ kiệ
 /* ── Xe của kế hoạch nguồn TRANSFER (BE PR #164) ─────────────────────────────────────────────── */
 
 const FTL_TRANSFER = "LD-2026-F005";
+
+describe("mock huỷ có kiểm soát một xe (SCRUM-474 UNLOAD-DESIGN)", () => {
+  const CONTROLLED = FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS.update;
+  const cancelBody = { reasonCode: "XE_HONG", note: "Gãy trục sau" };
+  const scannedLabels = async (id: string) =>
+    (await readLoad(id)).shipments.flatMap((s) => s.packages).filter((p) => p.loaded);
+
+  it("xe đang xếp huỷ ngay kèm mã + ghi chú; kiện đã quét bị khoá (pendingUnloads); chuyến thay thế PLANNED cùng kế hoạch / xe / kiện", async () => {
+    actAs([...WAREHOUSE_MANAGER, CONTROLLED]);
+    const before = await readLoad(FTL_LOADING);
+    const onBoard = (await scannedLabels(FTL_LOADING)).map((p) => p.labelCode);
+    const result = beControlledCancelSchema.parse(
+      (await post(FTL_LOADING, "controlled-cancellation", cancelBody)).data,
+    );
+    expect(result.cancelled).toMatchObject({
+      loadId: FTL_LOADING,
+      status: "CANCELLED",
+      cancelReasonCode: "XE_HONG",
+      cancelReason: "Gãy trục sau",
+      carrierBookingToCancel: true,
+    });
+    // Mọi kiện đã lên xe (và kiện của đơn đã huỷ đang chờ dỡ) bị khoá tới khi quét dỡ
+    const pending = result.cancelled.pendingUnloads ?? [];
+    expect(pending.map((u) => u.labelCode)).toEqual(
+      expect.arrayContaining([
+        ...onBoard,
+        ...(before.pendingUnloads ?? []).map((u) => u.labelCode),
+      ]),
+    );
+    expect(pending.filter((u) => u.reasonCode === "XE_HONG").length).toBe(onBoard.length);
+    expect(result.replacement).toMatchObject({
+      status: "PLANNED",
+      loadPlanId: before.loadPlanId,
+      vehicleSeq: before.vehicleSeq,
+    });
+    expect(result.replacement?.loadedPackageCount).toBe(0);
+    // Chuyến đã huỷ nói rõ chuyến thay thế để biểu ngữ dẫn tới đúng chuyến đó
+    expect(result.cancelled.replacementLoadId).toBe(result.replacement?.loadId);
+    expect((await readLoad(FTL_LOADING)).replacementLoadId).toBe(result.replacement?.loadId);
+    expect(result.replacement?.shipments.map((s) => s.code)).toEqual(
+      before.shipments.map((s) => s.code),
+    );
+    // Cả hai chuyến đọc lại được
+    expect((await readLoad(FTL_LOADING)).status).toBe("CANCELLED");
+    expect((await readLoad(result.replacement?.loadId ?? "")).status).toBe("PLANNED");
+  });
+
+  it("quét dỡ trên xe đã huỷ: từng kiện; xác nhận không quét theo packageId; sau kiện cuối chuyến giữ nguyên lý do huỷ", async () => {
+    actAs([...WAREHOUSE_MANAGER, CONTROLLED]);
+    const result = beControlledCancelSchema.parse(
+      (await post(FTL_LOADING, "controlled-cancellation", cancelBody)).data,
+    );
+    const pending = result.cancelled.pendingUnloads ?? [];
+    expect(pending.length).toBeGreaterThan(1);
+    const [first, ...rest] = pending;
+    const scanned = beLoadSchema.parse(
+      (await post(FTL_LOADING, "unloads", { packageCode: first?.labelCode })).data,
+    );
+    expect(scanned.pendingUnloads).toHaveLength(pending.length - 1);
+    let latest = scanned;
+    for (const item of rest) {
+      latest = beLoadSchema.parse(
+        (
+          await post(FTL_LOADING, "unload-overrides", {
+            packageId: item.packageId,
+            note: "Nhãn hỏng",
+          })
+        ).data,
+      );
+    }
+    expect(latest.pendingUnloads).toEqual([]);
+    expect(latest).toMatchObject({
+      status: "CANCELLED",
+      cancelReasonCode: "XE_HONG",
+      cancelReason: "Gãy trục sau",
+    });
+    // Kiện đã dỡ không dỡ lại được
+    expect(
+      errorCode(await post(FTL_LOADING, "unload-overrides", { packageId: first?.packageId })),
+    ).toBe("PACKAGE_NOT_IN_LOAD");
+  });
+
+  it("chỉ mã fulfillment-controlled-cancellations:UPDATE: quản lý kho cũ / nhân viên kho / điều phối → 403 cả hai route", async () => {
+    for (const grants of [WAREHOUSE_STAFF, WAREHOUSE_MANAGER, ORDER_COORDINATOR]) {
+      actAs(grants);
+      expect((await post(FTL_LOADING, "controlled-cancellation", cancelBody)).status).toBe(403);
+      expect((await post(FTL_LOADING, "unload-overrides", { packageId: "pkg-x" })).status).toBe(
+        403,
+      );
+    }
+    expect((await readLoad(FTL_LOADING)).status).toBe("LOADING");
+    // Nhưng chỉ cần mã này (BE chỉ kiểm mã đó), không cần fulfillment-dispatch:UPDATE
+    actAs([CONTROLLED]);
+    expect((await post(FTL_LOADING, "controlled-cancellation", cancelBody)).status).toBe(200);
+  });
+
+  it("đúng luật BE: cần mã lý do (một trong bốn) và ghi chú; chỉ xe đang xếp (INVALID_LOAD_TRANSITION), kể cả chuyến gửi kiện và xe đã đặt chưa xếp", async () => {
+    actAs([CONTROLLED]);
+    for (const bad of [
+      { note: "x" },
+      { reasonCode: "BROKEN", note: "x" },
+      { reasonCode: "KHAC" },
+      { reasonCode: "KHAC", note: "  " },
+    ]) {
+      expect(errorCode(await post(FTL_LOADING, "controlled-cancellation", bad))).toBe(
+        "VALIDATION_FAILED",
+      );
+    }
+    for (const reasonCode of ["XE_HONG", "SAI_XE", "KIEN_KHONG_VUA", "KHAC"]) {
+      const ok = await post(FTL_LOADING, "controlled-cancellation", { reasonCode, note: "x" });
+      // Mỗi mã chạy trên xe đang xếp riêng: chỉ mã đầu tiên huỷ được xe; mã sau gặp xe đã huỷ → trả lại như cũ
+      expect(ok.status).toBe(200);
+    }
+    expect(errorCode(await post(FTL_BOOKED, "controlled-cancellation", cancelBody))).toBe(
+      "INVALID_LOAD_TRANSITION",
+    );
+    const parcelLoad = beLoadPageSchema
+      .parse((await call("GET", LOADS, undefined, { status: "LOADING" })).data)
+      .items.find((l) => l.mode === "PARCEL");
+    expect(
+      errorCode(await post(parcelLoad?.loadId ?? "", "controlled-cancellation", cancelBody)),
+    ).toBe("INVALID_LOAD_TRANSITION");
+    expect(errorCode(await post("LD-NOPE", "controlled-cancellation", cancelBody))).toBe(
+      "LOAD_NOT_FOUND",
+    );
+  });
+});
 
 describe("mock xe của kế hoạch nguồn TRANSFER — dòng là một lệnh chuyển kho", () => {
   it("chi tiết chuyến: dòng mang transferOrderId + số lệnh, không có lô giao / đơn / task; kiện chưa quét; không COD", async () => {

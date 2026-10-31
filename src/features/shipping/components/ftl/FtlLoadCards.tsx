@@ -1,6 +1,7 @@
 "use client";
 
 import { CarrierBookingNotice } from "./CarrierBookingNotice";
+import { ControlledCancelNotice } from "./ControlledCancelNotice";
 import { BookingCard } from "./BookingCard";
 import { PlanVehicleCard } from "./PlanVehicleCard";
 
@@ -20,6 +21,7 @@ export function FtlLoadCards({
 }) {
   return (
     <>
+      <ControlledCancelNotice load={load} />
       <CarrierBookingNotice load={load} />
       <PlanVehicleCard load={load} />
       <BookingCard load={load} actions={actions} onOpen={onOpen} />

@@ -2,11 +2,12 @@
 
 import type { z } from "zod";
 
-import type { LoadPlanSelectionMode, LoadPlanSourceType } from "@/constants";
+import type { LoadPlanSelectionMode, LoadPlanSourceType, UnloadReasonCode } from "@/constants";
 import type {
   beCandidateShipmentSchema,
   beParcelSchema,
   bePlanDetailSchema,
+  bePlanPendingUnloadSchema,
   bePlanRowSchema,
   beTransferInPlanSchema,
   beVehicleSummarySchema,
@@ -18,6 +19,7 @@ export type PlanParcel = z.infer<typeof beParcelSchema>;
 export type CandidateShipment = z.infer<typeof beCandidateShipmentSchema>;
 export type PlanRow = z.infer<typeof bePlanRowSchema>;
 export type PlanDetail = z.infer<typeof bePlanDetailSchema>;
+export type PlanPendingUnload = z.infer<typeof bePlanPendingUnloadSchema>;
 export type TransferInPlan = z.infer<typeof beTransferInPlanSchema>;
 export type PlanVehicle = z.infer<typeof beVehicleSummarySchema>;
 export type VehicleTypeOption = z.infer<typeof beVehicleTypeOptionSchema>;
@@ -59,6 +61,12 @@ export interface RecalculateVehicleInput extends VersionedInput {
   seq: number;
   /** Kiện lấy từ khay chưa xếp (kiện của bộ kéo theo cả bộ). */
   addPackageIds?: string[];
+}
+
+/** Huỷ có kiểm soát cả kế hoạch sau khi đã bắt đầu xếp hàng (SCRUM-474): mã lý do + ghi chú. */
+export interface ControlledCancelPlanInput extends VersionedInput {
+  reasonCode: UnloadReasonCode;
+  note: string;
 }
 
 /** Bước đổi trạng thái kế hoạch: một mutation chung, rẽ nhánh theo `kind`. */

@@ -367,6 +367,11 @@ export const SHIPPING_ERROR_MESSAGES = {
     "Còn kiện trong biên bản chưa quét lên xe — quét đủ (kể cả mọi kiện của một bộ) hoặc bỏ lô đó khỏi chuyến gửi kiện.",
   // BE PR #162 (chuyến nguyên xe)
   LOAD_UNLOAD_PENDING: "Xe còn kiện của đơn đã huỷ — dỡ các kiện đó xuống trước khi bàn giao.",
+  // SCRUM-474 UNLOAD-DESIGN: kiện của xe đã huỷ có kiểm soát bị khoá tới khi quét dỡ xuống
+  PACKAGE_UNLOAD_PENDING:
+    "Kiện này còn nằm trên xe đã huỷ có kiểm soát — quét dỡ kiện xuống ở chuyến đó trước khi xếp lên xe khác.",
+  LOAD_PLAN_VEHICLE_DISPATCHED:
+    "Đã có xe của kế hoạch rời kho nên không huỷ cả kế hoạch được — huỷ có kiểm soát từng xe còn lại.",
   LOAD_MANAGED_BY_PLAN:
     "Chuyến này thuộc kế hoạch xếp xe — thêm / bỏ lô hay huỷ chuyến phải đi qua kế hoạch.",
   INVALID_LOAD_PLAN_TRANSITION:
@@ -408,6 +413,9 @@ export const SHIPPING_FIELD_MESSAGES = {
   warehouseRequired: "Chọn kho",
   carrierRequired: "Chọn hãng vận chuyển",
   cancelBookingReasonRequired: "Nhập lý do huỷ đặt xe",
+  // SCRUM-474 UNLOAD-DESIGN điểm 7: mã lý do + ghi chú
+  controlledReasonCodeRequired: "Chọn lý do huỷ",
+  controlledNoteRequired: "Nhập ghi chú cho lý do huỷ",
   carrierRepresentativeRequired: "Nhập tên người ký bên hãng",
   vehiclePlateRequired: "Nhập biển số xe",
   signedRequired: "Xác nhận hai bên đã ký biên bản",

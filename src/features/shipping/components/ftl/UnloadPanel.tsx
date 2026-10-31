@@ -2,9 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { UI_LABELS } from "@/constants";
+import { LOAD_STATUS, UI_LABELS } from "@/constants";
 import { primeScanAudio } from "@/hooks/use-scan-tone";
-import { formatTime } from "@/lib/format/date";
 import { unloadErrorMessage } from "@/features/shipping/errors";
 import { useUnloadPackage } from "@/features/shipping/ftl-mutations";
 import { pendingUnloadsOf } from "@/features/shipping/ftl-selectors";
@@ -12,49 +11,28 @@ import { scanPackageInputSchema } from "@/features/shipping/input-schemas";
 import { ScanInput } from "@/components/backoffice/ScanInput";
 import { Alert } from "@/components/shared/Alert";
 
-import { MONO } from "../primitives";
 import { useScanFeedback } from "../load/useScanFeedback";
+import { PendingUnloadTable } from "./PendingUnloadTable";
 
 import type { Load } from "@/features/shipping/types";
 
 const U = UI_LABELS.shipping.ftl.unload;
 
-function PendingTable({ load }: { load: Load }) {
-  return (
-    <div className="border-border-default overflow-x-auto rounded-[var(--r-sm)] border">
-      <table className="w-full text-[0.8125rem]">
-        <caption className="sr-only">{U.title}</caption>
-        <thead className="bg-bg-subtle text-ink-secondary">
-          <tr>
-            {[U.parcel, U.shipment, U.reason, U.requestedAt].map((heading) => (
-              <th key={heading} scope="col" className="px-3 py-2 text-left font-medium">
-                {heading}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {pendingUnloadsOf(load).map((item) => (
-            <tr key={item.packageId} className="border-border-default border-t">
-              <td className={`text-ink-primary px-3 py-2 font-medium ${MONO}`}>{item.labelCode}</td>
-              <td className={`text-ink-secondary px-3 py-2 ${MONO}`}>{item.shipmentCode}</td>
-              <td className="text-ink-secondary px-3 py-2">{item.reason ?? "—"}</td>
-              <td className="text-ink-secondary px-3 py-2 tabular-nums">
-                {item.requestedAt ? formatTime(item.requestedAt) : "—"}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
 /**
- * Kiện của đơn đã huỷ khi xe đang xếp (BE `pendingUnloads`): quét từng kiện để dỡ xuống; còn kiện thì bàn giao
- * trả 409 LOAD_UNLOAD_PENDING. Không có quyền dỡ → chỉ xem danh sách. Hàng dỡ về kho qua hàng đợi cất hàng của lấy hàng.
+ * Kiện còn phải dỡ khỏi xe (BE `pendingUnloads`): quét từng kiện để dỡ xuống. Hai nguồn: đơn đã huỷ khi xe đang xếp (còn kiện
+ * thì bàn giao trả 409 LOAD_UNLOAD_PENDING; hàng về kho qua hàng đợi cất hàng) và xe đã huỷ có kiểm soát (SCRUM-474: chuyến
+ * CANCELLED, kiện bị khoá tới khi dỡ). Không có quyền dỡ → chỉ xem danh sách. `canOverride` (quyền huỷ có kiểm soát): quản lý
+ * kho xác nhận dỡ kiện không quét khi nhãn hỏng.
  */
-export function UnloadPanel({ load, canUnload }: { load: Load; canUnload: boolean }) {
+export function UnloadPanel({
+  load,
+  canUnload,
+  canOverride,
+}: {
+  load: Load;
+  canUnload: boolean;
+  canOverride: boolean;
+}) {
   const unload = useUnloadPackage();
   const alive = useRef(true);
   const [feedback, show] = useScanFeedback(alive);
@@ -100,15 +78,18 @@ export function UnloadPanel({ load, canUnload }: { load: Load; canUnload: boolea
   };
 
   const count = pendingUnloadsOf(load).length;
+  const controlled = load.status === LOAD_STATUS.CANCELLED;
   return (
     <section
-      aria-label={U.title}
+      aria-label={controlled ? U.controlledTitle : U.title}
       className="border-warning/50 bg-bg-surface space-y-3 rounded-[var(--card-radius)] border p-[var(--card-pad)]"
     >
       <h2 className="text-ink-primary text-[0.9375rem] font-semibold">
-        {U.title} ({count})
+        {controlled ? U.controlledTitle : U.title} ({count})
       </h2>
-      <p className="text-ink-secondary text-[0.8125rem]">{U.description}</p>
+      <p className="text-ink-secondary text-[0.8125rem]">
+        {controlled ? U.controlledDescription : U.description}
+      </p>
       {canUnload ? (
         <ScanInput
           id="load-unload"
@@ -122,7 +103,10 @@ export function UnloadPanel({ load, canUnload }: { load: Load; canUnload: boolea
       ) : (
         <Alert tone="info">{U.readOnly}</Alert>
       )}
-      {count > 0 && <PendingTable load={load} />}
+      {canUnload && !canOverride && controlled && count > 0 && (
+        <p className="text-ink-tertiary text-xs">{U.needsManager}</p>
+      )}
+      {count > 0 && <PendingUnloadTable load={load} canOverride={canOverride} />}
     </section>
   );
 }

@@ -3,10 +3,16 @@
  * Bảng chuyển trạng thái chép từ docs 09 §5 và `LoadPlan.requireStatus` của BE (PR #161):
  * DRAFT → PLANNED (tính) → CONFIRMED (chốt) → DISPATCHED (PR E, BE tự chuyển); DRAFT/PLANNED/CONFIRMED → CANCELLED;
  * CONFIRMED → PLANNED (mở lại, BR-14); đổi đầu vào đưa PLANNED về DRAFT. UI-only — Backend phải re-check
- * (`fulfillment-load-plans:CREATE` trên POST, `:UPDATE` trên mọi bước sau; BR-13, BR-14, LP-4).
+ * (`fulfillment-load-plans:CREATE` trên POST, `:UPDATE` trên mọi bước sau; BR-13, BR-14, LP-4). Sau khi đã bắt đầu xếp hàng
+ * chỉ còn huỷ có kiểm soát (CONFIRMED → CANCELLED, SCRUM-474) bằng `fulfillment-controlled-cancellations:UPDATE`.
  */
 
-import { LOAD_PLAN_PERMISSIONS, LOAD_PLAN_STATUS, LOAD_STATUS } from "@/constants";
+import {
+  FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS,
+  LOAD_PLAN_PERMISSIONS,
+  LOAD_PLAN_STATUS,
+  LOAD_STATUS,
+} from "@/constants";
 
 import type { LoadPlanStatus } from "@/constants";
 import type { PermissionCode } from "@/lib/auth";
@@ -41,6 +47,13 @@ export interface LoadPlanActions {
   confirm: boolean;
   reopen: boolean;
   cancel: boolean;
+  /**
+   * Huỷ có kiểm soát cả kế hoạch SAU KHI đã bắt đầu xếp hàng (SCRUM-474 UNLOAD-DESIGN, docs 09 BR-14): mã quyền riêng
+   * `fulfillment-controlled-cancellations:UPDATE` (quản lý kho), kế hoạch CONFIRMED mà huỷ thường không còn dùng được.
+   */
+  cancelControlled: boolean;
+  /** `vehicleLeft`: đã có xe rời kho → BE 409 LOAD_PLAN_VEHICLE_DISPATCHED, chỉ huỷ được từng xe (điểm 3). */
+  cancelControlledBlocked: "vehicleLeft" | null;
   /** Vì sao nút chốt đang khoá dù đủ quyền và đúng trạng thái; null = chốt được. */
   confirmBlocked: ConfirmBlock | null;
 }
@@ -55,6 +68,8 @@ const NONE: LoadPlanActions = {
   confirm: false,
   reopen: false,
   cancel: false,
+  cancelControlled: false,
+  cancelControlledBlocked: null,
   confirmBlocked: null,
 };
 
@@ -66,6 +81,10 @@ const LOADING_LOAD_STATUSES: ReadonlySet<string> = new Set([
 const loadingStarted = (plan: PlanDetail): boolean =>
   plan.vehicles.some((vehicle) => !!vehicle.load && LOADING_LOAD_STATUSES.has(vehicle.load.status));
 
+/** Có xe đã rời kho (DISPATCHED): không huỷ cả kế hoạch được nữa (UNLOAD-DESIGN điểm 3). */
+const vehicleLeft = (plan: PlanDetail): boolean =>
+  plan.vehicles.some((vehicle) => vehicle.load?.status === LOAD_STATUS.DISPATCHED);
+
 const allows = (from: LoadPlanStatus, to: LoadPlanStatus): boolean =>
   (LOAD_PLAN_TRANSITIONS[from] as readonly LoadPlanStatus[]).includes(to);
 
@@ -75,8 +94,15 @@ const allows = (from: LoadPlanStatus, to: LoadPlanStatus): boolean =>
 export function loadPlanActions(plan: PlanDetail | null, actor: LoadPlanActor): LoadPlanActions {
   const create = actor.can(LOAD_PLAN_PERMISSIONS.create);
   if (!plan) return { ...NONE, create };
+  // Quyền riêng của quản lý kho, độc lập với `:UPDATE`; chỉ hiện khi huỷ thường bị BR-14 chặn (đã xếp hàng / đã có xe đi).
+  // Backend phải re-check (BR-14).
+  const cancelControlled =
+    actor.can(FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS.update) &&
+    plan.status === LOAD_PLAN_STATUS.CONFIRMED &&
+    loadingStarted(plan);
+  const cancelControlledBlocked = cancelControlled && vehicleLeft(plan) ? "vehicleLeft" : null;
   const update = actor.can(LOAD_PLAN_PERMISSIONS.update);
-  if (!update) return { ...NONE, create };
+  if (!update) return { ...NONE, create, cancelControlled, cancelControlledBlocked };
   const { status } = plan;
   const planned = status === LOAD_PLAN_STATUS.PLANNED;
   const acknowledged = !!plan.unplacedAcknowledgement;
@@ -102,6 +128,8 @@ export function loadPlanActions(plan: PlanDetail | null, actor: LoadPlanActor): 
       allows(status, LOAD_PLAN_STATUS.PLANNED) &&
       !loadingStarted(plan),
     cancel: allows(status, LOAD_PLAN_STATUS.CANCELLED) && !loadingStarted(plan),
+    cancelControlled,
+    cancelControlledBlocked,
     confirmBlocked,
   };
 }

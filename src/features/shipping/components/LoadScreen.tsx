@@ -83,6 +83,7 @@ function LoadBody({ id }: { id: string }) {
               actions={actions}
               onHandover={() => setDialog("handover")}
               onCancel={() => setDialog("cancel")}
+              onControlledCancel={() => setDialog("controlledCancel")}
             />
           }
         />

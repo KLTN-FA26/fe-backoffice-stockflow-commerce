@@ -288,6 +288,7 @@ export const LOAD_PLAN_TOAST_MESSAGES = {
   confirmed: "Đã chốt kế hoạch",
   reopened: "Đã mở lại kế hoạch",
   cancelled: "Đã huỷ kế hoạch",
+  controlledCancelled: "Đã huỷ có kiểm soát kế hoạch — kiện còn trên xe cần quét dỡ xuống",
   placementsSaved: "Đã lưu bố cục xếp tay",
 } as const;
 
@@ -310,7 +311,12 @@ export const LOAD_PLAN_ERROR_MESSAGES = {
   LOAD_PLAN_NEEDS_RECALCULATION:
     "Có xe vừa bị bỏ kiện (đơn bị huỷ): tính lại xe đó trước khi chốt.",
   LOAD_PLAN_LOADING_STARTED:
-    "Một xe của kế hoạch đã bắt đầu xếp hàng nên không mở lại hay huỷ được nữa.",
+    "Một xe của kế hoạch đã bắt đầu xếp hàng nên không mở lại hay huỷ thường được nữa — quản lý kho dùng “Huỷ có kiểm soát”.",
+  // SCRUM-474 UNLOAD-DESIGN
+  LOAD_PLAN_VEHICLE_DISPATCHED:
+    "Đã có xe của kế hoạch rời kho nên không huỷ cả kế hoạch được — huỷ có kiểm soát từng xe còn lại ở màn chuyến.",
+  PACKAGE_UNLOAD_PENDING:
+    "Có kiện còn nằm trên xe đã huỷ có kiểm soát — quét dỡ kiện xuống trước khi đưa vào kế hoạch mới.",
   PLACEMENT_RULE_VIOLATION:
     "Bố cục hiện có vi phạm quy tắc xếp hàng, nên chưa chốt được. Tính lại xe vi phạm.",
   PACKAGE_IN_LOAD_PLAN: "Kiện đang nằm trong kế hoạch xếp xe; bỏ kiện khỏi kế hoạch trước.",
@@ -346,6 +352,8 @@ export const LOAD_PLAN_FIELD_MESSAGES = {
   vehicleTypesRequired: "Chọn ít nhất một loại xe.",
   vehicleTypesTooMany: `Tối đa ${LOAD_PLAN_LIMITS.vehicleTypesMax} loại xe.`,
   reasonRequired: "Nhập lý do.",
+  controlledReasonCodeRequired: "Chọn lý do huỷ.",
+  controlledNoteRequired: "Nhập ghi chú cho lý do huỷ.",
   reasonTooLong: `Lý do tối đa ${LOAD_PLAN_LIMITS.reasonMax} ký tự.`,
   noteTooLong: `Ghi chú tối đa ${LOAD_PLAN_LIMITS.noteMax} ký tự.`,
   packagesTooMany: `Tối đa ${LOAD_PLAN_LIMITS.addPackagesMax} kiện mỗi lần.`,

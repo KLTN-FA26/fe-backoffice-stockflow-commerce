@@ -78,6 +78,8 @@ export function isStaleTransferError(error: unknown): boolean {
       "TRANSFER_GOODS_LEFT",
       "TRANSFER_DISPATCH_BY_LOAD_PLAN",
       "LOAD_PLAN_LOADING_STARTED",
+      "TRANSFER_LOADING_IN_PROGRESS",
+      "PACKAGE_UNLOAD_PENDING",
     ].includes(error.code)
   );
 }

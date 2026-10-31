@@ -96,6 +96,8 @@ export interface MockPlan {
   reopenReason: string | null;
   cancelledAt: string | null;
   cancelReason: string | null;
+  /** Mã lý do huỷ có kiểm soát (SCRUM-474); vắng với mọi cách huỷ khác. */
+  cancelReasonCode?: string | null;
   version: number;
 }
 

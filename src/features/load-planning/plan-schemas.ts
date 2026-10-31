@@ -10,12 +10,16 @@ import {
   LOAD_PLAN_SELECTION_MODES,
   LOAD_PLAN_STATUSES,
   LOAD_PLAN_UNPLACED_REASONS,
+  UNLOAD_REASON_CODES,
   VEHICLE_TYPE_KINDS,
   VEHICLE_TYPE_STATUSES,
 } from "@/constants";
 import { bePageSchema } from "@/lib/api/page-schema";
 
 import { LayoutSchema } from "./schemas";
+
+/** BE `UnloadReasonCode` (SCRUM-474 UNLOAD-DESIGN điểm 7): XE_HONG, SAI_XE, KIEN_KHONG_VUA, KHAC. */
+const unloadReasonCodeSchema = z.enum(UNLOAD_REASON_CODES);
 
 export const beDecimal = z.union([z.number(), z.string()]).transform(Number).pipe(z.number());
 
@@ -144,6 +148,24 @@ const beAcknowledgementSchema = z.object({
   note: z.string().nullish(),
 });
 
+/**
+ * `LoadPlans.PendingUnload`: kiện còn phải quét dỡ khỏi xe của kế hoạch — của đơn đã huỷ khi xe đang xếp (không có `reasonCode`)
+ * hoặc của xe đã huỷ có kiểm soát (SCRUM-474, có `reasonCode`); bị khoá tới khi dỡ. `loadId` là chuyến cần quét dỡ (`POST /loads/{loadId}/unloads`); `shipmentCode` là mã lô hoặc số lệnh chuyển kho.
+ */
+export const bePlanPendingUnloadSchema = z.object({
+  loadId: z.string(),
+  loadCode: z.string(),
+  vehicleSeq: z.number().int().nullish(),
+  packageId: z.string(),
+  labelCode: z.string(),
+  shipmentId: z.string().nullish(),
+  transferOrderId: z.string().nullish(),
+  shipmentCode: z.string().nullish(),
+  reasonCode: unloadReasonCodeSchema.nullish(),
+  reason: z.string().nullish(),
+  requestedAt: z.string().nullish(),
+});
+
 /** `LoadPlans.PlanDetail`. `version` gửi lại ở mọi thay đổi (409 OPTIMISTIC_LOCK nếu đã đổi). */
 export const bePlanDetailSchema = z.object({
   loadPlanId: z.string(),
@@ -173,6 +195,10 @@ export const bePlanDetailSchema = z.object({
   dispatchedAt: z.string().nullish(),
   cancelledAt: z.string().nullish(),
   cancelReason: z.string().nullish(),
+  /** Mã lý do khi huỷ có kiểm soát (SCRUM-474); `cancelReason` là ghi chú. */
+  cancelReasonCode: unloadReasonCodeSchema.nullish(),
+  /** Kiện còn phải dỡ khỏi xe (đơn đã huỷ hoặc xe đã huỷ có kiểm soát); vắng = không có. */
+  pendingUnloads: z.array(bePlanPendingUnloadSchema).nullish(),
   createdAt: z.string(),
   version: z.number().int(),
 });

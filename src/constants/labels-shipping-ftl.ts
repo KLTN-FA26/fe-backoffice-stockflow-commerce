@@ -86,6 +86,65 @@ export const SHIPPING_FTL_LABELS = {
     accepted: "Đã dỡ xuống",
     readOnly: "Bạn chỉ có quyền xem — dỡ kiện cần quyền xếp xe & bàn giao.",
     notPending: "Kiện này không nằm trong danh sách cần dỡ của xe này.",
+    /** Xe đã huỷ có kiểm soát: kiện bị khoá tới khi quét dỡ xuống (SCRUM-474 UNLOAD-DESIGN điểm 4-5). */
+    controlledTitle: "Kiện còn trên xe đã huỷ — quét dỡ xuống",
+    controlledDescription:
+      "Xe này đã huỷ có kiểm soát. Kiện bị khoá — không xếp lên xe khác, không đưa vào kế hoạch mới — cho tới khi từng kiện được quét dỡ xuống. Quét mã trên nhãn từng kiện.",
+    reasonCode: "Mã lý do",
+    action: "Thao tác",
+    overrideButton: "Xác nhận không quét",
+    overrideTitle: "Xác nhận dỡ kiện không cần quét",
+    overrideDescription:
+      "Chỉ dùng khi nhãn kiện bị hỏng, không quét được. Kiện được coi là đã dỡ xuống; hệ thống ghi lại người xác nhận, thời điểm và ghi chú.",
+    overrideNote: "Ghi chú (tình trạng nhãn)",
+    overrideConfirm: "Xác nhận đã dỡ",
+    overrideDone: "Đã xác nhận dỡ kiện không quét",
+    overrideAria: (labelCode: string) => `Xác nhận dỡ kiện ${labelCode} không cần quét`,
+    needsManager: "Nhãn hỏng không quét được? Quản lý kho xác nhận dỡ kiện không cần quét.",
+  },
+  /* ── Huỷ có kiểm soát sau khi đã xếp hàng (SCRUM-474 UNLOAD-DESIGN, docs 09 BR-14) ─────────── */
+  controlledCancel: {
+    /** Nhãn của bốn mã lý do (BE `UnloadReasonCode`). */
+    reasonCode: {
+      XE_HONG: "Xe hỏng",
+      SAI_XE: "Sai xe",
+      KIEN_KHONG_VUA: "Kiện không vừa",
+      KHAC: "Khác",
+    },
+    reasonCodeLabel: "Lý do",
+    reasonCodePlaceholder: "Chọn lý do huỷ",
+    noteLabel: "Ghi chú",
+    noteHint: "Ghi rõ chuyện gì đã xảy ra (bắt buộc, tối đa 500 ký tự).",
+    cancelButton: "Huỷ có kiểm soát",
+    vehicle: {
+      title: "Huỷ có kiểm soát xe",
+      description:
+        "Xe hỏng hoặc sai xe: chuyến này bị huỷ ngay, các kiện đã quét lên xe bị khoá cho tới khi từng kiện được quét dỡ xuống. Một chuyến mới (Chưa đặt xe) với cùng sơ đồ xếp được tạo thay thế để đặt xe khác; các xe còn lại của kế hoạch vẫn đi tiếp.",
+      confirm: "Huỷ xe này",
+      cardTitle: "Xe gặp sự cố?",
+      cardHint:
+        "Huỷ có kiểm soát xe đang xếp hàng: xe dỡ hết kiện xuống rồi quay về Chưa đặt xe với cùng sơ đồ xếp, để đặt xe khác. Chỉ quản lý kho làm được.",
+    },
+    plan: {
+      title: "Huỷ có kiểm soát kế hoạch",
+      description:
+        "Kế hoạch bị huỷ ngay, các xe huỷ theo. Kiện đã quét lên xe đang xếp bị khoá cho tới khi từng kiện được quét dỡ xuống; xe chưa xếp được huỷ như thường. Không thể mở lại kế hoạch.",
+      confirm: "Huỷ kế hoạch",
+      disabledVehicleLeft:
+        "Đã có xe rời kho nên không huỷ cả kế hoạch được — huỷ có kiểm soát từng xe còn lại ở màn chuyến của xe đó.",
+      pendingTitle: "Kiện còn phải dỡ khỏi xe",
+      pendingDescription:
+        "Các kiện này còn nằm trên xe (đơn đã huỷ hoặc xe đã huỷ có kiểm soát) và bị khoá cho tới khi được quét dỡ xuống. Mở chuyến của xe để quét từng kiện (hoặc để quản lý kho xác nhận khi nhãn hỏng).",
+      pendingLoad: "Chuyến",
+      pendingVehicle: "Xe số",
+      pendingOpen: "Mở chuyến để dỡ",
+      cancelledReason: "Lý do huỷ có kiểm soát",
+    },
+    cancelledBanner: {
+      title: "Xe đã huỷ có kiểm soát",
+      replacement: "Chuyến thay thế (Chưa đặt xe, cùng sơ đồ xếp):",
+      reason: "Lý do:",
+    },
   },
   /* ── Kiện ───────────────────────────────────────────────────────── */
   parcel: {
@@ -126,6 +185,11 @@ export const SHIPPING_FTL_TOAST_MESSAGES = {
   bookingCancelled: "Đã huỷ đặt xe",
   loadingStarted: "Đã bắt đầu xếp hàng",
   unloaded: "Đã dỡ kiện khỏi xe",
+  controlledCancelled: "Đã huỷ xe có kiểm soát — chuyến thay thế đã sẵn sàng để đặt xe",
+  controlledCancelledNoReplacement:
+    "Đã huỷ xe có kiểm soát — xe không còn gì để chở nên không có chuyến thay thế",
+  planControlledCancelled: "Đã huỷ có kiểm soát kế hoạch",
+  unloadOverridden: "Đã xác nhận dỡ kiện không quét",
 } as const;
 
 /** Lỗi quét kiện sai xe (BE 409 PACKAGE_NOT_IN_LOAD kèm `vehicleSeq`, `loadCode`) — `{seq}` / `{code}` được thay. */

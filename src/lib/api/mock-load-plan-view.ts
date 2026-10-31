@@ -210,6 +210,9 @@ export function planDetail(plan: MockPlan) {
     reopenReason: plan.reopenReason,
     cancelledAt: plan.cancelledAt,
     cancelReason: plan.cancelReason,
+    cancelReasonCode: plan.cancelReasonCode ?? undefined,
+    // Mock: kế hoạch và chuyến xe là hai store riêng, kế hoạch không giữ kiện bị khoá
+    pendingUnloads: [],
     createdAt: plan.createdAt,
     version: plan.version,
   };
