@@ -22,7 +22,8 @@ import type {
  */
 function cartonFields(line: { unitOfMeasure: string; packages: readonly PackageInputValues[] }) {
   return {
-    unitOfMeasure: emptyToUndefined(line.unitOfMeasure),
+    // Đơn vị đóng gói mà không có thùng bị BE từ chối (RECEIPT_LINE_UNIT_INVALID): dòng lẻ không gửi đơn vị
+    unitOfMeasure: line.packages.length > 0 ? emptyToUndefined(line.unitOfMeasure) : undefined,
     packages: line.packages.map(({ lpn, quantity }) => (lpn ? { lpn, quantity } : { quantity })),
   };
 }

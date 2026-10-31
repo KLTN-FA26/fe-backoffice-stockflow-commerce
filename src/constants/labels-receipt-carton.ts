@@ -68,7 +68,7 @@ export const RECEIPT_CARTON_LABELS = {
   addCartons: "Thêm",
   cartonsOf: (factor: number) => `thùng × ${factor}`,
   removeCarton: (lpn: string) => `Xoá thùng ${lpn}`,
-  removeNewCarton: (index: number) => `Xoá thùng mới ${index}`,
+  removeNewCarton: (label: string) => `Xoá thùng ${label}`,
   cartonQuantity: (label: string) => `SL thùng ${label}`,
   vsNominal: (diff: number) => (diff === 0 ? "đủ" : diff > 0 ? `dư ${diff}` : `thiếu ${-diff}`),
   summary: (cartons: number, units: number, loose: number) =>

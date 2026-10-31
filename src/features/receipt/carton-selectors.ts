@@ -97,3 +97,39 @@ export function unitsBySku(
   }
   return map;
 }
+
+/** Ngữ cảnh thùng của một dòng trên form kiểm đếm: đơn vị chọn được, đơn vị đã lưu / đặt trên PO, có bị khoá không. */
+export interface LineCartonContext extends CartonUnitSource {
+  /** Dòng đã lưu có thùng: giữ lô / dòng PO, không bỏ khỏi phiếu, đơn vị khoá khi còn thùng có LPN. */
+  locked: boolean;
+  /** Thùng đã lưu của dòng — để biết `nominalQty` của từng LPN. */
+  savedPackages: readonly ReceiptPackageDto[];
+}
+
+/**
+ * Dòng form ↔ dòng đã lưu: cùng dòng PO (phiếu không PO: cùng SKU) và cùng lô — khoá của BE
+ * (`uk_goods_receipt_lines_lot`). Dòng chưa lưu lấy đơn vị theo SKU từ dòng đã lưu khác (Q1).
+ */
+export function countLineCartonContext(
+  savedLines: readonly ReceiptLineDto[],
+  line: { purchaseOrderLineId?: string; lotNumber: string },
+  sku: string | null | undefined,
+): LineCartonContext {
+  const sameItem = (saved: ReceiptLineDto) =>
+    line.purchaseOrderLineId
+      ? saved.purchaseOrderLineId === line.purchaseOrderLineId
+      : !!sku && saved.sku === sku;
+  const saved = savedLines.find(
+    (candidate) => sameItem(candidate) && (candidate.lotNumber ?? "") === line.lotNumber,
+  );
+  const sibling = savedLines.find(sameItem);
+  return {
+    units: saved?.units.length
+      ? saved.units
+      : ((sku ? unitsBySku(savedLines).get(sku) : undefined) ?? []),
+    unitOfMeasure: saved?.unitOfMeasure ?? null,
+    orderedUnitOfMeasure: saved?.orderedUnitOfMeasure ?? sibling?.orderedUnitOfMeasure ?? null,
+    locked: saved ? lineLockedByCartons(saved) : false,
+    savedPackages: saved?.packages ?? [],
+  };
+}

@@ -1,12 +1,15 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { RECEIPT_CARTON_LABELS as L } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
 import {
+  CARTON_UNITS,
   PO_ID,
   RECEIPT_ID,
+  apiLine,
   apiReceipt,
   cartonLine,
   receivablePo,
@@ -88,5 +91,89 @@ describe("Lưu lại kiểm đếm giữ nguyên thùng (BE spec SCRUM-473 §3 r
       ];
     expect(keyOf(0)).toEqual(expect.any(String));
     expect(keyOf(1)).toBe(keyOf(0));
+  });
+});
+
+describe("Chia thùng trên form kiểm đếm (issue #104, BE spec SCRUM-473 §3)", () => {
+  it("dòng đã lưu: chọn sẵn đơn vị đặt trên PO, thêm 2 thùng × 1000, sửa thùng 2 = 980 → hàng lẻ 3010; lưu gửi thùng mới không LPN", async () => {
+    const user = userEvent.setup();
+    const saved = apiLine({
+      quantity: 4990,
+      lotNumber: "L01",
+      units: CARTON_UNITS,
+      orderedUnitOfMeasure: "CARTON",
+    });
+    const receipt = apiReceipt({ lines: [saved] });
+    const { put } = renderDraft(receipt, () => receipt);
+
+    await user.click(await screen.findByRole("button", { name: /Sửa kiểm đếm/ }));
+    await user.click(await screen.findByRole("button", { name: "Chia thùng dòng 1" }));
+    expect(screen.getByRole("radio", { name: "CARTON (1000)" })).toBeChecked();
+    expect(screen.getByText(L.lockedHint)).toBeInTheDocument();
+
+    const count = screen.getByLabelText("Số thùng thêm dòng 1");
+    await user.clear(count);
+    await user.type(count, "2");
+    await user.click(screen.getByRole("button", { name: `${L.addCartons} ${L.cartonsOf(1000)}` }));
+    expect(screen.getByText(L.summary(2, 2000, 2990))).toBeInTheDocument();
+
+    const second = screen.getByLabelText(L.cartonQuantity("mới 2"));
+    await user.clear(second);
+    await user.type(second, "980");
+    expect(screen.getByText(L.summary(2, 1980, 3010))).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Lưu kiểm đếm/ }));
+    await waitFor(() => expect(put).toHaveBeenCalled());
+    expect(put.mock.calls[0]?.[1]).toEqual({
+      lines: [
+        expect.objectContaining({
+          unitOfMeasure: "CARTON",
+          packages: [{ quantity: 1000 }, { quantity: 980 }],
+        }),
+      ],
+    });
+  });
+
+  it("dòng có thùng: số lô chỉ đọc, không bỏ dòng được, đơn vị khoá", async () => {
+    const user = userEvent.setup();
+    const receipt = apiReceipt({ lines: [cartonLine({ lotNumber: "L01" })] });
+    renderDraft(receipt, () => receipt);
+
+    await user.click(await screen.findByRole("button", { name: /Sửa kiểm đếm/ }));
+    expect(await screen.findByLabelText("Số lô dòng 1")).toHaveAttribute("readonly");
+    expect(screen.getByRole("button", { name: "Xoá dòng 1" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Chia thùng dòng 1" }));
+    expect(screen.getByRole("radio", { name: "CARTON (1000)" })).toBeDisabled();
+    expect(screen.getByText("LPN-20261024-000001")).toBeInTheDocument();
+  });
+
+  it("xoá thùng đã có LPN phải xác nhận; lưu thì thùng đó không còn trong danh sách (BE VOID)", async () => {
+    const user = userEvent.setup();
+    const receipt = apiReceipt({ lines: [cartonLine({ lotNumber: "L01" })] });
+    const { put } = renderDraft(receipt, () => receipt);
+
+    await user.click(await screen.findByRole("button", { name: /Sửa kiểm đếm/ }));
+    await user.click(await screen.findByRole("button", { name: "Chia thùng dòng 1" }));
+    await user.click(screen.getByRole("button", { name: L.removeCarton("LPN-20261024-000001") }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(L.confirmRemoveTitle)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: L.confirmRemoveAction }));
+    expect(screen.queryByText("LPN-20261024-000001")).not.toBeInTheDocument();
+
+    await user.click(await screen.findByRole("button", { name: /Lưu kiểm đếm/ }));
+    await waitFor(() => expect(put).toHaveBeenCalled());
+    expect(put.mock.calls[0]?.[1]).toEqual({
+      lines: [
+        expect.objectContaining({
+          packages: [{ lpn: "LPN-20261024-000002", quantity: 980 }],
+        }),
+      ],
+    });
+  });
+
+  it("phiếu chưa lưu dòng nào: chưa chia thùng được, nhắc lưu trước", async () => {
+    renderDraft(apiReceipt(), () => apiReceipt());
+    expect(await screen.findAllByText(L.saveFirst)).not.toHaveLength(0);
+    expect(screen.queryByRole("button", { name: "Chia thùng dòng 1" })).not.toBeInTheDocument();
   });
 });

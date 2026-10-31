@@ -126,6 +126,28 @@ describe("goods receipt API — hợp đồng BE PR #62", () => {
     );
   });
 
+  it("SCRUM-473: đã chọn đơn vị nhưng không có thùng → không gửi đơn vị (BE RECEIPT_LINE_UNIT_INVALID)", async () => {
+    const put = vi.spyOn(api, "put").mockResolvedValueOnce({ data: apiReceipt() });
+    await replaceReceiptLines({
+      receiptId: RECEIPT_ID,
+      lines: [
+        {
+          purchaseOrderLineId: TABLE_PO_LINE_ID,
+          quantity: 6,
+          lotNumber: "",
+          expiryDate: "",
+          locationCode: "HCM-RCV01",
+          note: "",
+          unitOfMeasure: "CARTON",
+          packages: [],
+        },
+      ],
+    });
+    expect(put.mock.calls[0]?.[1]).toEqual({
+      lines: [expect.objectContaining({ unitOfMeasure: undefined, packages: [] })],
+    });
+  });
+
   it("SCRUM-473: lưu kiểm đếm gửi đơn vị + toàn bộ thùng (thùng mới không có lpn) kèm Idempotency-Key", async () => {
     const put = vi.spyOn(api, "put").mockResolvedValueOnce({ data: apiReceipt() });
     await replaceReceiptLines({

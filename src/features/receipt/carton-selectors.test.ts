@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { CARTON_UNITS, apiLine, cartonLine, cartonPackage } from "./__fixtures__/receipt";
 import {
   cartonUnitOptions,
+  countLineCartonContext,
   countedIntoCartons,
   defaultCartonUnit,
   lineLockedByCartons,
@@ -121,5 +122,52 @@ describe("thùng của dòng", () => {
     expect(map.get("TABLE-OAK-160")).toEqual(CARTON_UNITS);
     expect(map.has("SOFA-3S-GREY")).toBe(false);
     expect(map.size).toBe(1);
+  });
+});
+
+describe("countLineCartonContext — dòng form ↔ dòng đã lưu", () => {
+  const saved = [cartonLine({ lotNumber: "L01" })];
+
+  it("dòng đã lưu có thùng: đơn vị, thùng đã lưu, bị khoá", () => {
+    const ctx = countLineCartonContext(
+      saved,
+      { purchaseOrderLineId: saved[0]?.purchaseOrderLineId ?? "", lotNumber: "L01" },
+      "TABLE-OAK-160",
+    );
+    expect(ctx).toMatchObject({
+      unitOfMeasure: "CARTON",
+      orderedUnitOfMeasure: "CARTON",
+      locked: true,
+    });
+    expect(ctx.savedPackages).toHaveLength(2);
+    expect(ctx.units).toEqual(CARTON_UNITS);
+  });
+
+  it("dòng chưa lưu cùng SKU (vd vừa tách lô) dùng lại đơn vị, không khoá, đơn vị đặt trên PO theo dòng PO", () => {
+    const ctx = countLineCartonContext(
+      saved,
+      { purchaseOrderLineId: saved[0]?.purchaseOrderLineId ?? "", lotNumber: "L02" },
+      "TABLE-OAK-160",
+    );
+    expect(ctx).toMatchObject({
+      unitOfMeasure: null,
+      orderedUnitOfMeasure: "CARTON",
+      locked: false,
+    });
+    expect(ctx.units).toEqual(CARTON_UNITS);
+  });
+
+  it("SKU chưa có dòng nào lưu → chưa có đơn vị (phải lưu trước)", () => {
+    const ctx = countLineCartonContext(
+      saved,
+      { purchaseOrderLineId: "other", lotNumber: "" },
+      "SOFA",
+    );
+    expect(ctx.units).toEqual([]);
+  });
+
+  it("phiếu không có PO: ghép theo SKU + lô", () => {
+    const blind = [cartonLine({ purchaseOrderLineId: null, sku: "SOFA-3S-GREY", lotNumber: null })];
+    expect(countLineCartonContext(blind, { lotNumber: "" }, "SOFA-3S-GREY").locked).toBe(true);
   });
 });

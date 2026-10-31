@@ -7,6 +7,7 @@ import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { ApiError } from "@/lib/api/error";
 import { createIdempotencyAttempt } from "@/lib/api/idempotency";
 import { receiptErrorMessage, receiptLineFieldErrors } from "@/features/receipt/errors";
+import { countLineCartonContext } from "@/features/receipt/carton-selectors";
 import { buildReceiptLinesSchema } from "@/features/receipt/input-schemas";
 import { useSaveReceiptLines } from "@/features/receipt/mutations";
 import {
@@ -15,7 +16,10 @@ import {
   receiptReceivedOn,
 } from "@/features/receipt/selectors";
 
+import { CARTON_SET_OPTIONS } from "../cartons/carton-form";
+
 import type { FieldPath } from "react-hook-form";
+import type { CartonDraft } from "../cartons/CartonEditor";
 import type {
   GoodsReceipt,
   ReceiptLinesFormInput,
@@ -64,6 +68,26 @@ export function useCountLinesForm(
     ),
   );
   const poLineById = new Map(po.lines.map((l) => [l.lineId, l]));
+  // SCRUM-473: đơn vị / thùng đã lưu của từng dòng form; trình chia thùng mở theo `field.id`
+  const cartonContexts = watched.map((l) =>
+    countLineCartonContext(
+      receipt.lines,
+      { purchaseOrderLineId: l.purchaseOrderLineId, lotNumber: l.lotNumber ?? "" },
+      poLineById.get(l.purchaseOrderLineId)?.sku,
+    ),
+  );
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
+  const toggleCartons = (rowId: string) =>
+    setExpanded((open) => {
+      const next = new Set(open);
+      if (!next.delete(rowId)) next.add(rowId);
+      return next;
+    });
+  const setLineCartons = (index: number, next: CartonDraft) => {
+    setServerError(null);
+    form.setValue(`lines.${index}.unitOfMeasure`, next.unitOfMeasure, CARTON_SET_OPTIONS);
+    form.setValue(`lines.${index}.packages`, next.packages, CARTON_SET_OPTIONS);
+  };
   const missingPoLines = po.lines.filter(
     (l) => l.openQuantity > 0 && !watched.some((w) => w.purchaseOrderLineId === l.lineId),
   );
@@ -145,5 +169,6 @@ export function useCountLinesForm(
     missingPoLines,
     submit,
     blankFor,
+    cartons: { contexts: cartonContexts, expanded, toggle: toggleCartons, set: setLineCartons },
   };
 }

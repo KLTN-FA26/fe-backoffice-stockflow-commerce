@@ -1,17 +1,17 @@
 "use client";
 
-import { Copy, Trash2 } from "lucide-react";
 import { Controller } from "react-hook-form";
 
-import { RECEIPT_LIMITS } from "@/constants";
+import { RECEIPT_CARTON_LABELS, RECEIPT_LIMITS } from "@/constants";
 import { DatePicker } from "@/components/shared/DatePicker";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 import { FieldError } from "../primitives";
+import { CountLineActions } from "./CountLineActions";
 
 import type { Control, FieldErrors, UseFormRegister } from "react-hook-form";
 import type { ReceiptLinesFormInput, ReceivablePoLine } from "@/features/receipt/types";
+import type { ReactNode } from "react";
 
 const CELL = "border-border-default bg-bg-surface h-8 rounded-[var(--r-sm)] text-[0.8125rem]";
 
@@ -25,6 +25,8 @@ export function CountLineRow({
   onEdit,
   overOpen,
   autoFocus,
+  locked,
+  cartonCell,
   onSplit,
   onRemove,
 }: {
@@ -37,6 +39,10 @@ export function CountLineRow({
   /** Tổng SL đang đếm của dòng PO vượt SL còn mở → cảnh báo, vẫn cho lưu. */
   overOpen: boolean;
   autoFocus: boolean;
+  /** Dòng đã lưu có thùng (SCRUM-473): giữ lô + dòng PO, không bỏ khỏi phiếu. */
+  locked: boolean;
+  /** Ô "Thùng" (`CartonToggleCell`). */
+  cartonCell: ReactNode;
   onSplit: () => void;
   onRemove: () => void;
 }) {
@@ -74,12 +80,15 @@ export function CountLineRow({
           </p>
         )}
       </td>
+      {cartonCell}
       {/* BE gap: API PO chưa trả lotTracked / expiryTracked → luôn hiện ô lô + hạn dùng, BE kiểm khi lưu */}
       <td className="w-36 px-2 py-2">
         <Input
           id={id("lot")}
           aria-label={`Số lô dòng ${index + 1}`}
           maxLength={RECEIPT_LIMITS.codeMax}
+          readOnly={locked}
+          title={locked ? RECEIPT_CARTON_LABELS.lotLocked : undefined}
           aria-invalid={e?.lotNumber ? true : undefined}
           aria-describedby={describedBy("lot", !!e?.lotNumber)}
           className={`${CELL} font-[family-name:var(--font-mono)]`}
@@ -133,28 +142,7 @@ export function CountLineRow({
           {...register(`lines.${index}.note`)}
         />
       </td>
-      <td className="w-20 px-2 py-2">
-        <div className="flex gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={onSplit}
-            aria-label={`Tách lô dòng ${index + 1}`}
-          >
-            <Copy className="size-3.5" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={onRemove}
-            aria-label={`Xoá dòng ${index + 1}`}
-          >
-            <Trash2 className="text-danger size-3.5" />
-          </Button>
-        </div>
-      </td>
+      <CountLineActions lineNo={index + 1} locked={locked} onSplit={onSplit} onRemove={onRemove} />
     </tr>
   );
 }
