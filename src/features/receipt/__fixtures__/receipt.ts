@@ -4,7 +4,13 @@
  * + 6 TABLE-OAK-160 (3 bước QC, lô + hạn dùng), khu HCM-RCV01 / HCM-QCA01 / HCM-QC01 / HCM-RTV01.
  */
 
-import type { GoodsReceiptApiDto, ReceiptLineDto, ReceivablePo } from "../types";
+import type {
+  GoodsReceiptApiDto,
+  ReceiptLineDto,
+  ReceiptPackageDto,
+  ReceiptUnitDto,
+  ReceivablePo,
+} from "../types";
 
 export const PO_ID = "bd69ad30-f972-2fac-2cef-6f8eef44618c";
 export const SOFA_PO_LINE_ID = "931404fb-06e5-d326-c3f5-9e7bf831af8a";
@@ -41,7 +47,14 @@ export const receivablePo: ReceivablePo = {
 };
 
 export function apiLine(overrides: Partial<ReceiptLineDto> = {}): ReceiptLineDto {
+  const quantity = overrides.quantity ?? 6;
+  const inCartons = (overrides.packages ?? []).reduce((sum, p) => sum + p.receivedQty, 0);
   return {
+    unitOfMeasure: null,
+    looseQuantity: quantity - inCartons,
+    packages: [],
+    units: [],
+    orderedUnitOfMeasure: null,
     id: "a1b2c3d4-0000-4000-8000-000000000001",
     purchaseOrderLineId: TABLE_PO_LINE_ID,
     purchaseOrderLineNo: 2,
@@ -61,6 +74,49 @@ export function apiLine(overrides: Partial<ReceiptLineDto> = {}): ReceiptLineDto
     warnings: [],
     ...overrides,
   };
+}
+
+/** Đơn vị của mặt hàng như BE trả trên dòng (`units[]`): đơn vị cơ sở trước, rồi theo mã. */
+export const CARTON_UNITS: ReceiptUnitDto[] = [
+  { unitOfMeasure: "PCS", factor: 1, base: true, active: true, defaultPurchase: false },
+  { unitOfMeasure: "CARTON", factor: 1000, base: false, active: true, defaultPurchase: true },
+  { unitOfMeasure: "PACK", factor: 10, base: false, active: true, defaultPurchase: false },
+];
+
+export function cartonPackage(overrides: Partial<ReceiptPackageDto> = {}): ReceiptPackageDto {
+  return {
+    id: "c0000000-0000-4000-8000-000000000001",
+    lpn: "LPN-20261024-000001",
+    quantity: 1000,
+    receivedQty: 1000,
+    nominalQty: 1000,
+    status: "RECEIVING",
+    locationCode: "HCM-RCV01",
+    ...overrides,
+  };
+}
+
+/**
+ * Ví dụ của issue #104 / BE spec SCRUM-473 §3: dòng 4.990 đơn vị, thùng `…001` (1.000) và `…002` (980),
+ * phần lẻ 3.010, đếm theo CARTON (PO line đặt theo CARTON).
+ */
+export function cartonLine(overrides: Partial<ReceiptLineDto> = {}): ReceiptLineDto {
+  return apiLine({
+    quantity: 4990,
+    unitOfMeasure: "CARTON",
+    orderedUnitOfMeasure: "CARTON",
+    units: CARTON_UNITS,
+    packages: [
+      cartonPackage(),
+      cartonPackage({
+        id: "c0000000-0000-4000-8000-000000000002",
+        lpn: "LPN-20261024-000002",
+        quantity: 980,
+        receivedQty: 980,
+      }),
+    ],
+    ...overrides,
+  });
 }
 
 export function apiReceipt(overrides: Partial<GoodsReceiptApiDto> = {}): GoodsReceiptApiDto {

@@ -14,6 +14,7 @@ import {
   RECEIPT_API_STATUSES,
   RECEIPT_APPROVAL_DECISION_API,
   RECEIPT_QC_PROGRESS_API,
+  STOCK_PACKAGE_API_STATUSES,
 } from "@/constants";
 import { bePageSchema } from "@/lib/api/page-schema";
 
@@ -38,6 +39,33 @@ export const beInspectionSchema = z.object({
   inspectedAt: z.string(),
 });
 
+/**
+ * BE `GoodsReceiptResponse.Package` (SCRUM-473) — một thùng có LPN. `quantity`: trong thùng hiện còn (lúc đếm =
+ * số đếm); `receivedQty`: số đếm lúc nhận, chốt khi vào kho; `nominalQty`: sức chứa theo đơn vị đóng gói;
+ * `locationCode`: khu nhận → khu QC / cách ly → bin. Thùng VOID không được trả.
+ */
+export const beReceiptPackageSchema = z.object({
+  id: z.string(),
+  lpn: z.string(),
+  quantity: z.number().int().min(0),
+  receivedQty: z.number().int().min(0),
+  nominalQty: z.number().int().positive(),
+  status: z.enum(STOCK_PACKAGE_API_STATUSES),
+  locationCode: z.string().nullish(),
+});
+
+/**
+ * BE `GoodsReceiptResponse.Unit` — mọi đơn vị của mặt hàng trên dòng (đơn vị cơ sở trước, rồi theo mã): nguồn của
+ * ô chọn đơn vị thùng, để NV kho không cần quyền sản phẩm. `factor` = số đơn vị cơ sở trong một thùng.
+ */
+export const beReceiptUnitSchema = z.object({
+  unitOfMeasure: z.string(),
+  factor: z.number().int().positive(),
+  base: z.boolean(),
+  active: z.boolean(),
+  defaultPurchase: z.boolean(),
+});
+
 /** BE `GoodsReceiptResponse.Line`. `quantityForPutaway` = phần đang chờ cất lên bin. */
 export const beReceiptLineSchema = z.object({
   id: z.string(),
@@ -60,6 +88,13 @@ export const beReceiptLineSchema = z.object({
   inspections: z.array(beInspectionSchema).default([]),
   // Cảnh báo không chặn của BE: `OVER_TOLERANCE` (BR-RCP-001), `EXPIRY_NEAR` (BR-06)
   warnings: z.array(z.string()).default([]),
+  // SCRUM-473: đơn vị đóng gói của các thùng (null = dòng lẻ, đơn vị cơ sở); phần không vào thùng nào
+  unitOfMeasure: z.string().nullish(),
+  looseQuantity: z.number().int().min(0),
+  packages: z.array(beReceiptPackageSchema).default([]),
+  units: z.array(beReceiptUnitSchema).default([]),
+  // BE #219: đơn vị dòng PO được đặt theo — để chọn sẵn; null khi đặt theo đơn vị cơ sở / phiếu không có PO
+  orderedUnitOfMeasure: z.string().nullish(),
 });
 
 /**

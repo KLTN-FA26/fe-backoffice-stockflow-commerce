@@ -19,6 +19,8 @@ import type {
   beInspectionSchema,
   beReceiptApprovalSchema,
   beReceiptLineSchema,
+  beReceiptPackageSchema,
+  beReceiptUnitSchema,
   receivablePoLineSchema,
   receivablePoSchema,
   supplierOptionSchema,
@@ -32,6 +34,8 @@ export type GoodsReceiptRowApiDto = z.infer<typeof beGoodsReceiptRowSchema>;
 export type ReceiptLineDto = z.infer<typeof beReceiptLineSchema>;
 export type QcInspectionDto = z.infer<typeof beInspectionSchema>;
 export type ReceiptApprovalDto = z.infer<typeof beReceiptApprovalSchema>;
+export type ReceiptPackageDto = z.infer<typeof beReceiptPackageSchema>;
+export type ReceiptUnitDto = z.infer<typeof beReceiptUnitSchema>;
 export type ReceivablePo = z.infer<typeof receivablePoSchema>;
 export type ReceivablePoLine = z.infer<typeof receivablePoLineSchema>;
 export type SupplierOption = z.infer<typeof supplierOptionSchema>;

@@ -15,6 +15,8 @@ export type { SemanticTone };
 
 const TONE: Record<SemanticTone, readonly string[]> = {
   positive: [
+    // Thùng đã vào kho, chưa mở (BE StockPackageStatus.IN_STOCK, SCRUM-473)
+    "In Stock",
     // Stock adjustment (BE StockAdjustmentStatus, SCRUM-424)
     STOCK_ADJUSTMENT_STATUS.POSTED,
     "DELIVERED",
@@ -58,6 +60,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "DISPATCHED",
   ],
   info: [
+    // Thùng đang được đếm trên phiếu nhận nháp (BE StockPackageStatus.RECEIVING, SCRUM-473)
+    "Receiving",
     // Khách hàng chưa kích hoạt tài khoản (BE CustomerStatus.PENDING_ACTIVATION)
     "PENDING_ACTIVATION",
     "QUEUED",
@@ -133,6 +137,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "In QC",
   ],
   danger: [
+    // Thùng thất lạc — chỉ ghi qua điều chỉnh tồn đã duyệt (BE StockPackageStatus.LOST)
+    "Lost",
     "Blacklisted",
     "FAILED",
     "REJECTED",
@@ -172,6 +178,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Open",
   ],
   muted: [
+    // Thùng đã lấy hết hàng — kết thúc (BE StockPackageStatus.CONSUMED)
+    "Consumed",
     // Dòng lấy hàng đã trả về kệ sau khi đơn huỷ — kết thúc (BE PickLineStatus.PUT_BACK, SCRUM-275)
     "Put Back",
     "UNKNOWN",
@@ -224,6 +232,11 @@ export function toneOf(status: string): SemanticTone {
 
 /** Nhãn tiếng Việt cho status (song ngữ hiển thị trong tooltip/title). */
 export const STATUS_LABEL_VI: Record<string, string> = {
+  // Thùng có LPN (BE StockPackageStatus, SCRUM-473)
+  Receiving: "Đang nhận",
+  "In Stock": "Trong kho",
+  Consumed: "Đã dùng hết",
+  Lost: "Thất lạc",
   // PO — BE D4 (PR #71). CONFIRMED = đã chốt và gửi NCC; dùng chung nhãn với phản hồi NCC.
   DRAFT: "Nháp",
   PENDING_APPROVAL: "Chờ duyệt",

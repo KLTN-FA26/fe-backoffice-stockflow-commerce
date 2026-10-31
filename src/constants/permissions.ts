@@ -117,6 +117,17 @@ export const QC_TASK_PERMISSIONS = {
 } as const;
 
 /**
+ * Thùng có LPN — resource `inventory-stock-packages` (BE StockPackageController, SCRUM-473; seed
+ * V20261020000700). CREATE = in / in lại nhãn thùng: NV kho + Quản lý kho; Planner và NV QC chỉ READ.
+ */
+export const STOCK_PACKAGE_PERMISSIONS = {
+  viewPage: "inventory-stock-packages:VIEW_PAGE",
+  read: "inventory-stock-packages:READ",
+  create: "inventory-stock-packages:CREATE",
+  update: "inventory-stock-packages:UPDATE",
+} as const;
+
+/**
  * Màn Đơn đặt NCC — resource `procurement-purchase-orders` (BE PurchaseOrderController).
  * VIEW_PAGE chỉ dùng cho menu + chặn route; mọi API đọc cần READ (BE Action.java, ADR-0004).
  */
