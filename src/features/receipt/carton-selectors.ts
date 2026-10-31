@@ -1,0 +1,99 @@
+/**
+ * Thùng có LPN trên dòng phiếu nhận (BE SCRUM-473 #197, spec `2026-10-26-scrum-473-receive-in-cartons-design.md`) —
+ * selectors THUẦN, derive từ data đã parse.
+ */
+
+import type { ReceiptLineDto, ReceiptPackageDto, ReceiptUnitDto } from "./types";
+
+/** Nguồn đơn vị của một dòng: `units[]` BE trả trên dòng đã lưu + đơn vị hiện tại / đơn vị đặt trên PO. */
+export interface CartonUnitSource {
+  units: readonly ReceiptUnitDto[];
+  unitOfMeasure?: string | null;
+  orderedUnitOfMeasure?: string | null;
+}
+
+/** BE lưu mã đơn vị chữ hoa (`ck_uom_conversions_unit`): "carton" = CARTON. */
+const sameUnit = (a: string | null | undefined, b: string | null | undefined) =>
+  !!a && !!b && a.toUpperCase() === b.toUpperCase();
+
+/**
+ * Đơn vị thùng chọn được — SCRUM-473 §3 rule 3: đơn vị đóng gói (không phải đơn vị cơ sở) đang dùng. Đơn vị đã ngưng
+ * dùng vẫn nhận nếu là đơn vị của dòng hoặc đơn vị dòng PO được đặt (BE #219, `GoodsReceiptServiceImpl#cartonUnit`).
+ */
+export function cartonUnitOptions(source: CartonUnitSource): ReceiptUnitDto[] {
+  return source.units.filter(
+    (unit) =>
+      !unit.base &&
+      (unit.active ||
+        sameUnit(unit.unitOfMeasure, source.unitOfMeasure) ||
+        sameUnit(unit.unitOfMeasure, source.orderedUnitOfMeasure)),
+  );
+}
+
+/**
+ * Đơn vị chọn sẵn (issue #104 + BE #219): đơn vị của dòng → đơn vị đặt trên PO → đơn vị mua mặc định → đơn vị đóng
+ * gói duy nhất. Không đoán được → null, người dùng tự chọn.
+ */
+export function defaultCartonUnit(source: CartonUnitSource): string | null {
+  const options = cartonUnitOptions(source);
+  const find = (code: string | null | undefined) =>
+    options.find((unit) => sameUnit(unit.unitOfMeasure, code))?.unitOfMeasure;
+  return (
+    find(source.unitOfMeasure) ??
+    find(source.orderedUnitOfMeasure) ??
+    options.find((unit) => unit.defaultPurchase)?.unitOfMeasure ??
+    (options.length === 1 ? (options[0]?.unitOfMeasure ?? null) : null)
+  );
+}
+
+/** Số đơn vị cơ sở trong một thùng của đơn vị `code`; null nếu mặt hàng không có đơn vị đó. */
+export function unitFactorOf(units: readonly ReceiptUnitDto[], code: string): number | null {
+  return units.find((unit) => sameUnit(unit.unitOfMeasure, code))?.factor ?? null;
+}
+
+/** Tổng đã đếm vào thùng. */
+export function countedIntoCartons(packages: readonly { quantity: number }[]): number {
+  return packages.reduce((sum, carton) => sum + (Number(carton.quantity) || 0), 0);
+}
+
+/** SCRUM-473 §3 rule 5: phần không vào thùng nào là hàng lẻ. Âm = thùng vượt SL dòng (form báo lỗi). */
+export function looseRemainder(
+  quantity: number,
+  packages: readonly { quantity: number }[],
+): number {
+  return quantity - countedIntoCartons(packages);
+}
+
+/** `count` thùng mới (chưa có LPN — BE cấp khi lưu), mỗi thùng điền sẵn sức chứa của đơn vị. */
+export function newCartons(count: number, factor: number): { lpn: ""; quantity: number }[] {
+  return Array.from({ length: count }, () => ({ lpn: "" as const, quantity: factor }));
+}
+
+/** Thùng còn hiệu lực (in / in lại nhãn được): RECEIVING hoặc IN_STOCK — BE từ chối VOID / CONSUMED / LOST. */
+export function liveCartons(line: Pick<ReceiptLineDto, "packages">): ReceiptPackageDto[] {
+  return line.packages.filter(
+    (carton) => carton.status === "RECEIVING" || carton.status === "IN_STOCK",
+  );
+}
+
+/**
+ * Dòng có thùng thì giữ dòng PO + lô và không bỏ khỏi phiếu nháp được (BE `RECEIPT_LINE_HAS_PACKAGES`). FE chỉ
+ * thấy thùng chưa VOID; dòng từng có thùng nay đã VOID hết vẫn bị BE từ chối — lỗi đó map về dòng khi lưu.
+ */
+export function lineLockedByCartons(line: Pick<ReceiptLineDto, "packages">): boolean {
+  return line.packages.length > 0;
+}
+
+/**
+ * Đơn vị theo SKU, lấy từ các dòng đã lưu (Q1 đã duyệt 2026-10-31): dòng chưa lưu cùng SKU (vd vừa "Tách lô") dùng
+ * lại được, vì đơn vị thuộc mặt hàng chứ không thuộc dòng.
+ */
+export function unitsBySku(
+  lines: readonly Pick<ReceiptLineDto, "sku" | "units">[],
+): ReadonlyMap<string, readonly ReceiptUnitDto[]> {
+  const map = new Map<string, readonly ReceiptUnitDto[]>();
+  for (const line of lines) {
+    if (line.sku && line.units.length > 0 && !map.has(line.sku)) map.set(line.sku, line.units);
+  }
+  return map;
+}
