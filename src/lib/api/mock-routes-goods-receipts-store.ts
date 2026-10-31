@@ -13,7 +13,7 @@ import {
   readRouteId,
   readString,
 } from "./mock-routes-purchase-orders-store";
-import { cartonLineView } from "./mock-receipt-cartons";
+import { cartonLineView, resetMockCartons } from "./mock-receipt-cartons";
 
 import type { MockReceiptPackage } from "./mock-receipt-cartons";
 import type { MockBePo } from "./mock-routes-purchase-orders-store";
@@ -372,6 +372,7 @@ export async function getReceiptStore(): Promise<Map<string, MockReceipt>> {
 export function resetReceiptMockStore(): void {
   store = null;
   sequence = 0;
+  resetMockCartons();
 }
 
 /* ── Helpers dùng chung cho routes phiếu + QC ────────────────────────── */

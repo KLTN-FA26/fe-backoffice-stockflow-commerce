@@ -24,6 +24,7 @@ import {
   rejectBlindReceipt,
   rejectReceiptExcess,
 } from "./api";
+import { printCartonLabels } from "./carton-api";
 import { replaceBlindReceiptLines, replaceReceiptLines } from "./count-api";
 import { listSupplierOptions, listWarehouseOptions } from "./lookup-api";
 import { getReceivablePurchaseOrder, listReceivablePurchaseOrders } from "./receivable-po-api";
@@ -485,4 +486,92 @@ describe("goods receipt mock ↔ hợp đồng BE PR #62", () => {
   it("phiếu không tồn tại → 404 GOODS_RECEIPT_NOT_FOUND", async () => {
     expect(await codeOf(getGoodsReceipt("missing"))).toBe("GOODS_RECEIPT_NOT_FOUND");
   });
+});
+
+describe("goods receipt mock ↔ hợp đồng BE #197 — thùng có LPN (SCRUM-473)", () => {
+  it(
+    "đếm thùng → LPN, đếm lại / bỏ thùng (VOID), vượt dòng 422, xác nhận → IN_STOCK, in nhãn PDF",
+    async () => {
+      const po = await receivablePo();
+      const draft = await createGoodsReceipt({
+        purchaseOrderId: po.purchaseOrderId,
+        deliveryNote: "",
+        note: "",
+      });
+      const line = { ...(await validLine(po, 0, 25)), unitOfMeasure: "CARTON" };
+
+      const labelled = await replaceReceiptLines({
+        receiptId: draft.id,
+        lines: [
+          {
+            ...line,
+            packages: [
+              { lpn: "", quantity: 10 },
+              { lpn: "", quantity: 9 },
+            ],
+          },
+        ],
+      });
+      const first = labelled.lines[0];
+      expect(first).toMatchObject({ unitOfMeasure: "CARTON", looseQuantity: 6 });
+      expect(first?.packages.map((p) => [p.status, p.receivedQty, p.nominalQty])).toEqual([
+        ["RECEIVING", 10, 10],
+        ["RECEIVING", 9, 10],
+      ]);
+      const [kept, dropped] = first?.packages.map((p) => p.lpn) ?? [];
+      expect(kept).toMatch(/^LPN-\d{8}-\d{6}$/);
+
+      // Đếm lại: giữ thùng 1 (đổi SL), bỏ thùng 2 → VOID, không còn trong response
+      const recounted = await replaceReceiptLines({
+        receiptId: draft.id,
+        lines: [{ ...line, packages: [{ lpn: kept ?? "", quantity: 8 }] }],
+      });
+      expect(recounted.lines[0]?.id).toBe(first?.id);
+      expect(recounted.lines[0]?.packages.map((p) => [p.lpn, p.quantity])).toEqual([[kept, 8]]);
+      expect(recounted.lines[0]?.packages.some((p) => p.lpn === dropped)).toBe(false);
+
+      // Thùng vượt dòng → 422 ở lines[0].packages; đơn vị đóng gói không thùng → 422
+      const over = await replaceReceiptLines({
+        receiptId: draft.id,
+        lines: [{ ...line, packages: [{ lpn: "", quantity: 26 }] }],
+      }).catch((e: unknown) => e);
+      expect(over).toMatchObject({
+        status: 422,
+        code: "RECEIPT_PACKAGES_EXCEED_LINE",
+        fieldCodes: { "lines[0].packages": "RECEIPT_PACKAGES_EXCEED_LINE" },
+      });
+
+      // In nhãn cả dòng → PDF; LPN đã VOID → 404
+      const pdf = await printCartonLabels({ receiptLineId: first?.id ?? "", format: "A4_SHEET" });
+      expect(pdf.blob.type).toBe("application/pdf");
+      expect(pdf.fileName).toBe("carton-labels-mock.pdf");
+      expect(
+        await codeOf(printCartonLabels({ lpns: [dropped ?? ""], format: "THERMAL_ROLL" })),
+      ).toBe("STOCK_PACKAGE_NOT_FOUND");
+
+      const confirmed = await confirmGoodsReceipt(draft.id);
+      expect(confirmed.lines[0]?.packages.map((p) => p.status)).toEqual(["IN_STOCK"]);
+    },
+    FLOW_TIMEOUT_MS,
+  );
+
+  it(
+    "huỷ phiếu nháp có thùng → thùng VOID (không còn trên dòng)",
+    async () => {
+      const po = await receivablePo();
+      const draft = await createGoodsReceipt({
+        purchaseOrderId: po.purchaseOrderId,
+        deliveryNote: "",
+        note: "",
+      });
+      const line = { ...(await validLine(po, 0, 10)), unitOfMeasure: "CARTON" };
+      await replaceReceiptLines({
+        receiptId: draft.id,
+        lines: [{ ...line, packages: [{ lpn: "", quantity: 10 }] }],
+      });
+      const cancelled = await cancelGoodsReceipt(draft.id);
+      expect(cancelled.lines[0]?.packages).toEqual([]);
+    },
+    FLOW_TIMEOUT_MS,
+  );
 });
