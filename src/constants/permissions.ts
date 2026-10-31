@@ -278,7 +278,15 @@ export const CUSTOMER_PERMISSIONS = {
  * và `GET /locations/{code}`. WAREHOUSE_STAFF có VIEW_PAGE/READ (seed V20260928006000).
  */
 export const WAREHOUSE_LOCATION_PERMISSIONS = {
+  // Trang bản đồ kho `/admin/warehouse-map` (`WarehouseLocationResourceDeclaration.route`)
+  viewPage: "warehouse-locations:VIEW_PAGE",
   read: "warehouse-locations:READ",
+  // Thêm zone / kệ / tầng / bin / khu vực / tường-cửa — chỉ Quản lý kho, System Admin (docs 06 §2)
+  create: "warehouse-locations:CREATE",
+  // Sửa và đổi trạng thái kệ / bin / khu vực, mở-đóng cửa
+  update: "warehouse-locations:UPDATE",
+  // Chỉ tường / cửa xoá hẳn được; kệ, bin, khu vực, zone không xoá (BR-04)
+  delete: "warehouse-locations:DELETE",
 } as const;
 
 /**
@@ -438,7 +446,12 @@ export const FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS = {
  * V20261017000800 thêm SALES_STAFF; QC_STAFF không có.
  */
 export const WAREHOUSE_PERMISSIONS = {
+  // Trang danh mục kho `/admin/warehouses` (`WarehouseController` @PermissionResource route)
+  viewPage: "warehouse-warehouses:VIEW_PAGE",
   read: "warehouse-warehouses:READ",
+  // Khai báo kho mới — `POST /warehouses` (Quản lý kho / System Admin, docs 06 §2)
+  create: "warehouse-warehouses:CREATE",
+  update: "warehouse-warehouses:UPDATE",
 } as const;
 
 /** BE develop IdentityResources / IdentityController: read-only RBAC screen APIs. */

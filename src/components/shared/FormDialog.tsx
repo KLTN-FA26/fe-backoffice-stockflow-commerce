@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "cn";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -22,15 +23,23 @@ import { LayeredDialogContent } from "./LayeredDialogContent";
 export function FormDialog({
   open,
   onOpenChange,
+  className,
   children,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Ghi đè cỡ (vd form nhiều khối cần rộng hơn `sm:max-w-[520px]` mặc định). */
+  className?: string;
   children: React.ReactNode;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <LayeredDialogContent className="border-border-default bg-bg-surface gap-0 rounded-[var(--r-xl)] border p-0 shadow-[var(--sh-lg)] ring-0 sm:max-w-[520px]">
+      <LayeredDialogContent
+        className={cn(
+          "border-border-default bg-bg-surface gap-0 rounded-[var(--r-xl)] border p-0 shadow-[var(--sh-lg)] ring-0 sm:max-w-[520px]",
+          className,
+        )}
+      >
         {children}
       </LayeredDialogContent>
     </Dialog>

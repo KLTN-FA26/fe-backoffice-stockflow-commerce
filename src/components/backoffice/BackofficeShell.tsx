@@ -15,6 +15,7 @@ import {
   LayoutDashboard,
   Lightbulb,
   ListChecks,
+  Map as MapIcon,
   MapPin,
   Move,
   Package,
@@ -68,10 +69,14 @@ import {
   TRANSFER_PERMISSIONS,
   UI_LABELS,
   VEHICLE_TYPE_PERMISSIONS,
+  WAREHOUSE_LOCATION_PERMISSIONS,
+  WAREHOUSE_PERMISSIONS,
 } from "@/constants";
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 
 import { NotificationBell } from "@/features/notification";
+import { warehouseBreadcrumbTail } from "@/features/warehouse-map/components/workspace/WarehouseCrumb";
+import { WarehouseNavPanel } from "@/features/warehouse-map/components/workspace/WarehouseNavPanel";
 
 import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { useAppStore } from "@/lib/store/use-app-store";
@@ -96,6 +101,7 @@ import { SidebarFooterBar } from "./SidebarFooterBar";
 import { SidebarNav } from "./SidebarNav";
 
 import type { LucideIcon } from "lucide-react";
+import type { ComponentType } from "react";
 import type { PermissionCode } from "@/lib/auth/me-permissions";
 /* -------------------------------------------------------------------------- */
 /*  Warning dot counts — computed from mock data (mock mode only: the BE has */
@@ -136,6 +142,8 @@ export interface NavItem {
   anyPermission?: readonly PermissionCode[];
   /** Màn chỉ chạy được trên mock (BE chưa có API) — ẩn khi nối BE thật. */
   mockOnly?: boolean;
+  /** Breadcrumb riêng cho các đoạn URL sau `href` (vd `[kho ⇅] / Bản đồ kho`) thay cách đọc id mặc định. */
+  breadcrumbTail?: (rest: readonly string[]) => BreadcrumbItem[];
 }
 
 export interface NavGroup {
@@ -143,6 +151,10 @@ export interface NavGroup {
   title: string;
   icon: LucideIcon;
   items: NavItem[];
+  /** Màn con riêng thay danh sách item mặc định (vd tab "Kho & bản đồ": chọn kho → trang của kho). */
+  panel?: ComponentType;
+  /** Bấm item cha thì đi thẳng tới trang này (thay vì chỉ mở màn con). */
+  href?: string;
 }
 
 export const NAV_GROUPS: NavGroup[] = [
@@ -277,16 +289,6 @@ export const NAV_GROUPS: NavGroup[] = [
         permission: INVENTORY_ITEM_PERMISSIONS.viewPage,
       },
       {
-        label: "Kho map & slotting",
-        href: "/admin/warehouse-map",
-        icon: MapPin,
-      },
-      {
-        label: "Gợi ý vị trí",
-        href: "/admin/slotting",
-        icon: Lightbulb,
-      },
-      {
         label: UI_LABELS.transfer.pageTitle,
         href: ADMIN_ROUTES.transfers.list,
         icon: ArrowRightLeft,
@@ -310,6 +312,31 @@ export const NAV_GROUPS: NavGroup[] = [
         href: INVENTORY_ROUTES.movements,
         icon: HistoryIcon,
         permission: INVENTORY_PERMISSIONS.movementViewPage,
+      },
+    ],
+  },
+  {
+    // Module 06 tách tab riêng: luôn chọn kho làm việc trước (panel riêng), trang theo kho dưới prefix
+    title: UI_LABELS.warehouseMap.workspace.navGroup,
+    icon: MapPin,
+    // Vào tab là tới thẳng Danh mục kho — nơi chọn kho làm việc
+    href: ADMIN_ROUTES.warehouses.list,
+    panel: WarehouseNavPanel,
+    items: [
+      {
+        label: UI_LABELS.warehouseMap.listTitle,
+        href: ADMIN_ROUTES.warehouses.list,
+        icon: WarehouseIcon,
+        // BE WarehouseController @PermissionResource route `/admin/warehouses`
+        permission: WAREHOUSE_PERMISSIONS.viewPage,
+      },
+      {
+        label: UI_LABELS.warehouseMap.workspace.navGroup,
+        href: ADMIN_ROUTES.warehouseMap.root,
+        icon: MapIcon,
+        // BE WarehouseLocationResourceDeclaration route `/admin/warehouse-map`
+        permission: WAREHOUSE_LOCATION_PERMISSIONS.viewPage,
+        breadcrumbTail: warehouseBreadcrumbTail,
       },
     ],
   },
@@ -383,9 +410,11 @@ export const NAV_GROUPS: NavGroup[] = [
 /*  Breadcrumb helper                                                        */
 /* -------------------------------------------------------------------------- */
 
-interface BreadcrumbItem {
+export interface BreadcrumbItem {
   label: string;
   href?: string;
+  /** Hiện component này thay chữ (vd nút đổi kho kiểu Vercel); `label` vẫn là tên cho test / a11y. */
+  render?: ComponentType;
 }
 
 /** Đoạn cuối URL là trang con của một bản ghi: `/<module>/<id>/<đoạn>` → "… / <id> / <nhãn>". */
@@ -462,6 +491,13 @@ export function buildBreadcrumbItems(
   const linkable = canSeeItem(navItem);
   items.push({ label: navItem.label, href: isListPage || !linkable ? undefined : navItem.href });
 
+  if (!isListPage && navItem.breadcrumbTail) {
+    const rest = pathname
+      .slice(navItem.href.length + 1)
+      .split("/")
+      .filter(Boolean);
+    return [...items, ...navItem.breadcrumbTail(rest)];
+  }
   if (!isListPage) {
     const rest = pathname
       .slice(navItem.href.length + 1)
@@ -685,7 +721,9 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
                     className="flex min-w-0 items-center gap-1.5"
                   >
                     {index > 0 && <span className="opacity-50">/</span>}
-                    {item.href ? (
+                    {item.render ? (
+                      <item.render />
+                    ) : item.href ? (
                       <Link
                         href={item.href}
                         className="text-ink-secondary hover:text-ink-primary truncate transition-colors"

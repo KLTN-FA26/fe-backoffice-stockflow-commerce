@@ -366,3 +366,101 @@ export const LOAD_PLAN_LIMITS = {
   /** `LoadPlacementsRequest.Vehicle.boxes` và `tray` @Size(max = 2000). */
   placementBoxesMax: 2000,
 } as const;
+
+/**
+ * Giới hạn bản đồ kho — BE `RegisterWarehouseRequest`, `ShelfRequests`, `BinGrid` (docs 06 §3, §6).
+ * Số đo tính bằng mét (`MapUnit.M`), tối đa 3 số lẻ (`@Digits(integer = 7, fraction = 3)`).
+ */
+export const WAREHOUSE_MAP_LIMITS = {
+  /** BR-10: prefix 1–10 ký tự A–Z0–9. */
+  prefixMax: 10,
+  nameMax: 200,
+  addressMax: 500,
+  zoneNameMax: 100,
+  /** BR-10: mã kệ / bin / khu vực ≤ 20 ký tự. */
+  codeMax: 20,
+  descriptionMax: 1000,
+  /** `@Digits(integer = 7)` — phần nguyên tối đa 7 chữ số. */
+  measureMax: 9_999_999,
+  measureFractionDigits: 3,
+  /** BR-15: tối đa 20 tầng mỗi kệ, 200 bin mỗi tầng. */
+  levelsPerShelfMax: 20,
+  binsPerLevelMax: 200,
+  /** `AddLevel.levelIndex` @Min(1) @Max(99). */
+  levelIndexMax: 99,
+  /** BR-14: ROW_LETTER_COLUMN dùng chữ A–Z cho hàng → tối đa 26 hàng. */
+  letterRowsMax: 26,
+  /** BR-09: góc xoay chỉ 0 / 90 / 180 / 270. */
+  rotations: [0, 90, 180, 270],
+  /** Gợi ý mặc định khi thêm kệ — chiều cao một tầng (m), dùng cho cao độ tầng kế tiếp. */
+  defaultLevelHeight: 1.5,
+  /** Bước lưới vẽ 2D (m): vạch mảnh mỗi 1 m, vạch đậm mỗi 5 m. */
+  gridMinor: 1,
+  gridMajor: 5,
+  /** Chiều cao tường vẽ 3D (m) — chỉ trực quan, BE không lưu chiều cao tường. */
+  wallHeight3d: 3,
+  /** Chế độ sửa: kéo / vẽ bám lưới 0,5 m; phím mũi tên dời 0,1 m (Shift: 1 m) — chỉnh tinh ở bảng thông số. */
+  snapStep: 0.5,
+  nudgeStep: 0.1,
+  nudgeStepLarge: 1,
+  /** Kéo ngắn hơn cạnh này (m) coi như bấm nhầm, không tạo hình. */
+  minDrawSize: 0.5,
+  /** Gợi ý mặc định cho kệ vừa vẽ — 2 tầng, mỗi tầng 1 hàng × 2 cột bin (như kệ demo BE). */
+  defaultLevelCount: 2,
+  defaultBinRows: 1,
+  defaultBinColumns: 2,
+  /** Zoom bản đồ 2D: 1 = vừa khung; nút / phím +− nhân `zoomStep`; lăn chuột zoom mượt theo con trỏ. */
+  zoomMin: 1,
+  zoomMax: 6,
+  zoomStep: 1.25,
+  /** Chuột dịch quá số px này thì là kéo bản đồ, không phải bấm chọn. */
+  panThreshold: 4,
+  /** Số bước hoàn tác (Ctrl+Z) giữ trong chế độ sửa — đủ cho một phiên vẽ, không phình bộ nhớ. */
+  historyLimit: 100,
+  /** Số dòng tồn đọc để biết một khu vực còn hàng (lọc theo tiền tố mã, so khớp đúng mã ở client). */
+  stockProbeSize: 20,
+  /** Số dòng tồn đọc cho một kệ khi xem hàng trên kệ ở 3D. */
+  shelfStockSize: 100,
+  /** Tồn cả kho cho toàn cảnh 3D: đọc theo trang cỡ này, dừng ở trần dòng — kho lớn hơn thì báo một phần. */
+  warehouseStockPageSize: 200,
+  warehouseStockMaxRows: 2000,
+} as const;
+
+/**
+ * Kích thước vẽ cảnh 3D bản đồ kho (m) — chỉ để nhìn giống kệ pallet thật (selective racking); BE không
+ * lưu các số này (BR-05: bản đồ chỉ trực quan).
+ */
+export const WAREHOUSE_MAP_3D = {
+  /** Cột khung (upright) và thanh giằng chéo. */
+  post: 0.08,
+  brace: 0.025,
+  /** Khoảng cao giữa hai mối giằng chéo trên một khung. */
+  braceStep: 1.1,
+  /** Thanh beam ngang: cao × sâu. */
+  beamHeight: 0.11,
+  beamDepth: 0.05,
+  /** Tấm sàn lưới trên beam. */
+  deck: 0.025,
+  /** Pallet gỗ (cao) và thùng nhựa (cao tối đa). */
+  pallet: 0.14,
+  tote: 0.32,
+  /** Tấm nhãn vị trí gắn trên beam. */
+  labelWidth: 0.26,
+  labelHeight: 0.07,
+  /** Tường cắt thấp để nhìn được vào trong kho. */
+  wallCutaway: 1.1,
+  wallThickness: 0.2,
+  /** Vạch sơn khu vực trên sàn. */
+  tape: 0.1,
+  /** Độ phân giải bóng đổ — đủ mịn cho kho vài chục mét, không quá nặng. */
+  shadowMap: 2048,
+  /** Thùng carton: cao tối đa, khe giữa hai thùng. */
+  cartonHeight: 0.32,
+  cartonGap: 0.03,
+  // ASSUMPTION (open-question D06-3D): BE không trả quy cách đóng thùng — quy ước 12 đơn vị / thùng
+  // chỉ để quy số lượng tồn ra số thùng vẽ; dòng tồn ẩn số lượng (đang kiểm kê) vẽ nửa ô.
+  cartonUnits: 12,
+  /** Khoảng cách camera khi bay tới kệ / khu vực đang chọn (m). */
+  focusMin: 3.5,
+  focusMax: 28,
+} as const;

@@ -1,10 +1,24 @@
 import { describe, expect, it } from "vitest";
 
+import { ADMIN_ROUTES } from "@/constants";
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 
 import { buildBreadcrumbItems } from "./BackofficeShell";
 
 describe("buildBreadcrumbItems", () => {
+  it('trang của một kho: "Kho & bản đồ / <kho ⇅> / <trang>" theo prefix trên URL', () => {
+    const items = buildBreadcrumbItems(ADMIN_ROUTES.warehouseMap.slotting("BD"));
+    expect(items.map((item) => item.label)).toEqual([
+      "Back-office",
+      "Kho & bản đồ",
+      "BD",
+      "Gợi ý vị trí",
+    ]);
+    expect(items[1]?.href).toBe(ADMIN_ROUTES.warehouseMap.root);
+    // Đoạn kho là nút đổi kho (component), không phải chữ
+    expect(items[2]?.render).toBeDefined();
+  });
+
   it("đăng ký route Inventory trong điều hướng back-office", () => {
     expect(buildBreadcrumbItems(INVENTORY_ROUTES.overview)).toEqual([
       { label: "Back-office", href: "/admin" },

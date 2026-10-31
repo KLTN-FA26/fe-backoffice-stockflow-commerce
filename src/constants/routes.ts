@@ -97,6 +97,22 @@ export const ADMIN_ROUTES = {
     detail: (id: string) => `${ADMIN_BASE}/loads/${id}`,
     manifest: (id: string) => `${ADMIN_BASE}/loads/${id}/manifest`,
   },
+  /** Danh mục kho — BE `WarehouseController` (resource `warehouse-warehouses`, docs 06 §4.1 bước 1). */
+  warehouses: {
+    // Khai báo kho mới là modal trên trang này (không có route riêng)
+    list: `${ADMIN_BASE}/warehouses`,
+  },
+  /**
+   * Tab "Kho & bản đồ" (module 06) — `root` là bước chọn kho; trang làm việc theo một kho nằm dưới prefix
+   * kho (duy nhất, không đổi — BR-10 / BR-13). Tiền tố `/admin/warehouse-map` = route BE khai báo cho
+   * resource `warehouse-locations` (`LayoutController`).
+   */
+  warehouseMap: {
+    root: `${ADMIN_BASE}/warehouse-map`,
+    of: (prefix: string) => `${ADMIN_BASE}/warehouse-map/${encodeURIComponent(prefix)}`,
+    slotting: (prefix: string) =>
+      `${ADMIN_BASE}/warehouse-map/${encodeURIComponent(prefix)}/slotting`,
+  },
   /** Danh mục loại xe (container, xe tải, bán tải) — BE `VehicleTypeController`, PR #153. */
   vehicleTypes: `${ADMIN_BASE}/vehicle-types`,
   /** Kế hoạch xếp xe (SCRUM-287 PR F4): danh sách, lập mới, chi tiết — BE `LoadPlanController`, PR #161. */
