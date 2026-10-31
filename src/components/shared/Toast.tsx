@@ -67,13 +67,25 @@ export function ToastProvider() {
   );
 }
 
-function fireToast(tone: ToastTone, title: string, description?: string) {
-  sonnerToast.custom(() => <ToastContent tone={tone} title={title} description={description} />);
+/** `id`: toast mới cùng id thay toast cũ thay vì chồng thêm (vd giữ phím lặp lại cùng một cảnh báo). */
+export interface ToastOptions {
+  id?: string;
+}
+
+function fireToast(tone: ToastTone, title: string, description?: string, options?: ToastOptions) {
+  sonnerToast.custom(
+    () => <ToastContent tone={tone} title={title} description={description} />,
+    options,
+  );
 }
 
 export const toast = {
-  success: (title: string, description?: string) => fireToast("success", title, description),
-  error: (title: string, description?: string) => fireToast("error", title, description),
-  warning: (title: string, description?: string) => fireToast("warning", title, description),
-  info: (title: string, description?: string) => fireToast("info", title, description),
+  success: (title: string, description?: string, options?: ToastOptions) =>
+    fireToast("success", title, description, options),
+  error: (title: string, description?: string, options?: ToastOptions) =>
+    fireToast("error", title, description, options),
+  warning: (title: string, description?: string, options?: ToastOptions) =>
+    fireToast("warning", title, description, options),
+  info: (title: string, description?: string, options?: ToastOptions) =>
+    fireToast("info", title, description, options),
 };
