@@ -202,4 +202,58 @@ describe("ConfirmDialog", () => {
     const reason = screen.getByRole("textbox");
     expect(extra.compareDocumentPosition(reason) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
+
+  it("reasonMinLength: dưới ngưỡng thì khoá xác nhận và nhắc số ký tự; đủ rồi thì mở", async () => {
+    const onConfirm = vi.fn();
+    render(
+      <ConfirmDialog
+        open
+        onOpenChange={vi.fn()}
+        title="Khoá tài khoản"
+        description="Mô tả"
+        requireReason
+        reasonLabel="Lý do"
+        reasonMinLength={5}
+        reasonMaxLength={500}
+        confirmLabel="Khoá"
+        onConfirm={onConfirm}
+      />,
+    );
+    const confirm = screen.getByRole("button", { name: "Khoá" });
+
+    await userEvent.type(screen.getByLabelText(/Lý do/), "  ab  ");
+    expect(confirm).toBeDisabled();
+    expect(screen.getByText("Nhập tối thiểu 5 ký tự")).toBeInTheDocument();
+
+    await userEvent.type(screen.getByLabelText(/Lý do/), "cde");
+    expect(confirm).toBeEnabled();
+    await userEvent.click(confirm);
+    expect(onConfirm).toHaveBeenCalledWith("  ab  cde");
+  });
+
+  it("reasonMinLength counts code points after trimming Unicode spaces", async () => {
+    render(
+      <ConfirmDialog
+        open
+        onOpenChange={vi.fn()}
+        title="Khoá"
+        description="Mô tả"
+        requireReason
+        reasonLabel="Lý do"
+        reasonMinLength={5}
+        confirmLabel="Khoá"
+        onConfirm={vi.fn()}
+      />,
+    );
+    const box = screen.getByLabelText(/Lý do/);
+    const confirm = screen.getByRole("button", { name: "Khoá" });
+
+    await userEvent.type(box, "\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0");
+    expect(confirm).toBeDisabled();
+    await userEvent.clear(box);
+    await userEvent.type(box, "\u{1F512}\u{1F512}\u{1F512}\u{1F512}");
+    expect(confirm).toBeDisabled(); // 8 UTF-16 units, 4 characters
+    await userEvent.type(box, "\u{1F512}");
+    expect(confirm).toBeEnabled();
+  });
 });

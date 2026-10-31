@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
+import { reasonLength } from "@/lib/format/reason";
+
 import { ConfirmReasonField } from "./ConfirmReasonField";
 import { LayeredDialogContent } from "./LayeredDialogContent";
 
@@ -25,6 +27,11 @@ interface ConfirmDialogProps {
   reasonLabel?: string;
   /** Giới hạn độ dài lý do (vd theo độ rộng cột DB). Không truyền = không giới hạn. */
   reasonMaxLength?: number;
+  /**
+   * Độ dài tối thiểu của lý do sau khi cắt khoảng trắng (vd BE đòi 5–500 ký tự). Mặc định 1 = chỉ cần không
+   * rỗng. Dưới ngưỡng → nút xác nhận bị khoá và ô lý do nhắc số ký tự tối thiểu.
+   */
+  reasonMinLength?: number;
   onConfirm: (reason?: string) => void;
   variant?: "danger" | "default";
   loading?: boolean;
@@ -53,6 +60,7 @@ export function ConfirmDialog({
   requireReason = false,
   reasonLabel = "Lý do",
   reasonMaxLength,
+  reasonMinLength = 1,
   onConfirm,
   variant = "danger",
   loading = false,
@@ -68,7 +76,7 @@ export function ConfirmDialog({
     setPrevOpen(open);
     if (!open) setReason("");
   }
-  const canConfirm = (!requireReason || reason.trim().length > 0) && !loading;
+  const canConfirm = (!requireReason || reasonLength(reason) >= reasonMinLength) && !loading;
 
   const handleConfirm = () => {
     if (!canConfirm) return;
@@ -117,6 +125,7 @@ export function ConfirmDialog({
                 value={reason}
                 onChange={setReason}
                 maxLength={reasonMaxLength}
+                minLength={reasonMinLength}
               />
             )}
 

@@ -8,7 +8,7 @@ import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 import { identityErrorMessage } from "@/lib/api/identity-errors";
 
-import { USER_UI } from "../../constants";
+import { USER_LIMITS, USER_UI } from "../../constants";
 import { allowedStatusActions } from "../../lifecycle";
 import { STATUS_SUCCESS_MESSAGES, useChangeUserStatus } from "../../mutations";
 import { TemporaryPasswordDialog } from "../TemporaryPasswordDialog";
@@ -18,7 +18,7 @@ import { STATUS_ACTION_COPY } from "./status-actions";
 
 import type { PasswordResetResult, UserDto, UserStatusAction } from "../../types";
 
-/** Khoá / mở khoá / vô hiệu hoá / kích hoạt lại (có xác nhận) và đặt lại mật khẩu. Hành động nào hợp lệ do `lifecycle.ts` quyết. */
+/** Khoá / mở khoá / vô hiệu hoá / kích hoạt lại (xác nhận + lý do bắt buộc 5–500 ký tự) và đặt lại mật khẩu. Hành động nào hợp lệ do `lifecycle.ts` quyết. */
 export function AccountActionsCard({
   user,
   canEdit,
@@ -62,14 +62,19 @@ export function AccountActionsCard({
         title={copy?.title ?? ""}
         description={copy ? `${accountLabel}: ${copy.description}` : ""}
         confirmLabel={copy?.confirm}
+        requireReason
+        reasonLabel={USER_UI.reasonLabel}
+        reasonMinLength={USER_LIMITS.reasonMin}
+        reasonMaxLength={USER_LIMITS.reasonMax}
         variant={copy?.danger ? "danger" : "default"}
         closeOnConfirm={false}
         loading={mutation.isPending}
         error={mutation.error ? identityErrorMessage(mutation.error) : undefined}
-        onConfirm={() =>
+        onConfirm={(reason) =>
           action &&
+          reason &&
           mutation.mutate(
-            { userId: user.userId, action },
+            { userId: user.userId, action, reason },
             {
               onSuccess: () => {
                 toast.success(STATUS_SUCCESS_MESSAGES[action]);

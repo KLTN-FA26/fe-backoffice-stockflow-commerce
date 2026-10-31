@@ -168,16 +168,52 @@ describe("mock BFF — staff user management (BE PR #72/#73 contract)", () => {
     });
     expect(stale).toMatchObject({ status: 409, body: { errorCode: "OPTIMISTIC_LOCK" } });
 
-    expect((await call("POST", `identity/users/${target}/lock`)).body?.status).toBe("LOCKED");
-    expect((await call("POST", `identity/users/${target}/enable`)).status).toBe(409);
-    expect((await call("POST", `identity/users/${target}/unlock`)).body?.status).toBe("ACTIVE");
-    expect((await call("POST", `identity/users/${target}/disable`)).body?.status).toBe("DISABLED");
-    const lockDisabled = await call("POST", `identity/users/${target}/lock`);
+    const why = { reason: "Lý do kiểm thử" };
+    // SCRUM-474 LOCK-REASON: no reason, a blank one, 4 or 501 characters are refused before anything changes
+    for (const bad of [{}, { reason: "    " }, { reason: "abcd" }, { reason: "x".repeat(501) }]) {
+      expect(await call("POST", `identity/users/${target}/lock`, bad)).toMatchObject({
+        status: 400,
+        body: { errorCode: "VALIDATION_FAILED" },
+      });
+    }
+    expect((await call("GET", `identity/users/${target}`)).body?.status).toBe("ACTIVE");
+    expect((await call("POST", `identity/users/${target}/lock`, why)).body?.status).toBe("LOCKED");
+    expect((await call("POST", `identity/users/${target}/enable`, why)).status).toBe(409);
+    expect((await call("POST", `identity/users/${target}/unlock`, why)).body?.status).toBe(
+      "ACTIVE",
+    );
+    expect((await call("POST", `identity/users/${target}/disable`, why)).body?.status).toBe(
+      "DISABLED",
+    );
+    const lockDisabled = await call("POST", `identity/users/${target}/lock`, why);
     expect(lockDisabled).toMatchObject({
       status: 409,
       body: { errorCode: "INVALID_USER_STATUS_TRANSITION" },
     });
-    expect((await call("POST", `identity/users/${target}/enable`)).body?.status).toBe("ACTIVE");
+    expect(
+      (await call("POST", `identity/users/${target}/enable`, { reason: "  Ký lại hợp đồng  " }))
+        .body?.status,
+    ).toBe("ACTIVE");
+
+    // the detail shows the latest reason and the history lists every action, newest first
+    const detail = (await call("GET", `identity/users/${target}`)).body as unknown as {
+      latestStatusChange: { action: string; reason: string };
+    };
+    expect(detail.latestStatusChange).toMatchObject({
+      action: "ENABLE",
+      reason: "Ký lại hợp đồng",
+    });
+    const history = (await call("GET", `identity/users/${target}/status-changes`))
+      .body as unknown as {
+      items: { action: string; fromStatus: string; toStatus: string }[];
+    };
+    expect(history.items.map((entry) => entry.action)).toEqual([
+      "ENABLE",
+      "DISABLE",
+      "UNLOCK",
+      "LOCK",
+    ]);
+    expect(history.items[0]).toMatchObject({ fromStatus: "DISABLED", toStatus: "ACTIVE" });
   });
 
   it("PUT warehouses replaces the whole set; password reset generates one temporary password", async () => {
