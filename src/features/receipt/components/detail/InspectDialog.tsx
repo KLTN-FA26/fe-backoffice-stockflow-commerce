@@ -4,15 +4,19 @@ import { useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
 
-import { RECEIPT_LIMITS, UI_LABELS } from "@/constants";
-import { receiptErrorMessage } from "@/features/receipt/errors";
-import { buildQcDecisionSchema } from "@/features/receipt/qc-input-schemas";
+import { RECEIPT_CARTON_LABELS, UI_LABELS } from "@/constants";
+import { ApiError } from "@/lib/api/error";
+import { qcCartonFieldErrors, receiptErrorMessage } from "@/features/receipt/errors";
 import { useInspectLine } from "@/features/receipt/mutations";
+import { toQcDecisionRequest } from "@/features/receipt/qc-api";
+import { buildQcDecisionSchema, defaultCartonOutcomes } from "@/features/receipt/qc-input-schemas";
 import { movedToQcQuantity } from "@/features/receipt/selectors";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+import { QcCartonChoices } from "../cartons/QcCartonChoices";
 import { FieldError } from "../primitives";
+import { QcPartFields } from "./QcPartFields";
 import { ReceiptDialog } from "./ReceiptDialog";
 
 import type {
@@ -20,19 +24,26 @@ import type {
   QcDecisionValues,
   ReceiptLineDto,
 } from "@/features/receipt/types";
+import type { QcPartKey } from "./QcPartFields";
 
-const FIELD = "border-border-default bg-bg-surface mt-1 h-8 rounded-[var(--r-sm)] text-[0.8125rem]";
+const L = RECEIPT_CARTON_LABELS;
 const EMPTY_PART = { quantity: 0, locationCode: "", reason: "" };
-
-type PartKey = "quarantined" | "rejected";
-const PARTS: { key: PartKey; label: string; hint: string }[] = [
-  { key: "quarantined", label: "Cách ly", hint: "Chờ kết luận lại — vào khu QUARANTINE" },
-  { key: "rejected", label: "Không đạt", hint: "Trả NCC — vào khu QUARANTINE, tồn Blocked" },
+const PARTS: { key: QcPartKey; label: string; hint: string }[] = [
+  {
+    key: "quarantined",
+    label: L.qcOutcome.QUARANTINE,
+    hint: "Chờ kết luận lại — vào khu QUARANTINE",
+  },
+  {
+    key: "rejected",
+    label: L.qcOutcome.REJECTED,
+    hint: "Trả NCC — vào khu QUARANTINE, tồn Blocked",
+  },
 ];
 
 /**
- * Docs 03 bước 8–9 (BR-08): chia SL đã chuyển sang khu QC thành Đạt / Cách ly / Không đạt.
- * Tổng hiện realtime; phần cách ly / không đạt cần khu cách ly và lý do.
+ * Docs 03 bước 8–9 (BR-08): chia SL đã chuyển sang khu QC thành Đạt / Cách ly / Không đạt. SCRUM-473: thùng kết luận
+ * nguyên thùng theo LPN, hàng lẻ chia theo SL. Tổng hiện realtime; phần cách ly / không đạt cần khu và lý do.
  */
 export function InspectDialog({
   receiptId,
@@ -44,99 +55,90 @@ export function InspectDialog({
   onClose: () => void;
 }) {
   const moved = movedToQcQuantity(line);
-  const schema = useMemo(() => buildQcDecisionSchema(moved), [moved]);
+  const hasCartons = line.packages.length > 0;
+  const schema = useMemo(() => buildQcDecisionSchema(line), [line]);
   const form = useForm<QcDecisionFormInput, unknown, QcDecisionValues>({
     resolver: zodResolver(schema),
-    defaultValues: { accepted: moved, quarantined: EMPTY_PART, rejected: EMPTY_PART },
+    defaultValues: {
+      accepted: line.looseQuantity,
+      quarantined: EMPTY_PART,
+      rejected: EMPTY_PART,
+      cartons: defaultCartonOutcomes(line),
+    },
     mode: "onChange",
   });
   const inspect = useInspectLine();
   const [serverError, setServerError] = useState<string | null>(null);
+  const [cartonErrors, setCartonErrors] = useState<Record<string, string>>({});
   const errors = form.formState.errors;
   const values = useWatch({ control: form.control });
+  // Mỗi thùng thuộc đúng một phần → tổng = phần lẻ của ba phần + mọi thùng
   const total =
     (Number(values.accepted) || 0) +
     (Number(values.quarantined?.quantity) || 0) +
-    (Number(values.rejected?.quantity) || 0);
+    (Number(values.rejected?.quantity) || 0) +
+    line.packages.reduce((sum, carton) => sum + carton.receivedQty, 0);
 
   const submit = form.handleSubmit((decision) =>
     inspect.mutate(
-      { receiptId, lineId: line.id, decision },
-      { onSuccess: onClose, onError: (error) => setServerError(receiptErrorMessage(error)) },
+      { receiptId, lineId: line.id, line, decision },
+      {
+        onSuccess: onClose,
+        onError: (error) => {
+          setServerError(receiptErrorMessage(error));
+          if (error instanceof ApiError) {
+            const sent = toQcDecisionRequest(decision, line);
+            setCartonErrors(
+              Object.fromEntries(qcCartonFieldErrors(error, sent).map((e) => [e.lpn, e.message])),
+            );
+          }
+        },
+      },
     ),
   );
+  const clearErrors = () => {
+    setServerError(null);
+    setCartonErrors({});
+  };
 
   return (
     <ReceiptDialog
       open
       onOpenChange={(open) => !open && onClose()}
       title={UI_LABELS.receipt.action.inspect}
-      description={`${line.sku ?? ""}${line.lotNumber ? ` — lô ${line.lotNumber}` : ""}: ${moved} đơn vị đang ở khu QC ${line.qcLocationCode ?? ""}.`}
+      description={`${line.sku ?? ""}${line.lotNumber ? ` — lô ${line.lotNumber}` : ""}: ${moved} đơn vị đang ở khu QC ${line.qcLocationCode ?? ""}${hasCartons ? ` (${L.cellSummary(line.packages.length, line.looseQuantity)})` : ""}.`}
       submitLabel={UI_LABELS.receipt.action.inspect}
       isPending={inspect.isPending}
       error={serverError}
-      onEdit={() => setServerError(null)}
+      onEdit={clearErrors}
       onSubmit={() => void submit()}
     >
+      {hasCartons && <QcCartonChoices line={line} control={form.control} errors={cartonErrors} />}
       <div>
         <Label htmlFor="qc-accepted" className="text-[0.8125rem]">
-          Đạt
+          {hasCartons ? L.qcLooseAccepted : L.qcOutcome.ACCEPTED}
         </Label>
         <Input
           id="qc-accepted"
           type="number"
           min={0}
           autoFocus
-          className={`${FIELD} w-32 text-right tabular-nums`}
+          className="border-border-default bg-bg-surface mt-1 h-8 w-32 rounded-[var(--r-sm)] text-right text-[0.8125rem] tabular-nums"
           aria-invalid={errors.accepted ? true : undefined}
           aria-describedby={errors.accepted ? "qc-sum-error" : undefined}
           {...form.register("accepted", { valueAsNumber: true })}
         />
       </div>
       {PARTS.map(({ key, label, hint }) => (
-        <fieldset key={key} className="border-border-default rounded-[var(--r-sm)] border p-3">
-          <legend className="text-ink-primary px-1 text-[0.8125rem] font-medium">{label}</legend>
-          <p className="text-ink-tertiary mb-2 text-xs">{hint}</p>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-[7rem_10rem_minmax(0,1fr)]">
-            <div>
-              <Label htmlFor={`qc-${key}-qty`} className="text-xs">
-                SL
-              </Label>
-              <Input
-                id={`qc-${key}-qty`}
-                type="number"
-                min={0}
-                className={`${FIELD} text-right tabular-nums`}
-                {...form.register(`${key}.quantity`, { valueAsNumber: true })}
-              />
-              <FieldError>{errors[key]?.quantity?.message}</FieldError>
-            </div>
-            <div>
-              <Label htmlFor={`qc-${key}-loc`} className="text-xs">
-                Khu cách ly
-              </Label>
-              <Input
-                id={`qc-${key}-loc`}
-                maxLength={RECEIPT_LIMITS.codeMax}
-                className={`${FIELD} font-[family-name:var(--font-mono)] uppercase`}
-                {...form.register(`${key}.locationCode`)}
-              />
-              <FieldError>{errors[key]?.locationCode?.message}</FieldError>
-            </div>
-            <div>
-              <Label htmlFor={`qc-${key}-reason`} className="text-xs">
-                Lý do
-              </Label>
-              <Input
-                id={`qc-${key}-reason`}
-                maxLength={RECEIPT_LIMITS.qcReasonMax}
-                className={FIELD}
-                {...form.register(`${key}.reason`)}
-              />
-              <FieldError>{errors[key]?.reason?.message}</FieldError>
-            </div>
-          </div>
-        </fieldset>
+        <QcPartFields
+          key={key}
+          part={key}
+          label={label}
+          hint={hint}
+          loose={hasCartons}
+          register={form.register}
+          errors={errors[key]}
+        />
       ))}
       <p
         className={`text-[0.8125rem] tabular-nums ${total === moved ? "text-ink-secondary" : "text-danger"}`}

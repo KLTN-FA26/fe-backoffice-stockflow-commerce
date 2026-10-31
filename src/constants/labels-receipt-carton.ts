@@ -20,6 +20,8 @@ export const RECEIPT_CARTON_FIELD_MESSAGES = {
   cartonsExceedLine: "Các thùng chứa nhiều hơn SL nhận của dòng",
   duplicateLpn: "LPN này đã có ở thùng khác của dòng",
   cartonsTooMany: `Tối đa ${RECEIPT_CARTON_LIMITS.cartonsPerLineMax} thùng mỗi dòng`,
+  qcLooseSum: (loose: number) =>
+    `Đạt + Cách ly + Không đạt của hàng lẻ phải bằng SL lẻ ${loose} (thùng tính nguyên thùng)`,
 } as const;
 
 /**
@@ -99,6 +101,16 @@ export const RECEIPT_CARTON_LABELS = {
   selectCarton: (lpn: string) => `Chọn thùng ${lpn} để in lại`,
   printLine: "In nhãn cả dòng",
   reprint: (count: number) => `In lại ${count} nhãn`,
+  // Dialog kết luận QC theo nguyên thùng
+  qcCartonsTitle: "Thùng — kết luận nguyên thùng, không mở thùng",
+  qcChoice: (outcome: string, lpn: string) => `${outcome} thùng ${lpn}`,
+  qcCartonAway: (location: string) => `Đang ở ${location}, không ở khu QC — tính là Đạt`,
+  qcLooseAccepted: "Đạt (lẻ)",
+  qcOutcome: { ACCEPTED: "Đạt", QUARANTINE: "Cách ly", REJECTED: "Không đạt" },
+  qcLooseTitle: (loose: number) => `Hàng lẻ: ${loose}`,
+  qcPartQuantity: (part: string, loose: boolean) => (loose ? `SL lẻ ${part}` : `SL ${part}`),
+  qcPartLocation: (part: string) => `Khu ${part}`,
+  qcPartReason: (part: string) => `Lý do ${part}`,
 } as const;
 
 /** Dialog in nhãn thùng (BE trả PDF — xem trước rồi in / tải xuống). */

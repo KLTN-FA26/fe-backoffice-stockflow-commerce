@@ -11,12 +11,8 @@ import { createIdempotencyAttempt } from "@/lib/api/idempotency";
 import { receiptErrorMessage, receiptLineFieldErrors } from "@/features/receipt/errors";
 import { buildBlindLinesSchema } from "@/features/receipt/input-schemas";
 import { useSaveBlindReceiptLines } from "@/features/receipt/mutations";
-import {
-  EMPTY_BLIND_LINE,
-  initialBlindLines,
-  receiptReceivedOn,
-  totalReceivedQuantity,
-} from "@/features/receipt/selectors";
+import { EMPTY_BLIND_LINE, initialBlindLines } from "@/features/receipt/count-selectors";
+import { receiptReceivedOn, totalReceivedQuantity } from "@/features/receipt/selectors";
 import { Alert } from "@/components/shared/Alert";
 import { DatePicker } from "@/components/shared/DatePicker";
 import { Button } from "@/components/ui/button";

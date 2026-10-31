@@ -20,8 +20,6 @@ import type {
   GoodsReceiptApiDto,
   GoodsReceiptRow,
   GoodsReceiptRowApiDto,
-  InspectLineInput,
-  MoveLineToQcInput,
   ReceiptCreateValues,
 } from "./types";
 
@@ -106,7 +104,7 @@ export async function listGoodsReceipts(
 
 export const receiptPath = (id: string) => `${RECEIPTS_PATH}/${encodeURIComponent(id)}`;
 
-async function postReceipt(path: string, body?: unknown): Promise<GoodsReceipt> {
+export async function postReceipt(path: string, body?: unknown): Promise<GoodsReceipt> {
   const { data } = await api.post<unknown>(path, body);
   return toReceipt(beGoodsReceiptSchema.parse(data));
 }
@@ -174,27 +172,3 @@ export async function referencePurchaseOrder({
 /** Từ chối phần vượt: chỉ ghi nhận tới dung sai (không còn gì → phiếu bị huỷ). */
 export const rejectReceiptExcess = ({ receiptId, reason }: DecideReceiptInput) =>
   postReceipt(`${receiptPath(receiptId)}/excess-rejection`, { reason });
-
-/* ── QC ──────────────────────────────────────────────────────────────── */
-
-export const moveLineToQc = ({ receiptId, lineId, qcLocationCode }: MoveLineToQcInput) =>
-  postReceipt(`${receiptPath(receiptId)}/lines/${encodeURIComponent(lineId)}/qc-transfer`, {
-    qcLocationCode,
-  });
-
-/** BE `QcDecisionRequest`: phần SL 0 gửi `null` (BE bỏ qua phần rỗng). */
-export function toQcDecisionRequest(decision: InspectLineInput["decision"]) {
-  const part = ({ quantity, locationCode, reason }: InspectLineInput["decision"]["rejected"]) =>
-    quantity > 0 ? { quantity, locationCode: locationCode.toUpperCase(), reason } : null;
-  return {
-    accepted: decision.accepted,
-    quarantined: part(decision.quarantined),
-    rejected: part(decision.rejected),
-  };
-}
-
-export const inspectLine = ({ receiptId, lineId, decision }: InspectLineInput) =>
-  postReceipt(
-    `${receiptPath(receiptId)}/lines/${encodeURIComponent(lineId)}/inspection`,
-    toQcDecisionRequest(decision),
-  );

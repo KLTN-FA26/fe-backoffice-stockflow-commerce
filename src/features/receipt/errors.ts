@@ -99,3 +99,29 @@ export function receiptLineFieldErrors(error: ApiError): ReceiptLineFieldError[]
     ];
   });
 }
+
+/** Phần QC đã gửi: LPN theo đúng thứ tự trong `packages` (BE trỏ lỗi bằng chỉ số). */
+interface SentQcParts {
+  quarantined: { packages: readonly string[] } | null;
+  rejected: { packages: readonly string[] } | null;
+}
+
+const QC_CARTON_FIELD = /^(quarantined|rejected)\.packages\[(\d+)\]$/;
+
+/**
+ * Lỗi theo thùng của kết luận QC (`quarantined.packages[0]` — SCRUM-473: không phải thùng của dòng, không ở khu QC,
+ * hết hiệu lực) → LPN đã gửi ở vị trí đó + câu tiếng Việt theo mã.
+ */
+export function qcCartonFieldErrors(
+  error: ApiError,
+  sent: SentQcParts,
+): { lpn: string; message: string }[] {
+  return Object.entries(error.fieldErrors ?? {}).flatMap(([name, message]) => {
+    const match = QC_CARTON_FIELD.exec(name);
+    const part = match?.[1] === "quarantined" ? sent.quarantined : sent.rejected;
+    const lpn = match ? part?.packages[Number(match[2])] : undefined;
+    if (!lpn) return [];
+    const code = error.fieldCodes?.[name] ?? error.code;
+    return [{ lpn, message: isKnownErrorCode(code) ? RECEIPT_ERROR_MESSAGES[code] : message }];
+  });
+}

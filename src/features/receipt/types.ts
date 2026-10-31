@@ -98,5 +98,7 @@ export interface DecideReceiptInput {
 export interface InspectLineInput {
   receiptId: string;
   lineId: string;
+  /** Thùng của dòng — để tính `accepted` (thùng Đạt) và LPN của phần cách ly / không đạt (SCRUM-473). */
+  line: Pick<ReceiptLineDto, "packages">;
   decision: QcDecisionValues;
 }

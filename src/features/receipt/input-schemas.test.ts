@@ -98,7 +98,7 @@ describe("receiptCreateInputSchema — BR-01", () => {
 });
 
 describe("qcDecisionSchema — BR-08", () => {
-  const schema = buildQcDecisionSchema(6);
+  const schema = buildQcDecisionSchema({ quantity: 6, looseQuantity: 6, packages: [] });
   const empty = { quantity: 0, locationCode: "", reason: "" };
 
   it("tổng ba phần phải bằng SL đã chuyển sang khu QC", () => {
@@ -128,6 +128,57 @@ describe("qcDecisionSchema — BR-08", () => {
       rejected: { quantity: 2, locationCode: "hcm-qc01", reason: "Nứt" },
     });
     expect(messages(result)).toContain(MSG.qcSameLocation);
+  });
+});
+
+describe("qcDecisionSchema — QC theo nguyên thùng (BR-08 + BE spec SCRUM-473 §5)", () => {
+  // Ví dụ issue #104: 4.990 = thùng …001 (1.000) + …002 (980) + 3.010 lẻ
+  const line = {
+    quantity: 4990,
+    looseQuantity: 3010,
+    packages: [
+      { lpn: "LPN-20261024-000001", receivedQty: 1000 },
+      { lpn: "LPN-20261024-000002", receivedQty: 980 },
+    ],
+  };
+  const schema = buildQcDecisionSchema(line);
+  const CARTON = RECEIPT_CARTON_FIELD_MESSAGES;
+  const issues = (result: { error?: { issues: { path: PropertyKey[]; message: string }[] } }) =>
+    result.error?.issues.map((i) => `${i.path.join(".")}:${i.message}`) ?? [];
+
+  it("phần lẻ chia đủ 3.010 + thùng …002 cách ly → hợp lệ", () => {
+    const result = schema.safeParse({
+      accepted: 3005,
+      quarantined: { quantity: 3, locationCode: "HCM-QC01", reason: "Móp" },
+      rejected: { quantity: 2, locationCode: "HCM-RTV01", reason: "Rách" },
+      cartons: { "LPN-20261024-000002": "QUARANTINE" },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("phần lẻ phải chia đủ SL lẻ của dòng (thùng tính nguyên thùng)", () => {
+    const result = schema.safeParse({
+      accepted: 3010,
+      quarantined: { quantity: 3, locationCode: "HCM-QC01", reason: "Móp" },
+      rejected: { quantity: 0, locationCode: "", reason: "" },
+      cartons: {},
+    });
+    expect(issues(result)).toContain(`accepted:${CARTON.qcLooseSum(3010)}`);
+  });
+
+  it("chọn thùng Không đạt mà phần đó chưa có khu / lý do → lỗi như phần có hàng lẻ", () => {
+    const result = schema.safeParse({
+      accepted: 3010,
+      quarantined: { quantity: 0, locationCode: "", reason: "" },
+      rejected: { quantity: 0, locationCode: "", reason: "" },
+      cartons: { "LPN-20261024-000001": "REJECTED" },
+    });
+    expect(issues(result)).toEqual(
+      expect.arrayContaining([
+        `rejected.locationCode:${MSG.qcLocationRequired}`,
+        `rejected.reason:${MSG.qcReasonRequired}`,
+      ]),
+    );
   });
 });
 

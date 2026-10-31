@@ -12,6 +12,7 @@ import {
   apiLine,
   apiReceipt,
   apiReceiptPage,
+  cartonLine,
   receivablePo,
 } from "./__fixtures__/receipt";
 import {
@@ -23,13 +24,13 @@ import {
   dayAfterStartInstant,
   dayStartInstant,
   getGoodsReceipt,
-  inspectLine,
   listGoodsReceipts,
   referencePurchaseOrder,
   rejectBlindReceipt,
   rejectReceiptExcess,
 } from "./api";
 import { replaceBlindReceiptLines, replaceReceiptLines } from "./count-api";
+import { inspectLine } from "./qc-api";
 import { getReceivablePurchaseOrder, listReceivablePurchaseOrders } from "./receivable-po-api";
 
 afterEach(() => vi.restoreAllMocks());
@@ -190,16 +191,43 @@ describe("goods receipt API — hợp đồng BE PR #62", () => {
     await inspectLine({
       receiptId: RECEIPT_ID,
       lineId: "line-1",
+      line: { packages: [] },
       decision: {
         accepted: 4,
         quarantined: { quantity: 0, locationCode: "", reason: "" },
         rejected: { quantity: 2, locationCode: "hcm-rtv01", reason: "Nứt mặt bàn" },
+        cartons: {},
       },
     });
     expect(post).toHaveBeenLastCalledWith(`/goods-receipts/${RECEIPT_ID}/lines/line-1/inspection`, {
       accepted: 4,
       quarantined: null,
-      rejected: { quantity: 2, locationCode: "HCM-RTV01", reason: "Nứt mặt bàn" },
+      rejected: { quantity: 2, locationCode: "HCM-RTV01", reason: "Nứt mặt bàn", packages: [] },
+    });
+  });
+
+  it("SCRUM-473: QC theo thùng — ví dụ issue #104 (accepted gồm thùng Đạt, phần cách ly nêu LPN)", async () => {
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiReceipt() });
+    await inspectLine({
+      receiptId: RECEIPT_ID,
+      lineId: "line-1",
+      line: cartonLine(),
+      decision: {
+        accepted: 3005,
+        quarantined: { quantity: 3, locationCode: "hcm-qc01", reason: "Dented" },
+        rejected: { quantity: 2, locationCode: "HCM-RTV01", reason: "Torn" },
+        cartons: { "LPN-20261024-000002": "QUARANTINE", "LPN-20261024-000001": "ACCEPTED" },
+      },
+    });
+    expect(post.mock.calls[0]?.[1]).toEqual({
+      accepted: 4005,
+      quarantined: {
+        quantity: 3,
+        packages: ["LPN-20261024-000002"],
+        locationCode: "HCM-QC01",
+        reason: "Dented",
+      },
+      rejected: { quantity: 2, packages: [], locationCode: "HCM-RTV01", reason: "Torn" },
     });
   });
 });

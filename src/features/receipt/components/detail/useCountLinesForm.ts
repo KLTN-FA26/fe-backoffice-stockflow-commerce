@@ -10,11 +10,8 @@ import { receiptErrorMessage, receiptLineFieldErrors } from "@/features/receipt/
 import { countLineCartonContext } from "@/features/receipt/carton-selectors";
 import { buildReceiptLinesSchema } from "@/features/receipt/input-schemas";
 import { useSaveReceiptLines } from "@/features/receipt/mutations";
-import {
-  initialCountLines,
-  poLinesOverOpenQuantity,
-  receiptReceivedOn,
-} from "@/features/receipt/selectors";
+import { initialCountLines } from "@/features/receipt/count-selectors";
+import { poLinesOverOpenQuantity, receiptReceivedOn } from "@/features/receipt/selectors";
 
 import { CARTON_SET_OPTIONS } from "../cartons/carton-form";
 

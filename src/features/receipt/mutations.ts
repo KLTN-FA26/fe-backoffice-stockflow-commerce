@@ -25,13 +25,12 @@ import {
   confirmGoodsReceipt,
   createGoodsReceipt,
   createGoodsReceiptWithoutPo,
-  inspectLine,
-  moveLineToQc,
   referencePurchaseOrder,
   rejectBlindReceipt,
   rejectReceiptExcess,
 } from "./api";
 import { replaceBlindReceiptLines, replaceReceiptLines } from "./count-api";
+import { inspectLine, moveLineToQc } from "./qc-api";
 import { isStaleReceiptError, receiptErrorMessage } from "./errors";
 import { receiptKeys, receivablePoKeys } from "./queries";
 
