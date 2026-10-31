@@ -6,7 +6,7 @@ import { useForm, useWatch } from "react-hook-form";
 
 import { RECEIPT_LIMITS, UI_LABELS } from "@/constants";
 import { receiptErrorMessage } from "@/features/receipt/errors";
-import { buildQcDecisionSchema } from "@/features/receipt/input-schemas";
+import { buildQcDecisionSchema } from "@/features/receipt/qc-input-schemas";
 import { useInspectLine } from "@/features/receipt/mutations";
 import { movedToQcQuantity } from "@/features/receipt/selectors";
 import { Input } from "@/components/ui/input";

@@ -28,9 +28,8 @@ import {
   referencePurchaseOrder,
   rejectBlindReceipt,
   rejectReceiptExcess,
-  replaceBlindReceiptLines,
-  replaceReceiptLines,
 } from "./api";
+import { replaceBlindReceiptLines, replaceReceiptLines } from "./count-api";
 import { getReceivablePurchaseOrder, listReceivablePurchaseOrders } from "./receivable-po-api";
 
 afterEach(() => vi.restoreAllMocks());
@@ -102,21 +101,63 @@ describe("goods receipt API — hợp đồng BE PR #62", () => {
           expiryDate: "",
           locationCode: "HCM-RCV01",
           note: "",
+          unitOfMeasure: "",
+          packages: [],
         },
       ],
     });
-    expect(put).toHaveBeenCalledWith(`/goods-receipts/${RECEIPT_ID}/lines`, {
+    expect(put).toHaveBeenCalledWith(
+      `/goods-receipts/${RECEIPT_ID}/lines`,
+      {
+        lines: [
+          {
+            purchaseOrderLineId: TABLE_PO_LINE_ID,
+            quantity: 6,
+            lotNumber: undefined,
+            expiryDate: undefined,
+            locationCode: "HCM-RCV01",
+            note: undefined,
+            unitOfMeasure: undefined,
+            packages: [],
+          },
+        ],
+      },
+      undefined,
+    );
+  });
+
+  it("SCRUM-473: lưu kiểm đếm gửi đơn vị + toàn bộ thùng (thùng mới không có lpn) kèm Idempotency-Key", async () => {
+    const put = vi.spyOn(api, "put").mockResolvedValueOnce({ data: apiReceipt() });
+    await replaceReceiptLines({
+      receiptId: RECEIPT_ID,
+      idempotencyKey: "key-1",
       lines: [
         {
           purchaseOrderLineId: TABLE_PO_LINE_ID,
-          quantity: 6,
-          lotNumber: undefined,
-          expiryDate: undefined,
+          quantity: 4990,
+          lotNumber: "L01",
+          expiryDate: "",
           locationCode: "HCM-RCV01",
-          note: undefined,
+          note: "",
+          unitOfMeasure: "CARTON",
+          packages: [
+            { lpn: "LPN-20261024-000001", quantity: 1000 },
+            { lpn: "", quantity: 980 },
+          ],
         },
       ],
     });
+    const [, body, config] = put.mock.calls[0] ?? [];
+    expect(body).toEqual({
+      lines: [
+        expect.objectContaining({
+          quantity: 4990,
+          unitOfMeasure: "CARTON",
+          packages: [{ lpn: "LPN-20261024-000001", quantity: 1000 }, { quantity: 980 }],
+        }),
+      ],
+    });
+    expect(config).toEqual({ headers: { "Idempotency-Key": "key-1" } });
   });
 
   it("xác nhận gọi /confirmation; kết luận QC gửi null cho phần SL 0", async () => {
@@ -262,21 +303,30 @@ describe("goods receipt API — hàng về không có PO (BR-RCP-002, SCRUM-478)
           expiryDate: "",
           locationCode: "HCM-RCV01",
           note: "",
+          unitOfMeasure: "CARTON",
+          packages: [{ lpn: "", quantity: 2 }],
         },
       ],
+      idempotencyKey: "key-2",
     });
-    expect(put).toHaveBeenCalledWith(`/goods-receipts/${RECEIPT_ID}/lines`, {
-      lines: [
-        {
-          sku: "SOFA-3S-GREY",
-          quantity: 2,
-          lotNumber: undefined,
-          expiryDate: undefined,
-          locationCode: "HCM-RCV01",
-          note: undefined,
-        },
-      ],
-    });
+    expect(put).toHaveBeenCalledWith(
+      `/goods-receipts/${RECEIPT_ID}/lines`,
+      {
+        lines: [
+          {
+            sku: "SOFA-3S-GREY",
+            quantity: 2,
+            lotNumber: undefined,
+            expiryDate: undefined,
+            locationCode: "HCM-RCV01",
+            note: undefined,
+            unitOfMeasure: "CARTON",
+            packages: [{ quantity: 2 }],
+          },
+        ],
+      },
+      { headers: { "Idempotency-Key": "key-2" } },
+    );
   });
 
   it("từ chối phiếu gọi POST /rejection { reason }; gắn PO tham chiếu gọi PUT /referenced-purchase-order", async () => {

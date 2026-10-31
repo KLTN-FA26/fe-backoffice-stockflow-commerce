@@ -621,6 +621,9 @@ describe("ReceiptDetail — phiếu không có PO (BR-RCP-002)", () => {
           expiryDate: undefined,
           locationCode: "HCM-RCV01",
           note: undefined,
+          // SCRUM-473: dòng lẻ — không đơn vị thùng, danh sách thùng rỗng
+          unitOfMeasure: undefined,
+          packages: [],
         },
       ],
     });

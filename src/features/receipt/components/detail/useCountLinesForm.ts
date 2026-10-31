@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 
 import { ApiError } from "@/lib/api/error";
+import { createIdempotencyAttempt } from "@/lib/api/idempotency";
 import { receiptErrorMessage, receiptLineFieldErrors } from "@/features/receipt/errors";
 import { buildReceiptLinesSchema } from "@/features/receipt/input-schemas";
 import { useSaveReceiptLines } from "@/features/receipt/mutations";
@@ -47,6 +48,8 @@ export function useCountLinesForm(
     name: "lines",
   });
   const save = useSaveReceiptLines();
+  // SCRUM-473: gửi lại cùng nội dung (mất mạng / BE nhả claim) dùng lại key — BE không cấp LPN hai lần
+  const [attempt] = useState(() => createIdempotencyAttempt());
   const [serverError, setServerError] = useState<string | null>(null);
   // Phiếu chưa lưu dòng nào: dòng gợi ý từ PO cũng là thay đổi cần lưu
   const isDirty = form.formState.isDirty || receipt.lines.length === 0;
@@ -69,14 +72,18 @@ export function useCountLinesForm(
 
   const submit = form.handleSubmit((values) => {
     setServerError(null);
+    const idempotencyKey = attempt.keyFor({ receiptId: receipt.id, lines: values.lines });
     save.mutate(
-      { receiptId: receipt.id, lines: values.lines },
+      { receiptId: receipt.id, lines: values.lines, idempotencyKey },
       {
         onSuccess: (saved) => {
+          attempt.reset();
           form.reset({ lines: initialCountLines(saved, po) });
           onSaved?.();
         },
         onError: (error) => {
+          if (error instanceof ApiError) attempt.settle(error);
+          else attempt.reset();
           // Chỉ lỗi `@Valid` có fieldErrors (`lines[i].x`). BE gap: lỗi nghiệp vụ 409 (dung sai,
           // lô / hạn dùng, mã khu) không kèm fieldErrors → chỉ hiện câu chung ở đầu form.
           const fieldErrors = error instanceof ApiError ? receiptLineFieldErrors(error) : [];
@@ -118,6 +125,8 @@ export function useCountLinesForm(
     expiryDate: "",
     locationCode: watched[0]?.locationCode ?? "",
     note: "",
+    unitOfMeasure: "",
+    packages: [],
   });
 
   return {

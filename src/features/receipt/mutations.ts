@@ -30,9 +30,8 @@ import {
   referencePurchaseOrder,
   rejectBlindReceipt,
   rejectReceiptExcess,
-  replaceBlindReceiptLines,
-  replaceReceiptLines,
 } from "./api";
+import { replaceBlindReceiptLines, replaceReceiptLines } from "./count-api";
 import { isStaleReceiptError, receiptErrorMessage } from "./errors";
 import { receiptKeys, receivablePoKeys } from "./queries";
 

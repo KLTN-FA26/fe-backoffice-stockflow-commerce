@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { RECEIPT_FIELD_MESSAGES as MSG } from "@/constants";
+import { RECEIPT_CARTON_FIELD_MESSAGES, RECEIPT_FIELD_MESSAGES as MSG } from "@/constants";
 
 import { SOFA_PO_LINE_ID, TABLE_PO_LINE_ID } from "./__fixtures__/receipt";
 import {
-  buildQcDecisionSchema,
   buildBlindLinesSchema,
   buildReceiptLinesSchema,
   receiptCreateInputSchema,
   receiptCreateWithoutPoInputSchema,
   receiptDecisionInputSchema,
 } from "./input-schemas";
+import { buildQcDecisionSchema } from "./qc-input-schemas";
 
 const line = (overrides: Record<string, unknown> = {}) => ({
   purchaseOrderLineId: TABLE_PO_LINE_ID,
@@ -224,5 +224,74 @@ describe("buildBlindLinesSchema (kiểm đếm phiếu không có PO: gọi hàn
     const expired = schema.safeParse({ lines: [line({ expiryDate: "2026-10-09" })] });
     expect(expired.error?.issues[0]?.message).toBe(MSG.expiryNotAfterReceipt);
     expect(schema.safeParse({ lines: [] }).success).toBe(false);
+  });
+});
+
+describe("chia thùng trên dòng kiểm đếm (BE spec SCRUM-473 §3)", () => {
+  const schema = buildReceiptLinesSchema({ receivedOn: "2026-10-09" });
+  const blind = buildBlindLinesSchema({ receivedOn: "2026-10-09" });
+  const CARTON = RECEIPT_CARTON_FIELD_MESSAGES;
+  const issues = (result: { error?: { issues: { path: PropertyKey[]; message: string }[] } }) =>
+    result.error?.issues.map((i) => `${i.path.join(".")}:${i.message}`) ?? [];
+  const cartons = (packages: { lpn?: string; quantity: number }[], unitOfMeasure = "CARTON") =>
+    line({ quantity: 4990, unitOfMeasure, packages });
+
+  it("ví dụ issue #104 hợp lệ: thùng có LPN đếm lại + thùng mới; mặc định dòng lẻ không thùng", () => {
+    const parsed = schema.parse({
+      lines: [cartons([{ lpn: "LPN-20261024-000001", quantity: 1000 }, { quantity: 980 }])],
+    });
+    expect(parsed.lines[0]?.packages).toEqual([
+      { lpn: "LPN-20261024-000001", quantity: 1000 },
+      { lpn: "", quantity: 980 },
+    ]);
+    expect(schema.parse({ lines: [line()] }).lines[0]).toMatchObject({
+      unitOfMeasure: "",
+      packages: [],
+    });
+  });
+
+  it("rule 3: có thùng thì phải có đơn vị thùng", () => {
+    expect(issues(schema.safeParse({ lines: [cartons([{ quantity: 10 }], "")] }))).toContain(
+      `lines.0.unitOfMeasure:${CARTON.unitRequired}`,
+    );
+  });
+
+  it("rule 4: mỗi thùng ít nhất 1 đơn vị", () => {
+    expect(issues(schema.safeParse({ lines: [cartons([{ quantity: 0 }])] }))).toContain(
+      `lines.0.packages.0.quantity:${CARTON.cartonQuantity}`,
+    );
+  });
+
+  it("rule 5: tổng các thùng không vượt SL dòng", () => {
+    const over = line({ quantity: 100, unitOfMeasure: "CARTON", packages: [{ quantity: 101 }] });
+    expect(issues(schema.safeParse({ lines: [over] }))).toContain(
+      `lines.0.packages:${CARTON.cartonsExceedLine}`,
+    );
+  });
+
+  it("một LPN chỉ một lần trên dòng (BE VALIDATION_FAILED packages[j].lpn)", () => {
+    const twice = [
+      { lpn: "LPN-20261024-000001", quantity: 1 },
+      { lpn: "lpn-20261024-000001", quantity: 1 },
+    ];
+    expect(issues(schema.safeParse({ lines: [cartons(twice)] }))).toContain(
+      `lines.0.packages.1.lpn:${CARTON.duplicateLpn}`,
+    );
+  });
+
+  it("phiếu không có PO dùng cùng luật thùng", () => {
+    const blindLine = {
+      sku: "SOFA-3S-GREY",
+      quantity: 5,
+      lotNumber: "",
+      expiryDate: "",
+      locationCode: "HCM-RCV01",
+      note: "",
+      unitOfMeasure: "CARTON",
+      packages: [{ quantity: 6 }],
+    };
+    expect(issues(blind.safeParse({ lines: [blindLine] }))).toContain(
+      `lines.0.packages:${CARTON.cartonsExceedLine}`,
+    );
   });
 });

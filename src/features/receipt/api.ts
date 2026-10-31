@@ -16,7 +16,6 @@ import type {
   DecideReceiptInput,
   ReferencePurchaseOrderInput,
   ReceiptCreateWithoutPoValues,
-  SaveBlindLinesInput,
   GoodsReceipt,
   GoodsReceiptApiDto,
   GoodsReceiptRow,
@@ -24,7 +23,6 @@ import type {
   InspectLineInput,
   MoveLineToQcInput,
   ReceiptCreateValues,
-  SaveReceiptLinesInput,
 } from "./types";
 
 const RECEIPTS_PATH = "/goods-receipts";
@@ -43,7 +41,7 @@ function toReceiptRow(dto: GoodsReceiptRowApiDto): GoodsReceiptRow {
   return { ...dto, status: RECEIPT_STATUS_BY_API[dto.status] };
 }
 
-function emptyToUndefined(value: string): string | undefined {
+export function emptyToUndefined(value: string): string | undefined {
   return value === "" ? undefined : value;
 }
 
@@ -106,7 +104,7 @@ export async function listGoodsReceipts(
 
 /* ── Detail ──────────────────────────────────────────────────────────── */
 
-const receiptPath = (id: string) => `${RECEIPTS_PATH}/${encodeURIComponent(id)}`;
+export const receiptPath = (id: string) => `${RECEIPTS_PATH}/${encodeURIComponent(id)}`;
 
 async function postReceipt(path: string, body?: unknown): Promise<GoodsReceipt> {
   const { data } = await api.post<unknown>(path, body);
@@ -140,42 +138,6 @@ export const createGoodsReceiptWithoutPo = (input: ReceiptCreateWithoutPoValues)
     deliveryNote: emptyToUndefined(input.deliveryNote),
     note: emptyToUndefined(input.note),
   });
-
-/** Thay toàn bộ kiểm đếm của phiếu không có PO: dòng gọi hàng bằng `sku` (không có `purchaseOrderLineId`). */
-export async function replaceBlindReceiptLines({
-  receiptId,
-  lines,
-}: SaveBlindLinesInput): Promise<GoodsReceipt> {
-  const { data } = await api.put<unknown>(`${receiptPath(receiptId)}/lines`, {
-    lines: lines.map((line) => ({
-      sku: line.sku,
-      quantity: line.quantity,
-      lotNumber: emptyToUndefined(line.lotNumber),
-      expiryDate: emptyToUndefined(line.expiryDate),
-      locationCode: line.locationCode,
-      note: emptyToUndefined(line.note),
-    })),
-  });
-  return toReceipt(beGoodsReceiptSchema.parse(data));
-}
-
-/** Thay toàn bộ kiểm đếm của phiếu DRAFT (BE `ReceiptLinesRequest`). */
-export async function replaceReceiptLines({
-  receiptId,
-  lines,
-}: SaveReceiptLinesInput): Promise<GoodsReceipt> {
-  const { data } = await api.put<unknown>(`${receiptPath(receiptId)}/lines`, {
-    lines: lines.map((line) => ({
-      purchaseOrderLineId: line.purchaseOrderLineId,
-      quantity: line.quantity,
-      lotNumber: emptyToUndefined(line.lotNumber),
-      expiryDate: emptyToUndefined(line.expiryDate),
-      locationCode: line.locationCode,
-      note: emptyToUndefined(line.note),
-    })),
-  });
-  return toReceipt(beGoodsReceiptSchema.parse(data));
-}
 
 /** "Post": chốt số → tồn INBOUND, PO cập nhật tiến độ, phiếu sang In QC / In Putaway. */
 export const confirmGoodsReceipt = (receiptId: string) =>

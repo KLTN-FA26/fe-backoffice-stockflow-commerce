@@ -7,6 +7,7 @@ import { INVENTORY_ITEM_TOAST_MESSAGES, INVENTORY_ITEM_UI_LABELS } from "./label
 import { LOAD_PLAN_TOAST_MESSAGES, LOAD_PLAN_UI_LABELS } from "./labels-load-plan";
 import { PACKING_TOAST_MESSAGES, PACKING_UI_LABELS } from "./labels-packing";
 import { PRODUCT_UI_LABELS } from "./labels-product";
+import { RECEIPT_CARTON_ERROR_MESSAGES } from "./labels-receipt-carton";
 import { SHIPPING_TOAST_MESSAGES, SHIPPING_UI_LABELS } from "./labels-shipping";
 import { SKU_PURCHASING_UI_LABELS } from "./labels-sku-purchasing";
 import { TAXONOMY_TOAST_MESSAGES, TAXONOMY_UI_LABELS } from "./labels-taxonomy";
@@ -787,11 +788,8 @@ export const RECEIPT_ERROR_MESSAGES = {
   INVENTORY_ITEM_NOT_FOUND: "Không có SKU này trong danh mục mặt hàng kho",
   RECEIPT_LINE_NOT_ON_PO:
     "Dòng này không thuộc đơn đặt hàng của phiếu (phiếu không có PO gọi hàng bằng SKU)",
-  // Từ chối phần vượt không cắt được dòng đã dán tem thùng: duyệt, hoặc huỷ phiếu rồi đếm lại
-  RECEIPT_PACKAGES_EXCEED_LINE:
-    "Cắt phần vượt sẽ làm dòng ít hơn số lượng trong các thùng đã dán tem — hãy duyệt phiếu, hoặc huỷ phiếu rồi đếm lại",
-  RECEIPT_LINE_HAS_PACKAGES:
-    "Cắt phần vượt sẽ bỏ một dòng đã dán tem thùng — hãy duyệt phiếu, hoặc huỷ phiếu rồi đếm lại",
+  // SCRUM-473: lưu kiểm đếm có thùng, in nhãn, QC theo thùng (ngữ cảnh duyệt phiếu: RECEIPT_DECISION_ERROR_MESSAGES)
+  ...RECEIPT_CARTON_ERROR_MESSAGES,
   // BR-08 (docs 03 §6)
   QC_QUANTITY_MISMATCH: "Tổng Đạt + Cách ly + Không đạt phải bằng số lượng đã chuyển sang khu QC",
   // BE gap: cùng mã cho trùng dòng PO + lô, dòng không thuộc PO, khu cách ly trùng khu không đạt…
@@ -801,6 +799,17 @@ export const RECEIPT_ERROR_MESSAGES = {
   NETWORK_ERROR: "Không kết nối được máy chủ",
   CONTRACT_MISMATCH: "Dữ liệu trả về không đúng định dạng",
   generic: "Không thực hiện được thao tác. Vui lòng thử lại.",
+} as const;
+
+/**
+ * Lỗi khi Quản lý kho duyệt / từ chối phần vượt (BR-RCP-001): cắt phần vượt không được đụng vào thùng đã dán nhãn —
+ * duyệt, hoặc huỷ phiếu rồi đếm lại. Cùng mã nhưng nghĩa khác khi lưu kiểm đếm.
+ */
+export const RECEIPT_DECISION_ERROR_MESSAGES = {
+  RECEIPT_PACKAGES_EXCEED_LINE:
+    "Cắt phần vượt sẽ làm dòng ít hơn số lượng trong các thùng đã dán tem — hãy duyệt phiếu, hoặc huỷ phiếu rồi đếm lại",
+  RECEIPT_LINE_HAS_PACKAGES:
+    "Cắt phần vượt sẽ bỏ một dòng đã dán tem thùng — hãy duyệt phiếu, hoặc huỷ phiếu rồi đếm lại",
 } as const;
 
 /** Lỗi validate form phiếu nhận (zod Input) — hiện inline dưới ô. */

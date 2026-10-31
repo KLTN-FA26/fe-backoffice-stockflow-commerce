@@ -23,9 +23,8 @@ import {
   referencePurchaseOrder,
   rejectBlindReceipt,
   rejectReceiptExcess,
-  replaceBlindReceiptLines,
-  replaceReceiptLines,
 } from "./api";
+import { replaceBlindReceiptLines, replaceReceiptLines } from "./count-api";
 import { listSupplierOptions, listWarehouseOptions } from "./lookup-api";
 import { getReceivablePurchaseOrder, listReceivablePurchaseOrders } from "./receivable-po-api";
 
@@ -71,6 +70,8 @@ async function validLine(
     expiryDate: policy.expiryTracked ? "2099-01-01" : "",
     locationCode: "HCM-RCV01",
     note: "",
+    unitOfMeasure: "",
+    packages: [],
   };
 }
 
@@ -372,6 +373,8 @@ describe("goods receipt mock ↔ hợp đồng BE PR #62", () => {
         expiryDate: "",
         locationCode: "HCM-RCV01",
         note: "",
+        unitOfMeasure: "",
+        packages: [],
       };
       expect(
         await codeOf(

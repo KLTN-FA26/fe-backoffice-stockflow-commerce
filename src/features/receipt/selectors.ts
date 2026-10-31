@@ -60,6 +60,29 @@ export function receiptReceivedOn(receipt: Pick<GoodsReceipt, "receivedAt">): st
 }
 
 /**
+ * Thùng đã lưu của dòng — đưa nguyên vào form để lần lưu sau gửi lại đủ LPN: BE VOID mọi thùng RECEIVING không có mặt
+ * trong danh sách (SCRUM-473 §3 rule 6). Thùng đã vào kho không còn ở phiếu nháp nên không xuất hiện ở đây.
+ */
+function savedCartons(line: Pick<ReceiptLineDto, "unitOfMeasure" | "packages">) {
+  return {
+    unitOfMeasure: line.unitOfMeasure ?? "",
+    packages: line.packages.map(({ lpn, quantity }) => ({ lpn, quantity })),
+  };
+}
+
+/** Dòng trống của phiếu không có PO (thêm dòng / phiếu chưa lưu). */
+export const EMPTY_BLIND_LINE = {
+  sku: "",
+  quantity: 1,
+  lotNumber: "",
+  expiryDate: "",
+  locationCode: "",
+  note: "",
+  unitOfMeasure: "",
+  packages: [],
+} as const satisfies BlindLinesFormInput["lines"][number];
+
+/**
  * Giá trị khởi tạo form kiểm đếm: phiếu đã lưu thì lấy dòng đã lưu; chưa lưu thì gợi ý mỗi dòng
  * PO còn mở một dòng, SL = SL còn mở (docs 03 bước 1: nạp dòng còn open làm dòng dự kiến).
  */
@@ -76,6 +99,7 @@ export function initialCountLines(
       expiryDate: line.expiryDate ?? "",
       locationCode: line.locationCode ?? "",
       note: line.note ?? "",
+      ...savedCartons(line),
     }));
   }
   return (po?.lines ?? [])
@@ -87,6 +111,8 @@ export function initialCountLines(
       expiryDate: "",
       locationCode: "",
       note: "",
+      unitOfMeasure: "",
+      packages: [],
     }));
 }
 
@@ -102,9 +128,10 @@ export function initialBlindLines(
       expiryDate: line.expiryDate ?? "",
       locationCode: line.locationCode ?? "",
       note: line.note ?? "",
+      ...savedCartons(line),
     }));
   }
-  return [{ sku: "", quantity: 1, lotNumber: "", expiryDate: "", locationCode: "", note: "" }];
+  return [{ ...EMPTY_BLIND_LINE }];
 }
 
 export function totalReceivedQuantity(receipt: Pick<GoodsReceipt, "lines">): number {

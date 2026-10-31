@@ -7,10 +7,12 @@ import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 
 import { RECEIPT_LIMITS, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
+import { createIdempotencyAttempt } from "@/lib/api/idempotency";
 import { receiptErrorMessage, receiptLineFieldErrors } from "@/features/receipt/errors";
 import { buildBlindLinesSchema } from "@/features/receipt/input-schemas";
 import { useSaveBlindReceiptLines } from "@/features/receipt/mutations";
 import {
+  EMPTY_BLIND_LINE,
   initialBlindLines,
   receiptReceivedOn,
   totalReceivedQuantity,
@@ -120,6 +122,8 @@ function BlindCountForm({
   });
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "lines" });
   const save = useSaveBlindReceiptLines();
+  // SCRUM-473: cùng nội dung gửi lại dùng lại Idempotency-Key — BE không cấp LPN hai lần
+  const [attempt] = useState(() => createIdempotencyAttempt());
   const [serverError, setServerError] = useState<string | null>(null);
   const isDirty = form.formState.isDirty || receipt.lines.length === 0;
   const watched = useWatch({ control: form.control, name: "lines" });
@@ -128,14 +132,18 @@ function BlindCountForm({
 
   const submit = form.handleSubmit((values) => {
     setServerError(null);
+    const idempotencyKey = attempt.keyFor({ receiptId: receipt.id, lines: values.lines });
     save.mutate(
-      { receiptId: receipt.id, lines: values.lines },
+      { receiptId: receipt.id, lines: values.lines, idempotencyKey },
       {
         onSuccess: (saved) => {
+          attempt.reset();
           form.reset({ lines: initialBlindLines(saved) });
           onSaved();
         },
         onError: (error) => {
+          if (error instanceof ApiError) attempt.settle(error);
+          else attempt.reset();
           // BE trả lỗi từng ô (`lines[i].sku`, `.locationCode`, `.lotNumber`…) trong fieldErrors
           const fieldErrors = error instanceof ApiError ? receiptLineFieldErrors(error) : [];
           for (const fe of fieldErrors) {
@@ -329,14 +337,7 @@ function BlindCountForm({
           variant="outline"
           size="sm"
           onClick={() =>
-            append({
-              sku: "",
-              quantity: 1,
-              lotNumber: "",
-              expiryDate: "",
-              locationCode: watched[0]?.locationCode ?? "",
-              note: "",
-            })
+            append({ ...EMPTY_BLIND_LINE, locationCode: watched[0]?.locationCode ?? "" })
           }
         >
           <Plus className="size-3.5" /> {B.addLine}

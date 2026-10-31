@@ -143,7 +143,16 @@ describe("phiếu không có PO (BR-RCP-002)", () => {
 
   it("giá trị khởi tạo form đếm: dòng đã lưu theo SKU, hoặc một dòng trống", () => {
     expect(initialBlindLines({ lines: [] })).toEqual([
-      { sku: "", quantity: 1, lotNumber: "", expiryDate: "", locationCode: "", note: "" },
+      {
+        sku: "",
+        quantity: 1,
+        lotNumber: "",
+        expiryDate: "",
+        locationCode: "",
+        note: "",
+        unitOfMeasure: "",
+        packages: [],
+      },
     ]);
     expect(
       initialBlindLines({
