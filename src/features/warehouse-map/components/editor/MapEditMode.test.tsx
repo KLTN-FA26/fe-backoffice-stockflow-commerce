@@ -1,10 +1,12 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { renderWithProviders } from "@/test/render";
 
 import { LAYOUT } from "@/features/warehouse-map/__fixtures__/layout";
+
+import { toast } from "@/components/shared/Toast";
 
 import { MapEditMode } from "./MapEditMode";
 
@@ -24,6 +26,9 @@ vi.mock("next/dynamic", () => ({
           </button>
           <button type="button" onClick={() => props.onSelect("shelf-a01")}>
             chọn A01
+          </button>
+          <button type="button" onClick={() => props.onBlockedMove("shelf-a01")}>
+            kéo A01
           </button>
         </div>
       );
@@ -50,6 +55,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   stock.mockReturnValue({ data: false, isError: false });
 });
+
+afterEach(() => vi.restoreAllMocks());
 
 describe("chế độ sửa bản đồ", () => {
   it("vẽ kệ → bản nháp chưa lưu với mã gợi ý; Lưu gửi cả bản nháp một lần", async () => {
@@ -103,6 +110,47 @@ describe("chế độ sửa bản đồ", () => {
     expect(screen.getByLabelText("X (m)")).toBeDisabled();
     expect(screen.getByLabelText("Mã")).toBeDisabled();
     expect(screen.getByLabelText("Tên")).toBeEnabled();
+  });
+
+  it("BR-04: dời kệ còn hàng (kéo / phím mũi tên / xoay) → cảnh báo không được di chuyển, bản nháp không đổi", async () => {
+    stock.mockReturnValue({ data: true, isError: false });
+    const warning = vi.spyOn(toast, "warning");
+    renderWithProviders(<MapEditMode layout={LAYOUT} can={MANAGER} onExit={onExit} />);
+    await userEvent.click(screen.getByRole("button", { name: "chọn A01" }));
+    await userEvent.click(screen.getByRole("button", { name: "kéo A01" }));
+    (document.activeElement as HTMLElement | null)?.blur();
+    await userEvent.keyboard("{ArrowRight}r");
+    expect(warning).toHaveBeenCalledTimes(3);
+    expect(warning).toHaveBeenLastCalledWith(
+      expect.stringMatching(/đang có hàng — không được di chuyển/),
+      undefined,
+      { id: "move-blocked:shelf-a01" },
+    );
+    expect(screen.getByRole("button", { name: /^Lưu$/ })).toBeDisabled();
+  });
+
+  it("kệ không còn hàng → phím mũi tên dời được, không cảnh báo", async () => {
+    const warning = vi.spyOn(toast, "warning");
+    renderWithProviders(<MapEditMode layout={LAYOUT} can={MANAGER} onExit={onExit} />);
+    await userEvent.click(screen.getByRole("button", { name: "chọn A01" }));
+    (document.activeElement as HTMLElement | null)?.blur();
+    await userEvent.keyboard("{ArrowRight}");
+    expect(warning).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Lưu 1 thay đổi" })).toBeEnabled();
+  });
+
+  it("thiếu quyền sửa → dời kệ đã lưu báo không có quyền", async () => {
+    const warning = vi.spyOn(toast, "warning");
+    renderWithProviders(
+      <MapEditMode layout={LAYOUT} can={{ update: false, delete: false }} onExit={onExit} />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "kéo A01" }));
+    expect(warning).not.toHaveBeenCalled(); // chưa chọn thì không báo
+    await userEvent.click(screen.getByRole("button", { name: "chọn A01" }));
+    await userEvent.click(screen.getByRole("button", { name: "kéo A01" }));
+    expect(warning).toHaveBeenCalledWith(expect.stringMatching(/không có quyền sửa/), undefined, {
+      id: "move-blocked:shelf-a01",
+    });
   });
 
   it("phím tắt: Ctrl+Z hoàn tác hình vừa vẽ, Ctrl+Shift+Z làm lại, Ctrl+S lưu", async () => {

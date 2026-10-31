@@ -115,6 +115,7 @@ export function MapEditMode({
                 }}
                 onDraw={editor.draw}
                 onChange={editor.change}
+                onBlockedMove={editor.warnBlockedMove}
               />
             </div>
             <MapControls {...controls} zoom={zoomControls} />

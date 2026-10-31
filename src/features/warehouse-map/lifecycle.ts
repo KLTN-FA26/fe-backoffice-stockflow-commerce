@@ -94,6 +94,23 @@ export function placeLocks(item: DraftItem, stock: StockState, can: EditPermissi
   return { identity: noUpdate, geometry: noUpdate || busy, remove: noUpdate || busy };
 }
 
+/** Vì sao không dời / đổi cỡ / xoay được hình đang chọn — để báo người dùng thay vì im lặng bỏ qua. */
+export type MoveBlock = "noUpdate" | "stocked" | "checking";
+
+/**
+ * Lý do khoá hình học (`placeLocks().geometry`), `null` = dời được. BR-04 (docs 06 §6, C22): vị trí còn
+ * hàng không được dời — phải chuyển hết hàng trước. UI-only — Backend phải re-check (BR-04).
+ */
+export function moveBlock(
+  item: DraftItem,
+  stock: StockState,
+  can: EditPermissions,
+): MoveBlock | null {
+  if (!placeLocks(item, stock, can).geometry) return null;
+  if (!can.update) return "noUpdate";
+  return stock === "stocked" ? "stocked" : "checking";
+}
+
 /**
  * Xoá cả vùng chọn: chỉ các hình ĐÃ BIẾT không còn hàng và đủ quyền (BR-04, docs 06 §6 — BE chưa kiểm
  * tồn khi chuyển Inactive nên FE là lớp chặn). Tồn chưa kiểm xong hoặc kiểm lỗi (`unknown`) cũng bỏ
