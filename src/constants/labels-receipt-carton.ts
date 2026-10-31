@@ -83,4 +83,35 @@ export const RECEIPT_CARTON_LABELS = {
   confirmRemoveDescription: (lpn: string) =>
     `Thùng ${lpn} sẽ bị huỷ khi lưu kiểm đếm — nhãn đã in không còn hiệu lực.`,
   confirmRemoveAction: "Huỷ thùng",
+  // Bảng dòng nhận + panel thùng của dòng
+  column: "Thùng / Lẻ",
+  openCartons: (sku: string) => `Xem thùng của ${sku}`,
+  panelSubtitle: (cartons: number, loose: number, unit: string | null) =>
+    `${cartons} thùng · lẻ ${loose}${unit ? ` · đơn vị ${unit}` : ""}`,
+  headers: {
+    lpn: "LPN",
+    received: "Đếm được",
+    now: "Hiện còn",
+    nominal: "Danh nghĩa",
+    status: "Trạng thái",
+    location: "Vị trí",
+  },
+  selectCarton: (lpn: string) => `Chọn thùng ${lpn} để in lại`,
+  printLine: "In nhãn cả dòng",
+  reprint: (count: number) => `In lại ${count} nhãn`,
+} as const;
+
+/** Dialog in nhãn thùng (BE trả PDF — xem trước rồi in / tải xuống). */
+export const CARTON_PRINT_LABELS = {
+  title: "In nhãn thùng",
+  lineDescription: (count: number) =>
+    `Nhãn cho ${count} thùng còn hiệu lực của dòng: LPN (chữ, QR, Code 128), SKU và SL đếm được / danh nghĩa.`,
+  reprintDescription: (lpns: string) => `In lại nhãn: ${lpns}`,
+  format: "Khổ nhãn",
+  generate: "Tạo file in",
+  regenerate: "Tạo lại",
+  printNow: "In",
+  download: "Tải xuống",
+  preview: "Xem trước nhãn thùng",
+  close: "Đóng",
 } as const;
