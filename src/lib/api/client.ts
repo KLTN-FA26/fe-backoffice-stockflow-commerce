@@ -3,7 +3,12 @@
 import axios from "axios";
 
 import { APP_ROUTES } from "@/constants";
-import { AUTH_PATHS, BROWSER_API_BASE, BROWSER_API_TIMEOUT_MS } from "@/constants/auth";
+import {
+  AUTH_PATHS,
+  BROWSER_API_BASE,
+  BROWSER_API_TIMEOUT_MS,
+  PASSWORD_CHANGE_REQUIRED_CODE,
+} from "@/constants/auth";
 
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useAppStore } from "@/lib/store/use-app-store";
@@ -54,6 +59,17 @@ api.interceptors.response.use(
         window.location.pathname !== APP_ROUTES.login
       ) {
         window.location.replace(APP_ROUTES.login);
+      }
+    }
+    // SCRUM-474 FIRST-LOGIN: the account still has an administrator-set password, so the BE refuses
+    // everything but changing it. Remember that and go to the page that does (the session stays).
+    if (
+      err.response?.status === 403 &&
+      (err.response.data?.errorCode ?? err.response.data?.code) === PASSWORD_CHANGE_REQUIRED_CODE
+    ) {
+      useAuthStore.getState().requirePasswordChange();
+      if (typeof window !== "undefined" && window.location.pathname !== APP_ROUTES.changePassword) {
+        window.location.replace(APP_ROUTES.changePassword);
       }
     }
     return Promise.reject(ApiError.from(err));

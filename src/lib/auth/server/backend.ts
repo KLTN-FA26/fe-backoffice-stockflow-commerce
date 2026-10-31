@@ -10,6 +10,7 @@ export const BACKEND_AUTH_PATHS = {
   login: "identity/auth/login",
   me: "identity/me",
   logout: "identity/auth/logout",
+  password: "identity/auth/password",
 } as const;
 // BE develop identity/internal/controller/dto/AuthTokenResponse.java. Server only.
 export const backendTokensSchema = z.object({
