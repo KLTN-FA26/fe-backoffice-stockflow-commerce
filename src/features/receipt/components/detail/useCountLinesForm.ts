@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQueryClient } from "@tanstack/react-query";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 
 import { ApiError } from "@/lib/api/error";
@@ -10,6 +11,7 @@ import { receiptErrorMessage, receiptLineFieldErrors } from "@/features/receipt/
 import { countLineCartonContext } from "@/features/receipt/carton-selectors";
 import { buildReceiptLinesSchema } from "@/features/receipt/input-schemas";
 import { useSaveReceiptLines } from "@/features/receipt/mutations";
+import { receiptKeys } from "@/features/receipt/queries";
 import { initialCountLines } from "@/features/receipt/count-selectors";
 import { poLinesOverOpenQuantity, receiptReceivedOn } from "@/features/receipt/selectors";
 
@@ -49,6 +51,7 @@ export function useCountLinesForm(
     name: "lines",
   });
   const save = useSaveReceiptLines();
+  const queryClient = useQueryClient();
   // SCRUM-473: gửi lại cùng nội dung (mất mạng / BE nhả claim) dùng lại key — BE không cấp LPN hai lần
   const [attempt] = useState(() => createIdempotencyAttempt());
   const [serverError, setServerError] = useState<string | null>(null);
@@ -99,6 +102,8 @@ export function useCountLinesForm(
       {
         onSuccess: (saved) => {
           attempt.reset();
+          // Hiện ngay kết quả BE trả về (LPN mới, SL) — không để màn kết quả nháy số cũ tới khi tải lại xong
+          queryClient.setQueryData(receiptKeys.detail(saved.id), saved);
           form.reset({ lines: initialCountLines(saved, po) });
           onSaved?.();
         },

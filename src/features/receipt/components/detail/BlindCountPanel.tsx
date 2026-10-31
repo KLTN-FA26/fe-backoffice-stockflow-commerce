@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Pencil, Plus, Save, Trash2 } from "lucide-react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 
@@ -11,6 +12,7 @@ import { createIdempotencyAttempt } from "@/lib/api/idempotency";
 import { receiptErrorMessage, receiptLineFieldErrors } from "@/features/receipt/errors";
 import { buildBlindLinesSchema } from "@/features/receipt/input-schemas";
 import { useSaveBlindReceiptLines } from "@/features/receipt/mutations";
+import { receiptKeys } from "@/features/receipt/queries";
 import { EMPTY_BLIND_LINE, initialBlindLines } from "@/features/receipt/count-selectors";
 import { receiptReceivedOn, totalReceivedQuantity } from "@/features/receipt/selectors";
 import { Alert } from "@/components/shared/Alert";
@@ -118,6 +120,7 @@ function BlindCountForm({
   });
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "lines" });
   const save = useSaveBlindReceiptLines();
+  const queryClient = useQueryClient();
   // SCRUM-473: cùng nội dung gửi lại dùng lại Idempotency-Key — BE không cấp LPN hai lần
   const [attempt] = useState(() => createIdempotencyAttempt());
   const [serverError, setServerError] = useState<string | null>(null);
@@ -134,6 +137,7 @@ function BlindCountForm({
       {
         onSuccess: (saved) => {
           attempt.reset();
+          queryClient.setQueryData(receiptKeys.detail(saved.id), saved);
           form.reset({ lines: initialBlindLines(saved) });
           onSaved();
         },

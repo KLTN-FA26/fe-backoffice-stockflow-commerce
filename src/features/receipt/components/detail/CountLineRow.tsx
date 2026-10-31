@@ -53,7 +53,7 @@ export function CountLineRow({
 
   return (
     <tr className="border-border-default border-t align-top">
-      <td className="px-2 py-2">
+      <td className="px-2 py-2 whitespace-nowrap">
         <div className="font-[family-name:var(--font-mono)] text-[0.8125rem]">
           {poLine?.sku ?? "—"}
         </div>
