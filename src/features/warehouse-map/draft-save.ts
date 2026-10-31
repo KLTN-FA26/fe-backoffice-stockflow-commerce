@@ -6,14 +6,16 @@
 
 import { LOCATION_STATUS } from "@/constants";
 import { api } from "@/lib/api/client";
-import { newIdempotencyKey } from "@/lib/api/idempotency";
+import { ApiError } from "@/lib/api/error";
+import { createIdempotencyAttempt } from "@/lib/api/idempotency";
 
 import { addShelfLevel, changePlaceStatus, deleteBoundary, generateShelfBins } from "./api";
 import { saveArea, saveBoundary, saveShelf, saveZone } from "./api-draft";
 import { planDraftSave, saveOpLabel } from "./draft-plan";
 import { savedRefDto } from "./schemas";
 
-import type { DraftShelf, MapDraft } from "./draft";
+import type { IdempotencyAttempt } from "@/lib/api/idempotency";
+import type { DraftShelf, MapDraft, ShelfBuild } from "./draft";
 import type { SavedRef } from "./draft-edit";
 import type { SaveOp } from "./draft-plan";
 
@@ -47,6 +49,24 @@ const shelfVersion = async (shelfId: string): Promise<number> => {
 };
 
 /**
+ * Key sinh bin theo kệ, sống qua các lần bấm Lưu: lần trước mất phản hồi / bị nhả thì lần sau gửi lại
+ * ĐÚNG key cũ — BE trả kết quả đã chốt thay vì 409 SHELF_LEVEL_HAS_BINS (BR-14).
+ */
+const binAttempts = new Map<string, IdempotencyAttempt>();
+
+async function generateBinsOnce(shelfId: string, levelIds: string[], build: ShelfBuild) {
+  const attempt = binAttempts.get(shelfId) ?? createIdempotencyAttempt();
+  binAttempts.set(shelfId, attempt);
+  try {
+    await generateShelfBins(shelfId, levelIds, build, attempt.keyFor({ levelIds, build }));
+    binAttempts.delete(shelfId);
+  } catch (error) {
+    if (error instanceof ApiError) attempt.settle(error);
+    throw error;
+  }
+}
+
+/**
  * Tầng + bin của kệ vừa tạo (hoặc dựng dở lần trước — tiếp từ `builtLevelIds`). Tạo tầng làm đổi
  * `version` kệ → đọc lại để lần PUT sau không bị 409. Hỏng giữa chừng: ghi các tầng đã tạo vào
  * `saved.pendingLevelIds` + version mới nhất đọc được (cố gắng, không chắc) rồi ném tiếp — bản nháp giữ
@@ -60,7 +80,7 @@ async function buildShelf(saved: SavedRef, shelf: DraftShelf): Promise<void> {
     for (let index = levelIds.length + 1; index <= build.levelCount; index += 1)
       levelIds.push((await addShelfLevel(saved.id, index, build.levelHeight)).id);
     // BR-14: gửi Idempotency-Key — thử lại không bị 409 SHELF_LEVEL_HAS_BINS
-    if (build.generateBins) await generateShelfBins(saved.id, levelIds, build, newIdempotencyKey());
+    if (build.generateBins) await generateBinsOnce(saved.id, levelIds, build);
   } catch (error) {
     saved.pendingLevelIds = levelIds;
     saved.version = await shelfVersion(saved.id).catch(() => saved.version);

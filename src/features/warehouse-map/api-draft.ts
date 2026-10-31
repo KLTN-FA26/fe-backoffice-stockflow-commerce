@@ -15,6 +15,7 @@ import { api } from "@/lib/api/client";
 import { WAREHOUSES_PATH } from "./api";
 import { locationStockDto, savedRefDto, stockProbeDto } from "./schemas";
 
+import type { LocationStockRow } from "./cartons-3d";
 import type { DraftArea, DraftBoundary, DraftShelf, DraftZone } from "./draft";
 
 const id = (value: string) => encodeURIComponent(value);
@@ -121,4 +122,35 @@ export async function listShelfStock(
     signal,
   });
   return locationStockDto.parse(data).items;
+}
+
+/** Tồn cả kho đọc cho toàn cảnh 3D. `truncated`: kho nhiều dòng hơn trần → UI báo "một phần". */
+export interface WarehouseStock {
+  rows: LocationStockRow[];
+  total: number;
+  truncated: boolean;
+}
+
+/**
+ * Tồn mọi vị trí của kho (mã bắt đầu `PREFIX-`) để toàn cảnh 3D vẽ thùng đúng chỗ có hàng: đọc lần lượt
+ * từng trang tới hết, hoặc dừng ở trần `warehouseStockMaxRows` — không im lặng bỏ bớt mà trả `truncated`.
+ */
+export async function listWarehouseStock(
+  input: { warehouseId: string; prefix: string },
+  signal?: AbortSignal,
+): Promise<WarehouseStock> {
+  const rows: LocationStockRow[] = [];
+  let total = 0;
+  for (let page = 0; ; page += 1) {
+    const { data } = await api.get<unknown>(INVENTORY_API.warehouseStockItems(input.warehouseId), {
+      params: { location: `${input.prefix}-`, page, size: LIMITS.warehouseStockPageSize },
+      signal,
+    });
+    const parsed = locationStockDto.parse(data);
+    rows.push(...parsed.items);
+    total = parsed.totalElements;
+    if (!parsed.hasNext || parsed.items.length === 0 || rows.length >= LIMITS.warehouseStockMaxRows)
+      break;
+  }
+  return { rows, total, truncated: rows.length < total };
 }

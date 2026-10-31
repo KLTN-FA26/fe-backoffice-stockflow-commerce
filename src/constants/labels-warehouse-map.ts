@@ -184,6 +184,9 @@ export const WAREHOUSE_MAP_UI_LABELS = {
       stockHidden: "đang kiểm kê",
       stockMore: (count: number) => `… và ${count} dòng khác`,
       stockNote: "Thùng carton vẽ theo tồn hiện tại — chỉ mang tính trực quan (BR-05).",
+      overviewStockPartial: (shown: string, total: string) =>
+        `Kho có ${total} dòng tồn — đang vẽ thùng cho ${shown} dòng đầu (hiển thị một phần).`,
+      overviewStockFailed: "Không tải được tồn cả kho — toàn cảnh chưa vẽ thùng hàng.",
       openDetail: "Xem chi tiết",
       overview: "Toàn cảnh (0)",
       showStock: "Xem hàng trên kệ",

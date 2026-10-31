@@ -120,11 +120,15 @@ export function draftReducer(draft: MapDraft, action: DraftAction): MapDraft {
       const item = drawnItem(draft, action.shape, newKeyOf(draft));
       return { ...draft, items: [...draft.items, item], seq: draft.seq + 1 };
     }
-    case "update":
-      return {
-        ...draft,
-        items: draft.items.map((item) => (item.key === action.key ? action.apply(item) : item)),
-      };
+    case "update": {
+      const items = draft.items.map((item) =>
+        item.key === action.key ? action.apply(item) : item,
+      );
+      // Không hình nào đổi (xoay tường, khoá đã mất) → giữ nguyên tham chiếu, không thêm bước hoàn tác rỗng
+      return items.every((item, index) => item === draft.items[index])
+        ? draft
+        : { ...draft, items };
+    }
     case "remove":
       return withoutKeys(draft, [action.key]);
     case "duplicate":

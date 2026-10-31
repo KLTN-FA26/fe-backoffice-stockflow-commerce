@@ -12,16 +12,16 @@ import type { LayoutShelf } from "@/features/warehouse-map/types";
 import type { ScenePalette } from "./use-scene-palette";
 
 /**
- * Thùng carton trên kệ đang xem — chỉ ở bin có dòng tồn (`stock`). Một `InstancedMesh` cho mọi thùng,
- * vật liệu có texture vẽ sẵn (kraft, băng keo, tem, ký hiệu); mỗi thùng lệch sắc giấy nhẹ. Không bắt
- * chuột (bấm xuyên qua tới kệ).
+ * Thùng carton trên các kệ (toàn cảnh: cả kho; xem kệ: một kệ) — chỉ ở bin có dòng tồn (`stock`). Một
+ * `InstancedMesh` cho mọi thùng, vật liệu có texture vẽ sẵn (kraft, băng keo, tem, ký hiệu); mỗi thùng
+ * lệch sắc giấy nhẹ. Không bắt chuột (bấm xuyên qua tới kệ).
  */
 export function Cartons3D({
-  shelf,
+  shelves,
   stock,
   palette,
 }: {
-  shelf: LayoutShelf;
+  shelves: readonly LayoutShelf[];
   stock: ReadonlyMap<string, number | null>;
   palette: ScenePalette;
 }) {
@@ -29,7 +29,7 @@ export function Cartons3D({
   useEffect(() => () => disposeMaterials(materials), [materials]);
 
   const { parts, colors } = useMemo(() => {
-    const cartons = cartonParts(shelf, stock);
+    const cartons = shelves.flatMap((shelf) => cartonParts(shelf, stock));
     // Ba sắc: nguyên bản, ngả đậm, ngả sáng — nhân lên texture nên chỉ lệch rất nhẹ
     const white = new Color(palette.label);
     const shades = [
@@ -41,7 +41,7 @@ export function Cartons3D({
       parts: cartons.map((part) => ({ ...part, rotation: [part.yaw, 0] as [number, number] })),
       colors: cartons.map((part) => shades[part.shade] ?? white.getStyle()),
     };
-  }, [shelf, stock, palette]);
+  }, [shelves, stock, palette]);
 
   if (parts.length === 0) return null;
   return <PartsMesh parts={parts} colors={colors} materials={materials} />;

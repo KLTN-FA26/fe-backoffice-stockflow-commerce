@@ -8,7 +8,7 @@ import {
   shelfFocusPose,
   stockByLocation,
 } from "@/features/warehouse-map/cartons-3d";
-import { useShelfStock } from "@/features/warehouse-map/queries";
+import { useShelfStock, useWarehouseStock } from "@/features/warehouse-map/queries";
 import { findPlace } from "@/features/warehouse-map/selectors";
 
 import { useHotkeys } from "../../shared/use-hotkeys";
@@ -37,10 +37,12 @@ export function useSceneFocus(
   );
   const rows = stockQuery.data;
   const stock = useMemo(() => stockByLocation(rows ?? []), [rows]);
-  const rackFocus = useMemo(
-    () => (shelf ? { shelfId: shelf.id, stocked: new Set(stock.keys()) } : undefined),
-    [shelf, stock],
-  );
+  const stocked = useMemo(() => new Set(stock.keys()), [stock]);
+  // Toàn cảnh: tồn cả kho (một lần đọc theo trang) → thùng ở mọi bin có hàng, bin trống để trống
+  const warehouseQuery = useWarehouseStock(layout.warehouse);
+  const warehouse = warehouseQuery.data;
+  const allStock = useMemo(() => stockByLocation(warehouse?.rows ?? []), [warehouse]);
+  const allStocked = useMemo(() => new Set(allStock.keys()), [allStock]);
   const overview = useMemo(() => overviewPose(w, h), [w, h]);
   const pose = useMemo(
     () => (shelf ? shelfFocusPose(shelf) : area ? areaFocusPose(area) : null),
@@ -71,7 +73,16 @@ export function useSceneFocus(
     area,
     stock,
     stockState: { rows: rows ?? [], isLoading: stockQuery.isLoading, isError: stockQuery.isError },
-    rackFocus,
+    stocked,
+    overviewStock: {
+      stock: allStock,
+      stocked: allStocked,
+      /** Kho lớn hơn trần đọc → chỉ vẽ một phần, UI phải báo. */
+      partial: warehouse?.truncated
+        ? { shown: warehouse.rows.length, total: warehouse.total }
+        : null,
+      failed: warehouseQuery.isError,
+    },
     overview,
     pose,
     zoom,

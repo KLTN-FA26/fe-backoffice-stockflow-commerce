@@ -35,7 +35,7 @@ export function Racks3D({
   shelves,
   zoneColors,
   palette,
-  focus,
+  stocked,
   onSelect,
   onHover,
   interactive = true,
@@ -43,8 +43,8 @@ export function Racks3D({
   shelves: readonly LayoutShelf[];
   zoneColors: ReadonlyMap<string, string>;
   palette: ScenePalette;
-  /** Kệ đang xem + mã vị trí có thùng carton → bỏ thùng nhựa rỗng ở đó. */
-  focus?: { shelfId: string; stocked: ReadonlySet<string> };
+  /** Mã vị trí đang có thùng carton (tồn thật) → bỏ thùng nhựa rỗng ở đó. */
+  stocked?: ReadonlySet<string>;
   onSelect: (shelfId: string) => void;
   onHover: (shelfId: string | null) => void;
   /** `false` khi đang ẩn (xem một kệ khác) — không bắt chuột. */
@@ -54,8 +54,7 @@ export function Racks3D({
   const groups = useMemo(() => {
     const byKind = new Map<RackPartKind, RackPart[]>(KINDS.map((kind) => [kind, []]));
     for (const shelf of shelves)
-      for (const part of rackParts(shelf, shelf.id === focus?.shelfId ? focus.stocked : undefined))
-        byKind.get(part.kind)?.push(part);
+      for (const part of rackParts(shelf, stocked)) byKind.get(part.kind)?.push(part);
     const zoneOf = new Map(
       shelves.map((s) => [s.id, s.zoneId ? zoneColors.get(s.zoneId) : undefined]),
     );
@@ -70,7 +69,7 @@ export function Racks3D({
       const tinted = kind === "beam" || kind === "label";
       return { kind, parts, colors: tinted ? parts.map(colorOf) : undefined };
     });
-  }, [shelves, focus, zoneColors, palette]);
+  }, [shelves, stocked, zoneColors, palette]);
 
   const baseColor: Record<RackPartKind, string> = {
     upright: palette.steel,

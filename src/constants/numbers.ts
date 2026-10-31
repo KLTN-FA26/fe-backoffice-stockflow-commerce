@@ -421,6 +421,9 @@ export const WAREHOUSE_MAP_LIMITS = {
   stockProbeSize: 20,
   /** Số dòng tồn đọc cho một kệ khi xem hàng trên kệ ở 3D. */
   shelfStockSize: 100,
+  /** Tồn cả kho cho toàn cảnh 3D: đọc theo trang cỡ này, dừng ở trần dòng — kho lớn hơn thì báo một phần. */
+  warehouseStockPageSize: 200,
+  warehouseStockMaxRows: 2000,
 } as const;
 
 /**

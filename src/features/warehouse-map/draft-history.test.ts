@@ -45,9 +45,24 @@ describe("hoàn tác / làm lại bản nháp (Ctrl+Z / Ctrl+Shift+Z)", () => {
   });
 
   it("lưu xong một phần (synced) xoá lịch sử — bước đã gửi BE không hoàn tác ở client", () => {
-    const state = run(DRAW, { type: "synced", saved: [], removedKeys: [] });
+    const drawn = run(DRAW);
+    const key = drawn.present.items.at(-1)?.key ?? "";
+    const saved = [{ key, id: "shelf-new", version: 0 }];
+    const state = historyReducer(drawn, { type: "synced", saved, removedKeys: [] });
     expect(state.past).toEqual([]);
     expect(historyReducer(state, { type: "undo" })).toBe(state);
+  });
+
+  it("lưu hỏng ngay request đầu (không gì được lưu) giữ nguyên lịch sử hoàn tác", () => {
+    const drawn = run(DRAW);
+    expect(historyReducer(drawn, { type: "synced", saved: [], removedKeys: [] })).toBe(drawn);
+  });
+
+  it("thao tác không đổi gì (xoay tường, khoá không còn) không thêm bước hoàn tác rỗng", () => {
+    const drawn = run(DRAW);
+    const noop: HistoryAction = { type: "update", key: "shelf-a01", apply: (item) => item };
+    expect(historyReducer(drawn, noop)).toBe(drawn);
+    expect(historyReducer(drawn, { ...noop, key: "missing" })).toBe(drawn);
   });
 
   it(`giữ tối đa ${LIMITS.historyLimit} bước`, () => {

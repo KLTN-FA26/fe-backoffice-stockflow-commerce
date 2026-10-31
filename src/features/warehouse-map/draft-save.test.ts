@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ApiError } from "@/lib/api/error";
+
 import { LAYOUT } from "./__fixtures__/layout";
 import { saveArea, saveBoundary, saveShelf, saveZone } from "./api-draft";
 import { addShelfLevel, changePlaceStatus, deleteBoundary, generateShelfBins } from "./api";
@@ -120,5 +122,16 @@ describe("kệ mới dựng tầng / bin hỏng giữa chừng", () => {
     const built = done.items.find((item) => item.key === shelfKey);
     expect(built?.kind === "shelf" && built.build).toBe(null);
     expect(planDraftSave(done)).toEqual([]);
+  });
+
+  it("BR-14: sinh bin mất phản hồi → lần lưu sau gửi lại ĐÚNG Idempotency-Key cũ (không 409)", async () => {
+    vi.mocked(generateShelfBins).mockRejectedValueOnce(new ApiError(0, "NETWORK", "mất mạng"));
+    const draft = apply(NEW_SHELF);
+    const error = await saveMapDraft({ warehouseId: "wh-hcm", draft }).catch((e: unknown) => e);
+    if (!(error instanceof DraftSaveError)) throw new Error("phải là DraftSaveError");
+    const resumed = draftReducer(draft, { type: "synced", ...error.result });
+    await saveMapDraft({ warehouseId: "wh-hcm", draft: resumed });
+    const [first, second] = vi.mocked(generateShelfBins).mock.calls.map((call) => call[3]);
+    expect(second).toBe(first);
   });
 });

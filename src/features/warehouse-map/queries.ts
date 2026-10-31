@@ -4,7 +4,7 @@ import { QUERY_TIMES } from "@/lib/api/query-client";
 import { createListQuery, createQueryKeys } from "@/lib/api/query-factory";
 
 import { getWarehouseLayout, listWarehouses } from "./api";
-import { hasStockAt, listShelfStock } from "./api-draft";
+import { hasStockAt, listShelfStock, listWarehouseStock } from "./api-draft";
 
 import type { ListWarehouseParams } from "./api";
 import type { Warehouse } from "./types";
@@ -66,6 +66,21 @@ export function useShelfStock(input: { warehouseId: string; locationCode: string
     queryKey: shelfStockKeys.of(input?.warehouseId ?? "", input?.locationCode ?? ""),
     queryFn: ({ signal }) => (input ? listShelfStock(input, signal) : Promise.resolve([])),
     enabled: input !== null,
+    ...QUERY_TIMES.detail,
+  });
+}
+
+/** Tồn cả kho cho toàn cảnh 3D (thùng ở mọi bin có hàng) — chỉ đọc, nguồn tồn theo vị trí (BR-05). */
+export const warehouseStockKeys = {
+  all: ["warehouse-map", "warehouse-stock"] as const,
+  of: (warehouseId: string) => [...warehouseStockKeys.all, warehouseId] as const,
+};
+
+export function useWarehouseStock(warehouse: { id: string; prefix: string }) {
+  return useQuery({
+    queryKey: warehouseStockKeys.of(warehouse.id),
+    queryFn: ({ signal }) =>
+      listWarehouseStock({ warehouseId: warehouse.id, prefix: warehouse.prefix }, signal),
     ...QUERY_TIMES.detail,
   });
 }

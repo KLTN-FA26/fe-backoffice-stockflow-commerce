@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { DraftSaveError } from "@/features/warehouse-map/draft-save";
 import { warehouseMapErrorMessage } from "@/features/warehouse-map/errors";
@@ -25,7 +25,12 @@ export function useDraftSave(editor: MapEditor, warehouseId: string, onSaved: ()
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
 
+  // `progress` chỉ có sau khi mutationFn chạy → khoá ngay lúc bấm, chặn Ctrl+S / bấm đúp lưu hai lần
+  const running = useRef(false);
+
   const run = () => {
+    if (running.current) return;
+    running.current = true;
     setError(null);
     save.mutate(
       {
@@ -39,7 +44,10 @@ export function useDraftSave(editor: MapEditor, warehouseId: string, onSaved: ()
           if (cause instanceof DraftSaveError) editor.dispatch({ type: "synced", ...cause.result });
           setError(warehouseMapErrorMessage(cause));
         },
-        onSettled: () => setProgress(null),
+        onSettled: () => {
+          running.current = false;
+          setProgress(null);
+        },
       },
     );
   };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useEffectEvent } from "react";
 
 /**
  * Tổ hợp phím → việc cần làm. Tên tổ hợp: `mod+s`, `mod+shift+z`, `shift+tab`, `arrowleft`, `?`, `+`.
@@ -43,19 +43,21 @@ export function useHotkeys(
     allowWhileTyping = [],
   }: { enabled?: boolean; allowWhileTyping?: string[] } = {},
 ): void {
+  // Đọc `map` mới nhất lúc bấm — caller dựng map mới mỗi render, không gắn lại listener theo nó
+  const onKeyDown = useEffectEvent((event: KeyboardEvent) => {
+    if (event.defaultPrevented || event.isComposing) return;
+    const combo = comboOf(event);
+    const handler = map[combo];
+    if (!handler) return;
+    if (isTyping(event.target) && !allowWhileTyping.includes(combo)) return;
+    const onButton = event.target instanceof HTMLElement && event.target.closest("button, a");
+    if (onButton && (combo === "enter" || combo === " ")) return;
+    if (handler(event) !== false) event.preventDefault();
+  });
   useEffect(() => {
     if (!enabled) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.isComposing) return;
-      const combo = comboOf(event);
-      const handler = map[combo];
-      if (!handler) return;
-      if (isTyping(event.target) && !allowWhileTyping.includes(combo)) return;
-      const onButton = event.target instanceof HTMLElement && event.target.closest("button, a");
-      if (onButton && (combo === "enter" || combo === " ")) return;
-      if (handler(event) !== false) event.preventDefault();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [map, enabled, allowWhileTyping]);
+    const listener = (event: KeyboardEvent) => onKeyDown(event);
+    window.addEventListener("keydown", listener);
+    return () => window.removeEventListener("keydown", listener);
+  }, [enabled]);
 }

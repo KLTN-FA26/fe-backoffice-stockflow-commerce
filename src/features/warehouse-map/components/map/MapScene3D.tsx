@@ -12,13 +12,13 @@ import { shelfHeight, zoneColors } from "@/features/warehouse-map/selectors";
 import { MapControls } from "../shared/MapControls";
 import { Areas3D } from "./scene3d/Areas3D";
 import { CameraRig } from "./scene3d/CameraRig";
-import { Cartons3D } from "./scene3d/Cartons3D";
 import { Floor3D } from "./scene3d/Floor3D";
 import { FocusCard } from "./scene3d/FocusCard";
-import { Racks3D } from "./scene3d/Racks3D";
 import { SceneLights } from "./scene3d/SceneLights";
 import { ShelfFocus3D } from "./scene3d/ShelfFocus3D";
+import { ShelvesLayer } from "./scene3d/ShelvesLayer";
 import { StaticShadows } from "./scene3d/StaticShadows";
+import { StockNotice } from "./scene3d/StockNotice";
 import { useSceneFocus } from "./scene3d/use-scene-focus";
 import { useScenePalette } from "./scene3d/use-scene-palette";
 import { Walls3D } from "./scene3d/Walls3D";
@@ -61,8 +61,7 @@ export default function MapScene3D({
   // Trần của vùng camera: cao hơn kệ / tường cao nhất một chút
   const top = Math.max(LIMITS.wallHeight3d, ...layout.shelves.map(shelfHeight)) + 2;
   // Đang xem một kệ: chỉ hiện kệ đó (không khu vực, tường, kệ khác che tầm xoay quanh)
-  const isolated = useMemo(() => (shelf ? [shelf] : []), [shelf]);
-  const shelves = shelf ? isolated : layout.shelves;
+  const shelves = shelf ? [shelf] : layout.shelves;
   const colorsByZone = useMemo(() => zoneColors(layout), [layout]);
   const target = shelf ?? focus.area;
 
@@ -96,36 +95,27 @@ export default function MapScene3D({
             onSelect={onSelect}
           />
         )}
-        {/* Kệ cả kho luôn dựng sẵn, xem một kệ thì chỉ ẩn đi — thoát ra không phải dựng lại (không giật
-            đúng lúc camera bay về toàn cảnh) */}
-        <group visible={!shelf}>
-          <Racks3D
-            shelves={layout.shelves}
-            zoneColors={colorsByZone}
-            palette={palette}
-            onSelect={onSelect}
-            onHover={setHoveredId}
-            interactive={!shelf}
-          />
-        </group>
-        {shelf && (
-          <Racks3D
-            shelves={isolated}
-            zoneColors={colorsByZone}
-            palette={palette}
-            focus={focus.rackFocus}
-            onSelect={onSelect}
-            onHover={setHoveredId}
-          />
-        )}
-        {shelf && <Cartons3D shelf={shelf} stock={focus.stock} palette={palette} />}
+        <ShelvesLayer
+          shelves={layout.shelves}
+          shelf={shelf}
+          zoneColors={colorsByZone}
+          palette={palette}
+          overview={focus.overviewStock}
+          focus={{ stock: focus.stock, stocked: focus.stocked }}
+          onSelect={onSelect}
+          onHover={setHoveredId}
+        />
         {!shelf && <Walls3D boundaries={layout.boundaries} palette={palette} />}
         {shelves
           .filter((s) => s.id === selectedId || s.id === hoveredId)
           .map((s) => (
             <ShelfFocus3D key={s.id} shelf={s} color={palette.info} strong={s.id === selectedId} />
           ))}
-        <StaticShadows layout={layout} focusId={selectedId} stock={focus.stock} />
+        <StaticShadows
+          layout={layout}
+          focusId={selectedId}
+          stock={shelf ? focus.stock : focus.overviewStock.stock}
+        />
         <CameraRig
           controlsRef={focus.cameraRef}
           overview={focus.overview}
@@ -141,6 +131,9 @@ export default function MapScene3D({
           onDetail={onOpenDetail}
           onOverview={focus.toOverview}
         />
+      )}
+      {!target && (
+        <StockNotice partial={focus.overviewStock.partial} failed={focus.overviewStock.failed} />
       )}
       <MapControls {...controls} zoom={focus.zoom} />
     </div>

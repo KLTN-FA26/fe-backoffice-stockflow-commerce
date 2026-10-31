@@ -35,6 +35,8 @@ function afterBuild(item: DraftItem, ref: SavedRef): DraftItem {
 }
 
 export function synced(draft: MapDraft, saved: SavedRef[], removedKeys: string[]): MapDraft {
+  // Không request nào thành công → bản nháp giữ nguyên (lịch sử hoàn tác không bị xoá oan)
+  if (saved.length === 0 && removedKeys.length === 0) return draft;
   const refs = new Map(saved.map((ref) => [ref.key, ref]));
   const base = { ...draft.base };
   const apply = <T extends DraftItem | DraftZone>(value: T, ref: SavedRef): T => {
