@@ -5,10 +5,11 @@ import { Group, Rect, Transformer } from "react-konva";
 
 import { WAREHOUSE_MAP_LIMITS as LIMITS } from "@/constants";
 
-import { footprintFromBox, movedFootprint, snap } from "@/features/warehouse-map/draft-geometry";
+import { footprintFromBox, snap } from "@/features/warehouse-map/draft-geometry";
 import { boxOf, shelfTransform } from "@/features/warehouse-map/selectors";
 
 import { LINE } from "../../map/shape-utils";
+import { placeDragHandlers, withFootprint } from "./place-drag";
 import { PlaceLabel } from "./PlaceLabel";
 import { ShelfDetail } from "./ShelfDetail";
 
@@ -34,17 +35,17 @@ export interface PlaceNodeProps {
   onSelect: (additive: boolean) => void;
   onOpen: () => void;
   onChange: (apply: (item: DraftItem) => DraftItem) => void;
+  /** Hình đã lưu: thử kéo khi đang bị khoá (còn hàng, đang kiểm tồn, thiếu quyền) → báo lý do. */
+  onBlockedMove?: () => void;
 }
-
-const withFootprint = (footprint: Footprint) => (item: DraftItem) =>
-  item.kind === "boundary" ? item : { ...item, footprint };
 
 /**
  * Kệ / khu vực trên canvas sửa: kéo để dời (bám lưới 0,5 m, không ra khỏi khung — BR-06), kéo góc để
  * đổi cỡ (không xoay ở đây; xoay bằng R / bảng thông số — BR-09). Viền đỏ = đang vi phạm luật.
  */
 export function PlaceNode(props: PlaceNodeProps) {
-  const { item, frame, palette, selected, editable, invalid, changed } = props;
+  const { item, frame, palette, selected, editable, invalid, changed, onChange, onBlockedMove } =
+    props;
   const group = useRef<Konva.Group>(null);
   const transformer = useRef<Konva.Transformer>(null);
   const box = boxOf(item.footprint);
@@ -72,20 +73,11 @@ export function PlaceNode(props: PlaceNodeProps) {
         ref={group}
         x={box.x}
         y={box.y}
-        draggable={editable}
+        {...placeDragHandlers({ item, frame, editable, onChange, onBlockedMove })}
         onMouseDown={(event) => props.onSelect(event.evt.shiftKey)}
         onTap={() => props.onSelect(false)}
         onDblClick={props.onOpen}
         onDblTap={props.onOpen}
-        onDragMove={(event) => {
-          const next = boxOf(movedFootprint(item.footprint, event.target.position(), frame));
-          event.target.position({ x: next.x, y: next.y });
-        }}
-        onDragEnd={(event) =>
-          props.onChange(
-            withFootprint(movedFootprint(item.footprint, event.target.position(), frame)),
-          )
-        }
         onTransformEnd={() => {
           const node = group.current;
           if (!node) return;
@@ -97,7 +89,7 @@ export function PlaceNode(props: PlaceNodeProps) {
             w: Math.max(LIMITS.minDrawSize, snap(box.w * sx)),
             h: Math.max(LIMITS.minDrawSize, snap(box.h * sy)),
           };
-          props.onChange(withFootprint(footprintFromBox(next, item.footprint.rotation)));
+          onChange(withFootprint(footprintFromBox(next, item.footprint.rotation)));
         }}
       >
         <Rect

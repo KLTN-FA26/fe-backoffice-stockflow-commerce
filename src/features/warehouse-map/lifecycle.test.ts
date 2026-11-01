@@ -12,6 +12,7 @@ import { draftReducer } from "./draft-edit";
 import {
   groupRemovable,
   LOCATION_STATUS_TRANSITIONS,
+  moveBlock,
   placeLocks,
   placeStatusTargets,
   warehouseMapActions,
@@ -118,6 +119,19 @@ describe("chế độ sửa — phần nào của hình được sửa (placeLoc
       geometry: false,
       remove: false,
     });
+  });
+
+  it("BR-04: lý do không dời được kệ đã lưu — còn hàng / đang kiểm tồn / thiếu quyền", () => {
+    if (!savedShelf || !wall || !drawn) throw new Error("thiếu dữ liệu mẫu");
+    expect(moveBlock(savedShelf, "stocked", manager)).toBe("stocked");
+    expect(moveBlock(savedShelf, "checking", manager)).toBe("checking");
+    expect(moveBlock(savedShelf, "free", manager)).toBeNull();
+    // Không kiểm được tồn → không khoá (Inspector cảnh báo), không báo chặn
+    expect(moveBlock(savedShelf, "unknown", manager)).toBeNull();
+    expect(moveBlock(savedShelf, "stocked", staff)).toBe("noUpdate");
+    expect(moveBlock(wall, "free", staff)).toBe("noUpdate");
+    // Hình mới chưa lưu không có tồn → luôn dời được
+    expect(moveBlock(drawn, "stocked", staff)).toBeNull();
   });
 
   it("thiếu quyền UPDATE → không sửa được hình đã lưu; xoá tường cần quyền DELETE", () => {

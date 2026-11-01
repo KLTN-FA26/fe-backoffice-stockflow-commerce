@@ -42,6 +42,8 @@ export interface EditorCanvasProps {
   onOpen: (key: string) => void;
   onDraw: (shape: DrawnShape) => void;
   onChange: (key: string, apply: (item: DraftItem) => DraftItem) => void;
+  /** Kéo kệ / khu vực đã lưu đang bị khoá (BR-04: còn hàng) → báo thay vì im lặng. */
+  onBlockedMove: (key: string) => void;
 }
 
 /**
@@ -122,6 +124,7 @@ export default function EditorCanvas(props: EditorCanvasProps) {
                   }
                   bins={(item.id && binsOf.get(item.id)) || []}
                   changed={props.isChanged(item)}
+                  onBlockedMove={item.id ? () => props.onBlockedMove(item.key) : undefined}
                   {...common}
                 />
               );

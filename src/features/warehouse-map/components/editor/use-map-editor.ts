@@ -1,7 +1,6 @@
 "use client";
 
 import { useReducer, useState } from "react";
-import { toast } from "sonner";
 
 import { TOAST_MESSAGES } from "@/constants";
 
@@ -15,8 +14,10 @@ import {
 import { duplicatedGroup } from "@/features/warehouse-map/draft-group";
 import { historyFromLayout, historyReducer } from "@/features/warehouse-map/draft-history";
 import { validateDraft } from "@/features/warehouse-map/draft-rules";
-import { groupRemovable, placeLocks } from "@/features/warehouse-map/lifecycle";
+import { groupRemovable, moveBlock, placeLocks } from "@/features/warehouse-map/lifecycle";
 import { usePlaceHasStock } from "@/features/warehouse-map/queries";
+
+import { toast } from "@/components/shared/Toast";
 
 import { stockProbe, useGroupStock } from "./use-group-stock";
 
@@ -64,8 +65,23 @@ export function useMapEditor(layout: WarehouseLayout, can: EditPermissions) {
   /** `tag`: thao tác liền nhau cùng tag gộp thành một bước hoàn tác (gõ trong modal, dời bằng phím). */
   const change = (key: string, apply: (item: DraftItem) => DraftItem, tag?: string) =>
     dispatch({ type: "update", key, apply, tag });
+  /**
+   * Thử dời / xoay / đổi cỡ hình đang chọn mà bị khoá → báo lý do (BR-04: còn hàng không được dời).
+   * Cùng `id` toast theo hình: giữ phím mũi tên chỉ thay toast cũ, không chồng thêm.
+   */
+  const warnBlockedMove = (key: string) => {
+    if (!selected || selected.key !== key) return;
+    const block = moveBlock(selected, stock, can);
+    if (!block) return;
+    // Tường / cửa không có tồn (không bao giờ "stocked") — chỉ kệ / khu vực mang mã
+    const code = selected.kind === "boundary" ? "" : selected.code;
+    const message = block === "stocked" ? T.moveBlocked.stocked(code) : T.moveBlocked[block];
+    toast.warning(message, undefined, { id: `move-blocked:${key}` });
+  };
   const changeSelected = (apply: (item: DraftItem) => DraftItem, tag?: string) => {
-    if (selected && locks && !locks.geometry) change(selected.key, apply, tag);
+    if (!selected || !locks) return;
+    if (locks.geometry) return warnBlockedMove(selected.key);
+    change(selected.key, apply, tag);
   };
   /** Dán bản sao của `sources` dưới nhóm gốc rồi chọn chúng; trả bản sao để dán nối tiếp. */
   const pasteCopies = (sources: DraftItem[]) => {
@@ -112,6 +128,7 @@ export function useMapEditor(layout: WarehouseLayout, can: EditPermissions) {
       group.length === 0 &&
       (item.id === null || (item.key === selectedKey && locks !== null && !locks.geometry)),
     change,
+    warnBlockedMove,
     draw: (shape: DrawnShape) => {
       select(newKeyOf(draft));
       dispatch({ type: "draw", shape });

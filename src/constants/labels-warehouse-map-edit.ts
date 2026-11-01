@@ -161,4 +161,11 @@ export const WAREHOUSE_MAP_EDIT_TOASTS = {
   saved: "Đã lưu bản đồ",
   groupRemoveSkipped: (count: number) =>
     `Bỏ qua ${count} hình còn hàng, chưa kiểm được tồn hoặc không đủ quyền xoá — đang giữ chọn các hình đó.`,
+  /** Thử dời / xoay / đổi cỡ hình bị khoá (`moveBlock`) — báo lý do thay vì im lặng. */
+  moveBlocked: {
+    stocked: (code: string) =>
+      `${code} đang có hàng — không được di chuyển. Chuyển hết hàng đi trước (BR-04).`,
+    checking: "Đang kiểm tra tồn ở vị trí này — thử lại sau giây lát.",
+    noUpdate: "Bạn không có quyền sửa hình đã lưu (warehouse-locations:UPDATE).",
+  },
 } as const;
