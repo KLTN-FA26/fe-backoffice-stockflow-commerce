@@ -40,9 +40,15 @@ export function placeDragHandlers({
       onBlockedMove?.();
     },
     onDragMove: (event: PlaceDragEvent) => {
+      if (!editable) return;
       const next = boxOf(moved(event));
       event.target.position({ x: next.x, y: next.y });
     },
-    onDragEnd: (event: PlaceDragEvent) => onChange(withFootprint(moved(event))),
+    // `stopDrag()` ở trên phát `dragend` ngay → hình bị khoá KHÔNG được ghi footprint (kể cả bản đã bám
+    // lưới — kệ còn hàng nằm lệch lưới sẽ bị đổi toạ độ, lách BR-04)
+    onDragEnd: (event: PlaceDragEvent) => {
+      if (!editable) return;
+      onChange(withFootprint(moved(event)));
+    },
   };
 }
