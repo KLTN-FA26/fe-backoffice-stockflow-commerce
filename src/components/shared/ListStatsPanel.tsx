@@ -26,7 +26,9 @@ export function ListStatsPanel({ stats, open, gridClassName }: ListStatsPanelPro
       className="grid overflow-hidden"
     >
       <div className="min-h-0 overflow-hidden">
-        <div className={cn("mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5", gridClassName)}>
+        <div
+          className={cn("mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5", gridClassName)}
+        >
           {stats.map((stat) => (
             <StatTile key={stat.label} label={stat.label} value={stat.value} icon={stat.icon} />
           ))}

@@ -15,6 +15,29 @@ export const vnd = (msg = "Số tiền không hợp lệ") => z.number().int(msg
 /** Generic non-negative money amount (allows decimals for USD). */
 export const money = (msg = "Số tiền không hợp lệ") => z.number().nonnegative(msg);
 
+/* ── Deposit ─────────────────────────────────────────────────────────── */
+
+/**
+ * % cọc dạng chữ trong form: 0 < x < 100, tối đa 2 chữ số thập phân — BE `@Digits(integer = 3,
+ * fraction = 2)` + NUMERIC(5,2) ở cả hồ sơ khách (`CreateBusinessCustomerRequest`) lẫn báo giá
+ * (`QuoteRequests.Create` / `Edit`). Một định nghĩa cho cả hai form.
+ */
+export const DEPOSIT_PERCENT_PATTERN = /^\d{1,2}(\.\d{1,2})?$/;
+export const DEPOSIT_PERCENT_FORMAT_MESSAGE =
+  "Nhập số từ 0,01 đến 99,99 (tối đa 2 chữ số thập phân)";
+export const DEPOSIT_PERCENT_RANGE_MESSAGE = "Tỷ lệ cọc phải lớn hơn 0 và nhỏ hơn 100";
+
+/** Ô % cọc tuỳ chọn: rỗng hợp lệ, có giá trị thì đúng định dạng và trong khoảng (0, 100). */
+export const depositPercentText = z
+  .string()
+  .trim()
+  .refine((v) => v === "" || DEPOSIT_PERCENT_PATTERN.test(v), {
+    message: DEPOSIT_PERCENT_FORMAT_MESSAGE,
+  })
+  .refine((v) => v === "" || (Number(v) > 0 && Number(v) < 100), {
+    message: DEPOSIT_PERCENT_RANGE_MESSAGE,
+  });
+
 /* ── Quantities ──────────────────────────────────────────────────────── */
 
 /** Positive integer quantity (default for discrete items). */
