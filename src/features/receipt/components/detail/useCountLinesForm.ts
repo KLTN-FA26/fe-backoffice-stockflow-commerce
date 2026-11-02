@@ -8,7 +8,6 @@ import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { ApiError } from "@/lib/api/error";
 import { createIdempotencyAttempt } from "@/lib/api/idempotency";
 import { getGoodsReceipt } from "@/features/receipt/api";
-import { countLineCartonContexts } from "@/features/receipt/carton-selectors";
 import { initialCountLines } from "@/features/receipt/count-selectors";
 import {
   isStaleCartonError,
@@ -20,10 +19,9 @@ import { useSaveReceiptLines } from "@/features/receipt/mutations";
 import { receiptKeys } from "@/features/receipt/queries";
 import { poLinesOverOpenQuantity, receiptReceivedOn } from "@/features/receipt/selectors";
 
-import { CARTON_SET_OPTIONS } from "../cartons/carton-form";
+import { useCountCartons } from "./useCountCartons";
 
 import type { FieldPath } from "react-hook-form";
-import type { CartonDraft } from "../cartons/CartonEditor";
 import type {
   GoodsReceipt,
   ReceiptLinesFormInput,
@@ -41,6 +39,8 @@ export function useCountLinesForm(
   onDirtyChange: (dirty: boolean) => void,
   /** Lưu thành công — màn đóng form, hiện kết quả BE trả về. */
   onSaved?: () => void,
+  /** Mở từ nút "Chia thùng" của bảng kết quả: bung sẵn trình chia thùng của dòng đã lưu này. */
+  cartonLineId?: string,
 ) {
   const schema = useMemo(
     () => buildReceiptLinesSchema({ receivedOn: receiptReceivedOn(receipt) }),
@@ -73,28 +73,16 @@ export function useCountLinesForm(
     ),
   );
   const poLineById = new Map(po.lines.map((l) => [l.lineId, l]));
-  // SCRUM-473: đơn vị / thùng đã lưu của từng dòng form; trình chia thùng mở theo `field.id`
-  const cartonContexts = countLineCartonContexts(
-    receipt.lines,
-    watched.map((l) => ({
-      purchaseOrderLineId: l.purchaseOrderLineId,
-      lotNumber: l.lotNumber ?? "",
-      sku: poLineById.get(l.purchaseOrderLineId)?.sku,
-      packages: l.packages,
-    })),
-  );
-  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
-  const toggleCartons = (rowId: string) =>
-    setExpanded((open) => {
-      const next = new Set(open);
-      if (!next.delete(rowId)) next.add(rowId);
-      return next;
-    });
-  const setLineCartons = (index: number, next: CartonDraft) => {
-    setServerError(null);
-    form.setValue(`lines.${index}.unitOfMeasure`, next.unitOfMeasure, CARTON_SET_OPTIONS);
-    form.setValue(`lines.${index}.packages`, next.packages, CARTON_SET_OPTIONS);
-  };
+  // SCRUM-473: đơn vị / thùng của từng dòng form, trình chia thùng đang bung
+  const cartons = useCountCartons({
+    receipt,
+    form,
+    rowIds: fields.map((field) => field.id),
+    lines: watched,
+    poLineById,
+    cartonLineId,
+    onEdit: () => setServerError(null),
+  });
   const missingPoLines = po.lines.filter(
     (l) => l.openQuantity > 0 && !watched.some((w) => w.purchaseOrderLineId === l.lineId),
   );
@@ -188,6 +176,6 @@ export function useCountLinesForm(
     missingPoLines,
     submit,
     blankFor,
-    cartons: { contexts: cartonContexts, expanded, toggle: toggleCartons, set: setLineCartons },
+    cartons,
   };
 }

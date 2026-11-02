@@ -42,6 +42,7 @@ export function CartonEditor({
   context,
   errors,
   onChange,
+  autoFocus,
 }: {
   lineNo: number;
   /** SL nhận của dòng (đơn vị cơ sở). */
@@ -50,6 +51,8 @@ export function CartonEditor({
   context: LineCartonContext;
   errors: CartonEditorErrors;
   onChange: (next: CartonDraft) => void;
+  /** Mở từ nút "Chia thùng" của bảng kết quả → focus ô số thùng. */
+  autoFocus?: boolean;
 }) {
   const [pendingRemove, setPendingRemove] = useState<number | null>(null);
   const unit = value.unitOfMeasure || defaultCartonUnit(context) || "";
@@ -75,6 +78,7 @@ export function CartonEditor({
         />
         <CartonAddControl
           lineNo={lineNo}
+          autoFocus={autoFocus}
           factor={factor}
           room={RECEIPT_CARTON_LIMITS.cartonsPerLineMax - value.packages.length}
           onAdd={(count, size) => update([...value.packages, ...newCartons(count, size)])}

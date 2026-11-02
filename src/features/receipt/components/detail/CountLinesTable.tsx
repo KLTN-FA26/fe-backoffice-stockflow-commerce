@@ -19,6 +19,8 @@ export interface CountCartons {
   expanded: ReadonlySet<string>;
   toggle: (rowId: string) => void;
   set: (index: number, next: CartonDraft) => void;
+  /** Dòng mở từ nút "Chia thùng" của bảng kết quả — focus trình chia thùng thay cho ô đầu form. */
+  focus?: string;
 }
 
 /** Bảng dòng kiểm đếm (useFieldArray) — mỗi dòng một dòng PO × một lô, có thể chia thùng. */
@@ -84,7 +86,7 @@ export function CountLinesTable({
                   errors={errors}
                   onEdit={onEdit}
                   overOpen={overOpen.has(poLineId)}
-                  autoFocus={index === 0}
+                  autoFocus={!cartons.focus && index === 0}
                   locked={context?.locked ?? false}
                   cartonCell={
                     context && (
@@ -109,6 +111,7 @@ export function CountLinesTable({
                     context={context}
                     errors={errors}
                     onChange={(next) => cartons.set(index, next)}
+                    autoFocus={rowId === cartons.focus}
                   />
                 )}
               </Fragment>

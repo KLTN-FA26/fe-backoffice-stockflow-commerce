@@ -142,11 +142,13 @@ export function CountSection({
   onDirtyChange,
   onSaved,
   onCancel,
+  cartonLineId,
 }: {
   receipt: GoodsReceipt;
   onDirtyChange: (d: boolean) => void;
   onSaved?: () => void;
   onCancel?: () => void;
+  cartonLineId?: string;
 }) {
   const po = useReceivablePurchaseOrder(receipt.purchaseOrderId);
   if (po.isPending) return <PageSkeleton variant="form" />;
@@ -164,6 +166,7 @@ export function CountSection({
       onDirtyChange={onDirtyChange}
       onSaved={onSaved}
       onCancel={onCancel}
+      cartonLineId={cartonLineId}
     />
   );
 }

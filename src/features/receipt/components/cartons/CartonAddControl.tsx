@@ -13,6 +13,7 @@ export function CartonAddControl({
   factor,
   room,
   onAdd,
+  autoFocus,
 }: {
   lineNo: number;
   /** Sức chứa của đơn vị đang chọn; null = chưa chọn được đơn vị, khoá nút. */
@@ -20,6 +21,7 @@ export function CartonAddControl({
   /** Còn thêm được bao nhiêu thùng (tối đa 500 thùng mỗi dòng). */
   room: number;
   onAdd: (count: number, factor: number) => void;
+  autoFocus?: boolean;
 }) {
   const [count, setCount] = useState(1);
   return (
@@ -30,6 +32,7 @@ export function CartonAddControl({
         min={1}
         max={Math.max(room, 1)}
         aria-label={L.addCount(lineNo)}
+        autoFocus={autoFocus}
         value={Number.isFinite(count) ? count : ""}
         onChange={(event) => setCount(event.target.valueAsNumber)}
         className="border-border-default bg-bg-surface h-7 w-16 rounded-[var(--r-sm)] text-right text-xs tabular-nums"

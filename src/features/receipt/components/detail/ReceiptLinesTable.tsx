@@ -29,10 +29,13 @@ export function ReceiptLinesTable({
   receipt,
   draft = false,
   onLineAction,
+  onSplitCartons,
 }: {
   receipt: GoodsReceipt;
   draft?: boolean;
   onLineAction?: (code: ReceiptLineActionCode, line: ReceiptLineDto) => void;
+  /** Phiếu nháp, người xem mở được form kiểm đếm: dòng chưa có thùng có nút mở trình chia thùng. */
+  onSplitCartons?: (line: ReceiptLineDto) => void;
 }) {
   const can = usePermissionChecker();
   const headers = draft
@@ -80,7 +83,7 @@ export function ReceiptLinesTable({
               </td>
             </tr>
           )}
-          {receipt.lines.map((line) => {
+          {receipt.lines.map((line, index) => {
             const actions = draft ? [] : allowedLineActions(receipt.status, line, can);
             return (
               <tr key={line.id} className="border-border-default border-t align-top">
@@ -97,7 +100,11 @@ export function ReceiptLinesTable({
                     </div>
                   )}
                 </td>
-                <LineCartonsCell line={line} />
+                <LineCartonsCell
+                  line={line}
+                  lineNo={index + 1}
+                  onSplit={onSplitCartons && (() => onSplitCartons(line))}
+                />
                 <td className="px-3 py-2">
                   <div className="font-[family-name:var(--font-mono)]">{line.lotNumber ?? "—"}</div>
                   <div className="text-ink-tertiary text-xs tabular-nums">

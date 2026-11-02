@@ -41,7 +41,7 @@ export function CartonToggleCell({
         type="button"
         variant="outline"
         size="sm"
-        aria-label={`${L.splitAction} dòng ${lineNo}`}
+        aria-label={L.splitLine(lineNo)}
         aria-expanded={expanded}
         onClick={onToggle}
         className="w-full justify-between tabular-nums"

@@ -64,6 +64,7 @@ export const RECEIPT_CARTON_LABELS = {
   loose: "Lẻ",
   unit: "Đơn vị thùng",
   splitAction: "Chia thùng",
+  splitLine: (lineNo: number) => `Chia thùng dòng ${lineNo}`,
   hideCartons: "Thu gọn",
   saveFirst: "Lưu kiểm đếm để chia thùng",
   noPackingUnit: "Mặt hàng chưa có đơn vị đóng gói",

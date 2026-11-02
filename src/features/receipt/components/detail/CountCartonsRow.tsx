@@ -16,6 +16,7 @@ export function CountCartonsRow({
   context,
   errors,
   onChange,
+  autoFocus,
 }: {
   index: number;
   colSpan: number;
@@ -23,6 +24,7 @@ export function CountCartonsRow({
   context: LineCartonContext;
   errors: FieldErrors<ReceiptLinesFormInput>["lines"];
   onChange: (next: CartonDraft) => void;
+  autoFocus?: boolean;
 }) {
   return (
     <tr className="border-border-default border-t">
@@ -34,6 +36,7 @@ export function CountCartonsRow({
           context={context}
           errors={cartonEditorErrors(errors?.[index])}
           onChange={onChange}
+          autoFocus={autoFocus}
         />
       </td>
     </tr>

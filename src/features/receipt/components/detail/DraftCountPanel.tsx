@@ -19,7 +19,7 @@ import { ReceiptLoadError } from "../ReceiptLoadError";
 import { CountSection } from "./ReceiptInfo";
 import { ReceiptLinesTable } from "./ReceiptLinesTable";
 
-import type { GoodsReceipt } from "@/features/receipt/types";
+import type { GoodsReceipt, ReceiptLineDto } from "@/features/receipt/types";
 
 const L = UI_LABELS.receipt;
 
@@ -44,9 +44,16 @@ export function DraftCountPanel({
 }) {
   const hasSaved = receipt.lines.length > 0;
   const [editing, setEditing] = useState(!hasSaved);
+  // Nút "Chia thùng" của bảng kết quả mở form với trình chia thùng của dòng đó bung sẵn
+  const [cartonLineId, setCartonLineId] = useState<string>();
   const close = () => {
     onDirtyChange(false);
     setEditing(false);
+    setCartonLineId(undefined);
+  };
+  const splitCartons = (line: ReceiptLineDto) => {
+    setCartonLineId(line.id);
+    setEditing(true);
   };
 
   if (canCount && (editing || !hasSaved)) {
@@ -56,6 +63,7 @@ export function DraftCountPanel({
         onDirtyChange={onDirtyChange}
         onSaved={close}
         onCancel={hasSaved ? close : undefined}
+        cartonLineId={cartonLineId}
       />
     );
   }
@@ -81,7 +89,11 @@ export function DraftCountPanel({
       )}
       {hasSaved ? (
         <>
-          <ReceiptLinesTable receipt={receipt} draft />
+          <ReceiptLinesTable
+            receipt={receipt}
+            draft
+            onSplitCartons={canCount ? splitCartons : undefined}
+          />
           {/* BR-RCP-001: xác nhận phiếu vượt dung sai chỉ gửi Quản lý kho duyệt, chưa nhập kho */}
           {overToleranceLineCount(receipt) > 0 && (
             <Alert tone="warning" className="mt-3">

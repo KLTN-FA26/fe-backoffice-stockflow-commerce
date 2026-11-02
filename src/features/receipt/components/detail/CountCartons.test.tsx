@@ -194,6 +194,46 @@ describe("Chia thùng trên form kiểm đếm (issue #104, BE spec SCRUM-473 §
   });
 });
 
+describe("Lối 'Chia thùng' trên bảng kết quả kiểm đếm (dòng đã lưu chưa có thùng)", () => {
+  const receipt = apiReceipt({
+    lines: [
+      // Mặt hàng chỉ có đơn vị cơ sở → không chia thùng được
+      apiLine({ lotNumber: "L01", units: CARTON_UNITS.filter((unit) => unit.base) }),
+      apiLine({
+        id: "a1b2c3d4-0000-4000-8000-000000000002",
+        lotNumber: "L02",
+        units: CARTON_UNITS,
+        orderedUnitOfMeasure: "CARTON",
+      }),
+    ],
+  });
+
+  it("bấm 'Chia thùng' ở dòng 2 → mở form, trình chia thùng dòng 2 bung sẵn, ô số thùng được focus", async () => {
+    const user = userEvent.setup();
+    renderDraft(receipt, () => receipt);
+
+    await screen.findByText("Kết quả kiểm đếm đã lưu");
+    expect(screen.queryByRole("button", { name: L.splitLine(1) })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: L.splitLine(2) }));
+
+    expect(await screen.findByRole("radio", { name: "CARTON (1000)" })).toBeChecked();
+    expect(screen.getByLabelText(L.addCount(2))).toHaveFocus();
+    expect(screen.queryByLabelText(L.addCount(1))).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: L.splitLine(2) })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+  });
+
+  it("không mở được form kiểm đếm (NV kho thiếu purchase-orders:READ) → không có nút 'Chia thùng'", async () => {
+    mockReceiptApi(ROLES.warehouseStaff, { [PATH]: () => receipt });
+    renderReceiptScreen(<ReceiptDetail id={RECEIPT_ID} />);
+
+    await screen.findByText("Kết quả kiểm đếm đã lưu");
+    expect(screen.queryByRole("button", { name: L.splitLine(2) })).not.toBeInTheDocument();
+  });
+});
+
 describe("Thùng đã đổi ở nơi khác (BE STOCK_PACKAGE_NOT_FOUND) → form nạp lại thùng mới", () => {
   it("lưu lỗi vì LPN đã bị huỷ ở máy khác → form bỏ LPN đó, lần lưu sau không gửi lại", async () => {
     const user = userEvent.setup();

@@ -23,6 +23,7 @@ export function CountLinesForm({
   onDirtyChange,
   onSaved,
   onCancel,
+  cartonLineId,
 }: {
   receipt: GoodsReceipt;
   po: ReceivablePo;
@@ -30,6 +31,8 @@ export function CountLinesForm({
   onSaved?: () => void;
   /** Có = phiếu đã có kết quả lưu → cho bỏ sửa, quay về kết quả. */
   onCancel?: () => void;
+  /** Dòng đã lưu cần bung sẵn trình chia thùng (mở từ bảng kết quả). */
+  cartonLineId?: string;
 }) {
   const {
     form,
@@ -48,7 +51,7 @@ export function CountLinesForm({
     submit,
     blankFor,
     cartons,
-  } = useCountLinesForm(receipt, po, onDirtyChange, onSaved);
+  } = useCountLinesForm(receipt, po, onDirtyChange, onSaved, cartonLineId);
 
   return (
     <Section
