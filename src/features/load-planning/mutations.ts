@@ -5,13 +5,19 @@
  * bật toast lỗi.
  */
 
-import { TOAST_MESSAGES } from "@/constants";
+import { SHARED_QUERY_ROOTS, TOAST_MESSAGES } from "@/constants";
 import { createMutation } from "@/lib/api/query-factory";
 import { withStaleRefetch } from "@/lib/api/stale-refetch";
 import { toast } from "@/components/shared/Toast";
 
 import { createLoadPlan, setLoadPlanInputs } from "./api";
-import { recalculateVehicle, runPlanStep, savePlacements } from "./api-steps";
+import {
+  cancelPlanControlled,
+  dropVehicleFromPlan,
+  recalculateVehicle,
+  runPlanStep,
+  savePlacements,
+} from "./api-steps";
 import { isStaleLoadPlanError } from "./errors";
 import { loadPlanKeys } from "./queries";
 
@@ -19,6 +25,8 @@ import type { PlanStepKind } from "./plan-types";
 
 const T = TOAST_MESSAGES.loadPlan;
 const ROOT = [loadPlanKeys.all];
+/** = `loadKeys.all` của features/shipping — các xe của kế hoạch là chuyến xe; không import chéo feature. */
+const LOAD_ROOT = [SHARED_QUERY_ROOTS.fulfillmentLoads];
 const base = { invalidate: ROOT, showErrorToast: false } as const;
 
 const STEP_TOASTS: Record<PlanStepKind, string> = {
@@ -47,6 +55,34 @@ export const usePlanStep = withStaleRefetch(
   createMutation(runPlanStep, {
     ...base,
     onSuccess: (_plan, step) => toast.success(STEP_TOASTS[step.kind]),
+  }),
+  ROOT,
+  isStaleLoadPlanError,
+);
+
+/**
+ * Huỷ có kiểm soát cả kế hoạch sau khi đã xếp hàng (SCRUM-474): ngoài kế hoạch còn tải lại chuyến xe (các xe huỷ theo, kiện bị
+ * khoá hiện ở ô quét dỡ). Lỗi hiện trong hộp thoại.
+ */
+export const useCancelPlanControlled = withStaleRefetch(
+  createMutation(cancelPlanControlled, {
+    invalidate: [loadPlanKeys.all, LOAD_ROOT],
+    showErrorToast: false,
+    successMessage: T.controlledCancelled,
+  }),
+  ROOT,
+  isStaleLoadPlanError,
+);
+
+/**
+ * Bỏ xe chưa xếp khỏi kế hoạch (SCRUM-474 UNLOAD-DROP): ngoài kế hoạch (nay hoàn tất, xe biến khỏi danh sách) còn tải lại
+ * chuyến xe (chuyến của xe đã huỷ) và danh sách ứng viên (kiện quay về chờ kế hoạch mới). Lỗi hiện trong hộp thoại.
+ */
+export const useDropVehicleFromPlan = withStaleRefetch(
+  createMutation(dropVehicleFromPlan, {
+    invalidate: [loadPlanKeys.all, LOAD_ROOT],
+    showErrorToast: false,
+    successMessage: T.vehicleDropped,
   }),
   ROOT,
   isStaleLoadPlanError,

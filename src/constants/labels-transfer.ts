@@ -192,6 +192,11 @@ export const TRANSFER_ERROR_MESSAGES = {
   TRANSFER_GOODS_LEFT: "Hàng của lệnh đã rời kho nguồn trên xe nên không dừng lấy hàng được nữa.",
   LOAD_PLAN_LOADING_STARTED:
     "Một xe của kế hoạch xe đã bắt đầu xếp hàng nên chưa dừng lấy hàng được. Đợi xe xong hoặc dỡ hàng trước.",
+  // SCRUM-474 UNLOAD-DESIGN điểm 10: xe đang xếp → huỷ có kiểm soát kế hoạch trước, rồi mới dừng lấy hàng
+  TRANSFER_LOADING_IN_PROGRESS:
+    "Đang có xe của kế hoạch xe xếp hàng cho lệnh này — quản lý kho huỷ có kiểm soát kế hoạch xe trước (quét dỡ hết kiện xuống), rồi mới dừng lấy hàng.",
+  PACKAGE_UNLOAD_PENDING:
+    "Còn kiện của lệnh trên xe đã huỷ có kiểm soát — quét dỡ hết kiện xuống rồi mới dừng lấy hàng.",
   TRANSFER_NOT_FULL_TRUCKLOAD: "Lệnh này giao lẻ nên không đóng gói để lập kế hoạch xe.",
   TRANSFER_NOT_PACKED: "Lệnh chuyển kho chưa đóng gói xong để lập kế hoạch xe.",
   WAREHOUSE_INACTIVE: "Kho nguồn hoặc kho đích đang ngừng hoạt động.",

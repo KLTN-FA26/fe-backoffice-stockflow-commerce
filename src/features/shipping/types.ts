@@ -1,5 +1,7 @@
 import type { z } from "zod";
 
+import type { UnloadReasonCode } from "@/constants";
+
 import type {
   bookingInputSchema,
   cancelBookingInputSchema,
@@ -127,4 +129,24 @@ export interface StartLoadingInput {
 export interface UnloadPackageInput {
   loadId: string;
   packageCode: string;
+}
+
+/** Huỷ có kiểm soát MỘT xe đang xếp hàng (SCRUM-474 UNLOAD-DESIGN): mã lý do + ghi chú. */
+export interface ControlledCancelLoadInput {
+  loadId: string;
+  reasonCode: UnloadReasonCode;
+  note: string;
+}
+
+/** Xác nhận dỡ một kiện không cần quét vì nhãn hỏng (quản lý kho): chọn theo `packageId`, ghi chú không bắt buộc. */
+export interface OverrideUnloadInput {
+  loadId: string;
+  packageId: string;
+  note?: string;
+}
+
+/** Kết quả huỷ có kiểm soát một xe: chuyến đã huỷ và chuyến thay thế (Chưa đặt xe, cùng sơ đồ). */
+export interface ControlledCancelResult {
+  cancelled: Load;
+  replacement: Load | null;
 }

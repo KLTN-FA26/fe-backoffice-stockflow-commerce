@@ -51,7 +51,12 @@ export function PlanHeaderCard({
     [L.dispatchedAt, when(plan.dispatchedAt)],
     [L.cancelledAt, when(plan.cancelledAt)],
   ];
-  const reason = plan.cancelReason ?? plan.reopenReason;
+  // Huỷ có kiểm soát (SCRUM-474): mã lý do đứng trước ghi chú
+  const note = plan.cancelReason ?? plan.reopenReason;
+  const reason =
+    plan.cancelReasonCode && note
+      ? `${UI_LABELS.shipping.ftl.controlledCancel.reasonCode[plan.cancelReasonCode]} — ${note}`
+      : note;
   const { transferOrder } = plan;
   return (
     <Card>

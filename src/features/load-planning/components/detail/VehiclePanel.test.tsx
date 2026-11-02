@@ -1,4 +1,5 @@
 import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { LOAD_PLAN_PRINT_LABELS, UI_LABELS } from "@/constants";
@@ -17,7 +18,9 @@ const props = {
   layout: undefined,
   colorMap: new Map<string, string>(),
   pending: false,
+  canDrop: false,
   onRecalculate: () => {},
+  onDrop: () => {},
 };
 
 describe("VehiclePanel — print link", () => {
@@ -40,5 +43,19 @@ describe("VehiclePanel — print link", () => {
     expect(
       screen.queryByRole("button", { name: UI_LABELS.loadPlan.detail.actions.recalculate }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("VehiclePanel — drop from plan (SCRUM-474 UNLOAD-DROP)", () => {
+  const DROP = UI_LABELS.shipping.ftl.controlledCancel.drop.button;
+
+  it("shows 'Bỏ xe khỏi kế hoạch' only when the lifecycle allows it, and calls onDrop", async () => {
+    const onDrop = vi.fn();
+    const { rerender } = render(<VehiclePanel {...props} canRecalculate={false} />);
+    expect(screen.queryByRole("button", { name: DROP })).not.toBeInTheDocument();
+
+    rerender(<VehiclePanel {...props} canRecalculate={false} canDrop onDrop={onDrop} />);
+    await userEvent.setup().click(screen.getByRole("button", { name: DROP }));
+    expect(onDrop).toHaveBeenCalledTimes(1);
   });
 });

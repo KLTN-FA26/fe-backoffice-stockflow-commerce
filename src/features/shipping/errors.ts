@@ -75,6 +75,7 @@ const STALE_CODES: ReadonlySet<string> = new Set([
   // BE PR #162: kế hoạch đã đổi trạng thái / còn kiện cần dỡ mà màn chưa thấy → tải lại chuyến
   "INVALID_LOAD_PLAN_TRANSITION",
   "LOAD_UNLOAD_PENDING",
+  "LOAD_PLAN_VEHICLE_DISPATCHED",
   "OPTIMISTIC_LOCK",
   "LOAD_NOT_FULLY_LOADED",
   // BE PR #164: lệnh chuyển kho trên xe đã đổi / phần giữ đã nhả → tải lại chuyến

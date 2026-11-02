@@ -124,6 +124,7 @@ export function planFixture(overrides: Partial<PlanDetail> = {}): PlanDetail {
     cancelReason: null,
     createdAt: "2026-10-22T02:00:00Z",
     version: 4,
+    controlledCancelled: false,
     ...overrides,
   };
 }

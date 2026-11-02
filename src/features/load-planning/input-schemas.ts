@@ -9,6 +9,7 @@ import {
   LOAD_PLAN_FIELD_MESSAGES as M,
   LOAD_PLAN_LIMITS as LIMITS,
   LOAD_PLAN_SELECTION_MODES,
+  UNLOAD_REASON_CODES,
 } from "@/constants";
 
 const ids = (min: string, max: number, tooMany: string) =>
@@ -46,6 +47,15 @@ export const createTransferPlanFormSchema = transferPlanInputsSchema.extend(plan
 /** Lý do mở lại / huỷ: bắt buộc, tối đa 500 ký tự (LP-11: lý do đi tới các chuyến bị huỷ). */
 export const planReasonSchema = z.object({
   reason: z.string().trim().min(1, M.reasonRequired).max(LIMITS.reasonMax, M.reasonTooLong),
+});
+
+/**
+ * Huỷ có kiểm soát cả kế hoạch sau khi đã xếp hàng (BE `ControlledPlanCancelRequest`, SCRUM-474 UNLOAD-DESIGN điểm 7):
+ * một trong bốn mã lý do và ghi chú bắt buộc (≤ 500 ký tự).
+ */
+export const controlledPlanCancelSchema = z.object({
+  reasonCode: z.enum(UNLOAD_REASON_CODES, { error: M.controlledReasonCodeRequired }),
+  note: z.string().trim().min(1, M.controlledNoteRequired).max(LIMITS.reasonMax, M.reasonTooLong),
 });
 
 export const addPackagesSchema = z

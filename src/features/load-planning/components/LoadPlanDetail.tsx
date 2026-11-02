@@ -19,6 +19,7 @@ import { PlanActions } from "./detail/PlanActions";
 import { PlanBody } from "./detail/PlanBody";
 import { PlanDialogs } from "./detail/PlanDialogs";
 import { PlanHeaderCard } from "./detail/PlanHeaderCard";
+import { PendingUnloadsCard } from "./detail/PendingUnloadsCard";
 import { PlanNotices } from "./detail/PlanNotices";
 
 import type { PlanDialogKind } from "./detail/PlanActions";
@@ -90,6 +91,7 @@ function DetailBody({ id }: { id: string }) {
         onRetry={() => void query.refetch()}
         onDismiss={() => setNotice(null)}
       />
+      <PendingUnloadsCard plan={plan} />
       {editing ? (
         <PlacementEditorGate
           plan={plan}

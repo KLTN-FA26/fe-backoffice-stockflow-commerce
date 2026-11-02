@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   FULFILLMENT_CARRIER_PERMISSIONS,
+  FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS,
   FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS as OUTCOME,
   FULFILLMENT_DISPATCH_PERMISSIONS as DISPATCH,
   FULFILLMENT_LOAD_CANCELLATION_PERMISSIONS,
@@ -37,6 +38,7 @@ const actor = (permissions: readonly string[]): ShippingActor => ({
 const STAFF = actor(STAFF_PERMS);
 const MANAGER = actor(MANAGER_PERMS);
 const COORDINATOR = actor(COORDINATOR_PERMS);
+const MANAGER_WITHOUT_CODE = actor(MANAGER_PERMS);
 const ADMIN = actor([...MANAGER_PERMS, ...COORDINATOR_PERMS]);
 
 const gate = (patch: Partial<LoadGateState> = {}): LoadGateState => ({
@@ -61,6 +63,54 @@ describe("LOAD_TRANSITIONS (BE LoadStatus)", () => {
   it("DISPATCHED và CANCELLED là trạng thái cuối", () => {
     expect(LOAD_TRANSITIONS.DISPATCHED).toEqual([]);
     expect(LOAD_TRANSITIONS.CANCELLED).toEqual([]);
+  });
+});
+
+describe("allowedLoadActions — huỷ có kiểm soát (SCRUM-474 UNLOAD-DESIGN)", () => {
+  const CONTROLLED = FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS.update;
+  const ftl = (status: LoadGateState["status"]) => gate({ status, mode: "FULL_TRUCKLOAD" });
+  const pending = {
+    packageId: "p-1",
+    labelCode: "PKG-1",
+    reasonCode: "XE_HONG" as const,
+  };
+
+  it("chỉ mã fulfillment-controlled-cancellations:UPDATE mới mở huỷ có kiểm soát và xác nhận dỡ không quét", () => {
+    const withCode = actor([...STAFF_PERMS, CONTROLLED]);
+    expect(codes(ftl("LOADING"), withCode)).toContain("controlledCancel");
+    expect(codes(ftl("LOADING"), withCode)).toContain("overrideUnload");
+    // Nhân viên kho / quản lý kho cũ (huỷ chuyến thường) / điều phối: không có mã → không có hai thao tác
+    for (const other of [STAFF, MANAGER_WITHOUT_CODE, COORDINATOR]) {
+      expect(codes(ftl("LOADING"), other)).not.toContain("controlledCancel");
+      expect(codes(ftl("LOADING"), other)).not.toContain("overrideUnload");
+    }
+    // Chỉ có mã này (vai trò tạo lúc chạy): đủ cho hai thao tác, không đủ để quét
+    expect(codes(ftl("LOADING"), actor([CONTROLLED]))).toEqual([
+      "controlledCancel",
+      "overrideUnload",
+    ]);
+  });
+
+  it("huỷ có kiểm soát chỉ cho xe đang xếp hàng (FTL, LOADING → CANCELLED); không cho chuyến gửi kiện, chưa xếp hay đã đi", () => {
+    const withCode = actor([CONTROLLED]);
+    expect(codes(gate({ status: "LOADING", mode: "PARCEL" }), withCode)).toEqual([]);
+    for (const status of ["PLANNED", "VEHICLE_BOOKED", "DISPATCHED", "CANCELLED"] as const) {
+      expect(codes(ftl(status), withCode)).not.toContain("controlledCancel");
+    }
+    expect(
+      hasLoadAction(allowedLoadActions(ftl("LOADING"), withCode), "controlledCancel")?.action,
+    ).toMatchObject({ targetStatus: "CANCELLED" });
+    expect(LOAD_TRANSITIONS.LOADING).toContain("CANCELLED");
+  });
+
+  it("xe đã huỷ có kiểm soát vẫn quét dỡ / xác nhận dỡ được (kiện bị khoá tới khi dỡ), nhưng không quét lên xe hay bàn giao", () => {
+    const manager = actor([...MANAGER_PERMS, CONTROLLED]);
+    const locked = { ...ftl("CANCELLED"), pendingUnloads: [pending] };
+    expect(codes(locked, manager)).toEqual(["unload", "overrideUnload"]);
+    // Hết kiện bị khoá: xe đã huỷ không còn thao tác nào
+    expect(codes(ftl("CANCELLED"), manager)).toEqual([]);
+    // Chuyến gửi kiện đã huỷ: không có dỡ kiện
+    expect(codes(gate({ status: "CANCELLED", mode: "PARCEL" }), manager)).toEqual([]);
   });
 });
 

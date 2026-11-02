@@ -9,13 +9,22 @@
 
 import {
   DELIVERY_MODES,
+  FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS,
   FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS as OUTCOME,
   FULFILLMENT_DISPATCH_PERMISSIONS,
   FULFILLMENT_LOAD_CANCELLATION_PERMISSIONS,
 } from "@/constants";
 
 import { registerMockRoute } from "./mock-adapter";
-import { book, cancelBooking, startLoading, unload } from "./mock-dispatch-ftl-rules";
+import {
+  book,
+  cancelBooking,
+  cancelControlled,
+  dropFromPlan,
+  overrideUnload,
+  startLoading,
+  unload,
+} from "./mock-dispatch-ftl-rules";
 import { modeOf } from "./mock-dispatch-ftl-view";
 import { handover, recordOutcome } from "./mock-dispatch-handover";
 import {
@@ -267,6 +276,23 @@ export function registerDispatchMockRoutes(): void {
   registerMockRoute("POST", `${LOADS}/:id/unloads`, (config) =>
     withLoad(config, DISPATCH_UPDATE, (state, load) =>
       unload(state, load, parseJsonBody(config.data)),
+    ),
+  );
+  // SCRUM-474 UNLOAD-DESIGN: huỷ có kiểm soát một xe + xác nhận dỡ không quét — quyền riêng của quản lý kho
+  registerMockRoute("POST", `${LOADS}/:id/controlled-cancellation`, (config) =>
+    withLoad(config, FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS.update, (state, load) =>
+      cancelControlled(state, load, parseJsonBody(config.data)),
+    ),
+  );
+  // SCRUM-474 UNLOAD-DROP: bỏ xe chưa xếp khỏi kế hoạch khi mọi xe còn lại đã đi — cùng mã quyền
+  registerMockRoute("POST", `${LOADS}/:id/plan-removal`, (config) =>
+    withLoad(config, FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS.update, (state, load) =>
+      dropFromPlan(state, load, parseJsonBody(config.data)),
+    ),
+  );
+  registerMockRoute("POST", `${LOADS}/:id/unload-overrides`, (config) =>
+    withLoad(config, FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS.update, (state, load) =>
+      overrideUnload(state, load, parseJsonBody(config.data)),
     ),
   );
   registerMockRoute("POST", `${LOADS}/:id/cancellation`, (config) =>

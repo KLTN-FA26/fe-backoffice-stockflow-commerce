@@ -8,6 +8,7 @@ import { z } from "zod";
 
 import {
   DELIVERY_OUTCOMES,
+  UNLOAD_REASON_CODES,
   ORDER_DELIVERY_FAILURE_REASONS,
   SHIPPING_FIELD_MESSAGES as MSG,
   SHIPPING_LIMITS,
@@ -95,6 +96,20 @@ export const cancelBookingInputSchema = z.object({
     .trim()
     .min(1, MSG.cancelBookingReasonRequired)
     .max(L.cancelReasonMax, MSG.tooLong),
+});
+
+/**
+ * Huỷ có kiểm soát một xe đang xếp hàng (BE `ControlledCancelRequest`, SCRUM-474 UNLOAD-DESIGN điểm 7): một trong bốn mã
+ * lý do và ghi chú bắt buộc (≤ 500 ký tự).
+ */
+export const controlledCancelInputSchema = z.object({
+  reasonCode: z.enum(UNLOAD_REASON_CODES, { error: MSG.controlledReasonCodeRequired }),
+  note: z.string().trim().min(1, MSG.controlledNoteRequired).max(L.cancelReasonMax, MSG.tooLong),
+});
+
+/** Xác nhận dỡ kiện không quét (BE `UnloadOverrideRequest`): ghi chú tuỳ chọn, ≤ 500 ký tự. */
+export const overrideUnloadInputSchema = z.object({
+  note: optionalText(L.noteMax),
 });
 
 /**

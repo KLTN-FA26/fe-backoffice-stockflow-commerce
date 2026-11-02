@@ -170,3 +170,9 @@ export const beManifestSchema = z.object({
   printedAt: isoInstant,
   ...ftlManifestFields,
 });
+
+/** BE `ControlledCancelResponse` (SCRUM-474): chuyến vừa huỷ có kiểm soát và chuyến thay thế (null khi xe đã huỷ từ trước). */
+export const beControlledCancelSchema = z.object({
+  cancelled: beLoadSchema,
+  replacement: beLoadSchema.nullish(),
+});

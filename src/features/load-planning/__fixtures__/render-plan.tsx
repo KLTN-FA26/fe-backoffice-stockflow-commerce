@@ -9,7 +9,10 @@ import { render } from "@testing-library/react";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { vi } from "vitest";
 
-import { LOAD_PLAN_PERMISSIONS } from "@/constants";
+import {
+  FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS,
+  LOAD_PLAN_PERMISSIONS,
+} from "@/constants";
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -31,6 +34,16 @@ const LP = LOAD_PLAN_PERMISSIONS;
 
 export const LOAD_PLAN_ACTORS = {
   dispatcher: { permissions: [LP.viewPage, LP.read, LP.create, LP.update] as PermissionCode[] },
+  /** Quản lý kho: thêm mã huỷ có kiểm soát (seed BE V20261029007100, SCRUM-474). */
+  manager: {
+    permissions: [
+      LP.viewPage,
+      LP.read,
+      LP.create,
+      LP.update,
+      FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS.update,
+    ] as PermissionCode[],
+  },
   viewOnly: { permissions: [LP.viewPage, LP.read] as PermissionCode[] },
   noRead: { permissions: [LP.viewPage] as PermissionCode[] },
   noAccess: { permissions: [] as PermissionCode[] },
