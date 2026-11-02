@@ -27,6 +27,7 @@ import { userKeys } from "./queries";
 const STALE_CODES = new Set([
   "OPTIMISTIC_LOCK",
   "INVALID_USER_STATUS_TRANSITION",
+  "USER_STATUS_UNCHANGED",
   "USER_NOT_FOUND",
 ]);
 

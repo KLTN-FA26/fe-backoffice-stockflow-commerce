@@ -2,6 +2,7 @@ import "server-only";
 
 import { IDENTITY_PERMISSIONS } from "@/constants/permissions";
 import { USER_LIMITS } from "@/features/user-management/constants";
+import { hasTemporaryLock } from "@/features/user-management/lifecycle";
 import { createUserFormSchema, updateUserFormSchema } from "@/features/user-management/schemas";
 
 import { holdsRole, roleStore, statusHistoryOf, userStore } from "./mock-identity-store";
@@ -193,6 +194,10 @@ function mutate(
   if (reasonLength < USER_LIMITS.reasonMin || reasonLength > USER_LIMITS.reasonMax)
     return fail(400, "VALIDATION_FAILED", ["reason"]);
   if (next === null) return fail(409, "INVALID_USER_STATUS_TRANSITION");
+  // SCRUM-474 LOCK-NOOP: an action that changes nothing is refused and writes no history row. Unlocking an
+  // active account still counts while a wrong-password lockout runs (it ends that lock early).
+  if (next === user.status && !(action === "unlock" && hasTemporaryLock(user)))
+    return fail(409, "USER_STATUS_UNCHANGED");
   if (next !== "ACTIVE" && losesLastAdmin(users, user)) return fail(409, "LAST_SYSTEM_ADMIN");
   const entry = {
     id: crypto.randomUUID(),

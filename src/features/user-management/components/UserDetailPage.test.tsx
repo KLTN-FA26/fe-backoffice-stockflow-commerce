@@ -192,6 +192,7 @@ describe("UserDetailPage — account actions with confirm dialogs", () => {
       /không thể cấp hoặc quản lý quyền mà chính tài khoản của bạn không có/,
     ],
     ["INVALID_USER_STATUS_TRANSITION", 409, /không thể chuyển sang trạng thái này/],
+    ["USER_STATUS_UNCHANGED", 409, /Tài khoản đã ở trạng thái này/],
   ])("shows %s inside the dialog and keeps it open", async (code, status, message) => {
     const { user } = setup({}, PERMISSION_SETS.editor, {
       [`POST ${url}/disable`]: () => {

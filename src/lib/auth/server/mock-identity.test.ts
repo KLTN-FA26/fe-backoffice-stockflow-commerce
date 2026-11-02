@@ -177,7 +177,18 @@ describe("mock BFF — staff user management (BE PR #72/#73 contract)", () => {
       });
     }
     expect((await call("GET", `identity/users/${target}`)).body?.status).toBe("ACTIVE");
+    // SCRUM-474 LOCK-NOOP: an action that changes nothing is refused, and writes no history row
+    for (const noop of ["enable", "unlock"]) {
+      expect(await call("POST", `identity/users/${target}/${noop}`, why)).toMatchObject({
+        status: 409,
+        body: { errorCode: "USER_STATUS_UNCHANGED" },
+      });
+    }
     expect((await call("POST", `identity/users/${target}/lock`, why)).body?.status).toBe("LOCKED");
+    expect(await call("POST", `identity/users/${target}/lock`, why)).toMatchObject({
+      status: 409,
+      body: { errorCode: "USER_STATUS_UNCHANGED" },
+    });
     expect((await call("POST", `identity/users/${target}/enable`, why)).status).toBe(409);
     expect((await call("POST", `identity/users/${target}/unlock`, why)).body?.status).toBe(
       "ACTIVE",
@@ -189,6 +200,10 @@ describe("mock BFF — staff user management (BE PR #72/#73 contract)", () => {
     expect(lockDisabled).toMatchObject({
       status: 409,
       body: { errorCode: "INVALID_USER_STATUS_TRANSITION" },
+    });
+    expect(await call("POST", `identity/users/${target}/disable`, why)).toMatchObject({
+      status: 409,
+      body: { errorCode: "USER_STATUS_UNCHANGED" },
     });
     expect(
       (await call("POST", `identity/users/${target}/enable`, { reason: "  Ký lại hợp đồng  " }))
