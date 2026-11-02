@@ -66,6 +66,8 @@ const PATTERNS: readonly { name: string; regex: RegExp }[] = [
  * Thêm mục mới cần lý do rõ ràng; nếu là quyết định quyền thì dùng mã quyền.
  */
 const ALLOWED: Record<string, string> = {
+  "src/lib/auth/redirect.ts":
+    "chỉ chọn trang đích sau đăng nhập giữa portal và back-office; mọi API và thao tác vẫn kiểm tra mã quyền tại BE",
   "src/lib/auth/roles.ts":
     "danh sách tên vai trò của tài khoản demo (kiểu RoleName), dữ liệu hiển thị",
   "src/lib/auth/auth-store.ts":
