@@ -45,6 +45,13 @@ Mode A dùng `brand.ink` cho CTA, count badge của tab đang chọn và focus b
   tên item cha ở đầu là nút quay lại; đang ở trang thuộc nhóm nào thì mở sẵn nhóm đó; nhóm chỉ có
   một item thấy được → link thẳng. Thu gọn → danh sách icon phẳng.
 - **Header sidebar**: chữ `StockFlowCommerce` (thu gọn: chữ `S`) + ô tìm nhanh. Không có chọn kho.
+- **Tab "Kho & bản đồ"** (module 06, tách khỏi nhóm "Kho"): **chọn kho ở trang Danh mục kho** (bấm dòng
+  kho), không chọn trong sidebar. Trang làm việc theo một kho nằm dưới prefix kho:
+  `/admin/warehouse-map/{prefix}` (bản đồ), `…/{prefix}/slotting` (gợi ý vị trí) — prefix duy nhất,
+  không đổi (BR-10/13). Panel sidebar của tab (`NavGroup.panel` = `WarehouseNavPanel`): chưa vào kho →
+  Danh mục kho + gợi ý; trong kho → các trang của kho. Breadcrumb `Kho & bản đồ / [kho ⇅] / <trang>`
+  (`NavItem.breadcrumbTail`), đoạn kho là nút đổi kho kiểu Vercel. Kho của tab **không** gắn
+  `X-Warehouse-Id` cho cả app.
 - **Footer sidebar**: avatar + tên người dùng (không hiện role) + nút 3 chấm; avatar hoặc 3 chấm
   mở cùng menu tài khoản (hồ sơ, cài đặt, đổi sáng/tối, đăng xuất).
 - **Topbar** nền `bg.base`, breadcrumb **căn giữa** 14px — breadcrumb là tiêu đề của trang.

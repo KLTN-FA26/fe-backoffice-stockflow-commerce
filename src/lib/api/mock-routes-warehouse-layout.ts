@@ -1,5 +1,6 @@
 /**
- * Mock `GET /warehouses/{id}/layout` (BE LayoutController, cần `warehouse-locations:READ`) — chỉ phần các màn
+ * Mock `GET /warehouses/{id}/layout` (BE LayoutController, cần `warehouse-locations:READ`). Kho trong store
+ * module 06 (`mock-warehouse-store`) trả bản đồ đầy đủ; kho cũ của mock-data chỉ trả phần các màn
  * thao tác kho dùng: bin trong shelves → levels → bins, khu chứa trong areas, mỗi chỗ có `locationCode` +
  * `usable`. Dựng từ `locations` của mock-data; chỉ dùng khi USE_MOCK=true.
  */
@@ -9,6 +10,7 @@ import { WAREHOUSE_LOCATION_PERMISSIONS } from "@/constants";
 import { registerMockRoute } from "./mock-adapter";
 import { beError, beOk, readRouteId } from "./mock-routes-purchase-orders-store";
 import { mockGrantsOf } from "./mock-user-grants";
+import { mockStoredLayout } from "./mock-warehouse-layout-view";
 
 import type { Location } from "@/lib/mock-data";
 
@@ -47,6 +49,9 @@ export function registerWarehouseLayoutMockRoutes(): void {
   registerMockRoute("GET", "/warehouses/:id/layout", async (config) => {
     if (!(await canReadLayout())) return beError(403, "FORBIDDEN", "Access denied");
     const warehouseId = readRouteId(config);
+    // Kho của store module 06 (seed demo BE + kho vừa tạo) → bản đồ đầy đủ như BE
+    const stored = mockStoredLayout(warehouseId);
+    if (stored) return beOk(stored);
     const { warehouses } = await import("@/lib/mock-data");
     if (!warehouses.some((warehouse) => warehouse.warehouseId === warehouseId)) {
       return beError(404, "WAREHOUSE_NOT_FOUND", "Warehouse not found");

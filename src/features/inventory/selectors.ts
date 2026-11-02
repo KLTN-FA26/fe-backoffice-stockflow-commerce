@@ -76,3 +76,27 @@ export function alertStatusLabel(status: string): string {
   const known = STOCK_ALERT_STATUSES.find((value) => value === status);
   return known ? STOCK_ALERT_STATUS_LABELS[known] : status;
 }
+
+// A warehouse id from a link: the backend sends a UUID; the mock directory uses short codes. Only
+// letters, digits and hyphens ever reach the request — the backend still validates and scopes it.
+const LINK_WAREHOUSE_ID = /^[A-Za-z0-9-]{1,64}$/;
+
+type AlertKind = (typeof STOCK_ALERT_KINDS)[number];
+
+/**
+ * Filters of `/admin/inventory/alerts?kind=…&warehouseId=…` (BE InventoryAlertMessages, the link of
+ * an INVENTORY_ALERT notification). An unknown kind or malformed id is dropped, never sent to the
+ * backend, and reported so the page can say the link was not fully understood.
+ */
+export function parseAlertLinkFilters(raw: { kind: string | null; warehouseId: string | null }): {
+  kind: AlertKind | null;
+  warehouseId: string | null;
+  rejected: boolean;
+} {
+  const kind = STOCK_ALERT_KINDS.find((value) => value === raw.kind) ?? null;
+  const warehouseId =
+    raw.warehouseId !== null && LINK_WAREHOUSE_ID.test(raw.warehouseId) ? raw.warehouseId : null;
+  const rejected =
+    (raw.kind !== null && kind === null) || (raw.warehouseId !== null && warehouseId === null);
+  return { kind, warehouseId, rejected };
+}

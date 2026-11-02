@@ -140,6 +140,16 @@ export const LOAD_COLUMNS = {
   VEHICLE: "vehicle",
 } as const;
 
+/** Cột danh mục kho (BE `WarehouseResponse`). */
+export const WAREHOUSE_COLUMNS = {
+  ACTIONS: "actions",
+  ADDRESS: "address",
+  MAP_SIZE: "mapSize",
+  NAME: "name",
+  PREFIX: "prefix",
+  STATUS: "status",
+} as const;
+
 /** Cột danh sách loại xe (BE `VehicleTypeResponse`). */
 export const VEHICLE_TYPE_COLUMNS = {
   ACTIONS: "actions",
