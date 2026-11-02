@@ -173,6 +173,9 @@ const WH_WORK = [
   ...OVERVIEW_ALL,
   WAREHOUSE_READ,
   WAREHOUSE_LOCATION_PERMISSIONS.read,
+  // Seed V20260928006000: WAREHOUSE_STAFF xem trang danh mục kho + bản đồ (VIEW_PAGE, READ), không sửa
+  WAREHOUSE_PERMISSIONS.viewPage,
+  WAREHOUSE_LOCATION_PERMISSIONS.viewPage,
   ...ITEM_READ,
   ...VEHICLE_TYPE_READ,
 ];
@@ -210,8 +213,9 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...Object.values(OUTCOME),
     ...INVENTORY_ALL,
     ...OVERVIEW_ALL,
-    WAREHOUSE_READ,
-    WAREHOUSE_LOCATION_PERMISSIONS.read,
+    // Seed V20260903000100 / V20260928006000: WAREHOUSE_MANAGER đủ quyền danh mục kho và bản đồ kho
+    ...Object.values(WAREHOUSE_PERMISSIONS),
+    ...Object.values(WAREHOUSE_LOCATION_PERMISSIONS),
     ...Object.values(TO),
     ...SHIP,
     ...ITEM_ALL,
@@ -242,6 +246,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...INVENTORY_FLOOR,
     ...STOCK_READ,
     OV.alertRead,
+    OV.alertViewPage,
     WAREHOUSE_READ,
     TO.viewPage,
     TO.read,

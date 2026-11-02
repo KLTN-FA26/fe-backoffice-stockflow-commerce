@@ -8,6 +8,9 @@ import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui
 import type { NavGroup, NavItem } from "./BackofficeShell";
 
 /** Class item menu: thường / đang mở (nền muted nhẹ như Vercel). Dùng chung cho SidebarNav. */
+/** Một dòng menu sidebar (cao 36px, chữ 14px, icon 14px) — dùng chung cho menu và panel riêng của nhóm. */
+export const NAV_ROW =
+  "h-9 gap-2.5 rounded-[var(--r-md)] px-3 text-sm transition-colors duration-150 [&>svg]:size-3.5";
 export const ITEM_IDLE = "text-ink-primary hover:bg-bg-muted";
 export const ITEM_ACTIVE =
   "bg-bg-muted text-ink-primary hover:bg-bg-muted data-active:bg-bg-muted data-active:text-ink-primary font-medium";

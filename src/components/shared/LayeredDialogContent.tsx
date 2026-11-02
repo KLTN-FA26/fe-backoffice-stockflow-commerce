@@ -15,12 +15,16 @@ import { DialogOverlay, DialogPortal } from "@/components/ui/dialog";
  */
 export function LayeredDialogContent({
   className,
+  overlayClassName,
   children,
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Content>) {
+}: React.ComponentProps<typeof DialogPrimitive.Content> & {
+  /** Tuỳ biến lớp nền mờ (vd tắt `backdrop-blur` khi dialog mở trên vùng vẽ lớn — bản đồ, canvas). */
+  overlayClassName?: string;
+}) {
   return (
     <DialogPortal>
-      <DialogOverlay className="z-(--z-dialog-on-drawer)" />
+      <DialogOverlay className={cn("z-(--z-dialog-on-drawer)", overlayClassName)} />
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(

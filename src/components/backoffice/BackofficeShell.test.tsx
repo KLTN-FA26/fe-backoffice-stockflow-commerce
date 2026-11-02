@@ -1,9 +1,16 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { IDENTITY_PERMISSIONS, INVENTORY_PERMISSIONS } from "@/constants";
+import {
+  ADMIN_ROUTES,
+  IDENTITY_PERMISSIONS,
+  INVENTORY_PERMISSIONS,
+  WAREHOUSE_LOCATION_PERMISSIONS,
+  WAREHOUSE_PERMISSIONS,
+} from "@/constants";
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 
 import { api } from "@/lib/api/client";
@@ -61,11 +68,13 @@ async function renderShell(
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={client}>
-      <ThemeProvider>
-        <BackofficeShell>
-          <p>content</p>
-        </BackofficeShell>
-      </ThemeProvider>
+      <NuqsTestingAdapter>
+        <ThemeProvider>
+          <BackofficeShell>
+            <p>content</p>
+          </BackofficeShell>
+        </ThemeProvider>
+      </NuqsTestingAdapter>
     </QueryClientProvider>,
   );
   await waitFor(() =>
@@ -296,5 +305,53 @@ describe("sidebar parent entries follow their visible items", () => {
     expect(groups.length).toBeGreaterThan(0);
     for (const group of groups)
       expect(within(group).queryAllByRole("link").length).toBeGreaterThan(0);
+  });
+});
+
+describe('tab "Kho & bản đồ" tách riêng', () => {
+  const PERMS = [
+    WAREHOUSE_PERMISSIONS.viewPage,
+    WAREHOUSE_PERMISSIONS.read,
+    WAREHOUSE_LOCATION_PERMISSIONS.viewPage,
+  ];
+
+  it("ở màn gốc sidebar, bấm tab là đi thẳng tới Danh mục kho", async () => {
+    navigation.pathname = ADMIN_ROUTES.home;
+    await renderShell(PERMS);
+    expect(navLink("Kho & bản đồ")).toHaveAttribute("href", ADMIN_ROUTES.warehouses.list);
+  });
+
+  it("chưa vào kho nào → panel chỉ có Danh mục kho (chọn kho ở đó), không liệt kê kho", async () => {
+    navigation.pathname = ADMIN_ROUTES.warehouses.list;
+    await renderShell(PERMS);
+    expect(screen.getByRole("button", { name: /^Quay lại Kho & bản đồ/ })).toBeInTheDocument();
+    expect(screen.getByText(/Chọn một kho ở Danh mục kho/)).toBeInTheDocument();
+    expect(navLink("Danh mục kho")).toHaveAttribute("aria-current", "page");
+    expect(navLink("Bản đồ kho")).not.toBeInTheDocument();
+  });
+
+  it("trong một kho → panel là các trang của kho đó; breadcrumb có kho + nút đổi kho", async () => {
+    navigation.pathname = ADMIN_ROUTES.warehouseMap.of("HCM");
+    await renderShell(PERMS);
+    expect(navLink("Bản đồ kho")).toHaveAttribute("aria-current", "page");
+    expect(navLink("Gợi ý vị trí")).toHaveAttribute(
+      "href",
+      ADMIN_ROUTES.warehouseMap.slotting("HCM"),
+    );
+    const crumbs = screen.getByRole("navigation", { name: "Breadcrumb" });
+    expect(within(crumbs).getByRole("link", { name: "Kho & bản đồ" })).toBeInTheDocument();
+    expect(within(crumbs).getByRole("button", { name: /Đổi kho: HCM/ })).toBeInTheDocument();
+    expect(crumbs).toHaveTextContent("Bản đồ kho");
+  });
+
+  it('nhóm "Kho" không còn chứa trang của module bản đồ', async () => {
+    navigation.pathname = INVENTORY_ROUTES.movements;
+    await renderShell([
+      INVENTORY_PERMISSIONS.movementViewPage,
+      INVENTORY_PERMISSIONS.adjustmentViewPage,
+      WAREHOUSE_PERMISSIONS.viewPage,
+    ]);
+    expect(navLink(MOVEMENTS)).toBeInTheDocument();
+    expect(navLink("Danh mục kho")).not.toBeInTheDocument();
   });
 });

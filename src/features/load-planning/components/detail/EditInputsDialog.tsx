@@ -93,7 +93,7 @@ export function EditInputsDialog({ plan, onClose }: { plan: PlanDetail; onClose:
 
   return (
     <Dialog open onOpenChange={(open) => !open && !update.isPending && onClose()}>
-      <LayeredDialogContent className="border-border-default bg-bg-surface gap-0 rounded-[var(--r-xl)] border p-0 shadow-[var(--sh-lg)] ring-0 sm:max-w-3xl">
+      <LayeredDialogContent className="border-border-default bg-bg-surface gap-0 rounded-[var(--r-xl)] border p-0 shadow-[var(--sh-lg)] ring-0 sm:max-w-5xl">
         <FormDialogBody
           title={`${D.title} ${current.code}`}
           description={D.description}
