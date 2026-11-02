@@ -3,7 +3,11 @@
  */
 
 import { IDENTITY_TOAST_MESSAGES } from "./labels-identity";
-import { INVENTORY_ITEM_TOAST_MESSAGES, INVENTORY_ITEM_UI_LABELS } from "./labels-inventory-item";
+import {
+  INVENTORY_ITEM_PICKER_LABELS,
+  INVENTORY_ITEM_TOAST_MESSAGES,
+  INVENTORY_ITEM_UI_LABELS,
+} from "./labels-inventory-item";
 import { LOAD_PLAN_TOAST_MESSAGES, LOAD_PLAN_UI_LABELS } from "./labels-load-plan";
 import { PACKING_TOAST_MESSAGES, PACKING_UI_LABELS } from "./labels-packing";
 import { PRODUCT_UI_LABELS } from "./labels-product";
@@ -404,6 +408,14 @@ export const UI_LABELS = {
       removeLine: "Xoá dòng",
       sku: "SKU",
       skuPlaceholder: "Nhập / quét SKU",
+      // SCRUM-492: ô chọn SKU từ MỌI hồ sơ hàng tồn (không loại SKU nào)
+      skuPicker: {
+        ...INVENTORY_ITEM_PICKER_LABELS,
+        empty: "Không có SKU nào khớp trong hồ sơ hàng tồn",
+        emptyButMore: "Chưa thấy SKU cần tìm — gõ thêm SKU hoặc mã vạch để thu hẹp.",
+      },
+      skuManualNotice:
+        "Bạn không có quyền xem hồ sơ hàng tồn — hãy gõ đúng SKU, hệ thống kiểm tra khi lưu.",
       confirmNote:
         "Phiếu không có PO không ghi nhận ngay: sẽ chờ Quản lý kho duyệt, chưa ghi nhận tồn.",
       pendingDescription:
