@@ -12,5 +12,6 @@ export { MovementHistory } from "./components/MovementHistory";
 export { AdjustmentCreate } from "./components/AdjustmentCreate";
 export { AdjustmentDetail } from "./components/AdjustmentDetail";
 export { AdjustmentList } from "./components/AdjustmentList";
+export { InventoryAlertList } from "./components/InventoryAlertList";
 export { InventoryOverview } from "./components/InventoryOverview";
 export { RecentMoves } from "./components/RecentMoves";
