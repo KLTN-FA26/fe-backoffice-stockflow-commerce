@@ -9,12 +9,12 @@
 
 ## 1. Bảng đối chiếu Task Jira & Màn hình hoàn thành
 
-| Mã Jira | Phân hệ / Nghiệp vụ | Tên màn hình / Trạng thái tương tác | Đường dẫn Preview nội bộ |
-|---|---|---|---|
-| **SCRUM-442** | Tách LSX gia công | Hộp thoại Tách LSX (Split Dialog): nhập số lượng gia công, chọn NCC đối tác, chọn chế độ (Trọn gói vs Chỉ in), nhập đơn giá, kiểm tra hạn giao (không được trễ hơn đơn cha) | `/ui-preview/subcontract` (Tab: Cây Cha — Con & Tách Lệnh) |
-| **SCRUM-442 (Cây)** | Phân cấp Cha — Con | Giao diện hiển thị phân cấp Lệnh sản xuất cha, số lượng giữ lại sản xuất nội bộ vs số lượng ủy thác gia công, danh sách các lệnh con `SCO-2026-xxxx`, huy hiệu `SUBCONTRACTED` | `/ui-preview/subcontract` (Tab: Cây Cha — Con & Tách Lệnh) |
-| **SCRUM-442 (Phiếu)** | Xuất phôi & Phiếu giao hàng | Màn hình xuất phôi và tạo Phiếu xuất kho gia công ngoài (Dispatch Note) chuẩn in ấn (`window.print()`), đầy đủ thông tin tài xế, số xe, bảng hàng hóa, 4 khối chữ ký | `/ui-preview/subcontract` (Tab: Xuất Phôi & Phiếu Giao Hàng) |
-| **SCRUM-442 (Trả)** | Theo dõi nhận lại & QC | Màn hình theo dõi các đợt nhận hàng từ xưởng gia công, thanh tiến độ %, biên bản ghi nhận số lượng đạt chuẩn QC vs phế phẩm hao hụt trừ công nợ | `/ui-preview/subcontract` (Tab: Theo Dõi Nhận Lại & QC) |
+| Mã Jira               | Phân hệ / Nghiệp vụ         | Tên màn hình / Trạng thái tương tác                                                                                                                                            | Đường dẫn Preview nội bộ                                     |
+| --------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
+| **SCRUM-442**         | Tách LSX gia công           | Hộp thoại Tách LSX (Split Dialog): nhập số lượng gia công, chọn NCC đối tác, chọn chế độ (Trọn gói vs Chỉ in), nhập đơn giá, kiểm tra hạn giao (không được trễ hơn đơn cha)    | `/ui-preview/subcontract` (Tab: Cây Cha — Con & Tách Lệnh)   |
+| **SCRUM-442 (Cây)**   | Phân cấp Cha — Con          | Giao diện hiển thị phân cấp Lệnh sản xuất cha, số lượng giữ lại sản xuất nội bộ vs số lượng ủy thác gia công, danh sách các lệnh con `SCO-2026-xxxx`, huy hiệu `SUBCONTRACTED` | `/ui-preview/subcontract` (Tab: Cây Cha — Con & Tách Lệnh)   |
+| **SCRUM-442 (Phiếu)** | Xuất phôi & Phiếu giao hàng | Màn hình xuất phôi và tạo Phiếu xuất kho gia công ngoài (Dispatch Note) chuẩn in ấn (`window.print()`), đầy đủ thông tin tài xế, số xe, bảng hàng hóa, 4 khối chữ ký           | `/ui-preview/subcontract` (Tab: Xuất Phôi & Phiếu Giao Hàng) |
+| **SCRUM-442 (Trả)**   | Theo dõi nhận lại & QC      | Màn hình theo dõi các đợt nhận hàng từ xưởng gia công, thanh tiến độ %, biên bản ghi nhận số lượng đạt chuẩn QC vs phế phẩm hao hụt trừ công nợ                                | `/ui-preview/subcontract` (Tab: Theo Dõi Nhận Lại & QC)      |
 
 ---
 

@@ -13,7 +13,9 @@ import {
   readRouteId,
   readString,
 } from "./mock-routes-purchase-orders-store";
+import { cartonLineView, resetMockCartons } from "./mock-receipt-cartons";
 
+import type { MockReceiptPackage } from "./mock-receipt-cartons";
 import type { MockBePo } from "./mock-routes-purchase-orders-store";
 
 export type MockReceiptStatus =
@@ -51,6 +53,10 @@ export interface MockReceiptLine {
   inspections: MockInspection[];
   /** BE `OVER_TOLERANCE` (BR-RCP-001) — tính lúc trả phiếu Draft / Pending Approval, không lưu. */
   warnings?: string[];
+  /** SCRUM-473: đơn vị đóng gói của các thùng (null = dòng lẻ). */
+  unitOfMeasure?: string | null;
+  /** SCRUM-473: thùng của dòng, kể cả VOID (view lọc bỏ — `cartonLineView`). */
+  packages?: MockReceiptPackage[];
 }
 
 /** BE `GoodsReceiptResponse.Approval` (SCRUM-477). */
@@ -366,6 +372,7 @@ export async function getReceiptStore(): Promise<Map<string, MockReceipt>> {
 export function resetReceiptMockStore(): void {
   store = null;
   sequence = 0;
+  resetMockCartons();
 }
 
 /* ── Helpers dùng chung cho routes phiếu + QC ────────────────────────── */
@@ -446,13 +453,19 @@ export async function overToleranceLines(receipt: MockReceipt): Promise<Set<stri
   return over;
 }
 
-/** Gắn `warnings` như BE `view()`: chỉ phiếu Draft / Pending Approval chưa ghi nhận. */
+/**
+ * Như BE `view()`: gắn field thùng của mọi dòng (SCRUM-473), và `warnings` chỉ cho phiếu Draft / Pending Approval
+ * chưa ghi nhận.
+ */
 export async function withWarnings(receipt: MockReceipt): Promise<MockReceipt> {
-  if (receipt.status !== "DRAFT" && receipt.status !== "PENDING_APPROVAL") return receipt;
+  const withCartons = receipt.lines.map((line) => ({ ...line, ...cartonLineView(line) }));
+  if (receipt.status !== "DRAFT" && receipt.status !== "PENDING_APPROVAL") {
+    return { ...receipt, lines: withCartons };
+  }
   const over = await overToleranceLines(receipt);
   return {
     ...receipt,
-    lines: receipt.lines.map((line) => ({
+    lines: withCartons.map((line) => ({
       ...line,
       warnings: over.has(line.purchaseOrderLineId ?? "") ? ["OVER_TOLERANCE"] : [],
     })),

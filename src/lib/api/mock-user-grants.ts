@@ -35,6 +35,7 @@ import {
   QC_TASK_PERMISSIONS,
   REPORTING_PERMISSIONS,
   SHIPMENT_PERMISSIONS,
+  STOCK_PACKAGE_PERMISSIONS,
   SUPPLIER_ITEM_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
   TRANSFER_PERMISSIONS,
@@ -153,6 +154,12 @@ const WAREHOUSE_READ = WAREHOUSE_PERMISSIONS.read;
 const ITEM = INVENTORY_ITEM_PERMISSIONS;
 const ITEM_READ = [ITEM.viewPage, ITEM.read];
 const ITEM_ALL = Object.values(ITEM);
+// Seed BE V20261020000700 (SCRUM-473): thùng có LPN — WAREHOUSE_MANAGER mọi quyền, WAREHOUSE_STAFF xem + in / in
+// lại nhãn (VIEW_PAGE, READ, CREATE), INVENTORY_PLANNER / QC_STAFF chỉ xem.
+const SP = STOCK_PACKAGE_PERMISSIONS;
+const STOCK_PACKAGE_READ = [SP.viewPage, SP.read];
+const STOCK_PACKAGE_STAFF = [...STOCK_PACKAGE_READ, SP.create];
+const STOCK_PACKAGE_ALL = Object.values(SP);
 // Seed BE V20261017000510 (catalog-customer-prices): ECOMMERCE_ADMIN đủ quyền, SALES_STAFF VIEW_PAGE + READ,
 // ORDER_COORDINATOR chỉ READ (không VIEW_PAGE — khoảng trống của seed BE, giữ nguyên ở mock). Seed
 // V20260919001600: customer-customers cho ECOMMERCE_ADMIN / SALES_STAFF — FE chỉ dùng READ (ô chọn khách).
@@ -174,6 +181,7 @@ const WH_WORK = [
   WAREHOUSE_LOCATION_PERMISSIONS.viewPage,
   ...ITEM_READ,
   ...VEHICLE_TYPE_READ,
+  ...STOCK_PACKAGE_STAFF,
 ];
 
 // Seed BE develop (đơn bán, SCRUM-427 / SCRUM-440):
@@ -217,6 +225,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...ITEM_ALL,
     ...CUSTOMER_PRICE_ALL,
     CUSTOMER_LOOKUP,
+    ...STOCK_PACKAGE_ALL,
   ],
   "USER-PROC-01": [
     SUPPLIER_PERMISSIONS.viewPage,
@@ -249,6 +258,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     TO.create,
     TO.update,
     ...ITEM_ALL,
+    ...STOCK_PACKAGE_READ,
   ],
   // Existing USER-ADMIN-01 is also the only Warehouse Manager; WH users are staff.
   "USER-WH-01": [...WH_WORK, ...TO_STAFF, ...SHIP],
@@ -262,6 +272,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     QC.read,
     QC.approve,
     ...STOCK_READ,
+    ...STOCK_PACKAGE_READ,
     // QC_STAFF: chỉ kiểm tra lại thiết kế (BE PR #148) + đọc task / artifact
     PICK.read,
     PACK.read,

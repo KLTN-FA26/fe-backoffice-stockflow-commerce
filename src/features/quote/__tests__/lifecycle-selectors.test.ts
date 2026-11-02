@@ -38,7 +38,9 @@ describe("quote action gating", () => {
     expect(allowedStaffQuoteActions("DRAFT", update)).toEqual(["edit", "send", "cancel"]);
     expect(allowedStaffQuoteActions("CHANGES_REQUESTED", update)).toEqual(["revise"]);
     expect(allowedStaffQuoteActions("ACCEPTED", update)).toEqual(["cancel"]);
-    expect(allowedStaffQuoteActions("ACCEPTED", has("sales-quote-conversions:CREATE"))).toEqual(["convert"]);
+    expect(allowedStaffQuoteActions("ACCEPTED", has("sales-quote-conversions:CREATE"))).toEqual([
+      "convert",
+    ]);
     expect(allowedStaffQuoteActions("CONVERTED", update)).toEqual([]);
     expect(allowedStaffQuoteActions("SENT", update)).toEqual([]);
   });

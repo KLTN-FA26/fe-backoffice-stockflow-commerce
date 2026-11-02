@@ -101,6 +101,9 @@ export function ConfirmDialog({
           className="contents"
           onSubmit={(event) => {
             event.preventDefault();
+            // Portal không chặn sự kiện React: không có dòng này, xác nhận một dialog đặt trong form khác (vd huỷ thùng
+            // trong form kiểm đếm) sẽ submit luôn form bên ngoài.
+            event.stopPropagation();
             handleConfirm();
           }}
         >

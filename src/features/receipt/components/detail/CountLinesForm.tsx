@@ -47,6 +47,7 @@ export function CountLinesForm({
     missingPoLines,
     submit,
     blankFor,
+    cartons,
   } = useCountLinesForm(receipt, po, onDirtyChange, onSaved);
 
   return (
@@ -108,6 +109,7 @@ export function CountLinesForm({
           register={form.register}
           control={form.control}
           errors={form.formState.errors.lines}
+          cartons={cartons}
           onEdit={clearServerError}
           onSplit={split}
           onRemove={remove}

@@ -8,10 +8,12 @@ import { z } from "zod";
 import { RECEIPT_FIELD_MESSAGES as MSG, RECEIPT_LIMITS } from "@/constants";
 import { isoDate } from "@/lib/validation/primitives";
 
+import { cartonLineFields, refineLineCartons } from "./carton-input-schemas";
+
 const optionalText = (max: number) => z.string().trim().max(max, MSG.tooLong).default("");
 
 /** Mã vị trí BE so khớp sau khi `trim().toUpperCase()` (GoodsReceiptServiceImpl#area). */
-const locationCodeInput = z
+export const locationCodeInput = z
   .string()
   .trim()
   .min(1, MSG.locationRequired)
@@ -52,6 +54,7 @@ export const receiptLineInputSchema = z.object({
   expiryDate: z.union([z.literal(""), isoDate]).default(""),
   locationCode: locationCodeInput,
   note: optionalText(RECEIPT_LIMITS.lineNoteMax),
+  ...cartonLineFields,
 });
 
 /** Dòng kiểm đếm của phiếu không có PO: gọi hàng bằng SKU (BE upper-case), không có dòng PO. */
@@ -67,6 +70,7 @@ export const blindLineInputSchema = z.object({
   expiryDate: z.union([z.literal(""), isoDate]).default(""),
   locationCode: locationCodeInput,
   note: optionalText(RECEIPT_LIMITS.lineNoteMax),
+  ...cartonLineFields,
 });
 
 /** Cách SKU của dòng PO được theo dõi (docs 01). Chưa biết → không ép ở FE. */
@@ -120,6 +124,7 @@ export function buildReceiptLinesSchema(ctx: ReceiptLinesContext) {
             message: MSG.expiryNotAfterReceipt,
           });
         }
+        refineLineCartons(line, index, issue);
         totals.set(
           line.purchaseOrderLineId,
           (totals.get(line.purchaseOrderLineId) ?? 0) + line.quantity,
@@ -171,6 +176,7 @@ export function buildBlindLinesSchema(ctx: Pick<ReceiptLinesContext, "receivedOn
             message: MSG.expiryNotAfterReceipt,
           });
         }
+        refineLineCartons(line, index, issue);
       });
     });
 }
@@ -185,57 +191,3 @@ export const receiptDecisionInputSchema = z.object({
     .min(1, MSG.approvalReasonRequired)
     .max(RECEIPT_LIMITS.approvalReasonMax, MSG.tooLong),
 });
-
-/* ── QC ──────────────────────────────────────────────────────────────── */
-
-export const moveToQcInputSchema = z.object({
-  qcLocationCode: locationCodeInput,
-});
-
-const qcQuantity = z.number({ message: MSG.qcQuantity }).int(MSG.qcQuantity).min(0, MSG.qcQuantity);
-
-const qcPartInput = z.object({
-  quantity: qcQuantity,
-  locationCode: z.string().trim().max(RECEIPT_LIMITS.codeMax, MSG.tooLong).default(""),
-  reason: z.string().trim().max(RECEIPT_LIMITS.qcReasonMax, MSG.tooLong).default(""),
-});
-
-/** Kết luận QC cho một dòng đã ở khu QC; `movedQuantity` = SL đã chuyển sang khu QC. */
-export function buildQcDecisionSchema(movedQuantity: number) {
-  return z
-    .object({ accepted: qcQuantity, quarantined: qcPartInput, rejected: qcPartInput })
-    .superRefine(({ accepted, quarantined, rejected }, issue) => {
-      // BR-08 (docs 03 §6): Accepted + Quarantine + Rejected = SL đã chuyển sang khu QC
-      if (accepted + quarantined.quantity + rejected.quantity !== movedQuantity) {
-        issue.addIssue({ code: "custom", path: ["accepted"], message: MSG.qcSum });
-      }
-      // BR-08: phần Quarantine / Rejected bắt buộc có lý do (và khu cách ly nhận hàng)
-      for (const key of ["quarantined", "rejected"] as const) {
-        const part = key === "quarantined" ? quarantined : rejected;
-        if (part.quantity === 0) continue;
-        if (!part.locationCode) {
-          issue.addIssue({
-            code: "custom",
-            path: [key, "locationCode"],
-            message: MSG.qcLocationRequired,
-          });
-        }
-        if (!part.reason) {
-          issue.addIssue({ code: "custom", path: [key, "reason"], message: MSG.qcReasonRequired });
-        }
-      }
-      // BE: một lô không thể vừa QUARANTINE vừa BLOCKED ở cùng một vị trí (GoodsReceiptServiceImpl#inspect)
-      if (
-        quarantined.quantity > 0 &&
-        rejected.quantity > 0 &&
-        quarantined.locationCode &&
-        quarantined.locationCode.toUpperCase() === rejected.locationCode.toUpperCase()
-      ) {
-        issue.addIssue({
-          code: "custom",
-          path: ["rejected", "locationCode"],
-          message: MSG.qcSameLocation,
-        });
-      }
-    });
-}

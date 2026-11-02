@@ -9,13 +9,13 @@
 
 ## 1. Bảng đối chiếu Task Jira & Màn hình hoàn thành
 
-| Mã Jira | Phân hệ / Nghiệp vụ | Tên màn hình / Trạng thái tương tác | Đường dẫn Preview nội bộ |
-|---|---|---|---|
-| **SCRUM-404** | Sales tạo mẫu & Khách duyệt mẫu | Danh sách Yêu cầu mẫu (Sample Requests), tạo mới mẫu thử, chi tiết quy cách in, dòng lịch sử vòng duyệt | `/ui-preview/samples-production` (Tab: Quản lý Mẫu) |
-| **SCRUM-404 (Portal)** | Customer Portal phê duyệt mẫu | Màn hình Khách duyệt mẫu (Mode B styling): xem ảnh chụp thực tế, specs in, nút Phê duyệt (Lock Design) hoặc Yêu cầu sửa mẫu kèm lý do | `/ui-preview/samples-production` (Tab: Portal Khách Duyệt Mẫu) |
-| **SCRUM-406** | Danh sách Lệnh sản xuất (LSX) | Danh sách LSX phân trang, lọc theo Loại (`SAMPLE` / `ORDER`), trạng thái lifecycle, tìm kiếm mã LSX / khách hàng | `/ui-preview/samples-production` (Tab: Danh sách LSX) |
-| **SCRUM-408** | Chi tiết LSX & Prepress | Màn hình chi tiết LSX: tải & xem trước file in, đối chiếu checksum SHA256 (BR-PRD-02), kiểm định Prepress Đạt (Ready) / Hỏng (Hold) | `/ui-preview/samples-production` (Tab: Chi tiết LSX) |
-| **SCRUM-414** | Tạm dừng & Hủy LSX | Hộp thoại Tạm dừng (On Hold) có lý do, Tiếp tục lệnh (Resume); Hộp thoại Hủy LSX kèm tính toán chính sách hủy (BR-PRD-10) | `/ui-preview/samples-production` (Hành động trong Chi tiết LSX) |
+| Mã Jira                | Phân hệ / Nghiệp vụ             | Tên màn hình / Trạng thái tương tác                                                                                                   | Đường dẫn Preview nội bộ                                        |
+| ---------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| **SCRUM-404**          | Sales tạo mẫu & Khách duyệt mẫu | Danh sách Yêu cầu mẫu (Sample Requests), tạo mới mẫu thử, chi tiết quy cách in, dòng lịch sử vòng duyệt                               | `/ui-preview/samples-production` (Tab: Quản lý Mẫu)             |
+| **SCRUM-404 (Portal)** | Customer Portal phê duyệt mẫu   | Màn hình Khách duyệt mẫu (Mode B styling): xem ảnh chụp thực tế, specs in, nút Phê duyệt (Lock Design) hoặc Yêu cầu sửa mẫu kèm lý do | `/ui-preview/samples-production` (Tab: Portal Khách Duyệt Mẫu)  |
+| **SCRUM-406**          | Danh sách Lệnh sản xuất (LSX)   | Danh sách LSX phân trang, lọc theo Loại (`SAMPLE` / `ORDER`), trạng thái lifecycle, tìm kiếm mã LSX / khách hàng                      | `/ui-preview/samples-production` (Tab: Danh sách LSX)           |
+| **SCRUM-408**          | Chi tiết LSX & Prepress         | Màn hình chi tiết LSX: tải & xem trước file in, đối chiếu checksum SHA256 (BR-PRD-02), kiểm định Prepress Đạt (Ready) / Hỏng (Hold)   | `/ui-preview/samples-production` (Tab: Chi tiết LSX)            |
+| **SCRUM-414**          | Tạm dừng & Hủy LSX              | Hộp thoại Tạm dừng (On Hold) có lý do, Tiếp tục lệnh (Resume); Hộp thoại Hủy LSX kèm tính toán chính sách hủy (BR-PRD-10)             | `/ui-preview/samples-production` (Hành động trong Chi tiết LSX) |
 
 ---
 

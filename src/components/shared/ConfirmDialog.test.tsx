@@ -203,3 +203,25 @@ describe("ConfirmDialog", () => {
     expect(extra.compareDocumentPosition(reason) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
+
+describe("ConfirmDialog đặt trong một form khác", () => {
+  it("xác nhận KHÔNG submit form bên ngoài (submit của React nổi qua portal theo cây component)", async () => {
+    const outerSubmit = vi.fn((event: React.FormEvent) => event.preventDefault());
+    const onConfirm = vi.fn();
+    render(
+      <form onSubmit={outerSubmit}>
+        <ConfirmDialog
+          open
+          onOpenChange={vi.fn()}
+          title="Huỷ thùng?"
+          description="Mô tả"
+          confirmLabel="Huỷ thùng"
+          onConfirm={onConfirm}
+        />
+      </form>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Huỷ thùng" }));
+    expect(onConfirm).toHaveBeenCalled();
+    expect(outerSubmit).not.toHaveBeenCalled();
+  });
+});

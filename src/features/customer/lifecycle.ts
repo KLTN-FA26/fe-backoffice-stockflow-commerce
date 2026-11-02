@@ -36,9 +36,7 @@ export const REASON_REQUIRED: ReadonlySet<CustomerStatusAction> = new Set(["reac
 /**
  * Đổi trạng thái: quyền `customer-status:APPROVE` do BE cấp; không suy quyền từ role.
  */
-export function canChangeCustomerStatus(
-  can: (code: PermissionCode) => boolean,
-): boolean {
+export function canChangeCustomerStatus(can: (code: PermissionCode) => boolean): boolean {
   return can(CUSTOMER_PERMISSIONS.approve);
 }
 
@@ -61,8 +59,6 @@ export function allowedCustomerActions(
  * Trạng thái lời mời portal: FE kiểm tra READ; BE kiểm tra thêm phạm vi back-office.
  * UI-only — Backend phải re-check.
  */
-export function canViewInvitation(
-  can: (code: PermissionCode) => boolean,
-): boolean {
+export function canViewInvitation(can: (code: PermissionCode) => boolean): boolean {
   return can(CUSTOMER_PERMISSIONS.read);
 }

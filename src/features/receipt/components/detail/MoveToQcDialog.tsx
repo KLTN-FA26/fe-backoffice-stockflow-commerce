@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { RECEIPT_LIMITS, UI_LABELS } from "@/constants";
 import { receiptErrorMessage } from "@/features/receipt/errors";
-import { moveToQcInputSchema } from "@/features/receipt/input-schemas";
+import { moveToQcInputSchema } from "@/features/receipt/qc-input-schemas";
 import { useMoveLineToQc } from "@/features/receipt/mutations";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

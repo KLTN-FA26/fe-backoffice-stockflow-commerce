@@ -213,6 +213,20 @@ export const QC_OUTCOME_BY_API = {
 } as const satisfies Record<QcOutcomeApi, QcOutcomeStatus>;
 
 /**
+ * Thùng có LPN — BE `inventory.StockPackageStatus` (SCRUM-473). `VOID` (bị loại khi còn đếm) không bao giờ
+ * có trong `GoodsReceiptResponse.Line.packages` nên không liệt kê.
+ */
+export const STOCK_PACKAGE_API_STATUSES = ["RECEIVING", "IN_STOCK", "CONSUMED", "LOST"] as const;
+
+/** Chuỗi status của `StatusDot` (Title Case 1-1 với enum BE; nhãn + màu ở `lib/status-map.ts`). */
+export const STOCK_PACKAGE_STATUS_BY_API = {
+  RECEIVING: "Receiving",
+  IN_STOCK: "In Stock",
+  CONSUMED: "Consumed",
+  LOST: "Lost",
+} as const satisfies Record<StockPackageApiStatus, string>;
+
+/**
  * Trạng thái lấy hàng của task xuất kho — HỆ QUY CHIẾU LÀ BE, không phải docs.
  * Mỗi giá trị BE `fulfillment/internal/domain/PickStatus.java` ứng đúng 1 tên hiển thị = chính tên
  * enum BE viết Title Case (như module phiếu nhận: `DRAFT` → `Draft`), không đổi nghĩa, không mượn
@@ -526,6 +540,8 @@ export type ReceiptApprovalDecisionApi = (typeof RECEIPT_APPROVAL_DECISION_API)[
 export type ReceiptQcProgressApi = (typeof RECEIPT_QC_PROGRESS_API)[number];
 export type QcOutcomeApi = (typeof QC_OUTCOME_API)[number];
 export type QcOutcomeStatus = (typeof QC_OUTCOME_STATUSES)[number];
+export type StockPackageApiStatus = (typeof STOCK_PACKAGE_API_STATUSES)[number];
+export type StockPackageStatus = (typeof STOCK_PACKAGE_STATUS_BY_API)[StockPackageApiStatus];
 export type PickStatus = (typeof PICK_STATUSES)[number];
 export type PickApiStatus = (typeof PICK_API_STATUSES)[number];
 export type PickLineStatus = (typeof PICK_LINE_STATUSES)[number];

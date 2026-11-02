@@ -5,6 +5,7 @@
  */
 
 import { registerMockRoute } from "./mock-adapter";
+import { shownPackages } from "./mock-receipt-cartons";
 import {
   MOCK_RECEIPT_ACTOR,
   invalidReceiptTransition,
@@ -87,6 +88,10 @@ async function moveToQc(config: AxiosRequestConfig) {
     qcProgress: "IN_QC_AREA",
     qcLocationCode: area.code ?? null,
     movedToQcAt: new Date().toISOString(),
+    // SCRUM-473 §5: mọi thùng IN_STOCK của dòng sang khu QC nguyên thùng, giữ LPN
+    packages: line.packages?.map((p) =>
+      p.status === "IN_STOCK" ? { ...p, locationCode: area.code ?? p.locationCode } : p,
+    ),
   };
   return saveReceipt(withLine(receipt, moved));
 }
@@ -94,10 +99,15 @@ async function moveToQc(config: AxiosRequestConfig) {
 /* ── Kết luận QC (bước 8–9, BR-08) ───────────────────────────────────── */
 
 interface Part {
+  /** Hàng lẻ (SCRUM-473: thùng nêu ở `packages`). */
   quantity: number;
   locationCode: string;
   reason: string;
+  packages: string[];
 }
+
+const hasGoods = (part: Part | null): part is Part =>
+  !!part && (part.quantity > 0 || part.packages.length > 0);
 
 /** `@Valid QcDecisionRequest`: accepted/quantity ≥ 0; phần có mặt cần locationCode + reason. */
 function readDecision(body: Record<string, unknown>) {
@@ -119,11 +129,26 @@ function readDecision(body: Record<string, unknown>) {
         message: "must be greater than or equal to 0",
         code: "PositiveOrZero",
       });
-    if (!readString(raw.locationCode))
-      errors.push({ field: `${key}.locationCode`, message: "must not be blank", code: "NotBlank" });
-    if (!readString(raw.reason))
-      errors.push({ field: `${key}.reason`, message: "must not be blank", code: "NotBlank" });
-    return { quantity, locationCode: readString(raw.locationCode), reason: readString(raw.reason) };
+    const packages = Array.isArray(raw.packages)
+      ? raw.packages.map((lpn) => readString(lpn).toUpperCase())
+      : [];
+    // BE: phần không có hàng (0 lẻ, không thùng) không cần khu / lý do
+    if (quantity > 0 || packages.length > 0) {
+      if (!readString(raw.locationCode))
+        errors.push({
+          field: `${key}.locationCode`,
+          message: "must not be blank",
+          code: "NotBlank",
+        });
+      if (!readString(raw.reason))
+        errors.push({ field: `${key}.reason`, message: "must not be blank", code: "NotBlank" });
+    }
+    return {
+      quantity,
+      locationCode: readString(raw.locationCode),
+      reason: readString(raw.reason),
+      packages,
+    };
   };
   return { accepted, quarantined: part("quarantined"), rejected: part("rejected"), errors };
 }
@@ -134,11 +159,11 @@ async function inspect(config: AxiosRequestConfig) {
     return beError(400, "VALIDATION_FAILED", "Invalid request data", decision.errors);
   const { id, receipt } = await loadReceipt(config);
   if (!receipt) return receiptNotFound(id);
-  const quarantineTo = decision.quarantined
+  const quarantineTo = hasGoods(decision.quarantined)
     ? resolveArea(decision.quarantined.locationCode, "QUARANTINE")
     : null;
   if (quarantineTo?.error) return quarantineTo.error;
-  const rejectTo = decision.rejected
+  const rejectTo = hasGoods(decision.rejected)
     ? resolveArea(decision.rejected.locationCode, "QUARANTINE")
     : null;
   if (rejectTo?.error) return rejectTo.error;
@@ -165,29 +190,6 @@ async function inspect(config: AxiosRequestConfig) {
     inspectedBy: MOCK_RECEIPT_ACTOR,
     inspectedAt: now,
   });
-  const decided: MockInspection[] = [];
-  if (decision.accepted > 0) decided.push(outcome("ACCEPTED", decision.accepted, null, null));
-  if (decision.quarantined && decision.quarantined.quantity > 0) {
-    decided.push(
-      outcome(
-        "QUARANTINE",
-        decision.quarantined.quantity,
-        quarantineTo?.code ?? null,
-        decision.quarantined.reason,
-      ),
-    );
-  }
-  if (decision.rejected && decision.rejected.quantity > 0) {
-    decided.push(
-      outcome(
-        "REJECTED",
-        decision.rejected.quantity,
-        rejectTo?.code ?? null,
-        decision.rejected.reason,
-      ),
-    );
-  }
-
   const notInQc = requireStatus(receipt, "IN_QC", "record QC on");
   if (notInQc) return notInQc;
   const found = findLine(receipt, lineIdParam(config));
@@ -199,7 +201,85 @@ async function inspect(config: AxiosRequestConfig) {
     );
   if (line.qcProgress === "INSPECTED")
     return invalidReceiptTransition("This line has already been inspected");
+  // SCRUM-473 §5: thùng nêu tên phải là thùng của dòng, mỗi LPN một phần; tính nguyên thùng theo receivedQty
+  const cartons = shownPackages(line);
+  const named = new Map<string, "quarantined" | "rejected">();
+  const inCartons = { quarantined: 0, rejected: 0 };
+  for (const key of ["quarantined", "rejected"] as const) {
+    for (const [j, lpn] of (decision[key]?.packages ?? []).entries()) {
+      const carton = cartons.find((c) => c.lpn === lpn);
+      const field = `${key}.packages[${j}]`;
+      if (!carton)
+        return beError(
+          404,
+          "STOCK_PACKAGE_NOT_FOUND",
+          `${lpn} is not a carton of this receipt line`,
+          [
+            {
+              field,
+              message: `${lpn} is not a carton of this receipt line`,
+              code: "STOCK_PACKAGE_NOT_FOUND",
+            },
+          ],
+        );
+      if (named.has(lpn))
+        return beError(
+          400,
+          "VALIDATION_FAILED",
+          `${lpn} is named twice; a carton goes to one place`,
+          [{ field, message: `${lpn} is named twice`, code: "VALIDATION_FAILED" }],
+        );
+      if (carton.status !== "IN_STOCK")
+        return beError(409, "INVALID_STOCK_PACKAGE_TRANSITION", `${lpn} is ${carton.status}`, [
+          {
+            field,
+            message: `${lpn} is ${carton.status}`,
+            code: "INVALID_STOCK_PACKAGE_TRANSITION",
+          },
+        ]);
+      if (carton.locationCode !== line.qcLocationCode)
+        return beError(422, "STOCK_PACKAGE_WRONG_LOCATION", `${lpn} is at ${carton.locationCode}`, [
+          {
+            field,
+            message: `${lpn} is at ${carton.locationCode}`,
+            code: "STOCK_PACKAGE_WRONG_LOCATION",
+          },
+        ]);
+      named.set(lpn, key);
+      inCartons[key] += carton.receivedQty;
+    }
+  }
+  const decided: MockInspection[] = [];
+  if (decision.accepted > 0) decided.push(outcome("ACCEPTED", decision.accepted, null, null));
+  const quarantined = decision.quarantined;
+  if (hasGoods(quarantined))
+    decided.push(
+      outcome(
+        "QUARANTINE",
+        quarantined.quantity + inCartons.quarantined,
+        quarantineTo?.code ?? null,
+        quarantined.reason,
+      ),
+    );
+  const rejected = decision.rejected;
+  if (hasGoods(rejected))
+    decided.push(
+      outcome(
+        "REJECTED",
+        rejected.quantity + inCartons.rejected,
+        rejectTo?.code ?? null,
+        rejected.reason,
+      ),
+    );
   const total = decided.reduce((sum, d) => sum + d.quantity, 0);
+  const looseTaken = (quarantined?.quantity ?? 0) + (rejected?.quantity ?? 0);
+  const looseRemainder = line.quantity - cartons.reduce((sum, c) => sum + c.receivedQty, 0);
+  if (looseTaken > looseRemainder)
+    return beError(
+      409,
+      "QC_QUANTITY_MISMATCH",
+      `The quarantined and rejected parts take ${looseTaken} loose units; the line has ${looseRemainder} outside its cartons (BR-08)`,
+    );
   if (total !== line.quantity) {
     return beError(
       409,
@@ -208,11 +288,17 @@ async function inspect(config: AxiosRequestConfig) {
     );
   }
 
+  const areaOf = { quarantined: quarantineTo?.code, rejected: rejectTo?.code };
   const inspected: MockReceiptLine = {
     ...line,
     qcProgress: "INSPECTED",
     quantityForPutaway: decision.accepted,
     inspections: decided,
+    // Thùng cách ly / không đạt sang khu của phần đó nguyên thùng, giữ LPN
+    packages: line.packages?.map((p) => {
+      const key = named.get(p.lpn);
+      return key ? { ...p, locationCode: areaOf[key] ?? p.locationCode } : p;
+    }),
   };
   const next = withLine(receipt, inspected);
   // GoodsReceipt#inspect: dòng QC cuối cùng có kết luận → In Putaway, hoặc Closed nếu không còn gì để cất

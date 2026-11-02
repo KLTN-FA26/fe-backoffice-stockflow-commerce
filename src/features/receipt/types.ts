@@ -3,9 +3,7 @@ import type { z } from "zod";
 import type { ReceiptStatus } from "@/constants";
 import type {
   ReceiptLinesContext,
-  buildQcDecisionSchema,
   buildReceiptLinesSchema,
-  moveToQcInputSchema,
   blindLineInputSchema,
   buildBlindLinesSchema,
   receiptCreateInputSchema,
@@ -13,6 +11,9 @@ import type {
   receiptDecisionInputSchema,
   receiptLineInputSchema,
 } from "./input-schemas";
+import type { packageInputSchema } from "./carton-input-schemas";
+import type { beReceiptPackageSchema, beReceiptUnitSchema } from "./carton-schemas";
+import type { buildQcDecisionSchema, moveToQcInputSchema } from "./qc-input-schemas";
 import type {
   beGoodsReceiptRowSchema,
   beGoodsReceiptSchema,
@@ -32,6 +33,8 @@ export type GoodsReceiptRowApiDto = z.infer<typeof beGoodsReceiptRowSchema>;
 export type ReceiptLineDto = z.infer<typeof beReceiptLineSchema>;
 export type QcInspectionDto = z.infer<typeof beInspectionSchema>;
 export type ReceiptApprovalDto = z.infer<typeof beReceiptApprovalSchema>;
+export type ReceiptPackageDto = z.infer<typeof beReceiptPackageSchema>;
+export type ReceiptUnitDto = z.infer<typeof beReceiptUnitSchema>;
 export type ReceivablePo = z.infer<typeof receivablePoSchema>;
 export type ReceivablePoLine = z.infer<typeof receivablePoLineSchema>;
 export type SupplierOption = z.infer<typeof supplierOptionSchema>;
@@ -47,6 +50,7 @@ export type GoodsReceiptRow = Omit<GoodsReceiptRowApiDto, "status"> & { status: 
 export type ReceiptCreateInput = z.input<typeof receiptCreateInputSchema>;
 export type ReceiptCreateValues = z.output<typeof receiptCreateInputSchema>;
 export type ReceiptLineValues = z.output<typeof receiptLineInputSchema>;
+export type PackageInputValues = z.output<typeof packageInputSchema>;
 export type ReceiptLinesFormInput = z.input<ReturnType<typeof buildReceiptLinesSchema>>;
 export type ReceiptLinesValues = z.output<ReturnType<typeof buildReceiptLinesSchema>>;
 export type MoveToQcValues = z.output<typeof moveToQcInputSchema>;
@@ -63,6 +67,8 @@ export type { ReceiptLinesContext };
 export interface SaveReceiptLinesInput {
   receiptId: string;
   lines: readonly ReceiptLineValues[];
+  /** SCRUM-473: lần lưu có thùng mới không được cấp LPN hai lần khi gửi lại (lib/api/idempotency). */
+  idempotencyKey?: string;
 }
 
 export interface MoveLineToQcInput {
@@ -75,6 +81,7 @@ export interface MoveLineToQcInput {
 export interface SaveBlindLinesInput {
   receiptId: string;
   lines: readonly BlindLineValues[];
+  idempotencyKey?: string;
 }
 
 export interface ReferencePurchaseOrderInput {
@@ -90,5 +97,7 @@ export interface DecideReceiptInput {
 export interface InspectLineInput {
   receiptId: string;
   lineId: string;
+  /** Thùng của dòng — để tính `accepted` (thùng Đạt) và LPN của phần cách ly / không đạt (SCRUM-473). */
+  line: Pick<ReceiptLineDto, "packages">;
   decision: QcDecisionValues;
 }

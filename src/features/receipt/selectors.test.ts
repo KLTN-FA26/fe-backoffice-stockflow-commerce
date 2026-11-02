@@ -9,8 +9,6 @@ import {
 } from "./__fixtures__/receipt";
 import {
   countedByPoLine,
-  initialBlindLines,
-  initialCountLines,
   inspectionTotals,
   isLineOverTolerance,
   lineQualityStatuses,
@@ -21,6 +19,7 @@ import {
   receiptReceivedOn,
   receivableLimit,
 } from "./selectors";
+import { initialBlindLines, initialCountLines } from "./count-selectors";
 
 describe("receipt selectors", () => {
   it("BR-02: giới hạn = SL đặt × (1 + dung sai), làm tròn xuống như BE", () => {
@@ -143,7 +142,16 @@ describe("phiếu không có PO (BR-RCP-002)", () => {
 
   it("giá trị khởi tạo form đếm: dòng đã lưu theo SKU, hoặc một dòng trống", () => {
     expect(initialBlindLines({ lines: [] })).toEqual([
-      { sku: "", quantity: 1, lotNumber: "", expiryDate: "", locationCode: "", note: "" },
+      {
+        sku: "",
+        quantity: 1,
+        lotNumber: "",
+        expiryDate: "",
+        locationCode: "",
+        note: "",
+        unitOfMeasure: "",
+        packages: [],
+      },
     ]);
     expect(
       initialBlindLines({

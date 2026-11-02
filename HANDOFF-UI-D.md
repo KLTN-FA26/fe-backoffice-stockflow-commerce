@@ -9,12 +9,12 @@
 
 ## 1. Bảng đối chiếu Task Jira & Màn hình hoàn thành
 
-| Mã Jira | Phân hệ / Nghiệp vụ | Tên màn hình / Trạng thái tương tác | Đường dẫn Preview nội bộ |
-|---|---|---|---|
-| **SCRUM-449** | Sales báo giá bậc số lượng | Danh sách báo giá B2B (Sales Backoffice): hiển thị bậc số lượng (Tier pricing), chiết khấu %, hạn hiệu lực, điều khoản công nợ (Net 15/30/60/COD), nút gửi khách / lập bản sửa | `/ui-preview/b2b` (Tab: DS Báo Giá) |
-| **SCRUM-449 (Portal)** | Portal khách duyệt báo giá | Màn hình Portal khách duyệt báo giá: tính năng chặn chấp thuận nếu thiết kế mới chưa được duyệt mẫu (Sample approval required — BR-PRD-08), chấp thuận lên đơn hoặc yêu cầu sửa kèm phản hồi | `/ui-preview/b2b` (Tab: Portal Khách Duyệt Giá) |
-| **SCRUM-451** | Quản lý khách B2B & Thư mời | Danh sách khách hàng pháp nhân: mã số thuế, hạn mức công nợ, người liên hệ, form tạo khách mới, nút gửi / gửi lại thư mời kích hoạt portal | `/ui-preview/b2b` (Tab: Hồ Sơ Khách B2B) |
-| **SCRUM-451 (Kích hoạt)** | Kích hoạt tài khoản Portal | Màn hình khách hàng kích hoạt từ link mời: thanh công cụ mô phỏng 3 trạng thái (Token hợp lệ, Token hết hạn > 7 ngày, Token đã sử dụng), loại bỏ guest checkout | `/ui-preview/b2b` (Tab: Kích Hoạt Portal) |
+| Mã Jira                   | Phân hệ / Nghiệp vụ         | Tên màn hình / Trạng thái tương tác                                                                                                                                                          | Đường dẫn Preview nội bộ                        |
+| ------------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| **SCRUM-449**             | Sales báo giá bậc số lượng  | Danh sách báo giá B2B (Sales Backoffice): hiển thị bậc số lượng (Tier pricing), chiết khấu %, hạn hiệu lực, điều khoản công nợ (Net 15/30/60/COD), nút gửi khách / lập bản sửa               | `/ui-preview/b2b` (Tab: DS Báo Giá)             |
+| **SCRUM-449 (Portal)**    | Portal khách duyệt báo giá  | Màn hình Portal khách duyệt báo giá: tính năng chặn chấp thuận nếu thiết kế mới chưa được duyệt mẫu (Sample approval required — BR-PRD-08), chấp thuận lên đơn hoặc yêu cầu sửa kèm phản hồi | `/ui-preview/b2b` (Tab: Portal Khách Duyệt Giá) |
+| **SCRUM-451**             | Quản lý khách B2B & Thư mời | Danh sách khách hàng pháp nhân: mã số thuế, hạn mức công nợ, người liên hệ, form tạo khách mới, nút gửi / gửi lại thư mời kích hoạt portal                                                   | `/ui-preview/b2b` (Tab: Hồ Sơ Khách B2B)        |
+| **SCRUM-451 (Kích hoạt)** | Kích hoạt tài khoản Portal  | Màn hình khách hàng kích hoạt từ link mời: thanh công cụ mô phỏng 3 trạng thái (Token hợp lệ, Token hết hạn > 7 ngày, Token đã sử dụng), loại bỏ guest checkout                              | `/ui-preview/b2b` (Tab: Kích Hoạt Portal)       |
 
 ---
 

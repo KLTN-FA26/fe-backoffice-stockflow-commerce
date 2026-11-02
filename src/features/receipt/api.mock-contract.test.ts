@@ -17,15 +17,14 @@ import {
   createGoodsReceipt,
   createGoodsReceiptWithoutPo,
   getGoodsReceipt,
-  inspectLine,
   listGoodsReceipts,
-  moveLineToQc,
   referencePurchaseOrder,
   rejectBlindReceipt,
   rejectReceiptExcess,
-  replaceBlindReceiptLines,
-  replaceReceiptLines,
 } from "./api";
+import { printCartonLabels } from "./carton-api";
+import { replaceBlindReceiptLines, replaceReceiptLines } from "./count-api";
+import { inspectLine, moveLineToQc } from "./qc-api";
 import { listSupplierOptions, listWarehouseOptions } from "./lookup-api";
 import { getReceivablePurchaseOrder, listReceivablePurchaseOrders } from "./receivable-po-api";
 
@@ -71,6 +70,8 @@ async function validLine(
     expiryDate: policy.expiryTracked ? "2099-01-01" : "",
     locationCode: "HCM-RCV01",
     note: "",
+    unitOfMeasure: "",
+    packages: [],
   };
 }
 
@@ -173,14 +174,16 @@ describe("goods receipt mock ↔ hợp đồng BE PR #62", () => {
             inspectLine({
               receiptId: created.id,
               lineId: qcLine.id,
-              decision: { accepted: 0, quarantined: empty, rejected: empty },
+              line: qcLine,
+              decision: { accepted: 0, quarantined: empty, rejected: empty, cartons: {} },
             }),
           ),
         ).toBe("QC_QUANTITY_MISMATCH");
         const done = await inspectLine({
           receiptId: created.id,
           lineId: qcLine.id,
-          decision: { accepted: qcLine.quantity, quarantined: empty, rejected: empty },
+          line: qcLine,
+          decision: { accepted: qcLine.quantity, quarantined: empty, rejected: empty, cartons: {} },
         });
         expect(done.status).toBe("In Putaway");
         expect(done.lines[0]?.quantityForPutaway).toBe(qcLine.quantity);
@@ -206,7 +209,13 @@ describe("goods receipt mock ↔ hợp đồng BE PR #62", () => {
         inspectLine({
           receiptId: awaiting.id,
           lineId: awaitingLine.id,
-          decision: { accepted: awaitingLine.quantity, quarantined: empty, rejected: empty },
+          line: awaitingLine,
+          decision: {
+            accepted: awaitingLine.quantity,
+            quarantined: empty,
+            rejected: empty,
+            cartons: {},
+          },
         }),
       ),
     ).toBe("INVALID_RECEIPT_TRANSITION");
@@ -372,6 +381,8 @@ describe("goods receipt mock ↔ hợp đồng BE PR #62", () => {
         expiryDate: "",
         locationCode: "HCM-RCV01",
         note: "",
+        unitOfMeasure: "",
+        packages: [],
       };
       expect(
         await codeOf(
@@ -482,4 +493,159 @@ describe("goods receipt mock ↔ hợp đồng BE PR #62", () => {
   it("phiếu không tồn tại → 404 GOODS_RECEIPT_NOT_FOUND", async () => {
     expect(await codeOf(getGoodsReceipt("missing"))).toBe("GOODS_RECEIPT_NOT_FOUND");
   });
+});
+
+describe("goods receipt mock ↔ hợp đồng BE #197 — thùng có LPN (SCRUM-473)", () => {
+  it(
+    "đếm thùng → LPN, đếm lại / bỏ thùng (VOID), vượt dòng 422, xác nhận → IN_STOCK, in nhãn PDF",
+    async () => {
+      const po = await receivablePo();
+      const draft = await createGoodsReceipt({
+        purchaseOrderId: po.purchaseOrderId,
+        deliveryNote: "",
+        note: "",
+      });
+      const line = { ...(await validLine(po, 0, 25)), unitOfMeasure: "CARTON" };
+
+      const labelled = await replaceReceiptLines({
+        receiptId: draft.id,
+        lines: [
+          {
+            ...line,
+            packages: [
+              { lpn: "", quantity: 10 },
+              { lpn: "", quantity: 9 },
+            ],
+          },
+        ],
+      });
+      const first = labelled.lines[0];
+      expect(first).toMatchObject({ unitOfMeasure: "CARTON", looseQuantity: 6 });
+      expect(first?.packages.map((p) => [p.status, p.receivedQty, p.nominalQty])).toEqual([
+        ["RECEIVING", 10, 10],
+        ["RECEIVING", 9, 10],
+      ]);
+      const [kept, dropped] = first?.packages.map((p) => p.lpn) ?? [];
+      expect(kept).toMatch(/^LPN-\d{8}-\d{6}$/);
+
+      // Đếm lại: giữ thùng 1 (đổi SL), bỏ thùng 2 → VOID, không còn trong response
+      const recounted = await replaceReceiptLines({
+        receiptId: draft.id,
+        lines: [{ ...line, packages: [{ lpn: kept ?? "", quantity: 8 }] }],
+      });
+      expect(recounted.lines[0]?.id).toBe(first?.id);
+      expect(recounted.lines[0]?.packages.map((p) => [p.lpn, p.quantity])).toEqual([[kept, 8]]);
+      expect(recounted.lines[0]?.packages.some((p) => p.lpn === dropped)).toBe(false);
+
+      // Thùng vượt dòng → 422 ở lines[0].packages; đơn vị đóng gói không thùng → 422
+      const over = await replaceReceiptLines({
+        receiptId: draft.id,
+        lines: [{ ...line, packages: [{ lpn: "", quantity: 26 }] }],
+      }).catch((e: unknown) => e);
+      expect(over).toMatchObject({
+        status: 422,
+        code: "RECEIPT_PACKAGES_EXCEED_LINE",
+        fieldCodes: { "lines[0].packages": "RECEIPT_PACKAGES_EXCEED_LINE" },
+      });
+
+      // In nhãn cả dòng → PDF; LPN đã VOID → 404
+      const pdf = await printCartonLabels({ receiptLineId: first?.id ?? "", format: "A4_SHEET" });
+      expect(pdf.blob.type).toBe("application/pdf");
+      expect(pdf.fileName).toBe("carton-labels-mock.pdf");
+      expect(
+        await codeOf(printCartonLabels({ lpns: [dropped ?? ""], format: "THERMAL_ROLL" })),
+      ).toBe("STOCK_PACKAGE_NOT_FOUND");
+
+      const confirmed = await confirmGoodsReceipt(draft.id);
+      expect(confirmed.lines[0]?.packages.map((p) => p.status)).toEqual(["IN_STOCK"]);
+    },
+    FLOW_TIMEOUT_MS,
+  );
+
+  it(
+    "huỷ phiếu nháp có thùng → thùng VOID (không còn trên dòng)",
+    async () => {
+      const po = await receivablePo();
+      const draft = await createGoodsReceipt({
+        purchaseOrderId: po.purchaseOrderId,
+        deliveryNote: "",
+        note: "",
+      });
+      const line = { ...(await validLine(po, 0, 10)), unitOfMeasure: "CARTON" };
+      await replaceReceiptLines({
+        receiptId: draft.id,
+        lines: [{ ...line, packages: [{ lpn: "", quantity: 10 }] }],
+      });
+      const cancelled = await cancelGoodsReceipt(draft.id);
+      expect(cancelled.lines[0]?.packages).toEqual([]);
+    },
+    FLOW_TIMEOUT_MS,
+  );
+});
+
+describe("goods receipt mock ↔ hợp đồng BE #197 — QC theo nguyên thùng (SCRUM-473 §5)", () => {
+  it(
+    "chuyển QC đưa thùng sang khu QC; kết luận nêu LPN cách ly → thùng sang khu cách ly, tính theo receivedQty",
+    async () => {
+      const page = await listReceivablePurchaseOrders({});
+      let target: { po: ReceivablePo; index: number } | undefined;
+      for (const row of page.items) {
+        const po = await getReceivablePurchaseOrder(row.purchaseOrderId);
+        for (const [index, poLine] of po.lines.entries()) {
+          if (!target && poLine.openQuantity > 0 && (await itemPolicy(poLine.sku)).qcRequired)
+            target = { po, index };
+        }
+      }
+      if (!target) throw new Error("mock has no QC-required open PO line");
+      const draft = await createGoodsReceipt({
+        purchaseOrderId: target.po.purchaseOrderId,
+        deliveryNote: "",
+        note: "",
+      });
+      const line = { ...(await validLine(target.po, target.index, 25)), unitOfMeasure: "CARTON" };
+      await replaceReceiptLines({
+        receiptId: draft.id,
+        lines: [
+          {
+            ...line,
+            packages: [
+              { lpn: "", quantity: 10 },
+              { lpn: "", quantity: 9 },
+            ],
+          },
+        ],
+      });
+      const confirmed = await confirmGoodsReceipt(draft.id);
+      const counted = confirmed.lines[0];
+      if (!counted) throw new Error("no line");
+      const moved = await moveLineToQc({
+        receiptId: draft.id,
+        lineId: counted.id,
+        qcLocationCode: "HCM-QCA01",
+      });
+      const inQc = moved.lines[0];
+      if (!inQc) throw new Error("no line");
+      expect(inQc.packages.map((p) => p.locationCode)).toEqual(["HCM-QCA01", "HCM-QCA01"]);
+      const second = inQc.packages[1]?.lpn ?? "";
+
+      const done = await inspectLine({
+        receiptId: draft.id,
+        lineId: inQc.id,
+        line: inQc,
+        decision: {
+          accepted: 5,
+          quarantined: { quantity: 1, locationCode: "HCM-QC01", reason: "Móp" },
+          rejected: { quantity: 0, locationCode: "", reason: "" },
+          cartons: { [second]: "QUARANTINE" },
+        },
+      });
+      const decided = done.lines[0];
+      expect(decided?.inspections.map((i) => [i.outcome, i.quantity])).toEqual([
+        ["ACCEPTED", 15],
+        ["QUARANTINE", 10],
+      ]);
+      expect(decided?.packages.find((p) => p.lpn === second)?.locationCode).toBe("HCM-QC01");
+    },
+    FLOW_TIMEOUT_MS,
+  );
 });

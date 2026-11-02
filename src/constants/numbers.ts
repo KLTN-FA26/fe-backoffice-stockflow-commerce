@@ -88,6 +88,20 @@ export const RECEIPT_LIMITS = {
   skuMax: 64,
 } as const;
 
+/** Thùng có LPN trên phiếu nhận (SCRUM-473) — đúng ràng buộc request BE. */
+export const RECEIPT_CARTON_LIMITS = {
+  /** `ReceiptLinesRequest.Line.packages` @Size(max = 500). */
+  cartonsPerLineMax: 500,
+  /** `StockPackageLabels`: tối đa 500 nhãn mỗi lần in (`STOCK_PACKAGE_LABELS_TOO_MANY`). */
+  labelsMax: 500,
+  /** `ReceiptLinesRequest.Package.lpn` / `QcDecisionRequest.Part.packages[]` @Size(max = 30). */
+  lpnMax: 30,
+  /** `ReceiptLinesRequest.Line.unitOfMeasure` @Size(max = 16). */
+  unitCodeMax: 16,
+  /** Bảng thùng trong form kiểm đếm cuộn nội bộ khi nhiều hơn số này (data-table-mode-a §5). */
+  scrollAfter: 10,
+} as const;
+
 /** Giới hạn task xuất kho — đúng ràng buộc request BE FulfillmentController. */
 export const FULFILLMENT_LIMITS = {
   /** `ReverificationRequest.resolutionNote` @NotBlank @Size(max = 1000). */

@@ -12,6 +12,7 @@ import {
   apiLine,
   apiReceipt,
   apiReceiptPage,
+  cartonLine,
   receivablePo,
 } from "./__fixtures__/receipt";
 import {
@@ -23,14 +24,13 @@ import {
   dayAfterStartInstant,
   dayStartInstant,
   getGoodsReceipt,
-  inspectLine,
   listGoodsReceipts,
   referencePurchaseOrder,
   rejectBlindReceipt,
   rejectReceiptExcess,
-  replaceBlindReceiptLines,
-  replaceReceiptLines,
 } from "./api";
+import { replaceBlindReceiptLines, replaceReceiptLines } from "./count-api";
+import { inspectLine } from "./qc-api";
 import { getReceivablePurchaseOrder, listReceivablePurchaseOrders } from "./receivable-po-api";
 
 afterEach(() => vi.restoreAllMocks());
@@ -102,21 +102,85 @@ describe("goods receipt API — hợp đồng BE PR #62", () => {
           expiryDate: "",
           locationCode: "HCM-RCV01",
           note: "",
+          unitOfMeasure: "",
+          packages: [],
         },
       ],
     });
-    expect(put).toHaveBeenCalledWith(`/goods-receipts/${RECEIPT_ID}/lines`, {
+    expect(put).toHaveBeenCalledWith(
+      `/goods-receipts/${RECEIPT_ID}/lines`,
+      {
+        lines: [
+          {
+            purchaseOrderLineId: TABLE_PO_LINE_ID,
+            quantity: 6,
+            lotNumber: undefined,
+            expiryDate: undefined,
+            locationCode: "HCM-RCV01",
+            note: undefined,
+            unitOfMeasure: undefined,
+            packages: [],
+          },
+        ],
+      },
+      undefined,
+    );
+  });
+
+  it("SCRUM-473: đã chọn đơn vị nhưng không có thùng → không gửi đơn vị (BE RECEIPT_LINE_UNIT_INVALID)", async () => {
+    const put = vi.spyOn(api, "put").mockResolvedValueOnce({ data: apiReceipt() });
+    await replaceReceiptLines({
+      receiptId: RECEIPT_ID,
       lines: [
         {
           purchaseOrderLineId: TABLE_PO_LINE_ID,
           quantity: 6,
-          lotNumber: undefined,
-          expiryDate: undefined,
+          lotNumber: "",
+          expiryDate: "",
           locationCode: "HCM-RCV01",
-          note: undefined,
+          note: "",
+          unitOfMeasure: "CARTON",
+          packages: [],
         },
       ],
     });
+    expect(put.mock.calls[0]?.[1]).toEqual({
+      lines: [expect.objectContaining({ unitOfMeasure: undefined, packages: [] })],
+    });
+  });
+
+  it("SCRUM-473: lưu kiểm đếm gửi đơn vị + toàn bộ thùng (thùng mới không có lpn) kèm Idempotency-Key", async () => {
+    const put = vi.spyOn(api, "put").mockResolvedValueOnce({ data: apiReceipt() });
+    await replaceReceiptLines({
+      receiptId: RECEIPT_ID,
+      idempotencyKey: "key-1",
+      lines: [
+        {
+          purchaseOrderLineId: TABLE_PO_LINE_ID,
+          quantity: 4990,
+          lotNumber: "L01",
+          expiryDate: "",
+          locationCode: "HCM-RCV01",
+          note: "",
+          unitOfMeasure: "CARTON",
+          packages: [
+            { lpn: "LPN-20261024-000001", quantity: 1000 },
+            { lpn: "", quantity: 980 },
+          ],
+        },
+      ],
+    });
+    const [, body, config] = put.mock.calls[0] ?? [];
+    expect(body).toEqual({
+      lines: [
+        expect.objectContaining({
+          quantity: 4990,
+          unitOfMeasure: "CARTON",
+          packages: [{ lpn: "LPN-20261024-000001", quantity: 1000 }, { quantity: 980 }],
+        }),
+      ],
+    });
+    expect(config).toEqual({ headers: { "Idempotency-Key": "key-1" } });
   });
 
   it("xác nhận gọi /confirmation; kết luận QC gửi null cho phần SL 0", async () => {
@@ -127,16 +191,43 @@ describe("goods receipt API — hợp đồng BE PR #62", () => {
     await inspectLine({
       receiptId: RECEIPT_ID,
       lineId: "line-1",
+      line: { packages: [] },
       decision: {
         accepted: 4,
         quarantined: { quantity: 0, locationCode: "", reason: "" },
         rejected: { quantity: 2, locationCode: "hcm-rtv01", reason: "Nứt mặt bàn" },
+        cartons: {},
       },
     });
     expect(post).toHaveBeenLastCalledWith(`/goods-receipts/${RECEIPT_ID}/lines/line-1/inspection`, {
       accepted: 4,
       quarantined: null,
-      rejected: { quantity: 2, locationCode: "HCM-RTV01", reason: "Nứt mặt bàn" },
+      rejected: { quantity: 2, locationCode: "HCM-RTV01", reason: "Nứt mặt bàn", packages: [] },
+    });
+  });
+
+  it("SCRUM-473: QC theo thùng — ví dụ issue #104 (accepted gồm thùng Đạt, phần cách ly nêu LPN)", async () => {
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiReceipt() });
+    await inspectLine({
+      receiptId: RECEIPT_ID,
+      lineId: "line-1",
+      line: cartonLine(),
+      decision: {
+        accepted: 3005,
+        quarantined: { quantity: 3, locationCode: "hcm-qc01", reason: "Dented" },
+        rejected: { quantity: 2, locationCode: "HCM-RTV01", reason: "Torn" },
+        cartons: { "LPN-20261024-000002": "QUARANTINE", "LPN-20261024-000001": "ACCEPTED" },
+      },
+    });
+    expect(post.mock.calls[0]?.[1]).toEqual({
+      accepted: 4005,
+      quarantined: {
+        quantity: 3,
+        packages: ["LPN-20261024-000002"],
+        locationCode: "HCM-QC01",
+        reason: "Dented",
+      },
+      rejected: { quantity: 2, packages: [], locationCode: "HCM-RTV01", reason: "Torn" },
     });
   });
 });
@@ -262,21 +353,30 @@ describe("goods receipt API — hàng về không có PO (BR-RCP-002, SCRUM-478)
           expiryDate: "",
           locationCode: "HCM-RCV01",
           note: "",
+          unitOfMeasure: "CARTON",
+          packages: [{ lpn: "", quantity: 2 }],
         },
       ],
+      idempotencyKey: "key-2",
     });
-    expect(put).toHaveBeenCalledWith(`/goods-receipts/${RECEIPT_ID}/lines`, {
-      lines: [
-        {
-          sku: "SOFA-3S-GREY",
-          quantity: 2,
-          lotNumber: undefined,
-          expiryDate: undefined,
-          locationCode: "HCM-RCV01",
-          note: undefined,
-        },
-      ],
-    });
+    expect(put).toHaveBeenCalledWith(
+      `/goods-receipts/${RECEIPT_ID}/lines`,
+      {
+        lines: [
+          {
+            sku: "SOFA-3S-GREY",
+            quantity: 2,
+            lotNumber: undefined,
+            expiryDate: undefined,
+            locationCode: "HCM-RCV01",
+            note: undefined,
+            unitOfMeasure: "CARTON",
+            packages: [{ quantity: 2 }],
+          },
+        ],
+      },
+      { headers: { "Idempotency-Key": "key-2" } },
+    );
   });
 
   it("từ chối phiếu gọi POST /rejection { reason }; gắn PO tham chiếu gọi PUT /referenced-purchase-order", async () => {
