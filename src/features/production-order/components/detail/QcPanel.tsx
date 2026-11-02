@@ -68,6 +68,8 @@ export function QcPanel({ order, active }: { order: ProductionDetail; active: bo
         failed: Number(values.failed),
         ...(values.note ? { note: values.note } : {}),
         ...(handsOver && values.packingLocation ? { packingLocation: values.packingLocation } : {}),
+        // BR-PRD-05 (BE PR #194): lần QC của LSX ĐƠN nêu mẫu đã duyệt mà nó đối chiếu
+        ...(isOrder && order.approvedSampleId ? { approvedSampleId: order.approvedSampleId } : {}),
       },
       {
         onSuccess: () => form.reset(),

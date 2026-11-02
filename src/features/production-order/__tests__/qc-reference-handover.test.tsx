@@ -168,6 +168,7 @@ describe("SCRUM-412 automatic hand-over to PACKING", () => {
       expect(api.post).toHaveBeenCalledWith("/production/orders/po-1/qc-results", {
         passed: 100,
         failed: 0,
+        approvedSampleId: "sr-1",
       }),
     );
   });
@@ -196,6 +197,7 @@ describe("SCRUM-412 automatic hand-over to PACKING", () => {
         passed: 100,
         failed: 0,
         packingLocation: "HCM-PACK02",
+        approvedSampleId: "sr-1",
       }),
     );
   });
@@ -225,6 +227,7 @@ describe("SCRUM-412 automatic hand-over to PACKING", () => {
       expect(api.post).toHaveBeenCalledWith("/production/orders/po-1/qc-results", {
         passed: 99,
         failed: 1,
+        approvedSampleId: "sr-1",
       }),
     );
   });
@@ -237,5 +240,48 @@ describe("SCRUM-412 automatic hand-over to PACKING", () => {
     expect(await screen.findByText(/tự động bàn giao sang khu đóng gói/)).toBeInTheDocument();
     expect(screen.getByText("HCM-PACK01")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /bàn giao/i })).not.toBeInTheDocument();
+  });
+});
+
+describe("BR-PRD-05 (BE PR #194): the QC round names the approved sample", () => {
+  const post = { "/production/orders/po-1/qc-results": () => ({}) };
+
+  it("an ORDER with an approved sample sends that order's approvedSampleId", async () => {
+    const api = mockApi("QC_STAFF", { get: routes(qcOrder(), () => APPROVED), post });
+    renderScreen(<ProductionDetailView id="po-1" />, "QC_STAFF");
+    await userEvent.type(await screen.findByLabelText(/^Đạt/), "100");
+    await userEvent.click(screen.getByRole("button", { name: "Ghi kết quả QC" }));
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith(
+        "/production/orders/po-1/qc-results",
+        expect.objectContaining({ approvedSampleId: "sr-1" }),
+      ),
+    );
+  });
+
+  it("an ORDER repeating a printed design (no approved sample) sends none", async () => {
+    const repeat = qcOrder({ approvedSampleId: null });
+    const api = mockApi("QC_STAFF", {
+      get: routes(repeat, () => {
+        throw apiError(404, "NOT_FOUND");
+      }),
+      post,
+    });
+    renderScreen(<ProductionDetailView id="po-1" />, "QC_STAFF");
+    await userEvent.type(await screen.findByLabelText(/^Đạt/), "100");
+    await userEvent.click(screen.getByRole("button", { name: "Ghi kết quả QC" }));
+    await waitFor(() => expect(api.post).toHaveBeenCalled());
+    expect(api.post.mock.calls[0][1]).not.toHaveProperty("approvedSampleId");
+  });
+
+  it("a SAMPLE order never sends one", async () => {
+    const sample = qcOrder({ approvedSampleId: null });
+    sample.summary.type = "SAMPLE";
+    const api = mockApi("QC_STAFF", { get: routes(sample, () => APPROVED), post });
+    renderScreen(<ProductionDetailView id="po-1" />, "QC_STAFF");
+    await userEvent.type(await screen.findByLabelText(/^Đạt/), "100");
+    await userEvent.click(screen.getByRole("button", { name: "Ghi kết quả QC" }));
+    await waitFor(() => expect(api.post).toHaveBeenCalled());
+    expect(api.post.mock.calls[0][1]).not.toHaveProperty("approvedSampleId");
   });
 });

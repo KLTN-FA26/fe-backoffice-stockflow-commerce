@@ -161,13 +161,18 @@ export async function issueMaterial(i: {
   return materialIssueResultDtoSchema.parse(data);
 }
 
-/** QC một lần duy nhất cho hàng gia công trả về (quyết định 2026-10-13). */
+/**
+ * Một lần QC. `approvedSampleId` (BE PR #194, BR-PRD-05): lần mẫu đã duyệt mà lần QC này đối chiếu — đúng
+ * `approvedSampleId` của LSX ĐƠN có mẫu duyệt (BE `QcRequest`; sai / thiếu → 400 VALIDATION_FAILED, mẫu không
+ * còn được duyệt → 409). Bỏ trống với LSX MẪU hoặc đơn in lại thiết kế cũ (không có mẫu duyệt).
+ */
 export async function recordQc(i: {
   id: string;
   passed: number;
   failed: number;
   note?: string;
   packingLocation?: string;
+  approvedSampleId?: string;
 }) {
   const { id, ...body } = i;
   await api.post<unknown>(`${byId(id)}/qc-results`, body);
