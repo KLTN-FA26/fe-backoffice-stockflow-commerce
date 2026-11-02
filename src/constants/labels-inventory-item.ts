@@ -3,6 +3,35 @@
  * Tách khỏi `labels.ts` cho gọn; `UI_LABELS.inventoryItem` / `TOAST_MESSAGES.inventoryItem` trỏ về đây.
  */
 
+/**
+ * Nhãn mặc định của ô chọn SKU theo hồ sơ hàng tồn dùng chung (`InventoryItemCombobox`, BE `GET /inventory/items?q=`).
+ * Màn nào cần lời riêng (vd danh mục NCC) truyền bộ nhãn cùng hình dạng qua prop `labels`.
+ */
+export const INVENTORY_ITEM_PICKER_LABELS = {
+  placeholder: "Chọn SKU trong hồ sơ hàng tồn",
+  search: "Tìm theo SKU hoặc mã vạch",
+  loading: "Đang tìm hồ sơ hàng tồn…",
+  empty: "Không có SKU phù hợp",
+  // Chỉ lấy trang đầu kết quả (INVENTORY_ITEM_OPTIONS_PAGE_SIZE) — còn nữa thì nhắc gõ thêm
+  moreResults: "Còn nhiều kết quả khác — gõ thêm SKU hoặc mã vạch để thu hẹp.",
+  emptyButMore: "Các kết quả đầu không dùng được — gõ thêm SKU hoặc mã vạch để tìm SKU khác.",
+  loadFailed: "Không tải được hồ sơ hàng tồn.",
+  retry: "Thử lại",
+  barcode: (code: string) => `Mã vạch ${code}`,
+} as const;
+
+export interface InventoryItemPickerLabels {
+  placeholder: string;
+  search: string;
+  loading: string;
+  empty: string;
+  moreResults: string;
+  emptyButMore: string;
+  loadFailed: string;
+  retry: string;
+  barcode: (code: string) => string;
+}
+
 export const INVENTORY_ITEM_UI_LABELS = {
   title: "Hồ sơ hàng tồn",
   subtitle: "Logistics và chính sách tồn của từng SKU — tạo tự động cùng biến thể sản phẩm.",

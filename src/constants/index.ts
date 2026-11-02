@@ -21,7 +21,11 @@ export {
   PUT_BACK_ERROR_MESSAGES,
   PUT_BACK_LABELS,
 } from "./labels-fulfillment-lines";
-export { INVENTORY_ITEM_ERROR_MESSAGES } from "./labels-inventory-item";
+export {
+  INVENTORY_ITEM_ERROR_MESSAGES,
+  INVENTORY_ITEM_PICKER_LABELS,
+  type InventoryItemPickerLabels,
+} from "./labels-inventory-item";
 export {
   CARTON_LABEL_FORMAT_LABELS,
   CARTON_LABEL_FORMATS,
