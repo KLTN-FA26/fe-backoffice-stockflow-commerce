@@ -17,6 +17,8 @@ import {
 } from "@/constants";
 import { bePageSchema } from "@/lib/api/page-schema";
 
+import { beReceiptPackageSchema, beReceiptUnitSchema } from "./carton-schemas";
+
 /* ── Enums ───────────────────────────────────────────────────────────── */
 
 export const receiptApiStatusSchema = z.enum(RECEIPT_API_STATUSES);
@@ -60,6 +62,13 @@ export const beReceiptLineSchema = z.object({
   inspections: z.array(beInspectionSchema).default([]),
   // Cảnh báo không chặn của BE: `OVER_TOLERANCE` (BR-RCP-001), `EXPIRY_NEAR` (BR-06)
   warnings: z.array(z.string()).default([]),
+  // SCRUM-473: đơn vị đóng gói của các thùng (null = dòng lẻ, đơn vị cơ sở); phần không vào thùng nào
+  unitOfMeasure: z.string().nullish(),
+  looseQuantity: z.number().int().min(0),
+  packages: z.array(beReceiptPackageSchema).default([]),
+  units: z.array(beReceiptUnitSchema).default([]),
+  // BE #219: đơn vị dòng PO được đặt theo — để chọn sẵn; null khi đặt theo đơn vị cơ sở / phiếu không có PO
+  orderedUnitOfMeasure: z.string().nullish(),
 });
 
 /**

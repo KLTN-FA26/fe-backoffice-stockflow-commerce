@@ -16,15 +16,11 @@ import type {
   DecideReceiptInput,
   ReferencePurchaseOrderInput,
   ReceiptCreateWithoutPoValues,
-  SaveBlindLinesInput,
   GoodsReceipt,
   GoodsReceiptApiDto,
   GoodsReceiptRow,
   GoodsReceiptRowApiDto,
-  InspectLineInput,
-  MoveLineToQcInput,
   ReceiptCreateValues,
-  SaveReceiptLinesInput,
 } from "./types";
 
 const RECEIPTS_PATH = "/goods-receipts";
@@ -43,7 +39,7 @@ function toReceiptRow(dto: GoodsReceiptRowApiDto): GoodsReceiptRow {
   return { ...dto, status: RECEIPT_STATUS_BY_API[dto.status] };
 }
 
-function emptyToUndefined(value: string): string | undefined {
+export function emptyToUndefined(value: string): string | undefined {
   return value === "" ? undefined : value;
 }
 
@@ -106,9 +102,9 @@ export async function listGoodsReceipts(
 
 /* ── Detail ──────────────────────────────────────────────────────────── */
 
-const receiptPath = (id: string) => `${RECEIPTS_PATH}/${encodeURIComponent(id)}`;
+export const receiptPath = (id: string) => `${RECEIPTS_PATH}/${encodeURIComponent(id)}`;
 
-async function postReceipt(path: string, body?: unknown): Promise<GoodsReceipt> {
+export async function postReceipt(path: string, body?: unknown): Promise<GoodsReceipt> {
   const { data } = await api.post<unknown>(path, body);
   return toReceipt(beGoodsReceiptSchema.parse(data));
 }
@@ -140,42 +136,6 @@ export const createGoodsReceiptWithoutPo = (input: ReceiptCreateWithoutPoValues)
     deliveryNote: emptyToUndefined(input.deliveryNote),
     note: emptyToUndefined(input.note),
   });
-
-/** Thay toàn bộ kiểm đếm của phiếu không có PO: dòng gọi hàng bằng `sku` (không có `purchaseOrderLineId`). */
-export async function replaceBlindReceiptLines({
-  receiptId,
-  lines,
-}: SaveBlindLinesInput): Promise<GoodsReceipt> {
-  const { data } = await api.put<unknown>(`${receiptPath(receiptId)}/lines`, {
-    lines: lines.map((line) => ({
-      sku: line.sku,
-      quantity: line.quantity,
-      lotNumber: emptyToUndefined(line.lotNumber),
-      expiryDate: emptyToUndefined(line.expiryDate),
-      locationCode: line.locationCode,
-      note: emptyToUndefined(line.note),
-    })),
-  });
-  return toReceipt(beGoodsReceiptSchema.parse(data));
-}
-
-/** Thay toàn bộ kiểm đếm của phiếu DRAFT (BE `ReceiptLinesRequest`). */
-export async function replaceReceiptLines({
-  receiptId,
-  lines,
-}: SaveReceiptLinesInput): Promise<GoodsReceipt> {
-  const { data } = await api.put<unknown>(`${receiptPath(receiptId)}/lines`, {
-    lines: lines.map((line) => ({
-      purchaseOrderLineId: line.purchaseOrderLineId,
-      quantity: line.quantity,
-      lotNumber: emptyToUndefined(line.lotNumber),
-      expiryDate: emptyToUndefined(line.expiryDate),
-      locationCode: line.locationCode,
-      note: emptyToUndefined(line.note),
-    })),
-  });
-  return toReceipt(beGoodsReceiptSchema.parse(data));
-}
 
 /** "Post": chốt số → tồn INBOUND, PO cập nhật tiến độ, phiếu sang In QC / In Putaway. */
 export const confirmGoodsReceipt = (receiptId: string) =>
@@ -212,27 +172,3 @@ export async function referencePurchaseOrder({
 /** Từ chối phần vượt: chỉ ghi nhận tới dung sai (không còn gì → phiếu bị huỷ). */
 export const rejectReceiptExcess = ({ receiptId, reason }: DecideReceiptInput) =>
   postReceipt(`${receiptPath(receiptId)}/excess-rejection`, { reason });
-
-/* ── QC ──────────────────────────────────────────────────────────────── */
-
-export const moveLineToQc = ({ receiptId, lineId, qcLocationCode }: MoveLineToQcInput) =>
-  postReceipt(`${receiptPath(receiptId)}/lines/${encodeURIComponent(lineId)}/qc-transfer`, {
-    qcLocationCode,
-  });
-
-/** BE `QcDecisionRequest`: phần SL 0 gửi `null` (BE bỏ qua phần rỗng). */
-export function toQcDecisionRequest(decision: InspectLineInput["decision"]) {
-  const part = ({ quantity, locationCode, reason }: InspectLineInput["decision"]["rejected"]) =>
-    quantity > 0 ? { quantity, locationCode: locationCode.toUpperCase(), reason } : null;
-  return {
-    accepted: decision.accepted,
-    quarantined: part(decision.quarantined),
-    rejected: part(decision.rejected),
-  };
-}
-
-export const inspectLine = ({ receiptId, lineId, decision }: InspectLineInput) =>
-  postReceipt(
-    `${receiptPath(receiptId)}/lines/${encodeURIComponent(lineId)}/inspection`,
-    toQcDecisionRequest(decision),
-  );

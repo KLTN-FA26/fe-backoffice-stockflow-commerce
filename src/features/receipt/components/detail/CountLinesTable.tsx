@@ -1,13 +1,27 @@
 "use client";
 
+import { Fragment } from "react";
+
+import { CartonToggleCell } from "../cartons/CartonToggleCell";
+import { CountCartonsRow } from "./CountCartonsRow";
 import { CountLineRow } from "./CountLineRow";
 
 import type { Control, FieldErrors, UseFormRegister } from "react-hook-form";
+import type { LineCartonContext } from "@/features/receipt/carton-selectors";
 import type { ReceiptLinesFormInput, ReceivablePoLine } from "@/features/receipt/types";
+import type { CartonDraft } from "../cartons/CartonEditor";
 
-const HEADERS = ["SKU", "SL nhận", "Số lô", "Hạn dùng", "Vị trí nhận", "Ghi chú", ""];
+const HEADERS = ["SKU", "SL nhận", "Thùng", "Số lô", "Hạn dùng", "Vị trí nhận", "Ghi chú", ""];
 
-/** Bảng dòng kiểm đếm (useFieldArray) — mỗi dòng một dòng PO × một lô. */
+/** Trình chia thùng của bảng kiểm đếm (SCRUM-473) — từ `useCountLinesForm().cartons`. */
+export interface CountCartons {
+  contexts: readonly LineCartonContext[];
+  expanded: ReadonlySet<string>;
+  toggle: (rowId: string) => void;
+  set: (index: number, next: CartonDraft) => void;
+}
+
+/** Bảng dòng kiểm đếm (useFieldArray) — mỗi dòng một dòng PO × một lô, có thể chia thùng. */
 export function CountLinesTable({
   receiptNumber,
   rowIds,
@@ -17,6 +31,7 @@ export function CountLinesTable({
   register,
   control,
   errors,
+  cartons,
   onEdit,
   onSplit,
   onRemove,
@@ -30,6 +45,7 @@ export function CountLinesTable({
   register: UseFormRegister<ReceiptLinesFormInput>;
   control: Control<ReceiptLinesFormInput>;
   errors: FieldErrors<ReceiptLinesFormInput>["lines"];
+  cartons: CountCartons;
   /** Ô ngày (DatePicker) không phát sự kiện `change` gốc lên `<form>` nên báo sửa riêng. */
   onEdit: () => void;
   onSplit: (index: number) => void;
@@ -54,21 +70,48 @@ export function CountLinesTable({
         </thead>
         <tbody>
           {rowIds.map((rowId, index) => {
-            const poLineId = lines[index]?.purchaseOrderLineId ?? "";
+            const line = lines[index];
+            const poLineId = line?.purchaseOrderLineId ?? "";
+            const context = cartons.contexts[index];
+            const expanded = !!context && cartons.expanded.has(rowId);
             return (
-              <CountLineRow
-                key={rowId}
-                index={index}
-                poLine={poLineById.get(poLineId)}
-                register={register}
-                control={control}
-                errors={errors}
-                onEdit={onEdit}
-                overOpen={overOpen.has(poLineId)}
-                autoFocus={index === 0}
-                onSplit={() => onSplit(index)}
-                onRemove={() => onRemove(index)}
-              />
+              <Fragment key={rowId}>
+                <CountLineRow
+                  index={index}
+                  poLine={poLineById.get(poLineId)}
+                  register={register}
+                  control={control}
+                  errors={errors}
+                  onEdit={onEdit}
+                  overOpen={overOpen.has(poLineId)}
+                  autoFocus={index === 0}
+                  locked={context?.locked ?? false}
+                  cartonCell={
+                    context && (
+                      <CartonToggleCell
+                        lineNo={index + 1}
+                        quantity={Number(line?.quantity) || 0}
+                        packages={line?.packages ?? []}
+                        context={context}
+                        expanded={expanded}
+                        onToggle={() => cartons.toggle(rowId)}
+                      />
+                    )
+                  }
+                  onSplit={() => onSplit(index)}
+                  onRemove={() => onRemove(index)}
+                />
+                {expanded && context && (
+                  <CountCartonsRow
+                    index={index}
+                    colSpan={HEADERS.length}
+                    line={line}
+                    context={context}
+                    errors={errors}
+                    onChange={(next) => cartons.set(index, next)}
+                  />
+                )}
+              </Fragment>
             );
           })}
         </tbody>

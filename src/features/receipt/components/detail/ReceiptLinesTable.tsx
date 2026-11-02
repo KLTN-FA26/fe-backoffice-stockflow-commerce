@@ -1,12 +1,13 @@
 "use client";
 
-import { UI_LABELS } from "@/constants";
+import { RECEIPT_CARTON_LABELS, UI_LABELS } from "@/constants";
 import { usePermissionChecker } from "@/lib/auth";
 import { formatDate } from "@/lib/format/date";
 import { allowedLineActions } from "@/features/receipt/lifecycle";
 import { isLineOverTolerance } from "@/features/receipt/selectors";
 import { Button } from "@/components/ui/button";
 
+import { LineCartonsCell } from "../cartons/LineCartonsCell";
 import { NUM } from "../primitives";
 import { LineLocationCell } from "./LineLocationCell";
 import { LineNoteCell } from "./LineNoteCell";
@@ -16,6 +17,7 @@ import type { ReceiptLineActionCode } from "@/features/receipt/lifecycle";
 import type { GoodsReceipt, ReceiptLineDto } from "@/features/receipt/types";
 
 const FLOW = UI_LABELS.receipt.flow;
+const CARTONS = RECEIPT_CARTON_LABELS.column;
 const OVER = UI_LABELS.receipt.overTolerance;
 
 /**
@@ -34,11 +36,12 @@ export function ReceiptLinesTable({
 }) {
   const can = usePermissionChecker();
   const headers = draft
-    ? ["Dòng PO", "SKU", "SL", "Lô / Hạn dùng", "Vị trí nhận", "Luồng", "Ghi chú"]
+    ? ["Dòng PO", "SKU", "SL", CARTONS, "Lô / Hạn dùng", "Vị trí nhận", "Luồng", "Ghi chú"]
     : [
         "Dòng PO",
         "SKU",
         "SL",
+        CARTONS,
         "Lô / Hạn dùng",
         "Vị trí",
         "Luồng",
@@ -94,6 +97,7 @@ export function ReceiptLinesTable({
                     </div>
                   )}
                 </td>
+                <LineCartonsCell line={line} />
                 <td className="px-3 py-2">
                   <div className="font-[family-name:var(--font-mono)]">{line.lotNumber ?? "—"}</div>
                   <div className="text-ink-tertiary text-xs tabular-nums">

@@ -12,8 +12,10 @@ import { vi } from "vitest";
 
 import {
   GOODS_RECEIPT_PERMISSIONS,
+  INVENTORY_ITEM_PERMISSIONS,
   PO_PERMISSIONS,
   QC_TASK_PERMISSIONS,
+  STOCK_PACKAGE_PERMISSIONS as SP,
   SUPPLIER_PERMISSIONS,
   WAREHOUSE_PERMISSIONS,
 } from "@/constants";
@@ -27,13 +29,22 @@ const GR_WORK = [GR.viewPage, GR.read, GR.create, GR.update];
 
 export const RECEIPT_ROLE_PERMISSIONS = {
   viewOnly: [GR.viewPage],
-  // Seed BE: WAREHOUSE_STAFF — goods-receipts nhưng KHÔNG có purchase-orders:READ
-  warehouseStaff: GR_WORK,
+  // Seed BE: WAREHOUSE_STAFF — goods-receipts + inventory-inventory-items:READ (V20260928006000), nhưng
+  // KHÔNG có purchase-orders:READ
+  // + seed V20261020000700: NV kho xem / in / in lại nhãn thùng (inventory-stock-packages VIEW_PAGE, READ, CREATE)
+  warehouseStaff: [...GR_WORK, INVENTORY_ITEM_PERMISSIONS.read, SP.viewPage, SP.read, SP.create],
+  // Như trên nhưng chưa được cấp xem hồ sơ hàng tồn → đếm phiếu không có PO phải gõ tay SKU
+  warehouseStaffNoInventory: [...GR_WORK, SP.viewPage, SP.read, SP.create],
   // Seed BE: WAREHOUSE_MANAGER — goods-receipts (cả APPROVE từ V20261029002000, duyệt nhận vượt dung sai
   // BR-RCP-001) + PO VIEW_PAGE/READ/APPROVE
   warehouseManager: [
     ...GR_WORK,
+    INVENTORY_ITEM_PERMISSIONS.read,
     GR.approve,
+    SP.viewPage,
+    SP.read,
+    SP.create,
+    SP.update,
     // Seed BE (V20261017000800 + V20260928006000): WAREHOUSE_MANAGER xem được NCC và kho — đủ để tạo phiếu không có PO
     SUPPLIER_PERMISSIONS.read,
     WAREHOUSE_PERMISSIONS.read,
@@ -48,6 +59,9 @@ export const RECEIPT_ROLE_PERMISSIONS = {
     QC_TASK_PERMISSIONS.viewPage,
     QC_TASK_PERMISSIONS.read,
     QC_TASK_PERMISSIONS.approve,
+    // V20261020000700: QC chỉ xem thùng, không in nhãn
+    SP.viewPage,
+    SP.read,
   ],
 } satisfies Record<string, PermissionCode[]>;
 
@@ -73,7 +87,7 @@ export function mockReceiptApi(
   const post = vi.spyOn(api, "post").mockImplementation(async (url: string, body?: unknown) => {
     const handler = postRoutes[url];
     if (!handler) throw new Error(`Không có mock cho POST ${url}`);
-    return { data: handler(undefined, body) };
+    return { data: handler(undefined, body), headers: {} };
   });
   const put = vi.spyOn(api, "put").mockImplementation(async (url: string, body?: unknown) => {
     const handler = putRoutes[url];

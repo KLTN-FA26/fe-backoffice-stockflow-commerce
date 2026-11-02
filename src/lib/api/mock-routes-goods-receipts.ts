@@ -7,6 +7,7 @@
  */
 
 import { registerMockRoute } from "./mock-adapter";
+import { applyCartonCounts, cartonsInStock, cartonsVoided } from "./mock-receipt-cartons";
 import {
   MOCK_APPROVER_ACTOR,
   MOCK_RECEIPT_ACTOR,
@@ -29,6 +30,7 @@ import {
   withWarnings,
 } from "./mock-routes-goods-receipts-store";
 import { registerGoodsReceiptQcMockRoutes } from "./mock-routes-goods-receipts-qc";
+import { registerStockPackageMockRoutes } from "./mock-routes-stock-packages";
 import { findMockSupplier } from "./mock-routes-suppliers";
 import {
   BE_DEFAULT_PAGE_SIZE,
@@ -212,7 +214,18 @@ async function replaceBlindLines(receipt: MockReceipt, body: Record<string, unkn
     );
   }
   if (notDraft) return notDraft;
-  return saveReceipt({ ...receipt, lines: counted });
+  return saveCounted(receipt, counted, lines);
+}
+
+/** SCRUM-473: thùng của request áp lên dòng vừa đếm (giữ id dòng + thùng cũ), rồi lưu. */
+function saveCounted(
+  receipt: MockReceipt,
+  counted: MockReceiptLine[],
+  rawLines: readonly unknown[],
+) {
+  const applied = applyCartonCounts(receipt.lines, counted, rawLines);
+  if ("error" in applied) return applied.error;
+  return saveReceipt({ ...receipt, lines: applied.lines });
 }
 
 async function replaceLines(receipt: MockReceipt, body: Record<string, unknown>) {
@@ -302,7 +315,7 @@ async function replaceLines(receipt: MockReceipt, body: Record<string, unknown>)
     }
     keys.add(key);
   }
-  return saveReceipt({ ...receipt, lines: counted });
+  return saveCounted(receipt, counted, body.lines as unknown[]);
 }
 
 /** BE `GoodsReceiptServiceImpl#requireReceivable` (BR-01). */
@@ -335,6 +348,8 @@ async function loadPo(receipt: MockReceipt) {
 async function post(receipt: MockReceipt, by: string, approval?: MockReceipt["approval"]) {
   const posted: MockReceipt = {
     ...receipt,
+    // SCRUM-473: ghi nhận đưa hàng vào thùng — thùng RECEIVING → IN_STOCK, chưa mở
+    lines: receipt.lines.map(cartonsInStock),
     status: receipt.lines.some((l) => l.qcRequired) ? "IN_QC" : "IN_PUTAWAY",
     confirmedAt: new Date().toISOString(),
     confirmedBy: by,
@@ -500,6 +515,7 @@ async function rejectBlind(receipt: MockReceipt, body: Record<string, unknown>) 
     );
   return saveReceipt({
     ...receipt,
+    lines: receipt.lines.map(cartonsVoided),
     status: "CANCELLED",
     approval: decided(receipt, "REJECTED", readString(body.reason)),
   });
@@ -725,8 +741,13 @@ export function registerGoodsReceiptMockRoutes(): void {
       return invalidReceiptTransition(
         `Cannot cancel receipt ${receipt.number}: it is ${receipt.status}, not DRAFT or PENDING_APPROVAL`,
       );
-    return saveReceipt({ ...receipt, status: "CANCELLED" });
+    return saveReceipt({
+      ...receipt,
+      lines: receipt.lines.map(cartonsVoided),
+      status: "CANCELLED",
+    });
   });
 
   registerGoodsReceiptQcMockRoutes();
+  registerStockPackageMockRoutes();
 }

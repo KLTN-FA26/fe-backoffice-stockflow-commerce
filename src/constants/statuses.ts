@@ -213,6 +213,20 @@ export const QC_OUTCOME_BY_API = {
 } as const satisfies Record<QcOutcomeApi, QcOutcomeStatus>;
 
 /**
+ * Thùng có LPN — BE `inventory.StockPackageStatus` (SCRUM-473). `VOID` (bị loại khi còn đếm) không bao giờ
+ * có trong `GoodsReceiptResponse.Line.packages` nên không liệt kê.
+ */
+export const STOCK_PACKAGE_API_STATUSES = ["RECEIVING", "IN_STOCK", "CONSUMED", "LOST"] as const;
+
+/** Chuỗi status của `StatusDot` (Title Case 1-1 với enum BE; nhãn + màu ở `lib/status-map.ts`). */
+export const STOCK_PACKAGE_STATUS_BY_API = {
+  RECEIVING: "Receiving",
+  IN_STOCK: "In Stock",
+  CONSUMED: "Consumed",
+  LOST: "Lost",
+} as const satisfies Record<StockPackageApiStatus, string>;
+
+/**
  * Trạng thái lấy hàng của task xuất kho — HỆ QUY CHIẾU LÀ BE, không phải docs.
  * Mỗi giá trị BE `fulfillment/internal/domain/PickStatus.java` ứng đúng 1 tên hiển thị = chính tên
  * enum BE viết Title Case (như module phiếu nhận: `DRAFT` → `Draft`), không đổi nghĩa, không mượn
@@ -526,6 +540,8 @@ export type ReceiptApprovalDecisionApi = (typeof RECEIPT_APPROVAL_DECISION_API)[
 export type ReceiptQcProgressApi = (typeof RECEIPT_QC_PROGRESS_API)[number];
 export type QcOutcomeApi = (typeof QC_OUTCOME_API)[number];
 export type QcOutcomeStatus = (typeof QC_OUTCOME_STATUSES)[number];
+export type StockPackageApiStatus = (typeof STOCK_PACKAGE_API_STATUSES)[number];
+export type StockPackageStatus = (typeof STOCK_PACKAGE_STATUS_BY_API)[StockPackageApiStatus];
 export type PickStatus = (typeof PICK_STATUSES)[number];
 export type PickApiStatus = (typeof PICK_API_STATUSES)[number];
 export type PickLineStatus = (typeof PICK_LINE_STATUSES)[number];
@@ -542,6 +558,137 @@ export type OrderReadStatus = (typeof ORDER_READ_STATUSES)[number];
 export type SupplierStatus = (typeof SUPPLIER_STATUSES)[number];
 export type SupplierApiStatus = (typeof SUPPLIER_API_STATUSES)[number];
 export type SupplierChannel = (typeof SUPPLIER_CHANNELS)[number];
+
+/* ── Bán hàng B2B & sản xuất (BE local integration d215f6e, chưa merge develop) ─────────── */
+
+/**
+ * Khách hàng — BE `CustomerStatus`. Nhãn theo vòng đời docs 18 §5 (handoff SCRUM-429):
+ * PENDING_ACTIVATION = Pending Activation, BLOCKED = Suspended, INACTIVE = Closed.
+ */
+export const CUSTOMER_API_STATUSES = [
+  "PENDING_ACTIVATION",
+  "ACTIVE",
+  "BLOCKED",
+  "INACTIVE",
+] as const;
+export type CustomerApiStatus = (typeof CUSTOMER_API_STATUSES)[number];
+export const CUSTOMER_STATUS_BY_API = {
+  PENDING_ACTIVATION: "Pending Activation",
+  ACTIVE: "Active",
+  BLOCKED: "Suspended",
+  INACTIVE: "Closed",
+} as const satisfies Record<CustomerApiStatus, string>;
+
+/** Điều khoản thanh toán — BE `CommercialTerm` / `PaymentTerm`. */
+export const PAYMENT_TERMS = ["PREPAID", "DEPOSIT", "CREDIT"] as const;
+export type PaymentTerm = (typeof PAYMENT_TERMS)[number];
+export const PAYMENT_TERM_LABELS = {
+  PREPAID: "Trả trước",
+  DEPOSIT: "Đặt cọc",
+  CREDIT: "Công nợ",
+} as const satisfies Record<PaymentTerm, string>;
+/** Quyết định B1 (2026-10-13): Sales chỉ được chọn hai điều khoản này khi tạo khách. */
+export const SALES_ONBOARDING_PAYMENT_TERMS = [
+  "PREPAID",
+  "DEPOSIT",
+] as const satisfies readonly PaymentTerm[];
+
+/** Báo giá — BE `QuoteStatus` (SCRUM-448). EXPIRED/CANCELLED/CONVERTED là trạng thái cuối. */
+export const QUOTE_API_STATUSES = [
+  "DRAFT",
+  "SENT",
+  "CHANGES_REQUESTED",
+  "ACCEPTED",
+  "EXPIRED",
+  "CANCELLED",
+  "CONVERTED",
+] as const;
+export type QuoteApiStatus = (typeof QUOTE_API_STATUSES)[number];
+export const QUOTE_STATUS_BY_API = {
+  DRAFT: "Draft",
+  SENT: "Sent",
+  CHANGES_REQUESTED: "Changes Requested",
+  ACCEPTED: "Accepted",
+  EXPIRED: "Expired",
+  CANCELLED: "Cancelled",
+  CONVERTED: "Converted",
+} as const satisfies Record<QuoteApiStatus, string>;
+
+/** Yêu cầu mẫu — BE `SampleStatus` (SCRUM-403). */
+export const SAMPLE_API_STATUSES = [
+  "DRAFT",
+  "SUBMITTED",
+  "IN_PRODUCTION",
+  "READY",
+  "SENT_TO_CUSTOMER",
+  "CHANGES_REQUESTED",
+  "APPROVED",
+  "CANCELLED",
+] as const;
+export type SampleApiStatus = (typeof SAMPLE_API_STATUSES)[number];
+export const SAMPLE_STATUS_BY_API = {
+  DRAFT: "Draft",
+  SUBMITTED: "Submitted",
+  IN_PRODUCTION: "In Production",
+  READY: "Ready",
+  SENT_TO_CUSTOMER: "Sent to Customer",
+  CHANGES_REQUESTED: "Changes Requested",
+  APPROVED: "Approved",
+  CANCELLED: "Cancelled",
+} as const satisfies Record<SampleApiStatus, string>;
+
+/** Lệnh sản xuất — BE `ProductionOrder.Status` (SCRUM-405..420). */
+export const PRODUCTION_API_STATUSES = [
+  "PENDING_PREPRESS",
+  "READY",
+  "MATERIAL_ISSUED",
+  "PRINTING",
+  "SUBCONTRACTED",
+  "QC",
+  "ON_HOLD",
+  "COMPLETED",
+  "CANCELLED",
+] as const;
+export type ProductionApiStatus = (typeof PRODUCTION_API_STATUSES)[number];
+export const PRODUCTION_STATUS_BY_API = {
+  PENDING_PREPRESS: "Pending Prepress",
+  READY: "Ready",
+  MATERIAL_ISSUED: "Material Issued",
+  PRINTING: "Printing",
+  SUBCONTRACTED: "Subcontracted",
+  QC: "QC",
+  ON_HOLD: "On Hold",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
+} as const satisfies Record<ProductionApiStatus, string>;
+export const PRODUCTION_ORDER_TYPES = ["SAMPLE", "ORDER"] as const;
+export type ProductionOrderType = (typeof PRODUCTION_ORDER_TYPES)[number];
+
+/** Nhóm trạng thái đơn khách đọc — BE `CustomerOrderCardResponse.statusGroup` (develop). */
+export const ORDER_STATUS_GROUPS = [
+  "AWAITING_PAYMENT",
+  "UNDER_REVIEW",
+  "CONFIRMED",
+  "IN_PRODUCTION",
+  "PREPARING",
+  "SHIPPING",
+  "DELIVERED",
+  "CANCELLED",
+  "RETURNED",
+] as const;
+export type OrderStatusGroup = (typeof ORDER_STATUS_GROUPS)[number];
+/** Nhóm → chuỗi status-map (nhãn Việt + tone dùng chung). */
+export const ORDER_STATUS_GROUP_DISPLAY = {
+  AWAITING_PAYMENT: "Pending Payment",
+  UNDER_REVIEW: "Under Review",
+  CONFIRMED: "Confirmed",
+  IN_PRODUCTION: "In Production",
+  PREPARING: "Preparing",
+  SHIPPING: "Shipping",
+  DELIVERED: "Delivered",
+  CANCELLED: "Cancelled",
+  RETURNED: "Returned",
+} as const satisfies Record<OrderStatusGroup, string>;
 export type TransferStatus = (typeof TRANSFER_STATUSES)[number];
 export type TransferReason = (typeof TRANSFER_REASONS)[number];
 export type LoadStatus = (typeof LOAD_STATUSES)[number];

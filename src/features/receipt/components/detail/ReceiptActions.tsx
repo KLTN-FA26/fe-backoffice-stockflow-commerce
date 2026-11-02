@@ -11,7 +11,7 @@ import {
 } from "@/constants";
 import { STATUS_LABEL_VI } from "@/lib/domain/status-map";
 import { usePermissionChecker } from "@/lib/auth";
-import { receiptErrorMessage } from "@/features/receipt/errors";
+import { receiptDecisionErrorMessage } from "@/features/receipt/errors";
 import { allowedReceiptActions, isReceiptTerminal } from "@/features/receipt/lifecycle";
 import {
   useApproveGoodsReceipt,
@@ -107,7 +107,7 @@ export function ReceiptActions({
   const decisionCallbacks = {
     onSuccess: () => closeDecision(false),
     // `withStaleRefetch` đã tải lại phiếu; lỗi nghiệp vụ (4 mắt, hết chỗ) ở lại dialog để người duyệt đọc
-    onError: (error: unknown) => setDecisionError(receiptErrorMessage(error)),
+    onError: (error: unknown) => setDecisionError(receiptDecisionErrorMessage(error)),
   };
 
   return (

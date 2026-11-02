@@ -11,8 +11,10 @@ import {
 } from "@/constants/auth";
 
 import { useAuthStore } from "@/lib/auth/auth-store";
+import { loginUrlFor } from "@/lib/auth/redirect";
 import { useAppStore } from "@/lib/store/use-app-store";
 
+import { readBlobErrorBody } from "./blob-error";
 import { ApiError } from "./error";
 
 import type { AxiosError } from "axios";
@@ -49,7 +51,11 @@ api.interceptors.response.use(
     }
     return res;
   },
-  (err: AxiosError<ApiErrorBody>) => {
+  async (err: AxiosError<ApiErrorBody>) => {
+    // Request tải file (PDF nhãn…): body lỗi JSON đến dưới dạng Blob — đọc ra trước khi tìm errorCode
+    if (err.response) {
+      err.response.data = (await readBlobErrorBody(err.response.data)) as ApiErrorBody;
+    }
     if (err.response?.status === 401 && err.config?.url !== AUTH_PATHS.me) {
       useAuthStore.getState().logout();
       // Failed login stays on the form so it can display the normalized error.
@@ -58,7 +64,10 @@ api.interceptors.response.use(
         typeof window !== "undefined" &&
         window.location.pathname !== APP_ROUTES.login
       ) {
-        window.location.replace(APP_ROUTES.login);
+        // Giữ trang + bộ lọc hiện tại để đăng nhập lại xong quay về đúng chỗ.
+        window.location.replace(
+          loginUrlFor(`${window.location.pathname}${window.location.search ?? ""}`),
+        );
       }
     }
     // SCRUM-474 FIRST-LOGIN: the account still has an administrator-set password, so the BE refuses

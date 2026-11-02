@@ -2,21 +2,34 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Pencil, Plus, Save, Trash2 } from "lucide-react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 
-import { RECEIPT_LIMITS, UI_LABELS } from "@/constants";
+import {
+  INVENTORY_ITEM_PERMISSIONS,
+  RECEIPT_CARTON_LABELS,
+  RECEIPT_LIMITS,
+  UI_LABELS,
+} from "@/constants";
 import { ApiError } from "@/lib/api/error";
-import { receiptErrorMessage, receiptLineFieldErrors } from "@/features/receipt/errors";
+import { createIdempotencyAttempt } from "@/lib/api/idempotency";
+import { usePermissionChecker } from "@/lib/auth";
+import { getGoodsReceipt } from "@/features/receipt/api";
+import { countLineCartonContexts } from "@/features/receipt/carton-selectors";
+import { EMPTY_BLIND_LINE, initialBlindLines } from "@/features/receipt/count-selectors";
+import {
+  isStaleCartonError,
+  receiptErrorMessage,
+  receiptLineFieldErrors,
+} from "@/features/receipt/errors";
 import { buildBlindLinesSchema } from "@/features/receipt/input-schemas";
 import { useSaveBlindReceiptLines } from "@/features/receipt/mutations";
-import {
-  initialBlindLines,
-  receiptReceivedOn,
-  totalReceivedQuantity,
-} from "@/features/receipt/selectors";
+import { receiptKeys } from "@/features/receipt/queries";
+import { receiptReceivedOn, totalReceivedQuantity } from "@/features/receipt/selectors";
 import { Alert } from "@/components/shared/Alert";
 import { DatePicker } from "@/components/shared/DatePicker";
+import { InventoryItemCombobox } from "@/components/backoffice/InventoryItemCombobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -33,7 +46,8 @@ const HEADERS = ["SKU", "SL nhận", "Số lô", "Hạn dùng", "Vị trí nhậ
 
 /**
  * Kiểm đếm phiếu không có PO (BR-RCP-002, SCRUM-478): không có dòng PO nên mỗi dòng là một SKU (× một lô), gọi hàng
- * bằng SKU. Lô / hạn dùng / khu nhận kiểm như phiếu thường (BE trả lỗi từng ô qua `fieldErrors`). Lưu = PUT thay toàn
+ * bằng SKU — chọn từ MỌI hồ sơ hàng tồn (SCRUM-492, quyết định owner; không lọc theo danh mục NCC). Tài khoản không có
+ * `inventory-inventory-items:READ` thì gõ tay SKU, BE kiểm khi lưu. Lô / hạn dùng / khu nhận kiểm như phiếu thường (BE trả lỗi từng ô qua `fieldErrors`). Lưu = PUT thay toàn
  * bộ; sau khi lưu hiện kết quả BE trả về, "Sửa kiểm đếm" mở lại form. Xác nhận KHÔNG ghi nhận: phiếu luôn chờ Quản lý
  * kho duyệt.
  */
@@ -120,22 +134,48 @@ function BlindCountForm({
   });
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "lines" });
   const save = useSaveBlindReceiptLines();
+  const queryClient = useQueryClient();
+  // SCRUM-473: cùng nội dung gửi lại dùng lại Idempotency-Key — BE không cấp LPN hai lần
+  const [attempt] = useState(() => createIdempotencyAttempt());
+  const can = usePermissionChecker();
+  // UI-only — Backend phải re-check (@RequiresPermission inventory-inventory-items:READ)
+  const pickSku = can(INVENTORY_ITEM_PERMISSIONS.read);
   const [serverError, setServerError] = useState<string | null>(null);
   const isDirty = form.formState.isDirty || receipt.lines.length === 0;
   const watched = useWatch({ control: form.control, name: "lines" });
   const errors = form.formState.errors.lines;
+  // SCRUM-473: dòng đã lưu có thùng giữ SKU + lô và không bỏ khỏi phiếu (BE RECEIPT_LINE_HAS_PACKAGES)
+  const locked = countLineCartonContexts(
+    receipt.lines,
+    watched.map((l) => ({ lotNumber: l.lotNumber ?? "", sku: l.sku, packages: l.packages })),
+  ).map((context) => context.locked);
   useEffect(() => onDirtyChange(isDirty), [isDirty, onDirtyChange]);
 
   const submit = form.handleSubmit((values) => {
     setServerError(null);
+    const idempotencyKey = attempt.keyFor({ receiptId: receipt.id, lines: values.lines });
     save.mutate(
-      { receiptId: receipt.id, lines: values.lines },
+      { receiptId: receipt.id, lines: values.lines, idempotencyKey },
       {
         onSuccess: (saved) => {
+          attempt.reset();
+          queryClient.setQueryData(receiptKeys.detail(saved.id), saved);
           form.reset({ lines: initialBlindLines(saved) });
           onSaved();
         },
         onError: (error) => {
+          if (error instanceof ApiError) attempt.settle(error);
+          else attempt.reset();
+          // Thùng đã đổi ở nơi khác: nạp lại phiếu và đặt lại form, nếu không mỗi lần lưu lại gửi lại LPN cũ
+          if (isStaleCartonError(error)) {
+            void queryClient
+              .fetchQuery({
+                queryKey: receiptKeys.detail(receipt.id),
+                queryFn: ({ signal }) => getGoodsReceipt(receipt.id, signal),
+                staleTime: 0,
+              })
+              .then((fresh) => form.reset({ lines: initialBlindLines(fresh) }));
+          }
           // BE trả lỗi từng ô (`lines[i].sku`, `.locationCode`, `.lotNumber`…) trong fieldErrors
           const fieldErrors = error instanceof ApiError ? receiptLineFieldErrors(error) : [];
           for (const fe of fieldErrors) {
@@ -220,18 +260,45 @@ function BlindCountForm({
                 const id = (name: string) => `blind-${index}-${name}`;
                 return (
                   <tr key={field.id} className="border-border-default border-t align-top">
-                    <td className="w-44 px-2 py-2">
-                      <Input
-                        id={id("sku")}
-                        autoFocus={index === 0}
-                        aria-label={`SKU dòng ${index + 1}`}
-                        placeholder={B.skuPlaceholder}
-                        maxLength={RECEIPT_LIMITS.skuMax}
-                        aria-invalid={e?.sku ? true : undefined}
-                        aria-describedby={e?.sku ? `${id("sku")}-error` : undefined}
-                        className={`${CELL} font-[family-name:var(--font-mono)] uppercase`}
-                        {...form.register(`lines.${index}.sku`)}
-                      />
+                    <td className="w-52 px-2 py-2">
+                      {pickSku && !locked[index] ? (
+                        <Controller
+                          control={form.control}
+                          name={`lines.${index}.sku`}
+                          render={({ field: sku }) => (
+                            <InventoryItemCombobox
+                              id={id("sku")}
+                              value={sku.value}
+                              ariaLabel={`SKU dòng ${index + 1}`}
+                              onSelect={(value) => {
+                                sku.onChange(value);
+                                setServerError(null);
+                              }}
+                              onBlur={sku.onBlur}
+                              hasError={!!e?.sku}
+                              describedBy={e?.sku ? `${id("sku")}-error` : undefined}
+                              autoFocus={index === 0}
+                              labels={B.skuPicker}
+                              contentClassName="min-w-64"
+                            />
+                          )}
+                        />
+                      ) : (
+                        // Dòng có thùng giữ SKU (SCRUM-473) → ô chỉ đọc thay cho ô chọn
+                        <Input
+                          id={id("sku")}
+                          autoFocus={index === 0}
+                          aria-label={`SKU dòng ${index + 1}`}
+                          placeholder={B.skuPlaceholder}
+                          maxLength={RECEIPT_LIMITS.skuMax}
+                          readOnly={locked[index]}
+                          title={locked[index] ? RECEIPT_CARTON_LABELS.skuLocked : undefined}
+                          aria-invalid={e?.sku ? true : undefined}
+                          aria-describedby={e?.sku ? `${id("sku")}-error` : undefined}
+                          className={`${CELL} font-[family-name:var(--font-mono)] uppercase`}
+                          {...form.register(`lines.${index}.sku`)}
+                        />
+                      )}
                       <FieldError id={`${id("sku")}-error`}>{e?.sku?.message}</FieldError>
                     </td>
                     <td className="w-28 px-2 py-2">
@@ -252,6 +319,8 @@ function BlindCountForm({
                       <Input
                         aria-label={`Số lô dòng ${index + 1}`}
                         maxLength={RECEIPT_LIMITS.codeMax}
+                        readOnly={locked[index]}
+                        title={locked[index] ? RECEIPT_CARTON_LABELS.lotLocked : undefined}
                         aria-invalid={e?.lotNumber ? true : undefined}
                         aria-describedby={e?.lotNumber ? `${id("lot")}-error` : undefined}
                         className={`${CELL} font-[family-name:var(--font-mono)]`}
@@ -309,7 +378,8 @@ function BlindCountForm({
                         variant="ghost"
                         size="icon-sm"
                         onClick={() => remove(index)}
-                        disabled={watched.length <= 1}
+                        disabled={watched.length <= 1 || locked[index]}
+                        title={locked[index] ? RECEIPT_CARTON_LABELS.removeLineLocked : undefined}
                         aria-label={`${B.removeLine} ${index + 1}`}
                       >
                         <Trash2 className="text-danger size-3.5" />
@@ -323,20 +393,14 @@ function BlindCountForm({
         </div>
         <button type="submit" hidden aria-hidden tabIndex={-1} />
       </form>
+      {!pickSku && <p className="text-ink-tertiary mt-2 text-xs">{B.skuManualNotice}</p>}
       <div className="mt-3">
         <Button
           type="button"
           variant="outline"
           size="sm"
           onClick={() =>
-            append({
-              sku: "",
-              quantity: 1,
-              lotNumber: "",
-              expiryDate: "",
-              locationCode: watched[0]?.locationCode ?? "",
-              note: "",
-            })
+            append({ ...EMPTY_BLIND_LINE, locationCode: watched[0]?.locationCode ?? "" })
           }
         >
           <Plus className="size-3.5" /> {B.addLine}

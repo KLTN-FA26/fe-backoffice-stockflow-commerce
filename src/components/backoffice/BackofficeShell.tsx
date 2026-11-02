@@ -3,13 +3,17 @@
 import { cn } from "cn";
 import {
   ArrowRightLeft,
+  Building2,
   BellRing,
   Boxes,
   CalendarClock,
   ClipboardList,
+  Factory,
   Database,
   FileBox,
+  FileSignature,
   FileText,
+  FlaskConical,
   FolderTree,
   History as HistoryIcon,
   LayoutDashboard,
@@ -33,6 +37,7 @@ import {
   ShoppingBag,
   ShoppingCart,
   SlidersHorizontal,
+  SquareKanban,
   Tags,
   Truck,
   TruckElectric,
@@ -47,6 +52,7 @@ import { useMemo, useState } from "react";
 import {
   ADMIN_ROUTES,
   ATTRIBUTE_PERMISSIONS,
+  CUSTOMER_PERMISSIONS,
   CREDIT_HOLD_PERMISSIONS,
   CUSTOMER_PRICE_PERMISSIONS,
   CUSTOMER_PRICE_UI_LABELS,
@@ -63,6 +69,9 @@ import {
   ORDER_PERMISSIONS,
   PO_PERMISSIONS,
   PRODUCT_PERMISSIONS,
+  PRODUCTION_ORDER_PERMISSIONS,
+  QUOTE_PERMISSIONS,
+  SAMPLE_REQUEST_PERMISSIONS,
   PUT_BACK_LABELS,
   SHIPMENT_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
@@ -341,6 +350,50 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    // Luồng B2B: khách → báo giá → khách chấp nhận → đơn / mẫu (SCRUM-449/451/404)
+    title: "Bán hàng",
+    icon: Building2,
+    items: [
+      {
+        label: "Khách hàng",
+        href: ADMIN_ROUTES.customers.list,
+        icon: Building2,
+        permission: CUSTOMER_PERMISSIONS.viewPage,
+      },
+      {
+        label: "Báo giá",
+        href: ADMIN_ROUTES.quotes.list,
+        icon: FileSignature,
+        permission: QUOTE_PERMISSIONS.viewPage,
+      },
+      {
+        label: "Yêu cầu mẫu",
+        href: ADMIN_ROUTES.sampleRequests.list,
+        icon: FlaskConical,
+        permission: SAMPLE_REQUEST_PERMISSIONS.viewPage,
+      },
+    ],
+  },
+  {
+    // Xưởng in: prepress → xuất phôi → in → QC → bàn giao đóng gói (SCRUM-406..419, 442)
+    title: "Sản xuất",
+    icon: Factory,
+    items: [
+      {
+        label: "Xưởng in",
+        href: ADMIN_ROUTES.workshop,
+        icon: SquareKanban,
+        permission: PRODUCTION_ORDER_PERMISSIONS.viewPage,
+      },
+      {
+        label: "Lệnh sản xuất",
+        href: ADMIN_ROUTES.productionOrders.list,
+        icon: Factory,
+        permission: PRODUCTION_ORDER_PERMISSIONS.viewPage,
+      },
+    ],
+  },
+  {
     title: "Thực hiện đơn",
     icon: ListChecks,
     items: [
@@ -427,6 +480,9 @@ const SUBPAGE_LABELS: Record<string, string> = {
 
 const DETAIL_LABEL_BY_ROUTE: Record<string, string> = {
   "/admin/products/create": "Tạo sản phẩm",
+  [ADMIN_ROUTES.customers.create]: "Tạo khách hàng",
+  [ADMIN_ROUTES.quotes.create]: "Tạo báo giá",
+  [ADMIN_ROUTES.sampleRequests.create]: "Tạo yêu cầu mẫu",
   "/admin/purchase-orders/create": "Tạo đơn đặt hàng",
   "/admin/suppliers/create": "Tạo nhà cung cấp",
   [INVENTORY_ROUTES.createAdjustment]: INVENTORY_LABELS.createAdjustment,
