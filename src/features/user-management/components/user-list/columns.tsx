@@ -80,6 +80,19 @@ export function buildUserColumns({ roles, warehouseNames }: ColumnContext): Colu
       cell: (user) => <UserStatusBadge status={user.status} />,
     },
     {
+      // SCRUM-474 LOCK-REASON: why the account was last locked / unlocked / disabled / enabled
+      key: "latestStatusReason",
+      header: USER_UI.reasonColumn,
+      cell: (user) =>
+        user.latestStatusChange ? (
+          <span title={user.latestStatusChange.reason} className="block max-w-[16rem] truncate">
+            {user.latestStatusChange.reason}
+          </span>
+        ) : (
+          <span className="text-ink-tertiary">{USER_UI.noReason}</span>
+        ),
+    },
+    {
       key: "lastLoginAt",
       header: USER_UI.lastLoginLabel,
       sortable: true,

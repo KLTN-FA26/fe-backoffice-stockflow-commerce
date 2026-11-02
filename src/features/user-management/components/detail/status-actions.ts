@@ -4,7 +4,7 @@ interface StatusActionCopy {
   /** Nút trên thẻ tài khoản. */
   button: string;
   title: string;
-  /** Mô tả hậu quả — BE không nhận lý do cho các thao tác này, nên hộp thoại chỉ xác nhận. */
+  /** Mô tả hậu quả; hộp thoại còn đòi lý do (SCRUM-474 LOCK-REASON). */
   description: string;
   confirm: string;
   danger: boolean;

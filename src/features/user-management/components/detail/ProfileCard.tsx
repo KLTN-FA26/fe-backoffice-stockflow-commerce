@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { identityErrorMessage, identityFieldErrors } from "@/lib/api/identity-errors";
 import { formatDateTime } from "@/lib/format/date";
 
-import { USER_UI } from "../../constants";
+import { STATUS_CHANGE_LABELS, USER_UI } from "../../constants";
 import { hasTemporaryLock } from "../../lifecycle";
 import { useUpdateUser } from "../../mutations";
 import { updateUserFormSchema } from "../../schemas";
@@ -99,6 +99,19 @@ export function ProfileCard({
           {user.createdBy ? ` · ${user.createdBy}` : ""}
         </Fact>
       </dl>
+      {user.latestStatusChange && (
+        <div className="border-border-default bg-bg-subtle mt-3 rounded-[var(--r-sm)] border px-3 py-2">
+          <p className="text-ink-tertiary text-xs">{USER_UI.latestReasonLabel}</p>
+          <p className="text-ink-primary text-[0.8125rem] break-words whitespace-pre-line">
+            {user.latestStatusChange.reason}
+          </p>
+          <p className="text-ink-tertiary mt-0.5 text-xs">
+            {STATUS_CHANGE_LABELS[user.latestStatusChange.action]} ·{" "}
+            {formatDateTime(user.latestStatusChange.changedAt)} · {USER_UI.historyBy}{" "}
+            {user.latestStatusChange.actorUsername}
+          </p>
+        </div>
+      )}
       {user.mustChangePassword && (
         <p className="text-ink-secondary mt-3 text-xs">{USER_UI.mustChangePassword}.</p>
       )}

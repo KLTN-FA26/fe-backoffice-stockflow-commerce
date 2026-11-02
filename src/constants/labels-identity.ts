@@ -38,6 +38,7 @@ export const IDENTITY_ERROR_MESSAGES = {
     "Vai trò này không thể gán cho tài khoản này (vai trò khách hàng chỉ dành cho tài khoản khách hàng).",
   INVALID_USER_STATUS_TRANSITION:
     "Tài khoản không thể chuyển sang trạng thái này từ trạng thái hiện tại. Hãy tải lại để xem trạng thái mới nhất.",
+  USER_STATUS_UNCHANGED: "Tài khoản đã ở trạng thái này",
   STAFF_ACCOUNT_REQUIRED: "Đây là tài khoản khách hàng — hãy quản lý ở màn hình khách hàng.",
   OPTIMISTIC_LOCK:
     "Dữ liệu vừa được người khác thay đổi. Đã tải lại bản mới nhất — hãy kiểm tra rồi thử lại.",

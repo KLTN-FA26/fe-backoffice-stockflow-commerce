@@ -11,10 +11,13 @@ import {
   assignWarehousesSchema,
   createdUserSchema,
   passwordResetResultSchema,
+  statusReasonSchema,
   updateUserFormSchema,
   userDtoSchema,
   userPageSchema,
+  userStatusChangePageSchema,
 } from "./schemas";
+import { STATUS_HISTORY_PAGE_SIZE } from "./constants";
 import { toCreateUserRequest } from "./selectors";
 
 import type { ListQueryParams, PaginatedResponse } from "@/lib/api/query-factory";
@@ -26,6 +29,7 @@ import type {
   UserDto,
   UserStatus,
   UserStatusAction,
+  UserStatusChange,
 } from "./types";
 
 const USERS_PATH = "/identity/users";
@@ -91,12 +95,36 @@ export async function assignWarehouses(userId: string, warehouseIds: string[]): 
 export interface ChangeStatusInput {
   userId: string;
   action: UserStatusAction;
+  /** Bắt buộc, 5–500 ký tự sau khi cắt khoảng trắng (BE `StatusChangeReason`, SCRUM-474 LOCK-REASON). */
+  reason: string;
 }
 
-/** lock / unlock / disable / enable — BE không nhận body, lock / disable kết thúc mọi phiên của tài khoản. */
-export async function changeUserStatus({ userId, action }: ChangeStatusInput): Promise<UserDto> {
-  const { data } = await api.post<unknown>(`${userPath(userId)}/${action}`);
+/** lock / unlock / disable / enable kèm lý do — lock / disable kết thúc mọi phiên của tài khoản. */
+export async function changeUserStatus({
+  userId,
+  action,
+  reason,
+}: ChangeStatusInput): Promise<UserDto> {
+  const { data } = await api.post<unknown>(`${userPath(userId)}/${action}`, {
+    reason: statusReasonSchema.parse(reason),
+  });
   return userDtoSchema.parse(data);
+}
+
+export interface StatusChangeParams {
+  page?: number;
+  size?: number;
+}
+
+/** `GET /users/{id}/status-changes` — lịch sử khoá / mở khoá / vô hiệu hoá / kích hoạt, mới nhất trước. */
+export async function listUserStatusChanges(
+  userId: string,
+  { page = 0, size = STATUS_HISTORY_PAGE_SIZE }: StatusChangeParams = {},
+  signal?: AbortSignal,
+): Promise<PaginatedResponse<UserStatusChange>> {
+  const params = new URLSearchParams({ page: String(Math.max(0, page)), size: String(size) });
+  const { data } = await api.get<unknown>(`${userPath(userId)}/status-changes`, { params, signal });
+  return userStatusChangePageSchema.parse(data);
 }
 
 export interface ResetPasswordInput {

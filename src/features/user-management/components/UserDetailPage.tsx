@@ -19,6 +19,7 @@ import { useReferenceData } from "../use-reference-data";
 import { AccountActionsCard } from "./detail/AccountActionsCard";
 import { ProfileCard } from "./detail/ProfileCard";
 import { RolesCard } from "./detail/RolesCard";
+import { StatusHistoryCard } from "./detail/StatusHistoryCard";
 import { WarehousesCard } from "./detail/WarehousesCard";
 
 /** Chi tiết + chỉnh sửa một tài khoản. Cổng route (`usersRead`) nằm ở `app/admin/users/[id]/page.tsx`. */
@@ -79,6 +80,9 @@ export function UserDetailPage({ id }: { id: string }) {
           roles={refs.roles}
         />
         <AccountActionsCard user={user} canEdit={canEdit} accountLabel={label} />
+        <div className="xl:col-span-2">
+          <StatusHistoryCard userId={user.userId} />
+        </div>
       </div>
     </div>
   );

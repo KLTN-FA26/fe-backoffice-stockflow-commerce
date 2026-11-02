@@ -71,6 +71,39 @@ describe("UserListPage — table", () => {
     expect(screen.getAllByText("Đang dùng").length).toBeGreaterThan(0);
   });
 
+  it("shows the latest status-change reason of each account, and a dash when there is none (SCRUM-474)", async () => {
+    const withReason = userFixture({
+      userId: "33333333-3333-4333-8333-333333333333",
+      username: "chi.le",
+      fullName: "Lê Chi",
+      email: "chi@stockflow.vn",
+      status: "DISABLED",
+      latestStatusChange: {
+        id: "c1",
+        action: "DISABLE",
+        fromStatus: "ACTIVE",
+        toStatus: "DISABLED",
+        reason: "Nghỉ việc ngày 29/10",
+        actorId: "a1",
+        actorUsername: "an.admin",
+        changedAt: "2026-10-29T03:00:00Z",
+      },
+    });
+    stubIdentityApi(PERMISSION_SETS.readOnly, {
+      "GET /identity/users": () => userPage([rows[0], withReason]),
+    });
+    renderIdentityScreen(<UserListPage />);
+
+    expect(await screen.findByRole("columnheader", { name: "Lý do gần nhất" })).toBeInTheDocument();
+    const reasoned = (await screen.findByText("chi.le")).closest("tr") as HTMLElement;
+    expect(within(reasoned).getByText("Nghỉ việc ngày 29/10")).toHaveAttribute(
+      "title",
+      "Nghỉ việc ngày 29/10",
+    );
+    const plain = screen.getByText("lan.nguyen").closest("tr") as HTMLElement;
+    expect(within(plain).getByText("—")).toBeInTheDocument();
+  });
+
   it("shows a warehouse count when the caller cannot read the warehouse directory", async () => {
     stubIdentityApi([...PERMISSION_SETS.readOnly.slice(0, 2)], {
       "GET /identity/users": () => userPage(rows),
