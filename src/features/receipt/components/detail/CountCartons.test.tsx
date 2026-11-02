@@ -149,6 +149,20 @@ describe("Chia thùng trên form kiểm đếm (issue #104, BE spec SCRUM-473 §
     expect(screen.getByText("LPN-20261024-000001")).toBeInTheDocument();
   });
 
+  it("tách lô dòng có thùng (lô trống) → dòng mới gõ được lô, bỏ được; dòng gốc vẫn khoá", async () => {
+    const user = userEvent.setup();
+    const receipt = apiReceipt({ lines: [cartonLine({ lotNumber: null })] });
+    renderDraft(receipt, () => receipt);
+
+    await user.click(await screen.findByRole("button", { name: /Sửa kiểm đếm/ }));
+    await user.click(await screen.findByRole("button", { name: "Tách lô dòng 1" }));
+    expect(screen.getByLabelText("Số lô dòng 1")).toHaveAttribute("readonly");
+    expect(screen.getByLabelText("Số lô dòng 2")).not.toHaveAttribute("readonly");
+    await user.type(screen.getByLabelText("Số lô dòng 2"), "L02");
+    expect(screen.getByLabelText("Số lô dòng 2")).toHaveValue("L02");
+    expect(screen.getByRole("button", { name: "Xoá dòng 2" })).toBeEnabled();
+  });
+
   it("xoá thùng đã có LPN phải xác nhận; lưu thì thùng đó không còn trong danh sách (BE VOID)", async () => {
     const user = userEvent.setup();
     const receipt = apiReceipt({ lines: [cartonLine({ lotNumber: "L01" })] });
@@ -246,6 +260,25 @@ describe("Phiếu không có PO: dòng có thùng bị khoá (BE RECEIPT_LINE_HA
     expect(screen.getByLabelText("Số lô dòng 1")).toHaveAttribute("readonly");
     expect(screen.getByRole("button", { name: "Xoá dòng 1" })).toBeDisabled();
     expect(screen.getByLabelText("SKU dòng 2")).not.toHaveAttribute("readonly");
+    expect(screen.getByRole("button", { name: "Xoá dòng 2" })).toBeEnabled();
+    // Dòng có thùng hiện ô SKU chỉ đọc thay cho ô chọn hồ sơ hàng tồn (SCRUM-492)
+    expect(screen.queryByRole("combobox", { name: "SKU dòng 1" })).not.toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "SKU dòng 2" })).toBeInTheDocument();
+  });
+
+  it("thêm dòng cùng SKU với dòng có thùng (lô trống) → dòng mới gõ được lô", async () => {
+    const user = userEvent.setup();
+    const receipt = apiBlindReceipt({
+      lines: [cartonLine({ purchaseOrderLineId: null, sku: "SOFA-3S-GREY", lotNumber: null })],
+    });
+    mockReceiptApi(ROLES.warehouseStaffNoInventory, { [PATH]: () => receipt });
+    renderReceiptScreen(<ReceiptDetail id={RECEIPT_ID} />);
+
+    await user.click(await screen.findByRole("button", { name: /Sửa kiểm đếm/ }));
+    await user.click(await screen.findByRole("button", { name: /Thêm dòng/ }));
+    await user.type(screen.getByLabelText("SKU dòng 2"), "SOFA-3S-GREY");
+    expect(screen.getByLabelText("SKU dòng 2")).not.toHaveAttribute("readonly");
+    expect(screen.getByLabelText("Số lô dòng 2")).not.toHaveAttribute("readonly");
     expect(screen.getByRole("button", { name: "Xoá dòng 2" })).toBeEnabled();
   });
 });

@@ -16,7 +16,7 @@ import { ApiError } from "@/lib/api/error";
 import { createIdempotencyAttempt } from "@/lib/api/idempotency";
 import { usePermissionChecker } from "@/lib/auth";
 import { getGoodsReceipt } from "@/features/receipt/api";
-import { countLineCartonContext } from "@/features/receipt/carton-selectors";
+import { countLineCartonContexts } from "@/features/receipt/carton-selectors";
 import { EMPTY_BLIND_LINE, initialBlindLines } from "@/features/receipt/count-selectors";
 import {
   isStaleCartonError,
@@ -145,9 +145,10 @@ function BlindCountForm({
   const watched = useWatch({ control: form.control, name: "lines" });
   const errors = form.formState.errors.lines;
   // SCRUM-473: dòng đã lưu có thùng giữ SKU + lô và không bỏ khỏi phiếu (BE RECEIPT_LINE_HAS_PACKAGES)
-  const locked = watched.map(
-    (l) => countLineCartonContext(receipt.lines, { lotNumber: l.lotNumber ?? "" }, l.sku).locked,
-  );
+  const locked = countLineCartonContexts(
+    receipt.lines,
+    watched.map((l) => ({ lotNumber: l.lotNumber ?? "", sku: l.sku, packages: l.packages })),
+  ).map((context) => context.locked);
   useEffect(() => onDirtyChange(isDirty), [isDirty, onDirtyChange]);
 
   const submit = form.handleSubmit((values) => {

@@ -8,7 +8,7 @@ import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { ApiError } from "@/lib/api/error";
 import { createIdempotencyAttempt } from "@/lib/api/idempotency";
 import { getGoodsReceipt } from "@/features/receipt/api";
-import { countLineCartonContext, unitsBySku } from "@/features/receipt/carton-selectors";
+import { countLineCartonContexts } from "@/features/receipt/carton-selectors";
 import { initialCountLines } from "@/features/receipt/count-selectors";
 import {
   isStaleCartonError,
@@ -74,14 +74,14 @@ export function useCountLinesForm(
   );
   const poLineById = new Map(po.lines.map((l) => [l.lineId, l]));
   // SCRUM-473: đơn vị / thùng đã lưu của từng dòng form; trình chia thùng mở theo `field.id`
-  const skuUnits = unitsBySku(receipt.lines);
-  const cartonContexts = watched.map((l) =>
-    countLineCartonContext(
-      receipt.lines,
-      { purchaseOrderLineId: l.purchaseOrderLineId, lotNumber: l.lotNumber ?? "" },
-      poLineById.get(l.purchaseOrderLineId)?.sku,
-      skuUnits,
-    ),
+  const cartonContexts = countLineCartonContexts(
+    receipt.lines,
+    watched.map((l) => ({
+      purchaseOrderLineId: l.purchaseOrderLineId,
+      lotNumber: l.lotNumber ?? "",
+      sku: poLineById.get(l.purchaseOrderLineId)?.sku,
+      packages: l.packages,
+    })),
   );
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
   const toggleCartons = (rowId: string) =>

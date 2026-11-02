@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { CARTON_UNITS, apiLine, cartonLine, cartonPackage } from "./__fixtures__/receipt";
 import {
   cartonUnitOptions,
-  countLineCartonContext,
+  countLineCartonContexts,
   countedIntoCartons,
   defaultCartonUnit,
   lineLockedByCartons,
@@ -126,50 +126,82 @@ describe("thùng của dòng", () => {
   });
 });
 
-describe("countLineCartonContext — dòng form ↔ dòng đã lưu", () => {
+describe("countLineCartonContexts — dòng form ↔ dòng đã lưu", () => {
   const saved = [cartonLine({ lotNumber: "L01" })];
+  const poLineId = saved[0]?.purchaseOrderLineId ?? "";
+  const contextOf = (row: Parameters<typeof countLineCartonContexts>[1][number]) =>
+    countLineCartonContexts(saved, [row])[0];
 
   it("dòng đã lưu có thùng: đơn vị, thùng đã lưu, bị khoá", () => {
-    const ctx = countLineCartonContext(
-      saved,
-      { purchaseOrderLineId: saved[0]?.purchaseOrderLineId ?? "", lotNumber: "L01" },
-      "TABLE-OAK-160",
-    );
+    const ctx = contextOf({
+      purchaseOrderLineId: poLineId,
+      lotNumber: "L01",
+      sku: "TABLE-OAK-160",
+    });
     expect(ctx).toMatchObject({
       unitOfMeasure: "CARTON",
       orderedUnitOfMeasure: "CARTON",
       locked: true,
     });
-    expect(ctx.savedPackages).toHaveLength(2);
-    expect(ctx.units).toEqual(CARTON_UNITS);
+    expect(ctx?.savedPackages).toHaveLength(2);
+    expect(ctx?.units).toEqual(CARTON_UNITS);
   });
 
   it("dòng chưa lưu cùng SKU (vd vừa tách lô) dùng lại đơn vị, không khoá, đơn vị đặt trên PO theo dòng PO", () => {
-    const ctx = countLineCartonContext(
-      saved,
-      { purchaseOrderLineId: saved[0]?.purchaseOrderLineId ?? "", lotNumber: "L02" },
-      "TABLE-OAK-160",
-    );
+    const ctx = contextOf({
+      purchaseOrderLineId: poLineId,
+      lotNumber: "L02",
+      sku: "TABLE-OAK-160",
+    });
     expect(ctx).toMatchObject({
       unitOfMeasure: null,
       orderedUnitOfMeasure: "CARTON",
       locked: false,
     });
-    expect(ctx.units).toEqual(CARTON_UNITS);
+    expect(ctx?.units).toEqual(CARTON_UNITS);
   });
 
   it("SKU chưa có dòng nào lưu → chưa có đơn vị (phải lưu trước)", () => {
-    const ctx = countLineCartonContext(
-      saved,
-      { purchaseOrderLineId: "other", lotNumber: "" },
-      "SOFA",
+    expect(contextOf({ purchaseOrderLineId: "other", lotNumber: "", sku: "SOFA" })?.units).toEqual(
+      [],
     );
-    expect(ctx.units).toEqual([]);
   });
 
   it("phiếu không có PO: ghép theo SKU + lô", () => {
     const blind = [cartonLine({ purchaseOrderLineId: null, sku: "SOFA-3S-GREY", lotNumber: null })];
-    expect(countLineCartonContext(blind, { lotNumber: "" }, "SOFA-3S-GREY").locked).toBe(true);
+    const [ctx] = countLineCartonContexts(blind, [{ lotNumber: "", sku: "SOFA-3S-GREY" }]);
+    expect(ctx?.locked).toBe(true);
+  });
+});
+
+describe("countLineCartonContexts — chỉ dòng gốc nhận khoá của dòng đã lưu", () => {
+  const saved = [cartonLine({ lotNumber: null })];
+  const poLineId = saved[0]?.purchaseOrderLineId ?? "";
+  const savedLpns = (saved[0]?.packages ?? []).map(({ lpn, quantity }) => ({ lpn, quantity }));
+  const row = (lotNumber: string, packages: { lpn: string }[] = []) => ({
+    purchaseOrderLineId: poLineId,
+    lotNumber,
+    sku: "TABLE-OAK-160",
+    packages,
+  });
+
+  it("dòng 'Tách lô' cùng dòng PO, lô còn trống → không khoá, không mang thùng của dòng gốc", () => {
+    const [original, split] = countLineCartonContexts(saved, [row("", savedLpns), row("")]);
+    expect(original).toMatchObject({ locked: true, unitOfMeasure: "CARTON" });
+    expect(split).toMatchObject({ locked: false, unitOfMeasure: null, savedPackages: [] });
+    expect(split?.units).toEqual(CARTON_UNITS);
+  });
+
+  it("dòng đứng trước đổi lô trùng dòng gốc → khoá vẫn theo dòng giữ LPN", () => {
+    const [earlier, original] = countLineCartonContexts(saved, [row(""), row("", savedLpns)]);
+    expect(earlier?.locked).toBe(false);
+    expect(original?.locked).toBe(true);
+  });
+
+  it("dòng gốc đã bỏ hết thùng trên form → vẫn khoá (BE giữ khoá dòng từng có thùng)", () => {
+    const [original, split] = countLineCartonContexts(saved, [row(""), row("")]);
+    expect(original?.locked).toBe(true);
+    expect(split?.locked).toBe(false);
   });
 });
 

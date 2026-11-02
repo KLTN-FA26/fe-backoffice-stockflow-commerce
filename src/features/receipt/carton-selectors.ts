@@ -141,30 +141,60 @@ export interface LineCartonContext extends CartonUnitSource {
   savedPackages: readonly ReceiptPackageDto[];
 }
 
-/**
- * Dòng form ↔ dòng đã lưu: cùng dòng PO (phiếu không PO: cùng SKU) và cùng lô — khoá của BE
- * (`uk_goods_receipt_lines_lot`). Dòng chưa lưu lấy đơn vị theo SKU từ dòng đã lưu khác (Q1).
- */
-export function countLineCartonContext(
+/** Một dòng form kiểm đếm: khoá dòng PO (phiếu không PO: SKU) + lô, và thùng đang có trên form. */
+interface CartonContextRow {
+  purchaseOrderLineId?: string;
+  lotNumber: string;
+  sku: string | null | undefined;
+  packages?: readonly { lpn?: string }[];
+}
+
+/** Dòng form ↔ dòng đã lưu: cùng dòng PO (không PO: SKU) + lô (`uk_goods_receipt_lines_lot`); chưa lưu → đơn vị theo SKU (Q1). */
+function lineContext(
   savedLines: readonly ReceiptLineDto[],
-  line: { purchaseOrderLineId?: string; lotNumber: string },
-  sku: string | null | undefined,
-  /** `unitsBySku(savedLines)` dựng sẵn một lần cho cả form — tránh dựng lại cho từng dòng mỗi lần gõ. */
-  skuUnits: ReadonlyMap<string, readonly ReceiptUnitDto[]> = unitsBySku(savedLines),
+  row: CartonContextRow,
+  skuUnits: ReadonlyMap<string, readonly ReceiptUnitDto[]>,
 ): LineCartonContext {
   const sameItem = (saved: ReceiptLineDto) =>
-    line.purchaseOrderLineId
-      ? saved.purchaseOrderLineId === line.purchaseOrderLineId
-      : !!sku && saved.sku === sku;
-  const saved = savedLines.find(
-    (candidate) => sameItem(candidate) && (candidate.lotNumber ?? "") === line.lotNumber,
-  );
+    row.purchaseOrderLineId
+      ? saved.purchaseOrderLineId === row.purchaseOrderLineId
+      : !!row.sku && saved.sku === row.sku;
+  const saved = savedLines.find((c) => sameItem(c) && (c.lotNumber ?? "") === row.lotNumber);
   const sibling = savedLines.find(sameItem);
   return {
-    units: saved?.units.length ? saved.units : ((sku ? skuUnits.get(sku) : undefined) ?? []),
+    units: saved?.units.length ? saved.units : (row.sku && skuUnits.get(row.sku)) || [],
     unitOfMeasure: saved?.unitOfMeasure ?? null,
     orderedUnitOfMeasure: saved?.orderedUnitOfMeasure ?? sibling?.orderedUnitOfMeasure ?? null,
     locked: saved ? lineLockedByCartons(saved) : false,
     savedPackages: saved?.packages ?? [],
   };
+}
+
+/**
+ * Ngữ cảnh thùng của từng dòng form kiểm đếm. Dòng đã lưu có thùng chỉ khoá MỘT dòng form — dòng gốc; dòng "Tách lô" /
+ * dòng thêm cùng SKU, lô còn trống, trùng khoá nó nhưng phải gõ được lô. Dòng gốc = dòng còn giữ LPN của nó, không thì
+ * dòng đầu tiên trùng khoá (BE giữ khoá dòng từng có thùng kể cả khi bỏ hết thùng — `requireNoCartonsOnDroppedLines`).
+ */
+export function countLineCartonContexts(
+  savedLines: readonly ReceiptLineDto[],
+  rows: readonly CartonContextRow[],
+): LineCartonContext[] {
+  const skuUnits = unitsBySku(savedLines);
+  const entries = rows.map((row) => {
+    const context = lineContext(savedLines, row, skuUnits);
+    const key = `${row.purchaseOrderLineId || `sku:${row.sku ?? ""}`}|${row.lotNumber}`;
+    const holdsLpn = !!row.packages?.some((c) =>
+      context.savedPackages.some((s) => s.lpn === c.lpn),
+    );
+    return { context, key, holdsLpn };
+  });
+  const owner = new Map<string, number>();
+  entries.forEach(({ context, key, holdsLpn }, index) => {
+    if (context.locked && (!owner.has(key) || holdsLpn)) owner.set(key, index);
+  });
+  return entries.map(({ context, key }, index) =>
+    context.locked && owner.get(key) !== index
+      ? { ...context, locked: false, unitOfMeasure: null, savedPackages: [] }
+      : context,
+  );
 }
