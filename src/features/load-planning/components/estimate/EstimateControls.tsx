@@ -29,6 +29,8 @@ interface EstimateControlsProps {
   /** Lý do chưa chạy được (vd chưa chọn kho) — nút khoá và nêu lý do. */
   blockedReason: string | null;
   hasResult: boolean;
+  /** Nhãn nút chạy khi màn không phải "Ước tính" của đơn (vd "Chạy thử"); mặc định nhãn của ước tính. */
+  runLabels?: { run: string; rerun: string; running: string };
 }
 
 const KIND_LABEL = (kind: string): string =>
@@ -43,6 +45,7 @@ const KIND_LABEL = (kind: string): string =>
  */
 export function EstimateControls(props: EstimateControlsProps) {
   const L = LOAD_ESTIMATE_LABELS.controls;
+  const run = props.runLabels ?? L;
   const { selectedIds, vehicleTypes } = props;
   const atMax = selectedIds.length >= LOAD_ESTIMATE_LIMITS.vehicleTypesMax;
 
@@ -137,7 +140,7 @@ export function EstimateControls(props: EstimateControlsProps) {
           disabled={props.isPending || props.blockedReason !== null}
         >
           {props.isPending && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
-          {props.isPending ? L.running : props.hasResult ? L.rerun : L.run}
+          {props.isPending ? run.running : props.hasResult ? run.rerun : run.run}
         </Button>
         {props.blockedReason && <p className="text-ink-tertiary text-xs">{props.blockedReason}</p>}
       </div>

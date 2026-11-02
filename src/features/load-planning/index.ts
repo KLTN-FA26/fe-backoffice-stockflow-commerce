@@ -46,3 +46,10 @@ export * from "./estimate-errors";
 export * from "./lib/estimate-view";
 export { LoadEstimateButton } from "./components/estimate/LoadEstimateButton";
 export type { LoadEstimateButtonProps } from "./components/estimate/LoadEstimateButton";
+
+// "Ước tính thử" từ file Excel EasyCargo (SCRUM-474 TRIAL-FLOW, LP2-9): chạy thử, không lưu
+export * from "./trial/trial-types";
+export * from "./trial/trial-schemas";
+export * from "./trial/trial-parse";
+export * from "./trial/trial-errors";
+export { TrialEstimateScreen } from "./components/trial/TrialEstimateScreen";

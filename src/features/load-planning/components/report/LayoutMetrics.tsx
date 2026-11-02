@@ -12,7 +12,14 @@ import type { LayoutSummary } from "../../selectors";
 import type { MetricItem } from "./MetricsStrip";
 
 /** Dải số liệu của một kế hoạch/ước lượng: xe, kiện, thể tích, hiệu suất, khối lượng, hàng chưa xếp. */
-export function LayoutMetrics({ summary }: { summary: LayoutSummary }) {
+export function LayoutMetrics({
+  summary,
+  hideWeight = false,
+}: {
+  summary: LayoutSummary;
+  /** "Ước tính thử": file không có khối lượng — bỏ ô khối lượng thay vì hiện con số giả. */
+  hideWeight?: boolean;
+}) {
   const labels = LOAD_PLANNING_LABELS.metrics;
   const items: MetricItem[] = [
     {
@@ -38,12 +45,16 @@ export function LayoutMetrics({ summary }: { summary: LayoutSummary }) {
       icon: <Gauge className="size-4" />,
       tone: summary.utilization < LOAD_PLANNING_LIMITS.lowUtilizationRatio ? "warn" : "good",
     },
-    {
-      label: labels.weight,
-      value: `${formatNumber(summary.usedWeightKg)} / ${formatNumber(summary.payloadKg)} kg`,
-      icon: <Scale className="size-4" />,
-      tone: summary.overweightVehicles > 0 ? "bad" : "default",
-    },
+    ...(hideWeight
+      ? []
+      : [
+          {
+            label: labels.weight,
+            value: `${formatNumber(summary.usedWeightKg)} / ${formatNumber(summary.payloadKg)} kg`,
+            icon: <Scale className="size-4" />,
+            tone: summary.overweightVehicles > 0 ? ("bad" as const) : ("default" as const),
+          },
+        ]),
     {
       label: labels.unplaced,
       value: formatNumber(summary.unplacedPieces),

@@ -5,6 +5,7 @@
  *   → 201; cần `fulfillment-load-estimates:CREATE`. Đơn CONFIRMED bắt buộc `warehouseId` (400 NotNull); đơn đã release
  *   dùng kho của nó (kho khác → 400 WarehouseMismatch); trạng thái không ước tính được → 409
  *   LOAD_ESTIMATE_SOURCE_NOT_ELIGIBLE; loại xe lạ 404 / ngừng dùng 409; một lần ước tính mới thay bản hiện hành.
+ * - POST /fulfillment/load-estimates/trial → 200, không lưu; cần `:CREATE` (xem `mock-load-estimate-trial.ts`).
  * - GET /fulfillment/load-estimates?sourceType=ORDER&sourceId= → ước tính hiện hành; cần `:READ`; 404
  *   LOAD_ESTIMATE_NOT_FOUND khi chưa có.
  *
@@ -18,6 +19,7 @@ import { buildMockEstimate } from "./mock-load-estimate-builder";
 import { fail, ok } from "./mock-route-utils";
 import { backendStatus, seedLifecycle } from "./mock-routes-orders";
 import { parseJsonBody, readParams, readString } from "./mock-routes-purchase-orders-store";
+import { mockTrialEstimate } from "./mock-load-estimate-trial";
 import { mockGrantsOf } from "./mock-user-grants";
 import { getVehicleTypeStore } from "./mock-vehicle-type-store";
 
@@ -119,6 +121,12 @@ export function registerLoadEstimateMockRoutes(): void {
     const estimate = await buildMockEstimate(order, body, checked.warehouseId, sequence);
     current.set(order.orderId, estimate);
     return ok(estimate, 201);
+  });
+
+  registerMockRoute("POST", "/fulfillment/load-estimates/trial", async (config) => {
+    if (!(await can(LOAD_ESTIMATE_PERMISSIONS.create)))
+      return fail(403, "FORBIDDEN", "Access denied");
+    return mockTrialEstimate(parseJsonBody(config.data));
   });
 
   registerMockRoute("GET", "/fulfillment/load-estimates", async (config) => {
