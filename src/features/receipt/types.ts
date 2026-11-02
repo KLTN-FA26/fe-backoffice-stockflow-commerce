@@ -12,6 +12,7 @@ import type {
   receiptLineInputSchema,
 } from "./input-schemas";
 import type { packageInputSchema } from "./carton-input-schemas";
+import type { beReceiptPackageSchema, beReceiptUnitSchema } from "./carton-schemas";
 import type { buildQcDecisionSchema, moveToQcInputSchema } from "./qc-input-schemas";
 import type {
   beGoodsReceiptRowSchema,
@@ -19,8 +20,6 @@ import type {
   beInspectionSchema,
   beReceiptApprovalSchema,
   beReceiptLineSchema,
-  beReceiptPackageSchema,
-  beReceiptUnitSchema,
   receivablePoLineSchema,
   receivablePoSchema,
   supplierOptionSchema,

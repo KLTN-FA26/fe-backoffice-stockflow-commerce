@@ -72,7 +72,7 @@ export function PrintLabelsDialog({
               ? P.lineDescription(target.count)
               : P.reprintDescription(target.lpns.join(", "))}
           </DialogDescription>
-          <fieldset className="space-y-1.5">
+          <fieldset className="space-y-1.5" disabled={print.isPending}>
             <legend className="text-ink-primary mb-1 text-[0.8125rem] font-medium">
               {P.format}
             </legend>

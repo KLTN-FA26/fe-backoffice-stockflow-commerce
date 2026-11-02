@@ -174,3 +174,22 @@ describe("In nhãn — mỗi lần mở dialog là một lần in mới", () => 
     expect(within(dialog).getByRole("button", { name: P.generate })).toBeInTheDocument();
   });
 });
+
+describe("In nhãn — đang tạo PDF thì không đổi khổ được", () => {
+  it("bấm Tạo file in rồi, khi chờ BE thì radio khổ nhãn bị khoá (không gán nhầm PDF khổ cũ)", async () => {
+    const user = userEvent.setup();
+    const { post } = renderLines(
+      ROLES.warehouseStaff,
+      apiReceipt({ status: "IN_QC", lines: [inStock()] }),
+    );
+    // BE chưa trả lời
+    post.mockImplementationOnce(() => new Promise(() => {}));
+    const panel = await openCartons(user);
+    await user.click(within(panel).getByRole("button", { name: L.printLine }));
+    const dialog = await screen.findByRole("dialog", { name: P.title });
+    await user.click(within(dialog).getByRole("button", { name: P.generate }));
+
+    expect(within(dialog).getByRole("radio", { name: /Tờ A4/ })).toBeDisabled();
+    expect(within(dialog).getByRole("radio", { name: /Cuộn nhiệt/ })).toBeDisabled();
+  });
+});

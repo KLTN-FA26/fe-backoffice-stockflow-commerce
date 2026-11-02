@@ -7,6 +7,7 @@
 
 export * from "./types";
 export * from "./schemas";
+export * from "./carton-schemas";
 export * from "./input-schemas";
 export * from "./carton-input-schemas";
 export * from "./qc-input-schemas";
