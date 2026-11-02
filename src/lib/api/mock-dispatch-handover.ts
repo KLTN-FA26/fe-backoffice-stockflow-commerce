@@ -5,6 +5,8 @@
  * ghi nhận kết quả theo bảng chuyển trạng thái docs 09 §5.
  */
 
+import { isLastVehicleOf } from "./mock-dispatch-ftl-rules";
+import { parcelsOn } from "./mock-dispatch-ftl-view";
 import { MOCK_COORDINATOR, MOCK_DISPATCHER } from "./mock-dispatch-store";
 import { loadDetailView, shipmentDetailView } from "./mock-dispatch-view";
 import { fail, ok, validationFailed } from "./mock-route-utils";
@@ -52,8 +54,18 @@ export function handover(
     .filter((s): s is MockShipment => !!s);
   if (members.length === 0)
     return fail(409, "LOAD_EMPTY", `Load ${load.code} has no shipment on its manifest`);
+  // BE PR #162: kiện của đơn đã huỷ còn trên xe thì chưa ký được
+  if (load.ftl && load.ftl.pendingUnloads.length > 0) {
+    return fail(
+      409,
+      "LOAD_UNLOAD_PENDING",
+      `Load ${load.code} still carries ${load.ftl.pendingUnloads.length} parcel(s) of a cancelled order: unload them first`,
+    );
+  }
   const missing = members.flatMap((s) =>
-    s.parcels.filter((p) => !load.loaded.has(p.packageId)).map((p) => p.labelCode),
+    parcelsOn(load, s)
+      .filter((p) => !load.loaded.has(p.packageId))
+      .map((p) => p.labelCode),
   );
   if (missing.length > 0) {
     return fail(
@@ -71,6 +83,8 @@ export function handover(
   }
   const at = stamp();
   for (const shipment of members) {
+    // Chuyến nguyên xe: lô chở trên nhiều xe chỉ HANDED_OVER ở xe cuối cùng (BE LP-3)
+    if (!isLastVehicleOf(state, load, shipment)) continue;
     shipment.status = "HANDED_OVER";
     shipment.handedOverAt = at;
     shipment.codAmount = shipment.labelCodAmount;
@@ -89,7 +103,7 @@ export function handover(
   load.driverPhone = text(body.driverPhone) || load.driverPhone;
   load.signatureRef = text(body.signatureRef) || null;
   load.handoverNote = text(body.note) || null;
-  load.fixedCodTotal = members.reduce((sum, s) => sum + s.codAmount, 0);
+  load.fixedCodTotal = load.ftl ? 0 : members.reduce((sum, s) => sum + s.codAmount, 0);
   load.version += 1;
   return ok(loadDetailView(state, load));
 }

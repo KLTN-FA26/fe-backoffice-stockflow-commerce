@@ -27,7 +27,8 @@ import type { PoAction, PoActionCode, PoStatus } from "@/features/purchase-order
 const label = (status: PoStatus) => STATUS_LABEL_VI[status] ?? status;
 
 /** Cùng kiểu nút với trang chi tiết NCC (`supplier-detail/SidebarCards.tsx`). */
-const BUTTON_BASE = "w-full rounded-[var(--r-sm)] border px-3 py-2 text-[0.8125rem] font-medium";
+const BUTTON_BASE =
+  "h-(--action-h) w-full rounded-(--action-radius) border px-3 text-[0.8125rem] font-medium";
 // `dark:` lặp lại nền vì variant outline của shadcn có `dark:bg-input/30` đè nền ở dark mode.
 const STYLE_OF = {
   primary:
@@ -79,7 +80,7 @@ export function PoActionPanel({
   onAction: (act: PoAction) => void;
 }) {
   return (
-    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
+    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)">
       <div className="mb-4 flex justify-center">
         <StatusDot domain="po" status={status} size="md" withIcon />
       </div>

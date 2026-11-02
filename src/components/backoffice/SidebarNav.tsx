@@ -15,7 +15,13 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 
-import { ITEM_ACTIVE, ITEM_IDLE, SidebarNavCollapsed, WarnBadge } from "./SidebarNavCollapsed";
+import {
+  ITEM_ACTIVE,
+  ITEM_IDLE,
+  NAV_ROW as ROW,
+  SidebarNavCollapsed,
+  WarnBadge,
+} from "./SidebarNavCollapsed";
 
 import type { NavGroup, NavItem } from "./BackofficeShell";
 
@@ -28,8 +34,6 @@ interface SidebarNavProps {
   collapsed: boolean;
 }
 
-const ROW =
-  "h-9 gap-2.5 rounded-[var(--r-md)] px-3 text-sm transition-colors duration-150 [&>svg]:size-3.5";
 // Đổi màn cha ↔ con: trượt + mờ nhẹ 150ms (Mode A), tắt khi giảm chuyển động
 const PANEL_IN =
   "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-150 motion-safe:slide-in-from-right-2";
@@ -89,14 +93,18 @@ export function SidebarNav({
                 <span className="truncate">{current.title}</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
-            {current.items.map((item) => (
-              <NavLinkItem
-                key={item.href}
-                item={item}
-                active={item.href === activeHref}
-                warnCount={warningCounts[item.href] ?? 0}
-              />
-            ))}
+            {current.panel ? (
+              <current.panel />
+            ) : (
+              current.items.map((item) => (
+                <NavLinkItem
+                  key={item.href}
+                  item={item}
+                  active={item.href === activeHref}
+                  warnCount={warningCounts[item.href] ?? 0}
+                />
+              ))
+            )}
           </SidebarMenu>
         ) : (
           <SidebarMenu key="root" className={cn("gap-0.5", panel === undefined && PANEL_IN)}>
@@ -112,18 +120,34 @@ export function SidebarNav({
                   />
                 );
               }
+              const row = (
+                <>
+                  <group.icon className="size-3.5 shrink-0" />
+                  <span className="flex-1 truncate">{group.title}</span>
+                  <WarnBadge count={warnOf(group.items)} />
+                  <ChevronRight className="text-ink-tertiary size-3.5 shrink-0" />
+                </>
+              );
+              const rowClass = cn(ROW, group.title === activeGroup ? ITEM_ACTIVE : ITEM_IDLE);
               return (
                 <SidebarMenuItem key={group.title}>
-                  <SidebarMenuButton
-                    type="button"
-                    onClick={() => setPanel(group.title)}
-                    className={cn(ROW, group.title === activeGroup ? ITEM_ACTIVE : ITEM_IDLE)}
-                  >
-                    <group.icon className="size-3.5 shrink-0" />
-                    <span className="flex-1 truncate">{group.title}</span>
-                    <WarnBadge count={warnOf(group.items)} />
-                    <ChevronRight className="text-ink-tertiary size-3.5 shrink-0" />
-                  </SidebarMenuButton>
+                  {group.href ? (
+                    // Nhóm có trang vào thẳng (vd "Kho & bản đồ" → Danh mục kho): đi tới trang đó, màn
+                    // con của nhóm tự mở theo trang đang đứng
+                    <SidebarMenuButton asChild className={rowClass}>
+                      <Link href={group.href} onClick={() => setPanel(group.title)}>
+                        {row}
+                      </Link>
+                    </SidebarMenuButton>
+                  ) : (
+                    <SidebarMenuButton
+                      type="button"
+                      onClick={() => setPanel(group.title)}
+                      className={rowClass}
+                    >
+                      {row}
+                    </SidebarMenuButton>
+                  )}
                 </SidebarMenuItem>
               );
             })}

@@ -48,6 +48,35 @@ export function fitsCurrencyScale(amount: number, currency: string): boolean {
   return Math.abs(scaled - Math.round(scaled)) < 1e-6;
 }
 
+const DECIMAL_TEXT = /^-?\d+(\.\d+)?$/;
+
+/**
+ * Số tiền dạng CHUỖI thập phân chính xác (BE `BigDecimal`, vd giá mua tham khảo của SKU). `Intl`
+ * định dạng thẳng chuỗi số — không qua số thực — và giữ đúng mọi chữ số lẻ có trong chuỗi (tối đa
+ * `maxFractionDigits`), không làm tròn về số lẻ ISO của tiền tệ như `formatMoney`: BE cho giá tham
+ * khảo 2 chữ số lẻ với mọi tiền tệ, kể cả VND. Tiền tệ lạ → "<số> <MÃ>" như `formatMoney`.
+ */
+export function formatDecimalMoney(
+  amount: string,
+  currency: string,
+  maxFractionDigits = 2,
+): string {
+  if (!DECIMAL_TEXT.test(amount)) return `${amount} ${currency}`;
+  // Đã kiểm dạng số thập phân ở trên — đúng kiểu chuỗi số của `Intl.NumberFormat.format`
+  const value = amount as `${number}`;
+  try {
+    return new Intl.NumberFormat(currency === "USD" ? "en-US" : "vi-VN", {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: maxFractionDigits,
+    }).format(value);
+  } catch {
+    const plain = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: maxFractionDigits });
+    return `${plain.format(value)} ${currency}`;
+  }
+}
+
 /** Compact format for stats tiles: "1,2 tỷ ₫", "345 tr ₫". */
 export function formatCompact(amount: number, currency: string = "VND"): string {
   if (currency !== "VND") return formatMoney(amount, currency);

@@ -105,10 +105,12 @@ export const VARIANT_COLUMNS = {
 export const TRANSFER_COLUMNS = {
   ACTIONS: "actions",
   CREATED_AT: "createdAt",
+  DELIVERY_MODE: "deliveryMode",
   DISPATCHED_AT: "dispatchedAt",
   EXPECTED_DATE: "expectedDate",
   FROM_WAREHOUSE: "fromWarehouse",
   NUMBER: "number",
+  PACKED_AT: "packedAt",
   STATUS: "status",
   TO_WAREHOUSE: "toWarehouse",
 } as const;
@@ -126,6 +128,8 @@ export const INVENTORY_ITEM_COLUMNS = {
 /** Cột danh sách chuyến xe (BE `LoadRowResponse`). */
 export const LOAD_COLUMNS = {
   ACTIONS: "actions",
+  MODE: "mode",
+  PLAN: "plan",
   CARRIER: "carrier",
   COD: "cod",
   CODE: "code",
@@ -134,6 +138,16 @@ export const LOAD_COLUMNS = {
   SHIPMENTS: "shipments",
   STATUS: "status",
   VEHICLE: "vehicle",
+} as const;
+
+/** Cột danh mục kho (BE `WarehouseResponse`). */
+export const WAREHOUSE_COLUMNS = {
+  ACTIONS: "actions",
+  ADDRESS: "address",
+  MAP_SIZE: "mapSize",
+  NAME: "name",
+  PREFIX: "prefix",
+  STATUS: "status",
 } as const;
 
 /** Cột danh sách loại xe (BE `VehicleTypeResponse`). */
@@ -157,6 +171,8 @@ export const LOAD_PLAN_COLUMNS = {
   MODE: "mode",
   PACKAGES: "packages",
   SHIPMENTS: "shipments",
+  /** Nguồn của kế hoạch: đơn khách hay lệnh chuyển kho (SCRUM-287 PR F9). */
+  SOURCE: "source",
   STATUS: "status",
   UNPLACED: "unplaced",
   VEHICLES: "vehicles",

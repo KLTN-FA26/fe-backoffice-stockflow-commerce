@@ -11,6 +11,7 @@ import {
   sendPoInputSchema,
 } from "@/features/purchase-order";
 import { Alert } from "@/components/shared/Alert";
+import { DatePicker } from "@/components/shared/DatePicker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -74,13 +75,12 @@ function SendForm({
         <Label htmlFor="po-send-date" className="text-ink-secondary text-xs font-medium">
           Ngày giao dự kiến <span className="text-danger">*</span>
         </Label>
-        <Input
+        <DatePicker
           id="po-send-date"
-          type="date"
           value={expectedAt}
           autoFocus
           aria-invalid={expectedAt !== "" && !!errorOf("expectedAt")}
-          onChange={(e) => setExpectedAt(e.target.value)}
+          onChange={setExpectedAt}
         />
         {expectedAt !== "" && errorOf("expectedAt") && (
           <p className="text-danger text-xs">{errorOf("expectedAt")}</p>

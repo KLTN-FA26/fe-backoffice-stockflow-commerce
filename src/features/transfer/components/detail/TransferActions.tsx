@@ -6,7 +6,12 @@ import { cn } from "cn";
 
 import { ADMIN_ROUTES, TRANSFER_LIMITS, UI_LABELS } from "@/constants";
 import { useAuthStore, usePermissionChecker } from "@/lib/auth";
-import { TRANSFER_NO_ACTION_REASON, allowedTransferActions } from "@/features/transfer/lifecycle";
+import {
+  TRANSFER_NO_ACTION_REASON,
+  allowedTransferActions,
+  dispatchExplanation,
+  nextStepHint,
+} from "@/features/transfer/lifecycle";
 import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
 
@@ -17,7 +22,8 @@ import type { TransferActionCode } from "@/features/transfer/lifecycle";
 import type { TransferOrder } from "@/features/transfer/types";
 
 const L = UI_LABELS.transfer;
-const BUTTON_BASE = "w-full rounded-[var(--r-sm)] border px-3 py-2 text-[0.8125rem] font-medium";
+const BUTTON_BASE =
+  "h-(--action-h) w-full rounded-(--action-radius) border px-3 text-[0.8125rem] font-medium";
 const TONE_CLASS = {
   primary:
     "border-border-default bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse",
@@ -40,13 +46,23 @@ export function TransferActions({ transfer }: { transfer: TransferOrder }) {
   const actions = allowedTransferActions(transfer, can, currentUserId);
   const showAutoApproveHint = actions.some(({ action }) => action.code === "submit");
 
-  const open = (code: TransferActionCode) =>
-    code === "edit"
-      ? router.push(ADMIN_ROUTES.transfers.edit(transfer.transferId))
-      : setDialog(code);
+  const explanation = dispatchExplanation(transfer, can);
+  const nextHint = nextStepHint(transfer);
+
+  // Sửa nháp, đóng gói và lập kế hoạch xe là màn khác (không phải hộp thoại xác nhận)
+  const open = (code: TransferActionCode) => {
+    if (code === "edit") router.push(ADMIN_ROUTES.transfers.edit(transfer.transferId));
+    else if (code === "packTransfer" || code === "viewPacking")
+      router.push(ADMIN_ROUTES.packing.transfer(transfer.transferId));
+    else if (code === "planVehicle")
+      router.push(
+        ADMIN_ROUTES.loadPlans.createFromTransfer(transfer.transferId, transfer.fromWarehouseId),
+      );
+    else setDialog(code);
+  };
 
   return (
-    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
+    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)">
       <div className="mb-4 flex justify-center">
         <StatusDot domain="to" status={transfer.status} size="md" withIcon />
       </div>
@@ -69,11 +85,16 @@ export function TransferActions({ transfer }: { transfer: TransferOrder }) {
             )}
           </div>
         ))}
-        {actions.length === 0 && (
+        {actions.length === 0 && !explanation && (
           <p className="text-ink-tertiary text-center text-xs">
             {TRANSFER_NO_ACTION_REASON[transfer.status]}
           </p>
         )}
+        {explanation && <p className="text-ink-tertiary text-center text-xs">{explanation}</p>}
+        {nextHint &&
+          actions.some(
+            ({ action }) => action.code === "planVehicle" || action.code === "packTransfer",
+          ) && <p className="text-ink-tertiary text-center text-xs">{nextHint}</p>}
         {showAutoApproveHint && (
           <p className="text-ink-tertiary text-center text-xs">
             {L.autoApproveHint} (≤ {TRANSFER_LIMITS.approvalThresholdUnits} {L.unit}).

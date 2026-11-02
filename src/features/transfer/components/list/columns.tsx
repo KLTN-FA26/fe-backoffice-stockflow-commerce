@@ -2,7 +2,12 @@
 
 import Link from "next/link";
 
-import { ADMIN_ROUTES, TRANSFER_COLUMNS, UI_LABELS } from "@/constants";
+import {
+  ADMIN_ROUTES,
+  TRANSFER_COLUMNS,
+  TRANSFER_DELIVERY_MODE_LABELS,
+  UI_LABELS,
+} from "@/constants";
 import {
   CELL,
   dateCell,
@@ -48,7 +53,16 @@ export function buildTransferColumns(
     nameCell<TransferOrderRow>(C.TO_WAREHOUSE, header(C.TO_WAREHOUSE), (row) =>
       warehouseLabel(row.toWarehouseId),
     ),
+    // BE PR #164: nguyên chuyến (FTL) đi qua đóng gói + kế hoạch xe; giao lẻ xuất kho thủ công
+    nameCell<TransferOrderRow>(
+      C.DELIVERY_MODE,
+      header(C.DELIVERY_MODE),
+      (row) => TRANSFER_DELIVERY_MODE_LABELS[row.deliveryMode],
+    ),
     dateCell<TransferOrderRow>(C.EXPECTED_DATE, header(C.EXPECTED_DATE), (row) => row.expectedDate),
+    dateCell<TransferOrderRow>(C.PACKED_AT, header(C.PACKED_AT), (row) => row.packedAt, {
+      withTime: true,
+    }),
     dateCell<TransferOrderRow>(
       C.DISPATCHED_AT,
       header(C.DISPATCHED_AT),

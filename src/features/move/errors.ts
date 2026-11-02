@@ -46,6 +46,9 @@ function known(code: string): Omit<MoveErrorView, "traceId"> | null {
     // Docs 11 BR-01 — 409, the two codes name different warehouses.
     case "MOVE_ACROSS_WAREHOUSES":
       return view("conflict", M.crossWarehouse);
+    // requireNotUnderCount(): the source or destination slot is held by a cycle count — 409.
+    case "STOCK_SLOT_UNDER_COUNT":
+      return view("conflict", M.slotUnderCount);
     // relocate(): destination UNKNOWN — 404.
     case "LOCATION_NOT_FOUND":
       return view("not-found", M.locationNotFound);

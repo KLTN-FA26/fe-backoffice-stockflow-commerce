@@ -2,12 +2,13 @@
 
 import type { z } from "zod";
 
-import type { LoadPlanSelectionMode } from "@/constants";
+import type { LoadPlanSelectionMode, LoadPlanSourceType } from "@/constants";
 import type {
   beCandidateShipmentSchema,
   beParcelSchema,
   bePlanDetailSchema,
   bePlanRowSchema,
+  beTransferInPlanSchema,
   beVehicleSummarySchema,
   beVehicleTypeOptionSchema,
 } from "./plan-schemas";
@@ -17,14 +18,20 @@ export type PlanParcel = z.infer<typeof beParcelSchema>;
 export type CandidateShipment = z.infer<typeof beCandidateShipmentSchema>;
 export type PlanRow = z.infer<typeof bePlanRowSchema>;
 export type PlanDetail = z.infer<typeof bePlanDetailSchema>;
+export type TransferInPlan = z.infer<typeof beTransferInPlanSchema>;
 export type PlanVehicle = z.infer<typeof beVehicleSummarySchema>;
 export type VehicleTypeOption = z.infer<typeof beVehicleTypeOptionSchema>;
 export type Reconciliation = z.infer<typeof beReconciliationSchema>;
 export type EstimateComparison = NonNullable<Reconciliation["vsEstimate"]>;
 
-/** Đầu vào của kế hoạch: lô (nguyên lô), loại xe, chế độ — cùng dạng khi tạo và khi đổi. */
+/**
+ * Đầu vào của kế hoạch: lô (nguyên lô) HOẶC đúng một lệnh chuyển kho (nguồn TRANSFER, BE PR #164), loại xe, chế độ —
+ * cùng dạng khi tạo và khi đổi. Nguồn ORDER (mặc định) nhận `shipmentIds`; TRANSFER nhận `transferOrderIds`.
+ */
 export interface PlanInputs {
+  sourceType?: LoadPlanSourceType;
   shipmentIds: string[];
+  transferOrderIds?: string[];
   vehicleTypeIds: string[];
   selectionMode: LoadPlanSelectionMode;
 }

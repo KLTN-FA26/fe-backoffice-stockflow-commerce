@@ -92,6 +92,7 @@ function Content({ s, columns }: { s: LoadListState; columns: ColumnDef<LoadRow>
     <>
       <RefetchBar active={query.isFetching} label={L.refetching} />
       <DataTable
+        stickyHeader
         columns={columns}
         data={page.items}
         rowKey={(row) => row.loadId}

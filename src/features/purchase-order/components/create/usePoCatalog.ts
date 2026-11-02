@@ -5,7 +5,7 @@ import { useState } from "react";
 import { SUPPLIER_ITEM_PERMISSIONS } from "@/constants";
 import { usePermissionChecker } from "@/lib/auth";
 import { useSupplierCatalog } from "@/lib/references/supplier-items";
-import { termsOf } from "@/features/purchase-order";
+import { minimumOrderQuantity, termsOf } from "@/features/purchase-order";
 
 import { createEmptyLine } from "./helpers";
 
@@ -57,6 +57,30 @@ export function usePoCatalog(form: PoForm, lines: PoLines, supplierId: string) {
   };
 
   /**
+   * Thêm nhiều SKU một lượt (hộp "Thêm nhiều SKU"): mỗi SKU một dòng mới, SL = mức tối thiểu theo
+   * MOQ + quy cách, giá như `selectSku`. Dòng mới còn trống hẳn (chưa SKU, chưa mô tả) bị thay.
+   */
+  const addSkus = (items: readonly SupplierItemRef[]) => {
+    if (items.length === 0) return;
+    const currency = form.getValues("currency");
+    const blank = form
+      .getValues("lines")
+      .flatMap((l, i) => (l.lineId === "" && l.skuId === "" && l.description === "" ? [i] : []));
+    if (blank.length > 0) lines.remove(blank);
+    lines.append(
+      items.map((item) => ({
+        ...createEmptyLine(),
+        skuId: item.sku,
+        terms: termsOf(item),
+        orderedQty: String(minimumOrderQuantity(item)),
+        // BR-07 (docs 02 §6): giá danh mục khác tiền tệ PO thì không điền
+        unitPrice: item.currency === currency ? String(item.price) : "",
+      })),
+      { shouldFocus: false },
+    );
+  };
+
+  /**
    * Đổi tiền tệ PO — BR-07 (docs 02 §6): giá danh mục chỉ đúng đơn vị khi cùng tiền tệ PO.
    * Dòng mới còn giữ giá điền sẵn mà khác tiền tệ ⇒ xoá để bắt nhập; về lại tiền tệ danh mục ⇒ điền
    * lại cho dòng đang trống. Giá người dùng tự gõ và dòng đã lưu giữ nguyên. Trả về có đổi dòng nào.
@@ -87,6 +111,7 @@ export function usePoCatalog(form: PoForm, lines: PoLines, supplierId: string) {
     currency: query.data?.currency ?? null,
     truncated: query.data?.truncated ?? false,
     selectSku,
+    addSkus,
     pendingSupplierId,
     requestSupplierChange,
     confirmSupplierChange,

@@ -12,13 +12,14 @@ import { TaxonomyListBody } from "./TaxonomyListBody";
 import { TaxonomyToolbar } from "./TaxonomyToolbar";
 import { useTaxonomyListState } from "./useTaxonomyListState";
 
+import type { ReactNode } from "react";
 import type { Brand } from "../../taxonomy-schemas";
 
 const L = UI_LABELS.taxonomy;
 const ALL_COLUMNS = Object.values(TAXONOMY_BRAND_COLUMNS);
 
 /** Tab Thương hiệu — bấm dòng để sửa (hoặc xem khi thiếu quyền sửa). */
-export function BrandList() {
+export function BrandList({ actions }: { actions?: ReactNode }) {
   const s = useTaxonomyListState(STORAGE_KEYS.adminTaxonomyBrandsConfig, ALL_COLUMNS);
   const query = useBrandPage({ ...s.params, sort: "name,asc" }, { enabled: s.canRead });
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -37,6 +38,7 @@ export function BrandList() {
         s={s}
         searchPlaceholder={L.brandSearchPlaceholder}
         columnLabels={BRAND_COLUMN_LABELS}
+        actions={actions}
         lockedColumn={TAXONOMY_BRAND_COLUMNS.CODE}
       />
       <TaxonomyListBody

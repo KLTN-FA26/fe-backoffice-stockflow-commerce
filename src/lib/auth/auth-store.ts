@@ -32,6 +32,7 @@ const sameProfile = (a: AuthUser, b: AuthUser) =>
   a.fullName === b.fullName &&
   a.status === b.status &&
   a.lastLoginAt === b.lastLoginAt &&
+  a.mustChangePassword === b.mustChangePassword &&
   a.roles.length === b.roles.length &&
   a.roles.every((role, index) => role === b.roles[index]);
 

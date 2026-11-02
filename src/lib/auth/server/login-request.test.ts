@@ -20,6 +20,7 @@ const user = {
   status: "ACTIVE",
   roles: [],
   lastLoginAt: null,
+  mustChangePassword: false,
 };
 const fetchMock = vi.fn<typeof fetch>();
 const envelope = (data: unknown) => Response.json({ success: true, data });

@@ -24,6 +24,9 @@ export function ItemEvaluationCard({ item }: { item: InventoryItem }) {
   return (
     <ItemCardShell title={L.evaluationTitle} icon={Gauge}>
       <dl className="tabular-nums">
+        {/* Trang chi tiết không có tiêu đề — SKU và phiên bản bản ghi nằm ở đây */}
+        <DefinitionItem label={L.field.sku} value={item.sku} mono />
+        <DefinitionItem label={L.field.version} value={item.version} mono />
         <DefinitionItem label={L.field.usableOnHand} value={e.usableOnHand} mono />
         <DefinitionItem label={L.field.reorderPoint} value={show(e.reorderPoint)} />
         <DefinitionItem label={L.field.safetyStock} value={show(e.safetyStock)} />

@@ -6,7 +6,6 @@ import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { classifyLoadError } from "@/lib/api/load-error";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 
 import type { LoadErrorKind } from "@/lib/api/load-error";
@@ -41,8 +40,9 @@ export function ProductLoadError({ error, onRetry }: { error: unknown; onRetry: 
   const traceId = error instanceof ApiError ? error.traceId : undefined;
 
   return (
-    <>
-      <PageHeader title={product.pageTitle} />
+    // Cùng khung kiểu Vercel với trang chi tiết (ProductDetail) — không tiêu đề hiển thị, breadcrumb đã có.
+    <div className="surface-soft surface-compact">
+      <h1 className="sr-only">{product.pageTitle}</h1>
       <EmptyState
         title={copy.title}
         description={copy.description}
@@ -64,6 +64,6 @@ export function ProductLoadError({ error, onRetry }: { error: unknown; onRetry: 
           {common.traceId}: <span className="font-[family-name:var(--font-mono)]">{traceId}</span>
         </p>
       )}
-    </>
+    </div>
   );
 }

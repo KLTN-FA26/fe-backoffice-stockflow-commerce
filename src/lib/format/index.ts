@@ -2,6 +2,7 @@ export {
   currencyFractionDigits,
   fitsCurrencyScale,
   formatCompact,
+  formatDecimalMoney,
   formatMoney,
   formatVND,
 } from "./money";

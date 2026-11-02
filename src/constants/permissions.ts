@@ -32,7 +32,8 @@ export const SUPPLIER_ITEM_PERMISSIONS = {
 
 /**
  * Đơn hàng — resource `sales-orders` (BE `OrderResources.ORDERS`).
- * - `approve` (APPROVE, scope ALL): giữ đơn, gỡ giữ, ghi giao thất bại (`OrderReleaseController`);
+ * - `approve` / `release` (cùng APPROVE, scope ALL — `OrderReleaseController`): giữ đơn, gỡ giữ,
+ *   ghi giao thất bại, release đơn sang kho / sản xuất (`POST /orders/{id}/release`, SCRUM-423);
  *   seed BE chỉ cấp cho ORDER_COORDINATOR (SALES_STAFF chỉ có VIEW_PAGE/READ/CREATE/UPDATE).
  * - `cancel`: huỷ đơn phía admin (`POST /orders/{id}/admin-cancellation`) và đóng phần còn lại của
  *   đơn giao một phần (`POST /orders/{id}/remainder-closure`) — BE tách sang resource
@@ -47,11 +48,41 @@ export const ORDER_PERMISSIONS = {
   // ORDER_COORDINATOR và (BE PR #148, "ACCREAD") ACCOUNTANT
   read: "sales-orders:READ",
   create: "sales-orders:CREATE",
+  // Giữ / gỡ giữ / ghi giao thất bại — OrderReleaseController, APPROVE scope ALL (BE PR #133)
   approve: "sales-orders:APPROVE",
+  // Release đơn sang kho / sản xuất — OrderReleaseController, cùng APPROVE scope ALL (SCRUM-423)
+  release: "sales-orders:APPROVE",
+  // Huỷ đơn phía admin + đóng phần còn lại — resource riêng `sales-order-cancellations`
+  // (BE V20261013000200): SALES_STAFF + ORDER_COORDINATOR có UPDATE.
   cancel: "sales-order-cancellations:UPDATE",
   // Cho phép / dừng giao một phần của đơn (`PUT /orders/{id}/partial-shipment`, BE PR #150) — resource
   // `sales-order-partial-shipments` (UPDATE, scope ALL; seed: SALES_STAFF + SYSTEM_ADMIN)
   partialShipment: "sales-order-partial-shipments:UPDATE",
+  // Chọn / đổi hình thức giao của đơn (`POST /orders/{id}/release` với `deliveryMode` khác của đơn và
+  // `PUT /orders/{id}/delivery-mode`, BE PR #157, LP-1) — resource `sales-order-delivery-modes` (UPDATE,
+  // scope ALL; seed: ORDER_COORDINATOR + SYSTEM_ADMIN). Đọc hình thức giao đi kèm `sales-orders:READ`.
+  deliveryModes: "sales-order-delivery-modes:UPDATE",
+} as const;
+
+/**
+ * Đơn công nợ vượt hạn mức — resource `sales-order-credit-holds` (BE CreditHoldController,
+ * SCRUM-427, seed V20261013000400): ACCOUNTANT có VIEW_PAGE/READ/APPROVE; SALES_STAFF và
+ * ORDER_COORDINATOR chỉ VIEW_PAGE/READ (xem, không duyệt).
+ */
+export const CREDIT_HOLD_PERMISSIONS = {
+  viewPage: "sales-order-credit-holds:VIEW_PAGE",
+  read: "sales-order-credit-holds:READ",
+  // Duyệt (`/credit-approval`) và từ chối (`/credit-rejection`) đều là APPROVE
+  approve: "sales-order-credit-holds:APPROVE",
+} as const;
+
+/**
+ * Hồ sơ công nợ khách — resource `customer-credit-profiles` (BE seed V20261013000400): ACCOUNTANT
+ * VIEW_PAGE/READ/APPROVE, SALES_STAFF VIEW_PAGE/READ, ORDER_COORDINATOR READ. FE chỉ dùng READ —
+ * `GET /orders/credit-position/{customerId}` (CreditHoldController#position) đòi đúng quyền này.
+ */
+export const CUSTOMER_CREDIT_PROFILE_PERMISSIONS = {
+  read: "customer-credit-profiles:READ",
 } as const;
 
 /**
@@ -149,6 +180,17 @@ export const VEHICLE_TYPE_PERMISSIONS = {
 } as const;
 
 /**
+ * Ước tính xếp xe trước đóng gói (SCRUM-287 PR EST, BE PR #160 `LoadEstimateController`) — resource
+ * `fulfillment-load-estimates`. CREATE: tính ước tính (`POST /fulfillment/load-estimates`); READ: xem ước
+ * tính hiện hành (`GET`). Seed: ORDER_COORDINATOR, WAREHOUSE_MANAGER, SYSTEM_ADMIN. Không có VIEW_PAGE:
+ * ước tính mở từ chi tiết đơn, không có trang riêng.
+ */
+export const LOAD_ESTIMATE_PERMISSIONS = {
+  create: "fulfillment-load-estimates:CREATE",
+  read: "fulfillment-load-estimates:READ",
+} as const;
+
+/**
  * Kế hoạch xếp xe (SCRUM-287 PR D) — resource `fulfillment-load-plans`, BE `LoadPlanController`. READ: xem
  * danh sách, chi tiết, bố cục, đối chiếu (nhân viên kho, quản lý kho, điều phối đơn); CREATE: lập kế hoạch;
  * UPDATE: đổi đầu vào, tính, tính lại xe, xác nhận kiện chưa xếp, chốt, mở lại, huỷ (nhân viên kho, quản lý kho).
@@ -165,6 +207,10 @@ export const LOAD_PLAN_PERMISSIONS = {
  * `InventoryResources.STOCK_ITEMS` / `STOCK_ADJUSTMENTS` / `STOCK_MOVEMENTS`.
  */
 export const INVENTORY_PERMISSIONS = {
+  // Mở trang (menu + chặn route) — BE Action.VIEW_PAGE, ADR-0004. Tách khỏi READ (dữ liệu):
+  // không quyền nào bao hàm quyền kia, nên trang cần cả hai.
+  adjustmentViewPage: "inventory-stock-adjustments:VIEW_PAGE",
+  movementViewPage: "inventory-stock-movements:VIEW_PAGE",
   // GET /inventory/adjustments, /inventory/adjustments/{id}
   adjustmentRead: "inventory-stock-adjustments:READ",
   // POST …/approval và …/rejection — bốn mắt vẫn do lifecycle + BE kiểm
@@ -194,11 +240,34 @@ export const INVENTORY_ITEM_PERMISSIONS = {
 } as const;
 
 /**
+ * Bảng giá riêng của khách hàng — resource `catalog-customer-prices` (BE `CustomerPriceController`,
+ * `/api/v1/catalog/customer-prices`). Seed V20261017000510: ECOMMERCE_ADMIN đủ quyền; SALES_STAFF
+ * VIEW_PAGE / READ; ORDER_COORDINATOR chỉ READ. Xoá (DELETE) chưa dùng ở FE nên không khai báo.
+ */
+export const CUSTOMER_PRICE_PERMISSIONS = {
+  viewPage: "catalog-customer-prices:VIEW_PAGE",
+  // GET /catalog/customer-prices?customerId=, GET …/{customerId}/{sku}
+  read: "catalog-customer-prices:READ",
+  // POST …/{customerId}/{sku}
+  create: "catalog-customer-prices:CREATE",
+  // PUT …/{customerId}/{sku} (thay toàn bộ, cần version)
+  update: "catalog-customer-prices:UPDATE",
+} as const;
+
+/**
  * Sơ đồ kho — resource `warehouse-locations` (BE `LayoutController`): `GET /warehouses/{id}/layout`
  * và `GET /locations/{code}`. WAREHOUSE_STAFF có VIEW_PAGE/READ (seed V20260928006000).
  */
 export const WAREHOUSE_LOCATION_PERMISSIONS = {
+  // Trang bản đồ kho `/admin/warehouse-map` (`WarehouseLocationResourceDeclaration.route`)
+  viewPage: "warehouse-locations:VIEW_PAGE",
   read: "warehouse-locations:READ",
+  // Thêm zone / kệ / tầng / bin / khu vực / tường-cửa — chỉ Quản lý kho, System Admin (docs 06 §2)
+  create: "warehouse-locations:CREATE",
+  // Sửa và đổi trạng thái kệ / bin / khu vực, mở-đóng cửa
+  update: "warehouse-locations:UPDATE",
+  // Chỉ tường / cửa xoá hẳn được; kệ, bin, khu vực, zone không xoá (BR-04)
+  delete: "warehouse-locations:DELETE",
 } as const;
 
 /**
@@ -210,9 +279,12 @@ export const INVENTORY_OVERVIEW_PERMISSIONS = {
   stockRead: "inventory-stock-items:READ",
   reservationViewPage: "inventory-reservations:VIEW_PAGE",
   reservationRead: "inventory-reservations:READ",
-  // GET /inventory/alerts (StockAlertController, READ) — cảnh báo nhúng trong màn tổng quan, không
-  // có menu riêng nên không cần VIEW_PAGE. Seed V20261014000900.
+  // GET /inventory/alerts (StockAlertController, READ) — cảnh báo nhúng trong màn tổng quan và màn
+  // Cảnh báo tồn kho. Seed V20261014000900.
   alertRead: "inventory-alerts:READ",
+  // Màn Cảnh báo tồn kho (`/admin/inventory/alerts`, đích deep link thông báo SCRUM-147): BE khai báo
+  // VIEW_PAGE cho resource inventory-alerts; seed V20261014000900 cấp cùng READ.
+  alertViewPage: "inventory-alerts:VIEW_PAGE",
 } as const;
 
 /**
@@ -377,6 +449,13 @@ export const PRODUCTION_QC_PERMISSIONS = {
 } as const;
 
 /**
+ * Mã vai trò tài khoản cửa hàng (storefront) — BE `Role.CUSTOMER`. CHỈ dùng ở cổng back-office
+ * (`lib/auth/back-office.ts`, gương BE `ScopeGuards` / `CurrentUser#isPortalCustomer`) để tách phạm vi dữ liệu
+ * khách hàng khỏi back-office. Không phải mã quyền: quyền thao tác luôn theo mã quyền ở file này.
+ */
+export const PORTAL_CUSTOMER_ROLE = "CUSTOMER";
+
+/**
  * Lệnh chuyển kho — resource `inventory-transfer-orders` (BE TransferOrderController, SCRUM-326/327).
  * Tạo / sửa nháp / gửi duyệt / huỷ = CREATE; lấy hàng / xuất kho ở kho nguồn = UPDATE; duyệt / từ chối
  * = APPROVE (seed BE: chỉ WAREHOUSE_MANAGER).
@@ -436,15 +515,33 @@ export const FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS = {
  * V20261017000800 thêm SALES_STAFF; QC_STAFF không có.
  */
 export const WAREHOUSE_PERMISSIONS = {
+  // Trang danh mục kho `/admin/warehouses` (`WarehouseController` @PermissionResource route)
+  viewPage: "warehouse-warehouses:VIEW_PAGE",
   read: "warehouse-warehouses:READ",
   locationsRead: "warehouse-locations:READ",
+  // Khai báo kho mới — `POST /warehouses` (Quản lý kho / System Admin, docs 06 §2)
+  create: "warehouse-warehouses:CREATE",
+  update: "warehouse-warehouses:UPDATE",
 } as const;
 
 /** BE develop IdentityResources / IdentityController: read-only RBAC screen APIs. */
 export const IDENTITY_PERMISSIONS = {
   rolesRead: "identity-roles:READ",
+  /** Tạo vai trò tuỳ chỉnh — `POST /identity/roles` (BE PR #72, SCRUM-455). */
+  rolesCreate: "identity-roles:CREATE",
+  /** Đổi tên / mô tả / phạm vi dữ liệu của vai trò tuỳ chỉnh — `PATCH /identity/roles/{code}`. */
+  rolesUpdate: "identity-roles:UPDATE",
+  /** Xoá vai trò tuỳ chỉnh không còn ai giữ — `DELETE /identity/roles/{code}` (chỉ SYSTEM_ADMIN trong seed). */
+  rolesDelete: "identity-roles:DELETE",
   rbacRead: "identity-rbac:READ",
   rbacApprove: "identity-rbac:APPROVE",
+  /**
+   * Tài khoản nhân viên — BE `UserManagementController` (PR #72, SCRUM-454): danh sách / chi tiết = READ,
+   * tạo = CREATE; sửa hồ sơ, gán vai trò / kho, khoá, vô hiệu hoá, đặt lại mật khẩu đều là UPDATE.
+   */
+  usersRead: "identity-users:READ",
+  usersCreate: "identity-users:CREATE",
+  usersUpdate: "identity-users:UPDATE",
 } as const;
 
 export const PERMISSION_QUERY = {
@@ -458,4 +555,19 @@ export const PERMISSION_UI = {
   retry: "Thử lại",
   productCreateDenied: "Bạn không có quyền tạo sản phẩm.",
   demoContext: "Chỉ đổi nhãn vai trò demo; quyền vẫn lấy từ phiên đăng nhập.",
+  backOfficeDeniedTitle: "Tài khoản không dùng được trang quản trị",
+  backOfficeDeniedDescription:
+    "Trang quản trị chỉ dành cho nhân viên. Tài khoản khách hàng không vào được khu vực này.",
+  logout: "Đăng xuất",
+} as const;
+
+/**
+ * Báo cáo bán hàng (SCRUM-345) — resource `reporting-reports` (BE `ReportController`,
+ * `/api/v1/reports`). READ: doanh số theo ngày, top SKU, đơn theo trạng thái, tổng hợp; EXPORT:
+ * tính lại số liệu (`POST /reports/rebuild`, chỉ quản trị). Truy cập theo READ (quyết định DASH-KPI).
+ */
+export const REPORTING_PERMISSIONS = {
+  viewPage: "reporting-reports:VIEW_PAGE",
+  read: "reporting-reports:READ",
+  export: "reporting-reports:EXPORT",
 } as const;

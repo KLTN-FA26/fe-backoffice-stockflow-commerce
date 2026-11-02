@@ -8,7 +8,8 @@ import { Skeleton } from "@/components/shared/Skeleton";
 
 const ROWS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
 // Mã đơn · Người nhận · Ngày đặt · Tổng tiền · Trạng thái · Thao tác (order-list/columns.tsx)
-const TABLE_COLS = "grid-cols-[1.1fr_1.6fr_1fr_1fr_1fr_0.4fr]";
+const TABLE_COLS =
+  "grid-cols-[minmax(0,1.1fr)_minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.4fr)]";
 const CARD = "border-border-default bg-bg-surface rounded-[var(--card-radius)] border";
 
 function LoadingRegion({ children }: { children: React.ReactNode }) {
@@ -82,7 +83,7 @@ export function OrderDetailSkeleton() {
     <LoadingRegion>
       <div className="space-y-4">
         <HeaderSkeleton withAction />
-        <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
           <div className={`${CARD} space-y-3 p-[var(--card-pad)]`}>
             <Skeleton className="h-5 w-32" />
             {[0, 1].map((line) => (

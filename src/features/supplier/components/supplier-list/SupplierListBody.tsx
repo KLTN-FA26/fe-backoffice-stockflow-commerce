@@ -105,6 +105,7 @@ export function SupplierListBody({
       {/* Đổi trang/lọc: giữ dữ liệu cũ (keepPreviousData) + thanh mảnh báo đang tải lại (§8) */}
       <RefetchBar active={query.isFetching} label="Đang tải lại danh sách nhà cung cấp" />
       <DataTable
+        stickyHeader
         columns={columns}
         data={page.items}
         rowKey={(row) => row.supplierId}

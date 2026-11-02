@@ -58,6 +58,19 @@ export const validationFailed = (field: string, message: string): MockResponseSh
 export const optimisticLock = (): MockResponseShape =>
   fail(409, "OPTIMISTIC_LOCK", "The record changed meanwhile, please retry");
 
+/** Dạng id `UUID` mà Spring chuyển được (8-4-4-4-12 hex, như `beUuid`). */
+export const isUuidText = (value: string): boolean =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+
+/**
+ * BE `GlobalExceptionHandler.handleTypeMismatch`: tham số đường dẫn / query không chuyển được kiểu
+ * (`?page=abc`, id không phải UUID) → 400 UNSUPPORTED_PARAMETER, một fieldError theo tên tham số.
+ */
+export const typeMismatch = (name: string, type: string): MockResponseShape =>
+  fail(400, "UNSUPPORTED_PARAMETER", "Unsupported parameter", [
+    { field: name, message: `must be ${type}` },
+  ]);
+
 const decode = (value: string): string => {
   try {
     return decodeURIComponent(value);

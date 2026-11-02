@@ -32,6 +32,10 @@ export const TAXONOMY_UI_LABELS = {
   brandSearchPlaceholder: "Tìm theo mã hoặc tên thương hiệu",
   categorySearchPlaceholder: "Tìm theo mã hoặc tên danh mục",
   rootCategory: "— Danh mục gốc —",
+  /** Ô chọn danh mục dạng cây (TreeSelect). */
+  categoryPickerPlaceholder: "Chọn danh mục",
+  categoryPickerSearch: "Tìm danh mục…",
+  categoryPickerEmpty: "Không có danh mục khớp",
   parentLoading: "Đang tải danh sách danh mục…",
   parentLoadFailed: "Không tải được danh sách danh mục — hiện chỉ chọn được danh mục gốc.",
   listTruncated: `Danh sách quá dài — chỉ hiện ${PAGE_SIZE.masterData * TAXONOMY_LIMITS.maxLookupPages} bản ghi đầu, hãy tìm hoặc lọc để thu hẹp.`,

@@ -7,20 +7,31 @@ import { Button } from "@/components/ui/button";
 
 import { MONO } from "../primitives";
 
-import type { PackContent } from "@/features/fulfillment/packing-types";
+/** Hàng trong kiện: dòng đơn (`orderLineId`) hoặc dòng lệnh chuyển kho (`transferLineId`); serial chỉ có ở kiện của đơn. */
+export interface ContentRow {
+  sku: string;
+  lotNumber?: string | null;
+  serialNumber?: string | null;
+  quantity: number;
+  orderLineId?: string;
+  transferLineId?: string;
+}
 
 const P = UI_LABELS.packing;
 const TH = "text-ink-secondary px-2 py-1.5 text-xs font-medium";
 const TD = "px-2 py-1.5 text-[0.8125rem]";
 
 /** Nội dung một kiện: SKU, lô, serial, số lượng; kiện đang mở có nút bớt hàng. */
-export function PackageContents({
+export function PackageContents<T extends ContentRow>({
   contents,
   onRemove,
+  showSerial = true,
 }: {
-  contents: readonly PackContent[];
+  contents: readonly T[];
+  /** Chuyển kho không theo dõi serial → ẩn cột. */
+  showSerial?: boolean;
   /** Có = kiện đang mở và người dùng được thao tác. */
-  onRemove?: (content: PackContent) => void;
+  onRemove?: (content: T) => void;
 }) {
   if (contents.length === 0) {
     return <p className="text-ink-tertiary text-[0.8125rem]">{P.packages.noContents}</p>;
@@ -36,9 +47,11 @@ export function PackageContents({
             <th scope="col" className={`${TH} text-left`}>
               {P.packages.colLot}
             </th>
-            <th scope="col" className={`${TH} text-left`}>
-              {P.packages.colSerial}
-            </th>
+            {showSerial && (
+              <th scope="col" className={`${TH} text-left`}>
+                {P.packages.colSerial}
+              </th>
+            )}
             <th scope="col" className={`${TH} text-right`}>
               {P.packages.colQty}
             </th>
@@ -48,12 +61,16 @@ export function PackageContents({
         <tbody>
           {contents.map((content) => (
             <tr
-              key={`${content.orderLineId}|${content.lotNumber ?? ""}|${content.serialNumber ?? ""}`}
+              key={`${content.orderLineId ?? content.transferLineId ?? ""}|${content.lotNumber ?? ""}|${content.serialNumber ?? ""}`}
               className="border-border-default border-b last:border-b-0"
             >
               <td className={`${TD} text-ink-primary ${MONO}`}>{content.sku}</td>
               <td className={`${TD} text-ink-secondary ${MONO}`}>{content.lotNumber ?? "—"}</td>
-              <td className={`${TD} text-ink-secondary ${MONO}`}>{content.serialNumber ?? "—"}</td>
+              {showSerial && (
+                <td className={`${TD} text-ink-secondary ${MONO}`}>
+                  {content.serialNumber ?? "—"}
+                </td>
+              )}
               <td className={`${TD} text-right ${MONO}`}>{content.quantity}</td>
               {onRemove && (
                 <td className={`${TD} text-right`}>

@@ -15,10 +15,17 @@ import type { PermissionCode } from "@/lib/auth";
 
 const { loadError } = UI_LABELS;
 
-/** Exactly one of: a single required code, or `anyOf` — any one listed code opens the screen. */
+type PermissionCodes = readonly [PermissionCode, ...PermissionCode[]];
+
+/**
+ * Exactly one of: a single required code, `anyOf` — any one listed code opens the screen, or
+ * `allOf` — every listed code is required (e.g. VIEW_PAGE to open the page AND READ for its data;
+ * BE ADR-0004 keeps them separate, so neither implies the other).
+ */
 type GateRequirement =
-  | { permission: PermissionCode; anyOf?: never }
-  | { anyOf: readonly [PermissionCode, ...PermissionCode[]]; permission?: never };
+  | { permission: PermissionCode; anyOf?: never; allOf?: never }
+  | { anyOf: PermissionCodes; permission?: never; allOf?: never }
+  | { allOf: PermissionCodes; permission?: never; anyOf?: never };
 
 /**
  * Chặn màn tồn kho theo mã quyền BE (theo mẫu `PoPermissionGate`): đang tải → skeleton,
@@ -28,6 +35,7 @@ type GateRequirement =
 export function InventoryPermissionGate({
   permission,
   anyOf,
+  allOf,
   variant = "detail",
   children,
 }: GateRequirement & {
@@ -59,7 +67,9 @@ export function InventoryPermissionGate({
   }
   const allowed = permission
     ? hasPermission(data, permission)
-    : anyOf.some((code) => hasPermission(data, code));
+    : anyOf
+      ? anyOf.some((code) => hasPermission(data, code))
+      : allOf.every((code) => hasPermission(data, code));
   if (!allowed) return <InventoryDenied />;
   return <>{children}</>;
 }

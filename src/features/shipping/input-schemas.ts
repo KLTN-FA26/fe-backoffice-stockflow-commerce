@@ -78,6 +78,26 @@ export const cancelLoadInputSchema = z.object({
 });
 
 /**
+ * Đặt xe của một xe trong kế hoạch xếp xe (BE `BookingRequest`, PR #162): hãng bắt buộc; biển số và tài
+ * xế có thể bổ sung sau (chậm nhất lúc ký bàn giao). Đặt lại khi còn VEHICLE_BOOKED = thay thông tin.
+ */
+export const bookingInputSchema = z.object({
+  carrierId: z.string().min(1, MSG.carrierRequired),
+  vehiclePlate: optionalText(L.vehiclePlateMax),
+  driverName: optionalText(L.driverNameMax),
+  driverPhone: optionalText(L.driverPhoneMax),
+});
+
+/** Đặt xe không thành trước khi xếp hàng (BE `CancelLoadRequest`): bắt buộc nêu lý do. */
+export const cancelBookingInputSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(1, MSG.cancelBookingReasonRequired)
+    .max(L.cancelReasonMax, MSG.tooLong),
+});
+
+/**
  * Kết quả hãng báo lại (docs 09 §4.3, BR-02; BE `DeliveryOutcomeRequest`): giao thất bại phải có lý do,
  * lý do "Khác" phải có ghi chú.
  */

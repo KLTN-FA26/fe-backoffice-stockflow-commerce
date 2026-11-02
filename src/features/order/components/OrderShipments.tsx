@@ -13,16 +13,15 @@ import { formatDateTime } from "@/lib/format/date";
 import { formatMoney } from "@/lib/format";
 import { StatusDot } from "@/components/shared/StatusDot";
 
-import type { Order } from "../types";
+import type { Order, OrderShipment } from "../types";
 
 interface OrderShipmentsProps {
   order: Pick<Order, "shipments" | "lines" | "currency">;
 }
 
-function failureLabel(reason: string): string {
-  return reason in ORDER_DELIVERY_FAILURE_LABELS
-    ? ORDER_DELIVERY_FAILURE_LABELS[reason as keyof typeof ORDER_DELIVERY_FAILURE_LABELS]
-    : reason;
+/** Lý do BE lạ (`UNKNOWN`) → câu trung tính, không đoán thành một lý do cụ thể. */
+function failureLabel(reason: NonNullable<OrderShipment["failureReason"]>): string {
+  return reason === "UNKNOWN" ? "Không rõ lý do" : ORDER_DELIVERY_FAILURE_LABELS[reason];
 }
 
 /**
@@ -69,7 +68,7 @@ export function OrderShipments({ order }: OrderShipmentsProps) {
                 status={ORDER_SHIPMENT_STATUS_DISPLAY[shipment.status]}
               />
             </div>
-            <dl className="text-ink-secondary mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+            <dl className="text-ink-secondary mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">
               {shipment.handedOverAt && (
                 <>
                   <dt>Bàn giao</dt>
@@ -97,6 +96,15 @@ export function OrderShipments({ order }: OrderShipmentsProps) {
                   <dt>Giá trị hàng</dt>
                   <dd className="text-ink-primary font-mono tabular-nums">
                     {formatMoney(shipment.amount, order.currency)}
+                  </dd>
+                </>
+              )}
+              {/* BE `codAmount`: tiền hãng thu khi giao lô này (đơn cọc ON_DELIVERY), 0 với đơn khác */}
+              {shipment.codAmount !== null && shipment.codAmount > 0 && (
+                <>
+                  <dt>Hãng thu khi giao</dt>
+                  <dd className="text-ink-primary font-mono tabular-nums">
+                    {formatMoney(shipment.codAmount, order.currency)}
                   </dd>
                 </>
               )}

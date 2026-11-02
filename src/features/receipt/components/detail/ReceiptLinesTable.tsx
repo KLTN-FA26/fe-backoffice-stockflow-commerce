@@ -4,6 +4,7 @@ import { UI_LABELS } from "@/constants";
 import { usePermissionChecker } from "@/lib/auth";
 import { formatDate } from "@/lib/format/date";
 import { allowedLineActions } from "@/features/receipt/lifecycle";
+import { isLineOverTolerance } from "@/features/receipt/selectors";
 import { Button } from "@/components/ui/button";
 
 import { NUM } from "../primitives";
@@ -15,6 +16,7 @@ import type { ReceiptLineActionCode } from "@/features/receipt/lifecycle";
 import type { GoodsReceipt, ReceiptLineDto } from "@/features/receipt/types";
 
 const FLOW = UI_LABELS.receipt.flow;
+const OVER = UI_LABELS.receipt.overTolerance;
 
 /**
  * Dòng nhận theo dữ liệu BE (`GoodsReceiptResponse.lines`).
@@ -83,7 +85,15 @@ export function ReceiptLinesTable({
                   {line.purchaseOrderLineNo ?? "—"}
                 </td>
                 <td className="px-3 py-2 font-[family-name:var(--font-mono)]">{line.sku ?? "—"}</td>
-                <td className={`text-ink-primary px-3 py-2 font-medium ${NUM}`}>{line.quantity}</td>
+                <td className={`text-ink-primary px-3 py-2 font-medium ${NUM}`}>
+                  {line.quantity}
+                  {/* BR-RCP-001: BE đánh dấu dòng chưa ghi nhận mà vượt SL đặt cộng dung sai */}
+                  {isLineOverTolerance(line) && (
+                    <div className="text-warning mt-0.5 text-right font-sans text-xs font-normal">
+                      {OVER.lineWarning}
+                    </div>
+                  )}
+                </td>
                 <td className="px-3 py-2">
                   <div className="font-[family-name:var(--font-mono)]">{line.lotNumber ?? "—"}</div>
                   <div className="text-ink-tertiary text-xs tabular-nums">

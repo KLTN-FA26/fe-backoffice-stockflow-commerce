@@ -27,12 +27,7 @@ import {
   reverifyDesignIntegrity,
   startPicking,
 } from "./api";
-import {
-  getFulfillmentOrder,
-  listAssignees,
-  listTaskCandidates,
-  listOrderNumbers,
-} from "./reference-api";
+import { getFulfillmentOrder, listAssignees, listTaskCandidates } from "./reference-api";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -54,6 +49,30 @@ describe("fulfillment task API — hợp đồng BE FulfillmentController", () =
       ["Pending", "Pending"],
       ["Picked", "On Hold"],
     ]);
+  });
+
+  it("list gửi status/warehouseId/assignedUserId khi có, bỏ khi trống (SCRUM-466)", async () => {
+    const get = vi.spyOn(api, "get").mockResolvedValue({ data: bePage([apiTask()]) });
+    await listFulfillmentTasks({
+      page: 0,
+      size: 15,
+      status: "PICKING",
+      warehouseId: WAREHOUSE_ID,
+      assignedUserId: PICKER_ID,
+    });
+    expect(get.mock.calls[0]?.[1]).toMatchObject({
+      params: {
+        page: 0,
+        size: 15,
+        status: "PICKING",
+        warehouseId: WAREHOUSE_ID,
+        assignedUserId: PICKER_ID,
+      },
+    });
+    await listFulfillmentTasks({ page: 0, size: 15, status: undefined, warehouseId: "" });
+    expect(get.mock.calls[1]?.[1]).toEqual(
+      expect.objectContaining({ params: { page: 0, size: 15 } }),
+    );
   });
 
   it("list: trang âm bị kẹp về 0 (BE trả 400 nếu page < 0)", async () => {
@@ -181,11 +200,6 @@ describe("dữ liệu phụ trợ — đơn hàng và nhân viên", () => {
     const { lineCount: _omit, ...broken } = taskCandidate;
     vi.spyOn(api, "get").mockResolvedValueOnce({ data: bePage([broken]) });
     await expect(listTaskCandidates()).rejects.toThrow();
-  });
-
-  it("listOrderNumbers trả bản đồ id → số đơn", async () => {
-    vi.spyOn(api, "get").mockResolvedValueOnce({ data: bePage([fulfillmentOrder]) });
-    expect(await listOrderNumbers()).toEqual({ [ORDER_ID]: "SO-20261010-000431" });
   });
 
   it("người nhận task: GET /fulfillment/assignees?warehouseId=, xếp theo tên, không gọi /identity/users", async () => {

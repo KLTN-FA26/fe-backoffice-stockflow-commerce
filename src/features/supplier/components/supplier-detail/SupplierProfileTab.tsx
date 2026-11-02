@@ -70,9 +70,9 @@ export function SupplierProfileTab({
 
   return (
     <>
-      <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-5">
-          <div className="grid gap-5 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             <GeneralInfoCard supplier={supplier} />
             <ContactChannelCard supplier={supplier} />
           </div>

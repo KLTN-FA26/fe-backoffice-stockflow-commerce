@@ -10,7 +10,13 @@ import { render } from "@testing-library/react";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { vi } from "vitest";
 
-import { GOODS_RECEIPT_PERMISSIONS, PO_PERMISSIONS, QC_TASK_PERMISSIONS } from "@/constants";
+import {
+  GOODS_RECEIPT_PERMISSIONS,
+  PO_PERMISSIONS,
+  QC_TASK_PERMISSIONS,
+  SUPPLIER_PERMISSIONS,
+  WAREHOUSE_PERMISSIONS,
+} from "@/constants";
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
@@ -23,9 +29,14 @@ export const RECEIPT_ROLE_PERMISSIONS = {
   viewOnly: [GR.viewPage],
   // Seed BE: WAREHOUSE_STAFF — goods-receipts nhưng KHÔNG có purchase-orders:READ
   warehouseStaff: GR_WORK,
-  // Seed BE: WAREHOUSE_MANAGER — goods-receipts + PO VIEW_PAGE/READ/APPROVE
+  // Seed BE: WAREHOUSE_MANAGER — goods-receipts (cả APPROVE từ V20261029002000, duyệt nhận vượt dung sai
+  // BR-RCP-001) + PO VIEW_PAGE/READ/APPROVE
   warehouseManager: [
     ...GR_WORK,
+    GR.approve,
+    // Seed BE (V20261017000800 + V20260928006000): WAREHOUSE_MANAGER xem được NCC và kho — đủ để tạo phiếu không có PO
+    SUPPLIER_PERMISSIONS.read,
+    WAREHOUSE_PERMISSIONS.read,
     PO_PERMISSIONS.viewPage,
     PO_PERMISSIONS.read,
     PO_PERMISSIONS.approve,
@@ -82,6 +93,7 @@ export function renderReceiptScreen(ui: React.ReactElement, searchParams = "") {
       username: "test",
       status: "ACTIVE",
       lastLoginAt: null,
+      mustChangePassword: false,
     },
     isAuthenticated: true,
     status: "authenticated",

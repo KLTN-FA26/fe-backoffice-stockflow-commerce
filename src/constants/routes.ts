@@ -48,10 +48,19 @@ export const ADMIN_ROUTES = {
   },
   workshop: `${ADMIN_BASE}/workshop`,
   permissions: `${ADMIN_BASE}/permissions`,
+  /** Quản lý tài khoản nhân viên — BE `UserManagementController` (PR #72, SCRUM-458). */
+  users: {
+    list: `${ADMIN_BASE}/users`,
+    detail: (id: string) => `${ADMIN_BASE}/users/${encodeURIComponent(id)}`,
+  },
   /** Hồ sơ hàng tồn — BE PR #119 `InventoryItemController` (`/api/v1/inventory/items`). */
   inventoryItems: {
     list: `${ADMIN_BASE}/inventory-items`,
     detail: (id: string) => `${ADMIN_BASE}/inventory-items/${id}`,
+  },
+  /** Bảng giá riêng của khách hàng — BE `CustomerPriceController` (`?customerId=` giữ khách đang chọn). */
+  customerPrices: {
+    list: `${ADMIN_BASE}/customer-prices`,
   },
   products: {
     create: `${ADMIN_BASE}/products/create`,
@@ -71,22 +80,34 @@ export const ADMIN_ROUTES = {
     list: `${ADMIN_BASE}/invoices`,
   },
   orders: {
+    // Đơn công nợ vượt hạn mức chờ duyệt (SCRUM-427) — segment tĩnh, ưu tiên hơn [id]
+    creditHolds: `${ADMIN_BASE}/orders/credit-holds`,
     detail: (id: string) => `${ADMIN_BASE}/orders/${id}`,
     list: `${ADMIN_BASE}/orders`,
   },
   packing: {
     detail: (id: string) => `${ADMIN_BASE}/packing/${id}`,
     list: `${ADMIN_BASE}/packing`,
+    /** Trạm đóng gói của một lệnh chuyển kho nguyên chuyến (SCRUM-287 PR F9, BE `TransferPackController`). */
+    transfer: (transferId: string) => `${ADMIN_BASE}/packing/transfers/${transferId}`,
   },
   picking: {
     detail: (id: string) => `${ADMIN_BASE}/picking/${id}`,
     list: `${ADMIN_BASE}/picking`,
+  },
+  /** Hàng đợi trả hàng về kệ (BE `GET /fulfillment/put-backs`, SCRUM-275) — lọc kho trên URL. */
+  putBacks: {
+    list: `${ADMIN_BASE}/put-backs`,
+    listInWarehouse: (warehouseId: string) =>
+      `${ADMIN_BASE}/put-backs?warehouse=${encodeURIComponent(warehouseId)}`,
   },
   receipts: {
     create: `${ADMIN_BASE}/receipts/create`,
     // Tạo phiếu từ một PO đã chọn sẵn (vd nút "Nhận hàng" ở màn PO)
     createFromPo: (poId: string) =>
       `${ADMIN_BASE}/receipts/create?poId=${encodeURIComponent(poId)}`,
+    // Hàng về không có PO (BR-RCP-002, SCRUM-478): cùng trang tạo phiếu, chế độ "không có đơn đặt hàng"
+    createWithoutPo: `${ADMIN_BASE}/receipts/create?mode=without-po`,
     detail: (id: string) => `${ADMIN_BASE}/receipts/${id}`,
     list: `${ADMIN_BASE}/receipts`,
   },
@@ -116,13 +137,34 @@ export const ADMIN_ROUTES = {
     detail: (id: string) => `${ADMIN_BASE}/loads/${id}`,
     manifest: (id: string) => `${ADMIN_BASE}/loads/${id}/manifest`,
   },
+  /** Danh mục kho — BE `WarehouseController` (resource `warehouse-warehouses`, docs 06 §4.1 bước 1). */
+  warehouses: {
+    // Khai báo kho mới là modal trên trang này (không có route riêng)
+    list: `${ADMIN_BASE}/warehouses`,
+  },
+  /**
+   * Tab "Kho & bản đồ" (module 06) — `root` là bước chọn kho; trang làm việc theo một kho nằm dưới prefix
+   * kho (duy nhất, không đổi — BR-10 / BR-13). Tiền tố `/admin/warehouse-map` = route BE khai báo cho
+   * resource `warehouse-locations` (`LayoutController`).
+   */
+  warehouseMap: {
+    root: `${ADMIN_BASE}/warehouse-map`,
+    of: (prefix: string) => `${ADMIN_BASE}/warehouse-map/${encodeURIComponent(prefix)}`,
+    slotting: (prefix: string) =>
+      `${ADMIN_BASE}/warehouse-map/${encodeURIComponent(prefix)}/slotting`,
+  },
   /** Danh mục loại xe (container, xe tải, bán tải) — BE `VehicleTypeController`, PR #153. */
   vehicleTypes: `${ADMIN_BASE}/vehicle-types`,
   /** Kế hoạch xếp xe (SCRUM-287 PR F4): danh sách, lập mới, chi tiết — BE `LoadPlanController`, PR #161. */
   loadPlans: {
     list: `${ADMIN_BASE}/load-plans`,
     create: `${ADMIN_BASE}/load-plans/create`,
+    /** "Lập kế hoạch xe" từ lệnh chuyển kho đã đóng gói (SCRUM-287 PR F9): nguồn TRANSFER, kho nguồn và lệnh chọn sẵn. */
+    createFromTransfer: (transferId: string, warehouseId: string) =>
+      `${ADMIN_BASE}/load-plans/create?sourceType=TRANSFER&transferOrderId=${encodeURIComponent(transferId)}&warehouseId=${encodeURIComponent(warehouseId)}`,
     detail: (id: string) => `${ADMIN_BASE}/load-plans/${id}`,
+    /** Phiếu xếp hàng in được của một xe (SCRUM-287 PR F6). */
+    print: (id: string, seq: number) => `${ADMIN_BASE}/load-plans/${id}/vehicles/${seq}/print`,
   },
   suppliers: {
     list: `${ADMIN_BASE}/suppliers`,

@@ -33,6 +33,7 @@ export function setMoveTestActor() {
       username: "actor",
       status: "ACTIVE",
       lastLoginAt: null,
+      mustChangePassword: false,
     },
     status: "authenticated",
     isAuthenticated: true,

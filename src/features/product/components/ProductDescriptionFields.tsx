@@ -18,7 +18,7 @@ export function ProductDescriptionFields({
       <p className="text-ink-secondary mt-1 text-xs">
         Hình ảnh quản lý theo từng biến thể; kích thước, khối lượng theo từng SKU.
       </p>
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="lg:col-span-2">
           <ProductFormField htmlFor="short-description" label="Mô tả ngắn">
             <ProductTextarea {...register("shortDescription")} id="short-description" rows={2} />

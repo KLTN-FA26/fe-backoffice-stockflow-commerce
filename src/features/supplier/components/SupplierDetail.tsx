@@ -3,7 +3,6 @@
 import { parseAsInteger, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 
 import {
-  ADMIN_ROUTES,
   SUPPLIER_ITEM_PERMISSIONS,
   SUPPLIER_ITEM_UI_LABELS,
   SUPPLIER_PERMISSIONS,
@@ -11,10 +10,8 @@ import {
 import { usePermissionChecker } from "@/lib/auth";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { useSupplier } from "@/features/supplier";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { PageTabPanel, PageTabs } from "@/components/shared/PageTabs";
-import { BackLink } from "@/components/shared/BackLink";
 
 import { SupplierItemsTab } from "./supplier-detail/items/SupplierItemsTab";
 import { SupplierProfileTab } from "./supplier-detail/SupplierProfileTab";
@@ -63,12 +60,10 @@ function SupplierDetailContent({ supplierId }: { supplierId: string }) {
 
   const supplier = query.data;
   return (
-    <>
-      <PageHeader
-        title={supplier.name}
-        subtitle={`${supplier.code} — hồ sơ nhà cung cấp`}
-        actions={<BackLink href={ADMIN_ROUTES.suppliers.list} />}
-      />
+    // Giao diện kiểu Vercel như chi tiết sản phẩm (globals.css `.surface-soft`). Không hiện tiêu đề —
+    // breadcrumb topbar đã có mã NCC và link về danh sách; h1 giữ cho screen reader.
+    <div className="surface-soft surface-compact">
+      <h1 className="sr-only">{supplier.name}</h1>
       {canReadItems && (
         <PageTabs
           tabs={TAB_ITEMS}
@@ -92,7 +87,7 @@ function SupplierDetailContent({ supplierId }: { supplierId: string }) {
       ) : (
         <SupplierProfileTab supplier={supplier} can={can} />
       )}
-    </>
+    </div>
   );
 }
 

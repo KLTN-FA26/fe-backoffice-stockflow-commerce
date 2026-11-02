@@ -16,7 +16,7 @@ import {
   readPolicy,
   validatePolicy,
 } from "./mock-routes-inventory-policy";
-import { mockInventoryItemRows, saveMockLogistics } from "./mock-routes-variants";
+import { mockInventoryItemRows, mockSkuRetired, saveMockLogistics } from "./mock-routes-variants";
 
 import type { AxiosRequestConfig } from "axios";
 import type { MockLogistics } from "./mock-routes-variants";
@@ -24,6 +24,13 @@ import type { MockLogistics } from "./mock-routes-variants";
 const itemNotFound = (id: string) =>
   fail(404, "INVENTORY_ITEM_NOT_FOUND", `No inventory item ${id}`);
 const staleVersion = () => fail(409, "OPTIMISTIC_LOCK", "The item changed meanwhile");
+/** BE `InventoryItemsImpl.lockEditable`: SKU đã ngừng → hồ sơ chỉ còn xem; hỏi TRƯỚC version. */
+const retired = (sku: string) =>
+  fail(
+    409,
+    "VARIANT_OBSOLETE",
+    `SKU ${sku} is obsolete: its inventory settings are kept as they are`,
+  );
 
 async function findItem(config: AxiosRequestConfig) {
   const { id = "" } = pathParams(config);
@@ -80,6 +87,7 @@ export function registerInventoryItemMockRoutes(): void {
     const { id, row } = await findItem(config);
     if (!row) return itemNotFound(id);
     const b = bodyOf(config);
+    if (await mockSkuRetired(row.sku)) return retired(row.sku);
     if (b.version !== row.version) return staleVersion();
     // BE: mã vạch không trùng với item khác (409 CONFLICT)
     const barcode = typeof b.barcode === "string" ? b.barcode : null;
@@ -108,10 +116,12 @@ export function registerInventoryItemMockRoutes(): void {
     const { id, row } = await findItem(config);
     if (!row) return itemNotFound(id);
     const b = bodyOf(config);
-    if (b.version !== row.version) return staleVersion();
+    // BE `savePolicy`: kiểm chính sách → khoá hồ sơ (SKU đã ngừng → VARIANT_OBSOLETE) → version
     const policy = readPolicy(b);
     const invalid = validatePolicy(policy);
     if (invalid) return invalid;
+    if (await mockSkuRetired(row.sku)) return retired(row.sku);
+    if (b.version !== row.version) return staleVersion();
     savePolicy(id, policy);
     const next: MockLogistics = { ...row, version: row.version + 1 };
     saveMockLogistics(next);

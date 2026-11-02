@@ -46,7 +46,7 @@ export function TransferLineRows({
 
   return (
     <div className="space-y-2">
-      <div className="text-ink-secondary grid grid-cols-[1fr_1fr_7rem_2rem] gap-2 text-xs font-medium">
+      <div className="text-ink-secondary grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_7rem_2rem] gap-2 text-xs font-medium">
         <span>{F.sku} *</span>
         <span>{F.lot}</span>
         <span className="text-right">{F.quantity} *</span>
@@ -60,7 +60,10 @@ export function TransferLineRows({
         const quantityError = rowErrors?.quantity?.message ?? server("quantity");
         const id = (field: string) => `transfer-line-${index}-${field}`;
         return (
-          <div key={row.id} className="grid grid-cols-[1fr_1fr_7rem_2rem] items-start gap-2">
+          <div
+            key={row.id}
+            className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_7rem_2rem] items-start gap-2"
+          >
             <div>
               <Input
                 id={id("sku")}

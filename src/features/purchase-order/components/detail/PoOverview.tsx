@@ -13,7 +13,7 @@ import type { PurchaseOrder } from "@/features/purchase-order";
 
 export function PoOverview({ po }: { po: PurchaseOrder }) {
   return (
-    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
+    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)">
       <h2 className="text-ink-primary mb-3 text-[0.9375rem] font-semibold">Tổng quan</h2>
       <div className="space-y-2">
         <div className="flex justify-between text-[0.8125rem]">

@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ATTRIBUTE_PERMISSIONS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
-import { installApi, pickOption, renderApp } from "../product-test-utils";
+import { installApi, pickOption, pickTreeOption, renderApp } from "../product-test-utils";
 import { AttributeDictionary } from "./AttributeDictionary";
 
 const ALL = Object.values(ATTRIBUTE_PERMISSIONS);
@@ -281,7 +281,7 @@ describe("AttributeDictionary — bộ thuộc tính theo danh mục", () => {
     }));
     const user = userEvent.setup();
     renderApp(<AttributeDictionary />, { searchParams: "?tab=categories" });
-    await pickOption(user, "Danh mục", "Ly giấy");
+    await pickTreeOption(user, "Danh mục", "Ly giấy");
     expect(await screen.findByText("Danh mục này chưa có thuộc tính gợi ý.")).toBeInTheDocument();
     await pickOption(user, "Thêm thuộc tính cho danh mục", /COLOR\)/);
     await user.click(screen.getByRole("button", { name: "Lưu bộ thuộc tính" }));
@@ -299,7 +299,7 @@ describe("AttributeDictionary — bộ thuộc tính theo danh mục", () => {
     setup(ALL);
     const user = userEvent.setup();
     renderApp(<AttributeDictionary />, { searchParams: "?tab=categories" });
-    await pickOption(user, "Danh mục", "Ly giấy");
+    await pickTreeOption(user, "Danh mục", "Ly giấy");
     await pickOption(user, "Thêm thuộc tính cho danh mục", /WEIGHT\)/);
     const role = await screen.findByRole("combobox", { name: /Vai trò của Khối lượng/ });
     expect(role).toHaveTextContent("Mô tả");

@@ -31,6 +31,7 @@ const user = {
   status: "ACTIVE",
   roles: [],
   lastLoginAt: null,
+  mustChangePassword: false,
 };
 beforeEach(() => {
   useAuthStore.getState().logout(false);

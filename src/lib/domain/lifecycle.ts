@@ -42,12 +42,14 @@ import type {
   PutawayStatus,
   MoveTaskStatus,
 } from "@/lib/mock-data";
-// OrderStatus lấy từ constants/statuses.ts (không phải mock-data) — đúng 10 trạng thái BE
-// (OrderStatus.java), dùng cho zod enum / lifecycle / filter UI.
+// OrderStatus lấy từ constants/statuses.ts (không phải mock-data) — đúng 19 trạng thái BE
+// (OrderStatus.java, PR #133), dùng cho zod enum / lifecycle / filter UI; OrderReadStatus thêm
+// UNKNOWN (trạng thái BE FE chưa hiểu) — chỉ đọc, không chuyển tiếp được, không là đích.
 // ReceiptStatus cũng vậy — 6 trạng thái docs 03 §5.1 (mock-data chỉ có 5, thiếu "In QC").
 // PickStatus / PackStatus: các trạng thái BE `/fulfillment/tasks` phát ra được (SCRUM-437).
 import type {
   LoadStatus,
+  OrderReadStatus,
   OrderStatus,
   PackStatus,
   PickStatus,
@@ -91,11 +93,15 @@ export const PO_TRANSITIONS: Record<PoStatus, readonly PoStatus[]> = {
 
 /* ── Module 03: Receipt ──────────────────────────────────────────────── */
 
-// ReceiptStatus = "Draft" | "Confirmed" | "In QC" | "In Putaway" | "Closed" | "Cancelled"
-// docs/warehouse/03-receipt §5.1 — bảng "Chuyển tiếp"; BE GoodsReceiptStatus (PR #62)
+// ReceiptStatus = "Draft" | "Pending Approval" | "Confirmed" | "In QC" | "In Putaway" | "Closed" | "Cancelled"
+// docs/warehouse/03-receipt §5.1 — bảng "Chuyển tiếp"; BE GoodsReceiptStatus (PR #62, SCRUM-477)
 export const RECEIPT_TRANSITIONS: Record<ReceiptStatus, readonly ReceiptStatus[]> = {
-  // BR-05: chỉ huỷ được khi chưa Confirmed; đã Confirmed thì sửa bằng điều chỉnh tồn
-  Draft: ["Confirmed", "Cancelled"],
+  // BR-05: chỉ huỷ được khi chưa Confirmed; đã Confirmed thì sửa bằng điều chỉnh tồn.
+  // BR-02 / BR-RCP-001 (docs 03 §4 bước 5): đếm vượt dung sai → Pending Approval, chờ Quản lý kho duyệt
+  Draft: ["Pending Approval", "Confirmed", "Cancelled"],
+  // Quản lý kho duyệt (đủ SL) hoặc từ chối phần vượt (tới dung sai) → ghi nhận như Confirmed; từ chối
+  // mà không còn gì trong dung sai thì phiếu Cancelled. Chưa ghi nhận tồn nên huỷ được như Draft.
+  "Pending Approval": ["In QC", "In Putaway", "Cancelled"],
   // Có dòng cần QC → In QC, không có → In Putaway (BR-07)
   Confirmed: ["In QC", "In Putaway"],
   // Hết phần Accepted phải putaway → đi thẳng Closed
@@ -174,10 +180,12 @@ export const PACK_TRANSITIONS: Record<PackStatus, readonly PackStatus[]> = {
 
 // BE `LoadStatus` (PR #137): chuyến gửi kiện (PARCEL) bắt đầu ở LOADING khi tài xế hãng tới →
 // DISPATCHED khi hai bên ký biên bản. PLANNED → VEHICLE_BOOKED → LOADING là đường của chuyến nguyên
-// xe (FTL, SCRUM-287/452). Huỷ được ở mọi trạng thái còn mở (kiện về khu chờ xuất).
+// xe (FTL, SCRUM-287/392); huỷ đặt xe (`booking-cancellation`, BE PR #162) đưa VEHICLE_BOOKED về
+// PLANNED. Huỷ chuyến được ở mọi trạng thái còn mở (kiện về khu chờ xuất) — chuyến của kế hoạch xếp xe
+// thì huỷ qua kế hoạch (409 LOAD_MANAGED_BY_PLAN).
 export const LOAD_TRANSITIONS: Record<LoadStatus, readonly LoadStatus[]> = {
   PLANNED: ["VEHICLE_BOOKED", "CANCELLED"],
-  VEHICLE_BOOKED: ["LOADING", "CANCELLED"],
+  VEHICLE_BOOKED: ["PLANNED", "LOADING", "CANCELLED"],
   LOADING: ["DISPATCHED", "CANCELLED"],
   DISPATCHED: [],
   CANCELLED: [],
@@ -237,7 +245,7 @@ export const MOVE_TRANSITIONS: Record<MoveTaskStatus, readonly MoveTaskStatus[]>
 // Chép nguyên BE `order/api/OrderStatus.java#canTransitionTo` (19 trạng thái, BE PR #133 — bảng chuyển
 // cũng nằm ở DB `ordering.order_status_transition`, trigger chặn mọi nhảy cóc). FE khớp BE, không dựng
 // theo docs 17. Mã wire ↔ nhãn FE: features/order/status-map.ts (PENDING_PAYMENT ↔ "Pending Payment"…).
-export const ORDER_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
+export const ORDER_TRANSITIONS: Record<OrderReadStatus, readonly OrderStatus[]> = {
   Draft: ["Pending Payment", "Confirmed", "On Hold", "Cancelled"],
   "Pending Payment": ["Confirmed", "Cancelled"],
   Confirmed: ["In Production", "Ready to Fulfill", "On Hold", "Cancelled"],

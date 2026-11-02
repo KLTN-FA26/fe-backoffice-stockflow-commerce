@@ -27,6 +27,7 @@ import {
   TASK_ID,
   apiEvidence,
   apiTask,
+  apiTaskLines,
   fulfillmentOrder,
   mismatchEvidence,
   pickedTask,
@@ -58,16 +59,6 @@ const artifact = (role: string, contentType: string) => ({
   expiresAt: "2026-10-10T03:05:00Z",
 });
 
-const EMPTY_PAGE = {
-  items: [],
-  page: 0,
-  size: 200,
-  totalElements: 0,
-  totalPages: 0,
-  hasNext: false,
-  hasPrevious: false,
-};
-
 /** Tab giả của `window.open` — đủ các thứ `ArtifactButtons` chạm tới. */
 function fakeTab() {
   const tab = { opener: {} as unknown, location: { href: "" }, close: vi.fn() };
@@ -86,7 +77,7 @@ interface Scenario {
   userId?: string;
   /** Kết quả lần lượt của các lần kiểm tra lại. */
   reverifyResults?: FulfillmentTaskApiDto[];
-  /** Đơn trả về cho `GET /orders/{id}` (mặc định `fulfillmentOrder`). */
+  /** Đơn trả về cho `GET /orders/{id}` khi có sales-orders:READ (mặc định `fulfillmentOrder`). */
   order?: object;
 }
 
@@ -114,10 +105,11 @@ function renderStation({
   const spies = mockFulfillmentApi(
     identity,
     {
-      [PATH]: () => task,
+      // GET /tasks/{id} kèm `lines` (SCRUM-466) — dòng thiết kế đọc từ đây, không từ đơn
+      [PATH]: () => ({ lines: apiTaskLines, ...task }),
       [`${PATH}/packing-session`]: () => session,
+      // Chỉ người có sales-orders:READ mới gọi — trạm đọc cờ `printLinesReady` của đơn (BE PR #150)
       [`/orders/${ORDER_ID}`]: () => order ?? fulfillmentOrder,
-      "/orders": () => EMPTY_PAGE,
       [PREVIEW_PATH]: () => artifact("CUSTOMER_PREVIEW", "image/png"),
       [PRINT_PATH]: () => artifact("PRINT_READY", "application/pdf"),
     },
@@ -130,13 +122,14 @@ function renderStation({
 }
 
 describe("PackingStation — thiết kế đã khoá bên cạnh dòng tuỳ chỉnh", () => {
-  it("chỉ dòng tuỳ chỉnh có card: SKU, SL, checksum đã khoá, ảnh xem trước từ URL ký", async () => {
-    const { get } = renderStation({ identity: IDENTITIES.staffWithOrders, task: pickedTask() });
+  it("NV kho chưa đối chiếu → vẫn thấy dòng thiết kế từ task, checksum '—', ảnh xem trước từ URL ký", async () => {
+    const { get } = renderStation({ identity: IDENTITIES.warehouseStaff, task: pickedTask() });
 
     const card = (await screen.findByRole("heading", { name: "TEE-CUSTOM-L" })).closest("article");
     expect(card).not.toBeNull();
     const inCard = within(card as HTMLElement);
-    expect(inCard.getByText("aaaaaaaaaaaa…")).toBeInTheDocument();
+    // TaskLine BE không có checksum đã khoá — chỉ biết sau lần đối chiếu đầu
+    expect(inCard.getByText("—")).toBeInTheDocument();
     expect(inCard.getByText("Chưa đối chiếu")).toBeInTheDocument();
     expect(
       await inCard.findByRole("img", { name: /Thiết kế đã khoá của TEE-CUSTOM-L/ }),
@@ -144,13 +137,14 @@ describe("PackingStation — thiết kế đã khoá bên cạnh dòng tuỳ ch�
     // Dòng hàng thường không có card thiết kế
     expect(screen.queryByRole("heading", { name: "TEE-BLK-M" })).toBeNull();
     expect(get.mock.calls.some(([url]) => url === PREVIEW_PATH)).toBe(true);
+    expect(get.mock.calls.some(([url]) => String(url).startsWith("/orders"))).toBe(false);
   });
 
   it("tải file in: mở tab ngay trong cú bấm, gán URL ký sau khi API trả về", async () => {
     const user = userEvent.setup();
     const tab = fakeTab();
     const open = vi.spyOn(window, "open").mockReturnValue(tab);
-    const { get } = renderStation({ identity: IDENTITIES.staffWithOrders, task: pickedTask() });
+    const { get } = renderStation({ identity: IDENTITIES.warehouseStaff, task: pickedTask() });
 
     await user.click(await screen.findByRole("button", { name: "File in" }));
     // Tab mở trước khi có URL — không bị trình duyệt coi là popup
@@ -167,11 +161,9 @@ describe("PackingStation — thiết kế đã khoá bên cạnh dòng tuỳ ch�
     const tab = fakeTab();
     vi.spyOn(window, "open").mockReturnValue(tab);
     const error = vi.spyOn(toast, "error").mockImplementation(() => "");
-    mockFulfillmentApi(IDENTITIES.staffWithOrders, {
-      [PATH]: () => pickedTask(),
+    mockFulfillmentApi(IDENTITIES.warehouseStaff, {
+      [PATH]: () => ({ ...pickedTask(), lines: apiTaskLines }),
       [`${PATH}/packing-session`]: () => withPrintLine(),
-      [`/orders/${ORDER_ID}`]: () => fulfillmentOrder,
-      "/orders": () => EMPTY_PAGE,
       [PREVIEW_PATH]: () => artifact("CUSTOMER_PREVIEW", "image/png"),
       [PRINT_PATH]: () => ({
         ...artifact("PRINT_READY", "application/pdf"),
@@ -190,49 +182,52 @@ describe("PackingStation — thiết kế đã khoá bên cạnh dòng tuỳ ch�
     const user = userEvent.setup();
     vi.spyOn(window, "open").mockReturnValue(null);
     const error = vi.spyOn(toast, "error").mockImplementation(() => "");
-    const { get } = renderStation({ identity: IDENTITIES.staffWithOrders, task: pickedTask() });
+    const { get } = renderStation({ identity: IDENTITIES.warehouseStaff, task: pickedTask() });
 
     await user.click(await screen.findByRole("button", { name: "File in" }));
     expect(error).toHaveBeenCalledWith(FULFILLMENT_ERROR_MESSAGES.popupBlocked);
     expect(get.mock.calls.some(([url]) => url === PRINT_PATH)).toBe(false);
   });
 
-  it("BE từ chối cấp file (409), task chưa bị giữ → đóng tab, không báo sai là lệch checksum", async () => {
+  it("đơn đã rời khâu xuất kho (409 PICK_TASK_STATE_CONFLICT) → đóng tab, báo đơn đã đóng, không báo lệch checksum", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const user = userEvent.setup();
     const tab = fakeTab();
     vi.spyOn(window, "open").mockReturnValue(tab);
     const error = vi.spyOn(toast, "error").mockImplementation(() => "");
     const refuse = () => {
-      throw new ApiError(409, "CONFLICT", "The order is SHIPPED; this fulfillment task is closed");
+      throw new ApiError(
+        409,
+        "PICK_TASK_STATE_CONFLICT",
+        "The order is SHIPPED; this fulfillment task is closed",
+      );
     };
-    mockFulfillmentApi(IDENTITIES.staffWithOrders, {
-      [PATH]: () => pickedTask({ packStatus: "PACKED", packedAt: "2026-10-10T03:00:00Z" }),
+    mockFulfillmentApi(IDENTITIES.warehouseStaff, {
+      [PATH]: () => ({
+        ...pickedTask({ packStatus: "PACKED", packedAt: "2026-10-10T03:00:00Z" }),
+        lines: apiTaskLines,
+      }),
       [`${PATH}/packing-session`]: () => withPrintLine({ packStatus: "PACKED" }),
-      [`/orders/${ORDER_ID}`]: () => fulfillmentOrder,
-      "/orders": () => EMPTY_PAGE,
       [PREVIEW_PATH]: refuse,
       [PRINT_PATH]: refuse,
     });
     renderFulfillmentScreen(<PackingStation id={TASK_ID} />);
 
-    // Khung xem trước cũng dùng câu trung tính
+    // Khung xem trước cũng báo đơn đã rời khâu xuất kho
     expect(
-      await screen.findByText(FULFILLMENT_ERROR_MESSAGES.artifactUnavailable),
+      await screen.findByText(FULFILLMENT_ERROR_MESSAGES.artifactOrderClosed),
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "File in" }));
     await waitFor(() => expect(tab.close).toHaveBeenCalled());
-    expect(error).toHaveBeenCalledWith(FULFILLMENT_ERROR_MESSAGES.artifactUnavailable);
+    expect(error).toHaveBeenCalledWith(FULFILLMENT_ERROR_MESSAGES.artifactOrderClosed);
     expect(screen.queryByText(FULFILLMENT_ERROR_MESSAGES.artifactMismatch)).toBeNull();
   });
 
   it("task đang bị giữ, BE từ chối cấp file (409) → báo đúng là lệch checksum", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
-    mockFulfillmentApi(IDENTITIES.staffWithOrders, {
-      [PATH]: () => heldTask(),
+    mockFulfillmentApi(IDENTITIES.warehouseStaff, {
+      [PATH]: () => ({ ...heldTask(), lines: apiTaskLines }),
       [`${PATH}/packing-session`]: () => withPrintLine({ packStatus: "ON_HOLD" }),
-      [`/orders/${ORDER_ID}`]: () => fulfillmentOrder,
-      "/orders": () => EMPTY_PAGE,
       [PREVIEW_PATH]: () => {
         throw new ApiError(409, "CONFLICT", "Design integrity verification failed");
       },
@@ -245,19 +240,9 @@ describe("PackingStation — thiết kế đã khoá bên cạnh dòng tuỳ ch�
 
   it("bundle không có file xem trước (404) → báo trong khung ảnh, vẫn tải được file khác", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
-    mockFulfillmentApi(IDENTITIES.staffWithOrders, {
-      [PATH]: () => pickedTask(),
+    mockFulfillmentApi(IDENTITIES.warehouseStaff, {
+      [PATH]: () => ({ ...pickedTask(), lines: apiTaskLines }),
       [`${PATH}/packing-session`]: () => withPrintLine(),
-      [`/orders/${ORDER_ID}`]: () => fulfillmentOrder,
-      "/orders": () => ({
-        items: [],
-        page: 0,
-        size: 200,
-        totalElements: 0,
-        totalPages: 0,
-        hasNext: false,
-        hasPrevious: false,
-      }),
       [PREVIEW_PATH]: () => {
         throw new ApiError(
           404,
@@ -271,9 +256,10 @@ describe("PackingStation — thiết kế đã khoá bên cạnh dòng tuỳ ch�
     expect(screen.getByRole("button", { name: "File in" })).toBeEnabled();
   });
 
-  it("NV kho theo seed BE (thiếu sales-orders:READ), chưa đối chiếu → báo thiếu quyền xem dòng đơn", async () => {
+  it("NV kho theo seed BE (thiếu sales-orders:READ) → dòng thiết kế lấy từ task, không gọi /orders", async () => {
     const { get } = renderStation({ identity: IDENTITIES.warehouseStaff, task: pickedTask() });
-    expect(await screen.findByText(fulfillment.noOrderReadTitle)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "TEE-CUSTOM-L" })).toBeInTheDocument();
+    expect(screen.queryByText(/Chưa đủ quyền xem dòng đơn hàng/)).toBeNull();
     expect(get.mock.calls.some(([url]) => String(url).startsWith("/orders"))).toBe(false);
     // Vẫn hoàn tất đóng gói được — BE tự đối chiếu
     expect(
@@ -281,21 +267,22 @@ describe("PackingStation — thiết kế đã khoá bên cạnh dòng tuỳ ch�
     ).toBeInTheDocument();
   });
 
-  it("thiếu sales-orders:READ nhưng đã có evidence → suy dòng từ evidence, vẫn tải được artifact", async () => {
+  it("đã có evidence → hiện checksum đã khoá của lần đối chiếu mới nhất, vẫn tải được artifact", async () => {
     renderStation({
       identity: IDENTITIES.warehouseStaff,
       task: heldTask(),
       session: withPrintLine({ packStatus: "ON_HOLD" }),
     });
-    expect(await screen.findByRole("heading", { name: "Dòng 1" })).toBeInTheDocument();
+    const card = (await screen.findByRole("heading", { name: "TEE-CUSTOM-L" })).closest("article");
+    expect(within(card as HTMLElement).getByText("aaaaaaaaaaaa…")).toBeInTheDocument();
     expect(
-      await screen.findByRole("img", { name: /Thiết kế đã khoá của Dòng 1/ }),
+      await screen.findByRole("img", { name: /Thiết kế đã khoá của TEE-CUSTOM-L/ }),
     ).toBeInTheDocument();
   });
 
   it("người đóng không phải người lấy hàng: pick đã xong → vẫn xem / tải được file thiết kế (BE #136)", async () => {
     renderStation({
-      identity: IDENTITIES.staffWithOrders,
+      identity: IDENTITIES.warehouseStaff,
       task: pickedTask({ assignedUserId: OTHER_PICKER_ID }),
     });
     expect(await screen.findByRole("button", { name: "File in" })).toBeInTheDocument();
@@ -382,7 +369,7 @@ describe("PackingStation — kiểm tra lại thiết kế (flow X-CHK) và quy�
 
   it("người đóng gói (chỉ fulfillment-packing:*) thấy phiên bị giữ nhưng không có nút kiểm tra lại", async () => {
     renderStation({
-      identity: IDENTITIES.staffWithOrders,
+      identity: IDENTITIES.warehouseStaff,
       task: heldTask(),
       session: heldSession(),
     });

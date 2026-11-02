@@ -38,6 +38,7 @@ function signIn() {
       roles: ["Warehouse Staff"],
       status: "ACTIVE",
       lastLoginAt: null,
+      mustChangePassword: false,
     },
     status: "authenticated",
     isAuthenticated: true,

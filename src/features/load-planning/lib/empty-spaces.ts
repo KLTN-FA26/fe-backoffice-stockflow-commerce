@@ -8,11 +8,11 @@
 
 import { LAYOUT_ORIENTATIONS, LOAD_PLANNING_LIMITS } from "@/constants";
 
-import { orientedExtent } from "./dims";
+import { orientedExtent, passesDoor } from "./dims";
 import { intersects, restingY, validatePlacement } from "./manual-packing";
 
 import type { LayoutOrientation } from "@/constants";
-import type { BlockMm, DimsMm, ExtentMm } from "../types";
+import type { BlockMm, DimsMm, DoorMm, ExtentMm } from "../types";
 
 const EPS = LOAD_PLANNING_LIMITS.geometryEpsilonMm;
 
@@ -105,14 +105,21 @@ export function computeEmptySpaces(
   }));
 }
 
-/** Các hướng đặt vừa trong khoảng trống, tốt nhất trước (thấp nhất, rồi đáy nhỏ nhất — như solver). */
+const fitsIn = (o: ExtentMm, space: BlockMm): boolean =>
+  o.wMm <= space.wMm + EPS && o.hMm <= space.hMm + EPS && o.dMm <= space.dMm + EPS;
+
+/**
+ * Các hướng đặt vừa trong khoảng trống, tốt nhất trước (thấp nhất, rồi đáy nhỏ nhất — như solver). `door`: bỏ các
+ * hướng có mặt hướng ra cửa (rộng × cao) lớn hơn cửa xe (LP3-DOOR); không truyền = không giới hạn.
+ */
 export function fittingOrientations(
   space: BlockMm,
   orig: DimsMm,
   rotatable: boolean,
+  door?: DoorMm | null,
 ): Orientation[] {
   return orientationsOf(orig, rotatable)
-    .filter((o) => o.wMm <= space.wMm + EPS && o.hMm <= space.hMm + EPS && o.dMm <= space.dMm + EPS)
+    .filter((o) => fitsIn(o, space) && passesDoor(o, door))
     .sort((a, b) => a.hMm - b.hMm || a.wMm * a.dMm - b.wMm * b.dMm);
 }
 
@@ -123,6 +130,14 @@ export interface LandingGhost extends BlockMm {
   supportRatio: number;
 }
 
+export interface LandingOptions {
+  /** Khoảng trống đã tính sẵn (vd từ web worker) — không truyền thì tính tại chỗ (chậm trên xe nhiều kiện). */
+  spaces?: readonly BlockMm[];
+  /** Chỉ gợi ý một hướng đặt (người dùng đã chọn); không truyền = hướng tốt nhất của từng khoảng trống. */
+  orientation?: LayoutOrientation;
+  door?: DoorMm | null;
+}
+
 /**
  * Với mỗi khoảng trống thùng vừa: thả thùng xuống (trọng lực) và phát một ô gợi ý đúng cỡ thùng ở
  * chỗ nó nằm lại — bỏ trùng, và LOẠI ô vi phạm luật (kể cả thiếu đỡ, khác bản gốc chỉ cảnh báo).
@@ -131,12 +146,18 @@ export function computeLandingGhosts(
   extent: ExtentMm,
   placements: readonly BlockMm[],
   box: { origMm: DimsMm; rotatable: boolean },
+  options: LandingOptions = {},
 ): LandingGhost[] {
+  const { orientation, door } = options;
+  const chosen: Orientation | null = orientation
+    ? { orientation, ...orientedExtent(box.origMm, orientation) }
+    : null;
+  if (chosen && !box.rotatable && orientation !== "LWH") return [];
   const out: LandingGhost[] = [];
   const seen = new Set<string>();
-  for (const space of computeEmptySpaces(extent, placements)) {
-    const [best] = fittingOrientations(space, box.origMm, box.rotatable);
-    if (!best) continue;
+  for (const space of options.spaces ?? computeEmptySpaces(extent, placements)) {
+    const best = chosen ?? fittingOrientations(space, box.origMm, box.rotatable, door)[0];
+    if (!best || !fitsIn(best, space) || !passesDoor(best, door)) continue;
     const yMm = restingY(
       { xMm: space.xMm, zMm: space.zMm, wMm: best.wMm, dMm: best.dMm },
       space.yMm,

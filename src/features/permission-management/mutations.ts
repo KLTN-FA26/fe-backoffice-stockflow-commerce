@@ -3,6 +3,7 @@ import { toast } from "sonner";
 
 import { ApiError } from "@/lib/api/error";
 import { meKeys } from "@/lib/auth/me-permissions";
+import { roleOptionKeys } from "@/lib/references/role-options";
 
 import { updateRolePermissions } from "./api";
 import { RBAC_EDITOR, RBAC_ERRORS } from "./constants";
@@ -18,6 +19,10 @@ export function useUpdateRolePermissions() {
     retry: false,
     onSuccess: (matrix) => {
       client.setQueryData(permissionManagementKeys.matrix(matrix.roleCode), matrix);
+      // Saving the matrix bumps the role's own version (BE): reload the role list so a later rename
+      // sends the current version instead of a stale one (409 OPTIMISTIC_LOCK).
+      void client.invalidateQueries({ queryKey: permissionManagementKeys.roles() });
+      void client.invalidateQueries({ queryKey: roleOptionKeys.all });
       void client.invalidateQueries({ queryKey: meKeys.permissions() });
       toast.success(RBAC_EDITOR.saved);
     },

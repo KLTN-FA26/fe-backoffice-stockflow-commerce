@@ -4,7 +4,7 @@ import { ApiError } from "@/lib/api/error";
 
 import { poCreateFieldErrors } from "./create-form-errors";
 import { poCreateFormSchema, poFormSchema } from "./create-form-schema";
-import { orderQuantityIssues } from "./line-terms";
+import { minimumOrderQuantity, orderQuantityIssues } from "./line-terms";
 
 const valid = {
   supplierId: "22222222-2222-4222-8222-222222222222",
@@ -126,6 +126,15 @@ describe("điều khoản danh mục NCC trên dòng PO", () => {
     expect(orderQuantityIssues(3, t)).toEqual(["BELOW_MOQ", "NOT_PACK_MULTIPLE"]);
     expect(orderQuantityIssues(15, t)).toEqual([]);
     expect(orderQuantityIssues(12, t)).toEqual(["NOT_PACK_MULTIPLE"]);
+  });
+
+  it("minimumOrderQuantity: bội số quy cách nhỏ nhất ≥ MOQ — không vướng orderQuantityIssues", () => {
+    expect(minimumOrderQuantity({ moq: 10, packSize: 5 })).toBe(10);
+    expect(minimumOrderQuantity({ moq: 12, packSize: 5 })).toBe(15);
+    expect(minimumOrderQuantity({ moq: 1, packSize: 24 })).toBe(24);
+    expect(
+      orderQuantityIssues(minimumOrderQuantity({ moq: 7, packSize: 3 }), { moq: 7, packSize: 3 }),
+    ).toEqual([]);
   });
 
   it("SL 3 với moq 10 → lỗi orderedQty có chữ 10 và 5", () => {

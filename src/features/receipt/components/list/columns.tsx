@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-import { ADMIN_ROUTES, RECEIPT_COLUMNS } from "@/constants";
+import { ADMIN_ROUTES, RECEIPT_COLUMNS, UI_LABELS } from "@/constants";
 import {
   CELL,
   dateCell,
@@ -10,6 +10,7 @@ import {
   statusCell,
   viewColumn,
 } from "@/components/shared/column-helpers";
+import { Badge } from "@/components/ui/badge";
 
 import { COLUMN_LABELS, SERVER_SORT_FIELDS } from "./constants";
 
@@ -58,11 +59,22 @@ export function buildReceiptColumns(
     {
       key: C.PURCHASE_ORDER,
       header: COLUMN_LABELS[C.PURCHASE_ORDER] ?? C.PURCHASE_ORDER,
-      cell: (row) => (
-        <span className={CELL.ref} title={row.purchaseOrderId}>
-          {poNumbers?.[row.purchaseOrderId] ?? "—"}
-        </span>
-      ),
+      cell: (row) =>
+        row.withoutPurchaseOrder || !row.purchaseOrderId ? (
+          // BR-RCP-002: hàng về không có PO — hiện NCC của phiếu thay cho số PO
+          <span className="inline-flex flex-col">
+            <Badge variant="outline" className="w-fit rounded-[var(--r-sm)] font-normal">
+              {UI_LABELS.receipt.blind.badge}
+            </Badge>
+            {row.supplierName && (
+              <span className="text-ink-tertiary mt-0.5 text-xs">{row.supplierName}</span>
+            )}
+          </span>
+        ) : (
+          <span className={CELL.ref} title={row.purchaseOrderId}>
+            {row.purchaseOrderNumber ?? poNumbers?.[row.purchaseOrderId] ?? "—"}
+          </span>
+        ),
     },
     refCell<GoodsReceiptRow>(
       C.DELIVERY_NOTE,

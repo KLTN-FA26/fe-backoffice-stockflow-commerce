@@ -58,7 +58,7 @@ export function OrderRemainderClosureAction({ order }: { order: ActionOrder }) {
           }}
           isPending={isPending}
           error={dialog.error}
-          onSubmit={(values) => mutate({ id: order.orderId, ...values })}
+          onSubmit={(values) => dialog.submit(mutate, { id: order.orderId, ...values })}
           onClose={dialog.close}
         />
       )}

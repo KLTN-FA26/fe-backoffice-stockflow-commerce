@@ -38,6 +38,7 @@ export function toTransferFormValues(transfer: TransferOrder) {
     toWarehouseId: transfer.toWarehouseId,
     reason: transfer.reason ?? "",
     expectedDate: transfer.expectedDate ?? "",
+    deliveryMode: transfer.deliveryMode,
     lines: transfer.lines.map((line) => ({
       sku: line.sku,
       lotNumber: line.lotNumber ?? "",

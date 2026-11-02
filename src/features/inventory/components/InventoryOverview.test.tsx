@@ -366,3 +366,28 @@ it("retries directory failure before permitting warehouse reads", async () => {
   await user.click(screen.getByRole("button", { name: INVENTORY_LABELS.retry }));
   await waitFor(() => expect(sentTo(stockItemsPath)).toHaveLength(1));
 });
+
+describe("slots hidden during a cycle count (SCRUM-146)", () => {
+  it("shows the badge instead of quantities for a masked row and numbers for the others", async () => {
+    const masked = {
+      stockItemId: "0e380000-0000-4000-8000-000000000009",
+      sku: "CUP-PP-500",
+      locationCode: "HN01-A03-01-A",
+      status: "AVAILABLE",
+      hiddenDuringCount: true,
+    };
+    const user = await openFor("CUP-PP-500", {
+      items: overviewPage([...OVERVIEW_STOCK_ITEMS, masked]),
+    });
+    await openWarehouse(user, "HN01");
+    const maskedRow = (await screen.findByText(masked.locationCode)).closest("tr");
+    expect(maskedRow).not.toBeNull();
+    expect(
+      within(maskedRow as HTMLElement).getByText(INVENTORY_LABELS.hiddenDuringCount),
+    ).toBeInTheDocument();
+    expect(within(maskedRow as HTMLElement).queryByText(/^\d+$/)).toBeNull();
+    const normalRow = screen.getByText("HN01-A02-01-A").closest("tr");
+    expect(within(normalRow as HTMLElement).getAllByText("30").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(INVENTORY_LABELS.hiddenDuringCount)).toHaveLength(1);
+  });
+});

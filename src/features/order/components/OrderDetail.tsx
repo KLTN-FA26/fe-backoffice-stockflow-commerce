@@ -3,16 +3,18 @@
 import { onlineManager } from "@tanstack/react-query";
 import { use } from "react";
 
-import { ADMIN_ROUTES, ORDER_PERMISSIONS } from "@/constants";
+import { ADMIN_ROUTES, ORDER_PERMISSIONS, PRODUCTION_ORDER_PERMISSIONS } from "@/constants";
 import { usePermissionChecker } from "@/lib/auth";
 import { formatDateTime } from "@/lib/format/date";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { BackLink } from "@/components/shared/BackLink";
 
-import { useOrder } from "../queries";
+import { useOrder, useOrderProductionOrders } from "../queries";
+import { customLineCount, groupProductionOrdersByLine } from "../selectors";
 
 import { OrderActionCard } from "./OrderActionCard";
+import { OrderDeliveryModeCard } from "./OrderDeliveryModeCard";
 import { OrderFinanceCard } from "./OrderFinanceCard";
 import { OrderInfoCard } from "./OrderInfoCard";
 import { OrderHistory } from "./OrderHistory";
@@ -20,27 +22,47 @@ import { OrderLines } from "./OrderLines";
 import { OrderLoadError } from "./OrderLoadError";
 import { OrderPartialShipmentCard } from "./OrderPartialShipmentCard";
 import { OrderPermissionGate } from "./OrderPermissionGate";
+import { LineProductionOrdersView, ProductionStatusNotice } from "./OrderProductionOrders";
 import { OrderShipments } from "./OrderShipments";
 import { OrderDetailSkeleton } from "./OrderSkeletons";
 
+import type { OrderEstimateSlot } from "../estimate-slot";
+
 interface OrderDetailProps {
   params: Promise<{ id: string }>;
+  /** Khe "Ước tính xếp xe" do chỗ ghép truyền vào (feature không import chéo — xem `estimate-slot.ts`). */
+  estimateSlot?: OrderEstimateSlot;
 }
 
-export function OrderDetail({ params }: OrderDetailProps) {
+export function OrderDetail({ params, estimateSlot }: OrderDetailProps) {
   const { id } = use(params);
   return (
     <OrderPermissionGate permissions={[ORDER_PERMISSIONS.viewPage]}>
-      <OrderDetailContent id={id} />
+      <OrderDetailContent id={id} estimateSlot={estimateSlot} />
     </OrderPermissionGate>
   );
 }
 
-function OrderDetailContent({ id }: { id: string }) {
+function OrderDetailContent({
+  id,
+  estimateSlot,
+}: {
+  id: string;
+  estimateSlot?: OrderEstimateSlot;
+}) {
   const can = usePermissionChecker();
   // READ = đọc dữ liệu (tách khỏi VIEW_PAGE mở trang — BE ADR-0004): thiếu thì không gọi API
+  // UI-only — Backend phải re-check (@RequiresPermission sales-orders:READ trên OrderController)
   const canRead = can(ORDER_PERMISSIONS.read);
   const query = useOrder(id, { enabled: canRead });
+  // Lệnh sản xuất chỉ có với dòng in (docs 19 BR-01) — đơn chỉ hàng sẵn không gọi API.
+  // UI-only — Backend phải re-check (@RequiresPermission production-orders:READ, ProductionOrderController)
+  const canReadProduction = can(PRODUCTION_ORDER_PERMISSIONS.read);
+  const hasCustomLines = !!query.data && customLineCount(query.data) > 0;
+  // Lọc theo `orderId` của BE (UUID) — đơn đã tải xong mới gọi
+  const production = useOrderProductionOrders(query.data?.orderId ?? "", {
+    enabled: canRead && canReadProduction && hasCustomLines,
+  });
   // Breadcrumb hiện mã đơn (SO-…) thay vì orderId (UUID của BE), như NCC
   useBreadcrumbLabel(id, query.data?.orderNumber);
 
@@ -60,6 +82,13 @@ function OrderDetailContent({ id }: { id: string }) {
   }
 
   const order = query.data;
+  const productionByLine = groupProductionOrdersByLine(production.data ?? []);
+  const productionState =
+    !canReadProduction || production.isError
+      ? "unavailable"
+      : production.isPending
+        ? "loading"
+        : "ready";
   const subtitle = [order.recipientName, formatDateTime(order.placedAt)]
     .filter(Boolean)
     .join(" · ");
@@ -72,18 +101,28 @@ function OrderDetailContent({ id }: { id: string }) {
         actions={<BackLink href={ADMIN_ROUTES.orders.list} />}
       />
 
-      <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-5">
+          {hasCustomLines && (
+            <ProductionStatusNotice query={production} canRead={canReadProduction} />
+          )}
           <OrderLines
             lines={order.lines}
             currency={order.currency}
             hasShipments={order.shipments.length > 0}
+            renderCustomLineExtra={(line) => (
+              <LineProductionOrdersView
+                entry={productionByLine.get(line.lineId)}
+                state={productionState}
+              />
+            )}
           />
           <OrderHistory orderId={order.orderId} />
         </div>
 
         <div className="space-y-5">
-          <OrderActionCard order={order} can={can} />
+          <OrderActionCard order={order} can={can} estimateSlot={estimateSlot} />
+          <OrderDeliveryModeCard order={order} can={can} estimateSlot={estimateSlot} />
           <OrderPartialShipmentCard order={order} can={can} />
           <OrderShipments order={order} />
           <OrderInfoCard order={order} />

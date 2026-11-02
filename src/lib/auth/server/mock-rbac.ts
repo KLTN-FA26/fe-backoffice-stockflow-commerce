@@ -6,7 +6,9 @@ import { RBAC_ERRORS } from "@/features/permission-management/constants";
 import { updateRolePermissionsSchema } from "@/features/permission-management/schemas";
 import { draftMatrix, matrixPermissionCode } from "@/features/permission-management/selectors";
 
-import { initialMockRoleMatrices, mockRoles } from "./mock-role-matrices";
+import { holderCount, roleStore } from "./mock-identity-store";
+import { mockRoleAdmin } from "./mock-rbac-roles";
+import { initialMockRoleMatrices } from "./mock-role-matrices";
 
 import type { RoleMatrix } from "@/features/permission-management/types";
 
@@ -16,6 +18,12 @@ const runtime = globalThis as typeof globalThis & {
 const matrices = (runtime.stockflowMockRoleMatrices ??= new Map(
   Object.entries(initialMockRoleMatrices),
 ));
+/** Quyền BE cần cho từng phương thức trên `/identity/roles[/{code}]` (PR #72). */
+const ROLE_ADMIN_PERMISSION: Record<string, string> = {
+  POST: IDENTITY_PERMISSIONS.rolesCreate,
+  PATCH: IDENTITY_PERMISSIONS.rolesUpdate,
+  DELETE: IDENTITY_PERMISSIONS.rolesDelete,
+};
 function failure(status: number, errorCode: string): Response {
   return Response.json({ errorCode }, { status });
 }
@@ -28,8 +36,22 @@ export async function mockRbacBackend(
 ): Promise<Response | null> {
   if (path === "identity/roles" && init.method === "GET") {
     return permissions.includes(IDENTITY_PERMISSIONS.rolesRead)
-      ? Response.json(mockRoles)
+      ? Response.json(
+          await Promise.all(
+            roleStore().map(async (role) => ({
+              ...role,
+              holderCount: await holderCount(role.code),
+            })),
+          ),
+        )
       : failure(403, "FORBIDDEN");
+  }
+  const admin = ROLE_ADMIN_PERMISSION[init.method ?? ""];
+  const adminMatch = /^identity\/roles(?:\/([^/]+))?$/.exec(path);
+  if (admin && adminMatch) {
+    if (!permissions.includes(admin)) return failure(403, "FORBIDDEN");
+    const code = adminMatch[1] ? decodeURIComponent(adminMatch[1]) : null;
+    return mockRoleAdmin(init.method ?? "", code, init, matrices);
   }
   const match = /^identity\/roles\/([^/]+)\/permissions$/.exec(path);
   if (!match?.[1]) return null;

@@ -5,6 +5,7 @@ import { formatTime } from "@/lib/format/date";
 import { formatNumber } from "@/lib/format/number";
 import { Button } from "@/components/ui/button";
 
+import { ParcelBadges } from "../ftl/ParcelBadges";
 import { MONO, NUM } from "../primitives";
 
 import type { LoadShipment } from "@/features/shipping/types";
@@ -46,6 +47,7 @@ export function ShipmentParcels({
             <tr key={parcel.packageId} className="border-border-default border-t">
               <td className={`text-ink-primary px-3 py-2 font-medium ${MONO}`}>
                 {parcel.labelCode}
+                <ParcelBadges parcel={parcel} />
               </td>
               <td className={`text-ink-primary px-3 py-2 ${NUM}`}>
                 {parcel.weightKg == null ? "—" : formatNumber(parcel.weightKg)}

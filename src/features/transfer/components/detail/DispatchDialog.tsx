@@ -106,7 +106,10 @@ export function DispatchDialog({
             const fieldId = `dispatch-${line.lineId}`;
             const message = errors?.[index]?.shippedQuantity?.message ?? stockErrors[index];
             return (
-              <div key={line.lineId} className="grid grid-cols-[1fr_7rem] items-start gap-3">
+              <div
+                key={line.lineId}
+                className="grid grid-cols-[minmax(0,1fr)_7rem] items-start gap-3"
+              >
                 <label htmlFor={fieldId} className="text-[0.8125rem]">
                   <span className={`text-ink-primary ${MONO}`}>{line.sku}</span>
                   {line.lotNumber && (

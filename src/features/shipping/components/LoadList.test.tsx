@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
+import { ftlRow } from "../__fixtures__/ftl-load";
 import { LOAD_ID, apiLoad } from "../__fixtures__/load";
 import {
   SHIPPING_ACTORS as ACTORS,
@@ -84,6 +85,132 @@ describe("LoadList — chuyến xe", () => {
   it("danh sách rỗng: 'chưa có chuyến' khác 'lọc không ra kết quả'", async () => {
     renderList(ACTORS.warehouseStaff, "", []);
     expect(await screen.findByText(L.loads.empty.noDataTitle)).toBeInTheDocument();
+  });
+});
+
+describe("LoadList — tìm kiếm", () => {
+  it("ô tìm kiếm nói rõ tìm theo mã chuyến, biển số và mã kế hoạch; gửi `search` cho BE", async () => {
+    const { get } = renderList(ACTORS.warehouseStaff, "?q=LP-2026");
+    const box = await screen.findByPlaceholderText(/mã kế hoạch/);
+    expect(box).toHaveAttribute("placeholder", L.loads.searchPlaceholder);
+    expect(L.loads.searchScope).toMatch(/mã kế hoạch/);
+    await waitFor(() => {
+      const params = get.mock.calls.find(([url]) => url === "/fulfillment/loads")?.[1]?.params;
+      expect(params).toMatchObject({ search: "LP-2026" });
+    });
+  });
+});
+
+describe("LoadList — chuyến nguyên xe (BE PR #162)", () => {
+  const FTL = ftlRow({ loadId: "LD-F001", code: "LD-F001", status: "VEHICLE_BOOKED" });
+  const PLANNED = ftlRow({
+    loadId: "LD-F002",
+    code: "LD-F002",
+    status: "PLANNED",
+    vehicleSeq: 2,
+    carrierId: undefined,
+    carrierName: undefined,
+  });
+
+  it("dòng nguyên xe hiện hình thức, mã kế hoạch + số xe, trạng thái Đã lập kế hoạch / Đã đặt xe; chuyến gửi kiện để trống cột kế hoạch", async () => {
+    renderList(ACTORS.warehouseStaff, "", [ROW, FTL, PLANNED]);
+    await screen.findByRole("link", { name: "LD-F001" });
+    const planLinks = screen.getAllByRole("link", { name: "LP-2026-0001" });
+    expect(planLinks).toHaveLength(2);
+    expect(planLinks[0]).toHaveAttribute("href", "/admin/load-plans/lp-1");
+    expect(screen.getByText(`${L.ftl.vehicleSeq} 1`)).toBeInTheDocument();
+    expect(screen.getByText(`${L.ftl.vehicleSeq} 2`)).toBeInTheDocument();
+    expect(screen.getAllByText(L.load.mode.FULL_TRUCKLOAD)).toHaveLength(2);
+    expect(screen.getAllByText(L.load.mode.PARCEL).length).toBeGreaterThan(0);
+    expect(screen.getByText("Đã đặt xe")).toBeInTheDocument();
+    expect(screen.getByText("Đã lập kế hoạch")).toBeInTheDocument();
+  });
+
+  it("bộ lọc hình thức chạy ở máy chủ: gửi `mode` cho BE, bảng hiện đúng các dòng BE trả (không lọc lại ở FE)", async () => {
+    const { get } = renderList(ACTORS.warehouseStaff, "?mode=FULL_TRUCKLOAD", [FTL]);
+    await screen.findByRole("link", { name: "LD-F001" });
+    await waitFor(() => {
+      const params = get.mock.calls.find(([url]) => url === "/fulfillment/loads")?.[1]?.params;
+      expect(params).toMatchObject({ mode: "FULL_TRUCKLOAD" });
+    });
+    expect(screen.queryByText(/chỉ lọc các chuyến trong trang này/)).not.toBeInTheDocument();
+  });
+
+  it("chọn hình thức trong bộ lọc → gọi lại BE với `mode`; chọn Tất cả → hiện lại mọi hình thức", async () => {
+    const user = userEvent.setup();
+    const { get } = mockShippingApi(ACTORS.warehouseStaff, {
+      get: {
+        "/fulfillment/loads": (params) => {
+          const mode = (params as { mode?: string }).mode;
+          return bePage([ROW, FTL].filter((row) => !mode || row.mode === mode));
+        },
+      },
+    });
+    renderShippingScreen(<LoadList />);
+    await screen.findByRole("link", { name: LOAD_ID });
+    expect(screen.getByRole("link", { name: "LD-F001" })).toBeInTheDocument();
+    await user.click(screen.getByRole("combobox", { name: L.ftl.modeFilter }));
+    await user.click(await screen.findByRole("option", { name: L.load.mode.FULL_TRUCKLOAD }));
+    await waitFor(() =>
+      expect(screen.queryByRole("link", { name: LOAD_ID })).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole("link", { name: "LD-F001" })).toBeInTheDocument();
+    const modes = () =>
+      get.mock.calls
+        .filter(([url]) => url === "/fulfillment/loads")
+        .map(([, c]) => (c?.params as { mode?: string } | undefined)?.mode);
+    expect(modes().at(-1)).toBe("FULL_TRUCKLOAD");
+    await user.click(screen.getByRole("combobox", { name: L.ftl.modeFilter }));
+    await user.click(await screen.findByRole("option", { name: L.ftl.modeAll }));
+    await waitFor(() => expect(screen.getByRole("link", { name: LOAD_ID })).toBeInTheDocument());
+    // Tất cả → khoá truy vấn không có `mode` (đã có trong cache) → cả hai chuyến hiện lại
+    expect(screen.getByRole("link", { name: "LD-F001" })).toBeInTheDocument();
+    expect(modes()[0]).toBeUndefined();
+  });
+
+  it("server phân trang đúng khi lọc: giữ phân trang, sang trang sau gửi page=1 kèm mode", async () => {
+    const user = userEvent.setup();
+    const { get } = mockShippingApi(ACTORS.warehouseStaff, {
+      get: {
+        "/fulfillment/loads": (params) => {
+          const page = (params as { page?: number }).page ?? 0;
+          return {
+            ...bePage([page === 0 ? FTL : PLANNED], page),
+            totalElements: 2,
+            totalPages: 2,
+            hasNext: page === 0,
+          };
+        },
+      },
+    });
+    renderShippingScreen(<LoadList />, "?mode=FULL_TRUCKLOAD");
+    await screen.findByRole("link", { name: "LD-F001" });
+    await user.click(screen.getByRole("button", { name: "Sau" }));
+    expect(await screen.findByRole("link", { name: "LD-F002" })).toBeInTheDocument();
+    const second = get.mock.calls
+      .filter(([url]) => url === "/fulfillment/loads")
+      .map(([, c]) => c?.params as { page?: number; mode?: string })
+      .find((p) => p.page === 1);
+    expect(second?.mode).toBe("FULL_TRUCKLOAD");
+  });
+
+  it("BE không có chuyến nào (totalElements 0) khi đang lọc → 'không có kết quả', khác 'chưa có chuyến'", async () => {
+    renderList(ACTORS.warehouseStaff, "?mode=FULL_TRUCKLOAD", []);
+    expect(await screen.findByText(UI_LABELS.emptyList.noResultsTitle)).toBeInTheDocument();
+    expect(screen.queryByText(L.loads.empty.noDataTitle)).not.toBeInTheDocument();
+  });
+
+  it("bộ lọc trạng thái có Đã lập kế hoạch và Đã đặt xe; gửi đúng một trạng thái cho BE", async () => {
+    const user = userEvent.setup();
+    const { get } = renderList(ACTORS.warehouseStaff, "", [FTL]);
+    await screen.findByRole("link", { name: "LD-F001" });
+    await user.click(screen.getByRole("combobox", { name: L.shipments.statusFilter }));
+    expect(await screen.findByRole("option", { name: "Đã lập kế hoạch" })).toBeInTheDocument();
+    await user.click(await screen.findByRole("option", { name: "Đã đặt xe" }));
+    await waitFor(() => {
+      const calls = get.mock.calls.filter(([url]) => url === "/fulfillment/loads");
+      expect(calls.at(-1)?.[1]?.params).toMatchObject({ status: "VEHICLE_BOOKED" });
+    });
   });
 });
 

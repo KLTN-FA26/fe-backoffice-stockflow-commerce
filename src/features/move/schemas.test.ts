@@ -86,6 +86,17 @@ describe("response contracts", () => {
     expect(rows[0]?.status).toBe("A_STATUS_FROM_THE_FUTURE");
   });
 
+  it("StockItemResponse masked by a count: quantities absent, flag true; flag defaults to false", () => {
+    const base = { id: crypto.randomUUID(), sku: "CUP-PP-500", locationCode: "HCM-A01-1-A" };
+    const rows = stockRowListDto.parse([
+      { ...base, status: "AVAILABLE", hiddenDuringCount: true },
+      { ...base, onHand: 10, reserved: 4, available: 6, status: "AVAILABLE" },
+    ]);
+    expect(rows[0]).toMatchObject({ hiddenDuringCount: true });
+    expect(rows[0]?.onHand).toBeUndefined();
+    expect(rows[1]).toMatchObject({ hiddenDuringCount: false, onHand: 10 });
+  });
+
   it("layout keeps only what suggestions need; an area without code/usable is tolerated", () => {
     const layout = warehouseLayoutDto.parse({
       warehouse: { id: "ignored" },

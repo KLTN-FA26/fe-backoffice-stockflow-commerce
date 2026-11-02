@@ -18,13 +18,14 @@ export function PermissionMatrix({
 }) {
   return (
     <div className="space-y-5">
-      <section className="border-border-default bg-bg-surface rounded-[var(--r-sm)] border p-4">
+      <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-4 shadow-(--card-shadow)">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-ink-tertiary text-xs font-medium tracking-wide uppercase">
               Ma trận quyền
             </p>
-            <h1 className="text-ink-primary mt-1 text-xl font-bold">{matrix.roleLabel}</h1>
+            {/* h1 của trang là tên trang (sr-only) — tên vai trò là tiêu đề cấp 2 */}
+            <h2 className="text-ink-primary mt-1 text-xl font-bold">{matrix.roleLabel}</h2>
             <p className="text-ink-secondary mt-1 font-[family-name:var(--font-mono)] text-xs">
               {matrix.roleCode}
             </p>

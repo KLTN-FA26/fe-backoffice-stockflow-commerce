@@ -37,7 +37,12 @@ export type {
 
 // Form tạo PO (react-hook-form) — schema chuỗi + map lỗi BE vào ô
 export { poCreateFormSchema, poFormSchema } from "./create-form-schema";
-export { orderQuantityIssues, poQuantityTermsMessage, termsOf } from "./line-terms";
+export {
+  minimumOrderQuantity,
+  orderQuantityIssues,
+  poQuantityTermsMessage,
+  termsOf,
+} from "./line-terms";
 export type { OrderQuantityIssue, PoLineTerms } from "./line-terms";
 export type { PoCreateFormLine, PoCreateFormValues } from "./create-form-schema";
 export { poCreateFieldErrors } from "./create-form-errors";

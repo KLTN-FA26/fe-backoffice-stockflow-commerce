@@ -1,13 +1,12 @@
-import type { useInventoryListFilters } from "../use-list-filters";
-import type { AdjustmentPage, MovementPage } from "../types";
+import type { InventoryPageMeta } from "./InventoryPager";
 
-type ListState = ReturnType<typeof useInventoryListFilters>;
+type ListState = { setPage: (page: number) => unknown; setSize: (size: number) => void };
 
 /**
  * Nối trang BE (0-based) vào phân trang server của `DataTable` — một bộ phân trang duy nhất như các
  * trang danh sách khác; URL giữ trang 1-based. Trước / sau theo `hasPrevious` / `hasNext` của BE.
  */
-export function serverPage(data: AdjustmentPage | MovementPage, state: ListState) {
+export function serverPage(data: InventoryPageMeta, state: ListState) {
   return {
     page: data.page,
     size: data.size,
@@ -21,5 +20,5 @@ export function serverPage(data: AdjustmentPage | MovementPage, state: ListState
 }
 
 /** Trang hiện tại rỗng trong khi BE vẫn có dữ liệu → `?page` vượt số trang. */
-export const isInvalidPage = (data: AdjustmentPage | MovementPage) =>
+export const isInvalidPage = (data: InventoryPageMeta) =>
   data.items.length === 0 && data.totalElements > 0;

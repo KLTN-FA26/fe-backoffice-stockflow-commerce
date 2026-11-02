@@ -6,6 +6,10 @@
 
 import {
   ATTRIBUTE_PERMISSIONS,
+  CREDIT_HOLD_PERMISSIONS,
+  CUSTOMER_CREDIT_PROFILE_PERMISSIONS,
+  CUSTOMER_PERMISSIONS,
+  CUSTOMER_PRICE_PERMISSIONS,
   FULFILLMENT_CARRIER_PERMISSIONS,
   FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS,
   FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS,
@@ -22,11 +26,14 @@ import {
   INVENTORY_ITEM_PERMISSIONS,
   INVENTORY_OVERVIEW_PERMISSIONS,
   INVENTORY_PERMISSIONS,
+  LOAD_ESTIMATE_PERMISSIONS,
   LOAD_PLAN_PERMISSIONS,
   ORDER_PERMISSIONS,
   PO_PERMISSIONS,
   PRODUCT_PERMISSIONS,
+  PRODUCTION_ORDER_PERMISSIONS,
   QC_TASK_PERMISSIONS,
+  REPORTING_PERMISSIONS,
   SHIPMENT_PERMISSIONS,
   SUPPLIER_ITEM_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
@@ -74,6 +81,9 @@ const OUTCOME = FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS;
 const VT = VEHICLE_TYPE_PERMISSIONS;
 const VEHICLE_TYPE_READ = [VT.viewPage, VT.read];
 const VEHICLE_TYPE_ALL = Object.values(VT);
+// Seed BE V20261022001200 (BE PR #160): fulfillment-load-estimates CREATE + READ cho ORDER_COORDINATOR /
+// WAREHOUSE_MANAGER / SYSTEM_ADMIN (không có dispatcher; WAREHOUSE_STAFF không có).
+const LOAD_ESTIMATE = Object.values(LOAD_ESTIMATE_PERMISSIONS);
 // Seed BE V20261022001300 (BE PR #161): fulfillment-load-plans VIEW_PAGE + READ cho WAREHOUSE_STAFF /
 // WAREHOUSE_MANAGER / ORDER_COORDINATOR / SYSTEM_ADMIN; CREATE + UPDATE chỉ WAREHOUSE_STAFF / WAREHOUSE_MANAGER /
 // SYSTEM_ADMIN (docs 09 §2: nhân viên điều phối kho lập và chốt kế hoạch).
@@ -94,6 +104,7 @@ const MANAGER_WORK = [
   ...CARRIER,
   ...LOAD_CANCEL,
   ...VEHICLE_TYPE_ALL,
+  ...LOAD_ESTIMATE,
   ...LOAD_PLAN_ALL,
   OUTCOME.update,
 ];
@@ -103,6 +114,7 @@ const COORDINATOR_WORK = [
   ...OVERSIGHT,
   ...Object.values(OUTCOME),
   ...VEHICLE_TYPE_READ,
+  ...LOAD_ESTIMATE,
   ...LOAD_PLAN_READ,
 ];
 const INV = INVENTORY_PERMISSIONS;
@@ -114,8 +126,12 @@ const PRODUCT_STRUCTURE = [
 ];
 // Seed BE: WAREHOUSE_STAFF / INVENTORY_PLANNER giữ inventory-stock-items:READ/UPDATE và
 // inventory-alerts:READ (V20261014000900); WAREHOUSE_STAFF thêm warehouse-locations:READ (V20260928006000).
+// Sổ kho + phiếu điều chỉnh: VIEW_PAGE + READ cho WAREHOUSE_STAFF (V20261013000200) và INVENTORY_PLANNER
+// (sổ kho V20260903000100, phiếu điều chỉnh V20261014001200).
 const INVENTORY_FLOOR = [
+  INV.adjustmentViewPage,
   INV.adjustmentRead,
+  INV.movementViewPage,
   INV.stockUpdate,
   INV.stockRead,
   INV.movementRead,
@@ -137,6 +153,14 @@ const WAREHOUSE_READ = WAREHOUSE_PERMISSIONS.read;
 const ITEM = INVENTORY_ITEM_PERMISSIONS;
 const ITEM_READ = [ITEM.viewPage, ITEM.read];
 const ITEM_ALL = Object.values(ITEM);
+// Seed BE V20261017000510 (catalog-customer-prices): ECOMMERCE_ADMIN đủ quyền, SALES_STAFF VIEW_PAGE + READ,
+// ORDER_COORDINATOR chỉ READ (không VIEW_PAGE — khoảng trống của seed BE, giữ nguyên ở mock). Seed
+// V20260919001600: customer-customers cho ECOMMERCE_ADMIN / SALES_STAFF — FE chỉ dùng READ (ô chọn khách).
+// Chỉ cấp mã FE khai báo (DELETE của BE chưa dùng ở FE).
+const CP = CUSTOMER_PRICE_PERMISSIONS;
+const CUSTOMER_PRICE_ALL = Object.values(CP);
+const CUSTOMER_PRICE_READ = [CP.viewPage, CP.read];
+const CUSTOMER_LOOKUP = CUSTOMER_PERMISSIONS.read;
 const WH_WORK = [
   ...GR_WORK,
   ...FULFILLMENT_READ,
@@ -145,9 +169,24 @@ const WH_WORK = [
   ...OVERVIEW_ALL,
   WAREHOUSE_READ,
   WAREHOUSE_LOCATION_PERMISSIONS.read,
+  // Seed V20260928006000: WAREHOUSE_STAFF xem trang danh mục kho + bản đồ (VIEW_PAGE, READ), không sửa
+  WAREHOUSE_PERMISSIONS.viewPage,
+  WAREHOUSE_LOCATION_PERMISSIONS.viewPage,
   ...ITEM_READ,
   ...VEHICLE_TYPE_READ,
 ];
+
+// Seed BE develop (đơn bán, SCRUM-427 / SCRUM-440):
+// - V20261013000400: sales-order-credit-holds APPROVE chỉ ACCOUNTANT; Sales/Coordinator chỉ xem.
+// - V20261013000400: customer-credit-profiles READ cho ACCOUNTANT / SALES_STAFF / ORDER_COORDINATOR
+//   (FE chỉ dùng READ — `GET /orders/credit-position/{customerId}`).
+// - V20261010000500: production-orders READ cho SALES_STAFF / ORDER_COORDINATOR (không ACCOUNTANT) —
+//   FE chỉ dùng để xem LSX trên trang chi tiết đơn.
+const CREDIT_VIEW = [CREDIT_HOLD_PERMISSIONS.viewPage, CREDIT_HOLD_PERMISSIONS.read];
+const CREDIT_ALL = Object.values(CREDIT_HOLD_PERMISSIONS);
+const CREDIT_PROFILE_READ = CUSTOMER_CREDIT_PROFILE_PERMISSIONS.read;
+const PRODUCTION_READ = PRODUCTION_ORDER_PERMISSIONS.read;
+const ORDER_SALES_EXTRA = [...CREDIT_VIEW, CREDIT_PROFILE_READ, PRODUCTION_READ];
 
 /** Explicit demo session responses keyed by existing staff IDs, never computed from roles. */
 export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
@@ -156,6 +195,10 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...Object.values(SUPPLIER_ITEM_PERMISSIONS),
     ...Object.values(PO_PERMISSIONS),
     ...Object.values(ORDER_PERMISSIONS),
+    ...CREDIT_ALL,
+    CREDIT_PROFILE_READ,
+    PRODUCTION_READ,
+    ...Object.values(REPORTING_PERMISSIONS),
     ...Object.values(PRODUCT_PERMISSIONS),
     ...PRODUCT_STRUCTURE,
     ...Object.values(IDENTITY_PERMISSIONS),
@@ -166,11 +209,14 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...Object.values(OUTCOME),
     ...INVENTORY_ALL,
     ...OVERVIEW_ALL,
-    WAREHOUSE_READ,
-    WAREHOUSE_LOCATION_PERMISSIONS.read,
+    // Seed V20260903000100 / V20260928006000: WAREHOUSE_MANAGER đủ quyền danh mục kho và bản đồ kho
+    ...Object.values(WAREHOUSE_PERMISSIONS),
+    ...Object.values(WAREHOUSE_LOCATION_PERMISSIONS),
     ...Object.values(TO),
     ...SHIP,
     ...ITEM_ALL,
+    ...CUSTOMER_PRICE_ALL,
+    CUSTOMER_LOOKUP,
   ],
   "USER-PROC-01": [
     SUPPLIER_PERMISSIONS.viewPage,
@@ -196,6 +242,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...INVENTORY_FLOOR,
     ...STOCK_READ,
     OV.alertRead,
+    OV.alertViewPage,
     WAREHOUSE_READ,
     TO.viewPage,
     TO.read,
@@ -226,6 +273,9 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     SUPPLIER_PERMISSIONS.read,
     ORDER_PERMISSIONS.viewPage,
     ORDER_PERMISSIONS.read,
+    // SCRUM-427: duyệt / từ chối vượt hạn mức công nợ
+    ...CREDIT_ALL,
+    CREDIT_PROFILE_READ,
   ],
   // ECOMMERCE_ADMIN: duyệt / xuất bản nhưng không tạm ngưng / ngừng kinh doanh (product-lifecycle chỉ
   // System Admin, BE PR #123)
@@ -233,6 +283,8 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...Object.values(PRODUCT_PERMISSIONS).filter((code) => code !== PRODUCT_PERMISSIONS.lifecycle),
     ...PRODUCT_STRUCTURE,
     ...Object.values(SUPPLIER_PERMISSIONS),
+    ...CUSTOMER_PRICE_ALL,
+    CUSTOMER_LOOKUP,
   ],
   "USER-SALE-01": [
     ORDER_PERMISSIONS.viewPage,
@@ -240,7 +292,10 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ORDER_PERMISSIONS.cancel,
     // Seed BE: SALES_STAFF + SYSTEM_ADMIN (không phải ORDER_COORDINATOR) quyết đơn có giao một phần không
     ORDER_PERMISSIONS.partialShipment,
+    ...ORDER_SALES_EXTRA,
     WAREHOUSE_READ,
+    ...CUSTOMER_PRICE_READ,
+    CUSTOMER_LOOKUP,
   ],
   "USER-SALE-02": [
     ORDER_PERMISSIONS.viewPage,
@@ -248,7 +303,10 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ORDER_PERMISSIONS.cancel,
     // Seed BE: SALES_STAFF + SYSTEM_ADMIN (không phải ORDER_COORDINATOR) quyết đơn có giao một phần không
     ORDER_PERMISSIONS.partialShipment,
+    ...ORDER_SALES_EXTRA,
     WAREHOUSE_READ,
+    ...CUSTOMER_PRICE_READ,
+    CUSTOMER_LOOKUP,
   ],
   "USER-SALE-03": [
     ORDER_PERMISSIONS.viewPage,
@@ -256,7 +314,10 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ORDER_PERMISSIONS.cancel,
     // Seed BE: SALES_STAFF + SYSTEM_ADMIN (không phải ORDER_COORDINATOR) quyết đơn có giao một phần không
     ORDER_PERMISSIONS.partialShipment,
+    ...ORDER_SALES_EXTRA,
     WAREHOUSE_READ,
+    ...CUSTOMER_PRICE_READ,
+    CUSTOMER_LOOKUP,
   ],
   // Seed BE: SALES_STAFF có sales-order-cancellations:UPDATE (huỷ đơn, đóng phần còn lại) nhưng không có APPROVE
   // (giữ / gỡ giữ / ghi giao thất bại là của ORDER_COORDINATOR)
@@ -265,6 +326,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...Object.values(ORDER_PERMISSIONS).filter(
       (code) => code !== ORDER_PERMISSIONS.partialShipment,
     ),
+    ...ORDER_SALES_EXTRA,
     ...FULFILLMENT_READ,
     ...COORDINATOR_WORK,
     ...FLOOR_WORK,
@@ -274,6 +336,8 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...TO_STAFF,
     ...SHIP,
     ...ITEM_READ,
+    // ORDER_COORDINATOR: chỉ READ — không VIEW_PAGE / customer-customers:READ nên không vào được màn bảng giá
+    CP.read,
   ],
 };
 

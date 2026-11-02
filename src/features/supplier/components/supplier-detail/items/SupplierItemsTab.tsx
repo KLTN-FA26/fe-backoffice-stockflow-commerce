@@ -27,7 +27,9 @@ import type { SupplierDto, SupplierItem } from "@/features/supplier/types";
 const L = SUPPLIER_ITEM_UI_LABELS;
 // Lỗi quyền của tab nói về danh mục hàng, không về hồ sơ NCC
 const ERRORS = { forbidden: L.forbiddenDescription };
-const RADIUS = "rounded-[var(--r-sm)]";
+// Cỡ nút hành động trong trang chi tiết — biến `--action-*` của `.surface-soft.surface-compact`
+const ACTION_BUTTON =
+  "bg-brand hover:bg-brand-hover h-(--action-h) rounded-(--action-radius) px-(--action-px)";
 
 /**
  * Tab "Danh mục hàng" của chi tiết NCC — SKU mua được từ NCC này kèm giá, MOQ, quy cách, lead time
@@ -45,7 +47,12 @@ export function SupplierItemsTab({ supplier }: { supplier: SupplierDto }) {
 
   const addButton = (label: string) =>
     actions.create ? (
-      <Button type="button" size="sm" onClick={() => setEditing({ item: null })} className={RADIUS}>
+      <Button
+        type="button"
+        size="sm"
+        onClick={() => setEditing({ item: null })}
+        className={ACTION_BUTTON}
+      >
         <Plus className="size-3.5" /> {label}
       </Button>
     ) : undefined;

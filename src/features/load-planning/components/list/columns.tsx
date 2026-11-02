@@ -3,6 +3,8 @@
 import {
   LOAD_PLAN_COLUMNS as C,
   LOAD_PLAN_MODE_LABELS,
+  LOAD_PLAN_SOURCE,
+  LOAD_PLAN_SOURCE_LABELS,
   LOAD_PLAN_STATUS_LABELS,
   UI_LABELS,
 } from "@/constants";
@@ -44,6 +46,17 @@ export function buildLoadPlanColumns(): ColumnDef<PlanRow>[] {
         />
       ),
     },
+    // BE PR #164: kế hoạch nguồn TRANSFER chứa một lệnh chuyển kho; vắng `sourceType` (BE cũ) = đơn khách
+    textCell<PlanRow>(
+      C.SOURCE,
+      UI_LABELS.loadPlan.transfer.column.source,
+      (row) =>
+        LOAD_PLAN_SOURCE_LABELS[
+          row.sourceType === LOAD_PLAN_SOURCE.TRANSFER
+            ? LOAD_PLAN_SOURCE.TRANSFER
+            : LOAD_PLAN_SOURCE.ORDER
+        ],
+    ),
     textCell<PlanRow>(C.MODE, col.mode, (row) => LOAD_PLAN_MODE_LABELS[row.selectionMode]),
     numberColumn(C.SHIPMENTS, col.shipments, (row) => row.shipmentCount),
     numberColumn(C.VEHICLES, col.vehicles, (row) => row.vehicleCount),

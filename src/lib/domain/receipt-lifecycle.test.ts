@@ -13,12 +13,16 @@ import { RECEIPT_TRANSITIONS } from "@/lib/domain/lifecycle";
 import { STATUS_LABEL_VI, toneOf } from "@/lib/domain/status-map";
 
 describe("RECEIPT_TRANSITIONS (docs 03 §5.1)", () => {
-  it("phủ đủ 6 trạng thái của docs", () => {
+  it("phủ đủ 6 trạng thái của docs + Pending Approval (BR-RCP-001)", () => {
     expect(Object.keys(RECEIPT_TRANSITIONS).sort()).toEqual([...RECEIPT_STATUSES].sort());
   });
 
-  it("Draft → Confirmed / Cancelled", () => {
-    expect(RECEIPT_TRANSITIONS.Draft).toEqual(["Confirmed", "Cancelled"]);
+  it("Draft → Pending Approval (đếm vượt dung sai) / Confirmed / Cancelled", () => {
+    expect(RECEIPT_TRANSITIONS.Draft).toEqual(["Pending Approval", "Confirmed", "Cancelled"]);
+  });
+
+  it("BR-RCP-001: Pending Approval → ghi nhận như Confirmed (In QC / In Putaway) hoặc Cancelled", () => {
+    expect(RECEIPT_TRANSITIONS["Pending Approval"]).toEqual(["In QC", "In Putaway", "Cancelled"]);
   });
 
   it("Confirmed → In QC khi có dòng cần QC, → In Putaway khi không", () => {
@@ -30,7 +34,8 @@ describe("RECEIPT_TRANSITIONS (docs 03 §5.1)", () => {
   });
 
   it("BR-05: đã Confirmed thì không quay về Cancelled", () => {
-    const afterConfirm = RECEIPT_STATUSES.filter((s) => s !== "Draft");
+    // Pending Approval chưa ghi nhận tồn nên huỷ được như Draft
+    const afterConfirm = RECEIPT_STATUSES.filter((s) => s !== "Draft" && s !== "Pending Approval");
     for (const status of afterConfirm) {
       expect(RECEIPT_TRANSITIONS[status]).not.toContain("Cancelled");
     }
@@ -42,7 +47,7 @@ describe("RECEIPT_TRANSITIONS (docs 03 §5.1)", () => {
 });
 
 describe("Map trạng thái phiếu nhận BE ↔ FE (BE GoodsReceiptStatus, PR #62)", () => {
-  it("map đủ 6 mã BE, không trùng nhãn FE", () => {
+  it("map đủ 7 mã BE, không trùng nhãn FE", () => {
     const mapped = RECEIPT_API_STATUSES.map((api) => RECEIPT_STATUS_BY_API[api]);
     expect([...mapped].sort()).toEqual([...RECEIPT_STATUSES].sort());
   });
@@ -59,6 +64,11 @@ describe("Map trạng thái phiếu nhận BE ↔ FE (BE GoodsReceiptStatus, PR 
 describe("status-map cho phiếu nhận", () => {
   it.each(RECEIPT_STATUSES)("%s có nhãn tiếng Việt", (status) => {
     expect(STATUS_LABEL_VI[status]).toBeTruthy();
+  });
+
+  it("Pending Approval là warning như PO chờ duyệt", () => {
+    expect(toneOf("Pending Approval")).toBe("warning");
+    expect(STATUS_LABEL_VI["Pending Approval"]).toBe("Chờ duyệt");
   });
 
   it("In QC là warning (đang chặn putaway), Not Required là muted", () => {

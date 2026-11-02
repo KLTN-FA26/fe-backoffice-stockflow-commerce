@@ -5,7 +5,7 @@ import {
   LOCKED_CHECKSUM,
   PLAIN_LINE_ID,
   apiEvidence,
-  fulfillmentOrder,
+  apiTaskLines,
   mismatchEvidence,
 } from "./__fixtures__/task";
 import {
@@ -89,41 +89,45 @@ describe("fulfillment selectors", () => {
   });
 
   it("designedLines chỉ giữ dòng có thiết kế đã khoá", () => {
-    const lines = designedLines(fulfillmentOrder.lines);
+    const lines = designedLines(apiTaskLines);
     expect(lines.map((line) => line.lineId)).toEqual([DESIGN_LINE_ID]);
     expect(lines.map((line) => line.lineId)).not.toContain(PLAIN_LINE_ID);
   });
 
-  it("designLineViews từ dòng đơn: đủ SKU / SL / checksum đã khoá + evidence mới nhất", () => {
-    const views = designLineViews(
-      { integrityEvidence: [mismatchEvidence(OLD)] },
-      fulfillmentOrder.lines,
-    );
+  it("designLineViews lấy dòng in từ task.lines, checksum từ lần đối chiếu mới nhất", () => {
+    const views = designLineViews({
+      lines: apiTaskLines,
+      integrityEvidence: [
+        apiEvidence({ verifiedAt: NEW, expectedChecksum: LOCKED_CHECKSUM }),
+        mismatchEvidence(OLD),
+      ],
+    });
     expect(views).toEqual([
       {
         lineId: DESIGN_LINE_ID,
         sku: "TEE-CUSTOM-L",
         quantity: 2,
         lockedChecksum: LOCKED_CHECKSUM,
-        latestEvidence: expect.objectContaining({ matching: false }),
+        latestEvidence: expect.objectContaining({ matching: true, verifiedAt: NEW }),
       },
     ]);
   });
 
-  it("designLineViews khi chưa đối chiếu: dòng có thiết kế, chưa có evidence", () => {
-    const [view] = designLineViews({ integrityEvidence: [] }, fulfillmentOrder.lines);
+  it("designLineViews chưa đối chiếu → có dòng, lockedChecksum undefined (TaskLine không có checksum)", () => {
+    const [view] = designLineViews({ lines: apiTaskLines, integrityEvidence: [] });
+    expect(view).toMatchObject({ lineId: DESIGN_LINE_ID, sku: "TEE-CUSTOM-L" });
+    expect(view?.lockedChecksum).toBeUndefined();
     expect(view?.latestEvidence).toBeUndefined();
   });
 
-  it("designLineViews không đọc được đơn → suy từ evidence (không có SKU / SL)", () => {
-    const views = designLineViews(
-      { integrityEvidence: [apiEvidence({ verifiedAt: NEW }), mismatchEvidence(OLD)] },
-      undefined,
-    );
+  it("designLineViews task không kèm lines (câu trả lời thao tác ghi) → suy từ evidence", () => {
+    const views = designLineViews({
+      integrityEvidence: [apiEvidence({ verifiedAt: NEW }), mismatchEvidence(OLD)],
+    });
     expect(views).toHaveLength(1);
     expect(views[0]).toMatchObject({ lineId: DESIGN_LINE_ID, lockedChecksum: LOCKED_CHECKSUM });
     expect(views[0]?.sku).toBeUndefined();
-    expect(designLineViews({ integrityEvidence: [] }, undefined)).toEqual([]);
+    expect(designLineViews({ integrityEvidence: [] })).toEqual([]);
   });
 
   it("shortId / shortChecksum rút gọn để hiển thị", () => {

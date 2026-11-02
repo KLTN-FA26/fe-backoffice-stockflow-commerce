@@ -33,12 +33,14 @@ function adjacent(p: BlockMm, q: BlockMm): boolean {
 }
 
 /**
- * Khoá dòng: mã + tên + kích thước DANH ĐỊNH đã sắp xếp. Cùng mã hai cỡ → hai khối khác nhau; còn
- * một kiện xoay vẫn cùng khoá (cùng bộ ba cạnh), nên không bị tách khỏi khối của nó.
+ * Khoá dòng: tên mặt hàng + kích thước DANH ĐỊNH đã sắp xếp (như bảng "Nội dung" của báo cáo EasyCargo). KHÔNG dùng
+ * `label`: BE đặt `label` của hộp là mã nhãn của TỪNG kiện (duy nhất, vd `PKG-SO-…-1`), nên đưa nó vào khoá làm mỗi kiện
+ * thành một khối, một bước, một trang in. Cùng tên hai cỡ → hai khối khác nhau; kiện xoay vẫn cùng khoá (cùng bộ ba
+ * cạnh), nên không bị tách khỏi khối của nó.
  */
 function lineKey(box: LayoutBox): string {
   const sides = [box.origMm.l, box.origMm.w, box.origMm.h].sort((a, b) => a - b);
-  return `${box.label}|${box.partName}|${sides.join("|")}`;
+  return `${box.partName}|${sides.join("|")}`;
 }
 
 /**

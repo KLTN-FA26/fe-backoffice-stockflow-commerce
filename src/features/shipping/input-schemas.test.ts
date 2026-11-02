@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import { SHIPPING_FIELD_MESSAGES as MSG, SHIPPING_LIMITS } from "@/constants";
 
 import {
+  bookingInputSchema,
+  cancelBookingInputSchema,
   cancelLoadInputSchema,
   deliveryOutcomeInputSchema,
   handoverInputSchema,
@@ -149,5 +151,58 @@ describe("cancelLoadInputSchema / deliveryOutcomeInputSchema", () => {
         note: " gãy ",
       }),
     ).toMatchObject({ failureReason: "LOST", note: "gãy" });
+  });
+});
+
+describe("bookingInputSchema — đặt xe (BE BookingRequest)", () => {
+  it("chỉ hãng là bắt buộc; biển số, tài xế, SĐT tuỳ chọn, cắt khoảng trắng, rỗng → vắng", () => {
+    expect(firstMessage(bookingInputSchema.safeParse({ carrierId: "" }))).toBe(MSG.carrierRequired);
+    expect(
+      bookingInputSchema.parse({ carrierId: "c1", vehiclePlate: "  ", driverName: " " }),
+    ).toEqual({
+      carrierId: "c1",
+      vehiclePlate: undefined,
+      driverName: undefined,
+      driverPhone: undefined,
+    });
+    expect(
+      bookingInputSchema.parse({ carrierId: "c1", vehiclePlate: " 51C-1 " }).vehiclePlate,
+    ).toBe("51C-1");
+  });
+
+  it("giới hạn độ dài theo BE: biển số 20, tài xế 120, SĐT 32", () => {
+    const base = { carrierId: "c1" };
+    expect(
+      bookingInputSchema.safeParse({
+        ...base,
+        vehiclePlate: "A".repeat(SHIPPING_LIMITS.vehiclePlateMax + 1),
+      }).success,
+    ).toBe(false);
+    expect(
+      bookingInputSchema.safeParse({
+        ...base,
+        driverName: "A".repeat(SHIPPING_LIMITS.driverNameMax + 1),
+      }).success,
+    ).toBe(false);
+    expect(
+      bookingInputSchema.safeParse({
+        ...base,
+        driverPhone: "9".repeat(SHIPPING_LIMITS.driverPhoneMax + 1),
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("cancelBookingInputSchema — huỷ đặt xe", () => {
+  it("bắt buộc lý do (cắt khoảng trắng), tối đa 500 ký tự", () => {
+    expect(firstMessage(cancelBookingInputSchema.safeParse({ reason: "   " }))).toBe(
+      MSG.cancelBookingReasonRequired,
+    );
+    expect(cancelBookingInputSchema.parse({ reason: " Hãng huỷ " }).reason).toBe("Hãng huỷ");
+    expect(
+      cancelBookingInputSchema.safeParse({
+        reason: "x".repeat(SHIPPING_LIMITS.cancelReasonMax + 1),
+      }).success,
+    ).toBe(false);
   });
 });

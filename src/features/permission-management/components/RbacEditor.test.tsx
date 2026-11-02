@@ -15,6 +15,7 @@ import { useAuthStore } from "@/lib/auth/auth-store";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 
 import { editorMatrix } from "../__fixtures__/matrix";
+import { roleFixture } from "../__fixtures__/roles";
 import { RBAC_EDITOR } from "../constants";
 import { permissionManagementKeys } from "../queries";
 
@@ -60,6 +61,7 @@ beforeEach(() => {
       status: "ACTIVE",
       roles: ["display-context"],
       lastLoginAt: null,
+      mustChangePassword: false,
     },
     false,
   );
@@ -75,6 +77,7 @@ beforeEach(() => {
           status: "ACTIVE",
           roles: ["display-context"],
           lastLoginAt: null,
+          mustChangePassword: false,
         },
       };
     if (path === "/identity/me/permissions")
@@ -82,8 +85,8 @@ beforeEach(() => {
     if (path === "/identity/roles")
       return {
         data: [
-          { code: "ROLE_A", name: "Role A", createdAt: "2026-09-03T00:00:00Z" },
-          { code: "ROLE_B", name: "Role B", createdAt: "2026-09-03T00:00:00Z" },
+          roleFixture({ code: "ROLE_A", name: "Role A" }),
+          roleFixture({ code: "ROLE_B", name: "Role B" }),
         ],
       };
     return {

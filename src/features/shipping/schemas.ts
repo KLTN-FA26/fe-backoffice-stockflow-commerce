@@ -90,6 +90,9 @@ export const beShipmentParcelSchema = z.object({
   lengthCm: measure.nullish(),
   widthCm: measure.nullish(),
   heightCm: measure.nullish(),
+  /** Nhãn kiện đã cũ — in lại trước khi quét lên xe (BE PR #165); thiếu = còn đúng. */
+  labelOutdated: z.boolean().default(false),
+  labelOutdatedAt: isoInstant.nullish(),
 });
 
 /** BE `ShipmentResponse.Step` — mỗi bước ghi người thực hiện và thời điểm (docs 09 BR-02). */

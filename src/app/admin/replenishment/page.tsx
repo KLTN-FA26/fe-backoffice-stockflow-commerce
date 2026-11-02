@@ -12,11 +12,11 @@ import {
 } from "lucide-react";
 import { cn } from "cn";
 import { ComingSoonPage } from "@/components/shared/ComingSoonPage";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { ListStatsPanel } from "@/components/shared/ListStatsPanel";
 import {
   ColumnFilterButton,
   ListToolbar,
+  TOOLBAR_ACTION_CLASS,
   type ListSummaryItem,
 } from "@/components/shared/ListToolbar";
 import { DataTable, type ColumnDef } from "@/components/shared/DataTable";
@@ -489,30 +489,10 @@ function ReplenishmentMockView() {
   ];
 
   return (
-    <>
-      <PageHeader
-        title="Đề xuất nhập hàng"
-        subtitle="Theo dõi SKU dưới reorder point, hàng đang về và số lượng cần bổ sung."
-        actions={
-          <Button
-            type="button"
-            variant={config.showStats ? "secondary" : "outline"}
-            size="sm"
-            onClick={() =>
-              updateConfig((current) => ({ ...current, showStats: !current.showStats }))
-            }
-            className={cn(
-              "rounded-[var(--r-sm)]",
-              config.showStats &&
-                "border-brand bg-brand/10 text-brand hover:bg-brand/10 hover:text-brand border",
-            )}
-          >
-            <BarChart3 className="size-3.5" />
-            {config.showStats ? "Ẩn thống kê" : "Hiện thống kê"}
-          </Button>
-        }
-      />
-
+    // Giao diện kiểu Vercel như danh sách sản phẩm (globals.css `.surface-soft`): không tiêu đề hiển
+    // thị — breadcrumb là tên trang; nút thống kê nằm cuối toolbar.
+    <div className="surface-soft">
+      <h1 className="sr-only">Đề xuất nhập hàng</h1>
       <ListStatsPanel stats={stats} open={config.showStats} gridClassName="sm:grid-cols-4" />
 
       <ListToolbar
@@ -579,9 +559,29 @@ function ReplenishmentMockView() {
         summaryItems={summaryItems}
         onResetAll={resetAll}
         resetDisabled={!hasAnyConfig}
+        actions={
+          <Button
+            type="button"
+            variant={config.showStats ? "secondary" : "outline"}
+            size="sm"
+            onClick={() =>
+              updateConfig((current) => ({ ...current, showStats: !current.showStats }))
+            }
+            className={cn(
+              "border-border-default bg-bg-surface text-ink-primary hover:bg-bg-muted",
+              TOOLBAR_ACTION_CLASS,
+              config.showStats &&
+                "border-brand bg-brand/10 text-brand hover:bg-brand/10 hover:text-brand border",
+            )}
+          >
+            <BarChart3 className="text-dot-info size-3.5" />
+            {config.showStats ? "Ẩn thống kê" : "Hiện thống kê"}
+          </Button>
+        }
       />
 
       <DataTable
+        stickyHeader
         data={filtered}
         columns={visibleColumns}
         rowKey={(row) => row.proposalId}
@@ -602,6 +602,6 @@ function ReplenishmentMockView() {
         variant="default"
         onConfirm={handleConfirmConvert}
       />
-    </>
+    </div>
   );
 }

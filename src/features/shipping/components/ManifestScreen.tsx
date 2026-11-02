@@ -7,8 +7,6 @@ import { useCan } from "@/lib/auth";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { useManifest } from "@/features/shipping/queries";
 import { Alert } from "@/components/shared/Alert";
-import { BackLink } from "@/components/shared/BackLink";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
 
@@ -60,26 +58,26 @@ function ManifestBody({ id }: { id: string }) {
   const draft = !dispatched && (manifest.packageCount === 0 || missing > 0);
 
   return (
-    <>
+    // Giao diện kiểu Vercel (globals.css `.surface-soft`): không tiêu đề hiển thị — breadcrumb đã dẫn
+    // về chuyến; gợi ý + nút in thành một hàng (ẩn khi in).
+    <div className="surface-soft surface-compact">
+      <h1 className="sr-only">{`${M.title} · ${manifest.loadCode}`}</h1>
       <div className="print:hidden">
-        <PageHeader
-          title={`${M.title} · ${manifest.loadCode}`}
-          subtitle={dispatched ? M.dispatchedHint : M.reconcileHint}
-          actions={
-            <>
-              <BackLink href={backHref} label={M.back} />
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={draft}
-                title={draft ? M.printBlocked : undefined}
-                onClick={() => window.print()}
-              >
-                <Printer className="size-3.5" /> {M.print}
-              </Button>
-            </>
-          }
-        />
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-ink-secondary text-[0.8125rem]">
+            {dispatched ? M.dispatchedHint : M.reconcileHint}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={draft}
+            title={draft ? M.printBlocked : undefined}
+            onClick={() => window.print()}
+            className="h-(--action-h) rounded-(--action-radius) px-(--action-px)"
+          >
+            <Printer className="size-3.5" /> {M.print}
+          </Button>
+        </div>
         <div className="mb-4 space-y-2">
           {draft && (
             <Alert tone="danger" title={`${M.missingPrefix} ${missing} ${M.packagesUnit}`}>
@@ -91,7 +89,7 @@ function ManifestBody({ id }: { id: string }) {
       </div>
       {query.isError && <RefetchErrorNotice onRetry={() => void query.refetch()} />}
       <ManifestDocument manifest={manifest} draft={draft} />
-    </>
+    </div>
   );
 }
 

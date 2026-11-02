@@ -37,7 +37,7 @@ export function ProductMasterFields({
       <p className="text-ink-secondary mt-1 text-xs">
         Các trường bắt buộc để lưu Product master ở trạng thái Draft.
       </p>
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ProductFormField
           htmlFor="product-code"
           label={UI_LABELS.product.wizard.fields.productCode}

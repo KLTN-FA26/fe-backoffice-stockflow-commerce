@@ -128,6 +128,13 @@ export async function pickSku(user: User, sku: string | RegExp, line = 1) {
   await user.click(await screen.findByRole("option", { name: sku }));
 }
 
+/** Gõ mô tả của dòng `line` (đếm từ 1): mở popover ở cột thao tác, gõ, bấm "Xong". */
+export async function typeDescription(user: User, text: string, line = 1) {
+  await user.click(screen.getByRole("button", { name: `Mô tả dòng ${line}` }));
+  await user.type(await screen.findByLabelText(`Mô tả sản phẩm dòng ${line}`), text);
+  await user.click(screen.getByRole("button", { name: "Xong" }));
+}
+
 /** Bước Rà soát: bấm "Tạo đơn đặt hàng" ở thanh dưới rồi xác nhận trong dialog. */
 export async function submitFromReview(user: User) {
   await user.click(

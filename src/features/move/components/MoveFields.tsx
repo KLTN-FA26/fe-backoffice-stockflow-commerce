@@ -61,7 +61,7 @@ export function MoveFields({
     </div>
   );
   return (
-    <div className="grid gap-[var(--card-pad)] md:grid-cols-2">
+    <div className="grid grid-cols-1 gap-[var(--card-pad)] md:grid-cols-2">
       {text("sku", MOVE_LABELS.sku, 64, MOVE_LABELS.skuHelp)}
       {text("lotNumber", MOVE_LABELS.lot, MOVE_LIMITS.lotLength, MOVE_LABELS.lotHelp, false)}
       {text("fromLocation", MOVE_LABELS.fromLocation, MOVE_LIMITS.locationLength)}

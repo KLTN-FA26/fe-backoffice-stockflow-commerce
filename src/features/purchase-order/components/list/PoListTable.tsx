@@ -37,11 +37,13 @@ export function PoListTable({
   page,
   columns,
   body,
+  actions,
 }: {
   c: PoListController;
   page: PaginatedResponse<PurchaseOrder> | undefined;
   columns: ColumnDef<PurchaseOrder>[];
   body?: React.ReactNode;
+  actions?: React.ReactNode;
 }) {
   const flags = poListFlags(c.config);
   const resetFields = () =>
@@ -101,12 +103,14 @@ export function PoListTable({
           c.setSupplierId("");
         }}
         resetDisabled={!flags.hasAnyConfig && !c.supplierId}
+        actions={actions}
       />
       {body ??
         (page && (
           <>
             <RefetchBar active={c.poQ.isFetching} label="Đang tải lại danh sách đơn đặt hàng" />
             <DataTable
+              stickyHeader
               data={c.filtered}
               columns={columns}
               rowKey={(r) => r.poId}

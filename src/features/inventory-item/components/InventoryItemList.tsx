@@ -4,7 +4,6 @@ import { INVENTORY_ITEM_PERMISSIONS, UI_LABELS } from "@/constants";
 import { useCan } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { ListToolbar } from "@/components/shared/ListToolbar";
-import { PageHeader } from "@/components/shared/PageHeader";
 
 import { buildInventoryItemColumns, inventoryItemViewColumn } from "./list/columns";
 import { COLUMN_LABELS, DEFAULT_COLUMNS, FILTER_OPTIONS, LOCKED_COLUMNS } from "./list/constants";
@@ -29,8 +28,8 @@ function InventoryItemListContent() {
   ];
 
   return (
-    <>
-      <PageHeader title={L.title} subtitle={L.subtitle} />
+    <div className="surface-soft">
+      <h1 className="sr-only">{L.title}</h1>
       {/* Thiếu READ: không có dữ liệu để tìm/lọc → ẩn cả toolbar và thanh Cấu hình */}
       {canRead && (
         <ListToolbar
@@ -56,7 +55,7 @@ function InventoryItemListContent() {
         />
       )}
       <InventoryItemListBody s={s} columns={visibleColumns} />
-    </>
+    </div>
   );
 }
 

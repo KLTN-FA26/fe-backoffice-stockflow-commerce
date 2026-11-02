@@ -1,6 +1,13 @@
 import { CheckCircle2, ShieldCheck, UserCog } from "lucide-react";
 
-import type { FulfillmentActionCode } from "@/features/fulfillment/lifecycle";
+import { allowedTaskActions } from "@/features/fulfillment/pick-line-lifecycle";
+
+import type {
+  FulfillmentAction,
+  FulfillmentActionCode,
+  FulfillmentActor,
+  FulfillmentGateState,
+} from "@/features/fulfillment/lifecycle";
 import type { FulfillmentScope } from "../primitives";
 
 /** Nhóm thao tác của từng màn — cùng một bảng `FULFILLMENT_ACTIONS`, không rải if/else. */
@@ -8,6 +15,21 @@ export const SCOPE_ACTIONS: Record<FulfillmentScope, readonly FulfillmentActionC
   picking: ["assign", "startPicking", "completePicking"],
   packing: ["reverify"],
 };
+
+/**
+ * Thao tác của task trong một màn: theo trạng thái + mã quyền + người được gán, và "Hoàn tất lấy hàng" chỉ khi
+ * mọi dòng đã PICKED / CANCELLED (BE `requireAllPicked`). Màn đóng gói không có dòng lấy hàng → `true`.
+ */
+export function scopeActions(
+  task: FulfillmentGateState,
+  actor: FulfillmentActor,
+  scope: FulfillmentScope,
+  linesComplete: boolean,
+): readonly FulfillmentAction[] {
+  return allowedTaskActions(task, actor, { linesComplete }).filter((action) =>
+    SCOPE_ACTIONS[scope].includes(action.code),
+  );
+}
 
 const CONFIRM_CODES = ["startPicking", "completePicking"] as const;
 export type ConfirmCode = (typeof CONFIRM_CODES)[number];

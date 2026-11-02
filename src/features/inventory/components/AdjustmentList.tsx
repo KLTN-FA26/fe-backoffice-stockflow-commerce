@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { cn } from "cn";
+import { History } from "lucide-react";
 
 import {
   INVENTORY_LABELS,
@@ -11,11 +13,11 @@ import {
 import { INVENTORY_PERMISSIONS } from "@/constants/permissions";
 
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { useCan } from "@/lib/auth";
+import { usePermissionChecker } from "@/lib/auth";
 
 import { EmptyState } from "@/components/shared/EmptyState";
 import { DataTable } from "@/components/shared/DataTable";
-import { PageHeader } from "@/components/shared/PageHeader";
+import { TOOLBAR_ACTION_CLASS } from "@/components/shared/ListToolbar";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
 
@@ -36,14 +38,21 @@ const ADJUSTMENT_COLUMNS = buildAdjustmentColumns();
 
 export function AdjustmentList() {
   return (
-    <InventoryPermissionGate permission={INVENTORY_PERMISSIONS.adjustmentRead} variant="list">
+    <InventoryPermissionGate
+      allOf={[INVENTORY_PERMISSIONS.adjustmentViewPage, INVENTORY_PERMISSIONS.adjustmentRead]}
+      variant="list"
+    >
       <AdjustmentListContent />
     </InventoryPermissionGate>
   );
 }
 
 function AdjustmentListContent() {
-  const canCreate = useCan(INVENTORY_PERMISSIONS.stockUpdate);
+  const can = usePermissionChecker();
+  const canCreate = can(INVENTORY_PERMISSIONS.stockUpdate);
+  // Shortcut chỉ hiện khi mở được trang đích — cùng điều kiện với gate của MovementHistory
+  const canViewMovements =
+    can(INVENTORY_PERMISSIONS.movementViewPage) && can(INVENTORY_PERMISSIONS.movementRead);
   const state = useInventoryListFilters(INVENTORY_STORAGE_KEYS.adjustments);
   // Ô gõ ghi URL ngay; request dùng giá trị debounce 300ms như các trang danh sách khác
   const sku = useDebouncedValue(state.filters.sku.trim(), 300);
@@ -56,26 +65,41 @@ function AdjustmentListContent() {
     status: state.filters.status ?? undefined,
   });
   const createAction = canCreate ? (
-    <Button className="rounded-[var(--r-sm)]" asChild size="sm">
+    <Button className={cn("bg-brand hover:bg-brand-hover", TOOLBAR_ACTION_CLASS)} asChild size="sm">
       <Link href={INVENTORY_ROUTES.createAdjustment}>{INVENTORY_LABELS.createAdjustment}</Link>
     </Button>
   ) : undefined;
   return (
-    <div className="space-y-[var(--card-pad)]">
-      <PageHeader
-        title={INVENTORY_LABELS.adjustmentTitle}
-        subtitle={INVENTORY_LABELS.approvalPolicy}
+    // Giao diện kiểu Vercel như danh sách sản phẩm (globals.css `.surface-soft`): không tiêu đề hiển
+    // thị — breadcrumb là tên trang; link sang Lịch sử biến động + nút tạo ở cuối toolbar.
+    <div className="surface-soft space-y-[var(--card-pad)]">
+      <h1 className="sr-only">{INVENTORY_LABELS.adjustmentTitle}</h1>
+      <InventoryOffline />
+      <InventoryToolbar
+        state={state}
+        mode="adjustment"
         actions={
           <>
-            <Button className="rounded-[var(--r-sm)]" asChild variant="outline" size="sm">
-              <Link href={INVENTORY_ROUTES.movements}>{INVENTORY_LABELS.movementTitle}</Link>
-            </Button>
+            {canViewMovements && (
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className={cn(
+                  "border-border-default bg-bg-surface text-ink-primary hover:bg-bg-muted",
+                  TOOLBAR_ACTION_CLASS,
+                )}
+              >
+                <Link href={INVENTORY_ROUTES.movements}>
+                  <History className="text-dot-info size-3.5" />
+                  {INVENTORY_LABELS.movementTitle}
+                </Link>
+              </Button>
+            )}
             {createAction}
           </>
         }
       />
-      <InventoryOffline />
-      <InventoryToolbar state={state} mode="adjustment" />
       {query.isFetching && !query.isLoading && (
         <div role="status" aria-label={INVENTORY_LABELS.fetching} className="bg-info h-1" />
       )}
@@ -88,6 +112,7 @@ function AdjustmentListContent() {
           <section aria-busy={query.isFetching}>
             {query.data.items.length ? (
               <DataTable
+                stickyHeader
                 columns={ADJUSTMENT_COLUMNS}
                 data={query.data.items}
                 rowKey={(row) => row.adjustmentId}

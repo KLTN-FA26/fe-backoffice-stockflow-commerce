@@ -13,6 +13,10 @@ describe("permission management API", () => {
         {
           code: "ECOMMERCE_ADMIN",
           name: "E-commerce Admin",
+          system: true,
+          version: 3,
+          holderCount: 2,
+          dataScope: "ALL",
           createdAt: "2026-09-03T00:00:00Z",
         },
       ],
@@ -22,6 +26,10 @@ describe("permission management API", () => {
       {
         code: "ECOMMERCE_ADMIN",
         name: "E-commerce Admin",
+        system: true,
+        version: 3,
+        holderCount: 2,
+        dataScope: "ALL",
         createdAt: "2026-09-03T00:00:00Z",
       },
     ]);
@@ -34,6 +42,10 @@ describe("permission management API", () => {
           code: "WAREHOUSE_MANAGER",
           name: "Warehouse Manager",
           description: null,
+          system: true,
+          version: 0,
+          holderCount: 0,
+          dataScope: "WAREHOUSE",
           createdAt: "2026-09-03T00:00:00Z",
           createdBy: null,
           lastModifiedAt: null,

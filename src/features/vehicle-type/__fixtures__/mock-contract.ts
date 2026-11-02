@@ -44,6 +44,7 @@ export function actAs(grants: readonly PermissionCode[]) {
       username: "t",
       status: "ACTIVE",
       lastLoginAt: null,
+      mustChangePassword: false,
     },
     status: "authenticated",
   });

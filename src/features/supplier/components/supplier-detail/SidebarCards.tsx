@@ -17,7 +17,8 @@ const ACTION_ICON: Record<SupplierActionKey, React.ReactNode> = {
   blacklist: <Ban className="size-3.5" />,
 };
 
-const BUTTON_BASE = "w-full rounded-[var(--r-sm)] border px-3 py-2 text-[0.8125rem] font-medium";
+const BUTTON_BASE =
+  "h-(--action-h) w-full rounded-(--action-radius) border px-3 text-[0.8125rem] font-medium";
 
 export function ActionCard({
   supplier,
@@ -36,7 +37,7 @@ export function ActionCard({
   const isInactive = supplier.status !== "Active";
 
   return (
-    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
+    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)">
       <div className="mb-4 flex justify-center">
         <StatusDot domain="sku" status={supplier.status} size="md" withIcon />
       </div>
@@ -95,7 +96,7 @@ export function OverviewCard({ supplier }: { supplier: SupplierDto }) {
       ? { label: "Tạo lúc", value: supplier.createdAt }
       : null;
   return (
-    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
+    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)">
       <h2 className="text-ink-primary mb-3 text-[0.9375rem] font-semibold">Tổng quan</h2>
       <div className="space-y-2 text-[0.8125rem]">
         <div className="flex justify-between">

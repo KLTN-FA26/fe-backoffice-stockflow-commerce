@@ -19,24 +19,14 @@ const INTEGRITY = UI_LABELS.fulfillment.integrity;
 const FRAME =
   "border-border-default bg-bg-subtle flex size-40 shrink-0 items-center justify-center overflow-hidden rounded-[var(--r-sm)] border";
 
-function Preview({
-  taskId,
-  lineId,
-  alt,
-  onDesignHold,
-}: {
-  taskId: string;
-  lineId: string;
-  alt: string;
-  onDesignHold: boolean;
-}) {
+function Preview({ taskId, lineId, alt }: { taskId: string; lineId: string; alt: string }) {
   const artifact = useDesignArtifact({ taskId, lineId, role: PREVIEW_ROLE }, true);
   if (artifact.isPending) return <Skeleton className="size-40 shrink-0" />;
   if (artifact.isError) {
     return (
       <div className={`${FRAME} text-ink-tertiary flex-col gap-1.5 p-3 text-center text-xs`}>
         <ImageOff className="size-5" />
-        {fulfillmentErrorMessage(artifact.error, "artifact", { onDesignHold })}
+        {fulfillmentErrorMessage(artifact.error, "artifact")}
         <Button
           type="button"
           variant="link"
@@ -75,26 +65,18 @@ export function DesignLineCard({
   line,
   index,
   canDownload,
-  onDesignHold,
 }: {
   taskId: string;
   line: DesignLineView;
   index: number;
   canDownload: boolean;
-  /** Task đang bị giữ do lệch thiết kế — quyết định câu báo khi BE từ chối cấp file. */
-  onDesignHold: boolean;
 }) {
   const evidence = line.latestEvidence;
   const name = line.sku ?? `Dòng ${index + 1}`;
   return (
     <article className="border-border-default bg-bg-surface flex flex-wrap gap-4 rounded-[var(--r-sm)] border p-3">
       {canDownload ? (
-        <Preview
-          taskId={taskId}
-          lineId={line.lineId}
-          alt={`Thiết kế đã khoá của ${name}`}
-          onDesignHold={onDesignHold}
-        />
+        <Preview taskId={taskId} lineId={line.lineId} alt={`Thiết kế đã khoá của ${name}`} />
       ) : (
         <div className={`${FRAME} text-ink-tertiary p-3 text-center text-xs`}>
           Bạn không có quyền xem file thiết kế của task này
@@ -137,7 +119,7 @@ export function DesignLineCard({
         </dl>
         {canDownload && (
           <>
-            <ArtifactButtons taskId={taskId} lineId={line.lineId} onDesignHold={onDesignHold} />
+            <ArtifactButtons taskId={taskId} lineId={line.lineId} />
             <p className="text-ink-tertiary text-xs">{UI_LABELS.fulfillment.artifactDisclaimer}</p>
           </>
         )}

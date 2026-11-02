@@ -33,7 +33,7 @@ export function WizardSidebar({
             disabled={!canGoTo(step.key)}
             aria-current={status === "active" ? "step" : undefined}
             className={cn(
-              "mb-1 flex w-full justify-start gap-2 rounded-[var(--r-sm)] px-2.5 py-2 text-left text-[0.8125rem] transition-colors",
+              "mb-1 flex w-full justify-start gap-2 rounded-[var(--r-md)] px-2.5 py-2 text-left text-[0.8125rem] transition-colors",
               status === "active" &&
                 "bg-brand text-ink-inverse hover:bg-brand hover:text-ink-inverse font-medium",
               status !== "active" && "text-ink-secondary hover:bg-bg-muted hover:text-ink-primary",

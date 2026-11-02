@@ -6,6 +6,7 @@
  */
 
 import {
+  LOAD_PLAN_EDITOR_STALE_MESSAGES as EDITOR_STALE,
   LOAD_PLAN_ERROR_MESSAGES as MESSAGES,
   LOAD_PLAN_PARTIAL_SHIPMENT_ORDER,
 } from "@/constants";
@@ -36,8 +37,21 @@ function hasFieldCode(error: ApiError, code: string): boolean {
   );
 }
 
+type EditorStaleCode = keyof typeof EDITOR_STALE;
+
+/**
+ * `PUT …/placements` không mô tả đúng kế hoạch (thiếu / thừa / trùng kiện hoặc xe — BE `LoadPlan.editPlacements`) gói trong
+ * `VALIDATION_FAILED`: bản đang soạn đã cũ so với kế hoạch.
+ */
+const editorStaleCodeOf = (error: ApiError): EditorStaleCode | undefined =>
+  error.code === "VALIDATION_FAILED"
+    ? (Object.keys(EDITOR_STALE) as EditorStaleCode[]).find((code) => hasFieldCode(error, code))
+    : undefined;
+
 export function loadPlanErrorMessage(error: unknown): string {
   if (!(error instanceof ApiError)) return MESSAGES.generic;
+  const editorStale = editorStaleCodeOf(error);
+  if (editorStale) return EDITOR_STALE[editorStale];
   // `addPackageIds` có kiện không còn trên khay: BE từ chối cả request bằng VALIDATION_FAILED
   if (error.code === "VALIDATION_FAILED" && hasFieldCode(error, NOT_ON_TRAY))
     return MESSAGES.LOAD_PLAN_PACKAGE_NOT_ON_TRAY;
@@ -67,6 +81,9 @@ const STALE_CODES: ReadonlySet<string> = new Set([
   "LOAD_PLAN_LOADING_STARTED",
   "LOAD_PLAN_PACKAGE_TAKEN",
   "SHIPMENT_STATE_CONFLICT",
+  // SCRUM-287 PR F9: lệnh chuyển kho đã đổi (dừng lấy hàng, đã có kế hoạch khác) — danh sách ứng viên đã cũ
+  "TRANSFER_NOT_PACKED",
+  "LOAD_PLAN_SOURCE_MISMATCH",
 ]);
 
 export function isStaleLoadPlanError(error: unknown): boolean {
@@ -74,6 +91,7 @@ export function isStaleLoadPlanError(error: unknown): boolean {
   // Kiện đã rời khay: khay trên màn đã cũ
   return (
     STALE_CODES.has(error.code) ||
+    editorStaleCodeOf(error) !== undefined ||
     (error.code === "VALIDATION_FAILED" && hasFieldCode(error, NOT_ON_TRAY))
   );
 }

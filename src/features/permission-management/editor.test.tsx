@@ -236,6 +236,7 @@ describe("RBAC snapshot and replacement contract", () => {
           status: "ACTIVE",
           roles: [],
           lastLoginAt: null,
+          mustChangePassword: false,
         },
         false,
       ),

@@ -23,6 +23,7 @@ const user = {
   status: "ACTIVE",
   roles: [],
   lastLoginAt: null,
+  mustChangePassword: false,
 };
 const fetchMock = vi.fn<typeof fetch>();
 const origin = "https://backoffice.example.com";
@@ -86,6 +87,26 @@ describe("server-only auth boundary", () => {
       `Bearer ${credential}`,
     );
   });
+  it("login succeeds when the backend omits null fields (user without a full name or last login)", async () => {
+    const { fullName: _f, lastLoginAt: _l, ...omitted } = user;
+    fetchMock
+      .mockResolvedValueOnce(
+        envelope({ accessToken: credential, tokenType: "Bearer", expiresInSeconds: 1234 }),
+      )
+      .mockResolvedValueOnce(envelope(omitted));
+    const response = await loginHandler(
+      request("/api/auth/login", "POST", JSON.stringify({ username: "staff", password: "secret" })),
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(user);
+  });
+  it("session bootstrap accepts a /me response without nullable fields", async () => {
+    const { fullName: _f, lastLoginAt: _l, ...omitted } = user;
+    fetchMock.mockResolvedValue(envelope(omitted));
+    const response = await meHandler(request("/api/auth/me"));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(user);
+  });
   it("uses Secure cookies in production", async () => {
     vi.stubEnv("NODE_ENV", "production");
     fetchMock
@@ -123,6 +144,36 @@ describe("server-only auth boundary", () => {
     expect(new Headers(fetchMock.mock.calls[0][1]?.headers).get("Authorization")).toBe(
       `Bearer ${credential}`,
     );
+  });
+  it("accepts the Spring MeResponse shape: non_null omits null profile fields", async () => {
+    // BE application.yml `jackson.default-property-inclusion: non_null`
+    const { fullName: _fullName, lastLoginAt: _lastLoginAt, ...springBody } = user;
+    fetchMock.mockResolvedValue(envelope({ ...springBody, mustChangePassword: true }));
+    const response = await meHandler(request("/api/auth/me"));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      ...user,
+      fullName: null,
+      lastLoginAt: null,
+      mustChangePassword: true,
+    });
+  });
+  it("login succeeds for a staff account without a full name", async () => {
+    const { fullName: _fullName, ...springBody } = user;
+    fetchMock
+      .mockResolvedValueOnce(
+        envelope({ accessToken: credential, tokenType: "Bearer", expiresInSeconds: 60 }),
+      )
+      .mockResolvedValueOnce(envelope({ ...springBody, lastLoginAt: "2026-10-17T01:02:03.456Z" }));
+    const response = await loginHandler(
+      request("/api/auth/login", "POST", '{"username":"staff","password":"secret"}'),
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      fullName: null,
+      lastLoginAt: "2026-10-17T01:02:03.456Z",
+    });
+    expect(response.cookies.get(AUTH_COOKIE_NAME)?.value).toBe(credential);
   });
   it("no cookie returns 401 without backend access", async () => {
     const response = await meHandler(request("/api/auth/me", "GET", undefined, { Cookie: "" }));
@@ -209,6 +260,39 @@ describe("constrained backend proxy", () => {
     expect(new Headers(init?.headers).has("X-Unsafe")).toBe(false);
     expect(response.status).toBe(204);
     expect(await response.text()).toBe("");
+  });
+  it("forwards Idempotency-Key and the JSON body byte-for-byte (BE fingerprints method+path+body)", async () => {
+    const body = '{"note":"Khách đã cam kết"}';
+    fetchMock.mockResolvedValue(Response.json({ ok: true }));
+    await backendProxyHandler(
+      request("/api/backend/orders/o-1/credit-approval", "POST", body, {
+        "Content-Type": "application/json",
+        "Idempotency-Key": "k-1234-5678",
+        "X-Unsafe": "ignored",
+      }),
+      ["orders", "o-1", "credit-approval"],
+    );
+    const init = fetchMock.mock.calls[0][1];
+    expect(new Headers(init?.headers).get("Idempotency-Key")).toBe("k-1234-5678");
+    expect(new TextDecoder().decode(init?.body as ArrayBuffer)).toBe(body);
+    expect(new Headers(init?.headers).has("X-Unsafe")).toBe(false);
+  });
+
+  it("forwards Idempotency-Key (and only it, besides the safe list) with the JSON body byte-for-byte", async () => {
+    const body = '{"warehouseId":"wh-1"}';
+    fetchMock.mockResolvedValue(Response.json({ ok: true }));
+    await backendProxyHandler(
+      request("/api/backend/orders/o-1/release", "POST", body, {
+        "Content-Type": "application/json",
+        "Idempotency-Key": "k-1234-5678",
+        "X-Unsafe": "ignored",
+      }),
+      ["orders", "o-1", "release"],
+    );
+    const init = fetchMock.mock.calls[0][1];
+    expect(new Headers(init?.headers).get("Idempotency-Key")).toBe("k-1234-5678");
+    expect(new TextDecoder().decode(init?.body as ArrayBuffer)).toBe(body);
+    expect(new Headers(init?.headers).has("X-Unsafe")).toBe(false);
   });
   it("preserves non-JSON error body and status", async () => {
     fetchMock.mockResolvedValue(

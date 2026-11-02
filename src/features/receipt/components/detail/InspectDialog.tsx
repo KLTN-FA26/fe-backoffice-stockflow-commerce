@@ -97,7 +97,7 @@ export function InspectDialog({
         <fieldset key={key} className="border-border-default rounded-[var(--r-sm)] border p-3">
           <legend className="text-ink-primary px-1 text-[0.8125rem] font-medium">{label}</legend>
           <p className="text-ink-tertiary mb-2 text-xs">{hint}</p>
-          <div className="grid gap-2 sm:grid-cols-[7rem_10rem_1fr]">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-[7rem_10rem_minmax(0,1fr)]">
             <div>
               <Label htmlFor={`qc-${key}-qty`} className="text-xs">
                 SL

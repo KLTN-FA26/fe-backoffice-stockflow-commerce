@@ -20,7 +20,14 @@ import type { PoListController } from "./usePoListController";
 
 const L = UI_LABELS.purchaseOrder;
 
-export function PoOrdersTab({ c }: { c: PoListController }) {
+export function PoOrdersTab({
+  c,
+  actions,
+}: {
+  c: PoListController;
+  /** Nút của trang (tạo PO, thống kê) — cuối toolbar. */
+  actions?: React.ReactNode;
+}) {
   const columns = usePoListColumns({
     supplierRefs: c.supplierRefs,
     columnSearch: c.config.columnSearch,
@@ -30,7 +37,15 @@ export function PoOrdersTab({ c }: { c: PoListController }) {
   const visibleColumns = columns.filter((col) => c.config.visibleColumns.includes(col.key));
   const hasServerFilter = c.filters.status.length > 0 || c.supplierId !== "";
 
-  if (!c.canRead) return <PoLoadError error={null} kind="no-read" inline />;
+  if (!c.canRead) {
+    // Thiếu READ: không có toolbar → nút tạo (nếu có quyền CREATE) đứng riêng góc phải
+    return (
+      <>
+        {actions && <div className="mb-3 flex justify-end gap-2">{actions}</div>}
+        <PoLoadError error={null} kind="no-read" inline />
+      </>
+    );
+  }
 
   return (
     <>
@@ -55,7 +70,13 @@ export function PoOrdersTab({ c }: { c: PoListController }) {
           </Badge>
         </div>
       )}
-      <PoListTable c={c} page={c.page} columns={visibleColumns} body={body(c, hasServerFilter)} />
+      <PoListTable
+        c={c}
+        page={c.page}
+        columns={visibleColumns}
+        body={body(c, hasServerFilter)}
+        actions={actions}
+      />
     </>
   );
 }

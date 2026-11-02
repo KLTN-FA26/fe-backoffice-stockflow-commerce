@@ -106,7 +106,9 @@ export function CountLinesForm({
           poLineById={poLineById}
           overOpen={overOpen}
           register={form.register}
+          control={form.control}
           errors={form.formState.errors.lines}
+          onEdit={clearServerError}
           onSplit={split}
           onRemove={remove}
         />

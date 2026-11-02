@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -33,6 +33,8 @@ const row = {
   status: "APPROVED",
   expectedDate: "2026-10-20",
   createdAt: "2026-10-12T02:00:00Z",
+  // BE PR #164 (row): hình thức giao + lúc đóng gói xong
+  deliveryMode: "FULL_TRUCKLOAD",
 };
 
 function renderList(list: RouteHandler, searchParams = "") {
@@ -43,6 +45,32 @@ function renderList(list: RouteHandler, searchParams = "") {
   renderTransferScreen(<TransferList />, searchParams);
   return spies;
 }
+
+describe("TransferList — hình thức giao và đóng gói xong (BE PR #164 final)", HEAVY_TEST, () => {
+  it("cột 'Hình thức giao' phân biệt Nguyên xe (FTL) / Giao lẻ; cột 'Đóng gói xong lúc' có mốc hoặc trống", async () => {
+    renderList(() =>
+      bePage([
+        {
+          ...row,
+          transferId: "a",
+          number: "TO-A",
+          status: "PICKING",
+          packedAt: "2026-10-22T04:00:00Z",
+        },
+        { ...row, transferId: "b", number: "TO-B", deliveryMode: "PARCEL" },
+      ]),
+    );
+    expect(
+      await screen.findByRole("columnheader", { name: L.deliveryMode.label }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: L.deliveryMode.packedAt })).toBeInTheDocument();
+    const rowOf = (number: string) => within(screen.getByText(number).closest("tr") as HTMLElement);
+    expect(rowOf("TO-A").getByText("Nguyên xe (FTL)")).toBeInTheDocument();
+    expect(rowOf("TO-A").getByText(/22 thg 10, 2026/)).toBeInTheDocument();
+    expect(rowOf("TO-B").getByText("Giao lẻ")).toBeInTheDocument();
+    expect(rowOf("TO-B").queryByText("Nguyên xe (FTL)")).not.toBeInTheDocument();
+  });
+});
 
 describe("TransferList — lọc qua URL → API → bảng", HEAVY_TEST, () => {
   it("tham số URL (trạng thái, kho, search, trang) → gửi đúng params BE (trang từ 0)", async () => {

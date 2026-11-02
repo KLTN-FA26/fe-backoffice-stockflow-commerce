@@ -11,6 +11,8 @@ import {
   type MockLoad,
   type MockShipment,
 } from "./mock-dispatch-store";
+import { managedByPlan } from "./mock-dispatch-ftl-rules";
+import { ftlScanCheck } from "./mock-dispatch-ftl-scan";
 import { loadDetailView } from "./mock-dispatch-view";
 import { fail, ok, validationFailed } from "./mock-route-utils";
 
@@ -128,6 +130,7 @@ export function addShipments(
   load: MockLoad,
   ids: string[],
 ): MockResponseShape {
+  if (load.ftl) return managedByPlan();
   if (!isMockLoadOpen(load.status)) return invalidTransition(load, "take shipments");
   if (ids.length === 0) return validationFailed("shipmentIds", "must not be empty");
   const members = ids.map((id) => state.shipments.get(id));
@@ -146,6 +149,7 @@ export function removeShipment(
   load: MockLoad,
   shipmentId: string,
 ): MockResponseShape {
+  if (load.ftl) return managedByPlan();
   if (!isMockLoadOpen(load.status)) return invalidTransition(load, "release shipments");
   const shipment = state.shipments.get(shipmentId);
   if (!shipment || !load.shipmentIds.includes(shipmentId)) {
@@ -186,6 +190,9 @@ export function scan(
     }
   }
   if (!owner || !parcel) return fail(404, "PACKAGE_NOT_FOUND", `No package labelled ${code}`);
+  // Chuyến nguyên xe: nhãn cũ, kiện thuộc xe khác của kế hoạch (BE PR #162)
+  const ftlRefused = ftlScanCheck(state, load, parcel);
+  if (ftlRefused) return ftlRefused;
   if (load.status !== "LOADING") return invalidTransition(load, "scan packages");
   if (owner.status !== "READY_TO_DISPATCH") {
     return fail(
@@ -232,6 +239,7 @@ export function cancelLoad(
   load: MockLoad,
   reason: string,
 ): MockResponseShape {
+  if (load.ftl) return managedByPlan();
   if (load.status === "CANCELLED") return detail(state, load);
   if (!isMockLoadOpen(load.status)) return invalidTransition(load, "be cancelled");
   if (!reason) return validationFailed("reason", "must not be blank");

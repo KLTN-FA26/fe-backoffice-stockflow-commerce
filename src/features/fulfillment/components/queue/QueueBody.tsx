@@ -93,6 +93,7 @@ export function QueueBody({ s, selfId }: { s: PackingQueueState; selfId: string 
     <>
       <RefetchBar active={query.isFetching} label={L.refetching} />
       <DataTable<PackingQueueRow>
+        stickyHeader
         columns={columns}
         data={page.items}
         rowKey={(row) => row.taskId}

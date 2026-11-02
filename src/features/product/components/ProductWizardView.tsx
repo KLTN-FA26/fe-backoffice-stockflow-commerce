@@ -78,7 +78,7 @@ export function ProductWizardView({
     // tiêu đề — breadcrumb topbar đã có tên trang và link về danh sách; h1 giữ cho screen reader.
     <div className="surface-soft surface-compact">
       <h1 className="sr-only">{header.title}</h1>
-      <div className="grid gap-4 xl:grid-cols-[260px_1fr]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[260px_minmax(0,1fr)]">
         <ProductWizardStepper wizard={wizard} isEditing={isEditing} summary={summary} />
         <div className="min-w-0 space-y-4 pb-24">
           <ProductFormServerAlert message={serverMessage} />

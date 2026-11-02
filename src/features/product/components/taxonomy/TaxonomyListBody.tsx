@@ -81,6 +81,7 @@ export function TaxonomyListBody<T>({
     <>
       <RefetchBar active={query.isFetching} label={`Đang tải lại ${noun}`} />
       <DataTable
+        stickyHeader
         columns={columns}
         data={page.items}
         rowKey={rowKey}

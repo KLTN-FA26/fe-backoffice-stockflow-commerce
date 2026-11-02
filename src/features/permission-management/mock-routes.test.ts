@@ -67,12 +67,12 @@ describe("permission management mock BFF routes", () => {
   it("returns role audit metadata from the role list route", async () => {
     const roles = await listRoles();
 
-    expect(roles).toHaveLength(2);
-    expect(roles[0]).toMatchObject({
-      code: "ECOMMERCE_ADMIN",
+    expect(roles.length).toBeGreaterThanOrEqual(2);
+    expect(roles.filter((role) => role.code === "ECOMMERCE_ADMIN")[0]).toMatchObject({
       createdAt: "2026-09-03T00:00:00Z",
+      system: true,
     });
-    expect(roles[1]?.description).toBeNull();
+    expect(roles.filter((role) => role.code === "WAREHOUSE_MANAGER")[0]?.description).toBeNull();
   });
 
   it("every listed mock role has a valid matrix", async () => {

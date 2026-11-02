@@ -8,7 +8,6 @@ import { INVENTORY_OVERVIEW_PERMISSIONS, WAREHOUSE_PERMISSIONS } from "@/constan
 import { usePermissionChecker } from "@/lib/auth";
 
 import { EmptyState } from "@/components/shared/EmptyState";
-import { PageHeader } from "@/components/shared/PageHeader";
 
 import { InventoryOffline } from "./InventoryFeedback";
 import { InventoryPermissionGate } from "./InventoryPermissionGate";
@@ -47,11 +46,9 @@ function InventoryOverviewContent() {
   };
 
   return (
-    <div className="space-y-[var(--card-pad)]">
-      <PageHeader
-        title={INVENTORY_LABELS.overviewTitle}
-        subtitle={INVENTORY_LABELS.overviewSubtitle}
-      />
+    // Giao diện kiểu Vercel (globals.css `.surface-soft`): không tiêu đề hiển thị — breadcrumb là tên trang.
+    <div className="surface-soft space-y-[var(--card-pad)]">
+      <h1 className="sr-only">{INVENTORY_LABELS.overviewTitle}</h1>
       <InventoryOffline />
       <InventorySkuLookup activeSku={activeSku} onSubmit={submit} />
       {activeSku === null ? (

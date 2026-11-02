@@ -1,14 +1,35 @@
 import { describe, expect, it } from "vitest";
 
+import { ADMIN_ROUTES } from "@/constants";
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 
 import { buildBreadcrumbItems } from "./BackofficeShell";
 
 describe("buildBreadcrumbItems", () => {
+  it('trang của một kho: "Kho & bản đồ / <kho ⇅> / <trang>" theo prefix trên URL', () => {
+    const items = buildBreadcrumbItems(ADMIN_ROUTES.warehouseMap.slotting("BD"));
+    expect(items.map((item) => item.label)).toEqual([
+      "Back-office",
+      "Kho & bản đồ",
+      "BD",
+      "Gợi ý vị trí",
+    ]);
+    expect(items[1]?.href).toBe(ADMIN_ROUTES.warehouseMap.root);
+    // Đoạn kho là nút đổi kho (component), không phải chữ
+    expect(items[2]?.render).toBeDefined();
+  });
+
   it("đăng ký route Inventory trong điều hướng back-office", () => {
     expect(buildBreadcrumbItems(INVENTORY_ROUTES.overview)).toEqual([
       { label: "Back-office", href: "/admin" },
       { label: INVENTORY_LABELS.overviewTitle, href: undefined },
+    ]);
+  });
+
+  it("đích deep link cảnh báo tồn là mục menu riêng, không rơi về Tổng quan tồn kho", () => {
+    expect(buildBreadcrumbItems(INVENTORY_ROUTES.alerts)).toEqual([
+      { label: "Back-office", href: "/admin" },
+      { label: INVENTORY_LABELS.alertListTitle, href: undefined },
     ]);
   });
 
@@ -30,6 +51,18 @@ describe("buildBreadcrumbItems", () => {
     expect(buildBreadcrumbItems("/admin/transfers/create").at(-1)).toEqual({
       label: "Tạo lệnh chuyển kho",
     });
+  });
+
+  it("phiếu xếp hàng của xe hiện '… / <mã kế hoạch> / Phiếu xếp hàng', liên kết về kế hoạch", () => {
+    expect(
+      buildBreadcrumbItems("/admin/load-plans/plan-1/vehicles/2/print", undefined, (id) =>
+        id === "plan-1" ? "LP-20261022-0001" : undefined,
+      ).slice(1),
+    ).toEqual([
+      { label: "Kế hoạch xếp xe", href: "/admin/load-plans" },
+      { label: "LP-20261022-0001", href: "/admin/load-plans/plan-1" },
+      { label: "Phiếu xếp hàng" },
+    ]);
   });
 
   it("trang chi tiết và trang tạo giữ nguyên như cũ", () => {

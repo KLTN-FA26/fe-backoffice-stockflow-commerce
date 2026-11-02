@@ -7,7 +7,7 @@
  * (CLAUDE.md + FRONTEND-AI-RULES.md §6.1)
  */
 
-import { STOCK_ADJUSTMENT_STATUS } from "@/constants/statuses";
+import { STOCK_ADJUSTMENT_STATUS, USER_STATUS } from "@/constants/statuses";
 
 import type { SemanticTone, StatusDomain } from "@/lib/mock-data";
 
@@ -70,6 +70,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Submitted",
     "Material Issued",
     "Sent to Customer",
+    // Khách hàng chưa kích hoạt tài khoản (BE CustomerStatus.PENDING_ACTIVATION)
+    "PENDING_ACTIVATION",
     "QUEUED",
     "SENT",
     "In Progress",
@@ -85,7 +87,6 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "In Putaway",
     "Partially Completed",
     "IN_PRODUCTION",
-    "Printing",
     "QC",
     "Out for Delivery",
     "Pending (COD)",
@@ -96,6 +97,11 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Queued",
     "Approved for Payment",
     "Initiated",
+    // docs 19 §5.1 — lệnh sản xuất đang tiến hành
+    "Material Issued",
+    "QC",
+    // BE PaymentStatus.ON_CREDIT (order/api/PaymentStatus.java) — đơn công nợ, chưa thu
+    "On Credit",
     // Chuyển kho: đang lấy hàng ở kho nguồn / đang trên đường (docs 10 §5)
     "PICKING",
     "IN_TRANSIT",
@@ -122,6 +128,10 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Quarantine",
     "Blocked",
     "BLOCKED",
+    // Kệ / bin / khu vực đang hỏng, bảo trì (BE LocationStatus.MAINTENANCE, docs 06 §5)
+    "MAINTENANCE",
+    // Tài khoản bị quản trị viên khoá (BE UserStatus.LOCKED, PR #72)
+    USER_STATUS.LOCKED,
     "Low stock",
     "Awaiting Confirmation",
     "Verification Failed",
@@ -182,13 +192,16 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "New",
     "Requested",
     "INVITED",
-    "PENDING_ACTIVATION",
     // Chuyến xe mới lập kế hoạch, chưa đặt xe
     "PLANNED",
+    // Dòng lấy hàng chưa lấy (BE PickLineStatus.OPEN, SCRUM-267)
+    "Open",
   ],
   muted: [
     // Bán hàng B2B & sản xuất (BE d215f6e)
     "Expired",
+    // Dòng lấy hàng đã trả về kệ sau khi đơn huỷ — kết thúc (BE PickLineStatus.PUT_BACK, SCRUM-275)
+    "Put Back",
     "UNKNOWN",
     "SUPPRESSED",
     // BE #36 cancellationDeliveryStatus: PO huỷ trước khi gửi NCC → không cần báo huỷ.
@@ -206,16 +219,20 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Empty",
     "Full",
     "Disabled",
+    // Tài khoản đã vô hiệu hoá, giữ lại cho lịch sử (BE UserStatus.DISABLED, PR #72)
+    USER_STATUS.DISABLED,
     "Archived",
     "Discontinued",
     "Abandoned",
     // QC dòng nhận — SKU không bật cờ Yêu cầu QC, đi luồng 2 bước (docs 03 §5.2)
     "Not Required",
   ],
+  // Lệnh sản xuất (docs 19 §5.1): in nội bộ / gia công ngoài là sản xuất → special.
   special: [
     "Refunded",
     "Partially Refunded",
     "In Production",
+    "Printing",
     "SAMPLE",
     // Gia công ngoài — tách khỏi in tại xưởng (BE d215f6e)
     "Subcontracted",
@@ -385,7 +402,9 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   Guest: "Khách vãng lai",
   New: "Mới",
   Requested: "Đã yêu cầu",
+  Open: "Chờ lấy",
   // Muted
+  "Put Back": "Đã trả về kệ",
   Closed: "Đã đóng",
   Inactive: "Không hoạt động",
   Blacklisted: "Danh sách đen",
@@ -395,9 +414,6 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   Merged: "Đã gộp",
   Voided: "Đã vô hiệu",
   // Print & Packaging Production
-  "Pending Prepress": "Chờ Prepress",
-  Printing: "Đang in",
-  QC: "Kiểm tra QC",
   Hold: "Tạm dừng (Hold)",
   "Changes Requested": "Yêu cầu sửa",
   // Bán hàng B2B & sản xuất (BE d215f6e)
@@ -405,8 +421,6 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   Expired: "Hết hiệu lực",
   Submitted: "Đã gửi sản xuất",
   "Sent to Customer": "Đã gửi mẫu cho khách",
-  "Material Issued": "Đã xuất phôi",
-  Subcontracted: "Gia công ngoài",
   "Pending Activation": "Chờ kích hoạt",
   // Nhóm trạng thái đơn khách thấy (BE CustomerOrderCardResponse.statusGroup)
   "Under Review": "Đang xem xét",
@@ -432,12 +446,22 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   Empty: "Trống",
   Full: "Đầy",
   Disabled: "Vô hiệu hóa",
+  [USER_STATUS.LOCKED]: "Đã khoá",
+  [USER_STATUS.DISABLED]: "Đã vô hiệu hoá",
   Archived: "Lưu trữ",
   Discontinued: "Ngừng kinh doanh",
   Abandoned: "Bỏ dở",
   // Special
   Refunded: "Đã hoàn tiền",
   "Partially Refunded": "Hoàn tiền một phần",
+  // Lệnh sản xuất (docs 19 §5.1)
+  "Pending Prepress": "Chờ kiểm file in",
+  "Material Issued": "Đã cấp phôi",
+  Printing: "Đang in",
+  QC: "Đang kiểm thành phẩm",
+  Subcontracted: "Đang gia công ngoài",
+  // Thanh toán đơn (BE PaymentStatus)
+  "On Credit": "Ghi công nợ",
 };
 
 /**
@@ -451,6 +475,21 @@ const STATUS_LABEL_VI_BY_DOMAIN: Partial<Record<StatusDomain, Record<string, str
   },
   stock: {
     [STOCK_ADJUSTMENT_STATUS.REJECTED]: "Từ chối",
+  },
+  // Khách hàng (BE CustomerStatus). Domain `customer` còn dùng cho trạng thái tài khoản người dùng
+  // (ACTIVE / LOCKED / DISABLED, `UserStatusBadge`) → không ghi đè ACTIVE; INACTIVE giữ tone mặc định
+  // vì chuỗi này còn dùng ở module khác
+  customer: {
+    PENDING_ACTIVATION: "Chờ kích hoạt",
+    INACTIVE: "Ngừng hoạt động",
+    BLOCKED: "Bị khoá",
+  },
+  // Kệ / bin / khu vực (BE LocationStatus, docs 06 §5): BLOCKED = khoá kiểm kê / QC, INACTIVE = bỏ khỏi bố cục
+  location: {
+    ACTIVE: "Đang dùng",
+    BLOCKED: "Khoá kiểm kê / QC",
+    MAINTENANCE: "Bảo trì",
+    INACTIVE: "Ngừng dùng",
   },
   // Đơn hàng (BE OrderStatus, PR #133): nhãn sát nghĩa nghiệp vụ hơn nhãn dùng chung với module khác
   order: {

@@ -51,6 +51,7 @@ export const DASHBOARD_PO_PENDING_STATUSES = ["PENDING_APPROVAL"] as const;
 // GoodsReceiptStatus.java / docs 03 §5.1: còn đang xử lý (chưa CLOSED / CANCELLED).
 export const DASHBOARD_RECEIPT_PROCESSING_STATUSES = [
   "DRAFT",
+  "PENDING_APPROVAL",
   "CONFIRMED",
   "IN_QC",
   "IN_PUTAWAY",
@@ -78,8 +79,9 @@ export const DASHBOARD_LABELS = {
   poPending: "PO chờ duyệt",
   receiptsProcessing: "Phiếu nhận đang xử lý",
   picksOpen: "Task lấy hàng đang mở",
-  transfersInTransit: "Chuyển kho đang vận chuyển",
-  alertsOpen: "Cảnh báo tồn kho cần xử lý",
+  // Ngắn để vừa một dòng trong ô dải số liệu ở laptop (~150px)
+  transfersInTransit: "Chuyển kho trên đường",
+  alertsOpen: "Cảnh báo tồn kho",
   loading: "…",
   unavailable: "—",
   unavailableHint: "Không tải được",

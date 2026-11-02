@@ -51,6 +51,12 @@ export function buildReceiptSummary(
       onClear: () => s.setPo(""),
     },
     {
+      label: "Loại phiếu",
+      value: s.noPo ? "Chỉ phiếu không có PO" : "Tất cả",
+      active: s.noPo,
+      onClear: () => s.setNoPo(false),
+    },
+    {
       label: "Sắp xếp",
       value: s.sort.key
         ? `${COLUMN_LABELS[s.sort.key]} (${s.sort.direction === "asc" ? "tăng" : "giảm"})`

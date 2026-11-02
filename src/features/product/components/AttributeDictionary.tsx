@@ -11,9 +11,8 @@ import { useUrlTab } from "@/hooks/use-url-filters";
 import { usePermissionChecker } from "@/lib/auth";
 import { DataTable, type ColumnDef } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { FORM_INPUT_CLASS } from "@/components/shared/form-control-classes";
 import { ListConfigSummary } from "@/components/shared/ListConfigSummary";
-import { PageHeader } from "@/components/shared/PageHeader";
+import { TOOLBAR_ACTION_CLASS } from "@/components/shared/ListToolbar";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { PageTabPanel, PageTabs } from "@/components/shared/PageTabs";
 import {
@@ -111,23 +110,9 @@ export function AttributeDictionary() {
   ];
 
   return (
-    <>
-      <PageHeader
-        title="Từ điển thuộc tính"
-        subtitle="Thuộc tính dùng làm trục biến thể (màu, cỡ…) hoặc mô tả sản phẩm, và bộ thuộc tính gợi ý theo danh mục."
-        actions={
-          tab === "attributes" && can(ATTRIBUTE_PERMISSIONS.create) ? (
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => setCreating(true)}
-              className="bg-brand !text-ink-inverse hover:bg-brand-hover rounded-[var(--r-sm)]"
-            >
-              <Plus className="size-3.5" /> Thêm thuộc tính
-            </Button>
-          ) : undefined
-        }
-      />
+    // Giao diện kiểu Vercel như trang danh sách sản phẩm (globals.css `.surface-soft`)
+    <div className="surface-soft">
+      <h1 className="sr-only">Từ điển thuộc tính</h1>
       {/* Thanh tab dùng chung (kiểu Tabs shadcn) — đồng bộ với PO, Thương hiệu & danh mục */}
       <PageTabs
         tabs={[
@@ -145,15 +130,15 @@ export function AttributeDictionary() {
           <CategoryAttributesEditor />
         ) : (
           <>
-            <div className="border-border-default bg-bg-surface mb-3 flex flex-wrap items-center gap-2 rounded-[var(--r-sm)] border px-3 py-2 shadow-[var(--card-shadow)]">
-              <div className="relative min-w-[280px] flex-1 lg:max-w-xl">
-                <Search className="text-accent pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <div className="relative min-w-[280px] flex-1 lg:max-w-(--toolbar-search-max)">
+                <Search className="text-accent pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2" />
                 <Input
                   aria-label="Tìm thuộc tính"
                   placeholder="Tìm theo mã hoặc tên…"
                   value={q}
                   onChange={(e) => void setQ(e.target.value || null)}
-                  className={cn(FORM_INPUT_CLASS, "pl-9")}
+                  className="border-border-default bg-bg-surface focus-visible:border-brand focus-visible:ring-brand/20 h-(--control-h) rounded-(--control-radius) pl-9 text-(length:--control-text) shadow-(--control-shadow)"
                 />
               </div>
               <AttributeFilterPopover
@@ -162,6 +147,16 @@ export function AttributeDictionary() {
                 onDataTypeChange={(v) => void setDataType(v)}
                 onActiveChange={(v) => void setActive(v)}
               />
+              {can(ATTRIBUTE_PERMISSIONS.create) && (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => setCreating(true)}
+                  className={cn("bg-brand hover:bg-brand-hover ml-auto", TOOLBAR_ACTION_CLASS)}
+                >
+                  <Plus className="size-3.5" /> Thêm thuộc tính
+                </Button>
+              )}
             </div>
             <ListConfigSummary
               items={[
@@ -241,6 +236,7 @@ export function AttributeDictionary() {
             ) : (
               <>
                 <DataTable
+                  stickyHeader
                   data={rows}
                   columns={columns}
                   rowKey={(row) => row.attributeId}
@@ -265,6 +261,6 @@ export function AttributeDictionary() {
           </>
         )}
       </PageTabPanel>
-    </>
+    </div>
   );
 }

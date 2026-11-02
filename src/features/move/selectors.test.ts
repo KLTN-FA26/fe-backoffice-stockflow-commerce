@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   destinationCodes,
   findSourceRow,
+  isCountHidden,
   movableQuantity,
   normalizeLocation,
   sameLocation,
@@ -19,6 +20,7 @@ const row = (overrides: Partial<StockRow>): StockRow => ({
   onHand: 10,
   reserved: 4,
   available: 6,
+  hiddenDuringCount: false,
   status: "AVAILABLE",
   ...overrides,
 });
@@ -50,6 +52,20 @@ describe("stock rows", () => {
   it("movable = onHand - reserved whatever the status, never negative", () => {
     expect(movableQuantity({ onHand: 10, reserved: 4 })).toBe(6);
     expect(movableQuantity({ onHand: 3, reserved: 5 })).toBe(0);
+  });
+
+  it("a row hidden during a count is not movable and reads as hidden (SCRUM-146)", () => {
+    const hidden = row({
+      onHand: undefined,
+      reserved: undefined,
+      available: undefined,
+      hiddenDuringCount: true,
+    });
+    expect(isCountHidden(hidden)).toBe(true);
+    expect(movableQuantity(hidden)).toBe(0);
+    // Even if a payload still carried numbers, the flag wins: the bin is under count.
+    expect(movableQuantity(row({ hiddenDuringCount: true }))).toBe(0);
+    expect(isCountHidden(row({}))).toBe(false);
   });
 
   it("finds the row a typed source points at, by location (any case) and lot", () => {

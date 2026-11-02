@@ -27,6 +27,7 @@ const userA: AuthUser = {
   status: "ACTIVE",
   roles: [],
   lastLoginAt: null,
+  mustChangePassword: false,
 };
 const userB: AuthUser = { ...userA, userId: "B", username: "b", email: "b@example.com" };
 const unauthorized = () => new ApiError(401, "UNAUTHENTICATED", "Signed out");

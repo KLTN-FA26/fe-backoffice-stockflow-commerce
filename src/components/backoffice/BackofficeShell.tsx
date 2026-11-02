@@ -4,6 +4,7 @@ import { cn } from "cn";
 import {
   ArrowRightLeft,
   Building2,
+  BellRing,
   Boxes,
   CalendarClock,
   ClipboardList,
@@ -18,6 +19,7 @@ import {
   LayoutDashboard,
   Lightbulb,
   ListChecks,
+  Map as MapIcon,
   MapPin,
   Move,
   Package,
@@ -30,46 +32,63 @@ import {
   Receipt,
   Search as SearchIcon,
   ShieldCheck,
+  ShieldAlert,
+  UserCog,
   ShoppingBag,
   ShoppingCart,
   SlidersHorizontal,
   SquareKanban,
+  Tags,
   Truck,
   TruckElectric,
+  Undo2,
   Users,
   Warehouse as WarehouseIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import {
   ADMIN_ROUTES,
   ATTRIBUTE_PERMISSIONS,
   CUSTOMER_PERMISSIONS,
+  CREDIT_HOLD_PERMISSIONS,
+  CUSTOMER_PRICE_PERMISSIONS,
+  CUSTOMER_PRICE_UI_LABELS,
   FULFILLMENT_PACKAGE_PERMISSIONS,
   FULFILLMENT_PICK_PERMISSIONS,
+  FULFILLMENT_PICKING_PERMISSIONS,
   GOODS_RECEIPT_PERMISSIONS,
   IDENTITY_PERMISSIONS,
   INVENTORY_ITEM_PERMISSIONS,
   INVENTORY_OVERVIEW_PERMISSIONS,
   INVENTORY_PERMISSIONS,
   LOAD_PLAN_PERMISSIONS,
+  LOAD_PLAN_PRINT_LABELS,
   ORDER_PERMISSIONS,
   PO_PERMISSIONS,
   PRODUCT_PERMISSIONS,
   PRODUCTION_ORDER_PERMISSIONS,
   QUOTE_PERMISSIONS,
   SAMPLE_REQUEST_PERMISSIONS,
+  PUT_BACK_LABELS,
   SHIPMENT_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
   TRANSFER_PERMISSIONS,
   UI_LABELS,
   VEHICLE_TYPE_PERMISSIONS,
+  WAREHOUSE_LOCATION_PERMISSIONS,
+  WAREHOUSE_PERMISSIONS,
 } from "@/constants";
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 
+import { NotificationBell } from "@/features/notification";
+import { warehouseBreadcrumbTail } from "@/features/warehouse-map/components/workspace/WarehouseCrumb";
+import { WarehouseNavPanel } from "@/features/warehouse-map/components/workspace/WarehouseNavPanel";
+
 import { usePermissionChecker } from "@/lib/auth/components/Can";
+import { useAppStore } from "@/lib/store/use-app-store";
 import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
 import { invoices, purchaseOrders, putawayTasks } from "@/lib/mock-data";
 import { useIsMock } from "@/providers/app-providers";
@@ -91,6 +110,7 @@ import { SidebarFooterBar } from "./SidebarFooterBar";
 import { SidebarNav } from "./SidebarNav";
 
 import type { LucideIcon } from "lucide-react";
+import type { ComponentType } from "react";
 import type { PermissionCode } from "@/lib/auth/me-permissions";
 /* -------------------------------------------------------------------------- */
 /*  Warning dot counts — computed from mock data (mock mode only: the BE has */
@@ -123,7 +143,6 @@ function computeWarningCounts(): Record<string, number> {
 
 export interface NavItem {
   label: string;
-  tooltip: string;
   href: string;
   icon: LucideIcon;
   /** Mã quyền BE cần có để thấy menu (đọc từ /identity/me/permissions). Không khai báo = luôn hiện. */
@@ -132,6 +151,8 @@ export interface NavItem {
   anyPermission?: readonly PermissionCode[];
   /** Màn chỉ chạy được trên mock (BE chưa có API) — ẩn khi nối BE thật. */
   mockOnly?: boolean;
+  /** Breadcrumb riêng cho các đoạn URL sau `href` (vd `[kho ⇅] / Bản đồ kho`) thay cách đọc id mặc định. */
+  breadcrumbTail?: (rest: readonly string[]) => BreadcrumbItem[];
 }
 
 export interface NavGroup {
@@ -139,13 +160,17 @@ export interface NavGroup {
   title: string;
   icon: LucideIcon;
   items: NavItem[];
+  /** Màn con riêng thay danh sách item mặc định (vd tab "Kho & bản đồ": chọn kho → trang của kho). */
+  panel?: ComponentType;
+  /** Bấm item cha thì đi thẳng tới trang này (thay vì chỉ mở màn con). */
+  href?: string;
 }
 
 export const NAV_GROUPS: NavGroup[] = [
   {
     title: "Tổng quan",
     icon: LayoutDashboard,
-    items: [{ label: "Tổng quan", tooltip: "Dashboard", href: "/admin", icon: LayoutDashboard }],
+    items: [{ label: "Tổng quan", href: "/admin", icon: LayoutDashboard }],
   },
   {
     title: "Master data",
@@ -153,20 +178,18 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       {
         label: "Sản phẩm & SKU",
-        tooltip: "Products & SKUs",
         href: "/admin/products",
         icon: Package,
+        permission: PRODUCT_PERMISSIONS.viewPage,
       },
       {
         label: "Từ điển thuộc tính",
-        tooltip: "Attribute dictionary",
         href: ADMIN_ROUTES.attributes,
         icon: Palette,
         permission: ATTRIBUTE_PERMISSIONS.viewPage,
       },
       {
         label: "Thương hiệu & danh mục",
-        tooltip: "Brands & Categories",
         href: ADMIN_ROUTES.taxonomy.list,
         icon: FolderTree,
         // BE gate mọi endpoint /brands, /categories bằng product-products (ProductTaxonomyController)
@@ -174,10 +197,16 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       {
         label: "Nhà cung cấp",
-        tooltip: "Suppliers",
         href: "/admin/suppliers",
         icon: Users,
         permission: SUPPLIER_PERMISSIONS.viewPage,
+      },
+      {
+        label: CUSTOMER_PRICE_UI_LABELS.navLabel,
+        href: ADMIN_ROUTES.customerPrices.list,
+        icon: Tags,
+        // BE `@PermissionResource(catalog-customer-prices)`: VIEW_PAGE mở trang (seed: ECOMMERCE_ADMIN, SALES_STAFF)
+        permission: CUSTOMER_PRICE_PERMISSIONS.viewPage,
       },
     ],
   },
@@ -187,10 +216,16 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       {
         label: "Phân quyền",
-        tooltip: "Permission management",
         href: ADMIN_ROUTES.permissions,
         icon: ShieldCheck,
         permission: IDENTITY_PERMISSIONS.rbacRead,
+      },
+      {
+        label: "Người dùng",
+        href: ADMIN_ROUTES.users.list,
+        icon: UserCog,
+        // Cổng theo READ (BE `identity-users:READ`), cùng kiểu menu "Phân quyền" ngay trên
+        permission: IDENTITY_PERMISSIONS.usersRead,
       },
     ],
   },
@@ -200,7 +235,6 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       {
         label: "Đề xuất nhập hàng",
-        tooltip: "Replenishment",
         href: "/admin/replenishment",
         icon: Lightbulb,
         // BE chưa có API đề xuất nhập hàng (chỉ có đánh giá ngưỡng tồn) — màn chạy trên dữ liệu mẫu
@@ -208,14 +242,12 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       {
         label: "Đơn đặt NCC",
-        tooltip: "Purchase Orders",
         href: "/admin/purchase-orders",
         icon: ShoppingCart,
         permission: PO_PERMISSIONS.viewPage,
       },
       {
         label: "Hoá đơn NCC",
-        tooltip: "Supplier Invoices",
         href: "/admin/invoices",
         icon: Receipt,
         // BE chưa có API hoá đơn NCC (`/invoices`) — màn chạy trên dữ liệu mẫu
@@ -229,12 +261,11 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       {
         label: "Phiếu nhận",
-        tooltip: "Goods receipts",
         href: ADMIN_ROUTES.receipts.list,
         icon: FileText,
         permission: GOODS_RECEIPT_PERMISSIONS.viewPage,
       },
-      { label: "Cất hàng", tooltip: "Putaway", href: "/admin/putaway", icon: PackageCheck },
+      { label: "Cất hàng", href: "/admin/putaway", icon: PackageCheck },
     ],
   },
   {
@@ -243,7 +274,6 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       {
         label: INVENTORY_LABELS.overviewTitle,
-        tooltip: "Inventory Overview",
         href: INVENTORY_ROUTES.overview,
         icon: Boxes,
         // Same rule as the page gate: stock READ or reservation READ; alert READ alone is not enough.
@@ -253,8 +283,14 @@ export const NAV_GROUPS: NavGroup[] = [
         ],
       },
       {
+        label: INVENTORY_LABELS.alertListTitle,
+        href: INVENTORY_ROUTES.alerts,
+        icon: BellRing,
+        // BE StockAlertController khai báo VIEW_PAGE cho inventory-alerts (route của deep link thông báo)
+        permission: INVENTORY_OVERVIEW_PERMISSIONS.alertViewPage,
+      },
+      {
         label: "Hồ sơ hàng tồn",
-        tooltip: "Inventory items",
         href: ADMIN_ROUTES.inventoryItems.list,
         // Hồ sơ cấu hình SKU — khác icon Boxes của "Tổng quan tồn kho" (số lượng tồn)
         icon: FileBox,
@@ -262,27 +298,13 @@ export const NAV_GROUPS: NavGroup[] = [
         permission: INVENTORY_ITEM_PERMISSIONS.viewPage,
       },
       {
-        label: "Kho map & slotting",
-        tooltip: "Warehouse Map",
-        href: "/admin/warehouse-map",
-        icon: MapPin,
-      },
-      {
-        label: "Gợi ý vị trí",
-        tooltip: "Slotting Suggestions",
-        href: "/admin/slotting",
-        icon: Lightbulb,
-      },
-      {
         label: UI_LABELS.transfer.pageTitle,
-        tooltip: "Inter-warehouse Transfers",
         href: ADMIN_ROUTES.transfers.list,
         icon: ArrowRightLeft,
         permission: TRANSFER_PERMISSIONS.viewPage,
       },
       {
         label: "Di chuyển nội bộ",
-        tooltip: "Intra-warehouse Moves",
         href: "/admin/moves",
         icon: Move,
         // BE StockOperationsController: POST /inventory/movements là inventory-stock-items:UPDATE
@@ -290,17 +312,40 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       {
         label: "Điều chỉnh tồn",
-        tooltip: "Stock adjustments",
         href: INVENTORY_ROUTES.adjustments,
         icon: SlidersHorizontal,
-        permission: INVENTORY_PERMISSIONS.adjustmentRead,
+        permission: INVENTORY_PERMISSIONS.adjustmentViewPage,
       },
       {
         label: "Lịch sử biến động",
-        tooltip: "Stock movement history",
         href: INVENTORY_ROUTES.movements,
         icon: HistoryIcon,
-        permission: INVENTORY_PERMISSIONS.movementRead,
+        permission: INVENTORY_PERMISSIONS.movementViewPage,
+      },
+    ],
+  },
+  {
+    // Module 06 tách tab riêng: luôn chọn kho làm việc trước (panel riêng), trang theo kho dưới prefix
+    title: UI_LABELS.warehouseMap.workspace.navGroup,
+    icon: MapPin,
+    // Vào tab là tới thẳng Danh mục kho — nơi chọn kho làm việc
+    href: ADMIN_ROUTES.warehouses.list,
+    panel: WarehouseNavPanel,
+    items: [
+      {
+        label: UI_LABELS.warehouseMap.listTitle,
+        href: ADMIN_ROUTES.warehouses.list,
+        icon: WarehouseIcon,
+        // BE WarehouseController @PermissionResource route `/admin/warehouses`
+        permission: WAREHOUSE_PERMISSIONS.viewPage,
+      },
+      {
+        label: UI_LABELS.warehouseMap.workspace.navGroup,
+        href: ADMIN_ROUTES.warehouseMap.root,
+        icon: MapIcon,
+        // BE WarehouseLocationResourceDeclaration route `/admin/warehouse-map`
+        permission: WAREHOUSE_LOCATION_PERMISSIONS.viewPage,
+        breadcrumbTail: warehouseBreadcrumbTail,
       },
     ],
   },
@@ -311,21 +356,18 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       {
         label: "Khách hàng",
-        tooltip: "B2B customers",
         href: ADMIN_ROUTES.customers.list,
         icon: Building2,
         permission: CUSTOMER_PERMISSIONS.viewPage,
       },
       {
         label: "Báo giá",
-        tooltip: "Quotes",
         href: ADMIN_ROUTES.quotes.list,
         icon: FileSignature,
         permission: QUOTE_PERMISSIONS.viewPage,
       },
       {
         label: "Yêu cầu mẫu",
-        tooltip: "Sample requests",
         href: ADMIN_ROUTES.sampleRequests.list,
         icon: FlaskConical,
         permission: SAMPLE_REQUEST_PERMISSIONS.viewPage,
@@ -339,14 +381,12 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       {
         label: "Xưởng in",
-        tooltip: "Workshop board & dashboard",
         href: ADMIN_ROUTES.workshop,
         icon: SquareKanban,
         permission: PRODUCTION_ORDER_PERMISSIONS.viewPage,
       },
       {
         label: "Lệnh sản xuất",
-        tooltip: "Production orders",
         href: ADMIN_ROUTES.productionOrders.list,
         icon: Factory,
         permission: PRODUCTION_ORDER_PERMISSIONS.viewPage,
@@ -359,28 +399,39 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       {
         label: "Đơn hàng",
-        tooltip: "Orders",
         href: ADMIN_ROUTES.orders.list,
         icon: ClipboardList,
         permission: ORDER_PERMISSIONS.viewPage,
       },
+      // Mục riêng, gate bằng quyền credit hold — ACCOUNTANT duyệt công nợ nhưng không có
+      // sales-orders:VIEW_PAGE nên không đi qua được mục "Đơn hàng" (BE V20261013000400).
+      {
+        label: UI_LABELS.order.creditHoldsTitle,
+        href: ADMIN_ROUTES.orders.creditHolds,
+        icon: ShieldAlert,
+        permission: CREDIT_HOLD_PERMISSIONS.viewPage,
+      },
       {
         label: "Lấy hàng",
-        tooltip: "Picking",
         href: ADMIN_ROUTES.picking.list,
         icon: WarehouseIcon,
         permission: FULFILLMENT_PICK_PERMISSIONS.viewPage,
       },
       {
         label: "Đóng gói",
-        tooltip: "Packing",
         href: ADMIN_ROUTES.packing.list,
         icon: PackageCheck,
         permission: FULFILLMENT_PACKAGE_PERMISSIONS.viewPage,
       },
       {
+        label: PUT_BACK_LABELS.title,
+        href: ADMIN_ROUTES.putBacks.list,
+        icon: Undo2,
+        // BE `GET /fulfillment/put-backs` — fulfillment-picking:READ (resource không có VIEW_PAGE)
+        permission: FULFILLMENT_PICKING_PERMISSIONS.read,
+      },
+      {
         label: UI_LABELS.loadPlan.pageTitle,
-        tooltip: UI_LABELS.loadPlan.navTooltip,
         href: ADMIN_ROUTES.loadPlans.list,
         icon: CalendarClock,
         // Resource riêng `fulfillment-load-plans` (BE PR #161)
@@ -388,21 +439,18 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       {
         label: UI_LABELS.vehicleType.pageTitle,
-        tooltip: UI_LABELS.vehicleType.navTooltip,
         href: ADMIN_ROUTES.vehicleTypes,
         icon: TruckElectric,
         permission: VEHICLE_TYPE_PERMISSIONS.viewPage,
       },
       {
         label: UI_LABELS.shipping.shipments.title,
-        tooltip: "Shipments waiting for dispatch",
         href: ADMIN_ROUTES.shipments.list,
         icon: PackageOpen,
         permission: SHIPMENT_PERMISSIONS.viewPage,
       },
       {
         label: UI_LABELS.shipping.loads.title,
-        tooltip: "Loading & carrier handover",
         href: ADMIN_ROUTES.loads.list,
         icon: Truck,
         permission: SHIPMENT_PERMISSIONS.viewPage,
@@ -415,15 +463,19 @@ export const NAV_GROUPS: NavGroup[] = [
 /*  Breadcrumb helper                                                        */
 /* -------------------------------------------------------------------------- */
 
-interface BreadcrumbItem {
+export interface BreadcrumbItem {
   label: string;
   href?: string;
+  /** Hiện component này thay chữ (vd nút đổi kho kiểu Vercel); `label` vẫn là tên cho test / a11y. */
+  render?: ComponentType;
 }
 
 /** Đoạn cuối URL là trang con của một bản ghi: `/<module>/<id>/<đoạn>` → "… / <id> / <nhãn>". */
 const SUBPAGE_LABELS: Record<string, string> = {
   edit: "Chỉnh sửa",
   manifest: UI_LABELS.shipping.manifest.title,
+  /** `/load-plans/<id>/vehicles/<seq>/print` — phiếu xếp hàng của một xe (SCRUM-287 PR F6). */
+  print: LOAD_PLAN_PRINT_LABELS.documentTitle,
 };
 
 const DETAIL_LABEL_BY_ROUTE: Record<string, string> = {
@@ -446,6 +498,30 @@ export function useCanSeeNavItem(): (item: NavItem) => boolean {
     (!item.mockOnly || isMock) &&
     (!item.permission || can(item.permission)) &&
     (!item.anyPermission || item.anyPermission.some(can));
+}
+
+/** Mỗi mục tự gate theo quyền của chính nó; nhóm không còn mục nào thì bỏ (không hiện tiêu đề rỗng). */
+export function visibleNavGroups(canSeeItem: (item: NavItem) => boolean): NavGroup[] {
+  return NAV_GROUPS.map((group) => ({ ...group, items: group.items.filter(canSeeItem) })).filter(
+    (group) => group.items.length > 0,
+  );
+}
+
+/**
+ * Mục menu đang mở: khớp dài nhất trong các mục được thấy — `/admin/orders/credit-holds` sáng
+ * mục hàng đợi công nợ, không sáng kèm "Đơn hàng" (`/admin/orders`). `/admin` chỉ khớp đúng.
+ */
+export function findActiveNavHref(
+  pathname: string,
+  items: readonly Pick<NavItem, "href">[],
+): string | undefined {
+  return items
+    .filter((item) =>
+      item.href === ADMIN_ROUTES.home
+        ? pathname === item.href
+        : pathname === item.href || pathname.startsWith(`${item.href}/`),
+    )
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 }
 
 function findNavItem(pathname: string): NavItem | undefined {
@@ -471,6 +547,13 @@ export function buildBreadcrumbItems(
   const linkable = canSeeItem(navItem);
   items.push({ label: navItem.label, href: isListPage || !linkable ? undefined : navItem.href });
 
+  if (!isListPage && navItem.breadcrumbTail) {
+    const rest = pathname
+      .slice(navItem.href.length + 1)
+      .split("/")
+      .filter(Boolean);
+    return [...items, ...navItem.breadcrumbTail(rest)];
+  }
   if (!isListPage) {
     const rest = pathname
       .slice(navItem.href.length + 1)
@@ -482,7 +565,8 @@ export function buildBreadcrumbItems(
     const subpage =
       rest.length >= 2 && Object.hasOwn(SUBPAGE_LABELS, last) ? SUBPAGE_LABELS[last] : undefined;
     if (subpage) {
-      const id = rest.slice(0, -1).join("/");
+      // Trang in nằm sâu hơn một cấp (`<id>/vehicles/<seq>/print`): bản ghi vẫn là đoạn đầu tiên
+      const id = (last === "print" ? rest.slice(0, 1) : rest.slice(0, -1)).join("/");
       items.push({
         label: labelFor(id) ?? decodeURIComponent(id),
         href: linkable ? `${navItem.href}/${id}` : undefined,
@@ -578,6 +662,11 @@ function BackofficeSidebar() {
     [isMock],
   );
   const canSeeItem = useCanSeeNavItem();
+  const visibleGroups = visibleNavGroups(canSeeItem);
+  const activeHref = findActiveNavHref(
+    pathname,
+    visibleGroups.flatMap((group) => group.items),
+  );
 
   return (
     <Sidebar
@@ -613,7 +702,7 @@ function BackofficeSidebar() {
       <SidebarContent className="[&::-webkit-scrollbar-thumb]:bg-border-strong min-h-0 flex-1 gap-0 overflow-y-auto px-2 py-2 [&::-webkit-scrollbar]:block [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-button]:hidden [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
         <SidebarNav
           groups={NAV_GROUPS}
-          activeHref={findNavItem(pathname)?.href}
+          activeHref={activeHref}
           canSeeItem={canSeeItem}
           warningCounts={warningCounts}
           collapsed={collapsed}
@@ -636,11 +725,23 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
 
   const canSeeItem = useCanSeeNavItem();
   const breadcrumbLabels = useBreadcrumbLabelStore((s) => s.labels);
+  // Chế độ mở rộng (vd bảng dòng PO) ép sidebar thu gọn; tắt thì về lại trạng thái người dùng chọn.
+  // Sidebar điều khiển từ đây: đang mở rộng mà bấm thu/mở (nút, Ctrl/⌘+B) = thoát chế độ mở rộng
+  // rồi áp lựa chọn đó — không để nút "chết" và không ngầm đổi trạng thái của người dùng.
+  const focusMode = useAppStore((s) => s.focusMode);
+  const setFocusMode = useAppStore((s) => s.setFocusMode);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const onSidebarOpenChange = (open: boolean) => {
+    if (focusMode) setFocusMode(false);
+    setSidebarOpen(open);
+  };
   const breadcrumbItems = buildBreadcrumbItems(pathname, canSeeItem, (id) => breadcrumbLabels[id]);
 
   return (
     <TooltipProvider>
       <SidebarProvider
+        open={focusMode ? false : sidebarOpen}
+        onOpenChange={onSidebarOpenChange}
         // h-svh + overflow-hidden ghi đè `min-h-svh` của SidebarProvider: chiều cao phải
         // BỊ CHẶN để `overflow-auto` của <main> có hiệu lực, nhờ đó topbar/sidebar đứng yên
         // và chỉ vùng nội dung cuộn. Dùng min-h-* thì cả trang cuộn, topbar trôi theo.
@@ -676,7 +777,9 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
                     className="flex min-w-0 items-center gap-1.5"
                   >
                     {index > 0 && <span className="opacity-50">/</span>}
-                    {item.href ? (
+                    {item.render ? (
+                      <item.render />
+                    ) : item.href ? (
                       <Link
                         href={item.href}
                         className="text-ink-secondary hover:text-ink-primary truncate transition-colors"
@@ -690,6 +793,7 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
                 ))}
               </nav>
             </div>
+            <NotificationBell />
           </header>
 
           {/* Content */}

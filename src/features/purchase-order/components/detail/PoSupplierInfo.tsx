@@ -27,9 +27,9 @@ export function PoSupplierInfo({
   supplierName: string;
 }) {
   return (
-    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
+    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)">
       <h2 className="text-ink-primary mb-3 flex items-center gap-2 text-[0.9375rem] font-semibold">
-        <Truck className="text-accent size-4" />
+        <Truck className="text-accent size-3.5" />
         Nhà cung cấp
       </h2>
       <div>

@@ -1,8 +1,9 @@
 /**
  * Dữ liệu phụ trợ của module khác mà màn xuất kho cần — task BE chỉ trả id.
  *
- * - Đơn hàng (`GET /orders`, `/orders/{id}`): số đơn, dòng đơn (SKU, SL, thiết kế đã khoá). Cần
- *   `sales-orders:READ`; seed BE không cấp cho nhân viên kho / quản lý kho / QC.
+ * - Đơn hàng (`GET /orders/{id}`): chỉ còn trạm đóng gói đọc cờ `printLinesReady` (BE PR #150) khi người dùng có
+ *   `sales-orders:READ` (seed BE không cấp cho kho / QC — khi đó trạm suy từ phiên). Số đơn và dòng hàng đi kèm
+ *   task (SCRUM-466), không tra ở đây.
  * - Đơn chờ đưa vào xuất kho (`GET /fulfillment/task-candidates`): cần `fulfillment-task-assignment:CREATE`
  *   — quản lý kho chọn đơn để tạo task mà không cần `sales-orders:READ` (BE PR #151).
  * - Người nhận task (`GET /fulfillment/assignees?warehouseId=`): danh sách chọn trong dialog gán / tạo
@@ -15,12 +16,7 @@
 import { PAGE_SIZE } from "@/constants";
 import { api } from "@/lib/api/client";
 
-import {
-  assigneeListSchema,
-  fulfillmentOrderPageSchema,
-  fulfillmentOrderSchema,
-  taskCandidatePageSchema,
-} from "./schemas";
+import { assigneeListSchema, fulfillmentOrderSchema, taskCandidatePageSchema } from "./schemas";
 
 import type { Assignee, FulfillmentOrder, TaskCandidatePage } from "./types";
 
@@ -54,21 +50,6 @@ export async function listTaskCandidates(
     signal,
   });
   return taskCandidatePageSchema.parse(data);
-}
-
-/**
- * id đơn → số đơn cho cột danh sách (task chỉ có `orderId`). Một trang tối đa của BE
- * (Pages.MAX_PAGE_SIZE = 200), mới nhất trước; đơn ngoài trang này hiện id rút gọn.
- */
-export async function listOrderNumbers(
-  signal?: AbortSignal,
-): Promise<Readonly<Record<string, string>>> {
-  const { data } = await api.get<unknown>(ORDERS_PATH, {
-    params: { page: 0, size: PAGE_SIZE.masterData },
-    signal,
-  });
-  const page = fulfillmentOrderPageSchema.parse(data);
-  return Object.fromEntries(page.items.map((order) => [order.orderId, order.orderNumber]));
 }
 
 /** Tên hiển thị của người nhận; thiếu tên thì id. */

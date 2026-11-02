@@ -8,9 +8,9 @@ import type { PurchaseOrder } from "@/features/purchase-order";
 /** BE PR #71: `subtotal` (Σ SL × đơn giá), `taxTotal` (Σ thuế từng dòng), `totalAmount` = tổng hai. */
 export function PoTotals({ po }: { po: PurchaseOrder }) {
   return (
-    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
+    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)">
       <h2 className="text-ink-primary mb-3 flex items-center gap-2 text-[0.9375rem] font-semibold">
-        <ClipboardCheck className="text-accent size-4" />
+        <ClipboardCheck className="text-accent size-3.5" />
         Tổng cộng
       </h2>
       <dl className="space-y-1.5">

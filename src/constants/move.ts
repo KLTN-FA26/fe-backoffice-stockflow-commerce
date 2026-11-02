@@ -60,6 +60,7 @@ export const MOVE_LABELS = {
   stockOnHand: "Tồn",
   stockReserved: "Giữ chỗ",
   stockMovable: "Chuyển được",
+  stockHiddenSource: "Đang kiểm kê — không chuyển hàng ra khỏi vị trí này",
   stockUnavailable: "Không xem được tồn của SKU — bạn vẫn có thể nhập vị trí nguồn thủ công.",
   resultTitle: "Đã chuyển vị trí",
   resultSummary: "Đã chuyển",
@@ -85,6 +86,8 @@ export const MOVE_MESSAGES = {
   // Docs 11 §6 BR-01: khác kho → dùng lệnh chuyển kho (docs 10); BE MOVE_ACROSS_WAREHOUSES.
   crossWarehouse: "Hai vị trí phải thuộc cùng một kho. Chuyển giữa các kho dùng Lệnh chuyển kho.",
   exceedsMovable: "Vượt số lượng chưa giữ chỗ tại vị trí nguồn.",
+  sourceUnderCount:
+    "Vị trí nguồn đang được kiểm kê — không thể chuyển hàng ra khỏi vị trí này cho đến khi kiểm kê xong.",
   invalidContract: "Dữ liệu di chuyển trả về không đúng định dạng.",
   requestFailed: "Không thực hiện được lệnh di chuyển.",
 } as const;
@@ -92,6 +95,8 @@ export const MOVE_MESSAGES = {
 // Mã lỗi BE (ErrorCode.java) của `POST /inventory/movements` → thông điệp. Không hiện `message` của
 // server: là tiếng Anh, không phải hợp đồng.
 export const MOVE_ERROR_MESSAGES = {
+  // SCRUM-146 MOVE-HELD: vị trí nguồn hoặc đích đang thuộc một phiếu kiểm kê (BE STOCK_SLOT_UNDER_COUNT).
+  slotUnderCount: "Vị trí đang kiểm kê — không thể chuyển hàng ra/vào cho tới khi kiểm kê xong.",
   // Docs 11 BR-01: vị trí nguồn và đích khác kho.
   crossWarehouse:
     "Hai vị trí thuộc hai kho khác nhau. Dùng Lệnh chuyển kho để chuyển giữa các kho.",

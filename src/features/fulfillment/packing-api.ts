@@ -8,6 +8,7 @@
 
 import { PACK_API_STATUSES, PACK_STATUS_BY_API, PAGE_SIZE } from "@/constants";
 import { api } from "@/lib/api/client";
+import { IDEMPOTENCY_KEY_HEADER } from "@/lib/api/idempotency";
 
 import { toFulfillmentTask } from "./api";
 import {
@@ -39,14 +40,13 @@ import type { FulfillmentTask } from "./types";
 
 const FULFILLMENT_PATH = "/fulfillment";
 const QUEUE_PATH = `${FULFILLMENT_PATH}/packing-queue`;
-const IDEMPOTENCY_HEADER = "Idempotency-Key";
 
 const taskPath = (taskId: string) => `${FULFILLMENT_PATH}/tasks/${encodeURIComponent(taskId)}`;
 const packagePath = ({ taskId, packageId }: PackageRef) =>
   `${taskPath(taskId)}/packages/${encodeURIComponent(packageId)}`;
 
 /** `PackStatus` BE → tên hiển thị; giá trị lạ (đã được schema đổi thành UNKNOWN) → "Unknown". */
-function displayPackStatus(status: string): SessionPackStatus {
+export function displayPackStatus(status: string): SessionPackStatus {
   const known = PACK_API_STATUSES.find(
     (candidate): candidate is PackApiStatus => candidate === status,
   );
@@ -117,7 +117,7 @@ export async function openPackage({
   const { data } = await api.post<unknown>(
     `${taskPath(taskId)}/packages`,
     packageType ? { packageType } : {},
-    { headers: { [IDEMPOTENCY_HEADER]: idempotencyKey } },
+    { headers: { [IDEMPOTENCY_KEY_HEADER]: idempotencyKey } },
   );
   return bePackageSchema.parse(data);
 }

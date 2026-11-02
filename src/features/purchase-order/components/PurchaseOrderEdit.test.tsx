@@ -14,6 +14,7 @@ import { supplierItemKeys } from "@/lib/references/supplier-items";
 import { warehouseOptionKeys } from "@/lib/references/warehouse-options";
 import { poKeys } from "@/features/purchase-order";
 import { toast } from "@/components/shared/Toast";
+import { pickDate } from "@/test/date-picker";
 
 import { next, patchJsdomForCmdk, pickSku } from "../__fixtures__/create";
 import { PO_ID, goToReview, poPath, renderEdit, saveFromReview } from "../__fixtures__/edit";
@@ -562,8 +563,7 @@ describe("PurchaseOrderEdit — sửa PO nháp (#30, BE SCRUM-462)", () => {
     const user = userEvent.setup();
     const { put } = renderEdit({ getPo: () => bePo({ orderDate: "2026-10-01" }) });
     const date = await screen.findByLabelText("Ngày giao dự kiến");
-    await user.clear(date);
-    await user.type(date, "2026-09-30");
+    await pickDate(user, date, "2026-09-30");
     await next(user);
     expect(await screen.findAllByText("Ngày giao không được trước ngày đặt hàng")).not.toHaveLength(
       0,

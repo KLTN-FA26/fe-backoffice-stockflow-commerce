@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { gridBlock, makeLayout } from "../__fixtures__/build";
 import { LAYOUT_40HC, LAYOUT_PICKUP_KIT } from "../__fixtures__/layouts";
+import { LAYOUT_UNIQUE_LABELS } from "../__fixtures__/layouts-real-labels";
 
 import { buildLoadingSteps } from "./loading-steps";
 
@@ -180,5 +181,36 @@ describe("buildLoadingSteps", () => {
       makeLayout({ seq: 1, code: "X", innerMm: INNER, maxPayloadKg: 1000, boxes }),
     ]);
     expect(steps.map((s) => s.partName).sort()).toEqual(["P", "Q"]);
+  });
+
+  it("groups by item + size, never by label: 8 parcels with unique BE labels make 2 steps, not 8", () => {
+    const labels = LAYOUT_UNIQUE_LABELS.boxes.map((b) => b.label);
+    expect(new Set(labels).size).toBe(8);
+    const steps = buildLoadingSteps([LAYOUT_UNIQUE_LABELS]);
+    expect(steps.map((s) => `${s.partName} x${s.count}`)).toEqual([
+      "SKU-TABLE-01 x6",
+      "SKU-CHAIR-02 x2",
+    ]);
+    expect(steps.reduce((n, s) => n + s.boxes.length, 0)).toBe(8);
+  });
+
+  it("still keeps the same SKU in two sizes apart when every parcel has its own label", () => {
+    const boxes = [
+      ...gridBlock({
+        carton: CARTON,
+        origin: { xMm: 0, yMm: 0, zMm: 0 },
+        counts: { nx: 1, ny: 1, nz: 1 },
+      }),
+      ...gridBlock({
+        carton: { ...CARTON, origMm: { l: 800, w: 400, h: 400 } },
+        origin: { xMm: 400, yMm: 0, zMm: 0 },
+        counts: { nx: 1, ny: 1, nz: 1 },
+      }),
+    ].map((box, index) => ({ ...box, label: `PKG-${index}` }));
+    expect(
+      buildLoadingSteps([
+        makeLayout({ seq: 1, code: "X", innerMm: INNER, maxPayloadKg: 1000, boxes }),
+      ]),
+    ).toHaveLength(2);
   });
 });

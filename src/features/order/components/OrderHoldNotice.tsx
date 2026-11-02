@@ -29,7 +29,7 @@ export function OrderHoldNotice({ order }: OrderHoldNoticeProps) {
       <div className="text-ink-primary flex items-center gap-1.5 font-semibold">
         <PauseCircle className="text-warning size-3.5" aria-hidden="true" /> Đơn đang tạm giữ
       </div>
-      <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+      <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1">
         <dt className="text-ink-secondary">Lý do</dt>
         <dd className="text-ink-primary">{reason ?? "—"}</dd>
         {order.holdNote && (

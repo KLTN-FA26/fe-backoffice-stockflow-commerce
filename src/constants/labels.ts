@@ -2,14 +2,18 @@
  * Nhãn UI + nội dung toast dùng lại ≥2 lần (§15 — không hardcode string).
  */
 
+import { IDENTITY_TOAST_MESSAGES } from "./labels-identity";
 import { INVENTORY_ITEM_TOAST_MESSAGES, INVENTORY_ITEM_UI_LABELS } from "./labels-inventory-item";
 import { LOAD_PLAN_TOAST_MESSAGES, LOAD_PLAN_UI_LABELS } from "./labels-load-plan";
 import { PACKING_TOAST_MESSAGES, PACKING_UI_LABELS } from "./labels-packing";
 import { PRODUCT_UI_LABELS } from "./labels-product";
 import { SHIPPING_TOAST_MESSAGES, SHIPPING_UI_LABELS } from "./labels-shipping";
+import { SKU_PURCHASING_UI_LABELS } from "./labels-sku-purchasing";
 import { TAXONOMY_TOAST_MESSAGES, TAXONOMY_UI_LABELS } from "./labels-taxonomy";
 import { TRANSFER_TOAST_MESSAGES, TRANSFER_UI_LABELS } from "./labels-transfer";
+import { TRANSFER_PACK_TOAST_MESSAGES, TRANSFER_PACK_UI_LABELS } from "./labels-transfer-pack";
 import { VEHICLE_TYPE_TOAST_MESSAGES, VEHICLE_TYPE_UI_LABELS } from "./labels-vehicle-type";
+import { WAREHOUSE_MAP_TOAST_MESSAGES, WAREHOUSE_MAP_UI_LABELS } from "./labels-warehouse-map";
 
 export const UI_LABELS = {
   common: {
@@ -22,6 +26,17 @@ export const UI_LABELS = {
     showing: "Hiển thị",
     /** Badge thanh Cấu hình khi ô search chưa có nội dung. */
     notEntered: "Chưa nhập",
+  },
+  // Ô chọn ngày dùng chung (components/shared/DatePicker)
+  datePicker: {
+    placeholder: "Chọn ngày",
+    today: "Hôm nay",
+    clear: "Xoá ngày",
+  },
+  // Ô chọn dạng cây dùng chung (components/shared/TreeSelect)
+  treeSelect: {
+    expand: (label: string) => `Mở ${label}`,
+    collapse: (label: string) => `Thu gọn ${label}`,
   },
   // Khung back-office (sidebar / topbar)
   shell: {
@@ -55,6 +70,16 @@ export const UI_LABELS = {
   order: {
     pageTitle: "Đơn hàng",
     cancelFailedTitle: "Không huỷ được đơn",
+    releaseRefusedTitle: "Không release được đơn",
+    creditFailedTitle: "Không xử lý được đơn vượt hạn mức",
+    creditHoldsTitle: "Đơn vượt hạn mức công nợ",
+    // Nhãn nút thao tác — dùng chung lifecycle (ORDER_ACTIONS) và component
+    actions: {
+      release: "Release đơn",
+      creditApprove: "Duyệt vượt hạn mức",
+      creditReject: "Từ chối",
+      cancel: "Huỷ đơn",
+    },
     notFoundTitle: "Không tìm thấy đơn hàng",
     notFoundDescription: "Đơn hàng không tồn tại hoặc đường dẫn không hợp lệ.",
     forbiddenDescription: "Tài khoản của bạn chưa được cấp quyền truy cập đơn hàng.",
@@ -143,6 +168,41 @@ export const UI_LABELS = {
       description:
         "Chọn SKU trong danh mục của nhà cung cấp, số lượng theo MOQ và quy cách; đơn giá điền sẵn theo danh mục khi cùng tiền tệ PO — tổng = số lượng × đơn giá.",
       add: "Thêm dòng hàng",
+      addMany: "Thêm nhiều SKU",
+      // Chế độ mở rộng: ẩn sidebar + stepper để bảng dòng hàng chiếm hết chiều ngang
+      expand: "Mở rộng",
+      collapse: "Thu gọn",
+      columns: {
+        index: "#",
+        sku: "SKU",
+        qty: "SL đặt",
+        price: "Đơn giá",
+        tax: "Thuế (%)",
+        total: "Thành tiền",
+        actions: "Thao tác",
+      },
+      caption: "Dòng hàng của đơn đặt NCC",
+      lineSummary: (lines: number, errors: number) =>
+        errors > 0 ? `${lines} dòng · ${errors} dòng có lỗi` : `${lines} dòng`,
+      qtyAria: (line: number) => `SL đặt dòng ${line}`,
+      priceAria: (line: number) => `Đơn giá dòng ${line}`,
+      taxAria: (line: number) => `Thuế suất (%) dòng ${line}`,
+      removeAria: (line: number) => `Xóa dòng hàng ${line}`,
+      descriptionButton: (line: number) => `Mô tả dòng ${line}`,
+      descriptionLabel: (line: number) => `Mô tả sản phẩm dòng ${line}`,
+      descriptionDone: "Xong",
+      subtotal: "Tạm tính",
+      tax: "Thuế",
+      // Hộp chọn nhiều SKU trong danh mục NCC — mỗi SKU tick thành một dòng mới
+      multiPick: {
+        title: "Thêm nhiều SKU",
+        description:
+          "Tick các SKU trong danh mục của nhà cung cấp. Mỗi SKU thành một dòng, số lượng điền sẵn mức tối thiểu theo MOQ và quy cách.",
+        allUsed: "Mọi SKU trong danh mục đã có trong đơn.",
+        selected: (n: number) => `Đã chọn ${n}`,
+        limit: (n: number) => `Chỉ thêm được ${n} dòng nữa.`,
+        submit: (n: number) => (n > 0 ? `Thêm ${n} dòng` : "Thêm dòng"),
+      },
       // Sửa nháp: dòng đã lưu giữ giá đã thương lượng (issue #30 §2), chỉ dòng mới điền giá danh mục
       // Sửa nháp thiếu quyền đọc danh mục NCC: không thêm được dòng mới
       editDescriptionNoCatalog:
@@ -310,6 +370,96 @@ export const UI_LABELS = {
       cancel: "Huỷ phiếu",
       moveToQc: "Chuyển sang khu QC",
       inspect: "Kết luận QC",
+      // BR-RCP-001 (docs 03 §4 bước 5): Quản lý kho duyệt ngoại lệ hoặc từ chối phần vượt
+      approve: "Duyệt nhận vượt dung sai",
+      rejectExcess: "Từ chối phần vượt",
+      // BR-RCP-002: phiếu không có PO — duyệt cũng là approve; từ chối là huỷ cả phiếu
+      approveBlind: "Duyệt nhận hàng không có PO",
+      rejectBlind: "Từ chối phiếu",
+      createWithoutPo: "Nhận hàng không có PO",
+    },
+    // BR-RCP-002 (docs 03: "Receipt không PO" — nhận khẩn, hàng mẫu, quà kèm): bắt buộc NCC + lý do, luôn cần
+    // Quản lý kho duyệt; gắn PO bổ sung chỉ là tham chiếu
+    blind: {
+      badge: "Không có PO",
+      modeWithPo: "Theo đơn đặt hàng",
+      modeWithoutPo: "Không có đơn đặt hàng",
+      formSectionTitle: "Hàng về không có đơn đặt hàng",
+      formSectionDescription:
+        "Nhận khẩn, hàng mẫu, quà kèm… Chọn nhà cung cấp và ghi lý do; phiếu luôn chờ Quản lý kho duyệt trước khi ghi nhận tồn.",
+      supplier: "Nhà cung cấp",
+      supplierPlaceholder: "Chọn nhà cung cấp",
+      warehouse: "Kho nhận",
+      warehousePlaceholder: "Chọn kho",
+      reason: "Lý do không có PO",
+      reasonPlaceholder: "Ví dụ: NCC tặng kèm hàng mẫu theo chuyến giao",
+      needsSupplierReadTitle: "Cần quyền xem nhà cung cấp và kho",
+      needsSupplierRead:
+        "Chọn nhà cung cấp cần quyền xem nhà cung cấp và kho — tài khoản chưa được cấp, liên hệ quản trị.",
+      sendLabel: "Gửi Quản lý kho duyệt",
+      countTitle: "Kiểm đếm (gọi hàng bằng SKU)",
+      countDescription:
+        "Phiếu không có PO nên không có dòng PO: mỗi dòng là một SKU (và lô). Lô, hạn dùng, khu nhận hàng kiểm như phiếu thường.",
+      addLine: "Thêm dòng",
+      removeLine: "Xoá dòng",
+      sku: "SKU",
+      skuPlaceholder: "Nhập / quét SKU",
+      confirmNote:
+        "Phiếu không có PO không ghi nhận ngay: sẽ chờ Quản lý kho duyệt, chưa ghi nhận tồn.",
+      pendingDescription:
+        "Phiếu không có PO luôn cần Quản lý kho duyệt; chưa ghi nhận tồn. Người duyệt phải khác người đếm và người gửi duyệt (4 mắt). Từ chối thì huỷ cả phiếu.",
+      approveDescription:
+        "Ghi nhận số lượng đã đếm: hàng thành tồn Inbound ở khu nhận hàng (theo nhà cung cấp, không thuộc đơn nào). Cần nhập lý do.",
+      rejectTitle: "Từ chối phiếu nhận không có PO",
+      rejectDescription:
+        "Hàng không được nhận: huỷ cả phiếu (chưa ghi nhận tồn). Lý do và người từ chối được lưu trên phiếu. Cần nhập lý do.",
+      infoSupplier: "Nhà cung cấp",
+      infoReason: "Lý do không có PO",
+      referenceTitle: "Đơn đặt hàng tham chiếu",
+      referenceDescription:
+        "Gắn PO bổ sung nếu có — CHỈ để tham chiếu: không cộng SL đã nhận cho đơn, không dung sai, không ảnh hưởng đối chiếu 3 bên. PO phải của cùng nhà cung cấp.",
+      referenceNone: "Chưa gắn đơn đặt hàng.",
+      referenceSelect: "Chọn đơn đặt hàng",
+      referenceSave: "Gắn đơn tham chiếu",
+      referenceChange: "Đổi đơn tham chiếu",
+      referenceNeedsPoRead:
+        "Gắn đơn tham chiếu cần quyền xem đơn đặt hàng — tài khoản chưa được cấp.",
+      referenceNoOrders: "Nhà cung cấp này chưa có đơn đặt hàng.",
+      referenceLoadError: "Không tải được đơn đặt hàng của nhà cung cấp.",
+      filterLabel: "Chỉ phiếu không có PO",
+    },
+    // BR-RCP-001: SL đếm vượt dung sai của dòng PO → phiếu chờ Quản lý kho duyệt, chưa ghi nhận tồn
+    overTolerance: {
+      lineWarning: "Vượt dung sai NCC — cần Quản lý kho duyệt",
+      draftAlert:
+        "Có dòng đếm vượt SL đặt cộng dung sai của nhà cung cấp. Khi xác nhận, phiếu chuyển sang “Chờ duyệt” và CHƯA ghi nhận tồn cho tới khi Quản lý kho duyệt.",
+      confirmNote:
+        "Phiếu có dòng vượt dung sai: phiếu sẽ chờ Quản lý kho duyệt, chưa ghi nhận tồn và chưa cập nhật đơn đặt hàng.",
+      sendForApproval: "Gửi Quản lý kho duyệt",
+      pendingTitle: "Chờ Quản lý kho duyệt",
+      pendingDescription:
+        "Phiếu đếm vượt dung sai nên chưa ghi nhận tồn. Người duyệt phải khác người đếm và người gửi duyệt (4 mắt).",
+      requestedBy: "Gửi duyệt bởi",
+      requestedAt: "Gửi duyệt lúc",
+      decision: "Quyết định",
+      decidedBy: "Người quyết định",
+      decidedAt: "Quyết định lúc",
+      reason: "Lý do",
+      decisionLabels: {
+        APPROVED: "Đã duyệt — ghi nhận đủ SL đã đếm",
+        EXCESS_REJECTED: "Đã từ chối phần vượt — chỉ ghi nhận tới dung sai",
+        REJECTED: "Đã từ chối phiếu — không ghi nhận, phiếu đã huỷ",
+      },
+      approveTitle: "Duyệt nhận vượt dung sai",
+      approveDescription:
+        "Ghi nhận ĐỦ số lượng đã đếm (kể cả phần vượt dung sai): hàng thành tồn Inbound ở khu nhận hàng và đơn đặt hàng cập nhật SL đã nhận. Cần nhập lý do.",
+      rejectTitle: "Từ chối phần vượt",
+      rejectDescription:
+        "Chỉ ghi nhận tới mức dung sai còn lại của từng dòng PO; phần vượt (cắt từ dòng đếm sau cùng) không nhập kho. Nếu không còn gì trong dung sai, phiếu bị huỷ. Cần nhập lý do.",
+      reasonLabel: "Lý do",
+      reasonPlaceholder: "Ví dụ: NCC giao thêm thùng hàng tặng, đã đối chiếu phiếu giao",
+      cancelPendingDescription:
+        "Huỷ phiếu đang chờ duyệt? Chưa ghi nhận tồn nên huỷ được; không thể khôi phục.",
     },
     poNotFoundTitle: "Không tìm thấy đơn đặt hàng của phiếu",
     poNotFoundDescription:
@@ -334,6 +484,7 @@ export const UI_LABELS = {
     // Card thao tác khi không còn nút cấp phiếu
     noActions: {
       viewOnly: "Bạn chỉ có quyền xem phiếu nhận.",
+      pendingApproval: "Đang chờ Quản lý kho duyệt (cần quyền duyệt phiếu nhận).",
       inQc: "QC thực hiện theo từng dòng ở bảng Dòng nhận.",
       inPutaway: "Đang chờ cất hàng lên vị trí lưu trữ (putaway).",
     },
@@ -341,14 +492,19 @@ export const UI_LABELS = {
     noCountLines: "Chưa có dòng kiểm đếm.",
     linesConfirmedDescription: "Phiếu đã xác nhận chỉ còn xem; QC thực hiện theo từng dòng.",
     linesCancelledDescription: "Phiếu đã huỷ trước khi xác nhận — không nhập kho, chỉ còn xem.",
+    linesPendingDescription:
+      "Số đã đếm đang chờ duyệt — chưa ghi nhận tồn, không sửa được. Dòng vượt dung sai được đánh dấu.",
     dateRangeInvalid: "Ngày bắt đầu sau ngày kết thúc — không có phiếu nào khớp.",
   },
   transfer: TRANSFER_UI_LABELS,
+  transferPack: TRANSFER_PACK_UI_LABELS,
   shipping: SHIPPING_UI_LABELS,
   vehicleType: VEHICLE_TYPE_UI_LABELS,
+  warehouseMap: WAREHOUSE_MAP_UI_LABELS,
   loadPlan: LOAD_PLAN_UI_LABELS,
   taxonomy: TAXONOMY_UI_LABELS,
   inventoryItem: INVENTORY_ITEM_UI_LABELS,
+  skuPurchasing: SKU_PURCHASING_UI_LABELS,
   product: PRODUCT_UI_LABELS,
   packing: PACKING_UI_LABELS,
   fulfillment: {
@@ -372,10 +528,24 @@ export const UI_LABELS = {
       openPacking: "Mở trạm đóng gói",
       openPicking: "Xem lấy hàng",
     },
-    // Thiếu quyền đọc dữ liệu phụ trợ của module khác (seed BE chưa cấp cho vai trò kho)
-    noOrderReadTitle: "Chưa đủ quyền xem dòng đơn hàng",
-    noOrderReadDescription:
-      "Danh sách SKU cần lấy đọc từ đơn hàng. Tài khoản chưa được cấp quyền xem đơn hàng — liên hệ quản trị để được cấp.",
+    // Lọc danh sách task (BE `GET /fulfillment/tasks?status&warehouseId&assignedUserId`, SCRUM-466)
+    filter: {
+      warehouse: "Kho",
+      status: "Trạng thái",
+      assignee: "Người được gán",
+      allWarehouses: "Tất cả kho",
+      allStatuses: "Tất cả trạng thái",
+      allAssignees: "Tất cả người",
+      pickWarehouseFirst: "Chọn kho trước",
+      // Lọc người từ link (?assignee=) mà chưa có tên để hiện — không lộ id người dùng
+      filteredAssignee: "Người đang lọc",
+      clear: "Bỏ lọc",
+      clearWarehouse: "Bỏ lọc kho",
+      noMatchTitle: "Không có task khớp bộ lọc",
+      noMatchDescription: "Thử bỏ bớt bộ lọc để xem thêm task.",
+      outOfScope: "Kho này nằm ngoài phạm vi dữ liệu của bạn.",
+      assigneesFailed: "Không tải được danh sách người được gán.",
+    },
     // Dialog tạo task: đơn chờ xuất kho đọc từ GET /fulfillment/task-candidates (cần fulfillment-task-assignment:CREATE)
     noCreateTitle: "Chưa đủ quyền tạo task lấy hàng",
     noCreateDescription:
@@ -409,6 +579,7 @@ export const UI_LABELS = {
     artifactDisclaimer:
       "File tải về từ bundle đã khoá; đường dẫn chỉ dùng được trong thời gian ngắn.",
     noDesignLines: "Đơn không có dòng tuỳ chỉnh — không cần đối chiếu thiết kế.",
+    noTaskLines: "Task chưa có dòng hàng.",
     noActions: {
       viewOnly: "Bạn chỉ có quyền xem task này.",
       notAssignee: "Chỉ nhân viên được gán mới thao tác được trên task này.",
@@ -462,9 +633,8 @@ export const FULFILLMENT_ERROR_MESSAGES = {
   reverifyConflict:
     "Kiện không còn bị giữ, hoặc đơn hàng không còn ở khâu xuất kho. Dữ liệu đã được tải lại.",
   artifactMissing: "Bundle thiết kế đã chốt không có file này",
-  // 409 khi task CHƯA bị giữ: BE dùng cùng mã cho "lệch checksum" và "đơn không còn ở khâu xuất kho"
-  artifactUnavailable:
-    "Không lấy được file thiết kế: đơn hàng không còn ở khâu xuất kho, hoặc file không khớp checksum đã chốt.",
+  // 409 PICK_TASK_STATE_CONFLICT khi tải file (BE `TaskAccess.orderInFulfilment`) — khác CONFLICT lệch checksum
+  artifactOrderClosed: "Đơn đã rời khâu xuất kho nên không tải được file thiết kế.",
   // URL ký BE trả không phải http(s) — không mở để tránh chạy `javascript:` trong tab
   artifactUrlInvalid: "Đường dẫn file thiết kế không hợp lệ — không mở được. Báo bộ phận kỹ thuật.",
   popupBlocked:
@@ -480,6 +650,12 @@ export const FULFILLMENT_ERROR_MESSAGES = {
   OUT_OF_DATA_SCOPE:
     "Kho này nằm ngoài phạm vi dữ liệu của bạn — bạn chỉ xem được đơn của kho mình phụ trách.",
   warehouseNotFound: "Không tìm thấy kho.",
+  // 409 khi tạo task / bắt đầu lấy hàng / phân bổ lại: hàng giữ cho đơn nằm ở kho khác kho xuất (BE
+  // FulfillmentServiceImpl#pickingWarehouse, PickList.plan / replaceShort — release không kiểm nơi giữ hàng)
+  FULFILLMENT_HOLDS_OUTSIDE_WAREHOUSE:
+    "Hàng giữ cho đơn đang nằm ở kho khác kho xuất — cần lệnh chuyển kho đưa hàng về đúng kho rồi mới lấy hàng.",
+  // 409 khi hoàn tất mà BE còn dòng chưa lấy (BE `PickList.requireAllPicked` / task chưa lập dòng)
+  PICK_LINES_INCOMPLETE: "Còn dòng chưa lấy xong nên chưa hoàn tất được. Dữ liệu đã được tải lại.",
   OPTIMISTIC_LOCK: "Task vừa được người khác cập nhật. Dữ liệu đã được tải lại, hãy thử lại.",
   LOCK_TIMEOUT: "Task đang được người khác thao tác. Thử lại sau giây lát.",
   STORAGE_ERROR: "Kho lưu trữ file thiết kế đang không truy cập được. Thử lại sau.",
@@ -493,6 +669,11 @@ export const FULFILLMENT_FIELD_MESSAGES = {
   assigneeRequired: "Chọn nhân viên được gán",
   resolutionNoteRequired: "Nhập cách đã xử lý",
   resolutionNoteTooLong: "Tối đa 1000 ký tự",
+  // BE ConfirmPickRequest / ShortPickRequest: @NotBlank @Size(max = 64), quantity @NotNull @Positive
+  locationRequired: "Chọn vị trí",
+  codeRequired: "Chọn mã hàng",
+  codeTooLong: "Tối đa 64 ký tự",
+  quantityRequired: "Nhập số lượng là số nguyên lớn hơn 0",
 } as const;
 
 /**
@@ -582,7 +763,8 @@ export const RECEIPT_ERROR_MESSAGES = {
   // BR-01 (docs 03 §6)
   PURCHASE_ORDER_NOT_RECEIVABLE:
     "Đơn đặt hàng chưa chốt hoặc đã nhận xong nên không nhận hàng được. Dữ liệu đã được tải lại.",
-  // BR-02 (docs 03 §6)
+  // BR-02 (docs 03 §6). Từ SCRUM-477 BE không còn từ chối đếm vượt dung sai (phiếu chờ Quản lý kho duyệt);
+  // giữ câu cho lỗi ràng buộc DB (trigger BR-04) nếu có
   OVER_RECEIPT_TOLERANCE: "Số lượng nhận vượt quá SL đặt cộng dung sai của nhà cung cấp",
   // BR-03 / BR-06 (docs 03 §6)
   RECEIPT_LOT_DATA_INVALID:
@@ -592,6 +774,24 @@ export const RECEIPT_ERROR_MESSAGES = {
   LOCATION_AREA_MISMATCH: "Mã vị trí không đúng loại khu của kho này (nhận hàng / QC / cách ly)",
   INVALID_RECEIPT_TRANSITION:
     "Phiếu nhận đã đổi trạng thái nên không thực hiện được thao tác này. Dữ liệu đã được tải lại.",
+  // BR-RCP-001 (docs 03 §4 bước 5): bốn mắt + bắt buộc lý do khi quyết định phiếu chờ duyệt
+  RECEIPT_SELF_APPROVAL:
+    "Người đã đếm hoặc đã gửi phiếu đi duyệt không được tự quyết định phiếu đó — cần Quản lý kho khác",
+  RECEIPT_APPROVAL_REASON_REQUIRED: "Nhập lý do",
+  // BR-RCP-002 / owner decisions NOPO-*: phiếu không có PO — bắt buộc lý do + NCC; PO tham chiếu phải của NCC đó
+  BLIND_RECEIPT_REASON_REQUIRED: "Nhập lý do không có PO",
+  RECEIPT_REFERENCE_SUPPLIER_MISMATCH:
+    "Đơn đặt hàng này không thuộc nhà cung cấp của phiếu nhận — chọn đơn của cùng nhà cung cấp",
+  SUPPLIER_NOT_FOUND: "Không tìm thấy nhà cung cấp",
+  WAREHOUSE_NOT_FOUND: "Không tìm thấy kho",
+  INVENTORY_ITEM_NOT_FOUND: "Không có SKU này trong danh mục mặt hàng kho",
+  RECEIPT_LINE_NOT_ON_PO:
+    "Dòng này không thuộc đơn đặt hàng của phiếu (phiếu không có PO gọi hàng bằng SKU)",
+  // Từ chối phần vượt không cắt được dòng đã dán tem thùng: duyệt, hoặc huỷ phiếu rồi đếm lại
+  RECEIPT_PACKAGES_EXCEED_LINE:
+    "Cắt phần vượt sẽ làm dòng ít hơn số lượng trong các thùng đã dán tem — hãy duyệt phiếu, hoặc huỷ phiếu rồi đếm lại",
+  RECEIPT_LINE_HAS_PACKAGES:
+    "Cắt phần vượt sẽ bỏ một dòng đã dán tem thùng — hãy duyệt phiếu, hoặc huỷ phiếu rồi đếm lại",
   // BR-08 (docs 03 §6)
   QC_QUANTITY_MISMATCH: "Tổng Đạt + Cách ly + Không đạt phải bằng số lượng đã chuyển sang khu QC",
   // BE gap: cùng mã cho trùng dòng PO + lô, dòng không thuộc PO, khu cách ly trùng khu không đạt…
@@ -617,6 +817,11 @@ export const RECEIPT_FIELD_MESSAGES = {
   expiryNotAfterReceipt: "Hạn dùng phải sau ngày nhận",
   overLimit: "Tổng SL nhận của dòng PO vượt SL đặt cộng dung sai",
   duplicateLot: "Dòng PO này đã có một dòng cùng số lô — gộp SL của một lô vào một dòng",
+  approvalReasonRequired: "Nhập lý do",
+  supplierRequired: "Chọn nhà cung cấp",
+  warehouseRequired: "Chọn kho nhận",
+  blindReasonRequired: "Nhập lý do không có PO",
+  skuRequired: "Nhập SKU",
   qcSum: "Tổng Đạt + Cách ly + Không đạt phải bằng SL đã chuyển sang khu QC",
   qcQuantity: "Số lượng phải là số nguyên ≥ 0",
   qcLocationRequired: "Nhập mã khu cách ly",
@@ -682,6 +887,12 @@ export const TOAST_MESSAGES = {
     saveBlocked: "Chưa thể lưu",
     checkForm: "Kiểm tra lại biểu mẫu",
   },
+  order: {
+    cancelled: "Đã huỷ đơn hàng",
+    released: "Đã release đơn cho kho",
+    creditApproved: "Đã duyệt vượt hạn mức công nợ",
+    creditRejected: "Đã từ chối vượt hạn mức công nợ",
+  },
   supplier: {
     created: "Tạo nhà cung cấp thành công",
     updated: "Cập nhật nhà cung cấp thành công",
@@ -723,12 +934,24 @@ export const TOAST_MESSAGES = {
     cancelled: "Đã huỷ phiếu nhận",
     movedToQc: "Đã chuyển hàng sang khu QC",
     inspected: "Đã ghi nhận kết luận QC",
+    sentForApproval: "Phiếu vượt dung sai — đã gửi Quản lý kho duyệt, chưa ghi nhận tồn",
+    approved: "Đã duyệt — đã ghi nhận đủ số lượng nhận",
+    excessRejected: "Đã từ chối phần vượt — chỉ ghi nhận tới mức dung sai",
+    excessRejectedNothingLeft:
+      "Đã từ chối phần vượt — không còn gì trong dung sai, phiếu đã bị huỷ",
+    blindCreated: "Đã tạo phiếu nhận không có PO",
+    blindRejected: "Đã từ chối phiếu — phiếu đã huỷ, không ghi nhận tồn",
+    referenced: "Đã gắn đơn đặt hàng tham chiếu",
   },
   transfer: TRANSFER_TOAST_MESSAGES,
+  transferPack: TRANSFER_PACK_TOAST_MESSAGES,
   shipping: SHIPPING_TOAST_MESSAGES,
   vehicleType: VEHICLE_TYPE_TOAST_MESSAGES,
+  warehouseMap: WAREHOUSE_MAP_TOAST_MESSAGES,
   loadPlan: LOAD_PLAN_TOAST_MESSAGES,
   taxonomy: TAXONOMY_TOAST_MESSAGES,
+  user: IDENTITY_TOAST_MESSAGES.user,
+  role: IDENTITY_TOAST_MESSAGES.role,
   inventoryItem: INVENTORY_ITEM_TOAST_MESSAGES,
   fulfillment: {
     created: "Đã tạo task lấy hàng",
@@ -739,6 +962,14 @@ export const TOAST_MESSAGES = {
     pickingCompleted: "Đã hoàn tất lấy hàng",
     held: "Lệch checksum thiết kế — kiện bị giữ, chờ kiểm tra lại thiết kế",
     reverified: "Thiết kế khớp — đã gỡ giữ, người đóng gói hoàn tất lại",
+    // Phân bổ lại dòng thiếu (BE `POST …/pick-lines/{lineId}/reallocation`, PR #147)
+    lineReallocated: "Đã phân bổ lại dòng thiếu",
+    linesPlanned: "Đã tạo danh sách dòng lấy hàng",
+    // Báo thiếu hàng (BE `POST …/pick-lines/{lineId}/short`, PR #147): đơn tạm giữ, chờ phân bổ lại
+    shortReported: (sku: string, quantity: number) => `Đã báo thiếu ${quantity} × ${sku}`,
+    // Trả hàng về kệ (BE `POST …/pick-lines/{lineId}/put-back`, SCRUM-275)
+    putBack: (quantity: number, sku: string, bin: string) =>
+      `Đã trả ${quantity} × ${sku} về ${bin}`,
   },
   packing: PACKING_TOAST_MESSAGES,
 } as const;

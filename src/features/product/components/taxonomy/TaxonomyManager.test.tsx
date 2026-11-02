@@ -6,7 +6,7 @@ import { PRODUCT_PERMISSIONS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { toast } from "@/components/shared/Toast";
 
-import { installApi, pickOption, renderApp } from "../../product-test-utils";
+import { installApi, pickTreeOption, renderApp } from "../../product-test-utils";
 import { TaxonomyManager } from "./TaxonomyManager";
 
 afterEach(() => vi.restoreAllMocks());
@@ -229,7 +229,7 @@ describe("TaxonomyManager — tab Danh mục", () => {
     const dialog = await screen.findByRole("dialog");
     await user.type(within(dialog).getByLabelText(/Mã/), "polo");
     await user.type(within(dialog).getByLabelText(/^Tên/), "Áo polo");
-    await pickOption(user, /Danh mục cha/, /Thời trang/);
+    await pickTreeOption(user, /Danh mục cha/, "Thời trang");
     await user.click(within(dialog).getByRole("button", { name: "Tạo danh mục" }));
     await waitFor(() =>
       expect(post).toHaveBeenCalledWith(
@@ -246,7 +246,7 @@ describe("TaxonomyManager — tab Danh mục", () => {
     const before = get.mock.calls.filter(([url]) => url === "/categories").length;
     await user.click(screen.getByRole("button", { name: /Tạo danh mục/ }));
     await screen.findByRole("dialog");
-    await pickOption(user, /Danh mục cha/, /Thời trang/);
+    await pickTreeOption(user, /Danh mục cha/, "Thời trang");
     expect(get.mock.calls.filter(([url]) => url === "/categories")).toHaveLength(before);
   });
 
@@ -259,8 +259,11 @@ describe("TaxonomyManager — tab Danh mục", () => {
     await user.click(screen.getByRole("button", { name: /Tạo danh mục/ }));
     await screen.findByRole("dialog");
     await user.click(await screen.findByRole("combobox", { name: /Danh mục cha/ }));
-    expect(await screen.findByRole("option", { name: /Thời trang/ })).toBeInTheDocument();
-    expect(screen.queryByRole("option", { name: /Áo thun/ })).not.toBeInTheDocument();
+    // Gõ tìm để hiện mọi nhánh: đã ngưng thì không có trong cây, kể cả khi tìm đúng tên
+    await user.type(await screen.findByRole("textbox", { name: /Tìm danh mục/ }), "Áo thun");
+    expect(screen.queryByRole("treeitem", { name: /Áo thun/ })).not.toBeInTheDocument();
+    await user.clear(screen.getByRole("textbox", { name: /Tìm danh mục/ }));
+    expect(await screen.findByRole("treeitem", { name: /Thời trang/ })).toBeInTheDocument();
   });
 
   it("sửa danh mục: mã và cha khoá, PUT không gửi mã / cha", async () => {

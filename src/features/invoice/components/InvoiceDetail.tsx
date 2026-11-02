@@ -4,7 +4,6 @@ import { cn } from "cn";
 import { AlertTriangle, CircleAlert, FileImage, Package } from "lucide-react";
 import { use } from "react";
 
-import { ADMIN_ROUTES } from "@/constants";
 import { useInvoice } from "@/features/invoice/queries";
 import {
   buildInvoiceTimeline,
@@ -14,10 +13,8 @@ import {
   lineMatchLabel,
 } from "@/features/invoice";
 import { DataTable, type ColumnDef } from "@/components/shared/DataTable";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { StatusDot } from "@/components/shared/StatusDot";
-import { BackLink } from "@/components/shared/BackLink";
 
 import type { InvoiceLine } from "@/features/invoice/types";
 
@@ -136,15 +133,13 @@ export function InvoiceDetail({ params }: InvoiceDetailProps) {
   ];
 
   return (
-    <div className="space-y-4">
-      <PageHeader
-        title={invoice.invoiceNumber}
-        subtitle="Chi tiết hoá đơn và kết quả đối chiếu ba chiều PO · Receipt · Invoice."
-        actions={<BackLink href={ADMIN_ROUTES.invoices.list} />}
-      />
+    // Giao diện kiểu Vercel như chi tiết sản phẩm (globals.css `.surface-soft`). Không hiện tiêu đề —
+    // breadcrumb topbar đã có số hoá đơn và link về danh sách; h1 giữ cho screen reader.
+    <div className="surface-soft surface-compact space-y-4">
+      <h1 className="sr-only">{invoice.invoiceNumber}</h1>
 
-      <section className="grid gap-4 lg:grid-cols-[1fr_300px]">
-        <div className="border-border-default bg-bg-surface overflow-hidden rounded-[var(--r-sm)] border shadow-[var(--card-shadow)]">
+      <section className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="border-border-default bg-bg-surface overflow-hidden rounded-[var(--card-radius)] border shadow-(--card-shadow)">
           <div className="border-border-default bg-bg-subtle flex items-start justify-between gap-3 border-b px-4 py-3">
             <div>
               <p className="text-ink-tertiary text-[0.6875rem] tracking-wide uppercase">
@@ -160,9 +155,9 @@ export function InvoiceDetail({ params }: InvoiceDetailProps) {
             </div>
           </div>
 
-          <div className="grid gap-4 p-4 lg:grid-cols-[1fr_260px]">
+          <div className="grid grid-cols-1 gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_260px]">
             <div className="space-y-4">
-              <dl className="grid gap-3 text-sm sm:grid-cols-3">
+              <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
                 <div className="border-border-default bg-bg-subtle rounded-[var(--r-sm)] border px-3 py-2">
                   <dt className="text-ink-tertiary text-xs">Nhà cung cấp</dt>
                   <dd className="text-ink-primary mt-1 font-medium">{invoice.supplierId}</dd>
@@ -182,11 +177,11 @@ export function InvoiceDetail({ params }: InvoiceDetailProps) {
               </dl>
 
               <div className="border-border-default rounded-[var(--r-sm)] border">
-                <div className="border-border-default grid grid-cols-[140px_1fr] border-b px-3 py-2 text-sm last:border-b-0">
+                <div className="border-border-default grid grid-cols-[140px_minmax(0,1fr)] border-b px-3 py-2 text-sm last:border-b-0">
                   <span className="text-ink-tertiary">PO tham chiếu</span>
                   <span className="text-ink-primary font-mono">{invoice.poId}</span>
                 </div>
-                <div className="grid grid-cols-[140px_1fr] px-3 py-2 text-sm">
+                <div className="grid grid-cols-[140px_minmax(0,1fr)] px-3 py-2 text-sm">
                   <span className="text-ink-tertiary">Receipt tham chiếu</span>
                   <span className="text-ink-primary font-mono">{invoice.receiptId}</span>
                 </div>
@@ -225,7 +220,7 @@ export function InvoiceDetail({ params }: InvoiceDetailProps) {
           </div>
         </div>
 
-        <div className="border-border-default bg-bg-surface rounded-[var(--r-sm)] border p-4">
+        <div className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-4 shadow-(--card-shadow)">
           <p className="text-ink-primary text-sm font-semibold">Lifecycle</p>
           <div className="relative mt-4 pl-6">
             <div className="bg-border-default absolute top-1 bottom-1 left-[6px] w-0.5" />
@@ -260,10 +255,10 @@ export function InvoiceDetail({ params }: InvoiceDetailProps) {
         </div>
       </section>
 
-      <section className="border-border-default bg-bg-surface rounded-[var(--r-sm)] border p-4 shadow-[var(--card-shadow)]">
+      <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-4 shadow-(--card-shadow)">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 className="text-ink-primary flex items-center gap-2 text-[0.9375rem] font-semibold">
-            <FileImage className="text-accent size-4" />
+            <FileImage className="text-accent size-3.5" />
             Tệp hoá đơn
           </h2>
           <span className="border-border-default bg-bg-subtle text-ink-tertiary rounded-[var(--r-sm)] border px-2 py-1 text-xs">
@@ -281,9 +276,9 @@ export function InvoiceDetail({ params }: InvoiceDetailProps) {
         </div>
       </section>
 
-      <section className="border-border-default bg-bg-surface rounded-[var(--r-sm)] border p-4 shadow-[var(--card-shadow)]">
+      <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-4 shadow-(--card-shadow)">
         <h2 className="text-ink-primary mb-3 flex items-center gap-2 text-[0.9375rem] font-semibold">
-          <Package className="text-accent size-4" />
+          <Package className="text-accent size-3.5" />
           Three-way Matching
         </h2>
         <DataTable
@@ -297,12 +292,12 @@ export function InvoiceDetail({ params }: InvoiceDetailProps) {
       </section>
 
       {variances.length > 0 && (
-        <section className="border-warning/30 bg-warning/5 rounded-[var(--r-sm)] border p-4">
+        <section className="border-warning/30 bg-warning/5 rounded-[var(--card-radius)] border p-4 shadow-(--card-shadow)">
           <div className="mb-3 flex items-center gap-2">
-            <AlertTriangle className="text-warning size-4" />
+            <AlertTriangle className="text-warning size-3.5" />
             <h2 className="text-ink-primary text-sm font-semibold">Variance cần xử lý</h2>
           </div>
-          <div className="grid gap-2 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
             {variances.map((variance) => (
               <div
                 key={`${variance.lineId}-${variance.type}`}
@@ -323,16 +318,16 @@ export function InvoiceDetail({ params }: InvoiceDetailProps) {
       )}
 
       {invoice.disputeNote && (
-        <section className="border-danger/30 bg-danger/5 rounded-[var(--r-sm)] border p-4">
+        <section className="border-danger/30 bg-danger/5 rounded-[var(--card-radius)] border p-4 shadow-(--card-shadow)">
           <div className="mb-2 flex items-center gap-2">
-            <CircleAlert className="text-danger size-4" />
+            <CircleAlert className="text-danger size-3.5" />
             <h2 className="text-ink-primary text-sm font-semibold">Dispute</h2>
           </div>
           <p className="text-ink-secondary text-sm">{invoice.disputeNote}</p>
         </section>
       )}
 
-      <section className="border-border-default bg-bg-surface flex justify-end gap-6 rounded-[var(--r-sm)] border p-4 text-right">
+      <section className="border-border-default bg-bg-surface flex justify-end gap-6 rounded-[var(--card-radius)] border p-4 text-right shadow-(--card-shadow)">
         <div>
           <p className="text-ink-tertiary text-xs">Tạm tính</p>
           <p className="text-ink-primary mt-1 font-mono tabular-nums">

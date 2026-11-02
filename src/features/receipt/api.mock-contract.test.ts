@@ -11,15 +11,22 @@ import { resetPoMockStore } from "@/lib/api/mock-routes-purchase-orders-store";
 import { resetSupplierMockStore } from "@/lib/api/mock-routes-suppliers";
 
 import {
+  approveGoodsReceipt,
   cancelGoodsReceipt,
   confirmGoodsReceipt,
   createGoodsReceipt,
+  createGoodsReceiptWithoutPo,
   getGoodsReceipt,
   inspectLine,
   listGoodsReceipts,
   moveLineToQc,
+  referencePurchaseOrder,
+  rejectBlindReceipt,
+  rejectReceiptExcess,
+  replaceBlindReceiptLines,
   replaceReceiptLines,
 } from "./api";
+import { listSupplierOptions, listWarehouseOptions } from "./lookup-api";
 import { getReceivablePurchaseOrder, listReceivablePurchaseOrders } from "./receivable-po-api";
 
 import type { ReceiptLineValues, ReceivablePo } from "./types";
@@ -127,17 +134,16 @@ describe("goods receipt mock ↔ hợp đồng BE PR #62", () => {
           }),
         ),
       ).toBe("LOCATION_NOT_FOUND");
-      // BR-02: vượt SL đặt + 5%
+      // BR-02 / BR-RCP-001: vượt SL đặt + 5% KHÔNG bị từ chối nữa — dòng chỉ bị gắn cảnh báo OVER_TOLERANCE
       const poLine = po.lines[0];
       if (!poLine) throw new Error("no line");
-      expect(
-        await codeOf(
-          replaceReceiptLines({
-            receiptId: created.id,
-            lines: [{ ...line, quantity: poLine.quantityOrdered * 2 }],
-          }),
-        ),
-      ).toBe("OVER_RECEIPT_TOLERANCE");
+      const over = await replaceReceiptLines({
+        receiptId: created.id,
+        lines: [{ ...line, quantity: poLine.quantityOrdered * 2 }],
+      });
+      expect(over.status).toBe("Draft");
+      expect(over.lines[0]?.warnings).toContain("OVER_TOLERANCE");
+      expect(over.warnings).toContain("OVER_TOLERANCE");
       // Trùng dòng PO + lô
       expect(
         await codeOf(replaceReceiptLines({ receiptId: created.id, lines: [line, line] })),
@@ -237,6 +243,240 @@ describe("goods receipt mock ↔ hợp đồng BE PR #62", () => {
       expect(after.lines.every((line) => line.openQuantity === 0)).toBe(true);
     },
     FLOW_TIMEOUT_MS,
+  );
+
+  it(
+    "BR-RCP-001: đếm vượt dung sai → xác nhận thì chờ duyệt (chưa ghi nhận); Quản lý kho duyệt hoặc từ chối phần vượt",
+    async () => {
+      // Kho mock mới: các luồng trên đã nhận hết hai đơn còn nhận được. Mỗi đơn mock có một dòng PO và mỗi
+      // kịch bản duyệt / từ chối phần vượt dùng hết một đơn → hai kịch bản = hai đơn.
+      resetPoMockStore();
+      resetReceiptMockStore();
+      const page = await listReceivablePurchaseOrders({});
+      const [approvePo, rejectPo] = await Promise.all(
+        page.items.slice(0, 2).map((target) => getReceivablePurchaseOrder(target.purchaseOrderId)),
+      );
+      if (!approvePo || !rejectPo) throw new Error("mock needs two receivable POs");
+
+      /** Phiếu đếm gấp đôi dòng PO đầu → vượt dung sai; trả về phiếu đã `Pending Approval`. */
+      async function waiting(po: ReceivablePo) {
+        const poLine = po.lines[0];
+        if (!poLine) throw new Error("no line");
+        const receipt = await createGoodsReceipt({
+          purchaseOrderId: po.purchaseOrderId,
+          deliveryNote: "",
+          note: "",
+        });
+        const line = await validLine(po, 0, poLine.quantityOrdered * 2);
+        await replaceReceiptLines({ receiptId: receipt.id, lines: [line] });
+        const pending = await confirmGoodsReceipt(receipt.id);
+        return { poLine, pending };
+      }
+
+      // Duyệt: ghi nhận ĐỦ số đã đếm
+      const first = await waiting(approvePo);
+      expect(first.pending.status).toBe("Pending Approval");
+      expect(first.pending.confirmedAt).toBeNull();
+      expect(first.pending.approval).toMatchObject({ decision: null, requestedBy: "mock-user" });
+      const untouched = await getReceivablePurchaseOrder(approvePo.purchaseOrderId);
+      expect(untouched.lines[0]?.quantityReceived).toBe(first.poLine.quantityReceived);
+      // Chưa quyết định thì không sửa / xác nhận lại; lý do bắt buộc
+      expect(await codeOf(confirmGoodsReceipt(first.pending.id))).toBe(
+        "INVALID_RECEIPT_TRANSITION",
+      );
+      expect(await codeOf(approveGoodsReceipt({ receiptId: first.pending.id, reason: " " }))).toBe(
+        "VALIDATION_FAILED",
+      );
+      const approved = await approveGoodsReceipt({
+        receiptId: first.pending.id,
+        reason: "NCC giao thêm hàng tặng",
+      });
+      expect(approved.status).toMatch(/^In (QC|Putaway)$/);
+      expect(approved.lines[0]?.quantity).toBe(first.poLine.quantityOrdered * 2);
+      expect(approved.approval).toMatchObject({
+        decision: "APPROVED",
+        decidedBy: "mock-manager",
+        reason: "NCC giao thêm hàng tặng",
+      });
+      expect(approved.confirmedBy).toBe("mock-manager");
+      expect(await codeOf(approveGoodsReceipt({ receiptId: approved.id, reason: "lần hai" }))).toBe(
+        "INVALID_RECEIPT_TRANSITION",
+      );
+
+      // Huỷ phiếu đang chờ duyệt: chưa ghi nhận nên được phép
+      const toCancel = await waiting(rejectPo);
+      const cancelled = await cancelGoodsReceipt(toCancel.pending.id);
+      expect(cancelled.status).toBe("Cancelled");
+
+      // Từ chối phần vượt: chỉ ghi nhận tới dung sai CÒN LẠI — giới hạn đặt × 1.05 trừ phần các phiếu đã ghi nhận
+      const second = await waiting(rejectPo);
+      const limit =
+        Math.floor((second.poLine.quantityOrdered * 105) / 100) - second.poLine.quantityReceived;
+      const rejected = await rejectReceiptExcess({
+        receiptId: second.pending.id,
+        reason: "Trả lại phần vượt cho NCC",
+      });
+      expect(rejected.status).toMatch(/^In (QC|Putaway)$/);
+      expect(rejected.lines[0]?.quantity).toBe(limit);
+      expect(rejected.approval).toMatchObject({ decision: "EXCESS_REJECTED" });
+      const after = await getReceivablePurchaseOrder(rejectPo.purchaseOrderId);
+      expect(after.lines[0]?.quantityReceived).toBe(second.poLine.quantityReceived + limit);
+    },
+    FLOW_TIMEOUT_MS * 2,
+  );
+
+  it(
+    "BR-RCP-002: phiếu không có PO — NCC + lý do bắt buộc, luôn chờ duyệt, duyệt ghi nhận tồn không đụng PO, từ chối huỷ cả phiếu, PO gắn sau chỉ là tham chiếu",
+    async () => {
+      resetPoMockStore();
+      resetReceiptMockStore();
+      const page = await listReceivablePurchaseOrders({});
+      const [first, second] = await Promise.all(
+        page.items.slice(0, 2).map((target) => getReceivablePurchaseOrder(target.purchaseOrderId)),
+      );
+      if (!first || !second) throw new Error("mock needs two receivable POs");
+      const warehouses = await listWarehouseOptions();
+      const warehouseId = warehouses[0]?.id ?? "";
+      const suppliers = await listSupplierOptions();
+      expect(suppliers.map((s) => s.supplierId)).toContain(first.supplierId);
+      const base = { supplierId: first.supplierId, warehouseId, deliveryNote: "", note: "" };
+
+      // Lý do + NCC bắt buộc (400), NCC lạ → 404
+      expect(await codeOf(createGoodsReceiptWithoutPo({ ...base, reason: "  " }))).toBe(
+        "VALIDATION_FAILED",
+      );
+      expect(
+        await codeOf(
+          createGoodsReceiptWithoutPo({ ...base, supplierId: "NOPE", reason: "quà kèm" }),
+        ),
+      ).toBe("SUPPLIER_NOT_FOUND");
+
+      const draft = await createGoodsReceiptWithoutPo({
+        ...base,
+        reason: "quà kèm theo chuyến giao",
+      });
+      expect(draft).toMatchObject({
+        status: "Draft",
+        withoutPurchaseOrder: true,
+        purchaseOrderId: null,
+        blindReason: "quà kèm theo chuyến giao",
+      });
+      expect(draft.supplierId).toBe(first.supplierId);
+
+      // Kiểm đếm bằng SKU: lỗi từng ô
+      const sku = first.lines[0]?.sku ?? "";
+      const line = {
+        sku,
+        quantity: 3,
+        lotNumber: "",
+        expiryDate: "",
+        locationCode: "HCM-RCV01",
+        note: "",
+      };
+      expect(
+        await codeOf(
+          replaceBlindReceiptLines({
+            receiptId: draft.id,
+            lines: [{ ...line, sku: "NO-SUCH-SKU" }],
+          }),
+        ),
+      ).toBe("INVENTORY_ITEM_NOT_FOUND");
+      expect(
+        await codeOf(
+          replaceBlindReceiptLines({
+            receiptId: draft.id,
+            lines: [{ ...line, locationCode: "HCM-QCA01" }],
+          }),
+        ),
+      ).toBe("LOCATION_AREA_MISMATCH");
+      // Chưa có dòng nào → không gửi duyệt được
+      expect(await codeOf(confirmGoodsReceipt(draft.id))).toBe("INVALID_RECEIPT_TRANSITION");
+      const policyLine = await validLine(first, 0, 3);
+      const counted = await replaceBlindReceiptLines({
+        receiptId: draft.id,
+        lines: [{ ...line, lotNumber: policyLine.lotNumber, expiryDate: policyLine.expiryDate }],
+      });
+      expect(counted.lines[0]).toMatchObject({ purchaseOrderLineId: null, sku, quantity: 3 });
+
+      // Xác nhận KHÔNG ghi nhận: luôn chờ duyệt; PO không đổi
+      const pending = await confirmGoodsReceipt(draft.id);
+      expect(pending.status).toBe("Pending Approval");
+      expect(pending.confirmedAt).toBeNull();
+      const before = await getReceivablePurchaseOrder(first.purchaseOrderId);
+      expect(before.lines[0]?.quantityReceived).toBe(first.lines[0]?.quantityReceived);
+
+      // Duyệt: ghi nhận, PO vẫn không đổi
+      const approved = await approveGoodsReceipt({
+        receiptId: draft.id,
+        reason: "đã đối chiếu phiếu giao",
+      });
+      expect(approved.status).toMatch(/^In (QC|Putaway)$/);
+      expect(approved.approval).toMatchObject({ decision: "APPROVED" });
+      const afterApprove = await getReceivablePurchaseOrder(first.purchaseOrderId);
+      expect(afterApprove.lines[0]?.quantityReceived).toBe(first.lines[0]?.quantityReceived);
+      expect(afterApprove.status).toBe(first.status);
+
+      // Gắn PO sau khi đã ghi nhận: chỉ tham chiếu; PO phải của cùng NCC
+      const referenced = await referencePurchaseOrder({
+        receiptId: draft.id,
+        purchaseOrderId: first.purchaseOrderId,
+      });
+      expect(referenced.referencedPurchaseOrderId).toBe(first.purchaseOrderId);
+      expect(referenced.referencedPurchaseOrderNumber).toBe(first.poNumber);
+      expect(referenced.purchaseOrderId).toBeNull();
+      expect(
+        (await getReceivablePurchaseOrder(first.purchaseOrderId)).lines[0]?.quantityReceived,
+      ).toBe(first.lines[0]?.quantityReceived);
+      if (second.supplierId !== first.supplierId) {
+        expect(
+          await codeOf(
+            referencePurchaseOrder({
+              receiptId: draft.id,
+              purchaseOrderId: second.purchaseOrderId,
+            }),
+          ),
+        ).toBe("RECEIPT_REFERENCE_SUPPLIER_MISMATCH");
+      }
+      expect(
+        await codeOf(referencePurchaseOrder({ receiptId: draft.id, purchaseOrderId: "missing" })),
+      ).toBe("PURCHASE_ORDER_NOT_FOUND");
+
+      // Từ chối: huỷ cả phiếu, quyết định REJECTED; chỉ phiếu không có PO
+      const other = await createGoodsReceiptWithoutPo({ ...base, reason: "giao nhầm" });
+      await replaceBlindReceiptLines({
+        receiptId: other.id,
+        lines: [{ ...line, lotNumber: policyLine.lotNumber, expiryDate: policyLine.expiryDate }],
+      });
+      await confirmGoodsReceipt(other.id);
+      expect(await codeOf(rejectBlindReceipt({ receiptId: other.id, reason: " " }))).toBe(
+        "VALIDATION_FAILED",
+      );
+      const rejected = await rejectBlindReceipt({
+        receiptId: other.id,
+        reason: "không phải hàng của ta",
+      });
+      expect(rejected.status).toBe("Cancelled");
+      expect(rejected.approval).toMatchObject({
+        decision: "REJECTED",
+        reason: "không phải hàng của ta",
+      });
+      const withPo = await createGoodsReceipt({
+        purchaseOrderId: second.purchaseOrderId,
+        deliveryNote: "",
+        note: "",
+      });
+      expect(await codeOf(rejectBlindReceipt({ receiptId: withPo.id, reason: "x" }))).toBe(
+        "INVALID_RECEIPT_TRANSITION",
+      );
+
+      // Danh sách lọc theo loại phiếu
+      const onlyBlind = await listGoodsReceipts({ withoutPo: true, size: 200 });
+      expect(onlyBlind.items.length).toBeGreaterThanOrEqual(2);
+      expect(onlyBlind.items.every((r) => r.withoutPurchaseOrder)).toBe(true);
+      const onlyPo = await listGoodsReceipts({ withoutPo: false, size: 200 });
+      expect(onlyPo.items.some((r) => r.withoutPurchaseOrder)).toBe(false);
+    },
+    FLOW_TIMEOUT_MS * 3,
   );
 
   it("phiếu không tồn tại → 404 GOODS_RECEIPT_NOT_FOUND", async () => {

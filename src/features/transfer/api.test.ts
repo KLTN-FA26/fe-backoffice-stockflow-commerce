@@ -20,6 +20,7 @@ const formValues = {
   toWarehouseId: "wh-b",
   reason: "" as const,
   expectedDate: "",
+  deliveryMode: "FULL_TRUCKLOAD" as const,
   lines: [{ sku: "CUP-PP-500", lotNumber: "", quantity: 5 }],
 };
 
@@ -65,6 +66,7 @@ describe("transfer api — khớp TransferOrderController", () => {
       toWarehouseId: "wh-b",
       reason: undefined,
       expectedDate: undefined,
+      deliveryMode: "FULL_TRUCKLOAD",
       lines: [{ sku: "CUP-PP-500", lotNumber: undefined, quantity: 5 }],
     });
   });

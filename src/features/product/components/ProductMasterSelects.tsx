@@ -4,16 +4,18 @@ import { Controller } from "react-hook-form";
 
 import { UI_LABELS } from "@/constants";
 import { FormSelect } from "@/components/shared/FormSelect";
+import { TreeSelect } from "@/components/shared/TreeSelect";
 import { SelectItem, SelectValue } from "@/components/ui/select";
 import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 
 import { productDraftFormSchema } from "../schemas";
 import { taxClassLabel } from "../selectors";
-import { ProductSelectTrigger } from "./form-controls";
+import { PRODUCT_SELECT_CLASS, ProductSelectTrigger } from "./form-controls";
 import { ProductFormField } from "./ProductFormField";
 
 import type { Control } from "react-hook-form";
 import type { BrandDto, ProductDraftFormValues } from "../schemas";
+import type { TreeSelectNode } from "@/components/shared/TreeSelect";
 import type { Category } from "../types";
 
 /*
@@ -25,6 +27,7 @@ type SelectFieldProps = { control: Control<ProductDraftFormValues>; error?: stri
 
 /** BE `TaxClass` — nhãn tiếng Việt cùng nguồn với trang chi tiết (`UI_LABELS.product.taxClass`). */
 const TAX_CLASSES = productDraftFormSchema.shape.taxClass.options;
+const TX = UI_LABELS.taxonomy;
 
 const inactiveSuffix = (row: { active?: boolean }) =>
   row.active === false ? UI_LABELS.product.inactiveOption : "";
@@ -41,14 +44,14 @@ function selectable<T extends { active?: boolean }>(
   return rows.filter((row) => row.active !== false || idOf(row) === current);
 }
 
-function selectedCategoryName(categories: readonly Category[], id: string | undefined) {
-  const selected = categories.find((c) => c.categoryId === id);
-  return selected ? `${selected.name.vi}${inactiveSuffix(selected)}` : undefined;
+/** Nút cây cho `TreeSelect` — tên tiếng Việt, kèm "(ngưng)" nếu danh mục đã ngưng. */
+export function categoryTreeNodes(categories: readonly Category[]): TreeSelectNode[] {
+  return categories.map((category) => ({
+    id: category.categoryId,
+    parentId: category.parentId,
+    label: `${category.name.vi}${inactiveSuffix(category)}`,
+  }));
 }
-
-/** Thụt lề theo cấp để cây danh mục đọc được trong một ô chọn phẳng. */
-const categoryLabel = (category: Category) =>
-  `${"  ".repeat(category.level - 1)}${category.name.vi}${inactiveSuffix(category)}`;
 
 export function BrandSelectField({
   brands,
@@ -91,21 +94,19 @@ export function CategorySelectField({
         control={control}
         name="categoryId"
         render={({ field }) => (
-          <FormSelect value={field.value} onValueChange={field.onChange}>
-            <ProductSelectTrigger id="category-id" aria-invalid={Boolean(error)}>
-              {/* Ô đã đóng chỉ hiện tên — Radix chép nguyên nhãn option (cả khoảng thụt lề) */}
-              <SelectValue placeholder="Chọn danh mục">
-                {selectedCategoryName(categories, field.value)}
-              </SelectValue>
-            </ProductSelectTrigger>
-            <TitledSelectContent title={"Danh mục"}>
-              {selectable(categories, (c) => c.categoryId, field.value).map((category) => (
-                <SelectItem key={category.categoryId} value={category.categoryId}>
-                  {categoryLabel(category)}
-                </SelectItem>
-              ))}
-            </TitledSelectContent>
-          </FormSelect>
+          <TreeSelect
+            id="category-id"
+            nodes={categoryTreeNodes(selectable(categories, (c) => c.categoryId, field.value))}
+            value={field.value ?? ""}
+            onChange={field.onChange}
+            onBlur={field.onBlur}
+            ref={field.ref}
+            aria-invalid={Boolean(error)}
+            placeholder={TX.categoryPickerPlaceholder}
+            searchPlaceholder={TX.categoryPickerSearch}
+            emptyText={TX.categoryPickerEmpty}
+            className={PRODUCT_SELECT_CLASS}
+          />
         )}
       />
     </ProductFormField>

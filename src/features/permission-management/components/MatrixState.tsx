@@ -24,7 +24,7 @@ export function MatrixState({
       <div
         role="status"
         aria-live="polite"
-        className="border-border-default rounded-[var(--r-sm)] border p-6"
+        className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-6 shadow-(--card-shadow)"
       >
         <p className="text-ink-secondary text-sm">Đang tải ma trận của vai trò...</p>
       </div>

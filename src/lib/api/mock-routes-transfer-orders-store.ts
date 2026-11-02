@@ -65,6 +65,12 @@ export interface MockTransfer {
   cancelReason: string | null;
   createdAt: string;
   version: number;
+  /** BE PR #164 (LP2-8): FULL_TRUCKLOAD (mặc định) hoặc PARCEL (xuất kho thủ công). */
+  deliveryMode: "PARCEL" | "FULL_TRUCKLOAD";
+  /** Đóng gói xong (hoàn tất phiên `transfer-packs`). */
+  packedAt: string | null;
+  /** Xe đầu tiên đã ký nhận: từ đây không dừng lấy hàng nữa (docs 10 BR-04). */
+  goodsLeftAt: string | null;
 }
 
 const STATUS_BY_MOCK_DATA: Record<string, MockTransferStatus> = {
@@ -122,11 +128,102 @@ export async function getTransferStore(): Promise<Map<string, MockTransfer>> {
         cancelReason: status === "CANCELLED" ? (to.notes ?? to.reason) : null,
         createdAt: to.createdAt,
         version: 0,
+        deliveryMode: "FULL_TRUCKLOAD",
+        packedAt: PACKED_SEEDS.has(to.transferOrderId) ? to.createdAt : null,
+        goodsLeftAt: null,
       };
       return [transfer.transferId, transfer];
     }),
   );
+  for (const extra of extraSeeds()) store.set(extra.transferId, extra);
   return store;
+}
+
+/** Lệnh seed của mock-data đã đóng gói xong (PICKING nguyên chuyến) — để thử lập kế hoạch xe ngay. */
+const PACKED_SEEDS: ReadonlySet<string> = new Set(["TO-2026-0006"]);
+
+/** Id lệnh seed thêm cho demo đóng gói chuyển kho (không có trong mock-data, nên không đụng `mock-data.ts`). */
+export const MOCK_TRANSFER_KIT_ID = "00000000-0000-4000-8000-0000000fa001";
+export const MOCK_TRANSFER_PARCEL_ID = "00000000-0000-4000-8000-0000000fa002";
+const HN = "WH-HN-01";
+const HCM = "WH-HCM-01";
+
+/**
+ * Hai lệnh bổ sung: (1) Đã duyệt nguyên chuyến, có một bộ đi 2 thùng và hai lô cùng SKU — để thử đóng bộ, chọn dòng
+ * khi quét và giao nguyên thùng; (2) Đang lấy hàng giao lẻ — còn xuất kho thủ công.
+ */
+function extraSeeds(): MockTransfer[] {
+  const base = {
+    reason: null,
+    expectedDate: null,
+    submittedBy: MOCK_SUBMITTER,
+    submittedAt: "2026-10-22T01:00:00Z",
+    approvedBy: MOCK_APPROVER,
+    approvedAt: "2026-10-22T01:30:00Z",
+    dispatchedBy: null,
+    dispatchedAt: null,
+    cancelReason: null,
+    createdAt: "2026-10-22T00:30:00Z",
+    version: 0,
+    packedAt: null,
+    goodsLeftAt: null,
+  } as const;
+  return [
+    {
+      ...base,
+      transferId: MOCK_TRANSFER_KIT_ID,
+      number: "TO-20261022-0001",
+      fromWarehouseId: HN,
+      toWarehouseId: HCM,
+      status: "APPROVED",
+      deliveryMode: "FULL_TRUCKLOAD",
+      lines: [
+        {
+          lineId: "tol-kit-1",
+          lineNo: 1,
+          sku: "SKU-KIT-DESK",
+          lotNumber: null,
+          requested: 2,
+          shipped: 0,
+        },
+        {
+          lineId: "tol-kit-2",
+          lineNo: 2,
+          sku: "SKU-001-BLK-L",
+          lotNumber: "LOT-2610-A",
+          requested: 10,
+          shipped: 0,
+        },
+        {
+          lineId: "tol-kit-3",
+          lineNo: 3,
+          sku: "SKU-001-BLK-L",
+          lotNumber: "LOT-2610-B",
+          requested: 10,
+          shipped: 0,
+        },
+      ],
+    },
+    {
+      ...base,
+      transferId: MOCK_TRANSFER_PARCEL_ID,
+      number: "TO-20261022-0002",
+      fromWarehouseId: HCM,
+      toWarehouseId: HN,
+      status: "PICKING",
+      deliveryMode: "PARCEL",
+      lines: [
+        {
+          lineId: "tol-par-1",
+          lineNo: 1,
+          sku: "SKU-002-WHT",
+          lotNumber: null,
+          requested: 30,
+          shipped: 0,
+        },
+      ],
+    },
+  ];
 }
 
 export function resetTransferMockStore(): void {

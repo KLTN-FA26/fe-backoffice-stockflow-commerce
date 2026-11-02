@@ -25,8 +25,19 @@ export function sameWarehouse(from: string, to: string): boolean {
   return warehouseOf(from) === warehouseOf(to);
 }
 
-/** Units that may leave a stock row: onHand − reserved, whatever the status (BE `StockItem.movable`). */
-export function movableQuantity(row: Pick<StockRow, "onHand" | "reserved">): number {
+type StockQuantities = Partial<Pick<StockRow, "hiddenDuringCount" | "onHand" | "reserved">>;
+
+/** A slot under an open count whose books this caller may not read (SCRUM-146, BE #202). */
+export function isCountHidden(row: StockQuantities): boolean {
+  return row.hiddenDuringCount === true || row.onHand === undefined || row.reserved === undefined;
+}
+
+/**
+ * Units that may leave a stock row: onHand − reserved, whatever the status (BE `StockItem.movable`).
+ * A row hidden during a count is 0: moving stock out of a bin under count would corrupt the count.
+ */
+export function movableQuantity(row: StockQuantities): number {
+  if (row.onHand === undefined || row.reserved === undefined || isCountHidden(row)) return 0;
   return Math.max(0, row.onHand - row.reserved);
 }
 

@@ -3,6 +3,7 @@ import { Check } from "lucide-react";
 import { UI_LABELS } from "@/constants";
 import { formatNumber } from "@/lib/format/number";
 
+import { ParcelBadges } from "../ftl/ParcelBadges";
 import { MONO, NUM } from "../primitives";
 
 import type { ManifestShipment } from "@/features/shipping/types";
@@ -31,7 +32,9 @@ export function ManifestShipmentRows({
             <td className="px-3 py-2 align-top">
               <div className={`text-ink-primary font-medium ${MONO}`}>{shipment.shipmentCode}</div>
               <div className={`text-ink-tertiary text-xs ${MONO}`}>
-                {shipment.orderNumber ?? ""}
+                {shipment.transferOrderId
+                  ? UI_LABELS.shipping.ftl.transfer.badge
+                  : (shipment.orderNumber ?? "")}
               </div>
             </td>
             <td className="px-3 py-2 align-top">
@@ -58,7 +61,10 @@ export function ManifestShipmentRows({
           </tr>
           {shipment.packages.map((parcel) => (
             <tr key={parcel.labelCode} className="text-ink-secondary text-xs">
-              <td className={`py-1 pl-6 ${MONO}`}>{parcel.labelCode}</td>
+              <td className={`py-1 pl-6 ${MONO}`}>
+                {parcel.labelCode}
+                <ParcelBadges parcel={parcel} />
+              </td>
               <td className="px-3 py-1">
                 {[parcel.lengthCm, parcel.widthCm, parcel.heightCm].every((v) => v != null)
                   ? `${parcel.lengthCm} × ${parcel.widthCm} × ${parcel.heightCm} cm`

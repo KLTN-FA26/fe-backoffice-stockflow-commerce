@@ -1,10 +1,11 @@
 /**
- * Order — input form gửi đi (huỷ, giữ, gỡ giữ, giao thất bại, đóng phần còn lại, giao một phần).
- * DTO BE ở `schemas.ts`.
+ * Order — input form gửi đi (giữ, gỡ giữ, giao thất bại, đóng phần còn lại, giao một phần, hình thức giao).
+ * DTO BE ở `schemas.ts`. Huỷ + duyệt / từ chối công nợ: `action-schemas.ts`; release: `release-schemas.ts`.
  */
 
 import { z } from "zod";
 
+import { ORDER_DELIVERY_MODES } from "@/constants/labels-delivery-mode";
 import {
   ORDER_DELIVERY_FAILURE_REASONS,
   ORDER_MANUAL_HOLD_REASONS,
@@ -12,21 +13,6 @@ import {
   ORDER_REMAINDER_FEE_LABELS,
 } from "@/constants/labels-order";
 import { ORDER_LIMITS } from "@/constants/numbers";
-
-/**
- * Nguồn BE: OrderController#adminCancel — AdminCancelOrderRequest
- * (record AdminCancelOrderRequest(@NotBlank(message = "reason is required") String reason)).
- */
-export const adminCancelOrderSchema = z.object({
-  reason: z
-    .string()
-    .trim()
-    .min(1, "Lý do huỷ là bắt buộc")
-    // Cột cancellation_reason VARCHAR(500) — xem ORDER_LIMITS (BE không có @Size)
-    .max(ORDER_LIMITS.cancelReasonMax, `Lý do huỷ tối đa ${ORDER_LIMITS.cancelReasonMax} ký tự`),
-});
-
-export type AdminCancelOrderInput = z.infer<typeof adminCancelOrderSchema>;
 
 /* ── Hold / resolve / delivery-failure / remainder-closure input ─────── */
 
@@ -135,9 +121,25 @@ export const partialShipmentSchema = z.object({
     ),
 });
 
+/**
+ * Đổi hình thức giao (`PUT /orders/{id}/delivery-mode`, `DeliveryModeRequest`, BE PR #157, LP-1):
+ * `deliveryMode` bắt buộc (PARCEL | FULL_TRUCKLOAD), `note` ≤ 500 không bắt buộc (vào lịch sử đơn).
+ */
+export const deliveryModeSchema = z.object({
+  deliveryMode: z.enum(ORDER_DELIVERY_MODES, { error: "Chọn hình thức giao" }),
+  note: z
+    .string()
+    .trim()
+    .max(
+      ORDER_LIMITS.deliveryModeNoteMax,
+      `Ghi chú tối đa ${ORDER_LIMITS.deliveryModeNoteMax} ký tự`,
+    ),
+});
+
 export type HoldOrderValues = z.infer<typeof holdOrderSchema>;
 export type ResolveOrderHoldValues = z.infer<typeof resolveOrderHoldSchema>;
 export type DeliveryFailureValues = z.infer<typeof deliveryFailureSchema>;
 export type RemainderClosureValues = z.infer<typeof remainderClosureSchema>;
 export type AgreedFeeValues = z.infer<typeof agreedFeeSchema>;
 export type PartialShipmentValues = z.infer<typeof partialShipmentSchema>;
+export type DeliveryModeValues = z.infer<typeof deliveryModeSchema>;

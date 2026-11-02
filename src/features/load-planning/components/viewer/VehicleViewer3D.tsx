@@ -1,6 +1,6 @@
 "use client";
 
-import { Edges, OrbitControls } from "@react-three/drei";
+import { OrbitControls } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { useDeferredValue, useMemo, useState } from "react";
 
@@ -12,6 +12,7 @@ import { CameraPreset } from "./CameraPreset";
 import { CargoBoxes } from "./CargoBoxes";
 import { EmptySpaceBlocks, GussetBlocks } from "./SpaceBlocks";
 import { useSceneTheme } from "./useSceneTheme";
+import { VehicleShell } from "./VehicleShell";
 import { ViewButtons } from "./ViewButtons";
 
 import type { ViewKind } from "@/constants";
@@ -94,21 +95,7 @@ export function VehicleViewer3D({
         <directionalLight position={[8, 10, 6]} intensity={1.1} />
         <directionalLight position={[-8, 4, -6]} intensity={0.35} />
 
-        <mesh>
-          <boxGeometry args={[width, height, depth]} />
-          <meshBasicMaterial
-            color={sceneTheme.shellFill}
-            transparent
-            opacity={0.08}
-            depthWrite={false}
-          />
-          <Edges color={sceneTheme.shellEdge} />
-        </mesh>
-        <gridHelper
-          key={`${sceneTheme.gridMajor}${sceneTheme.gridMinor}`}
-          args={[Math.max(width, depth), 12, sceneTheme.gridMajor, sceneTheme.gridMinor]}
-          position={[0, -height / 2, 0]}
-        />
+        <VehicleShell width={width} height={height} depth={depth} theme={sceneTheme} />
 
         {!showingEmpty && <CargoBoxes boxes={scene.boxes} showLabels={showLabels} />}
         {showGussets && <GussetBlocks blocks={scene.gussets} />}

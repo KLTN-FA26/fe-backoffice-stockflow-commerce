@@ -85,4 +85,15 @@ describe("InputCombobox", () => {
     await user.keyboard("{ArrowDown}{Enter}");
     expect(onPick).toHaveBeenCalledWith("Banana");
   });
+
+  it("ô đang đóng, focus bằng bàn phím rồi gõ + Enter (máy quét) → chọn mục đầu khớp", async () => {
+    const user = userEvent.setup();
+    const onPick = vi.fn();
+    render(<Fruits onPick={onPick} />);
+    const box = screen.getByRole("combobox", { name: "Quả" });
+    box.focus();
+    await user.keyboard("che{Enter}");
+    expect(onPick).toHaveBeenCalledWith("Cherry");
+    expect(box).toHaveValue("Cherry");
+  });
 });

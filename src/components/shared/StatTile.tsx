@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { TrendingUp, TrendingDown, Minus, type LucideIcon } from "lucide-react";
+import { Minus, TrendingDown, TrendingUp, type LucideIcon } from "lucide-react";
 
 type DeltaDirection = "up" | "down" | "flat";
 
@@ -10,6 +10,8 @@ interface StatTileProps {
   subtitle?: string;
   delta?: string;
   deltaDirection?: DeltaDirection;
+  /** Số tiền / mã → font mono (canh cột); mặc định font display cho số đếm. */
+  mono?: boolean;
   className?: string;
 }
 
@@ -19,6 +21,10 @@ const DELTA_STYLES: Record<DeltaDirection, { color: string; Icon: typeof Trendin
   flat: { color: "text-ink-tertiary", Icon: Minus },
 };
 
+/**
+ * Ô số liệu kiểu card stats của shadcn: nhãn + icon nhỏ trung tính ở hàng đầu, số lớn, dòng phụ.
+ * `h-full` để các ô trong cùng hàng grid cao bằng nhau dù nhãn / dòng phụ dài ngắn khác nhau.
+ */
 export function StatTile({
   label,
   value,
@@ -26,6 +32,7 @@ export function StatTile({
   subtitle,
   delta,
   deltaDirection = "flat",
+  mono = false,
   className,
 }: StatTileProps) {
   const { color, Icon } = DELTA_STYLES[deltaDirection];
@@ -33,33 +40,31 @@ export function StatTile({
   return (
     <div
       className={cn(
-        "border-border-default bg-bg-surface relative min-h-[92px] overflow-hidden rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-[var(--card-shadow)] transition-shadow duration-200 hover:shadow-[var(--sh-md)]",
+        "border-border-default bg-bg-surface flex h-full flex-col gap-1.5 rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-[var(--card-shadow)]",
         className,
       )}
     >
-      {LabelIcon && (
-        <div className="bg-accent/6 pointer-events-none absolute -top-4 -right-4 size-24 rounded-full" />
-      )}
-      <div className="relative flex h-full items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="text-ink-secondary text-xs font-medium">{label}</div>
-          <div className="text-ink-primary mt-2 font-[family-name:var(--font-display)] text-[2rem] leading-[1.05] font-bold tracking-[-0.03em] tabular-nums">
-            {value}
-          </div>
-          {subtitle && <div className="text-ink-tertiary mt-1.5 text-[0.6875rem]">{subtitle}</div>}
-          {delta && (
-            <div className={cn("mt-1.5 flex items-center gap-1 text-xs font-medium", color)}>
-              <Icon className="size-3" />
-              {delta}
-            </div>
-          )}
-        </div>
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-ink-secondary text-[0.8125rem] leading-snug font-medium">{label}</p>
         {LabelIcon && (
-          <div className="bg-accent text-ink-inverse flex size-11 shrink-0 items-center justify-center rounded-full shadow-[0_10px_24px_color-mix(in_srgb,var(--accent)_24%,transparent)]">
-            <LabelIcon className="size-5" />
-          </div>
+          <LabelIcon className="text-ink-tertiary mt-0.5 size-4 shrink-0" aria-hidden />
         )}
       </div>
+      <p
+        className={cn(
+          "text-ink-primary text-2xl leading-tight font-semibold tracking-tight tabular-nums",
+          mono ? "font-[family-name:var(--font-mono)]" : "font-[family-name:var(--font-display)]",
+        )}
+      >
+        {value}
+      </p>
+      {delta && (
+        <p className={cn("flex items-center gap-1 text-xs font-medium tabular-nums", color)}>
+          <Icon className="size-3" aria-hidden />
+          {delta}
+        </p>
+      )}
+      {subtitle && <p className="text-ink-tertiary text-xs leading-snug">{subtitle}</p>}
     </div>
   );
 }

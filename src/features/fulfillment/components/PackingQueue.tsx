@@ -1,7 +1,6 @@
 "use client";
 
 import { FULFILLMENT_PACKAGE_PERMISSIONS, UI_LABELS } from "@/constants";
-import { PageHeader } from "@/components/shared/PageHeader";
 
 import { FulfillmentPermissionGate } from "./FulfillmentPermissionGate";
 import { QueueBody } from "./queue/QueueBody";
@@ -18,11 +17,11 @@ function PackingQueueContent() {
   const s = usePackingQueueState(canRead);
 
   return (
-    <>
-      <PageHeader title={L.queueTitle} subtitle={L.queueSubtitle} />
+    <div className="surface-soft">
+      <h1 className="sr-only">{L.queueTitle}</h1>
       {canRead && <QueueToolbar s={s} />}
       <QueueBody s={s} selfId={actor.userId} />
-    </>
+    </div>
   );
 }
 

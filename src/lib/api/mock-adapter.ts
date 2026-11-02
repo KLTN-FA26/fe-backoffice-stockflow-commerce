@@ -24,7 +24,7 @@ import type { LegacyPaginatedResponse, PaginatedResponse } from "./query-factory
 
 /* ── Types ───────────────────────────────────────────────────────────── */
 
-interface MockResponse<T = unknown> {
+export interface MockResponse<T = unknown> {
   status: number;
   data: T;
   headers: Record<string, string>;
@@ -165,7 +165,9 @@ async function mockAdapter(config: InternalAxiosRequestConfig): Promise<AxiosRes
       Object.values(AUTH_PATHS).some((path) => path === config.url)) ||
     config.url === PERMISSION_QUERY.path ||
     config.url === "/identity/roles" ||
-    config.url?.startsWith("/identity/roles/")
+    config.url?.startsWith("/identity/roles/") ||
+    config.url === "/identity/users" ||
+    config.url?.startsWith("/identity/users/")
   )
     return networkAdapter(config);
   if (routesReady) await routesReady;
@@ -258,18 +260,27 @@ export function activateMockAdapter(): void {
     import("./mock-routes-orders"),
     import("./mock-routes-goods-receipts"),
     import("./mock-routes-variants"),
+    import("./mock-routes-sku-purchasing"),
+    import("./mock-routes-customers"),
+    import("./mock-routes-customer-prices"),
     import("./mock-routes-attributes"),
     import("./mock-routes-product-attributes"),
     import("./mock-routes-product-commerce"),
     import("./mock-routes-inventory"),
     import("./mock-routes-inventory-items"),
     import("./mock-routes-stock-alerts"),
+    import("./mock-routes-notifications"),
+    import("./mock-routes-reports"),
     import("./mock-routes-fulfillment"),
+    import("./mock-routes-warehouse-layout"),
     import("./mock-routes-transfer-orders"),
+    import("./mock-routes-transfer-packs"),
     import("./mock-routes-dispatch"),
     import("./mock-routes-taxonomy"),
     import("./mock-routes-vehicle-types"),
+    import("./mock-routes-load-estimates"),
     import("./mock-routes-load-plans"),
+    import("./mock-routes-warehouses"),
   ]).then(
     ([
       { registerAllMockRoutes },
@@ -280,18 +291,27 @@ export function activateMockAdapter(): void {
       { registerOrderMockRoutes },
       { registerGoodsReceiptMockRoutes },
       { registerVariantMockRoutes },
+      { registerSkuPurchasingMockRoutes },
+      { registerCustomerMockRoutes },
+      { registerCustomerPriceMockRoutes },
       { registerAttributeMockRoutes },
       { registerProductAttributeMockRoutes },
       { registerProductCommerceMockRoutes },
       { registerInventoryMockRoutes },
       { registerInventoryItemMockRoutes },
       { registerStockAlertMockRoutes },
+      { registerNotificationMockRoutes },
+      { registerReportMockRoutes },
       { registerFulfillmentMockRoutes },
+      { registerWarehouseLayoutMockRoutes },
       { registerTransferOrderMockRoutes },
+      { registerTransferPackMockRoutes },
       { registerDispatchMockRoutes },
       { registerTaxonomyMockRoutes },
       { registerVehicleTypeMockRoutes },
+      { registerLoadEstimateMockRoutes },
       { registerLoadPlanMockRoutes },
+      { registerWarehouseMockRoutes },
     ]) => {
       registerAllMockRoutes();
       registerSupplierMockRoutes();
@@ -301,18 +321,28 @@ export function activateMockAdapter(): void {
       registerOrderMockRoutes();
       registerGoodsReceiptMockRoutes();
       registerVariantMockRoutes();
+      registerSkuPurchasingMockRoutes();
+      registerCustomerMockRoutes();
+      registerCustomerPriceMockRoutes();
       registerAttributeMockRoutes();
       registerProductAttributeMockRoutes();
       registerProductCommerceMockRoutes();
       registerInventoryMockRoutes();
       registerInventoryItemMockRoutes();
       registerStockAlertMockRoutes();
+      registerNotificationMockRoutes();
+      registerReportMockRoutes();
       registerFulfillmentMockRoutes();
+      registerWarehouseLayoutMockRoutes();
       registerTransferOrderMockRoutes();
+      registerTransferPackMockRoutes();
       registerDispatchMockRoutes();
       registerTaxonomyMockRoutes();
       registerVehicleTypeMockRoutes();
+      registerLoadEstimateMockRoutes();
       registerLoadPlanMockRoutes();
+      // Sau goods-receipts: thay `GET /warehouses` rút gọn bằng danh mục kho đầy đủ của module 06
+      registerWarehouseMockRoutes();
     },
   );
 

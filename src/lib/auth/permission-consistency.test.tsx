@@ -31,6 +31,7 @@ const user = {
   status: "ACTIVE",
   roles: ["ROLE_SYSTEM_ADMIN"],
   lastLoginAt: null,
+  mustChangePassword: false,
 };
 const response = (permissions: string[]) => ({
   data: { roles: user.roles, permissions, dataScope: "ALL" },

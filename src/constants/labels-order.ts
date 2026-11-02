@@ -5,6 +5,8 @@
  * (`order/api/HoldReason`, `DeliveryFailureReason`, `CancellationReasonCode`, `OrderShipmentStatus`).
  */
 
+import { ORDER_DELIVERY_MODE_UI } from "./labels-delivery-mode";
+
 /* ── Lý do giữ đơn (BE HoldReason) ───────────────────────────────────── */
 
 /** Mọi lý do một đơn có thể đang ON_HOLD (BE `HoldReason`). */
@@ -113,9 +115,10 @@ export const ORDER_SHIPMENT_STATUSES = [
   "DELIVERED",
   "DELIVERY_FAILED",
   "RETURNED",
-  // Giá trị BE thêm sau — hiển thị "Không rõ" thay vì làm hỏng cả trang chi tiết
-  "UNKNOWN",
 ] as const;
+
+/** Trạng thái lô sau khi đọc: giá trị BE thêm sau → "UNKNOWN" (hiển thị "Không rõ"). */
+export const ORDER_SHIPMENT_READ_STATUSES = [...ORDER_SHIPMENT_STATUSES, "UNKNOWN"] as const;
 
 /** Lô giao → chuỗi status của `StatusDot` (nhãn + màu dùng chung ở `lib/status-map.ts`). */
 export const ORDER_SHIPMENT_STATUS_DISPLAY = {
@@ -124,7 +127,7 @@ export const ORDER_SHIPMENT_STATUS_DISPLAY = {
   DELIVERY_FAILED: "Delivery Failed",
   RETURNED: "Returned",
   UNKNOWN: "UNKNOWN",
-} as const satisfies Record<(typeof ORDER_SHIPMENT_STATUSES)[number], string>;
+} as const satisfies Record<(typeof ORDER_SHIPMENT_READ_STATUSES)[number], string>;
 
 /* ── Cách thu phần còn lại của đơn cọc (BE BalancePolicy / DepositBalancePolicy) ── */
 
@@ -179,7 +182,11 @@ export const ORDER_PARTIAL_SHIPMENT_LABELS = {
 /* ── Lịch sử đơn (BE GET /orders/{id}/history) ───────────────────────── */
 
 /** BE `OrderStatusChangeResponse.type`. */
-export const ORDER_HISTORY_ENTRY_TYPES = ["STATUS_CHANGE", "PARTIAL_SHIPMENT_DECISION"] as const;
+export const ORDER_HISTORY_ENTRY_TYPES = [
+  "STATUS_CHANGE",
+  "PARTIAL_SHIPMENT_DECISION",
+  "DELIVERY_MODE_CHANGE",
+] as const;
 
 export const ORDER_HISTORY_LABELS = {
   title: "Lịch sử đơn",
@@ -282,8 +289,10 @@ export const ORDER_ERROR_MESSAGES = {
   ORDER_SHIPMENT_CONFLICT: "Lô giao này đã được bàn giao cùng hàng khác.",
   ORDER_SHIPMENT_QUANTITY_EXCEEDED: "Vượt quá số lượng còn lại cần giao của dòng đơn.",
   ORDER_SHIPMENT_INVALID_TRANSITION: "Lô giao không thể chuyển sang trạng thái này lúc này.",
+  // BE trả cùng mã cho đơn đã huỷ / đã đóng sổ / đã đóng gói hoặc qua bước không còn cạnh → CANCELLED
+  // (Order#cancel, requireNotPacked) — không được đoán là "đã đóng gói".
   ORDER_NOT_CANCELLABLE:
-    "Đơn hàng không thể huỷ nữa — hàng đã đóng gói, hãy xử lý qua luồng trả hàng.",
+    "Không thể huỷ đơn ở trạng thái hiện tại — đơn có thể đã được huỷ, đã đóng gói hoặc đã sang bước không cho huỷ.",
   ORDER_CANCELLED: "Đơn hàng đã bị huỷ.",
   // BE PR #150 — giao một phần do Sales quyết trên đơn
   ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED:
@@ -301,6 +310,15 @@ export const ORDER_ERROR_MESSAGES = {
     "Điều khoản của khách chưa hợp lệ: “Ghi công nợ phần còn lại” cần bật công nợ (allowCredit) cùng hạn mức và số ngày nợ.",
   CANCELLATION_FEE_BEFORE_PRINTING:
     "Đơn chưa bắt đầu in nên hoàn tiền đủ, không giữ phí — bỏ khoản phí rồi gửi lại.",
+  // BE PR #157 — hình thức giao (LP-1, LP-2)
+  DELIVERY_MODE_LOCKED: ORDER_DELIVERY_MODE_UI.lockedError,
+  DELIVERY_MODE_FTL_NO_COD: ORDER_DELIVERY_MODE_UI.ftlNoCod,
+  // Release đơn (BE `OrderReleaseService`)
+  WAREHOUSE_NOT_FOUND: "Không tìm thấy kho đã chọn. Chọn lại kho.",
+  WAREHOUSE_INACTIVE: "Kho đã chọn không còn hoạt động. Chọn kho khác.",
+  DESIGN_SAMPLE_NOT_APPROVED:
+    "Đơn có thiết kế mới chưa có mẫu thử khách đã duyệt — chưa release được (BR-PRD-08).",
+  ORDER_DEPOSIT_NOT_RECEIVED: "Tiền cọc của đơn chưa về — chưa release được (BR-PRD-09).",
 } as const;
 
 export type OrderErrorCode = keyof typeof ORDER_ERROR_MESSAGES;

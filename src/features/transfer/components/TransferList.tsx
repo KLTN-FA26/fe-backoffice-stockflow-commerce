@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { cn } from "cn";
 import { Plus } from "lucide-react";
 
 import { ADMIN_ROUTES, TRANSFER_COLUMNS, TRANSFER_PERMISSIONS, UI_LABELS } from "@/constants";
 import { useCan } from "@/lib/auth";
-import { ListToolbar } from "@/components/shared/ListToolbar";
-import { PageHeader } from "@/components/shared/PageHeader";
+import { ListToolbar, TOOLBAR_ACTION_CLASS } from "@/components/shared/ListToolbar";
 import { Button } from "@/components/ui/button";
 
 import { buildTransferColumns } from "./list/columns";
@@ -34,21 +34,21 @@ function TransferListContent() {
   const visibleColumns = columns.filter((c) => s.config.visibleColumns.includes(c.key));
   const { filters } = s;
 
+  const createAction = canCreate ? (
+    <Button asChild size="sm" className={cn("bg-brand hover:bg-brand-hover", TOOLBAR_ACTION_CLASS)}>
+      <Link href={ADMIN_ROUTES.transfers.create}>
+        <Plus className="size-3.5" /> {L.action.create}
+      </Link>
+    </Button>
+  ) : undefined;
+
   return (
-    <>
-      <PageHeader
-        title={L.pageTitle}
-        subtitle={L.subtitle}
-        actions={
-          canCreate ? (
-            <Button asChild size="sm" className="rounded-[var(--r-sm)]">
-              <Link href={ADMIN_ROUTES.transfers.create}>
-                <Plus className="size-3.5" /> {L.action.create}
-              </Link>
-            </Button>
-          ) : undefined
-        }
-      />
+    // Giao diện kiểu Vercel như danh sách sản phẩm (globals.css `.surface-soft`): không tiêu đề hiển
+    // thị — breadcrumb là tên trang; nút tạo nằm cuối toolbar.
+    <div className="surface-soft">
+      <h1 className="sr-only">{L.pageTitle}</h1>
+      {/* Thiếu READ nhưng có CREATE: không có toolbar nên nút tạo đứng riêng */}
+      {!canRead && createAction && <div className="mb-3 flex justify-end">{createAction}</div>}
       {canRead && (
         <>
           <ListToolbar
@@ -73,12 +73,13 @@ function TransferListContent() {
             summaryItems={buildTransferSummary(s, warehouseLabel)}
             onResetAll={s.resetAll}
             resetDisabled={!s.canResetAll}
+            actions={createAction}
           />
           <TransferListFilters s={s} />
         </>
       )}
       <TransferListBody s={s} columns={visibleColumns} canCreate={canCreate} />
-    </>
+    </div>
   );
 }
 

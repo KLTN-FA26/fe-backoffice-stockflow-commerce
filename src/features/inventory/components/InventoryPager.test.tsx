@@ -29,6 +29,7 @@ const overviewPage: WarehouseStockItemPage = {
     onHand: 1,
     reserved: 0,
     available: 1,
+    hiddenDuringCount: false,
     status: "AVAILABLE",
   })),
 };

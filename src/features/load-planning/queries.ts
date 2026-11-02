@@ -10,6 +10,7 @@ import {
   listActiveVehicleTypes,
   listLoadPlanCandidates,
   listLoadPlans,
+  listTransferPlanCandidates,
 } from "./api";
 
 import type { ListLoadPlanParams } from "./api";
@@ -25,6 +26,8 @@ export const loadPlanKeys = {
   reconciliation: (id: string) => ["fulfillment-load-plans", "reconciliation", id] as const,
   candidates: (warehouseId: string, loadPlanId = "") =>
     ["fulfillment-load-plans", "candidates", warehouseId, loadPlanId] as const,
+  transferCandidates: (warehouseId: string, loadPlanId = "") =>
+    ["fulfillment-load-plans", "candidates", "TRANSFER", warehouseId, loadPlanId] as const,
   vehicleTypes: ["fulfillment-load-plans", "vehicle-types"] as const,
 };
 
@@ -55,12 +58,25 @@ export function useLoadPlanReconciliation(id: string, enabled: boolean) {
 }
 
 /** Lô giao nguyên xe chờ xuất của kho; `loadPlanId` tính kiện của chính kế hoạch đó là còn trống. */
-export function useLoadPlanCandidates(warehouseId: string, loadPlanId?: string) {
+export function useLoadPlanCandidates(warehouseId: string, loadPlanId?: string, enabled = true) {
   return useQuery({
     queryKey: loadPlanKeys.candidates(warehouseId, loadPlanId),
     queryFn: ({ signal }) => listLoadPlanCandidates(warehouseId, loadPlanId, signal),
-    enabled: !!warehouseId,
+    enabled: !!warehouseId && enabled,
     // Người khác lập kế hoạch cùng lúc thì lô biến mất khỏi danh sách: không giữ bản cũ lâu
+    ...QUERY_TIMES.tracking,
+  });
+}
+
+/** Lệnh chuyển kho đã đóng gói chờ lập kế hoạch xe của kho (BE PR #164); `enabled` tắt khi đang chọn nguồn ORDER. */
+export function useTransferPlanCandidates(
+  warehouseId: string,
+  options: { loadPlanId?: string; enabled?: boolean } = {},
+) {
+  return useQuery({
+    queryKey: loadPlanKeys.transferCandidates(warehouseId, options.loadPlanId),
+    queryFn: ({ signal }) => listTransferPlanCandidates(warehouseId, options.loadPlanId, signal),
+    enabled: !!warehouseId && (options.enabled ?? true),
     ...QUERY_TIMES.tracking,
   });
 }

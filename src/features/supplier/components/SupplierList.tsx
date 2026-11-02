@@ -2,13 +2,13 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { cn } from "cn";
 import { Plus } from "lucide-react";
 
 import { ADMIN_ROUTES, SUPPLIER_PERMISSIONS, TOAST_MESSAGES } from "@/constants";
 import { useCan } from "@/lib/auth";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { ListToolbar } from "@/components/shared/ListToolbar";
-import { PageHeader } from "@/components/shared/PageHeader";
+import { ListToolbar, TOOLBAR_ACTION_CLASS } from "@/components/shared/ListToolbar";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
 
@@ -40,21 +40,20 @@ function SupplierListContent() {
   const visibleColumns = columns.filter((c) => s.config.visibleColumns.includes(c.key));
   const { filters } = s;
 
+  const createAction = canCreate ? (
+    <Button asChild size="sm" className={cn("bg-brand hover:bg-brand-hover", TOOLBAR_ACTION_CLASS)}>
+      <Link href={ADMIN_ROUTES.suppliers.create}>
+        <Plus className="size-3.5" /> Thêm nhà cung cấp
+      </Link>
+    </Button>
+  ) : undefined;
+
   return (
-    <>
-      <PageHeader
-        title="Quản lý nhà cung cấp"
-        subtitle="Hồ sơ nhà cung cấp, mã số thuế, điều khoản và kênh gửi đơn đặt hàng."
-        actions={
-          canCreate ? (
-            <Button asChild size="sm" className="rounded-[var(--r-sm)]">
-              <Link href={ADMIN_ROUTES.suppliers.create}>
-                <Plus className="size-3.5" /> Thêm nhà cung cấp
-              </Link>
-            </Button>
-          ) : undefined
-        }
-      />
+    // Giao diện kiểu Vercel như trang danh sách sản phẩm (globals.css `.surface-soft`)
+    <div className="surface-soft">
+      <h1 className="sr-only">Quản lý nhà cung cấp</h1>
+      {/* Thiếu READ nhưng có CREATE: không có toolbar nên nút tạo đứng riêng */}
+      {!canRead && createAction && <div className="mb-3 flex justify-end">{createAction}</div>}
       {/* Thiếu READ: không có dữ liệu để tìm/lọc → ẩn cả toolbar và thanh Cấu hình */}
       {canRead && (
         <ListToolbar
@@ -84,6 +83,7 @@ function SupplierListContent() {
           summaryItems={buildSummaryItems(s)}
           onResetAll={s.resetAll}
           resetDisabled={!s.hasFilters && !s.hasColumnConfig && s.sort.key === null}
+          actions={createAction}
         />
       )}
       <SupplierListBody
@@ -104,7 +104,7 @@ function SupplierListContent() {
         variant="default"
         onConfirm={() => setBulkConfirmOpen(false)}
       />
-    </>
+    </div>
   );
 }
 

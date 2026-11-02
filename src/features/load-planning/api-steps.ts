@@ -6,6 +6,8 @@
  *   POST …/unplaced-acknowledgement             {expectedVersion, note?}     BR-13; LP-4 → 409 ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED
  *   POST …/confirmation                         {expectedVersion}            PLANNED → CONFIRMED
  *   POST …/reopening · …/cancellation           {expectedVersion, reason}    BR-14 → 409 LOAD_PLAN_LOADING_STARTED
+ *   PUT  …/placements   {expectedVersion, vehicles[{seq, boxes[{ref,xMm,yMm,zMm,wMm,hMm,dMm,orientation}]}], tray[]}
+ *        chỉ khi PLANNED, nguyên tử; 422 PLACEMENT_RULE_VIOLATION fieldErrors[{field: ref | "vehicle:<seq>", code: rule}]
  */
 
 import { api } from "@/lib/api/client";
@@ -13,6 +15,7 @@ import { api } from "@/lib/api/client";
 import { loadPlanPath } from "./api";
 import { bePlanDetailSchema } from "./plan-schemas";
 
+import type { PlacementsPayload } from "./editor/payload";
 import type { PlanDetail, PlanStepInput, RecalculateVehicleInput } from "./plan-types";
 
 async function post(path: string, body: Record<string, unknown>): Promise<PlanDetail> {
@@ -47,4 +50,18 @@ export function recalculateVehicle(input: RecalculateVehicleInput): Promise<Plan
     expectedVersion: input.expectedVersion,
     addPackageIds: input.addPackageIds?.length ? input.addPackageIds : undefined,
   });
+}
+
+export interface SavePlacementsInput {
+  loadPlanId: string;
+  payload: PlacementsPayload;
+}
+
+/** Chỉnh xếp tay cả kế hoạch, tất cả hoặc không gì (BR-11); trả `PlanDetail` mới (xe để trống đã rời kế hoạch). */
+export async function savePlacements(input: SavePlacementsInput): Promise<PlanDetail> {
+  const { data } = await api.put<unknown>(
+    `${loadPlanPath(input.loadPlanId)}/placements`,
+    input.payload,
+  );
+  return bePlanDetailSchema.parse(data);
 }

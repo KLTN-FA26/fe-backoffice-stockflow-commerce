@@ -10,6 +10,7 @@ import {
   INVENTORY_API,
   INVENTORY_ERROR_MESSAGES,
   INVENTORY_LABELS,
+  INVENTORY_ROUTES,
   STOCK_MOVEMENT_LABELS,
   STOCK_MOVEMENT_TYPES,
 } from "@/constants/inventory";
@@ -47,12 +48,18 @@ beforeEach(() => {
       username: "actor",
       status: "ACTIVE",
       lastLoginAt: null,
+      mustChangePassword: false,
     },
     status: "authenticated",
     isAuthenticated: true,
     impersonatedRole: null,
   });
-  server.use(inventoryPermissions([INVENTORY_PERMISSIONS.movementRead]));
+  server.use(
+    inventoryPermissions([
+      INVENTORY_PERMISSIONS.movementViewPage,
+      INVENTORY_PERMISSIONS.movementRead,
+    ]),
+  );
 });
 afterEach(() => {
   cleanup();
@@ -240,15 +247,62 @@ describe("movement ledger screen", () => {
     expect(ledger).not.toHaveBeenCalled();
   });
 
+  // Shortcut to the adjustment queue only when that page opens: adjustment VIEW_PAGE AND READ
+  it.each([
+    [
+      "adjustment VIEW_PAGE + READ",
+      true,
+      [INVENTORY_PERMISSIONS.adjustmentViewPage, INVENTORY_PERMISSIONS.adjustmentRead],
+    ],
+    ["adjustment VIEW_PAGE only", false, [INVENTORY_PERMISSIONS.adjustmentViewPage]],
+    ["adjustment READ only", false, [INVENTORY_PERMISSIONS.adjustmentRead]],
+    ["no adjustment codes", false, []],
+  ] as const)("adjustment shortcut with %s → shown: %s", async (_label, shown, adjustment) => {
+    server.use(
+      inventoryPermissions([
+        INVENTORY_PERMISSIONS.movementViewPage,
+        INVENTORY_PERMISSIONS.movementRead,
+        ...adjustment,
+      ]),
+      http.get(endpoint, () => HttpResponse.json({ success: true, data: emptyPage })),
+    );
+    renderHistory();
+    expect(await screen.findByText(INVENTORY_LABELS.noMovements)).toBeInTheDocument();
+    const link = screen.queryByRole("link", { name: INVENTORY_LABELS.adjustmentTitle });
+    expect(link !== null).toBe(shown);
+    if (link) expect(link).toHaveAttribute("href", INVENTORY_ROUTES.adjustments);
+  });
+
   it("a non-allowlisted role with movement READ opens the ledger", async () => {
     useAuthStore.setState({ impersonatedRole: "Sales Staff" });
     server.use(
-      inventoryPermissions([INVENTORY_PERMISSIONS.movementRead], ["SALES_STAFF"]),
+      inventoryPermissions(
+        [INVENTORY_PERMISSIONS.movementViewPage, INVENTORY_PERMISSIONS.movementRead],
+        ["SALES_STAFF"],
+      ),
       http.get(endpoint, () => HttpResponse.json({ success: true, data: emptyPage })),
     );
     renderHistory();
     expect(await screen.findByText(INVENTORY_LABELS.noMovements)).toBeInTheDocument();
     expect(screen.getByRole("textbox", SKU_SEARCH)).toBeInTheDocument();
+  });
+
+  // Route needs VIEW_PAGE (open the screen) AND READ (GET /inventory/movements) — BE ADR-0004
+  it.each([
+    ["VIEW_PAGE only", [INVENTORY_PERMISSIONS.movementViewPage]],
+    ["READ only", [INVENTORY_PERMISSIONS.movementRead]],
+  ] as const)("%s cannot open the ledger", async (_label, permissions) => {
+    const ledger = vi.fn();
+    server.use(
+      inventoryPermissions(permissions),
+      http.get(endpoint, () => {
+        ledger();
+        return HttpResponse.json({ success: true, data: emptyPage });
+      }),
+    );
+    renderHistory();
+    expect(await screen.findByText(INVENTORY_LABELS.denied)).toBeInTheDocument();
+    expect(ledger).not.toHaveBeenCalled();
   });
 
   it("renders current and unknown movement types without losing the page", async () => {

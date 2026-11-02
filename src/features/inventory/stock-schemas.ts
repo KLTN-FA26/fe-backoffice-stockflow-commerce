@@ -46,9 +46,12 @@ export const warehouseStockItemDto = z.object({
   locationCode: z.string(),
   lotNumber: z.string().nullish(),
   expiryDate: z.iso.date().nullish(),
-  onHand: quantity,
-  reserved: quantity,
-  available: quantity,
+  // SCRUM-146 (BE #202): absent while the slot is under an open count and the caller lacks
+  // inventory-cycle-counts:APPROVE; `hiddenDuringCount` is then true.
+  onHand: quantity.optional(),
+  reserved: quantity.optional(),
+  available: quantity.optional(),
+  hiddenDuringCount: z.boolean().default(false),
   status: z.string(),
   receivedAt: z.iso.datetime().nullish(),
 });

@@ -9,9 +9,13 @@ import {
 } from "./__fixtures__/receipt";
 import {
   countedByPoLine,
+  initialBlindLines,
   initialCountLines,
   inspectionTotals,
+  isLineOverTolerance,
   lineQualityStatuses,
+  overToleranceLineCount,
+  statusAfterConfirm,
   pendingQcLineCount,
   poLinesOverOpenQuantity,
   receiptReceivedOn,
@@ -107,5 +111,46 @@ describe("receipt selectors", () => {
     // BE vẫn trả AWAITING_MOVE_TO_QC cho dòng cần QC của phiếu nháp / đã huỷ
     expect(pendingQcLineCount({ status: "Draft", lines })).toBe(0);
     expect(pendingQcLineCount({ status: "Cancelled", lines })).toBe(0);
+  });
+});
+
+describe("BR-RCP-001 — vượt dung sai", () => {
+  const over = apiLine({ id: "a", warnings: ["OVER_TOLERANCE"] });
+  const within = apiLine({ id: "b", warnings: [] });
+
+  it("nhận biết dòng vượt dung sai theo cảnh báo BE; đếm số dòng", () => {
+    expect(isLineOverTolerance(over)).toBe(true);
+    expect(isLineOverTolerance(within)).toBe(false);
+    expect(isLineOverTolerance(apiLine({ warnings: ["EXPIRY_NEAR"] }))).toBe(false);
+    expect(overToleranceLineCount({ lines: [over, within, over] })).toBe(2);
+  });
+
+  it("trạng thái sau xác nhận: vượt dung sai → Pending Approval, nếu không thì QC / Putaway", () => {
+    expect(statusAfterConfirm({ lines: [over] })).toBe("Pending Approval");
+    expect(statusAfterConfirm({ lines: [within, over] })).toBe("Pending Approval");
+    expect(statusAfterConfirm({ lines: [apiLine({ qcRequired: true })] })).toBe("In QC");
+    expect(statusAfterConfirm({ lines: [apiLine({ qcRequired: false })] })).toBe("In Putaway");
+  });
+});
+
+describe("phiếu không có PO (BR-RCP-002)", () => {
+  it("xác nhận phiếu không có PO luôn → Pending Approval, kể cả không có dòng vượt dung sai", () => {
+    expect(
+      statusAfterConfirm({ lines: [apiLine({ qcRequired: true })], withoutPurchaseOrder: true }),
+    ).toBe("Pending Approval");
+    expect(statusAfterConfirm({ lines: [apiLine({ qcRequired: true })] })).toBe("In QC");
+  });
+
+  it("giá trị khởi tạo form đếm: dòng đã lưu theo SKU, hoặc một dòng trống", () => {
+    expect(initialBlindLines({ lines: [] })).toEqual([
+      { sku: "", quantity: 1, lotNumber: "", expiryDate: "", locationCode: "", note: "" },
+    ]);
+    expect(
+      initialBlindLines({
+        lines: [
+          apiLine({ purchaseOrderLineId: null, sku: "SOFA-3S-GREY", quantity: 4, lotNumber: null }),
+        ],
+      })[0],
+    ).toMatchObject({ sku: "SOFA-3S-GREY", quantity: 4, lotNumber: "", locationCode: "HCM-RCV01" });
   });
 });

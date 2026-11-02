@@ -22,7 +22,7 @@ export function ModePicker({
   onChange: (mode: LoadPlanSelectionMode) => void;
 }) {
   return (
-    <fieldset className="grid gap-2 sm:grid-cols-2">
+    <fieldset className="grid grid-cols-1 gap-2 sm:grid-cols-2">
       <legend className="sr-only">{L.modeTitle}</legend>
       {LOAD_PLAN_SELECTION_MODES.map((mode) => {
         const id = `${name}-${mode}`;
@@ -30,7 +30,7 @@ export function ModePicker({
           <label
             key={mode}
             htmlFor={id}
-            className="border-border-default bg-bg-surface hover:bg-bg-subtle has-[:checked]:border-brand flex cursor-pointer items-start gap-2 rounded border p-2.5 text-[0.8125rem]"
+            className="border-border-default bg-bg-surface hover:bg-bg-subtle has-[:checked]:border-brand flex cursor-pointer items-start gap-2 rounded-[var(--r-sm)] border p-2.5 text-[0.8125rem]"
           >
             <input
               id={id}

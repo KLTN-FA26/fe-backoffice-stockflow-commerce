@@ -42,7 +42,7 @@ function SkeletonHeader() {
 function ListSkeleton() {
   return (
     <>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[0, 1, 2, 3].map((item) => (
           <div
             key={item}
@@ -59,7 +59,7 @@ function ListSkeleton() {
           <Skeleton className="h-9 w-28" />
           <Skeleton className="h-9 w-9" />
         </div>
-        <div className="border-border-default bg-bg-subtle grid grid-cols-[1.1fr_1.6fr_1fr_1fr_0.8fr] gap-4 border-b px-4 py-3">
+        <div className="border-border-default bg-bg-subtle grid grid-cols-[minmax(0,1.1fr)_minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)] gap-4 border-b px-4 py-3">
           {[0, 1, 2, 3, 4].map((item) => (
             <Skeleton key={item} className="h-3 w-full max-w-24" />
           ))}
@@ -68,7 +68,7 @@ function ListSkeleton() {
           {SKELETON_ITEMS.map((item) => (
             <div
               key={item}
-              className="grid grid-cols-[1.1fr_1.6fr_1fr_1fr_0.8fr] items-center gap-4 py-3"
+              className="grid grid-cols-[minmax(0,1.1fr)_minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)] items-center gap-4 py-3"
             >
               <Skeleton className="h-4 w-24" />
               <Skeleton className="h-4 w-full max-w-52" />
@@ -85,7 +85,7 @@ function ListSkeleton() {
 
 function FormSkeleton() {
   return (
-    <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
       <div className="border-border-default bg-bg-surface h-fit space-y-3 rounded-[var(--r-sm)] border p-[var(--card-pad)]">
         {SKELETON_ITEMS.slice(0, 5).map((item) => (
           <div key={item} className="flex items-center gap-3">
@@ -101,7 +101,7 @@ function FormSkeleton() {
             className="border-border-default bg-bg-surface rounded-[var(--r-sm)] border p-[var(--card-pad)]"
           >
             <Skeleton className="h-5 w-44" />
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
               {[0, 1, 2, 3].map((field) => (
                 <div key={field} className="space-y-2">
                   <Skeleton className="h-3 w-24" />
@@ -119,7 +119,7 @@ function FormSkeleton() {
 function DetailSkeleton() {
   return (
     <>
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {[0, 1, 2].map((item) => (
           <div
             key={item}
@@ -130,7 +130,7 @@ function DetailSkeleton() {
           </div>
         ))}
       </div>
-      <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <div className="border-border-default bg-bg-surface rounded-[var(--r-sm)] border p-[var(--card-pad)]">
           <Skeleton className="h-5 w-40" />
           <div className="mt-5 space-y-4">

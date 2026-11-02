@@ -21,9 +21,9 @@ const CLOSE_KIND_LABEL: Record<string, string> = {
 
 export function PoGeneralInfo({ po }: { po: PurchaseOrder }) {
   return (
-    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)]">
+    <section className="border-border-default bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)">
       <h2 className="text-ink-primary mb-3 flex items-center gap-2 text-[0.9375rem] font-semibold">
-        <FileText className="text-accent size-4" />
+        <FileText className="text-accent size-3.5" />
         Thông tin chung
       </h2>
       <div>

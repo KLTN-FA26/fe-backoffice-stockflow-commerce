@@ -12,6 +12,7 @@ const error = (status: number, code: string, fields?: Record<string, string>) =>
 describe("moveErrorView — branches on errorCode, never on the English message", () => {
   it.each([
     [409, "MOVE_ACROSS_WAREHOUSES", "conflict", MOVE_ERROR_MESSAGES.crossWarehouse],
+    [409, "STOCK_SLOT_UNDER_COUNT", "conflict", MOVE_ERROR_MESSAGES.slotUnderCount],
     [404, "LOCATION_NOT_FOUND", "not-found", MOVE_ERROR_MESSAGES.locationNotFound],
     [409, "LOCATION_NOT_USABLE", "conflict", MOVE_ERROR_MESSAGES.locationNotUsable],
     [404, "STOCK_ITEM_NOT_FOUND", "not-found", MOVE_ERROR_MESSAGES.stockItemNotFound],

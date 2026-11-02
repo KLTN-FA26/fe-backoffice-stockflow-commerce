@@ -6,6 +6,11 @@ import { createDetailQuery, createListQuery, createQueryKeys } from "@/lib/api/q
 
 import { getGoodsReceipt, listGoodsReceipts } from "./api";
 import {
+  listSupplierOptions,
+  listSupplierPurchaseOrders,
+  listWarehouseOptions,
+} from "./lookup-api";
+import {
   getReceivablePurchaseOrder,
   listPurchaseOrderNumbers,
   listReceivablePurchaseOrders,
@@ -56,4 +61,34 @@ export function usePoDraftReceipts(poId: string | undefined) {
     { enabled: !!poId },
   );
   return list.data?.items ?? [];
+}
+
+/** NCC cho phiếu không có PO — cần `procurement-suppliers:READ` (xem `lookup-api.ts`). */
+export function useSupplierOptions(enabled: boolean) {
+  return useQuery({
+    queryKey: ["receipt-lookups", "suppliers"],
+    queryFn: ({ signal }) => listSupplierOptions(signal),
+    enabled,
+    ...QUERY_TIMES.master,
+  });
+}
+
+/** Kho nhận cho phiếu không có PO — cần `warehouse-warehouses:READ`. */
+export function useWarehouseOptions(enabled: boolean) {
+  return useQuery({
+    queryKey: ["receipt-lookups", "warehouses"],
+    queryFn: ({ signal }) => listWarehouseOptions(signal),
+    enabled,
+    ...QUERY_TIMES.master,
+  });
+}
+
+/** Đơn đặt hàng của một NCC để gắn tham chiếu — cần `procurement-purchase-orders:READ`. */
+export function useSupplierPurchaseOrders(supplierId: string | null | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: [...receivablePoKeys.all, "by-supplier", supplierId],
+    queryFn: ({ signal }) => listSupplierPurchaseOrders(supplierId ?? "", signal),
+    enabled: enabled && !!supplierId,
+    ...QUERY_TIMES.master,
+  });
 }

@@ -384,10 +384,11 @@ describe("InventoryItemDetail", () => {
     expect(screen.getByText(INVENTORY_ITEM_ERROR_MESSAGES.OPTIMISTIC_LOCK)).toBeInTheDocument();
   });
 
-  it("subtitle chỉ là 'Phiên bản {version}'", async () => {
+  it("phiên bản bản ghi là một dòng của thẻ đánh giá (trang không còn phụ đề)", async () => {
     mockGet();
     renderInventoryScreen(<InventoryItemDetail id="item-1" />);
-    expect(await screen.findByText(L.version(3))).toBeInTheDocument();
+    const term = await screen.findByText(L.field.version);
+    expect(term.nextElementSibling).toHaveTextContent("3");
   });
 
   it("đánh giá: cần đặt lại = amber, dưới tồn an toàn = đỏ, null = chưa đặt ngưỡng", async () => {

@@ -18,6 +18,8 @@ afterEach(() => vi.restoreAllMocks());
 
 describe("OrderDetail — Đóng phần còn lại kèm phí đã thoả thuận", () => {
   const CLOSURE_PATH = `${DETAIL_PATH}/remainder-closure`;
+  // Thao tác ghi đơn gửi Idempotency-Key ở header (PR #27), không vào body
+  const WITH_KEY = { headers: { "Idempotency-Key": expect.any(String) } };
 
   async function openClosureDialog(user: ReturnType<typeof userEvent.setup>) {
     await user.click(await screen.findByRole("button", { name: "Đóng phần còn lại" }));
@@ -35,7 +37,7 @@ describe("OrderDetail — Đóng phần còn lại kèm phí đã thoả thuận
 
   it("bật phí → POST kèm agreedFee {amount (số nguyên VND), reason, detail} đã trim", async () => {
     await renderDetail(ORDER_PERMISSION_SETS.salesStaff, () => apiPartialOrder);
-    const post = vi.spyOn(api, "post").mockResolvedValue({ data: null });
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiPartialOrder });
     const user = userEvent.setup();
 
     await openClosureDialog(user);
@@ -43,33 +45,37 @@ describe("OrderDetail — Đóng phần còn lại kèm phí đã thoả thuận
     await submit(user);
 
     await waitFor(() =>
-      expect(post).toHaveBeenCalledWith(CLOSURE_PATH, {
-        reasonCode: "CUSTOMER_REQUEST",
-        agreedFee: {
-          amount: 4_000_000,
-          reason: "Đã in 2 lô",
-          detail: "Khách đồng ý qua điện thoại",
+      expect(post).toHaveBeenCalledWith(
+        CLOSURE_PATH,
+        {
+          reasonCode: "CUSTOMER_REQUEST",
+          agreedFee: {
+            amount: 4_000_000,
+            reason: "Đã in 2 lô",
+            detail: "Khách đồng ý qua điện thoại",
+          },
         },
-      }),
+        WITH_KEY,
+      ),
     );
   });
 
   it("không bật phí → body không có agreedFee", async () => {
     await renderDetail(ORDER_PERMISSION_SETS.salesStaff, () => apiPartialOrder);
-    const post = vi.spyOn(api, "post").mockResolvedValue({ data: null });
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiPartialOrder });
     const user = userEvent.setup();
 
     await openClosureDialog(user);
     await submit(user);
 
     await waitFor(() =>
-      expect(post).toHaveBeenCalledWith(CLOSURE_PATH, { reasonCode: "CUSTOMER_REQUEST" }),
+      expect(post).toHaveBeenCalledWith(CLOSURE_PATH, { reasonCode: "CUSTOMER_REQUEST" }, WITH_KEY),
     );
   });
 
   it("số tiền có dấu thập phân → báo lỗi thay vì đọc thành số lớn gấp 100 lần; số hợp lệ hiện bản xem trước", async () => {
     await renderDetail(ORDER_PERMISSION_SETS.salesStaff, () => apiPartialOrder);
-    const post = vi.spyOn(api, "post").mockResolvedValue({ data: null });
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiPartialOrder });
     const user = userEvent.setup();
 
     await openClosureDialog(user);
@@ -87,7 +93,7 @@ describe("OrderDetail — Đóng phần còn lại kèm phí đã thoả thuận
 
   it("phí không hợp lệ (số tiền, lý do, chi tiết) → chặn trước khi gọi API, lỗi từng ô", async () => {
     await renderDetail(ORDER_PERMISSION_SETS.salesStaff, () => apiPartialOrder);
-    const post = vi.spyOn(api, "post").mockResolvedValue({ data: null });
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiPartialOrder });
     const user = userEvent.setup();
 
     await openClosureDialog(user);
@@ -111,7 +117,7 @@ describe("OrderDetail — Đóng phần còn lại kèm phí đã thoả thuận
     const post = vi
       .spyOn(api, "post")
       .mockRejectedValueOnce(new ApiError(409, "CANCELLATION_FEE_BEFORE_PRINTING", "English"))
-      .mockResolvedValueOnce({ data: null });
+      .mockResolvedValueOnce({ data: apiPartialOrder });
     const user = userEvent.setup();
 
     await openClosureDialog(user);
@@ -125,7 +131,11 @@ describe("OrderDetail — Đóng phần còn lại kèm phí đã thoả thuận
     await user.click(screen.getByRole("checkbox", { name: /Giữ một khoản phí/ }));
     await submit(user);
     await waitFor(() =>
-      expect(post).toHaveBeenLastCalledWith(CLOSURE_PATH, { reasonCode: "CUSTOMER_REQUEST" }),
+      expect(post).toHaveBeenLastCalledWith(
+        CLOSURE_PATH,
+        { reasonCode: "CUSTOMER_REQUEST" },
+        WITH_KEY,
+      ),
     );
   });
 
@@ -144,7 +154,7 @@ describe("OrderDetail — Đóng phần còn lại kèm phí đã thoả thuận
 
   it("mở lại hộp thoại thì ô phí được xoá sạch", async () => {
     await renderDetail(ORDER_PERMISSION_SETS.salesStaff, () => apiPartialOrder);
-    vi.spyOn(api, "post").mockResolvedValue({ data: null });
+    vi.spyOn(api, "post").mockResolvedValue({ data: apiPartialOrder });
     const user = userEvent.setup();
 
     await openClosureDialog(user);

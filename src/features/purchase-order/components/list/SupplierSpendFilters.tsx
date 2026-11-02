@@ -3,8 +3,8 @@
 import { useState } from "react";
 
 import { Card } from "@/components/shared/Card";
+import { DatePicker } from "@/components/shared/DatePicker";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 import { SpendCurrencyPicker } from "./SpendCurrencyPicker";
@@ -49,11 +49,11 @@ export function SupplierSpendFilters({
             <Label htmlFor="spend-from" className="text-ink-secondary text-xs">
               Giao dự kiến từ
             </Label>
-            <Input
+            <DatePicker
               id="spend-from"
-              type="date"
               value={from}
-              onChange={(e) => setFrom(e.target.value)}
+              clearable
+              onChange={setFrom}
               className={`w-[160px] ${FIELD_CLASS}`}
             />
           </div>
@@ -61,14 +61,14 @@ export function SupplierSpendFilters({
             <Label htmlFor="spend-to" className="text-ink-secondary text-xs">
               Đến
             </Label>
-            <Input
+            <DatePicker
               id="spend-to"
-              type="date"
               value={to}
               min={from || undefined}
+              clearable
               aria-invalid={rangeInvalid || undefined}
               aria-describedby={rangeInvalid ? "spend-range-error" : undefined}
-              onChange={(e) => setTo(e.target.value)}
+              onChange={setTo}
               className={`w-[160px] ${FIELD_CLASS}`}
             />
           </div>

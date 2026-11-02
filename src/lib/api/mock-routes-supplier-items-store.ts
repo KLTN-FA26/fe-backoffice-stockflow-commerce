@@ -7,6 +7,7 @@
 
 import { getPoStore, todayVn } from "./mock-routes-purchase-orders-store";
 import { findMockSupplier } from "./mock-routes-suppliers";
+import { bumpMockItemVersionForSku, registerMockSkuReferences } from "./mock-routes-variants";
 
 import type { MockBePo, MockFieldError } from "./mock-routes-purchase-orders-store";
 
@@ -50,12 +51,51 @@ const IN_USE_PO_STATUSES: readonly string[] = [
 let items: StoredSupplierItem[] = [];
 /** sku → supplierId mặc định (BE: NCC mặc định của inventory item; "ưu tiên" suy ra từ đây). */
 const defaultSupplierBySku = new Map<string, string>();
+
+// BE `item_in_use`: có dòng danh mục NCC → SKU không đổi được; NCC mặc định nằm trên hồ sơ → đi theo SKU
+registerMockSkuReferences("supplier-items", {
+  inUse: (sku) => items.some((i) => i.sku === sku),
+  rename: (from, to) => {
+    const supplierId = defaultSupplierBySku.get(from);
+    if (supplierId === undefined) return;
+    defaultSupplierBySku.delete(from);
+    defaultSupplierBySku.set(to, supplierId);
+  },
+});
 let seedPromise: Promise<void> | null = null;
 
 export function resetSupplierItemMockStore(): void {
   items = [];
   defaultSupplierBySku.clear();
   seedPromise = null;
+}
+
+/** NCC mặc định của SKU — nguồn duy nhất, dùng chung với mock thông tin mua hàng (`defaultSupplierId`). */
+export function mockDefaultSupplierOf(sku: string): string | null {
+  return defaultSupplierBySku.get(sku) ?? null;
+}
+
+/**
+ * Ghi NCC mặc định từ PUT thông tin mua hàng. Không tự tăng version — PUT đó đã tăng một lần
+ * (BE `ItemPurchasingRepository.save`: `version=version+1` trong cùng câu UPDATE).
+ */
+export function setMockDefaultSupplier(sku: string, supplierId: string | null): void {
+  if (supplierId === null) defaultSupplierBySku.delete(sku);
+  else defaultSupplierBySku.set(sku, supplierId);
+}
+
+/** BE `assignDefaultSupplier`: chỉ ghi + tăng version hồ sơ khi giá trị thật sự đổi (`is distinct from`). */
+function assignDefault(sku: string, supplierId: string): void {
+  if (defaultSupplierBySku.get(sku) === supplierId) return;
+  defaultSupplierBySku.set(sku, supplierId);
+  bumpMockItemVersionForSku(sku);
+}
+
+/** BE `clearDefaultSupplier`: chỉ xoá (và tăng version) khi NCC mặc định đang là chính NCC này. */
+function clearDefault(sku: string, supplierId: string): void {
+  if (defaultSupplierBySku.get(sku) !== supplierId) return;
+  defaultSupplierBySku.delete(sku);
+  bumpMockItemVersionForSku(sku);
 }
 
 function pairExists(supplierId: string, sku: string): boolean {
@@ -213,7 +253,7 @@ export function insertSupplierItem(
   const stored = buildItem(supplierId, sku, price, currency, terms);
   items.push(stored);
   // BE: tạo dòng với preferred=false KHÔNG xoá NCC mặc định hiện có.
-  if (preferred) defaultSupplierBySku.set(sku, supplierId);
+  if (preferred) assignDefault(sku, supplierId);
   return stored;
 }
 
@@ -228,18 +268,23 @@ export function updateSupplierItem(
   const idx = items.findIndex((i) => i.supplierItemId === supplierItemId);
   const current = items[idx];
   if (!current) return null;
+  // Chỉ chép đúng các field sửa được: route truyền cả điều khoản đã đọc, gồm `sku` của request (rỗng
+  // khi không gửi). BE bỏ qua `sku` khi sửa — spread nguyên object sẽ đổi / xoá SKU của dòng và làm
+  // lệch "ưu tiên" (NCC mặc định) của SKU
   const next: StoredSupplierItem = {
     ...current,
-    ...patch,
+    price: patch.price,
+    supplierSkuCode: patch.supplierSkuCode,
+    moq: patch.moq,
+    packSize: patch.packSize,
+    leadTimeDays: patch.leadTimeDays,
     version: current.version + 1,
     lastModifiedAt: new Date().toISOString(),
   };
   items[idx] = next;
-  if (preferred) defaultSupplierBySku.set(next.sku, next.supplierId);
+  if (preferred) assignDefault(next.sku, next.supplierId);
   // BE: bỏ ưu tiên chỉ xoá NCC mặc định khi chính NCC này đang là mặc định.
-  else if (defaultSupplierBySku.get(next.sku) === next.supplierId) {
-    defaultSupplierBySku.delete(next.sku);
-  }
+  else clearDefault(next.sku, next.supplierId);
   return next;
 }
 

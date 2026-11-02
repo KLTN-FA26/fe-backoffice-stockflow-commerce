@@ -36,7 +36,7 @@ export function StockOverviewSection({
   return (
     <section
       aria-labelledby="inventory-stock-levels"
-      className="border-border-default bg-bg-surface space-y-[var(--card-pad)] rounded-[var(--r-sm)] border p-[var(--card-pad)]"
+      className="border-border-default bg-bg-surface space-y-[var(--card-pad)] rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)"
     >
       <h2 id="inventory-stock-levels" className="text-ink-primary font-semibold">
         {INVENTORY_LABELS.stockLevelsTitle}

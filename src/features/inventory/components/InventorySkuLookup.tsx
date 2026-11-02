@@ -38,7 +38,7 @@ export function InventorySkuLookup({
     <form
       noValidate
       onSubmit={form.handleSubmit(({ sku }) => onSubmit(sku))}
-      className="border-border-default bg-bg-surface flex flex-wrap items-end gap-[var(--el-gap)] rounded-[var(--r-sm)] border p-[var(--card-pad)]"
+      className="border-border-default bg-bg-surface flex flex-wrap items-end gap-[var(--el-gap)] rounded-[var(--card-radius)] border p-[var(--card-pad)] shadow-(--card-shadow)"
     >
       <div className="min-w-64 flex-1 space-y-1">
         <Label htmlFor="inventory-sku">{INVENTORY_LABELS.skuLookup}</Label>

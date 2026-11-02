@@ -5,7 +5,6 @@ import Link from "next/link";
 import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 
 const { common, loadError, inventoryItem } = UI_LABELS;
@@ -31,8 +30,8 @@ export function ItemDetailError({
   const canRetry = kind === "error" && !notFound && onRetry !== undefined;
 
   return (
-    <>
-      <PageHeader title={inventoryItem.title} />
+    <div className="surface-soft surface-compact">
+      <h1 className="sr-only">{inventoryItem.title}</h1>
       <EmptyState
         title={title}
         description={description}
@@ -55,6 +54,6 @@ export function ItemDetailError({
           <span className="font-[family-name:var(--font-mono)]">{error.traceId}</span>
         </p>
       )}
-    </>
+    </div>
   );
 }

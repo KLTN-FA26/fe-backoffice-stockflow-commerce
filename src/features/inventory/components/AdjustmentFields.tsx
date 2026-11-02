@@ -23,7 +23,7 @@ export function AdjustmentFields({ form }: { form: UseFormReturn<CreateAdjustmen
     formState: { errors },
   } = form;
   return (
-    <div className="grid gap-[var(--card-pad)] md:grid-cols-2">
+    <div className="grid grid-cols-1 gap-[var(--card-pad)] md:grid-cols-2">
       {(
         [
           ["locationCode", INVENTORY_LABELS.location, INVENTORY_LIMITS.locationLength],

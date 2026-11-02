@@ -2,11 +2,17 @@
  * Goods receipt — selectors THUẦN (không side effect), derive từ data đã parse.
  */
 
-import { QC_OUTCOME_BY_API, RECEIPT_QC_PROGRESS_STATUS, RECEIPT_STATUS } from "@/constants";
+import {
+  QC_OUTCOME_BY_API,
+  RECEIPT_QC_PROGRESS_STATUS,
+  RECEIPT_STATUS,
+  RECEIPT_WARNING_OVER_TOLERANCE,
+} from "@/constants";
 import { toLocalIsoDate } from "@/lib/format/date";
 
 import type { QcOutcomeStatus, ReceiptStatus } from "@/constants";
 import type {
+  BlindLinesFormInput,
   GoodsReceipt,
   ReceiptLineDto,
   ReceiptLineValues,
@@ -63,7 +69,8 @@ export function initialCountLines(
 ): ReceiptLinesFormInput["lines"] {
   if (receipt.lines.length > 0) {
     return receipt.lines.map((line) => ({
-      purchaseOrderLineId: line.purchaseOrderLineId,
+      // Phiếu theo PO luôn có dòng PO; phiếu không có PO dùng `initialBlindLines`
+      purchaseOrderLineId: line.purchaseOrderLineId ?? "",
       quantity: line.quantity,
       lotNumber: line.lotNumber ?? "",
       expiryDate: line.expiryDate ?? "",
@@ -81,6 +88,23 @@ export function initialCountLines(
       locationCode: "",
       note: "",
     }));
+}
+
+/** Giá trị khởi tạo form kiểm đếm của phiếu không có PO (BR-RCP-002): dòng đã lưu, hoặc một dòng trống. */
+export function initialBlindLines(
+  receipt: Pick<GoodsReceipt, "lines">,
+): BlindLinesFormInput["lines"] {
+  if (receipt.lines.length > 0) {
+    return receipt.lines.map((line) => ({
+      sku: line.sku ?? "",
+      quantity: line.quantity,
+      lotNumber: line.lotNumber ?? "",
+      expiryDate: line.expiryDate ?? "",
+      locationCode: line.locationCode ?? "",
+      note: line.note ?? "",
+    }));
+  }
+  return [{ sku: "", quantity: 1, lotNumber: "", expiryDate: "", locationCode: "", note: "" }];
 }
 
 export function totalReceivedQuantity(receipt: Pick<GoodsReceipt, "lines">): number {
@@ -137,10 +161,30 @@ export function pendingQcLineCount(receipt: Pick<GoodsReceipt, "lines" | "status
 }
 
 /**
- * Trạng thái phiếu sau khi xác nhận — BE `GoodsReceipt#confirm`: có dòng cần QC → In QC, không có
- * → In Putaway (Confirmed chỉ đi qua trong cùng transaction).
+ * BR-RCP-001: BE gắn `OVER_TOLERANCE` lên dòng (và phiếu) chưa ghi nhận mà tổng SL của dòng PO — cộng
+ * với những phiếu đã ghi nhận — vượt SL đặt × (1 + dung sai). Xác nhận phiếu như vậy chỉ gửi duyệt.
  */
-export function statusAfterConfirm(receipt: Pick<GoodsReceipt, "lines">): ReceiptStatus {
+export function isLineOverTolerance(line: Pick<ReceiptLineDto, "warnings">): boolean {
+  return line.warnings.includes(RECEIPT_WARNING_OVER_TOLERANCE);
+}
+
+/** Số dòng đếm vượt dung sai trên phiếu (chỉ có nghĩa khi phiếu còn Draft / Pending Approval). */
+export function overToleranceLineCount(receipt: Pick<GoodsReceipt, "lines">): number {
+  return receipt.lines.filter(isLineOverTolerance).length;
+}
+
+/**
+ * Trạng thái phiếu sau khi xác nhận — BE `GoodsReceipt#confirm`: phiếu không có PO (BR-RCP-002) luôn →
+ * Pending Approval; có dòng vượt dung sai → Pending Approval
+ * (chưa ghi nhận, BR-RCP-001); có dòng cần QC → In QC; không có → In Putaway (Confirmed chỉ đi qua
+ * trong cùng transaction).
+ */
+export function statusAfterConfirm(
+  receipt: Pick<GoodsReceipt, "lines"> & Partial<Pick<GoodsReceipt, "withoutPurchaseOrder">>,
+): ReceiptStatus {
+  // BR-RCP-002: phiếu không có PO không bao giờ ghi nhận ngay — luôn chờ Quản lý kho duyệt
+  if (receipt.withoutPurchaseOrder) return RECEIPT_STATUS.PENDING_APPROVAL;
+  if (overToleranceLineCount(receipt) > 0) return RECEIPT_STATUS.PENDING_APPROVAL;
   return receipt.lines.some((line) => line.qcRequired)
     ? RECEIPT_STATUS.IN_QC
     : RECEIPT_STATUS.IN_PUTAWAY;

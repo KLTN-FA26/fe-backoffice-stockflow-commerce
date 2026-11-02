@@ -7,7 +7,6 @@ import { ApiError } from "@/lib/api/error";
 import { classifyLoadError } from "@/lib/api/load-error";
 import { useCan } from "@/lib/auth";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 
 import type { LoadErrorKind } from "@/lib/api/load-error";
@@ -65,9 +64,8 @@ export function FulfillmentLoadError({
       ? { href: ADMIN_ROUTES.home, label: common.backToHome }
       : { href: SCOPE[scope].list, label: common.backToList };
 
-  return (
+  const body = (
     <>
-      {!inline && <PageHeader title={SCOPE[scope].title} />}
       <EmptyState
         title={copy.title}
         description={copy.description}
@@ -93,5 +91,13 @@ export function FulfillmentLoadError({
         </p>
       )}
     </>
+  );
+  if (inline) return body;
+  return (
+    // Cùng khung kiểu Vercel với trang chi tiết — không tiêu đề hiển thị, breadcrumb đã có.
+    <div className="surface-soft surface-compact">
+      <h1 className="sr-only">{SCOPE[scope].title}</h1>
+      {body}
+    </div>
   );
 }

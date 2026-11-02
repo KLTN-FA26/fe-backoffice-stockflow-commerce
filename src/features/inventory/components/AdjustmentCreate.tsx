@@ -11,7 +11,6 @@ import { INVENTORY_PERMISSIONS } from "@/constants/permissions";
 
 import { ApiError } from "@/lib/api/error";
 
-import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 
 import { inventoryErrorView } from "../errors";
@@ -69,15 +68,14 @@ function AdjustmentCreateContent() {
     }
   };
   return (
-    <div className="space-y-[var(--card-pad)]">
-      <PageHeader
-        title={INVENTORY_LABELS.createAdjustment}
-        subtitle={INVENTORY_LABELS.approvalPolicy}
-      />
+    // Giao diện kiểu Vercel như wizard sản phẩm (globals.css `.surface-soft`). Không hiện tiêu đề —
+    // breadcrumb topbar đã có tên trang; h1 giữ cho screen reader.
+    <div className="surface-soft surface-compact space-y-[var(--card-pad)]">
+      <h1 className="sr-only">{INVENTORY_LABELS.createAdjustment}</h1>
       <InventoryOffline />
       <form
         onSubmit={(event) => void form.handleSubmit(submitValid)(event)}
-        className="border-border-default bg-bg-surface space-y-[var(--card-pad)] rounded-[var(--r-sm)] border p-[var(--card-pad)]"
+        className="border-border-default bg-bg-surface space-y-[var(--card-pad)] rounded-(--section-radius) border p-[var(--card-pad)] shadow-(--card-shadow)"
       >
         <fieldset disabled={mutation.isPending}>
           <AdjustmentFields form={form} />
@@ -93,11 +91,15 @@ function AdjustmentCreateContent() {
           </p>
         )}
         <div className="flex justify-end gap-[var(--el-gap)]">
-          <Button className="rounded-[var(--r-sm)]" asChild variant="outline">
+          <Button
+            className="h-(--action-h) rounded-(--action-radius) px-(--action-px)"
+            asChild
+            variant="outline"
+          >
             <Link href={INVENTORY_ROUTES.adjustments}>{INVENTORY_LABELS.back}</Link>
           </Button>
           <Button
-            className="rounded-[var(--r-sm)]"
+            className="h-(--action-h) rounded-(--action-radius) px-(--action-px)"
             type="submit"
             disabled={!form.formState.isValid || mutation.isPending}
             aria-busy={mutation.isPending}

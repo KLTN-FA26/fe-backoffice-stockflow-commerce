@@ -27,7 +27,7 @@ export function CreateStepper({
 }) {
   return (
     <Card className="h-fit p-0">
-      <div className="border-border-default border-b px-4 py-3">
+      <div className="border-b border-(--table-line) px-4 py-3">
         <div className="text-ink-tertiary text-xs font-semibold tracking-[0.08em] uppercase">
           Quy trình
         </div>
@@ -49,7 +49,7 @@ export function CreateStepper({
               disabled={!canGoTo(step.key)}
               aria-current={status === "active" ? "step" : undefined}
               className={cn(
-                "mb-1 flex w-full justify-start gap-2 rounded-[var(--r-sm)] px-2.5 py-2 text-left text-[0.8125rem] transition-colors",
+                "mb-1 flex w-full justify-start gap-2 rounded-[var(--r-md)] px-2.5 py-2 text-left text-[0.8125rem] transition-colors",
                 status === "active" &&
                   "bg-brand text-ink-inverse hover:bg-brand hover:text-ink-inverse font-medium",
                 status !== "active" &&

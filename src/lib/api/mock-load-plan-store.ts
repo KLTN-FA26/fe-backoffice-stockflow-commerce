@@ -8,6 +8,14 @@
 import { LOAD_PLAN_STATUS } from "@/constants";
 import { LAYOUT_PICKUP_KIT } from "@/features/load-planning/__fixtures__/layouts";
 
+import {
+  SEED_PACKED_TRANSFER_FROM,
+  SEED_PACKED_TRANSFER_ID,
+  SEED_PACKED_TRANSFER_NUMBER,
+  SEED_PACKED_TRANSFER_PACKED_AT,
+  SEED_PACKED_TRANSFER_PARCELS,
+  SEED_PACKED_TRANSFER_TO,
+} from "./mock-transfer-pack-seed";
 import { getVehicleTypeStore } from "./mock-vehicle-type-store";
 
 import type { LoadPlanSelectionMode, LoadPlanStatus, LoadPlanUnplacedReason } from "@/constants";
@@ -29,6 +37,7 @@ export interface MockParcel {
 }
 
 export interface MockShipment {
+  /** Lô giao; với lệnh chuyển kho (`transfer`) là chính id lệnh — mock dùng chung kho ứng viên cho cả hai nguồn. */
   shipmentId: string;
   code: string;
   orderId: string;
@@ -37,6 +46,8 @@ export interface MockShipment {
   readyAt: string;
   warehouseId: string;
   packages: MockParcel[];
+  /** SCRUM-287 PR T: đây là MỘT lệnh chuyển kho đã đóng gói (nguồn TRANSFER), không phải lô giao của đơn khách. */
+  transfer?: { transferOrderId: string; number: string; toWarehouseId: string; status: string };
 }
 
 export interface MockPlanVehicle {
@@ -66,6 +77,8 @@ export interface MockPlan {
   code: string;
   requestId: string;
   warehouseId: string;
+  /** Nguồn của kế hoạch (BE `LoadPlan.source_type`): lô giao của đơn khách hay MỘT lệnh chuyển kho (`shipmentIds` = [id lệnh]). */
+  sourceType: "ORDER" | "TRANSFER";
   selectionMode: LoadPlanSelectionMode;
   status: LoadPlanStatus;
   note: string | null;
@@ -165,6 +178,40 @@ function kitShipment(): MockShipment {
   };
 }
 
+/** Lệnh chuyển kho seed đã đóng gói (`TO-2026-0006`): ứng viên của kế hoạch xe nguồn TRANSFER. */
+function seedTransferShipment(): MockShipment {
+  const head = { shipmentId: SEED_PACKED_TRANSFER_ID, code: SEED_PACKED_TRANSFER_NUMBER };
+  return {
+    ...head,
+    orderId: "",
+    orderNumber: "",
+    allowPartialShipment: false,
+    readyAt: SEED_PACKED_TRANSFER_PACKED_AT,
+    warehouseId: SEED_PACKED_TRANSFER_FROM,
+    packages: SEED_PACKED_TRANSFER_PARCELS.map((p) => ({
+      packageId: `${SEED_PACKED_TRANSFER_ID}-pkg-${p.n}`,
+      labelCode: `PKG-${SEED_PACKED_TRANSFER_ID}-${p.n}`,
+      shipmentId: SEED_PACKED_TRANSFER_ID,
+      shipmentCode: SEED_PACKED_TRANSFER_NUMBER,
+      partName: p.sku,
+      lengthMm: p.lengthCm * 10,
+      widthMm: p.widthCm * 10,
+      heightMm: p.heightCm * 10,
+      weightKg: p.kg,
+      rotatable: true,
+      kitGroupId: null,
+      kitPartNo: null,
+      kitPartCount: null,
+    })),
+    transfer: {
+      transferOrderId: SEED_PACKED_TRANSFER_ID,
+      number: SEED_PACKED_TRANSFER_NUMBER,
+      toWarehouseId: SEED_PACKED_TRANSFER_TO,
+      status: "PICKING",
+    },
+  };
+}
+
 function seedShipments(): MockShipment[] {
   return [
     kitShipment(),
@@ -179,6 +226,7 @@ function seedShipments(): MockShipment[] {
       ["Phụ kiện", 6, 400, 300, 200, 3],
     ]),
     shipment(5, HN, "SO-20261003-000007", true, [["Sofa", 5, 600, 400, 400, 9.5]]),
+    seedTransferShipment(),
   ];
 }
 
@@ -187,6 +235,7 @@ function seedPlans(shipments: MockShipment[]): MockPlan[] {
   const pickup = types.find((type) => type.code === "PICKUP") ?? types[0];
   const truck = types.find((type) => type.code === "TRUCK-1T25") ?? types[0];
   const common = {
+    sourceType: "ORDER" as const,
     unplaced: new Map<string, LoadPlanUnplacedReason>(),
     leftBehind: [],
     acknowledgement: null,

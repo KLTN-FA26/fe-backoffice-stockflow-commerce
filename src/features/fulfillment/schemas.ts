@@ -36,6 +36,18 @@ export const bePaymentDueSchema = z.object({
   currency: z.string(),
 });
 
+/**
+ * BE `FulfillmentTaskResponse.TaskLine` (SCRUM-466): dòng đơn đi kèm task — `lineId` là id dòng ĐƠN HÀNG
+ * (tham số `{lineId}` của endpoint tải file thiết kế). Dòng in (`printLine`) có thiết kế đã khoá.
+ */
+export const beTaskLineSchema = z.object({
+  lineId: z.string(),
+  sku: z.string(),
+  quantity: z.number().int(),
+  designSnapshotId: z.string().nullish(),
+  printLine: z.boolean(),
+});
+
 /** BE `FulfillmentTaskResponse` — `taskId` là id của pick; pick và pack 1-1 trên cùng task. */
 export const beFulfillmentTaskSchema = z.object({
   taskId: z.string(),
@@ -54,6 +66,8 @@ export const beFulfillmentTaskSchema = z.object({
   packedAt: z.string().nullish(),
   // Mới nhất trước (BE `findByPackIdOrderByVerifiedAtDesc`)
   integrityEvidence: z.array(beIntegrityEvidenceSchema).default([]),
+  // Chỉ có ở `GET /tasks/{id}` (BE `@JsonInclude(NON_NULL)`); danh sách và câu trả lời thao tác ghi không kèm
+  lines: z.array(beTaskLineSchema).optional(),
   // Chỉ có ở câu trả lời của `packing-completion` (BE PR #136): lô giao vừa tạo + cảnh báo thu tiền
   shipmentId: z.string().nullish(),
   paymentDue: bePaymentDueSchema.nullish(),
@@ -103,8 +117,6 @@ export const fulfillmentOrderSchema = z.object({
    */
   printLinesReady: z.boolean().nullish(),
 });
-
-export const fulfillmentOrderPageSchema = bePageSchema(fulfillmentOrderSchema);
 
 /**
  * BE `TaskCandidateResponse` (`GET /fulfillment/task-candidates`, guard

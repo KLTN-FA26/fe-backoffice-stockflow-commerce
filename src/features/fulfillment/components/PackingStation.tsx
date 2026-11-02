@@ -3,9 +3,9 @@
 import { parseAsString, useQueryState } from "nuqs";
 
 import {
-  ADMIN_ROUTES,
   FULFILLMENT_PACKAGE_PERMISSIONS,
   FULFILLMENT_PICK_PERMISSIONS,
+  ORDER_PERMISSIONS,
   PICK_STATUS,
   UI_LABELS,
 } from "@/constants";
@@ -16,10 +16,8 @@ import { usePackingSession } from "@/features/fulfillment/packing-queries";
 import { hasPrintLines, printLinesWaiting } from "@/features/fulfillment/packing-selectors";
 import { useFulfillmentOrder, useFulfillmentTask } from "@/features/fulfillment/queries";
 import { Alert } from "@/components/shared/Alert";
-import { PageHeader } from "@/components/shared/PageHeader";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { Button } from "@/components/ui/button";
-import { BackLink } from "@/components/shared/BackLink";
 
 import { FulfillmentLoadError } from "./FulfillmentLoadError";
 import { FulfillmentPermissionGate } from "./FulfillmentPermissionGate";
@@ -33,21 +31,22 @@ import { PackingStatusCard } from "./packing/PackingStatusCard";
 import { ScanSection } from "./packing/ScanSection";
 import { ShipmentsSection } from "./packing/ShipmentsSection";
 import { Section, taskCode } from "./primitives";
-import { useFulfillmentActor, useTaskReferences } from "./useFulfillmentActor";
+import { useFulfillmentActor } from "./useFulfillmentActor";
 
-const { fulfillment, common, packing } = UI_LABELS;
+const { common, packing } = UI_LABELS;
 
 function PackingStationBody({ id }: { id: string }) {
   const actor = useFulfillmentActor();
   const canRead = actor.can(FULFILLMENT_PACKAGE_PERMISSIONS.read);
-  const refs = useTaskReferences(actor);
+  // Chỉ để đọc cờ `printLinesReady` của đơn (BE PR #150): dòng thiết kế đã đi kèm task (SCRUM-466)
+  const canReadOrders = actor.can(ORDER_PERMISSIONS.read);
   const [labelId, setLabelId] = useQueryState("label", parseAsString);
   const sessionQuery = usePackingSession(id, { enabled: canRead });
   // Task (thiết kế đã khoá, lịch sử đối chiếu, trạng thái lấy hàng) tách khỏi phiên
   const taskQuery = useFulfillmentTask(id, {
     enabled: canRead && actor.can(FULFILLMENT_PICK_PERMISSIONS.read),
   });
-  const order = useFulfillmentOrder(taskQuery.data?.orderId, refs.canReadOrders);
+  const order = useFulfillmentOrder(taskQuery.data?.orderId, canReadOrders);
   const session = sessionQuery.data;
   useBreadcrumbLabel(id, session ? (session.orderNumber ?? taskCode(session.taskId)) : undefined);
 
@@ -74,17 +73,10 @@ function PackingStationBody({ id }: { id: string }) {
   const printWaiting = printLinesWaiting(session, order.data?.printLinesReady);
 
   return (
-    <>
-      <PageHeader
-        title={`${packing.stationTitle} — ${session.orderNumber ?? taskCode(session.taskId)}`}
-        subtitle={fulfillment.packingSubtitle}
-        actions={
-          <div className="print:hidden">
-            <BackLink href={ADMIN_ROUTES.packing.list} />
-          </div>
-        }
-        className="print:hidden"
-      />
+    // Giao diện kiểu Vercel như chi tiết sản phẩm (globals.css `.surface-soft`). Không hiện tiêu đề —
+    // breadcrumb topbar đã có số đơn và link về hàng chờ; số đơn nằm ở đầu thẻ trạng thái.
+    <div className="surface-soft surface-compact">
+      <h1 className="sr-only">{`${packing.stationTitle} — ${session.orderNumber ?? taskCode(session.taskId)}`}</h1>
       {sessionQuery.isError && (
         <Alert tone="warning" className="mb-3 print:hidden">
           {packing.notice.refetchFailed}{" "}
@@ -105,7 +97,7 @@ function PackingStationBody({ id }: { id: string }) {
           onBack={() => void setLabelId(null)}
         />
       ) : (
-        <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
           <div className="min-w-0 space-y-5">
             <PackingNotices
               session={session}
@@ -123,12 +115,7 @@ function PackingStationBody({ id }: { id: string }) {
             <ShipmentsSection session={session} />
             {showDesign && task && (
               <>
-                <DesignLinesSection
-                  task={task}
-                  canReadOrders={refs.canReadOrders}
-                  order={order}
-                  canDownload={canDownloadArtifact(task, actor)}
-                />
+                <DesignLinesSection task={task} canDownload={canDownloadArtifact(task, actor)} />
                 <Section
                   title="Lịch sử đối chiếu thiết kế"
                   description="Mỗi lần hoàn tất đóng gói hoặc kiểm tra lại, hệ thống ghi một bản cho mỗi dòng tuỳ chỉnh."
@@ -148,7 +135,7 @@ function PackingStationBody({ id }: { id: string }) {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
 

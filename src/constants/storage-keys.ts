@@ -7,6 +7,7 @@ export const STORAGE_KEYS = {
   adminInvoicesConfig: "stockflow:admin:invoices:config",
   adminVariantsConfig: "stockflow:admin:variants:config",
   adminOrdersConfig: "stockflow:admin:orders:config",
+  adminCreditHoldsConfig: "stockflow:admin:orders:credit-holds:config",
   adminPackingConfig: "stockflow:admin:packing:config",
   adminPickingConfig: "stockflow:admin:picking:config",
   adminSuppliersConfig: "stockflow:admin:suppliers:config",
@@ -22,6 +23,7 @@ export const STORAGE_KEYS = {
   adminShipmentsConfig: "stockflow:admin:shipments:config",
   adminLoadsConfig: "stockflow:admin:loads:config",
   adminVehicleTypesConfig: "stockflow:admin:vehicle-types:config",
+  adminWarehousesConfig: "stockflow:admin:warehouses:config",
   adminLoadPlansConfig: "stockflow:admin:load-plans:config",
   /** sessionStorage — `requestId` của lần lập kế hoạch xếp xe (BE trả lại kế hoạch cũ khi gửi lại cùng id). */
   loadPlanRequest: "stockflow:admin:load-plans:create-request",

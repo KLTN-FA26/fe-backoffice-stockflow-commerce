@@ -15,6 +15,7 @@ export function parcel(code: string, loaded: boolean, patch: Partial<LoadParcel>
     labelCode: code,
     weightKg: 1.5,
     loaded,
+    labelOutdated: false,
     ...(loaded ? { loadedAt: "2026-10-21T01:10:00Z", loadedBy: "staff" } : {}),
     ...patch,
   };
@@ -93,8 +94,20 @@ export function apiShipment(patch: Partial<ShipmentRow> = {}): Shipment {
   return {
     shipment: shipmentRow(patch),
     packages: [
-      { packageId: "pkg-1", labelCode: "PKG-SO-1-1", status: "SEALED", weightKg: 1.5 },
-      { packageId: "pkg-2", labelCode: "PKG-SO-1-2", status: "SEALED", weightKg: 0.8 },
+      {
+        packageId: "pkg-1",
+        labelCode: "PKG-SO-1-1",
+        status: "SEALED",
+        weightKg: 1.5,
+        labelOutdated: false,
+      },
+      {
+        packageId: "pkg-2",
+        labelCode: "PKG-SO-1-2",
+        status: "SEALED",
+        weightKg: 0.8,
+        labelOutdated: false,
+      },
     ],
     timeline: [
       { status: "READY_TO_DISPATCH", occurredAt: "2026-10-20T02:00:00Z", recordedByName: "Packer" },
@@ -122,7 +135,7 @@ export function apiManifest(patch: Partial<Manifest> = {}): Manifest {
         weightKg: 1.5,
         codAmount: 270_000,
         codChangedSinceLabel: false,
-        packages: [{ labelCode: "PKG-SO-1-1", weightKg: 1.5, loaded: true }],
+        packages: [{ labelCode: "PKG-SO-1-1", weightKg: 1.5, loaded: true, labelOutdated: false }],
       },
     ],
     shipmentCount: 1,

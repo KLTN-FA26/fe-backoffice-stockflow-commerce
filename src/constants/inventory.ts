@@ -131,11 +131,14 @@ export const INVENTORY_ROUTES = {
   adjustments: "/admin/inventory/adjustments",
   createAdjustment: "/admin/inventory/adjustments/create",
   adjustment: (id: string) => `/admin/inventory/adjustments/${encodeURIComponent(id)}`,
+  // Đích deep link của thông báo INVENTORY_ALERT (BE InventoryAlertMessages: `?kind=…&warehouseId=…`).
+  alerts: "/admin/inventory/alerts",
 } as const;
 
 export const INVENTORY_STORAGE_KEYS = {
   movements: "stockflow:admin:movements:config",
   adjustments: "stockflow:admin:inventory:adjustments:config",
+  alerts: "stockflow:admin:inventory:alerts:config",
 } as const;
 
 export const INVENTORY_PAGE_SIZES = [10, 15, 20, 50] as const;
@@ -218,6 +221,9 @@ export const INVENTORY_LABELS = {
   onHand: "Tồn thực tế",
   available: "Hàng khả dụng",
   reserved: "Đã giữ chỗ",
+  // SCRUM-146 (BE #202): the book quantity of a slot under an open count is hidden from counters.
+  hiddenDuringCount: "Đang kiểm kê",
+  hiddenDuringCountHint: "Số tồn được ẩn trong lúc kiểm kê",
   allocated: "Đã phân bổ",
   atp: "ATP",
   noStockLevels: "SKU này không có tồn kho",
@@ -254,6 +260,17 @@ export const INVENTORY_LABELS = {
   thresholdQty: "Ngưỡng",
   daysToExpiry: "Số ngày đến hạn",
   reservationImpaired: "Lô quá hạn còn giữ chỗ của khách",
+  alertListTitle: "Cảnh báo tồn kho",
+  alertKind: "Loại cảnh báo",
+  alertOpenedAt: "Mở lúc",
+  alertFilter: "Đang lọc",
+  alertAllKinds: "Mọi loại cảnh báo",
+  alertWarehouseFilter: (id: string) => `Kho ${id}`,
+  alertInvalidLink:
+    "Liên kết có tham số không hợp lệ nên đã bỏ qua — đang hiện mọi cảnh báo còn hiệu lực.",
+  noAlerts: "Không có cảnh báo tồn kho còn hiệu lực",
+  noAlertsDescription:
+    "Tồn kho và hạn dùng đang trong ngưỡng cấu hình, trong phạm vi bạn được xem.",
 } as const;
 
 // StockAlert.Kind: REORDER/SAFETY là tồn thấp theo SKU, EXPIRING/EXPIRED là hạn dùng theo lô.
@@ -289,7 +306,8 @@ export const INVENTORY_ERROR_MESSAGES = {
   notRequester: "Chỉ người tạo yêu cầu mới được rút yêu cầu điều chỉnh.",
   outOfScope: "Bạn không có quyền với dữ liệu tồn kho của kho này.",
   stockItemNotFound: "Không tìm thấy tồn kho của SKU/lô tại vị trí này.",
-  adjustmentNotFound: "Yêu cầu điều chỉnh không tồn tại hoặc không thuộc phạm vi kho bạn được xem.",
+  adjustmentNotFound:
+    "Yêu cầu điều chỉnh không tồn tại, không thuộc phạm vi kho bạn được xem hoặc đang ẩn trong lúc kiểm kê.",
   insufficientStock:
     "Không đủ tồn khả dụng để ghi sổ: số lượng sau điều chỉnh sẽ thấp hơn số đang giữ chỗ.",
   policyConflict: "Chính sách tồn kho hiện tại không cho phép thực hiện điều chỉnh này.",

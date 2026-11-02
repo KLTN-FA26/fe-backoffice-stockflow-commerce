@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { cn } from "cn";
 import { CalendarClock, Truck } from "lucide-react";
 
 import { FULFILLMENT_DISPATCH_PERMISSIONS, SHIPMENT_PERMISSIONS, UI_LABELS } from "@/constants";
 import { useCan } from "@/lib/auth";
-import { PageHeader } from "@/components/shared/PageHeader";
+import { TOOLBAR_ACTION_CLASS } from "@/components/shared/ListToolbar";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -25,7 +26,15 @@ function PlanLoadButton() {
     <Tooltip>
       <TooltipTrigger asChild>
         <span tabIndex={0}>
-          <Button size="sm" variant="outline" disabled className="rounded-[var(--r-sm)]">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled
+            className={cn(
+              "border-border-default bg-bg-surface text-ink-primary",
+              TOOLBAR_ACTION_CLASS,
+            )}
+          >
             <CalendarClock className="size-3.5" /> {L.loadPlanTitle}
           </Button>
         </span>
@@ -42,28 +51,34 @@ function LoadListContent() {
   const [opening, setOpening] = useState(false);
   const canOpen = actor.can(FULFILLMENT_DISPATCH_PERMISSIONS.create);
   const columns = buildLoadColumns(s.navigateToLoad);
+  const pageActions = (
+    <>
+      <PlanLoadButton />
+      {canOpen && (
+        <Button
+          size="sm"
+          className={cn(
+            "bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse",
+            TOOLBAR_ACTION_CLASS,
+          )}
+          onClick={() => setOpening(true)}
+        >
+          <Truck className="size-3.5" /> {L.loads.open}
+        </Button>
+      )}
+    </>
+  );
 
   return (
-    <>
-      <PageHeader
-        title={L.loads.title}
-        subtitle={L.loads.subtitle}
-        actions={
-          <>
-            <PlanLoadButton />
-            {canOpen && (
-              <Button
-                size="sm"
-                className="bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse rounded-[var(--r-sm)]"
-                onClick={() => setOpening(true)}
-              >
-                <Truck className="size-3.5" /> {L.loads.open}
-              </Button>
-            )}
-          </>
-        }
-      />
-      {canRead && <LoadFilters s={s} />}
+    // Giao diện kiểu Vercel như danh sách sản phẩm (globals.css `.surface-soft`): không tiêu đề hiển
+    // thị — breadcrumb là tên trang; nút của trang ở cuối hàng lọc.
+    <div className="surface-soft">
+      <h1 className="sr-only">{L.loads.title}</h1>
+      {canRead ? (
+        <LoadFilters s={s} actions={pageActions} />
+      ) : (
+        <div className="mb-3 flex justify-end gap-2">{pageActions}</div>
+      )}
       <LoadListBody s={s} columns={columns} />
       <p className="text-ink-tertiary mt-3 text-xs">{L.noTracking}</p>
       {opening && (
@@ -73,7 +88,7 @@ function LoadListContent() {
           onClose={() => setOpening(false)}
         />
       )}
-    </>
+    </div>
   );
 }
 

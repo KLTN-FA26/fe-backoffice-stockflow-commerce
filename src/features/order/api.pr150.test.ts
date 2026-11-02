@@ -58,17 +58,23 @@ describe("order API — BE PR #150 (giao một phần, công nợ phần còn l�
   });
 
   it("closeOrderRemainder: agreedFee chỉ gửi khi có", async () => {
-    const post = vi.spyOn(api, "post").mockResolvedValue({ data: null });
+    // Trả OrderResponse (PR #27: thao tác ghi đơn parse đơn trả về); không có key → không thêm header
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: beOrder });
     const agreedFee = { amount: 4_000_000, reason: "Đã in", detail: "Khách đồng ý" };
     await closeOrderRemainder({ id: ID, reasonCode: "CUSTOMER_REQUEST", note: "", agreedFee });
     await closeOrderRemainder({ id: ID, reasonCode: "CUSTOMER_REQUEST", note: "" });
-    expect(post).toHaveBeenNthCalledWith(1, `/orders/${ID}/remainder-closure`, {
-      reasonCode: "CUSTOMER_REQUEST",
-      agreedFee,
-    });
-    expect(post).toHaveBeenNthCalledWith(2, `/orders/${ID}/remainder-closure`, {
-      reasonCode: "CUSTOMER_REQUEST",
-    });
+    expect(post).toHaveBeenNthCalledWith(
+      1,
+      `/orders/${ID}/remainder-closure`,
+      { reasonCode: "CUSTOMER_REQUEST", agreedFee },
+      undefined,
+    );
+    expect(post).toHaveBeenNthCalledWith(
+      2,
+      `/orders/${ID}/remainder-closure`,
+      { reasonCode: "CUSTOMER_REQUEST" },
+      undefined,
+    );
   });
 
   it("getOrderHistory: GET /orders/{id}/history, phân loại mục theo type", async () => {

@@ -22,16 +22,7 @@ import type { DesignArtifactRole } from "@/constants";
  * Tab được mở NGAY trong cú bấm, URL gán sau khi API trả về: nếu chờ API xong mới `window.open`
  * thì lệnh mở không còn nằm trong thao tác của người dùng và trình duyệt chặn như popup.
  */
-export function ArtifactButtons({
-  taskId,
-  lineId,
-  onDesignHold,
-}: {
-  taskId: string;
-  lineId: string;
-  /** Task đang bị giữ — quyết định câu báo lỗi khi BE từ chối cấp file (409). */
-  onDesignHold: boolean;
-}) {
+export function ArtifactButtons({ taskId, lineId }: { taskId: string; lineId: string }) {
   const download = useDesignArtifactDownload();
   const pendingRole = download.isPending ? download.variables?.role : undefined;
 
@@ -57,7 +48,7 @@ export function ArtifactButtons({
         },
         onError: (error) => {
           tab.close();
-          toast.error(fulfillmentErrorMessage(error, "artifact", { onDesignHold }));
+          toast.error(fulfillmentErrorMessage(error, "artifact"));
         },
       },
     );

@@ -172,6 +172,7 @@ export function renderScreen(ui: React.ReactElement, role: TestRole, searchParam
       username: "test",
       status: "ACTIVE",
       lastLoginAt: null,
+      mustChangePassword: false,
     },
     isAuthenticated: true,
     status: "authenticated",

@@ -217,6 +217,31 @@ describe("mock /suppliers/{id}/items — hợp đồng BE #117", () => {
     expect(updated.data.preferred).toBe(false);
   });
 
+  // BE `SaveSupplierItemRequest`: `sku` chỉ dùng khi tạo, PUT bỏ qua — dòng giữ SKU của nó
+  it("PUT không có / khác sku vẫn giữ SKU của dòng; bỏ ưu tiên xoá đúng NCC mặc định của SKU đó", async () => {
+    const created = await send<ItemWire>(
+      "post",
+      `/suppliers/${SUPPLIER}/items`,
+      body({ preferred: true }),
+    );
+    const url = `/suppliers/${SUPPLIER}/items/${created.data.supplierItemId}`;
+    const { sku: _sku, ...withoutSku } = body();
+    void _sku;
+    const kept = await send<ItemWire>("put", url, { ...withoutSku, preferred: true, version: 0 });
+    expect(kept.data.sku).toBe("NEW-SKU-1");
+    const other = await send<ItemWire>("put", url, {
+      ...body({ sku: "OTHER-SKU" }),
+      preferred: false,
+      version: 1,
+    });
+    expect(other.data.sku).toBe("NEW-SKU-1");
+    const { data } = await send<{ preferred: boolean }[]>(
+      "get",
+      "/procurement/skus/NEW-SKU-1/suppliers",
+    );
+    expect(data.some((row) => row.preferred)).toBe(false);
+  });
+
   it("DELETE khi PO Draft còn đặt cặp NCC×SKU → 409 SUPPLIER_ITEM_IN_USE", async () => {
     const created = await send<ItemWire>("post", `/suppliers/${SUPPLIER}/items`, body());
     const po = await send(

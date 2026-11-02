@@ -56,7 +56,7 @@ export function OrderListBody({ s, columns }: { s: OrderListState; columns: Colu
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => (invalidPage ? void filters.setPage(1) : filters.reset())}
+            onClick={() => (invalidPage ? void filters.setPage(1) : s.clearFilters())}
           >
             {invalidPage ? "Về trang đầu" : "Bỏ bộ lọc"}
           </Button>

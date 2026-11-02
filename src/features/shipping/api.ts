@@ -22,7 +22,7 @@ import { api } from "@/lib/api/client";
 
 import { beLoadPageSchema, beLoadSchema, beManifestSchema } from "./load-schemas";
 
-import type { LoadStatus } from "@/constants";
+import type { DeliveryMode, LoadStatus } from "@/constants";
 import type { ListQueryParams, PaginatedResponse } from "@/lib/api/query-factory";
 import type {
   CancelLoadInput,
@@ -48,7 +48,9 @@ export interface ListLoadParams extends ListQueryParams {
   /** BE nhận MỘT trạng thái. */
   status?: LoadStatus;
   carrierId?: string;
-  /** So khớp mã chuyến / biển số xe. */
+  /** PARCEL | FULL_TRUCKLOAD — BE lọc (PR #165); giá trị khác → 400 UNSUPPORTED_PARAMETER. */
+  mode?: DeliveryMode;
+  /** So khớp mã chuyến / biển số xe / mã kế hoạch xếp xe (BE PR #165). */
   search?: string;
 }
 
@@ -63,6 +65,7 @@ export async function listLoads(
       warehouseId: params.warehouseId || undefined,
       status: params.status || undefined,
       carrierId: params.carrierId || undefined,
+      mode: params.mode || undefined,
       search: params.search?.trim() || undefined,
     },
     signal,

@@ -41,8 +41,11 @@ import {
 } from "@/components/shared/column-helpers";
 import { DataTable, type ColumnDef } from "@/components/shared/DataTable";
 import { ListStatsPanel } from "@/components/shared/ListStatsPanel";
-import { ListToolbar, type ListSummaryItem } from "@/components/shared/ListToolbar";
-import { PageHeader } from "@/components/shared/PageHeader";
+import {
+  ListToolbar,
+  TOOLBAR_ACTION_CLASS,
+  type ListSummaryItem,
+} from "@/components/shared/ListToolbar";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { toast } from "@/components/shared/Toast";
 import { Button } from "@/components/ui/button";
@@ -248,29 +251,10 @@ export function InvoiceList() {
   if (invoicesQuery.isLoading) return <PageSkeleton variant="list" />;
 
   return (
-    <>
-      <PageHeader
-        title="Hoá đơn NCC"
-        subtitle="Đối chiếu hoá đơn nhà cung cấp với PO, Receipt và duyệt thanh toán."
-        actions={
-          <Button
-            type="button"
-            variant={config.showStats ? "secondary" : "outline"}
-            size="sm"
-            onClick={() =>
-              updateConfig((current) => ({ ...current, showStats: !current.showStats }))
-            }
-            className={cn(
-              "rounded-[var(--r-sm)]",
-              config.showStats &&
-                "border-brand bg-brand/10 text-brand hover:bg-brand/10 hover:text-brand border",
-            )}
-          >
-            <BarChart3 className="size-3.5" />
-            {config.showStats ? "Ẩn thống kê" : "Hiện thống kê"}
-          </Button>
-        }
-      />
+    // Giao diện kiểu Vercel như danh sách sản phẩm (globals.css `.surface-soft`): không tiêu đề hiển
+    // thị — breadcrumb là tên trang; nút thống kê nằm cuối toolbar.
+    <div className="surface-soft">
+      <h1 className="sr-only">Hoá đơn NCC</h1>
       <ListStatsPanel
         open={config.showStats}
         stats={[
@@ -339,8 +323,28 @@ export function InvoiceList() {
         summaryItems={summaryItems}
         onResetAll={resetAll}
         resetDisabled={resetDisabled}
+        actions={
+          <Button
+            type="button"
+            variant={config.showStats ? "secondary" : "outline"}
+            size="sm"
+            onClick={() =>
+              updateConfig((current) => ({ ...current, showStats: !current.showStats }))
+            }
+            className={cn(
+              "border-border-default bg-bg-surface text-ink-primary hover:bg-bg-muted",
+              TOOLBAR_ACTION_CLASS,
+              config.showStats &&
+                "border-brand bg-brand/10 text-brand hover:bg-brand/10 hover:text-brand border",
+            )}
+          >
+            <BarChart3 className="text-dot-info size-3.5" />
+            {config.showStats ? "Ẩn thống kê" : "Hiện thống kê"}
+          </Button>
+        }
       />
       <DataTable
+        stickyHeader
         data={filteredInvoices}
         columns={visibleColumns}
         rowKey={(invoice) => invoice.invoiceId}
@@ -352,6 +356,6 @@ export function InvoiceList() {
         onSelectionChange={setSelectedKeys}
         pageSize={15}
       />
-    </>
+    </div>
   );
 }
