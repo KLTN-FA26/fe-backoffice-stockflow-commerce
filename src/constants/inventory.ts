@@ -131,11 +131,14 @@ export const INVENTORY_ROUTES = {
   adjustments: "/admin/inventory/adjustments",
   createAdjustment: "/admin/inventory/adjustments/create",
   adjustment: (id: string) => `/admin/inventory/adjustments/${encodeURIComponent(id)}`,
+  // Đích deep link của thông báo INVENTORY_ALERT (BE InventoryAlertMessages: `?kind=…&warehouseId=…`).
+  alerts: "/admin/inventory/alerts",
 } as const;
 
 export const INVENTORY_STORAGE_KEYS = {
   movements: "stockflow:admin:movements:config",
   adjustments: "stockflow:admin:inventory:adjustments:config",
+  alerts: "stockflow:admin:inventory:alerts:config",
 } as const;
 
 export const INVENTORY_PAGE_SIZES = [10, 15, 20, 50] as const;
@@ -257,6 +260,17 @@ export const INVENTORY_LABELS = {
   thresholdQty: "Ngưỡng",
   daysToExpiry: "Số ngày đến hạn",
   reservationImpaired: "Lô quá hạn còn giữ chỗ của khách",
+  alertListTitle: "Cảnh báo tồn kho",
+  alertKind: "Loại cảnh báo",
+  alertOpenedAt: "Mở lúc",
+  alertFilter: "Đang lọc",
+  alertAllKinds: "Mọi loại cảnh báo",
+  alertWarehouseFilter: (id: string) => `Kho ${id}`,
+  alertInvalidLink:
+    "Liên kết có tham số không hợp lệ nên đã bỏ qua — đang hiện mọi cảnh báo còn hiệu lực.",
+  noAlerts: "Không có cảnh báo tồn kho còn hiệu lực",
+  noAlertsDescription:
+    "Tồn kho và hạn dùng đang trong ngưỡng cấu hình, trong phạm vi bạn được xem.",
 } as const;
 
 // StockAlert.Kind: REORDER/SAFETY là tồn thấp theo SKU, EXPIRING/EXPIRED là hạn dùng theo lô.
