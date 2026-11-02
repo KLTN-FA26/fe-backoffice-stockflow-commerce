@@ -62,6 +62,12 @@ describe("BFF login form", () => {
     finish?.(user);
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/admin/products"));
   });
+  it("sends an account with an administrator-set password to change it instead of the requested page", async () => {
+    vi.mocked(loginApi).mockResolvedValue({ ...user, mustChangePassword: true });
+    await submit();
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/change-password"));
+    expect(replace).not.toHaveBeenCalledWith("/admin/products");
+  });
   it("shows failed server bootstrap without navigating", async () => {
     vi.mocked(loginApi).mockRejectedValue(new Error("Không thể tải tài khoản"));
     await submit();
@@ -72,6 +78,7 @@ describe("BFF login form", () => {
     [401, "UNAUTHORIZED", LOGIN_ERROR_MESSAGES.UNAUTHORIZED],
     [403, "ACCOUNT_NOT_ACTIVE", LOGIN_ERROR_MESSAGES.ACCOUNT_NOT_ACTIVE],
     [403, "ACCOUNT_TEMPORARILY_LOCKED", LOGIN_ERROR_MESSAGES.ACCOUNT_TEMPORARILY_LOCKED],
+    [403, "TEMPORARY_PASSWORD_EXPIRED", LOGIN_ERROR_MESSAGES.TEMPORARY_PASSWORD_EXPIRED],
     [429, "RATE_LIMITED", LOGIN_ERROR_MESSAGES.RATE_LIMITED],
     [403, "SOME_FUTURE_CODE", LOGIN_ERROR_FALLBACK],
     [500, "LOGIN_FAILED", LOGIN_ERROR_FALLBACK],

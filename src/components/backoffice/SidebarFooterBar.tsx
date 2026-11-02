@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "cn";
-import { Ellipsis, LogOut, Moon, Settings, Sun, User } from "lucide-react";
+import { Ellipsis, KeyRound, LogOut, Moon, Settings, Sun, User } from "lucide-react";
 
 import { APP_ROUTES } from "@/constants";
 import { logoutApi } from "@/lib/auth/auth-api";
@@ -54,6 +54,11 @@ function UserMenu() {
   const [open, setOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const dark = theme === "dark";
+
+  function handleChangePassword() {
+    setOpen(false);
+    router.push(APP_ROUTES.changePassword);
+  }
 
   async function handleLogout() {
     setOpen(false);
@@ -138,6 +143,15 @@ function UserMenu() {
           >
             <Settings className="size-3.5" />
             Cài đặt
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={handleChangePassword}
+            className={MENU_ITEM}
+          >
+            <KeyRound className="size-3.5" />
+            Đổi mật khẩu
           </Button>
           <Button type="button" variant="ghost" onClick={toggleTheme} className={MENU_ITEM}>
             {dark ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}

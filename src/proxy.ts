@@ -46,8 +46,12 @@ export function proxy(request: NextRequest) {
   const authToken = request.cookies.get(AUTH_COOKIE_NAME)?.value;
   const isAuthenticated = !!authToken;
 
-  // Protected routes: /admin/*, /portal/* — giữ cả query để quay lại đúng bộ lọc sau đăng nhập
-  if (isProtectedPath(pathname) && !isAuthenticated) {
+  // Protected routes: /admin/*, /portal/* and the change-password page (SCRUM-474 FIRST-LOGIN) — giữ cả
+  // query để quay lại đúng bộ lọc sau đăng nhập
+  if (
+    (isProtectedPath(pathname) || pathname.startsWith(APP_ROUTES.changePassword)) &&
+    !isAuthenticated
+  ) {
     const loginUrl = new URL(APP_ROUTES.login, request.url);
     loginUrl.searchParams.set("callbackUrl", `${pathname}${request.nextUrl.search}`);
     return finalize(NextResponse.redirect(loginUrl));

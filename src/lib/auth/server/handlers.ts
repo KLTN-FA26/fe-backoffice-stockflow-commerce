@@ -4,12 +4,17 @@ import { NextResponse } from "next/server";
 
 import { AUTH_ERROR_CODES, BFF_ERROR_MESSAGE, PROXY_ERROR_CODES } from "@/constants/auth";
 
-import { authUserSchema, loginRequestSchema } from "@/lib/auth/auth-schemas";
+import {
+  authUserSchema,
+  changePasswordRequestSchema,
+  changePasswordResultSchema,
+  loginRequestSchema,
+} from "@/lib/auth/auth-schemas";
 
 import { BACKEND_AUTH_PATHS, backendFetch, backendTokensSchema, unwrapBackend } from "./backend";
 import { readBoundedBody, requestBodyLimit } from "./body-limit";
 import { loginClientIpHeaders } from "./client-ip";
-import { readLoginFailure } from "./login-error";
+import { readChangePasswordFailure, readLoginFailure } from "./login-error";
 import {
   expireLegacyCookie,
   expireSessionCookie,
@@ -20,6 +25,8 @@ import {
 import type { NextRequest } from "next/server";
 
 const NO_STORE = { "Cache-Control": "no-store" };
+// Two passwords of at most 72 characters and a flag: a few hundred bytes. Anything larger is not this form.
+const PASSWORD_BODY_LIMIT_BYTES = 8 * 1024;
 export const bffError = (status: number, code: string) =>
   NextResponse.json({ code, message: BFF_ERROR_MESSAGE }, { status, headers: NO_STORE });
 // A configured canonical origin supports reverse proxies without trusting forwarded headers.
@@ -150,6 +157,50 @@ export async function logoutHandler(request: NextRequest): Promise<NextResponse>
     /* Local session removal still succeeds if Spring is unavailable. */
   }
   return expireSessionCookie(new NextResponse(null, { status: 204, headers: NO_STORE }));
+}
+
+/**
+ * Self-service password change (SCRUM-474 FIRST-LOGIN). `identity/auth/*` is closed to the generic
+ * proxy on purpose, so this is the one explicit route to Spring's PUT /identity/auth/password. The
+ * session cookie is left alone on success: the BE keeps the current session and ends the others.
+ * A 401 (session already gone) expires the cookie like everywhere else; any other BE refusal is
+ * reduced to an allow-listed `code` - the passwords never come back in a body.
+ */
+export async function changePasswordHandler(request: NextRequest): Promise<NextResponse> {
+  if (!isSameOrigin(request)) return bffError(403, AUTH_ERROR_CODES.csrfRejected);
+  const token = readSessionToken(request);
+  if (!token) return expireSessionCookie(bffError(401, AUTH_ERROR_CODES.unauthenticated));
+  const read = await readBoundedBody(request, PASSWORD_BODY_LIMIT_BYTES);
+  if (!read.ok)
+    return read.reason === "too-large"
+      ? bffError(413, PROXY_ERROR_CODES.payloadTooLarge)
+      : bffError(400, AUTH_ERROR_CODES.invalidPasswordChange);
+  let parsed: ReturnType<typeof changePasswordRequestSchema.safeParse>;
+  try {
+    parsed = changePasswordRequestSchema.safeParse(JSON.parse(new TextDecoder().decode(read.body)));
+  } catch {
+    return bffError(400, AUTH_ERROR_CODES.invalidPasswordChange);
+  }
+  if (!parsed.success) return bffError(400, AUTH_ERROR_CODES.invalidPasswordChange);
+  try {
+    const upstream = await backendFetch(BACKEND_AUTH_PATHS.password, {
+      method: "PUT",
+      headers: { ...bearer(token), "Content-Type": "application/json" },
+      body: JSON.stringify(parsed.data),
+    });
+    if (upstream.status === 401)
+      return expireSessionCookie(bffError(401, AUTH_ERROR_CODES.unauthenticated));
+    if (!upstream.ok) {
+      const { code, retryAfter } = await readChangePasswordFailure(upstream);
+      const failure = bffError(upstream.status, code);
+      if (retryAfter) failure.headers.set("Retry-After", retryAfter);
+      return failure;
+    }
+    const result = changePasswordResultSchema.parse(await unwrapBackend(upstream));
+    return expireLegacyCookie(NextResponse.json(result, { headers: NO_STORE }));
+  } catch {
+    return bffError(502, AUTH_ERROR_CODES.authUpstreamFailure);
+  }
 }
 
 // Idempotency-Key: BE `IdempotencyFilter` khoá theo (key, người gọi) + vân tay body; BFF chuyển nguyên header (body đã

@@ -1,8 +1,9 @@
 import "server-only";
 
-import { AUTH_ERROR_CODES, LOGIN_ERROR_CODES } from "@/constants/auth";
+import { AUTH_ERROR_CODES, CHANGE_PASSWORD_ERROR_CODES, LOGIN_ERROR_CODES } from "@/constants/auth";
 
 const SAFE_LOGIN_ERROR_CODES: ReadonlySet<string> = new Set(LOGIN_ERROR_CODES);
+const SAFE_CHANGE_PASSWORD_ERROR_CODES: ReadonlySet<string> = new Set(CHANGE_PASSWORD_ERROR_CODES);
 // RateLimitInterceptor publishes whole seconds; anything else (dates, junk) is dropped.
 const RETRY_AFTER_SECONDS = /^\d{1,9}$/;
 
@@ -17,7 +18,24 @@ export interface LoginFailure {
  * is never forwarded - the login page owns the wording.
  */
 export async function readLoginFailure(upstream: Response): Promise<LoginFailure> {
-  let code: string = AUTH_ERROR_CODES.loginFailed;
+  return readFailure(upstream, SAFE_LOGIN_ERROR_CODES, AUTH_ERROR_CODES.loginFailed);
+}
+
+/** Same rules for a failed PUT /identity/auth/password: only the allow-listed codes survive. */
+export async function readChangePasswordFailure(upstream: Response): Promise<LoginFailure> {
+  return readFailure(
+    upstream,
+    SAFE_CHANGE_PASSWORD_ERROR_CODES,
+    AUTH_ERROR_CODES.authUpstreamFailure,
+  );
+}
+
+async function readFailure(
+  upstream: Response,
+  safeCodes: ReadonlySet<string>,
+  fallback: string,
+): Promise<LoginFailure> {
+  let code: string = fallback;
   try {
     const body: unknown = await upstream.json();
     if (
@@ -25,7 +43,7 @@ export async function readLoginFailure(upstream: Response): Promise<LoginFailure
       body !== null &&
       "errorCode" in body &&
       typeof body.errorCode === "string" &&
-      SAFE_LOGIN_ERROR_CODES.has(body.errorCode)
+      safeCodes.has(body.errorCode)
     )
       code = body.errorCode;
   } catch {
