@@ -6,6 +6,7 @@ import { useForm, useWatch } from "react-hook-form";
 
 import { RECEIPT_CARTON_LABELS, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
+import { qcDecidableCartons } from "@/features/receipt/carton-selectors";
 import { qcCartonFieldErrors, receiptErrorMessage } from "@/features/receipt/errors";
 import { useInspectLine } from "@/features/receipt/mutations";
 import { toQcDecisionRequest } from "@/features/receipt/qc-api";
@@ -24,26 +25,14 @@ import type {
   QcDecisionValues,
   ReceiptLineDto,
 } from "@/features/receipt/types";
-import type { QcPartKey } from "./QcPartFields";
 
 const L = RECEIPT_CARTON_LABELS;
 const EMPTY_PART = { quantity: 0, locationCode: "", reason: "" };
-const PARTS: { key: QcPartKey; label: string; hint: string }[] = [
-  {
-    key: "quarantined",
-    label: L.qcOutcome.QUARANTINE,
-    hint: "Chờ kết luận lại — vào khu QUARANTINE",
-  },
-  {
-    key: "rejected",
-    label: L.qcOutcome.REJECTED,
-    hint: "Trả NCC — vào khu QUARANTINE, tồn Blocked",
-  },
-];
 
 /**
  * Docs 03 bước 8–9 (BR-08): chia SL đã chuyển sang khu QC thành Đạt / Cách ly / Không đạt. SCRUM-473: thùng kết luận
  * nguyên thùng theo LPN, hàng lẻ chia theo SL. Tổng hiện realtime; phần cách ly / không đạt cần khu và lý do.
+ * `line` luôn là dòng mới nhất của phiếu (ReceiptDetail đọc theo id) — sau khi tải lại, thùng đã rời khu QC hết chọn được.
  */
 export function InspectDialog({
   receiptId,
@@ -79,27 +68,23 @@ export function InspectDialog({
     (Number(values.rejected?.quantity) || 0) +
     line.packages.reduce((sum, carton) => sum + carton.receivedQty, 0);
 
-  const submit = form.handleSubmit((decision) =>
+  const submit = form.handleSubmit((values) => {
+    const decision = { ...values, cartons: qcDecidableCartons(values.cartons, line) };
     inspect.mutate(
       { receiptId, lineId: line.id, line, decision },
       {
         onSuccess: onClose,
         onError: (error) => {
           setServerError(receiptErrorMessage(error));
-          if (error instanceof ApiError) {
-            const sent = toQcDecisionRequest(decision, line);
-            setCartonErrors(
-              Object.fromEntries(qcCartonFieldErrors(error, sent).map((e) => [e.lpn, e.message])),
-            );
-          }
+          if (!(error instanceof ApiError)) return;
+          const sent = toQcDecisionRequest(decision, line);
+          setCartonErrors(
+            Object.fromEntries(qcCartonFieldErrors(error, sent).map((e) => [e.lpn, e.message])),
+          );
         },
       },
-    ),
-  );
-  const clearErrors = () => {
-    setServerError(null);
-    setCartonErrors({});
-  };
+    );
+  });
 
   return (
     <ReceiptDialog
@@ -110,7 +95,10 @@ export function InspectDialog({
       submitLabel={UI_LABELS.receipt.action.inspect}
       isPending={inspect.isPending}
       error={serverError}
-      onEdit={clearErrors}
+      onEdit={() => {
+        setServerError(null);
+        setCartonErrors({});
+      }}
       onSubmit={() => void submit()}
     >
       {hasCartons && <QcCartonChoices line={line} control={form.control} errors={cartonErrors} />}
@@ -129,22 +117,12 @@ export function InspectDialog({
           {...form.register("accepted", { valueAsNumber: true })}
         />
       </div>
-      {PARTS.map(({ key, label, hint }) => (
-        <QcPartFields
-          key={key}
-          part={key}
-          label={label}
-          hint={hint}
-          loose={hasCartons}
-          register={form.register}
-          errors={errors[key]}
-        />
-      ))}
+      <QcPartFields loose={hasCartons} register={form.register} errors={errors} />
       <p
         className={`text-[0.8125rem] tabular-nums ${total === moved ? "text-ink-secondary" : "text-danger"}`}
         aria-live="polite"
       >
-        Tổng: {total} / {moved}
+        {L.qcTotal(total, moved)}
       </p>
       <FieldError id="qc-sum-error">{errors.accepted?.message}</FieldError>
     </ReceiptDialog>

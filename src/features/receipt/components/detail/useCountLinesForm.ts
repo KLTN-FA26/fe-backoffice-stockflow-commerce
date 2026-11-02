@@ -7,12 +7,17 @@ import { useFieldArray, useForm, useWatch } from "react-hook-form";
 
 import { ApiError } from "@/lib/api/error";
 import { createIdempotencyAttempt } from "@/lib/api/idempotency";
-import { receiptErrorMessage, receiptLineFieldErrors } from "@/features/receipt/errors";
-import { countLineCartonContext } from "@/features/receipt/carton-selectors";
+import { getGoodsReceipt } from "@/features/receipt/api";
+import { countLineCartonContext, unitsBySku } from "@/features/receipt/carton-selectors";
+import { initialCountLines } from "@/features/receipt/count-selectors";
+import {
+  isStaleCartonError,
+  receiptErrorMessage,
+  receiptLineFieldErrors,
+} from "@/features/receipt/errors";
 import { buildReceiptLinesSchema } from "@/features/receipt/input-schemas";
 import { useSaveReceiptLines } from "@/features/receipt/mutations";
 import { receiptKeys } from "@/features/receipt/queries";
-import { initialCountLines } from "@/features/receipt/count-selectors";
 import { poLinesOverOpenQuantity, receiptReceivedOn } from "@/features/receipt/selectors";
 
 import { CARTON_SET_OPTIONS } from "../cartons/carton-form";
@@ -69,11 +74,13 @@ export function useCountLinesForm(
   );
   const poLineById = new Map(po.lines.map((l) => [l.lineId, l]));
   // SCRUM-473: đơn vị / thùng đã lưu của từng dòng form; trình chia thùng mở theo `field.id`
+  const skuUnits = unitsBySku(receipt.lines);
   const cartonContexts = watched.map((l) =>
     countLineCartonContext(
       receipt.lines,
       { purchaseOrderLineId: l.purchaseOrderLineId, lotNumber: l.lotNumber ?? "" },
       poLineById.get(l.purchaseOrderLineId)?.sku,
+      skuUnits,
     ),
   );
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
@@ -110,6 +117,16 @@ export function useCountLinesForm(
         onError: (error) => {
           if (error instanceof ApiError) attempt.settle(error);
           else attempt.reset();
+          // Thùng đã đổi ở nơi khác: nạp lại phiếu và đặt lại form, nếu không mỗi lần lưu lại gửi lại LPN cũ và lỗi mãi
+          if (isStaleCartonError(error)) {
+            void queryClient
+              .fetchQuery({
+                queryKey: receiptKeys.detail(receipt.id),
+                queryFn: ({ signal }) => getGoodsReceipt(receipt.id, signal),
+                staleTime: 0,
+              })
+              .then((fresh) => form.reset({ lines: initialCountLines(fresh, po) }));
+          }
           // Chỉ lỗi `@Valid` có fieldErrors (`lines[i].x`). BE gap: lỗi nghiệp vụ 409 (dung sai,
           // lô / hạn dùng, mã khu) không kèm fieldErrors → chỉ hiện câu chung ở đầu form.
           const fieldErrors = error instanceof ApiError ? receiptLineFieldErrors(error) : [];

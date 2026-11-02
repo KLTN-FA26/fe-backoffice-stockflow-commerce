@@ -57,6 +57,17 @@ export function isStaleReceiptError(error: unknown): boolean {
   );
 }
 
+/**
+ * Thùng trên form đã đổi ở nơi khác (bị huỷ, đã vào kho…) — SCRUM-473: gửi lại cùng danh sách LPN sẽ lỗi mãi, form
+ * kiểm đếm phải nạp lại thùng từ phiếu mới.
+ */
+export function isStaleCartonError(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    ["STOCK_PACKAGE_NOT_FOUND", "INVALID_STOCK_PACKAGE_TRANSITION"].includes(error.code)
+  );
+}
+
 export interface ReceiptLineFieldError {
   /** Chỉ số dòng trong form kiểm đếm. */
   index: number;

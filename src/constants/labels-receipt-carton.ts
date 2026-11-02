@@ -68,6 +68,8 @@ export const RECEIPT_CARTON_LABELS = {
   saveFirst: "Lưu kiểm đếm để chia thùng",
   noPackingUnit: "Mặt hàng chưa có đơn vị đóng gói",
   addCartons: "Thêm",
+  addCount: (lineNo: number) => `Số thùng thêm dòng ${lineNo}`,
+  newCartonLabel: (n: number) => `mới ${n}`,
   cartonsOf: (factor: number) => `thùng × ${factor}`,
   removeCarton: (lpn: string) => `Xoá thùng ${lpn}`,
   removeNewCarton: (label: string) => `Xoá thùng ${label}`,
@@ -79,6 +81,7 @@ export const RECEIPT_CARTON_LABELS = {
   lockedHint:
     "Sau khi lưu, các thùng được cấp LPN và dòng này giữ nguyên dòng PO và số lô — muốn sửa lô phải huỷ phiếu và đếm lại. Kiểm tra lô trước khi in nhãn.",
   lotLocked: "Dòng đã có thùng — không đổi được số lô",
+  skuLocked: "Dòng đã có thùng — không đổi được SKU",
   removeLineLocked: "Dòng đã có thùng — không bỏ khỏi phiếu được",
   unitLocked: "Bỏ hết thùng đã có LPN trước khi đổi đơn vị",
   confirmRemoveTitle: "Huỷ thùng đã dán nhãn?",
@@ -111,6 +114,12 @@ export const RECEIPT_CARTON_LABELS = {
   qcPartQuantity: (part: string, loose: boolean) => (loose ? `SL lẻ ${part}` : `SL ${part}`),
   qcPartLocation: (part: string) => `Khu ${part}`,
   qcPartReason: (part: string) => `Lý do ${part}`,
+  qcPartHint: {
+    quarantined: "Chờ kết luận lại — vào khu QUARANTINE",
+    rejected: "Trả NCC — vào khu QUARANTINE, tồn Blocked",
+  },
+  qcFields: { quantity: "SL", location: "Khu", reason: "Lý do" },
+  qcTotal: (total: number, moved: number) => `Tổng: ${total} / ${moved}`,
 } as const;
 
 /** Dialog in nhãn thùng (BE trả PDF — xem trước rồi in / tải xuống). */

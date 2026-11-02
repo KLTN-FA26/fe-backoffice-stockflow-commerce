@@ -6,14 +6,20 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Pencil, Plus, Save, Trash2 } from "lucide-react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 
-import { RECEIPT_LIMITS, UI_LABELS } from "@/constants";
+import { RECEIPT_CARTON_LABELS, RECEIPT_LIMITS, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { createIdempotencyAttempt } from "@/lib/api/idempotency";
-import { receiptErrorMessage, receiptLineFieldErrors } from "@/features/receipt/errors";
+import { getGoodsReceipt } from "@/features/receipt/api";
+import { countLineCartonContext } from "@/features/receipt/carton-selectors";
+import { EMPTY_BLIND_LINE, initialBlindLines } from "@/features/receipt/count-selectors";
+import {
+  isStaleCartonError,
+  receiptErrorMessage,
+  receiptLineFieldErrors,
+} from "@/features/receipt/errors";
 import { buildBlindLinesSchema } from "@/features/receipt/input-schemas";
 import { useSaveBlindReceiptLines } from "@/features/receipt/mutations";
 import { receiptKeys } from "@/features/receipt/queries";
-import { EMPTY_BLIND_LINE, initialBlindLines } from "@/features/receipt/count-selectors";
 import { receiptReceivedOn, totalReceivedQuantity } from "@/features/receipt/selectors";
 import { Alert } from "@/components/shared/Alert";
 import { DatePicker } from "@/components/shared/DatePicker";
@@ -127,6 +133,10 @@ function BlindCountForm({
   const isDirty = form.formState.isDirty || receipt.lines.length === 0;
   const watched = useWatch({ control: form.control, name: "lines" });
   const errors = form.formState.errors.lines;
+  // SCRUM-473: dòng đã lưu có thùng giữ SKU + lô và không bỏ khỏi phiếu (BE RECEIPT_LINE_HAS_PACKAGES)
+  const locked = watched.map(
+    (l) => countLineCartonContext(receipt.lines, { lotNumber: l.lotNumber ?? "" }, l.sku).locked,
+  );
   useEffect(() => onDirtyChange(isDirty), [isDirty, onDirtyChange]);
 
   const submit = form.handleSubmit((values) => {
@@ -144,6 +154,16 @@ function BlindCountForm({
         onError: (error) => {
           if (error instanceof ApiError) attempt.settle(error);
           else attempt.reset();
+          // Thùng đã đổi ở nơi khác: nạp lại phiếu và đặt lại form, nếu không mỗi lần lưu lại gửi lại LPN cũ
+          if (isStaleCartonError(error)) {
+            void queryClient
+              .fetchQuery({
+                queryKey: receiptKeys.detail(receipt.id),
+                queryFn: ({ signal }) => getGoodsReceipt(receipt.id, signal),
+                staleTime: 0,
+              })
+              .then((fresh) => form.reset({ lines: initialBlindLines(fresh) }));
+          }
           // BE trả lỗi từng ô (`lines[i].sku`, `.locationCode`, `.lotNumber`…) trong fieldErrors
           const fieldErrors = error instanceof ApiError ? receiptLineFieldErrors(error) : [];
           for (const fe of fieldErrors) {
@@ -235,6 +255,8 @@ function BlindCountForm({
                         aria-label={`SKU dòng ${index + 1}`}
                         placeholder={B.skuPlaceholder}
                         maxLength={RECEIPT_LIMITS.skuMax}
+                        readOnly={locked[index]}
+                        title={locked[index] ? RECEIPT_CARTON_LABELS.skuLocked : undefined}
                         aria-invalid={e?.sku ? true : undefined}
                         aria-describedby={e?.sku ? `${id("sku")}-error` : undefined}
                         className={`${CELL} font-[family-name:var(--font-mono)] uppercase`}
@@ -260,6 +282,8 @@ function BlindCountForm({
                       <Input
                         aria-label={`Số lô dòng ${index + 1}`}
                         maxLength={RECEIPT_LIMITS.codeMax}
+                        readOnly={locked[index]}
+                        title={locked[index] ? RECEIPT_CARTON_LABELS.lotLocked : undefined}
                         aria-invalid={e?.lotNumber ? true : undefined}
                         aria-describedby={e?.lotNumber ? `${id("lot")}-error` : undefined}
                         className={`${CELL} font-[family-name:var(--font-mono)]`}
@@ -317,7 +341,8 @@ function BlindCountForm({
                         variant="ghost"
                         size="icon-sm"
                         onClick={() => remove(index)}
-                        disabled={watched.length <= 1}
+                        disabled={watched.length <= 1 || locked[index]}
+                        title={locked[index] ? RECEIPT_CARTON_LABELS.removeLineLocked : undefined}
                         aria-label={`${B.removeLine} ${index + 1}`}
                       >
                         <Trash2 className="text-danger size-3.5" />

@@ -8,10 +8,12 @@ import { ApiError } from "@/lib/api/error";
 import {
   CARTON_UNITS,
   PO_ID,
+  apiBlindReceipt,
   RECEIPT_ID,
   apiLine,
   apiReceipt,
   cartonLine,
+  cartonPackage,
   receivablePo,
 } from "../../__fixtures__/receipt";
 import {
@@ -111,13 +113,13 @@ describe("Chia thùng trên form kiểm đếm (issue #104, BE spec SCRUM-473 §
     expect(screen.getByRole("radio", { name: "CARTON (1000)" })).toBeChecked();
     expect(screen.getByText(L.lockedHint)).toBeInTheDocument();
 
-    const count = screen.getByLabelText("Số thùng thêm dòng 1");
+    const count = screen.getByLabelText(L.addCount(1));
     await user.clear(count);
     await user.type(count, "2");
     await user.click(screen.getByRole("button", { name: `${L.addCartons} ${L.cartonsOf(1000)}` }));
     expect(screen.getByText(L.summary(2, 2000, 2990))).toBeInTheDocument();
 
-    const second = screen.getByLabelText(L.cartonQuantity("mới 2"));
+    const second = screen.getByLabelText(L.cartonQuantity(L.newCartonLabel(2)));
     await user.clear(second);
     await user.type(second, "980");
     expect(screen.getByText(L.summary(2, 1980, 3010))).toBeInTheDocument();
@@ -175,5 +177,75 @@ describe("Chia thùng trên form kiểm đếm (issue #104, BE spec SCRUM-473 §
     renderDraft(apiReceipt(), () => apiReceipt());
     expect(await screen.findAllByText(L.saveFirst)).not.toHaveLength(0);
     expect(screen.queryByRole("button", { name: "Chia thùng dòng 1" })).not.toBeInTheDocument();
+  });
+});
+
+describe("Thùng đã đổi ở nơi khác (BE STOCK_PACKAGE_NOT_FOUND) → form nạp lại thùng mới", () => {
+  it("lưu lỗi vì LPN đã bị huỷ ở máy khác → form bỏ LPN đó, lần lưu sau không gửi lại", async () => {
+    const user = userEvent.setup();
+    let current = apiReceipt({ lines: [cartonLine({ lotNumber: "L01" })] });
+    const { put } = mockReceiptApi(
+      ROLES.warehouseManager,
+      { [PATH]: () => current, [`/purchase-orders/${PO_ID}`]: () => receivablePo },
+      {},
+      {
+        [`${PATH}/lines`]: () => {
+          if (put.mock.calls.length === 1) {
+            // Máy khác đã bỏ thùng …002 trước khi lần lưu này tới BE
+            current = apiReceipt({
+              lines: [cartonLine({ lotNumber: "L01", packages: [cartonPackage()] })],
+            });
+            throw new ApiError(404, "STOCK_PACKAGE_NOT_FOUND", "No carton LPN-20261024-000002");
+          }
+          return current;
+        },
+      },
+    );
+    renderReceiptScreen(<ReceiptDetail id={RECEIPT_ID} />);
+
+    await user.click(await screen.findByRole("button", { name: /Sửa kiểm đếm/ }));
+    await user.type(await screen.findByLabelText("Ghi chú dòng 1"), "x");
+    await user.click(screen.getByRole("button", { name: /Lưu kiểm đếm/ }));
+    expect(await screen.findByText(/Không tìm thấy thùng này/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Chia thùng dòng 1" }));
+    await waitFor(() => expect(screen.queryByText("LPN-20261024-000002")).not.toBeInTheDocument());
+    expect(screen.getByText("LPN-20261024-000001")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Ghi chú dòng 1"), "y");
+    await user.click(screen.getByRole("button", { name: /Lưu kiểm đếm/ }));
+    await waitFor(() => expect(put).toHaveBeenCalledTimes(2));
+    expect(put.mock.calls[1]?.[1]).toEqual({
+      lines: [
+        expect.objectContaining({
+          packages: [{ lpn: "LPN-20261024-000001", quantity: 1000 }],
+        }),
+      ],
+    });
+  });
+});
+
+describe("Phiếu không có PO: dòng có thùng bị khoá (BE RECEIPT_LINE_HAS_PACKAGES)", () => {
+  it("dòng có thùng: SKU và số lô chỉ đọc, không xoá được; dòng không thùng vẫn sửa / xoá được", async () => {
+    const user = userEvent.setup();
+    const receipt = apiBlindReceipt({
+      lines: [
+        cartonLine({ purchaseOrderLineId: null, sku: "SOFA-3S-GREY", lotNumber: null }),
+        apiLine({
+          id: "a1b2c3d4-0000-4000-8000-000000000002",
+          purchaseOrderLineId: null,
+          sku: "TABLE-OAK-160",
+        }),
+      ],
+    });
+    mockReceiptApi(ROLES.warehouseManager, { [PATH]: () => receipt });
+    renderReceiptScreen(<ReceiptDetail id={RECEIPT_ID} />);
+
+    await user.click(await screen.findByRole("button", { name: /Sửa kiểm đếm/ }));
+    expect(await screen.findByLabelText("SKU dòng 1")).toHaveAttribute("readonly");
+    expect(screen.getByLabelText("Số lô dòng 1")).toHaveAttribute("readonly");
+    expect(screen.getByRole("button", { name: "Xoá dòng 1" })).toBeDisabled();
+    expect(screen.getByLabelText("SKU dòng 2")).not.toHaveAttribute("readonly");
+    expect(screen.getByRole("button", { name: "Xoá dòng 2" })).toBeEnabled();
   });
 });

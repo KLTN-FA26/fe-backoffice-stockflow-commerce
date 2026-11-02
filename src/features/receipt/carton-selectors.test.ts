@@ -7,6 +7,7 @@ import {
   countedIntoCartons,
   defaultCartonUnit,
   lineLockedByCartons,
+  liveSelection,
   liveCartons,
   looseRemainder,
   newCartons,
@@ -169,5 +170,18 @@ describe("countLineCartonContext — dòng form ↔ dòng đã lưu", () => {
   it("phiếu không có PO: ghép theo SKU + lô", () => {
     const blind = [cartonLine({ purchaseOrderLineId: null, sku: "SOFA-3S-GREY", lotNumber: null })];
     expect(countLineCartonContext(blind, { lotNumber: "" }, "SOFA-3S-GREY").locked).toBe(true);
+  });
+});
+
+describe("liveSelection — chỉ in lại thùng còn hiệu lực", () => {
+  it("bỏ LPN đã tick nhưng nay đã dùng hết / không còn trên dòng", () => {
+    const line = cartonLine({
+      packages: [
+        cartonPackage({ status: "IN_STOCK" }),
+        cartonPackage({ lpn: "LPN-20261024-000002", status: "CONSUMED" }),
+      ],
+    });
+    const ticked = new Set(["LPN-20261024-000001", "LPN-20261024-000002", "LPN-GONE"]);
+    expect(liveSelection(ticked, line)).toEqual(["LPN-20261024-000001"]);
   });
 });

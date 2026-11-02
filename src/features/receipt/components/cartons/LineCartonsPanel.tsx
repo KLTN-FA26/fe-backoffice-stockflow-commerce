@@ -6,7 +6,7 @@ import { Printer } from "lucide-react";
 import { RECEIPT_CARTON_LABELS as L, STOCK_PACKAGE_STATUS_BY_API } from "@/constants";
 import { usePermissionChecker } from "@/lib/auth";
 import { canPrintCartonLabels } from "@/features/receipt/carton-actions";
-import { liveCartons } from "@/features/receipt/carton-selectors";
+import { liveCartons, liveSelection } from "@/features/receipt/carton-selectors";
 import { SlideOverPanel } from "@/components/shared/SlideOverPanel";
 import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,7 @@ export function LineCartonsPanel({
   const live = new Set(liveCartons(line).map((carton) => carton.lpn));
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
   const [target, setTarget] = useState<PrintTarget | null>(null);
+  const chosen = liveSelection(selected, line);
   const toggle = (lpn: string, on: boolean) =>
     setSelected((current) => {
       const next = new Set(current);
@@ -73,10 +74,10 @@ export function LineCartonsPanel({
             type="button"
             variant="outline"
             size="sm"
-            disabled={selected.size === 0}
-            onClick={() => setTarget({ lpns: [...selected] })}
+            disabled={chosen.length === 0}
+            onClick={() => setTarget({ lpns: chosen })}
           >
-            {L.reprint(selected.size)}
+            {L.reprint(chosen.length)}
           </Button>
         </div>
       )}
@@ -133,7 +134,8 @@ export function LineCartonsPanel({
           </tbody>
         </table>
       </div>
-      <PrintLabelsDialog target={target} onClose={() => setTarget(null)} />
+      {/* Gỡ hẳn khi đóng: lần in sau bắt đầu sạch (không còn PDF / lỗi cũ), blob URL cũ được thu hồi */}
+      {target && <PrintLabelsDialog target={target} onClose={() => setTarget(null)} />}
     </SlideOverPanel>
   );
 }

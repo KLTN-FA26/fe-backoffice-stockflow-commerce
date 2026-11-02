@@ -77,6 +77,41 @@ export function liveCartons(line: Pick<ReceiptLineDto, "packages">): ReceiptPack
 }
 
 /**
+ * Thùng kết luận QC được (SCRUM-473 §5): IN_STOCK và đang ở khu QC của dòng — BE từ chối thùng khác
+ * (`INVALID_STOCK_PACKAGE_TRANSITION` / `STOCK_PACKAGE_WRONG_LOCATION`); thùng không chọn được thuộc phần Đạt.
+ */
+export function qcChoosable(
+  carton: Pick<ReceiptPackageDto, "status" | "locationCode">,
+  line: Pick<ReceiptLineDto, "qcLocationCode">,
+): boolean {
+  return carton.status === "IN_STOCK" && carton.locationCode === line.qcLocationCode;
+}
+
+/** Kết luận chỉ giữ cho thùng còn chọn được — thùng đã rời khu QC (vd sau khi phiếu tải lại) luôn thuộc phần Đạt. */
+export function qcDecidableCartons<T>(
+  cartons: Readonly<Record<string, T>>,
+  line: Pick<ReceiptLineDto, "packages" | "qcLocationCode">,
+): Record<string, T> {
+  return Object.fromEntries(
+    Object.entries(cartons).filter(([lpn]) =>
+      line.packages.some((carton) => carton.lpn === lpn && qcChoosable(carton, line)),
+    ),
+  );
+}
+
+/**
+ * Thùng đã tick để in lại mà vẫn còn hiệu lực trên dòng (theo thứ tự đã tick): sau khi phiếu tải lại, thùng vừa dùng hết
+ * / thất lạc bị bỏ khỏi lựa chọn — BE từ chối in nó (`INVALID_STOCK_PACKAGE_TRANSITION`).
+ */
+export function liveSelection(
+  selected: ReadonlySet<string>,
+  line: Pick<ReceiptLineDto, "packages">,
+): string[] {
+  const live = new Set(liveCartons(line).map((carton) => carton.lpn));
+  return [...selected].filter((lpn) => live.has(lpn));
+}
+
+/**
  * Dòng có thùng thì giữ dòng PO + lô và không bỏ khỏi phiếu nháp được (BE `RECEIPT_LINE_HAS_PACKAGES`). FE chỉ
  * thấy thùng chưa VOID; dòng từng có thùng nay đã VOID hết vẫn bị BE từ chối — lỗi đó map về dòng khi lưu.
  */
@@ -114,6 +149,8 @@ export function countLineCartonContext(
   savedLines: readonly ReceiptLineDto[],
   line: { purchaseOrderLineId?: string; lotNumber: string },
   sku: string | null | undefined,
+  /** `unitsBySku(savedLines)` dựng sẵn một lần cho cả form — tránh dựng lại cho từng dòng mỗi lần gõ. */
+  skuUnits: ReadonlyMap<string, readonly ReceiptUnitDto[]> = unitsBySku(savedLines),
 ): LineCartonContext {
   const sameItem = (saved: ReceiptLineDto) =>
     line.purchaseOrderLineId
@@ -124,9 +161,7 @@ export function countLineCartonContext(
   );
   const sibling = savedLines.find(sameItem);
   return {
-    units: saved?.units.length
-      ? saved.units
-      : ((sku ? unitsBySku(savedLines).get(sku) : undefined) ?? []),
+    units: saved?.units.length ? saved.units : ((sku ? skuUnits.get(sku) : undefined) ?? []),
     unitOfMeasure: saved?.unitOfMeasure ?? null,
     orderedUnitOfMeasure: saved?.orderedUnitOfMeasure ?? sibling?.orderedUnitOfMeasure ?? null,
     locked: saved ? lineLockedByCartons(saved) : false,

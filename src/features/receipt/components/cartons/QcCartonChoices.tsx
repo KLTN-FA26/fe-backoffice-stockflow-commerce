@@ -4,6 +4,8 @@ import { Controller } from "react-hook-form";
 
 import { QC_OUTCOME_API, RECEIPT_CARTON_LABELS as L, RECEIPT_CARTON_LIMITS } from "@/constants";
 
+import { qcChoosable } from "@/features/receipt/carton-selectors";
+
 import { FieldError } from "../primitives";
 
 import type { Control } from "react-hook-form";
@@ -36,8 +38,7 @@ export function QcCartonChoices({
         }`}
       >
         {line.packages.map((carton) => {
-          const choosable =
-            carton.status === "IN_STOCK" && carton.locationCode === line.qcLocationCode;
+          const choosable = qcChoosable(carton, line);
           const errorId = `qc-carton-${carton.lpn}-error`;
           return (
             <li key={carton.id} className="py-2">
@@ -62,7 +63,9 @@ export function QcCartonChoices({
                             type="radio"
                             name={`qc-carton-${carton.lpn}`}
                             aria-label={L.qcChoice(L.qcOutcome[outcome], carton.lpn)}
-                            checked={(field.value ?? "ACCEPTED") === outcome}
+                            checked={
+                              (choosable ? (field.value ?? "ACCEPTED") : "ACCEPTED") === outcome
+                            }
                             disabled={!choosable}
                             onChange={() => field.onChange(outcome)}
                             className="accent-[var(--brand)]"

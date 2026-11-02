@@ -34,7 +34,7 @@ export function PrintLabelsDialog({
   target,
   onClose,
 }: {
-  target: PrintTarget | null;
+  target: PrintTarget;
   onClose: () => void;
 }) {
   const [format, setFormat] = useState<CartonLabelFormat>("THERMAL_ROLL");
@@ -46,7 +46,6 @@ export function PrintLabelsDialog({
   // Một blob URL cho mỗi file; thu hồi khi tạo lại hoặc đóng
   useEffect(() => (pdf ? () => URL.revokeObjectURL(pdf.url) : undefined), [pdf]);
 
-  if (!target) return null;
   const request: PrintCartonLabelsInput =
     "receiptLineId" in target
       ? { receiptLineId: target.receiptLineId, format }

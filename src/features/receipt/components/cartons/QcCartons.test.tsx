@@ -156,3 +156,58 @@ describe("Kết luận QC theo nguyên thùng (issue #104 §2, BR-08)", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("Kết luận QC sau khi phiếu tải lại", () => {
+  it("BE báo thùng đã rời khu QC → phiếu tải lại, dialog dùng vị trí mới: thùng không chọn được nữa", async () => {
+    const user = userEvent.setup();
+    const line = inQc();
+    let current = apiReceipt({ status: "IN_QC", lines: [line] });
+    mockReceiptApi(
+      ROLES.qcStaff,
+      { [PATH]: () => current },
+      {
+        [`${PATH}/lines/${line.id}/inspection`]: () => {
+          // Thùng …002 đã bị chuyển tay sang khu cách ly trước khi kết luận tới BE
+          current = apiReceipt({
+            status: "IN_QC",
+            lines: [
+              inQc({
+                packages: [
+                  cartonPackage({ status: "IN_STOCK", locationCode: "HCM-QCA01" }),
+                  cartonPackage({
+                    id: "c0000000-0000-4000-8000-000000000002",
+                    lpn: "LPN-20261024-000002",
+                    quantity: 980,
+                    receivedQty: 980,
+                    status: "IN_STOCK",
+                    locationCode: "HCM-QC01",
+                  }),
+                ],
+              }),
+            ],
+          });
+          throw new ApiError(
+            422,
+            "STOCK_PACKAGE_WRONG_LOCATION",
+            "LPN-20261024-000002 is at HCM-QC01",
+          );
+        },
+      },
+    );
+    renderReceiptScreen(<ReceiptDetail id={RECEIPT_ID} />);
+    await user.click(await screen.findByRole("button", { name: "Kết luận QC" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("radio", { name: L.qcChoice("Cách ly", "LPN-20261024-000002") }),
+    );
+    await fill(user, dialog, L.qcLooseAccepted, "3010");
+    await fill(user, dialog, "Khu cách ly", "HCM-QC01");
+    await fill(user, dialog, "Lý do cách ly", "Dented");
+    await user.click(within(dialog).getByRole("button", { name: "Kết luận QC" }));
+
+    expect(await within(dialog).findByText(L.qcCartonAway("HCM-QC01"))).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("radio", { name: L.qcChoice("Cách ly", "LPN-20261024-000002") }),
+    ).toBeDisabled();
+  });
+});

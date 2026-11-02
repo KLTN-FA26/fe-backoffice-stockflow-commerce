@@ -23,7 +23,6 @@ import { ReceiptLoadError } from "./ReceiptLoadError";
 import { ReceiptPermissionGate } from "./ReceiptPermissionGate";
 
 import type { ReceiptLineActionCode } from "@/features/receipt/lifecycle";
-import type { ReceiptLineDto } from "@/features/receipt/types";
 
 function ReceiptDetailBody({ id }: { id: string }) {
   const canRead = useCan(GOODS_RECEIPT_PERMISSIONS.read);
@@ -32,7 +31,8 @@ function ReceiptDetailBody({ id }: { id: string }) {
   const [dirty, setDirty] = useState(false);
   const [lineDialog, setLineDialog] = useState<{
     code: ReceiptLineActionCode;
-    line: ReceiptLineDto;
+    /** Chỉ giữ id: dialog luôn đọc dòng mới nhất của phiếu (sau khi tải lại vì dữ liệu đã đổi). */
+    lineId: string;
   } | null>(null);
   const onDirtyChange = useCallback((d: boolean) => setDirty(d), []);
   // Breadcrumb hiện số phiếu thay vì id (UUID của BE)
@@ -43,6 +43,7 @@ function ReceiptDetailBody({ id }: { id: string }) {
   if (query.isError)
     return <ReceiptLoadError error={query.error} onRetry={() => void query.refetch()} />;
   const receipt = query.data;
+  const dialogLine = lineDialog && receipt.lines.find((line) => line.id === lineDialog.lineId);
   const canCount = allowedReceiptActions(
     {
       status: receipt.status,
@@ -101,7 +102,7 @@ function ReceiptDetailBody({ id }: { id: string }) {
             <Section title="Dòng nhận" description={UI_LABELS.receipt.linesConfirmedDescription}>
               <ReceiptLinesTable
                 receipt={receipt}
-                onLineAction={(code, line) => setLineDialog({ code, line })}
+                onLineAction={(code, line) => setLineDialog({ code, lineId: line.id })}
               />
             </Section>
           )}
@@ -113,17 +114,17 @@ function ReceiptDetailBody({ id }: { id: string }) {
           <ReceiptOverviewCard receipt={receipt} />
         </div>
       </div>
-      {lineDialog?.code === "moveToQc" && (
+      {lineDialog?.code === "moveToQc" && dialogLine && (
         <MoveToQcDialog
           receiptId={receipt.id}
-          line={lineDialog.line}
+          line={dialogLine}
           onClose={() => setLineDialog(null)}
         />
       )}
-      {lineDialog?.code === "inspect" && (
+      {lineDialog?.code === "inspect" && dialogLine && (
         <InspectDialog
           receiptId={receipt.id}
-          line={lineDialog.line}
+          line={dialogLine}
           onClose={() => setLineDialog(null)}
         />
       )}

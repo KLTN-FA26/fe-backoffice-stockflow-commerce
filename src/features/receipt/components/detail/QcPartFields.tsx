@@ -10,74 +10,78 @@ import type { FieldErrors, UseFormRegister } from "react-hook-form";
 import type { QcDecisionFormInput } from "@/features/receipt/types";
 
 const FIELD = "border-border-default bg-bg-surface mt-1 h-8 rounded-[var(--r-sm)] text-[0.8125rem]";
+const F = L.qcFields;
 
-export type QcPartKey = "quarantined" | "rejected";
+type QcPartKey = "quarantined" | "rejected";
+const PARTS: readonly { key: QcPartKey; label: string }[] = [
+  { key: "quarantined", label: L.qcOutcome.QUARANTINE },
+  { key: "rejected", label: L.qcOutcome.REJECTED },
+];
 
-/** Một phần Cách ly / Không đạt của kết luận QC: SL (lẻ khi dòng có thùng), khu cách ly nhận hàng, lý do (BR-08). */
+/**
+ * Hai phần Cách ly / Không đạt của kết luận QC: SL (lẻ khi dòng có thùng), khu cách ly nhận hàng, lý do (BR-08).
+ * Nhãn hiện ngắn ("Khu", "Lý do") để hai phần không trùng tên; tên đầy đủ nằm ở aria-label.
+ */
 export function QcPartFields({
-  part,
-  label,
-  hint,
   loose,
   register,
   errors,
 }: {
-  part: QcPartKey;
-  label: string;
-  hint: string;
   /** Dòng có thùng: SL ở đây là hàng lẻ, thùng chọn riêng ở danh sách thùng. */
   loose: boolean;
   register: UseFormRegister<QcDecisionFormInput>;
-  errors: FieldErrors<QcDecisionFormInput>[QcPartKey];
+  errors: FieldErrors<QcDecisionFormInput>;
 }) {
-  const name = label.toLowerCase();
-  return (
-    <fieldset className="border-border-default rounded-[var(--r-sm)] border p-3">
-      <legend className="text-ink-primary px-1 text-[0.8125rem] font-medium">{label}</legend>
-      <p className="text-ink-tertiary mb-2 text-xs">{hint}</p>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-[7rem_10rem_minmax(0,1fr)]">
-        <div>
-          <Label htmlFor={`qc-${part}-qty`} className="text-xs">
-            {loose ? L.loose : "SL"}
-          </Label>
-          <Input
-            id={`qc-${part}-qty`}
-            type="number"
-            min={0}
-            aria-label={L.qcPartQuantity(name, loose)}
-            className={`${FIELD} text-right tabular-nums`}
-            {...register(`${part}.quantity`, { valueAsNumber: true })}
-          />
-          <FieldError>{errors?.quantity?.message}</FieldError>
+  return PARTS.map(({ key, label }) => {
+    const name = label.toLowerCase();
+    const e = errors[key];
+    return (
+      <fieldset key={key} className="border-border-default rounded-[var(--r-sm)] border p-3">
+        <legend className="text-ink-primary px-1 text-[0.8125rem] font-medium">{label}</legend>
+        <p className="text-ink-tertiary mb-2 text-xs">{L.qcPartHint[key]}</p>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[7rem_10rem_minmax(0,1fr)]">
+          <div>
+            <Label htmlFor={`qc-${key}-qty`} className="text-xs">
+              {loose ? L.loose : F.quantity}
+            </Label>
+            <Input
+              id={`qc-${key}-qty`}
+              type="number"
+              min={0}
+              aria-label={L.qcPartQuantity(name, loose)}
+              className={`${FIELD} text-right tabular-nums`}
+              {...register(`${key}.quantity`, { valueAsNumber: true })}
+            />
+            <FieldError>{e?.quantity?.message}</FieldError>
+          </div>
+          <div>
+            <Label htmlFor={`qc-${key}-loc`} className="text-xs">
+              {F.location}
+            </Label>
+            <Input
+              id={`qc-${key}-loc`}
+              maxLength={RECEIPT_LIMITS.codeMax}
+              aria-label={L.qcPartLocation(name)}
+              className={`${FIELD} font-[family-name:var(--font-mono)] uppercase`}
+              {...register(`${key}.locationCode`)}
+            />
+            <FieldError>{e?.locationCode?.message}</FieldError>
+          </div>
+          <div>
+            <Label htmlFor={`qc-${key}-reason`} className="text-xs">
+              {F.reason}
+            </Label>
+            <Input
+              id={`qc-${key}-reason`}
+              maxLength={RECEIPT_LIMITS.qcReasonMax}
+              aria-label={L.qcPartReason(name)}
+              className={FIELD}
+              {...register(`${key}.reason`)}
+            />
+            <FieldError>{e?.reason?.message}</FieldError>
+          </div>
         </div>
-        <div>
-          {/* Tên ô đầy đủ ở aria-label ("Khu cách ly" / "Khu không đạt") — chữ ngắn để hai phần không trùng tên */}
-          <Label htmlFor={`qc-${part}-loc`} className="text-xs">
-            Khu
-          </Label>
-          <Input
-            id={`qc-${part}-loc`}
-            maxLength={RECEIPT_LIMITS.codeMax}
-            aria-label={L.qcPartLocation(name)}
-            className={`${FIELD} font-[family-name:var(--font-mono)] uppercase`}
-            {...register(`${part}.locationCode`)}
-          />
-          <FieldError>{errors?.locationCode?.message}</FieldError>
-        </div>
-        <div>
-          <Label htmlFor={`qc-${part}-reason`} className="text-xs">
-            Lý do
-          </Label>
-          <Input
-            id={`qc-${part}-reason`}
-            maxLength={RECEIPT_LIMITS.qcReasonMax}
-            aria-label={L.qcPartReason(name)}
-            className={FIELD}
-            {...register(`${part}.reason`)}
-          />
-          <FieldError>{errors?.reason?.message}</FieldError>
-        </div>
-      </div>
-    </fieldset>
-  );
+      </fieldset>
+    );
+  });
 }

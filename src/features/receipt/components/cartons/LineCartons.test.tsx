@@ -152,3 +152,25 @@ describe("In / in lại nhãn thùng (BE POST /inventory/stock-packages/labels)"
     });
   });
 });
+
+describe("In nhãn — mỗi lần mở dialog là một lần in mới", () => {
+  it("in cả dòng rồi đóng; in lại 1 thùng → dialog không còn PDF / nút In của lần trước", async () => {
+    const user = userEvent.setup();
+    renderLines(ROLES.warehouseStaff, apiReceipt({ status: "IN_QC", lines: [inStock()] }));
+    const panel = await openCartons(user);
+    await user.click(within(panel).getByRole("button", { name: L.printLine }));
+    let dialog = await screen.findByRole("dialog", { name: P.title });
+    await user.click(within(dialog).getByRole("button", { name: P.generate }));
+    expect(await within(dialog).findByTitle(P.preview)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: P.close }));
+
+    await user.click(
+      within(panel).getByRole("checkbox", { name: L.selectCarton("LPN-20261024-000002") }),
+    );
+    await user.click(within(panel).getByRole("button", { name: L.reprint(1) }));
+    dialog = await screen.findByRole("dialog", { name: P.title });
+    expect(within(dialog).queryByTitle(P.preview)).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: P.printNow })).not.toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: P.generate })).toBeInTheDocument();
+  });
+});
