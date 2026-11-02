@@ -825,6 +825,73 @@ describe("mock huỷ có kiểm soát một xe (SCRUM-474 UNLOAD-DESIGN)", () =>
   });
 });
 
+describe("mock bỏ xe chưa xếp khỏi kế hoạch (SCRUM-474 UNLOAD-DROP)", () => {
+  const CONTROLLED = FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS.update;
+  const dropBody = { reasonCode: "KHAC", note: "Không còn xe nào để chở" };
+
+  /** Hai xe còn lại của kế hoạch (đang xếp, đã đặt) đã rời kho: chỉ còn xe số 3 chưa xếp. */
+  async function otherVehiclesLeft() {
+    const state = await getDispatchState();
+    for (const id of [FTL_LOADING, FTL_BOOKED]) {
+      const other = state.loads.get(id);
+      if (other) other.status = "DISPATCHED";
+    }
+  }
+
+  it("chỉ mã fulfillment-controlled-cancellations:UPDATE: nhân viên kho / quản lý kho cũ / điều phối → 403", async () => {
+    await otherVehiclesLeft();
+    for (const grants of [WAREHOUSE_STAFF, WAREHOUSE_MANAGER, ORDER_COORDINATOR]) {
+      actAs(grants);
+      expect((await post(FTL_PLANNED, "plan-removal", dropBody)).status).toBe(403);
+    }
+    expect((await readLoad(FTL_PLANNED)).status).toBe("PLANNED");
+  });
+
+  it("đúng luật BE: cần mã lý do + ghi chú (400); còn xe khác chưa đi → 409 LOAD_PLAN_OTHER_VEHICLES_NOT_LEFT; xe đã đặt / chuyến gửi kiện → INVALID_LOAD_TRANSITION", async () => {
+    actAs([CONTROLLED]);
+    for (const bad of [
+      { note: "x" },
+      { reasonCode: "BROKEN", note: "x" },
+      { reasonCode: "KHAC" },
+      { reasonCode: "KHAC", note: "  " },
+    ]) {
+      expect(errorCode(await post(FTL_PLANNED, "plan-removal", bad))).toBe("VALIDATION_FAILED");
+    }
+    // Xe số 1 còn đang xếp, xe số 2 mới đặt: chưa bỏ xe số 3 được
+    expect(errorCode(await post(FTL_PLANNED, "plan-removal", dropBody))).toBe(
+      "LOAD_PLAN_OTHER_VEHICLES_NOT_LEFT",
+    );
+    expect(errorCode(await post(FTL_BOOKED, "plan-removal", dropBody))).toBe(
+      "INVALID_LOAD_TRANSITION",
+    );
+    const parcelLoad = beLoadPageSchema
+      .parse((await call("GET", LOADS, undefined, { status: "LOADING" })).data)
+      .items.find((l) => l.mode === "PARCEL");
+    expect(errorCode(await post(parcelLoad?.loadId ?? "", "plan-removal", dropBody))).toBe(
+      "INVALID_LOAD_TRANSITION",
+    );
+    expect(errorCode(await post("LD-NOPE", "plan-removal", dropBody))).toBe("LOAD_NOT_FOUND");
+    expect((await readLoad(FTL_PLANNED)).status).toBe("PLANNED");
+  });
+
+  it("mọi xe khác đã đi: xe PLANNED huỷ ngay kèm mã + ghi chú, bỏ khỏi biên bản, không kiện nào bị khoá; làm lại → trả như cũ", async () => {
+    await otherVehiclesLeft();
+    actAs([CONTROLLED]);
+    const dropped = beLoadSchema.parse((await post(FTL_PLANNED, "plan-removal", dropBody)).data);
+    expect(dropped).toMatchObject({
+      loadId: FTL_PLANNED,
+      status: "CANCELLED",
+      cancelReasonCode: "KHAC",
+      cancelReason: "Không còn xe nào để chở",
+    });
+    expect(dropped.shipments).toEqual([]);
+    expect(dropped.pendingUnloads ?? []).toEqual([]);
+    const again = beLoadSchema.parse((await post(FTL_PLANNED, "plan-removal", dropBody)).data);
+    expect(again).toMatchObject({ status: "CANCELLED", cancelReasonCode: "KHAC" });
+    expect(again.version).toBe(dropped.version);
+  });
+});
+
 describe("mock xe của kế hoạch nguồn TRANSFER — dòng là một lệnh chuyển kho", () => {
   it("chi tiết chuyến: dòng mang transferOrderId + số lệnh, không có lô giao / đơn / task; kiện chưa quét; không COD", async () => {
     const load = await readLoad(FTL_TRANSFER);

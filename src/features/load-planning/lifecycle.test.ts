@@ -17,6 +17,7 @@ import { LAYOUT_PICKUP_KIT } from "./__fixtures__/layouts";
 import { LOAD_PLAN_TRANSITIONS, loadPlanActions } from "./lifecycle";
 
 import type { PermissionCode } from "@/lib/auth";
+import type { PlanDetail } from "./plan-types";
 
 const P = LOAD_PLAN_PERMISSIONS;
 const actor = (...codes: PermissionCode[]) => ({
@@ -165,6 +166,102 @@ describe("loadPlanActions — by status", () => {
     expect(loadPlanActions(plan, manager)).toMatchObject({
       cancelControlled: true,
       cancelControlledBlocked: "vehicleLeft",
+    });
+  });
+
+  it("SCRUM-474 UNLOAD-REOPEN: a plan that had a vehicle called off under control counts as loading started - no reopen, no plain cancel, the controlled cancel stays", () => {
+    const calledOff = planFixture({
+      status: "CONFIRMED",
+      controlledCancelled: true,
+      // No vehicle is loading now: the called-off truck was replaced by a PLANNED load
+      vehicles: [
+        vehicleOfLayout(LAYOUT_PICKUP_KIT, {
+          load: { loadId: "l-2", code: "LD-1-R", status: "PLANNED" },
+        }),
+      ],
+    });
+    expect(loadPlanActions(calledOff, manager)).toMatchObject({
+      reopen: false,
+      cancel: false,
+      cancelControlled: true,
+      cancelControlledBlocked: null,
+    });
+    // Staff without the controlled-cancel code: neither reopen nor cancel is left to them
+    expect(loadPlanActions(calledOff, worker)).toMatchObject({
+      reopen: false,
+      cancel: false,
+      cancelControlled: false,
+    });
+    // Without a controlled cancellation behind it, the same plan still reopens and cancels the plain way
+    expect(loadPlanActions({ ...calledOff, controlledCancelled: false }, worker)).toMatchObject({
+      reopen: true,
+      cancel: true,
+    });
+  });
+
+  describe("SCRUM-474 UNLOAD-DROP: which vehicles can be dropped from the plan", () => {
+    const two = (first: string, second: string | null, patch: Partial<PlanDetail> = {}) =>
+      planFixture({
+        status: "CONFIRMED",
+        vehicles: [
+          vehicleOfLayout(LAYOUT_PICKUP_KIT, {
+            load: { loadId: "l-1", code: "LD-1", status: first },
+          }),
+          vehicleOfLayout(
+            { ...LAYOUT_PICKUP_KIT, seq: 2 },
+            { load: second ? { loadId: "l-2", code: "LD-2", status: second } : null },
+          ),
+        ],
+        ...patch,
+      });
+
+    it("the other vehicle left and this one is still PLANNED: droppable, with the controlled-cancel code only", () => {
+      const plan = two("DISPATCHED", "PLANNED");
+      expect(loadPlanActions(plan, manager).dropVehicleSeqs).toEqual([2]);
+      // The permission code alone is enough (BE checks only it); staff with :UPDATE but without it, and viewers, never
+      expect(loadPlanActions(plan, actor(P.viewPage, P.read, CONTROLLED)).dropVehicleSeqs).toEqual([
+        2,
+      ]);
+      expect(loadPlanActions(plan, worker).dropVehicleSeqs).toEqual([]);
+      expect(loadPlanActions(plan, viewer).dropVehicleSeqs).toEqual([]);
+    });
+
+    it("not while another vehicle has not left (booked, loading, planned), none left, or this one is booked / loading", () => {
+      for (const other of ["PLANNED", "VEHICLE_BOOKED", "LOADING"]) {
+        expect(loadPlanActions(two(other, "PLANNED"), manager).dropVehicleSeqs).toEqual([]);
+      }
+      expect(loadPlanActions(two("DISPATCHED", "VEHICLE_BOOKED"), manager).dropVehicleSeqs).toEqual(
+        [],
+      );
+      expect(loadPlanActions(two("DISPATCHED", "LOADING"), manager).dropVehicleSeqs).toEqual([]);
+      expect(loadPlanActions(two("DISPATCHED", "DISPATCHED"), manager).dropVehicleSeqs).toEqual([]);
+    });
+
+    it("a vehicle with no live load (called off with nothing to carry) does not hold the drop back; a lone vehicle cannot be dropped", () => {
+      expect(loadPlanActions(two("DISPATCHED", "PLANNED"), manager).dropVehicleSeqs).toEqual([2]);
+      const emptied = two("CANCELLED", "PLANNED");
+      expect(loadPlanActions(emptied, manager).dropVehicleSeqs).toEqual([]);
+      expect(
+        loadPlanActions(
+          planFixture({
+            status: "CONFIRMED",
+            vehicles: [
+              vehicleOfLayout(LAYOUT_PICKUP_KIT, {
+                load: { loadId: "l-1", code: "LD-1", status: "PLANNED" },
+              }),
+            ],
+          }),
+          manager,
+        ).dropVehicleSeqs,
+      ).toEqual([]);
+    });
+
+    it("only a CONFIRMED plan", () => {
+      for (const status of ["DRAFT", "PLANNED", "DISPATCHED", "CANCELLED"] as const) {
+        expect(
+          loadPlanActions(two("DISPATCHED", "PLANNED", { status }), manager).dropVehicleSeqs,
+        ).toEqual([]);
+      }
     });
   });
 

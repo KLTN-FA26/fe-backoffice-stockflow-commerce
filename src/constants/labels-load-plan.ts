@@ -289,6 +289,7 @@ export const LOAD_PLAN_TOAST_MESSAGES = {
   reopened: "Đã mở lại kế hoạch",
   cancelled: "Đã huỷ kế hoạch",
   controlledCancelled: "Đã huỷ có kiểm soát kế hoạch — kiện còn trên xe cần quét dỡ xuống",
+  vehicleDropped: "Đã bỏ xe khỏi kế hoạch — kiện của xe chờ kế hoạch mới",
   placementsSaved: "Đã lưu bố cục xếp tay",
 } as const;
 
@@ -317,6 +318,16 @@ export const LOAD_PLAN_ERROR_MESSAGES = {
     "Đã có xe của kế hoạch rời kho nên không huỷ cả kế hoạch được — huỷ có kiểm soát từng xe còn lại ở màn chuyến.",
   PACKAGE_UNLOAD_PENDING:
     "Có kiện còn nằm trên xe đã huỷ có kiểm soát — quét dỡ kiện xuống trước khi đưa vào kế hoạch mới.",
+  // SCRUM-474 UNLOAD-REOPEN: đã huỷ có kiểm soát một xe thì kế hoạch coi như đã bắt đầu xếp hàng mãi mãi
+  LOAD_PLAN_CONTROLLED_CANCELLED:
+    "Kế hoạch đã có xe huỷ có kiểm soát nên không mở lại hay huỷ thường được nữa — quản lý kho dùng “Huỷ có kiểm soát”.",
+  // SCRUM-474 UNLOAD-DROP: bỏ xe chưa xếp khỏi kế hoạch
+  LOAD_PLAN_OTHER_VEHICLES_NOT_LEFT:
+    "Còn xe khác của kế hoạch chưa rời kho — chỉ bỏ được xe khỏi kế hoạch khi mọi xe còn lại đã đi.",
+  LOAD_PLAN_VEHICLE_SHARES_ORDER:
+    "Xe này chở kiện của một đơn hoặc lệnh chuyển kho có kiện đã đi trên xe khác nên không bỏ khỏi kế hoạch được.",
+  INVALID_LOAD_TRANSITION:
+    "Chuyến của xe này đã đổi trạng thái (đã đặt xe hoặc bắt đầu xếp) — tải lại rồi thử lại; xe đã đặt thì huỷ đặt xe trước.",
   PLACEMENT_RULE_VIOLATION:
     "Bố cục hiện có vi phạm quy tắc xếp hàng, nên chưa chốt được. Tính lại xe vi phạm.",
   PACKAGE_IN_LOAD_PLAN: "Kiện đang nằm trong kế hoạch xếp xe; bỏ kiện khỏi kế hoạch trước.",

@@ -119,6 +119,119 @@ describe("Huỷ có kiểm soát cả kế hoạch (SCRUM-474 UNLOAD-DESIGN)", (
   });
 });
 
+describe("UNLOAD-REOPEN: đã huỷ có kiểm soát một xe thì kế hoạch coi như đã bắt đầu xếp hàng", () => {
+  it("không xe nào đang xếp nhưng không còn nút mở lại / huỷ thường; vẫn còn huỷ có kiểm soát (quản lý kho)", async () => {
+    const plan = planWithVehicle("PLANNED", { controlledCancelled: true });
+    renderPlan(ACTORS.manager, plan);
+    expect(await screen.findByRole("button", { name: C.cancelButton })).toBeEnabled();
+    expect(
+      screen.queryByRole("button", { name: UI_LABELS.loadPlan.detail.actions.reopen }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: UI_LABELS.loadPlan.detail.actions.cancel }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("nhân viên kho (chỉ :UPDATE): không còn nút mở lại / huỷ nào", async () => {
+    renderPlan(ACTORS.dispatcher, planWithVehicle("PLANNED", { controlledCancelled: true }));
+    await screen.findByText(/LP-/);
+    for (const name of [
+      UI_LABELS.loadPlan.detail.actions.reopen,
+      UI_LABELS.loadPlan.detail.actions.cancel,
+      C.cancelButton,
+    ]) {
+      expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
+    }
+  });
+});
+
+describe("UNLOAD-DROP: Bỏ xe khỏi kế hoạch", () => {
+  const DROP = C.drop;
+  const second = { ...LAYOUT_PICKUP_KIT, seq: 2 };
+  const twoVehicles = (first: string, patch: Partial<PlanDetail> = {}): PlanDetail =>
+    planFixture({
+      status: "CONFIRMED",
+      vehicles: [
+        vehicleOfLayout(LAYOUT_PICKUP_KIT, {
+          load: { loadId: "l-1", code: "LD-1", status: first },
+        }),
+        vehicleOfLayout(second, { load: { loadId: "l-2", code: "LD-2", status: "PLANNED" } }),
+      ],
+      ...patch,
+    });
+
+  function renderTwo(actor: TestActor, plan: PlanDetail) {
+    const spies = mockLoadPlanApi(actor, {
+      get: {
+        [PATH]: () => plan,
+        [`${PATH}/layouts`]: () => [LAYOUT_PICKUP_KIT, second],
+        [`${PATH}/reconciliation`]: () => ({
+          pieceCheck: {
+            key: PLAN_ID,
+            code: plan.code,
+            packagesIn: 1,
+            placed: 1,
+            unplaced: 0,
+            leftBehind: 0,
+            notInPlan: 0,
+            balanced: true,
+          },
+          shipments: [],
+          orders: [],
+          vsEstimate: null,
+        }),
+      },
+      post: { "/fulfillment/loads/l-2/plan-removal": () => ({}) },
+    });
+    renderLoadPlanScreen(<LoadPlanDetail id={PLAN_ID} />);
+    return spies;
+  }
+
+  const selectSecond = async (user: ReturnType<typeof userEvent.setup>) => {
+    const group = await screen.findByRole("group", {
+      name: UI_LABELS.loadPlan.detail.vehicleSwitcher,
+    });
+    await user.click(within(group).getAllByRole("button")[1] as HTMLElement);
+  };
+
+  it("quản lý kho thấy nút ở xe còn PLANNED khi xe kia đã đi; chọn mã lý do + ghi chú → POST …/plan-removal {reasonCode, note}", async () => {
+    const user = userEvent.setup();
+    const { post } = renderTwo(ACTORS.manager, twoVehicles("DISPATCHED"));
+    await screen.findByText(/LP-/);
+    // Xe số 1 đã đi: không bỏ được; chuyển sang xe số 2 mới có nút
+    expect(screen.queryByRole("button", { name: DROP.button })).not.toBeInTheDocument();
+    await selectSecond(user);
+    await user.click(await screen.findByRole("button", { name: DROP.button }));
+    const dialog = await screen.findByRole("dialog");
+    const confirm = within(dialog).getByRole("button", { name: DROP.confirm });
+    expect(confirm).toBeDisabled();
+    await user.type(within(dialog).getByRole("textbox"), "Không còn xe nào");
+    await user.click(within(dialog).getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: C.reasonCode.KHAC }));
+    await user.click(within(dialog).getByRole("button", { name: DROP.confirm }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith("/fulfillment/loads/l-2/plan-removal", {
+        reasonCode: "KHAC",
+        note: "Không còn xe nào",
+      }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it.each([
+    ["xe kia chưa đi (đang xếp)", ACTORS.manager, twoVehicles("LOADING")],
+    ["xe kia mới đặt", ACTORS.manager, twoVehicles("VEHICLE_BOOKED")],
+    ["nhân viên kho không có mã huỷ có kiểm soát", ACTORS.dispatcher, twoVehicles("DISPATCHED")],
+    ["chỉ xem", ACTORS.viewOnly, twoVehicles("DISPATCHED")],
+  ])("%s: không có nút Bỏ xe khỏi kế hoạch", async (_name, actor, plan) => {
+    const user = userEvent.setup();
+    renderTwo(actor, plan);
+    await screen.findByText(/LP-/);
+    await selectSecond(user);
+    expect(screen.queryByRole("button", { name: DROP.button })).not.toBeInTheDocument();
+  });
+});
+
 describe("Kiện còn phải dỡ khỏi xe của kế hoạch đã huỷ", () => {
   const cancelled = planFixture({
     status: "CANCELLED",

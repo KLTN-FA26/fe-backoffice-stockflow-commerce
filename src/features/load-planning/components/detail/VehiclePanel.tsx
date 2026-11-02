@@ -26,16 +26,21 @@ export function VehiclePanel({
   layout,
   colorMap,
   canRecalculate,
+  canDrop,
   pending,
   onRecalculate,
+  onDrop,
 }: {
   planId: string;
   vehicle: PlanVehicle;
   layout: Layout | undefined;
   colorMap: ColorMap;
   canRecalculate: boolean;
+  /** "Bỏ xe khỏi kế hoạch" (SCRUM-474 UNLOAD-DROP): xe còn PLANNED, mọi xe khác đã đi, có mã quyền huỷ có kiểm soát. */
+  canDrop: boolean;
   pending: boolean;
   onRecalculate: () => void;
+  onDrop: () => void;
 }) {
   const stats: [string, string][] = [
     [L.vehicleParcels, formatNumber(vehicle.packageCount)],
@@ -76,6 +81,11 @@ export function VehiclePanel({
               onClick={onRecalculate}
             >
               {L.actions.recalculate}
+            </Button>
+          )}
+          {canDrop && (
+            <Button type="button" size="sm" variant="outline" onClick={onDrop}>
+              {UI_LABELS.shipping.ftl.controlledCancel.drop.button}
             </Button>
           )}
         </div>

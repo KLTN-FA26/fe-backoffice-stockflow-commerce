@@ -15,6 +15,7 @@ import { Alert } from "@/components/shared/Alert";
 
 import { VehicleItemTable } from "../report/VehicleItemTable";
 
+import { DropVehicleDialog } from "./DropVehicleDialog";
 import { UnplacedTray } from "./UnplacedTray";
 import { useVehicleRecalc } from "./useVehicleRecalc";
 import { VehiclePanel } from "./VehiclePanel";
@@ -46,6 +47,7 @@ export function LoadingTab({
   onAcknowledge: () => void;
 }) {
   const [seq, setSeq] = useState<number | null>(null);
+  const [dropping, setDropping] = useState(false);
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
   const recalc = useVehicleRecalc(plan, onNotice);
   const tray = unplacedParcels(plan);
@@ -74,9 +76,12 @@ export function LoadingTab({
             layout={layouts?.find((layout) => layout.seq === vehicle.seq)}
             colorMap={colorMap}
             canRecalculate={actions.recalculateVehicle}
+            canDrop={actions.dropVehicleSeqs.includes(vehicle.seq)}
             pending={recalc.pending}
             onRecalculate={() => recalc.run(vehicle.seq)}
+            onDrop={() => setDropping(true)}
           />
+          {dropping && <DropVehicleDialog vehicle={vehicle} onClose={() => setDropping(false)} />}
           {layouts && (
             <VehicleItemTable
               layouts={layoutsForItemTable(layouts)}

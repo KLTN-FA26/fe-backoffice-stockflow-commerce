@@ -20,6 +20,7 @@ import {
   book,
   cancelBooking,
   cancelControlled,
+  dropFromPlan,
   overrideUnload,
   startLoading,
   unload,
@@ -281,6 +282,12 @@ export function registerDispatchMockRoutes(): void {
   registerMockRoute("POST", `${LOADS}/:id/controlled-cancellation`, (config) =>
     withLoad(config, FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS.update, (state, load) =>
       cancelControlled(state, load, parseJsonBody(config.data)),
+    ),
+  );
+  // SCRUM-474 UNLOAD-DROP: bỏ xe chưa xếp khỏi kế hoạch khi mọi xe còn lại đã đi — cùng mã quyền
+  registerMockRoute("POST", `${LOADS}/:id/plan-removal`, (config) =>
+    withLoad(config, FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS.update, (state, load) =>
+      dropFromPlan(state, load, parseJsonBody(config.data)),
     ),
   );
   registerMockRoute("POST", `${LOADS}/:id/unload-overrides`, (config) =>

@@ -11,7 +11,13 @@ import { withStaleRefetch } from "@/lib/api/stale-refetch";
 import { toast } from "@/components/shared/Toast";
 
 import { createLoadPlan, setLoadPlanInputs } from "./api";
-import { cancelPlanControlled, recalculateVehicle, runPlanStep, savePlacements } from "./api-steps";
+import {
+  cancelPlanControlled,
+  dropVehicleFromPlan,
+  recalculateVehicle,
+  runPlanStep,
+  savePlacements,
+} from "./api-steps";
 import { isStaleLoadPlanError } from "./errors";
 import { loadPlanKeys } from "./queries";
 
@@ -63,6 +69,20 @@ export const useCancelPlanControlled = withStaleRefetch(
     invalidate: [loadPlanKeys.all, LOAD_ROOT],
     showErrorToast: false,
     successMessage: T.controlledCancelled,
+  }),
+  ROOT,
+  isStaleLoadPlanError,
+);
+
+/**
+ * Bỏ xe chưa xếp khỏi kế hoạch (SCRUM-474 UNLOAD-DROP): ngoài kế hoạch (nay hoàn tất, xe biến khỏi danh sách) còn tải lại
+ * chuyến xe (chuyến của xe đã huỷ) và danh sách ứng viên (kiện quay về chờ kế hoạch mới). Lỗi hiện trong hộp thoại.
+ */
+export const useDropVehicleFromPlan = withStaleRefetch(
+  createMutation(dropVehicleFromPlan, {
+    invalidate: [loadPlanKeys.all, LOAD_ROOT],
+    showErrorToast: false,
+    successMessage: T.vehicleDropped,
   }),
   ROOT,
   isStaleLoadPlanError,

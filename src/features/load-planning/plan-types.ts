@@ -69,6 +69,13 @@ export interface ControlledCancelPlanInput extends VersionedInput {
   note: string;
 }
 
+/** Bỏ một xe chưa xếp khỏi kế hoạch (SCRUM-474 UNLOAD-DROP): chuyến của xe + mã lý do + ghi chú. */
+export interface DropVehicleInput {
+  loadId: string;
+  reasonCode: UnloadReasonCode;
+  note: string;
+}
+
 /** Bước đổi trạng thái kế hoạch: một mutation chung, rẽ nhánh theo `kind`. */
 export type PlanStepInput =
   | ({ kind: "calculate" } & VersionedInput)

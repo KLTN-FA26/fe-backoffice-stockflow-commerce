@@ -4,7 +4,10 @@
  * DRAFT → PLANNED (tính) → CONFIRMED (chốt) → DISPATCHED (PR E, BE tự chuyển); DRAFT/PLANNED/CONFIRMED → CANCELLED;
  * CONFIRMED → PLANNED (mở lại, BR-14); đổi đầu vào đưa PLANNED về DRAFT. UI-only — Backend phải re-check
  * (`fulfillment-load-plans:CREATE` trên POST, `:UPDATE` trên mọi bước sau; BR-13, BR-14, LP-4). Sau khi đã bắt đầu xếp hàng
- * chỉ còn huỷ có kiểm soát (CONFIRMED → CANCELLED, SCRUM-474) bằng `fulfillment-controlled-cancellations:UPDATE`.
+ * chỉ còn huỷ có kiểm soát (CONFIRMED → CANCELLED, SCRUM-474) bằng `fulfillment-controlled-cancellations:UPDATE`. Kế hoạch
+ * từng có xe bị huỷ có kiểm soát (`controlledCancelled`) coi như đã bắt đầu xếp hàng mãi mãi (UNLOAD-REOPEN): không mở
+ * lại, không huỷ thường. Xe chưa xếp (PLANNED) khi mọi xe khác đã đi thì được bỏ khỏi kế hoạch (UNLOAD-DROP), cũng bằng
+ * mã quyền huỷ có kiểm soát.
  */
 
 import {
@@ -54,6 +57,12 @@ export interface LoadPlanActions {
   cancelControlled: boolean;
   /** `vehicleLeft`: đã có xe rời kho → BE 409 LOAD_PLAN_VEHICLE_DISPATCHED, chỉ huỷ được từng xe (điểm 3). */
   cancelControlledBlocked: "vehicleLeft" | null;
+  /**
+   * `seq` các xe được "Bỏ xe khỏi kế hoạch" (SCRUM-474 UNLOAD-DROP): kế hoạch CONFIRMED, xe còn PLANNED (chưa đặt xe, chưa
+   * xếp) và mọi xe khác đang có chuyến đều đã rời kho (ít nhất một). Cùng mã quyền huỷ có kiểm soát; BE re-check, còn từ
+   * chối khi xe chở kiện của lô / đơn đã đi trên xe khác (`LOAD_PLAN_VEHICLE_SHARES_ORDER`).
+   */
+  dropVehicleSeqs: readonly number[];
   /** Vì sao nút chốt đang khoá dù đủ quyền và đúng trạng thái; null = chốt được. */
   confirmBlocked: ConfirmBlock | null;
 }
@@ -70,6 +79,7 @@ const NONE: LoadPlanActions = {
   cancel: false,
   cancelControlled: false,
   cancelControlledBlocked: null,
+  dropVehicleSeqs: [],
   confirmBlocked: null,
 };
 
@@ -78,12 +88,28 @@ const LOADING_LOAD_STATUSES: ReadonlySet<string> = new Set([
   LOAD_STATUS.LOADING,
   LOAD_STATUS.DISPATCHED,
 ]);
+/** UNLOAD-REOPEN: từng huỷ có kiểm soát xe nào (hay cả kế hoạch) cũng tính là đã bắt đầu xếp hàng — dù lúc này không xe nào đang xếp. */
 const loadingStarted = (plan: PlanDetail): boolean =>
+  plan.controlledCancelled ||
   plan.vehicles.some((vehicle) => !!vehicle.load && LOADING_LOAD_STATUSES.has(vehicle.load.status));
 
 /** Có xe đã rời kho (DISPATCHED): không huỷ cả kế hoạch được nữa (UNLOAD-DESIGN điểm 3). */
 const vehicleLeft = (plan: PlanDetail): boolean =>
   plan.vehicles.some((vehicle) => vehicle.load?.status === LOAD_STATUS.DISPATCHED);
+
+/** UNLOAD-DROP: xe nào bỏ khỏi kế hoạch được (xem `LoadPlanActions.dropVehicleSeqs`). */
+function droppableVehicleSeqs(plan: PlanDetail): number[] {
+  if (plan.status !== LOAD_PLAN_STATUS.CONFIRMED) return [];
+  const live = (vehicle: PlanDetail["vehicles"][number]) =>
+    vehicle.load && vehicle.load.status !== LOAD_STATUS.CANCELLED ? vehicle.load : null;
+  return plan.vehicles
+    .filter((vehicle) => live(vehicle)?.status === LOAD_STATUS.PLANNED)
+    .filter((vehicle) => {
+      const others = plan.vehicles.filter((v) => v !== vehicle).flatMap((v) => live(v) ?? []);
+      return others.length > 0 && others.every((load) => load.status === LOAD_STATUS.DISPATCHED);
+    })
+    .map((vehicle) => vehicle.seq);
+}
 
 const allows = (from: LoadPlanStatus, to: LoadPlanStatus): boolean =>
   (LOAD_PLAN_TRANSITIONS[from] as readonly LoadPlanStatus[]).includes(to);
@@ -101,8 +127,12 @@ export function loadPlanActions(plan: PlanDetail | null, actor: LoadPlanActor): 
     plan.status === LOAD_PLAN_STATUS.CONFIRMED &&
     loadingStarted(plan);
   const cancelControlledBlocked = cancelControlled && vehicleLeft(plan) ? "vehicleLeft" : null;
+  const dropVehicleSeqs = actor.can(FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS.update)
+    ? droppableVehicleSeqs(plan)
+    : [];
   const update = actor.can(LOAD_PLAN_PERMISSIONS.update);
-  if (!update) return { ...NONE, create, cancelControlled, cancelControlledBlocked };
+  if (!update)
+    return { ...NONE, create, cancelControlled, cancelControlledBlocked, dropVehicleSeqs };
   const { status } = plan;
   const planned = status === LOAD_PLAN_STATUS.PLANNED;
   const acknowledged = !!plan.unplacedAcknowledgement;
@@ -130,6 +160,7 @@ export function loadPlanActions(plan: PlanDetail | null, actor: LoadPlanActor): 
     cancel: allows(status, LOAD_PLAN_STATUS.CANCELLED) && !loadingStarted(plan),
     cancelControlled,
     cancelControlledBlocked,
+    dropVehicleSeqs,
     confirmBlocked,
   };
 }

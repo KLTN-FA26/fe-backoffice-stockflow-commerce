@@ -140,6 +140,14 @@ export const SHIPPING_FTL_LABELS = {
       pendingOpen: "Mở chuyến để dỡ",
       cancelledReason: "Lý do huỷ có kiểm soát",
     },
+    /** Bỏ xe chưa xếp khỏi kế hoạch khi mọi xe còn lại đã đi (SCRUM-474 UNLOAD-DROP). */
+    drop: {
+      button: "Bỏ xe khỏi kế hoạch",
+      title: "Bỏ khỏi kế hoạch xe số",
+      description:
+        "Các xe khác của kế hoạch đã rời kho và không có xe nào đến chở xe này. Chuyến của xe này bị huỷ, xe được bỏ khỏi kế hoạch, các kiện xếp trên xe quay về chờ kế hoạch mới (như kiện chưa lập kế hoạch) và kế hoạch được coi là hoàn tất.",
+      confirm: "Bỏ xe khỏi kế hoạch",
+    },
     cancelledBanner: {
       title: "Xe đã huỷ có kiểm soát",
       replacement: "Chuyến thay thế (Chưa đặt xe, cùng sơ đồ xếp):",

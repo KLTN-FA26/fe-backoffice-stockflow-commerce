@@ -5,7 +5,7 @@
  * tăng 1 mỗi lần ghi như BE.
  */
 
-import { LOAD_PLAN_STATUS } from "@/constants";
+import { LOAD_PLAN_STATUS, UNLOAD_REASON_CODES } from "@/constants";
 
 import { solveMock } from "./mock-load-plan-solver";
 import { getMockShipments, heldPackageIds } from "./mock-load-plan-store";
@@ -322,7 +322,7 @@ export function cancel(plan: MockPlan, reason: string): Err {
 export function cancelControlled(plan: MockPlan, reasonCode: string, note: string): Err {
   const wrongStatus = requireStatus(plan, "CONFIRMED");
   if (wrongStatus) return wrongStatus;
-  if (!["XE_HONG", "SAI_XE", "KIEN_KHONG_VUA", "KHAC"].includes(reasonCode))
+  if (!(UNLOAD_REASON_CODES as readonly string[]).includes(reasonCode))
     return fail(400, "VALIDATION_FAILED", "Invalid request data", [
       { field: "reasonCode", message: "must be a reason code" },
     ]);

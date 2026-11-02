@@ -199,6 +199,11 @@ export const bePlanDetailSchema = z.object({
   cancelReasonCode: unloadReasonCodeSchema.nullish(),
   /** Kiện còn phải dỡ khỏi xe (đơn đã huỷ hoặc xe đã huỷ có kiểm soát); vắng = không có. */
   pendingUnloads: z.array(bePlanPendingUnloadSchema).nullish(),
+  /**
+   * Kế hoạch hoặc một xe của nó từng bị huỷ có kiểm soát (SCRUM-474 UNLOAD-REOPEN): coi như "đã bắt đầu xếp hàng" mãi mãi —
+   * không mở lại, không huỷ thường (BE 409 LOAD_PLAN_CONTROLLED_CANCELLED). Vắng = false.
+   */
+  controlledCancelled: z.boolean().default(false),
   createdAt: z.string(),
   version: z.number().int(),
 });

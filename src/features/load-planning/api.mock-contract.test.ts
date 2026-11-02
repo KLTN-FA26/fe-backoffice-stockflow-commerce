@@ -457,6 +457,9 @@ describe("đồng thời, mở lại, huỷ (BR-14)", () => {
       cancelReason: "Xe sai loại",
     });
     expect(cancelled.cancelledAt).toBeTruthy();
+    // UNLOAD-REOPEN: from now on the plan counts as loading started for good
+    expect(cancelled.controlledCancelled).toBe(true);
+    expect((await detailOf(SEED.planned)).controlledCancelled).toBe(false);
     // CONFIRMED only: a draft / planned / already cancelled plan is not cancelled this way
     for (const id of [SEED.draft, SEED.planned, SEED.cancelled]) {
       const other = await detailOf(id);

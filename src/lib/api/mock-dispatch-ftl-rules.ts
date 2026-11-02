@@ -4,6 +4,8 @@
  * HANDED_OVER ở xe cuối cùng). Kiểm tra quét đúng xe: `mock-dispatch-ftl-scan.ts`.
  */
 
+import { UNLOAD_REASON_CODES } from "@/constants";
+
 import {
   MOCK_DISPATCHER,
   type DispatchState,
@@ -139,7 +141,7 @@ export function unload(
   return detail(state, load);
 }
 
-const REASON_CODES: readonly string[] = ["XE_HONG", "SAI_XE", "KIEN_KHONG_VUA", "KHAC"];
+const REASON_CODES: readonly string[] = UNLOAD_REASON_CODES;
 
 /**
  * Huỷ có kiểm soát MỘT xe đang xếp hàng (BE `DispatchService.cancelControlled`, SCRUM-474 UNLOAD-DESIGN điểm 2, 4, 7): chuyến
@@ -238,6 +240,44 @@ export function cancelControlled(
     cancelled: loadDetailView(state, load),
     replacement: replacement ? loadDetailView(state, replacement) : undefined,
   });
+}
+
+/**
+ * Bỏ MỘT xe chưa xếp khỏi kế hoạch khi mọi xe còn lại đã rời kho (BE `DispatchService.removeFromPlan`, SCRUM-474 UNLOAD-DROP):
+ * chuyến PLANNED → CANCELLED kèm mã lý do + ghi chú (bắt buộc), không kiện nào bị khoá (chưa quét gì). Đã bỏ rồi → trả lại như cũ.
+ * Mock không dựng lại luật "xe chung lô với xe đã đi" (`LOAD_PLAN_VEHICLE_SHARES_ORDER`) — chỉ BE từ chối.
+ */
+export function dropFromPlan(
+  state: DispatchState,
+  load: MockLoad,
+  body: Record<string, unknown>,
+): MockResponseShape {
+  if (!load.ftl) return invalid(load, "be dropped from its plan: it is a parcel load");
+  const code = text(body.reasonCode);
+  const note = text(body.note);
+  if (!REASON_CODES.includes(code)) return validationFailed("reasonCode", "must be a reason code");
+  if (!note) return validationFailed("note", "must not be blank");
+  if (load.status === "CANCELLED" && load.ftl.cancelReasonCode) return detail(state, load);
+  if (load.status !== "PLANNED") return invalid(load, "be dropped from its plan");
+  const others = [...state.loads.values()].filter(
+    (other) =>
+      other.ftl?.loadPlanId === load.ftl?.loadPlanId &&
+      other.loadId !== load.loadId &&
+      other.status !== "CANCELLED",
+  );
+  if (others.length === 0 || others.some((other) => other.status !== "DISPATCHED"))
+    return fail(
+      409,
+      "LOAD_PLAN_OTHER_VEHICLES_NOT_LEFT",
+      `Another vehicle of the plan of load ${load.code} has not left yet`,
+    );
+  load.status = "CANCELLED";
+  load.cancelledAt = stamp();
+  load.cancelReason = note;
+  load.shipmentIds = [];
+  load.ftl.cancelReasonCode = code;
+  load.version += 1;
+  return detail(state, load);
 }
 
 /** Xác nhận dỡ một kiện KHÔNG quét (nhãn hỏng; BE `overrideUnload`): chọn theo `packageId`, ghi chú tuỳ chọn. */
