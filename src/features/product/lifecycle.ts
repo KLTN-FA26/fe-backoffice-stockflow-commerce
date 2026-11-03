@@ -163,9 +163,10 @@ export function isSelfApproval(submittedBy: string | undefined, currentUserId: s
 
 /**
  * BR-PRD-003 (BE `docs/business-design/05-business-rules.md`, sửa 02/11 — BE PR #240): người duyệt
- * khác người gửi duyệt, trừ người giữ `product-lifecycle:APPROVE` (System Admin) — đúng giả định
- * kltn-docs 01 §2 "tổ chức nhỏ, System Admin làm cả hai vai". BE `ProductServiceImpl.approve`
- * (`mayApproveOwn`). UI-only — Backend phải re-check (409 SELF_APPROVAL_NOT_ALLOWED).
+ * khác người gửi duyệt, trừ người giữ `product-lifecycle:APPROVE` (System Admin) — ngoại lệ của luật
+ * bốn mắt docs 01 §2 / BR-12, theo quyết định owner 02/11 (migration V20261102000100). BE
+ * `ProductServiceImpl.approve` (`mayApproveOwn`). UI-only — Backend phải re-check
+ * (409 SELF_APPROVAL_NOT_ALLOWED).
  */
 export function mayApproveProduct(
   submittedBy: string | undefined,
