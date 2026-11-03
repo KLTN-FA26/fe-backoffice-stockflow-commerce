@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 
 import { ADMIN_ROUTES, PRODUCT_PERMISSIONS, PRODUCT_STATUS, UI_LABELS } from "@/constants";
-import { allowedProductActions, isSelfApproval } from "@/features/product";
+import { allowedProductActions, mayApproveProduct } from "@/features/product";
 import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
 
@@ -52,7 +52,8 @@ const DANGER = `border-danger text-danger hover:text-danger hover:bg-danger/10 d
 
 /**
  * Nút chuyển trạng thái hiện cho người dùng: `allowedProductActions` (trạng thái + quyền), bỏ
- * "Phê duyệt" khi chính người đó gửi duyệt (bốn mắt). UI-only — Backend phải re-check.
+ * "Phê duyệt" khi chính người đó gửi duyệt mà không được tự duyệt (`mayApproveProduct`, bốn mắt).
+ * UI-only — Backend phải re-check.
  */
 function visibleProductActions(
   product: Product,
@@ -62,7 +63,10 @@ function visibleProductActions(
   return allowedProductActions(product.status, can).filter(
     (action) =>
       action.transition &&
-      !(action.transition === "approve" && isSelfApproval(product.submittedBy, currentUserId)),
+      !(
+        action.transition === "approve" &&
+        !mayApproveProduct(product.submittedBy, currentUserId, can)
+      ),
   );
 }
 

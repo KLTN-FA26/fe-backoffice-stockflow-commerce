@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { allowedProductActions, nextProductStatuses, isSelfApproval } from "./lifecycle";
+import {
+  allowedProductActions,
+  isSelfApproval,
+  mayApproveProduct,
+  nextProductStatuses,
+} from "./lifecycle";
 
 import { PRODUCT_PERMISSIONS } from "@/constants/permissions";
 import { hasPermission } from "@/lib/auth/me-permissions";
@@ -25,6 +30,16 @@ describe("product lifecycle", () => {
     expect(isSelfApproval(userId, userId)).toBe(true);
     expect(isSelfApproval(userId, "22222222-2222-4222-8222-222222222222")).toBe(false);
     expect(isSelfApproval(undefined, userId)).toBe(false);
+  });
+
+  it("BR-PRD-003: người gửi duyệt không tự duyệt, trừ người giữ product-lifecycle:APPROVE (BE #240)", () => {
+    const userId = "11111111-1111-4111-8111-111111111111";
+    const approver = (code: string) => code === PRODUCT_PERMISSIONS.approve;
+    const systemAdmin = (code: string) =>
+      code === PRODUCT_PERMISSIONS.approve || code === PRODUCT_PERMISSIONS.lifecycle;
+    expect(mayApproveProduct(userId, userId, approver)).toBe(false);
+    expect(mayApproveProduct(userId, userId, systemAdmin)).toBe(true);
+    expect(mayApproveProduct(userId, "22222222-2222-4222-8222-222222222222", approver)).toBe(true);
   });
 
   it("uses the exact backend publication and discontinuation transitions", () => {
