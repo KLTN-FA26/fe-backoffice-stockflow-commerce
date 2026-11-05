@@ -105,6 +105,11 @@ describe("ProductActionCard — nút theo trạng thái × vai trò (allowedProd
     expect(buttonNames()).toEqual(["Từ chối"]);
   });
 
+  it("Chờ duyệt + System Admin tự gửi duyệt: vẫn Phê duyệt được (BR-PRD-003, BE #240)", () => {
+    renderCard(product(PRODUCT_STATUS.PENDING_APPROVAL), SYSTEM_ADMIN, "u-author");
+    expect(buttonNames()).toEqual(["Phê duyệt", "Từ chối"]);
+  });
+
   it("Chờ duyệt + người soạn catalog: không có thao tác nào, có câu giải thích", () => {
     renderCard(product(PRODUCT_STATUS.PENDING_APPROVAL), CATALOG_EDITOR);
     expect(buttonNames()).toEqual([]);

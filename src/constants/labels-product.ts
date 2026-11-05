@@ -19,6 +19,11 @@ export const PRODUCT_ERROR_MESSAGES = {
   // BE `ProductPublicationAdapter.publish`: không biến thể nào ở trạng thái Đang dùng (ACTIVE).
   skuRequired:
     "Chưa xuất bản được: cần ít nhất một biến thể Đang dùng — hãy kích hoạt một biến thể rồi thử lại.",
+  // BE `CatalogCommerceService.publish`: chưa có bản ghi listing (`PUT /products/{id}/ecommerce`).
+  listingRequired: "Chưa xuất bản được: hãy lưu Thông tin cửa hàng (đường dẫn) của sản phẩm trước.",
+  // BE `CatalogCommerceService.publish`: một SKU Đang dùng chưa có giá bán cơ sở.
+  priceRequired:
+    "Chưa xuất bản được: mọi biến thể Đang dùng cần có Giá bán cơ sở — hãy đặt giá cho biến thể còn thiếu.",
 } as const;
 
 /** Hộp thoại từ chối duyệt — BE `POST /products/{id}/rejection` (`RejectProductRequest.reason` @NotBlank). */

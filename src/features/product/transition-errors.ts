@@ -18,6 +18,11 @@ export function productTransitionErrorMessage(error: ApiError): string {
       return PRODUCT_ERROR_MESSAGES.categoryRequired;
     case "PRODUCT_SKU_REQUIRED":
       return PRODUCT_ERROR_MESSAGES.skuRequired;
+    // BE CatalogCommerceService.publish: chưa lưu listing / SKU Đang dùng chưa có giá bán.
+    case "CATALOG_LISTING_REQUIRED":
+      return PRODUCT_ERROR_MESSAGES.listingRequired;
+    case "PRICE_NOT_AVAILABLE":
+      return PRODUCT_ERROR_MESSAGES.priceRequired;
     case "SELF_APPROVAL_NOT_ALLOWED":
       return "Bạn không thể phê duyệt sản phẩm do chính mình gửi duyệt.";
     case "INVALID_PRODUCT_STATUS_TRANSITION":

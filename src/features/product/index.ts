@@ -57,6 +57,7 @@ export {
   isProductTerminal,
   isSelfApproval,
   isTerminal,
+  mayApproveProduct,
   nextProductStatuses,
 } from "./lifecycle";
 export type { ProductAction } from "./lifecycle";
