@@ -1,54 +1,37 @@
-/**
- * <Can> — declarative permission gate.
- *
- * Renders children only when the current user has the required permission.
- * Uses `effectiveRoles()` from auth-store (respects impersonation).
- *
- * @example
- *   <Can permission="po.create">
- *     <Button>Tạo đơn đặt hàng</Button>
- *   </Can>
- *
- *   <Can permission="po.approve" fallback={<Tooltip content="Không có quyền"><Button disabled>Duyệt</Button></Tooltip>}>
- *     <Button onClick={handleApprove}>Duyệt</Button>
- *   </Can>
- */
-
 "use client";
 
-import React from "react";
+import { useCallback } from "react";
+
 import { useAuthStore } from "../auth-store";
-import { can, type Permission } from "../permissions";
+import { hasPermission, useMyPermissions } from "../me-permissions";
 
-interface CanProps {
-  /** Permission string to check (e.g. "po.create"). */
-  permission: Permission;
-  /** Fallback UI when permission is denied. Defaults to null (render nothing). */
-  fallback?: React.ReactNode;
-  /** Children to render when permission is granted. */
-  children: React.ReactNode;
+import type { ReactNode } from "react";
+import type { PermissionCode } from "../me-permissions";
+
+/** UX gating only. The backend checks every operation independently. */
+export function Can({
+  permission,
+  fallback = null,
+  children,
+}: {
+  permission: PermissionCode;
+  fallback?: ReactNode;
+  children: ReactNode;
+}) {
+  return useCan(permission) ? <>{children}</> : <>{fallback}</>;
 }
 
-export function Can({ permission, fallback = null, children }: CanProps) {
-  const effectiveRoles = useAuthStore((s) => s.effectiveRoles);
-  const roles = effectiveRoles();
-
-  // Grant if any of the user's effective roles has the permission
-  const allowed = roles.some((role) => can(role, permission));
-
-  if (!allowed) return <>{fallback}</>;
-  return <>{children}</>;
+export function useCan(permission: PermissionCode): boolean {
+  return usePermissionChecker()(permission);
 }
 
-/**
- * Hook version — use when you need the boolean in logic, not just rendering.
- *
- * @example
- *   const canCreate = useCan("po.create");
- *   if (canCreate) { ... }
- */
-export function useCan(permission: Permission): boolean {
-  const effectiveRoles = useAuthStore((s) => s.effectiveRoles);
-  const roles = effectiveRoles();
-  return roles.some((role) => can(role, permission));
+export function usePermissionChecker(): (code: PermissionCode) => boolean {
+  const authenticated = useAuthStore(
+    (state) => state.status === "authenticated" && state.user !== null,
+  );
+  const { data, isSuccess } = useMyPermissions();
+  return useCallback(
+    (code: PermissionCode) => authenticated && isSuccess && hasPermission(data, code),
+    [authenticated, data, isSuccess],
+  );
 }

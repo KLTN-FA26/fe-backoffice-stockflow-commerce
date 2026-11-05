@@ -3,85 +3,126 @@
 import { cn } from "cn";
 import {
   ArrowRightLeft,
+  Building2,
+  BellRing,
+  Boxes,
+  CalendarClock,
   ClipboardList,
+  Factory,
+  Database,
+  FileBox,
+  FileSignature,
   FileText,
+  FlaskConical,
+  FolderTree,
+  History as HistoryIcon,
   LayoutDashboard,
   Lightbulb,
-  LogOut,
+  ListChecks,
+  Map as MapIcon,
   MapPin,
-  Moon,
   Move,
   Package,
   PackageCheck,
+  PackageOpen,
+  PackagePlus,
   Palette,
   PanelLeftClose,
   PanelLeftOpen,
   Receipt,
-  Settings,
+  Search as SearchIcon,
+  ShieldCheck,
+  ShieldAlert,
+  UserCog,
+  ShoppingBag,
   ShoppingCart,
-  Sun,
+  SlidersHorizontal,
+  SquareKanban,
+  Tags,
   Truck,
-  User,
+  TruckElectric,
+  Undo2,
   Users,
   Warehouse as WarehouseIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useMemo, useState } from "react";
 
-import { ADMIN_ROUTES, APP_ROUTES, BRAND } from "@/constants";
-
-import { logoutApi } from "@/lib/auth/auth-api";
-import { useAuthStore } from "@/lib/auth/auth-store";
 import {
-  invoices,
-  moveTasks,
-  packingTasks,
-  pickTasks,
-  purchaseOrders,
-  putawayTasks,
-  shipments,
-  transferOrders,
-  warehouses,
-} from "@/lib/mock-data";
+  ADMIN_ROUTES,
+  ATTRIBUTE_PERMISSIONS,
+  CUSTOMER_PERMISSIONS,
+  CREDIT_HOLD_PERMISSIONS,
+  CUSTOMER_PRICE_PERMISSIONS,
+  CUSTOMER_PRICE_UI_LABELS,
+  FULFILLMENT_PACKAGE_PERMISSIONS,
+  FULFILLMENT_PICK_PERMISSIONS,
+  FULFILLMENT_PICKING_PERMISSIONS,
+  GOODS_RECEIPT_PERMISSIONS,
+  IDENTITY_PERMISSIONS,
+  INVENTORY_ITEM_PERMISSIONS,
+  INVENTORY_OVERVIEW_PERMISSIONS,
+  INVENTORY_PERMISSIONS,
+  LOAD_ESTIMATE_PERMISSIONS,
+  LOAD_PLAN_PERMISSIONS,
+  LOAD_PLAN_PRINT_LABELS,
+  ORDER_PERMISSIONS,
+  PO_PERMISSIONS,
+  PRODUCT_PERMISSIONS,
+  PRODUCTION_ORDER_PERMISSIONS,
+  QUOTE_PERMISSIONS,
+  SAMPLE_REQUEST_PERMISSIONS,
+  PUT_BACK_LABELS,
+  SHIPMENT_PERMISSIONS,
+  SUPPLIER_PERMISSIONS,
+  TRANSFER_PERMISSIONS,
+  TRIAL_LABELS,
+  UI_LABELS,
+  VEHICLE_TYPE_PERMISSIONS,
+  WAREHOUSE_LOCATION_PERMISSIONS,
+  WAREHOUSE_PERMISSIONS,
+} from "@/constants";
+import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 
-import { Logo } from "@/components/shared/Logo";
+import { NotificationBell } from "@/features/notification";
+import { warehouseBreadcrumbTail } from "@/features/warehouse-map/components/workspace/WarehouseCrumb";
+import { WarehouseNavPanel } from "@/features/warehouse-map/components/workspace/WarehouseNavPanel";
+
+import { usePermissionChecker } from "@/lib/auth/components/Can";
+import { useAppStore } from "@/lib/store/use-app-store";
+import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
+import { invoices, purchaseOrders, putawayTasks } from "@/lib/mock-data";
+import { useIsMock } from "@/providers/app-providers";
+
 import { SearchBar } from "@/components/shared/SearchBar";
-import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
-  SidebarMenu,
-  SidebarMenuBadge,
-  SidebarMenuButton,
-  SidebarMenuItem,
   SidebarProvider,
-  SidebarTrigger,
+  SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
+import { SidebarFooterBar } from "./SidebarFooterBar";
+import { SidebarNav } from "./SidebarNav";
+
 import type { LucideIcon } from "lucide-react";
-import type { Warehouse } from "@/lib/mock-data";
+import type { ComponentType } from "react";
+import type { PermissionCode } from "@/lib/auth/me-permissions";
 /* -------------------------------------------------------------------------- */
-/*  Warning dot counts — computed from mock data                             */
+/*  Warning dot counts — computed from mock data (mock mode only: the BE has */
+/*  no cross-module "needs attention" counts, so real mode shows no badge)    */
 /* -------------------------------------------------------------------------- */
 
 const WARNING_STATUSES: Record<string, string[]> = {
   "/admin/purchase-orders": ["Pending Approval"],
   "/admin/invoices": ["Exception", "Disputed"],
   "/admin/putaway": ["On Hold"],
-  "/admin/picking": ["Short", "On Hold"],
-  "/admin/packing": ["Verification Failed", "On Hold"],
-  "/admin/shipments": ["Exception", "Delivery Failed"],
-  "/admin/transfers": ["Partially Received"],
-  "/admin/moves": ["On Hold", "Discrepancy"],
 };
 
 function computeWarningCounts(): Record<string, number> {
@@ -95,21 +136,6 @@ function computeWarningCounts(): Record<string, number> {
   counts["/admin/putaway"] = putawayTasks.filter((pt) =>
     WARNING_STATUSES["/admin/putaway"]!.includes(pt.status),
   ).length;
-  counts["/admin/picking"] = pickTasks.filter((pk) =>
-    WARNING_STATUSES["/admin/picking"]!.includes(pk.status),
-  ).length;
-  counts["/admin/packing"] = packingTasks.filter((pa) =>
-    WARNING_STATUSES["/admin/packing"]!.includes(pa.status),
-  ).length;
-  counts["/admin/shipments"] = shipments.filter((sh) =>
-    WARNING_STATUSES["/admin/shipments"]!.includes(sh.status),
-  ).length;
-  counts["/admin/transfers"] = transferOrders.filter((to) =>
-    WARNING_STATUSES["/admin/transfers"]!.includes(to.status),
-  ).length;
-  counts["/admin/moves"] = moveTasks.filter((mv) =>
-    WARNING_STATUSES["/admin/moves"]!.includes(mv.status),
-  ).length;
   return counts;
 }
 
@@ -117,107 +143,327 @@ function computeWarningCounts(): Record<string, number> {
 /*  Sidebar nav config                                                       */
 /* -------------------------------------------------------------------------- */
 
-interface NavItem {
+export interface NavItem {
   label: string;
-  tooltip: string;
   href: string;
   icon: LucideIcon;
+  /** Mã quyền BE cần có để thấy menu (đọc từ /identity/me/permissions). Không khai báo = luôn hiện. */
+  permission?: PermissionCode;
+  /** Thấy menu khi có ít nhất một mã trong danh sách (màn mở bằng nhiều quyền khác nhau). */
+  anyPermission?: readonly PermissionCode[];
+  /** Màn chỉ chạy được trên mock (BE chưa có API) — ẩn khi nối BE thật. */
+  mockOnly?: boolean;
+  /** Breadcrumb riêng cho các đoạn URL sau `href` (vd `[kho ⇅] / Bản đồ kho`) thay cách đọc id mặc định. */
+  breadcrumbTail?: (rest: readonly string[]) => BreadcrumbItem[];
 }
 
-interface NavGroup {
+export interface NavGroup {
+  /** Tên item cha trong sidebar. */
   title: string;
+  icon: LucideIcon;
   items: NavItem[];
+  /** Màn con riêng thay danh sách item mặc định (vd tab "Kho & bản đồ": chọn kho → trang của kho). */
+  panel?: ComponentType;
+  /** Bấm item cha thì đi thẳng tới trang này (thay vì chỉ mở màn con). */
+  href?: string;
 }
 
-const NAV_GROUPS: NavGroup[] = [
+export const NAV_GROUPS: NavGroup[] = [
   {
-    title: "TỔNG QUAN",
-    items: [{ label: "Tổng quan", tooltip: "Dashboard", href: "/admin", icon: LayoutDashboard }],
+    title: "Tổng quan",
+    icon: LayoutDashboard,
+    items: [{ label: "Tổng quan", href: "/admin", icon: LayoutDashboard }],
   },
   {
-    title: "MASTER DATA",
+    title: "Master data",
+    icon: Database,
     items: [
       {
         label: "Sản phẩm & SKU",
-        tooltip: "Products & SKUs",
         href: "/admin/products",
         icon: Package,
+        permission: PRODUCT_PERMISSIONS.viewPage,
       },
       {
-        label: "Thuộc tính biến thể",
-        tooltip: "Variant Attributes",
-        href: "/admin/variants",
+        label: "Từ điển thuộc tính",
+        href: ADMIN_ROUTES.attributes,
         icon: Palette,
+        permission: ATTRIBUTE_PERMISSIONS.viewPage,
       },
-      { label: "Nhà cung cấp", tooltip: "Suppliers", href: "/admin/suppliers", icon: Users },
+      {
+        label: "Thương hiệu & danh mục",
+        href: ADMIN_ROUTES.taxonomy.list,
+        icon: FolderTree,
+        // BE gate mọi endpoint /brands, /categories bằng product-products (ProductTaxonomyController)
+        permission: PRODUCT_PERMISSIONS.viewPage,
+      },
+      {
+        label: "Nhà cung cấp",
+        href: "/admin/suppliers",
+        icon: Users,
+        permission: SUPPLIER_PERMISSIONS.viewPage,
+      },
+      {
+        label: CUSTOMER_PRICE_UI_LABELS.navLabel,
+        href: ADMIN_ROUTES.customerPrices.list,
+        icon: Tags,
+        // BE `@PermissionResource(catalog-customer-prices)`: VIEW_PAGE mở trang (seed: ECOMMERCE_ADMIN, SALES_STAFF)
+        permission: CUSTOMER_PRICE_PERMISSIONS.viewPage,
+      },
     ],
   },
   {
-    title: "MUA HÀNG",
+    title: "Platform",
+    icon: ShieldCheck,
+    items: [
+      {
+        label: "Phân quyền",
+        href: ADMIN_ROUTES.permissions,
+        icon: ShieldCheck,
+        permission: IDENTITY_PERMISSIONS.rbacRead,
+      },
+      {
+        label: "Người dùng",
+        href: ADMIN_ROUTES.users.list,
+        icon: UserCog,
+        // Cổng theo READ (BE `identity-users:READ`), cùng kiểu menu "Phân quyền" ngay trên
+        permission: IDENTITY_PERMISSIONS.usersRead,
+      },
+    ],
+  },
+  {
+    title: "Mua hàng",
+    icon: ShoppingBag,
     items: [
       {
         label: "Đề xuất nhập hàng",
-        tooltip: "Replenishment",
         href: "/admin/replenishment",
         icon: Lightbulb,
+        // BE chưa có API đề xuất nhập hàng (chỉ có đánh giá ngưỡng tồn) — màn chạy trên dữ liệu mẫu
+        mockOnly: true,
       },
       {
         label: "Đơn đặt NCC",
-        tooltip: "Purchase Orders",
         href: "/admin/purchase-orders",
         icon: ShoppingCart,
+        permission: PO_PERMISSIONS.viewPage,
       },
       {
         label: "Hoá đơn NCC",
-        tooltip: "Supplier Invoices",
         href: "/admin/invoices",
         icon: Receipt,
+        // BE chưa có API hoá đơn NCC (`/invoices`) — màn chạy trên dữ liệu mẫu
+        mockOnly: true,
       },
     ],
   },
   {
-    title: "NHẬP HÀNG",
+    title: "Nhập hàng",
+    icon: PackagePlus,
     items: [
-      { label: "Phiếu nhận", tooltip: "Receipts", href: "/admin/receipts", icon: FileText },
-      { label: "Cất hàng", tooltip: "Putaway", href: "/admin/putaway", icon: PackageCheck },
+      {
+        label: "Phiếu nhận",
+        href: ADMIN_ROUTES.receipts.list,
+        icon: FileText,
+        permission: GOODS_RECEIPT_PERMISSIONS.viewPage,
+      },
+      { label: "Cất hàng", href: "/admin/putaway", icon: PackageCheck },
     ],
   },
   {
-    title: "KHO",
+    title: "Kho",
+    icon: WarehouseIcon,
     items: [
       {
-        label: "Kho map & slotting",
-        tooltip: "Warehouse Map",
-        href: "/admin/warehouse-map",
-        icon: MapPin,
+        label: INVENTORY_LABELS.overviewTitle,
+        href: INVENTORY_ROUTES.overview,
+        icon: Boxes,
+        // Same rule as the page gate: stock READ or reservation READ; alert READ alone is not enough.
+        anyPermission: [
+          INVENTORY_OVERVIEW_PERMISSIONS.stockRead,
+          INVENTORY_OVERVIEW_PERMISSIONS.reservationRead,
+        ],
       },
       {
-        label: "Gợi ý vị trí",
-        tooltip: "Slotting Suggestions",
-        href: "/admin/slotting",
-        icon: Lightbulb,
+        label: INVENTORY_LABELS.alertListTitle,
+        href: INVENTORY_ROUTES.alerts,
+        icon: BellRing,
+        // BE StockAlertController khai báo VIEW_PAGE cho inventory-alerts (route của deep link thông báo)
+        permission: INVENTORY_OVERVIEW_PERMISSIONS.alertViewPage,
       },
       {
-        label: "Chuyển kho liên kho",
-        tooltip: "Inter-warehouse Transfers",
-        href: "/admin/transfers",
+        label: "Hồ sơ hàng tồn",
+        href: ADMIN_ROUTES.inventoryItems.list,
+        // Hồ sơ cấu hình SKU — khác icon Boxes của "Tổng quan tồn kho" (số lượng tồn)
+        icon: FileBox,
+        // Route BE khai báo cho resource inventory-inventory-items (PR #119)
+        permission: INVENTORY_ITEM_PERMISSIONS.viewPage,
+      },
+      {
+        label: UI_LABELS.transfer.pageTitle,
+        href: ADMIN_ROUTES.transfers.list,
         icon: ArrowRightLeft,
+        permission: TRANSFER_PERMISSIONS.viewPage,
       },
       {
         label: "Di chuyển nội bộ",
-        tooltip: "Intra-warehouse Moves",
         href: "/admin/moves",
         icon: Move,
+        // BE StockOperationsController: POST /inventory/movements là inventory-stock-items:UPDATE
+        permission: INVENTORY_PERMISSIONS.stockUpdate,
+      },
+      {
+        label: "Điều chỉnh tồn",
+        href: INVENTORY_ROUTES.adjustments,
+        icon: SlidersHorizontal,
+        permission: INVENTORY_PERMISSIONS.adjustmentViewPage,
+      },
+      {
+        label: "Lịch sử biến động",
+        href: INVENTORY_ROUTES.movements,
+        icon: HistoryIcon,
+        permission: INVENTORY_PERMISSIONS.movementViewPage,
       },
     ],
   },
   {
-    title: "THỰC HIỆN ĐƠN",
+    // Module 06 tách tab riêng: luôn chọn kho làm việc trước (panel riêng), trang theo kho dưới prefix
+    title: UI_LABELS.warehouseMap.workspace.navGroup,
+    icon: MapPin,
+    // Vào tab là tới thẳng Danh mục kho — nơi chọn kho làm việc
+    href: ADMIN_ROUTES.warehouses.list,
+    panel: WarehouseNavPanel,
     items: [
-      { label: "Đơn hàng", tooltip: "Orders", href: "/admin/orders", icon: ClipboardList },
-      { label: "Lấy hàng", tooltip: "Picking", href: "/admin/picking", icon: WarehouseIcon },
-      { label: "Đóng gói", tooltip: "Packing", href: "/admin/packing", icon: PackageCheck },
-      { label: "Vận đơn", tooltip: "Shipments", href: "/admin/shipments", icon: Truck },
+      {
+        label: UI_LABELS.warehouseMap.listTitle,
+        href: ADMIN_ROUTES.warehouses.list,
+        icon: WarehouseIcon,
+        // BE WarehouseController @PermissionResource route `/admin/warehouses`
+        permission: WAREHOUSE_PERMISSIONS.viewPage,
+      },
+      {
+        label: UI_LABELS.warehouseMap.workspace.navGroup,
+        href: ADMIN_ROUTES.warehouseMap.root,
+        icon: MapIcon,
+        // BE WarehouseLocationResourceDeclaration route `/admin/warehouse-map`
+        permission: WAREHOUSE_LOCATION_PERMISSIONS.viewPage,
+        breadcrumbTail: warehouseBreadcrumbTail,
+      },
+    ],
+  },
+  {
+    // Luồng B2B: khách → báo giá → khách chấp nhận → đơn / mẫu (SCRUM-449/451/404)
+    title: "Bán hàng",
+    icon: Building2,
+    items: [
+      {
+        label: "Khách hàng",
+        href: ADMIN_ROUTES.customers.list,
+        icon: Building2,
+        permission: CUSTOMER_PERMISSIONS.viewPage,
+      },
+      {
+        label: "Báo giá",
+        href: ADMIN_ROUTES.quotes.list,
+        icon: FileSignature,
+        permission: QUOTE_PERMISSIONS.viewPage,
+      },
+      {
+        label: "Yêu cầu mẫu",
+        href: ADMIN_ROUTES.sampleRequests.list,
+        icon: FlaskConical,
+        permission: SAMPLE_REQUEST_PERMISSIONS.viewPage,
+      },
+    ],
+  },
+  {
+    // Xưởng in: prepress → xuất phôi → in → QC → bàn giao đóng gói (SCRUM-406..419, 442)
+    title: "Sản xuất",
+    icon: Factory,
+    items: [
+      {
+        label: "Xưởng in",
+        href: ADMIN_ROUTES.workshop,
+        icon: SquareKanban,
+        permission: PRODUCTION_ORDER_PERMISSIONS.viewPage,
+      },
+      {
+        label: "Lệnh sản xuất",
+        href: ADMIN_ROUTES.productionOrders.list,
+        icon: Factory,
+        permission: PRODUCTION_ORDER_PERMISSIONS.viewPage,
+      },
+    ],
+  },
+  {
+    title: "Thực hiện đơn",
+    icon: ListChecks,
+    items: [
+      {
+        label: "Đơn hàng",
+        href: ADMIN_ROUTES.orders.list,
+        icon: ClipboardList,
+        permission: ORDER_PERMISSIONS.viewPage,
+      },
+      // Mục riêng, gate bằng quyền credit hold — ACCOUNTANT duyệt công nợ nhưng không có
+      // sales-orders:VIEW_PAGE nên không đi qua được mục "Đơn hàng" (BE V20261013000400).
+      {
+        label: UI_LABELS.order.creditHoldsTitle,
+        href: ADMIN_ROUTES.orders.creditHolds,
+        icon: ShieldAlert,
+        permission: CREDIT_HOLD_PERMISSIONS.viewPage,
+      },
+      {
+        label: "Lấy hàng",
+        href: ADMIN_ROUTES.picking.list,
+        icon: WarehouseIcon,
+        permission: FULFILLMENT_PICK_PERMISSIONS.viewPage,
+      },
+      {
+        label: "Đóng gói",
+        href: ADMIN_ROUTES.packing.list,
+        icon: PackageCheck,
+        permission: FULFILLMENT_PACKAGE_PERMISSIONS.viewPage,
+      },
+      {
+        label: PUT_BACK_LABELS.title,
+        href: ADMIN_ROUTES.putBacks.list,
+        icon: Undo2,
+        // BE `GET /fulfillment/put-backs` — fulfillment-picking:READ (resource không có VIEW_PAGE)
+        permission: FULFILLMENT_PICKING_PERMISSIONS.read,
+      },
+      {
+        label: UI_LABELS.loadPlan.pageTitle,
+        href: ADMIN_ROUTES.loadPlans.list,
+        icon: CalendarClock,
+        // Resource riêng `fulfillment-load-plans` (BE PR #161)
+        permission: LOAD_PLAN_PERMISSIONS.viewPage,
+      },
+      {
+        label: TRIAL_LABELS.pageTitle,
+        href: ADMIN_ROUTES.loadEstimateTrial,
+        icon: FlaskConical,
+        // SCRUM-474 TRIAL-FLOW (LP2-9): chạy thử không lưu, quyền của BE `POST /load-estimates/trial`
+        permission: LOAD_ESTIMATE_PERMISSIONS.create,
+      },
+      {
+        label: UI_LABELS.vehicleType.pageTitle,
+        href: ADMIN_ROUTES.vehicleTypes,
+        icon: TruckElectric,
+        permission: VEHICLE_TYPE_PERMISSIONS.viewPage,
+      },
+      {
+        label: UI_LABELS.shipping.shipments.title,
+        href: ADMIN_ROUTES.shipments.list,
+        icon: PackageOpen,
+        permission: SHIPMENT_PERMISSIONS.viewPage,
+      },
+      {
+        label: UI_LABELS.shipping.loads.title,
+        href: ADMIN_ROUTES.loads.list,
+        icon: Truck,
+        permission: SHIPMENT_PERMISSIONS.viewPage,
+      },
     ],
   },
 ];
@@ -226,16 +472,66 @@ const NAV_GROUPS: NavGroup[] = [
 /*  Breadcrumb helper                                                        */
 /* -------------------------------------------------------------------------- */
 
-interface BreadcrumbItem {
+export interface BreadcrumbItem {
   label: string;
   href?: string;
+  /** Hiện component này thay chữ (vd nút đổi kho kiểu Vercel); `label` vẫn là tên cho test / a11y. */
+  render?: ComponentType;
 }
+
+/** Đoạn cuối URL là trang con của một bản ghi: `/<module>/<id>/<đoạn>` → "… / <id> / <nhãn>". */
+const SUBPAGE_LABELS: Record<string, string> = {
+  edit: "Chỉnh sửa",
+  manifest: UI_LABELS.shipping.manifest.title,
+  /** `/load-plans/<id>/vehicles/<seq>/print` — phiếu xếp hàng của một xe (SCRUM-287 PR F6). */
+  print: LOAD_PLAN_PRINT_LABELS.documentTitle,
+};
 
 const DETAIL_LABEL_BY_ROUTE: Record<string, string> = {
   "/admin/products/create": "Tạo sản phẩm",
+  [ADMIN_ROUTES.customers.create]: "Tạo khách hàng",
+  [ADMIN_ROUTES.quotes.create]: "Tạo báo giá",
+  [ADMIN_ROUTES.sampleRequests.create]: "Tạo yêu cầu mẫu",
   "/admin/purchase-orders/create": "Tạo đơn đặt hàng",
   "/admin/suppliers/create": "Tạo nhà cung cấp",
+  [INVENTORY_ROUTES.createAdjustment]: INVENTORY_LABELS.createAdjustment,
+  "/admin/transfers/create": "Tạo lệnh chuyển kho",
+  [ADMIN_ROUTES.loadPlans.create]: UI_LABELS.loadPlan.create,
 };
+
+/** Required capabilities fail closed; unassigned items remain visible; mock-only items need mock mode. */
+export function useCanSeeNavItem(): (item: NavItem) => boolean {
+  const can = usePermissionChecker();
+  const isMock = useIsMock();
+  return (item) =>
+    (!item.mockOnly || isMock) &&
+    (!item.permission || can(item.permission)) &&
+    (!item.anyPermission || item.anyPermission.some(can));
+}
+
+/** Mỗi mục tự gate theo quyền của chính nó; nhóm không còn mục nào thì bỏ (không hiện tiêu đề rỗng). */
+export function visibleNavGroups(canSeeItem: (item: NavItem) => boolean): NavGroup[] {
+  return NAV_GROUPS.map((group) => ({ ...group, items: group.items.filter(canSeeItem) })).filter(
+    (group) => group.items.length > 0,
+  );
+}
+
+/**
+ * Mục menu đang mở: khớp dài nhất trong các mục được thấy — `/admin/orders/credit-holds` sáng
+ * mục hàng đợi công nợ, không sáng kèm "Đơn hàng" (`/admin/orders`). `/admin` chỉ khớp đúng.
+ */
+export function findActiveNavHref(
+  pathname: string,
+  items: readonly Pick<NavItem, "href">[],
+): string | undefined {
+  return items
+    .filter((item) =>
+      item.href === ADMIN_ROUTES.home
+        ? pathname === item.href
+        : pathname === item.href || pathname.startsWith(`${item.href}/`),
+    )
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
+}
 
 function findNavItem(pathname: string): NavItem | undefined {
   return NAV_GROUPS.flatMap((group) => group.items)
@@ -243,7 +539,12 @@ function findNavItem(pathname: string): NavItem | undefined {
     .sort((a, b) => b.href.length - a.href.length)[0];
 }
 
-function buildBreadcrumbItems(pathname: string): BreadcrumbItem[] {
+export function buildBreadcrumbItems(
+  pathname: string,
+  canSeeItem: (item: NavItem) => boolean = () => true,
+  /** Nhãn thay cho id trong URL (vd UUID → mã NCC). Không có → hiện id. */
+  labelFor: (id: string) => string | undefined = () => undefined,
+): BreadcrumbItem[] {
   const items: BreadcrumbItem[] = [{ label: "Back-office", href: ADMIN_ROUTES.home }];
   if (pathname === ADMIN_ROUTES.home) return items;
 
@@ -251,14 +552,44 @@ function buildBreadcrumbItems(pathname: string): BreadcrumbItem[] {
   if (!navItem) return items;
 
   const isListPage = pathname === navItem.href;
-  items.push({ label: navItem.label, href: isListPage ? undefined : navItem.href });
+  // Thiếu quyền vào menu này → chỉ hiện chữ, không dẫn tới trang sẽ bị chặn
+  const linkable = canSeeItem(navItem);
+  items.push({ label: navItem.label, href: isListPage || !linkable ? undefined : navItem.href });
 
+  if (!isListPage && navItem.breadcrumbTail) {
+    const rest = pathname
+      .slice(navItem.href.length + 1)
+      .split("/")
+      .filter(Boolean);
+    return [...items, ...navItem.breadcrumbTail(rest)];
+  }
   if (!isListPage) {
-    items.push({
-      label:
-        DETAIL_LABEL_BY_ROUTE[pathname] ??
-        decodeURIComponent(pathname.split("/").at(-1) ?? "Chi tiết"),
-    });
+    const rest = pathname
+      .slice(navItem.href.length + 1)
+      .split("/")
+      .filter(Boolean);
+    // `/<module>/<id>/edit` → "… / <id> / Chỉnh sửa" thay vì chữ "edit"
+    const last = rest.at(-1) ?? "";
+    // Object.hasOwn: đoạn URL như "constructor" không được trả về hàm của Object.prototype
+    const subpage =
+      rest.length >= 2 && Object.hasOwn(SUBPAGE_LABELS, last) ? SUBPAGE_LABELS[last] : undefined;
+    if (subpage) {
+      // Trang in nằm sâu hơn một cấp (`<id>/vehicles/<seq>/print`): bản ghi vẫn là đoạn đầu tiên
+      const id = (last === "print" ? rest.slice(0, 1) : rest.slice(0, -1)).join("/");
+      items.push({
+        label: labelFor(id) ?? decodeURIComponent(id),
+        href: linkable ? `${navItem.href}/${id}` : undefined,
+      });
+      items.push({ label: subpage });
+    } else {
+      const last = pathname.split("/").at(-1) ?? "";
+      items.push({
+        label:
+          DETAIL_LABEL_BY_ROUTE[pathname] ??
+          labelFor(last) ??
+          (last ? decodeURIComponent(last) : "Chi tiết"),
+      });
+    }
   }
 
   return items;
@@ -268,100 +599,63 @@ function buildBreadcrumbItems(pathname: string): BreadcrumbItem[] {
 /*  Sidebar nội dung — dùng shadcn primitives, giữ nguyên style StockFlow     */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Nút thu gọn / mở rộng sidebar ở đầu topbar (mẫu layout của shadcn): cùng một chỗ dù sidebar
+ * đang mở hay thu gọn, và cũng là nút mở sidebar trên mobile. Phím tắt Ctrl/⌘+B do
+ * `SidebarProvider` lo sẵn.
+ */
 function SidebarCollapseButton() {
-  const { state, toggleSidebar } = useSidebar();
-  const collapsed = state === "collapsed";
-  const label = collapsed ? "Mở rộng sidebar" : "Thu nhỏ sidebar";
+  const { state, isMobile, openMobile, toggleSidebar } = useSidebar();
+  const open = isMobile ? openMobile : state === "expanded";
+  const label = open ? "Thu nhỏ sidebar" : "Mở rộng sidebar";
 
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon-sm"
-      onClick={toggleSidebar}
-      className="text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary hidden size-7 shrink-0 rounded-[var(--r-sm)] bg-transparent md:flex"
-      aria-label={label}
-      title={label}
-    >
-      {collapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
-    </Button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={toggleSidebar}
+          className="text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary size-7 shrink-0 rounded-[var(--r-sm)] bg-transparent"
+          aria-label={label}
+        >
+          {open ? <PanelLeftClose className="size-3.5" /> : <PanelLeftOpen className="size-3.5" />}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">{label} (Ctrl+B)</TooltipContent>
+    </Tooltip>
   );
 }
 
-interface WarehouseSwitcherProps {
-  selected: string;
-  onSelect: (warehouseId: string) => void;
-  label: string;
-}
-
-/** Đổi kho — nằm ở header sidebar, cạnh logo. Thu gọn thì chỉ còn icon + tooltip.
- *  TODO: state nên chuyển sang useAppStore.warehouseId (đã có persist) để F5 không mất
- *  lựa chọn kho — xem .claude/rules/state-persistence.md. Ngoài phạm vi task này. */
-function WarehouseSwitcher({ selected, onSelect, label }: WarehouseSwitcherProps) {
-  const [open, setOpen] = useState(false);
-  const title = `Kho đang xem: ${label}`;
-
+/** Sidebar thu gọn: icon kính lúp — bấm thì mở rộng sidebar và đưa con trỏ vào ô search. */
+function SidebarSearchIcon() {
+  const { toggleSidebar } = useSidebar();
   return (
-    <div className="relative shrink-0">
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => setOpen((o) => !o)}
-            className="text-ink-tertiary hover:bg-bg-muted hover:text-ink-primary size-7 shrink-0 rounded-[var(--r-sm)] bg-transparent transition-colors duration-150"
-            aria-label={title}
-            aria-expanded={open}
-          >
-            <WarehouseIcon className="size-4" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="bottom">{title}</TooltipContent>
-      </Tooltip>
-
-      {open && (
-        <>
-          <div className="fixed inset-0 z-[800]" onClick={() => setOpen(false)} />
-          <div className="border-border-default bg-bg-surface absolute top-full right-0 z-[801] mt-1 w-64 rounded-[var(--r-md)] border py-1 shadow-[var(--sh-lg)]">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => {
-                onSelect("all");
-                setOpen(false);
-              }}
-              className={cn(
-                "hover:bg-bg-muted h-auto w-full justify-start gap-2 rounded-none bg-transparent px-3 py-1.5 text-left text-[0.8125rem] transition-colors",
-                selected === "all" ? "text-accent font-medium" : "text-ink-secondary",
-              )}
-            >
-              Tất cả kho
-            </Button>
-            {warehouses.map((wh: Warehouse) => (
-              <Button
-                key={wh.warehouseId}
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  onSelect(wh.warehouseId);
-                  setOpen(false);
-                }}
-                className={cn(
-                  "hover:bg-bg-muted h-auto w-full justify-start gap-2 rounded-none bg-transparent px-3 py-1.5 text-left text-[0.8125rem] transition-colors",
-                  selected === wh.warehouseId ? "text-accent font-medium" : "text-ink-secondary",
-                )}
-              >
-                <span className="text-ink-tertiary font-[family-name:var(--font-mono)] text-xs">
-                  {wh.code}
-                </span>
-                <span className="truncate">{wh.name}</span>
-              </Button>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => {
+            toggleSidebar();
+            requestAnimationFrame(() =>
+              document
+                .querySelector<HTMLInputElement>(
+                  `input[aria-label="${UI_LABELS.shell.globalSearch}"]`,
+                )
+                ?.focus(),
+            );
+          }}
+          className="text-ink-secondary hover:bg-bg-muted hover:text-ink-primary size-8 rounded-[var(--r-sm)] bg-transparent"
+          aria-label={UI_LABELS.shell.quickSearch}
+        >
+          <SearchIcon className="size-3.5" />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="right">{UI_LABELS.shell.quickSearchHint}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -370,103 +664,63 @@ function BackofficeSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
 
-  const warningCounts = useMemo(() => computeWarningCounts(), []);
+  const isMock = useIsMock();
+  // Số đếm lấy từ dữ liệu mẫu: không hiện khi nối BE thật (không bịa số liệu)
+  const warningCounts = useMemo<Record<string, number>>(
+    () => (isMock ? computeWarningCounts() : {}),
+    [isMock],
+  );
+  const canSeeItem = useCanSeeNavItem();
+  const visibleGroups = visibleNavGroups(canSeeItem);
+  const activeHref = findActiveNavHref(
+    pathname,
+    visibleGroups.flatMap((group) => group.items),
+  );
 
   return (
     <Sidebar
       collapsible="icon"
-      className="border-border-default [&_[data-slot=sidebar-inner]]:bg-bg-subtle border-r"
+      className="border-border-default [&_[data-slot=sidebar-inner]]:bg-sidebar border-r"
     >
       <SidebarHeader
-        className={cn(
-          "border-border-default h-14 shrink-0 flex-row items-center border-b p-0",
-          collapsed ? "justify-center px-0" : "gap-1 px-2",
-        )}
+        className={cn("shrink-0 gap-2", collapsed ? "items-center px-0 py-2" : "px-2 py-2")}
       >
-        <Link
-          href={ADMIN_ROUTES.home}
-          aria-label={`${BRAND.name} — về trang tổng quan`}
+        {/* Tên app ở đầu sidebar; thu gọn chỉ còn chữ cái đầu */}
+        <div
           className={cn(
-            "hover:bg-bg-muted focus-visible:ring-border-strong flex min-w-0 items-center rounded-[var(--r-sm)] transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-none",
-            collapsed ? "size-10 justify-center" : "h-10 flex-1 gap-2 px-1.5",
+            "text-ink-primary flex h-9 items-center text-lg font-bold tracking-tight",
+            collapsed ? "justify-center" : "px-2",
           )}
         >
-          {/* Logo đã có sẵn chữ "StockFlow" trong ảnh — không cần chữ HTML kèm theo. */}
-          <Logo variant="mark" height={collapsed ? 32 : 36} decorative />
-        </Link>
-
-        {!collapsed && <SidebarCollapseButton />}
+          {collapsed ? UI_LABELS.shell.appName.charAt(0) : UI_LABELS.shell.appName}
+        </div>
+        {collapsed ? (
+          <SidebarSearchIcon />
+        ) : (
+          // Ô search toàn cục dưới tên app, dùng hết chiều rộng sidebar
+          <SearchBar
+            placeholder={UI_LABELS.shell.quickSearchHint}
+            className="min-w-0"
+            aria-label={UI_LABELS.shell.globalSearch}
+          />
+        )}
       </SidebarHeader>
 
-      {collapsed && (
-        <div className="border-border-default flex justify-center border-b py-1.5">
-          <SidebarCollapseButton />
-        </div>
-      )}
-
-      {/* Nav groups */}
-      <SidebarContent className="[&::-webkit-scrollbar-thumb]:bg-border-strong min-h-0 flex-1 [scrollbar-width:thin] gap-0 overflow-y-auto px-2 py-2 [&::-webkit-scrollbar]:block [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
-        {NAV_GROUPS.map((group) => (
-          <SidebarGroup key={group.title} className="mb-1.5 gap-0 p-0">
-            {collapsed ? (
-              <div className="border-border-default mx-auto my-1.5 w-8 border-t" />
-            ) : (
-              <SidebarGroupLabel className="text-ink-tertiary h-auto px-2.5 pt-3 pb-0.5 text-[0.625rem] font-semibold tracking-[0.08em] uppercase">
-                {group.title}
-              </SidebarGroupLabel>
-            )}
-
-            <SidebarGroupContent>
-              <SidebarMenu className={cn("gap-0.5", collapsed && "items-center")}>
-                {group.items.map((item) => {
-                  const isActive =
-                    item.href === "/admin"
-                      ? pathname === "/admin"
-                      : pathname === item.href || pathname.startsWith(item.href + "/");
-                  const Icon = item.icon;
-                  const warnCount = warningCounts[item.href] ?? 0;
-
-                  return (
-                    <SidebarMenuItem key={item.href} className={cn(collapsed && "w-8")}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={isActive}
-                        tooltip={item.tooltip}
-                        className={cn(
-                          "h-auto rounded-[var(--r-sm)] transition-colors duration-150",
-                          collapsed
-                            ? "justify-center gap-0 group-data-[collapsible=icon]:overflow-visible"
-                            : "gap-2.5 px-2.5 py-1.5 text-[0.8125rem]",
-                          isActive
-                            ? "bg-brand text-ink-inverse hover:bg-brand hover:text-ink-inverse data-active:bg-brand data-active:text-ink-inverse font-medium"
-                            : "text-ink-secondary hover:bg-bg-muted hover:text-ink-primary",
-                        )}
-                      >
-                        <Link href={item.href}>
-                          <Icon className="size-4 shrink-0" />
-                          {!collapsed && <span className="truncate">{item.label}</span>}
-                        </Link>
-                      </SidebarMenuButton>
-
-                      {/* Warning dot */}
-                      {warnCount > 0 &&
-                        (collapsed ? (
-                          <span className="bg-positive ring-bg-subtle pointer-events-none absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full text-[0.5625rem] leading-none font-bold text-white ring-2">
-                            {warnCount}
-                          </span>
-                        ) : (
-                          <SidebarMenuBadge className="bg-positive inset-y-0 my-auto size-[18px] min-w-0 justify-center rounded-full px-0 text-[0.5625rem] leading-none font-bold text-white peer-hover/menu-button:text-white peer-data-active/menu-button:text-white peer-data-[size=default]/menu-button:top-0">
-                            {warnCount}
-                          </SidebarMenuBadge>
-                        ))}
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        ))}
+      {/* Nav: item cha mở/đóng kiểu Vercel. Scrollbar mảnh, không có nút mũi tên — chỉ dùng
+          ::-webkit-scrollbar (đặt `scrollbar-width` thì Chrome bỏ qua style webkit và hiện mũi tên) */}
+      <SidebarContent className="[&::-webkit-scrollbar-thumb]:bg-border-strong min-h-0 flex-1 gap-0 overflow-y-auto px-2 py-2 [&::-webkit-scrollbar]:block [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-button]:hidden [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
+        <SidebarNav
+          groups={NAV_GROUPS}
+          activeHref={activeHref}
+          canSeeItem={canSeeItem}
+          warningCounts={warningCounts}
+          collapsed={collapsed}
+        />
       </SidebarContent>
+
+      <SidebarFooterBar />
+      {/* Vạch mảnh ở mép phải: rê chuột hiện, bấm để thu gọn / mở rộng */}
+      <SidebarRail />
     </Sidebar>
   );
 }
@@ -477,41 +731,31 @@ function BackofficeSidebar() {
 
 export function BackofficeShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
-  const { theme, toggleTheme } = useTheme();
-  const currentUser = useAuthStore((state) => state.user);
-  const logout = useAuthStore((state) => state.logout);
-  const refreshToken = useAuthStore((state) => state.tokens?.refreshToken);
-  const [selectedWarehouse, setSelectedWarehouse] = useState<string>("all");
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
-  const selectedWhLabel = useMemo(() => {
-    if (selectedWarehouse === "all") return "Tất cả kho";
-    const wh = warehouses.find((w: Warehouse) => w.warehouseId === selectedWarehouse);
-    return wh ? wh.code : selectedWarehouse;
-  }, [selectedWarehouse]);
-
-  const breadcrumbItems = buildBreadcrumbItems(pathname);
-  const currentUserName = currentUser?.fullName ?? "Người dùng";
-
-  async function handleLogout() {
-    setUserMenuOpen(false);
-    try {
-      if (refreshToken) await logoutApi(refreshToken);
-    } finally {
-      logout();
-      router.replace(APP_ROUTES.login);
-      router.refresh();
-    }
-  }
+  const canSeeItem = useCanSeeNavItem();
+  const breadcrumbLabels = useBreadcrumbLabelStore((s) => s.labels);
+  // Chế độ mở rộng (vd bảng dòng PO) ép sidebar thu gọn; tắt thì về lại trạng thái người dùng chọn.
+  // Sidebar điều khiển từ đây: đang mở rộng mà bấm thu/mở (nút, Ctrl/⌘+B) = thoát chế độ mở rộng
+  // rồi áp lựa chọn đó — không để nút "chết" và không ngầm đổi trạng thái của người dùng.
+  const focusMode = useAppStore((s) => s.focusMode);
+  const setFocusMode = useAppStore((s) => s.setFocusMode);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const onSidebarOpenChange = (open: boolean) => {
+    if (focusMode) setFocusMode(false);
+    setSidebarOpen(open);
+  };
+  const breadcrumbItems = buildBreadcrumbItems(pathname, canSeeItem, (id) => breadcrumbLabels[id]);
 
   return (
     <TooltipProvider>
       <SidebarProvider
+        open={focusMode ? false : sidebarOpen}
+        onOpenChange={onSidebarOpenChange}
         // h-svh + overflow-hidden ghi đè `min-h-svh` của SidebarProvider: chiều cao phải
         // BỊ CHẶN để `overflow-auto` của <main> có hiệu lực, nhờ đó topbar/sidebar đứng yên
         // và chỉ vùng nội dung cuộn. Dùng min-h-* thì cả trang cuộn, topbar trôi theo.
-        className="bg-bg-surface h-svh overflow-hidden"
+        // In (biên bản bàn giao): bỏ khung cố định chiều cao để in đủ nội dung, ẩn sidebar + topbar
+        className="bg-bg-surface h-svh overflow-hidden print:h-auto print:overflow-visible print:[&_[data-slot=sidebar]]:hidden"
         style={
           {
             "--sidebar-width": "240px",
@@ -524,16 +768,17 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
         {/* ================================================================== */}
         {/*  Main area                                                        */}
         {/* ================================================================== */}
-        <SidebarInset className="bg-bg-surface flex min-h-0 min-w-0 flex-col">
+        <SidebarInset className="bg-bg-base flex min-h-0 min-w-0 flex-col">
           {/* Topbar */}
-          <header className="border-border-default bg-bg-surface flex h-14 shrink-0 items-center gap-2 border-b px-4">
-            {/* Mobile sidebar trigger */}
-            <SidebarTrigger className="text-ink-secondary hover:bg-bg-muted hover:text-ink-primary size-8 shrink-0 md:hidden" />
+          <header className="border-border-default bg-bg-base relative flex h-14 shrink-0 items-center gap-2 border-b px-4 print:hidden">
+            <SidebarCollapseButton />
+            <div aria-hidden className="bg-border-default mr-1 h-4 w-px shrink-0" />
 
-            <div className="min-w-0 flex-1">
+            {/* Breadcrumb căn giữa topbar (absolute để giữa thật, không lệch theo nút bên trái) */}
+            <div className="absolute inset-x-0 mx-auto flex w-fit max-w-[60%] min-w-0 justify-center">
               <nav
                 aria-label="Breadcrumb"
-                className="text-ink-tertiary flex items-center gap-1.5 text-[0.8125rem]"
+                className="text-ink-tertiary flex min-w-0 items-center gap-1.5 text-sm"
               >
                 {breadcrumbItems.map((item, index) => (
                   <span
@@ -541,7 +786,9 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
                     className="flex min-w-0 items-center gap-1.5"
                   >
                     {index > 0 && <span className="opacity-50">/</span>}
-                    {item.href ? (
+                    {item.render ? (
+                      <item.render />
+                    ) : item.href ? (
                       <Link
                         href={item.href}
                         className="text-ink-secondary hover:text-ink-primary truncate transition-colors"
@@ -555,109 +802,13 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
                 ))}
               </nav>
             </div>
-
-            {/* Global search */}
-            <SearchBar
-              placeholder="Tìm nhanh (⌘K)"
-              className="max-w-[240px]"
-              aria-label="Tìm toàn cục"
-            />
-
-            <WarehouseSwitcher
-              selected={selectedWarehouse}
-              onSelect={setSelectedWarehouse}
-              label={selectedWhLabel}
-            />
-
-            {/* Theme toggle */}
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={toggleTheme}
-              className="border-border-default bg-bg-surface text-ink-secondary hover:bg-bg-muted hover:text-ink-primary rounded-[var(--r-sm)] transition-colors"
-              aria-label={theme === "dark" ? "Chuyển sang Light" : "Chuyển sang Dark"}
-            >
-              {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
-            </Button>
-
-            {/* User menu */}
-            <div className="relative">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setUserMenuOpen((open) => !open)}
-                className="hover:bg-bg-muted h-auto gap-2 rounded-[var(--r-sm)] bg-transparent px-1 py-0.5 transition-colors"
-                aria-label="Mở menu tài khoản"
-              >
-                <div className="bg-accent flex size-8 items-center justify-center rounded-full text-xs font-bold text-white">
-                  {currentUserName
-                    .split(" ")
-                    .slice(-2)
-                    .map((word) => word[0])
-                    .join("")}
-                </div>
-              </Button>
-              {userMenuOpen && (
-                <>
-                  <div className="fixed inset-0 z-[800]" onClick={() => setUserMenuOpen(false)} />
-                  <div className="border-border-default bg-bg-surface absolute top-full right-0 z-[801] mt-1 w-64 rounded-[var(--r-md)] border py-1 shadow-[var(--sh-lg)]">
-                    {/* User info header */}
-                    <div className="border-border-default border-b px-3 py-2">
-                      <div className="text-ink-primary text-[0.8125rem] font-semibold">
-                        {currentUserName}
-                      </div>
-                      <div className="text-ink-tertiary text-xs">
-                        {currentUser?.email ?? "Chưa có thông tin email"}
-                      </div>
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        {currentUser?.roles.map((role) => (
-                          <span
-                            key={role}
-                            className="bg-bg-subtle text-ink-secondary rounded-full px-2 py-0.5 text-[0.625rem] font-medium"
-                          >
-                            {role}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                    {/* Menu items */}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => setUserMenuOpen(false)}
-                      className="text-ink-secondary hover:bg-bg-muted hover:text-ink-primary h-auto w-full justify-start gap-2 rounded-none bg-transparent px-3 py-1.5 text-[0.8125rem] transition-colors"
-                    >
-                      <User className="size-3.5" />
-                      Hồ sơ cá nhân
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => setUserMenuOpen(false)}
-                      className="text-ink-secondary hover:bg-bg-muted hover:text-ink-primary h-auto w-full justify-start gap-2 rounded-none bg-transparent px-3 py-1.5 text-[0.8125rem] transition-colors"
-                    >
-                      <Settings className="size-3.5" />
-                      Cài đặt
-                    </Button>
-                    <div className="border-border-default my-1 border-t" />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={handleLogout}
-                      className="text-danger hover:bg-bg-muted hover:text-danger h-auto w-full justify-start gap-2 rounded-none bg-transparent px-3 py-1.5 text-[0.8125rem] transition-colors"
-                    >
-                      <LogOut className="size-3.5" />
-                      Đăng xuất
-                    </Button>
-                  </div>
-                </>
-              )}
-            </div>
+            <NotificationBell />
           </header>
 
           {/* Content */}
-          <main className="flex-1 overflow-auto p-4">{children}</main>
+          <main className="flex-1 overflow-auto p-4 print:overflow-visible print:p-0">
+            {children}
+          </main>
         </SidebarInset>
       </SidebarProvider>
     </TooltipProvider>

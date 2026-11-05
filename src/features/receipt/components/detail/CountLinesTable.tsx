@@ -1,0 +1,121 @@
+"use client";
+
+import { Fragment } from "react";
+
+import { CartonToggleCell } from "../cartons/CartonToggleCell";
+import { CountCartonsRow } from "./CountCartonsRow";
+import { CountLineRow } from "./CountLineRow";
+
+import type { Control, FieldErrors, UseFormRegister } from "react-hook-form";
+import type { LineCartonContext } from "@/features/receipt/carton-selectors";
+import type { ReceiptLinesFormInput, ReceivablePoLine } from "@/features/receipt/types";
+import type { CartonDraft } from "../cartons/CartonEditor";
+
+const HEADERS = ["SKU", "SL nhận", "Thùng", "Số lô", "Hạn dùng", "Vị trí nhận", "Ghi chú", ""];
+
+/** Trình chia thùng của bảng kiểm đếm (SCRUM-473) — từ `useCountLinesForm().cartons`. */
+export interface CountCartons {
+  contexts: readonly LineCartonContext[];
+  expanded: ReadonlySet<string>;
+  toggle: (rowId: string) => void;
+  set: (index: number, next: CartonDraft) => void;
+}
+
+/** Bảng dòng kiểm đếm (useFieldArray) — mỗi dòng một dòng PO × một lô, có thể chia thùng. */
+export function CountLinesTable({
+  receiptNumber,
+  rowIds,
+  lines,
+  poLineById,
+  overOpen,
+  register,
+  control,
+  errors,
+  cartons,
+  onEdit,
+  onSplit,
+  onRemove,
+}: {
+  receiptNumber: string;
+  /** `field.id` của useFieldArray — key ổn định cho từng dòng. */
+  rowIds: readonly string[];
+  lines: ReceiptLinesFormInput["lines"];
+  poLineById: ReadonlyMap<string, ReceivablePoLine>;
+  overOpen: ReadonlySet<string>;
+  register: UseFormRegister<ReceiptLinesFormInput>;
+  control: Control<ReceiptLinesFormInput>;
+  errors: FieldErrors<ReceiptLinesFormInput>["lines"];
+  cartons: CountCartons;
+  /** Ô ngày (DatePicker) không phát sự kiện `change` gốc lên `<form>` nên báo sửa riêng. */
+  onEdit: () => void;
+  onSplit: (index: number) => void;
+  onRemove: (index: number) => void;
+}) {
+  return (
+    <div className="border-border-default overflow-x-auto rounded-[var(--r-sm)] border">
+      <table className="w-full text-[0.8125rem]">
+        <caption className="sr-only">Dòng kiểm đếm của phiếu {receiptNumber}</caption>
+        <thead className="bg-bg-subtle text-ink-secondary">
+          <tr>
+            {HEADERS.map((h, i) => (
+              <th
+                key={h || i}
+                scope="col"
+                className={`px-2 py-2 font-medium ${i === 1 ? "text-right" : "text-left"}`}
+              >
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rowIds.map((rowId, index) => {
+            const line = lines[index];
+            const poLineId = line?.purchaseOrderLineId ?? "";
+            const context = cartons.contexts[index];
+            const expanded = !!context && cartons.expanded.has(rowId);
+            return (
+              <Fragment key={rowId}>
+                <CountLineRow
+                  index={index}
+                  poLine={poLineById.get(poLineId)}
+                  register={register}
+                  control={control}
+                  errors={errors}
+                  onEdit={onEdit}
+                  overOpen={overOpen.has(poLineId)}
+                  autoFocus={index === 0}
+                  locked={context?.locked ?? false}
+                  cartonCell={
+                    context && (
+                      <CartonToggleCell
+                        lineNo={index + 1}
+                        quantity={Number(line?.quantity) || 0}
+                        packages={line?.packages ?? []}
+                        context={context}
+                        expanded={expanded}
+                        onToggle={() => cartons.toggle(rowId)}
+                      />
+                    )
+                  }
+                  onSplit={() => onSplit(index)}
+                  onRemove={() => onRemove(index)}
+                />
+                {expanded && context && (
+                  <CountCartonsRow
+                    index={index}
+                    colSpan={HEADERS.length}
+                    line={line}
+                    context={context}
+                    errors={errors}
+                    onChange={(next) => cartons.set(index, next)}
+                  />
+                )}
+              </Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}

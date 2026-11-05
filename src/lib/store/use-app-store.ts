@@ -18,6 +18,9 @@ export interface AppState {
   /* ── Sidebar ───────────────────────────────────────────────────────── */
   sidebarCollapsed: boolean;
   toggleSidebar: () => void;
+  /** Chế độ mở rộng của màn nhập liệu dày (vd bảng dòng PO): thu sidebar. Không persist. */
+  focusMode: boolean;
+  setFocusMode: (on: boolean) => void;
 
   /* ── Theme ─────────────────────────────────────────────────────────── */
   theme: "light" | "dark" | "system";
@@ -40,6 +43,8 @@ export const useAppStore = create<AppState>()(
 
       sidebarCollapsed: false,
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
+      focusMode: false,
+      setFocusMode: (focusMode) => set({ focusMode }),
 
       theme: "system",
       setTheme: (theme) => set({ theme }),

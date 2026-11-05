@@ -1,20 +1,17 @@
 import type { NextConfig } from "next";
 
-// Backend base URL — server-only (no NEXT_PUBLIC_ prefix), never inlined into
-// the client bundle. Browser always calls same-origin "/api/*"; Next.js
-// rewrites forward the request to the real backend from the server.
-const API_URL = process.env.API_URL ?? "http://localhost:8080/api";
-
+// Authenticated traffic goes through Route Handlers; no direct backend rewrite.
 const nextConfig: NextConfig = {
   devIndicators: false,
-  async rewrites() {
+  async redirects() {
     return [
       {
-        source: "/api/:path*",
-        destination: `${API_URL}/:path*`,
+        // BE notification links still use the older Sales prefix.
+        source: "/admin/sales/quotes/:id",
+        destination: "/admin/quotes/:id",
+        permanent: false,
       },
     ];
   },
 };
-
 export default nextConfig;

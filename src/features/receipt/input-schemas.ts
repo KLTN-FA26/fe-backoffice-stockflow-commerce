@@ -1,0 +1,193 @@
+/**
+ * Goods receipt — Input schemas (form gửi đi), mô phỏng ràng buộc request BE PR #62 và BR docs 03.
+ * BE vẫn là nơi chặn cuối — FE chặn sớm để báo lỗi inline (Backend phải re-check mọi BR dưới đây).
+ */
+
+import { z } from "zod";
+
+import { RECEIPT_FIELD_MESSAGES as MSG, RECEIPT_LIMITS } from "@/constants";
+import { isoDate } from "@/lib/validation/primitives";
+
+import { cartonLineFields, refineLineCartons } from "./carton-input-schemas";
+
+const optionalText = (max: number) => z.string().trim().max(max, MSG.tooLong).default("");
+
+/** Mã vị trí BE so khớp sau khi `trim().toUpperCase()` (GoodsReceiptServiceImpl#area). */
+export const locationCodeInput = z
+  .string()
+  .trim()
+  .min(1, MSG.locationRequired)
+  .max(RECEIPT_LIMITS.codeMax, MSG.tooLong)
+  .transform((code) => code.toUpperCase());
+
+/* ── Tạo phiếu ───────────────────────────────────────────────────────── */
+
+// BR-01 (docs 03 §6): chỉ tạo cho PO đã chốt — FE lọc ở combobox, BE chặn bằng requireReceivable
+export const receiptCreateInputSchema = z.object({
+  purchaseOrderId: z.string().min(1, MSG.purchaseOrderRequired),
+  deliveryNote: optionalText(RECEIPT_LIMITS.deliveryNoteMax),
+  note: optionalText(RECEIPT_LIMITS.noteMax),
+});
+
+/* ── Tạo phiếu không có PO (BR-RCP-002, SCRUM-478) ─────────────────────── */
+
+// Docs 03: "Receipt không PO" với lý do, cần duyệt. Owner NOPO-SUPPLIER: NCC bắt buộc; NOPO-REASON: lý do tự do bắt buộc
+export const receiptCreateWithoutPoInputSchema = z.object({
+  supplierId: z.string().min(1, MSG.supplierRequired),
+  warehouseId: z.string().min(1, MSG.warehouseRequired),
+  reason: z
+    .string()
+    .trim()
+    .min(1, MSG.blindReasonRequired)
+    .max(RECEIPT_LIMITS.blindReasonMax, MSG.tooLong),
+  deliveryNote: optionalText(RECEIPT_LIMITS.deliveryNoteMax),
+  note: optionalText(RECEIPT_LIMITS.noteMax),
+});
+
+/* ── Kiểm đếm ────────────────────────────────────────────────────────── */
+
+export const receiptLineInputSchema = z.object({
+  purchaseOrderLineId: z.string().min(1),
+  quantity: z.number({ message: MSG.quantity }).int(MSG.quantity).positive(MSG.quantity),
+  lotNumber: optionalText(RECEIPT_LIMITS.codeMax),
+  // "" = không nhập; BE nhận LocalDate yyyy-MM-dd
+  expiryDate: z.union([z.literal(""), isoDate]).default(""),
+  locationCode: locationCodeInput,
+  note: optionalText(RECEIPT_LIMITS.lineNoteMax),
+  ...cartonLineFields,
+});
+
+/** Dòng kiểm đếm của phiếu không có PO: gọi hàng bằng SKU (BE upper-case), không có dòng PO. */
+export const blindLineInputSchema = z.object({
+  sku: z
+    .string()
+    .trim()
+    .min(1, MSG.skuRequired)
+    .max(RECEIPT_LIMITS.skuMax, MSG.tooLong)
+    .transform((sku) => sku.toUpperCase()),
+  quantity: z.number({ message: MSG.quantity }).int(MSG.quantity).positive(MSG.quantity),
+  lotNumber: optionalText(RECEIPT_LIMITS.codeMax),
+  expiryDate: z.union([z.literal(""), isoDate]).default(""),
+  locationCode: locationCodeInput,
+  note: optionalText(RECEIPT_LIMITS.lineNoteMax),
+  ...cartonLineFields,
+});
+
+/** Cách SKU của dòng PO được theo dõi (docs 01). Chưa biết → không ép ở FE. */
+export interface LineTracking {
+  lotTracked?: boolean;
+  expiryTracked?: boolean;
+}
+
+export interface ReceiptLinesContext {
+  /** Ngày nhận (yyyy-MM-dd, giờ VN) — mốc của BR-06. */
+  receivedOn: string;
+  /** SL tối đa nhận được của từng dòng PO trên phiếu này (đã trừ phiếu khác). Thiếu → bỏ qua. */
+  limitByPoLine?: Readonly<Record<string, number>>;
+  trackingByPoLine?: Readonly<Record<string, LineTracking>>;
+}
+
+/** Schema kiểm đếm phụ thuộc ngữ cảnh (ngày nhận, giới hạn, cách theo dõi SKU). */
+export function buildReceiptLinesSchema(ctx: ReceiptLinesContext) {
+  return z
+    .object({
+      lines: z
+        .array(receiptLineInputSchema)
+        .min(1, MSG.linesRequired)
+        .max(RECEIPT_LIMITS.linesMax, MSG.linesTooMany),
+    })
+    .superRefine(({ lines }, issue) => {
+      const totals = new Map<string, number>();
+      const seenLots = new Set<string>();
+      lines.forEach((line, index) => {
+        const at = (field: string) => ["lines", index, field];
+        // BE GoodsReceipt#requireDistinctLines (uk_goods_receipt_lines_lot): mỗi cặp dòng PO + lô
+        // chỉ một dòng — gộp cả SL của một lô vào một dòng
+        const lotKey = `${line.purchaseOrderLineId}|${line.lotNumber}`;
+        if (seenLots.has(lotKey)) {
+          issue.addIssue({ code: "custom", path: at("lotNumber"), message: MSG.duplicateLot });
+        }
+        seenLots.add(lotKey);
+        const tracking = ctx.trackingByPoLine?.[line.purchaseOrderLineId];
+        // BR-03 (docs 03 §6): SKU theo dõi lô / hạn dùng → bắt buộc nhập mới cho Confirmed
+        if (tracking?.lotTracked && !line.lotNumber) {
+          issue.addIssue({ code: "custom", path: at("lotNumber"), message: MSG.lotRequired });
+        }
+        if (tracking?.expiryTracked && !line.expiryDate) {
+          issue.addIssue({ code: "custom", path: at("expiryDate"), message: MSG.expiryRequired });
+        }
+        // BR-06 (docs 03 §6): hạn dùng phải > ngày nhận (so chuỗi ISO yyyy-MM-dd)
+        if (line.expiryDate && line.expiryDate <= ctx.receivedOn) {
+          issue.addIssue({
+            code: "custom",
+            path: at("expiryDate"),
+            message: MSG.expiryNotAfterReceipt,
+          });
+        }
+        refineLineCartons(line, index, issue);
+        totals.set(
+          line.purchaseOrderLineId,
+          (totals.get(line.purchaseOrderLineId) ?? 0) + line.quantity,
+        );
+      });
+      // BR-02 (docs 03 §6): luỹ kế một dòng PO ≤ SL đặt × (1 + dung sai) — một dòng PO tách nhiều lô
+      lines.forEach((line, index) => {
+        const limit = ctx.limitByPoLine?.[line.purchaseOrderLineId];
+        const total = totals.get(line.purchaseOrderLineId) ?? 0;
+        if (limit !== undefined && total > limit) {
+          issue.addIssue({
+            code: "custom",
+            path: ["lines", index, "quantity"],
+            message: MSG.overLimit,
+          });
+        }
+      });
+    });
+}
+
+/**
+ * Kiểm đếm phiếu không có PO: mỗi cặp SKU + lô một dòng (BE `uk_goods_receipt_lines_blind_lot`); hạn dùng phải sau
+ * ngày nhận (BR-06). Lô / hạn dùng bắt buộc theo SKU (BR-03) do BE kiểm — FE chưa biết cờ theo dõi của SKU.
+ */
+export function buildBlindLinesSchema(ctx: Pick<ReceiptLinesContext, "receivedOn">) {
+  return z
+    .object({
+      lines: z
+        .array(blindLineInputSchema)
+        .min(1, MSG.linesRequired)
+        .max(RECEIPT_LIMITS.linesMax, MSG.linesTooMany),
+    })
+    .superRefine(({ lines }, issue) => {
+      const seen = new Set<string>();
+      lines.forEach((line, index) => {
+        const key = `${line.sku}|${line.lotNumber}`;
+        if (seen.has(key)) {
+          issue.addIssue({
+            code: "custom",
+            path: ["lines", index, "lotNumber"],
+            message: MSG.duplicateLot,
+          });
+        }
+        seen.add(key);
+        if (line.expiryDate && line.expiryDate <= ctx.receivedOn) {
+          issue.addIssue({
+            code: "custom",
+            path: ["lines", index, "expiryDate"],
+            message: MSG.expiryNotAfterReceipt,
+          });
+        }
+        refineLineCartons(line, index, issue);
+      });
+    });
+}
+
+/* ── Duyệt ngoại lệ (BR-RCP-001) ─────────────────────────────────────── */
+
+/** `ReceiptDecisionRequest.reason` @NotBlank @Size(max = 500): duyệt hoặc từ chối phần vượt đều cần lý do. */
+export const receiptDecisionInputSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(1, MSG.approvalReasonRequired)
+    .max(RECEIPT_LIMITS.approvalReasonMax, MSG.tooLong),
+});

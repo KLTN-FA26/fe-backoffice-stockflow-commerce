@@ -12,6 +12,10 @@
 
 # testing
 /coverage
+/.vitest/
+
+# Playwright MCP session logs (generated)
+/.playwright-mcp/
 
 # next.js
 /.next/
@@ -49,3 +53,6 @@ next-env.d.ts
 # (.claude/settings.json, rules/, commands/, skills/, agents/, hooks/ thì CÓ commit)
 CLAUDE.local.md
 .claude/settings.local.json
+
+# ngữ cảnh review (docs + BE) do workflow Claude checkout về — xem .github/workflows/claude-review.yml
+.review-context/

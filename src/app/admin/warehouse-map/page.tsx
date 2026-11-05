@@ -1,6 +1,8 @@
-import { MapPin } from "lucide-react";
-import { ComingSoonPage } from "@/components/shared/ComingSoonPage";
+import { redirect } from "next/navigation";
 
-export default function WarehouseMapPage() {
-  return <ComingSoonPage title="Kho map & slotting" icon={MapPin} />;
+import { ADMIN_ROUTES } from "@/constants";
+
+/** Tab "Kho & bản đồ" chọn kho ở trang Danh mục kho — vào gốc tab thì chuyển về đó. */
+export default function WarehouseWorkspacePage() {
+  redirect(ADMIN_ROUTES.warehouses.list);
 }

@@ -1,5 +1,6 @@
 import { ReceiptDetail } from "@/features/receipt/components/ReceiptDetail";
 
-export default function ReceiptDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  return <ReceiptDetail params={params} />;
+export default async function ReceiptDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return <ReceiptDetail id={id} />;
 }

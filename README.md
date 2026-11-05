@@ -20,6 +20,34 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## CI & quality checks
+
+Workflows live in `.github/workflows/`; every pull request runs them.
+
+| Check      | Workflow    | Required to merge | What it does                                                                                                                                                             |
+| ---------- | ----------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `validate` | `ci.yml`    | **yes**           | typecheck, lint, test, build (`pnpm install --frozen-lockfile` first)                                                                                                    |
+| `sonar`    | `sonar.yml` | no                | SonarQube Cloud analysis with vitest coverage (`pnpm run test:coverage` writes `coverage/lcov.info`). Warning-only for the first week. **Skipped until Sonar is set up** |
+
+Run the same checks locally before pushing: `pnpm run validate`.
+
+**Setting up SonarQube Cloud** (repository admin, once):
+
+1. Import the repository in SonarQube Cloud (organization `kltn-fa26`). The project key must be
+   `KLTN-FA26_fe-backoffice-stockflow-commerce`, which is what `sonar-project.properties` expects.
+2. Repository secret `SONAR_TOKEN`: the project's analysis token.
+3. Repository variable `SONAR_ORGANIZATION`: `kltn-fa26`.
+4. Turn off "Automatic Analysis" for the project in SonarQube Cloud, otherwise it conflicts with the
+   CI analysis.
+
+Until both exist the job prints a notice and does nothing, and the PR stays green. The quality gate
+is not awaited, so Sonar never blocks a merge.
+
+**Dependabot** (`.github/dependabot.yml`) opens pull requests against `develop` every Monday at
+08:00 Vietnam time for npm (pnpm) and GitHub Actions. Minor and patch updates are grouped into one
+pull request per ecosystem, majors are separate, at most 5 open at a time, titled `chore(deps): ...`
+and labelled `dependencies`.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
