@@ -16,18 +16,12 @@ interface FilterBarProps {
   children?: React.ReactNode;
 }
 
-export function FilterBar({
-  chips,
-  active,
-  onChange,
-  className,
-  children,
-}: FilterBarProps) {
+export function FilterBar({ chips, active, onChange, className, children }: FilterBarProps) {
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center gap-2 rounded-[var(--r-sm)] border border-border-default bg-bg-subtle p-3",
-        className
+        "border-border-default bg-bg-subtle flex flex-wrap items-center gap-2 rounded-[var(--r-sm)] border p-3",
+        className,
       )}
     >
       {chips.map((chip) => {
@@ -43,8 +37,8 @@ export function FilterBar({
             className={cn(
               "h-7 rounded-full px-3 text-[0.8125rem] transition-colors duration-150",
               isActive
-                ? "border-brand bg-brand font-medium text-ink-inverse hover:bg-brand hover:text-ink-inverse"
-                : "border-border-default bg-bg-surface text-ink-secondary hover:border-accent hover:bg-bg-surface"
+                ? "border-brand bg-brand text-ink-inverse hover:bg-brand hover:text-ink-inverse font-medium"
+                : "border-border-default bg-bg-surface text-ink-secondary hover:border-accent hover:bg-bg-surface",
             )}
           >
             {chip.label}

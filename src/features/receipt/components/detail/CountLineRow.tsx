@@ -1,0 +1,148 @@
+"use client";
+
+import { Controller } from "react-hook-form";
+
+import { RECEIPT_CARTON_LABELS, RECEIPT_LIMITS } from "@/constants";
+import { DatePicker } from "@/components/shared/DatePicker";
+import { Input } from "@/components/ui/input";
+
+import { FieldError } from "../primitives";
+import { CountLineActions } from "./CountLineActions";
+
+import type { Control, FieldErrors, UseFormRegister } from "react-hook-form";
+import type { ReceiptLinesFormInput, ReceivablePoLine } from "@/features/receipt/types";
+import type { ReactNode } from "react";
+
+const CELL = "border-border-default bg-bg-surface h-8 rounded-[var(--r-sm)] text-[0.8125rem]";
+
+/** Một dòng kiểm đếm: một dòng PO × một lô (BE uk_goods_receipt_lines_lot). */
+export function CountLineRow({
+  index,
+  poLine,
+  register,
+  control,
+  errors,
+  onEdit,
+  overOpen,
+  autoFocus,
+  locked,
+  cartonCell,
+  onSplit,
+  onRemove,
+}: {
+  index: number;
+  poLine: ReceivablePoLine | undefined;
+  register: UseFormRegister<ReceiptLinesFormInput>;
+  control: Control<ReceiptLinesFormInput>;
+  errors: FieldErrors<ReceiptLinesFormInput>["lines"];
+  onEdit: () => void;
+  /** Tổng SL đang đếm của dòng PO vượt SL còn mở → cảnh báo, vẫn cho lưu. */
+  overOpen: boolean;
+  autoFocus: boolean;
+  /** Dòng đã lưu có thùng (SCRUM-473): giữ lô + dòng PO, không bỏ khỏi phiếu. */
+  locked: boolean;
+  /** Ô "Thùng" (`CartonToggleCell`). */
+  cartonCell: ReactNode;
+  onSplit: () => void;
+  onRemove: () => void;
+}) {
+  const e = errors?.[index];
+  const id = (field: string) => `count-${index}-${field}`;
+  const describedBy = (field: string, hasError: boolean) =>
+    hasError ? `${id(field)}-error` : undefined;
+
+  return (
+    <tr className="border-border-default border-t align-top">
+      <td className="px-2 py-2 whitespace-nowrap">
+        <div className="font-[family-name:var(--font-mono)] text-[0.8125rem]">
+          {poLine?.sku ?? "—"}
+        </div>
+        <div className="text-ink-tertiary text-xs tabular-nums">
+          Còn mở {poLine?.openQuantity ?? "—"} / đặt {poLine?.quantityOrdered ?? "—"}
+        </div>
+      </td>
+      <td className="w-28 px-2 py-2">
+        <Input
+          id={id("quantity")}
+          type="number"
+          inputMode="numeric"
+          min={1}
+          aria-label={`SL nhận dòng ${index + 1}`}
+          aria-invalid={e?.quantity ? true : undefined}
+          aria-describedby={describedBy("quantity", !!e?.quantity)}
+          className={`${CELL} text-right tabular-nums`}
+          {...register(`lines.${index}.quantity`, { valueAsNumber: true })}
+        />
+        <FieldError id={`${id("quantity")}-error`}>{e?.quantity?.message}</FieldError>
+        {overOpen && !e?.quantity && (
+          <p className="text-warning mt-1 text-xs">
+            Vượt SL còn mở — vượt dung sai NCC thì phiếu chờ Quản lý kho duyệt
+          </p>
+        )}
+      </td>
+      {cartonCell}
+      {/* BE gap: API PO chưa trả lotTracked / expiryTracked → luôn hiện ô lô + hạn dùng, BE kiểm khi lưu */}
+      <td className="w-36 px-2 py-2">
+        <Input
+          id={id("lot")}
+          aria-label={`Số lô dòng ${index + 1}`}
+          maxLength={RECEIPT_LIMITS.codeMax}
+          readOnly={locked}
+          title={locked ? RECEIPT_CARTON_LABELS.lotLocked : undefined}
+          aria-invalid={e?.lotNumber ? true : undefined}
+          aria-describedby={describedBy("lot", !!e?.lotNumber)}
+          className={`${CELL} font-[family-name:var(--font-mono)]`}
+          {...register(`lines.${index}.lotNumber`)}
+        />
+        <FieldError id={`${id("lot")}-error`}>{e?.lotNumber?.message}</FieldError>
+      </td>
+      <td className="w-40 px-2 py-2">
+        <Controller
+          control={control}
+          name={`lines.${index}.expiryDate`}
+          render={({ field }) => (
+            <DatePicker
+              id={id("expiry")}
+              value={field.value ?? ""}
+              onChange={(value) => {
+                field.onChange(value);
+                onEdit();
+              }}
+              onBlur={field.onBlur}
+              ref={field.ref}
+              clearable
+              aria-label={`Hạn dùng dòng ${index + 1}`}
+              aria-invalid={e?.expiryDate ? true : undefined}
+              aria-describedby={describedBy("expiry", !!e?.expiryDate)}
+              className={CELL}
+            />
+          )}
+        />
+        <FieldError id={`${id("expiry")}-error`}>{e?.expiryDate?.message}</FieldError>
+      </td>
+      <td className="w-40 px-2 py-2">
+        <Input
+          id={id("location")}
+          autoFocus={autoFocus}
+          aria-label={`Mã vị trí nhận dòng ${index + 1}`}
+          placeholder="Quét / nhập mã khu"
+          maxLength={RECEIPT_LIMITS.codeMax}
+          aria-invalid={e?.locationCode ? true : undefined}
+          aria-describedby={describedBy("location", !!e?.locationCode)}
+          className={`${CELL} font-[family-name:var(--font-mono)] uppercase`}
+          {...register(`lines.${index}.locationCode`)}
+        />
+        <FieldError id={`${id("location")}-error`}>{e?.locationCode?.message}</FieldError>
+      </td>
+      <td className="px-2 py-2">
+        <Input
+          aria-label={`Ghi chú dòng ${index + 1}`}
+          maxLength={RECEIPT_LIMITS.lineNoteMax}
+          className={CELL}
+          {...register(`lines.${index}.note`)}
+        />
+      </td>
+      <CountLineActions lineNo={index + 1} locked={locked} onSplit={onSplit} onRemove={onRemove} />
+    </tr>
+  );
+}

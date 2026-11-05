@@ -19,26 +19,26 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState, useTransition } from "react";
 
-import { ADMIN_ROUTES, APP_ROUTES } from "@/constants";
+import { APP_ROUTES } from "@/constants";
+import { AUTH_UI } from "@/constants/auth";
 
 import { getMockLoginUsersApi, loginApi, mockLoginApi } from "@/lib/auth/auth-api";
 import { useAuthStore } from "@/lib/auth/auth-store";
+import { loginErrorMessage } from "@/lib/auth/login-error";
+import { landingFor } from "@/lib/auth/redirect";
+import { useAuthLifecycle } from "@/lib/auth/use-auth-lifecycle";
 
 import { useIsMock } from "@/providers/app-providers";
 
+import { CarPageLoader } from "@/components/shared/CarPageLoader";
 import { Logo } from "@/components/shared/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 
-import type { MockLoginUser } from "@/lib/auth/auth-api";
+import type { LoginResponse, MockLoginUser } from "@/lib/auth/auth-api";
 import type { FormEvent } from "react";
 
 export default function LoginPage() {
@@ -52,11 +52,7 @@ export default function LoginPage() {
 function LoginPageFallback() {
   return (
     <main className="bg-bg-base flex min-h-screen items-center justify-center px-6">
-      <div className="flex flex-col items-center gap-4" role="status">
-        <Logo height={38} />
-        <LoaderCircle className="text-accent size-5 animate-spin" aria-hidden="true" />
-        <span className="sr-only">Đang tải trang đăng nhập</span>
-      </div>
+      <CarPageLoader label="Đang tải trang đăng nhập" />
     </main>
   );
 }
@@ -65,18 +61,25 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestedCallback = searchParams.get("callbackUrl");
-  const callbackUrl = requestedCallback?.startsWith(`${ADMIN_ROUTES.home}/`)
-    ? requestedCallback
-    : ADMIN_ROUTES.home;
-  const login = useAuthStore((state) => state.login);
+  // Nhân viên → /admin, tài khoản khách (chỉ CUSTOMER) → /portal; callback khác khu vực bị bỏ.
+  const roles = useAuthStore((state) => state.user?.roles);
+  const callbackUrl = landingFor(roles ?? [], requestedCallback);
   const isMock = useIsMock();
+  const { status, isAuthenticated, bootstrapError, retry } = useAuthLifecycle();
+  const mustChangePassword = useAuthStore((state) => state.user?.mustChangePassword === true);
+
+  useEffect(() => {
+    // An administrator-set password has to be replaced first (SCRUM-474 FIRST-LOGIN).
+    if (isAuthenticated)
+      router.replace(mustChangePassword ? APP_ROUTES.changePassword : callbackUrl);
+  }, [callbackUrl, isAuthenticated, mustChangePassword, router]);
 
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [mockUsers, setMockUsers] = useState<MockLoginUser[]>([]);
   const [selectedUserId, setSelectedUserId] = useState("");
   const [isLoadingUsers, setIsLoadingUsers] = useState(isMock);
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
@@ -107,12 +110,12 @@ function LoginForm() {
     };
   }, [isMock]);
 
-  function completeLogin(response: Awaited<ReturnType<typeof loginApi>>) {
-    login(response.user, {
-      accessToken: response.accessToken,
-      refreshToken: response.refreshToken,
-    });
-    router.replace(callbackUrl);
+  function completeLogin(user: LoginResponse) {
+    router.replace(
+      user.mustChangePassword
+        ? APP_ROUTES.changePassword
+        : landingFor(useAuthStore.getState().user?.roles ?? [], requestedCallback),
+    );
     router.refresh();
   }
 
@@ -124,24 +127,35 @@ function LoginForm() {
       try {
         completeLogin(await mockLoginApi(selectedUserId));
       } catch (loginError: unknown) {
-        setError(loginError instanceof Error ? loginError.message : "Đăng nhập thất bại.");
+        setError(loginErrorMessage(loginError));
       }
     });
   }
 
   function handleRealLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!email || !password) return;
+    if (!username || !password) return;
     setError(null);
 
     startTransition(async () => {
       try {
-        completeLogin(await loginApi({ email, password }));
+        completeLogin(await loginApi({ username, password }));
       } catch (loginError: unknown) {
-        setError(loginError instanceof Error ? loginError.message : "Đăng nhập thất bại.");
+        setError(loginErrorMessage(loginError));
       }
     });
   }
+
+  if (status === "unknown" && bootstrapError)
+    return (
+      <main className="bg-bg-base flex min-h-screen items-center justify-center">
+        <div role="alert">
+          {bootstrapError}
+          <Button onClick={retry}>{AUTH_UI.retry}</Button>
+        </div>
+      </main>
+    );
+  if (status === "unknown" || isAuthenticated) return <LoginPageFallback />;
 
   const selectedUser = mockUsers.find((user) => user.userId === selectedUserId);
 
@@ -173,7 +187,7 @@ function LoginForm() {
             phân quyền theo vai trò.
           </p>
 
-          <div className="mt-10 grid gap-4 sm:grid-cols-3">
+          <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
             {[
               { label: "Nhập hàng", icon: Boxes },
               { label: "Kiểm soát kho", icon: ShieldCheck },
@@ -226,7 +240,7 @@ function LoginForm() {
             <p className="text-ink-secondary mt-2 text-sm leading-6">
               {isMock
                 ? "Chọn một tài khoản nhân sự để truy cập dữ liệu demo."
-                : "Đăng nhập bằng tài khoản nội bộ đã được cấp cho bạn."}
+                : "Đăng nhập bằng tài khoản được cấp: nhân viên vào trang quản trị, khách hàng doanh nghiệp vào cổng khách hàng (dùng email đã kích hoạt)."}
             </p>
           </div>
 
@@ -256,13 +270,13 @@ function LoginForm() {
                       placeholder={isLoadingUsers ? "Đang tải tài khoản..." : "Chọn tài khoản"}
                     />
                   </SelectTrigger>
-                  <SelectContent>
+                  <TitledSelectContent title={"Tài khoản nhân sự"}>
                     {mockUsers.map((user) => (
                       <SelectItem key={user.userId} value={user.userId}>
                         {user.fullName} — {user.roles.join(", ")}
                       </SelectItem>
                     ))}
-                  </SelectContent>
+                  </TitledSelectContent>
                 </Select>
               </div>
 
@@ -310,14 +324,14 @@ function LoginForm() {
           ) : (
             <form onSubmit={handleRealLogin} className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="email">Email công việc</Label>
+                <Label htmlFor="username">Tên đăng nhập</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="tenban@stockflow.vn"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  autoComplete="email"
+                  id="username"
+                  type="text"
+                  placeholder="Tên đăng nhập"
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
+                  autoComplete="username"
                   className="h-11 rounded-[var(--r-sm)]"
                   required
                 />

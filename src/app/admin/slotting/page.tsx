@@ -1,6 +1,8 @@
-import { Lightbulb } from "lucide-react";
-import { ComingSoonPage } from "@/components/shared/ComingSoonPage";
+import { redirect } from "next/navigation";
 
-export default function SlottingPage() {
-  return <ComingSoonPage title="Gợi ý vị trí" icon={Lightbulb} />;
+import { ADMIN_ROUTES } from "@/constants";
+
+/** Gợi ý vị trí làm việc theo một kho — link cũ chuyển về Danh mục kho để chọn kho. */
+export default function LegacySlottingPage() {
+  redirect(ADMIN_ROUTES.warehouses.list);
 }

@@ -1,6 +1,6 @@
 import { cn } from "cn";
 
-import { STATUS_LABEL_VI, toneOf } from "@/lib/status-map";
+import { statusLabelVi, toneOf } from "@/lib/status-map";
 
 import type { StatusDomain, SemanticTone } from "@/lib/mock-data";
 
@@ -13,19 +13,18 @@ interface StatusDotProps {
 }
 
 const DOT_TONE_CLASSES: Record<SemanticTone, string> = {
-  danger: "bg-danger",
-  info: "bg-info",
+  danger: "bg-dot-danger",
+  info: "bg-dot-info",
   muted: "bg-muted-tone",
   neutral: "bg-neutral",
-  positive: "bg-positive",
-  special: "bg-special",
-  warning: "bg-warning",
+  positive: "bg-dot-positive",
+  special: "bg-dot-special",
+  warning: "bg-dot-warning",
 };
 
 export function StatusDot({ domain, status, size = "sm", className }: StatusDotProps) {
-  void domain;
   const tone = toneOf(status);
-  const labelVi = STATUS_LABEL_VI[status];
+  const labelVi = statusLabelVi(status, domain);
   const title = labelVi ? `${labelVi} — ${status}` : status;
 
   return (

@@ -1,39 +1,51 @@
 /**
  * Product — lifecycle & action-gating.
  *
- * Source: docs/warehouse/01-product-creation §5 + §6.
+ * Source: docs/warehouse/01-product-creation §5 + §6. Biến thể: `variant-lifecycle.ts` (BE PR #71).
  */
 
-import { can } from "@/lib/auth/permissions";
-import {
-  PRODUCT_TRANSITIONS,
-  SKU_TRANSITIONS,
-  allowedTransitions,
-  canTransition,
-  isTerminal,
-} from "@/lib/domain/lifecycle";
+import { PRODUCT_PERMISSIONS } from "@/constants/permissions";
 
-import type { Permission } from "@/lib/auth/permissions";
-import type { RoleName } from "@/lib/auth/roles";
-import type { ProductStatus, SkuStatus } from "./types";
+import { allowedTransitions, canTransition, isTerminal } from "@/lib/domain/lifecycle";
 
-export { PRODUCT_TRANSITIONS, SKU_TRANSITIONS, allowedTransitions, canTransition, isTerminal };
+import type { PermissionCode } from "@/lib/auth/me-permissions";
+import type { ProductStatus } from "./types";
+
+export { allowedTransitions, canTransition, isTerminal };
+
+/** "Active" là trạng thái legacy của mock cũ; "UNKNOWN" là trạng thái BE chưa biết — đều không có chuyển tiếp. */
+export type BackendProductStatus = Exclude<ProductStatus, "Active" | "UNKNOWN">;
+
+/**
+ * Exact ProductStatus state machine from backend develop (`ProductStatus#canTransitionTo`).
+ * Inactive = tạm ngưng: `POST /suspension` (Approved | Published → Inactive, cần lý do) và
+ * `POST /resumption` (Inactive → Approved; muốn lên cửa hàng phải xuất bản lại).
+ */
+export const PRODUCT_TRANSITIONS: Record<BackendProductStatus, readonly BackendProductStatus[]> = {
+  Draft: ["Pending Approval"],
+  "Pending Approval": ["Approved", "Draft"],
+  Approved: ["Published", "Discontinued", "Inactive"],
+  Published: ["Approved", "Discontinued", "Inactive"],
+  Inactive: ["Approved", "Discontinued"],
+  Discontinued: [],
+};
 
 export interface ProductAction {
   readonly code: string;
   readonly label: string;
-  readonly permission: Permission;
+  readonly permission: PermissionCode;
   readonly fromStatuses: readonly ProductStatus[];
   readonly targetStatus?: ProductStatus;
-  readonly destructive?: boolean;
-}
-
-export interface SkuAction {
-  readonly code: string;
-  readonly label: string;
-  readonly permission: Permission;
-  readonly fromStatuses: readonly SkuStatus[];
-  readonly targetStatus?: SkuStatus;
+  readonly transition?:
+    | "submit"
+    | "approve"
+    | "reject"
+    | "discontinue"
+    | "publish"
+    | "unpublish"
+    | "suspend"
+    | "resume"
+    | "delete";
   readonly destructive?: boolean;
 }
 
@@ -41,130 +53,137 @@ export const PRODUCT_ACTIONS: readonly ProductAction[] = [
   {
     code: "edit",
     label: "Chỉnh sửa",
-    permission: "product.edit",
-    fromStatuses: ["Draft", "Approved", "Active", "Published", "Inactive"],
+    permission: PRODUCT_PERMISSIONS.update,
+    fromStatuses: ["Draft"],
   },
   // docs §4.8: Submit for review → Pending Approval.
   {
     code: "submit",
     label: "Gửi duyệt",
-    permission: "product.edit",
+    permission: PRODUCT_PERMISSIONS.update,
     fromStatuses: ["Draft"],
     targetStatus: "Pending Approval",
+    transition: "submit",
   },
   // docs §4.9: Approve → Approved; reject returns Draft.
   {
     code: "approve",
     label: "Phê duyệt",
-    permission: "product.approve",
+    permission: PRODUCT_PERMISSIONS.approve,
     fromStatuses: ["Pending Approval"],
     targetStatus: "Approved",
+    transition: "approve",
   },
   {
     code: "reject",
     label: "Từ chối",
-    permission: "product.approve",
+    permission: PRODUCT_PERMISSIONS.approve,
     fromStatuses: ["Pending Approval"],
     targetStatus: "Draft",
+    transition: "reject",
     destructive: true,
   },
-  // docs §4.10: Approved → Active.
-  {
-    code: "activate",
-    label: "Kích hoạt",
-    permission: "product.approve",
-    fromStatuses: ["Approved", "Inactive", "Published"],
-    targetStatus: "Active",
-  },
-  // BR-04 (01-product-creation): chỉ Published mới hiển thị trên catalog.
-  // BR-05 (01-product-creation): Customizable phải có print area trước khi Published.
   {
     code: "publish",
     label: "Xuất bản",
-    permission: "product.approve",
-    fromStatuses: ["Active"],
+    permission: PRODUCT_PERMISSIONS.approve,
+    fromStatuses: ["Approved"],
     targetStatus: "Published",
+    transition: "publish",
   },
   {
-    code: "deactivate",
-    label: "Tạm ngừng",
-    permission: "product.edit",
-    fromStatuses: ["Active", "Published"],
+    code: "unpublish",
+    label: "Gỡ xuất bản",
+    permission: PRODUCT_PERMISSIONS.approve,
+    fromStatuses: ["Published"],
+    targetStatus: "Approved",
+    transition: "unpublish",
+  },
+  // BE `ProductLifecycleController`: tạm ngưng / tiếp tục / ngừng kinh doanh là product-lifecycle:APPROVE,
+  // chỉ System Admin giữ (docs 01 §5.1). Backend vẫn kiểm lại.
+  {
+    code: "suspend",
+    label: "Tạm ngưng",
+    permission: PRODUCT_PERMISSIONS.lifecycle,
+    fromStatuses: ["Approved", "Published"],
     targetStatus: "Inactive",
+    transition: "suspend",
     destructive: true,
   },
-  // BR-02 (01-product-creation): không xoá product/SKU có tham chiếu; chỉ Inactive/Discontinued.
+  {
+    code: "resume",
+    label: "Tiếp tục kinh doanh",
+    permission: PRODUCT_PERMISSIONS.lifecycle,
+    fromStatuses: ["Inactive"],
+    targetStatus: "Approved",
+    transition: "resume",
+  },
   {
     code: "discontinue",
     label: "Ngừng kinh doanh",
-    permission: "product.edit",
-    fromStatuses: ["Inactive"],
+    permission: PRODUCT_PERMISSIONS.lifecycle,
+    fromStatuses: ["Approved", "Published", "Inactive"],
     targetStatus: "Discontinued",
+    transition: "discontinue",
     destructive: true,
   },
-] as const;
-
-export const SKU_ACTIONS: readonly SkuAction[] = [
+  // BR-02 (docs 01 §6): sản phẩm đã gửi duyệt không xoá, chỉ Inactive / Discontinued; BE
+  // `Product.requireDeletable` chỉ cho xoá DRAFT. Quyền DELETE riêng, tách khỏi APPROVE.
   {
-    code: "block",
-    label: "Khoá SKU",
-    permission: "product.edit",
-    fromStatuses: ["Active"],
-    targetStatus: "Blocked",
-    destructive: true,
-  },
-  {
-    code: "unblock",
-    label: "Mở khoá SKU",
-    permission: "product.edit",
-    fromStatuses: ["Blocked"],
-    targetStatus: "Active",
-  },
-  {
-    code: "obsolete",
-    label: "Ngừng dùng SKU",
-    permission: "product.edit",
-    fromStatuses: ["Active", "Blocked"],
-    targetStatus: "Obsolete",
+    code: "delete",
+    label: "Xoá sản phẩm",
+    permission: PRODUCT_PERMISSIONS.delete,
+    fromStatuses: ["Draft"],
+    transition: "delete",
     destructive: true,
   },
 ] as const;
 
 export function allowedProductActions(
   status: ProductStatus,
-  role: RoleName,
+  can: (permission: PermissionCode) => boolean,
 ): readonly ProductAction[] {
   return PRODUCT_ACTIONS.filter((action) => {
     if (!action.fromStatuses.includes(status)) return false;
-    if (action.targetStatus && !canTransition(PRODUCT_TRANSITIONS, status, action.targetStatus)) {
+    if (!isBackendProductStatus(status)) return false;
+    if (
+      action.targetStatus &&
+      (!isBackendProductStatus(action.targetStatus) ||
+        !canTransition(PRODUCT_TRANSITIONS, status, action.targetStatus))
+    ) {
       return false;
     }
-    return can(role, action.permission);
+    return can(action.permission);
   });
 }
 
-export function allowedSkuActions(status: SkuStatus, role: RoleName): readonly SkuAction[] {
-  return SKU_ACTIONS.filter((action) => {
-    if (!action.fromStatuses.includes(status)) return false;
-    if (action.targetStatus && !canTransition(SKU_TRANSITIONS, status, action.targetStatus)) {
-      return false;
-    }
-    return can(role, action.permission);
-  });
+export function isSelfApproval(submittedBy: string | undefined, currentUserId: string | undefined) {
+  return Boolean(submittedBy && currentUserId && submittedBy === currentUserId);
+}
+
+/**
+ * BR-PRD-003 (BE `docs/business-design/05-business-rules.md`, sửa 02/11 — BE PR #240): người duyệt
+ * khác người gửi duyệt, trừ người giữ `product-lifecycle:APPROVE` (System Admin) — ngoại lệ của luật
+ * bốn mắt docs 01 §2 / BR-12, theo quyết định owner 02/11 (migration V20261102000100). BE
+ * `ProductServiceImpl.approve` (`mayApproveOwn`). UI-only — Backend phải re-check
+ * (409 SELF_APPROVAL_NOT_ALLOWED).
+ */
+export function mayApproveProduct(
+  submittedBy: string | undefined,
+  currentUserId: string | undefined,
+  can: (permission: PermissionCode) => boolean,
+): boolean {
+  return !isSelfApproval(submittedBy, currentUserId) || can(PRODUCT_PERMISSIONS.lifecycle);
 }
 
 export function isProductTerminal(status: ProductStatus): boolean {
-  return isTerminal(PRODUCT_TRANSITIONS, status);
-}
-
-export function isSkuTerminal(status: SkuStatus): boolean {
-  return isTerminal(SKU_TRANSITIONS, status);
+  return isBackendProductStatus(status) ? isTerminal(PRODUCT_TRANSITIONS, status) : false;
 }
 
 export function nextProductStatuses(status: ProductStatus): readonly ProductStatus[] {
-  return allowedTransitions(PRODUCT_TRANSITIONS, status);
+  return isBackendProductStatus(status) ? allowedTransitions(PRODUCT_TRANSITIONS, status) : [];
 }
 
-export function nextSkuStatuses(status: SkuStatus): readonly SkuStatus[] {
-  return allowedTransitions(SKU_TRANSITIONS, status);
+function isBackendProductStatus(status: ProductStatus): status is BackendProductStatus {
+  return status !== "Active" && status !== "UNKNOWN";
 }

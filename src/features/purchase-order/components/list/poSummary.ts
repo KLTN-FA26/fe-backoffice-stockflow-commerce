@@ -1,0 +1,104 @@
+"use client";
+
+import { UI_LABELS } from "@/constants";
+
+import {
+  COLUMN_SEARCH_LABELS,
+  DEFAULT_CONFIG,
+  DEFAULT_VISIBLE_COLUMNS,
+  STATUS_OPTIONS,
+} from "./config";
+import type { PoColumnSearchKey, PurchaseOrdersPageConfig } from "./config";
+import type { ListSummaryItem } from "@/components/shared/ListToolbar";
+
+export interface PoSummaryHandlers {
+  onClearStatus: () => void;
+  onClearQ: () => void;
+  onClearFields: () => void;
+  onClearColumnSearch: () => void;
+  onClearColumns: () => void;
+}
+
+export function buildPoSummaryItems(
+  pageConfig: PurchaseOrdersPageConfig,
+  searchFields: readonly { value: string; label: string }[],
+  flags: ReturnType<typeof poListFlags>,
+  handlers: PoSummaryHandlers,
+): ListSummaryItem[] {
+  const { hasStatusFilter, hasGlobalSearch, hasFieldConfig, activeColumnSearch } = flags;
+  const { visibleColumnCount, hasColumnConfig } = flags;
+  const { onClearStatus, onClearQ, onClearFields, onClearColumnSearch, onClearColumns } = handlers;
+  return [
+    { label: "Stats", value: pageConfig.showStats ? "Đang hiện" : "Đang ẩn" },
+    {
+      label: UI_LABELS.purchaseOrder.status,
+      value: pageConfig.statuses
+        .map((s) => STATUS_OPTIONS.find((o) => o.value === s)?.label ?? s)
+        .join(", "),
+      active: hasStatusFilter,
+      onClear: onClearStatus,
+    },
+    {
+      label: "Search chính",
+      value: hasGlobalSearch
+        ? `“${pageConfig.globalSearch.query}”`
+        : UI_LABELS.purchaseOrder.notUsed,
+      active: hasGlobalSearch,
+      onClear: onClearQ,
+    },
+    {
+      label: "Trường search",
+      value:
+        pageConfig.globalSearch.fields
+          .map((f) => searchFields.find((o) => o.value === f)?.label ?? f)
+          .join(", ") || "Chưa chọn",
+      active: hasFieldConfig,
+      onClear: onClearFields,
+    },
+    {
+      label: "Search trong cột",
+      value: activeColumnSearch.length
+        ? activeColumnSearch
+            .map(([k, v]) => `${COLUMN_SEARCH_LABELS[k as PoColumnSearchKey]} “${v}”`)
+            .join(", ")
+        : UI_LABELS.purchaseOrder.notUsed,
+      active: activeColumnSearch.length > 0,
+      onClear: onClearColumnSearch,
+    },
+    {
+      label: "Cột hiển thị",
+      value: `${visibleColumnCount}/${DEFAULT_VISIBLE_COLUMNS.length - 1}`,
+      active: hasColumnConfig,
+      onClear: onClearColumns,
+    },
+  ];
+}
+
+export function poListFlags(pageConfig: PurchaseOrdersPageConfig) {
+  const hasStatusFilter = !pageConfig.statuses.includes("all");
+  const hasGlobalSearch = Boolean(pageConfig.globalSearch.query.trim());
+  const activeColumnSearch = Object.entries(pageConfig.columnSearch).filter(([, v]) =>
+    (v as string)?.trim(),
+  ) as [string, string][];
+  const hasFieldConfig =
+    pageConfig.globalSearch.fields.length !== DEFAULT_CONFIG.globalSearch.fields.length ||
+    pageConfig.globalSearch.fields.some((f) => !DEFAULT_CONFIG.globalSearch.fields.includes(f));
+  const visibleColumnCount = pageConfig.visibleColumns.filter((c) => c !== "actions").length;
+  const hasColumnConfig = visibleColumnCount !== DEFAULT_VISIBLE_COLUMNS.length - 1;
+  const hasAnyConfig =
+    hasStatusFilter ||
+    hasGlobalSearch ||
+    hasFieldConfig ||
+    activeColumnSearch.length > 0 ||
+    pageConfig.showStats ||
+    hasColumnConfig;
+  return {
+    hasStatusFilter,
+    hasGlobalSearch,
+    activeColumnSearch,
+    hasFieldConfig,
+    visibleColumnCount,
+    hasColumnConfig,
+    hasAnyConfig,
+  };
+}

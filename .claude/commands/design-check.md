@@ -6,7 +6,8 @@ allowed-tools: Grep, Glob, Read, Bash(git diff:*), Bash(git status:*)
 
 Audit `${1:-src}` xem có vi phạm design system không. **Read-only — chỉ báo cáo, không tự sửa.**
 
-Đối chiếu `.claude/rules/design-tokens.md`, `mode-a-backoffice.md`, `mode-b-storefront.md`.
+Đối chiếu `.claude/rules/design-tokens.md` (gồm _Quyết định thiết kế 2026-10_), `mode-a-backoffice.md`,
+`data-table-mode-a.md`, `mode-b-storefront.md`.
 
 ## Cần tìm
 
@@ -29,10 +30,12 @@ cạnh biến tên `status`.
 
 **5. Sai density theo mode**
 
-- Mode A phải: radius `sm`, card padding 16px, ưu tiên border hơn shadow.
+- Mode A phải (style Vercel): khối/card/nút hành động bo 8px qua `--section-radius` /
+  `--card-radius` / `--action-radius`, viền + bóng `--card-shadow`; ô nhập, badge 4px; card padding 16px.
+  Bo 8px + bóng nhẹ ở Mode A là **đúng**, không báo.
 - Mode B phải: radius `lg`/`xl`, card padding 24px, được dùng shadow.
-- Cờ đỏ: `rounded-xl` trong back-office, `rounded-sm` cho card sản phẩm storefront,
-  `p-6` trong bảng mode A, `p-4` cho card mode B.
+- Cờ đỏ: `rounded-xl` trong back-office, `shadow-md`/`shadow-lg` cho khối Mode A (chỉ `--card-shadow`),
+  `rounded-sm` cho card sản phẩm storefront, `p-6` trong bảng mode A, `p-4` cho card mode B.
 
 **6. `!important`** — cấm.
 
@@ -41,8 +44,25 @@ cạnh biến tên `status`.
 **8. Số liệu thiếu tabular-nums**: cột tiền/số lượng/mã trong bảng mà không có
 `tabular-nums`, mã định danh (SKU/PO/AWB) không dùng font mono.
 
+**9. Chưa chuyển style Vercel** — mức **nhẹ nhất**, ghi "nợ migrate" (không phải lỗi; chuyển bằng
+`/restyle <module>`). Chỉ xét `src/app/admin/**` và `src/features/**/components/**`:
+
+- Component gốc của trang (được `page.tsx` render) **không** có `surface-soft`:
+  `grep -rL "surface-soft"` trên các file component trang.
+- `<PageHeader` còn render title hiển thị: `grep -rn "<PageHeader" src/features src/app/admin`.
+- Khối/card bo 4px: `grep -rnE "<section[^>]*rounded-\[var\(--r-sm\)\]"` và class card có
+  `rounded-[var(--r-sm)] border`.
+- Combobox kiểu cũ: file có cả `PopoverContent` và `CommandInput` (ô tìm nằm trong popover)
+  **và không có `Checkbox`** — popover lọc nhiều lựa chọn có checkbox (`ListToolbar`,
+  `TaskListToolbar`) là công cụ lọc, không phải combobox, không báo.
+
+Gộp theo feature: `feature — số trang chưa chuyển — danh sách file`. Feature đã sạch thì ghi
+"đã chuyển". Đừng báo trang dùng `surface-soft` chỉ vì component con còn `rounded-[var(--r-sm)]`
+cho ô nhập/badge — 4px cho ô nhập là đúng.
+
 ## Báo cáo
 
 Liệt kê mỗi vi phạm dạng `file.tsx:42 — mô tả — token đúng phải dùng`.
-Xếp theo mức nặng: trộn theme > hex trần > thiếu StatusBadge > density > còn lại.
+Xếp theo mức nặng: trộn theme > hex trần > thiếu StatusBadge > density > còn lại > chưa chuyển
+style Vercel (mục 9, liệt kê riêng ở cuối dưới tiêu đề "Nợ migrate").
 Nếu sạch thì nói rõ đã quét những gì và không thấy vi phạm.
