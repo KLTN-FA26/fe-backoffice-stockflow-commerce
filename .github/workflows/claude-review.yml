@@ -70,7 +70,7 @@ jobs:
 
       # Comment chạy trên nhánh mặc định, nên phải chỉ rõ code của PR. Dùng head (luôn tồn tại), không
       # dùng merge ref (không có khi PR đang conflict).
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: refs/pull/${{ env.PR_NUMBER }}/head
           # Review chạy git blame / git log trên các dòng bị sửa, và git diff khi PR quá lớn cho
@@ -114,7 +114,7 @@ jobs:
       # kiểm tra nghiệp vụ - một bước checkout hỏng không đáng làm mất cả lần review.
       - name: Checkout docs
         continue-on-error: true
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: KLTN-FA26/docs
           token: ${{ secrets.DOCS_READ_TOKEN }}
@@ -126,7 +126,7 @@ jobs:
       # quyền theo role) và i18n (thông báo lỗi). Bỏ fonts và dữ liệu demo.
       - name: Checkout BE
         continue-on-error: true
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: KLTN-FA26/be-backoffice-stockflow-commerce
           ref: develop

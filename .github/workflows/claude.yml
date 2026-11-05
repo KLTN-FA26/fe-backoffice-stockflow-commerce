@@ -46,7 +46,7 @@ jobs:
       actions: read
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # "@claude review" chạy git blame / git log trên các dòng bị sửa.
           fetch-depth: 0
@@ -62,7 +62,7 @@ jobs:
       # kiểm tra nghiệp vụ - một bước checkout hỏng không đáng làm mất cả lần review.
       - name: Checkout docs
         continue-on-error: true
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: KLTN-FA26/docs
           token: ${{ secrets.DOCS_READ_TOKEN }}
@@ -74,7 +74,7 @@ jobs:
       # quyền theo role) và i18n (thông báo lỗi). Bỏ fonts và dữ liệu demo.
       - name: Checkout BE
         continue-on-error: true
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: KLTN-FA26/be-backoffice-stockflow-commerce
           ref: develop
