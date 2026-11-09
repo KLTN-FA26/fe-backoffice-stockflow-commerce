@@ -150,7 +150,7 @@ jobs:
       # Pin theo commit: tag có thể bị dời sang code khác, mà bước này giữ token.
       # Bump cả hai workflow cùng lúc, trên cả develop và main, nếu không mọi lần chạy đều fail validation.
       - id: claude
-        uses: anthropics/claude-code-action@5eb090f3c3afd701a0672cd32981197ca27688f6 # v1.0.253
+        uses: anthropics/claude-code-action@61a9c274fa7110a66dfafc1bbbced03833eb25fe # v1.0.269
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # Agent con phải chạy tiền cảnh. Trên #38, Opus chạy 6 agent review ở chế độ nền rồi kết thúc
