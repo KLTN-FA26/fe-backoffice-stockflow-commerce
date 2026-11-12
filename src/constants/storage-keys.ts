@@ -8,6 +8,7 @@ export const STORAGE_KEYS = {
   adminVariantsConfig: "stockflow:admin:variants:config",
   adminOrdersConfig: "stockflow:admin:orders:config",
   adminCreditHoldsConfig: "stockflow:admin:orders:credit-holds:config",
+  adminCancellationRequestsConfig: "stockflow:admin:orders:cancellation-requests:config",
   adminPackingConfig: "stockflow:admin:packing:config",
   adminPickingConfig: "stockflow:admin:picking:config",
   adminSuppliersConfig: "stockflow:admin:suppliers:config",

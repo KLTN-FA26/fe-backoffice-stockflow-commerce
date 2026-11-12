@@ -62,6 +62,10 @@ export const ORDER_LIMITS = {
   feeReasonMax: 500,
   /** `CancellationFeeRequest.detail` @Size(max = 2000). */
   feeDetailMax: 2000,
+  /** `ApproveCancellationRequest.note` / `RejectCancellationRequest.note` @Size(max = 1000) — docs 17 §4.8 bước 28. */
+  cancellationDecisionNoteMax: 1000,
+  /** `WindowChangeRequest.note` @NotBlank @Size(max = 1000) — docs 17 BR-28. */
+  windowChangeNoteMax: 1000,
 } as const;
 
 /** Giới hạn phiếu nhận — đúng ràng buộc request BE goods receipt (PR #62, SCRUM-435). */

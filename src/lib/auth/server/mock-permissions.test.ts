@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 import { AUTH_COOKIE_NAME, MOCK_LOGIN_PASSWORD } from "@/constants/auth";
 import {
   ATTRIBUTE_PERMISSIONS,
+  CANCELLATION_REQUEST_PERMISSIONS,
   CREDIT_HOLD_PERMISSIONS,
   CUSTOMER_CREDIT_PROFILE_PERMISSIONS,
   CUSTOMER_PERMISSIONS,
@@ -68,6 +69,8 @@ describe("explicit mock permission responses", () => {
     const CREDIT = CREDIT_HOLD_PERMISSIONS;
     // BE PR #150: SALES_STAFF quyết giao một phần (không phải ORDER_COORDINATOR); BE PR #157: ORDER_COORDINATOR
     // chọn / đổi hình thức giao; BE PR #148 ("ACCREAD"): ACCOUNTANT xem đơn
+    // WF4: SALES_STAFF + SYSTEM_ADMIN đọc hàng đợi yêu cầu huỷ (`sales-order-cancellations:READ`, resource riêng)
+    const queue = CANCELLATION_REQUEST_PERMISSIONS.read;
     const sales = [
       ORDER.viewPage,
       ORDER.read,
@@ -75,6 +78,7 @@ describe("explicit mock permission responses", () => {
       ORDER.partialShipment,
       CREDIT.viewPage,
       CREDIT.read,
+      queue,
     ];
     const coordinator = [
       ...new Set([
@@ -84,7 +88,7 @@ describe("explicit mock permission responses", () => {
       ]),
     ];
     const accountant = [ORDER.viewPage, ORDER.read, CREDIT.viewPage, CREDIT.read, CREDIT.approve];
-    const admin = [...new Set([...Object.values(ORDER), ...Object.values(CREDIT)])];
+    const admin = [...new Set([...Object.values(ORDER), ...Object.values(CREDIT), queue])];
 
     for (const id of ["USER-SALE-01", "USER-SALE-02", "USER-SALE-03"]) {
       expect(orderScope(id)).toEqual([...sales].sort());

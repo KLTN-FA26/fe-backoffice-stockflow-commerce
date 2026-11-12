@@ -31,6 +31,8 @@ import {
   LOAD_PLAN_PERMISSIONS,
   ORDER_PERMISSIONS,
   SALES_CONTRACT_PERMISSIONS,
+  CANCELLATION_REQUEST_PERMISSIONS,
+  PAYMENT_REFUND_PERMISSIONS,
   PO_PERMISSIONS,
   PRODUCT_PERMISSIONS,
   PRODUCTION_ORDER_PERMISSIONS,
@@ -203,6 +205,13 @@ const PRODUCTION_READ = PRODUCTION_ORDER_PERMISSIONS.read;
 // quản lý kho. FE chỉ dùng nó để đọc lịch giao (`GET /orders/{id}/delivery-batches`) ở hộp thoại release.
 const CONTRACT_READ = SALES_CONTRACT_PERMISSIONS.read;
 const ORDER_SALES_EXTRA = [...CREDIT_VIEW, CREDIT_PROFILE_READ, PRODUCTION_READ, CONTRACT_READ];
+// Seed BE (PermissionMatrixTest, WF4 ngoại lệ): SALES_STAFF + SYSTEM_ADMIN có hàng đợi yêu cầu huỷ (`sales-order-
+// cancellations:READ`) và dời cửa sổ giao (`sales-contracts:UPDATE`, docs 17 BR-28 "chỉ Sale"); `payment-refunds:READ` còn
+// cho ACCOUNTANT / SALES_MANAGER (đọc kết quả tất toán sau huỷ).
+const CANCELLATION_QUEUE_READ = CANCELLATION_REQUEST_PERMISSIONS.read;
+const CONTRACT_UPDATE = SALES_CONTRACT_PERMISSIONS.update;
+const REFUND_READ = PAYMENT_REFUND_PERMISSIONS.read;
+const SALES_WF4_EXTRA = [CANCELLATION_QUEUE_READ, CONTRACT_UPDATE, REFUND_READ];
 
 /** Explicit demo session responses keyed by existing staff IDs, never computed from roles. */
 export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
@@ -215,6 +224,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     CREDIT_PROFILE_READ,
     PRODUCTION_READ,
     CONTRACT_READ,
+    ...SALES_WF4_EXTRA,
     ...Object.values(REPORTING_PERMISSIONS),
     ...Object.values(PRODUCT_PERMISSIONS),
     ...PRODUCT_STRUCTURE,
@@ -297,6 +307,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...CREDIT_ALL,
     CREDIT_PROFILE_READ,
     CONTRACT_READ,
+    REFUND_READ,
   ],
   // ECOMMERCE_ADMIN: duyệt / xuất bản nhưng không tạm ngưng / ngừng kinh doanh (product-lifecycle chỉ
   // System Admin, BE PR #123)
@@ -314,6 +325,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     // Seed BE: SALES_STAFF + SYSTEM_ADMIN (không phải ORDER_COORDINATOR) quyết đơn có giao một phần không
     ORDER_PERMISSIONS.partialShipment,
     ...ORDER_SALES_EXTRA,
+    ...SALES_WF4_EXTRA,
     WAREHOUSE_READ,
     ...CUSTOMER_PRICE_READ,
     CUSTOMER_LOOKUP,
@@ -325,6 +337,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     // Seed BE: SALES_STAFF + SYSTEM_ADMIN (không phải ORDER_COORDINATOR) quyết đơn có giao một phần không
     ORDER_PERMISSIONS.partialShipment,
     ...ORDER_SALES_EXTRA,
+    ...SALES_WF4_EXTRA,
     WAREHOUSE_READ,
     ...CUSTOMER_PRICE_READ,
     CUSTOMER_LOOKUP,
@@ -336,6 +349,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     // Seed BE: SALES_STAFF + SYSTEM_ADMIN (không phải ORDER_COORDINATOR) quyết đơn có giao một phần không
     ORDER_PERMISSIONS.partialShipment,
     ...ORDER_SALES_EXTRA,
+    ...SALES_WF4_EXTRA,
     WAREHOUSE_READ,
     ...CUSTOMER_PRICE_READ,
     CUSTOMER_LOOKUP,

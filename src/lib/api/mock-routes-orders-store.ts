@@ -13,6 +13,9 @@
  * GÁN THUỘC TÍNH cho đơn có sẵn theo quy tắc, không thêm bản ghi đơn mới.
  */
 
+import { resetCancellationRequestMockStore } from "./mock-order-cancellation-requests";
+import { resetDeliveryScheduleMockStore } from "./mock-order-delivery-schedule";
+
 import type { AxiosRequestConfig } from "axios";
 import type { Order, OrderLine, OrderManagementStatus } from "@/lib/mock-data";
 
@@ -116,7 +119,7 @@ const STOCK_HOLDING_STATUSES: readonly BeOrderStatus[] = [
 ];
 
 /** Trạng thái sau release (BE `Order#release` gán `warehouseId`) — đơn mock đã có kho xử lý. */
-const RELEASED_STATUSES: readonly BeOrderStatus[] = [
+export const RELEASED_STATUSES: readonly BeOrderStatus[] = [
   "IN_PRODUCTION",
   "READY_TO_FULFILL",
   "PICKING",
@@ -410,6 +413,9 @@ const states = new Map<string, MockOrderState>();
 /** Xoá MỌI trạng thái phiên (vòng đời, công nợ, release, huỷ, lịch sử) — test gọi giữa các ca. */
 export function resetOrderMockStore(): void {
   states.clear();
+  // Yêu cầu huỷ + lịch sử dời cửa sổ gắn với đơn: xoá cùng trạng thái đơn
+  resetCancellationRequestMockStore();
+  resetDeliveryScheduleMockStore();
 }
 
 function stateById(orderId: string): MockOrderState {

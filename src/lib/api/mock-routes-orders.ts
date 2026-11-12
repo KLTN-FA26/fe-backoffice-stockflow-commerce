@@ -14,7 +14,9 @@
  */
 
 import { paginatePage, registerMockRoute } from "./mock-adapter";
+import { registerOrderCancellationRequestMockRoutes } from "./mock-routes-order-cancellation-requests";
 import { registerOrderReleaseMockRoutes } from "./mock-routes-order-release";
+import { registerOrderScheduleMockRoutes } from "./mock-routes-order-schedule";
 import { registerOrderActionMockRoutes } from "./mock-routes-orders-actions";
 import {
   BE_ORDER_STATUSES,
@@ -563,9 +565,12 @@ export function registerOrderMockRoutes(): void {
   // Đăng ký TRƯỚC `/orders/:id`: adapter khớp theo thứ tự đăng ký, `/orders/credit-holds` sẽ bị
   // `/orders/:id` nuốt nếu đăng ký sau.
   registerOrderActionMockRoutes();
+  // `/orders/cancellation-requests` cũng phải đứng trước `/orders/:id`
+  registerOrderCancellationRequestMockRoutes();
   registerReadRoutes();
   registerCancellationRoute();
   registerLifecycleRoutes();
-  // Release + đổi hình thức giao (PR #74 sở hữu release)
+  // Release; lịch giao + dời cửa sổ giao (BR-28)
   registerOrderReleaseMockRoutes();
+  registerOrderScheduleMockRoutes();
 }

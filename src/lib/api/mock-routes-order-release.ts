@@ -1,19 +1,18 @@
 /**
- * Mock routes — release đơn + lịch giao, theo hợp đồng BE `OrderReleaseController` và `DeliveryBatchController`
- * (docs 17 §4.2 bước 5, §4.5, BR-03, BR-29):
+ * Mock routes — release đơn, theo hợp đồng BE `OrderReleaseController` (docs 17 §4.2 bước 5, §4.5, BR-03, BR-29).
+ * Lịch giao (`GET /orders/:id/delivery-batches`) + dời cửa sổ giao: `mock-routes-order-schedule.ts`.
  *
  * - POST /orders/:id/release {warehouseId, deliveryBatchId?} — cần `sales-order-releases:UPDATE` (403 nếu thiếu; seed BE:
  *   quản lý kho của kho xuất). Đơn CONFIRMED → READY_TO_FULFILL (không còn IN_PRODUCTION, không còn hình thức giao);
- *   `deliveryBatchId` không phải đợt kế tiếp của đơn → 409 DELIVERY_BATCH_NOT_NEXT, đợt lạ → 404 DELIVERY_BATCH_NOT_FOUND.
- * - GET /orders/:id/delivery-batches — cần `sales-contracts:READ` (seed BE: Sales, Kế toán, quản trị — KHÔNG có quản lý
- *   kho). ASSUMPTION (mock-only): mock-data không có hợp đồng, nên mỗi đơn có đúng MỘT đợt giao gồm mọi dòng, đã giữ đủ.
+ *   `deliveryBatchId` của đơn nhưng không phải đợt kế tiếp → 409 DELIVERY_BATCH_NOT_NEXT, đợt lạ → 404 DELIVERY_BATCH_NOT_FOUND.
  *
  * Trạng thái nằm chung `lifecycleStore` của `mock-routes-orders`. Chỉ dùng khi USE_MOCK=true.
  */
 
-import { ORDER_PERMISSIONS, SALES_CONTRACT_PERMISSIONS } from "@/constants";
+import { ORDER_PERMISSIONS } from "@/constants";
 
 import { registerMockRoute } from "./mock-adapter";
+import { batchesOf, mockBatchIdOf } from "./mock-order-delivery-schedule";
 import { fail, ok } from "./mock-route-utils";
 import {
   backendStatus,
@@ -31,8 +30,7 @@ const notFound = () => fail(404, "NOT_FOUND", "Resource not found");
 const invalid = (field: string, message: string) =>
   fail(400, "VALIDATION_FAILED", "Invalid request data", [{ field, message }]);
 
-/** Id đợt giao mock: ổn định theo đơn (một đợt mỗi đơn). */
-export const mockBatchIdOf = (order: Order) => `BATCH-${order.orderId}-1`;
+export { mockBatchIdOf };
 
 /** Người dùng demo đang đăng nhập có mã quyền này không (cùng nguồn với `/identity/me/permissions`). */
 async function hasPermission(code: PermissionCode): Promise<boolean> {
@@ -66,39 +64,18 @@ export function registerOrderReleaseMockRoutes(): void {
         "ORDER_INVALID_TRANSITION",
         `Order ${order.orderNumber}: only a confirmed order can be released`,
       );
-    // BR-29: chỉ đợt kế tiếp — mock chỉ có một đợt, nên mọi mã khác là "không phải đợt của đơn"
-    if (batchId && batchId !== mockBatchIdOf(order))
+    // BR-29: chỉ đợt kế tiếp (đơn chưa release → đợt 1); đợt của đơn nhưng chưa tới lượt → 409, đợt lạ → 404
+    if (batchId && !batchesOf(order).some((batch) => batch.batchId === batchId))
       return fail(404, "DELIVERY_BATCH_NOT_FOUND", "Delivery batch not found on this order");
+    if (batchId && batchId !== mockBatchIdOf(order))
+      return fail(
+        409,
+        "DELIVERY_BATCH_NOT_NEXT",
+        "This is not the order's next delivery batch to release",
+      );
 
     setMockOrderStatus(order.orderId, "READY_TO_FULFILL");
     seedLifecycle(order).warehouseId = warehouseId;
     return ok(toOrderResponse(order));
-  });
-
-  registerMockRoute("GET", "/orders/:id/delivery-batches", async (config) => {
-    if (!(await hasPermission(SALES_CONTRACT_PERMISSIONS.read)))
-      return fail(403, "FORBIDDEN", "Access denied");
-    const order = await findOrder(readRouteId(config));
-    if (!order) return notFound();
-    const released = backendStatus(order) !== "CONFIRMED";
-    return ok({
-      orderId: order.orderId,
-      orderNumber: order.orderNumber,
-      batches: [
-        {
-          batchId: mockBatchIdOf(order),
-          seq: 1,
-          state: released ? "IN_DELIVERY" : "READY",
-          late: false,
-          ...(released ? { releasedAt: order.confirmedAt ?? order.placedAt } : {}),
-          lines: order.lines.map((line) => ({
-            orderLineId: line.lineId,
-            sku: line.skuId,
-            cartons: line.quantity,
-            heldCartons: line.quantity,
-          })),
-        },
-      ],
-    });
   });
 }
