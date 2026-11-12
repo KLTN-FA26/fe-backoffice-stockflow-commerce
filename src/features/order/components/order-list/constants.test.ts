@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import { FILTERABLE_STATUSES, STATUS_OPTIONS } from "./constants";
 
 describe("bộ lọc trạng thái danh sách đơn (BE PR #133)", () => {
-  it("có đủ 19 trạng thái BE với nhãn tiếng Việt, gồm các trạng thái mới", () => {
-    expect(STATUS_OPTIONS).toHaveLength(19);
+  it("có đủ 21 trạng thái BE với nhãn tiếng Việt, gồm các trạng thái mới", () => {
+    expect(STATUS_OPTIONS).toHaveLength(21);
     const labels = Object.fromEntries(STATUS_OPTIONS.map((o) => [o.value, o.label]));
     expect(labels).toMatchObject({
       Picking: "Đang lấy hàng",
@@ -17,6 +17,8 @@ describe("bộ lọc trạng thái danh sách đơn (BE PR #133)", () => {
       Closed: "Đã đóng",
       "On Hold": "Tạm giữ",
       Confirmed: "Đã xác nhận",
+      "Pending Contract": "Chờ ký hợp đồng",
+      "Awaiting Stock": "Đang chờ hàng",
     });
   });
 

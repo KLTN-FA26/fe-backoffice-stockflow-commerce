@@ -74,7 +74,12 @@ export type OrderActionCode =
  *   khi chưa có lô. `possible` liệt kê các trạng thái mới có thể có — mỗi cái phải là cạnh hợp lệ.
  */
 export type OrderActionOutcome =
-  | { readonly kind: "to"; readonly statuses: readonly [OrderStatus, ...OrderStatus[]] }
+  | {
+      readonly kind: "to";
+      readonly statuses: readonly [OrderStatus, ...OrderStatus[]];
+      /** Trạng thái mà thao tác để nguyên đơn tại đó (không đổi trạng thái): release đợt giao sau (17 §4.5). */
+      readonly stayIn?: readonly OrderStatus[];
+    }
   | { readonly kind: "restore-before-hold" }
   | { readonly kind: "follow-shipments"; readonly possible: readonly OrderStatus[] };
 
@@ -115,18 +120,19 @@ export function isCreditHold(context: Pick<OrderActionContext, "holdReason" | "p
 }
 
 export const ORDER_ACTIONS: readonly OrderAction[] = [
-  // BE `OrderReleaseController#release` (docs 17 §4.2 bước 5, BR-03): quản lý kho của kho xuất release đơn CONFIRMED
-  // → READY_TO_FULFILL, hàng giữ được phân bổ vào các thùng LPN cụ thể. Nợ quá hạn, giữ đủ hàng (BR-21), đúng kho
-  // xuất (BR-22), đợt giao kế tiếp (BR-29) là điều kiện server — hộp thoại release hiện lý do.
+  // BE `OrderReleaseController#release` (docs 17 §4.2 bước 5, §4.4 bước 16, §4.5, BR-03): quản lý kho của kho xuất
+  // release, hàng giữ được phân bổ vào các thùng LPN cụ thể. Trạng thái BE nhận — `Order#release` /
+  // `Order#releaseLaterBatch`: CONFIRMED, hoặc AWAITING_STOCK (đã giữ đủ thùng của đợt kế tiếp) → READY_TO_FULFILL;
+  // PARTIALLY_FULFILLED (đợt giao sau, sau khi đợt trước bàn giao) → giữ nguyên PARTIALLY_FULFILLED. Mọi trạng thái
+  // khác — kể cả ON_HOLD, phải gỡ treo trước — BE từ chối. Nợ quá hạn, giữ đủ hàng (BR-21), đúng kho xuất (BR-22),
+  // đợt giao kế tiếp (BR-29) là điều kiện server — hộp thoại release hiện lý do.
   // POST /orders/{id}/release, `sales-order-releases:UPDATE` (scope ALL) — thay cho `sales-orders:APPROVE` BE đã xoá.
-  // (Đơn Awaiting Stock đủ hàng và đợt giao sau của đơn Partially Fulfilled BE cũng cho release, nhưng FE chưa có
-  // hai trạng thái đó / luồng đợt sau — xem ghi chú PR.)
   {
     code: "release",
     label: ORDER_RELEASE_LABELS.button,
     permission: ORDER_PERMISSIONS.release,
-    fromStatuses: ["Confirmed"],
-    outcome: { kind: "to", statuses: ["Ready to Fulfill"] },
+    fromStatuses: ["Confirmed", "Awaiting Stock", "Partially Fulfilled"],
+    outcome: { kind: "to", statuses: ["Ready to Fulfill"], stayIn: ["Partially Fulfilled"] },
   },
   // SCRUM-427 / docs 14 BR-06: đơn công nợ vượt hạn mức chờ người có quyền duyệt (Order#approveCredit).
   // POST /orders/{id}/credit-approval (sales-order-credit-holds:APPROVE — ACCOUNTANT).
@@ -158,8 +164,10 @@ export const ORDER_ACTIONS: readonly OrderAction[] = [
     permission: ORDER_PERMISSIONS.cancel,
     fromStatuses: [
       "Draft",
+      "Pending Contract",
       "Pending Payment",
       "Confirmed",
+      "Awaiting Stock",
       "In Production",
       "Ready to Fulfill",
       "Picking",
@@ -184,6 +192,7 @@ export const ORDER_ACTIONS: readonly OrderAction[] = [
     permission: ORDER_PERMISSIONS.approve,
     fromStatuses: [
       "Confirmed",
+      "Awaiting Stock",
       "In Production",
       "Ready to Fulfill",
       "Picking",

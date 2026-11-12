@@ -98,6 +98,38 @@ describe("Release đơn — gate theo trạng thái và mã quyền (BE V2026111
     }
   });
 
+  // BE Order#release: CONFIRMED hoặc AWAITING_STOCK; Order#releaseLaterBatch: PARTIALLY_FULFILLED (docs 17 §4.2 / §4.4 / §4.5)
+  it("Đang chờ hàng (Awaiting Stock) và Giao một phần (đợt giao sau) → quản lý kho thấy nút Release; nhãn trạng thái không phải 'Không rõ'", async () => {
+    for (const [status, label] of [
+      ["AWAITING_STOCK", "Đang chờ hàng"],
+      ["PARTIALLY_FULFILLED", "Giao một phần"],
+    ] as const) {
+      mockOrderApiGet(ORDER_PERMISSION_SETS.warehouseManager, {
+        [DETAIL_PATH]: () => apiOrderAt(status),
+        [HISTORY_PATH]: () => [],
+      });
+      const view = await renderDetailScreen();
+      await screen.findByRole("heading", { name: apiOrder.orderNumber });
+      expect(await screen.findByRole("button", { name: "Release đơn" })).toBeEnabled();
+      expect(screen.getAllByText(label).length).toBeGreaterThan(0);
+      expect(screen.queryByText("Không rõ")).not.toBeInTheDocument();
+      view.unmount();
+      vi.restoreAllMocks();
+    }
+  });
+
+  it("Chờ ký hợp đồng (Pending Contract) → hiển thị đúng nhãn, không có nút Release", async () => {
+    mockOrderApiGet(ORDER_PERMISSION_SETS.warehouseManager, {
+      [DETAIL_PATH]: () => apiOrderAt("PENDING_CONTRACT"),
+      [HISTORY_PATH]: () => [],
+    });
+    await renderDetailScreen();
+    await screen.findByRole("heading", { name: apiOrder.orderNumber });
+    expect(screen.getAllByText("Chờ ký hợp đồng").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Không rõ")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Release đơn" })).not.toBeInTheDocument();
+  });
+
   it("đơn đã release (Ready to Fulfill) / đang giữ / đã huỷ → không còn nút Release", async () => {
     for (const status of ["READY_TO_FULFILL", "ON_HOLD", "CANCELLED", "PICKING"] as const) {
       mockOrderApiGet(ORDER_PERMISSION_SETS.warehouseManager, {
