@@ -27,6 +27,7 @@ import {
   PackageOpen,
   PackagePlus,
   Palette,
+  Handshake,
   PanelLeftClose,
   PanelLeftOpen,
   Receipt,
@@ -464,6 +465,13 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: Truck,
         permission: SHIPMENT_PERMISSIONS.viewPage,
       },
+      {
+        label: UI_LABELS.shipping.waybill.carriers.title,
+        href: ADMIN_ROUTES.carriers,
+        icon: Handshake,
+        // Danh mục hãng: xem là `fulfillment-shipments:READ`, thêm / sửa là `fulfillment-carriers:UPDATE` (resource này không có VIEW_PAGE)
+        permission: SHIPMENT_PERMISSIONS.viewPage,
+      },
     ],
   },
 ];
@@ -497,6 +505,7 @@ const DETAIL_LABEL_BY_ROUTE: Record<string, string> = {
   [INVENTORY_ROUTES.createAdjustment]: INVENTORY_LABELS.createAdjustment,
   "/admin/transfers/create": "Tạo lệnh chuyển kho",
   [ADMIN_ROUTES.loadPlans.create]: UI_LABELS.loadPlan.create,
+  [ADMIN_ROUTES.loads.waybillImport]: UI_LABELS.shipping.waybill.import.title,
 };
 
 /** Required capabilities fail closed; unassigned items remain visible; mock-only items need mock mode. */

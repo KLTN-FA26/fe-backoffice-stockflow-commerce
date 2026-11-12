@@ -227,8 +227,9 @@ describe("Fulfillment / order grants (BE PR #148, V20261022000200)", () => {
       "fulfillment-picking:UPDATE",
       "fulfillment-packing:READ",
       "fulfillment-packing:UPDATE",
-      "fulfillment-dispatch:CREATE",
       "fulfillment-dispatch:UPDATE",
+      "fulfillment-waybill-imports:READ",
+      "fulfillment-waybill-imports:CREATE",
     ])
       expect(staff).toContain(code);
     for (const code of [
@@ -236,7 +237,7 @@ describe("Fulfillment / order grants (BE PR #148, V20261022000200)", () => {
       "fulfillment-task-assignment:UPDATE",
       "fulfillment-task-oversight:READ",
       "fulfillment-design-reverification:UPDATE",
-      "fulfillment-load-cancellations:UPDATE",
+      "fulfillment-waybill-corrections:UPDATE",
       "fulfillment-carriers:UPDATE",
       "fulfillment-delivery-outcomes:UPDATE",
     ])
@@ -250,7 +251,7 @@ describe("Fulfillment / order grants (BE PR #148, V20261022000200)", () => {
       "fulfillment-task-assignment:CREATE",
       "fulfillment-task-oversight:READ",
       "fulfillment-design-reverification:READ",
-      "fulfillment-load-cancellations:UPDATE",
+      "fulfillment-waybill-corrections:UPDATE",
       "fulfillment-carriers:UPDATE",
       "fulfillment-delivery-outcomes:UPDATE",
     ])

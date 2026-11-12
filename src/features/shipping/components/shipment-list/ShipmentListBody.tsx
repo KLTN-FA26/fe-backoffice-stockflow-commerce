@@ -22,36 +22,26 @@ const L = UI_LABELS.shipping.shipments;
 
 /**
  * Vùng bảng — tách trạng thái (api-conventions §8): tải lần đầu, lỗi tải, chưa có lô, lọc không ra kết
- * quả. Hai loại empty là hai thông điệp khác nhau. `selectable`: chọn lô để mở chuyến (chỉ khi lọc lô chờ xuất).
+ * quả. Hai loại empty là hai thông điệp khác nhau.
  */
 export function ShipmentListBody({
   s,
   columns,
-  selectable,
 }: {
   s: ShipmentListState;
   columns: ColumnDef<ShipmentRow>[];
-  selectable: boolean;
 }) {
   const { query } = s;
   // Tải lại ngầm thất bại nhưng đã có dữ liệu → báo nhỏ ở MỌI trạng thái (kể cả đang rỗng)
   return (
     <>
       {query.isError && query.data && <RefetchErrorNotice onRetry={() => void query.refetch()} />}
-      <Content s={s} columns={columns} selectable={selectable} />
+      <Content s={s} columns={columns} />
     </>
   );
 }
 
-function Content({
-  s,
-  columns,
-  selectable,
-}: {
-  s: ShipmentListState;
-  columns: ColumnDef<ShipmentRow>[];
-  selectable: boolean;
-}) {
+function Content({ s, columns }: { s: ShipmentListState; columns: ColumnDef<ShipmentRow>[] }) {
   const { query } = s;
   if (!s.canRead) return <ShippingLoadError inline error={null} kind="no-read" />;
   if (query.isError && !query.data) {
@@ -111,9 +101,6 @@ function Content({
         rowKey={(row) => row.shipmentId}
         caption={`${UI_LABELS.common.showing} ${page.items.length} / ${page.totalElements} ${L.listCaption}`}
         onRowClick={s.navigateToShipment}
-        selectable={selectable}
-        selectedKeys={s.selectedKeys}
-        onSelectionChange={s.onSelectionChange}
         pageSize={s.config.pageSize}
         pageSizeOptions={PAGE_SIZE_OPTIONS}
         serverPagination={{

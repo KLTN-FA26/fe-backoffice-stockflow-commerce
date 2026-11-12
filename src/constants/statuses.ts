@@ -487,8 +487,8 @@ export const TRANSFER_STATUS = {
 export const TRANSFER_REASONS = ["REBALANCING", "DEMAND", "CAMPAIGN", "OVERFLOW", "OTHER"] as const;
 
 /**
- * Chuyến xe xuất hàng — BE `LoadStatus` (PR #137, SCRUM-288). Chuyến gửi kiện (PARCEL) bắt đầu ở
- * LOADING khi tài xế hãng tới; PLANNED / VEHICLE_BOOKED chỉ có ở chuyến nguyên xe (FTL, SCRUM-287).
+ * Chuyến xe xuất hàng — BE `LoadStatus`. Mọi chuyến là một xe của kế hoạch xếp xe (giao nguyên chuyến, docs 09 BR-08):
+ * Planned → Vehicle Booked → Loading → Dispatched, hoặc Cancelled (docs 09 §5.2).
  */
 export const LOAD_STATUSES = [
   "PLANNED",
@@ -525,6 +525,51 @@ export const DELIVERY_OUTCOMES = ["DELIVERED", "DELIVERY_FAILED", "RETURNED"] as
 
 /** BE `CarrierResponse.status` — hãng ngừng dùng thì không nhận chuyến mới. */
 export const CARRIER_STATUSES = ["ACTIVE", "INACTIVE"] as const;
+
+/**
+ * BE `CarrierConnectionType` — kiểu kết nối hãng (docs 09 §4.1): không có webhook / webhook theo chuyến /
+ * tích hợp API đặt xe (hệ thống tạo + huỷ đơn ở hãng, BR-29).
+ */
+export const CARRIER_CONNECTION_TYPES = ["MANUAL", "WEBHOOK_LOAD", "API_BOOKING"] as const;
+export type CarrierConnectionType = (typeof CARRIER_CONNECTION_TYPES)[number];
+
+export const CARRIER_CONNECTION_TYPE = {
+  MANUAL: "MANUAL",
+  WEBHOOK_LOAD: "WEBHOOK_LOAD",
+  API_BOOKING: "API_BOOKING",
+} as const satisfies Record<string, CarrierConnectionType>;
+
+/** BE `LoadResponse.CarrierBooking.status` — đơn của chuyến ở hãng tích hợp API đặt xe (BR-29). */
+export const CARRIER_BOOKING_STATUSES = [
+  "REQUESTED",
+  "BOOKED",
+  "FAILED",
+  "CANCELLED",
+  "CANCEL_FAILED",
+] as const;
+
+/** BE `WaybillChangeResponse.source` — ai điền mã vận đơn (docs 09 §4.4). */
+export const WAYBILL_SOURCES = ["MANUAL", "FILE", "WEBHOOK", "API"] as const;
+
+/** BE `WaybillImportResponse.Line.outcome` — một dòng file nhập mã vận đơn (docs 09 §4.4 bước 2). */
+export const WAYBILL_IMPORT_OUTCOMES = ["NEW", "OVERWRITE", "SAME", "ERROR"] as const;
+
+/** BE `WaybillImportResponse.Line.problem` — vì sao một dòng không áp dụng được (BR-23, BR-25). */
+export const WAYBILL_IMPORT_PROBLEMS = [
+  "MISSING_FIELDS",
+  "INVALID_WAYBILL",
+  "INVALID_VEHICLE_DETAILS",
+  "LOAD_NOT_FOUND",
+  "LOAD_OUT_OF_SCOPE",
+  "LOAD_REPEATED",
+  "LOAD_NOT_BOOKED",
+  "LOAD_CANCELLED",
+  "LOAD_LEFT",
+  "WAYBILL_FROM_CARRIER_API",
+  "DUPLICATE_IN_FILE",
+  "DUPLICATE_IN_CARRIER",
+  "OVERWRITE_NOT_CONFIRMED",
+] as const;
 
 /** BE `VehicleTypeRequest.kind` — loại phương tiện trong danh mục loại xe (docs 09 §3). */
 export const VEHICLE_TYPE_KINDS = ["CONTAINER", "TRUCK", "PICKUP"] as const;

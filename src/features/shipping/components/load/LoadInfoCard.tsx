@@ -3,7 +3,6 @@
 import { UI_LABELS } from "@/constants";
 import { isAutoCancelled } from "@/features/shipping/ftl-selectors";
 import { formatDateTime } from "@/lib/format/date";
-import { formatMoney } from "@/lib/format/money";
 import { useWarehouseDirectory } from "@/lib/references/warehouse-options";
 import { StatusDot } from "@/components/shared/StatusDot";
 
@@ -13,9 +12,10 @@ import type { Load } from "@/features/shipping/types";
 
 const L = UI_LABELS.shipping.load;
 const F = UI_LABELS.shipping.field;
+const W = UI_LABELS.shipping.waybill.card;
 const dt = (iso: string | null | undefined) => (iso ? formatDateTime(iso) : "—");
 
-/** Thông tin chuyến: kho, hãng, xe, tài xế, mốc thời gian, kết quả ký; tiến độ quét kiện. */
+/** Thông tin chuyến: kho, hãng, xe, tài xế, mã vận đơn, mốc thời gian, kết quả ký; tiến độ quét kiện. */
 export function LoadInfoCard({
   load,
   actions,
@@ -48,15 +48,8 @@ export function LoadInfoCard({
         <InfoItem label={F.vehiclePlate} value={load.vehiclePlate ?? "—"} mono />
         <InfoItem label={F.driverName} value={load.driverName ?? "—"} />
         <InfoItem label={F.driverPhone} value={load.driverPhone ?? "—"} mono />
-        <InfoItem label={L.modeLabel} value={L.mode[load.mode]} />
+        <InfoItem label={W.number} value={load.waybillNo ?? "—"} mono />
         <InfoItem label={L.startedAt} value={dt(load.loadingStartedAt)} />
-        <InfoItem
-          label={L.codTotal}
-          value={
-            load.codTotal != null && load.currency ? formatMoney(load.codTotal, load.currency) : "—"
-          }
-          mono
-        />
         {load.dispatchedAt && (
           <>
             <InfoItem label={L.dispatchedAt} value={dt(load.dispatchedAt)} />

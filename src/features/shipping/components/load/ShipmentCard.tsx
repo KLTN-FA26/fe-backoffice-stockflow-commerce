@@ -1,11 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import { CheckCircle2, ExternalLink, Trash2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 
 import { UI_LABELS } from "@/constants";
-import { formatMoney } from "@/lib/format/money";
-import { reprintLabelHref } from "@/features/shipping/errors";
 import { isShipmentComplete } from "@/features/shipping/selectors";
 import { Alert } from "@/components/shared/Alert";
 import { Button } from "@/components/ui/button";
@@ -21,44 +18,30 @@ const L = UI_LABELS.shipping.load;
 
 interface ShipmentCardProps {
   shipment: LoadShipment;
-  currency: string | null | undefined;
-  /** Lô này chặn việc bàn giao (BE nêu tên lô) → viền đỏ + lý do + lối xử lý. */
+  /** Lô này chặn việc bàn giao (BE nêu tên lô) → viền đỏ + lý do. */
   refusal?: HandoverRefusal | null;
-  canRemove: boolean;
   canUnscan: boolean;
   unscanning: boolean;
-  onRemove: (shipment: LoadShipment) => void;
   onUnscan: (shipment: LoadShipment, packageId: string) => void;
   onDismissRefusal: () => void;
 }
 
 /**
- * Một lô trên biên bản: tiến độ kiện lên xe, COD, các kiện (gỡ khỏi xe được trước bàn giao) và — khi
- * BE từ chối bàn giao vì lô này (chưa thanh toán, đơn tạm giữ, nhãn lệch COD) — lý do ngay tại lô.
+ * Một lô trên biên bản: tiến độ kiện lên xe, các kiện (gỡ khỏi xe được trước bàn giao) và — khi BE từ chối bàn giao vì lô
+ * này (đợt thanh toán chưa thu, đơn tạm giữ…) — lý do ngay tại lô.
  */
 export function ShipmentCard({
   shipment,
-  currency,
   refusal,
-  canRemove,
   canUnscan,
   unscanning,
-  onRemove,
   onUnscan,
   onDismissRefusal,
 }: ShipmentCardProps) {
   const complete = isShipmentComplete(shipment);
-  const money = (amount: number | null | undefined) =>
-    amount != null && (shipment.currency ?? currency)
-      ? formatMoney(amount, (shipment.currency ?? currency) as string)
-      : null;
-  // Lệnh chuyển kho không thu hộ: không hiện "COD trên nhãn" / "COD chốt" cho dòng của lệnh
-  const transfer = !!shipment.transferOrderId;
-  const labelCod = transfer ? null : money(shipment.labelCodAmount);
-  const fixedCod = transfer ? null : money(shipment.codAmount);
   return (
     <section
-      aria-label={`${transfer ? UI_LABELS.shipping.ftl.transfer.cardAria : UI_LABELS.shipping.shipments.title} ${shipment.code}`}
+      aria-label={`${UI_LABELS.shipping.shipments.title} ${shipment.code}`}
       className={`bg-bg-surface rounded-[var(--card-radius)] border p-[var(--card-pad)] ${
         refusal ? "border-danger" : "border-border-default"
       }`}
@@ -72,41 +55,16 @@ export function ShipmentCard({
             </span>
           )}
         </div>
-        <div className="flex items-center gap-3">
-          <LoadProgress
-            loaded={shipment.loadedCount}
-            expected={shipment.packageCount}
-            label={`${L.shipmentLoaded} ${shipment.code}`}
-          />
-          {canRemove && (
-            <Button type="button" variant="outline" size="xs" onClick={() => onRemove(shipment)}>
-              <Trash2 className="size-3" /> {L.removeShipment}
-            </Button>
-          )}
-        </div>
+        <LoadProgress
+          loaded={shipment.loadedCount}
+          expected={shipment.packageCount}
+          label={`${L.shipmentLoaded} ${shipment.code}`}
+        />
       </div>
-      {(labelCod || fixedCod) && (
-        <p className="text-ink-secondary mb-2 text-xs">
-          {labelCod && `${L.labelCod}: ${labelCod}`}
-          {labelCod && fixedCod && " · "}
-          {fixedCod && `${L.fixedCod}: ${fixedCod}`}
-        </p>
-      )}
       {refusal && (
         <Alert tone="danger" title={L.refusalTitle} className="mb-3">
           <p>{refusal.message}</p>
           <p className="mt-1">{L.refusalHint}</p>
-          {refusal.reprintLabel && (
-            <p className="mt-1">
-              {L.reprintHint}{" "}
-              <Link
-                href={reprintLabelHref(shipment.taskId)}
-                className="inline-flex items-center gap-1 underline"
-              >
-                {L.reprintLabel} <ExternalLink className="size-3" aria-hidden />
-              </Link>
-            </p>
-          )}
           <Button
             type="button"
             variant="link"

@@ -222,8 +222,22 @@ export const SHIPPING_LIMITS = {
   signatureRefMax: 255,
   noteMax: 500,
   cancelReasonMax: 500,
-  /** `LoadShipmentsRequest.shipmentIds` / `OpenLoadRequest.shipmentIds`. */
-  shipmentIdsMax: 200,
+  /** `BookingRequest.waybillNo` / `WaybillRequest.waybillNo` (`DispatchLoad.WAYBILL`: 1-64 ký tự in được). */
+  waybillNoMax: 64,
+  /** Chuỗi giờ hẹn lấy hàng từ ô `datetime-local` (`yyyy-MM-ddTHH:mm`). */
+  pickupAtMax: 32,
+  /** Hãng: `CarrierRequest` (code 2-32, name ≤ 120, người liên hệ ≤ 120, điện thoại ≤ 32). */
+  carrierCodeMin: 2,
+  carrierCodeMax: 32,
+  carrierNameMax: 120,
+  carrierContactNameMax: 120,
+  carrierContactPhoneMax: 32,
+  /** `CarrierConnectionRequest.webhookSecret`: 16-512 ký tự. */
+  webhookSecretMin: 16,
+  webhookSecretMax: 512,
+  /** File nhập mã vận đơn: `WaybillImportFile.MAX_BYTES` (1 MiB), tối đa 1.000 dòng dữ liệu. */
+  waybillImportMaxBytes: 1024 * 1024,
+  waybillImportMaxRows: 1000,
   /** Thời gian giữ màu phản hồi sau mỗi lần quét. */
   scanFeedbackMs: 1500,
   /** Chuyến đang xếp hàng (LOADING): tự tải lại để thấy kiện quét từ máy khác. */

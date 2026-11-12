@@ -1,6 +1,6 @@
 /**
- * Mock chuyến nguyên xe — kiểm tra quét kiện đúng xe (BE PR #162): nhãn cũ, kiện của xe khác kèm
- * `vehicleSeq` / `loadCode`, kiện của kế hoạch quét ở chuyến gửi kiện. Tách khỏi `mock-dispatch-ftl-rules.ts`.
+ * Mock chuyến xe — kiểm tra quét kiện đúng xe: chuyến chỉ nhận kiện kế hoạch xếp lên xe đó; kiện của xe khác → 409
+ * PACKAGE_NOT_IN_LOAD nêu xe đúng (`vehicleSeq` / `loadCode`). Tách khỏi `mock-dispatch-ftl-rules.ts`.
  */
 
 import { fail } from "./mock-route-utils";
@@ -12,39 +12,21 @@ import type { MockResponseShape } from "./mock-route-utils";
 function placedElsewhere(state: DispatchState, load: MockLoad, packageId: string) {
   return [...state.loads.values()].find(
     (other) =>
-      other.ftl &&
       other.loadId !== load.loadId &&
       other.status !== "CANCELLED" &&
       other.ftl.placed.has(packageId),
   );
 }
 
-/**
- * Quét kiện: nhãn cũ (kiện đã chuyển lô) → 409 LABEL_OUTDATED; trên xe nguyên xe chỉ nhận kiện kế hoạch xếp
- * lên xe đó — kiện của xe khác → 409 PACKAGE_NOT_IN_LOAD nêu xe đúng; trên chuyến gửi kiện, kiện của kế hoạch
- * → 409 PACKAGE_REQUIRES_LOAD_PLAN.
- */
+/** Quét kiện: kiện kế hoạch xếp lên xe khác → 409 PACKAGE_NOT_IN_LOAD kèm xe đúng; kiện ngoài kế hoạch → 409 không kèm xe. */
 export function ftlScanCheck(
   state: DispatchState,
   load: MockLoad,
   parcel: MockParcel,
 ): MockResponseShape | null {
-  if (parcel.labelOutdated && !load.loaded.has(parcel.packageId)) {
-    return fail(
-      409,
-      "LABEL_OUTDATED",
-      `Package ${parcel.labelCode} moved to another shipment since its label was printed: reprint its label before loading it`,
-    );
-  }
-  if (!load.ftl) {
-    const owner = [...state.loads.values()].find((l) => l.ftl?.placed.has(parcel.packageId));
-    return owner
-      ? fail(409, "PACKAGE_REQUIRES_LOAD_PLAN", "Full-truckload packages go through a load plan")
-      : null;
-  }
   if (load.ftl.placed.has(parcel.packageId)) return null;
   const other = placedElsewhere(state, load, parcel.packageId);
-  if (!other?.ftl) {
+  if (!other) {
     return fail(
       409,
       "PACKAGE_NOT_IN_LOAD",

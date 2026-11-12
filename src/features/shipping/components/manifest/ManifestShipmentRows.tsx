@@ -3,24 +3,14 @@ import { Check } from "lucide-react";
 import { UI_LABELS } from "@/constants";
 import { formatNumber } from "@/lib/format/number";
 
-import { ParcelBadges } from "../ftl/ParcelBadges";
 import { MONO, NUM } from "../primitives";
 
 import type { ManifestShipment } from "@/features/shipping/types";
 
 const M = UI_LABELS.shipping.manifest;
 
-/**
- * Mỗi lô: một dòng tổng (mã lô, đơn, người nhận, số kiện, cân nặng, COD) rồi các kiện của lô kèm kích
- * thước và dấu đã lên xe. `codChangedSinceLabel`: số thu theo đơn khác nhãn — in kèm ghi chú.
- */
-export function ManifestShipmentRows({
-  shipments,
-  money,
-}: {
-  shipments: readonly ManifestShipment[];
-  money: (amount: number | null | undefined) => string;
-}) {
+/** Mỗi lô: một dòng tổng (mã lô, đơn, người nhận, số kiện, cân nặng) rồi các kiện của lô kèm kích thước và dấu đã lên xe. */
+export function ManifestShipmentRows({ shipments }: { shipments: readonly ManifestShipment[] }) {
   return (
     <>
       {shipments.map((shipment) => (
@@ -32,9 +22,7 @@ export function ManifestShipmentRows({
             <td className="px-3 py-2 align-top">
               <div className={`text-ink-primary font-medium ${MONO}`}>{shipment.shipmentCode}</div>
               <div className={`text-ink-tertiary text-xs ${MONO}`}>
-                {shipment.transferOrderId
-                  ? UI_LABELS.shipping.ftl.transfer.badge
-                  : (shipment.orderNumber ?? "")}
+                {shipment.orderNumber ?? ""}
               </div>
             </td>
             <td className="px-3 py-2 align-top">
@@ -52,19 +40,11 @@ export function ManifestShipmentRows({
             <td className={`text-ink-primary px-3 py-2 align-top ${NUM}`}>
               {shipment.weightKg == null ? "—" : formatNumber(shipment.weightKg)}
             </td>
-            <td className={`text-ink-primary px-3 py-2 align-top ${NUM}`}>
-              {money(shipment.codAmount)}
-              {shipment.codChangedSinceLabel && (
-                <div className="text-warning text-xs font-normal">{M.codChanged}</div>
-              )}
-            </td>
+            <td />
           </tr>
           {shipment.packages.map((parcel) => (
             <tr key={parcel.labelCode} className="text-ink-secondary text-xs">
-              <td className={`py-1 pl-6 ${MONO}`}>
-                {parcel.labelCode}
-                <ParcelBadges parcel={parcel} />
-              </td>
+              <td className={`py-1 pl-6 ${MONO}`}>{parcel.labelCode}</td>
               <td className="px-3 py-1">
                 {[parcel.lengthCm, parcel.widthCm, parcel.heightCm].every((v) => v != null)
                   ? `${parcel.lengthCm} × ${parcel.widthCm} × ${parcel.heightCm} cm`
