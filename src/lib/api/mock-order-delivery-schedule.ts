@@ -33,7 +33,9 @@ export interface MockWindowChange {
   newEnd: string;
   reason: string;
   note: string;
-  evidenceMessageId: string;
+  /** Đúng một trong hai (BR-28): tin nhắn chat của khách hoặc tên tệp đã tải lên. */
+  evidenceMessageId: string | null;
+  evidenceFileName: string | null;
   changedBy: string;
   changedAt: string;
 }
@@ -67,6 +69,32 @@ export function batchesOf(order: Order): MockBatch[] {
   }));
 }
 
+/** Tệp bằng chứng đã xin đường tải (BE `StagedUploads` session); `received` = đã PUT lên "kho". */
+export interface MockEvidenceUpload {
+  orderId: string;
+  batchId: string;
+  fileName: string;
+  sizeBytes: number;
+  received: boolean;
+  attached: boolean;
+}
+
+const uploads = new Map<string, MockEvidenceUpload>();
+export const evidenceUploadById = (uploadId: string) => uploads.get(uploadId);
+export function saveEvidenceUpload(uploadId: string, upload: MockEvidenceUpload): void {
+  uploads.set(uploadId, upload);
+}
+
+/** Loại tệp `FileCategory.DOCUMENT` của BE và trần 25 MB. */
+export const MOCK_DOCUMENT_TYPES: readonly string[] = [
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "image/jpeg",
+  "image/png",
+];
+export const MOCK_DOCUMENT_MAX_BYTES = 25 * 1024 * 1024;
+
 const changes = new Map<string, MockWindowChange[]>();
 
 export const windowChangesOf = (orderId: string): readonly MockWindowChange[] =>
@@ -79,6 +107,7 @@ export function recordWindowChange(orderId: string, change: MockWindowChange): v
 /** Xoá mọi lần dời cửa sổ của phiên — test gọi giữa các ca (cùng `resetOrderMockStore`). */
 export function resetDeliveryScheduleMockStore(): void {
   changes.clear();
+  uploads.clear();
 }
 
 /** Cửa sổ HIỆU LỰC của một đợt: lần dời mới nhất, hoặc cửa sổ hợp đồng khi chưa dời. */

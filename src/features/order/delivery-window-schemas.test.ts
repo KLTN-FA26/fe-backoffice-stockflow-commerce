@@ -16,7 +16,9 @@ const valid = {
   windowEnd: "2026-11-23",
   reasonCode: "CUSTOMER_REQUEST",
   note: "  Khách đồng ý nhận sớm trong chat  ",
+  evidenceKind: "message",
   evidenceMessageId: ` ${MESSAGE_ID} `,
+  evidenceUploadId: "",
 };
 
 const messagesOf = (input: Record<string, unknown>, s = schema) => {
@@ -64,9 +66,30 @@ describe("buildWindowChangeSchema (BR-28)", () => {
     expect(messagesOf({ note: "x".repeat(1001) })).toEqual([L.noteTooLong]);
   });
 
-  it("bằng chứng: bắt buộc, phải là UUID", () => {
+  it("bằng chứng là tin nhắn chat: bắt buộc có mã và phải là UUID", () => {
     expect(messagesOf({ evidenceMessageId: "" })).toEqual([L.evidenceRequired]);
     expect(messagesOf({ evidenceMessageId: "khong-phai-uuid" })).toEqual([L.evidenceInvalid]);
+  });
+
+  it("bằng chứng là tệp: cần evidenceUploadId (tệp đã tải lên xong); chưa có → báo chọn tệp và chờ tải lên", () => {
+    expect(messagesOf({ evidenceKind: "file" })).toEqual([L.evidenceFileRequired]);
+    expect(messagesOf({ evidenceKind: "file", evidenceUploadId: "u-1" })).toEqual([]);
+  });
+
+  it("BR-28 ĐÚNG MỘT bằng chứng: đầu ra chỉ mang ô của kind đang chọn, dù ô kia còn dữ liệu", () => {
+    const file = schema.parse({ ...valid, evidenceKind: "file", evidenceUploadId: "u-1" });
+    expect(file).toMatchObject({ evidenceUploadId: "u-1" });
+    expect(file).not.toHaveProperty("evidenceMessageId");
+    expect(file).not.toHaveProperty("evidenceKind");
+    const message = schema.parse({ ...valid, evidenceUploadId: "u-1" });
+    expect(message).toMatchObject({ evidenceMessageId: MESSAGE_ID });
+    expect(message).not.toHaveProperty("evidenceUploadId");
+  });
+
+  it("mã tin nhắn sai định dạng vẫn bị báo khi đang chọn tệp (ô bị bỏ qua nhưng không được để rác)", () => {
+    expect(
+      messagesOf({ evidenceKind: "file", evidenceUploadId: "u", evidenceMessageId: "xxx" }),
+    ).toEqual([L.evidenceInvalid]);
   });
 
   it("đợt bị phạm thứ tự → báo đúng số đợt, kèm gợi ý dời các đợt sau", () => {

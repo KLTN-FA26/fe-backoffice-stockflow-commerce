@@ -7,7 +7,11 @@
  * - POST /orders/:id/delivery-batches/:batchId/window-change — `sales-contracts:UPDATE` (chỉ Sale). Thứ tự kiểm như BE:
  *   quyền → body (bean validation) → 404 đơn → `requireWellFormed` → `check`: đơn đã huỷ / đóng 409 CONFLICT, đợt lạ 404
  *   DELIVERY_BATCH_NOT_FOUND, đợt đã có lô giao 409 DELIVERY_BATCH_WINDOW_LOCKED, bằng chứng không phải tin nhắn khách
- *   400, ngày quá khứ 400, sai thứ tự đợt 400. Bằng chứng tệp (`evidenceUploadId`) chưa mô phỏng — mock-only.
+ *   400, ngày quá khứ 400, sai thứ tự đợt 400.
+ * - POST /orders/:id/delivery-batches/:batchId/window-change/evidence/uploads {fileName, contentType, sizeBytes, sha256}
+ *   — `sales-contracts:UPDATE`; kiểm loại / cỡ như `FileCategory.DOCUMENT` (415 / 413 / 400); trả slot với url cùng origin
+ *   `/__mock-storage/:uploadId`. PUT /__mock-storage/:uploadId đánh dấu tệp đã tới kho (mock-only). Gắn tệp chưa tới kho
+ *   hoặc đã gắn → 400 / 409 như `StagedUploads#accept`.
  *
  * Lịch giao suy từ đơn (xem `mock-order-delivery-schedule.ts`). Chỉ dùng khi USE_MOCK=true.
  */
@@ -17,7 +21,11 @@ import { toLocalIsoDate } from "@/lib/format/date";
 
 import { registerMockRoute } from "./mock-adapter";
 import {
+  MOCK_DOCUMENT_MAX_BYTES,
+  MOCK_DOCUMENT_TYPES,
   MOCK_STAFF_MESSAGE_ID,
+  evidenceUploadById,
+  saveEvidenceUpload,
   batchHasShipment,
   batchStateOf,
   batchesOf,
@@ -152,6 +160,8 @@ export function registerOrderScheduleMockRoutes(): void {
     return order ? ok(scheduleOf(order)) : notFound();
   });
 
+  registerEvidenceUploadRoutes();
+
   registerMockRoute(
     "POST",
     "/orders/:id/delivery-batches/:batchId/window-change",
@@ -167,6 +177,7 @@ export function registerOrderScheduleMockRoutes(): void {
       const note = text(body.note);
       const messageId = text(body.evidenceMessageId);
       const uploadId = text(body.evidenceUploadId);
+      const upload = uploadId ? evidenceUploadById(uploadId) : undefined;
       // WindowChangeRequest: @NotNull windowStart / windowEnd / reasonCode, @NotBlank @Size(1000) note
       if (!windowStart) return invalid("windowStart", "windowStart is required");
       if (!windowEnd) return invalid("windowEnd", "windowEnd is required");
@@ -201,11 +212,19 @@ export function registerOrderScheduleMockRoutes(): void {
         );
       if (messageId && (!isUuidText(messageId) || messageId === MOCK_STAFF_MESSAGE_ID))
         return invalid("evidenceMessageId", "The consent is a chat message the customer sent");
+      if (uploadId) {
+        // `StagedUploads#accept`: phiên của người gọi, đã tới kho, chưa gắn
+        if (!upload || upload.orderId !== order.orderId || upload.batchId !== batch.batchId)
+          return fail(404, "NOT_FOUND", "No such upload");
+        if (upload.attached) return fail(409, "CONFLICT", "Upload already attached");
+        if (!upload.received) return invalid("evidenceUploadId", "The file was never uploaded");
+      }
       if (windowStart < today())
         return invalid("windowStart", "The new window does not start in the past");
       if (breaksOrder(order, batch, windowStart))
         return invalid("windowStart", "Batch would start before the batch before it");
 
+      if (upload) saveEvidenceUpload(uploadId, { ...upload, attached: true });
       const before = windowInForce(order.orderId, batch);
       const { useAuthStore } = await import("@/lib/auth/auth-store");
       recordWindowChange(order.orderId, {
@@ -217,11 +236,72 @@ export function registerOrderScheduleMockRoutes(): void {
         newEnd: windowEnd,
         reason: reasonCode,
         note,
-        evidenceMessageId: messageId,
+        evidenceMessageId: messageId || null,
+        evidenceFileName: upload?.fileName ?? null,
         changedBy: useAuthStore.getState().user?.userId ?? "",
         changedAt: new Date().toISOString(),
       });
       return ok(scheduleOf(order));
     },
   );
+}
+
+/** Bước 1-2 của tải tệp bằng chứng (BE `DeliveryBatchService#beginEvidenceUpload` + kho đối tượng). */
+function registerEvidenceUploadRoutes(): void {
+  registerMockRoute(
+    "POST",
+    "/orders/:id/delivery-batches/:batchId/window-change/evidence/uploads",
+    async (config) => {
+      if (!(await hasMockPermission(SALES_CONTRACT_PERMISSIONS.update)))
+        return fail(403, "FORBIDDEN", "Access denied");
+      const { id = "", batchId = "" } = pathParams(config);
+      const body = bodyOf(config);
+      const fileName = text(body.fileName);
+      const contentType = text(body.contentType);
+      const sizeBytes = typeof body.sizeBytes === "number" ? body.sizeBytes : 0;
+      // UploadSlotRequest: @NotBlank fileName ≤ 255, @NotBlank contentType, @Positive sizeBytes, sha256 hex thường 64
+      if (!fileName || fileName.length > 255) return invalid("fileName", "fileName is required");
+      if (!contentType) return invalid("contentType", "contentType is required");
+      if (!(sizeBytes > 0)) return invalid("sizeBytes", "sizeBytes must be positive");
+      if (!/^[0-9a-f]{64}$/.test(text(body.sha256)))
+        return invalid("sha256", "must be a lower-case hex SHA-256");
+      const order = await findOrder(id);
+      if (!order) return notFound();
+      if (!batchesOf(order).some((b) => b.batchId === batchId))
+        return fail(404, "DELIVERY_BATCH_NOT_FOUND", "Delivery batch not found on this order");
+      // `ContentTypePolicy.check(DOCUMENT, …)`
+      if (!MOCK_DOCUMENT_TYPES.includes(contentType))
+        return fail(415, "UNSUPPORTED_MEDIA_TYPE", "This file type is not accepted");
+      if (sizeBytes > MOCK_DOCUMENT_MAX_BYTES)
+        return fail(413, "PAYLOAD_TOO_LARGE", "The uploaded file is too large");
+      const uploadId = crypto.randomUUID();
+      saveEvidenceUpload(uploadId, {
+        orderId: order.orderId,
+        batchId,
+        fileName,
+        sizeBytes,
+        received: false,
+        attached: false,
+      });
+      return ok(
+        {
+          uploadId,
+          method: "PUT",
+          url: `/__mock-storage/${uploadId}`,
+          headers: { "Content-Type": contentType },
+          expiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
+        },
+        201,
+      );
+    },
+  );
+
+  // Kho đối tượng: nhận byte đúng khai báo rồi đánh dấu đã tới (không có xác thực — URL ký sẵn)
+  registerMockRoute("PUT", "/__mock-storage/:uploadId", async (config) => {
+    const uploadId = pathParams(config).uploadId ?? "";
+    const upload = evidenceUploadById(uploadId);
+    if (!upload) return fail(403, "SIGNATURE_MISMATCH", "Request signature does not match");
+    saveEvidenceUpload(uploadId, { ...upload, received: true });
+    return { status: 200, data: null, headers: {} };
+  });
 }

@@ -3,6 +3,8 @@
  * Không import React / API — test thẳng.
  */
 
+import { WINDOW_EVIDENCE_FILE, WINDOW_CHANGE_LABELS } from "@/constants";
+
 import { WINDOW_MOVABLE_STATES } from "./delivery-batch-lifecycle";
 
 import type { DeliveryBatch } from "./delivery-batch-api";
@@ -62,4 +64,18 @@ export function isWindowMoved(
     (batch.contractWindowStart ?? null) !== (batch.windowStart ?? null) ||
     (batch.contractWindowEnd ?? null) !== (batch.windowEnd ?? null)
   );
+}
+
+/**
+ * Kiểm tệp bằng chứng TRƯỚC khi xin đường tải (BE `FileCategory.DOCUMENT`: PDF / Word / Excel / JPEG / PNG ≤ 25 MB; BE kiểm
+ * lại cả loại theo byte — 415 / 413). Trả câu lỗi tiếng Việt hoặc `null` nếu hợp lệ.
+ */
+export function evidenceFileProblem(file: Pick<File, "size" | "type">): string | null {
+  const F = WINDOW_CHANGE_LABELS.file;
+  if (file.size <= 0) return F.empty;
+  if (file.size > WINDOW_EVIDENCE_FILE.maxBytes) return F.tooLarge;
+  if (!(WINDOW_EVIDENCE_FILE.contentTypes as readonly string[]).includes(file.type)) {
+    return F.typeNotAccepted;
+  }
+  return null;
 }

@@ -7,7 +7,11 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getDeliverySchedule } from "@/features/order/delivery-batch-api";
-import { changeDeliveryWindow } from "@/features/order/delivery-window-api";
+import {
+  beginWindowEvidenceUpload,
+  changeDeliveryWindow,
+} from "@/features/order/delivery-window-api";
+import { uploadFileDirect } from "./direct-upload";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -361,5 +365,116 @@ describe("POST …/delivery-batches/:batchId/window-change — BR-28", () => {
     }
     actAs("USER-SALE-01");
     expect((await getDeliverySchedule(order.orderId)).batches[1]?.windowChanges).toEqual([]);
+  });
+});
+
+describe("bằng chứng là tệp — xin đường tải, PUT, gắn (BE StagedUploads)", () => {
+  const pdf = () => new File(["abc"], "xac-nhan.pdf", { type: "application/pdf" });
+
+  async function readyBatch() {
+    const order = orderWith("Ready to Fulfill");
+    const batchId = (await getDeliverySchedule(order.orderId)).batches[1]?.batchId ?? "";
+    return { order, batchId };
+  }
+
+  const declare =
+    (orderId: string, batchId: string) => (d: Parameters<typeof beginWindowEvidenceUpload>[2]) =>
+      beginWindowEvidenceUpload(orderId, batchId, d);
+
+  it("luồng đủ: slot → PUT → dời với evidenceUploadId; lịch sử ghi tên tệp, KHÔNG có tin nhắn", async () => {
+    const { order, batchId } = await readyBatch();
+    const uploadId = await uploadFileDirect({
+      file: pdf(),
+      declare: declare(order.orderId, batchId),
+    });
+    const schedule = await changeDeliveryWindow({
+      orderId: order.orderId,
+      batchId,
+      windowStart: inDays(30),
+      windowEnd: inDays(33),
+      reasonCode: "CUSTOMER_REQUEST",
+      note: "Khách gửi email đồng ý",
+      evidenceUploadId: uploadId,
+    });
+    expect(schedule.batches[1]?.windowChanges[0]).toMatchObject({
+      evidenceFileName: "xac-nhan.pdf",
+      reason: "CUSTOMER_REQUEST",
+    });
+    expect(schedule.batches[1]?.windowChanges[0]?.evidenceMessageId).toBeUndefined();
+  });
+
+  it("slot: loại tệp ngoài DOCUMENT → 415; quá 25 MB → 413; khai báo sai → 400; đợt lạ → 404; thiếu quyền → 403", async () => {
+    const { order, batchId } = await readyBatch();
+    const base = {
+      fileName: "a.pdf",
+      contentType: "application/pdf",
+      sizeBytes: 3,
+      sha256: "a".repeat(64),
+    };
+    expect(
+      (
+        await captureError(
+          beginWindowEvidenceUpload(order.orderId, batchId, { ...base, contentType: "image/webp" }),
+        )
+      ).code,
+    ).toBe("UNSUPPORTED_MEDIA_TYPE");
+    expect(
+      (
+        await captureError(
+          beginWindowEvidenceUpload(order.orderId, batchId, {
+            ...base,
+            sizeBytes: 26 * 1024 * 1024,
+          }),
+        )
+      ).code,
+    ).toBe("PAYLOAD_TOO_LARGE");
+    expect(
+      (
+        await captureError(
+          beginWindowEvidenceUpload(order.orderId, batchId, { ...base, sha256: "XYZ" }),
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (await captureError(beginWindowEvidenceUpload(order.orderId, "BATCH-LA", base))).code,
+    ).toBe("DELIVERY_BATCH_NOT_FOUND");
+    actAs("USER-ACC-01");
+    expect(
+      (await captureError(beginWindowEvidenceUpload(order.orderId, batchId, base))).status,
+    ).toBe(403);
+  });
+
+  it("gắn tệp chưa PUT lên kho → 400; id lạ → 404; gắn lần hai → 409 CONFLICT", async () => {
+    const { order, batchId } = await readyBatch();
+    const slot = await beginWindowEvidenceUpload(order.orderId, batchId, {
+      fileName: "a.pdf",
+      contentType: "application/pdf",
+      sizeBytes: 3,
+      sha256: "a".repeat(64),
+    });
+    const attach = (uploadId: string) =>
+      move(order.orderId, batchId, { evidenceMessageId: undefined, evidenceUploadId: uploadId });
+    expect((await captureError(attach(slot.uploadId))).status).toBe(400);
+    expect((await captureError(attach(crypto.randomUUID()))).status).toBe(404);
+    await api.put(slot.url, pdf());
+    await attach(slot.uploadId);
+    expect((await captureError(attach(slot.uploadId))).code).toBe("CONFLICT");
+  });
+
+  it("vừa tệp vừa tin nhắn → 400 (đúng MỘT bằng chứng; FE không bao giờ gửi cả hai)", async () => {
+    const { order, batchId } = await readyBatch();
+    const uploadId = await uploadFileDirect({
+      file: pdf(),
+      declare: declare(order.orderId, batchId),
+    });
+    const both = api.post(`/orders/${order.orderId}/delivery-batches/${batchId}/window-change`, {
+      windowStart: inDays(30),
+      windowEnd: inDays(31),
+      reasonCode: "SELLER_DELAY",
+      note: "x",
+      evidenceUploadId: uploadId,
+      evidenceMessageId: CONSENT,
+    });
+    expect((await captureError(both)).status).toBe(400);
   });
 });

@@ -68,6 +68,23 @@ export const ORDER_LIMITS = {
   windowChangeNoteMax: 1000,
 } as const;
 
+/**
+ * Tệp bằng chứng khách đồng ý khi dời cửa sổ giao (docs 17 BR-28; BE `FileCategory.DOCUMENT`, kiểm lại ở `StagedUploads`):
+ * PDF, Word, Excel hoặc ảnh JPEG / PNG chụp văn bản, tối đa 25 MB. FE chỉ chặn sớm — BE là bên quyết (415 / 413).
+ */
+export const WINDOW_EVIDENCE_FILE = {
+  maxBytes: 25 * 1024 * 1024,
+  contentTypes: [
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "image/jpeg",
+    "image/png",
+  ],
+  /** Giá trị `accept` của ô chọn tệp. */
+  accept: ".pdf,.docx,.xlsx,.jpg,.jpeg,.png",
+} as const;
+
 /** Giới hạn phiếu nhận — đúng ràng buộc request BE goods receipt (PR #62, SCRUM-435). */
 export const RECEIPT_LIMITS = {
   /** `ReceiptLinesRequest.lines` @Size(max = 200). */

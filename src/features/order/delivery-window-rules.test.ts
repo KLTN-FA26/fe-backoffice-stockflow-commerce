@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { DELIVERY_BATCH_TRANSITIONS, WINDOW_MOVABLE_STATES } from "./delivery-batch-lifecycle";
 import { DELIVERY_BATCH_STATES } from "./delivery-batch-schemas";
 import {
+  evidenceFileProblem,
   formatWindowRange,
   isWindowMovable,
   isWindowMoved,
@@ -94,5 +95,29 @@ describe("formatWindowRange / isWindowMoved", () => {
     expect(isWindowMoved(base)).toBe(false);
     expect(isWindowMoved({ ...base, windowStart: "2026-12-08" })).toBe(true);
     expect(isWindowMoved({ ...base, windowEnd: "2026-12-09" })).toBe(true);
+  });
+});
+
+describe("evidenceFileProblem — chặn sớm tệp bằng chứng (BE FileCategory.DOCUMENT)", () => {
+  const MB = 1024 * 1024;
+
+  it("PDF / Word / Excel / JPEG / PNG ≤ 25 MB hợp lệ", () => {
+    for (const type of [
+      "application/pdf",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "image/jpeg",
+      "image/png",
+    ]) {
+      expect(evidenceFileProblem({ type, size: 25 * MB })).toBeNull();
+    }
+  });
+
+  it("quá 25 MB, rỗng, hoặc loại khác (WebP, text, exe, không rõ loại) → câu tiếng Việt", () => {
+    expect(evidenceFileProblem({ type: "application/pdf", size: 25 * MB + 1 })).toMatch(/quá lớn/);
+    expect(evidenceFileProblem({ type: "application/pdf", size: 0 })).toMatch(/trống/);
+    for (const type of ["image/webp", "text/plain", "application/x-msdownload", ""]) {
+      expect(evidenceFileProblem({ type, size: 10 })).toMatch(/Loại tệp không được nhận/);
+    }
   });
 });

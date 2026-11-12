@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useId, useMemo } from "react";
+import { useCallback, useId, useMemo } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
 import { WINDOW_CHANGE_LABELS as L } from "@/constants";
@@ -18,7 +18,9 @@ import { buildWindowChangeSchema } from "../../delivery-window-schemas";
 import { OrderRefusalAlert } from "../OrderRefusalAlert";
 import { useOrderActionErrors } from "../useOrderActionErrors";
 
+import { useEvidenceUpload } from "./useEvidenceUpload";
 import { WindowChangeFields } from "./WindowChangeFields";
+import { WindowEvidenceField } from "./WindowEvidenceField";
 
 import type { DeliveryBatch } from "../../delivery-batch-api";
 import type { useChangeDeliveryWindow } from "../../delivery-window-mutations";
@@ -39,7 +41,10 @@ const DEFAULTS: WindowChangeFormInput = {
   windowEnd: "",
   reasonCode: "",
   note: "",
+  // Tệp là đường chứng minh chạy được hôm nay (BE chưa có endpoint tin nhắn chat để chọn)
+  evidenceKind: "file",
   evidenceMessageId: "",
+  evidenceUploadId: "",
 };
 
 /**
@@ -77,6 +82,14 @@ export function WindowChangeForm({
     });
   const windowStart = useWatch({ control: form.control, name: "windowStart" });
   const windowEnd = useWatch({ control: form.control, name: "windowEnd" });
+  const evidenceKind = useWatch({ control: form.control, name: "evidenceKind" });
+  // Tệp tải xong → id vào form (đủ điều kiện "có bằng chứng"); bắt đầu tệp mới / bỏ tệp → id rỗng
+  const { setValue } = form;
+  const setUploadId = useCallback(
+    (uploadId: string) => setValue("evidenceUploadId", uploadId, { shouldValidate: true }),
+    [setValue],
+  );
+  const upload = useEvidenceUpload(order.orderId, batch.batchId, setUploadId);
 
   const submit = form.handleSubmit((values) => {
     if (!beginSubmit()) return;
@@ -116,6 +129,14 @@ export function WindowChangeForm({
         today={today}
         windowStart={windowStart}
         windowEnd={windowEnd}
+        idPrefix={idPrefix}
+      />
+      <WindowEvidenceField
+        kind={evidenceKind}
+        onKindChange={(kind) => setValue("evidenceKind", kind, { shouldValidate: true })}
+        register={form.register}
+        upload={upload}
+        messageError={form.formState.errors.evidenceMessageId?.message}
         idPrefix={idPrefix}
       />
       {refusal && <OrderRefusalAlert view={refusal} />}

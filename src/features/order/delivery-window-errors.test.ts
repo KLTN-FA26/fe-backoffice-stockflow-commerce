@@ -5,8 +5,11 @@ import { describe, expect, it } from "vitest";
 
 import { ApiError } from "@/lib/api/error";
 
+import { DirectUploadError } from "@/lib/api/direct-upload";
+
 import {
   WINDOW_CHANGE_FIELD_ERRORS,
+  evidenceUploadErrorMessage,
   WINDOW_CHANGE_STALE_CODES,
   windowChangeErrorView,
 } from "./delivery-window-errors";
@@ -73,5 +76,59 @@ describe("WINDOW_CHANGE_STALE_CODES / WINDOW_CHANGE_FIELD_ERRORS", () => {
       "windowStart",
     ]);
     expect(WINDOW_CHANGE_FIELD_ERRORS.note.message).toMatch(/Ghi chú/);
+  });
+});
+
+describe("windowChangeErrorView — gắn tệp bằng chứng", () => {
+  it("415: byte không đúng loại tệp đã khai báo → chọn lại tệp", () => {
+    const view = windowChangeErrorView(apiError(415, "UNSUPPORTED_MEDIA_TYPE"));
+    expect(view.detail).toMatch(/không đúng loại tệp/);
+    expect(view.detail).not.toContain("English");
+  });
+
+  it("CONFLICT nêu cả hai nghĩa: đơn đã đóng HOẶC tệp đang được gắn ở yêu cầu khác", () => {
+    expect(windowChangeErrorView(apiError(409, "CONFLICT")).detail).toMatch(
+      /đang được gắn ở một yêu cầu khác/,
+    );
+  });
+
+  it("400 nhắc cả khả năng tệp chưa tải lên đầy đủ", () => {
+    expect(windowChangeErrorView(apiError(400, "VALIDATION_FAILED")).detail).toMatch(
+      /tệp đã tải lên đầy đủ/,
+    );
+  });
+});
+
+describe("evidenceUploadErrorMessage — tải tệp bằng chứng", () => {
+  it.each([
+    [415, "UNSUPPORTED_MEDIA_TYPE", /không nhận loại tệp/],
+    [413, "PAYLOAD_TOO_LARGE", /quá lớn/],
+    [400, "VALIDATION_FAILED", /Thông tin tệp không hợp lệ/],
+    [429, "RATE_LIMITED", /quá nhiều tệp/],
+    [404, "DELIVERY_BATCH_NOT_FOUND", /không còn nhận được bằng chứng/],
+    [409, "CONFLICT", /không còn nhận được bằng chứng/],
+    [403, "FORBIDDEN", /sales-contracts:UPDATE/],
+    [0, "NETWORK_ERROR", /Không kết nối được/],
+    [503, "STORAGE_ERROR", /Kho lưu trữ tệp tạm thời/],
+    [500, "SOMETHING_NEW", /Kho lưu trữ tệp tạm thời/],
+    [418, "SOMETHING_NEW", /Không tải lên được tệp/],
+  ])("%s %s → câu tiếng Việt, không lộ message tiếng Anh", (status, code, text) => {
+    const message = evidenceUploadErrorMessage(apiError(status, code));
+    expect(message).toMatch(text);
+    expect(message).toMatch(VIETNAMESE);
+    expect(message).not.toContain("English");
+  });
+
+  it("kho từ chối (hết hạn / chữ ký / byte đổi) → chọn lại tệp; mất mạng khi PUT → kiểm tra mạng", () => {
+    expect(evidenceUploadErrorMessage(new DirectUploadError("refused", 403))).toMatch(
+      /Kho lưu trữ từ chối tệp/,
+    );
+    expect(evidenceUploadErrorMessage(new DirectUploadError("network"))).toMatch(/kiểm tra mạng/);
+  });
+
+  it("lỗi lạ (ZodError, Error thường) → câu chung, không lộ nội dung lỗi", () => {
+    const message = evidenceUploadErrorMessage(new Error("boom internals"));
+    expect(message).toMatch(/Không tải lên được tệp/);
+    expect(message).not.toContain("boom");
   });
 });

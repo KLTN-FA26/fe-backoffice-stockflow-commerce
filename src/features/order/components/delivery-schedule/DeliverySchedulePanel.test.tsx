@@ -247,6 +247,7 @@ describe("Dời cửa sổ giao — form kiểm BR-28 rồi gửi đúng WindowC
     await pickDate(user, within(dialog).getByLabelText(/Đến ngày/), end);
     await pickOrderSelectOption(user, /Lý do/, /Bên bán giao trễ/);
     await user.type(within(dialog).getByRole("textbox", { name: /Ghi chú/ }), "  Xưởng in trễ  ");
+    await user.click(within(dialog).getByRole("radio", { name: "Tin nhắn chat của khách" }));
     await user.type(within(dialog).getByLabelText(/Mã tin nhắn của khách/), CONSENT_MESSAGE);
   }
 
@@ -316,6 +317,7 @@ describe("Dời cửa sổ giao — form kiểm BR-28 rồi gửi đúng WindowC
 
   it("mã tin nhắn không phải UUID → báo lỗi, chặn gửi", async () => {
     const { user, dialog } = await openDialog();
+    await user.click(within(dialog).getByRole("radio", { name: "Tin nhắn chat của khách" }));
     await user.type(within(dialog).getByLabelText(/Mã tin nhắn của khách/), "khong-phai-uuid");
     expect(await within(dialog).findByText("Mã tin nhắn phải là UUID hợp lệ")).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Dời cửa sổ giao" })).toBeDisabled();
@@ -341,6 +343,7 @@ describe("Dời cửa sổ giao — lý do BE từ chối bằng tiếng Việt"
     await pickDate(user, within(dialog).getByLabelText(/Đến ngày/), inDays(43));
     await pickOrderSelectOption(user, /Lý do/, /Khách xin dời/);
     await user.type(within(dialog).getByRole("textbox", { name: /Ghi chú/ }), "Khách xin dời");
+    await user.click(within(dialog).getByRole("radio", { name: "Tin nhắn chat của khách" }));
     await user.type(within(dialog).getByLabelText(/Mã tin nhắn của khách/), CONSENT_MESSAGE);
     const submit = within(dialog).getByRole("button", { name: "Dời cửa sổ giao" });
     await waitFor(() => expect(submit).toBeEnabled());

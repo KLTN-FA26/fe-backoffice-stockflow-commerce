@@ -21,15 +21,13 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { FormFieldError, RequiredMark } from "../FormFieldError";
 
-import { WindowEvidenceField } from "./WindowEvidenceField";
-
 import type { Control, FieldErrors, UseFormRegister } from "react-hook-form";
-import type { WindowChangeFormInput } from "../../delivery-window-schemas";
+import type { WindowChangeFormInput, WindowChangeValues } from "../../delivery-window-schemas";
 
 const LABEL = "text-ink-secondary text-xs font-medium";
 
 interface WindowChangeFieldsProps {
-  control: Control<WindowChangeFormInput>;
+  control: Control<WindowChangeFormInput, unknown, WindowChangeValues>;
   register: UseFormRegister<WindowChangeFormInput>;
   errors: FieldErrors<WindowChangeFormInput>;
   /** Hôm nay `YYYY-MM-DD` (Asia/Ho_Chi_Minh) — ngày sớm nhất chọn được (BR-28). */
@@ -40,7 +38,7 @@ interface WindowChangeFieldsProps {
   idPrefix: string;
 }
 
-/** Ô của form dời cửa sổ giao: cửa sổ mới, mã lý do, ghi chú, bằng chứng khách đồng ý. */
+/** Ô của form dời cửa sổ giao: cửa sổ mới, mã lý do, ghi chú (bằng chứng: `WindowEvidenceField`). */
 export function WindowChangeFields({
   control,
   register,
@@ -144,11 +142,6 @@ export function WindowChangeFields({
         />
         <FormFieldError id={id("note-error")} message={errors.note?.message} />
       </div>
-      <WindowEvidenceField
-        register={register}
-        error={errors.evidenceMessageId?.message}
-        idPrefix={idPrefix}
-      />
     </>
   );
 }
