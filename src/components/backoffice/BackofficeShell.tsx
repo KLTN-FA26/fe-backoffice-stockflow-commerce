@@ -3,6 +3,7 @@
 import { cn } from "cn";
 import {
   ArrowRightLeft,
+  Banknote,
   Building2,
   BellRing,
   Boxes,
@@ -30,6 +31,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Receipt,
+  ReceiptText,
   Search as SearchIcon,
   ShieldCheck,
   ShieldAlert,
@@ -84,6 +86,13 @@ import {
   WAREHOUSE_PERMISSIONS,
 } from "@/constants";
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
+import { PAYMENT_LABELS } from "@/constants/labels-payment";
+import {
+  PAYMENT_INSTALLMENT_PERMISSIONS,
+  PAYMENT_RECEIPT_PERMISSIONS,
+  PAYMENT_REFUND_PERMISSIONS,
+  PAYMENT_ROUTES,
+} from "@/constants/payment";
 
 import { NotificationBell } from "@/features/notification";
 import { warehouseBreadcrumbTail } from "@/features/warehouse-map/components/workspace/WarehouseCrumb";
@@ -373,6 +382,32 @@ export const NAV_GROUPS: NavGroup[] = [
         href: ADMIN_ROUTES.sampleRequests.list,
         icon: FlaskConical,
         permission: SAMPLE_REQUEST_PERMISSIONS.viewPage,
+      },
+    ],
+  },
+  {
+    // Kế toán: đợt thanh toán của hợp đồng đã ký → phiếu thu theo sao kê → hoàn tiền (docs 15)
+    title: PAYMENT_LABELS.navGroup,
+    icon: Banknote,
+    items: [
+      {
+        label: PAYMENT_LABELS.installments.navLabel,
+        href: PAYMENT_ROUTES.installments.list,
+        icon: CalendarClock,
+        // BE `payment-installments` (route `/payment/installments`): VIEW_PAGE mở trang
+        permission: PAYMENT_INSTALLMENT_PERMISSIONS.viewPage,
+      },
+      {
+        label: PAYMENT_LABELS.receipts.navLabel,
+        href: PAYMENT_ROUTES.receipts.list,
+        icon: ReceiptText,
+        permission: PAYMENT_RECEIPT_PERMISSIONS.viewPage,
+      },
+      {
+        label: PAYMENT_LABELS.refunds.navLabel,
+        href: PAYMENT_ROUTES.refunds.list,
+        icon: Undo2,
+        permission: PAYMENT_REFUND_PERMISSIONS.viewPage,
       },
     ],
   },
