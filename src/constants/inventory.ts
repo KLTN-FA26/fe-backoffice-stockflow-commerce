@@ -57,6 +57,8 @@ export const STOCK_ALERT_STATUSES = ["OPEN", "ACKNOWLEDGED", "RESOLVED"] as cons
 export const STOCK_ALERT_SORT_FIELDS = ["openedAt", "kind", "sku"] as const;
 export const INVENTORY_SORT_DIRECTIONS = ["asc", "desc"] as const;
 
+// BE `StockAdjustmentReason` — mọi giá trị một phiếu có thể mang (đọc). EXPIRED, SCRAP, SAMPLE, SUBCONTRACT_LOSS
+// chỉ còn trong phiếu cũ; COUNT_VARIANCE chỉ do phiếu kiểm kê sinh ra (docs 20 BR-04).
 export const STOCK_ADJUSTMENT_REASONS = [
   "DAMAGED",
   "LOST",
@@ -66,26 +68,46 @@ export const STOCK_ADJUSTMENT_REASONS = [
   "SCRAP",
   "SAMPLE",
   "OTHER",
+  "SUBCONTRACT_LOSS",
+  "COUNT_VARIANCE",
 ] as const;
 
-// Nhãn hiển thị cho lý do điều chỉnh (wire value giữ nguyên khi gửi BE). Dùng lại thuật ngữ
-// sẵn có ("Phế phẩm", "làm mẫu" trong INVENTORY_MESSAGES.writeDown).
+// Lý do người dùng được chọn khi đề nghị điều chỉnh một thùng (docs 20 BR-04). COUNT_VARIANCE không chọn
+// được; BE từ chối cả giá trị đó lẫn các lý do cũ (400 VALIDATION_FAILED).
+export const STOCK_ADJUSTMENT_REQUEST_REASONS = [
+  "DAMAGED",
+  "LOST",
+  "FOUND",
+  "DATA_CORRECTION",
+  "OTHER",
+] as const;
+
+// Nhãn hiển thị cho lý do điều chỉnh (wire value giữ nguyên khi gửi BE). Docs 20 BR-04 cho nhãn của sáu
+// lý do hiện hành; bốn lý do cũ chỉ để đọc lại phiếu đã ghi.
 export const STOCK_ADJUSTMENT_REASON_LABELS = {
-  DAMAGED: "Hư hỏng",
-  LOST: "Thất thoát",
-  FOUND: "Tìm thấy",
-  EXPIRED: "Hết hạn",
-  DATA_CORRECTION: "Điều chỉnh dữ liệu",
-  SCRAP: "Phế phẩm",
-  SAMPLE: "Làm mẫu",
-  OTHER: "Khác",
+  DAMAGED: "Thùng hỏng",
+  LOST: "Thùng mất",
+  FOUND: "Tìm thấy thùng",
+  DATA_CORRECTION: "Sửa sai dữ liệu",
+  OTHER: "Lý do khác",
+  COUNT_VARIANCE: "Chênh lệch kiểm kê",
+  EXPIRED: "Hết hạn (phiếu cũ)",
+  SCRAP: "Phế phẩm (phiếu cũ)",
+  SAMPLE: "Làm mẫu (phiếu cũ)",
+  SUBCONTRACT_LOSS: "Hao hụt gia công (phiếu cũ)",
 } as const satisfies Record<(typeof STOCK_ADJUSTMENT_REASONS)[number], string>;
 
 export const STOCK_ADJUSTMENT_REASON = {
   OTHER: "OTHER",
-  SAMPLE: "SAMPLE",
-  SCRAP: "SCRAP",
+  COUNT_VARIANCE: "COUNT_VARIANCE",
 } as const;
+
+// BE `AdjustmentDirection` (docs 20 §4.3): ghi giảm cả thùng, hoặc nạp lại thùng `Lost` tìm được.
+export const STOCK_ADJUSTMENT_DIRECTIONS = ["WRITE_OFF", "RESTOCK"] as const;
+export const STOCK_ADJUSTMENT_DIRECTION_LABELS = {
+  WRITE_OFF: "Ghi giảm cả thùng",
+  RESTOCK: "Nạp lại thùng đã mất",
+} as const satisfies Record<(typeof STOCK_ADJUSTMENT_DIRECTIONS)[number], string>;
 
 // Backend develop 0f18f24 StockMovement.MovementType — the values GET /movements?type= accepts.
 // Responses carry `type` as a String and may hold values newer than this list.
@@ -105,7 +127,7 @@ export const STOCK_ADJUSTMENT_ACTION = {
 } as const;
 
 export const INVENTORY_LIMITS = {
-  delta: 1_000_000,
+  lpnLength: 30,
   locationLength: 64,
   lotLength: 64,
   noteLength: 1000,
@@ -118,8 +140,6 @@ export const INVENTORY_LIMITS = {
 export const INVENTORY_MESSAGES = {
   invalidContract: "Dữ liệu tồn kho trả về không đúng định dạng.",
   required: "Trường bắt buộc",
-  nonzeroDelta: "Số lượng điều chỉnh phải khác 0.",
-  writeDown: "Phế phẩm và làm mẫu chỉ được giảm tồn kho.",
   otherNote: "Cần giải thích khi chọn lý do khác.",
   invalidSku: "SKU gồm 1–64 ký tự chữ, số, '.', '_' hoặc '-', bắt đầu bằng chữ hoặc số.",
   requestFailed: "Không thực hiện được yêu cầu tồn kho.",
@@ -131,6 +151,8 @@ export const INVENTORY_ROUTES = {
   adjustments: "/admin/inventory/adjustments",
   createAdjustment: "/admin/inventory/adjustments/create",
   adjustment: (id: string) => `/admin/inventory/adjustments/${encodeURIComponent(id)}`,
+  // Cách ly / gỡ cách ly thùng (docs 20 §4.8): LPN trên URL `?lpn=`.
+  quarantine: "/admin/inventory/quarantine",
   // Đích deep link của thông báo INVENTORY_ALERT (BE InventoryAlertMessages: `?kind=…&warehouseId=…`).
   alerts: "/admin/inventory/alerts",
 } as const;
@@ -150,8 +172,16 @@ export const INVENTORY_LABELS = {
   adjustmentDetail: "Chi tiết điều chỉnh",
   adjustmentNumber: "Mã điều chỉnh",
   adjustmentReason: "Lý do điều chỉnh",
-  quantityDelta: "Chênh lệch số lượng",
-  quantityDeltaHelp: "Theo đơn vị cơ sở của SKU; số dương tăng tồn, số âm giảm tồn.",
+  quantityDelta: "Chênh lệch",
+  carton: "Thùng",
+  lpn: "LPN thùng",
+  lpnPlaceholder: "Quét hoặc nhập LPN, ví dụ LPN-20261110-000001",
+  lpnHelp: "Mỗi phiếu điều chỉnh đúng một thùng — không điều chỉnh một phần thùng (docs 20 BR-14).",
+  direction: "Chiều điều chỉnh",
+  chooseDirection: "Chọn chiều điều chỉnh",
+  cartonWholeDelta: (delta: number) =>
+    `${delta > 0 ? "+" : "−"}1 thùng (${delta > 0 ? "+" : "−"}${Math.abs(delta).toLocaleString("vi-VN")} cái)`,
+  countVarianceNoWithdraw: "Chênh lệch kiểm kê chỉ được duyệt hoặc từ chối, không rút lại.",
   status: "Trạng thái",
   requestedAt: "Ngày yêu cầu",
   requestedBy: "Người yêu cầu",
@@ -300,10 +330,23 @@ export const STOCK_MOVEMENT_LABELS = {
 // Inventory API failures by BE `errorCode` (develop 0f18f24 ErrorCode.java). Never show the
 // backend `message`: it is English prose, not a contract.
 export const INVENTORY_ERROR_MESSAGES = {
-  selfApproval: "Người tạo yêu cầu không thể tự duyệt hoặc từ chối yêu cầu của mình.",
+  // BE ErrorCode.ADJUSTMENT_SELF_APPROVAL: cả người đề nghị lẫn — với chênh lệch kiểm kê — người đã đếm dòng đó.
+  selfApproval:
+    "Người tạo yêu cầu — hoặc người đã đếm dòng kiểm kê tạo ra chênh lệch này — không thể tự duyệt hay từ chối.",
   transition: "Trạng thái yêu cầu đã thay đổi nên thao tác này không còn khả dụng.",
   concurrentChange: "Yêu cầu vừa được người khác cập nhật. Dữ liệu mới nhất đã được tải lại.",
   notRequester: "Chỉ người tạo yêu cầu mới được rút yêu cầu điều chỉnh.",
+  countVarianceNoWithdraw: "Chênh lệch kiểm kê chỉ được duyệt hoặc từ chối, không rút lại.",
+  cartonNotFound: "Không tìm thấy thùng có LPN này trong phạm vi kho bạn được xem.",
+  cartonTransition:
+    "Thùng đang ở trạng thái không cho phép thao tác này: ghi giảm cần thùng đang trong kho, nạp lại cần thùng đã thất lạc.",
+  cartonHeld:
+    "Thùng đang được giữ cho một đơn hàng. Nhả hoặc phân bổ lại thùng cho đơn trước, rồi mới điều chỉnh.",
+  cartonUnderCount: "Thùng đang nằm trên một phiếu kiểm kê nên chưa điều chỉnh được.",
+  cartonAdjustmentPending: "Thùng này đã có một điều chỉnh khác đang chờ duyệt.",
+  cartonDecisionPending: "Thùng này đang chờ một quyết định khác (cất hàng hoặc ghi giảm).",
+  reasonNotForCarton:
+    "Điều chỉnh thùng chỉ dùng lý do thùng hỏng, thùng mất, tìm thấy thùng, sửa sai dữ liệu hoặc lý do khác.",
   outOfScope: "Bạn không có quyền với dữ liệu tồn kho của kho này.",
   stockItemNotFound: "Không tìm thấy tồn kho của SKU/lô tại vị trí này.",
   adjustmentNotFound:

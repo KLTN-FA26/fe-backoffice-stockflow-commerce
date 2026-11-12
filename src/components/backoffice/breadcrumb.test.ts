@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import { ADMIN_ROUTES } from "@/constants";
+import { CYCLE_COUNT_LABELS, CYCLE_COUNT_ROUTES } from "@/constants/cycle-count";
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
+import { QUARANTINE_LABELS } from "@/constants/quarantine";
 
 import { buildBreadcrumbItems } from "./BackofficeShell";
 
@@ -110,6 +112,27 @@ describe("buildBreadcrumbItems", () => {
       root,
       parent,
       { label: id },
+    ]);
+  });
+
+  it("kiểm kê: danh sách và chi tiết phiếu nằm dưới menu Kiểm kê", () => {
+    const root = { label: "Back-office", href: "/admin" };
+    expect(buildBreadcrumbItems(CYCLE_COUNT_ROUTES.list)).toEqual([
+      root,
+      { label: CYCLE_COUNT_LABELS.title, href: undefined },
+    ]);
+    const id = "d0000001-0000-4000-8000-00000000000a";
+    expect(buildBreadcrumbItems(CYCLE_COUNT_ROUTES.detail(id))).toEqual([
+      root,
+      { label: CYCLE_COUNT_LABELS.title, href: CYCLE_COUNT_ROUTES.list },
+      { label: id },
+    ]);
+  });
+
+  it("cách ly thùng có breadcrumb riêng, không lẫn với Điều chỉnh tồn", () => {
+    expect(buildBreadcrumbItems(INVENTORY_ROUTES.quarantine)).toEqual([
+      { label: "Back-office", href: "/admin" },
+      { label: QUARANTINE_LABELS.title, href: undefined },
     ]);
   });
 

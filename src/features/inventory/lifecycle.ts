@@ -1,12 +1,11 @@
-import { STOCK_ADJUSTMENT_ACTION } from "@/constants/inventory";
+import { STOCK_ADJUSTMENT_ACTION, STOCK_ADJUSTMENT_REASON } from "@/constants/inventory";
 import { INVENTORY_PERMISSIONS } from "@/constants/permissions";
 import { STOCK_ADJUSTMENT_STATUS } from "@/constants/statuses";
 
 import type { StockAdjustmentStatus } from "@/constants/statuses";
 import type { PermissionCode } from "@/lib/auth";
 
-// BR-STK-005 (backend docs/business-design/04c-all-flows.md F-CNT).
-// StockAdjustment.java (SCRUM-424): approval and posting are one transaction.
+// Docs 20 §5.3 + BR-05: approval and posting are one transaction (StockAdjustment.java).
 export const ADJUSTMENT_TRANSITIONS = {
   [STOCK_ADJUSTMENT_STATUS.PENDING_APPROVAL]: [
     STOCK_ADJUSTMENT_STATUS.POSTED,
@@ -27,10 +26,13 @@ export function allowedAdjustmentActions(
   can: (code: PermissionCode) => boolean,
   userId: string | undefined,
   requestedBy: string,
+  reason?: string,
 ): Array<(typeof STOCK_ADJUSTMENT_ACTION)[keyof typeof STOCK_ADJUSTMENT_ACTION]> {
   if (status !== STOCK_ADJUSTMENT_STATUS.PENDING_APPROVAL || !userId) return [];
   // StockAdjustment.withdraw: only the requester, while pending.
   if (userId === requestedBy) {
+    // BR-06 (docs 20): chênh lệch kiểm kê chỉ được duyệt hoặc từ chối, không rút lại.
+    if (reason === STOCK_ADJUSTMENT_REASON.COUNT_VARIANCE) return [];
     return can(INVENTORY_PERMISSIONS.stockUpdate) ? [STOCK_ADJUSTMENT_ACTION.WITHDRAW] : [];
   }
   // StockAdjustment.approveAndPost/reject: requester cannot decide own request.

@@ -61,6 +61,25 @@ function known(code: string): Pick<InventoryErrorView, "kind" | "detail" | "titl
     // StockAdjustment.withdraw — 403 for a non-requester; an action error, not a view denial.
     case "ADJUSTMENT_NOT_REQUESTER":
       return { kind: "forbidden", title: TITLES.conflict, detail: M.notRequester };
+    // StockAdjustment.withdraw — 409, a COUNT_VARIANCE is decided, never withdrawn (docs 20 BR-06).
+    case "COUNT_VARIANCE_NOT_WITHDRAWABLE":
+      return { kind: "conflict", title: TITLES.conflict, detail: M.countVarianceNoWithdraw };
+    // Carton adjustments (docs 20 §4.3, BR-14) and the approval of a count variance.
+    case "STOCK_PACKAGE_NOT_FOUND":
+      return { kind: "not-found", title: TITLES["not-found"], detail: M.cartonNotFound };
+    case "INVALID_STOCK_PACKAGE_TRANSITION":
+      return { kind: "conflict", title: TITLES.conflict, detail: M.cartonTransition };
+    // The carton is held for an order: reallocate the short pick first, then approve the write-off.
+    case "STOCK_PACKAGE_HELD":
+      return { kind: "conflict", title: TITLES.conflict, detail: M.cartonHeld };
+    case "STOCK_SLOT_UNDER_COUNT":
+      return { kind: "conflict", title: TITLES.conflict, detail: M.cartonUnderCount };
+    case "STOCK_PACKAGE_ADJUSTMENT_PENDING":
+      return { kind: "conflict", title: TITLES.conflict, detail: M.cartonAdjustmentPending };
+    case "STOCK_PACKAGE_DECISION_PENDING":
+      return { kind: "conflict", title: TITLES.conflict, detail: M.cartonDecisionPending };
+    case "STOCK_ADJUSTMENT_REASON_NOT_FOR_CARTON":
+      return { kind: "validation", title: TITLES.validation, detail: M.reasonNotForCarton };
     // WarehouseScope.requireLocation — 403.
     case "OUT_OF_DATA_SCOPE":
       return { kind: "forbidden", title: TITLES.forbidden, detail: M.outOfScope };

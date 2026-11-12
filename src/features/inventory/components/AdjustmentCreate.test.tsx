@@ -9,6 +9,7 @@ import {
   INVENTORY_ERROR_MESSAGES,
   INVENTORY_LABELS,
   INVENTORY_ROUTES,
+  STOCK_ADJUSTMENT_DIRECTION_LABELS,
   STOCK_ADJUSTMENT_REASON_LABELS,
 } from "@/constants/inventory";
 import { INVENTORY_PERMISSIONS } from "@/constants/permissions";
@@ -39,6 +40,13 @@ async function pickReason(label: string) {
   await userEvent.click(screen.getByRole("combobox", { name: /Lý do điều chỉnh/ }));
   await userEvent.click(await screen.findByRole("option", { name: label }));
 }
+
+async function pickDirection(label: string) {
+  await userEvent.click(screen.getByRole("combobox", { name: /Chiều điều chỉnh/ }));
+  await userEvent.click(await screen.findByRole("option", { name: label }));
+}
+
+const LPN = "LPN-20261110-000001";
 beforeEach(() => {
   localStorage.clear();
   navigation.push.mockClear();
@@ -54,20 +62,29 @@ afterAll(() => {
 });
 
 async function enterAdjustment() {
-  await userEvent.type(await screen.findByLabelText(/Vị trí/), "HCM-A01-1-A");
-  await userEvent.type(screen.getByLabelText(/SKU/), "CUP-PP-500");
-  await userEvent.type(screen.getByLabelText(/Chênh lệch số lượng/), "-3");
+  await userEvent.type(await screen.findByLabelText(/LPN thùng/), LPN);
+  await pickDirection(STOCK_ADJUSTMENT_DIRECTION_LABELS.WRITE_OFF);
 }
 
-describe("adjustment create form", () => {
-  it("requires a reason before submitting", async () => {
+describe("adjustment create form (one whole carton, docs 20 §4.3)", () => {
+  it("requires a direction and a reason before submitting", async () => {
     renderInventory(<AdjustmentCreate />);
-    await enterAdjustment();
+    await userEvent.type(await screen.findByLabelText(/LPN thùng/), LPN);
     expect(screen.getByRole("button", { name: INVENTORY_LABELS.submitAdjustment })).toBeDisabled();
-    await pickReason(STOCK_ADJUSTMENT_REASON_LABELS.SCRAP);
+    await pickDirection(STOCK_ADJUSTMENT_DIRECTION_LABELS.WRITE_OFF);
+    expect(screen.getByRole("button", { name: INVENTORY_LABELS.submitAdjustment })).toBeDisabled();
+    await pickReason(STOCK_ADJUSTMENT_REASON_LABELS.DAMAGED);
     await waitFor(() =>
       expect(screen.getByRole("button", { name: INVENTORY_LABELS.submitAdjustment })).toBeEnabled(),
     );
+  });
+
+  it("has no quantity field: a carton is adjusted whole", async () => {
+    renderInventory(<AdjustmentCreate />);
+    await screen.findByLabelText(/LPN thùng/);
+    expect(screen.queryByLabelText(/Chênh lệch/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/SKU/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Vị trí/)).not.toBeInTheDocument();
   });
 
   it("sends the contract payload and opens the returned detail", async () => {
@@ -81,7 +98,7 @@ describe("adjustment create form", () => {
     );
     renderInventory(<AdjustmentCreate />);
     await enterAdjustment();
-    await pickReason(STOCK_ADJUSTMENT_REASON_LABELS.SCRAP);
+    await pickReason(STOCK_ADJUSTMENT_REASON_LABELS.DAMAGED);
     await userEvent.click(screen.getByRole("button", { name: INVENTORY_LABELS.submitAdjustment }));
     await waitFor(() =>
       expect(navigation.push).toHaveBeenCalledWith(
@@ -89,10 +106,30 @@ describe("adjustment create form", () => {
       ),
     );
     expect(submitted).toHaveBeenCalledWith({
-      locationCode: "HCM-A01-1-A",
-      sku: "CUP-PP-500",
-      quantityDelta: -3,
-      reason: "SCRAP",
+      lpn: LPN,
+      direction: "WRITE_OFF",
+      reason: "DAMAGED",
+    });
+  });
+
+  it("upper-cases a scanned LPN before sending", async () => {
+    const submitted = vi.fn();
+    server.use(
+      http.post(endpoint, async ({ request }) => {
+        submitted(await request.json());
+        return HttpResponse.json({ success: true, data: adjustmentFixture() }, { status: 201 });
+      }),
+    );
+    renderInventory(<AdjustmentCreate />);
+    await userEvent.type(await screen.findByLabelText(/LPN thùng/), LPN.toLowerCase());
+    await pickDirection(STOCK_ADJUSTMENT_DIRECTION_LABELS.RESTOCK);
+    await pickReason(STOCK_ADJUSTMENT_REASON_LABELS.FOUND);
+    await userEvent.click(screen.getByRole("button", { name: INVENTORY_LABELS.submitAdjustment }));
+    await waitFor(() => expect(submitted).toHaveBeenCalled());
+    expect(submitted.mock.lastCall?.[0]).toMatchObject({
+      lpn: LPN,
+      direction: "RESTOCK",
+      reason: "FOUND",
     });
   });
 
@@ -115,8 +152,8 @@ describe("adjustment create form", () => {
           {
             success: false,
             errorCode: "VALIDATION_FAILED",
-            message: "Unknown stock row",
-            fieldErrors: [{ field: "locationCode", message: "Unknown location" }],
+            message: "Unknown carton",
+            fieldErrors: [{ field: "lpn", message: "Unknown LPN" }],
             correlationId: "create-test",
           },
           { status: 422 },
@@ -125,36 +162,65 @@ describe("adjustment create form", () => {
     );
     renderInventory(<AdjustmentCreate />);
     await enterAdjustment();
-    await pickReason(STOCK_ADJUSTMENT_REASON_LABELS.SCRAP);
+    await pickReason(STOCK_ADJUSTMENT_REASON_LABELS.DAMAGED);
     await userEvent.click(screen.getByRole("button", { name: INVENTORY_LABELS.submitAdjustment }));
-    expect(await screen.findByText("Unknown location")).toBeInTheDocument();
-    expect(screen.getByLabelText(/Vị trí/)).toHaveAttribute("aria-invalid", "true");
+    expect(await screen.findByText("Unknown LPN")).toBeInTheDocument();
+    expect(screen.getByLabelText(/LPN thùng/)).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByText(/create-test/)).toBeInTheDocument();
     expect(screen.getByText(INVENTORY_ERROR_MESSAGES.validation)).toBeInTheDocument();
-    expect(screen.queryByText("Unknown stock row")).not.toBeInTheDocument();
+    expect(screen.queryByText("Unknown carton")).not.toBeInTheDocument();
     expect(navigation.push).not.toHaveBeenCalled();
   });
 
-  it("names the missing stock row, not the adjustment, for STOCK_ITEM_NOT_FOUND", async () => {
-    server.use(
-      http.post(endpoint, () =>
-        HttpResponse.json(
-          {
-            success: false,
-            errorCode: "STOCK_ITEM_NOT_FOUND",
-            message: "No CUP-PP-500 at HCM-A01-1-A",
-          },
-          { status: 404 },
+  it.each([
+    ["STOCK_PACKAGE_NOT_FOUND", 404, INVENTORY_ERROR_MESSAGES.cartonNotFound],
+    ["STOCK_PACKAGE_HELD", 409, INVENTORY_ERROR_MESSAGES.cartonHeld],
+    ["STOCK_PACKAGE_ADJUSTMENT_PENDING", 409, INVENTORY_ERROR_MESSAGES.cartonAdjustmentPending],
+    ["INVALID_STOCK_PACKAGE_TRANSITION", 409, INVENTORY_ERROR_MESSAGES.cartonTransition],
+    ["STOCK_SLOT_UNDER_COUNT", 409, INVENTORY_ERROR_MESSAGES.cartonUnderCount],
+  ])(
+    "says what is wrong with the carton for %s, never the backend text",
+    async (code, status, text) => {
+      server.use(
+        http.post(endpoint, () =>
+          HttpResponse.json(
+            { success: false, errorCode: code, message: "English backend prose" },
+            { status },
+          ),
         ),
-      ),
-    );
+      );
+      renderInventory(<AdjustmentCreate />);
+      await enterAdjustment();
+      await pickReason(STOCK_ADJUSTMENT_REASON_LABELS.DAMAGED);
+      await userEvent.click(
+        screen.getByRole("button", { name: INVENTORY_LABELS.submitAdjustment }),
+      );
+      expect(await screen.findByText(text)).toBeInTheDocument();
+      expect(screen.queryByText(/English backend prose/)).not.toBeInTheDocument();
+      expect(navigation.push).not.toHaveBeenCalled();
+    },
+  );
+
+  it("offers only the five reasons a person may choose", async () => {
     renderInventory(<AdjustmentCreate />);
-    await enterAdjustment();
-    await pickReason(STOCK_ADJUSTMENT_REASON_LABELS.SCRAP);
-    await userEvent.click(screen.getByRole("button", { name: INVENTORY_LABELS.submitAdjustment }));
-    expect(await screen.findByText(INVENTORY_ERROR_MESSAGES.stockItemNotFound)).toBeInTheDocument();
-    expect(screen.queryByText(/No CUP-PP-500/)).not.toBeInTheDocument();
-    expect(navigation.push).not.toHaveBeenCalled();
+    await userEvent.click(await screen.findByRole("combobox", { name: /Lý do điều chỉnh/ }));
+    const options = (await screen.findAllByRole("option")).map((option) => option.textContent);
+    expect(options).toEqual([
+      STOCK_ADJUSTMENT_REASON_LABELS.DAMAGED,
+      STOCK_ADJUSTMENT_REASON_LABELS.LOST,
+      STOCK_ADJUSTMENT_REASON_LABELS.FOUND,
+      STOCK_ADJUSTMENT_REASON_LABELS.DATA_CORRECTION,
+      STOCK_ADJUSTMENT_REASON_LABELS.OTHER,
+    ]);
+    expect(screen.queryByRole("option", { name: /Chênh lệch kiểm kê/ })).not.toBeInTheDocument();
+  });
+
+  it("fills the form from the quarantine screen's write-off link", async () => {
+    renderInventory(<AdjustmentCreate />, `?lpn=${LPN}&direction=WRITE_OFF&reason=DAMAGED`);
+    expect(await screen.findByLabelText(/LPN thùng/)).toHaveValue(LPN);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: INVENTORY_LABELS.submitAdjustment })).toBeEnabled(),
+    );
   });
 
   it("a formerly privileged role without stock UPDATE cannot create", async () => {
@@ -197,7 +263,7 @@ describe("adjustment create form", () => {
     );
     renderInventory(<AdjustmentCreate />);
     await enterAdjustment();
-    await pickReason(STOCK_ADJUSTMENT_REASON_LABELS.SCRAP);
+    await pickReason(STOCK_ADJUSTMENT_REASON_LABELS.DAMAGED);
     const submit = screen.getByRole("button", { name: INVENTORY_LABELS.submitAdjustment });
     await waitFor(() => expect(submit).toBeEnabled());
     const form = submit.closest("form");
@@ -232,13 +298,13 @@ describe("adjustment create form", () => {
     );
     renderInventory(<AdjustmentCreate />);
     await enterAdjustment();
-    await pickReason(STOCK_ADJUSTMENT_REASON_LABELS.SCRAP);
+    await pickReason(STOCK_ADJUSTMENT_REASON_LABELS.DAMAGED);
     await userEvent.click(screen.getByRole("button", { name: INVENTORY_LABELS.submitAdjustment }));
     expect(await screen.findByText(INVENTORY_ERROR_MESSAGES.server)).toBeInTheDocument();
     // The user corrects the form (a server error keeps submit disabled until an edit).
-    const delta = screen.getByLabelText(/Chênh lệch số lượng/);
-    await userEvent.clear(delta);
-    await userEvent.type(delta, "-2");
+    const lpn = screen.getByLabelText(/LPN thùng/);
+    await userEvent.clear(lpn);
+    await userEvent.type(lpn, "LPN-20261110-000002");
     const submit = screen.getByRole("button", { name: INVENTORY_LABELS.submitAdjustment });
     await waitFor(() => expect(submit).toBeEnabled());
     await userEvent.click(submit);
@@ -262,19 +328,19 @@ describe("adjustment create form", () => {
     renderInventory(<AdjustmentCreate />);
     await enterAdjustment();
     await userEvent.click(screen.getByRole("combobox", { name: /Lý do điều chỉnh/ }));
-    expect(await screen.findByRole("option", { name: "Hư hỏng" })).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: "Thùng hỏng" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "DAMAGED" })).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("option", { name: "Hư hỏng" }));
+    await userEvent.click(screen.getByRole("option", { name: "Thùng hỏng" }));
     await userEvent.click(screen.getByRole("button", { name: INVENTORY_LABELS.submitAdjustment }));
     await waitFor(() => expect(submitted).toHaveBeenCalled());
     expect(submitted.mock.lastCall?.[0]).toMatchObject({ reason: "DAMAGED" });
   });
 
-  it("explains that the delta is in the SKU base unit", async () => {
+  it("explains that a carton is adjusted whole", async () => {
     renderInventory(<AdjustmentCreate />);
-    const delta = await screen.findByLabelText(/Chênh lệch số lượng/);
-    const help = screen.getByText(INVENTORY_LABELS.quantityDeltaHelp);
+    const lpn = await screen.findByLabelText(/LPN thùng/);
+    const help = screen.getByText(INVENTORY_LABELS.lpnHelp);
     expect(help.id).toBeTruthy();
-    expect(delta.getAttribute("aria-describedby")?.split(" ")).toContain(help.id);
+    expect(lpn.getAttribute("aria-describedby")?.split(" ")).toContain(help.id);
   });
 });

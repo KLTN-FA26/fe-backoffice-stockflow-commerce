@@ -237,6 +237,20 @@ export const INVENTORY_PERMISSIONS = {
 } as const;
 
 /**
+ * Phiếu kiểm kê — resource `inventory-cycle-counts` (BE `CycleCountController`, seed V20260903000100,
+ * V20261023000300, V20261028001000). READ / UPDATE: người đếm (NV kho) xem và đếm phiếu; CREATE: lập / giao
+ * phiếu; APPROVE: thấy số sổ sách, yêu cầu đếm lại, huỷ phiếu (Quản lý kho). Docs 20 BR-07: ai có APPROVE
+ * mới thấy sổ sách của phiếu kiểm mù.
+ */
+export const CYCLE_COUNT_PERMISSIONS = {
+  viewPage: "inventory-cycle-counts:VIEW_PAGE",
+  read: "inventory-cycle-counts:READ",
+  create: "inventory-cycle-counts:CREATE",
+  update: "inventory-cycle-counts:UPDATE",
+  approve: "inventory-cycle-counts:APPROVE",
+} as const;
+
+/**
  * Hồ sơ hàng tồn (logistics + chính sách tồn của một SKU) — resource `inventory-inventory-items`
  * (BE PR #119 `InventoryItemController`, chỉ khai báo VIEW_PAGE / READ / UPDATE). Seed
  * V20260928006000: WAREHOUSE_MANAGER, INVENTORY_PLANNER mọi quyền; WAREHOUSE_STAFF,

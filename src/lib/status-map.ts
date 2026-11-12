@@ -79,6 +79,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "QUEUED",
     "SENT",
     "In Progress",
+    // Phiếu kiểm kê đã có dòng được đếm (BE CycleCountStatus.IN_PROGRESS, docs 20 §5.2)
+    "IN_PROGRESS",
     "In Transit",
     "Picking",
     // Phiên đóng gói đang làm (BE PackStatus.PACKING) và kiện đang mở (PackageStatus.OPEN, PR #136)
@@ -486,8 +488,13 @@ const STATUS_LABEL_VI_BY_DOMAIN: Partial<Record<StatusDomain, Record<string, str
   product: {
     Inactive: "Tạm ngưng",
   },
+  // Điều chỉnh tồn (BE StockAdjustmentStatus) và phiếu kiểm kê (BE CycleCountStatus, docs 20 §5.2): cùng domain
+  // `stock`; PLANNED / COMPLETED của chuyến xe / chuyển kho mang nghĩa khác nên ghi đè nhãn theo domain.
   stock: {
     [STOCK_ADJUSTMENT_STATUS.REJECTED]: "Từ chối",
+    PLANNED: "Đã lập phiếu",
+    IN_PROGRESS: "Đang đếm",
+    COMPLETED: "Đã nộp",
   },
   // Khách hàng (BE CustomerStatus). Domain `customer` còn dùng cho trạng thái tài khoản người dùng
   // (ACTIVE / LOCKED / DISABLED, `UserStatusBadge`) → không ghi đè ACTIVE; INACTIVE giữ tone mặc định
