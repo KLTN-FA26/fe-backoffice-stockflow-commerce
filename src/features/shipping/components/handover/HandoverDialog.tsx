@@ -11,6 +11,7 @@ import { hasWaybill, isApiBookedLoad } from "@/features/shipping/ftl-selectors";
 import { handoverBlockedOrders, isWaybillMissingError } from "@/features/shipping/handover-blocks";
 import { handoverInputSchema } from "@/features/shipping/input-schemas";
 import { useHandoverLoad } from "@/features/shipping/mutations";
+import { useRecordWaybill } from "@/features/shipping/waybill-mutations";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 
 import { RejectedScansNotice } from "../load/RejectedScans";
@@ -63,12 +64,18 @@ export function HandoverDialog({
   // Chuyến chưa có mã vận đơn (biết trước) hoặc BE vừa báo 409 LOAD_WAYBILL_MISSING (mã vừa bị xoá ở nơi khác)
   const [waybillMissing, setWaybillMissing] = useState(false);
   const noWaybill = !hasWaybill(load) || waybillMissing;
-  const schema = handoverInputSchema(!load.vehiclePlate);
+  // WF4-DRIVER: chưa có tên tài xế thì phải nhập trước khi ký. Hãng đặt xe qua API không nhập tay được (tên về qua webhook) →
+  // chưa ký được tới khi có tên.
+  const api = isApiBookedLoad(load);
+  const driverMissing = !load.driverName;
+  const record = useRecordWaybill();
+  const schema = handoverInputSchema(!load.vehiclePlate, driverMissing && !api);
   const form = useForm<HandoverFormInput, unknown, HandoverValues>({
     resolver: zodResolver(schema),
     mode: "onChange",
     defaultValues: {
       carrierRepresentative: load.driverName ?? "",
+      driverName: "",
       vehiclePlate: load.vehiclePlate ?? "",
       driverPhone: load.driverPhone ?? "",
       signatureRef: "",
@@ -90,50 +97,83 @@ export function HandoverDialog({
   const submit = form.handleSubmit((values) => {
     setServerError(null);
     setBlockedOrders(null);
-    handover.mutate(
-      { loadId: load.loadId, version: version ?? load.version, values },
-      {
-        onError: (error) => {
-          const orders = handoverBlockedOrders(error);
-          setBlockedOrders(orders ?? null);
-          setWaybillMissing(isWaybillMissingError(error));
-          // Danh sách đơn chặn / thiếu mã vận đơn đã có khối riêng ở trên — không lặp câu lỗi chung
-          setServerError(
-            orders || isWaybillMissingError(error) ? null : shippingErrorMessage(error),
-          );
-          // Chuyến đã đổi trong lúc ký → GIỮ các ô đã nhập (tên người ký, mã biên bản, ghi chú), bỏ tick
-          // "đã ký": hai bên xem lại biên bản (đã tải lại phía sau) rồi tick lại mới ký tiếp được
-          if (error instanceof ApiError && error.code === "OPTIMISTIC_LOCK") {
-            setVersion(null);
-            form.resetField("signed");
-            return;
-          }
-          const named = handoverRefusalOf(error);
-          if (named) onRefused(named);
-          // @Valid của BE → gắn lỗi vào đúng ô (api-conventions §4.4)
-          if (error instanceof ApiError) {
-            for (const name of HANDOVER_SERVER_FIELDS) {
-              const message = error.fieldErrors?.[name];
-              if (message) form.setError(name, { type: "server", message });
-            }
-          }
+    const { driverName, ...body } = values;
+    const sign = (currentVersion: number) =>
+      handover.mutate(
+        { loadId: load.loadId, version: currentVersion, values: body },
+        { onError: onSignError },
+      );
+    // BE `HandoverRequest` không có tên tài xế: lưu trước qua `PUT loads/{id}/waybill` (chuyến đang xếp, hãng không phải API),
+    // rồi ký với `version` mới. Chưa có mã vận đơn thì bỏ qua — BE sẽ báo LOAD_WAYBILL_MISSING và mời nhập mã vận đơn.
+    if (driverMissing && !api && driverName && load.waybillNo) {
+      record.mutate(
+        {
+          loadId: load.loadId,
+          values: {
+            waybillNo: load.waybillNo,
+            driverName,
+            vehiclePlate: undefined,
+            driverPhone: undefined,
+            reason: undefined,
+          },
         },
-      },
-    );
+        {
+          onSuccess: (updated) => sign(updated.version),
+          onError: (error) => {
+            setServerError(shippingErrorMessage(error));
+            if (error instanceof ApiError && error.fieldErrors?.driverName) {
+              form.setError("driverName", {
+                type: "server",
+                message: error.fieldErrors.driverName,
+              });
+            }
+          },
+        },
+      );
+      return;
+    }
+    sign(version ?? load.version);
   });
+
+  const onSignError = (error: unknown) => {
+    const orders = handoverBlockedOrders(error);
+    setBlockedOrders(orders ?? null);
+    setWaybillMissing(isWaybillMissingError(error));
+    // Danh sách đơn chặn / thiếu mã vận đơn đã có khối riêng ở trên — không lặp câu lỗi chung
+    setServerError(orders || isWaybillMissingError(error) ? null : shippingErrorMessage(error));
+    // Chuyến đã đổi trong lúc ký → GIỮ các ô đã nhập (tên người ký, mã biên bản, ghi chú), bỏ tick
+    // "đã ký": hai bên xem lại biên bản (đã tải lại phía sau) rồi tick lại mới ký tiếp được
+    if (error instanceof ApiError && error.code === "OPTIMISTIC_LOCK") {
+      setVersion(null);
+      form.resetField("signed");
+      return;
+    }
+    const named = handoverRefusalOf(error);
+    if (named) onRefused(named);
+    // @Valid của BE → gắn lỗi vào đúng ô (api-conventions §4.4)
+    if (error instanceof ApiError) {
+      for (const name of HANDOVER_SERVER_FIELDS) {
+        const message = error.fieldErrors?.[name];
+        if (message) form.setError(name, { type: "server", message });
+      }
+    }
+  };
 
   return (
     // Đang gửi thì không cho đóng: đóng giữa chừng sẽ mất thông báo lỗi
-    <FormDialog open onOpenChange={(next) => !next && !handover.isPending && onClose()}>
+    <FormDialog
+      open
+      onOpenChange={(next) => !next && !handover.isPending && !record.isPending && onClose()}
+    >
       <FormDialogBody
         title={`${H.title} · ${load.code}`}
         description={FTL.description}
         submitLabel={H.title}
-        canSubmit={form.formState.isValid}
-        isPending={handover.isPending}
+        canSubmit={form.formState.isValid && !(driverMissing && api)}
+        isPending={handover.isPending || record.isPending}
         error={serverError}
         onSubmit={() => void submit()}
-        onCancel={() => !handover.isPending && onClose()}
+        onCancel={() => !handover.isPending && !record.isPending && onClose()}
       >
         <RejectedScansNotice load={load} />
         {noWaybill && (

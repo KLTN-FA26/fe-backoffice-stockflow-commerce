@@ -305,3 +305,20 @@ describe("controlledCancelInputSchema / overrideUnloadInputSchema (SCRUM-474)", 
     ).toBe(false);
   });
 });
+
+describe("handoverInputSchema — tên tài xế bắt buộc trước khi ký (WF4-DRIVER)", () => {
+  const base = { carrierRepresentative: "Anh Tài", signed: true } as const;
+
+  it("driverRequired: thiếu hoặc chỉ khoảng trắng bị chặn; có thì cắt khoảng trắng", () => {
+    const schema = handoverInputSchema(false, true);
+    expect(firstMessage(schema.safeParse({ ...base }))).toBeDefined();
+    expect(firstMessage(schema.safeParse({ ...base, driverName: "  " }))).toBe(
+      MSG.driverNameRequired,
+    );
+    expect(schema.parse({ ...base, driverName: " Lái " }).driverName).toBe("Lái");
+  });
+
+  it("mặc định tên tài xế tuỳ chọn (chuyến đã có tài xế)", () => {
+    expect(handoverInputSchema(false).safeParse({ ...base }).success).toBe(true);
+  });
+});

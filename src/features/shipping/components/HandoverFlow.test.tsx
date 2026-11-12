@@ -99,7 +99,7 @@ describe("hộp thoại bàn giao", () => {
 
   it("chuyến chưa ghi biển số → biển số bắt buộc", async () => {
     const user = userEvent.setup();
-    renderHandover(ready({ vehiclePlate: undefined, driverName: undefined }), () => ready());
+    renderHandover(ready({ vehiclePlate: undefined }), () => ready());
     const dialog = await openDialog(user);
     await user.type(within(dialog).getByLabelText(H.representative, { exact: false }), "Anh Tài");
     await user.click(within(dialog).getByRole("checkbox"));
@@ -108,6 +108,84 @@ describe("hộp thoại bàn giao", () => {
     await waitFor(() =>
       expect(within(dialog).getByRole("button", { name: H.title })).toBeEnabled(),
     );
+  });
+
+  describe("tên tài xế bắt buộc trước khi ký (WF4-DRIVER)", () => {
+    const noDriver = (patch: Partial<Load> = {}) => ready({ driverName: undefined, ...patch });
+
+    it("chuyến chưa có tên tài xế: ô bắt buộc; lưu qua PUT /waybill rồi ký với version mới, thân ký không có tên tài xế", async () => {
+      const user = userEvent.setup();
+      const saved = noDriver({ driverName: "Trần Văn Lái", version: 5 });
+      const { put, post } = mockShippingApi(ACTORS.warehouseStaff, {
+        get: { [PATH]: () => noDriver() },
+        put: { [`${PATH}/waybill`]: () => saved },
+        post: { [`${PATH}/handover`]: () => ready({ status: "DISPATCHED" }) },
+      });
+      renderShippingScreen(<LoadScreen id={LOAD_ID} />);
+      const dialog = await openDialog(user);
+      await user.type(within(dialog).getByLabelText(H.representative, { exact: false }), "Anh Tài");
+      await user.click(within(dialog).getByRole("checkbox"));
+      const submit = within(dialog).getByRole("button", { name: H.title });
+      expect(submit).toBeDisabled();
+      await user.type(
+        within(dialog).getByLabelText(H.driverName, { exact: false }),
+        "Trần Văn Lái",
+      );
+      await waitFor(() => expect(submit).toBeEnabled());
+      await user.click(submit);
+      await waitFor(() =>
+        expect(put).toHaveBeenCalledWith(`${PATH}/waybill`, {
+          waybillNo: "GHN-250001",
+          driverName: "Trần Văn Lái",
+        }),
+      );
+      await waitFor(() => expect(post).toHaveBeenCalled());
+      const [url, body] = post.mock.calls[0] ?? [];
+      expect(url).toBe(`${PATH}/handover`);
+      expect(body).toMatchObject({ version: 5, carrierRepresentative: "Anh Tài" });
+      expect(body).not.toHaveProperty("driverName");
+    });
+
+    it("đã có tên tài xế: không hiện ô và không gọi PUT", async () => {
+      const user = userEvent.setup();
+      renderHandover(ready(), () => ready());
+      const dialog = await openDialog(user);
+      expect(within(dialog).queryByLabelText(H.driverName, { exact: false })).toBeNull();
+    });
+
+    it("hãng đặt xe qua API chưa có tài xế: không có ô nhập, nêu rõ chờ hãng báo, nút ký khoá dù đã tick", async () => {
+      const user = userEvent.setup();
+      renderHandover(noDriver({ carrierConnectionType: "API_BOOKING" }), () => ready());
+      const dialog = await openDialog(user);
+      expect(within(dialog).queryByLabelText(H.driverName, { exact: false })).toBeNull();
+      expect(within(dialog).getByText(H.driverFromCarrier)).toBeInTheDocument();
+      await user.type(within(dialog).getByLabelText(H.representative, { exact: false }), "Anh Tài");
+      await user.click(within(dialog).getByRole("checkbox"));
+      expect(within(dialog).getByRole("button", { name: H.title })).toBeDisabled();
+    });
+
+    it("lưu tên tài xế lỗi (WAYBILL_DUPLICATE…) → báo ngay trong hộp thoại, không ký", async () => {
+      const user = userEvent.setup();
+      const { post } = mockShippingApi(ACTORS.warehouseStaff, {
+        get: { [PATH]: () => noDriver() },
+        put: {
+          [`${PATH}/waybill`]: () => {
+            throw new ApiError(409, "INVALID_LOAD_TRANSITION", "en");
+          },
+        },
+        post: { [`${PATH}/handover`]: () => ready() },
+      });
+      renderShippingScreen(<LoadScreen id={LOAD_ID} />);
+      const dialog = await openDialog(user);
+      await user.type(within(dialog).getByLabelText(H.representative, { exact: false }), "Anh Tài");
+      await user.type(within(dialog).getByLabelText(H.driverName, { exact: false }), "Lái");
+      await user.click(within(dialog).getByRole("checkbox"));
+      await user.click(within(dialog).getByRole("button", { name: H.title }));
+      expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+        ERR.INVALID_LOAD_TRANSITION,
+      );
+      expect(post).not.toHaveBeenCalled();
+    });
   });
 
   it("gửi version lúc mở hộp thoại cùng người ký, biển số, mã biên bản, ghi chú; thành công → hiện DISPATCHED và trạng thái từng lô", async () => {

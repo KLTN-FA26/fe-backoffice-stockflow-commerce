@@ -144,6 +144,11 @@ export const SHIPPING_UI_LABELS = {
     description:
       "Hai bên đã ký biên bản giấy của riêng xe này. Chuyến chuyển sang Đã bàn giao; mỗi lô chỉ chuyển Đã bàn giao ở xe cuối cùng chở nó.",
     representative: "Người ký bên hãng (tài xế)",
+    driverName: "Tên tài xế",
+    driverNameHint:
+      "Chuyến chưa có tên tài xế — bắt buộc nhập trước khi ký (lưu cùng mã vận đơn của chuyến).",
+    driverFromCarrier:
+      "Chuyến chưa có tên tài xế: hãng đặt xe qua API báo tài xế về qua webhook khi tài xế nhận đơn — có tên tài xế mới ký được.",
     vehiclePlate: "Biển số xe",
     driverPhone: "SĐT tài xế",
     signatureRef: "Mã / số biên bản giấy đã ký",
@@ -374,6 +379,7 @@ export const SHIPPING_FIELD_MESSAGES = {
   controlledReasonCodeRequired: "Chọn lý do huỷ",
   controlledNoteRequired: "Nhập ghi chú cho lý do huỷ",
   carrierRepresentativeRequired: "Nhập tên người ký bên hãng",
+  driverNameRequired: "Nhập tên tài xế — bắt buộc trước khi ký bàn giao",
   vehiclePlateRequired: "Nhập biển số xe",
   signedRequired: "Xác nhận hai bên đã ký biên bản",
   reasonRequired: "Chọn lý do",

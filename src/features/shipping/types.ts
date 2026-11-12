@@ -93,7 +93,7 @@ export interface HandoverLoadInput {
   loadId: string;
   /** `version` của chuyến trên màn hai bên ký — 409 OPTIMISTIC_LOCK nếu đã đổi. */
   version: number;
-  values: HandoverValues;
+  values: Omit<HandoverValues, "driverName">;
 }
 
 export interface RecordOutcomeInput {

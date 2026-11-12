@@ -46,8 +46,13 @@ export const scanPackageInputSchema = z.object({
  * và xác nhận đã ký, không có chữ ký số. Biển số bắt buộc trừ khi chuyến đã ghi biển số lúc mở
  * (BE `DispatchLoad.handOver`).
  */
-export function handoverInputSchema(plateRequired: boolean) {
+export function handoverInputSchema(plateRequired: boolean, driverRequired = false) {
   return z.object({
+    // Owner decision WF4-DRIVER (12/11): tên tài xế bắt buộc TRƯỚC KHI KÝ khi chuyến chưa có (từ đặt xe / nhập tay / webhook
+    // hãng). Không gửi trong thân bàn giao (BE `HandoverRequest` không có trường này): lưu qua `PUT loads/{id}/waybill`.
+    driverName: driverRequired
+      ? z.string().trim().min(1, MSG.driverNameRequired).max(L.driverNameMax, MSG.tooLong)
+      : optionalText(L.driverNameMax),
     carrierRepresentative: z
       .string()
       .trim()
