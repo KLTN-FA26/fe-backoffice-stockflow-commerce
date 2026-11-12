@@ -23,8 +23,8 @@ import {
 } from "./__fixtures__/order";
 import { approveCreditHold, getCreditPosition, rejectCreditHold } from "./action-api";
 import { STATUS_OPTIONS } from "./components/order-list/constants";
-import { releaseOrder } from "./delivery-mode-api";
 import { getOrderHistory } from "./history-api";
+import { releaseOrder } from "./release-api";
 import { orderDtoSchema } from "./schemas";
 
 import type { OrderStatus } from "./types";
@@ -615,7 +615,7 @@ describe("Idempotency-Key — chỉ thao tác ghi đơn, header riêng từng re
       { reasonCode: "OTHER", note: "x" },
     ],
     [
-      // Release của PR #74 (`delivery-mode-api.ts`) — cùng hợp đồng header
+      // Release của PR #74 (`release-api.ts`) — cùng hợp đồng header
       "release",
       () => releaseOrder({ id: ID, warehouseId: "W1", idempotencyKey: KEY }),
       `/orders/${ID}/release`,

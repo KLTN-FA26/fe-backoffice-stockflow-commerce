@@ -229,39 +229,78 @@ export const STOCK_PACKAGE_STATUS_BY_API = {
 /**
  * Trạng thái lấy hàng của task xuất kho — HỆ QUY CHIẾU LÀ BE, không phải docs.
  * Mỗi giá trị BE `fulfillment/internal/domain/PickStatus.java` ứng đúng 1 tên hiển thị = chính tên
- * enum BE viết Title Case (như module phiếu nhận: `DRAFT` → `Draft`), không đổi nghĩa, không mượn
- * tên trạng thái docs 07 §5.1 (`Assigned` / `In Progress` / `Completed`…). Docs chỉ để tham khảo:
- * BE đổi enum thì FE mới đổi theo.
- * `SHORT` có trong enum BE nhưng chưa code nào set.
+ * enum BE viết Title Case (như module phiếu nhận: `DRAFT` → `Draft`); trùng docs 07 §5.1
+ * (`Pending` / `Picking` / `Staged` / `Picked` / `Cancelled`). BE đổi enum thì FE mới đổi theo.
+ * `STAGED` (BE 4C-5, docs 07 §5.1): task đích STAGING đã lấy hết dòng về khu chờ xuất, chờ chuyển sang khu
+ * xuất hàng. `SHORT` đã bỏ khỏi enum task — thiếu hàng là trạng thái của DÒNG (`PickLineStatus.SHORT`).
  */
-export const PICK_STATUSES = ["Pending", "Picking", "Picked", "Short", "Cancelled"] as const;
+export const PICK_STATUSES = ["Pending", "Picking", "Staged", "Picked", "Cancelled"] as const;
 
 export const PICK_STATUS = {
   PENDING: "Pending",
   PICKING: "Picking",
+  STAGED: "Staged",
   PICKED: "Picked",
-  SHORT: "Short",
   CANCELLED: "Cancelled",
 } as const satisfies Record<PickApiStatus, PickStatus>;
 
 /** BE `fulfillment/internal/domain/PickStatus.java` — giá trị nhận qua API. */
-export const PICK_API_STATUSES = ["PENDING", "PICKING", "PICKED", "SHORT", "CANCELLED"] as const;
+export const PICK_API_STATUSES = ["PENDING", "PICKING", "STAGED", "PICKED", "CANCELLED"] as const;
 
 /** Đổi 1-1 giá trị BE → tên hiển thị; khoá theo enum BE nên BE thêm giá trị là typecheck báo. */
 export const PICK_STATUS_BY_API = PICK_STATUS;
 
 /**
- * Trạng thái một DÒNG lấy hàng — HỆ QUY CHIẾU LÀ BE `fulfillment/internal/domain/PickLineStatus.java`
- * (SCRUM-267/275; SHORT = báo thiếu hàng, BE PR #147), tên enum BE viết Title Case 1-1 như `PICK_STATUSES`.
- * Dòng SHORT được phân bổ lại thì thành CANCELLED (giữ `shortQty`) và sinh dòng OPEN mới.
+ * Đích lấy hàng của task — BE `fulfillment/api/PickDestination.java` (docs 07 §1, §3 "Đích lấy hàng"):
+ * `DISPATCH` = khu xuất hàng (mặc định, trừ tồn ngay khi quét), `STAGING` = khu chờ xuất (chỉ chuyển vị
+ * trí, chưa trừ tồn).
  */
-export const PICK_LINE_STATUSES = ["Open", "Picked", "Short", "Cancelled", "Put Back"] as const;
+export const PICK_DESTINATIONS = ["DISPATCH", "STAGING"] as const;
+
+export const PICK_DESTINATION = {
+  DISPATCH: "DISPATCH",
+  STAGING: "STAGING",
+} as const satisfies Record<PickDestination, PickDestination>;
+
+/**
+ * Lý do báo thiếu — BE `fulfillment/internal/domain/ShortPickReason.java` (docs 07 §4.4 bước 9: "báo thiếu
+ * kèm vị trí và lý do"): không thấy thùng ở vị trí, hoặc thùng hư hỏng không giao được.
+ */
+export const SHORT_PICK_REASONS = ["NOT_FOUND", "DAMAGED"] as const;
+
+export const SHORT_PICK_REASON = {
+  NOT_FOUND: "NOT_FOUND",
+  DAMAGED: "DAMAGED",
+} as const satisfies Record<ShortPickReason, ShortPickReason>;
+
+/**
+ * Trạng thái một DÒNG lấy hàng (= một thùng LPN, docs 07 §5.2) — HỆ QUY CHIẾU LÀ BE
+ * `fulfillment/internal/domain/PickLineStatus.java`, tên enum BE viết Title Case 1-1 như `PICK_STATUSES`.
+ * `STAGED` (BE 4C-5): thùng đã chuyển sang khu chờ xuất, còn giữ cho đơn, chưa trừ tồn. Dòng SHORT được phân
+ * bổ lại thì thành CANCELLED (giữ `shortQty`) và sinh dòng OPEN mới.
+ */
+export const PICK_LINE_STATUSES = [
+  "Open",
+  "Staged",
+  "Picked",
+  "Short",
+  "Cancelled",
+  "Put Back",
+] as const;
 
 /** BE `PickLineStatus` — giá trị nhận qua API. */
-export const PICK_LINE_API_STATUSES = ["OPEN", "PICKED", "SHORT", "CANCELLED", "PUT_BACK"] as const;
+export const PICK_LINE_API_STATUSES = [
+  "OPEN",
+  "STAGED",
+  "PICKED",
+  "SHORT",
+  "CANCELLED",
+  "PUT_BACK",
+] as const;
 
 export const PICK_LINE_STATUS = {
   OPEN: "Open",
+  STAGED: "Staged",
   PICKED: "Picked",
   SHORT: "Short",
   CANCELLED: "Cancelled",
@@ -272,23 +311,23 @@ export const PICK_LINE_STATUS = {
 export const PICK_LINE_STATUS_BY_API = PICK_LINE_STATUS;
 
 /**
- * Trạng thái đóng gói — HỆ QUY CHIẾU LÀ BE `fulfillment/internal/domain/PackStatus.java`, cùng quy
- * tắc với `PICK_STATUSES` (tên enum BE viết Title Case; docs 08 §5 chỉ để tham khảo).
- * `PACKING` = packer đã nhận đơn tại bàn đóng gói (BE PR #136: `POST /tasks/{id}/packing-start`; sau
- * khi kiểm tra lại thiết kế khớp, phiên cũng trở lại `PACKING` chứ không phải `PACKED`).
+ * Trạng thái phiên kiểm thùng của task — HỆ QUY CHIẾU LÀ BE `fulfillment/internal/domain/PackStatus.java`
+ * (docs 08 §5.1: `Pending` / `In Progress` / `Completed` / `Cancelled`), cùng quy tắc với `PICK_STATUSES`.
+ * `IN_PROGRESS` = người kiểm đã bắt đầu (`packing-start`) và vẫn ở đó khi hoàn tất một phần; `COMPLETED` =
+ * đã kiểm đủ thùng và mọi thùng đã có shipment. Không còn `ON_HOLD` (không có bước giữ vì kiểm tra thiết kế —
+ * BE V20261108000500) và `PACKING` / `PACKED` đã đổi tên (BE V20261113000700).
  */
-export const PACK_STATUSES = ["Pending", "Packing", "On Hold", "Packed", "Cancelled"] as const;
+export const PACK_STATUSES = ["Pending", "In Progress", "Completed", "Cancelled"] as const;
 
 export const PACK_STATUS = {
   PENDING: "Pending",
-  PACKING: "Packing",
-  ON_HOLD: "On Hold",
-  PACKED: "Packed",
+  IN_PROGRESS: "In Progress",
+  COMPLETED: "Completed",
   CANCELLED: "Cancelled",
 } as const satisfies Record<PackApiStatus, PackStatus>;
 
 /** BE `fulfillment/internal/domain/PackStatus.java` — giá trị nhận qua API. */
-export const PACK_API_STATUSES = ["PENDING", "PACKING", "ON_HOLD", "PACKED", "CANCELLED"] as const;
+export const PACK_API_STATUSES = ["PENDING", "IN_PROGRESS", "COMPLETED", "CANCELLED"] as const;
 
 /** Đổi 1-1 giá trị BE → tên hiển thị; khoá theo enum BE nên BE thêm giá trị là typecheck báo. */
 export const PACK_STATUS_BY_API = PACK_STATUS;
@@ -562,6 +601,8 @@ export type PickLineStatus = (typeof PICK_LINE_STATUSES)[number];
 export type PickLineApiStatus = (typeof PICK_LINE_API_STATUSES)[number];
 export type PackStatus = (typeof PACK_STATUSES)[number];
 export type PackApiStatus = (typeof PACK_API_STATUSES)[number];
+export type PickDestination = (typeof PICK_DESTINATIONS)[number];
+export type ShortPickReason = (typeof SHORT_PICK_REASONS)[number];
 export type DesignArtifactRole = (typeof DESIGN_ARTIFACT_ROLES)[number];
 export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
 export type ProposalStatus = (typeof PROPOSAL_STATUSES)[number];

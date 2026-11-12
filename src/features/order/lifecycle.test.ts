@@ -105,7 +105,8 @@ describe("ORDER_TRANSITIONS (BE OrderStatus#canTransitionTo)", () => {
 /**
  * Mã quyền theo seed BE:
  * - `sales-orders`: SALES_STAFF + ORDER_COORDINATOR VIEW_PAGE/READ/CREATE/UPDATE; chỉ ORDER_COORDINATOR
- *   có APPROVE (= release, giữ / gỡ giữ / giao thất bại) — V20260903000100.
+ *   có APPROVE (giữ / gỡ giữ / giao thất bại) — V20260903000100. APPROVE KHÔNG còn mở release: BE V20261115000200
+ *   tách release thành `sales-order-releases:UPDATE` cho WAREHOUSE_MANAGER (kho xuất, docs 17 BR-03).
  * - `sales-order-cancellations:UPDATE` (huỷ, đóng phần còn lại): SALES_STAFF + ORDER_COORDINATOR —
  *   V20261013000200.
  * - `sales-order-credit-holds`: ACCOUNTANT VIEW_PAGE/READ/APPROVE; Sales + Coordinator chỉ
@@ -135,6 +136,8 @@ const ROLE_PERMISSIONS: Record<string, readonly PermissionCode[]> = {
     // BE PR #150: SALES_STAFF (và SYSTEM_ADMIN) quyết đơn có giao một phần; điều phối viên thì không
     "sales-order-partial-shipments:UPDATE",
   ],
+  // BE V20261115000200: quản lý kho đọc đơn + release (kho của mình); không huỷ / giữ
+  WAREHOUSE_MANAGER: ["sales-orders:VIEW_PAGE", "sales-orders:READ", "sales-order-releases:UPDATE"],
   ACCOUNTANT: [
     "sales-order-credit-holds:VIEW_PAGE",
     "sales-order-credit-holds:READ",
@@ -165,34 +168,38 @@ const codes = (status: OrderReadStatus, role: Role, context?: Partial<OrderActio
 const PACKED_AT = "2026-09-08T01:00:00Z";
 const CREDIT_HOLD = { paymentTerm: "CREDIT", holdReason: "CREDIT" } as const;
 
-describe("allowedOrderActions — release (SCRUM-423)", () => {
-  it("Confirmed + ORDER_COORDINATOR → Release + Huỷ + Giữ", () => {
-    expect(codes("Confirmed", "ORDER_COORDINATOR")).toEqual(["release", "admin-cancel", "hold"]);
+describe("allowedOrderActions — release (docs 17 §4.2 bước 5, BR-03; sales-order-releases:UPDATE)", () => {
+  it("Confirmed + quản lý kho (sales-order-releases:UPDATE) → chỉ Release (không huỷ, không giữ)", () => {
+    expect(codes("Confirmed", "WAREHOUSE_MANAGER")).toEqual(["release"]);
   });
 
-  it("Confirmed + SALES_STAFF (không có APPROVE) → không thấy Release, vẫn huỷ được", () => {
+  it("Confirmed + ORDER_COORDINATOR (chỉ sales-orders:APPROVE, mã BE đã xoá) → KHÔNG còn Release; huỷ + giữ vẫn theo mã của chúng", () => {
+    expect(codes("Confirmed", "ORDER_COORDINATOR")).toEqual(["admin-cancel", "hold"]);
+  });
+
+  it("Confirmed + SALES_STAFF / kế toán / NV kho → không thấy Release", () => {
     expect(codes("Confirmed", "SALES_STAFF")).toEqual(["admin-cancel"]);
+    expect(codes("Confirmed", "ACCOUNTANT")).toEqual([]);
+    expect(codes("Confirmed", "WAREHOUSE_STAFF")).toEqual([]);
   });
 
-  it("hai đích BE có thể chọn (có dòng in → In Production, chỉ hàng sẵn → Ready to Fulfill)", () => {
+  it("đích của Release là Ready to Fulfill (không còn In Production — in ấn làm ngoài hệ thống)", () => {
     const release = ORDER_ACTIONS.find((action) => action.code === "release");
-    expect(release?.outcome).toEqual({
-      kind: "to",
-      statuses: ["In Production", "Ready to Fulfill"],
-    });
-    // Đơn công nợ cũng release được trên FE: nợ quá hạn / mẫu duyệt / kho là điều kiện server
-    expect(codes("Confirmed", "ORDER_COORDINATOR", { paymentTerm: "CREDIT" })).toContain("release");
+    expect(release?.permission).toBe("sales-order-releases:UPDATE");
+    expect(release?.outcome).toEqual({ kind: "to", statuses: ["Ready to Fulfill"] });
+    // Đơn công nợ cũng release được trên FE: nợ quá hạn / giữ đủ hàng / kho là điều kiện server
+    expect(codes("Confirmed", "WAREHOUSE_MANAGER", { paymentTerm: "CREDIT" })).toContain("release");
   });
 
   it("docs 17 BR-02: chưa đủ điều kiện thanh toán (Pending Payment / On Hold / Draft) → không Release", () => {
     for (const status of ["Pending Payment", "On Hold", "Draft"] as const) {
-      expect(codes(status, "ORDER_COORDINATOR", CREDIT_HOLD)).not.toContain("release");
+      expect(codes(status, "WAREHOUSE_MANAGER", CREDIT_HOLD)).not.toContain("release");
     }
   });
 
   it("đã release (In Production / Ready to Fulfill / Picking) → không Release lại", () => {
     for (const status of ["In Production", "Ready to Fulfill", "Picking"] as const) {
-      expect(codes(status, "ORDER_COORDINATOR")).not.toContain("release");
+      expect(codes(status, "WAREHOUSE_MANAGER")).not.toContain("release");
     }
   });
 });

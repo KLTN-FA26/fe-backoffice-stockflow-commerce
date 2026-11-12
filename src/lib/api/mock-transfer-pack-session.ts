@@ -44,7 +44,7 @@ export interface MockTransferPack {
   packerId: string;
   /** Tên hiển thị người đóng (BE PR #164 final `packerName`). */
   packerName?: string;
-  packStatus: "PACKING" | "PACKED" | "CANCELLED";
+  packStatus: "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
   startedAt: string;
   packedAt?: string;
   parcels: MockTransferParcel[];
@@ -77,7 +77,7 @@ export function newPack(
     transferOrderId: transfer.transferId,
     packerId,
     packerName,
-    packStatus: "PACKING",
+    packStatus: "IN_PROGRESS",
     startedAt: new Date().toISOString(),
     parcels: [],
     scans: new Map(),
@@ -108,7 +108,7 @@ function nextParcel(
 }
 
 const requireWorkable = (pack: MockTransferPack) => {
-  if (pack.packStatus !== "PACKING")
+  if (pack.packStatus !== "IN_PROGRESS")
     throw conflict("PACK_STATE_CONFLICT", `The packing session is ${pack.packStatus}`);
 };
 
@@ -375,7 +375,7 @@ export function completePack(
     throw conflict("PACKING_INCOMPLETE", "Not everything is packed yet");
   if (input.partial && !input.note)
     throw invalid("note", "A note is required with a partial packing");
-  pack.packStatus = "PACKED";
+  pack.packStatus = "COMPLETED";
   pack.packedAt = new Date().toISOString();
 }
 

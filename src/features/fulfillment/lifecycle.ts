@@ -3,7 +3,7 @@
  *
  * Bảng chuyển trạng thái dùng chung `PICK_TRANSITIONS` / `PACK_TRANSITIONS` (lib/domain).
  * Thao tác của trạm đóng gói (nhận đơn, kiện, quét, hoàn tất) gate ở `packing-lifecycle.ts`; ở đây còn
- * gán / lấy hàng / kiểm tra lại thiết kế. Từ BE PR #148 mỗi endpoint chỉ gate bằng MỘT mã quyền
+ * gán / lấy hàng / chuyển cả tác vụ sang khu xuất hàng. Từ BE PR #148 mỗi endpoint chỉ gate bằng MỘT mã quyền
  * (`@RequiresPermission`, không còn `@PreAuthorize` theo vai trò) — FE không đọc tên vai trò để quyết định
  * quyền. Phần lớn thao tác lấy hàng còn đòi người gọi là người được gán, nên ở đây kiểm: trạng thái,
  * mã quyền, người được gán.
@@ -42,7 +42,8 @@ export interface FulfillmentGateState {
   assignedUserId?: string | null;
 }
 
-export type FulfillmentActionCode = "assign" | "startPicking" | "completePicking" | "reverify";
+export type FulfillmentActionCode =
+  "assign" | "startPicking" | "completePicking" | "moveToDispatch";
 
 interface StatusGate<S extends string> {
   readonly from: readonly S[];
@@ -82,21 +83,21 @@ export const FULFILLMENT_ACTIONS: readonly FulfillmentAction[] = [
   {
     code: "completePicking",
     label: LABEL.completePicking,
-    // BE `POST /tasks/{id}/picking-completion` — fulfillment-picking:UPDATE
+    // BE `POST /tasks/{id}/picking-completion` — fulfillment-picking:UPDATE. Đích DISPATCH → Picked, đích STAGING →
+    // Staged (docs 07 §4.2 bước 6): kết quả phụ thuộc đích của task nên bảng không ghi `to`.
     permission: PICKING.update,
     assigneeOnly: true,
-    pick: { from: [PICK_STATUS.PICKING], to: PICK_STATUS.PICKED },
+    pick: { from: [PICK_STATUS.PICKING] },
   },
   {
-    code: "reverify",
-    label: LABEL.reverify,
-    // X-CHK (BR-DSG-003, docs 08): BE PR #148 — `POST /tasks/{id}/design-integrity-reverification`
-    // là fulfillment-design-reverification:UPDATE (seed QC_STAFF, WAREHOUSE_MANAGER), không cần là người
-    // được gán lấy hàng
-    permission: REVERIFY.update,
+    code: "moveToDispatch",
+    label: LABEL.moveToDispatch,
+    // BE `POST /tasks/{id}/dispatch-transfer` (docs 07 §4.3 bước 8, BR-11) — quyết định của người phân việc
+    // (quản lý kho): fulfillment-task-assignment:UPDATE, không cần là người được gán. Chỉ task `Staged`; đơn
+    // đang treo thì BE từ chối (409 PICK_ORDER_ON_HOLD).
+    permission: ASSIGNMENT.update,
     assigneeOnly: false,
-    // BE PR #136: kiểm tra lại khớp → phiên về PACKING, người đóng gói hoàn tất lại (không ra PACKED)
-    pack: { from: [PACK_STATUS.ON_HOLD], to: PACK_STATUS.PACKING },
+    pick: { from: [PICK_STATUS.STAGED], to: PICK_STATUS.PICKED },
   },
 ];
 

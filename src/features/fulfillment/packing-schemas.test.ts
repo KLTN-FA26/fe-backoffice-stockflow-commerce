@@ -111,17 +111,17 @@ describe("bePackageSchema / bePackageLabelSchema / hàng chờ", () => {
 });
 
 describe("beFulfillmentTaskSchema — câu trả lời của packing-completion", () => {
-  it("có thêm shipmentId + paymentDue; vắng khi lệch thiết kế (200, chưa có lô)", () => {
+  it("có thêm shipmentId + paymentDue; vắng ở câu trả lời không tạo lô", () => {
     const done = beFulfillmentTaskSchema.parse({
-      ...apiTask({ pickStatus: "PICKED", packStatus: "PACKED" }),
+      ...apiTask({ pickStatus: "PICKED", packStatus: "COMPLETED" }),
       shipmentId: SHIPMENT_ID,
       paymentDue: { amountDueBeforeHandover: 1000, currency: "VND" },
     });
     expect(done.shipmentId).toBe(SHIPMENT_ID);
     expect(done.paymentDue?.currency).toBe("VND");
-    const held = beFulfillmentTaskSchema.parse(
-      apiTask({ pickStatus: "PICKED", packStatus: "ON_HOLD" }),
+    const noShipment = beFulfillmentTaskSchema.parse(
+      apiTask({ pickStatus: "PICKED", packStatus: "IN_PROGRESS" }),
     );
-    expect(held.shipmentId).toBeUndefined();
+    expect(noShipment.shipmentId).toBeUndefined();
   });
 });

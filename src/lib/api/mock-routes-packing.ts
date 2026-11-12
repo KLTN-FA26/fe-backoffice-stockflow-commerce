@@ -3,8 +3,8 @@
  * (PR #136, SCRUM-278/281/282). Chỉ dùng khi USE_MOCK=true.
  *
  * Giữ đúng hành vi BE: mã lỗi nghiệp vụ riêng (PACKING_TAKEN, PACK_*, PACKAGE_*), quản lý kho không bị
- * PACKING_TAKEN, retry cùng `scanId` / `requestId` trả 200 không đổi gì, lệch checksum khi hoàn tất vẫn
- * HTTP 200 với pack ON_HOLD và không có `shipmentId`, kiểm tra lại khớp → pack về PACKING.
+ * PACKING_TAKEN, retry cùng `scanId` / `requestId` trả 200 không đổi gì. Trạng thái phiên theo `PackStatus` của BE
+ * (PENDING / IN_PROGRESS / COMPLETED / CANCELLED).
  */
 
 import { FULFILLMENT_PACKAGE_PERMISSIONS, FULFILLMENT_PACKING_PERMISSIONS } from "@/constants";
@@ -37,12 +37,10 @@ import {
   routeParam,
   taskNotFound,
   toTaskResponse,
-  verifyDesigns,
 } from "./mock-routes-fulfillment-store";
 import {
   backendOrderStatusOf,
   mockOrderAllowsPartialShipment,
-  putMockOrderOnDesignHold,
   setMockOrderStatus,
 } from "./mock-routes-orders";
 import {
@@ -71,7 +69,7 @@ const PACK_WORK = FULFILLMENT_PACKING_PERMISSIONS.update;
 const READ_LABEL = FULFILLMENT_PACKING_PERMISSIONS.read;
 const PACKABLE = ["READY_TO_FULFILL", "PICKING", "PARTIALLY_FULFILLED"];
 const PACKAGE_TYPES = ["CARTON", "BAG", "PALLET", "CRATE", "OTHER"];
-const QUEUED = ["PENDING", "PACKING", "ON_HOLD"];
+const QUEUED = ["PENDING", "IN_PROGRESS"];
 
 type Failure = ReturnType<typeof beError>;
 type Reply = ReturnType<typeof beOk>;
@@ -147,9 +145,9 @@ async function requirePackable(ctx: Ctx): Promise<Failure | null> {
   );
 }
 
-/** BE `requireWorkable`: chỉ khi PACKING, và chỉ người đã nhận đơn hoặc người có packing:APPROVE. */
+/** BE `requireWorkable`: chỉ khi IN_PROGRESS, và chỉ người đã nhận đơn hoặc người có packing:APPROVE. */
 function requireWorkable(ctx: Ctx): Failure | null {
-  if (ctx.task.packStatus !== "PACKING") {
+  if (ctx.task.packStatus !== "IN_PROGRESS") {
     return beError(
       409,
       "PACK_STATE_CONFLICT",
@@ -198,7 +196,7 @@ function registerReads(): void {
       return beError(400, "UNSUPPORTED_PARAMETER", "Unsupported page parameters");
     }
     const status = readString(params.status).toUpperCase();
-    if (status && ![...QUEUED, "PACKED", "CANCELLED"].includes(status)) {
+    if (status && ![...QUEUED, "COMPLETED", "CANCELLED"].includes(status)) {
       return beError(400, "UNSUPPORTED_PARAMETER", "Unknown pack status");
     }
     const warehouseId = readString(params.warehouseId);
@@ -217,13 +215,8 @@ function registerReads(): void {
       if (warehouseId && order.fulfillmentWarehouseId !== warehouseId) continue;
       if (!(status ? [status] : QUEUED).includes(task.packStatus)) continue;
       const orderStatus = await backendOrderStatusOf(order.orderId);
-      // BE `queueable`: đơn đóng được, hoặc đang giữ riêng vì thiết kế (việc của QC)
-      if (!(
-        orderStatus &&
-        (PACKABLE.includes(orderStatus) ||
-          (orderStatus === "ON_HOLD" && task.packStatus === "ON_HOLD"))
-      ))
-        continue;
+      // BE `queueable`: đơn còn đóng được
+      if (!(orderStatus && PACKABLE.includes(orderStatus))) continue;
       const state = await getPackSession(task, order, userName);
       const live = state.parcels.filter((p) => p.status !== "VOIDED");
       rows.push({
@@ -298,20 +291,16 @@ function registerSessionWrites(): void {
     if (blocked) return blocked;
     const { task, state, actor } = ctx;
     if (task.packStatus === "PENDING") {
-      task.packStatus = "PACKING";
+      task.packStatus = "IN_PROGRESS";
       state.packerId = actor.userId;
       state.packerName = await userName(actor.userId);
       state.startedAt = new Date().toISOString();
       task.startedAt ??= state.startedAt;
-    } else if (task.packStatus === "PACKING") {
+    } else if (task.packStatus === "IN_PROGRESS") {
       const taken = requireWorkable(ctx);
       if (taken) return taken;
-    } else if (task.packStatus !== "PACKED") {
-      return conflict(
-        task.packStatus === "ON_HOLD"
-          ? "Packing is on hold for a design check"
-          : `Packing is ${task.packStatus}`,
-      );
+    } else if (task.packStatus !== "COMPLETED") {
+      return conflict(`Packing is ${task.packStatus}`);
     }
     return beOk(view(ctx));
   });
@@ -425,9 +414,8 @@ function registerCompletion(): void {
             : conflict("That request id completed another task");
         }
       }
-      if (requestId === state.heldRequestId && task.packStatus === "ON_HOLD") return respond();
     }
-    if (task.packStatus === "PACKED")
+    if (task.packStatus === "COMPLETED")
       return respond(state.shipments[state.shipments.length - 1]?.shipmentId);
     const blocked = requireWorkable(ctx) ?? (await requirePackable(ctx));
     if (blocked) return blocked;
@@ -441,14 +429,6 @@ function registerCompletion(): void {
     }
     try {
       const plan = planCompletion(state, body.partial === true, readString(body.note) || undefined);
-      const printed = state.lines.some((l) => l.printLine && plan.lineTotals.has(l.orderLineId));
-      if (printed && !verifyDesigns(task, order, false)) {
-        // BR-DSG-003: lệch checksum → giữ phiên + đơn, vẫn HTTP 200, chưa có lô giao
-        task.packStatus = "ON_HOLD";
-        state.heldRequestId = requestId;
-        await putMockOrderOnDesignHold(order.orderId);
-        return respond();
-      }
       const now = new Date().toISOString();
       const value = [...plan.lineTotals].reduce(
         (sum, [lineId, qty]) =>
@@ -470,7 +450,7 @@ function registerCompletion(): void {
       state.shipments.push(shipment);
       plan.parcels.forEach((p) => (p.shipmentId = shipment.shipmentId));
       if (!plan.partial) {
-        task.packStatus = "PACKED";
+        task.packStatus = "COMPLETED";
         task.packedAt = now;
         state.packedAt = now;
         setMockOrderStatus(order.orderId, "PACKED");

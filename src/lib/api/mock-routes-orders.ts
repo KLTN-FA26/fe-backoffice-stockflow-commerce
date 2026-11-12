@@ -14,7 +14,7 @@
  */
 
 import { paginatePage, registerMockRoute } from "./mock-adapter";
-import { registerDeliveryModeMockRoutes } from "./mock-routes-order-delivery-mode";
+import { registerOrderReleaseMockRoutes } from "./mock-routes-order-release";
 import { registerOrderActionMockRoutes } from "./mock-routes-orders-actions";
 import {
   BE_ORDER_STATUSES,
@@ -62,8 +62,6 @@ export {
   backendStatus,
   fakeSha256,
   hasPrintLines,
-  isCodDeposit,
-  isDeliveryModeLocked,
   lockedChecksumOf,
   mockOrderAllowsPartialShipment,
   mockOrderCancellations,
@@ -78,13 +76,9 @@ export {
   snapshotIdOf,
   toOrderResponse,
 } from "./mock-routes-orders-store";
-export type { MockDeliveryMode } from "./mock-routes-orders-store";
 
 /** Người Sales của phiên demo — tên hiện ở lịch sử đơn (BE trả `actorName` của người quyết). */
 const MOCK_SALES_ACTOR = { id: "USER-SALE-01", name: "Nhân viên Sales" } as const;
-
-/** Điều phối viên của phiên demo — tên hiện ở lịch sử đơn khi đổi hình thức giao (BE PR #157). */
-const MOCK_COORDINATOR_ACTOR = { id: "USER-COORD-01", name: "Điều phối đơn" } as const;
 
 /** BE `Order#decidePartialShipment`: các trạng thái còn đổi được cách giao. */
 const PARTIAL_SHIPMENT_OPEN_STATUSES: readonly BeOrderStatus[] = [
@@ -307,7 +301,7 @@ function registerReadRoutes(): void {
       type: "STATUS_CHANGE",
       ...entry,
     }));
-    // BE PR #150 / #157: quyết định giao một phần (Sales) + đổi hình thức giao (điều phối viên) xen giữa
+    // BE PR #150: quyết định giao một phần (Sales) xen giữa
     const state = seedLifecycle(order);
     const decisions = state.decisions.map((decision) => ({
       type: "PARTIAL_SHIPMENT_DECISION",
@@ -319,19 +313,8 @@ function registerReadRoutes(): void {
       actorName: MOCK_SALES_ACTOR.name,
       partialShipmentAllowed: decision.allowed,
     }));
-    const modeChanges = state.deliveryModeChanges.map((change) => ({
-      type: "DELIVERY_MODE_CHANGE",
-      from: null,
-      to: null,
-      reason: change.note,
-      occurredAt: change.changedAt,
-      actorId: MOCK_COORDINATOR_ACTOR.id,
-      actorName: MOCK_COORDINATOR_ACTOR.name,
-      deliveryMode: change.mode,
-      previousDeliveryMode: change.previousMode,
-    }));
     // Cũ nhất trước như BE; sort ổn định giữ thứ tự ghi của các mục cùng thời điểm
-    const entries = [...statusChanges, ...decisions, ...modeChanges].sort(
+    const entries = [...statusChanges, ...decisions].sort(
       (a, b) => new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime(),
     );
     return ok(entries);
@@ -584,5 +567,5 @@ export function registerOrderMockRoutes(): void {
   registerCancellationRoute();
   registerLifecycleRoutes();
   // Release + đổi hình thức giao (PR #74 sở hữu release)
-  registerDeliveryModeMockRoutes();
+  registerOrderReleaseMockRoutes();
 }

@@ -4,7 +4,7 @@
  * `createMutation` thuần (KHÔNG `createTransitionMutation`): mỗi thao tác là một endpoint POST
  * riêng (`/admin-cancellation`, `/credit-approval`, `/credit-rejection`, `/hold`, `/hold/resolution`,
  * `/delivery-failure`, `/remainder-closure`), không phải PATCH status chung — các endpoint này trả
- * `OrderResponse` → hook trả `Order` đã parse. Release + đổi hình thức giao (PR #74) và giao một phần
+ * `OrderResponse` → hook trả `Order` đã parse. Release (PR #74) và giao một phần
  * ở cuối file.
  *
  * Biến = `OrderMutationVars<T>`: id + input + `idempotencyKey` (header, không vào body). Key do màn hình
@@ -38,14 +38,9 @@ import {
   recordDeliveryFailure,
   resolveOrderHold,
 } from "./api";
-import {
-  changeDeliveryMode,
-  releaseOrder,
-  type ChangeDeliveryModeInput,
-  type ReleaseOrderInput,
-} from "./delivery-mode-api";
 import { decidePartialShipment, type PartialShipmentInput } from "./partial-shipment-api";
 import { orderKeys } from "./queries";
+import { releaseOrder, type ReleaseOrderInput } from "./release-api";
 
 import type {
   DeliveryFailureInput,
@@ -146,23 +141,18 @@ export const useDecidePartialShipment = createMutation<PartialShipmentInput, voi
   },
 );
 
-/* ── Release đơn + hình thức giao (BE PR #157) ───────────────────────── */
+/* ── Release đơn (docs 17 §4.2 bước 5, BR-03) ────────────────────────── */
 
 /**
- * Release đưa đơn CONFIRMED sang IN_PRODUCTION / READY_TO_FULFILL: đổi đơn (+ lịch sử, nếu đổi hình thức giao) và
- * làm đơn thành ứng viên của kho (task xuất kho). Không có `successMessage` / toast lỗi của factory: toast thành công do
- * call site phát (như giao một phần), còn dialog map lỗi (409 FTL_NO_COD…) tại chỗ.
+ * Release đưa đơn CONFIRMED sang READY_TO_FULFILL: hàng giữ được phân bổ vào các thùng LPN cụ thể (tồn kho đổi) và
+ * đơn thành ứng viên của kho (task xuất kho). Không có `successMessage` / toast lỗi của factory: toast thành công do
+ * call site phát (như giao một phần), còn dialog map lỗi (409 ORDER_STOCK_NOT_HELD, DELIVERY_BATCH_NOT_NEXT…) tại chỗ.
  */
 export const useReleaseOrder = createMutation<ReleaseOrderInput, void>(releaseOrder, {
-  invalidate: [orderKeys.all, [SHARED_QUERY_ROOTS.fulfillmentTasks]],
+  invalidate: [
+    orderKeys.all,
+    [SHARED_QUERY_ROOTS.fulfillmentTasks],
+    [SHARED_QUERY_ROOTS.inventoryStock],
+  ],
   showErrorToast: false,
 });
-
-/** Đổi hình thức giao: đổi `deliveryMode` của đơn và thêm mục `DELIVERY_MODE_CHANGE` vào lịch sử (cùng root). */
-export const useChangeDeliveryMode = createMutation<ChangeDeliveryModeInput, void>(
-  changeDeliveryMode,
-  {
-    invalidate: [orderKeys.all],
-    showErrorToast: false,
-  },
-);

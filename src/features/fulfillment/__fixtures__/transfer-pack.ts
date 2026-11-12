@@ -119,7 +119,7 @@ export function tSession(overrides: Partial<TransferPackSessionDto> = {}): Trans
     toWarehouseId: TO_WH,
     transferStatus: "PICKING",
     deliveryMode: "FULL_TRUCKLOAD",
-    packStatus: "PACKING",
+    packStatus: "IN_PROGRESS",
     packerId: PACKER_ID,
     startedAt: "2026-10-22T02:00:00Z",
     lines: [tLine()],

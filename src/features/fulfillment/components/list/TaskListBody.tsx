@@ -4,7 +4,6 @@ import { FilterX, PackageSearch } from "lucide-react";
 
 import { UI_LABELS } from "@/constants";
 import { isOutOfDataScope } from "@/features/fulfillment/errors";
-import { isOnDesignHold } from "@/features/fulfillment/selectors";
 import { DataTable } from "@/components/shared/DataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
@@ -123,8 +122,6 @@ export function TaskListBody({
         data={page.items}
         rowKey={(row) => row.taskId}
         caption={`Hiển thị ${page.items.length} / ${page.totalElements} task xuất kho`}
-        // Kiện bị giữ do lệch thiết kế cần QC / quản lý kho xử lý (data-table-mode-a: row cần chú ý)
-        flagRow={isOnDesignHold}
         onRowClick={s.navigateToDetail}
         pageSize={s.config.pageSize}
         pageSizeOptions={PAGE_SIZE_OPTIONS}

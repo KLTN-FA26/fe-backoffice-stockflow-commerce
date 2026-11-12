@@ -1,11 +1,7 @@
 import type { z } from "zod";
 
 import type { DesignArtifactRole, PackStatus, PickLineStatus, PickStatus } from "@/constants";
-import type {
-  assignInputSchema,
-  createTaskInputSchema,
-  reverifyInputSchema,
-} from "./input-schemas";
+import type { assignInputSchema, createTaskInputSchema } from "./input-schemas";
 import type {
   bePickLineSchema,
   confirmPickInputSchema,
@@ -47,15 +43,11 @@ export type FulfillmentTask = Omit<FulfillmentTaskApiDto, "pickStatus" | "packSt
 
 /* ── Input ───────────────────────────────────────────────────────────── */
 
-export type CreateTaskValues = z.output<typeof createTaskInputSchema>;
+/** Đích vắng = DISPATCH (mặc định của BE, docs 07 §3). */
+export type CreateTaskValues = z.input<typeof createTaskInputSchema>;
 export type AssignValues = z.output<typeof assignInputSchema>;
-export type ReverifyValues = z.output<typeof reverifyInputSchema>;
 
 export interface AssignTaskInput extends AssignValues {
-  taskId: string;
-}
-
-export interface ReverifyTaskInput extends ReverifyValues {
   taskId: string;
 }
 
@@ -73,11 +65,11 @@ export type PickLineApiDto = z.infer<typeof bePickLineSchema>;
 /** Model FE: giữ field BE, status đổi 1-1 sang tên enum BE dạng Title Case. */
 export type PickLine = Omit<PickLineApiDto, "status"> & { status: PickLineStatus };
 
-/** Giá trị form (chuỗi) và giá trị gửi BE (số lượng là số). */
+/** Giá trị form và giá trị gửi BE (`{locationCode, lpn}` / `{locationCode, reason}` — không có số lượng). */
 export type ConfirmPickFormValues = z.input<typeof confirmPickInputSchema>;
 export type ConfirmPickValues = z.output<typeof confirmPickInputSchema>;
-export type ShortPickFormValues = z.input<ReturnType<typeof shortPickInputSchema>>;
-export type ShortPickValues = z.output<ReturnType<typeof shortPickInputSchema>>;
+export type ShortPickFormValues = z.input<typeof shortPickInputSchema>;
+export type ShortPickValues = z.output<typeof shortPickInputSchema>;
 
 export interface PickLineWriteInput {
   taskId: string;

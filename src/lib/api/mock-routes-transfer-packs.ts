@@ -122,7 +122,7 @@ export function registerTransferPackMockRoutes(): void {
     const existing = livePackOf(transfer.transferId);
     if (existing) {
       if (
-        existing.packStatus === "PACKING" &&
+        existing.packStatus === "IN_PROGRESS" &&
         existing.packerId !== actor.userId &&
         !actor.can(FULFILLMENT_PACKING_PERMISSIONS.approve)
       )

@@ -143,7 +143,7 @@ describe("trạm đóng gói chuyển kho — hiển thị và gating", () => {
   it("đã đóng xong (PACKED): báo xong, không còn thao tác; người có quyền kế hoạch xe thấy 'Lập kế hoạch xe' trỏ đúng URL", async () => {
     renderTransferPackStation({
       identity: PLANNER_IDENTITY,
-      session: tSession({ packStatus: "PACKED", packedAt: "2026-10-22T04:00:00Z" }),
+      session: tSession({ packStatus: "COMPLETED", packedAt: "2026-10-22T04:00:00Z" }),
     });
     expect(await screen.findByText(L.notice.packedTitle)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: L.action.complete })).not.toBeInTheDocument();
@@ -157,7 +157,7 @@ describe("trạm đóng gói chuyển kho — hiển thị và gating", () => {
 
   it("đã đóng xong nhưng không có quyền lập kế hoạch xe: không có nút 'Lập kế hoạch xe'", async () => {
     renderTransferPackStation({
-      session: tSession({ packStatus: "PACKED", packedAt: "2026-10-22T04:00:00Z" }),
+      session: tSession({ packStatus: "COMPLETED", packedAt: "2026-10-22T04:00:00Z" }),
     });
     await screen.findByText(L.notice.packedTitle);
     expect(screen.queryByRole("link", { name: L.action.planVehicle })).not.toBeInTheDocument();

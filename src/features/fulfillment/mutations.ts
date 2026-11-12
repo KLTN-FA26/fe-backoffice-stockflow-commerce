@@ -2,19 +2,16 @@
  * Fulfillment task — mutations + invalidation map (api-conventions §2.3).
  *
  * - Mọi mutation đổi task → `fulfillmentKeys.all` (list + detail của cả hai màn).
- * - Tạo task / kiểm tra lại còn đổi trạng thái ĐƠN (READY_TO_FULFILL → PICKING,
- *   → PACKED, PICKING ⇄ ON_HOLD khi lệch thiết kế — BE PR #133, docs 17 §5) → màn đơn hàng và dữ liệu đơn của feature này.
- *   Tồn kho chưa đổi ở các bước này nên không invalidate tồn (trừ tồn ở bước xác nhận dòng —
- *   `pick-line-mutations.ts`).
- * - Kiểm tra lại KHÔNG có `successMessage` cố định: BE trả 200 cả khi vẫn lệch checksum (pack
- *   `On Hold`), toast chọn theo `packStatus` của kết quả. Thao tác của trạm đóng gói (nhận đơn, quét,
- *   kiện, hoàn tất) nằm ở `packing-mutations.ts`.
+ * - Tạo task còn đổi trạng thái ĐƠN (READY_TO_FULFILL → PICKING — BE PR #133, docs 17 §5) → màn đơn hàng và dữ liệu
+ *   đơn của feature này. Tồn kho chưa đổi ở bước này nên không invalidate tồn (trừ tồn ở bước xác nhận dòng với đích
+ *   DISPATCH — `pick-line-mutations.ts` — và khi chuyển cả tác vụ `Staged` sang khu xuất hàng — `useMoveToDispatch`).
+ *   Thao tác của trạm đóng gói (nhận đơn, quét, kiện, hoàn tất) nằm ở `packing-mutations.ts`.
  * - Lỗi "dữ liệu đã đổi ở nơi khác" (`isStaleFulfillmentError`) → tải lại ở MỌI mutation.
  */
 
 import { useQueryClient } from "@tanstack/react-query";
 
-import { TOAST_MESSAGES } from "@/constants";
+import { SHARED_QUERY_ROOTS, TOAST_MESSAGES } from "@/constants";
 import { createMutation } from "@/lib/api/query-factory";
 import { toast } from "@/components/shared/Toast";
 
@@ -23,12 +20,11 @@ import {
   completePicking,
   createFulfillmentTask,
   getDesignArtifactUrl,
-  reverifyDesignIntegrity,
+  moveToDispatch,
   startPicking,
 } from "./api";
 import { fulfillmentErrorMessage, isStaleFulfillmentError } from "./errors";
-import { fulfillmentArtifactKeys, fulfillmentKeys, fulfillmentReferenceKeys } from "./queries";
-import { isOnDesignHold } from "./selectors";
+import { fulfillmentKeys, fulfillmentReferenceKeys } from "./queries";
 
 import type { FulfillmentErrorContext } from "./errors";
 import type {
@@ -37,7 +33,6 @@ import type {
   AssignTaskInput,
   CreateTaskValues,
   FulfillmentTask,
-  ReverifyTaskInput,
 } from "./types";
 
 /** = `orderKeys.all` của features/order — khai báo lại để không import chéo feature. */
@@ -118,39 +113,15 @@ export const useCompletePicking = withStaleRefetch(
   }),
 );
 
-/**
- * Kết quả đối chiếu có thể đã đổi → URL file thiết kế của task phải lấy lại. Tách khỏi
- * `fulfillmentKeys` để gán / lấy hàng / đóng gói khớp không bắt BE băm lại bundle.
- */
-function useRefreshArtifacts() {
-  const queryClient = useQueryClient();
-  return (taskId: string) =>
-    void queryClient.invalidateQueries({ queryKey: fulfillmentArtifactKeys.task(taskId) });
-}
-
-const useReverifyDesignIntegrityBase = withStaleRefetch(
-  createMutation<ReverifyTaskInput, FulfillmentTask>(reverifyDesignIntegrity, {
-    invalidate: TASK_AND_ORDER_KEYS,
-    // Dialog hiện lỗi inline — kể cả trường hợp vẫn lệch (200 + `On Hold`), nên không toast thêm
+export const useMoveToDispatch = withStaleRefetch(
+  createMutation<string, FulfillmentTask>(moveToDispatch, {
+    // Trừ tồn các thùng ở khu chờ xuất ngay trong giao dịch (docs 07 §4.3 bước 8) → làm mới cả tồn kho và đơn
+    invalidate: [...TASK_AND_ORDER_KEYS, [SHARED_QUERY_ROOTS.inventoryStock]],
+    successMessage: TOAST.movedToDispatch,
     showErrorToast: false,
-    onSuccess: (task) => {
-      if (!isOnDesignHold(task)) toast.success(TOAST.reverified);
-    },
+    onError: toastError("dispatch"),
   }),
 );
-
-export function useReverifyDesignIntegrity(
-  options?: Parameters<typeof useReverifyDesignIntegrityBase>[0],
-) {
-  const refreshArtifacts = useRefreshArtifacts();
-  return useReverifyDesignIntegrityBase({
-    ...options,
-    onSuccess: (...args) => {
-      refreshArtifacts(args[0].taskId);
-      options?.onSuccess?.(...args);
-    },
-  });
-}
 
 /**
  * Lấy URL ký khi người dùng bấm tải — không cache (xem `useDesignArtifact` cho bản xem trước).

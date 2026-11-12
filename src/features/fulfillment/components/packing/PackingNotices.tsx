@@ -8,10 +8,9 @@ import type { PackingAccess } from "@/features/fulfillment/packing-lifecycle";
 import type { PackingSession } from "@/features/fulfillment/packing-types";
 
 const N = UI_LABELS.packing.notice;
-const { fulfillment } = UI_LABELS;
 
 /**
- * Các thông báo đầu trạm: bị giữ do lệch thiết kế, đơn đang do người khác đóng (tên lấy từ phiên —
+ * Các thông báo đầu trạm: đơn đang do người khác đóng (tên lấy từ phiên —
  * `PACKING_TAKEN` của BE không kèm tên), hàng in chưa về bàn (PACK-EARLY), khoản phải thu trước bàn giao
  * (G3-Q4) và hướng dẫn bắt đầu.
  */
@@ -31,11 +30,6 @@ export function PackingNotices({
   const due = session.paymentDue;
   return (
     <>
-      {session.packStatus === "On Hold" && (
-        <Alert tone="danger" title={fulfillment.holdTitle}>
-          {N.holdDescription} {!access.canReverify && N.holdReadOnly}
-        </Alert>
-      )}
       {access.takenByOther && (
         <Alert tone="warning" title={owner ? N.takenTitle(owner) : N.takenAnonymous}>
           {N.takenDescription}

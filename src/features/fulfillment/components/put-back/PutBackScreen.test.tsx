@@ -12,6 +12,7 @@ import {
 import { ApiError } from "@/lib/api/error";
 
 import {
+  LPN_1,
   PICK_LINE_1,
   PICK_LINE_2,
   apiPickLine,
@@ -45,6 +46,7 @@ afterEach(() => vi.restoreAllMocks());
 const F = UI_LABELS.fulfillment.filter;
 const ORDER = "SO-20261010-000431";
 const PUT_BACK_PATH = `/fulfillment/tasks/${TASK_ID}/pick-lines/${PICK_LINE_1}/put-back`;
+const PUT_BACK_PATH_2 = `/fulfillment/tasks/${TASK_ID}/pick-lines/${PICK_LINE_2}/put-back`;
 
 interface Options {
   rows?: PutBackRowApiDto[];
@@ -52,11 +54,25 @@ interface Options {
   list?: RouteHandler;
   putBack?: RouteHandler;
   bins?: { locationCode: string; usable: boolean }[];
+  /** Khu chứa của kho (loại khu — BE `AreaType`); mặc định có khu chờ xuất + một khu cách ly. */
+  areas?: { locationCode: string; usable: boolean; type: string }[];
   layout?: RouteHandler;
 }
 
 function renderScreen(identity: TestIdentity, opts: Options = {}) {
   let rows = opts.rows ?? [apiPutBackRow()];
+  const putBackHandler: RouteHandler =
+    opts.putBack ??
+    ((_params, body) => {
+      rows = rows.filter((row) => row.lineId !== PICK_LINE_1);
+      const { locationCode } = body as { locationCode: string };
+      return apiPickLine({
+        status: "PUT_BACK",
+        pickedQty: 3,
+        putBackQty: 3,
+        putBackLocationCode: locationCode,
+      });
+    });
   const spies = mockFulfillmentApi(
     identity,
     {
@@ -78,22 +94,15 @@ function renderScreen(identity: TestIdentity, opts: Options = {}) {
               ],
             },
           ],
-          areas: [{ locationCode: "HN-STAGE-01", usable: true }],
+          areas: opts.areas ?? [
+            { locationCode: "HN-STAGE-01", usable: true, type: "STAGING" },
+            { locationCode: "HN-QC-01", usable: true, type: "QUARANTINE" },
+          ],
         })),
     },
     {
-      [PUT_BACK_PATH]:
-        opts.putBack ??
-        ((_params, body) => {
-          rows = rows.filter((row) => row.lineId !== PICK_LINE_1);
-          const { locationCode } = body as { locationCode: string };
-          return apiPickLine({
-            status: "PUT_BACK",
-            pickedQty: 3,
-            putBackQty: 3,
-            putBackLocationCode: locationCode,
-          });
-        }),
+      [PUT_BACK_PATH]: putBackHandler,
+      [PUT_BACK_PATH_2]: putBackHandler,
     },
   );
   renderFulfillmentScreen(<PutBackScreen />, undefined, opts.searchParams ?? "");
@@ -112,6 +121,17 @@ async function openDialog(user: ReturnType<typeof userEvent.setup>) {
   return screen.findByRole("dialog");
 }
 
+/** Quét LPN của thùng trong dialog cất lại (ô nhập tự do). */
+async function scanLpn(
+  user: ReturnType<typeof userEvent.setup>,
+  dialog: HTMLElement,
+  lpn: string = LPN_1,
+) {
+  const input = within(dialog).getByLabelText(P.lpn);
+  await user.clear(input);
+  await user.type(input, lpn);
+}
+
 describe("PutBackScreen — hàng đợi trả hàng về kệ (BE GET /fulfillment/put-backs)", () => {
   it("hàng đợi hiện cột, h1 sr-only, không PageHeader", async () => {
     renderScreen(IDENTITIES.warehouseStaff);
@@ -119,7 +139,13 @@ describe("PutBackScreen — hàng đợi trả hàng về kệ (BE GET /fulfillm
     expect(await screen.findByText(ORDER)).toBeInTheDocument();
     const heading = screen.getByRole("heading", { level: 1, name: P.title });
     expect(heading).toHaveClass("sr-only");
-    for (const header of [P.column.sku, P.column.lot, P.column.pickedQty, P.column.fromLocation]) {
+    for (const header of [
+      P.column.lpn,
+      P.column.sku,
+      P.column.lot,
+      P.column.pickedQty,
+      P.column.fromLocation,
+    ]) {
       expect(screen.getByRole("columnheader", { name: header })).toBeInTheDocument();
     }
   });
@@ -222,32 +248,130 @@ describe("PutBackDialog — trả một dòng về kệ (BE POST …/put-back)",
     expect(within(dialog).getByRole("combobox", { name: P.location })).toHaveValue(
       "HN-A01-01-01-A",
     );
+    await scanLpn(user, dialog);
     await user.click(within(dialog).getByRole("button", { name: P.action }));
     await waitFor(() =>
       expect(post).toHaveBeenCalledWith(
         PUT_BACK_PATH,
-        { locationCode: "HN-A01-01-01-A" },
+        { locationCode: "HN-A01-01-01-A", lpn: LPN_1 },
         { headers: { "Idempotency-Key": expect.any(String) } },
       ),
     );
   });
 
-  it("dialog chọn sẵn bin cũ; Trả về kệ → POST đúng body + Idempotency-Key; dòng rời hàng đợi", async () => {
+  it("dialog chọn sẵn bin cũ; quét LPN rồi Trả về kệ → POST {locationCode, lpn} + Idempotency-Key; dòng rời hàng đợi", async () => {
     const user = userEvent.setup();
     const { post } = renderScreen(IDENTITIES.warehouseStaff);
     const dialog = await openDialog(user);
     expect(await within(dialog).findByRole("combobox", { name: P.location })).toHaveValue(
       "HN-A01-01-01-A",
     );
+    // Dialog nói rõ thùng cần cất: LPN nằm ngay trong mô tả
+    expect(dialog).toHaveTextContent(LPN_1);
+    await scanLpn(user, dialog);
     await user.click(within(dialog).getByRole("button", { name: P.action }));
     await waitFor(() =>
       expect(post).toHaveBeenCalledWith(
         PUT_BACK_PATH,
-        { locationCode: "HN-A01-01-01-A" },
+        { locationCode: "HN-A01-01-01-A", lpn: LPN_1 },
         { headers: { "Idempotency-Key": expect.any(String) } },
       ),
     );
     expect(await screen.findByText(P.empty)).toBeInTheDocument();
+  });
+
+  it("chưa quét LPN → lỗi dưới ô LPN, không gửi (BE @NotBlank lpn)", async () => {
+    const user = userEvent.setup();
+    const { post } = renderScreen(IDENTITIES.warehouseStaff);
+    const dialog = await openDialog(user);
+    await within(dialog).findByDisplayValue("HN-A01-01-01-A");
+    await user.click(within(dialog).getByRole("button", { name: P.action }));
+    expect(await within(dialog).findByText("Quét hoặc nhập mã LPN của thùng")).toBeInTheDocument();
+    expect(putBackCalls(post)).toHaveLength(0);
+  });
+
+  it("PICK_ITEM_MISMATCH (quét nhầm thùng) → lỗi dưới ô LPN nêu LPN ĐÚNG của dòng, xoá ô để quét lại", async () => {
+    const user = userEvent.setup();
+    renderScreen(IDENTITIES.warehouseStaff, {
+      putBack: () => {
+        throw new ApiError(409, "PICK_ITEM_MISMATCH", "x");
+      },
+    });
+    const dialog = await openDialog(user);
+    await within(dialog).findByDisplayValue("HN-A01-01-01-A");
+    await scanLpn(user, dialog, "LPN-OF-ANOTHER-ORDER");
+    await user.click(within(dialog).getByRole("button", { name: P.action }));
+    expect(await within(dialog).findByText(PE.itemMismatch(LPN_1))).toBeInTheDocument();
+    expect(within(dialog).getByLabelText(P.lpn)).toHaveValue("");
+  });
+
+  it("CARTON_DOES_NOT_FIT_BIN (422, BR-12) → lỗi dưới ô Vị trí trả: chọn bin khác", async () => {
+    const user = userEvent.setup();
+    renderScreen(IDENTITIES.warehouseStaff, {
+      putBack: () => {
+        throw new ApiError(422, "CARTON_DOES_NOT_FIT_BIN", "x");
+      },
+    });
+    const dialog = await openDialog(user);
+    await within(dialog).findByDisplayValue("HN-A01-01-01-A");
+    await scanLpn(user, dialog);
+    await user.click(within(dialog).getByRole("button", { name: P.action }));
+    expect(await within(dialog).findByText(PE.doesNotFit)).toBeInTheDocument();
+  });
+
+  it("hàng đợi hiện LPN; thùng hư hỏng loại ở trạm kiểm (quarantine) có nhãn Cách ly", async () => {
+    renderScreen(IDENTITIES.warehouseStaff, {
+      rows: [
+        apiPutBackRow(),
+        apiPutBackRow({
+          lineId: PICK_LINE_2,
+          lpn: "LPN0000000009",
+          sku: "MUG-WHT",
+          quarantine: true,
+        }),
+      ],
+    });
+    expect(await screen.findByText(LPN_1)).toBeInTheDocument();
+    const damaged = screen.getByText("LPN0000000009").closest("tr") as HTMLElement;
+    expect(within(damaged).getByText(P.quarantineBadge)).toBeInTheDocument();
+    expect(
+      within(screen.getByText(LPN_1).closest("tr") as HTMLElement).queryByText(P.quarantineBadge),
+    ).toBeNull();
+  });
+
+  it("thùng quarantine: chọn KHU CÁCH LY (không phải bin) rồi quét LPN → POST body {khu cách ly, lpn}", async () => {
+    const user = userEvent.setup();
+    const quarantinePath = PUT_BACK_PATH_2;
+    const { post } = renderScreen(IDENTITIES.warehouseStaff, {
+      rows: [
+        apiPutBackRow({
+          lineId: PICK_LINE_2,
+          lpn: "LPN0000000009",
+          sku: "MUG-WHT",
+          quarantine: true,
+        }),
+      ],
+    });
+    await user.click(await screen.findByRole("button", { name: P.actionFor("MUG-WHT", ORDER) }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(P.quarantineHint)).toBeInTheDocument();
+    // Chỉ khu QUARANTINE đang dùng được: kho chỉ có một → chọn sẵn; bin không có trong danh sách
+    expect(await within(dialog).findByRole("combobox", { name: P.quarantineLocation })).toHaveValue(
+      "HN-QC-01",
+    );
+    await user.click(within(dialog).getByRole("combobox", { name: P.quarantineLocation }));
+    expect(screen.queryByRole("option", { name: "HN-A01-01-01-A" })).toBeNull();
+    expect(screen.queryByRole("option", { name: "HN-STAGE-01" })).toBeNull();
+    await user.keyboard("{Escape}");
+    await scanLpn(user, dialog, "LPN0000000009");
+    await user.click(within(dialog).getByRole("button", { name: P.action }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(
+        quarantinePath,
+        { locationCode: "HN-QC-01", lpn: "LPN0000000009" },
+        { headers: { "Idempotency-Key": expect.any(String) } },
+      ),
+    );
   });
 
   it("bin cũ không dùng được → ô trống, chỉ liệt kê bin dùng được", async () => {
@@ -276,6 +400,7 @@ describe("PutBackDialog — trả một dòng về kệ (BE POST …/put-back)",
     });
     const dialog = await openDialog(user);
     await within(dialog).findByDisplayValue("HN-A01-01-01-A");
+    await scanLpn(user, dialog);
     await user.click(within(dialog).getByRole("button", { name: P.action }));
     expect(await within(dialog).findByText(PE.locationInvalid)).toBeInTheDocument();
   });
@@ -289,6 +414,7 @@ describe("PutBackDialog — trả một dòng về kệ (BE POST …/put-back)",
     });
     const dialog = await openDialog(user);
     await within(dialog).findByDisplayValue("HN-A01-01-01-A");
+    await scanLpn(user, dialog);
     await user.click(within(dialog).getByRole("button", { name: P.action }));
     expect(await within(dialog).findByText(PE.network)).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: P.action }));

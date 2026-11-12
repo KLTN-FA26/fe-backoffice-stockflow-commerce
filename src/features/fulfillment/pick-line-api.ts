@@ -1,6 +1,6 @@
 /**
- * Dòng lấy hàng — API layer, khớp BE `FulfillmentController` (SCRUM-267/274/275, báo thiếu + phân bổ lại
- * BE PR #147). Parse tại biên (api-conventions §3.2); status BE → tên Title Case. Mọi thao tác ghi gửi
+ * Dòng lấy hàng — API layer, khớp BE `FulfillmentController` (docs 07 §4.2, §4.4: quét vị trí + LPN, báo thiếu
+ * kèm lý do, phân bổ lại thùng). Parse tại biên (api-conventions §3.2); status BE → tên Title Case. Mọi thao tác ghi gửi
  * `Idempotency-Key` (`lib/api/idempotency`) để bấm lại an toàn.
  */
 
@@ -9,6 +9,7 @@ import { api } from "@/lib/api/client";
 import { idempotencyRequestConfig } from "@/lib/api/idempotency";
 
 import { bePickLinePageSchema, bePickLineSchema } from "./pick-line-schemas";
+import { byWalkingOrder } from "./pick-line-selectors";
 
 import type {
   ConfirmPickLineInput,
@@ -29,8 +30,10 @@ export function toPickLine(dto: PickLineApiDto): PickLine {
 const parseLine = (data: unknown) => toPickLine(bePickLineSchema.parse(data));
 
 /**
- * Mọi dòng của một task theo lộ trình (BE sắp `sequenceNo`). Một trang tối đa 200 dòng
- * (Pages.MAX_PAGE_SIZE); task dài hơn thì tải tiếp các trang sau — màn cần đủ dòng để tính tiến độ.
+ * Mọi dòng của một task theo lộ trình đi lấy: mã vị trí rồi SKU (docs 07 §4.1 bước 2, §6 "đi theo thứ tự mã vị
+ * trí"). BE sắp `sequenceNo`, nhưng dòng thêm sau khi phân bổ lại / lấy bổ sung được đánh số tiếp ở cuối nên FE sắp
+ * lại theo lộ trình. Một trang tối đa 200 dòng (Pages.MAX_PAGE_SIZE); task dài hơn thì tải tiếp các trang sau —
+ * màn cần đủ dòng để tính tiến độ.
  */
 export async function listPickLines(taskId: string, signal?: AbortSignal): Promise<PickLine[]> {
   const lines: PickLine[] = [];
@@ -41,13 +44,14 @@ export async function listPickLines(taskId: string, signal?: AbortSignal): Promi
     });
     const parsed = bePickLinePageSchema.parse(data);
     lines.push(...parsed.items.map(toPickLine));
-    if (!parsed.hasNext) return lines;
+    if (!parsed.hasNext) return lines.sort(byWalkingOrder);
   }
 }
 
 /**
- * Xác nhận một dòng: vị trí → SKU / barcode → số lượng (phải bằng đúng phân bổ). Chỉ người được
- * gán; BE kiểm và trừ tồn cùng transaction. Gửi lại đúng nội dung cho dòng đã lấy → 200 như cũ.
+ * Xác nhận một dòng: quét vị trí rồi LPN của thùng (`{locationCode, lpn}`, không có số lượng — BR-04, BR-10). Chỉ
+ * người được gán; BE kiểm rồi, tuỳ đích của task, trừ tồn (DISPATCH → Picked) hoặc chuyển thùng sang khu chờ xuất
+ * (STAGING → Staged) cùng transaction. Gửi lại đúng nội dung cho dòng đã lấy → 200 như cũ.
  */
 export async function confirmPickLine({
   taskId,
@@ -64,8 +68,9 @@ export async function confirmPickLine({
 }
 
 /**
- * Báo thiếu: người được gán đứng ở vị trí của dòng, tìm thấy `foundQuantity` (< phân bổ). Dòng → SHORT,
- * không trừ tồn, đơn tạm giữ (lý do INVENTORY) tới khi phân bổ lại. Lặp lại cùng báo thiếu → 200 như cũ.
+ * Báo thiếu thùng: người được gán đứng ở vị trí của dòng, báo `{locationCode, reason}` (NOT_FOUND | DAMAGED). Dòng →
+ * SHORT cả thùng, không trừ / không chuyển tồn, đơn tạm giữ (lý do INVENTORY) và thùng vào phiếu kiểm kê mù tới
+ * khi phân bổ lại. Lặp lại cùng báo thiếu → 200 như cũ.
  */
 export async function reportShortPick({
   taskId,
@@ -82,8 +87,9 @@ export async function reportShortPick({
 }
 
 /**
- * Phân bổ lại một dòng SHORT sang bin khác còn hàng (FEFO, không dùng lại bin thiếu): dòng cũ → CANCELLED,
- * trả các dòng OPEN mới ở cuối lộ trình. Không đủ hàng → 409 INSUFFICIENT_STOCK, không đổi gì.
+ * Phân bổ lại một dòng SHORT sang thùng khác của kho (nguyên thùng, FIFO theo ngày nhập, không bao giờ lấy lại
+ * thùng vừa thiếu — docs 07 §4.4 bước 10, BR-03): dòng cũ → CANCELLED, trả các dòng OPEN mới. Không đủ thùng → 409
+ * INSUFFICIENT_STOCK, không đổi gì.
  */
 export async function reallocateShortLine({
   taskId,

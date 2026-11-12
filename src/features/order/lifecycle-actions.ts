@@ -115,15 +115,18 @@ export function isCreditHold(context: Pick<OrderActionContext, "holdReason" | "p
 }
 
 export const ORDER_ACTIONS: readonly OrderAction[] = [
-  // BE `OrderReleaseController#release` (SCRUM-423, PR #74): đơn CONFIRMED (đã trả đủ / cọc đã về) → IN_PRODUCTION
-  // nếu có dòng in, còn lại READY_TO_FULFILL (BE chọn). Mẫu duyệt (BR-PRD-08), nợ quá hạn, cọc (BR-PRD-09), FTL + COD
-  // (LP-2) là điều kiện server — hộp thoại release hiện lý do. POST /orders/{id}/release, sales-orders:APPROVE (scope ALL).
+  // BE `OrderReleaseController#release` (docs 17 §4.2 bước 5, BR-03): quản lý kho của kho xuất release đơn CONFIRMED
+  // → READY_TO_FULFILL, hàng giữ được phân bổ vào các thùng LPN cụ thể. Nợ quá hạn, giữ đủ hàng (BR-21), đúng kho
+  // xuất (BR-22), đợt giao kế tiếp (BR-29) là điều kiện server — hộp thoại release hiện lý do.
+  // POST /orders/{id}/release, `sales-order-releases:UPDATE` (scope ALL) — thay cho `sales-orders:APPROVE` BE đã xoá.
+  // (Đơn Awaiting Stock đủ hàng và đợt giao sau của đơn Partially Fulfilled BE cũng cho release, nhưng FE chưa có
+  // hai trạng thái đó / luồng đợt sau — xem ghi chú PR.)
   {
     code: "release",
     label: ORDER_RELEASE_LABELS.button,
-    permission: ORDER_PERMISSIONS.approve,
+    permission: ORDER_PERMISSIONS.release,
     fromStatuses: ["Confirmed"],
-    outcome: { kind: "to", statuses: ["In Production", "Ready to Fulfill"] },
+    outcome: { kind: "to", statuses: ["Ready to Fulfill"] },
   },
   // SCRUM-427 / docs 14 BR-06: đơn công nợ vượt hạn mức chờ người có quyền duyệt (Order#approveCredit).
   // POST /orders/{id}/credit-approval (sales-order-credit-holds:APPROVE — ACCOUNTANT).

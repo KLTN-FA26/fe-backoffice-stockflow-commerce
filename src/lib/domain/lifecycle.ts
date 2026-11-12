@@ -148,31 +148,30 @@ export const PUTAWAY_TRANSITIONS: Record<PutawayStatus, readonly PutawayStatus[]
 
 /* ── Module 07: Picking ──────────────────────────────────────────────── */
 
-// HỆ QUY CHIẾU LÀ BE: chép đúng các chuyển trạng thái BE `PickJpaEntity` đang cho phép
-// (start / complete / cancel), dùng chung cho mọi màn đọc pick task. Docs 07 §5.1 chỉ để tham khảo
-// — BE thêm/bỏ chuyển tiếp thì FE mới đổi theo, FE không tự thêm trạng thái docs mà BE chưa có.
-// "→ Cancelled" do đơn bị huỷ (BE OrderCancellationListener), không phải thao tác trên task.
-// `SHORT` có trong enum BE nhưng BE chưa có luồng nào đưa vào hay ra.
+// HỆ QUY CHIẾU LÀ BE: chép đúng các chuyển trạng thái BE `PickStatus` / `PickJpaEntity` (docs 07 §5.1), dùng
+// chung cho mọi màn đọc pick task:
+//   PENDING → PICKING (bắt đầu) → PICKED (đích DISPATCH) | STAGED (đích STAGING, mọi dòng đã về khu chờ xuất);
+//   STAGED → PICKED (quản lý kho chuyển cả tác vụ sang khu xuất hàng, `dispatch-transfer`);
+//   STAGED / PICKED → PICKING (lấy bổ sung — `top-up`, docs 07 §4.3 bước 7);
+//   mọi trạng thái chưa huỷ → CANCELLED do đơn bị huỷ (BE OrderCancellationListener), không phải thao tác trên task.
 export const PICK_TRANSITIONS: Record<PickStatus, readonly PickStatus[]> = {
   Pending: ["Picking", "Cancelled"],
-  Picking: ["Picked", "Cancelled"],
-  Short: [],
-  Picked: [],
+  Picking: ["Picked", "Staged", "Cancelled"],
+  Staged: ["Picking", "Picked", "Cancelled"],
+  Picked: ["Picking", "Cancelled"],
   Cancelled: [],
 };
 
 /* ── Module 08: Packing ──────────────────────────────────────────────── */
 
-// HỆ QUY CHIẾU LÀ BE: chép đúng phiên đóng gói BE `PackingSession` (PR #136, 03-state-machines):
-// PENDING → PACKING (packer nhận đơn, `packing-start`) → PACKED (không còn gì chờ giao), PACKING ⇄
-// ON_HOLD (thiết kế dòng in lệch checksum, BR-DSG-003; QC / quản lý kho kiểm tra lại thì phiên về
-// PACKING — docs 08 §5 "Verification Failed → In Progress" — chứ KHÔNG ra PACKED), → CANCELLED khi
-// đơn huỷ. Giao một phần giữ phiên ở PACKING. `PACKED` / `CANCELLED` là trạng thái cuối.
+// HỆ QUY CHIẾU LÀ BE: chép đúng `PackStatus` (docs 08 §5.1, BE V20261113000700): PENDING → IN_PROGRESS (bắt đầu
+// kiểm thùng, `packing-start`) → COMPLETED (hoàn tất đủ) hoặc ở lại IN_PROGRESS (hoàn tất một phần: đã tạo
+// shipment, còn thùng chờ kiểm); PENDING / IN_PROGRESS → CANCELLED khi đơn huỷ trước thùng đầu tiên được dán
+// nhãn. `COMPLETED` / `CANCELLED` là trạng thái cuối. Không còn ON_HOLD (không có giữ vì kiểm tra thiết kế).
 export const PACK_TRANSITIONS: Record<PackStatus, readonly PackStatus[]> = {
-  Pending: ["Packing", "Cancelled"],
-  Packing: ["Packed", "On Hold", "Cancelled"],
-  "On Hold": ["Packing", "Cancelled"],
-  Packed: [],
+  Pending: ["In Progress", "Cancelled"],
+  "In Progress": ["In Progress", "Completed", "Cancelled"],
+  Completed: [],
   Cancelled: [],
 };
 

@@ -191,7 +191,7 @@ describe("huỷ đơn → đồng bộ xuất kho (OrderCancellationListener)", 
       await reportShortPick({
         taskId: task.taskId,
         lineId: shortLine.lineId,
-        values: { locationCode: shortLine.locationCode, foundQuantity: 0 },
+        values: { locationCode: shortLine.locationCode, reason: "NOT_FOUND" },
         idempotencyKey: nextKey(),
       });
       await adminCancel(task.orderId);

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS, UI_LABELS } from "@/constants";
+import { FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS, PICK_DESTINATION, UI_LABELS } from "@/constants";
 import { useCan } from "@/lib/auth";
 import { fulfillmentErrorMessage } from "@/features/fulfillment/errors";
 import { createTaskInputSchema } from "@/features/fulfillment/input-schemas";
@@ -12,16 +12,19 @@ import { Alert } from "@/components/shared/Alert";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 
 import { AssigneeSelect } from "./AssigneeSelect";
+import { DestinationField, useStagingArea } from "./DestinationField";
 import { TaskCandidateSelect } from "./TaskCandidateSelect";
+
+import type { PickDestination } from "@/constants";
 
 const { fulfillment } = UI_LABELS;
 
-type FieldErrors = Partial<Record<"orderId" | "assignedUserId", string>>;
+type FieldErrors = Partial<Record<"orderId" | "assignedUserId" | "stagingLocationCode", string>>;
 
 /**
- * Đưa một đơn vào xuất kho và gán người lấy hàng (BE `POST /fulfillment/tasks`).
- * BR-01 (docs 07 §6): chỉ picking khi đơn đã release — BE (PR #133) chỉ nhận đơn READY_TO_FULFILL;
- * đơn CONFIRMED phải release trước, đơn có dòng in phải release sản xuất trước (BR-06).
+ * Đưa một đơn vào xuất kho, chọn đích lấy hàng (khu xuất hàng / khu chờ xuất) và gán người lấy hàng (BE
+ * `POST /fulfillment/tasks`, docs 07 §4.1 bước 2). BR-01 (docs 07 §6): chỉ picking khi đơn đã release — BE chỉ nhận
+ * đơn READY_TO_FULFILL; đơn CONFIRMED phải được quản lý kho release trước.
  * Danh sách đơn đọc từ `GET /fulfillment/task-candidates` (BE PR #151, cần `fulfillment-task-assignment:CREATE`)
  * thay cho `GET /orders` (cần `sales-orders:READ` — quản lý kho không có). Người nhận vẫn lấy từ
  * `GET /fulfillment/assignees` (cần `fulfillment-task-assignment:UPDATE`).
@@ -33,6 +36,8 @@ export function CreateTaskDialog({ onClose }: { onClose: () => void }) {
   const create = useCreateFulfillmentTask();
   const [orderId, setOrderId] = useState("");
   const [assignedUserId, setAssignedUserId] = useState("");
+  const [destination, setDestination] = useState<PickDestination>(PICK_DESTINATION.DISPATCH);
+  const [stagingChoice, setStagingChoice] = useState("");
   const [errors, setErrors] = useState<FieldErrors>({});
   const [serverError, setServerError] = useState<string | null>(null);
 
@@ -42,11 +47,29 @@ export function CreateTaskDialog({ onClose }: { onClose: () => void }) {
     setServerError(null);
   };
 
+  const options = candidates.data?.items ?? [];
+  // Người nhận và khu chờ xuất theo kho của đơn đã chọn (BE `GET /fulfillment/assignees?warehouseId=`)
+  const warehouseId = options.find((order) => order.orderId === orderId)?.warehouseId;
+  const stagingArea = useStagingArea(warehouseId, destination, stagingChoice);
+
   const submit = () => {
-    const parsed = createTaskInputSchema.safeParse({ orderId, assignedUserId });
-    if (!parsed.success) {
-      const flat = parsed.error.flatten().fieldErrors;
-      setErrors({ orderId: flat.orderId?.[0], assignedUserId: flat.assignedUserId?.[0] });
+    const parsed = createTaskInputSchema.safeParse({
+      orderId,
+      assignedUserId,
+      destination,
+      stagingLocationCode: stagingArea.code || undefined,
+    });
+    if (!parsed.success || stagingArea.needsChoice) {
+      const flat: Partial<Record<string, string[]>> = parsed.success
+        ? {}
+        : parsed.error.flatten().fieldErrors;
+      setErrors({
+        orderId: flat.orderId?.[0],
+        assignedUserId: flat.assignedUserId?.[0],
+        stagingLocationCode: stagingArea.needsChoice
+          ? fulfillment.destination.stagingAreaRequired
+          : undefined,
+      });
       return;
     }
     create.mutate(parsed.data, {
@@ -55,16 +78,15 @@ export function CreateTaskDialog({ onClose }: { onClose: () => void }) {
     });
   };
 
-  const options = candidates.data?.items ?? [];
-  // Người nhận theo kho của đơn đã chọn (BE `GET /fulfillment/assignees?warehouseId=`)
-  const warehouseId = options.find((order) => order.orderId === orderId)?.warehouseId;
   return (
     <FormDialog open onOpenChange={(open) => !open && onClose()}>
       <FormDialogBody
         title={fulfillment.action.create}
         description="Chọn đơn đã release (sẵn sàng xuất kho) để đưa vào xuất kho và gán nhân viên lấy hàng. Mỗi đơn chỉ có một task."
         submitLabel={fulfillment.action.create}
-        canSubmit={canCreate && canAssign && !candidates.isError && options.length > 0}
+        canSubmit={
+          canCreate && canAssign && !candidates.isError && options.length > 0 && !stagingArea.none
+        }
         isPending={create.isPending}
         error={serverError}
         onSubmit={submit}
@@ -80,6 +102,7 @@ export function CreateTaskDialog({ onClose }: { onClose: () => void }) {
                 setOrderId(value);
                 // Đổi đơn có thể đổi kho → danh sách người nhận khác, bỏ lựa chọn cũ
                 setAssignedUserId("");
+                setStagingChoice("");
               }, "orderId")
             }
           />
@@ -88,6 +111,19 @@ export function CreateTaskDialog({ onClose }: { onClose: () => void }) {
             {fulfillment.noCreateDescription}
           </Alert>
         )}
+        <DestinationField
+          value={destination}
+          onChange={(value) =>
+            edit(() => {
+              setDestination(value);
+              setStagingChoice("");
+            }, "stagingLocationCode")
+          }
+          stagingArea={stagingArea}
+          chosenStaging={stagingChoice}
+          onStagingChange={(code) => edit(() => setStagingChoice(code), "stagingLocationCode")}
+          error={errors.stagingLocationCode}
+        />
         <AssigneeSelect
           canAssign={canAssign}
           warehouseId={warehouseId}
