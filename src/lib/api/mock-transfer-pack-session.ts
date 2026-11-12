@@ -5,7 +5,7 @@
  */
 
 import { MOCK_BOXES_PER_UNIT, MOCK_STOCK_CARTONS, mockBarcodeOf } from "./mock-transfer-pack-seed";
-import { PackError } from "./mock-packing-session";
+import { PackError } from "./mock-pack-error";
 
 import type { MockTransfer } from "./mock-routes-transfer-orders-store";
 

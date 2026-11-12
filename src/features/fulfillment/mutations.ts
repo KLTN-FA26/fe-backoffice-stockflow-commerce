@@ -19,7 +19,6 @@ import {
   assignFulfillmentTask,
   completePicking,
   createFulfillmentTask,
-  getDesignArtifactUrl,
   moveToDispatch,
   startPicking,
 } from "./api";
@@ -27,13 +26,7 @@ import { fulfillmentErrorMessage, isStaleFulfillmentError } from "./errors";
 import { fulfillmentKeys, fulfillmentReferenceKeys } from "./queries";
 
 import type { FulfillmentErrorContext } from "./errors";
-import type {
-  ArtifactAccess,
-  ArtifactUrlInput,
-  AssignTaskInput,
-  CreateTaskValues,
-  FulfillmentTask,
-} from "./types";
+import type { AssignTaskInput, CreateTaskValues, FulfillmentTask } from "./types";
 
 /** = `orderKeys.all` của features/order — khai báo lại để không import chéo feature. */
 const ORDER_ROOT_KEY = ["orders"] as const;
@@ -121,13 +114,4 @@ export const useMoveToDispatch = withStaleRefetch(
     showErrorToast: false,
     onError: toastError("dispatch"),
   }),
-);
-
-/**
- * Lấy URL ký khi người dùng bấm tải — không cache (xem `useDesignArtifact` cho bản xem trước).
- * Màn hình tự báo lỗi vì câu chữ phụ thuộc task có đang bị giữ hay không.
- */
-export const useDesignArtifactDownload = createMutation<ArtifactUrlInput, ArtifactAccess>(
-  (input) => getDesignArtifactUrl(input),
-  { showErrorToast: false },
 );

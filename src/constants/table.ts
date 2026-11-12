@@ -31,7 +31,6 @@ export const FULFILLMENT_COLUMNS = {
   ACTIONS: "actions",
   ASSIGNED_AT: "assignedAt",
   ASSIGNEE: "assignee",
-  INTEGRITY: "integrity",
   ORDER: "order",
   PACK_STATUS: "packStatus",
   PACKED_AT: "packedAt",

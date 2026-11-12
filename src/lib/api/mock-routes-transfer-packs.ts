@@ -9,7 +9,7 @@ import { FULFILLMENT_PACKAGE_PERMISSIONS, FULFILLMENT_PACKING_PERMISSIONS } from
 
 import { registerMockRoute } from "./mock-adapter";
 import { addMockTransferShipment } from "./mock-load-plan-transfer";
-import { PackError } from "./mock-packing-session";
+import { PackError } from "./mock-pack-error";
 import { fail, ok } from "./mock-route-utils";
 import { currentActor, routeParam } from "./mock-routes-fulfillment-store";
 import { getTransferStore } from "./mock-routes-transfer-orders-store";
