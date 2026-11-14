@@ -49,6 +49,8 @@ export const installmentDtoSchema = z.object({
   reachedAt: z.string().nullish(),
   dueDate: z.string().nullish(),
   status: z.enum(INSTALLMENT_API_STATUSES),
+  /** Đã qua hạn trả mà chưa trả đủ — CỜ tính khi đọc, không phải trạng thái (WF-05 fix plan §8). */
+  overdue: z.boolean(),
   paidAt: z.string().nullish(),
   cancelledAt: z.string().nullish(),
   transferReference: z.string(),

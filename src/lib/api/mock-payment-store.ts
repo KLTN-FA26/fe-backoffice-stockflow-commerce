@@ -102,13 +102,26 @@ export const mockToday = () =>
 export const outstandingOf = (i: MockInstallment) =>
   Math.max(0, i.amount - i.reducedAmount - i.paidAmount);
 
-/** docs 15 §5.1: trạng thái tính từ tiền, mốc và hạn trả — `Overdue` giữ tới khi trả đủ. */
+/**
+ * docs 15 §5.1: trạng thái tính từ tiền và mốc. Quá hạn KHÔNG còn là trạng thái mà là cờ
+ * (`overdueOf`, BE `Installment.overdue(today)` — WF-05 fix plan §8).
+ */
 export function statusOf(i: MockInstallment): InstallmentApiStatus {
   if (i.cancelled) return "CANCELLED";
   if (outstandingOf(i) === 0) return "PAID";
-  if (i.reachedAt && i.dueDate && i.dueDate < mockToday()) return "OVERDUE";
   if (i.paidAmount > 0) return "PARTIALLY_PAID";
   return i.reachedAt ? "DUE" : "NOT_DUE";
+}
+
+/** Đã qua hạn trả mà chưa trả đủ (BE `Installment.overdue(today)`). */
+export function overdueOf(i: MockInstallment): boolean {
+  const status = statusOf(i);
+  return (
+    (status === "DUE" || status === "PARTIALLY_PAID") &&
+    i.reachedAt !== null &&
+    i.dueDate !== null &&
+    i.dueDate < mockToday()
+  );
 }
 
 export const refundStatusOf = (refundable: number, refunded: number): RefundApiStatus =>

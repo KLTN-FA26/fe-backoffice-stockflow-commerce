@@ -120,6 +120,7 @@ export const installmentJson = (over: Record<string, unknown> = {}) => ({
   currency: "VND",
   reachedAt: "2026-11-11T02:00:00Z",
   status: "DUE",
+  overdue: false,
   transferReference: "HD-20261108-000013-1 DOT2",
   ...over,
 });

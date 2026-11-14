@@ -141,6 +141,7 @@ const installment = (over: Partial<Installment>): Installment => ({
   outstanding: 100,
   currency: "VND",
   status: "DUE",
+  overdue: false,
   transferReference: "HD-1 DOT1",
   ...over,
 });

@@ -10,6 +10,7 @@ export const INSTALLMENT_MILESTONE_LABELS = {
   BEFORE_DELIVERY: "Trước khi giao",
   AFTER_DELIVERY: "Sau khi giao",
   CANCELLATION_FEE: "Phí huỷ đơn",
+  FAILED_TRIP_FEE: "Phí chuyến giao không thành",
 } as const satisfies Record<InstallmentMilestone, string>;
 
 /** Tình trạng hoàn tiền (docs 15 §5.3: "Chờ hoàn" / "Hoàn một phần" / "Đã hoàn"). */
@@ -34,6 +35,7 @@ export const PAYMENT_LABELS = {
     receivablesPreset: "Công nợ phải thu",
     receivablesHint: "Đợt trả sau giao đã đến mốc (docs 15 §4.3)",
     reachedOnly: "Chỉ đợt đã đến mốc",
+    overdueOnly: "Chỉ đợt quá hạn",
     dueBefore: "Hạn trả trước ngày",
     statusAll: "Mọi trạng thái",
     milestoneAll: "Mọi mốc",

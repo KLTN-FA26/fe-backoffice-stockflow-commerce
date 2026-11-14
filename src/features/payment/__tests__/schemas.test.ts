@@ -7,6 +7,7 @@ import {
   voidInputSchema,
 } from "../input-schemas";
 import {
+  installmentDtoSchema,
   installmentPageDtoSchema,
   orderInstallmentsDtoSchema,
   orderRefundDtoSchema,
@@ -32,6 +33,7 @@ const installmentJson = {
   currency: "VND",
   reachedAt: "2026-11-11T02:00:00Z",
   status: "DUE",
+  overdue: false,
   transferReference: "HD-20261108-000007-1 DOT2",
 };
 
@@ -216,5 +218,19 @@ describe("voidInputSchema (docs 15 §4.4) and buildRefundRecordInputSchema (BR-1
     expect(schema.safeParse({ ...base, amount: "5000000", refundedOn: "2999-01-01" }).success).toBe(
       false,
     );
+  });
+});
+
+describe("InstallmentResponse after the WF-05 fix plan", () => {
+  it("reads overdue as the BE's flag, and is a contract error without it (§8)", () => {
+    expect(installmentDtoSchema.parse({ ...installmentJson, overdue: true }).overdue).toBe(true);
+    const { overdue: _overdue, ...withoutFlag } = installmentJson;
+    expect(installmentDtoSchema.safeParse(withoutFlag).success).toBe(false);
+  });
+
+  it("parses a failed-trip fee, paid like an installment (WF-05 §2-3)", () => {
+    expect(
+      installmentDtoSchema.parse({ ...installmentJson, milestone: "FAILED_TRIP_FEE" }).milestone,
+    ).toBe("FAILED_TRIP_FEE");
   });
 });

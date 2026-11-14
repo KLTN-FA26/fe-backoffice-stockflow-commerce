@@ -9,7 +9,13 @@ import { formatDateTime } from "@/lib/format/date";
 import { CustomerName } from "@/components/backoffice/CustomerName";
 import { Card } from "@/components/shared/Card";
 
-import { blocksHandover, deliveryBatchLabel, installmentTitle, milestoneLabel } from "../selectors";
+import {
+  blocksHandover,
+  deliveryBatchLabel,
+  displayStatus,
+  installmentTitle,
+  milestoneLabel,
+} from "../selectors";
 
 import { CodeLink, DateCell, InfoRow, InstallmentStatusDot, MoneyCell } from "./primitives";
 
@@ -25,7 +31,7 @@ export function InstallmentInfoCard({ installment: i }: { installment: Installme
     <Card className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-ink-primary text-sm font-semibold">{installmentTitle(i)}</h2>
-        <InstallmentStatusDot status={i.status} />
+        <InstallmentStatusDot status={displayStatus(i)} />
       </div>
       <dl className="grid grid-cols-[minmax(140px,auto)_1fr] gap-x-4 gap-y-2 text-[0.8125rem]">
         <InfoRow label={C.contract}>{i.contractNumber}</InfoRow>

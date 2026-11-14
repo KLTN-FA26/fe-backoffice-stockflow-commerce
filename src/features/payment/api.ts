@@ -47,13 +47,15 @@ function pageQuery(params: ListQueryParams) {
 export interface ListInstallmentParams extends ListQueryParams {
   customerId?: string;
   orderId?: string;
-  /** BE nhận MỘT trạng thái (enum), không phải danh sách. */
-  status?: InstallmentApiStatus;
+  /** BE nhận MỘT trạng thái (enum), không phải danh sách; không bao giờ `OVERDUE` (400). */
+  status?: Exclude<InstallmentApiStatus, "OVERDUE">;
   milestone?: InstallmentMilestone;
   /** `YYYY-MM-DD`: chỉ đợt có hạn trả trước ngày này. */
   dueBefore?: string;
   /** true = mốc đã đến (đang đến hạn), false = còn chờ mốc. */
   reached?: boolean;
+  /** true = chỉ đợt quá hạn (BE tính từ hạn trả; quá hạn không còn là trạng thái). */
+  overdue?: boolean;
   /** `dueDate|seq|amount|status|createdAt[,asc|desc]` — mặc định `dueDate` tăng dần. */
   sort?: string;
 }
@@ -69,6 +71,7 @@ export async function listInstallments(
   if (params.milestone) query.set("milestone", params.milestone);
   if (params.dueBefore) query.set("dueBefore", params.dueBefore);
   if (params.reached !== undefined) query.set("reached", String(params.reached));
+  if (params.overdue !== undefined) query.set("overdue", String(params.overdue));
   const { data } = await api.get<unknown>(INSTALLMENTS, { params: query, signal });
   return installmentPageDtoSchema.parse(data);
 }

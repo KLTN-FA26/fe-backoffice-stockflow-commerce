@@ -17,6 +17,7 @@ import {
   mockToday,
   nextMockPaymentId,
   outstandingOf,
+  overdueOf,
   statusOf,
 } from "./mock-payment-store";
 import { bodyOf, fail, ok, pageOf, pathParams, queryOf, text } from "./mock-route-utils";
@@ -80,6 +81,7 @@ export function installmentWire(i: MockInstallment, withReceipts = false) {
     reachedAt: i.reachedAt,
     dueDate: i.dueDate,
     status: statusOf(i),
+    overdue: overdueOf(i),
     transferReference: `${i.contractNumber} DOT${i.seq}`,
     ...(withReceipts ? { receipts: receiptsOf(i.installmentId) } : {}),
   };
@@ -133,6 +135,7 @@ export async function can(code: PermissionCode): Promise<boolean> {
 function listInstallments(config: AxiosRequestConfig) {
   const q = queryOf(config);
   const reached = q.get("reached");
+  const overdue = q.get("overdue");
   const status = q.get("status");
   const rows = mockInstallments().filter(
     (i) =>
@@ -141,7 +144,8 @@ function listInstallments(config: AxiosRequestConfig) {
       (!status || statusOf(i) === status) &&
       (!q.get("milestone") || i.milestone === q.get("milestone")) &&
       (!q.get("dueBefore") || (i.dueDate !== null && i.dueDate < (q.get("dueBefore") ?? ""))) &&
-      (reached === null || (i.reachedAt !== null) === (reached === "true")),
+      (reached === null || (i.reachedAt !== null) === (reached === "true")) &&
+      (overdue === null || overdueOf(i) === (overdue === "true")),
   );
   const keys = {
     dueDate: (i: MockInstallment) => i.dueDate ?? "9999",
@@ -294,9 +298,17 @@ async function voidReceipt(id: string, body: Record<string, unknown>) {
 }
 
 export function registerPaymentMockRoutes(): void {
-  registerMockRoute("GET", "/installments", async (config) =>
-    (await can("payment-installments:READ")) ? ok(listInstallments(config)) : forbidden(),
-  );
+  registerMockRoute("GET", "/installments", async (config) => {
+    if (!(await can("payment-installments:READ"))) return forbidden();
+    // BE: overdue is a flag, not a status (WF-05 fix plan §8).
+    if (queryOf(config).get("status") === "OVERDUE")
+      return fail(
+        400,
+        "INSTALLMENT_OVERDUE_IS_A_FLAG",
+        "Overdue is a flag: filter with overdue=true",
+      );
+    return ok(listInstallments(config));
+  });
   registerMockRoute("GET", "/installments/orders/:orderId", async (config) => {
     if (!(await can("payment-installments:READ"))) return forbidden();
     const view = orderInstallments(pathParams(config).orderId ?? "");

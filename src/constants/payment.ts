@@ -71,6 +71,18 @@ export const INSTALLMENT_API_STATUSES = [
   "CANCELLED",
 ] as const;
 export type InstallmentApiStatus = (typeof INSTALLMENT_API_STATUSES)[number];
+/**
+ * Trạng thái lọc được ở `GET /installments`. `OVERDUE` chỉ còn là hằng số lịch sử của BE: quá hạn là
+ * CỜ `overdue` tính từ hạn trả khi đọc (WF-05 fix plan §8) — `status=OVERDUE` bị BE trả 400
+ * `INSTALLMENT_OVERDUE_IS_A_FLAG`; lọc quá hạn bằng tham số `overdue=true`.
+ */
+export const INSTALLMENT_FILTER_STATUSES = [
+  "NOT_DUE",
+  "DUE",
+  "PARTIALLY_PAID",
+  "PAID",
+  "CANCELLED",
+] as const satisfies readonly InstallmentApiStatus[];
 export const INSTALLMENT_STATUS_BY_API = {
   NOT_DUE: "Not Due",
   DUE: "Due",
@@ -89,6 +101,8 @@ export const INSTALLMENT_MILESTONES = [
   "BEFORE_DELIVERY",
   "AFTER_DELIVERY",
   "CANCELLATION_FEE",
+  // Phí chuyến giao không thành (khách từ chối / sai địa chỉ) — trả như một đợt (BE 4B, WF-05 §2-3).
+  "FAILED_TRIP_FEE",
 ] as const;
 export type InstallmentMilestone = (typeof INSTALLMENT_MILESTONES)[number];
 

@@ -57,7 +57,7 @@ function InstallmentListContent() {
         columns={columns}
         rowKey={(row) => row.installmentId}
         onRowClick={(row) => router.push(PAYMENT_ROUTES.installments.detail(row.installmentId))}
-        flagRow={(row) => row.status === "OVERDUE"}
+        flagRow={(row) => row.overdue}
         noun="đợt thanh toán"
         errorCopy={INSTALLMENT_COPY}
         hasFilters={s.hasFilters}

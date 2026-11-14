@@ -3,7 +3,7 @@
 import { parseAsBoolean, parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
 
 import {
-  INSTALLMENT_API_STATUSES,
+  INSTALLMENT_FILTER_STATUSES,
   INSTALLMENT_MILESTONES,
   PAYMENT_STORAGE_KEYS,
 } from "@/constants/payment";
@@ -21,13 +21,14 @@ export function useInstallmentListState(canRead: boolean) {
   const paged = usePagedList(PAYMENT_STORAGE_KEYS.installmentsConfig, INSTALLMENT_SORTABLE);
   const [status, setStatus] = useQueryState(
     "status",
-    parseAsStringLiteral(INSTALLMENT_API_STATUSES),
+    parseAsStringLiteral(INSTALLMENT_FILTER_STATUSES),
   );
   const [milestone, setMilestone] = useQueryState(
     "milestone",
     parseAsStringLiteral(INSTALLMENT_MILESTONES),
   );
   const [reached, setReached] = useQueryState("reached", parseAsBoolean);
+  const [overdue, setOverdue] = useQueryState("overdue", parseAsBoolean);
   const [dueBefore, setDueBefore] = useQueryState("dueBefore", parseAsString.withDefault(""));
   const [customerId, setCustomerId] = useQueryState("customerId", parseAsString.withDefault(""));
   const [orderId, setOrderId] = useQueryState("orderId", parseAsString.withDefault(""));
@@ -40,6 +41,7 @@ export function useInstallmentListState(canRead: boolean) {
       status: status ?? undefined,
       milestone: milestone ?? undefined,
       reached: reached ?? undefined,
+      overdue: overdue ?? undefined,
       dueBefore: dueBefore || undefined,
       customerId: customerId || undefined,
       orderId: orderId || undefined,
@@ -48,7 +50,13 @@ export function useInstallmentListState(canRead: boolean) {
   );
 
   const hasFilters =
-    !!status || !!milestone || reached !== null || !!dueBefore || !!customerId || !!orderId;
+    !!status ||
+    !!milestone ||
+    reached !== null ||
+    overdue !== null ||
+    !!dueBefore ||
+    !!customerId ||
+    !!orderId;
   /** Đang xem đúng công nợ phải thu: đợt trả sau giao đã đến mốc (docs 15 §4.3 bước 8). */
   const receivablesOn = milestone === "AFTER_DELIVERY" && reached === true;
 
@@ -66,6 +74,7 @@ export function useInstallmentListState(canRead: boolean) {
     status,
     milestone,
     reached,
+    overdue,
     dueBefore,
     customerId,
     orderId,
@@ -74,6 +83,7 @@ export function useInstallmentListState(canRead: boolean) {
     setStatus: filter(setStatus),
     setMilestone: filter(setMilestone),
     setReached: filter(setReached),
+    setOverdue: filter(setOverdue),
     setDueBefore: filter(setDueBefore),
     setCustomerId: filter(setCustomerId),
     setOrderId: filter(setOrderId),
@@ -86,6 +96,7 @@ export function useInstallmentListState(canRead: boolean) {
       void setStatus(null);
       void setMilestone(null);
       void setReached(null);
+      void setOverdue(null);
       void setDueBefore("");
       void setCustomerId("");
       void setOrderId("");

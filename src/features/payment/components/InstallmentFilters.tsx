@@ -3,7 +3,7 @@
 import { Landmark } from "lucide-react";
 
 import { INSTALLMENT_MILESTONE_LABELS, PAYMENT_LABELS } from "@/constants/labels-payment";
-import { INSTALLMENT_API_STATUSES, INSTALLMENT_MILESTONES } from "@/constants/payment";
+import { INSTALLMENT_FILTER_STATUSES, INSTALLMENT_MILESTONES } from "@/constants/payment";
 import { CustomerName } from "@/components/backoffice/CustomerName";
 import { DatePicker } from "@/components/shared/DatePicker";
 import { TOOLBAR_ACTION_CLASS } from "@/components/shared/ListToolbar";
@@ -19,7 +19,7 @@ import type { InstallmentListState } from "./useInstallmentListState";
 
 const L = PAYMENT_LABELS.installments;
 
-const STATUS_OPTIONS = INSTALLMENT_API_STATUSES.map((value) => ({
+const STATUS_OPTIONS = INSTALLMENT_FILTER_STATUSES.map((value) => ({
   value,
   label: installmentStatusLabel(value),
 }));
@@ -70,6 +70,16 @@ export function InstallmentFilters({ s }: { s: InstallmentListState }) {
         />
         <Label htmlFor="installment-reached" className="text-ink-secondary text-[0.8125rem]">
           {L.reachedOnly}
+        </Label>
+      </div>
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id="installment-overdue"
+          checked={s.overdue === true}
+          onCheckedChange={(checked) => void s.setOverdue(checked === true ? true : null)}
+        />
+        <Label htmlFor="installment-overdue" className="text-ink-secondary text-[0.8125rem]">
+          {L.overdueOnly}
         </Label>
       </div>
       <div className="flex items-center gap-2">
