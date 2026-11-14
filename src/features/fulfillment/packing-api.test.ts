@@ -35,19 +35,19 @@ const SCAN_ID = "5ca17e5c-0000-4000-8000-000000000001";
 describe("packing API — hợp đồng BE PackingController (PR #136)", () => {
   it("hàng chờ: GET /fulfillment/packing-queue với page, size, warehouseId, status; map pack status → tên hiển thị", async () => {
     const get = vi.spyOn(api, "get").mockResolvedValueOnce({
-      data: bePage([queueRow(), queueRow({ taskId: "t2", packStatus: "ON_HOLD" })]),
+      data: bePage([queueRow(), queueRow({ taskId: "t2", packStatus: "IN_PROGRESS" })]),
     });
     const page = await listPackingQueue({
       page: 2,
       size: 15,
       warehouseId: "wh-1",
-      status: "PACKING",
+      status: "IN_PROGRESS",
     });
     expect(get).toHaveBeenCalledWith("/fulfillment/packing-queue", {
-      params: { page: 2, size: 15, warehouseId: "wh-1", status: "PACKING" },
+      params: { page: 2, size: 15, warehouseId: "wh-1", status: "IN_PROGRESS" },
       signal: undefined,
     });
-    expect(page.items.map((row) => row.packStatus)).toEqual(["Pending", "On Hold"]);
+    expect(page.items.map((row) => row.packStatus)).toEqual(["Pending", "In Progress"]);
   });
 
   it("hàng chờ: bỏ trống bộ lọc thì không gửi warehouseId / status; page âm kẹp về 0", async () => {
@@ -67,7 +67,7 @@ describe("packing API — hợp đồng BE PackingController (PR #136)", () => {
 
   it("nhận đơn: POST packing-start không body → phiên", async () => {
     const post = vi.spyOn(api, "post").mockResolvedValueOnce({ data: apiSession() });
-    expect((await startPacking(TASK_ID)).packStatus).toBe("Packing");
+    expect((await startPacking(TASK_ID)).packStatus).toBe("In Progress");
     expect(post).toHaveBeenCalledWith(`${TASK}/packing-start`);
   });
 
@@ -162,16 +162,16 @@ describe("packing API — hợp đồng BE PackingController (PR #136)", () => {
     const post = vi
       .spyOn(api, "post")
       .mockResolvedValueOnce({
-        data: { ...pickedTask({ packStatus: "PACKED" }), shipmentId: SHIPMENT_ID },
+        data: { ...pickedTask({ packStatus: "COMPLETED" }), shipmentId: SHIPMENT_ID },
       })
-      .mockResolvedValueOnce({ data: pickedTask({ packStatus: "PACKING" }) });
+      .mockResolvedValueOnce({ data: pickedTask({ packStatus: "IN_PROGRESS" }) });
     const full = await completePacking({
       taskId: TASK_ID,
       requestId: "req-1",
       partial: false,
       note: "bỏ qua",
     });
-    expect(full).toMatchObject({ packStatus: "Packed", shipmentId: SHIPMENT_ID });
+    expect(full).toMatchObject({ packStatus: "Completed", shipmentId: SHIPMENT_ID });
     expect(post).toHaveBeenCalledWith(`${TASK}/packing-completion`, {
       requestId: "req-1",
       partial: false,
@@ -190,10 +190,12 @@ describe("packing API — hợp đồng BE PackingController (PR #136)", () => {
     });
   });
 
-  it("hoàn tất lệch thiết kế: 200 + On Hold, KHÔNG có shipmentId — người gọi đọc packStatus", async () => {
-    vi.spyOn(api, "post").mockResolvedValueOnce({ data: pickedTask({ packStatus: "ON_HOLD" }) });
-    const held = await completePacking({ taskId: TASK_ID, requestId: "r", partial: false });
-    expect(held.packStatus).toBe("On Hold");
-    expect(held.shipmentId).toBeUndefined();
+  it("hoàn tất một phần: phiên ở lại In Progress (còn thùng chờ kiểm), có shipmentId của lô vừa tạo", async () => {
+    vi.spyOn(api, "post").mockResolvedValueOnce({
+      data: { ...pickedTask({ packStatus: "IN_PROGRESS" }), shipmentId: SHIPMENT_ID },
+    });
+    const partial = await completePacking({ taskId: TASK_ID, requestId: "r", partial: true });
+    expect(partial.packStatus).toBe("In Progress");
+    expect(partial.shipmentId).toBe(SHIPMENT_ID);
   });
 });

@@ -19,6 +19,7 @@ import {
   type ListCreditHoldParams,
 } from "./action-api";
 import { getOrder, listOrders, type ListOrderParams } from "./api";
+import { getDeliverySchedule } from "./delivery-batch-api";
 import { getOrderHistory } from "./history-api";
 import { isValidOrderCustomerId } from "./schemas";
 
@@ -35,6 +36,8 @@ export const orderKeys = {
   productionOrders: (id: string) => [...baseOrderKeys.detail(id), "production-orders"] as const,
   creditHolds: (params?: ListCreditHoldParams) =>
     [...baseOrderKeys.all, "credit-holds", params] as const,
+  /** Lịch giao của đơn (đợt giao) — dưới root `orders`: release xong (invalidate `orderKeys.all`) tự tải lại. */
+  deliverySchedule: (id: string) => [...baseOrderKeys.all, "delivery-schedule", id] as const,
   // Dưới `orderKeys.all`: thao tác đơn (duyệt / từ chối / huỷ) đổi dư nợ → tự tải lại
   creditPosition: (customerId: string) =>
     [...baseOrderKeys.all, "credit-position", customerId] as const,
@@ -99,6 +102,20 @@ export function useCreditPosition(customerId: string | null, options: { enabled?
     queryKey: orderKeys.creditPosition(id),
     queryFn: ({ signal }) => getCreditPosition(id, signal),
     enabled: (options.enabled ?? true) && isValidOrderCustomerId(id),
+    retry: retryTransient,
+  });
+}
+
+/**
+ * Lịch giao của đơn (`GET /orders/{id}/delivery-batches`, cần `sales-contracts:READ`): chỉ gọi khi `enabled` — ô chọn
+ * đợt giao của hộp thoại release. Đơn không có lịch giao trả `batches` rỗng.
+ */
+export function useDeliverySchedule(id: string, options: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: orderKeys.deliverySchedule(id),
+    queryFn: ({ signal }) => getDeliverySchedule(id, signal),
+    ...QUERY_TIMES.detail,
+    enabled: options.enabled ?? true,
     retry: retryTransient,
   });
 }

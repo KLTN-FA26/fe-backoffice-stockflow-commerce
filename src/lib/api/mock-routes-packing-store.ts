@@ -3,8 +3,8 @@
  *
  * Phiên dựng lười từ dòng đơn của task. ASSUMPTION (mock-only, mock-data không có lô / serial):
  * dòng thường SL ≥ 4 theo dõi theo lô (hai lô A / B), dòng SKU-004* theo dõi theo serial, dòng in
- * (có `designId`) đã về bàn đóng gói đủ. Task seed đã ON_HOLD / PACKED có sẵn kiện niêm phong cho khớp
- * trạng thái (PACKED còn có lô giao).
+ * (có `designId`) đã về bàn đóng gói đủ. Task seed IN_PROGRESS / COMPLETED có sẵn kiện niêm phong cho khớp
+ * trạng thái (COMPLETED còn có lô giao).
  */
 
 import { openParcel } from "./mock-packing-session";
@@ -103,10 +103,10 @@ function seedProgress(
   order: Order,
   codFor: (value: number) => number,
 ) {
-  if (task.packStatus !== "ON_HOLD" && task.packStatus !== "PACKED") return;
+  if (task.packStatus !== "IN_PROGRESS" && task.packStatus !== "COMPLETED") return;
   const at = task.packedAt ?? task.startedAt ?? new Date().toISOString();
   const parcel = sealedParcelWithEverything(state, at);
-  if (task.packStatus !== "PACKED") return;
+  if (task.packStatus !== "COMPLETED") return;
   const value = state.lines.reduce((sum, l) => sum + l.unitPrice * l.wanted, 0);
   const shipment: ShipmentState = {
     shipmentId: `${state.taskId}-shp-1`,

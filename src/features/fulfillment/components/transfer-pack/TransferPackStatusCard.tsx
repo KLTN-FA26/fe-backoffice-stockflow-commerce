@@ -51,7 +51,7 @@ export function TransferPackStatusCard({
       : "—";
   };
   const canPlan =
-    session.packStatus === PACK_STATUS.PACKED &&
+    session.packStatus === PACK_STATUS.COMPLETED &&
     actor.can(LOAD_PLAN_PERMISSIONS.read) &&
     actor.can(LOAD_PLAN_PERMISSIONS.create);
   // BE PR #164 final: `packerName` là tên hiển thị người đóng; chưa có tên (dữ liệu cũ) thì id rút gọn

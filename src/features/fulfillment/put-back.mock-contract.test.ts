@@ -1,7 +1,6 @@
 /**
- * Contract test: mock trả hàng về kệ phải như BE (SCRUM-275) — huỷ đơn kéo theo task
- * (OrderCancellationListener), hàng đợi, thứ tự kiểm tra của `PickList.putBack`, quyền theo mã, gửi lại
- * idempotent.
+ * Contract test: mock cất lại thùng phải như BE (docs 07 §4.5) — huỷ đơn kéo theo task (OrderCancellationListener),
+ * hàng đợi (kèm LPN), thứ tự kiểm tra của `PickList.putBack` (cần quét đúng LPN), quyền theo mã, gửi lại idempotent.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -74,7 +73,7 @@ async function pickFirstLine(): Promise<{ task: FulfillmentTask; line: PickLine;
   await confirmPickLine({
     taskId: task.taskId,
     lineId: line.lineId,
-    values: { locationCode: line.locationCode, scannedCode: line.sku, quantity: line.allocatedQty },
+    values: { locationCode: line.locationCode, lpn: line.lpn ?? "" },
     idempotencyKey: `pick-${line.lineId}`,
   });
   return { task, line, picker };
@@ -117,14 +116,17 @@ describe("mock trả hàng về kệ ↔ BE PickListService#putBack", () => {
       const row = (await listPutBacks({})).items.find((r) => r.lineId === line.lineId);
       expect(row).toMatchObject({
         taskId: task.taskId,
+        lpn: line.lpn,
         pickedQty: line.allocatedQty,
         fromLocationCode: line.locationCode,
+        quarantine: false,
       });
 
       const input = {
         taskId: task.taskId,
         lineId: line.lineId,
         locationCode: line.locationCode,
+        lpn: line.lpn ?? "",
         idempotencyKey: "put-1",
       };
       expect(await putBackLine(input)).toMatchObject({
@@ -167,7 +169,7 @@ describe("mock trả hàng về kệ ↔ BE PickListService#putBack", () => {
       await reportShortPick({
         taskId: task.taskId,
         lineId: line.lineId,
-        values: { locationCode: line.locationCode, foundQuantity: 0 },
+        values: { locationCode: line.locationCode, reason: "NOT_FOUND" },
         idempotencyKey: `short-${line.lineId}`,
       });
       await cancelOrder(task.orderId);
@@ -183,12 +185,30 @@ describe("mock trả hàng về kệ ↔ BE PickListService#putBack", () => {
     "dòng của task chưa huỷ → PUT_BACK_NOT_REQUIRED; vị trí không phải bin dùng được của kho → PUT_BACK_LOCATION_INVALID",
     async () => {
       const { task, line } = await pickFirstLine();
-      const put = (locationCode: string, idempotencyKey: string) =>
-        putBackLine({ taskId: task.taskId, lineId: line.lineId, locationCode, idempotencyKey });
+      const put = (locationCode: string, idempotencyKey: string, lpn = line.lpn ?? "") =>
+        putBackLine({
+          taskId: task.taskId,
+          lineId: line.lineId,
+          locationCode,
+          lpn,
+          idempotencyKey,
+        });
       actAs(ADMIN);
       expect(await codeOf(put(line.locationCode, "a"))).toBe("PUT_BACK_NOT_REQUIRED");
       await cancelOrder(task.orderId);
       expect(await codeOf(put("KHONG-CO-VI-TRI", "b"))).toBe("PUT_BACK_LOCATION_INVALID");
+      // LPN được kiểm trước vị trí: quét thùng khác → PICK_ITEM_MISMATCH (nêu LPN đúng của dòng)
+      expect(await codeOf(put(line.locationCode, "c", "LPN-CUA-DON-KHAC"))).toBe(
+        "PICK_ITEM_MISMATCH",
+      );
+      // Body thiếu lpn (luồng cũ chỉ có vị trí) → 400
+      expect(
+        await codeOf(
+          api.post(`/fulfillment/tasks/${task.taskId}/pick-lines/${line.lineId}/put-back`, {
+            locationCode: line.locationCode,
+          }),
+        ),
+      ).toBe("VALIDATION_FAILED");
     },
     FLOW_TIMEOUT_MS,
   );

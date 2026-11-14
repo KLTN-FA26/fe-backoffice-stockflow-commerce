@@ -12,7 +12,6 @@
 
 import {
   ORDER_ACTION_LABELS,
-  ORDER_DELIVERY_MODE_UI,
   ORDER_ERROR_MESSAGES,
   ORDER_LIMITS,
   ORDER_PARTIAL_SHIPMENT_LABELS,
@@ -372,13 +371,7 @@ export function creditDecisionErrorView(error: ApiError): OrderErrorView {
 /* ── Giữ / gỡ giữ / giao thất bại / đóng phần còn lại (BE PR #133) ───── */
 
 export type OrderStatusActionKey =
-  | "hold"
-  | "resolveHold"
-  | "deliveryFailure"
-  | "remainderClosure"
-  | "partialShipment"
-  | "release"
-  | "deliveryMode";
+  "hold" | "resolveHold" | "deliveryFailure" | "remainderClosure" | "partialShipment" | "release";
 
 /** Tiêu đề lỗi theo thao tác (giao một phần có bộ nhãn riêng — nút đổi theo bật / tắt). */
 const FAILED_TITLES: Readonly<Record<OrderStatusActionKey, string>> = {
@@ -388,7 +381,6 @@ const FAILED_TITLES: Readonly<Record<OrderStatusActionKey, string>> = {
   remainderClosure: ORDER_ACTION_LABELS.remainderClosure.failedTitle,
   partialShipment: ORDER_PARTIAL_SHIPMENT_LABELS.failedTitle,
   release: ORDER_RELEASE_LABELS.failedTitle,
-  deliveryMode: ORDER_DELIVERY_MODE_UI.dialog.failedTitle,
 };
 
 /** Câu cho 400 VALIDATION_FAILED theo thao tác — BE trả fieldErrors / message tiếng Anh, không hiện thẳng. */
@@ -400,8 +392,7 @@ const VALIDATION_DETAIL: Readonly<Record<OrderStatusActionKey, string>> = {
   remainderClosure:
     "Hãy chọn lý do (“Lý do khác” cần ghi chú). Khoản phí phải là số tiền nguyên VND lớn hơn 0, không vượt giá trị phần hàng in bị đóng, kèm lý do và chi tiết.",
   partialShipment: `Ghi chú tối đa ${ORDER_LIMITS.partialShipmentNoteMax} ký tự.`,
-  release: "Hãy chọn kho xuất hàng và hình thức giao hợp lệ.",
-  deliveryMode: `Hãy chọn hình thức giao; ghi chú tối đa ${ORDER_LIMITS.deliveryModeNoteMax} ký tự.`,
+  release: "Hãy chọn kho xuất hàng hợp lệ.",
 };
 
 /** Động từ cho câu lỗi chung / dự phòng của từng thao tác ("Bạn không có quyền …", "Đã xảy ra lỗi khi …"). */
@@ -412,7 +403,6 @@ const STATUS_ACTION_VERB: Readonly<Record<OrderStatusActionKey, string>> = {
   remainderClosure: "đóng phần còn lại của đơn",
   partialShipment: "đổi cách giao một phần",
   release: "release đơn",
-  deliveryMode: "đổi hình thức giao",
 };
 
 function isOrderErrorCode(code: string): code is keyof typeof ORDER_ERROR_MESSAGES {
@@ -444,11 +434,6 @@ export function orderActionErrorView(
   if (error.code === "VALIDATION_FAILED") {
     // BE trả fieldErrors tiếng Anh ("reasonCode is required"…) — không hiện thẳng.
     return { title, detail: VALIDATION_DETAIL[action], traceId };
-  }
-  // Release / đổi hình thức: 403 khi chọn hình thức khác của đơn mà thiếu `sales-order-delivery-modes:UPDATE`
-  // (BE PR #157)
-  if (error.code === "FORBIDDEN" && (action === "release" || action === "deliveryMode")) {
-    return { title, detail: ORDER_DELIVERY_MODE_UI.forbidden, traceId };
   }
   return (
     commonErrorView(error, title, "thực hiện thao tác này") ??

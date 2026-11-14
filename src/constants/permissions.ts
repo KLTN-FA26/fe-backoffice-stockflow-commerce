@@ -32,9 +32,12 @@ export const SUPPLIER_ITEM_PERMISSIONS = {
 
 /**
  * Đơn hàng — resource `sales-orders` (BE `OrderResources.ORDERS`).
- * - `approve` / `release` (cùng APPROVE, scope ALL — `OrderReleaseController`): giữ đơn, gỡ giữ,
- *   ghi giao thất bại, release đơn sang kho / sản xuất (`POST /orders/{id}/release`, SCRUM-423);
- *   seed BE chỉ cấp cho ORDER_COORDINATOR (SALES_STAFF chỉ có VIEW_PAGE/READ/CREATE/UPDATE).
+ * - `release`: release đơn sang kho xuất (`POST /orders/{id}/release`, BR-03 docs 17) — resource riêng
+ *   `sales-order-releases` (UPDATE, scope ALL, BE V20261115000200): quản lý kho của kho xuất; BE kiểm thêm kho
+ *   người gọi phụ trách (`WarehouseScope`). `sales-orders:APPROVE` đã bị BE xoá khỏi mọi vai trò (tách thành
+ *   `sales-order-releases`, `sales-order-holds`, `fulfillment-delivery-outcomes:APPROVE`).
+ * - `approve` (APPROVE, scope ALL): giữ đơn, gỡ giữ, ghi giao thất bại — BE đã chuyển các bước này sang mã khác
+ *   (V20261115000200); FE chưa đổi theo (ngoài phạm vi PR release + lấy hàng).
  * - `cancel`: huỷ đơn phía admin (`POST /orders/{id}/admin-cancellation`) và đóng phần còn lại của
  *   đơn giao một phần (`POST /orders/{id}/remainder-closure`) — BE tách sang resource
  *   `sales-order-cancellations` (UPDATE, scope ALL; seed: ORDER_COORDINATOR + SALES_STAFF).
@@ -48,20 +51,25 @@ export const ORDER_PERMISSIONS = {
   // ORDER_COORDINATOR và (BE PR #148, "ACCREAD") ACCOUNTANT
   read: "sales-orders:READ",
   create: "sales-orders:CREATE",
-  // Giữ / gỡ giữ / ghi giao thất bại — OrderReleaseController, APPROVE scope ALL (BE PR #133)
+  // Giữ / gỡ giữ / ghi giao thất bại — BE PR #133 (xem ghi chú trên: BE đã tách mã)
   approve: "sales-orders:APPROVE",
-  // Release đơn sang kho / sản xuất — OrderReleaseController, cùng APPROVE scope ALL (SCRUM-423)
-  release: "sales-orders:APPROVE",
+  // Release đơn sang kho xuất — OrderReleaseController (`sales-order-releases:UPDATE`, scope ALL, WM của kho xuất)
+  release: "sales-order-releases:UPDATE",
   // Huỷ đơn phía admin + đóng phần còn lại — resource riêng `sales-order-cancellations`
   // (BE V20261013000200): SALES_STAFF + ORDER_COORDINATOR có UPDATE.
   cancel: "sales-order-cancellations:UPDATE",
   // Cho phép / dừng giao một phần của đơn (`PUT /orders/{id}/partial-shipment`, BE PR #150) — resource
   // `sales-order-partial-shipments` (UPDATE, scope ALL; seed: SALES_STAFF + SYSTEM_ADMIN)
   partialShipment: "sales-order-partial-shipments:UPDATE",
-  // Chọn / đổi hình thức giao của đơn (`POST /orders/{id}/release` với `deliveryMode` khác của đơn và
-  // `PUT /orders/{id}/delivery-mode`, BE PR #157, LP-1) — resource `sales-order-delivery-modes` (UPDATE,
-  // scope ALL; seed: ORDER_COORDINATOR + SYSTEM_ADMIN). Đọc hình thức giao đi kèm `sales-orders:READ`.
-  deliveryModes: "sales-order-delivery-modes:UPDATE",
+} as const;
+
+/**
+ * Hợp đồng bán — resource `sales-contracts` (BE `OrderResources.SALES_CONTRACTS`). Chỉ khai báo mã FE đang dùng:
+ * READ cho lịch giao của đơn (`GET /orders/{id}/delivery-batches`, ô chọn đợt giao khi release). Seed BE: SALES_STAFF,
+ * SALES_MANAGER, ACCOUNTANT, SYSTEM_ADMIN — KHÔNG có quản lý kho.
+ */
+export const SALES_CONTRACT_PERMISSIONS = {
+  read: "sales-contracts:READ",
 } as const;
 
 /**

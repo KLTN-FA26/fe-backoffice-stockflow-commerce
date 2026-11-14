@@ -15,7 +15,7 @@ export function TransferPackNotices({
   session: TransferPackSession;
   access: TransferPackAccess;
 }) {
-  const packed = session.packStatus === PACK_STATUS.PACKED;
+  const packed = session.packStatus === PACK_STATUS.COMPLETED;
   const cancelled = session.packStatus === PACK_STATUS.CANCELLED;
   const kitHint = access.canWork && kitCandidateLines(session).length > 0;
   return (

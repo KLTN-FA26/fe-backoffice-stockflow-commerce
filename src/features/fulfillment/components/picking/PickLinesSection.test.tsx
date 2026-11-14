@@ -81,9 +81,32 @@ describe("PickLinesSection — bảng dòng lấy hàng theo lộ trình", () =>
     expect(screen.queryByRole("button", { name: /Chọn dòng/ })).toBeNull();
   });
 
-  it("ghi chú số dòng in không lấy từ kệ", () => {
+  it("không còn ghi chú 'dòng in không lấy từ kệ' (docs 07 BR-06: mọi dòng lấy từ bin)", () => {
     renderSection();
-    expect(screen.getByText(L.printLines(1))).toBeInTheDocument();
+    expect(screen.queryByText(/dòng in theo thiết kế không lấy từ kệ/)).toBeNull();
+    expect(screen.queryByText(/không lấy từ kệ/)).toBeNull();
+  });
+
+  it("dòng Staged hiện khu chờ xuất mà thùng đang đứng; dòng Short hiện lý do", () => {
+    const rows = lines(["Staged", "Short", "Open"]).map((line, index) =>
+      index === 0
+        ? { ...line, pickedQty: 3, stagedLocationCode: "HN-STAGE-01" }
+        : index === 1
+          ? { ...line, shortQty: 2, shortReason: "DAMAGED" as const }
+          : line,
+    );
+    renderSection({ lines: rows, task: task("PICKING"), activeLineId: PICK_LINE_3 });
+    expect(screen.getByText(L.stagedAt("HN-STAGE-01"))).toBeInTheDocument();
+    expect(screen.getByText(L.shortReasons.DAMAGED)).toBeInTheDocument();
+    // Thùng đã về khu chờ xuất tính là đã lấy
+    expect(screen.getByText(L.progress(1, 3))).toBeInTheDocument();
+  });
+
+  it("cột LPN hiện mã thùng của từng dòng", () => {
+    renderSection();
+    const table = screen.getByRole("table", { name: L.sectionTitle });
+    expect(within(table).getByRole("columnheader", { name: L.column.lpn })).toBeInTheDocument();
+    expect(within(table).getByText("LPN0000000001")).toBeInTheDocument();
   });
 
   it("task Pending chưa có dòng → báo sẽ lập khi bắt đầu lấy hàng", () => {
@@ -91,22 +114,22 @@ describe("PickLinesSection — bảng dòng lấy hàng theo lộ trình", () =>
     expect(screen.getByText(L.notPlanned)).toBeInTheDocument();
   });
 
-  it("task đang lấy mà không có dòng, đơn chỉ có dòng in → câu chỉ có dòng in", () => {
-    const printOnly = toFulfillmentTask({
+  it("task đang lấy mà không có dòng (đơn không còn dòng hàng sẵn) → câu chưa có dòng lấy hàng nào", () => {
+    const noLines = toFulfillmentTask({
       ...apiTask({ pickStatus: "PICKING" }),
       lines: apiTaskLines.filter((line) => line.printLine),
     });
-    renderSection({ task: printOnly, lines: [] });
-    expect(screen.getByText(L.printOnly)).toBeInTheDocument();
+    renderSection({ task: noLines, lines: [] });
+    expect(screen.getByText(L.noLines)).toBeInTheDocument();
   });
 
-  it("task huỷ còn dòng đã lấy → báo chờ trả về kệ", () => {
+  it("task huỷ còn dòng đã lấy hoặc đang ở khu chờ xuất → báo chờ trả về kệ", () => {
     renderSection({
       task: task("CANCELLED"),
-      lines: lines(["Picked", "Cancelled", "Cancelled"]),
+      lines: lines(["Picked", "Staged", "Cancelled"]),
       canOpenPutBacks: true,
     });
-    expect(screen.getByText(L.awaitingPutBack(1))).toBeInTheDocument();
+    expect(screen.getByText(L.awaitingPutBack(2))).toBeInTheDocument();
     // Nối sang hàng đợi trả về kệ, lọc sẵn kho của task
     expect(screen.getByRole("link", { name: PUT_BACK_LABELS.openQueue })).toHaveAttribute(
       "href",

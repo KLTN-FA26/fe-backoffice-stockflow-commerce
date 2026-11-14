@@ -1,5 +1,6 @@
 /**
- * Hình thức giao của đơn (LP-1/LP-2, BE PR #157) — DTO BE, tách khỏi `schemas.ts` (giới hạn 200 dòng / file).
+ * Dữ kiện phụ của `OrderResponse` — tách khỏi `schemas.ts` (giới hạn 200 dòng / file). `deliveryMode` /
+ * `deliveryModeLocked` chỉ còn để ĐỌC dữ liệu cũ: BE đã bỏ hình thức giao (docs 17 BR-16) nên không trả nữa.
  */
 
 import { z } from "zod";
@@ -12,8 +13,8 @@ export const orderDeliveryModeDtoSchema = z
   .catch("UNKNOWN");
 
 /**
- * Dữ kiện màn đơn dùng để release và đổi hình thức giao (cùng `OrderResponse`): hình thức giao + cờ khoá (BE PR #157,
- * LP-1) và tiền cọc (`depositRequired` / `depositReceivedAt`, BE chặn release đơn cọc khi chưa đủ cọc — BR-PRD-09). Mọi
+ * Dữ kiện màn đơn dùng ở release (cùng `OrderResponse`): hình thức giao cũ + cờ khoá (BE đã bỏ, luôn vắng) và tiền cọc
+ * (`depositRequired` / `depositReceivedAt`, đơn cọc chưa nhận cọc nằm ở Pending Payment nên chưa release được). Mọi
  * trường vắng trên dòng danh sách không mang chúng, hoặc với đơn không cọc.
  */
 export const orderReleaseFactsShape = {

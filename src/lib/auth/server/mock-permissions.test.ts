@@ -285,11 +285,19 @@ describe("Fulfillment / order grants (BE PR #148, V20261022000200)", () => {
       expect(grants(userId)).not.toContain("fulfillment-vehicle-types:READ");
   });
 
-  it("hình thức giao + ước tính xếp xe (BE PR #157 / #160): điều phối đơn và quản lý kho; Sales và nhân viên kho không", () => {
-    // sales-order-delivery-modes:UPDATE — seed ORDER_COORDINATOR + SYSTEM_ADMIN (không phải SALES_STAFF)
+  it("release đơn + ước tính xếp xe (BE V20261115000200 / PR #160): quản lý kho / quản trị release được; Sales, kế toán và nhân viên kho thì không; hình thức giao đã bỏ", () => {
+    // sales-order-releases:UPDATE — seed WAREHOUSE_MANAGER + SYSTEM_ADMIN (mock: tài khoản điều phối cũ giữ mọi mã đơn bán)
     for (const userId of ["USER-COORD-01", "USER-ADMIN-01"])
-      expect(grants(userId)).toContain("sales-order-delivery-modes:UPDATE");
+      expect(grants(userId)).toContain("sales-order-releases:UPDATE");
     for (const userId of ["USER-SALE-01", "USER-WH-01", "USER-ACC-01"])
+      expect(grants(userId)).not.toContain("sales-order-releases:UPDATE");
+    // sales-contracts:READ (đọc lịch giao để chọn đợt) — Sales, kế toán, quản trị; KHÔNG có quản lý kho / NV kho
+    for (const userId of ["USER-SALE-01", "USER-ACC-01", "USER-ADMIN-01"])
+      expect(grants(userId)).toContain("sales-contracts:READ");
+    for (const userId of ["USER-WH-01", "USER-QC-01"])
+      expect(grants(userId)).not.toContain("sales-contracts:READ");
+    // Mã hình thức giao và sales-orders:APPROVE-làm-release không còn ở đâu
+    for (const userId of ["USER-COORD-01", "USER-ADMIN-01", "USER-SALE-01", "USER-WH-01"])
       expect(grants(userId)).not.toContain("sales-order-delivery-modes:UPDATE");
     // fulfillment-load-estimates CREATE + READ — ORDER_COORDINATOR, WAREHOUSE_MANAGER, SYSTEM_ADMIN
     for (const userId of ["USER-COORD-01", "USER-ADMIN-01"])

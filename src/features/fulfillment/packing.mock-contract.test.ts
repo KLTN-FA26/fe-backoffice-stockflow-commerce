@@ -12,12 +12,7 @@ import { backendOrderStatusOf, resetOrderMockStore } from "@/lib/api/mock-routes
 import { useAuthStore } from "@/lib/auth/auth-store";
 
 import { pickAllOpenLines } from "./__fixtures__/pick-all-lines";
-import {
-  completePicking,
-  getFulfillmentTask,
-  listFulfillmentTasks,
-  reverifyDesignIntegrity,
-} from "./api";
+import { completePicking, getFulfillmentTask, listFulfillmentTasks } from "./api";
 import {
   completePacking,
   getPackageLabel,
@@ -118,12 +113,12 @@ describe("packing mock ↔ hợp đồng BE PR #136", () => {
       await pickAllOpenLines(id);
       expect((await completePicking(id)).pickStatus).toBe("Picked");
 
-      // Hàng chờ: task vừa lấy xong + kiện đang giữ do lệch thiết kế; không có đơn đã đóng xong / đã huỷ
+      // Hàng chờ: task vừa lấy xong + không có đơn đã đóng xong / đã huỷ
       const queue = await listPackingQueue({});
       expect(queue.items.map((row) => row.orderNumber)).toContain("ORD-2026-0017");
-      expect(
-        queue.items.every((row) => ["Pending", "Packing", "On Hold"].includes(row.packStatus)),
-      ).toBe(true);
+      expect(queue.items.every((row) => ["Pending", "In Progress"].includes(row.packStatus))).toBe(
+        true,
+      );
       const row = required(
         queue.items.find((r) => r.taskId === id),
         "hàng của task",
@@ -132,8 +127,8 @@ describe("packing mock ↔ hợp đồng BE PR #136", () => {
       expect(row.packerId).toBeUndefined();
       // Lọc theo trạng thái / kho; kho ngoài phạm vi → 403
       expect(
-        (await listPackingQueue({ status: "ON_HOLD" })).items.every(
-          (r) => r.packStatus === "On Hold",
+        (await listPackingQueue({ status: "IN_PROGRESS" })).items.every(
+          (r) => r.packStatus === "In Progress",
         ),
       ).toBe(true);
       expect(await codeOf(listPackingQueue({ warehouseId: "WH-HCM-01" }))).toBe(
@@ -146,7 +141,7 @@ describe("packing mock ↔ hợp đồng BE PR #136", () => {
         "PACK_STATE_CONFLICT",
       );
       const started = await startPacking(id);
-      expect(started).toMatchObject({ packStatus: "Packing", packerId: USERS.picker.userId });
+      expect(started).toMatchObject({ packStatus: "In Progress", packerId: USERS.picker.userId });
       expect(started.packerName).toBeTruthy();
       // Gọi lại bởi chính người đó → nguyên phiên; người khác → PACKING_TAKEN; quản lý kho không bị chặn
       expect((await startPacking(id)).startedAt).toBe(started.startedAt);
@@ -299,7 +294,7 @@ describe("packing mock ↔ hợp đồng BE PR #136", () => {
       expect(provisional.recipient.name).toBeTruthy();
       expect(provisional.returnAddress).toBeTruthy();
 
-      // Hoàn tất khi còn thiếu: đủ → PACKING_INCOMPLETE; một phần cần ghi chú; có ghi chú → lô S1, vẫn Packing
+      // Hoàn tất khi còn thiếu: đủ → PACKING_INCOMPLETE; một phần cần ghi chú; có ghi chú → lô S1, vẫn In Progress
       const requestId = crypto.randomUUID();
       expect(await codeOf(completePacking({ taskId: id, requestId, partial: false }))).toBe(
         "PACKING_INCOMPLETE",
@@ -318,7 +313,7 @@ describe("packing mock ↔ hợp đồng BE PR #136", () => {
         partial: true,
         note: "thiếu áo",
       });
-      expect(first).toMatchObject({ packStatus: "Packing" });
+      expect(first).toMatchObject({ packStatus: "In Progress" });
       const shipmentId = required(first.shipmentId, "shipmentId");
       // Gửi lại cùng requestId → trả lại đúng lô đã tạo, không tạo lô thứ hai
       expect(
@@ -350,7 +345,7 @@ describe("packing mock ↔ hợp đồng BE PR #136", () => {
         packageCount: 1,
       });
 
-      // Đóng nốt dòng còn lại → hoàn tất đủ: lô S2, phiên + đơn PACKED
+      // Đóng nốt dòng còn lại → hoàn tất đủ: lô S2, phiên Completed + đơn PACKED
       const lastPackage = await openPackage({ taskId: id, idempotencyKey: "k3" });
       await scan({ scannedCode: tee }, lastPackage.packageId);
       await sealPackage({ taskId: id, packageId: lastPackage.packageId, values: seal() });
@@ -359,7 +354,7 @@ describe("packing mock ↔ hợp đồng BE PR #136", () => {
         requestId: crypto.randomUUID(),
         partial: false,
       });
-      expect(done).toMatchObject({ packStatus: "Packed" });
+      expect(done).toMatchObject({ packStatus: "Completed" });
       expect(done.packedAt).toBeTruthy();
       expect((await getPackingSession(id)).shipments.map((s) => s.code)).toEqual([
         "ORD-2026-0017-S1",
@@ -370,7 +365,7 @@ describe("packing mock ↔ hợp đồng BE PR #136", () => {
       expect(
         (await completePacking({ taskId: id, requestId: crypto.randomUUID(), partial: false }))
           .packStatus,
-      ).toBe("Packed");
+      ).toBe("Completed");
       expect(await codeOf(openPackage({ taskId: id, idempotencyKey: "k4" }))).toBe(
         "PACK_STATE_CONFLICT",
       );
@@ -379,49 +374,28 @@ describe("packing mock ↔ hợp đồng BE PR #136", () => {
   );
 
   it(
-    "kiện bị giữ do lệch thiết kế: ai có design-reverification:UPDATE (QC, quản lý kho) kiểm tra lại → phiên về PACKING (không PACKED) → người đóng hoàn tất lại",
+    "task seed đang kiểm thùng (In Progress): kiện niêm phong sẵn, chưa có lô; QC không nhận đơn; quản lý kho (packing:APPROVE) hoàn tất → Completed",
     async () => {
       actAs(USERS.manager);
       const id = (await taskOfOrder("ORD-2026-0009")).taskId;
       const session = await getPackingSession(id);
-      expect(session.packStatus).toBe("On Hold");
-      // Seed: đã có kiện niêm phong chứa mọi dòng (lần hoàn tất bị giữ)
+      expect(session.packStatus).toBe("In Progress");
+      // Seed: đã có kiện niêm phong chứa mọi dòng, chưa tạo lô giao
       expect(session.packages[0]).toMatchObject({ status: "SEALED" });
       expect(session.shipments).toEqual([]);
 
-      // Đang giữ: nhận đơn / hoàn tất bị từ chối; chờ QC
-      actAs(USERS.picker);
-      expect(await codeOf(startPacking(id))).toBe("PACK_STATE_CONFLICT");
-      expect(
-        await codeOf(
-          completePacking({ taskId: id, requestId: crypto.randomUUID(), partial: false }),
-        ),
-      ).toBe("PACK_STATE_CONFLICT");
-      // Người đóng gói (fulfillment-packing:UPDATE) không có design-reverification:UPDATE → không kiểm tra lại được
-      expect(await codeOf(reverifyDesignIntegrity({ taskId: id, resolutionNote: "x" }))).toBe(
-        "FORBIDDEN",
-      );
-      // QC (BE PR #148): có design-reverification:UPDATE nhưng không có packing:UPDATE → không nhận đơn
+      // QC (BE PR #148): không có packing:UPDATE → không nhận đơn
       actAs(USERS.qc);
       expect(await codeOf(startPacking(id))).toBe("FORBIDDEN");
 
-      // QC kiểm tra lại thiết kế
-      const verified = await reverifyDesignIntegrity({
-        taskId: id,
-        resolutionNote: "đã khôi phục file",
-      });
-      expect(verified.packStatus).toBe("Packing");
-      expect(await backendOrderStatusOf("ORD-2026-0009")).not.toBe("ON_HOLD");
-      expect((await getPackingSession(id)).packStatus).toBe("Packing");
-
-      // Người đóng (người đã nhận đơn) hoàn tất lại → lô giao, phiên + đơn PACKED
+      // Quản lý kho làm hộ / tiếp quản → lô giao, phiên + đơn hoàn tất
       actAs(USERS.manager);
       const done = await completePacking({
         taskId: id,
         requestId: crypto.randomUUID(),
         partial: false,
       });
-      expect(done).toMatchObject({ packStatus: "Packed" });
+      expect(done).toMatchObject({ packStatus: "Completed" });
       expect(done.shipmentId).toBeTruthy();
     },
     FLOW_TIMEOUT_MS,
@@ -443,7 +417,7 @@ describe("packing mock ↔ hợp đồng BE PR #136", () => {
       expect(await codeOf(getPackingSession("khong-co"))).toBe("NOT_FOUND");
       // Task seed đã PACKED: lô S1 sẵn sàng giao, COD đơn COD chưa trả trước
       const packed = await getPackingSession(id);
-      expect(packed.packStatus).toBe("Packed");
+      expect(packed.packStatus).toBe("Completed");
       expect(packed.shipments[0]).toMatchObject({ status: "READY_TO_DISPATCH", partial: false });
       expect(packed.shipments[0]?.codAmount).toBeGreaterThan(0);
       const label = await getPackageLabel({

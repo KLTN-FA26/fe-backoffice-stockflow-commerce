@@ -9,7 +9,6 @@ import {
   UI_LABELS,
 } from "@/constants";
 import { ApiError } from "@/lib/api/error";
-import { toast } from "@/components/shared/Toast";
 
 import {
   PACKAGE_ID,
@@ -57,7 +56,7 @@ const missingLine = (overrides: Partial<PackingSessionDto> = {}) =>
   });
 
 const doneTask = (overrides: Record<string, unknown> = {}) => ({
-  ...pickedTask({ packStatus: "PACKED", packedAt: "2026-10-10T03:40:00Z" }),
+  ...pickedTask({ packStatus: "COMPLETED", packedAt: "2026-10-10T03:40:00Z" }),
   shipmentId: SHIPMENT_ID,
   ...overrides,
 });
@@ -254,7 +253,7 @@ describe("hoàn tất đóng gói", () => {
       post: (state) => ({
         [COMPLETION]: () => {
           state.session = fullySealed({
-            packStatus: "PACKED",
+            packStatus: "COMPLETED",
             shipments: [packShipment()],
             packages: [sealedPackage({ shipmentId: SHIPMENT_ID })],
           });
@@ -283,7 +282,7 @@ describe("hoàn tất đóng gói", () => {
     ).toBeInTheDocument();
     expect(window.sessionStorage.getItem(REQUEST_KEY)).toBeNull();
     await user.click(within(dialog).getByRole("button", { name: P.complete.close }));
-    expect(await screen.findAllByText("Đã đóng gói")).not.toHaveLength(0);
+    expect(await screen.findAllByText("Hoàn tất")).not.toHaveLength(0);
     expect(screen.queryByRole("button", { name: P.action.complete })).toBeNull();
   });
 
@@ -297,7 +296,7 @@ describe("hoàn tất đóng gói", () => {
             shipments: [packShipment({ partial: true, partialNote: "thiếu áo khoác" })],
             packages: [sealedPackage({ shipmentId: SHIPMENT_ID })],
           });
-          return doneTask({ packStatus: "PACKING", packedAt: undefined });
+          return doneTask({ packStatus: "IN_PROGRESS", packedAt: undefined });
         },
       }),
     });
@@ -392,28 +391,6 @@ describe("hoàn tất đóng gói", () => {
     );
   });
 
-  it("lệch checksum thiết kế: 200 + On Hold, không có lô giao → dialog báo bị giữ (không phải lỗi), phiên chuyển Tạm giữ", async () => {
-    const user = userEvent.setup();
-    const warning = vi.spyOn(toast, "warning").mockImplementation(() => "");
-    renderPackingStation({
-      session: fullySealed(),
-      post: (state) => ({
-        [COMPLETION]: () => {
-          state.session = fullySealed({ packStatus: "ON_HOLD" });
-          return pickedTask({ packStatus: "ON_HOLD" });
-        },
-      }),
-    });
-    const dialog = await openComplete(user);
-    await user.click(within(dialog).getByRole("button", { name: P.complete.submitFull }));
-    expect(await within(dialog).findByText(P.complete.resultHeld)).toBeInTheDocument();
-    expect(warning).toHaveBeenCalled();
-    // Chưa có lô giao → id giữ lại để hoàn tất lần nữa sau khi QC kiểm tra lại
-    expect(window.sessionStorage.getItem(REQUEST_KEY)).not.toBeNull();
-    await user.click(within(dialog).getByRole("button", { name: P.complete.close }));
-    expect(await screen.findByText(UI_LABELS.fulfillment.holdTitle)).toBeInTheDocument();
-  });
-
   it("kiện còn mở có hàng / chưa có kiện niêm phong → dialog chặn nút, nêu lý do", async () => {
     const user = userEvent.setup();
     renderPackingStation({
@@ -450,7 +427,7 @@ describe("hoàn tất đóng gói", () => {
       session: fullySealed(),
       post: (state) => ({
         [COMPLETION]: () => {
-          state.session = fullySealed({ packStatus: "PACKED", shipments: [packShipment()] });
+          state.session = fullySealed({ packStatus: "COMPLETED", shipments: [packShipment()] });
           return doneTask({ paymentDue: { amountDueBeforeHandover: 150000, currency: "VND" } });
         },
       }),

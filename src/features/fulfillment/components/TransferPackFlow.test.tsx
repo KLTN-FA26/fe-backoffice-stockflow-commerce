@@ -562,7 +562,7 @@ describe("đóng gói chuyển kho — hoàn tất", () => {
     });
   };
   const packedAfter = (state: { session: ReturnType<typeof tSession> }) => {
-    state.session = { ...state.session, packStatus: "PACKED", packedAt: "2026-10-22T04:00:00Z" };
+    state.session = { ...state.session, packStatus: "COMPLETED", packedAt: "2026-10-22T04:00:00Z" };
     return state.session;
   };
 

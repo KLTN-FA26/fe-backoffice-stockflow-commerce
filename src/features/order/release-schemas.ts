@@ -1,19 +1,16 @@
 /**
  * Release đơn — input của form (`POST /orders/{id}/release`, BE `ReleaseOrderRequest`): kho bắt buộc (`@NotNull
- * warehouseId`), hình thức giao là lựa chọn của người dùng (chỉ GỬI khi khác hình thức hiện tại — xem
- * `releaseDeliveryMode`). Dùng với react-hook-form + zodResolver.
+ * warehouseId`); đợt giao (`deliveryBatchId`) tuỳ chọn — bỏ trống = đợt kế tiếp (docs 17 BR-29). Không còn hình thức
+ * giao. Dùng với react-hook-form + zodResolver.
  */
 
 import { z } from "zod";
 
-import {
-  ORDER_DELIVERY_MODES,
-  ORDER_RELEASE_REFUSAL_LABELS,
-} from "@/constants/labels-delivery-mode";
+import { ORDER_RELEASE_REFUSAL_LABELS } from "@/constants/labels-order-release";
 
 export const releaseFormSchema = z.object({
   warehouseId: z.string().min(1, ORDER_RELEASE_REFUSAL_LABELS.warehouseField),
-  deliveryMode: z.enum(ORDER_DELIVERY_MODES),
+  deliveryBatchId: z.string().optional(),
 });
 
 export type ReleaseFormValues = z.infer<typeof releaseFormSchema>;

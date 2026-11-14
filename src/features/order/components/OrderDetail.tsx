@@ -14,7 +14,7 @@ import { useOrder, useOrderProductionOrders } from "../queries";
 import { customLineCount, groupProductionOrdersByLine } from "../selectors";
 
 import { OrderActionCard } from "./OrderActionCard";
-import { OrderDeliveryModeCard } from "./OrderDeliveryModeCard";
+import { OrderEstimateCard } from "./OrderEstimateCard";
 import { OrderFinanceCard } from "./OrderFinanceCard";
 import { OrderInfoCard } from "./OrderInfoCard";
 import { OrderHistory } from "./OrderHistory";
@@ -122,7 +122,7 @@ function OrderDetailContent({
 
         <div className="space-y-5">
           <OrderActionCard order={order} can={can} estimateSlot={estimateSlot} />
-          <OrderDeliveryModeCard order={order} can={can} estimateSlot={estimateSlot} />
+          <OrderEstimateCard order={order} estimateSlot={estimateSlot} />
           <OrderPartialShipmentCard order={order} can={can} />
           <OrderShipments order={order} />
           <OrderInfoCard order={order} />

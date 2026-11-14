@@ -6,7 +6,7 @@ import userEvent from "@testing-library/user-event";
 import { OrderDetail } from "../components/OrderDetail";
 
 import { DETAIL_PATH, HISTORY_PATH } from "./detail";
-import { apiOrder, apiOrderDelivery } from "./order";
+import { apiOrder, apiOrderAt } from "./order";
 import { mockOrderApiGet, ORDER_PERMISSION_SETS, renderOrderScreen } from "./render";
 
 import type { PermissionCode } from "@/lib/auth";
@@ -26,14 +26,13 @@ export const keyOfCall = (calls: readonly unknown[][], index: number): string =>
 };
 
 export async function renderConfirmedScreen(
-  status: Parameters<typeof apiOrderDelivery>[0] = "CONFIRMED",
+  status: Parameters<typeof apiOrderAt>[0] = "CONFIRMED",
   patch: Record<string, unknown> = {},
-  permissions: readonly PermissionCode[] = ORDER_PERMISSION_SETS.coordinatorWithModes,
+  permissions: readonly PermissionCode[] = ORDER_PERMISSION_SETS.warehouseManager,
   warehouses: () => unknown = () => WAREHOUSES,
 ) {
   mockOrderApiGet(permissions, {
-    [DETAIL_PATH]: () =>
-      apiOrderDelivery(status, { deliveryMode: "PARCEL", deliveryModeLocked: false }, patch),
+    [DETAIL_PATH]: () => apiOrderAt(status, patch),
     [HISTORY_PATH]: () => [],
     "/warehouses": warehouses,
   });

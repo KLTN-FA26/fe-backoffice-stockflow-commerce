@@ -9,14 +9,14 @@ import type { PutBackRow } from "@/features/fulfillment/types";
 export type PutBackEmptyState = "none" | "no-rows" | "no-rows-in-warehouse" | "no-match";
 
 const matches = (row: PutBackRow, needle: string) =>
-  [row.orderNumber, row.sku, row.fromLocationCode].some((value) =>
+  [row.orderNumber, row.sku, row.fromLocationCode, row.lpn ?? ""].some((value) =>
     value.toLowerCase().includes(needle),
   );
 
 /**
  * State hàng đợi trả về kệ — kho + từ khoá trên URL (nuqs: gửi link / F5 giữ nguyên). BE trả một trang
  * 200 dòng cũ nhất, không có tìm kiếm: từ khoá lọc ở client trên trang đó (số đơn, SKU, vị trí lấy,
- * không phân biệt hoa thường); `truncated` khi còn dòng ngoài trang.
+ * LPN, không phân biệt hoa thường); `truncated` khi còn dòng ngoài trang.
  */
 export function usePutBackListState(canRead: boolean) {
   const [warehouse, setWarehouseParam] = useQueryState("warehouse", parseAsString);

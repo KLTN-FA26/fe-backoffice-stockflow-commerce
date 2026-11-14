@@ -2,7 +2,7 @@
  * Fulfillment task — selectors thuần (không side effect), derive từ dữ liệu BE trả về.
  */
 
-import { FULFILLMENT_LIMITS, PACK_STATUS } from "@/constants";
+import { FULFILLMENT_LIMITS } from "@/constants";
 
 import type { FulfillmentTask, IntegrityEvidence, TaskLine } from "./types";
 
@@ -16,11 +16,6 @@ const ARTIFACT_URL_PROTOCOLS: readonly string[] = ["https:", "http:"];
 export function isSafeArtifactUrl(url: string): boolean {
   if (!URL.canParse(url)) return false;
   return ARTIFACT_URL_PROTOCOLS.includes(new URL(url).protocol);
-}
-
-/** Kiện đang bị giữ do lệch checksum thiết kế (flow X-CHK). */
-export function isOnDesignHold(task: Pick<FulfillmentTask, "packStatus">): boolean {
-  return task.packStatus === PACK_STATUS.ON_HOLD;
 }
 
 /**

@@ -129,14 +129,14 @@ export function packShipment(overrides: Partial<PackShipment> = {}): PackShipmen
   };
 }
 
-/** Phiên đang đóng (PACKING) bởi `PACKER_ID`, chưa có kiện. */
+/** Phiên đang đóng (IN_PROGRESS) bởi `PACKER_ID`, chưa có kiện. */
 export function apiSession(overrides: Partial<PackingSessionDto> = {}): PackingSessionDto {
   return {
     taskId: TASK_ID,
     orderId: ORDER_ID,
     orderNumber: "SO-20261010-000431",
     warehouseId: "wh-1",
-    packStatus: "PACKING",
+    packStatus: "IN_PROGRESS",
     packerId: PACKER_ID,
     packerName: "Hoàng Anh Tuấn",
     startedAt: "2026-10-10T03:00:00Z",

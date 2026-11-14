@@ -1,6 +1,6 @@
 /**
- * Fixture đúng hình dạng BE `PickLineResponse` (SCRUM-267/275, `shortQty` từ BE PR #147). Field null bị BỎ khỏi
- * object (Jackson non_null) chứ không gán null; số nguyên (`putBackQty`, `shortQty`) luôn có.
+ * Fixture đúng hình dạng BE `PickLineResponse` (docs 07 §5.2: mỗi dòng một thùng LPN). Field null bị BỎ khỏi object
+ * (Jackson non_null) chứ không gán null; số nguyên (`putBackQty`, `shortQty`) luôn có.
  */
 
 import { PLAIN_LINE_ID, TASK_ID, WAREHOUSE_ID } from "./task";
@@ -10,6 +10,9 @@ import type { PickLineApiDto, PutBackRowApiDto } from "../types";
 export const PICK_LINE_1 = "aaaa0001-1111-4222-8333-000000000001";
 export const PICK_LINE_2 = "aaaa0002-1111-4222-8333-000000000002";
 export const PICK_LINE_3 = "aaaa0003-1111-4222-8333-000000000003";
+export const LPN_1 = "LPN0000000001";
+export const LPN_2 = "LPN0000000002";
+export const LPN_3 = "LPN0000000003";
 
 export function apiPickLine(overrides: Partial<PickLineApiDto> = {}): PickLineApiDto {
   return {
@@ -26,6 +29,8 @@ export function apiPickLine(overrides: Partial<PickLineApiDto> = {}): PickLineAp
     status: "OPEN",
     putBackQty: 0,
     shortQty: 0,
+    lpn: LPN_1,
+    wholeCarton: true,
     ...overrides,
   };
 }
@@ -42,6 +47,7 @@ export function apiPickLines(): PickLineApiDto[] {
     sku: "MUG-WHT",
     locationCode: "HN-A01-01-02-A",
     allocatedQty: 2,
+    lpn: LPN_2,
   });
   return [
     apiPickLine(),
@@ -53,6 +59,7 @@ export function apiPickLines(): PickLineApiDto[] {
       barcode: "8935000000031",
       locationCode: "HN-A02-02-01-B",
       allocatedQty: 5,
+      lpn: LPN_3,
     }),
   ];
 }
@@ -66,6 +73,7 @@ export function apiPutBackRow(overrides: Partial<PutBackRowApiDto> = {}): PutBac
     lineId: PICK_LINE_1,
     sku: "TEE-BLK-M",
     lotNumber: "L001",
+    lpn: LPN_1,
     pickedQty: 3,
     fromLocationCode: "HN-A01-01-01-A",
     pickedAt: "2026-10-10T02:00:00Z",

@@ -2,12 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  FULFILLMENT_ERROR_MESSAGES,
-  FULFILLMENT_FIELD_MESSAGES,
-  PACKING_ERROR_MESSAGES,
-  UI_LABELS,
-} from "@/constants";
+import { FULFILLMENT_ERROR_MESSAGES, PACKING_ERROR_MESSAGES, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { toast } from "@/components/shared/Toast";
 
@@ -25,7 +20,6 @@ import {
   OTHER_PICKER_ID,
   PICKER_ID,
   TASK_ID,
-  apiEvidence,
   apiTask,
   apiTaskLines,
   fulfillmentOrder,
@@ -42,8 +36,6 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 afterEach(() => vi.restoreAllMocks());
 
-const { fulfillment } = UI_LABELS;
-const { action } = fulfillment;
 const PATH = `/fulfillment/tasks/${TASK_ID}`;
 const PREVIEW_PATH = `${PATH}/lines/${DESIGN_LINE_ID}/design-artifacts/CUSTOMER_PREVIEW/download-url`;
 const PRINT_PATH = `${PATH}/lines/${DESIGN_LINE_ID}/design-artifacts/PRINT_READY/download-url`;
@@ -66,17 +58,12 @@ function fakeTab() {
   return tab as typeof tab & Window;
 }
 
-const heldTask = (overrides: Partial<FulfillmentTaskApiDto> = {}) =>
-  pickedTask({ packStatus: "ON_HOLD", integrityEvidence: [mismatchEvidence()], ...overrides });
-
 interface Scenario {
   identity: TestIdentity;
   task: FulfillmentTaskApiDto;
-  /** Phiên đóng gói (mặc định: PACKING bởi người được gán, có một dòng thường + một dòng in). */
+  /** Phiên đóng gói (mặc định: IN_PROGRESS bởi người được gán, có một dòng thường + một dòng in). */
   session?: PackingSessionDto;
   userId?: string;
-  /** Kết quả lần lượt của các lần kiểm tra lại. */
-  reverifyResults?: FulfillmentTaskApiDto[];
   /** Đơn trả về cho `GET /orders/{id}` khi có sales-orders:READ (mặc định `fulfillmentOrder`). */
   order?: object;
 }
@@ -89,19 +76,10 @@ function renderStation({
   task: initial,
   session: initialSession,
   userId,
-  reverifyResults,
   order,
 }: Scenario) {
-  let task = initial;
-  let session = initialSession ?? withPrintLine();
-  const next = (queue: FulfillmentTaskApiDto[] | undefined) => {
-    const result = queue?.shift();
-    if (!result) throw new Error("không còn kết quả giả lập");
-    task = result;
-    // BE PR #136: kiểm tra lại khớp → phiên đóng gói về PACKING
-    if (result.packStatus === "PACKING") session = { ...session, packStatus: "PACKING" };
-    return result;
-  };
+  const task = initial;
+  const session = initialSession ?? withPrintLine();
   const spies = mockFulfillmentApi(
     identity,
     {
@@ -113,9 +91,7 @@ function renderStation({
       [PREVIEW_PATH]: () => artifact("CUSTOMER_PREVIEW", "image/png"),
       [PRINT_PATH]: () => artifact("PRINT_READY", "application/pdf"),
     },
-    {
-      [`${PATH}/design-integrity-reverification`]: () => next(reverifyResults),
-    },
+    {},
   );
   renderFulfillmentScreen(<PackingStation id={TASK_ID} />, userId ?? PICKER_ID);
   return spies;
@@ -204,10 +180,10 @@ describe("PackingStation — thiết kế đã khoá bên cạnh dòng tuỳ ch�
     };
     mockFulfillmentApi(IDENTITIES.warehouseStaff, {
       [PATH]: () => ({
-        ...pickedTask({ packStatus: "PACKED", packedAt: "2026-10-10T03:00:00Z" }),
+        ...pickedTask({ packStatus: "COMPLETED", packedAt: "2026-10-10T03:00:00Z" }),
         lines: apiTaskLines,
       }),
-      [`${PATH}/packing-session`]: () => withPrintLine({ packStatus: "PACKED" }),
+      [`${PATH}/packing-session`]: () => withPrintLine({ packStatus: "COMPLETED" }),
       [PREVIEW_PATH]: refuse,
       [PRINT_PATH]: refuse,
     });
@@ -223,11 +199,11 @@ describe("PackingStation — thiết kế đã khoá bên cạnh dòng tuỳ ch�
     expect(screen.queryByText(FULFILLMENT_ERROR_MESSAGES.artifactMismatch)).toBeNull();
   });
 
-  it("task đang bị giữ, BE từ chối cấp file (409) → báo đúng là lệch checksum", async () => {
+  it("BE từ chối cấp file (409 CONFLICT) → báo đúng là lệch checksum", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     mockFulfillmentApi(IDENTITIES.warehouseStaff, {
-      [PATH]: () => ({ ...heldTask(), lines: apiTaskLines }),
-      [`${PATH}/packing-session`]: () => withPrintLine({ packStatus: "ON_HOLD" }),
+      [PATH]: () => ({ ...pickedTask(), lines: apiTaskLines }),
+      [`${PATH}/packing-session`]: () => withPrintLine(),
       [PREVIEW_PATH]: () => {
         throw new ApiError(409, "CONFLICT", "Design integrity verification failed");
       },
@@ -270,8 +246,8 @@ describe("PackingStation — thiết kế đã khoá bên cạnh dòng tuỳ ch�
   it("đã có evidence → hiện checksum đã khoá của lần đối chiếu mới nhất, vẫn tải được artifact", async () => {
     renderStation({
       identity: IDENTITIES.warehouseStaff,
-      task: heldTask(),
-      session: withPrintLine({ packStatus: "ON_HOLD" }),
+      task: pickedTask({ integrityEvidence: [mismatchEvidence()] }),
+      session: withPrintLine(),
     });
     const card = (await screen.findByRole("heading", { name: "TEE-CUSTOM-L" })).closest("article");
     expect(within(card as HTMLElement).getByText("aaaaaaaaaaaa…")).toBeInTheDocument();
@@ -344,93 +320,7 @@ describe("PackingStation — hàng in chưa về bàn đóng gói (printLinesRea
   });
 });
 
-describe("PackingStation — kiểm tra lại thiết kế (flow X-CHK) và quyền thao tác", () => {
-  const heldSession = () => withPrintLine({ packStatus: "ON_HOLD" });
-
-  it("phiên bị giữ (BE 200 + ON_HOLD) → cảnh báo + evidence lệch; người có design-reverification:UPDATE (QC) có nút kiểm tra lại nhưng không hoàn tất / quét", async () => {
-    renderStation({
-      // QC theo seed không có packages:VIEW_PAGE — cấp thêm để vào tới màn
-      identity: {
-        permissions: [...IDENTITIES.qcStaff.permissions, "fulfillment-packages:VIEW_PAGE" as const],
-      },
-      task: heldTask(),
-      session: heldSession(),
-    });
-
-    expect(await screen.findByText(fulfillment.holdTitle)).toBeInTheDocument();
-    const history = screen.getByRole("table", { name: "Lịch sử đối chiếu checksum thiết kế" });
-    expect(within(history).getByText("Lệch checksum")).toBeInTheDocument();
-    expect(within(history).getByText("bbbbbbbbbbbb…")).toBeInTheDocument();
-    // Không có nút bỏ qua; kiểm tra lại cần fulfillment-design-reverification:UPDATE (docs 08)
-    expect(screen.getByRole("button", { name: action.reverify })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: UI_LABELS.packing.action.complete })).toBeNull();
-    expect(screen.queryByLabelText(UI_LABELS.packing.scan.label)).toBeNull();
-  });
-
-  it("người đóng gói (chỉ fulfillment-packing:*) thấy phiên bị giữ nhưng không có nút kiểm tra lại", async () => {
-    renderStation({
-      identity: IDENTITIES.warehouseStaff,
-      task: heldTask(),
-      session: heldSession(),
-    });
-
-    expect(await screen.findByText(fulfillment.holdTitle)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: action.reverify })).toBeNull();
-  });
-
-  it("quản lý kho kiểm tra lại: bắt buộc ghi chú; vẫn lệch thì giữ dialog; khớp thì phiên về Packing, KHÔNG sang Packed", async () => {
-    const user = userEvent.setup();
-    const { post } = renderStation({
-      identity: IDENTITIES.warehouseManager,
-      task: heldTask({ assignedUserId: OTHER_PICKER_ID }),
-      session: heldSession(),
-      reverifyResults: [
-        heldTask({
-          assignedUserId: OTHER_PICKER_ID,
-          integrityEvidence: [mismatchEvidence("2026-10-10T04:00:00Z"), mismatchEvidence()],
-        }),
-        pickedTask({
-          assignedUserId: OTHER_PICKER_ID,
-          packStatus: "PACKING",
-          integrityEvidence: [
-            apiEvidence({ verifiedAt: "2026-10-10T05:00:00Z" }),
-            mismatchEvidence(),
-          ],
-        }),
-      ],
-    });
-
-    await user.click(await screen.findByRole("button", { name: action.reverify }));
-    const dialog = await screen.findByRole("dialog");
-    const submit = within(dialog).getByRole("button", { name: action.reverify });
-    await user.click(submit);
-    expect(
-      within(dialog).getByText(FULFILLMENT_FIELD_MESSAGES.resolutionNoteRequired),
-    ).toBeInTheDocument();
-    expect(post).not.toHaveBeenCalled();
-
-    await user.type(within(dialog).getByLabelText("Cách đã xử lý"), "đã khôi phục file in");
-    await user.click(submit);
-    await waitFor(() =>
-      expect(post).toHaveBeenCalledWith(`${PATH}/design-integrity-reverification`, {
-        resolutionNote: "đã khôi phục file in",
-      }),
-    );
-    // Lần 1 vẫn lệch → dialog còn mở, báo vẫn bị giữ
-    expect(await within(dialog).findByRole("alert")).toHaveTextContent(fulfillment.stillOnHold);
-
-    await user.click(submit);
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(post).toHaveBeenCalledTimes(2);
-    await waitFor(() => expect(screen.queryByText(fulfillment.holdTitle)).toBeNull());
-    // Phiên về "Đang đóng gói": người đóng hoàn tất lại (quản lý kho thao tác được trong phiên)
-    expect(await screen.findAllByText("Đang đóng gói")).not.toHaveLength(0);
-    expect(screen.queryByText("Đã đóng gói")).toBeNull();
-    expect(
-      screen.getByRole("button", { name: UI_LABELS.packing.action.complete }),
-    ).toBeInTheDocument();
-  });
-
+describe("PackingStation — quyền thao tác", () => {
   it("lấy hàng chưa xong (theo task) → ẩn nút Bắt đầu đóng gói, nói lý do", async () => {
     const { post } = renderStation({
       identity: IDENTITIES.warehouseStaff,
@@ -500,8 +390,7 @@ describe("PackingStation — kiểm tra lại thiết kế (flow X-CHK) và quy�
   });
 
   it("QC theo seed BE không có packages:VIEW_PAGE → bị chặn ở cổng route (gap BE)", async () => {
-    renderStation({ identity: IDENTITIES.qcStaff, task: heldTask(), userId: "qc-id" });
+    renderStation({ identity: IDENTITIES.qcStaff, task: pickedTask(), userId: "qc-id" });
     expect(await screen.findByText(UI_LABELS.loadError.forbiddenTitle)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: action.reverify })).toBeNull();
   });
 });

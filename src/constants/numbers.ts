@@ -58,8 +58,6 @@ export const ORDER_LIMITS = {
   remainderClosureNoteMax: 1000,
   /** `PartialShipmentRequest.note` @Size(max = 500) — BE PR #150. */
   partialShipmentNoteMax: 500,
-  /** `DeliveryModeRequest.note` @Size(max = 500) — BE PR #157. */
-  deliveryModeNoteMax: 500,
   /** `CancellationFeeRequest.reason` @Size(max = 500) — `CloseRemainderRequest.agreedFee` (BE PR #150). */
   feeReasonMax: 500,
   /** `CancellationFeeRequest.detail` @Size(max = 2000). */
@@ -114,8 +112,10 @@ export const FULFILLMENT_LIMITS = {
 
 /** Dòng lấy hàng — đúng ràng buộc BE (SCRUM-267/275, PR #147). */
 export const PICK_LINE_LIMITS = {
-  /** `ConfirmPickRequest.locationCode / scannedCode`, `ShortPickRequest.locationCode` @Size(max = 64). */
+  /** `ConfirmPickRequest.locationCode`, `ShortPickRequest.locationCode`, `PutBackRequest.locationCode` @Size(max = 64). */
   codeMax: 64,
+  /** `ConfirmPickRequest.lpn`, `PutBackRequest.lpn` @Size(max = 30). */
+  lpnMax: 30,
   /** Một trang dòng lấy hàng — `Pages.MAX_PAGE_SIZE` (task dài hơn thì tải tiếp trang sau). */
   pageSize: 200,
   /** Ô tìm của hàng đợi trả về kệ lọc ở client — debounce 300ms (api-conventions §9). */

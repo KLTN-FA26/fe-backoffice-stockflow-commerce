@@ -12,7 +12,6 @@ import {
   designLineViews,
   designedLines,
   integrityOutcome,
-  isOnDesignHold,
   isSafeArtifactUrl,
   latestEvidenceByLine,
   shortChecksum,
@@ -34,12 +33,6 @@ describe("fulfillment selectors", () => {
     expect(isSafeArtifactUrl("blob:https://files.example/uuid")).toBe(false);
     expect(isSafeArtifactUrl("//files.example/a")).toBe(false);
     expect(isSafeArtifactUrl("")).toBe(false);
-  });
-
-  it("isOnDesignHold chỉ đúng khi pack On Hold", () => {
-    expect(isOnDesignHold({ packStatus: "On Hold" })).toBe(true);
-    expect(isOnDesignHold({ packStatus: "Pending" })).toBe(false);
-    expect(isOnDesignHold({ packStatus: "Packed" })).toBe(false);
   });
 
   it("latestEvidenceByLine lấy bản mới nhất của từng dòng (BE trả mới nhất trước)", () => {

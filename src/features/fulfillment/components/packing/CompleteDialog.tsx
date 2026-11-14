@@ -2,14 +2,13 @@
 
 import { useState } from "react";
 
-import { PACKING_LIMITS, UI_LABELS } from "@/constants";
+import { PACK_STATUS, PACKING_LIMITS, UI_LABELS } from "@/constants";
 import { formatMoney } from "@/lib/format/money";
 import { completeInputSchema } from "@/features/fulfillment/packing-input-schemas";
 import { packingErrorMessage } from "@/features/fulfillment/packing-errors";
 import { useCompletePacking } from "@/features/fulfillment/packing-mutations";
 import { completionReadiness } from "@/features/fulfillment/packing-selectors";
 import { completionRequestId } from "@/features/fulfillment/packing-request-id";
-import { isOnDesignHold } from "@/features/fulfillment/selectors";
 import { Alert } from "@/components/shared/Alert";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { Label } from "@/components/ui/label";
@@ -60,15 +59,8 @@ function ModeOption({
   );
 }
 
-/** Kết quả sau khi hoàn tất: lô giao vừa tạo, hoặc phiên bị giữ do lệch thiết kế, kèm cảnh báo thu tiền. */
+/** Kết quả sau khi hoàn tất: lô giao vừa tạo, kèm cảnh báo thu tiền. */
 function CompletionResult({ session, task }: { session: PackingSession; task: FulfillmentTask }) {
-  if (isOnDesignHold(task)) {
-    return (
-      <Alert tone="danger" title={C.resultHeld}>
-        {C.resultHeldHint}
-      </Alert>
-    );
-  }
   const shipment = session.shipments.find((candidate) => candidate.shipmentId === task.shipmentId);
   const due = task.paymentDue;
   return (
@@ -82,7 +74,7 @@ function CompletionResult({ session, task }: { session: PackingSession; task: Fu
         ) : (
           <>{C.resultLoading} </>
         )}
-        {task.packStatus === "Packed" ? C.resultShippedFull : C.resultShippedPartial}
+        {task.packStatus === PACK_STATUS.COMPLETED ? C.resultShippedFull : C.resultShippedPartial}
       </Alert>
       {due && due.amountDueBeforeHandover > 0 && (
         <Alert tone="warning" title={UI_LABELS.packing.notice.paymentTitle}>
