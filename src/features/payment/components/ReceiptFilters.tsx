@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 
 import { receiptStatusLabel } from "../selectors";
 
-import { FilterChip, FilterSelect } from "./FilterSelect";
+import { FilterChip, FilterSelect } from "@/components/backoffice/FilterSelect";
 
 import type { ReceiptApiStatus } from "@/constants/payment";
 

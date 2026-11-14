@@ -17,7 +17,7 @@ import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { ServerTableBody } from "@/components/backoffice/ServerTableBody";
 
 import { useReceipts } from "../queries";
-import { usePagedList } from "../use-paged-list";
+import { usePagedList } from "@/hooks/use-paged-list";
 
 import { RECEIPT_COPY } from "./copy";
 import { ReceiptFilters } from "./ReceiptFilters";
