@@ -921,3 +921,14 @@ export const BIN_NAMING_SCHEMES = ["SEQUENTIAL", "ROW_LETTER_COLUMN"] as const;
 
 /** BE `MapUnit` — chỉ mét (docs 06 §5); không đổi sau khi tạo kho (BR-13). */
 export const MAP_UNITS = ["M"] as const;
+
+/**
+ * BE `CancellationRequestStatus` — yêu cầu huỷ của khách (docs 17 §5.4): PENDING → APPROVED | REJECTED | EXPIRED. Hiển thị
+ * theo docs là `Pending` / `Approved` / `Rejected` / `Expired` (xem `CANCELLATION_REQUEST_STATUS_DISPLAY`).
+ */
+export const CANCELLATION_REQUEST_STATUSES = [
+  "PENDING",
+  "APPROVED",
+  "REJECTED",
+  "EXPIRED",
+] as const;

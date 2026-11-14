@@ -62,6 +62,27 @@ export const ORDER_LIMITS = {
   feeReasonMax: 500,
   /** `CancellationFeeRequest.detail` @Size(max = 2000). */
   feeDetailMax: 2000,
+  /** `ApproveCancellationRequest.note` / `RejectCancellationRequest.note` @Size(max = 1000) — docs 17 §4.8 bước 28. */
+  cancellationDecisionNoteMax: 1000,
+  /** `WindowChangeRequest.note` @NotBlank @Size(max = 1000) — docs 17 BR-28. */
+  windowChangeNoteMax: 1000,
+} as const;
+
+/**
+ * Tệp bằng chứng khách đồng ý khi dời cửa sổ giao (docs 17 BR-28; BE `FileCategory.DOCUMENT`, kiểm lại ở `StagedUploads`):
+ * PDF, Word, Excel hoặc ảnh JPEG / PNG chụp văn bản, tối đa 25 MB. FE chỉ chặn sớm — BE là bên quyết (415 / 413).
+ */
+export const WINDOW_EVIDENCE_FILE = {
+  maxBytes: 25 * 1024 * 1024,
+  contentTypes: [
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "image/jpeg",
+    "image/png",
+  ],
+  /** Giá trị `accept` của ô chọn tệp. */
+  accept: ".pdf,.docx,.xlsx,.jpg,.jpeg,.png",
 } as const;
 
 /** Giới hạn phiếu nhận — đúng ràng buộc request BE goods receipt (PR #62, SCRUM-435). */

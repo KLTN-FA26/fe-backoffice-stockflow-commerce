@@ -3,6 +3,7 @@
 import { cn } from "cn";
 import {
   ArrowRightLeft,
+  Ban,
   Building2,
   BellRing,
   Boxes,
@@ -52,6 +53,8 @@ import { useMemo, useState } from "react";
 import {
   ADMIN_ROUTES,
   ATTRIBUTE_PERMISSIONS,
+  CANCELLATION_REQUEST_LABELS,
+  CANCELLATION_REQUEST_PERMISSIONS,
   CUSTOMER_PERMISSIONS,
   CREDIT_HOLD_PERMISSIONS,
   CUSTOMER_PRICE_PERMISSIONS,
@@ -412,6 +415,14 @@ export const NAV_GROUPS: NavGroup[] = [
         href: ADMIN_ROUTES.orders.creditHolds,
         icon: ShieldAlert,
         permission: CREDIT_HOLD_PERMISSIONS.viewPage,
+      },
+      // Hàng đợi yêu cầu huỷ của khách: resource `sales-order-cancellations` không có VIEW_PAGE (chỉ READ / UPDATE) nên
+      // gate bằng READ — seed BE: SALES_STAFF + SYSTEM_ADMIN.
+      {
+        label: CANCELLATION_REQUEST_LABELS.title,
+        href: ADMIN_ROUTES.orders.cancellationRequests,
+        icon: Ban,
+        permission: CANCELLATION_REQUEST_PERMISSIONS.read,
       },
       {
         label: "Lấy hàng",
