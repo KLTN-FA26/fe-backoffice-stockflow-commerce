@@ -3,10 +3,13 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ADMIN_ROUTES, CANCELLATION_REQUEST_LABELS, UI_LABELS } from "@/constants";
+import { CYCLE_COUNT_LABELS, CYCLE_COUNT_ROUTES } from "@/constants/cycle-count";
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
+import { QUARANTINE_LABELS } from "@/constants/quarantine";
 import {
   CANCELLATION_REQUEST_PERMISSIONS,
   ATTRIBUTE_PERMISSIONS,
+  CYCLE_COUNT_PERMISSIONS,
   CREDIT_HOLD_PERMISSIONS,
   FULFILLMENT_PICKING_PERMISSIONS,
   FULFILLMENT_PICK_PERMISSIONS,
@@ -18,6 +21,7 @@ import {
   ORDER_PERMISSIONS,
   PRODUCT_PERMISSIONS,
   SHIPMENT_PERMISSIONS,
+  STOCK_PACKAGE_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
   VEHICLE_TYPE_PERMISSIONS,
 } from "@/constants/permissions";
@@ -184,6 +188,49 @@ describe("declared navigation permissions", () => {
     const link = screen.queryByRole("link", { name: INVENTORY_LABELS.alertListTitle });
     expect(link !== null).toBe(visible);
     if (link) expect(link).toHaveAttribute("href", INVENTORY_ROUTES.alerts);
+  });
+  it.each([
+    ["cycle-counts:VIEW_PAGE", [CYCLE_COUNT_PERMISSIONS.viewPage], true],
+    ["cycle-counts:READ alone", [CYCLE_COUNT_PERMISSIONS.read], false],
+    ["cycle-counts:UPDATE alone", [CYCLE_COUNT_PERMISSIONS.update], false],
+  ] as const)("kiểm kê menu with %s → visible: %s", async (_, permissions, visible) => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: {
+        roles: [],
+        permissions: [...permissions, IDENTITY_PERMISSIONS.rbacRead],
+        dataScope: "ALL",
+      },
+    });
+    mount();
+    expect(await screen.findByRole("link", { name: "Phân quyền" })).toBeInTheDocument();
+    const link = screen.queryByRole("link", { name: CYCLE_COUNT_LABELS.title });
+    expect(link !== null).toBe(visible);
+    if (link) expect(link).toHaveAttribute("href", CYCLE_COUNT_ROUTES.list);
+  });
+  it.each([
+    ["stock-packages:UPDATE (warehouse manager)", [STOCK_PACKAGE_PERMISSIONS.update], true],
+    [
+      "stock-packages:READ + CREATE (warehouse staff)",
+      [
+        STOCK_PACKAGE_PERMISSIONS.viewPage,
+        STOCK_PACKAGE_PERMISSIONS.read,
+        STOCK_PACKAGE_PERMISSIONS.create,
+      ],
+      false,
+    ],
+  ] as const)("cách ly thùng menu with %s → visible: %s", async (_, permissions, visible) => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: {
+        roles: [],
+        permissions: [...permissions, IDENTITY_PERMISSIONS.rbacRead],
+        dataScope: "ALL",
+      },
+    });
+    mount();
+    expect(await screen.findByRole("link", { name: "Phân quyền" })).toBeInTheDocument();
+    const link = screen.queryByRole("link", { name: QUARANTINE_LABELS.title });
+    expect(link !== null).toBe(visible);
+    if (link) expect(link).toHaveAttribute("href", INVENTORY_ROUTES.quarantine);
   });
   it("hồ sơ hàng tồn theo inventory-inventory-items:VIEW_PAGE (BE PR #119)", async () => {
     vi.spyOn(api, "get").mockResolvedValue({

@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { CYCLE_COUNT_ROUTES } from "@/constants/cycle-count";
 import { INVENTORY_ROUTES } from "@/constants/inventory";
 
 // Every Inventory route constant used by links/sidebar must resolve to an App Router page,
@@ -17,6 +18,9 @@ describe("Inventory routes exist in the App Router tree", () => {
     ["adjustment list", INVENTORY_ROUTES.adjustments],
     ["adjustment create", INVENTORY_ROUTES.createAdjustment],
     ["adjustment detail", INVENTORY_ROUTES.adjustment("[id]").replace("%5Bid%5D", "[id]")],
+    ["cycle count list", CYCLE_COUNT_ROUTES.list],
+    ["cycle count detail", CYCLE_COUNT_ROUTES.detail("[id]").replace("%5Bid%5D", "[id]")],
+    ["quarantine decision", INVENTORY_ROUTES.quarantine],
   ])("%s → %s", (_screen, route) => {
     expect(existsSync(pageFile(route))).toBe(true);
   });

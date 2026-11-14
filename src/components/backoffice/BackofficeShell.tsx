@@ -9,6 +9,7 @@ import {
   BellRing,
   Boxes,
   CalendarClock,
+  ClipboardCheck,
   ClipboardList,
   Factory,
   Database,
@@ -40,6 +41,7 @@ import {
   UserCog,
   ShoppingBag,
   ShoppingCart,
+  PackageX,
   SlidersHorizontal,
   SquareKanban,
   Tags,
@@ -81,6 +83,7 @@ import {
   SAMPLE_REQUEST_PERMISSIONS,
   PUT_BACK_LABELS,
   SHIPMENT_PERMISSIONS,
+  STOCK_PACKAGE_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
   TRANSFER_PERMISSIONS,
   TRIAL_LABELS,
@@ -89,7 +92,10 @@ import {
   WAREHOUSE_LOCATION_PERMISSIONS,
   WAREHOUSE_PERMISSIONS,
 } from "@/constants";
+import { CYCLE_COUNT_LABELS, CYCLE_COUNT_ROUTES } from "@/constants/cycle-count";
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
+import { CYCLE_COUNT_PERMISSIONS } from "@/constants/permissions";
+import { QUARANTINE_LABELS } from "@/constants/quarantine";
 import { PAYMENT_LABELS } from "@/constants/labels-payment";
 import {
   PAYMENT_INSTALLMENT_PERMISSIONS,
@@ -326,10 +332,24 @@ export const NAV_GROUPS: NavGroup[] = [
         permission: INVENTORY_PERMISSIONS.stockUpdate,
       },
       {
+        label: CYCLE_COUNT_LABELS.title,
+        href: CYCLE_COUNT_ROUTES.list,
+        icon: ClipboardCheck,
+        // BE CycleCountController: resource inventory-cycle-counts (NV kho đếm, quản lý kho duyệt / đếm lại)
+        permission: CYCLE_COUNT_PERMISSIONS.viewPage,
+      },
+      {
         label: "Điều chỉnh tồn",
         href: INVENTORY_ROUTES.adjustments,
         icon: SlidersHorizontal,
         permission: INVENTORY_PERMISSIONS.adjustmentViewPage,
+      },
+      {
+        label: QUARANTINE_LABELS.title,
+        href: INVENTORY_ROUTES.quarantine,
+        icon: PackageX,
+        // Chỉ Quản lý kho cách ly / gỡ cách ly (docs 20 BR-21): StockPackageController UPDATE
+        permission: STOCK_PACKAGE_PERMISSIONS.update,
       },
       {
         label: "Lịch sử biến động",

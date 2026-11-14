@@ -27,6 +27,7 @@ import {
   IDENTITY_PERMISSIONS,
   INVENTORY_ITEM_PERMISSIONS,
   INVENTORY_OVERVIEW_PERMISSIONS,
+  CYCLE_COUNT_PERMISSIONS,
   INVENTORY_PERMISSIONS,
   LOAD_ESTIMATE_PERMISSIONS,
   LOAD_PLAN_PERMISSIONS,
@@ -151,6 +152,11 @@ const INVENTORY_FLOOR = [
   INV.alertRead,
 ];
 const INVENTORY_ALL = Object.values(INV);
+// Seed BE V20260903000100 / V20261023000300 / V20261028001000: WAREHOUSE_MANAGER đủ quyền phiếu kiểm kê
+// (`inventory-cycle-counts`); WAREHOUSE_STAFF xem + đếm (VIEW_PAGE, READ, UPDATE), không lập / duyệt.
+const CC = CYCLE_COUNT_PERMISSIONS;
+const CYCLE_COUNT_ALL = Object.values(CC);
+const CYCLE_COUNT_COUNTER = [CC.viewPage, CC.read, CC.update];
 // Seed BE V20260903000100: WAREHOUSE_STAFF / MANAGER đọc tồn + giữ chỗ; INVENTORY_PLANNER và
 // QC_STAFF chỉ đọc tồn (inventory-stock-items VIEW_PAGE/READ). V20261014000900: inventory-alerts:READ
 // cho WAREHOUSE_MANAGER / INVENTORY_PLANNER / WAREHOUSE_STAFF (QC_STAFF không có).
@@ -185,6 +191,7 @@ const WH_WORK = [
   ...FULFILLMENT_READ,
   ...FLOOR_WORK,
   ...INVENTORY_FLOOR,
+  ...CYCLE_COUNT_COUNTER,
   ...OVERVIEW_ALL,
   WAREHOUSE_READ,
   WAREHOUSE_LOCATION_PERMISSIONS.read,
@@ -255,6 +262,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...MANAGER_WORK,
     ...Object.values(OUTCOME),
     ...INVENTORY_ALL,
+    ...CYCLE_COUNT_ALL,
     ...OVERVIEW_ALL,
     // Seed V20260903000100 / V20260928006000: WAREHOUSE_MANAGER đủ quyền danh mục kho và bản đồ kho
     ...Object.values(WAREHOUSE_PERMISSIONS),

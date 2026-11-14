@@ -3,10 +3,17 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { useRef } from "react";
 import { useForm } from "react-hook-form";
 
-import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
+import {
+  INVENTORY_LABELS,
+  INVENTORY_LIMITS,
+  INVENTORY_ROUTES,
+  STOCK_ADJUSTMENT_DIRECTIONS,
+  STOCK_ADJUSTMENT_REQUEST_REASONS,
+} from "@/constants/inventory";
 import { INVENTORY_PERMISSIONS } from "@/constants/permissions";
 
 import { ApiError } from "@/lib/api/error";
@@ -30,13 +37,26 @@ export function AdjustmentCreate() {
   );
 }
 
+// Link từ màn Cách ly thùng ("Ghi giảm thùng lỗi", docs 20 §4.8 bước 3): điền sẵn LPN, chiều và lý do.
+const PREFILL_PARSERS = {
+  lpn: parseAsString,
+  direction: parseAsStringLiteral(STOCK_ADJUSTMENT_DIRECTIONS),
+  reason: parseAsStringLiteral(STOCK_ADJUSTMENT_REQUEST_REASONS),
+};
+
 function AdjustmentCreateContent() {
   const router = useRouter();
   const mutation = useCreateAdjustment();
+  const [prefill] = useQueryStates(PREFILL_PARSERS);
   const form = useForm<CreateAdjustmentInput>({
     resolver: zodResolver(adjustmentCreateInput),
     mode: "onChange",
-    defaultValues: { locationCode: "", sku: "", lotNumber: "", note: "" },
+    defaultValues: {
+      lpn: (prefill.lpn ?? "").slice(0, INVENTORY_LIMITS.lpnLength),
+      direction: prefill.direction ?? undefined,
+      reason: prefill.reason ?? undefined,
+      note: "",
+    },
   });
   // `mutation.isPending` is a render snapshot: two submits in one frame both see false.
   // This ref flips synchronously after schema validation, before the first await.
@@ -50,14 +70,7 @@ function AdjustmentCreateContent() {
       router.push(INVENTORY_ROUTES.adjustment(adjustment.adjustmentId));
     } catch (error: unknown) {
       if (error instanceof ApiError) {
-        for (const field of [
-          "locationCode",
-          "sku",
-          "lotNumber",
-          "quantityDelta",
-          "reason",
-          "note",
-        ] as const) {
+        for (const field of ["lpn", "direction", "reason", "note"] as const) {
           const message = error.fieldErrors?.[field];
           if (message) form.setError(field, { type: "server", message });
         }

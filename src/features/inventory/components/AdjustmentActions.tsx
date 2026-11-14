@@ -31,7 +31,13 @@ const actionDescriptions = {
 export function AdjustmentActions({ adjustment }: { adjustment: StockAdjustment }) {
   const userId = useAuthStore((state) => state.user?.userId);
   const can = usePermissionChecker();
-  const actions = allowedAdjustmentActions(adjustment.status, can, userId, adjustment.requestedBy);
+  const actions = allowedAdjustmentActions(
+    adjustment.status,
+    can,
+    userId,
+    adjustment.requestedBy,
+    adjustment.reason,
+  );
   const approve = useApproveAdjustment();
   const reject = useRejectAdjustment();
   const withdraw = useWithdrawAdjustment();
