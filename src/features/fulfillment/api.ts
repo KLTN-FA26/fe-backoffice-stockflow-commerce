@@ -10,17 +10,11 @@
 import { PACK_STATUS_BY_API, PAGE_SIZE, PICK_DESTINATION, PICK_STATUS_BY_API } from "@/constants";
 import { api } from "@/lib/api/client";
 
-import {
-  beArtifactAccessSchema,
-  beFulfillmentTaskPageSchema,
-  beFulfillmentTaskSchema,
-} from "./schemas";
+import { beFulfillmentTaskPageSchema, beFulfillmentTaskSchema } from "./schemas";
 
 import type { PickApiStatus } from "@/constants";
 import type { ListQueryParams, PaginatedResponse } from "@/lib/api/query-factory";
 import type {
-  ArtifactAccess,
-  ArtifactUrlInput,
   AssignTaskInput,
   CreateTaskValues,
   FulfillmentTask,
@@ -140,17 +134,3 @@ export const completePicking = (taskId: string) =>
  * PICK_TASK_STATE_CONFLICT; đơn đang treo → 409 PICK_ORDER_ON_HOLD (thùng ở lại khu chờ xuất). Gọi lại → 200 như cũ.
  */
 export const moveToDispatch = (taskId: string) => postTask(`${taskPath(taskId)}/dispatch-transfer`);
-
-/* ── Artifact thiết kế ───────────────────────────────────────────────── */
-
-/** URL ký ngắn hạn tới file thiết kế đã khoá của một dòng đơn — không cache, không lưu lại. */
-export async function getDesignArtifactUrl(
-  { taskId, lineId, role }: ArtifactUrlInput,
-  signal?: AbortSignal,
-): Promise<ArtifactAccess> {
-  const { data } = await api.get<unknown>(
-    `${taskPath(taskId)}/lines/${encodeURIComponent(lineId)}/design-artifacts/${role}/download-url`,
-    { signal },
-  );
-  return beArtifactAccessSchema.parse(data);
-}

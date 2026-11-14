@@ -118,9 +118,19 @@ describe("đăng ký route — mỗi METHOD + PATH đúng một chủ", () => {
     "POST /orders/:id/hold/resolution",
     "POST /orders/:id/delivery-failure",
     "POST /orders/:id/remainder-closure",
-    // Release + lịch giao (`mock-routes-order-release.ts`); không còn đổi hình thức giao (BE bỏ)
+    // Release (`mock-routes-order-release.ts`); không còn đổi hình thức giao (BE bỏ)
     "POST /orders/:id/release",
+    // Lịch giao + dời cửa sổ giao (`mock-routes-order-schedule.ts`, docs 17 BR-28)
     "GET /orders/:id/delivery-batches",
+    "POST /orders/:id/delivery-batches/:batchId/window-change",
+    "POST /orders/:id/delivery-batches/:batchId/window-change/evidence/uploads",
+    // "Kho đối tượng" của mock: nhận PUT tệp bằng chứng (đường tải cùng origin)
+    "PUT /__mock-storage/:uploadId",
+    // Yêu cầu huỷ của khách + kết quả tất toán (`mock-routes-order-cancellation-requests.ts`, docs 17 §4.8)
+    "GET /orders/cancellation-requests",
+    "POST /orders/:id/cancellation-requests/:requestId/approval",
+    "POST /orders/:id/cancellation-requests/:requestId/rejection",
+    "GET /refunds/orders/:id",
     // Giao một phần (BE PR #150)
     "PUT /orders/:id/partial-shipment",
     "GET /orders/credit-position/:id",
@@ -140,6 +150,13 @@ describe("đăng ký route — mỗi METHOD + PATH đúng một chủ", () => {
       registrations.indexOf("GET /orders/:id"),
     );
     expect(resolveMockRoute("GET", "/orders/credit-holds")?.params).toEqual({});
+  });
+
+  it("/orders/cancellation-requests đăng ký trước /orders/:id (không bị :id nuốt)", () => {
+    expect(registrations.indexOf("GET /orders/cancellation-requests")).toBeLessThan(
+      registrations.indexOf("GET /orders/:id"),
+    );
+    expect(resolveMockRoute("GET", "/orders/cancellation-requests")?.params).toEqual({});
   });
 });
 

@@ -9,8 +9,6 @@
  */
 
 import {
-  FULFILLMENT_PACKAGE_PERMISSIONS as PACK,
-  FULFILLMENT_PACKING_PERMISSIONS as PACKING,
   FULFILLMENT_PICK_PERMISSIONS as PICK,
   FULFILLMENT_PICKING_PERMISSIONS as PICKING,
   FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS as ASSIGNMENT,
@@ -36,7 +34,7 @@ import {
   taskLinesOf,
   toTaskResponse,
 } from "./mock-routes-fulfillment-store";
-import { registerPackingMockRoutes } from "./mock-routes-packing";
+import { registerCartonCheckMockRoutes } from "./mock-routes-carton-check";
 import { registerPickLineMockRoutes } from "./mock-routes-pick-lines";
 import { registerPutBackMockRoutes } from "./mock-routes-put-backs";
 import { getMockPickLines } from "./mock-routes-pick-lines-store";
@@ -45,11 +43,7 @@ import {
   mockLocationCode,
   mockWarehouseLocations,
 } from "./mock-routes-warehouse-layout";
-import {
-  backendOrderStatusOf,
-  lockedChecksumOf,
-  setMockOrderStatus,
-} from "./mock-routes-orders-store";
+import { backendOrderStatusOf, setMockOrderStatus } from "./mock-routes-orders-store";
 import {
   BE_DEFAULT_PAGE_SIZE,
   BE_MAX_PAGE_SIZE,
@@ -66,18 +60,6 @@ import type { AxiosRequestConfig } from "axios";
 import type { MockTask } from "./mock-routes-fulfillment-store";
 
 const PATH = "/fulfillment/tasks";
-const ARTIFACT_ROLES = [
-  "CUSTOMER_PREVIEW",
-  "TECHNICAL_SPEC",
-  "PRINT_READY",
-  "PRODUCTION_INSTRUCTION",
-];
-/** ASSUMPTION (mock-only): bundle mock không có file hướng dẫn sản xuất → demo nhánh 404. */
-const MISSING_ARTIFACT_ROLE = "PRODUCTION_INSTRUCTION";
-const ARTIFACT_TTL_MS = 5 * 60_000;
-/** File mẫu tĩnh cho URL ký giả lập (`public/mock/design-artifacts/`). */
-const MOCK_ARTIFACT_DIR = "/mock/design-artifacts";
-
 const newestFirst = (a: MockTask, b: MockTask) => b.createdAt.localeCompare(a.createdAt);
 
 /**
@@ -222,52 +204,6 @@ function registerTaskReadRoutes(): void {
     // Chỉ chi tiết kèm `lines` (BE `FulfillmentServiceImpl#getTask`, SCRUM-466)
     return beOk({ ...toTaskResponse(task), lines: await taskLinesOf(task) });
   });
-
-  registerMockRoute(
-    "GET",
-    `${PATH}/:id/lines/:lineId/design-artifacts/:role/download-url`,
-    async (config) => {
-      const { task, actor } = await loadTask(config);
-      if (!actor.can(PACK.read)) return forbidden();
-      if (!task) return taskNotFound();
-      // Người được gán, hoặc người đóng gói (packing:UPDATE) khi lấy hàng đã xong
-      if (
-        task.assignedUserId !== actor.userId &&
-        !(task.pickStatus === "PICKED" && actor.can(PACKING.update))
-      ) {
-        return taskNotFound();
-      }
-      const closed = await orderClosedError(task.orderId);
-      if (closed) return closed;
-      const order = await findMockOrder(task.orderId);
-      const line = order?.lines.find((l) => l.lineId === routeParam(config, "lineId"));
-      if (!line) return taskNotFound();
-      if (!line.designId) return beError(404, "NOT_FOUND", "Order line has no confirmed design");
-      const role = routeParam(config, "role").toUpperCase();
-      if (!ARTIFACT_ROLES.includes(role)) {
-        return beError(400, "UNSUPPORTED_PARAMETER", "Unknown design artifact role");
-      }
-      if (role === MISSING_ARTIFACT_ROLE) {
-        return beError(404, "NOT_FOUND", `The confirmed bundle has no ${role} artifact`);
-      }
-      const preview = role === "CUSTOMER_PREVIEW";
-      // BE trả URL ký http(s) (presigned) — mock trỏ tới file mẫu tĩnh trong `public/mock/`
-      const file = preview ? "customer-preview.svg" : "artifact.txt";
-      const url = new URL(`${MOCK_ARTIFACT_DIR}/${file}`, window.location.origin);
-      url.searchParams.set("design", line.designId);
-      url.searchParams.set("role", role);
-      return beOk({
-        artifactId: `ART-${line.designId}-${role}`,
-        role,
-        originalName: `${line.designId}-${role.toLowerCase()}.${preview ? "svg" : "txt"}`,
-        contentType: preview ? "image/svg+xml" : "text/plain",
-        sizeBytes: 1024,
-        checksum: lockedChecksumOf(line),
-        url: url.href,
-        expiresAt: new Date(Date.now() + ARTIFACT_TTL_MS).toISOString(),
-      });
-    },
-  );
 }
 
 function registerAssignmentRoutes(): void {
@@ -509,7 +445,7 @@ export function registerFulfillmentMockRoutes(): void {
     }
   });
   registerDispatchTransferRoute();
-  registerPackingMockRoutes();
+  registerCartonCheckMockRoutes();
   registerAssigneeRoutes();
   registerTaskCandidateRoutes();
   registerPickLineMockRoutes();

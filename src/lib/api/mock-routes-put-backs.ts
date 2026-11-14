@@ -7,6 +7,7 @@
 import { FULFILLMENT_PICKING_PERMISSIONS as PICKING, PICK_LINE_LIMITS } from "@/constants";
 
 import { registerMockRoute } from "./mock-adapter";
+import { builtCheckSessions } from "./mock-routes-carton-check-store";
 import {
   currentActor,
   forbidden,
@@ -35,6 +36,7 @@ import {
 import {
   isMockLocationUsable,
   mockLocationCode,
+  mockUsableAreaCodes,
   mockWarehouseLocations,
 } from "./mock-routes-warehouse-layout";
 
@@ -48,6 +50,29 @@ async function usableBinOf(warehouseId: string, code: string): Promise<string | 
       mockLocationCode(location).toUpperCase() === wanted,
   );
   return bin ? mockLocationCode(bin) : undefined;
+}
+
+/**
+ * BE `PickList.putBackToQuarantine`: thùng hư hỏng bị loại ở trạm kiểm thùng (docs 08 §4.2 bước 4) vào khu cách ly,
+ * không về bin. Thùng đã bị loại vì hư hỏng của dòng lấy hàng này (nếu có).
+ */
+function damagedCartonOf(taskId: string, lineId: string) {
+  return builtCheckSessions()
+    .get(taskId)
+    ?.cartons.find(
+      (carton) =>
+        carton.pickLineId === lineId &&
+        carton.status === "REMOVED" &&
+        carton.removalReason === "DAMAGED",
+    );
+}
+
+/** BE `putBackToQuarantine`: chỉ khu QUARANTINE đang hoạt động của đúng kho task. */
+async function usableQuarantineOf(warehouseId: string, code: string): Promise<string | undefined> {
+  const wanted = code.trim().toUpperCase();
+  return (await mockUsableAreaCodes(warehouseId, "QUARANTINE")).find(
+    (area) => area.toUpperCase() === wanted,
+  );
 }
 
 function registerQueueRoute(): void {
@@ -90,6 +115,29 @@ function registerQueueRoute(): void {
         });
       }
     }
+    // Thùng hư hỏng bị loại ở trạm kiểm thùng chờ vào khu cách ly (docs 08 §4.2 bước 4) — của task chưa huỷ
+    for (const task of (await getFulfillmentStore()).values()) {
+      if (task.pickStatus === "CANCELLED") continue;
+      if (warehouseId && task.warehouseId !== warehouseId) continue;
+      if (await outOfWarehouseScope(actor.userId, task.warehouseId)) continue;
+      for (const line of await getMockPickLines(task)) {
+        if (line.status !== "PICKED" || !damagedCartonOf(task.taskId, line.lineId)) continue;
+        rows.push({
+          taskId: task.taskId,
+          orderNumber: task.orderNumber,
+          warehouseId: task.warehouseId,
+          lineId: line.lineId,
+          sku: line.sku,
+          lotNumber: line.lotNumber,
+          lpn: line.lpn,
+          pickedQty: line.pickedQty,
+          // Thùng đứng ở khu xuất hàng (DISPATCH), chờ cất vào khu cách ly
+          fromLocationCode: "DISPATCH",
+          pickedAt: line.pickedAt ?? task.assignedAt,
+          quarantine: true,
+        });
+      }
+    }
     // Cũ nhất trước (BE sắp pickedAt, id)
     rows.sort((a, b) => a.pickedAt.localeCompare(b.pickedAt) || a.lineId.localeCompare(b.lineId));
     return beOk(bePage(rows, page, size));
@@ -126,17 +174,22 @@ function registerPutBackRoute(): void {
       // BE `PickList.putBack` — đúng thứ tự kiểm tra
       if (line.status === "PUT_BACK" && line.lpn.toUpperCase() === lpn.toUpperCase())
         return beOk(toPickLineResponse(line));
+      const damaged = damagedCartonOf(task.taskId, line.lineId);
       if (
-        task.pickStatus !== "CANCELLED" ||
-        !task.needsPutBack ||
-        (line.status !== "PICKED" && line.status !== "STAGED")
+        !damaged &&
+        (task.pickStatus !== "CANCELLED" ||
+          !task.needsPutBack ||
+          (line.status !== "PICKED" && line.status !== "STAGED"))
       ) {
         return beError(409, "PUT_BACK_NOT_REQUIRED", "Nothing to put back");
       }
       if (line.lpn.toUpperCase() !== lpn.toUpperCase()) {
         return beError(409, "PICK_ITEM_MISMATCH", `This line puts back carton ${line.lpn}`);
       }
-      const bin = await usableBinOf(task.warehouseId, code);
+      // Thùng hư hỏng vào khu QUARANTINE, không về bin
+      const bin = damaged
+        ? await usableQuarantineOf(task.warehouseId, code)
+        : await usableBinOf(task.warehouseId, code);
       if (!bin) {
         return beError(
           409,

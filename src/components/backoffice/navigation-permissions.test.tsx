@@ -2,9 +2,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
+import { ADMIN_ROUTES, CANCELLATION_REQUEST_LABELS, UI_LABELS } from "@/constants";
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 import {
+  CANCELLATION_REQUEST_PERMISSIONS,
   ATTRIBUTE_PERMISSIONS,
   CREDIT_HOLD_PERMISSIONS,
   FULFILLMENT_PICKING_PERMISSIONS,
@@ -483,5 +484,36 @@ describe("mockOnly đi chung pipeline hiển thị + mục đang mở (một t�
     );
     expect(screen.getByLabelText("visible")).not.toHaveTextContent(ADMIN_ROUTES.shipments.list);
     expect(screen.getByLabelText("active")).toHaveTextContent("none");
+  });
+});
+
+describe("hàng đợi yêu cầu huỷ — gate bằng sales-order-cancellations:READ (resource không có VIEW_PAGE)", () => {
+  const LABEL = CANCELLATION_REQUEST_LABELS.title;
+
+  function mountWith(permissions: readonly PermissionCode[]) {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [], permissions, dataScope: "ALL" },
+    });
+    mount();
+  }
+
+  it("có …:READ (Sale) → thấy mục hàng đợi, trỏ đúng route; 'Đơn hàng' vẫn một mục", async () => {
+    mountWith([ORDER_PERMISSIONS.viewPage, CANCELLATION_REQUEST_PERMISSIONS.read]);
+    const link = await screen.findByRole("link", { name: LABEL });
+    expect(link).toHaveAttribute("href", ADMIN_ROUTES.orders.cancellationRequests);
+    expect(screen.getAllByRole("link", { name: "Đơn hàng" })).toHaveLength(1);
+  });
+
+  it("chỉ có quyền đơn (Kế toán đọc đơn) hoặc …:UPDATE không kèm READ → KHÔNG có mục hàng đợi", async () => {
+    mountWith([ORDER_PERMISSIONS.viewPage, ORDER_PERMISSIONS.read, ORDER_PERMISSIONS.cancel]);
+    expect(await screen.findByRole("link", { name: "Đơn hàng" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: LABEL })).not.toBeInTheDocument();
+  });
+
+  it("mục đang mở: khớp dài nhất — trang hàng đợi không sáng kèm 'Đơn hàng'", () => {
+    const items = NAV_GROUPS.flatMap((group) => group.items);
+    expect(findActiveNavHref(ADMIN_ROUTES.orders.cancellationRequests, items)).toBe(
+      ADMIN_ROUTES.orders.cancellationRequests,
+    );
   });
 });

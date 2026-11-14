@@ -65,11 +65,33 @@ export const ORDER_PERMISSIONS = {
 
 /**
  * Hợp đồng bán — resource `sales-contracts` (BE `OrderResources.SALES_CONTRACTS`). Chỉ khai báo mã FE đang dùng:
- * READ cho lịch giao của đơn (`GET /orders/{id}/delivery-batches`, ô chọn đợt giao khi release). Seed BE: SALES_STAFF,
- * SALES_MANAGER, ACCOUNTANT, SYSTEM_ADMIN — KHÔNG có quản lý kho.
+ * - `read`: lịch giao của đơn (`GET /orders/{id}/delivery-batches`) — ô chọn đợt giao khi release và panel lịch giao.
+ *   Seed BE: SALES_STAFF, SALES_MANAGER, ACCOUNTANT, PRODUCTION_COORDINATOR, SYSTEM_ADMIN — KHÔNG có quản lý kho.
+ * - `update`: Sale dời cửa sổ giao (`POST /orders/{id}/delivery-batches/{batchId}/window-change`, docs 17 BR-28 "chỉ
+ *   Sale"). Seed BE: SALES_STAFF + SYSTEM_ADMIN (PermissionMatrixTest).
  */
 export const SALES_CONTRACT_PERMISSIONS = {
   read: "sales-contracts:READ",
+  update: "sales-contracts:UPDATE",
+} as const;
+
+/**
+ * Hàng đợi yêu cầu huỷ của khách (`GET /orders/cancellation-requests`) — resource `sales-order-cancellations`, action
+ * READ (BE V20261022000200, tách khỏi `sales-orders:READ` để Kế toán đọc đơn không mở luôn hàng đợi). Seed BE:
+ * SALES_STAFF + SYSTEM_ADMIN. Duyệt / từ chối là `ORDER_PERMISSIONS.cancel` (cùng resource, UPDATE). Resource này không
+ * có VIEW_PAGE (BE `OrderCancellationsResourceDeclaration`: chỉ READ, UPDATE) nên trang gate bằng READ.
+ */
+export const CANCELLATION_REQUEST_PERMISSIONS = {
+  read: "sales-order-cancellations:READ",
+} as const;
+
+/**
+ * Hoàn tiền của đơn — resource `payment-refunds` (BE `RefundController`). FE đơn hàng chỉ ĐỌC kết quả tất toán sau huỷ
+ * (`GET /refunds/orders/{orderId}`): seed BE cấp READ cho ACCOUNTANT, SALES_STAFF, SALES_MANAGER, SYSTEM_ADMIN (và
+ * khách, scope OWN). Ghi nhận / huỷ phiếu hoàn là việc của Kế toán ở màn thanh toán, không thuộc màn đơn.
+ */
+export const PAYMENT_REFUND_PERMISSIONS = {
+  read: "payment-refunds:READ",
 } as const;
 
 /**
