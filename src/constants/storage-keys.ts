@@ -32,8 +32,8 @@ export const STORAGE_KEYS = {
   loadOpenRequest: "stockflow:admin:loads:open-request",
   /** sessionStorage — mã quét không thành công theo chuyến (màn xếp hàng). */
   shipmentRejectedScans: "stockflow:admin:shipments:rejected-scans",
-  /** Hàng đợi trạm đóng gói: số dòng / trang (localStorage, bộ lọc nằm trên URL). */
+  /** Hàng chờ kiểm thùng: số dòng / trang (localStorage, bộ lọc nằm trên URL). */
   adminPackingQueueConfig: "stockflow:admin:packing:queue-config",
-  /** sessionStorage — `requestId` của lần hoàn tất đóng gói, theo task (BE trả lại lô cũ khi gửi lại). */
+  /** sessionStorage — `requestId` của lần hoàn tất kiểm thùng, theo task (BE trả lại shipment cũ khi gửi lại). */
   packingCompletionRequest: (taskId: string) => `stockflow:admin:packing:completion:${taskId}`,
 } as const;

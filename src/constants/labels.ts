@@ -9,14 +9,13 @@ import {
   INVENTORY_ITEM_UI_LABELS,
 } from "./labels-inventory-item";
 import { LOAD_PLAN_TOAST_MESSAGES, LOAD_PLAN_UI_LABELS } from "./labels-load-plan";
-import { PACKING_TOAST_MESSAGES, PACKING_UI_LABELS } from "./labels-packing";
+import { CARTON_CHECK_TOAST_MESSAGES, CARTON_CHECK_UI_LABELS } from "./labels-carton-check";
 import { PRODUCT_UI_LABELS } from "./labels-product";
 import { RECEIPT_CARTON_ERROR_MESSAGES } from "./labels-receipt-carton";
 import { SHIPPING_TOAST_MESSAGES, SHIPPING_UI_LABELS } from "./labels-shipping";
 import { SKU_PURCHASING_UI_LABELS } from "./labels-sku-purchasing";
 import { TAXONOMY_TOAST_MESSAGES, TAXONOMY_UI_LABELS } from "./labels-taxonomy";
 import { TRANSFER_TOAST_MESSAGES, TRANSFER_UI_LABELS } from "./labels-transfer";
-import { TRANSFER_PACK_TOAST_MESSAGES, TRANSFER_PACK_UI_LABELS } from "./labels-transfer-pack";
 import { VEHICLE_TYPE_TOAST_MESSAGES, VEHICLE_TYPE_UI_LABELS } from "./labels-vehicle-type";
 import { WAREHOUSE_MAP_TOAST_MESSAGES, WAREHOUSE_MAP_UI_LABELS } from "./labels-warehouse-map";
 
@@ -510,7 +509,6 @@ export const UI_LABELS = {
     dateRangeInvalid: "Ngày bắt đầu sau ngày kết thúc — không có phiếu nào khớp.",
   },
   transfer: TRANSFER_UI_LABELS,
-  transferPack: TRANSFER_PACK_UI_LABELS,
   shipping: SHIPPING_UI_LABELS,
   vehicleType: VEHICLE_TYPE_UI_LABELS,
   warehouseMap: WAREHOUSE_MAP_UI_LABELS,
@@ -519,13 +517,13 @@ export const UI_LABELS = {
   inventoryItem: INVENTORY_ITEM_UI_LABELS,
   skuPurchasing: SKU_PURCHASING_UI_LABELS,
   product: PRODUCT_UI_LABELS,
-  packing: PACKING_UI_LABELS,
+  cartonCheck: CARTON_CHECK_UI_LABELS,
   fulfillment: {
     pickingTitle: "Lấy hàng",
     pickingSubtitle: "Task xuất kho theo đơn: gán nhân viên, bắt đầu và hoàn tất lấy hàng.",
-    packingTitle: "Đóng gói",
+    packingTitle: "Kiểm thùng & dán nhãn giao hàng",
     packingSubtitle:
-      "Quét kiểm, đóng kiện, cân đo, in nhãn và hoàn tất đóng gói; đối chiếu thiết kế đã khoá của dòng in.",
+      "Quét LPN từng thùng, dán nhãn giao hàng, loại thùng hư hỏng và hoàn tất thành shipment.",
     notFoundTitle: "Không tìm thấy task xuất kho",
     // BE trả 404 (không phải 403) khi task không được gán cho người gọi
     notFoundDescription: "Task không tồn tại, hoặc không được gán cho bạn nên bạn không xem được.",
@@ -538,8 +536,7 @@ export const UI_LABELS = {
       startPicking: "Bắt đầu lấy hàng",
       completePicking: "Hoàn tất lấy hàng",
       moveToDispatch: "Chuyển sang khu xuất hàng",
-      reverify: "Kiểm tra lại thiết kế",
-      openPacking: "Mở trạm đóng gói",
+      openPacking: "Mở trạm kiểm thùng",
       openPicking: "Xem lấy hàng",
     },
     // Lọc danh sách task (BE `GET /fulfillment/tasks?status&warehouseId&assignedUserId`, SCRUM-466)
@@ -584,15 +581,7 @@ export const UI_LABELS = {
     noAssignTitle: "Chưa đủ quyền chọn người nhận task",
     noAssignDescription:
       "Danh sách người nhận task chỉ hiện cho tài khoản được cấp quyền gán task — liên hệ quản trị để được cấp.",
-    // Flow X-CHK (BR-DSG-003): lệch checksum là lỗi phải chặn, không có nút bỏ qua
-    holdTitle: "Kiện đang bị giữ do lệch thiết kế.",
-    holdDescription:
-      "Checksum file thiết kế không khớp bản khách đã chốt nên chưa được đóng gói. Quản lý kho khôi phục đúng file rồi bấm Kiểm tra lại thiết kế; không có thao tác bỏ qua.",
-    stillOnHold: "Thiết kế vẫn lệch checksum — kiện tiếp tục bị giữ",
     alreadyAssigned: "Task đang được gán cho người này — chọn người khác để gán lại.",
-    artifactDisclaimer:
-      "File tải về từ bundle đã khoá; đường dẫn chỉ dùng được trong thời gian ngắn.",
-    noDesignLines: "Đơn không có dòng tuỳ chỉnh — không cần đối chiếu thiết kế.",
     noTaskLines: "Task chưa có dòng hàng.",
     noActions: {
       viewOnly: "Bạn chỉ có quyền xem task này.",
@@ -634,21 +623,7 @@ export const UI_LABELS = {
       stagedAt: "Về khu chờ xuất lúc",
       movedToDispatchAt: "Chuyển sang khu xuất hàng lúc",
     },
-    // Kết quả đối chiếu checksum thiết kế (cột danh sách, thẻ dòng, lịch sử)
-    integrity: {
-      unverified: "Chưa đối chiếu",
-      match: "Khớp",
-      mismatch: "Lệch checksum",
-    },
   },
-} as const;
-
-/** Nhãn vai trò file thiết kế (BE `DesignArtifactRole`) — không hiện enum thô. */
-export const DESIGN_ARTIFACT_ROLE_LABELS = {
-  CUSTOMER_PREVIEW: "Bản xem trước",
-  TECHNICAL_SPEC: "Thông số kỹ thuật",
-  PRINT_READY: "File in",
-  PRODUCTION_INSTRUCTION: "Hướng dẫn sản xuất",
 } as const;
 
 /**
@@ -674,15 +649,6 @@ export const FULFILLMENT_ERROR_MESSAGES = {
   orderNotFound: "Không tìm thấy đơn hàng",
   assignConflict: "Chỉ gán lại được khi task chưa bắt đầu lấy hàng. Dữ liệu đã được tải lại.",
   assigneeInvalid: "Người được gán phải là nhân viên kho hoặc quản lý kho đang hoạt động",
-  artifactMissing: "Bundle thiết kế đã chốt không có file này",
-  // 409 PICK_TASK_STATE_CONFLICT khi tải file (BE `TaskAccess.orderInFulfilment`) — khác CONFLICT lệch checksum
-  artifactOrderClosed: "Đơn đã rời khâu xuất kho nên không tải được file thiết kế.",
-  // URL ký BE trả không phải http(s) — không mở để tránh chạy `javascript:` trong tab
-  artifactUrlInvalid: "Đường dẫn file thiết kế không hợp lệ — không mở được. Báo bộ phận kỹ thuật.",
-  popupBlocked:
-    "Trình duyệt đã chặn tab mới — cho phép mở cửa sổ bật lên cho trang này rồi tải lại.",
-  artifactMismatch:
-    "File thiết kế trong kho lưu trữ không khớp checksum đã chốt — không tải được. Báo QC kiểm tra.",
   VALIDATION_FAILED: "Dữ liệu không hợp lệ",
   FORBIDDEN: "Bạn không có quyền thực hiện thao tác này",
   // Danh sách đơn chờ xuất kho (GET /fulfillment/task-candidates): 403 thiếu quyền tạo task, 403 kho ngoài
@@ -996,7 +962,6 @@ export const TOAST_MESSAGES = {
     referenced: "Đã gắn đơn đặt hàng tham chiếu",
   },
   transfer: TRANSFER_TOAST_MESSAGES,
-  transferPack: TRANSFER_PACK_TOAST_MESSAGES,
   shipping: SHIPPING_TOAST_MESSAGES,
   vehicleType: VEHICLE_TYPE_TOAST_MESSAGES,
   warehouseMap: WAREHOUSE_MAP_TOAST_MESSAGES,
@@ -1025,5 +990,5 @@ export const TOAST_MESSAGES = {
     putBack: (lpn: string | null | undefined, sku: string, location: string) =>
       `Đã cất ${lpn ? `thùng ${lpn}` : sku} về ${location}`,
   },
-  packing: PACKING_TOAST_MESSAGES,
+  cartonCheck: CARTON_CHECK_TOAST_MESSAGES,
 } as const;

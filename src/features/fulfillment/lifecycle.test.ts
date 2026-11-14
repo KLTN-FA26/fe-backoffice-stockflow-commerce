@@ -15,7 +15,6 @@ import {
   FULFILLMENT_ACTIONS,
   allowedFulfillmentActions,
   canCreateTask,
-  canDownloadArtifact,
   isBlockedAsNonAssignee,
   isTaskCancelled,
   isTaskClosed,
@@ -200,31 +199,6 @@ describe("các cổng phụ", () => {
     expect(canCreateTask(actorOf(IDENTITIES.warehouseManager))).toBe(true);
     expect(canCreateTask(actorOf(IDENTITIES.warehouseStaff))).toBe(false);
     expect(canCreateTask(actorOf(IDENTITIES.qcStaff))).toBe(false);
-  });
-
-  it("canDownloadArtifact: người được gán, người có design-reverification:READ (quản lý kho, QC); người đóng gói (packing:UPDATE) chỉ khi pick đã xong; điều phối không", () => {
-    const others = task("Picked", "Pending", SOMEONE_ELSE);
-    expect(canDownloadArtifact(task("Picked", "Pending"), actorOf(IDENTITIES.warehouseStaff))).toBe(
-      true,
-    );
-    expect(canDownloadArtifact(others, actorOf(IDENTITIES.warehouseStaff))).toBe(true);
-    // Pick chưa xong: người không được gán vẫn bị chặn
-    expect(
-      canDownloadArtifact(
-        task("Picking", "Pending", SOMEONE_ELSE),
-        actorOf(IDENTITIES.warehouseStaff),
-      ),
-    ).toBe(false);
-    expect(
-      canDownloadArtifact(task("Picking", "Pending"), actorOf(IDENTITIES.warehouseStaff)),
-    ).toBe(true);
-    expect(canDownloadArtifact(others, actorOf(IDENTITIES.warehouseManager))).toBe(true);
-    expect(canDownloadArtifact(others, actorOf(IDENTITIES.qcStaff))).toBe(true);
-    expect(canDownloadArtifact(others, actorOf(IDENTITIES.orderCoordinator))).toBe(false);
-    // Đơn đã huỷ → BE từ chối tải (task đã đóng)
-    expect(
-      canDownloadArtifact(task("Cancelled", "Cancelled"), actorOf(IDENTITIES.warehouseManager)),
-    ).toBe(false);
   });
 
   it("isTaskCancelled / isTaskClosed", () => {

@@ -144,41 +144,19 @@ export const PICK_LINE_LIMITS = {
 } as const;
 
 /**
- * Giới hạn trạm đóng gói — đúng ràng buộc request BE PR #136 (`PackScanRequest`, `SealPackageRequest`,
- * `PackingCompletionRequest`, `OpenPackageRequest`).
+ * Giới hạn trạm kiểm thùng — đúng ràng buộc request BE (4C-6): `CartonScanRequest.lpn` @NotBlank @Size(max = 30),
+ * `CartonSelectionRequest.lpns` @Size(max = 500), `CartonRemovalRequest.note` / `PackingCompletionRequest.note`
+ * @Size(max = 500).
  */
-export const PACKING_LIMITS = {
-  /** `PackScanRequest.quantity` @Positive @Max(1_000_000); `removeUnits.quantity` cùng giới hạn. */
-  quantityMax: 1_000_000,
-  /** `PackScanRequest.scannedCode` @NotBlank @Size(max = 64). */
-  scannedCodeMax: 64,
-  /** `PackScanRequest.lotNumber` @Size(max = 64). */
-  lotMax: 64,
-  /** `PackScanRequest.serialNumber` @Size(max = 100). */
-  serialMax: 100,
-  /** `PackingCompletionRequest.note` @Size(max = 500) — bắt buộc khi giao một phần. */
+export const CARTON_CHECK_LIMITS = {
+  /** `CartonScanRequest.lpn`; `{lpn}` của `label-reprint` / `removal` cùng giới hạn. */
+  lpnMax: 30,
+  /** `CartonSelectionRequest.lpns` — số thùng tối đa mỗi lần dán / in nhãn. */
+  selectionMax: 500,
+  /** Ghi chú loại thùng và ghi chú giao một phần (bắt buộc khi giao một phần). */
   noteMax: 500,
-  /** `SealPackageRequest.weightKg` @Digits(integer = 7, fraction = 3) @Positive. */
-  weightKgMax: 9_999_999.999,
-  weightKgScale: 3,
-  /** `SealPackageRequest.lengthCm/widthCm/heightCm` @DecimalMax("100000") @Digits(fraction = 2). */
-  dimensionCmMax: 100_000,
-  dimensionCmScale: 2,
   /** Thời gian giữ màu phản hồi sau mỗi lần quét đúng. */
   scanFeedbackMs: 1500,
-} as const;
-
-/** Giới hạn đóng gói chuyển kho — request BE `TransferCartonRequest`, `TransferKitRequest`, `PackingCompletionRequest`. */
-export const TRANSFER_PACK_LIMITS = {
-  /** `TransferCartonRequest.lpn` @NotBlank @Size(max = 30). */
-  lpnMax: 30,
-  /** `TransferKitRequest.partCount` @Min(2) @Max(99). */
-  kitPartsMin: 2,
-  kitPartsMax: 99,
-  /** `PackingCompletionRequest.note` @Size(max = 500) — bắt buộc khi chỉ chuyển phần đã đóng. */
-  noteMax: 500,
-  /** `kitOverrideReason` @Size(max = 500) (KIT-FORCE). */
-  kitReasonMax: 500,
 } as const;
 
 /** Giới hạn lệnh chuyển kho — đúng ràng buộc request BE (CreateTransferOrderRequest, ReasonRequest). */
