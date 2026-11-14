@@ -50,6 +50,7 @@ import {
   WAREHOUSE_LOCATION_PERMISSIONS,
   WAREHOUSE_PERMISSIONS,
 } from "@/constants/permissions";
+import { EINVOICE_PERMISSIONS, EINVOICE_SETTINGS_PERMISSIONS } from "@/constants/einvoice";
 import { PAYMENT_INSTALLMENT_PERMISSIONS, PAYMENT_RECEIPT_PERMISSIONS } from "@/constants/payment";
 
 import type { PermissionCode } from "@/lib/auth/me-permissions";
@@ -240,6 +241,11 @@ const PAY_ACCOUNTANT = [
 ];
 const PAY_SALES = [...PAY_INSTALLMENT_READ, ...PAY_REFUND_READ];
 
+// Seed BE V20261120000300 (hoá đơn điện tử, docs 21): ACCOUNTANT và SYSTEM_ADMIN đủ 6 action `einvoices`;
+// cấu hình: ACCOUNTANT chỉ READ, SYSTEM_ADMIN READ + UPDATE; SALES_MANAGER chỉ VIEW_PAGE + READ hoá đơn.
+const EINVOICE_ALL = Object.values(EINVOICE_PERMISSIONS);
+const EINVOICE_SETTINGS_ALL = Object.values(EINVOICE_SETTINGS_PERMISSIONS);
+
 /** Explicit demo session responses keyed by existing staff IDs, never computed from roles. */
 export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
   "USER-ADMIN-01": [
@@ -274,6 +280,8 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     CUSTOMER_LOOKUP,
     ...STOCK_PACKAGE_ALL,
     ...PAY_ACCOUNTANT,
+    ...EINVOICE_ALL,
+    ...EINVOICE_SETTINGS_ALL,
   ],
   "USER-PROC-01": [
     SUPPLIER_PERMISSIONS.viewPage,
@@ -338,6 +346,8 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...PAY_ACCOUNTANT,
     CONTRACT_READ,
     REFUND_READ,
+    ...EINVOICE_ALL,
+    EINVOICE_SETTINGS_PERMISSIONS.read,
   ],
   // ECOMMERCE_ADMIN: duyệt / xuất bản nhưng không tạm ngưng / ngừng kinh doanh (product-lifecycle chỉ
   // System Admin, BE PR #123)
