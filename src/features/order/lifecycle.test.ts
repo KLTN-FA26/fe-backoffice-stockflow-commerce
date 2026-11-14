@@ -19,16 +19,18 @@ import type { OrderActionContext } from "./lifecycle";
 import type { OrderReadStatus, OrderStatus } from "./types";
 
 /**
- * Nguồn: BE order/api/OrderStatus.java#canTransitionTo (19 giá trị, BE PR #133; bảng cũng nằm ở DB
+ * Nguồn: BE order/api/OrderStatus.java#canTransitionTo (21 giá trị gồm PENDING_CONTRACT / AWAITING_STOCK, BE PR #133; bảng cũng nằm ở DB
  * `ordering.order_status_transition`). FE khớp BE 1-1 — xem ORDER_STATUSES.
  */
 describe("ORDER_TRANSITIONS (BE OrderStatus#canTransitionTo)", () => {
   it.each<[OrderStatus, OrderStatus[]]>([
-    ["Draft", ["Pending Payment", "Confirmed", "On Hold", "Cancelled"]],
+    ["Draft", ["Pending Contract", "Pending Payment", "Confirmed", "On Hold", "Cancelled"]],
+    ["Pending Contract", ["Draft", "Pending Payment", "Confirmed", "On Hold", "Cancelled"]],
     ["Pending Payment", ["Confirmed", "Cancelled"]],
-    ["Confirmed", ["In Production", "Ready to Fulfill", "On Hold", "Cancelled"]],
-    ["In Production", ["Ready to Fulfill", "On Hold", "Cancelled"]],
-    ["Ready to Fulfill", ["Picking", "Packed", "On Hold", "Cancelled"]],
+    ["Confirmed", ["Awaiting Stock", "In Production", "Ready to Fulfill", "On Hold", "Cancelled"]],
+    ["Awaiting Stock", ["Ready to Fulfill", "Partially Fulfilled", "On Hold", "Cancelled"]],
+    ["In Production", ["Ready to Fulfill", "Partially Fulfilled", "On Hold", "Cancelled"]],
+    ["Ready to Fulfill", ["Picking", "Packed", "Partially Fulfilled", "On Hold", "Cancelled"]],
     ["Picking", ["Packed", "Partially Fulfilled", "On Hold", "Cancelled"]],
     [
       "Partially Fulfilled",
@@ -40,6 +42,7 @@ describe("ORDER_TRANSITIONS (BE OrderStatus#canTransitionTo)", () => {
       [
         "Confirmed",
         "Pending Payment",
+        "Awaiting Stock",
         "In Production",
         "Ready to Fulfill",
         "Picking",
@@ -50,12 +53,12 @@ describe("ORDER_TRANSITIONS (BE OrderStatus#canTransitionTo)", () => {
     ],
     ["Shipped", ["Delivered", "Delivery Failed", "Partially Fulfilled"]],
     ["Delivery Failed", ["Delivered", "Returned", "Partially Fulfilled"]],
-    ["Delivered", ["Completed", "Return Requested"]],
+    ["Delivered", ["Completed", "Return Requested", "Delivery Failed"]],
     ["Return Requested", ["Returned", "Delivered"]],
     ["Returned", ["Refunded", "Partially Refunded"]],
-    ["Refunded", ["Closed"]],
-    ["Partially Refunded", ["Closed"]],
-    ["Completed", ["Closed"]],
+    ["Refunded", ["Closed", "Return Requested"]],
+    ["Partially Refunded", ["Closed", "Return Requested"]],
+    ["Completed", ["Closed", "Return Requested"]],
     ["Cancelled", []],
     ["Closed", []],
   ])("%s → %j", (from, to) => {
@@ -81,9 +84,9 @@ describe("ORDER_TRANSITIONS (BE OrderStatus#canTransitionTo)", () => {
     expect(isOrderTerminal("Completed")).toBe(false);
   });
 
-  it("bảng phủ đúng 19 trạng thái BE + UNKNOWN phòng thủ; không còn Paid / In Fulfilment", () => {
+  it("bảng phủ đúng 21 trạng thái BE + UNKNOWN phòng thủ; không còn Paid / In Fulfilment", () => {
     expect(Object.keys(ORDER_TRANSITIONS).sort()).toEqual([...ORDER_READ_STATUSES].sort());
-    expect(ORDER_STATUSES).toHaveLength(19);
+    expect(ORDER_STATUSES).toHaveLength(21);
     expect(ORDER_STATUSES).not.toContain("Paid");
     expect(ORDER_STATUSES).not.toContain("In Fulfilment");
   });
@@ -186,9 +189,48 @@ describe("allowedOrderActions — release (docs 17 §4.2 bước 5, BR-03; sales
   it("đích của Release là Ready to Fulfill (không còn In Production — in ấn làm ngoài hệ thống)", () => {
     const release = ORDER_ACTIONS.find((action) => action.code === "release");
     expect(release?.permission).toBe("sales-order-releases:UPDATE");
-    expect(release?.outcome).toEqual({ kind: "to", statuses: ["Ready to Fulfill"] });
+    expect(release?.outcome).toEqual({
+      kind: "to",
+      statuses: ["Ready to Fulfill"],
+      stayIn: ["Partially Fulfilled"],
+    });
     // Đơn công nợ cũng release được trên FE: nợ quá hạn / giữ đủ hàng / kho là điều kiện server
     expect(codes("Confirmed", "WAREHOUSE_MANAGER", { paymentTerm: "CREDIT" })).toContain("release");
+  });
+
+  // BE Order#release (CONFIRMED, hoặc AWAITING_STOCK) + Order#releaseLaterBatch (PARTIALLY_FULFILLED) — docs 17 §4.2 / §4.4 / §4.5
+  it("trạng thái cho Release đúng bằng BE: Confirmed, Awaiting Stock, Partially Fulfilled — không hơn", () => {
+    const release = ORDER_ACTIONS.find((action) => action.code === "release");
+    expect(release?.fromStatuses).toEqual(["Confirmed", "Awaiting Stock", "Partially Fulfilled"]);
+    const releasable = ORDER_STATUSES.filter((status) =>
+      codes(status, "WAREHOUSE_MANAGER").includes("release"),
+    );
+    expect(releasable).toEqual(["Confirmed", "Awaiting Stock", "Partially Fulfilled"]);
+  });
+
+  it("Awaiting Stock (đã giữ đủ thùng của đợt kế tiếp) + quản lý kho → Release, chuyển Ready to Fulfill", () => {
+    expect(codes("Awaiting Stock", "WAREHOUSE_MANAGER")).toEqual(["release"]);
+    expect(nextOrderStatuses("Awaiting Stock")).toContain("Ready to Fulfill");
+  });
+
+  it("Partially Fulfilled (đợt giao sau) + quản lý kho → Release, đơn giữ nguyên trạng thái (stayIn)", () => {
+    expect(codes("Partially Fulfilled", "WAREHOUSE_MANAGER")).toEqual(["release"]);
+    // Partially Fulfilled → Ready to Fulfill KHÔNG phải cạnh của BE; Release hợp lệ nhờ `stayIn`, không phải nhờ cạnh
+    expect(nextOrderStatuses("Partially Fulfilled")).not.toContain("Ready to Fulfill");
+    const release = ORDER_ACTIONS.find((action) => action.code === "release");
+    expect(release?.outcome).toMatchObject({ kind: "to", stayIn: ["Partially Fulfilled"] });
+  });
+
+  it("Awaiting Stock / Partially Fulfilled không có sales-order-releases:UPDATE → không Release", () => {
+    for (const status of ["Awaiting Stock", "Partially Fulfilled"] as const) {
+      expect(codes(status, "ORDER_COORDINATOR")).not.toContain("release");
+      expect(codes(status, "SALES_STAFF")).not.toContain("release");
+      expect(codes(status, "WAREHOUSE_STAFF")).not.toContain("release");
+    }
+  });
+
+  it("Pending Contract (chưa ký hợp đồng) → không Release dù có quyền", () => {
+    expect(codes("Pending Contract", "WAREHOUSE_MANAGER")).not.toContain("release");
   });
 
   it("docs 17 BR-02: chưa đủ điều kiện thanh toán (Pending Payment / On Hold / Draft) → không Release", () => {
@@ -246,7 +288,9 @@ describe("allowedOrderActions — huỷ admin (sales-order-cancellations:UPDATE)
   it.each([
     "Draft",
     "Pending Payment",
+    "Pending Contract",
     "Confirmed",
+    "Awaiting Stock",
     "In Production",
     "Ready to Fulfill",
     "Picking",
@@ -307,6 +351,7 @@ describe("allowedOrderActions — huỷ admin (sales-order-cancellations:UPDATE)
 describe("allowedOrderActions — Giữ đơn (sales-orders:APPROVE, mayBePutOnHold)", () => {
   it.each([
     "Confirmed",
+    "Awaiting Stock",
     "In Production",
     "Ready to Fulfill",
     "Picking",
@@ -318,6 +363,7 @@ describe("allowedOrderActions — Giữ đơn (sales-orders:APPROVE, mayBePutOnH
 
   it.each([
     "Draft",
+    "Pending Contract",
     "Pending Payment",
     "On Hold",
     "Shipped",
@@ -461,7 +507,9 @@ describe("allowedOrderActions — trạng thái lạ + định nghĩa action", (
       if (action.outcome.kind === "restore-before-hold") continue;
       const targets =
         action.outcome.kind === "to" ? action.outcome.statuses : action.outcome.possible;
+      const stayIn = action.outcome.kind === "to" ? (action.outcome.stayIn ?? []) : [];
       for (const from of action.fromStatuses) {
+        if (stayIn.includes(from)) continue; // giữ nguyên trạng thái — không có cạnh để kiểm
         for (const to of targets) expect(nextOrderStatuses(from)).toContain(to);
       }
     }

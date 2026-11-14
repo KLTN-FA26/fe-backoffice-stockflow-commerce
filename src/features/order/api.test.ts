@@ -342,7 +342,7 @@ describe("order list filter — UNKNOWN chỉ để đọc, không bao giờ g�
     expect(STATUS_OPTIONS.map((option) => option.value)).toEqual([...ORDER_STATUSES]);
     // useOrderListState: useUrlFilters(FILTERABLE_STATUSES) — ?status=UNKNOWN bị nuqs bỏ
     expect(ORDER_STATUSES).not.toContain("UNKNOWN");
-    expect(ORDER_STATUSES).toHaveLength(19);
+    expect(ORDER_STATUSES).toHaveLength(21);
   });
 
   it("serializer bỏ UNKNOWN / mã cũ / chuỗi lạ lọt vào lúc chạy, giữ trạng thái đã biết", () => {
@@ -357,11 +357,13 @@ describe("order list filter — UNKNOWN chỉ để đọc, không bao giờ g�
     expect(buildOrderListQuery({ status: leaked }).getAll("status")).toEqual(["SHIPPED"]);
   });
 
-  it("mọi trạng thái đã biết serialize đúng 19 mã BE hiện hành (không phát bí danh IN_FULFILMENT / PAID)", () => {
+  it("mọi trạng thái đã biết serialize đúng 21 mã BE hiện hành (không phát bí danh IN_FULFILMENT / PAID)", () => {
     expect(buildOrderListQuery({ status: [...ORDER_STATUSES] }).getAll("status")).toEqual([
       "DRAFT",
+      "PENDING_CONTRACT",
       "PENDING_PAYMENT",
       "CONFIRMED",
+      "AWAITING_STOCK",
       "IN_PRODUCTION",
       "READY_TO_FULFILL",
       "PICKING",
