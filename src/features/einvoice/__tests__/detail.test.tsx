@@ -24,6 +24,7 @@ afterEach(() => vi.restoreAllMocks());
 const get = (invoice: Record<string, unknown>) => ({
   "/einvoices/einv-1": () => invoice,
   "/einvoices/einv-1/provider-calls": () => [],
+  "/einvoices/einv-1/error-notices": () => [],
 });
 
 describe("EInvoiceDetail — issuing (docs 21 §4.2)", () => {

@@ -18,6 +18,7 @@ import { invoiceReference } from "../selectors";
 import { EINVOICE_COPY } from "./copy";
 import { CorrectionsCard } from "./CorrectionsCard";
 import { EInvoiceActions } from "./EInvoiceActions";
+import { ErrorNoticesCard } from "./ErrorNoticesCard";
 import { EInvoiceInfoCard } from "./EInvoiceInfoCard";
 import { EInvoiceLinesCard } from "./EInvoiceLinesCard";
 import { ProviderCallsCard } from "./ProviderCallsCard";
@@ -74,6 +75,7 @@ function EInvoiceDetailContent({
       {(invoice.status === "ISSUED" || invoice.status === "REPLACED") && (
         <CorrectionsCard id={invoice.id} />
       )}
+      {invoice.status === "ISSUED" && <ErrorNoticesCard id={invoice.id} />}
       {sections?.(invoice)}
       <ProviderCallsCard id={invoice.id} />
     </div>
