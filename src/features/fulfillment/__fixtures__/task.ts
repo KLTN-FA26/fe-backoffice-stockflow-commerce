@@ -48,11 +48,23 @@ export function apiTask(overrides: Partial<FulfillmentTaskApiDto> = {}): Fulfill
     assignedUserId: PICKER_ID,
     pickStatus: "PENDING",
     packStatus: "PENDING",
+    destination: "DISPATCH",
     assignedAt: "2026-10-10T01:00:00Z",
     integrityEvidence: [],
     ...overrides,
   };
 }
+
+/** Task đích STAGING đã lấy xong mọi dòng: thùng ở khu chờ xuất, chờ quản lý kho chuyển sang khu xuất hàng. */
+export const stagedTask = (overrides: Partial<FulfillmentTaskApiDto> = {}) =>
+  apiTask({
+    pickStatus: "STAGED",
+    destination: "STAGING",
+    stagingLocationCode: "HN-STAGE-01",
+    startedAt: "2026-10-10T01:30:00Z",
+    stagedAt: "2026-10-10T02:00:00Z",
+    ...overrides,
+  });
 
 /** Task đã lấy hàng xong, chờ đóng gói. */
 export const pickedTask = (overrides: Partial<FulfillmentTaskApiDto> = {}) =>

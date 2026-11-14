@@ -1,6 +1,7 @@
 /**
- * Contract test: mock dòng lấy hàng phải hành xử như BE `PickListService` (SCRUM-267, báo thiếu / phân bổ lại
- * BE PR #147) — thứ tự kiểm tra, mã lỗi, gửi lại idempotent, quyền theo mã, hoàn tất chỉ khi đủ dòng.
+ * Contract test: mock dòng lấy hàng phải hành xử như BE `PickListService` (docs 07 §4.2, §4.4: mỗi dòng một thùng
+ * LPN — quét vị trí + LPN, báo thiếu kèm lý do, phân bổ lại thùng) — thứ tự kiểm tra, mã lỗi, gửi lại idempotent,
+ * quyền theo mã, hoàn tất chỉ khi đủ dòng.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -82,8 +83,7 @@ async function startedTask(): Promise<[FulfillmentTask, Who, Who, PickLine[]]> {
 
 const valuesOf = (line: PickLine) => ({
   locationCode: line.locationCode,
-  scannedCode: line.sku,
-  quantity: line.allocatedQty,
+  lpn: line.lpn ?? "",
 });
 
 let keySeq = 0;
@@ -99,11 +99,16 @@ const confirm = (
     values: { ...valuesOf(line), ...patch },
     idempotencyKey: nextKey(),
   });
-const short = (taskId: string, line: PickLine, foundQuantity = 0, locationCode?: string) =>
+const short = (
+  taskId: string,
+  line: PickLine,
+  reason: "NOT_FOUND" | "DAMAGED" = "NOT_FOUND",
+  locationCode?: string,
+) =>
   reportShortPick({
     taskId,
     lineId: line.lineId,
-    values: { locationCode: locationCode ?? line.locationCode, foundQuantity },
+    values: { locationCode: locationCode ?? line.locationCode, reason },
     idempotencyKey: nextKey(),
   });
 const reallocate = (taskId: string, line: PickLine) =>
@@ -135,6 +140,11 @@ describe("mock dòng lấy hàng ↔ BE PickListService — xác nhận", () => 
       const [task, , , lines] = await startedTask();
       expect(lines.length).toBeGreaterThan(0);
       expect(lines.every((line) => line.status === "Open" && line.shortQty === 0)).toBe(true);
+      // Mỗi dòng một thùng có LPN riêng, đi theo lộ trình mã vị trí
+      expect(lines.every((line) => !!line.lpn && line.wholeCarton)).toBe(true);
+      expect(new Set(lines.map((line) => line.lpn)).size).toBe(lines.length);
+      const codes = lines.map((line) => line.locationCode);
+      expect(codes).toEqual([...codes].sort());
       const first = lines[0] as PickLine;
 
       expect(await codeOf(confirm(task.taskId, first, { locationCode: "HN-SAI-VI-TRI" }))).toBe(
@@ -157,29 +167,33 @@ describe("mock dòng lấy hàng ↔ BE PickListService — xác nhận", () => 
   );
 
   it(
-    "sai mã hàng / vượt / thiếu SL → đúng mã BE; SKU chữ thường và barcode được nhận",
+    "SKU / mã vạch / LPN của thùng khác → PICK_ITEM_MISMATCH (BR-10); LPN đúng không phân biệt hoa thường được nhận",
     async () => {
       const [task, , , lines] = await startedTask();
       const line = lines[0] as PickLine;
-      expect(await codeOf(confirm(task.taskId, line, { scannedCode: "SKU-KHONG-CO" }))).toBe(
+      expect(await codeOf(confirm(task.taskId, line, { lpn: line.sku }))).toBe(
         "PICK_ITEM_MISMATCH",
       );
-      expect(await codeOf(confirm(task.taskId, line, { quantity: line.allocatedQty + 1 }))).toBe(
-        "PICK_QUANTITY_EXCEEDS_ALLOCATION",
-      );
-      if (line.allocatedQty > 1) {
-        expect(await codeOf(confirm(task.taskId, line, { quantity: line.allocatedQty - 1 }))).toBe(
-          "PICK_QUANTITY_SHORT",
+      if (line.barcode) {
+        expect(await codeOf(confirm(task.taskId, line, { lpn: line.barcode }))).toBe(
+          "PICK_ITEM_MISMATCH",
         );
       }
-      const picked = await confirm(task.taskId, line, { scannedCode: line.sku.toLowerCase() });
+      // LPN của một dòng khác (thùng khác của cùng SKU / đơn khác) cũng bị từ chối
+      const otherLine = lines.find((candidate) => candidate.lpn !== line.lpn);
+      if (otherLine?.lpn) {
+        expect(await codeOf(confirm(task.taskId, line, { lpn: otherLine.lpn }))).toBe(
+          "PICK_ITEM_MISMATCH",
+        );
+      }
+      const picked = await confirm(task.taskId, line, { lpn: (line.lpn ?? "").toLowerCase() });
       expect(picked.status).toBe("Picked");
-      const withBarcode = lines.find((candidate) => candidate.barcode && candidate !== line);
-      if (withBarcode?.barcode) {
-        const byBarcode = await confirm(task.taskId, withBarcode, {
-          scannedCode: withBarcode.barcode,
-        });
-        expect(byBarcode.status).toBe("Picked");
+      // Sai vị trí được kiểm trước LPN: vị trí sai + LPN sai → báo vị trí
+      const second = lines.find((candidate) => candidate !== line);
+      if (second) {
+        expect(
+          await codeOf(confirm(task.taskId, second, { locationCode: "HN-SAI", lpn: "SAI" })),
+        ).toBe("PICK_LOCATION_MISMATCH");
       }
     },
     FLOW_TIMEOUT_MS,
@@ -223,23 +237,28 @@ describe("mock dòng lấy hàng ↔ BE PickListService — xác nhận", () => 
         });
       expect((await send({})).status).toBe("Picked");
       expect((await send({})).status).toBe("Picked");
-      expect(await codeOf(send({ quantity: line.allocatedQty + 5 }))).toBe(
-        "IDEMPOTENCY_KEY_REUSED",
-      );
+      expect(await codeOf(send({ lpn: `${line.lpn}-KHAC` }))).toBe("IDEMPOTENCY_KEY_REUSED");
     },
     FLOW_TIMEOUT_MS,
   );
 
   it(
-    "body thiếu / sai → 400 VALIDATION_FAILED như @NotBlank / @Positive",
+    "body thiếu / sai → 400 VALIDATION_FAILED như @NotBlank / @Size(30); body cũ có scannedCode + quantity không đủ lpn → 400",
     async () => {
       const [task, , , lines] = await startedTask();
       const line = lines[0] as PickLine;
-      const bad = api.post(
-        `/fulfillment/tasks/${task.taskId}/pick-lines/${line.lineId}/confirmation`,
-        { locationCode: " ", scannedCode: line.sku, quantity: 0 },
+      const url = `/fulfillment/tasks/${task.taskId}/pick-lines/${line.lineId}/confirmation`;
+      expect(await codeOf(api.post(url, { locationCode: " ", lpn: line.lpn }))).toBe(
+        "VALIDATION_FAILED",
       );
-      expect(await codeOf(bad)).toBe("VALIDATION_FAILED");
+      expect(
+        await codeOf(api.post(url, { locationCode: line.locationCode, lpn: "x".repeat(31) })),
+      ).toBe("VALIDATION_FAILED");
+      expect(
+        await codeOf(
+          api.post(url, { locationCode: line.locationCode, scannedCode: line.sku, quantity: 1 }),
+        ),
+      ).toBe("VALIDATION_FAILED");
     },
     FLOW_TIMEOUT_MS,
   );
@@ -263,20 +282,23 @@ describe("mock đơn rời khâu kho ↔ BE TaskAccess.orderInFulfilment", () =>
 
 describe("mock báo thiếu / phân bổ lại ↔ BE PickListService (X-SHORT)", () => {
   it(
-    "báo thiếu → dòng SHORT, đơn ON_HOLD INVENTORY, không trừ; báo lại y hệt → 200",
+    "báo thiếu → dòng SHORT cả thùng kèm lý do, đơn ON_HOLD INVENTORY, không trừ; báo lại y hệt → 200",
     async () => {
       const [task, picker, , lines] = await startedTask();
       const line = lines[0] as PickLine;
-      const reported = await short(task.taskId, line, line.allocatedQty - 1);
-      expect(reported).toMatchObject({ status: "Short", shortQty: 1, pickedQty: 0 });
+      const reported = await short(task.taskId, line, "DAMAGED");
+      expect(reported).toMatchObject({
+        status: "Short",
+        shortQty: line.allocatedQty,
+        shortReason: "DAMAGED",
+        pickedQty: 0,
+      });
       expect(await backendOrderStatusOf(task.orderId)).toBe("ON_HOLD");
       expect(await holdReasonOf(task.orderId)).toBe("INVENTORY");
       actAs(picker);
-      expect(await short(task.taskId, line, line.allocatedQty - 1)).toMatchObject({
-        status: "Short",
-      });
+      expect(await short(task.taskId, line, "DAMAGED")).toMatchObject({ status: "Short" });
       // Báo thiếu khác đi trên dòng đã SHORT → dòng không còn mở (BE kiểm trạng thái dòng trước vị trí)
-      expect(await codeOf(short(task.taskId, line, line.allocatedQty - 1, "HN-SAI-VI-TRI"))).toBe(
+      expect(await codeOf(short(task.taskId, line, "NOT_FOUND", "HN-SAI-VI-TRI"))).toBe(
         "PICK_LINE_NOT_OPEN",
       );
     },
@@ -284,14 +306,24 @@ describe("mock báo thiếu / phân bổ lại ↔ BE PickListService (X-SHORT)"
   );
 
   it(
-    "báo thiếu: sai vị trí → PICK_LOCATION_MISMATCH; found = allocated → 400; NV khác → 404",
+    "báo thiếu: sai vị trí → PICK_LOCATION_MISMATCH; thiếu / sai lý do → 400; NV khác → 404",
     async () => {
       const [task, , other, lines] = await startedTask();
       const line = lines[0] as PickLine;
-      expect(await codeOf(short(task.taskId, line, 0, "HN-SAI-VI-TRI"))).toBe(
+      expect(await codeOf(short(task.taskId, line, "NOT_FOUND", "HN-SAI-VI-TRI"))).toBe(
         "PICK_LOCATION_MISMATCH",
       );
-      expect(await codeOf(short(task.taskId, line, line.allocatedQty))).toBe("VALIDATION_FAILED");
+      const url = `/fulfillment/tasks/${task.taskId}/pick-lines/${line.lineId}/short`;
+      expect(await codeOf(api.post(url, { locationCode: line.locationCode }))).toBe(
+        "VALIDATION_FAILED",
+      );
+      expect(await codeOf(api.post(url, { locationCode: line.locationCode, reason: "LOST" }))).toBe(
+        "VALIDATION_FAILED",
+      );
+      // Body của luồng cũ (số tìm thấy) không đủ `reason`
+      expect(
+        await codeOf(api.post(url, { locationCode: line.locationCode, foundQuantity: 0 })),
+      ).toBe("VALIDATION_FAILED");
       actAs(other);
       expect(await codeOf(short(task.taskId, line))).toBe("NOT_FOUND");
     },
@@ -316,7 +348,7 @@ describe("mock báo thiếu / phân bổ lại ↔ BE PickListService (X-SHORT)"
     async () => {
       const [task, picker, , lines] = await startedTask();
       const first = lines[0] as PickLine;
-      await short(task.taskId, first, 0);
+      await short(task.taskId, first);
       actAs(MANAGER);
       const added = await reallocate(task.taskId, first);
       expect(added).toHaveLength(1);
@@ -328,6 +360,8 @@ describe("mock báo thiếu / phân bổ lại ↔ BE PickListService (X-SHORT)"
         allocatedQty: first.allocatedQty,
         sequenceNo: Math.max(...lines.map((line) => line.sequenceNo)) + 1,
       });
+      // Thùng KHÁC (không bao giờ lấy lại thùng vừa thiếu), ở bin khác
+      expect(fresh.lpn).not.toBe(first.lpn);
       expect(fresh.locationCode).not.toBe(first.locationCode);
       expect(await backendOrderStatusOf(task.orderId)).toBe("PICKING");
 

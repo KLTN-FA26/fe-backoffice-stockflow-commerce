@@ -7,7 +7,12 @@
 
 import { z } from "zod";
 
-import { DESIGN_ARTIFACT_ROLES, PACK_API_STATUSES, PICK_API_STATUSES } from "@/constants";
+import {
+  DESIGN_ARTIFACT_ROLES,
+  PACK_API_STATUSES,
+  PICK_API_STATUSES,
+  PICK_DESTINATIONS,
+} from "@/constants";
 import { bePageSchema } from "@/lib/api/page-schema";
 
 import { isSafeArtifactUrl } from "./selectors";
@@ -48,7 +53,12 @@ export const beTaskLineSchema = z.object({
   printLine: z.boolean(),
 });
 
-/** BE `FulfillmentTaskResponse` — `taskId` là id của pick; pick và pack 1-1 trên cùng task. */
+/**
+ * BE `FulfillmentTaskResponse` — `taskId` là id của pick; pick và pack 1-1 trên cùng task.
+ * `destination` / `stagingLocationCode` / `stagedAt` / `movedToDispatchAt` (BE 4C-5, docs 07 §1): đích lấy hàng
+ * DISPATCH hoặc STAGING (kèm khu chờ xuất của task), lúc mọi thùng về khu chờ xuất (`pickStatus` STAGED) và lúc
+ * quản lý kho chuyển cả tác vụ sang khu xuất hàng. `.nullish()`: Jackson non_null bỏ field null.
+ */
 export const beFulfillmentTaskSchema = z.object({
   taskId: z.string(),
   orderId: z.string(),
@@ -64,6 +74,10 @@ export const beFulfillmentTaskSchema = z.object({
   startedAt: z.string().nullish(),
   pickedAt: z.string().nullish(),
   packedAt: z.string().nullish(),
+  destination: z.enum(PICK_DESTINATIONS).nullish(),
+  stagingLocationCode: z.string().nullish(),
+  stagedAt: z.string().nullish(),
+  movedToDispatchAt: z.string().nullish(),
   // Mới nhất trước (BE `findByPackIdOrderByVerifiedAtDesc`)
   integrityEvidence: z.array(beIntegrityEvidenceSchema).default([]),
   // Chỉ có ở `GET /tasks/{id}` (BE `@JsonInclude(NON_NULL)`); danh sách và câu trả lời thao tác ghi không kèm

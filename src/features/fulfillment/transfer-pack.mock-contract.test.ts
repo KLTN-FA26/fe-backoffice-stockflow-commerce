@@ -111,7 +111,7 @@ describe("transfer-pack mock ↔ hợp đồng BE PR #164", () => {
         transferNumber: "TO-20261022-0001",
         transferStatus: "PICKING",
         deliveryMode: "FULL_TRUCKLOAD",
-        packStatus: "Packing",
+        packStatus: "In Progress",
         packerId: USERS.packer.userId,
       });
       expect((await transferOf(KIT_TRANSFER)).status).toBe("PICKING");
@@ -248,7 +248,7 @@ describe("transfer-pack mock ↔ hợp đồng BE PR #164", () => {
         "VALIDATION_FAILED",
       );
       const done = await completeTransferPack({ packId, partial: true, note: "Thiếu hàng ở kho" });
-      expect(done).toMatchObject({ packStatus: "Packed" });
+      expect(done).toMatchObject({ packStatus: "Completed" });
       expect(done.packedAt).toBeDefined();
 
       // Lệnh đóng gói xong: packedAt đặt, vẫn PICKING; phiên đã xong không ghi được nữa
@@ -308,7 +308,7 @@ describe("transfer-pack mock ↔ hợp đồng BE PR #164", () => {
     async () => {
       actAs(USERS.packer);
       const session = await openTransferPack(PACKED_TRANSFER);
-      expect(session.packStatus).toBe("Packed");
+      expect(session.packStatus).toBe("Completed");
       expect(session.packages.every((p) => p.status === "SEALED")).toBe(true);
       const candidates = async () =>
         (
@@ -335,7 +335,7 @@ describe("transfer-pack mock — BE PR #164 final: tra phiên, packerName, nhãn
       expect(await codeOf(findTransferPack("TO-2026-0009"))).toBe("NOT_FOUND");
       expect((await transferOf("TO-2026-0009")).status).toBe("DRAFT");
       const found = await findTransferPack(KIT_TRANSFER);
-      expect(found).toMatchObject({ transferOrderId: KIT_TRANSFER, packStatus: "Packed" });
+      expect(found).toMatchObject({ transferOrderId: KIT_TRANSFER, packStatus: "Completed" });
       expect(found.packerName).toBeTruthy();
       actAs(USERS.qc);
       expect((await findTransferPack(KIT_TRANSFER)).packId).toBe(found.packId);

@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, PlayCircle, ShieldCheck } from "lucide-react";
+import { ArrowRight, CheckCircle2, PlayCircle } from "lucide-react";
 
-import { ADMIN_ROUTES, FULFILLMENT_PICK_PERMISSIONS, UI_LABELS } from "@/constants";
+import { ADMIN_ROUTES, FULFILLMENT_PICK_PERMISSIONS, PACK_STATUS, UI_LABELS } from "@/constants";
 import { formatDateTime } from "@/lib/format/date";
 import { packingErrorMessage } from "@/features/fulfillment/packing-errors";
 import { useStartPacking } from "@/features/fulfillment/packing-mutations";
@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button";
 
 import { CompleteDialog } from "./CompleteDialog";
 import { MONO, taskCode } from "../primitives";
-import { ReverifyDialog } from "./ReverifyDialog";
 
 import type { FulfillmentActor } from "@/features/fulfillment/lifecycle";
 import type { PackingAccess } from "@/features/fulfillment/packing-lifecycle";
@@ -25,16 +24,15 @@ const N = UI_LABELS.packing.notice;
 const BUTTON = "h-(--action-h) w-full rounded-(--action-radius)";
 
 function noActionText(session: PackingSession, access: PackingAccess): string | null {
-  if (session.packStatus === "Packed") return N.readOnlyDone;
-  if (session.packStatus === "Cancelled") return N.cancelled;
-  if (session.packStatus === "On Hold" && !access.canReverify) return N.holdReadOnly;
-  if (!access.canPack && !access.canReverify) return N.viewOnly;
+  if (session.packStatus === PACK_STATUS.COMPLETED) return N.readOnlyDone;
+  if (session.packStatus === PACK_STATUS.CANCELLED) return N.cancelled;
+  if (!access.canPack) return N.viewOnly;
   return null;
 }
 
 /**
- * Cột phải: trạng thái phiên, người đóng và các thao tác cấp phiên — nhận đơn, hoàn tất đóng gói,
- * kiểm tra lại thiết kế (flow X-CHK). Nhận đơn chỉ gọi `packing-start`; người khác nhận trước thì BE
+ * Cột phải: trạng thái phiên, người đóng và các thao tác cấp phiên — nhận đơn, hoàn tất đóng gói.
+ * Nhận đơn chỉ gọi `packing-start`; người khác nhận trước thì BE
  * `PACKING_TAKEN` (quản lý kho thì không), câu báo nêu tên người đang đóng.
  */
 export function PackingStatusCard({
@@ -50,7 +48,7 @@ export function PackingStatusCard({
   waitingPick: boolean;
 }) {
   const start = useStartPacking();
-  const [dialog, setDialog] = useState<"complete" | "reverify" | null>(null);
+  const [dialog, setDialog] = useState<"complete" | null>(null);
   const idle = waitingPick ? N.waitingPick : noActionText(session, access);
   const owner = access.isOwner ? S.you : (session.packerName ?? S.waiting);
 
@@ -111,12 +109,7 @@ export function PackingStatusCard({
             <CheckCircle2 className="size-3.5" /> {UI_LABELS.packing.action.complete}
           </Button>
         )}
-        {access.canReverify && (
-          <Button type="button" size="sm" onClick={() => setDialog("reverify")} className={BUTTON}>
-            <ShieldCheck className="size-3.5" /> {UI_LABELS.packing.action.reverify}
-          </Button>
-        )}
-        {idle && (waitingPick || (!access.canStart && !access.canWork && !access.canReverify)) && (
+        {idle && (waitingPick || (!access.canStart && !access.canWork)) && (
           <p className="text-ink-tertiary text-center text-xs">{idle}</p>
         )}
         {actor.can(FULFILLMENT_PICK_PERMISSIONS.viewPage) && (
@@ -129,9 +122,6 @@ export function PackingStatusCard({
       </div>
       {dialog === "complete" && (
         <CompleteDialog session={session} onClose={() => setDialog(null)} />
-      )}
-      {dialog === "reverify" && (
-        <ReverifyDialog taskId={session.taskId} onClose={() => setDialog(null)} />
       )}
     </section>
   );

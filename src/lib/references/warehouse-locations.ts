@@ -16,17 +16,22 @@ const placeSchema = z.object({
   usable: z.boolean().nullish(),
 });
 
+/** Khu chứa có thêm `type` (BE `AreaType`: RECEIVING, QUARANTINE, DISPATCH, STAGING, OVERFLOW, PRODUCTION…). */
+const areaSchema = placeSchema.extend({ type: z.string().nullish() });
+
 const layoutSchema = z.object({
   shelves: z
     .array(z.object({ levels: z.array(z.object({ bins: z.array(placeSchema).default([]) })) }))
     .default([]),
-  areas: z.array(placeSchema).default([]),
+  areas: z.array(areaSchema).default([]),
 });
 
 export interface WarehouseLocation {
   locationCode: string;
   kind: "BIN" | "AREA";
   usable: boolean;
+  /** Loại khu (BE `AreaType`) — chỉ có với `kind` AREA; bin không có. */
+  areaType?: string;
 }
 
 export const warehouseLocationKeys = {
@@ -43,18 +48,23 @@ export async function fetchWarehouseLocations(
   });
   const layout = layoutSchema.parse(data);
   const byCode = new Map<string, WarehouseLocation>();
-  const add = (place: z.infer<typeof placeSchema>, kind: WarehouseLocation["kind"]) => {
+  const add = (
+    place: z.infer<typeof placeSchema>,
+    kind: WarehouseLocation["kind"],
+    areaType?: string | null,
+  ) => {
     if (!place.locationCode || byCode.has(place.locationCode)) return;
     byCode.set(place.locationCode, {
       locationCode: place.locationCode,
       kind,
       usable: place.usable ?? false,
+      ...(areaType ? { areaType } : {}),
     });
   };
   for (const shelf of layout.shelves) {
     for (const level of shelf.levels) for (const bin of level.bins) add(bin, "BIN");
   }
-  for (const area of layout.areas) add(area, "AREA");
+  for (const area of layout.areas) add(area, "AREA", area.type);
   return [...byCode.values()].sort((a, b) => a.locationCode.localeCompare(b.locationCode));
 }
 

@@ -8,7 +8,7 @@
  * release-schemas.ts, release-errors.ts, release-rules.ts → release đơn (PR #74)
  * status-map.ts → BE→FE status mapping
  * api.ts      → axios calls (list, detail, admin-cancel, giữ / gỡ giữ / giao thất bại / đóng phần còn lại)
- * delivery-mode-api.ts → release + đổi hình thức giao; history-api.ts; partial-shipment-api.ts
+ * release-api.ts → release đơn; delivery-batch-api.ts → lịch giao (chọn đợt khi release); history-api.ts; partial-shipment-api.ts
  * action-api.ts → credit hold, lệnh sản xuất (GET /production/orders)
  * queries.ts  → React Query hooks
  * mutations.ts → mutation hooks
@@ -26,7 +26,6 @@ export type {
   OrderDto,
   OrderLine,
   OrderReadStatus,
-  OrderDeliveryMode,
   OrderHistoryEntry,
   OrderStatus,
   ProductionOrder,
@@ -40,7 +39,6 @@ export {
 } from "./action-schemas";
 export {
   deliveryFailureSchema,
-  deliveryModeSchema,
   holdOrderSchema,
   partialShipmentSchema,
   remainderClosureSchema,
@@ -117,7 +115,7 @@ export type { OrderEstimateSlot, OrderEstimateSlotProps } from "./estimate-slot"
 // API params
 export type { ListOrderParams } from "./api";
 export type { ListCreditHoldParams } from "./action-api";
-export type { ReleaseOrderInput } from "./delivery-mode-api";
+export type { ReleaseOrderInput } from "./release-api";
 
 // Components
 export { CreditHoldList } from "./components/credit-hold/CreditHoldList";

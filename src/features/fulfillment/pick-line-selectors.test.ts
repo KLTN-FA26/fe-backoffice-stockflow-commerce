@@ -7,8 +7,8 @@ import { apiTaskLines } from "./__fixtures__/task";
 import { toPickLine } from "./pick-line-api";
 import {
   awaitingPutBackCount,
+  byWalkingOrder,
   defaultPutBackLocation,
-  itemOptions,
   linesComplete,
   needsLinePlanning,
   nextOpenLine,
@@ -16,9 +16,9 @@ import {
   pickIncompleteReason,
   pickLocationOptions,
   pickProgress,
-  printLineCount,
   putBackLocationOptions,
   shortLineCount,
+  stagingAreaOptions,
 } from "./pick-line-selectors";
 
 import type { PickLine } from "./types";
@@ -36,22 +36,36 @@ describe("pick-line selectors", () => {
     });
   });
 
-  it("nextOpenLine: dòng Open có sequenceNo nhỏ nhất, bỏ qua dòng đã lấy / thiếu", () => {
+  it("pickProgress: thùng đã về khu chờ xuất (Staged) cũng tính là đã lấy", () => {
+    expect(pickProgress(withStatus(["Staged", "Staged", "Open"]))).toEqual({ picked: 2, total: 3 });
+  });
+
+  it("nextOpenLine: dòng Open đứng đầu lộ trình (mã vị trí rồi SKU), bỏ qua dòng đã lấy / thiếu", () => {
     const shuffled = [...withStatus(["Picked", "Open", "Open"])].reverse();
     expect(nextOpenLine(shuffled)?.lineId).toBe(PICK_LINE_2);
     expect(nextOpenLine(withStatus(["Short", "Open", "Picked"]))?.lineId).toBe(PICK_LINE_2);
     expect(nextOpenLine(withStatus(["Picked", "Picked", "Picked"]))).toBeUndefined();
   });
 
-  it("itemOptions: SKU + barcode của các dòng, bỏ trùng; dòng không barcode chỉ có SKU", () => {
-    const options = itemOptions([...lines(), lines()[0] as PickLine]);
-    expect(options).toEqual([
-      { value: "TEE-BLK-M", label: "TEE-BLK-M" },
-      { value: "8935000000017", label: "8935000000017 · TEE-BLK-M" },
-      { value: "MUG-WHT", label: "MUG-WHT" },
-      { value: "CAP-RED", label: "CAP-RED" },
-      { value: "8935000000031", label: "8935000000031 · CAP-RED" },
+  it("byWalkingOrder: sắp theo mã vị trí rồi SKU (docs 07 §4.1 bước 2) — dòng phân bổ lại thêm cuối vẫn vào đúng chỗ", () => {
+    const [first, second, third] = lines();
+    // Dòng mới do phân bổ lại: sequenceNo lớn nhất nhưng bin đứng giữa lộ trình
+    const reallocated = {
+      ...first,
+      lineId: "r",
+      sequenceNo: 9,
+      locationCode: "HN-A01-01-02-A",
+      sku: "AAA",
+    } as PickLine;
+    const sorted = [third, reallocated, second, first] as PickLine[];
+    expect(sorted.sort(byWalkingOrder).map((line) => [line.locationCode, line.sku])).toEqual([
+      ["HN-A01-01-01-A", "TEE-BLK-M"],
+      ["HN-A01-01-02-A", "AAA"],
+      ["HN-A01-01-02-A", "MUG-WHT"],
+      ["HN-A02-02-01-B", "CAP-RED"],
     ]);
+    // Dòng Open đầu tiên theo lộ trình, không theo sequenceNo
+    expect(nextOpenLine([third, reallocated] as PickLine[])?.lineId).toBe("r");
   });
 
   it("pickLocationOptions: hợp mã layout (mọi loại, kể cả không dùng được) với vị trí các dòng", () => {
@@ -78,9 +92,11 @@ describe("pick-line selectors", () => {
     ]);
   });
 
-  it("linesComplete: mọi dòng Picked hoặc Cancelled; còn Open / Short → false; không có dòng → true", () => {
+  it("linesComplete: mọi dòng Picked / Staged / Cancelled; còn Open / Short → false; không có dòng → true", () => {
     expect(linesComplete([])).toBe(true);
     expect(linesComplete(withStatus(["Picked", "Cancelled", "Picked"]))).toBe(true);
+    // Task đích STAGING: mọi thùng đã về khu chờ xuất là đủ để hoàn tất (task → Staged)
+    expect(linesComplete(withStatus(["Staged", "Staged", "Cancelled"]))).toBe(true);
     expect(linesComplete(withStatus(["Picked", "Open", "Picked"]))).toBe(false);
     expect(linesComplete(withStatus(["Picked", "Short", "Picked"]))).toBe(false);
   });
@@ -118,23 +134,20 @@ describe("pick-line selectors", () => {
     expect(shortLineCount(mixed)).toBe(1);
   });
 
-  it("printLineCount đếm dòng in trong task.lines", () => {
-    expect(printLineCount({ lines: apiTaskLines })).toBe(1);
-    expect(printLineCount({})).toBe(0);
-  });
-
-  it("awaitingPutBackCount: chỉ đếm dòng Picked khi task Cancelled", () => {
-    const picked = withStatus(["Picked", "Cancelled", "Cancelled"]);
-    expect(awaitingPutBackCount({ pickStatus: "Cancelled" }, picked)).toBe(1);
+  it("awaitingPutBackCount: đếm dòng Picked / Staged khi task Cancelled (docs 07 §4.5 bước 13)", () => {
+    const picked = withStatus(["Picked", "Staged", "Cancelled"]);
+    expect(awaitingPutBackCount({ pickStatus: "Cancelled" }, picked)).toBe(2);
     expect(awaitingPutBackCount({ pickStatus: "Picked" }, picked)).toBe(0);
   });
 });
 
-describe("vị trí trả hàng về kệ — BE PickList.putBack: chỉ bin đang dùng được của kho task", () => {
+describe("vị trí cất lại thùng — BE PickList.putBack: bin đang dùng được; thùng cách ly vào khu QUARANTINE", () => {
   const LOCATIONS = [
     { locationCode: "HN-A01-01-01-A", kind: "BIN" as const, usable: true },
     { locationCode: "HN-A01-01-02-A", kind: "BIN" as const, usable: false },
-    { locationCode: "HN-STAGE-01", kind: "AREA" as const, usable: true },
+    { locationCode: "HN-STAGE-01", kind: "AREA" as const, usable: true, areaType: "STAGING" },
+    { locationCode: "HN-QC-01", kind: "AREA" as const, usable: true, areaType: "QUARANTINE" },
+    { locationCode: "HN-QC-02", kind: "AREA" as const, usable: false, areaType: "QUARANTINE" },
   ];
 
   it("putBackLocationOptions bỏ khu chứa và bin không dùng được", () => {
@@ -142,9 +155,32 @@ describe("vị trí trả hàng về kệ — BE PickList.putBack: chỉ bin đa
     expect(putBackLocationOptions(undefined)).toEqual([]);
   });
 
-  it("defaultPutBackLocation: bin cũ còn dùng được → chọn sẵn; không thì để trống", () => {
+  it("thùng quarantine: chỉ khu QUARANTINE đang dùng được, không có bin", () => {
+    expect(putBackLocationOptions(LOCATIONS, true).map((o) => o.value)).toEqual(["HN-QC-01"]);
+  });
+
+  it("defaultPutBackLocation: bin cũ còn dùng được → chọn sẵn; không thì để trống (kể cả thùng đang ở khu chờ xuất)", () => {
     expect(defaultPutBackLocation("HN-A01-01-01-A", LOCATIONS)).toBe("HN-A01-01-01-A");
     expect(defaultPutBackLocation("HN-A01-01-02-A", LOCATIONS)).toBe("");
     expect(defaultPutBackLocation("HN-STAGE-01", LOCATIONS)).toBe("");
+  });
+
+  it("thùng quarantine: kho chỉ có một khu cách ly dùng được → chọn sẵn", () => {
+    expect(defaultPutBackLocation("HN-A01-01-01-A", LOCATIONS, true)).toBe("HN-QC-01");
+    expect(
+      defaultPutBackLocation(
+        "HN-A01-01-01-A",
+        [
+          ...LOCATIONS,
+          { locationCode: "HN-QC-03", kind: "AREA" as const, usable: true, areaType: "QUARANTINE" },
+        ],
+        true,
+      ),
+    ).toBe("");
+  });
+
+  it("stagingAreaOptions: chỉ khu STAGING đang dùng được (đích STAGING khi tạo task)", () => {
+    expect(stagingAreaOptions(LOCATIONS).map((o) => o.value)).toEqual(["HN-STAGE-01"]);
+    expect(stagingAreaOptions(undefined)).toEqual([]);
   });
 });

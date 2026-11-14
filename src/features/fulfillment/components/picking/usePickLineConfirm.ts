@@ -18,13 +18,13 @@ import type {
 
 export const EMPTY_CONFIRM: ConfirmPickFormValues = {
   locationCode: "",
-  scannedCode: "",
-  quantity: "",
+  lpn: "",
 };
 
 /**
- * Form xác nhận một dòng (BE `POST …/pick-lines/{lineId}/confirmation`): react-hook-form + zod chỉ kiểm
- * định dạng; đúng / sai so với dòng do BE quyết, lỗi 409 gắn về đúng ô (`confirmLineError`). Dòng / task đã
+ * Form xác nhận một dòng (BE `POST …/pick-lines/{lineId}/confirmation`, docs 07 §4.2 bước 5): quét vị trí rồi LPN
+ * của thùng — không có số lượng. react-hook-form + zod chỉ kiểm định dạng; đúng / sai so với dòng do BE quyết, lỗi
+ * 409 gắn về đúng ô (`confirmLineError`). Dòng / task đã
  * đổi ở nơi khác → toast, dữ liệu tự tải lại (`withStaleRefetch`). `Idempotency-Key` theo nội dung: gửi lại
  * đúng nội dung (sau mất mạng / BE nhả claim) dùng lại key, sửa nội dung thì key mới.
  */
@@ -37,7 +37,7 @@ export function usePickLineConfirm({
   taskId: string;
   line: PickLine;
   onConfirmed: (line: PickLine) => void;
-  /** BE trả lỗi gắn với một ô (sai vị trí / mã hàng / SL) — màn đưa con trỏ về ô đó. */
+  /** BE trả lỗi gắn với một ô (sai vị trí / sai LPN) — màn đưa con trỏ về ô đó. */
   onFieldError?: (field: ConfirmField) => void;
 }) {
   const confirm = useConfirmPickLine();
@@ -65,8 +65,8 @@ export function usePickLineConfirm({
           else attempt.reset();
           const result = confirmLineError(error, line);
           if (result.field) {
-            // Sai vị trí → xoá ô để chọn lại; các ô khác giữ nguyên
-            if (result.field === "locationCode") form.setValue("locationCode", "");
+            // Sai vị trí → xoá ô để chọn lại; sai LPN → xoá ô để quét lại (R01: quét nhầm thùng của đơn khác)
+            form.setValue(result.field, "");
             form.setError(result.field, { type: "server", message: result.message });
             onFieldError?.(result.field);
           } else if (result.stale) {

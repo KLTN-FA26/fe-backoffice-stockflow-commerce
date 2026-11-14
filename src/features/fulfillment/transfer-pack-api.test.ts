@@ -42,15 +42,15 @@ describe("transfer-pack API — hợp đồng BE TransferPackController (BE PR #
     expect(post).toHaveBeenCalledWith("/fulfillment/transfer-packs", {
       transferOrderId: TRANSFER_ORDER_ID,
     });
-    expect(session.packStatus).toBe("Packing");
+    expect(session.packStatus).toBe("In Progress");
   });
 
   it("đọc phiên: GET …/{packId}; phiên đã đóng xong → Packed; giá trị lạ → Unknown", async () => {
     const get = vi
       .spyOn(api, "get")
-      .mockResolvedValueOnce({ data: tSession({ packStatus: "PACKED" }) })
+      .mockResolvedValueOnce({ data: tSession({ packStatus: "COMPLETED" }) })
       .mockResolvedValueOnce({ data: { ...tSession(), packStatus: "WEIRD" } });
-    expect((await getTransferPack(PACK_ID)).packStatus).toBe("Packed");
+    expect((await getTransferPack(PACK_ID)).packStatus).toBe("Completed");
     expect(get.mock.calls[0]?.[0]).toBe(PACK);
     expect((await getTransferPack(PACK_ID)).packStatus).toBe("Unknown");
   });
@@ -143,7 +143,7 @@ describe("transfer-pack API — hợp đồng BE TransferPackController (BE PR #
   it("hoàn tất: POST …/completion {partial, note}; note chỉ gửi khi partial, đã trim", async () => {
     const post = vi
       .spyOn(api, "post")
-      .mockResolvedValue({ data: tSession({ packStatus: "PACKED" }) });
+      .mockResolvedValue({ data: tSession({ packStatus: "COMPLETED" }) });
     await completeTransferPack({ packId: PACK_ID, partial: false, note: "bỏ qua" });
     await completeTransferPack({ packId: PACK_ID, partial: true, note: "  Hỏng 4 cái " });
     expect(post.mock.calls.map((c) => c[1])).toEqual([
@@ -159,14 +159,14 @@ describe("transfer-pack API — hợp đồng BE TransferPackController (BE PR #
 
   it("tìm phiên hiện hành: GET /fulfillment/transfer-packs?transferOrderId= (không mở gì), trả phiên có packerName", async () => {
     const get = vi.spyOn(api, "get").mockResolvedValueOnce({
-      data: tSession({ packerName: "Nguyễn Lan", packStatus: "PACKED" }),
+      data: tSession({ packerName: "Nguyễn Lan", packStatus: "COMPLETED" }),
     });
     const session = await findTransferPack(TRANSFER_ORDER_ID);
     expect(get.mock.calls[0]?.[0]).toBe("/fulfillment/transfer-packs");
     expect(get.mock.calls[0]?.[1]).toMatchObject({
       params: { transferOrderId: TRANSFER_ORDER_ID },
     });
-    expect(session).toMatchObject({ packerName: "Nguyễn Lan", packStatus: "Packed" });
+    expect(session).toMatchObject({ packerName: "Nguyễn Lan", packStatus: "Completed" });
   });
 
   it("mở lại kiện: POST …/packages/{id}/reopening không body, trả kiện OPEN", async () => {

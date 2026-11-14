@@ -537,6 +537,7 @@ export const UI_LABELS = {
       assign: "Gán lại",
       startPicking: "Bắt đầu lấy hàng",
       completePicking: "Hoàn tất lấy hàng",
+      moveToDispatch: "Chuyển sang khu xuất hàng",
       reverify: "Kiểm tra lại thiết kế",
       openPacking: "Mở trạm đóng gói",
       openPicking: "Xem lấy hàng",
@@ -597,6 +598,26 @@ export const UI_LABELS = {
       viewOnly: "Bạn chỉ có quyền xem task này.",
       notAssignee: "Chỉ nhân viên được gán mới thao tác được trên task này.",
       waitingPick: "Chưa lấy hàng xong nên chưa đóng gói được.",
+      // Task Staged: thùng giữ riêng ở khu chờ xuất, chỉ quản lý kho (task-assignment:UPDATE) chuyển được (docs 07 §4.3)
+      waitingDispatch: "Thùng đang ở khu chờ xuất — chờ quản lý kho chuyển sang khu xuất hàng.",
+    },
+    // Đích lấy hàng của task (BE `PickDestination`, docs 07 §1, §3): chọn khi tạo task
+    destination: {
+      fieldLabel: "Đích lấy hàng",
+      DISPATCH: "Khu xuất hàng",
+      STAGING: "Khu chờ xuất",
+      DISPATCH_HINT: "Đơn xuất ngay: tồn bị trừ khi quét xác nhận từng thùng.",
+      STAGING_HINT:
+        "Giữ riêng thùng cho đơn (chờ đủ hàng hoặc chờ khách thanh toán): chỉ chuyển vị trí, chưa trừ tồn.",
+      stagingArea: "Khu chờ xuất của kho",
+      stagingAreaPlaceholder: "Chọn khu chờ xuất",
+      // Kho có đúng một khu chờ xuất đang hoạt động: BE tự chọn, không cần gửi mã khu
+      stagingAreaSingle: (code: string) => `Dùng khu chờ xuất ${code} của kho.`,
+      stagingAreaNone:
+        "Kho của đơn này chưa có khu chờ xuất đang hoạt động — chọn đích khu xuất hàng, hoặc nhờ quản trị kho tạo khu chờ xuất.",
+      stagingAreasFailed:
+        "Không tải được sơ đồ kho — để trống, máy chủ tự chọn khu chờ xuất nếu kho chỉ có một.",
+      stagingAreaRequired: "Chọn khu chờ xuất của kho",
     },
     self: "Tôi",
     // Nhãn trường dùng chung giữa cột danh sách, thẻ thông tin và form
@@ -608,6 +629,10 @@ export const UI_LABELS = {
       pack: "Đóng gói",
       assignedAt: "Ngày gán",
       packedAt: "Đóng gói xong",
+      destination: "Đích lấy hàng",
+      stagingLocation: "Khu chờ xuất",
+      stagedAt: "Về khu chờ xuất lúc",
+      movedToDispatchAt: "Chuyển sang khu xuất hàng lúc",
     },
     // Kết quả đối chiếu checksum thiết kế (cột danh sách, thẻ dòng, lịch sử)
     integrity: {
@@ -638,13 +663,17 @@ export const FULFILLMENT_ERROR_MESSAGES = {
   stale:
     "Task hoặc đơn hàng đã đổi trạng thái nên không thực hiện được thao tác này. Dữ liệu đã được tải lại.",
   createConflict:
-    "Chỉ đơn đã release (sẵn sàng xuất kho) mới đưa vào xuất kho; đơn mới xác nhận phải release trước. Đơn đang sản xuất chỉ vào xuất kho khi có dòng hàng có sẵn (lấy trước hàng in); đơn toàn hàng in phải chờ sản xuất xong.",
+    "Chỉ đơn đã release (sẵn sàng xuất kho) mới đưa vào xuất kho; đơn mới xác nhận phải được quản lý kho release trước.",
+  // 422 STAGING_AREA_INVALID: khu chờ xuất không phải khu đang hoạt động của kho xuất (docs 07 §4.1 bước 2)
+  STAGING_AREA_INVALID: "Chọn khu chờ xuất đang hoạt động của kho xuất của đơn.",
+  // 409 PICK_ORDER_ON_HOLD khi chuyển sang khu xuất hàng: đơn đang treo (docs 07 §6 "Đơn đang treo khi task Staged")
+  PICK_ORDER_ON_HOLD:
+    "Đơn đang tạm giữ nên chưa chuyển sang khu xuất hàng được — thùng vẫn ở khu chờ xuất. Gỡ treo đơn rồi thử lại.",
+  dispatchConflict:
+    "Task không còn ở trạng thái Đã tập kết (khu chờ xuất) nên không chuyển được. Dữ liệu đã được tải lại.",
   orderNotFound: "Không tìm thấy đơn hàng",
   assignConflict: "Chỉ gán lại được khi task chưa bắt đầu lấy hàng. Dữ liệu đã được tải lại.",
   assigneeInvalid: "Người được gán phải là nhân viên kho hoặc quản lý kho đang hoạt động",
-  // BE trả cùng mã 409 cho "pack không còn ON_HOLD" và "đơn đã rời khâu xuất kho"
-  reverifyConflict:
-    "Kiện không còn bị giữ, hoặc đơn hàng không còn ở khâu xuất kho. Dữ liệu đã được tải lại.",
   artifactMissing: "Bundle thiết kế đã chốt không có file này",
   // 409 PICK_TASK_STATE_CONFLICT khi tải file (BE `TaskAccess.orderInFulfilment`) — khác CONFLICT lệch checksum
   artifactOrderClosed: "Đơn đã rời khâu xuất kho nên không tải được file thiết kế.",
@@ -682,11 +711,13 @@ export const FULFILLMENT_FIELD_MESSAGES = {
   assigneeRequired: "Chọn nhân viên được gán",
   resolutionNoteRequired: "Nhập cách đã xử lý",
   resolutionNoteTooLong: "Tối đa 1000 ký tự",
-  // BE ConfirmPickRequest / ShortPickRequest: @NotBlank @Size(max = 64), quantity @NotNull @Positive
+  // BE ConfirmPickRequest / ShortPickRequest: locationCode @NotBlank @Size(max = 64)
   locationRequired: "Chọn vị trí",
-  codeRequired: "Chọn mã hàng",
   codeTooLong: "Tối đa 64 ký tự",
-  quantityRequired: "Nhập số lượng là số nguyên lớn hơn 0",
+  // BE ConfirmPickRequest / PutBackRequest: lpn @NotBlank @Size(max = 30); ShortPickRequest: reason @NotNull
+  lpnRequired: "Quét hoặc nhập mã LPN của thùng",
+  lpnTooLong: "Tối đa 30 ký tự",
+  shortReasonRequired: "Chọn lý do báo thiếu",
 } as const;
 
 /**
@@ -982,15 +1013,17 @@ export const TOAST_MESSAGES = {
     pickingStarted: "Đã bắt đầu lấy hàng",
     pickingCompleted: "Đã hoàn tất lấy hàng",
     held: "Lệch checksum thiết kế — kiện bị giữ, chờ kiểm tra lại thiết kế",
-    reverified: "Thiết kế khớp — đã gỡ giữ, người đóng gói hoàn tất lại",
+    // Chuyển cả tác vụ từ khu chờ xuất sang khu xuất hàng (BE `POST …/dispatch-transfer`, docs 07 §4.3 bước 8)
+    movedToDispatch: "Đã chuyển task sang khu xuất hàng — tồn đã được trừ",
     // Phân bổ lại dòng thiếu (BE `POST …/pick-lines/{lineId}/reallocation`, PR #147)
     lineReallocated: "Đã phân bổ lại dòng thiếu",
     linesPlanned: "Đã tạo danh sách dòng lấy hàng",
-    // Báo thiếu hàng (BE `POST …/pick-lines/{lineId}/short`, PR #147): đơn tạm giữ, chờ phân bổ lại
-    shortReported: (sku: string, quantity: number) => `Đã báo thiếu ${quantity} × ${sku}`,
-    // Trả hàng về kệ (BE `POST …/pick-lines/{lineId}/put-back`, SCRUM-275)
-    putBack: (quantity: number, sku: string, bin: string) =>
-      `Đã trả ${quantity} × ${sku} về ${bin}`,
+    // Báo thiếu thùng (BE `POST …/pick-lines/{lineId}/short`, docs 07 §4.4): đơn tạm giữ, chờ phân bổ lại
+    shortReported: (sku: string, lpn: string | null | undefined) =>
+      `Đã báo thiếu ${lpn ? `thùng ${lpn} (${sku})` : sku}`,
+    // Cất lại nguyên thùng (BE `POST …/pick-lines/{lineId}/put-back`, docs 07 §4.5 bước 14)
+    putBack: (lpn: string | null | undefined, sku: string, location: string) =>
+      `Đã cất ${lpn ? `thùng ${lpn}` : sku} về ${location}`,
   },
   packing: PACKING_TOAST_MESSAGES,
 } as const;

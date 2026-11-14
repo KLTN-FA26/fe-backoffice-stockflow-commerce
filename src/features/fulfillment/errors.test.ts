@@ -34,7 +34,7 @@ describe("fulfillmentErrorMessage — cùng mã BE, nghĩa khác theo thao tác"
     expect(fulfillmentErrorMessage(conflict, "create")).toBe(MSG.createConflict);
     expect(fulfillmentErrorMessage(conflict, "assign")).toBe(MSG.assignConflict);
     expect(fulfillmentErrorMessage(conflict, "pick")).toBe(MSG.stale);
-    expect(fulfillmentErrorMessage(conflict, "reverify")).toBe(MSG.reverifyConflict);
+    expect(fulfillmentErrorMessage(conflict, "dispatch")).toBe(MSG.dispatchConflict);
     expect(fulfillmentErrorMessage(conflict, "artifact")).toBe(MSG.artifactMismatch);
   });
 
@@ -43,7 +43,7 @@ describe("fulfillmentErrorMessage — cùng mã BE, nghĩa khác theo thao tác"
     expect(fulfillmentErrorMessage(stateConflict, "create")).toBe(MSG.createConflict);
     expect(fulfillmentErrorMessage(stateConflict, "assign")).toBe(MSG.assignConflict);
     expect(fulfillmentErrorMessage(stateConflict, "pick")).toBe(MSG.stale);
-    expect(fulfillmentErrorMessage(stateConflict, "reverify")).toBe(MSG.reverifyConflict);
+    expect(fulfillmentErrorMessage(stateConflict, "dispatch")).toBe(MSG.dispatchConflict);
     expect(fulfillmentErrorMessage(stateConflict, "artifact")).toBe(MSG.artifactOrderClosed);
     expect(isStaleFulfillmentError(stateConflict)).toBe(true);
   });
@@ -51,7 +51,7 @@ describe("fulfillmentErrorMessage — cùng mã BE, nghĩa khác theo thao tác"
   it("VALIDATION_FAILED khi gán / tạo = người được gán không hợp lệ; chỗ khác = câu chung", () => {
     expect(fulfillmentErrorMessage(invalid, "assign")).toBe(MSG.assigneeInvalid);
     expect(fulfillmentErrorMessage(invalid, "create")).toBe(MSG.assigneeInvalid);
-    expect(fulfillmentErrorMessage(invalid, "reverify")).toBe(MSG.VALIDATION_FAILED);
+    expect(fulfillmentErrorMessage(invalid, "pick")).toBe(MSG.VALIDATION_FAILED);
   });
 
   it("mã chung của hệ thống dùng câu chung; không hiện message tiếng Anh của BE", () => {
@@ -86,9 +86,17 @@ describe("tải artifact — BE tách hai mã 409", () => {
     expect(MSG.artifactOrderClosed).not.toBe(MSG.artifactMismatch);
   });
 
-  it("kiểm tra lại 409: câu báo nêu cả hai khả năng", () => {
-    expect(MSG.reverifyConflict).toMatch(/không còn bị giữ/);
-    expect(MSG.reverifyConflict).toMatch(/không còn ở khâu xuất kho/);
+  it("chuyển sang khu xuất hàng: đơn đang treo (409 PICK_ORDER_ON_HOLD) có câu riêng nói thùng vẫn ở khu chờ xuất", () => {
+    const onHold = new ApiError(409, "PICK_ORDER_ON_HOLD", "English");
+    expect(fulfillmentErrorMessage(onHold, "dispatch")).toBe(MSG.PICK_ORDER_ON_HOLD);
+    expect(MSG.PICK_ORDER_ON_HOLD).toMatch(/tạm giữ/);
+    expect(MSG.PICK_ORDER_ON_HOLD).toMatch(/khu chờ xuất/);
+    expect(MSG.PICK_ORDER_ON_HOLD).not.toBe(MSG.dispatchConflict);
+  });
+
+  it("tạo task đích STAGING: 422 STAGING_AREA_INVALID → nói chọn khu chờ xuất đang hoạt động", () => {
+    const area = new ApiError(422, "STAGING_AREA_INVALID", "English");
+    expect(fulfillmentErrorMessage(area, "create")).toBe(MSG.STAGING_AREA_INVALID);
   });
 });
 

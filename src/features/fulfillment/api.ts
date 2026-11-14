@@ -7,7 +7,7 @@
  * quét, hoàn tất) ở `packing-api.ts`.
  */
 
-import { PACK_STATUS_BY_API, PAGE_SIZE, PICK_STATUS_BY_API } from "@/constants";
+import { PACK_STATUS_BY_API, PAGE_SIZE, PICK_DESTINATION, PICK_STATUS_BY_API } from "@/constants";
 import { api } from "@/lib/api/client";
 
 import {
@@ -25,7 +25,6 @@ import type {
   CreateTaskValues,
   FulfillmentTask,
   FulfillmentTaskApiDto,
-  ReverifyTaskInput,
 } from "./types";
 
 const TASKS_PATH = "/fulfillment/tasks";
@@ -98,11 +97,25 @@ export async function getFulfillmentTask(
 /* ── Tạo / gán ───────────────────────────────────────────────────────── */
 
 /**
- * Đưa đơn vào xuất kho và gán người lấy hàng. Đơn đã có task → BE trả task cũ nguyên trạng
- * (bỏ qua `assignedUserId` mới) — một đơn một task.
+ * Đưa đơn vào xuất kho, chọn đích lấy hàng và gán người lấy (`{orderId, assignedUserId, destination,
+ * stagingLocationCode?}`, docs 07 §4.1 bước 2). Đích STAGING kèm khu chờ xuất của kho (bỏ được khi kho có đúng một);
+ * đích DISPATCH không gửi khu chờ xuất. Đơn đã có task → BE trả task cũ nguyên trạng (bỏ qua người / đích mới) — một
+ * đơn (một đợt giao) một task.
  */
-export const createFulfillmentTask = (input: CreateTaskValues) =>
-  postTask(TASKS_PATH, { orderId: input.orderId, assignedUserId: input.assignedUserId });
+export const createFulfillmentTask = ({
+  orderId,
+  assignedUserId,
+  destination = PICK_DESTINATION.DISPATCH,
+  stagingLocationCode,
+}: CreateTaskValues) =>
+  postTask(TASKS_PATH, {
+    orderId,
+    assignedUserId,
+    destination,
+    ...(destination === PICK_DESTINATION.STAGING && stagingLocationCode
+      ? { stagingLocationCode }
+      : {}),
+  });
 
 /** Gán lại — BE chỉ cho khi pick còn PENDING. */
 export async function assignFulfillmentTask({
@@ -113,7 +126,7 @@ export async function assignFulfillmentTask({
   return parseTask(data);
 }
 
-/* ── Lấy hàng / đóng gói ─────────────────────────────────────────────── */
+/* ── Lấy hàng ────────────────────────────────────────────────────────── */
 
 export const startPicking = (taskId: string) => postTask(`${taskPath(taskId)}/picking-start`);
 
@@ -121,11 +134,12 @@ export const completePicking = (taskId: string) =>
   postTask(`${taskPath(taskId)}/picking-completion`);
 
 /**
- * Kiểm tra lại kiện đang giữ (BE PR #136). Khớp → pack về `Packing` (KHÔNG phải `Packed`: người
- * đóng gói hoàn tất lại). Còn lệch → vẫn 200, pack vẫn `On Hold`, ghi chú không được lưu.
+ * Chuyển CẢ tác vụ `Staged` sang khu xuất hàng (BE `POST /tasks/{id}/dispatch-transfer`, docs 07 §4.3 bước 8, BR-11):
+ * mọi thùng ở khu chờ xuất bị trừ tồn tại chỗ, task → `Picked`. Quyết định của quản lý kho
+ * (`fulfillment-task-assignment:UPDATE`), không cần là người được gán. Task không `Staged` → 409
+ * PICK_TASK_STATE_CONFLICT; đơn đang treo → 409 PICK_ORDER_ON_HOLD (thùng ở lại khu chờ xuất). Gọi lại → 200 như cũ.
  */
-export const reverifyDesignIntegrity = ({ taskId, resolutionNote }: ReverifyTaskInput) =>
-  postTask(`${taskPath(taskId)}/design-integrity-reverification`, { resolutionNote });
+export const moveToDispatch = (taskId: string) => postTask(`${taskPath(taskId)}/dispatch-transfer`);
 
 /* ── Artifact thiết kế ───────────────────────────────────────────────── */
 

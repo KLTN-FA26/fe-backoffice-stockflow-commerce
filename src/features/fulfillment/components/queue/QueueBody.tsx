@@ -98,8 +98,6 @@ export function QueueBody({ s, selfId }: { s: PackingQueueState; selfId: string 
         data={page.items}
         rowKey={(row) => row.taskId}
         caption={`${UI_LABELS.common.showing} ${page.items.length} / ${page.totalElements} ${L.queueCaption}`}
-        // Phiên đang bị giữ do lệch thiết kế cần QC / quản lý kho xử lý (data-table-mode-a: row cần chú ý)
-        flagRow={(row) => row.packStatus === "On Hold"}
         onRowClick={s.navigateToDetail}
         pageSize={s.config.pageSize}
         pageSizeOptions={PAGE_SIZE_OPTIONS}
