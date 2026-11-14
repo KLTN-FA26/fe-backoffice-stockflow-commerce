@@ -24,10 +24,17 @@ export const useEInvoices = createListQuery<EInvoiceListItem, ListEInvoiceParams
   einvoiceKeys,
   listEInvoices,
 );
-export const useEInvoice = createDetailQuery<EInvoice>(einvoiceKeys, getEInvoice);
-
 /** Hoá đơn `SUBMITTING`: hỏi lại BE vài giây một lần tới khi có kết quả (docs 21 §4.2 bước 6). */
 export const SUBMITTING_REFETCH_MS = 5_000;
+
+export const useEInvoice = createDetailQuery<EInvoice>(einvoiceKeys, getEInvoice, {
+  // Đang chờ NCC (trừ khi NCC báo không biết giao dịch — chờ Kế toán, BR-05): tự đọc lại
+  refetchInterval: (query) =>
+    query.state.data?.status === "SUBMITTING" &&
+    !query.state.data.warnings.includes("UNKNOWN_TO_PROVIDER")
+      ? SUBMITTING_REFETCH_MS
+      : false,
+});
 
 const sub = (id: string | null | undefined, part: string) => [...einvoiceKeys.all, part, id ?? ""];
 

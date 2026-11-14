@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { EINVOICE_PERMISSIONS, EINVOICE_STATUSES } from "@/constants/einvoice";
 
+import type { PermissionCode } from "@/lib/auth";
+
 import { allowedEInvoiceActions, EINVOICE_TRANSITIONS, isTerminalEInvoice } from "../lifecycle";
 import {
   einvoiceStatusLabel,
@@ -13,7 +15,7 @@ import {
 const P = EINVOICE_PERMISSIONS;
 const has =
   (codes: readonly string[]) =>
-  (code: string): boolean =>
+  (code: PermissionCode): boolean =>
     codes.includes(code);
 const ACCOUNTANT = has(Object.values(P));
 const SALES_MANAGER = has([P.viewPage, P.read]);
