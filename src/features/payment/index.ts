@@ -5,3 +5,4 @@ export { ReceiptDetail } from "./components/ReceiptDetail";
 export { ReceiptList } from "./components/ReceiptList";
 export { RefundDetail } from "./components/RefundDetail";
 export { RefundList } from "./components/RefundList";
+export { useOrderInstallments, useOrderRefund } from "./queries";

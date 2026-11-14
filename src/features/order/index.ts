@@ -113,6 +113,7 @@ export {
 
 // Khe "Ước tính xếp xe" (SCRUM-287 F3): chỗ ghép truyền vào, feature không import chéo
 export type { OrderEstimateSlot, OrderEstimateSlotProps } from "./estimate-slot";
+export type { OrderSettlementSlot, OrderSettlementSlotProps } from "./settlement-slot";
 
 // API params
 export type { ListOrderParams } from "./api";
