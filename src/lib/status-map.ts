@@ -15,6 +15,8 @@ export type { SemanticTone };
 
 const TONE: Record<SemanticTone, readonly string[]> = {
   positive: [
+    // Hoá đơn điện tử đã phát hành (BE EInvoiceStatus.ISSUED, docs 21 §5.1)
+    "Issued",
     // Thùng đã in và dán nhãn giao hàng (BE PackageStatus.LABELED, docs 08 §5.2)
     "Labeled",
     // Thùng đã vào kho, chưa mở (BE StockPackageStatus.IN_STOCK, SCRUM-473)
@@ -68,6 +70,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "DISPATCHED",
   ],
   info: [
+    // Hoá đơn điện tử đã gửi nhà cung cấp, chờ kết quả (BE EInvoiceStatus.SUBMITTING)
+    "Submitting",
     // Thùng đang được đếm trên phiếu nhận nháp (BE StockPackageStatus.RECEIVING, SCRUM-473)
     "Receiving",
     // Bán hàng B2B & sản xuất (BE d215f6e)
@@ -225,6 +229,9 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Not Due",
   ],
   muted: [
+    // Hoá đơn điện tử: nháp đã huỷ / đã bị thay thế — hết hiệu lực (docs 21 §5.1)
+    "Voided Draft",
+    "Replaced",
     // Thùng đã lấy hết hàng — kết thúc (BE StockPackageStatus.CONSUMED)
     "Consumed",
     // Bán hàng B2B & sản xuất (BE d215f6e)
@@ -542,6 +549,15 @@ const STATUS_LABEL_VI_BY_DOMAIN: Partial<Record<StatusDomain, Record<string, str
     BLOCKED: "Khoá kiểm kê / QC",
     MAINTENANCE: "Bảo trì",
     INACTIVE: "Ngừng dùng",
+  },
+  // Hoá đơn điện tử (docs 21 §5.1; tên theo BE EInvoiceStatus)
+  invoice: {
+    Draft: "Nháp",
+    Submitting: "Đang phát hành",
+    Issued: "Đã phát hành",
+    Rejected: "Bị từ chối",
+    "Voided Draft": "Đã huỷ nháp",
+    Replaced: "Đã bị thay thế",
   },
   // Phiếu thu bị huỷ vì ghi sai (docs 15 §4.4) — nhãn chung "Đã vô hiệu" là của module khác
   payment: {

@@ -264,6 +264,7 @@ export function activateMockAdapter(): void {
     import("./mock-routes-customers"),
     import("./mock-routes-customer-prices"),
     import("./mock-routes-payment"),
+    import("./mock-routes-einvoice"),
     import("./mock-routes-refunds"),
     import("./mock-routes-attributes"),
     import("./mock-routes-product-attributes"),
@@ -297,6 +298,7 @@ export function activateMockAdapter(): void {
       { registerCustomerMockRoutes },
       { registerCustomerPriceMockRoutes },
       { registerPaymentMockRoutes },
+      { registerEInvoiceMockRoutes },
       { registerRefundMockRoutes },
       { registerAttributeMockRoutes },
       { registerProductAttributeMockRoutes },
@@ -329,6 +331,7 @@ export function activateMockAdapter(): void {
       registerCustomerMockRoutes();
       registerCustomerPriceMockRoutes();
       registerPaymentMockRoutes();
+      registerEInvoiceMockRoutes();
       registerRefundMockRoutes();
       registerAttributeMockRoutes();
       registerProductAttributeMockRoutes();
