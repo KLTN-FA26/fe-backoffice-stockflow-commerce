@@ -167,7 +167,11 @@ export function orderErrorCategory(error: Pick<ApiError, "code" | "status">): Or
  * Lỗi chung mọi thao tác: tranh chấp, idempotency, trạng thái đã đổi, quyền, không tìm thấy, mạng.
  * `null` → để hàm gọi xử lý tiếp (fallback chung).
  */
-function commonErrorView(error: ApiError, title: string, action: string): OrderErrorView | null {
+export function commonErrorView(
+  error: ApiError,
+  title: string,
+  action: string,
+): OrderErrorView | null {
   const traceId = error.traceId;
   switch (error.code) {
     case "OPTIMISTIC_LOCK":
@@ -226,7 +230,7 @@ function commonErrorView(error: ApiError, title: string, action: string): OrderE
 }
 
 /** Mã lạ / 5xx: câu chung theo thao tác, giữ traceId — không hiện message tiếng Anh của máy chủ. */
-function fallback(error: ApiError, title: string, action: string): OrderErrorView {
+export function fallback(error: ApiError, title: string, action: string): OrderErrorView {
   return {
     title,
     detail: `Đã xảy ra lỗi khi ${action}. Vui lòng thử lại.`,

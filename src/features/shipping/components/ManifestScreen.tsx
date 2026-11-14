@@ -84,7 +84,6 @@ function ManifestBody({ id }: { id: string }) {
               {M.printBlocked}
             </Alert>
           )}
-          <p className="text-ink-tertiary text-xs">{UI_LABELS.shipping.noTracking}</p>
         </div>
       </div>
       {query.isError && <RefetchErrorNotice onRetry={() => void query.refetch()} />}

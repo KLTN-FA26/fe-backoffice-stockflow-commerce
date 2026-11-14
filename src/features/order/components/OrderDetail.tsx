@@ -13,6 +13,8 @@ import { BackLink } from "@/components/shared/BackLink";
 import { useOrder, useOrderProductionOrders } from "../queries";
 import { customLineCount, groupProductionOrdersByLine } from "../selectors";
 
+import { CancellationRequestCard } from "./cancellation/CancellationRequestCard";
+import { DeliverySchedulePanel } from "./delivery-schedule/DeliverySchedulePanel";
 import { OrderActionCard } from "./OrderActionCard";
 import { OrderEstimateCard } from "./OrderEstimateCard";
 import { OrderFinanceCard } from "./OrderFinanceCard";
@@ -117,11 +119,13 @@ function OrderDetailContent({
               />
             )}
           />
+          <DeliverySchedulePanel order={order} can={can} />
           <OrderHistory orderId={order.orderId} />
         </div>
 
         <div className="space-y-5">
           <OrderActionCard order={order} can={can} estimateSlot={estimateSlot} />
+          <CancellationRequestCard order={order} can={can} />
           <OrderEstimateCard order={order} estimateSlot={estimateSlot} />
           <OrderPartialShipmentCard order={order} can={can} />
           <OrderShipments order={order} />

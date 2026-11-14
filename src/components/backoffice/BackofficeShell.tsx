@@ -3,6 +3,7 @@
 import { cn } from "cn";
 import {
   ArrowRightLeft,
+  Ban,
   Banknote,
   Building2,
   BellRing,
@@ -28,6 +29,7 @@ import {
   PackageOpen,
   PackagePlus,
   Palette,
+  Handshake,
   PanelLeftClose,
   PanelLeftOpen,
   Receipt,
@@ -54,6 +56,8 @@ import { useMemo, useState } from "react";
 import {
   ADMIN_ROUTES,
   ATTRIBUTE_PERMISSIONS,
+  CANCELLATION_REQUEST_LABELS,
+  CANCELLATION_REQUEST_PERMISSIONS,
   CUSTOMER_PERMISSIONS,
   CREDIT_HOLD_PERMISSIONS,
   CUSTOMER_PRICE_PERMISSIONS,
@@ -448,6 +452,14 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: ShieldAlert,
         permission: CREDIT_HOLD_PERMISSIONS.viewPage,
       },
+      // Hàng đợi yêu cầu huỷ của khách: resource `sales-order-cancellations` không có VIEW_PAGE (chỉ READ / UPDATE) nên
+      // gate bằng READ — seed BE: SALES_STAFF + SYSTEM_ADMIN.
+      {
+        label: CANCELLATION_REQUEST_LABELS.title,
+        href: ADMIN_ROUTES.orders.cancellationRequests,
+        icon: Ban,
+        permission: CANCELLATION_REQUEST_PERMISSIONS.read,
+      },
       {
         label: "Lấy hàng",
         href: ADMIN_ROUTES.picking.list,
@@ -455,7 +467,7 @@ export const NAV_GROUPS: NavGroup[] = [
         permission: FULFILLMENT_PICK_PERMISSIONS.viewPage,
       },
       {
-        label: "Đóng gói",
+        label: UI_LABELS.cartonCheck.navTitle,
         href: ADMIN_ROUTES.packing.list,
         icon: PackageCheck,
         permission: FULFILLMENT_PACKAGE_PERMISSIONS.viewPage,
@@ -499,6 +511,13 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: Truck,
         permission: SHIPMENT_PERMISSIONS.viewPage,
       },
+      {
+        label: UI_LABELS.shipping.waybill.carriers.title,
+        href: ADMIN_ROUTES.carriers,
+        icon: Handshake,
+        // Danh mục hãng: xem là `fulfillment-shipments:READ`, thêm / sửa là `fulfillment-carriers:UPDATE` (resource này không có VIEW_PAGE)
+        permission: SHIPMENT_PERMISSIONS.viewPage,
+      },
     ],
   },
 ];
@@ -532,6 +551,7 @@ const DETAIL_LABEL_BY_ROUTE: Record<string, string> = {
   [INVENTORY_ROUTES.createAdjustment]: INVENTORY_LABELS.createAdjustment,
   "/admin/transfers/create": "Tạo lệnh chuyển kho",
   [ADMIN_ROUTES.loadPlans.create]: UI_LABELS.loadPlan.create,
+  [ADMIN_ROUTES.loads.waybillImport]: UI_LABELS.shipping.waybill.import.title,
 };
 
 /** Required capabilities fail closed; unassigned items remain visible; mock-only items need mock mode. */

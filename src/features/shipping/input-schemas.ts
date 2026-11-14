@@ -1,7 +1,7 @@
 /**
- * Shipping — Input schemas (quét kiện, mở chuyến, bàn giao, huỷ chuyến, kết quả giao). Giới hạn độ
- * dài theo BE `LoadScanRequest` / `OpenLoadRequest` / `HandoverRequest` / `CancelLoadRequest` /
- * `DeliveryOutcomeRequest` (PR #137). Backend phải re-check mọi rule dưới đây.
+ * Shipping — Input schemas (quét kiện, đặt xe, mã vận đơn, bàn giao, huỷ đặt xe, kết quả giao). Giới hạn độ dài theo
+ * BE `LoadScanRequest` / `BookingRequest` / `WaybillRequest` / `HandoverRequest` / `CancelLoadRequest` /
+ * `DeliveryOutcomeRequest`. Backend phải re-check mọi rule dưới đây.
  */
 
 import { z } from "zod";
@@ -19,7 +19,7 @@ const PRINTABLE_ASCII = /^[\x21-\x7E]+$/;
 const L = SHIPPING_LIMITS;
 
 /** Ô tuỳ chọn: cắt khoảng trắng, rỗng → `undefined` (BE bỏ qua field vắng, không nhận chuỗi rỗng). */
-const optionalText = (max: number) =>
+export const optionalText = (max: number) =>
   z
     .string()
     .trim()
@@ -41,22 +41,18 @@ export const scanPackageInputSchema = z.object({
     .transform((code) => code.toUpperCase()),
 });
 
-/** Mở chuyến khi tài xế hãng tới (docs 09 §4.1 bước 3): kho + hãng bắt buộc, xe và tài xế tuỳ chọn. */
-export const openLoadInputSchema = z.object({
-  warehouseId: z.string().min(1, MSG.warehouseRequired),
-  carrierId: z.string().min(1, MSG.carrierRequired),
-  vehiclePlate: optionalText(L.vehiclePlateMax),
-  driverName: optionalText(L.driverNameMax),
-  driverPhone: optionalText(L.driverPhoneMax),
-});
-
 /**
  * Xác nhận bàn giao: biên bản giấy hai bên ký (docs 09 §4.1 bước 3) — hệ thống ghi người ký bên hãng
  * và xác nhận đã ký, không có chữ ký số. Biển số bắt buộc trừ khi chuyến đã ghi biển số lúc mở
  * (BE `DispatchLoad.handOver`).
  */
-export function handoverInputSchema(plateRequired: boolean) {
+export function handoverInputSchema(plateRequired: boolean, driverRequired = false) {
   return z.object({
+    // Owner decision WF4-DRIVER (12/11): tên tài xế bắt buộc TRƯỚC KHI KÝ khi chuyến chưa có (từ đặt xe / nhập tay / webhook
+    // hãng). Không gửi trong thân bàn giao (BE `HandoverRequest` không có trường này): lưu qua `PUT loads/{id}/waybill`.
+    driverName: driverRequired
+      ? z.string().trim().min(1, MSG.driverNameRequired).max(L.driverNameMax, MSG.tooLong)
+      : optionalText(L.driverNameMax),
     carrierRepresentative: z
       .string()
       .trim()
@@ -73,21 +69,55 @@ export function handoverInputSchema(plateRequired: boolean) {
   });
 }
 
-/** Huỷ chuyến chưa rời kho (BE `CancelLoadRequest`): bắt buộc nêu lý do. */
-export const cancelLoadInputSchema = z.object({
-  reason: z.string().trim().min(1, MSG.cancelReasonRequired).max(L.cancelReasonMax, MSG.tooLong),
-});
+/** Mã vận đơn của hãng (BE `DispatchLoad.WAYBILL` `^[!-~]{1,64}$`): 1-64 ký tự in được, không khoảng trắng. */
+const waybillNo = z
+  .string()
+  .trim()
+  .min(1, MSG.waybillRequired)
+  .max(L.waybillNoMax, MSG.waybillInvalid)
+  .regex(PRINTABLE_ASCII, MSG.waybillInvalid);
+
+/** Ô mã vận đơn tuỳ chọn (lúc đặt xe): rỗng → vắng; có thì phải đúng dạng. */
+const optionalWaybillNo = z
+  .string()
+  .trim()
+  .max(L.waybillNoMax, MSG.waybillInvalid)
+  .refine((value) => value === "" || PRINTABLE_ASCII.test(value), MSG.waybillInvalid)
+  .optional()
+  .transform((value) => value || undefined);
 
 /**
- * Đặt xe của một xe trong kế hoạch xếp xe (BE `BookingRequest`, PR #162): hãng bắt buộc; biển số và tài
- * xế có thể bổ sung sau (chậm nhất lúc ký bàn giao). Đặt lại khi còn VEHICLE_BOOKED = thay thông tin.
+ * Ghi nhận đặt xe của một xe trong kế hoạch (BE `BookingRequest`, docs 09 §4.2 bước 6): hãng bắt buộc; biển số, tài xế
+ * và mã vận đơn "nếu đã có" — có thể về sau (webhook, file, nhập tay) nhưng phải có mã vận đơn trước khi ký (BR-23).
+ * Hãng tích hợp API đặt xe (BR-29) không nhập biển số / tài xế / mã vận đơn mà chỉ nhập giờ hẹn lấy hàng (`pickupAt`,
+ * ô `datetime-local`; vắng = càng sớm càng tốt) và thứ tự điểm giao — xem `booking.ts`. Đặt lại khi còn
+ * VEHICLE_BOOKED = thay thông tin cũ.
  */
 export const bookingInputSchema = z.object({
   carrierId: z.string().min(1, MSG.carrierRequired),
   vehiclePlate: optionalText(L.vehiclePlateMax),
   driverName: optionalText(L.driverNameMax),
   driverPhone: optionalText(L.driverPhoneMax),
+  waybillNo: optionalWaybillNo,
+  pickupAt: optionalText(L.pickupAtMax),
 });
+
+/**
+ * Nhập tay mã vận đơn của một chuyến (BE `WaybillRequest`, docs 09 §4.4 (3)). Trước khi rời kho: kèm biển số / tài xế
+ * nếu biết. SAU khi rời kho là sửa mã (BR-24): chỉ đổi mã, bắt buộc lý do — biển số / tài xế đã nằm trên biên bản hai bên
+ * ký nên không gửi.
+ */
+export function waybillInputSchema(afterDeparture: boolean) {
+  return z.object({
+    waybillNo,
+    vehiclePlate: optionalText(L.vehiclePlateMax),
+    driverName: optionalText(L.driverNameMax),
+    driverPhone: optionalText(L.driverPhoneMax),
+    reason: afterDeparture
+      ? z.string().trim().min(1, MSG.waybillReasonRequired).max(L.cancelReasonMax, MSG.tooLong)
+      : optionalText(L.cancelReasonMax),
+  });
+}
 
 /** Đặt xe không thành trước khi xếp hàng (BE `CancelLoadRequest`): bắt buộc nêu lý do. */
 export const cancelBookingInputSchema = z.object({

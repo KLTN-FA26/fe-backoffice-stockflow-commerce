@@ -62,6 +62,27 @@ export const ORDER_LIMITS = {
   feeReasonMax: 500,
   /** `CancellationFeeRequest.detail` @Size(max = 2000). */
   feeDetailMax: 2000,
+  /** `ApproveCancellationRequest.note` / `RejectCancellationRequest.note` @Size(max = 1000) — docs 17 §4.8 bước 28. */
+  cancellationDecisionNoteMax: 1000,
+  /** `WindowChangeRequest.note` @NotBlank @Size(max = 1000) — docs 17 BR-28. */
+  windowChangeNoteMax: 1000,
+} as const;
+
+/**
+ * Tệp bằng chứng khách đồng ý khi dời cửa sổ giao (docs 17 BR-28; BE `FileCategory.DOCUMENT`, kiểm lại ở `StagedUploads`):
+ * PDF, Word, Excel hoặc ảnh JPEG / PNG chụp văn bản, tối đa 25 MB. FE chỉ chặn sớm — BE là bên quyết (415 / 413).
+ */
+export const WINDOW_EVIDENCE_FILE = {
+  maxBytes: 25 * 1024 * 1024,
+  contentTypes: [
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "image/jpeg",
+    "image/png",
+  ],
+  /** Giá trị `accept` của ô chọn tệp. */
+  accept: ".pdf,.docx,.xlsx,.jpg,.jpeg,.png",
 } as const;
 
 /** Giới hạn phiếu nhận — đúng ràng buộc request BE goods receipt (PR #62, SCRUM-435). */
@@ -123,41 +144,19 @@ export const PICK_LINE_LIMITS = {
 } as const;
 
 /**
- * Giới hạn trạm đóng gói — đúng ràng buộc request BE PR #136 (`PackScanRequest`, `SealPackageRequest`,
- * `PackingCompletionRequest`, `OpenPackageRequest`).
+ * Giới hạn trạm kiểm thùng — đúng ràng buộc request BE (4C-6): `CartonScanRequest.lpn` @NotBlank @Size(max = 30),
+ * `CartonSelectionRequest.lpns` @Size(max = 500), `CartonRemovalRequest.note` / `PackingCompletionRequest.note`
+ * @Size(max = 500).
  */
-export const PACKING_LIMITS = {
-  /** `PackScanRequest.quantity` @Positive @Max(1_000_000); `removeUnits.quantity` cùng giới hạn. */
-  quantityMax: 1_000_000,
-  /** `PackScanRequest.scannedCode` @NotBlank @Size(max = 64). */
-  scannedCodeMax: 64,
-  /** `PackScanRequest.lotNumber` @Size(max = 64). */
-  lotMax: 64,
-  /** `PackScanRequest.serialNumber` @Size(max = 100). */
-  serialMax: 100,
-  /** `PackingCompletionRequest.note` @Size(max = 500) — bắt buộc khi giao một phần. */
+export const CARTON_CHECK_LIMITS = {
+  /** `CartonScanRequest.lpn`; `{lpn}` của `label-reprint` / `removal` cùng giới hạn. */
+  lpnMax: 30,
+  /** `CartonSelectionRequest.lpns` — số thùng tối đa mỗi lần dán / in nhãn. */
+  selectionMax: 500,
+  /** Ghi chú loại thùng và ghi chú giao một phần (bắt buộc khi giao một phần). */
   noteMax: 500,
-  /** `SealPackageRequest.weightKg` @Digits(integer = 7, fraction = 3) @Positive. */
-  weightKgMax: 9_999_999.999,
-  weightKgScale: 3,
-  /** `SealPackageRequest.lengthCm/widthCm/heightCm` @DecimalMax("100000") @Digits(fraction = 2). */
-  dimensionCmMax: 100_000,
-  dimensionCmScale: 2,
   /** Thời gian giữ màu phản hồi sau mỗi lần quét đúng. */
   scanFeedbackMs: 1500,
-} as const;
-
-/** Giới hạn đóng gói chuyển kho — request BE `TransferCartonRequest`, `TransferKitRequest`, `PackingCompletionRequest`. */
-export const TRANSFER_PACK_LIMITS = {
-  /** `TransferCartonRequest.lpn` @NotBlank @Size(max = 30). */
-  lpnMax: 30,
-  /** `TransferKitRequest.partCount` @Min(2) @Max(99). */
-  kitPartsMin: 2,
-  kitPartsMax: 99,
-  /** `PackingCompletionRequest.note` @Size(max = 500) — bắt buộc khi chỉ chuyển phần đã đóng. */
-  noteMax: 500,
-  /** `kitOverrideReason` @Size(max = 500) (KIT-FORCE). */
-  kitReasonMax: 500,
 } as const;
 
 /** Giới hạn lệnh chuyển kho — đúng ràng buộc request BE (CreateTransferOrderRequest, ReasonRequest). */
@@ -222,8 +221,22 @@ export const SHIPPING_LIMITS = {
   signatureRefMax: 255,
   noteMax: 500,
   cancelReasonMax: 500,
-  /** `LoadShipmentsRequest.shipmentIds` / `OpenLoadRequest.shipmentIds`. */
-  shipmentIdsMax: 200,
+  /** `BookingRequest.waybillNo` / `WaybillRequest.waybillNo` (`DispatchLoad.WAYBILL`: 1-64 ký tự in được). */
+  waybillNoMax: 64,
+  /** Chuỗi giờ hẹn lấy hàng từ ô `datetime-local` (`yyyy-MM-ddTHH:mm`). */
+  pickupAtMax: 32,
+  /** Hãng: `CarrierRequest` (code 2-32, name ≤ 120, người liên hệ ≤ 120, điện thoại ≤ 32). */
+  carrierCodeMin: 2,
+  carrierCodeMax: 32,
+  carrierNameMax: 120,
+  carrierContactNameMax: 120,
+  carrierContactPhoneMax: 32,
+  /** `CarrierConnectionRequest.webhookSecret`: 16-512 ký tự. */
+  webhookSecretMin: 16,
+  webhookSecretMax: 512,
+  /** File nhập mã vận đơn: `WaybillImportFile.MAX_BYTES` (1 MiB), tối đa 1.000 dòng dữ liệu. */
+  waybillImportMaxBytes: 1024 * 1024,
+  waybillImportMaxRows: 1000,
   /** Thời gian giữ màu phản hồi sau mỗi lần quét. */
   scanFeedbackMs: 1500,
   /** Chuyến đang xếp hàng (LOADING): tự tải lại để thấy kiện quét từ máy khác. */
