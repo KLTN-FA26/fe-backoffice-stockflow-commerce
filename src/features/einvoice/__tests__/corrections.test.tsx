@@ -32,6 +32,7 @@ const issued = (over: Record<string, unknown> = {}) =>
 const get = (invoice: Record<string, unknown>, corrections: unknown[] = []) => ({
   "/einvoices/einv-1": () => invoice,
   "/einvoices/einv-1/provider-calls": () => [],
+  "/einvoices/einv-1/error-notices": () => [],
   "/einvoices/einv-1/corrections": () => corrections,
 });
 
