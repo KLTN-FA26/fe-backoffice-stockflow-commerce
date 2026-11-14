@@ -8,6 +8,12 @@ const PATH_CHARS = /^[\x21-\x7E]+$/;
 const ENCODED_SEPARATOR = /%(2f|5c|2e)/i;
 // Throwaway origin: only used to let the URL parser canonicalize, never navigated to.
 const PROBE_ORIGIN = "https://notification.invalid";
+/**
+ * Back-office sections whose links the BE writes as its `@PermissionResource` routes, relative to
+ * `/admin` (e.g. invoicing's `/invoicing/einvoices/{id}`, production's `/production/...`; WF-05 BO-11).
+ * Only these get `/admin` put in front; any other path outside `/admin` is still refused.
+ */
+const ADMIN_RELATIVE_SECTIONS = ["invoicing", "payment", "production"] as const;
 
 /**
  * Canonical in-app target of a notification `link`, or null when it is not a plain root-relative
@@ -25,8 +31,11 @@ export function toSafeNotificationPath(raw: string): string | null {
     return null;
   }
   if (url.origin !== PROBE_ORIGIN || ENCODED_SEPARATOR.test(url.pathname)) return null;
-  const path = url.pathname;
   const admin = ADMIN_ROUTES.home;
+  const section = url.pathname.split("/")[1] ?? "";
+  const path = (ADMIN_RELATIVE_SECTIONS as readonly string[]).includes(section)
+    ? `${admin}${url.pathname}`
+    : url.pathname;
   if (path !== admin && !path.startsWith(`${admin}/`)) return null;
   return `${path}${url.search}${url.hash}`;
 }
