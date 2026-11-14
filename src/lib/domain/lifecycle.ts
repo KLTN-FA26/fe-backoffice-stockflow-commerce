@@ -38,7 +38,6 @@ import type {
   SkuStatus,
   PoStatus,
   QcStatus,
-  InvoiceStatus,
   PutawayStatus,
   MoveTaskStatus,
 } from "@/lib/mock-data";
@@ -117,20 +116,6 @@ export const QC_TRANSITIONS: Record<QcStatus, readonly QcStatus[]> = {
   Accepted: [],
   Quarantine: ["Accepted", "Rejected"],
   Rejected: [],
-};
-
-/* ── Module 04: Invoice ──────────────────────────────────────────────── */
-
-// InvoiceStatus = "Draft" | "Matched" | "Exception" | "Disputed" | "Approved for Payment" | "Paid" | "Cancelled"
-// docs/warehouse/04-invoice §5
-export const INVOICE_TRANSITIONS: Record<InvoiceStatus, readonly InvoiceStatus[]> = {
-  Draft: ["Matched", "Exception"],
-  Matched: ["Approved for Payment"],
-  Exception: ["Disputed", "Matched", "Cancelled"],
-  Disputed: ["Matched", "Cancelled"],
-  "Approved for Payment": ["Paid"],
-  Paid: [],
-  Cancelled: [],
 };
 
 /* ── Module 05: Putaway ──────────────────────────────────────────────── */

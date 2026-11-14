@@ -33,7 +33,6 @@ import {
   Handshake,
   PanelLeftClose,
   PanelLeftOpen,
-  Receipt,
   ReceiptText,
   Search as SearchIcon,
   ShieldCheck,
@@ -111,7 +110,7 @@ import { WarehouseNavPanel } from "@/features/warehouse-map/components/workspace
 import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { useAppStore } from "@/lib/store/use-app-store";
 import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
-import { invoices, purchaseOrders, putawayTasks } from "@/lib/mock-data";
+import { purchaseOrders, putawayTasks } from "@/lib/mock-data";
 import { useIsMock } from "@/providers/app-providers";
 
 import { SearchBar } from "@/components/shared/SearchBar";
@@ -140,7 +139,6 @@ import type { PermissionCode } from "@/lib/auth/me-permissions";
 
 const WARNING_STATUSES: Record<string, string[]> = {
   "/admin/purchase-orders": ["Pending Approval"],
-  "/admin/invoices": ["Exception", "Disputed"],
   "/admin/putaway": ["On Hold"],
 };
 
@@ -148,9 +146,6 @@ function computeWarningCounts(): Record<string, number> {
   const counts: Record<string, number> = {};
   counts["/admin/purchase-orders"] = purchaseOrders.filter((po) =>
     WARNING_STATUSES["/admin/purchase-orders"]!.includes(po.status),
-  ).length;
-  counts["/admin/invoices"] = invoices.filter((inv) =>
-    WARNING_STATUSES["/admin/invoices"]!.includes(inv.status),
   ).length;
   counts["/admin/putaway"] = putawayTasks.filter((pt) =>
     WARNING_STATUSES["/admin/putaway"]!.includes(pt.status),
@@ -266,13 +261,6 @@ export const NAV_GROUPS: NavGroup[] = [
         href: "/admin/purchase-orders",
         icon: ShoppingCart,
         permission: PO_PERMISSIONS.viewPage,
-      },
-      {
-        label: "Hoá đơn NCC",
-        href: "/admin/invoices",
-        icon: Receipt,
-        // BE chưa có API hoá đơn NCC (`/invoices`) — màn chạy trên dữ liệu mẫu
-        mockOnly: true,
       },
     ],
   },
