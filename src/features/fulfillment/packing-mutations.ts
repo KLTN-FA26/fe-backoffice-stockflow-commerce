@@ -29,8 +29,7 @@ import {
 import { isStalePackingError, packingErrorMessage } from "./packing-errors";
 import { packingKeys } from "./packing-queries";
 import { clearCompletionRequestId } from "./packing-request-id";
-import { fulfillmentArtifactKeys, fulfillmentKeys, fulfillmentReferenceKeys } from "./queries";
-import { isOnDesignHold } from "./selectors";
+import { fulfillmentKeys, fulfillmentReferenceKeys } from "./queries";
 
 import type {
   CompletePackingInput,
@@ -145,10 +144,9 @@ export const useVoidPackage = withPacking(
   asSession,
 );
 
-/** Toast của kết quả hoàn tất: lệch thiết kế (200, không có lô) / giao một phần / xong cả đơn. */
+/** Toast của kết quả hoàn tất: giao một phần (phiên còn In Progress) / xong cả đơn (Completed). */
 function completionToast(task: FulfillmentTask): void {
-  if (isOnDesignHold(task)) toast.warning(TOAST.held);
-  else toast.success(task.packStatus === PACK_STATUS.PACKED ? TOAST.packed : TOAST.shippedPartial);
+  toast.success(task.packStatus === PACK_STATUS.COMPLETED ? TOAST.packed : TOAST.shippedPartial);
 }
 
 const useCompletePackingBase = withPacking(
@@ -163,18 +161,4 @@ const useCompletePackingBase = withPacking(
   }),
 );
 
-export function useCompletePacking(options?: Parameters<typeof useCompletePackingBase>[0]) {
-  const queryClient = useQueryClient();
-  return useCompletePackingBase({
-    ...options,
-    onSuccess: (...args) => {
-      // Vừa phát hiện lệch → ảnh thiết kế đang hiện có thể là file sai, lấy lại để BE trả đúng tình trạng
-      if (isOnDesignHold(args[0])) {
-        void queryClient.invalidateQueries({
-          queryKey: fulfillmentArtifactKeys.task(args[0].taskId),
-        });
-      }
-      options?.onSuccess?.(...args);
-    },
-  });
-}
+export const useCompletePacking = useCompletePackingBase;

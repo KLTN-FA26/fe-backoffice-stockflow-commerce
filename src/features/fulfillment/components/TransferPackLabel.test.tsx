@@ -104,7 +104,7 @@ describe("đóng gói chuyển kho — in nhãn kiện (BE GET …/label)", () =
     const user = userEvent.setup();
     renderTransferPackStation({
       session: sealedSession(sealedParcel(), {
-        packStatus: "PACKED",
+        packStatus: "COMPLETED",
         packedAt: "2026-10-22T04:00:00Z",
       }),
       userId: "reader",
@@ -184,7 +184,7 @@ describe("đóng gói chuyển kho — mở lại kiện đã niêm phong (BE PO
     // Phiên đã hoàn tất → không (BE PACK_STATE_CONFLICT)
     renderTransferPackStation({
       session: sealedSession(sealedParcel(), {
-        packStatus: "PACKED",
+        packStatus: "COMPLETED",
         packedAt: "2026-10-22T04:00:00Z",
       }),
       identity: IDENTITIES.warehouseManager,

@@ -25,7 +25,6 @@ import {
   getDesignArtifactUrl,
   getFulfillmentTask,
   listFulfillmentTasks,
-  reverifyDesignIntegrity,
   startPicking,
 } from "./api";
 import { getFulfillmentOrder, listAssignees, listTaskCandidates } from "./reference-api";
@@ -106,7 +105,7 @@ function required<T>(value: T | undefined, what: string): T {
 
 describe("fulfillment mock ↔ hợp đồng BE", () => {
   it(
-    "phạm vi danh sách theo mã quyền: task-oversight:READ thấy hết, design-reverification:READ chỉ kiện giữ, còn lại chỉ task của mình",
+    "phạm vi danh sách theo mã quyền: task-oversight:READ thấy hết, còn lại chỉ task của mình",
     async () => {
       const all = await allTasks();
       expect(all.length).toBeGreaterThan(0);
@@ -115,13 +114,14 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
         new Set(["Pending", "Picking", "Picked", "Cancelled"]),
       );
       expect(new Set(all.map((t) => t.packStatus))).toEqual(
-        new Set(["Pending", "On Hold", "Packed", "Cancelled"]),
+        new Set(["Pending", "In Progress", "Completed", "Cancelled"]),
       );
+      // Mọi task mang đích lấy hàng (BE 4C-5); seed đều là DISPATCH
+      expect(all.every((t) => t.destination === "DISPATCH")).toBe(true);
 
+      // QC không còn thấy task nào ngoài của mình (BE bỏ phạm vi design-reverification:READ)
       actAs(USERS.qc);
-      const held = (await listFulfillmentTasks({})).items;
-      expect(held.length).toBeGreaterThan(0);
-      expect(held.every((t) => t.packStatus === "On Hold")).toBe(true);
+      expect((await listFulfillmentTasks({})).items).toEqual([]);
 
       actAs(USERS.otherPicker);
       const mine = (await listFulfillmentTasks({})).items;
@@ -194,20 +194,19 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
   );
 
   it(
-    "artifact: chỉ dòng có thiết kế; lệch checksum → 409; bundle thiếu vai trò → 404",
+    "artifact: chỉ dòng có thiết kế; bundle thiếu vai trò → 404",
     async () => {
-      const held = required(
-        (await allTasks()).find((t) => t.packStatus === "On Hold"),
-        "kiện đang giữ",
+      const inPacking = required(
+        (await allTasks()).find((t) => t.packStatus === "In Progress"),
+        "task đang kiểm thùng",
       );
-      // Kiểm tra lại thiết kế: design-reverification:UPDATE (QC, quản lý kho — BE PR #148)
       actAs(USERS.manager);
-      const lineId = required(held.integrityEvidence[0]?.orderLineId, "evidence");
-      const input = { taskId: held.taskId, lineId, role: "CUSTOMER_PREVIEW" } as const;
-      // File đang lệch → BE từ chối cấp URL
-      expect(await codeOf(getDesignArtifactUrl(input))).toBe("CONFLICT");
-
-      await reverifyDesignIntegrity({ taskId: held.taskId, resolutionNote: "đã khôi phục" });
+      const detail = await getFulfillmentTask(inPacking.taskId);
+      const lineId = required(
+        detail.lines?.find((line) => line.printLine)?.lineId,
+        "dòng có thiết kế",
+      );
+      const input = { taskId: inPacking.taskId, lineId, role: "CUSTOMER_PREVIEW" } as const;
       const artifact = await getDesignArtifactUrl(input);
       expect(artifact.role).toBe("CUSTOMER_PREVIEW");
       expect(artifact.contentType.startsWith("image/")).toBe(true);

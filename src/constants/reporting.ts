@@ -33,8 +33,10 @@ export const REPORTING_URL_KEYS = { from: "salesFrom", to: "salesTo" } as const;
 // Vietnamese label and tone. Mirrors `features/order/status-map.ts` (features may not import each other).
 export const REPORT_ORDER_STATUS_TO_FE = {
   DRAFT: "Draft",
+  PENDING_CONTRACT: "Pending Contract",
   PENDING_PAYMENT: "Pending Payment",
   CONFIRMED: "Confirmed",
+  AWAITING_STOCK: "Awaiting Stock",
   IN_PRODUCTION: "In Production",
   READY_TO_FULFILL: "Ready to Fulfill",
   PICKING: "Picking",

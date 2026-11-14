@@ -12,7 +12,7 @@ import { ApiError } from "@/lib/api/error";
 type MessageKey = keyof typeof FULFILLMENT_ERROR_MESSAGES;
 
 export type FulfillmentErrorContext =
-  "create" | "assign" | "pick" | "pack" | "reverify" | "artifact" | "candidates";
+  "create" | "assign" | "pick" | "dispatch" | "pack" | "artifact" | "candidates";
 
 /**
  * Lỗi trạng thái của task / đơn: BE (FulfillmentServiceImpl, PickList, PickJpaEntity) trả
@@ -23,11 +23,12 @@ export type FulfillmentErrorContext =
 export const STATE_CONFLICT_CODE = "PICK_TASK_STATE_CONFLICT";
 
 const BY_CONTEXT: Record<FulfillmentErrorContext, Readonly<Record<string, MessageKey>>> = {
-  // 404 = không có đơn; 409 = đơn sai trạng thái / có dòng in chưa release sản xuất
+  // 404 = không có đơn; 409 = đơn sai trạng thái; 422 = khu chờ xuất không hợp lệ (đích STAGING)
   create: {
     NOT_FOUND: "orderNotFound",
     CONFLICT: "createConflict",
     VALIDATION_FAILED: "assigneeInvalid",
+    STAGING_AREA_INVALID: "STAGING_AREA_INVALID",
   },
   // 409 = pick không còn PENDING (PickJpaEntity#assign)
   assign: {
@@ -38,8 +39,9 @@ const BY_CONTEXT: Record<FulfillmentErrorContext, Readonly<Record<string, Messag
   // 404 = không phải người được gán (kể cả quản lý kho); 409 = sai trạng thái pick / đơn đã đóng
   pick: { NOT_FOUND: "notAssignee", CONFLICT: "stale" },
   pack: { NOT_FOUND: "notAssignee", CONFLICT: "stale" },
-  // 409 = pack không còn ON_HOLD, hoặc đơn đã rời khâu xuất kho
-  reverify: { NOT_FOUND: "notAssignee", CONFLICT: "reverifyConflict" },
+  // Chuyển sang khu xuất hàng (quản lý kho, không cần là người được gán): 409 PICK_TASK_STATE_CONFLICT = task
+  // không còn Staged; 409 PICK_ORDER_ON_HOLD = đơn đang treo
+  dispatch: { CONFLICT: "dispatchConflict", PICK_ORDER_ON_HOLD: "PICK_ORDER_ON_HOLD" },
   // 404 = bundle không có vai trò file đó / dòng không có thiết kế; CONFLICT = lệch checksum;
   // PICK_TASK_STATE_CONFLICT = đơn đã rời khâu xuất kho
   artifact: {

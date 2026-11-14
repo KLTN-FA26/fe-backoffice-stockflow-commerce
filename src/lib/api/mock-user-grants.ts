@@ -30,6 +30,7 @@ import {
   LOAD_ESTIMATE_PERMISSIONS,
   LOAD_PLAN_PERMISSIONS,
   ORDER_PERMISSIONS,
+  SALES_CONTRACT_PERMISSIONS,
   PO_PERMISSIONS,
   PRODUCT_PERMISSIONS,
   PRODUCTION_ORDER_PERMISSIONS,
@@ -203,7 +204,10 @@ const CREDIT_VIEW = [CREDIT_HOLD_PERMISSIONS.viewPage, CREDIT_HOLD_PERMISSIONS.r
 const CREDIT_ALL = Object.values(CREDIT_HOLD_PERMISSIONS);
 const CREDIT_PROFILE_READ = CUSTOMER_CREDIT_PROFILE_PERMISSIONS.read;
 const PRODUCTION_READ = PRODUCTION_ORDER_PERMISSIONS.read;
-const ORDER_SALES_EXTRA = [...CREDIT_VIEW, CREDIT_PROFILE_READ, PRODUCTION_READ];
+// Seed BE (V20261108002200): sales-contracts:READ cho SALES_STAFF / SALES_MANAGER / ACCOUNTANT / SYSTEM_ADMIN — không có
+// quản lý kho. FE chỉ dùng nó để đọc lịch giao (`GET /orders/{id}/delivery-batches`) ở hộp thoại release.
+const CONTRACT_READ = SALES_CONTRACT_PERMISSIONS.read;
+const ORDER_SALES_EXTRA = [...CREDIT_VIEW, CREDIT_PROFILE_READ, PRODUCTION_READ, CONTRACT_READ];
 
 // Seed BE V20261108002400 + V20261108003000 (thanh toán theo hợp đồng, docs 15): ACCOUNTANT và SYSTEM_ADMIN —
 // đợt VIEW_PAGE + READ, phiếu thu và hoàn tiền đủ 4 action (lập / huỷ); SALES_STAFF — đợt và hoàn tiền chỉ
@@ -230,6 +234,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...CREDIT_ALL,
     CREDIT_PROFILE_READ,
     PRODUCTION_READ,
+    CONTRACT_READ,
     ...Object.values(REPORTING_PERMISSIONS),
     ...Object.values(PRODUCT_PERMISSIONS),
     ...PRODUCT_STRUCTURE,
@@ -313,6 +318,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...CREDIT_ALL,
     CREDIT_PROFILE_READ,
     ...PAY_ACCOUNTANT,
+    CONTRACT_READ,
   ],
   // ECOMMERCE_ADMIN: duyệt / xuất bản nhưng không tạm ngưng / ngừng kinh doanh (product-lifecycle chỉ
   // System Admin, BE PR #123)

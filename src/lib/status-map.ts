@@ -151,6 +151,9 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Partially Paid",
     "Warning",
     "Pending Payment",
+    // Đơn chờ ký hợp đồng / chờ hàng (BE PENDING_CONTRACT, AWAITING_STOCK — docs 17 §5.2)
+    "Pending Contract",
+    "Awaiting Stock",
     "Ready to Fulfill",
     // Order giao một phần (BE PARTIALLY_FULFILLED): còn phần chưa tới tay khách, cần nhân viên xử lý
     "Partially Fulfilled",
@@ -394,6 +397,9 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   "Partially Paid": "Thanh toán một phần",
   Warning: "Cảnh báo",
   "Pending Payment": "Chờ thanh toán",
+  // Nhãn theo docs 17 §5.2 (khách thấy "Chờ ký hợp đồng" / "Đang chờ hàng")
+  "Pending Contract": "Chờ ký hợp đồng",
+  "Awaiting Stock": "Đang chờ hàng",
   "Ready to Fulfill": "Sẵn sàng thực hiện",
   "Return Requested": "Yêu cầu trả hàng",
   "Pending Verification": "Chờ xác minh",

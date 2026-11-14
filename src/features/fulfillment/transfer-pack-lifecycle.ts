@@ -47,7 +47,7 @@ export function transferPackAccess(
   const canPack = actor.can(PACKING.update);
   const canTakeOver = actor.can(PACKING.approve);
   const isOwner = actor.userId !== null && session.packerId === actor.userId;
-  const packing = session.packStatus === PACK_STATUS.PACKING;
+  const packing = session.packStatus === PACK_STATUS.IN_PROGRESS;
   return {
     canRead,
     canPack,

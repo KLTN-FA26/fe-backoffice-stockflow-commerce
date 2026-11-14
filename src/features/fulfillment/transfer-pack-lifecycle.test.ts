@@ -17,7 +17,7 @@ const actor = (permissions: PermissionCode[], userId: string | null = PACKER_ID)
 
 const WORKER = [PACK.read, PACKING.read, PACKING.update];
 const MANAGER = [...WORKER, PACKING.approve];
-const packing = { packStatus: "Packing" as const, packerId: PACKER_ID };
+const packing = { packStatus: "In Progress" as const, packerId: PACKER_ID };
 
 describe("transferPackAccess — quyền theo mã, không theo tên vai trò (BE PR #164 dùng quyền đóng gói của đơn)", () => {
   it("người mở phiên (packing:UPDATE): làm việc được", () => {
@@ -64,7 +64,7 @@ describe("transferPackAccess — quyền theo mã, không theo tên vai trò (BE
   });
 
   it("phiên đã đóng xong / đã huỷ → không còn thao tác với bất kỳ quyền nào", () => {
-    for (const packStatus of ["Packed", "Cancelled", "Unknown"] as const) {
+    for (const packStatus of ["Completed", "Cancelled", "Unknown"] as const) {
       expect(transferPackAccess({ ...packing, packStatus }, actor(MANAGER)).canWork).toBe(false);
     }
   });
