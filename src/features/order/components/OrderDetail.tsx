@@ -29,18 +29,21 @@ import { OrderShipments } from "./OrderShipments";
 import { OrderDetailSkeleton } from "./OrderSkeletons";
 
 import type { OrderEstimateSlot } from "../estimate-slot";
+import type { OrderSettlementSlot } from "../settlement-slot";
 
 interface OrderDetailProps {
   params: Promise<{ id: string }>;
   /** Khe "Ước tính xếp xe" do chỗ ghép truyền vào (feature không import chéo — xem `estimate-slot.ts`). */
   estimateSlot?: OrderEstimateSlot;
+  /** Khe "Thanh toán, hoá đơn & hoàn tất" (WF-05 BO-10 — xem `settlement-slot.ts`). */
+  settlementSlot?: OrderSettlementSlot;
 }
 
-export function OrderDetail({ params, estimateSlot }: OrderDetailProps) {
+export function OrderDetail({ params, estimateSlot, settlementSlot }: OrderDetailProps) {
   const { id } = use(params);
   return (
     <OrderPermissionGate permissions={[ORDER_PERMISSIONS.viewPage]}>
-      <OrderDetailContent id={id} estimateSlot={estimateSlot} />
+      <OrderDetailContent id={id} estimateSlot={estimateSlot} settlementSlot={settlementSlot} />
     </OrderPermissionGate>
   );
 }
@@ -48,9 +51,11 @@ export function OrderDetail({ params, estimateSlot }: OrderDetailProps) {
 function OrderDetailContent({
   id,
   estimateSlot,
+  settlementSlot,
 }: {
   id: string;
   estimateSlot?: OrderEstimateSlot;
+  settlementSlot?: OrderSettlementSlot;
 }) {
   const can = usePermissionChecker();
   // READ = đọc dữ liệu (tách khỏi VIEW_PAGE mở trang — BE ADR-0004): thiếu thì không gọi API
@@ -120,6 +125,17 @@ function OrderDetailContent({
             )}
           />
           <DeliverySchedulePanel order={order} can={can} />
+          {settlementSlot?.({
+            orderId: order.orderId,
+            orderNumber: order.orderNumber,
+            status: order.status,
+            deliveredAt: order.deliveredAt ?? null,
+            completedAt: order.completedAt ?? null,
+            closedAt: order.closedAt ?? null,
+            deliveredShipmentIds: order.shipments
+              .filter((shipment) => shipment.status === "DELIVERED")
+              .map((shipment) => shipment.shipmentId),
+          })}
           <OrderHistory orderId={order.orderId} />
         </div>
 
