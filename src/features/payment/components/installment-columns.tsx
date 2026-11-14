@@ -5,7 +5,7 @@ import { PAYMENT_LABELS } from "@/constants/labels-payment";
 import { PAYMENT_ROUTES } from "@/constants/payment";
 import { CustomerName } from "@/components/backoffice/CustomerName";
 
-import { blocksHandover, deliveryBatchLabel, milestoneLabel } from "../selectors";
+import { blocksHandover, deliveryBatchLabel, displayStatus, milestoneLabel } from "../selectors";
 
 import { MONO } from "./copy";
 import { CodeLink, DateCell, InstallmentStatusDot, MoneyCell } from "./primitives";
@@ -101,7 +101,7 @@ export function buildInstallmentColumns(
       key: "status",
       header: C.status,
       sortable: true,
-      cell: (row) => <InstallmentStatusDot status={row.status} />,
+      cell: (row) => <InstallmentStatusDot status={displayStatus(row)} />,
     },
   ];
   if (actions) columns.push({ key: "actions", header: C.actions, align: "right", cell: actions });

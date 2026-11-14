@@ -40,7 +40,9 @@ const overdue = installmentJson({
   milestone: "AFTER_DELIVERY",
   deliveryBatchSeq: undefined,
   dueDate: "2026-10-30",
-  status: "OVERDUE",
+  // Overdue is a flag the BE works out from the due day, not a status (WF-05 fix plan §8).
+  status: "DUE",
+  overdue: true,
 });
 
 const listRoutes = (items: unknown[] = [due, paid, overdue]) => ({
@@ -58,6 +60,21 @@ describe("InstallmentList — what the accountant sees (docs 15 §5.1)", () => {
     expect(within(row).getByText("Đến hạn")).toBeInTheDocument();
     expect(screen.getByText("Đã thanh toán")).toBeInTheDocument();
     expect(screen.getByText("Quá hạn")).toBeInTheDocument();
+  });
+
+  it("flags an overdue installment from the BE's overdue flag and shows it as 'Quá hạn'", async () => {
+    mockPaymentApi(ACCOUNTANT_GRANTS, { get: listRoutes() });
+    renderPaymentScreen(<InstallmentList />);
+    const row = (await screen.findByText("Quá hạn")).closest("tr")!;
+    expect(within(row).getByText("HD-20261108-000013-1")).toBeInTheDocument();
+    expect(row).toHaveAttribute("data-flagged", "true");
+  });
+
+  it("does not offer 'Quá hạn' as a status filter: the BE refuses status=OVERDUE", async () => {
+    mockPaymentApi(ACCOUNTANT_GRANTS, { get: listRoutes() });
+    renderPaymentScreen(<InstallmentList />);
+    await screen.findByText("Đến hạn");
+    expect(screen.getByRole("checkbox", { name: "Chỉ đợt quá hạn" })).toBeInTheDocument();
   });
 
   it("offers 'Lập phiếu thu' only on installments that still take money", async () => {
@@ -86,16 +103,17 @@ describe("InstallmentList — what the accountant sees (docs 15 §5.1)", () => {
     const api = mockPaymentApi(ACCOUNTANT_GRANTS, { get: listRoutes([overdue]) });
     renderPaymentScreen(
       <InstallmentList />,
-      "?milestone=AFTER_DELIVERY&reached=true&status=OVERDUE&customerId=cust-9&dueBefore=2026-12-01",
+      "?milestone=AFTER_DELIVERY&reached=true&overdue=true&customerId=cust-9&dueBefore=2026-12-01",
     );
     await screen.findByText("Quá hạn");
     const params = api.get.mock.calls.find(([url]) => url === "/installments")?.[1] as {
       params: URLSearchParams;
     };
+    expect(params.params.has("status")).toBe(false);
     expect(Object.fromEntries(params.params)).toMatchObject({
       milestone: "AFTER_DELIVERY",
       reached: "true",
-      status: "OVERDUE",
+      overdue: "true",
       customerId: "cust-9",
       dueBefore: "2026-12-01",
       page: "0",

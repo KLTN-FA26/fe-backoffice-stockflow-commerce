@@ -16,6 +16,16 @@ export function installmentStatusLabel(status: InstallmentApiStatus): string {
   return statusLabelVi(key, "payment") ?? key;
 }
 
+/**
+ * Trạng thái hiển thị của đợt: đợt còn nợ đã qua hạn trả hiện "Overdue" (cờ `overdue` của BE —
+ * quá hạn không còn là trạng thái, WF-05 fix plan §8; docs 15 §4.1 bước 4).
+ */
+export function displayStatus(
+  installment: Pick<Installment, "status" | "overdue">,
+): InstallmentApiStatus {
+  return installment.overdue ? "OVERDUE" : installment.status;
+}
+
 export function receiptStatusLabel(status: ReceiptApiStatus): string {
   const key = RECEIPT_STATUS_BY_API[status];
   return statusLabelVi(key, "payment") ?? key;

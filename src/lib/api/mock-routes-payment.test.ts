@@ -85,14 +85,20 @@ describe("GET /installments", () => {
   it("lists earliest due first; filters by status, milestone and reached; sales may read too", async () => {
     const all = await listInstallments({ page: 0, size: 50 });
     expect(all.totalElements).toBeGreaterThan(8);
-    const overdue = await listInstallments({ status: "OVERDUE" });
+    const overdue = await listInstallments({ overdue: true });
     expect(overdue.items.map((i) => i.orderNumber)).toEqual(["ORD-2026-0016"]);
+    expect(overdue.items.every((i) => i.overdue && i.status !== "OVERDUE")).toBe(true);
     const receivables = await listInstallments({ milestone: "AFTER_DELIVERY", reached: true });
     expect(receivables.items.every((i) => i.milestone === "AFTER_DELIVERY" && !!i.reachedAt)).toBe(
       true,
     );
     actAs(SALES);
     expect((await listInstallments({ orderId: undefined })).totalElements).toBe(all.totalElements);
+  });
+
+  it("refuses status=OVERDUE like the BE: overdue is a flag (WF-05 fix plan §8)", async () => {
+    const error = await errorOf(api.get("/installments", { params: { status: "OVERDUE" } }));
+    expect(error).toMatchObject({ status: 400, code: "INSTALLMENT_OVERDUE_IS_A_FLAG" });
   });
 
   it("without payment-installments:READ the list is 403", async () => {
