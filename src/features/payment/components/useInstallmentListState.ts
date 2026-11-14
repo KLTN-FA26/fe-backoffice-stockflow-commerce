@@ -9,7 +9,7 @@ import {
 } from "@/constants/payment";
 
 import { useInstallments } from "../queries";
-import { usePagedList } from "../use-paged-list";
+import { usePagedList } from "@/hooks/use-paged-list";
 
 import { INSTALLMENT_SORTABLE } from "./installment-columns";
 

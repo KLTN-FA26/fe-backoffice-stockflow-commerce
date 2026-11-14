@@ -95,6 +95,8 @@ import { CYCLE_COUNT_LABELS, CYCLE_COUNT_ROUTES } from "@/constants/cycle-count"
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 import { CYCLE_COUNT_PERMISSIONS } from "@/constants/permissions";
 import { QUARANTINE_LABELS } from "@/constants/quarantine";
+import { EINVOICE_PERMISSIONS, EINVOICE_ROUTES } from "@/constants/einvoice";
+import { EINVOICE_LABELS } from "@/constants/labels-einvoice";
 import { PAYMENT_LABELS } from "@/constants/labels-payment";
 import {
   PAYMENT_INSTALLMENT_PERMISSIONS,
@@ -420,6 +422,13 @@ export const NAV_GROUPS: NavGroup[] = [
         href: PAYMENT_ROUTES.refunds.list,
         icon: Undo2,
         permission: PAYMENT_REFUND_PERMISSIONS.viewPage,
+      },
+      {
+        // Hoá đơn VAT điện tử theo lần giao (docs 21) — BE `einvoices` (route `/invoicing/einvoices`)
+        label: EINVOICE_LABELS.list.navLabel,
+        href: EINVOICE_ROUTES.list,
+        icon: FileText,
+        permission: EINVOICE_PERMISSIONS.viewPage,
       },
     ],
   },

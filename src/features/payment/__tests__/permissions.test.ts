@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { EINVOICE_ROUTES } from "@/constants/einvoice";
 import { PAYMENT_LABELS } from "@/constants/labels-payment";
 import { PAYMENT_ROUTES } from "@/constants/payment";
 import { mockGrantsOf } from "@/lib/api/mock-user-grants";
@@ -54,11 +55,12 @@ describe("sidebar group 'Thanh toán'", () => {
     return visibleNavGroups(canSee).find((group) => group.title === PAYMENT_LABELS.navGroup);
   };
 
-  it("lists installments, receipts and refunds for the accountant", () => {
+  it("lists installments, receipts, refunds and e-invoices for the accountant (docs 15, 21)", () => {
     expect(visibleFor("USER-ACC-01")?.items.map((item) => item.href)).toEqual([
       PAYMENT_ROUTES.installments.list,
       PAYMENT_ROUTES.receipts.list,
       PAYMENT_ROUTES.refunds.list,
+      EINVOICE_ROUTES.list,
     ]);
   });
 

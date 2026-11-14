@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 
 import { installmentStatusLabel } from "../selectors";
 
-import { FilterChip, FilterSelect } from "./FilterSelect";
+import { FilterChip, FilterSelect } from "@/components/backoffice/FilterSelect";
 
 import type { InstallmentListState } from "./useInstallmentListState";
 

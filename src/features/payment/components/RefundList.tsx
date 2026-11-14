@@ -18,7 +18,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 
 import { useRefunds } from "../queries";
-import { usePagedList } from "../use-paged-list";
+import { usePagedList } from "@/hooks/use-paged-list";
 
 import { REFUND_COPY } from "./copy";
 import { REFUND_COLUMNS } from "./refund-columns";
