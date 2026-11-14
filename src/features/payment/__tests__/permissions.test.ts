@@ -61,6 +61,7 @@ describe("sidebar group 'Thanh toán'", () => {
       PAYMENT_ROUTES.receipts.list,
       PAYMENT_ROUTES.refunds.list,
       EINVOICE_ROUTES.list,
+      EINVOICE_ROUTES.register,
       // Kế toán đọc cấu hình hoá đơn (seed V20261120000300: einvoice-settings READ)
       EINVOICE_ROUTES.settings,
     ]);

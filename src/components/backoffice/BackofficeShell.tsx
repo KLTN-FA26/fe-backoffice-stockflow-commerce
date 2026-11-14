@@ -41,6 +41,7 @@ import {
   ShoppingBag,
   Settings,
   ShoppingCart,
+  TableProperties,
   PackageX,
   SlidersHorizontal,
   SquareKanban,
@@ -433,6 +434,13 @@ export const NAV_GROUPS: NavGroup[] = [
         label: EINVOICE_LABELS.list.navLabel,
         href: EINVOICE_ROUTES.list,
         icon: FileText,
+        permission: EINVOICE_PERMISSIONS.viewPage,
+      },
+      {
+        // Bảng kê hoá đơn đã phát hành theo kỳ, xuất CSV cho phần mềm kế toán (docs 21)
+        label: "Bảng kê hoá đơn",
+        href: EINVOICE_ROUTES.register,
+        icon: TableProperties,
         permission: EINVOICE_PERMISSIONS.viewPage,
       },
       {
