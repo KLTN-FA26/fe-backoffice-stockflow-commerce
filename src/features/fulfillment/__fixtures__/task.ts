@@ -3,14 +3,7 @@
  * được BỎ khỏi object (Jackson non_null) chứ không gán null.
  */
 
-import type {
-  Assignee,
-  FulfillmentOrder,
-  FulfillmentTaskApiDto,
-  IntegrityEvidence,
-  TaskCandidate,
-  TaskLine,
-} from "../types";
+import type { Assignee, FulfillmentTaskApiDto, TaskCandidate, TaskLine } from "../types";
 
 export const TASK_ID = "3f2c9a10-7b1d-4e55-9c0a-1d2e3f4a5b6c";
 export const ORDER_ID = "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
@@ -22,24 +15,6 @@ export const WAREHOUSE_ID = "wh-hcm-0001";
 export const PICKER_ID = "7e1d0c2b-3a4f-4b5c-9d6e-8f7a6b5c4d3e";
 export const OTHER_PICKER_ID = "8f2e1d3c-4b5a-4c6d-8e7f-9a8b7c6d5e4f";
 
-export const LOCKED_CHECKSUM = "a".repeat(64);
-export const TAMPERED_CHECKSUM = "b".repeat(64);
-
-export function apiEvidence(overrides: Partial<IntegrityEvidence> = {}): IntegrityEvidence {
-  return {
-    orderLineId: DESIGN_LINE_ID,
-    snapshotId: SNAPSHOT_ID,
-    expectedChecksum: LOCKED_CHECKSUM,
-    actualChecksum: LOCKED_CHECKSUM,
-    matching: true,
-    verifiedAt: "2026-10-10T03:00:00Z",
-    ...overrides,
-  };
-}
-
-export const mismatchEvidence = (verifiedAt = "2026-10-10T03:00:00Z") =>
-  apiEvidence({ actualChecksum: TAMPERED_CHECKSUM, matching: false, verifiedAt });
-
 export function apiTask(overrides: Partial<FulfillmentTaskApiDto> = {}): FulfillmentTaskApiDto {
   return {
     taskId: TASK_ID,
@@ -50,7 +25,6 @@ export function apiTask(overrides: Partial<FulfillmentTaskApiDto> = {}): Fulfill
     packStatus: "PENDING",
     destination: "DISPATCH",
     assignedAt: "2026-10-10T01:00:00Z",
-    integrityEvidence: [],
     ...overrides,
   };
 }
@@ -90,23 +64,6 @@ export const apiTaskLines: TaskLine[] = [
     printLine: true,
   },
 ];
-
-export const fulfillmentOrder: FulfillmentOrder = {
-  orderId: ORDER_ID,
-  orderNumber: "SO-20261010-000431",
-  status: "PICKING",
-  warehouseId: WAREHOUSE_ID,
-  lines: [
-    { lineId: PLAIN_LINE_ID, sku: "TEE-BLK-M", quantity: 3 },
-    {
-      lineId: DESIGN_LINE_ID,
-      sku: "TEE-CUSTOM-L",
-      quantity: 2,
-      designSnapshotId: SNAPSHOT_ID,
-      designChecksum: LOCKED_CHECKSUM,
-    },
-  ],
-};
 
 /** `GET /fulfillment/task-candidates` — đơn READY_TO_FULFILL chưa có task (BE `TaskCandidateResponse`). */
 export const taskCandidate: TaskCandidate = {

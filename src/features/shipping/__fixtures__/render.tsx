@@ -13,7 +13,8 @@ import {
   FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS,
   FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS,
   FULFILLMENT_DISPATCH_PERMISSIONS,
-  FULFILLMENT_LOAD_CANCELLATION_PERMISSIONS,
+  FULFILLMENT_WAYBILL_CORRECTION_PERMISSIONS,
+  FULFILLMENT_WAYBILL_IMPORT_PERMISSIONS,
   SHIPMENT_PERMISSIONS,
 } from "@/constants";
 import { api } from "@/lib/api/client";
@@ -38,11 +39,17 @@ Element.prototype.scrollIntoView ??= () => {};
 const SHIP = SHIPMENT_PERMISSIONS;
 const READ: PermissionCode[] = [SHIP.viewPage, SHIP.read];
 const DISPATCH_ALL = Object.values(FULFILLMENT_DISPATCH_PERMISSIONS);
-const STAFF: PermissionCode[] = [...READ, ...DISPATCH_ALL];
+// Seed BE V20261108001500: nhân viên kho nhập mã vận đơn từ file (READ + CREATE)
+const STAFF: PermissionCode[] = [
+  ...READ,
+  ...DISPATCH_ALL,
+  ...Object.values(FULFILLMENT_WAYBILL_IMPORT_PERMISSIONS),
+];
 const MANAGER: PermissionCode[] = [
   ...STAFF,
   ...Object.values(FULFILLMENT_CARRIER_PERMISSIONS),
-  ...Object.values(FULFILLMENT_LOAD_CANCELLATION_PERMISSIONS),
+  // Seed V20261108001400: sửa mã vận đơn sau khi chuyến rời kho — quản lý kho, không phải nhân viên kho
+  ...Object.values(FULFILLMENT_WAYBILL_CORRECTION_PERMISSIONS),
   // Seed V20261029007100 (SCRUM-474): huỷ có kiểm soát + xác nhận dỡ không quét — quản lý kho, không phải nhân viên kho
   ...Object.values(FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS),
   FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS.update,
@@ -58,9 +65,9 @@ export interface TestActor {
 }
 
 /**
- * Người dùng thử theo seed BE PR #148: nhân viên kho xếp xe / bàn giao (`fulfillment-dispatch`), quản lý
- * kho thêm hãng / huỷ chuyến / ghi hàng hoàn, điều phối ghi kết quả giao (`fulfillment-delivery-outcomes`
- * UPDATE + APPROVE) nhưng không lên xe.
+ * Người dùng thử theo seed BE: nhân viên kho đặt xe / xếp xe / bàn giao / nhập mã vận đơn (`fulfillment-dispatch`,
+ * `fulfillment-waybill-imports`), quản lý kho thêm hãng / huỷ có kiểm soát / sửa mã vận đơn sau khi rời kho / ghi hàng hoàn,
+ * điều phối ghi kết quả giao (`fulfillment-delivery-outcomes` UPDATE + APPROVE) nhưng không lên xe.
  */
 export const SHIPPING_ACTORS = {
   warehouseStaff: { permissions: STAFF },
@@ -81,8 +88,34 @@ export const WAREHOUSES = {
 };
 
 export const CARRIERS = [
-  { carrierId: "car-ghn", code: "GHN", name: "Giao Hàng Nhanh", status: "ACTIVE", version: 0 },
-  { carrierId: "car-vtp", code: "VTP", name: "Viettel Post", status: "ACTIVE", version: 0 },
+  {
+    carrierId: "car-ghn",
+    code: "GHN",
+    name: "Giao Hàng Nhanh",
+    status: "ACTIVE",
+    connection: { connectionType: "MANUAL", webhookEnabled: false },
+    version: 0,
+  },
+  {
+    carrierId: "car-vtp",
+    code: "VTP",
+    name: "Viettel Post",
+    status: "ACTIVE",
+    connection: {
+      connectionType: "WEBHOOK_LOAD",
+      webhookEnabled: true,
+      webhookSecretConfigured: true,
+    },
+    version: 0,
+  },
+  {
+    carrierId: "car-ahm",
+    code: "AHAMOVE",
+    name: "Ahamove",
+    status: "ACTIVE",
+    connection: { connectionType: "API_BOOKING", webhookEnabled: true, apiKeyConfigured: true },
+    version: 0,
+  },
 ];
 
 /** PageResponse BE (trang từ 0). */

@@ -163,11 +163,12 @@ describe("GET /orders/:id/delivery-batches", () => {
     expect((await captureError(getDeliverySchedule(order.orderId))).status).toBe(403);
   });
 
-  it("đơn đã release: đợt 1 có releasedAt, trạng thái hiển thị IN_DELIVERY", async () => {
+  it("đơn đã release: đợt 1 có releasedAt; chưa bàn giao thùng nào nên vẫn Sẵn sàng (docs 17 §5.5)", async () => {
     const order = firstOrderWith("Confirmed");
     await releaseOrder({ id: order.orderId, warehouseId: WH });
     const batch = (await getDeliverySchedule(order.orderId)).batches[0];
-    expect(batch?.state).toBe("IN_DELIVERY");
+    // BE `stateOf`: IN_DELIVERY chỉ khi đã bàn giao ít nhất một thùng — release chỉ giữ + lấy hàng
+    expect(batch?.state).toBe("READY");
     expect(batch?.releasedAt).toBeTruthy();
   });
 });

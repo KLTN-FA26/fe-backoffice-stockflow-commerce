@@ -2,21 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import { FULFILLMENT_FIELD_MESSAGES } from "@/constants";
 
-import {
-  DESIGN_LINE_ID,
-  apiTask,
-  apiTaskLines,
-  assignees,
-  bePage,
-  fulfillmentOrder,
-} from "./__fixtures__/task";
+import { DESIGN_LINE_ID, apiTask, apiTaskLines, assignees, bePage } from "./__fixtures__/task";
 import { assignInputSchema, createTaskInputSchema } from "./input-schemas";
 import {
   assigneeListSchema,
-  beArtifactAccessSchema,
   beFulfillmentTaskPageSchema,
   beFulfillmentTaskSchema,
-  fulfillmentOrderSchema,
 } from "./schemas";
 
 const firstMessage = (result: { success: boolean; error?: { issues: { message: string }[] } }) =>
@@ -28,7 +19,6 @@ describe("fulfillment DTO schemas — hợp đồng BE FulfillmentController", (
     expect(parsed.startedAt).toBeUndefined();
     expect(parsed.pickedAt).toBeUndefined();
     expect(parsed.packedAt).toBeUndefined();
-    expect(parsed.integrityEvidence).toEqual([]);
   });
 
   it("task chi tiết parse lines (SCRUM-466)", () => {
@@ -39,11 +29,6 @@ describe("fulfillment DTO schemas — hợp đồng BE FulfillmentController", (
 
   it("task danh sách không có lines vẫn hợp lệ", () => {
     expect(beFulfillmentTaskSchema.parse(apiTask()).lines).toBeUndefined();
-  });
-
-  it("thiếu `integrityEvidence` → mặc định mảng rỗng", () => {
-    const { integrityEvidence: _evidence, ...withoutEvidence } = apiTask();
-    expect(beFulfillmentTaskSchema.parse(withoutEvidence).integrityEvidence).toEqual([]);
   });
 
   it("task đích STAGING đã lấy xong (pick STAGED): nhận đích, khu chờ xuất, mốc về khu + chuyển", () => {
@@ -93,53 +78,6 @@ describe("fulfillment DTO schemas — hợp đồng BE FulfillmentController", (
 
   it("PageResponse trang từ 0", () => {
     expect(beFulfillmentTaskPageSchema.parse(bePage([apiTask()])).page).toBe(0);
-  });
-
-  it("artifact access: vai trò file phải thuộc DesignArtifactRole", () => {
-    const artifact = {
-      artifactId: "a1",
-      role: "PRINT_READY",
-      originalName: "front.pdf",
-      contentType: "application/pdf",
-      sizeBytes: 123456,
-      checksum: "c".repeat(64),
-      url: "https://files.example/signed",
-      expiresAt: "2026-10-10T03:05:00Z",
-    };
-    expect(beArtifactAccessSchema.parse(artifact).role).toBe("PRINT_READY");
-    expect(beArtifactAccessSchema.safeParse({ ...artifact, role: "THUMBNAIL" }).success).toBe(
-      false,
-    );
-  });
-
-  it("artifact access: url chỉ nhận http(s) tuyệt đối — chặn javascript: / data: / đường dẫn tương đối", () => {
-    const artifact = {
-      artifactId: "a1",
-      role: "PRINT_READY",
-      originalName: "front.pdf",
-      contentType: "application/pdf",
-      sizeBytes: 1,
-      checksum: "c".repeat(64),
-      expiresAt: "2026-10-10T03:05:00Z",
-    };
-    const ok = (url: string) => beArtifactAccessSchema.safeParse({ ...artifact, url }).success;
-    expect(ok("https://files.example/signed?sig=1")).toBe(true);
-    expect(ok("http://localhost:9000/bucket/front.pdf")).toBe(true);
-    expect(ok("javascript:alert(1)")).toBe(false);
-    expect(ok("JavaScript:alert(1)")).toBe(false);
-    expect(ok("data:text/html,<script>alert(1)</script>")).toBe(false);
-    expect(ok("/files/front.pdf")).toBe(false);
-  });
-
-  it("đơn hàng: dòng thường không có snapshot; bỏ qua field không dùng", () => {
-    const parsed = fulfillmentOrderSchema.parse({
-      ...fulfillmentOrder,
-      totalAmount: 1,
-      currency: "VND",
-    });
-    expect(parsed.lines[0]?.designSnapshotId).toBeUndefined();
-    expect(parsed.lines[1]?.designSnapshotId).toBeTruthy();
-    expect(parsed).not.toHaveProperty("totalAmount");
   });
 
   it("người nhận task (BE AssigneeResponse): roles mặc định rỗng, displayName có thể thiếu", () => {

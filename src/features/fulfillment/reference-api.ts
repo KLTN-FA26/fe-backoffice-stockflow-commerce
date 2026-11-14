@@ -1,9 +1,7 @@
 /**
  * Dữ liệu phụ trợ của module khác mà màn xuất kho cần — task BE chỉ trả id.
  *
- * - Đơn hàng (`GET /orders/{id}`): chỉ còn trạm đóng gói đọc cờ `printLinesReady` (BE PR #150) khi người dùng có
- *   `sales-orders:READ` (seed BE không cấp cho kho / QC — khi đó trạm suy từ phiên). Số đơn và dòng hàng đi kèm
- *   task (SCRUM-466), không tra ở đây.
+ * - Số đơn và dòng hàng đi kèm task (SCRUM-466), không tra đơn hàng ở đây.
  * - Đơn chờ đưa vào xuất kho (`GET /fulfillment/task-candidates`): cần `fulfillment-task-assignment:CREATE`
  *   — quản lý kho chọn đơn để tạo task mà không cần `sales-orders:READ` (BE PR #151).
  * - Người nhận task (`GET /fulfillment/assignees?warehouseId=`): danh sách chọn trong dialog gán / tạo
@@ -16,23 +14,12 @@
 import { PAGE_SIZE } from "@/constants";
 import { api } from "@/lib/api/client";
 
-import { assigneeListSchema, fulfillmentOrderSchema, taskCandidatePageSchema } from "./schemas";
+import { assigneeListSchema, taskCandidatePageSchema } from "./schemas";
 
-import type { Assignee, FulfillmentOrder, TaskCandidatePage } from "./types";
+import type { Assignee, TaskCandidatePage } from "./types";
 
-const ORDERS_PATH = "/orders";
 const ASSIGNEES_PATH = "/fulfillment/assignees";
 const TASK_CANDIDATES_PATH = "/fulfillment/task-candidates";
-
-export async function getFulfillmentOrder(
-  orderId: string,
-  signal?: AbortSignal,
-): Promise<FulfillmentOrder> {
-  const { data } = await api.get<unknown>(`${ORDERS_PATH}/${encodeURIComponent(orderId)}`, {
-    signal,
-  });
-  return fulfillmentOrderSchema.parse(data);
-}
 
 /**
  * Đơn đưa được vào xuất kho (BE `GET /fulfillment/task-candidates`, guard

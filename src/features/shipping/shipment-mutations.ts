@@ -1,5 +1,5 @@
 /**
- * Shipping — mutations lô giao: chọn hãng, ghi nhận kết quả giao. Response là lô mới nhất → ghi vào
+ * Shipping — mutations lô giao: ghi nhận kết quả giao. Response là lô mới nhất → ghi vào
  * cache chi tiết; danh sách lô, chuyến (trạng thái lô trên chuyến) và đơn hàng (BR-05) được tải lại.
  */
 
@@ -7,13 +7,12 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { TOAST_MESSAGES } from "@/constants";
 import { createMutation } from "@/lib/api/query-factory";
-import { toast } from "@/components/shared/Toast";
 
-import { assignCarrier, recordDeliveryOutcome } from "./shipment-api";
-import { isStaleLoadError, shippingErrorMessage } from "./errors";
+import { recordDeliveryOutcome } from "./shipment-api";
+import { isStaleLoadError } from "./errors";
 import { loadKeys, shipmentKeys } from "./queries";
 
-import type { AssignCarrierInput, RecordOutcomeInput, Shipment } from "./types";
+import type { RecordOutcomeInput, Shipment } from "./types";
 
 /** = `orderKeys.all` của features/order — khai báo lại để không import chéo feature. */
 const ORDER_ROOT_KEY = ["orders"] as const;
@@ -44,16 +43,6 @@ function withShipmentCache<TInput extends { shipmentId: string }>(
     });
   };
 }
-
-export const useAssignCarrier = withShipmentCache(
-  createMutation<AssignCarrierInput, Shipment>(assignCarrier, {
-    invalidate: [[...shipmentKeys.all, "list"]],
-    showErrorToast: false,
-    onSuccess: (shipment) =>
-      toast.success(shipment.shipment.carrierId ? T.carrierSaved : T.carrierCleared),
-    onError: (error) => toast.error(shippingErrorMessage(error)),
-  }),
-);
 
 export const useRecordDeliveryOutcome = withShipmentCache(
   createMutation<RecordOutcomeInput, Shipment>(recordDeliveryOutcome, {

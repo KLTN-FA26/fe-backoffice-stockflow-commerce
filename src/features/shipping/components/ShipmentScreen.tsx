@@ -6,11 +6,7 @@ import { CheckCircle2, PackageX, Undo2 } from "lucide-react";
 import { SHIPMENT_PERMISSIONS, UI_LABELS } from "@/constants";
 import { useCan } from "@/lib/auth";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
-import {
-  allowedOutcomes,
-  canAssignCarrier,
-  noOutcomeReason,
-} from "@/features/shipping/shipment-lifecycle";
+import { allowedOutcomes, noOutcomeReason } from "@/features/shipping/shipment-lifecycle";
 import { useShipment } from "@/features/shipping/queries";
 import { Alert } from "@/components/shared/Alert";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
@@ -63,7 +59,6 @@ function ShipmentBody({ id }: { id: string }) {
         {outcomes.length === 0 && <Alert tone="info">{noOutcomeReason(shipment, actor)}</Alert>}
         <ShipmentInfoCard
           data={data}
-          canAssign={canAssignCarrier(shipment, actor)}
           actions={outcomes.map((value) => {
             const Icon = OUTCOME_ICON[value];
             return (
@@ -80,7 +75,6 @@ function ShipmentBody({ id }: { id: string }) {
         />
         <ShipmentDetails data={data} />
       </div>
-      <p className="text-ink-tertiary mt-3 text-xs">{UI_LABELS.shipping.noTracking}</p>
       {outcome && outcomes.includes(outcome) && (
         <OutcomeDialog shipment={shipment} outcome={outcome} onClose={() => setOutcome(null)} />
       )}
@@ -88,7 +82,7 @@ function ShipmentBody({ id }: { id: string }) {
   );
 }
 
-/** Chi tiết lô giao (BE `GET /fulfillment/shipments/{id}`): kiện, lịch sử, chọn hãng, ghi nhận kết quả giao. */
+/** Chi tiết lô giao (BE `GET /fulfillment/shipments/{id}`): kiện, lịch sử, ghi nhận kết quả giao. */
 export function ShipmentScreen({ id }: { id: string }) {
   return (
     <ShippingPermissionGate permissions={[SHIPMENT_PERMISSIONS.viewPage]}>

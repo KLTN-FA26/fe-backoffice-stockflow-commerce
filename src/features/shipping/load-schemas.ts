@@ -1,6 +1,7 @@
 /**
- * Shipping (module 09) — zod DTO chuyến xe khớp BE PR #137: `LoadRowResponse`, `LoadResponse`,
- * `ManifestResponse`; trường chuyến nguyên xe (BE PR #162) ở `ftl-schemas.ts`. Quy ước null / enum khoan dung như `schemas.ts`.
+ * Shipping (module 09) — zod DTO chuyến xe khớp BE `LoadRowResponse`, `LoadResponse`, `ManifestResponse`
+ * (sau đợt bỏ gửi kiện 2026-11-08): không còn `mode`, COD, lệnh chuyển kho, bộ kiện / nhãn cũ. Trường riêng của
+ * xe (kế hoạch, đặt xe, mã vận đơn) ở `ftl-schemas.ts`. Quy ước null / enum khoan dung như `schemas.ts`.
  */
 
 import { z } from "zod";
@@ -8,25 +9,17 @@ import { z } from "zod";
 import { LOAD_STATUSES } from "@/constants";
 import { bePageSchema } from "@/lib/api/page-schema";
 
-import { ftlLoadFields, ftlManifestFields, ftlRowFields, parcelFtlFields } from "./ftl-schemas";
-import {
-  count,
-  deliveryModeSchema,
-  isoInstant,
-  measure,
-  shipmentStatusSchema,
-  tolerantEnum,
-} from "./schemas";
+import { ftlLoadFields, ftlManifestFields, ftlRowFields } from "./ftl-schemas";
+import { count, isoInstant, measure, shipmentStatusSchema, tolerantEnum } from "./schemas";
 
 /** `LoadStatus` — giá trị lạ → UNKNOWN (không thao tác nào được mở). */
 export const loadStatusSchema = tolerantEnum(LOAD_STATUSES);
 
-/** BE `LoadRowResponse`. `packageCount`: kiện ĐÃ quét lên xe; `codTotal`: COD theo nhãn khi đang xếp, theo đơn khi đã bàn giao. */
+/** BE `LoadRowResponse`. `packageCount`: kiện ĐÃ quét lên xe. */
 export const beLoadRowSchema = z.object({
   loadId: z.string(),
   code: z.string(),
   warehouseId: z.string(),
-  mode: deliveryModeSchema,
   status: loadStatusSchema,
   carrierId: z.string().nullish(),
   carrierName: z.string().nullish(),
@@ -34,7 +27,6 @@ export const beLoadRowSchema = z.object({
   driverName: z.string().nullish(),
   shipmentCount: count,
   packageCount: count,
-  codTotal: measure.nullish(),
   loadingStartedAt: isoInstant.nullish(),
   dispatchedAt: isoInstant.nullish(),
   version: z.number().int(),
@@ -52,28 +44,17 @@ export const beLoadParcelSchema = z.object({
   loaded: z.boolean(),
   loadedAt: isoInstant.nullish(),
   loadedBy: z.string().nullish(),
-  ...parcelFtlFields,
 });
 
-/**
- * BE `LoadResponse.Shipment` — `labelCodAmount`: COD trên nhãn; `codAmount`: số đơn chốt, chỉ có sau bàn giao.
- * Trên xe của kế hoạch nguồn TRANSFER (BE PR #164) dòng này là MỘT LỆNH CHUYỂN KHO: `shipmentId` / `orderId` /
- * `orderNumber` / `taskId` vắng, `code` là số lệnh, `status` là trạng thái của lệnh (không phải lô giao), chỉ có `transferOrderId`.
- */
+/** BE `LoadResponse.Shipment` — một lô giao trên xe; `taskId`: task đóng gói của đơn. */
 export const beLoadShipmentSchema = z.object({
-  shipmentId: z.string().nullish(),
-  transferOrderId: z.string().nullish(),
+  shipmentId: z.string(),
   code: z.string(),
-  orderId: z.string().nullish(),
+  orderId: z.string(),
   orderNumber: z.string().nullish(),
   status: shipmentStatusSchema,
   packageCount: count,
   loadedCount: count,
-  labelCodAmount: measure.nullish(),
-  codAmount: measure.nullish(),
-  /** Tiền tệ riêng của lô (BE #137 bổ sung); thiếu thì dùng `currency` của chuyến. */
-  currency: z.string().nullish(),
-  /** Task đóng gói của đơn — đích của lối "in lại nhãn" (BE #137 bổ sung). */
   taskId: z.string().nullish(),
   packages: z.array(beLoadParcelSchema),
 });
@@ -86,7 +67,6 @@ export const beLoadSchema = z.object({
   loadId: z.string(),
   code: z.string(),
   warehouseId: z.string(),
-  mode: deliveryModeSchema,
   status: loadStatusSchema,
   carrierId: z.string().nullish(),
   carrierCode: z.string().nullish(),
@@ -108,8 +88,6 @@ export const beLoadSchema = z.object({
   /** Kiện đã niêm phong của các lô trên biên bản. */
   expectedPackageCount: count,
   loadedPackageCount: count,
-  codTotal: measure.nullish(),
-  currency: z.string().nullish(),
   version: z.number().int(),
   shipments: z.array(beLoadShipmentSchema),
   ...ftlLoadFields,
@@ -124,22 +102,17 @@ export const beManifestParcelSchema = z.object({
   widthCm: measure.nullish(),
   heightCm: measure.nullish(),
   loaded: z.boolean(),
-  ...parcelFtlFields,
 });
 
-/** BE `ManifestResponse.Shipment` — `codChangedSinceLabel`: số thu theo đơn khác nhãn (tiền về sau khi in nhãn). */
+/** BE `ManifestResponse.Shipment` — không còn COD (docs 09 BR-08: không thu hộ khi giao). */
 export const beManifestShipmentSchema = z.object({
   shipmentCode: z.string(),
   orderNumber: z.string().nullish(),
-  /** Dòng của lệnh chuyển kho (kế hoạch nguồn TRANSFER): `shipmentCode` là số lệnh, người nhận / địa chỉ là kho đích. */
-  transferOrderId: z.string().nullish(),
   recipientName: z.string().nullish(),
   recipientPhone: z.string().nullish(),
   deliveryAddress: z.string().nullish(),
   packageCount: count,
   weightKg: measure.nullish(),
-  codAmount: measure.nullish(),
-  codChangedSinceLabel: z.boolean(),
   packages: z.array(beManifestParcelSchema),
 });
 
@@ -165,8 +138,6 @@ export const beManifestSchema = z.object({
   shipmentCount: count,
   packageCount: count,
   totalWeightKg: measure.nullish(),
-  codTotal: measure.nullish(),
-  currency: z.string().nullish(),
   printedAt: isoInstant,
   ...ftlManifestFields,
 });

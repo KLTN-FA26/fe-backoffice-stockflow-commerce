@@ -332,6 +332,25 @@ export const PACK_API_STATUSES = ["PENDING", "IN_PROGRESS", "COMPLETED", "CANCEL
 /** Đổi 1-1 giá trị BE → tên hiển thị; khoá theo enum BE nên BE thêm giá trị là typecheck báo. */
 export const PACK_STATUS_BY_API = PACK_STATUS;
 
+/**
+ * Trạng thái thùng giao ở trạm kiểm thùng — BE `PackageStatus` (4C-6), docs 08 §5.2: `To Check` → `Checked` →
+ * `Labeled`; `Removed` là cuối. Tên hiển thị nguyên văn docs. (`OPEN` / `SEALED` / `VOIDED` của trạm đóng gói cũ
+ * vẫn còn trong `PACKAGE_API_STATUSES` cho màn Giao hàng cho tới khi màn đó đổi.)
+ */
+export const CARTON_STATUSES = ["To Check", "Checked", "Labeled", "Removed"] as const;
+
+export const CARTON_API_STATUSES = ["TO_CHECK", "CHECKED", "LABELED", "REMOVED"] as const;
+
+export const CARTON_STATUS = {
+  TO_CHECK: "To Check",
+  CHECKED: "Checked",
+  LABELED: "Labeled",
+  REMOVED: "Removed",
+} as const satisfies Record<CartonApiStatus, CartonStatus>;
+
+/** BE `CartonCheck.RemovalReason` — vì sao thùng bị loại: hư hỏng khi kiểm, hoặc đơn huỷ khi chưa thùng nào dán nhãn. */
+export const CARTON_REMOVAL_REASONS = ["DAMAGED", "ORDER_CANCELLED"] as const;
+
 /** BE `fulfillment/internal/domain/PackageStatus.java` (PR #136) — kiện ở trạm đóng gói. */
 export const PACKAGE_API_STATUSES = ["OPEN", "SEALED", "VOIDED"] as const;
 
@@ -374,14 +393,6 @@ export const PACK_SHIPMENT_STATUS_DISPLAY = {
   CANCELLED: "Cancelled",
   UNKNOWN: "UNKNOWN",
 } as const;
-
-/** BE `design/api/DesignArtifactRole.java` — vai trò file trong bundle thiết kế đã khoá. */
-export const DESIGN_ARTIFACT_ROLES = [
-  "CUSTOMER_PREVIEW",
-  "TECHNICAL_SPEC",
-  "PRINT_READY",
-  "PRODUCTION_INSTRUCTION",
-] as const;
 
 export const PRODUCT_STATUSES = [
   "Draft",
@@ -528,8 +539,8 @@ export const TRANSFER_STATUS = {
 export const TRANSFER_REASONS = ["REBALANCING", "DEMAND", "CAMPAIGN", "OVERFLOW", "OTHER"] as const;
 
 /**
- * Chuyến xe xuất hàng — BE `LoadStatus` (PR #137, SCRUM-288). Chuyến gửi kiện (PARCEL) bắt đầu ở
- * LOADING khi tài xế hãng tới; PLANNED / VEHICLE_BOOKED chỉ có ở chuyến nguyên xe (FTL, SCRUM-287).
+ * Chuyến xe xuất hàng — BE `LoadStatus`. Mọi chuyến là một xe của kế hoạch xếp xe (giao nguyên chuyến, docs 09 BR-08):
+ * Planned → Vehicle Booked → Loading → Dispatched, hoặc Cancelled (docs 09 §5.2).
  */
 export const LOAD_STATUSES = [
   "PLANNED",
@@ -567,6 +578,51 @@ export const DELIVERY_OUTCOMES = ["DELIVERED", "DELIVERY_FAILED", "RETURNED"] as
 /** BE `CarrierResponse.status` — hãng ngừng dùng thì không nhận chuyến mới. */
 export const CARRIER_STATUSES = ["ACTIVE", "INACTIVE"] as const;
 
+/**
+ * BE `CarrierConnectionType` — kiểu kết nối hãng (docs 09 §4.1): không có webhook / webhook theo chuyến /
+ * tích hợp API đặt xe (hệ thống tạo + huỷ đơn ở hãng, BR-29).
+ */
+export const CARRIER_CONNECTION_TYPES = ["MANUAL", "WEBHOOK_LOAD", "API_BOOKING"] as const;
+export type CarrierConnectionType = (typeof CARRIER_CONNECTION_TYPES)[number];
+
+export const CARRIER_CONNECTION_TYPE = {
+  MANUAL: "MANUAL",
+  WEBHOOK_LOAD: "WEBHOOK_LOAD",
+  API_BOOKING: "API_BOOKING",
+} as const satisfies Record<string, CarrierConnectionType>;
+
+/** BE `LoadResponse.CarrierBooking.status` — đơn của chuyến ở hãng tích hợp API đặt xe (BR-29). */
+export const CARRIER_BOOKING_STATUSES = [
+  "REQUESTED",
+  "BOOKED",
+  "FAILED",
+  "CANCELLED",
+  "CANCEL_FAILED",
+] as const;
+
+/** BE `WaybillChangeResponse.source` — ai điền mã vận đơn (docs 09 §4.4). */
+export const WAYBILL_SOURCES = ["MANUAL", "FILE", "WEBHOOK", "API"] as const;
+
+/** BE `WaybillImportResponse.Line.outcome` — một dòng file nhập mã vận đơn (docs 09 §4.4 bước 2). */
+export const WAYBILL_IMPORT_OUTCOMES = ["NEW", "OVERWRITE", "SAME", "ERROR"] as const;
+
+/** BE `WaybillImportResponse.Line.problem` — vì sao một dòng không áp dụng được (BR-23, BR-25). */
+export const WAYBILL_IMPORT_PROBLEMS = [
+  "MISSING_FIELDS",
+  "INVALID_WAYBILL",
+  "INVALID_VEHICLE_DETAILS",
+  "LOAD_NOT_FOUND",
+  "LOAD_OUT_OF_SCOPE",
+  "LOAD_REPEATED",
+  "LOAD_NOT_BOOKED",
+  "LOAD_CANCELLED",
+  "LOAD_LEFT",
+  "WAYBILL_FROM_CARRIER_API",
+  "DUPLICATE_IN_FILE",
+  "DUPLICATE_IN_CARRIER",
+  "OVERWRITE_NOT_CONFIRMED",
+] as const;
+
 /** BE `VehicleTypeRequest.kind` — loại phương tiện trong danh mục loại xe (docs 09 §3). */
 export const VEHICLE_TYPE_KINDS = ["CONTAINER", "TRUCK", "PICKUP"] as const;
 
@@ -603,9 +659,11 @@ export type PickLineStatus = (typeof PICK_LINE_STATUSES)[number];
 export type PickLineApiStatus = (typeof PICK_LINE_API_STATUSES)[number];
 export type PackStatus = (typeof PACK_STATUSES)[number];
 export type PackApiStatus = (typeof PACK_API_STATUSES)[number];
+export type CartonStatus = (typeof CARTON_STATUSES)[number];
+export type CartonApiStatus = (typeof CARTON_API_STATUSES)[number];
+export type CartonRemovalReason = (typeof CARTON_REMOVAL_REASONS)[number];
 export type PickDestination = (typeof PICK_DESTINATIONS)[number];
 export type ShortPickReason = (typeof SHORT_PICK_REASONS)[number];
-export type DesignArtifactRole = (typeof DESIGN_ARTIFACT_ROLES)[number];
 export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
 export type ProposalStatus = (typeof PROPOSAL_STATUSES)[number];
 export type SkuStatus = (typeof SKU_STATUSES)[number];
@@ -908,3 +966,14 @@ export const BIN_NAMING_SCHEMES = ["SEQUENTIAL", "ROW_LETTER_COLUMN"] as const;
 
 /** BE `MapUnit` — chỉ mét (docs 06 §5); không đổi sau khi tạo kho (BR-13). */
 export const MAP_UNITS = ["M"] as const;
+
+/**
+ * BE `CancellationRequestStatus` — yêu cầu huỷ của khách (docs 17 §5.4): PENDING → APPROVED | REJECTED | EXPIRED. Hiển thị
+ * theo docs là `Pending` / `Approved` / `Rejected` / `Expired` (xem `CANCELLATION_REQUEST_STATUS_DISPLAY`).
+ */
+export const CANCELLATION_REQUEST_STATUSES = [
+  "PENDING",
+  "APPROVED",
+  "REJECTED",
+  "EXPIRED",
+] as const;

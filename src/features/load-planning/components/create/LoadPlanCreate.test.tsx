@@ -103,6 +103,24 @@ describe("LoadPlanCreate — lập kế hoạch rồi tính xếp xe", () => {
     });
   });
 
+  it("only the customers' shipments are a source: no source switch, no transfer-order candidates asked (BE: sourceType is ORDER only)", async () => {
+    const { get, post } = renderCreate(ACTORS.dispatcher);
+    expect(await screen.findByText(candidateFixture().code)).toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: UI_LABELS.loadPlan.source.TRANSFER })).toBeNull();
+    expect(screen.queryByText(UI_LABELS.loadPlan.transfer.sourceTitle)).toBeNull();
+    expect(
+      get.mock.calls.some(
+        ([, config]) =>
+          (config?.params as { sourceType?: string } | undefined)?.sourceType === "TRANSFER",
+      ),
+    ).toBe(false);
+    await fillAndSubmit();
+    await waitFor(() => expect(post).toHaveBeenCalledWith(PATH, expect.anything()));
+    const body = post.mock.calls.find(([url]) => url === PATH)?.[1] as Record<string, unknown>;
+    expect(body).not.toHaveProperty("sourceType");
+    expect(body).not.toHaveProperty("transferOrderIds");
+  });
+
   it("every vehicle-type checkbox has an accessible name (code · name)", async () => {
     renderCreate(ACTORS.dispatcher);
     expect(

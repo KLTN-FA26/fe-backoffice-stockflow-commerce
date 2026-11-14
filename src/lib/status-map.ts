@@ -15,6 +15,8 @@ export type { SemanticTone };
 
 const TONE: Record<SemanticTone, readonly string[]> = {
   positive: [
+    // Thùng đã in và dán nhãn giao hàng (BE PackageStatus.LABELED, docs 08 §5.2)
+    "Labeled",
     // Thùng đã vào kho, chưa mở (BE StockPackageStatus.IN_STOCK, SCRUM-473)
     "In Stock",
     // Dòng báo giá đã có mẫu khách duyệt (BE QuoteLine.sample.satisfied)
@@ -86,6 +88,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     // Phiên đóng gói đang làm (BE PackStatus.PACKING) và kiện đang mở (PackageStatus.OPEN, PR #136)
     "Packing",
     "Package Open",
+    // Thùng đã quét đúng LPN ở trạm kiểm thùng (BE PackageStatus.CHECKED, docs 08 §5.2)
+    "Checked",
     "Shipped",
     "Assigned",
     "Released",
@@ -116,6 +120,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "LOADING",
   ],
   warning: [
+    // Thùng đã lấy về khu xuất hàng, chưa quét kiểm (BE PackageStatus.TO_CHECK, docs 08 §5.2)
+    "To Check",
     // Bán hàng B2B & sản xuất (BE d215f6e)
     "Pending Activation",
     "Sample Required",
@@ -165,6 +171,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "In QC",
   ],
   danger: [
+    // Thùng bị loại khỏi đơn (BE PackageStatus.REMOVED, docs 08 §5.2)
+    "Removed",
     // Thùng thất lạc — chỉ ghi qua điều chỉnh tồn đã duyệt (BE StockPackageStatus.LOST)
     "Lost",
     "Blacklisted",
@@ -352,6 +360,11 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   Picking: "Đang lấy hàng",
   Packing: "Đang đóng gói",
   "Package Open": "Đang mở",
+  // Thùng giao ở trạm kiểm thùng (docs 08 §5.2)
+  "To Check": "Chờ kiểm",
+  Checked: "Đã kiểm",
+  Labeled: "Đã dán nhãn",
+  Removed: "Đã loại",
   Shipped: "Đã gửi",
   Assigned: "Đã gán",
   Released: "Đã release",

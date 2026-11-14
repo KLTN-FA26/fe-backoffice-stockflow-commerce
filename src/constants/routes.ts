@@ -84,6 +84,7 @@ export const ADMIN_ROUTES = {
   orders: {
     // Đơn công nợ vượt hạn mức chờ duyệt (SCRUM-427) — segment tĩnh, ưu tiên hơn [id]
     creditHolds: `${ADMIN_BASE}/orders/credit-holds`,
+    cancellationRequests: `${ADMIN_BASE}/orders/cancellation-requests`,
     detail: (id: string) => `${ADMIN_BASE}/orders/${id}`,
     list: `${ADMIN_BASE}/orders`,
   },
@@ -133,12 +134,16 @@ export const ADMIN_ROUTES = {
     list: `${ADMIN_BASE}/shipments`,
     detail: (id: string) => `${ADMIN_BASE}/shipments/${id}`,
   },
-  /** Chuyến xe: quét kiện lên xe, bàn giao hãng (BE `DispatchController`, PR #137). */
+  /** Chuyến xe: đặt xe, mã vận đơn, quét kiện lên xe, bàn giao hãng (BE `DispatchController`, docs 09 §4.2). */
   loads: {
     list: `${ADMIN_BASE}/loads`,
     detail: (id: string) => `${ADMIN_BASE}/loads/${id}`,
     manifest: (id: string) => `${ADMIN_BASE}/loads/${id}/manifest`,
+    /** Nhập mã vận đơn hàng loạt từ file (BE `WaybillImportController`, docs 09 §4.4). */
+    waybillImport: `${ADMIN_BASE}/loads/waybill-import`,
   },
+  /** Danh mục hãng vận chuyển (BE `CarrierController`, docs 09 §4.1). */
+  carriers: `${ADMIN_BASE}/carriers`,
   /** Danh mục kho — BE `WarehouseController` (resource `warehouse-warehouses`, docs 06 §4.1 bước 1). */
   warehouses: {
     // Khai báo kho mới là modal trên trang này (không có route riêng)

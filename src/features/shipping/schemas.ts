@@ -12,8 +12,8 @@
 import { z } from "zod";
 
 import {
+  CARRIER_CONNECTION_TYPES,
   CARRIER_STATUSES,
-  DELIVERY_MODES,
   PACKAGE_API_STATUSES,
   PACK_SHIPMENT_API_STATUSES,
 } from "@/constants";
@@ -27,13 +27,27 @@ export function tolerantEnum<const T extends readonly [string, ...string[]]>(val
   return z.enum([...values, "UNKNOWN"]).catch("UNKNOWN");
 }
 
-export const deliveryModeSchema = tolerantEnum(DELIVERY_MODES);
 /** `ShipmentStatus` của lô giao (docs 09 §5). */
 export const shipmentStatusSchema = tolerantEnum(PACK_SHIPMENT_API_STATUSES);
 
 /* ── Hãng vận chuyển ─────────────────────────────────────────────────── */
 
-/** BE `CarrierResponse` — hãng trong danh mục (docs 09 §3: tên và liên hệ). */
+/**
+ * BE `CarrierResponse.Connection` — cách hãng kết nối (docs 09 §4.1). Khoá bí mật chỉ đi vào, không bao giờ đi ra:
+ * BE chỉ nói đã đặt hay chưa (`*Configured`).
+ */
+export const beCarrierConnectionSchema = z.object({
+  connectionType: tolerantEnum(CARRIER_CONNECTION_TYPES),
+  webhookEnabled: z.boolean().nullish(),
+  webhookSecretConfigured: z.boolean().nullish(),
+  webhookAuthHeader: z.string().nullish(),
+  webhookAuthValueConfigured: z.boolean().nullish(),
+  apiEnvironment: z.string().nullish(),
+  apiAccount: z.string().nullish(),
+  apiKeyConfigured: z.boolean().nullish(),
+});
+
+/** BE `CarrierResponse` — hãng trong danh mục (docs 09 §3: tên và liên hệ) kèm kiểu kết nối. */
 export const beCarrierSchema = z.object({
   carrierId: z.string(),
   code: z.string(),
@@ -41,6 +55,7 @@ export const beCarrierSchema = z.object({
   contactName: z.string().nullish(),
   contactPhone: z.string().nullish(),
   status: tolerantEnum(CARRIER_STATUSES),
+  connection: beCarrierConnectionSchema.nullish(),
   version: z.number().int(),
 });
 
@@ -48,7 +63,7 @@ export const beCarrierPageSchema = bePageSchema(beCarrierSchema);
 
 /* ── Lô giao ─────────────────────────────────────────────────────────── */
 
-/** BE `ShipmentRowResponse`. `codAmount`: số hãng thu — của nhãn tới khi bàn giao chốt (BR-04). */
+/** BE `ShipmentRowResponse` — không còn `deliveryMode` / COD (chỉ giao nguyên chuyến, không thu hộ — docs 09 BR-08). */
 export const beShipmentRowSchema = z.object({
   shipmentId: z.string(),
   /** `<số đơn>-S<n>`. */
@@ -57,11 +72,7 @@ export const beShipmentRowSchema = z.object({
   orderNumber: z.string().nullish(),
   warehouseId: z.string(),
   status: shipmentStatusSchema,
-  deliveryMode: deliveryModeSchema,
   packageCount: count,
-  codAmount: measure.nullish(),
-  /** Tiền tệ của `codAmount` (BE #137 bổ sung; thiếu thì chỉ hiện "có thu hộ"). */
-  currency: z.string().nullish(),
   /** Task xuất kho / đóng gói của đơn — đích của lối "in lại nhãn" (BE #137 bổ sung). */
   taskId: z.string().nullish(),
   carrierId: z.string().nullish(),
@@ -90,9 +101,6 @@ export const beShipmentParcelSchema = z.object({
   lengthCm: measure.nullish(),
   widthCm: measure.nullish(),
   heightCm: measure.nullish(),
-  /** Nhãn kiện đã cũ — in lại trước khi quét lên xe (BE PR #165); thiếu = còn đúng. */
-  labelOutdated: z.boolean().default(false),
-  labelOutdatedAt: isoInstant.nullish(),
 });
 
 /** BE `ShipmentResponse.Step` — mỗi bước ghi người thực hiện và thời điểm (docs 09 BR-02). */
@@ -107,9 +115,7 @@ export const beShipmentStepSchema = z.object({
 /** BE `ShipmentResponse` — lô giao kèm kiện và lịch sử (chỉ nhân viên xem). */
 export const beShipmentSchema = z.object({
   shipment: beShipmentRowSchema,
-  /** BE có thể đặt `taskId` / `currency` ở ngoài hàng lô thay vì trong đó — nhận cả hai chỗ. */
   taskId: z.string().nullish(),
-  currency: z.string().nullish(),
   partialNote: z.string().nullish(),
   /** Ghi chú nội bộ của lần giao thất bại — không hiện cho khách. */
   failureNote: z.string().nullish(),

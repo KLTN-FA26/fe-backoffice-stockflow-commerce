@@ -1,30 +1,27 @@
 /**
  * Shipping — action-gating chuyến xe (feature-architecture §6).
  *
- * Bảng `LOAD_TRANSITIONS` (lib/domain, BE `LoadStatus`). Từ BE PR #148 mỗi endpoint gate bằng MỘT mã
- * quyền, không còn `@PreAuthorize` theo vai trò: mở chuyến `fulfillment-dispatch:CREATE`; thêm / bớt lô,
- * quét, bàn giao `fulfillment-dispatch:UPDATE`; huỷ chuyến `fulfillment-load-cancellations:UPDATE`.
- * Chuyến nguyên xe (FTL, BE PR #162) là một xe của kế hoạch xếp xe, cũng `fulfillment-dispatch:UPDATE`: đặt xe,
- * huỷ đặt xe, bắt đầu xếp, quét, dỡ kiện, bàn giao theo xe. Lô do kế hoạch quản lý nên thêm / bỏ lô và huỷ
- * chuyến chỉ cho chuyến gửi kiện (409 LOAD_MANAGED_BY_PLAN). Sau khi đã bắt đầu xếp hàng, quản lý kho huỷ có kiểm soát một
- * xe và xác nhận dỡ kiện không quét bằng `fulfillment-controlled-cancellations:UPDATE` (SCRUM-474).
- * UI-only — Backend phải re-check (trạng thái chuyến, kiện thuộc biên bản, quyền + phạm vi kho).
+ * Bảng `LOAD_TRANSITIONS` (lib/domain, BE `LoadStatus`). Mọi chuyến là MỘT XE của kế hoạch xếp xe (giao nguyên chuyến,
+ * docs 09 BR-08) — không còn `mode`, không còn thêm / bớt lô hay huỷ chuyến tay. Mỗi endpoint gate bằng một mã quyền
+ * (BE `@RequiresPermission`): đặt xe, huỷ đặt xe, bắt đầu xếp, quét, dỡ kiện, nhập mã vận đơn, bàn giao =
+ * `fulfillment-dispatch:UPDATE`; huỷ có kiểm soát MỘT xe và xác nhận dỡ không quét =
+ * `fulfillment-controlled-cancellations:UPDATE` (SCRUM-474, BR-14); SỬA mã vận đơn sau khi chuyến rời kho cần thêm
+ * `fulfillment-waybill-corrections:UPDATE` (BR-24). UI-only — Backend phải re-check (trạng thái chuyến, kiện thuộc
+ * biên bản, quyền + phạm vi kho).
  */
 
 import {
-  DELIVERY_MODE,
-  DELIVERY_MODES,
   FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS,
   FULFILLMENT_DISPATCH_PERMISSIONS,
-  FULFILLMENT_LOAD_CANCELLATION_PERMISSIONS,
+  FULFILLMENT_WAYBILL_CORRECTION_PERMISSIONS,
   LOAD_STATUS,
   UI_LABELS,
 } from "@/constants";
 import { LOAD_TRANSITIONS } from "@/lib/domain/lifecycle";
 
-import { hasPendingUnloads, isFtlLoad } from "./ftl-selectors";
+import { hasPendingUnloads, isApiBookedLoad } from "./ftl-selectors";
 
-import type { DeliveryMode, LoadStatus } from "@/constants";
+import type { LoadStatus } from "@/constants";
 import type { PermissionCode } from "@/lib/auth";
 import type { Load, LoadApiStatus } from "./types";
 
@@ -38,123 +35,86 @@ export interface ShippingActor {
 }
 
 export type LoadActionCode =
-  | "addShipment"
-  | "removeShipment"
   | "scan"
   | "unscan"
   | "handover"
-  | "cancel"
   | "book"
   | "cancelBooking"
   | "startLoading"
+  | "recordWaybill"
+  | "correctWaybill"
   | "unload"
   | "controlledCancel"
   | "overrideUnload";
-
-const PARCEL_ONLY: readonly DeliveryMode[] = [DELIVERY_MODE.PARCEL];
-const FTL_ONLY: readonly DeliveryMode[] = [DELIVERY_MODE.FULL_TRUCKLOAD];
-const BOTH_MODES = DELIVERY_MODES;
 
 interface LoadAction {
   readonly code: LoadActionCode;
   /** Mã quyền BE bảo vệ endpoint (`@RequiresPermission`). */
   readonly permission: PermissionCode;
+  /** Mã quyền thêm mà dịch vụ BE kiểm riêng (sửa mã vận đơn sau khi rời kho). */
+  readonly alsoPermission?: PermissionCode;
   readonly fromStatuses: readonly LoadApiStatus[];
   readonly targetStatus?: LoadStatus;
-  /** Hình thức giao mà thao tác áp dụng. */
-  readonly modes: readonly DeliveryMode[];
-  /** BR-03 docs 09: mọi kiện của các lô trên biên bản phải đã lên xe. */
+  /** BR-18 docs 09: mọi kiện kế hoạch xếp lên xe phải đã lên xe. */
   readonly requiresFullyLoaded?: boolean;
 }
 
-const { PLANNED, VEHICLE_BOOKED, LOADING, CANCELLED } = LOAD_STATUS;
-const OPEN = [PLANNED, VEHICLE_BOOKED, LOADING] as const;
+const { PLANNED, VEHICLE_BOOKED, LOADING, DISPATCHED, CANCELLED } = LOAD_STATUS;
 const UPDATE = FULFILLMENT_DISPATCH_PERMISSIONS.update;
 const CONTROLLED = FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS.update;
 
 export const LOAD_ACTIONS: readonly LoadAction[] = [
-  // BE `DispatchLoad`: lô vào / ra biên bản khi chuyến còn mở
-  {
-    code: "addShipment",
-    permission: UPDATE,
-    fromStatuses: OPEN,
-    modes: PARCEL_ONLY,
-  },
-  {
-    code: "removeShipment",
-    permission: UPDATE,
-    fromStatuses: OPEN,
-    modes: PARCEL_ONLY,
-  },
-  // Chuyến gửi kiện bắt đầu ở LOADING; quét / gỡ kiện chỉ khi đang xếp
-  {
-    code: "scan",
-    permission: UPDATE,
-    fromStatuses: [LOAD_STATUS.LOADING],
-    modes: BOTH_MODES,
-  },
-  {
-    code: "unscan",
-    permission: UPDATE,
-    fromStatuses: [LOAD_STATUS.LOADING],
-    modes: BOTH_MODES,
-  },
+  // Quét / gỡ kiện chỉ khi đang xếp
+  { code: "scan", permission: UPDATE, fromStatuses: [LOADING] },
+  { code: "unscan", permission: UPDATE, fromStatuses: [LOADING] },
   {
     code: "handover",
     permission: UPDATE,
-    fromStatuses: [LOAD_STATUS.LOADING],
-    targetStatus: LOAD_STATUS.DISPATCHED,
-    modes: BOTH_MODES,
+    fromStatuses: [LOADING],
+    targetStatus: DISPATCHED,
     requiresFullyLoaded: true,
   },
-  {
-    code: "cancel",
-    permission: FULFILLMENT_LOAD_CANCELLATION_PERMISSIONS.update,
-    fromStatuses: OPEN,
-    targetStatus: LOAD_STATUS.CANCELLED,
-    modes: PARCEL_ONLY,
-  },
-  // BE PR #162, chuyến nguyên xe: đặt xe (đặt lại khi còn VEHICLE_BOOKED = thay thông tin), huỷ đặt xe (về
-  // PLANNED, chỉ trước LOADING), xe tới kho thì bắt đầu xếp, dỡ kiện của đơn đã huỷ
-  { code: "book", permission: UPDATE, fromStatuses: [PLANNED, VEHICLE_BOOKED], modes: FTL_ONLY },
+  // Đặt xe (đặt lại khi còn VEHICLE_BOOKED = thay thông tin; hãng API không đặt lại tay — xem allowedLoadActions),
+  // huỷ đặt xe (về PLANNED, chỉ trước LOADING), xe tới kho thì bắt đầu xếp (BR-14)
+  { code: "book", permission: UPDATE, fromStatuses: [PLANNED, VEHICLE_BOOKED] },
   {
     code: "cancelBooking",
     permission: UPDATE,
     fromStatuses: [VEHICLE_BOOKED],
     targetStatus: PLANNED,
-    modes: FTL_ONLY,
   },
   {
     code: "startLoading",
     permission: UPDATE,
     fromStatuses: [VEHICLE_BOOKED],
     targetStatus: LOADING,
-    modes: FTL_ONLY,
+  },
+  // Mã vận đơn (docs 09 §4.4): chỉ điền cho chuyến đã đặt xe, chưa huỷ; sau khi rời kho chỉ quản lý kho SỬA, kèm lý do (BR-24)
+  { code: "recordWaybill", permission: UPDATE, fromStatuses: [VEHICLE_BOOKED, LOADING] },
+  {
+    code: "correctWaybill",
+    permission: UPDATE,
+    alsoPermission: FULFILLMENT_WAYBILL_CORRECTION_PERMISSIONS.update,
+    fromStatuses: [DISPATCHED],
   },
   // Quét dỡ cả trên xe đã huỷ có kiểm soát: kiện của nó bị khoá tới khi dỡ (SCRUM-474 UNLOAD-DESIGN điểm 4)
-  { code: "unload", permission: UPDATE, fromStatuses: [LOADING, CANCELLED], modes: FTL_ONLY },
+  { code: "unload", permission: UPDATE, fromStatuses: [LOADING, CANCELLED] },
   // SCRUM-474 UNLOAD-DESIGN điểm 2, 5, 6: huỷ có kiểm soát MỘT xe đang xếp hàng, và xác nhận dỡ kiện không quét (nhãn
   // hỏng) — chung MỘT mã quyền của quản lý kho. Backend phải re-check (BR-14).
   {
     code: "controlledCancel",
     permission: CONTROLLED,
     fromStatuses: [LOADING],
-    targetStatus: LOAD_STATUS.CANCELLED,
-    modes: FTL_ONLY,
+    targetStatus: CANCELLED,
   },
-  {
-    code: "overrideUnload",
-    permission: CONTROLLED,
-    fromStatuses: [LOADING, CANCELLED],
-    modes: FTL_ONLY,
-  },
+  { code: "overrideUnload", permission: CONTROLLED, fromStatuses: [LOADING, CANCELLED] },
 ];
 
 export type LoadGateState = Pick<
   Load,
-  "status" | "mode" | "shipmentCount" | "expectedPackageCount" | "loadedPackageCount"
+  "status" | "shipmentCount" | "expectedPackageCount" | "loadedPackageCount"
 > &
-  Partial<Pick<Load, "pendingUnloads">>;
+  Partial<Pick<Load, "pendingUnloads" | "carrierId" | "carrierConnectionType">>;
 
 export interface AllowedLoadAction {
   action: LoadAction;
@@ -173,6 +133,21 @@ function transitionAllowed(status: LoadApiStatus, target: LoadStatus | undefined
   return status !== "UNKNOWN" && LOAD_TRANSITIONS[status].includes(target);
 }
 
+/** Điều kiện riêng của từng thao tác ngoài trạng thái + quyền (hãng API đặt xe — BR-29, §4.4 (4)). */
+function loadAllows(action: LoadAction, load: LoadGateState): boolean {
+  switch (action.code) {
+    // Đặt lại bằng tay không áp cho đơn đã tạo ở hãng API: phải huỷ đặt xe (huỷ đơn ở hãng) rồi đặt lại
+    case "book":
+      return !(load.status === VEHICLE_BOOKED && isApiBookedLoad(load));
+    // Mã vận đơn của hãng API là mã đơn hãng trả về — không nhập tay; cần đã có hãng
+    case "recordWaybill":
+    case "correctWaybill":
+      return !!load.carrierId && !isApiBookedLoad(load);
+    default:
+      return true;
+  }
+}
+
 export function allowedLoadActions(
   load: LoadGateState,
   actor: ShippingActor,
@@ -181,11 +156,11 @@ export function allowedLoadActions(
     (action) =>
       action.fromStatuses.includes(load.status) &&
       // Xe đã huỷ chỉ còn việc dỡ khi còn kiện bị khoá (SCRUM-474): hết kiện thì không còn thao tác nào
-      (load.status !== LOAD_STATUS.CANCELLED || hasPendingUnloads(load)) &&
+      (load.status !== CANCELLED || hasPendingUnloads(load)) &&
       transitionAllowed(load.status, action.targetStatus) &&
       actor.can(action.permission) &&
-      load.mode !== "UNKNOWN" &&
-      action.modes.includes(load.mode),
+      (!action.alsoPermission || actor.can(action.alsoPermission)) &&
+      loadAllows(action, load),
   ).map((action) => {
     if (!action.requiresFullyLoaded) return { action };
     if (load.shipmentCount === 0) return { action, disabledReason: D.empty };
@@ -203,17 +178,10 @@ export function hasLoadAction(
 }
 
 /** Câu thay cho nút khi không còn thao tác nào (người dùng hiểu vì sao ô quét / nút không có). */
-export function loadNoActionReason(load: LoadGateState): string {
-  if (load.status === LOAD_STATUS.DISPATCHED) return N.dispatched;
-  if (load.status === LOAD_STATUS.CANCELLED) return N.cancelled;
-  if (isFtlLoad(load)) {
-    if (load.status === LOAD_STATUS.PLANNED) return F.noActions.planned;
-    if (load.status === LOAD_STATUS.VEHICLE_BOOKED) return F.noActions.booked;
-  }
+export function loadNoActionReason(load: Pick<Load, "status">): string {
+  if (load.status === DISPATCHED) return N.dispatched;
+  if (load.status === CANCELLED) return N.cancelled;
+  if (load.status === PLANNED) return F.noActions.planned;
+  if (load.status === VEHICLE_BOOKED) return F.noActions.booked;
   return N.viewOnly;
-}
-
-/** Chuyến còn mở: lô và kiện còn thêm / bớt được. */
-export function isLoadOpen(status: LoadApiStatus): boolean {
-  return (OPEN as readonly string[]).includes(status);
 }

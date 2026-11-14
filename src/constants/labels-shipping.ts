@@ -1,20 +1,19 @@
 /**
- * Nhãn, thông báo và lỗi của các màn giao cho hãng vận chuyển: lô giao chờ xuất, chuyến xe, quét kiện
- * lên xe, biên bản bàn giao, kết quả giao (docs 09 §4, BE PR #137 SCRUM-288/292/293).
- * Hãng vận chuyển là bên thứ ba: không mã vận đơn, không theo dõi hành trình (rescope 2026-10-06).
+ * Nhãn, thông báo và lỗi của các màn giao cho hãng vận chuyển: lô giao, chuyến xe (một xe của kế hoạch xếp xe), quét
+ * kiện lên xe, mã vận đơn, biên bản bàn giao, kết quả giao (docs 09 §4). Chỉ giao nguyên chuyến, không thu hộ (BR-08).
  */
 
 import { SHIPPING_FTL_LABELS, SHIPPING_FTL_TOAST_MESSAGES } from "./labels-shipping-ftl";
+import {
+  SHIPPING_WAYBILL_LABELS,
+  SHIPPING_WAYBILL_TOAST_MESSAGES,
+} from "./labels-shipping-waybill";
 import { SHIPPING_LIMITS } from "./numbers";
 
 export const SHIPPING_UI_LABELS = {
   pageTitle: "Giao cho hãng vận chuyển",
-  // Màn Kế hoạch xếp xe 3D (SCRUM-287 / 452) — chưa làm
   ftl: SHIPPING_FTL_LABELS,
-  loadPlanTitle: "Kế hoạch xếp xe",
-  loadPlanInProgress: "Đang phát triển",
-  noTracking:
-    "Hãng vận chuyển là bên thứ ba — không có mã vận đơn và không theo dõi hành trình sau khi bàn giao.",
+  waybill: SHIPPING_WAYBILL_LABELS,
   forbiddenDescription: "Tài khoản của bạn chưa được cấp quyền thao tác này với giao hàng.",
   noReadDescription:
     "Bạn được mở trang nhưng chưa được cấp quyền xem dữ liệu giao hàng. Liên hệ quản trị để được cấp.",
@@ -24,21 +23,22 @@ export const SHIPPING_UI_LABELS = {
   none: "—",
   field: {
     warehouse: "Kho giao",
+    warehousePlaceholder: "Chọn kho",
     carrier: "Hãng vận chuyển",
     carrierNone: "Chưa chọn hãng",
+    carrierPlaceholder: "Chọn hãng",
     vehiclePlate: "Biển số xe",
     driverName: "Tài xế",
     driverPhone: "SĐT tài xế",
-    cod: "Thu hộ (COD)",
     note: "Ghi chú",
     weight: "Cân nặng",
     weightUnit: "kg",
   },
-  /* ── Lô giao chờ xuất ─────────────────────────────────────────────── */
+  /* ── Lô giao ─────────────────────────────────────────────────────── */
   shipments: {
     title: "Lô giao",
     subtitle:
-      "Lô giao đã đóng gói chờ bàn giao: chọn hãng cho từng lô, rồi mở chuyến khi tài xế tới.",
+      "Mỗi lô giao sinh ra khi hoàn tất kiểm thùng một đơn; lô đi theo xe của kế hoạch xếp xe và được ghi nhận kết quả giao sau khi bàn giao.",
     searchPlaceholder: "Tìm theo mã lô giao",
     searchScope: "Mã lô giao",
     listCaption: "lô giao",
@@ -49,16 +49,8 @@ export const SHIPPING_UI_LABELS = {
     all: "Tất cả",
     clearFilters: "Xoá bộ lọc",
     filterLoadFailed: "Không tải được danh sách kho / hãng.",
-    openLoad: "Mở chuyến với lô đã chọn",
-    selected: "đã chọn",
-    selectHint: "Chọn các lô cùng kho để mở chuyến khi tài xế hãng tới.",
-    mixedWarehouses: "Các lô đã chọn thuộc nhiều kho — mỗi chuyến chỉ đi từ một kho.",
     onLoad: "Trên chuyến",
     partial: "Giao một phần",
-    carrierSelectLabel: "Hãng của lô",
-    hasCod: "Có thu hộ",
-    noCod: "Không thu hộ",
-    onAnotherLoad: "Lô đã nằm trên chuyến khác — bỏ khỏi chuyến đó trước.",
     empty: {
       noDataTitle: "Chưa có lô giao",
       noDataDescription:
@@ -70,35 +62,20 @@ export const SHIPPING_UI_LABELS = {
   loads: {
     title: "Chuyến xe",
     subtitle:
-      "Mỗi chuyến là một lần bàn giao cho một hãng: quét kiện lên xe, in biên bản, hai bên ký.",
+      "Mỗi chuyến là một xe của kế hoạch xếp xe: đặt xe với hãng, nhập mã vận đơn, quét kiện lên xe, in biên bản, hai bên ký.",
     searchPlaceholder: "Tìm theo mã chuyến, biển số hoặc mã kế hoạch",
     searchScope: "Mã chuyến, biển số xe, mã kế hoạch",
     listCaption: "chuyến xe",
     refetching: "Đang tải lại danh sách chuyến xe",
-    open: "Mở chuyến",
     openRow: "Mở chuyến",
+    waybillColumn: "Mã vận đơn",
+    importWaybills: "Nhập mã vận đơn từ file",
     empty: {
       noDataTitle: "Chưa có chuyến xe",
-      noDataDescription: "Mở chuyến khi tài xế hãng tới lấy hàng, hoặc từ danh sách lô giao.",
+      noDataDescription:
+        "Chuyến xe sinh ra khi chốt một kế hoạch xếp xe — mỗi xe của kế hoạch là một chuyến.",
       noResultsDescription: "Không có chuyến xe nào khớp từ khoá hoặc bộ lọc hiện tại.",
     },
-  },
-  /* ── Mở chuyến ───────────────────────────────────────────────────── */
-  openDialog: {
-    title: "Mở chuyến xe",
-    description:
-      "Tài xế hãng đã tới: mở chuyến để quét kiện lên xe. Bỏ trống danh sách lô để lấy các lô của kho đã gán cho hãng này.",
-    shipmentsLabel: "Lô giao đưa lên chuyến",
-    shipmentsAuto: "Các lô chờ xuất của kho đã gán cho hãng này (hệ thống tự lấy)",
-    warehouse: "Kho",
-    warehousePlaceholder: "Chọn kho",
-    carrier: "Hãng vận chuyển",
-    carrierPlaceholder: "Chọn hãng",
-    vehiclePlate: "Biển số xe",
-    driverName: "Tên tài xế",
-    driverPhone: "SĐT tài xế",
-    submit: "Mở chuyến",
-    mixedCarriers: "Các lô đã chọn đã gán hãng khác nhau — chọn lại hãng cho đồng nhất.",
   },
   /* ── Chi tiết chuyến / quét ──────────────────────────────────────── */
   load: {
@@ -106,8 +83,6 @@ export const SHIPPING_UI_LABELS = {
     code: "Mã chuyến",
     back: "Danh sách chuyến",
     info: "Thông tin chuyến",
-    modeLabel: "Hình thức giao",
-    mode: { PARCEL: "Gửi kiện", FULL_TRUCKLOAD: "Nguyên xe", UNKNOWN: "Không rõ" },
     startedAt: "Bắt đầu xếp lúc",
     dispatchedAt: "Bàn giao lúc",
     dispatchedBy: "Người bàn giao",
@@ -119,7 +94,6 @@ export const SHIPPING_UI_LABELS = {
     shipmentCount: "Lô giao",
     progress: "Kiện đã lên xe / cần lên",
     progressAria: "Kiện đã lên xe",
-    codTotal: "Tổng thu hộ",
     shipmentsTitle: "Lô giao trên chuyến",
     shipmentLoaded: "kiện lên xe",
     shipmentComplete: "Đủ kiện",
@@ -130,22 +104,15 @@ export const SHIPPING_UI_LABELS = {
     notLoaded: "Chưa lên xe",
     unscan: "Gỡ khỏi xe",
     unscanAria: "Gỡ kiện khỏi xe",
-    removeShipment: "Bỏ lô khỏi chuyến",
-    addShipments: "Thêm lô",
     openShipment: "Xem lô",
-    noShipments: "Chuyến chưa có lô giao nào — thêm lô để bắt đầu quét.",
-    labelCod: "COD trên nhãn",
-    fixedCod: "COD chốt khi bàn giao",
+    noShipments: "Chuyến chưa có lô giao nào.",
     refusalTitle: "Lô này đang chặn việc bàn giao",
-    refusalHint: "Xử lý lô này, hoặc bỏ nó khỏi chuyến để các lô còn lại đi trước.",
-    reprintLabel: "Mở danh sách task để in lại nhãn",
-    reprintHint:
-      "Nhãn kiện in lại ở trạm đóng gói của đơn: mở task của đơn này → Đóng gói → in lại nhãn kiện, rồi ký bàn giao lại.",
+    refusalHint:
+      "Xử lý đơn của lô này; muốn xe đi mà không có lô này thì dỡ kiện của nó bằng huỷ có kiểm soát xe.",
     dismissRefusal: "Ẩn",
     actions: {
       manifest: "Biên bản bàn giao",
       handover: "Xác nhận bàn giao",
-      cancel: "Huỷ chuyến",
       refresh: "Tải lại",
     },
     disabledReason: {
@@ -156,20 +123,7 @@ export const SHIPPING_UI_LABELS = {
       viewOnly:
         "Bạn chỉ có quyền xem chuyến xe — quét kiện và bàn giao cần quyền xếp xe & bàn giao.",
       dispatched: "Đã bàn giao cho hãng vận chuyển.",
-      cancelled: "Chuyến đã huỷ — kiện đã về khu chờ xuất.",
-    },
-    cancelDialog: {
-      title: "Huỷ chuyến xe",
-      description:
-        "Các lô và kiện đã quét trở về khu chờ xuất, chưa đi đâu. Chỉ huỷ được khi xe chưa rời kho.",
-      reason: "Lý do huỷ",
-      confirm: "Huỷ chuyến",
-    },
-    addDialog: {
-      title: "Thêm lô vào chuyến",
-      description: "Lô chờ xuất của cùng kho, đã gán hãng của chuyến này hoặc chưa gán hãng.",
-      empty: "Không còn lô nào chờ xuất cho hãng này.",
-      submit: "Thêm lô đã chọn",
+      cancelled: "Chuyến đã huỷ.",
     },
   },
   scan: {
@@ -188,8 +142,13 @@ export const SHIPPING_UI_LABELS = {
   handover: {
     title: "Xác nhận bàn giao",
     description:
-      "Hai bên đã ký biên bản giấy: các lô trên chuyến chuyển sang Đã bàn giao, thu hộ chốt theo đơn; đơn chuyển Đã gửi khi mọi lô của đơn đã đi.",
+      "Hai bên đã ký biên bản giấy của riêng xe này. Chuyến chuyển sang Đã bàn giao; mỗi lô chỉ chuyển Đã bàn giao ở xe cuối cùng chở nó.",
     representative: "Người ký bên hãng (tài xế)",
+    driverName: "Tên tài xế",
+    driverNameHint:
+      "Chuyến chưa có tên tài xế — bắt buộc nhập trước khi ký (lưu cùng mã vận đơn của chuyến).",
+    driverFromCarrier:
+      "Chuyến chưa có tên tài xế: hãng đặt xe qua API báo tài xế về qua webhook khi tài xế nhận đơn — có tên tài xế mới ký được.",
     vehiclePlate: "Biển số xe",
     driverPhone: "SĐT tài xế",
     signatureRef: "Mã / số biên bản giấy đã ký",
@@ -224,17 +183,14 @@ export const SHIPPING_UI_LABELS = {
     address: "Địa chỉ giao",
     packages: "Số kiện",
     weight: "Cân nặng (kg)",
-    cod: "Thu hộ (COD)",
     parcelCode: "Mã kiện",
     dimensions: "Kích thước (cm)",
     loaded: "Đã lên xe",
     notLoaded: "Chưa lên xe",
-    codChanged: "COD đã đổi so với nhãn — thu theo số này",
     totals: "Tổng",
     totalShipments: "Số lô:",
     totalPackages: "Số kiện:",
     totalWeight: "Tổng cân nặng:",
-    totalCod: "Tổng thu hộ:",
     note: "Ghi chú:",
     signatureRef: "Mã biên bản đã ký:",
     warehouseSign: "Đại diện kho",
@@ -256,7 +212,6 @@ export const SHIPPING_UI_LABELS = {
     info: "Thông tin lô",
     order: "Đơn hàng",
     openOrder: "Xem đơn",
-    mode: { PARCEL: "Gửi kiện", FULL_TRUCKLOAD: "Nguyên xe", UNKNOWN: "Không rõ" },
     readyAt: "Sẵn sàng xuất lúc",
     handedOverAt: "Bàn giao lúc",
     outcomeAt: "Ghi nhận kết quả lúc",
@@ -274,8 +229,6 @@ export const SHIPPING_UI_LABELS = {
     timelineEmpty: "Chưa có bước nào được ghi.",
     outcomeCard: "Kết quả giao",
     carrierCard: "Hãng vận chuyển",
-    carrierLocked: "Lô đang nằm trên chuyến — bỏ lô khỏi chuyến trước khi đổi hãng.",
-    carrierSave: "Lưu hãng",
     noActions: {
       viewOnly: "Bạn chỉ có quyền xem lô giao.",
       readyToDispatch: "Lô chưa bàn giao — kết quả giao chỉ ghi nhận sau khi hãng đã nhận hàng.",
@@ -317,20 +270,15 @@ export const SHIPPING_UI_LABELS = {
 } as const;
 
 export const SHIPPING_TOAST_MESSAGES = {
-  loadOpened: "Đã mở chuyến xe",
-  shipmentsAdded: "Đã thêm lô vào chuyến",
-  shipmentRemoved: "Đã bỏ lô khỏi chuyến",
   unscanned: "Đã gỡ kiện khỏi xe",
   handedOver: "Đã bàn giao chuyến cho hãng vận chuyển",
-  cancelled: "Đã huỷ chuyến xe",
-  carrierSaved: "Đã lưu hãng vận chuyển của lô",
-  carrierCleared: "Đã bỏ hãng của lô",
   outcomeRecorded: "Đã ghi nhận kết quả giao",
   ...SHIPPING_FTL_TOAST_MESSAGES,
+  ...SHIPPING_WAYBILL_TOAST_MESSAGES,
 } as const;
 
 /**
- * errorCode BE (`ErrorCode.java`, PR #137 + mã chung) → câu tiếng Việt. Khi BE nêu tên lô giao
+ * errorCode BE (`ErrorCode.java`) → câu tiếng Việt. Khi BE nêu tên lô giao
  * (`fieldErrors.shipmentCode`) câu được thêm tiền tố "Lô <mã>".
  */
 export const SHIPPING_ERROR_MESSAGES = {
@@ -346,58 +294,72 @@ export const SHIPPING_ERROR_MESSAGES = {
   WAREHOUSE_NOT_FOUND: "Không tìm thấy kho.",
   // 409 — quét kiện
   PACKAGE_NOT_IN_LOAD:
-    "Kiện không có trong biên bản của chuyến này (lô khác, kho khác, hoặc lô chưa thêm vào chuyến) — không xếp lên xe.",
+    "Kiện không có trong biên bản của chuyến này (lô khác, kho khác, hoặc kế hoạch xếp kiện này lên xe khác) — không xếp lên xe.",
   PACKAGE_ALREADY_LOADED: "Kiện đã nằm trên chuyến xe khác — không xếp lên xe này.",
   PACKAGE_NOT_READY:
     "Kiện chưa sẵn sàng bàn giao (chưa niêm phong, chưa vào lô giao, hoặc lô đã huỷ / đã đi).",
-  PACKAGE_OTHER_CARRIER: "Kiện này đi cùng hãng vận chuyển khác — không xếp lên xe này.",
-  PACKAGE_REQUIRES_LOAD_PLAN:
-    "Kiện giao nguyên chuyến chỉ xếp lên xe theo kế hoạch xếp xe, không xếp ở chuyến gửi kiện.",
   LOAD_SCAN_ID_CONFLICT:
     "Lần quét này đã dùng cho kiện hoặc chuyến khác — quét lại để tạo lần quét mới.",
-  // 409 — lô trong chuyến
-  SHIPMENT_NOT_FOR_LOAD: "Lô này không đi trên chuyến này (kho khác, hoặc cách giao khác).",
-  SHIPMENT_OTHER_CARRIER: "Lô này đã gán cho hãng vận chuyển khác.",
-  SHIPMENT_ON_ANOTHER_LOAD: "Lô này đang nằm trên chuyến xe khác — bỏ khỏi chuyến đó trước.",
+  // 409 — lô trên chuyến
+  SHIPMENT_NOT_FOR_LOAD: "Lô này không đi trên chuyến này.",
+  SHIPMENT_ON_ANOTHER_LOAD: "Lô này đang nằm trên chuyến xe khác.",
   SHIPMENT_STATE_CONFLICT: "Lô giao không làm được thao tác này ở trạng thái hiện tại.",
+  // 409 / 404 — hãng và đặt xe
   CARRIER_INACTIVE: "Hãng này đã ngừng sử dụng — chọn hãng khác.",
+  CARRIER_CODE_EXISTS: "Mã hãng này đã có trong danh mục — dùng mã khác.",
+  CARRIER_BOOKS_THROUGH_API:
+    "Hãng này đặt xe qua API — nhập giờ hẹn lấy hàng để hệ thống tạo đơn ở hãng, không ghi nhận tay.",
+  CARRIER_BOOKING_IN_PROGRESS:
+    "Chuyến này đang được đặt (hoặc đã đặt) qua API của hãng — huỷ đặt xe trước rồi đặt lại.",
+  CARRIER_PICKUP_NOT_CONFIGURED:
+    "Hãng chưa khai báo điểm lấy hàng ở kho này — nhờ quản lý kho cấu hình kết nối hãng.",
+  CARRIER_SERVICE_NOT_CONFIGURED:
+    "Hãng chưa có mã dịch vụ cho loại xe này ở khu vực của kho — nhờ quản lý kho cấu hình kết nối hãng.",
+  CARRIER_STOP_OUT_OF_AREA:
+    "Có điểm giao nằm ngoài khu vực hãng phục vụ — chọn hãng khác hoặc huỷ có kiểm soát để dỡ lô đó.",
+  CARRIER_BOOKING_FAILED: "Hãng từ chối tạo đơn đặt xe.",
+  CARRIER_CANCEL_REFUSED:
+    "Hãng không huỷ đơn được (tài xế đã lấy hàng) — liên hệ trực tiếp với hãng để xử lý.",
+  SECRETS_UNAVAILABLE: "Hệ thống chưa lưu được khoá bí mật lúc này — thử lại sau.",
+  EXTERNAL_SERVICE_ERROR:
+    "Hãng không phản hồi và có thể đã tạo đơn: kiểm tra trên cổng của hãng (đơn ghi chú mã chuyến), huỷ ở đó nếu có, rồi huỷ đặt xe và đặt lại.",
+  // 409 — mã vận đơn (BR-23, BR-24)
+  WAYBILL_DUPLICATE:
+    "Một chuyến khác của hãng này đã dùng mã vận đơn đó — mã vận đơn là duy nhất trong cùng một hãng.",
+  WAYBILL_FROM_CARRIER_API:
+    "Mã vận đơn của hãng này do API đặt xe cấp — không nhập tay; muốn đổi thì huỷ đặt xe và đặt lại.",
+  LOAD_WAYBILL_MISSING:
+    "Chuyến chưa có mã vận đơn — nhập mã vận đơn của hãng trước khi ký bàn giao.",
+  WAYBILL_IMPORT_INVALID_FILE:
+    "File không đúng mẫu nhập mã vận đơn (cần CSV UTF-8, có dòng tiêu đề và ít nhất một dòng dữ liệu, tối đa 1.000 dòng, 1 MB).",
   // 409 — chuyến
   INVALID_LOAD_TRANSITION: "Trạng thái chuyến đã đổi ở nơi khác — thao tác chưa được thực hiện.",
   LOAD_NOT_FULLY_LOADED:
-    "Còn kiện trong biên bản chưa quét lên xe — quét đủ (kể cả mọi kiện của một bộ) hoặc bỏ lô đó khỏi chuyến gửi kiện.",
-  // BE PR #162 (chuyến nguyên xe)
+    "Còn kiện kế hoạch xếp lên xe này chưa quét — quét đủ mọi kiện của xe rồi ký bàn giao.",
   LOAD_UNLOAD_PENDING: "Xe còn kiện của đơn đã huỷ — dỡ các kiện đó xuống trước khi bàn giao.",
   // SCRUM-474 UNLOAD-DESIGN: kiện của xe đã huỷ có kiểm soát bị khoá tới khi quét dỡ xuống
   PACKAGE_UNLOAD_PENDING:
     "Kiện này còn nằm trên xe đã huỷ có kiểm soát — quét dỡ kiện xuống ở chuyến đó trước khi xếp lên xe khác.",
   LOAD_PLAN_VEHICLE_DISPATCHED:
     "Đã có xe của kế hoạch rời kho nên không huỷ cả kế hoạch được — huỷ có kiểm soát từng xe còn lại.",
-  LOAD_MANAGED_BY_PLAN:
-    "Chuyến này thuộc kế hoạch xếp xe — thêm / bỏ lô hay huỷ chuyến phải đi qua kế hoạch.",
   INVALID_LOAD_PLAN_TRANSITION:
     "Kế hoạch xếp xe chưa ở trạng thái Đã chốt — đặt xe, bắt đầu xếp hàng và bàn giao chỉ làm được khi kế hoạch đã chốt.",
-  ORDER_NOT_CANCELLABLE:
-    "Đơn của lô này không còn huỷ được (hàng đã đóng gói hoặc đã có xe rời kho) — xử lý qua luồng trả hàng.",
-  LOAD_EMPTY: "Chuyến chưa có lô giao nào — thêm lô trước khi bàn giao.",
+  LOAD_EMPTY: "Chuyến chưa có lô giao nào — không có gì để bàn giao.",
   OPTIMISTIC_LOCK: "Chuyến vừa được cập nhật ở nơi khác — đã tải lại, kiểm tra rồi thử lại.",
   LOCK_TIMEOUT: "Hệ thống đang bận xử lý chuyến này — thử lại sau vài giây.",
-  CONFLICT: "Yêu cầu này đã được dùng để mở một chuyến khác — thử lại.",
-  // 409 — chặn bàn giao theo lô (BE nêu tên lô)
-  LABEL_OUTDATED:
-    "Nhãn kiện đã cũ (thu hộ khác số đơn cần thu, hoặc kiện đã chuyển sang lô khác) — in lại nhãn rồi quét / ký bàn giao lại.",
-  ORDER_BALANCE_NOT_PAID: "Đơn của lô này chưa thanh toán đủ trước khi giao — chưa bàn giao được.",
+  CONFLICT: "Yêu cầu này đã được xử lý — thử lại.",
+  // 409 — chặn bàn giao (09 BR-18: tất cả hoặc không). Danh sách đơn nằm ở `details.orders`, xem `errors.ts`
+  LOAD_HANDOVER_BLOCKED:
+    "Có đơn trên xe chưa được phép đi — cả xe bị từ chối bàn giao cho tới khi xử lý từng đơn.",
+  DELIVERY_BATCH_WINDOW_NOT_OPEN:
+    "Đợt giao của đơn chưa tới ngày bắt đầu cửa sổ giao — nhờ Sale dời cửa sổ giao nếu khách nhận sớm.",
+  ORDER_BALANCE_NOT_PAID:
+    "Đơn trên xe còn đợt thanh toán trước khi giao chưa thu — chưa bàn giao được.",
   ORDER_INVALID_TRANSITION: "Đơn của lô này đang tạm giữ hoặc không ở trạng thái cho bàn giao.",
-  // BE PR #150: lô sẽ tách đơn ra nhiều lần giao mà Sales chưa cho phép giao một phần (thêm lô vào chuyến,
-  // mở chuyến với lô, bàn giao)
+  ORDER_CANCELLED: "Đơn của lô này đã huỷ.",
+  // BE PR #150: lô sẽ tách đơn ra nhiều lần giao mà Sales chưa cho phép giao một phần
   ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED:
-    "Đơn của lô này chưa được phép giao một phần — nhờ Sale bật “Cho phép giao một phần” trên đơn, hoặc đưa các lô còn lại của đơn đi cùng chuyến.",
-  // BE PR #164 (xe của kế hoạch nguồn TRANSFER): bàn giao xe cuối chuyển hàng giữ của lệnh sang đang vận chuyển
-  TRANSFER_NOT_PACKED:
-    "Lệnh chuyển kho trên xe không còn ở trạng thái đã đóng gói / đang lấy hàng (đã dừng lấy hàng hoặc đã đổi) — tải lại; muốn đi tiếp phải đóng gói và lập kế hoạch xe lại.",
-  RESERVATION_NOT_ACTIVE:
-    "Phần hàng đã giữ cho lệnh chuyển kho không còn hiệu lực (đã nhả hoặc hết hạn) nên chưa bàn giao được — nhờ quản lý kho kiểm tra tồn nguồn.",
-  STOCK_CARTON_NOT_SHIPPABLE:
-    "Thùng giao nguyên của lệnh chuyển kho không còn khớp hàng đang giữ (thùng đã mở hoặc đổi) — nhờ quản lý kho kiểm tra tồn nguồn.",
+    "Đơn của lô này chưa được phép giao một phần — nhờ Sale bật “Cho phép giao một phần” trên đơn, hoặc đưa các lô còn lại của đơn đi cùng xe.",
   // BE gắn tên lô vào mọi từ chối phía đơn khi bàn giao (đơn huỷ, lô xung đột, vượt số lượng…)
   shipmentRefused:
     "Đơn của lô này không cho phép bàn giao lúc này (đơn huỷ, lô xung đột hoặc vượt số lượng).",
@@ -417,9 +379,15 @@ export const SHIPPING_FIELD_MESSAGES = {
   controlledReasonCodeRequired: "Chọn lý do huỷ",
   controlledNoteRequired: "Nhập ghi chú cho lý do huỷ",
   carrierRepresentativeRequired: "Nhập tên người ký bên hãng",
+  driverNameRequired: "Nhập tên tài xế — bắt buộc trước khi ký bàn giao",
   vehiclePlateRequired: "Nhập biển số xe",
   signedRequired: "Xác nhận hai bên đã ký biên bản",
   reasonRequired: "Chọn lý do",
   noteRequiredForOther: "Lý do khác phải ghi chú rõ",
-  cancelReasonRequired: "Nhập lý do huỷ chuyến",
+  waybillRequired: "Nhập mã vận đơn",
+  waybillInvalid: `Mã vận đơn gồm 1–${SHIPPING_LIMITS.waybillNoMax} ký tự in được, không có khoảng trắng — tắt bộ gõ tiếng Việt nếu có dấu.`,
+  waybillReasonRequired: "Chuyến đã rời kho: nhập lý do sửa mã vận đơn",
+  carrierCodeInvalid: `Mã hãng ${SHIPPING_LIMITS.carrierCodeMin}–${SHIPPING_LIMITS.carrierCodeMax} ký tự: chữ, số, “-” hoặc “_”, bắt đầu bằng chữ hoặc số`,
+  carrierNameRequired: "Nhập tên hãng",
+  webhookSecretInvalid: `Khoá bí mật ${SHIPPING_LIMITS.webhookSecretMin}–${SHIPPING_LIMITS.webhookSecretMax} ký tự, không có khoảng trắng đầu / cuối`,
 } as const;

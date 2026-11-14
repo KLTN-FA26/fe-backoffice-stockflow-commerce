@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { apiLoad, loadShipment, parcel, shipmentRow } from "./__fixtures__/load";
+import { apiLoad, loadShipment, parcel } from "./__fixtures__/load";
 import {
   findShipmentByCode,
+  isLabelLoaded,
   isShipmentComplete,
   loadedLabelCodes,
   missingParcels,
   reconcileLoad,
-  summarizeSelection,
 } from "./selectors";
 
 describe("reconcileLoad", () => {
@@ -48,29 +48,11 @@ describe("lô trên chuyến", () => {
     expect(findShipmentByCode(load, "SO-2-S1")?.shipmentId).toBe("shp-SO-2-S1");
     expect(findShipmentByCode(load, "NOPE")).toBeUndefined();
   });
-});
 
-describe("summarizeSelection — lô đã chọn để mở chuyến", () => {
-  it("cùng kho, hãng chung → dùng cho chuyến", () => {
-    const rows = [
-      shipmentRow({ carrierId: "c1" }),
-      shipmentRow({ shipmentId: "s2", carrierId: "c1" }),
-    ];
-    expect(summarizeSelection(rows)).toEqual({
-      warehouseId: "wh-hcm",
-      mixedWarehouses: false,
-      carrierId: "c1",
-      mixedCarriers: false,
-    });
-  });
-
-  it("khác kho hoặc khác hãng được báo; chưa gán hãng thì không ép hãng", () => {
-    const mixed = summarizeSelection([
-      shipmentRow({ carrierId: "c1" }),
-      shipmentRow({ shipmentId: "s2", warehouseId: "wh-hn", carrierId: "c2" }),
-    ]);
-    expect(mixed).toMatchObject({ warehouseId: null, mixedWarehouses: true, mixedCarriers: true });
-    expect(summarizeSelection([shipmentRow()]).carrierId).toBeNull();
-    expect(summarizeSelection([])).toMatchObject({ warehouseId: null, mixedWarehouses: false });
+  it("kiện đang trên xe tra theo mã nhãn không phân biệt hoa thường; kiện chưa quét thì không", () => {
+    const load = apiLoad();
+    expect(isLabelLoaded(load, "pkg-so-1-1")).toBe(true);
+    expect(isLabelLoaded(load, "PKG-SO-2-1")).toBe(false);
+    expect(isLabelLoaded(load, "NOPE")).toBe(false);
   });
 });

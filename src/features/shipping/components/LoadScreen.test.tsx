@@ -1,4 +1,4 @@
-import { cleanup, screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -10,7 +10,6 @@ import { resetScanIds } from "@/features/shipping/scan-ids";
 import { LOAD_ID, apiLoad, loadShipment, parcel } from "../__fixtures__/load";
 import {
   SHIPPING_ACTORS as ACTORS,
-  bePage,
   mockShippingApi,
   renderShippingScreen,
 } from "../__fixtures__/render";
@@ -42,9 +41,7 @@ const fullLoad = (patch: Partial<Load> = {}) =>
 interface Handlers {
   scan?: (body: { scanId?: string; packageCode: string }) => unknown;
   handover?: (body: Record<string, unknown>) => unknown;
-  cancellation?: (body: Record<string, unknown>) => unknown;
   unscan?: () => unknown;
-  removeShipment?: () => unknown;
 }
 
 function renderLoad(actor: TestActor, load: Load, handlers: Handlers = {}) {
@@ -53,26 +50,31 @@ function renderLoad(actor: TestActor, load: Load, handlers: Handlers = {}) {
     post: {
       [`${PATH}/scans`]: (_p, body) => (handlers.scan ?? (() => load))(body as never),
       [`${PATH}/handover`]: (_p, body) => (handlers.handover ?? (() => load))(body as never),
-      [`${PATH}/cancellation`]: (_p, body) =>
-        (handlers.cancellation ?? (() => load))(body as never),
     },
     delete: {
       [`${PATH}/scans/pkg-PKG-SO-1-1`]: () => (handlers.unscan ?? (() => load))(),
-      [`${PATH}/shipments/shp-SO-1-S1`]: () => (handlers.removeShipment ?? (() => load))(),
     },
   });
   renderShippingScreen(<LoadScreen id={LOAD_ID} />);
   return spies;
 }
 
+/** Thẻ "Thông tin chuyến": các giá trị cùng có ở thẻ Đặt xe / Mã vận đơn nên phải tìm trong đúng thẻ. */
+const infoCard = () =>
+  within(screen.getByRole("heading", { name: L.load.info }).closest("section") as HTMLElement);
+
 describe("LoadScreen — thông tin chuyến và tiến độ", () => {
-  it("hiện hãng, xe, tài xế, tiến độ tổng và theo từng lô; kiện chưa lên xe được nói rõ", async () => {
+  it("thẻ thông tin hiện hãng, xe, tài xế và mã vận đơn; tiến độ tổng và theo từng lô, kiện chưa lên xe được nói rõ", async () => {
     renderLoad(ACTORS.warehouseStaff, apiLoad());
     expect(
       await screen.findByRole("heading", { name: `${L.load.title} · ${LOAD_ID}` }),
     ).toBeInTheDocument();
-    expect(screen.getByText("GHN Giao Hàng Nhanh")).toBeInTheDocument();
-    expect(screen.getByText("51C-628.14")).toBeInTheDocument();
+    const info = infoCard();
+    expect(info.getByText("GHN Giao Hàng Nhanh")).toBeInTheDocument();
+    expect(info.getByText("51C-628.14")).toBeInTheDocument();
+    expect(info.getByText("Lê Văn Xế")).toBeInTheDocument();
+    expect(info.getByText(UI_LABELS.shipping.waybill.card.number)).toBeInTheDocument();
+    expect(info.getByText("GHN-250001")).toBeInTheDocument();
     // 1/3 kiện lên xe: tiến độ tổng, lô S1 đủ 1/1, lô S2 0/2
     expect(screen.getByRole("progressbar", { name: L.load.progressAria })).toHaveAttribute(
       "aria-valuenow",
@@ -83,6 +85,16 @@ describe("LoadScreen — thông tin chuyến và tiến độ", () => {
     const s2 = screen.getByRole("region", { name: `${L.shipments.title} SO-2-S1` });
     expect(within(s2).getAllByText(L.load.notLoaded)).toHaveLength(2);
     expect(within(s2).getByRole("progressbar")).toHaveAttribute("aria-valuenow", "0");
+  });
+
+  it("chuyến chưa có mã vận đơn: ô mã vận đơn của thẻ thông tin hiện dấu gạch, không hiện mã cũ", async () => {
+    renderLoad(ACTORS.warehouseStaff, apiLoad({ waybillNo: undefined }));
+    await screen.findByRole("heading", { name: `${L.load.title} · ${LOAD_ID}` });
+    const info = screen.getByRole("heading", { name: L.load.info }).closest("section");
+    const item = within(info as HTMLElement).getByText(UI_LABELS.shipping.waybill.card.number)
+      .parentElement as HTMLElement;
+    expect(within(item).getByText("—")).toBeInTheDocument();
+    expect(screen.queryByText("GHN-250001")).not.toBeInTheDocument();
   });
 
   it("mỗi lô liên kết sang chi tiết lô giao", async () => {
@@ -223,36 +235,55 @@ describe("LoadScreen — quét kiện", () => {
     );
     await waitFor(() => expect(del).toHaveBeenCalledWith(`${PATH}/scans/pkg-PKG-SO-1-1`));
   });
-
-  it("bỏ lô khỏi chuyến cần xác nhận rồi DELETE /shipments/{id}", async () => {
-    const user = userEvent.setup();
-    const { delete: del } = renderLoad(ACTORS.warehouseStaff, apiLoad());
-    const card = await screen.findByRole("region", { name: `${L.shipments.title} SO-1-S1` });
-    await user.click(within(card).getByRole("button", { name: new RegExp(L.load.removeShipment) }));
-    expect(del).not.toHaveBeenCalled();
-    await user.click(
-      within(screen.getByRole("dialog")).getByRole("button", { name: L.load.removeShipment }),
-    );
-    await waitFor(() => expect(del).toHaveBeenCalledWith(`${PATH}/shipments/shp-SO-1-S1`));
-  });
 });
 
 describe("LoadScreen — gate mã quyền / trạng thái", () => {
-  it("điều phối đơn hàng (không có fulfillment-dispatch:UPDATE) chỉ xem: không ô quét, không nút lên xe / bàn giao; có lý do", async () => {
+  const CANCEL = UI_LABELS.shipping.ftl.controlledCancel.cancelButton;
+
+  it.each([
+    ["nhân viên kho", ACTORS.warehouseStaff, { scan: true, handover: true, cancel: false }],
+    ["quản lý kho", ACTORS.warehouseManager, { scan: true, handover: true, cancel: true }],
+    [
+      "điều phối đơn hàng",
+      ACTORS.orderCoordinator,
+      { scan: false, handover: false, cancel: false },
+    ],
+    ["chỉ xem", ACTORS.viewOnly, { scan: false, handover: false, cancel: false }],
+  ])(
+    "%s: ô quét / gỡ kiện / bàn giao / huỷ có kiểm soát đúng theo mã quyền",
+    async (_n, actor, want) => {
+      renderLoad(actor, fullLoad());
+      await screen.findByRole("heading", { name: `${L.load.title} · ${LOAD_ID}` });
+      const present = (el: HTMLElement | null) => el !== null;
+      expect(present(screen.queryByLabelText(L.scan.label))).toBe(want.scan);
+      expect(
+        present(screen.queryByRole("button", { name: `${L.load.unscanAria} PKG-SO-1-1` })),
+      ).toBe(want.scan);
+      expect(present(screen.queryByRole("button", { name: L.load.actions.handover }))).toBe(
+        want.handover,
+      );
+      expect(present(screen.queryByRole("button", { name: CANCEL }))).toBe(want.cancel);
+      // Biên bản luôn xem được
+      expect(
+        screen.getByRole("link", { name: new RegExp(L.load.actions.manifest) }),
+      ).toHaveAttribute("href", `/admin/loads/${LOAD_ID}/manifest`);
+    },
+  );
+
+  it("không có fulfillment-dispatch:UPDATE: chỉ xem, có câu giải thích vì sao không có ô quét", async () => {
     renderLoad(ACTORS.orderCoordinator, apiLoad());
     await screen.findByRole("heading", { name: `${L.load.title} · ${LOAD_ID}` });
-    expect(screen.queryByLabelText(L.scan.label)).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: L.load.actions.handover })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: L.load.addShipments })).not.toBeInTheDocument();
     expect(screen.getByText(L.load.noActions.viewOnly)).toBeInTheDocument();
-    // Biên bản vẫn xem được
-    expect(screen.getByRole("link", { name: new RegExp(L.load.actions.manifest) })).toHaveAttribute(
-      "href",
-      `/admin/loads/${LOAD_ID}/manifest`,
-    );
   });
 
-  it("chuyến đã bàn giao: không ô quét, không gỡ kiện; hiện người ký và mã biên bản", async () => {
+  it("chưa đủ kiện: nút bàn giao có nhưng khoá, kèm lý do", async () => {
+    renderLoad(ACTORS.warehouseStaff, apiLoad());
+    const button = await screen.findByRole("button", { name: L.load.actions.handover });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute("title", L.load.disabledReason.notFullyLoaded);
+  });
+
+  it("chuyến đã bàn giao: không ô quét, không gỡ kiện, không bàn giao / huỷ; hiện người ký và mã biên bản", async () => {
     renderLoad(
       ACTORS.warehouseManager,
       fullLoad({
@@ -267,76 +298,7 @@ describe("LoadScreen — gate mã quyền / trạng thái", () => {
     expect(screen.getByText(L.load.noActions.dispatched)).toBeInTheDocument();
     expect(screen.queryByLabelText(L.scan.label)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Gỡ kiện khỏi xe/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: L.load.actions.cancel })).not.toBeInTheDocument();
-  });
-
-  it("nút huỷ chuyến chỉ có ở quản lý kho; bắt buộc lý do rồi POST /cancellation", async () => {
-    const user = userEvent.setup();
-    const staff = renderLoad(ACTORS.warehouseStaff, apiLoad());
-    await screen.findByRole("heading", { name: `${L.load.title} · ${LOAD_ID}` });
-    expect(screen.queryByRole("button", { name: L.load.actions.cancel })).not.toBeInTheDocument();
-    cleanup();
-    staff.get.mockRestore();
-    const { post } = renderLoad(ACTORS.warehouseManager, apiLoad());
-    await user.click(await screen.findByRole("button", { name: L.load.actions.cancel }));
-    const dialog = screen.getByRole("dialog");
-    const confirm = within(dialog).getByRole("button", { name: L.load.cancelDialog.confirm });
-    expect(confirm).toBeDisabled();
-    await user.type(within(dialog).getByRole("textbox"), "Hãng huỷ xe");
-    await user.click(confirm);
-    await waitFor(() =>
-      expect(post).toHaveBeenCalledWith(`${PATH}/cancellation`, { reason: "Hãng huỷ xe" }),
-    );
-  });
-});
-
-describe("LoadScreen — thêm lô vào chuyến", () => {
-  it("lọc theo hãng ở BE, giữ lô chưa gán hãng, bỏ lô nguyên xe / lô hãng khác / lô đã lên chuyến khác", async () => {
-    const user = userEvent.setup();
-    const row = (code: string, patch: Record<string, unknown> = {}) => ({
-      shipmentId: `shp-${code}`,
-      code,
-      orderId: `ord-${code}`,
-      warehouseId: "wh-hcm",
-      status: "READY_TO_DISPATCH",
-      deliveryMode: "PARCEL",
-      packageCount: 1,
-      partial: false,
-      wholeOrderHandover: false,
-      version: 0,
-      ...patch,
-    });
-    const spies = mockShippingApi(ACTORS.warehouseStaff, {
-      get: {
-        [PATH]: () => apiLoad(),
-        "/fulfillment/shipments": (params) => {
-          const carrierId = (params as { carrierId?: string }).carrierId;
-          return carrierId
-            ? bePage([row("MINE-1", { carrierId: "car-ghn" })])
-            : bePage([
-                row("MINE-1", { carrierId: "car-ghn" }),
-                row("FREE-1"),
-                row("OTHER-1", { carrierId: "car-vtp" }),
-                row("FTL-1", { deliveryMode: "FULL_TRUCKLOAD" }),
-                row("BUSY-1", { loadId: "LOAD-9" }),
-              ]);
-        },
-      },
-    });
-    renderShippingScreen(<LoadScreen id={LOAD_ID} />);
-    await user.click(await screen.findByRole("button", { name: L.load.addShipments }));
-    const dialog = await screen.findByRole("dialog");
-    expect(await within(dialog).findByText("MINE-1")).toBeInTheDocument();
-    expect(within(dialog).getByText("FREE-1")).toBeInTheDocument();
-    for (const hidden of ["OTHER-1", "FTL-1", "BUSY-1"]) {
-      expect(within(dialog).queryByText(hidden)).not.toBeInTheDocument();
-    }
-    const calls = spies.get.mock.calls
-      .filter(([url]) => url === "/fulfillment/shipments")
-      .map(([, config]) => config?.params as Record<string, unknown>);
-    expect(calls).toContainEqual(
-      expect.objectContaining({ carrierId: "car-ghn", warehouseId: "wh-hcm" }),
-    );
-    expect(calls.some((p) => p.carrierId === undefined)).toBe(true);
+    expect(screen.queryByRole("button", { name: L.load.actions.handover })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: CANCEL })).not.toBeInTheDocument();
   });
 });

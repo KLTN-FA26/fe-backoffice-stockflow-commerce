@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { api } from "@/lib/api/client";
 
 import {
-  DESIGN_LINE_ID,
   ORDER_ID,
   OTHER_PICKER_ID,
   PICKER_ID,
@@ -12,7 +11,6 @@ import {
   apiTask,
   assignees,
   bePage,
-  fulfillmentOrder,
   pickedTask,
   stagedTask,
   taskCandidate,
@@ -21,13 +19,12 @@ import {
   assignFulfillmentTask,
   completePicking,
   createFulfillmentTask,
-  getDesignArtifactUrl,
   getFulfillmentTask,
   listFulfillmentTasks,
   moveToDispatch,
   startPicking,
 } from "./api";
-import { getFulfillmentOrder, listAssignees, listTaskCandidates } from "./reference-api";
+import { listAssignees, listTaskCandidates } from "./reference-api";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -174,44 +171,13 @@ describe("fulfillment task API — hợp đồng BE FulfillmentController", () =
     expect(task).toMatchObject({ pickStatus: "Picked", movedToDispatchAt: "2026-10-11T02:00:00Z" });
   });
 
-  it("artifact: lineId là id dòng đơn hàng, role nằm trong path", async () => {
-    const get = vi.spyOn(api, "get").mockResolvedValueOnce({
-      data: {
-        artifactId: "a1",
-        role: "PRINT_READY",
-        originalName: "front.pdf",
-        contentType: "application/pdf",
-        sizeBytes: 10,
-        checksum: "c".repeat(64),
-        url: "https://files.example/signed",
-        expiresAt: "2026-10-10T03:05:00Z",
-      },
-    });
-    const artifact = await getDesignArtifactUrl({
-      taskId: TASK_ID,
-      lineId: DESIGN_LINE_ID,
-      role: "PRINT_READY",
-    });
-    expect(get.mock.calls[0]?.[0]).toBe(
-      `${PATH}/lines/${DESIGN_LINE_ID}/design-artifacts/PRINT_READY/download-url`,
-    );
-    expect(artifact.url).toBe("https://files.example/signed");
-  });
-
   it("response sai hợp đồng → ném ZodError (không trả dữ liệu chưa validate)", async () => {
     vi.spyOn(api, "get").mockResolvedValueOnce({ data: { taskId: TASK_ID } });
     await expect(getFulfillmentTask(TASK_ID)).rejects.toThrow();
   });
 });
 
-describe("dữ liệu phụ trợ — đơn hàng và nhân viên", () => {
-  it("đơn của task đọc qua GET /orders/{id}", async () => {
-    const get = vi.spyOn(api, "get").mockResolvedValueOnce({ data: fulfillmentOrder });
-    const order = await getFulfillmentOrder(ORDER_ID);
-    expect(get.mock.calls[0]?.[0]).toBe(`/orders/${ORDER_ID}`);
-    expect(order.lines).toHaveLength(2);
-  });
-
+describe("dữ liệu phụ trợ — đơn chờ xuất kho và nhân viên", () => {
   it("đơn chờ xuất kho: GET /fulfillment/task-candidates (không gọi /orders), parse trang + dòng in", async () => {
     const get = vi.spyOn(api, "get").mockResolvedValueOnce({ data: bePage([taskCandidate]) });
     const page = await listTaskCandidates();
