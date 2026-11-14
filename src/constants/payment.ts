@@ -29,13 +29,9 @@ export const PAYMENT_RECEIPT_PERMISSIONS = {
 /**
  * Hoàn tiền — resource `payment-refunds`: CREATE = ghi nhận đã hoàn, UPDATE = huỷ ghi nhận ghi sai.
  * Seed: Kế toán + Quản trị hệ thống đủ 4 action; Sales chỉ VIEW_PAGE + READ (theo dõi để trả lời khách).
+ * Định nghĩa duy nhất nằm ở `./permissions` (màn đơn cũng đọc cùng resource), re-export ở đây cho màn Kế toán.
  */
-export const PAYMENT_REFUND_PERMISSIONS = {
-  viewPage: "payment-refunds:VIEW_PAGE",
-  read: "payment-refunds:READ",
-  create: "payment-refunds:CREATE",
-  update: "payment-refunds:UPDATE",
-} as const;
+export { PAYMENT_REFUND_PERMISSIONS } from "./permissions";
 
 /* ── Route ───────────────────────────────────────────────────────────────────────────────── */
 

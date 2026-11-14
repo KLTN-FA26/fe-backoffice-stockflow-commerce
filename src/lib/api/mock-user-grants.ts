@@ -49,11 +49,7 @@ import {
   WAREHOUSE_LOCATION_PERMISSIONS,
   WAREHOUSE_PERMISSIONS,
 } from "@/constants/permissions";
-import {
-  PAYMENT_INSTALLMENT_PERMISSIONS,
-  PAYMENT_RECEIPT_PERMISSIONS,
-  PAYMENT_REFUND_PERMISSIONS,
-} from "@/constants/payment";
+import { PAYMENT_INSTALLMENT_PERMISSIONS, PAYMENT_RECEIPT_PERMISSIONS } from "@/constants/payment";
 
 import type { PermissionCode } from "@/lib/auth/me-permissions";
 
