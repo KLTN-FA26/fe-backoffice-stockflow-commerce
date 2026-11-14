@@ -455,8 +455,10 @@ export const INVOICE_STATUS = {
  */
 export const ORDER_STATUSES = [
   "Draft",
+  "Pending Contract",
   "Pending Payment",
   "Confirmed",
+  "Awaiting Stock",
   "In Production",
   "Ready to Fulfill",
   "Picking",
@@ -476,7 +478,7 @@ export const ORDER_STATUSES = [
 ] as const;
 
 /**
- * Trạng thái phòng thủ khi đọc: BE trả chuỗi ngoài 19 trạng thái đã biết (BE thêm sau, hoặc mã cũ
+ * Trạng thái phòng thủ khi đọc: BE trả chuỗi ngoài 21 trạng thái đã biết (BE thêm sau, hoặc mã cũ
  * IN_FULFILMENT / PAID) → hiển thị "Không rõ", không có chuyển tiếp / thao tác nào. Chỉ để ĐỌC —
  * không bao giờ là giá trị lọc / gửi BE.
  */

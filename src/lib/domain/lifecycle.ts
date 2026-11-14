@@ -252,16 +252,21 @@ export const MOVE_TRANSITIONS: Record<MoveTaskStatus, readonly MoveTaskStatus[]>
 
 /* ── Module 14: Order ────────────────────────────────────────────────── */
 
-// Chép nguyên BE `order/api/OrderStatus.java#canTransitionTo` (19 trạng thái, BE PR #133 — bảng chuyển
+// Chép nguyên BE `order/api/OrderStatus.java#canTransitionTo` (21 trạng thái; docs 17 §5.1 — bảng chuyển
 // cũng nằm ở DB `ordering.order_status_transition`, trigger chặn mọi nhảy cóc). FE khớp BE, không dựng
 // theo docs 17. Mã wire ↔ nhãn FE: features/order/status-map.ts (PENDING_PAYMENT ↔ "Pending Payment"…).
 export const ORDER_TRANSITIONS: Record<OrderReadStatus, readonly OrderStatus[]> = {
-  Draft: ["Pending Payment", "Confirmed", "On Hold", "Cancelled"],
+  Draft: ["Pending Contract", "Pending Payment", "Confirmed", "On Hold", "Cancelled"],
+  // Hợp đồng đã gửi, chờ ký (14 §5.3): ký → chờ đợt ON_SIGNING / xác nhận / treo tín dụng; huỷ hợp đồng → Draft
+  "Pending Contract": ["Draft", "Pending Payment", "Confirmed", "On Hold", "Cancelled"],
   "Pending Payment": ["Confirmed", "Cancelled"],
-  Confirmed: ["In Production", "Ready to Fulfill", "On Hold", "Cancelled"],
-  "In Production": ["Ready to Fulfill", "On Hold", "Cancelled"],
+  // Awaiting Stock: đợt giao kế tiếp thiếu thành phẩm, Đơn sản xuất đã gửi (17 §4.4 bước 15, BR-04)
+  Confirmed: ["Awaiting Stock", "In Production", "Ready to Fulfill", "On Hold", "Cancelled"],
+  // Nhận đủ hàng → release → Ready to Fulfill; giao trước phần có sẵn → Partially Fulfilled (17 §5.1)
+  "Awaiting Stock": ["Ready to Fulfill", "Partially Fulfilled", "On Hold", "Cancelled"],
+  "In Production": ["Ready to Fulfill", "Partially Fulfilled", "On Hold", "Cancelled"],
   // PACKED trực tiếp: đơn chỉ có hàng in (17 §4.2.6)
-  "Ready to Fulfill": ["Picking", "Packed", "On Hold", "Cancelled"],
+  "Ready to Fulfill": ["Picking", "Packed", "Partially Fulfilled", "On Hold", "Cancelled"],
   Picking: ["Packed", "Partially Fulfilled", "On Hold", "Cancelled"],
   // Giao một phần (G4-Q3): phần còn lại đóng gói / bàn giao / đóng bởi nhân viên → đơn theo các lô giao
   "Partially Fulfilled": [
@@ -278,6 +283,7 @@ export const ORDER_TRANSITIONS: Record<OrderReadStatus, readonly OrderStatus[]> 
   "On Hold": [
     "Confirmed",
     "Pending Payment",
+    "Awaiting Stock",
     "In Production",
     "Ready to Fulfill",
     "Picking",
@@ -287,13 +293,15 @@ export const ORDER_TRANSITIONS: Record<OrderReadStatus, readonly OrderStatus[]> 
   ],
   Shipped: ["Delivered", "Delivery Failed", "Partially Fulfilled"],
   "Delivery Failed": ["Delivered", "Returned", "Partially Fulfilled"],
-  Delivered: ["Completed", "Return Requested"],
+  // Delivery Failed: chỉ khi Quản lý kho sửa tay vì hãng báo sai, đơn chưa hoàn tất (17 BR-27)
+  Delivered: ["Completed", "Return Requested", "Delivery Failed"],
   // Yêu cầu trả bị từ chối → về Delivered (quyết định 21/10)
   "Return Requested": ["Returned", "Delivered"],
   Returned: ["Refunded", "Partially Refunded"],
-  Refunded: ["Closed"],
-  "Partially Refunded": ["Closed"],
-  Completed: ["Closed"],
+  // Khiếu nại thêm sau hoàn tiền / sau hoàn tất vẫn mở được cho tới khi đơn đóng hẳn (BE `canTransitionTo`)
+  Refunded: ["Closed", "Return Requested"],
+  "Partially Refunded": ["Closed", "Return Requested"],
+  Completed: ["Closed", "Return Requested"],
   // Terminal (OrderStatus#isTerminal)
   Cancelled: [],
   Closed: [],
