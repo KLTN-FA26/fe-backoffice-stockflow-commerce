@@ -15,6 +15,7 @@ import {
   refundStatusOf,
 } from "./mock-payment-store";
 import { bodyOf, fail, ok, pageOf, pathParams, queryOf, text } from "./mock-route-utils";
+import { cancelledOrderRefund } from "./mock-routes-order-cancellation-requests";
 import { can, forbidden } from "./mock-routes-payment";
 
 import type { MockOrderRefund, MockRefundRecord } from "./mock-payment-store";
@@ -129,8 +130,12 @@ export function registerRefundMockRoutes(): void {
   });
   registerMockRoute("GET", "/refunds/orders/:orderId", async (config) => {
     if (!(await can("payment-refunds:READ"))) return forbidden();
-    const order = mockOrderRefunds().find((o) => o.orderId === pathParams(config).orderId);
-    return order ? ok(refundWire(order, true)) : fail(404, "NOT_FOUND", "No order");
+    const orderId = pathParams(config).orderId ?? "";
+    const order = mockOrderRefunds().find((o) => o.orderId === orderId);
+    if (order) return ok(refundWire(order, true));
+    // Đơn huỷ chưa có dòng riêng trong kho: số liệu suy từ bản ghi huỷ của đơn (`mock-routes-order-cancellation-requests`)
+    const cancelled = await cancelledOrderRefund(orderId);
+    return cancelled ? ok(cancelled) : fail(404, "NOT_FOUND", "No order");
   });
   registerMockRoute("POST", "/refunds/orders/:orderId/records", async (config) =>
     (await can("payment-refunds:CREATE"))
