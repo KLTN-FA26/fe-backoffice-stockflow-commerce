@@ -20,6 +20,8 @@ import {
   useVoidDraft,
 } from "../mutations";
 
+import { AgreementDialog } from "./AgreementDialog";
+import { CorrectionDialog } from "./CorrectionDialog";
 import { ReviseDraftDialog } from "./ReviseDraftDialog";
 import { useFileDownload } from "./useFileDownload";
 
@@ -55,8 +57,8 @@ const CONFIRM: Record<Confirmable, { title: string; description: string; danger?
 
 /**
  * Thanh hành động của hoá đơn: nút theo `allowedEInvoiceActions` (trạng thái + quyền); thao tác phá
- * huỷ / ra ngoài hệ thống phải xác nhận. Điều chỉnh, thay thế, thoả thuận, thông báo sai sót do
- * `extra` của trang chi tiết gắn vào.
+ * huỷ / ra ngoài hệ thống phải xác nhận; điều chỉnh / thay thế / thoả thuận mở hộp thoại riêng
+ * (docs 21 §4.4). `extra` gắn thêm nút do màn khác cung cấp.
  */
 export function EInvoiceActions({
   invoice,
@@ -69,6 +71,8 @@ export function EInvoiceActions({
   const actions = allowedEInvoiceActions(invoice, can);
   const [confirming, setConfirming] = useState<Confirmable | null>(null);
   const [revising, setRevising] = useState(false);
+  const [correcting, setCorrecting] = useState<"adjust" | "replace" | null>(null);
+  const [agreeing, setAgreeing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const files = useFileDownload(invoice.id);
   const onError = (failure: unknown) => setError(einvoiceErrorMessage(failure));
@@ -143,6 +147,9 @@ export function EInvoiceActions({
           </Button>
         </>
       )}
+      {button("attachAgreement", A.attachAgreement, () => setAgreeing(true))}
+      {button("adjust", A.adjust, () => setCorrecting("adjust"))}
+      {button("replace", A.replace, () => setCorrecting("replace"))}
       {actions.map((action) => extra?.(action))}
       {button("issue", A.issue, () => setConfirming("issue"))}
       {(error ?? files.error) && !confirming && (
@@ -168,6 +175,8 @@ export function EInvoiceActions({
         />
       )}
       <ReviseDraftDialog invoice={revising ? invoice : null} onClose={() => setRevising(false)} />
+      <CorrectionDialog invoice={invoice} mode={correcting} onClose={() => setCorrecting(null)} />
+      <AgreementDialog invoice={agreeing ? invoice : null} onClose={() => setAgreeing(false)} />
     </div>
   );
 }

@@ -170,7 +170,10 @@ export async function attachAgreement(input: VersionedInput & AgreementInput): P
   form.append("number", input.number);
   form.append("date", input.date);
   form.append("version", String(input.version));
-  const { data } = await api.put<unknown>(`${one(input.id)}/agreement`, form);
+  // Client mặc định gửi JSON: phải nói rõ multipart, nếu không axios đổi FormData thành JSON
+  const { data } = await api.put<unknown>(`${one(input.id)}/agreement`, form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
   return parse(data);
 }
 
