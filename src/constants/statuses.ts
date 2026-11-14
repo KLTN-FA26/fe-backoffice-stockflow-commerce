@@ -425,26 +425,6 @@ export const SKU_STATUS = {
   OBSOLETE: "Obsolete",
 } as const satisfies Record<string, SkuStatus>;
 
-export const INVOICE_STATUSES = [
-  "Draft",
-  "Matched",
-  "Exception",
-  "Disputed",
-  "Approved for Payment",
-  "Paid",
-  "Cancelled",
-] as const;
-
-export const INVOICE_STATUS = {
-  APPROVED_FOR_PAYMENT: "Approved for Payment",
-  CANCELLED: "Cancelled",
-  DISPUTED: "Disputed",
-  DRAFT: "Draft",
-  EXCEPTION: "Exception",
-  MATCHED: "Matched",
-  PAID: "Paid",
-} as const satisfies Record<string, InvoiceStatus>;
-
 /**
  * Order — đúng 19 trạng thái của BE `order/api/OrderStatus.java` (BE PR #133, SCRUM-239/246/247),
  * ánh xạ 1-1 với mã wire (PENDING_PAYMENT ↔ "Pending Payment"…, xem features/order/status-map.ts).
@@ -667,7 +647,6 @@ export type ShortPickReason = (typeof SHORT_PICK_REASONS)[number];
 export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
 export type ProposalStatus = (typeof PROPOSAL_STATUSES)[number];
 export type SkuStatus = (typeof SKU_STATUSES)[number];
-export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 export type OrderReadStatus = (typeof ORDER_READ_STATUSES)[number];
 export type SupplierStatus = (typeof SUPPLIER_STATUSES)[number];

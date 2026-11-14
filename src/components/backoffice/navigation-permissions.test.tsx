@@ -363,19 +363,14 @@ describe("declared navigation permissions", () => {
     expect(await screen.findByRole("link", { name: "Đề xuất nhập hàng" })).toBeInTheDocument();
     mockMode.isMock = false;
   });
-  it("Hoá đơn NCC (BE chưa có API hoá đơn) chỉ hiện ở mock, không phụ thuộc quyền", async () => {
+  it("Hoá đơn NCC (module 04, đã ra khỏi phạm vi) không còn trên menu, kể cả ở mock", async () => {
     vi.spyOn(api, "get").mockResolvedValue({
       data: { roles: [], permissions: [], dataScope: "ALL" },
     });
-    mockMode.isMock = false;
+    mockMode.isMock = true;
     mount();
     expect(await screen.findByRole("link", { name: "Tổng quan" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Hoá đơn NCC" })).not.toBeInTheDocument();
-
-    cleanup();
-    mockMode.isMock = true;
-    mount();
-    expect(await screen.findByRole("link", { name: "Hoá đơn NCC" })).toBeInTheDocument();
     mockMode.isMock = false;
   });
   it("Từ điển thuộc tính theo quyền xem trang product-attributes và dẫn tới màn thật, không phải màn dữ liệu mẫu", async () => {
@@ -499,8 +494,9 @@ describe("mockOnly đi chung pipeline hiển thị + mục đang mở (một t�
     );
   }
 
-  // Mục mockOnly hiện tại (BE chưa có API hoá đơn NCC); Chuyến xe / Vận đơn đã có BE nên không còn mockOnly
-  const MOCK_ONLY_ROUTE = "/admin/invoices";
+  // Mục mockOnly hiện tại (BE chưa có API đề xuất nhập hàng); Hoá đơn NCC đã bỏ (module 04 ra khỏi
+  // phạm vi), Chuyến xe / Vận đơn đã có BE nên không còn mockOnly
+  const MOCK_ONLY_ROUTE = "/admin/replenishment";
   const SHIPMENT_DETAIL = ADMIN_ROUTES.shipments.detail("trip-1");
 
   afterEach(() => {

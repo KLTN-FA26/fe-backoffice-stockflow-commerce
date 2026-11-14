@@ -77,10 +77,6 @@ export const ADMIN_ROUTES = {
     edit: (id: string) => `${ADMIN_BASE}/purchase-orders/${id}/edit`,
     list: `${ADMIN_BASE}/purchase-orders`,
   },
-  invoices: {
-    detail: (id: string) => `${ADMIN_BASE}/invoices/${id}`,
-    list: `${ADMIN_BASE}/invoices`,
-  },
   orders: {
     // Đơn công nợ vượt hạn mức chờ duyệt (SCRUM-427) — segment tĩnh, ưu tiên hơn [id]
     creditHolds: `${ADMIN_BASE}/orders/credit-holds`,
