@@ -8,12 +8,10 @@
  *   `PACKING_TAKEN`, trừ người có `fulfillment-packing:APPROVE` (làm hộ / tiếp quản, người nhận đơn
  *   không đổi — seed: quản lý kho).
  * - Nhãn kiện: `fulfillment-packing:READ`.
- * - Kiểm tra lại thiết kế (docs 08): `fulfillment-design-reverification:UPDATE` (seed: QC, quản lý kho).
  * UI-only — Backend phải re-check (PackingController, PackingSession).
  */
 
 import {
-  FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS,
   FULFILLMENT_PACKAGE_PERMISSIONS,
   FULFILLMENT_PACKING_PERMISSIONS,
   PACK_STATUS,
@@ -35,14 +33,12 @@ export interface PackingAccess {
   isOwner: boolean;
   /** Nhận đơn ở bàn đóng gói: phiên còn PENDING. */
   canStart: boolean;
-  /** Quét, mở / niêm phong / huỷ kiện, hoàn tất: phiên PACKING và là người nhận đơn hoặc có quyền tiếp quản. */
+  /** Quét, mở / niêm phong / huỷ kiện, hoàn tất: phiên IN_PROGRESS và là người nhận đơn hoặc có quyền tiếp quản. */
   canWork: boolean;
   /** Đang có người khác đóng và người này không có quyền tiếp quản → chỉ xem (BE `PACKING_TAKEN`). */
   takenByOther: boolean;
   /** Người có quyền tiếp quản thao tác trong phiên của người khác. */
   managerAssist: boolean;
-  /** Kiểm tra lại thiết kế khi phiên bị giữ (design-reverification:UPDATE). */
-  canReverify: boolean;
   /** Xem nhãn kiện (packing:READ). */
   canLabel: boolean;
 }
@@ -55,7 +51,7 @@ export function packingAccess(
   const canPack = actor.can(PACKING.update);
   const canTakeOver = actor.can(PACKING.approve);
   const isOwner = actor.userId !== null && session.packerId === actor.userId;
-  const packing = session.packStatus === PACK_STATUS.PACKING;
+  const packing = session.packStatus === PACK_STATUS.IN_PROGRESS;
   return {
     canRead,
     canPack,
@@ -65,9 +61,6 @@ export function packingAccess(
     canWork: canPack && packing && (isOwner || canTakeOver),
     takenByOther: canPack && packing && !isOwner && !canTakeOver,
     managerAssist: canPack && packing && canTakeOver && !isOwner && !!session.packerId,
-    canReverify:
-      actor.can(FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS.update) &&
-      session.packStatus === PACK_STATUS.ON_HOLD,
     canLabel: actor.can(PACKING.read),
   };
 }

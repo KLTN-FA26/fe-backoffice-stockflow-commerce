@@ -1,7 +1,7 @@
 /**
- * Release đơn — những gì hộp thoại làm khi BE từ chối hoặc tranh chấp (SCRUM-423, docs 17 BR-02, docs 19 BR-08/09):
- * thẻ "Chưa release được" cho đơn cọc chưa nhận cọc, lý do kèm mã quy tắc + SKU, OPTIMISTIC_LOCK / LOCK_TIMEOUT,
- * Idempotency-Key, lỗi 400 `warehouseId` ngay tại ô Kho, số dòng in + gợi ý, kho rỗng, ô kho khoá tới khi tải xong.
+ * Release đơn — những gì hộp thoại làm khi BE từ chối hoặc tranh chấp (docs 17 BR-02, §4.2 bước 5): thẻ "Chưa release
+ * được" cho đơn cọc chưa nhận cọc, đơn đã đổi trạng thái, OPTIMISTIC_LOCK / LOCK_TIMEOUT, Idempotency-Key, lỗi 400
+ * `warehouseId` ngay tại ô Kho, kho rỗng, ô kho khoá tới khi tải xong.
  */
 import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -38,10 +38,10 @@ async function submitRelease(error?: ApiError) {
   return { user, dialog, post };
 }
 
-describe("thẻ 'Chưa release được' (BR-PRD-09) — không chỉ ẩn nút", () => {
+describe("thẻ 'Chưa release được' (đơn cọc chưa nhận cọc) — không chỉ ẩn nút", () => {
   const awaiting = { paymentTerm: "DEPOSIT", depositRequired: 105_000 };
 
-  it("đơn cọc chưa nhận cọc (Pending Payment), người có quyền release → thẻ nêu lý do + mã BR-PRD-09, không có nút", async () => {
+  it("đơn cọc chưa nhận cọc (Pending Payment), người có quyền release → thẻ nêu lý do + mã quy tắc, không có nút", async () => {
     await renderConfirmedScreen("PENDING_PAYMENT", awaiting);
     const card = await screen.findByText("Chưa release được");
     const block = card.closest("div") as HTMLElement;
@@ -59,7 +59,7 @@ describe("thẻ 'Chưa release được' (BR-PRD-09) — không chỉ ẩn nút"
     expect(screen.queryByText("Chưa release được")).not.toBeInTheDocument();
   });
 
-  it("người không có sales-orders:APPROVE (Sales) không thấy thẻ — họ không release được dù cọc đã về", async () => {
+  it("người không có sales-order-releases:UPDATE (Sales) không thấy thẻ — họ không release được dù cọc đã về", async () => {
     await renderConfirmedScreen("PENDING_PAYMENT", awaiting, ORDER_PERMISSION_SETS.salesStaff);
     await screen.findByRole("heading", { name: apiOrder.orderNumber });
     await waitFor(() =>
@@ -70,41 +70,6 @@ describe("thẻ 'Chưa release được' (BR-PRD-09) — không chỉ ẩn nút"
 });
 
 describe("lý do BE từ chối hiện trong hộp thoại, kèm mã quy tắc", () => {
-  it("BR-PRD-08: DESIGN_SAMPLE_NOT_APPROVED → câu tiếng Việt + mã quy tắc + SKU thiếu mẫu + traceId; hộp thoại giữ nguyên", async () => {
-    const { dialog } = await submitRelease(
-      new ApiError(
-        409,
-        "DESIGN_SAMPLE_NOT_APPROVED",
-        "Order SO-1 has new designs without an approved sample on CUP-PRINT-12OZ, MUG-9 (BR-PRD-08)",
-        undefined,
-        "corr-9",
-      ),
-    );
-    const alert = await within(dialog).findByRole("alert");
-    expect(alert).toHaveTextContent("mẫu được khách duyệt");
-    expect(alert).toHaveTextContent("BR-PRD-08");
-    expect(alert).toHaveTextContent("SKU chưa có mẫu duyệt: CUP-PRINT-12OZ, MUG-9");
-    expect(alert).toHaveTextContent("corr-9");
-    expect(alert).not.toHaveTextContent("has new designs");
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
-  });
-
-  it("câu BE không khớp mẫu → vẫn hiện chi tiết gốc để tham khảo", async () => {
-    const { dialog } = await submitRelease(
-      new ApiError(409, "DESIGN_SAMPLE_NOT_APPROVED", "No approved sample for: CUP-PRINT-12OZ"),
-    );
-    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
-      "No approved sample for: CUP-PRINT-12OZ",
-    );
-  });
-
-  it("BR-PRD-09: ORDER_DEPOSIT_NOT_RECEIVED → chưa đủ cọc + mã", async () => {
-    const { dialog } = await submitRelease(new ApiError(409, "ORDER_DEPOSIT_NOT_RECEIVED", "x"));
-    const alert = await within(dialog).findByRole("alert");
-    expect(alert).toHaveTextContent("chưa nhận đủ tiền cọc");
-    expect(alert).toHaveTextContent("BR-PRD-09");
-  });
-
   it("công nợ quá hạn → kèm mã BR-02", async () => {
     const overdue = await submitRelease(new ApiError(409, "CUSTOMER_CREDIT_OVERDUE", "x"));
     expect(await within(overdue.dialog).findByRole("alert")).toHaveTextContent(
@@ -213,44 +178,30 @@ describe("lỗi 400 theo ô, in-dòng, kho rỗng, ô kho", () => {
 
   it("400 có thêm trường lạ → lỗi ô kho VÀ lý do chung", async () => {
     const { dialog } = await submitRelease(
-      new ApiError(400, "VALIDATION_FAILED", "x", { warehouseId: "x", deliveryMode: "y" }),
+      new ApiError(400, "VALIDATION_FAILED", "x", { warehouseId: "x", deliveryBatchId: "y" }),
     );
     expect(await within(dialog).findByText("Chọn kho xuất hàng.")).toBeInTheDocument();
     expect(within(dialog).getByText("Không release được đơn")).toBeInTheDocument();
   });
 
-  it("đơn có dòng in → mô tả nêu số dòng in + gợi ý BR-PRD-08; đơn chỉ hàng sẵn → 'chỉ gồm hàng sẵn', không gợi ý", async () => {
-    const line = { ...apiOrder.lines[0], designSnapshotId: "snap-1", designChecksum: "c" };
-    await renderConfirmedScreen("CONFIRMED", {
-      lines: [line, { ...line, lineId: "l-2", designSnapshotId: "snap-2" }],
-    });
-    const print = await openReleaseDialog();
-    expect(print.dialog).toHaveTextContent("Đơn có 2 dòng in");
-    expect(print.dialog).toHaveTextContent(
-      /Dòng in chỉ release được cho kho có xưởng in[\s\S]*BR-PRD-08/,
-    );
-  });
-
-  it("đơn chỉ hàng sẵn → 'Đơn chỉ gồm hàng sẵn', không có gợi ý dòng in", async () => {
+  it("mô tả nói hàng giữ được phân bổ vào thùng LPN; không còn gợi ý dòng in / xưởng in", async () => {
     await renderConfirmedScreen();
     const { dialog } = await openReleaseDialog();
-    expect(dialog).toHaveTextContent("Đơn chỉ gồm hàng sẵn");
+    expect(dialog).toHaveTextContent(/thùng \(LPN\) cụ thể/);
     expect(dialog).not.toHaveTextContent("xưởng in");
+    expect(dialog).not.toHaveTextContent("dòng in");
   });
 
   it("danh sách kho rỗng → báo 'Chưa có kho nào đang hoạt động'", async () => {
-    await renderConfirmedScreen(
-      "CONFIRMED",
-      {},
-      ORDER_PERMISSION_SETS.coordinatorWithModes,
-      () => ({ items: [] }),
-    );
+    await renderConfirmedScreen("CONFIRMED", {}, ORDER_PERMISSION_SETS.warehouseManager, () => ({
+      items: [],
+    }));
     const { dialog } = await openReleaseDialog();
     expect(await within(dialog).findByText("Chưa có kho nào đang hoạt động.")).toBeInTheDocument();
   });
 
   it("ô kho bị khoá khi danh sách kho chưa có (lỗi 403) — thông báo thiếu quyền vẫn là phương án dự phòng", async () => {
-    await renderConfirmedScreen("CONFIRMED", {}, ORDER_PERMISSION_SETS.coordinatorWithModes, () => {
+    await renderConfirmedScreen("CONFIRMED", {}, ORDER_PERMISSION_SETS.warehouseManager, () => {
       throw new ApiError(403, "FORBIDDEN", "x");
     });
     const { dialog } = await openReleaseDialog();

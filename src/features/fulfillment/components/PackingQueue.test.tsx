@@ -59,14 +59,13 @@ describe("PackingQueue — hàng chờ đóng gói", () => {
         taskId: "t2",
         orderNumber: "SO-20261010-000432",
         warehouseId: "wh-2",
-        packStatus: "PACKING",
+        packStatus: "IN_PROGRESS",
         packerId: OTHER_PACKER_ID,
         packerName: "Nguyễn Văn Đạt",
         packageCount: 2,
         sealedPackageCount: 1,
         shipmentCount: 1,
       }),
-      queueRow({ taskId: "t3", orderNumber: "SO-20261010-000433", packStatus: "ON_HOLD" }),
     ]);
 
     const first = (await screen.findByText("SO-20261010-000431")).closest("tr") as HTMLElement;
@@ -75,14 +74,9 @@ describe("PackingQueue — hàng chờ đóng gói", () => {
     expect(within(first).getByText("Kho Hà Nội")).toBeInTheDocument();
     const second = screen.getByText("SO-20261010-000432").closest("tr") as HTMLElement;
     expect(within(second).getByText("Nguyễn Văn Đạt")).toBeInTheDocument();
-    expect(within(second).getByText("Đang đóng gói")).toBeInTheDocument();
+    expect(within(second).getByText("Đang xử lý")).toBeInTheDocument();
     expect(within(second).getByText(P.packagesCell(1, 2))).toBeInTheDocument();
     expect(within(second).getByText("Kho TP.HCM")).toBeInTheDocument();
-    expect(
-      within(screen.getByText("SO-20261010-000433").closest("tr") as HTMLElement).getByText(
-        "Tạm giữ",
-      ),
-    ).toBeInTheDocument();
     // Phân trang BE: trang 0, mặc định PAGE_SIZE.md; chưa lọc thì không gửi warehouseId / status
     expect(queueCalls(get)[0]).toEqual({
       page: 0,
@@ -94,7 +88,7 @@ describe("PackingQueue — hàng chờ đóng gói", () => {
 
   it("người đang đóng là chính mình → hiện 'Bạn'", async () => {
     renderQueue([
-      queueRow({ packStatus: "PACKING", packerId: PICKER_ID, packerName: "Hoàng Anh Tuấn" }),
+      queueRow({ packStatus: "IN_PROGRESS", packerId: PICKER_ID, packerName: "Hoàng Anh Tuấn" }),
     ]);
     const row = (await screen.findByText("SO-20261010-000431")).closest("tr") as HTMLElement;
     expect(within(row).getByText(P.status.you)).toBeInTheDocument();
@@ -115,11 +109,11 @@ describe("PackingQueue — hàng chờ đóng gói", () => {
     await screen.findByText("SO-20261010-000431");
     await pickSelectOption(user, P.filters.warehouse, /HCM01 · Kho TP\.HCM/);
     await waitFor(() => expect(queueCalls(get).at(-1)).toMatchObject({ warehouseId: "wh-2" }));
-    await pickSelectOption(user, P.filters.status, P.statusFilter.ON_HOLD);
+    await pickSelectOption(user, P.filters.status, P.statusFilter.IN_PROGRESS);
     await waitFor(() =>
       expect(queueCalls(get).at(-1)).toMatchObject({
         warehouseId: "wh-2",
-        status: "ON_HOLD",
+        status: "IN_PROGRESS",
         page: 0,
       }),
     );
@@ -135,7 +129,7 @@ describe("PackingQueue — hàng chờ đóng gói", () => {
     const user = userEvent.setup();
     renderQueue([]);
     expect(await screen.findByText(P.emptyTitle)).toBeInTheDocument();
-    await pickSelectOption(user, P.filters.status, P.statusFilter.PACKING);
+    await pickSelectOption(user, P.filters.status, P.statusFilter.IN_PROGRESS);
     expect(await screen.findByText(UI_LABELS.emptyList.noResultsTitle)).toBeInTheDocument();
     // Một nút ở thanh lọc, một nút trong EmptyState — bấm nút trong vùng nội dung
     const clear = screen.getAllByRole("button", { name: P.clearFilters });

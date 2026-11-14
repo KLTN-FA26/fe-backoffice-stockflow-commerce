@@ -1,7 +1,7 @@
 import { PAGE_SIZE } from "@/constants";
 
 /** Trạng thái lọc hàng chờ — `PackStatus` BE; bỏ trống = mọi đơn đang chờ (BE `QUEUED`). */
-export const QUEUE_STATUS_VALUES = ["PENDING", "PACKING", "ON_HOLD"] as const;
+export const QUEUE_STATUS_VALUES = ["PENDING", "IN_PROGRESS"] as const;
 export type QueueStatus = (typeof QUEUE_STATUS_VALUES)[number];
 
 /** Sở thích hiển thị (localStorage qua usePageConfig) — trang và bộ lọc nằm trên URL. */

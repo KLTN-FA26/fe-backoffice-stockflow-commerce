@@ -3,7 +3,7 @@
 import { PackageCheck } from "lucide-react";
 import { useState } from "react";
 
-import { ORDER_PERMISSIONS, ORDER_RELEASE_LABELS } from "@/constants";
+import { ORDER_RELEASE_LABELS, SALES_CONTRACT_PERMISSIONS } from "@/constants";
 import { Button } from "@/components/ui/button";
 
 import { OrderReleaseDialog } from "./OrderReleaseDialog";
@@ -14,17 +14,14 @@ import type { OrderEstimateSlot } from "../estimate-slot";
 import type { Order } from "../types";
 
 interface OrderReleaseActionProps {
-  order: Pick<
-    Order,
-    "orderId" | "orderNumber" | "deliveryMode" | "paymentTerm" | "balancePolicy" | "printLineCount"
-  >;
+  order: Pick<Order, "orderId" | "orderNumber">;
   can: (code: PermissionCode) => boolean;
   estimateSlot?: OrderEstimateSlot;
 }
 
 /**
- * Nút "Release đơn" + hộp thoại chọn kho / hình thức giao (BE `OrderReleaseController`, SCRUM-423, LP-1). Hiện khi
- * `allowedOrderActions` cho phép (đơn CONFIRMED + `sales-orders:APPROVE`). Hộp thoại chỉ mount khi mở nên mỗi lần mở là
+ * Nút "Release đơn" + hộp thoại chọn kho xuất / đợt giao (BE `OrderReleaseController`, docs 17 §4.2 bước 5). Hiện khi
+ * `allowedOrderActions` cho phép (đơn CONFIRMED + `sales-order-releases:UPDATE` — quản lý kho của kho xuất). Hộp thoại chỉ mount khi mở nên mỗi lần mở là
  * một lần thử mới (form và Idempotency-Key sạch).
  */
 export function OrderReleaseAction({ order, can, estimateSlot }: OrderReleaseActionProps) {
@@ -43,8 +40,8 @@ export function OrderReleaseAction({ order, can, estimateSlot }: OrderReleaseAct
       {open && (
         <OrderReleaseDialog
           order={order}
-          // UI-only — Backend phải re-check (release với hình thức khác của đơn: 403 nếu thiếu mã quyền)
-          canChangeMode={can(ORDER_PERMISSIONS.deliveryModes)}
+          // UI-only — Backend phải re-check (lịch giao: GET /orders/{id}/delivery-batches cần sales-contracts:READ)
+          canChooseBatch={can(SALES_CONTRACT_PERMISSIONS.read)}
           estimateSlot={estimateSlot}
           onClose={() => setOpen(false)}
         />

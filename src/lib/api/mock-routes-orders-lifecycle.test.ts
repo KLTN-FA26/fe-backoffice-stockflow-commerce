@@ -6,6 +6,8 @@
 
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { useAuthStore } from "@/lib/auth/auth-store";
+
 import { resolveMockRoute } from "./mock-adapter";
 import { registerOrderMockRoutes } from "./mock-routes-orders";
 import {
@@ -88,6 +90,20 @@ const creditHoldIds = async () =>
 
 beforeAll(() => {
   registerOrderMockRoutes();
+  // Release cần `sales-order-releases:UPDATE` (BE V20261115000200): đăng nhập tài khoản demo có mã đó
+  useAuthStore.setState({
+    user: {
+      userId: "USER-ADMIN-01",
+      username: "t@t.vn",
+      fullName: "Test",
+      email: "t@t.vn",
+      status: "ACTIVE",
+      roles: [],
+      lastLoginAt: null,
+      mustChangePassword: false,
+    },
+    status: "authenticated",
+  });
 });
 
 afterEach(() => resetOrderMockStore());
@@ -102,9 +118,9 @@ describe("đăng ký route — mỗi METHOD + PATH đúng một chủ", () => {
     "POST /orders/:id/hold/resolution",
     "POST /orders/:id/delivery-failure",
     "POST /orders/:id/remainder-closure",
-    // Release + đổi hình thức giao: mock của PR #74 (`mock-routes-order-delivery-mode.ts`)
+    // Release + lịch giao (`mock-routes-order-release.ts`); không còn đổi hình thức giao (BE bỏ)
     "POST /orders/:id/release",
-    "PUT /orders/:id/delivery-mode",
+    "GET /orders/:id/delivery-batches",
     // Giao một phần (BE PR #150)
     "PUT /orders/:id/partial-shipment",
     "GET /orders/credit-position/:id",
@@ -406,7 +422,7 @@ describe("giao thất bại / đóng phần còn lại", () => {
 
 describe("release + quyết định công nợ dùng chung store", () => {
   it("release → READY_TO_FULFILL thấy được ở list / detail / mock xuất kho / lịch sử", async () => {
-    // Release do mock của PR #74 xử lý (trả OrderResponse trần) — đọc lại qua store dùng chung
+    // Release do `mock-routes-order-release.ts` xử lý (trả OrderResponse trần) — đọc lại qua store dùng chung
     const { status } = await call("POST", `/orders/${CONFIRMED_STOCK}/release`, {
       warehouseId: "WH-HN-01",
     });
@@ -423,10 +439,10 @@ describe("release + quyết định công nợ dùng chung store", () => {
       from: "CONFIRMED",
       to: "READY_TO_FULFILL",
     });
-    // Release lần 2: không còn CONFIRMED (mock PR #74 trả CONFLICT — `release-errors.ts` coi như ORDER_INVALID_TRANSITION)
+    // Release lần 2: không còn CONFIRMED (BE `ORDER_INVALID_TRANSITION`, 409)
     expect(
       await errorCode("POST", `/orders/${CONFIRMED_STOCK}/release`, { warehouseId: "WH-HN-01" }),
-    ).toBe("CONFLICT");
+    ).toBe("ORDER_INVALID_TRANSITION");
   });
 
   // Lý do từ chối release (BR-PRD-08 / BR-PRD-09 / nợ quá hạn) thuộc mock release của PR #74 — xem

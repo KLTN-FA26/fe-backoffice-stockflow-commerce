@@ -202,11 +202,10 @@ export const apiCancelledOrder: OrderDto = {
   amountDueBeforeHandover: 245000,
 };
 
-/** Đơn BE ở trạng thái `status` kèm hình thức giao (BE PR #157) và cờ khoá. */
-export function apiOrderDelivery(
+/** Đơn BE ở trạng thái `status` (BE không còn hình thức giao — docs 17 BR-16), kèm các field ghi đè. */
+export function apiOrderAt(
   status: OrderDto["status"],
-  delivery: { deliveryMode: "PARCEL" | "FULL_TRUCKLOAD"; deliveryModeLocked: boolean },
   patch: Record<string, unknown> = {},
 ): OrderDto {
-  return apiOrderWith({ status, ...delivery, ...patch });
+  return apiOrderWith({ status, ...patch });
 }

@@ -1,16 +1,12 @@
 /**
  * Release đơn — lỗi BE → lý do hiển thị trong hộp thoại (BE `OrderReleaseService`, `IdempotencyFilter`).
  *
- * Mỗi lý do kèm mã quy tắc (BR-PRD-08 mẫu chưa duyệt, BR-PRD-09 chưa đủ cọc, BR-02 công nợ quá hạn, LP-2 FTL + COD)
- * để Coordinator đối chiếu docs, và chi tiết rút từ máy chủ (SKU thiếu mẫu) vì câu của BE là tiếng Anh. Lỗi không có
- * nhánh riêng rơi về `orderActionErrorView(error, "release")` (403, mạng, 5xx…).
+ * Mỗi lý do kèm mã quy tắc (BR-02 công nợ quá hạn, BR-21/22 giữ hàng + một kho xuất, BR-29 đợt giao kế tiếp, BR-03
+ * phạm vi kho) để quản lý kho đối chiếu docs 17. Câu của BE là tiếng Anh nên không hiện thẳng. Lỗi không có nhánh
+ * riêng rơi về `orderActionErrorView(error, "release")` (403, mạng, 5xx…).
  */
 
-import {
-  ORDER_DELIVERY_MODE_UI,
-  ORDER_RELEASE_LABELS,
-  ORDER_RELEASE_REFUSAL_LABELS,
-} from "@/constants";
+import { ORDER_RELEASE_LABELS, ORDER_RELEASE_REFUSAL_LABELS } from "@/constants";
 
 import { orderActionErrorView } from "./errors";
 
@@ -20,13 +16,14 @@ import type { OrderErrorView } from "./errors";
 const R = ORDER_RELEASE_REFUSAL_LABELS;
 
 /**
- * Mã cho thấy dữ liệu trên màn đã cũ (đơn đã đổi trạng thái / không còn trong phạm vi): đóng hộp thoại, báo bằng toast,
- * tải lại đơn. `ORDER_INVALID_TRANSITION` là cùng ý với CONFLICT của BE cũ.
+ * Mã cho thấy dữ liệu trên màn đã cũ (đơn đã đổi trạng thái / không còn): đóng hộp thoại, báo bằng toast, tải lại
+ * đơn. `ORDER_INVALID_TRANSITION` là cùng ý với CONFLICT của BE cũ; `DELIVERY_BATCH_NOT_FOUND` = đợt không còn thuộc đơn.
  */
 export const RELEASE_STALE_CODES: readonly string[] = [
   "CONFLICT",
   "NOT_FOUND",
   "ORDER_INVALID_TRANSITION",
+  "DELIVERY_BATCH_NOT_FOUND",
 ];
 
 /**
@@ -43,11 +40,6 @@ export const RELEASE_CONCURRENCY_CODES = [
 export const isReleaseConcurrencyError = (error: ApiError): boolean =>
   (RELEASE_CONCURRENCY_CODES as readonly string[]).includes(error.code);
 
-/** BE: "… without an approved sample on SKU-1, SKU-2 (BR-PRD-08)" → "SKU-1, SKU-2"; không khớp → undefined. */
-export function missingSampleSkus(message: string): string | undefined {
-  return /approved sample on (.+?) \(BR-PRD-08\)/.exec(message)?.[1];
-}
-
 /** Lỗi 400 theo ô của BE `ReleaseOrderRequest` (`@NotNull warehouseId`): câu FE cho ô kho. */
 export function releaseFieldErrors(error: ApiError): { warehouseId?: string } {
   return error.fieldErrors && "warehouseId" in error.fieldErrors
@@ -59,22 +51,20 @@ export function releaseErrorView(error: ApiError): OrderErrorView {
   const title = ORDER_RELEASE_LABELS.failedTitle;
   const traceId = error.traceId;
   switch (error.code) {
-    case "DESIGN_SAMPLE_NOT_APPROVED": {
-      const skus = missingSampleSkus(error.message);
-      return {
-        title,
-        detail: R.sampleNotApproved,
-        rule: R.sampleRule,
-        serverDetail: skus ? R.missingSamples(skus) : error.message || undefined,
-        traceId,
-      };
-    }
-    case "ORDER_DEPOSIT_NOT_RECEIVED":
-      return { title, detail: R.depositNotReceived, rule: R.depositRule, traceId };
     case "CUSTOMER_CREDIT_OVERDUE":
       return { title, detail: R.creditOverdue, rule: R.creditRule, traceId };
-    case "DELIVERY_MODE_FTL_NO_COD":
-      return { title, detail: ORDER_DELIVERY_MODE_UI.ftlNoCod, rule: R.ftlNoCodRule, traceId };
+    case "ORDER_SHIPPING_WAREHOUSE_MISMATCH":
+      return { title, detail: R.warehouseMismatch, rule: R.warehouseMismatchRule, traceId };
+    case "ORDER_STOCK_NOT_HELD":
+      return { title, detail: R.stockNotHeld, rule: R.stockNotHeldRule, traceId };
+    case "DELIVERY_BATCH_NOT_NEXT":
+      return { title, detail: R.batchNotNext, rule: R.batchRule, traceId };
+    case "DELIVERY_BATCH_NOT_FOUND":
+      return { title, detail: R.batchNotFound, rule: R.batchRule, traceId };
+    case "ORDER_PRINT_GOODS_NOT_RECEIVED":
+      return { title, detail: R.printGoodsNotReceived, rule: R.printGoodsRule, traceId };
+    case "OUT_OF_DATA_SCOPE":
+      return { title, detail: R.outOfScope, rule: R.outOfScopeRule, traceId };
     case "CONFLICT":
     case "ORDER_INVALID_TRANSITION":
       return { title, detail: R.notReleasable, rule: R.notReleasableRule, traceId };

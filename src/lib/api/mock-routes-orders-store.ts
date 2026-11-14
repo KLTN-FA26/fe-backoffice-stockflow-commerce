@@ -392,24 +392,11 @@ interface MockOrderState {
   allowPartialShipment?: boolean;
   /** Quyết định giao một phần, cũ nhất trước (BE `order_partial_shipment_decision`). */
   decisions: MockPartialDecision[];
-  /** Hình thức giao (BE PR #157); chưa đặt = PARCEL (mặc định BE). */
-  deliveryMode?: MockDeliveryMode;
   /**
    * Cách thu phần còn lại của đơn CỌC (BE PR #150); chỉ đặt qua `setMockOrderBalancePolicy` — đặt cách thu cũng biến
    * đơn thành đơn cọc. Chưa đặt = BEFORE_DELIVERY.
    */
   balancePolicy?: "BEFORE_DELIVERY" | "ON_DELIVERY" | "ON_CREDIT";
-  /** Các lần đổi hình thức giao, cũ nhất trước (BE `order_delivery_mode_change`). */
-  deliveryModeChanges: MockDeliveryModeChange[];
-}
-
-export type MockDeliveryMode = "PARCEL" | "FULL_TRUCKLOAD";
-
-export interface MockDeliveryModeChange {
-  mode: MockDeliveryMode;
-  previousMode: MockDeliveryMode;
-  note: string | null;
-  changedAt: string;
 }
 
 export interface MockPartialDecision {
@@ -434,7 +421,6 @@ function stateById(orderId: string): MockOrderState {
       closedUnits: {},
       history: [],
       decisions: [],
-      deliveryModeChanges: [],
     };
     states.set(orderId, state);
   }
@@ -514,18 +500,6 @@ export function setMockOrderBalancePolicy(
 }
 
 /**
- * BE `ck_order_ftl_no_cod` (PR #157): "COD" = đơn CỌC có cách thu phần còn lại ON_DELIVERY (thu khi giao). Phương thức
- * thanh toán "COD" của mock-data KHÔNG tính — đó là cách khách trả, không phải cách thu phần còn lại.
- */
-export function isCodDeposit(order: Order): boolean {
-  const state = stateOf(order);
-  return (
-    paymentTermOf(order) === "DEPOSIT" &&
-    (state.balancePolicy ?? "BEFORE_DELIVERY") === "ON_DELIVERY"
-  );
-}
-
-/**
  * BE backfill (V20261022000400): `allow_partial_shipment = true` chỉ cho đơn đã đang giao từng phần; còn lại
  * false cho tới khi Sales bật.
  */
@@ -566,27 +540,6 @@ export function packedOnlyAheadOfPrints(order: Order): boolean {
     stillPrinting(backendStatus(order), state) &&
     state.shipments.length === 0
   );
-}
-
-/** BE `Order#deliveryModeLocked` (PR #157): các trạng thái còn đổi được hình thức giao, tới khi bắt đầu đóng gói. */
-const DELIVERY_MODE_OPEN_STATUSES: readonly BeOrderStatus[] = [
-  "DRAFT",
-  "PENDING_PAYMENT",
-  "CONFIRMED",
-  "IN_PRODUCTION",
-  "READY_TO_FULFILL",
-  "PICKING",
-];
-
-/**
- * Khoá khi đã đóng gói xong (`packedAt`) hoặc trạng thái hiệu lực (trước khi giữ, với ON_HOLD) đã qua đóng gói / huỷ
- * / đóng; mở với giữ công nợ (không có trạng thái để quay về). Mock không biết kiện đầu tiên đã mở chưa (BE
- * `packing_started_at`), nên PICKING vẫn mở.
- */
-export function isDeliveryModeLocked(status: BeOrderStatus, state: MockOrderState): boolean {
-  if (state.packedAt !== undefined) return true;
-  const effective = status === "ON_HOLD" ? state.statusBeforeHold : status;
-  return effective !== undefined && !DELIVERY_MODE_OPEN_STATUSES.includes(effective);
 }
 
 /**
@@ -1040,8 +993,6 @@ export function toOrderResponse(order: Order) {
     amountDueOnDelivery: 0,
     allowPartialShipment: allowsPartialShipment(order),
     printLinesReady: printLinesReady(order, status, state),
-    deliveryMode: state.deliveryMode ?? "PARCEL",
-    deliveryModeLocked: isDeliveryModeLocked(status, state),
   };
 }
 

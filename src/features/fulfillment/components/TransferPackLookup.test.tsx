@@ -57,7 +57,7 @@ describe("trạm đóng gói chuyển kho — tra phiên hiện hành khi chưa 
       withoutPack: true,
       existingPack: true,
       identity: PLANNER_IDENTITY,
-      session: tSession({ packStatus: "PACKED", packedAt: "2026-10-22T04:00:00Z" }),
+      session: tSession({ packStatus: "COMPLETED", packedAt: "2026-10-22T04:00:00Z" }),
     });
     expect(await screen.findByText(L.notice.packedTitle)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: L.action.planVehicle })).toHaveAttribute(

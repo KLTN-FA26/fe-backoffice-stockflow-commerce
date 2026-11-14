@@ -28,8 +28,7 @@ export const PACKING_UI_LABELS = {
   },
   statusFilter: {
     PENDING: "Chờ nhận đóng gói",
-    PACKING: "Đang đóng gói",
-    ON_HOLD: "Đang giữ (lệch thiết kế)",
+    IN_PROGRESS: "Đang kiểm thùng",
   },
   queueColumns: {
     order: "Đơn hàng",

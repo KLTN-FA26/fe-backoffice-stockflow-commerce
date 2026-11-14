@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS as REVERIFY,
   FULFILLMENT_PACKING_PERMISSIONS as PACKING,
   FULFILLMENT_PICK_PERMISSIONS as PICK,
   FULFILLMENT_PICKING_PERMISSIONS as PICKING,
@@ -42,32 +41,38 @@ const task = (
 const codes = (state: FulfillmentGateState, actor: FulfillmentActor) =>
   allowedFulfillmentActions(state, actor).map((action) => action.code);
 
-describe("PICK_TRANSITIONS / PACK_TRANSITIONS (theo BE PickJpaEntity / PackJpaEntity)", () => {
+describe("PICK_TRANSITIONS / PACK_TRANSITIONS (docs 07 §5.1, docs 08 §5.1; BE PickStatus / PackStatus)", () => {
   it("mọi trạng thái đều có trong bảng", () => {
     expect(Object.keys(PICK_TRANSITIONS).sort()).toEqual([...PICK_STATUSES].sort());
     expect(Object.keys(PACK_TRANSITIONS).sort()).toEqual([...PACK_STATUSES].sort());
   });
 
-  it("pick: Pending → Picking → Picked; huỷ theo đơn ở bước chưa xong", () => {
+  it("pick: Pending → Picking → Picked (DISPATCH) hoặc Staged (STAGING); huỷ theo đơn", () => {
     expect(PICK_TRANSITIONS.Pending).toEqual(["Picking", "Cancelled"]);
-    expect(PICK_TRANSITIONS.Picking).toEqual(["Picked", "Cancelled"]);
+    expect(PICK_TRANSITIONS.Picking).toEqual(["Picked", "Staged", "Cancelled"]);
   });
 
-  it("pick: Picked / Short / Cancelled là terminal", () => {
-    expect(PICK_TRANSITIONS.Picked).toEqual([]);
-    expect(PICK_TRANSITIONS.Short).toEqual([]);
+  it("pick: Staged → Picked (chuyển cả tác vụ sang khu xuất hàng) hoặc Picking (lấy bổ sung); Picked cũng về Picking", () => {
+    expect(PICK_TRANSITIONS.Staged).toEqual(["Picking", "Picked", "Cancelled"]);
+    expect(PICK_TRANSITIONS.Picked).toEqual(["Picking", "Cancelled"]);
+  });
+
+  it("pick: Cancelled là terminal; BE không còn trạng thái Short của task", () => {
     expect(PICK_TRANSITIONS.Cancelled).toEqual([]);
+    expect(Object.keys(PICK_TRANSITIONS)).not.toContain("Short");
   });
 
-  it("pack (BE PR #136): Pending → Packing (nhận đơn) → Packed hoặc On Hold; On Hold về Packing (X-CHK), không ra Packed", () => {
-    expect(PACK_TRANSITIONS.Pending).toEqual(["Packing", "Cancelled"]);
-    expect(PACK_TRANSITIONS.Packing).toEqual(["Packed", "On Hold", "Cancelled"]);
-    expect(PACK_TRANSITIONS["On Hold"]).toEqual(["Packing", "Cancelled"]);
+  it("pack (docs 08 §5.1): Pending → In Progress (nhận đơn) → Completed; hoàn tất một phần ở lại In Progress", () => {
+    expect(PACK_TRANSITIONS.Pending).toEqual(["In Progress", "Cancelled"]);
+    expect(PACK_TRANSITIONS["In Progress"]).toEqual(["In Progress", "Completed", "Cancelled"]);
   });
 
-  it("pack: Packed / Cancelled là terminal", () => {
-    expect(PACK_TRANSITIONS.Packed).toEqual([]);
+  it("pack: Completed / Cancelled là terminal; không còn On Hold / Packing / Packed", () => {
+    expect(PACK_TRANSITIONS.Completed).toEqual([]);
     expect(PACK_TRANSITIONS.Cancelled).toEqual([]);
+    expect(Object.keys(PACK_TRANSITIONS).sort()).toEqual(
+      ["Cancelled", "Completed", "In Progress", "Pending"].sort(),
+    );
   });
 });
 
@@ -104,17 +109,33 @@ describe("allowedFulfillmentActions — mã quyền + người được gán (BE
     expect(codes(task("Pending", "Pending"), coordinator)).toEqual(["assign"]);
     expect(codes(task("Picking", "Pending"), coordinator)).toEqual([]);
     expect(codes(task("Picked", "Pending"), coordinator)).toEqual([]);
-    expect(codes(task("Picked", "On Hold"), coordinator)).toEqual([]);
   });
 
-  it("X-CHK (docs 08): ai có fulfillment-design-reverification:UPDATE (QC, quản lý kho) kiểm tra lại kiện On Hold, không cần là người được gán; NV kho thì không", () => {
-    const held = task("Picked", "On Hold", SOMEONE_ELSE);
-    expect(codes(held, actorOf(IDENTITIES.warehouseManager))).toEqual(["reverify"]);
-    expect(codes(held, actorOf(IDENTITIES.qcStaff))).toEqual(["reverify"]);
-    expect(codes(held, actorOf(IDENTITIES.warehouseStaff))).toEqual([]);
+  it("task Staged (docs 07 §4.3 bước 8): chỉ người có task-assignment:UPDATE (quản lý kho) chuyển sang khu xuất hàng, không cần là người được gán; NV kho thì không", () => {
+    const staged = task("Staged", "Pending", SOMEONE_ELSE);
+    expect(codes(staged, actorOf(IDENTITIES.warehouseManager))).toEqual(["moveToDispatch"]);
+    expect(codes(staged, actorOf(IDENTITIES.orderCoordinator))).toEqual(["moveToDispatch"]);
+    expect(codes(staged, actorOf(IDENTITIES.warehouseStaff))).toEqual([]);
+    // Người được gán cũng không hoàn tất lại được — dòng đã Staged, task đã Staged
+    expect(codes(task("Staged", "Pending"), actorOf(IDENTITIES.warehouseStaff))).toEqual([]);
   });
 
-  it("QC không có thao tác lấy hàng / gán (chỉ kiểm tra lại thiết kế khi đang giữ)", () => {
+  it("nút chuyển sang khu xuất hàng chỉ hiện ở task Staged — không ở Pending / Picking / Picked / Cancelled", () => {
+    const manager = actorOf(IDENTITIES.warehouseManager, "user-manager");
+    for (const pick of PICK_STATUSES) {
+      const has = codes(task(pick, "Pending", SOMEONE_ELSE), manager).includes("moveToDispatch");
+      expect(has).toBe(pick === "Staged");
+    }
+  });
+
+  it("Picking: người được gán hoàn tất lấy hàng (kết quả Picked hay Staged do đích của task)", () => {
+    const staff = actorOf(IDENTITIES.warehouseStaff);
+    const complete = FULFILLMENT_ACTIONS.find((action) => action.code === "completePicking");
+    expect(complete?.pick).toEqual({ from: ["Picking"] });
+    expect(codes(task("Picking", "Pending"), staff)).toEqual(["completePicking"]);
+  });
+
+  it("QC không có thao tác lấy hàng / gán", () => {
     const qc = actorOf(IDENTITIES.qcStaff);
     expect(codes(task("Pending", "Pending"), qc)).toEqual([]);
     expect(codes(task("Picked", "Pending"), qc)).toEqual([]);
@@ -124,7 +145,7 @@ describe("allowedFulfillmentActions — mã quyền + người được gán (BE
     for (const identity of Object.values(IDENTITIES)) {
       const actor = actorOf(identity);
       expect(codes(task("Cancelled", "Cancelled"), actor)).toEqual([]);
-      expect(codes(task("Picked", "Packed"), actor)).toEqual([]);
+      expect(codes(task("Picked", "Completed"), actor)).toEqual([]);
     }
   });
 
@@ -138,11 +159,14 @@ describe("allowedFulfillmentActions — mã quyền + người được gán (BE
     expect(codes(pending, only(ASSIGNMENT.update))).toEqual(["assign"]);
     expect(codes(pending, only(PICKING.update))).toEqual(["startPicking"]);
     expect(codes(task("Picking", "Pending"), only(PICKING.update))).toEqual(["completePicking"]);
-    expect(codes(task("Picked", "On Hold"), only(REVERIFY.update))).toEqual(["reverify"]);
+    expect(codes(task("Staged", "Pending", SOMEONE_ELSE), only(ASSIGNMENT.update))).toEqual([
+      "moveToDispatch",
+    ]);
     // mã đọc / mã của endpoint khác không mở thao tác
     expect(codes(pending, only(PICK.read))).toEqual([]);
     expect(codes(pending, only(ASSIGNMENT.create))).toEqual([]);
-    expect(codes(task("Picked", "On Hold"), only(PACKING.update))).toEqual([]);
+    expect(codes(task("Staged", "Pending", SOMEONE_ELSE), only(PICKING.update))).toEqual([]);
+    expect(codes(task("Picked", "In Progress"), only(PACKING.update))).toEqual([]);
   });
 
   it("mỗi action đích đều có trong bảng chuyển trạng thái", () => {
@@ -205,10 +229,10 @@ describe("các cổng phụ", () => {
 
   it("isTaskCancelled / isTaskClosed", () => {
     expect(isTaskCancelled(task("Cancelled", "Cancelled"))).toBe(true);
-    expect(isTaskCancelled(task("Picked", "On Hold"))).toBe(false);
-    expect(isTaskClosed(task("Picked", "Packed"))).toBe(true);
+    expect(isTaskCancelled(task("Picked", "In Progress"))).toBe(false);
+    expect(isTaskClosed(task("Picked", "Completed"))).toBe(true);
     expect(isTaskClosed(task("Cancelled", "Pending"))).toBe(true);
-    expect(isTaskClosed(task("Picked", "On Hold"))).toBe(false);
+    expect(isTaskClosed(task("Picked", "In Progress"))).toBe(false);
   });
 
   it("chưa đăng nhập (userId null) không bao giờ là người được gán", () => {

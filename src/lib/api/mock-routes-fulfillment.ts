@@ -2,13 +2,13 @@
  * Mock routes — Fulfillment task (docs 07/08), khớp BE `FulfillmentController` +
  * `FulfillmentServiceImpl` (SCRUM-43). Chỉ dùng khi USE_MOCK=true.
  *
- * Giữ đúng hành vi BE: phạm vi danh sách theo vai trò, 404 (không phải 403) khi không phải người
- * được gán, lệch checksum trả 200 với pack ON_HOLD, lỗi chỉ dùng mã chung NOT_FOUND / CONFLICT /
- * VALIDATION_FAILED kèm message tiếng Anh — FE tự dịch theo ngữ cảnh.
+ * Giữ đúng hành vi BE: phạm vi danh sách theo mã quyền, 404 (không phải 403) khi không phải người
+ * được gán, tạo task kèm đích DISPATCH / STAGING (kèm khu chờ xuất), chuyển cả task `Staged` sang khu xuất hàng
+ * (`dispatch-transfer`), lỗi dùng mã chung NOT_FOUND / CONFLICT / VALIDATION_FAILED kèm message tiếng Anh — FE tự
+ * dịch theo ngữ cảnh.
  */
 
 import {
-  FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS as REVERIFY,
   FULFILLMENT_PACKAGE_PERMISSIONS as PACK,
   FULFILLMENT_PACKING_PERMISSIONS as PACKING,
   FULFILLMENT_PICK_PERMISSIONS as PICK,
@@ -27,7 +27,6 @@ import {
   findMockOrder,
   forbidden,
   getFulfillmentStore,
-  isTampered,
   nextTaskId,
   orderClosedError,
   outOfScope,
@@ -36,16 +35,19 @@ import {
   taskNotFound,
   taskLinesOf,
   toTaskResponse,
-  verifyDesigns,
 } from "./mock-routes-fulfillment-store";
 import { registerPackingMockRoutes } from "./mock-routes-packing";
 import { registerPickLineMockRoutes } from "./mock-routes-pick-lines";
 import { registerPutBackMockRoutes } from "./mock-routes-put-backs";
 import { getMockPickLines } from "./mock-routes-pick-lines-store";
 import {
+  isMockLocationUsable,
+  mockLocationCode,
+  mockWarehouseLocations,
+} from "./mock-routes-warehouse-layout";
+import {
   backendOrderStatusOf,
   lockedChecksumOf,
-  resolveMockDesignHold,
   setMockOrderStatus,
 } from "./mock-routes-orders-store";
 import {
@@ -95,6 +97,42 @@ async function isValidAssignee(userId: string): Promise<boolean> {
   return !!user && isWarehouseAssignee(user);
 }
 
+const isDestination = (value: string): value is MockTask["destination"] =>
+  value === "DISPATCH" || value === "STAGING";
+
+/**
+ * BE `stagingAreaFor` (docs 07 §3): không có khu cho task DISPATCH (dù form còn mang lựa chọn cũ); task STAGING lấy khu
+ * được nêu — phải là khu chờ xuất đang hoạt động của kho — hoặc khu duy nhất của kho; còn lại 422 STAGING_AREA_INVALID.
+ */
+async function stagingAreaFor(
+  warehouseId: string,
+  destination: MockTask["destination"],
+  requested: string,
+): Promise<{ code?: string } | { error: ReturnType<typeof beError> }> {
+  if (destination !== "STAGING") return {};
+  const areas = (await mockWarehouseLocations(warehouseId))
+    .filter((location) => location.type === "staging" && isMockLocationUsable(location))
+    .map(mockLocationCode);
+  const wanted = requested.trim().toUpperCase();
+  const invalid = (message: string) => ({
+    error: beError(422, "STAGING_AREA_INVALID", message, [
+      { field: "stagingLocationCode", message },
+    ]),
+  });
+  if (wanted) {
+    const match = areas.find((code) => code.toUpperCase() === wanted);
+    return match
+      ? { code: match }
+      : invalid("must be an active staging area of the task's warehouse");
+  }
+  if (areas.length === 1) return { code: areas[0] };
+  return invalid(
+    areas.length === 0
+      ? "the warehouse has no active staging area"
+      : `name one of ${areas.join(", ")}`,
+  );
+}
+
 const invalidAssignee = () =>
   beError(
     400,
@@ -128,10 +166,12 @@ function registerPickStep(
     const closed = await orderClosedError(task.orderId);
     if (closed) return closed;
     if (task.pickStatus !== from) return conflict();
-    // BE `planLines` (lúc tạo task / lười ở picking-start) + `requireAllPicked` lúc hoàn tất: mọi dòng
-    // PICKED hoặc CANCELLED (dòng thiếu đã phân bổ lại) — còn OPEN / SHORT → 409
+    // BE `planLines` (lúc tạo task / lười ở picking-start) + `requireAllPicked` lúc hoàn tất (docs 07 §4.2 bước 6): mọi
+    // dòng PICKED — hoặc STAGED, với task đích STAGING — hoặc CANCELLED (dòng thiếu đã phân bổ lại); còn OPEN / SHORT → 409
     const lines = await getMockPickLines(task);
-    const open = lines.filter((line) => line.status !== "PICKED" && line.status !== "CANCELLED");
+    const open = lines.filter(
+      (line) => line.status !== "PICKED" && line.status !== "STAGED" && line.status !== "CANCELLED",
+    );
     if (suffix === "picking-completion" && open.length > 0) {
       return beError(
         409,
@@ -158,8 +198,8 @@ function registerTaskReadRoutes(): void {
       return beError(400, "UNSUPPORTED_PARAMETER", "Unknown pick status");
     }
     const actor = await currentActor();
-    // BE `listTasks`: endpoint cần pick-lists:READ; phạm vi theo quyền — task-oversight:READ thấy hết →
-    // design-reverification:READ chỉ thấy kiện đang giữ → còn lại thấy task của mình
+    // BE `listTasks`: endpoint cần pick-lists:READ; phạm vi theo quyền — task-oversight:READ thấy hết, còn lại
+    // thấy task của mình
     if (!actor.can(PICK.read)) return forbidden();
     // SCRUM-466: lọc kho / người được gán chỉ thu hẹp trong phạm vi; kho ngoài phạm vi → 403 trước
     const warehouseId = readString(params.warehouseId);
@@ -172,7 +212,6 @@ function registerTaskReadRoutes(): void {
       .sort(newestFirst);
     let visible: MockTask[];
     if (actor.can(OVERSIGHT.read)) visible = all;
-    else if (actor.can(REVERIFY.read)) visible = all.filter((t) => t.packStatus === "ON_HOLD");
     else visible = all.filter((t) => t.assignedUserId === actor.userId);
     return beOk(bePage(visible.map(toTaskResponse), page, size));
   });
@@ -191,11 +230,9 @@ function registerTaskReadRoutes(): void {
       const { task, actor } = await loadTask(config);
       if (!actor.can(PACK.read)) return forbidden();
       if (!task) return taskNotFound();
-      // BE `requireArtifactAccess`: người được gán, người có design-reverification:READ, hoặc người đóng
-      // gói (packing:UPDATE) khi lấy hàng đã xong — không có điều phối
+      // Người được gán, hoặc người đóng gói (packing:UPDATE) khi lấy hàng đã xong
       if (
         task.assignedUserId !== actor.userId &&
-        !actor.can(REVERIFY.read) &&
         !(task.pickStatus === "PICKED" && actor.can(PACKING.update))
       ) {
         return taskNotFound();
@@ -210,7 +247,6 @@ function registerTaskReadRoutes(): void {
       if (!ARTIFACT_ROLES.includes(role)) {
         return beError(400, "UNSUPPORTED_PARAMETER", "Unknown design artifact role");
       }
-      if (isTampered(task.orderId)) return conflict("Design integrity verification failed");
       if (role === MISSING_ARTIFACT_ROLE) {
         return beError(404, "NOT_FOUND", `The confirmed bundle has no ${role} artifact`);
       }
@@ -244,6 +280,13 @@ function registerAssignmentRoutes(): void {
     if (!orderId) return missingField("orderId");
     if (!assignedUserId) return missingField("assignedUserId");
     if (!(await isValidAssignee(assignedUserId))) return invalidAssignee();
+    // `destination` mặc định DISPATCH; giá trị lạ → 400 (BE: enum không đọc được)
+    const requested = body.destination === undefined ? "DISPATCH" : readString(body.destination);
+    if (!isDestination(requested)) {
+      return beError(400, "VALIDATION_FAILED", "Invalid request data", [
+        { field: "destination", message: "must be DISPATCH or STAGING" },
+      ]);
+    }
     const store = await getFulfillmentStore();
     // Một đơn một task: đã có → trả task cũ nguyên trạng (BE `findByOrderId`)
     const existing = [...store.values()].find((t) => t.orderId === orderId);
@@ -262,6 +305,13 @@ function registerAssignmentRoutes(): void {
         `Only a released order (READY_TO_FULFILL) can enter fulfillment; it is ${orderStatus ?? "UNKNOWN"}`,
       );
     }
+    // BE `stagingAreaFor` — trước khi ghi gì: task STAGING không có chỗ để tập kết thì bị từ chối nguyên
+    const area = await stagingAreaFor(
+      order.fulfillmentWarehouseId,
+      requested,
+      readString(body.stagingLocationCode),
+    );
+    if ("error" in area) return area.error;
     const now = new Date().toISOString();
     const task: MockTask = {
       taskId: nextTaskId(),
@@ -271,9 +321,10 @@ function registerAssignmentRoutes(): void {
       assignedUserId,
       pickStatus: "PENDING",
       packStatus: "PENDING",
+      destination: requested,
+      ...(area.code ? { stagingLocationCode: area.code } : {}),
       assignedAt: now,
       createdAt: now,
-      evidence: [],
     };
     store.set(task.taskId, task);
     // BE `createTask` lập luôn dòng lấy hàng (mọi dòng OPEN)
@@ -297,29 +348,42 @@ function registerAssignmentRoutes(): void {
   });
 }
 
-/** Đóng gói (nhận đơn, kiện, quét, hoàn tất) ở `mock-routes-packing.ts`; ở đây còn kiểm tra lại thiết kế. */
-function registerPackRoutes(): void {
-  registerMockRoute("POST", `${PATH}/:id/design-integrity-reverification`, async (config) => {
+/**
+ * `POST /tasks/{id}/dispatch-transfer` (BE `FulfillmentServiceImpl#moveToDispatch`, docs 07 §4.3 bước 8, BR-11): quyết
+ * định của người phân việc (`fulfillment-task-assignment:UPDATE`). Gọi lại cho task đã chuyển → 200 nguyên trạng; task
+ * không `Staged` → 409 PICK_TASK_STATE_CONFLICT; đơn đang treo → 409 PICK_ORDER_ON_HOLD (thùng ở lại khu chờ xuất).
+ * Chuyển: mọi dòng Staged → Picked (trừ tồn), task → Picked.
+ */
+function registerDispatchTransferRoute(): void {
+  registerMockRoute("POST", `${PATH}/:id/dispatch-transfer`, async (config) => {
     const { task, actor } = await loadTask(config);
-    if (!actor.can(REVERIFY.update)) return forbidden();
-    const note = readString(parseJsonBody(config.data).resolutionNote);
-    if (!note) {
-      return beError(400, "VALIDATION_FAILED", "Invalid request data", [
-        { field: "resolutionNote", message: "must not be blank" },
-      ]);
-    }
+    if (!actor.can(ASSIGNMENT.update)) return forbidden();
     if (!task) return taskNotFound();
-    if (task.packStatus !== "ON_HOLD") return conflict("The package has no design-integrity hold");
+    if (await outOfWarehouseScope(actor.userId, task.warehouseId)) return outOfScope();
+    if (task.pickStatus === "PICKED" && task.movedToDispatchAt) return beOk(toTaskResponse(task));
+    if (task.pickStatus !== "STAGED") {
+      return beError(
+        409,
+        "PICK_TASK_STATE_CONFLICT",
+        `A task moves to dispatch from STAGED; it is ${task.pickStatus}`,
+      );
+    }
     const closed = await orderClosedError(task.orderId);
     if (closed) return closed;
-    const order = await findMockOrder(task.orderId);
-    if (!order) return taskNotFound();
-    if (verifyDesigns(task, order, true)) {
-      // BE PR #136: kiểm tra lại đạt → gỡ giữ DESIGN_MISMATCH, phiên về PACKING (docs 08 §5
-      // "Verification Failed → In Progress"); người đóng gói hoàn tất lại, đơn chưa PACKED
-      task.packStatus = "PACKING";
-      resolveMockDesignHold(task.orderId);
+    if ((await backendOrderStatusOf(task.orderId)) === "ON_HOLD") {
+      return beError(
+        409,
+        "PICK_ORDER_ON_HOLD",
+        `Order ${task.orderNumber} is on hold; task ${task.taskId} stays staged`,
+      );
     }
+    const now = new Date().toISOString();
+    for (const line of await getMockPickLines(task)) {
+      if (line.status === "STAGED") line.status = "PICKED";
+    }
+    task.pickStatus = "PICKED";
+    task.pickedAt = now;
+    task.movedToDispatchAt = now;
     return beOk(toTaskResponse(task));
   });
 }
@@ -435,10 +499,16 @@ export function registerFulfillmentMockRoutes(): void {
     task.startedAt = now;
   });
   registerPickStep("picking-completion", "PICKING", (task, now) => {
-    task.pickStatus = "PICKED";
-    task.pickedAt = now;
+    // Đích STAGING → Staged (thùng gom ở khu chờ xuất, chờ chuyển); đích DISPATCH → Picked (docs 07 §4.2 bước 6)
+    if (task.destination === "STAGING" && !task.movedToDispatchAt) {
+      task.pickStatus = "STAGED";
+      task.stagedAt = now;
+    } else {
+      task.pickStatus = "PICKED";
+      task.pickedAt = now;
+    }
   });
-  registerPackRoutes();
+  registerDispatchTransferRoute();
   registerPackingMockRoutes();
   registerAssigneeRoutes();
   registerTaskCandidateRoutes();

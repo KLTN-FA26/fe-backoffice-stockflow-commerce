@@ -93,8 +93,6 @@ export interface PackSessionState {
   shipments: ShipmentState[];
   /** scanId → kiện đã ghi lần quét / bớt đó (BE `package_scan`, append-only). */
   scans: Map<string, string>;
-  /** `requestId` của lần hoàn tất bị giữ do lệch thiết kế. */
-  heldRequestId?: string;
 }
 
 const same = (a: string | undefined, b: string | undefined) =>

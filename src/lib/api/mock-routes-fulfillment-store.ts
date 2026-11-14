@@ -7,7 +7,6 @@
  */
 
 import {
-  FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS as REVERIFY,
   FULFILLMENT_PACKING_PERMISSIONS as PACKING,
   FULFILLMENT_TASK_OVERSIGHT_PERMISSIONS as OVERSIGHT,
 } from "@/constants";
@@ -19,9 +18,7 @@ import {
   MOCK_TO_BACKEND_STATUS,
   backendOrderStatusOf,
   fakeSha256,
-  lockedChecksumOf,
   mockOrderCancellations,
-  putMockOrderOnDesignHold,
   setMockOrderStatus,
   snapshotIdOf,
 } from "./mock-routes-orders-store";
@@ -31,17 +28,11 @@ import type { AxiosRequestConfig } from "axios";
 import type { Order, OrderStatus } from "@/lib/mock-data";
 import type { PermissionCode } from "@/lib/auth/me-permissions";
 
-export type MockPickStatus = "PENDING" | "PICKING" | "PICKED" | "SHORT" | "CANCELLED";
-export type MockPackStatus = "PENDING" | "PACKING" | "ON_HOLD" | "PACKED" | "CANCELLED";
-
-export interface MockEvidence {
-  orderLineId: string;
-  snapshotId: string;
-  expectedChecksum: string;
-  actualChecksum: string;
-  matching: boolean;
-  verifiedAt: string;
-}
+/** BE `PickStatus` (docs 07 §5.1): STAGED = task đích STAGING đã lấy hết dòng về khu chờ xuất. */
+export type MockPickStatus = "PENDING" | "PICKING" | "STAGED" | "PICKED" | "CANCELLED";
+/** BE `PackStatus` (docs 08 §5.1). */
+export type MockPackStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+export type MockDestination = "DISPATCH" | "STAGING";
 
 export interface MockTask {
   taskId: string;
@@ -57,8 +48,12 @@ export interface MockTask {
   pickedAt?: string;
   packedAt?: string;
   createdAt: string;
-  /** Append-only; trả ra mới nhất trước như BE. */
-  evidence: MockEvidence[];
+  /** Đích lấy hàng (BE 4C-5): DISPATCH mặc định; STAGING kèm khu chờ xuất của kho. */
+  destination: MockDestination;
+  stagingLocationCode?: string;
+  /** Lúc mọi thùng về khu chờ xuất (pick STAGED) / lúc quản lý kho chuyển cả task sang khu xuất hàng. */
+  stagedAt?: string;
+  movedToDispatchAt?: string;
   /** Đơn huỷ sau khi đã bắt đầu lấy → hàng đã lấy phải trả về kệ (BE `pick.needs_put_back`). */
   needsPutBack?: boolean;
 }
@@ -67,11 +62,6 @@ interface SeedSpec {
   pick: MockPickStatus;
   pack: MockPackStatus;
   assignee: string;
-  /**
-   * ASSUMPTION (mock-only): file thiết kế trong kho lưu trữ bị lệch so với bản đã chốt; số là số
-   * lần kiểm tra lại còn thất bại trước khi coi như QC đã khôi phục đúng file.
-   */
-  tamperedReverifyFailures?: number;
 }
 
 /**
@@ -80,26 +70,15 @@ interface SeedSpec {
  * `Confirmed` không có task: coi như đã được điều phối release (READY_TO_FULFILL) để demo tạo task.
  */
 const SEED_BY_ORDER_STATUS: Partial<Record<OrderStatus, SeedSpec>> = {
-  "Ready to Fulfill": {
-    pick: "PENDING",
-    pack: "PENDING",
-    assignee: "USER-WH-01",
-    tamperedReverifyFailures: 1,
-  },
+  "Ready to Fulfill": { pick: "PENDING", pack: "PENDING", assignee: "USER-WH-01" },
   Picking: { pick: "PICKING", pack: "PENDING", assignee: "USER-WH-02" },
-  "Partially Fulfilled": {
-    pick: "PICKED",
-    pack: "ON_HOLD",
-    assignee: "USER-WH-01",
-    tamperedReverifyFailures: 0,
-  },
-  Packed: { pick: "PICKED", pack: "PACKED", assignee: "USER-WH-03" },
+  // Giao một phần: kiểm thùng đã bắt đầu, đã có shipment đầu, còn thùng chờ kiểm (docs 08 §5.1 In Progress)
+  "Partially Fulfilled": { pick: "PICKED", pack: "IN_PROGRESS", assignee: "USER-WH-01" },
+  Packed: { pick: "PICKED", pack: "COMPLETED", assignee: "USER-WH-03" },
   Cancelled: { pick: "CANCELLED", pack: "CANCELLED", assignee: "USER-WH-02" },
 };
 
 let store: Map<string, MockTask> | undefined;
-/** orderId → số lần kiểm tra lại còn thất bại (có key = file đang lệch). */
-const tampered = new Map<string, number>();
 let sequence = 0;
 /** Lần huỷ đơn mock đã đồng bộ sang task (-1 = chưa lần nào). */
 let syncedCancellations = -1;
@@ -109,46 +88,12 @@ export function resetFulfillmentMockStore(): void {
   resetPickLineMockStore();
   resetPackingMockStore();
   store = undefined;
-  tampered.clear();
   sequence = 0;
 }
 
 export async function findMockOrder(orderId: string): Promise<Order | undefined> {
   const { orders } = await import("@/lib/mock-data");
   return orders.find((order) => order.orderId === orderId);
-}
-
-export const isTampered = (orderId: string) => tampered.has(orderId);
-
-/**
- * BE `verifyAll`: mỗi dòng có thiết kế ghi một evidence. Trả `true` nếu mọi dòng khớp.
- * `reverify` = lần gọi từ kiểm tra lại (mô phỏng QC khôi phục file sau số lần đã seed).
- */
-export function verifyDesigns(
-  task: MockTask,
-  order: Order,
-  reverify: boolean,
-  verifiedAt = new Date().toISOString(),
-): boolean {
-  const failuresLeft = tampered.get(order.orderId);
-  if (reverify && failuresLeft !== undefined) {
-    if (failuresLeft > 0) tampered.set(order.orderId, failuresLeft - 1);
-    else tampered.delete(order.orderId);
-  }
-  const mismatch = tampered.has(order.orderId);
-  for (const line of order.lines) {
-    if (!line.designId) continue;
-    const expectedChecksum = lockedChecksumOf(line);
-    task.evidence.unshift({
-      orderLineId: line.lineId,
-      snapshotId: snapshotIdOf(line),
-      expectedChecksum,
-      actualChecksum: mismatch ? fakeSha256(`tampered:${line.lineId}`) : expectedChecksum,
-      matching: !mismatch,
-      verifiedAt,
-    });
-  }
-  return !mismatch || !order.lines.some((line) => line.designId);
 }
 
 function seedTask(order: Order, spec: SeedSpec): MockTask {
@@ -165,16 +110,12 @@ function seedTask(order: Order, spec: SeedSpec): MockTask {
     assignedAt: at(30),
     startedAt: spec.pick === "PICKING" || spec.pick === "PICKED" ? at(45) : undefined,
     pickedAt: spec.pick === "PICKED" ? at(70) : undefined,
-    packedAt: spec.pack === "PACKED" ? at(95) : undefined,
+    packedAt: spec.pack === "COMPLETED" ? at(95) : undefined,
     createdAt: at(30),
-    evidence: [],
+    destination: "DISPATCH",
     // Seed: đơn huỷ sau khi đã lấy — dòng đầu đã lấy chờ trả về kệ (xem `getMockPickLines`)
     needsPutBack: spec.pick === "CANCELLED",
   };
-  if (spec.tamperedReverifyFailures !== undefined) {
-    tampered.set(order.orderId, spec.tamperedReverifyFailures);
-  }
-  if (spec.pack === "ON_HOLD") verifyDesigns(task, order, false, at(100));
   return task;
 }
 
@@ -215,8 +156,6 @@ async function loadStore(): Promise<Map<string, MockTask>> {
     seeded.set(task.taskId, task);
     if (!(await untouched(order))) continue;
     if (task.pickStatus === "PENDING") setMockOrderStatus(order.orderId, "PICKING");
-    // BE: lệch checksum → đơn ON_HOLD (reason DESIGN_MISMATCH), về lại bước đang làm khi gỡ giữ
-    if (task.packStatus === "ON_HOLD") await putMockOrderOnDesignHold(order.orderId);
   }
   const demoOrder = orders.find((order) => order.status === "Confirmed");
   if (demoOrder && (await untouched(demoOrder))) {
@@ -260,12 +199,8 @@ export async function taskLinesOf(task: MockTask) {
 
 /** `FulfillmentTaskResponse` — field chưa có giá trị bị bỏ (Jackson non_null). */
 export function toTaskResponse(task: MockTask) {
-  const { createdAt: _createdAt, evidence, ...rest } = task;
-  return {
-    ...rest,
-    assignedUserName: staffNameById.get(task.assignedUserId),
-    integrityEvidence: evidence.map((entry) => ({ ...entry })),
-  };
+  const { createdAt: _createdAt, ...rest } = task;
+  return { ...rest, assignedUserName: staffNameById.get(task.assignedUserId) };
 }
 
 /* ── Người gọi ───────────────────────────────────────────────────────── */
@@ -288,15 +223,13 @@ export async function currentActor(): Promise<MockActor> {
 }
 
 /**
- * BE `TaskAccess.requireVisible` (BE PR #148): người được gán; người có task-oversight:READ hoặc
- * design-reverification:READ; và người đóng gói (packing:UPDATE) khi lấy hàng đã xong — người đóng gói
+ * BE `TaskAccess.requireVisible` (BE PR #148): người được gán; người có task-oversight:READ; và người đóng gói (packing:UPDATE) khi lấy hàng đã xong — người đóng gói
  * không nhất thiết là người lấy hàng. Dùng chung cho task và dòng lấy hàng.
  */
 export function canSee(task: MockTask, actor: MockActor): boolean {
   return (
     task.assignedUserId === actor.userId ||
     actor.can(OVERSIGHT.read) ||
-    actor.can(REVERIFY.read) ||
     (task.pickStatus === "PICKED" && actor.can(PACKING.update))
   );
 }

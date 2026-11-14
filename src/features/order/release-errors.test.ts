@@ -1,11 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { ORDER_DELIVERY_MODE_UI } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 
 import {
   isReleaseConcurrencyError,
-  missingSampleSkus,
   RELEASE_STALE_CODES,
   releaseErrorView,
   releaseFieldErrors,
@@ -20,15 +18,19 @@ const apiError = (
 ) => new ApiError(status, code, message, fields, "t-1");
 const VIETNAMESE = /[ạảãàáâấầẩẫậăắằẳẵặẹẻẽèéêếềểễệỉĩịọỏõòóôốồổỗộơớờởỡợụủũùúưứừửữựỳỷỹýđ]/i;
 
-describe("releaseErrorView — mã quy tắc + chi tiết", () => {
+describe("releaseErrorView — mã quy tắc + chi tiết (BE OrderReleaseService, docs 17)", () => {
   it.each([
-    ["DESIGN_SAMPLE_NOT_APPROVED", "BR-PRD-08"],
-    ["ORDER_DEPOSIT_NOT_RECEIVED", "BR-PRD-09"],
-    ["CUSTOMER_CREDIT_OVERDUE", "BR-02"],
-    ["DELIVERY_MODE_FTL_NO_COD", "LP-2"],
-    ["CONFLICT", "BR-02"],
-  ])("%s → quy tắc %s, tiếng Việt, không lộ message tiếng Anh", (code, rule) => {
-    const view = releaseErrorView(apiError(409, code, "Order X cannot do it"));
+    ["CUSTOMER_CREDIT_OVERDUE", "BR-02", 409],
+    ["ORDER_SHIPPING_WAREHOUSE_MISMATCH", "BR-22", 409],
+    ["ORDER_STOCK_NOT_HELD", "BR-21", 409],
+    ["DELIVERY_BATCH_NOT_NEXT", "BR-29", 409],
+    ["DELIVERY_BATCH_NOT_FOUND", "BR-29", 404],
+    ["ORDER_PRINT_GOODS_NOT_RECEIVED", "docs 07 / 11", 409],
+    ["OUT_OF_DATA_SCOPE", "BR-03", 403],
+    ["CONFLICT", "BR-02", 409],
+    ["ORDER_INVALID_TRANSITION", "BR-02", 409],
+  ])("%s → quy tắc %s, tiếng Việt, không lộ message tiếng Anh", (code, rule, status) => {
+    const view = releaseErrorView(apiError(status, code, "Order X cannot do it"));
     expect(view.rule).toBe(rule);
     expect(view.detail).toMatch(VIETNAMESE);
     expect(view.detail).not.toContain("English");
@@ -36,25 +38,14 @@ describe("releaseErrorView — mã quy tắc + chi tiết", () => {
     expect(view.title).toBe("Không release được đơn");
   });
 
-  it("FTL + COD dùng đúng câu 'Sale đổi cách thu trước'", () => {
-    expect(releaseErrorView(apiError(409, "DELIVERY_MODE_FTL_NO_COD")).detail).toBe(
-      ORDER_DELIVERY_MODE_UI.ftlNoCod,
-    );
-  });
-
-  it("BR-PRD-08 rút SKU từ câu BE; không khớp → chi tiết gốc", () => {
-    const sku = releaseErrorView(
-      apiError(
-        409,
-        "DESIGN_SAMPLE_NOT_APPROVED",
-        "Order SO-1 has new designs without an approved sample on A-1, B-2 (BR-PRD-08)",
-      ),
-    );
-    expect(sku.serverDetail).toBe("SKU chưa có mẫu duyệt: A-1, B-2");
-    expect(
-      releaseErrorView(apiError(409, "DESIGN_SAMPLE_NOT_APPROVED", "weird")).serverDetail,
-    ).toBe("weird");
-    expect(missingSampleSkus("nothing")).toBeUndefined();
+  it("mã của luồng cũ (mẫu thiết kế, tiền cọc, FTL + COD) đã bỏ — rơi về lỗi chung, không còn mã quy tắc riêng", () => {
+    for (const code of [
+      "DESIGN_SAMPLE_NOT_APPROVED",
+      "ORDER_DEPOSIT_NOT_RECEIVED",
+      "DELIVERY_MODE_FTL_NO_COD",
+    ]) {
+      expect(releaseErrorView(apiError(409, code)).rule).toBeUndefined();
+    }
   });
 
   it.each([
@@ -75,7 +66,7 @@ describe("releaseErrorView — mã quy tắc + chi tiết", () => {
   });
 
   it("mã khác rơi về lỗi chung của thao tác release (403, mạng, 500)", () => {
-    expect(releaseErrorView(apiError(403, "FORBIDDEN")).detail).toMatch(/quyền đổi hình thức giao/);
+    expect(releaseErrorView(apiError(403, "FORBIDDEN")).detail).toMatch(/Bạn không có quyền/);
     expect(releaseErrorView(apiError(0, "NETWORK_ERROR")).detail).toMatch(
       /Không kết nối được máy chủ/,
     );
@@ -83,7 +74,9 @@ describe("releaseErrorView — mã quy tắc + chi tiết", () => {
   });
 
   it("mã 'dữ liệu cũ'", () => {
-    expect(RELEASE_STALE_CODES).toEqual(expect.arrayContaining(["CONFLICT", "NOT_FOUND"]));
+    expect(RELEASE_STALE_CODES).toEqual(
+      expect.arrayContaining(["CONFLICT", "NOT_FOUND", "DELIVERY_BATCH_NOT_FOUND"]),
+    );
   });
 });
 
@@ -100,17 +93,17 @@ describe("releaseFieldErrors + releaseFormSchema", () => {
     expect(releaseFieldErrors(apiError(400, "VALIDATION_FAILED"))).toEqual({});
   });
 
-  it("form: kho bắt buộc, hình thức giao thuộc PARCEL | FULL_TRUCKLOAD", () => {
-    expect(releaseFormSchema.safeParse({ warehouseId: "", deliveryMode: "PARCEL" }).success).toBe(
-      false,
-    );
+  it("form: kho bắt buộc; đợt giao tuỳ chọn; không còn hình thức giao (field thừa bị bỏ, không gửi)", () => {
+    expect(releaseFormSchema.safeParse({ warehouseId: "" }).success).toBe(false);
+    expect(releaseFormSchema.safeParse({ warehouseId: "wh-1" }).success).toBe(true);
+    expect(releaseFormSchema.parse({ warehouseId: "wh-1", deliveryBatchId: "b-1" })).toEqual({
+      warehouseId: "wh-1",
+      deliveryBatchId: "b-1",
+    });
     expect(
-      releaseFormSchema.safeParse({ warehouseId: "wh-1", deliveryMode: "TRUCK" }).success,
-    ).toBe(false);
-    expect(
-      releaseFormSchema.safeParse({ warehouseId: "wh-1", deliveryMode: "FULL_TRUCKLOAD" }).success,
-    ).toBe(true);
-    const empty = releaseFormSchema.safeParse({ warehouseId: "", deliveryMode: "PARCEL" });
+      releaseFormSchema.parse({ warehouseId: "wh-1", deliveryMode: "FULL_TRUCKLOAD" }),
+    ).toEqual({ warehouseId: "wh-1" });
+    const empty = releaseFormSchema.safeParse({ warehouseId: "" });
     expect(empty.success ? "" : empty.error.issues[0]?.message).toBe("Chọn kho xuất hàng.");
   });
 });
