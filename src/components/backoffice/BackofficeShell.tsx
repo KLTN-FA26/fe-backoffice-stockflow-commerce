@@ -39,6 +39,7 @@ import {
   ShieldAlert,
   UserCog,
   ShoppingBag,
+  Settings,
   ShoppingCart,
   PackageX,
   SlidersHorizontal,
@@ -95,7 +96,11 @@ import { CYCLE_COUNT_LABELS, CYCLE_COUNT_ROUTES } from "@/constants/cycle-count"
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 import { CYCLE_COUNT_PERMISSIONS } from "@/constants/permissions";
 import { QUARANTINE_LABELS } from "@/constants/quarantine";
-import { EINVOICE_PERMISSIONS, EINVOICE_ROUTES } from "@/constants/einvoice";
+import {
+  EINVOICE_PERMISSIONS,
+  EINVOICE_ROUTES,
+  EINVOICE_SETTINGS_PERMISSIONS,
+} from "@/constants/einvoice";
 import { EINVOICE_LABELS } from "@/constants/labels-einvoice";
 import { PAYMENT_LABELS } from "@/constants/labels-payment";
 import {
@@ -429,6 +434,13 @@ export const NAV_GROUPS: NavGroup[] = [
         href: EINVOICE_ROUTES.list,
         icon: FileText,
         permission: EINVOICE_PERMISSIONS.viewPage,
+      },
+      {
+        // Cấu hình nhà cung cấp hoá đơn điện tử (docs 21 BR-10) — `einvoice-settings` không có VIEW_PAGE
+        label: "Cấu hình hoá đơn",
+        href: EINVOICE_ROUTES.settings,
+        icon: Settings,
+        permission: EINVOICE_SETTINGS_PERMISSIONS.read,
       },
     ],
   },

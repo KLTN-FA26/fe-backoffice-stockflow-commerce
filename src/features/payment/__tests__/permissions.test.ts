@@ -61,6 +61,8 @@ describe("sidebar group 'Thanh toán'", () => {
       PAYMENT_ROUTES.receipts.list,
       PAYMENT_ROUTES.refunds.list,
       EINVOICE_ROUTES.list,
+      // Kế toán đọc cấu hình hoá đơn (seed V20261120000300: einvoice-settings READ)
+      EINVOICE_ROUTES.settings,
     ]);
   });
 
@@ -74,6 +76,10 @@ describe("sidebar group 'Thanh toán'", () => {
 
   it("every item is gated by a VIEW_PAGE permission code (never a role name)", () => {
     const group = NAV_GROUPS.find((g) => g.title === PAYMENT_LABELS.navGroup);
-    expect(group?.items.every((item) => item.permission?.endsWith(":VIEW_PAGE"))).toBe(true);
+    // BE `einvoice-settings` declares no VIEW_PAGE action (READ, UPDATE only): its page opens on READ
+    const pageGates = group?.items.filter((item) => item.href !== EINVOICE_ROUTES.settings);
+    expect(pageGates?.every((item) => item.permission?.endsWith(":VIEW_PAGE"))).toBe(true);
+    const settings = group?.items.find((item) => item.href === EINVOICE_ROUTES.settings);
+    expect(settings?.permission).toBe("einvoice-settings:READ");
   });
 });
