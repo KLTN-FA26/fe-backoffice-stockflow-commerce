@@ -520,18 +520,12 @@ export const SHIPMENT_PERMISSIONS = {
 } as const;
 
 /**
- * Xếp xe & bàn giao — resource `fulfillment-dispatch` (BE PR #148). CREATE: mở chuyến
- * (`POST /fulfillment/loads`). UPDATE: thêm / bớt lô, quét / gỡ quét kiện, bàn giao, chọn hãng cho lô
- * (`PUT /shipments/{id}/carrier`). Seed: WAREHOUSE_STAFF, WAREHOUSE_MANAGER, SYSTEM_ADMIN.
+ * Xếp xe & bàn giao — resource `fulfillment-dispatch` (BE `DispatchController`, chỉ có UPDATE): ghi nhận đặt xe, huỷ đặt xe,
+ * bắt đầu xếp, quét / gỡ quét kiện, dỡ kiện, nhập mã vận đơn trước khi rời kho, bàn giao. Seed: WAREHOUSE_STAFF,
+ * WAREHOUSE_MANAGER, SYSTEM_ADMIN.
  */
 export const FULFILLMENT_DISPATCH_PERMISSIONS = {
-  create: "fulfillment-dispatch:CREATE",
   update: "fulfillment-dispatch:UPDATE",
-} as const;
-
-/** Huỷ chuyến xe trước khi rời kho (`POST /loads/{id}/cancellation`) — seed: WAREHOUSE_MANAGER, SYSTEM_ADMIN. */
-export const FULFILLMENT_LOAD_CANCELLATION_PERMISSIONS = {
-  update: "fulfillment-load-cancellations:UPDATE",
 } as const;
 
 /**
@@ -545,7 +539,28 @@ export const FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS = {
   update: "fulfillment-controlled-cancellations:UPDATE",
 } as const;
 
-/** Danh mục hãng vận chuyển: thêm / sửa (`POST`, `PUT /fulfillment/carriers`) — seed: WAREHOUSE_MANAGER, SYSTEM_ADMIN. */
+/**
+ * Sửa mã vận đơn SAU KHI chuyến rời kho (`PUT /fulfillment/loads/{id}/waybill` khi chuyến DISPATCHED) — BR-24 docs 09:
+ * chỉ quản lý kho, bắt buộc lý do. BE V20261108001400 seed: WAREHOUSE_MANAGER, SYSTEM_ADMIN. Nhập mã vận đơn TRƯỚC
+ * khi rời kho chỉ cần `fulfillment-dispatch:UPDATE`.
+ */
+export const FULFILLMENT_WAYBILL_CORRECTION_PERMISSIONS = {
+  update: "fulfillment-waybill-corrections:UPDATE",
+} as const;
+
+/**
+ * Nhập mã vận đơn hàng loạt từ file (BE `WaybillImportController`, docs 09 §4.4, BR-25): READ = tải file mẫu + xem
+ * các lần nhập; CREATE = xem trước + nhập file. BE V20261108001500 seed: WAREHOUSE_STAFF, WAREHOUSE_MANAGER, SYSTEM_ADMIN.
+ */
+export const FULFILLMENT_WAYBILL_IMPORT_PERMISSIONS = {
+  read: "fulfillment-waybill-imports:READ",
+  create: "fulfillment-waybill-imports:CREATE",
+} as const;
+
+/**
+ * Danh mục hãng vận chuyển: thêm / sửa (`POST`, `PUT /fulfillment/carriers`) — seed: WAREHOUSE_MANAGER, SYSTEM_ADMIN.
+ * Xem danh sách hãng là `fulfillment-shipments:READ` (resource này chỉ có UPDATE, không VIEW_PAGE / READ).
+ */
 export const FULFILLMENT_CARRIER_PERMISSIONS = {
   update: "fulfillment-carriers:UPDATE",
 } as const;

@@ -5,7 +5,6 @@ import { ApiError } from "@/lib/api/error";
 
 import {
   handoverRefusalOf,
-  reprintLabelHref,
   isScanQueueFatal,
   isStaleLoadError,
   isTransientError,
@@ -26,7 +25,7 @@ describe("shippingErrorMessage — mọi mã lỗi BE có câu tiếng Việt", 
     }
   });
 
-  it("phủ các mã BE của PR #137 mà màn xử lý", () => {
+  it("phủ các mã BE mà màn quét / bàn giao / đặt xe / mã vận đơn xử lý", () => {
     const required = [
       "HANDOVER_NOT_SIGNED",
       "LOAD_NOT_FOUND",
@@ -34,37 +33,73 @@ describe("shippingErrorMessage — mọi mã lỗi BE có câu tiếng Việt", 
       "PACKAGE_NOT_IN_LOAD",
       "PACKAGE_ALREADY_LOADED",
       "PACKAGE_NOT_READY",
-      "PACKAGE_OTHER_CARRIER",
+      "PACKAGE_UNLOAD_PENDING",
       "LOAD_NOT_FULLY_LOADED",
       "LOAD_EMPTY",
-      "LABEL_OUTDATED",
       "OPTIMISTIC_LOCK",
       "INVALID_LOAD_TRANSITION",
+      "INVALID_LOAD_PLAN_TRANSITION",
+      "LOAD_UNLOAD_PENDING",
+      "LOAD_HANDOVER_BLOCKED",
+      "LOAD_WAYBILL_MISSING",
+      "WAYBILL_DUPLICATE",
+      "WAYBILL_FROM_CARRIER_API",
+      "WAYBILL_IMPORT_INVALID_FILE",
+      "CARRIER_CODE_EXISTS",
+      "CARRIER_BOOKS_THROUGH_API",
+      "CARRIER_BOOKING_IN_PROGRESS",
+      "CARRIER_BOOKING_FAILED",
+      "CARRIER_CANCEL_REFUSED",
+      "CARRIER_STOP_OUT_OF_AREA",
       "ORDER_BALANCE_NOT_PAID",
-      "SHIPMENT_STATE_CONFLICT",
-      "SHIPMENT_ON_ANOTHER_LOAD",
-      "LOAD_SCAN_ID_CONFLICT",
-      "CARRIER_INACTIVE",
-      "ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED",
+      "DELIVERY_BATCH_WINDOW_NOT_OPEN",
+      "ORDER_INVALID_TRANSITION",
+      "ORDER_CANCELLED",
     ];
-    for (const code of required) expect(SHIPPING_ERROR_MESSAGES).toHaveProperty(code);
+    for (const code of required) {
+      expect(SHIPPING_ERROR_MESSAGES).toHaveProperty(code);
+      // Câu tiếng Việt thật, không rơi vào câu chung và không lộ message tiếng Anh của BE
+      const message = shippingErrorMessage(err(code));
+      expect(message).not.toBe(SHIPPING_ERROR_MESSAGES.generic);
+      expect(message).not.toBe("en");
+    }
+  });
+
+  it("mã của chuyến gửi kiện / lệnh chuyển kho đã bỏ → coi như mã lạ (câu chung)", () => {
+    for (const code of ["LABEL_OUTDATED", "PACKAGE_OTHER_CARRIER", "TRANSFER_NOT_PACKED"]) {
+      expect(SHIPPING_ERROR_MESSAGES).not.toHaveProperty(code);
+      expect(shippingErrorMessage(err(code))).toBe(SHIPPING_ERROR_MESSAGES.generic);
+    }
   });
 
   it("BE nêu tên lô → câu có tiền tố 'Lô <mã>'", () => {
-    const message = shippingErrorMessage(err("LABEL_OUTDATED", 409, { shipmentCode: "SO-1-S2" }));
-    expect(message).toBe(`Lô SO-1-S2: ${SHIPPING_ERROR_MESSAGES.LABEL_OUTDATED}`);
+    const message = shippingErrorMessage(
+      err("ORDER_BALANCE_NOT_PAID", 409, { shipmentCode: "SO-1-S2" }),
+    );
+    expect(message).toBe(`Lô SO-1-S2: ${SHIPPING_ERROR_MESSAGES.ORDER_BALANCE_NOT_PAID}`);
   });
 
-  it("mã chưa biết nhưng BE nêu tên lô (đơn huỷ, lô xung đột, vượt số lượng…) → vẫn 'Lô X' + lý do chung", () => {
-    for (const code of [
-      "ORDER_CANCELLED",
-      "ORDER_SHIPMENT_CONFLICT",
-      "ORDER_SHIPMENT_QUANTITY_EXCEEDED",
-    ]) {
+  it("mã chưa biết nhưng BE nêu tên lô (lô xung đột, vượt số lượng…) → vẫn 'Lô X' + lý do chung", () => {
+    for (const code of ["ORDER_SHIPMENT_CONFLICT", "ORDER_SHIPMENT_QUANTITY_EXCEEDED"]) {
       expect(shippingErrorMessage(err(code, 409, { shipmentCode: "SO-9-S1" }))).toBe(
         `Lô SO-9-S1: ${SHIPPING_ERROR_MESSAGES.shipmentRefused}`,
       );
     }
+  });
+
+  it("hãng từ chối tạo đơn: nối lý do hãng nêu; không có lý do thì chỉ câu chung của mã", () => {
+    expect(
+      shippingErrorMessage(err("CARRIER_BOOKING_FAILED", 409, { carrier: "Địa chỉ không hợp lệ" })),
+    ).toBe(
+      `${SHIPPING_ERROR_MESSAGES.CARRIER_BOOKING_FAILED} Lý do hãng nêu: Địa chỉ không hợp lệ`,
+    );
+    expect(shippingErrorMessage(err("CARRIER_BOOKING_FAILED"))).toBe(
+      SHIPPING_ERROR_MESSAGES.CARRIER_BOOKING_FAILED,
+    );
+    // fieldErrors.carrier của mã khác không được nối vào
+    expect(shippingErrorMessage(err("CARRIER_CANCEL_REFUSED", 409, { carrier: "x" }))).toBe(
+      SHIPPING_ERROR_MESSAGES.CARRIER_CANCEL_REFUSED,
+    );
   });
 
   it("mã lạ hoặc lỗi không phải ApiError → câu chung, không lộ message tiếng Anh của BE", () => {
@@ -82,10 +117,18 @@ describe("phân loại lỗi", () => {
       "LOAD_NOT_FULLY_LOADED",
       "SHIPMENT_ON_ANOTHER_LOAD",
       "PACKAGE_NOT_READY",
+      "CARRIER_BOOKING_IN_PROGRESS",
+      "WAYBILL_FROM_CARRIER_API",
     ]) {
       expect(isStaleLoadError(err(code))).toBe(true);
     }
-    for (const code of ["PACKAGE_NOT_IN_LOAD", "HANDOVER_NOT_SIGNED", "LABEL_OUTDATED"]) {
+    for (const code of [
+      "PACKAGE_NOT_IN_LOAD",
+      "HANDOVER_NOT_SIGNED",
+      "LOAD_HANDOVER_BLOCKED",
+      "LOAD_WAYBILL_MISSING",
+      "WAYBILL_DUPLICATE",
+    ]) {
       expect(isStaleLoadError(err(code))).toBe(false);
     }
     expect(isStaleLoadError(new Error("x"))).toBe(false);
@@ -108,48 +151,40 @@ describe("phân loại lỗi", () => {
 });
 
 describe("handoverRefusalOf — lô chặn bàn giao", () => {
-  it("chưa thanh toán / đang giữ / nhãn lệch có tên lô → dữ liệu để đánh dấu lô; nhãn lệch mở lối in lại", () => {
-    const label = handoverRefusalOf(err("LABEL_OUTDATED", 409, { shipmentCode: "SO-1-S1" }));
-    expect(label).toMatchObject({
-      code: "LABEL_OUTDATED",
+  it("chưa thanh toán / đang giữ có tên lô → dữ liệu để đánh dấu lô, kèm câu có tiền tố 'Lô'", () => {
+    const unpaid = handoverRefusalOf(
+      err("ORDER_BALANCE_NOT_PAID", 409, { shipmentCode: "SO-1-S1" }),
+    );
+    expect(unpaid).toEqual({
+      code: "ORDER_BALANCE_NOT_PAID",
       shipmentCode: "SO-1-S1",
-      reprintLabel: true,
+      message: `Lô SO-1-S1: ${SHIPPING_ERROR_MESSAGES.ORDER_BALANCE_NOT_PAID}`,
     });
-    expect(label?.message).toContain("SO-1-S1");
-    expect(
-      handoverRefusalOf(err("ORDER_BALANCE_NOT_PAID", 409, { shipmentCode: "S" }))?.reprintLabel,
-    ).toBe(false);
     expect(
       handoverRefusalOf(err("ORDER_INVALID_TRANSITION", 409, { shipmentCode: "S" })),
     ).toBeDefined();
   });
 
-  it("mã chưa biết có tên lô → vẫn đánh dấu lô với lý do chung, không mở lối in nhãn", () => {
+  it("không còn cờ in lại nhãn (COD đã bỏ)", () => {
     const refusal = handoverRefusalOf(err("ORDER_CANCELLED", 409, { shipmentCode: "SO-9-S1" }));
-    expect(refusal).toMatchObject({
-      code: "ORDER_CANCELLED",
-      shipmentCode: "SO-9-S1",
-      reprintLabel: false,
-    });
-    expect(refusal?.message).toBe(`Lô SO-9-S1: ${SHIPPING_ERROR_MESSAGES.shipmentRefused}`);
+    expect(refusal).not.toHaveProperty("reprintLabel");
+    expect(refusal?.message).toBe(`Lô SO-9-S1: ${SHIPPING_ERROR_MESSAGES.ORDER_CANCELLED}`);
+  });
+
+  it("mã chưa biết có tên lô → vẫn đánh dấu lô với lý do chung", () => {
+    const refusal = handoverRefusalOf(err("ORDER_SHIPMENT_CONFLICT", 409, { shipmentCode: "S9" }));
+    expect(refusal?.message).toBe(`Lô S9: ${SHIPPING_ERROR_MESSAGES.shipmentRefused}`);
   });
 
   it("không nêu tên lô hoặc lỗi khác → không đánh dấu lô nào", () => {
-    expect(handoverRefusalOf(err("LABEL_OUTDATED"))).toBeUndefined();
+    expect(handoverRefusalOf(err("ORDER_BALANCE_NOT_PAID"))).toBeUndefined();
     expect(handoverRefusalOf(err("OPTIMISTIC_LOCK"))).toBeUndefined();
+    expect(handoverRefusalOf(new Error("x"))).toBeUndefined();
     expect(shipmentCodeOf(new Error("x"))).toBeUndefined();
   });
 });
 
-describe("reprintLabelHref", () => {
-  it("có taskId → thẳng trạm đóng gói của task; chưa có → danh sách task", () => {
-    expect(reprintLabelHref("task-1")).toBe("/admin/packing/task-1");
-    expect(reprintLabelHref(undefined)).toBe("/admin/picking");
-    expect(reprintLabelHref(null)).toBe("/admin/picking");
-  });
-});
-
-describe("ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED (BE PR #150) — mở chuyến, thêm lô, bàn giao", () => {
+describe("ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED (BE PR #150) — bàn giao", () => {
   it("câu tiếng Việt: nhờ Sale bật giao một phần trên đơn", () => {
     expect(shippingErrorMessage(err("ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED"))).toBe(
       SHIPPING_ERROR_MESSAGES.ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED,
@@ -167,32 +202,11 @@ describe("ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED (BE PR #150) — mở chuyến, th�
     expect(handoverRefusalOf(error)).toMatchObject({
       code: "ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED",
       shipmentCode: "SO-1-S2",
-      reprintLabel: false,
     });
   });
 });
 
-describe("chuyến nguyên xe (BE PR #162)", () => {
-  it("phủ các mã mới của đặt xe / bắt đầu xếp / dỡ kiện / bàn giao theo xe", () => {
-    for (const code of [
-      "LOAD_UNLOAD_PENDING",
-      "LOAD_MANAGED_BY_PLAN",
-      "INVALID_LOAD_PLAN_TRANSITION",
-      "ORDER_NOT_CANCELLABLE",
-      "CARRIER_NOT_FOUND",
-      "CARRIER_INACTIVE",
-      "SHIPMENT_OTHER_CARRIER",
-      "PACKAGE_REQUIRES_LOAD_PLAN",
-      "ORDER_BALANCE_NOT_PAID",
-      "ORDER_INVALID_TRANSITION",
-      "ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED",
-    ]) {
-      expect(SHIPPING_ERROR_MESSAGES).toHaveProperty(code);
-      // Câu tiếng Việt thật, không rơi vào câu chung
-      expect(shippingErrorMessage(err(code))).not.toBe(SHIPPING_ERROR_MESSAGES.generic);
-    }
-  });
-
+describe("chuyến là một xe của kế hoạch", () => {
   it("quét kiện của xe khác: câu nêu số xe và mã chuyến của xe đúng", () => {
     const error = err("PACKAGE_NOT_IN_LOAD", 409, { vehicleSeq: "2", loadCode: "LD-F002" });
     expect(wrongVehicleOf(error)).toEqual({ seq: "2", loadCode: "LD-F002" });
@@ -232,30 +246,5 @@ describe("chuyến nguyên xe (BE PR #162)", () => {
     expect(isStaleLoadError(err("LOAD_UNLOAD_PENDING"))).toBe(true);
     expect(isStaleLoadError(err("INVALID_LOAD_PLAN_TRANSITION"))).toBe(true);
     expect(handoverRefusalOf(err("LOAD_UNLOAD_PENDING"))).toBeUndefined();
-    expect(isStaleLoadError(err("LOAD_MANAGED_BY_PLAN"))).toBe(false);
-  });
-
-  it("ORDER_NOT_CANCELLABLE khi bàn giao có tên lô → 'Lô X: …'", () => {
-    expect(
-      shippingErrorMessage(err("ORDER_NOT_CANCELLABLE", 409, { shipmentCode: "SO-1-S1" })),
-    ).toBe(`Lô SO-1-S1: ${SHIPPING_ERROR_MESSAGES.ORDER_NOT_CANCELLABLE}`);
-  });
-});
-
-describe("mã của BE PR #164 ở bàn giao xe chở lệnh chuyển kho", () => {
-  it.each(["TRANSFER_NOT_PACKED", "RESERVATION_NOT_ACTIVE", "STOCK_CARTON_NOT_SHIPPABLE"] as const)(
-    "%s → câu tiếng Việt riêng, không lộ tiếng Anh, không phải câu chung",
-    (code) => {
-      const message = shippingErrorMessage(err(code));
-      expect(message).toBe(SHIPPING_ERROR_MESSAGES[code]);
-      expect(message).not.toBe(SHIPPING_ERROR_MESSAGES.generic);
-      expect(message).not.toBe("en");
-    },
-  );
-
-  it("lệnh không còn đã đóng gói / phần giữ hàng đã nhả → dữ liệu chuyến đã cũ: tải lại; thùng không khớp thì không", () => {
-    expect(isStaleLoadError(err("TRANSFER_NOT_PACKED"))).toBe(true);
-    expect(isStaleLoadError(err("RESERVATION_NOT_ACTIVE"))).toBe(true);
-    expect(isStaleLoadError(err("STOCK_CARTON_NOT_SHIPPABLE"))).toBe(false);
   });
 });

@@ -124,4 +124,18 @@ describe("ApiError", () => {
     expect(apiError.fieldErrorList?.map((entry) => entry.message)).toEqual(["SO-1", "SO-2"]);
     expect(new ApiError(409, "X", "m", { a: "b" }).fieldErrorList).toBeUndefined();
   });
+
+  it("keeps the backend `details` object as sent (e.g. LOAD_HANDOVER_BLOCKED orders)", () => {
+    const details = { orders: [{ orderNumber: "SO-2", amountDue: "15000000.00" }] };
+    const error = fromBody(409, { errorCode: "LOAD_HANDOVER_BLOCKED", details });
+    expect(error.details).toEqual(details);
+  });
+
+  it("leaves `details` undefined when absent or not an object", () => {
+    expect(fromBody(409, { errorCode: "X" }).details).toBeUndefined();
+    expect(fromBody(409, { errorCode: "X", details: "oops" }).details).toBeUndefined();
+    expect(fromBody(409, { errorCode: "X", details: ["a"] }).details).toBeUndefined();
+    expect(fromBody(409, { errorCode: "X", details: null }).details).toBeUndefined();
+    expect(new ApiError(409, "X", "m").details).toBeUndefined();
+  });
 });

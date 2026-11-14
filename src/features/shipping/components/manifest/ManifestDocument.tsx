@@ -4,7 +4,6 @@ import { cn } from "cn";
 
 import { UI_LABELS } from "@/constants";
 import { formatDateTime } from "@/lib/format/date";
-import { formatMoney } from "@/lib/format/money";
 import { formatNumber } from "@/lib/format/number";
 
 import { InfoItem, MONO } from "../primitives";
@@ -28,13 +27,11 @@ function SignatureBox({ title, name }: { title: string; name?: string | null }) 
 }
 
 /**
- * Biên bản bàn giao in được (docs 09 §3 "Biên bản bàn giao", §4.1 bước 3): kho, hãng, xe, từng lô với
- * người nhận / kiện / COD (BR-04), tổng, và hai ô ký. Khi in, khung back-office bị ẩn (`print:hidden`
+ * Biên bản bàn giao in được (docs 09 §3 "Biên bản bàn giao", §4.2 bước 8): kho, hãng, xe, mã vận đơn, từng lô với
+ * người nhận / kiện, tổng, và hai ô ký (không thu hộ khi giao — BR-08). Khi in, khung back-office bị ẩn (`print:hidden`
  * ở BackofficeShell) — chỉ còn tài liệu này. Bản thiếu kiện (in bằng Ctrl+P) chỉ là bản đối soát, không có ô ký.
  */
 export function ManifestDocument({ manifest, draft }: { manifest: Manifest; draft: boolean }) {
-  const money = (amount: number | null | undefined) =>
-    amount != null && manifest.currency ? formatMoney(amount, manifest.currency) : "—";
   return (
     <article className="border-border-default bg-bg-surface space-y-4 rounded-[var(--card-radius)] border p-[var(--card-pad)] print:border-0 print:p-0">
       {draft && (
@@ -47,7 +44,7 @@ export function ManifestDocument({ manifest, draft }: { manifest: Manifest; draf
         <p className={`text-ink-secondary text-[0.8125rem] ${MONO}`}>
           {M.loadPrefix} {manifest.loadCode}
         </p>
-        <ManifestVehicleNote manifest={manifest} />
+        <ManifestVehicleNote />
       </header>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 print:grid-cols-3">
         <InfoItem label={M.warehouse} value={manifest.warehouseName ?? "—"} />
@@ -97,11 +94,11 @@ export function ManifestDocument({ manifest, draft }: { manifest: Manifest; draf
                 {M.weight}
               </th>
               <th scope="col" className={cn(TH, "text-right")}>
-                {M.cod}
+                {M.loaded}
               </th>
             </tr>
           </thead>
-          <ManifestShipmentRows shipments={manifest.shipments} money={money} />
+          <ManifestShipmentRows shipments={manifest.shipments} />
         </table>
       </div>
       {/* In: tổng kết + ghi chú + ô ký là một khối không tách trang */}
@@ -111,7 +108,6 @@ export function ManifestDocument({ manifest, draft }: { manifest: Manifest; draf
             [M.totalShipments, String(manifest.shipmentCount)],
             [M.totalPackages, String(manifest.packageCount)],
             [M.totalWeight, `${formatNumber(manifest.totalWeightKg ?? 0)} ${F.weightUnit}`],
-            [M.totalCod, money(manifest.codTotal)],
           ].map(([label, value]) => (
             <div key={label}>
               <dt className="text-ink-secondary inline">{label} </dt>

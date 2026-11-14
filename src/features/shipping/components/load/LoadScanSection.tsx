@@ -2,7 +2,7 @@
 
 import { LOAD_STATUS } from "@/constants";
 import { loadNoActionReason, hasLoadAction } from "@/features/shipping/lifecycle";
-import { hasPendingUnloads, isFtlLoad } from "@/features/shipping/ftl-selectors";
+import { hasPendingUnloads } from "@/features/shipping/ftl-selectors";
 import { loadedLabelCodes } from "@/features/shipping/selectors";
 import { Alert } from "@/components/shared/Alert";
 
@@ -15,7 +15,7 @@ import type { Load } from "@/features/shipping/types";
 import type { useRejectedScans } from "./RejectedScans";
 
 /**
- * Vùng quét của màn chuyến. Đang có kiện của đơn đã huỷ cần dỡ (chuyến nguyên xe) → ô quét DỠ thay ô quét lên
+ * Vùng quét của màn chuyến. Đang có kiện của đơn đã huỷ cần dỡ → ô quét DỠ thay ô quét lên
  * xe (hai ô cùng "luôn focus" sẽ giành mã của nhau, và kiện đó phải xuống xe trước khi bàn giao). Không quét
  * được (đã bàn giao / huỷ ở máy khác, chỉ có quyền xem, chưa tới bước xếp hàng…) → nói rõ vì sao.
  */
@@ -53,11 +53,8 @@ export function LoadScanSection({
       </section>
     );
   }
-  // Chuyến nguyên xe chưa tới bước xếp hàng: thẻ Đặt xe đã chỉ bước kế tiếp
-  if (
-    isFtlLoad(load) &&
-    (load.status === LOAD_STATUS.PLANNED || load.status === LOAD_STATUS.VEHICLE_BOOKED)
-  )
+  // Chưa tới bước xếp hàng: thẻ Đặt xe đã chỉ bước kế tiếp
+  if (load.status === LOAD_STATUS.PLANNED || load.status === LOAD_STATUS.VEHICLE_BOOKED)
     return null;
   return (
     <>

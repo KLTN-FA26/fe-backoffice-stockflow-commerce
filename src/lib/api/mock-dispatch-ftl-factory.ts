@@ -1,5 +1,5 @@
 /**
- * Mock chuyến nguyên xe — hàm dựng dữ liệu seed (kiện, lô giao, xe của kế hoạch). Tách khỏi
+ * Mock chuyến xe — hàm dựng dữ liệu seed (kiện, lô giao, xe của kế hoạch). Tách khỏi
  * `mock-dispatch-ftl-store.ts` để mỗi file dưới giới hạn 200 dòng. Chỉ type được import từ store.
  */
 
@@ -56,9 +56,6 @@ export function shipmentOf(
     warehouseId,
     status,
     parcels,
-    // Chuyến nguyên xe không thu hộ (BE: COD 0)
-    labelCodAmount: 0,
-    codAmount: 0,
     carrierId: null,
     loadId: null,
     readyAt: SEED_AT,
@@ -99,6 +96,9 @@ export function vehicle(
     vehiclePlate: null,
     driverName: null,
     driverPhone: null,
+    waybillNo: null,
+    waybillHistory: [],
+    carrierBooking: null,
     shipmentIds: members.map((s) => s.shipmentId),
     loaded: new Map(),
     loadingStartedAt: null,
@@ -108,7 +108,6 @@ export function vehicle(
     handoverNote: null,
     cancelledAt: null,
     cancelReason: null,
-    fixedCodTotal: null,
     version: 2,
     ftl: {
       loadPlanId: PLAN.id,
@@ -127,6 +126,19 @@ export function vehicle(
   };
   state.loads.set(load.loadId, load);
   return load;
+}
+
+/** Lần đổi mã vận đơn đầu tiên của một chuyến (nhập tay) — mã + lịch sử đi cùng nhau. */
+export function withWaybill(load: MockLoad, waybillNo: string, at = "2026-10-21T01:10:00Z"): void {
+  load.waybillNo = waybillNo;
+  load.waybillHistory.push({
+    oldWaybillNo: null,
+    newWaybillNo: waybillNo,
+    source: "MANUAL",
+    changedByName: DISPATCHER,
+    changedAt: at,
+    reason: null,
+  });
 }
 
 export const scan = (load: MockLoad, p: MockParcel, at = "2026-10-21T03:20:00Z") =>

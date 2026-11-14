@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ADMIN_ROUTES, LOAD_COLUMNS, UI_LABELS } from "@/constants";
 import {
   CELL,
+  EmptyCell,
   dateCell,
   numberCell,
   stackCell,
@@ -19,7 +20,7 @@ import type { LoadRow } from "@/features/shipping/types";
 const C = LOAD_COLUMNS;
 const L = UI_LABELS.shipping;
 
-/** Cột bảng chuyến xe — không có cột mã vận đơn / tracking (hãng là bên thứ ba). */
+/** Cột bảng chuyến xe: mã chuyến, kế hoạch / xe, hãng, mã vận đơn (BR-23), biển số / tài xế, tiến độ quét, trạng thái. */
 export function buildLoadColumns(open: (row: LoadRow) => void): ColumnDef<LoadRow>[] {
   return [
     {
@@ -35,7 +36,6 @@ export function buildLoadColumns(open: (row: LoadRow) => void): ColumnDef<LoadRo
         </Link>
       ),
     },
-    textCell<LoadRow>(C.MODE, L.ftl.modeColumn, (row) => L.load.mode[row.mode]),
     // Chuyến nguyên xe: mã kế hoạch (liên kết sang chi tiết kế hoạch) + số xe
     stackCell<LoadRow>(
       C.PLAN,
@@ -56,6 +56,12 @@ export function buildLoadColumns(open: (row: LoadRow) => void): ColumnDef<LoadRo
       { mono: true },
     ),
     textCell<LoadRow>(C.CARRIER, L.field.carrier, (row) => row.carrierName ?? ""),
+    {
+      key: C.WAYBILL,
+      header: L.loads.waybillColumn,
+      cell: (row) =>
+        row.waybillNo ? <span className={CELL.ref}>{row.waybillNo}</span> : <EmptyCell />,
+    },
     // Ô hai dòng: biển số (mono) + tài xế
     stackCell<LoadRow>(
       C.VEHICLE,

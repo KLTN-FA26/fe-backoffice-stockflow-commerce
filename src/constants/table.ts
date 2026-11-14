@@ -127,16 +127,25 @@ export const INVENTORY_ITEM_COLUMNS = {
 /** Cột danh sách chuyến xe (BE `LoadRowResponse`). */
 export const LOAD_COLUMNS = {
   ACTIONS: "actions",
-  MODE: "mode",
   PLAN: "plan",
   CARRIER: "carrier",
-  COD: "cod",
   CODE: "code",
   DISPATCHED_AT: "dispatchedAt",
   PROGRESS: "progress",
   SHIPMENTS: "shipments",
   STATUS: "status",
   VEHICLE: "vehicle",
+  WAYBILL: "waybill",
+} as const;
+
+/** Cột danh mục hãng vận chuyển (BE `CarrierResponse`). */
+export const CARRIER_COLUMNS = {
+  ACTIONS: "actions",
+  CODE: "code",
+  CONNECTION: "connection",
+  CONTACT: "contact",
+  NAME: "name",
+  STATUS: "status",
 } as const;
 
 /** Cột danh mục kho (BE `WarehouseResponse`). */
@@ -181,7 +190,6 @@ export const LOAD_PLAN_COLUMNS = {
 export const SHIPMENT_COLUMNS = {
   ACTIONS: "actions",
   CARRIER: "carrier",
-  COD: "cod",
   CODE: "code",
   LOAD: "load",
   ORDER: "order",
