@@ -12,7 +12,7 @@ import {
 } from "@/constants";
 
 import { mockGrantsOf } from "./mock-user-grants";
-import { resetPackingMockStore } from "./mock-routes-packing-store";
+import { resetCartonCheckMockStore } from "./mock-routes-carton-check-store";
 import { resetPickLineMockStore, syncCancelledOrders } from "./mock-routes-pick-lines-store";
 import {
   MOCK_TO_BACKEND_STATUS,
@@ -86,7 +86,7 @@ let syncedCancellations = -1;
 export function resetFulfillmentMockStore(): void {
   syncedCancellations = -1;
   resetPickLineMockStore();
-  resetPackingMockStore();
+  resetCartonCheckMockStore();
   store = undefined;
   sequence = 0;
 }

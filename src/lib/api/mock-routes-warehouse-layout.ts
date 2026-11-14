@@ -8,7 +8,7 @@
 import { WAREHOUSE_LOCATION_PERMISSIONS } from "@/constants";
 
 import { registerMockRoute } from "./mock-adapter";
-import { beError, beOk, readRouteId } from "./mock-routes-purchase-orders-store";
+import { beError, beOk, isRecord, readRouteId } from "./mock-routes-purchase-orders-store";
 import { mockGrantsOf } from "./mock-user-grants";
 import { mockStoredLayout } from "./mock-warehouse-layout-view";
 
@@ -43,6 +43,26 @@ export async function mockPickableBinCodes(warehouseId: string): Promise<string[
     .filter(isMockLocationUsable)
     .map(mockLocationCode)
     .sort();
+}
+
+/**
+ * Mã các khu chứa đang dùng được (`usable`) của một loại BE (`STAGING` / `QUARANTINE` / `DISPATCH`) — cùng nguồn với
+ * `GET /warehouses/{id}/layout`: kho của store module 06 thì đọc từ đó, kho cũ của mock-data thì từ `locations`.
+ */
+export async function mockUsableAreaCodes(
+  warehouseId: string,
+  areaType: string,
+): Promise<string[]> {
+  const stored = mockStoredLayout(warehouseId);
+  if (isRecord(stored) && Array.isArray(stored.areas)) {
+    return stored.areas
+      .filter(isRecord)
+      .filter((area) => area.type === areaType && area.usable === true)
+      .flatMap((area) => (typeof area.locationCode === "string" ? [area.locationCode] : []));
+  }
+  return (await mockWarehouseLocations(warehouseId))
+    .filter((place) => BE_AREA_TYPE[place.type] === areaType && isMockLocationUsable(place))
+    .map(mockLocationCode);
 }
 
 /** Người gọi có `warehouse-locations:READ` không (quyền theo `mock-user-grants`, như BFF mock). */

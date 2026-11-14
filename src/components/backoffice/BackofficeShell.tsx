@@ -420,7 +420,7 @@ export const NAV_GROUPS: NavGroup[] = [
         permission: FULFILLMENT_PICK_PERMISSIONS.viewPage,
       },
       {
-        label: "Đóng gói",
+        label: UI_LABELS.cartonCheck.navTitle,
         href: ADMIN_ROUTES.packing.list,
         icon: PackageCheck,
         permission: FULFILLMENT_PACKAGE_PERMISSIONS.viewPage,

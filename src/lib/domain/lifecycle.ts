@@ -48,6 +48,7 @@ import type {
 // ReceiptStatus cũng vậy — 6 trạng thái docs 03 §5.1 (mock-data chỉ có 5, thiếu "In QC").
 // PickStatus / PackStatus: các trạng thái BE `/fulfillment/tasks` phát ra được (SCRUM-437).
 import type {
+  CartonStatus,
   LoadStatus,
   OrderReadStatus,
   OrderStatus,
@@ -173,6 +174,16 @@ export const PACK_TRANSITIONS: Record<PackStatus, readonly PackStatus[]> = {
   "In Progress": ["In Progress", "Completed", "Cancelled"],
   Completed: [],
   Cancelled: [],
+};
+
+// Thùng giao (docs 08 §5.2, BE `PackageStatus` của 4C-6): To Check → Checked (quét đúng LPN) → Labeled (in và dán nhãn
+// giao hàng); To Check / Checked / Labeled → Removed (loại thùng hư hỏng; Labeled chỉ khi chưa thuộc shipment). Labeled
+// còn đi tiếp vào shipment (module 09) nhưng đó không phải một trạng thái của thùng ở trạm. `Removed` là cuối.
+export const CARTON_TRANSITIONS: Record<CartonStatus, readonly CartonStatus[]> = {
+  "To Check": ["Checked", "Removed"],
+  Checked: ["Labeled", "Removed"],
+  Labeled: ["Removed"],
+  Removed: [],
 };
 
 /* ── Module 09: Shipping — chuyến xe (load) ──────────────────────────── */
