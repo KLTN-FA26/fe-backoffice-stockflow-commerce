@@ -50,6 +50,7 @@ import {
   WAREHOUSE_LOCATION_PERMISSIONS,
   WAREHOUSE_PERMISSIONS,
 } from "@/constants/permissions";
+import { PAYMENT_INSTALLMENT_PERMISSIONS, PAYMENT_RECEIPT_PERMISSIONS } from "@/constants/payment";
 
 import type { PermissionCode } from "@/lib/auth/me-permissions";
 
@@ -224,6 +225,21 @@ const CONTRACT_UPDATE = SALES_CONTRACT_PERMISSIONS.update;
 const REFUND_READ = PAYMENT_REFUND_PERMISSIONS.read;
 const SALES_WF4_EXTRA = [CANCELLATION_QUEUE_READ, CONTRACT_UPDATE, REFUND_READ];
 
+// Seed BE V20261108002400 + V20261108003000 (thanh toán theo hợp đồng, docs 15): ACCOUNTANT và SYSTEM_ADMIN —
+// đợt VIEW_PAGE + READ, phiếu thu và hoàn tiền đủ 4 action (lập / huỷ); SALES_STAFF — đợt và hoàn tiền chỉ
+// VIEW_PAGE + READ (gửi thông tin chuyển khoản, nhắc nợ, theo dõi hoàn), không có phiếu thu.
+const PAY_INSTALLMENT_READ = [
+  PAYMENT_INSTALLMENT_PERMISSIONS.viewPage,
+  PAYMENT_INSTALLMENT_PERMISSIONS.read,
+];
+const PAY_REFUND_READ = [PAYMENT_REFUND_PERMISSIONS.viewPage, PAYMENT_REFUND_PERMISSIONS.read];
+const PAY_ACCOUNTANT = [
+  ...PAY_INSTALLMENT_READ,
+  ...Object.values(PAYMENT_RECEIPT_PERMISSIONS),
+  ...Object.values(PAYMENT_REFUND_PERMISSIONS),
+];
+const PAY_SALES = [...PAY_INSTALLMENT_READ, ...PAY_REFUND_READ];
+
 /** Explicit demo session responses keyed by existing staff IDs, never computed from roles. */
 export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
   "USER-ADMIN-01": [
@@ -257,6 +273,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...CUSTOMER_PRICE_ALL,
     CUSTOMER_LOOKUP,
     ...STOCK_PACKAGE_ALL,
+    ...PAY_ACCOUNTANT,
   ],
   "USER-PROC-01": [
     SUPPLIER_PERMISSIONS.viewPage,
@@ -318,6 +335,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     // SCRUM-427: duyệt / từ chối vượt hạn mức công nợ
     ...CREDIT_ALL,
     CREDIT_PROFILE_READ,
+    ...PAY_ACCOUNTANT,
     CONTRACT_READ,
     REFUND_READ,
   ],
@@ -341,6 +359,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     WAREHOUSE_READ,
     ...CUSTOMER_PRICE_READ,
     CUSTOMER_LOOKUP,
+    ...PAY_SALES,
   ],
   "USER-SALE-02": [
     ORDER_PERMISSIONS.viewPage,
@@ -353,6 +372,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     WAREHOUSE_READ,
     ...CUSTOMER_PRICE_READ,
     CUSTOMER_LOOKUP,
+    ...PAY_SALES,
   ],
   "USER-SALE-03": [
     ORDER_PERMISSIONS.viewPage,
@@ -365,6 +385,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     WAREHOUSE_READ,
     ...CUSTOMER_PRICE_READ,
     CUSTOMER_LOOKUP,
+    ...PAY_SALES,
   ],
   // Seed BE: SALES_STAFF có sales-order-cancellations:UPDATE (huỷ đơn, đóng phần còn lại) nhưng không có APPROVE
   // (giữ / gỡ giữ / ghi giao thất bại là của ORDER_COORDINATOR)

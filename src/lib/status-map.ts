@@ -39,6 +39,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     // Biến thể (BE VariantStatus, PR #71)
     "ACTIVE",
     "Paid",
+    // Phiếu thu đã ghi nhận theo sao kê (docs 15 §5.3)
+    "Recorded",
     "Matched",
     "Accepted",
     "Pass",
@@ -107,6 +109,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Queued",
     "Approved for Payment",
     "Initiated",
+    // Đợt thanh toán đã đến mốc, chờ khách trả (docs 15 §5.1)
+    "Due",
     // docs 19 §5.1 — lệnh sản xuất đang tiến hành
     "Material Issued",
     "QC",
@@ -198,6 +202,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Changes Requested",
     "CHANGES_REQUESTED",
     "EXPIRED",
+    // Đợt thanh toán quá hạn chưa trả đủ (docs 15 §5.1)
+    "Overdue",
   ],
   neutral: [
     "NOT_SENT",
@@ -215,6 +221,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "PLANNED",
     // Dòng lấy hàng chưa lấy (BE PickLineStatus.OPEN, SCRUM-267)
     "Open",
+    // Đợt thanh toán chưa tới mốc (docs 15 §5.1)
+    "Not Due",
   ],
   muted: [
     // Thùng đã lấy hết hàng — kết thúc (BE StockPackageStatus.CONSUMED)
@@ -496,6 +504,11 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   Subcontracted: "Đang gia công ngoài",
   // Thanh toán đơn (BE PaymentStatus)
   "On Credit": "Ghi công nợ",
+  // Đợt thanh toán và phiếu thu (docs 15 §5.1, §5.3)
+  "Not Due": "Chưa đến hạn",
+  Due: "Đến hạn",
+  Overdue: "Quá hạn",
+  Recorded: "Đã ghi nhận",
 };
 
 /**
@@ -529,6 +542,10 @@ const STATUS_LABEL_VI_BY_DOMAIN: Partial<Record<StatusDomain, Record<string, str
     BLOCKED: "Khoá kiểm kê / QC",
     MAINTENANCE: "Bảo trì",
     INACTIVE: "Ngừng dùng",
+  },
+  // Phiếu thu bị huỷ vì ghi sai (docs 15 §4.4) — nhãn chung "Đã vô hiệu" là của module khác
+  payment: {
+    Voided: "Đã huỷ",
   },
   // Đơn hàng (BE OrderStatus, PR #133): nhãn sát nghĩa nghiệp vụ hơn nhãn dùng chung với module khác
   order: {

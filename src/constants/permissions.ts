@@ -86,12 +86,15 @@ export const CANCELLATION_REQUEST_PERMISSIONS = {
 } as const;
 
 /**
- * Hoàn tiền của đơn — resource `payment-refunds` (BE `RefundController`). FE đơn hàng chỉ ĐỌC kết quả tất toán sau huỷ
+ * Hoàn tiền của đơn — resource `payment-refunds` (BE `RefundController`). FE đơn hàng chỉ ĐỌC kết quả tất toán sau huỷ; màn Kế toán (`@/constants/payment`) dùng thêm VIEW_PAGE / CREATE / UPDATE
  * (`GET /refunds/orders/{orderId}`): seed BE cấp READ cho ACCOUNTANT, SALES_STAFF, SALES_MANAGER, SYSTEM_ADMIN (và
  * khách, scope OWN). Ghi nhận / huỷ phiếu hoàn là việc của Kế toán ở màn thanh toán, không thuộc màn đơn.
  */
 export const PAYMENT_REFUND_PERMISSIONS = {
+  viewPage: "payment-refunds:VIEW_PAGE",
   read: "payment-refunds:READ",
+  create: "payment-refunds:CREATE",
+  update: "payment-refunds:UPDATE",
 } as const;
 
 /**

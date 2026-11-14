@@ -130,7 +130,6 @@ describe("đăng ký route — mỗi METHOD + PATH đúng một chủ", () => {
     "GET /orders/cancellation-requests",
     "POST /orders/:id/cancellation-requests/:requestId/approval",
     "POST /orders/:id/cancellation-requests/:requestId/rejection",
-    "GET /refunds/orders/:id",
     // Giao một phần (BE PR #150)
     "PUT /orders/:id/partial-shipment",
     "GET /orders/credit-position/:id",

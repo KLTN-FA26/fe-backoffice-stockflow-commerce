@@ -9,17 +9,13 @@
  *   `sales-order-cancellations:UPDATE`; huỷ đơn như huỷ admin (cùng ORDER_NOT_CANCELLABLE sau thùng đầu tiên dán nhãn,
  *   cùng CANCELLATION_FEE_BEFORE_PRINTING) và đóng yêu cầu; yêu cầu đã quyết / hết hiệu lực → 409 NOT_PENDING.
  * - POST …/rejection {note} — ghi lý do bắt buộc; đơn tiếp tục.
- * - GET  /refunds/orders/:id — `payment-refunds:READ`; số liệu tất toán suy từ lần huỷ (đã thu → trả phí trước → phần thừa
- *   phải hoàn → phí thiếu thành khoản phí huỷ).
+ * - Số liệu tất toán `GET /refunds/orders/:id` do kho hoàn tiền (`mock-routes-refunds.ts`) trả; với đơn huỷ chưa có dòng
+ *   riêng trong kho, nó lấy từ `cancelledOrderRefund` ở đây (đã thu → trả phí trước → phần thừa phải hoàn).
  *
  * Chỉ dùng khi USE_MOCK=true.
  */
 
-import {
-  CANCELLATION_REQUEST_PERMISSIONS,
-  ORDER_PERMISSIONS,
-  PAYMENT_REFUND_PERMISSIONS,
-} from "@/constants";
+import { CANCELLATION_REQUEST_PERMISSIONS, ORDER_PERMISSIONS } from "@/constants";
 
 import { registerMockRoute } from "./mock-adapter";
 import {
@@ -239,66 +235,69 @@ function registerDecisionRoutes(): void {
   );
 }
 
-/** BE `OrderRefundResponse` của một đơn đã huỷ: tiền đã thu trả phí trước (docs 15 §4.5–4.6, `OrderSettlement#cancel`). */
-function registerRefundRoute(): void {
-  registerMockRoute("GET", "/refunds/orders/:id", async (config) => {
-    if (!(await hasMockPermission(PAYMENT_REFUND_PERMISSIONS.read))) return forbidden();
-    const order = await findOrder(pathParams(config).id ?? "");
-    if (!order) return fail(404, "NOT_FOUND", "Resource not found");
-    const base = {
-      orderId: order.orderId,
-      orderNumber: order.orderNumber,
-      currency: order.currency,
-    };
-    const cancellation = toOrderResponse(order).cancellation;
-    if (backendStatus(order) !== "CANCELLED" || !cancellation)
-      return ok({
-        ...base,
-        refundStatus: "NONE",
-        refundable: 0,
-        refunded: 0,
-        remaining: 0,
-        settlements: [],
-        records: [],
-      });
-    const collected = order.amountPaid;
-    const fee = cancellation.feeAmount ?? cancellation.retainedAmount ?? 0;
-    const approved = (await loadRequests()).find(
-      (r) => r.orderId === order.orderId && r.status === "APPROVED",
-    );
-    const covered = Math.min(fee, collected);
-    const refundable = collected - covered;
-    return ok({
+/**
+ * Số liệu tất toán của đơn đã huỷ suy từ bản ghi huỷ (tiền đã thu trả phí trước, docs 15 §4.5–4.6,
+ * `OrderSettlement#cancel`), dạng BE `OrderRefundResponse`. Route `GET /refunds/orders/:id` thuộc kho hoàn tiền
+ * (`mock-routes-refunds.ts`); nó gọi hàm này khi kho không có dòng riêng cho đơn. `null` = không có đơn.
+ */
+export async function cancelledOrderRefund(
+  orderId: string,
+): Promise<Record<string, unknown> | null> {
+  const order = await findOrder(orderId);
+  if (!order) return null;
+  const base = {
+    orderId: order.orderId,
+    orderNumber: order.orderNumber,
+    currency: order.currency,
+  };
+  const cancellation = toOrderResponse(order).cancellation;
+  if (backendStatus(order) !== "CANCELLED" || !cancellation)
+    return {
       ...base,
-      refundStatus: refundable > 0 ? "PENDING" : "NONE",
-      refundable,
+      refundStatus: "NONE",
+      refundable: 0,
       refunded: 0,
-      remaining: refundable,
-      settlements: [
-        {
-          settlementId: `SETTLE-${order.orderId}`,
-          kind: "ORDER_CANCELLED",
-          collected,
-          closed: 0,
-          reduced: 0,
-          surplus: collected,
-          fee,
-          feePercent: approved?.retainedPercent ?? null,
-          feeReason: cancellation.feeReason ?? null,
-          feeDetail: cancellation.feeDetail ?? null,
-          feeCovered: covered,
-          refundable,
-          feeOwed: fee - covered,
-          settledAt: new Date().toISOString(),
-        },
-      ],
+      remaining: 0,
+      settlements: [],
       records: [],
-    });
-  });
+    };
+  const collected = order.amountPaid;
+  const fee = cancellation.feeAmount ?? cancellation.retainedAmount ?? 0;
+  const approved = (await loadRequests()).find(
+    (r) => r.orderId === order.orderId && r.status === "APPROVED",
+  );
+  const covered = Math.min(fee, collected);
+  const refundable = collected - covered;
+  return {
+    ...base,
+    refundStatus: refundable > 0 ? "PENDING" : "NONE",
+    refundable,
+    refunded: 0,
+    remaining: refundable,
+    settlements: [
+      {
+        settlementId: `SETTLE-${order.orderId}`,
+        kind: "ORDER_CANCELLED",
+        collected,
+        closed: 0,
+        reduced: 0,
+        surplus: collected,
+        fee,
+        feePercent: approved?.retainedPercent ?? null,
+        feeReason: cancellation.feeReason ?? null,
+        feeDetail: cancellation.feeDetail ?? null,
+        feeCovered: covered,
+        refundable,
+        feeOwed: fee - covered,
+        feeItemId: null,
+        settledAt: new Date().toISOString(),
+      },
+    ],
+    records: [],
+  };
 }
 
 export function registerOrderCancellationRequestMockRoutes(): void {
   registerListRoute();
   registerDecisionRoutes();
-  registerRefundRoute();
 }
