@@ -6,6 +6,7 @@
 import { EINVOICE_PERMISSIONS } from "@/constants/einvoice";
 
 import type { EInvoiceStatus } from "@/constants/einvoice";
+import type { PermissionCode } from "@/lib/auth";
 import type { EInvoice } from "./types";
 
 /** BE `EInvoiceStatus.next()` — VOIDED_DRAFT và REPLACED là trạng thái cuối. */
@@ -45,7 +46,7 @@ type Gate = Pick<
  */
 export function allowedEInvoiceActions(
   invoice: Gate,
-  can: (permission: string) => boolean,
+  can: (permission: PermissionCode) => boolean,
 ): EInvoiceAction[] {
   const P = EINVOICE_PERMISSIONS;
   const actions: EInvoiceAction[] = [];
