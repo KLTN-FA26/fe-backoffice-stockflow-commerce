@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import {
+  ADMIN_ROUTES,
   INVENTORY_ITEM_PERMISSIONS,
   PRODUCT_PERMISSIONS,
   SUPPLIER_ITEM_PERMISSIONS,
@@ -19,6 +20,7 @@ import { VariantInventorySummary } from "./VariantInventorySummary";
 import { VariantMediaGallery } from "./VariantMediaGallery";
 import { VariantOverview } from "./VariantOverview";
 import { usePurchasingCloseGuard } from "./purchasing-close-guard";
+import { VariantPrintConfigLink } from "./VariantPrintConfigLink";
 import { VariantPurchasing } from "./VariantPurchasing";
 
 import type { Variant } from "../../variant-schemas";
@@ -33,6 +35,7 @@ export function VariantPanel({
   productApproved,
   acceptsChanges,
   productDiscontinued,
+  customizable,
   open,
   onClose,
 }: {
@@ -43,6 +46,8 @@ export function VariantPanel({
   acceptsChanges: boolean;
   /** Sản phẩm đã ngừng kinh doanh: BE `CatalogCommerceService.price` chỉ từ chối trường hợp này (chờ duyệt vẫn đặt giá được). */
   productDiscontinued: boolean;
+  /** Sản phẩm tuỳ chỉnh / in ấn (`kind` CUSTOMIZABLE): chỉ khi đó biến thể có cấu hình in. */
+  customizable: boolean;
   open: boolean;
   onClose: () => void;
 }) {
@@ -124,6 +129,16 @@ export function VariantPanel({
               canWithdraw={media.withdraw}
             />
           </section>
+
+          {customizable && (
+            <section>
+              <VariantPrintConfigLink
+                href={ADMIN_ROUTES.products.printConfig(productId, variant.variantId)}
+                onClick={closeGuard.onLeaveLinkClick}
+                anchorRef={closeGuard.attachLeaveAnchor}
+              />
+            </section>
+          )}
         </div>
       )}
 

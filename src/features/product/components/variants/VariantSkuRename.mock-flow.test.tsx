@@ -210,6 +210,7 @@ describe("cache FE sau khi đổi SKU", () => {
           productApproved={false}
           acceptsChanges
           productDiscontinued={false}
+          customizable={false}
           open
           onClose={() => {}}
         />
