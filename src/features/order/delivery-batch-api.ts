@@ -1,7 +1,8 @@
 /**
  * Lịch giao của đơn — API layer (BE `DeliveryBatchController`, docs 17 §4.5, §5.5). Dùng cho ô chọn đợt giao ở hộp thoại
- * release và panel lịch giao của chi tiết đơn. Endpoint cần `sales-contracts:READ`; seed BE (V20261115000200) không cấp
- * cho quản lý kho nên màn chỉ gọi khi người dùng có mã đó (`SALES_CONTRACT_PERMISSIONS.read`). Dời cửa sổ giao:
+ * release và panel lịch giao của chi tiết đơn. Endpoint cần `sales-order-delivery-batches:READ` (BE PR #317, V20261124000650:
+ * cấp cho mọi vai đọc hợp đồng trước đây và cho vai release, kể cả quản lý kho) nên màn chỉ gọi khi người dùng có mã đó
+ * (`ORDER_DELIVERY_BATCH_PERMISSIONS.read`). Dời cửa sổ giao:
  * `delivery-window-api.ts`.
  */
 

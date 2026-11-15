@@ -32,6 +32,7 @@ import {
   LOAD_ESTIMATE_PERMISSIONS,
   LOAD_PLAN_PERMISSIONS,
   ORDER_PERMISSIONS,
+  ORDER_DELIVERY_BATCH_PERMISSIONS,
   SALES_CONTRACT_PERMISSIONS,
   CANCELLATION_REQUEST_PERMISSIONS,
   PAYMENT_REFUND_PERMISSIONS,
@@ -215,9 +216,18 @@ const CREDIT_ALL = Object.values(CREDIT_HOLD_PERMISSIONS);
 const CREDIT_PROFILE_READ = CUSTOMER_CREDIT_PROFILE_PERMISSIONS.read;
 const PRODUCTION_READ = PRODUCTION_ORDER_PERMISSIONS.read;
 // Seed BE (V20261108002200): sales-contracts:READ cho SALES_STAFF / SALES_MANAGER / ACCOUNTANT / SYSTEM_ADMIN — không có
-// quản lý kho. FE chỉ dùng nó để đọc lịch giao (`GET /orders/{id}/delivery-batches`) ở hộp thoại release.
+// quản lý kho. Từ BE PR #317 (V20261124000650) lịch giao (`GET /orders/{id}/delivery-batches`, ô chọn đợt ở hộp thoại
+// release + panel lịch giao) là `sales-order-delivery-batches:READ`: cấp cho mọi vai có sales-contracts:READ và mọi vai
+// release (`sales-order-releases:UPDATE`, quản lý kho) — nên đi cùng CONTRACT_READ ở các vai bên dưới.
 const CONTRACT_READ = SALES_CONTRACT_PERMISSIONS.read;
-const ORDER_SALES_EXTRA = [...CREDIT_VIEW, CREDIT_PROFILE_READ, PRODUCTION_READ, CONTRACT_READ];
+const DELIVERY_SCHEDULE_READ = ORDER_DELIVERY_BATCH_PERMISSIONS.read;
+const ORDER_SALES_EXTRA = [
+  ...CREDIT_VIEW,
+  CREDIT_PROFILE_READ,
+  PRODUCTION_READ,
+  CONTRACT_READ,
+  DELIVERY_SCHEDULE_READ,
+];
 // Seed BE (PermissionMatrixTest, WF4 ngoại lệ): SALES_STAFF + SYSTEM_ADMIN có hàng đợi yêu cầu huỷ (`sales-order-
 // cancellations:READ`) và dời cửa sổ giao (`sales-contracts:UPDATE`, docs 17 BR-28 "chỉ Sale"); `payment-refunds:READ` còn
 // cho ACCOUNTANT / SALES_MANAGER (đọc kết quả tất toán sau huỷ).
@@ -257,6 +267,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     CREDIT_PROFILE_READ,
     PRODUCTION_READ,
     CONTRACT_READ,
+    DELIVERY_SCHEDULE_READ,
     ...SALES_WF4_EXTRA,
     ...Object.values(REPORTING_PERMISSIONS),
     ...Object.values(PRODUCT_PERMISSIONS),
@@ -345,6 +356,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     CREDIT_PROFILE_READ,
     ...PAY_ACCOUNTANT,
     CONTRACT_READ,
+    DELIVERY_SCHEDULE_READ,
     REFUND_READ,
     ...EINVOICE_ALL,
     EINVOICE_SETTINGS_PERMISSIONS.read,

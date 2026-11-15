@@ -18,6 +18,9 @@ import {
 
 const LINE = { locationCode: "HN-A01-01-01-A", sku: "TEE-BLK-M", lpn: "LPN0000000001" };
 const be = (status: number, code: string) => new ApiError(status, code, "x");
+/** Lỗi mang `details` (BE PR #317, WF4 BE-14): giá trị đúng ở `details.expectedLocationCode` / `details.expectedLpn`. */
+const beWith = (code: string, details: Record<string, unknown>) =>
+  new ApiError(409, code, "x", undefined, undefined, undefined, undefined, details);
 
 describe("confirmLineError — BE PickList.confirm (vị trí → LPN, dừng ở lỗi đầu; docs 07 BR-10)", () => {
   it.each([
@@ -59,6 +62,46 @@ describe("confirmLineError — BE PickList.confirm (vị trí → LPN, dừng �
 
   it("lỗi không phải ApiError → câu chung", () => {
     expect(confirmLineError(new Error("x"), LINE)).toEqual({ message: MSG.generic, stale: false });
+  });
+});
+
+describe("details.expectedLocationCode / details.expectedLpn (BE PR #317, WF4 BE-14)", () => {
+  it("sai vị trí nêu bin trong details, ưu tiên hơn giá trị của dòng; sai thùng nêu LPN trong details", () => {
+    expect(
+      confirmLineError(
+        beWith("PICK_LOCATION_MISMATCH", { expectedLocationCode: "HCM-B02-1-A" }),
+        LINE,
+      ),
+    ).toEqual({
+      field: "locationCode",
+      message: PL.locationMismatch("HCM-B02-1-A"),
+      stale: false,
+    });
+    expect(
+      confirmLineError(beWith("PICK_ITEM_MISMATCH", { expectedLpn: "LPN0000000099" }), LINE),
+    ).toEqual({ field: "lpn", message: PL.itemMismatch("LPN0000000099"), stale: false });
+  });
+
+  it("báo thiếu sai vị trí và cất lại sai thùng cũng đọc details", () => {
+    expect(
+      shortPickError(
+        beWith("PICK_LOCATION_MISMATCH", { expectedLocationCode: "HCM-B02-1-A" }),
+        LINE,
+      ),
+    ).toMatchObject({ message: PL.locationMismatch("HCM-B02-1-A") });
+    expect(
+      putBackError(beWith("PICK_ITEM_MISMATCH", { expectedLpn: "LPN0000000099" }), {
+        lpn: "LPN0000000001",
+      }),
+    ).toMatchObject({ field: "lpn", message: PB.itemMismatch("LPN0000000099") });
+  });
+
+  it("details thiếu / rỗng / không phải chuỗi → dùng giá trị của dòng", () => {
+    for (const details of [{}, { expectedLocationCode: "  " }, { expectedLocationCode: 7 }]) {
+      expect(confirmLineError(beWith("PICK_LOCATION_MISMATCH", details), LINE).message).toBe(
+        PL.locationMismatch(LINE.locationCode),
+      );
+    }
   });
 });
 

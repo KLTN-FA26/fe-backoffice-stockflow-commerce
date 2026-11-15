@@ -7,6 +7,7 @@ import { act } from "@testing-library/react";
 
 import {
   CANCELLATION_REQUEST_PERMISSIONS,
+  ORDER_DELIVERY_BATCH_PERMISSIONS,
   ORDER_PERMISSIONS,
   PAYMENT_REFUND_PERMISSIONS,
   SALES_CONTRACT_PERMISSIONS,
@@ -33,13 +34,14 @@ export const CONSENT_MESSAGE = "3f6c9a52-8a63-4f1c-9d3a-6f4f2a1b7c10";
 
 /**
  * Seed BE (PermissionMatrixTest): `sales-order-cancellations:READ` + `sales-contracts:UPDATE` chỉ SALES_STAFF + SYSTEM_ADMIN;
- * `payment-refunds:READ` còn ACCOUNTANT; `sales-contracts:READ` còn ACCOUNTANT (không có quản lý kho).
+ * `payment-refunds:READ` còn ACCOUNTANT; lịch giao `sales-order-delivery-batches:READ` (BE PR #317) cho mọi vai từng đọc hợp đồng
+ * (Sales, Kế toán…) và cho quản lý kho release.
  */
 export const WF4_PERMISSION_SETS = {
   sales: [
     ...ORDER_PERMISSION_SETS.salesStaff,
     CANCELLATION_REQUEST_PERMISSIONS.read,
-    SALES_CONTRACT_PERMISSIONS.read,
+    ORDER_DELIVERY_BATCH_PERMISSIONS.read,
     SALES_CONTRACT_PERMISSIONS.update,
     PAYMENT_REFUND_PERMISSIONS.read,
   ],
@@ -48,16 +50,16 @@ export const WF4_PERMISSION_SETS = {
     ORDER_PERMISSIONS.viewPage,
     ORDER_PERMISSIONS.read,
     CANCELLATION_REQUEST_PERMISSIONS.read,
-    SALES_CONTRACT_PERMISSIONS.read,
+    ORDER_DELIVERY_BATCH_PERMISSIONS.read,
   ],
   /** Kế toán đọc đơn + lịch giao + hoàn tiền, không có hàng đợi huỷ, không dời. */
   accountant: [
     ORDER_PERMISSIONS.viewPage,
     ORDER_PERMISSIONS.read,
-    SALES_CONTRACT_PERMISSIONS.read,
+    ORDER_DELIVERY_BATCH_PERMISSIONS.read,
     PAYMENT_REFUND_PERMISSIONS.read,
   ],
-  /** Quản lý kho của kho xuất: release, không có quyền đọc hợp đồng / hàng đợi huỷ. */
+  /** Quản lý kho của kho xuất: release + đọc lịch giao, không có quyền đọc hợp đồng / hàng đợi huỷ. */
   warehouseManager: ORDER_PERMISSION_SETS.warehouseManager,
 } satisfies Record<string, PermissionCode[]>;
 
