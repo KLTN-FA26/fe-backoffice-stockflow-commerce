@@ -150,6 +150,64 @@ describe("Chuyến nguyên xe — xe của kế hoạch và đặt xe", () => {
     expect(within(dialog).getByLabelText(F.bookDialog.vehiclePlate)).toHaveValue("51C-628.14");
   });
 
+  it("xe chưa có tài xế: nút Nhập tài xế → PUT /driver {driverName, driverPhone?}; đã có tài xế đổi thành Sửa tài xế", async () => {
+    const user = userEvent.setup();
+    const noDriver = ftlLoad({ driverName: undefined, driverPhone: undefined });
+    const saved = ftlLoad({ driverName: "Lê Văn Tài", driverPhone: "0901", version: 4 });
+    let current = noDriver;
+    const { put } = mockShippingApi(ACTORS.warehouseStaff, {
+      get: { [PATH]: () => current },
+      put: {
+        [`${PATH}/driver`]: () => {
+          current = saved;
+          return saved;
+        },
+      },
+    });
+    renderShippingScreen(<LoadScreen id={FTL_ID} />);
+    await user.click(await screen.findByRole("button", { name: F.booking.enterDriver }));
+    const dialog = await screen.findByRole("dialog");
+    const submit = within(dialog).getByRole("button", { name: F.driverDialog.submit });
+    expect(submit).toBeDisabled();
+    await user.type(
+      within(dialog).getByLabelText(F.driverDialog.driverName, { exact: false }),
+      "Lê Văn Tài",
+    );
+    await user.type(within(dialog).getByLabelText(F.driverDialog.driverPhone), "0901");
+    await user.click(submit);
+    await waitFor(() =>
+      expect(put).toHaveBeenCalledWith(`${PATH}/driver`, {
+        driverName: "Lê Văn Tài",
+        driverPhone: "0901",
+      }),
+    );
+    expect(await screen.findByRole("button", { name: F.booking.editDriver })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("hãng đặt xe qua API vẫn nhập được tài xế; lỗi 409 INVALID_LOAD_TRANSITION hiện trong hộp thoại", async () => {
+    const user = userEvent.setup();
+    mockShippingApi(ACTORS.warehouseStaff, {
+      get: {
+        [PATH]: () => ftlLoad({ driverName: undefined, carrierConnectionType: "API_BOOKING" }),
+      },
+      put: {
+        [`${PATH}/driver`]: () => {
+          throw new ApiError(409, "INVALID_LOAD_TRANSITION", "en");
+        },
+      },
+    });
+    renderShippingScreen(<LoadScreen id={FTL_ID} />);
+    await user.click(await screen.findByRole("button", { name: F.booking.enterDriver }));
+    const dialog = await screen.findByRole("dialog");
+    await user.type(
+      within(dialog).getByLabelText(F.driverDialog.driverName, { exact: false }),
+      "Lái",
+    );
+    await user.click(within(dialog).getByRole("button", { name: F.driverDialog.submit }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(ERR.INVALID_LOAD_TRANSITION);
+  });
+
   it("huỷ đặt xe cần lý do → POST /booking-cancellation {reason}", async () => {
     const user = userEvent.setup();
     const { post } = renderFtl(ACTORS.warehouseStaff, ftlLoad(), {
@@ -189,7 +247,14 @@ describe("Chuyến nguyên xe — xe của kế hoạch và đặt xe", () => {
   it("gate theo mã quyền: chỉ xem (không có fulfillment-dispatch:UPDATE) không có nút đặt xe / huỷ / bắt đầu", async () => {
     renderFtl(ACTORS.orderCoordinator, ftlLoad());
     await ready();
-    for (const name of [F.booking.rebook, F.booking.cancel, F.booking.start, F.booking.book]) {
+    for (const name of [
+      F.booking.rebook,
+      F.booking.cancel,
+      F.booking.start,
+      F.booking.book,
+      F.booking.enterDriver,
+      F.booking.editDriver,
+    ]) {
       expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
     }
     expect(screen.getAllByText("GHN Giao Hàng Nhanh").length).toBeGreaterThan(0);
