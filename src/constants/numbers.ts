@@ -478,3 +478,142 @@ export const WAREHOUSE_MAP_3D = {
   focusMin: 3.5,
   focusMax: 28,
 } as const;
+
+/**
+ * Đo và kiểm file 3D `.glb` của cấu hình in (module 12). Nguồn: quy ước file 3D → cấu hình in 2D,
+ * storefront `docs/superpowers/specs/2026-11-13-design-print-config-files-2d-3d.md` (§5 kiểm file,
+ * §6 mặc định, §8 giới hạn nạp). Giá trị giữ nguyên như bản đã review ở storefront.
+ */
+export const MODEL3D_LIMITS = {
+  /** Dung sai hình (mm): lệch mặt nón, mặt không phẳng, góc hình chữ nhật (§5). */
+  shapeToleranceMm: 0.5,
+  /** Dung sai so với số của nhà sản xuất, và khi so file với mẫu (mm): đúng 1 mm vẫn đạt (§5). */
+  comparisonToleranceMm: 1,
+  /** Chiều cao ly hợp lệ (mm), ngoài khoảng này coi là sai đơn vị (§5). */
+  cupHeightRangeMm: [20, 400],
+  /** Chiều cao túi hợp lệ (mm) (§5). */
+  bagHeightRangeMm: [20, 600],
+  /** Số cạnh tối thiểu quanh thân ly (§5). */
+  minBodyEdges: 32,
+  /** Số tam giác tối đa của cả model (§5). */
+  maxTriangles: 100_000,
+  /** Dung lượng file tối đa (byte): 10 MB (§5). */
+  maxFileBytes: 10 * 1024 * 1024,
+  /** File to hơn mức này (byte, 50 MB) không được đọc tại trình duyệt; từ 10 đến 50 MB vẫn đọc và báo vượt mức (màn hình upload, B3). */
+  maxReadBytes: 50 * 1024 * 1024,
+  /** Các đỉnh cách nhau chưa tới mức này theo chiều cao (mm) thuộc cùng một vòng. */
+  ringToleranceMm: 0.05,
+  /** Khe hở trong vòng tam giác hẹp hơn mức này (độ) bị bỏ qua. */
+  holeToleranceDeg: 0.5,
+  /** Hiệu số bán kính trên - dưới dưới mức này (mm) thì thân ly trải như hình trụ (spec §4.3). */
+  cylinderTaperMm: 0.5,
+  /** glTF tính bằng mét, engine tính bằng mm. */
+  mmPerMetre: 1000,
+  /** Một lần tải, và riêng một lần phân tích file, được chạy tối đa chừng này (ms) (§8). */
+  loadTimeoutMs: 15_000,
+  /** Số URL được giữ byte trong bộ nhớ đệm (§8). */
+  keptUrls: 4,
+  /** Tải lỗi được nhớ chừng này (ms) để không gọi lại ngay (§8). */
+  failureMemoryMs: 60_000,
+  /** Lệch tối đa giữa `shape_json` của hình quạt và hình dựng từ model (zod của mẫu). */
+  sectorRadiusToleranceMm: 0.1,
+  sectorSweepToleranceRad: 0.001,
+} as const;
+
+/**
+ * Điều file không nói được nên lấy mặc định (§6): mép dán của ly, vành miệng ly (chỉ để dựng mẫu
+ * thay thế), và lề an toàn / tràn lề / quy tắc file in. Thật sự do nhà in quyết định.
+ */
+export const MODEL3D_MODEL_DEFAULTS = { seamMm: 8, rimMm: 3 } as const;
+
+export const PRINT_TEMPLATE_DEFAULTS = {
+  cup: { safeMarginMm: 3, bleedMm: 2, maxColors: null },
+  bag: { safeMarginMm: 5, bleedMm: 3, maxColors: 4 },
+  minDpi: 300,
+  maxFileSizeMb: 50,
+} as const;
+
+/**
+ * Giới hạn của cấu hình in (customization template) mà BE kiểm — nguồn: BE `CustomizationTemplateRequest`
+ * / `PrintAreaRequest` / `CustomizationTemplateController` (origin/develop) và, cho file `.glb`, yêu cầu BE
+ * B-1 / B-2 (`docs/superpowers/reports/2026-11-13-design-yeu-cau-bo-sung-cho-be.md` của storefront).
+ * Màn hình báo lỗi trước khi gửi; BE vẫn kiểm lại.
+ */
+export const PRINT_CONFIG_LIMITS = {
+  /** `name` tối đa 255 ký tự (template và vùng in). */
+  nameMaxLength: 255,
+  /** `code` của template: 1–50 chữ in hoa, số hoặc dấu gạch. */
+  codePattern: /^[A-Z0-9-]{1,50}$/,
+  /** `minDpi` 72–2400. */
+  minDpiRange: [72, 2400],
+  /** `maxFileSizeMb` 1–50. */
+  maxFileSizeMbRange: [1, 50],
+  /** `bleedMm` 0–20. */
+  bleedMaxMm: 20,
+  /** `meshName` 1–100 ký tự (B-2). */
+  meshNameMaxLength: 100,
+  /** Đuôi file model (B-1). */
+  modelFileExtension: ".glb",
+  /** SHA-256 viết thường dạng hex (B-5 / B-6 `modelFileChecksum`). */
+  checksumPattern: /^[0-9a-f]{64}$/,
+} as const;
+
+/**
+ * Lưới đánh số vẽ lên phần in của model để xem thử (storefront `grid-texture.ts` của bộ xem thử, gỡ
+ * ra khỏi storefront ở `docs/superpowers/patches/2026-11-13-glb-do-kiem.patch`). Cỡ nét và chữ tính
+ * bằng mm; canvas vẽ theo tỷ lệ pixel trên mm.
+ */
+export const MODEL3D_GRID = {
+  /** Một vạch mảnh mỗi 10 mm. */
+  stepMm: 10,
+  /** Một vạch đậm và một số mỗi ô 50 mm. */
+  cellMm: 50,
+  /** Cạnh dài nhất của canvas lưới (pixel). */
+  longEdgePx: 2048,
+  lineMinorMm: 0.15,
+  lineMajorMm: 0.4,
+  lineGuideMm: 0.5,
+  lineEdgeMm: 1.4,
+  labelMm: 7,
+  edgeLabelMm: 4.5,
+  labelHaloMm: 1.6,
+  /** Bước lấy mẫu của một vạch (mm), để vạch ngang trên tờ ly cong theo cung. */
+  sampleMm: 2,
+  edgeLabelInsetMm: 4,
+} as const;
+
+/**
+ * Khung nhìn model 3D có lưới đánh số (cấu hình in). Giá trị chọn cho dễ nhìn, không từ tài liệu nghiệp vụ:
+ * góc mở và độ cao camera làm model đủ lớn mà vẫn thấy cả vành ly; khuôn phẳng vẽ nhỏ hơn texture vì chỉ cần đọc.
+ */
+export const MODEL3D_VIEW = {
+  /** Góc mở dọc của camera (độ). */
+  fovDeg: 35,
+  /** Camera nhìn xuống nhẹ từ độ cao này (độ) để thấy cả miệng ly. */
+  elevationDeg: 10,
+  /** Chừa thêm quanh model khi lấy khung (1 = vừa khít). */
+  framingMargin: 1.15,
+  /** Zoom gần nhất / xa nhất, theo khoảng cách lấy khung. */
+  minDistanceFactor: 0.4,
+  maxDistanceFactor: 3,
+  /** Tỷ lệ pixel của khuôn phẳng so với texture trên model. */
+  sheetScale: 0.5,
+  /** Chờ người dùng gõ xong ô lề/đường nối rồi mới vẽ lại lưới (ms). */
+  redrawDelayMs: 300,
+  /** Độ nét texture lưới khi nhìn nghiêng (lọc dị hướng): lưới đường mảnh vẫn đọc được ở góc xiên. */
+  gridAnisotropy: 8,
+  /** Lưới đặt sát thân ly / mặt túi của file: lệch độ sâu (polygon offset) để lưới luôn thắng phép thử độ sâu. */
+  gridPolygonOffsetFactor: -1,
+  gridPolygonOffsetUnits: -1,
+  /** Mặt cắt gần của camera = bán kính khung / hệ số này (không cắt mất model khi zoom sát). */
+  nearDivisor: 50,
+  /** Mặt cắt xa của camera = khoảng cách lấy khung × hệ số này (đủ xa để model nằm trọn khi zoom ra xa nhất). */
+  farFactor: 20,
+  /** Tỷ lệ pixel của canvas: tối thiểu / tối đa (màn hình mật độ cao không vẽ quá nặng). */
+  pixelRatioMin: 1,
+  pixelRatioMax: 2,
+  /** Ánh sáng: môi trường (ambient) và hai đèn hướng (chính, phụ) cho model nhìn có khối nhưng không tối mặt nào. */
+  ambientIntensity: 1.2,
+  keyLight: { intensity: 1.4, position: [3, 5, 4] },
+  fillLight: { intensity: 0.5, position: [-3, 2, -4] },
+} as const;
