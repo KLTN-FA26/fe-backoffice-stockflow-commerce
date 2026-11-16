@@ -1,5 +1,7 @@
 import "server-only";
 
+import { MAX_UPLOAD_REQUEST_BYTES } from "@/constants/upload-limits";
+
 /**
  * Request-body bounds for the generic /api/backend/* proxy. The limit comes only from trusted
  * routing data (method + backend path), never from a browser header or Content-Type.
@@ -9,23 +11,36 @@ import "server-only";
  */
 export const DEFAULT_PROXY_BODY_LIMIT_BYTES = 1024 * 1024;
 /**
- * The only file upload routed through this proxy: POST products/{id}/variants/{id}/media
+ * File upload of a variant image: POST products/{id}/variants/{id}/media
  * (BE ProductMediaController, multipart part `file`). ProductImageProcessor rejects images above
  * FileCategory.PRODUCT_IMAGE = 10 MiB; the multipart envelope (boundary, part headers, filename)
  * adds bytes, not megabytes. Spring's global 50 MB multipart cap exists for design renders, which
  * the back-office never uploads - do not widen this or the default to match it.
  */
-export const PRODUCT_IMAGE_UPLOAD_LIMIT_BYTES = 10 * 1024 * 1024 + 64 * 1024;
+export const PRODUCT_IMAGE_UPLOAD_LIMIT_BYTES = MAX_UPLOAD_REQUEST_BYTES;
+
+/**
+ * File upload of a print configuration's 3D model, in the same multipart request as the template: POST
+ * products/{id}/variants/{id}/customization-templates and PUT …/customization-templates/{templateId}
+ * (BE CustomizationTemplateController, parts `template` and `file`). FileCategory.PRINT_MODEL refuses a
+ * `.glb` above 10 MiB; the template part (a few KiB of JSON) and the multipart envelope fit in the
+ * same 64 KiB margin.
+ */
+export const PRINT_MODEL_UPLOAD_LIMIT_BYTES = MAX_UPLOAD_REQUEST_BYTES;
+
+const isVariantPath = (paths: readonly string[]) =>
+  paths[0] === "products" && paths[2] === "variants";
 
 /** `paths` are the already validated proxy segments (handlers.ts rejects unsafe ones first). */
 export function requestBodyLimit(method: string, paths: readonly string[]): number {
   const isVariantMediaUpload =
-    method === "POST" &&
-    paths.length === 5 &&
-    paths[0] === "products" &&
-    paths[2] === "variants" &&
-    paths[4] === "media";
-  return isVariantMediaUpload ? PRODUCT_IMAGE_UPLOAD_LIMIT_BYTES : DEFAULT_PROXY_BODY_LIMIT_BYTES;
+    method === "POST" && paths.length === 5 && isVariantPath(paths) && paths[4] === "media";
+  if (isVariantMediaUpload) return PRODUCT_IMAGE_UPLOAD_LIMIT_BYTES;
+  const isTemplateSave =
+    isVariantPath(paths) &&
+    paths[4] === "customization-templates" &&
+    ((method === "POST" && paths.length === 5) || (method === "PUT" && paths.length === 6));
+  return isTemplateSave ? PRINT_MODEL_UPLOAD_LIMIT_BYTES : DEFAULT_PROXY_BODY_LIMIT_BYTES;
 }
 
 export type BoundedBody =
