@@ -1,6 +1,5 @@
 /**
- * Order — ánh xạ 1-1 hai chiều giữa mã wire BE đã biết (`order/api/OrderStatus.java`, 19 giá trị,
- * BE PR #133) và giá trị hiển thị FE (Title Case, `ORDER_STATUSES` trong
+ * Order — ánh xạ 1-1 hai chiều giữa mã wire BE đã biết (`order/api/OrderStatus.java`, 21 giá trị) và giá trị hiển thị FE (Title Case, `ORDER_STATUSES` trong
  * @/constants/statuses). Cùng cách NCC làm ACTIVE ↔ "Active": màu + nhãn Việt tra theo chuỗi
  * Title Case ở `lib/status-map.ts`.
  *
@@ -25,8 +24,10 @@ import type {
 
 export const BACKEND_TO_FE_ORDER_STATUS = {
   DRAFT: "Draft",
+  PENDING_CONTRACT: "Pending Contract",
   PENDING_PAYMENT: "Pending Payment",
   CONFIRMED: "Confirmed",
+  AWAITING_STOCK: "Awaiting Stock",
   IN_PRODUCTION: "In Production",
   READY_TO_FULFILL: "Ready to Fulfill",
   PICKING: "Picking",

@@ -105,7 +105,6 @@ export function PickingWorkArea({
             key={active.lineId}
             taskId={task.taskId}
             line={active}
-            lines={data}
             locationOptions={locationOptions}
             locationsUnavailable={locations.isError}
             onConfirmed={onConfirmed}

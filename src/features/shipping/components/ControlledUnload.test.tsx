@@ -7,7 +7,14 @@ import { ApiError } from "@/lib/api/error";
 import { useRejectedScansStore } from "@/features/shipping/rejected-scans-store";
 import { resetScanIds } from "@/features/shipping/scan-ids";
 
-import { FTL_ID, ftlLoad, loadingFtl, pendingUnload, plannedLoad } from "../__fixtures__/ftl-load";
+import {
+  FTL_ID,
+  dispatchedLoad,
+  ftlLoad,
+  loadingFtl,
+  pendingUnload,
+  plannedLoad,
+} from "../__fixtures__/ftl-load";
 import {
   SHIPPING_ACTORS as ACTORS,
   mockShippingApi,
@@ -88,10 +95,36 @@ describe("Huỷ có kiểm soát một xe (SCRUM-474 UNLOAD-DESIGN)", () => {
     expect(screen.queryByRole("button", { name: C.cancelButton })).not.toBeInTheDocument();
   });
 
-  it("chỉ xe đang xếp hàng: xe chưa đặt / đã đặt / đã huỷ không có nút", async () => {
-    render(ACTORS.warehouseManager, plannedLoad());
+  it.each([
+    ["chưa đặt xe", () => plannedLoad()],
+    ["đã đặt xe", () => ftlLoad()],
+    ["đã bàn giao", () => dispatchedLoad()],
+    ["đã huỷ có kiểm soát", () => controlledCancelled()],
+  ])(
+    "chỉ xe đang xếp hàng: xe %s không có nút huỷ có kiểm soát (kể cả quản lý kho)",
+    async (_n, make) => {
+      render(ACTORS.warehouseManager, make());
+      await ready();
+      expect(screen.queryByRole("button", { name: C.cancelButton })).not.toBeInTheDocument();
+    },
+  );
+
+  it("chỉ quản lý kho thấy nút xác nhận dỡ không quét trên xe đã huỷ; nhân viên kho / điều phối / chỉ xem thì không", async () => {
+    render(ACTORS.warehouseManager, controlledCancelled());
     await ready();
-    expect(screen.queryByRole("button", { name: C.cancelButton })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: U.overrideAria("PKG-SO-1-1") })).toBeInTheDocument();
+  });
+
+  it.each([
+    ["nhân viên kho", ACTORS.warehouseStaff],
+    ["điều phối đơn", ACTORS.orderCoordinator],
+    ["chỉ xem", ACTORS.viewOnly],
+  ])("%s không có nút xác nhận dỡ không quét", async (_name, actor) => {
+    render(actor, controlledCancelled());
+    await ready();
+    expect(
+      screen.queryByRole("button", { name: U.overrideAria("PKG-SO-1-1") }),
+    ).not.toBeInTheDocument();
   });
 
   it("chọn mã lý do + ghi chú → POST /controlled-cancellation {reasonCode, note}; Ở LẠI chuyến vừa huỷ (quét dỡ là việc gấp), biểu ngữ dẫn sang chuyến thay thế", async () => {

@@ -15,6 +15,10 @@ export type { SemanticTone };
 
 const TONE: Record<SemanticTone, readonly string[]> = {
   positive: [
+    // Hoá đơn điện tử đã phát hành (BE EInvoiceStatus.ISSUED, docs 21 §5.1)
+    "Issued",
+    // Thùng đã in và dán nhãn giao hàng (BE PackageStatus.LABELED, docs 08 §5.2)
+    "Labeled",
     // Thùng đã vào kho, chưa mở (BE StockPackageStatus.IN_STOCK, SCRUM-473)
     "In Stock",
     // Dòng báo giá đã có mẫu khách duyệt (BE QuoteLine.sample.satisfied)
@@ -37,6 +41,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     // Biến thể (BE VariantStatus, PR #71)
     "ACTIVE",
     "Paid",
+    // Phiếu thu đã ghi nhận theo sao kê (docs 15 §5.3)
+    "Recorded",
     "Matched",
     "Accepted",
     "Pass",
@@ -64,6 +70,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "DISPATCHED",
   ],
   info: [
+    // Hoá đơn điện tử đã gửi nhà cung cấp, chờ kết quả (BE EInvoiceStatus.SUBMITTING)
+    "Submitting",
     // Thùng đang được đếm trên phiếu nhận nháp (BE StockPackageStatus.RECEIVING, SCRUM-473)
     "Receiving",
     // Bán hàng B2B & sản xuất (BE d215f6e)
@@ -79,11 +87,15 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "QUEUED",
     "SENT",
     "In Progress",
+    // Phiếu kiểm kê đã có dòng được đếm (BE CycleCountStatus.IN_PROGRESS, docs 20 §5.2)
+    "IN_PROGRESS",
     "In Transit",
     "Picking",
     // Phiên đóng gói đang làm (BE PackStatus.PACKING) và kiện đang mở (PackageStatus.OPEN, PR #136)
     "Packing",
     "Package Open",
+    // Thùng đã quét đúng LPN ở trạm kiểm thùng (BE PackageStatus.CHECKED, docs 08 §5.2)
+    "Checked",
     "Shipped",
     "Assigned",
     "Released",
@@ -101,6 +113,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Queued",
     "Approved for Payment",
     "Initiated",
+    // Đợt thanh toán đã đến mốc, chờ khách trả (docs 15 §5.1)
+    "Due",
     // docs 19 §5.1 — lệnh sản xuất đang tiến hành
     "Material Issued",
     "QC",
@@ -114,6 +128,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "LOADING",
   ],
   warning: [
+    // Thùng đã lấy về khu xuất hàng, chưa quét kiểm (BE PackageStatus.TO_CHECK, docs 08 §5.2)
+    "To Check",
     // Bán hàng B2B & sản xuất (BE d215f6e)
     "Pending Activation",
     "Sample Required",
@@ -147,6 +163,9 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Partially Paid",
     "Warning",
     "Pending Payment",
+    // Đơn chờ ký hợp đồng / chờ hàng (BE PENDING_CONTRACT, AWAITING_STOCK — docs 17 §5.2)
+    "Pending Contract",
+    "Awaiting Stock",
     "Ready to Fulfill",
     // Order giao một phần (BE PARTIALLY_FULFILLED): còn phần chưa tới tay khách, cần nhân viên xử lý
     "Partially Fulfilled",
@@ -160,6 +179,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "In QC",
   ],
   danger: [
+    // Thùng bị loại khỏi đơn (BE PackageStatus.REMOVED, docs 08 §5.2)
+    "Removed",
     // Thùng thất lạc — chỉ ghi qua điều chỉnh tồn đã duyệt (BE StockPackageStatus.LOST)
     "Lost",
     "Blacklisted",
@@ -185,6 +206,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Changes Requested",
     "CHANGES_REQUESTED",
     "EXPIRED",
+    // Đợt thanh toán quá hạn chưa trả đủ (docs 15 §5.1)
+    "Overdue",
   ],
   neutral: [
     "NOT_SENT",
@@ -202,8 +225,13 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "PLANNED",
     // Dòng lấy hàng chưa lấy (BE PickLineStatus.OPEN, SCRUM-267)
     "Open",
+    // Đợt thanh toán chưa tới mốc (docs 15 §5.1)
+    "Not Due",
   ],
   muted: [
+    // Hoá đơn điện tử: nháp đã huỷ / đã bị thay thế — hết hiệu lực (docs 21 §5.1)
+    "Voided Draft",
+    "Replaced",
     // Thùng đã lấy hết hàng — kết thúc (BE StockPackageStatus.CONSUMED)
     "Consumed",
     // Bán hàng B2B & sản xuất (BE d215f6e)
@@ -347,6 +375,11 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   Picking: "Đang lấy hàng",
   Packing: "Đang đóng gói",
   "Package Open": "Đang mở",
+  // Thùng giao ở trạm kiểm thùng (docs 08 §5.2)
+  "To Check": "Chờ kiểm",
+  Checked: "Đã kiểm",
+  Labeled: "Đã dán nhãn",
+  Removed: "Đã loại",
   Shipped: "Đã gửi",
   Assigned: "Đã gán",
   Released: "Đã release",
@@ -386,6 +419,9 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   "Partially Paid": "Thanh toán một phần",
   Warning: "Cảnh báo",
   "Pending Payment": "Chờ thanh toán",
+  // Nhãn theo docs 17 §5.2 (khách thấy "Chờ ký hợp đồng" / "Đang chờ hàng")
+  "Pending Contract": "Chờ ký hợp đồng",
+  "Awaiting Stock": "Đang chờ hàng",
   "Ready to Fulfill": "Sẵn sàng thực hiện",
   "Return Requested": "Yêu cầu trả hàng",
   "Pending Verification": "Chờ xác minh",
@@ -475,6 +511,11 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   Subcontracted: "Đang gia công ngoài",
   // Thanh toán đơn (BE PaymentStatus)
   "On Credit": "Ghi công nợ",
+  // Đợt thanh toán và phiếu thu (docs 15 §5.1, §5.3)
+  "Not Due": "Chưa đến hạn",
+  Due: "Đến hạn",
+  Overdue: "Quá hạn",
+  Recorded: "Đã ghi nhận",
 };
 
 /**
@@ -486,8 +527,13 @@ const STATUS_LABEL_VI_BY_DOMAIN: Partial<Record<StatusDomain, Record<string, str
   product: {
     Inactive: "Tạm ngưng",
   },
+  // Điều chỉnh tồn (BE StockAdjustmentStatus) và phiếu kiểm kê (BE CycleCountStatus, docs 20 §5.2): cùng domain
+  // `stock`; PLANNED / COMPLETED của chuyến xe / chuyển kho mang nghĩa khác nên ghi đè nhãn theo domain.
   stock: {
     [STOCK_ADJUSTMENT_STATUS.REJECTED]: "Từ chối",
+    PLANNED: "Đã lập phiếu",
+    IN_PROGRESS: "Đang đếm",
+    COMPLETED: "Đã nộp",
   },
   // Khách hàng (BE CustomerStatus). Domain `customer` còn dùng cho trạng thái tài khoản người dùng
   // (ACTIVE / LOCKED / DISABLED, `UserStatusBadge`) → không ghi đè ACTIVE; INACTIVE giữ tone mặc định
@@ -503,6 +549,19 @@ const STATUS_LABEL_VI_BY_DOMAIN: Partial<Record<StatusDomain, Record<string, str
     BLOCKED: "Khoá kiểm kê / QC",
     MAINTENANCE: "Bảo trì",
     INACTIVE: "Ngừng dùng",
+  },
+  // Hoá đơn điện tử (docs 21 §5.1; tên theo BE EInvoiceStatus)
+  invoice: {
+    Draft: "Nháp",
+    Submitting: "Đang phát hành",
+    Issued: "Đã phát hành",
+    Rejected: "Bị từ chối",
+    "Voided Draft": "Đã huỷ nháp",
+    Replaced: "Đã bị thay thế",
+  },
+  // Phiếu thu bị huỷ vì ghi sai (docs 15 §4.4) — nhãn chung "Đã vô hiệu" là của module khác
+  payment: {
+    Voided: "Đã huỷ",
   },
   // Đơn hàng (BE OrderStatus, PR #133): nhãn sát nghĩa nghiệp vụ hơn nhãn dùng chung với module khác
   order: {

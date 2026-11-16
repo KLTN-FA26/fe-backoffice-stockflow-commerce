@@ -11,7 +11,7 @@ import { ORDER_STALE_ERROR_CODES, orderActionErrorView } from "../errors";
 import { orderKeys } from "../queries";
 
 import type { ApiError } from "@/lib/api/error";
-import type { OrderStatusActionKey } from "../errors";
+import type { OrderErrorView, OrderStatusActionKey } from "../errors";
 
 /** Kiểu nút thao tác ở card trạng thái (dùng chung các thao tác đơn). */
 export const ORDER_ACTION_BUTTON =
@@ -25,11 +25,25 @@ export function toReasonOptions<const K extends string>(
 }
 
 /**
+ * Thao tác ngoài bốn thao tác trạng thái của `orderActionErrorView` (vd duyệt / từ chối yêu cầu huỷ): tự cấp cách dịch
+ * lỗi và danh sách mã "dữ liệu cũ" (đóng dialog + tải lại).
+ */
+export interface CustomOrderAction {
+  toView: (error: ApiError) => OrderErrorView;
+  staleCodes: readonly string[];
+}
+
+/**
  * Trạng thái dialog + xử lý lỗi chung của các thao tác. Lỗi do dữ liệu cũ (đơn đã đổi trạng thái)
  * → đóng dialog, tải lại đơn, báo qua toast; lỗi khác giữ dialog + dữ liệu đã nhập, hiện tại chỗ.
  * Gửi qua `submit` → kèm Idempotency-Key của lần thử + chặn gửi lặp (thao tác trả `OrderResponse`).
  */
-export function useOrderActionDialog(action: OrderStatusActionKey) {
+export function useOrderActionDialog(action: OrderStatusActionKey | CustomOrderAction) {
+  const toView =
+    typeof action === "string"
+      ? (error: ApiError) => orderActionErrorView(error, action)
+      : action.toView;
+  const staleCodes = typeof action === "string" ? ORDER_STALE_ERROR_CODES : action.staleCodes;
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -50,11 +64,11 @@ export function useOrderActionDialog(action: OrderStatusActionKey) {
       inFlight.current = false;
       // BE đã chốt kết quả / key bị dùng sai → bỏ key; BE nhả claim (409, 5xx, mạng) → giữ key
       attempt.settle(apiError);
-      const view = orderActionErrorView(apiError, action);
+      const view = toView(apiError);
       const detail = view.traceId
         ? `${view.detail} (${UI_LABELS.common.traceId}: ${view.traceId})`
         : view.detail;
-      if (ORDER_STALE_ERROR_CODES.includes(apiError.code)) {
+      if (staleCodes.includes(apiError.code)) {
         setOpen(false);
         void queryClient.invalidateQueries({ queryKey: orderKeys.all });
         toast.error(view.title, detail);

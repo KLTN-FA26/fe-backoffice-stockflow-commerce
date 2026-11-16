@@ -59,11 +59,7 @@ export function createAdjustment(input: CreateAdjustmentInput) {
     {
       url: INVENTORY_API.adjustments,
       method: "POST",
-      data: {
-        ...parsed,
-        lotNumber: parsed.lotNumber || undefined,
-        note: parsed.note || undefined,
-      },
+      data: { ...parsed, note: parsed.note || undefined },
     },
     stockAdjustmentDto,
   );

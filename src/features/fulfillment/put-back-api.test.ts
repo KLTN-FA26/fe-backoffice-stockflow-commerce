@@ -10,7 +10,7 @@ import { bePutBackRowSchema, putBackInputSchema } from "./put-back-schemas";
 
 afterEach(() => vi.restoreAllMocks());
 
-describe("put-back — hợp đồng BE FulfillmentController#putBacks / #putBack (SCRUM-275)", () => {
+describe("put-back — hợp đồng BE FulfillmentController#putBacks / #putBack (docs 07 §4.5)", () => {
   it("parse dòng hàng đợi thiếu lô (Jackson non_null)", () => {
     const { lotNumber: _lot, ...row } = apiPutBackRow();
     expect(bePutBackRowSchema.parse(row).lotNumber).toBeUndefined();
@@ -39,7 +39,14 @@ describe("put-back — hợp đồng BE FulfillmentController#putBacks / #putBac
     });
   });
 
-  it("putBackLine gửi PutBackRequest + Idempotency-Key, trả dòng Put Back", async () => {
+  it("dòng hàng đợi mang LPN phải quét và cờ quarantine (thùng hư hỏng loại ở trạm kiểm)", () => {
+    expect(bePutBackRowSchema.parse(apiPutBackRow())).toMatchObject({ lpn: "LPN0000000001" });
+    expect(bePutBackRowSchema.parse(apiPutBackRow({ quarantine: true })).quarantine).toBe(true);
+    const { quarantine: _q, lpn: _lpn, ...legacy } = apiPutBackRow();
+    expect(bePutBackRowSchema.parse(legacy).quarantine).toBeUndefined();
+  });
+
+  it("putBackLine gửi PutBackRequest {locationCode, lpn} + Idempotency-Key, trả dòng Put Back", async () => {
     const post = vi.spyOn(api, "post").mockResolvedValueOnce({
       data: apiPickLine({
         status: "PUT_BACK",
@@ -52,21 +59,28 @@ describe("put-back — hợp đồng BE FulfillmentController#putBacks / #putBac
       taskId: TASK_ID,
       lineId: PICK_LINE_1,
       locationCode: "HN-A01-01-01-A",
+      lpn: "LPN0000000001",
       idempotencyKey: "k",
     });
     expect(post).toHaveBeenCalledWith(
       `/fulfillment/tasks/${TASK_ID}/pick-lines/${PICK_LINE_1}/put-back`,
-      { locationCode: "HN-A01-01-01-A" },
+      { locationCode: "HN-A01-01-01-A", lpn: "LPN0000000001" },
       { headers: { "Idempotency-Key": "k" } },
     );
     expect(line.status).toBe("Put Back");
   });
 
-  it("putBackInputSchema: vị trí trống → bắt chọn, quá 64 ký tự → lỗi, trim mã", () => {
-    const first = (value: string) =>
-      putBackInputSchema.safeParse({ locationCode: value }).error?.issues[0]?.message;
-    expect(first(" ")).toBe(MSG.locationRequired);
-    expect(first("x".repeat(65))).toBe(MSG.codeTooLong);
-    expect(putBackInputSchema.parse({ locationCode: " HN-1 " })).toEqual({ locationCode: "HN-1" });
+  it("putBackInputSchema: vị trí trống → bắt chọn, quá 64 ký tự → lỗi, LPN bắt buộc ≤ 30 ký tự, trim mã", () => {
+    const first = (value: Record<string, string>) =>
+      putBackInputSchema.safeParse({ locationCode: "HN-1", lpn: "LPN1", ...value }).error?.issues[0]
+        ?.message;
+    expect(first({ locationCode: " " })).toBe(MSG.locationRequired);
+    expect(first({ locationCode: "x".repeat(65) })).toBe(MSG.codeTooLong);
+    expect(first({ lpn: "" })).toBe(MSG.lpnRequired);
+    expect(first({ lpn: "x".repeat(31) })).toBe(MSG.lpnTooLong);
+    expect(putBackInputSchema.parse({ locationCode: " HN-1 ", lpn: " LPN1 " })).toEqual({
+      locationCode: "HN-1",
+      lpn: "LPN1",
+    });
   });
 });

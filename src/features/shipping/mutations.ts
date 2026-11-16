@@ -3,7 +3,8 @@
  *
  * - Mọi thao tác trả chuyến mới nhất → ghi thẳng vào cache chi tiết (màn quét không nháy lại), chỉ
  *   invalidate danh sách (tiến độ) và lô giao (trạng thái / chuyến của lô đổi).
- * - Bàn giao: lô HANDED_OVER + đơn hàng chuyển SHIPPED (BR-03 docs 09 §6) → invalidate lô giao và đơn.
+ * - Bàn giao: lô HANDED_OVER ở xe cuối chở nó, đơn chuyển SHIPPED / PARTIALLY_FULFILLED (docs 09 BR-03) → invalidate
+ *   lô giao, đơn và kế hoạch xếp xe.
  * - Lỗi trạng thái cũ (`isStaleLoadError`) → tải lại chuyến và lô ở MỌI mutation.
  */
 
@@ -13,29 +14,12 @@ import { TOAST_MESSAGES } from "@/constants";
 import { createMutation } from "@/lib/api/query-factory";
 import { toast } from "@/components/shared/Toast";
 
-import {
-  addLoadShipments,
-  cancelLoad,
-  handoverLoad,
-  openLoad,
-  removeLoadShipment,
-  scanPackage,
-  unscanPackage,
-} from "./api";
+import { handoverLoad, scanPackage, unscanPackage } from "./api";
 import { isStaleLoadError, shippingErrorMessage } from "./errors";
 import { loadKeys, manifestKey, shipmentKeys } from "./queries";
 import { useRejectedScansStore } from "./rejected-scans-store";
 
-import type {
-  CancelLoadInput,
-  HandoverLoadInput,
-  Load,
-  LoadShipmentsInput,
-  OpenLoadInput,
-  RemoveLoadShipmentInput,
-  ScanPackageInput,
-  UnscanInput,
-} from "./types";
+import type { HandoverLoadInput, Load, ScanPackageInput, UnscanInput } from "./types";
 
 /** = `orderKeys.all` của features/order — khai báo lại để không import chéo feature. */
 const ORDER_ROOT_KEY = ["orders"] as const;
@@ -95,35 +79,6 @@ export const toastIfStale = (error: unknown) => {
   if (isStaleLoadError(error)) toastError(error);
 };
 
-export const useOpenLoad = withLoadCache(
-  createMutation<OpenLoadInput, Load>(openLoad, {
-    invalidate: [LOAD_LIST_KEY, shipmentKeys.all],
-    successMessage: T.loadOpened,
-    showErrorToast: false,
-    onError: toastIfStale,
-  }),
-);
-
-export const useAddLoadShipments = withLoadCache(
-  createMutation<LoadShipmentsInput, Load>(addLoadShipments, {
-    invalidate: [LOAD_LIST_KEY, shipmentKeys.all],
-    successMessage: T.shipmentsAdded,
-    showErrorToast: false,
-    onError: toastIfStale,
-  }),
-  (input) => input.loadId,
-);
-
-export const useRemoveLoadShipment = withLoadCache(
-  createMutation<RemoveLoadShipmentInput, Load>(removeLoadShipment, {
-    invalidate: [LOAD_LIST_KEY, shipmentKeys.all],
-    successMessage: T.shipmentRemoved,
-    showErrorToast: false,
-    onError: toastError,
-  }),
-  (input) => input.loadId,
-);
-
 /** Lỗi quét hiện inline ở ô quét, không toast. */
 export const useScanPackage = withLoadCache(
   createMutation<ScanPackageInput, Load>(scanPackage, {
@@ -151,17 +106,6 @@ export const useHandoverLoad = withLoadCache(
     showErrorToast: false,
     onError: toastIfStale,
     // Đã bàn giao → danh sách mã quét không thành công của chuyến (lưu tạm trên máy) hết ý nghĩa
-    onSuccess: (load) => useRejectedScansStore.getState().clear(load.loadId),
-  }),
-  (input) => input.loadId,
-);
-
-export const useCancelLoad = withLoadCache(
-  createMutation<CancelLoadInput, Load>(cancelLoad, {
-    invalidate: [loadKeys.all, shipmentKeys.all],
-    successMessage: T.cancelled,
-    showErrorToast: false,
-    onError: toastIfStale,
     onSuccess: (load) => useRejectedScansStore.getState().clear(load.loadId),
   }),
   (input) => input.loadId,

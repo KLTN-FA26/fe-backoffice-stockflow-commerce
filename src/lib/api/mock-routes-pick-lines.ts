@@ -1,5 +1,5 @@
 /**
- * Mock routes — dòng lấy hàng (SCRUM-267, báo thiếu / phân bổ lại BE PR #147), khớp BE
+ * Mock routes — dòng lấy hàng (docs 07 §4.2, §4.4: quét vị trí + LPN, báo thiếu kèm lý do, phân bổ lại thùng), khớp BE
  * `FulfillmentController#pickLines / #confirmPick / #reportShort / #reallocateShort` + `PickList`.
  * Quyền theo mã như `@RequiresPermission` (BE PR #148), không theo vai trò. Chỉ dùng khi USE_MOCK=true.
  */
@@ -9,6 +9,7 @@ import {
   FULFILLMENT_PICKING_PERMISSIONS as PICKING,
   FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS as ASSIGNMENT,
   PICK_LINE_LIMITS,
+  SHORT_PICK_REASONS,
 } from "@/constants";
 
 import { registerMockRoute } from "./mock-adapter";
@@ -47,7 +48,7 @@ import {
 import type { AxiosRequestConfig } from "axios";
 import type { MockResponse } from "./mock-adapter";
 import type { MockActor, MockTask } from "./mock-routes-fulfillment-store";
-import type { MockPickLine } from "./mock-routes-pick-lines-store";
+import type { MockPickLine, MockShortReason } from "./mock-routes-pick-lines-store";
 import type { MockFieldError } from "./mock-routes-purchase-orders-store";
 
 const PATH = "/fulfillment/tasks/:id/pick-lines";
@@ -56,10 +57,8 @@ const PATH = "/fulfillment/tasks/:id/pick-lines";
 const sameCode = (scanned: string, expected: string) =>
   scanned.trim().toUpperCase() === expected.toUpperCase();
 
-/** SKU (mọi kiểu chữ) hoặc barcode chính xác (BE `itemMatches`). */
-const itemMatches = (line: MockPickLine, code: string) =>
-  code.trim() !== "" &&
-  (sameCode(code, line.sku) || (!!line.barcode && code.trim() === line.barcode));
+/** LPN chỉ khớp đúng LPN của dòng, không phân biệt hoa thường (docs 07 BR-10: SKU / mã vạch / thùng khác đều bị từ chối). */
+const lpnMatches = (line: MockPickLine, scanned: string) => sameCode(scanned, line.lpn);
 
 const conflict = (code: string, message: string) => beError(409, code, message);
 const notPicking = (task: MockTask, what: string) =>
@@ -68,39 +67,33 @@ const notPicking = (task: MockTask, what: string) =>
     `${what} while the task is PICKING; it is ${task.pickStatus}`,
   );
 
-/** @NotBlank @Size(64) cho mã vị trí / mã hàng. */
-function codeErrors(body: Record<string, unknown>, fields: readonly string[]): MockFieldError[] {
+/** @NotBlank @Size(max) cho mã vị trí (64) / LPN (30). */
+function codeErrors(
+  body: Record<string, unknown>,
+  fields: readonly { field: string; max: number }[],
+): MockFieldError[] {
   const errors: MockFieldError[] = [];
-  for (const field of fields) {
+  for (const { field, max } of fields) {
     const value = readString(body[field]).trim();
     if (!value) errors.push({ field, message: "must not be blank", code: "NotBlank" });
-    else if (value.length > PICK_LINE_LIMITS.codeMax)
-      errors.push({ field, message: "size must be at most 64", code: "Size" });
+    else if (value.length > max)
+      errors.push({ field, message: `size must be at most ${max}`, code: "Size" });
   }
   return errors;
 }
 
-const isInt = (value: unknown): value is number =>
-  typeof value === "number" && Number.isInteger(value);
+const LOCATION_FIELD = { field: "locationCode", max: PICK_LINE_LIMITS.codeMax } as const;
+const LPN_FIELD = { field: "lpn", max: PICK_LINE_LIMITS.lpnMax } as const;
 
-/** BE `ConfirmPickRequest`: mã @NotBlank @Size(64), quantity @NotNull @Positive. */
-function confirmErrors(body: Record<string, unknown>): MockFieldError[] {
-  const errors = codeErrors(body, ["locationCode", "scannedCode"]);
-  if (!isInt(body.quantity) || body.quantity <= 0) {
-    errors.push({ field: "quantity", message: "must be greater than 0", code: "Positive" });
-  }
-  return errors;
-}
+/** BE `ConfirmPickRequest`: locationCode @NotBlank @Size(64), lpn @NotBlank @Size(30); không có số lượng. */
+const confirmErrors = (body: Record<string, unknown>) =>
+  codeErrors(body, [LOCATION_FIELD, LPN_FIELD]);
 
-/** BE `ShortPickRequest`: locationCode @NotBlank @Size(64), foundQuantity @NotNull @PositiveOrZero. */
+/** BE `ShortPickRequest`: locationCode @NotBlank @Size(64), reason @NotNull (NOT_FOUND | DAMAGED). */
 function shortErrors(body: Record<string, unknown>): MockFieldError[] {
-  const errors = codeErrors(body, ["locationCode"]);
-  if (!isInt(body.foundQuantity) || body.foundQuantity < 0) {
-    errors.push({
-      field: "foundQuantity",
-      message: "must be greater than or equal to 0",
-      code: "PositiveOrZero",
-    });
+  const errors = codeErrors(body, [LOCATION_FIELD]);
+  if (!(SHORT_PICK_REASONS as readonly unknown[]).includes(body.reason)) {
+    errors.push({ field: "reason", message: "must not be null", code: "NotNull" });
   }
   return errors;
 }
@@ -167,14 +160,12 @@ function registerConfirmRoute(): void {
       if (!found.ok) return found.error;
       const { task, line, body } = found;
       const location = readString(body.locationCode);
-      const code = readString(body.scannedCode);
-      const quantity = Number(body.quantity);
-      // BE `PickList.confirm` — đúng thứ tự kiểm tra
+      const lpn = readString(body.lpn);
+      // BE `PickList.confirm` — đúng thứ tự kiểm tra; quét lại đúng cùng một thùng → 200 nguyên trạng
       if (
-        line.status === "PICKED" &&
+        (line.status === "PICKED" || line.status === "STAGED") &&
         sameCode(location, line.locationCode) &&
-        itemMatches(line, code) &&
-        quantity === line.pickedQty
+        lpnMatches(line, lpn)
       ) {
         return beOk(toPickLineResponse(line));
       }
@@ -184,18 +175,14 @@ function registerConfirmRoute(): void {
       if (!sameCode(location, line.locationCode)) {
         return conflict("PICK_LOCATION_MISMATCH", `This line is picked from ${line.locationCode}`);
       }
-      if (!itemMatches(line, code))
-        return conflict("PICK_ITEM_MISMATCH", `This line picks ${line.sku}`);
-      if (quantity > line.allocatedQty) {
-        return conflict(
-          "PICK_QUANTITY_EXCEEDS_ALLOCATION",
-          `${line.allocatedQty} allocated to this line`,
-        );
-      }
-      if (quantity < line.allocatedQty) {
-        return conflict("PICK_QUANTITY_SHORT", `${line.allocatedQty} allocated to this line`);
-      }
-      markPicked(line, new Date().toISOString());
+      if (!lpnMatches(line, lpn))
+        return conflict("PICK_ITEM_MISMATCH", `This line picks carton ${line.lpn}`);
+      // Đích STAGING (chưa chuyển sang khu xuất hàng): thùng về khu chờ xuất, chưa trừ tồn (STAGED)
+      const staging =
+        task.destination === "STAGING" && !task.movedToDispatchAt
+          ? task.stagingLocationCode
+          : undefined;
+      markPicked(line, new Date().toISOString(), staging);
       return beOk(toPickLineResponse(line));
     }),
   );
@@ -208,11 +195,11 @@ function registerShortRoute(): void {
       if (!found.ok) return found.error;
       const { task, line, body } = found;
       const location = readString(body.locationCode);
-      const foundQty = Number(body.foundQuantity);
+      const reason = readString(body.reason) as MockShortReason;
       // BE `PickList.reportShort` — báo lại y hệt → 200 nguyên trạng
       if (
         line.status === "SHORT" &&
-        line.shortQty === line.allocatedQty - foundQty &&
+        line.shortReason === reason &&
         sameCode(location, line.locationCode)
       ) {
         return beOk(toPickLineResponse(line));
@@ -223,14 +210,7 @@ function registerShortRoute(): void {
       if (!sameCode(location, line.locationCode)) {
         return conflict("PICK_LOCATION_MISMATCH", `This line is picked from ${line.locationCode}`);
       }
-      if (foundQty >= line.allocatedQty) {
-        return beError(
-          400,
-          "VALIDATION_FAILED",
-          `${line.allocatedQty} allocated to this line; a short pick finds 0 to ${line.allocatedQty - 1}`,
-        );
-      }
-      reportMockShort(line, foundQty);
+      reportMockShort(line, reason);
       // X-SHORT bước 02: đơn dừng (ON_HOLD, lý do INVENTORY), không huỷ, không trừ tồn
       await putMockOrderOnInventoryHold(task.orderId);
       return beOk(toPickLineResponse(line));

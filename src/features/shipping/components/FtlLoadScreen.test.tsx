@@ -11,9 +11,7 @@ import {
   FTL_ID,
   OTHER_VEHICLE,
   ftlLoad,
-  ftlManifest,
   ftlParcel,
-  kit,
   loadingFtl,
   pendingUnload,
   plannedLoad,
@@ -25,7 +23,6 @@ import {
   renderShippingScreen,
 } from "../__fixtures__/render";
 import { LoadScreen } from "./LoadScreen";
-import { ManifestScreen } from "./ManifestScreen";
 
 import type { TestActor } from "../__fixtures__/render";
 import type { Load } from "../types";
@@ -74,7 +71,7 @@ function renderFtl(actor: TestActor, load: Load, handlers: Handlers = {}) {
 const ready = () => screen.findByRole("heading", { name: `${L.load.title} · ${FTL_ID}` });
 
 describe("Chuyến nguyên xe — xe của kế hoạch và đặt xe", () => {
-  it("xe chưa đặt: hiện mã kế hoạch, số xe, loại xe, nút Đặt xe; chưa có ô quét, không thêm lô / huỷ chuyến", async () => {
+  it("xe chưa đặt: hiện mã kế hoạch, số xe, loại xe, nút Đặt xe; chưa có ô quét, chưa có nút bắt đầu xếp / huỷ có kiểm soát", async () => {
     renderFtl(ACTORS.warehouseManager, plannedLoad());
     await ready();
     const card = screen.getByRole("heading", { name: F.planCard }).closest("section");
@@ -85,9 +82,10 @@ describe("Chuyến nguyên xe — xe của kế hoạch và đặt xe", () => {
     expect(within(card as HTMLElement).getByText("TRUCK-1T25")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: F.booking.book })).toBeInTheDocument();
     expect(screen.queryByLabelText(L.scan.label)).not.toBeInTheDocument();
-    // Lô của kế hoạch do kế hoạch quản lý (BE LOAD_MANAGED_BY_PLAN): không thêm lô, không huỷ chuyến
-    expect(screen.queryByRole("button", { name: L.load.addShipments })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: L.load.actions.cancel })).not.toBeInTheDocument();
+    // Huỷ có kiểm soát chỉ cho xe đang xếp hàng (SCRUM-474)
+    expect(
+      screen.queryByRole("button", { name: F.controlledCancel.cancelButton }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: F.booking.start })).not.toBeInTheDocument();
   });
 
@@ -122,6 +120,7 @@ describe("Chuyến nguyên xe — xe của kế hoạch và đặt xe", () => {
         vehiclePlate: "51C-628.14",
         driverName: "Lê Văn Xế",
         driverPhone: undefined,
+        waybillNo: undefined,
       }),
     );
     // Chuyến sang VEHICLE_BOOKED: hộp thoại đóng, hiện nút bắt đầu xếp hàng
@@ -129,20 +128,16 @@ describe("Chuyến nguyên xe — xe của kế hoạch và đặt xe", () => {
     expect(await screen.findByRole("button", { name: F.booking.start })).toBeInTheDocument();
   });
 
-  it("hãng khác hãng đã gán cho lô (409 SHIPMENT_OTHER_CARRIER) → lỗi tiếng Việt trong hộp thoại, hộp thoại giữ nguyên", async () => {
+  it("hãng đã ngừng dùng (409 CARRIER_INACTIVE) → lỗi tiếng Việt trong hộp thoại, hộp thoại giữ nguyên", async () => {
     const user = userEvent.setup();
     const { post } = renderFtl(ACTORS.warehouseStaff, plannedLoad());
-    post.mockRejectedValueOnce(
-      new ApiError(409, "SHIPMENT_OTHER_CARRIER", "en", { shipmentCode: "SO-1-S1" }),
-    );
+    post.mockRejectedValueOnce(new ApiError(409, "CARRIER_INACTIVE", "en"));
     await user.click(await screen.findByRole("button", { name: F.booking.book }));
     const dialog = await screen.findByRole("dialog");
     await user.click(within(dialog).getByRole("combobox"));
     await user.click(await screen.findByRole("option", { name: /VTP/ }));
     await user.click(within(dialog).getByRole("button", { name: F.bookDialog.submit }));
-    expect(
-      await within(dialog).findByText(`Lô SO-1-S1: ${ERR.SHIPMENT_OTHER_CARRIER}`),
-    ).toBeInTheDocument();
+    expect(await within(dialog).findByText(ERR.CARRIER_INACTIVE)).toBeInTheDocument();
   });
 
   it("xe đã đặt: hiện hãng, biển số, tài xế; sửa thông tin đặt xe mở hộp thoại có sẵn giá trị", async () => {
@@ -287,43 +282,19 @@ describe("Chuyến nguyên xe — quét kiện của riêng xe", () => {
     );
   });
 
-  it("nhãn đã cũ (409 LABEL_OUTDATED) khi quét → báo in lại nhãn", async () => {
-    const user = userEvent.setup();
-    const { post } = renderFtl(ACTORS.warehouseStaff, loadingFtl());
-    post.mockRejectedValueOnce(new ApiError(409, "LABEL_OUTDATED", "en"));
-    await user.type(await screen.findByLabelText(L.scan.label), "PKG-SO-1-2{Enter}");
-    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/in lại nhãn/));
-  });
-
-  it("kiện thuộc bộ hiện 'Bộ x/N'; kiện nhãn cũ hiện 'Cần in lại nhãn'; bảng chỉ có kiện của xe này", async () => {
+  it("bảng kiện của xe chỉ có kiện kế hoạch xếp lên xe này, không có nút thêm / bỏ lô", async () => {
     renderFtl(
-      ACTORS.warehouseStaff,
+      ACTORS.warehouseManager,
       loadingFtl({
         shipments: [
-          loadShipment("SO-1-S1", [
-            ftlParcel("PKG-SO-1-1", true, { kit: kit(1) }),
-            ftlParcel("PKG-SO-1-2", false, { kit: kit(2), labelOutdated: true }),
-            ftlParcel("PKG-SO-1-3", false),
-          ]),
+          loadShipment("SO-1-S1", [ftlParcel("PKG-SO-1-1", true), ftlParcel("PKG-SO-1-2", false)]),
         ],
       }),
     );
     const card = await screen.findByRole("region", { name: `${L.shipments.title} SO-1-S1` });
-    expect(within(card).getByText("Bộ 1/2")).toBeInTheDocument();
-    expect(within(card).getByText("Bộ 2/2")).toBeInTheDocument();
-    // Chỉ kiện có cờ nhãn cũ mới có huy hiệu; kiện thường và kiện đã lên xe thì không
-    expect(within(card).getAllByText(F.parcel.labelOutdated)).toHaveLength(1);
-    const rows = within(card).getAllByRole("row");
-    expect(rows).toHaveLength(4);
-    expect(within(rows[3] as HTMLElement).queryByText(/Bộ/)).not.toBeInTheDocument();
-  });
-
-  it("chuyến nguyên xe không có nút thêm lô; huỷ chuyến không dành cho xe của kế hoạch kể cả quản lý kho", async () => {
-    renderFtl(ACTORS.warehouseManager, loadingFtl());
-    await ready();
-    expect(screen.queryByRole("button", { name: L.load.addShipments })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: L.load.removeShipment })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: L.load.actions.cancel })).not.toBeInTheDocument();
+    // Một dòng tiêu đề + hai kiện, không có gì khác
+    expect(within(card).getAllByRole("row")).toHaveLength(3);
+    expect(screen.queryByRole("button", { name: /thêm lô|bỏ lô/i })).not.toBeInTheDocument();
   });
 });
 
@@ -382,48 +353,6 @@ describe("Chuyến nguyên xe — dỡ kiện của đơn đã huỷ", () => {
     );
     await ready();
     expect(screen.getByRole("button", { name: L.load.actions.handover })).toBeEnabled();
-  });
-});
-
-describe("Biên bản theo xe", () => {
-  it("hiện kế hoạch + xe số + loại xe, ghi chú chỉ gồm kiện của xe, COD 0; kiện thuộc bộ / nhãn cũ có huy hiệu", async () => {
-    mockShippingApi(ACTORS.warehouseStaff, {
-      get: {
-        [`${PATH}/manifest`]: () =>
-          ftlManifest({
-            shipments: [
-              {
-                shipmentCode: "SO-1-S1",
-                orderNumber: "SO-1",
-                packageCount: 2,
-                codAmount: 0,
-                codChangedSinceLabel: false,
-                packages: [
-                  { labelCode: "PKG-SO-1-1", loaded: true, kit: kit(1), labelOutdated: false },
-                  { labelCode: "PKG-SO-1-2", loaded: true, labelOutdated: true },
-                ],
-              },
-            ],
-            packageCount: 2,
-          }),
-      },
-    });
-    renderShippingScreen(<ManifestScreen id={FTL_ID} />);
-    expect(await screen.findByText("LP-2026-0001 · xe số 1")).toBeInTheDocument();
-    expect(screen.getByText("TRUCK-1T25")).toBeInTheDocument();
-    expect(screen.getByText(F.manifest.perVehicleNote)).toBeInTheDocument();
-    expect(screen.getByText("Bộ 1/2")).toBeInTheDocument();
-    expect(screen.getByText(F.parcel.labelOutdated)).toBeInTheDocument();
-  });
-
-  it("biên bản chuyến gửi kiện không có phần xe của kế hoạch", async () => {
-    mockShippingApi(ACTORS.warehouseStaff, {
-      get: { [`${PATH}/manifest`]: () => ftlManifest({ mode: "PARCEL" }) },
-    });
-    renderShippingScreen(<ManifestScreen id={FTL_ID} />);
-    await screen.findByRole("heading", { name: L.manifest.docTitle });
-    expect(screen.queryByText(F.manifest.perVehicleNote)).not.toBeInTheDocument();
-    expect(screen.queryByText(F.manifest.vehicle)).not.toBeInTheDocument();
   });
 });
 

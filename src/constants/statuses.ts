@@ -229,39 +229,78 @@ export const STOCK_PACKAGE_STATUS_BY_API = {
 /**
  * Trạng thái lấy hàng của task xuất kho — HỆ QUY CHIẾU LÀ BE, không phải docs.
  * Mỗi giá trị BE `fulfillment/internal/domain/PickStatus.java` ứng đúng 1 tên hiển thị = chính tên
- * enum BE viết Title Case (như module phiếu nhận: `DRAFT` → `Draft`), không đổi nghĩa, không mượn
- * tên trạng thái docs 07 §5.1 (`Assigned` / `In Progress` / `Completed`…). Docs chỉ để tham khảo:
- * BE đổi enum thì FE mới đổi theo.
- * `SHORT` có trong enum BE nhưng chưa code nào set.
+ * enum BE viết Title Case (như module phiếu nhận: `DRAFT` → `Draft`); trùng docs 07 §5.1
+ * (`Pending` / `Picking` / `Staged` / `Picked` / `Cancelled`). BE đổi enum thì FE mới đổi theo.
+ * `STAGED` (BE 4C-5, docs 07 §5.1): task đích STAGING đã lấy hết dòng về khu chờ xuất, chờ chuyển sang khu
+ * xuất hàng. `SHORT` đã bỏ khỏi enum task — thiếu hàng là trạng thái của DÒNG (`PickLineStatus.SHORT`).
  */
-export const PICK_STATUSES = ["Pending", "Picking", "Picked", "Short", "Cancelled"] as const;
+export const PICK_STATUSES = ["Pending", "Picking", "Staged", "Picked", "Cancelled"] as const;
 
 export const PICK_STATUS = {
   PENDING: "Pending",
   PICKING: "Picking",
+  STAGED: "Staged",
   PICKED: "Picked",
-  SHORT: "Short",
   CANCELLED: "Cancelled",
 } as const satisfies Record<PickApiStatus, PickStatus>;
 
 /** BE `fulfillment/internal/domain/PickStatus.java` — giá trị nhận qua API. */
-export const PICK_API_STATUSES = ["PENDING", "PICKING", "PICKED", "SHORT", "CANCELLED"] as const;
+export const PICK_API_STATUSES = ["PENDING", "PICKING", "STAGED", "PICKED", "CANCELLED"] as const;
 
 /** Đổi 1-1 giá trị BE → tên hiển thị; khoá theo enum BE nên BE thêm giá trị là typecheck báo. */
 export const PICK_STATUS_BY_API = PICK_STATUS;
 
 /**
- * Trạng thái một DÒNG lấy hàng — HỆ QUY CHIẾU LÀ BE `fulfillment/internal/domain/PickLineStatus.java`
- * (SCRUM-267/275; SHORT = báo thiếu hàng, BE PR #147), tên enum BE viết Title Case 1-1 như `PICK_STATUSES`.
- * Dòng SHORT được phân bổ lại thì thành CANCELLED (giữ `shortQty`) và sinh dòng OPEN mới.
+ * Đích lấy hàng của task — BE `fulfillment/api/PickDestination.java` (docs 07 §1, §3 "Đích lấy hàng"):
+ * `DISPATCH` = khu xuất hàng (mặc định, trừ tồn ngay khi quét), `STAGING` = khu chờ xuất (chỉ chuyển vị
+ * trí, chưa trừ tồn).
  */
-export const PICK_LINE_STATUSES = ["Open", "Picked", "Short", "Cancelled", "Put Back"] as const;
+export const PICK_DESTINATIONS = ["DISPATCH", "STAGING"] as const;
+
+export const PICK_DESTINATION = {
+  DISPATCH: "DISPATCH",
+  STAGING: "STAGING",
+} as const satisfies Record<PickDestination, PickDestination>;
+
+/**
+ * Lý do báo thiếu — BE `fulfillment/internal/domain/ShortPickReason.java` (docs 07 §4.4 bước 9: "báo thiếu
+ * kèm vị trí và lý do"): không thấy thùng ở vị trí, hoặc thùng hư hỏng không giao được.
+ */
+export const SHORT_PICK_REASONS = ["NOT_FOUND", "DAMAGED"] as const;
+
+export const SHORT_PICK_REASON = {
+  NOT_FOUND: "NOT_FOUND",
+  DAMAGED: "DAMAGED",
+} as const satisfies Record<ShortPickReason, ShortPickReason>;
+
+/**
+ * Trạng thái một DÒNG lấy hàng (= một thùng LPN, docs 07 §5.2) — HỆ QUY CHIẾU LÀ BE
+ * `fulfillment/internal/domain/PickLineStatus.java`, tên enum BE viết Title Case 1-1 như `PICK_STATUSES`.
+ * `STAGED` (BE 4C-5): thùng đã chuyển sang khu chờ xuất, còn giữ cho đơn, chưa trừ tồn. Dòng SHORT được phân
+ * bổ lại thì thành CANCELLED (giữ `shortQty`) và sinh dòng OPEN mới.
+ */
+export const PICK_LINE_STATUSES = [
+  "Open",
+  "Staged",
+  "Picked",
+  "Short",
+  "Cancelled",
+  "Put Back",
+] as const;
 
 /** BE `PickLineStatus` — giá trị nhận qua API. */
-export const PICK_LINE_API_STATUSES = ["OPEN", "PICKED", "SHORT", "CANCELLED", "PUT_BACK"] as const;
+export const PICK_LINE_API_STATUSES = [
+  "OPEN",
+  "STAGED",
+  "PICKED",
+  "SHORT",
+  "CANCELLED",
+  "PUT_BACK",
+] as const;
 
 export const PICK_LINE_STATUS = {
   OPEN: "Open",
+  STAGED: "Staged",
   PICKED: "Picked",
   SHORT: "Short",
   CANCELLED: "Cancelled",
@@ -272,26 +311,45 @@ export const PICK_LINE_STATUS = {
 export const PICK_LINE_STATUS_BY_API = PICK_LINE_STATUS;
 
 /**
- * Trạng thái đóng gói — HỆ QUY CHIẾU LÀ BE `fulfillment/internal/domain/PackStatus.java`, cùng quy
- * tắc với `PICK_STATUSES` (tên enum BE viết Title Case; docs 08 §5 chỉ để tham khảo).
- * `PACKING` = packer đã nhận đơn tại bàn đóng gói (BE PR #136: `POST /tasks/{id}/packing-start`; sau
- * khi kiểm tra lại thiết kế khớp, phiên cũng trở lại `PACKING` chứ không phải `PACKED`).
+ * Trạng thái phiên kiểm thùng của task — HỆ QUY CHIẾU LÀ BE `fulfillment/internal/domain/PackStatus.java`
+ * (docs 08 §5.1: `Pending` / `In Progress` / `Completed` / `Cancelled`), cùng quy tắc với `PICK_STATUSES`.
+ * `IN_PROGRESS` = người kiểm đã bắt đầu (`packing-start`) và vẫn ở đó khi hoàn tất một phần; `COMPLETED` =
+ * đã kiểm đủ thùng và mọi thùng đã có shipment. Không còn `ON_HOLD` (không có bước giữ vì kiểm tra thiết kế —
+ * BE V20261108000500) và `PACKING` / `PACKED` đã đổi tên (BE V20261113000700).
  */
-export const PACK_STATUSES = ["Pending", "Packing", "On Hold", "Packed", "Cancelled"] as const;
+export const PACK_STATUSES = ["Pending", "In Progress", "Completed", "Cancelled"] as const;
 
 export const PACK_STATUS = {
   PENDING: "Pending",
-  PACKING: "Packing",
-  ON_HOLD: "On Hold",
-  PACKED: "Packed",
+  IN_PROGRESS: "In Progress",
+  COMPLETED: "Completed",
   CANCELLED: "Cancelled",
 } as const satisfies Record<PackApiStatus, PackStatus>;
 
 /** BE `fulfillment/internal/domain/PackStatus.java` — giá trị nhận qua API. */
-export const PACK_API_STATUSES = ["PENDING", "PACKING", "ON_HOLD", "PACKED", "CANCELLED"] as const;
+export const PACK_API_STATUSES = ["PENDING", "IN_PROGRESS", "COMPLETED", "CANCELLED"] as const;
 
 /** Đổi 1-1 giá trị BE → tên hiển thị; khoá theo enum BE nên BE thêm giá trị là typecheck báo. */
 export const PACK_STATUS_BY_API = PACK_STATUS;
+
+/**
+ * Trạng thái thùng giao ở trạm kiểm thùng — BE `PackageStatus` (4C-6), docs 08 §5.2: `To Check` → `Checked` →
+ * `Labeled`; `Removed` là cuối. Tên hiển thị nguyên văn docs. (`OPEN` / `SEALED` / `VOIDED` của trạm đóng gói cũ
+ * vẫn còn trong `PACKAGE_API_STATUSES` cho màn Giao hàng cho tới khi màn đó đổi.)
+ */
+export const CARTON_STATUSES = ["To Check", "Checked", "Labeled", "Removed"] as const;
+
+export const CARTON_API_STATUSES = ["TO_CHECK", "CHECKED", "LABELED", "REMOVED"] as const;
+
+export const CARTON_STATUS = {
+  TO_CHECK: "To Check",
+  CHECKED: "Checked",
+  LABELED: "Labeled",
+  REMOVED: "Removed",
+} as const satisfies Record<CartonApiStatus, CartonStatus>;
+
+/** BE `CartonCheck.RemovalReason` — vì sao thùng bị loại: hư hỏng khi kiểm, hoặc đơn huỷ khi chưa thùng nào dán nhãn. */
+export const CARTON_REMOVAL_REASONS = ["DAMAGED", "ORDER_CANCELLED"] as const;
 
 /** BE `fulfillment/internal/domain/PackageStatus.java` (PR #136) — kiện ở trạm đóng gói. */
 export const PACKAGE_API_STATUSES = ["OPEN", "SEALED", "VOIDED"] as const;
@@ -336,14 +394,6 @@ export const PACK_SHIPMENT_STATUS_DISPLAY = {
   UNKNOWN: "UNKNOWN",
 } as const;
 
-/** BE `design/api/DesignArtifactRole.java` — vai trò file trong bundle thiết kế đã khoá. */
-export const DESIGN_ARTIFACT_ROLES = [
-  "CUSTOMER_PREVIEW",
-  "TECHNICAL_SPEC",
-  "PRINT_READY",
-  "PRODUCTION_INSTRUCTION",
-] as const;
-
 export const PRODUCT_STATUSES = [
   "Draft",
   "Pending Approval",
@@ -375,26 +425,6 @@ export const SKU_STATUS = {
   OBSOLETE: "Obsolete",
 } as const satisfies Record<string, SkuStatus>;
 
-export const INVOICE_STATUSES = [
-  "Draft",
-  "Matched",
-  "Exception",
-  "Disputed",
-  "Approved for Payment",
-  "Paid",
-  "Cancelled",
-] as const;
-
-export const INVOICE_STATUS = {
-  APPROVED_FOR_PAYMENT: "Approved for Payment",
-  CANCELLED: "Cancelled",
-  DISPUTED: "Disputed",
-  DRAFT: "Draft",
-  EXCEPTION: "Exception",
-  MATCHED: "Matched",
-  PAID: "Paid",
-} as const satisfies Record<string, InvoiceStatus>;
-
 /**
  * Order — đúng 19 trạng thái của BE `order/api/OrderStatus.java` (BE PR #133, SCRUM-239/246/247),
  * ánh xạ 1-1 với mã wire (PENDING_PAYMENT ↔ "Pending Payment"…, xem features/order/status-map.ts).
@@ -405,8 +435,10 @@ export const INVOICE_STATUS = {
  */
 export const ORDER_STATUSES = [
   "Draft",
+  "Pending Contract",
   "Pending Payment",
   "Confirmed",
+  "Awaiting Stock",
   "In Production",
   "Ready to Fulfill",
   "Picking",
@@ -426,7 +458,7 @@ export const ORDER_STATUSES = [
 ] as const;
 
 /**
- * Trạng thái phòng thủ khi đọc: BE trả chuỗi ngoài 19 trạng thái đã biết (BE thêm sau, hoặc mã cũ
+ * Trạng thái phòng thủ khi đọc: BE trả chuỗi ngoài 21 trạng thái đã biết (BE thêm sau, hoặc mã cũ
  * IN_FULFILMENT / PAID) → hiển thị "Không rõ", không có chuyển tiếp / thao tác nào. Chỉ để ĐỌC —
  * không bao giờ là giá trị lọc / gửi BE.
  */
@@ -487,8 +519,8 @@ export const TRANSFER_STATUS = {
 export const TRANSFER_REASONS = ["REBALANCING", "DEMAND", "CAMPAIGN", "OVERFLOW", "OTHER"] as const;
 
 /**
- * Chuyến xe xuất hàng — BE `LoadStatus` (PR #137, SCRUM-288). Chuyến gửi kiện (PARCEL) bắt đầu ở
- * LOADING khi tài xế hãng tới; PLANNED / VEHICLE_BOOKED chỉ có ở chuyến nguyên xe (FTL, SCRUM-287).
+ * Chuyến xe xuất hàng — BE `LoadStatus`. Mọi chuyến là một xe của kế hoạch xếp xe (giao nguyên chuyến, docs 09 BR-08):
+ * Planned → Vehicle Booked → Loading → Dispatched, hoặc Cancelled (docs 09 §5.2).
  */
 export const LOAD_STATUSES = [
   "PLANNED",
@@ -526,6 +558,51 @@ export const DELIVERY_OUTCOMES = ["DELIVERED", "DELIVERY_FAILED", "RETURNED"] as
 /** BE `CarrierResponse.status` — hãng ngừng dùng thì không nhận chuyến mới. */
 export const CARRIER_STATUSES = ["ACTIVE", "INACTIVE"] as const;
 
+/**
+ * BE `CarrierConnectionType` — kiểu kết nối hãng (docs 09 §4.1): không có webhook / webhook theo chuyến /
+ * tích hợp API đặt xe (hệ thống tạo + huỷ đơn ở hãng, BR-29).
+ */
+export const CARRIER_CONNECTION_TYPES = ["MANUAL", "WEBHOOK_LOAD", "API_BOOKING"] as const;
+export type CarrierConnectionType = (typeof CARRIER_CONNECTION_TYPES)[number];
+
+export const CARRIER_CONNECTION_TYPE = {
+  MANUAL: "MANUAL",
+  WEBHOOK_LOAD: "WEBHOOK_LOAD",
+  API_BOOKING: "API_BOOKING",
+} as const satisfies Record<string, CarrierConnectionType>;
+
+/** BE `LoadResponse.CarrierBooking.status` — đơn của chuyến ở hãng tích hợp API đặt xe (BR-29). */
+export const CARRIER_BOOKING_STATUSES = [
+  "REQUESTED",
+  "BOOKED",
+  "FAILED",
+  "CANCELLED",
+  "CANCEL_FAILED",
+] as const;
+
+/** BE `WaybillChangeResponse.source` — ai điền mã vận đơn (docs 09 §4.4). */
+export const WAYBILL_SOURCES = ["MANUAL", "FILE", "WEBHOOK", "API"] as const;
+
+/** BE `WaybillImportResponse.Line.outcome` — một dòng file nhập mã vận đơn (docs 09 §4.4 bước 2). */
+export const WAYBILL_IMPORT_OUTCOMES = ["NEW", "OVERWRITE", "SAME", "ERROR"] as const;
+
+/** BE `WaybillImportResponse.Line.problem` — vì sao một dòng không áp dụng được (BR-23, BR-25). */
+export const WAYBILL_IMPORT_PROBLEMS = [
+  "MISSING_FIELDS",
+  "INVALID_WAYBILL",
+  "INVALID_VEHICLE_DETAILS",
+  "LOAD_NOT_FOUND",
+  "LOAD_OUT_OF_SCOPE",
+  "LOAD_REPEATED",
+  "LOAD_NOT_BOOKED",
+  "LOAD_CANCELLED",
+  "LOAD_LEFT",
+  "WAYBILL_FROM_CARRIER_API",
+  "DUPLICATE_IN_FILE",
+  "DUPLICATE_IN_CARRIER",
+  "OVERWRITE_NOT_CONFIRMED",
+] as const;
+
 /** BE `VehicleTypeRequest.kind` — loại phương tiện trong danh mục loại xe (docs 09 §3). */
 export const VEHICLE_TYPE_KINDS = ["CONTAINER", "TRUCK", "PICKUP"] as const;
 
@@ -562,11 +639,14 @@ export type PickLineStatus = (typeof PICK_LINE_STATUSES)[number];
 export type PickLineApiStatus = (typeof PICK_LINE_API_STATUSES)[number];
 export type PackStatus = (typeof PACK_STATUSES)[number];
 export type PackApiStatus = (typeof PACK_API_STATUSES)[number];
-export type DesignArtifactRole = (typeof DESIGN_ARTIFACT_ROLES)[number];
+export type CartonStatus = (typeof CARTON_STATUSES)[number];
+export type CartonApiStatus = (typeof CARTON_API_STATUSES)[number];
+export type CartonRemovalReason = (typeof CARTON_REMOVAL_REASONS)[number];
+export type PickDestination = (typeof PICK_DESTINATIONS)[number];
+export type ShortPickReason = (typeof SHORT_PICK_REASONS)[number];
 export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
 export type ProposalStatus = (typeof PROPOSAL_STATUSES)[number];
 export type SkuStatus = (typeof SKU_STATUSES)[number];
-export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 export type OrderReadStatus = (typeof ORDER_READ_STATUSES)[number];
 export type SupplierStatus = (typeof SUPPLIER_STATUSES)[number];
@@ -865,3 +945,14 @@ export const BIN_NAMING_SCHEMES = ["SEQUENTIAL", "ROW_LETTER_COLUMN"] as const;
 
 /** BE `MapUnit` — chỉ mét (docs 06 §5); không đổi sau khi tạo kho (BR-13). */
 export const MAP_UNITS = ["M"] as const;
+
+/**
+ * BE `CancellationRequestStatus` — yêu cầu huỷ của khách (docs 17 §5.4): PENDING → APPROVED | REJECTED | EXPIRED. Hiển thị
+ * theo docs là `Pending` / `Approved` / `Rejected` / `Expired` (xem `CANCELLATION_REQUEST_STATUS_DISPLAY`).
+ */
+export const CANCELLATION_REQUEST_STATUSES = [
+  "PENDING",
+  "APPROVED",
+  "REJECTED",
+  "EXPIRED",
+] as const;

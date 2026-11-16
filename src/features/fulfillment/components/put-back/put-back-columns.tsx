@@ -5,6 +5,7 @@ import { Undo2 } from "lucide-react";
 
 import { ADMIN_ROUTES, PUT_BACK_LABELS } from "@/constants";
 import { CELL, dateCell, numberCell, refCell, textCell } from "@/components/shared/column-helpers";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 import type { PutBackRow } from "@/features/fulfillment/types";
@@ -14,7 +15,8 @@ const P = PUT_BACK_LABELS;
 const COL = P.column;
 
 /**
- * Cột hàng đợi trả về kệ (data-table-mode-a: mã mono, số căn phải tabular, ngày giờ theo lib/format); số đơn
+ * Cột hàng đợi trả về kệ (data-table-mode-a: mã mono, số căn phải tabular, ngày giờ theo lib/format); mỗi dòng một
+ * thùng — cột LPN là mã phải quét để cất lại, thùng hư hỏng loại ở trạm kiểm có nhãn "Cách ly"; số đơn
  * dẫn tới chi tiết lấy hàng khi người xem mở được task người khác (`canOpenTask`, không thì BE 404), không thì
  * chỉ là chữ; nút trả chỉ khi có `fulfillment-picking:UPDATE`.
  */
@@ -42,6 +44,20 @@ export function putBackColumns({
         ) : (
           <span className={CELL.code}>{row.orderNumber}</span>
         ),
+    },
+    {
+      key: "lpn",
+      header: COL.lpn,
+      cell: (row) => (
+        <span className="inline-flex items-center gap-2">
+          <span className={CELL.code}>{row.lpn ?? "—"}</span>
+          {row.quarantine && (
+            <Badge variant="outline" className="text-[0.6875rem]">
+              {P.quarantineBadge}
+            </Badge>
+          )}
+        </span>
+      ),
     },
     refCell<PutBackRow>("sku", COL.sku, (row) => row.sku),
     textCell<PutBackRow>("lot", COL.lot, (row) => row.lotNumber ?? ""),

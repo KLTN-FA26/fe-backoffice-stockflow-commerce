@@ -5,8 +5,6 @@
  * (`order/api/HoldReason`, `DeliveryFailureReason`, `CancellationReasonCode`, `OrderShipmentStatus`).
  */
 
-import { ORDER_DELIVERY_MODE_UI } from "./labels-delivery-mode";
-
 /* ── Lý do giữ đơn (BE HoldReason) ───────────────────────────────────── */
 
 /** Mọi lý do một đơn có thể đang ON_HOLD (BE `HoldReason`). */
@@ -310,9 +308,6 @@ export const ORDER_ERROR_MESSAGES = {
     "Điều khoản của khách chưa hợp lệ: “Ghi công nợ phần còn lại” cần bật công nợ (allowCredit) cùng hạn mức và số ngày nợ.",
   CANCELLATION_FEE_BEFORE_PRINTING:
     "Đơn chưa bắt đầu in nên hoàn tiền đủ, không giữ phí — bỏ khoản phí rồi gửi lại.",
-  // BE PR #157 — hình thức giao (LP-1, LP-2)
-  DELIVERY_MODE_LOCKED: ORDER_DELIVERY_MODE_UI.lockedError,
-  DELIVERY_MODE_FTL_NO_COD: ORDER_DELIVERY_MODE_UI.ftlNoCod,
   // Release đơn (BE `OrderReleaseService`)
   WAREHOUSE_NOT_FOUND: "Không tìm thấy kho đã chọn. Chọn lại kho.",
   WAREHOUSE_INACTIVE: "Kho đã chọn không còn hoạt động. Chọn kho khác.",

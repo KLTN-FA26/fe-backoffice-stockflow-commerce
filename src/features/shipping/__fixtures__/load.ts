@@ -1,6 +1,7 @@
 /**
- * Fixture chuyến xe / lô giao theo contract BE PR #137 (features/shipping/api.ts). Trường null của BE
- * bị BỎ khỏi JSON (Jackson non_null) nên fixture cũng bỏ — schema `.nullish()` được chạm đúng.
+ * Fixture chuyến xe / lô giao theo contract BE hiện tại (`DispatchController`, features/shipping/api.ts): mọi chuyến là một xe
+ * của kế hoạch xếp xe — không `mode`, không COD, không lệnh chuyển kho. Trường null của BE bị BỎ khỏi JSON (Jackson non_null)
+ * nên fixture cũng bỏ — schema `.nullish()` được chạm đúng.
  */
 
 import type { Load, LoadParcel, LoadShipment, Manifest, Shipment, ShipmentRow } from "../types";
@@ -15,7 +16,6 @@ export function parcel(code: string, loaded: boolean, patch: Partial<LoadParcel>
     labelCode: code,
     weightKg: 1.5,
     loaded,
-    labelOutdated: false,
     ...(loaded ? { loadedAt: "2026-10-21T01:10:00Z", loadedBy: "staff" } : {}),
     ...patch,
   };
@@ -34,13 +34,12 @@ export function loadShipment(
     status: "READY_TO_DISPATCH",
     packageCount: parcels.length,
     loadedCount: parcels.filter((p) => p.loaded).length,
-    labelCodAmount: 270_000,
     packages: parcels,
     ...patch,
   };
 }
 
-/** Chuyến LOADING có hai lô: S1 đủ 1/1 kiện, S2 mới 0/2. */
+/** Xe số 1 của kế hoạch LP-2026-0001 đang xếp hàng (LOADING), hai lô: S1 đủ 1/1 kiện, S2 mới 0/2; đã có mã vận đơn. */
 export function apiLoad(patch: Partial<Load> = {}): Load {
   const shipments = patch.shipments ?? [
     loadShipment("SO-1-S1", [parcel("PKG-SO-1-1", true)]),
@@ -52,20 +51,27 @@ export function apiLoad(patch: Partial<Load> = {}): Load {
     loadId: LOAD_ID,
     code: LOAD_ID,
     warehouseId: WAREHOUSE_ID,
-    mode: "PARCEL",
     status: "LOADING",
     carrierId: CARRIER_ID,
     carrierCode: "GHN",
     carrierName: "Giao Hàng Nhanh",
+    carrierConnectionType: "MANUAL",
     vehiclePlate: "51C-628.14",
     driverName: "Lê Văn Xế",
+    waybillNo: "GHN-250001",
     loadingStartedAt: "2026-10-21T01:00:00Z",
     shipmentCount: shipments.length,
     expectedPackageCount: expected,
     loadedPackageCount: loaded,
-    codTotal: 540_000,
-    currency: "VND",
     version: 4,
+    loadPlanId: "lp-1",
+    loadPlanCode: "LP-2026-0001",
+    vehicleSeq: 1,
+    vehicleTypeCode: "TRUCK-1T25",
+    bookedAt: "2026-10-21T00:30:00Z",
+    bookedBy: "staff",
+    pendingUnloads: [],
+    carrierBookingToCancel: false,
     ...patch,
     shipments,
   };
@@ -79,9 +85,7 @@ export function shipmentRow(patch: Partial<ShipmentRow> = {}): ShipmentRow {
     orderNumber: "SO-1",
     warehouseId: WAREHOUSE_ID,
     status: "READY_TO_DISPATCH",
-    deliveryMode: "PARCEL",
     packageCount: 2,
-    codAmount: 270_000,
     partial: false,
     readyAt: "2026-10-20T02:00:00Z",
     wholeOrderHandover: false,
@@ -94,20 +98,8 @@ export function apiShipment(patch: Partial<ShipmentRow> = {}): Shipment {
   return {
     shipment: shipmentRow(patch),
     packages: [
-      {
-        packageId: "pkg-1",
-        labelCode: "PKG-SO-1-1",
-        status: "SEALED",
-        weightKg: 1.5,
-        labelOutdated: false,
-      },
-      {
-        packageId: "pkg-2",
-        labelCode: "PKG-SO-1-2",
-        status: "SEALED",
-        weightKg: 0.8,
-        labelOutdated: false,
-      },
+      { packageId: "pkg-1", labelCode: "PKG-SO-1-1", status: "SEALED", weightKg: 1.5 },
+      { packageId: "pkg-2", labelCode: "PKG-SO-1-2", status: "SEALED", weightKg: 0.8 },
     ],
     timeline: [
       { status: "READY_TO_DISPATCH", occurredAt: "2026-10-20T02:00:00Z", recordedByName: "Packer" },
@@ -124,6 +116,7 @@ export function apiManifest(patch: Partial<Manifest> = {}): Manifest {
     carrierName: "Giao Hàng Nhanh",
     vehiclePlate: "51C-628.14",
     driverName: "Lê Văn Xế",
+    waybillNo: "GHN-250001",
     shipments: [
       {
         shipmentCode: "SO-1-S1",
@@ -133,17 +126,16 @@ export function apiManifest(patch: Partial<Manifest> = {}): Manifest {
         deliveryAddress: "15 Quang Trung, Hà Đông, Hà Nội",
         packageCount: 1,
         weightKg: 1.5,
-        codAmount: 270_000,
-        codChangedSinceLabel: false,
-        packages: [{ labelCode: "PKG-SO-1-1", weightKg: 1.5, loaded: true, labelOutdated: false }],
+        packages: [{ labelCode: "PKG-SO-1-1", weightKg: 1.5, loaded: true }],
       },
     ],
     shipmentCount: 1,
     packageCount: 1,
     totalWeightKg: 1.5,
-    codTotal: 270_000,
-    currency: "VND",
     printedAt: "2026-10-21T02:00:00Z",
+    loadPlanCode: "LP-2026-0001",
+    vehicleSeq: 1,
+    vehicleTypeCode: "TRUCK-1T25",
     ...patch,
   };
 }

@@ -8,44 +8,44 @@ import type { PickStatus } from "@/constants";
 import type { WarehouseLocation } from "@/lib/references/warehouse-locations";
 import type { FulfillmentTask, PickLine } from "./types";
 
-/** Một lựa chọn của combobox mã (vị trí / mã hàng). */
+/** Một lựa chọn của combobox mã (vị trí). */
 export interface CodeOption {
   value: string;
   label: string;
   hint?: string;
 }
 
-const isPicked = (line: Pick<PickLine, "status">) => line.status === PICK_LINE_STATUS.PICKED;
 const isCancelled = (line: Pick<PickLine, "status">) => line.status === PICK_LINE_STATUS.CANCELLED;
+/** Thùng đã rời bin: `Picked` (đã trừ tồn) hoặc `Staged` (đã về khu chờ xuất, chưa trừ — docs 07 §5.2). */
+const isTaken = (line: Pick<PickLine, "status">) =>
+  line.status === PICK_LINE_STATUS.PICKED || line.status === PICK_LINE_STATUS.STAGED;
 
-/** Tiến độ: dòng huỷ (dòng thiếu đã được phân bổ lại) không tính vào tổng. */
+/**
+ * Thứ tự đi lấy: mã vị trí rồi SKU (docs 07 §4.1 bước 2, §6), cuối cùng `sequenceNo` để ổn định. Dòng thêm sau khi
+ * phân bổ lại / lấy bổ sung được BE đánh số tiếp ở cuối nên không tự nằm đúng chỗ theo lộ trình.
+ */
+export function byWalkingOrder(
+  a: Pick<PickLine, "locationCode" | "sku" | "sequenceNo">,
+  b: Pick<PickLine, "locationCode" | "sku" | "sequenceNo">,
+): number {
+  return (
+    a.locationCode.localeCompare(b.locationCode, "en") ||
+    a.sku.localeCompare(b.sku, "en") ||
+    a.sequenceNo - b.sequenceNo
+  );
+}
+
+/** Tiến độ: dòng huỷ (dòng thiếu đã được phân bổ lại) không tính vào tổng; thùng đã về khu chờ xuất tính là đã lấy. */
 export function pickProgress(lines: readonly PickLine[]): { picked: number; total: number } {
   return {
-    picked: lines.filter(isPicked).length,
+    picked: lines.filter(isTaken).length,
     total: lines.filter((line) => !isCancelled(line)).length,
   };
 }
 
-/** Dòng `Open` kế tiếp theo lộ trình (`sequenceNo` nhỏ nhất). */
+/** Dòng `Open` kế tiếp theo lộ trình (mã vị trí rồi SKU — `byWalkingOrder`). */
 export function nextOpenLine(lines: readonly PickLine[]): PickLine | undefined {
-  return [...lines]
-    .filter((line) => line.status === PICK_LINE_STATUS.OPEN)
-    .sort((a, b) => a.sequenceNo - b.sequenceNo)[0];
-}
-
-/**
- * Mã hàng chọn được: SKU và barcode của các dòng trong task (BE nhận SKU không phân biệt hoa
- * thường hoặc barcode chính xác). Bỏ trùng, giữ thứ tự xuất hiện.
- */
-export function itemOptions(lines: readonly PickLine[]): CodeOption[] {
-  const options = new Map<string, CodeOption>();
-  for (const line of lines) {
-    if (!options.has(line.sku)) options.set(line.sku, { value: line.sku, label: line.sku });
-    if (line.barcode && !options.has(line.barcode)) {
-      options.set(line.barcode, { value: line.barcode, label: `${line.barcode} · ${line.sku}` });
-    }
-  }
-  return [...options.values()];
+  return [...lines].filter((line) => line.status === PICK_LINE_STATUS.OPEN).sort(byWalkingOrder)[0];
 }
 
 /**
@@ -81,16 +81,16 @@ export function needsLinePlanning(
 }
 
 /**
- * Đủ dòng để hoàn tất lấy hàng (BE `PickList.complete`: mọi dòng PICKED hoặc CANCELLED, không thì 409
- * PICK_LINES_INCOMPLETE). Task không có dòng — đơn chỉ có dòng in — coi như đủ, trừ khi còn phải lập dòng
- * (`needsLinePlanning`).
+ * Đủ dòng để hoàn tất lấy hàng (BE `PickList.requireAllPicked`, docs 07 §4.2 bước 6: mọi dòng PICKED — hoặc STAGED
+ * với task đích STAGING — hoặc CANCELLED, không thì 409 PICK_LINES_INCOMPLETE). Task không có dòng coi như đủ, trừ
+ * khi còn phải lập dòng (`needsLinePlanning`).
  */
 export function linesComplete(
   lines: readonly PickLine[],
   task?: Pick<FulfillmentTask, "pickStatus" | "lines">,
 ): boolean {
   if (task && needsLinePlanning(task, lines)) return false;
-  return lines.every((line) => isPicked(line) || isCancelled(line));
+  return lines.every((line) => isTaken(line) || isCancelled(line));
 }
 
 export function openLineCount(lines: readonly PickLine[]): number {
@@ -120,37 +120,53 @@ export function pickIncompleteReason(
     : PICK_LINE_LABELS.shortLeft(shortLineCount(lines));
 }
 
-/** Số dòng in (không lấy từ kệ, BR-06 docs 07 §6). */
-export function printLineCount(task: Pick<FulfillmentTask, "lines">): number {
-  return (task.lines ?? []).filter((line) => line.printLine).length;
-}
-
-/** Đơn huỷ sau khi đã lấy: các dòng `Picked` đang chờ trả về kệ (BE BR-05, SCRUM-275). */
+/** Đơn huỷ sau khi đã lấy: các dòng `Picked` / `Staged` đang chờ trả về kệ (docs 07 BR-05, §4.5 bước 13). */
 export function awaitingPutBackCount(
   task: { pickStatus: PickStatus },
   lines: readonly PickLine[],
 ): number {
-  return task.pickStatus === PICK_STATUS.CANCELLED ? lines.filter(isPicked).length : 0;
+  return task.pickStatus === PICK_STATUS.CANCELLED ? lines.filter(isTaken).length : 0;
 }
 
 /**
- * Vị trí trả hàng về kệ: chỉ bin đang dùng được của kho task — BE `PickList.putBack` từ chối khu chứa,
- * bin bị khoá và vị trí kho khác (PUT_BACK_LOCATION_INVALID).
+ * Vị trí trả hàng: bình thường chỉ bin đang dùng được của kho task — BE `PickList.putBack` từ chối khu chứa, bin bị
+ * khoá và vị trí kho khác (PUT_BACK_LOCATION_INVALID). Thùng hư hỏng bị loại ở trạm kiểm (`quarantine`, docs 08 §4.2
+ * bước 4) thì ngược lại: chỉ khu `QUARANTINE` đang dùng được, không phải bin.
  */
 export function putBackLocationOptions(
   locations: readonly WarehouseLocation[] | undefined,
+  quarantine = false,
 ): CodeOption[] {
   return (locations ?? [])
-    .filter((location) => location.kind === "BIN" && location.usable)
+    .filter((location) =>
+      quarantine
+        ? location.kind === "AREA" && location.areaType === "QUARANTINE" && location.usable
+        : location.kind === "BIN" && location.usable,
+    )
     .map((location) => ({ value: location.locationCode, label: location.locationCode }));
 }
 
-/** Mặc định trả về đúng bin đã lấy ra nếu bin đó vẫn dùng được; không thì để người dùng chọn. */
+/**
+ * Mặc định cho ô vị trí trả: bin đã lấy ra nếu bin đó vẫn dùng được; thùng cách ly mà kho chỉ có một khu cách ly thì
+ * khu đó; không thì để người dùng chọn.
+ */
 export function defaultPutBackLocation(
   fromLocationCode: string,
   locations: readonly WarehouseLocation[] | undefined,
+  quarantine = false,
 ): string {
-  return putBackLocationOptions(locations).some((option) => option.value === fromLocationCode)
-    ? fromLocationCode
-    : "";
+  const options = putBackLocationOptions(locations, quarantine);
+  if (quarantine) return options.length === 1 ? (options[0]?.value ?? "") : "";
+  return options.some((option) => option.value === fromLocationCode) ? fromLocationCode : "";
+}
+
+/** Khu chờ xuất đang dùng được của kho — các lựa chọn cho đích STAGING khi tạo task (docs 07 §4.1 bước 2). */
+export function stagingAreaOptions(
+  locations: readonly WarehouseLocation[] | undefined,
+): CodeOption[] {
+  return (locations ?? [])
+    .filter(
+      (location) => location.kind === "AREA" && location.areaType === "STAGING" && location.usable,
+    )
+    .map((location) => ({ value: location.locationCode, label: location.locationCode }));
 }

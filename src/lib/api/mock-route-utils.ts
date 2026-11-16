@@ -40,15 +40,19 @@ export const ok = (data: unknown, status = 200): MockResponseShape => ({
 
 export const noContent = (): MockResponseShape => ({ status: 204, data: null, headers: {} });
 
-/** Lỗi theo `ApiErrorBody` của BE: `errorCode`, `message`, `fieldErrors[]`. */
+/**
+ * Lỗi theo `ApiErrorBody` của BE: `errorCode`, `message`, `fieldErrors[]`, và `details` (dữ kiện máy đọc được đi kèm một số
+ * lỗi, vd `LOAD_HANDOVER_BLOCKED` → `{ orders: [...] }`; BE bỏ khoá khi rỗng).
+ */
 export const fail = (
   status: number,
   errorCode: string,
   message: string,
   fieldErrors: { field: string; message: string; code?: string }[] = [],
+  details?: Record<string, unknown>,
 ): MockResponseShape => ({
   status,
-  data: { success: false, errorCode, message, fieldErrors },
+  data: { success: false, errorCode, message, fieldErrors, ...(details ? { details } : {}) },
   headers: {},
 });
 

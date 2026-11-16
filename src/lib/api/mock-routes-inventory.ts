@@ -1,9 +1,11 @@
 /**
- * Mock routes — điều chỉnh tồn + sổ kho (SCRUM-424/439), chỉ dùng khi USE_MOCK=true.
+ * Mock routes — điều chỉnh tồn theo thùng + sổ kho (docs 20 §4.3, BR-04, BR-05, BR-06, BR-14), chỉ dùng khi
+ * USE_MOCK=true.
  *
- * Hợp đồng chép từ BE develop 0f18f24: StockOperationsController (đường dẫn, @Valid),
- * StockOperationsServiceImpl (thứ tự kiểm tra, sổ kho khi duyệt), StockAdjustment (bốn mắt,
- * vòng đời, SCRAP/SAMPLE chỉ giảm, OTHER phải có giải thích), ErrorCode (mã + HTTP status).
+ * Hợp đồng chép từ BE develop df34c338: StockOperationsController (đường dẫn, @Valid),
+ * RequestAdjustmentRequest (LPN + chiều WRITE_OFF / RESTOCK + lý do, không có số lượng), StockAdjustment (bốn mắt,
+ * vòng đời, OTHER phải có giải thích, COUNT_VARIANCE chỉ do kiểm kê tạo và không rút được), ErrorCode (mã + HTTP
+ * status). Thùng lấy từ sổ thùng mock (`mock-inventory-cartons.ts`, thùng của phiếu nhận).
  *
  * State nằm trong bộ nhớ module và bắt đầu RỖNG — không thêm bản ghi vào mock-data.ts. Phiếu
  * và dòng sổ kho chỉ sinh ra từ chính các thao tác tạo / duyệt trong phiên mock.
@@ -20,8 +22,10 @@
 import {
   INVENTORY_API,
   INVENTORY_LIMITS,
+  STOCK_ADJUSTMENT_DIRECTIONS,
   STOCK_ADJUSTMENT_REASON,
   STOCK_ADJUSTMENT_REASONS,
+  STOCK_ADJUSTMENT_REQUEST_REASONS,
   STOCK_MOVEMENT_TYPES,
 } from "@/constants/inventory";
 import { STOCK_ADJUSTMENT_STATUS, STOCK_ADJUSTMENT_STATUSES } from "@/constants/statuses";
@@ -31,6 +35,14 @@ import { MOVE_API, MOVE_LIMITS } from "@/constants/move";
 import { SKU_INPUT_PATTERN } from "@/lib/validation/sku";
 
 import { registerMockRoute } from "./mock-adapter";
+import { registerCycleCountMockRoutes, resetCycleCountMockState } from "./mock-routes-cycle-counts";
+import {
+  findMockCarton,
+  resetMockCartonLedger,
+  setMockCartonStatus,
+  setMockQuarantined,
+} from "./mock-inventory-cartons";
+import { registerQuarantineMockRoutes } from "./mock-routes-quarantine";
 import { registerInventoryStockMockRoutes } from "./mock-routes-inventory-stock";
 import {
   beError,
@@ -61,6 +73,12 @@ interface MockAdjustment {
   postedAt: string | null;
   withdrawnAt: string | null;
   version: number;
+  /** Id của thùng (`StockPackage.id`) và LPN của nó — phiếu nào cũng đúng một thùng (docs 20 BR-14). */
+  stockPackageId: string;
+  lpn: string;
+  /** Có khi phiếu do kiểm kê sinh ra; `countedBy` là người đã đếm dòng đó — cũng không được tự duyệt. */
+  cycleCountLineId: string | null;
+  countedBy: string | null;
   seq: number;
 }
 
@@ -90,6 +108,8 @@ export function resetInventoryMockState(): void {
   movements.length = 0;
   numberByDay.clear();
   seq = 0;
+  resetMockCartonLedger();
+  resetCycleCountMockState();
 }
 
 /* ── Wire helpers ────────────────────────────────────────────────────── */
@@ -110,7 +130,9 @@ function ok(data: unknown, status = 200) {
 /** Jackson NON_NULL: trường null không có mặt trong JSON. */
 function nonNull<T extends object>(value: T): Partial<T> {
   return Object.fromEntries(
-    Object.entries(value).filter(([key, field]) => field !== null && key !== "seq"),
+    Object.entries(value).filter(
+      ([key, field]) => field !== null && key !== "seq" && key !== "lpn" && key !== "countedBy",
+    ),
   ) as Partial<T>;
 }
 
@@ -278,20 +300,12 @@ function requestFieldErrors(body: Record<string, unknown>): MockFieldError[] {
   const errors: MockFieldError[] = [];
   const add = (field: string, message: string, rule: string) =>
     errors.push({ field, message, code: rule });
-  const location = readString(body.locationCode);
-  if (!location) add("locationCode", "locationCode is required", "NotBlank");
-  else if (location.length > INVENTORY_LIMITS.locationLength)
-    add("locationCode", "locationCode is at most 64 characters", "Size");
-  const sku = readString(body.sku);
-  if (!sku) add("sku", "sku is required", "NotBlank");
-  else if (!SKU_INPUT_PATTERN.test(sku)) add("sku", "malformed SKU", "Pattern");
-  if (typeof body.lotNumber === "string" && body.lotNumber.length > INVENTORY_LIMITS.lotLength)
-    add("lotNumber", "lotNumber is at most 64 characters", "Size");
-  const delta = body.quantityDelta;
-  if (typeof delta === "number" && delta < -INVENTORY_LIMITS.delta)
-    add("quantityDelta", "quantityDelta is at least -1,000,000", "Min");
-  if (typeof delta === "number" && delta > INVENTORY_LIMITS.delta)
-    add("quantityDelta", "quantityDelta is at most 1,000,000", "Max");
+  const lpn = readString(body.lpn);
+  if (!lpn) add("lpn", "lpn is required", "NotBlank");
+  else if (lpn.length > INVENTORY_LIMITS.lpnLength)
+    add("lpn", "lpn is at most 30 characters", "Size");
+  if (body.direction === undefined || body.direction === null)
+    add("direction", "direction is required", "NotNull");
   if (body.reason === undefined || body.reason === null)
     add("reason", "reason is required", "NotNull");
   if (typeof body.note === "string" && body.note.length > INVENTORY_LIMITS.noteLength)
@@ -299,47 +313,136 @@ function requestFieldErrors(body: Record<string, unknown>): MockFieldError[] {
   return errors;
 }
 
+const STOCK_ADJUSTMENT_ALL_REASONS: readonly string[] = STOCK_ADJUSTMENT_REASONS;
+const REQUESTABLE_REASONS: readonly string[] = STOCK_ADJUSTMENT_REQUEST_REASONS;
+const DIRECTIONS: readonly string[] = STOCK_ADJUSTMENT_DIRECTIONS;
+
+/** Phiếu nào đang giữ thùng: chờ duyệt (BR-10, BR-11). Dùng cho điều chỉnh tay và cho kiểm kê. */
+export function hasPendingMockAdjustment(stockPackageId: string): boolean {
+  return [...adjustments.values()].some(
+    (row) =>
+      row.stockPackageId === stockPackageId &&
+      row.status === STOCK_ADJUSTMENT_STATUS.PENDING_APPROVAL,
+  );
+}
+
+/**
+ * Phiếu COUNT_VARIANCE do nộp phiếu kiểm kê sinh ra (docs 20 §4.2 c8): cả thùng, chờ duyệt. Người đề nghị là
+ * người nộp; `countedBy` là người đếm dòng — BE cấm cả hai tự duyệt (`ADJUSTMENT_SELF_APPROVAL`).
+ */
+export function openMockCountVariance(input: {
+  stockPackageId: string;
+  lpn: string;
+  locationCode: string;
+  sku: string;
+  lotNumber: string | null;
+  quantityDelta: number;
+  lineId: string;
+  requestedBy: string;
+  countedBy: string | null;
+  note: string;
+}) {
+  const now = new Date();
+  seq += 1;
+  const adjustment: MockAdjustment = {
+    adjustmentId: crypto.randomUUID(),
+    number: nextNumber(now),
+    locationCode: input.locationCode,
+    sku: input.sku,
+    lotNumber: input.lotNumber,
+    quantityDelta: input.quantityDelta,
+    reason: STOCK_ADJUSTMENT_REASON.COUNT_VARIANCE,
+    note: input.note,
+    status: STOCK_ADJUSTMENT_STATUS.PENDING_APPROVAL,
+    requestedBy: input.requestedBy,
+    requestedAt: now.toISOString(),
+    decidedBy: null,
+    decidedAt: null,
+    rejectionReason: null,
+    postedAt: null,
+    withdrawnAt: null,
+    version: 0,
+    stockPackageId: input.stockPackageId,
+    lpn: input.lpn,
+    cycleCountLineId: input.lineId,
+    countedBy: input.countedBy,
+    seq,
+  };
+  adjustments.set(adjustment.adjustmentId, adjustment);
+  return adjustment.adjustmentId;
+}
+
+/** `CycleCountResponse.Adjustment` của một phiếu — kiểm kê đọc số, chênh lệch và trạng thái hiện tại. */
+export function mockAdjustmentView(adjustmentId: string) {
+  const row = adjustments.get(adjustmentId);
+  return row
+    ? {
+        id: row.adjustmentId,
+        number: row.number,
+        quantityDelta: row.quantityDelta,
+        status: row.status,
+      }
+    : null;
+}
+
 async function createAdjustment(config: AxiosRequestConfig) {
   const actor = await currentActor();
   if (!actor) return unauthenticated();
   const body = parseJsonBody(config.data);
-  const reason = body.reason;
-  // Jackson: giá trị enum lạ / kiểu sai → body không đọc được.
+  // Jackson: enum lạ / kiểu sai → body không đọc được.
   if (
-    (reason !== undefined &&
-      reason !== null &&
-      !STOCK_ADJUSTMENT_REASONS.some((r) => r === reason)) ||
-    (body.quantityDelta !== undefined && !Number.isInteger(body.quantityDelta))
+    (body.reason !== undefined &&
+      body.reason !== null &&
+      !STOCK_ADJUSTMENT_ALL_REASONS.some((reason) => reason === body.reason)) ||
+    (body.direction !== undefined &&
+      body.direction !== null &&
+      !DIRECTIONS.some((direction) => direction === body.direction))
   ) {
     return beError(400, "MALFORMED_REQUEST", "The request body could not be read");
   }
   const fieldErrors = requestFieldErrors(body);
   if (fieldErrors.length) return validationFailed("Invalid request data", fieldErrors);
 
-  const quantityDelta = typeof body.quantityDelta === "number" ? body.quantityDelta : 0;
+  const reason = String(body.reason);
   const note = readString(body.note) || null;
-  // StockAdjustment constructor: thứ tự kiểm tra như BE.
-  if (quantityDelta === 0) return validationFailed("Invalid request data");
+  // COUNT_VARIANCE chỉ do kiểm kê tạo; EXPIRED / SCRAP / SAMPLE / SUBCONTRACT_LOSS là lý do cũ → 400.
+  if (!REQUESTABLE_REASONS.includes(reason)) {
+    return validationFailed(`Reason ${reason} cannot be requested for a carton`);
+  }
   if (reason === STOCK_ADJUSTMENT_REASON.OTHER && !note) {
     return validationFailed("An adjustment with reason OTHER must say why in the note");
   }
-  if (
-    (reason === STOCK_ADJUSTMENT_REASON.SCRAP || reason === STOCK_ADJUSTMENT_REASON.SAMPLE) &&
-    quantityDelta > 0
-  ) {
-    return validationFailed(`An adjustment with reason ${String(reason)} can only reduce stock`);
+  const carton = await findMockCarton(readString(body.lpn));
+  if (!carton) {
+    return beError(404, "STOCK_PACKAGE_NOT_FOUND", `No carton with LPN ${readString(body.lpn)}`);
   }
-
+  const writeOff = body.direction === "WRITE_OFF";
+  // Thùng ghi giảm phải đang trong kho; nạp lại chỉ thùng đã thất lạc.
+  if (carton.pkg.status !== (writeOff ? "IN_STOCK" : "LOST")) {
+    return beError(
+      409,
+      "INVALID_STOCK_PACKAGE_TRANSITION",
+      "This stock package cannot do that in its current status",
+    );
+  }
+  if (hasPendingMockAdjustment(carton.pkg.id)) {
+    return beError(
+      409,
+      "STOCK_PACKAGE_ADJUSTMENT_PENDING",
+      "Another adjustment of this carton is waiting for approval",
+    );
+  }
   const now = new Date();
   seq += 1;
+  const quantity = carton.pkg.nominalQty;
   const adjustment: MockAdjustment = {
     adjustmentId: crypto.randomUUID(),
     number: nextNumber(now),
-    locationCode: code(body.locationCode),
-    sku: code(body.sku),
-    lotNumber: readString(body.lotNumber) || null,
-    quantityDelta,
-    reason: String(reason),
+    locationCode: carton.pkg.locationCode ?? "",
+    sku: carton.sku,
+    lotNumber: carton.lotNumber,
+    quantityDelta: writeOff ? -quantity : quantity,
+    reason,
     note,
     status: STOCK_ADJUSTMENT_STATUS.PENDING_APPROVAL,
     requestedBy: actor,
@@ -350,14 +453,19 @@ async function createAdjustment(config: AxiosRequestConfig) {
     postedAt: null,
     withdrawnAt: null,
     version: 0,
+    stockPackageId: carton.pkg.id,
+    lpn: carton.pkg.lpn,
+    cycleCountLineId: null,
+    countedBy: null,
     seq,
   };
   adjustments.set(adjustment.adjustmentId, adjustment);
   return ok(nonNull(adjustment), 201);
 }
 
+/** Bốn mắt (docs 20 BR-05): người đề nghị không duyệt; với COUNT_VARIANCE, người đã đếm dòng cũng không. */
 function selfDecision(adjustment: MockAdjustment, actor: string) {
-  return adjustment.requestedBy === actor
+  return adjustment.requestedBy === actor || adjustment.countedBy === actor
     ? beError(
         409,
         "ADJUSTMENT_SELF_APPROVAL",
@@ -377,6 +485,19 @@ async function approve(config: AxiosRequestConfig) {
   if (refused) return refused;
   const now = new Date().toISOString();
   const delta = adjustment.quantityDelta;
+  // Duyệt là ghi tồn ngay (BR-05): thùng ghi giảm → Consumed (kiểm kê không thấy → Lost); nạp lại → In Stock.
+  const carton = await findMockCarton(adjustment.lpn);
+  if (carton) {
+    setMockCartonStatus(
+      carton,
+      delta > 0
+        ? "IN_STOCK"
+        : adjustment.reason === STOCK_ADJUSTMENT_REASON.COUNT_VARIANCE
+          ? "LOST"
+          : "CONSUMED",
+    );
+    setMockQuarantined(adjustment.lpn, false);
+  }
   seq += 1;
   movements.push({
     movementId: crypto.randomUUID(),
@@ -438,6 +559,14 @@ async function withdraw(config: AxiosRequestConfig) {
   const { adjustment } = loaded;
   const refused = requirePending(adjustment);
   if (refused) return refused;
+  // BR-06 (docs 20): chênh lệch kiểm kê chỉ được duyệt hoặc từ chối.
+  if (adjustment.reason === STOCK_ADJUSTMENT_REASON.COUNT_VARIANCE) {
+    return beError(
+      409,
+      "COUNT_VARIANCE_NOT_WITHDRAWABLE",
+      "A count variance is approved or rejected, not withdrawn",
+    );
+  }
   if (adjustment.requestedBy !== actor) {
     return beError(
       403,
@@ -595,6 +724,8 @@ export function registerInventoryMockRoutes(): void {
   registerMockRoute("POST", `${one}/withdrawal`, withdraw);
   registerMockRoute("GET", INVENTORY_API.movements, listMovements);
   registerInventoryStockMockRoutes();
+  registerCycleCountMockRoutes();
+  registerQuarantineMockRoutes();
   registerMockRoute("POST", MOVE_API.move, createMove);
   // Mock không có tồn theo vị trí: danh sách rỗng (BE trả mảng rỗng khi SKU chưa có tồn).
   registerMockRoute("GET", MOVE_API.stockItems, () => ok([]));

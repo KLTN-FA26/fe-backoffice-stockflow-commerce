@@ -8,7 +8,7 @@
 import { WAREHOUSE_LOCATION_PERMISSIONS } from "@/constants";
 
 import { registerMockRoute } from "./mock-adapter";
-import { beError, beOk, readRouteId } from "./mock-routes-purchase-orders-store";
+import { beError, beOk, isRecord, readRouteId } from "./mock-routes-purchase-orders-store";
 import { mockGrantsOf } from "./mock-user-grants";
 import { mockStoredLayout } from "./mock-warehouse-layout-view";
 
@@ -24,6 +24,13 @@ export const isMockLocationUsable = (location: Location) =>
 /** Loại vị trí mock là khu chứa (BE Area có mã vị trí); aisle / rack / level / zone không phải chỗ chứa. */
 const AREA_TYPES: readonly string[] = ["staging", "quarantine", "dock"];
 
+/** Loại vị trí mock → BE `AreaType` của khu chứa (layout trả `type`; docs 06 BR-22: dock = khu xuất hàng DISPATCH). */
+const BE_AREA_TYPE: Readonly<Record<string, string>> = {
+  staging: "STAGING",
+  quarantine: "QUARANTINE",
+  dock: "DISPATCH",
+};
+
 export async function mockWarehouseLocations(warehouseId: string): Promise<Location[]> {
   const { locations } = await import("@/lib/mock-data");
   return locations.filter((location) => location.warehouseId === warehouseId);
@@ -36,6 +43,26 @@ export async function mockPickableBinCodes(warehouseId: string): Promise<string[
     .filter(isMockLocationUsable)
     .map(mockLocationCode)
     .sort();
+}
+
+/**
+ * Mã các khu chứa đang dùng được (`usable`) của một loại BE (`STAGING` / `QUARANTINE` / `DISPATCH`) — cùng nguồn với
+ * `GET /warehouses/{id}/layout`: kho của store module 06 thì đọc từ đó, kho cũ của mock-data thì từ `locations`.
+ */
+export async function mockUsableAreaCodes(
+  warehouseId: string,
+  areaType: string,
+): Promise<string[]> {
+  const stored = mockStoredLayout(warehouseId);
+  if (isRecord(stored) && Array.isArray(stored.areas)) {
+    return stored.areas
+      .filter(isRecord)
+      .filter((area) => area.type === areaType && area.usable === true)
+      .flatMap((area) => (typeof area.locationCode === "string" ? [area.locationCode] : []));
+  }
+  return (await mockWarehouseLocations(warehouseId))
+    .filter((place) => BE_AREA_TYPE[place.type] === areaType && isMockLocationUsable(place))
+    .map(mockLocationCode);
 }
 
 /** Người gọi có `warehouse-locations:READ` không (quyền theo `mock-user-grants`, như BFF mock). */
@@ -67,7 +94,9 @@ export function registerWarehouseLayoutMockRoutes(): void {
           levels: [{ bins: places.filter((place) => place.type === "bin").map(toPlace) }],
         },
       ],
-      areas: places.filter((place) => AREA_TYPES.includes(place.type)).map(toPlace),
+      areas: places
+        .filter((place) => AREA_TYPES.includes(place.type))
+        .map((place) => ({ ...toPlace(place), type: BE_AREA_TYPE[place.type] })),
     });
   });
 }

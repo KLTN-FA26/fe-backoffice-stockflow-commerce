@@ -23,6 +23,8 @@ export interface ApiErrorBody {
   errorCode?: string;
   message?: string;
   fieldErrors?: ApiFieldErrorBody[] | Record<string, string>;
+  /** BE `ApiResponse.details`: dữ kiện máy đọc được đi kèm một số lỗi (khoá thuộc về `errorCode` mang nó). */
+  details?: Record<string, unknown>;
   correlationId?: string;
   traceId?: string;
 }
@@ -39,6 +41,11 @@ export class ApiError extends Error {
    * lỗi có nhiều phần tử cùng một trường (vd mỗi đơn vi phạm LP-4 một `orderNumber`) đọc ở đây.
    */
   readonly fieldErrorList?: readonly ApiFieldErrorBody[];
+  /**
+   * BE `ApiResponse.details` nguyên dạng (vd `LOAD_HANDOVER_BLOCKED` → `{ orders: [...] }`). Là dữ liệu mạng:
+   * chưa kiểm hình — nơi đọc phải parse bằng zod trước khi dùng.
+   */
+  readonly details?: Readonly<Record<string, unknown>>;
 
   constructor(
     status: number,
@@ -48,6 +55,7 @@ export class ApiError extends Error {
     traceId?: string,
     fieldCodes?: Record<string, string>,
     fieldErrorList?: readonly ApiFieldErrorBody[],
+    details?: Readonly<Record<string, unknown>>,
   ) {
     super(message);
     this.name = "ApiError";
@@ -57,6 +65,7 @@ export class ApiError extends Error {
     this.traceId = traceId;
     this.fieldCodes = fieldCodes;
     this.fieldErrorList = fieldErrorList;
+    this.details = details;
   }
 
   /** Create from an AxiosError (used in response interceptor). */
@@ -81,6 +90,7 @@ export class ApiError extends Error {
       data?.correlationId ?? data?.traceId,
       normalizeFieldCodes(data?.fieldErrors),
       Array.isArray(data?.fieldErrors) ? data.fieldErrors : undefined,
+      isRecord(data?.details) ? data.details : undefined,
     );
   }
 
@@ -88,6 +98,10 @@ export class ApiError extends Error {
   get isClientError(): boolean {
     return this.status >= 400 && this.status < 500;
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /**

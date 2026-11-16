@@ -16,7 +16,8 @@ import {
   FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS,
   FULFILLMENT_DISPATCH_PERMISSIONS,
   FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS,
-  FULFILLMENT_LOAD_CANCELLATION_PERMISSIONS,
+  FULFILLMENT_WAYBILL_CORRECTION_PERMISSIONS,
+  FULFILLMENT_WAYBILL_IMPORT_PERMISSIONS,
   FULFILLMENT_PACKAGE_PERMISSIONS,
   FULFILLMENT_PACKING_PERMISSIONS,
   FULFILLMENT_PICK_PERMISSIONS,
@@ -27,10 +28,14 @@ import {
   IDENTITY_PERMISSIONS,
   INVENTORY_ITEM_PERMISSIONS,
   INVENTORY_OVERVIEW_PERMISSIONS,
+  CYCLE_COUNT_PERMISSIONS,
   INVENTORY_PERMISSIONS,
   LOAD_ESTIMATE_PERMISSIONS,
   LOAD_PLAN_PERMISSIONS,
   ORDER_PERMISSIONS,
+  SALES_CONTRACT_PERMISSIONS,
+  CANCELLATION_REQUEST_PERMISSIONS,
+  PAYMENT_REFUND_PERMISSIONS,
   PO_PERMISSIONS,
   PRODUCT_PERMISSIONS,
   PRODUCTION_ORDER_PERMISSIONS,
@@ -46,6 +51,8 @@ import {
   WAREHOUSE_LOCATION_PERMISSIONS,
   WAREHOUSE_PERMISSIONS,
 } from "@/constants/permissions";
+import { EINVOICE_PERMISSIONS, EINVOICE_SETTINGS_PERMISSIONS } from "@/constants/einvoice";
+import { PAYMENT_INSTALLMENT_PERMISSIONS, PAYMENT_RECEIPT_PERMISSIONS } from "@/constants/payment";
 
 import type { PermissionCode } from "@/lib/auth/me-permissions";
 
@@ -76,7 +83,9 @@ const PACKING_WORK = [FULFILLMENT_PACKING_PERMISSIONS.read, FULFILLMENT_PACKING_
 const PACKING_ALL = Object.values(FULFILLMENT_PACKING_PERMISSIONS);
 const REVERIFY = Object.values(FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS);
 const DISPATCH = Object.values(FULFILLMENT_DISPATCH_PERMISSIONS);
-const LOAD_CANCEL = Object.values(FULFILLMENT_LOAD_CANCELLATION_PERMISSIONS);
+// V20261108001400 / 001500: sửa mã vận đơn sau khi rời kho (quản lý kho) và nhập mã vận đơn từ file (nhân viên kho + quản lý kho)
+const WAYBILL_CORRECTION = Object.values(FULFILLMENT_WAYBILL_CORRECTION_PERMISSIONS);
+const WAYBILL_IMPORT = Object.values(FULFILLMENT_WAYBILL_IMPORT_PERMISSIONS);
 // Seed BE V20261029007100 (SCRUM-474 UNLOAD-DESIGN): huỷ có kiểm soát + xác nhận dỡ kiện không quét — chỉ quản lý kho.
 const CONTROLLED_CANCEL = Object.values(FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS);
 const CARRIER = Object.values(FULFILLMENT_CARRIER_PERMISSIONS);
@@ -96,8 +105,8 @@ const LP = LOAD_PLAN_PERMISSIONS;
 const LOAD_PLAN_READ = [LP.viewPage, LP.read];
 const LOAD_PLAN_ALL = Object.values(LP);
 // WAREHOUSE_STAFF: lấy hàng + đóng gói (READ/UPDATE) + xếp xe / bàn giao.
-const FLOOR_WORK = [...PICKING, ...PACKING_WORK, ...DISPATCH, ...LOAD_PLAN_ALL];
-// WAREHOUSE_MANAGER: toàn bộ nhóm kho + gán / giám sát task, kiểm tra lại thiết kế, hãng, huỷ chuyến,
+const FLOOR_WORK = [...PICKING, ...PACKING_WORK, ...DISPATCH, ...WAYBILL_IMPORT, ...LOAD_PLAN_ALL];
+// WAREHOUSE_MANAGER: toàn bộ nhóm kho + gán / giám sát task, kiểm tra lại thiết kế, hãng, sửa mã vận đơn,
 // ghi nhận hàng hoàn (delivery-outcomes:UPDATE, không có APPROVE).
 const MANAGER_WORK = [
   ...PICKING,
@@ -107,7 +116,8 @@ const MANAGER_WORK = [
   ...OVERSIGHT,
   ...REVERIFY,
   ...CARRIER,
-  ...LOAD_CANCEL,
+  ...WAYBILL_CORRECTION,
+  ...WAYBILL_IMPORT,
   ...CONTROLLED_CANCEL,
   ...VEHICLE_TYPE_ALL,
   ...LOAD_ESTIMATE,
@@ -144,6 +154,11 @@ const INVENTORY_FLOOR = [
   INV.alertRead,
 ];
 const INVENTORY_ALL = Object.values(INV);
+// Seed BE V20260903000100 / V20261023000300 / V20261028001000: WAREHOUSE_MANAGER đủ quyền phiếu kiểm kê
+// (`inventory-cycle-counts`); WAREHOUSE_STAFF xem + đếm (VIEW_PAGE, READ, UPDATE), không lập / duyệt.
+const CC = CYCLE_COUNT_PERMISSIONS;
+const CYCLE_COUNT_ALL = Object.values(CC);
+const CYCLE_COUNT_COUNTER = [CC.viewPage, CC.read, CC.update];
 // Seed BE V20260903000100: WAREHOUSE_STAFF / MANAGER đọc tồn + giữ chỗ; INVENTORY_PLANNER và
 // QC_STAFF chỉ đọc tồn (inventory-stock-items VIEW_PAGE/READ). V20261014000900: inventory-alerts:READ
 // cho WAREHOUSE_MANAGER / INVENTORY_PLANNER / WAREHOUSE_STAFF (QC_STAFF không có).
@@ -178,6 +193,7 @@ const WH_WORK = [
   ...FULFILLMENT_READ,
   ...FLOOR_WORK,
   ...INVENTORY_FLOOR,
+  ...CYCLE_COUNT_COUNTER,
   ...OVERVIEW_ALL,
   WAREHOUSE_READ,
   WAREHOUSE_LOCATION_PERMISSIONS.read,
@@ -199,7 +215,37 @@ const CREDIT_VIEW = [CREDIT_HOLD_PERMISSIONS.viewPage, CREDIT_HOLD_PERMISSIONS.r
 const CREDIT_ALL = Object.values(CREDIT_HOLD_PERMISSIONS);
 const CREDIT_PROFILE_READ = CUSTOMER_CREDIT_PROFILE_PERMISSIONS.read;
 const PRODUCTION_READ = PRODUCTION_ORDER_PERMISSIONS.read;
-const ORDER_SALES_EXTRA = [...CREDIT_VIEW, CREDIT_PROFILE_READ, PRODUCTION_READ];
+// Seed BE (V20261108002200): sales-contracts:READ cho SALES_STAFF / SALES_MANAGER / ACCOUNTANT / SYSTEM_ADMIN — không có
+// quản lý kho. FE chỉ dùng nó để đọc lịch giao (`GET /orders/{id}/delivery-batches`) ở hộp thoại release.
+const CONTRACT_READ = SALES_CONTRACT_PERMISSIONS.read;
+const ORDER_SALES_EXTRA = [...CREDIT_VIEW, CREDIT_PROFILE_READ, PRODUCTION_READ, CONTRACT_READ];
+// Seed BE (PermissionMatrixTest, WF4 ngoại lệ): SALES_STAFF + SYSTEM_ADMIN có hàng đợi yêu cầu huỷ (`sales-order-
+// cancellations:READ`) và dời cửa sổ giao (`sales-contracts:UPDATE`, docs 17 BR-28 "chỉ Sale"); `payment-refunds:READ` còn
+// cho ACCOUNTANT / SALES_MANAGER (đọc kết quả tất toán sau huỷ).
+const CANCELLATION_QUEUE_READ = CANCELLATION_REQUEST_PERMISSIONS.read;
+const CONTRACT_UPDATE = SALES_CONTRACT_PERMISSIONS.update;
+const REFUND_READ = PAYMENT_REFUND_PERMISSIONS.read;
+const SALES_WF4_EXTRA = [CANCELLATION_QUEUE_READ, CONTRACT_UPDATE, REFUND_READ];
+
+// Seed BE V20261108002400 + V20261108003000 (thanh toán theo hợp đồng, docs 15): ACCOUNTANT và SYSTEM_ADMIN —
+// đợt VIEW_PAGE + READ, phiếu thu và hoàn tiền đủ 4 action (lập / huỷ); SALES_STAFF — đợt và hoàn tiền chỉ
+// VIEW_PAGE + READ (gửi thông tin chuyển khoản, nhắc nợ, theo dõi hoàn), không có phiếu thu.
+const PAY_INSTALLMENT_READ = [
+  PAYMENT_INSTALLMENT_PERMISSIONS.viewPage,
+  PAYMENT_INSTALLMENT_PERMISSIONS.read,
+];
+const PAY_REFUND_READ = [PAYMENT_REFUND_PERMISSIONS.viewPage, PAYMENT_REFUND_PERMISSIONS.read];
+const PAY_ACCOUNTANT = [
+  ...PAY_INSTALLMENT_READ,
+  ...Object.values(PAYMENT_RECEIPT_PERMISSIONS),
+  ...Object.values(PAYMENT_REFUND_PERMISSIONS),
+];
+const PAY_SALES = [...PAY_INSTALLMENT_READ, ...PAY_REFUND_READ];
+
+// Seed BE V20261120000300 (hoá đơn điện tử, docs 21): ACCOUNTANT và SYSTEM_ADMIN đủ 6 action `einvoices`;
+// cấu hình: ACCOUNTANT chỉ READ, SYSTEM_ADMIN READ + UPDATE; SALES_MANAGER chỉ VIEW_PAGE + READ hoá đơn.
+const EINVOICE_ALL = Object.values(EINVOICE_PERMISSIONS);
+const EINVOICE_SETTINGS_ALL = Object.values(EINVOICE_SETTINGS_PERMISSIONS);
 
 /** Explicit demo session responses keyed by existing staff IDs, never computed from roles. */
 export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
@@ -211,6 +257,8 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...CREDIT_ALL,
     CREDIT_PROFILE_READ,
     PRODUCTION_READ,
+    CONTRACT_READ,
+    ...SALES_WF4_EXTRA,
     ...Object.values(REPORTING_PERMISSIONS),
     ...Object.values(PRODUCT_PERMISSIONS),
     ...PRODUCT_STRUCTURE,
@@ -224,6 +272,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...MANAGER_WORK,
     ...Object.values(OUTCOME),
     ...INVENTORY_ALL,
+    ...CYCLE_COUNT_ALL,
     ...OVERVIEW_ALL,
     // Seed V20260903000100 / V20260928006000: WAREHOUSE_MANAGER đủ quyền danh mục kho và bản đồ kho
     ...Object.values(WAREHOUSE_PERMISSIONS),
@@ -234,6 +283,9 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...CUSTOMER_PRICE_ALL,
     CUSTOMER_LOOKUP,
     ...STOCK_PACKAGE_ALL,
+    ...PAY_ACCOUNTANT,
+    ...EINVOICE_ALL,
+    ...EINVOICE_SETTINGS_ALL,
   ],
   "USER-PROC-01": [
     SUPPLIER_PERMISSIONS.viewPage,
@@ -295,6 +347,11 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     // SCRUM-427: duyệt / từ chối vượt hạn mức công nợ
     ...CREDIT_ALL,
     CREDIT_PROFILE_READ,
+    ...PAY_ACCOUNTANT,
+    CONTRACT_READ,
+    REFUND_READ,
+    ...EINVOICE_ALL,
+    EINVOICE_SETTINGS_PERMISSIONS.read,
   ],
   // ECOMMERCE_ADMIN: duyệt / xuất bản nhưng không tạm ngưng / ngừng kinh doanh (product-lifecycle chỉ
   // System Admin, BE PR #123)
@@ -312,9 +369,11 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     // Seed BE: SALES_STAFF + SYSTEM_ADMIN (không phải ORDER_COORDINATOR) quyết đơn có giao một phần không
     ORDER_PERMISSIONS.partialShipment,
     ...ORDER_SALES_EXTRA,
+    ...SALES_WF4_EXTRA,
     WAREHOUSE_READ,
     ...CUSTOMER_PRICE_READ,
     CUSTOMER_LOOKUP,
+    ...PAY_SALES,
   ],
   "USER-SALE-02": [
     ORDER_PERMISSIONS.viewPage,
@@ -323,9 +382,11 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     // Seed BE: SALES_STAFF + SYSTEM_ADMIN (không phải ORDER_COORDINATOR) quyết đơn có giao một phần không
     ORDER_PERMISSIONS.partialShipment,
     ...ORDER_SALES_EXTRA,
+    ...SALES_WF4_EXTRA,
     WAREHOUSE_READ,
     ...CUSTOMER_PRICE_READ,
     CUSTOMER_LOOKUP,
+    ...PAY_SALES,
   ],
   "USER-SALE-03": [
     ORDER_PERMISSIONS.viewPage,
@@ -334,9 +395,11 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     // Seed BE: SALES_STAFF + SYSTEM_ADMIN (không phải ORDER_COORDINATOR) quyết đơn có giao một phần không
     ORDER_PERMISSIONS.partialShipment,
     ...ORDER_SALES_EXTRA,
+    ...SALES_WF4_EXTRA,
     WAREHOUSE_READ,
     ...CUSTOMER_PRICE_READ,
     CUSTOMER_LOOKUP,
+    ...PAY_SALES,
   ],
   // Seed BE: SALES_STAFF có sales-order-cancellations:UPDATE (huỷ đơn, đóng phần còn lại) nhưng không có APPROVE
   // (giữ / gỡ giữ / ghi giao thất bại là của ORDER_COORDINATOR)

@@ -213,7 +213,7 @@ describe("adjustment queue", () => {
   });
 
   it("keeps a row with unknown backend reason/status visible", async () => {
-    const fixture = adjustmentFixture({ reason: "COUNT_VARIANCE", status: "APPROVED" });
+    const fixture = adjustmentFixture({ reason: "FUTURE_REASON", status: "APPROVED" });
     server.use(
       inventoryPermissions([adjustmentViewPage, adjustmentRead]),
       http.get(endpoint, () =>
@@ -225,7 +225,7 @@ describe("adjustment queue", () => {
     );
     renderInventory(<AdjustmentList />);
     expect(await screen.findByRole("link", { name: fixture.number })).toBeInTheDocument();
-    expect(screen.getByRole("cell", { name: "COUNT_VARIANCE" })).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "FUTURE_REASON" })).toBeInTheDocument();
     expect(screen.getByTitle(/APPROVED/)).toBeInTheDocument();
   });
 
@@ -271,28 +271,60 @@ describe("adjustment queue", () => {
     expect(screen.queryByText("NCC từ chối")).not.toBeInTheDocument();
   });
 
-  it("labels known reasons, keeps unknown ones raw and signs the delta", async () => {
-    const up = adjustmentFixture({ reason: "DAMAGED", quantityDelta: 5, number: "ADJ-UP" });
-    const down = adjustmentFixture({ reason: "SCRAP", quantityDelta: -5, number: "ADJ-DOWN" });
+  it("labels known reasons, reads a carton delta as whole cartons and keeps unknown reasons raw", async () => {
+    const carton = "d0000001-0000-4000-8000-0000000000c1";
+    const up = adjustmentFixture({
+      reason: "FOUND",
+      quantityDelta: 120,
+      stockPackageId: carton,
+      number: "ADJ-UP",
+    });
+    const variance = adjustmentFixture({
+      reason: "COUNT_VARIANCE",
+      quantityDelta: -120,
+      stockPackageId: carton,
+      cycleCountLineId: "d0000001-0000-4000-8000-0000000000c2",
+      number: "ADJ-COUNT",
+    });
+    const legacy = adjustmentFixture({ reason: "SCRAP", quantityDelta: -5, number: "ADJ-OLD" });
     const future = adjustmentFixture({ reason: "FUTURE_REASON", number: "ADJ-FUTURE" });
     server.use(
       inventoryPermissions([adjustmentViewPage, adjustmentRead]),
       http.get(endpoint, () =>
         HttpResponse.json({
           success: true,
-          data: { ...emptyPage, items: [up, down, future], totalElements: 3, totalPages: 1 },
+          data: {
+            ...emptyPage,
+            items: [up, variance, legacy, future],
+            totalElements: 4,
+            totalPages: 1,
+          },
         }),
       ),
     );
     renderInventory(<AdjustmentList />);
-    const upRow = (await screen.findByRole("link", { name: "ADJ-UP" })).closest("tr");
-    const downRow = screen.getByRole("link", { name: "ADJ-DOWN" }).closest("tr");
-    const futureRow = screen.getByRole("link", { name: "ADJ-FUTURE" }).closest("tr");
-    if (!upRow || !downRow || !futureRow) throw new Error("rows not rendered");
-    expect(within(upRow).getByRole("cell", { name: "Hư hỏng" })).toBeInTheDocument();
-    expect(within(upRow).getByRole("cell", { name: "+5" })).toBeInTheDocument();
-    expect(within(downRow).getByRole("cell", { name: "Phế phẩm" })).toBeInTheDocument();
-    expect(within(downRow).getByRole("cell", { name: "-5" })).toBeInTheDocument();
+    const row = async (name: string) => {
+      const found = (await screen.findByRole("link", { name })).closest("tr");
+      if (!found) throw new Error("row not rendered");
+      return found;
+    };
+    const upRow = await row("ADJ-UP");
+    expect(within(upRow).getByRole("cell", { name: "Tìm thấy thùng" })).toBeInTheDocument();
+    expect(within(upRow).getByRole("cell", { name: "+1 thùng (+120 cái)" })).toBeInTheDocument();
+    const varianceRow = await row("ADJ-COUNT");
+    expect(
+      within(varianceRow).getByRole("cell", { name: "Chênh lệch kiểm kê" }),
+    ).toBeInTheDocument();
+    expect(
+      within(varianceRow).getByRole("cell", { name: "−1 thùng (−120 cái)" }),
+    ).toBeInTheDocument();
+    // A phiếu recorded before counts were by carton has no carton: its unit delta is kept as it is.
+    const legacyRow = await row("ADJ-OLD");
+    expect(
+      within(legacyRow).getByRole("cell", { name: "Phế phẩm (phiếu cũ)" }),
+    ).toBeInTheDocument();
+    expect(within(legacyRow).getByRole("cell", { name: "-5" })).toBeInTheDocument();
+    const futureRow = await row("ADJ-FUTURE");
     expect(within(futureRow).getByRole("cell", { name: "FUTURE_REASON" })).toBeInTheDocument();
     expect(screen.queryByRole("cell", { name: "DAMAGED" })).not.toBeInTheDocument();
   });

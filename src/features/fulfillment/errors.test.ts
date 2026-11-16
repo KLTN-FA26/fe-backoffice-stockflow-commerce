@@ -14,11 +14,10 @@ const invalid = new ApiError(
 );
 
 describe("fulfillmentErrorMessage — cùng mã BE, nghĩa khác theo thao tác", () => {
-  it("NOT_FOUND: tạo task = không có đơn; lấy hàng = không phải người được gán; artifact = thiếu file", () => {
+  it("NOT_FOUND: tạo task = không có đơn; lấy hàng = không phải người được gán", () => {
     expect(fulfillmentErrorMessage(notFound, "create")).toBe(MSG.orderNotFound);
     expect(fulfillmentErrorMessage(notFound, "pick")).toBe(MSG.notAssignee);
     expect(fulfillmentErrorMessage(notFound, "pack")).toBe(MSG.notAssignee);
-    expect(fulfillmentErrorMessage(notFound, "artifact")).toBe(MSG.artifactMissing);
   });
 
   it("FULFILLMENT_HOLDS_OUTSIDE_WAREHOUSE (hàng giữ ở kho khác kho xuất) → câu riêng ở mọi thao tác", () => {
@@ -34,8 +33,7 @@ describe("fulfillmentErrorMessage — cùng mã BE, nghĩa khác theo thao tác"
     expect(fulfillmentErrorMessage(conflict, "create")).toBe(MSG.createConflict);
     expect(fulfillmentErrorMessage(conflict, "assign")).toBe(MSG.assignConflict);
     expect(fulfillmentErrorMessage(conflict, "pick")).toBe(MSG.stale);
-    expect(fulfillmentErrorMessage(conflict, "reverify")).toBe(MSG.reverifyConflict);
-    expect(fulfillmentErrorMessage(conflict, "artifact")).toBe(MSG.artifactMismatch);
+    expect(fulfillmentErrorMessage(conflict, "dispatch")).toBe(MSG.dispatchConflict);
   });
 
   it("PICK_TASK_STATE_CONFLICT (mã thật của BE khi task / đơn sai trạng thái) dùng câu của CONFLICT", () => {
@@ -43,15 +41,14 @@ describe("fulfillmentErrorMessage — cùng mã BE, nghĩa khác theo thao tác"
     expect(fulfillmentErrorMessage(stateConflict, "create")).toBe(MSG.createConflict);
     expect(fulfillmentErrorMessage(stateConflict, "assign")).toBe(MSG.assignConflict);
     expect(fulfillmentErrorMessage(stateConflict, "pick")).toBe(MSG.stale);
-    expect(fulfillmentErrorMessage(stateConflict, "reverify")).toBe(MSG.reverifyConflict);
-    expect(fulfillmentErrorMessage(stateConflict, "artifact")).toBe(MSG.artifactOrderClosed);
+    expect(fulfillmentErrorMessage(stateConflict, "dispatch")).toBe(MSG.dispatchConflict);
     expect(isStaleFulfillmentError(stateConflict)).toBe(true);
   });
 
   it("VALIDATION_FAILED khi gán / tạo = người được gán không hợp lệ; chỗ khác = câu chung", () => {
     expect(fulfillmentErrorMessage(invalid, "assign")).toBe(MSG.assigneeInvalid);
     expect(fulfillmentErrorMessage(invalid, "create")).toBe(MSG.assigneeInvalid);
-    expect(fulfillmentErrorMessage(invalid, "reverify")).toBe(MSG.VALIDATION_FAILED);
+    expect(fulfillmentErrorMessage(invalid, "pick")).toBe(MSG.VALIDATION_FAILED);
   });
 
   it("mã chung của hệ thống dùng câu chung; không hiện message tiếng Anh của BE", () => {
@@ -75,20 +72,18 @@ describe("fulfillmentErrorMessage — cùng mã BE, nghĩa khác theo thao tác"
   });
 });
 
-describe("tải artifact — BE tách hai mã 409", () => {
-  it("CONFLICT (DesignServiceImpl) = lệch checksum, bất kể task đang giữ hay không", () => {
-    expect(fulfillmentErrorMessage(conflict, "artifact")).toBe(MSG.artifactMismatch);
+describe("chuyển sang khu xuất hàng và tạo task đích STAGING", () => {
+  it("chuyển sang khu xuất hàng: đơn đang treo (409 PICK_ORDER_ON_HOLD) có câu riêng nói thùng vẫn ở khu chờ xuất", () => {
+    const onHold = new ApiError(409, "PICK_ORDER_ON_HOLD", "English");
+    expect(fulfillmentErrorMessage(onHold, "dispatch")).toBe(MSG.PICK_ORDER_ON_HOLD);
+    expect(MSG.PICK_ORDER_ON_HOLD).toMatch(/tạm giữ/);
+    expect(MSG.PICK_ORDER_ON_HOLD).toMatch(/khu chờ xuất/);
+    expect(MSG.PICK_ORDER_ON_HOLD).not.toBe(MSG.dispatchConflict);
   });
 
-  it("PICK_TASK_STATE_CONFLICT (TaskAccess) = đơn đã rời khâu xuất kho, không phải lệch checksum", () => {
-    const stateConflict = new ApiError(409, "PICK_TASK_STATE_CONFLICT", "English");
-    expect(fulfillmentErrorMessage(stateConflict, "artifact")).toBe(MSG.artifactOrderClosed);
-    expect(MSG.artifactOrderClosed).not.toBe(MSG.artifactMismatch);
-  });
-
-  it("kiểm tra lại 409: câu báo nêu cả hai khả năng", () => {
-    expect(MSG.reverifyConflict).toMatch(/không còn bị giữ/);
-    expect(MSG.reverifyConflict).toMatch(/không còn ở khâu xuất kho/);
+  it("tạo task đích STAGING: 422 STAGING_AREA_INVALID → nói chọn khu chờ xuất đang hoạt động", () => {
+    const area = new ApiError(422, "STAGING_AREA_INVALID", "English");
+    expect(fulfillmentErrorMessage(area, "create")).toBe(MSG.STAGING_AREA_INVALID);
   });
 });
 

@@ -13,6 +13,8 @@ export const QUERY_ROOTS = {
   productionOrders: ["production-orders"],
   /** = `orderKeys.all` (features/order). */
   orders: ["orders"],
+  /** = `einvoiceKeys.all` (features/einvoice) — hoá đơn điện tử theo lần giao (docs 21). */
+  einvoices: ["einvoices"],
   /** = `myOrderKeys.all` (features/customer-order). */
   myOrders: ["my-orders"],
   /** = `fulfillmentKeys.all` (features/fulfillment) — danh sách lấy hàng / đóng gói. */

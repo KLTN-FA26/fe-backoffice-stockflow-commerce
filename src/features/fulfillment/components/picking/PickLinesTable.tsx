@@ -18,8 +18,9 @@ const TH = "text-ink-secondary px-3 py-2 text-left text-xs font-medium";
 const TD = "px-3 py-2 text-[0.8125rem]";
 
 /**
- * Bảng dòng lấy hàng theo lộ trình; dòng đang làm có `aria-current`, dòng Open có nút Chọn. Cột SL thiếu
- * chỉ hiện khi có dòng báo thiếu; `lineAction` thêm thao tác cuối dòng (vd phân bổ lại dòng thiếu).
+ * Bảng dòng lấy hàng theo lộ trình (mã vị trí rồi SKU — mỗi dòng một thùng LPN); dòng đang làm có `aria-current`,
+ * dòng Open có nút Chọn. Cột SL thiếu chỉ hiện khi có dòng báo thiếu (kèm lý do); dòng Staged nói thùng đang ở khu chờ
+ * xuất nào; `lineAction` thêm thao tác cuối dòng (vd phân bổ lại dòng thiếu).
  */
 export function PickLinesTable({
   lines,
@@ -50,10 +51,10 @@ export function PickLinesTable({
               {COL.location}
             </th>
             <th scope="col" className={TH}>
-              {COL.sku}
+              {COL.lpn}
             </th>
             <th scope="col" className={TH}>
-              {COL.barcode}
+              {COL.sku}
             </th>
             <th scope="col" className={TH}>
               {COL.lot}
@@ -89,8 +90,8 @@ export function PickLinesTable({
               >
                 <td className={`${TD} text-ink-tertiary tabular-nums`}>{line.sequenceNo}</td>
                 <td className={`${TD} text-ink-primary ${MONO}`}>{line.locationCode}</td>
+                <td className={`${TD} text-ink-primary ${MONO}`}>{line.lpn ?? "—"}</td>
                 <td className={`${TD} text-ink-primary ${MONO}`}>{line.sku}</td>
-                <td className={`${TD} text-ink-secondary ${MONO}`}>{line.barcode ?? "—"}</td>
                 <td className={`${TD} text-ink-secondary`}>{line.lotNumber ?? "—"}</td>
                 <td className={`${TD} text-ink-primary ${NUM}`}>{line.allocatedQty}</td>
                 <td className={`${TD} text-ink-primary ${NUM}`}>{line.pickedQty}</td>
@@ -99,6 +100,16 @@ export function PickLinesTable({
                 )}
                 <td className={TD}>
                   <StatusDot domain="pick" status={line.status} />
+                  {line.status === PICK_LINE_STATUS.STAGED && line.stagedLocationCode && (
+                    <span className="text-ink-tertiary block text-xs">
+                      {L.stagedAt(line.stagedLocationCode)}
+                    </span>
+                  )}
+                  {line.status === PICK_LINE_STATUS.SHORT && line.shortReason && (
+                    <span className="text-ink-tertiary block text-xs">
+                      {L.shortReasons[line.shortReason]}
+                    </span>
+                  )}
                   {line.status === PICK_LINE_STATUS.PUT_BACK && line.putBackLocationCode && (
                     <span className="text-ink-tertiary block text-xs">
                       {PUT_BACK_LABELS.returnedTo(line.putBackQty, line.putBackLocationCode)}

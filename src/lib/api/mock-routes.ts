@@ -308,31 +308,6 @@ export function registerAllMockRoutes(): void {
   });
 
   /* ====================================================================
-   * Module 04 — Invoices
-   * ==================================================================*/
-
-  registerMockRoute("GET", "/invoices", async (config) => {
-    const { invoices } = await import("@/lib/mock-data");
-    const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
-    const status = params.getAll("status");
-
-    let filtered = [...invoices];
-    if (status.length) filtered = filtered.filter((i) => status.includes(i.status));
-
-    return { status: 200, data: paginate(filtered, page, pageSize), headers: {} };
-  });
-
-  registerMockRoute("GET", "/invoices/:id", async (config) => {
-    const { invoices } = await import("@/lib/mock-data");
-    const { id } = (config as Record<string, unknown>)._mockParams as Record<string, string>;
-    const invoice = invoices.find((i) => i.invoiceId === id);
-    if (!invoice) return { status: 404, data: { message: "Invoice not found" }, headers: {} };
-    return { status: 200, data: invoice, headers: {} };
-  });
-
-  /* ====================================================================
    * Module 05 — Putaway Tasks
    * ==================================================================*/
 

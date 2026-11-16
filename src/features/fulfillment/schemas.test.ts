@@ -1,23 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { FULFILLMENT_FIELD_MESSAGES, FULFILLMENT_LIMITS } from "@/constants";
+import { FULFILLMENT_FIELD_MESSAGES } from "@/constants";
 
-import {
-  DESIGN_LINE_ID,
-  apiTask,
-  apiTaskLines,
-  assignees,
-  bePage,
-  fulfillmentOrder,
-  mismatchEvidence,
-} from "./__fixtures__/task";
-import { assignInputSchema, createTaskInputSchema, reverifyInputSchema } from "./input-schemas";
+import { DESIGN_LINE_ID, apiTask, apiTaskLines, assignees, bePage } from "./__fixtures__/task";
+import { assignInputSchema, createTaskInputSchema } from "./input-schemas";
 import {
   assigneeListSchema,
-  beArtifactAccessSchema,
   beFulfillmentTaskPageSchema,
   beFulfillmentTaskSchema,
-  fulfillmentOrderSchema,
 } from "./schemas";
 
 const firstMessage = (result: { success: boolean; error?: { issues: { message: string }[] } }) =>
@@ -29,7 +19,6 @@ describe("fulfillment DTO schemas — hợp đồng BE FulfillmentController", (
     expect(parsed.startedAt).toBeUndefined();
     expect(parsed.pickedAt).toBeUndefined();
     expect(parsed.packedAt).toBeUndefined();
-    expect(parsed.integrityEvidence).toEqual([]);
   });
 
   it("task chi tiết parse lines (SCRUM-466)", () => {
@@ -42,29 +31,41 @@ describe("fulfillment DTO schemas — hợp đồng BE FulfillmentController", (
     expect(beFulfillmentTaskSchema.parse(apiTask()).lines).toBeUndefined();
   });
 
-  it("thiếu `integrityEvidence` → mặc định mảng rỗng", () => {
-    const { integrityEvidence: _evidence, ...withoutEvidence } = apiTask();
-    expect(beFulfillmentTaskSchema.parse(withoutEvidence).integrityEvidence).toEqual([]);
-  });
-
-  it("task bị giữ: nhận evidence lệch checksum", () => {
+  it("task đích STAGING đã lấy xong (pick STAGED): nhận đích, khu chờ xuất, mốc về khu + chuyển", () => {
     const parsed = beFulfillmentTaskSchema.parse(
       apiTask({
-        pickStatus: "PICKED",
-        packStatus: "ON_HOLD",
-        integrityEvidence: [mismatchEvidence()],
+        pickStatus: "STAGED",
+        destination: "STAGING",
+        stagingLocationCode: "HN-STAGE-01",
+        stagedAt: "2026-10-10T02:00:00Z",
       }),
     );
-    expect(parsed.integrityEvidence[0]?.matching).toBe(false);
+    expect(parsed).toMatchObject({ pickStatus: "STAGED", destination: "STAGING" });
+    expect(parsed.movedToDispatchAt).toBeUndefined();
   });
 
-  it("nhận đủ mọi giá trị enum BE, kể cả SHORT / PACKING / CANCELLED", () => {
-    for (const pickStatus of ["PENDING", "PICKING", "PICKED", "SHORT", "CANCELLED"] as const) {
-      expect(beFulfillmentTaskSchema.safeParse(apiTask({ pickStatus })).success).toBe(true);
+  it("phiên kiểm thùng theo BE PackStatus: IN_PROGRESS / COMPLETED parse được; PACKING / PACKED / ON_HOLD của BE cũ thì không", () => {
+    for (const packStatus of ["PENDING", "IN_PROGRESS", "COMPLETED", "CANCELLED"] as const) {
+      expect(beFulfillmentTaskSchema.parse(apiTask({ packStatus })).packStatus).toBe(packStatus);
     }
-    for (const packStatus of ["PENDING", "PACKING", "ON_HOLD", "PACKED", "CANCELLED"] as const) {
-      expect(beFulfillmentTaskSchema.safeParse(apiTask({ packStatus })).success).toBe(true);
+    for (const packStatus of ["PACKING", "PACKED", "ON_HOLD"]) {
+      expect(() => beFulfillmentTaskSchema.parse({ ...apiTask(), packStatus })).toThrow();
     }
+  });
+
+  it("pick theo BE PickStatus: có STAGED, không còn SHORT", () => {
+    for (const pickStatus of ["PENDING", "PICKING", "STAGED", "PICKED", "CANCELLED"] as const) {
+      expect(beFulfillmentTaskSchema.parse(apiTask({ pickStatus })).pickStatus).toBe(pickStatus);
+    }
+    expect(() => beFulfillmentTaskSchema.parse({ ...apiTask(), pickStatus: "SHORT" })).toThrow();
+  });
+
+  it("đích lạ → lỗi hợp đồng; thiếu đích (BE cũ) vẫn parse", () => {
+    expect(() =>
+      beFulfillmentTaskSchema.parse({ ...apiTask(), destination: "ELSEWHERE" }),
+    ).toThrow();
+    const { destination: _destination, ...legacy } = apiTask();
+    expect(beFulfillmentTaskSchema.parse(legacy).destination).toBeUndefined();
   });
 
   it("status lạ / thiếu id → parse fail (lỗi hợp đồng, không nuốt)", () => {
@@ -77,53 +78,6 @@ describe("fulfillment DTO schemas — hợp đồng BE FulfillmentController", (
 
   it("PageResponse trang từ 0", () => {
     expect(beFulfillmentTaskPageSchema.parse(bePage([apiTask()])).page).toBe(0);
-  });
-
-  it("artifact access: vai trò file phải thuộc DesignArtifactRole", () => {
-    const artifact = {
-      artifactId: "a1",
-      role: "PRINT_READY",
-      originalName: "front.pdf",
-      contentType: "application/pdf",
-      sizeBytes: 123456,
-      checksum: "c".repeat(64),
-      url: "https://files.example/signed",
-      expiresAt: "2026-10-10T03:05:00Z",
-    };
-    expect(beArtifactAccessSchema.parse(artifact).role).toBe("PRINT_READY");
-    expect(beArtifactAccessSchema.safeParse({ ...artifact, role: "THUMBNAIL" }).success).toBe(
-      false,
-    );
-  });
-
-  it("artifact access: url chỉ nhận http(s) tuyệt đối — chặn javascript: / data: / đường dẫn tương đối", () => {
-    const artifact = {
-      artifactId: "a1",
-      role: "PRINT_READY",
-      originalName: "front.pdf",
-      contentType: "application/pdf",
-      sizeBytes: 1,
-      checksum: "c".repeat(64),
-      expiresAt: "2026-10-10T03:05:00Z",
-    };
-    const ok = (url: string) => beArtifactAccessSchema.safeParse({ ...artifact, url }).success;
-    expect(ok("https://files.example/signed?sig=1")).toBe(true);
-    expect(ok("http://localhost:9000/bucket/front.pdf")).toBe(true);
-    expect(ok("javascript:alert(1)")).toBe(false);
-    expect(ok("JavaScript:alert(1)")).toBe(false);
-    expect(ok("data:text/html,<script>alert(1)</script>")).toBe(false);
-    expect(ok("/files/front.pdf")).toBe(false);
-  });
-
-  it("đơn hàng: dòng thường không có snapshot; bỏ qua field không dùng", () => {
-    const parsed = fulfillmentOrderSchema.parse({
-      ...fulfillmentOrder,
-      totalAmount: 1,
-      currency: "VND",
-    });
-    expect(parsed.lines[0]?.designSnapshotId).toBeUndefined();
-    expect(parsed.lines[1]?.designSnapshotId).toBeTruthy();
-    expect(parsed).not.toHaveProperty("totalAmount");
   });
 
   it("người nhận task (BE AssigneeResponse): roles mặc định rỗng, displayName có thể thiếu", () => {
@@ -147,26 +101,37 @@ describe("fulfillment Input schemas — request BE", () => {
     ).toBe(FULFILLMENT_FIELD_MESSAGES.assigneeRequired);
   });
 
+  it("createTask: đích mặc định DISPATCH (docs 07 §3); STAGING kèm khu chờ xuất tuỳ chọn", () => {
+    expect(createTaskInputSchema.parse({ orderId: "o1", assignedUserId: "u1" }).destination).toBe(
+      "DISPATCH",
+    );
+    expect(
+      createTaskInputSchema.parse({
+        orderId: "o1",
+        assignedUserId: "u1",
+        destination: "STAGING",
+        stagingLocationCode: " HN-STAGE-01 ",
+      }),
+    ).toMatchObject({ destination: "STAGING", stagingLocationCode: "HN-STAGE-01" });
+    expect(
+      createTaskInputSchema.safeParse({ orderId: "o1", assignedUserId: "u1", destination: "X" })
+        .success,
+    ).toBe(false);
+    expect(
+      firstMessage(
+        createTaskInputSchema.safeParse({
+          orderId: "o1",
+          assignedUserId: "u1",
+          destination: "STAGING",
+          stagingLocationCode: "x".repeat(65),
+        }),
+      ),
+    ).toBe(FULFILLMENT_FIELD_MESSAGES.codeTooLong);
+  });
+
   it("assign: cần người được gán", () => {
     expect(firstMessage(assignInputSchema.safeParse({ assignedUserId: "" }))).toBe(
       FULFILLMENT_FIELD_MESSAGES.assigneeRequired,
     );
-  });
-
-  it("reverify: ghi chú xử lý bắt buộc (@NotBlank), cắt khoảng trắng", () => {
-    expect(firstMessage(reverifyInputSchema.safeParse({ resolutionNote: "   " }))).toBe(
-      FULFILLMENT_FIELD_MESSAGES.resolutionNoteRequired,
-    );
-    expect(
-      reverifyInputSchema.parse({ resolutionNote: "  đã khôi phục file  " }).resolutionNote,
-    ).toBe("đã khôi phục file");
-  });
-
-  it("reverify: tối đa 1000 ký tự (@Size(max = 1000)) — đúng biên", () => {
-    const max = FULFILLMENT_LIMITS.resolutionNoteMax;
-    expect(reverifyInputSchema.safeParse({ resolutionNote: "x".repeat(max) }).success).toBe(true);
-    expect(
-      firstMessage(reverifyInputSchema.safeParse({ resolutionNote: "x".repeat(max + 1) })),
-    ).toBe(FULFILLMENT_FIELD_MESSAGES.resolutionNoteTooLong);
   });
 });

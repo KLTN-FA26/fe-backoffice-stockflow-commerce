@@ -1,41 +1,37 @@
 /**
- * Mock routes — chuyến xe, lô giao, hãng vận chuyển (module 09), theo hợp đồng BE PR #137
- * (`DispatchController`, `ShipmentController`, `CarrierController`; xem features/shipping/api.ts).
- * Chỉ dùng khi USE_MOCK=true. Trả đúng errorCode BE để FE map lỗi tiếng Việt. Quyền lấy từ phiên mock
- * như BE `@RequiresPermission` (BE PR #148): fulfillment-dispatch:CREATE / UPDATE cho mở chuyến / lên xe,
- * fulfillment-load-cancellations:UPDATE cho huỷ chuyến, fulfillment-delivery-outcomes:UPDATE (+ APPROVE
- * cho ĐÃ GIAO / GIAO THẤT BẠI) cho kết quả giao.
+ * Mock routes — chuyến xe, lô giao, hãng vận chuyển, mã vận đơn (module 09), theo hợp đồng BE (`DispatchController`,
+ * `LoadWaybillController`, `WaybillImportController`, `ShipmentController`, `CarrierController`; xem features/shipping/api.ts).
+ * Chỉ dùng khi USE_MOCK=true. Trả đúng errorCode BE để FE map lỗi tiếng Việt. Quyền lấy từ phiên mock như BE
+ * `@RequiresPermission`: fulfillment-dispatch:UPDATE cho đặt xe / mã vận đơn / quét / bàn giao,
+ * fulfillment-controlled-cancellations:UPDATE cho huỷ có kiểm soát, fulfillment-waybill-corrections:UPDATE cho sửa mã sau khi
+ * rời kho, fulfillment-waybill-imports:READ / CREATE cho file nhập, fulfillment-carriers:UPDATE cho danh mục hãng,
+ * fulfillment-delivery-outcomes:UPDATE (+ APPROVE cho ĐÃ GIAO / GIAO THẤT BẠI) cho kết quả giao.
  */
 
 import {
-  DELIVERY_MODES,
+  FULFILLMENT_CARRIER_PERMISSIONS,
   FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS,
   FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS as OUTCOME,
   FULFILLMENT_DISPATCH_PERMISSIONS,
-  FULFILLMENT_LOAD_CANCELLATION_PERMISSIONS,
+  FULFILLMENT_WAYBILL_CORRECTION_PERMISSIONS,
+  FULFILLMENT_WAYBILL_IMPORT_PERMISSIONS,
 } from "@/constants";
 
 import { registerMockRoute } from "./mock-adapter";
-import {
-  book,
-  cancelBooking,
-  cancelControlled,
-  dropFromPlan,
-  overrideUnload,
-  startLoading,
-  unload,
-} from "./mock-dispatch-ftl-rules";
-import { modeOf } from "./mock-dispatch-ftl-view";
+import { createCarrier, updateCarrier } from "./mock-dispatch-carriers";
+import { book, cancelBooking, startLoading } from "./mock-dispatch-booking";
+import { cancelControlled, dropFromPlan, overrideUnload, unload } from "./mock-dispatch-ftl-rules";
 import { handover, recordOutcome } from "./mock-dispatch-handover";
-import {
-  addShipments,
-  cancelLoad,
-  openLoad,
-  removeShipment,
-  scan,
-  unscan,
-} from "./mock-dispatch-rules";
+import { scan, unscan } from "./mock-dispatch-rules";
 import { getDispatchState } from "./mock-dispatch-store";
+import {
+  IMPORT_TEMPLATE,
+  applyImport,
+  checkImport,
+  previewResponse,
+  recordWaybill,
+  waybillHistory,
+} from "./mock-dispatch-waybill";
 import {
   carrierView,
   loadDetailView,
@@ -63,13 +59,17 @@ import type { MockResponseShape } from "./mock-route-utils";
 
 const LOADS = "/fulfillment/loads";
 const SHIPMENTS = "/fulfillment/shipments";
-// BE PR #148: mỗi endpoint một mã quyền (không còn `@PreAuthorize` theo vai trò)
-const DISPATCH_CREATE = FULFILLMENT_DISPATCH_PERMISSIONS.create;
+const CARRIERS = "/fulfillment/carriers";
+const WAYBILL_IMPORTS = "/fulfillment/waybill-imports";
+// Mỗi endpoint một mã quyền (BE `@RequiresPermission`, không còn `@PreAuthorize` theo vai trò)
 const DISPATCH_UPDATE = FULFILLMENT_DISPATCH_PERMISSIONS.update;
+const IMPORT_READ = FULFILLMENT_WAYBILL_IMPORT_PERMISSIONS.read;
+const IMPORT_CREATE = FULFILLMENT_WAYBILL_IMPORT_PERMISSIONS.create;
 
 const forbidden = () => fail(403, "FORBIDDEN", "Access denied");
 const loadNotFound = (id: string) => fail(404, "LOAD_NOT_FOUND", `Load ${id} not found`);
 const shipmentNotFound = () => fail(404, "SHIPMENT_NOT_FOUND", "Shipment not found");
+const carrierNotFound = () => fail(404, "CARRIER_NOT_FOUND", "Carrier not found");
 const pageOf = <T>(items: readonly T[], config: AxiosRequestConfig) => {
   const params = readParams(config);
   const size = Math.min(BE_MAX_PAGE_SIZE, readInt(params.size, BE_DEFAULT_PAGE_SIZE));
@@ -80,7 +80,7 @@ const pageOf = <T>(items: readonly T[], config: AxiosRequestConfig) => {
 async function withLoad(
   config: AxiosRequestConfig,
   permission: PermissionCode | null,
-  apply: (state: DispatchState, load: MockLoad) => MockResponseShape,
+  apply: (state: DispatchState, load: MockLoad) => MockResponseShape | Promise<MockResponseShape>,
 ): Promise<MockResponseShape> {
   if (permission && !(await currentActor()).can(permission)) return forbidden();
   const state = await getDispatchState();
@@ -97,8 +97,25 @@ async function withShipment(
   return shipment ? apply(state, shipment) : shipmentNotFound();
 }
 
-function registerCarrierAndShipmentRoutes(): void {
-  registerMockRoute("GET", "/fulfillment/carriers", async (config) => {
+/** File `file` của body multipart (`FormData`); vắng → null. */
+function uploadOf(config: AxiosRequestConfig): File | null {
+  const file = config.data instanceof FormData ? config.data.get("file") : null;
+  return file instanceof File ? file : null;
+}
+
+/** Số dòng ghi đè đã xác nhận: `overwriteLines=1,3` (BE `Set<Integer>`). */
+function overwriteLinesOf(config: AxiosRequestConfig): Set<number> {
+  const raw = readString(readParams(config).overwriteLines);
+  return new Set(
+    raw
+      .split(",")
+      .map((value) => Number(value))
+      .filter((value) => Number.isInteger(value)),
+  );
+}
+
+function registerCarrierRoutes(): void {
+  registerMockRoute("GET", CARRIERS, async (config) => {
     const params = readParams(config);
     const status = readString(params.status);
     const search = readString(params.search).toUpperCase();
@@ -107,11 +124,29 @@ function registerCarrierAndShipmentRoutes(): void {
       state.carriers
         .filter((c) => !status || c.status === status)
         .filter((c) => !search || `${c.code} ${c.name}`.toUpperCase().includes(search))
+        .sort((a, b) => a.name.localeCompare(b.name))
         .map(carrierView),
       config,
     );
   });
+  registerMockRoute("GET", `${CARRIERS}/:id`, async (config) => {
+    const state = await getDispatchState();
+    const carrier = state.carriers.find((c) => c.carrierId === routeParam(config, "id"));
+    return carrier ? ok(carrierView(carrier)) : carrierNotFound();
+  });
+  registerMockRoute("POST", CARRIERS, async (config) => {
+    if (!(await currentActor()).can(FULFILLMENT_CARRIER_PERMISSIONS.update)) return forbidden();
+    return createCarrier(await getDispatchState(), parseJsonBody(config.data));
+  });
+  registerMockRoute("PUT", `${CARRIERS}/:id`, async (config) => {
+    if (!(await currentActor()).can(FULFILLMENT_CARRIER_PERMISSIONS.update)) return forbidden();
+    const state = await getDispatchState();
+    const carrier = state.carriers.find((c) => c.carrierId === routeParam(config, "id"));
+    return carrier ? updateCarrier(state, carrier, parseJsonBody(config.data)) : carrierNotFound();
+  });
+}
 
+function registerShipmentRoutes(): void {
   registerMockRoute("GET", SHIPMENTS, async (config) => {
     const params = readParams(config);
     const [warehouse, status, carrier, order, search] = [
@@ -123,8 +158,6 @@ function registerCarrierAndShipmentRoutes(): void {
     ].map((key) => readString(params[key]));
     const state = await getDispatchState();
     const rows = [...state.shipments.values()]
-      // Dòng của lệnh chuyển kho trên xe (kế hoạch TRANSFER) không phải lô giao
-      .filter((s) => !s.transferOrderId)
       .filter((s) => !warehouse || s.warehouseId === warehouse)
       .filter((s) => !status || s.status === status)
       .filter((s) => !carrier || s.carrierId === carrier)
@@ -139,38 +172,6 @@ function registerCarrierAndShipmentRoutes(): void {
     withShipment(config, (state, shipment) => ok(shipmentDetailView(state, shipment))),
   );
 
-  registerMockRoute("PUT", `${SHIPMENTS}/:id/carrier`, async (config) => {
-    if (!(await currentActor()).can(DISPATCH_UPDATE)) return forbidden();
-    return withShipment(config, (state, shipment) => {
-      const body = parseJsonBody(config.data);
-      const carrierId = typeof body.carrierId === "string" ? body.carrierId : null;
-      if (carrierId) {
-        const carrier = state.carriers.find((c) => c.carrierId === carrierId);
-        if (!carrier) return fail(404, "CARRIER_NOT_FOUND", "Carrier not found");
-        if (carrier.status !== "ACTIVE")
-          return fail(409, "CARRIER_INACTIVE", `Carrier ${carrier.code} is not in use`);
-      }
-      if (shipment.carrierId === carrierId) return ok(shipmentDetailView(state, shipment));
-      if (shipment.status !== "READY_TO_DISPATCH") {
-        return fail(
-          409,
-          "SHIPMENT_STATE_CONFLICT",
-          `Shipment ${shipment.code} is ${shipment.status}; its carrier is chosen before the handover`,
-        );
-      }
-      if (shipment.loadId) {
-        return fail(
-          409,
-          "SHIPMENT_ON_ANOTHER_LOAD",
-          `Shipment ${shipment.code} is on load ${shipment.loadId}; take it off first`,
-        );
-      }
-      shipment.carrierId = carrierId;
-      shipment.version += 1;
-      return ok(shipmentDetailView(state, shipment));
-    });
-  });
-
   registerMockRoute("POST", `${SHIPMENTS}/:id/delivery-outcome`, async (config) => {
     const body = parseJsonBody(config.data);
     const actor = await currentActor();
@@ -181,28 +182,61 @@ function registerCarrierAndShipmentRoutes(): void {
   });
 }
 
+function registerWaybillRoutes(): void {
+  registerMockRoute("PUT", `${LOADS}/:id/waybill`, (config) =>
+    withLoad(config, DISPATCH_UPDATE, async (state, load) =>
+      recordWaybill(
+        state,
+        load,
+        parseJsonBody(config.data),
+        (await currentActor()).can(FULFILLMENT_WAYBILL_CORRECTION_PERMISSIONS.update),
+      ),
+    ),
+  );
+  registerMockRoute("GET", `${LOADS}/:id/waybill-history`, (config) =>
+    withLoad(config, null, (_state, load) => waybillHistory(load)),
+  );
+  registerMockRoute("GET", `${WAYBILL_IMPORTS}/template`, async () => {
+    if (!(await currentActor()).can(IMPORT_READ)) return forbidden();
+    return {
+      status: 200,
+      data: new Blob([IMPORT_TEMPLATE], { type: "text/csv;charset=UTF-8" }),
+      headers: {},
+    };
+  });
+  registerMockRoute("POST", `${WAYBILL_IMPORTS}/preview`, async (config) => {
+    if (!(await currentActor()).can(IMPORT_CREATE)) return forbidden();
+    const file = uploadOf(config);
+    const checked = await checkImport(await getDispatchState(), file);
+    return "lines" in checked ? previewResponse(checked.lines, file?.name ?? "") : checked;
+  });
+  registerMockRoute("POST", WAYBILL_IMPORTS, async (config) => {
+    if (!(await currentActor()).can(IMPORT_CREATE)) return forbidden();
+    const file = uploadOf(config);
+    const state = await getDispatchState();
+    const checked = await checkImport(state, file);
+    return "lines" in checked
+      ? applyImport(state, checked.lines, file?.name ?? "", overwriteLinesOf(config))
+      : checked;
+  });
+}
+
 export function registerDispatchMockRoutes(): void {
-  registerCarrierAndShipmentRoutes();
+  registerCarrierRoutes();
+  registerShipmentRoutes();
+  registerWaybillRoutes();
 
   registerMockRoute("GET", LOADS, async (config) => {
     const params = readParams(config);
-    const [warehouse, status, carrier, search, mode] = [
+    const [warehouse, status, carrier, search] = [
       "warehouseId",
       "status",
       "carrierId",
       "search",
-      "mode",
     ].map((key) => readString(params[key]));
-    // BE PR #165: `mode` lọc ở máy chủ; giá trị khác PARCEL / FULL_TRUCKLOAD → 400
-    if (mode && !DELIVERY_MODES.some((known) => known === mode)) {
-      return fail(400, "UNSUPPORTED_PARAMETER", `Unsupported value for mode: ${mode}`, [
-        { field: "mode", message: "must be PARCEL or FULL_TRUCKLOAD" },
-      ]);
-    }
     const state = await getDispatchState();
     const rows = [...state.loads.values()]
       .filter((l) => !warehouse || l.warehouseId === warehouse)
-      .filter((l) => !mode || modeOf(l) === mode)
       .filter((l) => !status || l.status === status)
       .filter((l) => !carrier || l.carrierId === carrier)
       .filter(
@@ -210,8 +244,8 @@ export function registerDispatchMockRoutes(): void {
           !search ||
           l.code.toUpperCase().includes(search.toUpperCase()) ||
           (l.vehiclePlate ?? "").toUpperCase().includes(search.toUpperCase()) ||
-          // BE PR #165: tìm cả theo mã kế hoạch xếp xe
-          (l.ftl?.loadPlanCode ?? "").toUpperCase().includes(search.toUpperCase()),
+          // Tìm cả theo mã kế hoạch xếp xe
+          l.ftl.loadPlanCode.toUpperCase().includes(search.toUpperCase()),
       )
       .sort((a, b) => b.code.localeCompare(a.code))
       .map((l) => loadRowView(state, l));
@@ -223,26 +257,6 @@ export function registerDispatchMockRoutes(): void {
   );
   registerMockRoute("GET", `${LOADS}/:id/manifest`, (config) =>
     withLoad(config, null, (state, load) => ok(manifestView(state, load))),
-  );
-
-  registerMockRoute("POST", LOADS, async (config) => {
-    if (!(await currentActor()).can(DISPATCH_CREATE)) return forbidden();
-    return openLoad(await getDispatchState(), parseJsonBody(config.data));
-  });
-  registerMockRoute("POST", `${LOADS}/:id/shipments`, (config) =>
-    withLoad(config, DISPATCH_UPDATE, (state, load) => {
-      const ids = parseJsonBody(config.data).shipmentIds;
-      return addShipments(
-        state,
-        load,
-        Array.isArray(ids) ? ids.filter((v): v is string => typeof v === "string") : [],
-      );
-    }),
-  );
-  registerMockRoute("DELETE", `${LOADS}/:id/shipments/:sid`, (config) =>
-    withLoad(config, DISPATCH_UPDATE, (state, load) =>
-      removeShipment(state, load, routeParam(config, "sid")),
-    ),
   );
   registerMockRoute("POST", `${LOADS}/:id/scans`, (config) =>
     withLoad(config, DISPATCH_UPDATE, (state, load) =>
@@ -259,7 +273,6 @@ export function registerDispatchMockRoutes(): void {
       handover(state, load, parseJsonBody(config.data)),
     ),
   );
-  // Chuyến nguyên xe — một xe của kế hoạch xếp xe (BE PR #162): cùng mã quyền `fulfillment-dispatch:UPDATE`
   registerMockRoute("POST", `${LOADS}/:id/booking`, (config) =>
     withLoad(config, DISPATCH_UPDATE, (state, load) =>
       book(state, load, parseJsonBody(config.data)),
@@ -293,11 +306,6 @@ export function registerDispatchMockRoutes(): void {
   registerMockRoute("POST", `${LOADS}/:id/unload-overrides`, (config) =>
     withLoad(config, FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS.update, (state, load) =>
       overrideUnload(state, load, parseJsonBody(config.data)),
-    ),
-  );
-  registerMockRoute("POST", `${LOADS}/:id/cancellation`, (config) =>
-    withLoad(config, FULFILLMENT_LOAD_CANCELLATION_PERMISSIONS.update, (state, load) =>
-      cancelLoad(state, load, readString(parseJsonBody(config.data).reason)),
     ),
   );
 }

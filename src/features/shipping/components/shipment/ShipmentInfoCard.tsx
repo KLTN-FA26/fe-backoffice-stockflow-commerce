@@ -13,8 +13,6 @@ import { useWarehouseDirectory } from "@/lib/references/warehouse-options";
 import { StatusDot } from "@/components/shared/StatusDot";
 
 import { InfoItem } from "../primitives";
-import { codLabel } from "../shipment-list/columns";
-import { ShipmentCarrier } from "./ShipmentCarrier";
 
 import type { Shipment } from "@/features/shipping/types";
 
@@ -28,14 +26,12 @@ function failureLabel(reason: string): string {
     : reason;
 }
 
-/** Thông tin lô giao: đơn, kho, hãng (chọn được khi còn chờ xuất), chuyến, mốc thời gian, kết quả. */
+/** Thông tin lô giao: đơn, kho, hãng (của xe chở lô), chuyến, mốc thời gian, kết quả. */
 export function ShipmentInfoCard({
   data,
-  canAssign,
   actions,
 }: {
   data: Shipment;
-  canAssign: boolean;
   /** Nút ghi nhận kết quả giao (trang không còn tiêu đề) — cạnh trạng thái. */
   actions?: React.ReactNode;
 }) {
@@ -74,11 +70,7 @@ export function ShipmentInfoCard({
           label={F.warehouse}
           value={warehouse ? `${warehouse.code} · ${warehouse.name}` : shipment.warehouseId}
         />
-        <InfoItem label={UI_LABELS.shipping.load.modeLabel} value={L.mode[shipment.deliveryMode]} />
-        <InfoItem
-          label={F.cod}
-          value={codLabel(shipment.codAmount, shipment.currency ?? data.currency)}
-        />
+        <InfoItem label={L.carrierCard} value={shipment.carrierName ?? F.carrierNone} />
         <InfoItem
           label={L.onLoad}
           value={
@@ -101,9 +93,6 @@ export function ShipmentInfoCard({
         {shipment.failureReason && (
           <InfoItem label={L.failureReason} value={failureLabel(shipment.failureReason)} />
         )}
-      </div>
-      <div className="mt-4 max-w-sm">
-        <ShipmentCarrier shipment={shipment} canAssign={canAssign} />
       </div>
       {data.failureNote && (
         <p className="text-ink-secondary mt-3 text-[0.8125rem]">

@@ -3,10 +3,13 @@
 import { cn } from "cn";
 import {
   ArrowRightLeft,
+  Ban,
+  Banknote,
   Building2,
   BellRing,
   Boxes,
   CalendarClock,
+  ClipboardCheck,
   ClipboardList,
   Factory,
   Database,
@@ -27,15 +30,19 @@ import {
   PackageOpen,
   PackagePlus,
   Palette,
+  Handshake,
   PanelLeftClose,
   PanelLeftOpen,
-  Receipt,
+  ReceiptText,
   Search as SearchIcon,
   ShieldCheck,
   ShieldAlert,
   UserCog,
   ShoppingBag,
+  Settings,
   ShoppingCart,
+  TableProperties,
+  PackageX,
   SlidersHorizontal,
   SquareKanban,
   Tags,
@@ -52,6 +59,8 @@ import { useMemo, useState } from "react";
 import {
   ADMIN_ROUTES,
   ATTRIBUTE_PERMISSIONS,
+  CANCELLATION_REQUEST_LABELS,
+  CANCELLATION_REQUEST_PERMISSIONS,
   CUSTOMER_PERMISSIONS,
   CREDIT_HOLD_PERMISSIONS,
   CUSTOMER_PRICE_PERMISSIONS,
@@ -75,6 +84,7 @@ import {
   SAMPLE_REQUEST_PERMISSIONS,
   PUT_BACK_LABELS,
   SHIPMENT_PERMISSIONS,
+  STOCK_PACKAGE_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
   TRANSFER_PERMISSIONS,
   TRIAL_LABELS,
@@ -83,7 +93,23 @@ import {
   WAREHOUSE_LOCATION_PERMISSIONS,
   WAREHOUSE_PERMISSIONS,
 } from "@/constants";
+import { CYCLE_COUNT_LABELS, CYCLE_COUNT_ROUTES } from "@/constants/cycle-count";
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
+import { CYCLE_COUNT_PERMISSIONS } from "@/constants/permissions";
+import { QUARANTINE_LABELS } from "@/constants/quarantine";
+import {
+  EINVOICE_PERMISSIONS,
+  EINVOICE_ROUTES,
+  EINVOICE_SETTINGS_PERMISSIONS,
+} from "@/constants/einvoice";
+import { EINVOICE_LABELS } from "@/constants/labels-einvoice";
+import { PAYMENT_LABELS } from "@/constants/labels-payment";
+import {
+  PAYMENT_INSTALLMENT_PERMISSIONS,
+  PAYMENT_RECEIPT_PERMISSIONS,
+  PAYMENT_REFUND_PERMISSIONS,
+  PAYMENT_ROUTES,
+} from "@/constants/payment";
 
 import { NotificationBell } from "@/features/notification";
 import { warehouseBreadcrumbTail } from "@/features/warehouse-map/components/workspace/WarehouseCrumb";
@@ -92,7 +118,7 @@ import { WarehouseNavPanel } from "@/features/warehouse-map/components/workspace
 import { usePermissionChecker } from "@/lib/auth/components/Can";
 import { useAppStore } from "@/lib/store/use-app-store";
 import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
-import { invoices, purchaseOrders, putawayTasks } from "@/lib/mock-data";
+import { purchaseOrders, putawayTasks } from "@/lib/mock-data";
 import { useIsMock } from "@/providers/app-providers";
 
 import { SearchBar } from "@/components/shared/SearchBar";
@@ -121,7 +147,6 @@ import type { PermissionCode } from "@/lib/auth/me-permissions";
 
 const WARNING_STATUSES: Record<string, string[]> = {
   "/admin/purchase-orders": ["Pending Approval"],
-  "/admin/invoices": ["Exception", "Disputed"],
   "/admin/putaway": ["On Hold"],
 };
 
@@ -129,9 +154,6 @@ function computeWarningCounts(): Record<string, number> {
   const counts: Record<string, number> = {};
   counts["/admin/purchase-orders"] = purchaseOrders.filter((po) =>
     WARNING_STATUSES["/admin/purchase-orders"]!.includes(po.status),
-  ).length;
-  counts["/admin/invoices"] = invoices.filter((inv) =>
-    WARNING_STATUSES["/admin/invoices"]!.includes(inv.status),
   ).length;
   counts["/admin/putaway"] = putawayTasks.filter((pt) =>
     WARNING_STATUSES["/admin/putaway"]!.includes(pt.status),
@@ -248,13 +270,6 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: ShoppingCart,
         permission: PO_PERMISSIONS.viewPage,
       },
-      {
-        label: "Hoá đơn NCC",
-        href: "/admin/invoices",
-        icon: Receipt,
-        // BE chưa có API hoá đơn NCC (`/invoices`) — màn chạy trên dữ liệu mẫu
-        mockOnly: true,
-      },
     ],
   },
   {
@@ -313,10 +328,24 @@ export const NAV_GROUPS: NavGroup[] = [
         permission: INVENTORY_PERMISSIONS.stockUpdate,
       },
       {
+        label: CYCLE_COUNT_LABELS.title,
+        href: CYCLE_COUNT_ROUTES.list,
+        icon: ClipboardCheck,
+        // BE CycleCountController: resource inventory-cycle-counts (NV kho đếm, quản lý kho duyệt / đếm lại)
+        permission: CYCLE_COUNT_PERMISSIONS.viewPage,
+      },
+      {
         label: "Điều chỉnh tồn",
         href: INVENTORY_ROUTES.adjustments,
         icon: SlidersHorizontal,
         permission: INVENTORY_PERMISSIONS.adjustmentViewPage,
+      },
+      {
+        label: QUARANTINE_LABELS.title,
+        href: INVENTORY_ROUTES.quarantine,
+        icon: PackageX,
+        // Chỉ Quản lý kho cách ly / gỡ cách ly (docs 20 BR-21): StockPackageController UPDATE
+        permission: STOCK_PACKAGE_PERMISSIONS.update,
       },
       {
         label: "Lịch sử biến động",
@@ -377,6 +406,53 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    // Kế toán: đợt thanh toán của hợp đồng đã ký → phiếu thu theo sao kê → hoàn tiền (docs 15)
+    title: PAYMENT_LABELS.navGroup,
+    icon: Banknote,
+    items: [
+      {
+        label: PAYMENT_LABELS.installments.navLabel,
+        href: PAYMENT_ROUTES.installments.list,
+        icon: CalendarClock,
+        // BE `payment-installments` (route `/payment/installments`): VIEW_PAGE mở trang
+        permission: PAYMENT_INSTALLMENT_PERMISSIONS.viewPage,
+      },
+      {
+        label: PAYMENT_LABELS.receipts.navLabel,
+        href: PAYMENT_ROUTES.receipts.list,
+        icon: ReceiptText,
+        permission: PAYMENT_RECEIPT_PERMISSIONS.viewPage,
+      },
+      {
+        label: PAYMENT_LABELS.refunds.navLabel,
+        href: PAYMENT_ROUTES.refunds.list,
+        icon: Undo2,
+        permission: PAYMENT_REFUND_PERMISSIONS.viewPage,
+      },
+      {
+        // Hoá đơn VAT điện tử theo lần giao (docs 21) — BE `einvoices` (route `/invoicing/einvoices`)
+        label: EINVOICE_LABELS.list.navLabel,
+        href: EINVOICE_ROUTES.list,
+        icon: FileText,
+        permission: EINVOICE_PERMISSIONS.viewPage,
+      },
+      {
+        // Bảng kê hoá đơn đã phát hành theo kỳ, xuất CSV cho phần mềm kế toán (docs 21)
+        label: "Bảng kê hoá đơn",
+        href: EINVOICE_ROUTES.register,
+        icon: TableProperties,
+        permission: EINVOICE_PERMISSIONS.viewPage,
+      },
+      {
+        // Cấu hình nhà cung cấp hoá đơn điện tử (docs 21 BR-10) — `einvoice-settings` không có VIEW_PAGE
+        label: "Cấu hình hoá đơn",
+        href: EINVOICE_ROUTES.settings,
+        icon: Settings,
+        permission: EINVOICE_SETTINGS_PERMISSIONS.read,
+      },
+    ],
+  },
+  {
     // Xưởng in: prepress → xuất phôi → in → QC → bàn giao đóng gói (SCRUM-406..419, 442)
     title: "Sản xuất",
     icon: Factory,
@@ -413,6 +489,14 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: ShieldAlert,
         permission: CREDIT_HOLD_PERMISSIONS.viewPage,
       },
+      // Hàng đợi yêu cầu huỷ của khách: resource `sales-order-cancellations` không có VIEW_PAGE (chỉ READ / UPDATE) nên
+      // gate bằng READ — seed BE: SALES_STAFF + SYSTEM_ADMIN.
+      {
+        label: CANCELLATION_REQUEST_LABELS.title,
+        href: ADMIN_ROUTES.orders.cancellationRequests,
+        icon: Ban,
+        permission: CANCELLATION_REQUEST_PERMISSIONS.read,
+      },
       {
         label: "Lấy hàng",
         href: ADMIN_ROUTES.picking.list,
@@ -420,7 +504,7 @@ export const NAV_GROUPS: NavGroup[] = [
         permission: FULFILLMENT_PICK_PERMISSIONS.viewPage,
       },
       {
-        label: "Đóng gói",
+        label: UI_LABELS.cartonCheck.navTitle,
         href: ADMIN_ROUTES.packing.list,
         icon: PackageCheck,
         permission: FULFILLMENT_PACKAGE_PERMISSIONS.viewPage,
@@ -464,6 +548,13 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: Truck,
         permission: SHIPMENT_PERMISSIONS.viewPage,
       },
+      {
+        label: UI_LABELS.shipping.waybill.carriers.title,
+        href: ADMIN_ROUTES.carriers,
+        icon: Handshake,
+        // Danh mục hãng: xem là `fulfillment-shipments:READ`, thêm / sửa là `fulfillment-carriers:UPDATE` (resource này không có VIEW_PAGE)
+        permission: SHIPMENT_PERMISSIONS.viewPage,
+      },
     ],
   },
 ];
@@ -497,6 +588,7 @@ const DETAIL_LABEL_BY_ROUTE: Record<string, string> = {
   [INVENTORY_ROUTES.createAdjustment]: INVENTORY_LABELS.createAdjustment,
   "/admin/transfers/create": "Tạo lệnh chuyển kho",
   [ADMIN_ROUTES.loadPlans.create]: UI_LABELS.loadPlan.create,
+  [ADMIN_ROUTES.loads.waybillImport]: UI_LABELS.shipping.waybill.import.title,
 };
 
 /** Required capabilities fail closed; unassigned items remain visible; mock-only items need mock mode. */

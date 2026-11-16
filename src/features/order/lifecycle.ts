@@ -41,7 +41,11 @@ export type {
 function outcomeAllowed(outcome: OrderActionOutcome, status: OrderStatus): boolean {
   switch (outcome.kind) {
     case "to":
-      return outcome.statuses.every((target) => canTransition(ORDER_TRANSITIONS, status, target));
+      // `stayIn`: thao tác để nguyên đơn ở trạng thái này (release đợt giao sau) — không có cạnh nào để kiểm
+      return (
+        outcome.stayIn?.includes(status) ||
+        outcome.statuses.every((target) => canTransition(ORDER_TRANSITIONS, status, target))
+      );
     case "follow-shipments":
       return outcome.possible.every((target) => canTransition(ORDER_TRANSITIONS, status, target));
     case "restore-before-hold":

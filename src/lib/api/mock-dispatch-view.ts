@@ -8,11 +8,8 @@ import {
   ftlDetailFields,
   ftlManifestFields,
   ftlRowFields,
-  modeOf,
-  parcelExtras,
   parcelsOn,
 } from "./mock-dispatch-ftl-view";
-import { codTotalOf } from "./mock-dispatch-store";
 
 import type {
   DispatchState,
@@ -22,9 +19,9 @@ import type {
   MockShipment,
 } from "./mock-dispatch-store";
 
-const CURRENCY = "VND";
 const round = (value: number) => Math.round(value * 100) / 100;
 
+/** BE `CarrierResponse`: khoá bí mật không bao giờ đi ra — chỉ cờ `*Configured`. */
 export const carrierView = (carrier: MockCarrier) => ({
   carrierId: carrier.carrierId,
   code: carrier.code,
@@ -32,6 +29,13 @@ export const carrierView = (carrier: MockCarrier) => ({
   contactName: carrier.contactName,
   contactPhone: carrier.contactPhone,
   status: carrier.status,
+  connection: {
+    connectionType: carrier.connectionType,
+    webhookEnabled: carrier.connectionType !== "MANUAL",
+    webhookSecretConfigured: carrier.webhookSecretConfigured,
+    webhookAuthValueConfigured: carrier.connectionType === "API_BOOKING",
+    apiKeyConfigured: carrier.connectionType === "API_BOOKING",
+  },
   version: carrier.version,
 });
 
@@ -48,14 +52,9 @@ export function shipmentRowView(state: DispatchState, shipment: MockShipment) {
     orderId: shipment.orderId,
     orderNumber: shipment.orderNumber,
     taskId: shipment.taskId,
-    currency: CURRENCY,
     warehouseId: shipment.warehouseId,
     status: shipment.status,
-    deliveryMode: load?.ftl ? "FULL_TRUCKLOAD" : "PARCEL",
     packageCount: shipment.parcels.length,
-    // Số hãng thu: của nhãn tới khi bàn giao chốt (docs 09 BR-04)
-    codAmount:
-      shipment.status === "READY_TO_DISPATCH" ? shipment.labelCodAmount : shipment.codAmount,
     carrierId: shipment.carrierId,
     carrierName: carrierOf(state, shipment.carrierId)?.name,
     loadId: load?.loadId,
@@ -78,7 +77,6 @@ export function shipmentDetailView(state: DispatchState, shipment: MockShipment)
       packageId: parcel.packageId,
       labelCode: parcel.labelCode,
       status: "SEALED",
-      ...parcelExtras(parcel),
       weightKg: parcel.weightKg,
       lengthCm: parcel.lengthCm,
       widthCm: parcel.widthCm,
@@ -108,7 +106,6 @@ export function loadRowView(state: DispatchState, load: MockLoad) {
     loadId: load.loadId,
     code: load.code,
     warehouseId: load.warehouseId,
-    mode: modeOf(load),
     status: load.status,
     carrierId: load.carrierId,
     carrierName: carrier?.name,
@@ -116,7 +113,6 @@ export function loadRowView(state: DispatchState, load: MockLoad) {
     driverName: load.driverName,
     shipmentCount: members.length,
     packageCount: members.reduce((sum, s) => sum + loadedCount(load, s), 0),
-    codTotal: codTotalOf(state, load),
     loadingStartedAt: load.loadingStartedAt,
     dispatchedAt: load.dispatchedAt,
     version: load.version,
@@ -124,7 +120,12 @@ export function loadRowView(state: DispatchState, load: MockLoad) {
   };
 }
 
-export function loadDetailView(state: DispatchState, load: MockLoad) {
+/** `warnings`: đơn chưa được phép đi — BE chỉ trả trong câu trả lời của "bắt đầu xếp" (`handoverWarnings`, bỏ khi rỗng). */
+export function loadDetailView(
+  state: DispatchState,
+  load: MockLoad,
+  warnings: readonly HandoverWarningView[] = [],
+) {
   const members = membersOf(state, load);
   const carrier = carrierOf(state, load.carrierId);
   const expected = members.reduce((sum, s) => sum + parcelsOn(load, s).length, 0);
@@ -133,7 +134,6 @@ export function loadDetailView(state: DispatchState, load: MockLoad) {
     loadId: load.loadId,
     code: load.code,
     warehouseId: load.warehouseId,
-    mode: modeOf(load),
     status: load.status,
     carrierId: load.carrierId,
     carrierCode: carrier?.code,
@@ -152,28 +152,21 @@ export function loadDetailView(state: DispatchState, load: MockLoad) {
     shipmentCount: members.length,
     expectedPackageCount: expected,
     loadedPackageCount: loaded,
-    codTotal: codTotalOf(state, load),
-    currency: CURRENCY,
     version: load.version,
-    ...ftlDetailFields(load),
+    ...ftlDetailFields(load, carrier),
+    handoverWarnings: warnings.length > 0 ? warnings : undefined,
     shipments: members.map((shipment) => ({
-      // Lệnh chuyển kho (BE PR #164): không có lô giao / đơn / task, `code` là số lệnh, chỉ có `transferOrderId`
-      shipmentId: shipment.transferOrderId ? undefined : shipment.shipmentId,
+      shipmentId: shipment.shipmentId,
       code: shipment.code,
-      orderId: shipment.transferOrderId ? undefined : shipment.orderId,
-      orderNumber: shipment.transferOrderId ? undefined : shipment.orderNumber,
-      taskId: shipment.transferOrderId ? undefined : shipment.taskId,
-      transferOrderId: shipment.transferOrderId,
-      currency: CURRENCY,
+      orderId: shipment.orderId,
+      orderNumber: shipment.orderNumber,
+      taskId: shipment.taskId,
       status: shipment.status,
       packageCount: parcelsOn(load, shipment).length,
       loadedCount: loadedCount(load, shipment),
-      labelCodAmount: shipment.labelCodAmount,
-      codAmount: load.status === "DISPATCHED" ? shipment.codAmount : null,
       packages: parcelsOn(load, shipment).map((parcel) => {
         const scan = load.loaded.get(parcel.packageId);
         return {
-          ...parcelExtras(parcel),
           packageId: parcel.packageId,
           labelCode: parcel.labelCode,
           weightKg: parcel.weightKg,
@@ -193,7 +186,6 @@ const parcelView = (load: MockLoad, parcel: MockParcel) => ({
   widthCm: parcel.widthCm,
   heightCm: parcel.heightCm,
   loaded: load.loaded.has(parcel.packageId),
-  ...parcelExtras(parcel),
 });
 
 export function manifestView(state: DispatchState, load: MockLoad) {
@@ -220,15 +212,12 @@ export function manifestView(state: DispatchState, load: MockLoad) {
     dispatchedByName: dispatched ? "Nhân viên kho (mock)" : null,
     shipments: members.map((shipment) => ({
       shipmentCode: shipment.code,
-      orderNumber: shipment.transferOrderId ? undefined : shipment.orderNumber,
-      transferOrderId: shipment.transferOrderId,
+      orderNumber: shipment.orderNumber,
       recipientName: shipment.recipient.name,
       recipientPhone: shipment.recipient.phone,
       deliveryAddress: shipment.recipient.address,
       packageCount: parcelsOn(load, shipment).length,
       weightKg: round(parcelsOn(load, shipment).reduce((sum, p) => sum + p.weightKg, 0)),
-      codAmount: dispatched ? shipment.codAmount : shipment.labelCodAmount,
-      codChangedSinceLabel: dispatched && shipment.codAmount !== shipment.labelCodAmount,
       packages: parcelsOn(load, shipment).map((parcel) => parcelView(load, parcel)),
     })),
     shipmentCount: members.length,
@@ -236,9 +225,38 @@ export function manifestView(state: DispatchState, load: MockLoad) {
     totalWeightKg: round(
       members.reduce((sum, s) => sum + parcelsOn(load, s).reduce((w, p) => w + p.weightKg, 0), 0),
     ),
-    codTotal: codTotalOf(state, load),
-    currency: CURRENCY,
     printedAt: new Date().toISOString(),
     ...ftlManifestFields(load),
   };
+}
+
+/** BE `LoadResponse.HandoverWarning` / một phần tử của `details.orders` (09 BR-18). */
+export interface HandoverWarningView {
+  orderId: string;
+  orderNumber: string;
+  reasonCode: string;
+  amountDue: number;
+  currency: string;
+  deliveryBatchSeq?: number;
+  windowStart?: string;
+}
+
+/** Các đơn trên xe mà BE sẽ chặn bàn giao (mỗi lô là một đơn; xe chở nhiều lô cùng đơn chỉ nêu đơn một lần). */
+export function handoverBlocksOf(state: DispatchState, load: MockLoad): HandoverWarningView[] {
+  const seen = new Set<string>();
+  return membersOf(state, load).flatMap((shipment) => {
+    if (!shipment.block || seen.has(shipment.orderId)) return [];
+    seen.add(shipment.orderId);
+    return [
+      {
+        orderId: shipment.orderId,
+        orderNumber: shipment.orderNumber,
+        reasonCode: shipment.block.reasonCode,
+        amountDue: shipment.block.amountDue,
+        currency: "VND",
+        deliveryBatchSeq: shipment.block.deliveryBatchSeq,
+        windowStart: shipment.block.windowStart,
+      },
+    ];
+  });
 }

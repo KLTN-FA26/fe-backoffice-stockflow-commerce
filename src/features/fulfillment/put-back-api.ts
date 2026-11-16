@@ -1,5 +1,5 @@
 /**
- * Trả hàng về kệ — API layer, khớp BE `FulfillmentController` (SCRUM-275). Parse tại biên; thao tác ghi gửi
+ * Trả hàng về kệ — API layer, khớp BE `FulfillmentController` (docs 07 §4.5). Parse tại biên; thao tác ghi gửi
  * `Idempotency-Key` (`lib/api/idempotency`).
  */
 
@@ -20,7 +20,8 @@ export interface ListPutBackParams {
 }
 
 /**
- * Hàng đợi trả về kệ, cũ nhất trước (BE sắp `pickedAt`). Một trang tối đa 200 dòng (Pages.MAX_PAGE_SIZE) —
+ * Hàng đợi trả về kệ, cũ nhất trước (BE sắp `pickedAt`; docs 07 §4.5 bước 13 nói "task huỷ sớm nhất" — BE chưa
+ * có mốc huỷ nên sắp theo lúc lấy). Một trang tối đa 200 dòng (Pages.MAX_PAGE_SIZE) —
  * màn tìm / lọc trên trang này; nhiều hơn thì màn báo đang hiện bao nhiêu.
  */
 export async function listPutBacks(
@@ -35,18 +36,20 @@ export async function listPutBacks(
 }
 
 /**
- * Trả mọi hàng một dòng đã lấy về một bin đang hoạt động của kho task (thành tồn khả dụng). Bất kỳ ai có
- * `fulfillment-picking:UPDATE` của kho đó làm được; gửi lại cho dòng đã trả → 200 như cũ.
+ * Cất lại nguyên thùng của một dòng về một bin đang hoạt động của kho task (thành tồn khả dụng) — hoặc, với thùng
+ * hư hỏng bị loại ở trạm kiểm (`quarantine`), vào khu cách ly. Gửi `{locationCode, lpn}`: quét đúng LPN của dòng để
+ * xác nhận. Bất kỳ ai có `fulfillment-picking:UPDATE` của kho đó làm được; gửi lại cho dòng đã trả → 200 như cũ.
  */
 export async function putBackLine({
   taskId,
   lineId,
   locationCode,
+  lpn,
   idempotencyKey,
 }: PutBackLineInput): Promise<PickLine> {
   const { data } = await api.post<unknown>(
     `/fulfillment/tasks/${encodeURIComponent(taskId)}/pick-lines/${encodeURIComponent(lineId)}/put-back`,
-    { locationCode },
+    { locationCode, lpn },
     idempotencyRequestConfig(idempotencyKey),
   );
   return toPickLine(bePickLineSchema.parse(data));

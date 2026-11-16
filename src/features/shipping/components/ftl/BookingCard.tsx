@@ -21,6 +21,8 @@ const PRIMARY =
 
 export type BookingDialogKind = "book" | "cancelBooking" | "startLoading";
 
+const CONNECTION = UI_LABELS.shipping.waybill.carriers.connectionType;
+
 function hint(load: Load): string {
   if (load.status === LOAD_STATUS.PLANNED) return B.hintPlanned;
   if (load.status === LOAD_STATUS.VEHICLE_BOOKED) return B.hintBooked;
@@ -71,6 +73,9 @@ export function BookingCard({
         <InfoItem label={F.vehiclePlate} value={load.vehiclePlate ?? "—"} mono />
         <InfoItem label={F.driverName} value={load.driverName ?? "—"} />
         <InfoItem label={F.driverPhone} value={load.driverPhone ?? "—"} mono />
+        {load.carrierConnectionType && (
+          <InfoItem label={B.connection} value={CONNECTION[load.carrierConnectionType]} />
+        )}
         {booked && load.bookedAt && (
           <InfoItem label={B.bookedAt} value={formatDateTime(load.bookedAt)} />
         )}

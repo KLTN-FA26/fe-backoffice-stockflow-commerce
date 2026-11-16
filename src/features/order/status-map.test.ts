@@ -24,4 +24,18 @@ describe("order status-map — đọc dung thứ, gửi chỉ mã đã biết", 
       expect(STATUS_LABEL_VI[status]).toBe("Không rõ");
     }
   });
+
+  // QA F1 (docs 17 §5.1/§5.2): AWAITING_STOCK / PENDING_CONTRACT từng bị coi là "Không rõ"
+  it("AWAITING_STOCK / PENDING_CONTRACT là trạng thái đã biết, có nhãn tiếng Việt, không phải UNKNOWN", () => {
+    expect(mapBackendOrderStatus("AWAITING_STOCK")).toBe("Awaiting Stock");
+    expect(mapBackendOrderStatus("PENDING_CONTRACT")).toBe("Pending Contract");
+    expect(STATUS_LABEL_VI["Awaiting Stock"]).toBe("Đang chờ hàng");
+    expect(STATUS_LABEL_VI["Pending Contract"]).toBe("Chờ ký hợp đồng");
+    expect(toneOf("Awaiting Stock")).toBe("warning");
+    expect(toneOf("Pending Contract")).toBe("warning");
+    expect(toBackendOrderStatuses(["Awaiting Stock", "Pending Contract"])).toEqual([
+      "PENDING_CONTRACT",
+      "AWAITING_STOCK",
+    ]);
+  });
 });

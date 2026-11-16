@@ -3,16 +3,16 @@ import { z } from "zod";
 import {
   INVENTORY_LIMITS,
   INVENTORY_MESSAGES,
+  STOCK_ADJUSTMENT_DIRECTIONS,
   STOCK_ADJUSTMENT_REASON,
-  STOCK_ADJUSTMENT_REASONS,
+  STOCK_ADJUSTMENT_REQUEST_REASONS,
   STOCK_MOVEMENT_TYPES,
 } from "@/constants/inventory";
 import { STOCK_ADJUSTMENT_STATUSES } from "@/constants/statuses";
 
 import { beUuid, requiredString } from "@/lib/validation/primitives";
-import { skuSchema } from "@/lib/validation/sku";
 
-// Source: backend develop 0f18f24 StockAdjustmentResponse; nullable fields
+// Source: backend develop df34c338 StockAdjustmentResponse (+ stockPackageId, cycleCountLineId); nullable fields
 // may be omitted by the backend Jackson NON_NULL policy. `reason` and `status`
 // are Strings on the wire: read them open so a newer code does not invalidate
 // the response. Write-side enums stay strict in adjustmentCreateInput/list input.
@@ -34,6 +34,9 @@ export const stockAdjustmentDto = z.object({
   postedAt: z.iso.datetime().nullish(),
   withdrawnAt: z.iso.datetime().nullish(),
   version: z.number().int().nonnegative(),
+  // Docs 20 BR-14: một phiếu điều chỉnh đúng một thùng. Có `cycleCountLineId` khi phiếu do kiểm kê sinh ra.
+  stockPackageId: beUuid.nullish(),
+  cycleCountLineId: beUuid.nullish(),
 });
 
 // Source: backend develop 0f18f24 StockMovementResponse. `type`, `status`,
@@ -56,40 +59,19 @@ export const stockMovementDto = z.object({
   occurredAt: z.iso.datetime(),
 });
 
+// RequestAdjustmentRequest (docs 20 §4.3, BR-04, BR-14): một thùng theo LPN, chiều, lý do — không có số lượng.
+// COUNT_VARIANCE không có trong danh sách: chỉ phiếu kiểm kê được tạo (BE từ chối 400 VALIDATION_FAILED).
 export const adjustmentCreateInput = z
   .object({
-    locationCode: requiredString(INVENTORY_MESSAGES.required).max(INVENTORY_LIMITS.locationLength),
-    // BE `@ValidSku` (common.domain.Sku): 1–64, chữ/số/'.'/'_'/'-' — xem lib/validation/sku.ts.
-    sku: skuSchema({
-      required: INVENTORY_MESSAGES.required,
-      format: INVENTORY_MESSAGES.invalidSku,
-    }),
-    lotNumber: z.string().trim().max(INVENTORY_LIMITS.lotLength).optional(),
-    quantityDelta: z
-      .number()
-      .int()
-      .min(-INVENTORY_LIMITS.delta)
-      .max(INVENTORY_LIMITS.delta)
-      // StockAdjustment constructor (SCRUM-424): every adjustment changes quantity.
-      .refine((delta) => delta !== 0, INVENTORY_MESSAGES.nonzeroDelta),
-    reason: z.enum(STOCK_ADJUSTMENT_REASONS),
+    lpn: requiredString(INVENTORY_MESSAGES.required)
+      .max(INVENTORY_LIMITS.lpnLength)
+      .transform((value) => value.toUpperCase()),
+    direction: z.enum(STOCK_ADJUSTMENT_DIRECTIONS, { error: INVENTORY_MESSAGES.required }),
+    reason: z.enum(STOCK_ADJUSTMENT_REQUEST_REASONS, { error: INVENTORY_MESSAGES.required }),
     note: z.string().trim().max(INVENTORY_LIMITS.noteLength).optional(),
   })
   .superRefine((value, context) => {
-    // StockAdjustment constructor / ck_stock_adjustment_writes_down (SCRUM-424).
-    if (
-      [STOCK_ADJUSTMENT_REASON.SCRAP, STOCK_ADJUSTMENT_REASON.SAMPLE].some(
-        (reason) => reason === value.reason,
-      ) &&
-      value.quantityDelta > 0
-    ) {
-      context.addIssue({
-        code: "custom",
-        path: ["quantityDelta"],
-        message: INVENTORY_MESSAGES.writeDown,
-      });
-    }
-    // StockAdjustment constructor (SCRUM-424): OTHER must carry an explanation.
+    // BR-04 (docs 20): lý do OTHER bắt buộc ghi chú.
     if (value.reason === STOCK_ADJUSTMENT_REASON.OTHER && !value.note) {
       context.addIssue({ code: "custom", path: ["note"], message: INVENTORY_MESSAGES.otherNote });
     }

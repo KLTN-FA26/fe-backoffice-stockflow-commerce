@@ -4,10 +4,13 @@ import { QUERY_TIMES } from "@/lib/api/query-client";
 import { createDetailQuery, createListQuery, createQueryKeys } from "@/lib/api/query-factory";
 
 import { getLoad, getManifest, listLoads } from "./api";
-import { getShipment, listCarriers, listShipments } from "./shipment-api";
+import { listCarriers } from "./carrier-api";
+import { getShipment, listShipments } from "./shipment-api";
+import { getWaybillHistory } from "./waybill-api";
 
 import type { ListLoadParams } from "./api";
-import type { ListCarrierParams, ListShipmentParams } from "./shipment-api";
+import type { ListCarrierParams } from "./carrier-api";
+import type { ListShipmentParams } from "./shipment-api";
 import type { Carrier, Load, LoadRow, Shipment, ShipmentRow } from "./types";
 
 export const loadKeys = createQueryKeys<ListLoadParams>(SHARED_QUERY_ROOTS.fulfillmentLoads);
@@ -15,6 +18,8 @@ export const shipmentKeys = createQueryKeys<ListShipmentParams>("fulfillment-shi
 export const carrierKeys = createQueryKeys<ListCarrierParams>("fulfillment-carriers");
 
 export const manifestKey = (loadId: string) => [...loadKeys.all, "manifest", loadId] as const;
+export const waybillHistoryKey = (loadId: string) =>
+  [...loadKeys.all, "waybill-history", loadId] as const;
 
 export const useLoads = createListQuery<LoadRow, ListLoadParams>(loadKeys, listLoads);
 
@@ -48,7 +53,25 @@ export const useShipments = createListQuery<ShipmentRow, ListShipmentParams>(
 
 export const useShipment = createDetailQuery<Shipment>(shipmentKeys, getShipment);
 
-/** Hãng đang dùng (BE `status=ACTIVE`) để chọn cho lô / chuyến; một trang 200 dòng là đủ danh mục hãng. */
+/** Danh mục hãng (màn danh mục): lọc theo trạng thái / từ khoá, phân trang ở máy chủ. */
+export const useCarriers = createListQuery<Carrier, ListCarrierParams>(carrierKeys, listCarriers, {
+  ...QUERY_TIMES.master,
+});
+
+/**
+ * Lịch sử mã vận đơn của chuyến (docs 09 §4.4, BR-24). Chỉ tải khi người dùng mở phần lịch sử (`enabled`); khoá nằm
+ * dưới `loadKeys.all` nên mọi thao tác làm mới chuyến cũng làm mới lịch sử.
+ */
+export function useWaybillHistory(loadId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: waybillHistoryKey(loadId),
+    queryFn: ({ signal }) => getWaybillHistory(loadId, signal),
+    enabled: enabled && !!loadId,
+    ...QUERY_TIMES.detail,
+  });
+}
+
+/** Hãng đang dùng (BE `status=ACTIVE`) để chọn cho chuyến; một trang 200 dòng là đủ danh mục hãng. */
 export const useActiveCarriers = createListQuery<Carrier, ListCarrierParams>(
   carrierKeys,
   (params, signal) => listCarriers({ ...params, status: "ACTIVE" }, signal),

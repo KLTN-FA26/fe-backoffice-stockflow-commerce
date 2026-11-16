@@ -2,11 +2,16 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { PICK_LINE_ERROR_MESSAGES as LE, PICK_LINE_LABELS as L, UI_LABELS } from "@/constants";
+import {
+  FULFILLMENT_FIELD_MESSAGES as MSG_FIELD,
+  PICK_LINE_ERROR_MESSAGES as LE,
+  PICK_LINE_LABELS as L,
+  UI_LABELS,
+} from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { toast } from "@/components/shared/Toast";
 
-import { PICK_LINE_1, apiPickLines } from "../__fixtures__/pick-lines";
+import { LPN_1, LPN_2, PICK_LINE_1, apiPickLines } from "../__fixtures__/pick-lines";
 import { linePath, renderPickingDetail as renderDetail } from "../__fixtures__/picking-detail";
 import {
   IDENTITIES,
@@ -27,13 +32,13 @@ const PATH = `/fulfillment/tasks/${TASK_ID}`;
 
 const confirmPath = (lineId: string) => linePath(lineId, "confirmation");
 /** Dòng lấy hàng theo trạng thái (cùng thứ tự fixture) — PICKED thì đủ SL. */
-const linesWith = (statuses: ("OPEN" | "PICKED" | "SHORT" | "CANCELLED")[]) =>
+const linesWith = (statuses: ("OPEN" | "STAGED" | "PICKED" | "SHORT" | "CANCELLED")[]) =>
   apiPickLines().map((line, index) => {
     const status = statuses[index] ?? line.status;
     return {
       ...line,
       status,
-      pickedQty: status === "PICKED" ? line.allocatedQty : 0,
+      pickedQty: status === "PICKED" || status === "STAGED" ? line.allocatedQty : 0,
       shortQty: status === "SHORT" || status === "CANCELLED" ? line.allocatedQty : 0,
     };
   });
@@ -101,7 +106,7 @@ describe("PickingDetail — action-gating theo trạng thái + quyền + vai tr�
       { lines: [] },
     );
     expect(await screen.findByText(L.linesNotPlanned)).toBeInTheDocument();
-    expect(screen.queryByText(L.printOnly)).toBeNull();
+    expect(screen.queryByText(L.noLines)).toBeNull();
     expect(screen.getByText(L.planLinesFirst)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: action.completePicking })).toBeNull();
     await user.click(screen.getByRole("button", { name: L.planLines }));
@@ -118,7 +123,7 @@ describe("PickingDetail — action-gating theo trạng thái + quyền + vai tr�
     expect(screen.queryByRole("button", { name: L.planLines })).toBeNull();
   });
 
-  it("task đang lấy, đơn chỉ có dòng in → câu 'chỉ có dòng in' và vẫn hoàn tất được", async () => {
+  it("task đang lấy, đơn không còn dòng hàng sẵn để lấy → câu 'chưa có dòng lấy hàng nào' và vẫn hoàn tất được", async () => {
     renderDetail(
       IDENTITIES.warehouseStaff,
       apiTask({
@@ -127,7 +132,7 @@ describe("PickingDetail — action-gating theo trạng thái + quyền + vai tr�
       }),
       { lines: [] },
     );
-    expect(await screen.findByText(L.printOnly)).toBeInTheDocument();
+    expect(await screen.findByText(L.noLines)).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: action.completePicking })).toBeInTheDocument();
   });
 
@@ -258,7 +263,7 @@ describe("PickingDetail — dữ liệu phụ trợ và lỗi", () => {
   });
 });
 
-describe("PickingDetail — xác nhận dòng lấy hàng (SCRUM-267)", () => {
+describe("PickingDetail — xác nhận dòng lấy hàng: quét vị trí + LPN của thùng (docs 07 §4.2, BR-04, BR-10)", () => {
   const picking = () => apiTask({ pickStatus: "PICKING" });
   const keyOf = (call: unknown[]) =>
     (call[2] as { headers?: Record<string, string> } | undefined)?.headers?.["Idempotency-Key"];
@@ -269,25 +274,48 @@ describe("PickingDetail — xác nhận dòng lấy hàng (SCRUM-267)", () => {
   async function fillAndSubmit(
     user: ReturnType<typeof userEvent.setup>,
     location: string,
-    item: string,
-    quantity: string,
+    lpn: string,
   ) {
     await pickInputComboboxOption(user, L.location, location);
-    await pickInputComboboxOption(user, L.item, item);
-    const qty = screen.getByLabelText(L.quantity);
-    await user.clear(qty);
-    await user.type(qty, `${quantity}{Enter}`);
+    const input = screen.getByLabelText(L.lpn);
+    await user.clear(input);
+    await user.type(input, `${lpn}{Enter}`);
   }
 
-  it("người được gán: chọn vị trí + mã hàng qua combobox, nhập SL → POST confirmation đúng body + Idempotency-Key", async () => {
+  it("thẻ xác nhận nói rõ bin cần đến và LPN cần lấy; KHÔNG có ô số lượng / mã hàng", async () => {
+    renderDetail(IDENTITIES.warehouseStaff, picking());
+    const card = (await screen.findByText(L.confirmTitle(1))).closest("section") as HTMLElement;
+    expect(within(card).getByText(L.targetLocation)).toBeInTheDocument();
+    expect(within(card).getByText("HN-A01-01-01-A")).toBeInTheDocument();
+    expect(within(card).getByText(L.targetLpn)).toBeInTheDocument();
+    expect(within(card).getByText(LPN_1)).toBeInTheDocument();
+    expect(within(card).queryByLabelText("Số lượng")).toBeNull();
+    expect(within(card).queryByLabelText("Mã hàng")).toBeNull();
+  });
+
+  it("bảng dòng có cột LPN, sắp theo mã vị trí rồi SKU", async () => {
+    renderDetail(IDENTITIES.warehouseStaff, picking());
+    const table = await screen.findByRole("table", { name: L.sectionTitle });
+    expect(within(table).getByRole("columnheader", { name: L.column.lpn })).toBeInTheDocument();
+    const rows = within(table).getAllByRole("row").slice(1);
+    expect(rows.map((row) => within(row).getAllByRole("cell")[1]?.textContent)).toEqual([
+      "HN-A01-01-01-A",
+      "HN-A01-01-02-A",
+      "HN-A02-02-01-B",
+    ]);
+    expect(within(rows[0] as HTMLElement).getByText(LPN_1)).toBeInTheDocument();
+    expect(within(rows[1] as HTMLElement).getByText(LPN_2)).toBeInTheDocument();
+  });
+
+  it("người được gán: chọn vị trí qua combobox, quét LPN → POST confirmation {locationCode, lpn} + Idempotency-Key", async () => {
     const user = userEvent.setup();
     const { post } = renderDetail(IDENTITIES.warehouseStaff, picking());
     expect(await screen.findByText(L.confirmTitle(1))).toBeInTheDocument();
-    await fillAndSubmit(user, "HN-A01-01-01-A", "TEE-BLK-M", "3");
+    await fillAndSubmit(user, "HN-A01-01-01-A", LPN_1);
     await waitFor(() =>
       expect(post).toHaveBeenCalledWith(
         confirmPath(PICK_LINE_1),
-        { locationCode: "HN-A01-01-01-A", scannedCode: "TEE-BLK-M", quantity: 3 },
+        { locationCode: "HN-A01-01-01-A", lpn: LPN_1 },
         { headers: { "Idempotency-Key": expect.any(String) } },
       ),
     );
@@ -295,7 +323,7 @@ describe("PickingDetail — xác nhận dòng lấy hàng (SCRUM-267)", () => {
     expect(await screen.findByText(L.confirmTitle(2))).toBeInTheDocument();
   });
 
-  it("409 PICK_LOCATION_MISMATCH → lỗi dưới ô Vị trí, giữ ô mã hàng", async () => {
+  it("409 PICK_LOCATION_MISMATCH → lỗi dưới ô Vị trí nêu bin ĐÚNG của dòng, giữ ô LPN", async () => {
     const user = userEvent.setup();
     const { post } = renderDetail(IDENTITIES.warehouseStaff, picking(), {
       confirm: () => {
@@ -303,16 +331,16 @@ describe("PickingDetail — xác nhận dòng lấy hàng (SCRUM-267)", () => {
       },
     });
     await screen.findByText(L.confirmTitle(1));
-    await fillAndSubmit(user, "HN-STAGE-01", "TEE-BLK-M", "3");
+    await fillAndSubmit(user, "HN-STAGE-01", LPN_1);
     expect(await screen.findByText(LE.locationMismatch("HN-A01-01-01-A"))).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: L.location })).toHaveValue("");
-    expect(screen.getByRole("combobox", { name: L.item })).toHaveValue("TEE-BLK-M");
-    // Quét lại vị trí phải rơi vào ô Vị trí, không phải ô Số lượng vừa Enter
+    expect(screen.getByLabelText(L.lpn)).toHaveValue(LPN_1);
+    // Quét lại vị trí phải rơi vào ô Vị trí, không phải ô LPN vừa Enter
     expect(screen.getByRole("combobox", { name: L.location })).toHaveFocus();
     expect(confirmCalls(post)).toHaveLength(1);
   });
 
-  it("409 PICK_ITEM_MISMATCH → lỗi dưới ô Mã hàng, con trỏ về ô Mã hàng", async () => {
+  it("409 PICK_ITEM_MISMATCH (quét SKU / LPN của đơn khác) → lỗi dưới ô LPN nêu LPN ĐÚNG của dòng, xoá ô để quét lại", async () => {
     const user = userEvent.setup();
     renderDetail(IDENTITIES.warehouseStaff, picking(), {
       confirm: () => {
@@ -320,21 +348,20 @@ describe("PickingDetail — xác nhận dòng lấy hàng (SCRUM-267)", () => {
       },
     });
     await screen.findByText(L.confirmTitle(1));
-    await fillAndSubmit(user, "HN-A01-01-01-A", "MUG-WHT", "3");
-    expect(await screen.findByText(LE.itemMismatch("TEE-BLK-M"))).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: L.item })).toHaveFocus();
+    await fillAndSubmit(user, "HN-A01-01-01-A", "LPN-OF-ANOTHER-ORDER");
+    expect(await screen.findByText(LE.itemMismatch(LPN_1))).toBeInTheDocument();
+    expect(screen.getByLabelText(L.lpn)).toHaveFocus();
+    expect(screen.getByLabelText(L.lpn)).toHaveValue("");
   });
 
-  it("SL ít hơn phân bổ không bị FE chặn — BE 409 PICK_QUANTITY_SHORT báo dưới ô Số lượng", async () => {
+  it("LPN trống → FE bắt nhập, không gọi BE", async () => {
     const user = userEvent.setup();
-    renderDetail(IDENTITIES.warehouseStaff, picking(), {
-      confirm: () => {
-        throw apiError("PICK_QUANTITY_SHORT");
-      },
-    });
+    const { post } = renderDetail(IDENTITIES.warehouseStaff, picking());
     await screen.findByText(L.confirmTitle(1));
-    await fillAndSubmit(user, "HN-A01-01-01-A", "TEE-BLK-M", "2");
-    expect(await screen.findByText(LE.quantityShort(3))).toBeInTheDocument();
+    await pickInputComboboxOption(user, L.location, "HN-A01-01-01-A");
+    await user.click(screen.getByRole("button", { name: L.submit }));
+    expect(await screen.findByText(MSG_FIELD.lpnRequired)).toBeInTheDocument();
+    expect(confirmCalls(post)).toHaveLength(0);
   });
 
   it("bấm gửi hai lần khi đang chờ → chỉ một POST", async () => {
@@ -343,13 +370,13 @@ describe("PickingDetail — xác nhận dòng lấy hàng (SCRUM-267)", () => {
       confirm: () => new Promise(() => {}),
     });
     await screen.findByText(L.confirmTitle(1));
-    await fillAndSubmit(user, "HN-A01-01-01-A", "TEE-BLK-M", "3");
+    await fillAndSubmit(user, "HN-A01-01-01-A", LPN_1);
     await user.click(screen.getByRole("button", { name: L.submit }));
-    await user.type(screen.getByLabelText(L.quantity), "{Enter}");
+    await user.type(screen.getByLabelText(L.lpn), "{Enter}");
     expect(confirmCalls(post)).toHaveLength(1);
   });
 
-  it("lỗi mạng rồi gửi lại cùng nội dung → cùng Idempotency-Key; sửa SL → key mới", async () => {
+  it("lỗi mạng rồi gửi lại cùng nội dung → cùng Idempotency-Key; sửa LPN → key mới", async () => {
     const user = userEvent.setup();
     const { post } = renderDetail(IDENTITIES.warehouseStaff, picking(), {
       confirm: () => {
@@ -357,12 +384,12 @@ describe("PickingDetail — xác nhận dòng lấy hàng (SCRUM-267)", () => {
       },
     });
     await screen.findByText(L.confirmTitle(1));
-    await fillAndSubmit(user, "HN-A01-01-01-A", "TEE-BLK-M", "3");
+    await fillAndSubmit(user, "HN-A01-01-01-A", LPN_1);
     expect(await screen.findByText(LE.network)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: L.submit }));
-    const qty = screen.getByLabelText(L.quantity);
-    await user.clear(qty);
-    await user.type(qty, "2{Enter}");
+    const input = screen.getByLabelText(L.lpn);
+    await user.clear(input);
+    await user.type(input, `${LPN_2}{Enter}`);
     await waitFor(() => expect(confirmCalls(post)).toHaveLength(3));
     const calls = confirmCalls(post);
     expect(keyOf(calls[1] as unknown[])).toBe(keyOf(calls[0] as unknown[]));
@@ -380,7 +407,7 @@ describe("PickingDetail — xác nhận dòng lấy hàng (SCRUM-267)", () => {
     await screen.findByText(L.confirmTitle(1));
     const reads = (url: string) => get.mock.calls.filter(([called]) => called === url).length;
     const before = { task: reads(PATH), lines: reads(`${PATH}/pick-lines`) };
-    await fillAndSubmit(user, "HN-A01-01-01-A", "TEE-BLK-M", "3");
+    await fillAndSubmit(user, "HN-A01-01-01-A", LPN_1);
     await waitFor(() => expect(error).toHaveBeenCalledWith(LE.taskState));
     await waitFor(() => expect(reads(PATH)).toBeGreaterThan(before.task));
     await waitFor(() => expect(reads(`${PATH}/pick-lines`)).toBeGreaterThan(before.lines));
@@ -394,7 +421,7 @@ describe("PickingDetail — xác nhận dòng lấy hàng (SCRUM-267)", () => {
       },
     });
     expect(await screen.findByText(L.locationsUnavailable)).toBeInTheDocument();
-    await fillAndSubmit(user, "HN-A01-01-01-A", "TEE-BLK-M", "3");
+    await fillAndSubmit(user, "HN-A01-01-01-A", LPN_1);
     await waitFor(() => expect(confirmCalls(post)).toHaveLength(1));
   });
 
@@ -408,7 +435,7 @@ describe("PickingDetail — xác nhận dòng lấy hàng (SCRUM-267)", () => {
 
   it("task chưa có dòng (đơn chỉ dòng in) → câu giải thích, không có thẻ xác nhận", async () => {
     renderDetail(IDENTITIES.warehouseStaff, picking(), { lines: [] });
-    expect(await screen.findByText(L.printOnly)).toBeInTheDocument();
+    expect(await screen.findByText(L.noLines)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: L.submit })).toBeNull();
   });
 

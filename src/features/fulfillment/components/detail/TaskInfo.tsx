@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-import { ADMIN_ROUTES, ORDER_PERMISSIONS, UI_LABELS } from "@/constants";
+import { ADMIN_ROUTES, ORDER_PERMISSIONS, PICK_DESTINATION, UI_LABELS } from "@/constants";
 import { formatDateTime } from "@/lib/format/date";
 
 import { InfoItem, Section, assigneeLabel } from "../primitives";
@@ -11,6 +11,7 @@ import type { FulfillmentActor } from "@/features/fulfillment/lifecycle";
 import type { FulfillmentTask } from "@/features/fulfillment/types";
 
 const FIELD = UI_LABELS.fulfillment.field;
+const DESTINATION = UI_LABELS.fulfillment.destination;
 const dt = (iso: string | null | undefined) => (iso ? formatDateTime(iso) : "—");
 
 /** Thông tin task — chỉ field BE trả; số đơn tra thêm nếu đủ quyền. */
@@ -54,6 +55,17 @@ export function TaskInfo({
             </span>
           }
         />
+        <InfoItem
+          label={FIELD.destination}
+          value={task.destination ? DESTINATION[task.destination] : "—"}
+        />
+        {task.destination === PICK_DESTINATION.STAGING && (
+          <>
+            <InfoItem label={FIELD.stagingLocation} value={task.stagingLocationCode ?? "—"} mono />
+            <InfoItem label={FIELD.stagedAt} value={dt(task.stagedAt)} />
+            <InfoItem label={FIELD.movedToDispatchAt} value={dt(task.movedToDispatchAt)} />
+          </>
+        )}
         <InfoItem label={FIELD.assignedAt} value={dt(task.assignedAt)} />
         <InfoItem label="Bắt đầu lấy hàng" value={dt(task.startedAt)} />
         <InfoItem label="Lấy hàng xong" value={dt(task.pickedAt)} />

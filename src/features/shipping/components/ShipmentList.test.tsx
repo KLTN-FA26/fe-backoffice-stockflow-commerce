@@ -3,11 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { UI_LABELS } from "@/constants";
-import { SHIPPING_ERROR_MESSAGES } from "@/constants";
-import { ApiError } from "@/lib/api/error";
-import { toast } from "@/components/shared/Toast";
 
-import { LOAD_ID, apiLoad, shipmentRow } from "../__fixtures__/load";
+import { shipmentRow } from "../__fixtures__/load";
 import {
   CARRIERS,
   SHIPPING_ACTORS as ACTORS,
@@ -45,14 +42,6 @@ const ROWS: ShipmentRow[] = [
 function renderList(actor: TestActor, search = "", rows: ShipmentRow[] = ROWS) {
   const spies = mockShippingApi(actor, {
     get: { "/fulfillment/shipments": () => bePage(rows) },
-    post: { "/fulfillment/loads": (_p, body) => ({ ...apiLoad(), ...(body as object) }) },
-    put: {
-      "/fulfillment/shipments/s1/carrier": (_p, body) => ({
-        shipment: { ...ROWS[0], carrierId: (body as { carrierId: string | null }).carrierId },
-        packages: [],
-        timeline: [],
-      }),
-    },
   });
   renderShippingScreen(<ShipmentList />, search);
   return spies;
@@ -83,99 +72,76 @@ describe("ShipmentList — lô giao chờ xuất", () => {
     expect(screen.getAllByText("Sẵn sàng xuất").length).toBeGreaterThan(0);
   });
 
-  it("nhân viên kho chọn hãng ngay trên dòng → PUT /carrier; 'Chưa chọn hãng' gửi null", async () => {
-    const user = userEvent.setup();
-    const { put } = renderList(ACTORS.warehouseStaff);
+  it("hãng của lô chỉ là chữ (hãng của xe chở lô): không có ô chọn hãng, không có chọn lô / mở chuyến, không gọi PUT", async () => {
+    const { put } = renderList(ACTORS.warehouseManager);
     await screen.findByText("SO-1-S1");
-    await user.click(
-      screen.getByRole("combobox", { name: `${L.shipments.carrierSelectLabel} SO-1-S1` }),
-    );
-    await user.click(
-      await screen.findByRole("option", { name: `${CARRIERS[1]?.code} · ${CARRIERS[1]?.name}` }),
-    );
-    await waitFor(() =>
-      expect(put).toHaveBeenCalledWith("/fulfillment/shipments/s1/carrier", {
-        carrierId: "car-vtp",
-      }),
-    );
-  });
-
-  it("lỗi BE khi chọn hãng (lô đã lên chuyến) → toast tiếng Việt, không treo", async () => {
-    const user = userEvent.setup();
-    const error = vi.spyOn(toast, "error");
-    const { put } = renderList(ACTORS.warehouseStaff);
-    put.mockRejectedValueOnce(new ApiError(409, "SHIPMENT_ON_ANOTHER_LOAD", "en"));
-    await screen.findByText("SO-1-S1");
-    await user.click(
-      screen.getByRole("combobox", { name: `${L.shipments.carrierSelectLabel} SO-1-S1` }),
-    );
-    await user.click(await screen.findByRole("option", { name: /GHN/ }));
-    await waitFor(() =>
-      expect(error).toHaveBeenCalledWith(SHIPPING_ERROR_MESSAGES.SHIPMENT_ON_ANOTHER_LOAD),
-    );
-  });
-
-  it("điều phối đơn / chỉ xem: không chọn hãng, không chọn lô để mở chuyến", async () => {
-    renderList(ACTORS.orderCoordinator);
-    await screen.findByText("SO-1-S1");
-    expect(
-      screen.queryByRole("combobox", { name: new RegExp(L.shipments.carrierSelectLabel) }),
-    ).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: L.shipments.openLoad })).not.toBeInTheDocument();
-    expect(screen.queryByRole("checkbox", { name: "Chọn tất cả" })).not.toBeInTheDocument();
     expect(screen.getByText("Giao Hàng Nhanh")).toBeInTheDocument();
+    // Các combobox còn lại là bộ lọc (trạng thái, kho, hãng) — không có ô chọn hãng theo dòng
+    const table = screen.getByRole("table");
+    expect(within(table).queryByRole("combobox")).not.toBeInTheDocument();
+    expect(within(table).queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Mở chuyến/ })).not.toBeInTheDocument();
+    expect(put).not.toHaveBeenCalled();
   });
 
-  it("chọn lô cùng kho → mở chuyến: POST /loads kèm requestId (uuid), kho, hãng, các lô; rồi sang chuyến vừa mở", async () => {
-    const user = userEvent.setup();
-    const { post } = renderList(ACTORS.warehouseStaff, "", ROWS.slice(0, 2));
-    await screen.findByText("SO-1-S1");
-    const open = screen.getByRole("button", { name: L.shipments.openLoad });
-    expect(open).toBeDisabled();
-    await user.click(screen.getByRole("checkbox", { name: "Chọn tất cả" }));
-    expect(screen.getByText(new RegExp(`2 ${L.shipments.selected}`))).toBeInTheDocument();
-    await user.click(open);
-    const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByText("SO-1-S1, SO-2-S1")).toBeInTheDocument();
-    // Hãng đã gán cho lô S2 → hãng của chuyến khoá theo đó
-    await user.type(within(dialog).getByLabelText(L.openDialog.vehiclePlate), "51C-628.14");
-    await user.click(within(dialog).getByRole("button", { name: L.openDialog.submit }));
-    await waitFor(() => expect(post).toHaveBeenCalledTimes(1));
-    const [url, body] = post.mock.calls[0] ?? [];
-    expect(url).toBe("/fulfillment/loads");
-    expect(body).toMatchObject({
-      warehouseId: "wh-hcm",
-      carrierId: "car-ghn",
-      shipmentIds: ["s1", "s2"],
-      vehiclePlate: "51C-628.14",
-    });
-    expect((body as { requestId: string }).requestId).toMatch(/^[0-9a-f-]{36}$/);
-    await waitFor(() => expect(push).toHaveBeenCalledWith(`/admin/loads/${LOAD_ID}`));
-  });
-
-  it("lô khác kho → báo không mở được một chuyến", async () => {
-    const user = userEvent.setup();
+  it("lô chưa có hãng để trống ô hãng; lô có hãng hiện tên", async () => {
     renderList(ACTORS.warehouseStaff);
     await screen.findByText("SO-1-S1");
-    await user.click(screen.getByRole("checkbox", { name: "Chọn tất cả" }));
-    expect(screen.getByRole("alert")).toHaveTextContent(L.shipments.mixedWarehouses);
-    expect(screen.getByRole("button", { name: L.shipments.openLoad })).toBeDisabled();
+    const rows = within(screen.getByRole("table")).getAllByRole("row");
+    const noCarrier = rows.find((r) => within(r).queryByText("SO-1-S1"));
+    const withCarrier = rows.find((r) => within(r).queryByText("SO-2-S1"));
+    expect(within(noCarrier as HTMLElement).queryByText("Giao Hàng Nhanh")).not.toBeInTheDocument();
+    expect(within(withCarrier as HTMLElement).getByText("Giao Hàng Nhanh")).toBeInTheDocument();
   });
 
-  it("COD hiện số tiền theo tiền tệ khi BE trả currency; chưa có thì chỉ 'Có thu hộ'", async () => {
-    renderList(ACTORS.warehouseStaff, "", [
-      shipmentRow({ shipmentId: "s1", code: "SO-1-S1", codAmount: 270_000, currency: "VND" }),
-      shipmentRow({ shipmentId: "s2", code: "SO-2-S1", codAmount: 150_000 }),
-    ]);
+  it("không có cột / chữ thu hộ (COD): lô dù BE gửi thêm trường cũ cũng không hiện", async () => {
+    renderList(ACTORS.warehouseStaff);
     await screen.findByText("SO-1-S1");
-    expect(screen.getByText(/270\.000/)).toBeInTheDocument();
-    expect(screen.getByText(L.shipments.hasCod)).toBeInTheDocument();
-    expect(screen.queryByText(/150\.000/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/thu hộ|COD/i)).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["nhân viên kho", ACTORS.warehouseStaff],
+    ["quản lý kho", ACTORS.warehouseManager],
+    ["điều phối đơn", ACTORS.orderCoordinator],
+    ["chỉ xem", ACTORS.viewOnly],
+  ])(
+    "%s (có quyền đọc) thấy cùng một bảng chỉ đọc; bấm nút xem dòng → sang chi tiết lô",
+    async (_n, actor) => {
+      const user = userEvent.setup();
+      renderList(actor);
+      expect(await screen.findByRole("link", { name: "SO-1-S1" })).toHaveAttribute(
+        "href",
+        "/admin/shipments/s1",
+      );
+      await user.click(screen.getByRole("button", { name: `${L.shipments.title} SO-1-S1` }));
+      expect(push).toHaveBeenCalledWith("/admin/shipments/s1");
+    },
+  );
+
+  it("hãng ngừng / lọc theo hãng trong bộ lọc: chọn hãng gửi carrierId cho BE", async () => {
+    const user = userEvent.setup();
+    const { get } = renderList(ACTORS.warehouseStaff);
+    await screen.findByText("SO-1-S1");
+    await user.click(screen.getByRole("combobox", { name: L.shipments.carrierFilter }));
+    await user.click(
+      await screen.findByRole("option", { name: new RegExp(CARRIERS[1]?.code ?? "VTP") }),
+    );
+    await waitFor(() => {
+      const calls = get.mock.calls.filter(([url]) => url === "/fulfillment/shipments");
+      expect(calls.at(-1)?.[1]?.params).toMatchObject({ carrierId: "car-vtp" });
+    });
   });
 
   it("danh sách rỗng: 'chưa có lô' khác 'lọc không ra kết quả'", async () => {
     renderList(ACTORS.warehouseStaff, "", []);
     expect(await screen.findByText(L.shipments.empty.noDataTitle)).toBeInTheDocument();
+  });
+
+  it("danh sách rỗng khi đang lọc → 'không có kết quả', không phải 'chưa có lô'", async () => {
+    renderList(ACTORS.warehouseStaff, "?q=KHONG-CO", []);
+    expect(await screen.findByText(UI_LABELS.emptyList.noResultsTitle)).toBeInTheDocument();
+    expect(screen.queryByText(L.shipments.empty.noDataTitle)).not.toBeInTheDocument();
   });
 
   it("không có quyền đọc → màn từ chối, không gọi API danh sách", async () => {

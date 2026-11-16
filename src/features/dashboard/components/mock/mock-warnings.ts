@@ -9,7 +9,6 @@
  */
 
 import {
-  invoices,
   packingTasks,
   pickTasks,
   purchaseOrders,
@@ -17,7 +16,6 @@ import {
   shipments,
   transferOrders,
   moveTasks,
-  type Invoice,
   type MoveTask,
   type PackingTask,
   type PickTask,
@@ -55,22 +53,6 @@ export function collectWarningItems(): WarningItem[] {
         description: po.notes || "Chờ duyệt",
         date: po.orderDate,
         href: "/admin/purchase-orders",
-      }),
-    );
-
-  // Invoice: Exception, Disputed
-  invoices
-    .filter((inv: Invoice) => ["Exception", "Disputed"].includes(inv.status))
-    .forEach((inv: Invoice) =>
-      items.push({
-        id: inv.invoiceId,
-        document: inv.invoiceNumber,
-        module: "Hoá đơn NCC",
-        status: inv.status,
-        domain: "invoice",
-        description: inv.disputeNote || "Lỗi đối chiếu",
-        date: inv.invoiceDate,
-        href: "/admin/invoices",
       }),
     );
 

@@ -122,7 +122,7 @@ export function OrderActionCard({ order, can, estimateSlot }: OrderActionCardPro
   const guidance = holdGuidance ?? shipmentsHint;
   // Lý do biết trước chưa release được (đơn cọc chưa nhận cọc): chỉ cho người có quyền release; nói ra thay vì ẩn nút.
   // UI-only — Backend phải re-check (OrderReleaseService: BR-PRD-09).
-  const blockers = can(ORDER_PERMISSIONS.approve) ? releaseBlockers(order) : [];
+  const blockers = can(ORDER_PERMISSIONS.release) ? releaseBlockers(order) : [];
 
   return (
     <section

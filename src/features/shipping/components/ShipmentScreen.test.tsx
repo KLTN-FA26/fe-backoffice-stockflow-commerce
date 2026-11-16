@@ -40,29 +40,6 @@ function renderShipment(
   return spies;
 }
 
-describe("ShipmentScreen — nhãn kiện cũ", () => {
-  it("kiện có labelOutdated hiện 'Cần in lại nhãn'; kiện còn đúng nhãn thì không", async () => {
-    const base = shipment();
-    renderShipment(ACTORS.warehouseStaff, {
-      ...base,
-      packages: [
-        { packageId: "p1", labelCode: "PKG-SO-1-1", status: "SEALED", labelOutdated: true },
-        { packageId: "p2", labelCode: "PKG-SO-1-2", status: "SEALED", labelOutdated: false },
-      ],
-    });
-    await screen.findByRole("heading", { name: `${L.title} · SO-1-S1` });
-    const rows = screen.getAllByRole("row");
-    const outdated = rows.find((row) => within(row).queryByText("PKG-SO-1-1"));
-    const fine = rows.find((row) => within(row).queryByText("PKG-SO-1-2"));
-    expect(
-      within(outdated as HTMLElement).getByText(UI_LABELS.shipping.ftl.parcel.labelOutdated),
-    ).toBeInTheDocument();
-    expect(
-      within(fine as HTMLElement).queryByText(UI_LABELS.shipping.ftl.parcel.labelOutdated),
-    ).not.toBeInTheDocument();
-  });
-});
-
 describe("ShipmentScreen — chi tiết lô giao", () => {
   it("hiện đơn (liên kết), kho, kiện, lịch sử với người ghi nhận; không mã vận đơn", async () => {
     renderShipment(
@@ -88,26 +65,33 @@ describe("ShipmentScreen — chi tiết lô giao", () => {
     expect(screen.queryByText(/mã vận đơn: /i)).not.toBeInTheDocument();
   });
 
-  it("lô chờ xuất chưa lên chuyến: nhân viên kho chọn hãng (PUT); điều phối đơn chỉ thấy tên", async () => {
-    const user = userEvent.setup();
-    const { put } = renderShipment(
-      ACTORS.warehouseStaff,
-      shipment({ carrierId: "car-ghn", carrierName: "GHN" }),
-    );
-    await user.click(await screen.findByRole("combobox"));
-    await user.click(await screen.findByRole("option", { name: /VTP/ }));
-    await waitFor(() =>
-      expect(put).toHaveBeenCalledWith(`${PATH}/carrier`, { carrierId: "car-vtp" }),
-    );
+  it.each([
+    ["nhân viên kho", ACTORS.warehouseStaff],
+    ["quản lý kho", ACTORS.warehouseManager],
+    ["điều phối đơn", ACTORS.orderCoordinator],
+  ])(
+    "%s: hãng chỉ là chữ (hãng của xe chở lô), không có ô chọn hãng, không gọi PUT",
+    async (_n, actor) => {
+      const { put } = renderShipment(actor, shipment({ carrierId: "car-ghn", carrierName: "GHN" }));
+      await screen.findByRole("heading", { name: `${L.title} · SO-1-S1` });
+      expect(screen.getByText("GHN")).toBeInTheDocument();
+      expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+      expect(put).not.toHaveBeenCalled();
+    },
+  );
+
+  it("lô chưa có xe / hãng: hiện 'Chưa chọn hãng', không có liên kết chuyến", async () => {
+    renderShipment(ACTORS.warehouseStaff, shipment());
+    await screen.findByRole("heading", { name: `${L.title} · SO-1-S1` });
+    expect(screen.getByText(UI_LABELS.shipping.field.carrierNone)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /LOAD-/ })).not.toBeInTheDocument();
   });
 
-  it("lô đang trên chuyến: không đổi hãng, nói rõ vì sao", async () => {
-    renderShipment(
-      ACTORS.warehouseStaff,
-      shipment({ loadId: "L1", loadCode: "LOAD-1", carrierName: "GHN" }),
-    );
-    expect(await screen.findByText(L.carrierLocked)).toBeInTheDocument();
-    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+  it("kiện chỉ hiện mã + trạng thái + cân nặng: không còn nhãn 'Cần in lại nhãn' hay chữ thu hộ", async () => {
+    renderShipment(ACTORS.warehouseStaff, shipment());
+    await screen.findByText("PKG-SO-1-1");
+    expect(screen.queryByText(/in lại nhãn/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/thu hộ|COD/i)).not.toBeInTheDocument();
   });
 });
 
@@ -141,6 +125,26 @@ describe("ShipmentScreen — ghi nhận kết quả giao (BR-02)", () => {
     expect(
       screen.queryByRole("button", { name: L.outcomeAction.DELIVERED }),
     ).not.toBeInTheDocument();
+  });
+
+  it("chỉ xem: lô đã bàn giao không có nút kết quả nào, kèm lý do", async () => {
+    renderShipment(ACTORS.viewOnly, shipment({ status: "HANDED_OVER" }));
+    expect(await screen.findByText(L.noActions.viewOnly)).toBeInTheDocument();
+    for (const outcome of ["DELIVERED", "DELIVERY_FAILED", "RETURNED"] as const) {
+      expect(
+        screen.queryByRole("button", { name: L.outcomeAction[outcome] }),
+      ).not.toBeInTheDocument();
+    }
+  });
+
+  it("không có quyền xem trang → không gọi API chi tiết lô", async () => {
+    const { get } = renderShipment(ACTORS.noAccess, shipment({ status: "HANDED_OVER" }));
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: L.outcomeAction.DELIVERED }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(get.mock.calls.some(([url]) => url === PATH)).toBe(false);
   });
 
   it("quản lý kho (chỉ delivery-outcomes:UPDATE) thấy lô HANDED_OVER: không nút kết quả, nói cần quyền phê duyệt", async () => {

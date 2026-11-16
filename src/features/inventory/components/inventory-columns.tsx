@@ -18,7 +18,7 @@ import {
   adjustmentReasonLabel,
   alertKindLabel,
   alertStatusLabel,
-  formatSignedQuantity,
+  formatAdjustmentDelta,
   movementStatusLabel,
   movementTypeLabel,
 } from "../selectors";
@@ -57,7 +57,7 @@ export function buildAdjustmentColumns(): ColumnDef<StockAdjustment>[] {
       key: "quantityDelta",
       header: L.quantityDelta,
       align: "right",
-      cell: (row) => <span className={CELL.number}>{formatSignedQuantity(row.quantityDelta)}</span>,
+      cell: (row) => <span className={CELL.number}>{formatAdjustmentDelta(row)}</span>,
     },
     textCell<StockAdjustment>("reason", L.reason, (row) => adjustmentReasonLabel(row.reason)),
     statusCell<StockAdjustment>("status", L.status, (row) => row.status, "stock"),

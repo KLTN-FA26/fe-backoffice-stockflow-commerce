@@ -1,8 +1,8 @@
 /**
- * Trả hàng về kệ — mutation + invalidation map (api-conventions §2.3).
+ * Cất lại thùng — mutation + invalidation map (api-conventions §2.3).
  *
  * - Đổi dòng + hàng đợi → `fulfillmentKeys.all` (dòng lấy hàng và hàng đợi nằm dưới nhánh này).
- * - BE cộng lại tồn khả dụng cùng transaction (SCRUM-275) → tồn kho (`SHARED_QUERY_ROOTS.inventoryStock`).
+ * - BE cộng lại tồn khả dụng cùng transaction (docs 07 §4.5 bước 14) → tồn kho (`SHARED_QUERY_ROOTS.inventoryStock`).
  * - Lỗi gắn về ô / banner trong dialog (`putBackError`); thành công thì toast.
  */
 
@@ -22,11 +22,7 @@ export const usePutBackLine = withStaleRefetch(
     showErrorToast: false,
     onSuccess: (line) =>
       toast.success(
-        TOAST_MESSAGES.fulfillment.putBack(
-          line.putBackQty,
-          line.sku,
-          line.putBackLocationCode ?? "",
-        ),
+        TOAST_MESSAGES.fulfillment.putBack(line.lpn, line.sku, line.putBackLocationCode ?? ""),
       ),
   }),
 );

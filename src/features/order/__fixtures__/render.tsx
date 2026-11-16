@@ -14,6 +14,7 @@ import {
   CUSTOMER_CREDIT_PROFILE_PERMISSIONS,
   ORDER_PERMISSIONS,
   PRODUCTION_ORDER_PERMISSIONS,
+  SALES_CONTRACT_PERMISSIONS,
 } from "@/constants";
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -22,7 +23,8 @@ import type { PermissionCode } from "@/lib/auth";
 
 /**
  * Theo seed BE develop (5683fe14):
- * - `sales-orders:APPROVE` (release, giữ / gỡ giữ / giao thất bại) chỉ ORDER_COORDINATOR;
+ * - `sales-orders:APPROVE` (giữ / gỡ giữ / giao thất bại) chỉ ORDER_COORDINATOR (BE V20261115000200 đã xoá mã này khỏi
+ *   mọi vai trò; FE chưa đổi theo — ngoài phạm vi release); release là `sales-order-releases:UPDATE` (quản lý kho);
  * - `sales-order-cancellations:UPDATE` (huỷ, đóng phần còn lại) cho SALES_STAFF + ORDER_COORDINATOR;
  * - `sales-order-partial-shipments:UPDATE` (cho phép giao một phần, BE PR #150) cho SALES_STAFF, không có APPROVE;
  * - `sales-order-credit-holds:APPROVE` chỉ ACCOUNTANT (Sales/Coordinator chỉ VIEW_PAGE / READ);
@@ -48,7 +50,7 @@ export const ORDER_PERMISSION_SETS = {
   coordinator: [
     ORDER_PERMISSIONS.viewPage,
     ORDER_PERMISSIONS.read,
-    // `approve` và `release` cùng mã sales-orders:APPROVE — giữ cả hai tên cho rõ nghĩa
+    // BE V20261115000200: release là `sales-order-releases:UPDATE` (quản lý kho của kho xuất), tách khỏi `approve`
     ORDER_PERMISSIONS.approve,
     ORDER_PERMISSIONS.release,
     ORDER_PERMISSIONS.cancel,
@@ -63,14 +65,15 @@ export const ORDER_PERMISSION_SETS = {
     CREDIT_HOLD_PERMISSIONS.approve,
     CUSTOMER_CREDIT_PROFILE_PERMISSIONS.read,
   ],
-  // Seed BE PR #157: ORDER_COORDINATOR có thêm sales-order-delivery-modes:UPDATE (chọn / đổi hình thức giao).
-  // Giữ `coordinator` ở trên không có mã này để test "thiếu quyền → chỉ đọc".
-  coordinatorWithModes: [
-    "sales-orders:VIEW_PAGE",
-    "sales-orders:READ",
-    ORDER_PERMISSIONS.approve,
-    ORDER_PERMISSIONS.cancel,
-    ORDER_PERMISSIONS.deliveryModes,
+  // Quản lý kho của kho xuất (BE V20261115000200): đọc đơn + release (`sales-order-releases:UPDATE`); KHÔNG có
+  // `sales-contracts:READ` nên không đọc được lịch giao (ô chọn đợt giao ẩn).
+  warehouseManager: [ORDER_PERMISSIONS.viewPage, ORDER_PERMISSIONS.read, ORDER_PERMISSIONS.release],
+  // Người vừa release vừa đọc được lịch giao (sales-contracts:READ) — có ô chọn đợt giao.
+  releaserWithSchedule: [
+    ORDER_PERMISSIONS.viewPage,
+    ORDER_PERMISSIONS.read,
+    ORDER_PERMISSIONS.release,
+    SALES_CONTRACT_PERMISSIONS.read,
   ],
 } satisfies Record<string, PermissionCode[]>;
 

@@ -19,9 +19,16 @@ import {
   type ListCreditHoldParams,
 } from "./action-api";
 import { getOrder, listOrders, type ListOrderParams } from "./api";
+import {
+  getOrderRefund,
+  listCancellationRequests,
+  type ListCancellationRequestParams,
+} from "./cancellation-request-api";
+import { getDeliverySchedule } from "./delivery-batch-api";
 import { getOrderHistory } from "./history-api";
 import { isValidOrderCustomerId } from "./schemas";
 
+import type { CancellationRequest, OrderRefundDto } from "./cancellation-request-schemas";
 import type { CreditHold, Order, OrderHistoryEntry } from "./types";
 
 /* ── Query keys ──────────────────────────────────────────────────────── */
@@ -35,6 +42,13 @@ export const orderKeys = {
   productionOrders: (id: string) => [...baseOrderKeys.detail(id), "production-orders"] as const,
   creditHolds: (params?: ListCreditHoldParams) =>
     [...baseOrderKeys.all, "credit-holds", params] as const,
+  /** Lịch giao của đơn (đợt giao) — dưới root `orders`: release xong (invalidate `orderKeys.all`) tự tải lại. */
+  deliverySchedule: (id: string) => [...baseOrderKeys.all, "delivery-schedule", id] as const,
+  /** Yêu cầu huỷ của khách (hàng đợi + thẻ trên chi tiết đơn) — dưới `orders`: duyệt / từ chối tự làm mới cả hai. */
+  cancellationRequests: (params?: ListCancellationRequestParams) =>
+    [...baseOrderKeys.all, "cancellation-requests", params] as const,
+  /** Kết quả tất toán tiền sau huỷ của một đơn (`GET /refunds/orders/{id}`). */
+  orderRefund: (id: string) => [...baseOrderKeys.all, "refund", id] as const,
   // Dưới `orderKeys.all`: thao tác đơn (duyệt / từ chối / huỷ) đổi dư nợ → tự tải lại
   creditPosition: (customerId: string) =>
     [...baseOrderKeys.all, "credit-position", customerId] as const,
@@ -60,6 +74,17 @@ export const useCreditHolds = createListQuery<CreditHold, ListCreditHoldParams>(
   listCreditHolds,
   { retry: retryTransient },
 );
+
+/**
+ * Yêu cầu huỷ của khách (`GET /orders/cancellation-requests`, cần `sales-order-cancellations:READ`): hàng đợi
+ * (`status: "PENDING"`) và thẻ trên chi tiết đơn (`orderId`). Chỉ gọi khi `enabled`.
+ */
+export const useCancellationRequests = createListQuery<
+  CancellationRequest,
+  ListCancellationRequestParams
+>({ ...orderKeys, list: orderKeys.cancellationRequests }, listCancellationRequests, {
+  retry: retryTransient,
+});
 
 /* ── Detail hooks ────────────────────────────────────────────────────── */
 
@@ -99,6 +124,34 @@ export function useCreditPosition(customerId: string | null, options: { enabled?
     queryKey: orderKeys.creditPosition(id),
     queryFn: ({ signal }) => getCreditPosition(id, signal),
     enabled: (options.enabled ?? true) && isValidOrderCustomerId(id),
+    retry: retryTransient,
+  });
+}
+
+/**
+ * Lịch giao của đơn (`GET /orders/{id}/delivery-batches`, cần `sales-contracts:READ`): chỉ gọi khi `enabled` — ô chọn
+ * đợt giao của hộp thoại release. Đơn không có lịch giao trả `batches` rỗng.
+ */
+export function useDeliverySchedule(id: string, options: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: orderKeys.deliverySchedule(id),
+    queryFn: ({ signal }) => getDeliverySchedule(id, signal),
+    ...QUERY_TIMES.detail,
+    enabled: options.enabled ?? true,
+    retry: retryTransient,
+  });
+}
+
+/**
+ * Kết quả tất toán sau huỷ của đơn (`GET /refunds/orders/{id}`, cần `payment-refunds:READ`): đã thu / phí / phải hoàn /
+ * phí còn thiếu. Chỉ gọi khi `enabled` (đơn đã huỷ + có quyền).
+ */
+export function useOrderRefund(id: string, options: { enabled?: boolean } = {}) {
+  return useQuery<OrderRefundDto, ApiError>({
+    queryKey: orderKeys.orderRefund(id),
+    queryFn: ({ signal }) => getOrderRefund(id, signal),
+    ...QUERY_TIMES.detail,
+    enabled: !!id && (options.enabled ?? true),
     retry: retryTransient,
   });
 }

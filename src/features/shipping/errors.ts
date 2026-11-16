@@ -1,10 +1,9 @@
 /**
- * Shipping — map errorCode BE (PR #137 + mã chung) → câu tiếng Việt, và phân loại lỗi cho màn quét /
- * bàn giao (dữ liệu cũ → tải lại; lỗi tạm thời → gửi lại cùng id; lô nào chặn bàn giao).
+ * Shipping — map errorCode BE → câu tiếng Việt, và phân loại lỗi cho màn quét / bàn giao (dữ liệu cũ → tải lại; lỗi
+ * tạm thời → gửi lại cùng id; lô nào chặn bàn giao). Chặn cả xe (`LOAD_HANDOVER_BLOCKED`) ở `handover-blocks.ts`.
  */
 
 import {
-  ADMIN_ROUTES,
   SHIPPING_ERROR_MESSAGES,
   SHIPPING_WRONG_VEHICLE_MESSAGE,
   SHIPPING_WRONG_VEHICLE_NO_CODE_MESSAGE,
@@ -52,6 +51,10 @@ export function shippingErrorMessage(error: unknown): string {
         )
       : SHIPPING_WRONG_VEHICLE_NO_CODE_MESSAGE.replace("{seq}", wrongVehicle.seq);
   }
+  // Hãng từ chối tạo đơn: BE gửi lý do của hãng ở `fieldErrors.carrier`
+  if (error.code === "CARRIER_BOOKING_FAILED" && error.fieldErrors?.carrier) {
+    return `${SHIPPING_ERROR_MESSAGES.CARRIER_BOOKING_FAILED} Lý do hãng nêu: ${error.fieldErrors.carrier}`;
+  }
   const shipmentCode = shipmentCodeOf(error);
   if (!isKnownErrorCode(error.code)) {
     return shipmentCode
@@ -78,18 +81,17 @@ const STALE_CODES: ReadonlySet<string> = new Set([
   "LOAD_PLAN_VEHICLE_DISPATCHED",
   "OPTIMISTIC_LOCK",
   "LOAD_NOT_FULLY_LOADED",
-  // BE PR #164: lệnh chuyển kho trên xe đã đổi / phần giữ đã nhả → tải lại chuyến
-  "TRANSFER_NOT_PACKED",
-  "RESERVATION_NOT_ACTIVE",
   "LOAD_EMPTY",
   "LOAD_NOT_FOUND",
   "SHIPMENT_NOT_FOUND",
   "SHIPMENT_STATE_CONFLICT",
   "SHIPMENT_ON_ANOTHER_LOAD",
   "SHIPMENT_NOT_FOR_LOAD",
-  "SHIPMENT_OTHER_CARRIER",
   "PACKAGE_NOT_READY",
   "CARRIER_INACTIVE",
+  // Mã vận đơn / đặt xe: chuyến đã đổi ở nơi khác (webhook điền mã, người khác đặt xe) → tải lại
+  "CARRIER_BOOKING_IN_PROGRESS",
+  "WAYBILL_FROM_CARRIER_API",
 ]);
 
 /** Trạng thái chuyến / lô đã đổi ở nơi khác (máy quét khác, người khác bàn giao) → tải lại. */
@@ -125,8 +127,6 @@ export interface HandoverRefusal {
   code: string;
   shipmentCode?: string;
   message: string;
-  /** Nhãn kiện lệch COD (BR-04): in lại nhãn ở trạm đóng gói rồi ký lại. */
-  reprintLabel: boolean;
 }
 
 /**
@@ -138,18 +138,5 @@ export function handoverRefusalOf(error: unknown): HandoverRefusal | undefined {
   if (!(error instanceof ApiError)) return undefined;
   const shipmentCode = shipmentCodeOf(error);
   if (!shipmentCode) return undefined;
-  return {
-    code: error.code,
-    shipmentCode,
-    message: shippingErrorMessage(error),
-    reprintLabel: error.code === "LABEL_OUTDATED",
-  };
-}
-
-/**
- * Nơi in lại nhãn kiện: trạm đóng gói của đơn (endpoint nhãn ghi nhận lần in) khi BE trả `taskId` của
- * lô; chưa có thì danh sách task, từ task của đơn vào Đóng gói.
- */
-export function reprintLabelHref(taskId?: string | null): string {
-  return taskId ? ADMIN_ROUTES.packing.detail(taskId) : ADMIN_ROUTES.picking.list;
+  return { code: error.code, shipmentCode, message: shippingErrorMessage(error) };
 }

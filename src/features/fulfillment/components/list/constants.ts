@@ -21,7 +21,6 @@ export const COLUMN_LABELS: Record<string, string> = {
   [C.STARTED_AT]: "Bắt đầu lấy",
   [C.PICKED_AT]: "Lấy xong",
   [C.PACKED_AT]: FIELD.packedAt,
-  [C.INTEGRITY]: "Đối chiếu thiết kế",
   [C.ACTIONS]: "Thao tác",
 };
 
@@ -36,7 +35,6 @@ export const ALL_COLUMNS: string[] = [
   C.STARTED_AT,
   C.PICKED_AT,
   C.PACKED_AT,
-  C.INTEGRITY,
   C.ACTIONS,
 ];
 
@@ -58,7 +56,6 @@ const DEFAULT_COLUMNS: Record<FulfillmentScope, string[]> = {
     C.ASSIGNEE,
     C.PICK_STATUS,
     C.PACK_STATUS,
-    C.INTEGRITY,
     C.PICKED_AT,
     C.PACKED_AT,
     C.ACTIONS,

@@ -26,12 +26,16 @@ export interface PickingDetailOptions {
   short?: RouteHandler;
   reallocate?: RouteHandler;
   layout?: RouteHandler;
+  /** Thay xử lý mặc định của `POST …/dispatch-transfer` (vd 409 PICK_ORDER_ON_HOLD). */
+  dispatch?: RouteHandler;
   /** Thay GET …/pick-lines (vd ném lỗi tải). */
   pickLines?: RouteHandler;
 }
 
-const foundOf = (body: unknown) =>
-  body && typeof body === "object" && "foundQuantity" in body ? Number(body.foundQuantity) : 0;
+const reasonOf = (body: unknown): PickLineApiDto["shortReason"] =>
+  body && typeof body === "object" && "reason" in body && body.reason === "DAMAGED"
+    ? "DAMAGED"
+    : "NOT_FOUND";
 
 export function renderPickingDetail(
   identity: TestIdentity,
@@ -45,10 +49,21 @@ export function renderPickingDetail(
     lines = lines.map((line) => (line.lineId === lineId ? patch(line) : line));
     return lines.find((line) => line.lineId === lineId);
   };
+  // Đích STAGING: thùng về khu chờ xuất (STAGED, chưa trừ tồn); DISPATCH: PICKED
   const confirm = (lineId: string) => () =>
-    update(lineId, (l) => ({ ...l, status: "PICKED", pickedQty: l.allocatedQty }));
+    update(lineId, (l) => ({
+      ...l,
+      status: task.destination === "STAGING" ? "STAGED" : "PICKED",
+      pickedQty: l.allocatedQty,
+      ...(task.destination === "STAGING" ? { stagedLocationCode: task.stagingLocationCode } : {}),
+    }));
   const short = (lineId: string) => (_: unknown, body: unknown) =>
-    update(lineId, (l) => ({ ...l, status: "SHORT", shortQty: l.allocatedQty - foundOf(body) }));
+    update(lineId, (l) => ({
+      ...l,
+      status: "SHORT",
+      shortQty: l.allocatedQty,
+      shortReason: reasonOf(body),
+    }));
   const reallocate = (lineId: string) => () => {
     const old = update(lineId, (l) => ({ ...l, status: "CANCELLED" }));
     if (!old) return [];
@@ -90,7 +105,10 @@ export function renderPickingDetail(
     },
     {
       [`${TASK_PATH}/picking-start`]: () => (task = { ...task, pickStatus: "PICKING" }),
-      [`${TASK_PATH}/picking-completion`]: () => (task = { ...task, pickStatus: "PICKED" }),
+      [`${TASK_PATH}/picking-completion`]: () =>
+        (task = { ...task, pickStatus: task.destination === "STAGING" ? "STAGED" : "PICKED" }),
+      [`${TASK_PATH}/dispatch-transfer`]:
+        opts.dispatch ?? (() => (task = { ...task, pickStatus: "PICKED" })),
       ...lineRoutes,
     },
   );

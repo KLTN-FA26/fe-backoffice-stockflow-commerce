@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { api } from "@/lib/api/client";
 
 import {
-  DESIGN_LINE_ID,
   ORDER_ID,
   OTHER_PICKER_ID,
   PICKER_ID,
@@ -12,22 +11,20 @@ import {
   apiTask,
   assignees,
   bePage,
-  fulfillmentOrder,
-  taskCandidate,
-  mismatchEvidence,
   pickedTask,
+  stagedTask,
+  taskCandidate,
 } from "./__fixtures__/task";
 import {
   assignFulfillmentTask,
   completePicking,
   createFulfillmentTask,
-  getDesignArtifactUrl,
   getFulfillmentTask,
   listFulfillmentTasks,
-  reverifyDesignIntegrity,
+  moveToDispatch,
   startPicking,
 } from "./api";
-import { getFulfillmentOrder, listAssignees, listTaskCandidates } from "./reference-api";
+import { listAssignees, listTaskCandidates } from "./reference-api";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -36,7 +33,7 @@ const PATH = `/fulfillment/tasks/${TASK_ID}`;
 describe("fulfillment task API — hợp đồng BE FulfillmentController", () => {
   it("list chỉ gửi page (0-based) + size, không v1, không filter; map status sang nhãn docs", async () => {
     const get = vi.spyOn(api, "get").mockResolvedValueOnce({
-      data: bePage([apiTask(), pickedTask({ packStatus: "ON_HOLD" })]),
+      data: bePage([apiTask(), pickedTask({ packStatus: "IN_PROGRESS" }), stagedTask()]),
     });
 
     const result = await listFulfillmentTasks({ page: 2, size: 20 });
@@ -47,8 +44,14 @@ describe("fulfillment task API — hợp đồng BE FulfillmentController", () =
     );
     expect(result.items.map((task) => [task.pickStatus, task.packStatus])).toEqual([
       ["Pending", "Pending"],
-      ["Picked", "On Hold"],
+      ["Picked", "In Progress"],
+      ["Staged", "Pending"],
     ]);
+    // Task đích STAGING mang đích + khu chờ xuất (docs 07 §1)
+    expect(result.items[2]).toMatchObject({
+      destination: "STAGING",
+      stagingLocationCode: "HN-STAGE-01",
+    });
   });
 
   it("list gửi status/warehouseId/assignedUserId khi có, bỏ khi trống (SCRUM-466)", async () => {
@@ -90,12 +93,45 @@ describe("fulfillment task API — hợp đồng BE FulfillmentController", () =
     expect(task.pickStatus).toBe("Picking");
   });
 
-  it("tạo task gửi đúng `CreateTaskRequest`", async () => {
+  it("tạo task gửi đúng `CreateTaskRequest` — đích DISPATCH, không kèm khu chờ xuất", async () => {
     const post = vi.spyOn(api, "post").mockResolvedValueOnce({ data: apiTask() });
-    await createFulfillmentTask({ orderId: ORDER_ID, assignedUserId: PICKER_ID });
+    await createFulfillmentTask({
+      orderId: ORDER_ID,
+      assignedUserId: PICKER_ID,
+      destination: "DISPATCH",
+      // Form còn mang lựa chọn cũ: đích DISPATCH thì không gửi khu chờ xuất (BE bỏ qua)
+      stagingLocationCode: "HN-STAGE-01",
+    });
     expect(post).toHaveBeenCalledWith("/fulfillment/tasks", {
       orderId: ORDER_ID,
       assignedUserId: PICKER_ID,
+      destination: "DISPATCH",
+    });
+  });
+
+  it("tạo task đích STAGING gửi kèm khu chờ xuất của kho (bỏ được khi kho chỉ có một khu)", async () => {
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: stagedTask() });
+    await createFulfillmentTask({
+      orderId: ORDER_ID,
+      assignedUserId: PICKER_ID,
+      destination: "STAGING",
+      stagingLocationCode: "HN-STAGE-01",
+    });
+    expect(post).toHaveBeenLastCalledWith("/fulfillment/tasks", {
+      orderId: ORDER_ID,
+      assignedUserId: PICKER_ID,
+      destination: "STAGING",
+      stagingLocationCode: "HN-STAGE-01",
+    });
+    await createFulfillmentTask({
+      orderId: ORDER_ID,
+      assignedUserId: PICKER_ID,
+      destination: "STAGING",
+    });
+    expect(post).toHaveBeenLastCalledWith("/fulfillment/tasks", {
+      orderId: ORDER_ID,
+      assignedUserId: PICKER_ID,
+      destination: "STAGING",
     });
   });
 
@@ -122,47 +158,17 @@ describe("fulfillment task API — hợp đồng BE FulfillmentController", () =
     ]);
   });
 
-  it("kiểm tra lại gửi `resolutionNote`; khớp thì pack về Packing (BE PR #136), còn lệch thì vẫn On Hold", async () => {
-    const post = vi
-      .spyOn(api, "post")
-      .mockResolvedValueOnce({
-        data: pickedTask({ packStatus: "ON_HOLD", integrityEvidence: [mismatchEvidence()] }),
-      })
-      .mockResolvedValueOnce({ data: pickedTask({ packStatus: "PACKING" }) });
-    const stillHeld = await reverifyDesignIntegrity({ taskId: TASK_ID, resolutionNote: "x" });
-    expect(stillHeld.packStatus).toBe("On Hold");
-    expect(stillHeld.integrityEvidence[0]?.matching).toBe(false);
-    expect(
-      (await reverifyDesignIntegrity({ taskId: TASK_ID, resolutionNote: "đã khôi phục file" }))
-        .packStatus,
-    ).toBe("Packing");
-    expect(post).toHaveBeenLastCalledWith(`${PATH}/design-integrity-reverification`, {
-      resolutionNote: "đã khôi phục file",
+  it("chuyển cả task sang khu xuất hàng: POST …/dispatch-transfer KHÔNG body, task Staged → Picked (docs 07 §4.3 bước 8)", async () => {
+    const post = vi.spyOn(api, "post").mockResolvedValueOnce({
+      data: pickedTask({
+        destination: "STAGING",
+        stagingLocationCode: "HN-STAGE-01",
+        movedToDispatchAt: "2026-10-11T02:00:00Z",
+      }),
     });
-  });
-
-  it("artifact: lineId là id dòng đơn hàng, role nằm trong path", async () => {
-    const get = vi.spyOn(api, "get").mockResolvedValueOnce({
-      data: {
-        artifactId: "a1",
-        role: "PRINT_READY",
-        originalName: "front.pdf",
-        contentType: "application/pdf",
-        sizeBytes: 10,
-        checksum: "c".repeat(64),
-        url: "https://files.example/signed",
-        expiresAt: "2026-10-10T03:05:00Z",
-      },
-    });
-    const artifact = await getDesignArtifactUrl({
-      taskId: TASK_ID,
-      lineId: DESIGN_LINE_ID,
-      role: "PRINT_READY",
-    });
-    expect(get.mock.calls[0]?.[0]).toBe(
-      `${PATH}/lines/${DESIGN_LINE_ID}/design-artifacts/PRINT_READY/download-url`,
-    );
-    expect(artifact.url).toBe("https://files.example/signed");
+    const task = await moveToDispatch(TASK_ID);
+    expect(post).toHaveBeenCalledWith(`${PATH}/dispatch-transfer`, undefined);
+    expect(task).toMatchObject({ pickStatus: "Picked", movedToDispatchAt: "2026-10-11T02:00:00Z" });
   });
 
   it("response sai hợp đồng → ném ZodError (không trả dữ liệu chưa validate)", async () => {
@@ -171,14 +177,7 @@ describe("fulfillment task API — hợp đồng BE FulfillmentController", () =
   });
 });
 
-describe("dữ liệu phụ trợ — đơn hàng và nhân viên", () => {
-  it("đơn của task đọc qua GET /orders/{id}", async () => {
-    const get = vi.spyOn(api, "get").mockResolvedValueOnce({ data: fulfillmentOrder });
-    const order = await getFulfillmentOrder(ORDER_ID);
-    expect(get.mock.calls[0]?.[0]).toBe(`/orders/${ORDER_ID}`);
-    expect(order.lines).toHaveLength(2);
-  });
-
+describe("dữ liệu phụ trợ — đơn chờ xuất kho và nhân viên", () => {
   it("đơn chờ xuất kho: GET /fulfillment/task-candidates (không gọi /orders), parse trang + dòng in", async () => {
     const get = vi.spyOn(api, "get").mockResolvedValueOnce({ data: bePage([taskCandidate]) });
     const page = await listTaskCandidates();

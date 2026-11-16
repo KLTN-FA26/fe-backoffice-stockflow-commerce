@@ -13,7 +13,6 @@ import {
   awaitingPutBackCount,
   needsLinePlanning,
   pickProgress,
-  printLineCount,
   shortLineCount,
 } from "@/features/fulfillment/pick-line-selectors";
 import { Alert } from "@/components/shared/Alert";
@@ -30,9 +29,9 @@ import type { ComponentProps } from "react";
 const L = PICK_LINE_LABELS;
 
 /**
- * Danh sách dòng lấy hàng của task (BE `GET /tasks/{id}/pick-lines`, SCRUM-267): tiến độ, bảng theo
- * lộ trình, ghi chú dòng in (BR-06, docs 07 §6), số dòng chờ trả về kệ khi đơn đã huỷ và đơn tạm giữ vì
- * dòng thiếu (X-SHORT: BE đưa đơn sang ON_HOLD tới khi phân bổ lại).
+ * Danh sách dòng lấy hàng của task (BE `GET /tasks/{id}/pick-lines`, docs 07 §4.2): tiến độ, bảng theo lộ trình
+ * (mỗi dòng một thùng LPN), số dòng chờ trả về kệ khi đơn đã huỷ và đơn tạm giữ vì dòng thiếu (X-SHORT: BE đưa đơn
+ * sang ON_HOLD tới khi phân bổ lại).
  */
 export function PickLinesSection({
   task,
@@ -51,8 +50,6 @@ export function PickLinesSection({
   /** Người xem có `fulfillment-picking:READ` → hiện link sang hàng đợi trả về kệ. */
   canOpenPutBacks?: boolean;
 } & Omit<ComponentProps<typeof PickLinesTable>, "lines">) {
-  const printLines = printLineCount(task);
-
   function body() {
     if (error) {
       return (
@@ -74,8 +71,8 @@ export function PickLinesSection({
       return <PlanLinesNotice taskId={task.taskId} canPlan={table.canSelect} />;
     }
     if (lines.length === 0) {
-      // BE lập dòng lúc tạo task; task cũ hơn được lập lúc bắt đầu lấy hàng. Còn lại = đơn chỉ có dòng in
-      const text = task.pickStatus === PICK_STATUS.PENDING ? L.notPlanned : L.printOnly;
+      // BE lập dòng lúc tạo task; task cũ hơn được lập lúc bắt đầu lấy hàng
+      const text = task.pickStatus === PICK_STATUS.PENDING ? L.notPlanned : L.noLines;
       return <p className="text-ink-secondary text-[0.8125rem]">{text}</p>;
     }
     const awaiting = awaitingPutBackCount(task, lines);
@@ -120,9 +117,6 @@ export function PickLinesSection({
   return (
     <Section title={L.sectionTitle} description={L.sectionDescription}>
       {body()}
-      {printLines > 0 && (
-        <p className="text-ink-tertiary mt-3 text-xs">{L.printLines(printLines)}</p>
-      )}
     </Section>
   );
 }

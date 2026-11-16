@@ -9,7 +9,7 @@ import { Select, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/
 
 import { CarrierSelect } from "../CarrierSelect";
 import { WarehouseSelect } from "../WarehouseSelect";
-import { LOAD_MODE_FILTERS, STATUS_FILTER_OPTIONS } from "./constants";
+import { STATUS_FILTER_OPTIONS } from "./constants";
 
 import type { LoadListState } from "./useLoadListState";
 
@@ -23,7 +23,7 @@ export function LoadFilters({
   actions,
 }: {
   s: LoadListState;
-  /** Nút của trang (lập kế hoạch, mở chuyến) — cuối hàng. */
+  /** Nút của trang (nhập mã vận đơn từ file) — cuối hàng. */
   actions?: React.ReactNode;
 }) {
   const F = L.shipments;
@@ -49,24 +49,6 @@ export function LoadFilters({
             {STATUS_FILTER_OPTIONS.map((option) => (
               <SelectItem key={option.value} value={option.value}>
                 {option.label}
-              </SelectItem>
-            ))}
-          </TitledSelectContent>
-        </Select>
-      </div>
-      <div className="flex items-center gap-2">
-        <Label htmlFor="load-mode" className="text-ink-secondary text-[0.8125rem]">
-          {L.ftl.modeFilter}
-        </Label>
-        <Select value={s.mode} onValueChange={s.setMode}>
-          <SelectTrigger id="load-mode" className={TRIGGER}>
-            <SelectValue />
-          </SelectTrigger>
-          <TitledSelectContent title={L.ftl.modeFilter}>
-            <SelectItem value="ALL">{L.ftl.modeAll}</SelectItem>
-            {LOAD_MODE_FILTERS.filter((mode) => mode !== "ALL").map((mode) => (
-              <SelectItem key={mode} value={mode}>
-                {L.load.mode[mode]}
               </SelectItem>
             ))}
           </TitledSelectContent>

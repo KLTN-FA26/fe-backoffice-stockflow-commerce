@@ -13,8 +13,10 @@ import { BackLink } from "@/components/shared/BackLink";
 import { useOrder, useOrderProductionOrders } from "../queries";
 import { customLineCount, groupProductionOrdersByLine } from "../selectors";
 
+import { CancellationRequestCard } from "./cancellation/CancellationRequestCard";
+import { DeliverySchedulePanel } from "./delivery-schedule/DeliverySchedulePanel";
 import { OrderActionCard } from "./OrderActionCard";
-import { OrderDeliveryModeCard } from "./OrderDeliveryModeCard";
+import { OrderEstimateCard } from "./OrderEstimateCard";
 import { OrderFinanceCard } from "./OrderFinanceCard";
 import { OrderInfoCard } from "./OrderInfoCard";
 import { OrderHistory } from "./OrderHistory";
@@ -27,18 +29,21 @@ import { OrderShipments } from "./OrderShipments";
 import { OrderDetailSkeleton } from "./OrderSkeletons";
 
 import type { OrderEstimateSlot } from "../estimate-slot";
+import type { OrderSettlementSlot } from "../settlement-slot";
 
 interface OrderDetailProps {
   params: Promise<{ id: string }>;
   /** Khe "Ước tính xếp xe" do chỗ ghép truyền vào (feature không import chéo — xem `estimate-slot.ts`). */
   estimateSlot?: OrderEstimateSlot;
+  /** Khe "Thanh toán, hoá đơn & hoàn tất" (WF-05 BO-10 — xem `settlement-slot.ts`). */
+  settlementSlot?: OrderSettlementSlot;
 }
 
-export function OrderDetail({ params, estimateSlot }: OrderDetailProps) {
+export function OrderDetail({ params, estimateSlot, settlementSlot }: OrderDetailProps) {
   const { id } = use(params);
   return (
     <OrderPermissionGate permissions={[ORDER_PERMISSIONS.viewPage]}>
-      <OrderDetailContent id={id} estimateSlot={estimateSlot} />
+      <OrderDetailContent id={id} estimateSlot={estimateSlot} settlementSlot={settlementSlot} />
     </OrderPermissionGate>
   );
 }
@@ -46,9 +51,11 @@ export function OrderDetail({ params, estimateSlot }: OrderDetailProps) {
 function OrderDetailContent({
   id,
   estimateSlot,
+  settlementSlot,
 }: {
   id: string;
   estimateSlot?: OrderEstimateSlot;
+  settlementSlot?: OrderSettlementSlot;
 }) {
   const can = usePermissionChecker();
   // READ = đọc dữ liệu (tách khỏi VIEW_PAGE mở trang — BE ADR-0004): thiếu thì không gọi API
@@ -117,12 +124,25 @@ function OrderDetailContent({
               />
             )}
           />
+          <DeliverySchedulePanel order={order} can={can} />
+          {settlementSlot?.({
+            orderId: order.orderId,
+            orderNumber: order.orderNumber,
+            status: order.status,
+            deliveredAt: order.deliveredAt ?? null,
+            completedAt: order.completedAt ?? null,
+            closedAt: order.closedAt ?? null,
+            deliveredShipmentIds: order.shipments
+              .filter((shipment) => shipment.status === "DELIVERED")
+              .map((shipment) => shipment.shipmentId),
+          })}
           <OrderHistory orderId={order.orderId} />
         </div>
 
         <div className="space-y-5">
           <OrderActionCard order={order} can={can} estimateSlot={estimateSlot} />
-          <OrderDeliveryModeCard order={order} can={can} estimateSlot={estimateSlot} />
+          <CancellationRequestCard order={order} can={can} />
+          <OrderEstimateCard order={order} estimateSlot={estimateSlot} />
           <OrderPartialShipmentCard order={order} can={can} />
           <OrderShipments order={order} />
           <OrderInfoCard order={order} />

@@ -50,14 +50,17 @@ function tolerantEnum<const T extends readonly [string, ...string[]], const F>(
 }
 
 /**
- * BE `order/api/OrderStatus.java` — đúng 19 giá trị (BE PR #133: bỏ IN_FULFILMENT / PAID, thêm PICKING,
- * PACKED, PARTIALLY_FULFILLED, DELIVERY_FAILED, RETURN_REQUESTED, REFUNDED, PARTIALLY_REFUNDED, CLOSED).
+ * BE `order/api/OrderStatus.java` — đúng 21 giá trị (BE PR #133: bỏ IN_FULFILMENT / PAID, thêm PICKING,
+ * PACKED, PARTIALLY_FULFILLED, DELIVERY_FAILED, RETURN_REQUESTED, REFUNDED, PARTIALLY_REFUNDED, CLOSED; hợp đồng
+ * bán (docs 17 §5.1) thêm PENDING_CONTRACT và AWAITING_STOCK). `IN_PRODUCTION` còn trong enum BE (lịch sử cũ).
  * Đây là tập giá trị ĐƯỢC GỬI lên BE (lọc `status=`) — không bao giờ chứa `UNKNOWN`.
  */
 export const BACKEND_ORDER_STATUSES = [
   "DRAFT",
+  "PENDING_CONTRACT",
   "PENDING_PAYMENT",
   "CONFIRMED",
+  "AWAITING_STOCK",
   "IN_PRODUCTION",
   "READY_TO_FULFILL",
   "PICKING",

@@ -115,7 +115,7 @@ describe("PickingList — danh sách task theo BE (phân trang + lọc)", () => 
     expect(screen.getByText(/Phạm vi: mọi task/)).toBeInTheDocument();
   });
 
-  it("ghi chú phạm vi theo mã quyền: oversight → mọi task; design-reverification → kiện giữ; còn lại → của mình", async () => {
+  it("ghi chú phạm vi theo mã quyền: oversight → mọi task; còn lại (kể cả QC — BE bỏ phạm vi design-reverification) → của mình", async () => {
     renderList(<PickingList />, IDENTITIES.warehouseStaff);
     await screen.findByRole("link", { name: "3F4A5B6C" });
     expect(screen.getByText(/Phạm vi: task được gán cho bạn/)).toBeInTheDocument();
@@ -125,7 +125,8 @@ describe("PickingList — danh sách task theo BE (phân trang + lọc)", () => 
       permissions: [...IDENTITIES.qcStaff.permissions, "fulfillment-pick-lists:VIEW_PAGE" as const],
     });
     await screen.findByRole("link", { name: "3F4A5B6C" });
-    expect(screen.getByText(/Phạm vi: kiện đang bị giữ do lệch thiết kế/)).toBeInTheDocument();
+    expect(screen.getByText(/Phạm vi: task được gán cho bạn/)).toBeInTheDocument();
+    expect(screen.queryByText(/kiện đang bị giữ do lệch thiết kế/)).toBeNull();
   });
 
   it("quản lý kho: hiện số đơn, tên người được gán (assignedUserName), gán lại lấy danh sách theo kho rồi gửi PUT", async () => {
@@ -271,11 +272,12 @@ describe("Tạo task lấy hàng", () => {
     return { ...spies, success, warning };
   }
 
-  it("gửi đúng `CreateTaskRequest` và báo đã tạo", async () => {
+  it("gửi đúng `CreateTaskRequest` (đích mặc định DISPATCH, không kèm khu chờ xuất) và báo đã tạo", async () => {
     const { post, success, warning } = await createTask(apiTask());
     expect(post).toHaveBeenCalledWith("/fulfillment/tasks", {
       orderId: ORDER_ID,
       assignedUserId: assignees[0]?.userId,
+      destination: "DISPATCH",
     });
     expect(success).toHaveBeenCalledWith(TOAST_MESSAGES.fulfillment.created);
     expect(warning).not.toHaveBeenCalled();

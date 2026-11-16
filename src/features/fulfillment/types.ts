@@ -1,11 +1,7 @@
 import type { z } from "zod";
 
-import type { DesignArtifactRole, PackStatus, PickLineStatus, PickStatus } from "@/constants";
-import type {
-  assignInputSchema,
-  createTaskInputSchema,
-  reverifyInputSchema,
-} from "./input-schemas";
+import type { PackStatus, PickLineStatus, PickStatus } from "@/constants";
+import type { assignInputSchema, createTaskInputSchema } from "./input-schemas";
 import type {
   bePickLineSchema,
   confirmPickInputSchema,
@@ -14,12 +10,8 @@ import type {
 import type { bePutBackRowSchema, putBackInputSchema } from "./put-back-schemas";
 import type {
   assigneeSchema,
-  beArtifactAccessSchema,
   beFulfillmentTaskSchema,
-  beIntegrityEvidenceSchema,
   beTaskLineSchema,
-  fulfillmentOrderLineSchema,
-  fulfillmentOrderSchema,
   taskCandidateLineSchema,
   taskCandidatePageSchema,
   taskCandidateSchema,
@@ -28,11 +20,7 @@ import type {
 /* ── DTO trên wire ───────────────────────────────────────────────────── */
 
 export type FulfillmentTaskApiDto = z.infer<typeof beFulfillmentTaskSchema>;
-export type IntegrityEvidence = z.infer<typeof beIntegrityEvidenceSchema>;
 export type TaskLine = z.infer<typeof beTaskLineSchema>;
-export type ArtifactAccess = z.infer<typeof beArtifactAccessSchema>;
-export type FulfillmentOrder = z.infer<typeof fulfillmentOrderSchema>;
-export type FulfillmentOrderLine = z.infer<typeof fulfillmentOrderLineSchema>;
 export type TaskCandidate = z.infer<typeof taskCandidateSchema>;
 export type TaskCandidateLine = z.infer<typeof taskCandidateLineSchema>;
 export type TaskCandidatePage = z.infer<typeof taskCandidatePageSchema>;
@@ -47,23 +35,12 @@ export type FulfillmentTask = Omit<FulfillmentTaskApiDto, "pickStatus" | "packSt
 
 /* ── Input ───────────────────────────────────────────────────────────── */
 
-export type CreateTaskValues = z.output<typeof createTaskInputSchema>;
+/** Đích vắng = DISPATCH (mặc định của BE, docs 07 §3). */
+export type CreateTaskValues = z.input<typeof createTaskInputSchema>;
 export type AssignValues = z.output<typeof assignInputSchema>;
-export type ReverifyValues = z.output<typeof reverifyInputSchema>;
 
 export interface AssignTaskInput extends AssignValues {
   taskId: string;
-}
-
-export interface ReverifyTaskInput extends ReverifyValues {
-  taskId: string;
-}
-
-export interface ArtifactUrlInput {
-  taskId: string;
-  /** Id dòng ĐƠN HÀNG — BE không có thực thể dòng task. */
-  lineId: string;
-  role: DesignArtifactRole;
 }
 
 /* ── Dòng lấy hàng (SCRUM-267, báo thiếu / phân bổ lại BE PR #147) ───── */
@@ -73,11 +50,11 @@ export type PickLineApiDto = z.infer<typeof bePickLineSchema>;
 /** Model FE: giữ field BE, status đổi 1-1 sang tên enum BE dạng Title Case. */
 export type PickLine = Omit<PickLineApiDto, "status"> & { status: PickLineStatus };
 
-/** Giá trị form (chuỗi) và giá trị gửi BE (số lượng là số). */
+/** Giá trị form và giá trị gửi BE (`{locationCode, lpn}` / `{locationCode, reason}` — không có số lượng). */
 export type ConfirmPickFormValues = z.input<typeof confirmPickInputSchema>;
 export type ConfirmPickValues = z.output<typeof confirmPickInputSchema>;
-export type ShortPickFormValues = z.input<ReturnType<typeof shortPickInputSchema>>;
-export type ShortPickValues = z.output<ReturnType<typeof shortPickInputSchema>>;
+export type ShortPickFormValues = z.input<typeof shortPickInputSchema>;
+export type ShortPickValues = z.output<typeof shortPickInputSchema>;
 
 export interface PickLineWriteInput {
   taskId: string;

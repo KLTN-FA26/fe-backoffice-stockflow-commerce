@@ -16,6 +16,16 @@ describe("toSafeNotificationPath — strict root-relative /admin policy (SCRUM-1
     ],
     ["/admin", "/admin"],
     ["/admin/orders#line-2", "/admin/orders#line-2"],
+    // WF-05 BO-11: BE invoicing / production notifications link their route, relative to /admin
+    [
+      "/invoicing/einvoices/0e380000-0000-4000-8000-000000000301",
+      "/admin/invoicing/einvoices/0e380000-0000-4000-8000-000000000301",
+    ],
+    [
+      "/invoicing/einvoices?orderId=0e380000-0000-4000-8000-000000000201",
+      "/admin/invoicing/einvoices?orderId=0e380000-0000-4000-8000-000000000201",
+    ],
+    ["/production/orders/p-1", "/admin/production/orders/p-1"],
   ])("keeps the canonical in-app path %s", (raw, expected) => {
     expect(toSafeNotificationPath(raw)).toBe(expected);
   });
@@ -44,6 +54,8 @@ describe("toSafeNotificationPath — strict root-relative /admin policy (SCRUM-1
     ["encoded dot segment", "/admin/%2e%2e/login"],
     ["outside the back-office", "/login"],
     ["prefix look-alike", "/administrator"],
+    ["section look-alike", "/invoicingx/einvoices"],
+    ["dot segments into a section", "/invoicing/../login"],
     ["storefront API", "/api/backend/identity/me"],
     ["oversized", `/admin/${"a".repeat(2100)}`],
   ])("rejects %s", (_, raw) => {

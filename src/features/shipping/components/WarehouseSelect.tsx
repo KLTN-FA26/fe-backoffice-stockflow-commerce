@@ -27,7 +27,7 @@ export function WarehouseSelect({
   value,
   onChange,
   disabled = false,
-  placeholder = L.openDialog.warehousePlaceholder,
+  placeholder = L.field.warehousePlaceholder,
   allLabel,
   className,
   ...aria
@@ -52,7 +52,7 @@ export function WarehouseSelect({
       >
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
-      <TitledSelectContent title={L.openDialog.warehouse}>
+      <TitledSelectContent title={L.field.warehouse}>
         {allLabel && <SelectItem value={ALL}>{allLabel}</SelectItem>}
         {value && !active.some((w) => w.warehouseId === value) && (
           <SelectItem value={value}>{value}</SelectItem>

@@ -13,7 +13,7 @@ interface CarrierSelectProps {
   id: string;
   value: string | null;
   onChange: (carrierId: string | null) => void;
-  /** Cho phép chọn "không hãng" (bỏ hãng của lô / bỏ lọc theo hãng). */
+  /** Cho phép chọn "không hãng" (bỏ lọc theo hãng). */
   allowNone?: boolean;
   /** Nhãn của lựa chọn "không hãng"; mặc định "Chưa chọn hãng". */
   noneLabel?: string;
@@ -34,7 +34,7 @@ export function CarrierSelect({
   allowNone = false,
   noneLabel = L.field.carrierNone,
   disabled = false,
-  placeholder = L.openDialog.carrierPlaceholder,
+  placeholder = L.field.carrierPlaceholder,
   currentName,
   className,
   ...aria

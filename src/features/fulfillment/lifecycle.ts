@@ -2,8 +2,8 @@
  * Fulfillment task — action-gating (feature-architecture §6).
  *
  * Bảng chuyển trạng thái dùng chung `PICK_TRANSITIONS` / `PACK_TRANSITIONS` (lib/domain).
- * Thao tác của trạm đóng gói (nhận đơn, kiện, quét, hoàn tất) gate ở `packing-lifecycle.ts`; ở đây còn
- * gán / lấy hàng / kiểm tra lại thiết kế. Từ BE PR #148 mỗi endpoint chỉ gate bằng MỘT mã quyền
+ * Thao tác của trạm kiểm thùng (bắt đầu, quét LPN, dán nhãn, loại thùng, hoàn tất) gate ở `carton-check-lifecycle.ts`; ở đây còn
+ * gán / lấy hàng / chuyển cả tác vụ sang khu xuất hàng. Từ BE PR #148 mỗi endpoint chỉ gate bằng MỘT mã quyền
  * (`@RequiresPermission`, không còn `@PreAuthorize` theo vai trò) — FE không đọc tên vai trò để quyết định
  * quyền. Phần lớn thao tác lấy hàng còn đòi người gọi là người được gán, nên ở đây kiểm: trạng thái,
  * mã quyền, người được gán.
@@ -11,9 +11,6 @@
  */
 
 import {
-  FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS,
-  FULFILLMENT_PACKAGE_PERMISSIONS,
-  FULFILLMENT_PACKING_PERMISSIONS,
   FULFILLMENT_PICKING_PERMISSIONS,
   FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS,
   PACK_STATUS,
@@ -28,7 +25,6 @@ import type { PermissionCode } from "@/lib/auth";
 const LABEL = UI_LABELS.fulfillment.action;
 const ASSIGNMENT = FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS;
 const PICKING = FULFILLMENT_PICKING_PERMISSIONS;
-const REVERIFY = FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS;
 
 /** Người đang đăng nhập, đủ để tính quyền thao tác trên một task. */
 export interface FulfillmentActor {
@@ -42,7 +38,8 @@ export interface FulfillmentGateState {
   assignedUserId?: string | null;
 }
 
-export type FulfillmentActionCode = "assign" | "startPicking" | "completePicking" | "reverify";
+export type FulfillmentActionCode =
+  "assign" | "startPicking" | "completePicking" | "moveToDispatch";
 
 interface StatusGate<S extends string> {
   readonly from: readonly S[];
@@ -82,21 +79,21 @@ export const FULFILLMENT_ACTIONS: readonly FulfillmentAction[] = [
   {
     code: "completePicking",
     label: LABEL.completePicking,
-    // BE `POST /tasks/{id}/picking-completion` — fulfillment-picking:UPDATE
+    // BE `POST /tasks/{id}/picking-completion` — fulfillment-picking:UPDATE. Đích DISPATCH → Picked, đích STAGING →
+    // Staged (docs 07 §4.2 bước 6): kết quả phụ thuộc đích của task nên bảng không ghi `to`.
     permission: PICKING.update,
     assigneeOnly: true,
-    pick: { from: [PICK_STATUS.PICKING], to: PICK_STATUS.PICKED },
+    pick: { from: [PICK_STATUS.PICKING] },
   },
   {
-    code: "reverify",
-    label: LABEL.reverify,
-    // X-CHK (BR-DSG-003, docs 08): BE PR #148 — `POST /tasks/{id}/design-integrity-reverification`
-    // là fulfillment-design-reverification:UPDATE (seed QC_STAFF, WAREHOUSE_MANAGER), không cần là người
-    // được gán lấy hàng
-    permission: REVERIFY.update,
+    code: "moveToDispatch",
+    label: LABEL.moveToDispatch,
+    // BE `POST /tasks/{id}/dispatch-transfer` (docs 07 §4.3 bước 8, BR-11) — quyết định của người phân việc
+    // (quản lý kho): fulfillment-task-assignment:UPDATE, không cần là người được gán. Chỉ task `Staged`; đơn
+    // đang treo thì BE từ chối (409 PICK_ORDER_ON_HOLD).
+    permission: ASSIGNMENT.update,
     assigneeOnly: false,
-    // BE PR #136: kiểm tra lại khớp → phiên về PACKING, người đóng gói hoàn tất lại (không ra PACKED)
-    pack: { from: [PACK_STATUS.ON_HOLD], to: PACK_STATUS.PACKING },
+    pick: { from: [PICK_STATUS.STAGED], to: PICK_STATUS.PICKED },
   },
 ];
 
@@ -158,19 +155,6 @@ export function isBlockedAsNonAssignee(
 /** Tạo task: BE `POST /fulfillment/tasks` — fulfillment-task-assignment:CREATE. */
 export function canCreateTask(actor: FulfillmentActor): boolean {
   return actor.can(ASSIGNMENT.create);
-}
-
-/**
- * Tải artifact thiết kế: endpoint cần packages:READ; BE `TaskAccess.requireArtifactAccess` cho qua người
- * được gán, người có design-reverification:READ (quản lý kho / QC) và — khi lấy hàng đã xong — người
- * có fulfillment-packing:UPDATE (người đóng gói). Điều phối đơn không có quyền nào trong số đó.
- */
-export function canDownloadArtifact(task: FulfillmentGateState, actor: FulfillmentActor): boolean {
-  if (!actor.can(FULFILLMENT_PACKAGE_PERMISSIONS.read) || isTaskCancelled(task)) return false;
-  if (isAssignee(task, actor) || actor.can(REVERIFY.read)) return true;
-  return (
-    task.pickStatus === PICK_STATUS.PICKED && actor.can(FULFILLMENT_PACKING_PERMISSIONS.update)
-  );
 }
 
 /** Đơn bị huỷ → BE huỷ cả pick lẫn pack (OrderCancellationListener). */

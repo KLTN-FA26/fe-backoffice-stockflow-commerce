@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { parseAsInteger, parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
 
@@ -38,9 +38,6 @@ export function useShipmentListState(canRead: boolean) {
     DEFAULT_CONFIG,
     mergeStoredConfig,
   );
-  // Lô đã chọn để mở chuyến (giữ cả hàng đã chọn ở trang khác)
-  const [selected, setSelected] = useState<ReadonlyMap<string, ShipmentRow>>(new Map());
-
   const query = useShipments(
     {
       page: Math.max(0, page - 1),
@@ -68,21 +65,12 @@ export function useShipmentListState(canRead: boolean) {
     [router],
   );
 
-  /** Đổi bộ lọc → về trang 1 và bỏ chọn (lô ở bộ lọc cũ không còn thấy trên màn). */
+  /** Đổi bộ lọc → về trang 1. */
   const filter = <T>(setter: (value: T) => unknown) => {
     return (value: T) => {
       void setter(value);
       void setPage(1);
-      setSelected(new Map());
     };
-  };
-
-  const onSelectionChange = (keys: Set<string>) => {
-    const rows = new Map(selected);
-    for (const key of [...rows.keys()]) if (!keys.has(key)) rows.delete(key);
-    for (const row of data?.items ?? [])
-      if (keys.has(row.shipmentId)) rows.set(row.shipmentId, row);
-    setSelected(rows);
   };
 
   return {
@@ -96,10 +84,6 @@ export function useShipmentListState(canRead: boolean) {
     carrierId,
     hasFilters,
     emptyState,
-    selected,
-    selectedKeys: new Set(selected.keys()),
-    onSelectionChange,
-    clearSelection: () => setSelected(new Map()),
     setPage: (value: number) => void setPage(value),
     setQ: filter((value: string) => setQ(value)),
     setStatus: filter((value: string) =>
@@ -118,7 +102,6 @@ export function useShipmentListState(canRead: boolean) {
       void setWarehouseId(null);
       void setCarrierId(null);
       void setPage(1);
-      setSelected(new Map());
     },
   };
 }

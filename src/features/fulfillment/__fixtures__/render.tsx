@@ -11,7 +11,6 @@ import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { vi } from "vitest";
 
 import {
-  FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS as REVERIFY,
   FULFILLMENT_PACKAGE_PERMISSIONS as PACK,
   FULFILLMENT_PACKING_PERMISSIONS as PACKING,
   FULFILLMENT_PICK_PERMISSIONS as PICK,
@@ -41,13 +40,12 @@ const FLOOR: PermissionCode[] = [
   PACKING.read,
   PACKING.update,
 ];
-/** Quản lý kho: thêm tiếp quản phiên, gán / giám sát task, kiểm tra lại thiết kế. */
+/** Quản lý kho: thêm tiếp quản phiên, gán / giám sát task. */
 const MANAGER: PermissionCode[] = [
   ...FLOOR,
   PACKING.approve,
   ...Object.values(ASSIGNMENT),
   OVERSIGHT.read,
-  ...Object.values(REVERIFY),
 ];
 
 /** Bộ quyền theo seed BE. Vai trò kho KHÔNG có sales-orders:READ. */
@@ -64,12 +62,8 @@ export const IDENTITIES = {
       ORDER_PERMISSIONS.read,
     ],
   },
-  // Không có VIEW_PAGE ở cả hai resource; chỉ kiểm tra lại thiết kế
-  qcStaff: { permissions: [PICK.read, PACK.read, ...Object.values(REVERIFY)] },
-  // NV kho được admin cấp thêm quyền đọc đơn — trạm đóng gói đọc cờ `printLinesReady` của đơn (BE PR #150)
-  staffWithOrders: {
-    permissions: [...FLOOR, ORDER_PERMISSIONS.read],
-  },
+  // Không có VIEW_PAGE ở cả hai resource; chỉ đọc
+  qcStaff: { permissions: [PICK.read, PACK.read] },
 } satisfies Record<string, TestIdentity>;
 
 export type RouteHandler = (params: unknown, body?: unknown, config?: unknown) => unknown;
@@ -103,7 +97,8 @@ export function mockFulfillmentApi(
     .mockImplementation(async (url: string, body?: unknown, config?: unknown) => {
       const handler = postRoutes[url];
       if (!handler) throw new Error(`Không có mock cho POST ${url}`);
-      return { data: await handler(undefined, body, config) };
+      // `headers` như AxiosResponse — tải file (PDF nhãn) đọc `content-disposition`
+      return { data: await handler(undefined, body, config), headers: {} };
     });
   const del = vi
     .spyOn(api, "delete")

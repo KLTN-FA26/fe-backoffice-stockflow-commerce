@@ -46,7 +46,6 @@ export type {
 export type {
   AgreedFeeValues,
   DeliveryFailureValues,
-  DeliveryModeValues,
   HoldOrderValues,
   PartialShipmentValues,
   RemainderClosureValues,

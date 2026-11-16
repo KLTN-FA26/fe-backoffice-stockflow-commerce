@@ -12,22 +12,22 @@ import { ApiError } from "@/lib/api/error";
 type MessageKey = keyof typeof FULFILLMENT_ERROR_MESSAGES;
 
 export type FulfillmentErrorContext =
-  "create" | "assign" | "pick" | "pack" | "reverify" | "artifact" | "candidates";
+  "create" | "assign" | "pick" | "dispatch" | "pack" | "candidates";
 
 /**
  * Lỗi trạng thái của task / đơn: BE (FulfillmentServiceImpl, PickList, PickJpaEntity) trả
- * `PICK_TASK_STATE_CONFLICT` (409) — ở mọi thao tác trừ tải file thiết kế, cùng nghĩa với `CONFLICT` chung
- * nên dùng chung câu và cùng coi là "dữ liệu đã cũ". Tải file thiết kế: `CONFLICT` = lệch checksum
- * (DesignServiceImpl), `PICK_TASK_STATE_CONFLICT` = đơn đã rời khâu xuất kho (TaskAccess) — hai câu riêng.
+ * `PICK_TASK_STATE_CONFLICT` (409) — cùng nghĩa với `CONFLICT` chung nên dùng chung câu và cùng coi là "dữ liệu
+ * đã cũ".
  */
 export const STATE_CONFLICT_CODE = "PICK_TASK_STATE_CONFLICT";
 
 const BY_CONTEXT: Record<FulfillmentErrorContext, Readonly<Record<string, MessageKey>>> = {
-  // 404 = không có đơn; 409 = đơn sai trạng thái / có dòng in chưa release sản xuất
+  // 404 = không có đơn; 409 = đơn sai trạng thái; 422 = khu chờ xuất không hợp lệ (đích STAGING)
   create: {
     NOT_FOUND: "orderNotFound",
     CONFLICT: "createConflict",
     VALIDATION_FAILED: "assigneeInvalid",
+    STAGING_AREA_INVALID: "STAGING_AREA_INVALID",
   },
   // 409 = pick không còn PENDING (PickJpaEntity#assign)
   assign: {
@@ -38,15 +38,9 @@ const BY_CONTEXT: Record<FulfillmentErrorContext, Readonly<Record<string, Messag
   // 404 = không phải người được gán (kể cả quản lý kho); 409 = sai trạng thái pick / đơn đã đóng
   pick: { NOT_FOUND: "notAssignee", CONFLICT: "stale" },
   pack: { NOT_FOUND: "notAssignee", CONFLICT: "stale" },
-  // 409 = pack không còn ON_HOLD, hoặc đơn đã rời khâu xuất kho
-  reverify: { NOT_FOUND: "notAssignee", CONFLICT: "reverifyConflict" },
-  // 404 = bundle không có vai trò file đó / dòng không có thiết kế; CONFLICT = lệch checksum;
-  // PICK_TASK_STATE_CONFLICT = đơn đã rời khâu xuất kho
-  artifact: {
-    NOT_FOUND: "artifactMissing",
-    CONFLICT: "artifactMismatch",
-    [STATE_CONFLICT_CODE]: "artifactOrderClosed",
-  },
+  // Chuyển sang khu xuất hàng (quản lý kho, không cần là người được gán): 409 PICK_TASK_STATE_CONFLICT = task
+  // không còn Staged; 409 PICK_ORDER_ON_HOLD = đơn đang treo
+  dispatch: { CONFLICT: "dispatchConflict", PICK_ORDER_ON_HOLD: "PICK_ORDER_ON_HOLD" },
   // GET /fulfillment/task-candidates: 403 FORBIDDEN (thiếu fulfillment-task-assignment:CREATE),
   // 403 OUT_OF_DATA_SCOPE (kho ngoài phạm vi), 404 WAREHOUSE_NOT_FOUND
   candidates: {
@@ -63,8 +57,7 @@ function isMessageKey(code: string): code is MessageKey {
 /** Câu tiếng Việt cho một lỗi khi thao tác với task xuất kho, theo ngữ cảnh thao tác. */
 export function fulfillmentErrorMessage(error: unknown, context: FulfillmentErrorContext): string {
   if (!(error instanceof ApiError)) return FULFILLMENT_ERROR_MESSAGES.generic;
-  const code =
-    error.code === STATE_CONFLICT_CODE && context !== "artifact" ? "CONFLICT" : error.code;
+  const code = error.code === STATE_CONFLICT_CODE ? "CONFLICT" : error.code;
   const contextual = BY_CONTEXT[context][code];
   if (contextual) return FULFILLMENT_ERROR_MESSAGES[contextual];
   if (isMessageKey(code)) return FULFILLMENT_ERROR_MESSAGES[code];

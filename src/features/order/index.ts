@@ -6,9 +6,11 @@
  * input-schemas.ts → input giữ / gỡ giữ / giao thất bại / đóng phần còn lại / giao một phần / hình thức giao
  * action-schemas.ts → input credit / huỷ; credit-hold-schemas.ts, production-schemas.ts
  * release-schemas.ts, release-errors.ts, release-rules.ts → release đơn (PR #74)
+ * cancellation-request-*.ts → yêu cầu huỷ của khách: duyệt / từ chối (docs 17 §4.8, §5.4) + kết quả tất toán
+ * delivery-batch-*.ts, delivery-window-*.ts → lịch giao của đơn (§5.5) + dời cửa sổ giao (§4.5, BR-28)
  * status-map.ts → BE→FE status mapping
  * api.ts      → axios calls (list, detail, admin-cancel, giữ / gỡ giữ / giao thất bại / đóng phần còn lại)
- * delivery-mode-api.ts → release + đổi hình thức giao; history-api.ts; partial-shipment-api.ts
+ * release-api.ts → release đơn; delivery-batch-api.ts → lịch giao (chọn đợt khi release); history-api.ts; partial-shipment-api.ts
  * action-api.ts → credit hold, lệnh sản xuất (GET /production/orders)
  * queries.ts  → React Query hooks
  * mutations.ts → mutation hooks
@@ -26,7 +28,6 @@ export type {
   OrderDto,
   OrderLine,
   OrderReadStatus,
-  OrderDeliveryMode,
   OrderHistoryEntry,
   OrderStatus,
   ProductionOrder,
@@ -40,7 +41,6 @@ export {
 } from "./action-schemas";
 export {
   deliveryFailureSchema,
-  deliveryModeSchema,
   holdOrderSchema,
   partialShipmentSchema,
   remainderClosureSchema,
@@ -113,13 +113,15 @@ export {
 
 // Khe "Ước tính xếp xe" (SCRUM-287 F3): chỗ ghép truyền vào, feature không import chéo
 export type { OrderEstimateSlot, OrderEstimateSlotProps } from "./estimate-slot";
+export type { OrderSettlementSlot, OrderSettlementSlotProps } from "./settlement-slot";
 
 // API params
 export type { ListOrderParams } from "./api";
 export type { ListCreditHoldParams } from "./action-api";
-export type { ReleaseOrderInput } from "./delivery-mode-api";
+export type { ReleaseOrderInput } from "./release-api";
 
 // Components
+export { CancellationRequestList } from "./components/cancellation/CancellationRequestList";
 export { CreditHoldList } from "./components/credit-hold/CreditHoldList";
 export { OrderDetail } from "./components/OrderDetail";
 export { OrderList } from "./components/OrderList";

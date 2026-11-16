@@ -44,7 +44,7 @@ function seedPacked(): MockTransferPack {
     // Cùng người seed ở mọi phiên khác của mock: phiên đã xong nên không ai cần là chủ
     packerId: MOCK_SUBMITTER,
     packerName: "Nhân viên kho (mock)",
-    packStatus: "PACKED",
+    packStatus: "COMPLETED",
     startedAt: "2026-10-22T03:00:00Z",
     packedAt: SEED_PACKED_TRANSFER_PACKED_AT,
     parcels,

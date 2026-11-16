@@ -8,8 +8,6 @@ import {
   SHIPMENT_COLUMNS,
   UI_LABELS,
 } from "@/constants";
-import { formatMoney } from "@/lib/format/money";
-import { useAssignCarrier } from "@/features/shipping/shipment-mutations";
 import {
   CELL,
   EmptyCell,
@@ -19,50 +17,14 @@ import {
 } from "@/components/shared/column-helpers";
 import { StatusDot } from "@/components/shared/StatusDot";
 
-import { CarrierSelect } from "../CarrierSelect";
-
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { ShipmentRow } from "@/features/shipping/types";
-
-/** Số thu hộ theo tiền tệ của lô khi BE trả `currency`; chưa có thì chỉ nói có / không thu hộ (không gán nhãn VND). */
-export function codLabel(
-  amount: number | null | undefined,
-  currency: string | null | undefined,
-): string {
-  if (!amount || amount <= 0) return UI_LABELS.shipping.shipments.noCod;
-  return currency ? formatMoney(amount, currency) : UI_LABELS.shipping.shipments.hasCod;
-}
 
 const C = SHIPMENT_COLUMNS;
 const L = UI_LABELS.shipping.shipments;
 
-/** Hãng của lô: chọn ngay trên dòng khi còn chờ xuất, chưa nằm trên chuyến (BE 409 nếu đã lên chuyến). */
-function CarrierCell({ row, editable }: { row: ShipmentRow; editable: boolean }) {
-  const assign = useAssignCarrier();
-  if (!editable) {
-    return row.carrierName ? <span className={CELL.text}>{row.carrierName}</span> : <EmptyCell />;
-  }
-  return (
-    // Click trong ô không được mở chi tiết lô (onRowClick của hàng)
-    <div className="w-52" onClick={(event) => event.stopPropagation()}>
-      <CarrierSelect
-        id={`carrier-${row.shipmentId}`}
-        aria-label={`${L.carrierSelectLabel} ${row.code}`}
-        value={row.carrierId ?? null}
-        currentName={row.carrierName}
-        allowNone
-        disabled={assign.isPending}
-        onChange={(carrierId) => assign.mutate({ shipmentId: row.shipmentId, carrierId })}
-      />
-    </div>
-  );
-}
-
-/** Cột bảng lô giao — không có cột mã vận đơn / tracking (hãng là bên thứ ba). */
-export function buildShipmentColumns(
-  canAssign: (row: ShipmentRow) => boolean,
-  open: (row: ShipmentRow) => void,
-): ColumnDef<ShipmentRow>[] {
+/** Cột bảng lô giao — hãng là hãng của xe chở lô (có sau khi đặt xe); mã vận đơn nằm ở chuyến. */
+export function buildShipmentColumns(open: (row: ShipmentRow) => void): ColumnDef<ShipmentRow>[] {
   return [
     {
       key: C.CODE,
@@ -92,14 +54,10 @@ export function buildShipmentColumns(
     },
     numberCell<ShipmentRow>(C.PACKAGES, "Số kiện", (row) => row.packageCount),
     {
-      key: C.COD,
-      header: UI_LABELS.shipping.field.cod,
-      cell: (row) => <span className={CELL.text}>{codLabel(row.codAmount, row.currency)}</span>,
-    },
-    {
       key: C.CARRIER,
       header: UI_LABELS.shipping.field.carrier,
-      cell: (row) => <CarrierCell row={row} editable={canAssign(row)} />,
+      cell: (row) =>
+        row.carrierName ? <span className={CELL.text}>{row.carrierName}</span> : <EmptyCell />,
     },
     {
       key: C.LOAD,

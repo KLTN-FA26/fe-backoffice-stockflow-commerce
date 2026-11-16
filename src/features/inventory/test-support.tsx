@@ -6,11 +6,13 @@ import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
+import { cycleCountDto, cycleCountLineDto, cycleCountSummaryDto } from "./cycle-count-schemas";
 import { stockAdjustmentDto } from "./schemas";
 
 import type { ReactNode } from "react";
 import type { PermissionCode } from "@/lib/auth";
 import type { RoleName } from "@/lib/auth/roles";
+import type { CycleCount, CycleCountLine, CycleCountSummary } from "./cycle-count-types";
 import type { StockAdjustment } from "./types";
 
 // Generated test-only fixtures follow pinned StockAdjustmentResponse; they are
@@ -22,11 +24,57 @@ export function adjustmentFixture(overrides: Partial<StockAdjustment> = {}) {
     locationCode: "HCM-A01-1-A",
     sku: "CUP-PP-500",
     quantityDelta: -3,
-    reason: "SCRAP",
+    reason: "DAMAGED",
     status: "PENDING_APPROVAL",
     requestedBy: crypto.randomUUID(),
     requestedAt: "2026-10-11T00:00:00Z",
     version: 0,
+    ...overrides,
+  });
+}
+
+// Test-only payloads in CycleCountResponse shape (backend develop df34c338). They are never registered as demo
+// records. `booked` / `adjustments` are absent by default — what a counter on a blind count receives (docs 20 BR-07).
+export function cycleCountLineFixture(overrides: Partial<CycleCountLine> = {}) {
+  return cycleCountLineDto.parse({
+    id: crypto.randomUUID(),
+    locationCode: "HCM-A01-1-B",
+    sku: "CUP-PP-500",
+    lotNumber: "PO-1001",
+    stockPackageId: crypto.randomUUID(),
+    lpn: "LPN-20261110-000001",
+    recountRequired: false,
+    ...overrides,
+  });
+}
+
+export function cycleCountFixture(overrides: Partial<CycleCount> = {}) {
+  return cycleCountDto.parse({
+    id: crypto.randomUUID(),
+    countNumber: "CC-20261112-0001",
+    warehouseId: crypto.randomUUID(),
+    triggerType: "SHORT_PICK",
+    status: "PLANNED",
+    blind: true,
+    plannedDate: "2026-11-12",
+    createdAt: "2026-11-12T01:00:00Z",
+    lines: [cycleCountLineFixture()],
+    ...overrides,
+  });
+}
+
+export function cycleCountSummaryFixture(overrides: Partial<CycleCountSummary> = {}) {
+  return cycleCountSummaryDto.parse({
+    id: crypto.randomUUID(),
+    countNumber: "CC-20261112-0001",
+    warehouseId: crypto.randomUUID(),
+    triggerType: "SHORT_PICK",
+    status: "PLANNED",
+    blind: true,
+    plannedDate: "2026-11-12",
+    createdAt: "2026-11-12T01:00:00Z",
+    lineCount: 1,
+    countedCount: 0,
     ...overrides,
   });
 }

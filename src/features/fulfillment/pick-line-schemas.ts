@@ -1,6 +1,7 @@
 /**
- * Dòng lấy hàng — zod DTO + Input, khớp BE `FulfillmentController` (`/tasks/{id}/pick-lines`,
- * SCRUM-267/274/275; báo thiếu BE PR #147). Jackson `non_null`: field null bị bỏ khỏi JSON → `.nullish()`.
+ * Dòng lấy hàng — zod DTO + Input, khớp BE `FulfillmentController` (`/tasks/{id}/pick-lines`, docs 07 §4.2,
+ * §4.4). Mỗi dòng là MỘT THÙNG LPN lấy nguyên (BR-04): quét vị trí rồi LPN, không nhập số lượng. Jackson
+ * `non_null`: field null bị bỏ khỏi JSON → `.nullish()`.
  */
 
 import { z } from "zod";
@@ -8,17 +9,19 @@ import { z } from "zod";
 import {
   FULFILLMENT_FIELD_MESSAGES,
   PICK_LINE_API_STATUSES,
-  PICK_LINE_ERROR_MESSAGES,
   PICK_LINE_LIMITS,
+  SHORT_PICK_REASONS,
 } from "@/constants";
 import { bePageSchema } from "@/lib/api/page-schema";
 
 const MSG = FULFILLMENT_FIELD_MESSAGES;
 
 /**
- * BE `PickLineResponse` — một điểm dừng của lộ trình: lấy `allocatedQty` × `sku` (lô `lotNumber`) ở
- * `locationCode`. `orderLineId` là dòng đơn; `barcode` của SKU (quét được thay cho SKU). `shortQty` = số
- * thiếu khi báo thiếu (giữ cả khi dòng thiếu đã được phân bổ lại → CANCELLED).
+ * BE `PickLineResponse` — một điểm dừng của lộ trình: lấy thùng `lpn` (SKU `sku`, lô `lotNumber`) ở
+ * `locationCode`. `allocatedQty` = số cái chuẩn của thùng (lấy nguyên, không nhập). `lpn` là mã thùng phải quét
+ * để xác nhận dòng (và quét lại khi cất lại); BE chỉ để null ở dòng hàng rời từ trước khi có thùng. `shortQty` /
+ * `shortReason` = thùng báo thiếu (NOT_FOUND | DAMAGED), giữ cả khi dòng đã được phân bổ lại → CANCELLED.
+ * `stagedAt` / `stagedLocationCode` = thùng đã chuyển sang khu chờ xuất (dòng STAGED, đích STAGING).
  */
 export const bePickLineSchema = z.object({
   lineId: z.string(),
@@ -37,6 +40,11 @@ export const bePickLineSchema = z.object({
   putBackLocationCode: z.string().nullish(),
   putBackAt: z.string().nullish(),
   shortQty: z.number().int().min(0).default(0),
+  shortReason: z.enum(SHORT_PICK_REASONS).nullish(),
+  lpn: z.string().nullish(),
+  wholeCarton: z.boolean().nullish(),
+  stagedAt: z.string().nullish(),
+  stagedLocationCode: z.string().nullish(),
 });
 
 export const bePickLinePageSchema = bePageSchema(bePickLineSchema);
@@ -44,35 +52,26 @@ export const bePickLinePageSchema = bePageSchema(bePickLineSchema);
 const code = (required: string) =>
   z.string().trim().min(1, required).max(PICK_LINE_LIMITS.codeMax, MSG.codeTooLong);
 
+/** LPN của thùng: BE `ConfirmPickRequest.lpn` / `PutBackRequest.lpn` @NotBlank @Size(max = 30). */
+const lpn = (required: string) =>
+  z.string().trim().min(1, required).max(PICK_LINE_LIMITS.lpnMax, MSG.lpnTooLong);
+
 /**
- * BE `ConfirmPickRequest` — vị trí, SKU hoặc barcode, số lượng (@NotBlank @Size(64), @Positive).
- * Chỉ kiểm định dạng: đúng / sai so với dòng do BE quyết (409 PICK_*), FE không chặn trước.
+ * BE `ConfirmPickRequest` — `locationCode` @NotBlank @Size(64), `lpn` @NotBlank @Size(30); KHÔNG có số lượng
+ * (docs 07 BR-04: mỗi dòng một thùng). Chỉ kiểm định dạng: đúng / sai so với dòng do BE quyết (409
+ * PICK_LOCATION_MISMATCH / PICK_ITEM_MISMATCH, BR-10), FE không chặn trước.
  */
 export const confirmPickInputSchema = z.object({
   locationCode: code(MSG.locationRequired),
-  scannedCode: code(MSG.codeRequired),
-  quantity: z
-    .string()
-    .trim()
-    .regex(/^[1-9]\d*$/, MSG.quantityRequired)
-    .transform(Number),
+  lpn: lpn(MSG.lpnRequired),
 });
 
 /**
- * BE `ShortPickRequest` (@NotBlank @Size(64), foundQuantity @NotNull @PositiveOrZero) + `PickList.reportShort`:
- * số tìm thấy phải từ 0 đến SL phân bổ − 1 (bằng phân bổ thì là lấy đủ, không phải thiếu). Vị trí đúng / sai
- * do BE quyết (409 PICK_LOCATION_MISMATCH).
+ * BE `ShortPickRequest` — `locationCode` @NotBlank @Size(64), `reason` @NotNull (NOT_FOUND | DAMAGED); báo
+ * thiếu cả thùng, không nhập số tìm thấy (docs 07 §4.4 bước 9). Vị trí đúng / sai do BE quyết (409
+ * PICK_LOCATION_MISMATCH).
  */
-export function shortPickInputSchema(allocatedQty: number) {
-  const max = allocatedQty - 1;
-  const outOfRange = PICK_LINE_ERROR_MESSAGES.shortFoundRange(max);
-  return z.object({
-    locationCode: code(MSG.locationRequired),
-    foundQuantity: z
-      .string()
-      .trim()
-      .regex(/^\d+$/, outOfRange)
-      .transform(Number)
-      .refine((found) => found <= max, outOfRange),
-  });
-}
+export const shortPickInputSchema = z.object({
+  locationCode: code(MSG.locationRequired),
+  reason: z.enum(SHORT_PICK_REASONS, { error: MSG.shortReasonRequired }),
+});

@@ -224,13 +224,13 @@ describe("adjustment detail", () => {
   });
 
   it("renders unknown backend reason/status verbatim with no lifecycle action", async () => {
-    const fixture = adjustmentFixture({ reason: "COUNT_VARIANCE", status: "APPROVED" });
+    const fixture = adjustmentFixture({ reason: "FUTURE_REASON", status: "APPROVED" });
     server.use(
       inventoryPermissions([adjustmentViewPage, adjustmentRead, adjustmentApprove, stockUpdate]),
       serve(fixture),
     );
     renderInventory(<AdjustmentDetail id={fixture.adjustmentId} />);
-    expect(await screen.findByText("COUNT_VARIANCE")).toBeInTheDocument();
+    expect(await screen.findByText("FUTURE_REASON")).toBeInTheDocument();
     expect(screen.getByTitle(/APPROVED/)).toBeInTheDocument();
     expectNoDecisionControls();
   });
@@ -510,13 +510,95 @@ describe("adjustment detail", () => {
     expect(posts).toBe(1);
   });
 
-  it("shows the reason label and a signed positive delta", async () => {
-    const fixture = adjustmentFixture({ reason: "DAMAGED", quantityDelta: 5 });
+  it("shows the reason label and a whole-carton delta", async () => {
+    const fixture = adjustmentFixture({
+      reason: "DAMAGED",
+      quantityDelta: 120,
+      stockPackageId: crypto.randomUUID(),
+    });
     server.use(inventoryPermissions([adjustmentViewPage, adjustmentRead]), serve(fixture));
     renderInventory(<AdjustmentDetail id={fixture.adjustmentId} />);
-    expect(await screen.findByText("Hư hỏng")).toBeInTheDocument();
-    expect(screen.getByText("+5")).toBeInTheDocument();
+    expect(await screen.findByText("Thùng hỏng")).toBeInTheDocument();
+    expect(screen.getByText("+1 thùng (+120 cái)")).toBeInTheDocument();
     expect(screen.queryByText("DAMAGED")).not.toBeInTheDocument();
+  });
+
+  // Docs 20 BR-05, BR-06: a COUNT_VARIANCE is approved or rejected by another person, never withdrawn.
+  describe("a COUNT_VARIANCE raised by a cycle count", () => {
+    const variance = (requestedBy: string) =>
+      adjustmentFixture({
+        reason: "COUNT_VARIANCE",
+        quantityDelta: -120,
+        stockPackageId: crypto.randomUUID(),
+        cycleCountLineId: crypto.randomUUID(),
+        requestedBy,
+      });
+
+    it("lets the approver decide it and shows it as a whole-carton shortage", async () => {
+      const fixture = variance(crypto.randomUUID());
+      server.use(
+        inventoryPermissions([adjustmentViewPage, adjustmentRead, adjustmentApprove]),
+        serve(fixture),
+      );
+      renderInventory(<AdjustmentDetail id={fixture.adjustmentId} />);
+      expect(await screen.findByText("Chênh lệch kiểm kê")).toBeInTheDocument();
+      expect(screen.getByText("−1 thùng (−120 cái)")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: INVENTORY_LABELS.approve })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: INVENTORY_LABELS.reject })).toBeInTheDocument();
+    });
+
+    it("offers the submitter no withdrawal, even with stock UPDATE", async () => {
+      const actor = setInventoryTestActor("Warehouse Staff");
+      const fixture = variance(actor);
+      server.use(
+        inventoryPermissions([adjustmentViewPage, adjustmentRead, stockUpdate]),
+        serve(fixture),
+      );
+      renderInventory(<AdjustmentDetail id={fixture.adjustmentId} />);
+      expect(await screen.findByText("Chênh lệch kiểm kê")).toBeInTheDocument();
+      expectNoDecisionControls();
+    });
+
+    it("tells an approver blocked by four eyes in Vietnamese, never the backend text", async () => {
+      const fixture = variance(crypto.randomUUID());
+      server.use(
+        inventoryPermissions([adjustmentViewPage, adjustmentRead, adjustmentApprove]),
+        serve(fixture),
+        http.post(`${endpoint}/approval`, () =>
+          HttpResponse.json(
+            { success: false, errorCode: "ADJUSTMENT_SELF_APPROVAL", message: "English prose" },
+            { status: 409 },
+          ),
+        ),
+      );
+      renderInventory(<AdjustmentDetail id={fixture.adjustmentId} />);
+      await userEvent.click(await screen.findByRole("button", { name: INVENTORY_LABELS.approve }));
+      await userEvent.click(
+        within(screen.getByRole("dialog")).getByRole("button", { name: INVENTORY_LABELS.approve }),
+      );
+      expect(await screen.findByText(INVENTORY_ERROR_MESSAGES.selfApproval)).toBeInTheDocument();
+      expect(screen.queryByText(/English prose/)).not.toBeInTheDocument();
+    });
+
+    it("explains a held carton: reallocate the short pick first (docs 07 §4.4, 20 §4.3)", async () => {
+      const fixture = variance(crypto.randomUUID());
+      server.use(
+        inventoryPermissions([adjustmentViewPage, adjustmentRead, adjustmentApprove]),
+        serve(fixture),
+        http.post(`${endpoint}/approval`, () =>
+          HttpResponse.json(
+            { success: false, errorCode: "STOCK_PACKAGE_HELD", message: "English prose" },
+            { status: 409 },
+          ),
+        ),
+      );
+      renderInventory(<AdjustmentDetail id={fixture.adjustmentId} />);
+      await userEvent.click(await screen.findByRole("button", { name: INVENTORY_LABELS.approve }));
+      await userEvent.click(
+        within(screen.getByRole("dialog")).getByRole("button", { name: INVENTORY_LABELS.approve }),
+      );
+      expect(await screen.findByText(INVENTORY_ERROR_MESSAGES.cartonHeld)).toBeInTheDocument();
+    });
   });
 
   it("keeps an unknown reason raw on the detail", async () => {

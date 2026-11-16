@@ -14,7 +14,7 @@ export const SHARED_QUERY_ROOTS = {
   /** Phiếu giữ hàng (reservation) — trạng thái + hạn giữ chỗ. */
   inventoryReservations: "inventory-stock-reservations",
   /**
-   * Task xuất kho — gồm cả hàng chờ và phiên đóng gói (`packingKeys` nằm dưới root này). Đổi cách giao của đơn
+   * Task xuất kho — gồm cả hàng chờ và phiên kiểm thùng (`cartonCheckKeys` nằm dưới root này). Đổi cách giao của đơn
    * (Sales cho phép / dừng giao một phần) đổi việc kho được phép làm, nên Order invalidate qua root này.
    */
   fulfillmentTasks: "fulfillment-tasks",

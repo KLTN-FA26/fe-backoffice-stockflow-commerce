@@ -32,9 +32,12 @@ export const SUPPLIER_ITEM_PERMISSIONS = {
 
 /**
  * Đơn hàng — resource `sales-orders` (BE `OrderResources.ORDERS`).
- * - `approve` / `release` (cùng APPROVE, scope ALL — `OrderReleaseController`): giữ đơn, gỡ giữ,
- *   ghi giao thất bại, release đơn sang kho / sản xuất (`POST /orders/{id}/release`, SCRUM-423);
- *   seed BE chỉ cấp cho ORDER_COORDINATOR (SALES_STAFF chỉ có VIEW_PAGE/READ/CREATE/UPDATE).
+ * - `release`: release đơn sang kho xuất (`POST /orders/{id}/release`, BR-03 docs 17) — resource riêng
+ *   `sales-order-releases` (UPDATE, scope ALL, BE V20261115000200): quản lý kho của kho xuất; BE kiểm thêm kho
+ *   người gọi phụ trách (`WarehouseScope`). `sales-orders:APPROVE` đã bị BE xoá khỏi mọi vai trò (tách thành
+ *   `sales-order-releases`, `sales-order-holds`, `fulfillment-delivery-outcomes:APPROVE`).
+ * - `approve` (APPROVE, scope ALL): giữ đơn, gỡ giữ, ghi giao thất bại — BE đã chuyển các bước này sang mã khác
+ *   (V20261115000200); FE chưa đổi theo (ngoài phạm vi PR release + lấy hàng).
  * - `cancel`: huỷ đơn phía admin (`POST /orders/{id}/admin-cancellation`) và đóng phần còn lại của
  *   đơn giao một phần (`POST /orders/{id}/remainder-closure`) — BE tách sang resource
  *   `sales-order-cancellations` (UPDATE, scope ALL; seed: ORDER_COORDINATOR + SALES_STAFF).
@@ -48,20 +51,50 @@ export const ORDER_PERMISSIONS = {
   // ORDER_COORDINATOR và (BE PR #148, "ACCREAD") ACCOUNTANT
   read: "sales-orders:READ",
   create: "sales-orders:CREATE",
-  // Giữ / gỡ giữ / ghi giao thất bại — OrderReleaseController, APPROVE scope ALL (BE PR #133)
+  // Giữ / gỡ giữ / ghi giao thất bại — BE PR #133 (xem ghi chú trên: BE đã tách mã)
   approve: "sales-orders:APPROVE",
-  // Release đơn sang kho / sản xuất — OrderReleaseController, cùng APPROVE scope ALL (SCRUM-423)
-  release: "sales-orders:APPROVE",
+  // Release đơn sang kho xuất — OrderReleaseController (`sales-order-releases:UPDATE`, scope ALL, WM của kho xuất)
+  release: "sales-order-releases:UPDATE",
   // Huỷ đơn phía admin + đóng phần còn lại — resource riêng `sales-order-cancellations`
   // (BE V20261013000200): SALES_STAFF + ORDER_COORDINATOR có UPDATE.
   cancel: "sales-order-cancellations:UPDATE",
   // Cho phép / dừng giao một phần của đơn (`PUT /orders/{id}/partial-shipment`, BE PR #150) — resource
   // `sales-order-partial-shipments` (UPDATE, scope ALL; seed: SALES_STAFF + SYSTEM_ADMIN)
   partialShipment: "sales-order-partial-shipments:UPDATE",
-  // Chọn / đổi hình thức giao của đơn (`POST /orders/{id}/release` với `deliveryMode` khác của đơn và
-  // `PUT /orders/{id}/delivery-mode`, BE PR #157, LP-1) — resource `sales-order-delivery-modes` (UPDATE,
-  // scope ALL; seed: ORDER_COORDINATOR + SYSTEM_ADMIN). Đọc hình thức giao đi kèm `sales-orders:READ`.
-  deliveryModes: "sales-order-delivery-modes:UPDATE",
+} as const;
+
+/**
+ * Hợp đồng bán — resource `sales-contracts` (BE `OrderResources.SALES_CONTRACTS`). Chỉ khai báo mã FE đang dùng:
+ * - `read`: lịch giao của đơn (`GET /orders/{id}/delivery-batches`) — ô chọn đợt giao khi release và panel lịch giao.
+ *   Seed BE: SALES_STAFF, SALES_MANAGER, ACCOUNTANT, PRODUCTION_COORDINATOR, SYSTEM_ADMIN — KHÔNG có quản lý kho.
+ * - `update`: Sale dời cửa sổ giao (`POST /orders/{id}/delivery-batches/{batchId}/window-change`, docs 17 BR-28 "chỉ
+ *   Sale"). Seed BE: SALES_STAFF + SYSTEM_ADMIN (PermissionMatrixTest).
+ */
+export const SALES_CONTRACT_PERMISSIONS = {
+  read: "sales-contracts:READ",
+  update: "sales-contracts:UPDATE",
+} as const;
+
+/**
+ * Hàng đợi yêu cầu huỷ của khách (`GET /orders/cancellation-requests`) — resource `sales-order-cancellations`, action
+ * READ (BE V20261022000200, tách khỏi `sales-orders:READ` để Kế toán đọc đơn không mở luôn hàng đợi). Seed BE:
+ * SALES_STAFF + SYSTEM_ADMIN. Duyệt / từ chối là `ORDER_PERMISSIONS.cancel` (cùng resource, UPDATE). Resource này không
+ * có VIEW_PAGE (BE `OrderCancellationsResourceDeclaration`: chỉ READ, UPDATE) nên trang gate bằng READ.
+ */
+export const CANCELLATION_REQUEST_PERMISSIONS = {
+  read: "sales-order-cancellations:READ",
+} as const;
+
+/**
+ * Hoàn tiền của đơn — resource `payment-refunds` (BE `RefundController`). FE đơn hàng chỉ ĐỌC kết quả tất toán sau huỷ; màn Kế toán (`@/constants/payment`) dùng thêm VIEW_PAGE / CREATE / UPDATE
+ * (`GET /refunds/orders/{orderId}`): seed BE cấp READ cho ACCOUNTANT, SALES_STAFF, SALES_MANAGER, SYSTEM_ADMIN (và
+ * khách, scope OWN). Ghi nhận / huỷ phiếu hoàn là việc của Kế toán ở màn thanh toán, không thuộc màn đơn.
+ */
+export const PAYMENT_REFUND_PERMISSIONS = {
+  viewPage: "payment-refunds:VIEW_PAGE",
+  read: "payment-refunds:READ",
+  create: "payment-refunds:CREATE",
+  update: "payment-refunds:UPDATE",
 } as const;
 
 /**
@@ -249,6 +282,20 @@ export const INVENTORY_PERMISSIONS = {
   stockRead: "inventory-stock-items:READ",
   // GET /inventory/alerts, /inventory/alerts/summary (BE StockAlertController, resource inventory-alerts)
   alertRead: "inventory-alerts:READ",
+} as const;
+
+/**
+ * Phiếu kiểm kê — resource `inventory-cycle-counts` (BE `CycleCountController`, seed V20260903000100,
+ * V20261023000300, V20261028001000). READ / UPDATE: người đếm (NV kho) xem và đếm phiếu; CREATE: lập / giao
+ * phiếu; APPROVE: thấy số sổ sách, yêu cầu đếm lại, huỷ phiếu (Quản lý kho). Docs 20 BR-07: ai có APPROVE
+ * mới thấy sổ sách của phiếu kiểm mù.
+ */
+export const CYCLE_COUNT_PERMISSIONS = {
+  viewPage: "inventory-cycle-counts:VIEW_PAGE",
+  read: "inventory-cycle-counts:READ",
+  create: "inventory-cycle-counts:CREATE",
+  update: "inventory-cycle-counts:UPDATE",
+  approve: "inventory-cycle-counts:APPROVE",
 } as const;
 
 /**
@@ -505,18 +552,12 @@ export const SHIPMENT_PERMISSIONS = {
 } as const;
 
 /**
- * Xếp xe & bàn giao — resource `fulfillment-dispatch` (BE PR #148). CREATE: mở chuyến
- * (`POST /fulfillment/loads`). UPDATE: thêm / bớt lô, quét / gỡ quét kiện, bàn giao, chọn hãng cho lô
- * (`PUT /shipments/{id}/carrier`). Seed: WAREHOUSE_STAFF, WAREHOUSE_MANAGER, SYSTEM_ADMIN.
+ * Xếp xe & bàn giao — resource `fulfillment-dispatch` (BE `DispatchController`, chỉ có UPDATE): ghi nhận đặt xe, huỷ đặt xe,
+ * bắt đầu xếp, quét / gỡ quét kiện, dỡ kiện, nhập mã vận đơn trước khi rời kho, bàn giao. Seed: WAREHOUSE_STAFF,
+ * WAREHOUSE_MANAGER, SYSTEM_ADMIN.
  */
 export const FULFILLMENT_DISPATCH_PERMISSIONS = {
-  create: "fulfillment-dispatch:CREATE",
   update: "fulfillment-dispatch:UPDATE",
-} as const;
-
-/** Huỷ chuyến xe trước khi rời kho (`POST /loads/{id}/cancellation`) — seed: WAREHOUSE_MANAGER, SYSTEM_ADMIN. */
-export const FULFILLMENT_LOAD_CANCELLATION_PERMISSIONS = {
-  update: "fulfillment-load-cancellations:UPDATE",
 } as const;
 
 /**
@@ -530,7 +571,28 @@ export const FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS = {
   update: "fulfillment-controlled-cancellations:UPDATE",
 } as const;
 
-/** Danh mục hãng vận chuyển: thêm / sửa (`POST`, `PUT /fulfillment/carriers`) — seed: WAREHOUSE_MANAGER, SYSTEM_ADMIN. */
+/**
+ * Sửa mã vận đơn SAU KHI chuyến rời kho (`PUT /fulfillment/loads/{id}/waybill` khi chuyến DISPATCHED) — BR-24 docs 09:
+ * chỉ quản lý kho, bắt buộc lý do. BE V20261108001400 seed: WAREHOUSE_MANAGER, SYSTEM_ADMIN. Nhập mã vận đơn TRƯỚC
+ * khi rời kho chỉ cần `fulfillment-dispatch:UPDATE`.
+ */
+export const FULFILLMENT_WAYBILL_CORRECTION_PERMISSIONS = {
+  update: "fulfillment-waybill-corrections:UPDATE",
+} as const;
+
+/**
+ * Nhập mã vận đơn hàng loạt từ file (BE `WaybillImportController`, docs 09 §4.4, BR-25): READ = tải file mẫu + xem
+ * các lần nhập; CREATE = xem trước + nhập file. BE V20261108001500 seed: WAREHOUSE_STAFF, WAREHOUSE_MANAGER, SYSTEM_ADMIN.
+ */
+export const FULFILLMENT_WAYBILL_IMPORT_PERMISSIONS = {
+  read: "fulfillment-waybill-imports:READ",
+  create: "fulfillment-waybill-imports:CREATE",
+} as const;
+
+/**
+ * Danh mục hãng vận chuyển: thêm / sửa (`POST`, `PUT /fulfillment/carriers`) — seed: WAREHOUSE_MANAGER, SYSTEM_ADMIN.
+ * Xem danh sách hãng là `fulfillment-shipments:READ` (resource này chỉ có UPDATE, không VIEW_PAGE / READ).
+ */
 export const FULFILLMENT_CARRIER_PERMISSIONS = {
   update: "fulfillment-carriers:UPDATE",
 } as const;

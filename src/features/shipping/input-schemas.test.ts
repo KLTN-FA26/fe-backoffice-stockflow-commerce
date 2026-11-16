@@ -5,11 +5,12 @@ import { SHIPPING_FIELD_MESSAGES as MSG, SHIPPING_LIMITS } from "@/constants";
 import {
   bookingInputSchema,
   cancelBookingInputSchema,
-  cancelLoadInputSchema,
+  controlledCancelInputSchema,
   deliveryOutcomeInputSchema,
   handoverInputSchema,
-  openLoadInputSchema,
+  overrideUnloadInputSchema,
   scanPackageInputSchema,
+  waybillInputSchema,
 } from "./input-schemas";
 
 const firstMessage = (result: { success: boolean; error?: { issues: { message: string }[] } }) =>
@@ -36,38 +37,6 @@ describe("scanPackageInputSchema", () => {
     expect(firstMessage(scanPackageInputSchema.safeParse({ packageCode: "PKG 1" }))).toBe(
       MSG.scanNotAscii,
     );
-  });
-});
-
-describe("openLoadInputSchema", () => {
-  it("kho + hãng bắt buộc; xe và tài xế tuỳ chọn, rỗng → vắng", () => {
-    expect(firstMessage(openLoadInputSchema.safeParse({ warehouseId: "", carrierId: "c" }))).toBe(
-      MSG.warehouseRequired,
-    );
-    expect(firstMessage(openLoadInputSchema.safeParse({ warehouseId: "w", carrierId: "" }))).toBe(
-      MSG.carrierRequired,
-    );
-    const parsed = openLoadInputSchema.parse({
-      warehouseId: "w",
-      carrierId: "c",
-      vehiclePlate: " ",
-      driverName: " An ",
-    });
-    expect(parsed).toEqual({
-      warehouseId: "w",
-      carrierId: "c",
-      vehiclePlate: undefined,
-      driverName: "An",
-      driverPhone: undefined,
-    });
-  });
-
-  it("biển số tối đa 20 ký tự (BE)", () => {
-    const long = "5".repeat(SHIPPING_LIMITS.vehiclePlateMax + 1);
-    expect(
-      openLoadInputSchema.safeParse({ warehouseId: "w", carrierId: "c", vehiclePlate: long })
-        .success,
-    ).toBe(false);
   });
 });
 
@@ -104,14 +73,7 @@ describe("handoverInputSchema (BE HandoverRequest)", () => {
   });
 });
 
-describe("cancelLoadInputSchema / deliveryOutcomeInputSchema", () => {
-  it("huỷ chuyến bắt buộc lý do", () => {
-    expect(firstMessage(cancelLoadInputSchema.safeParse({ reason: "  " }))).toBe(
-      MSG.cancelReasonRequired,
-    );
-    expect(cancelLoadInputSchema.parse({ reason: " Hãng huỷ " }).reason).toBe("Hãng huỷ");
-  });
-
+describe("deliveryOutcomeInputSchema", () => {
   it("giao thất bại cần lý do; 'Lý do khác' cần ghi chú (BE DeliveryOutcomeRequest)", () => {
     expect(deliveryOutcomeInputSchema.safeParse({ outcome: "DELIVERED" }).success).toBe(true);
     expect(deliveryOutcomeInputSchema.safeParse({ outcome: "RETURNED" }).success).toBe(true);
@@ -164,6 +126,8 @@ describe("bookingInputSchema — đặt xe (BE BookingRequest)", () => {
       vehiclePlate: undefined,
       driverName: undefined,
       driverPhone: undefined,
+      waybillNo: undefined,
+      pickupAt: undefined,
     });
     expect(
       bookingInputSchema.parse({ carrierId: "c1", vehiclePlate: " 51C-1 " }).vehiclePlate,
@@ -204,5 +168,157 @@ describe("cancelBookingInputSchema — huỷ đặt xe", () => {
         reason: "x".repeat(SHIPPING_LIMITS.cancelReasonMax + 1),
       }).success,
     ).toBe(false);
+  });
+});
+
+describe("bookingInputSchema — mã vận đơn và giờ hẹn lấy hàng (BE BookingRequest)", () => {
+  const base = { carrierId: "c1" };
+
+  it("mã vận đơn tuỳ chọn: rỗng → vắng, có thì cắt khoảng trắng", () => {
+    expect(bookingInputSchema.parse({ ...base, waybillNo: "  " }).waybillNo).toBeUndefined();
+    expect(bookingInputSchema.parse({ ...base, waybillNo: " GHN-1 " }).waybillNo).toBe("GHN-1");
+  });
+
+  it("mã vận đơn có dấu / khoảng trắng giữa chừng hoặc quá 64 ký tự bị từ chối", () => {
+    expect(firstMessage(bookingInputSchema.safeParse({ ...base, waybillNo: "GHN 1" }))).toBe(
+      MSG.waybillInvalid,
+    );
+    expect(firstMessage(bookingInputSchema.safeParse({ ...base, waybillNo: "VẬN-1" }))).toBe(
+      MSG.waybillInvalid,
+    );
+    expect(
+      firstMessage(
+        bookingInputSchema.safeParse({
+          ...base,
+          waybillNo: "A".repeat(SHIPPING_LIMITS.waybillNoMax + 1),
+        }),
+      ),
+    ).toBe(MSG.waybillInvalid);
+    expect(
+      bookingInputSchema.safeParse({
+        ...base,
+        waybillNo: "A".repeat(SHIPPING_LIMITS.waybillNoMax),
+      }).success,
+    ).toBe(true);
+  });
+
+  it("giờ hẹn lấy hàng: giữ nguyên chuỗi datetime-local, rỗng → vắng", () => {
+    expect(bookingInputSchema.parse({ ...base, pickupAt: "2026-11-20T08:30" }).pickupAt).toBe(
+      "2026-11-20T08:30",
+    );
+    expect(bookingInputSchema.parse({ ...base, pickupAt: "" }).pickupAt).toBeUndefined();
+  });
+});
+
+describe("waybillInputSchema — nhập / sửa mã vận đơn (BE WaybillRequest)", () => {
+  it("mã vận đơn bắt buộc, 1-64 ký tự in được không khoảng trắng", () => {
+    const schema = waybillInputSchema(false);
+    expect(firstMessage(schema.safeParse({ waybillNo: "  " }))).toBe(MSG.waybillRequired);
+    expect(firstMessage(schema.safeParse({ waybillNo: "GHN 1" }))).toBe(MSG.waybillInvalid);
+    expect(
+      firstMessage(schema.safeParse({ waybillNo: "A".repeat(SHIPPING_LIMITS.waybillNoMax + 1) })),
+    ).toBe(MSG.waybillInvalid);
+    expect(schema.parse({ waybillNo: " GHN-250001 " }).waybillNo).toBe("GHN-250001");
+  });
+
+  it("trước khi rời kho: lý do tuỳ chọn, biển số / tài xế / SĐT rỗng → vắng", () => {
+    const parsed = waybillInputSchema(false).parse({
+      waybillNo: "GHN-1",
+      vehiclePlate: " ",
+      driverName: " An ",
+      reason: "",
+    });
+    expect(parsed).toEqual({
+      waybillNo: "GHN-1",
+      vehiclePlate: undefined,
+      driverName: "An",
+      driverPhone: undefined,
+      reason: undefined,
+    });
+  });
+
+  it("sau khi rời kho (sửa mã, BR-24): lý do bắt buộc", () => {
+    const schema = waybillInputSchema(true);
+    expect(schema.safeParse({ waybillNo: "GHN-2" }).success).toBe(false);
+    expect(firstMessage(schema.safeParse({ waybillNo: "GHN-2", reason: "" }))).toBe(
+      MSG.waybillReasonRequired,
+    );
+    expect(firstMessage(schema.safeParse({ waybillNo: "GHN-2", reason: "   " }))).toBe(
+      MSG.waybillReasonRequired,
+    );
+    expect(schema.parse({ waybillNo: "GHN-2", reason: " Nhập nhầm " }).reason).toBe("Nhập nhầm");
+    expect(
+      schema.safeParse({
+        waybillNo: "GHN-2",
+        reason: "x".repeat(SHIPPING_LIMITS.cancelReasonMax + 1),
+      }).success,
+    ).toBe(false);
+  });
+
+  it("giới hạn độ dài biển số 20, tài xế 120, SĐT 32", () => {
+    const schema = waybillInputSchema(false);
+    const base = { waybillNo: "GHN-1" };
+    expect(
+      schema.safeParse({ ...base, vehiclePlate: "5".repeat(SHIPPING_LIMITS.vehiclePlateMax + 1) })
+        .success,
+    ).toBe(false);
+    expect(
+      schema.safeParse({ ...base, driverName: "A".repeat(SHIPPING_LIMITS.driverNameMax + 1) })
+        .success,
+    ).toBe(false);
+    expect(
+      schema.safeParse({ ...base, driverPhone: "9".repeat(SHIPPING_LIMITS.driverPhoneMax + 1) })
+        .success,
+    ).toBe(false);
+  });
+});
+
+describe("controlledCancelInputSchema / overrideUnloadInputSchema (SCRUM-474)", () => {
+  it("huỷ có kiểm soát: mã lý do thuộc bốn mã BE và ghi chú bắt buộc", () => {
+    expect(
+      firstMessage(controlledCancelInputSchema.safeParse({ reasonCode: "KHAC", note: "  " })),
+    ).toBe(MSG.controlledNoteRequired);
+    expect(
+      firstMessage(controlledCancelInputSchema.safeParse({ reasonCode: "LY_DO_LA", note: "x" })),
+    ).toBe(MSG.controlledReasonCodeRequired);
+    expect(
+      firstMessage(controlledCancelInputSchema.safeParse({ note: "Xe hỏng giữa đường" })),
+    ).toBe(MSG.controlledReasonCodeRequired);
+    expect(controlledCancelInputSchema.parse({ reasonCode: "XE_HONG", note: " Xe hỏng " })).toEqual(
+      { reasonCode: "XE_HONG", note: "Xe hỏng" },
+    );
+    expect(
+      controlledCancelInputSchema.safeParse({
+        reasonCode: "SAI_XE",
+        note: "x".repeat(SHIPPING_LIMITS.cancelReasonMax + 1),
+      }).success,
+    ).toBe(false);
+  });
+
+  it("xác nhận dỡ không quét: ghi chú tuỳ chọn, rỗng → vắng, tối đa 500 ký tự", () => {
+    expect(overrideUnloadInputSchema.parse({}).note).toBeUndefined();
+    expect(overrideUnloadInputSchema.parse({ note: "  " }).note).toBeUndefined();
+    expect(overrideUnloadInputSchema.parse({ note: " Nhãn rách " }).note).toBe("Nhãn rách");
+    expect(
+      overrideUnloadInputSchema.safeParse({ note: "x".repeat(SHIPPING_LIMITS.noteMax + 1) })
+        .success,
+    ).toBe(false);
+  });
+});
+
+describe("handoverInputSchema — tên tài xế bắt buộc trước khi ký (WF4-DRIVER)", () => {
+  const base = { carrierRepresentative: "Anh Tài", signed: true } as const;
+
+  it("driverRequired: thiếu hoặc chỉ khoảng trắng bị chặn; có thì cắt khoảng trắng", () => {
+    const schema = handoverInputSchema(false, true);
+    expect(firstMessage(schema.safeParse({ ...base }))).toBeDefined();
+    expect(firstMessage(schema.safeParse({ ...base, driverName: "  " }))).toBe(
+      MSG.driverNameRequired,
+    );
+    expect(schema.parse({ ...base, driverName: " Lái " }).driverName).toBe("Lái");
+  });
+
+  it("mặc định tên tài xế tuỳ chọn (chuyến đã có tài xế)", () => {
+    expect(handoverInputSchema(false).safeParse({ ...base }).success).toBe(true);
   });
 });

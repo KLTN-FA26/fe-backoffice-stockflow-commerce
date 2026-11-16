@@ -6,7 +6,6 @@
  */
 
 import {
-  FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS,
   FULFILLMENT_PICKING_PERMISSIONS,
   FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS,
   FULFILLMENT_TASK_OVERSIGHT_PERMISSIONS,
@@ -39,7 +38,7 @@ export function canReportShort(task: FulfillmentGateState, actor: FulfillmentAct
 
 /**
  * Phân bổ lại dòng thiếu (X-SHORT bước 04): quyết định của người phân việc — `fulfillment-task-assignment:UPDATE`
- * (điều phối, quản lý kho), không cần là người được gán. Dòng SHORT chỉ có khi task đang `Picking`.
+ * (quản lý kho, docs 07 §4.4 bước 10), không cần là người được gán. Dòng SHORT chỉ có khi task đang `Picking`.
  */
 export function canReallocate(task: FulfillmentGateState, actor: FulfillmentActor): boolean {
   return (
@@ -59,8 +58,8 @@ export function isReallocatableLine(line: Pick<PickLine, "status">): boolean {
 }
 
 /**
- * Action của task kèm điều kiện dòng: "Hoàn tất lấy hàng" chỉ khi mọi dòng PICKED / CANCELLED — docs 07
- * bước 9, BE `requireAllPicked` (409 PICK_LINES_INCOMPLETE). Các action khác giữ nguyên.
+ * Action của task kèm điều kiện dòng: "Hoàn tất lấy hàng" chỉ khi mọi dòng PICKED / STAGED / CANCELLED — docs 07
+ * §4.2 bước 6, BE `requireAllPicked` (409 PICK_LINES_INCOMPLETE). Các action khác giữ nguyên.
  */
 export function allowedTaskActions(
   task: FulfillmentGateState,
@@ -87,12 +86,9 @@ export function canPutBack(actor: FulfillmentActor): boolean {
 
 /**
  * Mở được chi tiết task của người khác (vd từ hàng đợi trả về kệ) — BE `TaskAccess.requireVisible`: ngoài người
- * được gán, chỉ ai có `fulfillment-task-oversight:READ` hoặc `fulfillment-design-reverification:READ`; còn lại 404.
+ * được gán, chỉ ai có `fulfillment-task-oversight:READ` (hoặc người đóng gói khi task đã lấy xong); còn lại 404.
  * UI-only — Backend phải re-check (kể cả phạm vi kho).
  */
 export function canOpenOthersTask(actor: FulfillmentActor): boolean {
-  return (
-    actor.can(FULFILLMENT_TASK_OVERSIGHT_PERMISSIONS.read) ||
-    actor.can(FULFILLMENT_DESIGN_REVERIFICATION_PERMISSIONS.read)
-  );
+  return actor.can(FULFILLMENT_TASK_OVERSIGHT_PERMISSIONS.read);
 }

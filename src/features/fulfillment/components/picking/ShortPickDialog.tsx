@@ -4,7 +4,7 @@ import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 
-import { PICK_LINE_LABELS, TOAST_MESSAGES } from "@/constants";
+import { PICK_LINE_LABELS, SHORT_PICK_REASONS, TOAST_MESSAGES } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { createIdempotencyAttempt } from "@/lib/api/idempotency";
 import { shortPickError } from "@/features/fulfillment/pick-line-errors";
@@ -12,8 +12,14 @@ import { useReportShortPick } from "@/features/fulfillment/pick-line-mutations";
 import { shortPickInputSchema } from "@/features/fulfillment/pick-line-schemas";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { toast } from "@/components/shared/Toast";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import { FieldError } from "../primitives";
 import { CodeField } from "./CodeField";
@@ -32,9 +38,10 @@ export interface ShortPickProps {
 }
 
 /**
- * Báo thiếu một dòng (X-SHORT bước 01, BE `POST …/pick-lines/{lineId}/short`): người được gán đứng ở bin,
- * chọn vị trí + nhập số thực có (0..phân bổ−1, kiểm trên form). BE chuyển dòng sang SHORT, tạm giữ đơn
- * (INVENTORY), không trừ tồn; người lấy làm tiếp dòng khác. Idempotency như xác nhận dòng.
+ * Báo thiếu một thùng (X-SHORT bước 01, BE `POST …/pick-lines/{lineId}/short`, docs 07 §4.4 bước 9): người được gán
+ * đứng ở bin, chọn vị trí + lý do (không thấy thùng / thùng hư hỏng). Báo thiếu CẢ thùng — không nhập số tìm thấy.
+ * BE chuyển dòng sang SHORT, tạm giữ đơn (INVENTORY), mở kiểm kê mù cho thùng, không trừ tồn; người lấy làm tiếp
+ * dòng khác. Idempotency như xác nhận dòng.
  */
 export function ShortPickDialog({
   taskId,
@@ -47,8 +54,8 @@ export function ShortPickDialog({
   const [attempt] = useState(() => createIdempotencyAttempt());
   const [serverError, setServerError] = useState<string | null>(null);
   const form = useForm<ShortPickFormValues, unknown, ShortPickValues>({
-    resolver: zodResolver(shortPickInputSchema(line.allocatedQty)),
-    defaultValues: { locationCode: "", foundQuantity: "" },
+    resolver: zodResolver(shortPickInputSchema),
+    defaultValues: { locationCode: "" },
   });
   const { errors } = form.formState;
 
@@ -61,7 +68,7 @@ export function ShortPickDialog({
       {
         onSuccess: (updated) => {
           attempt.reset();
-          toast.success(TOAST_MESSAGES.fulfillment.shortReported(updated.sku, updated.shortQty));
+          toast.success(TOAST_MESSAGES.fulfillment.shortReported(updated.sku, updated.lpn));
           onReported?.();
           onClose();
         },
@@ -82,12 +89,11 @@ export function ShortPickDialog({
     );
   });
 
-  const found = form.register("foundQuantity");
   return (
     <FormDialog open onOpenChange={(open) => !open && onClose()}>
       <FormDialogBody
         title={L.shortTitle}
-        description={L.target(line.locationCode, line.allocatedQty, line.sku)}
+        description={L.target(line.locationCode, line.lpn, line.sku, line.allocatedQty)}
         submitLabel={L.shortAction}
         canSubmit
         isPending={report.isPending}
@@ -110,30 +116,50 @@ export function ShortPickDialog({
               onChange={(value) => {
                 field.onChange(value);
                 form.clearErrors("locationCode");
-                // Chọn xong vị trí → sang ô số tìm thấy, như thẻ xác nhận dòng (không cần chuột)
-                document.getElementById("short-found")?.focus();
+                // Chọn xong vị trí → sang ô lý do, như thẻ xác nhận dòng (không cần chuột)
+                document.getElementById("short-reason")?.focus();
               }}
             />
           )}
         />
         <div className="space-y-1">
-          <Label htmlFor="short-found" className="text-ink-primary text-[0.8125rem] font-medium">
-            {L.foundQuantity}
+          <Label htmlFor="short-reason" className="text-ink-primary text-[0.8125rem] font-medium">
+            {L.shortReason}
           </Label>
-          <Input
-            id="short-found"
-            inputMode="numeric"
-            autoComplete="off"
-            aria-invalid={errors.foundQuantity ? true : undefined}
-            aria-describedby={errors.foundQuantity ? "short-found-error" : "short-found-hint"}
-            className="bg-bg-surface h-9 rounded-[var(--r-sm)] text-right tabular-nums"
-            {...found}
+          <Controller
+            control={form.control}
+            name="reason"
+            render={({ field }) => (
+              <Select
+                value={field.value ?? ""}
+                onValueChange={(value) => {
+                  field.onChange(value);
+                  form.clearErrors("reason");
+                }}
+              >
+                <SelectTrigger
+                  id="short-reason"
+                  aria-invalid={errors.reason ? true : undefined}
+                  aria-describedby={errors.reason ? "short-reason-error" : "short-reason-hint"}
+                  className="border-border-default bg-bg-surface text-ink-primary w-full rounded-[var(--r-sm)] text-[0.8125rem]"
+                >
+                  <SelectValue placeholder={L.shortReasonPlaceholder} />
+                </SelectTrigger>
+                <SelectContent>
+                  {SHORT_PICK_REASONS.map((reason) => (
+                    <SelectItem key={reason} value={reason}>
+                      {L.shortReasons[reason]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           />
-          {errors.foundQuantity ? (
-            <FieldError id="short-found-error">{errors.foundQuantity.message}</FieldError>
+          {errors.reason ? (
+            <FieldError id="short-reason-error">{errors.reason.message}</FieldError>
           ) : (
-            <p id="short-found-hint" className="text-ink-tertiary text-xs">
-              {L.foundHint(line.allocatedQty)}
+            <p id="short-reason-hint" className="text-ink-tertiary text-xs">
+              {L.shortHint}
             </p>
           )}
         </div>

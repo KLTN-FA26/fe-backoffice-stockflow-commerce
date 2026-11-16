@@ -1,14 +1,15 @@
 /**
- * Mock bàn giao + kết quả giao — mã lỗi đúng BE `DispatchService.handOver` / `Shipment` (PR #137):
- * 400 HANDOVER_NOT_SIGNED, 409 OPTIMISTIC_LOCK (khoá `version`), LOAD_EMPTY, LOAD_NOT_FULLY_LOADED; lô bị
- * từ chối (chưa thanh toán / đang giữ / nhãn lệch COD) → lỗi nêu tên lô qua `fieldErrors.shipmentCode`;
+ * Mock bàn giao + kết quả giao — mã lỗi đúng BE `DispatchService.handOver` / `DispatchLoad.handOver` / `Shipment`:
+ * 409 OPTIMISTIC_LOCK (khoá `version`); bàn giao là tất cả hoặc không (09 BR-18): có đơn chưa được phép đi (chưa thu đợt
+ * thanh toán trước khi giao, chưa tới cửa sổ giao, đang giữ) → 409 LOAD_HANDOVER_BLOCKED kèm `details.orders`; rồi 409
+ * LOAD_UNLOAD_PENDING, 400 HANDOVER_NOT_SIGNED, 409 LOAD_WAYBILL_MISSING (BR-23), LOAD_EMPTY, LOAD_NOT_FULLY_LOADED;
  * ghi nhận kết quả theo bảng chuyển trạng thái docs 09 §5.
  */
 
 import { isLastVehicleOf } from "./mock-dispatch-ftl-rules";
 import { parcelsOn } from "./mock-dispatch-ftl-view";
 import { MOCK_COORDINATOR, MOCK_DISPATCHER } from "./mock-dispatch-store";
-import { loadDetailView, shipmentDetailView } from "./mock-dispatch-view";
+import { handoverBlocksOf, loadDetailView, shipmentDetailView } from "./mock-dispatch-view";
 import { fail, ok, validationFailed } from "./mock-route-utils";
 
 import type { DispatchState, MockLoad, MockShipment } from "./mock-dispatch-store";
@@ -38,11 +39,38 @@ export function handover(
       `Load ${load.code} is ${load.status}; it cannot be handed over`,
     );
   }
+  // Tất cả hoặc không: một đơn không được đi thì cả xe bị từ chối, kèm danh sách đơn (số tiền thiếu, đợt giao, ngày mở cửa sổ)
+  const blocks = handoverBlocksOf(state, load);
+  if (blocks.length > 0) {
+    return fail(
+      409,
+      "LOAD_HANDOVER_BLOCKED",
+      `The vehicle cannot be handed over: ${blocks.map((b) => `${b.orderNumber} (${b.reasonCode})`).join(", ")}`,
+      [],
+      { orders: blocks.map((b) => ({ ...b, amountDue: String(b.amountDue) })) },
+    );
+  }
+  // BE PR #162: kiện của đơn đã huỷ còn trên xe thì chưa ký được
+  if (load.ftl.pendingUnloads.length > 0) {
+    return fail(
+      409,
+      "LOAD_UNLOAD_PENDING",
+      `Load ${load.code} still carries ${load.ftl.pendingUnloads.length} parcel(s) of a cancelled order: unload them first`,
+    );
+  }
   if (body.signed !== true) {
     return fail(
       400,
       "HANDOVER_NOT_SIGNED",
       `Both sides sign the manifest of load ${load.code} before it leaves`,
+    );
+  }
+  // BR-23: không có mã vận đơn thì chưa ký được
+  if (!load.waybillNo) {
+    return fail(
+      409,
+      "LOAD_WAYBILL_MISSING",
+      `Load ${load.code} has no waybill number: record the carrier's number before the driver signs`,
     );
   }
   const representative = text(body.carrierRepresentative);
@@ -54,14 +82,6 @@ export function handover(
     .filter((s): s is MockShipment => !!s);
   if (members.length === 0)
     return fail(409, "LOAD_EMPTY", `Load ${load.code} has no shipment on its manifest`);
-  // BE PR #162: kiện của đơn đã huỷ còn trên xe thì chưa ký được
-  if (load.ftl && load.ftl.pendingUnloads.length > 0) {
-    return fail(
-      409,
-      "LOAD_UNLOAD_PENDING",
-      `Load ${load.code} still carries ${load.ftl.pendingUnloads.length} parcel(s) of a cancelled order: unload them first`,
-    );
-  }
   const missing = members.flatMap((s) =>
     parcelsOn(load, s)
       .filter((p) => !load.loaded.has(p.packageId))
@@ -74,20 +94,13 @@ export function handover(
       `Not scanned onto the vehicle yet: ${missing.sort().join(", ")}`,
     );
   }
-  // Từ chối theo lô, nêu tên lô; cả chuyến không đi tới khi lô đó được xử lý / bỏ khỏi biên bản
-  const blocked = members.find((s) => s.block);
-  if (blocked?.block) {
-    return fail(409, blocked.block.code, `Shipment ${blocked.code}: ${blocked.block.message}`, [
-      { field: "shipmentCode", message: blocked.code },
-    ]);
-  }
   const at = stamp();
   for (const shipment of members) {
-    // Chuyến nguyên xe: lô chở trên nhiều xe chỉ HANDED_OVER ở xe cuối cùng (BE LP-3)
+    // Lô chở trên nhiều xe chỉ HANDED_OVER ở xe cuối cùng (BE LP-3)
     if (!isLastVehicleOf(state, load, shipment)) continue;
     shipment.status = "HANDED_OVER";
     shipment.handedOverAt = at;
-    shipment.codAmount = shipment.labelCodAmount;
+    shipment.carrierId = load.carrierId;
     shipment.version += 1;
     shipment.timeline.push({
       status: "HANDED_OVER",
@@ -100,10 +113,11 @@ export function handover(
   load.dispatchedAt = at;
   load.carrierRepresentative = representative;
   load.vehiclePlate = plate;
+  // BE `DispatchLoad.handOver`: chưa có tên tài xế thì lấy tên người ký bên hãng
+  load.driverName = load.driverName ?? representative;
   load.driverPhone = text(body.driverPhone) || load.driverPhone;
   load.signatureRef = text(body.signatureRef) || null;
   load.handoverNote = text(body.note) || null;
-  load.fixedCodTotal = load.ftl ? 0 : members.reduce((sum, s) => sum + s.codAmount, 0);
   load.version += 1;
   return ok(loadDetailView(state, load));
 }

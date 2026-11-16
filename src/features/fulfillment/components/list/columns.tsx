@@ -5,35 +5,17 @@ import { UserCog } from "lucide-react";
 
 import { ADMIN_ROUTES, FULFILLMENT_COLUMNS, UI_LABELS } from "@/constants";
 import { allowedFulfillmentActions } from "@/features/fulfillment/lifecycle";
-import { integrityOutcome, verificationCount } from "@/features/fulfillment/selectors";
-import {
-  CELL,
-  dateCell,
-  statusCell,
-  ToneDot,
-  ViewAction,
-} from "@/components/shared/column-helpers";
+import { CELL, dateCell, statusCell, ViewAction } from "@/components/shared/column-helpers";
 
 import { assigneeLabel, orderLabel, taskCode } from "../primitives";
 import { COLUMN_LABELS } from "./constants";
 
 import type { FulfillmentActor } from "@/features/fulfillment/lifecycle";
-import type { IntegrityOutcome } from "@/features/fulfillment/selectors";
 import type { FulfillmentTask } from "@/features/fulfillment/types";
 import type { ColumnDef } from "@/components/shared/DataTable";
 import type { FulfillmentScope } from "../primitives";
 
 const C = FULFILLMENT_COLUMNS;
-const INTEGRITY = UI_LABELS.fulfillment.integrity;
-
-const INTEGRITY_TONE: Record<
-  IntegrityOutcome,
-  { label: string; tone: "neutral" | "positive" | "danger" }
-> = {
-  unverified: { label: INTEGRITY.unverified, tone: "neutral" },
-  match: { label: INTEGRITY.match, tone: "positive" },
-  mismatch: { label: INTEGRITY.mismatch, tone: "danger" },
-};
 
 function dateTimeCell(
   key: string,
@@ -103,20 +85,6 @@ export function buildTaskColumns({
     dateTimeCell(C.STARTED_AT, (row) => row.startedAt),
     dateTimeCell(C.PICKED_AT, (row) => row.pickedAt),
     dateTimeCell(C.PACKED_AT, (row) => row.packedAt),
-    {
-      key: C.INTEGRITY,
-      header: COLUMN_LABELS[C.INTEGRITY] ?? C.INTEGRITY,
-      cell: (row) => {
-        const { label, tone } = INTEGRITY_TONE[integrityOutcome(row)];
-        const count = verificationCount(row);
-        return (
-          <span className="inline-flex items-center gap-1.5">
-            <ToneDot tone={tone} label={label} />
-            {count > 0 && <span className={`${CELL.sub} tabular-nums`}>· {count} lần</span>}
-          </span>
-        );
-      },
-    },
     {
       key: C.ACTIONS,
       header: "",

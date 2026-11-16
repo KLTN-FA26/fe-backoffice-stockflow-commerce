@@ -38,6 +38,17 @@ export function formatSignedQuantity(value: number): string {
   return value > 0 ? `+${value}` : String(value);
 }
 
+// Docs 20 BR-14: a carton adjustment is one whole carton, so its delta reads "−1 thùng (−120 cái)". A
+// phiếu without a carton (recorded before counts were by carton) keeps the signed unit quantity.
+export function formatAdjustmentDelta(adjustment: {
+  quantityDelta: number;
+  stockPackageId?: string | null;
+}): string {
+  return adjustment.stockPackageId && adjustment.quantityDelta !== 0
+    ? INVENTORY_LABELS.cartonWholeDelta(adjustment.quantityDelta)
+    : formatSignedQuantity(adjustment.quantityDelta);
+}
+
 // Use backend page metadata, never totals calculated from the current page.
 export function inventoryPageRange(page: {
   items: readonly unknown[];

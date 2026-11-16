@@ -9,6 +9,7 @@ import {
   FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS,
   FULFILLMENT_TASK_OVERSIGHT_PERMISSIONS,
 } from "@/constants";
+import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { activateMockAdapter } from "@/lib/api/mock-adapter";
 import { resetFulfillmentMockStore } from "@/lib/api/mock-routes-fulfillment-store";
@@ -22,13 +23,11 @@ import {
   assignFulfillmentTask,
   completePicking,
   createFulfillmentTask,
-  getDesignArtifactUrl,
   getFulfillmentTask,
   listFulfillmentTasks,
-  reverifyDesignIntegrity,
   startPicking,
 } from "./api";
-import { getFulfillmentOrder, listAssignees, listTaskCandidates } from "./reference-api";
+import { listAssignees, listTaskCandidates } from "./reference-api";
 
 import type { RoleName } from "@/lib/auth";
 import type { FulfillmentTask } from "./types";
@@ -99,6 +98,14 @@ async function allTasks(): Promise<FulfillmentTask[]> {
   return (await listFulfillmentTasks({ size: 200 })).items;
 }
 
+/** Dòng của đơn theo `GET /orders/{id}` của mock — để đối chiếu với `lines` của task. */
+async function orderLinesOf(orderId: string) {
+  const { data } = await api.get<{
+    lines: { sku: string; lineId: string; designSnapshotId?: string }[];
+  }>(`/orders/${orderId}`);
+  return data.lines;
+}
+
 function required<T>(value: T | undefined, what: string): T {
   if (value === undefined) throw new Error(`seed thiếu ${what}`);
   return value;
@@ -106,7 +113,7 @@ function required<T>(value: T | undefined, what: string): T {
 
 describe("fulfillment mock ↔ hợp đồng BE", () => {
   it(
-    "phạm vi danh sách theo mã quyền: task-oversight:READ thấy hết, design-reverification:READ chỉ kiện giữ, còn lại chỉ task của mình",
+    "phạm vi danh sách theo mã quyền: task-oversight:READ thấy hết, còn lại chỉ task của mình",
     async () => {
       const all = await allTasks();
       expect(all.length).toBeGreaterThan(0);
@@ -115,13 +122,14 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
         new Set(["Pending", "Picking", "Picked", "Cancelled"]),
       );
       expect(new Set(all.map((t) => t.packStatus))).toEqual(
-        new Set(["Pending", "On Hold", "Packed", "Cancelled"]),
+        new Set(["Pending", "In Progress", "Completed", "Cancelled"]),
       );
+      // Mọi task mang đích lấy hàng (BE 4C-5); seed đều là DISPATCH
+      expect(all.every((t) => t.destination === "DISPATCH")).toBe(true);
 
+      // QC không còn thấy task nào ngoài của mình (BE bỏ phạm vi design-reverification:READ)
       actAs(USERS.qc);
-      const held = (await listFulfillmentTasks({})).items;
-      expect(held.length).toBeGreaterThan(0);
-      expect(held.every((t) => t.packStatus === "On Hold")).toBe(true);
+      expect((await listFulfillmentTasks({})).items).toEqual([]);
 
       actAs(USERS.otherPicker);
       const mine = (await listFulfillmentTasks({})).items;
@@ -144,17 +152,17 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
       const task = required(all[0], "task bất kỳ");
       const detail = await getFulfillmentTask(task.taskId);
       expect(detail.lines?.length).toBeGreaterThan(0);
-      const order = await getFulfillmentOrder(task.orderId);
-      expect(detail.lines?.map((line) => line.sku)).toEqual(order.lines.map((line) => line.sku));
+      const orderLines = await orderLinesOf(task.orderId);
+      expect(detail.lines?.map((line) => line.sku)).toEqual(orderLines.map((line) => line.sku));
       expect(detail.lines?.filter((line) => line.printLine).map((line) => line.lineId)).toEqual(
-        order.lines.filter((line) => line.designSnapshotId).map((line) => line.lineId),
+        orderLines.filter((line) => line.designSnapshotId).map((line) => line.lineId),
       );
     },
     FLOW_TIMEOUT_MS,
   );
 
   it(
-    "luồng lấy hàng: người được gán bắt đầu → hoàn tất; đóng gói do màn trạm (packing.mock-contract.test.ts) lo",
+    "luồng lấy hàng: người được gán bắt đầu → hoàn tất; kiểm thùng do màn trạm (carton-check.mock-contract.test.ts) lo",
     async () => {
       const task = required(
         (await allTasks()).find((t) => t.pickStatus === "Pending" && t.packStatus === "Pending"),
@@ -189,38 +197,6 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
       // BE PR #136 trả thêm số đơn + kho trên task
       expect(picked.orderNumber).toBeTruthy();
       expect(picked.warehouseId).toBeTruthy();
-    },
-    FLOW_TIMEOUT_MS,
-  );
-
-  it(
-    "artifact: chỉ dòng có thiết kế; lệch checksum → 409; bundle thiếu vai trò → 404",
-    async () => {
-      const held = required(
-        (await allTasks()).find((t) => t.packStatus === "On Hold"),
-        "kiện đang giữ",
-      );
-      // Kiểm tra lại thiết kế: design-reverification:UPDATE (QC, quản lý kho — BE PR #148)
-      actAs(USERS.manager);
-      const lineId = required(held.integrityEvidence[0]?.orderLineId, "evidence");
-      const input = { taskId: held.taskId, lineId, role: "CUSTOMER_PREVIEW" } as const;
-      // File đang lệch → BE từ chối cấp URL
-      expect(await codeOf(getDesignArtifactUrl(input))).toBe("CONFLICT");
-
-      await reverifyDesignIntegrity({ taskId: held.taskId, resolutionNote: "đã khôi phục" });
-      const artifact = await getDesignArtifactUrl(input);
-      expect(artifact.role).toBe("CUSTOMER_PREVIEW");
-      expect(artifact.contentType.startsWith("image/")).toBe(true);
-      expect(artifact.checksum).toMatch(/^[0-9a-f]{64}$/);
-      expect(await codeOf(getDesignArtifactUrl({ ...input, role: "PRODUCTION_INSTRUCTION" }))).toBe(
-        "NOT_FOUND",
-      );
-      expect(await codeOf(getDesignArtifactUrl({ ...input, lineId: "khong-co" }))).toBe(
-        "NOT_FOUND",
-      );
-      // Điều phối đơn bị loại khỏi endpoint tải artifact
-      actAs(USERS.coordinator);
-      expect(await codeOf(getDesignArtifactUrl(input))).toBe("FORBIDDEN");
     },
     FLOW_TIMEOUT_MS,
   );
@@ -318,7 +294,7 @@ describe("fulfillment mock ↔ hợp đồng BE", () => {
       const printOrderId = "ORD-2026-0011";
       const stockOrderId = "ORD-2026-0013";
       const printLinesOf = async (orderId: string) =>
-        (await getFulfillmentOrder(orderId)).lines.filter((line) => line.designSnapshotId);
+        (await orderLinesOf(orderId)).filter((line) => line.designSnapshotId);
       expect((await printLinesOf(printOrderId)).length).toBeGreaterThan(0);
       expect(await printLinesOf(stockOrderId)).toEqual([]);
 

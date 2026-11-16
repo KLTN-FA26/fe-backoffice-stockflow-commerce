@@ -92,4 +92,35 @@ describe("SCRUM-424 lifecycle, four eyes and permission codes", () => {
       expect(allowedAdjustmentActions("APPROVED", can, "requester", "requester")).toEqual([]);
     });
   });
+
+  it("BR-06 (docs 20): a COUNT_VARIANCE cannot be withdrawn by its submitter, but can be decided by another", () => {
+    expect(
+      allowedAdjustmentActions(
+        PENDING_APPROVAL,
+        checkers.all,
+        "requester",
+        "requester",
+        "COUNT_VARIANCE",
+      ),
+    ).toEqual([]);
+    expect(
+      allowedAdjustmentActions(
+        PENDING_APPROVAL,
+        checkers.approve,
+        "decider",
+        "requester",
+        "COUNT_VARIANCE",
+      ),
+    ).toEqual([STOCK_ADJUSTMENT_ACTION.APPROVE, STOCK_ADJUSTMENT_ACTION.REJECT]);
+    // Any other reason is still withdrawn by its requester.
+    expect(
+      allowedAdjustmentActions(
+        PENDING_APPROVAL,
+        checkers.update,
+        "requester",
+        "requester",
+        "DAMAGED",
+      ),
+    ).toEqual([STOCK_ADJUSTMENT_ACTION.WITHDRAW]);
+  });
 });

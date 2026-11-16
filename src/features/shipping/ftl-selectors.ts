@@ -1,17 +1,12 @@
 /**
- * Shipping — selector thuần cho chuyến nguyên xe (FTL, BE PR #162).
+ * Shipping — selector thuần cho chuyến xe (một xe của kế hoạch xếp xe): kiện cần dỡ, huỷ sau khi đã đặt xe, mã vận đơn.
  */
 
-import { DELIVERY_MODE, LOAD_STATUS } from "@/constants";
+import { LOAD_STATUS } from "@/constants";
 
-import type { KitPart, Load, LoadParcel, PendingUnload } from "./types";
+import { isApiBooking } from "./booking";
 
-type ModeOf = Pick<Load, "mode">;
-
-/** Chuyến nguyên xe: một xe của kế hoạch xếp xe (không phải chuyến gửi kiện). */
-export function isFtlLoad(load: ModeOf): boolean {
-  return load.mode === DELIVERY_MODE.FULL_TRUCKLOAD;
-}
+import type { Load, PendingUnload } from "./types";
 
 /** Kiện của đơn đã huỷ còn trên xe (BE `pendingUnloads`; vắng = không có). */
 export function pendingUnloadsOf(load: Pick<Load, "pendingUnloads">): readonly PendingUnload[] {
@@ -35,12 +30,12 @@ export function isAutoCancelled(load: Pick<Load, "cancelReason">): boolean {
   return (load.cancelReason ?? "").toLowerCase().startsWith("auto-cancelled");
 }
 
-/** Nhãn kiện đã cũ (chuyển sang lô khác sau khi in) — phải in lại trước khi quét. */
-export function isLabelOutdated(parcel: Partial<Pick<LoadParcel, "labelOutdated">>): boolean {
-  return parcel.labelOutdated === true;
+/** Chuyến đặt qua API hãng (BR-29): mã vận đơn do hãng cấp, không nhập tay; đặt lại phải huỷ đặt xe trước. */
+export function isApiBookedLoad(load: Pick<Load, "carrierConnectionType">): boolean {
+  return isApiBooking(load.carrierConnectionType);
 }
 
-/** Bộ mà kiện là một phần (BE bỏ `kit` với kiện thường) → hiện "Bộ x/N". */
-export function kitOf(parcel: { kit?: KitPart | null }): KitPart | null {
-  return parcel.kit ?? null;
+/** Chuyến đã có mã vận đơn (BR-23: bắt buộc trước khi ký bàn giao). */
+export function hasWaybill(load: Pick<Load, "waybillNo">): boolean {
+  return !!load.waybillNo;
 }

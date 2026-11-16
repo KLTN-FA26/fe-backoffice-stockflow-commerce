@@ -1,20 +1,14 @@
 /**
- * Fixture chuyến nguyên xe (FTL) theo contract BE PR #162: một xe của kế hoạch xếp xe, đặt xe, kiện thuộc bộ,
- * kiện cần dỡ, biên bản theo xe. Trường null của BE bị BỎ khỏi JSON nên fixture cũng bỏ.
+ * Fixture chuyến theo contract BE hiện tại: một xe của kế hoạch xếp xe ở từng bước (chưa đặt → đã đặt → đang xếp → đã bàn
+ * giao), kiện cần dỡ, biên bản theo xe, cảnh báo / chặn bàn giao. Trường null của BE bị BỎ khỏi JSON nên fixture cũng bỏ.
  */
 
 import { apiLoad, apiManifest, loadShipment, parcel } from "./load";
 
-import type { Load, LoadParcel, LoadRow, Manifest, PendingUnload } from "../types";
+import type { HandoverWarning, Load, LoadParcel, LoadRow, Manifest, PendingUnload } from "../types";
 
 export const FTL_ID = "LD-F001";
 export const OTHER_VEHICLE = { seq: "2", loadCode: "LD-F002" };
-
-export const kit = (partNo: number, partCount = 2) => ({
-  groupId: "kit-SO-1",
-  partNo,
-  partCount,
-});
 
 export function ftlParcel(
   code: string,
@@ -39,40 +33,30 @@ export function pendingUnload(
   };
 }
 
-/** Xe số 1 của kế hoạch LP-2026-0001, đã đặt xe với GHN; lô SO-1-S1 có kiện 1/2 của bộ đã lên xe, kiện 2/2 chưa. */
+/** Xe số 1 của kế hoạch LP-2026-0001, đã đặt xe với GHN (không webhook), chưa có mã vận đơn; lô SO-1-S1 có hai kiện chưa quét. */
 export function ftlLoad(patch: Partial<Load> = {}): Load {
   return apiLoad({
     loadId: FTL_ID,
     code: FTL_ID,
-    mode: "FULL_TRUCKLOAD",
     status: "VEHICLE_BOOKED",
-    codTotal: 0,
+    waybillNo: undefined,
     loadingStartedAt: undefined,
     shipments: [
-      loadShipment("SO-1-S1", [
-        ftlParcel("PKG-SO-1-1", false, { kit: kit(1) }),
-        ftlParcel("PKG-SO-1-2", false, { kit: kit(2) }),
-      ]),
+      loadShipment("SO-1-S1", [ftlParcel("PKG-SO-1-1", false), ftlParcel("PKG-SO-1-2", false)]),
     ],
-    loadPlanId: "lp-1",
-    loadPlanCode: "LP-2026-0001",
-    vehicleSeq: 1,
-    vehicleTypeCode: "TRUCK-1T25",
     bookedAt: "2026-10-21T01:00:00Z",
-    bookedBy: "staff",
-    pendingUnloads: [],
-    carrierBookingToCancel: false,
     ...patch,
   });
 }
 
-/** Xe chưa đặt: không hãng / biển số / tài xế. */
+/** Xe chưa đặt: không hãng / biển số / tài xế / mã vận đơn. */
 export function plannedLoad(patch: Partial<Load> = {}): Load {
   return ftlLoad({
     status: "PLANNED",
     carrierId: undefined,
     carrierCode: undefined,
     carrierName: undefined,
+    carrierConnectionType: undefined,
     vehiclePlate: undefined,
     driverName: undefined,
     bookedAt: undefined,
@@ -85,18 +69,29 @@ export function loadingFtl(patch: Partial<Load> = {}): Load {
   return ftlLoad({ status: "LOADING", loadingStartedAt: "2026-10-21T03:00:00Z", ...patch });
 }
 
+/** Xe đã bàn giao: người ký bên hãng, mã biên bản, thời điểm rời kho. */
+export function dispatchedLoad(patch: Partial<Load> = {}): Load {
+  return loadingFtl({
+    status: "DISPATCHED",
+    waybillNo: "GHN-250001",
+    dispatchedAt: "2026-10-21T04:00:00Z",
+    dispatchedByName: "Nhân viên kho",
+    carrierRepresentative: "Lê Văn Xế",
+    signatureRef: "BB-2026-0001",
+    ...patch,
+  });
+}
+
 export function ftlRow(patch: Partial<LoadRow> = {}): LoadRow {
   return {
     loadId: FTL_ID,
     code: FTL_ID,
     warehouseId: "wh-hcm",
-    mode: "FULL_TRUCKLOAD",
     status: "VEHICLE_BOOKED",
     carrierId: "car-ghn",
     carrierName: "Giao Hàng Nhanh",
     shipmentCount: 1,
     packageCount: 0,
-    codTotal: 0,
     version: 2,
     loadPlanId: "lp-1",
     loadPlanCode: "LP-2026-0001",
@@ -106,75 +101,18 @@ export function ftlRow(patch: Partial<LoadRow> = {}): LoadRow {
 }
 
 export function ftlManifest(patch: Partial<Manifest> = {}): Manifest {
-  const base = apiManifest();
+  return { ...apiManifest(), loadCode: FTL_ID, ...patch };
+}
+
+/** Đơn chưa được phép đi (BE `HandoverWarning` / một phần tử của `details.orders`). */
+export function blockedOrder(patch: Partial<HandoverWarning> = {}): HandoverWarning {
   return {
-    ...base,
-    loadCode: FTL_ID,
-    mode: "FULL_TRUCKLOAD",
-    loadPlanCode: "LP-2026-0001",
-    vehicleSeq: 1,
-    vehicleTypeCode: "TRUCK-1T25",
-    codTotal: 0,
+    orderId: "ord-SO-2",
+    orderNumber: "SO-2",
+    reasonCode: "ORDER_BALANCE_NOT_PAID",
+    amountDue: 15_000_000,
+    currency: "VND",
+    deliveryBatchSeq: 1,
     ...patch,
   };
-}
-
-/* ── Xe của kế hoạch nguồn TRANSFER (BE PR #164): dòng của xe là MỘT lệnh chuyển kho ───────────────────────────── */
-
-export const TRANSFER_ORDER_ID = "to-ftl-1";
-export const TRANSFER_NUMBER = "TO-20261022-0001";
-
-/**
- * Dòng biên bản của lệnh chuyển kho: `shipmentId` / `orderId` / `orderNumber` / `taskId` vắng, `code` là số lệnh, chỉ có
- * `transferOrderId`; không thu hộ.
- */
-export function transferShipment(
-  parcels: LoadParcel[],
-  patch: Partial<Load["shipments"][number]> = {},
-): Load["shipments"][number] {
-  return {
-    code: TRANSFER_NUMBER,
-    transferOrderId: TRANSFER_ORDER_ID,
-    status: "UNKNOWN",
-    packageCount: parcels.length,
-    loadedCount: parcels.filter((p) => p.loaded).length,
-    labelCodAmount: 0,
-    packages: parcels,
-    ...patch,
-  };
-}
-
-/** Xe số 1 của một kế hoạch TRANSFER đã đặt xe, chở một lệnh chuyển kho (hai kiện, chưa quét). */
-export function transferLoad(patch: Partial<Load> = {}): Load {
-  return ftlLoad({
-    shipments: [transferShipment([ftlParcel("PKG-TO-1-1", false), ftlParcel("PKG-TO-1-2", false)])],
-    loadPlanCode: "LP-2026-0005",
-    ...patch,
-  });
-}
-
-export function transferManifest(patch: Partial<Manifest> = {}): Manifest {
-  return ftlManifest({
-    shipments: [
-      {
-        shipmentCode: TRANSFER_NUMBER,
-        transferOrderId: TRANSFER_ORDER_ID,
-        recipientName: "Kho Đà Nẵng",
-        deliveryAddress: "12 Nguyễn Văn Linh, Đà Nẵng",
-        packageCount: 2,
-        weightKg: 37,
-        codAmount: 0,
-        codChangedSinceLabel: false,
-        packages: [
-          { labelCode: "PKG-TO-1-1", weightKg: 18.5, loaded: true, labelOutdated: false },
-          { labelCode: "PKG-TO-1-2", weightKg: 18.5, loaded: false, labelOutdated: false },
-        ],
-      },
-    ],
-    shipmentCount: 1,
-    packageCount: 2,
-    totalWeightKg: 37,
-    codTotal: 0,
-    ...patch,
-  });
 }

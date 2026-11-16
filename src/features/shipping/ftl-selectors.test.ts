@@ -1,22 +1,31 @@
 import { describe, expect, it } from "vitest";
 
-import { ftlLoad, kit, pendingUnload } from "./__fixtures__/ftl-load";
+import { dispatchedLoad, ftlLoad, pendingUnload, plannedLoad } from "./__fixtures__/ftl-load";
 import { apiLoad } from "./__fixtures__/load";
 import {
   hasPendingUnloads,
   isAutoCancelled,
-  isFtlLoad,
-  isLabelOutdated,
-  kitOf,
+  hasWaybill,
+  isApiBookedLoad,
   needsCarrierBookingCancel,
   pendingUnloadsOf,
 } from "./ftl-selectors";
 
 describe("ftl-selectors", () => {
-  it("nhận chuyến nguyên xe theo mode", () => {
-    expect(isFtlLoad(ftlLoad())).toBe(true);
-    expect(isFtlLoad(apiLoad())).toBe(false);
-    expect(isFtlLoad({ mode: "UNKNOWN" })).toBe(false);
+  it("chuyến đặt qua API hãng: chỉ khi kiểu kết nối là API_BOOKING", () => {
+    expect(isApiBookedLoad({ carrierConnectionType: "API_BOOKING" })).toBe(true);
+    expect(isApiBookedLoad({ carrierConnectionType: "MANUAL" })).toBe(false);
+    expect(isApiBookedLoad({ carrierConnectionType: "WEBHOOK_LOAD" })).toBe(false);
+    expect(isApiBookedLoad({ carrierConnectionType: "UNKNOWN" })).toBe(false);
+    expect(isApiBookedLoad({})).toBe(false);
+    expect(isApiBookedLoad(plannedLoad())).toBe(false);
+  });
+
+  it("mã vận đơn: có khi chuỗi không rỗng", () => {
+    expect(hasWaybill(apiLoad())).toBe(true);
+    expect(hasWaybill(dispatchedLoad())).toBe(true);
+    expect(hasWaybill(ftlLoad())).toBe(false);
+    expect(hasWaybill({ waybillNo: "" })).toBe(false);
   });
 
   it("kiện cần dỡ: vắng = không có; có = chặn bàn giao", () => {
@@ -43,13 +52,5 @@ describe("ftl-selectors", () => {
     expect(isAutoCancelled({ cancelReason: "Auto-Cancelled: y" })).toBe(true);
     expect(isAutoCancelled({ cancelReason: "Hãng huỷ" })).toBe(false);
     expect(isAutoCancelled({})).toBe(false);
-  });
-
-  it("kiện: bộ và cờ nhãn cũ", () => {
-    expect(kitOf({ kit: kit(2) })).toEqual(kit(2));
-    expect(kitOf({})).toBeNull();
-    expect(isLabelOutdated({ labelOutdated: true })).toBe(true);
-    expect(isLabelOutdated({ labelOutdated: false })).toBe(false);
-    expect(isLabelOutdated({})).toBe(false);
   });
 });

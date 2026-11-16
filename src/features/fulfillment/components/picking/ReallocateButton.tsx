@@ -17,9 +17,10 @@ import type { PickLine } from "@/features/fulfillment/types";
 const L = PICK_LINE_LABELS;
 
 /**
- * Phân bổ lại một dòng SHORT (X-SHORT bước 04, BE `POST …/reallocation`): cùng SL sang bin khác còn hàng,
- * dòng cũ → Đã huỷ, dòng mới ở cuối lộ trình. Người gọi chỉ render nút khi có `task-assignment:UPDATE`.
- * Không đủ hàng (409 INSUFFICIENT_STOCK) báo trong dialog; dòng đã đổi ở nơi khác → toast + tải lại.
+ * Phân bổ lại một dòng SHORT (X-SHORT bước 04, BE `POST …/reallocation`, docs 07 §4.4 bước 10): chọn thùng khác của
+ * kho (nguyên thùng, FIFO, không lấy lại thùng vừa thiếu), dòng cũ → Đã huỷ, dòng mới OPEN. Người gọi chỉ render
+ * nút khi có `task-assignment:UPDATE`. Không đủ thùng (409 INSUFFICIENT_STOCK) báo trong dialog — đơn vẫn treo, Sale
+ * quyết (docs 07 §4.4 bước 11); dòng đã đổi ở nơi khác → toast + tải lại.
  */
 export function ReallocateButton({
   taskId,
@@ -80,8 +81,7 @@ export function ReallocateButton({
           if (!next) setError(null);
         }}
         title={L.reallocate}
-        // BE phân bổ lại TOÀN BỘ SL đã giữ của dòng (`shortHold.quantity()`), không chỉ phần thiếu
-        description={L.reallocateConfirm(line.sku, line.allocatedQty)}
+        description={L.reallocateConfirm(line.sku, line.lpn)}
         confirmLabel={L.reallocate}
         variant="default"
         loading={reallocate.isPending}

@@ -2,10 +2,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
+import { ADMIN_ROUTES, CANCELLATION_REQUEST_LABELS, UI_LABELS } from "@/constants";
+import { CYCLE_COUNT_LABELS, CYCLE_COUNT_ROUTES } from "@/constants/cycle-count";
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
+import { QUARANTINE_LABELS } from "@/constants/quarantine";
 import {
+  CANCELLATION_REQUEST_PERMISSIONS,
   ATTRIBUTE_PERMISSIONS,
+  CYCLE_COUNT_PERMISSIONS,
   CREDIT_HOLD_PERMISSIONS,
   FULFILLMENT_PICKING_PERMISSIONS,
   FULFILLMENT_PICK_PERMISSIONS,
@@ -17,6 +21,7 @@ import {
   ORDER_PERMISSIONS,
   PRODUCT_PERMISSIONS,
   SHIPMENT_PERMISSIONS,
+  STOCK_PACKAGE_PERMISSIONS,
   SUPPLIER_PERMISSIONS,
   VEHICLE_TYPE_PERMISSIONS,
 } from "@/constants/permissions";
@@ -184,6 +189,49 @@ describe("declared navigation permissions", () => {
     expect(link !== null).toBe(visible);
     if (link) expect(link).toHaveAttribute("href", INVENTORY_ROUTES.alerts);
   });
+  it.each([
+    ["cycle-counts:VIEW_PAGE", [CYCLE_COUNT_PERMISSIONS.viewPage], true],
+    ["cycle-counts:READ alone", [CYCLE_COUNT_PERMISSIONS.read], false],
+    ["cycle-counts:UPDATE alone", [CYCLE_COUNT_PERMISSIONS.update], false],
+  ] as const)("kiểm kê menu with %s → visible: %s", async (_, permissions, visible) => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: {
+        roles: [],
+        permissions: [...permissions, IDENTITY_PERMISSIONS.rbacRead],
+        dataScope: "ALL",
+      },
+    });
+    mount();
+    expect(await screen.findByRole("link", { name: "Phân quyền" })).toBeInTheDocument();
+    const link = screen.queryByRole("link", { name: CYCLE_COUNT_LABELS.title });
+    expect(link !== null).toBe(visible);
+    if (link) expect(link).toHaveAttribute("href", CYCLE_COUNT_ROUTES.list);
+  });
+  it.each([
+    ["stock-packages:UPDATE (warehouse manager)", [STOCK_PACKAGE_PERMISSIONS.update], true],
+    [
+      "stock-packages:READ + CREATE (warehouse staff)",
+      [
+        STOCK_PACKAGE_PERMISSIONS.viewPage,
+        STOCK_PACKAGE_PERMISSIONS.read,
+        STOCK_PACKAGE_PERMISSIONS.create,
+      ],
+      false,
+    ],
+  ] as const)("cách ly thùng menu with %s → visible: %s", async (_, permissions, visible) => {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: {
+        roles: [],
+        permissions: [...permissions, IDENTITY_PERMISSIONS.rbacRead],
+        dataScope: "ALL",
+      },
+    });
+    mount();
+    expect(await screen.findByRole("link", { name: "Phân quyền" })).toBeInTheDocument();
+    const link = screen.queryByRole("link", { name: QUARANTINE_LABELS.title });
+    expect(link !== null).toBe(visible);
+    if (link) expect(link).toHaveAttribute("href", INVENTORY_ROUTES.quarantine);
+  });
   it("hồ sơ hàng tồn theo inventory-inventory-items:VIEW_PAGE (BE PR #119)", async () => {
     vi.spyOn(api, "get").mockResolvedValue({
       data: { roles: [], permissions: [INVENTORY_ITEM_PERMISSIONS.viewPage], dataScope: "ALL" },
@@ -315,19 +363,14 @@ describe("declared navigation permissions", () => {
     expect(await screen.findByRole("link", { name: "Đề xuất nhập hàng" })).toBeInTheDocument();
     mockMode.isMock = false;
   });
-  it("Hoá đơn NCC (BE chưa có API hoá đơn) chỉ hiện ở mock, không phụ thuộc quyền", async () => {
+  it("Hoá đơn NCC (module 04, đã ra khỏi phạm vi) không còn trên menu, kể cả ở mock", async () => {
     vi.spyOn(api, "get").mockResolvedValue({
       data: { roles: [], permissions: [], dataScope: "ALL" },
     });
-    mockMode.isMock = false;
+    mockMode.isMock = true;
     mount();
     expect(await screen.findByRole("link", { name: "Tổng quan" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Hoá đơn NCC" })).not.toBeInTheDocument();
-
-    cleanup();
-    mockMode.isMock = true;
-    mount();
-    expect(await screen.findByRole("link", { name: "Hoá đơn NCC" })).toBeInTheDocument();
     mockMode.isMock = false;
   });
   it("Từ điển thuộc tính theo quyền xem trang product-attributes và dẫn tới màn thật, không phải màn dữ liệu mẫu", async () => {
@@ -451,8 +494,9 @@ describe("mockOnly đi chung pipeline hiển thị + mục đang mở (một t�
     );
   }
 
-  // Mục mockOnly hiện tại (BE chưa có API hoá đơn NCC); Chuyến xe / Vận đơn đã có BE nên không còn mockOnly
-  const MOCK_ONLY_ROUTE = "/admin/invoices";
+  // Mục mockOnly hiện tại (BE chưa có API đề xuất nhập hàng); Hoá đơn NCC đã bỏ (module 04 ra khỏi
+  // phạm vi), Chuyến xe / Vận đơn đã có BE nên không còn mockOnly
+  const MOCK_ONLY_ROUTE = "/admin/replenishment";
   const SHIPMENT_DETAIL = ADMIN_ROUTES.shipments.detail("trip-1");
 
   afterEach(() => {
@@ -483,5 +527,36 @@ describe("mockOnly đi chung pipeline hiển thị + mục đang mở (một t�
     );
     expect(screen.getByLabelText("visible")).not.toHaveTextContent(ADMIN_ROUTES.shipments.list);
     expect(screen.getByLabelText("active")).toHaveTextContent("none");
+  });
+});
+
+describe("hàng đợi yêu cầu huỷ — gate bằng sales-order-cancellations:READ (resource không có VIEW_PAGE)", () => {
+  const LABEL = CANCELLATION_REQUEST_LABELS.title;
+
+  function mountWith(permissions: readonly PermissionCode[]) {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [], permissions, dataScope: "ALL" },
+    });
+    mount();
+  }
+
+  it("có …:READ (Sale) → thấy mục hàng đợi, trỏ đúng route; 'Đơn hàng' vẫn một mục", async () => {
+    mountWith([ORDER_PERMISSIONS.viewPage, CANCELLATION_REQUEST_PERMISSIONS.read]);
+    const link = await screen.findByRole("link", { name: LABEL });
+    expect(link).toHaveAttribute("href", ADMIN_ROUTES.orders.cancellationRequests);
+    expect(screen.getAllByRole("link", { name: "Đơn hàng" })).toHaveLength(1);
+  });
+
+  it("chỉ có quyền đơn (Kế toán đọc đơn) hoặc …:UPDATE không kèm READ → KHÔNG có mục hàng đợi", async () => {
+    mountWith([ORDER_PERMISSIONS.viewPage, ORDER_PERMISSIONS.read, ORDER_PERMISSIONS.cancel]);
+    expect(await screen.findByRole("link", { name: "Đơn hàng" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: LABEL })).not.toBeInTheDocument();
+  });
+
+  it("mục đang mở: khớp dài nhất — trang hàng đợi không sáng kèm 'Đơn hàng'", () => {
+    const items = NAV_GROUPS.flatMap((group) => group.items);
+    expect(findActiveNavHref(ADMIN_ROUTES.orders.cancellationRequests, items)).toBe(
+      ADMIN_ROUTES.orders.cancellationRequests,
+    );
   });
 });

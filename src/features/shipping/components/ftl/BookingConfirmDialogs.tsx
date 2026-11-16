@@ -47,9 +47,25 @@ export function CancelBookingDialog({ load, onClose }: { load: Load; onClose: ()
   );
 }
 
-/** Xe đã tới kho → bắt đầu xếp hàng. BR-14: từ đây kế hoạch không mở lại / huỷ được → xác nhận trước. */
-export function StartLoadingDialog({ load, onClose }: { load: Load; onClose: () => void }) {
-  const start = useStartLoading({ onSuccess: onClose });
+/**
+ * Xe đã tới kho → bắt đầu xếp hàng. BR-14: từ đây kế hoạch không mở lại / huỷ được → xác nhận trước. Câu trả lời mang
+ * cảnh báo đơn chưa được phép đi (`handoverWarnings`, chỉ có ở đây) → `onStarted` giao cho màn chuyến giữ lại.
+ */
+export function StartLoadingDialog({
+  load,
+  onClose,
+  onStarted,
+}: {
+  load: Load;
+  onClose: () => void;
+  onStarted: (load: Load) => void;
+}) {
+  const start = useStartLoading({
+    onSuccess: (started) => {
+      onStarted(started);
+      onClose();
+    },
+  });
   return (
     <ConfirmDialog
       open

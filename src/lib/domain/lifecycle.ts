@@ -38,7 +38,6 @@ import type {
   SkuStatus,
   PoStatus,
   QcStatus,
-  InvoiceStatus,
   PutawayStatus,
   MoveTaskStatus,
 } from "@/lib/mock-data";
@@ -48,6 +47,7 @@ import type {
 // ReceiptStatus cũng vậy — 6 trạng thái docs 03 §5.1 (mock-data chỉ có 5, thiếu "In QC").
 // PickStatus / PackStatus: các trạng thái BE `/fulfillment/tasks` phát ra được (SCRUM-437).
 import type {
+  CartonStatus,
   LoadStatus,
   OrderReadStatus,
   OrderStatus,
@@ -118,20 +118,6 @@ export const QC_TRANSITIONS: Record<QcStatus, readonly QcStatus[]> = {
   Rejected: [],
 };
 
-/* ── Module 04: Invoice ──────────────────────────────────────────────── */
-
-// InvoiceStatus = "Draft" | "Matched" | "Exception" | "Disputed" | "Approved for Payment" | "Paid" | "Cancelled"
-// docs/warehouse/04-invoice §5
-export const INVOICE_TRANSITIONS: Record<InvoiceStatus, readonly InvoiceStatus[]> = {
-  Draft: ["Matched", "Exception"],
-  Matched: ["Approved for Payment"],
-  Exception: ["Disputed", "Matched", "Cancelled"],
-  Disputed: ["Matched", "Cancelled"],
-  "Approved for Payment": ["Paid"],
-  Paid: [],
-  Cancelled: [],
-};
-
 /* ── Module 05: Putaway ──────────────────────────────────────────────── */
 
 // PutawayStatus = "Pending" | "Assigned" | "In Progress" | "Partially Completed" | "On Hold" | "Completed" | "Cancelled"
@@ -148,32 +134,41 @@ export const PUTAWAY_TRANSITIONS: Record<PutawayStatus, readonly PutawayStatus[]
 
 /* ── Module 07: Picking ──────────────────────────────────────────────── */
 
-// HỆ QUY CHIẾU LÀ BE: chép đúng các chuyển trạng thái BE `PickJpaEntity` đang cho phép
-// (start / complete / cancel), dùng chung cho mọi màn đọc pick task. Docs 07 §5.1 chỉ để tham khảo
-// — BE thêm/bỏ chuyển tiếp thì FE mới đổi theo, FE không tự thêm trạng thái docs mà BE chưa có.
-// "→ Cancelled" do đơn bị huỷ (BE OrderCancellationListener), không phải thao tác trên task.
-// `SHORT` có trong enum BE nhưng BE chưa có luồng nào đưa vào hay ra.
+// HỆ QUY CHIẾU LÀ BE: chép đúng các chuyển trạng thái BE `PickStatus` / `PickJpaEntity` (docs 07 §5.1), dùng
+// chung cho mọi màn đọc pick task:
+//   PENDING → PICKING (bắt đầu) → PICKED (đích DISPATCH) | STAGED (đích STAGING, mọi dòng đã về khu chờ xuất);
+//   STAGED → PICKED (quản lý kho chuyển cả tác vụ sang khu xuất hàng, `dispatch-transfer`);
+//   STAGED / PICKED → PICKING (lấy bổ sung — `top-up`, docs 07 §4.3 bước 7);
+//   mọi trạng thái chưa huỷ → CANCELLED do đơn bị huỷ (BE OrderCancellationListener), không phải thao tác trên task.
 export const PICK_TRANSITIONS: Record<PickStatus, readonly PickStatus[]> = {
   Pending: ["Picking", "Cancelled"],
-  Picking: ["Picked", "Cancelled"],
-  Short: [],
-  Picked: [],
+  Picking: ["Picked", "Staged", "Cancelled"],
+  Staged: ["Picking", "Picked", "Cancelled"],
+  Picked: ["Picking", "Cancelled"],
   Cancelled: [],
 };
 
 /* ── Module 08: Packing ──────────────────────────────────────────────── */
 
-// HỆ QUY CHIẾU LÀ BE: chép đúng phiên đóng gói BE `PackingSession` (PR #136, 03-state-machines):
-// PENDING → PACKING (packer nhận đơn, `packing-start`) → PACKED (không còn gì chờ giao), PACKING ⇄
-// ON_HOLD (thiết kế dòng in lệch checksum, BR-DSG-003; QC / quản lý kho kiểm tra lại thì phiên về
-// PACKING — docs 08 §5 "Verification Failed → In Progress" — chứ KHÔNG ra PACKED), → CANCELLED khi
-// đơn huỷ. Giao một phần giữ phiên ở PACKING. `PACKED` / `CANCELLED` là trạng thái cuối.
+// HỆ QUY CHIẾU LÀ BE: chép đúng `PackStatus` (docs 08 §5.1, BE V20261113000700): PENDING → IN_PROGRESS (bắt đầu
+// kiểm thùng, `packing-start`) → COMPLETED (hoàn tất đủ) hoặc ở lại IN_PROGRESS (hoàn tất một phần: đã tạo
+// shipment, còn thùng chờ kiểm); PENDING / IN_PROGRESS → CANCELLED khi đơn huỷ trước thùng đầu tiên được dán
+// nhãn. `COMPLETED` / `CANCELLED` là trạng thái cuối. Không còn ON_HOLD (không có giữ vì kiểm tra thiết kế).
 export const PACK_TRANSITIONS: Record<PackStatus, readonly PackStatus[]> = {
-  Pending: ["Packing", "Cancelled"],
-  Packing: ["Packed", "On Hold", "Cancelled"],
-  "On Hold": ["Packing", "Cancelled"],
-  Packed: [],
+  Pending: ["In Progress", "Cancelled"],
+  "In Progress": ["In Progress", "Completed", "Cancelled"],
+  Completed: [],
   Cancelled: [],
+};
+
+// Thùng giao (docs 08 §5.2, BE `PackageStatus` của 4C-6): To Check → Checked (quét đúng LPN) → Labeled (in và dán nhãn
+// giao hàng); To Check / Checked / Labeled → Removed (loại thùng hư hỏng; Labeled chỉ khi chưa thuộc shipment). Labeled
+// còn đi tiếp vào shipment (module 09) nhưng đó không phải một trạng thái của thùng ở trạm. `Removed` là cuối.
+export const CARTON_TRANSITIONS: Record<CartonStatus, readonly CartonStatus[]> = {
+  "To Check": ["Checked", "Removed"],
+  Checked: ["Labeled", "Removed"],
+  Labeled: ["Removed"],
+  Removed: [],
 };
 
 /* ── Module 09: Shipping — chuyến xe (load) ──────────────────────────── */
@@ -242,16 +237,21 @@ export const MOVE_TRANSITIONS: Record<MoveTaskStatus, readonly MoveTaskStatus[]>
 
 /* ── Module 14: Order ────────────────────────────────────────────────── */
 
-// Chép nguyên BE `order/api/OrderStatus.java#canTransitionTo` (19 trạng thái, BE PR #133 — bảng chuyển
+// Chép nguyên BE `order/api/OrderStatus.java#canTransitionTo` (21 trạng thái; docs 17 §5.1 — bảng chuyển
 // cũng nằm ở DB `ordering.order_status_transition`, trigger chặn mọi nhảy cóc). FE khớp BE, không dựng
 // theo docs 17. Mã wire ↔ nhãn FE: features/order/status-map.ts (PENDING_PAYMENT ↔ "Pending Payment"…).
 export const ORDER_TRANSITIONS: Record<OrderReadStatus, readonly OrderStatus[]> = {
-  Draft: ["Pending Payment", "Confirmed", "On Hold", "Cancelled"],
+  Draft: ["Pending Contract", "Pending Payment", "Confirmed", "On Hold", "Cancelled"],
+  // Hợp đồng đã gửi, chờ ký (14 §5.3): ký → chờ đợt ON_SIGNING / xác nhận / treo tín dụng; huỷ hợp đồng → Draft
+  "Pending Contract": ["Draft", "Pending Payment", "Confirmed", "On Hold", "Cancelled"],
   "Pending Payment": ["Confirmed", "Cancelled"],
-  Confirmed: ["In Production", "Ready to Fulfill", "On Hold", "Cancelled"],
-  "In Production": ["Ready to Fulfill", "On Hold", "Cancelled"],
+  // Awaiting Stock: đợt giao kế tiếp thiếu thành phẩm, Đơn sản xuất đã gửi (17 §4.4 bước 15, BR-04)
+  Confirmed: ["Awaiting Stock", "In Production", "Ready to Fulfill", "On Hold", "Cancelled"],
+  // Nhận đủ hàng → release → Ready to Fulfill; giao trước phần có sẵn → Partially Fulfilled (17 §5.1)
+  "Awaiting Stock": ["Ready to Fulfill", "Partially Fulfilled", "On Hold", "Cancelled"],
+  "In Production": ["Ready to Fulfill", "Partially Fulfilled", "On Hold", "Cancelled"],
   // PACKED trực tiếp: đơn chỉ có hàng in (17 §4.2.6)
-  "Ready to Fulfill": ["Picking", "Packed", "On Hold", "Cancelled"],
+  "Ready to Fulfill": ["Picking", "Packed", "Partially Fulfilled", "On Hold", "Cancelled"],
   Picking: ["Packed", "Partially Fulfilled", "On Hold", "Cancelled"],
   // Giao một phần (G4-Q3): phần còn lại đóng gói / bàn giao / đóng bởi nhân viên → đơn theo các lô giao
   "Partially Fulfilled": [
@@ -268,6 +268,7 @@ export const ORDER_TRANSITIONS: Record<OrderReadStatus, readonly OrderStatus[]> 
   "On Hold": [
     "Confirmed",
     "Pending Payment",
+    "Awaiting Stock",
     "In Production",
     "Ready to Fulfill",
     "Picking",
@@ -277,13 +278,15 @@ export const ORDER_TRANSITIONS: Record<OrderReadStatus, readonly OrderStatus[]> 
   ],
   Shipped: ["Delivered", "Delivery Failed", "Partially Fulfilled"],
   "Delivery Failed": ["Delivered", "Returned", "Partially Fulfilled"],
-  Delivered: ["Completed", "Return Requested"],
+  // Delivery Failed: chỉ khi Quản lý kho sửa tay vì hãng báo sai, đơn chưa hoàn tất (17 BR-27)
+  Delivered: ["Completed", "Return Requested", "Delivery Failed"],
   // Yêu cầu trả bị từ chối → về Delivered (quyết định 21/10)
   "Return Requested": ["Returned", "Delivered"],
   Returned: ["Refunded", "Partially Refunded"],
-  Refunded: ["Closed"],
-  "Partially Refunded": ["Closed"],
-  Completed: ["Closed"],
+  // Khiếu nại thêm sau hoàn tiền / sau hoàn tất vẫn mở được cho tới khi đơn đóng hẳn (BE `canTransitionTo`)
+  Refunded: ["Closed", "Return Requested"],
+  "Partially Refunded": ["Closed", "Return Requested"],
+  Completed: ["Closed", "Return Requested"],
   // Terminal (OrderStatus#isTerminal)
   Cancelled: [],
   Closed: [],

@@ -1,7 +1,8 @@
 /**
  * Mock dòng lấy hàng — store in-memory + helper cho `mock-routes-pick-lines.ts`.
- * Wire shape = BE `PickLineResponse` (SCRUM-267, `shortQty` BE PR #147). Dòng dựng từ dòng hàng thường của
- * đơn mock (dòng in không lấy từ kệ — BR-06), vị trí từ bin mock của kho task. Chỉ dùng khi USE_MOCK=true.
+ * Wire shape = BE `PickLineResponse` (docs 07 §4.2): MỖI DÒNG LÀ MỘT THÙNG LPN (BR-04) — dòng hàng của đơn mock được
+ * tách thành một dòng cho mỗi thùng, bin lấy hàng từ bin mock của kho task, `allocatedQty` = số cái chuẩn / thùng.
+ * Chỉ dùng khi USE_MOCK=true.
  */
 
 import { backendOrderStatusOf, fakeSha256 } from "./mock-routes-orders";
@@ -12,7 +13,8 @@ import type { AxiosRequestConfig } from "axios";
 import type { MockResponse } from "./mock-adapter";
 import type { MockTask } from "./mock-routes-fulfillment-store";
 
-export type MockPickLineStatus = "OPEN" | "PICKED" | "SHORT" | "CANCELLED" | "PUT_BACK";
+export type MockPickLineStatus = "OPEN" | "STAGED" | "PICKED" | "SHORT" | "CANCELLED" | "PUT_BACK";
+export type MockShortReason = "NOT_FOUND" | "DAMAGED";
 
 export interface MockPickLine {
   lineId: string;
@@ -31,6 +33,12 @@ export interface MockPickLine {
   putBackLocationCode?: string;
   putBackAt?: string;
   shortQty: number;
+  shortReason?: MockShortReason;
+  /** Mã thùng — phải quét để xác nhận dòng (BR-10) và để cất lại. */
+  lpn: string;
+  wholeCarton: boolean;
+  stagedAt?: string;
+  stagedLocationCode?: string;
 }
 
 const linesByTask = new Map<string, MockPickLine[]>();
@@ -52,44 +60,72 @@ function uuidOf(seed: string): string {
   ].join("-");
 }
 
+/** Số cái chuẩn / thùng của mock (docs 01 BR-11: mọi thùng của một SKU cùng số cái). */
+const MOCK_UNITS_PER_CARTON = 10;
+
+/** LPN mock ổn định theo (task, dòng đơn, thùng thứ n) — chữ hoa + số, ≤ 30 ký tự như `@Size(max = 30)`. */
+const lpnOf = (taskId: string, orderLineId: string, carton: number, suffix = "") =>
+  `LPN${fakeSha256(`lpn:${taskId}:${orderLineId}:${carton}${suffix}`).slice(0, 10).toUpperCase()}`;
+
 /**
- * BE `planLines`: một dòng mỗi dòng hàng thường của đơn, ở bin của kho task, xếp theo lộ trình (mã
- * vị trí). ASSUMPTION (mock-only): mỗi dòng giữ hàng ở một bin lấy được, lần lượt theo chỉ số.
+ * BE `planLines`: một dòng cho MỖI THÙNG đã phân bổ của đơn, ở bin của kho task, xếp theo mã vị trí rồi SKU (docs 07
+ * §4.1 bước 2). ASSUMPTION (mock-only): số thùng của dòng đơn = ceil(SL / 10), thùng nằm lần lượt ở các bin lấy được.
  */
 async function plan(task: MockTask): Promise<MockPickLine[]> {
   const { orders, skus } = await import("@/lib/mock-data");
   const order = orders.find((candidate) => candidate.orderId === task.orderId);
   if (!order) return [];
   const bins = await mockPickableBinCodes(task.warehouseId);
+  let index = 0;
   return order.lines
     .filter((line) => !line.designId)
-    .map((line, index) => ({
-      lineId: uuidOf(`pick-line:${task.taskId}:${line.lineId}`),
-      taskId: task.taskId,
-      sequenceNo: 0,
-      orderLineId: line.lineId,
-      sku: line.skuId,
-      barcode: skus.find((sku) => sku.skuId === line.skuId)?.barcode,
-      locationCode: bins[index % Math.max(bins.length, 1)] ?? "UNKNOWN",
-      allocatedQty: line.quantity,
-      pickedQty: 0,
-      status: "OPEN" as const,
-      putBackQty: 0,
-      shortQty: 0,
-    }))
-    .sort((a, b) => a.locationCode.localeCompare(b.locationCode))
-    .map((line, index) => ({ ...line, sequenceNo: index + 1 }));
+    .flatMap((line) =>
+      Array.from(
+        { length: Math.max(1, Math.ceil(line.quantity / MOCK_UNITS_PER_CARTON)) },
+        (_, carton) => {
+          const next = index++;
+          return {
+            lineId: uuidOf(`pick-line:${task.taskId}:${line.lineId}:${carton}`),
+            taskId: task.taskId,
+            sequenceNo: 0,
+            orderLineId: line.lineId,
+            sku: line.skuId,
+            barcode: skus.find((sku) => sku.skuId === line.skuId)?.barcode,
+            locationCode: bins[next % Math.max(bins.length, 1)] ?? "UNKNOWN",
+            allocatedQty: MOCK_UNITS_PER_CARTON,
+            pickedQty: 0,
+            status: "OPEN" as const,
+            putBackQty: 0,
+            shortQty: 0,
+            lpn: lpnOf(task.taskId, line.lineId, carton),
+            wholeCarton: true,
+          };
+        },
+      ),
+    )
+    .sort((a, b) => a.locationCode.localeCompare(b.locationCode) || a.sku.localeCompare(b.sku))
+    .map((line, position) => ({ ...line, sequenceNo: position + 1 }));
 }
 
-export function markPicked(line: MockPickLine, at: string): void {
-  line.status = "PICKED";
+/**
+ * BE `PickList.confirm` — hợp lệ → tuỳ đích của task: DISPATCH → PICKED (trừ tồn ngay); STAGING → STAGED (thùng về khu
+ * chờ xuất, chưa trừ tồn).
+ */
+export function markPicked(line: MockPickLine, at: string, stagingLocationCode?: string): void {
   line.pickedQty = line.allocatedQty;
   line.pickedAt = at;
+  if (stagingLocationCode) {
+    line.status = "STAGED";
+    line.stagedAt = at;
+    line.stagedLocationCode = stagingLocationCode;
+  } else {
+    line.status = "PICKED";
+  }
 }
 
 /**
  * Dòng của task; lần đầu thì lập kế hoạch. Task seed ở trạng thái giữa chừng có dòng tương ứng:
- * PICKING → dòng đầu đã lấy; PICKED → mọi dòng; CANCELLED (huỷ sau khi lấy) → dòng đầu đã lấy, còn
+ * PICKING → dòng đầu đã lấy; PICKED / STAGED → mọi dòng; CANCELLED (huỷ sau khi lấy) → dòng đầu đã lấy, còn
  * lại huỷ. Task mới (PENDING) → mọi dòng OPEN.
  */
 export async function getMockPickLines(task: MockTask): Promise<MockPickLine[]> {
@@ -98,7 +134,9 @@ export async function getMockPickLines(task: MockTask): Promise<MockPickLine[]> 
   const lines = await plan(task);
   const at = task.startedAt ?? task.assignedAt;
   lines.forEach((line, index) => {
-    if (task.pickStatus === "PICKED" || (index === 0 && task.pickStatus !== "PENDING")) {
+    if (task.pickStatus === "STAGED") {
+      markPicked(line, at, task.stagingLocationCode);
+    } else if (task.pickStatus === "PICKED" || (index === 0 && task.pickStatus !== "PENDING")) {
       markPicked(line, at);
     } else if (task.pickStatus === "CANCELLED") {
       line.status = "CANCELLED";
@@ -108,16 +146,17 @@ export async function getMockPickLines(task: MockTask): Promise<MockPickLine[]> 
   return lines;
 }
 
-/** BE `PickLine.reportShort`: dòng → SHORT, ghi số thiếu; không trừ tồn, không ghi số đã lấy. */
-export function reportMockShort(line: MockPickLine, found: number): void {
+/** BE `PickList.reportShort`: dòng → SHORT cả thùng, ghi lý do; không trừ / không chuyển tồn. */
+export function reportMockShort(line: MockPickLine, reason: MockShortReason): void {
   line.status = "SHORT";
-  line.shortQty = line.allocatedQty - found;
+  line.shortQty = line.allocatedQty;
+  line.shortReason = reason;
 }
 
 /**
- * BE `reallocateShort` (X-SHORT bước 04): cùng SL sang bin khác của kho, không dùng lại bin đã báo thiếu SKU
- * này trong task. Dòng thiếu → CANCELLED (giữ `shortQty`), thêm một dòng OPEN ở cuối lộ trình.
- * ASSUMPTION (mock-only): bin còn lại nào cũng đủ hàng; hết bin → `null` (route trả 409 INSUFFICIENT_STOCK).
+ * BE `reallocateShort` (docs 07 §4.4 bước 10): chọn thùng KHÁC (nguyên thùng) ở bin khác của kho, không lấy lại thùng
+ * vừa thiếu. Dòng thiếu → CANCELLED (giữ `shortQty`), thêm một dòng OPEN. ASSUMPTION (mock-only): bin còn lại nào cũng
+ * có thùng; hết bin → `null` (route trả 409 INSUFFICIENT_STOCK).
  */
 export async function reallocateMockShort(
   task: MockTask,
@@ -143,6 +182,8 @@ export async function reallocateMockShort(
     status: "OPEN",
     putBackQty: 0,
     shortQty: 0,
+    lpn: lpnOf(task.taskId, line.orderLineId, 0, `:${line.lineId}`),
+    wholeCarton: true,
   };
   lines.push(added);
   return [added];
@@ -186,9 +227,8 @@ export async function withIdempotency(
 
 /**
  * BE `OrderCancellationListener` + `PickJpaEntity#cancel`: đơn bị huỷ → pick + pack huỷ; đã bắt đầu lấy thì đánh
- * dấu trả về kệ; chỉ dòng OPEN huỷ theo (`PickList.cancelOpenLines`) — dòng SHORT giữ nguyên, dòng PICKED giữ
- * nguyên chờ trả. Đơn đã đóng gói không huỷ được
- * (mock đơn hàng chặn từ trước).
+ * dấu trả về kệ; chỉ dòng OPEN huỷ theo (`PickList.cancelOpenLines`) — dòng SHORT giữ nguyên, dòng PICKED / STAGED
+ * giữ nguyên chờ cất lại (docs 07 §4.5 bước 13). Đơn đã đóng gói không huỷ được (mock đơn hàng chặn từ trước).
  */
 export async function syncCancelledOrders(tasks: readonly MockTask[]): Promise<void> {
   for (const task of tasks) {
