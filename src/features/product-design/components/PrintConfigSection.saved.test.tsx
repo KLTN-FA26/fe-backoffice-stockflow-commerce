@@ -6,6 +6,8 @@ import { configure, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { GenericAbortSignal } from "axios";
+
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { activateMockAdapter } from "@/lib/api/mock-adapter";
@@ -187,6 +189,29 @@ describe("PrintConfigSection: a save that changes only a default", () => {
     renderSection();
     expect(await screen.findByRole("button", { name: SAVE.name })).toBeDisabled();
     expect(screen.getByText("Chưa có thay đổi để lưu.")).toBeInTheDocument();
+  });
+
+  it("asks the stored file's link once for the new version after a save, and aborts none", async () => {
+    const real = api.get.bind(api);
+    const links: { signal: GenericAbortSignal | undefined }[] = [];
+    vi.spyOn(api, "get").mockImplementation(async (url, config, ...rest) => {
+      if (url.endsWith("/model-file/download-url")) links.push({ signal: config?.signal });
+      return real(url, config, ...rest);
+    });
+    const put = vi.spyOn(api, "put");
+    const user = userEvent.setup();
+    renderSection();
+    expect(await screen.findByRole("link", { name: /sample-cup-12oz\.glb/ })).toBeInTheDocument();
+    expect(links).toHaveLength(1);
+
+    await openAdvancedAndSetSeam(user, "6");
+    await user.click(screen.getByRole("button", { name: SAVE.name }));
+    await waitFor(() => expect(put).toHaveBeenCalledTimes(1));
+    // The saved template has a new version, so a new link; the old version's link is not asked again and cut off.
+    await waitFor(() => expect(links).toHaveLength(2));
+    await screen.findByRole("link", { name: /sample-cup-12oz\.glb/ });
+    expect(links).toHaveLength(2);
+    expect(links.map((link) => link.signal?.aborted ?? false)).toEqual([false, false]);
   });
 
   it("sends one JSON request, no file and no checksum, and shows the saved value afterwards", async () => {
