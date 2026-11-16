@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   ADMIN_ROUTES,
+  CUSTOMIZATION_TEMPLATE_PERMISSIONS,
   PRODUCT_PERMISSIONS,
   SUPPLIER_ITEM_PERMISSIONS,
   UI_LABELS,
@@ -23,11 +24,12 @@ const G = L.closeGuard;
 const LINK = UI_LABELS.product.variants.printConfigLink;
 const PRODUCT = "11111111-1111-4111-8111-111111111111";
 const SUP = "33333333-3333-4333-8333-333333333333";
-const PERMS = [
+const PERMS: string[] = [
   PRODUCT_PERMISSIONS.read,
   PRODUCT_PERMISSIONS.update,
   SUPPLIER_ITEM_PERMISSIONS.read,
   VARIANT_PERMISSIONS.update,
+  CUSTOMIZATION_TEMPLATE_PERMISSIONS.read,
 ];
 const A = beVariantSchema.parse({
   variantId: "v-a",
@@ -46,9 +48,9 @@ const PATH = `/products/${PRODUCT}/variants/${A.variantId}/purchasing`;
 
 afterEach(() => vi.restoreAllMocks());
 
-function setup(customizable: boolean) {
+function setup(customizable: boolean, permissions: readonly string[] = PERMS) {
   installApi({
-    permissions: PERMS,
+    permissions,
     get: (url) => {
       if (url === PATH) {
         return {
@@ -104,6 +106,15 @@ describe("VariantPanel — link tới cấu hình in", () => {
     setup(true);
     const link = await screen.findByRole("link", { name: LINK });
     expect(link).toHaveAttribute("href", HREF);
+  });
+
+  it("sản phẩm tuỳ chỉnh nhưng không có quyền đọc cấu hình in: không có link", async () => {
+    setup(
+      true,
+      PERMS.filter((code) => code !== CUSTOMIZATION_TEMPLATE_PERMISSIONS.read),
+    );
+    await screen.findByRole("region", { name: L.referenceTitle });
+    expect(screen.queryByRole("link", { name: LINK })).toBeNull();
   });
 
   it("sản phẩm tiêu chuẩn: không có link", async () => {

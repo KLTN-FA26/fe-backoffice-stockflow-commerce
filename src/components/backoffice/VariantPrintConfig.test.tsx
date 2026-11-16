@@ -3,11 +3,18 @@
  * Biến thể seed có cấu hình in đã lưu (`SEED_PRINT_CONFIG_VARIANT`, with the figures the mock seeds for it).
  */
 import { configure, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ADMIN_ROUTES, PRODUCT_PERMISSIONS, UI_LABELS } from "@/constants";
+import {
+  ADMIN_ROUTES,
+  CUSTOMIZATION_TEMPLATE_PERMISSIONS as TEMPLATE,
+  PRODUCT_PERMISSIONS,
+  UI_LABELS,
+} from "@/constants";
 import { PRINT_CONFIG_PAGE_LABELS } from "@/constants/labels-print-config";
 import { api } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/error";
 import { activateMockAdapter } from "@/lib/api/mock-adapter";
 import {
   findMockProduct,
@@ -41,11 +48,12 @@ configure({ asyncUtilTimeout: 45_000 });
 
 const T = PRINT_CONFIG_PAGE_LABELS;
 const SEED = SEED_PRINT_CONFIG_VARIANT;
-const FULL = [PRODUCT_PERMISSIONS.viewPage, PRODUCT_PERMISSIONS.read, PRODUCT_PERMISSIONS.update];
+const PRODUCT_VIEW = [PRODUCT_PERMISSIONS.viewPage, PRODUCT_PERMISSIONS.read];
+const FULL = [...PRODUCT_VIEW, TEMPLATE.viewPage, TEMPLATE.read, TEMPLATE.create, TEMPLATE.update];
 /** An active variant of a customizable product that accepts changes: one that can still be made obsolete. */
 const ACTIVE_VARIANT = { productId: "PRD-001", variantId: "SKU-001-BLK-M" };
 const NO_CONFIG = "Biến thể này chưa có cấu hình in.";
-const READ = [PRODUCT_PERMISSIONS.viewPage, PRODUCT_PERMISSIONS.read];
+const READ = [...PRODUCT_VIEW, TEMPLATE.viewPage, TEMPLATE.read];
 const passThrough = api.get.bind(api);
 const UPLOAD = /Chọn hoặc kéo thả file/;
 
@@ -102,6 +110,38 @@ describe("VariantPrintConfig", () => {
     );
     // may edit: the box for another file is there
     expect(await screen.findByLabelText(UPLOAD)).toBeInTheDocument();
+  });
+
+  it("product access without the templates' READ says there is no access, not an empty screen", async () => {
+    await setStatus(SEED.productId, "Approved");
+    // Sales staff: product READ and UPDATE, no `product-customization-templates:*`.
+    open(SEED, [...PRODUCT_VIEW, PRODUCT_PERMISSIONS.update]);
+    expect(await screen.findByText(T.noAccess.title)).toBeInTheDocument();
+    expect(screen.getByText(T.noAccess.description)).toBeInTheDocument();
+    expect(screen.queryByRole("table", { name: "Số đo lấy từ file 3D" })).toBeNull();
+    expect(screen.queryByLabelText(UPLOAD)).toBeNull();
+    expect(section.props).toEqual([]); // the section is not even mounted
+  });
+
+  it("M-5: a permissions load that fails says so and offers a retry, not 'no access'", async () => {
+    await setStatus(SEED.productId, "Approved");
+    let failing = true;
+    vi.spyOn(api, "get").mockImplementation(async (url, config) => {
+      if (url === "/identity/me/permissions") {
+        if (failing) throw new ApiError(500, "INTERNAL_ERROR", "x");
+        return { data: { roles: ["TEST"], permissions: [...FULL], dataScope: "ALL" } };
+      }
+      return passThrough(url, config);
+    });
+    renderApp(<VariantPrintConfig {...SEED} />);
+    expect(await screen.findByText(T.permissionsFailed.title)).toBeInTheDocument();
+    expect(screen.queryByText(T.noAccess.title)).toBeNull();
+    expect(section.props).toEqual([]);
+
+    failing = false;
+    await userEvent.setup().click(screen.getByRole("button", { name: UI_LABELS.common.retry }));
+    expect(await measured()).toBeInTheDocument();
+    expect(screen.queryByText(T.permissionsFailed.title)).toBeNull();
   });
 
   it("a variant of a standard product gets the customizable-only message and no upload", async () => {

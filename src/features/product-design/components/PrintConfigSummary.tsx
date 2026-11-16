@@ -11,6 +11,7 @@ import {
 import { figureRows, hasModel } from "../selectors";
 import { defaultRows } from "./default-rows";
 import { formatMm } from "./format-mm";
+import { ModelFileLink } from "./ModelFileLink";
 import { defaultsFor } from "./print-defaults";
 import { ValueTable } from "./ValueTable";
 
@@ -33,6 +34,7 @@ export function PrintConfigSummary({ config }: { config: PrintConfigDto }) {
         <dt className="text-ink-secondary">{TEXT.file}</dt>
         <dd className="text-ink-primary">
           {hasModel(config) ? TEXT.fileAttached : TEXT.fileMissing}
+          {hasModel(config) && <ModelFileLink config={config} />}
         </dd>
       </dl>
 

@@ -14,7 +14,7 @@ export function VariantPrintConfigState({
   error,
   onRetry,
 }: {
-  kind: "variant-missing" | "failed";
+  kind: "variant-missing" | "failed" | "no-access" | "permissions-failed";
   /** Lỗi tải: chỉ 404 / 400 là "không tìm thấy"; còn lại có Thử lại. */
   error?: unknown;
   onRetry?: () => void;
@@ -23,10 +23,15 @@ export function VariantPrintConfigState({
   const productMissing = kind === "failed" && (!error || classifyLoadError(error) === "not-found");
   const copy = productMissing
     ? UI_LABELS.product.notFound
-    : kind === "variant-missing"
-      ? TEXT.variantNotFound
-      : TEXT.loadFailed;
-  const canRetry = kind === "failed" && !productMissing && onRetry;
+    : kind === "no-access"
+      ? TEXT.noAccess
+      : kind === "variant-missing"
+        ? TEXT.variantNotFound
+        : kind === "permissions-failed"
+          ? TEXT.permissionsFailed
+          : TEXT.loadFailed;
+  const canRetry =
+    (kind === "failed" || kind === "permissions-failed") && !productMissing && onRetry;
 
   return (
     <div className="surface-soft surface-compact">

@@ -554,7 +554,7 @@ export const PRINT_CONFIG_LIMITS = {
   meshNameMaxLength: 100,
   /** Đuôi file model (B-1). */
   modelFileExtension: ".glb",
-  /** SHA-256 viết thường dạng hex (B-5 / B-6 `modelFileChecksum`). */
+  /** SHA-256 viết thường dạng hex (BE `model3d.fileChecksum`, CHECK `ck_customization_templates_model_file`). */
   checksumPattern: /^[0-9a-f]{64}$/,
 } as const;
 

@@ -52,18 +52,11 @@ export const savedFile = (name = "model.glb", size = 16) => ({
   bytes: new Uint8Array(size).buffer,
 });
 
-/** The JSON `template` part of a multipart save body. */
-export function templateOf(form: unknown): Promise<Record<string, unknown>> {
-  if (!(form instanceof FormData)) throw new Error("not a multipart body");
-  const part = form.get("template");
-  if (!(part instanceof Blob)) throw new Error("no template part");
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(JSON.parse(String(reader.result)));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsText(part);
-  });
-}
+/** A permission check that allows exactly these codes. */
+export const canWith =
+  (...codes: PermissionCode[]) =>
+  (permission: PermissionCode) =>
+    codes.includes(permission);
 
 export const glbFile = (name = "model.glb", size = 64) =>
   new File([new Uint8Array(size)], name, { type: "model/gltf-binary" });

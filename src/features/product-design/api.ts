@@ -1,6 +1,6 @@
 /**
- * API of a variant's print configuration (BE `CustomizationTemplateController`, origin/develop). Every response is
- * parsed once, here.
+ * API of a variant's print configuration (BE `CustomizationTemplateController`, origin/develop d47ed4ae). Every response
+ * is parsed once, here.
  *
  * The BE has no "the variant's print configuration" resource: a variant has templates by code, one of them
  * active. `getPrintConfig` reads the list and returns the active template, else the first by code, else `null`
@@ -9,9 +9,12 @@
 import { api } from "@/lib/api/client";
 import { sha256Hex } from "@/lib/crypto/sha256";
 
-import { printConfigDtoSchema, printConfigSaveInputSchema } from "./schemas";
+import { ModelFileMismatchError } from "./errors";
+import { downloadLinkSchema, printConfigDtoSchema, printConfigSaveInputSchema } from "./schemas";
 
+import type { AxiosRequestConfig } from "axios";
 import type {
+  ModelFileBytes,
   PrintConfigBody,
   PrintConfigDto,
   PrintConfigSaveInput,
@@ -39,15 +42,11 @@ export async function getPrintConfig(
 }
 
 /**
- * JSON body of the template part: BE `CustomizationTemplateRequest`, whose areas carry only name and margins
- * (position and shape are computed by the BE), plus `model3d.surfaces` (B-2) and `modelFileChecksum` (B-6).
- * `code` is create-only; `version` is update-only.
+ * The template as BE `CustomizationTemplateRequest` takes it (the JSON body, or the multipart part `template`): areas
+ * carry only name and margins (position and shape are computed by the BE), plus `model3d.surfaces`. No file and no
+ * checksum field: the BE hashes the bytes it stores. `code` is create-only; `version` is update-only.
  */
-export function printConfigBody(
-  config: PrintConfigBody,
-  modelFileChecksum: string | undefined,
-  stored: { version: number } | null,
-) {
+export function printConfigBody(config: PrintConfigBody, stored: { version: number } | null) {
   return {
     ...(stored ? { version: stored.version } : { code: config.code }),
     name: config.name,
@@ -59,36 +58,71 @@ export function printConfigBody(
     allowedFontCodes: config.allowedFontCodes ?? undefined,
     model: config.model,
     printAreas: config.printAreas,
-    // ASSUMPTION (yêu cầu BE B-2): the request takes `model3d: { surfaces }`.
     model3d: { surfaces: config.surfaces },
-    // ASSUMPTION (yêu cầu BE B-6): the request takes `modelFileChecksum` next to `model`.
-    modelFileChecksum,
   };
 }
 
 /**
- * The multipart body of a save. ASSUMPTION (yêu cầu BE B-1, B-6): the BE takes the template and the `.glb` in ONE
- * `multipart/form-data` request, as `POST` / `PUT customization-templates`, with a JSON part `template` (the body
- * above) and, when there is a file, a part `file`. The requirements document asks for exactly this; until the BE
- * does it, the mock applies both or neither.
+ * The shared client sends `Content-Type: application/json` by default, and axios turns a `FormData` sent under a JSON
+ * content type into a JSON string. Clearing the default (not setting a multipart type by hand) keeps the `FormData`
+ * as it is; the browser then writes `multipart/form-data` with its own boundary.
  */
-export function printConfigForm(
-  body: ReturnType<typeof printConfigBody>,
-  file?: { name: string; bytes: ArrayBuffer },
-): FormData {
+const MULTIPART: AxiosRequestConfig = { headers: { "Content-Type": false } };
+
+/**
+ * The multipart body of a save with a file: part `template` is the JSON as a Blob typed `application/json` (the BE
+ * answers 415 to a plain text part), part `file` the exact bytes that were measured.
+ */
+function templateForm(body: ReturnType<typeof printConfigBody>, file: ModelFileBytes): FormData {
   const form = new FormData();
   form.append("template", new Blob([JSON.stringify(body)], { type: "application/json" }));
-  if (file) form.append("file", new File([file.bytes], file.name, { type: "model/gltf-binary" }));
+  form.append("file", new File([file.bytes], file.name, { type: "model/gltf-binary" }));
   return form;
 }
 
-const MULTIPART = { headers: { "Content-Type": "multipart/form-data" } };
+/**
+ * `GET …/{templateId}/model-file/download-url`: a short-lived link to the stored `.glb` (BE `DownloadLink`). Call it
+ * only for a template whose `model3d.hasFile` is true (the BE answers 404 NOT_FOUND otherwise).
+ */
+export async function getModelFileLink(
+  productId: string,
+  variantId: string,
+  templateId: string,
+  signal?: AbortSignal,
+) {
+  const url = `${templatePath(productId, variantId, templateId)}/model-file/download-url`;
+  const { data } = await api.get<unknown>(url, { signal });
+  return downloadLinkSchema.parse(data);
+}
+
+/** One request; which one depends on what is saved. */
+function sendSave(productId: string, variantId: string, input: PrintConfigSaveInput) {
+  const body = printConfigBody(input.config, input.stored);
+  const { stored, file } = input;
+  if (!stored) {
+    // `printConfigSaveInputSchema` refuses a create without a file before this point (the BE answers 409).
+    if (!file) throw new Error("A print configuration is created with its model file");
+    return api.post<unknown>(
+      templatesPath(productId, variantId),
+      templateForm(body, file),
+      MULTIPART,
+    );
+  }
+  const url = templatePath(productId, variantId, stored.templateId);
+  return file
+    ? api.put<unknown>(url, templateForm(body, file), MULTIPART)
+    : api.put<unknown>(url, body);
+}
 
 /**
- * One call, one request. `POST` (no stored template) or `PUT` (stored template, with its `version`) of the
- * multipart body above. With a file the checksum is the SHA-256 of `file.bytes`, the bytes that were measured; a
- * checksum the caller supplies counts only for a save without a file (the stored file stays). Without
- * `crypto.subtle` (page not on https or localhost) the hash fails with `SecureContextRequiredError`.
+ * THE save: one request, so the template, its measurements, its area ↔ mesh table and its `.glb` are stored together
+ * in one BE transaction or not at all.
+ *  - create: `POST` multipart (`template` + `file`); a create always has a file;
+ *  - update with a new file: `PUT …/{templateId}` multipart, `version` in `template`;
+ *  - update without a file: `PUT …/{templateId}` JSON, the measured values exactly as they were read.
+ * The new `version` is the response's (the BE may move it by more than one). With a file, the SHA-256 of the measured
+ * bytes is computed before anything is sent (no `crypto.subtle` fails with `SecureContextRequiredError` first) and the
+ * response's `model3d.fileChecksum` must be it: otherwise `ModelFileMismatchError`, not a success.
  */
 export async function savePrintConfig(
   productId: string,
@@ -96,17 +130,13 @@ export async function savePrintConfig(
   rawInput: PrintConfigSaveInput,
 ): Promise<PrintConfigDto> {
   const input = printConfigSaveInputSchema.parse(rawInput);
-  const checksum = input.file ? await sha256Hex(input.file.bytes) : input.modelFileChecksum;
-  const form = printConfigForm(printConfigBody(input.config, checksum, input.stored), input.file);
-  const path = templatesPath(productId, variantId);
-  const { data } = input.stored
-    ? await api.put<unknown>(
-        templatePath(productId, variantId, input.stored.templateId),
-        form,
-        MULTIPART,
-      )
-    : await api.post<unknown>(path, form, MULTIPART);
-  return printConfigDtoSchema.parse(data);
+  const measured = input.file ? await sha256Hex(input.file.bytes) : null;
+  const { data } = await sendSave(productId, variantId, input);
+  const saved = printConfigDtoSchema.parse(data);
+  if (measured !== null && saved.model3d.fileChecksum !== measured) {
+    throw new ModelFileMismatchError();
+  }
+  return saved;
 }
 
 async function changeStatus(target: PrintConfigTarget, action: "activation" | "deactivation") {
@@ -117,9 +147,11 @@ async function changeStatus(target: PrintConfigTarget, action: "activation" | "d
 }
 
 /**
- * `POST …/{templateId}/activation`, body `{ version }` (BE, origin/develop). The variant's previously active template
- * is retired in the same transaction. Errors: 409 PRODUCT_NOT_CUSTOMIZABLE, 409 CONFLICT (variant or product no
- * longer sold), 409 OPTIMISTIC_LOCK, 404 PRINT_CONFIG_NOT_FOUND, 400 PRINT_CONFIG_INVALID (template without a model).
+ * `POST …/{templateId}/activation`, body `{ version }` (BE, origin/develop d47ed4ae). The variant's previously active
+ * template is retired in the same transaction. Errors: 400 PRINT_CONFIG_INVALID (template without a model), 409
+ * PRINT_CONFIG_MODEL_FILE_REQUIRED (no `.glb`), 422 PRINT_CONFIG_SURFACES_INVALID (an area without its `print:<code>`
+ * mesh), 409 PRODUCT_NOT_CUSTOMIZABLE, 409 CONFLICT (variant or product no longer sold), 409 OPTIMISTIC_LOCK, 404
+ * PRINT_CONFIG_NOT_FOUND.
  */
 export const activatePrintConfig = (target: PrintConfigTarget): Promise<PrintConfigDto> =>
   changeStatus(target, "activation");

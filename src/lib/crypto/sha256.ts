@@ -11,7 +11,7 @@ export class SecureContextRequiredError extends Error {
   }
 }
 
-/** SHA-256 of the bytes as lowercase hex (the `modelFileChecksum` of a print configuration). */
+/** SHA-256 of the bytes as lowercase hex (what the BE keeps as a print configuration's `model3d.fileChecksum`). */
 export async function sha256Hex(data: Blob | ArrayBuffer): Promise<string> {
   const subtle = globalThis.crypto?.subtle;
   if (!subtle) throw new SecureContextRequiredError();

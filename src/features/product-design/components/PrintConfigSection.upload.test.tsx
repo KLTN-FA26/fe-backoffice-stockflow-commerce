@@ -11,6 +11,7 @@ import { activateMockAdapter } from "@/lib/api/mock-adapter";
 import { resetProductMockStore } from "@/lib/api/mock-product-store";
 import { resetPrintConfigMockStore } from "@/lib/api/mock-routes-print-configs";
 import { resetVariantMockStore } from "@/lib/api/mock-routes-variants";
+import { blobBytes } from "@/lib/crypto/blob-bytes";
 
 import type { GlbLoader } from "./use-glb-reading";
 import { Model3dError } from "../model3d/model3d-error";
@@ -24,7 +25,6 @@ import {
   loaderOf,
   renderSection,
   sampleCupFile,
-  templateOf,
   treeWithoutPrint,
 } from "./print-config-test-utils";
 
@@ -75,12 +75,21 @@ describe("choosing the real sample cup", () => {
 
     await userEvent.setup().click(screen.getByRole("button", { name: SAVE.name }));
     await waitFor(() => expect(post).toHaveBeenCalledTimes(1));
+    // the saved configuration replaces the empty state: the one request stored template and file together
+    expect(await screen.findByText("Đã đính kèm file 3D")).toBeInTheDocument();
 
-    // one request: the template and the file together
+    // ONE multipart request: part `template` (JSON) and part `file`, the measured bytes
     expect(put).not.toHaveBeenCalled();
-    const [, form] = post.mock.calls[0] ?? [];
-    const body = await templateOf(form);
-    const model = (body as { model: Record<string, number> }).model;
+    const [url, form] = post.mock.calls[0] ?? [];
+    expect(url).toMatch(/\/customization-templates$/);
+    if (!(form instanceof FormData)) throw new Error("expected a multipart body");
+    const part = form.get("template");
+    if (!(part instanceof Blob)) throw new Error("expected the template part");
+    expect(part.type).toBe("application/json");
+    const body = JSON.parse(new TextDecoder().decode(await blobBytes(part))) as {
+      model: Record<string, number>;
+    };
+    const model = body.model;
     expect(model).toMatchObject({ kind: "parametric-cup" });
     for (const [key, wanted] of Object.entries({
       topDiameterMm: 90,
@@ -94,7 +103,7 @@ describe("choosing the real sample cup", () => {
     expect(body).toMatchObject({
       model3d: { surfaces: [{ printAreaCode: "BODY", meshName: "print:BODY" }] },
     });
-    const sent = (form as FormData).get("file");
+    const sent = form.get("file");
     expect(sent).toBeInstanceOf(File);
     expect((sent as File).name).toBe("sample-cup-12oz.glb");
     expect((sent as File).size).toBe(sampleCupFile().size);

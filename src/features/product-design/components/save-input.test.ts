@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { printConfigSaveInputSchema } from "../schemas";
-import { BAG_BODY, CUP, SHA_A, cupDto } from "../test-fixtures";
+import { BAG_BODY, CUP, cupDto, model3dWithFile } from "../test-fixtures";
 import { savedFile } from "./print-config-test-utils";
 import { defaultsFor } from "./print-defaults";
 import { buildSaveInput, templateOfSource } from "./save-input";
@@ -15,10 +15,7 @@ const FACES = (["FRONT", "BACK", "LEFT", "RIGHT"] as const).map((code) => ({
 }));
 const bagModel = BAG_BODY.model;
 
-const stored = cupDto({
-  model3d: { url: "blob:x", surfaces: [{ printAreaCode: "BODY", meshName: "print:BODY" }] },
-  modelFileChecksum: SHA_A,
-});
+const stored = cupDto({ model3d: model3dWithFile() });
 
 describe("buildSaveInput", () => {
   it("a measured cup and the defaults give the configuration, its area table and the file", () => {
@@ -87,14 +84,15 @@ describe("buildSaveInput", () => {
     expect(input?.config.model).toMatchObject({ topFoldMm: 30, handle: "flat" });
   });
 
-  it("with no new file it re-sends the stored model and the stored file's checksum, changing only the defaults", () => {
+  it("with no new file it re-sends the stored model and sends no checksum, changing only the defaults", () => {
     const input = buildSaveInput({
       source: null,
       stored,
       defaults: { ...defaultsFor("parametric-cup", stored), seamMm: 6 },
     });
     expect(input?.file).toBeUndefined();
-    expect(input?.modelFileChecksum).toBe(SHA_A);
+    expect(input).not.toHaveProperty("modelFileChecksum");
+    expect(input?.stored).toMatchObject({ hasFile: true });
     expect(input?.config.model).toEqual({ ...CUP, seamMm: 6 });
     expect(input?.config.code).toBe(stored.code);
     expect(input?.stored).toMatchObject({ templateId: "tpl-1", version: 3 });
@@ -110,13 +108,31 @@ describe("buildSaveInput", () => {
       file: savedFile(),
     });
     expect(input?.config).toMatchObject({ code: "CUP12-BODY", minDpi: 600, maxColors: 2 });
-    expect(input?.modelFileChecksum).toBeUndefined();
+    expect(input).not.toHaveProperty("modelFileChecksum");
   });
 
-  it("gives nothing to save without a measurement and without a stored file", () => {
+  it("gives nothing to save without a measurement and without a stored model", () => {
     const empty = defaultsFor("parametric-cup", null);
     expect(buildSaveInput({ source: null, stored: null, defaults: empty })).toBeNull();
-    expect(buildSaveInput({ source: null, stored: cupDto(), defaults: empty })).toBeNull();
+    expect(
+      buildSaveInput({ source: null, stored: cupDto({ model: null }), defaults: empty }),
+    ).toBeNull();
+  });
+
+  it("a configuration written before files were required takes free edits: its values go back as they were read", () => {
+    const legacy = cupDto({
+      model: { ...CUP, topDiameterMm: 90.123456 },
+      model3d: { hasFile: false, fileName: null, fileChecksum: null, surfaces: [] },
+    });
+    const input = buildSaveInput({
+      source: null,
+      stored: legacy,
+      defaults: { ...defaultsFor("parametric-cup", legacy), rimMm: 4 },
+    });
+    expect(input?.config.model).toEqual({ ...CUP, topDiameterMm: 90.123456, rimMm: 4 });
+    expect(input?.config.surfaces).toEqual([]);
+    expect(input?.stored).toMatchObject({ hasFile: false, surfaces: [] });
+    expect(printConfigSaveInputSchema.safeParse(input).success).toBe(true);
   });
 });
 
@@ -141,9 +157,69 @@ const bagStored = (areas: { safe: number; bleed: number }[]) =>
       safeMarginMm: areas[i]?.safe ?? 5,
       bleedMm: areas[i]?.bleed ?? 3,
     })),
-    model3d: { url: "blob:x", surfaces: FACES },
-    modelFileChecksum: SHA_A,
+    model3d: { ...model3dWithFile(), surfaces: FACES },
   });
+
+describe("buildSaveInput: a template written before files were required, saving a free field", () => {
+  const noFile = (surfaces: { printAreaCode: PrintAreaCode; meshName: string }[]) => ({
+    hasFile: false,
+    fileName: null,
+    fileChecksum: null,
+    surfaces,
+  });
+  const freeEdit = (stored: ReturnType<typeof cupDto>, kind: "parametric-bag" | "parametric-cup") =>
+    buildSaveInput({
+      source: null,
+      stored,
+      defaults: {
+        ...defaultsFor(kind, stored),
+        ...(kind === "parametric-bag" ? { handle: "flat" as const } : { rimMm: 4 }),
+      },
+    });
+
+  it.each([
+    ["an empty table", []],
+    ["a partial table", FACES.slice(0, 2)],
+  ])(
+    "a bag with %s keeps its four areas and its table as stored, and passes the BE's rules",
+    (_name, table) => {
+      const stored = cupDto({ ...bagStored([]), model3d: noFile(table) });
+      let input: ReturnType<typeof buildSaveInput> = null;
+      expect(() => (input = freeEdit(stored, "parametric-bag"))).not.toThrow();
+      expect(input).not.toBeNull();
+      const checked = printConfigSaveInputSchema.safeParse(input);
+      expect(checked.success).toBe(true);
+      if (!checked.success) return;
+      expect(checked.data.config.printAreas.map((a) => a.code)).toEqual([
+        "FRONT",
+        "BACK",
+        "LEFT",
+        "RIGHT",
+      ]);
+      expect(checked.data.config.surfaces).toEqual(table);
+      expect(checked.data.config.model).toMatchObject({
+        handle: "flat",
+        heightMm: 320,
+        topFoldMm: 40,
+      });
+    },
+  );
+
+  it("a cup with an empty table saves a free field the same way", () => {
+    const stored = cupDto({ model3d: noFile([]) });
+    const checked = printConfigSaveInputSchema.safeParse(freeEdit(stored, "parametric-cup"));
+    expect(checked.success).toBe(true);
+    if (!checked.success) return;
+    expect(checked.data.config.printAreas.map((a) => a.code)).toEqual(["BODY"]);
+    expect(checked.data.config.surfaces).toEqual([]);
+    expect(checked.data.config.model).toMatchObject({ rimMm: 4, topDiameterMm: 90 });
+  });
+
+  it("a bag whose stored template has no print area at all gives nothing to save instead of throwing", () => {
+    const stored = cupDto({ ...bagStored([]), printAreas: [], model3d: noFile([]) });
+    expect(freeEdit(stored, "parametric-bag")).toBeNull();
+  });
+});
 
 describe("buildSaveInput: bag top fold, kind change, per-area margins", () => {
   it("the top fold is added on the measured face height: the print area keeps the file's 280 mm", () => {
@@ -164,6 +240,20 @@ describe("buildSaveInput: bag top fold, kind change, per-area margins", () => {
       defaults: { ...defaultsFor("parametric-bag", stored), topFoldMm: 20 },
     });
     expect(input?.config.model).toMatchObject({ heightMm: 300, topFoldMm: 20 });
+    expect(printConfigSaveInputSchema.safeParse(input).success).toBe(true);
+  });
+
+  it("a stored bag whose fold does not change sends its height exactly as read, whatever its decimals", () => {
+    const odd = cupDto({
+      ...bagStored([]),
+      model: { ...BAG_MODEL, heightMm: 320.1234567, topFoldMm: 40.3 },
+    });
+    const input = buildSaveInput({
+      source: null,
+      stored: odd,
+      defaults: { ...defaultsFor("parametric-bag", odd), handle: "flat" },
+    });
+    expect(input?.config.model).toMatchObject({ heightMm: 320.1234567, topFoldMm: 40.3 });
   });
 
   it("a bag file replacing a cup configuration gets the bag's code and name", () => {

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { PRODUCT_PERMISSIONS } from "@/constants/permissions";
+import {
+  CUSTOMIZATION_TEMPLATE_PERMISSIONS as TEMPLATE,
+  PRODUCT_PERMISSIONS,
+} from "@/constants/permissions";
 
 import {
   allowedActions,
@@ -17,8 +20,8 @@ const role =
   (...codes: PermissionCode[]) =>
   (code: PermissionCode) =>
     codes.includes(code);
-const EDITOR = role(PRODUCT_PERMISSIONS.read, PRODUCT_PERMISSIONS.update);
-const VIEWER = role(PRODUCT_PERMISSIONS.read);
+const EDITOR = role(TEMPLATE.read, TEMPLATE.create, TEMPLATE.update);
+const VIEWER = role(TEMPLATE.read);
 const codes = (actions: readonly { code: string }[]) => actions.map((a) => a.code);
 
 describe("print configuration lifecycle", () => {
@@ -41,10 +44,43 @@ describe("print configuration lifecycle", () => {
     expect(allowedActions("ACTIVE", VIEWER)).toEqual([]);
     expect(canViewPrintConfig(VIEWER)).toBe(true);
     expect(canViewPrintConfig(role())).toBe(false);
-    expect(allowedActions(null, role(PRODUCT_PERMISSIONS.update))).toEqual([]);
+    expect(allowedActions(null, role(TEMPLATE.update))).toEqual([]);
+  });
+
+  it("product permissions do nothing here: sales staff read and update products, not templates", () => {
+    const salesStaff = role(PRODUCT_PERMISSIONS.read, PRODUCT_PERMISSIONS.update);
+    expect(canViewPrintConfig(salesStaff)).toBe(false);
+    expect(allowedActions("ACTIVE", salesStaff)).toEqual([]);
+    expect(allowedActions(null, salesStaff)).toEqual([]);
+  });
+
+  it("each action asks for its BE permission: UPDATE saves, activates and deactivates; CREATE alone makes the first save", () => {
+    const updater = role(TEMPLATE.read, TEMPLATE.update);
+    expect(codes(allowedActions("INACTIVE", updater))).toEqual(["save", "activate"]);
+    expect(codes(allowedActions("ACTIVE", updater))).toEqual(["save", "deactivate"]);
+    // No configuration yet: the save is one multipart POST, which the BE guards with CREATE only.
+    expect(allowedActions(null, updater)).toEqual([]);
+    expect(codes(allowedActions(null, role(TEMPLATE.read, TEMPLATE.create)))).toEqual(["save"]);
+    expect(codes(allowedActions(null, EDITOR))).toEqual(["save"]);
+    // CREATE alone changes nothing of a saved configuration.
+    expect(allowedActions("ACTIVE", role(TEMPLATE.read, TEMPLATE.create))).toEqual([]);
+    // UPDATE without READ cannot even view.
+    expect(allowedActions("ACTIVE", role(TEMPLATE.update))).toEqual([]);
   });
 
   it("a discontinued product or obsolete variant (writable: false) gets no action", () => {
     expect(allowedActions("ACTIVE", EDITOR, { writable: false })).toEqual([]);
+  });
+
+  it("a configuration whose file or area table does not allow it is not offered activation; the rest stays", () => {
+    expect(codes(allowedActions("INACTIVE", EDITOR, { activatable: false }))).toEqual(["save"]);
+    expect(codes(allowedActions("ACTIVE", EDITOR, { activatable: false }))).toEqual([
+      "save",
+      "deactivate",
+    ]);
+    expect(codes(allowedActions("INACTIVE", EDITOR, { activatable: true }))).toEqual([
+      "save",
+      "activate",
+    ]);
   });
 });

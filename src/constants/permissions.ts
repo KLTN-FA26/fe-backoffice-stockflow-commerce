@@ -167,6 +167,21 @@ export const VARIANT_PERMISSIONS = {
 } as const;
 
 /**
+ * Cấu hình in của biến thể (mẫu tuỳ biến) — resource `product-customization-templates` (BE
+ * `CustomizationTemplateController`, `ProductResources.CUSTOMIZATION_TEMPLATES`; seed baseline
+ * V20261111000000). READ: xem danh sách, chi tiết và link tải file model; CREATE: tạo mẫu (`POST`);
+ * UPDATE: sửa mẫu, gửi file model / file tham chiếu, kích hoạt và ngừng dùng. Quản lý bán hàng và System
+ * Admin giữ resource này; nhân viên bán hàng không (chủ dự án xác nhận) dù có quyền đọc sản phẩm.
+ */
+export const CUSTOMIZATION_TEMPLATE_PERMISSIONS = {
+  viewPage: "product-customization-templates:VIEW_PAGE",
+  read: "product-customization-templates:READ",
+  create: "product-customization-templates:CREATE",
+  update: "product-customization-templates:UPDATE",
+  delete: "product-customization-templates:DELETE",
+} as const;
+
+/**
  * Từ điển thuộc tính — resource `product-attributes` (BE `AttributeController`,
  * `CategoryAttributeController`). Thêm / sửa / xoá một giá trị là UPDATE của thuộc tính (không có
  * quyền riêng cho giá trị); gán bộ thuộc tính cho danh mục cũng là UPDATE.

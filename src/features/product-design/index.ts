@@ -4,13 +4,13 @@ export {
   deactivatePrintConfig,
   getPrintConfig,
   pickPrintConfig,
+  getModelFileLink,
   printConfigBody,
-  printConfigForm,
   savePrintConfig,
 } from "./api";
 export { PrintConfigSection } from "./components/PrintConfigSection";
 export type { PrintConfigSectionProps } from "./components/PrintConfigSection";
-export { printConfigErrorMessage } from "./errors";
+export { ModelFileMismatchError, printConfigErrorMessage } from "./errors";
 export {
   allowedActions,
   canViewPrintConfig,
@@ -23,8 +23,10 @@ export { measuredChanged, measuredFigures } from "./measured";
 export type { MeasuredFigure, MeasuredKey } from "./measured";
 export { useActivatePrintConfig, useDeactivatePrintConfig, useSavePrintConfig } from "./mutations";
 export type { SavePrintConfigVariables } from "./mutations";
-export { printConfigKeys, usePrintConfig } from "./queries";
+export { printConfigKeys, useModelFileUrl, usePrintConfig } from "./queries";
 export {
+  downloadLinkSchema,
+  model3dSchema,
   printConfigBodySchema,
   printConfigDtoSchema,
   printConfigSaveInputSchema,
@@ -32,15 +34,10 @@ export {
   storedPrintConfigSchema,
   surfaceSchema,
 } from "./schemas";
-export {
-  defaultSurfaces,
-  figureRows,
-  hasModel,
-  printAreasWithoutMesh,
-  storedOf,
-} from "./selectors";
+export { figureRows, hasModel, storedOf } from "./selectors";
 export type { FigureRow } from "./selectors";
 export type {
+  ModelFileBytes,
   PrintConfigBody,
   PrintConfigDto,
   PrintConfigSaveInput,

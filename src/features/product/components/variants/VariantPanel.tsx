@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import {
   ADMIN_ROUTES,
+  CUSTOMIZATION_TEMPLATE_PERMISSIONS,
   INVENTORY_ITEM_PERMISSIONS,
   PRODUCT_PERMISSIONS,
   SUPPLIER_ITEM_PERMISSIONS,
@@ -130,7 +131,7 @@ export function VariantPanel({
             />
           </section>
 
-          {customizable && (
+          {customizable && can(CUSTOMIZATION_TEMPLATE_PERMISSIONS.read) && (
             <section>
               <VariantPrintConfigLink
                 href={ADMIN_ROUTES.products.printConfig(productId, variant.variantId)}

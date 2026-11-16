@@ -1,9 +1,10 @@
 /**
  * Kho mock của cấu hình in (BE `customization_templates` + `print_areas`) và file model `.glb` của nó.
- * Hình response theo BE `CustomizationTemplateResponse` cộng các trường BE chưa có:
- * ASSUMPTION (yêu cầu BE B-2, B-3, B-6) `model3d { url, surfaces }` và `modelFileChecksum`.
- * File giữ trong bộ nhớ; `url` là object URL của chính file vừa tải (hoặc `/mock/models/...` cho bản seed).
- * Một lần lưu là một request: số đo và file cùng vào kho, hoặc không gì vào (xem `mock-routes-print-configs.ts`).
+ * Hình response đúng BE `CustomizationTemplateResponse` (origin/develop d47ed4ae): `model3d` luôn có, là
+ * `{ hasFile, fileName?, fileChecksum?, surfaces[] }`, không có `url`; `omitNulls` bỏ các trường rỗng như BE.
+ * File giữ trong bộ nhớ; `url` (object URL của chính file vừa tải, hoặc `/mock/models/...` cho bản seed) chỉ ra ngoài
+ * qua `GET …/model-file/download-url`. Số đo, bảng ghép và file vào kho trong cùng một request, như BE
+ * (xem `mock-routes-print-configs.ts`).
  */
 import { MODEL3D_LIMITS } from "@/constants/numbers";
 // Only the pure formula module: the `model3d` entry would pull three.js into every page in mock mode.
@@ -61,10 +62,17 @@ const byVariant = new Map<string, MockPrintTemplate[]>();
 let seeded = false;
 let counter = 0;
 
+/**
+ * Test hook (the BE has none): the server keeps other bytes than it was sent, so its checksum differs from the measured
+ * file's. Cleared by `resetPrintConfigMockStore`.
+ */
+export const printConfigMockFaults: { storeOtherBytes: boolean } = { storeOtherBytes: false };
+
 export function resetPrintConfigMockStore(): void {
   byVariant.clear();
   seeded = false;
   counter = 0;
+  printConfigMockFaults.storeOtherBytes = false;
 }
 
 export const nextTemplateId = (): string => `tpl-mock-${++counter}`;
@@ -143,10 +151,15 @@ export function responseOf(t: MockPrintTemplate) {
       };
     }),
     version: t.version,
-    model3d: t.file ? { url: t.file.url, surfaces: t.surfaces } : null,
-    modelFileChecksum: t.file?.checksum ?? null,
+    referenceFileName: null,
+    model3d: {
+      hasFile: t.file !== null,
+      fileName: t.file?.name ?? null,
+      fileChecksum: t.file?.checksum ?? null,
+      surfaces: t.surfaces,
+    },
   };
 }
 
-/** Mock-data units: the largest `.glb` the BE takes (B-1: 10 MB). */
+/** The largest `.glb` the BE takes (`FileCategory.PRINT_MODEL`: 10 MB). */
 export const MAX_MODEL_FILE_BYTES = MODEL3D_LIMITS.maxFileBytes;

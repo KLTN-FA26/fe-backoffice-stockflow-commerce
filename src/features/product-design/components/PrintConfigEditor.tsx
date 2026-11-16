@@ -5,6 +5,7 @@ import { Alert } from "@/components/shared/Alert";
 import { Button } from "@/components/ui/button";
 
 import { ModelFileDropzone } from "./ModelFileDropzone";
+import { ModelFileStateNotice } from "./ModelFileStateNotice";
 import { ModelIssueList } from "./ModelIssueList";
 import { ModelReadReport } from "./ModelReadReport";
 import { ModelViewSlot } from "./ModelViewSlot";
@@ -25,6 +26,7 @@ export function PrintConfigEditor(args: PrintConfigEditorArgs) {
 
   return (
     <form className="space-y-4" noValidate onSubmit={editor.submit}>
+      {result === null && <ModelFileStateNotice state={editor.fileState} />}
       <ModelFileDropzone
         busy={busy}
         replacing={args.config !== null || result !== null}

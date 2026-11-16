@@ -22,7 +22,6 @@ import {
   loaderOf,
   readOnly,
   renderSection,
-  templateOf,
 } from "./print-config-test-utils";
 
 vi.setConfig({ testTimeout: 60_000 });
@@ -122,7 +121,8 @@ describe("discarding a chosen file", () => {
     await user.click(screen.getByRole("button", { name: SAVE.name }));
 
     await waitFor(() => expect(put).toHaveBeenCalledTimes(1));
-    expect(await templateOf(put.mock.calls[0]?.[1])).toMatchObject({
+    // One JSON request: the stored file stays.
+    expect(put.mock.calls[0]?.[1]).toMatchObject({
       model: { kind: "parametric-cup", rimMm: 4 },
       printAreas: [{ code: "BODY", safeMarginMm: 3, bleedMm: 2 }],
     });

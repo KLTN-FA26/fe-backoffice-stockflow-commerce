@@ -2,25 +2,16 @@
 import { PRINT_CONFIG_FIGURE_LABELS } from "@/constants/labels-print-config";
 
 import { measuredFigures } from "./measured";
+import { surfaceFaults } from "./surfaces";
 
-import type { PrintAreaCode } from "./model3d";
-import type { PrintConfigDto, PrintSurface, StoredPrintConfig } from "./types";
+import type { SurfaceFault } from "./surfaces";
+import type { PrintConfigDto, StoredPrintConfig } from "./types";
 
 type ModelOf = NonNullable<PrintConfigDto["model"]>;
 
-/** Does the variant have a configuration with a 3D model file? (B-3: `model3d` is null without one.) */
+/** Does the configuration have a 3D model file attached? (BE `model3d.hasFile`; `model3d` itself is always present.) */
 export const hasModel = (config: PrintConfigDto | null | undefined): boolean =>
-  Boolean(config?.model3d);
-
-/** Print areas of the configuration that the area ↔ mesh table does not cover (all of them without a model). */
-export function printAreasWithoutMesh(config: PrintConfigDto): PrintAreaCode[] {
-  const covered = new Set(config.model3d?.surfaces.map((surface) => surface.printAreaCode));
-  return config.printAreas.map((area) => area.code).filter((code) => !covered.has(code));
-}
-
-/** The table for a set of print areas by the naming convention: the mesh of area `X` is `print:X`. */
-export const defaultSurfaces = (codes: readonly PrintAreaCode[]): PrintSurface[] =>
-  codes.map((code) => ({ printAreaCode: code, meshName: `print:${code}` }));
+  config?.model3d.hasFile === true;
 
 export interface FigureRow {
   readonly key: string;
@@ -38,10 +29,38 @@ export const figureRows = (model: ModelOf): FigureRow[] =>
     unit: "mm",
   }));
 
-/** What a save needs to know of the configuration it starts from (B-6). */
+/** What a save needs to know of the configuration it starts from. */
 export const storedOf = (config: PrintConfigDto): StoredPrintConfig => ({
   templateId: config.templateId,
   version: config.version,
   model: config.model,
-  modelFileChecksum: config.modelFileChecksum,
+  hasFile: config.model3d.hasFile,
+  surfaces: config.model3d.surfaces,
 });
+
+/**
+ * Where a stored configuration stands with its `.glb` (BE `PrintConfigService`, origin/develop d47ed4ae), which decides
+ * what may be saved without a new file and whether it may be activated:
+ *  - `ready`: a file and a complete table; free edits without a file, activation allowed;
+ *  - `no-file`: written before files were required; free edits only (`ModelFileRules`), no activation (409);
+ *  - `no-model`: written before templates had a model; any save without a file changes the kind (409), no activation;
+ *  - `mapping-broken`: a file, but an area without its `print:<code>` mesh; every save without a new file and the
+ *    activation are refused (422) until the file is sent again with a correct table.
+ */
+export type ModelFileState =
+  | { kind: "ready" }
+  | { kind: "no-file" }
+  | { kind: "no-model" }
+  | { kind: "mapping-broken"; faults: SurfaceFault[] };
+
+export function modelFileStateOf(config: PrintConfigDto): ModelFileState {
+  if (!config.model) return { kind: "no-model" };
+  if (!config.model3d.hasFile) return { kind: "no-file" };
+  const codes = config.printAreas.map((area) => area.code);
+  const faults = surfaceFaults(codes, config.model3d.surfaces);
+  return faults.length > 0 ? { kind: "mapping-broken", faults } : { kind: "ready" };
+}
+
+/** A save without a new file can reach the BE (free edits of a `ready` or `no-file` configuration). */
+export const editableWithoutFile = (state: ModelFileState): boolean =>
+  state.kind === "ready" || state.kind === "no-file";

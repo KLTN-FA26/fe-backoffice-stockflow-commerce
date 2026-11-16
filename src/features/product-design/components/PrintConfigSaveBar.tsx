@@ -20,7 +20,7 @@ export function PrintConfigSaveBar({
   saving: boolean;
   /** Errors in the file, or a bag that cannot be sized: shown as a danger alert. */
   blockedReason: string | null;
-  /** What the save will do (same file, defaults only) or why there is nothing to save. */
+  /** What the save will do (new file, defaults only) or why there is nothing to save. */
   hint: string | null;
   /** The mapped sentence of a failed save. */
   error: string | null;

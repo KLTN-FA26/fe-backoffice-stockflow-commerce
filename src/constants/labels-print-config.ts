@@ -14,18 +14,16 @@ export const PRINT_CONFIG_FIGURE_LABELS = {
 } as const;
 
 export const PRINT_CONFIG_SCHEMA_MESSAGES = {
-  meshName: (code: string) => `Mesh của vùng in ${code} phải tên là print:${code}.`,
-  surfaceMissing: (code: string) => `Vùng in ${code} chưa có mesh trong bảng ghép.`,
-  surfaceTwice: (code: string) => `Vùng in ${code} xuất hiện hai lần trong bảng ghép.`,
-  surfaceUnknown: (code: string) => `Bảng ghép nêu vùng in ${code} mà mẫu không có.`,
   areaTwice: (code: string) => `Vùng in ${code} khai báo hai lần.`,
   cupAreas: "Ly chỉ có một vùng in là BODY.",
   bagAreas: "Túi có bốn vùng in: FRONT, BACK, LEFT, RIGHT.",
   fileExtension: "File model phải là .glb.",
   fileEmpty: "File model đang rỗng.",
   fileTooLarge: (maxMb: number) => `File model tối đa ${maxMb} MB.`,
-  pairRequired:
-    "Số đo đã đổi nhưng không kèm file .glb mới hoặc mã kiểm của file đang lưu. Hãy tải lại file để đo lại.",
+  /** Lưu không kèm file mới mà đổi số đo, loại sản phẩm hoặc bảng ghép (BE 409 PRINT_CONFIG_MODEL_FILE_REQUIRED). */
+  modelFileRequired: "Số đo này lấy từ file 3D, hãy tải file mới cùng số đo.",
+  /** Tạo cấu hình in mới mà không có file (BE 409 PRINT_CONFIG_MODEL_FILE_REQUIRED). */
+  fileRequiredToCreate: "Cấu hình in mới phải tạo cùng file 3D (.glb): hãy chọn file rồi lưu.",
 } as const;
 
 export const PRINT_CONFIG_ERROR_MESSAGES = {
@@ -37,18 +35,50 @@ export const PRINT_CONFIG_ERROR_MESSAGES = {
   PRINT_CONFIG_NOT_FOUND: "Không tìm thấy cấu hình in — có thể đã bị đổi. Dữ liệu đã được tải lại.",
   PRINT_CONFIG_INVALID: "Cấu hình in chưa hợp lệ (kích thước, vùng in hoặc lề không đúng).",
   PRINT_CONFIG_CODE_TAKEN: "Mã cấu hình in đã có ở biến thể này.",
+  PRINT_CONFIG_MODEL_FILE_REQUIRED:
+    "Số đo này lấy từ file 3D, hãy tải file mới cùng số đo. Dữ liệu đang lưu đã được tải lại.",
   OPTIMISTIC_LOCK:
     "Cấu hình in vừa được người khác sửa. Dữ liệu đã được tải lại, hãy kiểm tra rồi lưu lại.",
   CONFLICT: "Biến thể hoặc sản phẩm đã ngừng bán nên cấu hình in được giữ nguyên.",
-  MODEL_FILE_PAIR_REQUIRED: PRINT_CONFIG_SCHEMA_MESSAGES.pairRequired,
-  MODEL_FILE_CHECKSUM_MISMATCH:
-    "File vừa tải lên không phải file đã dùng để đo. Hãy chọn lại file.",
-  MODEL_FILE_REJECTED: "File model không qua kiểm tra của hệ thống.",
+  PRINT_CONFIG_SURFACES_INVALID:
+    "Bảng ghép vùng in với mesh trong file không khớp với các vùng in của mẫu.",
+  VALIDATION_FAILED:
+    "Dữ liệu không hợp lệ: file model không qua bước quét virus của hệ thống, hoặc có giá trị bị từ chối. Không có gì được lưu.",
+  RATE_LIMITED: "Hệ thống đang bận kiểm tra file. Hãy thử lưu lại sau ít phút.",
+  FILE_STORED_DIFFERENT:
+    "Máy chủ đã lưu một file khác với file đã dùng để đo, nên số đo có thể không khớp với file. Dữ liệu đang lưu đã được tải lại; hãy chọn lại file rồi lưu lại.",
   SECURE_CONTEXT_REQUIRED:
     "Trình duyệt không tính được mã kiểm của file vì trang đang mở qua http không bảo mật. Hãy mở trang này bằng địa chỉ https hoặc bằng localhost rồi lưu lại.",
   FORBIDDEN: "Bạn không có quyền sửa cấu hình in.",
   PAYLOAD_TOO_LARGE: "File model quá lớn (tối đa 10 MB).",
   UNSUPPORTED_MEDIA_TYPE: "File model phải là .glb (glTF 2.0 nhị phân).",
+} as const;
+
+/** Câu riêng theo việc đang làm, khi cùng một mã lỗi cần nói khác (tạo mới, kích hoạt). */
+export const PRINT_CONFIG_CONTEXT_ERROR_MESSAGES = {
+  create: {
+    PRINT_CONFIG_MODEL_FILE_REQUIRED:
+      "Cấu hình in mới phải tạo cùng file 3D (.glb): hãy chọn file rồi lưu.",
+  },
+  activate: {
+    PRINT_CONFIG_MODEL_FILE_REQUIRED:
+      "Chưa kích hoạt được: cấu hình in này chưa có file 3D. Hãy tải file .glb lên cùng số đo rồi lưu, sau đó kích hoạt.",
+    PRINT_CONFIG_SURFACES_INVALID:
+      "Chưa kích hoạt được: file 3D đang lưu chưa có mesh print:<mã vùng in> cho mọi vùng in. Hãy tải lại file .glb đúng rồi lưu, sau đó kích hoạt.",
+    PRINT_CONFIG_INVALID:
+      "Chưa kích hoạt được: cấu hình in cũ chưa có số đo của model. Hãy tải file .glb lên rồi lưu, sau đó kích hoạt.",
+  },
+} as const;
+
+/** Từng lỗi của bảng ghép vùng in ↔ mesh, theo `code` của BE (`fieldErrors[].code` của 422 PRINT_CONFIG_SURFACES_INVALID). */
+export const PRINT_CONFIG_SURFACE_ERROR_MESSAGES = {
+  PrintAreaMissing: (code: string) => `Vùng in ${code} chưa có mesh print:${code} trong file.`,
+  MeshNameMismatch: (code: string) => `Mesh của vùng in ${code} phải tên là print:${code}.`,
+  PrintAreaUnknown: (code: string) => `Bảng ghép nêu vùng in ${code} mà mẫu không có.`,
+  PrintAreaDuplicate: (code: string) => `Vùng in ${code} xuất hiện hai lần trong bảng ghép.`,
+  Size: (code: string) => `Tên mesh của vùng in ${code} phải dài từ 1 đến 100 ký tự.`,
+  missingUnnamed: "Có vùng in chưa có mesh trong bảng ghép.",
+  unknownRow: (index: number) => `Dòng ${index + 1} của bảng ghép bị từ chối.`,
 } as const;
 
 export const PRINT_CONFIG_TOAST_MESSAGES = {
@@ -94,6 +124,10 @@ export const PRINT_CONFIG_SCREEN_LABELS = {
     },
     file: "File 3D",
     fileAttached: "Đã đính kèm file 3D",
+    fileLink: (name: string) => `Xem / tải ${name}`,
+    fileLinkLoading: "Đang lấy liên kết tải file…",
+    fileLinkFailed: "Chưa lấy được liên kết tải file.",
+    fileChecksum: (short: string) => `SHA-256 ${short}…`,
     fileMissing: "Chưa có file 3D",
     noModel: "Cấu hình cũ, chưa có số đo từ model 3D.",
   },
@@ -183,6 +217,27 @@ export const PRINT_CONFIG_SCREEN_LABELS = {
     deactivateTitle: "Ngừng dùng cấu hình in?",
     deactivateDescription:
       "Khách hàng sẽ không bắt đầu thiết kế mới trên cấu hình in này. Bản thiết kế đang làm dở vẫn giữ cấu hình này.",
+    /** Chưa kích hoạt được vì file 3D (BE 409 / 422 khi kích hoạt). */
+    activateBlocked: {
+      "no-model":
+        "Chưa kích hoạt được: cấu hình cũ chưa có số đo từ model 3D. Tải file .glb lên rồi lưu trước.",
+      "no-file":
+        "Chưa kích hoạt được: cấu hình chưa có file 3D. Tải file .glb lên cùng số đo rồi lưu trước.",
+      "mapping-broken":
+        "Chưa kích hoạt được: file 3D đang lưu chưa có đủ mesh print:<mã vùng in>. Tải lại file .glb đúng rồi lưu trước.",
+    },
+  },
+  /** Tình trạng file 3D của cấu hình đang lưu, và những gì còn sửa được (luật BE `ModelFileRules`). */
+  fileState: {
+    noModelTitle: "Cấu hình cũ chưa có số đo từ model 3D",
+    noModelBody:
+      "Cấu hình này chưa có số đo nên chưa lưu thay đổi hay kích hoạt được. Hãy tải file .glb lên: hệ thống đo file rồi lưu số đo cùng file.",
+    noFileTitle: "Cấu hình cũ chưa có file 3D",
+    noFileBody:
+      "Khi chưa có file, chỉ sửa được tên, giới hạn tải lên, lề an toàn, tràn lề, mép dán, vành miệng ly, gập miệng túi, chất liệu và quai. Số đo, loại sản phẩm và bảng ghép chỉ đổi được khi tải file .glb lên cùng số đo. Chưa có file thì chưa kích hoạt được.",
+    brokenTitle: "File 3D đang lưu không khớp các vùng in",
+    brokenBody:
+      "Hệ thống chặn mọi thay đổi của cấu hình này, kể cả chỉ đổi số mặc định, và chưa kích hoạt được cho tới khi bạn tải lại file .glb có mesh print:<mã vùng in> cho từng vùng in.",
   },
   unreadableTitle: "Không đọc được file",
   discard: "Bỏ file đã chọn",
@@ -191,7 +246,10 @@ export const PRINT_CONFIG_SCREEN_LABELS = {
     saving: "Đang lưu…",
     nothingToSave: "Chưa có thay đổi để lưu.",
     newFile: (name: string) => `Sẽ lưu cùng file ${name}.`,
-    defaultsOnly: "Chỉ đổi số mặc định: file 3D đang lưu được giữ nguyên.",
+    defaultsOnly: "Chỉ đổi số mặc định: file 3D và số đo đang lưu được giữ nguyên.",
+    freeFieldsOnly:
+      "Chỉ lưu các giá trị sửa được khi chưa có file; số đo đang lưu được giữ nguyên.",
+    fileNeeded: "Cần chọn file .glb để lưu cấu hình này.",
     failedTitle: "Không lưu được cấu hình in",
   },
   newConfig: {
@@ -210,6 +268,16 @@ export const PRINT_CONFIG_PAGE_LABELS = {
     title: "Sản phẩm này không có cấu hình in",
     description:
       "Cấu hình in chỉ áp dụng cho sản phẩm tuỳ chỉnh / in ấn. Sản phẩm tiêu chuẩn được bán nguyên mẫu nên không cần file model 3D.",
+  },
+  noAccess: {
+    title: "Bạn không có quyền xem cấu hình in",
+    description:
+      "Cấu hình in cần quyền riêng, ngoài quyền xem sản phẩm. Liên hệ quản trị viên nếu bạn cần mở trang này.",
+  },
+  permissionsFailed: {
+    title: "Không tải được quyền của bạn",
+    description:
+      "Chưa kiểm tra được bạn có quyền xem cấu hình in hay không. Kiểm tra kết nối rồi thử lại.",
   },
   variantNotFound: {
     title: "Không tìm thấy biến thể",

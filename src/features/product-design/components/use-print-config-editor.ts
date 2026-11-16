@@ -3,26 +3,28 @@
 /**
  * The state behind the upload-and-check screen: the chosen file (read in the browser), the defaults form, the
  * manufacturer's figures, what blocks a save, and the save itself. The measured figures are read-only: they come
- * from the file, and a save that chooses no new file re-sends the stored file's checksum (B-6).
+ * from the file, and a save that chooses no new file sends them, and the stored file's area table, as they were read.
+ * A save is one request (template and file together, or nothing). What a save without a file may do depends on the
+ * stored file (`modelFileStateOf`): free edits of a complete or a file-less configuration; nothing for one without a
+ * model or with a broken area ↔ mesh table, until a file is chosen.
  */
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
 import { PRINT_CONFIG_SCREEN_LABELS } from "@/constants/labels-print-config";
 
+import { printConfigErrorMessage } from "../errors";
 import { useSavePrintConfig } from "../mutations";
-import { compareWithNominal } from "../model3d/issues";
 import { printConfigSaveInputSchema } from "../schemas";
-import { fileDifferences, missingFaces } from "./file-differences";
-import { buildSaveInput, withDefaults } from "./save-input";
-import { parseNominal } from "./nominal";
+import { editableWithoutFile, modelFileStateOf } from "../selectors";
+import { buildSaveInput } from "./save-input";
 import { defaultsFor, printDefaultsSchema } from "./print-defaults";
 import { saveErrorView } from "./save-error";
+import { useFileChecks } from "./use-file-checks";
 import { useGlbReading } from "./use-glb-reading";
 
-import type { ModelIssue } from "../model3d/issues";
-import type { PrintConfigDto } from "../types";
+import type { PrintConfigDto, PrintConfigSaveInput } from "../types";
 import type { NominalKey, NominalText } from "./nominal";
 import type { ModelKind, PrintDefaultsValues } from "./print-defaults";
 import type { GlbLoader, MeasuredFile } from "./use-glb-reading";
@@ -62,60 +64,60 @@ export function usePrintConfigEditor({
     resolver,
     defaultValues: defaultsFor(formKind, config),
   });
-  // `useWatch` types every field optional; the form is always filled, so complete it from the starting values.
-  const watched = useWatch({ control: form.control });
-  const defaults: PrintDefaultsValues = { ...defaultsFor(formKind, config), ...watched };
+  // `useWatch` types every field optional: complete it from the starting values.
+  const defaults: PrintDefaultsValues = {
+    ...defaultsFor(formKind, config),
+    ...useWatch({ control: form.control }),
+  };
   const { isDirty } = form.formState;
 
-  const { nominal, invalid } = useMemo(() => parseNominal(nominalText), [nominalText]);
-  const nominalIssues: ModelIssue[] = useMemo(
-    () => (result?.model ? compareWithNominal(result.model, nominal) : []),
-    [result, nominal],
-  );
-  // The file against the model that will be saved (the defaults applied), and the faces a bag still lacks.
-  const issues: ModelIssue[] = result
-    ? [
-        ...result.issues,
-        ...nominalIssues,
-        ...missingFaces(result.model, result.parts),
-        ...(result.model
-          ? fileDifferences(withDefaults(result.model, defaults), result.parts)
-          : []),
-      ]
-    : [];
+  /** The save stored everything: back to the saved state. */
+  function afterStored(saved: PrintConfigDto) {
+    reading.clear();
+    setNominalText({});
+    const savedKind = saved.model?.kind ?? formKind;
+    setFormKind(savedKind);
+    form.reset(defaultsFor(savedKind, saved));
+  }
 
-  const storedFile = Boolean(config?.model && config.model3d);
-  const blockedReason = !result
-    ? null
-    : issues.some((issue) => issue.level === "error")
-      ? TEXT.issues.blockedByErrors
-      : result.model === null
-        ? TEXT.issues.bagIncomplete
-        : null;
+  const { invalid, issues, blockedReason } = useFileChecks(result, nominalText, defaults);
+
+  const fileState = config ? modelFileStateOf(config) : null;
+  const withoutFile = fileState !== null && editableWithoutFile(fileState);
   const fileReady = result !== null && blockedReason === null;
   const isReading = reading.phase.status === "reading";
-  const defaultsOnly = result === null && !isReading && isDirty && storedFile;
-  const canSave = !save.isPending && (fileReady || defaultsOnly);
+  const defaultsOnly = result === null && !isReading && isDirty && withoutFile;
+  const saving = save.isPending;
+  const canSave = !saving && (fileReady || defaultsOnly);
 
-  const hint = save.isPending
+  const hint = saving
     ? null
     : fileReady && result
       ? TEXT.save.newFile(result.fileName)
       : defaultsOnly
-        ? TEXT.save.defaultsOnly
+        ? fileState?.kind === "no-file"
+          ? TEXT.save.freeFieldsOnly
+          : TEXT.save.defaultsOnly
         : result === null
-          ? TEXT.save.nothingToSave
+          ? withoutFile
+            ? TEXT.save.nothingToSave
+            : TEXT.save.fileNeeded
           : null;
 
-  /** The form as the stored configuration has it: its kind and its defaults (no other kind's left behind). */
+  /** The form as the stored configuration has it (no other kind's defaults left behind). */
   function backToStored() {
     setFormKind(storedKind);
     form.reset(defaultsFor(storedKind, config));
   }
 
-  async function chooseFile(file: File) {
+  /** What the person is about to change invalidates the last error and the typed figures. */
+  function clearNotices() {
     setServerError(null);
     setNominalText({});
+  }
+
+  async function chooseFile(file: File) {
+    clearNotices();
     const read = await reading.choose(file);
     if (!read) {
       if (formKind !== storedKind) backToStored(); // a failed read after a switch of kind
@@ -127,36 +129,48 @@ export function usePrintConfigEditor({
   }
 
   function discard() {
-    setServerError(null);
-    setNominalText({});
+    clearNotices();
     reading.clear();
     backToStored();
   }
 
+  /** The input of a save, or why there is none; never throws (a throw in `handleSubmit` would reach nobody). */
+  function prepare(
+    values: PrintDefaultsValues,
+  ): { input: PrintConfigSaveInput } | { error: string } {
+    try {
+      const source = result?.model ? { model: result.model, printMeshes: result.parts } : null;
+      const file = result ? { name: result.fileName, bytes: result.bytes } : undefined;
+      const input = buildSaveInput({ source, stored: config, defaults: values, file });
+      if (!input) return { error: TEXT.save.fileNeeded };
+      // The BE's own rules (file to create, measured values, area ↔ mesh table): a save bound to fail is not sent.
+      const checked = printConfigSaveInputSchema.safeParse(input);
+      if (!checked.success) {
+        return { error: checked.error.issues[0]?.message ?? TEXT.save.failedTitle };
+      }
+      return { input: checked.data };
+    } catch (error: unknown) {
+      return { error: printConfigErrorMessage(error) };
+    }
+  }
+
   const submit = form.handleSubmit((values) => {
     if (!canSave) return; // Enter in a field submits the form, whatever the button says
-    const source = result?.model ? { model: result.model, printMeshes: result.parts } : null;
-    const file = result ? { name: result.fileName, bytes: result.bytes } : undefined;
-    const input = buildSaveInput({ source, stored: config, defaults: values, file });
-    if (!input) return;
-    const checked = printConfigSaveInputSchema.safeParse(input);
-    if (!checked.success) {
-      setServerError(checked.error.issues[0]?.message ?? TEXT.save.failedTitle);
+    const prepared = prepare(values);
+    if ("error" in prepared) {
+      setServerError(prepared.error);
       return;
     }
+    const { input } = prepared;
     setServerError(null);
     save.mutate(
-      { productId, variantId, input: checked.data },
+      { productId, variantId, input },
       {
-        onSuccess: (saved) => {
-          reading.clear();
-          setNominalText({});
-          const savedKind = saved.model?.kind ?? formKind;
-          setFormKind(savedKind);
-          form.reset(defaultsFor(savedKind, saved));
-        },
+        onSuccess: afterStored,
         onError: (error) => {
-          const view = saveErrorView(error, kind);
+          // Nothing was stored, or not the measured file (the template is reloaded): the chosen file and the form stay.
+          const context = input.stored ? "update" : "create";
+          const view = saveErrorView(error, kind, input.config, context);
           setServerError(view.general);
           for (const { field, message } of view.fields) form.setError(field, { message });
         },
@@ -177,7 +191,8 @@ export function usePrintConfigEditor({
     chooseFile,
     discard,
     submit,
-    saving: save.isPending,
+    saving,
+    fileState,
     canSave,
     blockedReason,
     hint,

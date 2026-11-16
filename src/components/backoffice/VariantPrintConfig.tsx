@@ -1,9 +1,10 @@
 "use client";
 
-import { ADMIN_ROUTES, PRODUCT_PERMISSIONS } from "@/constants";
+import { ADMIN_ROUTES, CUSTOMIZATION_TEMPLATE_PERMISSIONS } from "@/constants";
 import { PRINT_CONFIG_PAGE_LABELS as TEXT } from "@/constants/labels-print-config";
 import { PRINT_CONFIG_SEGMENT } from "@/constants/routes";
 import { usePermissionChecker } from "@/lib/auth/components/Can";
+import { useMyPermissions } from "@/lib/auth/me-permissions";
 import { useBreadcrumbLabel } from "@/lib/store/use-breadcrumb-labels";
 import { productChangeGate, useProduct, useVariants } from "@/features/product";
 import { PrintConfigSection } from "@/features/product-design";
@@ -30,6 +31,7 @@ export function VariantPrintConfig({
   variantId: string;
 }) {
   const can = usePermissionChecker();
+  const permissions = useMyPermissions();
   const productQuery = useProduct(productId);
   const variantsQuery = useVariants(productId);
   const product = productQuery.data ?? null;
@@ -38,7 +40,22 @@ export function VariantPrintConfig({
   // Breadcrumb của topbar: đoạn cuối URL là `print-config`, nhãn lấy theo đoạn đó
   useBreadcrumbLabel(PRINT_CONFIG_SEGMENT, TEXT.pageTitle);
 
-  if (productQuery.isLoading || variantsQuery.isLoading) return <PageSkeleton variant="detail" />;
+  if (productQuery.isLoading || variantsQuery.isLoading || permissions.isPending)
+    return <PageSkeleton variant="detail" />;
+  // A failed permission load is not "no access": say so, with a retry, instead of hiding the page behind a false refusal.
+  if (permissions.isError) {
+    return (
+      <VariantPrintConfigState
+        kind="permissions-failed"
+        error={permissions.error}
+        onRetry={() => void permissions.refetch()}
+      />
+    );
+  }
+  // Product access is not enough: the BE guards templates with their own resource (a sales staff has the product's
+  // READ and not this one), and without READ every call answers 403. Say so instead of an empty screen.
+  if (!can(CUSTOMIZATION_TEMPLATE_PERMISSIONS.read))
+    return <VariantPrintConfigState kind="no-access" />;
   if (!product) {
     return (
       <VariantPrintConfigState
@@ -62,7 +79,7 @@ export function VariantPrintConfig({
   // Cùng điều kiện panel biến thể dùng cho thông tin mua hàng: sản phẩm không chờ duyệt / ngừng kinh doanh
   // (BE `Product.acceptsChanges`) và biến thể chưa ngừng dùng. UI-only — BE re-check (409 CONFLICT).
   // Lý do chỉ đọc theo thứ tự: quyền, rồi sản phẩm, rồi biến thể (section hiện đúng một câu).
-  const readOnlyReason = !can(PRODUCT_PERMISSIONS.update)
+  const readOnlyReason = !can(CUSTOMIZATION_TEMPLATE_PERMISSIONS.update)
     ? "permission"
     : !productChangeGate(product.status).acceptsChanges
       ? "product"

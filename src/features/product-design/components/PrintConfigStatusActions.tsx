@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 
 import { allowedActions, statusOfPrintConfig } from "../lifecycle";
 import { useActivatePrintConfig, useDeactivatePrintConfig } from "../mutations";
+import { modelFileStateOf } from "../selectors";
 
 import type { PermissionCode } from "@/lib/auth/me-permissions";
 import type { PrintConfigDto } from "../types";
@@ -17,7 +18,8 @@ type StatusAction = "activate" | "deactivate";
 
 /**
  * Activate or stop a saved configuration. The buttons are the descriptors `allowedActions` returns for the status and
- * the permission (no status check here), each behind a confirmation that says what it means for customers.
+ * the permission (no status check here), each behind a confirmation that says what it means for customers. A
+ * configuration whose `.glb` or area ↔ mesh table does not allow activation says why instead of offering it.
  */
 export function PrintConfigStatusActions({
   config,
@@ -35,10 +37,17 @@ export function PrintConfigStatusActions({
   const [asking, setAsking] = useState<StatusAction | null>(null);
   const activate = useActivatePrintConfig();
   const deactivate = useDeactivatePrintConfig();
-  const actions = allowedActions(statusOfPrintConfig(config), can, { writable }).filter(
+  const status = statusOfPrintConfig(config);
+  // BE: activation needs the `.glb` and a complete area ↔ mesh table (409 / 422); not offered without them.
+  const fileState = modelFileStateOf(config);
+  const activatable = fileState.kind === "ready";
+  const actions = allowedActions(status, can, { writable, activatable }).filter(
     (action): action is typeof action & { code: StatusAction } => action.code !== "save",
   );
-  if (actions.length === 0) return null;
+  const activateBlocked =
+    fileState.kind !== "ready" &&
+    allowedActions(status, can, { writable }).some((action) => action.code === "activate");
+  if (actions.length === 0 && !activateBlocked) return null;
 
   const mutation = asking === "activate" ? activate : deactivate;
   const confirm = () =>
@@ -62,6 +71,11 @@ export function PrintConfigStatusActions({
       ))}
       {actions.some((action) => action.code === "activate") && (
         <p className="text-ink-tertiary text-xs">{TEXT.activateNote}</p>
+      )}
+      {activateBlocked && (
+        <p role="status" className="text-ink-secondary text-xs">
+          {TEXT.activateBlocked[fileState.kind]}
+        </p>
       )}
       <ConfirmDialog
         open={asking !== null}

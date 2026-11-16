@@ -49,16 +49,36 @@ export const BAG_BODY: PrintConfigBody = {
   surfaces: FACES.map((code) => ({ printAreaCode: code, meshName: `print:${code}` })),
 };
 
-export const storedWith = (modelFileChecksum: string | null): StoredPrintConfig => ({
+export const storedWith = (hasFile: boolean): StoredPrintConfig => ({
   templateId: "tpl-1",
   version: 3,
   model: CUP,
-  modelFileChecksum,
+  hasFile,
+  surfaces: [{ printAreaCode: "BODY", meshName: "print:BODY" }],
 });
+
+/** `model3d` of a template that has a file, as the BE sends it (`fileName` and `fileChecksum` present). */
+export const model3dWithFile = (checksum = SHA_A) => ({
+  hasFile: true,
+  fileName: "cup.glb",
+  fileChecksum: checksum,
+  surfaces: [{ printAreaCode: "BODY" as const, meshName: "print:BODY" }],
+});
+
+/** `model3d` of a template without a file as the parsed DTO has it. */
+export const noModel3d: PrintConfigDto["model3d"] = {
+  hasFile: false,
+  fileName: null,
+  fileChecksum: null,
+  surfaces: [],
+};
 
 export const glb = (name = "cup.glb", size = 16) => new File([new Uint8Array(size)], name);
 
-/** A BE answer for a stored cup template, as it arrives on the wire (nulls omitted). */
+/**
+ * A BE answer for a stored cup template without a file, as it arrives on the wire (nulls omitted: `model3d` is always
+ * there, `fileName` and `fileChecksum` are not).
+ */
 export const cupWire = {
   templateId: "tpl-1",
   productId: "PRD-001",
@@ -93,6 +113,7 @@ export const cupWire = {
     },
   ],
   version: 3,
+  model3d: { hasFile: false, surfaces: [] },
 };
 
 /** `cupWire` parsed the way the API layer does, with `extra` fields on top (a typed DTO for selector tests). */
@@ -103,8 +124,7 @@ export const cupDto = (extra: Partial<PrintConfigDto> = {}): PrintConfigDto => (
   maxColors: null,
   allowedFontCodes: null,
   referenceFileName: null,
-  model3d: null,
-  modelFileChecksum: null,
+  model3d: noModel3d,
   printAreas: [
     {
       ...cupWire.printAreas[0],

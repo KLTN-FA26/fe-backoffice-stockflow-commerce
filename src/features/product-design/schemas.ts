@@ -1,8 +1,7 @@
 /**
  * Print configuration (BE "customization template") of a variant: what the back end returns, and what the
  * screen sends when saving. DTO layer `PrintConfigDto`, input layer `PrintConfigSaveInput` (api-conventions).
- * Shape: BE `CustomizationTemplateResponse` / `CustomizationTemplateRequest` (origin/develop) plus the fields
- * of requirements B-2, B-3 and B-6 (docs/superpowers/reports/2026-11-13-design-yeu-cau-bo-sung-cho-be.md).
+ * Shape: BE `CustomizationTemplateResponse` / `CustomizationTemplateRequest` (origin/develop d47ed4ae).
  */
 import { z } from "zod";
 
@@ -10,6 +9,12 @@ import { PRINT_CONFIG_SCHEMA_MESSAGES as M } from "@/constants/labels-print-conf
 import { MODEL3D_LIMITS, PRINT_CONFIG_LIMITS as LIMITS } from "@/constants/numbers";
 
 import { measuredChanged } from "./measured";
+import {
+  incompleteSurfaces,
+  looseSurfaceFaults,
+  sameSurfaces,
+  surfaceFaultMessage,
+} from "./surfaces";
 import {
   bagModelSchema,
   cupModelSchema,
@@ -30,9 +35,18 @@ export const surfaceSchema = gltfModelSchema.shape.surfaces.element.extend({
 });
 
 /**
- * ASSUMPTION (yêu cầu BE B-2, B-3): the back-office response carries `model3d { url, surfaces }` (null without a
- * file) and, from B-6, `modelFileChecksum`. The BE omits nulls, so every optional field normalises to null.
+ * BE `CustomizationTemplateResponse.Model3d`: always present, `{ hasFile, fileName?, fileChecksum?, surfaces[] }`, with
+ * no URL (the stored file is read through `GET …/model-file/download-url`). `application.yml` has
+ * `default-property-inclusion: non_null`, so `fileName` and `fileChecksum` are absent without a file; every optional
+ * field accepts absent and null and normalises to null. `fileChecksum` is the SHA-256 the BE computed of the stored bytes.
  */
+export const model3dSchema = z.object({
+  hasFile: z.boolean(),
+  fileName: nullable(z.string()),
+  fileChecksum: nullable(z.string().regex(LIMITS.checksumPattern)),
+  surfaces: z.array(surfaceSchema),
+});
+
 export const printConfigDtoSchema = z.object({
   templateId: z.string().min(1),
   productId: z.string().min(1),
@@ -53,8 +67,13 @@ export const printConfigDtoSchema = z.object({
   printAreas: z.array(printAreaSchema),
   referenceFileName: nullable(z.string()),
   version: z.number().int().nonnegative(),
-  model3d: nullable(z.object({ url: z.string().min(1), surfaces: z.array(surfaceSchema) })),
-  modelFileChecksum: nullable(z.string().regex(LIMITS.checksumPattern)),
+  model3d: model3dSchema,
+});
+
+/** `GET …/model-file/download-url` (BE `DownloadLink`): a short-lived link to the stored `.glb`. */
+export const downloadLinkSchema = z.object({
+  url: z.string().min(1),
+  expiresAt: nullable(z.string()),
 });
 
 const printAreaInputSchema = z.object({
@@ -102,31 +121,11 @@ export const printConfigBodySchema = z
       const message = config.model.kind === "parametric-cup" ? M.cupAreas : M.bagAreas;
       ctx.addIssue({ code: "custom", path: ["printAreas"], message });
     }
-    const seen = new Set<string>();
-    config.surfaces.forEach((surface, i) => {
-      const path = ["surfaces", i];
-      // B-2: each code at most one row, and a code the model has. Spec 2026-11-13-design-print-config-files-2d-3d:
-      // the mesh of a print area is named `print:` + its code.
-      if (seen.has(surface.printAreaCode)) {
-        ctx.addIssue({ code: "custom", path, message: M.surfaceTwice(surface.printAreaCode) });
-      }
-      seen.add(surface.printAreaCode);
-      if (!codes.includes(surface.printAreaCode)) {
-        ctx.addIssue({ code: "custom", path, message: M.surfaceUnknown(surface.printAreaCode) });
-      }
-      if (surface.meshName !== `print:${surface.printAreaCode}`) {
-        ctx.addIssue({
-          code: "custom",
-          path: [...path, "meshName"],
-          message: M.meshName(surface.printAreaCode),
-        });
-      }
-    });
-    // Storefront `buildGlbScene`: every print area needs its mesh (else MESH_MISSING).
-    for (const code of new Set(codes)) {
-      if (!seen.has(code)) {
-        ctx.addIssue({ code: "custom", path: ["surfaces"], message: M.surfaceMissing(code) });
-      }
+    // BE `requireSurfaces` (422 PRINT_CONFIG_SURFACES_INVALID, every save): each row a print area of the model, once.
+    // The complete table (every area, on its `print:<code>` mesh) is the save's rule: it holds only with a file.
+    for (const fault of looseSurfaceFaults(codes, config.surfaces)) {
+      const path = fault.kind === "missing" ? ["surfaces"] : ["surfaces", fault.index];
+      ctx.addIssue({ code: "custom", path, message: surfaceFaultMessage(fault) });
     }
   });
 
@@ -152,37 +151,45 @@ const modelFileSchema = z
     }
   });
 
-/** What the screen knows of the saved configuration it started from (the part B-6 needs). */
-export const storedPrintConfigSchema = printConfigDtoSchema.pick({
-  templateId: true,
-  version: true,
-  model: true,
-  modelFileChecksum: true,
-});
+/** What the screen knows of the saved configuration it started from: what a save may not change without a file. */
+export const storedPrintConfigSchema = printConfigDtoSchema
+  .pick({ templateId: true, version: true, model: true })
+  .extend({ hasFile: z.boolean(), surfaces: z.array(surfaceSchema) });
 
+/**
+ * The rules of `CustomizationTemplateController` / `PrintConfigService` (origin/develop d47ed4ae), checked before
+ * anything is sent so that a save the BE is bound to refuse is never sent:
+ *  - a create carries its file (else 409 PRINT_CONFIG_MODEL_FILE_REQUIRED);
+ *  - a save without a new file keeps every value the file determines and the area ↔ mesh table (`ModelFileRules`,
+ *    compared in hundredths of a millimetre; else 409 PRINT_CONFIG_MODEL_FILE_REQUIRED);
+ *  - with a file, stored or sent, every print area has exactly one row, on the mesh `print:<code>` (else 422
+ *    PRINT_CONFIG_SURFACES_INVALID). A template without a file takes free edits with its table as it is.
+ */
 export const printConfigSaveInputSchema = z
   .object({
     config: printConfigBodySchema,
     /** `null` when the variant has no configuration yet (create). */
     stored: storedPrintConfigSchema.nullable(),
-    /** The file the figures were measured on, sent in the same request as the configuration. */
+    /** The file the figures were measured on: the exact bytes, sent in the same request as the template. */
     file: modelFileSchema.optional(),
-    /**
-     * SHA-256 (hex) of the file already stored, for a save without `file` (B-6). Ignored when `file` is present: the
-     * checksum is then computed from `file.bytes`.
-     */
-    modelFileChecksum: z.string().regex(LIMITS.checksumPattern).optional(),
   })
   .superRefine((input, ctx) => {
-    const { stored, config, file, modelFileChecksum } = input;
-    // B-6: once a file is stored, changed measured figures need a new file, or the checksum of the stored one.
-    if (
-      stored?.modelFileChecksum &&
-      stored.model &&
-      measuredChanged(stored.model, config.model) &&
-      !file &&
-      modelFileChecksum !== stored.modelFileChecksum
-    ) {
-      ctx.addIssue({ code: "custom", path: ["file"], message: M.pairRequired });
+    const { stored, config, file } = input;
+    if (!stored && !file) {
+      ctx.addIssue({ code: "custom", path: ["file"], message: M.fileRequiredToCreate });
+    }
+    if (stored && !file) {
+      const changed =
+        measuredChanged(stored.model, config.model) ||
+        !sameSurfaces(stored.surfaces, config.surfaces);
+      if (changed) ctx.addIssue({ code: "custom", path: ["file"], message: M.modelFileRequired });
+    }
+    if (file || stored?.hasFile) {
+      const codes = config.printAreas.map((area) => area.code);
+      for (const fault of incompleteSurfaces(codes, config.surfaces)) {
+        const path =
+          fault.kind === "missing" ? ["surfaces"] : ["surfaces", fault.index, "meshName"];
+        ctx.addIssue({ code: "custom", path, message: surfaceFaultMessage(fault) });
+      }
     }
   });

@@ -5,6 +5,7 @@
  */
 import { PRINT_CONFIG_SCREEN_LABELS } from "@/constants/labels-print-config";
 
+import { bagHeightFor } from "../measured";
 import { storedOf } from "../selectors";
 import { templateFromModel } from "../model3d/template-from-model";
 
@@ -33,8 +34,10 @@ export interface BuildSaveArgs {
 }
 
 /**
- * The model with the confirmed defaults on it. A bag's `heightMm` is the face height plus the top fold, so the print
- * area (`heightMm - topFoldMm`) keeps the height of the face in the file whatever fold is typed.
+ * The model with the confirmed defaults on it; the measured figures are kept as they are, so a save without a new file
+ * sends them exactly as they were read (the BE refuses any change of them: `ModelFileRules`). A bag's `heightMm` is
+ * the face height plus the top fold, so the print area (`heightMm - topFoldMm`) keeps the height of the face in the
+ * file whatever fold is typed (`bagHeightFor`, in the BE's hundredths; the same fold keeps the height untouched).
  */
 export function withDefaults(
   model: CupModel | BagModel,
@@ -44,16 +47,19 @@ export function withDefaults(
     ? { ...model, seamMm: d.seamMm, rimMm: d.rimMm, material: d.cupMaterial }
     : {
         ...model,
-        heightMm: model.heightMm - model.topFoldMm + d.topFoldMm,
+        heightMm: bagHeightFor(model, d.topFoldMm),
         topFoldMm: d.topFoldMm,
         handle: d.handle,
         material: d.bagMaterial,
       };
 }
 
-/** The stored file's model and area table, when the configuration has both (else nothing to re-send). */
+/**
+ * The stored model and area table, as they were read, for a save without a new file. A configuration without a model
+ * has nothing to keep (the BE would take any model as a change of kind): only a save with a file can follow.
+ */
 function sourceOfStored(stored: PrintConfigDto | null): ModelSource | null {
-  if (!stored?.model || !stored.model3d) return null;
+  if (!stored?.model) return null;
   return { model: stored.model, printMeshes: stored.model3d.surfaces };
 }
 
@@ -63,7 +69,14 @@ export function templateOfSource({ source, stored, defaults }: Omit<BuildSaveArg
   if (!base) return null;
   const model = withDefaults(base.model, defaults);
   const margins = { safeMarginMm: defaults.safeMarginMm, bleedMm: defaults.bleedMm };
-  const template = templateFromModel(model, base.printMeshes, {
+  // The print areas: a new file's faces; without one, the stored template's own areas, never its area ↔ mesh table,
+  // which a template written before files were required has empty or partial (BE `model_surfaces_json` defaults to
+  // `[]`, and `updateLocked` asks for a complete table only with a file).
+  const areas = source
+    ? source.printMeshes
+    : (stored?.printAreas ?? []).map((area) => ({ printAreaCode: area.code }));
+  if (model.kind === "parametric-bag" && areas.length === 0) return null; // no face to build a bag from
+  const template = templateFromModel(model, areas, {
     // A stored configuration keeps its file rules; a new one takes the convention's defaults.
     ...(stored
       ? {
@@ -91,7 +104,6 @@ export function buildSaveInput({
   const { base, model, template } = derived;
   const names = PRINT_CONFIG_SCREEN_LABELS.newConfig;
   const fresh = model.kind === "parametric-cup" ? names.cup : names.bag;
-  const checksum = file ? undefined : (stored?.modelFileChecksum ?? undefined);
   // A configuration of the other kind (a bag file over a cup) is a new thing: its code and name, not the old ones.
   const kept = stored?.model?.kind === model.kind ? stored : null;
   // Faces with their own margins keep them, unless the person typed a value of their own (one that is not the first
@@ -125,6 +137,5 @@ export function buildSaveInput({
     },
     stored: stored ? storedOf(stored) : null,
     ...(file ? { file } : {}),
-    ...(checksum ? { modelFileChecksum: checksum } : {}),
   };
 }
