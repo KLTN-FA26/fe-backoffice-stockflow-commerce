@@ -6,6 +6,7 @@
 
 import {
   ATTRIBUTE_PERMISSIONS,
+  CUSTOMIZATION_TEMPLATE_PERMISSIONS,
   CREDIT_HOLD_PERMISSIONS,
   CUSTOMER_CREDIT_PROFILE_PERMISSIONS,
   CUSTOMER_PERMISSIONS,
@@ -261,6 +262,9 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...Object.values(REPORTING_PERMISSIONS),
     ...Object.values(PRODUCT_PERMISSIONS),
     ...PRODUCT_STRUCTURE,
+    // BE `CustomizationTemplateController`: SALES_MANAGER và SYSTEM_ADMIN (mock admin là System Admin); không có
+    // SALES_STAFF (chủ dự án xác nhận) và ECOMMERCE_ADMIN không được ghi nhận là có.
+    ...Object.values(CUSTOMIZATION_TEMPLATE_PERMISSIONS),
     ...Object.values(IDENTITY_PERMISSIONS),
     ...Object.values(GR),
     ...Object.values(QC),

@@ -1,11 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { UI_LABELS } from "@/constants";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
-import type { RefObject } from "react";
+import type { MouseEvent, RefObject } from "react";
 
 const G = UI_LABELS.skuPurchasing.closeGuard;
 
@@ -22,12 +22,23 @@ export type PurchasingCloseGuard = RefObject<PurchasingCloseCheck | null>;
  * Chặn đóng panel biến thể (Esc / bấm nền / nút Đóng của `SlideOverPanel` — cùng một `onClose`) làm mất
  * thông tin mua hàng đang sửa dở: đang lưu → bỏ qua (không ngắt PUT, không hỏi); có thay đổi → hỏi trước;
  * còn lại → đóng ngay. Hộp hỏi đặt TRONG panel để Radix coi là lớp con (Esc / bấm trong hộp không đóng panel).
+ * Link rời panel (`onLeaveLinkClick`) đi qua cùng hộp hỏi: điều hướng cũng làm mất bản nháp.
  */
 export function usePurchasingCloseGuard(onClose: () => void) {
   const guard = useRef<PurchasingCloseCheck | null>(null);
   const [asking, setAsking] = useState(false);
+  // Hộp hỏi đang chờ quyết định cho một link (đi tiếp) hay cho việc đóng panel
+  const [leaving, setLeaving] = useState(false);
+  const [leaveConfirmed, setLeaveConfirmed] = useState(false);
+  const [anchor, setAnchor] = useState<HTMLAnchorElement | null>(null);
+
+  // Đã xác nhận bỏ bản nháp: bấm lại đúng link đó (Link của Next đi theo `href`, không gọi router tay)
+  useEffect(() => {
+    if (leaveConfirmed) anchor?.click();
+  }, [leaveConfirmed, anchor]);
 
   const requestClose = () => {
+    setLeaving(false);
     const state = guard.current?.();
     if (state?.saving) return;
     if (state?.dirty) {
@@ -35,6 +46,26 @@ export function usePurchasingCloseGuard(onClose: () => void) {
       return;
     }
     onClose();
+  };
+
+  /**
+   * Link `<a>` rời panel: có bản nháp mua hàng → hỏi, xác nhận mới đi; đang lưu → bỏ qua. Bấm kèm Ctrl / Cmd /
+   * Shift / Alt hoặc chuột giữa mở tab khác nên panel và bản nháp còn nguyên → để trình duyệt xử lý.
+   */
+  const onLeaveLinkClick = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (leaveConfirmed) {
+      setLeaveConfirmed(false);
+      return;
+    }
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      return;
+    }
+    const state = guard.current?.();
+    if (!state?.saving && !state?.dirty) return;
+    event.preventDefault();
+    if (state.saving) return;
+    setLeaving(true);
+    setAsking(true);
   };
 
   const confirm = (
@@ -48,10 +79,15 @@ export function usePurchasingCloseGuard(onClose: () => void) {
       variant="danger"
       onConfirm={() => {
         setAsking(false);
+        if (leaving) {
+          setLeaving(false);
+          setLeaveConfirmed(true);
+          return;
+        }
         onClose();
       }}
     />
   );
 
-  return { guard, requestClose, confirm };
+  return { guard, requestClose, attachLeaveAnchor: setAnchor, onLeaveLinkClick, confirm };
 }

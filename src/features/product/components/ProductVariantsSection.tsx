@@ -21,6 +21,7 @@ export function ProductVariantsSection({
   productApproved,
   acceptsChanges,
   productDiscontinued,
+  customizable,
   query,
 }: {
   productId: string;
@@ -32,6 +33,8 @@ export function ProductVariantsSection({
   acceptsChanges: boolean;
   /** Đã ngừng kinh doanh — chỉ trường hợp này BE từ chối đặt giá. */
   productDiscontinued: boolean;
+  /** Sản phẩm tuỳ chỉnh / in ấn (`kind` CUSTOMIZABLE). */
+  customizable: boolean;
   query: UseQueryResult<Variant[]>;
 }) {
   const [dialog, setDialog] = useState<VariantDialog>(null);
@@ -49,6 +52,7 @@ export function ProductVariantsSection({
         productApproved={productApproved}
         acceptsChanges={acceptsChanges}
         productDiscontinued={productDiscontinued}
+        customizable={customizable}
         query={query}
         dialog={dialog}
         onDialogChange={setDialog}

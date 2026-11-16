@@ -90,6 +90,7 @@ export function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
             productDiscontinued={product.status === PRODUCT_STATUS.DISCONTINUED}
             acceptsChanges={gate.acceptsChanges}
             productApproved={gate.approved}
+            customizable={product.type === "Customizable"}
             query={variantsQuery}
           />
           {/* Thông tin bán trên cửa hàng — BE `GET/PUT /products/{id}/ecommerce` */}

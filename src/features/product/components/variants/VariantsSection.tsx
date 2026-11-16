@@ -26,6 +26,7 @@ export function VariantsSection({
   productApproved,
   acceptsChanges,
   productDiscontinued,
+  customizable,
   query,
   dialog,
   onDialogChange,
@@ -39,6 +40,8 @@ export function VariantsSection({
   acceptsChanges: boolean;
   /** Đã ngừng kinh doanh — chỉ trường hợp này BE từ chối đặt giá. */
   productDiscontinued: boolean;
+  /** Sản phẩm tuỳ chỉnh / in ấn — panel biến thể hiện link tới cấu hình in. */
+  customizable: boolean;
   query: UseQueryResult<Variant[]>;
   dialog: VariantDialog;
   onDialogChange: (dialog: VariantDialog) => void;
@@ -101,6 +104,7 @@ export function VariantsSection({
         productApproved={productApproved}
         acceptsChanges={acceptsChanges}
         productDiscontinued={productDiscontinued}
+        customizable={customizable}
         open={selected !== null}
         onClose={() => setSelectedId(null)}
       />

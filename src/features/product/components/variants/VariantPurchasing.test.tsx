@@ -88,6 +88,7 @@ function setup(
       productApproved
       acceptsChanges
       productDiscontinued={false}
+      customizable={false}
       open
       onClose={() => {}}
       {...props}
@@ -279,6 +280,7 @@ describe("VariantPurchasing — đổi biến thể / trạng thái", () => {
             productApproved
             acceptsChanges
             productDiscontinued={false}
+            customizable={false}
             open
             onClose={() => {}}
           />

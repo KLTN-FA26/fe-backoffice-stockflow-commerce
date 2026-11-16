@@ -1,5 +1,7 @@
 const ADMIN_BASE = "/admin";
 const PORTAL_BASE = "/portal";
+/** Đoạn cuối URL trang cấu hình in; breadcrumb của topbar đọc nhãn theo đoạn này. */
+export const PRINT_CONFIG_SEGMENT = "print-config";
 
 export const APP_ROUTES = {
   home: "/",
@@ -69,6 +71,9 @@ export const ADMIN_ROUTES = {
     detail: (id: string) => `${ADMIN_BASE}/products/${id}`,
     edit: (id: string) => `${ADMIN_BASE}/products/${id}/edit`,
     list: `${ADMIN_BASE}/products`,
+    /** Cấu hình in (model 3D) của một biến thể — chỉ sản phẩm tuỳ chỉnh; module 12. */
+    printConfig: (productId: string, variantId: string) =>
+      `${ADMIN_BASE}/products/${productId}/variants/${variantId}/${PRINT_CONFIG_SEGMENT}`,
   },
   purchaseOrders: {
     create: `${ADMIN_BASE}/purchase-orders/create`,
