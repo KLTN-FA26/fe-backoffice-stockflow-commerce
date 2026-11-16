@@ -53,6 +53,7 @@ export const RETURN_LABELS = {
     general: "Thông tin chung",
     order: "Đơn hàng",
     customer: "Khách hàng",
+    viewCustomer: "Xem hồ sơ khách",
     reason: "Lý do",
     description: "Mô tả của khách",
     channel: "Nguồn",
@@ -133,6 +134,8 @@ export const RETURN_LABELS = {
     note: "Ghi chú",
     submit: "Gửi đề xuất",
     noneRefunded: "Hoàn ít nhất một đơn vị.",
+    estimate: "Ước tính trước thuế:",
+    estimateNote: "(hệ thống tính lại theo đơn giá và VAT của dòng đơn)",
   },
   approveSettlementDialog: {
     title: "Duyệt hoàn tiền",
@@ -181,7 +184,7 @@ export const RETURN_RECEIPT_LABELS = {
   navLabel: "Nhập hàng hoàn",
   pageTitle: "Phiếu nhập hàng hoàn",
   create: "Lập phiếu",
-  statusAll: "Mọi trạng thái",
+  tabs: { draft: "Đang nhận", all: "Tất cả" },
   emptyTitle: "Chưa có phiếu nhập hàng hoàn",
   emptyDescription:
     "Lập phiếu khi hàng của một yêu cầu trả hàng đã duyệt, hoặc một chuyến hãng hoàn về, tới kho.",
@@ -199,7 +202,9 @@ export const RETURN_RECEIPT_LABELS = {
     closedAt: "Xác nhận lúc",
     status: "Trạng thái",
   },
+  viewOrder: "Xem đơn",
   source: {
+    rmaShort: "RMA",
     rma: (rma: string) => `RMA ${rma}`,
     shipment: (code: string) => `Chuyến hoàn ${code}`,
   },

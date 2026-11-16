@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, PackageOpen } from "lucide-react";
 
 import { RETURN_LABELS } from "@/constants/labels-return";
 import { RETURN_ROUTES, RMA_PERMISSIONS } from "@/constants/returns";
@@ -57,6 +57,13 @@ function ReturnDetailContent({ id }: { id: string }) {
           </Link>
         </Button>
         <div className="flex flex-wrap gap-2">
+          {actions.includes("createReceipt") && (
+            <Button asChild size="sm">
+              <Link href={RETURN_ROUTES.receipts.createFor(ret.id)}>
+                <PackageOpen className="size-3.5" /> {L.actions.createReceipt}
+              </Link>
+            </Button>
+          )}
           <RefundActions ret={ret} actions={actions} />
           <ReturnActions ret={ret} actions={actions} />
         </div>

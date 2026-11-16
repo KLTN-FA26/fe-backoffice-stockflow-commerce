@@ -44,7 +44,7 @@ export const RETURN_ROUTES = {
     detail: (id: string) => `${RECEIPTS_BASE}/returns/${encodeURIComponent(id)}`,
     /** Lập phiếu từ một yêu cầu trả hàng đang chờ hàng về. */
     createFor: (returnRequestId: string) =>
-      `${RECEIPTS_BASE}/returns?create=1&returnRequestId=${encodeURIComponent(returnRequestId)}`,
+      `${RECEIPTS_BASE}/returns?create=true&returnRequestId=${encodeURIComponent(returnRequestId)}`,
   },
 } as const;
 

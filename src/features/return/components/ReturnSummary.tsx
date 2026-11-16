@@ -37,7 +37,7 @@ export function ReturnGeneralCard({ ret }: { ret: ReturnRequest }) {
             href={ADMIN_ROUTES.customers.detail(ret.customerId)}
             className="text-accent hover:underline"
           >
-            Xem hồ sơ khách
+            {D.viewCustomer}
           </Link>
         </InfoRow>
         <InfoRow label={D.reason}>{RETURN_REASON_LABELS[ret.reasonCode]}</InfoRow>
