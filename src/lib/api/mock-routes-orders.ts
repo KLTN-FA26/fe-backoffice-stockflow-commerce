@@ -17,6 +17,8 @@ import { paginatePage, registerMockRoute } from "./mock-adapter";
 import { registerOrderCancellationRequestMockRoutes } from "./mock-routes-order-cancellation-requests";
 import { registerOrderReleaseMockRoutes } from "./mock-routes-order-release";
 import { registerOrderScheduleMockRoutes } from "./mock-routes-order-schedule";
+import { registerReturnReceiptMockRoutes } from "./mock-routes-return-receipts";
+import { registerReturnMockRoutes } from "./mock-routes-returns";
 import { registerOrderActionMockRoutes } from "./mock-routes-orders-actions";
 import {
   BE_ORDER_STATUSES,
@@ -567,6 +569,9 @@ export function registerOrderMockRoutes(): void {
   registerOrderActionMockRoutes();
   // `/orders/cancellation-requests` cũng phải đứng trước `/orders/:id`
   registerOrderCancellationRequestMockRoutes();
+  // Trả hàng (WF-05 BO-12); phiếu nhập hàng hoàn phải đứng trước `/goods-receipts/:id` (đăng ký sau, ở mock-adapter)
+  registerReturnMockRoutes();
+  registerReturnReceiptMockRoutes();
   registerReadRoutes();
   registerCancellationRoute();
   registerLifecycleRoutes();
