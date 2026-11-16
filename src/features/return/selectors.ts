@@ -85,3 +85,20 @@ export function scanProgress(
     extra: receipt.cartons.filter((carton) => !expectedLpns.has(carton.lpn)).length,
   };
 }
+
+const DAY_MS = 86_400_000;
+const VN_OFFSET_MS = 7 * 3_600_000;
+
+/**
+ * Hết hạn đổi / trả lúc 0 giờ (giờ VN) của ngày thứ `days + 1` sau ngày giao (BE `ReturnPolicy.endOfDays`, BR-RMA-001).
+ */
+export function returnWindowEnd(deliveredAtIso: string, days: number): Date {
+  const local = Date.parse(deliveredAtIso) + VN_OFFSET_MS;
+  const startOfLocalDay = Math.floor(local / DAY_MS) * DAY_MS;
+  return new Date(startOfLocalDay + (days + 1) * DAY_MS - VN_OFFSET_MS);
+}
+
+/** Đã quá hạn đổi / trả: Sale mở thay khách phải ghi lý do nhận ngoài hạn (BE `RETURN_WINDOW_CLOSED`). */
+export function windowClosed(deliveredAtIso: string | null, days: number, now: Date): boolean {
+  return !!deliveredAtIso && returnWindowEnd(deliveredAtIso, days).getTime() <= now.getTime();
+}
