@@ -19,6 +19,7 @@ import { RETURN_COPY } from "./primitives";
 import { ReturnActions } from "./ReturnActions";
 import { ReturnEvidenceCard } from "./ReturnEvidenceCard";
 import { ReturnHistoryCard } from "./ReturnHistoryCard";
+import { RefundActions } from "./RefundActions";
 import { ReturnLinesCard } from "./ReturnLinesCard";
 import { ReturnGeneralCard, ReturnProgressCard } from "./ReturnSummary";
 
@@ -55,7 +56,10 @@ function ReturnDetailContent({ id }: { id: string }) {
             <ArrowLeft className="size-3.5" /> {L.pageTitle}
           </Link>
         </Button>
-        <ReturnActions ret={ret} actions={actions} />
+        <div className="flex flex-wrap gap-2">
+          <RefundActions ret={ret} actions={actions} />
+          <ReturnActions ret={ret} actions={actions} />
+        </div>
       </div>
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-w-0 space-y-4">
