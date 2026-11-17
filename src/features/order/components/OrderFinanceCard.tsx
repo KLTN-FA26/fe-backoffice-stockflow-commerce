@@ -1,20 +1,18 @@
-import {
-  ORDER_BALANCE_POLICY_LABELS,
-  ORDER_PAYMENT_STATUS_DISPLAY,
-  ORDER_PAYMENT_TERM_LABELS,
-} from "@/constants";
+import { ORDER_BALANCE_POLICY_LABELS } from "@/constants";
 import { formatMoney } from "@/lib/format";
-import { StatusDot } from "@/components/shared/StatusDot";
 
 import { cancellationReasonLabel, parseCancellationReason } from "../selectors";
 
+import { OrderInstallmentsSummary } from "./OrderInstallmentsSummary";
 import { CreditValue, DepositValue } from "./PaymentStateValues";
 
 import type { ReactNode } from "react";
+import type { PermissionCode } from "@/lib/auth";
 import type { Order } from "../types";
 
 interface OrderFinanceCardProps {
   order: Order;
+  can: (code: PermissionCode) => boolean;
 }
 
 const EMPTY = "—";
@@ -47,7 +45,7 @@ const NO_RECEIVABLE_STATUSES: readonly Order["status"][] = ["Draft", "Cancelled"
  *   toán không "còn nợ" cả tổng đơn); phải-trả-trước-khi-xuất chỉ hiện khi > 0.
  * - `amountDueOnDelivery` (hãng thu khi giao, đơn cọc ON_DELIVERY) chỉ hiện khi > 0.
  */
-export function OrderFinanceCard({ order }: OrderFinanceCardProps) {
+export function OrderFinanceCard({ order, can }: OrderFinanceCardProps) {
   const { cancellation } = order;
   const cancellationNote = cancellation
     ? parseCancellationReason(cancellation.reason, cancellation.reasonCode).note
@@ -79,24 +77,7 @@ export function OrderFinanceCard({ order }: OrderFinanceCardProps) {
         </span>
       </div>
       <dl className="grid grid-cols-[auto_1fr] gap-x-3.5 gap-y-1.5 text-[0.8125rem]">
-        <Row label="Phương thức">
-          {order.paymentTerm ? ORDER_PAYMENT_TERM_LABELS[order.paymentTerm] : EMPTY}
-        </Row>
-        <Row label="Trạng thái">
-          {order.paymentStatus ? (
-            <StatusDot
-              domain="payment"
-              status={ORDER_PAYMENT_STATUS_DISPLAY[order.paymentStatus]}
-            />
-          ) : (
-            EMPTY
-          )}
-        </Row>
-        <Row label="Đã thu">
-          <span className="font-mono tabular-nums">
-            {order.paidAmount !== null ? formatMoney(order.paidAmount, order.currency) : EMPTY}
-          </span>
-        </Row>
+        <OrderInstallmentsSummary orderId={order.orderId} can={can} />
         {order.paymentTerm === "DEPOSIT" && (
           <Row label="Tiền cọc">
             <DepositValue order={order} />
