@@ -1,5 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { UI_LABELS } from "@/constants";
 import { blockedOrder } from "@/features/shipping/__fixtures__/ftl-load";
@@ -9,6 +9,11 @@ import { formatMoney } from "@/lib/format/money";
 import { HandoverBlockedNotice } from "./HandoverBlockedNotice";
 
 const B = UI_LABELS.shipping.waybill.blocked;
+
+// HandoverReasonLink (A4) đọc quyền qua useCan; ở đây không cấp quyền nào → không có liên kết, chỉ kiểm tra lý do.
+vi.mock("@/lib/auth/components/Can", () => ({
+  useCan: () => false,
+}));
 
 describe("HandoverBlockedNotice — một lần ký thấy đủ mọi lý do (A3)", () => {
   it("đơn có hai lý do: liệt kê cả hai trong cùng một đơn", () => {

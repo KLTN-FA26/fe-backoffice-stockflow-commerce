@@ -4,6 +4,7 @@ import { api } from "@/lib/api/client";
 
 import { getDeliverySchedule, nextBatchToRelease } from "./delivery-batch-api";
 import { getReleaseWarnings, releaseOrder } from "./release-api";
+import { getChosenShippingWarehouseId } from "./shipping-warehouse-api";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -85,6 +86,20 @@ describe("nextBatchToRelease — gợi ý đợt mặc định (BE vẫn kiểm:
     ).toBe("b-2");
     expect(nextBatchToRelease([b(1, "CLOSED"), b(2, "DELIVERED")])).toBeUndefined();
     expect(nextBatchToRelease([])).toBeUndefined();
+  });
+});
+
+describe("getChosenShippingWarehouseId — GET /orders/{id}/shipping-warehouse/options (kho Sale đã chọn)", () => {
+  it("trả chosenWarehouseId; null khi Sale chưa chọn", async () => {
+    const get = vi
+      .spyOn(api, "get")
+      .mockResolvedValueOnce({
+        data: { orderId: "o-1", chosenWarehouseId: "wh-2", warehouses: [] },
+      })
+      .mockResolvedValueOnce({ data: { orderId: "o-1", chosenWarehouseId: null, warehouses: [] } });
+    await expect(getChosenShippingWarehouseId("o-1")).resolves.toBe("wh-2");
+    await expect(getChosenShippingWarehouseId("o-1")).resolves.toBeNull();
+    expect(get.mock.calls[0]?.[0]).toBe("/orders/o-1/shipping-warehouse/options");
   });
 });
 

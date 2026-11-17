@@ -64,6 +64,15 @@ export const ORDER_PERMISSIONS = {
 } as const;
 
 /**
+ * Kho xuất của đơn — resource `sales-order-shipping-warehouses` (BE `ShippingWarehouseController`). FE chỉ ĐỌC kho Sale
+ * đã chọn (`GET /orders/{id}/shipping-warehouse/options` → `chosenWarehouseId`) để chọn sẵn ở hộp thoại release. Seed BE
+ * (PermissionMatrixTest): READ của SALES_STAFF, SALES_MANAGER, WAREHOUSE_MANAGER, PRODUCTION_COORDINATOR, SYSTEM_ADMIN.
+ */
+export const ORDER_SHIPPING_WAREHOUSE_PERMISSIONS = {
+  read: "sales-order-shipping-warehouses:READ",
+} as const;
+
+/**
  * Lịch giao của đơn — resource `sales-order-delivery-batches` (BE `OrderResources.DELIVERY_BATCHES`, PR #317, WF4 BE-13,
  * seed V20261124000650): `read` cho `GET /orders/{id}/delivery-batches` — ô chọn đợt giao khi release và panel lịch giao.
  * Mọi vai đọc được hợp đồng trước đây (`sales-contracts:READ`) và mọi vai release (`sales-order-releases:UPDATE`, quản lý

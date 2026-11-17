@@ -45,8 +45,15 @@ function dueText(order: HandoverWarning): string | null {
  * ngày giao). BE cũ / cảnh báo "bắt đầu xếp" chỉ có `reasonCode` → một câu.
  */
 export function handoverBlockReasons(order: HandoverWarning): string[] {
+  return handoverReasonCodes(order).map((reasonCode) =>
+    handoverBlockReason({ ...order, reasonCode }),
+  );
+}
+
+/** Các mã lý do (không trùng) của một đơn: `reasonCodes` nếu BE gửi, không thì `reasonCode`. */
+export function handoverReasonCodes(order: HandoverWarning): HandoverWarning["reasonCode"][] {
   const codes = order.reasonCodes?.length ? order.reasonCodes : [order.reasonCode];
-  return [...new Set(codes)].map((reasonCode) => handoverBlockReason({ ...order, reasonCode }));
+  return [...new Set(codes)];
 }
 
 /** Câu tiếng Việt cho lý do một đơn chưa được phép đi — theo `reasonCode` của BE, kèm số tiền / đợt giao / ngày mở cửa sổ. */

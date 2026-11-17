@@ -26,6 +26,8 @@ interface OrderReleaseDialogProps {
   /** Có `sales-order-delivery-batches:READ` — mới đọc được lịch giao để chọn đợt (xem `ReleaseBatchField`). */
   canChooseBatch: boolean;
   /** Khe "Ước tính xếp xe": nhận kho đang chọn (đơn CONFIRMED chưa có kho). */
+  /** Kho xuất Sale đã chọn cho đơn (nếu có) — chọn sẵn ở ô kho. */
+  defaultWarehouseId?: string | null;
   estimateSlot?: OrderEstimateSlot;
   onClose: () => void;
 }
@@ -39,6 +41,7 @@ interface OrderReleaseDialogProps {
 export function OrderReleaseDialog({
   order,
   canChooseBatch,
+  defaultWarehouseId,
   estimateSlot,
   onClose,
 }: OrderReleaseDialogProps) {
@@ -48,7 +51,7 @@ export function OrderReleaseDialog({
   const form = useForm<ReleaseFormValues>({
     resolver: zodResolver(releaseFormSchema),
     mode: "onChange",
-    defaultValues: { warehouseId: "", deliveryBatchId: "" },
+    defaultValues: { warehouseId: defaultWarehouseId ?? "", deliveryBatchId: "" },
   });
   const warehouseId = useWatch({ control: form.control, name: "warehouseId" });
   const batchId = useWatch({ control: form.control, name: "deliveryBatchId" }) ?? "";
