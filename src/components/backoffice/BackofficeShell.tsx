@@ -104,12 +104,14 @@ import {
 } from "@/constants/einvoice";
 import { EINVOICE_LABELS } from "@/constants/labels-einvoice";
 import { PAYMENT_LABELS } from "@/constants/labels-payment";
+import { RETURN_LABELS, RETURN_RECEIPT_LABELS } from "@/constants/labels-return";
 import {
   PAYMENT_INSTALLMENT_PERMISSIONS,
   PAYMENT_RECEIPT_PERMISSIONS,
   PAYMENT_REFUND_PERMISSIONS,
   PAYMENT_ROUTES,
 } from "@/constants/payment";
+import { RETURN_ROUTES, RMA_PERMISSIONS } from "@/constants/returns";
 
 import { NotificationBell } from "@/features/notification";
 import { warehouseBreadcrumbTail } from "@/features/warehouse-map/components/workspace/WarehouseCrumb";
@@ -280,6 +282,13 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "Phiếu nhận",
         href: ADMIN_ROUTES.receipts.list,
         icon: FileText,
+        permission: GOODS_RECEIPT_PERMISSIONS.viewPage,
+      },
+      // Phiếu nhập hàng hoàn (docs 03 §4.2, BR-14) — phiếu nhận loại RETURN, cùng quyền phiếu nhận (WF-05 BO-16)
+      {
+        label: RETURN_RECEIPT_LABELS.navLabel,
+        href: RETURN_ROUTES.receipts.list,
+        icon: PackageOpen,
         permission: GOODS_RECEIPT_PERMISSIONS.viewPage,
       },
       { label: "Cất hàng", href: "/admin/putaway", icon: PackageCheck },
@@ -496,6 +505,13 @@ export const NAV_GROUPS: NavGroup[] = [
         href: ADMIN_ROUTES.orders.cancellationRequests,
         icon: Ban,
         permission: CANCELLATION_REQUEST_PERMISSIONS.read,
+      },
+      // Yêu cầu trả hàng (docs 17 §4.10) — `sales-rmas:VIEW_PAGE`: Sale, Kế toán, Kho, Quản trị (WF-05 BO-16)
+      {
+        label: RETURN_LABELS.navLabel,
+        href: RETURN_ROUTES.list,
+        icon: Undo2,
+        permission: RMA_PERMISSIONS.viewPage,
       },
       {
         label: "Lấy hàng",

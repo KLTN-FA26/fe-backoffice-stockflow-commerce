@@ -6,10 +6,13 @@ import { ADMIN_ROUTES, CANCELLATION_REQUEST_LABELS, UI_LABELS } from "@/constant
 import { CYCLE_COUNT_LABELS, CYCLE_COUNT_ROUTES } from "@/constants/cycle-count";
 import { INVENTORY_LABELS, INVENTORY_ROUTES } from "@/constants/inventory";
 import { QUARANTINE_LABELS } from "@/constants/quarantine";
+import { RETURN_LABELS, RETURN_RECEIPT_LABELS } from "@/constants/labels-return";
+import { RETURN_ROUTES, RMA_PERMISSIONS, RMA_RESOLUTION_PERMISSIONS } from "@/constants/returns";
 import {
   CANCELLATION_REQUEST_PERMISSIONS,
   ATTRIBUTE_PERMISSIONS,
   CYCLE_COUNT_PERMISSIONS,
+  GOODS_RECEIPT_PERMISSIONS,
   CREDIT_HOLD_PERMISSIONS,
   FULFILLMENT_PICKING_PERMISSIONS,
   FULFILLMENT_PICK_PERMISSIONS,
@@ -557,6 +560,46 @@ describe("hàng đợi yêu cầu huỷ — gate bằng sales-order-cancellation
     const items = NAV_GROUPS.flatMap((group) => group.items);
     expect(findActiveNavHref(ADMIN_ROUTES.orders.cancellationRequests, items)).toBe(
       ADMIN_ROUTES.orders.cancellationRequests,
+    );
+  });
+});
+
+describe("trả hàng (WF-05 BO-16) — theo seed BE sales-rmas / sales-rma-resolutions / procurement-goods-receipts", () => {
+  function mountWith(permissions: readonly PermissionCode[]) {
+    vi.spyOn(api, "get").mockResolvedValue({
+      data: { roles: [], permissions, dataScope: "ALL" },
+    });
+    mount();
+  }
+
+  it("Sale: thấy 'Trả hàng', không thấy mục Kế toán và phiếu nhập hàng hoàn", async () => {
+    mountWith([...Object.values(RMA_PERMISSIONS), RMA_RESOLUTION_PERMISSIONS.propose]);
+    expect(await screen.findByRole("link", { name: RETURN_LABELS.navLabel })).toHaveAttribute(
+      "href",
+      RETURN_ROUTES.list,
+    );
+    expect(
+      screen.queryByRole("link", { name: RETURN_RECEIPT_LABELS.navLabel }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("Kế toán (sales-rmas:VIEW_PAGE) vào 'Trả hàng' để mở tab cần hoá đơn điều chỉnh", async () => {
+    mountWith([RMA_PERMISSIONS.viewPage, RMA_PERMISSIONS.read, RMA_RESOLUTION_PERMISSIONS.approve]);
+    expect(await screen.findByRole("link", { name: RETURN_LABELS.navLabel })).toBeInTheDocument();
+  });
+
+  it("Kho: thấy 'Nhập hàng hoàn' theo quyền phiếu nhận", async () => {
+    mountWith([GOODS_RECEIPT_PERMISSIONS.viewPage, RMA_PERMISSIONS.viewPage]);
+    expect(
+      await screen.findByRole("link", { name: RETURN_RECEIPT_LABELS.navLabel }),
+    ).toHaveAttribute("href", RETURN_ROUTES.receipts.list);
+  });
+
+  it("mục đang mở: khớp dài nhất — RMA không sáng 'Đơn hàng', phiếu hàng hoàn không sáng 'Phiếu nhận'", () => {
+    const items = NAV_GROUPS.flatMap((group) => group.items);
+    expect(findActiveNavHref(RETURN_ROUTES.detail("r-1"), items)).toBe(RETURN_ROUTES.list);
+    expect(findActiveNavHref(RETURN_ROUTES.receipts.detail("g-1"), items)).toBe(
+      RETURN_ROUTES.receipts.list,
     );
   });
 });

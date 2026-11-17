@@ -16,6 +16,8 @@ export const AREA_TYPES = [
   "QUARANTINE",
   "PACKING",
   "DISPATCH",
+  // BE `AreaType.STAGING` (V20261113000600): thiếu thì cả bản đồ kho có khu này parse lỗi
+  "STAGING",
   "OVERFLOW",
   "PRODUCTION",
   "NON_STORAGE",
@@ -24,7 +26,8 @@ export type AreaType = (typeof AREA_TYPES)[number];
 
 const areaSchema = z
   .object({
-    code: z.string(),
+    // Mock kho cũ của mock-data chỉ trả `locationCode` — BE luôn có `code`
+    code: z.string().nullish(),
     type: z.enum(AREA_TYPES),
     name: z.string().nullish(),
     usable: z.boolean().nullish(),
@@ -51,10 +54,10 @@ export function useWarehouseAreas(warehouseId: string | undefined, enabled = tru
         .parse(data)
         .areas.filter((area) => area.usable !== false && !!area.locationCode)
         .map((area) => ({
-          locationCode: area.locationCode ?? area.code,
+          locationCode: area.locationCode ?? area.code ?? "",
           label: area.name
             ? `${area.locationCode} — ${area.name}`
-            : (area.locationCode ?? area.code),
+            : (area.locationCode ?? area.code ?? ""),
           type: area.type,
         }));
     },
