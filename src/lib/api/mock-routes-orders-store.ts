@@ -395,6 +395,8 @@ interface MockOrderState {
   allowPartialShipment?: boolean;
   /** Quyết định giao một phần, cũ nhất trước (BE `order_partial_shipment_decision`). */
   decisions: MockPartialDecision[];
+  /** Các lần đóng phần còn lại, cũ nhất trước (BE `order_remainder_closure`) — ghi cả khi trạng thái đơn không đổi. */
+  closures: MockRemainderClosure[];
   /**
    * Cách thu phần còn lại của đơn CỌC (BE PR #150); chỉ đặt qua `setMockOrderBalancePolicy` — đặt cách thu cũng biến
    * đơn thành đơn cọc. Chưa đặt = BEFORE_DELIVERY.
@@ -406,6 +408,12 @@ export interface MockPartialDecision {
   allowed: boolean;
   note: string | null;
   decidedAt: string;
+}
+
+export interface MockRemainderClosure {
+  reasonCode: string;
+  note: string | null;
+  closedAt: string;
 }
 
 const states = new Map<string, MockOrderState>();
@@ -427,6 +435,7 @@ function stateById(orderId: string): MockOrderState {
       closedUnits: {},
       history: [],
       decisions: [],
+      closures: [],
     };
     states.set(orderId, state);
   }
@@ -840,6 +849,7 @@ export function closeRemainder(order: Order, reasonCode: string, note: string | 
     if (left > 0) state.closedUnits[line.lineId] = (state.closedUnits[line.lineId] ?? 0) + left;
   }
   const reason = `REMAINDER_CLOSED_${reasonCode}${note ? `: ${note}` : ""}`;
+  state.closures.push({ reasonCode, note, closedAt: new Date().toISOString() });
   followShipments(order, state, "CLOSED", reason);
 }
 

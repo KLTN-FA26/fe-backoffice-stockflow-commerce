@@ -89,6 +89,72 @@ describe("OrderDetail — Lịch sử đơn có quyết định giao một phầ
     expect(within(items[0] as HTMLElement).getByText("Đặt đơn")).toBeInTheDocument();
   });
 
+  it("đóng phần còn lại render riêng: 'Đóng phần còn lại: <lý do>', ai, khi nào, ghi chú; không lộ mã thô", async () => {
+    await renderDetail(
+      ORDER_PERMISSION_SETS.readOnly,
+      () => apiOrder,
+      () => [
+        {
+          type: "STATUS_CHANGE",
+          from: "PICKING",
+          to: "PARTIALLY_FULFILLED",
+          occurredAt: "2026-11-20T01:00:00Z",
+        },
+        {
+          type: "REMAINDER_CLOSURE",
+          from: null,
+          to: null,
+          reason: "hết nắp",
+          occurredAt: "2026-11-20T02:00:00Z",
+          actorId: "u-sale",
+          actorName: "Sale An",
+          closureReasonCode: "OUT_OF_STOCK",
+        },
+        {
+          type: "REMAINDER_CLOSURE",
+          occurredAt: "2026-11-20T03:00:00Z",
+          closureReasonCode: "DELIVERY_FAILED",
+        },
+        {
+          type: "STATUS_CHANGE",
+          from: "PARTIALLY_FULFILLED",
+          to: "SHIPPED",
+          reason: "REMAINDER_CLOSED_OUT_OF_STOCK: hết nắp",
+          occurredAt: "2026-11-20T04:00:00Z",
+        },
+      ],
+    );
+
+    const history = await screen.findByRole("region", { name: "Lịch sử đơn" });
+    const items = await within(history).findAllByRole("listitem");
+    expect(items.map((item) => item.getAttribute("data-kind"))).toEqual([
+      "status-change",
+      "remainder-closure",
+      "remainder-closure",
+      "status-change",
+    ]);
+
+    const closed = items[1] as HTMLElement;
+    expect(
+      within(closed).getByText("Đóng phần còn lại: Hết hàng, không cung cấp được"),
+    ).toBeInTheDocument();
+    expect(within(closed).getByText(/Bởi Sale An/)).toBeInTheDocument();
+    expect(within(closed).getByText("hết nắp")).toBeInTheDocument();
+
+    // không ghi chú thì không hiện dòng "Ghi chú"
+    const afterFailure = items[2] as HTMLElement;
+    expect(
+      within(afterFailure).getByText("Đóng phần còn lại: Giao hàng không thành công"),
+    ).toBeInTheDocument();
+    expect(within(afterFailure).queryByText(/Ghi chú/)).not.toBeInTheDocument();
+
+    // bước đổi trạng thái do chính lần đóng đó: lý do là nhãn tiếng Việt, không phải mã BE
+    const moved = items[3] as HTMLElement;
+    expect(within(moved).getByText("Hết hàng, không cung cấp được — hết nắp")).toBeInTheDocument();
+    expect(history).not.toHaveTextContent("REMAINDER_CLOSED");
+    expect(history).not.toHaveTextContent("OUT_OF_STOCK");
+  });
+
   it("chưa có mục nào → thông báo rỗng", async () => {
     await renderDetail(
       ORDER_PERMISSION_SETS.readOnly,
