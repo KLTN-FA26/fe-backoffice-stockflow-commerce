@@ -61,6 +61,29 @@ describe("OrderList — phân trang/lọc phía server", () => {
   });
 });
 
+describe("OrderList — cột Khách hàng hiện tên, không hiện UUID (QA A5, BE-15)", () => {
+  it("BE trả customerName → hiện tên khách; không còn id khách trần trong bảng", async () => {
+    renderList(() =>
+      apiOrderPage([
+        { ...apiOrder, customerName: "Công ty Bao Bì An Phát", customerCode: "0312345678" },
+      ]),
+    );
+
+    const cell = await screen.findByText("Công ty Bao Bì An Phát");
+    expect(cell).toHaveAttribute("title", expect.stringContaining("0312345678"));
+    expect(screen.queryByText(apiOrder.customerId as string)).not.toBeInTheDocument();
+  });
+
+  it("BE không trả tên → mã khách rút gọn, không UUID đầy đủ", async () => {
+    renderList(() => apiOrderPage([apiOrder]));
+
+    expect(
+      await screen.findByText(`KH ${(apiOrder.customerId as string).slice(0, 8)}`),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(apiOrder.customerId as string)).not.toBeInTheDocument();
+  });
+});
+
 describe("OrderList — liên kết từ tile 'Đơn chờ xử lý' của dashboard", () => {
   it("?status=Pending Payment,Confirmed,In Production,Ready to Fulfill,On Hold → gửi đúng 5 mã BE", async () => {
     renderList(

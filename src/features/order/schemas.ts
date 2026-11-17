@@ -194,6 +194,9 @@ export const orderDtoSchema = z.object({
   orderId: z.string(),
   orderNumber: z.string(),
   customerId: z.string().nullish(),
+  /** Tên + mã khách BE kèm sẵn ở danh sách / chi tiết đơn nội bộ (BE-15). */
+  customerName: z.string().nullish(),
+  customerCode: z.string().nullish(),
   status: orderStatusDtoSchema,
   totalAmount: z.number(),
   currency: currencyCode,

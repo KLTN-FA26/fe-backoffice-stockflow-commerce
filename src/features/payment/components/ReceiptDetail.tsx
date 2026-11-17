@@ -77,7 +77,11 @@ function ReceiptDetailContent({ id }: { id: string }) {
         </div>
         <dl className="grid grid-cols-[minmax(140px,auto)_1fr] gap-x-4 gap-y-2 text-[0.8125rem]">
           <InfoRow label={C.customer}>
-            <CustomerName id={receipt.customerId} />
+            <CustomerName
+              id={receipt.customerId}
+              name={receipt.customerName}
+              code={receipt.customerCode}
+            />
           </InfoRow>
           <InfoRow label={C.receivedOn}>
             <DateCell iso={receipt.receivedOn} />

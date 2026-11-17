@@ -33,6 +33,8 @@ const MILESTONE_OPTIONS = INSTALLMENT_MILESTONES.map((value) => ({
  * khách / đơn chỉ lọc qua liên kết (kế toán không có quyền tra danh bạ khách) và hiện thành chip.
  */
 export function InstallmentFilters({ s }: { s: InstallmentListState }) {
+  // Tên khách lấy từ chính các dòng đang lọc (BE-15) — kế toán không tra được danh bạ khách.
+  const named = s.query.data?.items.find((row) => row.customerId === s.customerId);
   return (
     <div className="mb-3 flex flex-wrap items-center gap-3">
       <Button
@@ -96,7 +98,12 @@ export function InstallmentFilters({ s }: { s: InstallmentListState }) {
       </div>
       {s.customerId && (
         <FilterChip label={L.customerChip} onClear={() => void s.setCustomerId("")}>
-          <CustomerName id={s.customerId} link={false} />
+          <CustomerName
+            id={s.customerId}
+            name={named?.customerName}
+            code={named?.customerCode}
+            link={false}
+          />
         </FilterChip>
       )}
       {s.orderId && (

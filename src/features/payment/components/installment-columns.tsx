@@ -52,7 +52,13 @@ export function buildInstallmentColumns(
         <CodeLink href={ADMIN_ROUTES.orders.detail(row.orderId)}>{row.orderNumber}</CodeLink>
       ),
     },
-    { key: "customer", header: C.customer, cell: (row) => <CustomerName id={row.customerId} /> },
+    {
+      key: "customer",
+      header: C.customer,
+      cell: (row) => (
+        <CustomerName id={row.customerId} name={row.customerName} code={row.customerCode} />
+      ),
+    },
     { key: "milestone", header: C.milestone, cell: (row) => milestoneLabel(row.milestone) },
     {
       key: "batch",
