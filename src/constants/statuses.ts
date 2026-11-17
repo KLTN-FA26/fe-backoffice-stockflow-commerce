@@ -914,13 +914,15 @@ export const STORAGE_CLASSES = ["NORMAL", "COLD", "HAZMAT", "FRAGILE", "OVERSIZE
 /** BE `BinType` — chỉ để mô tả, chưa dùng trong gợi ý (docs 06 §5). */
 export const BIN_TYPES = ["STANDARD", "PALLET", "SMALL_PARTS"] as const;
 
-/** BE `AreaType` — mọi loại trừ NON_STORAGE là vị trí tồn kho (docs 06 BR-11). */
+/**
+ * BE `AreaType` — mọi loại trừ NON_STORAGE là vị trí tồn kho (docs 06 BR-11). Docs 06 §5: khu kiểm QC
+ * và khu đóng gói đã bỏ (gộp vào QUARANTINE / DISPATCH), thêm khu chờ xuất STAGING (§4.5).
+ */
 export const AREA_TYPES = [
   "RECEIVING",
-  "QUALITY_CONTROL",
   "QUARANTINE",
-  "PACKING",
   "DISPATCH",
+  "STAGING",
   "OVERFLOW",
   "PRODUCTION",
   "NON_STORAGE",

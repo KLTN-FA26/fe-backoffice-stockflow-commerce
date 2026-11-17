@@ -2,7 +2,7 @@
 
 import { Plus } from "lucide-react";
 
-import { STORAGE_CLASS_LABELS, STORAGE_CLASSES, UI_LABELS } from "@/constants";
+import { UI_LABELS } from "@/constants";
 
 import { Button } from "@/components/ui/button";
 
@@ -21,12 +21,7 @@ const FACES = ["north", "east", "south", "west"] as const;
 /** Radix Select không nhận giá trị rỗng — giá trị đại diện "không thuộc zone". */
 const NO_ZONE = "none";
 
-const storageOptions = STORAGE_CLASSES.map((value) => ({
-  value,
-  label: STORAGE_CLASS_LABELS[value],
-}));
-
-/** Thông số kệ: mã (chỉ khi chưa lưu, BR-13), tên, zone, lớp lưu trữ, vị trí, mặt lấy hàng, tầng & bin. */
+/** Thông số kệ: mã (chỉ khi chưa lưu, BR-13), tên, zone, vị trí, mặt lấy hàng, tầng & bin. */
 export function ShelfFields({
   shelf,
   zones,
@@ -89,14 +84,6 @@ export function ShelfFields({
           <Plus className="text-dot-info size-3.5" />
         </Button>
       </div>
-      <ChoiceField
-        id="shelf-storage-class"
-        label={E.defaultStorageClass}
-        value={shelf.defaultStorageClass}
-        options={storageOptions}
-        onChange={(defaultStorageClass) => onPatch({ defaultStorageClass })}
-        disabled={locks.geometry}
-      />
       <PlacementFields
         idPrefix="shelf"
         footprint={shelf.footprint}

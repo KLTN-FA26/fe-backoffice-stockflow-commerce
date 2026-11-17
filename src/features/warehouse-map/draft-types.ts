@@ -6,8 +6,6 @@ import type { BIN_NAMING_SCHEMES } from "@/constants";
 
 import type { Footprint, LayoutArea, LayoutBin, LayoutShelf, Boundary } from "./types";
 
-type StorageClass = LayoutShelf["defaultStorageClass"];
-
 /** Tầng + bin tạo cùng kệ mới (`AddLevel` × N rồi `GenerateBins`, BR-14) — kệ đã lưu thì `null`. */
 export interface ShelfBuild {
   levelCount: number;
@@ -24,7 +22,6 @@ export interface ShelfBuild {
 }
 
 export interface AreaLocation {
-  storageClass: StorageClass;
   capacityUnits: number | null;
   maxWeight: number | null;
   pickable: boolean;
@@ -48,7 +45,6 @@ export interface DraftShelf extends Saved {
   footprint: Footprint;
   obstacle: boolean;
   pickFaces: LayoutShelf["pickFaces"];
-  defaultStorageClass: StorageClass;
   build: ShelfBuild | null;
   /** Kệ đã lưu: thông số dựng lại y hệt (`shelfTemplate`) — bản sao Ctrl+D / Ctrl+V dùng cái này. */
   copyBuild?: ShelfBuild;

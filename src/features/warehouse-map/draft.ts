@@ -74,7 +74,6 @@ const shelfOf = (shelf: LayoutShelf): DraftShelf => ({
   footprint: { ...shelf.footprint },
   obstacle: shelf.obstacle,
   pickFaces: { ...shelf.pickFaces },
-  defaultStorageClass: shelf.defaultStorageClass,
   build: null,
   copyBuild: shelfTemplate(shelf, DEFAULT_SHELF_BUILD),
   binExtent: binExtentOf(shelf),
@@ -92,7 +91,6 @@ const areaOf = (area: LayoutArea): DraftArea => ({
   footprint: { ...area.footprint },
   obstacle: area.obstacle,
   location: {
-    storageClass: area.storageClass ?? "NORMAL",
     capacityUnits: area.capacityUnits ?? null,
     maxWeight: area.maxWeight ?? null,
     pickable: area.pickable ?? false,
