@@ -55,4 +55,37 @@ describe("lô trên chuyến", () => {
     expect(isLabelLoaded(load, "PKG-SO-2-1")).toBe(false);
     expect(isLabelLoaded(load, "NOPE")).toBe(false);
   });
+
+  it("quét theo LPN trên nhãn giao hàng cũng tính là đã lên xe (không phân biệt hoa thường); mã nhãn vẫn khớp", () => {
+    const load = apiLoad();
+    const withLpn = {
+      ...load,
+      shipments: [
+        loadShipment("LPN-S1", [
+          parcel("PKG-SO-9-1", true, { lpn: "LPN-20261117-000008" }),
+          parcel("PKG-SO-9-2", false, { lpn: "LPN-20261117-000009" }),
+        ]),
+      ],
+    };
+    expect(isLabelLoaded(withLpn, "LPN-20261117-000008")).toBe(true);
+    expect(isLabelLoaded(withLpn, "lpn-20261117-000008")).toBe(true);
+    expect(isLabelLoaded(withLpn, "PKG-SO-9-1")).toBe(true);
+    // LPN của kiện chưa lên xe không được tính
+    expect(isLabelLoaded(withLpn, "LPN-20261117-000009")).toBe(false);
+    expect(loadedLabelCodes(withLpn)).toEqual(["PKG-SO-9-1", "LPN-20261117-000008"]);
+  });
+
+  it("BE cũ không có lpn (hoặc lpn null) → chỉ khớp theo mã nhãn, không lỗi", () => {
+    const old = {
+      shipments: [
+        loadShipment("OLD-S1", [
+          parcel("PKG-SO-8-1", true),
+          parcel("PKG-SO-8-2", true, { lpn: null }),
+        ]),
+      ],
+    };
+    expect(isLabelLoaded(old, "PKG-SO-8-2")).toBe(true);
+    expect(isLabelLoaded(old, "LPN-20261117-000008")).toBe(false);
+    expect(loadedLabelCodes(old)).toEqual(["PKG-SO-8-1", "PKG-SO-8-2"]);
+  });
 });

@@ -39,14 +39,19 @@ export function reconcileLoad(
   };
 }
 
-/** Mã kiện đang nằm trên xe của chuyến — để bỏ khỏi danh sách "quét không thành công". */
+/**
+ * Mã của kiện đang nằm trên xe của chuyến — mã nhãn VÀ LPN (BE nhận cả hai khi quét; docs 08 §4.3 bước 6: mã trên nhãn
+ * giao hàng là LPN) — để bỏ khỏi danh sách "quét không thành công".
+ */
 export function loadedLabelCodes(load: Pick<Load, "shipments">): string[] {
   return load.shipments.flatMap((shipment) =>
-    shipment.packages.filter(isParcelLoaded).map((parcel) => parcel.labelCode),
+    shipment.packages
+      .filter(isParcelLoaded)
+      .flatMap((parcel) => (parcel.lpn ? [parcel.labelCode, parcel.lpn] : [parcel.labelCode])),
   );
 }
 
-/** Kiện có mã nhãn này đang nằm trên xe của chuyến (so không phân biệt hoa thường như BE). */
+/** Kiện có mã nhãn hoặc LPN này đang nằm trên xe của chuyến (so không phân biệt hoa thường như BE). */
 export function isLabelLoaded(load: Pick<Load, "shipments">, labelCode: string): boolean {
   const wanted = labelCode.toUpperCase();
   return loadedLabelCodes(load).some((code) => code.toUpperCase() === wanted);
