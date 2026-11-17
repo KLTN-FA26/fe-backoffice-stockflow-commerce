@@ -239,6 +239,8 @@ export function registerOrderScheduleMockRoutes(): void {
         evidenceMessageId: messageId || null,
         evidenceFileName: upload?.fileName ?? null,
         changedBy: useAuthStore.getState().user?.userId ?? "",
+        changedByName:
+          useAuthStore.getState().user?.fullName ?? useAuthStore.getState().user?.username ?? null,
         changedAt: new Date().toISOString(),
       });
       return ok(scheduleOf(order));

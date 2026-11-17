@@ -29,6 +29,8 @@ export const beWindowChangeSchema = z.object({
   evidenceFileName: z.string().nullish(),
   evidenceMessageId: z.string().nullish(),
   changedBy: z.string().nullish(),
+  /** Tên người dời (BE #342, staff read; docs 17 BR-28 / §5.2) — thiếu thì không hiện gì, không bao giờ hiện id. */
+  changedByName: z.string().nullish(),
   changedAt: z.string().nullish(),
 });
 

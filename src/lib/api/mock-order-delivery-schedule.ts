@@ -37,6 +37,7 @@ export interface MockWindowChange {
   evidenceMessageId: string | null;
   evidenceFileName: string | null;
   changedBy: string;
+  changedByName: string | null;
   changedAt: string;
 }
 

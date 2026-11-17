@@ -12,10 +12,12 @@ const reasonLabel = (code: string): string =>
     ? WINDOW_CHANGE_REASON_LABELS[code as keyof typeof WINDOW_CHANGE_REASON_LABELS]
     : code;
 
+const changerName = (change: DeliveryWindowChange): string => change.changedByName?.trim() ?? "";
+
 /**
  * Lịch sử dời cửa sổ của một đợt (docs 17 BR-28): cửa sổ cũ → mới, mã lý do, ghi chú, bằng chứng khách đồng ý (tin nhắn
- * chat hoặc tệp), thời điểm. Cũ nhất trước như BE trả. Người thực hiện: BE chỉ trả id người dùng (không có tên) nên không
- * hiện.
+ * chat hoặc tệp), thời điểm, người dời (tên, BE `changedByName`; thiếu tên thì không hiện — không bao giờ hiện id).
+ * Cũ nhất trước như BE trả.
  */
 export function WindowChangeHistory({ changes }: { changes: readonly DeliveryWindowChange[] }) {
   if (changes.length === 0) return null;
@@ -37,6 +39,12 @@ export function WindowChangeHistory({ changes }: { changes: readonly DeliveryWin
               <span className="text-ink-tertiary tabular-nums">
                 {" "}
                 {L.changedAt(formatDateTime(change.changedAt))}
+              </span>
+            )}
+            {changerName(change) && (
+              <span className="text-ink-tertiary">
+                {" · "}
+                {L.changedBy(changerName(change))}
               </span>
             )}
             {change.note && <span className="block break-words">{change.note}</span>}
