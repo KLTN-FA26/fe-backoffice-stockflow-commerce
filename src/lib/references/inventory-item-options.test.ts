@@ -17,9 +17,6 @@ function summary(sku: string, barcode?: string) {
     sku,
     unitOfMeasure: "EACH",
     ...(barcode ? { barcode } : {}),
-    storageClass: "NORMAL",
-    trackingMode: "NONE",
-    policyConfigured: false,
   };
 }
 

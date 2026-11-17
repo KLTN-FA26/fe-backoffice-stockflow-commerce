@@ -7,12 +7,7 @@ import { api } from "@/lib/api/client";
 import { inventoryItemDtoSchema, inventoryItemPageSchema } from "./schemas";
 
 import type { InventoryItemListParams } from "@/lib/references/inventory-item-keys";
-import type {
-  InventoryItem,
-  InventoryItemPage,
-  LogisticsFormValues,
-  PolicyFormValues,
-} from "./types";
+import type { InventoryItem, InventoryItemPage, LogisticsFormValues } from "./types";
 
 export type { InventoryItemListParams };
 
@@ -29,10 +24,6 @@ export async function listInventoryItems(
       page: params.page,
       size: params.size,
       ...(q ? { q } : {}),
-      ...(params.storageClass ? { storageClass: params.storageClass } : {}),
-      ...(params.policyConfigured !== undefined
-        ? { policyConfigured: params.policyConfigured }
-        : {}),
     },
     signal,
   });
@@ -63,28 +54,9 @@ export function toLogisticsRequest(values: LogisticsFormValues, version: number)
     packageHeightCm: toNumber(values.packageHeightCm),
     packageCount: toNumber(values.packageCount),
     packSize: toNumber(values.packSize),
-    storageClass: values.storageClass,
-    requiresAdultSignature: values.requiresAdultSignature,
-    shippingRestrictionNote: values.shippingRestrictionNote.trim() || null,
-    qcRequired: values.qcRequired,
     // BE #121 UpdateItemLogisticsRequest.rotatable: thiếu trường = true → luôn gửi, nếu không mỗi
     // lần lưu sẽ bật lại xoay kiện cho SKU đã tắt
     rotatable: values.rotatable,
-  };
-}
-
-/** Form → BE `UpdateItemPolicyRequest`; ô trống = chưa đặt (null). */
-export function toPolicyRequest(values: PolicyFormValues, version: number) {
-  return {
-    version,
-    reorderPoint: toNumber(values.reorderPoint),
-    safetyStock: toNumber(values.safetyStock),
-    maxQty: toNumber(values.maxQty),
-    removalStrategy: values.removalStrategy,
-    trackingMode: values.trackingMode,
-    expiryTracked: values.expiryTracked,
-    // BE PR #119 StockPolicy.validate: chỉ đặt hạn dùng tối đa khi bật theo dõi hạn dùng
-    maxShelfLifeDays: values.expiryTracked ? toNumber(values.maxShelfLifeDays) : null,
   };
 }
 
@@ -97,19 +69,6 @@ export async function saveItemLogistics(input: {
   const { data } = await api.put<unknown>(
     `${itemPath(input.id)}/logistics`,
     toLogisticsRequest(input.values, input.version),
-  );
-  return inventoryItemDtoSchema.parse(data);
-}
-
-/** `PUT /inventory/items/{id}/policy` — quyền `UPDATE`; version cũ → 409 OPTIMISTIC_LOCK. */
-export async function saveItemPolicy(input: {
-  id: string;
-  version: number;
-  values: PolicyFormValues;
-}): Promise<InventoryItem> {
-  const { data } = await api.put<unknown>(
-    `${itemPath(input.id)}/policy`,
-    toPolicyRequest(input.values, input.version),
   );
   return inventoryItemDtoSchema.parse(data);
 }

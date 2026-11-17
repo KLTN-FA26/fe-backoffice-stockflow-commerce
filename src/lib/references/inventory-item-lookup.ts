@@ -23,8 +23,6 @@ const inventoryItemSummarySchema = z.object({
     unitOfMeasure: z.string(),
     barcode: z.string().nullish(),
     weightKg: beDecimal.nullish(),
-    /** BE `StorageClass` — giữ chuỗi để giá trị mới của BE không làm hỏng panel sản phẩm. */
-    storageClass: z.string(),
   }),
 });
 

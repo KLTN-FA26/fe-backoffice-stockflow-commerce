@@ -9,11 +9,10 @@ import { useInventoryItemSummary } from "@/lib/references/inventory-item-lookup"
 const L = UI_LABELS.inventoryItem;
 const S = L.variantSummary;
 const F = L.field;
-const STORAGE_LABEL: Readonly<Record<string, string>> = L.storageClass;
 const NOTE = "text-ink-tertiary text-xs";
 
 /**
- * Tóm tắt hồ sơ hàng tồn của một SKU — chỉ đọc; sửa logistics / chính sách tồn ở trang Hồ sơ hàng
+ * Tóm tắt hồ sơ hàng tồn của một SKU — chỉ đọc; sửa logistics ở trang Hồ sơ hàng
  * tồn (BE PR #119 `/inventory/items/{id}`). Quyền là `inventory-inventory-items` (phía kho), không
  * theo trạng thái sản phẩm / biến thể. UI-only — Backend phải re-check quyền READ.
  */
@@ -46,10 +45,6 @@ export function VariantInventorySummary({
         <Item
           label={L.weightView}
           value={logistics.weightKg == null ? L.notProvided : S.weightValue(logistics.weightKg)}
-        />
-        <Item
-          label={F.storageClass}
-          value={STORAGE_LABEL[logistics.storageClass] ?? logistics.storageClass}
         />
       </dl>
       <Link

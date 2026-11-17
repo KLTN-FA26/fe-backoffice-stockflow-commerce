@@ -11,11 +11,9 @@ import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { inventoryItemCapabilities } from "../../lifecycle";
 import { useInventoryItem } from "../../queries";
 import { ItemDetailError } from "./ItemDetailError";
-import { ItemEvaluationCard } from "./ItemEvaluationCard";
 import { ItemLogisticsCard } from "./ItemLogisticsCard";
-import { ItemPolicyCard } from "./ItemPolicyCard";
 
-export type ItemEditing = "logistics" | "policy" | null;
+export type ItemEditing = "logistics" | null;
 
 function InventoryItemDetailContent({ id }: { id: string }) {
   const [editing, setEditing] = useState<ItemEditing>(null);
@@ -42,25 +40,14 @@ function InventoryItemDetailContent({ id }: { id: string }) {
     // breadcrumb topbar đã có SKU và link về danh sách; h1 giữ cho screen reader.
     <div className="surface-soft surface-compact">
       <h1 className="sr-only">{item.sku}</h1>
-      <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
-        {/* Logistics và chính sách tồn đứng cạnh nhau, mỗi khối một cột */}
-        <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
-          <ItemLogisticsCard
-            item={item}
-            editing={editing}
-            canEdit={canEdit}
-            onEdit={() => setEditing("logistics")}
-            onDone={done}
-          />
-          <ItemPolicyCard
-            item={item}
-            editing={editing}
-            canEdit={canEdit}
-            onEdit={() => setEditing("policy")}
-            onDone={done}
-          />
-        </div>
-        <ItemEvaluationCard item={item} />
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
+        <ItemLogisticsCard
+          item={item}
+          editing={editing}
+          canEdit={canEdit}
+          onEdit={() => setEditing("logistics")}
+          onDone={done}
+        />
       </div>
     </div>
   );

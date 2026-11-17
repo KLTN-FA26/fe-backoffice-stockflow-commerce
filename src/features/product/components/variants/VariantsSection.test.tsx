@@ -54,10 +54,6 @@ const logistics = {
   packageHeightCm: null,
   packageCount: 1,
   packSize: 50,
-  storageClass: "NORMAL",
-  requiresAdultSignature: false,
-  shippingRestrictionNote: null,
-  qcRequired: false,
 };
 
 /** `GET /products/{id}/attributes`: một trục kích cỡ hai giá trị → sinh ma trận được. */
@@ -439,10 +435,8 @@ describe("VariantPanel — tóm tắt hồ sơ hàng tồn (BE PR #119)", () => 
     for (const label of [F.unitOfMeasure, F.barcode, UI_LABELS.inventoryItem.weightView]) {
       expect(within(panel).getByText(label)).toBeInTheDocument();
     }
-    expect(within(panel).getByText(F.storageClass)).toBeInTheDocument();
-    expect(
-      within(panel).getByText(UI_LABELS.inventoryItem.storageClass.NORMAL),
-    ).toBeInTheDocument();
+    // Không còn lớp lưu trữ (docs 06): panel không nêu điều kiện lưu kho
+    expect(within(panel).queryByText(F.storageClass)).toBeNull();
     expect(within(panel).getByText(S.weightValue(0.02))).toBeInTheDocument();
     expect(within(panel).getByText(UI_LABELS.inventoryItem.notProvided)).toBeInTheDocument();
     expect(within(panel).queryByText(F.packSize)).not.toBeInTheDocument();

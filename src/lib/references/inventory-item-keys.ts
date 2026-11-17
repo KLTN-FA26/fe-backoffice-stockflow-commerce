@@ -9,9 +9,6 @@ export interface InventoryItemListParams {
   size: number;
   /** Tìm theo SKU hoặc mã vạch. */
   q?: string;
-  /** BE `StorageClass`. */
-  storageClass?: string;
-  policyConfigured?: boolean;
 }
 
 export const inventoryItemKeys = {

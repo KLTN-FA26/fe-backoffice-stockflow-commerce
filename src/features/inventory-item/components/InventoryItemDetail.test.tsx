@@ -34,27 +34,7 @@ const item = (over: Record<string, unknown> = {}) => ({
     packageHeightCm: null,
     packageCount: 1,
     packSize: 1,
-    storageClass: "NORMAL",
-    requiresAdultSignature: false,
-    shippingRestrictionNote: null,
-    qcRequired: false,
     rotatable: true,
-  },
-  policy: {
-    reorderPoint: 10,
-    safetyStock: 5,
-    maxQty: 100,
-    removalStrategy: "FIFO",
-    trackingMode: "NONE",
-    expiryTracked: false,
-    maxShelfLifeDays: null,
-  },
-  evaluation: {
-    usableOnHand: 8,
-    reorderPoint: 10,
-    safetyStock: 5,
-    reorderRequired: true,
-    belowSafetyStock: false,
   },
   ...over,
 });
@@ -64,55 +44,20 @@ const mockGet = (permissions = ITEM_PERMISSION_SETS.editor, handler = () => item
 const itemGets = (get: ReturnType<typeof mockApiGet>) =>
   get.mock.calls.filter(([url]) => url === ITEM_URL);
 
-async function openPolicyForm() {
-  await userEvent.click(await screen.findByRole("button", { name: L.editPolicy }));
+async function openLogisticsForm() {
+  await userEvent.click(await screen.findByRole("button", { name: L.editLogistics }));
 }
 
+/** Item version 4 mà người khác vừa sửa: khối lượng 9 kg. */
+const newerItem = () => item({ version: 4, logistics: { ...item().logistics, weightKg: 9 } });
+
 describe("InventoryItemDetail", () => {
-  it("editor thấy cả hai nút Sửa; mở sửa chính sách thì nút Sửa logistics biến mất", async () => {
-    mockGet();
-    renderInventoryScreen(<InventoryItemDetail id="item-1" />);
-
-    expect(await screen.findByRole("button", { name: L.editLogistics })).toBeInTheDocument();
-    await openPolicyForm();
-
-    expect(screen.queryByRole("button", { name: L.editLogistics })).toBeNull();
-    expect(screen.getByLabelText(L.field.reorderPoint)).toBeInTheDocument();
-  });
-
-  it("lưu chính sách → PUT kèm version của item; thẻ đánh giá hiện giá trị mới từ response", async () => {
-    mockGet();
-    const saved = item({
-      version: 4,
-      policy: { ...item().policy, reorderPoint: 20 },
-      evaluation: { ...item().evaluation, usableOnHand: 77, reorderRequired: false },
-    });
-    const put = vi.spyOn(api, "put").mockResolvedValue({ data: saved });
-    renderInventoryScreen(<InventoryItemDetail id="item-1" />);
-    await openPolicyForm();
-
-    const reorder = screen.getByLabelText(L.field.reorderPoint);
-    await userEvent.clear(reorder);
-    await userEvent.type(reorder, "20");
-    await userEvent.click(screen.getByRole("button", { name: L.savePolicy }));
-
-    await vi.waitFor(() =>
-      expect(put).toHaveBeenCalledWith(
-        `${ITEM_URL}/policy`,
-        expect.objectContaining({ version: 3, reorderPoint: 20 }),
-      ),
-    );
-    expect(await screen.findByText("77")).toBeInTheDocument();
-    expect(screen.queryByLabelText(L.field.reorderPoint)).toBeNull();
-  });
-
   it("readOnly (nhân viên kho) → không có nút Sửa nào", async () => {
     mockGet(ITEM_PERMISSION_SETS.readOnly);
     renderInventoryScreen(<InventoryItemDetail id="item-1" />);
 
     expect((await screen.findAllByText("TSHIRT-RED-M")).length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: L.editLogistics })).toBeNull();
-    expect(screen.queryByRole("button", { name: L.editPolicy })).toBeNull();
   });
 
   it("không có quyền → câu không có quyền, không GET item", async () => {
@@ -135,83 +80,15 @@ describe("InventoryItemDetail", () => {
     const get = mockGet();
     vi.spyOn(api, "put").mockRejectedValue(new ApiError(409, "OPTIMISTIC_LOCK", "stale"));
     renderInventoryScreen(<InventoryItemDetail id="item-1" />);
-    await openPolicyForm();
+    await openLogisticsForm();
     await vi.waitFor(() => expect(itemGets(get)).toHaveLength(1));
 
-    await userEvent.click(screen.getByRole("button", { name: L.savePolicy }));
+    await userEvent.click(screen.getByRole("button", { name: L.saveLogistics }));
 
     expect(
       await screen.findByText(INVENTORY_ITEM_ERROR_MESSAGES.OPTIMISTIC_LOCK),
     ).toBeInTheDocument();
     await vi.waitFor(() => expect(itemGets(get).length).toBeGreaterThan(1));
-  });
-
-  it("tồn tối đa < điểm đặt lại → lỗi inline ở ô tồn tối đa và nút Lưu bị khoá", async () => {
-    mockGet();
-    renderInventoryScreen(<InventoryItemDetail id="item-1" />);
-    await openPolicyForm();
-
-    const max = screen.getByLabelText(L.field.maxQty);
-    await userEvent.clear(max);
-    await userEvent.type(max, "3");
-
-    expect(
-      await screen.findByText(INVENTORY_ITEM_ERROR_MESSAGES.INVENTORY_MAX_QTY_BELOW_THRESHOLD),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: L.savePolicy })).toBeDisabled();
-  });
-
-  it("tắt theo dõi hạn dùng khi đang có số ngày → Lưu bật, PUT gửi maxShelfLifeDays null", async () => {
-    mockGet(ITEM_PERMISSION_SETS.editor, () =>
-      item({
-        policy: {
-          ...item().policy,
-          trackingMode: "LOT",
-          removalStrategy: "FEFO",
-          expiryTracked: true,
-          maxShelfLifeDays: 365,
-        },
-      }),
-    );
-    const put = vi.spyOn(api, "put").mockResolvedValue({ data: item() });
-    renderInventoryScreen(<InventoryItemDetail id="item-1" />);
-    await openPolicyForm();
-    expect(screen.getByLabelText(L.field.maxShelfLifeDays)).toHaveValue("365");
-
-    await userEvent.click(screen.getByLabelText(L.field.expiryTracked));
-
-    expect(screen.queryByLabelText(L.field.maxShelfLifeDays)).toBeNull();
-    const save = screen.getByRole("button", { name: L.savePolicy });
-    await vi.waitFor(() => expect(save).toBeEnabled());
-    await userEvent.click(save);
-    await vi.waitFor(() =>
-      expect(put).toHaveBeenCalledWith(
-        `${ITEM_URL}/policy`,
-        expect.objectContaining({ expiryTracked: false, maxShelfLifeDays: null }),
-      ),
-    );
-  });
-
-  it("đổi điểm đặt lại làm lỗi tồn tối đa hiện / mất theo, Lưu khoá / mở lại", async () => {
-    mockGet();
-    renderInventoryScreen(<InventoryItemDetail id="item-1" />);
-    await openPolicyForm();
-    const max = screen.getByLabelText(L.field.maxQty);
-    const reorder = screen.getByLabelText(L.field.reorderPoint);
-    const msg = INVENTORY_ITEM_ERROR_MESSAGES.INVENTORY_MAX_QTY_BELOW_THRESHOLD;
-    await userEvent.clear(max);
-    await userEvent.type(max, "50");
-    await userEvent.clear(reorder);
-    await userEvent.type(reorder, "60");
-
-    expect(await screen.findByText(msg)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: L.savePolicy })).toBeDisabled();
-
-    await userEvent.clear(reorder);
-    await userEvent.type(reorder, "40");
-
-    await vi.waitFor(() => expect(screen.queryByText(msg)).toBeNull());
-    expect(screen.getByRole("button", { name: L.savePolicy })).toBeEnabled();
   });
 
   it("sửa logistics: đổi khối lượng → PUT kèm version + weightKg, form đóng", async () => {
@@ -306,28 +183,24 @@ describe("InventoryItemDetail", () => {
     let calls = 0;
     mockGet(ITEM_PERMISSION_SETS.editor, () => {
       calls += 1;
-      return calls === 1
-        ? item()
-        : item({ version: 4, policy: { ...item().policy, reorderPoint: 55 } });
+      return calls === 1 ? item() : newerItem();
     });
     vi.spyOn(api, "put").mockRejectedValue(new ApiError(409, "OPTIMISTIC_LOCK", "stale"));
     renderInventoryScreen(<InventoryItemDetail id="item-1" />);
-    await openPolicyForm();
+    await openLogisticsForm();
 
-    await userEvent.click(screen.getByRole("button", { name: L.savePolicy }));
+    await userEvent.click(screen.getByRole("button", { name: L.saveLogistics }));
 
-    await vi.waitFor(() => expect(screen.getByLabelText(L.field.reorderPoint)).toHaveValue("55"));
+    await vi.waitFor(() => expect(screen.getByLabelText(L.field.weightKg)).toHaveValue(9));
     expect(screen.getByText(INVENTORY_ITEM_ERROR_MESSAGES.OPTIMISTIC_LOCK)).toBeInTheDocument();
   });
 
-  /** GET đầu trả version 3; mọi GET sau trả version 4 với điểm đặt lại 55 (người khác vừa sửa). */
+  /** GET đầu trả version 3; mọi GET sau trả version 4 với khối lượng 9 kg (người khác vừa sửa). */
   const newerAfterFirst = () => {
     let calls = 0;
     return mockGet(ITEM_PERMISSION_SETS.editor, () => {
       calls += 1;
-      return calls === 1
-        ? item()
-        : item({ version: 4, policy: { ...item().policy, reorderPoint: 55 } });
+      return calls === 1 ? item() : newerItem();
     });
   };
 
@@ -335,37 +208,37 @@ describe("InventoryItemDetail", () => {
     const get = newerAfterFirst();
     const put = vi.spyOn(api, "put").mockRejectedValue(new ApiError(409, "OPTIMISTIC_LOCK", "x"));
     const { client } = renderInventoryScreen(<InventoryItemDetail id="item-1" />);
-    await openPolicyForm();
-    const reorder = screen.getByLabelText(L.field.reorderPoint);
-    await userEvent.clear(reorder);
-    await userEvent.type(reorder, "20");
+    await openLogisticsForm();
+    const weight = screen.getByLabelText(L.field.weightKg);
+    await userEvent.clear(weight);
+    await userEvent.type(weight, "20");
 
     await act(() => client.invalidateQueries());
     await vi.waitFor(() => expect(itemGets(get)).toHaveLength(2));
 
     expect(await screen.findByText(L.outdatedNotice)).toBeInTheDocument();
-    expect(screen.getByLabelText(L.field.reorderPoint)).toHaveValue("20");
-    await userEvent.click(screen.getByRole("button", { name: L.savePolicy }));
+    expect(screen.getByLabelText(L.field.weightKg)).toHaveValue(20);
+    await userEvent.click(screen.getByRole("button", { name: L.saveLogistics }));
     await vi.waitFor(() =>
       expect(put).toHaveBeenCalledWith(
-        `${ITEM_URL}/policy`,
-        expect.objectContaining({ version: 3, reorderPoint: 20 }),
+        `${ITEM_URL}/logistics`,
+        expect.objectContaining({ version: 3, weightKg: 20 }),
       ),
     );
     // 409 → nạp lại theo dữ liệu mới, bỏ thông báo
-    await vi.waitFor(() => expect(screen.getByLabelText(L.field.reorderPoint)).toHaveValue("55"));
+    await vi.waitFor(() => expect(screen.getByLabelText(L.field.weightKg)).toHaveValue(9));
     expect(screen.queryByText(L.outdatedNotice)).toBeNull();
   });
 
   it("form chưa sửa + refetch nền ra version mới → form hiện giá trị mới, không báo", async () => {
     const get = newerAfterFirst();
     const { client } = renderInventoryScreen(<InventoryItemDetail id="item-1" />);
-    await openPolicyForm();
+    await openLogisticsForm();
 
     await act(() => client.invalidateQueries());
     await vi.waitFor(() => expect(itemGets(get)).toHaveLength(2));
 
-    await vi.waitFor(() => expect(screen.getByLabelText(L.field.reorderPoint)).toHaveValue("55"));
+    await vi.waitFor(() => expect(screen.getByLabelText(L.field.weightKg)).toHaveValue(9));
     expect(screen.queryByText(L.outdatedNotice)).toBeNull();
   });
 
@@ -373,55 +246,14 @@ describe("InventoryItemDetail", () => {
     newerAfterFirst();
     vi.spyOn(api, "put").mockRejectedValue(new ApiError(409, "OPTIMISTIC_LOCK", "stale"));
     renderInventoryScreen(<InventoryItemDetail id="item-1" />);
-    await openPolicyForm();
-    const reorder = screen.getByLabelText(L.field.reorderPoint);
-    await userEvent.clear(reorder);
-    await userEvent.type(reorder, "20");
+    await openLogisticsForm();
+    const weight = screen.getByLabelText(L.field.weightKg);
+    await userEvent.clear(weight);
+    await userEvent.type(weight, "20");
 
-    await userEvent.click(screen.getByRole("button", { name: L.savePolicy }));
+    await userEvent.click(screen.getByRole("button", { name: L.saveLogistics }));
 
-    await vi.waitFor(() => expect(screen.getByLabelText(L.field.reorderPoint)).toHaveValue("55"));
+    await vi.waitFor(() => expect(screen.getByLabelText(L.field.weightKg)).toHaveValue(9));
     expect(screen.getByText(INVENTORY_ITEM_ERROR_MESSAGES.OPTIMISTIC_LOCK)).toBeInTheDocument();
-  });
-
-  it("phiên bản bản ghi là một dòng của thẻ đánh giá (trang không còn phụ đề)", async () => {
-    mockGet();
-    renderInventoryScreen(<InventoryItemDetail id="item-1" />);
-    const term = await screen.findByText(L.field.version);
-    expect(term.nextElementSibling).toHaveTextContent("3");
-  });
-
-  it("đánh giá: cần đặt lại = amber, dưới tồn an toàn = đỏ, null = chưa đặt ngưỡng", async () => {
-    mockGet(ITEM_PERMISSION_SETS.readOnly, () =>
-      item({
-        evaluation: {
-          usableOnHand: 1,
-          reorderPoint: 10,
-          safetyStock: 5,
-          reorderRequired: true,
-          belowSafetyStock: true,
-        },
-      }),
-    );
-    const { unmount } = renderInventoryScreen(<InventoryItemDetail id="item-1" />);
-    const rows = await screen.findAllByText(L.evaluation.yes);
-    expect(rows).toHaveLength(2);
-    expect(rows[0]).toHaveClass("text-warning");
-    expect(rows[1]).toHaveClass("text-danger");
-    unmount();
-
-    mockGet(ITEM_PERMISSION_SETS.readOnly, () =>
-      item({
-        evaluation: {
-          usableOnHand: 1,
-          reorderPoint: null,
-          safetyStock: null,
-          reorderRequired: null,
-          belowSafetyStock: null,
-        },
-      }),
-    );
-    renderInventoryScreen(<InventoryItemDetail id="item-1" />);
-    expect(await screen.findAllByText(L.evaluation.unset)).toHaveLength(2);
   });
 });

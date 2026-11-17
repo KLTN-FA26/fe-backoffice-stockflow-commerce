@@ -6,10 +6,10 @@
 import { SHARED_QUERY_ROOTS, TOAST_MESSAGES } from "@/constants";
 import { createMutation } from "@/lib/api/query-factory";
 
-import { saveItemLogistics, saveItemPolicy } from "./api";
+import { saveItemLogistics } from "./api";
 import { inventoryItemKeys } from "./queries";
 
-import type { InventoryItem, LogisticsFormValues, PolicyFormValues } from "./types";
+import type { InventoryItem, LogisticsFormValues } from "./types";
 
 const TOAST = TOAST_MESSAGES.inventoryItem;
 // `all` phủ danh sách + tóm tắt (module khác) + detail. Thông tin mua hàng của SKU (màn biến thể) dùng
@@ -20,8 +20,3 @@ export const useSaveItemLogistics = createMutation<
   { id: string; version: number; values: LogisticsFormValues },
   InventoryItem
 >(saveItemLogistics, { invalidate, showErrorToast: false, successMessage: TOAST.logisticsSaved });
-
-export const useSaveItemPolicy = createMutation<
-  { id: string; version: number; values: PolicyFormValues },
-  InventoryItem
->(saveItemPolicy, { invalidate, showErrorToast: false, successMessage: TOAST.policySaved });

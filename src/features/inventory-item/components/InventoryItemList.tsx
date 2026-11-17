@@ -6,7 +6,7 @@ import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { ListToolbar } from "@/components/shared/ListToolbar";
 
 import { buildInventoryItemColumns, inventoryItemViewColumn } from "./list/columns";
-import { COLUMN_LABELS, DEFAULT_COLUMNS, FILTER_OPTIONS, LOCKED_COLUMNS } from "./list/constants";
+import { COLUMN_LABELS, DEFAULT_COLUMNS, LOCKED_COLUMNS } from "./list/constants";
 import { InventoryItemListBody } from "./list/InventoryItemListBody";
 import { buildSummaryItems } from "./list/summary";
 import { useInventoryItemListState } from "./list/useInventoryItemListState";
@@ -30,17 +30,12 @@ function InventoryItemListContent() {
   return (
     <div className="surface-soft">
       <h1 className="sr-only">{L.title}</h1>
-      {/* Thiếu READ: không có dữ liệu để tìm/lọc → ẩn cả toolbar và thanh Cấu hình */}
+      {/* Thiếu READ: không có dữ liệu để tìm → ẩn cả toolbar và thanh Cấu hình */}
       {canRead && (
         <ListToolbar
           search={filters.q}
           onSearchChange={(v) => void filters.setQ(v)}
           searchPlaceholder={L.searchPlaceholder}
-          statusOptions={FILTER_OPTIONS}
-          selectedStatuses={filters.status}
-          onToggleStatus={s.toggleFilter}
-          onClearStatuses={() => void filters.setStatus([])}
-          hasStatusFilter={filters.status.length > 0}
           columnOptions={COLUMN_OPTIONS}
           selectedColumns={s.config.visibleColumns}
           defaultColumns={DEFAULT_COLUMNS}

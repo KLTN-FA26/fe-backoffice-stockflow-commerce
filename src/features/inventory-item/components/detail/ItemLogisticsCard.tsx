@@ -34,7 +34,6 @@ export function ItemLogisticsCard({
   onDone: () => void;
 }) {
   const l = item.logistics;
-  // Chỉ một khối sửa tại một thời điểm — khối kia ẩn nút Sửa
   const showEdit = canEdit && editing === null;
   const pkgWeight = l.packageWeightKg == null ? "" : `, ${l.packageWeightKg} kg`;
 
@@ -66,19 +65,8 @@ export function ItemLogisticsCard({
           label={L.countAndPack}
           value={`${l.packageCount} · ${l.packSize}${L.packSuffix}`}
         />
-        <DefinitionItem label={L.field.storageClass} value={L.storageClass[l.storageClass]} />
-        <DefinitionItem label={L.field.qcRequired} value={l.qcRequired ? L.yes : L.no} />
         {/* Mặc định cho xoay (BE #121) — chỉ nêu khi SKU bị cấm xoay kiện */}
         {!l.rotatable && <DefinitionItem label={L.field.rotatable} value={L.no} />}
-        {l.requiresAdultSignature && (
-          <DefinitionItem label={L.field.requiresAdultSignature} value={L.yes} />
-        )}
-        {l.shippingRestrictionNote && (
-          <DefinitionItem
-            label={L.field.shippingRestrictionNote}
-            value={l.shippingRestrictionNote}
-          />
-        )}
       </dl>
       <FormDialog open={editing === "logistics"} onOpenChange={(open) => !open && onDone()}>
         <ItemLogisticsForm item={item} onDone={onDone} />

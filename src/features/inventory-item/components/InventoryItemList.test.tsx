@@ -1,5 +1,4 @@
 import { screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { UI_LABELS } from "@/constants";
@@ -28,11 +27,6 @@ const lastParams = (get: Get) => {
   return calls[calls.length - 1]?.[1]?.params as Record<string, unknown> | undefined;
 };
 
-async function openFilter() {
-  await userEvent.click(await screen.findByRole("button", { name: "Lọc trạng thái" }));
-}
-const pick = async (name: string) => userEvent.click(await screen.findByRole("option", { name }));
-
 describe("InventoryItemList", () => {
   it("không có quyền VIEW_PAGE → màn từ chối của PermissionBoundary, không gọi /inventory/items", async () => {
     const get = mockApiGet(ITEM_PERMISSION_SETS.none, { [ITEMS]: () => itemsPage() });
@@ -50,52 +44,22 @@ describe("InventoryItemList", () => {
     expect(itemCalls(get)).toHaveLength(0);
   });
 
-  it("readOnly → thấy SKU; dòng chưa cấu hình được đánh dấu", async () => {
+  it("readOnly → thấy SKU, đơn vị tính và mã vạch; không còn bộ lọc chính sách / lớp lưu trữ", async () => {
     mockApiGet(ITEM_PERMISSION_SETS.readOnly, {
-      [ITEMS]: () =>
-        itemsPage([
-          summaryItem(),
-          summaryItem({ id: "2", sku: "MUG-WHITE", policyConfigured: false }),
-        ]),
+      [ITEMS]: () => itemsPage([summaryItem(), summaryItem({ id: "2", sku: "MUG-WHITE" })]),
     });
     renderInventoryScreen(<InventoryItemList />);
 
     const link = await screen.findByRole("link", { name: "TSHIRT-RED-M" });
     expect(link).toHaveAttribute("href", expect.stringContaining("/admin/inventory-items/"));
-    const flagged = (await screen.findByText("MUG-WHITE")).closest("tr");
-    expect(flagged).toHaveAttribute("data-flagged", "true");
-    expect(link.closest("tr")).not.toHaveAttribute("data-flagged");
+    expect(await screen.findByText("MUG-WHITE")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Lọc trạng thái" })).toBeNull();
   });
 
-  it("chọn lọc 'Chưa cấu hình' → GET kèm policyConfigured=false và page=0", async () => {
+  it("tìm → GET kèm q đã trim và page=0", async () => {
     const get = mockApiGet(ITEM_PERMISSION_SETS.readOnly, { [ITEMS]: () => itemsPage() });
-    renderInventoryScreen(<InventoryItemList />, "?page=3");
-    await screen.findByText("TSHIRT-RED-M");
-
-    await openFilter();
-    await pick(L.policy.unconfigured);
-
-    await vi.waitFor(() =>
-      expect(lastParams(get)).toMatchObject({ policyConfigured: false, page: 0 }),
-    );
-  });
-
-  it("chọn 'Lạnh' rồi 'Dễ vỡ' → chỉ còn storageClass=FRAGILE", async () => {
-    const get = mockApiGet(ITEM_PERMISSION_SETS.readOnly, { [ITEMS]: () => itemsPage() });
-    renderInventoryScreen(<InventoryItemList />);
-    await screen.findByText("TSHIRT-RED-M");
-
-    await openFilter();
-    await pick(L.storageClass.COLD);
-    await vi.waitFor(() => expect(lastParams(get)).toMatchObject({ storageClass: "COLD" }));
-    await pick(L.storageClass.FRAGILE);
-    await vi.waitFor(() => expect(lastParams(get)).toMatchObject({ storageClass: "FRAGILE" }));
-    // Chỉ còn một giá trị trong nhóm: thanh Cấu hình hiện đúng "Dễ vỡ", không ghép với "Lạnh"
-    const summary = `${L.field.storageClass}: ${L.storageClass.FRAGILE}`;
-    await vi.waitFor(() => expect(screen.getByText(summary)).toBeInTheDocument());
-    expect(
-      screen.queryByText(new RegExp(`${L.field.storageClass}:.*${L.storageClass.COLD}`)),
-    ).toBeNull();
+    renderInventoryScreen(<InventoryItemList />, "?page=3&q=%20MUG%20");
+    await vi.waitFor(() => expect(lastParams(get)).toMatchObject({ q: "MUG" }));
   });
 
   it("rỗng không lọc → noItems; rỗng có lọc → noResults + Bỏ bộ lọc", async () => {

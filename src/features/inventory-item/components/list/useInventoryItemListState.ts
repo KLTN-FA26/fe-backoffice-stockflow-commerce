@@ -5,29 +5,21 @@ import { usePageConfig } from "@/hooks/use-page-config";
 import { useUrlFilters } from "@/hooks/use-url-filters";
 import { useInventoryItems } from "@/features/inventory-item/queries";
 
-import {
-  DEFAULT_COLUMNS,
-  DEFAULT_CONFIG,
-  FILTER_VALUES,
-  LOCKED_COLUMNS,
-  mergeStoredConfig,
-  toListParams,
-} from "./constants";
+import { DEFAULT_COLUMNS, DEFAULT_CONFIG, LOCKED_COLUMNS, mergeStoredConfig } from "./constants";
 
 import type { InventoryItemSummary } from "@/features/inventory-item/types";
-import type { FilterValue, InventoryItemPageConfig } from "./constants";
+import type { InventoryItemPageConfig } from "./constants";
 
 export type InventoryItemListEmptyState = "none" | "no-items" | "no-results" | "invalid-page";
 
-const groupOf = (value: string) => value.slice(0, value.indexOf(":") + 1);
-
 /**
- * State trang danh sách hồ sơ hàng tồn — search/filter/page trên URL (nuqs), cột + số dòng trong
+ * State trang danh sách hồ sơ hàng tồn — search/page trên URL (nuqs), cột + số dòng trong
  * localStorage (state-persistence.md). URL `page` 1-based, BE 0-based.
  */
 export function useInventoryItemListState(canRead = true) {
   const router = useRouter();
-  const filters = useUrlFilters(FILTER_VALUES);
+  // BE chỉ lọc theo SKU / mã vạch (`q`): không còn lớp lưu trữ hay chính sách tồn để lọc
+  const filters = useUrlFilters([] as const);
   const { config, updateConfig } = usePageConfig<InventoryItemPageConfig>(
     STORAGE_KEYS.adminInventoryItemsConfig,
     DEFAULT_CONFIG,
@@ -38,12 +30,11 @@ export function useInventoryItemListState(canRead = true) {
       page: Math.max(0, filters.page - 1),
       size: config.pageSize,
       q: filters.debouncedQ,
-      ...toListParams(filters.status),
     },
     { enabled: canRead },
   );
 
-  const hasFilters = filters.q.trim() !== "" || filters.status.length > 0;
+  const hasFilters = filters.q.trim() !== "";
   const page = query.data;
   const emptyState: InventoryItemListEmptyState = !page
     ? "none"
@@ -54,12 +45,6 @@ export function useInventoryItemListState(canRead = true) {
       : page.items.length === 0
         ? "invalid-page"
         : "none";
-
-  /** Mỗi nhóm chọn tối đa 1: chọn giá trị mới thay giá trị cũ, chọn lại thì bỏ. */
-  const toggleFilter = (value: FilterValue) => {
-    const others = filters.status.filter((v) => groupOf(v) !== groupOf(value));
-    void filters.setStatus(filters.status.includes(value) ? others : [...others, value]);
-  };
 
   const toggleColumn = (column: string) => {
     if (LOCKED_COLUMNS.includes(column)) return;
@@ -92,7 +77,6 @@ export function useInventoryItemListState(canRead = true) {
     query,
     hasFilters,
     emptyState,
-    toggleFilter,
     toggleColumn,
     changePageSize,
     resetAll,

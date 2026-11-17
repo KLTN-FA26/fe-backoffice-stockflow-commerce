@@ -1,25 +1,17 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Controller, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 
 import { UI_LABELS } from "@/constants";
 import { DialogScrollArea } from "@/components/shared/DialogScrollArea";
 import { FormDialogBody } from "@/components/shared/FormDialog";
-import { FormSelect } from "@/components/shared/FormSelect";
-import {
-  FORM_INPUT_CLASS,
-  FORM_SELECT_CLASS,
-  FORM_TEXTAREA_CLASS,
-} from "@/components/shared/form-control-classes";
+import { FORM_INPUT_CLASS } from "@/components/shared/form-control-classes";
 import { Input } from "@/components/ui/input";
-import { SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { TitledSelectContent } from "@/components/shared/TitledSelectContent";
 import { CheckboxField } from "@/components/shared/CheckboxField";
 
 import { useSaveItemLogistics } from "../../mutations";
-import { logisticsFormSchema, STORAGE_CLASSES } from "../../schemas";
+import { logisticsFormSchema } from "../../schemas";
 import { logisticsToForm } from "../../selectors";
 import { Field } from "./Field";
 import { ItemOutdatedNotice } from "./ItemOutdatedNotice";
@@ -32,7 +24,6 @@ const L = UI_LABELS.inventoryItem;
 const F = L.field;
 
 const toValues = (i: InventoryItem) => logisticsToForm(i.logistics);
-const CHECKS = ["qcRequired", "requiresAdultSignature", "rotatable"] as const;
 
 /** Popup sửa logistics (BE PR #119 PUT .../logistics, gửi `version`). UI-only — Backend phải re-check. */
 export function ItemLogisticsForm({ item, onDone }: { item: InventoryItem; onDone: () => void }) {
@@ -100,42 +91,8 @@ export function ItemLogisticsForm({ item, onDone }: { item: InventoryItem; onDon
               />
             </Field>
           ))}
-          <Field label={`${F.storageClass} *`} id="lg-storage">
-            <Controller
-              control={form.control}
-              name="storageClass"
-              render={({ field }) => (
-                <FormSelect value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="lg-storage" className={FORM_SELECT_CLASS}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <TitledSelectContent title={F.storageClass}>
-                    {STORAGE_CLASSES.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {L.storageClass[c]}
-                      </SelectItem>
-                    ))}
-                  </TitledSelectContent>
-                </FormSelect>
-              )}
-            />
-          </Field>
         </div>
-        {CHECKS.map((name) => (
-          <CheckboxField key={name} control={form.control} name={name} label={F[name]} />
-        ))}
-        <Field
-          label={F.shippingRestrictionNote}
-          id="lg-note"
-          error={errors.shippingRestrictionNote?.message}
-        >
-          <Textarea
-            id="lg-note"
-            rows={2}
-            {...form.register("shippingRestrictionNote")}
-            className={FORM_TEXTAREA_CLASS}
-          />
-        </Field>
+        <CheckboxField control={form.control} name="rotatable" label={F.rotatable} />
       </DialogScrollArea>
       <ItemOutdatedNotice outdated={handlers.outdated} />
     </FormDialogBody>
