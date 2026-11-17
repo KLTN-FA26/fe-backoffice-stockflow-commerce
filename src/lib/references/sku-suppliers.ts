@@ -3,7 +3,7 @@
  * #117) — NCC mặc định đứng đầu. Quyền như danh mục: `procurement-supplier-items:READ`.
  *
  * Dùng để lấy điều khoản (MOQ, quy cách, giá, lead time) của một SKU khi danh mục NCC dài hơn trang
- * tối đa BE trả (200 dòng) nên SKU không nằm trong `fetchSupplierCatalog`.
+ * tối đa BE trả (200 dòng) nên SKU không nằm trong danh mục NCC.
  */
 
 import { useQueries, useQuery } from "@tanstack/react-query";

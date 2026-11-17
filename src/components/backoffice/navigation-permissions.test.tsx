@@ -25,7 +25,7 @@ import {
   PRODUCT_PERMISSIONS,
   SHIPMENT_PERMISSIONS,
   STOCK_PACKAGE_PERMISSIONS,
-  SUPPLIER_PERMISSIONS,
+  CUSTOMER_PERMISSIONS,
   VEHICLE_TYPE_PERMISSIONS,
 } from "@/constants/permissions";
 
@@ -94,15 +94,15 @@ const mount = () =>
 describe("declared navigation permissions", () => {
   it("does not flash gated navigation while unresolved; ungated items remain visible", async () => {
     vi.spyOn(api, "get").mockResolvedValue({
-      data: { roles: [], permissions: [SUPPLIER_PERMISSIONS.viewPage], dataScope: "ALL" },
+      data: { roles: [], permissions: [CUSTOMER_PERMISSIONS.viewPage], dataScope: "ALL" },
     });
     mount();
-    for (const name of ["Nhà cung cấp", "Đơn đặt NCC", "Đơn hàng", "Phân quyền"])
+    for (const name of ["Khách hàng", "Báo giá", "Đơn hàng", "Phân quyền"])
       expect(screen.queryByRole("link", { name })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Tổng quan" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Sản phẩm & SKU" })).not.toBeInTheDocument();
-    expect(await screen.findByRole("link", { name: "Nhà cung cấp" })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Đơn đặt NCC" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Khách hàng" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Báo giá" })).not.toBeInTheDocument();
   });
   it("query errors hide required entries without hiding ungated entries", async () => {
     vi.spyOn(api, "get").mockRejectedValue(new ApiError(503, "UNAVAILABLE", "Unavailable"));
@@ -114,7 +114,7 @@ describe("declared navigation permissions", () => {
         )?.status,
       ).toBe("error"),
     );
-    expect(screen.queryByRole("link", { name: "Nhà cung cấp" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Khách hàng" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Tổng quan" })).toBeInTheDocument();
   });
   it.each([
@@ -174,23 +174,6 @@ describe("declared navigation permissions", () => {
     const link = screen.queryByRole("link", { name: "Trả hàng về kệ" });
     expect(link !== null).toBe(visible);
     if (link) expect(link).toHaveAttribute("href", "/admin/put-backs");
-  });
-  it.each([
-    ["inventory-alerts:VIEW_PAGE", [INVENTORY_OVERVIEW_PERMISSIONS.alertViewPage], true],
-    ["inventory-alerts:READ alone", [INVENTORY_OVERVIEW_PERMISSIONS.alertRead], false],
-  ] as const)("menu Cảnh báo tồn kho với %s → hiện: %s", async (_, permissions, visible) => {
-    vi.spyOn(api, "get").mockResolvedValue({
-      data: {
-        roles: [],
-        permissions: [...permissions, IDENTITY_PERMISSIONS.rbacRead],
-        dataScope: "ALL",
-      },
-    });
-    mount();
-    expect(await screen.findByRole("link", { name: "Phân quyền" })).toBeInTheDocument();
-    const link = screen.queryByRole("link", { name: INVENTORY_LABELS.alertListTitle });
-    expect(link !== null).toBe(visible);
-    if (link) expect(link).toHaveAttribute("href", INVENTORY_ROUTES.alerts);
   });
   it.each([
     ["cycle-counts:VIEW_PAGE", [CYCLE_COUNT_PERMISSIONS.viewPage], true],
@@ -351,19 +334,22 @@ describe("declared navigation permissions", () => {
     expect(await screen.findByRole("link", { name: "Chuyến xe" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Loại xe" })).not.toBeInTheDocument();
   });
-  it("Đề xuất nhập hàng (BE chưa có API) chỉ hiện ở mock, không phụ thuộc quyền", async () => {
+  it("Đề xuất nhập hàng, Nhà cung cấp, Đơn đặt NCC, Xưởng in, Chuyển kho, Cảnh báo tồn kho đã ra khỏi menu, kể cả ở mock", async () => {
     vi.spyOn(api, "get").mockResolvedValue({
       data: { roles: [], permissions: [], dataScope: "ALL" },
     });
-    mockMode.isMock = false;
-    mount();
-    expect(await screen.findByRole("link", { name: "Tổng quan" })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Đề xuất nhập hàng" })).not.toBeInTheDocument();
-
-    cleanup();
     mockMode.isMock = true;
     mount();
-    expect(await screen.findByRole("link", { name: "Đề xuất nhập hàng" })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Tổng quan" })).toBeInTheDocument();
+    for (const name of [
+      "Đề xuất nhập hàng",
+      "Nhà cung cấp",
+      "Đơn đặt NCC",
+      "Xưởng in",
+      "Chuyển kho liên kho",
+      "Cảnh báo tồn kho",
+    ])
+      expect(screen.queryByRole("link", { name })).not.toBeInTheDocument();
     mockMode.isMock = false;
   });
   it("Hoá đơn NCC (module 04, đã ra khỏi phạm vi) không còn trên menu, kể cả ở mock", async () => {
@@ -497,7 +483,7 @@ describe("mockOnly đi chung pipeline hiển thị + mục đang mở (một t�
     );
   }
 
-  // Mục mockOnly hiện tại (BE chưa có API đề xuất nhập hàng); Hoá đơn NCC đã bỏ (module 04 ra khỏi
+  // Không còn mục mockOnly nào trên menu (Đề xuất nhập hàng đã bỏ); Hoá đơn NCC đã bỏ (module 04 ra khỏi
   // phạm vi), Chuyến xe / Vận đơn đã có BE nên không còn mockOnly
   const MOCK_ONLY_ROUTE = "/admin/replenishment";
   const SHIPMENT_DETAIL = ADMIN_ROUTES.shipments.detail("trip-1");
@@ -514,12 +500,6 @@ describe("mockOnly đi chung pipeline hiển thị + mục đang mở (một t�
     );
     expect(screen.getByLabelText("visible")).not.toHaveTextContent(MOCK_ONLY_ROUTE);
     expect(screen.getByLabelText("active")).toHaveTextContent("none");
-  });
-
-  it("C. trong mock: mục mockOnly hiện và sáng theo route như mọi mục khác", async () => {
-    mockMode.isMock = true;
-    probe(MOCK_ONLY_ROUTE, [SHIPMENT_PERMISSIONS.viewPage]);
-    await waitFor(() => expect(screen.getByLabelText("active")).toHaveTextContent(MOCK_ONLY_ROUTE));
   });
 
   it("D. trong mock nhưng thiếu quyền của mục → vẫn ẩn, không sáng (quyền vẫn áp dụng)", async () => {

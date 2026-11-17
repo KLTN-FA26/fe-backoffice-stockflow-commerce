@@ -15,7 +15,6 @@ import { RECEIPT_CARTON_ERROR_MESSAGES } from "./labels-receipt-carton";
 import { SHIPPING_TOAST_MESSAGES, SHIPPING_UI_LABELS } from "./labels-shipping";
 import { SKU_PURCHASING_UI_LABELS } from "./labels-sku-purchasing";
 import { TAXONOMY_TOAST_MESSAGES, TAXONOMY_UI_LABELS } from "./labels-taxonomy";
-import { TRANSFER_TOAST_MESSAGES, TRANSFER_UI_LABELS } from "./labels-transfer";
 import { VEHICLE_TYPE_TOAST_MESSAGES, VEHICLE_TYPE_UI_LABELS } from "./labels-vehicle-type";
 import { WAREHOUSE_MAP_TOAST_MESSAGES, WAREHOUSE_MAP_UI_LABELS } from "./labels-warehouse-map";
 
@@ -508,7 +507,6 @@ export const UI_LABELS = {
       "Số đã đếm đang chờ duyệt — chưa ghi nhận tồn, không sửa được. Dòng vượt dung sai được đánh dấu.",
     dateRangeInvalid: "Ngày bắt đầu sau ngày kết thúc — không có phiếu nào khớp.",
   },
-  transfer: TRANSFER_UI_LABELS,
   shipping: SHIPPING_UI_LABELS,
   vehicleType: VEHICLE_TYPE_UI_LABELS,
   warehouseMap: WAREHOUSE_MAP_UI_LABELS,
@@ -687,83 +685,6 @@ export const FULFILLMENT_FIELD_MESSAGES = {
 } as const;
 
 /**
- * BE `errorCode` (ErrorCode.java, nhánh BE `test`) → câu tiếng Việt cho màn PO.
- * Không hiển thị message thô tiếng Anh của BE (có thể chứa UUID).
- */
-/** Lỗi BE của form tạo PO (fieldErrors theo tên field BE) → câu tiếng Việt hiện inline dưới ô. */
-export const PO_CREATE_FIELD_MESSAGES = {
-  supplierId: "Nhà cung cấp không hợp lệ",
-  warehouseId: "Kho nhận không hợp lệ",
-  currency: "Tiền tệ không hợp lệ",
-  expectedDate: "Ngày giao dự kiến không hợp lệ",
-  note: "Ghi chú không hợp lệ",
-  lines: "Cần ít nhất một dòng hàng",
-  skuId: "Mã SKU không hợp lệ",
-  description: "Mô tả không hợp lệ",
-  orderedQty: "SL đặt không hợp lệ",
-  unitPrice: "Đơn giá không hợp lệ",
-  taxRate: "Thuế suất không hợp lệ",
-} as const;
-
-export const PO_ERROR_MESSAGES = {
-  INVALID_PURCHASE_ORDER_TRANSITION:
-    "Đơn đặt hàng đã đổi trạng thái nên không thể thực hiện thao tác này. Dữ liệu đã được tải lại.",
-  PURCHASE_ORDER_NOT_FOUND: "Không tìm thấy đơn đặt hàng",
-  SUPPLIER_NOT_FOUND: "Không tìm thấy nhà cung cấp",
-  SUPPLIER_INACTIVE: "Nhà cung cấp đã ngừng hợp tác, không thể tạo đơn mới",
-  CONFLICT: "Yêu cầu xung đột với dữ liệu hiện tại",
-  VALIDATION_FAILED: "Dữ liệu không hợp lệ",
-  FORBIDDEN: "Bạn không có quyền thực hiện thao tác này",
-  OUT_OF_DATA_SCOPE: "Đơn đặt hàng này nằm ngoài phạm vi dữ liệu của bạn",
-  OPTIMISTIC_LOCK: "Đơn vừa được người khác cập nhật. Dữ liệu đã được tải lại, hãy thử lại.",
-  LOCK_TIMEOUT: "Đơn đang được xử lý ở nơi khác, thử lại sau ít giây",
-  IDEMPOTENT_REQUEST_IN_PROGRESS: "Yêu cầu trước đó vẫn đang xử lý",
-  EXTERNAL_SERVICE_ERROR: "Dịch vụ gửi NCC đang gặp lỗi, thử lại sau",
-  AUTHORIZATION_UNAVAILABLE: "Chưa kiểm tra được quyền truy cập, thử lại sau",
-  NETWORK_ERROR: "Không kết nối được máy chủ",
-  CONTRACT_MISMATCH: "Dữ liệu trả về không đúng định dạng",
-  // BE #36 (9fbb90f) — mã lỗi nghiệp vụ PO/NCC. Câu nói rõ cách xử lý: thử lại thường không giúp.
-  PO_DELIVERY_DATE_REQUIRED: "Cần ngày giao dự kiến trước khi gửi nhà cung cấp",
-  PO_REASON_REQUIRED: "Cần nhập lý do (1–1000 ký tự)",
-  PO_SUPPLIER_RESPONSE_INVALID: "Phản hồi của nhà cung cấp phải là Xác nhận hoặc Từ chối",
-  PO_COMMUNICATION_NOT_CONFIGURED:
-    "Chưa gửi được: hệ thống chưa cấu hình thông tin bên mua (công ty, người liên hệ, địa chỉ kho nhận). Liên hệ quản trị hệ thống — thử lại sẽ không được.",
-  PO_LINE_DESCRIPTION_REQUIRED:
-    "Có dòng hàng chưa có mô tả sản phẩm nên không gửi được nhà cung cấp. Huỷ PO này và tạo lại, nhập mô tả cho mọi dòng.",
-  SUPPLIER_DELIVERY_CONTACT_INVALID:
-    "Email/API nhận PO của nhà cung cấp không hợp lệ hoặc chưa được cho phép. Cập nhật hồ sơ nhà cung cấp rồi gửi lại.",
-  SUPPLIER_PROFILE_INVALID:
-    "Hồ sơ hoặc điều khoản của nhà cung cấp không hợp lệ. Cập nhật hồ sơ nhà cung cấp rồi thử lại.",
-  INVALID_SUPPLIER_CONFIRMATION:
-    "Không ghi nhận được phản hồi này của nhà cung cấp (đã ghi nhận trước đó hoặc trạng thái không cho phép). Dữ liệu đã được tải lại.",
-  // BE PR #71 — luồng duyệt D4, kho nhận, dòng theo inventory item.
-  SELF_APPROVAL_NOT_ALLOWED:
-    "Bạn đã gửi duyệt đơn này nên không tự duyệt được — cần người khác phê duyệt.",
-  INVENTORY_ITEM_NOT_FOUND:
-    "Có SKU chưa có dữ liệu kho (inventory item). Kiểm tra lại mã SKU của sản phẩm.",
-  WAREHOUSE_NOT_FOUND: "Không tìm thấy kho nhận hàng",
-  WAREHOUSE_INACTIVE: "Kho nhận hàng đã ngừng hoạt động — chọn kho khác",
-  warehouseOutOfScope: "Bạn không phụ trách kho nhận hàng đã chọn — chọn kho khác",
-  // Gửi NCC bị 409 CONFLICT (BE ProcurementServiceImpl#publishDelivery): NCC ngừng hợp tác / thiếu
-  // email-API nhận PO, hoặc lần gửi đã thành công / bị chặn. Ngày giao đã qua KHÔNG còn bị chặn
-  // (BE #36 9fbb90f: chỉ cảnh báo qua `warnings` — BR-06).
-  sendSupplierUnavailable:
-    "Chưa gửi được nhà cung cấp: nhà cung cấp phải đang hợp tác và có email/API nhận PO, hoặc đơn đã được gửi thành công trước đó.",
-  // Khôi phục gửi bị 409 CONFLICT (BE PurchaseOrder#requireDeliveryRecovery + publishDelivery).
-  recoverConflict:
-    "Chưa gửi lại được: chỉ gửi lại khi lần gửi trước đã thất bại hẳn; nhà cung cấp phải đang hợp tác và có email/API nhận PO. Dữ liệu đã được tải lại.",
-  // BE develop (SCRUM-69/462) — điều khoản danh mục NCC, SKU không mua được, sửa PO nháp.
-  SUPPLIER_TERMS_VIOLATED: "Có dòng hàng không đáp ứng điều khoản trong danh mục của nhà cung cấp",
-  SUPPLIER_ITEM_NOT_LISTED: "Nhà cung cấp này không có SKU này trong danh mục",
-  PO_LINE_BELOW_MOQ: "Số lượng thấp hơn số lượng đặt hàng tối thiểu của nhà cung cấp",
-  PO_LINE_NOT_PACK_MULTIPLE: "Số lượng phải là bội số của quy cách đóng gói của nhà cung cấp",
-  PO_LINE_PRICE_REQUIRED: "Cần nhập đơn giá: giá trong danh mục dùng loại tiền khác",
-  SKU_NOT_PURCHASABLE: "SKU không ở trạng thái được đặt mua",
-  PURCHASE_ORDER_NOT_EDITABLE: "Chỉ sửa được PO thường đang ở trạng thái nháp",
-  generic: "Không thực hiện được thao tác. Vui lòng thử lại.",
-} as const;
-
-/**
  * BE `errorCode` của goods receipt (ErrorCode.java + GoodsReceiptServiceImpl, PR #62) → câu
  * tiếng Việt. Message BE là tiếng Anh, có số PO/UUID — không hiển thị thô.
  */
@@ -847,59 +768,6 @@ export const RECEIPT_FIELD_MESSAGES = {
   qcSameLocation: "Hàng cách ly và hàng không đạt phải ở hai vị trí khác nhau",
 } as const;
 
-/**
- * BE `errorCode` / tên trường ảo → câu tiếng Việt (đã thống nhất: mọi lỗi hiển thị tiếng Việt).
- * Nguồn mã lỗi: BE ErrorCode + SaveSupplierRequest (PR #36).
- */
-export const SUPPLIER_ERROR_MESSAGES = {
-  SUPPLIER_CODE_ALREADY_EXISTS: "Mã nhà cung cấp đã tồn tại",
-  SUPPLIER_TAX_CODE_ALREADY_EXISTS: "Mã số thuế đã thuộc nhà cung cấp khác",
-  SUPPLIER_HAS_OPEN_PURCHASE_ORDERS:
-    "Nhà cung cấp còn đơn đặt hàng đang mở, không thể ngừng hợp tác",
-  SUPPLIER_NOT_FOUND: "Không tìm thấy nhà cung cấp",
-  CODE_IMMUTABLE: "Không được đổi mã nhà cung cấp sau khi tạo",
-  emailRequiredForEmailChannel: "Kênh Email cần có email liên hệ",
-  invalidApiEndpoint:
-    "Endpoint phải là địa chỉ https hợp lệ (không có query, fragment, cổng khác 443)",
-  invalidPhoneDigits: "Số điện thoại phải có 8–15 chữ số",
-  generic: "Dữ liệu không hợp lệ",
-} as const;
-
-/** Tên trường NCC bằng tiếng Việt — dùng chung cho form và câu báo lỗi từ BE. */
-export const SUPPLIER_FIELD_LABELS = {
-  code: "Mã nhà cung cấp",
-  /** Dạng gọn cho bảng, card, phần rà soát. */
-  codeShort: "Mã NCC",
-  name: "Tên nhà cung cấp",
-  taxCode: "Mã số thuế",
-  contactName: "Người liên hệ",
-  email: "Email",
-  phone: "Số điện thoại",
-  status: "Trạng thái",
-  paymentTermDays: "Thời hạn thanh toán",
-  leadTimeDays: "Thời gian giao hàng",
-  communicationChannel: "Kênh gửi PO",
-  apiEndpoint: "API endpoint",
-  overReceiptTolerancePercent: "Dung sai nhận vượt",
-  printSubcontractor: "NCC in gia công",
-  lossTolerancePercent: "Dung sai hao hụt gia công",
-  // Trường ảo của BE SaveSupplierRequest (PR #36)
-  deliveryContactValid: "Kênh gửi PO",
-  phoneDigitsValid: "Số điện thoại",
-} as const;
-
-/** Nhãn kênh gửi PO (BE `communicationChannel`) — không hiện enum thô EMAIL/API. */
-export const SUPPLIER_CHANNEL_LABELS = {
-  EMAIL: "Email",
-  API: "API",
-} as const;
-
-/** Câu phụ khi BE từ chối dữ liệu đang lưu (vd seed sai định dạng). */
-export const SUPPLIER_ERROR_HINTS = {
-  invalidDeliveryContact: "Thông tin kênh gửi PO không hợp lệ",
-  fixProfile: "cập nhật hồ sơ nhà cung cấp rồi thử lại",
-} as const;
-
 export const TOAST_MESSAGES = {
   form: {
     saveBlocked: "Chưa thể lưu",
@@ -961,7 +829,6 @@ export const TOAST_MESSAGES = {
     blindRejected: "Đã từ chối phiếu — phiếu đã huỷ, không ghi nhận tồn",
     referenced: "Đã gắn đơn đặt hàng tham chiếu",
   },
-  transfer: TRANSFER_TOAST_MESSAGES,
   shipping: SHIPPING_TOAST_MESSAGES,
   vehicleType: VEHICLE_TYPE_TOAST_MESSAGES,
   warehouseMap: WAREHOUSE_MAP_TOAST_MESSAGES,

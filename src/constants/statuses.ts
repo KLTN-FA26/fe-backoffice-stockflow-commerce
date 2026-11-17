@@ -31,22 +31,6 @@ export const PO_TYPE = {
   SUBCONTRACT: "SUBCONTRACT",
 } as const;
 
-/** BE `purchase_order_lines.status`. */
-export const PO_LINE_STATUSES = [
-  "OPEN",
-  "PARTIALLY_RECEIVED",
-  "RECEIVED",
-  "CLOSED",
-  "CANCELLED",
-] as const;
-
-/** BE `closeKind` của PO đã đóng. */
-export const PO_CLOSE_KIND = {
-  NORMAL: "NORMAL",
-  SHORT_CLOSE: "SHORT_CLOSE",
-  FORCE_CLOSE: "FORCE_CLOSE",
-} as const;
-
 /** BE `SupplierConfirmationStatus` — NCC đã phản hồi PO chưa. */
 export const SUPPLIER_CONFIRMATION_STATUSES = [
   "NOT_SENT",
@@ -54,13 +38,6 @@ export const SUPPLIER_CONFIRMATION_STATUSES = [
   "CONFIRMED",
   "REJECTED",
 ] as const;
-
-export const SUPPLIER_CONFIRMATION_STATUS = {
-  NOT_SENT: "NOT_SENT",
-  PENDING: "PENDING",
-  CONFIRMED: "CONFIRMED",
-  REJECTED: "REJECTED",
-} as const satisfies Record<string, SupplierConfirmationStatus>;
 
 /** BE `PurchaseOrderController.deliveryStatus` — gom từ notification log (BE #36). */
 export const PO_DELIVERY_STATUSES = [
@@ -72,47 +49,6 @@ export const PO_DELIVERY_STATUSES = [
   "DELIVERED",
   "SUPPRESSED",
 ] as const;
-
-export const PO_DELIVERY_STATUS = {
-  NOT_SENT: "NOT_SENT",
-  QUEUED: "QUEUED",
-  UNKNOWN: "UNKNOWN",
-  RETRYING: "RETRYING",
-  FAILED: "FAILED",
-  DELIVERED: "DELIVERED",
-  SUPPRESSED: "SUPPRESSED",
-} as const satisfies Record<string, PoDeliveryStatus>;
-
-/**
- * BE #36 (9fbb90f) `PurchaseOrderResponse.cancellationDeliveryStatus` — thông báo huỷ gửi tới NCC
- * khi PO đã gửi rồi mới huỷ. NOT_REQUIRED: huỷ trước khi gửi, không cần báo.
- */
-export const PO_CANCELLATION_DELIVERY_STATUSES = [
-  "NOT_REQUIRED",
-  "UNKNOWN",
-  "QUEUED",
-  "RETRYING",
-  "FAILED",
-  "DELIVERED",
-] as const;
-
-export const PO_CANCELLATION_DELIVERY_STATUS = {
-  NOT_REQUIRED: "NOT_REQUIRED",
-  UNKNOWN: "UNKNOWN",
-  QUEUED: "QUEUED",
-  RETRYING: "RETRYING",
-  FAILED: "FAILED",
-  DELIVERED: "DELIVERED",
-} as const satisfies Record<string, PoCancellationDeliveryStatus>;
-
-/** BE notification `DeliveryStatus` — kết quả từng lần gửi (`GET …/deliveries`). */
-export const PO_DELIVERY_ATTEMPT_STATUSES = ["PENDING", "SENT", "FAILED"] as const;
-
-export const PO_DELIVERY_ATTEMPT_STATUS = {
-  PENDING: "PENDING",
-  SENT: "SENT",
-  FAILED: "FAILED",
-} as const satisfies Record<string, PoDeliveryAttemptStatus>;
 
 export const PROPOSAL_STATUSES = ["Draft Proposal", "Reviewed", "Converted"] as const;
 
@@ -371,11 +307,6 @@ export const PACK_SHIPMENT_API_STATUSES = [
 export const DELIVERY_MODES = ["PARCEL", "FULL_TRUCKLOAD"] as const;
 export type DeliveryMode = (typeof DELIVERY_MODES)[number];
 
-export const DELIVERY_MODE = {
-  PARCEL: "PARCEL",
-  FULL_TRUCKLOAD: "FULL_TRUCKLOAD",
-} as const satisfies Record<string, DeliveryMode>;
-
 /** Trạng thái kiện / lô giao → chuỗi status của `StatusDot` (nhãn + màu ở `lib/status-map.ts`). */
 export const PACKAGE_STATUS_DISPLAY = {
   OPEN: "Package Open",
@@ -467,24 +398,6 @@ export const ORDER_STATUS_UNKNOWN = "UNKNOWN";
 /** Trạng thái đơn sau khi parse response BE: trạng thái đã biết hoặc `ORDER_STATUS_UNKNOWN`. */
 export const ORDER_READ_STATUSES = [...ORDER_STATUSES, ORDER_STATUS_UNKNOWN] as const;
 
-/** Nhà cung cấp (module 01) — BE: ACTIVE/INACTIVE (SCRUM-118). */
-export const SUPPLIER_STATUSES = ["Active", "Inactive", "Blacklisted"] as const;
-
-export const SUPPLIER_STATUS = {
-  ACTIVE: "Active",
-  INACTIVE: "Inactive",
-  BLACKLISTED: "Blacklisted",
-} as const satisfies Record<string, SupplierStatus>;
-
-/**
- * Giá trị status trên wire của BE (SaveSupplierRequest/SupplierResponse). BE PR #71 thêm
- * BLACKLISTED = ngừng hợp tác có lý do không đặt lại (không nhận PO mới như INACTIVE).
- */
-export const SUPPLIER_API_STATUSES = ["ACTIVE", "INACTIVE", "BLACKLISTED"] as const;
-
-/** Kênh gửi PO cho NCC — BE `communicationChannel` (EMAIL|API, BE PR #36). */
-export const SUPPLIER_CHANNELS = ["EMAIL", "API"] as const;
-
 /**
  * Lệnh chuyển kho liên kho — BE `TransferStatus` (SCRUM-327, `inventory/internal/domain/TransferStatus.java`),
  * nguyên văn mã wire, cùng vòng đời docs 10 §5. FE hiển thị qua status-map như PO.
@@ -501,19 +414,6 @@ export const TRANSFER_STATUSES = [
   "CLOSED",
   "CANCELLED",
 ] as const;
-
-export const TRANSFER_STATUS = {
-  DRAFT: "DRAFT",
-  PENDING_APPROVAL: "PENDING_APPROVAL",
-  APPROVED: "APPROVED",
-  PICKING: "PICKING",
-  IN_TRANSIT: "IN_TRANSIT",
-  PARTIALLY_RECEIVED: "PARTIALLY_RECEIVED",
-  RECEIVED: "RECEIVED",
-  COMPLETED: "COMPLETED",
-  CLOSED: "CLOSED",
-  CANCELLED: "CANCELLED",
-} as const satisfies Record<string, TransferStatus>;
 
 /** BE `TransferReason` — lý do chuyển kho (CreateTransferOrderRequest.reason, tuỳ chọn). */
 export const TRANSFER_REASONS = ["REBALANCING", "DEMAND", "CAMPAIGN", "OVERFLOW", "OTHER"] as const;
@@ -623,8 +523,6 @@ export const VEHICLE_TYPE_STATUS = {
 export type PoStatus = (typeof PO_STATUSES)[number];
 export type SupplierConfirmationStatus = (typeof SUPPLIER_CONFIRMATION_STATUSES)[number];
 export type PoDeliveryStatus = (typeof PO_DELIVERY_STATUSES)[number];
-export type PoCancellationDeliveryStatus = (typeof PO_CANCELLATION_DELIVERY_STATUSES)[number];
-export type PoDeliveryAttemptStatus = (typeof PO_DELIVERY_ATTEMPT_STATUSES)[number];
 export type ReceiptStatus = (typeof RECEIPT_STATUSES)[number];
 export type ReceiptApiStatus = (typeof RECEIPT_API_STATUSES)[number];
 export type ReceiptApprovalDecisionApi = (typeof RECEIPT_APPROVAL_DECISION_API)[number];
@@ -649,9 +547,6 @@ export type ProposalStatus = (typeof PROPOSAL_STATUSES)[number];
 export type SkuStatus = (typeof SKU_STATUSES)[number];
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 export type OrderReadStatus = (typeof ORDER_READ_STATUSES)[number];
-export type SupplierStatus = (typeof SUPPLIER_STATUSES)[number];
-export type SupplierApiStatus = (typeof SUPPLIER_API_STATUSES)[number];
-export type SupplierChannel = (typeof SUPPLIER_CHANNELS)[number];
 
 /* ── Bán hàng B2B & sản xuất (BE local integration d215f6e, chưa merge develop) ─────────── */
 

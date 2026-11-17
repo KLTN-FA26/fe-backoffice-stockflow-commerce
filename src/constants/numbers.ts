@@ -8,26 +8,6 @@
  */
 export const DATE_PICKER_YEAR_SPAN = { back: 10, ahead: 10 } as const;
 
-/** Giới hạn đơn đặt NCC — lấy đúng ràng buộc DB/BE nhánh `test` (BE request chưa có @Size). */
-export const PO_LIMITS = {
-  /** BE `purchase_order_lines.note VARCHAR(255)` (BE PR #71). */
-  lineDescriptionMax: 255,
-  /** BE lý do khôi phục / đổi ngày giao 1..1000. */
-  reasonMax: 1000,
-  /** BE `purchase_orders.cancel_reason` / `close_reason VARCHAR(255)` (BE PR #71). */
-  closeReasonMax: 255,
-  /** BE lý do từ chối duyệt — `purchase_order_approvals.reason VARCHAR(500)`. */
-  rejectReasonMax: 500,
-  /** BE `UpdatePurchaseOrderRequest.lines` @Size(max = 200). */
-  linesMax: 200,
-  /** BE `purchase_orders.note TEXT`, giới hạn ở request 2000. */
-  noteMax: 2000,
-  /** BE `SupplierConfirmationRequest.supplierReference` @Size(max = 100). */
-  supplierReferenceMax: 100,
-  /** BE `int quantityOrdered` (Java int). */
-  quantityMax: 2_147_483_647,
-} as const;
-
 export const ORDER_LIMITS = {
   /** BE `AdminCancelOrderRequest.note` @Size(max = 1000); bắt buộc khi reasonCode = OTHER. */
   cancelNoteMax: 1000,
@@ -159,24 +139,6 @@ export const CARTON_CHECK_LIMITS = {
   scanFeedbackMs: 1500,
 } as const;
 
-/** Giới hạn lệnh chuyển kho — đúng ràng buộc request BE (CreateTransferOrderRequest, ReasonRequest). */
-export const TRANSFER_LIMITS = {
-  /** `lines` @Size(max = 200). */
-  linesMax: 200,
-  /** `Line.quantity` @Max(1_000_000). */
-  quantityMax: 1_000_000,
-  /** `Line.lotNumber` @Size(max = 64); SKU @Pattern `[A-Za-z0-9-]{3,64}`. */
-  codeMax: 64,
-  skuMin: 3,
-  /** `ReasonRequest.reason` @Size(max = 500). */
-  reasonMax: 500,
-  /**
-   * `stockflow.inventory.transfer.approval-threshold-units` (mặc định 100; docs 10 §4 bước 3 + §5 "Draft → Approved: Submit (dưới ngưỡng)"): tổng SL ≤ ngưỡng
-   * thì gửi duyệt là duyệt luôn. Chỉ để hiện gợi ý — BE đọc cấu hình thật.
-   */
-  approvalThresholdUnits: 100,
-} as const;
-
 /** Giới hạn thương hiệu / danh mục — BE `Create*Request` / `Update*Request` + migration PIM dictionary. */
 export const TAXONOMY_LIMITS = {
   /** `name` @Size(max = 255). */
@@ -241,21 +203,6 @@ export const SHIPPING_LIMITS = {
   scanFeedbackMs: 1500,
   /** Chuyến đang xếp hàng (LOADING): tự tải lại để thấy kiện quét từ máy khác. */
   loadPollMs: 15_000,
-} as const;
-
-/**
- * Danh mục hàng NCC — nguồn BE: `SupplierItemTerms` (mã NCC, lead time), `PurchasePrices`
- * (số lẻ giá, tối đa 2 và không vượt số lẻ tiền tệ), `Pages.MAX_PAGE_SIZE`.
- */
-export const SUPPLIER_ITEM_LIMITS = {
-  supplierSkuCodeMax: 50,
-  leadTimeDaysMax: 365,
-  priceMaxScale: 2,
-  // BE `SaveSupplierItemRequest.price` @Digits(integer = 16) + `PurchasePrices.MAX` (numeric(18,2))
-  priceIntegerDigitsMax: 16,
-  // BE `moq` / `packSize` là `Integer` Java — quá int32 thì Jackson không bind được (400 chung)
-  intMax: 2_147_483_647,
-  catalogPageSize: 200,
 } as const;
 
 /**

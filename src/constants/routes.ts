@@ -50,7 +50,6 @@ export const ADMIN_ROUTES = {
     bySalesOrder: (orderId: string) =>
       `${ADMIN_BASE}/production-orders?salesOrderId=${encodeURIComponent(orderId)}`,
   },
-  workshop: `${ADMIN_BASE}/workshop`,
   permissions: `${ADMIN_BASE}/permissions`,
   /** Quản lý tài khoản nhân viên — BE `UserManagementController` (PR #72, SCRUM-458). */
   users: {
@@ -76,10 +75,7 @@ export const ADMIN_ROUTES = {
       `${ADMIN_BASE}/products/${productId}/variants/${variantId}/${PRINT_CONFIG_SEGMENT}`,
   },
   purchaseOrders: {
-    create: `${ADMIN_BASE}/purchase-orders/create`,
     detail: (id: string) => `${ADMIN_BASE}/purchase-orders/${id}`,
-    // Sửa PO nháp (BE SCRUM-462)
-    edit: (id: string) => `${ADMIN_BASE}/purchase-orders/${id}/edit`,
     list: `${ADMIN_BASE}/purchase-orders`,
   },
   orders: {
@@ -125,9 +121,7 @@ export const ADMIN_ROUTES = {
     list: `${ADMIN_BASE}/taxonomy`,
   },
   transfers: {
-    create: `${ADMIN_BASE}/transfers/create`,
     detail: (id: string) => `${ADMIN_BASE}/transfers/${id}`,
-    edit: (id: string) => `${ADMIN_BASE}/transfers/${id}/edit`,
     list: `${ADMIN_BASE}/transfers`,
   },
   /** Lô giao chờ xuất / đã giao (BE `ShipmentController`, PR #137). */
@@ -176,15 +170,6 @@ export const ADMIN_ROUTES = {
   },
   /** "Ước tính thử" từ file Excel EasyCargo (SCRUM-474 TRIAL-FLOW, LP2-9): chạy thử, không lưu — BE `POST /fulfillment/load-estimates/trial`. */
   loadEstimateTrial: `${ADMIN_BASE}/load-estimates/trial`,
-  suppliers: {
-    list: `${ADMIN_BASE}/suppliers`,
-    create: `${ADMIN_BASE}/suppliers/create`,
-    detail: (id: string) => `${ADMIN_BASE}/suppliers/${id}`,
-    edit: (id: string) => `${ADMIN_BASE}/suppliers/${id}/edit`,
-    /** Danh sách PO lọc theo NCC — BE PO list hỗ trợ `?supplierId=` (BE PR #36). */
-    purchaseOrders: (id: string) =>
-      `${ADMIN_BASE}/purchase-orders?supplierId=${encodeURIComponent(id)}`,
-  },
 } as const;
 
 /** Portal khách hàng B2B (Mode B) — tách khỏi back-office, cùng phiên đăng nhập BFF. */
