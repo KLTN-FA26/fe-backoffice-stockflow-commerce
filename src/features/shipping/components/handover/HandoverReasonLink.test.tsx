@@ -1,7 +1,11 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { SALES_CONTRACT_PERMISSIONS, UI_LABELS } from "@/constants";
+import {
+  ORDER_DELIVERY_BATCH_PERMISSIONS,
+  SALES_CONTRACT_PERMISSIONS,
+  UI_LABELS,
+} from "@/constants";
 import { PAYMENT_INSTALLMENT_PERMISSIONS, PAYMENT_ROUTES } from "@/constants/payment";
 
 import { HandoverReasonLink } from "./HandoverReasonLink";
@@ -27,8 +31,8 @@ describe("HandoverReasonLink — liên kết từ lý do chặn bàn giao tới 
     );
   });
 
-  it("chưa tới cửa sổ giao + có sales-contracts:READ và UPDATE → liên kết tới chi tiết đơn (lịch giao)", () => {
-    granted = [SALES_CONTRACT_PERMISSIONS.read, SALES_CONTRACT_PERMISSIONS.update];
+  it("chưa tới cửa sổ giao + có sales-order-delivery-batches:READ và sales-contracts:UPDATE → liên kết tới chi tiết đơn (lịch giao)", () => {
+    granted = [ORDER_DELIVERY_BATCH_PERMISSIONS.read, SALES_CONTRACT_PERMISSIONS.update];
     render(<HandoverReasonLink orderId="o-1" reasonCode="DELIVERY_BATCH_WINDOW_NOT_OPEN" />);
     expect(screen.getByRole("link", { name: B.linkMoveWindow })).toHaveAttribute(
       "href",
@@ -47,7 +51,13 @@ describe("HandoverReasonLink — liên kết từ lý do chặn bàn giao tới 
   });
 
   it("chỉ có quyền đọc lịch (không có UPDATE) → không hiện liên kết dời cửa sổ", () => {
-    granted = [SALES_CONTRACT_PERMISSIONS.read];
+    granted = [ORDER_DELIVERY_BATCH_PERMISSIONS.read];
+    render(<HandoverReasonLink orderId="o-1" reasonCode="DELIVERY_BATCH_WINDOW_NOT_OPEN" />);
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+
+  it("chỉ có sales-contracts:READ/UPDATE mà thiếu sales-order-delivery-batches:READ → không hiện liên kết (không thấy được lịch)", () => {
+    granted = [SALES_CONTRACT_PERMISSIONS.read, SALES_CONTRACT_PERMISSIONS.update];
     render(<HandoverReasonLink orderId="o-1" reasonCode="DELIVERY_BATCH_WINDOW_NOT_OPEN" />);
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
@@ -55,7 +65,7 @@ describe("HandoverReasonLink — liên kết từ lý do chặn bàn giao tới 
   it("lý do khác → không có liên kết dù đủ quyền", () => {
     granted = [
       PAYMENT_INSTALLMENT_PERMISSIONS.read,
-      SALES_CONTRACT_PERMISSIONS.read,
+      ORDER_DELIVERY_BATCH_PERMISSIONS.read,
       SALES_CONTRACT_PERMISSIONS.update,
     ];
     render(<HandoverReasonLink orderId="o-1" reasonCode="ORDER_INVALID_TRANSITION" />);

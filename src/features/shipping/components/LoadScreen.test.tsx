@@ -129,6 +129,31 @@ describe("LoadScreen — quét kiện", () => {
     expect(input).toHaveFocus();
   });
 
+  it("quét theo LPN trên nhãn giao hàng: kiện lên xe → báo đã lên xe (đếm đúng), không báo lỗi, không vào danh sách từ chối", async () => {
+    const user = userEvent.setup();
+    const after = apiLoad({
+      shipments: [
+        loadShipment("SO-1-S1", [parcel("PKG-SO-1-1", true)]),
+        loadShipment("SO-2-S1", [
+          parcel("PKG-SO-2-1", true, { lpn: "LPN-20261117-000008" }),
+          parcel("PKG-SO-2-2", false, { lpn: "LPN-20261117-000009" }),
+        ]),
+      ],
+    });
+    const { post } = renderLoad(ACTORS.warehouseStaff, apiLoad(), { scan: () => after });
+    const input = await screen.findByLabelText(L.scan.label);
+    await user.type(input, "lpn-20261117-000008{Enter}");
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(1));
+    expect(post.mock.calls[0]?.[1]).toMatchObject({ packageCode: "LPN-20261117-000008" });
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(
+        `LPN-20261117-000008 — ${L.scan.accepted} (2/3)`,
+      ),
+    );
+    expect(screen.getByRole("alert")).toBeEmptyDOMElement();
+    expect(useRejectedScansStore.getState().byLoad[LOAD_ID] ?? []).toHaveLength(0);
+  });
+
   it("phản hồi không có kiện trên xe (BE replay câu trả lời cũ) → không báo thành công, scanId đổi mới", async () => {
     const user = userEvent.setup();
     const { post } = renderLoad(ACTORS.warehouseStaff, apiLoad());

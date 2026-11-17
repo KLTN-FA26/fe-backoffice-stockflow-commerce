@@ -40,6 +40,8 @@ export const beLoadParcelSchema = z.object({
   packageId: z.string(),
   /** `PKG-<số đơn>-<n>` — mã trên nhãn, mã quét. */
   labelCode: z.string(),
+  /** LPN của thùng — mã vạch trên nhãn giao hàng; BE cũ chưa trả (nullish) thì FE chỉ khớp theo `labelCode`. */
+  lpn: z.string().nullish(),
   weightKg: measure.nullish(),
   loaded: z.boolean(),
   loadedAt: isoInstant.nullish(),
