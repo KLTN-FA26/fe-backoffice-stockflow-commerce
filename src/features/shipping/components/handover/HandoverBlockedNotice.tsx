@@ -3,7 +3,7 @@
 import Link from "next/link";
 
 import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
-import { handoverBlockReason } from "@/features/shipping/handover-blocks";
+import { handoverBlockReasons } from "@/features/shipping/handover-blocks";
 import { Alert } from "@/components/shared/Alert";
 
 import type { HandoverWarning } from "@/features/shipping/types";
@@ -28,10 +28,25 @@ export function HandoverBlockedNotice({ orders }: { orders: readonly HandoverWar
             >
               {order.orderNumber}
             </Link>
-            : {handoverBlockReason(order)}
+            <BlockReasons reasons={handoverBlockReasons(order)} />
           </li>
         ))}
       </ul>
     </Alert>
+  );
+}
+
+/** Một lý do: nối ngay sau mã đơn; nhiều lý do: mỗi lý do một dòng (ký một lần thấy đủ, không phải ký lại từng bước). */
+export function BlockReasons({ reasons }: { reasons: readonly string[] }) {
+  if (reasons.length === 1) return <>: {reasons[0]}</>;
+  return (
+    <>
+      :
+      <ul className="list-disc pl-5">
+        {reasons.map((reason) => (
+          <li key={reason}>{reason}</li>
+        ))}
+      </ul>
+    </>
   );
 }

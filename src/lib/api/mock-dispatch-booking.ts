@@ -190,6 +190,32 @@ export function cancelBooking(
   return detail(state, load);
 }
 
+/**
+ * Nhập tài xế (BE `DispatchLoad.recordDriver`, WF4-DRIVER): xe đã đặt hoặc đang xếp, mọi hãng; chỉ tên + SĐT (vắng thì giữ SĐT
+ * cũ), không đụng mã vận đơn. 400 VALIDATION_FAILED tên trống; 409 INVALID_LOAD_TRANSITION chưa đặt xe / đã huỷ / đã rời kho.
+ */
+export function recordDriver(
+  state: DispatchState,
+  load: MockLoad,
+  body: Record<string, unknown>,
+): MockResponseShape {
+  const name = text(body.driverName);
+  if (!name) return validationFailed("driverName", "must not be blank");
+  if (text(body.driverName).length > 120)
+    return validationFailed("driverName", "size must be at most 120");
+  if (text(body.driverPhone).length > 32)
+    return validationFailed("driverPhone", "size must be at most 32");
+  if (load.status !== "VEHICLE_BOOKED" && load.status !== "LOADING") {
+    return invalid(load, "have a driver recorded");
+  }
+  const phone = text(body.driverPhone) || load.driverPhone;
+  if (name === load.driverName && phone === load.driverPhone) return detail(state, load);
+  load.driverName = name;
+  load.driverPhone = phone;
+  load.version += 1;
+  return detail(state, load);
+}
+
 /** Bắt đầu xếp: câu trả lời mang cảnh báo đơn chưa được phép đi (`handoverWarnings`) — chỉ ở lần này, không ở GET (BE). */
 export function startLoading(state: DispatchState, load: MockLoad): MockResponseShape {
   if (load.status !== "VEHICLE_BOOKED") {

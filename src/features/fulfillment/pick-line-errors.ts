@@ -15,6 +15,16 @@ import { STATE_CONFLICT_CODE, fulfillmentErrorMessage } from "./errors";
 
 const PL = PICK_LINE_ERROR_MESSAGES;
 
+/** `details.<key>` của lỗi BE khi là chuỗi không rỗng; nếu không, `fallback`. Là dữ liệu mạng nên không tin kiểu. */
+function expectedFrom<T extends string | null | undefined>(
+  error: ApiError,
+  key: "expectedLocationCode" | "expectedLpn",
+  fallback: T,
+): string | T {
+  const value = error.details?.[key];
+  return typeof value === "string" && value.trim() !== "" ? value : fallback;
+}
+
 export interface LineError<F extends string> {
   /** Ô bị sai — lỗi hiện ngay dưới ô; vắng = banner trên form. */
   field?: F;
@@ -42,9 +52,9 @@ function commonLineError(error: ApiError): LineError<never> {
 }
 
 /**
- * Dòng đang thao tác — `locationCode` / `lpn` là giá trị đúng của dòng. BE chỉ nêu chúng trong câu tiếng Anh của
- * lỗi (`PICK_LOCATION_MISMATCH` "picked from <bin>", `PICK_ITEM_MISMATCH` "picks carton <LPN>"), không có field
- * chi tiết — nên câu tiếng Việt lấy đúng giá trị từ chính dòng (cùng nguồn BE dùng) thay vì tách chữ từ message.
+ * Dòng đang thao tác — `locationCode` / `lpn` là giá trị đúng của dòng. Từ BE PR #317 (WF4 BE-14) lỗi sai vị trí / sai
+ * thùng mang giá trị đúng trong `details.expectedLocationCode` / `details.expectedLpn`: câu tiếng Việt lấy từ đó; thiếu
+ * (BE cũ, hoặc lỗi không mang) thì dùng giá trị của chính dòng — cùng nguồn BE dùng — chứ không tách chữ từ message.
  */
 type LineRef = { locationCode: string; lpn?: string | null; sku: string };
 
@@ -62,11 +72,17 @@ export function confirmLineError(error: unknown, line: LineRef): LineError<Confi
     case "PICK_LOCATION_MISMATCH":
       return {
         field: "locationCode",
-        message: PL.locationMismatch(line.locationCode),
+        message: PL.locationMismatch(
+          expectedFrom(error, "expectedLocationCode", line.locationCode),
+        ),
         stale: false,
       };
     case "PICK_ITEM_MISMATCH":
-      return { field: "lpn", message: PL.itemMismatch(line.lpn), stale: false };
+      return {
+        field: "lpn",
+        message: PL.itemMismatch(expectedFrom(error, "expectedLpn", line.lpn)),
+        stale: false,
+      };
     case "RESERVATION_NOT_ACTIVE":
       return { message: PL.reservationNotActive, stale: false };
     case "PRODUCTION_HOLD_NOT_PICKABLE":
@@ -93,7 +109,9 @@ export function shortPickError(error: unknown, line: LineRef): LineError<ShortFi
     case "PICK_LOCATION_MISMATCH":
       return {
         field: "locationCode",
-        message: PL.locationMismatch(line.locationCode),
+        message: PL.locationMismatch(
+          expectedFrom(error, "expectedLocationCode", line.locationCode),
+        ),
         stale: false,
       };
     case "VALIDATION_FAILED":
@@ -143,7 +161,11 @@ export function putBackError(
     case "CARTON_DOES_NOT_FIT_BIN":
       return { field: "locationCode", message: M.doesNotFit, stale: false };
     case "PICK_ITEM_MISMATCH":
-      return { field: "lpn", message: M.itemMismatch(row.lpn), stale: false };
+      return {
+        field: "lpn",
+        message: M.itemMismatch(expectedFrom(error, "expectedLpn", row.lpn)),
+        stale: false,
+      };
     case "STOCK_PACKAGE_TAKEN_WHOLE":
       return { message: M.takenWhole, stale: false };
     case "PUT_BACK_NOT_REQUIRED":

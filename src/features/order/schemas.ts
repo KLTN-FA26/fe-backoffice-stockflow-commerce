@@ -232,6 +232,8 @@ export const orderDtoSchema = z.object({
   /** Staff: ghi chú lúc giữ. */
   holdNote: z.string().nullish(),
   packedAt: z.string().nullish(),
+  /** Thùng giao đầu tiên được dán nhãn (BE PR #317, WF4 BE-8; docs 08 BR-04): từ đó đơn không huỷ, không đổi địa chỉ giao. */
+  firstLabeledAt: z.string().nullish(),
   shippedAt: z.string().nullish(),
   deliveredAt: z.string().nullish(),
   deliveryFailureReason: orderDeliveryFailureReasonDtoSchema.nullish(),
