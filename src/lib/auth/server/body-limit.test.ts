@@ -6,10 +6,12 @@ import { AUTH_COOKIE_NAME } from "@/constants/auth";
 
 import {
   DEFAULT_PROXY_BODY_LIMIT_BYTES as DEFAULT,
+  PRINT_MODEL_UPLOAD_LIMIT_BYTES as MODEL,
   PRODUCT_IMAGE_UPLOAD_LIMIT_BYTES as UPLOAD,
   requestBodyLimit,
 } from "./body-limit";
 import { backendProxyHandler } from "./handlers";
+import nextConfig from "../../../../next.config";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/config", () => ({ IS_MOCK: false }));
@@ -17,6 +19,7 @@ vi.mock("@/lib/config", () => ({ IS_MOCK: false }));
 const origin = "https://backoffice.example.com";
 const credential = "server-session-fixture";
 const MEDIA = ["products", "p-1", "variants", "v-1", "media"];
+const TEMPLATES = ["products", "p-1", "variants", "v-1", "customization-templates"];
 const fetchMock = vi.fn<typeof fetch>();
 
 /** A body delivered in chunks; `pulled` shows how far the reader actually got. */
@@ -94,12 +97,35 @@ describe("limit resolution uses only method + path", () => {
     ["POST", ["products", "p-1", "variants", "v-1", "media", "publication"], DEFAULT],
     ["POST", ["products", "p-1", "variants"], DEFAULT],
     ["POST", ["designs"], DEFAULT],
+    // A print configuration is saved with its `.glb` (up to 10 MiB) in one multipart request.
+    ["POST", TEMPLATES, MODEL],
+    ["PUT", [...TEMPLATES, "t-1"], MODEL],
+    ["PUT", TEMPLATES, DEFAULT],
+    ["POST", [...TEMPLATES, "t-1"], DEFAULT],
+    ["POST", [...TEMPLATES, "t-1", "activation"], DEFAULT],
+    ["PUT", [...TEMPLATES, "t-1", "model-file"], DEFAULT],
+    ["PUT", ["orders", "p-1", "variants", "v-1", "customization-templates", "t-1"], DEFAULT],
   ])("%s %j → %i bytes", (method, paths, limit) => {
     expect(requestBodyLimit(method, paths)).toBe(limit);
   });
   it("limits are what the BE contracts allow", () => {
     expect(DEFAULT).toBe(1_048_576);
     expect(UPLOAD).toBe(10 * 1024 * 1024 + 64 * 1024);
+    expect(MODEL).toBe(10 * 1024 * 1024 + 64 * 1024);
+  });
+  it("Next's proxy lets the largest allowed body through whole (it cuts bodies at proxyClientMaxBodySize)", () => {
+    // `src/proxy.ts` runs on /api/*; Next buffers the body for it and hands the route only the first
+    // `proxyClientMaxBodySize` bytes (default 10 MiB). Below the BFF's own limits, a 10 MiB `.glb` plus its
+    // envelope would reach the handler truncated and be forwarded as a broken multipart.
+    const proxyLimit = nextConfig.experimental?.proxyClientMaxBodySize;
+    expect(proxyLimit).toBe(MODEL);
+    expect(proxyLimit).toBeGreaterThanOrEqual(Math.max(DEFAULT, UPLOAD, MODEL));
+  });
+
+  it("a template save carrying a 2 MiB .glb reaches the BE", async () => {
+    const response = await proxy("PUT", [...TEMPLATES, "t-1"], bytes(2 * 1024 * 1024));
+    expect(response.status).toBe(200);
+    expect(sentBody()?.byteLength).toBe(2 * 1024 * 1024);
   });
 });
 

@@ -7,11 +7,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { handoverRefusalOf, shippingErrorMessage } from "@/features/shipping/errors";
+import { useRecordDriver } from "@/features/shipping/ftl-mutations";
 import { hasWaybill, isApiBookedLoad } from "@/features/shipping/ftl-selectors";
 import { handoverBlockedOrders, isWaybillMissingError } from "@/features/shipping/handover-blocks";
 import { handoverInputSchema } from "@/features/shipping/input-schemas";
 import { useHandoverLoad } from "@/features/shipping/mutations";
-import { useRecordWaybill } from "@/features/shipping/waybill-mutations";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 
 import { RejectedScansNotice } from "../load/RejectedScans";
@@ -64,12 +64,10 @@ export function HandoverDialog({
   // Chuyến chưa có mã vận đơn (biết trước) hoặc BE vừa báo 409 LOAD_WAYBILL_MISSING (mã vừa bị xoá ở nơi khác)
   const [waybillMissing, setWaybillMissing] = useState(false);
   const noWaybill = !hasWaybill(load) || waybillMissing;
-  // WF4-DRIVER: chưa có tên tài xế thì phải nhập trước khi ký. Hãng đặt xe qua API không nhập tay được (tên về qua webhook) →
-  // chưa ký được tới khi có tên.
-  const api = isApiBookedLoad(load);
+  // WF4-DRIVER: chưa có tên tài xế thì phải nhập trước khi ký (kể cả hãng đặt xe qua API — nhập qua `PUT loads/{id}/driver`)
   const driverMissing = !load.driverName;
-  const record = useRecordWaybill();
-  const schema = handoverInputSchema(!load.vehiclePlate, driverMissing && !api);
+  const record = useRecordDriver();
+  const schema = handoverInputSchema(!load.vehiclePlate, driverMissing);
   const form = useForm<HandoverFormInput, unknown, HandoverValues>({
     resolver: zodResolver(schema),
     mode: "onChange",
@@ -103,20 +101,11 @@ export function HandoverDialog({
         { loadId: load.loadId, version: currentVersion, values: body },
         { onError: onSignError },
       );
-    // BE `HandoverRequest` không có tên tài xế: lưu trước qua `PUT loads/{id}/waybill` (chuyến đang xếp, hãng không phải API),
-    // rồi ký với `version` mới. Chưa có mã vận đơn thì bỏ qua — BE sẽ báo LOAD_WAYBILL_MISSING và mời nhập mã vận đơn.
-    if (driverMissing && !api && driverName && load.waybillNo) {
+    // BE `HandoverRequest` không có tên tài xế: lưu trước qua `PUT loads/{id}/driver` (chuyến đang xếp, mọi hãng), rồi ký với
+    // `version` mới. SĐT tài xế của biên bản không gửi ở đây: lần ký mang nó theo.
+    if (driverMissing && driverName) {
       record.mutate(
-        {
-          loadId: load.loadId,
-          values: {
-            waybillNo: load.waybillNo,
-            driverName,
-            vehiclePlate: undefined,
-            driverPhone: undefined,
-            reason: undefined,
-          },
-        },
+        { loadId: load.loadId, values: { driverName, driverPhone: undefined } },
         {
           onSuccess: (updated) => sign(updated.version),
           onError: (error) => {
@@ -169,7 +158,7 @@ export function HandoverDialog({
         title={`${H.title} · ${load.code}`}
         description={FTL.description}
         submitLabel={H.title}
-        canSubmit={form.formState.isValid && !(driverMissing && api)}
+        canSubmit={form.formState.isValid}
         isPending={handover.isPending || record.isPending}
         error={serverError}
         onSubmit={() => void submit()}

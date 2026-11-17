@@ -269,6 +269,7 @@ export function activateMockAdapter(): void {
     import("./mock-routes-attributes"),
     import("./mock-routes-product-attributes"),
     import("./mock-routes-product-commerce"),
+    import("./mock-routes-print-configs"),
     import("./mock-routes-inventory"),
     import("./mock-routes-inventory-items"),
     import("./mock-routes-stock-alerts"),
@@ -284,6 +285,8 @@ export function activateMockAdapter(): void {
     import("./mock-routes-load-estimates"),
     import("./mock-routes-load-plans"),
     import("./mock-routes-warehouses"),
+    import("./mock-routes-returns"),
+    import("./mock-routes-return-receipts"),
   ]).then(
     ([
       { registerAllMockRoutes },
@@ -303,6 +306,7 @@ export function activateMockAdapter(): void {
       { registerAttributeMockRoutes },
       { registerProductAttributeMockRoutes },
       { registerProductCommerceMockRoutes },
+      { registerPrintConfigMockRoutes },
       { registerInventoryMockRoutes },
       { registerInventoryItemMockRoutes },
       { registerStockAlertMockRoutes },
@@ -318,6 +322,8 @@ export function activateMockAdapter(): void {
       { registerLoadEstimateMockRoutes },
       { registerLoadPlanMockRoutes },
       { registerWarehouseMockRoutes },
+      { registerReturnMockRoutes },
+      { registerReturnReceiptMockRoutes },
     ]) => {
       registerAllMockRoutes();
       registerSupplierMockRoutes();
@@ -325,6 +331,10 @@ export function activateMockAdapter(): void {
       registerPurchaseOrderMockRoutes();
       registerPoDraftMockRoutes();
       registerOrderMockRoutes();
+      // Trả hàng (WF-05 BO-12): `/goods-receipts/returns` phải đứng TRƯỚC `/goods-receipts/:id` (khớp theo thứ tự
+      // đăng ký).
+      registerReturnMockRoutes();
+      registerReturnReceiptMockRoutes();
       registerGoodsReceiptMockRoutes();
       registerVariantMockRoutes();
       registerSkuPurchasingMockRoutes();
@@ -336,6 +346,7 @@ export function activateMockAdapter(): void {
       registerAttributeMockRoutes();
       registerProductAttributeMockRoutes();
       registerProductCommerceMockRoutes();
+      registerPrintConfigMockRoutes();
       registerInventoryMockRoutes();
       registerInventoryItemMockRoutes();
       registerStockAlertMockRoutes();

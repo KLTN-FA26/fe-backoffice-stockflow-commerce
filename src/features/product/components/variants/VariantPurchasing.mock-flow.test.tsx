@@ -74,6 +74,7 @@ async function openPanel(permissions: readonly string[]) {
       productApproved
       acceptsChanges
       productDiscontinued={false}
+      customizable={false}
       open
       onClose={() => {}}
     />,

@@ -106,6 +106,7 @@ function setup(
       productApproved
       acceptsChanges
       productDiscontinued={false}
+      customizable={false}
       open
       onClose={() => {}}
       {...options.panel}
@@ -621,6 +622,7 @@ describe("Sửa thông tin mua hàng — đồng thời", () => {
             productApproved
             acceptsChanges
             productDiscontinued={false}
+            customizable={false}
             open
             onClose={() => {}}
           />

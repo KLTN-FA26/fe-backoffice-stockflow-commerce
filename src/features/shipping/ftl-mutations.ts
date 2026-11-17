@@ -15,6 +15,7 @@ import {
   cancelLoadBooking,
   cancelLoadControlled,
   overrideUnload,
+  recordDriver,
   startLoading,
   unloadPackage,
 } from "./ftl-api";
@@ -35,6 +36,7 @@ import type {
   ControlledCancelResult,
   Load,
   OverrideUnloadInput,
+  RecordDriverInput,
   StartLoadingInput,
   UnloadPackageInput,
 } from "./types";
@@ -47,6 +49,19 @@ export const useBookLoad = withLoadCache(
   createMutation<BookLoadInput, Load>(bookLoad, {
     invalidate: INVALIDATE,
     successMessage: T.booked,
+    showErrorToast: false,
+    onError: toastIfStale,
+  }),
+  (input) => input.loadId,
+);
+
+/**
+ * Nhập tài xế (WF4-DRIVER): hộp thoại hiện lỗi inline; lỗi dữ liệu cũ vẫn toast. Gọi từ hộp thoại bàn giao thì mức hook không
+ * đặt `successMessage` ở đây — hộp thoại riêng tự toast.
+ */
+export const useRecordDriver = withLoadCache(
+  createMutation<RecordDriverInput, Load>(recordDriver, {
+    invalidate: INVALIDATE,
     showErrorToast: false,
     onError: toastIfStale,
   }),

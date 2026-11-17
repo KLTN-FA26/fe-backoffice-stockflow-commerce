@@ -165,5 +165,7 @@ export const PRODUCT_UI_LABELS = {
     // Panel biến thể khi sản phẩm không nhận thay đổi (BE `Product.acceptsChanges` / requireChangeable)
     lockedHint:
       "Sản phẩm đang chờ duyệt hoặc đã ngừng kinh doanh nên không sửa được biến thể và ảnh.",
+    // Link ở panel biến thể tới trang cấu hình in (chỉ sản phẩm tuỳ chỉnh)
+    printConfigLink: "Cấu hình in",
   },
 } as const;
