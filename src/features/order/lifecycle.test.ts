@@ -162,6 +162,7 @@ const BASE_CONTEXT: OrderActionContext = {
   holdReason: null,
   hasShipments: false,
   packedAt: null,
+  firstLabeledAt: null,
   statusBeforeHold: null,
 };
 
@@ -316,6 +317,20 @@ describe("allowedOrderActions — huỷ admin (sales-order-cancellations:UPDATE)
     expect(codes("Picking", "ORDER_COORDINATOR", { packedAt: PACKED_AT })).not.toContain(
       "admin-cancel",
     );
+  });
+
+  it("BE PR #317 (WF4 BE-8): đã có firstLabeledAt (thùng đầu tiên dán nhãn) thì ẩn nút huỷ ở mọi trạng thái huỷ được, kể cả khi chưa có packedAt; chưa biết (undefined) cũng ẩn", () => {
+    const labeled = { firstLabeledAt: "2026-11-10T02:00:00Z" };
+    for (const status of ["Confirmed", "In Production", "Ready to Fulfill", "Picking"] as const) {
+      expect(codes(status, "ORDER_COORDINATOR")).toContain("admin-cancel");
+      expect(codes(status, "ORDER_COORDINATOR", labeled)).not.toContain("admin-cancel");
+      expect(codes(status, "ORDER_COORDINATOR", { firstLabeledAt: undefined })).not.toContain(
+        "admin-cancel",
+      );
+    }
+    expect(
+      codes("On Hold", "ORDER_COORDINATOR", { holdReason: "ADDRESS", ...labeled }),
+    ).not.toContain("admin-cancel");
   });
 
   it("chưa biết lịch sử đóng gói (packedAt undefined) → không mở nút huỷ", () => {
@@ -522,6 +537,7 @@ describe("allowedOrderActions — trạng thái lạ + định nghĩa action", (
         holdReason: "CREDIT",
         shipments: [],
         packedAt: null,
+        firstLabeledAt: "2026-11-10T02:00:00Z",
         statusBeforeHold: null,
       }),
     ).toEqual({
@@ -529,6 +545,7 @@ describe("allowedOrderActions — trạng thái lạ + định nghĩa action", (
       holdReason: "CREDIT",
       hasShipments: false,
       packedAt: null,
+      firstLabeledAt: "2026-11-10T02:00:00Z",
       statusBeforeHold: null,
     });
   });

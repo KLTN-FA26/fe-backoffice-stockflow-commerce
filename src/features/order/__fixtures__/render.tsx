@@ -12,9 +12,9 @@ import { vi } from "vitest";
 import {
   CREDIT_HOLD_PERMISSIONS,
   CUSTOMER_CREDIT_PROFILE_PERMISSIONS,
+  ORDER_DELIVERY_BATCH_PERMISSIONS,
   ORDER_PERMISSIONS,
   PRODUCTION_ORDER_PERMISSIONS,
-  SALES_CONTRACT_PERMISSIONS,
 } from "@/constants";
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -65,15 +65,21 @@ export const ORDER_PERMISSION_SETS = {
     CREDIT_HOLD_PERMISSIONS.approve,
     CUSTOMER_CREDIT_PROFILE_PERMISSIONS.read,
   ],
-  // Quản lý kho của kho xuất (BE V20261115000200): đọc đơn + release (`sales-order-releases:UPDATE`); KHÔNG có
-  // `sales-contracts:READ` nên không đọc được lịch giao (ô chọn đợt giao ẩn).
-  warehouseManager: [ORDER_PERMISSIONS.viewPage, ORDER_PERMISSIONS.read, ORDER_PERMISSIONS.release],
-  // Người vừa release vừa đọc được lịch giao (sales-contracts:READ) — có ô chọn đợt giao.
-  releaserWithSchedule: [
+  // Quản lý kho của kho xuất (BE V20261115000200 + V20261124000650, PR #317): đọc đơn + release (`sales-order-releases:UPDATE`)
+  // + đọc lịch giao (`sales-order-delivery-batches:READ`, cấp cho mọi vai release) — có ô chọn đợt giao. Không có
+  // `sales-contracts:READ`: hợp đồng không mở cho quản lý kho.
+  warehouseManager: [
     ORDER_PERMISSIONS.viewPage,
     ORDER_PERMISSIONS.read,
     ORDER_PERMISSIONS.release,
-    SALES_CONTRACT_PERMISSIONS.read,
+    ORDER_DELIVERY_BATCH_PERMISSIONS.read,
+  ],
+  // Người chỉ release, KHÔNG có quyền đọc lịch giao (vai tạo lúc chạy, hoặc quyền bị thu hồi) → không gọi lịch giao,
+  // ô chọn đợt giao ẩn, BE tự chọn đợt kế tiếp.
+  releaserWithoutSchedule: [
+    ORDER_PERMISSIONS.viewPage,
+    ORDER_PERMISSIONS.read,
+    ORDER_PERMISSIONS.release,
   ],
 } satisfies Record<string, PermissionCode[]>;
 

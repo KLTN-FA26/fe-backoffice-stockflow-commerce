@@ -92,6 +92,8 @@ const STALE_CODES: ReadonlySet<string> = new Set([
   // Mã vận đơn / đặt xe: chuyến đã đổi ở nơi khác (webhook điền mã, người khác đặt xe) → tải lại
   "CARRIER_BOOKING_IN_PROGRESS",
   "WAYBILL_FROM_CARRIER_API",
+  // WF4-DRIVER: tên tài xế vừa bị xoá / chưa có ở nơi khác → tải lại để ô nhập tài xế hiện trong hộp thoại bàn giao
+  "LOAD_DRIVER_MISSING",
 ]);
 
 /** Trạng thái chuyến / lô đã đổi ở nơi khác (máy quét khác, người khác bàn giao) → tải lại. */

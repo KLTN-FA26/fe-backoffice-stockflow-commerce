@@ -9,6 +9,7 @@ import { blockedOrder } from "./__fixtures__/ftl-load";
 import {
   handoverBlockedOrders,
   handoverBlockReason,
+  handoverBlockReasons,
   isWaybillMissingError,
 } from "./handover-blocks";
 
@@ -94,6 +95,45 @@ describe("handoverBlockedOrders — đọc details.orders của 409 LOAD_HANDOVE
         }),
       ),
     ).toBeUndefined();
+  });
+});
+
+describe("handoverBlockReasons — mọi lý do của một đơn (A3)", () => {
+  it("reasonCodes có hai mã: hai câu, theo thứ tự BE gửi (thiếu tiền trước, rồi chưa tới ngày giao)", () => {
+    const order = blockedOrder({
+      reasonCodes: ["ORDER_BALANCE_NOT_PAID", "DELIVERY_BATCH_WINDOW_NOT_OPEN"],
+      windowStart: "2026-11-20",
+    });
+    expect(handoverBlockReasons(order)).toEqual([
+      B.unpaidBatch(formatMoney(15_000_000, "VND"), 1),
+      B.windowNotOpenBatch(formatDate("2026-11-20"), 1),
+    ]);
+  });
+
+  it("BE cũ không có reasonCodes → một câu theo reasonCode", () => {
+    expect(handoverBlockReasons(blockedOrder())).toEqual([handoverBlockReason(blockedOrder())]);
+    expect(handoverBlockReasons(blockedOrder({ reasonCodes: [] }))).toHaveLength(1);
+  });
+
+  it("parse reasonCodes trong details.orders", () => {
+    const orders = handoverBlockedOrders(
+      blocked({
+        orders: [
+          {
+            orderId: "o1",
+            orderNumber: "SO-2",
+            reasonCode: "ORDER_BALANCE_NOT_PAID",
+            reasonCodes: ["ORDER_BALANCE_NOT_PAID", "DELIVERY_BATCH_WINDOW_NOT_OPEN"],
+            amountDue: "100.00",
+            currency: "VND",
+          },
+        ],
+      }),
+    );
+    expect(orders?.[0]?.reasonCodes).toEqual([
+      "ORDER_BALANCE_NOT_PAID",
+      "DELIVERY_BATCH_WINDOW_NOT_OPEN",
+    ]);
   });
 });
 

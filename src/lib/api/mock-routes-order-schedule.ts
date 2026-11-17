@@ -2,7 +2,7 @@
  * Mock routes — lịch giao của đơn + dời cửa sổ giao, theo hợp đồng BE `DeliveryBatchController` /
  * `DeliveryBatchService` (docs 17 §4.5, §5.5, BR-28):
  *
- * - GET  /orders/:id/delivery-batches — `sales-contracts:READ` (seed BE: Sales, Kế toán, quản trị — KHÔNG có quản lý kho).
+ * - GET  /orders/:id/delivery-batches — `sales-order-delivery-batches:READ` (BE PR #317: Sales, Kế toán, quản trị VÀ quản lý kho release; nhân viên kho không có).
  *   Mỗi đợt: cửa sổ hợp đồng + cửa sổ hiệu lực, trạng thái hiển thị tính từ lô giao, cờ trễ, thùng theo SKU, lịch sử dời.
  * - POST /orders/:id/delivery-batches/:batchId/window-change — `sales-contracts:UPDATE` (chỉ Sale). Thứ tự kiểm như BE:
  *   quyền → body (bean validation) → 404 đơn → `requireWellFormed` → `check`: đơn đã huỷ / đóng 409 CONFLICT, đợt lạ 404
@@ -16,7 +16,7 @@
  * Lịch giao suy từ đơn (xem `mock-order-delivery-schedule.ts`). Chỉ dùng khi USE_MOCK=true.
  */
 
-import { SALES_CONTRACT_PERMISSIONS } from "@/constants";
+import { ORDER_DELIVERY_BATCH_PERMISSIONS, SALES_CONTRACT_PERMISSIONS } from "@/constants";
 import { toLocalIsoDate } from "@/lib/format/date";
 
 import { registerMockRoute } from "./mock-adapter";
@@ -154,7 +154,7 @@ function breaksOrder(order: Order, batch: MockBatch, start: string): boolean {
 
 export function registerOrderScheduleMockRoutes(): void {
   registerMockRoute("GET", "/orders/:id/delivery-batches", async (config) => {
-    if (!(await hasMockPermission(SALES_CONTRACT_PERMISSIONS.read)))
+    if (!(await hasMockPermission(ORDER_DELIVERY_BATCH_PERMISSIONS.read)))
       return fail(403, "FORBIDDEN", "Access denied");
     const order = await findOrder(pathParams(config).id ?? "");
     return order ? ok(scheduleOf(order)) : notFound();

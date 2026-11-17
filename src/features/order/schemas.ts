@@ -194,6 +194,9 @@ export const orderDtoSchema = z.object({
   orderId: z.string(),
   orderNumber: z.string(),
   customerId: z.string().nullish(),
+  /** Tên + mã khách BE kèm sẵn ở danh sách / chi tiết đơn nội bộ (BE-15). */
+  customerName: z.string().nullish(),
+  customerCode: z.string().nullish(),
   status: orderStatusDtoSchema,
   totalAmount: z.number(),
   currency: currencyCode,
@@ -229,6 +232,8 @@ export const orderDtoSchema = z.object({
   /** Staff: ghi chú lúc giữ. */
   holdNote: z.string().nullish(),
   packedAt: z.string().nullish(),
+  /** Thùng giao đầu tiên được dán nhãn (BE PR #317, WF4 BE-8; docs 08 BR-04): từ đó đơn không huỷ, không đổi địa chỉ giao. */
+  firstLabeledAt: z.string().nullish(),
   shippedAt: z.string().nullish(),
   deliveredAt: z.string().nullish(),
   deliveryFailureReason: orderDeliveryFailureReasonDtoSchema.nullish(),

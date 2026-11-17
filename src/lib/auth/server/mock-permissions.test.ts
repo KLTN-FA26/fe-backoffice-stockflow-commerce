@@ -8,6 +8,7 @@ import { AUTH_COOKIE_NAME, MOCK_LOGIN_PASSWORD } from "@/constants/auth";
 import {
   ATTRIBUTE_PERMISSIONS,
   CANCELLATION_REQUEST_PERMISSIONS,
+  ORDER_DELIVERY_BATCH_PERMISSIONS,
   CREDIT_HOLD_PERMISSIONS,
   CUSTOMER_CREDIT_PROFILE_PERMISSIONS,
   CUSTOMER_PERMISSIONS,
@@ -71,6 +72,8 @@ describe("explicit mock permission responses", () => {
     // chọn / đổi hình thức giao; BE PR #148 ("ACCREAD"): ACCOUNTANT xem đơn
     // WF4: SALES_STAFF + SYSTEM_ADMIN đọc hàng đợi yêu cầu huỷ (`sales-order-cancellations:READ`, resource riêng)
     const queue = CANCELLATION_REQUEST_PERMISSIONS.read;
+    // BE PR #317 (V20261124000650): lịch giao `sales-order-delivery-batches:READ` cho mọi vai đọc hợp đồng và vai release
+    const schedule = ORDER_DELIVERY_BATCH_PERMISSIONS.read;
     const sales = [
       ORDER.viewPage,
       ORDER.read,
@@ -79,16 +82,27 @@ describe("explicit mock permission responses", () => {
       CREDIT.viewPage,
       CREDIT.read,
       queue,
+      schedule,
     ];
     const coordinator = [
       ...new Set([
         ...Object.values(ORDER).filter((code) => code !== ORDER.partialShipment),
         CREDIT.viewPage,
         CREDIT.read,
+        schedule,
       ]),
     ];
-    const accountant = [ORDER.viewPage, ORDER.read, CREDIT.viewPage, CREDIT.read, CREDIT.approve];
-    const admin = [...new Set([...Object.values(ORDER), ...Object.values(CREDIT), queue])];
+    const accountant = [
+      ORDER.viewPage,
+      ORDER.read,
+      CREDIT.viewPage,
+      CREDIT.read,
+      CREDIT.approve,
+      schedule,
+    ];
+    const admin = [
+      ...new Set([...Object.values(ORDER), ...Object.values(CREDIT), queue, schedule]),
+    ];
 
     for (const id of ["USER-SALE-01", "USER-SALE-02", "USER-SALE-03"]) {
       expect(orderScope(id)).toEqual([...sales].sort());
@@ -295,11 +309,17 @@ describe("Fulfillment / order grants (BE PR #148, V20261022000200)", () => {
       expect(grants(userId)).toContain("sales-order-releases:UPDATE");
     for (const userId of ["USER-SALE-01", "USER-WH-01", "USER-ACC-01"])
       expect(grants(userId)).not.toContain("sales-order-releases:UPDATE");
-    // sales-contracts:READ (đọc lịch giao để chọn đợt) — Sales, kế toán, quản trị; KHÔNG có quản lý kho / NV kho
+    // sales-contracts:READ (đọc hợp đồng) — Sales, kế toán, quản trị; KHÔNG có quản lý kho / NV kho
     for (const userId of ["USER-SALE-01", "USER-ACC-01", "USER-ADMIN-01"])
       expect(grants(userId)).toContain("sales-contracts:READ");
     for (const userId of ["USER-WH-01", "USER-QC-01"])
       expect(grants(userId)).not.toContain("sales-contracts:READ");
+    // sales-order-delivery-batches:READ (BE PR #317: đọc lịch giao để chọn đợt) — mọi vai đọc hợp đồng VÀ vai release
+    // (quản lý kho), nhân viên kho / QC thì không
+    for (const userId of ["USER-SALE-01", "USER-ACC-01", "USER-ADMIN-01", "USER-COORD-01"])
+      expect(grants(userId)).toContain("sales-order-delivery-batches:READ");
+    for (const userId of ["USER-WH-01", "USER-QC-01"])
+      expect(grants(userId)).not.toContain("sales-order-delivery-batches:READ");
     // Mã hình thức giao và sales-orders:APPROVE-làm-release không còn ở đâu
     for (const userId of ["USER-COORD-01", "USER-ADMIN-01", "USER-SALE-01", "USER-WH-01"])
       expect(grants(userId)).not.toContain("sales-order-delivery-modes:UPDATE");

@@ -5,6 +5,7 @@ import { LOAD_STATUS } from "@/constants";
 import { BookingDialog } from "../ftl/BookingDialog";
 import { CancelBookingDialog, StartLoadingDialog } from "../ftl/BookingConfirmDialogs";
 import { ControlledCancelLoadDialog } from "../ftl/ControlledCancelLoadDialog";
+import { DriverDialog } from "../ftl/DriverDialog";
 import { HandoverDialog } from "../handover/HandoverDialog";
 import { WaybillDialog } from "../waybill/WaybillDialog";
 
@@ -12,7 +13,14 @@ import type { HandoverRefusal } from "@/features/shipping/errors";
 import type { Load } from "@/features/shipping/types";
 
 export type LoadDialogKind =
-  "handover" | "book" | "cancelBooking" | "startLoading" | "waybill" | "controlledCancel" | null;
+  | "handover"
+  | "book"
+  | "cancelBooking"
+  | "startLoading"
+  | "driver"
+  | "waybill"
+  | "controlledCancel"
+  | null;
 
 /**
  * Hộp thoại của màn chuyến. Gắn với TRẠNG THÁI chuyến, không với quyền: ghi cache sau khi bàn giao /
@@ -65,6 +73,13 @@ export function LoadDialogs({
   }
   if (dialog === "startLoading" && load.status === LOAD_STATUS.VEHICLE_BOOKED) {
     return <StartLoadingDialog load={load} onClose={onClose} />;
+  }
+  // WF4-DRIVER: tài xế chỉ nhập được khi xe đã đặt hoặc đang xếp (BE 409 INVALID_LOAD_TRANSITION sau đó)
+  if (
+    dialog === "driver" &&
+    (load.status === LOAD_STATUS.VEHICLE_BOOKED || load.status === LOAD_STATUS.LOADING)
+  ) {
+    return <DriverDialog load={load} onClose={onClose} />;
   }
   // Mã vận đơn: trước khi rời kho là nhập / đổi; sau khi rời kho là sửa kèm lý do (quản lý kho, BR-24)
   if (

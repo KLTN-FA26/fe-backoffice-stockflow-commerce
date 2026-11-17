@@ -106,6 +106,24 @@ export const ORDER_REMAINDER_CLOSURE_LABELS = {
   OTHER: "Lý do khác",
 } as const satisfies Record<(typeof ORDER_REMAINDER_CLOSURE_REASONS)[number], string>;
 
+/**
+ * Nhãn lý do của mục "Đóng phần còn lại" trong lịch sử đơn (BE `CancellationReasonCode` mà một lần đóng có thể mang).
+ * Sáu lý do đầu dùng đúng lời của hộp thoại đóng phần còn lại; mã khác (đóng sau giao thất bại, lý do huỷ cũ) có
+ * nhãn riêng. Mã lạ không có nhãn → không hiện mã thô (xem `remainderClosureReasonLabel`).
+ */
+export const ORDER_REMAINDER_CLOSURE_HISTORY_REASON_LABELS: Readonly<Record<string, string>> = {
+  OUT_OF_STOCK: "Hết hàng, không cung cấp được",
+  PRODUCTION_ISSUE: "Sự cố sản xuất",
+  CUSTOMER_REQUEST: "Khách yêu cầu",
+  DUPLICATE_ORDER: "Đơn trùng",
+  SUSPECTED_FRAUD: "Nghi ngờ gian lận",
+  OTHER: "Lý do khác",
+  DELIVERY_FAILED: "Giao hàng không thành công",
+  PAYMENT_NOT_RECEIVED: "Chưa nhận được thanh toán",
+  PAYMENT_FAILED: "Thanh toán thất bại",
+  CREDIT_REJECTED: "Từ chối vượt hạn mức công nợ",
+};
+
 /* ── Lô giao (BE OrderShipmentStatus) ────────────────────────────────── */
 
 export const ORDER_SHIPMENT_STATUSES = [
@@ -184,6 +202,7 @@ export const ORDER_HISTORY_ENTRY_TYPES = [
   "STATUS_CHANGE",
   "PARTIAL_SHIPMENT_DECISION",
   "DELIVERY_MODE_CHANGE",
+  "REMAINDER_CLOSURE",
 ] as const;
 
 export const ORDER_HISTORY_LABELS = {
@@ -195,6 +214,9 @@ export const ORDER_HISTORY_LABELS = {
   placed: "Đặt đơn",
   partialAllowed: "Bật giao một phần",
   partialStopped: "Tắt giao một phần",
+  /** Mục "Đóng phần còn lại" (`REMAINDER_CLOSURE`): đầu mục là `Đóng phần còn lại: <lý do>`. */
+  remainderClosed: "Đóng phần còn lại",
+  remainderClosedWithReason: (reason: string) => `Đóng phần còn lại: ${reason}`,
   unknownEntry: "Thay đổi không rõ",
   by: "Bởi",
   noteLabel: "Ghi chú",

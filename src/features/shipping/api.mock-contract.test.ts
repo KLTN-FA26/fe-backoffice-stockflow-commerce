@@ -105,6 +105,7 @@ const readLoad = async (id: string): Promise<Load> =>
 const bookBody = (extra: Record<string, unknown> = {}) => ({
   carrierId: MANUAL_CARRIER,
   vehiclePlate: "51C-1",
+  driverName: "Trần Văn Lái",
   ...extra,
 });
 const handoverBody = (version: number, extra: Record<string, unknown> = {}) => ({
@@ -649,6 +650,48 @@ describe("mock bàn giao — mã lỗi theo thứ tự BE", () => {
         (await post(PLANNED_CLEAN, "handover", handoverBody(withWaybill.version))).data,
       ).status,
     ).toBe("DISPATCHED");
+  });
+});
+
+describe("mock tài xế — PUT loads/{id}/driver (WF4-DRIVER, BE PR #316)", () => {
+  const driver = (id: string, body: unknown) => call("PUT", `${LOADS}/${id}/driver`, body);
+
+  it("xe đã đặt không kèm tài xế: ký bị từ chối LOAD_DRIVER_MISSING (sau mã vận đơn), nhập tài xế rồi ký được; mã vận đơn không đổi", async () => {
+    await post(
+      PLANNED_CLEAN,
+      "booking",
+      bookBody({ driverName: undefined, waybillNo: "GHN-DRV-1" }),
+    );
+    await post(PLANNED_CLEAN, "loading-start");
+    const full = await scanAll(PLANNED_CLEAN);
+    expect(full.driverName).toBeFalsy();
+    const refused = await post(PLANNED_CLEAN, "handover", handoverBody(full.version));
+    expect(refused.status).toBe(409);
+    expect(errorCode(refused)).toBe("LOAD_DRIVER_MISSING");
+    const saved = beLoadSchema.parse(
+      (await driver(PLANNED_CLEAN, { driverName: " Lê Văn Tài " })).data,
+    );
+    expect(saved).toMatchObject({ driverName: "Lê Văn Tài", waybillNo: "GHN-DRV-1" });
+    expect(saved.version).toBe(full.version + 1);
+    expect(
+      beLoadSchema.parse((await post(PLANNED_CLEAN, "handover", handoverBody(saved.version))).data)
+        .status,
+    ).toBe("DISPATCHED");
+  });
+
+  it("SĐT vắng thì giữ SĐT cũ; tên trống 400; PLANNED / DISPATCHED 409 INVALID_LOAD_TRANSITION; cần dispatch:UPDATE", async () => {
+    await post(PLANNED_CLEAN, "booking", bookBody({ driverPhone: "0901" }));
+    const kept = beLoadSchema.parse((await driver(PLANNED_CLEAN, { driverName: "A" })).data);
+    expect(kept).toMatchObject({ driverName: "A", driverPhone: "0901" });
+    expect(errorCode(await driver(PLANNED_CLEAN, { driverName: "  " }))).toBe("VALIDATION_FAILED");
+    expect(errorCode(await driver(PLANNED_WINDOW, { driverName: "A" }))).toBe(
+      "INVALID_LOAD_TRANSITION",
+    );
+    expect(errorCode(await driver(DISPATCHED, { driverName: "A" }))).toBe(
+      "INVALID_LOAD_TRANSITION",
+    );
+    actAs([]);
+    expect((await driver(PLANNED_CLEAN, { driverName: "B" })).status).toBe(403);
   });
 });
 

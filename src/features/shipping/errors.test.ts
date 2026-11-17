@@ -42,6 +42,7 @@ describe("shippingErrorMessage — mọi mã lỗi BE có câu tiếng Việt", 
       "LOAD_UNLOAD_PENDING",
       "LOAD_HANDOVER_BLOCKED",
       "LOAD_WAYBILL_MISSING",
+      "LOAD_DRIVER_MISSING",
       "WAYBILL_DUPLICATE",
       "WAYBILL_FROM_CARRIER_API",
       "WAYBILL_IMPORT_INVALID_FILE",
@@ -119,6 +120,7 @@ describe("phân loại lỗi", () => {
       "PACKAGE_NOT_READY",
       "CARRIER_BOOKING_IN_PROGRESS",
       "WAYBILL_FROM_CARRIER_API",
+      "LOAD_DRIVER_MISSING",
     ]) {
       expect(isStaleLoadError(err(code))).toBe(true);
     }

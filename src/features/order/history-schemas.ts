@@ -15,7 +15,9 @@ import { orderStatusDtoSchema } from "./schemas";
  * (trạng thái đi `from` → `to`) hoặc `PARTIAL_SHIPMENT_DECISION` (Sales bật / tắt giao một phần,
  * `from` / `to` null, `partialShipmentAllowed`, `reason` = ghi chú của Sales) hoặc `DELIVERY_MODE_CHANGE`
  * (BE PR #157, LP-1: điều phối viên đổi hình thức giao — `deliveryMode` mới, `previousDeliveryMode` cũ,
- * `reason` = ghi chú). Hai mục sau chỉ nhân viên thấy. `type` vắng (BE cũ) = STATUS_CHANGE; giá trị lạ → "UNKNOWN".
+ * `reason` = ghi chú) hoặc `REMAINDER_CLOSURE` (Sales đóng phần còn lại, kể cả khi trạng thái đơn không đổi — BE
+ * `order_remainder_closure`: `from` / `to` null, `closureReasonCode` = mã lý do, `reason` = ghi chú). Ba mục sau chỉ nhân
+ * viên thấy. `type` vắng (BE cũ) = STATUS_CHANGE; giá trị lạ → "UNKNOWN".
  */
 export const orderHistoryEntryDtoSchema = z.object({
   type: z
@@ -29,6 +31,7 @@ export const orderHistoryEntryDtoSchema = z.object({
   actorId: z.string().nullish(),
   actorName: z.string().nullish(),
   partialShipmentAllowed: z.boolean().nullish(),
+  closureReasonCode: z.string().nullish(),
   deliveryMode: orderDeliveryModeDtoSchema.nullish(),
   previousDeliveryMode: orderDeliveryModeDtoSchema.nullish(),
 });
@@ -56,6 +59,12 @@ export const orderHistoryEntrySchema = z.discriminatedUnion("kind", [
     kind: z.literal("partial-shipment"),
     /** true = Sales bật giao một phần; false = tắt. */
     allowed: z.boolean(),
+  }),
+  z.object({
+    ...historyEntryBase,
+    kind: z.literal("remainder-closure"),
+    /** Mã lý do đóng (BE `CancellationReasonCode`); null khi BE không gửi. `reason` là ghi chú của Sales. */
+    reasonCode: z.string().nullable(),
   }),
   z.object({
     ...historyEntryBase,

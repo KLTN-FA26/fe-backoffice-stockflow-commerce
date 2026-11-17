@@ -421,6 +421,14 @@ describe("giao thất bại / đóng phần còn lại", () => {
       to: "SHIPPED",
       reason: "REMAINDER_CLOSED_OUT_OF_STOCK",
     });
+    // BE `order_remainder_closure`: là một mục riêng của lịch sử, đứng trước bước đổi trạng thái do chính nó
+    const entries = await history(PARTIAL);
+    expect(entries.at(-2)).toMatchObject({
+      type: "REMAINDER_CLOSURE",
+      closureReasonCode: "OUT_OF_STOCK",
+    });
+    // sau `ok()` các trường null bị bỏ khỏi JSON: mục này không có from / to (không phải đổi trạng thái)
+    expect(entries.at(-2)).not.toHaveProperty("to");
   });
 
   it("giao thất bại cả đơn chỉ khi không có lô; lý do được giữ, rời DELIVERY_FAILED thì xoá", async () => {
