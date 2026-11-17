@@ -296,17 +296,6 @@ export function registerAllMockRoutes(): void {
 
   // Purchase orders: mock-routes-purchase-orders.ts (BE PurchaseOrderController contract).
 
-  // FE-only: BE has no GET /api/v1/replenishment-proposals yet.
-  // GET /replenishment-proposals
-  registerMockRoute("GET", "/replenishment-proposals", async (config) => {
-    const { replenishmentProposals } = await import("@/lib/mock-data");
-    const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
-
-    return { status: 200, data: paginate(replenishmentProposals, page, pageSize), headers: {} };
-  });
-
   /* ====================================================================
    * Module 05 — Putaway Tasks
    * ==================================================================*/

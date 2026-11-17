@@ -66,12 +66,7 @@ function renderPage() {
 }
 
 // Widgets whose data exists only in the demo dataset (BE has no endpoint for them).
-const MOCK_ONLY_WIDGETS = [
-  "Cần xử lý ngay",
-  "Hoạt động gần đây",
-  "Hiệu suất kho hôm nay",
-  "Đề xuất nhập hàng",
-];
+const MOCK_ONLY_WIDGETS = ["Cần xử lý ngay", "Hoạt động gần đây", "Hiệu suất kho hôm nay"];
 
 describe("dashboard — no demo numbers against the real backend", () => {
   it("shows none of the mock-only widgets", async () => {
@@ -89,15 +84,11 @@ describe("dashboard — no demo numbers against the real backend", () => {
 });
 
 describe("dashboard — mock mode keeps its demo widgets", () => {
-  it("shows every widget, with the replenishment link", async () => {
+  it("shows every widget", async () => {
     mockMode.isMock = true;
     renderPage();
     for (const title of MOCK_ONLY_WIDGETS) {
       expect(await screen.findByText(title)).toBeInTheDocument();
     }
-    expect(screen.getByRole("link", { name: /Xem tất cả/ })).toHaveAttribute(
-      "href",
-      "/admin/replenishment",
-    );
   });
 });

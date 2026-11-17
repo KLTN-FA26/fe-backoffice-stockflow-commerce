@@ -163,11 +163,6 @@ export {
   LOAD_PLAN_EDITOR_STALE_MESSAGES,
 } from "./labels-load-plan-editor";
 export { LOAD_PLAN_PRINT_LABELS } from "./labels-load-plan-print";
-export {
-  LOAD_PLAN_SOURCE_LABELS,
-  LOAD_PLAN_TRANSFER_ERROR_MESSAGES,
-  LOAD_PLAN_TRANSFER_FIELD_MESSAGES,
-} from "./labels-load-plan-transfer";
 export { LOAD_PLANNING_LABELS, PLACEMENT_RULE_LABELS } from "./labels-load-planning";
 export { SHIPPING_ERROR_MESSAGES, SHIPPING_FIELD_MESSAGES } from "./labels-shipping";
 export {
@@ -349,8 +344,6 @@ export {
   DELIVERY_OUTCOMES,
   LOAD_PLAN_ESTIMATE_FLAGS,
   LOAD_PLAN_SELECTION_MODES,
-  LOAD_PLAN_SOURCE,
-  LOAD_PLAN_SOURCE_TYPES,
   LOAD_PLAN_STATUS,
   LOAD_PLAN_STATUSES,
   LOAD_PLAN_UNPLACED_REASONS,
@@ -444,7 +437,6 @@ export type {
   DeliveryOutcome,
   LoadPlanEstimateFlag,
   LoadPlanSelectionMode,
-  LoadPlanSourceType,
   LoadPlanStatus,
   LoadPlanUnplacedReason,
   LoadStatus,

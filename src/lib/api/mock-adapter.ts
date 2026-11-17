@@ -272,13 +272,10 @@ export function activateMockAdapter(): void {
     import("./mock-routes-print-configs"),
     import("./mock-routes-inventory"),
     import("./mock-routes-inventory-items"),
-    import("./mock-routes-stock-alerts"),
     import("./mock-routes-notifications"),
     import("./mock-routes-reports"),
     import("./mock-routes-fulfillment"),
     import("./mock-routes-warehouse-layout"),
-    import("./mock-routes-transfer-orders"),
-    import("./mock-routes-transfer-packs"),
     import("./mock-routes-dispatch"),
     import("./mock-routes-taxonomy"),
     import("./mock-routes-vehicle-types"),
@@ -309,13 +306,10 @@ export function activateMockAdapter(): void {
       { registerPrintConfigMockRoutes },
       { registerInventoryMockRoutes },
       { registerInventoryItemMockRoutes },
-      { registerStockAlertMockRoutes },
       { registerNotificationMockRoutes },
       { registerReportMockRoutes },
       { registerFulfillmentMockRoutes },
       { registerWarehouseLayoutMockRoutes },
-      { registerTransferOrderMockRoutes },
-      { registerTransferPackMockRoutes },
       { registerDispatchMockRoutes },
       { registerTaxonomyMockRoutes },
       { registerVehicleTypeMockRoutes },
@@ -349,13 +343,10 @@ export function activateMockAdapter(): void {
       registerPrintConfigMockRoutes();
       registerInventoryMockRoutes();
       registerInventoryItemMockRoutes();
-      registerStockAlertMockRoutes();
       registerNotificationMockRoutes();
       registerReportMockRoutes();
       registerFulfillmentMockRoutes();
       registerWarehouseLayoutMockRoutes();
-      registerTransferOrderMockRoutes();
-      registerTransferPackMockRoutes();
       registerDispatchMockRoutes();
       registerTaxonomyMockRoutes();
       registerVehicleTypeMockRoutes();

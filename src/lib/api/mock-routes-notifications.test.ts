@@ -1,11 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { INVENTORY_ROUTES } from "@/constants/inventory";
 import { NOTIFICATION_API } from "@/constants/notifications";
 
 import { useAuthStore } from "@/lib/auth/auth-store";
-
-import { toSafeNotificationPath } from "@/features/notification/link";
 
 import { api } from "./client";
 import { ApiError } from "./error";
@@ -84,17 +81,11 @@ describe("mock inbox: ownership and BE endpoint semantics", () => {
     expect((await page()).unreadCount).toBe(a.items.length);
   });
 
-  it("stock-alert links follow BE InventoryAlertMessages (kind[, warehouseId]) and pass the safe-link policy", async () => {
+  it("mock stock-alert messages carry no link (the alerts page no longer exists)", async () => {
     signIn(staffA);
     const links = (await page()).items.map((item) => item.link);
     expect(links.length).toBeGreaterThan(0);
-    for (const link of links) {
-      expect(link).toMatch(
-        /^\/admin\/inventory\/alerts\?kind=(REORDER|SAFETY|EXPIRING|EXPIRED)(&warehouseId=[\w-]+)?$/,
-      );
-      expect(link?.startsWith(`${INVENTORY_ROUTES.alerts}?`)).toBe(true);
-      expect(link && toSafeNotificationPath(link)).toBe(link);
-    }
+    expect(links.every((link) => !link)).toBe(true);
   });
 
   // BE InventoryAlertMessages severity switch (develop 878a1be). The seeded SAFETY alert is
@@ -111,7 +102,7 @@ describe("mock inbox: ownership and BE endpoint semantics", () => {
     const items = (await page()).items;
     expect(items.length).toBeGreaterThan(0);
     for (const item of items) {
-      const kind = new URLSearchParams(item.link?.split("?")[1]).get("kind") ?? "";
+      const kind = item.title.split(" · ")[0] ?? "";
       expect(item.severity).toBe(BE_ALERT_SEVERITY[kind]);
     }
   });

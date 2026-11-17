@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   RESERVATION_RELEASE_REASONS,
   RESERVATION_STATUSES,
-  STOCK_ALERT_KINDS,
   STOCK_STATUSES,
 } from "@/constants/inventory";
 
@@ -11,8 +10,6 @@ import {
   atpDto,
   reservationPageDto,
   reservationRowDto,
-  stockAlertDto,
-  stockAlertListInput,
   stockLevelsDto,
   skuLookupInput,
   stockLevelsInput,
@@ -53,19 +50,6 @@ const reservation = {
   quantity: 20,
   status: "HELD",
   reservedAt: "2026-10-14T02:00:00Z",
-};
-
-const reorderAlert = {
-  id: "0e380000-0000-4000-8000-000000000301",
-  kind: "REORDER",
-  sku: "CUP-PP-500",
-  observedQty: 430,
-  thresholdQty: 500,
-  reservationImpaired: false,
-  status: "OPEN",
-  openedAt: "2026-10-15T01:00:00Z",
-  lastObservedAt: "2026-10-16T01:00:00Z",
-  version: 0,
 };
 
 function page<T>(items: T[]) {
@@ -193,34 +177,6 @@ describe("ReservationRowResponse", () => {
   });
 });
 
-describe("StockAlertResponse", () => {
-  it.each(STOCK_ALERT_KINDS)("parses kind %s", (kind) => {
-    expect(stockAlertDto.parse({ ...reorderAlert, kind }).kind).toBe(kind);
-  });
-
-  it("parses an SKU-wide low-stock alert with no warehouse, lot or expiry", () => {
-    const parsed = stockAlertDto.parse(reorderAlert);
-    expect(parsed.warehouseId).toBeUndefined();
-    expect(parsed.daysToExpiry).toBeUndefined();
-    expect(parsed.thresholdQty).toBe(500);
-  });
-
-  it("parses an expiry alert with warehouse, lot, expiry date and days to expiry", () => {
-    const parsed = stockAlertDto.parse({
-      ...reorderAlert,
-      kind: "EXPIRED",
-      warehouseId: "WH-HN-01",
-      warehouseCode: "HN01",
-      lotNumber: "L2599",
-      expiryDate: "2026-10-01",
-      daysToExpiry: -15,
-      thresholdQty: undefined,
-      reservationImpaired: true,
-    });
-    expect(parsed).toMatchObject({ warehouseCode: "HN01", lotNumber: "L2599", daysToExpiry: -15 });
-  });
-});
-
 describe("request inputs", () => {
   it("normalises the exact SKU and drops blank filters", () => {
     expect(
@@ -257,8 +213,6 @@ describe("request inputs", () => {
 
   it("refuses values the backend would reject or treat as match-nothing", () => {
     const base = { page: 0, size: 20 };
-    expect(stockAlertListInput.safeParse({ ...base, kind: [] }).success).toBe(false);
-    expect(stockAlertListInput.safeParse({ ...base, kind: ["LOW"] }).success).toBe(false);
     expect(
       warehouseStockItemsInput.safeParse({
         ...base,
@@ -281,9 +235,4 @@ describe("exact SKU contract", () => {
     expect(skuLookupInput.safeParse({ sku }).success).toBe(false);
     expect(stockLevelsInput.safeParse({ sku }).success).toBe(false);
   });
-});
-
-it("overview pagination rejects sizes above the backend Pages ceiling", () => {
-  expect(stockAlertListInput.safeParse({ page: 0, size: 200 }).success).toBe(true);
-  expect(stockAlertListInput.safeParse({ page: 0, size: 201 }).success).toBe(false);
 });

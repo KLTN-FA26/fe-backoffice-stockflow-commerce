@@ -19,7 +19,6 @@ export const STORAGE_KEYS = {
   adminSupplierItemsConfig: "stockflow:admin:suppliers:items:config",
   adminTaxonomyBrandsConfig: "stockflow:admin:taxonomy:brands:config",
   adminTaxonomyCategoriesConfig: "stockflow:admin:taxonomy:categories:config",
-  adminTransfersConfig: "stockflow:admin:transfers:config",
   adminShipmentsConfig: "stockflow:admin:shipments:config",
   adminLoadsConfig: "stockflow:admin:loads:config",
   adminVehicleTypesConfig: "stockflow:admin:vehicle-types:config",

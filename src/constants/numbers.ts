@@ -321,8 +321,6 @@ export const LOAD_PLANNING_LIMITS = {
 export const LOAD_PLAN_LIMITS = {
   /** `shipmentIds` @Size(max = 200). */
   shipmentsMax: 200,
-  /** `transferOrderIds` @Size(max = 1): kế hoạch nguồn TRANSFER chứa đúng một lệnh chuyển kho (BE PR #164). */
-  transferOrdersMax: 1,
   /** `vehicleTypeIds` @Size(max = 50). */
   vehicleTypesMax: 50,
   /** `reason` @NotBlank @Size(max = 500) khi mở lại / huỷ. */

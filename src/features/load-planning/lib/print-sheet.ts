@@ -91,11 +91,8 @@ function parcelRow(
     labelCode: parcel?.labelCode ?? box.label,
     partName: box.partName,
     letter: context.letters.get(box.partName) ?? "",
-    // Kiện của lệnh chuyển kho (BE PR #164) không có lô giao: `orders` nêu số lệnh theo `transferOrderId`
     orderNo: parcel
-      ? (context.orders.get(parcel.shipmentId ?? parcel.transferOrderId ?? "") ??
-        parcel.shipmentCode ??
-        null)
+      ? (context.orders.get(parcel.shipmentId ?? "") ?? parcel.shipmentCode ?? null)
       : null,
     sizeCm: formatNominalCm(box.origMm),
     weightKg: box.weightKg,
@@ -158,9 +155,6 @@ export function buildPrintSheet(
     parcels: new Map(plan.packages.map((parcel) => [parcel.packageId, parcel])),
     orders: new Map([
       ...plan.shipments.map((s): [string, string] => [s.shipmentId, s.orderNumber ?? s.code]),
-      ...(plan.transferOrder
-        ? [[plan.transferOrder.transferOrderId, plan.transferOrder.number] as [string, string]]
-        : []),
     ]),
     letters,
   };

@@ -7,12 +7,10 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { INVENTORY_API, INVENTORY_QUERY_KEYS } from "@/constants/inventory";
 
 import {
-  stockAlertKeys,
   stockKeys,
   stockReservationKeys,
   useAtp,
   useReservations,
-  useStockAlerts,
   useStockLevels,
   useWarehouseStockItems,
 } from "./queries";
@@ -67,7 +65,6 @@ describe("overview query keys", () => {
       "HN01",
     ]);
     expect(stockReservationKeys.list(null, null)[0]).toBe("inventory-reservations");
-    expect(stockAlertKeys.list(null, null)[0]).toBe("inventory-alerts");
   });
 });
 
@@ -155,22 +152,15 @@ describe("useAtp", () => {
 });
 
 describe("paged lists", () => {
-  it("load reservations and alerts with their filters", async () => {
+  it("load reservations with their filters", async () => {
     serve(INVENTORY_API.reservations, emptyPage);
-    serve(INVENTORY_API.alerts, emptyPage);
     const { wrapper } = setup();
     const reservations = renderHook(
       () => useReservations({ sku: "CUP-PP-500", warehouse: "HN01", page: 0, size: 20 }),
       { wrapper },
     );
-    const alerts = renderHook(
-      () => useStockAlerts({ kind: ["REORDER", "SAFETY"], sku: "CUP-PP-500", page: 0, size: 20 }),
-      { wrapper },
-    );
     await waitFor(() => expect(reservations.result.current.isSuccess).toBe(true));
-    await waitFor(() => expect(alerts.result.current.isSuccess).toBe(true));
     expect(requests.map((url) => url.pathname).sort()).toEqual([
-      `/api/backend${INVENTORY_API.alerts}`,
       `/api/backend${INVENTORY_API.reservations}`,
     ]);
   });

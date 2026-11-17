@@ -5,9 +5,6 @@ import {
   INVENTORY_MESSAGES,
   INVENTORY_SORT_DIRECTIONS,
   RESERVATION_STATUSES,
-  STOCK_ALERT_KINDS,
-  STOCK_ALERT_SORT_FIELDS,
-  STOCK_ALERT_STATUSES,
   STOCK_ITEM_SORT_FIELDS,
   STOCK_STATUSES,
 } from "@/constants/inventory";
@@ -77,32 +74,6 @@ export const reservationRowDto = z.object({
 });
 export const reservationPageDto = inventoryPageDto(reservationRowDto);
 
-/** StockAlertResponse. REORDER/SAFETY are SKU-wide: no warehouse, no lot, no expiry. */
-export const stockAlertDto = z.object({
-  id: beUuid,
-  kind: z.string(),
-  sku: z.string(),
-  warehouseId: warehouseId.nullish(),
-  warehouseCode: z.string().nullish(),
-  lotNumber: z.string().nullish(),
-  expiryDate: z.iso.date().nullish(),
-  daysToExpiry: quantity.nullish(),
-  observedQty: quantity,
-  thresholdQty: quantity.nullish(),
-  reservationImpaired: z.boolean(),
-  status: z.string(),
-  openedAt: z.iso.datetime(),
-  lastObservedAt: z.iso.datetime(),
-  acknowledgedBy: beUuid.nullish(),
-  acknowledgedByName: z.string().nullish(),
-  acknowledgedAt: z.iso.datetime().nullish(),
-  ackNote: z.string().nullish(),
-  resolvedAt: z.iso.datetime().nullish(),
-  resolution: z.string().nullish(),
-  version: z.number().int().nonnegative(),
-});
-export const stockAlertPageDto = inventoryPageDto(stockAlertDto);
-
 // ── Request inputs ─────────────────────────────────────────────────────────────────────────────
 
 // Exact SKU only (no partial or product-name search on the backend): trimmed, upper-cased like
@@ -165,13 +136,4 @@ export const reservationListInput = z.object({
   status: commaList(RESERVATION_STATUSES),
   warehouse: optionalText,
   ...paging,
-});
-
-export const stockAlertListInput = z.object({
-  kind: commaList(STOCK_ALERT_KINDS),
-  status: commaList(STOCK_ALERT_STATUSES),
-  sku: optionalSku,
-  warehouseId: warehouseId.optional(),
-  ...paging,
-  sort: sortClause(STOCK_ALERT_SORT_FIELDS),
 });

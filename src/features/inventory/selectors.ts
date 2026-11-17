@@ -2,10 +2,6 @@ import {
   INVENTORY_LABELS,
   STOCK_ADJUSTMENT_REASON_LABELS,
   STOCK_ADJUSTMENT_REASONS,
-  STOCK_ALERT_KIND_LABELS,
-  STOCK_ALERT_KINDS,
-  STOCK_ALERT_STATUS_LABELS,
-  STOCK_ALERT_STATUSES,
   STOCK_MOVEMENT_LABELS,
   STOCK_MOVEMENT_TYPES,
 } from "@/constants/inventory";
@@ -75,15 +71,4 @@ export function selectWarehouseByCode(
 ): WarehouseOption | null {
   const wanted = code.trim().toUpperCase();
   return directory.find((warehouse) => warehouse.code.trim().toUpperCase() === wanted) ?? null;
-}
-
-// Known alert kinds/statuses are localized; a newer backend code is shown verbatim.
-export function alertKindLabel(kind: string): string {
-  const known = STOCK_ALERT_KINDS.find((value) => value === kind);
-  return known ? STOCK_ALERT_KIND_LABELS[known] : kind;
-}
-
-export function alertStatusLabel(status: string): string {
-  const known = STOCK_ALERT_STATUSES.find((value) => value === status);
-  return known ? STOCK_ALERT_STATUS_LABELS[known] : status;
 }

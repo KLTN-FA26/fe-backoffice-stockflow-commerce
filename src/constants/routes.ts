@@ -120,10 +120,6 @@ export const ADMIN_ROUTES = {
   taxonomy: {
     list: `${ADMIN_BASE}/taxonomy`,
   },
-  transfers: {
-    detail: (id: string) => `${ADMIN_BASE}/transfers/${id}`,
-    list: `${ADMIN_BASE}/transfers`,
-  },
   /** Lô giao chờ xuất / đã giao (BE `ShipmentController`, PR #137). */
   shipments: {
     list: `${ADMIN_BASE}/shipments`,
