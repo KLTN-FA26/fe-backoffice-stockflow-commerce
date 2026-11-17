@@ -74,13 +74,16 @@ export const quoteDtoSchema = z.object({
   version: z.number().int(),
 });
 
+/**
+ * Dòng danh sách — BE `QuoteRowResponse`. Không có điều khoản thanh toán: khách trả theo lịch
+ * thanh toán của hợp đồng, không chọn theo báo giá / đơn (docs 15 BR-01).
+ */
 export const quoteRowDtoSchema = z.object({
   id: z.string(),
   quoteNumber: z.string(),
   customerId: z.string(),
   status: z.enum(QUOTE_API_STATUSES),
   revision: z.number().int(),
-  paymentTerm: z.enum(PAYMENT_TERMS),
   validUntil: z.string(),
   sentAt: z.string().nullish(),
   convertedOrderId: z.string().nullish(),

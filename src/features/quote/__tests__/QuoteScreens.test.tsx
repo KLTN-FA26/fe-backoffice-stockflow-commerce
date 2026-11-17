@@ -63,7 +63,6 @@ describe("Quote back office", () => {
               customerId: "c-1",
               status: "SENT",
               revision: 2,
-              paymentTerm: "PREPAID",
               validUntil: "2099-12-31T16:59:59Z",
               createdAt: "2026-10-14T02:00:00Z",
               version: 1,

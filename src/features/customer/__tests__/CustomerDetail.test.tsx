@@ -37,11 +37,8 @@ function routes(customer: Record<string, unknown>) {
       "/customers/c-1/credit-profile": () => ({
         customerId: "c-1",
         configured: true,
-        allowPrepaid: true,
-        allowDeposit: true,
-        allowCredit: false,
-        defaultPaymentTerm: "DEPOSIT",
-        depositPercent: 30,
+        creditLimit: 50_000_000,
+        creditTermDays: 30,
         currency: "VND",
         version: 0,
       }),
@@ -62,7 +59,7 @@ describe("CustomerDetail — action gating by real role permissions", () => {
     );
     expect(screen.getByRole("button", { name: /Sửa/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Tạm khoá" })).not.toBeInTheDocument();
-    expect(await screen.findByText("Trả trước · Đặt cọc")).toBeInTheDocument();
+    expect(await screen.findByText("30 ngày")).toBeInTheDocument();
   });
 
   it("SALES_STAFF on a pending customer sees the honest FAILED delivery and can resend", async () => {
@@ -92,7 +89,7 @@ describe("CustomerDetail — action gating by real role permissions", () => {
     expect(await screen.findByRole("button", { name: "Tạm khoá" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Đóng tài khoản" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Tạo báo giá/ })).not.toBeInTheDocument();
-    expect(screen.getByText(/chưa có quyền xem điều khoản thanh toán/)).toBeInTheDocument();
+    expect(screen.getByText(/chưa có quyền xem hạn mức công nợ/)).toBeInTheDocument();
   });
 
   it("ORDER_COORDINATOR (no customer permission) is denied without fetching the customer", async () => {

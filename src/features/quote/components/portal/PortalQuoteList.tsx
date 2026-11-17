@@ -4,13 +4,7 @@ import Link from "next/link";
 import { FileText } from "lucide-react";
 import { parseAsInteger, useQueryState } from "nuqs";
 
-import {
-  PAGE_SIZE,
-  PAYMENT_TERM_LABELS,
-  PORTAL_ROUTES,
-  QUOTE_PERMISSIONS,
-  QUOTE_STATUS_BY_API,
-} from "@/constants";
+import { PAGE_SIZE, PORTAL_ROUTES, QUOTE_PERMISSIONS, QUOTE_STATUS_BY_API } from "@/constants";
 import { useCan } from "@/lib/auth";
 import { formatDate } from "@/lib/format/date";
 import { useQuotes } from "@/features/quote/queries";
@@ -68,9 +62,6 @@ export function PortalQuoteList() {
                     {row.quoteNumber}
                   </span>
                   <StatusDot domain="order" status={QUOTE_STATUS_BY_API[row.status]} />
-                  <span className="text-ink-secondary text-sm">
-                    {PAYMENT_TERM_LABELS[row.paymentTerm]}
-                  </span>
                   <span
                     className={`text-sm tabular-nums ${row.status === "SENT" && isExpired(row.validUntil) ? "text-danger" : "text-ink-secondary"}`}
                   >

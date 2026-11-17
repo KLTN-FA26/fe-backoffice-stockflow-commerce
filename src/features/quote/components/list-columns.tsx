@@ -2,12 +2,7 @@
 
 import Link from "next/link";
 
-import {
-  ADMIN_ROUTES,
-  PAYMENT_TERM_LABELS,
-  QUOTE_API_STATUSES,
-  QUOTE_STATUS_BY_API,
-} from "@/constants";
+import { ADMIN_ROUTES, QUOTE_API_STATUSES, QUOTE_STATUS_BY_API } from "@/constants";
 
 import { formatDate } from "@/lib/format/date";
 
@@ -55,13 +50,6 @@ export const COLUMNS: ColumnDef<QuoteRow>[] = [
     header: "Bản",
     align: "right",
     cell: (row) => <span className={MONO}>{row.revision}</span>,
-  },
-  {
-    key: "paymentTerm",
-    header: "Thanh toán",
-    cell: (row) => (
-      <span className="text-ink-secondary">{PAYMENT_TERM_LABELS[row.paymentTerm]}</span>
-    ),
   },
   {
     key: "validUntil",
