@@ -43,7 +43,7 @@ export const handoverWarningSchema = z.object({
   orderId: z.string(),
   orderNumber: z.string(),
   reasonCode: z.string(),
-  /** Mọi lý do đơn chưa được đi (BE gửi trong `LOAD_HANDOVER_BLOCKED`; `reasonCode` là lý do đầu). Cảnh báo "bắt đầu xếp" chưa có. */
+  /** Mọi lý do đơn chưa được đi (BE gửi trong `LOAD_HANDOVER_BLOCKED` và trong cảnh báo khi xếp; `reasonCode` là lý do đầu). BE cũ chưa gửi → chỉ `reasonCode`. */
   reasonCodes: z.array(z.string()).nullish(),
   amountDue: amountSchema.nullish(),
   currency: z.string().nullish(),
