@@ -66,6 +66,23 @@ describe("orderHistoryDtoSchema — GET /orders/{id}/history (BE PR #150)", () =
     expect(entries[1]).toMatchObject({ partialShipmentAllowed: true, reason: "Khách đồng ý" });
   });
 
+  it("nhận mục REMAINDER_CLOSURE (đóng phần còn lại) với mã lý do và ghi chú", () => {
+    const [entry] = orderHistoryDtoSchema.parse([
+      {
+        type: "REMAINDER_CLOSURE",
+        reason: "hết nắp",
+        occurredAt: "2026-11-20T02:00:00Z",
+        actorName: "Sale A",
+        closureReasonCode: "OUT_OF_STOCK",
+      },
+    ]);
+    expect(entry).toMatchObject({
+      type: "REMAINDER_CLOSURE",
+      closureReasonCode: "OUT_OF_STOCK",
+      reason: "hết nắp",
+    });
+  });
+
   it("type vắng (BE cũ) = STATUS_CHANGE; type lạ → UNKNOWN", () => {
     const [legacy, odd] = orderHistoryDtoSchema.parse([
       { from: null, to: "PENDING_PAYMENT", occurredAt: "2026-10-01T00:00:00Z" },

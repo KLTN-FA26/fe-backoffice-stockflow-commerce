@@ -45,7 +45,8 @@ function HistoryBody({ id }: { id: string }) {
  * Lịch sử đơn (BE `GET /orders/{id}/history`, cũ nhất trước): đổi trạng thái (`STATUS_CHANGE`) xen với quyết
  * định giao một phần của Sales (`PARTIAL_SHIPMENT_DECISION`, BE PR #150) — mục sau render riêng: "Bật / Tắt giao
  * một phần", ai, khi nào, ghi chú; và đổi hình thức giao của điều phối viên (`DELIVERY_MODE_CHANGE`, BE PR #157)
- * — "Đổi hình thức giao: Giao lẻ → Nguyên xe (FTL)". Chỉ vẽ khi người xem đọc được đơn (cha kiểm quyền).
+ * — "Đổi hình thức giao: Giao lẻ → Nguyên xe (FTL)"; và Sales đóng phần còn lại (`REMAINDER_CLOSURE`, BE
+ * `order_remainder_closure`, kể cả khi trạng thái đơn không đổi) — "Đóng phần còn lại: <lý do>". Chỉ vẽ khi người xem đọc được đơn (cha kiểm quyền).
  */
 export function OrderHistory({ orderId }: { orderId: string }) {
   return (
