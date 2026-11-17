@@ -223,9 +223,9 @@ export function adminCancelOrder(input: OrderMutationVars<AdminCancelOrderInput>
 /* ── Hold / resolve / delivery-failure / remainder-closure ───────────── */
 // BE PR #133 — `OrderReleaseController` / `OrderController`, mỗi endpoint trả `OrderResponse`.
 // Body bỏ `note` khi trống (BE `@Size`, null hợp lệ trừ OTHER / gỡ giữ).
-// - POST /orders/{id}/hold              {reasonCode, note?}   — sales-orders:APPROVE
-// - POST /orders/{id}/hold/resolution   {note}                — sales-orders:APPROVE
-// - POST /orders/{id}/delivery-failure  {reasonCode, note?}   — sales-orders:APPROVE
+// - POST /orders/{id}/hold              {reasonCode, note?}   — sales-order-holds:UPDATE
+// - POST /orders/{id}/hold/resolution   {note}                — sales-order-holds:UPDATE
+// - POST /orders/{id}/delivery-failure  {reasonCode, note?}   — fulfillment-delivery-outcomes:APPROVE
 // - POST /orders/{id}/remainder-closure {reasonCode, note?, agreedFee?{amount, reason, detail}}
 //                                                             — sales-order-cancellations:UPDATE
 

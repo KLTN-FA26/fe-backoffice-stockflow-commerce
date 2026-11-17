@@ -7,6 +7,7 @@
 
 import {
   CREDIT_HOLD_PERMISSIONS,
+  FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS,
   ORDER_ACTION_LABELS,
   ORDER_MANUAL_HOLD_REASONS,
   ORDER_PERMISSIONS,
@@ -194,11 +195,11 @@ export const ORDER_ACTIONS: readonly OrderAction[] = [
     destructive: true,
   },
   // `OrderStatus#mayBePutOnHold`: CONFIRMED … PACKED (kể cả giao một phần). POST /orders/{id}/hold,
-  // sales-orders:APPROVE. Không giữ lần hai: đơn đang ON_HOLD phải gỡ giữ trước.
+  // sales-order-holds:UPDATE (Sales, docs 17 §4.9). Không giữ lần hai: đơn đang ON_HOLD phải gỡ giữ trước.
   {
     code: "hold",
     label: ORDER_ACTION_LABELS.hold.button,
-    permission: ORDER_PERMISSIONS.approve,
+    permission: ORDER_PERMISSIONS.hold,
     fromStatuses: [
       "Confirmed",
       "Awaiting Stock",
@@ -215,17 +216,18 @@ export const ORDER_ACTIONS: readonly OrderAction[] = [
   {
     code: "resolve-hold",
     label: ORDER_ACTION_LABELS.resolveHold.button,
-    permission: ORDER_PERMISSIONS.approve,
+    permission: ORDER_PERMISSIONS.hold,
     fromStatuses: ["On Hold"],
     outcome: { kind: "restore-before-hold" },
     requires: ({ holdReason }) => isManuallyResolvableHold(holdReason),
   },
   // `Order#markDeliveryFailed`: SHIPPED / PARTIALLY_FULFILLED → DELIVERY_FAILED; đơn đã chia lô thì
-  // BE trả 409 ORDER_DELIVERY_VIA_SHIPMENT (kết quả ghi theo lô). POST /orders/{id}/delivery-failure.
+  // BE trả 409 ORDER_DELIVERY_VIA_SHIPMENT (kết quả ghi theo lô). POST /orders/{id}/delivery-failure —
+  // `fulfillment-delivery-outcomes:APPROVE` (OrderReleaseController, không phải mã giữ đơn).
   {
     code: "delivery-failure",
     label: ORDER_ACTION_LABELS.deliveryFailure.button,
-    permission: ORDER_PERMISSIONS.approve,
+    permission: FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS.approve,
     fromStatuses: ["Shipped", "Partially Fulfilled"],
     outcome: { kind: "to", statuses: ["Delivery Failed"] },
     // Chưa biết đơn có lô hay không (undefined) → không mở nút

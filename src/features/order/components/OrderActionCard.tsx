@@ -1,5 +1,6 @@
 import {
   CREDIT_HOLD_PERMISSIONS,
+  FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS,
   ORDER_ACTION_LABELS,
   ORDER_HOLD_GUIDANCE,
   ORDER_PERMISSIONS,
@@ -51,7 +52,8 @@ const PACKED_ONWARDS: readonly OrderReadStatus[] = [
 /** Mã quyền ghi bất kỳ trên đơn — thiếu hết thì người xem chỉ đọc. */
 const WRITE_PERMISSIONS: readonly PermissionCode[] = [
   ORDER_PERMISSIONS.cancel,
-  ORDER_PERMISSIONS.approve,
+  ORDER_PERMISSIONS.hold,
+  FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS.approve,
   ORDER_PERMISSIONS.release,
   CREDIT_HOLD_PERMISSIONS.approve,
 ];
@@ -93,7 +95,7 @@ function holdGuidanceFor(
       return ORDER_HOLD_GUIDANCE.DESIGN_MISMATCH;
     case null:
     case "UNKNOWN":
-      return can(ORDER_PERMISSIONS.approve) ? ORDER_HOLD_GUIDANCE.UNRESOLVABLE : null;
+      return can(ORDER_PERMISSIONS.hold) ? ORDER_HOLD_GUIDANCE.UNRESOLVABLE : null;
     default:
       return null;
   }
@@ -116,7 +118,7 @@ export function OrderActionCard({ order, can, estimateSlot }: OrderActionCardPro
   const shipmentsHint =
     order.shipments.length > 0 &&
     (order.status === "Shipped" || order.status === "Partially Fulfilled") &&
-    can(ORDER_PERMISSIONS.approve)
+    can(FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS.approve)
       ? ORDER_ACTION_LABELS.shipmentsHint
       : null;
   const guidance = holdGuidance ?? shipmentsHint;

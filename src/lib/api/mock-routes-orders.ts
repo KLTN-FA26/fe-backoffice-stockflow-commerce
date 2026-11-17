@@ -470,7 +470,7 @@ function registerCancellationRoute(): void {
 /* ── Giữ / gỡ giữ / giao thất bại / đóng phần còn lại (BE PR #133) ───── */
 
 function registerLifecycleRoutes(): void {
-  // POST /orders/:id/hold {reasonCode, note?} — sales-orders:APPROVE (BE Order#putOnHold)
+  // POST /orders/:id/hold {reasonCode, note?} — sales-order-holds:UPDATE (BE Order#putOnHold)
   registerMockRoute("POST", "/orders/:id/hold", async (config) => {
     const body = readBody(config);
     const reasonCode = bodyString(body, "reasonCode");
@@ -490,7 +490,7 @@ function registerLifecycleRoutes(): void {
     return ok(toOrderResponse(order));
   });
 
-  // POST /orders/:id/hold/resolution {note} — sales-orders:APPROVE (BE Order#resolveHold)
+  // POST /orders/:id/hold/resolution {note} — sales-order-holds:UPDATE (BE Order#resolveHold)
   registerMockRoute("POST", "/orders/:id/hold/resolution", async (config) => {
     const note = bodyString(readBody(config), "note");
     // ResolveHoldRequest.note @NotBlank — bean validation chạy trước service
@@ -521,7 +521,7 @@ function registerLifecycleRoutes(): void {
     return ok(toOrderResponse(order));
   });
 
-  // POST /orders/:id/delivery-failure {reasonCode, note?} — sales-orders:APPROVE (BE Order#markDeliveryFailed)
+  // POST /orders/:id/delivery-failure {reasonCode, note?} — fulfillment-delivery-outcomes:APPROVE (BE Order#markDeliveryFailed)
   registerMockRoute("POST", "/orders/:id/delivery-failure", async (config) => {
     const body = readBody(config);
     const reasonCode = bodyString(body, "reasonCode");

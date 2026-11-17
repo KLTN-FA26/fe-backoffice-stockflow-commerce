@@ -378,6 +378,8 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ORDER_PERMISSIONS.viewPage,
     ORDER_PERMISSIONS.read,
     ORDER_PERMISSIONS.cancel,
+    // Seed BE: SALES_STAFF + SYSTEM_ADMIN (không phải ORDER_COORDINATOR) giữ / gỡ giữ đơn (`sales-order-holds:UPDATE`)
+    ORDER_PERMISSIONS.hold,
     // Seed BE: SALES_STAFF + SYSTEM_ADMIN (không phải ORDER_COORDINATOR) quyết đơn có giao một phần không
     ORDER_PERMISSIONS.partialShipment,
     ...ORDER_SALES_EXTRA,
@@ -391,6 +393,8 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ORDER_PERMISSIONS.viewPage,
     ORDER_PERMISSIONS.read,
     ORDER_PERMISSIONS.cancel,
+    // Seed BE: SALES_STAFF + SYSTEM_ADMIN (không phải ORDER_COORDINATOR) giữ / gỡ giữ đơn (`sales-order-holds:UPDATE`)
+    ORDER_PERMISSIONS.hold,
     // Seed BE: SALES_STAFF + SYSTEM_ADMIN (không phải ORDER_COORDINATOR) quyết đơn có giao một phần không
     ORDER_PERMISSIONS.partialShipment,
     ...ORDER_SALES_EXTRA,
@@ -404,6 +408,8 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ORDER_PERMISSIONS.viewPage,
     ORDER_PERMISSIONS.read,
     ORDER_PERMISSIONS.cancel,
+    // Seed BE: SALES_STAFF + SYSTEM_ADMIN (không phải ORDER_COORDINATOR) giữ / gỡ giữ đơn (`sales-order-holds:UPDATE`)
+    ORDER_PERMISSIONS.hold,
     // Seed BE: SALES_STAFF + SYSTEM_ADMIN (không phải ORDER_COORDINATOR) quyết đơn có giao một phần không
     ORDER_PERMISSIONS.partialShipment,
     ...ORDER_SALES_EXTRA,
@@ -413,12 +419,12 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     CUSTOMER_LOOKUP,
     ...PAY_SALES,
   ],
-  // Seed BE: SALES_STAFF có sales-order-cancellations:UPDATE (huỷ đơn, đóng phần còn lại) nhưng không có APPROVE
-  // (giữ / gỡ giữ / ghi giao thất bại là của ORDER_COORDINATOR)
+  // Seed BE: SALES_STAFF có sales-order-cancellations:UPDATE (huỷ đơn, đóng phần còn lại) và sales-order-holds:UPDATE
+  // (giữ / gỡ giữ); ghi giao thất bại ở cấp đơn là fulfillment-delivery-outcomes:APPROVE
   // Order Coordinator + Warehouse Staff → thêm quyền kho xuất của WAREHOUSE_STAFF
   "USER-COORD-01": [
     ...Object.values(ORDER_PERMISSIONS).filter(
-      (code) => code !== ORDER_PERMISSIONS.partialShipment,
+      (code) => code !== ORDER_PERMISSIONS.partialShipment && code !== ORDER_PERMISSIONS.hold,
     ),
     ...ORDER_SALES_EXTRA,
     ...FULFILLMENT_READ,

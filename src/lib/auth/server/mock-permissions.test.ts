@@ -58,7 +58,7 @@ describe("explicit mock permission responses", () => {
       SUPPLIER_PERMISSIONS.create,
     );
   });
-  // Seed BE: V20260903000100 (sales-orders APPROVE chỉ ORDER_COORDINATOR), V20261013000200
+  // Seed BE: V20260903000100 (sales-orders APPROVE, nay đã xoá), V20261013000200
   // (sales-order-cancellations:UPDATE cho SALES_STAFF + ORDER_COORDINATOR), V20261013000400
   // (sales-order-credit-holds APPROVE chỉ ACCOUNTANT; Sales/Coordinator chỉ VIEW_PAGE/READ).
   it("order / cancellation / credit-hold grants match the BE seed exactly, per role", () => {
@@ -78,6 +78,8 @@ describe("explicit mock permission responses", () => {
       ORDER.viewPage,
       ORDER.read,
       ORDER.cancel,
+      // BE: SALES_STAFF + SYSTEM_ADMIN giữ / gỡ giữ đơn (sales-order-holds:UPDATE)
+      ORDER.hold,
       ORDER.partialShipment,
       CREDIT.viewPage,
       CREDIT.read,
@@ -86,7 +88,9 @@ describe("explicit mock permission responses", () => {
     ];
     const coordinator = [
       ...new Set([
-        ...Object.values(ORDER).filter((code) => code !== ORDER.partialShipment),
+        ...Object.values(ORDER).filter(
+          (code) => code !== ORDER.partialShipment && code !== ORDER.hold,
+        ),
         CREDIT.viewPage,
         CREDIT.read,
         schedule,
@@ -112,7 +116,8 @@ describe("explicit mock permission responses", () => {
     expect(orderScope("USER-ADMIN-01")).toEqual([...admin].sort());
 
     // Vắng mặt quan trọng: không role nào được nới quyền do merge
-    expect(orderScope("USER-ACC-01")).not.toContain(ORDER.approve);
+    expect(orderScope("USER-ACC-01")).not.toContain(ORDER.hold);
+    expect(orderScope("USER-COORD-01")).not.toContain(ORDER.hold);
     expect(orderScope("USER-COORD-01")).not.toContain(CREDIT.approve);
     expect(orderScope("USER-SALE-01")).not.toContain(ORDER.release);
     expect(orderScope("USER-SALE-01")).not.toContain(CREDIT.approve);

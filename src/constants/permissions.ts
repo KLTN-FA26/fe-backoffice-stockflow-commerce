@@ -36,8 +36,9 @@ export const SUPPLIER_ITEM_PERMISSIONS = {
  *   `sales-order-releases` (UPDATE, scope ALL, BE V20261115000200): quản lý kho của kho xuất; BE kiểm thêm kho
  *   người gọi phụ trách (`WarehouseScope`). `sales-orders:APPROVE` đã bị BE xoá khỏi mọi vai trò (tách thành
  *   `sales-order-releases`, `sales-order-holds`, `fulfillment-delivery-outcomes:APPROVE`).
- * - `approve` (APPROVE, scope ALL): giữ đơn, gỡ giữ, ghi giao thất bại — BE đã chuyển các bước này sang mã khác
- *   (V20261115000200); FE chưa đổi theo (ngoài phạm vi PR release + lấy hàng).
+ * - `hold`: giữ đơn (`POST /orders/{id}/hold`) và gỡ giữ (`POST /orders/{id}/hold/resolution`) — resource riêng
+ *   `sales-order-holds` (UPDATE, scope ALL; seed: SALES_STAFF + SYSTEM_ADMIN, docs 17 §4.9). Ghi giao thất bại ở cấp
+ *   đơn là `FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS.approve`, không còn ở đây.
  * - `cancel`: huỷ đơn phía admin (`POST /orders/{id}/admin-cancellation`) và đóng phần còn lại của
  *   đơn giao một phần (`POST /orders/{id}/remainder-closure`) — BE tách sang resource
  *   `sales-order-cancellations` (UPDATE, scope ALL; seed: ORDER_COORDINATOR + SALES_STAFF).
@@ -51,8 +52,8 @@ export const ORDER_PERMISSIONS = {
   // ORDER_COORDINATOR và (BE PR #148, "ACCREAD") ACCOUNTANT
   read: "sales-orders:READ",
   create: "sales-orders:CREATE",
-  // Giữ / gỡ giữ / ghi giao thất bại — BE PR #133 (xem ghi chú trên: BE đã tách mã)
-  approve: "sales-orders:APPROVE",
+  // Giữ / gỡ giữ — OrderReleaseController (`sales-order-holds:UPDATE`, scope ALL, Sales); mã `sales-orders:APPROVE` BE đã xoá
+  hold: "sales-order-holds:UPDATE",
   // Release đơn sang kho xuất — OrderReleaseController (`sales-order-releases:UPDATE`, scope ALL, WM của kho xuất)
   release: "sales-order-releases:UPDATE",
   // Huỷ đơn phía admin + đóng phần còn lại — resource riêng `sales-order-cancellations`

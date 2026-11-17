@@ -77,12 +77,12 @@ describe("Release đơn — gate theo trạng thái và mã quyền (BE V2026111
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
-  it("Sales / chỉ đọc / mã sales-orders:APPROVE đã bị BE xoá → không thấy nút", async () => {
+  it("Sales / chỉ đọc / chỉ giữ-gỡ giữ (sales-order-holds:UPDATE) → không thấy nút Release", async () => {
     for (const permissions of [
       ORDER_PERMISSION_SETS.salesStaff,
       ORDER_PERMISSION_SETS.readOnly,
-      // APPROVE đơn thuần không còn mở release (mã BE đã tách sang sales-order-releases:UPDATE)
-      [ORDER_PERMISSIONS.viewPage, ORDER_PERMISSIONS.read, ORDER_PERMISSIONS.approve],
+      // Giữ / gỡ giữ không mở release (release là sales-order-releases:UPDATE)
+      [ORDER_PERMISSIONS.viewPage, ORDER_PERMISSIONS.read, ORDER_PERMISSIONS.hold],
     ] as const) {
       mockOrderApiGet(permissions, {
         [DETAIL_PATH]: () => apiOrderAt("CONFIRMED"),
