@@ -83,6 +83,18 @@ const receipt = (over: Partial<Parameters<typeof recordReceipt>[0]> = {}) => ({
 
 describe("GET /installments", () => {
   it("lists earliest due first; filters by status, milestone and reached; sales may read too", async () => {
+    // The mock's due dates are fixed calendar dates (2026-11-12 / 11-15 ...): pin "today" so that which of
+    // them is overdue does not change as the real clock moves on. Only `Date` is faked; timers stay real.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-14T03:00:00Z"));
+    try {
+      await assertEarliestDueFirst();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  async function assertEarliestDueFirst() {
     const all = await listInstallments({ page: 0, size: 50 });
     expect(all.totalElements).toBeGreaterThan(8);
     const overdue = await listInstallments({ overdue: true });
@@ -94,7 +106,7 @@ describe("GET /installments", () => {
     );
     actAs(SALES);
     expect((await listInstallments({ orderId: undefined })).totalElements).toBe(all.totalElements);
-  });
+  }
 
   it("refuses status=OVERDUE like the BE: overdue is a flag (WF-05 fix plan §8)", async () => {
     const error = await errorOf(api.get("/installments", { params: { status: "OVERDUE" } }));
