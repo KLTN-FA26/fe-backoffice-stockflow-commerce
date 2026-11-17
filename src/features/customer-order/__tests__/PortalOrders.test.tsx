@@ -1,14 +1,13 @@
-import { screen, waitFor, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { apiError, mockApi, renderScreen } from "@/test/api-screen";
+import { mockApi, renderScreen } from "@/test/api-screen";
 
 import { PortalOrderDetail } from "..";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));
 
-const detail = (statusGroup: string, reorder = true) => ({
+const detail = (statusGroup: string) => ({
   orderId: "o-1",
   orderNumber: "SO-20261014-000001",
   status: "DELIVERED",
@@ -16,7 +15,7 @@ const detail = (statusGroup: string, reorder = true) => ({
   total: 3000000,
   currency: "VND",
   placedAt: "2026-10-10T02:00:00Z",
-  allowedActions: { cancel: false, requestCancellation: false, reorder },
+  allowedActions: { cancel: false, requestCancellation: false },
   lines: [
     {
       lineId: "l-1",
@@ -35,7 +34,7 @@ const detail = (statusGroup: string, reorder = true) => ({
 
 afterEach(() => vi.restoreAllMocks());
 
-describe("Portal order detail (SCRUM-248 timeline, R1b reorder, SCRUM-257 unavailable)", () => {
+describe("Portal order detail (SCRUM-248 timeline, SCRUM-257 unavailable)", () => {
   it("renders the BE timeline read-only and an honest disabled return request", async () => {
     mockApi("CUSTOMER", { get: { "/orders/me/o-1": () => detail("DELIVERED") } });
     renderScreen(<PortalOrderDetail id="o-1" />, "CUSTOMER");
@@ -48,34 +47,33 @@ describe("Portal order detail (SCRUM-248 timeline, R1b reorder, SCRUM-257 unavai
     expect(screen.queryByRole("button", { name: /thêm sự kiện/i })).not.toBeInTheDocument();
   });
 
-  it("reorder posts a stable requestId and maps ORDER_NOT_QUOTED to Vietnamese", async () => {
-    const api = mockApi("CUSTOMER", {
-      get: { "/orders/me/o-1": () => detail("DELIVERED") },
-      post: {
-        "/orders/o-1/reorder": () => {
-          throw apiError(409, "ORDER_NOT_QUOTED");
-        },
+  it("reads the contract and stock groups of docs 17 §5.2 and offers no reorder (docs 13 BR-08)", async () => {
+    mockApi("CUSTOMER", {
+      get: {
+        "/orders/me/o-1": () => ({
+          ...detail("AWAITING_STOCK"),
+          status: "AWAITING_STOCK",
+          timeline: [
+            {
+              status: "PENDING_CONTRACT",
+              statusGroup: "AWAITING_CONTRACT",
+              occurredAt: "2026-10-10T02:00:00Z",
+            },
+            {
+              status: "AWAITING_STOCK",
+              statusGroup: "AWAITING_STOCK",
+              occurredAt: "2026-10-11T02:00:00Z",
+            },
+          ],
+        }),
       },
     });
     renderScreen(<PortalOrderDetail id="o-1" />, "CUSTOMER");
-    await userEvent.click(await screen.findByRole("button", { name: /Đặt lại/ }));
-    await userEvent.click(
-      within(await screen.findByRole("dialog")).getByRole("button", {
-        name: "Gửi yêu cầu báo giá",
-      }),
-    );
-    await waitFor(() =>
-      expect(api.post).toHaveBeenCalledWith("/orders/o-1/reorder", {
-        requestId: expect.stringMatching(/^[0-9a-f-]{36}$/),
-      }),
-    );
-    expect(await screen.findByText(/không đặt từ báo giá/)).toBeInTheDocument();
-  });
-
-  it("hides reorder when BE says this order cannot be quoted again", async () => {
-    mockApi("CUSTOMER", { get: { "/orders/me/o-1": () => detail("DELIVERED", false) } });
-    renderScreen(<PortalOrderDetail id="o-1" />, "CUSTOMER");
     expect(await screen.findByRole("heading", { name: "SO-20261014-000001" })).toBeInTheDocument();
+    const timeline = screen.getByRole("heading", { name: "Tiến trình" })
+      .parentElement as HTMLElement;
+    expect(within(timeline).getByText("Chờ ký hợp đồng")).toBeInTheDocument();
+    expect(within(timeline).getByText("Đang chờ hàng")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Đặt lại/ })).not.toBeInTheDocument();
   });
 

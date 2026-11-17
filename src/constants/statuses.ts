@@ -759,10 +759,16 @@ export const PRODUCTION_ORDER_TYPES = ["SAMPLE", "ORDER"] as const;
 export type ProductionOrderType = (typeof PRODUCTION_ORDER_TYPES)[number];
 
 /** Nhóm trạng thái đơn khách đọc — BE `CustomerOrderCardResponse.statusGroup` (develop). */
+/**
+ * BE `CustomerOrders.StatusGroup` — trạng thái khách thấy trên cổng (docs 17 §5.2). `AWAITING_CONTRACT`
+ * = `Pending Contract`, `AWAITING_STOCK` = `Awaiting Stock`; `IN_PRODUCTION` chỉ còn ở đơn cũ.
+ */
 export const ORDER_STATUS_GROUPS = [
+  "AWAITING_CONTRACT",
   "AWAITING_PAYMENT",
   "UNDER_REVIEW",
   "CONFIRMED",
+  "AWAITING_STOCK",
   "IN_PRODUCTION",
   "PREPARING",
   "SHIPPING",
@@ -773,9 +779,11 @@ export const ORDER_STATUS_GROUPS = [
 export type OrderStatusGroup = (typeof ORDER_STATUS_GROUPS)[number];
 /** Nhóm → chuỗi status-map (nhãn Việt + tone dùng chung). */
 export const ORDER_STATUS_GROUP_DISPLAY = {
+  AWAITING_CONTRACT: "Pending Contract",
   AWAITING_PAYMENT: "Pending Payment",
   UNDER_REVIEW: "Under Review",
   CONFIRMED: "Confirmed",
+  AWAITING_STOCK: "Awaiting Stock",
   IN_PRODUCTION: "In Production",
   PREPARING: "Preparing",
   SHIPPING: "Shipping",
