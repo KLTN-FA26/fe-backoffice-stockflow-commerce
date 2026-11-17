@@ -13,6 +13,7 @@ import { releaseFormSchema } from "../release-schemas";
 
 import { OrderRefusalAlert } from "./OrderRefusalAlert";
 import { ReleaseBatchField } from "./ReleaseBatchField";
+import { ReleaseOverdueWarning } from "./ReleaseOverdueWarning";
 import { ReleaseWarehouseField } from "./ReleaseWarehouseField";
 import { useReleaseAttempt } from "./useReleaseAttempt";
 
@@ -31,9 +32,9 @@ interface OrderReleaseDialogProps {
 
 /**
  * Release đơn cho kho xuất (`POST /orders/{id}/release`, docs 17 §4.2 bước 5, BR-03), kiểm bằng zod (react-hook-form):
- * chọn kho xuất; với đơn có lịch giao và người có quyền đọc lịch thì chọn thêm đợt giao (BR-29, mặc định đợt kế tiếp).
+ * chọn kho xuất; khách của đơn có đợt thanh toán quá hạn thì hiện cảnh báo ngay khi mở (không chặn release); với đơn có lịch giao và người có quyền đọc lịch thì chọn thêm đợt giao (BR-29, mặc định đợt kế tiếp).
  * Không còn hình thức giao (mọi đơn giao nguyên chuyến, BR-16). Mỗi lần thử mang một `Idempotency-Key`; lý do BE từ
- * chối (thiếu hàng giữ, sai kho, không phải đợt kế tiếp, công nợ quá hạn…) hiện trong hộp thoại, không đóng.
+ * chối (thiếu hàng giữ, sai kho, không phải đợt kế tiếp…) hiện trong hộp thoại, không đóng.
  */
 export function OrderReleaseDialog({
   order,
@@ -91,6 +92,7 @@ export function OrderReleaseDialog({
         onSubmit={() => void submit()}
         onCancel={onClose}
       >
+        <ReleaseOverdueWarning orderId={order.orderId} />
         <ReleaseWarehouseField
           value={warehouseId}
           onChange={(value) => form.setValue("warehouseId", value, { shouldValidate: true })}

@@ -20,7 +20,6 @@ const VIETNAMESE = /[ạảãàáâấầẩẫậăắằẳẵặẹẻẽèé
 
 describe("releaseErrorView — mã quy tắc + chi tiết (BE OrderReleaseService, docs 17)", () => {
   it.each([
-    ["CUSTOMER_CREDIT_OVERDUE", "BR-02", 409],
     ["ORDER_SHIPPING_WAREHOUSE_MISMATCH", "BR-22", 409],
     ["ORDER_STOCK_NOT_HELD", "BR-21", 409],
     ["DELIVERY_BATCH_NOT_NEXT", "BR-29", 409],

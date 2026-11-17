@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { api } from "@/lib/api/client";
 
 import { getDeliverySchedule, nextBatchToRelease } from "./delivery-batch-api";
-import { releaseOrder } from "./release-api";
+import { getReleaseWarnings, releaseOrder } from "./release-api";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -85,5 +85,21 @@ describe("nextBatchToRelease — gợi ý đợt mặc định (BE vẫn kiểm:
     ).toBe("b-2");
     expect(nextBatchToRelease([b(1, "CLOSED"), b(2, "DELIVERED")])).toBeUndefined();
     expect(nextBatchToRelease([])).toBeUndefined();
+  });
+});
+
+describe("getReleaseWarnings — GET /orders/{id}/release-warnings (BE OrderReleases.ReleaseWarnings)", () => {
+  it("khách quá hạn → creditWarning.outcome OVERDUE; id được mã hoá trong path", async () => {
+    const get = vi
+      .spyOn(api, "get")
+      .mockResolvedValueOnce({ data: { creditWarning: { outcome: "OVERDUE" } } });
+    const warnings = await getReleaseWarnings("a/b");
+    expect(get.mock.calls[0]?.[0]).toBe("/orders/a%2Fb/release-warnings");
+    expect(warnings.creditWarning?.outcome).toBe("OVERDUE");
+  });
+
+  it("không có gì để cảnh báo → BE bỏ creditWarning (null bị bỏ)", async () => {
+    vi.spyOn(api, "get").mockResolvedValueOnce({ data: {} });
+    expect((await getReleaseWarnings("o-1")).creditWarning).toBeUndefined();
   });
 });

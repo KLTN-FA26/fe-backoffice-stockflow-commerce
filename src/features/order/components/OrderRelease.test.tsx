@@ -63,6 +63,7 @@ async function renderConfirmed(
     [DETAIL_PATH]: () => apiOrderAt("CONFIRMED", patch),
     [HISTORY_PATH]: () => [],
     "/warehouses": () => WAREHOUSES,
+    [`${DETAIL_PATH}/release-warnings`]: () => ({}),
   });
   await renderDetailScreen(estimateSlot);
   const user = userEvent.setup();
@@ -309,7 +310,6 @@ describe("Release đơn — lý do BE từ chối hiện trong hộp thoại (ti
     ["ORDER_STOCK_NOT_HELD", /chưa được giữ đủ thùng/, "BR-21"],
     ["ORDER_SHIPPING_WAREHOUSE_MISMATCH", /xuất từ kho khác/, "BR-22"],
     ["DELIVERY_BATCH_NOT_NEXT", /không phải đợt giao kế tiếp/, "BR-29"],
-    ["CUSTOMER_CREDIT_OVERDUE", /công nợ quá hạn/, "BR-02"],
   ])(
     "409 %s → giữ dialog, câu tiếng Việt + mã %s, không lộ message tiếng Anh",
     async (code, text, rule) => {

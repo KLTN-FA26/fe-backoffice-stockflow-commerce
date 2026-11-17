@@ -26,6 +26,7 @@ import {
 } from "./cancellation-request-api";
 import { getDeliverySchedule } from "./delivery-batch-api";
 import { getOrderHistory } from "./history-api";
+import { getReleaseWarnings } from "./release-api";
 import { isValidOrderCustomerId } from "./schemas";
 
 import type { CancellationRequest, OrderRefundDto } from "./cancellation-request-schemas";
@@ -44,6 +45,8 @@ export const orderKeys = {
     [...baseOrderKeys.all, "credit-holds", params] as const,
   /** Lịch giao của đơn (đợt giao) — dưới root `orders`: release xong (invalidate `orderKeys.all`) tự tải lại. */
   deliverySchedule: (id: string) => [...baseOrderKeys.all, "delivery-schedule", id] as const,
+  /** Cảnh báo trước khi release một đơn — dưới `orders`: release xong (invalidate `orderKeys.all`) tự tải lại. */
+  releaseWarnings: (id: string) => [...baseOrderKeys.all, "release-warnings", id] as const,
   /** Yêu cầu huỷ của khách (hàng đợi + thẻ trên chi tiết đơn) — dưới `orders`: duyệt / từ chối tự làm mới cả hai. */
   cancellationRequests: (params?: ListCancellationRequestParams) =>
     [...baseOrderKeys.all, "cancellation-requests", params] as const,
@@ -138,6 +141,21 @@ export function useDeliverySchedule(id: string, options: { enabled?: boolean } =
     queryFn: ({ signal }) => getDeliverySchedule(id, signal),
     ...QUERY_TIMES.detail,
     enabled: options.enabled ?? true,
+    retry: retryTransient,
+  });
+}
+
+/**
+ * Cảnh báo của hộp thoại release (`GET /orders/{id}/release-warnings`, cùng quyền với release): khách có đợt thanh toán
+ * quá hạn. Chỉ cảnh báo — lỗi tải thì không hiện gì (release vẫn đi tiếp), không retry lỗi 4xx.
+ */
+export function useReleaseWarnings(id: string) {
+  return useQuery({
+    queryKey: orderKeys.releaseWarnings(id),
+    queryFn: ({ signal }) => getReleaseWarnings(id, signal),
+    enabled: !!id,
+    // Công nợ đổi theo từng phiếu thu: mỗi lần mở hộp thoại lấy lại, không dùng bản cũ
+    staleTime: 0,
     retry: retryTransient,
   });
 }

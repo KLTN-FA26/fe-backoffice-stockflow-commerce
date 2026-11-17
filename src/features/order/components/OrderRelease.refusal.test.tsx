@@ -70,13 +70,6 @@ describe("thẻ 'Chưa release được' (đơn cọc chưa nhận cọc) — kh
 });
 
 describe("lý do BE từ chối hiện trong hộp thoại, kèm mã quy tắc", () => {
-  it("công nợ quá hạn → kèm mã BR-02", async () => {
-    const overdue = await submitRelease(new ApiError(409, "CUSTOMER_CREDIT_OVERDUE", "x"));
-    expect(await within(overdue.dialog).findByRole("alert")).toHaveTextContent(
-      /công nợ quá hạn[\s\S]*BR-02/,
-    );
-  });
-
   it("CONFLICT (đơn không còn CONFIRMED) → đóng hộp thoại, toast, tải lại đơn", async () => {
     const toastError = vi.spyOn(toast, "error");
     await submitRelease(new ApiError(409, "CONFLICT", "x"));

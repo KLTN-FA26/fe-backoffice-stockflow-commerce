@@ -20,6 +20,11 @@ export const ORDER_RELEASE_LABELS = {
   submit: "Release đơn",
   success: "Đã release đơn cho kho",
   failedTitle: "Không release được đơn",
+  /**
+   * Cảnh báo khi mở hộp thoại (BE `GET /orders/{id}/release-warnings`, WF4-OVERDUE-WARN, docs 15 §4.3 bước 11): khách
+   * có đợt thanh toán quá hạn. Không chặn release — Sale được báo riêng và có thể treo đơn.
+   */
+  overdueWarning: "Khách đang có đợt thanh toán quá hạn",
   /** Đợt giao của lịch giao (docs 17 §4.5, BR-29): release theo từng đợt, chỉ đợt kế tiếp. */
   batch: {
     label: "Đợt giao",
@@ -56,10 +61,6 @@ export const ORDER_RELEASE_BLOCKER_LABELS = {
 /** Lý do máy chủ từ chối release — kèm mã quy tắc để quản lý kho đối chiếu docs. */
 export const ORDER_RELEASE_REFUSAL_LABELS = {
   ruleLabel: "Quy tắc",
-  /** docs 17 BR-02 / 15 §4.3: khách có đợt thu sau khi giao đã quá hạn thì không release thêm đơn công nợ. */
-  creditOverdue:
-    "Khách đang có công nợ quá hạn. Cần thu phần quá hạn trước khi release đơn công nợ.",
-  creditRule: "BR-02",
   /** 409 ORDER_SHIPPING_WAREHOUSE_MISMATCH (docs 17 BR-22): mỗi đơn đúng một kho xuất, chỉ release ở kho đó. */
   warehouseMismatch:
     "Đơn này xuất từ kho khác — chọn đúng kho xuất của đơn (kho đang giữ hàng cho đơn).",

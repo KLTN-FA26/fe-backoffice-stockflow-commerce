@@ -14,3 +14,15 @@ export const releaseFormSchema = z.object({
 });
 
 export type ReleaseFormValues = z.infer<typeof releaseFormSchema>;
+
+/**
+ * `GET /orders/{id}/release-warnings` (BE `OrderReleaseController`, WF4-OVERDUE-WARN): what to know before releasing,
+ * never a reason to refuse it. `creditWarning.outcome` is `OVERDUE` when the customer has a payment instalment past its
+ * due day; the field is absent (or null) when there is nothing to warn about — the same shape as the contract's
+ * `creditWarning` (docs 15 BR-11).
+ */
+export const releaseWarningsSchema = z.object({
+  creditWarning: z.object({ outcome: z.string() }).nullish(),
+});
+
+export type ReleaseWarnings = z.infer<typeof releaseWarningsSchema>;

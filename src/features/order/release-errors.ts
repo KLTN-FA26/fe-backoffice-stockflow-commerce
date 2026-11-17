@@ -51,8 +51,6 @@ export function releaseErrorView(error: ApiError): OrderErrorView {
   const title = ORDER_RELEASE_LABELS.failedTitle;
   const traceId = error.traceId;
   switch (error.code) {
-    case "CUSTOMER_CREDIT_OVERDUE":
-      return { title, detail: R.creditOverdue, rule: R.creditRule, traceId };
     case "ORDER_SHIPPING_WAREHOUSE_MISMATCH":
       return { title, detail: R.warehouseMismatch, rule: R.warehouseMismatchRule, traceId };
     case "ORDER_STOCK_NOT_HELD":
