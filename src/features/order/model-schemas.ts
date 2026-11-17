@@ -71,6 +71,9 @@ export const orderSchema = z.object({
   orderId: z.string(),
   orderNumber: z.string(),
   customerId: z.string().nullable(),
+  /** Tên khách BE kèm sẵn (BE-15); null khi BE không trả (khách tự xem đơn, đơn trả từ thao tác). */
+  customerName: z.string().nullable(),
+  customerCode: z.string().nullable(),
   status: z.enum(ORDER_READ_STATUSES),
   totalAmount: z.number(),
   currency: currencyCode,
