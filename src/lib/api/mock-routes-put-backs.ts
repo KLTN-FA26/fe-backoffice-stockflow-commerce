@@ -184,7 +184,13 @@ function registerPutBackRoute(): void {
         return beError(409, "PUT_BACK_NOT_REQUIRED", "Nothing to put back");
       }
       if (line.lpn.toUpperCase() !== lpn.toUpperCase()) {
-        return beError(409, "PICK_ITEM_MISMATCH", `This line puts back carton ${line.lpn}`);
+        return beError(
+          409,
+          "PICK_ITEM_MISMATCH",
+          `This line puts back carton ${line.lpn}`,
+          undefined,
+          { expectedLpn: line.lpn },
+        );
       }
       // Thùng hư hỏng vào khu QUARANTINE, không về bin
       const bin = damaged

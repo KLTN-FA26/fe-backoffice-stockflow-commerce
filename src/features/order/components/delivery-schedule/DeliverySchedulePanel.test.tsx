@@ -1,12 +1,13 @@
 /**
  * Panel "Lịch giao" trên chi tiết đơn (docs 17 §4.5, §5.5, BR-28): hiển thị đợt giao + cửa sổ hiệu lực + thùng theo SKU +
- * lịch sử dời; action-gating "Dời cửa sổ giao" theo trạng thái đợt + mã quyền BE (`sales-contracts:READ` / `:UPDATE`);
+ * lịch sử dời; action-gating "Dời cửa sổ giao" theo trạng thái đợt + mã quyền BE (`sales-order-delivery-batches:READ` / `sales-contracts:UPDATE`);
  * form dời kiểm BR-28 trước khi gửi; lý do BE từ chối bằng tiếng Việt.
  */
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { ORDER_PERMISSIONS, SALES_CONTRACT_PERMISSIONS } from "@/constants";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { toast } from "@/components/shared/Toast";
@@ -205,8 +206,19 @@ describe("Dời cửa sổ giao — action-gating theo mã quyền BE (≥ 3 vai
     }
   });
 
-  it("quản lý kho (không sales-contracts:READ) → không hiện panel và KHÔNG gọi API lịch giao", async () => {
-    const { spy } = await renderSchedule(WF4_PERMISSION_SETS.warehouseManager);
+  it("quản lý kho (sales-order-delivery-batches:READ, BE PR #317; không có sales-contracts:READ / :UPDATE) → thấy lịch nhưng KHÔNG có nút dời", async () => {
+    await renderSchedule(WF4_PERMISSION_SETS.warehouseManager);
+    const card = await panel();
+    expect(within(card).queryByRole("button", { name: "Dời cửa sổ giao" })).not.toBeInTheDocument();
+    expect(within(card).getByText(/Chỉ Sale \(sales-contracts:UPDATE\)/)).toBeInTheDocument();
+  });
+
+  it("không có sales-order-delivery-batches:READ (kể cả khi đọc được hợp đồng) → không hiện panel và KHÔNG gọi API lịch giao", async () => {
+    const { spy } = await renderSchedule([
+      ORDER_PERMISSIONS.viewPage,
+      ORDER_PERMISSIONS.read,
+      SALES_CONTRACT_PERMISSIONS.read,
+    ]);
     await screen.findByRole("heading", { name: apiOrder.orderNumber });
     expect(screen.queryByRole("region", { name: "Lịch giao" })).not.toBeInTheDocument();
     expect(callsTo(spy, SCHEDULE_PATH)).toBe(0);

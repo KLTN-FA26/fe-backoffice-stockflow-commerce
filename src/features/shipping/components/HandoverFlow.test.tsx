@@ -113,12 +113,12 @@ describe("hộp thoại bàn giao", () => {
   describe("tên tài xế bắt buộc trước khi ký (WF4-DRIVER)", () => {
     const noDriver = (patch: Partial<Load> = {}) => ready({ driverName: undefined, ...patch });
 
-    it("chuyến chưa có tên tài xế: ô bắt buộc; lưu qua PUT /waybill rồi ký với version mới, thân ký không có tên tài xế", async () => {
+    it("chuyến chưa có tên tài xế: ô bắt buộc; lưu qua PUT /driver rồi ký với version mới, thân ký không có tên tài xế", async () => {
       const user = userEvent.setup();
       const saved = noDriver({ driverName: "Trần Văn Lái", version: 5 });
       const { put, post } = mockShippingApi(ACTORS.warehouseStaff, {
         get: { [PATH]: () => noDriver() },
-        put: { [`${PATH}/waybill`]: () => saved },
+        put: { [`${PATH}/driver`]: () => saved },
         post: { [`${PATH}/handover`]: () => ready({ status: "DISPATCHED" }) },
       });
       renderShippingScreen(<LoadScreen id={LOAD_ID} />);
@@ -134,10 +134,7 @@ describe("hộp thoại bàn giao", () => {
       await waitFor(() => expect(submit).toBeEnabled());
       await user.click(submit);
       await waitFor(() =>
-        expect(put).toHaveBeenCalledWith(`${PATH}/waybill`, {
-          waybillNo: "GHN-250001",
-          driverName: "Trần Văn Lái",
-        }),
+        expect(put).toHaveBeenCalledWith(`${PATH}/driver`, { driverName: "Trần Văn Lái" }),
       );
       await waitFor(() => expect(post).toHaveBeenCalled());
       const [url, body] = post.mock.calls[0] ?? [];
@@ -153,23 +150,48 @@ describe("hộp thoại bàn giao", () => {
       expect(within(dialog).queryByLabelText(H.driverName, { exact: false })).toBeNull();
     });
 
-    it("hãng đặt xe qua API chưa có tài xế: không có ô nhập, nêu rõ chờ hãng báo, nút ký khoá dù đã tick", async () => {
+    it("hãng đặt xe qua API chưa có tài xế: cũng nhập được ở hộp thoại, lưu qua PUT /driver (không đụng mã vận đơn) rồi ký", async () => {
       const user = userEvent.setup();
-      renderHandover(noDriver({ carrierConnectionType: "API_BOOKING" }), () => ready());
+      const saved = noDriver({
+        carrierConnectionType: "API_BOOKING",
+        driverName: "Lê Văn Hãng",
+        version: 6,
+      });
+      const { put, post } = mockShippingApi(ACTORS.warehouseStaff, {
+        get: { [PATH]: () => noDriver({ carrierConnectionType: "API_BOOKING" }) },
+        put: { [`${PATH}/driver`]: () => saved },
+        post: { [`${PATH}/handover`]: () => ready({ status: "DISPATCHED" }) },
+      });
+      renderShippingScreen(<LoadScreen id={LOAD_ID} />);
       const dialog = await openDialog(user);
-      expect(within(dialog).queryByLabelText(H.driverName, { exact: false })).toBeNull();
-      expect(within(dialog).getByText(H.driverFromCarrier)).toBeInTheDocument();
       await user.type(within(dialog).getByLabelText(H.representative, { exact: false }), "Anh Tài");
+      await user.type(within(dialog).getByLabelText(H.driverName, { exact: false }), "Lê Văn Hãng");
       await user.click(within(dialog).getByRole("checkbox"));
-      expect(within(dialog).getByRole("button", { name: H.title })).toBeDisabled();
+      await user.click(within(dialog).getByRole("button", { name: H.title }));
+      await waitFor(() =>
+        expect(put).toHaveBeenCalledWith(`${PATH}/driver`, { driverName: "Lê Văn Hãng" }),
+      );
+      await waitFor(() => expect(post).toHaveBeenCalled());
+      expect(post.mock.calls[0]?.[1]).toMatchObject({ version: 6 });
     });
 
-    it("lưu tên tài xế lỗi (WAYBILL_DUPLICATE…) → báo ngay trong hộp thoại, không ký", async () => {
+    it("BE trả LOAD_DRIVER_MISSING lúc ký → hiện nhãn tiếng Việt trong hộp thoại", async () => {
+      const user = userEvent.setup();
+      renderHandover(ready(), () => {
+        throw new ApiError(409, "LOAD_DRIVER_MISSING", "en");
+      });
+      const dialog = await openDialog(user);
+      await user.click(within(dialog).getByRole("checkbox"));
+      await user.click(within(dialog).getByRole("button", { name: H.title }));
+      expect(await within(dialog).findByRole("alert")).toHaveTextContent(ERR.LOAD_DRIVER_MISSING);
+    });
+
+    it("lưu tên tài xế lỗi (INVALID_LOAD_TRANSITION…) → báo ngay trong hộp thoại, không ký", async () => {
       const user = userEvent.setup();
       const { post } = mockShippingApi(ACTORS.warehouseStaff, {
         get: { [PATH]: () => noDriver() },
         put: {
-          [`${PATH}/waybill`]: () => {
+          [`${PATH}/driver`]: () => {
             throw new ApiError(409, "INVALID_LOAD_TRANSITION", "en");
           },
         },

@@ -19,7 +19,7 @@ import {
 
 import { registerMockRoute } from "./mock-adapter";
 import { createCarrier, updateCarrier } from "./mock-dispatch-carriers";
-import { book, cancelBooking, startLoading } from "./mock-dispatch-booking";
+import { book, cancelBooking, recordDriver, startLoading } from "./mock-dispatch-booking";
 import { cancelControlled, dropFromPlan, overrideUnload, unload } from "./mock-dispatch-ftl-rules";
 import { handover, recordOutcome } from "./mock-dispatch-handover";
 import { scan, unscan } from "./mock-dispatch-rules";
@@ -276,6 +276,11 @@ export function registerDispatchMockRoutes(): void {
   registerMockRoute("POST", `${LOADS}/:id/booking`, (config) =>
     withLoad(config, DISPATCH_UPDATE, (state, load) =>
       book(state, load, parseJsonBody(config.data)),
+    ),
+  );
+  registerMockRoute("PUT", `${LOADS}/:id/driver`, (config) =>
+    withLoad(config, DISPATCH_UPDATE, (state, load) =>
+      recordDriver(state, load, parseJsonBody(config.data)),
     ),
   );
   registerMockRoute("POST", `${LOADS}/:id/booking-cancellation`, (config) =>

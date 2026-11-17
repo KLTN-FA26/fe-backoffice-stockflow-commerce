@@ -56,10 +56,11 @@ export function buildCreditHoldColumns(
       cell: (row) => (
         <div className="flex flex-col">
           <span className="text-ink-primary text-[0.8125rem]">
-            {row.order.recipientName || "—"}
+            {row.order.customerName || row.order.recipientName || "—"}
           </span>
           <span className="text-ink-tertiary max-w-40 truncate font-[family-name:var(--font-mono)] text-xs">
-            {row.order.customerId ?? "—"}
+            {row.order.customerCode ||
+              (row.order.customerId ? `KH ${row.order.customerId.slice(0, 8)}` : "—")}
           </span>
         </div>
       ),

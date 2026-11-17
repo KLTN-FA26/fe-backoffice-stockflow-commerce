@@ -36,6 +36,9 @@ export const installmentDtoSchema = z.object({
   orderId: z.string(),
   orderNumber: z.string(),
   customerId: z.string(),
+  /** Tên + mã khách BE kèm sẵn (BE-15) — kế toán không có quyền xem hồ sơ khách. */
+  customerName: z.string().nullish(),
+  customerCode: z.string().nullish(),
   seq: z.number().int(),
   name: z.string(),
   milestone: z.enum(INSTALLMENT_MILESTONES),
@@ -91,6 +94,8 @@ export const receiptLineDtoSchema = z.object({
 export const receiptDtoSchema = z.object({
   receiptId: z.string(),
   customerId: z.string(),
+  customerName: z.string().nullish(),
+  customerCode: z.string().nullish(),
   reference: z.string(),
   receivedOn: z.string(),
   amount: z.number(),

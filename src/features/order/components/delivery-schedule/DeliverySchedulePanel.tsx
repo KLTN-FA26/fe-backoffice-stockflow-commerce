@@ -1,6 +1,10 @@
 "use client";
 
-import { DELIVERY_SCHEDULE_LABELS as L, SALES_CONTRACT_PERMISSIONS } from "@/constants";
+import {
+  DELIVERY_SCHEDULE_LABELS as L,
+  ORDER_DELIVERY_BATCH_PERMISSIONS,
+  SALES_CONTRACT_PERMISSIONS,
+} from "@/constants";
 
 import { isWindowMovable } from "../../delivery-window-rules";
 import { useDeliverySchedule } from "../../queries";
@@ -21,12 +25,12 @@ const SECTION =
 
 /**
  * Lịch giao của đơn (docs 17 §4.5, §5.5): các đợt giao với cửa sổ hiệu lực (kèm cửa sổ hợp đồng + lịch sử khi đã dời),
- * trạng thái từng đợt, thùng theo SKU; Sale dời cửa sổ giao từng đợt (BR-28). Đọc cần `sales-contracts:READ` (quản lý
- * kho không có — seed BE) nên không có quyền thì không gọi API và không hiện panel; đơn không có lịch giao (không hợp đồng
- * ký) cũng không hiện. UI-only — Backend phải re-check (@RequiresPermission READ / UPDATE).
+ * trạng thái từng đợt, thùng theo SKU; Sale dời cửa sổ giao từng đợt (BR-28). Đọc cần `sales-order-delivery-batches:READ`
+ * (BE PR #317: cả quản lý kho release) nên không có quyền thì không gọi API và không hiện panel; đơn không có lịch giao (không hợp đồng
+ * ký) cũng không hiện. UI-only — Backend phải re-check (@RequiresPermission sales-order-delivery-batches:READ / sales-contracts:UPDATE).
  */
 export function DeliverySchedulePanel({ order, can }: DeliverySchedulePanelProps) {
-  const canRead = can(SALES_CONTRACT_PERMISSIONS.read);
+  const canRead = can(ORDER_DELIVERY_BATCH_PERMISSIONS.read);
   const canMove = can(SALES_CONTRACT_PERMISSIONS.update);
   const query = useDeliverySchedule(order.orderId, { enabled: canRead });
   if (!canRead || query.isPending) return null;

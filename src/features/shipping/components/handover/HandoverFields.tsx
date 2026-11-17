@@ -3,7 +3,6 @@
 import { Controller } from "react-hook-form";
 
 import { SHIPPING_LIMITS, UI_LABELS } from "@/constants";
-import { isApiBookedLoad } from "@/features/shipping/ftl-selectors";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -63,14 +62,11 @@ export function HandoverFields({
 
   return (
     <>
-      {!load.driverName && !isApiBookedLoad(load) && (
+      {!load.driverName && (
         <>
           {text("driverName", H.driverName, SHIPPING_LIMITS.driverNameMax, { required: true })}
           <p className="text-ink-tertiary -mt-2 text-xs">{H.driverNameHint}</p>
         </>
-      )}
-      {!load.driverName && isApiBookedLoad(load) && (
-        <p className="text-warning text-xs">{H.driverFromCarrier}</p>
       )}
       {text("carrierRepresentative", H.representative, SHIPPING_LIMITS.carrierRepresentativeMax, {
         required: true,

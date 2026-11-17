@@ -23,7 +23,7 @@ type OrderColumn = ColumnDef<Order> & { key: string };
 
 /**
  * Cột bảng đơn hàng. Sort phía server; không có search trong cột (server không hỗ trợ).
- * `onFilterCustomer`: lọc nhanh theo khách của dòng (BE chỉ trả `customerId`, chưa có tên khách).
+ * `onFilterCustomer`: lọc nhanh theo khách của dòng (hiện tên khách BE kèm sẵn, BE-15).
  */
 export function buildOrderColumns(onFilterCustomer: (customerId: string) => void): OrderColumn[] {
   return [
@@ -44,7 +44,14 @@ export function buildOrderColumns(onFilterCustomer: (customerId: string) => void
     {
       key: "customer",
       header: COLUMN_LABELS.customer,
-      cell: (row) => <CustomerCell customerId={row.customerId} onFilter={onFilterCustomer} />,
+      cell: (row) => (
+        <CustomerCell
+          customerId={row.customerId}
+          customerName={row.customerName}
+          customerCode={row.customerCode}
+          onFilter={onFilterCustomer}
+        />
+      ),
     },
     // Ô hai dòng: tên người nhận + SĐT
     stackCell<Order>(

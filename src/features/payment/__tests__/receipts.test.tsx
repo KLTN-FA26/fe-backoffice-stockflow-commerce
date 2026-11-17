@@ -56,6 +56,22 @@ describe("ReceiptList (docs 15 §5.3)", () => {
     expect(screen.getByText("Đã huỷ")).toBeInTheDocument();
   });
 
+  it("names the customer on each receipt without asking the customer directory (QA A5, BE-15)", async () => {
+    const api = mockPaymentApi(ACCOUNTANT_GRANTS, {
+      get: {
+        "/payment-receipts": () =>
+          bePage([
+            receiptJson({ customerName: "Công ty Bao Bì An Phát", customerCode: "0312345678" }),
+          ]),
+      },
+    });
+    renderPaymentScreen(<ReceiptList />, "?customerId=cust-9");
+    // Row cell and the filter chip both carry the name taken from the rows.
+    expect((await screen.findAllByText("Công ty Bao Bì An Phát")).length).toBe(2);
+    expect(screen.queryByText(/^KH /)).not.toBeInTheDocument();
+    expect(api.get.mock.calls.some(([url]) => String(url).startsWith("/customers"))).toBe(false);
+  });
+
   it("sends the exact statement reference and status from the URL", async () => {
     const api = mockPaymentApi(ACCOUNTANT_GRANTS, {
       get: { "/payment-receipts": () => bePage([receiptJson()]) },

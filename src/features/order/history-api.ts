@@ -27,6 +27,9 @@ export function toOrderHistoryEntry(dto: OrderHistoryEntryDto): OrderHistoryEntr
   if (dto.type === "PARTIAL_SHIPMENT_DECISION" && typeof dto.partialShipmentAllowed === "boolean") {
     return { ...base, kind: "partial-shipment", allowed: dto.partialShipmentAllowed };
   }
+  if (dto.type === "REMAINDER_CLOSURE") {
+    return { ...base, kind: "remainder-closure", reasonCode: dto.closureReasonCode ?? null };
+  }
   if (dto.type === "DELIVERY_MODE_CHANGE" && dto.deliveryMode) {
     return {
       ...base,
