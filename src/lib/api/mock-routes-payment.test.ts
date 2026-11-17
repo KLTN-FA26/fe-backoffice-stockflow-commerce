@@ -66,7 +66,10 @@ beforeAll(() => {
   activateMockAdapter();
 });
 beforeEach(() => actAs(ACCOUNTANT));
-afterEach(() => resetPaymentMockStore());
+afterEach(() => {
+  vi.useRealTimers();
+  resetPaymentMockStore();
+});
 afterAll(() => {
   api.defaults.adapter = originalAdapter;
   vi.restoreAllMocks();
@@ -83,6 +86,9 @@ const receipt = (over: Partial<Parameters<typeof recordReceipt>[0]> = {}) => ({
 
 describe("GET /installments", () => {
   it("lists earliest due first; filters by status, milestone and reached; sales may read too", async () => {
+    // "Overdue" is computed from today (mockToday); pin it so the seed's due dates give exactly one overdue order.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-01T05:00:00Z"));
     const all = await listInstallments({ page: 0, size: 50 });
     expect(all.totalElements).toBeGreaterThan(8);
     const overdue = await listInstallments({ overdue: true });

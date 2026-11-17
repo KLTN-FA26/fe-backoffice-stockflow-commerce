@@ -88,13 +88,17 @@ export function allowedOrderActions(
 
 /** Ngữ cảnh action dựng từ đơn chi tiết (`GET /orders/{id}`) — mọi field BE đã trả hoặc chuẩn hoá null. */
 export function orderActionContextOf(
-  order: Pick<Order, "paymentTerm" | "holdReason" | "shipments" | "packedAt" | "statusBeforeHold">,
+  order: Pick<
+    Order,
+    "paymentTerm" | "holdReason" | "shipments" | "packedAt" | "firstLabeledAt" | "statusBeforeHold"
+  >,
 ): OrderActionContext {
   return {
     paymentTerm: order.paymentTerm,
     holdReason: order.holdReason,
     hasShipments: order.shipments.length > 0,
     packedAt: order.packedAt,
+    firstLabeledAt: order.firstLabeledAt,
     statusBeforeHold: order.statusBeforeHold,
   };
 }

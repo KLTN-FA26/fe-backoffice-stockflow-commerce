@@ -221,7 +221,7 @@ describe("Release đơn — payload (BE ReleaseOrderRequest: warehouseId + deliv
   });
 });
 
-describe("Release đơn — chọn đợt giao (docs 17 §4.5, BR-29; cần sales-contracts:READ để đọc lịch giao)", () => {
+describe("Release đơn — chọn đợt giao (docs 17 §4.5, BR-29; cần sales-order-delivery-batches:READ để đọc lịch giao)", () => {
   const SCHEDULE_PATH = `${DETAIL_PATH}/delivery-batches`;
   const schedule = (released = false) => ({
     orderId: apiOrder.orderId,
@@ -263,7 +263,7 @@ describe("Release đơn — chọn đợt giao (docs 17 §4.5, BR-29; cần sale
 
   it("có lịch giao: mặc định đợt kế tiếp (đợt 1), gửi deliveryBatchId cùng warehouseId", async () => {
     const { user, dialog } = await renderWithSchedule(
-      ORDER_PERMISSION_SETS.releaserWithSchedule,
+      ORDER_PERMISSION_SETS.warehouseManager,
       schedule(),
     );
     expect(await within(dialog).findByRole("combobox", { name: /Đợt giao/ })).toHaveTextContent(
@@ -283,7 +283,7 @@ describe("Release đơn — chọn đợt giao (docs 17 §4.5, BR-29; cần sale
 
   it("người dùng đổi sang đợt khác trong danh sách → gửi đợt đã chọn; BE vẫn là bên quyết", async () => {
     const { user, dialog } = await renderWithSchedule(
-      ORDER_PERMISSION_SETS.releaserWithSchedule,
+      ORDER_PERMISSION_SETS.warehouseManager,
       schedule(),
     );
     await within(dialog).findByRole("combobox", { name: /Đợt giao/ });
@@ -300,9 +300,9 @@ describe("Release đơn — chọn đợt giao (docs 17 §4.5, BR-29; cần sale
     );
   });
 
-  it("quản lý kho theo seed BE KHÔNG có sales-contracts:READ → không gọi lịch giao, không có ô đợt, body chỉ có kho (BE chọn đợt kế tiếp)", async () => {
+  it("người release không có sales-order-delivery-batches:READ → không gọi lịch giao, không có ô đợt, body chỉ có kho (BE chọn đợt kế tiếp)", async () => {
     const { user, dialog } = await renderWithSchedule(
-      ORDER_PERMISSION_SETS.warehouseManager,
+      ORDER_PERMISSION_SETS.releaserWithoutSchedule,
       schedule(),
     );
     expect(within(dialog).queryByRole("combobox", { name: /Đợt giao/ })).not.toBeInTheDocument();
@@ -316,7 +316,7 @@ describe("Release đơn — chọn đợt giao (docs 17 §4.5, BR-29; cần sale
   });
 
   it("đơn không có lịch giao (batches rỗng) → không có ô đợt", async () => {
-    const { dialog } = await renderWithSchedule(ORDER_PERMISSION_SETS.releaserWithSchedule, {
+    const { dialog } = await renderWithSchedule(ORDER_PERMISSION_SETS.warehouseManager, {
       orderId: apiOrder.orderId,
       batches: [],
     });
@@ -327,7 +327,7 @@ describe("Release đơn — chọn đợt giao (docs 17 §4.5, BR-29; cần sale
   });
 
   it("không tải được lịch (403) → câu báo, vẫn release được (bỏ trống đợt)", async () => {
-    mockOrderApiGet(ORDER_PERMISSION_SETS.releaserWithSchedule, {
+    mockOrderApiGet(ORDER_PERMISSION_SETS.warehouseManager, {
       [DETAIL_PATH]: () => apiOrderAt("CONFIRMED"),
       [HISTORY_PATH]: () => [],
       "/warehouses": () => WAREHOUSES,

@@ -1,7 +1,7 @@
 /**
  * Shipping — đọc và diễn giải việc BE chặn bàn giao một xe (docs 09 §4.2 bước 8, BR-04, BR-18: tất cả hoặc không).
  *
- * - `409 LOAD_HANDOVER_BLOCKED` kèm `details.orders[]`: từng đơn không được phép đi, mã lý do (`ORDER_BALANCE_NOT_PAID`,
+ * - `409 LOAD_HANDOVER_BLOCKED` kèm `details.orders[]`: từng đơn không được phép đi, mọi mã lý do (`reasonCodes[]`, `reasonCode` = lý do đầu) (`ORDER_BALANCE_NOT_PAID`,
  *   `DELIVERY_BATCH_WINDOW_NOT_OPEN`, `ORDER_INVALID_TRANSITION`…), số tiền đợt còn thiếu, đợt giao và ngày mở cửa sổ giao.
  * - `HandoverWarning` trong câu trả lời của "bắt đầu xếp" cùng hình dạng — cảnh báo sớm, chưa chặn.
  * - `409 LOAD_WAYBILL_MISSING`: chưa có mã vận đơn (BR-23) → mở nhập mã vận đơn.
@@ -38,6 +38,22 @@ export function isWaybillMissingError(error: unknown): boolean {
 function dueText(order: HandoverWarning): string | null {
   if (!order.amountDue || order.amountDue <= 0) return null;
   return order.currency ? formatMoney(order.amountDue, order.currency) : String(order.amountDue);
+}
+
+/**
+ * Mọi lý do một đơn chưa được phép đi, mỗi lý do một câu (BE gửi `reasonCodes`: ví dụ vừa còn thiếu tiền vừa chưa tới
+ * ngày giao). BE cũ / cảnh báo "bắt đầu xếp" chỉ có `reasonCode` → một câu.
+ */
+export function handoverBlockReasons(order: HandoverWarning): string[] {
+  return handoverReasonCodes(order).map((reasonCode) =>
+    handoverBlockReason({ ...order, reasonCode }),
+  );
+}
+
+/** Các mã lý do (không trùng) của một đơn: `reasonCodes` nếu BE gửi, không thì `reasonCode`. */
+export function handoverReasonCodes(order: HandoverWarning): HandoverWarning["reasonCode"][] {
+  const codes = order.reasonCodes?.length ? order.reasonCodes : [order.reasonCode];
+  return [...new Set(codes)];
 }
 
 /** Câu tiếng Việt cho lý do một đơn chưa được phép đi — theo `reasonCode` của BE, kèm số tiền / đợt giao / ngày mở cửa sổ. */

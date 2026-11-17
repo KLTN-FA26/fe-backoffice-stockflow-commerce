@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, CalendarCheck, Play, Pencil } from "lucide-react";
+import { Ban, CalendarCheck, Play, Pencil, UserRound } from "lucide-react";
 
 import { LOAD_STATUS, UI_LABELS } from "@/constants";
 import { formatDateTime } from "@/lib/format/date";
@@ -19,7 +19,7 @@ const F = UI_LABELS.shipping.field;
 const PRIMARY =
   "bg-brand text-ink-inverse hover:bg-brand-hover hover:text-ink-inverse rounded-[var(--r-sm)]";
 
-export type BookingDialogKind = "book" | "cancelBooking" | "startLoading";
+export type BookingDialogKind = "book" | "cancelBooking" | "startLoading" | "driver";
 
 const CONNECTION = UI_LABELS.shipping.waybill.carriers.connectionType;
 
@@ -46,6 +46,7 @@ export function BookingCard({
   const book = hasLoadAction(actions, "book");
   const cancelBooking = hasLoadAction(actions, "cancelBooking");
   const start = hasLoadAction(actions, "startLoading");
+  const driver = hasLoadAction(actions, "recordDriver");
   const planned = load.status === LOAD_STATUS.PLANNED;
   const booked = load.status !== LOAD_STATUS.PLANNED && load.status !== LOAD_STATUS.CANCELLED;
   return (
@@ -80,7 +81,7 @@ export function BookingCard({
           <InfoItem label={B.bookedAt} value={formatDateTime(load.bookedAt)} />
         )}
       </div>
-      {(book || cancelBooking || start) && (
+      {(book || cancelBooking || start || driver) && (
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {book && (
             <Button
@@ -92,6 +93,17 @@ export function BookingCard({
             >
               {planned ? <CalendarCheck className="size-3.5" /> : <Pencil className="size-3.5" />}{" "}
               {planned ? B.book : B.rebook}
+            </Button>
+          )}
+          {driver && (
+            <Button
+              type="button"
+              size="sm"
+              variant={load.driverName ? "outline" : "default"}
+              className={load.driverName ? undefined : PRIMARY}
+              onClick={() => onOpen("driver")}
+            >
+              <UserRound className="size-3.5" /> {load.driverName ? B.editDriver : B.enterDriver}
             </Button>
           )}
           {cancelBooking && (

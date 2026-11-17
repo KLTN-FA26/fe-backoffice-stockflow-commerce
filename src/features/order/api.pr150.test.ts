@@ -136,6 +136,30 @@ describe("order API — BE PR #150 (giao một phần, công nợ phần còn l�
     ]);
   });
 
+  it("toOrderHistoryEntry: REMAINDER_CLOSURE → mục 'remainder-closure' kèm mã lý do và ghi chú", () => {
+    const base = { occurredAt: "2026-11-20T02:00:00Z", actorName: "Sale A" };
+    expect(
+      toOrderHistoryEntry({
+        ...base,
+        type: "REMAINDER_CLOSURE",
+        closureReasonCode: "OUT_OF_STOCK",
+        reason: "hết nắp",
+      }),
+    ).toEqual({
+      kind: "remainder-closure",
+      reasonCode: "OUT_OF_STOCK",
+      reason: "hết nắp",
+      actorName: "Sale A",
+      occurredAt: "2026-11-20T02:00:00Z",
+    });
+    // BE không gửi mã: vẫn là mục đóng phần còn lại, không đoán mã
+    expect(toOrderHistoryEntry({ ...base, type: "REMAINDER_CLOSURE" })).toMatchObject({
+      kind: "remainder-closure",
+      reasonCode: null,
+      reason: null,
+    });
+  });
+
   it("toOrderHistoryEntry: type lạ, hoặc thiếu dữ liệu cần → 'unknown', không hỏng lịch sử", () => {
     const base = { occurredAt: "2026-10-01T00:00:00Z" };
     expect(toOrderHistoryEntry({ ...base, type: "UNKNOWN" }).kind).toBe("unknown");

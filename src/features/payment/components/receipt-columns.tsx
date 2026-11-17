@@ -22,7 +22,13 @@ export const RECEIPT_COLUMNS: ColumnDef<PaymentReceipt>[] = [
       <CodeLink href={PAYMENT_ROUTES.receipts.detail(row.receiptId)}>{row.reference}</CodeLink>
     ),
   },
-  { key: "customer", header: C.customer, cell: (row) => <CustomerName id={row.customerId} /> },
+  {
+    key: "customer",
+    header: C.customer,
+    cell: (row) => (
+      <CustomerName id={row.customerId} name={row.customerName} code={row.customerCode} />
+    ),
+  },
   {
     key: "lines",
     header: PAYMENT_LABELS.receipts.lines,

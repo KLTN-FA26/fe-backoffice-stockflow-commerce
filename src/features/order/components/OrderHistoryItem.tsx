@@ -1,6 +1,6 @@
 "use client";
 
-import { Split, Truck } from "lucide-react";
+import { Scissors, Split, Truck } from "lucide-react";
 
 import {
   ORDER_DELIVERY_MODE_LABELS,
@@ -11,7 +11,11 @@ import {
 import { formatDateTime } from "@/lib/format/date";
 import { StatusDot } from "@/components/shared/StatusDot";
 
-import { formatCancellationReason } from "../selectors";
+import {
+  formatCancellationReason,
+  formatRemainderClosedStatusReason,
+  remainderClosureReasonLabel,
+} from "../selectors";
 
 import type { OrderHistoryEntry } from "../types";
 
@@ -42,10 +46,13 @@ function historyReasonLabel(reason: string): string {
 function EntryNote({ entry }: { entry: OrderHistoryEntry }) {
   if (!entry.reason) return null;
   // BE ghi lý do huỷ dạng "CODE: ghi chú" → nhãn tiếng Việt (lý do cũ tự do giữ nguyên)
+  // Bước đổi trạng thái do đóng phần còn lại: "REMAINDER_CLOSED_<MÃ>: ghi chú" → nhãn tiếng Việt, không hiện mã thô
   const reason =
     entry.kind === "status-change" && entry.to === "Cancelled"
       ? formatCancellationReason(entry.reason)
-      : historyReasonLabel(entry.reason);
+      : entry.kind === "status-change"
+        ? (formatRemainderClosedStatusReason(entry.reason) ?? historyReasonLabel(entry.reason))
+        : entry.reason;
   return (
     <p className="text-ink-secondary mt-1 text-[0.8125rem] break-words whitespace-pre-wrap">
       <span className="text-ink-tertiary">{L.noteLabel}: </span>
@@ -64,6 +71,16 @@ function EntryHead({ entry }: { entry: OrderHistoryEntry }) {
           {entry.allowed ? L.partialAllowed : L.partialStopped}
         </span>
       );
+    case "remainder-closure": {
+      // Sales đóng phần còn lại — mục riêng, kể cả khi trạng thái đơn không đổi (lý do là mã BE → nhãn tiếng Việt)
+      const reasonLabel = remainderClosureReasonLabel(entry.reasonCode);
+      return (
+        <span className="text-ink-primary inline-flex items-center gap-1.5 font-semibold">
+          <Scissors className="text-accent size-3.5" aria-hidden="true" />
+          {reasonLabel ? L.remainderClosedWithReason(reasonLabel) : L.remainderClosed}
+        </span>
+      );
+    }
     case "delivery-mode": {
       // Điều phối viên đổi (hoặc chọn lúc release) hình thức giao — BE PR #157, `DELIVERY_MODE_CHANGE`
       const to = ORDER_DELIVERY_MODE_LABELS[entry.mode];
@@ -100,9 +117,10 @@ function EntryHead({ entry }: { entry: OrderHistoryEntry }) {
   }
 }
 
-/** Mục lịch sử nổi bật (quyết định của Sales / đổi hình thức giao) khác một bước đổi trạng thái thuần. */
+/** Mục lịch sử nổi bật (quyết định của Sales / đóng phần còn lại / đổi hình thức giao) khác một bước đổi trạng thái thuần. */
 const HIGHLIGHTED_KINDS: readonly OrderHistoryEntry["kind"][] = [
   "partial-shipment",
+  "remainder-closure",
   "delivery-mode",
 ];
 

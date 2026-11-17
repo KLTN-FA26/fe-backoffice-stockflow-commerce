@@ -39,6 +39,27 @@ const warehouseCalls = (get: Awaited<ReturnType<typeof renderDetail>>) =>
 
 afterEach(() => vi.restoreAllMocks());
 
+describe("OrderInfoCard — Khách hàng hiện tên, không UUID (QA A5, BE-15)", () => {
+  it("BE trả customerName/customerCode → hiện tên và mã; không còn nhãn 'Mã khách' với UUID", async () => {
+    const get = mockOrderApiGet(ORDER_PERMISSION_SETS.coordinator, {
+      [DETAIL_PATH]: () =>
+        apiOrderWith({ customerName: "Công ty Bao Bì An Phát", customerCode: "0312345678" }),
+      [`${DETAIL_PATH}/history`]: () => [],
+    });
+    await act(async () => {
+      renderOrderScreen(<OrderDetail params={Promise.resolve({ id: apiOrder.orderId })} />);
+    });
+    await screen.findByRole("heading", { name: apiOrder.orderNumber });
+
+    expect(screen.getByText("Khách hàng")).toBeInTheDocument();
+    expect(screen.getByText("Công ty Bao Bì An Phát")).toBeInTheDocument();
+    expect(screen.getByText("0312345678")).toBeInTheDocument();
+    expect(screen.queryByText("Mã khách")).not.toBeInTheDocument();
+    expect(screen.queryByText(apiOrder.customerId as string)).not.toBeInTheDocument();
+    expect(get).toBeDefined();
+  });
+});
+
 describe("OrderInfoCard — Kho xuất theo quyền warehouse-warehouses:READ", () => {
   it("thiếu quyền (Coordinator trước BE V20261022000100) → không gọi GET /warehouses, báo không xem được tên", async () => {
     const get = await renderDetail(ORDER_PERMISSION_SETS.coordinator);

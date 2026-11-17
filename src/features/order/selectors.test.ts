@@ -4,7 +4,9 @@ import {
   availableRefusalActions,
   cancelConsequence,
   formatCancellationReason,
+  formatRemainderClosedStatusReason,
   parseCancellationReason,
+  remainderClosureReasonLabel,
   retainedAmountPreview,
   creditHoldSummary,
   creditOverage,
@@ -220,6 +222,36 @@ describe('lý do huỷ — cột BE "CODE" / "CODE: ghi chú" (Order#cancel, Can
     expect(formatCancellationReason("Khách gọi điện huỷ")).toBe("Khách gọi điện huỷ");
     expect(formatCancellationReason(null)).toBeNull();
     expect(formatCancellationReason("  ")).toBeNull();
+  });
+});
+
+describe("lý do đóng phần còn là nhãn tiếng Việt, không hiện mã thô", () => {
+  it("remainderClosureReasonLabel: mã đã biết → nhãn; mã lạ / rỗng → null", () => {
+    expect(remainderClosureReasonLabel("OUT_OF_STOCK")).toBe("Hết hàng, không cung cấp được");
+    expect(remainderClosureReasonLabel("DELIVERY_FAILED")).toBe("Giao hàng không thành công");
+    expect(remainderClosureReasonLabel("SOMETHING_NEW")).toBeNull();
+    expect(remainderClosureReasonLabel(null)).toBeNull();
+  });
+
+  it("formatRemainderClosedStatusReason: REMAINDER_CLOSED_<MÃ>[: ghi chú] (bước đổi trạng thái của BE)", () => {
+    expect(formatRemainderClosedStatusReason("REMAINDER_CLOSED_OUT_OF_STOCK")).toBe(
+      "Hết hàng, không cung cấp được",
+    );
+    expect(formatRemainderClosedStatusReason("REMAINDER_CLOSED_OTHER: khách đổi ý")).toBe(
+      "Lý do khác — khách đổi ý",
+    );
+    // BE nối phí vào cuối khi có phí thoả thuận
+    expect(
+      formatRemainderClosedStatusReason("REMAINDER_CLOSED_OUT_OF_STOCK (fee 100: in dở)"),
+    ).toBe("Hết hàng, không cung cấp được — (fee 100: in dở)");
+    // mã lạ: chỉ còn ghi chú, không hiện mã
+    expect(formatRemainderClosedStatusReason("REMAINDER_CLOSED_NEW_CODE: x")).toBe("x");
+    expect(formatRemainderClosedStatusReason("REMAINDER_CLOSED_NEW_CODE")).toBe(
+      "Đóng phần còn lại",
+    );
+    // lý do khác của một bước đổi trạng thái: để nguyên
+    expect(formatRemainderClosedStatusReason("ADDRESS: sai phường")).toBeNull();
+    expect(formatRemainderClosedStatusReason(null)).toBeNull();
   });
 });
 

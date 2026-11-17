@@ -73,9 +73,20 @@ export const ORDER_SHIPPING_WAREHOUSE_PERMISSIONS = {
 } as const;
 
 /**
+ * Lịch giao của đơn — resource `sales-order-delivery-batches` (BE `OrderResources.DELIVERY_BATCHES`, PR #317, WF4 BE-13,
+ * seed V20261124000650): `read` cho `GET /orders/{id}/delivery-batches` — ô chọn đợt giao khi release và panel lịch giao.
+ * Mọi vai đọc được hợp đồng trước đây (`sales-contracts:READ`) và mọi vai release (`sales-order-releases:UPDATE`, quản lý
+ * kho) — quản lý kho đọc lịch giao mà không phải đọc hợp đồng. Người giới hạn theo kho chỉ thấy lịch của đơn xuất từ / release
+ * cho kho của mình (BE trả 404 cho đơn ngoài tầm). Dời cửa sổ giao vẫn là `sales-contracts:UPDATE` (bên dưới).
+ */
+export const ORDER_DELIVERY_BATCH_PERMISSIONS = {
+  read: "sales-order-delivery-batches:READ",
+} as const;
+
+/**
  * Hợp đồng bán — resource `sales-contracts` (BE `OrderResources.SALES_CONTRACTS`). Chỉ khai báo mã FE đang dùng:
- * - `read`: lịch giao của đơn (`GET /orders/{id}/delivery-batches`) — ô chọn đợt giao khi release và panel lịch giao.
- *   Seed BE: SALES_STAFF, SALES_MANAGER, ACCOUNTANT, PRODUCTION_COORDINATOR, SYSTEM_ADMIN — KHÔNG có quản lý kho.
+ * - `read`: không còn dùng cho lịch giao (đã chuyển sang `sales-order-delivery-batches:READ`, bên trên); giữ lại cho fixture
+ *   / mock mô tả vai đọc hợp đồng. Seed BE: SALES_STAFF, SALES_MANAGER, ACCOUNTANT, PRODUCTION_COORDINATOR, SYSTEM_ADMIN.
  * - `update`: Sale dời cửa sổ giao (`POST /orders/{id}/delivery-batches/{batchId}/window-change`, docs 17 BR-28 "chỉ
  *   Sale"). Seed BE: SALES_STAFF + SYSTEM_ADMIN (PermissionMatrixTest).
  */

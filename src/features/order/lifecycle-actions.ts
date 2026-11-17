@@ -40,6 +40,12 @@ export interface OrderActionContext {
    */
   readonly packedAt: Order["packedAt"] | undefined;
   /**
+   * Mốc thùng giao đầu tiên được dán nhãn (BE `firstLabeledAt`, PR #317 / WF4 BE-8; docs 08 BR-04, 17 §4.7 §4.8). Đã có thì
+   * BE từ chối huỷ ở mọi đường (`Order#requireNotPacked`, ORDER_NOT_CANCELLABLE) và đơn không đổi địa chỉ giao — nút huỷ ẩn.
+   * `undefined` (chưa biết) cũng ẩn nút.
+   */
+  readonly firstLabeledAt: Order["firstLabeledAt"] | undefined;
+  /**
    * Trạng thái đơn quay về khi gỡ giữ (staff). Cần để biết đơn ON_HOLD có đang giữ từ IN_PRODUCTION
    * không — hàng có sẵn đóng trước hàng in vẫn huỷ được (BE PR #150, `Order#packedOnlyAheadOfPrints`).
    */
@@ -52,6 +58,7 @@ export const UNKNOWN_CONTEXT: OrderActionContext = {
   holdReason: undefined,
   hasShipments: undefined,
   packedAt: undefined,
+  firstLabeledAt: undefined,
   statusBeforeHold: undefined,
 };
 
@@ -177,11 +184,13 @@ export const ORDER_ACTIONS: readonly OrderAction[] = [
     // `Order#requireNotPacked` (03 §9): đã đóng gói thì không huỷ — bất kể trạng thái hiện tại (ON_HOLD
     // gồm cả), trừ khi mới đóng hàng có sẵn trước hàng in và chưa có lô nào rời kho (BE PR #150,
     // `isPackedOnlyAheadOfPrints`). Chưa biết lịch sử đóng gói / lô giao (undefined) → không mở nút.
-    requires: ({ packedAt, hasShipments, statusBeforeHold }, status) =>
-      packedAt === null ||
-      (packedAt !== undefined &&
-        hasShipments !== undefined &&
-        isPackedOnlyAheadOfPrints(status, { packedAt, hasShipments, statusBeforeHold })),
+    // Từ thùng đầu tiên được dán nhãn (`firstLabeledAt`, BE PR #317) đơn không huỷ được ở bất kỳ đường nào (08 BR-04).
+    requires: ({ packedAt, firstLabeledAt, hasShipments, statusBeforeHold }, status) =>
+      firstLabeledAt === null &&
+      (packedAt === null ||
+        (packedAt !== undefined &&
+          hasShipments !== undefined &&
+          isPackedOnlyAheadOfPrints(status, { packedAt, hasShipments, statusBeforeHold }))),
     destructive: true,
   },
   // `OrderStatus#mayBePutOnHold`: CONFIRMED … PACKED (kể cả giao một phần). POST /orders/{id}/hold,

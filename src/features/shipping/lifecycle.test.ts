@@ -70,17 +70,25 @@ describe("allowedLoadActions — theo trạng thái, nhân viên kho (fulfillmen
     expect(codes(gate({ status: "PLANNED", carrierId: undefined }), STAFF)).toEqual(["book"]);
   });
 
-  it("VEHICLE_BOOKED: đặt lại, huỷ đặt xe, bắt đầu xếp, nhập mã vận đơn", () => {
+  it("VEHICLE_BOOKED: đặt lại, huỷ đặt xe, bắt đầu xếp, nhập tài xế, nhập mã vận đơn", () => {
     expect(codes(gate({ status: "VEHICLE_BOOKED" }), STAFF)).toEqual([
       "book",
       "cancelBooking",
       "startLoading",
+      "recordDriver",
       "recordWaybill",
     ]);
   });
 
-  it("LOADING: quét, gỡ, bàn giao, nhập mã vận đơn, dỡ kiện; không huỷ có kiểm soát", () => {
-    expect(codes(gate(), STAFF)).toEqual(["scan", "unscan", "handover", "recordWaybill", "unload"]);
+  it("LOADING: quét, gỡ, bàn giao, nhập tài xế, nhập mã vận đơn, dỡ kiện; không huỷ có kiểm soát", () => {
+    expect(codes(gate(), STAFF)).toEqual([
+      "scan",
+      "unscan",
+      "handover",
+      "recordDriver",
+      "recordWaybill",
+      "unload",
+    ]);
   });
 
   it("DISPATCHED / CANCELLED: không còn thao tác nào (nhân viên kho không sửa mã vận đơn)", () => {
@@ -108,6 +116,7 @@ describe("allowedLoadActions — quản lý kho (huỷ có kiểm soát + sửa 
       "scan",
       "unscan",
       "handover",
+      "recordDriver",
       "recordWaybill",
       "unload",
       "controlledCancel",
@@ -183,13 +192,26 @@ describe("allowedLoadActions — nhập / sửa mã vận đơn (docs 09 §4.4, 
   });
 });
 
+describe("allowedLoadActions — nhập tài xế (WF4-DRIVER, BE PR #316)", () => {
+  it("VEHICLE_BOOKED và LOADING, cần fulfillment-dispatch:UPDATE; không ở PLANNED / DISPATCHED / CANCELLED", () => {
+    for (const status of ["VEHICLE_BOOKED", "LOADING"] as const) {
+      expect(codes(gate({ status }), STAFF)).toContain("recordDriver");
+      expect(codes(gate({ status }), VIEW_ONLY)).not.toContain("recordDriver");
+    }
+    for (const status of ["PLANNED", "DISPATCHED", "CANCELLED"] as const) {
+      expect(codes(gate({ status }), MANAGER)).not.toContain("recordDriver");
+    }
+  });
+});
+
 describe("allowedLoadActions — hãng đặt xe qua API (BR-29)", () => {
   const api = { carrierConnectionType: CARRIER_CONNECTION_TYPE.API_BOOKING };
 
-  it("VEHICLE_BOOKED: không đặt lại tay, không nhập mã vận đơn; vẫn huỷ đặt xe / bắt đầu xếp", () => {
+  it("VEHICLE_BOOKED: không đặt lại tay, không nhập mã vận đơn; vẫn huỷ đặt xe / bắt đầu xếp / nhập tài xế", () => {
     expect(codes(gate({ status: "VEHICLE_BOOKED", ...api }), MANAGER)).toEqual([
       "cancelBooking",
       "startLoading",
+      "recordDriver",
     ]);
   });
 
@@ -199,8 +221,14 @@ describe("allowedLoadActions — hãng đặt xe qua API (BR-29)", () => {
     ]);
   });
 
-  it("LOADING: không nhập mã vận đơn tay; DISPATCHED: manager không sửa mã vận đơn", () => {
-    expect(codes(gate(api), STAFF)).toEqual(["scan", "unscan", "handover", "unload"]);
+  it("LOADING: nhập tài xế được, không nhập mã vận đơn tay; DISPATCHED: manager không sửa mã vận đơn", () => {
+    expect(codes(gate(api), STAFF)).toEqual([
+      "scan",
+      "unscan",
+      "handover",
+      "recordDriver",
+      "unload",
+    ]);
     expect(codes(gate({ status: "DISPATCHED", ...api }), MANAGER)).toEqual([]);
   });
 

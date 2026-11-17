@@ -4,9 +4,9 @@ import { PackageCheck } from "lucide-react";
 import { useState } from "react";
 
 import {
+  ORDER_DELIVERY_BATCH_PERMISSIONS,
   ORDER_RELEASE_LABELS,
   ORDER_SHIPPING_WAREHOUSE_PERMISSIONS,
-  SALES_CONTRACT_PERMISSIONS,
 } from "@/constants";
 import { Button } from "@/components/ui/button";
 
@@ -49,8 +49,8 @@ export function OrderReleaseAction({ order, can, estimateSlot }: OrderReleaseAct
       {open && (
         <OrderReleaseDialog
           order={order}
-          // UI-only — Backend phải re-check (lịch giao: GET /orders/{id}/delivery-batches cần sales-contracts:READ)
-          canChooseBatch={can(SALES_CONTRACT_PERMISSIONS.read)}
+          // UI-only — Backend phải re-check (lịch giao: GET /orders/{id}/delivery-batches cần sales-order-delivery-batches:READ)
+          canChooseBatch={can(ORDER_DELIVERY_BATCH_PERMISSIONS.read)}
           defaultWarehouseId={chosenWarehouse.data}
           estimateSlot={estimateSlot}
           onClose={() => setOpen(false)}

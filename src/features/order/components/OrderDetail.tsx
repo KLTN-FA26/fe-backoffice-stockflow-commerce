@@ -29,6 +29,7 @@ import { OrderShipments } from "./OrderShipments";
 import { OrderDetailSkeleton } from "./OrderSkeletons";
 
 import type { OrderEstimateSlot } from "../estimate-slot";
+import type { OrderReturnsSlot } from "../returns-slot";
 import type { OrderSettlementSlot } from "../settlement-slot";
 
 interface OrderDetailProps {
@@ -37,13 +38,25 @@ interface OrderDetailProps {
   estimateSlot?: OrderEstimateSlot;
   /** Khe "Thanh toán, hoá đơn & hoàn tất" (WF-05 BO-10 — xem `settlement-slot.ts`). */
   settlementSlot?: OrderSettlementSlot;
+  /** Khe "Trả hàng" (WF-05 BO-13 — xem `returns-slot.ts`). */
+  returnsSlot?: OrderReturnsSlot;
 }
 
-export function OrderDetail({ params, estimateSlot, settlementSlot }: OrderDetailProps) {
+export function OrderDetail({
+  params,
+  estimateSlot,
+  settlementSlot,
+  returnsSlot,
+}: OrderDetailProps) {
   const { id } = use(params);
   return (
     <OrderPermissionGate permissions={[ORDER_PERMISSIONS.viewPage]}>
-      <OrderDetailContent id={id} estimateSlot={estimateSlot} settlementSlot={settlementSlot} />
+      <OrderDetailContent
+        id={id}
+        estimateSlot={estimateSlot}
+        settlementSlot={settlementSlot}
+        returnsSlot={returnsSlot}
+      />
     </OrderPermissionGate>
   );
 }
@@ -52,10 +65,12 @@ function OrderDetailContent({
   id,
   estimateSlot,
   settlementSlot,
+  returnsSlot,
 }: {
   id: string;
   estimateSlot?: OrderEstimateSlot;
   settlementSlot?: OrderSettlementSlot;
+  returnsSlot?: OrderReturnsSlot;
 }) {
   const can = usePermissionChecker();
   // READ = đọc dữ liệu (tách khỏi VIEW_PAGE mở trang — BE ADR-0004): thiếu thì không gọi API
@@ -135,6 +150,19 @@ function OrderDetailContent({
             deliveredShipmentIds: order.shipments
               .filter((shipment) => shipment.status === "DELIVERED")
               .map((shipment) => shipment.shipmentId),
+          })}
+          {returnsSlot?.({
+            orderId: order.orderId,
+            orderNumber: order.orderNumber,
+            status: order.status,
+            deliveredAt: order.deliveredAt ?? null,
+            lines: order.lines.map((line) => ({
+              lineId: line.lineId,
+              sku: line.sku,
+              deliveredQuantity:
+                line.deliveredQuantity ?? line.quantity - (line.cancelledQuantity ?? 0),
+              customPrinted: line.isCustom,
+            })),
           })}
           <OrderHistory orderId={order.orderId} />
         </div>

@@ -2,7 +2,12 @@
  * Order — selectors (pure derivations). PURE — không side effect, không import icon.
  */
 
-import { ORDER_CANCELLATION_REASON_CODES, ORDER_CANCELLATION_REASON_LABELS } from "@/constants";
+import {
+  ORDER_CANCELLATION_REASON_CODES,
+  ORDER_CANCELLATION_REASON_LABELS,
+  ORDER_HISTORY_LABELS,
+  ORDER_REMAINDER_CLOSURE_HISTORY_REASON_LABELS,
+} from "@/constants";
 import { currencyFractionDigits } from "@/lib/format";
 
 import type {
@@ -123,6 +128,29 @@ export function parseCancellationReason(
 /** Nhãn tiếng Việt của mã lý do huỷ; mã lạ (BE thêm mã mới) hiện nguyên mã, không để trống. */
 export function cancellationReasonLabel(code: string): string {
   return isKnownReasonCode(code) ? ORDER_CANCELLATION_REASON_LABELS[code] : code;
+}
+
+/**
+ * Nhãn tiếng Việt của mã lý do đóng phần còn lại; mã lạ → null (không hiện mã thô cho người dùng).
+ */
+export function remainderClosureReasonLabel(code: string | null): string | null {
+  if (!code) return null;
+  return ORDER_REMAINDER_CLOSURE_HISTORY_REASON_LABELS[code] ?? null;
+}
+
+const REMAINDER_CLOSED_STATUS_REASON = /^REMAINDER_CLOSED_([A-Z_]+)(?:[:\s]\s*([\s\S]*))?$/;
+
+/**
+ * Lý do của bước đổi trạng thái do đóng phần còn lại: BE ghi `REMAINDER_CLOSED_<MÃ>[: ghi chú]` → "Hết hàng, không
+ * cung cấp được — ghi chú". Không phải dạng đó thì trả null (giữ nguyên chuỗi); mã lạ chỉ còn ghi chú.
+ */
+export function formatRemainderClosedStatusReason(reason: string | null): string | null {
+  const match = reason ? REMAINDER_CLOSED_STATUS_REASON.exec(reason.trim()) : null;
+  if (!match) return null;
+  const label = remainderClosureReasonLabel(match[1] ?? null);
+  const note = match[2]?.trim() || null;
+  if (label && note) return `${label} — ${note}`;
+  return label ?? note ?? ORDER_HISTORY_LABELS.remainderClosed;
 }
 
 /** Một dòng đọc được: "Khách yêu cầu — khách đổi ý" thay vì "CUSTOMER_REQUEST: khách đổi ý". */
