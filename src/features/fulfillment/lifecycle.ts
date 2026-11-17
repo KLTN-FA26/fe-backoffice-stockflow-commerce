@@ -5,8 +5,9 @@
  * Thao tác của trạm kiểm thùng (bắt đầu, quét LPN, dán nhãn, loại thùng, hoàn tất) gate ở `carton-check-lifecycle.ts`; ở đây còn
  * gán / lấy hàng / chuyển cả tác vụ sang khu xuất hàng. Từ BE PR #148 mỗi endpoint chỉ gate bằng MỘT mã quyền
  * (`@RequiresPermission`, không còn `@PreAuthorize` theo vai trò) — FE không đọc tên vai trò để quyết định
- * quyền. Phần lớn thao tác lấy hàng còn đòi người gọi là người được gán, nên ở đây kiểm: trạng thái,
- * mã quyền, người được gán.
+ * quyền. Phần lớn thao tác lấy hàng còn đòi người gọi là người được gán — hoặc người có
+ * `fulfillment-task-assignment:UPDATE` làm thay khi task đã có người được gán (BE `TaskAccess.requireWorker`,
+ * docs 07 BR-08 / WF4-QLK-TAKEOVER) — nên ở đây kiểm: trạng thái, mã quyền, quyền làm việc trên task.
  * UI-only — Backend phải re-check (FulfillmentController + FulfillmentServiceImpl).
  */
 
@@ -52,7 +53,7 @@ export interface FulfillmentAction {
   readonly label: string;
   /** Mã quyền BE bảo vệ endpoint (`@RequiresPermission`). */
   readonly permission: PermissionCode;
-  /** BE `pick.requireAssigned(actor)` — quản lý kho cũng không làm hộ. */
+  /** BE `TaskAccess.requireWorker`: người được gán, hoặc người có task-assignment:UPDATE làm thay (task đã có người gán). */
   readonly assigneeOnly: boolean;
   readonly pick?: StatusGate<PickStatus>;
   readonly pack?: StatusGate<PackStatus>;
@@ -101,6 +102,17 @@ export function isAssignee(task: FulfillmentGateState, actor: FulfillmentActor):
   return actor.userId !== null && task.assignedUserId === actor.userId;
 }
 
+/**
+ * Làm việc được trên task lấy hàng — khớp BE `TaskAccess.requireWorker` (docs 07 BR-08, WF4-QLK-TAKEOVER): người
+ * được gán, hoặc người có `fulfillment-task-assignment:UPDATE` (quản lý kho) làm thay — chỉ khi task ĐÃ có người
+ * được gán (task chưa gán thì không ai làm thay). Chỉ dùng mã quyền, không đọc tên vai trò.
+ * UI-only — Backend phải re-check.
+ */
+export function canWorkOnTask(task: FulfillmentGateState, actor: FulfillmentActor): boolean {
+  if (isAssignee(task, actor)) return true;
+  return !!task.assignedUserId && actor.can(ASSIGNMENT.update);
+}
+
 function passes<S extends string>(
   gate: StatusGate<S> | undefined,
   status: S,
@@ -119,7 +131,7 @@ function allowedByStatus(action: FulfillmentAction, task: FulfillmentGateState):
 
 /**
  * Action khả dụng cho task + người dùng: 1. trạng thái pick/pack và bảng chuyển trạng thái;
- * 2. mã quyền; 3. là người được gán (nếu action đòi).
+ * 2. mã quyền; 3. là người được gán hoặc người làm thay (nếu action đòi).
  */
 export function allowedFulfillmentActions(
   task: FulfillmentGateState,
@@ -129,13 +141,13 @@ export function allowedFulfillmentActions(
     (action) =>
       allowedByStatus(action, task) &&
       actor.can(action.permission) &&
-      (!action.assigneeOnly || isAssignee(task, actor)),
+      (!action.assigneeOnly || canWorkOnTask(task, actor)),
   );
 }
 
 /**
  * Người dùng đủ quyền cho một action đang mở theo trạng thái, nhưng không phải người
- * được gán → màn hình giải thích thay vì chỉ ẩn nút.
+ * được gán và cũng không làm thay được → màn hình giải thích thay vì chỉ ẩn nút.
  */
 export function isBlockedAsNonAssignee(
   task: FulfillmentGateState,
@@ -148,7 +160,7 @@ export function isBlockedAsNonAssignee(
       action.assigneeOnly &&
       allowedByStatus(action, task) &&
       actor.can(action.permission) &&
-      !isAssignee(task, actor),
+      !canWorkOnTask(task, actor),
   );
 }
 

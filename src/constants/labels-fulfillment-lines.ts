@@ -62,6 +62,12 @@ export const PICK_LINE_LABELS = {
   reallocateLine: (sequenceNo: number) => `Phân bổ lại dòng ${sequenceNo}`,
   reallocateConfirm: (sku: string, lpn: string | null | undefined) =>
     `Phân bổ lại ${sku}${lpn ? ` (thùng ${lpn})` : ""} sang thùng khác còn hàng ở kho?`,
+  // Bù thùng hư hỏng đã bị loại ở trạm kiểm thùng (BE `reallocation` nhận dòng này, docs 08 §4.2 bước 4 → 07 §4.4 bước 10)
+  removedDamaged: "Thùng hư hỏng, đã loại ở trạm kiểm thùng",
+  replaceRemoved: "Bù thùng",
+  replaceRemovedLine: (sequenceNo: number) => `Bù thùng cho dòng ${sequenceNo}`,
+  replaceRemovedConfirm: (sku: string, lpn: string | null | undefined) =>
+    `Bù thay thùng ${sku}${lpn ? ` (thùng ${lpn})` : ""} đã loại ở trạm kiểm thùng bằng thùng khác còn hàng ở kho?`,
   openLeft: (count: number) => `Còn ${count} dòng chưa lấy`,
   shortLeft: (count: number) => `Còn ${count} dòng thiếu thùng chờ phân bổ lại`,
   /** Dòng STAGED: thùng đã nằm ở khu chờ xuất của task, chưa trừ tồn (docs 07 §4.2 bước 5). */

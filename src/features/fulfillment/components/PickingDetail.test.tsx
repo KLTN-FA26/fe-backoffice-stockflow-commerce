@@ -113,9 +113,9 @@ describe("PickingDetail — action-gating theo trạng thái + quyền + vai tr�
     await waitFor(() => expect(post).toHaveBeenCalledWith(`${PATH}/picking-start`, undefined));
   });
 
-  it("task đang lấy chưa có dòng, người xem không được gán → chỉ báo, không có nút tạo danh sách", async () => {
+  it("task đang lấy chưa có dòng, người xem không được gán và không làm thay được → chỉ báo, không có nút tạo danh sách", async () => {
     renderDetail(
-      IDENTITIES.warehouseManager,
+      IDENTITIES.warehouseStaff,
       apiTask({ pickStatus: "PICKING", lines: apiTaskLines, assignedUserId: OTHER_PICKER_ID }),
       { lines: [] },
     );
@@ -145,15 +145,27 @@ describe("PickingDetail — action-gating theo trạng thái + quyền + vai tr�
     expect(screen.queryByText(L.allPicked)).toBeNull();
   });
 
-  it("quản lý kho không được gán: chỉ Gán lại, không lấy hàng hộ", async () => {
+  it("quản lý kho không được gán, task Pending: Gán lại + Bắt đầu lấy hàng làm thay (BE requireWorker)", async () => {
     renderDetail(IDENTITIES.warehouseManager, apiTask({ assignedUserId: OTHER_PICKER_ID }));
     expect(await screen.findByRole("button", { name: action.assign })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: action.startPicking })).toBeNull();
+    expect(screen.getByRole("button", { name: action.startPicking })).toBeInTheDocument();
   });
 
-  it("quản lý kho không được gán, task đang lấy hàng → giải thích chỉ người được gán thao tác", async () => {
+  it("quản lý kho không được gán, task đang lấy hàng → có thẻ xác nhận dòng + Báo thiếu thùng, làm thay NV được gán", async () => {
     renderDetail(
       IDENTITIES.warehouseManager,
+      apiTask({ assignedUserId: OTHER_PICKER_ID, pickStatus: "PICKING" }),
+    );
+    expect(await screen.findByText(L.confirmTitle(1))).toBeInTheDocument();
+    expect(screen.queryByText(L.onlyAssignee)).toBeNull();
+    expect(screen.queryByText(noActions.notAssignee)).toBeNull();
+    expect(screen.getByRole("button", { name: L.selectLine(2) })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: L.shortAction })).toBeInTheDocument();
+  });
+
+  it("NV kho không được gán, task đang lấy hàng → giải thích chỉ người được gán thao tác", async () => {
+    renderDetail(
+      IDENTITIES.warehouseStaff,
       apiTask({ assignedUserId: OTHER_PICKER_ID, pickStatus: "PICKING" }),
     );
     expect(await screen.findByText(noActions.notAssignee)).toBeInTheDocument();

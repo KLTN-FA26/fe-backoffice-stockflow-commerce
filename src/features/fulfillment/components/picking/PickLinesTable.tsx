@@ -110,6 +110,9 @@ export function PickLinesTable({
                       {L.shortReasons[line.shortReason]}
                     </span>
                   )}
+                  {line.status === PICK_LINE_STATUS.PICKED && line.removalReason === "DAMAGED" && (
+                    <span className="text-ink-tertiary block text-xs">{L.removedDamaged}</span>
+                  )}
                   {line.status === PICK_LINE_STATUS.PUT_BACK && line.putBackLocationCode && (
                     <span className="text-ink-tertiary block text-xs">
                       {PUT_BACK_LABELS.returnedTo(line.putBackQty, line.putBackLocationCode)}

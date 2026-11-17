@@ -15,6 +15,7 @@ import {
   FULFILLMENT_ACTIONS,
   allowedFulfillmentActions,
   canCreateTask,
+  canWorkOnTask,
   isBlockedAsNonAssignee,
   isTaskCancelled,
   isTaskClosed,
@@ -91,11 +92,26 @@ describe("allowedFulfillmentActions — mã quyền + người được gán (BE
     }
   });
 
-  it("quản lý kho không được gán: gán lại được, KHÔNG lấy hàng hộ", () => {
+  it("quản lý kho không được gán: gán lại + làm thay (BE TaskAccess.requireWorker, WF4-QLK-TAKEOVER) khi task đã có người gán", () => {
     const manager = actorOf(IDENTITIES.warehouseManager);
-    expect(codes(task("Pending", "Pending", SOMEONE_ELSE), manager)).toEqual(["assign"]);
-    expect(codes(task("Picking", "Pending", SOMEONE_ELSE), manager)).toEqual([]);
+    expect(codes(task("Pending", "Pending", SOMEONE_ELSE), manager)).toEqual([
+      "assign",
+      "startPicking",
+    ]);
+    expect(codes(task("Picking", "Pending", SOMEONE_ELSE), manager)).toEqual(["completePicking"]);
     expect(codes(task("Picked", "Pending", SOMEONE_ELSE), manager)).toEqual([]);
+  });
+
+  it("task chưa có người được gán: quản lý kho không làm hộ (BE giữ nguyên NOT_FOUND)", () => {
+    const manager = actorOf(IDENTITIES.warehouseManager);
+    const unassigned = {
+      pickStatus: "Picking",
+      packStatus: "Pending",
+      assignedUserId: null,
+    } as const;
+    expect(codes(unassigned, manager)).toEqual([]);
+    expect(canWorkOnTask(unassigned, manager)).toBe(false);
+    expect(canWorkOnTask({ ...unassigned, pickStatus: "Pending" }, manager)).toBe(false);
   });
 
   it("quản lý kho tự được gán → gán lại + bắt đầu lấy hàng", () => {
@@ -181,13 +197,14 @@ describe("allowedFulfillmentActions — mã quyền + người được gán (BE
 });
 
 describe("các cổng phụ", () => {
-  it("isBlockedAsNonAssignee: đủ quyền nhưng task gán cho người khác", () => {
+  it("isBlockedAsNonAssignee: đủ quyền nhưng task gán cho người khác và không làm thay được", () => {
+    const staff = actorOf(IDENTITIES.warehouseStaff);
     const manager = actorOf(IDENTITIES.warehouseManager);
     const others = task("Pending", "Pending", SOMEONE_ELSE);
-    expect(isBlockedAsNonAssignee(others, manager, ["startPicking"])).toBe(true);
-    expect(isBlockedAsNonAssignee(task("Pending", "Pending"), manager, ["startPicking"])).toBe(
-      false,
-    );
+    expect(isBlockedAsNonAssignee(others, staff, ["startPicking"])).toBe(true);
+    // Quản lý kho (task-assignment:UPDATE) làm thay được → không bị chặn
+    expect(isBlockedAsNonAssignee(others, manager, ["startPicking"])).toBe(false);
+    expect(isBlockedAsNonAssignee(task("Pending", "Pending"), staff, ["startPicking"])).toBe(false);
     // Điều phối không có fulfillment-picking:UPDATE → không phải "bị chặn vì không được gán"
     expect(
       isBlockedAsNonAssignee(others, actorOf(IDENTITIES.orderCoordinator), ["startPicking"]),
