@@ -56,8 +56,6 @@ export function QuantityLines({
                   id={id}
                   type="number"
                   inputMode="numeric"
-                  min={0}
-                  max={row.cap}
                   aria-invalid={!!error}
                   aria-describedby={`${id}-cap`}
                   className={`${FORM_INPUT_CLASS} text-right tabular-nums`}
