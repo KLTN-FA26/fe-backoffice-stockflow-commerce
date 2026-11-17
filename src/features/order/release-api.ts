@@ -6,10 +6,14 @@
  *   của kho xuất; BE kiểm thêm kho người gọi phụ trách). Mọi đơn giao nguyên chuyến (docs 09 BR-08) nên KHÔNG có
  *   hình thức giao. `deliveryBatchId` (BR-29): đợt giao muốn release — phải là đợt kế tiếp của lịch giao, bỏ trống =
  *   đợt kế tiếp (409 DELIVERY_BATCH_NOT_NEXT nếu khác). Hàng giữ của đợt được phân bổ vào các thùng LPN cụ thể.
+ * - GET /orders/{id}/release-warnings — cùng quyền `sales-order-releases:UPDATE`: cảnh báo khi mở hộp thoại (khách có đợt
+ *   thanh toán quá hạn). Chỉ cảnh báo, release vẫn đi tiếp (WF4-OVERDUE-WARN).
  */
 
 import { api } from "@/lib/api/client";
 import { idempotencyRequestConfig } from "@/lib/api/idempotency";
+
+import { releaseWarningsSchema, type ReleaseWarnings } from "./release-schemas";
 
 const ORDERS_PATH = "/orders";
 const orderPath = (id: string) => `${ORDERS_PATH}/${encodeURIComponent(id)}`;
@@ -33,4 +37,12 @@ export async function releaseOrder(input: ReleaseOrderInput): Promise<void> {
     { warehouseId, ...(deliveryBatchId ? { deliveryBatchId } : {}) },
     idempotencyRequestConfig(idempotencyKey),
   );
+}
+
+export async function getReleaseWarnings(
+  id: string,
+  signal?: AbortSignal,
+): Promise<ReleaseWarnings> {
+  const { data } = await api.get<unknown>(`${orderPath(id)}/release-warnings`, { signal });
+  return releaseWarningsSchema.parse(data);
 }

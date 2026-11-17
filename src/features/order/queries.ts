@@ -27,6 +27,7 @@ import {
 import { getDeliverySchedule } from "./delivery-batch-api";
 import { getOrderHistory } from "./history-api";
 import { getOrderInstallmentsSummary } from "./installments-summary-api";
+import { getReleaseWarnings } from "./release-api";
 import { getChosenShippingWarehouseId } from "./shipping-warehouse-api";
 import { isValidOrderCustomerId } from "./schemas";
 
@@ -48,6 +49,8 @@ export const orderKeys = {
   deliverySchedule: (id: string) => [...baseOrderKeys.all, "delivery-schedule", id] as const,
   /** Các đợt thanh toán của đơn (khối Thanh toán) — dưới `orders` nên mọi mutation đơn làm mới. */
   installmentsSummary: (id: string) => [...baseOrderKeys.all, "installments-summary", id] as const,
+  /** Cảnh báo trước khi release một đơn — dưới `orders`: release xong (invalidate `orderKeys.all`) tự tải lại. */
+  releaseWarnings: (id: string) => [...baseOrderKeys.all, "release-warnings", id] as const,
   /** Kho xuất Sale đã chọn cho đơn — dưới `orders` nên release xong tự tải lại. */
   shippingWarehouse: (id: string) => [...baseOrderKeys.all, "shipping-warehouse", id] as const,
   /** Yêu cầu huỷ của khách (hàng đợi + thẻ trên chi tiết đơn) — dưới `orders`: duyệt / từ chối tự làm mới cả hai. */
@@ -166,6 +169,21 @@ export function useChosenShippingWarehouse(id: string, options: { enabled?: bool
     queryFn: ({ signal }) => getChosenShippingWarehouseId(id, signal),
     ...QUERY_TIMES.detail,
     enabled: !!id && (options.enabled ?? true),
+    retry: retryTransient,
+  });
+}
+
+/**
+ * Cảnh báo của hộp thoại release (`GET /orders/{id}/release-warnings`, cùng quyền với release): khách có đợt thanh toán
+ * quá hạn. Chỉ cảnh báo — lỗi tải thì không hiện gì (release vẫn đi tiếp), không retry lỗi 4xx.
+ */
+export function useReleaseWarnings(id: string) {
+  return useQuery({
+    queryKey: orderKeys.releaseWarnings(id),
+    queryFn: ({ signal }) => getReleaseWarnings(id, signal),
+    enabled: !!id,
+    // Công nợ đổi theo từng phiếu thu: mỗi lần mở hộp thoại lấy lại, không dùng bản cũ
+    staleTime: 0,
     retry: retryTransient,
   });
 }

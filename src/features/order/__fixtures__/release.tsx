@@ -12,6 +12,7 @@ import { mockOrderApiGet, ORDER_PERMISSION_SETS, renderOrderScreen } from "./ren
 import type { PermissionCode } from "@/lib/auth";
 
 export const RELEASE_PATH = `${DETAIL_PATH}/release`;
+export const RELEASE_WARNINGS_PATH = `${DETAIL_PATH}/release-warnings`;
 export const WAREHOUSES = {
   items: [
     { id: "wh-hn", prefix: "HN01", name: "Kho Hà Nội", status: "ACTIVE" },
@@ -30,11 +31,13 @@ export async function renderConfirmedScreen(
   patch: Record<string, unknown> = {},
   permissions: readonly PermissionCode[] = ORDER_PERMISSION_SETS.warehouseManager,
   warehouses: () => unknown = () => WAREHOUSES,
+  warnings: () => unknown = () => ({}),
 ) {
   mockOrderApiGet(permissions, {
     [DETAIL_PATH]: () => apiOrderAt(status, patch),
     [HISTORY_PATH]: () => [],
     "/warehouses": warehouses,
+    [RELEASE_WARNINGS_PATH]: warnings,
   });
   await act(async () => {
     renderOrderScreen(<OrderDetail params={Promise.resolve({ id: apiOrder.orderId })} />);
