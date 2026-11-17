@@ -2,7 +2,7 @@
  * Mock release + lịch giao (BE `OrderReleaseController` / `DeliveryBatchController`, docs 17 §4.2, §4.5) — chạy qua axios
  * thật + `features/order/*-api.ts`, nên kiểm luôn mock đúng hình BE và lớp api parse được: quyền
  * `sales-order-releases:UPDATE`, đơn CONFIRMED → READY_TO_FULFILL, đợt giao sai → 409/404, OrderResponse không còn hình
- * thức giao, lịch giao cần `sales-contracts:READ`.
+ * thức giao, lịch giao cần `sales-order-delivery-batches:READ`.
  */
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -147,7 +147,7 @@ describe("POST /orders/:id/release", () => {
 });
 
 describe("GET /orders/:id/delivery-batches", () => {
-  it("cần sales-contracts:READ: Sales / admin đọc được, quản lý kho theo seed BE (không có mã) → 403", async () => {
+  it("cần sales-order-delivery-batches:READ: Sales / admin / vai release đọc được, nhân viên kho (không có mã) → 403", async () => {
     const order = firstOrderWith("Confirmed");
     actAs("USER-SALE-01");
     const schedule = await getDeliverySchedule(order.orderId);
@@ -158,7 +158,7 @@ describe("GET /orders/:id/delivery-batches", () => {
       state: "READY",
     });
     expect(schedule.batches[0]?.releasedAt).toBeUndefined();
-    // USER-WH-01 mô phỏng nhân viên kho không có sales-contracts:READ
+    // USER-WH-01 mô phỏng nhân viên kho không có sales-order-delivery-batches:READ
     actAs("USER-WH-01");
     expect((await captureError(getDeliverySchedule(order.orderId))).status).toBe(403);
   });

@@ -981,6 +981,8 @@ export function toOrderResponse(order: Order) {
       : null,
     holdNote: hold ? (state.holdNote ?? null) : null,
     packedAt: state.packedAt ?? null,
+    // BE V20261113000700: đơn đã đóng gói trước trạm kiểm thùng mang mốc đó làm thùng dán nhãn đầu tiên (docs 08 BR-04)
+    firstLabeledAt: state.packedAt ?? null,
     shippedAt: state.shippedAt ?? order.shippedAt ?? null,
     deliveredAt: state.deliveredAt ?? order.deliveredAt ?? null,
     deliveryFailureReason:

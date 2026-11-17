@@ -129,7 +129,7 @@ export function useCreditPosition(customerId: string | null, options: { enabled?
 }
 
 /**
- * Lịch giao của đơn (`GET /orders/{id}/delivery-batches`, cần `sales-contracts:READ`): chỉ gọi khi `enabled` — ô chọn
+ * Lịch giao của đơn (`GET /orders/{id}/delivery-batches`, cần `sales-order-delivery-batches:READ`): chỉ gọi khi `enabled` — ô chọn
  * đợt giao của hộp thoại release. Đơn không có lịch giao trả `batches` rỗng.
  */
 export function useDeliverySchedule(id: string, options: { enabled?: boolean } = {}) {

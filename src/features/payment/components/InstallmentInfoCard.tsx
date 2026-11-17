@@ -39,7 +39,7 @@ export function InstallmentInfoCard({ installment: i }: { installment: Installme
           <CodeLink href={ADMIN_ROUTES.orders.detail(i.orderId)}>{i.orderNumber}</CodeLink>
         </InfoRow>
         <InfoRow label={C.customer}>
-          <CustomerName id={i.customerId} />
+          <CustomerName id={i.customerId} name={i.customerName} code={i.customerCode} />
         </InfoRow>
         <InfoRow label={C.milestone}>{milestoneLabel(i.milestone)}</InfoRow>
         <InfoRow label={C.deliveryBatch}>

@@ -49,6 +49,32 @@ const listRoutes = (items: unknown[] = [due, paid, overdue]) => ({
   "/installments": () => bePage(items),
 });
 
+describe("InstallmentList — the customer is named, not an id (QA A5, BE-15)", () => {
+  it("shows the customer name the BE sends and never asks the customer directory the accountant cannot read", async () => {
+    const api = mockPaymentApi(ACCOUNTANT_GRANTS, {
+      get: listRoutes([
+        installmentJson({ customerName: "Công ty Bao Bì An Phát", customerCode: "0312345678" }),
+      ]),
+    });
+    renderPaymentScreen(<InstallmentList />);
+    expect(await screen.findByText("Công ty Bao Bì An Phát")).toBeInTheDocument();
+    expect(screen.queryByText(/^KH /)).not.toBeInTheDocument();
+    expect(api.get.mock.calls.some(([url]) => String(url).startsWith("/customers"))).toBe(false);
+  });
+
+  it("falls back to the short code the BE sends, then to a short id, when there is no name", async () => {
+    mockPaymentApi(ACCOUNTANT_GRANTS, {
+      get: listRoutes([
+        installmentJson({ customerCode: "KH0A1B2C3D" }),
+        installmentJson({ installmentId: "inst-9", seq: 9 }),
+      ]),
+    });
+    renderPaymentScreen(<InstallmentList />);
+    expect(await screen.findByText("KH0A1B2C3D")).toBeInTheDocument();
+    expect(screen.getByText("KH cust-9")).toBeInTheDocument();
+  });
+});
+
 describe("InstallmentList — what the accountant sees (docs 15 §5.1)", () => {
   it("shows each installment with its milestone, tied delivery batch, status and what blocks the handover", async () => {
     mockPaymentApi(ACCOUNTANT_GRANTS, { get: listRoutes() });

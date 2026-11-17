@@ -170,6 +170,9 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     // Order giao một phần (BE PARTIALLY_FULFILLED): còn phần chưa tới tay khách, cần nhân viên xử lý
     "Partially Fulfilled",
     "Return Requested",
+    // Yêu cầu trả hàng đã duyệt, chờ hàng về / chờ duyệt hoàn tiền (BE ReturnStatus, docs 17 §4.10)
+    "Awaiting Return",
+    "Settlement Pending",
     "Pending Verification",
     "Draft Proposal",
     "RECEIVED_PARTIAL",
@@ -236,6 +239,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Consumed",
     // Bán hàng B2B & sản xuất (BE d215f6e)
     "Expired",
+    // Yêu cầu trả hàng đã kiểm QC — trạng thái lịch sử, không còn yêu cầu nào tới (BE ReturnStatus.INSPECTED, 4D-3)
+    "Inspected",
     // Dòng lấy hàng đã trả về kệ sau khi đơn huỷ — kết thúc (BE PickLineStatus.PUT_BACK, SCRUM-275)
     "Put Back",
     "UNKNOWN",
@@ -424,6 +429,9 @@ export const STATUS_LABEL_VI: Record<string, string> = {
   "Awaiting Stock": "Đang chờ hàng",
   "Ready to Fulfill": "Sẵn sàng thực hiện",
   "Return Requested": "Yêu cầu trả hàng",
+  "Awaiting Return": "Chờ hàng về",
+  "Settlement Pending": "Chờ duyệt hoàn tiền",
+  Inspected: "Đã kiểm",
   "Pending Verification": "Chờ xác minh",
   "Draft Proposal": "Đề xuất nháp",
   // Danger
@@ -562,6 +570,18 @@ const STATUS_LABEL_VI_BY_DOMAIN: Partial<Record<StatusDomain, Record<string, str
   // Phiếu thu bị huỷ vì ghi sai (docs 15 §4.4) — nhãn chung "Đã vô hiệu" là của module khác
   payment: {
     Voided: "Đã huỷ",
+  },
+  // Yêu cầu trả hàng (BE ReturnStatus — docs 17 §4.10 không có bảng trạng thái RMA riêng)
+  rma: {
+    Requested: "Chờ duyệt",
+    "Awaiting Return": "Chờ hàng về",
+    Received: "Hàng đã về",
+    Inspected: "Đã kiểm (cũ)",
+    "Settlement Pending": "Chờ duyệt hoàn tiền",
+    Resolved: "Đã hoàn tiền",
+    Rejected: "Từ chối",
+    Cancelled: "Đã rút",
+    Expired: "Quá hạn gửi hàng",
   },
   // Đơn hàng (BE OrderStatus, PR #133): nhãn sát nghĩa nghiệp vụ hơn nhãn dùng chung với module khác
   order: {

@@ -57,9 +57,21 @@ export function OrderInfoCard({ order }: OrderInfoCardProps) {
         <dd className="text-ink-primary font-[family-name:var(--font-mono)] font-medium">
           {order.orderNumber}
         </dd>
-        <dt className="text-ink-secondary">Mã khách</dt>
-        <dd className="text-ink-primary truncate font-[family-name:var(--font-mono)] text-xs">
-          {order.customerId ?? EMPTY}
+        <dt className="text-ink-secondary">Khách hàng</dt>
+        <dd
+          className="text-ink-primary truncate"
+          title={[order.customerName, order.customerCode, order.customerId]
+            .filter(Boolean)
+            .join(" · ")}
+        >
+          {order.customerId
+            ? order.customerName || order.customerCode || `KH ${order.customerId.slice(0, 8)}`
+            : EMPTY}
+          {order.customerName && order.customerCode && (
+            <span className="text-ink-tertiary ml-1.5 font-[family-name:var(--font-mono)] text-xs">
+              {order.customerCode}
+            </span>
+          )}
         </dd>
         <dt className="text-ink-secondary">Ngày đặt</dt>
         <dd className="text-ink-primary tabular-nums">{formatDate(order.placedAt)}</dd>

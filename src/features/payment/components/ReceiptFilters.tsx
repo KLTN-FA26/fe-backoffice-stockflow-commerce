@@ -27,6 +27,8 @@ export function ReceiptFilters({
   status,
   onStatusChange,
   customerId,
+  customerName,
+  customerCode,
   onClearCustomer,
   hasFilters,
   onClear,
@@ -36,6 +38,9 @@ export function ReceiptFilters({
   status: ReceiptApiStatus | null;
   onStatusChange: (value: ReceiptApiStatus | null) => void;
   customerId: string;
+  /** Tên + mã khách lấy từ các dòng đang lọc (BE-15). */
+  customerName?: string | null;
+  customerCode?: string | null;
   onClearCustomer: () => void;
   hasFilters: boolean;
   onClear: () => void;
@@ -59,7 +64,7 @@ export function ReceiptFilters({
       />
       {customerId && (
         <FilterChip label={L.customerChip} onClear={onClearCustomer}>
-          <CustomerName id={customerId} link={false} />
+          <CustomerName id={customerId} name={customerName} code={customerCode} link={false} />
         </FilterChip>
       )}
       {hasFilters && (
