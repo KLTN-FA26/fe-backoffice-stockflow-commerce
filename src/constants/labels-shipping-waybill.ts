@@ -119,7 +119,6 @@ export const SHIPPING_WAYBILL_LABELS = {
     title: "Có đơn trên xe chưa được phép đi",
     description:
       "Vẫn xếp hàng được, nhưng ký bàn giao sẽ bị từ chối cả xe cho tới khi từng đơn dưới đây được xử lý — hoặc dỡ kiện của đơn đó (huỷ có kiểm soát xe này).",
-    dismiss: "Ẩn",
   },
   blocked: {
     title: "Cả xe bị từ chối bàn giao — có đơn chưa được phép đi",

@@ -23,7 +23,7 @@ import { ShippingPermissionGate } from "./ShippingPermissionGate";
 import { useShippingActor } from "./useShippingActor";
 
 import type { HandoverRefusal } from "@/features/shipping/errors";
-import type { HandoverWarning, Load } from "@/features/shipping/types";
+import type { Load } from "@/features/shipping/types";
 import type { LoadDialogKind } from "./load/LoadDialogs";
 
 const L = UI_LABELS.shipping;
@@ -36,8 +36,6 @@ function LoadBody({ id }: { id: string }) {
   const [dialog, setDialog] = useState<LoadDialogKind>(null);
   const [refusal, setRefusal] = useState<HandoverRefusal | null>(null);
   const [done, setDone] = useState<Load | null>(null);
-  // Đơn chưa được phép đi, BE chỉ trả trong câu trả lời của "bắt đầu xếp" (không có ở GET) → giữ ở màn tới khi ẩn / tải lại
-  const [warnings, setWarnings] = useState<readonly HandoverWarning[]>([]);
   useBreadcrumbLabel(id, query.data?.code);
 
   if (!canRead)
@@ -87,13 +85,7 @@ function LoadBody({ id }: { id: string }) {
             />
           }
         />
-        <FtlLoadCards
-          load={load}
-          actions={actions}
-          warnings={warnings}
-          onDismissWarnings={() => setWarnings([])}
-          onOpen={setDialog}
-        />
+        <FtlLoadCards load={load} actions={actions} onOpen={setDialog} />
         <LoadScanSection load={load} actions={actions} rejected={rejected} />
         <LoadShipments
           load={load}
@@ -108,7 +100,6 @@ function LoadBody({ id }: { id: string }) {
         onClose={close}
         onOpen={setDialog}
         canEnterWaybill={!!hasLoadAction(actions, "recordWaybill")}
-        onStarted={(started) => setWarnings(started.handoverWarnings ?? [])}
         onRefused={setRefusal}
         onDone={(result) => {
           setRefusal(null);

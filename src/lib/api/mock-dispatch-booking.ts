@@ -5,7 +5,7 @@
  */
 
 import { MOCK_DISPATCHER, type DispatchState, type MockLoad } from "./mock-dispatch-store";
-import { handoverBlocksOf, loadDetailView } from "./mock-dispatch-view";
+import { loadDetailView } from "./mock-dispatch-view";
 import { fail, ok, validationFailed } from "./mock-route-utils";
 
 import type { MockResponseShape } from "./mock-route-utils";
@@ -216,7 +216,7 @@ export function recordDriver(
   return detail(state, load);
 }
 
-/** Bắt đầu xếp: câu trả lời mang cảnh báo đơn chưa được phép đi (`handoverWarnings`) — chỉ ở lần này, không ở GET (BE). */
+/** Bắt đầu xếp: câu trả lời mang cảnh báo đơn chưa được phép đi (`handoverWarnings`); GET khi đang xếp tính lại cùng danh sách. */
 export function startLoading(state: DispatchState, load: MockLoad): MockResponseShape {
   if (load.status !== "VEHICLE_BOOKED") {
     return fail(
@@ -228,5 +228,5 @@ export function startLoading(state: DispatchState, load: MockLoad): MockResponse
   load.status = "LOADING";
   load.loadingStartedAt = stamp();
   load.version += 1;
-  return ok(loadDetailView(state, load, handoverBlocksOf(state, load)));
+  return ok(loadDetailView(state, load));
 }

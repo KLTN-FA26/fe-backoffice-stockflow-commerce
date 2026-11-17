@@ -579,7 +579,7 @@ describe("Cảnh báo bàn giao sau 'Bắt đầu xếp hàng'", () => {
     );
   }
 
-  it("câu trả lời mang handoverWarnings → hiện từng đơn kèm lý do tiếng Việt; vẫn xếp hàng được; Ẩn thì mất", async () => {
+  it("câu trả lời mang handoverWarnings → hiện từng đơn kèm lý do tiếng Việt; vẫn xếp hàng được; không có nút Ẩn (luôn hiện cảnh báo còn hiệu lực)", async () => {
     const user = userEvent.setup();
     renderLoad(ACTORS.warehouseStaff, ftlLoad(), {
       loadingStart: () => loadingFtl({ handoverWarnings: [unpaid, early] }),
@@ -600,7 +600,20 @@ describe("Cảnh báo bàn giao sau 'Bắt đầu xếp hàng'", () => {
     expect(items[1]).toHaveTextContent(/Đợt giao 2 chưa tới ngày bắt đầu cửa sổ giao/);
     // Cảnh báo không chặn xếp hàng: ô quét có
     expect(await screen.findByLabelText(L.scan.label)).toBeInTheDocument();
-    await user.click(within(notice).getByRole("button", { name: WARN.dismiss }));
+    expect(within(notice).queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.getByText(WARN.title)).toBeInTheDocument();
+  });
+
+  it("mở / tải lại trang chuyến đang xếp: cảnh báo còn hiệu lực có sẵn trong GET, không cần bấm bắt đầu xếp", async () => {
+    renderLoad(ACTORS.warehouseStaff, loadingFtl({ handoverWarnings: [unpaid] }));
+    const notice = (await screen.findByText(WARN.title)).parentElement as HTMLElement;
+    expect(within(notice).getAllByRole("listitem")).toHaveLength(1);
+    expect(within(notice).getByRole("link", { name: "SO-2" })).toBeInTheDocument();
+  });
+
+  it("GET không còn cảnh báo (đã thu tiền / cửa sổ giao đã mở) → không hiện khối cảnh báo", async () => {
+    renderLoad(ACTORS.warehouseStaff, loadingFtl());
+    await ready();
     expect(screen.queryByText(WARN.title)).not.toBeInTheDocument();
   });
 

@@ -32,7 +32,6 @@ export function LoadDialogs({
   onClose,
   onRefused,
   onDone,
-  onStarted,
   onOpen,
   canEnterWaybill,
 }: {
@@ -42,7 +41,6 @@ export function LoadDialogs({
   onRefused: (refusal: HandoverRefusal) => void;
   onDone: (load: Load) => void;
   /** Câu trả lời của "bắt đầu xếp": mang cảnh báo đơn chưa được phép đi (BE chỉ trả lúc này). */
-  onStarted: (load: Load) => void;
   /** Mở hộp thoại khác (vd từ lỗi thiếu mã vận đơn của hộp thoại bàn giao sang nhập mã vận đơn). */
   onOpen: (dialog: LoadDialogKind) => void;
   /** Người dùng nhập được mã vận đơn của chuyến này (quyền + hãng không đặt qua API) → hộp thoại bàn giao mời nhập. */
@@ -74,7 +72,7 @@ export function LoadDialogs({
     return <CancelBookingDialog load={load} onClose={onClose} />;
   }
   if (dialog === "startLoading" && load.status === LOAD_STATUS.VEHICLE_BOOKED) {
-    return <StartLoadingDialog load={load} onClose={onClose} onStarted={onStarted} />;
+    return <StartLoadingDialog load={load} onClose={onClose} />;
   }
   // WF4-DRIVER: tài xế chỉ nhập được khi xe đã đặt hoặc đang xếp (BE 409 INVALID_LOAD_TRANSITION sau đó)
   if (

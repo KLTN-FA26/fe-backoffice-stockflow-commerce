@@ -120,12 +120,16 @@ export function loadRowView(state: DispatchState, load: MockLoad) {
   };
 }
 
-/** `warnings`: đơn chưa được phép đi — BE chỉ trả trong câu trả lời của "bắt đầu xếp" (`handoverWarnings`, bỏ khi rỗng). */
+/**
+ * `handoverWarnings` (bỏ khi rỗng): đơn trên xe chưa được phép đi, BE tính lại ở mỗi lần đọc khi xe đang xếp
+ * (WF4-A7-WARN) — nên khi không truyền `warnings`, xe LOADING tự tính từ trạng thái hiện tại.
+ */
 export function loadDetailView(
   state: DispatchState,
   load: MockLoad,
-  warnings: readonly HandoverWarningView[] = [],
+  given?: readonly HandoverWarningView[],
 ) {
+  const warnings = given ?? (load.status === "LOADING" ? handoverBlocksOf(state, load) : []);
   const members = membersOf(state, load);
   const carrier = carrierOf(state, load.carrierId);
   const expected = members.reduce((sum, s) => sum + parcelsOn(load, s).length, 0);

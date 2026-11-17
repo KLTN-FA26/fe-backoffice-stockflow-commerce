@@ -542,8 +542,8 @@ describe("mock đặt xe qua API hãng (BR-29)", () => {
   });
 });
 
-describe("mock bắt đầu xếp — cảnh báo bàn giao chỉ trong câu trả lời", () => {
-  it("xe có đơn còn đợt thanh toán chưa thu: handoverWarnings trong answer của loading-start, không trong GET", async () => {
+describe("mock bắt đầu xếp — cảnh báo bàn giao (answer và GET khi đang xếp)", () => {
+  it("xe có đơn còn đợt thanh toán chưa thu: handoverWarnings trong answer của loading-start và trong GET khi đang xếp (WF4-A7-WARN)", async () => {
     const started = beLoadSchema.parse((await post(BOOKED_NO_WAYBILL, "loading-start")).data);
     expect(started.status).toBe("LOADING");
     expect(started.handoverWarnings).toHaveLength(1);
@@ -553,7 +553,8 @@ describe("mock bắt đầu xếp — cảnh báo bàn giao chỉ trong câu tr�
       currency: "VND",
       deliveryBatchSeq: 1,
     });
-    expect((await readLoad(BOOKED_NO_WAYBILL)).handoverWarnings).toBeUndefined();
+    // Tải lại trang chuyến: cảnh báo còn hiệu lực vẫn có (tính lại, không lưu)
+    expect((await readLoad(BOOKED_NO_WAYBILL)).handoverWarnings).toEqual(started.handoverWarnings);
     // Chỉ xe đã đặt mới bắt đầu xếp được
     expect(errorCode(await post(BOOKED_NO_WAYBILL, "loading-start"))).toBe(
       "INVALID_LOAD_TRANSITION",
