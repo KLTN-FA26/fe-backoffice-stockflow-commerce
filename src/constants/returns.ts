@@ -121,6 +121,20 @@ export const RETURN_NAMED_FAULTS = [
 
 export const RETURN_CHANNELS = ["PORTAL", "BACK_OFFICE"] as const;
 
+/**
+ * Trạng thái hiển thị của đơn mà Sale mở được yêu cầu trả hàng (BE `ReturnRequest.requireReturnable`): đã giao / đang
+ * trả; đã hoàn tất hoặc đã hoàn tiền thì chỉ Sale mở, ngoài hạn phải ghi lý do.
+ */
+export const RETURN_OPENABLE_ORDER_STATUSES = [
+  "Delivered",
+  "Return Requested",
+  "Completed",
+  "Refunded",
+  "Partially Refunded",
+] as const;
+/** Đơn đã quá hạn theo định nghĩa (hoàn tất / đã hoàn tiền): luôn cần lý do nhận ngoài hạn. */
+export const RETURN_LATE_ORDER_STATUSES = ["Completed", "Refunded", "Partially Refunded"] as const;
+
 /* ── Phiếu nhập hàng hoàn (BE `GoodsReceiptStatus`, loại RETURN) ───────────────────────── */
 
 export const RETURN_RECEIPT_API_STATUSES = [
