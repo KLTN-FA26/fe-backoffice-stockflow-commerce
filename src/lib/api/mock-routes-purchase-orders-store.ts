@@ -505,10 +505,17 @@ export function beError(
   errorCode: string,
   message: string,
   fieldErrors?: MockFieldError[],
+  details?: Record<string, unknown>,
 ) {
   return {
     status,
-    data: { success: false, errorCode, message, fieldErrors: fieldErrors ?? [] },
+    data: {
+      success: false,
+      errorCode,
+      message,
+      fieldErrors: fieldErrors ?? [],
+      ...(details ? { details } : {}),
+    },
     headers: {},
   };
 }

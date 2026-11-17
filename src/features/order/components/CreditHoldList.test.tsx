@@ -81,6 +81,20 @@ describe("Credit hold — danh sách (SCRUM-427)", () => {
     expect(within(row as HTMLElement).queryByText(/công nợ quá hạn/)).not.toBeInTheDocument();
   });
 
+  it("kế toán thấy tên + mã khách BE kèm sẵn, không UUID (QA A5, BE-15)", async () => {
+    renderList(ORDER_PERMISSION_SETS.accountant, [
+      {
+        ...hold,
+        order: { ...heldOrder, customerName: "Công ty Bao Bì An Phát", customerCode: "0312345678" },
+      },
+    ]);
+
+    const row = (await screen.findByText(apiOrder.orderNumber)).closest("tr") as HTMLElement;
+    expect(within(row).getByText("Công ty Bao Bì An Phát")).toBeInTheDocument();
+    expect(within(row).getByText("0312345678")).toBeInTheDocument();
+    expect(within(row).queryByText(apiOrder.customerId as string)).not.toBeInTheDocument();
+  });
+
   it("B. vượt = 0 (giữ vì nợ quá hạn) → 'Khách có công nợ quá hạn', KHÔNG 'Vượt hạn mức 0 ₫'", async () => {
     // 200.000 + 350.000 ≤ 1.000.000: không vượt — BE chỉ giữ vì khách có nợ quá hạn (OVERDUE)
     renderList(ORDER_PERMISSION_SETS.accountant, [{ ...hold, exposure: 200_000 }]);

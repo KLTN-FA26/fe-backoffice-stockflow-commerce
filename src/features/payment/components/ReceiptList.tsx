@@ -45,6 +45,7 @@ function ReceiptListContent() {
     { enabled: canRead },
   );
   const hasFilters = !!status || !!reference.trim() || !!customerId;
+  const named = query.data?.items.find((row) => row.customerId === customerId);
   const clearAll = () => {
     void setStatus(null);
     void setReference("");
@@ -69,6 +70,8 @@ function ReceiptListContent() {
             paged.resetPage();
           }}
           customerId={customerId}
+          customerName={named?.customerName}
+          customerCode={named?.customerCode}
           onClearCustomer={() => void setCustomerId("")}
           hasFilters={hasFilters}
           onClear={clearAll}

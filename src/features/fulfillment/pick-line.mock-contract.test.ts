@@ -56,6 +56,18 @@ async function codeOf(promise: Promise<unknown>): Promise<string> {
   throw new Error("expected the call to fail");
 }
 
+async function detailsOf(
+  promise: Promise<unknown>,
+): Promise<Readonly<Record<string, unknown>> | undefined> {
+  try {
+    await promise;
+  } catch (error) {
+    if (error instanceof ApiError) return error.details;
+    throw error;
+  }
+  throw new Error("expected the call to fail");
+}
+
 /** Task theo trạng thái pick + người được gán của nó (để thao tác đúng vai) + một NV kho khác. */
 async function taskWith(
   pickStatus: FulfillmentTask["pickStatus"],
@@ -150,6 +162,15 @@ describe("mock dòng lấy hàng ↔ BE PickListService — xác nhận", () => 
       expect(await codeOf(confirm(task.taskId, first, { locationCode: "HN-SAI-VI-TRI" }))).toBe(
         "PICK_LOCATION_MISMATCH",
       );
+      // BE PR #317 (WF4 BE-14): lỗi sai vị trí / sai thùng mang giá trị đúng trong `details`
+      expect(
+        await detailsOf(confirm(task.taskId, first, { locationCode: "HN-SAI-VI-TRI" })),
+      ).toEqual({
+        expectedLocationCode: first.locationCode,
+      });
+      expect(await detailsOf(confirm(task.taskId, first, { lpn: "SAI" }))).toEqual({
+        expectedLpn: first.lpn,
+      });
       expect(await codeOf(completePicking(task.taskId))).toBe("PICK_LINES_INCOMPLETE");
 
       for (const line of lines) {

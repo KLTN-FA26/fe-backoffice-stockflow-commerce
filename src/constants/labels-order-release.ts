@@ -72,6 +72,8 @@ export const ORDER_RELEASE_REFUSAL_LABELS = {
   /** 409 DELIVERY_BATCH_NOT_NEXT (docs 17 BR-29): chỉ release đợt giao kế tiếp. */
   batchNotNext: "Đây không phải đợt giao kế tiếp của đơn — chỉ release được đợt kế tiếp.",
   batchRule: "BR-29",
+  /** 409 DELIVERY_BATCH_ALL_RELEASED (docs 17 BR-29): mọi đợt giao của đơn đã release, không còn đợt nào để release. */
+  batchAllReleased: "Mọi đợt giao của đơn này đã được release — không còn đợt nào để release nữa.",
   /** 404 DELIVERY_BATCH_NOT_FOUND: đợt không thuộc đơn này. */
   batchNotFound: "Đợt giao này không thuộc đơn. Dữ liệu đã được tải lại.",
   /** 409 ORDER_PRINT_GOODS_NOT_RECEIVED: dòng in cũ (mẫu + thiết kế) chưa nhập kho thì chưa release. */

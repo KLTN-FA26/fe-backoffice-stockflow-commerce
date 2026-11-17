@@ -315,8 +315,20 @@ function registerReadRoutes(): void {
       actorName: MOCK_SALES_ACTOR.name,
       partialShipmentAllowed: decision.allowed,
     }));
-    // Cũ nhất trước như BE; sort ổn định giữ thứ tự ghi của các mục cùng thời điểm
-    const entries = [...statusChanges, ...decisions].sort(
+    // BE `order_remainder_closure`: mỗi lần đóng phần còn lại là một mục riêng, kể cả khi trạng thái không đổi
+    const closures = state.closures.map((closure) => ({
+      type: "REMAINDER_CLOSURE",
+      from: null,
+      to: null,
+      reason: closure.note,
+      occurredAt: closure.closedAt,
+      actorId: MOCK_SALES_ACTOR.id,
+      actorName: MOCK_SALES_ACTOR.name,
+      closureReasonCode: closure.reasonCode,
+    }));
+    // Cũ nhất trước như BE; sort ổn định giữ thứ tự ghi của các mục cùng thời điểm (đóng phần còn lại đứng trước
+    // bước đổi trạng thái do chính nó)
+    const entries = [...closures, ...statusChanges, ...decisions].sort(
       (a, b) => new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime(),
     );
     return ok(entries);

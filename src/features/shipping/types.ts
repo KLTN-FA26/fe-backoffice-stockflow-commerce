@@ -12,6 +12,7 @@ import type {
   bookingInputSchema,
   cancelBookingInputSchema,
   deliveryOutcomeInputSchema,
+  driverInputSchema,
   handoverInputSchema,
   scanPackageInputSchema,
   waybillInputSchema,
@@ -66,6 +67,8 @@ export type ShipmentApiStatusValue = ShipmentRow["status"];
 
 export type HandoverFormInput = z.input<ReturnType<typeof handoverInputSchema>>;
 export type HandoverValues = z.output<ReturnType<typeof handoverInputSchema>>;
+export type DriverFormInput = z.input<typeof driverInputSchema>;
+export type DriverValues = z.output<typeof driverInputSchema>;
 export type WaybillFormInput = z.input<ReturnType<typeof waybillInputSchema>>;
 export type WaybillValues = z.output<ReturnType<typeof waybillInputSchema>>;
 export type CarrierFormInput = z.input<ReturnType<typeof carrierInputSchema>>;
@@ -120,6 +123,12 @@ export interface BookingRequestBody {
 export interface BookLoadInput {
   loadId: string;
   values: BookingRequestBody;
+}
+
+/** Nhập tài xế của chuyến (BE `DriverRequest`, `PUT loads/{id}/driver`). */
+export interface RecordDriverInput {
+  loadId: string;
+  values: DriverValues;
 }
 
 /** Nhập tay mã vận đơn của chuyến (BE `WaybillRequest`); sau khi rời kho là sửa mã, kèm `reason`. */

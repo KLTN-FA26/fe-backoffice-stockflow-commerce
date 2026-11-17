@@ -23,7 +23,7 @@ import type { Order } from "../types";
 
 interface OrderReleaseDialogProps {
   order: Pick<Order, "orderId" | "orderNumber">;
-  /** Có `sales-contracts:READ` — mới đọc được lịch giao để chọn đợt (xem `ReleaseBatchField`). */
+  /** Có `sales-order-delivery-batches:READ` — mới đọc được lịch giao để chọn đợt (xem `ReleaseBatchField`). */
   canChooseBatch: boolean;
   /** Khe "Ước tính xếp xe": nhận kho đang chọn (đơn CONFIRMED chưa có kho). */
   estimateSlot?: OrderEstimateSlot;

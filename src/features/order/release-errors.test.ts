@@ -23,6 +23,7 @@ describe("releaseErrorView — mã quy tắc + chi tiết (BE OrderReleaseServic
     ["ORDER_SHIPPING_WAREHOUSE_MISMATCH", "BR-22", 409],
     ["ORDER_STOCK_NOT_HELD", "BR-21", 409],
     ["DELIVERY_BATCH_NOT_NEXT", "BR-29", 409],
+    ["DELIVERY_BATCH_ALL_RELEASED", "BR-29", 409],
     ["DELIVERY_BATCH_NOT_FOUND", "BR-29", 404],
     ["ORDER_PRINT_GOODS_NOT_RECEIVED", "docs 07 / 11", 409],
     ["OUT_OF_DATA_SCOPE", "BR-03", 403],

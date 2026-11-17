@@ -146,9 +146,7 @@ export const SHIPPING_UI_LABELS = {
     representative: "Người ký bên hãng (tài xế)",
     driverName: "Tên tài xế",
     driverNameHint:
-      "Chuyến chưa có tên tài xế — bắt buộc nhập trước khi ký (lưu cùng mã vận đơn của chuyến).",
-    driverFromCarrier:
-      "Chuyến chưa có tên tài xế: hãng đặt xe qua API báo tài xế về qua webhook khi tài xế nhận đơn — có tên tài xế mới ký được.",
+      "Chuyến chưa có tên tài xế — bắt buộc nhập trước khi ký (lưu vào chuyến trước khi ký).",
     vehiclePlate: "Biển số xe",
     driverPhone: "SĐT tài xế",
     signatureRef: "Mã / số biên bản giấy đã ký",
@@ -330,6 +328,8 @@ export const SHIPPING_ERROR_MESSAGES = {
     "Mã vận đơn của hãng này do API đặt xe cấp — không nhập tay; muốn đổi thì huỷ đặt xe và đặt lại.",
   LOAD_WAYBILL_MISSING:
     "Chuyến chưa có mã vận đơn — nhập mã vận đơn của hãng trước khi ký bàn giao.",
+  // WF4-DRIVER (BE PR #316): tên tài xế phải có trên chuyến trước khi ký
+  LOAD_DRIVER_MISSING: "Chuyến chưa có tên tài xế — nhập tên tài xế trước khi ký bàn giao.",
   WAYBILL_IMPORT_INVALID_FILE:
     "File không đúng mẫu nhập mã vận đơn (cần CSV UTF-8, có dòng tiêu đề và ít nhất một dòng dữ liệu, tối đa 1.000 dòng, 1 MB).",
   // 409 — chuyến
@@ -380,6 +380,7 @@ export const SHIPPING_FIELD_MESSAGES = {
   controlledNoteRequired: "Nhập ghi chú cho lý do huỷ",
   carrierRepresentativeRequired: "Nhập tên người ký bên hãng",
   driverNameRequired: "Nhập tên tài xế — bắt buộc trước khi ký bàn giao",
+  driverNameRequiredShort: "Nhập tên tài xế",
   vehiclePlateRequired: "Nhập biển số xe",
   signedRequired: "Xác nhận hai bên đã ký biên bản",
   reasonRequired: "Chọn lý do",

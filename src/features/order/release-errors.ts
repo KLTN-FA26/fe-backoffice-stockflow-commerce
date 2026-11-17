@@ -57,6 +57,8 @@ export function releaseErrorView(error: ApiError): OrderErrorView {
       return { title, detail: R.stockNotHeld, rule: R.stockNotHeldRule, traceId };
     case "DELIVERY_BATCH_NOT_NEXT":
       return { title, detail: R.batchNotNext, rule: R.batchRule, traceId };
+    case "DELIVERY_BATCH_ALL_RELEASED":
+      return { title, detail: R.batchAllReleased, rule: R.batchRule, traceId };
     case "DELIVERY_BATCH_NOT_FOUND":
       return { title, detail: R.batchNotFound, rule: R.batchRule, traceId };
     case "ORDER_PRINT_GOODS_NOT_RECEIVED":
