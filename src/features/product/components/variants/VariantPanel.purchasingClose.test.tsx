@@ -90,6 +90,7 @@ function Harness() {
         productApproved
         acceptsChanges
         productDiscontinued={false}
+        customizable={false}
         open={open}
         onClose={() => setOpen(false)}
       />

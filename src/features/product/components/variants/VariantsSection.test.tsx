@@ -173,6 +173,7 @@ function Harness({
       productApproved
       acceptsChanges={acceptsChanges}
       productDiscontinued={productDiscontinued}
+      customizable={false}
       query={query}
     />
   );

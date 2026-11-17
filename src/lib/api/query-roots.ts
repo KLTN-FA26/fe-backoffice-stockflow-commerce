@@ -15,6 +15,10 @@ export const QUERY_ROOTS = {
   orders: ["orders"],
   /** = `einvoiceKeys.all` (features/einvoice) — hoá đơn điện tử theo lần giao (docs 21). */
   einvoices: ["einvoices"],
+  /** = `refundKeys.all` (features/payment) — duyệt hoàn tiền trả hàng sinh số phải hoàn (docs 15 §4.5). */
+  paymentRefunds: ["payment-refunds"],
+  /** = `installmentKeys.all` (features/payment) — hoàn tiền trả hàng cấn trừ vào các đợt còn nợ. */
+  paymentInstallments: ["payment-installments"],
   /** = `myOrderKeys.all` (features/customer-order). */
   myOrders: ["my-orders"],
   /** = `fulfillmentKeys.all` (features/fulfillment) — danh sách lấy hàng / đóng gói. */
