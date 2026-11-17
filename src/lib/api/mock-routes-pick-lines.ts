@@ -60,7 +60,8 @@ const sameCode = (scanned: string, expected: string) =>
 /** LPN chỉ khớp đúng LPN của dòng, không phân biệt hoa thường (docs 07 BR-10: SKU / mã vạch / thùng khác đều bị từ chối). */
 const lpnMatches = (line: MockPickLine, scanned: string) => sameCode(scanned, line.lpn);
 
-const conflict = (code: string, message: string) => beError(409, code, message);
+const conflict = (code: string, message: string, details?: Record<string, unknown>) =>
+  beError(409, code, message, undefined, details);
 const notPicking = (task: MockTask, what: string) =>
   conflict(
     "PICK_TASK_STATE_CONFLICT",
@@ -173,10 +174,14 @@ function registerConfirmRoute(): void {
       if (line.status !== "OPEN")
         return conflict("PICK_LINE_NOT_OPEN", `The line is ${line.status}`);
       if (!sameCode(location, line.locationCode)) {
-        return conflict("PICK_LOCATION_MISMATCH", `This line is picked from ${line.locationCode}`);
+        return conflict("PICK_LOCATION_MISMATCH", `This line is picked from ${line.locationCode}`, {
+          expectedLocationCode: line.locationCode,
+        });
       }
       if (!lpnMatches(line, lpn))
-        return conflict("PICK_ITEM_MISMATCH", `This line picks carton ${line.lpn}`);
+        return conflict("PICK_ITEM_MISMATCH", `This line picks carton ${line.lpn}`, {
+          expectedLpn: line.lpn,
+        });
       // Đích STAGING (chưa chuyển sang khu xuất hàng): thùng về khu chờ xuất, chưa trừ tồn (STAGED)
       const staging =
         task.destination === "STAGING" && !task.movedToDispatchAt
@@ -208,7 +213,9 @@ function registerShortRoute(): void {
       if (line.status !== "OPEN")
         return conflict("PICK_LINE_NOT_OPEN", `The line is ${line.status}`);
       if (!sameCode(location, line.locationCode)) {
-        return conflict("PICK_LOCATION_MISMATCH", `This line is picked from ${line.locationCode}`);
+        return conflict("PICK_LOCATION_MISMATCH", `This line is picked from ${line.locationCode}`, {
+          expectedLocationCode: line.locationCode,
+        });
       }
       reportMockShort(line, reason);
       // X-SHORT bước 02: đơn dừng (ON_HOLD, lý do INVENTORY), không huỷ, không trừ tồn

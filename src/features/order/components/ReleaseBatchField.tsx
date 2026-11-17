@@ -25,7 +25,7 @@ interface ReleaseBatchFieldProps {
 
 /**
  * Ô "Đợt giao" của hộp thoại release (docs 17 §4.5, BR-29): hiện lịch giao của đơn để chọn đợt cần release. Chỉ mount
- * khi người dùng đọc được lịch giao (`sales-contracts:READ`). Đơn không có lịch giao (một lần giao) → không có ô. Đợt đã
+ * khi người dùng đọc được lịch giao (`sales-order-delivery-batches:READ`). Đơn không có lịch giao (một lần giao) → không có ô. Đợt đã
  * release không chọn được; BE vẫn là bên quyết (409 DELIVERY_BATCH_NOT_NEXT nếu không phải đợt kế tiếp).
  */
 export function ReleaseBatchField({ orderId, value, onChange }: ReleaseBatchFieldProps) {

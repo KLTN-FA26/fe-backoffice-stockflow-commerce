@@ -101,6 +101,8 @@ export const orderSchema = z.object({
   statusBeforeHold: z.enum(ORDER_READ_STATUSES).nullable(),
   holdNote: z.string().nullable(),
   packedAt: z.string().nullable(),
+  /** Mốc thùng giao đầu tiên được dán nhãn; có rồi thì đơn không huỷ, không đổi địa chỉ giao (docs 08 BR-04). */
+  firstLabeledAt: z.string().nullable(),
   shippedAt: z.string().nullable(),
   deliveredAt: z.string().nullable(),
   deliveryFailureReason: orderDeliveryFailureReasonSchema.nullable(),
