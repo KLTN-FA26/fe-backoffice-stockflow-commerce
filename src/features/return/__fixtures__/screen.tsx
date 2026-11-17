@@ -9,7 +9,12 @@ import { render } from "@testing-library/react";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { vi } from "vitest";
 
-import { GOODS_RECEIPT_PERMISSIONS } from "@/constants/permissions";
+import {
+  GOODS_RECEIPT_PERMISSIONS,
+  SHIPMENT_PERMISSIONS,
+  WAREHOUSE_LOCATION_PERMISSIONS,
+  WAREHOUSE_PERMISSIONS,
+} from "@/constants/permissions";
 import { RMA_PERMISSIONS, RMA_RESOLUTION_PERMISSIONS } from "@/constants/returns";
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -39,9 +44,9 @@ export const WAREHOUSE_GRANTS: PermissionCode[] = [
   RMA_PERMISSIONS.viewPage,
   RMA_PERMISSIONS.read,
   ...Object.values(GOODS_RECEIPT_PERMISSIONS),
-  "warehouse-warehouses:READ",
-  "warehouse-locations:READ",
-  "fulfillment-shipments:READ",
+  WAREHOUSE_PERMISSIONS.read,
+  WAREHOUSE_LOCATION_PERMISSIONS.read,
+  SHIPMENT_PERMISSIONS.read,
 ];
 
 type Handler = (params: unknown, body?: unknown) => unknown;

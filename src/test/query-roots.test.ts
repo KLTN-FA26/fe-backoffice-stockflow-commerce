@@ -5,6 +5,7 @@ import { myOrderKeys } from "@/features/customer-order/queries";
 import { fulfillmentKeys } from "@/features/fulfillment/queries";
 import { stockKeys, stockReservationKeys } from "@/features/inventory/queries";
 import { orderKeys } from "@/features/order/queries";
+import { installmentKeys, refundKeys } from "@/features/payment/queries";
 import { productionKeys } from "@/features/production-order/queries";
 import { quoteKeys } from "@/features/quote/queries";
 import { sampleKeys } from "@/features/sample-request/queries";
@@ -22,6 +23,8 @@ describe("QUERY_ROOTS match the owning features' key factories (cross-feature in
     ["fulfillmentTasks", fulfillmentKeys.all],
     ["inventoryStock", stockKeys.all],
     ["inventoryReservations", stockReservationKeys.all],
+    ["paymentRefunds", refundKeys.all],
+    ["paymentInstallments", installmentKeys.all],
   ] as const)("%s", (root, keys) => {
     expect(QUERY_ROOTS[root]).toEqual(keys);
   });

@@ -82,8 +82,8 @@ function ProposeForm({ ret, onClose }: { ret: ReturnRequest; onClose: () => void
         errorOf={(index) => errors.lines?.[index]?.quantity?.message}
       />
       <p className="text-ink-secondary text-[0.8125rem]">
-        Ước tính trước thuế: <span className={MONO}>{formatMoney(estimate, ret.currency)}</span> (BE
-        tính lại theo đơn giá và VAT của dòng đơn)
+        {L.estimate} <span className={MONO}>{formatMoney(estimate, ret.currency)}</span>{" "}
+        {L.estimateNote}
       </p>
       <FormField id="propose-note" label={L.note} error={errors.note?.message}>
         <Textarea

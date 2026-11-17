@@ -1,3 +1,5 @@
+export { ReturnReceiptDetail } from "./components/ReturnReceiptDetail";
+export { ReturnReceiptList } from "./components/ReturnReceiptList";
 export { OrderReturnsCard } from "./components/OrderReturnsCard";
 export { ReturnDetail } from "./components/ReturnDetail";
 export { ReturnList } from "./components/ReturnList";
