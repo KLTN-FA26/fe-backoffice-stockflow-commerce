@@ -186,6 +186,18 @@ export const ORDER_HISTORY_ENTRY_TYPES = [
   "DELIVERY_MODE_CHANGE",
 ] as const;
 
+/**
+ * Nhãn của mã ghi chú BE ghi ở bước đổi trạng thái do hệ thống / Sale (BE `Order#transitionTo`; tên bước theo docs 17 §5:
+ * `Pending Contract` "hợp đồng đã gửi, chờ ký", `Pending Payment` "hợp đồng đã ký, chờ đợt ON_SIGNING", `Awaiting Stock`
+ * khi Đơn sản xuất được gửi). Mã lạ không có trong bảng → hiện nguyên văn (có thể là ghi chú tự do).
+ */
+export const ORDER_HISTORY_REASON_LABELS: Readonly<Record<string, string>> = {
+  CONTRACT_SENT: "Đã gửi hợp đồng cho khách",
+  CONTRACT_SIGNED: "Khách đã ký hợp đồng",
+  INSTALLMENT_PAID: "Đã thu đủ các đợt thanh toán khi ký hợp đồng",
+  PRODUCTION_ORDER_SENT: "Đã gửi Đơn sản xuất",
+};
+
 export const ORDER_HISTORY_LABELS = {
   title: "Lịch sử đơn",
   loading: "Đang tải lịch sử…",

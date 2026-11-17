@@ -26,6 +26,7 @@ import {
 } from "./cancellation-request-api";
 import { getDeliverySchedule } from "./delivery-batch-api";
 import { getOrderHistory } from "./history-api";
+import { getChosenShippingWarehouseId } from "./shipping-warehouse-api";
 import { isValidOrderCustomerId } from "./schemas";
 
 import type { CancellationRequest, OrderRefundDto } from "./cancellation-request-schemas";
@@ -44,6 +45,8 @@ export const orderKeys = {
     [...baseOrderKeys.all, "credit-holds", params] as const,
   /** Lịch giao của đơn (đợt giao) — dưới root `orders`: release xong (invalidate `orderKeys.all`) tự tải lại. */
   deliverySchedule: (id: string) => [...baseOrderKeys.all, "delivery-schedule", id] as const,
+  /** Kho xuất Sale đã chọn cho đơn — dưới `orders` nên release xong tự tải lại. */
+  shippingWarehouse: (id: string) => [...baseOrderKeys.all, "shipping-warehouse", id] as const,
   /** Yêu cầu huỷ của khách (hàng đợi + thẻ trên chi tiết đơn) — dưới `orders`: duyệt / từ chối tự làm mới cả hai. */
   cancellationRequests: (params?: ListCancellationRequestParams) =>
     [...baseOrderKeys.all, "cancellation-requests", params] as const,
@@ -138,6 +141,17 @@ export function useDeliverySchedule(id: string, options: { enabled?: boolean } =
     queryFn: ({ signal }) => getDeliverySchedule(id, signal),
     ...QUERY_TIMES.detail,
     enabled: options.enabled ?? true,
+    retry: retryTransient,
+  });
+}
+
+/** Kho xuất Sale đã chọn (`chosenWarehouseId`, null nếu chưa chọn) — gọi khi có `sales-order-shipping-warehouses:READ`. */
+export function useChosenShippingWarehouse(id: string, options: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: orderKeys.shippingWarehouse(id),
+    queryFn: ({ signal }) => getChosenShippingWarehouseId(id, signal),
+    ...QUERY_TIMES.detail,
+    enabled: !!id && (options.enabled ?? true),
     retry: retryTransient,
   });
 }

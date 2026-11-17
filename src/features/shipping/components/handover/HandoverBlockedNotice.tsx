@@ -6,6 +6,8 @@ import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
 import { handoverBlockReason } from "@/features/shipping/handover-blocks";
 import { Alert } from "@/components/shared/Alert";
 
+import { HandoverReasonLink } from "./HandoverReasonLink";
+
 import type { HandoverWarning } from "@/features/shipping/types";
 
 const B = UI_LABELS.shipping.waybill.blocked;
@@ -29,6 +31,7 @@ export function HandoverBlockedNotice({ orders }: { orders: readonly HandoverWar
               {order.orderNumber}
             </Link>
             : {handoverBlockReason(order)}
+            <HandoverReasonLink orderId={order.orderId} reasonCode={order.reasonCode} />
           </li>
         ))}
       </ul>

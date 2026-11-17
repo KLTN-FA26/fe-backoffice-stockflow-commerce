@@ -3,9 +3,14 @@
 import { PackageCheck } from "lucide-react";
 import { useState } from "react";
 
-import { ORDER_RELEASE_LABELS, SALES_CONTRACT_PERMISSIONS } from "@/constants";
+import {
+  ORDER_RELEASE_LABELS,
+  ORDER_SHIPPING_WAREHOUSE_PERMISSIONS,
+  SALES_CONTRACT_PERMISSIONS,
+} from "@/constants";
 import { Button } from "@/components/ui/button";
 
+import { useChosenShippingWarehouse } from "../queries";
 import { OrderReleaseDialog } from "./OrderReleaseDialog";
 import { ORDER_ACTION_BUTTON } from "./useOrderActionDialog";
 
@@ -26,6 +31,10 @@ interface OrderReleaseActionProps {
  */
 export function OrderReleaseAction({ order, can, estimateSlot }: OrderReleaseActionProps) {
   const [open, setOpen] = useState(false);
+  // Kho Sale đã chọn (docs 17 §4.2 bước 2) → chọn sẵn ở hộp thoại; không có quyền đọc / chưa chọn thì để trống.
+  const chosenWarehouse = useChosenShippingWarehouse(order.orderId, {
+    enabled: can(ORDER_SHIPPING_WAREHOUSE_PERMISSIONS.read),
+  });
   return (
     <>
       <Button
@@ -42,6 +51,7 @@ export function OrderReleaseAction({ order, can, estimateSlot }: OrderReleaseAct
           order={order}
           // UI-only — Backend phải re-check (lịch giao: GET /orders/{id}/delivery-batches cần sales-contracts:READ)
           canChooseBatch={can(SALES_CONTRACT_PERMISSIONS.read)}
+          defaultWarehouseId={chosenWarehouse.data}
           estimateSlot={estimateSlot}
           onClose={() => setOpen(false)}
         />

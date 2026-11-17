@@ -138,6 +138,9 @@ export const SHIPPING_WAYBILL_LABELS = {
     cancelled: "Đơn đã huỷ.",
     other: "Đơn không được phép bàn giao lúc này.",
     batch: "đợt giao",
+    /** Đường dẫn tới màn xử lý lý do (chỉ hiện khi người dùng có quyền vào màn đó). */
+    linkCollectPayment: "Mở màn thu tiền của đơn",
+    linkMoveWindow: "Mở lịch giao để dời cửa sổ giao",
   },
   missingWaybill: {
     title: "Chuyến chưa có mã vận đơn",
