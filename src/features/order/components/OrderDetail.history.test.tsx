@@ -89,6 +89,34 @@ describe("OrderDetail — Lịch sử đơn có quyết định giao một phầ
     expect(within(items[0] as HTMLElement).getByText("Đặt đơn")).toBeInTheDocument();
   });
 
+  it("ghi chú là mã hệ thống (CONTRACT_SENT…) → nhãn tiếng Việt; mã lạ giữ nguyên văn", async () => {
+    const entry = (to: string, reason: string, hour: number) => ({
+      type: "STATUS_CHANGE",
+      from: null,
+      to,
+      reason,
+      occurredAt: `2026-10-20T0${hour}:00:00Z`,
+    });
+    await renderDetail(
+      ORDER_PERMISSION_SETS.readOnly,
+      () => apiOrder,
+      () => [
+        entry("PENDING_CONTRACT", "CONTRACT_SENT", 1),
+        entry("PENDING_PAYMENT", "CONTRACT_SIGNED", 2),
+        entry("CONFIRMED", "INSTALLMENT_PAID", 3),
+        entry("AWAITING_STOCK", "PRODUCTION_ORDER_SENT", 4),
+        entry("PICKING", "SOMETHING_NEW", 5),
+      ],
+    );
+    const history = await screen.findByRole("region", { name: "Lịch sử đơn" });
+    expect(await within(history).findByText("Đã gửi hợp đồng cho khách")).toBeInTheDocument();
+    expect(within(history).getByText("Khách đã ký hợp đồng")).toBeInTheDocument();
+    expect(within(history).getByText(/Đã thu đủ các đợt thanh toán/)).toBeInTheDocument();
+    expect(within(history).getByText("Đã gửi Đơn sản xuất")).toBeInTheDocument();
+    expect(within(history).queryByText("CONTRACT_SENT")).not.toBeInTheDocument();
+    expect(within(history).getByText("SOMETHING_NEW")).toBeInTheDocument();
+  });
+
   it("đóng phần còn lại render riêng: 'Đóng phần còn lại: <lý do>', ai, khi nào, ghi chú; không lộ mã thô", async () => {
     await renderDetail(
       ORDER_PERMISSION_SETS.readOnly,

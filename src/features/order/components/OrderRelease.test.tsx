@@ -8,7 +8,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "@/lib/api/client";
-import { ORDER_PERMISSIONS } from "@/constants";
+import { ORDER_PERMISSIONS, ORDER_SHIPPING_WAREHOUSE_PERMISSIONS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { toast } from "@/components/shared/Toast";
 
@@ -142,6 +142,51 @@ describe("Release đơn — gate theo trạng thái và mã quyền (BE V2026111
       view.unmount();
       vi.restoreAllMocks();
     }
+  });
+});
+
+describe("Release đơn — chọn sẵn kho Sale đã chọn (GET /orders/{id}/shipping-warehouse/options → chosenWarehouseId)", () => {
+  const OPTIONS_PATH = `${DETAIL_PATH}/shipping-warehouse/options`;
+
+  /** Chữ hiện trong ô chọn kho (không lẫn `<option>` ẩn của select gốc). */
+  const warehouseValue = (dialog: HTMLElement) =>
+    dialog.querySelector('[data-slot="select-value"]') as HTMLElement;
+
+  async function renderWithChosen(chosenWarehouseId: string | null) {
+    mockOrderApiGet(
+      [...ORDER_PERMISSION_SETS.warehouseManager, ORDER_SHIPPING_WAREHOUSE_PERMISSIONS.read],
+      {
+        [DETAIL_PATH]: () => apiOrderAt("CONFIRMED"),
+        [HISTORY_PATH]: () => [],
+        "/warehouses": () => WAREHOUSES,
+        [OPTIONS_PATH]: () => ({ orderId: apiOrder.orderId, chosenWarehouseId, warehouses: [] }),
+      },
+    );
+    await renderDetailScreen();
+    const user = userEvent.setup();
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith(OPTIONS_PATH, expect.anything()));
+    await user.click(await screen.findByRole("button", { name: "Release đơn" }));
+    return { user, dialog: await screen.findByRole("dialog") };
+  }
+
+  it("đơn đã có kho xuất → ô kho chọn sẵn kho đó, bấm Release gửi đúng kho", async () => {
+    const { user, dialog } = await renderWithChosen("wh-hcm");
+    await waitFor(() => expect(warehouseValue(dialog)).toHaveTextContent("HCM01 — Kho TP.HCM"));
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiOrder });
+    await user.click(within(dialog).getByRole("button", { name: "Release đơn" }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(RELEASE_PATH, { warehouseId: "wh-hcm" }, KEY),
+    );
+  });
+
+  it("Sale chưa chọn kho (null) → ô kho để trống", async () => {
+    const { dialog } = await renderWithChosen(null);
+    await waitFor(() => expect(warehouseValue(dialog)).toHaveTextContent("Chọn kho"));
+  });
+
+  it("thiếu sales-order-shipping-warehouses:READ → không gọi endpoint kho đã chọn", async () => {
+    await renderConfirmed(ORDER_PERMISSION_SETS.warehouseManager);
+    expect(api.get).not.toHaveBeenCalledWith(OPTIONS_PATH, expect.anything());
   });
 });
 
