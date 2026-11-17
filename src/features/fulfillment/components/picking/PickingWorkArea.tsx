@@ -7,11 +7,10 @@ import { FULFILLMENT_PICK_PERMISSIONS, PICK_LINE_LABELS, PICK_STATUS } from "@/c
 import { useWarehouseLocations } from "@/lib/references/warehouse-locations";
 import {
   canConfirmPickLines,
-  canReallocate,
+  canReallocateLine,
   canViewPutBacks,
   canReportShort,
   isConfirmableLine,
-  isReallocatableLine,
 } from "@/features/fulfillment/pick-line-lifecycle";
 import {
   linesComplete,
@@ -50,12 +49,16 @@ export function PickingWorkArea({
   const lines = usePickLines(task.taskId, actor.can(FULFILLMENT_PICK_PERMISSIONS.read));
   // UI-only — Backend phải re-check (picking:UPDATE + người được gán; phân bổ lại: task-assignment:UPDATE)
   const canConfirm = canConfirmPickLines(task, actor);
-  const canRealloc = canReallocate(task, actor);
   const locations = useWarehouseLocations(task.warehouseId ?? undefined, canConfirm);
   const [selectedId, setSelectedId] = useState<string | undefined>();
   // Câu "Đã lấy dòng …" chỉ nói thao tác vừa làm: báo thiếu / phân bổ lại xong thì bỏ
   const [lastDone, setLastDone] = useState<string | null>(null);
   const clearDone = () => setLastDone(null);
+  // Mỗi dòng tự xét: dòng SHORT khi task đang lấy, hoặc thùng hư đã loại ở trạm kiểm thùng chưa được bù
+  const lineActionOf = (line: PickLine) =>
+    canReallocateLine(task, actor, line) && (
+      <ReallocateButton taskId={task.taskId} line={line} onReallocated={clearDone} />
+    );
 
   const data = lines.data;
   const selected = data?.find((line) => line.lineId === selectedId && isConfirmableLine(line));
@@ -83,14 +86,7 @@ export function PickingWorkArea({
           activeLineId={canConfirm ? active?.lineId : undefined}
           onSelect={setSelectedId}
           canSelect={canConfirm}
-          lineAction={
-            canRealloc
-              ? (line) =>
-                  isReallocatableLine(line) && (
-                    <ReallocateButton taskId={task.taskId} line={line} onReallocated={clearDone} />
-                  )
-              : undefined
-          }
+          lineAction={lineActionOf}
         />
         {info}
       </div>

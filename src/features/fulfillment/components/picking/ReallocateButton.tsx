@@ -7,6 +7,7 @@ import { ApiError } from "@/lib/api/error";
 import { createIdempotencyAttempt } from "@/lib/api/idempotency";
 import { isStaleFulfillmentError } from "@/features/fulfillment/errors";
 import { reallocateError } from "@/features/fulfillment/pick-line-errors";
+import { isReplaceableRemovedLine } from "@/features/fulfillment/pick-line-lifecycle";
 import { useReallocateShortLine } from "@/features/fulfillment/pick-line-mutations";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { toast } from "@/components/shared/Toast";
@@ -21,6 +22,7 @@ const L = PICK_LINE_LABELS;
  * kho (nguyên thùng, FIFO, không lấy lại thùng vừa thiếu), dòng cũ → Đã huỷ, dòng mới OPEN. Người gọi chỉ render
  * nút khi có `task-assignment:UPDATE`. Không đủ thùng (409 INSUFFICIENT_STOCK) báo trong dialog — đơn vẫn treo, Sale
  * quyết (docs 07 §4.4 bước 11); dòng đã đổi ở nơi khác → toast + tải lại.
+ * Cùng nút cho thùng hư đã bị trạm kiểm thùng loại (docs 08 §4.2 bước 4): cùng endpoint, nhãn "Bù thùng".
  */
 export function ReallocateButton({
   taskId,
@@ -33,6 +35,8 @@ export function ReallocateButton({
   onReallocated?: () => void;
 }) {
   const reallocate = useReallocateShortLine();
+  const replacing = isReplaceableRemovedLine(line);
+  const label = replacing ? L.replaceRemoved : L.reallocate;
   const [attempt] = useState(() => createIdempotencyAttempt());
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -68,11 +72,13 @@ export function ReallocateButton({
         type="button"
         variant="outline"
         size="xs"
-        aria-label={L.reallocateLine(line.sequenceNo)}
+        aria-label={
+          replacing ? L.replaceRemovedLine(line.sequenceNo) : L.reallocateLine(line.sequenceNo)
+        }
         onClick={() => setOpen(true)}
         className="border-border-default rounded-[var(--r-sm)]"
       >
-        {L.reallocate}
+        {label}
       </Button>
       <ConfirmDialog
         open={open}
@@ -80,9 +86,13 @@ export function ReallocateButton({
           setOpen(next);
           if (!next) setError(null);
         }}
-        title={L.reallocate}
-        description={L.reallocateConfirm(line.sku, line.lpn)}
-        confirmLabel={L.reallocate}
+        title={label}
+        description={
+          replacing
+            ? L.replaceRemovedConfirm(line.sku, line.lpn)
+            : L.reallocateConfirm(line.sku, line.lpn)
+        }
+        confirmLabel={label}
         variant="default"
         loading={reallocate.isPending}
         closeOnConfirm={false}

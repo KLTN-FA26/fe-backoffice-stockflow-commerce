@@ -43,13 +43,15 @@ describe("OrderDetail — dòng hàng sẵn / dòng in + giữ hàng", () => {
     expect(screen.getByText(/1 dòng in, 1 dòng hàng sẵn/)).toBeInTheDocument();
   });
 
-  it("hiện mã phiếu giữ hàng của dòng; dòng chưa giữ → 'Chưa giữ hàng'", async () => {
+  it("hiện số phiếu giữ hàng của dòng (không lộ UUID); dòng chưa giữ → 'Chưa giữ hàng'", async () => {
     await renderDetail({
       ...apiOrder,
       lines: [customLine, { ...customLine, lineId: "x", sku: "B", reservationIds: [] }],
     });
 
-    expect(await screen.findByText(customLine.reservationIds[0] ?? "")).toBeInTheDocument();
+    expect(await screen.findByText("Đã giữ hàng: 1 phiếu giữ")).toBeInTheDocument();
+    expect(screen.queryByText(customLine.reservationIds[0] ?? "")).not.toBeInTheDocument();
+    expect(document.body.textContent).not.toContain(customLine.reservationIds[0]);
     expect(screen.getByText("Chưa giữ hàng")).toBeInTheDocument();
   });
 });

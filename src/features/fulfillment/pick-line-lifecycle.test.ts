@@ -6,13 +6,16 @@ import {
   canConfirmPickLines,
   canPutBack,
   canReallocate,
+  canReallocateLine,
+  canReplaceRemovedCarton,
   canReportShort,
   canViewPutBacks,
   isConfirmableLine,
   isReallocatableLine,
+  isReplaceableRemovedLine,
 } from "./pick-line-lifecycle";
 
-import type { PickStatus } from "@/constants";
+import type { PackStatus, PickStatus } from "@/constants";
 import type { TestIdentity } from "./__fixtures__/render";
 import type { FulfillmentActor, FulfillmentGateState } from "./lifecycle";
 
@@ -37,11 +40,18 @@ const manager = actor(IDENTITIES.warehouseManager, OTHER);
 const coordinator = actor(IDENTITIES.orderCoordinator, OTHER);
 const qc = actor(IDENTITIES.qcStaff, PICKER);
 
-describe("canConfirmPickLines / canReportShort — BE picking:UPDATE + requireAssigned + task PICKING", () => {
+describe("canConfirmPickLines / canReportShort — BE picking:UPDATE + requireWorker (assignee or task-assignment:UPDATE) + task PICKING", () => {
   it.each([
     ["NV kho được gán, Picking", assignee, gate("Picking"), true],
     ["NV kho khác (không được gán), Picking", otherStaff, gate("Picking"), false],
-    ["quản lý kho không được gán, Picking", manager, gate("Picking"), false],
+    ["quản lý kho làm thay NV được gán, Picking", manager, gate("Picking"), true],
+    [
+      "quản lý kho, task chưa có người gán",
+      manager,
+      { ...gate("Picking"), assignedUserId: null },
+      false,
+    ],
+    ["quản lý kho làm thay nhưng task Pending", manager, gate("Pending"), false],
     ["quản lý kho ĐƯỢC gán, Picking", manager, gate("Picking", OTHER), true],
     ["điều phối (không có picking:UPDATE) dù được gán", coordinator, gate("Picking", OTHER), false],
     ["QC chỉ đọc dù được gán", qc, gate("Picking"), false],
@@ -116,5 +126,80 @@ describe("trả hàng về kệ — BE putBacks (fulfillment-picking:READ) / put
   ])("%s → xem %s, trả %s", (_, who, view, put) => {
     expect(canViewPutBacks(who)).toBe(view);
     expect(canPutBack(who)).toBe(put);
+  });
+});
+
+const removed = {
+  status: "Picked",
+  removalReason: "DAMAGED",
+  replacementPending: true,
+} as const;
+
+describe("isReplaceableRemovedLine — thùng hư đã loại ở trạm kiểm thùng, đơn còn thiếu nó (BE replacementPending)", () => {
+  it("Picked (hoặc Put Back, thùng hư đã cất sang khu cách ly) + DAMAGED + replacementPending → được", () => {
+    expect(isReplaceableRemovedLine(removed)).toBe(true);
+    expect(isReplaceableRemovedLine({ ...removed, status: "Put Back" })).toBe(true);
+  });
+
+  it.each([
+    ["đã bù rồi (replacementPending=false)", { ...removed, replacementPending: false }],
+    ["BE không gửi replacementPending", { status: "Picked", removalReason: "DAMAGED" }],
+    [
+      "loại vì lý do khác (đơn huỷ / đóng phần còn lại)",
+      { ...removed, removalReason: "ORDER_CANCELLED" },
+    ],
+    ["không bị loại", { status: "Picked" }],
+    ["không phải dòng Picked", { ...removed, status: "Cancelled" }],
+  ] as const)("%s → không", (_, line) => {
+    expect(isReplaceableRemovedLine(line)).toBe(false);
+  });
+});
+
+describe("canReplaceRemovedCarton — BE replaceRemoved: task-assignment:UPDATE, task chưa huỷ, phiên kiểm thùng chưa xong", () => {
+  const task = (pickStatus: PickStatus, packStatus: PackStatus): FulfillmentGateState => ({
+    pickStatus,
+    packStatus,
+    assignedUserId: PICKER,
+  });
+
+  it.each([
+    [
+      "quản lý kho, task Picked, đang kiểm thùng (ca SO-…37)",
+      manager,
+      task("Picked", "In Progress"),
+      true,
+    ],
+    ["quản lý kho, task Picked, chờ kiểm", manager, task("Picked", "Pending"), true],
+    ["quản lý kho, task Staged, chưa kiểm", manager, task("Staged", "Pending"), true],
+    ["quản lý kho, task Picking", manager, task("Picking", "Pending"), true],
+    ["điều phối (có task-assignment:UPDATE)", coordinator, task("Picked", "In Progress"), true],
+    ["kiểm thùng xong, thùng đã đi theo shipment", manager, task("Picked", "Completed"), false],
+    ["task đã huỷ", manager, task("Cancelled", "Cancelled"), false],
+    ["NV kho (không có task-assignment:UPDATE)", assignee, task("Picked", "In Progress"), false],
+    ["QC", qc, task("Picked", "In Progress"), false],
+  ])("%s → %s", (_, who, state, expected) => {
+    expect(canReplaceRemovedCarton(state, who)).toBe(expected);
+  });
+});
+
+describe("canReallocateLine — dòng SHORT (task Picking) hoặc thùng hư đã loại chưa bù", () => {
+  const picked: FulfillmentGateState = {
+    pickStatus: "Picked",
+    packStatus: "In Progress",
+    assignedUserId: PICKER,
+  };
+
+  it("task Picked đang kiểm thùng + thùng hư chưa bù: quản lý kho có, NV kho không", () => {
+    expect(canReallocateLine(picked, manager, removed)).toBe(true);
+    expect(canReallocateLine(picked, assignee, removed)).toBe(false);
+  });
+
+  it("dòng Picked bình thường (không bị loại) không có nút", () => {
+    expect(canReallocateLine(picked, manager, { status: "Picked" })).toBe(false);
+  });
+
+  it("dòng SHORT vẫn theo luật cũ: chỉ khi task đang Picking", () => {
+    expect(canReallocateLine(gate("Picking"), manager, { status: "Short" })).toBe(true);
+    expect(canReallocateLine(picked, manager, { status: "Short" })).toBe(false);
   });
 });

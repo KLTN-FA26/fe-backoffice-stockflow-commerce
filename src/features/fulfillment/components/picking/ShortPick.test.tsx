@@ -249,3 +249,81 @@ describe("Phân bổ lại dòng thiếu — người phân việc (BE POST …/
     expect(screen.queryByRole("button", { name: new RegExp(L.reallocate) })).toBeNull();
   });
 });
+
+describe("Bù thùng hư đã loại ở trạm kiểm thùng — task Picked, đang kiểm thùng (BE reallocation → replaceRemoved)", () => {
+  /** Ca SO-…37: dòng 1 vẫn PICKED, thùng bị loại vì hư hỏng; task Picked, phiên kiểm thùng đang làm. */
+  const inCheck = (packStatus: "IN_PROGRESS" | "COMPLETED" = "IN_PROGRESS") =>
+    apiTask({ pickStatus: "PICKED", packStatus, assignedUserId: OTHER_PICKER_ID });
+  const linesWithRemoved = (patch: Record<string, unknown> = {}) =>
+    apiPickLines().map((line) =>
+      line.lineId === PICK_LINE_1
+        ? {
+            ...line,
+            status: "PICKED" as const,
+            pickedQty: line.allocatedQty,
+            removalReason: "DAMAGED",
+            replacementPending: true,
+            ...patch,
+          }
+        : { ...line, status: "PICKED" as const, pickedQty: line.allocatedQty },
+    );
+
+  it("quản lý kho thấy 'Bù thùng' ở dòng thùng hư; xác nhận → POST reallocation, nút biến mất", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(toast, "success").mockImplementation(() => "");
+    const { post } = renderPickingDetail(IDENTITIES.warehouseManager, inCheck(), {
+      lines: linesWithRemoved(),
+      userId: "manager-id",
+    });
+    expect(await screen.findByText(L.removedDamaged)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: new RegExp(L.reallocate) })).toBeNull();
+    await user.click(screen.getByRole("button", { name: L.replaceRemovedLine(1) }));
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog).getByText(L.replaceRemovedConfirm("TEE-BLK-M", LPN_1)),
+    ).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: L.replaceRemoved }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(linePath(PICK_LINE_1, "reallocation"), undefined, {
+        headers: { "Idempotency-Key": expect.any(String) },
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: L.replaceRemovedLine(1) })).toBeNull(),
+    );
+  });
+
+  it("đã bù rồi (replacementPending=false) → không còn nút, kể cả với quản lý kho", async () => {
+    renderPickingDetail(IDENTITIES.warehouseManager, inCheck(), {
+      lines: linesWithRemoved({ replacementPending: false }),
+      userId: "manager-id",
+    });
+    expect(await screen.findByText(L.removedDamaged)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: L.replaceRemoved })).toBeNull();
+  });
+
+  it("kiểm thùng xong (Completed) → không có nút (BE PICK_TASK_STATE_CONFLICT)", async () => {
+    renderPickingDetail(IDENTITIES.warehouseManager, inCheck("COMPLETED"), {
+      lines: linesWithRemoved(),
+      userId: "manager-id",
+    });
+    expect(await screen.findByText(L.removedDamaged)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: L.replaceRemoved })).toBeNull();
+  });
+
+  it("NV kho (không có task-assignment:UPDATE) không thấy 'Bù thùng'", async () => {
+    renderPickingDetail(IDENTITIES.warehouseStaff, inCheck(), { lines: linesWithRemoved() });
+    expect(await screen.findByText(L.removedDamaged)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: L.replaceRemoved })).toBeNull();
+  });
+
+  it("dòng PICKED bình thường (thùng không bị loại) không có nút", async () => {
+    renderPickingDetail(IDENTITIES.warehouseManager, inCheck(), {
+      lines: linesWithRemoved({ removalReason: undefined, replacementPending: undefined }),
+      userId: "manager-id",
+    });
+    await screen.findByText(L.progress(3, 3));
+    expect(screen.queryByRole("button", { name: L.replaceRemoved })).toBeNull();
+    expect(screen.queryByText(L.removedDamaged)).toBeNull();
+  });
+});

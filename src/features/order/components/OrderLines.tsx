@@ -33,25 +33,15 @@ function LineKindBadge({ line }: { line: OrderLine }) {
   );
 }
 
-/** Phiếu giữ hàng — BE chỉ trả mã (`reservationIds`), chưa có API xem chi tiết reservation. */
+/**
+ * Phiếu giữ hàng của dòng — BE chỉ trả mã nội bộ (`reservationIds`, UUID), chưa trả mã thùng LPN; người dùng không cần
+ * đọc UUID nên chỉ hiện số phiếu giữ (thùng cụ thể xem ở màn lấy hàng của kho).
+ */
 function Reservations({ ids }: { ids: readonly string[] }) {
   if (ids.length === 0) {
     return <span className="text-ink-tertiary">Chưa giữ hàng</span>;
   }
-  return (
-    <span className="flex min-w-0 flex-wrap items-center gap-1">
-      <span className="text-ink-secondary">Giữ hàng ({ids.length}):</span>
-      {ids.map((id) => (
-        <span
-          key={id}
-          title={id}
-          className="text-ink-secondary bg-bg-subtle max-w-40 truncate rounded-[var(--r-sm)] px-1 font-[family-name:var(--font-mono)]"
-        >
-          {id}
-        </span>
-      ))}
-    </span>
-  );
+  return <span className="text-ink-secondary">Đã giữ hàng: {ids.length} phiếu giữ</span>;
 }
 
 /**

@@ -2,7 +2,12 @@ import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { PRODUCTION_ORDER_PERMISSIONS, SHIPMENT_PERMISSIONS, UI_LABELS } from "@/constants";
+import {
+  ORDER_PERMISSIONS,
+  PRODUCTION_ORDER_PERMISSIONS,
+  SHIPMENT_PERMISSIONS,
+  UI_LABELS,
+} from "@/constants";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
 import { useBreadcrumbLabelStore } from "@/lib/store/use-breadcrumb-labels";
@@ -23,6 +28,13 @@ import type { PermissionCode } from "@/lib/auth";
 import type { OrderDto } from "../types";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+
+/** Người chỉ có quyền huỷ đơn (`sales-order-cancellations:UPDATE`) — không giữ / gỡ giữ được. */
+const CANCEL_ONLY = [
+  ORDER_PERMISSIONS.viewPage,
+  ORDER_PERMISSIONS.read,
+  ORDER_PERMISSIONS.cancel,
+] as const;
 
 const DETAIL_PATH = `/orders/${apiOrder.orderId}`;
 const CANCEL_PATH = `${DETAIL_PATH}/admin-cancellation`;
@@ -145,8 +157,8 @@ describe("OrderDetail — card thao tác giải thích khi không có nút", () 
     expect(await screen.findByText("Bạn chỉ có quyền xem đơn hàng.")).toBeInTheDocument();
   });
 
-  it("đơn PACKED + quyền huỷ (Sales) → hướng dẫn đi luồng trả hàng (BR-ORD-004), không nói 'đã giao'", async () => {
-    await renderDetail(ORDER_PERMISSION_SETS.salesStaff, () => withStatus("PACKED"));
+  it("đơn PACKED + quyền huỷ nhưng không giữ đơn → hướng dẫn đi luồng trả hàng (BR-ORD-004), không nói 'đã giao'", async () => {
+    await renderDetail(CANCEL_ONLY, () => withStatus("PACKED"));
     expect(
       await screen.findByText(
         "Đơn đã đóng gói / bàn giao vận chuyển — không huỷ được, xử lý qua luồng trả hàng.",
@@ -154,13 +166,14 @@ describe("OrderDetail — card thao tác giải thích khi không có nút", () 
     ).toBeInTheDocument();
   });
 
-  it("đơn PICKING + Sales (không có APPROVE, có quyền huỷ) → có Huỷ đơn; đơn PICKING đã đóng gói → giải thích theo quyền", async () => {
+  it("đơn PICKING + Sales (sales-order-holds:UPDATE + quyền huỷ) → có Huỷ đơn và Giữ đơn", async () => {
     await renderDetail(ORDER_PERMISSION_SETS.salesStaff, () => withStatus("PICKING"));
     expect(await screen.findByRole("button", { name: "Huỷ đơn" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Giữ đơn" })).toBeInTheDocument();
   });
 
-  it("đơn ON_HOLD (giữ tay) + Sales (không gỡ giữ được) → giải thích cần quyền khác, không nói 'đã bàn giao'", async () => {
-    await renderDetail(ORDER_PERMISSION_SETS.salesStaff, () =>
+  it("đơn ON_HOLD (giữ tay) + người không có sales-order-holds:UPDATE → giải thích cần quyền khác, không nói 'đã bàn giao'", async () => {
+    await renderDetail(CANCEL_ONLY, () =>
       apiOrderWith({
         status: "ON_HOLD",
         holdReason: "ADDRESS",
@@ -549,8 +562,8 @@ describe("OrderDetail — hiển thị vòng đời (BE PR #133)", () => {
 });
 
 describe("OrderDetail — Giữ đơn", () => {
-  it("chỉ ORDER_COORDINATOR (APPROVE) thấy 'Giữ đơn' ở đơn đang lấy hàng", async () => {
-    await renderDetail(ORDER_PERMISSION_SETS.salesStaff, () => withStatus("PICKING"));
+  it("người không có sales-order-holds:UPDATE không thấy 'Giữ đơn'; Sales thì thấy", async () => {
+    await renderDetail(CANCEL_ONLY, () => withStatus("PICKING"));
     await screen.findByRole("heading", { name: apiOrder.orderNumber });
     expect(screen.queryByRole("button", { name: "Giữ đơn" })).not.toBeInTheDocument();
   });
@@ -798,8 +811,8 @@ describe("OrderDetail — Đóng phần còn lại", () => {
     );
   });
 
-  it("SALES_STAFF (cancellations:UPDATE) đóng được nhưng không có Giữ đơn", async () => {
-    await renderDetail(ORDER_PERMISSION_SETS.salesStaff, () => apiPartialOrder);
+  it("chỉ có cancellations:UPDATE (không có holds:UPDATE) đóng được nhưng không có Giữ đơn", async () => {
+    await renderDetail(CANCEL_ONLY, () => apiPartialOrder);
 
     expect(await screen.findByRole("button", { name: "Đóng phần còn lại" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Giữ đơn" })).not.toBeInTheDocument();

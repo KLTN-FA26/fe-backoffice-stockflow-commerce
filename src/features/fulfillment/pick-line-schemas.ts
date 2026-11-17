@@ -45,6 +45,13 @@ export const bePickLineSchema = z.object({
   wholeCarton: z.boolean().nullish(),
   stagedAt: z.string().nullish(),
   stagedLocationCode: z.string().nullish(),
+  /**
+   * Thùng bị trạm kiểm thùng loại (DAMAGED | ORDER_CANCELLED | …; mã lạ vẫn nhận) — dòng vẫn PICKED. Chỉ có ở lần đọc
+   * danh sách; null/bỏ = không bị loại.
+   */
+  removalReason: z.string().nullish(),
+  /** Thùng loại vì hư hỏng và đơn vẫn còn thiếu nó → quản lý kho bù được qua `…/reallocation` (docs 07 §4.4 bước 10). */
+  replacementPending: z.boolean().nullish(),
 });
 
 export const bePickLinePageSchema = bePageSchema(bePickLineSchema);

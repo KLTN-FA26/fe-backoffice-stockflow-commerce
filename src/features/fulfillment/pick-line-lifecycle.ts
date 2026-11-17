@@ -9,29 +9,30 @@ import {
   FULFILLMENT_PICKING_PERMISSIONS,
   FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS,
   FULFILLMENT_TASK_OVERSIGHT_PERMISSIONS,
+  PACK_STATUS,
   PICK_LINE_STATUS,
   PICK_STATUS,
 } from "@/constants";
 
-import { allowedFulfillmentActions, isAssignee } from "./lifecycle";
+import { allowedFulfillmentActions, canWorkOnTask } from "./lifecycle";
 
 import type { FulfillmentAction, FulfillmentActor, FulfillmentGateState } from "./lifecycle";
 import type { PickLine } from "./types";
 
 /**
  * Người dùng xác nhận được dòng của task: task đang `Picking` (BE PICK_TASK_STATE_CONFLICT nếu không),
- * có `fulfillment-picking:UPDATE` và là người được gán (BE `requireAssigned` → 404) — quản lý kho không
- * làm hộ.
+ * có `fulfillment-picking:UPDATE` và là người được gán, hoặc người có `fulfillment-task-assignment:UPDATE`
+ * làm thay khi task đã có người gán (BE `TaskAccess.requireWorker`, docs 07 BR-08 / WF4-QLK-TAKEOVER).
  */
 export function canConfirmPickLines(task: FulfillmentGateState, actor: FulfillmentActor): boolean {
   return (
     task.pickStatus === PICK_STATUS.PICKING &&
     actor.can(FULFILLMENT_PICKING_PERMISSIONS.update) &&
-    isAssignee(task, actor)
+    canWorkOnTask(task, actor)
   );
 }
 
-/** Báo thiếu (X-SHORT bước 01): cùng điều kiện với xác nhận dòng — người được gán đang đứng ở bin. */
+/** Báo thiếu (X-SHORT bước 01): cùng điều kiện với xác nhận dòng — người được gán (hoặc quản lý kho làm thay) đang đứng ở bin. */
 export function canReportShort(task: FulfillmentGateState, actor: FulfillmentActor): boolean {
   return canConfirmPickLines(task, actor);
 }
@@ -44,6 +45,49 @@ export function canReallocate(task: FulfillmentGateState, actor: FulfillmentActo
   return (
     task.pickStatus === PICK_STATUS.PICKING &&
     actor.can(FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS.update)
+  );
+}
+
+/**
+ * Bù thùng đã bị trạm kiểm thùng loại vì hư hỏng (docs 08 §4.2 bước 4 → 07 §4.4 bước 10): cùng endpoint phân bổ lại và
+ * cùng mã quyền (`fulfillment-task-assignment:UPDATE`), nhưng KHÔNG đòi task đang `Picking` — BE
+ * `PickListService#replaceRemoved` / `requireOpenForMore` nhận mọi task chưa huỷ mà phiên kiểm thùng còn Pending / In
+ * Progress (task Picked / Staged đang kiểm thùng cũng được). UI-only — Backend phải re-check (kể cả trạng thái đơn).
+ */
+export function canReplaceRemovedCarton(
+  task: FulfillmentGateState,
+  actor: FulfillmentActor,
+): boolean {
+  return (
+    task.pickStatus !== PICK_STATUS.CANCELLED &&
+    (task.packStatus === PACK_STATUS.PENDING || task.packStatus === PACK_STATUS.IN_PROGRESS) &&
+    actor.can(FULFILLMENT_TASK_ASSIGNMENT_PERMISSIONS.update)
+  );
+}
+
+/**
+ * Dòng có thùng đã loại vì hư hỏng mà đơn còn thiếu nó (BE `PickLineResponse.removalReason` / `replacementPending`):
+ * dòng vẫn PICKED (hoặc PUT_BACK khi thùng hư đã cất sang khu cách ly), thùng REMOVED. BE báo `replacementPending=false` khi đã bù rồi.
+ */
+export function isReplaceableRemovedLine(
+  line: Pick<PickLine, "status" | "removalReason" | "replacementPending">,
+): boolean {
+  return (
+    (line.status === PICK_LINE_STATUS.PICKED || line.status === PICK_LINE_STATUS.PUT_BACK) &&
+    line.removalReason === "DAMAGED" &&
+    line.replacementPending === true
+  );
+}
+
+/** Nút "Phân bổ lại" / "Bù thùng" của một dòng: dòng SHORT (task đang lấy) hoặc thùng hư đã loại chưa được bù. */
+export function canReallocateLine(
+  task: FulfillmentGateState,
+  actor: FulfillmentActor,
+  line: Pick<PickLine, "status" | "removalReason" | "replacementPending">,
+): boolean {
+  return (
+    (isReallocatableLine(line) && canReallocate(task, actor)) ||
+    (isReplaceableRemovedLine(line) && canReplaceRemovedCarton(task, actor))
   );
 }
 

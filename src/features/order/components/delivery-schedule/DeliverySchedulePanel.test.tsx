@@ -123,6 +123,8 @@ describe("Lịch giao — hiển thị (docs 17 §5.5)", () => {
               reason: "SELLER_DELAY",
               note: "Xưởng in trễ một tuần",
               evidenceMessageId: CONSENT_MESSAGE,
+              changedBy: "5b1c0a52-9d3e-4a54-8f1f-0d6f7b8a9c01",
+              changedByName: "Nguyễn Hải Yến",
               changedAt: "2026-11-11T08:00:00Z",
             },
             {
@@ -133,6 +135,8 @@ describe("Lịch giao — hiển thị (docs 17 §5.5)", () => {
               newEnd: inDays(14),
               reason: "CUSTOMER_REQUEST",
               evidenceFileName: "xac-nhan.pdf",
+              // BE chỉ có id (không có tên): không hiện gì thêm, tuyệt đối không hiện id thô
+              changedBy: "7c2d1b63-0e4f-4b65-9a20-1e7a8c9b0d12",
             },
           ],
         }),
@@ -157,6 +161,11 @@ describe("Lịch giao — hiển thị (docs 17 §5.5)", () => {
     ).toBeInTheDocument();
     expect(within(card).getByText(/Khách xin dời/)).toBeInTheDocument();
     expect(within(card).getByText("Tệp: xac-nhan.pdf")).toBeInTheDocument();
+    // Người dời (docs 17 BR-28): có tên thì hiện "· bởi <tên>"; thiếu tên thì không hiện, không lộ id
+    expect(within(card).getByText(/· bởi Nguyễn Hải Yến/)).toBeInTheDocument();
+    expect(within(card).getAllByText(/bởi /)).toHaveLength(1);
+    expect(card.textContent).not.toContain("5b1c0a52");
+    expect(card.textContent).not.toContain("7c2d1b63");
   });
 
   it("đợt chưa dời không có chip 'Đã dời' / lịch sử; đợt trễ có cờ 'Trễ'", async () => {

@@ -3,8 +3,10 @@
 import Link from "next/link";
 
 import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
-import { handoverBlockReason } from "@/features/shipping/handover-blocks";
+import { handoverBlockReasons } from "@/features/shipping/handover-blocks";
 import { Alert } from "@/components/shared/Alert";
+
+import { BlockReasons } from "../handover/HandoverBlockedNotice";
 
 import type { HandoverWarning } from "@/features/shipping/types";
 
@@ -14,7 +16,8 @@ const W = UI_LABELS.shipping.waybill.warnings;
  * Cảnh báo lúc bắt đầu xếp (docs 09 §4.2 bước 7, BR-04): đơn trên xe còn đợt thanh toán trước khi giao chưa thu, hoặc đợt
  * giao chưa tới ngày bắt đầu cửa sổ giao, hoặc đơn đang treo. KHÔNG chặn xếp hàng; việc chặn nằm ở bước ký bàn giao.
  * BE tính lại danh sách này ở mỗi lần đọc chuyến khi xe đang xếp (`Load.handoverWarnings`, quyết định WF4-A7-WARN): luôn
- * hiện cảnh báo còn hiệu lực, không cho ẩn; thu đủ tiền / tới ngày giao thì tự biến mất.
+ * hiện cảnh báo còn hiệu lực, không cho ẩn; thu đủ tiền / tới ngày giao thì tự biến mất. Một đơn có nhiều lý do (vừa còn
+ * thiếu tiền vừa chưa tới ngày giao — BE `reasonCodes`) thì nêu đủ từng lý do, giống bước ký.
  */
 export function HandoverWarningsNotice({ warnings }: { warnings: readonly HandoverWarning[] }) {
   if (warnings.length === 0) return null;
@@ -30,7 +33,7 @@ export function HandoverWarningsNotice({ warnings }: { warnings: readonly Handov
             >
               {order.orderNumber}
             </Link>
-            : {handoverBlockReason(order)}
+            <BlockReasons reasons={handoverBlockReasons(order)} />
           </li>
         ))}
       </ul>

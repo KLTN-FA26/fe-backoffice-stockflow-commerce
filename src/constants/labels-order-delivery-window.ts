@@ -52,6 +52,7 @@ export const DELIVERY_SCHEDULE_LABELS = {
   evidenceMessage: (id: string) => `Tin nhắn chat của khách (${id})`,
   evidenceFile: (name: string) => `Tệp: ${name}`,
   changedAt: (when: string) => `lúc ${when}`,
+  changedBy: (name: string) => `bởi ${name}`,
   /** Ghi chú cuối panel — để người đọc biết vì sao nút bị ẩn khi thiếu quyền. */
   readOnly: "Chỉ Sale (sales-contracts:UPDATE) mới dời được cửa sổ giao.",
 } as const;

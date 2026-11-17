@@ -617,6 +617,33 @@ describe("Cảnh báo bàn giao sau 'Bắt đầu xếp hàng'", () => {
     expect(screen.queryByText(WARN.title)).not.toBeInTheDocument();
   });
 
+  it("một đơn vừa còn thiếu tiền vừa chưa tới ngày giao (reasonCodes) → nêu đủ cả hai lý do, như bước ký", async () => {
+    renderLoad(
+      ACTORS.warehouseStaff,
+      loadingFtl({
+        handoverWarnings: [
+          blockedOrder({
+            reasonCodes: ["ORDER_BALANCE_NOT_PAID", "DELIVERY_BATCH_WINDOW_NOT_OPEN"],
+            windowStart: "2026-11-18",
+          }),
+        ],
+      }),
+    );
+    const notice = (await screen.findByText(WARN.title)).parentElement as HTMLElement;
+    const reasons = within(notice).getAllByRole("listitem");
+    // 1 đơn + 2 lý do lồng bên trong
+    expect(reasons).toHaveLength(3);
+    const due = formatMoney(15_000_000, "VND").replace(/\s/g, " ");
+    expect(reasons[1]).toHaveTextContent(BLOCKED.unpaidBatch(due, 1));
+    expect(reasons[2]).toHaveTextContent(/Đợt giao 1 chưa tới ngày bắt đầu cửa sổ giao/);
+  });
+
+  it("BE cũ chỉ gửi reasonCode → vẫn một câu như trước", async () => {
+    renderLoad(ACTORS.warehouseStaff, loadingFtl({ handoverWarnings: [unpaid] }));
+    const notice = (await screen.findByText(WARN.title)).parentElement as HTMLElement;
+    expect(within(notice).getAllByRole("listitem")).toHaveLength(1);
+  });
+
   it("đơn đang tạm giữ (ORDER_INVALID_TRANSITION) → câu 'đang tạm giữ'", async () => {
     const user = userEvent.setup();
     renderLoad(ACTORS.warehouseStaff, ftlLoad(), {

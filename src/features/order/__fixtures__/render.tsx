@@ -12,6 +12,7 @@ import { vi } from "vitest";
 import {
   CREDIT_HOLD_PERMISSIONS,
   CUSTOMER_CREDIT_PROFILE_PERMISSIONS,
+  FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS,
   ORDER_DELIVERY_BATCH_PERMISSIONS,
   ORDER_PERMISSIONS,
   PRODUCTION_ORDER_PERMISSIONS,
@@ -23,8 +24,8 @@ import type { PermissionCode } from "@/lib/auth";
 
 /**
  * Theo seed BE develop (5683fe14):
- * - `sales-orders:APPROVE` (giữ / gỡ giữ / giao thất bại) chỉ ORDER_COORDINATOR (BE V20261115000200 đã xoá mã này khỏi
- *   mọi vai trò; FE chưa đổi theo — ngoài phạm vi release); release là `sales-order-releases:UPDATE` (quản lý kho);
+ * - `sales-order-holds:UPDATE` (giữ / gỡ giữ, docs 17 §4.9) cho SALES_STAFF + SYSTEM_ADMIN (`sales-orders:APPROVE` BE đã
+ *   xoá khỏi mọi vai trò); release là `sales-order-releases:UPDATE` (quản lý kho);
  * - `sales-order-cancellations:UPDATE` (huỷ, đóng phần còn lại) cho SALES_STAFF + ORDER_COORDINATOR;
  * - `sales-order-partial-shipments:UPDATE` (cho phép giao một phần, BE PR #150) cho SALES_STAFF, không có APPROVE;
  * - `sales-order-credit-holds:APPROVE` chỉ ACCOUNTANT (Sales/Coordinator chỉ VIEW_PAGE / READ);
@@ -40,6 +41,7 @@ export const ORDER_PERMISSION_SETS = {
     ORDER_PERMISSIONS.viewPage,
     ORDER_PERMISSIONS.read,
     ORDER_PERMISSIONS.cancel,
+    ORDER_PERMISSIONS.hold,
     ORDER_PERMISSIONS.partialShipment,
     CREDIT_HOLD_PERMISSIONS.viewPage,
     CREDIT_HOLD_PERMISSIONS.read,
@@ -50,8 +52,10 @@ export const ORDER_PERMISSION_SETS = {
   coordinator: [
     ORDER_PERMISSIONS.viewPage,
     ORDER_PERMISSIONS.read,
-    // BE V20261115000200: release là `sales-order-releases:UPDATE` (quản lý kho của kho xuất), tách khỏi `approve`
-    ORDER_PERMISSIONS.approve,
+    // Fixture ĐA QUYỀN cho màn đơn (không phải một vai seed BE): giữ / gỡ giữ (`sales-order-holds:UPDATE`), ghi giao thất
+    // bại cấp đơn (`fulfillment-delivery-outcomes:APPROVE`) và release (`sales-order-releases:UPDATE`)
+    ORDER_PERMISSIONS.hold,
+    FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS.approve,
     ORDER_PERMISSIONS.release,
     ORDER_PERMISSIONS.cancel,
     CREDIT_HOLD_PERMISSIONS.viewPage,

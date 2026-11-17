@@ -107,9 +107,10 @@ describe("ORDER_TRANSITIONS (BE OrderStatus#canTransitionTo)", () => {
 
 /**
  * Mã quyền theo seed BE:
- * - `sales-orders`: SALES_STAFF + ORDER_COORDINATOR VIEW_PAGE/READ/CREATE/UPDATE; chỉ ORDER_COORDINATOR
- *   có APPROVE (giữ / gỡ giữ / giao thất bại) — V20260903000100. APPROVE KHÔNG còn mở release: BE V20261115000200
- *   tách release thành `sales-order-releases:UPDATE` cho WAREHOUSE_MANAGER (kho xuất, docs 17 BR-03).
+ * - `sales-orders`: SALES_STAFF + ORDER_COORDINATOR VIEW_PAGE/READ/CREATE/UPDATE. `sales-orders:APPROVE` BE đã xoá
+ *   (V20261115000200): giữ / gỡ giữ là `sales-order-holds:UPDATE` (SALES_STAFF + SYSTEM_ADMIN, docs 17 §4.9); ghi giao
+ *   thất bại cấp đơn là `fulfillment-delivery-outcomes:APPROVE` (quản lý kho); release là `sales-order-releases:UPDATE`
+ *   cho WAREHOUSE_MANAGER (kho xuất, docs 17 BR-03).
  * - `sales-order-cancellations:UPDATE` (huỷ, đóng phần còn lại): SALES_STAFF + ORDER_COORDINATOR —
  *   V20261013000200.
  * - `sales-order-credit-holds`: ACCOUNTANT VIEW_PAGE/READ/APPROVE; Sales + Coordinator chỉ
@@ -122,7 +123,6 @@ const ROLE_PERMISSIONS: Record<string, readonly PermissionCode[]> = {
     "sales-orders:READ",
     "sales-orders:CREATE",
     "sales-orders:UPDATE",
-    "sales-orders:APPROVE",
     "sales-orders:EXPORT",
     "sales-order-cancellations:UPDATE",
     "sales-order-credit-holds:VIEW_PAGE",
@@ -134,13 +134,20 @@ const ROLE_PERMISSIONS: Record<string, readonly PermissionCode[]> = {
     "sales-orders:CREATE",
     "sales-orders:UPDATE",
     "sales-order-cancellations:UPDATE",
+    // docs 17 §4.9: Sales giữ / gỡ giữ đơn (trừ giữ công nợ)
+    "sales-order-holds:UPDATE",
     "sales-order-credit-holds:VIEW_PAGE",
     "sales-order-credit-holds:READ",
     // BE PR #150: SALES_STAFF (và SYSTEM_ADMIN) quyết đơn có giao một phần; điều phối viên thì không
     "sales-order-partial-shipments:UPDATE",
   ],
   // BE V20261115000200: quản lý kho đọc đơn + release (kho của mình); không huỷ / giữ
-  WAREHOUSE_MANAGER: ["sales-orders:VIEW_PAGE", "sales-orders:READ", "sales-order-releases:UPDATE"],
+  WAREHOUSE_MANAGER: [
+    "sales-orders:VIEW_PAGE",
+    "sales-orders:READ",
+    "sales-order-releases:UPDATE",
+    "fulfillment-delivery-outcomes:APPROVE",
+  ],
   ACCOUNTANT: [
     "sales-order-credit-holds:VIEW_PAGE",
     "sales-order-credit-holds:READ",
@@ -177,12 +184,12 @@ describe("allowedOrderActions — release (docs 17 §4.2 bước 5, BR-03; sales
     expect(codes("Confirmed", "WAREHOUSE_MANAGER")).toEqual(["release"]);
   });
 
-  it("Confirmed + ORDER_COORDINATOR (chỉ sales-orders:APPROVE, mã BE đã xoá) → KHÔNG còn Release; huỷ + giữ vẫn theo mã của chúng", () => {
-    expect(codes("Confirmed", "ORDER_COORDINATOR")).toEqual(["admin-cancel", "hold"]);
+  it("Confirmed + ORDER_COORDINATOR (không có sales-order-releases:UPDATE) → KHÔNG Release; chỉ huỷ theo mã của nó", () => {
+    expect(codes("Confirmed", "ORDER_COORDINATOR")).toEqual(["admin-cancel"]);
   });
 
-  it("Confirmed + SALES_STAFF / kế toán / NV kho → không thấy Release", () => {
-    expect(codes("Confirmed", "SALES_STAFF")).toEqual(["admin-cancel"]);
+  it("Confirmed + SALES_STAFF / kế toán / NV kho → không thấy Release (Sales giữ + huỷ theo mã của chúng)", () => {
+    expect(codes("Confirmed", "SALES_STAFF")).toEqual(["admin-cancel", "hold"]);
     expect(codes("Confirmed", "ACCOUNTANT")).toEqual([]);
     expect(codes("Confirmed", "WAREHOUSE_STAFF")).toEqual([]);
   });
@@ -215,7 +222,10 @@ describe("allowedOrderActions — release (docs 17 §4.2 bước 5, BR-03; sales
   });
 
   it("Partially Fulfilled (đợt giao sau) + quản lý kho → Release, đơn giữ nguyên trạng thái (stayIn)", () => {
-    expect(codes("Partially Fulfilled", "WAREHOUSE_MANAGER")).toEqual(["release"]);
+    // Quản lý kho còn fulfillment-delivery-outcomes:APPROVE nhưng đơn đã chia lô → không có "giao thất bại" ở cấp đơn
+    expect(codes("Partially Fulfilled", "WAREHOUSE_MANAGER", { hasShipments: true })).toEqual([
+      "release",
+    ]);
     // Partially Fulfilled → Ready to Fulfill KHÔNG phải cạnh của BE; Release hợp lệ nhờ `stayIn`, không phải nhờ cạnh
     expect(nextOrderStatuses("Partially Fulfilled")).not.toContain("Ready to Fulfill");
     const release = ORDER_ACTIONS.find((action) => action.code === "release");
@@ -297,7 +307,8 @@ describe("allowedOrderActions — huỷ admin (sales-order-cancellations:UPDATE)
     "Picking",
   ] as const)("%s chưa đóng gói → ORDER_COORDINATOR và SALES_STAFF thấy nút huỷ", (status) => {
     expect(codes(status, "ORDER_COORDINATOR")).toContain("admin-cancel");
-    expect(codes(status, "SALES_STAFF")).toEqual(["admin-cancel"]);
+    expect(codes(status, "SALES_STAFF")).toContain("admin-cancel");
+    expect(codes(status, "ORDER_COORDINATOR")).toEqual(["admin-cancel"]);
   });
 
   it("On Hold chưa đóng gói (BE ON_HOLD → CANCELLED) — huỷ được", () => {
@@ -310,10 +321,10 @@ describe("allowedOrderActions — huỷ admin (sales-order-cancellations:UPDATE)
     expect(
       codes("On Hold", "ORDER_COORDINATOR", { holdReason: "FRAUD", packedAt: PACKED_AT }),
     ).not.toContain("admin-cancel");
-    // Giữ khác vẫn gỡ được dù đã đóng gói
-    expect(
-      codes("On Hold", "ORDER_COORDINATOR", { holdReason: "FRAUD", packedAt: PACKED_AT }),
-    ).toContain("resolve-hold");
+    // Giữ khác vẫn gỡ được dù đã đóng gói (Sales: sales-order-holds:UPDATE)
+    expect(codes("On Hold", "SALES_STAFF", { holdReason: "FRAUD", packedAt: PACKED_AT })).toContain(
+      "resolve-hold",
+    );
     expect(codes("Picking", "ORDER_COORDINATOR", { packedAt: PACKED_AT })).not.toContain(
       "admin-cancel",
     );
@@ -363,7 +374,7 @@ describe("allowedOrderActions — huỷ admin (sales-order-cancellations:UPDATE)
   });
 });
 
-describe("allowedOrderActions — Giữ đơn (sales-orders:APPROVE, mayBePutOnHold)", () => {
+describe("allowedOrderActions — Giữ đơn (sales-order-holds:UPDATE, mayBePutOnHold)", () => {
   it.each([
     "Confirmed",
     "Awaiting Stock",
@@ -372,8 +383,8 @@ describe("allowedOrderActions — Giữ đơn (sales-orders:APPROVE, mayBePutOnH
     "Picking",
     "Partially Fulfilled",
     "Packed",
-  ] as const)("%s → ORDER_COORDINATOR giữ được", (status) => {
-    expect(codes(status, "ORDER_COORDINATOR")).toContain("hold");
+  ] as const)("%s → SALES_STAFF giữ được", (status) => {
+    expect(codes(status, "SALES_STAFF")).toContain("hold");
   });
 
   it.each([
@@ -386,34 +397,44 @@ describe("allowedOrderActions — Giữ đơn (sales-orders:APPROVE, mayBePutOnH
     "Completed",
     "Closed",
   ] as const)("%s → không giữ được", (status) => {
-    expect(codes(status, "ORDER_COORDINATOR", { holdReason: "ADDRESS" })).not.toContain("hold");
+    expect(codes(status, "SALES_STAFF", { holdReason: "ADDRESS" })).not.toContain("hold");
   });
 
-  it("SALES_STAFF (không có APPROVE) không thấy Giữ đơn", () => {
-    expect(codes("Picking", "SALES_STAFF")).not.toContain("hold");
+  it("ORDER_COORDINATOR / quản lý kho / kế toán (không có sales-order-holds:UPDATE) không thấy Giữ đơn", () => {
+    for (const role of ["ORDER_COORDINATOR", "WAREHOUSE_MANAGER", "ACCOUNTANT"] as const) {
+      expect(codes("Picking", role)).not.toContain("hold");
+    }
+  });
+
+  it("đúng mã BE dùng: sales-order-holds:UPDATE (Sales giữ đơn ON_HOLD INVENTORY của ca SO-…38 thì gỡ được)", () => {
+    for (const code of ["hold", "resolve-hold"] as const) {
+      expect(ORDER_ACTIONS.find((action) => action.code === code)?.permission).toBe(
+        "sales-order-holds:UPDATE",
+      );
+    }
   });
 });
 
 describe("allowedOrderActions — Gỡ giữ", () => {
   it.each(["PAYMENT", "ADDRESS", "INVENTORY", "CUSTOMER", "FRAUD", "OTHER"] as const)(
-    "giữ %s → ORDER_COORDINATOR gỡ được; đích = trạng thái đã lưu (không cố định)",
+    "giữ %s → SALES_STAFF gỡ được; đích = trạng thái đã lưu (không cố định)",
     (holdReason) => {
-      expect(codes("On Hold", "ORDER_COORDINATOR", { holdReason })).toContain("resolve-hold");
+      expect(codes("On Hold", "SALES_STAFF", { holdReason })).toContain("resolve-hold");
     },
   );
 
   it.each(["CREDIT", "DESIGN_MISMATCH", "UNKNOWN", null, undefined] as const)(
     "giữ %s → ẩn nút gỡ giữ (BE ORDER_CREDIT_HOLD_USE_APPROVAL / ORDER_DESIGN_HOLD_USE_REVERIFICATION / không đoán)",
     (holdReason) => {
-      expect(codes("On Hold", "ORDER_COORDINATOR", { holdReason })).not.toContain("resolve-hold");
+      expect(codes("On Hold", "SALES_STAFF", { holdReason })).not.toContain("resolve-hold");
     },
   );
 
-  it("SALES_STAFF không gỡ giữ được; đơn không ON_HOLD thì không có nút", () => {
-    expect(codes("On Hold", "SALES_STAFF", { holdReason: "ADDRESS" })).not.toContain(
+  it("ORDER_COORDINATOR không gỡ giữ được; đơn không ON_HOLD thì không có nút", () => {
+    expect(codes("On Hold", "ORDER_COORDINATOR", { holdReason: "ADDRESS" })).not.toContain(
       "resolve-hold",
     );
-    expect(codes("Picking", "ORDER_COORDINATOR", { holdReason: "ADDRESS" })).not.toContain(
+    expect(codes("Picking", "SALES_STAFF", { holdReason: "ADDRESS" })).not.toContain(
       "resolve-hold",
     );
   });
@@ -433,40 +454,44 @@ describe("allowedOrderActions — Gỡ giữ", () => {
   });
 });
 
-describe("allowedOrderActions — Ghi giao thất bại (APPROVE; SHIPPED / PARTIALLY_FULFILLED, đơn chưa chia lô)", () => {
-  it("Shipped chưa chia lô → ORDER_COORDINATOR thấy", () => {
-    expect(codes("Shipped", "ORDER_COORDINATOR")).toEqual(["delivery-failure"]);
+describe("allowedOrderActions — Ghi giao thất bại (fulfillment-delivery-outcomes:APPROVE; SHIPPED / PARTIALLY_FULFILLED, đơn chưa chia lô)", () => {
+  it("Shipped chưa chia lô → quản lý kho (fulfillment-delivery-outcomes:APPROVE) thấy", () => {
+    expect(codes("Shipped", "WAREHOUSE_MANAGER")).toEqual(["delivery-failure"]);
   });
 
   it("đã chia lô → ẩn (BE 409 ORDER_DELIVERY_VIA_SHIPMENT); chưa biết có lô hay không → ẩn", () => {
-    expect(codes("Shipped", "ORDER_COORDINATOR", { hasShipments: true })).toEqual([]);
-    expect(codes("Shipped", "ORDER_COORDINATOR", { hasShipments: undefined })).toEqual([]);
+    expect(codes("Shipped", "WAREHOUSE_MANAGER", { hasShipments: true })).toEqual([]);
+    expect(codes("Shipped", "WAREHOUSE_MANAGER", { hasShipments: undefined })).toEqual([]);
   });
 
   it("trạng thái khác (Delivered, Packed, Delivery Failed) → không có", () => {
     for (const status of ["Delivered", "Packed", "Delivery Failed"] as const) {
-      expect(codes(status, "ORDER_COORDINATOR")).not.toContain("delivery-failure");
+      expect(codes(status, "WAREHOUSE_MANAGER")).not.toContain("delivery-failure");
     }
   });
 
-  it("SALES_STAFF không có APPROVE → không thấy", () => {
+  it("SALES_STAFF / điều phối không có fulfillment-delivery-outcomes:APPROVE → không thấy", () => {
+    expect(codes("Shipped", "ORDER_COORDINATOR")).toEqual([]);
     expect(codes("Shipped", "SALES_STAFF")).toEqual([]);
   });
 });
 
 describe("allowedOrderActions — Đóng phần còn lại (sales-order-cancellations:UPDATE, chỉ PARTIALLY_FULFILLED)", () => {
-  it("Partially Fulfilled → ORDER_COORDINATOR có đủ giữ + đóng phần còn lại", () => {
+  it("Partially Fulfilled → SALES_STAFF có đủ giữ + đóng phần còn lại", () => {
     expect(
-      codes("Partially Fulfilled", "ORDER_COORDINATOR", {
+      codes("Partially Fulfilled", "SALES_STAFF", {
         hasShipments: true,
         packedAt: PACKED_AT,
       }),
     ).toEqual(["hold", "remainder-closure"]);
   });
 
-  it("SALES_STAFF (có cancellations:UPDATE) đóng được phần còn lại nhưng không giữ đơn", () => {
+  it("ORDER_COORDINATOR (có cancellations:UPDATE, không có holds:UPDATE) đóng được phần còn lại nhưng không giữ đơn", () => {
     expect(
-      codes("Partially Fulfilled", "SALES_STAFF", { hasShipments: true, packedAt: PACKED_AT }),
+      codes("Partially Fulfilled", "ORDER_COORDINATOR", {
+        hasShipments: true,
+        packedAt: PACKED_AT,
+      }),
     ).toEqual(["remainder-closure"]);
   });
 
@@ -556,7 +581,7 @@ describe("allowedOrderActions — huỷ đơn khi hàng có sẵn đã đóng tr
 
   it("IN_PRODUCTION đã đóng sẵn hàng có sẵn, chưa lô nào bàn giao → vẫn huỷ được (Order#packedOnlyAheadOfPrints)", () => {
     expect(codes("In Production", "ORDER_COORDINATOR", { packedAt })).toContain("admin-cancel");
-    expect(codes("In Production", "SALES_STAFF", { packedAt })).toEqual(["admin-cancel"]);
+    expect(codes("In Production", "SALES_STAFF", { packedAt })).toEqual(["admin-cancel", "hold"]);
   });
 
   it("đã có lô rời kho → phải đi luồng trả hàng, không huỷ", () => {
