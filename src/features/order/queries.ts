@@ -26,6 +26,7 @@ import {
 } from "./cancellation-request-api";
 import { getDeliverySchedule } from "./delivery-batch-api";
 import { getOrderHistory } from "./history-api";
+import { getOrderInstallmentsSummary } from "./installments-summary-api";
 import { isValidOrderCustomerId } from "./schemas";
 
 import type { CancellationRequest, OrderRefundDto } from "./cancellation-request-schemas";
@@ -44,6 +45,8 @@ export const orderKeys = {
     [...baseOrderKeys.all, "credit-holds", params] as const,
   /** Lịch giao của đơn (đợt giao) — dưới root `orders`: release xong (invalidate `orderKeys.all`) tự tải lại. */
   deliverySchedule: (id: string) => [...baseOrderKeys.all, "delivery-schedule", id] as const,
+  /** Các đợt thanh toán của đơn (khối Thanh toán) — dưới `orders` nên mọi mutation đơn làm mới. */
+  installmentsSummary: (id: string) => [...baseOrderKeys.all, "installments-summary", id] as const,
   /** Yêu cầu huỷ của khách (hàng đợi + thẻ trên chi tiết đơn) — dưới `orders`: duyệt / từ chối tự làm mới cả hai. */
   cancellationRequests: (params?: ListCancellationRequestParams) =>
     [...baseOrderKeys.all, "cancellation-requests", params] as const,
@@ -138,6 +141,17 @@ export function useDeliverySchedule(id: string, options: { enabled?: boolean } =
     queryFn: ({ signal }) => getDeliverySchedule(id, signal),
     ...QUERY_TIMES.detail,
     enabled: options.enabled ?? true,
+    retry: retryTransient,
+  });
+}
+
+/** Các đợt thanh toán của đơn — chỉ gọi khi có `payment-installments:READ`. 404 (đơn chưa có hợp đồng ký) không retry. */
+export function useOrderInstallmentsSummary(id: string, options: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: orderKeys.installmentsSummary(id),
+    queryFn: ({ signal }) => getOrderInstallmentsSummary(id, signal),
+    ...QUERY_TIMES.detail,
+    enabled: !!id && (options.enabled ?? true),
     retry: retryTransient,
   });
 }
