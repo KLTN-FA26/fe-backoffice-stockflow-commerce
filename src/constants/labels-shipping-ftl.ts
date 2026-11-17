@@ -29,6 +29,17 @@ export const SHIPPING_FTL_LABELS = {
     waybill: "Mã vận đơn",
     waybillPending: "Chưa có",
     connection: "Kiểu kết nối hãng",
+    enterDriver: "Nhập tài xế",
+    editDriver: "Sửa tài xế",
+  },
+  driverDialog: {
+    title: "Nhập tài xế",
+    editTitle: "Sửa tài xế",
+    description:
+      "Ghi tên tài xế (và số điện thoại) của xe này — bắt buộc có trước khi ký bàn giao. Dùng được cả khi hãng đặt xe qua API chưa báo tài xế; hãng báo lại qua webhook thì tên được thay.",
+    driverName: "Tên tài xế",
+    driverPhone: "SĐT tài xế",
+    submit: "Lưu tài xế",
   },
   bookDialog: {
     title: "Đặt xe",
@@ -173,6 +184,7 @@ export const SHIPPING_FTL_LABELS = {
 
 export const SHIPPING_FTL_TOAST_MESSAGES = {
   booked: "Đã ghi nhận đặt xe",
+  driverRecorded: "Đã lưu tài xế",
   bookingCancelled: "Đã huỷ đặt xe",
   loadingStarted: "Đã bắt đầu xếp hàng",
   unloaded: "Đã dỡ kiện khỏi xe",

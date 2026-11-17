@@ -75,6 +75,7 @@ export function toOrder(dto: OrderDto): Order {
     statusBeforeHold: dto.statusBeforeHold ? mapBackendOrderStatus(dto.statusBeforeHold) : null,
     holdNote: dto.holdNote ?? null,
     packedAt: dto.packedAt ?? null,
+    firstLabeledAt: dto.firstLabeledAt ?? null,
     shippedAt: dto.shippedAt ?? null,
     deliveredAt: dto.deliveredAt ?? null,
     deliveryFailureReason: dto.deliveryFailureReason ?? null,

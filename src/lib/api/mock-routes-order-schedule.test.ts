@@ -1,7 +1,7 @@
 /**
  * Mock lịch giao + dời cửa sổ giao (BE `DeliveryBatchController`, docs 17 §4.5, §5.5, BR-28) — chạy qua axios thật +
- * `features/order/*-api.ts`: lịch hiệu lực với cửa sổ hợp đồng, trạng thái từng đợt, quyền `sales-contracts:READ` /
- * `:UPDATE`, các điều kiện BR-28 (không quá khứ, giữ thứ tự, đúng bằng chứng khách, đợt đã bàn giao khoá).
+ * `features/order/*-api.ts`: lịch hiệu lực với cửa sổ hợp đồng, trạng thái từng đợt, quyền `sales-order-delivery-batches:READ` /
+ * `sales-contracts:UPDATE`, các điều kiện BR-28 (không quá khứ, giữ thứ tự, đúng bằng chứng khách, đợt đã bàn giao khoá).
  */
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -169,7 +169,7 @@ describe("GET /orders/:id/delivery-batches — lịch giao hiệu lực", () => 
     ).toBe(false);
   });
 
-  it("cần sales-contracts:READ: Sale / Kế toán đọc được, nhân viên kho → 403", async () => {
+  it("cần sales-order-delivery-batches:READ: Sale / Kế toán đọc được, nhân viên kho → 403", async () => {
     const id = orderWith("Confirmed").orderId;
     actAs("USER-ACC-01");
     expect((await getDeliverySchedule(id)).batches).toHaveLength(1);

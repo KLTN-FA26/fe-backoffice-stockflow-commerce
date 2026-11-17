@@ -2,7 +2,7 @@
  * Mock bàn giao + kết quả giao — mã lỗi đúng BE `DispatchService.handOver` / `DispatchLoad.handOver` / `Shipment`:
  * 409 OPTIMISTIC_LOCK (khoá `version`); bàn giao là tất cả hoặc không (09 BR-18): có đơn chưa được phép đi (chưa thu đợt
  * thanh toán trước khi giao, chưa tới cửa sổ giao, đang giữ) → 409 LOAD_HANDOVER_BLOCKED kèm `details.orders`; rồi 409
- * LOAD_UNLOAD_PENDING, 400 HANDOVER_NOT_SIGNED, 409 LOAD_WAYBILL_MISSING (BR-23), LOAD_EMPTY, LOAD_NOT_FULLY_LOADED;
+ * LOAD_UNLOAD_PENDING, 400 HANDOVER_NOT_SIGNED, 409 LOAD_WAYBILL_MISSING (BR-23), LOAD_DRIVER_MISSING (WF4-DRIVER), LOAD_EMPTY, LOAD_NOT_FULLY_LOADED;
  * ghi nhận kết quả theo bảng chuyển trạng thái docs 09 §5.
  */
 
@@ -73,6 +73,14 @@ export function handover(
       `Load ${load.code} has no waybill number: record the carrier's number before the driver signs`,
     );
   }
+  // WF4-DRIVER (BE PR #316): tên tài xế có trên chuyến trước khi ký; người ký bên hãng không được coi là tài xế
+  if (!load.driverName) {
+    return fail(
+      409,
+      "LOAD_DRIVER_MISSING",
+      `Load ${load.code} has no driver name: record the driver before the driver signs`,
+    );
+  }
   const representative = text(body.carrierRepresentative);
   const plate = text(body.vehiclePlate) || load.vehiclePlate;
   if (!representative) return validationFailed("carrierRepresentative", "must not be blank");
@@ -113,8 +121,6 @@ export function handover(
   load.dispatchedAt = at;
   load.carrierRepresentative = representative;
   load.vehiclePlate = plate;
-  // BE `DispatchLoad.handOver`: chưa có tên tài xế thì lấy tên người ký bên hãng
-  load.driverName = load.driverName ?? representative;
   load.driverPhone = text(body.driverPhone) || load.driverPhone;
   load.signatureRef = text(body.signatureRef) || null;
   load.handoverNote = text(body.note) || null;
