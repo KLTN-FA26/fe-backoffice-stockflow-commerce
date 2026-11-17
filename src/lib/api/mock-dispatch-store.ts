@@ -57,7 +57,7 @@ export interface MockFtlPart {
 }
 
 /**
- * Vì sao BE chặn bàn giao đơn của lô này (09 BR-04, BR-18): trả trong `LoadResponse.handoverWarnings` khi bắt đầu xếp và
+ * Vì sao BE chặn bàn giao đơn của lô này (09 BR-04, BR-18): trả trong `LoadResponse.handoverWarnings` khi bắt đầu xếp và ở mỗi lần đọc chuyến đang xếp và
  * trong `details.orders` của 409 LOAD_HANDOVER_BLOCKED khi ký.
  */
 export interface MockHandoverBlock {
