@@ -67,13 +67,13 @@ export function canReplaceRemovedCarton(
 
 /**
  * Dòng có thùng đã loại vì hư hỏng mà đơn còn thiếu nó (BE `PickLineResponse.removalReason` / `replacementPending`):
- * dòng vẫn PICKED, thùng REMOVED. BE báo `replacementPending=false` khi đã bù rồi.
+ * dòng vẫn PICKED (hoặc PUT_BACK khi thùng hư đã cất sang khu cách ly), thùng REMOVED. BE báo `replacementPending=false` khi đã bù rồi.
  */
 export function isReplaceableRemovedLine(
   line: Pick<PickLine, "status" | "removalReason" | "replacementPending">,
 ): boolean {
   return (
-    line.status === PICK_LINE_STATUS.PICKED &&
+    (line.status === PICK_LINE_STATUS.PICKED || line.status === PICK_LINE_STATUS.PUT_BACK) &&
     line.removalReason === "DAMAGED" &&
     line.replacementPending === true
   );

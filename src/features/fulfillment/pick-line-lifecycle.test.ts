@@ -136,8 +136,9 @@ const removed = {
 } as const;
 
 describe("isReplaceableRemovedLine — thùng hư đã loại ở trạm kiểm thùng, đơn còn thiếu nó (BE replacementPending)", () => {
-  it("Picked + DAMAGED + replacementPending → được", () => {
+  it("Picked (hoặc Put Back, thùng hư đã cất sang khu cách ly) + DAMAGED + replacementPending → được", () => {
     expect(isReplaceableRemovedLine(removed)).toBe(true);
+    expect(isReplaceableRemovedLine({ ...removed, status: "Put Back" })).toBe(true);
   });
 
   it.each([
