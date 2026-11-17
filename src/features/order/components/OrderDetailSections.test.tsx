@@ -64,9 +64,8 @@ describe("OrderDetail — thanh toán / cọc / công nợ / huỷ", () => {
       depositRequired: 105_000,
     });
 
-    expect(await screen.findByText("Đặt cọc")).toBeInTheDocument();
-    expect(screen.getByText("Chưa nhận cọc")).toBeInTheDocument();
-    expect(screen.getByText("Chưa thanh toán")).toBeInTheDocument();
+    // Phương thức / trạng thái thanh toán không còn đọc từ đơn (BE bỏ field) — khối đọc các đợt thanh toán
+    expect(await screen.findByText("Chưa nhận cọc")).toBeInTheDocument();
   });
 
   it("đơn đặt cọc đã nhận cọc → 'Đã nhận cọc'", async () => {

@@ -174,7 +174,7 @@ function OrderDetailContent({
           <OrderPartialShipmentCard order={order} can={can} />
           <OrderShipments order={order} />
           <OrderInfoCard order={order} />
-          <OrderFinanceCard order={order} />
+          <OrderFinanceCard order={order} can={can} />
         </div>
       </div>
     </>

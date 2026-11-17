@@ -351,3 +351,11 @@ export const ORDER_ERROR_MESSAGES = {
 } as const;
 
 export type OrderErrorCode = keyof typeof ORDER_ERROR_MESSAGES;
+
+/** Khối "Thanh toán" ở chi tiết đơn, phần các đợt thanh toán (docs 15 §5.2). */
+export const ORDER_INSTALLMENTS_LABELS = {
+  count: "Số đợt thanh toán",
+  collected: "Đã thu / tổng",
+  list: "Các đợt",
+  countValue: (n: number) => `${n} đợt`,
+} as const;
