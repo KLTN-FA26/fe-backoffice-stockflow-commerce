@@ -6,6 +6,7 @@ import {
   ORDER_DELIVERY_MODE_LABELS,
   ORDER_DELIVERY_MODE_UI,
   ORDER_HISTORY_LABELS,
+  ORDER_HISTORY_REASON_LABELS,
 } from "@/constants";
 import { formatDateTime } from "@/lib/format/date";
 import { StatusDot } from "@/components/shared/StatusDot";
@@ -34,6 +35,13 @@ function EntryMeta({ entry }: { entry: OrderHistoryEntry }) {
   );
 }
 
+/** Mã ghi chú của hệ thống → tiếng Việt; mã lạ giữ nguyên văn. */
+function historyReasonLabel(reason: string): string {
+  return Object.hasOwn(ORDER_HISTORY_REASON_LABELS, reason)
+    ? ORDER_HISTORY_REASON_LABELS[reason]!
+    : reason;
+}
+
 /** Ghi chú của Sales (hoặc lý do / mã của bước đổi trạng thái). Trống thì không hiện. */
 function EntryNote({ entry }: { entry: OrderHistoryEntry }) {
   if (!entry.reason) return null;
@@ -43,7 +51,7 @@ function EntryNote({ entry }: { entry: OrderHistoryEntry }) {
     entry.kind === "status-change" && entry.to === "Cancelled"
       ? formatCancellationReason(entry.reason)
       : entry.kind === "status-change"
-        ? (formatRemainderClosedStatusReason(entry.reason) ?? entry.reason)
+        ? (formatRemainderClosedStatusReason(entry.reason) ?? historyReasonLabel(entry.reason))
         : entry.reason;
   return (
     <p className="text-ink-secondary mt-1 text-[0.8125rem] break-words whitespace-pre-wrap">
