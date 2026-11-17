@@ -41,6 +41,7 @@ export type LoadActionCode =
   | "book"
   | "cancelBooking"
   | "startLoading"
+  | "recordDriver"
   | "recordWaybill"
   | "correctWaybill"
   | "unload"
@@ -89,6 +90,8 @@ export const LOAD_ACTIONS: readonly LoadAction[] = [
     fromStatuses: [VEHICLE_BOOKED],
     targetStatus: LOADING,
   },
+  // WF4-DRIVER (BE PR #316): nhập tên tài xế của xe đã đặt / đang xếp — mọi hãng (cả hãng API), cùng mã quyền với đặt xe
+  { code: "recordDriver", permission: UPDATE, fromStatuses: [VEHICLE_BOOKED, LOADING] },
   // Mã vận đơn (docs 09 §4.4): chỉ điền cho chuyến đã đặt xe, chưa huỷ; sau khi rời kho chỉ quản lý kho SỬA, kèm lý do (BR-24)
   { code: "recordWaybill", permission: UPDATE, fromStatuses: [VEHICLE_BOOKED, LOADING] },
   {

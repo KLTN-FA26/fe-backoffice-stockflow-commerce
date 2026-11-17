@@ -119,6 +119,19 @@ export function waybillInputSchema(afterDeparture: boolean) {
   });
 }
 
+/**
+ * Nhập tài xế của một chuyến (BE `DriverRequest`, WF4-DRIVER; docs 09 §4.2 bước 6 và 8): tên bắt buộc (BE 400 nếu trống,
+ * tối đa 120), SĐT tuỳ chọn (tối đa 32) — vắng thì BE giữ SĐT đang có. Không đụng tới mã vận đơn.
+ */
+export const driverInputSchema = z.object({
+  driverName: z
+    .string()
+    .trim()
+    .min(1, MSG.driverNameRequiredShort)
+    .max(L.driverNameMax, MSG.tooLong),
+  driverPhone: optionalText(L.driverPhoneMax),
+});
+
 /** Đặt xe không thành trước khi xếp hàng (BE `CancelLoadRequest`): bắt buộc nêu lý do. */
 export const cancelBookingInputSchema = z.object({
   reason: z

@@ -4,6 +4,9 @@
  *
  *   POST /fulfillment/loads/{id}/booking              {carrierId, vehiclePlate?, driverName?, driverPhone?}
  *        PLANNED → VEHICLE_BOOKED (đặt lại khi còn VEHICLE_BOOKED = thay thông tin)
+ *   PUT  /fulfillment/loads/{id}/driver               {driverName, driverPhone?}   WF4-DRIVER (BE PR #316)
+ *        chuyến VEHICLE_BOOKED / LOADING, mọi hãng (kể cả hãng đặt xe qua API); chỉ tài xế, không đụng mã vận đơn;
+ *        409 INVALID_LOAD_TRANSITION (chưa đặt xe / đã huỷ / xe đã rời kho); 400 VALIDATION_FAILED (tên trống)
  *   POST /fulfillment/loads/{id}/booking-cancellation {reason}   → về PLANNED, chỉ trước LOADING
  *   POST /fulfillment/loads/{id}/loading-start        VEHICLE_BOOKED → LOADING (BR-14: kế hoạch không mở lại được)
  *   POST /fulfillment/loads/{id}/unloads              {packageCode}  → dỡ kiện khỏi xe (đơn đã huỷ, hoặc xe huỷ có kiểm soát)
@@ -27,6 +30,7 @@ import type {
   ControlledCancelResult,
   Load,
   OverrideUnloadInput,
+  RecordDriverInput,
   StartLoadingInput,
   UnloadPackageInput,
 } from "./types";
@@ -34,6 +38,12 @@ import type {
 /** Đặt xe với hãng (bên ngoài hệ thống): ghi hãng, biển số, tài xế; chuyến sang VEHICLE_BOOKED. */
 export async function bookLoad({ loadId, values }: BookLoadInput): Promise<Load> {
   const { data } = await api.post<unknown>(`${loadPath(loadId)}/booking`, values);
+  return beLoadSchema.parse(data);
+}
+
+/** Nhập tài xế của xe đã đặt / đang xếp (BE `PUT loads/{id}/driver`): chỉ tên + SĐT tài xế, không đụng mã vận đơn. */
+export async function recordDriver({ loadId, values }: RecordDriverInput): Promise<Load> {
+  const { data } = await api.put<unknown>(`${loadPath(loadId)}/driver`, values);
   return beLoadSchema.parse(data);
 }
 
