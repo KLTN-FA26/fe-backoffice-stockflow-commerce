@@ -7,6 +7,8 @@
  * (CLAUDE.md + FRONTEND-AI-RULES.md §6.1)
  */
 
+import { CARRIER_EVENT_STATUS_KEYS } from "@/constants/carrier-events";
+import { SHIPPING_EVENT_LABELS } from "@/constants/labels-shipping-events";
 import { STOCK_ADJUSTMENT_STATUS, USER_STATUS } from "@/constants/statuses";
 
 import type { SemanticTone, StatusDomain } from "@/lib/mock-data";
@@ -15,6 +17,8 @@ export type { SemanticTone };
 
 const TONE: Record<SemanticTone, readonly string[]> = {
   positive: [
+    // Sự kiện hãng vận chuyển (BE CarrierEventResult, docs 09 §4.5)
+    "APPLIED",
     // Hoá đơn điện tử đã phát hành (BE EInvoiceStatus.ISSUED, docs 21 §5.1)
     "Issued",
     // Thùng đã in và dán nhãn giao hàng (BE PackageStatus.LABELED, docs 08 §5.2)
@@ -70,6 +74,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "DISPATCHED",
   ],
   info: [
+    // Sự kiện hãng vận chuyển (BE CarrierEventResult, docs 09 §4.5)
+    CARRIER_EVENT_STATUS_KEYS.RECEIVED,
     // Hoá đơn điện tử đã gửi nhà cung cấp, chờ kết quả (BE EInvoiceStatus.SUBMITTING)
     "Submitting",
     // Thùng đang được đếm trên phiếu nhận nháp (BE StockPackageStatus.RECEIVING, SCRUM-473)
@@ -128,6 +134,10 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "LOADING",
   ],
   warning: [
+    // Sự kiện hãng vận chuyển (BE CarrierEventResult, docs 09 §4.5)
+    "UNMATCHED",
+    "NEEDS_REVIEW",
+    "UNVERIFIED",
     // Thùng đã lấy về khu xuất hàng, chưa quét kiểm (BE PackageStatus.TO_CHECK, docs 08 §5.2)
     "To Check",
     // Bán hàng B2B & sản xuất (BE d215f6e)
@@ -182,6 +192,8 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "In QC",
   ],
   danger: [
+    // Sự kiện hãng vận chuyển (BE CarrierEventResult, docs 09 §4.5)
+    "INVALID_SIGNATURE",
     // Thùng bị loại khỏi đơn (BE PackageStatus.REMOVED, docs 08 §5.2)
     "Removed",
     // Thùng thất lạc — chỉ ghi qua điều chỉnh tồn đã duyệt (BE StockPackageStatus.LOST)
@@ -232,6 +244,10 @@ const TONE: Record<SemanticTone, readonly string[]> = {
     "Not Due",
   ],
   muted: [
+    // Sự kiện hãng vận chuyển (BE CarrierEventResult, docs 09 §4.5)
+    "DUPLICATE",
+    "STALE",
+    "IGNORED",
     // Hoá đơn điện tử: nháp đã huỷ / đã bị thay thế — hết hiệu lực (docs 21 §5.1)
     "Voided Draft",
     "Replaced",
@@ -301,6 +317,16 @@ export function toneOf(status: string): SemanticTone {
 
 /** Nhãn tiếng Việt cho status (song ngữ hiển thị trong tooltip/title). */
 export const STATUS_LABEL_VI: Record<string, string> = {
+  // Sự kiện hãng vận chuyển (BE CarrierEventResult; RECEIVED trùng khoá với phản hồi NCC nên dùng EVENT_RECEIVED)
+  APPLIED: SHIPPING_EVENT_LABELS.result.APPLIED,
+  [CARRIER_EVENT_STATUS_KEYS.RECEIVED]: SHIPPING_EVENT_LABELS.result.RECEIVED,
+  DUPLICATE: SHIPPING_EVENT_LABELS.result.DUPLICATE,
+  STALE: SHIPPING_EVENT_LABELS.result.STALE,
+  IGNORED: SHIPPING_EVENT_LABELS.result.IGNORED,
+  UNMATCHED: SHIPPING_EVENT_LABELS.result.UNMATCHED,
+  INVALID_SIGNATURE: SHIPPING_EVENT_LABELS.result.INVALID_SIGNATURE,
+  NEEDS_REVIEW: SHIPPING_EVENT_LABELS.result.NEEDS_REVIEW,
+  UNVERIFIED: SHIPPING_EVENT_LABELS.result.UNVERIFIED,
   // Thùng có LPN (BE StockPackageStatus, SCRUM-473)
   Receiving: "Đang nhận",
   "In Stock": "Trong kho",

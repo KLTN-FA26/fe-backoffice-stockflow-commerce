@@ -33,6 +33,7 @@ import {
   Handshake,
   PanelLeftClose,
   PanelLeftOpen,
+  RadioTower,
   ReceiptText,
   Search as SearchIcon,
   ShieldCheck,
@@ -65,6 +66,7 @@ import {
   CREDIT_HOLD_PERMISSIONS,
   CUSTOMER_PRICE_PERMISSIONS,
   CUSTOMER_PRICE_UI_LABELS,
+  FULFILLMENT_CARRIER_EVENT_PERMISSIONS,
   FULFILLMENT_PACKAGE_PERMISSIONS,
   FULFILLMENT_PICK_PERMISSIONS,
   FULFILLMENT_PICKING_PERMISSIONS,
@@ -570,6 +572,13 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: Handshake,
         // Danh mục hãng: xem là `fulfillment-shipments:READ`, thêm / sửa là `fulfillment-carriers:UPDATE` (resource này không có VIEW_PAGE)
         permission: SHIPMENT_PERMISSIONS.viewPage,
+      },
+      {
+        label: UI_LABELS.shipping.carrierEvents.title,
+        href: ADMIN_ROUTES.carrierEvents,
+        icon: RadioTower,
+        // Nhật ký sự kiện webhook và danh sách lỗi: resource `fulfillment-carrier-events` chỉ có READ / UPDATE (không VIEW_PAGE)
+        permission: FULFILLMENT_CARRIER_EVENT_PERMISSIONS.read,
       },
     ],
   },
