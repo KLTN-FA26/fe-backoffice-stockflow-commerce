@@ -571,11 +571,15 @@ export const CARRIER_CONNECTION_TYPE = {
   API_BOOKING: "API_BOOKING",
 } as const satisfies Record<string, CarrierConnectionType>;
 
-/** BE `LoadResponse.CarrierBooking.status` — đơn của chuyến ở hãng tích hợp API đặt xe (BR-29). */
+/**
+ * BE `LoadResponse.CarrierBooking.status` — đơn của chuyến ở hãng tích hợp API đặt xe (BR-29). `UNCONFIRMED`: lời gọi
+ * hãng không trả về, đơn có thể đã có ở hãng; chuyến bị giữ tới khi kiểm trên cổng hãng rồi huỷ đặt (RTM 09A-131).
+ */
 export const CARRIER_BOOKING_STATUSES = [
   "REQUESTED",
   "BOOKED",
   "FAILED",
+  "UNCONFIRMED",
   "CANCELLED",
   "CANCEL_FAILED",
 ] as const;

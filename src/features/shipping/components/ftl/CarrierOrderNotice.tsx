@@ -10,12 +10,16 @@ const N = UI_LABELS.shipping.waybill.apiBooking.notice;
 
 /**
  * Đơn của chuyến ở hãng đặt xe qua API (BE `carrierBooking`, docs 09 BR-29): trạng thái, mã đơn ở hãng (= mã vận đơn),
- * liên kết theo dõi (dữ liệu mạng: chỉ mở http / https) và lỗi gần nhất. Hãng không huỷ được đơn (CANCEL_FAILED) hoặc từ chối (FAILED) → cảnh báo.
+ * liên kết theo dõi (dữ liệu mạng: chỉ mở http / https) và lỗi gần nhất. Hãng không huỷ được đơn (CANCEL_FAILED), từ chối
+ * (FAILED) hoặc chưa rõ đã tạo đơn chưa (UNCONFIRMED: kiểm trên cổng hãng rồi huỷ đặt) → cảnh báo.
  */
 export function CarrierOrderNotice({ load }: { load: Load }) {
   const booking = load.carrierBooking;
   if (!booking) return null;
-  const problem = booking.status === "FAILED" || booking.status === "CANCEL_FAILED";
+  const problem =
+    booking.status === "FAILED" ||
+    booking.status === "UNCONFIRMED" ||
+    booking.status === "CANCEL_FAILED";
   return (
     <Alert tone={problem ? "warning" : "info"} title={N.title}>
       <span>{N.status[booking.status]}</span>
