@@ -187,7 +187,7 @@ describe("Quote form", () => {
           sku: SKU,
           measure: "CARTON",
           moq: 20,
-          tiers: QUOTE_ACCEPTED.lines[0]!.tiers,
+          tiers: QUOTE_ACCEPTED.lines[0]?.tiers ?? [],
           version: 1,
         }),
       },

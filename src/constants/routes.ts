@@ -17,6 +17,11 @@ export const ADMIN_ROUTES = {
     detail: (id: string) => `${ADMIN_BASE}/customers/${id}`,
     list: `${ADMIN_BASE}/customers`,
   },
+  /** Hộp thư chat của Sale (WF-02 pha E2). */
+  chat: {
+    list: `${ADMIN_BASE}/chat`,
+    detail: (id: string) => `${ADMIN_BASE}/chat/${id}`,
+  },
   quotes: {
     create: `${ADMIN_BASE}/quotes/create`,
     /** Tạo báo giá cho một khách chọn sẵn (nút "Tạo báo giá" ở chi tiết khách). */

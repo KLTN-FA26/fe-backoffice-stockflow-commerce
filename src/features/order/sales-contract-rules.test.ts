@@ -15,7 +15,7 @@ import {
 import { salesContractDtoSchema } from "./sales-contract-schemas";
 
 const contract = salesContractDtoSchema.parse(contractDraft);
-const LINE = contract.deliverySchedule[0]!.lines[0]!.orderLineId;
+const LINE = contract.deliverySchedule[0]?.lines[0]?.orderLineId ?? "";
 const sales = () => true;
 const accountant = (code: string) => code === SALES_CONTRACT_PERMISSIONS.read;
 const signerOnly = (code: string) => code === SALES_CONTRACT_PERMISSIONS.approve;

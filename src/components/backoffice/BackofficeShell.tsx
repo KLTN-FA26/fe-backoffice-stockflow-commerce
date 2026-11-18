@@ -15,6 +15,7 @@ import {
   Database,
   FileBox,
   FileSignature,
+  MessagesSquare,
   FileText,
   FlaskConical,
   FolderTree,
@@ -81,6 +82,7 @@ import {
   PRODUCT_PERMISSIONS,
   PRODUCTION_ORDER_PERMISSIONS,
   QUOTE_PERMISSIONS,
+  CHAT_PERMISSIONS,
   SAMPLE_REQUEST_PERMISSIONS,
   PUT_BACK_LABELS,
   SHIPMENT_PERMISSIONS,
@@ -405,6 +407,13 @@ export const NAV_GROUPS: NavGroup[] = [
         href: ADMIN_ROUTES.quotes.list,
         icon: FileSignature,
         permission: QUOTE_PERMISSIONS.viewPage,
+      },
+      {
+        label: "Chat với khách",
+        href: ADMIN_ROUTES.chat.list,
+        icon: MessagesSquare,
+        // BE `chat-conversations:VIEW_PAGE` (seed: SALES_STAFF, SALES_MANAGER, SYSTEM_ADMIN)
+        permission: CHAT_PERMISSIONS.viewPage,
       },
       {
         label: "Yêu cầu mẫu",

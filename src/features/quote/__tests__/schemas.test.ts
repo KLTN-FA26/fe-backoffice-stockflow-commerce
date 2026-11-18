@@ -41,7 +41,8 @@ describe("quote DTO (BE QuoteResponse, seed QT-20261120-9001)", () => {
 });
 
 describe("TC-F03-02 — line amount and totals", () => {
-  const line = QUOTE_ACCEPTED.lines[0]!;
+  const [line] = QUOTE_ACCEPTED.lines;
+  if (!line) throw new Error("fixture thiếu dòng");
   it("line amount = cartons × units per carton × tier price, as BE", () => {
     const price = tierPrice(line.tiers, 60);
     expect(price).toBe(1150);

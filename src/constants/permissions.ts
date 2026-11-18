@@ -91,6 +91,17 @@ export const ORDER_DELIVERY_BATCH_PERMISSIONS = {
  * - `update`: Sale dời cửa sổ giao (`POST /orders/{id}/delivery-batches/{batchId}/window-change`, docs 17 BR-28 "chỉ
  *   Sale"). Seed BE: SALES_STAFF + SYSTEM_ADMIN (PermissionMatrixTest).
  */
+/**
+ * Chat Sale ↔ khách — resource `chat-conversations` (BE StaffChatController, seed V20261124000300: SALES_STAFF,
+ * SALES_MANAGER, SYSTEM_ADMIN đủ VIEW_PAGE / READ / CREATE / UPDATE). Giám sát (`chat-supervision`) chỉ quản lý.
+ */
+export const CHAT_PERMISSIONS = {
+  viewPage: "chat-conversations:VIEW_PAGE",
+  read: "chat-conversations:READ",
+  create: "chat-conversations:CREATE",
+  update: "chat-conversations:UPDATE",
+} as const;
+
 export const SALES_CONTRACT_PERMISSIONS = {
   read: "sales-contracts:READ",
   // WF-02 pha B: lập hợp đồng nháp (`POST /orders/{id}/contract`)
