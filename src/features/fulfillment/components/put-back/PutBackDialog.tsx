@@ -45,15 +45,20 @@ export function PutBackDialog({ row, onClose }: { row: PutBackRow; onClose: () =
   // Không tải được sơ đồ kho → chỉ còn bin đã lấy ra (BE vẫn kiểm bin: sai thì PUT_BACK_LOCATION_INVALID); thùng
   // cách ly thì không có gợi ý nào — người dùng gõ mã khu cách ly
   const fallback = locations.isError && !quarantine;
+  // Không bin nào của kho vừa thùng → BE cho cất vào khu tạm OVERFLOW (docs 07 BR-12)
+  const overflow = row.overflowLocationCodes ?? [];
   const options = fallback
-    ? [{ value: row.fromLocationCode, label: row.fromLocationCode }]
-    : putBackLocationOptions(locations.data, quarantine);
+    ? [
+        { value: row.fromLocationCode, label: row.fromLocationCode },
+        ...putBackLocationOptions(undefined, false, overflow),
+      ]
+    : putBackLocationOptions(locations.data, quarantine, overflow);
   // Chưa chọn gì → mặc định bin đã lấy ra (khi danh sách bin đã tải và bin đó còn dùng được)
   const locationCode =
     picked ??
     (fallback
       ? row.fromLocationCode
-      : defaultPutBackLocation(row.fromLocationCode, locations.data, quarantine));
+      : defaultPutBackLocation(row.fromLocationCode, locations.data, quarantine, overflow));
 
   const submit = () => {
     if (putBack.isPending) return;
@@ -117,6 +122,11 @@ export function PutBackDialog({ row, onClose }: { row: PutBackRow; onClose: () =
         )}
         {quarantine && (
           <Alert tone="info" title={P.quarantineHint}>
+            {null}
+          </Alert>
+        )}
+        {overflow.length > 0 && !quarantine && (
+          <Alert tone="info" title={P.overflowHint}>
             {null}
           </Alert>
         )}

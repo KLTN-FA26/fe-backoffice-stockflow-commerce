@@ -13,7 +13,7 @@ import { toast } from "@/components/shared/Toast";
 
 import { LPN_1, PICK_LINE_1, apiPickLines } from "../__fixtures__/pick-lines";
 import { linePath, renderPickingDetail } from "../__fixtures__/picking-detail";
-import { IDENTITIES, pickInputComboboxOption } from "../__fixtures__/render";
+import { IDENTITIES, pickInputComboboxOption, pickSelectOption } from "../__fixtures__/render";
 import { OTHER_PICKER_ID, TASK_ID, apiTask, stagedTask } from "../__fixtures__/task";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
@@ -181,5 +181,99 @@ describe("Chuyển cả task sang khu xuất hàng — action-gating (docs 07 §
       expect(error).toHaveBeenCalledWith(FULFILLMENT_ERROR_MESSAGES.dispatchConflict),
     );
     await waitFor(() => expect(reads()).toBeGreaterThan(before));
+  });
+});
+
+describe("Thùng ở khu chờ xuất bị thiếu — task Staged (docs 20 §4.9 bước 4, BE reportShort / reallocateShort)", () => {
+  it("quản lý kho làm thay NV được gán: dòng Staged có nút Báo thiếu → POST short {khu chờ xuất, lý do}; dòng thành Thiếu, có ghi chú đơn tạm giữ", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(toast, "success").mockImplementation(() => "");
+    const { post } = renderPickingDetail(
+      IDENTITIES.warehouseManager,
+      stagedTask({ assignedUserId: OTHER_PICKER_ID }),
+      { lines: stagedLines() },
+    );
+    const table = await screen.findByRole("table", { name: L.sectionTitle });
+    const buttons = within(table).getAllByRole("button", { name: L.shortAction });
+    expect(buttons).toHaveLength(3);
+    await user.click(buttons[0] as HTMLElement);
+    const dialog = await screen.findByRole("dialog");
+    // Thùng đứng ở khu chờ xuất nên dialog nói khu đó, không phải bin đã lấy ra
+    expect(dialog).toHaveTextContent("HN-STAGE-01");
+    await pickInputComboboxOption(user, L.location, "HN-STAGE-01");
+    await pickSelectOption(user, L.shortReason, L.shortReasons.NOT_FOUND);
+    await user.click(within(dialog).getByRole("button", { name: L.shortAction }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(
+        linePath(PICK_LINE_1, "short"),
+        { locationCode: "HN-STAGE-01", reason: "NOT_FOUND" },
+        { headers: { "Idempotency-Key": expect.any(String) } },
+      ),
+    );
+    expect(await screen.findByText(L.onHoldForShort(1))).toBeInTheDocument();
+  });
+
+  it("dòng Thiếu của task Staged: quản lý kho phân bổ lại được; NV kho được gán thì không", async () => {
+    const lines = stagedLines().map((line, index) =>
+      index === 0 ? { ...line, status: "SHORT" as const, shortQty: line.allocatedQty } : line,
+    );
+    const view = renderPickingDetail(IDENTITIES.warehouseManager, stagedTask(), { lines });
+    expect(await screen.findByText(L.onHoldForShort(1))).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: new RegExp(L.reallocate) })).toHaveLength(1);
+    expect(view.post).not.toHaveBeenCalled();
+  });
+
+  it("NV kho không được gán không báo thiếu thùng ở khu chờ xuất", async () => {
+    renderPickingDetail(
+      IDENTITIES.warehouseStaff,
+      stagedTask({ assignedUserId: OTHER_PICKER_ID }),
+      {
+        lines: stagedLines(),
+      },
+    );
+    await screen.findByRole("table", { name: L.sectionTitle });
+    expect(screen.queryByRole("button", { name: L.shortAction })).toBeNull();
+  });
+});
+
+describe("Đổi đích lấy hàng khi task còn Pending (BE PUT /tasks/{id}/destination, docs 07 §4.1 bước 3)", () => {
+  it("quản lý kho: Đổi đích → chọn khu chờ xuất → PUT {destination, stagingLocationCode}; nút khoá khi chưa đổi gì", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(toast, "success").mockImplementation(() => "");
+    const { put } = renderPickingDetail(IDENTITIES.warehouseManager, apiTask());
+    await user.click(await screen.findByRole("button", { name: action.changeDestination }));
+    const dialog = await screen.findByRole("dialog");
+    const submit = within(dialog).getByRole("button", { name: action.changeDestination });
+    expect(submit).toBeDisabled();
+    await user.click(within(dialog).getByRole("radio", { name: new RegExp(D.STAGING) }));
+    await waitFor(() => expect(submit).toBeEnabled());
+    await user.click(submit);
+    await waitFor(() =>
+      expect(put).toHaveBeenCalledWith(`${PATH}/destination`, {
+        destination: "STAGING",
+        stagingLocationCode: "HN-STAGE-01",
+      }),
+    );
+  });
+
+  it("task đã bắt đầu lấy hàng hoặc người không có task-assignment:UPDATE → không có nút Đổi đích", async () => {
+    renderPickingDetail(IDENTITIES.warehouseManager, stagingPicking());
+    await screen.findByText(L.confirmTitle(1));
+    expect(screen.queryByRole("button", { name: action.changeDestination })).toBeNull();
+  });
+
+  it("409 PICK_TASK_STATE_CONFLICT → câu báo trong dialog, dialog vẫn mở", async () => {
+    const user = userEvent.setup();
+    const view = renderPickingDetail(IDENTITIES.warehouseManager, apiTask());
+    view.put.mockImplementation(() => {
+      throw new ApiError(409, "PICK_TASK_STATE_CONFLICT", "x");
+    });
+    await user.click(await screen.findByRole("button", { name: action.changeDestination }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("radio", { name: new RegExp(D.STAGING) }));
+    await user.click(within(dialog).getByRole("button", { name: action.changeDestination }));
+    expect(
+      await within(dialog).findByText(FULFILLMENT_ERROR_MESSAGES.destinationConflict),
+    ).toBeInTheDocument();
   });
 });

@@ -533,6 +533,7 @@ export const UI_LABELS = {
     action: {
       create: "Tạo task lấy hàng",
       assign: "Gán lại",
+      changeDestination: "Đổi đích",
       startPicking: "Bắt đầu lấy hàng",
       completePicking: "Hoàn tất lấy hàng",
       moveToDispatch: "Chuyển sang khu xuất hàng",
@@ -568,9 +569,8 @@ export const UI_LABELS = {
       empty: "Không có đơn nào chờ xuất kho",
       emptyTitle: "Chưa có đơn nào chờ xuất kho",
       emptyDescription:
-        "Chỉ đơn đã release (sẵn sàng xuất kho) và chưa có task mới hiện ở đây. Đơn mới xác nhận cần release trước.",
+        "Chỉ đơn đã release (sẵn sàng xuất kho) và chưa có task — kể cả đợt giao kế tiếp đã release — mới hiện ở đây. Đơn mới xác nhận cần release trước.",
       loadFailed: "Không tải được danh sách đơn hàng chờ xuất kho.",
-      printed: "Có dòng in",
       guestCustomer: "Khách vãng lai",
       truncated: (shown: number, total: number) =>
         `Chỉ hiện ${shown}/${total} đơn cũ nhất đang chờ — tạo task cho các đơn này trước để thấy tiếp.`,
@@ -648,6 +648,8 @@ export const FULFILLMENT_ERROR_MESSAGES = {
     "Task không còn ở trạng thái Đã tập kết (khu chờ xuất) nên không chuyển được. Dữ liệu đã được tải lại.",
   orderNotFound: "Không tìm thấy đơn hàng",
   assignConflict: "Chỉ gán lại được khi task chưa bắt đầu lấy hàng. Dữ liệu đã được tải lại.",
+  // 409 PICK_TASK_STATE_CONFLICT khi đổi đích: task đã bắt đầu lấy hàng (docs 07 §4.1 bước 3, BR-08)
+  destinationConflict: "Chỉ đổi đích được khi task chưa bắt đầu lấy hàng. Dữ liệu đã được tải lại.",
   assigneeInvalid: "Người được gán phải là nhân viên kho hoặc quản lý kho đang hoạt động",
   VALIDATION_FAILED: "Dữ liệu không hợp lệ",
   FORBIDDEN: "Bạn không có quyền thực hiện thao tác này",
@@ -975,6 +977,7 @@ export const TOAST_MESSAGES = {
     // BE trả lại task đã có của đơn (vẫn 201) thay vì tạo mới
     alreadyExists: "Đơn này đã có task và đang gán cho người khác — không tạo task mới",
     assigned: "Đã gán task",
+    destinationChanged: "Đã đổi đích lấy hàng",
     pickingStarted: "Đã bắt đầu lấy hàng",
     pickingCompleted: "Đã hoàn tất lấy hàng",
     held: "Lệch checksum thiết kế — kiện bị giữ, chờ kiểm tra lại thiết kế",

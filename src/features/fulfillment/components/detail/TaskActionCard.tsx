@@ -20,16 +20,17 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
 
-import { AssignDialog } from "../assign/AssignDialog";
 import { taskCode } from "../primitives";
 import {
   ACTION_ICON,
   CONFIRM_COPY,
   DEFAULT_ACTION_ICON,
   isConfirmCode,
+  isSecondaryCode,
   scopeActions,
 } from "./action-config";
 import { noActionText } from "./no-action-text";
+import { SecondaryDialog } from "./SecondaryDialog";
 
 import type { FulfillmentActionCode, FulfillmentActor } from "@/features/fulfillment/lifecycle";
 import type { FulfillmentTask } from "@/features/fulfillment/types";
@@ -106,8 +107,8 @@ export function TaskActionCard({
             <Button
               key={action.code}
               type="button"
-              // Thao tác đổi trạng thái là nút chính (nền brand); gán lại là nút phụ
-              variant={action.code === "assign" ? "outline" : "default"}
+              // Thao tác đổi trạng thái là nút chính (nền brand); gán lại / đổi đích là nút phụ
+              variant={isSecondaryCode(action.code) ? "outline" : "default"}
               size="sm"
               disabled={pending}
               onClick={() => setDialog(action.code)}
@@ -143,7 +144,7 @@ export function TaskActionCard({
           onConfirm={() => mutations[confirming].mutate(task.taskId, callbacks)}
         />
       )}
-      {dialog === "assign" && <AssignDialog task={task} onClose={() => setDialog(null)} />}
+      <SecondaryDialog code={dialog} task={task} onClose={() => setDialog(null)} />
     </section>
   );
 }

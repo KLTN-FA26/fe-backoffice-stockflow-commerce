@@ -12,7 +12,8 @@ import { bePageSchema } from "@/lib/api/page-schema";
  * BE `PutBackRowResponse` — thùng đã lấy (hoặc đã về khu chờ xuất) cho đơn bị huỷ sau đó, còn ở ngoài kệ (docs 07
  * BR-05), hoặc thùng bị loại ở trạm kiểm vì hư hỏng (docs 08 §4.2 bước 4). `lpn`: mã thùng phải quét để cất lại.
  * `fromLocationCode`: nơi thùng đang đứng — bin đã lấy ra (vị trí tự nhiên để trả về), hoặc khu chờ xuất với dòng
- * Staged. `quarantine`: thùng hư hỏng vào khu cách ly của kho, không về bin.
+ * Staged. `quarantine`: thùng hư hỏng vào khu cách ly của kho, không về bin. `overflowLocationCodes`: khu tạm
+ * `OVERFLOW` của kho khi không bin nào vừa thùng — cất vào đó thay cho bin.
  */
 export const bePutBackRowSchema = z.object({
   taskId: z.string(),
@@ -27,6 +28,8 @@ export const bePutBackRowSchema = z.object({
   // Instant của BE — null thì Jackson bỏ field; một dòng thiếu mốc không được làm hỏng cả trang
   pickedAt: z.string().nullish(),
   quarantine: z.boolean().nullish(),
+  // Khu tạm OVERFLOW của kho — chỉ có khi không bin nào vừa thùng (docs 07 BR-12, 05 BR-13); vắng = còn bin vừa
+  overflowLocationCodes: z.array(z.string()).nullish(),
 });
 
 export const bePutBackRowPageSchema = bePageSchema(bePutBackRowSchema);

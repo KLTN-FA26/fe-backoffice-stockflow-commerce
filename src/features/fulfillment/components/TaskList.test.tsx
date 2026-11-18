@@ -258,13 +258,12 @@ describe("Tạo task lấy hàng", () => {
     const dialog = await screen.findByRole("dialog");
     // Chưa chọn đơn → chưa biết kho → chưa gọi danh sách người nhận
     expect(spies.get.mock.calls.some(([url]) => url === "/fulfillment/assignees")).toBe(false);
-    // Mỗi lựa chọn: số đơn, tên khách, số dòng / số lượng, ngày đặt, dấu "có dòng in"
+    // Mỗi lựa chọn: số đơn, tên khách, số dòng / số lượng, ngày đặt
     await user.click(await screen.findByRole("combobox", { name: "Đơn hàng" }));
     const option = await screen.findByRole("option", { name: /SO-20261010-000431/ });
     expect(option).toHaveTextContent("Nguyễn Hoài Nam");
     expect(option).toHaveTextContent("2 dòng · 5 sản phẩm");
     expect(option).toHaveTextContent("Đặt 9 thg 10, 2026");
-    expect(option).toHaveTextContent(fulfillment.candidate.printed);
     await user.click(option);
     await pickSelectOption(user, "Người được gán", /Hoàng Anh Tuấn/);
     await user.click(within(dialog).getByRole("button", { name: fulfillment.action.create }));

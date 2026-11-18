@@ -100,7 +100,7 @@ export function renderPickingDetail(
               ],
             },
           ],
-          areas: [{ locationCode: "HN-STAGE-01", usable: true }],
+          areas: [{ locationCode: "HN-STAGE-01", usable: true, type: "STAGING" }],
         })),
     },
     {
@@ -110,6 +110,14 @@ export function renderPickingDetail(
       [`${TASK_PATH}/dispatch-transfer`]:
         opts.dispatch ?? (() => (task = { ...task, pickStatus: "PICKED" })),
       ...lineRoutes,
+    },
+    {
+      // Đổi đích khi task còn Pending (BE `PUT …/destination`)
+      [`${TASK_PATH}/destination`]: (_: unknown, body: unknown) =>
+        (task = {
+          ...task,
+          ...(body as Pick<FulfillmentTaskApiDto, "destination" | "stagingLocationCode">),
+        }),
     },
   );
   renderFulfillmentScreen(<PickingDetail id={TASK_ID} />, opts.userId ?? PICKER_ID);

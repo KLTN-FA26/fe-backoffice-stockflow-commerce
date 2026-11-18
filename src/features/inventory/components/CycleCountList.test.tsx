@@ -1,14 +1,20 @@
-import { cleanup, screen, within } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { CYCLE_COUNT_API, CYCLE_COUNT_LABELS, CYCLE_COUNT_ROUTES } from "@/constants/cycle-count";
+import {
+  CYCLE_COUNT_API,
+  CYCLE_COUNT_CREATE_LABELS as C,
+  CYCLE_COUNT_LABELS,
+  CYCLE_COUNT_ROUTES,
+} from "@/constants/cycle-count";
 import { INVENTORY_LABELS } from "@/constants/inventory";
 import { CYCLE_COUNT_PERMISSIONS } from "@/constants/permissions";
 
 import {
+  cycleCountFixture,
   cycleCountSummaryFixture,
   inventoryEndpoint,
   inventoryPermissions,
@@ -16,6 +22,9 @@ import {
   setInventoryTestActor,
 } from "../test-support";
 import { CycleCountList } from "./CycleCountList";
+
+const navigation = vi.hoisted(() => ({ push: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => navigation }));
 
 const server = setupServer();
 const endpoint = inventoryEndpoint(CYCLE_COUNT_API.list);
@@ -31,6 +40,11 @@ const page = (items: unknown[]) => ({
 });
 beforeAll(() => {
   server.listen({ onUnhandledRequest: "error" });
+  globalThis.ResizeObserver ??= class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
   Element.prototype.hasPointerCapture ??= () => false;
   Element.prototype.releasePointerCapture ??= () => undefined;
   Element.prototype.scrollIntoView ??= () => undefined;
@@ -184,5 +198,115 @@ describe("cycle count list (docs 20 §4.2, §5.2)", () => {
     await userEvent.click(await screen.findByRole("button", { name: INVENTORY_LABELS.retry }));
     expect(await screen.findByText(CYCLE_COUNT_LABELS.noCounts)).toBeInTheDocument();
     expect(screen.queryByText("Boom")).not.toBeInTheDocument();
+  });
+});
+
+describe("planning a count by hand (docs 20 §4.2 a, BR-12)", () => {
+  const WAREHOUSE = "d0000001-0000-4000-8000-0000000000a1";
+  const ZONE = "d0000001-0000-4000-8000-0000000000a2";
+  const COUNTER = "d0000001-0000-4000-8000-0000000000a3";
+  const ok = (data: unknown) => HttpResponse.json({ success: true, data });
+  const manager = [
+    CYCLE_COUNT_PERMISSIONS.viewPage,
+    CYCLE_COUNT_PERMISSIONS.read,
+    CYCLE_COUNT_PERMISSIONS.create,
+  ];
+
+  async function chooseWarehouse(user: ReturnType<typeof userEvent.setup>, dialog: HTMLElement) {
+    await user.click(within(dialog).getByRole("combobox", { name: new RegExp(C.warehouse) }));
+    await user.click(await screen.findByRole("option", { name: "Kho Hồ Chí Minh" }));
+  }
+
+  function handlers(onPlan: (body: unknown) => Response) {
+    server.use(
+      inventoryPermissions(manager),
+      http.get(endpoint, () => ok(page([]))),
+      http.get(inventoryEndpoint("/warehouses"), () =>
+        ok(page([{ id: WAREHOUSE, prefix: "HCM", name: "Kho Hồ Chí Minh", status: "ACTIVE" }])),
+      ),
+      http.get(inventoryEndpoint(`/warehouses/${WAREHOUSE}/layout`), () =>
+        ok({ zones: [{ id: ZONE, name: "Khu A" }], shelves: [], areas: [] }),
+      ),
+      http.get(inventoryEndpoint(CYCLE_COUNT_API.assignees), () =>
+        ok([{ userId: COUNTER, displayName: "Nhân viên kho 1", roles: ["WAREHOUSE_STAFF"] }]),
+      ),
+      http.post(endpoint, async ({ request }) => onPlan(await request.json())),
+    );
+  }
+
+  beforeEach(() => {
+    navigation.push.mockClear();
+  });
+
+  it("a counter without inventory-cycle-counts:CREATE has no Lập phiếu button", async () => {
+    server.use(
+      inventoryPermissions([CYCLE_COUNT_PERMISSIONS.viewPage, CYCLE_COUNT_PERMISSIONS.read]),
+      http.get(endpoint, () => ok(page([]))),
+    );
+    renderInventory(<CycleCountList />);
+    await screen.findByText(CYCLE_COUNT_LABELS.noCounts);
+    expect(screen.queryByRole("button", { name: C.action })).toBeNull();
+  });
+
+  it("an empty scope is refused on the form and nothing is sent", async () => {
+    const plan = vi.fn(() => ok({}));
+    handlers(plan);
+    const user = userEvent.setup();
+    renderInventory(<CycleCountList />);
+    await user.click(await screen.findByRole("button", { name: C.action }));
+    const dialog = await screen.findByRole("dialog");
+    await chooseWarehouse(user, dialog);
+    await user.click(within(dialog).getByRole("button", { name: C.action }));
+    expect(await within(dialog).findByText(C.anyScope)).toBeInTheDocument();
+    expect(plan).not.toHaveBeenCalled();
+  });
+
+  it("sends the warehouse, the scope as lists, blind by default and the sheet opens; skipped cartons are told", async () => {
+    const bodies: unknown[] = [];
+    const planned = cycleCountFixture({ countNumber: "CC-NEW-1", blind: true });
+    handlers((body) => {
+      bodies.push(body);
+      return ok({ count: planned, skipped: [{ locationCode: "HCM-A01-1-B", sku: "MUG-RED" }] });
+    });
+    const user = userEvent.setup();
+    renderInventory(<CycleCountList />);
+    await user.click(await screen.findByRole("button", { name: C.action }));
+    const dialog = await screen.findByRole("dialog");
+    await chooseWarehouse(user, dialog);
+    await user.click(await within(dialog).findByRole("checkbox", { name: "Khu A" }));
+    await user.type(within(dialog).getByLabelText(C.shelves), "A01, A02");
+    await user.type(within(dialog).getByLabelText(C.skus), "MUG-RED\nMUG-BLUE");
+    await user.click(within(dialog).getByRole("button", { name: C.action }));
+    await waitFor(() =>
+      expect(navigation.push).toHaveBeenCalledWith(CYCLE_COUNT_ROUTES.detail(planned.id)),
+    );
+    expect(bodies).toEqual([
+      {
+        warehouseId: WAREHOUSE,
+        blind: true,
+        zoneIds: [ZONE],
+        shelfCodes: ["A01", "A02"],
+        locationCodes: [],
+        skus: ["MUG-RED", "MUG-BLUE"],
+      },
+    ]);
+  });
+
+  it("a scope over 500 cartons: the BE refusal reads as such, in the dialog", async () => {
+    handlers(() =>
+      HttpResponse.json(
+        { success: false, errorCode: "CYCLE_COUNT_TOO_LARGE", message: "x" },
+        { status: 422 },
+      ),
+    );
+    const user = userEvent.setup();
+    renderInventory(<CycleCountList />);
+    await user.click(await screen.findByRole("button", { name: C.action }));
+    const dialog = await screen.findByRole("dialog");
+    await chooseWarehouse(user, dialog);
+    await user.type(within(dialog).getByLabelText(C.skus), "MUG-RED");
+    await user.click(within(dialog).getByRole("button", { name: C.action }));
+    expect(await within(dialog).findByText(C.tooLarge)).toBeInTheDocument();
+    expect(navigation.push).not.toHaveBeenCalled();
   });
 });

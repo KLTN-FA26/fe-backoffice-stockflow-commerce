@@ -8,6 +8,7 @@ import {
   addCycleCountLine,
   cancelCycleCount,
   countCycleCountLine,
+  planCycleCount,
   recountCycleCount,
   submitCycleCount,
 } from "./cycle-count-api";
@@ -41,6 +42,15 @@ function useCycleCountWrite() {
     },
     client,
   };
+}
+
+// Planning adds a sheet to the lists; no stock moves, nor is anything written to the adjustments.
+export function usePlanCycleCount() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: planCycleCount,
+    onSuccess: () => client.invalidateQueries({ queryKey: [...cycleCountKeys.all, "list"] }),
+  });
 }
 
 export function useCountCycleCountLine(id: string) {

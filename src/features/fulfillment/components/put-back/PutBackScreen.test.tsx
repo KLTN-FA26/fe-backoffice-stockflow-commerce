@@ -374,6 +374,50 @@ describe("PutBackDialog — trả một dòng về kệ (BE POST …/put-back)",
     );
   });
 
+  it("không bin nào vừa thùng (BE gửi overflowLocationCodes) → dialog nói rõ, chọn sẵn khu tạm; POST vào khu tạm", async () => {
+    const user = userEvent.setup();
+    const { post } = renderScreen(IDENTITIES.warehouseStaff, {
+      rows: [
+        apiPutBackRow({ fromLocationCode: "HN-STAGE-01", overflowLocationCodes: ["HN-OVF-01"] }),
+      ],
+    });
+    const dialog = await openDialog(user);
+    expect(within(dialog).getByText(P.overflowHint)).toBeInTheDocument();
+    expect(await within(dialog).findByRole("combobox", { name: P.location })).toHaveValue(
+      "HN-OVF-01",
+    );
+    await scanLpn(user, dialog);
+    await user.click(within(dialog).getByRole("button", { name: P.action }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(
+        PUT_BACK_PATH,
+        { locationCode: "HN-OVF-01", lpn: LPN_1 },
+        { headers: { "Idempotency-Key": expect.any(String) } },
+      ),
+    );
+  });
+
+  it("còn bin vừa thùng (không có overflowLocationCodes) → không gợi ý khu tạm", async () => {
+    const user = userEvent.setup();
+    renderScreen(IDENTITIES.warehouseStaff);
+    const dialog = await openDialog(user);
+    expect(within(dialog).queryByText(P.overflowHint)).toBeNull();
+  });
+
+  it("PUT_BACK_OVERFLOW_NOT_ALLOWED (409, BR-12) → lỗi dưới ô Vị trí trả: cất vào bin", async () => {
+    const user = userEvent.setup();
+    renderScreen(IDENTITIES.warehouseStaff, {
+      putBack: () => {
+        throw new ApiError(409, "PUT_BACK_OVERFLOW_NOT_ALLOWED", "x");
+      },
+    });
+    const dialog = await openDialog(user);
+    await within(dialog).findByDisplayValue("HN-A01-01-01-A");
+    await scanLpn(user, dialog);
+    await user.click(within(dialog).getByRole("button", { name: P.action }));
+    expect(await within(dialog).findByText(PE.overflowNotAllowed)).toBeInTheDocument();
+  });
+
   it("bin cũ không dùng được → ô trống, chỉ liệt kê bin dùng được", async () => {
     const user = userEvent.setup();
     renderScreen(IDENTITIES.warehouseStaff, {

@@ -93,7 +93,13 @@ export function ShortPickDialog({
     <FormDialog open onOpenChange={(open) => !open && onClose()}>
       <FormDialogBody
         title={L.shortTitle}
-        description={L.target(line.locationCode, line.lpn, line.sku, line.allocatedQty)}
+        // Thùng đã về khu chờ xuất thì quét khu chờ, không phải bin lấy ra (BE `PickList.expectedAt`)
+        description={L.target(
+          line.stagedLocationCode ?? line.locationCode,
+          line.lpn,
+          line.sku,
+          line.allocatedQty,
+        )}
         submitLabel={L.shortAction}
         canSubmit
         isPending={report.isPending}

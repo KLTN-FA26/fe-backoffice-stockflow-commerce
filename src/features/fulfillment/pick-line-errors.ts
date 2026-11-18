@@ -160,6 +160,8 @@ export function putBackError(
       };
     case "CARTON_DOES_NOT_FIT_BIN":
       return { field: "locationCode", message: M.doesNotFit, stale: false };
+    case "PUT_BACK_OVERFLOW_NOT_ALLOWED":
+      return { field: "locationCode", message: M.overflowNotAllowed, stale: false };
     case "PICK_ITEM_MISMATCH":
       return {
         field: "lpn",

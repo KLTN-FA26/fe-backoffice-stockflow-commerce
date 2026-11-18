@@ -7,6 +7,8 @@ import { SHARED_QUERY_ROOTS } from "./query-roots";
  */
 export const CYCLE_COUNT_API = {
   list: "/inventory/cycle-counts",
+  // Lập phiếu = POST vào `list`; người đếm chọn được của một kho (cần `inventory-cycle-counts:CREATE`)
+  assignees: "/inventory/cycle-counts/assignees",
   detail: (id: string) => `/inventory/cycle-counts/${encodeURIComponent(id)}`,
   line: (id: string, lineId: string) =>
     `/inventory/cycle-counts/${encodeURIComponent(id)}/lines/${encodeURIComponent(lineId)}/count`,
@@ -48,6 +50,13 @@ export const CYCLE_COUNT_TRIGGER_LABELS = {
 export const CYCLE_COUNT_LIMITS = {
   // Docs 20 BR-12: tối đa 500 dòng đếm (thùng) cho một phiếu.
   maxLines: 500,
+  // BE `PlanCycleCountRequest.Scope`: số khu / kệ / mã vị trí / SKU tối đa của một phiếu (docs 20 BR-12)
+  maxZones: 50,
+  maxShelves: 200,
+  maxLocations: 500,
+  maxSkus: 200,
+  shelfLength: 20,
+  skuLength: 64,
   lpnLength: 30,
   locationLength: 64,
   reasonLength: 500,
@@ -159,6 +168,38 @@ export const CYCLE_COUNT_LABELS = {
 } as const;
 
 // Backend develop df34c338 ErrorCode.java. Never show the backend `message`: English prose, not a contract.
+/** Form lập phiếu kiểm kê tay (docs 20 §4.2 a, BR-12) — BE `POST /inventory/cycle-counts`. */
+export const CYCLE_COUNT_CREATE_LABELS = {
+  action: "Lập phiếu",
+  title: "Lập phiếu kiểm kê",
+  description:
+    "Chọn kho và phạm vi cần đếm: khu, kệ, vị trí hoặc SKU. Phiếu tối đa 500 thùng; thùng đang nằm trên phiếu khác sẽ được bỏ qua.",
+  warehouse: "Kho",
+  warehousePlaceholder: "Chọn kho",
+  scope: "Phạm vi kiểm kê",
+  zones: "Khu",
+  zonesEmpty: "Kho chưa có khu nào.",
+  shelves: "Kệ",
+  shelvesHint: "Mã kệ, cách nhau bằng dấu phẩy hoặc xuống dòng. Ví dụ: A01, A02",
+  locations: "Vị trí (bin)",
+  locationsHint: "Mã vị trí đầy đủ, cách nhau bằng dấu phẩy hoặc xuống dòng. Ví dụ: HCM-A01-1-B",
+  skus: "SKU",
+  skusHint:
+    "Mã SKU, cách nhau bằng dấu phẩy hoặc xuống dòng. Chỉ SKU thì đếm mọi bin đang chứa SKU đó.",
+  blindHint: "Người đếm không thấy số sổ sách. Nên bật.",
+  counter: "Người đếm",
+  counterPlaceholder: "Chưa giao người đếm",
+  counterHint: "Có thể giao sau, trước khi bắt đầu đếm.",
+  anyScope: "Chọn ít nhất một khu, kệ, vị trí hoặc SKU.",
+  tooMany: (label: string, max: number) => `${label}: tối đa ${max} mục.`,
+  tooLongCode: (max: number) => `Mỗi mã tối đa ${max} ký tự.`,
+  warehouseRequired: "Chọn kho cần kiểm kê.",
+  planned: (number: string) => `Đã lập phiếu kiểm kê ${number}`,
+  skipped: (count: number) =>
+    `${count} thùng không đưa vào phiếu vì đang nằm trên phiếu kiểm kê khác hoặc đang chờ duyệt.`,
+  tooLarge: "Phạm vi quá lớn: mỗi phiếu tối đa 500 thùng. Hãy thu hẹp phạm vi rồi lập nhiều phiếu.",
+} as const;
+
 export const CYCLE_COUNT_ERROR_MESSAGES = {
   notOpen: "Phiếu kiểm kê đã nộp hoặc đã huỷ nên không đếm thêm được.",
   notAssignee: "Phiếu này đã giao cho người khác đếm.",

@@ -23,8 +23,9 @@ const TASK_CANDIDATES_PATH = "/fulfillment/task-candidates";
 
 /**
  * Đơn đưa được vào xuất kho (BE `GET /fulfillment/task-candidates`, guard
- * `fulfillment-task-assignment:CREATE`): chỉ đơn READY_TO_FULFILL chưa có task — đơn CONFIRMED phải
- * release trước (BE PR #133, FulfillmentServiceImpl#createTask) — cũ nhất trước. Không cần
+ * `fulfillment-task-assignment:CREATE`): đơn READY_TO_FULFILL chưa có task, và đơn PARTIALLY_FULFILLED có đợt giao kế
+ * tiếp đã release mà chưa có task (docs 07 BR-07) — đơn CONFIRMED phải release trước (BE PR #133,
+ * FulfillmentServiceImpl#createTask) — cũ nhất trước. Không cần
  * `sales-orders:READ`. Bỏ `warehouseId` thì người gọi bị giới hạn kho nhận mọi kho của mình.
  */
 export async function listTaskCandidates(

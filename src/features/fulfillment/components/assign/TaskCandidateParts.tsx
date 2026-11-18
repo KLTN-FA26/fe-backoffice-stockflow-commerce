@@ -5,7 +5,6 @@ import { ApiError } from "@/lib/api/error";
 import { formatDate } from "@/lib/format";
 import { fulfillmentErrorMessage } from "@/features/fulfillment/errors";
 import { Alert } from "@/components/shared/Alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 import { MONO } from "../primitives";
@@ -14,9 +13,6 @@ import type { TaskCandidate } from "@/features/fulfillment/types";
 
 const { fulfillment, loadError, common } = UI_LABELS;
 const { candidate: candidateCopy } = fulfillment;
-
-/** Có dòng in tuỳ chỉnh (BE `lines[].printed`) — cần chú ý khi lấy hàng / đóng gói. */
-const hasPrintedLines = (candidate: TaskCandidate) => candidate.lines.some((line) => line.printed);
 
 const customerOf = (candidate: TaskCandidate) =>
   candidate.customerName || candidateCopy.guestCustomer;
@@ -31,18 +27,13 @@ export function CandidateSummary({ candidate }: { candidate: TaskCandidate }) {
   );
 }
 
-/** Một dòng trong danh sách: số đơn, khách, số dòng / số lượng, ngày đặt, dấu "có dòng in". */
+/** Một dòng trong danh sách: số đơn, khách, số dòng / số lượng, ngày đặt. */
 export function CandidateOption({ candidate }: { candidate: TaskCandidate }) {
   return (
     <span className="flex min-w-0 flex-col items-start gap-0.5">
       <span className="flex items-center gap-2">
         <span className={MONO}>{candidate.orderNumber}</span>
         <span className="truncate">{customerOf(candidate)}</span>
-        {hasPrintedLines(candidate) && (
-          <Badge variant="outline" className="text-[0.6875rem]">
-            {candidateCopy.printed}
-          </Badge>
-        )}
       </span>
       <span className="text-ink-tertiary text-xs">
         {candidateCopy.summary(candidate.lineCount, candidate.totalQuantity)}

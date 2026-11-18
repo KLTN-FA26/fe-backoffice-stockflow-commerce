@@ -40,7 +40,7 @@ export interface FulfillmentGateState {
 }
 
 export type FulfillmentActionCode =
-  "assign" | "startPicking" | "completePicking" | "moveToDispatch";
+  "assign" | "changeDestination" | "startPicking" | "completePicking" | "moveToDispatch";
 
 interface StatusGate<S extends string> {
   readonly from: readonly S[];
@@ -67,6 +67,15 @@ export const FULFILLMENT_ACTIONS: readonly FulfillmentAction[] = [
     permission: ASSIGNMENT.update,
     assigneeOnly: false,
     // BE `PickJpaEntity#assign`: chỉ gán khi pick còn PENDING
+    pick: { from: [PICK_STATUS.PENDING] },
+  },
+  {
+    code: "changeDestination",
+    label: LABEL.changeDestination,
+    // BE `PUT /tasks/{id}/destination` — fulfillment-task-assignment:UPDATE (docs 07 §4.1 bước 3, BR-08); chỉ khi
+    // pick còn PENDING (`PickJpaEntity#changeDestination`, 409 PICK_TASK_STATE_CONFLICT)
+    permission: ASSIGNMENT.update,
+    assigneeOnly: false,
     pick: { from: [PICK_STATUS.PENDING] },
   },
   {

@@ -1,7 +1,11 @@
 import type { z } from "zod";
 
 import type { PackStatus, PickLineStatus, PickStatus } from "@/constants";
-import type { assignInputSchema, createTaskInputSchema } from "./input-schemas";
+import type {
+  assignInputSchema,
+  changeDestinationInputSchema,
+  createTaskInputSchema,
+} from "./input-schemas";
 import type {
   bePickLineSchema,
   confirmPickInputSchema,
@@ -40,6 +44,12 @@ export type CreateTaskValues = z.input<typeof createTaskInputSchema>;
 export type AssignValues = z.output<typeof assignInputSchema>;
 
 export interface AssignTaskInput extends AssignValues {
+  taskId: string;
+}
+
+export type ChangeDestinationValues = z.input<typeof changeDestinationInputSchema>;
+
+export interface ChangeDestinationInput extends ChangeDestinationValues {
   taskId: string;
 }
 
