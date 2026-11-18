@@ -102,13 +102,16 @@ export const recountCycleCountInput = z.object({
 });
 
 // PlanCycleCountRequest (docs 20 §4.2 a1, BR-12): the warehouse, one scope - zones, shelves by their own code, full
-// bin codes and SKUs, at least one of them - blind or not, and who counts, if already known. Date and note are left
-// out: the BE defaults the day to today.
+// bin codes and SKUs, at least one of them - blind or not, who counts if already known, the day (today when absent) and a
+// note: every field docs 20 §3 lists for a sheet planned by hand.
 export const planCycleCountInput = z
   .object({
     warehouseId: beUuid,
     blind: z.boolean(),
     assignedUserId: beUuid.optional(),
+    // Docs 20 §3: "Ngày kiểm, ghi chú - mặc định hôm nay; ghi chú ≤ 500 ký tự" (the BE defaults an absent day to today)
+    plannedDate: z.iso.date().optional(),
+    note: z.string().trim().max(CYCLE_COUNT_LIMITS.noteLength).optional(),
     zoneIds: z.array(beUuid).max(CYCLE_COUNT_LIMITS.maxZones),
     shelfCodes: z
       .array(z.string().min(1).max(CYCLE_COUNT_LIMITS.shelfLength))

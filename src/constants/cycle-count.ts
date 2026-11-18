@@ -187,6 +187,11 @@ export const CYCLE_COUNT_CREATE_LABELS = {
   skusHint:
     "Mã SKU, cách nhau bằng dấu phẩy hoặc xuống dòng. Chỉ SKU thì đếm mọi bin đang chứa SKU đó.",
   blindHint: "Người đếm không thấy số sổ sách. Nên bật.",
+  plannedDate: "Ngày kiểm",
+  plannedDateHint: "Mặc định hôm nay.",
+  plannedDatePlaceholder: "Hôm nay",
+  note: "Ghi chú",
+  noteHint: "Tối đa 500 ký tự.",
   counter: "Người đếm",
   counterPlaceholder: "Chưa giao người đếm",
   counterHint: "Có thể giao sau, trước khi bắt đầu đếm.",

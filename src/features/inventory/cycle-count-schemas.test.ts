@@ -159,6 +159,23 @@ describe("planCycleCountInput — PlanCycleCountRequest (docs 20 §4.2 a, BR-12)
     );
   });
 
+  it("the day (YYYY-MM-DD) and the note (at most 500 characters) are optional", () => {
+    const withSku = { ...base, skus: ["X"] };
+    expect(
+      planCycleCountInput.parse({ ...withSku, plannedDate: "2026-11-20", note: " cuối tháng " }),
+    ).toMatchObject({
+      plannedDate: "2026-11-20",
+      note: "cuối tháng",
+    });
+    expect(planCycleCountInput.safeParse({ ...withSku, plannedDate: "20/11/2026" }).success).toBe(
+      false,
+    );
+    expect(planCycleCountInput.safeParse({ ...withSku, note: "x".repeat(501) }).success).toBe(
+      false,
+    );
+    expect(planCycleCountInput.parse(withSku)).not.toHaveProperty("plannedDate");
+  });
+
   it("the counter is optional", () => {
     const parsed = planCycleCountInput.parse({ ...base, skus: ["X"], assignedUserId: LINE });
     expect(parsed.assignedUserId).toBe(LINE);

@@ -276,6 +276,7 @@ describe("planning a count by hand (docs 20 §4.2 a, BR-12)", () => {
     await user.click(await within(dialog).findByRole("checkbox", { name: "Khu A" }));
     await user.type(within(dialog).getByLabelText(C.shelves), "A01, A02");
     await user.type(within(dialog).getByLabelText(C.skus), "MUG-RED\nMUG-BLUE");
+    await user.type(within(dialog).getByLabelText(C.note), "  Kiểm kê cuối tháng ");
     await user.click(within(dialog).getByRole("button", { name: C.action }));
     await waitFor(() =>
       expect(navigation.push).toHaveBeenCalledWith(CYCLE_COUNT_ROUTES.detail(planned.id)),
@@ -284,6 +285,7 @@ describe("planning a count by hand (docs 20 §4.2 a, BR-12)", () => {
       {
         warehouseId: WAREHOUSE,
         blind: true,
+        note: "Kiểm kê cuối tháng",
         zoneIds: [ZONE],
         shelfCodes: ["A01", "A02"],
         locationCodes: [],
