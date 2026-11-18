@@ -244,8 +244,6 @@ export {
   WAREHOUSE_MAP_LIMITS,
 } from "./numbers";
 export {
-  CREDIT_REJECTION_ACTION_LABELS,
-  CREDIT_REJECTION_ACTIONS,
   ORDER_CANCELLATION_REASON_CODES,
   ORDER_CANCELLATION_REASON_LABELS,
   ORDER_PAYMENT_READ_STATUSES,
@@ -261,7 +259,6 @@ export {
   PRODUCTION_ORDER_STATUSES,
 } from "./orders";
 export type {
-  CreditRejectionAction,
   OrderCancellationReasonCode,
   OrderPaymentReadStatus,
   OrderPaymentStatus,

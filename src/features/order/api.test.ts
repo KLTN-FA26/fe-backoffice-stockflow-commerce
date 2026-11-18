@@ -586,15 +586,16 @@ describe("GET /orders — danh sách trắng tham số (BE OrderController#list)
 describe("getCreditPosition — GET /orders/credit-position/{customerId}", () => {
   it("A. gọi đúng path với UUID khách, map field vắng → null", async () => {
     const get = vi.spyOn(api, "get").mockResolvedValue({
-      data: { ...apiCreditPosition, depositPercent: undefined },
+      data: { ...apiCreditPosition, creditLimit: undefined, availableCredit: undefined },
     });
     const position = await getCreditPosition(apiCreditPosition.customerId);
     expect(get).toHaveBeenCalledWith(
       `/orders/credit-position/${apiCreditPosition.customerId}`,
       expect.anything(),
     );
-    expect(position.depositPercent).toBeNull();
-    expect(position.allowedTerms).toEqual(["PREPAID", "DEPOSIT", "CREDIT"]);
+    expect(position.creditLimit).toBeNull();
+    expect(position.availableCredit).toBeNull();
+    expect(position.oldestOverdueDueDate).toBeNull();
   });
 
   it("A. id khách không phải UUID (CUS-0007) → không bao giờ gọi BE", async () => {
@@ -631,9 +632,9 @@ describe("Idempotency-Key — chỉ thao tác ghi đơn, header riêng từng re
     ],
     [
       "từ chối công nợ",
-      () => rejectCreditHold({ id: ID, action: "CANCEL", note: "no", idempotencyKey: KEY }),
+      () => rejectCreditHold({ id: ID, note: "no", idempotencyKey: KEY }),
       `/orders/${ID}/credit-rejection`,
-      { action: "CANCEL", note: "no" },
+      { note: "no" },
     ],
   ])(
     "A/B/E. %s → đúng key trong header, body + path không đổi, key KHÔNG vào body",

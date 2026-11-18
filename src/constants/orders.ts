@@ -63,19 +63,6 @@ export const ORDER_CANCELLATION_REASON_LABELS = {
   OTHER: "Lý do khác",
 } as const satisfies Record<OrderCancellationReasonCode, string>;
 
-/** BE `CreditHoldService.RefusalAction` — xử lý khi từ chối duyệt vượt hạn mức (docs 15 §4.3). */
-export const CREDIT_REJECTION_ACTIONS = [
-  "CANCEL",
-  "SWITCH_TO_PREPAID",
-  "SWITCH_TO_DEPOSIT",
-] as const;
-
-export const CREDIT_REJECTION_ACTION_LABELS = {
-  CANCEL: "Huỷ đơn",
-  SWITCH_TO_PREPAID: "Chuyển sang trả trước 100%",
-  SWITCH_TO_DEPOSIT: "Chuyển sang đặt cọc",
-} as const satisfies Record<CreditRejectionAction, string>;
-
 /** Ràng buộc DB `production_orders.status` (docs 19 §5.1). */
 export const PRODUCTION_ORDER_STATUSES = [
   "PENDING_PREPRESS",
@@ -124,6 +111,5 @@ export type OrderPaymentTerm = (typeof ORDER_PAYMENT_TERMS)[number];
 export type OrderPaymentStatus = (typeof ORDER_PAYMENT_STATUSES)[number];
 export type OrderPaymentReadStatus = (typeof ORDER_PAYMENT_READ_STATUSES)[number];
 export type OrderCancellationReasonCode = (typeof ORDER_CANCELLATION_REASON_CODES)[number];
-export type CreditRejectionAction = (typeof CREDIT_REJECTION_ACTIONS)[number];
 export type ProductionOrderStatus = (typeof PRODUCTION_ORDER_STATUSES)[number];
 export type ProductionOrderMode = (typeof PRODUCTION_ORDER_MODES)[number];
