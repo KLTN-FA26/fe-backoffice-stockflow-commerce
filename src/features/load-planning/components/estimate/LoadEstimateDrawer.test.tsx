@@ -272,6 +272,7 @@ describe("LoadEstimateDrawer — tính ước tính (POST)", () => {
     [422, "LOAD_ESTIMATE_PACKAGING_MISSING", /Không dòng nào có đủ kích thước/],
     [422, "LOAD_ESTIMATE_TOO_MANY_CARTONS", /quá nhiều thùng/],
     [409, "LOAD_ESTIMATE_SOURCE_NOT_ELIGIBLE", /không ước tính được ở trạng thái hiện tại/],
+    [409, "LOAD_ESTIMATE_WAREHOUSE_NOT_CHOSEN", /Đơn chưa có kho xuất: chọn kho xuất cho đơn/],
     [409, "VEHICLE_TYPE_INACTIVE", /loại xe đã ngừng dùng/],
   ] as const)(
     "%s %s → câu tiếng Việt trong ngăn kéo, không lộ message tiếng Anh",

@@ -159,6 +159,9 @@ export const LOAD_ESTIMATE_ERROR_MESSAGES = {
     "Đơn có quá nhiều thùng để ước tính một lần. Hãy chia đơn hoặc lập kế hoạch xếp xe thật.",
   LOAD_ESTIMATE_SOURCE_NOT_ELIGIBLE:
     "Đơn không ước tính được ở trạng thái hiện tại, hoặc không còn gì để giao. Hãy tải lại trang đơn.",
+  /** Docs 09 §4.0 bước 1 (RTM-ESTWH 18/11): đơn phải đã có kho xuất mới ước tính được. */
+  LOAD_ESTIMATE_WAREHOUSE_NOT_CHOSEN:
+    "Đơn chưa có kho xuất: chọn kho xuất cho đơn trước khi ước tính tải.",
   LOAD_ESTIMATE_SOURCE_UNSUPPORTED: "Loại nguồn này chưa ước tính được.",
   LOAD_ESTIMATE_NOT_FOUND: "Chưa có ước tính cho đơn này.",
   VEHICLE_TYPE_INACTIVE: "Có loại xe đã ngừng dùng — bỏ chọn loại đó rồi thử lại.",
