@@ -3,6 +3,7 @@
 import { ControlledCancelPlanDialog } from "./ControlledCancelPlanDialog";
 import { EditInputsDialog } from "./EditInputsDialog";
 import { PlanStepDialog } from "./PlanStepDialog";
+import { RemoveShipmentDialog } from "./RemoveShipmentDialog";
 
 import type { PlanDetail } from "@/features/load-planning/plan-types";
 import type { PlanDialogKind } from "./PlanActions";
@@ -19,6 +20,7 @@ export function PlanDialogs({
 }) {
   if (!dialog) return null;
   if (dialog === "editInputs") return <EditInputsDialog plan={plan} onClose={onClose} />;
+  if (dialog === "removeShipment") return <RemoveShipmentDialog plan={plan} onClose={onClose} />;
   if (dialog === "cancelControlled")
     return <ControlledCancelPlanDialog plan={plan} onClose={onClose} />;
   return <PlanStepDialog plan={plan} kind={dialog} onClose={onClose} />;

@@ -5,6 +5,8 @@
  *   POST …/vehicles/{seq}/recalculation         {expectedVersion, addPackageIds?}
  *   POST …/unplaced-acknowledgement             {expectedVersion, note?}     BR-13; LP-4 → 409 ORDER_PARTIAL_SHIPMENT_NOT_ALLOWED
  *   POST …/confirmation                         {expectedVersion}            PLANNED → CONFIRMED
+ *   POST …/shipments/{shipmentId}/removal       {expectedVersion}            PLANNED: gỡ một lô, xe bị ảnh hưởng chờ tính lại;
+ *        404 LOAD_PLAN_SHIPMENT_NOT_IN_PLAN
  *   POST …/reopening · …/cancellation           {expectedVersion, reason}    BR-14 → 409 LOAD_PLAN_LOADING_STARTED
  *   POST …/controlled-cancellation              {expectedVersion, reasonCode, note}   SCRUM-474: huỷ sau khi đã xếp hàng,
  *        quyền `fulfillment-controlled-cancellations:UPDATE` (quản lý kho); 409 LOAD_PLAN_VEHICLE_DISPATCHED khi đã có xe đi
@@ -26,6 +28,7 @@ import type {
   PlanDetail,
   PlanStepInput,
   RecalculateVehicleInput,
+  RemoveShipmentInput,
 } from "./plan-types";
 
 async function post(path: string, body: Record<string, unknown>): Promise<PlanDetail> {
@@ -52,6 +55,16 @@ export function runPlanStep(step: PlanStepInput): Promise<PlanDetail> {
     case "cancel":
       return post(`${base}/cancellation`, { expectedVersion, reason: step.reason.trim() });
   }
+}
+
+/**
+ * Gỡ MỘT lô giao khỏi kế hoạch PLANNED (docs 09 §4.2 bước 9, RTM 09A-158): kiện của lô về khu chờ xuất, chỉ xe từng chở
+ * lô đó đổi — xe trống rời kế hoạch, xe còn kiện khác chờ tính lại; kế hoạch vẫn PLANNED.
+ */
+export function removeShipmentFromPlan(input: RemoveShipmentInput): Promise<PlanDetail> {
+  return post(`${loadPlanPath(input.loadPlanId)}/shipments/${input.shipmentId}/removal`, {
+    expectedVersion: input.expectedVersion,
+  });
 }
 
 /**

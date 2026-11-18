@@ -44,6 +44,11 @@ export interface LoadPlanActions {
   calculate: boolean;
   editInputs: boolean;
   recalculateVehicle: boolean;
+  /**
+   * Gỡ một lô giao khỏi kế hoạch PLANNED (docs 09 §4.2 bước 9; §5.3: Dispatch Staff, `fulfillment-load-plans:UPDATE`):
+   * kế hoạch đã chốt thì mở lại trước (BR-14). Backend re-check.
+   */
+  removeShipment: boolean;
   /** Chỉnh xếp tay `PUT …/placements` (BE `LoadPlan.editPlacements`: chỉ khi PLANNED, và phải còn xe để đặt). */
   editPlacements: boolean;
   acknowledge: boolean;
@@ -72,6 +77,7 @@ const NONE: LoadPlanActions = {
   calculate: false,
   editInputs: false,
   recalculateVehicle: false,
+  removeShipment: false,
   editPlacements: false,
   acknowledge: false,
   confirm: false,
@@ -150,6 +156,7 @@ export function loadPlanActions(plan: PlanDetail | null, actor: LoadPlanActor): 
     calculate: status === LOAD_PLAN_STATUS.DRAFT || planned,
     editInputs: status === LOAD_PLAN_STATUS.DRAFT || planned,
     recalculateVehicle: planned,
+    removeShipment: planned && plan.shipments.length > 0,
     editPlacements: planned && plan.vehicles.length > 0,
     acknowledge: planned && plan.unplacedCount > 0 && !acknowledged && !transfer,
     confirm: planned && allows(status, LOAD_PLAN_STATUS.CONFIRMED),

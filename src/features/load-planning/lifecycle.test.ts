@@ -61,6 +61,7 @@ describe("loadPlanActions — by status", () => {
       editInputs: true,
       cancel: true,
       recalculateVehicle: false,
+      removeShipment: false,
       confirm: false,
       reopen: false,
       acknowledge: false,
@@ -72,6 +73,7 @@ describe("loadPlanActions — by status", () => {
       calculate: true,
       editInputs: true,
       recalculateVehicle: true,
+      removeShipment: true,
       confirm: true,
       cancel: true,
       reopen: false,
@@ -86,6 +88,7 @@ describe("loadPlanActions — by status", () => {
       calculate: false,
       editInputs: false,
       recalculateVehicle: false,
+      removeShipment: false,
       confirm: false,
     });
   });

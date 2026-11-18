@@ -63,6 +63,11 @@ export interface RecalculateVehicleInput extends VersionedInput {
   addPackageIds?: string[];
 }
 
+/** Gỡ MỘT lô giao khỏi kế hoạch PLANNED (docs 09 §4.2 bước 9). */
+export interface RemoveShipmentInput extends VersionedInput {
+  shipmentId: string;
+}
+
 /** Huỷ có kiểm soát cả kế hoạch sau khi đã bắt đầu xếp hàng (SCRUM-474): mã lý do + ghi chú. */
 export interface ControlledCancelPlanInput extends VersionedInput {
   reasonCode: UnloadReasonCode;

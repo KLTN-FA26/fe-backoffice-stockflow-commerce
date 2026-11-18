@@ -120,7 +120,11 @@ export function registerLoadPlanMockRoutes(): void {
       const replay = [...plans.values()].find((plan) => plan.requestId === requestId);
       if (replay) return ok(planDetail(replay), 201);
       const mode = body.selectionMode === undefined ? "SINGLE_TYPE" : modeOf(body.selectionMode);
-      if (!mode) return invalid("selectionMode", "must be SINGLE_TYPE or FEWEST_VEHICLES");
+      if (!mode)
+        return invalid(
+          "selectionMode",
+          "must be SINGLE_TYPE, FEWEST_VEHICLES, KEEP_LINES or OVER_CAPACITY",
+        );
       const sourceType = body.sourceType === undefined ? "ORDER" : readString(body.sourceType);
       if (sourceType !== "ORDER" && sourceType !== "TRANSFER")
         return fail(400, "VALIDATION_FAILED", "Invalid request data", [
@@ -259,6 +263,9 @@ export function registerLoadPlanMockRoutes(): void {
     }),
   );
   step(`${PATH}/:id/calculation`, (plan) => ops.calculate(plan));
+  step(`${PATH}/:id/shipments/:shipmentId/removal`, (plan, _body, config) =>
+    ops.removeShipment(plan, routeParam(config, "shipmentId")),
+  );
   step(`${PATH}/:id/vehicles/:seq/recalculation`, (plan, body, config) =>
     ops.recalculateVehicle(plan, Number(routeParam(config, "seq")), strings(body.addPackageIds)),
   );

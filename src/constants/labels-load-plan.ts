@@ -181,9 +181,11 @@ export const LOAD_PLAN_UI_LABELS = {
       reopen: "Mở lại",
       cancel: "Huỷ kế hoạch",
       acknowledge: "Để lại các kiện chưa xếp",
+      removeShipment: "Gỡ lô giao",
     },
     needsRecalculation: "Cần tính lại",
-    needsRecalculationAlert: "Có xe vừa bị bỏ kiện (đơn bị huỷ): tính lại xe đó trước khi chốt.",
+    needsRecalculationAlert:
+      "Có xe vừa bị bỏ kiện (gỡ lô giao hoặc đơn bị huỷ): tính lại xe đó trước khi chốt.",
     vehicleSwitcher: "Chọn xe",
     vehicleTitle: (seq: number, code: string) => `Xe #${seq} · ${code}`,
     vehicleFill: "Lấp đầy thể tích",
@@ -279,6 +281,16 @@ export const LOAD_PLAN_UI_LABELS = {
       inactiveDropped: (codes: string) =>
         `Loại xe ${codes} đã ngừng dùng nên không còn trong lựa chọn; chọn loại xe khác nếu cần.`,
     },
+    removeShipment: {
+      title: "Gỡ lô giao khỏi kế hoạch",
+      description:
+        "Kiện của lô giao về lại khu chờ xuất. Chỉ xe đang chở lô đó thay đổi: xe không còn kiện bị bỏ khỏi kế hoạch, xe còn kiện khác phải tính lại trước khi chốt.",
+      confirm: "Gỡ lô giao",
+      pick: "Lô giao cần gỡ",
+      option: (code: string, order: string, packages: number) =>
+        `${code} · đơn ${order} · ${packages} kiện`,
+      required: "Chọn lô giao cần gỡ.",
+    },
     keepOpen: "Quay lại",
   },
 } as const;
@@ -294,6 +306,7 @@ export const LOAD_PLAN_TOAST_MESSAGES = {
   cancelled: "Đã huỷ kế hoạch",
   controlledCancelled: "Đã huỷ có kiểm soát kế hoạch — kiện còn trên xe cần quét dỡ xuống",
   vehicleDropped: "Đã bỏ xe khỏi kế hoạch — kiện của xe chờ kế hoạch mới",
+  shipmentRemoved: "Đã gỡ lô giao khỏi kế hoạch — tính lại xe bị ảnh hưởng trước khi chốt",
   placementsSaved: "Đã lưu bố cục xếp tay",
 } as const;
 
@@ -304,6 +317,7 @@ export const LOAD_PLAN_ERROR_MESSAGES = {
   OPTIMISTIC_LOCK:
     "Người khác vừa thay đổi kế hoạch này. Đã tải lại dữ liệu mới nhất — kiểm tra rồi thử lại.",
   LOAD_PLAN_NOT_FOUND: "Không tìm thấy kế hoạch xếp xe.",
+  LOAD_PLAN_SHIPMENT_NOT_IN_PLAN: "Lô giao này không còn trong kế hoạch. Đã tải lại kế hoạch.",
   LOAD_PLAN_VEHICLE_NOT_FOUND: "Xe này không còn trong kế hoạch. Đã tải lại dữ liệu mới nhất.",
   INVALID_LOAD_PLAN_TRANSITION:
     "Kế hoạch không làm được thao tác này ở trạng thái hiện tại. Đã tải lại dữ liệu mới nhất.",

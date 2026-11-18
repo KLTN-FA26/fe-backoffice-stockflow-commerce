@@ -135,6 +135,30 @@ export function setInputs(
   return null;
 }
 
+/**
+ * Gỡ MỘT lô giao khỏi kế hoạch PLANNED (docs 09 §4.2 bước 9; BE `removeShipment`): kiện của lô rời kế hoạch, xe chỉ chở lô
+ * đó rời kế hoạch, xe còn kiện khác chờ tính lại; các xe khác giữ nguyên bố cục, kế hoạch vẫn PLANNED.
+ */
+export function removeShipment(plan: MockPlan, shipmentId: string): Err {
+  const wrongStatus = requireStatus(plan, "PLANNED");
+  if (wrongStatus) return wrongStatus;
+  if (!plan.shipmentIds.includes(shipmentId))
+    return fail(404, "LOAD_PLAN_SHIPMENT_NOT_IN_PLAN", "This shipment is not in the load plan");
+  const parcels = parcelIndex();
+  const ofShipment = (packageId: string) => parcels.get(packageId)?.shipmentId === shipmentId;
+  plan.shipmentIds = plan.shipmentIds.filter((id) => id !== shipmentId);
+  for (const packageId of [...plan.unplaced.keys()])
+    if (ofShipment(packageId)) plan.unplaced.delete(packageId);
+  plan.vehicles = plan.vehicles.flatMap((vehicle) => {
+    const kept = vehicle.boxes.filter((box) => !ofShipment(box.packageId));
+    if (kept.length === vehicle.boxes.length) return [vehicle];
+    if (kept.length === 0) return [];
+    return [{ ...vehicle, boxes: kept, needsRecalculation: true }];
+  });
+  stamp(plan);
+  return null;
+}
+
 export function calculate(plan: MockPlan): Err {
   const wrongStatus = requireStatus(plan, "DRAFT", "PLANNED");
   if (wrongStatus) return wrongStatus;
