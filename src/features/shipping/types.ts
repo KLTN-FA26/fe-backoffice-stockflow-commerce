@@ -143,6 +143,28 @@ export interface WaybillImportFileInput {
   overwriteLines: readonly number[];
 }
 
+/**
+ * `CarrierRequest.connection` (BE `CarrierConnectionRequest`): kiểu kết nối + phần cấu hình của kiểu đó. Khoá bí mật
+ * (`webhookSecret`, `apiKey`, `webhookAuthValue`) vắng = giữ khoá đã lưu; `failureReasonMap` vắng = giữ bảng đã lưu,
+ * `{}` = xoá hết bảng.
+ */
+export type SaveCarrierConnection =
+  | { connectionType: "MANUAL"; webhookSecret?: undefined }
+  | {
+      connectionType: "WEBHOOK_LOAD";
+      webhookSecret?: string;
+      failureReasonMap?: Record<string, string>;
+    }
+  | {
+      connectionType: "API_BOOKING";
+      apiEnvironment?: string;
+      apiAccount?: string;
+      apiKey?: string;
+      webhookAuthHeader?: string;
+      webhookAuthValue?: string;
+      failureReasonMap?: Record<string, string>;
+    };
+
 /** Thân tạo / sửa hãng (BE `CarrierRequest`). `connection` vắng = giữ nguyên cấu hình kết nối hiện có. */
 export interface SaveCarrierInput {
   code: string;
@@ -150,7 +172,7 @@ export interface SaveCarrierInput {
   contactName?: string;
   contactPhone?: string;
   status: Carrier["status"];
-  connection?: { connectionType: "MANUAL" | "WEBHOOK_LOAD"; webhookSecret?: string };
+  connection?: SaveCarrierConnection;
   /** Bắt buộc khi sửa: phiên bản đã đọc. */
   version?: number;
 }

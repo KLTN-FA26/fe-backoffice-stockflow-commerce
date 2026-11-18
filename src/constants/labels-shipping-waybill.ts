@@ -4,6 +4,7 @@
  * `WaybillImportController`, `CarrierController`, `DispatchController`).
  */
 
+import { CARRIER_CONFIG_LABELS } from "./labels-carrier-config";
 import { SHIPPING_LIMITS } from "./numbers";
 
 export const SHIPPING_WAYBILL_LABELS = {
@@ -221,7 +222,7 @@ export const SHIPPING_WAYBILL_LABELS = {
       WEBHOOK_LOAD:
         "Hãng đẩy mã vận đơn, biển số, tài xế và kết quả giao về hệ thống qua webhook kèm mã chuyến, ký bằng khoá bí mật.",
       API_BOOKING:
-        "Hệ thống tạo / huỷ đơn ở hãng. Cấu hình kết nối (khoá API, điểm lấy hàng, mã dịch vụ theo loại xe) chưa chỉnh được ở màn này.",
+        "Hệ thống tạo và huỷ đơn đặt xe ở hãng qua API; hãng đẩy trạng thái đơn và từng điểm giao về qua webhook kèm thông tin xác thực trong header.",
     },
     form: {
       createTitle: "Thêm hãng vận chuyển",
@@ -238,12 +239,12 @@ export const SHIPPING_WAYBILL_LABELS = {
       webhookSecretNew: `Bắt buộc với webhook theo chuyến (${SHIPPING_LIMITS.webhookSecretMin}–${SHIPPING_LIMITS.webhookSecretMax} ký tự, không có khoảng trắng đầu / cuối). Khoá không hiển thị lại sau khi lưu.`,
       webhookSecretSaved:
         "Đã lưu khoá — để trống để giữ khoá hiện tại, hoặc nhập khoá mới để thay.",
-      apiBookingLocked:
-        "Hãng tích hợp API đặt xe: kiểu kết nối và cấu hình API giữ nguyên, chỉ sửa được thông tin chung.",
       create: "Thêm hãng",
       save: "Lưu thay đổi",
       stale: "Hãng vừa được cập nhật ở nơi khác — đã tải lại danh mục, kiểm tra rồi lưu lại.",
     },
+    /** Cấu hình hãng tích hợp API đặt xe (khoá API, mã dịch vụ, điểm lấy hàng, lý do thất bại). */
+    config: CARRIER_CONFIG_LABELS,
   },
 } as const;
 

@@ -4,7 +4,7 @@ import {
   carrierFormDefaults,
   carrierRequestBody,
   hasSavedWebhookSecret,
-  isConnectionLocked,
+  savedConnectionOf,
 } from "./carrier-form";
 
 import type { Carrier, CarrierValues } from "./types";
@@ -28,21 +28,41 @@ const values = (patch: Partial<CarrierValues> = {}): CarrierValues => ({
   status: "ACTIVE",
   connectionType: "MANUAL",
   webhookSecret: undefined,
+  apiEnvironment: undefined,
+  apiAccount: undefined,
+  apiKey: undefined,
+  webhookAuthHeader: undefined,
+  webhookAuthValue: undefined,
   ...patch,
 });
 
-describe("isConnectionLocked", () => {
-  it("chỉ hãng API đặt xe bị khoá cấu hình kết nối", () => {
-    expect(isConnectionLocked(carrier({ connection: { connectionType: "API_BOOKING" } }))).toBe(
-      true,
-    );
-    expect(isConnectionLocked(carrier({ connection: { connectionType: "WEBHOOK_LOAD" } }))).toBe(
-      false,
-    );
-    expect(isConnectionLocked(carrier({ connection: { connectionType: "MANUAL" } }))).toBe(false);
-    expect(isConnectionLocked(carrier())).toBe(false);
-    expect(isConnectionLocked(null)).toBe(false);
-    expect(isConnectionLocked(undefined)).toBe(false);
+describe("savedConnectionOf", () => {
+  it("chỉ lấy cờ đã lưu + môi trường + tài khoản; hãng mới / chưa có kết nối thì không có gì đã lưu", () => {
+    expect(savedConnectionOf(null)).toEqual({
+      apiKey: false,
+      webhookAuthValue: false,
+      apiEnvironment: null,
+      apiAccount: null,
+    });
+    expect(savedConnectionOf(carrier())).toMatchObject({ apiKey: false, webhookAuthValue: false });
+    expect(
+      savedConnectionOf(
+        carrier({
+          connection: {
+            connectionType: "API_BOOKING",
+            apiKeyConfigured: true,
+            webhookAuthValueConfigured: true,
+            apiEnvironment: "STAGING",
+            apiAccount: "0900000000",
+          },
+        }),
+      ),
+    ).toEqual({
+      apiKey: true,
+      webhookAuthValue: true,
+      apiEnvironment: "STAGING",
+      apiAccount: "0900000000",
+    });
   });
 });
 
@@ -74,6 +94,11 @@ describe("carrierFormDefaults", () => {
       status: "ACTIVE",
       connectionType: "MANUAL",
       webhookSecret: "",
+      apiEnvironment: "",
+      apiAccount: "",
+      apiKey: "",
+      webhookAuthHeader: "",
+      webhookAuthValue: "",
     });
   });
 
@@ -91,6 +116,35 @@ describe("carrierFormDefaults", () => {
       contactPhone: "0903",
       status: "INACTIVE",
       connectionType: "WEBHOOK_LOAD",
+      webhookSecret: "",
+      apiEnvironment: "",
+      apiAccount: "",
+      apiKey: "",
+      webhookAuthHeader: "",
+      webhookAuthValue: "",
+    });
+  });
+
+  it("hãng API đặt xe: điền sẵn môi trường, tài khoản, header; KHÔNG có khoá API / giá trị xác thực (chỉ đi vào)", () => {
+    const defaults = carrierFormDefaults(
+      carrier({
+        connection: {
+          connectionType: "API_BOOKING",
+          apiEnvironment: "PRODUCTION",
+          apiAccount: "0900000000",
+          webhookAuthHeader: "apikey",
+          apiKeyConfigured: true,
+          webhookAuthValueConfigured: true,
+        },
+      }),
+    );
+    expect(defaults).toMatchObject({
+      connectionType: "API_BOOKING",
+      apiEnvironment: "PRODUCTION",
+      apiAccount: "0900000000",
+      webhookAuthHeader: "apikey",
+      apiKey: "",
+      webhookAuthValue: "",
       webhookSecret: "",
     });
   });
@@ -114,8 +168,8 @@ describe("carrierFormDefaults", () => {
 });
 
 describe("carrierRequestBody", () => {
-  it("hãng chưa khoá: gửi kiểu kết nối; hãng thường không kèm khoá", () => {
-    expect(carrierRequestBody(values(), { locked: false })).toEqual({
+  it("hãng thường: gửi kiểu kết nối, không kèm khoá", () => {
+    expect(carrierRequestBody(values(), {})).toEqual({
       code: "GHN",
       name: "Giao Hàng Nhanh",
       contactName: undefined,
@@ -130,28 +184,55 @@ describe("carrierRequestBody", () => {
     const secret = "s".repeat(16);
     const withSecret = carrierRequestBody(
       values({ connectionType: "WEBHOOK_LOAD", webhookSecret: secret }),
-      { locked: false, version: 3 },
+      { version: 3 },
     );
     expect(withSecret.connection).toEqual({
       connectionType: "WEBHOOK_LOAD",
       webhookSecret: secret,
     });
     expect(withSecret.version).toBe(3);
-    const keep = carrierRequestBody(values({ connectionType: "WEBHOOK_LOAD" }), { locked: false });
+    const keep = carrierRequestBody(values({ connectionType: "WEBHOOK_LOAD" }), {});
     expect(keep.connection).toEqual({ connectionType: "WEBHOOK_LOAD", webhookSecret: undefined });
   });
 
-  it("kiểu API_BOOKING không được gửi từ form chưa khoá: coi là MANUAL", () => {
-    const body = carrierRequestBody(values({ connectionType: "API_BOOKING" }), { locked: false });
-    expect(body.connection?.connectionType).toBe("MANUAL");
+  it("API đặt xe: gửi môi trường / tài khoản / header; khoá và giá trị xác thực chỉ có khi người dùng nhập mới", () => {
+    const base = {
+      connectionType: "API_BOOKING" as const,
+      apiEnvironment: "STAGING" as const,
+      apiAccount: "0900000000",
+      webhookAuthHeader: "apikey",
+    };
+    const keep = carrierRequestBody(values(base), { version: 7 });
+    expect(keep.connection).toEqual({ ...base });
+    expect((keep.connection as { apiKey?: string }).apiKey).toBeUndefined();
+    expect((keep.connection as { webhookAuthValue?: string }).webhookAuthValue).toBeUndefined();
+    expect(keep.version).toBe(7);
+    const replaced = carrierRequestBody(
+      values({ ...base, apiKey: "k".repeat(8), webhookAuthValue: "v".repeat(16) }),
+      {},
+    );
+    expect(replaced.connection).toMatchObject({
+      apiKey: "k".repeat(8),
+      webhookAuthValue: "v".repeat(16),
+    });
   });
 
-  it("hãng API đặt xe (khoá): không có `connection` để BE giữ nguyên cấu hình", () => {
-    const body = carrierRequestBody(
-      values({ connectionType: "WEBHOOK_LOAD", webhookSecret: "s".repeat(16) }),
-      { locked: true, version: 5 },
-    );
-    expect(body).not.toHaveProperty("connection");
-    expect(body).toMatchObject({ code: "GHN", status: "ACTIVE", version: 5 });
+  it("bảng lý do giao thất bại: vắng khi chưa sửa (BE giữ), đủ bảng khi đã sửa, {} để xoá hết; kiểu không có webhook không gửi", () => {
+    const api = values({ connectionType: "API_BOOKING", apiEnvironment: "STAGING" });
+    expect(carrierRequestBody(api, {}).connection).toHaveProperty("failureReasonMap", undefined);
+    expect(
+      carrierRequestBody(api, { failureReasonMap: { "Khách vắng": "CUSTOMER_ABSENT" } }).connection,
+    ).toMatchObject({ failureReasonMap: { "Khách vắng": "CUSTOMER_ABSENT" } });
+    expect(carrierRequestBody(api, { failureReasonMap: {} }).connection).toMatchObject({
+      failureReasonMap: {},
+    });
+    expect(
+      carrierRequestBody(values({ connectionType: "WEBHOOK_LOAD" }), {
+        failureReasonMap: { a: "OTHER" },
+      }).connection,
+    ).toMatchObject({ failureReasonMap: { a: "OTHER" } });
+    expect(
+      carrierRequestBody(values(), { failureReasonMap: { a: "OTHER" } }).connection,
+    ).not.toHaveProperty("failureReasonMap");
   });
 });
