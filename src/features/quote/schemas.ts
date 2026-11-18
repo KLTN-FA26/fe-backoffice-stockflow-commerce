@@ -16,11 +16,15 @@ import { omittedOrNull } from "@/lib/validation/primitives";
 /** Bậc giá: từ `minQuantity` thùng trở lên, `unitPrice` VND một cái. */
 export const tierDtoSchema = z.object({ minQuantity: z.number().int(), unitPrice: z.number() });
 
+/**
+ * BE `TotalsBuilder`: báo giá nháp còn khoản chưa giá (vd phí khuôn chưa nhập) chỉ có `subtotal`, các phần khác null
+ * nên bị bỏ khỏi JSON (`non_null`) — đọc lỏng, màn hình chỉ coi là "đủ" khi có cả bốn.
+ */
 export const totalsDtoSchema = z.object({
   subtotal: z.number(),
-  fees: z.number(),
-  tax: z.number(),
-  total: z.number(),
+  fees: omittedOrNull(z.number()),
+  tax: omittedOrNull(z.number()),
+  total: omittedOrNull(z.number()),
 });
 
 export const quoteLineDtoSchema = z.object({

@@ -47,9 +47,14 @@ export function previewTotals(
   return { subtotal, fees: feeSum, tax, total: subtotal + feeSum + tax };
 }
 
-/** Tổng hiển thị: đã chấp nhận → `accepted`; còn lại → `proposed` (khi mọi dòng có giá). */
+/**
+ * Tổng hiển thị: đã chấp nhận → `accepted`; còn lại → `proposed`. Thiếu phí / thuế / tổng (còn khoản chưa giá, BE bỏ
+ * trường null) → null: màn hình báo "chưa đủ giá" thay vì in số thiếu.
+ */
 export function displayTotals(quote: Pick<Quote, "accepted" | "proposed">): QuoteTotals | null {
-  return quote.accepted ?? quote.proposed ?? null;
+  const totals = quote.accepted ?? quote.proposed;
+  if (!totals || totals.fees == null || totals.tax == null || totals.total == null) return null;
+  return { subtotal: totals.subtotal, fees: totals.fees, tax: totals.tax, total: totals.total };
 }
 
 export function isExpired(validUntil: string, now = Date.now()): boolean {

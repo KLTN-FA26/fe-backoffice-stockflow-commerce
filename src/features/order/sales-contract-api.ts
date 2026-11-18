@@ -86,11 +86,12 @@ export async function signSalesContract(input: {
   form.append("file", input.file);
   form.append("version", String(input.version));
   form.append("signedOn", input.signedOn);
-  const { data } = await api.post<unknown>(
-    contractPath(input.orderId, "/signature"),
-    form,
-    idempotencyRequestConfig(input.idempotencyKey),
-  );
+  // Client mặc định `application/json` → axios đổi FormData thành JSON và mất file (BE trả 400 vì route JSON cần
+  // `uploadId`); đặt multipart như các màn tải file khác.
+  const idempotency = idempotencyRequestConfig(input.idempotencyKey)?.headers ?? {};
+  const { data } = await api.post<unknown>(contractPath(input.orderId, "/signature"), form, {
+    headers: { ...idempotency, "Content-Type": "multipart/form-data" },
+  });
   return salesContractDtoSchema.parse(data);
 }
 
