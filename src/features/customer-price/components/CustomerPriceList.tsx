@@ -7,7 +7,8 @@ import {
   CUSTOMER_PERMISSIONS,
   CUSTOMER_PRICE_PERMISSIONS,
   CUSTOMER_PRICE_UI_LABELS,
-  INVENTORY_ITEM_PERMISSIONS,
+  PRODUCT_PERMISSIONS,
+  VARIANT_PERMISSIONS,
 } from "@/constants";
 import { useCan } from "@/lib/auth";
 import { useCustomerRef } from "@/lib/references/customer-options";
@@ -37,8 +38,13 @@ function CustomerPriceListContent() {
   const canLookup = useCan(CUSTOMER_PERMISSIONS.read);
   const canCreate = useCan(CUSTOMER_PRICE_PERMISSIONS.create);
   const canUpdate = useCan(CUSTOMER_PRICE_PERMISSIONS.update);
-  // Gợi ý SKU đọc hồ sơ hàng tồn — quyền khác; thiếu thì vẫn nhập SKU tay
-  const canSuggestSku = useCan(INVENTORY_ITEM_PERMISSIONS.read);
+  const canDelete = useCan(CUSTOMER_PRICE_PERMISSIONS.delete);
+  // Số cái / thùng của SKU riêng: tra SKU riêng (product-variants) + đơn vị tính (product-products)
+  const canReadSkus = useCan(VARIANT_PERMISSIONS.read);
+  const canReadUnits = useCan(PRODUCT_PERMISSIONS.read);
+  const canSeeCarton = canReadSkus && canReadUnits;
+  // Gợi ý SKU riêng của khách (`GET /customer-skus`) — quyền khác; thiếu thì vẫn nhập SKU tay
+  const canSuggestSku = useCan(VARIANT_PERMISSIONS.read);
   const selection = useSelectedCustomer();
   const { customerId } = selection;
   const [target, setTarget] = useState<PriceFormTarget | null>(null);
@@ -78,6 +84,8 @@ function CustomerPriceListContent() {
           key={customerId}
           customerId={customerId}
           canRead={canReadPrices}
+          canDelete={canDelete}
+          canSeeCarton={canSeeCarton}
           onEdit={canUpdate ? (sku) => setTarget({ mode: "edit", customerId, sku }) : undefined}
         />
       ) : (

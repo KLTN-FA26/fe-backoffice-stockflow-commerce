@@ -18,7 +18,8 @@ export const TAXONOMY_UI_LABELS = {
   categoryTitle: "Danh mục",
   codeHint: "Chữ, số, '_' hoặc '-'; tự in hoa. Không đổi được sau khi tạo.",
   lockedHint: "Mã không đổi được sau khi tạo.",
-  categoryLockedHint: "Mã và danh mục cha không đổi được sau khi tạo.",
+  categoryLockedHint:
+    "Mã không đổi được sau khi tạo. Đổi danh mục cha sẽ chuyển cả nhánh con theo (cây tối đa 11 cấp).",
   readOnlyHint: "Bạn chỉ có quyền xem thông tin này.",
   staleTitle: "Dữ liệu đã thay đổi",
   brandNoun: "thương hiệu",

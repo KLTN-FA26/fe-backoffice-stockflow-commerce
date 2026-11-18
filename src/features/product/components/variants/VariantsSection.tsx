@@ -6,7 +6,9 @@ import { DataTable, type ColumnDef } from "@/components/shared/DataTable";
 import { statusCell, textCell } from "@/components/shared/column-helpers";
 
 import { variantErrorMessage } from "../../variant-errors";
-import { variantOptionsLabel } from "../../variant-schemas";
+import { UI_LABELS } from "@/constants";
+
+import { isCustomerOwnedSku, variantOptionsLabel } from "../../variant-schemas";
 import { GenerateVariantsDialog } from "../GenerateVariantsDialog";
 import { VariantFormDialog } from "./VariantFormDialog";
 import { VariantPanel } from "./VariantPanel";
@@ -17,15 +19,14 @@ import type { VariantDialog } from "./VariantsActions";
 
 /**
  * Bảng biến thể của sản phẩm (BE `GET /products/{id}/variants`) — thay bảng "SKU" mock cũ,
- * vốn gọi `/skus` không tồn tại ở BE. Bấm một dòng mở panel chi tiết (tóm tắt hồ sơ hàng tồn, giá,
- * ảnh). Nút thêm / sinh biến thể nằm trên dòng tiêu đề mục (`VariantsActions`); mục giữ `dialog`.
+ * vốn gọi `/skus` không tồn tại ở BE. Bấm một dòng mở panel chi tiết (logistics & quy cách thùng,
+ * ảnh, cấu hình in). Danh sách gồm cả SKU riêng của khách (`isCustomerOwnedSku`). Nút thêm / sinh biến thể nằm trên dòng tiêu đề mục (`VariantsActions`); mục giữ `dialog`.
  */
 export function VariantsSection({
   productId,
   productCode,
   productApproved,
   acceptsChanges,
-  productDiscontinued,
   customizable,
   query,
   dialog,
@@ -38,8 +39,6 @@ export function VariantsSection({
   productApproved: boolean;
   /** Không chờ duyệt, không ngừng kinh doanh (BE `Product.acceptsChanges`): mới thêm / sinh được biến thể. */
   acceptsChanges: boolean;
-  /** Đã ngừng kinh doanh — chỉ trường hợp này BE từ chối đặt giá. */
-  productDiscontinued: boolean;
   /** Sản phẩm tuỳ chỉnh / in ấn — panel biến thể hiện link tới cấu hình in. */
   customizable: boolean;
   query: UseQueryResult<Variant[]>;
@@ -66,9 +65,14 @@ export function VariantsSection({
         compare: (a, b) => a.name.localeCompare(b.name),
       },
     ),
-    textCell<Variant>("options", "Tuỳ chọn", (row) => variantOptionsLabel(row), {
-      color: "secondary",
-    }),
+    // SKU riêng của khách không mang tuỳ chọn trục (BE sinh không kèm option) — nêu rõ thay vì "—"
+    textCell<Variant>(
+      "options",
+      "Tuỳ chọn",
+      (row) =>
+        isCustomerOwnedSku(row) ? UI_LABELS.product.variants.customerSku : variantOptionsLabel(row),
+      { color: "secondary" },
+    ),
     statusCell<Variant>("status", "Trạng thái", (row) => row.status, "sku", {
       sortable: true,
       compare: (a, b) => a.status.localeCompare(b.status),
@@ -103,7 +107,6 @@ export function VariantsSection({
         variant={selected}
         productApproved={productApproved}
         acceptsChanges={acceptsChanges}
-        productDiscontinued={productDiscontinued}
         customizable={customizable}
         open={selected !== null}
         onClose={() => setSelectedId(null)}

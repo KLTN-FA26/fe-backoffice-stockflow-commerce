@@ -2,20 +2,19 @@
 
 import { CuboidIcon as Cube, Printer } from "lucide-react";
 
-import { formatVnd } from "@/features/product";
-
 import { Section } from "./ProductSection";
 
 import type { PrintArea, Product } from "@/features/product";
 
 const BOX = "border-border-default bg-bg-subtle rounded-[var(--r-sm)] border p-3";
 const GRID = "text-ink-secondary grid grid-cols-2 gap-x-6 gap-y-1 text-xs sm:grid-cols-3";
-const MONO_VALUE = "font-[family-name:var(--font-mono)] font-medium";
 
-/** Vùng in + model 3D + công thức giá in — chỉ sản phẩm Customizable có dữ liệu. */
+/**
+ * Vùng in + model 3D — chỉ sản phẩm Customizable có dữ liệu. Không còn "công thức giá in": quy cách không có
+ * giá, giá chỉ nằm trên báo giá / bảng giá riêng của khách (kltn-docs 01 §1, 13 BR-04).
+ */
 export function ProductPrintAreasSection({ product }: { product: Product }) {
   if (product.type !== "Customizable" || !product.printAreas?.length) return null;
-  const formula = product.pricingFormula;
   return (
     <Section title="Cấu hình tùy chỉnh (Print Areas)" icon={Printer}>
       <div className="space-y-3">
@@ -68,34 +67,6 @@ export function ProductPrintAreasSection({ product }: { product: Product }) {
             <div className="text-ink-tertiary font-[family-name:var(--font-mono)] text-xs">
               {product.model3dUrl}
             </div>
-          </div>
-        </div>
-      )}
-
-      {formula && (
-        <div className={`${BOX} mt-3`}>
-          <div className="text-ink-secondary mb-2 text-xs font-medium">Công thức giá in</div>
-          <div className={GRID}>
-            <div>
-              <span className="text-ink-tertiary">Giá in cơ bản: </span>
-              <span className={MONO_VALUE}>{formatVnd(formula.basePrintPrice)}</span>
-            </div>
-            <div>
-              <span className="text-ink-tertiary">Giá/cm²: </span>
-              <span className={MONO_VALUE}>{formula.perSquareCmPrice}đ</span>
-            </div>
-            <div>
-              <span className="text-ink-tertiary">Phụ thu màu: </span>
-              <span className={MONO_VALUE}>{formatVnd(formula.colorCountSurcharge)}</span>
-            </div>
-          </div>
-          <div className="mt-2">
-            <span className="text-ink-tertiary text-xs">Hệ số kỹ thuật: </span>
-            <span className="text-ink-secondary text-xs">
-              {Object.entries(formula.techniqueMultiplier)
-                .map(([tech, mult]) => `${tech} ×${mult}`)
-                .join(" · ")}
-            </span>
           </div>
         </div>
       )}

@@ -11,7 +11,7 @@ import {
   CUSTOMER_PRICE_ERROR_MESSAGES as E,
   CUSTOMER_PRICE_PERMISSIONS as P,
   CUSTOMER_PRICE_UI_LABELS,
-  INVENTORY_ITEM_PERMISSIONS,
+  VARIANT_PERMISSIONS,
 } from "@/constants";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/error";
@@ -98,16 +98,23 @@ describe("quyền", () => {
     expect(urls.some((u) => u.startsWith("/customers"))).toBe(false);
   });
 
-  it("4 có quyền đọc hồ sơ hàng tồn → gợi ý SKU gọi /inventory/items?q=", async () => {
-    const get = stubPermissions([...CREATOR, INVENTORY_ITEM_PERMISSIONS.read]);
+  it("4 có quyền đọc biến thể → gợi ý SKU riêng của khách (`GET /customer-skus?customerId=`)", async () => {
+    const get = stubPermissions([...CREATOR, VARIANT_PERMISSIONS.read]);
     render(`customerId=${C}`);
     const user = userEvent.setup();
     await openCreate(user);
-    await user.type(screen.getByLabelText(F.sku), "SKU-00");
     await waitFor(
-      () => expect(get.mock.calls.some(([u]) => u === "/inventory/items")).toBe(true),
+      () =>
+        expect(
+          get.mock.calls.some(
+            ([u, config]) =>
+              u === "/customer-skus" &&
+              new URLSearchParams(config?.params as URLSearchParams).get("customerId") === C,
+          ),
+        ).toBe(true),
       WAIT,
     );
+    expect(get.mock.calls.some(([u]) => u === "/inventory/items")).toBe(false);
   });
 });
 
@@ -137,7 +144,7 @@ describe("tạo", () => {
     const cells = within(row ?? document.body)
       .getAllByRole("cell")
       .map((c) => c.textContent);
-    expect(cells.slice(1, 3)).toEqual(["5", "2"]); // MOQ = số lượng nhỏ nhất, 2 bậc
+    expect(cells.slice(1, 3)).toEqual(["5 thùng", "2"]); // MOQ = số thùng nhỏ nhất, 2 bậc
   });
 
   it("10 trùng số lượng → lỗi ở các dòng trùng, không lưu được", async () => {

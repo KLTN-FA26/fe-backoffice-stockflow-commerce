@@ -71,7 +71,6 @@ const product = (name: string): Product => ({
   description: "",
   descriptionEn: "",
   images: [],
-  basePrice: 0,
   attributes: [],
   taxClass: "standard",
   uom: "pcs",

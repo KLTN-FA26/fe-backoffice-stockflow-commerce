@@ -1,7 +1,9 @@
 /**
- * Bảng giá theo khách cho một phôi — BE (d215f6e) `GET /catalog/customer-prices/{customerId}/{sku}/schedule`
- * (`catalog-customer-prices:READ`; Sales có). Ưu tiên giá khách → nhóm → giá gốc (P7), không có
- * thời hạn (P3). 409 PRICE_NOT_AVAILABLE = chưa có giá → Sales phải nhập bậc giá thoả thuận (P4).
+ * Giá riêng của khách cho một SKU — BE `GET /catalog/customer-prices/{customerId}/{sku}`
+ * (`catalog-customer-prices:READ`). Không còn giá nhóm / giá gốc / route `/schedule` (kltn-docs 13 BR-04,
+ * open-questions D14): giá riêng của khách là nguồn giá duy nhất; chưa có thì Sales tự nhập bậc giá
+ * (13 §4.2 bước 5). `measure` CARTON: bậc tính theo SỐ THÙNG, đơn giá theo cái (13 BR-05); UNIT: giá cũ
+ * trên biến thể kho, bậc theo số cái — chỉ còn đọc / xoá.
  */
 
 import { useQuery } from "@tanstack/react-query";
@@ -12,45 +14,37 @@ import { ApiError } from "@/lib/api/error";
 import { QUERY_TIMES } from "@/lib/api/query-client";
 import { SKU_CODE_PATTERN } from "@/lib/validation/sku";
 
-const tierSchema = z.object({ minQuantity: z.number().int(), unitPrice: z.number() });
-const priceScheduleSchema = z.object({
+/** BE serialise BigDecimal thành số JSON; nhận cả chuỗi số, chặn NaN. */
+const beDecimal = z.union([z.number(), z.string()]).transform(Number).pipe(z.number());
+
+const tierSchema = z.object({ minQuantity: z.number().int(), unitPrice: beDecimal });
+const customerOwnPriceSchema = z.object({
   sku: z.string(),
-  source: z.enum(["CUSTOMER", "SEGMENT", "BASE"]),
+  measure: z.enum(["CARTON", "UNIT"]),
   moq: z.number().int(),
-  currency: z.string(),
   tiers: z.array(tierSchema),
 });
 
-export type PriceSchedule = z.infer<typeof priceScheduleSchema>;
+export type CustomerOwnPrice = z.infer<typeof customerOwnPriceSchema>;
 
-export const PRICE_SOURCE_LABEL: Readonly<Record<PriceSchedule["source"], string>> = {
-  CUSTOMER: "Giá riêng của khách",
-  SEGMENT: "Giá nhóm khách",
-  BASE: "Giá niêm yết",
-};
-
-/** `null` = chưa có giá áp dụng (PRICE_NOT_AVAILABLE). */
-export function useCustomerPriceSchedule(
+/** `null` = khách chưa có giá riêng cho SKU này (404 CUSTOMER_PRICE_NOT_FOUND). */
+export function useCustomerOwnPrice(
   customerId: string | undefined,
   sku: string | undefined,
   enabled = true,
 ) {
   const normalized = sku?.trim().toUpperCase() ?? "";
   return useQuery({
-    queryKey: ["references", "price-schedule", customerId ?? "", normalized],
+    queryKey: ["references", "customer-own-price", customerId ?? "", normalized],
     queryFn: async ({ signal }) => {
       try {
         const { data } = await api.get<unknown>(
-          `/catalog/customer-prices/${encodeURIComponent(customerId ?? "")}/${encodeURIComponent(normalized)}/schedule`,
+          `/catalog/customer-prices/${encodeURIComponent(customerId ?? "")}/${encodeURIComponent(normalized)}`,
           { signal },
         );
-        return priceScheduleSchema.parse(data);
+        return customerOwnPriceSchema.parse(data);
       } catch (error) {
-        if (
-          error instanceof ApiError &&
-          (error.code === "PRICE_NOT_AVAILABLE" || error.status === 404)
-        )
-          return null;
+        if (error instanceof ApiError && error.code === "CUSTOMER_PRICE_NOT_FOUND") return null;
         throw error;
       }
     },

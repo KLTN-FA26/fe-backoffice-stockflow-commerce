@@ -60,7 +60,7 @@ export type BrandFormValues = z.infer<ReturnType<typeof makeBrandFormSchema>>;
 export function makeCategoryFormSchema(mode: TaxonomyFormMode) {
   return z.object({
     code: codeField(mode),
-    /** Rỗng = danh mục gốc. Bất biến sau khi tạo (`parent_id` `updatable=false`). */
+    /** Rỗng = danh mục gốc. Đổi khi sửa = chuyển cả nhánh (`PUT /categories/{id}/parent`, docs 01 §4.1). */
     parentId: z.string(),
     name: nameField,
     sortOrder: sortOrderField,

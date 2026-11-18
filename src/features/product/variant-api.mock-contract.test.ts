@@ -7,9 +7,9 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/lib/api/error";
 import { activateMockAdapter } from "@/lib/api/mock-adapter";
 import { resetVariantMockStore } from "@/lib/api/mock-routes-variants";
-import { fetchInventoryItemSummary } from "@/lib/references/inventory-item-lookup";
 
 import { getProductAttributes } from "./axes-api";
+import { listSkuUnits } from "./carton-api";
 import {
   addVariant,
   deleteVariantMedia,
@@ -168,16 +168,16 @@ describe("biến thể theo trục (BE PR #115/#116: optionValueIds, không còn
   });
 });
 
-// BE PR #119: logistics của SKU không còn dưới sản phẩm — nằm ở hồ sơ hàng tồn của biến thể.
+// BE PR #119: logistics của SKU nằm ở hồ sơ hàng tồn của biến thể; đơn vị tính đọc qua sản phẩm.
 describe("hồ sơ hàng tồn của biến thể (BE PR #119)", () => {
-  it("biến thể mang inventoryItemId, tra được ở /inventory/items/{id} cùng SKU", async () => {
+  it("biến thể mang inventoryItemId; đơn vị cơ sở của SKU đọc được qua uom-conversions", async () => {
     const variants = await listVariants(PRODUCT);
     expect(variants.every((v) => typeof v.inventoryItemId === "string")).toBe(true);
     const [v] = variants;
     if (!v?.inventoryItemId) throw new Error("variant has no inventory item");
-    const item = await fetchInventoryItemSummary(v.inventoryItemId);
-    expect(item).toMatchObject({ id: v.inventoryItemId, sku: v.sku });
-    expect(item.logistics.unitOfMeasure).toBeTruthy();
+    const [base] = await listSkuUnits(PRODUCT, v.variantId);
+    expect(base).toMatchObject({ sku: v.sku, base: true, factor: 1 });
+    expect(base?.unitOfMeasure).toBeTruthy();
   });
 
   it("biến thể vừa thêm cũng có hồ sơ (BE tạo item cùng biến thể)", async () => {
@@ -188,8 +188,8 @@ describe("hồ sơ hàng tồn của biến thể (BE PR #119)", () => {
       optionValueIds: [],
     });
     expect(created.inventoryItemId).toBeTruthy();
-    const item = await fetchInventoryItemSummary(created.inventoryItemId ?? "");
-    expect(item.sku).toBe("NOAXES-ITEM");
+    const [base] = await listSkuUnits(NO_AXES_PRODUCT, created.variantId);
+    expect(base?.sku).toBe("NOAXES-ITEM");
     const activated = await transitionVariant({
       productId: NO_AXES_PRODUCT,
       variantId: created.variantId,

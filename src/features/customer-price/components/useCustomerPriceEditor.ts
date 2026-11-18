@@ -92,8 +92,8 @@ export function useCustomerPriceEditor({
     setConflict(kind === "OPTIMISTIC_LOCK" ? "version" : isDuplicate ? "duplicate" : null);
     // Đúng khách + SKU đã gửi (cùng giá trị dựng đường dẫn POST), không phải ô SKU lúc bấm nút
     setDuplicate(isDuplicate ? { customerId, sku: normalizeSku(submitted.sku) } : null);
-    if (kind === "VARIANT_NOT_FOUND" && mode === "create") {
-      form.setError("sku", { type: "server", message: E.VARIANT_NOT_FOUND });
+    if ((kind === "VARIANT_NOT_FOUND" || kind === "CUSTOMER_SKU_REQUIRED") && mode === "create") {
+      form.setError("sku", { type: "server", message: E[kind] });
       setError(null);
       return;
     }

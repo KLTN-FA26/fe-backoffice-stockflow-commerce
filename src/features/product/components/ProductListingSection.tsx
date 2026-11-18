@@ -20,7 +20,7 @@ import type { ProductStatus } from "../types";
 
 /**
  * Thông tin bán trên cửa hàng của sản phẩm (BE `GET/PUT /products/{id}/ecommerce`): đường dẫn (slug) và
- * SEO. Giá bán đặt theo từng SKU trong panel biến thể. Cần lưu mục này trước khi đặt giá và xuất bản.
+ * SEO. Cửa hàng không hiện giá (kltn-docs 13 BR-04); cần lưu mục này trước khi xuất bản.
  * Sản phẩm đã ngừng kinh doanh không sửa được (BE 409 CONFLICT); backend phải re-check.
  */
 export function ProductListingSection({

@@ -335,8 +335,8 @@ export const INVENTORY_ITEM_PERMISSIONS = {
 
 /**
  * Bảng giá riêng của khách hàng — resource `catalog-customer-prices` (BE `CustomerPriceController`,
- * `/api/v1/catalog/customer-prices`). Seed V20261017000510: ECOMMERCE_ADMIN đủ quyền; SALES_STAFF
- * VIEW_PAGE / READ; ORDER_COORDINATOR chỉ READ. Xoá (DELETE) chưa dùng ở FE nên không khai báo.
+ * `/api/v1/catalog/customer-prices`). Seed BE (baseline V20261111000000): SALES_MANAGER và SYSTEM_ADMIN đủ quyền
+ * (kể cả DELETE); SALES_STAFF VIEW_PAGE / READ.
  */
 export const CUSTOMER_PRICE_PERMISSIONS = {
   viewPage: "catalog-customer-prices:VIEW_PAGE",
@@ -346,6 +346,8 @@ export const CUSTOMER_PRICE_PERMISSIONS = {
   create: "catalog-customer-prices:CREATE",
   // PUT …/{customerId}/{sku} (thay toàn bộ, cần version)
   update: "catalog-customer-prices:UPDATE",
+  // DELETE …/{customerId}/{sku}?version= (13 §4.2 bước 5)
+  delete: "catalog-customer-prices:DELETE",
 } as const;
 
 /**
