@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ImageOff, Star, Trash2, Upload } from "lucide-react";
+import { ImageOff, Pencil, Star, Trash2, Upload } from "lucide-react";
 
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { toast } from "@/components/shared/Toast";
@@ -18,7 +18,8 @@ import {
   useVariantMedia,
   useWithdrawVariantMedia,
 } from "../../variant-queries";
-import { PUBLISH_MEDIA_MAX } from "../../variant-schemas";
+import { MEDIA_PER_VARIANT_MAX, PUBLISH_MEDIA_MAX } from "../../variant-schemas";
+import { MediaDescribeDialog } from "./MediaDescribeDialog";
 
 import type { VariantMedia } from "../../variant-schemas";
 
@@ -57,6 +58,7 @@ export function VariantMediaGallery({
   const query = useVariantMedia(productId, variantId);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState<VariantMedia | null>(null);
+  const [describing, setDescribing] = useState<VariantMedia | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const upload = useUploadVariantMedia();
   const publish = usePublishVariantMedia();
@@ -144,6 +146,11 @@ export function VariantMediaGallery({
                     </Button>
                   )}
                   {canManage && (
+                    <IconButton label="Sửa mô tả / thứ tự ảnh" onClick={() => setDescribing(m)}>
+                      <Pencil className="size-3.5" />
+                    </IconButton>
+                  )}
+                  {canManage && (
                     <IconButton label="Xoá ảnh" onClick={() => setDeleting(m)} danger>
                       <Trash2 className="size-3.5" />
                     </IconButton>
@@ -180,12 +187,18 @@ export function VariantMediaGallery({
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={upload.isPending}
+                // BE `MAX_IMAGES_PER_VARIANT` (docs 01 §3): tối đa 20 ảnh — chặn trước, không đợi 400
+                disabled={upload.isPending || media.length >= MEDIA_PER_VARIANT_MAX}
                 onClick={() => fileInput.current?.click()}
               >
                 <Upload className="size-3.5" />
                 {upload.isPending ? "Đang tải lên…" : "Tải ảnh lên"}
               </Button>
+              {media.length >= MEDIA_PER_VARIANT_MAX && (
+                <p className="text-ink-tertiary text-xs">
+                  Đã đủ {MEDIA_PER_VARIANT_MAX} ảnh — xoá bớt ảnh để tải ảnh mới.
+                </p>
+              )}
             </>
           )}
           {canPublish && unpublishedSelected.length > 0 && (
@@ -206,6 +219,12 @@ export function VariantMediaGallery({
         </div>
       )}
 
+      <MediaDescribeDialog
+        productId={productId}
+        variantId={variantId}
+        media={describing}
+        onClose={() => setDescribing(null)}
+      />
       <ConfirmDialog
         open={deleting !== null}
         onOpenChange={(open) => !open && setDeleting(null)}

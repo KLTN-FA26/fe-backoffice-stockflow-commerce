@@ -14,7 +14,7 @@ import type { ProductStatus } from "@/features/product";
 const L = UI_LABELS.product.openReferences;
 
 /**
- * Đã qua duyệt — có thể còn dòng đơn mua / đơn bán mở trên SKU. Gồm cả Ngừng kinh doanh: BR-PRD-005
+ * Đã qua duyệt — có thể còn dòng Đơn sản xuất / đơn bán mở trên SKU. Gồm cả Ngừng kinh doanh: BR-PRD-005
  * cho các dòng mở chạy tiếp, cần thấy để theo dõi.
  */
 const OPEN_REFERENCE_STATUSES: readonly ProductStatus[] = [
@@ -26,7 +26,7 @@ const OPEN_REFERENCE_STATUSES: readonly ProductStatus[] = [
 
 /**
  * Cùng gate với hộp thoại ngừng kinh doanh (nơi khác duy nhất tải danh sách này): chỉ người giữ quyền
- * của hành động "Ngừng kinh doanh" (`PRODUCT_ACTIONS`, lifecycle.ts) — BE quét đơn mua lẫn đơn bán theo
+ * của hành động "Ngừng kinh doanh" (`PRODUCT_ACTIONS`, lifecycle.ts) — BE quét Đơn sản xuất lẫn đơn bán theo
  * từng SKU nên không gọi cho mọi người xem. UI-only — Backend phải re-check.
  */
 const DECIDE_PERMISSION = PRODUCT_ACTIONS.find(

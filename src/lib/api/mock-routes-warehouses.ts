@@ -9,6 +9,7 @@ import { WAREHOUSE_LOCATION_PERMISSIONS, WAREHOUSE_PERMISSIONS } from "@/constan
 
 import { registerMockRoute } from "./mock-adapter";
 import { bodyOf, fail, ok, pageOf, pathParams, queryOf, text } from "./mock-route-utils";
+import { registerLocationLabelMockRoutes } from "./mock-routes-location-labels";
 import { registerWarehouseEditMockRoutes } from "./mock-routes-warehouse-edits";
 import { registerWarehouseShelfMockRoutes } from "./mock-routes-warehouse-shelves";
 import {
@@ -105,4 +106,5 @@ export function registerWarehouseMockRoutes(): void {
   registerWarehouseRoutes();
   registerWarehouseShelfMockRoutes();
   registerWarehouseEditMockRoutes();
+  registerLocationLabelMockRoutes();
 }

@@ -1,8 +1,7 @@
 /**
  * API bảng giá riêng của khách hàng — BE `CustomerPriceController` (`/catalog/customer-prices`; client
  * đã thêm `/api/v1`). Parse zod tại biên (api-conventions §3.2) và kiểm response đúng khách / SKU đã hỏi.
- * Danh sách là MẢNG thường (BE không phân trang) — không gửi `page` / `size`. Chưa dùng: `/schedule`
- * (xem trước giá khách trả) và DELETE.
+ * Danh sách là MẢNG thường (BE không phân trang) — không gửi `page` / `size`.
  */
 import { z } from "zod";
 
@@ -110,4 +109,17 @@ export async function updateCustomerPrice(input: UpdateCustomerPriceInput): Prom
   const body = toCustomerPriceBody(customerPriceValuesSchema.parse(input.values));
   const { data } = await api.put<unknown>(path, { ...body, version });
   return parsePrice(data, input.customerId, input.sku);
+}
+
+export interface DeleteCustomerPriceInput {
+  customerId: string;
+  sku: string;
+  /** `version` của lần đọc gần nhất — lệch → 409 OPTIMISTIC_LOCK. */
+  version: number;
+}
+
+/** `DELETE /{customerId}/{sku}?version=` — xoá giá riêng (kể cả giá cũ theo cái); không có → 404. */
+export async function deleteCustomerPrice(input: DeleteCustomerPriceInput): Promise<void> {
+  const version = customerPriceVersionSchema.parse(input.version);
+  await api.delete(pricePath(input.customerId, input.sku), { params: { version } });
 }

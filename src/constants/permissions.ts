@@ -85,13 +85,6 @@ export const ORDER_DELIVERY_BATCH_PERMISSIONS = {
 } as const;
 
 /**
- * Hợp đồng bán — resource `sales-contracts` (BE `OrderResources.SALES_CONTRACTS`). Chỉ khai báo mã FE đang dùng:
- * - `read`: không còn dùng cho lịch giao (đã chuyển sang `sales-order-delivery-batches:READ`, bên trên); giữ lại cho fixture
- *   / mock mô tả vai đọc hợp đồng. Seed BE: SALES_STAFF, SALES_MANAGER, ACCOUNTANT, PRODUCTION_COORDINATOR, SYSTEM_ADMIN.
- * - `update`: Sale dời cửa sổ giao (`POST /orders/{id}/delivery-batches/{batchId}/window-change`, docs 17 BR-28 "chỉ
- *   Sale"). Seed BE: SALES_STAFF + SYSTEM_ADMIN (PermissionMatrixTest).
- */
-/**
  * Chat Sale ↔ khách — resource `chat-conversations` (BE StaffChatController, seed V20261124000300: SALES_STAFF,
  * SALES_MANAGER, SYSTEM_ADMIN đủ VIEW_PAGE / READ / CREATE / UPDATE). Giám sát (`chat-supervision`) chỉ quản lý.
  */
@@ -102,6 +95,13 @@ export const CHAT_PERMISSIONS = {
   update: "chat-conversations:UPDATE",
 } as const;
 
+/**
+ * Hợp đồng bán — resource `sales-contracts` (BE `OrderResources.SALES_CONTRACTS`). Chỉ khai báo mã FE đang dùng:
+ * - `read`: không còn dùng cho lịch giao (đã chuyển sang `sales-order-delivery-batches:READ`, bên trên); giữ lại cho fixture
+ *   / mock mô tả vai đọc hợp đồng. Seed BE: SALES_STAFF, SALES_MANAGER, ACCOUNTANT, PRODUCTION_COORDINATOR, SYSTEM_ADMIN.
+ * - `update`: Sale dời cửa sổ giao (`POST /orders/{id}/delivery-batches/{batchId}/window-change`, docs 17 BR-28 "chỉ
+ *   Sale"). Seed BE: SALES_STAFF + SYSTEM_ADMIN (PermissionMatrixTest).
+ */
 export const SALES_CONTRACT_PERMISSIONS = {
   read: "sales-contracts:READ",
   // WF-02 pha B: lập hợp đồng nháp (`POST /orders/{id}/contract`)
@@ -351,8 +351,8 @@ export const INVENTORY_ITEM_PERMISSIONS = {
 
 /**
  * Bảng giá riêng của khách hàng — resource `catalog-customer-prices` (BE `CustomerPriceController`,
- * `/api/v1/catalog/customer-prices`). Seed V20261017000510: ECOMMERCE_ADMIN đủ quyền; SALES_STAFF
- * VIEW_PAGE / READ; ORDER_COORDINATOR chỉ READ. Xoá (DELETE) chưa dùng ở FE nên không khai báo.
+ * `/api/v1/catalog/customer-prices`). Seed BE (baseline V20261111000000): SALES_MANAGER và SYSTEM_ADMIN đủ quyền
+ * (kể cả DELETE); SALES_STAFF VIEW_PAGE / READ.
  */
 export const CUSTOMER_PRICE_PERMISSIONS = {
   viewPage: "catalog-customer-prices:VIEW_PAGE",
@@ -362,6 +362,8 @@ export const CUSTOMER_PRICE_PERMISSIONS = {
   create: "catalog-customer-prices:CREATE",
   // PUT …/{customerId}/{sku} (thay toàn bộ, cần version)
   update: "catalog-customer-prices:UPDATE",
+  // DELETE …/{customerId}/{sku}?version= (13 §4.2 bước 5)
+  delete: "catalog-customer-prices:DELETE",
 } as const;
 
 /**
@@ -650,6 +652,18 @@ export const FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS = {
  * Seed V20260928006000: WAREHOUSE_MANAGER, WAREHOUSE_STAFF, INVENTORY_PLANNER, PROCUREMENT_STAFF;
  * V20261017000800 thêm SALES_STAFF; QC_STAFF không có.
  */
+/**
+ * Bảng sức chứa kho — resource `warehouse-capacity` (BE `OrderResources.WAREHOUSE_CAPACITY`, seed
+ * V20261125000100): Quản lý kho (chỉ kho được gán — BE tự thu hẹp), Sale, Điều phối sản xuất, Quản lý kinh doanh
+ * (docs 06 §2). Sửa hệ số sử dụng đi qua `PUT /warehouses/{id}` nên cần `warehouse-warehouses:UPDATE`.
+ */
+export const WAREHOUSE_CAPACITY_PERMISSIONS = {
+  viewPage: "warehouse-capacity:VIEW_PAGE",
+  read: "warehouse-capacity:READ",
+  warehouseRead: "warehouse-warehouses:READ",
+  warehouseUpdate: "warehouse-warehouses:UPDATE",
+} as const;
+
 export const WAREHOUSE_PERMISSIONS = {
   // Trang danh mục kho `/admin/warehouses` (`WarehouseController` @PermissionResource route)
   viewPage: "warehouse-warehouses:VIEW_PAGE",

@@ -46,6 +46,13 @@ export {
   WAREHOUSE_STATUS_LABELS,
 } from "./labels-warehouse-map";
 export { WAREHOUSE_MAP_SHORTCUTS, type MapShortcut } from "./labels-warehouse-map-edit";
+export { LOCATION_LABEL_SCOPES, type LocationLabelScope } from "./labels-warehouse-map-print";
+export {
+  CAPACITY_GROUP_KIND_LABELS,
+  CAPACITY_GROUP_TABS,
+  WAREHOUSE_CAPACITY_ERROR_MESSAGES,
+} from "./labels-warehouse-capacity";
+export type { CapacityGroupTab } from "./labels-warehouse-capacity";
 export {
   DATA_SCOPE_LABELS,
   IDENTITY_ERROR_MESSAGES,
@@ -195,7 +202,6 @@ export {
   SUPPLIER_ITEM_TOAST_MESSAGES,
   SUPPLIER_ITEM_UI_LABELS,
 } from "./labels-supplier-item";
-export { SKU_PURCHASING_FIELD_MESSAGES } from "./labels-sku-purchasing";
 export {
   CUSTOMER_PRICE_ERROR_MESSAGES,
   CUSTOMER_PRICE_FIELD_MESSAGES,
@@ -222,7 +228,6 @@ export {
   DATE_PICKER_YEAR_SPAN,
   FULFILLMENT_LIMITS,
   INVENTORY_ITEM_OPTIONS_PAGE_SIZE,
-  INVENTORY_POLICY_LIMITS,
   LOAD_ESTIMATE_LIMITS,
   LOAD_PLAN_LIMITS,
   LOAD_PLANNING_LIMITS,
@@ -235,12 +240,12 @@ export {
   RECEIPT_LIMITS,
   SCAN_LIMITS,
   SHIPPING_LIMITS,
-  SKU_PURCHASING_LIMITS,
   SUPPLIER_ITEM_LIMITS,
   TAXONOMY_LIMITS,
   TRANSFER_LIMITS,
   VEHICLE_TYPE_LIMITS,
   WAREHOUSE_MAP_3D,
+  WAREHOUSE_CAPACITY_LIMITS,
   WAREHOUSE_MAP_LIMITS,
 } from "./numbers";
 export {
@@ -327,6 +332,7 @@ export {
   VARIANT_PERMISSIONS,
   VEHICLE_TYPE_PERMISSIONS,
   WAREHOUSE_LOCATION_PERMISSIONS,
+  WAREHOUSE_CAPACITY_PERMISSIONS,
   WAREHOUSE_PERMISSIONS,
 } from "./permissions";
 export { SHARED_QUERY_ROOTS } from "./query-roots";
@@ -349,6 +355,8 @@ export {
   TRANSFER_COLUMNS,
   VARIANT_COLUMNS,
   VEHICLE_TYPE_COLUMNS,
+  CAPACITY_GROUP_COLUMNS,
+  WAREHOUSE_CAPACITY_COLUMNS,
   WAREHOUSE_COLUMNS,
 } from "./table";
 export {
@@ -475,6 +483,7 @@ export {
   MAP_UNITS,
   STORAGE_CLASSES,
   WAREHOUSE_STATUS,
+  CAPACITY_GROUP_KINDS,
   WAREHOUSE_STATUSES,
 } from "./statuses";
 export type {

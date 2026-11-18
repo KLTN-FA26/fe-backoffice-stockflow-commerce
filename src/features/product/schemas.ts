@@ -33,13 +33,6 @@ export const productAttributeSchema = z.object({
   swatch: z.record(z.string(), z.string()).optional(),
 });
 
-export const pricingFormulaSchema = z.object({
-  basePrintPrice: z.number().min(0),
-  perSquareCmPrice: z.number().min(0),
-  techniqueMultiplier: z.record(printTechniqueSchema, z.number().positive()),
-  colorCountSurcharge: z.number().min(0),
-});
-
 export const printAreaSchema = z.object({
   printAreaId: z.string(),
   productId: z.string(),
@@ -52,6 +45,15 @@ export const printAreaSchema = z.object({
   safeMarginMm: z.number().min(0),
   allowedTechniques: z.array(printTechniqueSchema).min(1),
 });
+
+/** BE `ProductMatchResponse` — sản phẩm có thể trùng (cùng thương hiệu + danh mục chính, tên trùng khoá). */
+export const productMatchSchema = z.object({
+  productId: z.string().min(1),
+  code: z.string(),
+  name: z.string(),
+  status: z.string(),
+});
+export type ProductMatch = z.infer<typeof productMatchSchema>;
 
 export const productSchema = z.object({
   productId: z.string(),
@@ -69,8 +71,7 @@ export const productSchema = z.object({
   descriptionEn: z.string(),
   images: z.array(z.string()),
   model3dUrl: z.string().optional(),
-  basePrice: z.number().min(0).optional(),
-  pricingFormula: pricingFormulaSchema.optional(),
+  // Không có giá bán / công thức giá in: quy cách không có giá (kltn-docs 01 §1, 13 BR-04)
   attributes: z.array(productAttributeSchema).optional(),
   printAreas: z.array(printAreaSchema).optional(),
   taxClass: z.enum(["standard", "reduced", "exempt"]),
@@ -91,6 +92,7 @@ export const productSchema = z.object({
   suspendReason: z.string().optional(),
   discontinuedAt: z.string().optional(),
   discontinueReason: z.string().optional(),
+  possibleDuplicates: z.array(productMatchSchema).optional(),
   weightKg: z.number().positive().nullable().optional(),
   lengthCm: z.number().positive().nullable().optional(),
   widthCm: z.number().positive().nullable().optional(),
@@ -131,7 +133,10 @@ export const beBrandSchema = z.object({
   active: z.boolean(),
 });
 
-/** BE PR #71: STANDARD (bán nguyên mẫu) | CUSTOMIZABLE (in theo thiết kế của khách). */
+/**
+ * BE `ProductKind` — hệ thống gán, không ai chọn (kltn-docs 01 §3, BR-19): mọi sản phẩm là CUSTOMIZABLE;
+ * STANDARD đã @Deprecated, chỉ còn để đọc sản phẩm cũ.
+ */
 export const productKindValues = ["STANDARD", "CUSTOMIZABLE"] as const;
 
 /** BE `ProductStatus` (product/api/ProductStatus.java). INACTIVE = tạm ngưng (kltn-docs 01 §5.1). */
@@ -186,6 +191,8 @@ export const productMasterDtoSchema = z.object({
   suspendReason: z.string().nullish(),
   discontinuedAt: z.string().nullish(),
   discontinueReason: z.string().nullish(),
+  /** Chỉ có ở POST / PUT / GET một sản phẩm (docs 01 §4.3, BR-16) — cảnh báo, không chặn. */
+  possibleDuplicates: z.array(productMatchSchema).nullish(),
 });
 
 /** BE `CreateProductRequest.code`: 1–50 ký tự chữ/số/'_'/'-', bắt đầu bằng chữ hoặc số. */
@@ -210,7 +217,7 @@ export const createProductSchema = z.object({
   description: z.string(),
   descriptionEn: z.string(),
   taxClass: z.enum(["STANDARD", "REDUCED", "EXEMPT"]),
-  kind: z.enum(productKindValues),
+  // Không có `kind`: BE `CreateProductRequest` / `UpdateProductRequest` không nhận (hệ thống gán CUSTOMIZABLE)
   /**
    * BE PR #116: có `axes` thì BE tạo luôn MỌI tổ hợp giá trị đang dùng (SKU `MÃ-GIÁ_TRỊ-…`, tổ hợp
    * đầu tiên là biến thể mặc định) trong cùng giao dịch — bị từ chối (SKU trùng, quá 100 tổ hợp…) thì
@@ -247,7 +254,6 @@ export const productDraftFormSchema = z.object({
   description: z.string(),
   descriptionEn: z.string(),
   taxClass: createProductSchema.shape.taxClass,
-  customizable: z.boolean(),
 });
 
 export const transitionProductSchema = z

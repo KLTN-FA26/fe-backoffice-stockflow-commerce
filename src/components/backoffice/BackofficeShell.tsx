@@ -18,6 +18,7 @@ import {
   MessagesSquare,
   FileText,
   FlaskConical,
+  Gauge,
   FolderTree,
   History as HistoryIcon,
   LayoutDashboard,
@@ -92,6 +93,7 @@ import {
   TRIAL_LABELS,
   UI_LABELS,
   VEHICLE_TYPE_PERMISSIONS,
+  WAREHOUSE_CAPACITY_PERMISSIONS,
   WAREHOUSE_LOCATION_PERMISSIONS,
   WAREHOUSE_PERMISSIONS,
 } from "@/constants";
@@ -388,6 +390,13 @@ export const NAV_GROUPS: NavGroup[] = [
         // BE WarehouseLocationResourceDeclaration route `/admin/warehouse-map`
         permission: WAREHOUSE_LOCATION_PERMISSIONS.viewPage,
         breadcrumbTail: warehouseBreadcrumbTail,
+      },
+      {
+        label: UI_LABELS.warehouseCapacity.pageTitle,
+        href: ADMIN_ROUTES.warehouseCapacity.list,
+        icon: Gauge,
+        // BE WarehouseCapacityController (resource `warehouse-capacity`): Quản lý kho, Sale, Điều phối SX, QLKD
+        permission: WAREHOUSE_CAPACITY_PERMISSIONS.viewPage,
       },
     ],
   },

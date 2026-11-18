@@ -47,7 +47,6 @@ const draftInput = (code: string) => ({
   description: "",
   descriptionEn: "",
   taxClass: "STANDARD" as const,
-  kind: "STANDARD" as const,
 });
 
 describe("product mock ↔ BE PR #71 contract", () => {
@@ -58,10 +57,9 @@ describe("product mock ↔ BE PR #71 contract", () => {
     expect((await listBrands()).map((b) => b.name)).toEqual(["Gildan", "StockFlow Basics"]);
   });
 
-  it("tạo / sửa giữ brandId + tên thương hiệu và kind; không còn ảnh trên sản phẩm", async () => {
+  it("tạo / sửa giữ brandId + tên thương hiệu; loại luôn CUSTOMIZABLE (hệ thống gán); không còn ảnh trên sản phẩm", async () => {
     const created = await createProduct({
       ...draftInput(`MOCK-BRAND-${Date.now()}`),
-      kind: "CUSTOMIZABLE",
     });
     expect(created).toMatchObject({ brandId, type: "Customizable", images: [] });
     expect(created.brand).not.toBe("");
@@ -75,7 +73,7 @@ describe("product mock ↔ BE PR #71 contract", () => {
     });
     expect(await getProduct(created.productId)).toMatchObject({
       brandId: otherBrandId,
-      type: "Standard",
+      type: "Customizable",
       shortDescription: "Cốc giấy 12oz",
     });
   });

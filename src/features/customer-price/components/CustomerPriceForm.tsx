@@ -80,7 +80,7 @@ export function CustomerPriceForm({
       onCancel={onCancel}
     >
       {locked}
-      <SkuField form={form} mode={mode} canSuggest={canSuggestSku} />
+      <SkuField form={form} mode={mode} customerId={customerId} canSuggest={canSuggestSku} />
       {hasInexact && (
         <p role="note" className="text-warning text-xs">
           {F.inexactWarning}

@@ -1,15 +1,11 @@
 /**
- * Listing TMĐT và giá bán cơ sở của sản phẩm — BE `CatalogManagementController`:
+ * Listing TMĐT của sản phẩm — BE `CatalogManagementController`:
  *   GET/PUT /products/{id}/ecommerce                  slug + SEO, khoá lạc quan bằng `revision`
- *   GET/PUT /products/{id}/skus/{sku}/base-price      giá VND theo MÃ SKU (không phải variantId)
- * Thứ tự bắt buộc của BE: lưu listing trước (409 CATALOG_LISTING_REQUIRED nếu chưa), rồi đặt giá; mọi
- * SKU phải có giá trước khi xuất bản (409 PRICE_NOT_AVAILABLE).
+ * Không còn giá bán cơ sở (kltn-docs 13 BR-04, 01 §1): quy cách không có giá; giá của SKU riêng là bảng giá
+ * riêng của khách (`/catalog/customer-prices`, feature `customer-price`).
  */
 
 import { z } from "zod";
-
-/** BE serialise BigDecimal thành số JSON; nhận cả chuỗi số, chặn NaN. */
-const beDecimal = z.union([z.number(), z.string()]).transform(Number).pipe(z.number());
 
 /** BE `ListingResponse`. */
 export const beListingSchema = z.object({
@@ -17,7 +13,7 @@ export const beListingSchema = z.object({
   slug: z.string().nullish(),
   seoTitle: z.string().nullish(),
   seoDescription: z.string().nullish(),
-  /** Gửi lại khi sửa listing và khi đặt giá (lệch → 409 CONFLICT). */
+  /** Gửi lại khi sửa listing (lệch → 409 CONFLICT). */
   revision: z.number().int().min(0),
   projectedRevision: z.number().int(),
   published: z.boolean(),
@@ -25,17 +21,6 @@ export const beListingSchema = z.object({
   projectionPending: z.boolean(),
 });
 export type Listing = z.infer<typeof beListingSchema>;
-
-/** BE `SkuPriceResponse` — `null` khi SKU chưa có giá. */
-export const beSkuPriceSchema = z.object({
-  sku: z.string(),
-  revision: z.number().int().min(0),
-  basePrice: beDecimal.nullish(),
-  baseCurrency: z.string().nullish(),
-  effectivePrice: beDecimal.nullish(),
-  effectiveCurrency: z.string().nullish(),
-});
-export type SkuPrice = z.infer<typeof beSkuPriceSchema>;
 
 /** `EditListingRequest`: slug ≤ 300 (sau chuẩn hoá ≤ 255), SEO title ≤ 255, SEO description ≤ 5000. */
 export const LISTING_LIMITS = {
@@ -81,16 +66,3 @@ export const listingFormSchema = z.object({
     .max(LISTING_LIMITS.seoDescription, `Tối đa ${LISTING_LIMITS.seoDescription} ký tự`),
 });
 export type ListingFormValues = z.infer<typeof listingFormSchema>;
-
-/**
- * `SetBasePriceRequest` + `SellingPrice`: giá VND là số nguyên dương (BE không làm tròn giá đã thoả
- * thuận), tối đa 16 chữ số. Tiền tệ cố định "VND".
- */
-export const BASE_PRICE_CURRENCY = "VND";
-export const basePriceFormSchema = z.object({
-  price: z
-    .string()
-    .trim()
-    .regex(/^[1-9]\d{0,15}$/, "Nhập số nguyên VND lớn hơn 0 (tối đa 16 chữ số)"),
-});
-export type BasePriceFormValues = z.infer<typeof basePriceFormSchema>;

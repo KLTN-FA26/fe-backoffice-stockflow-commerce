@@ -168,6 +168,14 @@ export const ADMIN_ROUTES = {
     slotting: (prefix: string) =>
       `${ADMIN_BASE}/warehouse-map/${encodeURIComponent(prefix)}/slotting`,
   },
+  /**
+   * Bảng sức chứa kho (docs 06 §4.6, BE `WarehouseCapacityController`): danh sách mọi kho, chi tiết theo prefix kho
+   * (duy nhất, không đổi — BR-10 / BR-13) để breadcrumb đọc được mã kho thay vì UUID.
+   */
+  warehouseCapacity: {
+    list: `${ADMIN_BASE}/warehouse-capacity`,
+    detail: (prefix: string) => `${ADMIN_BASE}/warehouse-capacity/${encodeURIComponent(prefix)}`,
+  },
   /** Danh mục loại xe (container, xe tải, bán tải) — BE `VehicleTypeController`, PR #153. */
   vehicleTypes: `${ADMIN_BASE}/vehicle-types`,
   /** Kế hoạch xếp xe (SCRUM-287 PR F4): danh sách, lập mới, chi tiết — BE `LoadPlanController`, PR #161. */
