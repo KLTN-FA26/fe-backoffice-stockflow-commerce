@@ -758,9 +758,9 @@ export const PRODUCTION_STATUS_BY_API = {
 export const PRODUCTION_ORDER_TYPES = ["SAMPLE", "ORDER"] as const;
 export type ProductionOrderType = (typeof PRODUCTION_ORDER_TYPES)[number];
 
-/** Nhóm trạng thái đơn khách đọc — BE `CustomerOrderCardResponse.statusGroup` (develop). */
 /**
- * BE `CustomerOrders.StatusGroup` — trạng thái khách thấy trên cổng (docs 17 §5.2). `AWAITING_CONTRACT`
+ * Nhóm trạng thái đơn khách đọc — BE `CustomerOrders.StatusGroup` (`statusGroup` của thẻ, chi tiết và
+ * dòng thời gian đơn trên cổng; docs 17 §5.2). `AWAITING_CONTRACT`
  * = `Pending Contract`, `AWAITING_STOCK` = `Awaiting Stock`; `IN_PRODUCTION` chỉ còn ở đơn cũ.
  */
 export const ORDER_STATUS_GROUPS = [
