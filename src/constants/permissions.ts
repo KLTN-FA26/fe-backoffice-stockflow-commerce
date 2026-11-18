@@ -634,6 +634,18 @@ export const FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS = {
  * Seed V20260928006000: WAREHOUSE_MANAGER, WAREHOUSE_STAFF, INVENTORY_PLANNER, PROCUREMENT_STAFF;
  * V20261017000800 thêm SALES_STAFF; QC_STAFF không có.
  */
+/**
+ * Bảng sức chứa kho — resource `warehouse-capacity` (BE `OrderResources.WAREHOUSE_CAPACITY`, seed
+ * V20261125000100): Quản lý kho (chỉ kho được gán — BE tự thu hẹp), Sale, Điều phối sản xuất, Quản lý kinh doanh
+ * (docs 06 §2). Sửa hệ số sử dụng đi qua `PUT /warehouses/{id}` nên cần `warehouse-warehouses:UPDATE`.
+ */
+export const WAREHOUSE_CAPACITY_PERMISSIONS = {
+  viewPage: "warehouse-capacity:VIEW_PAGE",
+  read: "warehouse-capacity:READ",
+  warehouseRead: "warehouse-warehouses:READ",
+  warehouseUpdate: "warehouse-warehouses:UPDATE",
+} as const;
+
 export const WAREHOUSE_PERMISSIONS = {
   // Trang danh mục kho `/admin/warehouses` (`WarehouseController` @PermissionResource route)
   viewPage: "warehouse-warehouses:VIEW_PAGE",

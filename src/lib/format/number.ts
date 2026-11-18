@@ -32,3 +32,8 @@ export function formatPercent(n: number, decimals = 1): string {
     maximumFractionDigits: decimals,
   }).format(n);
 }
+
+/** Số đo có phần lẻ, bỏ số 0 thừa: (12.5, 3) → "12,5"; (1234.5678, 2) → "1.234,57" (vi-VN). */
+export function formatDecimal(n: number, maxFractionDigits: number): string {
+  return n.toLocaleString("vi-VN", { maximumFractionDigits: maxFractionDigits });
+}

@@ -15,4 +15,10 @@ export {
   isToday,
   toLocalIsoDate,
 } from "./date";
-export { formatNumber, formatFixed, formatCompactNumber, formatPercent } from "./number";
+export {
+  formatCompactNumber,
+  formatDecimal,
+  formatFixed,
+  formatNumber,
+  formatPercent,
+} from "./number";

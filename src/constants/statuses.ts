@@ -898,6 +898,12 @@ export const WAREHOUSE_STATUS = {
   INACTIVE: "INACTIVE",
 } as const satisfies Record<string, (typeof WAREHOUSE_STATUSES)[number]>;
 
+/**
+ * BE `CapacityGroup.Kind` — một dòng của Bảng sức chứa dưới cấp kho (docs 06 §4.6 bước 4): zone, nhóm kệ không thuộc
+ * zone, kệ, khu vực. Khu vực không có sức chứa (BR-19, chốt 2026-11-13), chỉ có Đang chiếm.
+ */
+export const CAPACITY_GROUP_KINDS = ["ZONE", "NO_ZONE", "SHELF", "AREA"] as const;
+
 /** BE `LocationStatus` của kệ / bin / khu vực (docs 06 §5). `Full` không lưu — tính khi gợi ý. */
 export const LOCATION_STATUSES = ["ACTIVE", "BLOCKED", "MAINTENANCE", "INACTIVE"] as const;
 
