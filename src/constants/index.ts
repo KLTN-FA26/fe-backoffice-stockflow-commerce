@@ -257,8 +257,15 @@ export {
   PRODUCTION_ORDER_MODES,
   PRODUCTION_ORDER_STATUS_DISPLAY,
   PRODUCTION_ORDER_STATUSES,
+  CONTRACT_MILESTONE_LABELS,
+  CONTRACT_MILESTONES,
+  SALES_CONTRACT_STATUS_LABELS,
+  SALES_CONTRACT_STATUS_TONE_KEY,
+  SALES_CONTRACT_STATUSES,
 } from "./orders";
 export type {
+  ContractMilestone,
+  SalesContractStatus,
   OrderCancellationReasonCode,
   OrderPaymentReadStatus,
   OrderPaymentStatus,

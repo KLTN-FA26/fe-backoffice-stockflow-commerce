@@ -101,6 +101,8 @@ describe("dòng đơn & lệnh sản xuất", () => {
     shippedQuantity: null,
     deliveredQuantity: null,
     cancelledQuantity: null,
+    cartons: null,
+    unitsPerCarton: null,
   };
   it("customLineCount đếm dòng in", () => {
     expect(

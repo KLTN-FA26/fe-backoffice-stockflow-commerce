@@ -93,7 +93,12 @@ export const ORDER_DELIVERY_BATCH_PERMISSIONS = {
  */
 export const SALES_CONTRACT_PERMISSIONS = {
   read: "sales-contracts:READ",
+  // WF-02 pha B: lập hợp đồng nháp (`POST /orders/{id}/contract`)
+  create: "sales-contracts:CREATE",
+  // Sửa nháp, gửi, huỷ hợp đồng; dời cửa sổ giao
   update: "sales-contracts:UPDATE",
+  // Ghi nhận đã ký (`POST /orders/{id}/contract/signature`)
+  approve: "sales-contracts:APPROVE",
 } as const;
 
 /**

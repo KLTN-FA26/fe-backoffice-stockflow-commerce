@@ -153,6 +153,9 @@ export const orderLineDtoSchema = z.object({
   deliveredQuantity: z.number().int().nullish(),
   /** Số đơn vị đã đóng ở đơn giao một phần — sẽ không được giao. */
   cancelledQuantity: z.number().int().nullish(),
+  /** 4B-2: số thùng đặt; `quantity` = thùng × `unitsPerCarton`. Vắng với dòng không đặt theo thùng. */
+  cartons: z.number().int().nullish(),
+  unitsPerCarton: z.number().int().nullish(),
 });
 
 /** BE `OrderResponse.ShipmentLine`. */

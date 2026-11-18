@@ -110,6 +110,39 @@ export const PRODUCTION_HOLD_REASON_LABELS: Record<string, string> = {
 export type OrderPaymentTerm = (typeof ORDER_PAYMENT_TERMS)[number];
 export type OrderPaymentStatus = (typeof ORDER_PAYMENT_STATUSES)[number];
 export type OrderPaymentReadStatus = (typeof ORDER_PAYMENT_READ_STATUSES)[number];
+/** Hợp đồng mua bán — BE `SalesContractStatus` (docs 14 §5, origin/develop 438fe6fb). */
+export const SALES_CONTRACT_STATUSES = [
+  "DRAFT",
+  "SENT",
+  "SIGNED",
+  "COMPLETED",
+  "CANCELLED",
+] as const;
+export type SalesContractStatus = (typeof SALES_CONTRACT_STATUSES)[number];
+export const SALES_CONTRACT_STATUS_LABELS = {
+  DRAFT: "Nháp",
+  SENT: "Đã gửi",
+  SIGNED: "Đã ký",
+  COMPLETED: "Hoàn tất",
+  CANCELLED: "Đã huỷ",
+} as const satisfies Record<SalesContractStatus, string>;
+/** Tone (status-map) cho chấm trạng thái hợp đồng. */
+export const SALES_CONTRACT_STATUS_TONE_KEY = {
+  DRAFT: "Draft",
+  SENT: "Sent",
+  SIGNED: "Confirmed",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
+} as const satisfies Record<SalesContractStatus, string>;
+/** Mốc đợt thanh toán của hợp đồng — BE `PaymentMilestone` (không gồm phí huỷ). */
+export const CONTRACT_MILESTONES = ["ON_SIGNING", "BEFORE_DELIVERY", "AFTER_DELIVERY"] as const;
+export type ContractMilestone = (typeof CONTRACT_MILESTONES)[number];
+export const CONTRACT_MILESTONE_LABELS = {
+  ON_SIGNING: "Khi ký",
+  BEFORE_DELIVERY: "Trước giao",
+  AFTER_DELIVERY: "Sau giao",
+} as const satisfies Record<ContractMilestone, string>;
+
 export type OrderCancellationReasonCode = (typeof ORDER_CANCELLATION_REASON_CODES)[number];
 export type ProductionOrderStatus = (typeof PRODUCTION_ORDER_STATUSES)[number];
 export type ProductionOrderMode = (typeof PRODUCTION_ORDER_MODES)[number];
