@@ -1,5 +1,5 @@
 /**
- * Shipping — mutations lô giao: ghi nhận kết quả giao. Response là lô mới nhất → ghi vào
+ * Shipping — mutations lô giao: ghi nhận và sửa tay kết quả giao. Response là lô mới nhất → ghi vào
  * cache chi tiết; danh sách lô, chuyến (trạng thái lô trên chuyến) và đơn hàng (BR-05) được tải lại.
  */
 
@@ -8,10 +8,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { TOAST_MESSAGES } from "@/constants";
 import { createMutation } from "@/lib/api/query-factory";
 
-import { recordDeliveryOutcome } from "./shipment-api";
+import { correctDeliveryOutcome, recordDeliveryOutcome } from "./shipment-api";
 import { isStaleLoadError } from "./errors";
 import { loadKeys, shipmentKeys } from "./queries";
 
+import type { CorrectOutcomeInput } from "./correction-schemas";
 import type { RecordOutcomeInput, Shipment } from "./types";
 
 /** = `orderKeys.all` của features/order — khai báo lại để không import chéo feature. */
@@ -49,6 +50,16 @@ export const useRecordDeliveryOutcome = withShipmentCache(
     invalidate: [shipmentKeys.all, loadKeys.all, ORDER_ROOT_KEY],
     successMessage: T.outcomeRecorded,
     // Dialog kết quả giao hiện lỗi inline
+    showErrorToast: false,
+  }),
+);
+
+/** Sửa tay kết quả giao: đơn đi theo, hoá đơn nháp của lô cũng đổi nên tải lại cả đơn. */
+export const useCorrectDeliveryOutcome = withShipmentCache(
+  createMutation<CorrectOutcomeInput, Shipment>(correctDeliveryOutcome, {
+    invalidate: [shipmentKeys.all, loadKeys.all, ORDER_ROOT_KEY],
+    successMessage: T.outcomeCorrected,
+    // Dialog sửa hiện lỗi inline
     showErrorToast: false,
   }),
 );

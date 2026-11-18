@@ -632,6 +632,14 @@ export const FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS = {
 } as const;
 
 /**
+ * Sửa tay kết quả giao khi hãng báo sai — `POST /fulfillment/shipments/{id}/delivery-outcome-correction` (docs 09 §4.3
+ * bước 5, E17). BE seed: WAREHOUSE_MANAGER, SYSTEM_ADMIN.
+ */
+export const FULFILLMENT_DELIVERY_CORRECTION_PERMISSIONS = {
+  update: "fulfillment-delivery-corrections:UPDATE",
+} as const;
+
+/**
  * Danh mục kho — resource `warehouse-warehouses` (BE WarehouseController: GET /warehouses = READ).
  * Seed V20260928006000: WAREHOUSE_MANAGER, WAREHOUSE_STAFF, INVENTORY_PLANNER, PROCUREMENT_STAFF;
  * V20261017000800 thêm SALES_STAFF; QC_STAFF không có.

@@ -11,6 +11,7 @@ import { vi } from "vitest";
 import {
   FULFILLMENT_CARRIER_PERMISSIONS,
   FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS,
+  FULFILLMENT_DELIVERY_CORRECTION_PERMISSIONS,
   FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS,
   FULFILLMENT_DISPATCH_PERMISSIONS,
   FULFILLMENT_WAYBILL_CORRECTION_PERMISSIONS,
@@ -54,6 +55,12 @@ const MANAGER: PermissionCode[] = [
   ...Object.values(FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS),
   FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS.update,
 ];
+// Seed BE (PermissionMatrixTest): quản lý kho giữ cả UPDATE + APPROVE kết quả giao và sửa tay kết quả giao
+const MANAGER_FULL: PermissionCode[] = [
+  ...MANAGER,
+  ...Object.values(FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS),
+  ...Object.values(FULFILLMENT_DELIVERY_CORRECTION_PERMISSIONS),
+];
 const COORDINATOR: PermissionCode[] = [
   ...READ,
   ...Object.values(FULFILLMENT_DELIVERY_OUTCOME_PERMISSIONS),
@@ -72,6 +79,7 @@ export interface TestActor {
 export const SHIPPING_ACTORS = {
   warehouseStaff: { permissions: STAFF },
   warehouseManager: { permissions: MANAGER },
+  warehouseManagerFull: { permissions: MANAGER_FULL },
   orderCoordinator: { permissions: COORDINATOR },
   viewOnly: { permissions: READ },
   noAccess: { permissions: [] },
