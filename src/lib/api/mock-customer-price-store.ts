@@ -6,6 +6,7 @@
  * SKU tham chiếu mock biến thể (`mockSkuExists`), không có kho SKU thứ hai.
  */
 import { mockCustomerId } from "./mock-customer-store";
+import { WF02_CUSTOMER_PRICES } from "./mock-quote-seed";
 
 export interface MockTier {
   minQuantity: number;
@@ -70,6 +71,8 @@ function seed(): Map<string, MockCustomerPrice> {
       note: null,
       version: 0,
     },
+    // Giá theo thùng của seed demo WF-02 của BE (khách demo — XANH, Trà Sữa Mây — TSM): báo giá lấy bậc giá từ đây
+    ...WF02_CUSTOMER_PRICES.map((p) => ({ ...p, tiers: p.tiers.map((t) => ({ ...t })) })),
   ];
   return new Map(rows.map((r) => [keyOf(r.customerId, r.sku), r]));
 }
