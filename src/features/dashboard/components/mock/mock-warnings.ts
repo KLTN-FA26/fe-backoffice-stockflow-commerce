@@ -2,7 +2,7 @@
  * MOCK ONLY — rendered solely when `useIsMock()` is true.
  *
  * These widgets have no backend endpoint (cross-module "needs attention" list, shipment tracking
- * feed, warehouse utilisation KPIs, replenishment proposals), so their data exists only in the
+ * feed, warehouse utilisation KPIs), so their data exists only in the
  * demo dataset. In real mode they are not rendered: nothing here may reach a production screen.
  * `mock-data` is imported directly here, as the dashboard page did before; moving these widgets
  * behind mock routes would only invent endpoints the backend does not have.
@@ -11,7 +11,6 @@
 import {
   packingTasks,
   pickTasks,
-  purchaseOrders,
   putawayTasks,
   shipments,
   transferOrders,
@@ -19,7 +18,6 @@ import {
   type MoveTask,
   type PackingTask,
   type PickTask,
-  type PurchaseOrder,
   type PutawayTask,
   type Shipment,
   type StatusDomain,
@@ -39,22 +37,6 @@ export interface WarningItem {
 
 export function collectWarningItems(): WarningItem[] {
   const items: WarningItem[] = [];
-
-  // PO: Pending Approval
-  purchaseOrders
-    .filter((po: PurchaseOrder) => po.status === "Pending Approval")
-    .forEach((po: PurchaseOrder) =>
-      items.push({
-        id: po.poId,
-        document: po.poNumber,
-        module: "Đơn đặt NCC",
-        status: po.status,
-        domain: "po",
-        description: po.notes || "Chờ duyệt",
-        date: po.orderDate,
-        href: "/admin/purchase-orders",
-      }),
-    );
 
   // Pick: Short, On Hold
   pickTasks

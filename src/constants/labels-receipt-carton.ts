@@ -25,9 +25,7 @@ export const RECEIPT_CARTON_FIELD_MESSAGES = {
 } as const;
 
 /**
- * Mã lỗi BE khi lưu kiểm đếm có thùng / in nhãn / QC theo thùng → câu tiếng Việt (gộp vào `RECEIPT_ERROR_MESSAGES`).
- * `RECEIPT_PACKAGES_EXCEED_LINE` / `RECEIPT_LINE_HAS_PACKAGES` ở ngữ cảnh duyệt phiếu dùng
- * `RECEIPT_DECISION_ERROR_MESSAGES`.
+ * Mã lỗi BE khi lưu kiểm đếm có thùng / in nhãn → câu tiếng Việt (gộp vào `RECEIPT_ERROR_MESSAGES`).
  */
 export const RECEIPT_CARTON_ERROR_MESSAGES = {
   RECEIPT_PACKAGES_EXCEED_LINE: "Các thùng chứa nhiều hơn số lượng nhận của dòng",

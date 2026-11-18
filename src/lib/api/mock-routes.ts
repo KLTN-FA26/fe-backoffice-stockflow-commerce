@@ -96,7 +96,7 @@ const MOCK_APPROVER_ID = "22222222-2222-4222-8222-222222222222";
 
 export function registerAllMockRoutes(): void {
   /* ====================================================================
-   * Module 01 — Products / SKUs / Categories / Suppliers
+   * Module 01 — Products / SKUs / Categories
    * ==================================================================*/
 
   // GET /products
@@ -322,25 +322,6 @@ export function registerAllMockRoutes(): void {
   registerProductLifecycleRoutes();
 
   // GET /categories, /brands (+ tạo / sửa): mock-routes-taxonomy.ts
-
-  // Suppliers: xem mock-routes-suppliers.ts (đăng ký trong mock-adapter.ts)
-
-  /* ====================================================================
-   * Module 02 — Purchase Orders / Replenishment
-   * ==================================================================*/
-
-  // Purchase orders: mock-routes-purchase-orders.ts (BE PurchaseOrderController contract).
-
-  // FE-only: BE has no GET /api/v1/replenishment-proposals yet.
-  // GET /replenishment-proposals
-  registerMockRoute("GET", "/replenishment-proposals", async (config) => {
-    const { replenishmentProposals } = await import("@/lib/mock-data");
-    const params = new URLSearchParams(config.url?.split("?")[1] ?? "");
-    const page = Number(params.get("page")) || 1;
-    const pageSize = Number(params.get("pageSize")) || 15;
-
-    return { status: 200, data: paginate(replenishmentProposals, page, pageSize), headers: {} };
-  });
 
   /* ====================================================================
    * Module 05 — Putaway Tasks

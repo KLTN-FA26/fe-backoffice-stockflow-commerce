@@ -1,7 +1,5 @@
 export const STORAGE_KEYS = {
   adminProductsConfig: "stockflow:admin:products:config",
-  adminPurchaseOrdersConfig: "stockflow:admin:purchase-orders:config",
-  adminPurchaseOrdersSpendConfig: "stockflow:admin:purchase-orders:spend:config",
   adminReceiptsConfig: "stockflow:admin:receipts:config",
   adminInventoryItemsConfig: "stockflow:admin:inventory-items:config",
   adminVariantsConfig: "stockflow:admin:variants:config",
@@ -10,13 +8,11 @@ export const STORAGE_KEYS = {
   adminCancellationRequestsConfig: "stockflow:admin:orders:cancellation-requests:config",
   adminPackingConfig: "stockflow:admin:packing:config",
   adminPickingConfig: "stockflow:admin:picking:config",
-  adminSuppliersConfig: "stockflow:admin:suppliers:config",
   adminCustomersConfig: "stockflow:admin:customers:config",
   adminQuotesConfig: "stockflow:admin:quotes:config",
   adminSampleRequestsConfig: "stockflow:admin:sample-requests:config",
   adminProductionOrdersConfig: "stockflow:admin:production-orders:config",
   /** Tab "Danh mục hàng" trên chi tiết NCC — số dòng/trang (dùng chung mọi NCC). */
-  adminSupplierItemsConfig: "stockflow:admin:suppliers:items:config",
   adminTaxonomyBrandsConfig: "stockflow:admin:taxonomy:brands:config",
   adminTaxonomyCategoriesConfig: "stockflow:admin:taxonomy:categories:config",
   adminTransfersConfig: "stockflow:admin:transfers:config",

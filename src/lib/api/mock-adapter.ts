@@ -253,10 +253,6 @@ export function activateMockAdapter(): void {
   // exist by the time the first request arrives.
   routesReady = Promise.all([
     import("./mock-routes"),
-    import("./mock-routes-suppliers"),
-    import("./mock-routes-supplier-items"),
-    import("./mock-routes-purchase-orders"),
-    import("./mock-routes-purchase-orders-draft"),
     import("./mock-routes-orders"),
     import("./mock-routes-goods-receipts"),
     import("./mock-routes-variants"),
@@ -291,10 +287,6 @@ export function activateMockAdapter(): void {
   ]).then(
     ([
       { registerAllMockRoutes },
-      { registerSupplierMockRoutes },
-      { registerSupplierItemMockRoutes },
-      { registerPurchaseOrderMockRoutes },
-      { registerPoDraftMockRoutes },
       { registerOrderMockRoutes },
       { registerGoodsReceiptMockRoutes },
       { registerVariantMockRoutes },
@@ -328,10 +320,6 @@ export function activateMockAdapter(): void {
       { registerReturnReceiptMockRoutes },
     ]) => {
       registerAllMockRoutes();
-      registerSupplierMockRoutes();
-      registerSupplierItemMockRoutes();
-      registerPurchaseOrderMockRoutes();
-      registerPoDraftMockRoutes();
       registerOrderMockRoutes();
       // Trả hàng (WF-05 BO-12): `/goods-receipts/returns` phải đứng TRƯỚC `/goods-receipts/:id` (khớp theo thứ tự
       // đăng ký).

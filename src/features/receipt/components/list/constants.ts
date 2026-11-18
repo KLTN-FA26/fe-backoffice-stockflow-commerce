@@ -13,7 +13,8 @@ const C = RECEIPT_COLUMNS;
 
 export const DEFAULT_COLUMNS: string[] = [
   C.NUMBER,
-  C.PURCHASE_ORDER,
+  C.RECEIPT_TYPE,
+  C.PRODUCTION_ORDER,
   C.DELIVERY_NOTE,
   C.RECEIVED_AT,
   C.CONFIRMED_AT,
@@ -44,8 +45,9 @@ export const SEARCH_SCOPE_LABEL = "Số phiếu nhận";
 
 export const COLUMN_LABELS: Record<string, string> = {
   [C.NUMBER]: "Số phiếu",
-  [C.PURCHASE_ORDER]: "Đơn đặt hàng",
-  [C.DELIVERY_NOTE]: "Phiếu giao NCC",
+  [C.RECEIPT_TYPE]: "Loại phiếu",
+  [C.PRODUCTION_ORDER]: "Đơn sản xuất",
+  [C.DELIVERY_NOTE]: "Phiếu giao",
   [C.RECEIVED_AT]: "Ngày nhận",
   [C.CONFIRMED_AT]: "Ngày xác nhận",
   [C.STATUS]: "Trạng thái",
@@ -53,11 +55,16 @@ export const COLUMN_LABELS: Record<string, string> = {
 };
 
 /**
- * Bỏ `Confirmed` khỏi bộ lọc: BE `GoodsReceipt#confirm` chuyển thẳng sang In QC / In Putaway trong
- * cùng transaction — không phiếu nào được lưu ở trạng thái này, lọc theo nó luôn ra rỗng.
+ * Bộ lọc chỉ có 4 trạng thái của docs 03 §5. Bỏ `Confirmed` (BE chuyển thẳng sang In Putaway trong cùng
+ * transaction xác nhận) và mã cũ `Pending Approval` (không còn bước duyệt) — lọc theo chúng luôn ra rỗng.
  */
+const HIDDEN_FILTER_STATUSES: readonly ReceiptStatus[] = [
+  RECEIPT_STATUS.CONFIRMED,
+  RECEIPT_STATUS.PENDING_APPROVAL,
+];
+
 export const STATUS_OPTIONS: { label: string; value: ReceiptStatus }[] = RECEIPT_STATUSES.filter(
-  (value) => value !== RECEIPT_STATUS.CONFIRMED,
+  (value) => !HIDDEN_FILTER_STATUSES.includes(value),
 ).map((value) => ({ label: STATUS_LABEL_VI[value] ?? value, value }));
 
 export function mergeStoredConfig(

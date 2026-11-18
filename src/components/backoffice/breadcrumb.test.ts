@@ -36,10 +36,10 @@ describe("buildBreadcrumbItems", () => {
   });
 
   it("trang sửa hiện '… / <mã> / Chỉnh sửa', không hiện chữ 'edit'", () => {
-    expect(buildBreadcrumbItems("/admin/suppliers/SUP-001/edit")).toEqual([
+    expect(buildBreadcrumbItems("/admin/customers/CUS-001/edit")).toEqual([
       { label: "Back-office", href: "/admin" },
-      { label: "Nhà cung cấp", href: "/admin/suppliers" },
-      { label: "SUP-001", href: "/admin/suppliers/SUP-001" },
+      { label: "Khách hàng", href: "/admin/customers" },
+      { label: "CUS-001", href: "/admin/customers/CUS-001" },
       { label: "Chỉnh sửa" },
     ]);
   });
@@ -68,31 +68,31 @@ describe("buildBreadcrumbItems", () => {
   });
 
   it("trang chi tiết và trang tạo giữ nguyên như cũ", () => {
-    expect(buildBreadcrumbItems("/admin/suppliers/SUP-001").at(-1)).toEqual({ label: "SUP-001" });
-    expect(buildBreadcrumbItems("/admin/suppliers/create").at(-1)).toEqual({
-      label: "Tạo nhà cung cấp",
+    expect(buildBreadcrumbItems("/admin/customers/CUS-001").at(-1)).toEqual({ label: "CUS-001" });
+    expect(buildBreadcrumbItems("/admin/customers/create").at(-1)).toEqual({
+      label: "Tạo khách hàng",
     });
   });
 
   it("thiếu quyền vào menu → breadcrumb chỉ hiện chữ, không có link tới trang bị chặn", () => {
-    const items = buildBreadcrumbItems("/admin/suppliers/SUP-001/edit", () => false);
+    const items = buildBreadcrumbItems("/admin/customers/CUS-001/edit", () => false);
     expect(items.slice(1)).toEqual([
-      { label: "Nhà cung cấp", href: undefined },
-      { label: "SUP-001", href: undefined },
+      { label: "Khách hàng", href: undefined },
+      { label: "CUS-001", href: undefined },
       { label: "Chỉnh sửa" },
     ]);
   });
 
-  it("có nhãn đăng ký cho id (vd UUID → mã NCC) thì hiện nhãn thay vì id", () => {
+  it("có nhãn đăng ký cho id (vd UUID → mã khách hàng) thì hiện nhãn thay vì id", () => {
     const uuid = "d0000001-0000-4000-8000-000000000002";
-    const labelFor = (id: string) => (id === uuid ? "SUP-002" : undefined);
+    const labelFor = (id: string) => (id === uuid ? "CUS-002" : undefined);
 
-    expect(buildBreadcrumbItems(`/admin/suppliers/${uuid}`, () => true, labelFor).at(-1)).toEqual({
-      label: "SUP-002",
+    expect(buildBreadcrumbItems(`/admin/customers/${uuid}`, () => true, labelFor).at(-1)).toEqual({
+      label: "CUS-002",
     });
     expect(
-      buildBreadcrumbItems(`/admin/suppliers/${uuid}/edit`, () => true, labelFor).slice(2),
-    ).toEqual([{ label: "SUP-002", href: `/admin/suppliers/${uuid}` }, { label: "Chỉnh sửa" }]);
+      buildBreadcrumbItems(`/admin/customers/${uuid}/edit`, () => true, labelFor).slice(2),
+    ).toEqual([{ label: "CUS-002", href: `/admin/customers/${uuid}` }, { label: "Chỉnh sửa" }]);
   });
 
   it("điều chỉnh tồn: danh sách, trang tạo và chi tiết đều nằm dưới menu Điều chỉnh tồn", () => {

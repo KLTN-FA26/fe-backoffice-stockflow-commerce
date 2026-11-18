@@ -75,13 +75,6 @@ export const ADMIN_ROUTES = {
     printConfig: (productId: string, variantId: string) =>
       `${ADMIN_BASE}/products/${productId}/variants/${variantId}/${PRINT_CONFIG_SEGMENT}`,
   },
-  purchaseOrders: {
-    create: `${ADMIN_BASE}/purchase-orders/create`,
-    detail: (id: string) => `${ADMIN_BASE}/purchase-orders/${id}`,
-    // Sửa PO nháp (BE SCRUM-462)
-    edit: (id: string) => `${ADMIN_BASE}/purchase-orders/${id}/edit`,
-    list: `${ADMIN_BASE}/purchase-orders`,
-  },
   orders: {
     // Đơn công nợ vượt hạn mức chờ duyệt (SCRUM-427) — segment tĩnh, ưu tiên hơn [id]
     creditHolds: `${ADMIN_BASE}/orders/credit-holds`,
@@ -106,17 +99,8 @@ export const ADMIN_ROUTES = {
       `${ADMIN_BASE}/put-backs?warehouse=${encodeURIComponent(warehouseId)}`,
   },
   receipts: {
-    create: `${ADMIN_BASE}/receipts/create`,
-    // Tạo phiếu từ một PO đã chọn sẵn (vd nút "Nhận hàng" ở màn PO)
-    createFromPo: (poId: string) =>
-      `${ADMIN_BASE}/receipts/create?poId=${encodeURIComponent(poId)}`,
-    // Hàng về không có PO (BR-RCP-002, SCRUM-478): cùng trang tạo phiếu, chế độ "không có đơn đặt hàng"
-    createWithoutPo: `${ADMIN_BASE}/receipts/create?mode=without-po`,
     detail: (id: string) => `${ADMIN_BASE}/receipts/${id}`,
     list: `${ADMIN_BASE}/receipts`,
-  },
-  replenishment: {
-    list: `${ADMIN_BASE}/replenishment`,
   },
   /** Từ điển thuộc tính (BE PR #113) — thay màn "Thuộc tính biến thể" dựng từ dữ liệu mẫu. */
   attributes: `${ADMIN_BASE}/attributes`,
@@ -184,15 +168,6 @@ export const ADMIN_ROUTES = {
   },
   /** "Ước tính thử" từ file Excel EasyCargo (SCRUM-474 TRIAL-FLOW, LP2-9): chạy thử, không lưu — BE `POST /fulfillment/load-estimates/trial`. */
   loadEstimateTrial: `${ADMIN_BASE}/load-estimates/trial`,
-  suppliers: {
-    list: `${ADMIN_BASE}/suppliers`,
-    create: `${ADMIN_BASE}/suppliers/create`,
-    detail: (id: string) => `${ADMIN_BASE}/suppliers/${id}`,
-    edit: (id: string) => `${ADMIN_BASE}/suppliers/${id}/edit`,
-    /** Danh sách PO lọc theo NCC — BE PO list hỗ trợ `?supplierId=` (BE PR #36). */
-    purchaseOrders: (id: string) =>
-      `${ADMIN_BASE}/purchase-orders?supplierId=${encodeURIComponent(id)}`,
-  },
 } as const;
 
 /** Portal khách hàng B2B (Mode B) — tách khỏi back-office, cùng phiên đăng nhập BFF. */

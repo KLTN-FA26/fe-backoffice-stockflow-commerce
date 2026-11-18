@@ -6,22 +6,14 @@ export const PAGE_SIZE = {
   xl: 50,
 } as const;
 
-export const PO_COLUMNS = {
-  ACTIONS: "actions",
-  EXPECTED_DATE: "expectedDate",
-  GRAND_TOTAL: "grandTotal",
-  PO_NUMBER: "poNumber",
-  STATUS: "status",
-  SUPPLIER: "supplier",
-} as const;
-
 /** Cột danh sách phiếu nhận — chỉ field có trong BE `GoodsReceiptRowResponse` (PR #62). */
 export const RECEIPT_COLUMNS = {
   ACTIONS: "actions",
   CONFIRMED_AT: "confirmedAt",
   DELIVERY_NOTE: "deliveryNote",
   NUMBER: "number",
-  PURCHASE_ORDER: "purchaseOrder",
+  PRODUCTION_ORDER: "productionOrder",
+  RECEIPT_TYPE: "receiptType",
   RECEIVED_AT: "receivedAt",
   STATUS: "status",
 } as const;

@@ -18,19 +18,6 @@ export const SUPPLIER_PERMISSIONS = {
 } as const;
 
 /**
- * Danh mục hàng của NCC — resource `procurement-supplier-items` (BE SupplierItemController).
- * Seed V20260928006000 chỉ cấp đủ 5 action cho PROCUREMENT_STAFF (ACCOUNTANT,
- * ECOMMERCE_ADMIN không có).
- */
-export const SUPPLIER_ITEM_PERMISSIONS = {
-  viewPage: "procurement-supplier-items:VIEW_PAGE",
-  read: "procurement-supplier-items:READ",
-  create: "procurement-supplier-items:CREATE",
-  update: "procurement-supplier-items:UPDATE",
-  delete: "procurement-supplier-items:DELETE",
-} as const;
-
-/**
  * Đơn hàng — resource `sales-orders` (BE `OrderResources.ORDERS`).
  * - `release`: release đơn sang kho xuất (`POST /orders/{id}/release`, BR-03 docs 17) — resource riêng
  *   `sales-order-releases` (UPDATE, scope ALL, BE V20261115000200): quản lý kho của kho xuất; BE kiểm thêm kho

@@ -11,10 +11,7 @@ function dayLabel(day: string): string {
 }
 
 /** Thanh "Cấu hình" dưới toolbar (data-table-mode-a §3). BE không có search trong cột. */
-export function buildReceiptSummary(
-  s: ReceiptListState,
-  poNumber: string | undefined,
-): ListSummaryItem[] {
+export function buildReceiptSummary(s: ReceiptListState): ListSummaryItem[] {
   const { filters } = s;
   const statusLabel = filters.status.map((v) => STATUS_LABEL_VI[v] ?? v).join(", ");
   const range =
@@ -45,16 +42,10 @@ export function buildReceiptSummary(
       },
     },
     {
-      label: "Đơn đặt hàng",
-      value: s.po ? (poNumber ?? s.po) : "Tất cả",
-      active: !!s.po,
-      onClear: () => s.setPo(""),
-    },
-    {
-      label: "Loại phiếu",
-      value: s.noPo ? "Chỉ phiếu không có PO" : "Tất cả",
-      active: s.noPo,
-      onClear: () => s.setNoPo(false),
+      label: "Đơn sản xuất",
+      value: s.productionOrder || "Tất cả",
+      active: !!s.productionOrder,
+      onClear: () => s.setProductionOrder(""),
     },
     {
       label: "Sắp xếp",

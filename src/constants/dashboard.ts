@@ -7,7 +7,6 @@ import type { OrderStatus } from "./statuses";
 // hiện ở chế độ nối BE (xem `MockDashboardPanels`).
 export const DASHBOARD_API = {
   orders: "/orders",
-  purchaseOrders: "/purchase-orders",
   receipts: "/goods-receipts",
   transfers: "/inventory/transfer-orders",
   pickTasks: "/fulfillment/tasks",
@@ -46,14 +45,12 @@ export const DASHBOARD_ORDER_PENDING_FILTER = [
   "Ready to Fulfill",
   "On Hold",
 ] as const satisfies readonly OrderStatus[];
-// PurchaseOrder: chờ duyệt (docs 02).
-export const DASHBOARD_PO_PENDING_STATUSES = ["PENDING_APPROVAL"] as const;
-// GoodsReceiptStatus.java / docs 03 §5.1: còn đang xử lý (chưa CLOSED / CANCELLED).
+// GoodsReceiptStatus.java / docs 03 §5: còn đang xử lý (chưa CLOSED / CANCELLED). BE đã bỏ IN_QC (2b) — gửi mã
+// đó thì BE trả 400 khi bind enum.
 export const DASHBOARD_RECEIPT_PROCESSING_STATUSES = [
   "DRAFT",
   "PENDING_APPROVAL",
   "CONFIRMED",
-  "IN_QC",
   "IN_PUTAWAY",
 ] as const;
 // TransferStatus.java: hàng đã rời kho nguồn, kho đích chưa nhận đủ.
@@ -76,7 +73,6 @@ export const DASHBOARD_LABELS = {
   title: "Tổng quan",
   subtitle: "Theo dõi vận hành kho, đơn hàng và tồn kho.",
   ordersPending: "Đơn chờ xử lý",
-  poPending: "PO chờ duyệt",
   receiptsProcessing: "Phiếu nhận đang xử lý",
   picksOpen: "Task lấy hàng đang mở",
   // Ngắn để vừa một dòng trong ô dải số liệu ở laptop (~150px)
