@@ -1,82 +1,78 @@
 import { describe, expect, it } from "vitest";
 
-import { QUOTE_API_STATUSES } from "@/constants";
+import { QUOTE_PERMISSIONS } from "@/constants";
 
-import {
-  QUOTE_TRANSITIONS,
-  allowedPortalQuoteActions,
-  allowedStaffQuoteActions,
-} from "../lifecycle";
-import { blankUnits, tierPrice } from "../selectors";
+import { QUOTE_TRANSITIONS, allowedStaffQuoteActions } from "../lifecycle";
+import { isExpired, moqOf, unpricedPlateFees } from "../selectors";
 
-import type { PermissionCode } from "@/lib/auth/me-permissions";
+const all = () => true;
+const readOnly = (code: string) => code === QUOTE_PERMISSIONS.read;
+const coordinator = (code: string) => code === QUOTE_PERMISSIONS.convert;
 
-const has =
-  (...codes: string[]) =>
-  (code: PermissionCode) =>
-    codes.includes(code);
-
-describe("QUOTE_TRANSITIONS (BE QuoteStatus.canTransitionTo, SCRUM-448)", () => {
-  it("covers every BE status", () => {
-    expect(Object.keys(QUOTE_TRANSITIONS).sort()).toEqual([...QUOTE_API_STATUSES].sort());
-  });
-  it("EXPIRED, CANCELLED and CONVERTED are terminal", () => {
+describe("QUOTE_TRANSITIONS (BE QuoteStatus, docs 14 §5)", () => {
+  it("terminal statuses have no transition", () => {
     expect(QUOTE_TRANSITIONS.EXPIRED).toEqual([]);
     expect(QUOTE_TRANSITIONS.CANCELLED).toEqual([]);
     expect(QUOTE_TRANSITIONS.CONVERTED).toEqual([]);
   });
-  it("DRAFT and ACCEPTED can be cancelled when BE conditions hold; SENT cannot", () => {
-    expect(QUOTE_TRANSITIONS.DRAFT).toContain("CANCELLED");
-    expect(QUOTE_TRANSITIONS.SENT).not.toContain("CANCELLED");
-    expect(QUOTE_TRANSITIONS.ACCEPTED).toContain("CANCELLED");
+  it("CHANGES_REQUESTED only reopens as a DRAFT revision", () => {
+    expect(QUOTE_TRANSITIONS.CHANGES_REQUESTED).toEqual(["DRAFT"]);
   });
 });
 
-describe("quote action gating", () => {
-  const update = has("sales-quotes:UPDATE");
-  it("staff: UPDATE handles draft/revision; conversion requires its own CREATE permission", () => {
-    expect(allowedStaffQuoteActions("DRAFT", update)).toEqual(["edit", "send", "cancel"]);
-    expect(allowedStaffQuoteActions("CHANGES_REQUESTED", update)).toEqual(["revise"]);
-    expect(allowedStaffQuoteActions("ACCEPTED", update)).toEqual(["cancel"]);
-    expect(allowedStaffQuoteActions("ACCEPTED", has("sales-quote-conversions:CREATE"))).toEqual([
-      "convert",
-    ]);
-    expect(allowedStaffQuoteActions("CONVERTED", update)).toEqual([]);
-    expect(allowedStaffQuoteActions("SENT", update)).toEqual([]);
+describe("allowedStaffQuoteActions — action gating (3 roles)", () => {
+  it("TC-F04-01: create order only on ACCEPTED", () => {
+    for (const status of [
+      "DRAFT",
+      "SENT",
+      "CHANGES_REQUESTED",
+      "EXPIRED",
+      "CANCELLED",
+      "CONVERTED",
+    ] as const)
+      expect(allowedStaffQuoteActions(status, all)).not.toContain("convert");
+    expect(allowedStaffQuoteActions("ACCEPTED", all)).toContain("convert");
   });
-  it("staff without UPDATE (read-only role) sees no mutating action", () => {
-    expect(allowedStaffQuoteActions("DRAFT", has("sales-quotes:READ"))).toEqual([]);
+  it("SALES on DRAFT: edit, send, cancel; SENT has no content action", () => {
+    expect(allowedStaffQuoteActions("DRAFT", all)).toEqual(["edit", "send", "cancel"]);
+    expect(allowedStaffQuoteActions("SENT", all)).toEqual([]);
   });
-  it("portal: accept / request changes only while SENT and not past validUntil", () => {
-    const approve = has("sales-quotes:APPROVE");
-    const now = Date.parse("2026-10-14T00:00:00Z");
-    expect(allowedPortalQuoteActions("SENT", "2026-10-20T00:00:00Z", approve, now)).toEqual([
-      "accept",
-      "requestChanges",
-    ]);
-    expect(allowedPortalQuoteActions("SENT", "2026-10-01T00:00:00Z", approve, now)).toEqual([]);
-    expect(allowedPortalQuoteActions("ACCEPTED", "2026-10-20T00:00:00Z", approve, now)).toEqual([]);
-    expect(allowedPortalQuoteActions("SENT", "2026-10-20T00:00:00Z", has(), now)).toEqual([]);
+  it("read-only role sees nothing; coordinator only converts", () => {
+    expect(allowedStaffQuoteActions("DRAFT", readOnly)).toEqual([]);
+    expect(allowedStaffQuoteActions("ACCEPTED", coordinator)).toEqual(["convert"]);
+  });
+  it("a legacy quote is view-only", () => {
+    expect(allowedStaffQuoteActions("DRAFT", all, true)).toEqual([]);
   });
 });
 
-describe("pricing preview (display only — BE is authoritative)", () => {
-  it("P5: sums pieces of the same blank across designs, never across blanks", () => {
-    const units = blankUnits([
-      { blankSku: "CUP-12OZ", quantity: 600 },
-      { blankSku: "cup-12oz", quantity: 400 },
-      { blankSku: "BOWL-500", quantity: 300 },
-    ]);
-    expect(units.get("CUP-12OZ")).toBe(1000);
-    expect(units.get("BOWL-500")).toBe(300);
+describe("selectors", () => {
+  it("MOQ is the lowest tier", () => {
+    expect(
+      moqOf([
+        { minQuantity: 50, unitPrice: 1 },
+        { minQuantity: 20, unitPrice: 2 },
+      ]),
+    ).toBe(20);
   });
-  it("picks the highest tier ≤ units; P4: below the lowest tier → null (no silent lowest price)", () => {
-    const tiers = [
-      { minQuantity: 5000, unitPrice: 2200 },
-      { minQuantity: 1000, unitPrice: 2500 },
-    ];
-    expect(tierPrice(tiers, 999)).toBeNull();
-    expect(tierPrice(tiers, 1000)).toBe(2500);
-    expect(tierPrice(tiers, 7000)).toBe(2200);
+  it("counts plate fees still without an amount", () => {
+    expect(
+      unpricedPlateFees({
+        fees: [
+          {
+            id: "f",
+            kind: "PLATE_FEE",
+            sku: "X",
+            amount: null,
+            taxClass: null,
+            taxRate: null,
+            tax: null,
+          },
+        ],
+      }),
+    ).toBe(1);
+  });
+  it("expired once validUntil has passed", () => {
+    expect(isExpired("2000-01-01T00:00:00Z")).toBe(true);
   });
 });

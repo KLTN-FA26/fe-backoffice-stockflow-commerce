@@ -129,9 +129,18 @@ export type TestRole = keyof typeof ROLE_PERMISSIONS;
 export type RouteHandler = (params: unknown, body?: unknown) => unknown;
 export type RouteTable = Record<string, RouteHandler>;
 
-/** Lỗi BE dạng ApiError để route giả lập ném ra. */
-export function apiError(status: number, code: string, fieldErrors?: Record<string, string>) {
-  return new ApiError(status, code, code, fieldErrors);
+/**
+ * Lỗi BE dạng ApiError để route giả lập ném ra. `message` = câu BE trả (mặc định bằng mã → màn dùng câu FE);
+ * `details` = `ApiResponse.details` nguyên dạng.
+ */
+export function apiError(
+  status: number,
+  code: string,
+  fieldErrors?: Record<string, string>,
+  message: string = code,
+  details?: Record<string, unknown>,
+) {
+  return new ApiError(status, code, message, fieldErrors, undefined, undefined, undefined, details);
 }
 
 /** Giả lập `api.get/post/put` theo URL. Trả spy để kiểm tra params / body đã gửi. */

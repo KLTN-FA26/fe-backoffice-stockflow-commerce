@@ -87,6 +87,8 @@ export const ADMIN_ROUTES = {
     creditHolds: `${ADMIN_BASE}/orders/credit-holds`,
     cancellationRequests: `${ADMIN_BASE}/orders/cancellation-requests`,
     detail: (id: string) => `${ADMIN_BASE}/orders/${id}`,
+    /** Khối "Hợp đồng" trong chi tiết đơn (WF-02 pha B). */
+    contract: (id: string) => `${ADMIN_BASE}/orders/${id}#contract`,
     list: `${ADMIN_BASE}/orders`,
   },
   packing: {
@@ -192,10 +194,6 @@ export const PORTAL_ROUTES = {
   home: PORTAL_BASE,
   /** Trang kích hoạt từ email mời — BE `PORTAL_ACTIVATION_URL`, token nằm ở `#token=`. */
   activate: `${PORTAL_BASE}/activate`,
-  quotes: {
-    list: `${PORTAL_BASE}/quotes`,
-    detail: (id: string) => `${PORTAL_BASE}/quotes/${id}`,
-  },
   samples: {
     list: `${PORTAL_BASE}/samples`,
     detail: (id: string) => `${PORTAL_BASE}/samples/${id}`,
