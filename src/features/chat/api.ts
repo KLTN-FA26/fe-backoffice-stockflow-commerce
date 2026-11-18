@@ -83,7 +83,10 @@ export async function sendAttachment(input: {
   form.append("file", input.file);
   if (input.caption) form.append("caption", input.caption);
   form.append("clientMessageId", input.clientMessageId);
-  const { data } = await api.post<unknown>(conv(input.id, "/attachments"), form);
+  // Client mặc định `application/json` → axios sẽ đổi FormData thành JSON và mất file; để multipart.
+  const { data } = await api.post<unknown>(conv(input.id, "/attachments"), form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
   return parseMessage(data);
 }
 
