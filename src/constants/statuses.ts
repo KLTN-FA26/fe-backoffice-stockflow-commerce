@@ -251,6 +251,13 @@ export const PICK_API_STATUSES = ["PENDING", "PICKING", "STAGED", "PICKED", "CAN
 export const PICK_STATUS_BY_API = PICK_STATUS;
 
 /**
+ * Đơn đang chờ hàng trong danh sách chờ tạo task (BE `TaskCandidateResponse.orderStatus`, docs 07 §4.1 bước 1): lấy
+ * trước phần đã giữ về khu chờ xuất, hoặc sang khu xuất hàng khi Sale cho phép giao một phần (bước 2). Mã BE
+ * `order/api/OrderStatus.java`.
+ */
+export const TASK_CANDIDATE_AWAITING_STOCK = "AWAITING_STOCK";
+
+/**
  * Đích lấy hàng của task — BE `fulfillment/api/PickDestination.java` (docs 07 §1, §3 "Đích lấy hàng"):
  * `DISPATCH` = khu xuất hàng (mặc định, trừ tồn ngay khi quét), `STAGING` = khu chờ xuất (chỉ chuyển vị
  * trí, chưa trừ tồn).

@@ -49,6 +49,11 @@ interface DestinationFieldProps {
   onStagingChange: (code: string) => void;
   chosenStaging: string;
   error?: string;
+  /**
+   * Docs 07 §4.1 bước 2 (17 §4.4 bước 15): đơn đang chờ hàng mà Sale chưa cho giao một phần chỉ lấy về khu chờ xuất —
+   * khoá lựa chọn khu xuất hàng và nêu lý do. UI-only, BE kiểm lại (409 PICK_AWAITING_STOCK_DESTINATION).
+   */
+  stagingOnly?: boolean;
 }
 
 /**
@@ -62,6 +67,7 @@ export function DestinationField({
   onStagingChange,
   chosenStaging,
   error,
+  stagingOnly = false,
 }: DestinationFieldProps) {
   return (
     <fieldset className="min-w-0 border-0 p-0">
@@ -70,13 +76,14 @@ export function DestinationField({
         {PICK_DESTINATIONS.map((destination) => (
           <label
             key={destination}
-            className="border-border-default hover:bg-bg-muted has-[:checked]:border-ink-primary flex cursor-pointer items-start gap-2 rounded-[var(--r-sm)] border px-3 py-2"
+            className="border-border-default hover:bg-bg-muted has-[:checked]:border-ink-primary has-[:disabled]:text-ink-tertiary flex cursor-pointer items-start gap-2 rounded-[var(--r-sm)] border px-3 py-2 has-[:disabled]:cursor-not-allowed has-[:disabled]:hover:bg-transparent"
           >
             <input
               type="radio"
               name="task-destination"
               value={destination}
               checked={value === destination}
+              disabled={stagingOnly && destination === PICK_DESTINATION.DISPATCH}
               onChange={() => onChange(destination)}
               className="accent-ink-primary mt-0.5"
             />
@@ -89,6 +96,9 @@ export function DestinationField({
           </label>
         ))}
       </div>
+      {stagingOnly && (
+        <p className="text-ink-secondary mt-1.5 text-xs">{D.awaitingStockStagingOnly}</p>
+      )}
       {value === PICK_DESTINATION.STAGING && (
         <div className="mt-2">
           {stagingArea.none && (

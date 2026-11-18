@@ -16,6 +16,7 @@ import {
   useMoveToDispatch,
   useStartPicking,
 } from "@/features/fulfillment/mutations";
+import { useTopUpTask } from "@/features/fulfillment/pick-line-mutations";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
@@ -61,6 +62,7 @@ export function TaskActionCard({
     startPicking: useStartPicking(),
     completePicking: useCompletePicking(),
     moveToDispatch: useMoveToDispatch(),
+    topUp: useTopUpTask(),
   };
   const [dialog, setDialog] = useState<FulfillmentActionCode | null>(null);
   const actions = scopeActions(task, actor, scope, linesComplete);

@@ -541,6 +541,8 @@ export const UI_LABELS = {
       startPicking: "Bắt đầu lấy hàng",
       completePicking: "Hoàn tất lấy hàng",
       moveToDispatch: "Chuyển sang khu xuất hàng",
+      // Docs 07 §4.3 bước 7: thêm thùng còn thiếu đã về kho vào cùng task (BE `POST …/top-up`)
+      topUp: "Lấy bổ sung",
       openPacking: "Mở trạm kiểm thùng",
       openPicking: "Xem lấy hàng",
     },
@@ -573,7 +575,9 @@ export const UI_LABELS = {
       empty: "Không có đơn nào chờ xuất kho",
       emptyTitle: "Chưa có đơn nào chờ xuất kho",
       emptyDescription:
-        "Chỉ đơn đã release (sẵn sàng xuất kho) và chưa có task mới hiện ở đây. Đơn mới xác nhận cần release trước.",
+        "Chỉ đơn đã release (sẵn sàng xuất kho), hoặc đơn đang chờ hàng đã giữ được một phần thùng, và chưa có task mới hiện ở đây. Đơn mới xác nhận cần release trước.",
+      // Docs 07 §4.1 bước 1: đơn Awaiting Stock có thùng đã giữ — lấy trước phần đã có
+      awaitingStock: "Chờ hàng",
       loadFailed: "Không tải được danh sách đơn hàng chờ xuất kho.",
       printed: "Có dòng in",
       guestCustomer: "Khách vãng lai",
@@ -612,6 +616,9 @@ export const UI_LABELS = {
       stagingAreasFailed:
         "Không tải được sơ đồ kho — để trống, máy chủ tự chọn khu chờ xuất nếu kho chỉ có một.",
       stagingAreaRequired: "Chọn khu chờ xuất của kho",
+      // Docs 07 §4.1 bước 2, 17 §4.4 bước 15: đơn Awaiting Stock chỉ lấy sang khu xuất hàng khi Sale cho giao một phần
+      awaitingStockStagingOnly:
+        "Đơn đang chờ hàng: lấy trước phần đã có về khu chờ xuất. Chỉ lấy sang khu xuất hàng khi Sale đã cho phép giao một phần.",
     },
     self: "Tôi",
     // Nhãn trường dùng chung giữa cột danh sách, thẻ thông tin và form
@@ -649,6 +656,16 @@ export const FULFILLMENT_ERROR_MESSAGES = {
   // 409 PICK_ORDER_ON_HOLD khi chuyển sang khu xuất hàng: đơn đang treo (docs 07 §6 "Đơn đang treo khi task Staged")
   PICK_ORDER_ON_HOLD:
     "Đơn đang tạm giữ nên chưa chuyển sang khu xuất hàng được — thùng vẫn ở khu chờ xuất. Gỡ treo đơn rồi thử lại.",
+  // 409 khi tạo task / đổi đích: đơn Awaiting Stock chỉ lấy về khu chờ xuất, hoặc sang khu xuất hàng khi Sale cho
+  // phép giao một phần (docs 07 §4.1 bước 2)
+  PICK_AWAITING_STOCK_DESTINATION:
+    "Đơn đang chờ hàng chỉ lấy trước về khu chờ xuất, hoặc sang khu xuất hàng khi Sale đã cho phép giao một phần.",
+  // 409 khi chuyển sang khu xuất hàng: đơn còn chờ hàng mà Sale chưa cho giao một phần (docs 07 §4.3 bước 8)
+  PICK_AWAITING_STOCK_NOT_READY:
+    "Đơn còn chờ hàng nên thùng ở lại khu chờ xuất — chờ đủ hàng rồi lấy bổ sung, hoặc Sale cho phép giao một phần.",
+  // 409 khi lấy bổ sung: task đã huỷ hoặc đã hoàn tất kiểm thùng (thùng đã thành shipment) — docs 07 §4.3 bước 7
+  topUpConflict:
+    "Task không còn nhận thêm thùng (đã huỷ hoặc đã hoàn tất kiểm thùng). Dữ liệu đã được tải lại.",
   dispatchConflict:
     "Task không còn ở trạng thái Đã tập kết (khu chờ xuất) nên không chuyển được. Dữ liệu đã được tải lại.",
   orderNotFound: "Không tìm thấy đơn hàng",
@@ -986,6 +1003,8 @@ export const TOAST_MESSAGES = {
     held: "Lệch checksum thiết kế — kiện bị giữ, chờ kiểm tra lại thiết kế",
     // Chuyển cả tác vụ từ khu chờ xuất sang khu xuất hàng (BE `POST …/dispatch-transfer`, docs 07 §4.3 bước 8)
     movedToDispatch: "Đã chuyển task sang khu xuất hàng — tồn đã được trừ",
+    // Lấy bổ sung (BE `POST …/top-up`, docs 07 §4.3 bước 7): thùng còn thiếu đã về kho thêm vào cùng task
+    toppedUp: "Đã thêm thùng vào task — task quay lại lấy hàng",
     // Phân bổ lại dòng thiếu (BE `POST …/pick-lines/{lineId}/reallocation`, PR #147)
     lineReallocated: "Đã phân bổ lại dòng thiếu",
     linesPlanned: "Đã tạo danh sách dòng lấy hàng",

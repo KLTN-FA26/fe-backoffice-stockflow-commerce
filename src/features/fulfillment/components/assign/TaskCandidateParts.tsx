@@ -1,6 +1,6 @@
 "use client";
 
-import { UI_LABELS } from "@/constants";
+import { TASK_CANDIDATE_AWAITING_STOCK, UI_LABELS } from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { formatDate } from "@/lib/format";
 import { fulfillmentErrorMessage } from "@/features/fulfillment/errors";
@@ -31,7 +31,7 @@ export function CandidateSummary({ candidate }: { candidate: TaskCandidate }) {
   );
 }
 
-/** Một dòng trong danh sách: số đơn, khách, số dòng / số lượng, ngày đặt, dấu "có dòng in". */
+/** Một dòng trong danh sách: số đơn, khách, số dòng / số lượng, ngày đặt, dấu "có dòng in" / "chờ hàng". */
 export function CandidateOption({ candidate }: { candidate: TaskCandidate }) {
   return (
     <span className="flex min-w-0 flex-col items-start gap-0.5">
@@ -41,6 +41,12 @@ export function CandidateOption({ candidate }: { candidate: TaskCandidate }) {
         {hasPrintedLines(candidate) && (
           <Badge variant="outline" className="text-[0.6875rem]">
             {candidateCopy.printed}
+          </Badge>
+        )}
+        {/* Docs 07 §4.1 bước 1: đơn chờ hàng đã giữ được một phần thùng — lấy trước phần đã có */}
+        {candidate.orderStatus === TASK_CANDIDATE_AWAITING_STOCK && (
+          <Badge variant="outline" className="text-[0.6875rem]">
+            {candidateCopy.awaitingStock}
           </Badge>
         )}
       </span>

@@ -37,10 +37,12 @@ export interface FulfillmentGateState {
   pickStatus: PickStatus;
   packStatus: PackStatus;
   assignedUserId?: string | null;
+  /** BE `GET /tasks/{id}`: đơn còn thùng đã giữ cho task mà chưa có dòng (docs 07 §4.3 bước 7). */
+  topUpAvailable?: boolean | null;
 }
 
 export type FulfillmentActionCode =
-  "assign" | "startPicking" | "completePicking" | "moveToDispatch";
+  "assign" | "startPicking" | "completePicking" | "moveToDispatch" | "topUp";
 
 interface StatusGate<S extends string> {
   readonly from: readonly S[];
@@ -96,6 +98,16 @@ export const FULFILLMENT_ACTIONS: readonly FulfillmentAction[] = [
     assigneeOnly: false,
     pick: { from: [PICK_STATUS.STAGED], to: PICK_STATUS.PICKED },
   },
+  {
+    code: "topUp",
+    label: LABEL.topUp,
+    // BE `POST /tasks/{id}/top-up` (docs 07 §4.3 bước 7, BR-07) — fulfillment-task-assignment:UPDATE, quản lý kho phân
+    // bổ bổ sung: thùng còn thiếu đã về kho thêm vào cùng task, task `Staged` / `Picked` quay lại `Picking`. Chỉ khi
+    // BE báo còn thùng đã giữ chưa có dòng (`topUpAvailable`, xem `allowedFulfillmentActions`).
+    permission: ASSIGNMENT.update,
+    assigneeOnly: false,
+    pick: { from: [PICK_STATUS.STAGED, PICK_STATUS.PICKED], to: PICK_STATUS.PICKING },
+  },
 ];
 
 export function isAssignee(task: FulfillmentGateState, actor: FulfillmentActor): boolean {
@@ -131,7 +143,8 @@ function allowedByStatus(action: FulfillmentAction, task: FulfillmentGateState):
 
 /**
  * Action khả dụng cho task + người dùng: 1. trạng thái pick/pack và bảng chuyển trạng thái;
- * 2. mã quyền; 3. là người được gán hoặc người làm thay (nếu action đòi).
+ * 2. mã quyền; 3. là người được gán hoặc người làm thay (nếu action đòi); 4. "Lấy bổ sung" chỉ khi BE báo còn
+ * thùng đã giữ chưa có dòng (`topUpAvailable` — chỉ có ở chi tiết task, danh sách không hiện nút này).
  */
 export function allowedFulfillmentActions(
   task: FulfillmentGateState,
@@ -140,6 +153,8 @@ export function allowedFulfillmentActions(
   return FULFILLMENT_ACTIONS.filter(
     (action) =>
       allowedByStatus(action, task) &&
+      // Backend phải re-check (docs 07 §4.3 bước 7: BE lập dòng từ khoản giữ chưa có dòng) — UI-only
+      (action.code !== "topUp" || task.topUpAvailable === true) &&
       actor.can(action.permission) &&
       (!action.assigneeOnly || canWorkOnTask(task, actor)),
   );

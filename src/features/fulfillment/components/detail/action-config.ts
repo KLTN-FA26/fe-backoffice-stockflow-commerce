@@ -1,4 +1,4 @@
-import { CheckCircle2, PackageCheck, UserCog } from "lucide-react";
+import { CheckCircle2, PackageCheck, PackagePlus, UserCog } from "lucide-react";
 
 import { allowedTaskActions } from "@/features/fulfillment/pick-line-lifecycle";
 
@@ -12,7 +12,7 @@ import type { FulfillmentScope } from "../primitives";
 
 /** Nhóm thao tác của từng màn — cùng một bảng `FULFILLMENT_ACTIONS`, không rải if/else. */
 export const SCOPE_ACTIONS: Record<FulfillmentScope, readonly FulfillmentActionCode[]> = {
-  picking: ["assign", "startPicking", "completePicking", "moveToDispatch"],
+  picking: ["assign", "startPicking", "completePicking", "moveToDispatch", "topUp"],
   packing: [],
 };
 
@@ -31,7 +31,7 @@ export function scopeActions(
   );
 }
 
-const CONFIRM_CODES = ["startPicking", "completePicking", "moveToDispatch"] as const;
+const CONFIRM_CODES = ["startPicking", "completePicking", "moveToDispatch", "topUp"] as const;
 export type ConfirmCode = (typeof CONFIRM_CODES)[number];
 
 export function isConfirmCode(code: FulfillmentActionCode | null): code is ConfirmCode {
@@ -48,11 +48,15 @@ export const CONFIRM_COPY: Record<ConfirmCode, (code: string) => string> = {
   // Docs 07 §4.3 bước 8: trừ tồn các thùng ở khu chờ xuất, ghi sổ PICK — không hoàn lại được
   moveToDispatch: (code) =>
     `Chuyển cả task ${code} từ khu chờ xuất sang khu xuất hàng? Tồn của mọi thùng trong task sẽ bị trừ và thao tác không hoàn lại được.`,
+  // Docs 07 §4.3 bước 7: thùng còn thiếu đã về kho thêm vào cùng task, giữ đích của task; task quay lại Đang lấy hàng
+  topUp: (code) =>
+    `Lấy bổ sung cho task ${code}? Các thùng đơn đã giữ thêm được đưa vào cùng task và task quay lại Đang lấy hàng.`,
 };
 
 export const ACTION_ICON: Partial<Record<FulfillmentActionCode, typeof CheckCircle2>> = {
   assign: UserCog,
   moveToDispatch: PackageCheck,
+  topUp: PackagePlus,
 };
 
 export const DEFAULT_ACTION_ICON = CheckCircle2;
