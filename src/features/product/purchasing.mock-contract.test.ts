@@ -154,13 +154,13 @@ describe("PUT purchasing (mock)", () => {
     expect((await getSkuPurchasing(PRODUCT, VARIANT)).moq).toBe(24);
   });
 
-  it("PUT chính sách tồn tăng cùng version → bản đã đọc của thông tin mua hàng thành cũ", async () => {
+  it("PUT logistics tăng cùng version → bản đã đọc của thông tin mua hàng thành cũ", async () => {
     const read = await getSkuPurchasing(PRODUCT, VARIANT);
-    const { data: item } = await api.get<{ version: number; policy: Record<string, unknown> }>(
+    const { data: item } = await api.get<{ version: number; logistics: Record<string, unknown> }>(
       `/inventory/items/item-${VARIANT}`,
     );
-    await api.put(`/inventory/items/item-${VARIANT}/policy`, {
-      ...item.policy,
+    await api.put(`/inventory/items/item-${VARIANT}/logistics`, {
+      ...item.logistics,
       version: item.version,
     });
     expect(isPurchasingVersionConflict(await apiError(save(read.version, full)))).toBe(true);

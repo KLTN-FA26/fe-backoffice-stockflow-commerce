@@ -329,7 +329,7 @@ export const INVENTORY_ITEM_PERMISSIONS = {
   viewPage: "inventory-inventory-items:VIEW_PAGE",
   // GET /inventory/items, GET /inventory/items/{id}
   read: "inventory-inventory-items:READ",
-  // PUT /inventory/items/{id}/logistics, PUT …/policy
+  // PUT /inventory/items/{id}/logistics
   update: "inventory-inventory-items:UPDATE",
 } as const;
 
