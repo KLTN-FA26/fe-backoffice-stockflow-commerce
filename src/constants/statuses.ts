@@ -908,9 +908,6 @@ export const LOCATION_STATUS = {
   INACTIVE: "INACTIVE",
 } as const satisfies Record<string, (typeof LOCATION_STATUSES)[number]>;
 
-/** BE `StorageClass` — lớp lưu trữ, ràng buộc cứng khi cất hàng (docs 06 BR-01). */
-export const STORAGE_CLASSES = ["NORMAL", "COLD", "HAZMAT", "FRAGILE", "OVERSIZE"] as const;
-
 /** BE `BinType` — chỉ để mô tả, chưa dùng trong gợi ý (docs 06 §5). */
 export const BIN_TYPES = ["STANDARD", "PALLET", "SMALL_PARTS"] as const;
 
