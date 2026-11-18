@@ -46,6 +46,7 @@ export {
   WAREHOUSE_STATUS_LABELS,
 } from "./labels-warehouse-map";
 export { WAREHOUSE_MAP_SHORTCUTS, type MapShortcut } from "./labels-warehouse-map-edit";
+export { LOCATION_LABEL_SCOPES, type LocationLabelScope } from "./labels-warehouse-map-print";
 export {
   DATA_SCOPE_LABELS,
   IDENTITY_ERROR_MESSAGES,

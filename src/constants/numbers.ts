@@ -401,6 +401,12 @@ export const WAREHOUSE_MAP_LIMITS = {
   /** Bước lưới vẽ 2D (m): vạch mảnh mỗi 1 m, vạch đậm mỗi 5 m. */
   gridMinor: 1,
   gridMajor: 5,
+  /** BR-17 (docs 06 §4.3): tối đa 2.000 nhãn vị trí mỗi lần in; danh sách mã gửi 1–2.000 mã. */
+  labelsPerPrintMax: 2000,
+  /** BE `LocationLabelRequest.locationCodes` — mỗi mã `[A-Za-z0-9-]{1,64}`. */
+  labelCodeMax: 64,
+  /** Câu lỗi nêu tối đa chừng này mã / thùng, còn lại chỉ đếm (như BE `LISTED_CODES`; BR-04 BE trả ≤ 50 thùng). */
+  listedInMessage: 10,
   /** Chiều cao tường vẽ 3D (m) — chỉ trực quan, BE không lưu chiều cao tường. */
   wallHeight3d: 3,
   /** Chế độ sửa: kéo / vẽ bám lưới 0,5 m; phím mũi tên dời 0,1 m (Shift: 1 m) — chỉnh tinh ở bảng thông số. */

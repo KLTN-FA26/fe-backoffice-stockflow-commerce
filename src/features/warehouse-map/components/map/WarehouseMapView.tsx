@@ -19,6 +19,7 @@ import { Alert } from "@/components/shared/Alert";
 import { EmptyState } from "@/components/shared/EmptyState";
 
 import { MapEditMode } from "../editor/MapEditMode";
+import { LocationLabelsDialog } from "../labels/LocationLabelsDialog";
 import { MapFrame } from "../shared/MapFrame";
 import { useHotkeys } from "../shared/use-hotkeys";
 import { MAP_PAGE_CLASS } from "../shared/use-map-fullscreen";
@@ -41,6 +42,7 @@ function WarehouseMapContent({ warehouse }: { warehouse: Warehouse }) {
   const canRead = useCan(WAREHOUSE_LOCATION_PERMISSIONS.read);
   const actions = warehouseMapActions({ can });
   const [editing, setEditing] = useState(false);
+  const [printing, setPrinting] = useState(false);
   // 3D: bấm kệ chỉ bay camera tới + thẻ hàng; modal chi tiết mở bằng nút trên thẻ
   const in3d = url.view === "3d";
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -69,6 +71,7 @@ function WarehouseMapContent({ warehouse }: { warehouse: Warehouse }) {
       url={url}
       canEdit={canEdit}
       onEdit={startEditing}
+      onPrintLabels={data ? () => setPrinting(true) : undefined}
       inactive={data ? inactiveCount(data) : 0}
     />
   );
@@ -115,6 +118,7 @@ function WarehouseMapContent({ warehouse }: { warehouse: Warehouse }) {
             )
           }
         </MapFrame>
+        {printing && <LocationLabelsDialog layout={data} onClose={() => setPrinting(false)} />}
         {place && (!in3d || detailId === url.selectedId) && (
           <PlaceDetailDialog
             key={url.selectedId}
