@@ -49,7 +49,7 @@ jobs:
             echo "::notice::SonarQube Cloud analysis skipped: SONAR_TOKEN secret or SONAR_ORGANIZATION variable is not available."
           fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: steps.gate.outputs.enabled == 'true'
         with:
           # Full history: Sonar needs it for blame and to find the new-code baseline.

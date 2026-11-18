@@ -30,7 +30,7 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Phiên bản pnpm lấy từ "packageManager" trong package.json - không khai báo lại ở đây.
       # Action bên thứ ba nên pin theo commit (v6.1.0).
