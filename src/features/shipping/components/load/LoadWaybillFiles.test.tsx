@@ -43,14 +43,20 @@ function renderCard(actor: TestActor, load: Pick<Load, "loadId" | "status">) {
 }
 
 describe("LoadWaybillFiles — gate quyền và trạng thái", () => {
-  it.each(["PLANNED", "VEHICLE_BOOKED", "LOADING", "DISPATCHED"] as const)(
-    "nhân viên kho (fulfillment-dispatch:UPDATE), chuyến %s: xem danh sách và có hộp tải lên",
+  it.each(["VEHICLE_BOOKED", "LOADING", "DISPATCHED"] as const)(
+    "nhân viên kho (fulfillment-dispatch:UPDATE), chuyến %s: đã đặt xe: xem danh sách và có hộp tải lên",
     async (status) => {
       renderCard(ACTORS.warehouseStaff, { loadId: LOAD_ID, status });
       expect(await screen.findByText("van-don-hang-NB.pdf")).toBeInTheDocument();
       expect(input()).not.toBeNull();
     },
   );
+
+  it("chuyến chưa đặt xe (PLANNED): lý do tiếng Việt thay hộp tải lên, kể cả với quản lý kho", async () => {
+    renderCard(ACTORS.warehouseManager, { loadId: LOAD_ID, status: "PLANNED" });
+    expect(await screen.findByText(L.waybill.notBooked)).toBeInTheDocument();
+    expect(input()).toBeNull();
+  });
 
   it("người chỉ có quyền đọc: xem và tải xuống được, không có hộp tải lên", async () => {
     renderCard(ACTORS.viewOnly, { loadId: LOAD_ID, status: "VEHICLE_BOOKED" });

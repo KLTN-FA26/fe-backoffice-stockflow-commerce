@@ -98,6 +98,8 @@ export const SHIPPING_FILE_LABELS = {
     upload: "Tải file vận đơn lên",
     typeHint: "PDF, Word, Excel hoặc ảnh JPEG / PNG, tối đa 25 MB.",
     typeNotAccepted: "File vận đơn chỉ nhận PDF, Word, Excel hoặc ảnh JPEG / PNG.",
+    notBooked:
+      "Chỉ tải file vận đơn lên sau khi đã đặt xe với hãng. Ghi nhận đặt xe trước, rồi quay lại đây.",
     cancelled: "Chuyến đã huỷ nên không đính kèm thêm file vận đơn được; file đã có vẫn xem được.",
     stateConflict: "Chuyến đã huỷ nên không đính kèm thêm file vận đơn được.",
     notFound: "Không tìm thấy chuyến này nữa. Tải lại trang rồi thử lại.",
