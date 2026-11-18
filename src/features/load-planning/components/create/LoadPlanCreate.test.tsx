@@ -187,6 +187,33 @@ describe("LoadPlanCreate — lập kế hoạch rồi tính xếp xe", () => {
     expect(calcBody).toEqual({ expectedVersion: 0 });
   });
 
+  it("offers the four modes of docs 09 §4.2 a plan stores, each with its hint (WF4-LP-MODES)", async () => {
+    renderCreate(ACTORS.dispatcher);
+    const radios = await screen.findAllByRole("radio");
+    expect(radios.map((radio) => radio.getAttribute("value"))).toEqual([
+      "SINGLE_TYPE",
+      "FEWEST_VEHICLES",
+      "KEEP_LINES",
+      "OVER_CAPACITY",
+    ]);
+    expect(screen.getByRole("radio", { name: /Giữ nguyên dòng/ })).toBeInTheDocument();
+    expect(screen.getByText(/cùng một dòng hàng của đơn đi chung một xe/)).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Vượt sức chứa/ })).toBeInTheDocument();
+  });
+
+  it("sends the chosen mode (KEEP_LINES)", async () => {
+    const { post } = renderCreate(ACTORS.dispatcher);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("radio", { name: /Giữ nguyên dòng/ }));
+    await user.click(
+      await screen.findByRole("checkbox", { name: `${L.shipmentCode} ${candidateFixture().code}` }),
+    );
+    await user.click(await screen.findByRole("checkbox", { name: /PICKUP/ }));
+    await user.click(screen.getByRole("button", { name: L.submit }));
+    await waitFor(() => expect(post).toHaveBeenCalled());
+    expect(post.mock.calls[0][1]).toMatchObject({ selectionMode: "KEEP_LINES" });
+  });
+
   it("sends the chosen mode (FEWEST_VEHICLES)", async () => {
     const { post } = renderCreate(ACTORS.dispatcher);
     const user = userEvent.setup();

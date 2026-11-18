@@ -29,15 +29,19 @@ export const LOAD_PLAN_STATUS_LABELS: Record<LoadPlanStatus, string> = {
   CANCELLED: "Đã huỷ",
 };
 
-/** BE `SelectionMode` (LP-6) kèm câu giải thích dưới ô chọn. */
+/** BE `SelectionMode` kèm câu giải thích dưới ô chọn (bảng "Chế độ chọn xe", docs 09 §4.2). */
 export const LOAD_PLAN_MODE_LABELS: Record<LoadPlanSelectionMode, string> = {
   SINGLE_TYPE: "Một loại xe",
   FEWEST_VEHICLES: "Ít xe nhất",
+  KEEP_LINES: "Giữ nguyên dòng",
+  OVER_CAPACITY: "Vượt sức chứa",
 };
 
 export const LOAD_PLAN_MODE_HINTS: Record<LoadPlanSelectionMode, string> = {
   SINGLE_TYPE: "Chọn loại xe xếp tốt nhất rồi dùng bao nhiêu xe loại đó tuỳ cần.",
   FEWEST_VEHICLES: "Trộn các loại xe đã chọn sao cho tổng số xe ít nhất.",
+  KEEP_LINES: "Các kiện cùng một dòng hàng của đơn đi chung một xe.",
+  OVER_CAPACITY: "Xếp tối đa những kiện vừa với số xe sẵn có và báo phần phải bỏ lại.",
 };
 
 /** Lý do một kiện chưa xếp được (BE `LoadPlanUnplacedReason`). */

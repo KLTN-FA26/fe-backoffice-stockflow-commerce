@@ -11,7 +11,10 @@ import type { LoadPlanSelectionMode } from "@/constants";
 
 const L = UI_LABELS.loadPlan.createForm;
 
-/** Chế độ chọn xe (LP-6): một loại (mặc định) hoặc ít xe nhất. Nhóm radio có nhãn, mỗi lựa chọn kèm một câu giải thích. */
+/**
+ * Chế độ chọn xe (docs 09 §4.2, WF4-LP-MODES): một loại (mặc định), ít xe nhất, giữ nguyên dòng, vượt sức chứa. Nhóm
+ * radio có nhãn, mỗi lựa chọn kèm một câu giải thích.
+ */
 export function ModePicker({
   name,
   value,

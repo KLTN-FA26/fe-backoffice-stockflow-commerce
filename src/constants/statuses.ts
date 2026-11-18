@@ -841,8 +841,17 @@ export const LOAD_PLAN_SOURCE = {
   TRANSFER: "TRANSFER",
 } as const satisfies Record<string, LoadPlanSourceType>;
 
-/** BE `SelectionMode` (LP-6): một loại xe (mặc định) hoặc trộn loại để ít xe nhất. */
-export const LOAD_PLAN_SELECTION_MODES = ["SINGLE_TYPE", "FEWEST_VEHICLES"] as const;
+/**
+ * BE `SelectionMode` mà kế hoạch lưu được (docs 09 §4.2, quyết định WF4-LP-MODES 12/11). "Ưu tiên + hàng chèn" chưa mở
+ * cho kế hoạch: docs chưa nói chia hàng chính / hàng chèn ở mức nào (docs issue #40, câu 4). "Chỉnh tay" là kéo thả trên
+ * mô hình 3D rồi tính lại một xe ở trang kế hoạch (§4.2 bước 3), không phải giá trị chế độ.
+ */
+export const LOAD_PLAN_SELECTION_MODES = [
+  "SINGLE_TYPE",
+  "FEWEST_VEHICLES",
+  "KEEP_LINES",
+  "OVER_CAPACITY",
+] as const;
 
 export type LoadPlanSelectionMode = (typeof LOAD_PLAN_SELECTION_MODES)[number];
 

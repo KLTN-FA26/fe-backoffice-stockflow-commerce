@@ -6,8 +6,16 @@
 
 import { LOAD_ESTIMATE_LIMITS } from "./numbers";
 
-/** BE `LoadEstimateRequest.selectionMode` (mặc định SINGLE_TYPE). */
-export const LOAD_ESTIMATE_SELECTION_MODES = ["SINGLE_TYPE", "FEWEST_VEHICLES"] as const;
+/**
+ * BE `LoadEstimateRequest.selectionMode` (mặc định SINGLE_TYPE; docs 09 §4.2, WF4-LP-MODES). "Ưu tiên + hàng chèn" chưa
+ * mở cho ước tính của đơn (docs issue #40, câu 4).
+ */
+export const LOAD_ESTIMATE_SELECTION_MODES = [
+  "SINGLE_TYPE",
+  "FEWEST_VEHICLES",
+  "KEEP_LINES",
+  "OVER_CAPACITY",
+] as const;
 
 export const LOAD_ESTIMATE_LABELS = {
   /** LP2-1 — luôn hiện cạnh kết quả. */
@@ -29,10 +37,14 @@ export const LOAD_ESTIMATE_LABELS = {
     modes: {
       SINGLE_TYPE: "Một loại xe",
       FEWEST_VEHICLES: "Ít xe nhất",
+      KEEP_LINES: "Giữ nguyên dòng",
+      OVER_CAPACITY: "Vượt sức chứa",
     },
     modeHints: {
       SINGLE_TYPE: "Dùng cùng một loại xe cho cả đơn.",
       FEWEST_VEHICLES: "Trộn nhiều loại xe để dùng ít xe nhất.",
+      KEEP_LINES: "Các thùng cùng một dòng của đơn đi chung một xe.",
+      OVER_CAPACITY: "Xếp tối đa những thùng vừa với số xe sẵn có và báo phần phải bỏ lại.",
     },
     run: "Ước tính",
     rerun: "Ước tính lại",
