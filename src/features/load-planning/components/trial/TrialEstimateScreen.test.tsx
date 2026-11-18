@@ -55,8 +55,8 @@ const SHEET: TrialRow[] = [
   ["EasyCargo import template"],
   HEADER,
   [null, null, null, "centimeters", null, null, "kilograms", "Y/N"],
-  ["VIS-1", "SW1701-1", 10, 90, 72, 131, 1, "Y"],
-  [null, null, 6, 120, 80, 60, 1, "N"],
+  ["VIS-1", "SW1701-1", 10, 90, 72, 131, 450, "Y"],
+  [null, null, 6, 120, 80, 60, 180, "N"],
   ["VIS-2", "Thiếu", null, 10, 10, 10, 1, "Y"],
 ];
 
@@ -105,7 +105,7 @@ describe("TrialEstimateScreen — từ file tới kết quả", () => {
     expect(screen.queryByRole("button", { name: "Chạy thử" })).not.toBeInTheDocument();
     await pickFile(user);
     expect(
-      await screen.findByText(/2 dòng · 16 kiện · 1 nhóm · đơn vị trong file: xentimét/),
+      await screen.findByText(/2 dòng · 16 kiện · 1 nhóm · 630 kg · đơn vị trong file: xentimét/),
     ).toBeInTheDocument();
     expect(screen.getByText("Đã bỏ qua 1 dòng")).toBeInTheDocument();
     expect(screen.getByText("Dòng 6: bỏ qua — thiếu Pieces hoặc bằng 0.")).toBeInTheDocument();
@@ -113,6 +113,10 @@ describe("TrialEstimateScreen — từ file tới kết quả", () => {
     expect(within(table).getByText("SW1701-1")).toBeInTheDocument();
     expect(within(table).getByText("1.310")).toBeInTheDocument();
     expect(within(table).getByText("Không")).toBeInTheDocument();
+    expect(within(table).getByText("450")).toBeInTheDocument();
+    expect(screen.getByRole("complementary", { name: "Cách đọc file" })).toHaveTextContent(
+      "Total weight",
+    );
   });
 
   it("chạy thử: POST danh sách dòng (không có sourceRow) + loại xe đã chọn, rồi hiện 3D kèm huy hiệu 'Chạy thử — không lưu'", async () => {
@@ -125,7 +129,8 @@ describe("TrialEstimateScreen — từ file tới kết quả", () => {
     const result = await screen.findByRole("region", { name: "Kết quả chạy thử" });
     expect(within(result).getByTestId("viewer")).toHaveAttribute("data-code", "40HC");
     expect(within(result).getByText("Chạy thử — không lưu")).toBeInTheDocument();
-    expect(within(result).queryByText("Khối lượng")).not.toBeInTheDocument();
+    // WF4-TRIAL-EST: tải trọng được kiểm, ô khối lượng hiện như ước tính thật
+    expect(within(result).getByText("Khối lượng")).toBeInTheDocument();
     expect(post).toHaveBeenCalledTimes(1);
     const [url, body] = post.mock.calls[0] ?? [];
     expect(url).toBe("/fulfillment/load-estimates/trial");
@@ -138,7 +143,9 @@ describe("TrialEstimateScreen — từ file tới kết quả", () => {
         widthMm: 720,
         heightMm: 1310,
         quantity: 10,
+        totalWeightKg: 450,
         rotatable: true,
+        fill: false,
       },
       {
         name: "row-5",
@@ -147,11 +154,76 @@ describe("TrialEstimateScreen — từ file tới kết quả", () => {
         widthMm: 800,
         heightMm: 600,
         quantity: 6,
+        totalWeightKg: 180,
         rotatable: false,
+        fill: false,
       },
     ]);
     expect((body as { vehicleTypeIds: string[] }).vehicleTypeIds).toHaveLength(1);
     expect(await screen.findByRole("button", { name: "Chạy thử lại" })).toBeEnabled();
+  });
+
+  it("5 chế độ chọn xe của docs 09 §4.2 (không có 'Chỉnh tay'); chế độ đã chọn được gửi BE", async () => {
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiTrialEstimate() });
+    const user = await open();
+    await pickFile(user);
+    expect(await screen.findAllByRole("radio")).toHaveLength(5);
+    for (const label of [
+      "Một loại xe",
+      "Ít xe nhất",
+      "Giữ nguyên dòng",
+      "Ưu tiên + hàng chèn",
+      "Vượt sức chứa",
+    ])
+      expect(
+        screen.getByRole("radio", { name: (name) => name.startsWith(label) }),
+      ).toBeInTheDocument();
+    expect(screen.queryByText("Chỉnh tay")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("radio", { name: /Giữ nguyên dòng/ }));
+    await user.click(screen.getByRole("button", { name: "Chạy thử" }));
+    await screen.findByRole("region", { name: "Kết quả chạy thử" });
+    expect(post.mock.calls[0]?.[1]).toMatchObject({ selectionMode: "KEEP_LINES" });
+  });
+
+  it("Ưu tiên + hàng chèn: gửi cờ Hàng chèn của từng dòng; file chưa đánh dấu dòng nào thì nhắc", async () => {
+    const post = vi.spyOn(api, "post").mockResolvedValue({ data: apiTrialEstimate() });
+    const user = await open();
+    await pickFile(user);
+    await user.click(await screen.findByRole("radio", { name: /Ưu tiên \+ hàng chèn/ }));
+    expect(screen.getByText(/Chưa có dòng nào đánh dấu Hàng chèn/)).toBeInTheDocument();
+
+    sheet.read.mockResolvedValue([
+      SHEET[0],
+      [...HEADER, "Hàng chèn"],
+      [null, null, null, "cm", null, null, "kg", "Y/N", "Y/N"],
+      ["G", "Chính", 2, 50, 50, 50, 20, "Y", null],
+      ["G", "Phụ", 3, 20, 20, 20, 3, "Y", "Y"],
+    ]);
+    await pickFile(user);
+    await screen.findByText("Phụ");
+    expect(screen.queryByText(/Chưa có dòng nào đánh dấu Hàng chèn/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Chạy thử" }));
+    await screen.findByRole("region", { name: "Kết quả chạy thử" });
+    const body = post.mock.calls[0]?.[1] as { selectionMode: string; lines: { fill: boolean }[] };
+    expect(body.selectionMode).toBe("PRIORITY_FILL");
+    expect(body.lines.map((line) => line.fill)).toEqual([false, true]);
+  });
+
+  it("dòng thiếu khối lượng: báo dòng nào, khoá nút chạy thử, không gọi BE (docs 09 §6)", async () => {
+    sheet.read.mockResolvedValue([
+      ...SHEET.slice(0, 3),
+      ["VIS-1", "Có", 1, 10, 10, 10, 5, "Y"],
+      ["VIS-1", "Không có", 1, 10, 10, 10, null, "Y"],
+    ]);
+    const post = vi.spyOn(api, "post");
+    const user = await open();
+    await pickFile(user);
+    expect(
+      await screen.findByText(/Dòng 5: cột Total weight trống hoặc bằng 0/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Chạy thử" })).toBeDisabled();
+    expect(screen.getByText(/Có dòng thiếu khối lượng/)).toBeInTheDocument();
+    expect(post).not.toHaveBeenCalled();
   });
 
   it("chọn file khác = bỏ kết quả cũ (kết quả không lưu, không còn ý nghĩa)", async () => {
@@ -192,7 +264,7 @@ describe("TrialEstimateScreen — từ file tới kết quả", () => {
   it(`quá ${TRIAL_MAX_BOXES} kiện: báo ngay ở bước xem trước và khoá nút chạy thử (không gọi BE)`, async () => {
     sheet.read.mockResolvedValue([
       ...SHEET.slice(0, 3),
-      ["", "Nhiều", TRIAL_MAX_BOXES + 1, 10, 10, 10],
+      ["", "Nhiều", TRIAL_MAX_BOXES + 1, 10, 10, 10, 1],
     ]);
     const post = vi.spyOn(api, "post");
     const user = await open();

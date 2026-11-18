@@ -139,6 +139,7 @@ export {
 export {
   TRIAL_ACCEPT,
   TRIAL_DEFAULT_LENGTH_FACTOR,
+  TRIAL_DEFAULT_WEIGHT_FACTOR,
   TRIAL_FALSE_VALUES,
   TRIAL_FIELDS,
   TRIAL_HEADER_ALIASES,
@@ -150,10 +151,14 @@ export {
   TRIAL_MAX_MM,
   TRIAL_NAME_MAX,
   TRIAL_MAX_FILE_BYTES,
+  TRIAL_MAX_TOTAL_WEIGHT_KG,
   TRIAL_REQUIRED_FIELDS,
+  TRIAL_SELECTION_MODES,
   TRIAL_TEMPLATE,
+  TRIAL_WEIGHT_DECIMALS,
+  TRIAL_WEIGHT_UNITS,
 } from "./labels-load-estimate-trial";
-export type { TrialField } from "./labels-load-estimate-trial";
+export type { TrialField, TrialSelectionMode } from "./labels-load-estimate-trial";
 export {
   LOAD_PLAN_ERROR_MESSAGES,
   LOAD_PLAN_ESTIMATE_FLAG_LABELS,

@@ -1,10 +1,16 @@
 /**
  * Mock "Ước tính thử" (SCRUM-474 TRIAL-FLOW, LP2-9; BE `POST /fulfillment/load-estimates/trial`): kiểm yêu cầu như BE
- * (dòng, kích thước, giới hạn 3 000 kiện, loại xe) rồi trả một bố cục cố định từ fixture `Layout` — mock KHÔNG xếp
+ * (dòng, kích thước, khối lượng, chế độ, giới hạn 3 000 kiện, loại xe) rồi trả một bố cục cố định từ fixture `Layout` — mock KHÔNG xếp
  * thật theo danh sách gửi lên, chỉ để màn chạm được mọi trạng thái. Không lưu gì (đúng như BE).
  */
 
-import { LOAD_ESTIMATE_LIMITS, TRIAL_MAX_BOXES, TRIAL_MAX_MM } from "@/constants";
+import {
+  LOAD_ESTIMATE_LIMITS,
+  TRIAL_MAX_BOXES,
+  TRIAL_MAX_MM,
+  TRIAL_MAX_TOTAL_WEIGHT_KG,
+  TRIAL_SELECTION_MODES,
+} from "@/constants";
 import { LAYOUT_40HC, UNPLACED_40HC } from "@/features/load-planning/__fixtures__/layouts";
 
 import { fail, ok } from "./mock-route-utils";
@@ -18,6 +24,12 @@ const invalid = (field: string, code: string) =>
 const isMm = (value: unknown): boolean =>
   typeof value === "number" && Number.isInteger(value) && value > 0 && value <= TRIAL_MAX_MM;
 
+const isWeight = (value: unknown): boolean =>
+  typeof value === "number" && value > 0 && value <= TRIAL_MAX_TOTAL_WEIGHT_KG;
+
+const isMode = (value: unknown): value is (typeof TRIAL_SELECTION_MODES)[number] =>
+  TRIAL_SELECTION_MODES.some((mode) => mode === value);
+
 export function mockTrialEstimate(body: Record<string, unknown>): MockResponseShape {
   const lines = Array.isArray(body.lines) ? body.lines : [];
   if (lines.length === 0) return invalid("lines", "NotEmpty");
@@ -29,8 +41,11 @@ export function mockTrialEstimate(body: Record<string, unknown>): MockResponseSh
     const quantity = line.quantity;
     if (typeof quantity !== "number" || !Number.isInteger(quantity) || quantity <= 0)
       return invalid(`lines[${index}].quantity`, "Positive");
+    if (!isWeight(line.totalWeightKg)) return invalid(`lines[${index}].totalWeightKg`, "Positive");
     boxes += quantity;
   }
+  if (body.selectionMode !== undefined && !isMode(body.selectionMode))
+    return invalid("selectionMode", "Pattern");
   if (boxes > TRIAL_MAX_BOXES)
     return fail(422, "LOAD_ESTIMATE_TOO_MANY_CARTONS", `The list makes ${boxes} boxes`);
   const ids = Array.isArray(body.vehicleTypeIds) ? body.vehicleTypeIds : [];
@@ -44,7 +59,7 @@ export function mockTrialEstimate(body: Record<string, unknown>): MockResponseSh
   }
   return ok({
     trial: true,
-    selectionMode: body.selectionMode === "FEWEST_VEHICLES" ? "FEWEST_VEHICLES" : "SINGLE_TYPE",
+    selectionMode: isMode(body.selectionMode) ? body.selectionMode : "SINGLE_TYPE",
     vehicleTypeIds: ids,
     vehicles: [LAYOUT_40HC],
     unplaced: UNPLACED_40HC.map((line) => ({

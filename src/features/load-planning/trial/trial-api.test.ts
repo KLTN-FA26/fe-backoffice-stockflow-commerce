@@ -18,7 +18,9 @@ const line = {
   widthMm: 720,
   heightMm: 1310,
   quantity: 10,
+  totalWeightKg: 450,
   rotatable: true,
+  fill: false,
 };
 const input = { lines: [line], vehicleTypeIds: ["vt-40hc"], selectionMode: "SINGLE_TYPE" as const };
 
@@ -75,6 +77,29 @@ describe("TrialRunInputSchema", () => {
       }).success,
     ).toBe(false);
     expect(TrialRunInputSchema.safeParse({ ...input, selectionMode: "NOPE" }).success).toBe(false);
+  });
+
+  it("WF4-TRIAL-EST: khối lượng bắt buộc và dương (docs 09 §6: thiếu khối lượng thì chặn tính)", () => {
+    const bad = (patch: Record<string, unknown>) =>
+      TrialRunInputSchema.safeParse({ ...input, lines: [{ ...line, ...patch }] }).success;
+    expect(bad({ totalWeightKg: null })).toBe(false);
+    expect(bad({ totalWeightKg: 0 })).toBe(false);
+    expect(bad({ totalWeightKg: 1_000_001 })).toBe(false);
+    expect(bad({ totalWeightKg: 0.001 })).toBe(true);
+  });
+
+  it("nhận đủ 5 chế độ của docs 09 §4.2; 'Chỉnh tay' không phải chế độ của ước tính thử", () => {
+    for (const mode of [
+      "SINGLE_TYPE",
+      "FEWEST_VEHICLES",
+      "KEEP_LINES",
+      "PRIORITY_FILL",
+      "OVER_CAPACITY",
+    ])
+      expect(TrialRunInputSchema.safeParse({ ...input, selectionMode: mode }).success).toBe(true);
+    expect(TrialRunInputSchema.safeParse({ ...input, selectionMode: "MANUAL" }).success).toBe(
+      false,
+    );
   });
 });
 

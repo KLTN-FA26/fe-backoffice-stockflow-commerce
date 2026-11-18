@@ -15,7 +15,7 @@ import {
 } from "../../estimate-queries";
 import { CreateEstimateInputSchema } from "../../estimate-schemas";
 
-import { EstimateControls, type SelectionMode } from "./EstimateControls";
+import { ESTIMATE_MODE_OPTIONS, EstimateControls, type SelectionMode } from "./EstimateControls";
 import { EstimateResult } from "./EstimateResult";
 import { PackagingMissingLinks } from "./PackagingMissingLinks";
 
@@ -86,6 +86,7 @@ export function EstimatePanel({
           onSelectedChange={setSelectedIds}
           mode={mode}
           onModeChange={setMode}
+          modeOptions={ESTIMATE_MODE_OPTIONS}
           onRun={run}
           isPending={create.isPending}
           blockedReason={blockedReason}
