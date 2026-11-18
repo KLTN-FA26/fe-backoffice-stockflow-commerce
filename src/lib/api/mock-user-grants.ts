@@ -6,6 +6,7 @@
 
 import {
   ATTRIBUTE_PERMISSIONS,
+  CHAT_PERMISSIONS,
   CUSTOMIZATION_TEMPLATE_PERMISSIONS,
   CREDIT_HOLD_PERMISSIONS,
   CUSTOMER_CREDIT_PROFILE_PERMISSIONS,
@@ -257,6 +258,14 @@ const PAY_SALES = [...PAY_INSTALLMENT_READ, ...PAY_REFUND_READ];
 const EINVOICE_ALL = Object.values(EINVOICE_PERMISSIONS);
 const EINVOICE_SETTINGS_ALL = Object.values(EINVOICE_SETTINGS_PERMISSIONS);
 
+// Seed BE V20261124000300 (chat, docs 16): chat-conversations đủ action cho SALES_STAFF / SALES_MANAGER / SYSTEM_ADMIN,
+// chat-canned-responses cho cả ba; chat-supervision (giao hội thoại chưa ai nhận, xử lý hội thoại đã chuyển cấp) chỉ
+// SALES_MANAGER / SYSTEM_ADMIN.
+const CHAT_AGENT = Object.values(CHAT_PERMISSIONS).filter(
+  (code) => code !== CHAT_PERMISSIONS.supervise,
+);
+const CHAT_ALL = Object.values(CHAT_PERMISSIONS);
+
 /** Explicit demo session responses keyed by existing staff IDs, never computed from roles. */
 export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
   "USER-ADMIN-01": [
@@ -297,6 +306,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...PAY_ACCOUNTANT,
     ...EINVOICE_ALL,
     ...EINVOICE_SETTINGS_ALL,
+    ...CHAT_ALL,
   ],
   "USER-PROC-01": [
     SUPPLIER_PERMISSIONS.viewPage,
@@ -388,6 +398,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...CUSTOMER_PRICE_READ,
     CUSTOMER_LOOKUP,
     ...PAY_SALES,
+    ...CHAT_AGENT,
   ],
   "USER-SALE-02": [
     ORDER_PERMISSIONS.viewPage,
@@ -403,6 +414,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...CUSTOMER_PRICE_READ,
     CUSTOMER_LOOKUP,
     ...PAY_SALES,
+    ...CHAT_AGENT,
   ],
   "USER-SALE-03": [
     ORDER_PERMISSIONS.viewPage,
@@ -418,6 +430,7 @@ export const MOCK_USER_GRANTS: Record<string, readonly PermissionCode[]> = {
     ...CUSTOMER_PRICE_READ,
     CUSTOMER_LOOKUP,
     ...PAY_SALES,
+    ...CHAT_AGENT,
   ],
   // Seed BE: SALES_STAFF có sales-order-cancellations:UPDATE (huỷ đơn, đóng phần còn lại) và sales-order-holds:UPDATE
   // (giữ / gỡ giữ); ghi giao thất bại ở cấp đơn là fulfillment-delivery-outcomes:APPROVE
