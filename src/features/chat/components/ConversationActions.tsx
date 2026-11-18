@@ -9,20 +9,31 @@ import { Button } from "@/components/ui/button";
 
 import { chatErrorMessage, useChangeStatus, useClaimConversation } from "../mutations";
 
-import type { ChatConversationStatus } from "@/constants";
-import type { StaffConversationActions } from "../lifecycle";
+import { AssignDialog } from "./AssignDialog";
 
-/** Nhận hội thoại + đổi trạng thái theo `nextStatuses` của BE; chuyển cấp (ESCALATED) bắt buộc lý do. */
+import type { ChatConversationStatus } from "@/constants";
+import type { StaffConversationActions, StaffConversationTools } from "../lifecycle";
+
+/**
+ * Nhận hội thoại, giao / chuyển cho Sale khác (S11), đổi trạng thái theo `nextStatuses` của BE; chuyển cấp
+ * (ESCALATED) bắt buộc lý do.
+ */
 export function ConversationActions({
   conversationId,
+  assignedAgentId,
   actions,
+  tools,
 }: {
   conversationId: string;
+  assignedAgentId: string | null | undefined;
   actions: StaffConversationActions;
+  tools: StaffConversationTools;
 }) {
   const claim = useClaimConversation();
   const change = useChangeStatus();
   const [escalating, setEscalating] = useState(false);
+  const [handing, setHanding] = useState(false);
+  const handMode = tools.assign ? "assign" : "transfer";
   const onError = (error: unknown) => toast.error(chatErrorMessage(error));
   const move = (status: ChatConversationStatus, reason?: string) =>
     change.mutate(
@@ -39,6 +50,11 @@ export function ConversationActions({
           onClick={() => claim.mutate({ id: conversationId }, { onError })}
         >
           Nhận hội thoại
+        </Button>
+      )}
+      {(tools.assign || tools.transfer) && (
+        <Button size="sm" variant="outline" onClick={() => setHanding(true)}>
+          {tools.assign ? "Phân công" : "Chuyển cho Sale khác"}
         </Button>
       )}
       {actions.moves.map((status) => (
@@ -65,6 +81,13 @@ export function ConversationActions({
         loading={change.isPending}
         closeOnConfirm={false}
         onConfirm={(reason) => move("ESCALATED", reason ?? "")}
+      />
+      <AssignDialog
+        conversationId={conversationId}
+        currentAgentId={assignedAgentId}
+        mode={handMode}
+        open={handing}
+        onOpenChange={setHanding}
       />
     </div>
   );

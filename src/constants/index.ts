@@ -552,6 +552,8 @@ export {
   PRINT_CONFIG_TOAST_MESSAGES,
 } from "./labels-print-config";
 export {
+  CHAT_ATTACHABLE_CONTEXTS,
+  CHAT_BADGE_POLL_MS,
   CHAT_CARD_LABELS,
   CHAT_CARD_STATE_LABELS,
   CHAT_CONTEXT_LABELS,
@@ -560,7 +562,9 @@ export {
   CHAT_INBOX_SCOPE_LABELS,
   CHAT_INBOX_SCOPES,
   CHAT_POLL_MS,
+  CHAT_SEARCH_MAX,
+  CHAT_SEARCH_MIN,
   CHAT_STATUS_LABELS,
   CHAT_STATUS_TONE_KEY,
 } from "./labels-chat";
-export type { ChatConversationStatus, ChatInboxScope } from "./labels-chat";
+export type { ChatAttachableContext, ChatConversationStatus, ChatInboxScope } from "./labels-chat";

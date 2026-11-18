@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 
 import { useCustomerOverview } from "../queries";
 
+import { AttachContextDialog } from "./AttachContextDialog";
 import { TransferDetailsDialog } from "./TransferDetailsDialog";
 
 import type { ChatConversation } from "../schemas";
@@ -23,16 +24,21 @@ function contextHref(kind: string, refId: string): string | null {
   return null;
 }
 
-/** Panel phải: hồ sơ khách (S16), chứng từ ngữ cảnh, đợt còn nợ + gửi thẻ chuyển khoản (S18). */
+/**
+ * Panel phải: hồ sơ khách (S16), chứng từ ngữ cảnh + gắn thêm (S13), đợt còn nợ + gửi thẻ chuyển khoản (S18).
+ */
 export function CustomerPanel({
   conversation,
   canSend,
+  canAttach,
 }: {
   conversation: ChatConversation;
   canSend: boolean;
+  canAttach: boolean;
 }) {
   const overview = useCustomerOverview(conversation.customerId);
   const [transfer, setTransfer] = useState(false);
+  const [attaching, setAttaching] = useState(false);
   const data = overview.data;
   const owing = data?.installments ?? [];
 
@@ -80,6 +86,11 @@ export function CustomerPanel({
             </div>
           );
         })}
+        {canAttach && (
+          <Button size="sm" variant="outline" disabled={!data} onClick={() => setAttaching(true)}>
+            Gắn chứng từ
+          </Button>
+        )}
       </div>
       <div className="space-y-1">
         <h3 className="text-ink-secondary text-xs font-medium">Đợt còn phải thu</h3>
@@ -103,6 +114,12 @@ export function CustomerPanel({
         installments={owing}
         open={transfer}
         onOpenChange={setTransfer}
+      />
+      <AttachContextDialog
+        conversation={conversation}
+        overview={data}
+        open={attaching}
+        onOpenChange={setAttaching}
       />
     </Card>
   );

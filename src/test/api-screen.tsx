@@ -45,7 +45,9 @@ export const ROLE_PERMISSIONS = {
     // V20261017000800 (PR #109): nộp mẫu vào kho thật + chọn thiết kế đã xác nhận của khách.
     "warehouse-warehouses:READ",
     "design-snapshots:READ",
-    // V20261124000300 (chat foundation): SALES_STAFF đủ chat-conversations.
+    // V20261124000300 (chat foundation): SALES_STAFF đủ chat-conversations và chat-canned-responses
+    // (không có chat-supervision: chỉ quản lý phân công).
+    "chat-canned-responses:READ",
     "chat-conversations:VIEW_PAGE",
     "chat-conversations:READ",
     "chat-conversations:CREATE",

@@ -1,15 +1,24 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { MessagesSquare } from "lucide-react";
-import { parseAsInteger, parseAsStringLiteral, useQueryState } from "nuqs";
+import { parseAsInteger, parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
 
-import { CHAT_CONVERSATION_STATUSES, CHAT_INBOX_SCOPES, CHAT_PERMISSIONS } from "@/constants";
+import {
+  CHAT_CONVERSATION_STATUSES,
+  CHAT_INBOX_SCOPES,
+  CHAT_PERMISSIONS,
+  CHAT_SEARCH_MAX,
+  CHAT_SEARCH_MIN,
+} from "@/constants";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useCan } from "@/lib/auth";
 import { PermissionBoundary } from "@/lib/auth/components/PermissionBoundary";
 import { Card } from "@/components/shared/Card";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Notice } from "@/components/shared/Notice";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
+import { SearchBar } from "@/components/shared/SearchBar";
 import { Button } from "@/components/ui/button";
 
 import { chatErrorMessage } from "../mutations";
@@ -17,9 +26,25 @@ import { useInbox } from "../queries";
 
 import { InboxFilters } from "./InboxFilters";
 import { InboxRow } from "./InboxRow";
+import { SearchResults } from "./SearchResults";
 
-function InboxContent() {
-  const canRead = useCan(CHAT_PERMISSIONS.read);
+/** Tìm trong tin nhắn (S21): gõ → 300 ms → URL `q`; dưới 2 ký tự thì chưa tìm (BE trả 400). */
+function useInboxSearch() {
+  const [q, setQ] = useQueryState("q", parseAsString.withDefault(""));
+  const [page, setPage] = useQueryState("qpage", parseAsInteger.withDefault(1));
+  const [draft, setDraft] = useState(q);
+  const debounced = useDebouncedValue(draft, 300).trim();
+  useEffect(() => {
+    if (debounced !== q) void Promise.all([setQ(debounced || null), setPage(1)]);
+  }, [debounced, q, setQ, setPage]);
+  const clear = () => {
+    setDraft("");
+    void Promise.all([setQ(null), setPage(1)]);
+  };
+  return { q, draft, setDraft, page, setPage, clear, active: q.length >= CHAT_SEARCH_MIN };
+}
+
+function Inbox({ canRead }: { canRead: boolean }) {
   // Bộ lọc trên URL (nuqs, state-persistence): F5 / gửi link giữ nguyên.
   const [scope, setScope] = useQueryState(
     "scope",
@@ -37,17 +62,14 @@ function InboxContent() {
   const filtered = scope !== "all" || !!status;
 
   return (
-    <div className="surface-soft space-y-3">
-      <h1 className="sr-only">Hộp thư chat</h1>
+    <>
       <InboxFilters
         scope={scope}
         status={status}
         onScope={(value) => void Promise.all([setScope(value), setPage(1)])}
         onStatus={(value) => void Promise.all([setStatus(value), setPage(1)])}
       />
-      {!canRead ? (
-        <Notice tone="warning">Bạn chưa có quyền xem hội thoại.</Notice>
-      ) : query.isPending ? (
+      {query.isPending ? (
         <PageSkeleton variant="list" />
       ) : query.isError ? (
         <Notice tone="danger">
@@ -105,11 +127,48 @@ function InboxContent() {
           </Button>
         </div>
       )}
+    </>
+  );
+}
+
+function InboxContent() {
+  const canRead = useCan(CHAT_PERMISSIONS.read);
+  const search = useInboxSearch();
+
+  return (
+    <div className="surface-soft space-y-3">
+      <h1 className="sr-only">Hộp thư chat</h1>
+      {!canRead ? (
+        <Notice tone="warning">Bạn chưa có quyền xem hội thoại.</Notice>
+      ) : (
+        <>
+          <SearchBar
+            aria-label="Tìm trong tin nhắn"
+            placeholder="Tìm trong tin nhắn (từ 2 ký tự)…"
+            value={search.draft}
+            onChange={(value) => search.setDraft(value.slice(0, CHAT_SEARCH_MAX))}
+            className="max-w-md"
+          />
+          {search.active ? (
+            <SearchResults
+              q={search.q}
+              page={search.page}
+              onPage={(next) => void search.setPage(next)}
+              onClear={search.clear}
+            />
+          ) : (
+            <Inbox canRead={canRead} />
+          )}
+        </>
+      )}
     </div>
   );
 }
 
-/** Hộp thư của Sale (WF-02 pha E2, BE S1): lọc của tôi / chưa phân công / quá hạn / theo trạng thái. */
+/**
+ * Hộp thư của Sale (WF-02 pha E2, BE S1): lọc của tôi / chưa phân công / quá hạn / theo trạng thái; tìm trong
+ * tin nhắn (S21).
+ */
 export function ChatInbox() {
   return (
     <PermissionBoundary permissions={[CHAT_PERMISSIONS.viewPage]}>

@@ -105,6 +105,17 @@ export const chatCustomerOverviewSchema = z.object({
   orders: z.array(customerDocumentSchema).default([]),
   quotes: z.array(customerDocumentSchema).default([]),
   contracts: z.array(customerDocumentSchema).default([]),
+  productionOrders: z.array(customerDocumentSchema).default([]),
+  /** Bản thiết kế của khách (`ChatCustomerOverview.designs`): gắn vào hội thoại được (S13). */
+  designs: z
+    .array(
+      z.object({
+        id: z.string(),
+        name: omittedOrNull(z.string()),
+        status: omittedOrNull(z.string()),
+      }),
+    )
+    .default([]),
   /** Đợt còn nợ — `id` là thứ S18 (thẻ chuyển khoản) nhận. */
   installments: z
     .array(
@@ -130,8 +141,56 @@ export const downloadLinkSchema = z.object({
   expiresAt: omittedOrNull(z.string()),
 });
 
+/** S15 `ChatAgentView`: người trả lời khách, đang trực tuyến trước. */
+export const chatAgentSchema = z.object({
+  userId: z.string(),
+  name: z.string(),
+  online: z.boolean().default(false),
+});
+export const chatAgentListSchema = z.array(chatAgentSchema);
+
+/** S21 `ChatSearch.Hit`: tin tìm thấy (gồm ghi chú nội bộ) kèm hội thoại chứa nó. */
+export const chatSearchHitSchema = z.object({
+  message: chatMessageSchema,
+  conversationId: z.string(),
+  customerId: z.string(),
+  customerName: omittedOrNull(z.string()),
+  subject: omittedOrNull(z.string()),
+  conversationStatus: statusSchema,
+});
+export const chatSearchPageSchema = bePageSchema(chatSearchHitSchema);
+
+/** S22 `StaffUnread`: tin chưa đọc ở hội thoại giao cho mình + số hội thoại chờ nhận. */
+export const chatStaffUnreadSchema = z.object({
+  conversations: z.number().int().default(0),
+  messages: z.number().int().default(0),
+  queued: z.number().int().default(0),
+});
+
+/** S24 `CannedResponses.View`: câu trả lời mẫu, mẫu dùng chung trước. */
+export const cannedResponseSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  body: z.string(),
+  shortcut: omittedOrNull(z.string()),
+  category: omittedOrNull(z.string()),
+  shared: z.boolean().default(false),
+});
+export const cannedResponseListSchema = z.array(cannedResponseSchema);
+
+/** S23 `CannedResponses.Rendered`: câu mẫu đã điền biến của hội thoại ({customerName}, {quoteCode}…). */
+export const cannedPreviewSchema = z.object({
+  cannedResponseId: z.string(),
+  conversationId: z.string(),
+  text: z.string(),
+});
+
 export type ChatCard = z.infer<typeof chatCardSchema>;
 export type ChatMessage = z.infer<typeof chatMessageSchema>;
 export type ChatConversation = z.infer<typeof chatConversationSchema>;
 export type ChatMessagePage = z.infer<typeof chatMessagePageSchema>;
 export type ChatCustomerOverview = z.infer<typeof chatCustomerOverviewSchema>;
+export type ChatAgent = z.infer<typeof chatAgentSchema>;
+export type ChatSearchHit = z.infer<typeof chatSearchHitSchema>;
+export type ChatStaffUnread = z.infer<typeof chatStaffUnreadSchema>;
+export type CannedResponse = z.infer<typeof cannedResponseSchema>;

@@ -103,3 +103,22 @@ export const CHAT_INBOX_SCOPE_LABELS = {
 
 /** Hội thoại cập nhật bằng polling 5 giây (plan WF-02 E: chưa có STOMP). */
 export const CHAT_POLL_MS = 5_000;
+/** Số chưa đọc trên menu (S22) đọc thưa hơn: chỉ là huy hiệu. */
+export const CHAT_BADGE_POLL_MS = 30_000;
+
+/** Tìm trong tin nhắn (S21): 2–200 ký tự sau khi bỏ khoảng trắng hai đầu, BE trả 400 nếu sai. */
+export const CHAT_SEARCH_MIN = 2;
+export const CHAT_SEARCH_MAX = 200;
+
+/**
+ * Chứng từ Sale gắn được vào hội thoại (S13, 16 BR-02) — chọn trong hồ sơ khách (S16), không gõ mã tay.
+ * Thứ tự = thứ tự trong ô chọn.
+ */
+export const CHAT_ATTACHABLE_CONTEXTS = [
+  "QUOTE",
+  "ORDER",
+  "CONTRACT",
+  "PRODUCTION_ORDER",
+  "DESIGN",
+] as const;
+export type ChatAttachableContext = (typeof CHAT_ATTACHABLE_CONTEXTS)[number];

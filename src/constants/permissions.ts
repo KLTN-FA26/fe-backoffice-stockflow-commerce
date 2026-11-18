@@ -93,6 +93,10 @@ export const CHAT_PERMISSIONS = {
   read: "chat-conversations:READ",
   create: "chat-conversations:CREATE",
   update: "chat-conversations:UPDATE",
+  /** Người giám sát chat (16 §2): phân công hội thoại chưa ai nhận, xử lý hội thoại đã chuyển cấp. */
+  supervise: "chat-supervision:UPDATE",
+  /** Câu trả lời mẫu (S23, S24; seed: SALES_STAFF, SALES_MANAGER, SYSTEM_ADMIN). */
+  cannedRead: "chat-canned-responses:READ",
 } as const;
 
 /**

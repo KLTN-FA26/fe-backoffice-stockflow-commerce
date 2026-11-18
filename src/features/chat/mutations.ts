@@ -17,6 +17,7 @@ import {
   sendTransferDetails,
   staffCardAction,
 } from "./api";
+import { assignConversation, attachContext, previewCannedResponse } from "./api-tools";
 import { chatKeys } from "./queries";
 
 const base = { invalidate: [chatKeys.all], showErrorToast: false } as const;
@@ -40,6 +41,20 @@ export const useStaffCardAction = createMutation(staffCardAction, {
 export const useSendTransferDetails = createMutation(sendTransferDetails, {
   ...base,
   successMessage: "Đã gửi thông tin chuyển khoản.",
+});
+
+export const useAssignConversation = createMutation(assignConversation, {
+  ...base,
+  successMessage: "Đã chuyển hội thoại.",
+});
+export const useAttachContext = createMutation(attachContext, {
+  ...base,
+  successMessage: "Đã gắn chứng từ vào hội thoại.",
+});
+/** Chỉ đọc câu mẫu đã điền biến (BE không đổi gì) → không tải lại gì. */
+export const usePreviewCanned = createMutation(previewCannedResponse, {
+  invalidate: [],
+  showErrorToast: false,
 });
 
 /** WF-02: lỗi chat của BE đã là tiếng Việt (PR #365) → hiện nguyên văn. */

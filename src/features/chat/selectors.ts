@@ -1,6 +1,7 @@
 /** Chat — selector thuần: đọc payload thẻ (JSON tự do) thành giá trị đã narrow. */
 
-import type { ChatCard, ChatMessage } from "./schemas";
+import type { ChatAttachableContext } from "@/constants";
+import type { ChatCard, ChatCustomerOverview, ChatMessage } from "./schemas";
 
 const str = (value: unknown): string | null => (typeof value === "string" && value ? value : null);
 const num = (value: unknown): number | null => (typeof value === "number" ? value : null);
@@ -65,6 +66,40 @@ export function payloadNumber(card: ChatCard, key: string): number | null {
 /** Tin theo thứ tự thời gian (seq tăng dần). */
 export function chronological(messages: readonly ChatMessage[]): ChatMessage[] {
   return [...messages].sort((a, b) => a.seq - b.seq);
+}
+
+export interface AttachableDocument {
+  id: string;
+  label: string;
+}
+
+/**
+ * Chứng từ của khách theo loại, đọc từ hồ sơ (S16) để gắn vào hội thoại (S13): số chứng từ (hoặc tên bản thiết
+ * kế) kèm trạng thái. Không có hồ sơ = danh sách rỗng.
+ */
+export function attachableDocuments(
+  overview: ChatCustomerOverview | undefined,
+  kind: ChatAttachableContext,
+): AttachableDocument[] {
+  if (!overview) return [];
+  const withStatus = (name: string, status: string | null | undefined) =>
+    status ? `${name} · ${status}` : name;
+  if (kind === "DESIGN") {
+    return overview.designs.map((design) => ({
+      id: design.id,
+      label: withStatus(design.name ?? design.id, design.status),
+    }));
+  }
+  const list = {
+    QUOTE: overview.quotes,
+    ORDER: overview.orders,
+    CONTRACT: overview.contracts,
+    PRODUCTION_ORDER: overview.productionOrders,
+  }[kind];
+  return list.map((document) => ({
+    id: document.id,
+    label: withStatus(document.number ?? document.id, document.status),
+  }));
 }
 
 /** 16 BR-07: ghi chú nội bộ (visibility STAFF) — vẽ nền vàng, ghi rõ "Khách không thấy". */

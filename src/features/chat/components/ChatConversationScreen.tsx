@@ -12,7 +12,7 @@ import { PageSkeleton } from "@/components/shared/PageSkeleton";
 import { StatusDot } from "@/components/shared/StatusDot";
 import { Button } from "@/components/ui/button";
 
-import { staffConversationActions } from "../lifecycle";
+import { staffConversationActions, staffConversationTools } from "../lifecycle";
 import { chatErrorMessage, useMarkRead } from "../mutations";
 import { useConversation, useMessages } from "../queries";
 import { chronological } from "../selectors";
@@ -53,6 +53,7 @@ function ConversationContent({ id }: { id: string }) {
     );
   const data = conversation.data;
   const actions = staffConversationActions(data, can);
+  const tools = staffConversationTools(data, can);
 
   return (
     <div className="surface-soft surface-compact">
@@ -75,7 +76,12 @@ function ConversationContent({ id }: { id: string }) {
               label={CHAT_STATUS_LABELS[data.status]}
             />
           </div>
-          <ConversationActions conversationId={id} actions={actions} />
+          <ConversationActions
+            conversationId={id}
+            assignedAgentId={data.assignedAgentId}
+            actions={actions}
+            tools={tools}
+          />
           {messages.isPending ? (
             <p className="text-ink-tertiary text-[0.8125rem]">Đang tải tin nhắn…</p>
           ) : messages.isError ? (
@@ -89,9 +95,14 @@ function ConversationContent({ id }: { id: string }) {
               ))}
             </ol>
           )}
-          <Composer conversationId={id} canReply={actions.reply} canNote={actions.note} />
+          <Composer
+            conversationId={id}
+            canReply={actions.reply}
+            canNote={actions.note}
+            canUseCanned={tools.canned}
+          />
         </Card>
-        <CustomerPanel conversation={data} canSend={actions.reply} />
+        <CustomerPanel conversation={data} canSend={actions.reply} canAttach={tools.attach} />
       </div>
     </div>
   );

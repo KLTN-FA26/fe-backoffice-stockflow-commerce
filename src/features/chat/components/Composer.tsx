@@ -9,21 +9,26 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { chatErrorMessage, useSendAttachment, useSendNote, useSendText } from "../mutations";
 
+import { CannedPicker } from "./CannedPicker";
+
 const ACCEPT = "image/jpeg,image/png,image/webp,application/pdf";
 type Mode = "reply" | "note";
 
 /**
  * Soạn tin: "Trả lời khách" (S5) hoặc "Ghi chú nội bộ" (S6, khách không thấy); kèm file (S7). Mỗi lần gửi một
- * `clientMessageId` mới; bấm lại sau lỗi dùng lại để BE không tạo tin trùng.
+ * `clientMessageId` mới; bấm lại sau lỗi dùng lại để BE không tạo tin trùng. Câu trả lời mẫu chèn vào ô trả lời
+ * khách để sửa trước khi gửi.
  */
 export function Composer({
   conversationId,
   canReply,
   canNote,
+  canUseCanned = false,
 }: {
   conversationId: string;
   canReply: boolean;
   canNote: boolean;
+  canUseCanned?: boolean;
 }) {
   const [mode, setMode] = useState<Mode>(canReply ? "reply" : "note");
   const [text, setText] = useState("");
@@ -61,30 +66,41 @@ export function Composer({
 
   return (
     <div className="border-border-default space-y-2 border-t pt-3">
-      <div role="radiogroup" aria-label="Loại tin" className="flex gap-1">
-        {canReply && (
-          <Button
-            type="button"
-            size="sm"
-            variant={mode === "reply" ? "default" : "outline"}
-            role="radio"
-            aria-checked={mode === "reply"}
-            onClick={() => setMode("reply")}
-          >
-            Trả lời khách
-          </Button>
-        )}
-        {canNote && (
-          <Button
-            type="button"
-            size="sm"
-            variant={mode === "note" ? "default" : "outline"}
-            role="radio"
-            aria-checked={mode === "note"}
-            onClick={() => setMode("note")}
-          >
-            Ghi chú nội bộ
-          </Button>
+      <div className="flex flex-wrap items-center justify-between gap-1">
+        <div role="radiogroup" aria-label="Loại tin" className="flex gap-1">
+          {canReply && (
+            <Button
+              type="button"
+              size="sm"
+              variant={mode === "reply" ? "default" : "outline"}
+              role="radio"
+              aria-checked={mode === "reply"}
+              onClick={() => setMode("reply")}
+            >
+              Trả lời khách
+            </Button>
+          )}
+          {canNote && (
+            <Button
+              type="button"
+              size="sm"
+              variant={mode === "note" ? "default" : "outline"}
+              role="radio"
+              aria-checked={mode === "note"}
+              onClick={() => setMode("note")}
+            >
+              Ghi chú nội bộ
+            </Button>
+          )}
+        </div>
+        {canUseCanned && canReply && mode === "reply" && (
+          <CannedPicker
+            conversationId={conversationId}
+            onPick={(rendered) => {
+              setText(rendered);
+              setClientMessageId(crypto.randomUUID());
+            }}
+          />
         )}
       </div>
       {error && <Notice tone="danger">{error}</Notice>}

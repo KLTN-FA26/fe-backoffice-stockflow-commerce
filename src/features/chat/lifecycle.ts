@@ -61,3 +61,30 @@ export function staffConversationActions(
       : [],
   };
 }
+
+export interface StaffConversationTools {
+  /** Phân công hội thoại chưa ai nhận: chỉ người giám sát (S11, `Conversation.handTo`). */
+  assign: boolean;
+  /** Chuyển cho Sale khác: người phụ trách hoặc giám sát — BE kiểm `CHAT_NOT_ASSIGNEE`. */
+  transfer: boolean;
+  /** Gắn chứng từ của khách (S13): không kiểm người phụ trách, hội thoại đã đóng vẫn gắn được. */
+  attach: boolean;
+  /** Chèn câu trả lời mẫu vào ô trả lời khách (S23, S24). */
+  canned: boolean;
+}
+
+/** Công cụ quanh hội thoại — UI-only, BE kiểm lại từng lệnh. */
+export function staffConversationTools(
+  conversation: Pick<ChatConversation, "status" | "assignedAgentId">,
+  can: (code: PermissionCode) => boolean,
+): StaffConversationTools {
+  const update = can(CHAT_PERMISSIONS.update);
+  const open = !isEnded(conversation.status);
+  const assigned = !!conversation.assignedAgentId;
+  return {
+    assign: update && open && !assigned && can(CHAT_PERMISSIONS.supervise),
+    transfer: update && open && assigned,
+    attach: update,
+    canned: update && open && can(CHAT_PERMISSIONS.cannedRead),
+  };
+}

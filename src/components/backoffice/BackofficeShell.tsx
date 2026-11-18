@@ -117,6 +117,7 @@ import {
 } from "@/constants/payment";
 import { RETURN_ROUTES, RMA_PERMISSIONS } from "@/constants/returns";
 
+import { useStaffChatBadge } from "@/features/chat";
 import { NotificationBell } from "@/features/notification";
 import { warehouseBreadcrumbTail } from "@/features/warehouse-map/components/workspace/WarehouseCrumb";
 import { WarehouseNavPanel } from "@/features/warehouse-map/components/workspace/WarehouseNavPanel";
@@ -791,10 +792,14 @@ function BackofficeSidebar() {
   const collapsed = state === "collapsed";
 
   const isMock = useIsMock();
-  // Số đếm lấy từ dữ liệu mẫu: không hiện khi nối BE thật (không bịa số liệu)
+  const chatBadge = useStaffChatBadge();
+  // Số đếm lấy từ dữ liệu mẫu: không hiện khi nối BE thật (không bịa số liệu). Riêng chat đọc số thật của BE (S22).
   const warningCounts = useMemo<Record<string, number>>(
-    () => (isMock ? computeWarningCounts() : {}),
-    [isMock],
+    () => ({
+      ...(isMock ? computeWarningCounts() : {}),
+      ...(chatBadge > 0 ? { [ADMIN_ROUTES.chat.list]: chatBadge } : {}),
+    }),
+    [isMock, chatBadge],
   );
   const canSeeItem = useCanSeeNavItem();
   const visibleGroups = visibleNavGroups(canSeeItem);
