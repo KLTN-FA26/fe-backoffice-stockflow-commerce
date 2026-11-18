@@ -70,12 +70,11 @@ export const PRINT_CONFIG_CONTEXT_ERROR_MESSAGES = {
       "Cấu hình in mới phải tạo cùng file 3D (.glb): hãy chọn file rồi lưu.",
   },
   activate: {
+    /** Chưa có file 3D, hoặc cấu hình cũ chưa có số đo của model: BE trả cùng 409 (8c63a729). */
     PRINT_CONFIG_MODEL_FILE_REQUIRED:
-      "Chưa kích hoạt được: cấu hình in này chưa có file 3D. Hãy tải file .glb lên cùng số đo rồi lưu, sau đó kích hoạt.",
+      "Chưa kích hoạt được: cấu hình in này chưa có file 3D hoặc chưa có số đo của model. Hãy tải file .glb lên cùng số đo rồi lưu, sau đó kích hoạt.",
     PRINT_CONFIG_SURFACES_INVALID:
       "Chưa kích hoạt được: file 3D đang lưu chưa có mesh print:<mã vùng in> cho mọi vùng in. Hãy tải lại file .glb đúng rồi lưu, sau đó kích hoạt.",
-    PRINT_CONFIG_INVALID:
-      "Chưa kích hoạt được: cấu hình in cũ chưa có số đo của model. Hãy tải file .glb lên rồi lưu, sau đó kích hoạt.",
   },
 } as const;
 

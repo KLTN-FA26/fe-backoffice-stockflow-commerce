@@ -234,15 +234,17 @@ describe("printConfigErrorMessage by context", () => {
   const message = (status: number, code: string) =>
     printConfigErrorMessage(new ApiError(status, code, "x"), "activate");
 
-  it("activation words for the file, the table and an old template without a model", () => {
+  it("activation words for the file (or an old template without a model, the same 409) and the table", () => {
     expect(message(409, "PRINT_CONFIG_MODEL_FILE_REQUIRED")).toBe(
       ACTIVATE.PRINT_CONFIG_MODEL_FILE_REQUIRED,
     );
     expect(message(422, "PRINT_CONFIG_SURFACES_INVALID")).toBe(
       ACTIVATE.PRINT_CONFIG_SURFACES_INVALID,
     );
-    expect(message(400, "PRINT_CONFIG_INVALID")).toBe(ACTIVATE.PRINT_CONFIG_INVALID);
-    // other codes keep their general sentence
+    // other codes keep their general sentence (the BE no longer answers activation with 400, 8c63a729)
+    expect(message(400, "PRINT_CONFIG_INVALID")).toBe(
+      PRINT_CONFIG_ERROR_MESSAGES.PRINT_CONFIG_INVALID,
+    );
     expect(message(409, "OPTIMISTIC_LOCK")).toBe(PRINT_CONFIG_ERROR_MESSAGES.OPTIMISTIC_LOCK);
   });
 
