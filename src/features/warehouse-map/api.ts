@@ -8,6 +8,7 @@
  *   POST /shelves/{id}/levels · /shelves/{id}/bin-generation                (warehouse-locations:CREATE)
  *   PUT  /shelves/{id}/status · /areas/{id}/status                          (warehouse-locations:UPDATE)
  *   DELETE /boundaries/{id}?version=                                        (warehouse-locations:DELETE)
+ *   POST /warehouses/{id}/location-labels       → PDF (Blob); lỗi vẫn JSON   (warehouse-locations:READ)
  *
  * Tạo / sửa zone, kệ, khu vực, tường-cửa của bản nháp bản đồ: `api-draft.ts`.
  */
@@ -25,6 +26,7 @@ import {
 } from "./schemas";
 
 import type { PaginatedResponse } from "@/lib/api/query-factory";
+import type { LocationLabelBody } from "./location-label-schema";
 import type {
   BinGeneration,
   PlaceStatusInput,
@@ -129,4 +131,30 @@ export async function changePlaceStatus(input: PlaceStatusInput) {
     status: input.status,
   });
   return createdRefDto.parse(data);
+}
+
+const LABEL_FILE_NAME = "location-labels.pdf";
+const FILE_NAME = /filename="?([^";]+)"?/i;
+
+export interface LocationLabelsPdf {
+  blob: Blob;
+  fileName: string;
+}
+
+/**
+ * In nhãn vị trí (docs 06 §4.3, BR-17; BE `LocationLabelController`, SCRUM-97). Thành công trả PDF; lỗi vẫn là JSON
+ * envelope — `lib/api/client` đọc body Blob ra trước khi map `ApiError`. In là đọc bản đồ: `warehouse-locations:READ`.
+ */
+export async function printLocationLabels(input: {
+  warehouseId: string;
+  body: LocationLabelBody;
+}): Promise<LocationLabelsPdf> {
+  const response = await api.post<Blob>(
+    `${WAREHOUSES_PATH}/${id(input.warehouseId)}/location-labels`,
+    input.body,
+    { responseType: "blob", headers: { Accept: "application/pdf, application/json" } },
+  );
+  const disposition: unknown = response.headers["content-disposition"];
+  const fileName = typeof disposition === "string" ? FILE_NAME.exec(disposition)?.[1] : undefined;
+  return { blob: response.data, fileName: fileName ?? LABEL_FILE_NAME };
 }
