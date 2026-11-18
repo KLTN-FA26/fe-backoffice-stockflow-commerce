@@ -14,6 +14,7 @@ import {
 import { shippingErrorMessage } from "@/features/shipping/errors";
 import { deliveryOutcomeInputSchema } from "@/features/shipping/input-schemas";
 import { useRecordDeliveryOutcome } from "@/features/shipping/shipment-mutations";
+import { DialogScrollArea } from "@/components/shared/DialogScrollArea";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -110,59 +111,61 @@ export function OutcomeDialog({ data, outcome, onClose }: OutcomeDialogProps) {
         onSubmit={() => void submit()}
         onCancel={() => !record.isPending && onClose()}
       >
-        {/* Đã giao / hàng hoàn: bảng tóm tắt lô để người ghi nhận biết mình xác nhận lô nào (artboard) */}
-        {!failed && <OutcomeSummary data={data} />}
-        {delivered && (
-          <DeliveryTimeField
-            value={deliveredLocal}
-            onChange={(next) => {
-              setDeliveredLocal(next);
-              setDeliveredEdited(true);
-              setServerError(null);
-            }}
-            handedOverAt={shipment.handedOverAt}
-            now={opened}
-            error={timeProblem}
-          />
-        )}
-        {/* Chỉ lần giao THẤT BẠI có lý do + ghi chú: BE không lưu ghi chú của kết quả khác */}
-        {failed && (
-          <>
-            <Controller
-              control={form.control}
-              name="failureReason"
-              render={({ field }) => (
-                <FailureReasonField
-                  value={field.value}
-                  onChange={field.onChange}
-                  error={errors.failureReason?.message}
-                />
-              )}
+        <DialogScrollArea>
+          {/* Đã giao / hàng hoàn: bảng tóm tắt lô để người ghi nhận biết mình xác nhận lô nào (artboard) */}
+          {!failed && <OutcomeSummary data={data} />}
+          {delivered && (
+            <DeliveryTimeField
+              value={deliveredLocal}
+              onChange={(next) => {
+                setDeliveredLocal(next);
+                setDeliveredEdited(true);
+                setServerError(null);
+              }}
+              handedOverAt={shipment.handedOverAt}
+              now={opened}
+              error={timeProblem}
             />
-            <div>
-              <Label
-                htmlFor="outcome-note"
-                className="text-ink-secondary mb-1 block text-xs font-medium"
-              >
-                {D.note} {reason === "OTHER" && <span className="text-danger">*</span>}
-              </Label>
-              <Textarea
-                id="outcome-note"
-                rows={2}
-                maxLength={SHIPPING_LIMITS.noteMax}
-                aria-invalid={errors.note ? true : undefined}
-                aria-describedby="outcome-note-hint"
-                className="border-border-default bg-bg-surface rounded-[var(--r-sm)] text-[0.8125rem]"
-                {...form.register("note")}
+          )}
+          {/* Chỉ lần giao THẤT BẠI có lý do + ghi chú: BE không lưu ghi chú của kết quả khác */}
+          {failed && (
+            <>
+              <Controller
+                control={form.control}
+                name="failureReason"
+                render={({ field }) => (
+                  <FailureReasonField
+                    value={field.value}
+                    onChange={field.onChange}
+                    error={errors.failureReason?.message}
+                  />
+                )}
               />
-              <p id="outcome-note-hint" className="text-ink-tertiary mt-1 text-xs">
-                {reason === "OTHER" ? D.noteRequired : D.noteOptional}
-              </p>
-              <FieldError>{errors.note?.message}</FieldError>
-            </div>
-          </>
-        )}
-        <p className="text-ink-tertiary text-xs">{D.audit}</p>
+              <div>
+                <Label
+                  htmlFor="outcome-note"
+                  className="text-ink-secondary mb-1 block text-xs font-medium"
+                >
+                  {D.note} {reason === "OTHER" && <span className="text-danger">*</span>}
+                </Label>
+                <Textarea
+                  id="outcome-note"
+                  rows={2}
+                  maxLength={SHIPPING_LIMITS.noteMax}
+                  aria-invalid={errors.note ? true : undefined}
+                  aria-describedby="outcome-note-hint"
+                  className="border-border-default bg-bg-surface rounded-[var(--r-sm)] text-[0.8125rem]"
+                  {...form.register("note")}
+                />
+                <p id="outcome-note-hint" className="text-ink-tertiary mt-1 text-xs">
+                  {reason === "OTHER" ? D.noteRequired : D.noteOptional}
+                </p>
+                <FieldError>{errors.note?.message}</FieldError>
+              </div>
+            </>
+          )}
+          <p className="text-ink-tertiary text-xs">{D.audit}</p>
+        </DialogScrollArea>
       </FormDialogBody>
     </FormDialog>
   );

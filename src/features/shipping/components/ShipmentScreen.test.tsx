@@ -450,6 +450,16 @@ describe("ShipmentScreen — sửa tay kết quả giao (docs 09 §4.3 bước 5
     );
   });
 
+  it("hộp thoại cao cuộn được, nút Lưu nằm ngoài vùng cuộn (màn thấp vẫn bấm được)", async () => {
+    const user = userEvent.setup();
+    renderShipment(ACTORS.warehouseManagerFull, delivered());
+    await user.click(await screen.findByRole("button", { name: C.action }));
+    const dialog = screen.getByRole("dialog");
+    const scroll = within(dialog).getByLabelText(new RegExp(C.reason)).closest(".overflow-y-auto");
+    expect(scroll).not.toBeNull();
+    expect(scroll).not.toContainElement(within(dialog).getByRole("button", { name: C.submit }));
+  });
+
   it("đơn đã hoàn tất (409 ORDER_DELIVERY_NOT_CORRECTABLE) → câu tiếng Việt trong hộp thoại", async () => {
     const user = userEvent.setup();
     renderShipment(ACTORS.warehouseManagerFull, failed(), undefined, () => {

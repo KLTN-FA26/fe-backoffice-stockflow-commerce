@@ -18,6 +18,7 @@ import {
 import { shippingErrorMessage } from "@/features/shipping/errors";
 import { useCorrectDeliveryOutcome } from "@/features/shipping/shipment-mutations";
 import { Alert } from "@/components/shared/Alert";
+import { DialogScrollArea } from "@/components/shared/DialogScrollArea";
 import { FormDialog, FormDialogBody } from "@/components/shared/FormDialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -115,87 +116,91 @@ export function CorrectionDialog({ data, onClose }: { data: Shipment; onClose: (
         onSubmit={() => void submit()}
         onCancel={() => !correct.isPending && onClose()}
       >
-        <dl className="grid grid-cols-[8.75rem_minmax(0,1fr)] items-center gap-x-4 gap-y-2 text-[0.8125rem]">
-          <dt className="text-ink-tertiary">{C.current}</dt>
-          <dd className="text-ink-primary">
-            <span className="font-medium">{currentLabel}</span>
-            {currentReason && <span className="text-ink-tertiary"> · {currentReason}</span>}
-          </dd>
-          <dt className="text-ink-tertiary">{C.to}</dt>
-          <dd className="text-ink-primary font-medium">{toFailed ? C.toFailed : C.toDelivered}</dd>
-        </dl>
-        <OutcomeSummary data={data} showCurrent={false} />
-        {toFailed ? (
-          <>
-            <Controller
-              control={form.control}
-              name="failureReason"
-              render={({ field }) => (
-                <FailureReasonField
-                  value={field.value}
-                  onChange={field.onChange}
-                  error={errors.failureReason?.message}
-                />
-              )}
-            />
-            <div>
-              <Label
-                htmlFor="correction-note"
-                className="text-ink-secondary mb-1 block text-xs font-medium"
-              >
-                {D.note} {failureReason === "OTHER" && <span className="text-danger">*</span>}
-              </Label>
-              <Textarea
-                id="correction-note"
-                rows={2}
-                maxLength={SHIPPING_LIMITS.noteMax}
-                aria-invalid={errors.note ? true : undefined}
-                className="border-border-default bg-bg-surface rounded-[var(--r-sm)] text-[0.8125rem]"
-                {...form.register("note")}
+        <DialogScrollArea>
+          <dl className="grid grid-cols-[8.75rem_minmax(0,1fr)] items-center gap-x-4 gap-y-2 text-[0.8125rem]">
+            <dt className="text-ink-tertiary">{C.current}</dt>
+            <dd className="text-ink-primary">
+              <span className="font-medium">{currentLabel}</span>
+              {currentReason && <span className="text-ink-tertiary"> · {currentReason}</span>}
+            </dd>
+            <dt className="text-ink-tertiary">{C.to}</dt>
+            <dd className="text-ink-primary font-medium">
+              {toFailed ? C.toFailed : C.toDelivered}
+            </dd>
+          </dl>
+          <OutcomeSummary data={data} showCurrent={false} />
+          {toFailed ? (
+            <>
+              <Controller
+                control={form.control}
+                name="failureReason"
+                render={({ field }) => (
+                  <FailureReasonField
+                    value={field.value}
+                    onChange={field.onChange}
+                    error={errors.failureReason?.message}
+                  />
+                )}
               />
-              <p className="text-ink-tertiary mt-1 text-xs">
-                {failureReason === "OTHER" ? D.noteRequired : D.noteOptional}
-              </p>
-              <FieldError>{errors.note?.message}</FieldError>
-            </div>
-            <Alert tone="info">{C.invoiceNote}</Alert>
-          </>
-        ) : (
-          <DeliveryTimeField
-            value={deliveredLocal}
-            onChange={(next) => {
-              setDeliveredLocal(next);
-              setDeliveredEdited(true);
-              setServerError(null);
-            }}
-            handedOverAt={shipment.handedOverAt}
-            now={opened}
-            error={timeProblem}
-          />
-        )}
-        <div>
-          <Label
-            htmlFor="correction-reason"
-            className="text-ink-secondary mb-1 block text-xs font-medium"
-          >
-            {C.reason} <span className="text-danger">*</span>
-          </Label>
-          <Textarea
-            id="correction-reason"
-            rows={3}
-            maxLength={SHIPPING_LIMITS.cancelReasonMax}
-            placeholder={C.reasonPlaceholder}
-            aria-invalid={errors.reason ? true : undefined}
-            aria-describedby="correction-reason-hint"
-            className="border-border-default bg-bg-surface rounded-[var(--r-sm)] text-[0.8125rem]"
-            {...form.register("reason")}
-          />
-          <p id="correction-reason-hint" className="text-ink-tertiary mt-1 text-xs">
-            {C.reasonHint}
-          </p>
-          <FieldError>{errors.reason?.message}</FieldError>
-        </div>
-        <p className="text-ink-tertiary text-xs">{D.audit}</p>
+              <div>
+                <Label
+                  htmlFor="correction-note"
+                  className="text-ink-secondary mb-1 block text-xs font-medium"
+                >
+                  {D.note} {failureReason === "OTHER" && <span className="text-danger">*</span>}
+                </Label>
+                <Textarea
+                  id="correction-note"
+                  rows={2}
+                  maxLength={SHIPPING_LIMITS.noteMax}
+                  aria-invalid={errors.note ? true : undefined}
+                  className="border-border-default bg-bg-surface rounded-[var(--r-sm)] text-[0.8125rem]"
+                  {...form.register("note")}
+                />
+                <p className="text-ink-tertiary mt-1 text-xs">
+                  {failureReason === "OTHER" ? D.noteRequired : D.noteOptional}
+                </p>
+                <FieldError>{errors.note?.message}</FieldError>
+              </div>
+              <Alert tone="info">{C.invoiceNote}</Alert>
+            </>
+          ) : (
+            <DeliveryTimeField
+              value={deliveredLocal}
+              onChange={(next) => {
+                setDeliveredLocal(next);
+                setDeliveredEdited(true);
+                setServerError(null);
+              }}
+              handedOverAt={shipment.handedOverAt}
+              now={opened}
+              error={timeProblem}
+            />
+          )}
+          <div>
+            <Label
+              htmlFor="correction-reason"
+              className="text-ink-secondary mb-1 block text-xs font-medium"
+            >
+              {C.reason} <span className="text-danger">*</span>
+            </Label>
+            <Textarea
+              id="correction-reason"
+              rows={3}
+              maxLength={SHIPPING_LIMITS.cancelReasonMax}
+              placeholder={C.reasonPlaceholder}
+              aria-invalid={errors.reason ? true : undefined}
+              aria-describedby="correction-reason-hint"
+              className="border-border-default bg-bg-surface rounded-[var(--r-sm)] text-[0.8125rem]"
+              {...form.register("reason")}
+            />
+            <p id="correction-reason-hint" className="text-ink-tertiary mt-1 text-xs">
+              {C.reasonHint}
+            </p>
+            <FieldError>{errors.reason?.message}</FieldError>
+          </div>
+          <p className="text-ink-tertiary text-xs">{D.audit}</p>
+        </DialogScrollArea>
       </FormDialogBody>
     </FormDialog>
   );
