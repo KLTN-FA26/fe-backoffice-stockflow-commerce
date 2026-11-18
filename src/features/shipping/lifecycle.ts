@@ -14,6 +14,7 @@ import {
   FULFILLMENT_CONTROLLED_CANCELLATION_PERMISSIONS,
   FULFILLMENT_DISPATCH_PERMISSIONS,
   FULFILLMENT_WAYBILL_CORRECTION_PERMISSIONS,
+  LOAD_PLAN_PERMISSIONS,
   LOAD_STATUS,
   UI_LABELS,
 } from "@/constants";
@@ -171,6 +172,21 @@ export function allowedLoadActions(
     if (hasPendingUnloads(load)) return { action, disabledReason: F.disabledReason.unloadPending };
     return isFullyLoaded(load) ? { action } : { action, disabledReason: D.notFullyLoaded };
   });
+}
+
+/**
+ * "Tải PDF" phiếu xếp hàng của xe (docs 09 §4.2 bước 5): chuyến phải là một xe của kế hoạch và người dùng có
+ * `fulfillment-load-plans:READ` (mã quyền của endpoint BE, khác quyền xem chuyến). Mọi trạng thái chuyến. Trả xe cần tải,
+ * hoặc null khi không được tải. Backend phải re-check.
+ */
+export function loadingSheetOf(
+  load: Pick<Load, "loadPlanId" | "vehicleSeq">,
+  actor: ShippingActor,
+): { loadPlanId: string; vehicleSeq: number } | null {
+  if (!load.loadPlanId || load.vehicleSeq == null || !actor.can(LOAD_PLAN_PERMISSIONS.read)) {
+    return null;
+  }
+  return { loadPlanId: load.loadPlanId, vehicleSeq: load.vehicleSeq };
 }
 
 export function hasLoadAction(

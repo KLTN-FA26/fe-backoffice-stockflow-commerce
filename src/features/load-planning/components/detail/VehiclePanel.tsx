@@ -9,6 +9,7 @@ import { VehicleViewer } from "../viewer/VehicleViewer";
 import { Button } from "@/components/ui/button";
 
 import { ColorLegend } from "./ColorLegend";
+import { LoadingSheetPdfButton } from "./LoadingSheetPdfButton";
 
 import type { ColorMap } from "@/features/load-planning/lib/palette";
 import type { PlanVehicle } from "@/features/load-planning/plan-types";
@@ -72,6 +73,7 @@ export function VehiclePanel({
               <Printer className="size-3.5" /> {LOAD_PLAN_PRINT_LABELS.printButton}
             </Link>
           </Button>
+          <LoadingSheetPdfButton planId={planId} seq={vehicle.seq} />
           {canRecalculate && (
             <Button
               type="button"

@@ -4,8 +4,11 @@ import Link from "next/link";
 import { ClipboardList, ShieldAlert, Truck } from "lucide-react";
 
 import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
-import { hasLoadAction } from "@/features/shipping/lifecycle";
+import { hasLoadAction, loadingSheetOf } from "@/features/shipping/lifecycle";
 import { Button } from "@/components/ui/button";
+
+import { LoadingSheetButton } from "./LoadingSheetButton";
+import { useShippingActor } from "../useShippingActor";
 
 import type { AllowedLoadAction } from "@/features/shipping/lifecycle";
 import type { Load } from "@/features/shipping/types";
@@ -33,6 +36,7 @@ export function LoadActions({
 }) {
   const handover = hasLoadAction(actions, "handover");
   const controlledCancel = hasLoadAction(actions, "controlledCancel");
+  const sheet = loadingSheetOf(load, useShippingActor());
   return (
     <div className="flex flex-wrap items-center gap-2">
       {controlledCancel && (
@@ -40,6 +44,7 @@ export function LoadActions({
           <ShieldAlert className="size-3.5" /> {CC.cancelButton}
         </Button>
       )}
+      {sheet && <LoadingSheetButton {...sheet} />}
       <Button variant="outline" size="sm" asChild>
         <Link href={ADMIN_ROUTES.loads.manifest(load.loadId)}>
           <ClipboardList className="size-3.5" /> {A.manifest}
