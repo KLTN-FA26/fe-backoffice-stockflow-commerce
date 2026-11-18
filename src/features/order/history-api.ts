@@ -12,6 +12,18 @@ import { mapBackendOrderStatus } from "./status-map";
 
 import type { OrderHistoryEntry, OrderHistoryEntryDto } from "./types";
 
+type HistoryAddress = OrderHistoryEntryDto["newAddress"];
+
+/** Một địa chỉ của mục đổi địa chỉ thành một dòng: người nhận · SĐT, số nhà, xã / phường, tỉnh. Trống → null. */
+function addressLine(address: HistoryAddress): string | null {
+  if (!address) return null;
+  const who = [address.recipientName, address.phone].filter(Boolean).join(" · ");
+  const where = [address.line1, address.line2, address.wardName, address.provinceName]
+    .filter(Boolean)
+    .join(", ");
+  return [who, where].filter(Boolean).join(" — ") || null;
+}
+
 const ORDERS_PATH = "/orders";
 
 /**
@@ -36,6 +48,16 @@ export function toOrderHistoryEntry(dto: OrderHistoryEntryDto): OrderHistoryEntr
       kind: "delivery-mode",
       mode: dto.deliveryMode,
       previousMode: dto.previousDeliveryMode ?? null,
+    };
+  }
+  // WF04 G2 (docs 17 BR-16): Sale đổi địa chỉ giao trước khi dán nhãn
+  const newAddress = dto.type === "ADDRESS_CHANGE" ? addressLine(dto.newAddress) : null;
+  if (newAddress) {
+    return {
+      ...base,
+      kind: "address-change",
+      from: addressLine(dto.previousAddress),
+      to: newAddress,
     };
   }
   if (dto.type === "STATUS_CHANGE" && dto.to) {

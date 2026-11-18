@@ -1,6 +1,6 @@
 "use client";
 
-import { Scissors, Split, Truck } from "lucide-react";
+import { MapPin, Scissors, Split, Truck } from "lucide-react";
 
 import {
   ORDER_DELIVERY_MODE_LABELS,
@@ -96,6 +96,24 @@ function EntryHead({ entry }: { entry: OrderHistoryEntry }) {
         </span>
       );
     }
+    case "address-change":
+      // Sale đổi địa chỉ giao trước khi dán nhãn (docs 17 BR-16) — địa chỉ cũ → mới
+      return (
+        <span className="text-ink-primary block">
+          <span className="inline-flex items-center gap-1.5 font-semibold">
+            <MapPin className="text-accent size-3.5" aria-hidden="true" />
+            {L.addressChanged}
+          </span>
+          {entry.from && (
+            <span className="text-ink-secondary mt-1 block break-words">
+              {L.addressFrom}: {entry.from}
+            </span>
+          )}
+          <span className="mt-0.5 block break-words">
+            {L.addressTo}: {entry.to}
+          </span>
+        </span>
+      );
     case "status-change":
       return (
         <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-0.5">
@@ -122,6 +140,7 @@ const HIGHLIGHTED_KINDS: readonly OrderHistoryEntry["kind"][] = [
   "partial-shipment",
   "remainder-closure",
   "delivery-mode",
+  "address-change",
 ];
 
 /** Một mục của lịch sử đơn: đầu mục theo loại, ai / khi nào, ghi chú. */

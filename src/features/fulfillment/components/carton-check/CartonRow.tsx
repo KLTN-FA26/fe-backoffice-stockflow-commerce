@@ -1,6 +1,6 @@
 "use client";
 
-import { Printer, RotateCcw, Tag, Trash2 } from "lucide-react";
+import { Barcode, Printer, RotateCcw, Tag, Trash2 } from "lucide-react";
 
 import { UI_LABELS } from "@/constants";
 import { formatDateTime } from "@/lib/format/date";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 
 import { MONO, formatMeasure } from "../primitives";
 
+import type { CartonRemovalReason } from "@/constants";
 import type { CartonActions } from "@/features/fulfillment/carton-check-lifecycle";
 import type { Carton } from "@/features/fulfillment/carton-check-types";
 
@@ -33,12 +34,15 @@ function weightText(carton: Carton): string {
 const REMOVAL_REASON = {
   DAMAGED: L.removedDamaged,
   ORDER_CANCELLED: L.removedOrderCancelled,
-} as const;
+  REMAINDER_CLOSED: L.removedRemainderClosed,
+} as const satisfies Record<CartonRemovalReason, string>;
 
 export interface CartonRowHandlers {
   onLabel: (carton: Carton) => void;
   onPrint: (carton: Carton) => void;
   onReprint: (carton: Carton) => void;
+  /** In lại nhãn LPN của thùng; vắng khi màn không có hộp thoại in nhãn thùng (xem `CartonLpnLabelSlot`). */
+  onReprintLpn?: (carton: Carton) => void;
   onRemove: (carton: Carton) => void;
 }
 
@@ -121,6 +125,16 @@ export function CartonRow({
               onClick={() => handlers.onReprint(carton)}
             >
               <RotateCcw className="size-3" /> {A.reprint}
+            </Button>
+          )}
+          {actions.reprintLpn && handlers.onReprintLpn && (
+            <Button
+              type="button"
+              size="xs"
+              variant="outline"
+              onClick={() => handlers.onReprintLpn?.(carton)}
+            >
+              <Barcode className="size-3" /> {A.reprintLpn}
             </Button>
           )}
           {actions.remove && (

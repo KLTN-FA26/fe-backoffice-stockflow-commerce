@@ -173,7 +173,7 @@ function OrderDetailContent({
           <OrderEstimateCard order={order} estimateSlot={estimateSlot} />
           <OrderPartialShipmentCard order={order} can={can} />
           <OrderShipments order={order} />
-          <OrderInfoCard order={order} />
+          <OrderInfoCard order={order} can={can} />
           <OrderFinanceCard order={order} can={can} />
         </div>
       </div>

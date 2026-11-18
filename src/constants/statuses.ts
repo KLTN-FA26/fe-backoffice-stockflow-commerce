@@ -349,7 +349,9 @@ export const CARTON_STATUS = {
 } as const satisfies Record<CartonApiStatus, CartonStatus>;
 
 /** BE `CartonCheck.RemovalReason` — vì sao thùng bị loại: hư hỏng khi kiểm, hoặc đơn huỷ khi chưa thùng nào dán nhãn. */
-export const CARTON_REMOVAL_REASONS = ["DAMAGED", "ORDER_CANCELLED"] as const;
+// BE `CartonCheck.RemovalReason`: hư hỏng (08 §4.2 bước 4), đơn huỷ trước khi dán nhãn (08 BR-04), Sale đóng phần còn
+// lại khi thùng chưa dán nhãn (17 §4.8 bước 33)
+export const CARTON_REMOVAL_REASONS = ["DAMAGED", "ORDER_CANCELLED", "REMAINDER_CLOSED"] as const;
 
 /** BE `fulfillment/internal/domain/PackageStatus.java` (PR #136) — kiện ở trạm đóng gói. */
 export const PACKAGE_API_STATUSES = ["OPEN", "SEALED", "VOIDED"] as const;
