@@ -23,6 +23,7 @@ import { book, cancelBooking, recordDriver, startLoading } from "./mock-dispatch
 import { cancelControlled, dropFromPlan, overrideUnload, unload } from "./mock-dispatch-ftl-rules";
 import { handover, recordOutcome } from "./mock-dispatch-handover";
 import { scan, unscan } from "./mock-dispatch-rules";
+import { registerAttachedFilesMockRoutes } from "./mock-routes-dispatch-files";
 import { getDispatchState } from "./mock-dispatch-store";
 import {
   IMPORT_TEMPLATE,
@@ -225,6 +226,7 @@ export function registerDispatchMockRoutes(): void {
   registerCarrierRoutes();
   registerShipmentRoutes();
   registerWaybillRoutes();
+  registerAttachedFilesMockRoutes();
 
   registerMockRoute("GET", LOADS, async (config) => {
     const params = readParams(config);

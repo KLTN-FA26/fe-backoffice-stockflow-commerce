@@ -16,6 +16,7 @@ import { RefetchErrorNotice } from "./primitives";
 import { OutcomeDialog } from "./shipment/OutcomeDialog";
 import { ShipmentDetails } from "./shipment/ShipmentDetails";
 import { ShipmentInfoCard } from "./shipment/ShipmentInfoCard";
+import { ShipmentPodFiles } from "./shipment/ShipmentPodFiles";
 import { ShippingLoadError } from "./ShippingLoadError";
 import { ShippingPermissionGate } from "./ShippingPermissionGate";
 import { useShippingActor } from "./useShippingActor";
@@ -74,6 +75,7 @@ function ShipmentBody({ id }: { id: string }) {
           })}
         />
         <ShipmentDetails data={data} />
+        <ShipmentPodFiles shipment={shipment} />
       </div>
       {outcome && outcomes.includes(outcome) && (
         <OutcomeDialog shipment={shipment} outcome={outcome} onClose={() => setOutcome(null)} />
@@ -82,7 +84,7 @@ function ShipmentBody({ id }: { id: string }) {
   );
 }
 
-/** Chi tiết lô giao (BE `GET /fulfillment/shipments/{id}`): kiện, lịch sử, ghi nhận kết quả giao. */
+/** Chi tiết lô giao (BE `GET /fulfillment/shipments/{id}`): kiện, lịch sử, ghi nhận kết quả giao, biên bản giao nhận (POD). */
 export function ShipmentScreen({ id }: { id: string }) {
   return (
     <ShippingPermissionGate permissions={[SHIPMENT_PERMISSIONS.viewPage]}>
