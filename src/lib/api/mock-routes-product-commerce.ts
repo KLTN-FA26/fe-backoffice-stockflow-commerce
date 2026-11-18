@@ -3,7 +3,7 @@
  *  `GET/PUT /products/{id}/ecommerce`, `GET/PUT /products/{id}/skus/{sku}/base-price`
  *  (BE `CatalogManagementController`, `Listing.edit`, `SellingPrice`) — base-price nhận MÃ SKU,
  *  không phải variantId. Chính sách tồn kho theo SKU đã rời sản phẩm (BE PR #119) — mock ở
- *  `mock-routes-inventory-items.ts` / `mock-routes-inventory-policy.ts`.
+ *  `mock-routes-inventory-items.ts`.
  * Phiên bản tăng sau mỗi lần ghi; lệch → 409 CONFLICT như BE (không phải OPTIMISTIC_LOCK).
  * `revision` của listing CHÍNH LÀ `version` của sản phẩm (BE
  * `CatalogCommerceService.get`: `source.version()`): sửa listing / đặt giá làm tăng version sản phẩm, và

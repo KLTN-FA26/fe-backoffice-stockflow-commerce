@@ -8,7 +8,6 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 
 import { ApiError } from "@/lib/api/error";
 import { activateMockAdapter } from "@/lib/api/mock-adapter";
-import { resetInventoryPolicyStore } from "@/lib/api/mock-routes-inventory-policy";
 import { resetVariantMockStore } from "@/lib/api/mock-routes-variants";
 
 import { getInventoryItem, saveItemLogistics } from "../api";
@@ -23,7 +22,6 @@ beforeEach(() => {
   vi.spyOn(Math, "random").mockReturnValue(0.5);
   vi.spyOn(console, "info").mockImplementation(() => {});
   resetVariantMockStore();
-  resetInventoryPolicyStore();
 });
 afterEach(() => vi.restoreAllMocks());
 

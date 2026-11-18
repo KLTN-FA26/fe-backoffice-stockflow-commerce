@@ -6,7 +6,6 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 
 import { ApiError } from "@/lib/api/error";
 import { activateMockAdapter } from "@/lib/api/mock-adapter";
-import { resetInventoryPolicyStore } from "@/lib/api/mock-routes-inventory-policy";
 import { resetVariantMockStore } from "@/lib/api/mock-routes-variants";
 
 import { getInventoryItem, listInventoryItems, saveItemLogistics, toLogisticsRequest } from "./api";
@@ -19,7 +18,6 @@ beforeAll(() => {
 });
 beforeEach(() => {
   resetVariantMockStore();
-  resetInventoryPolicyStore();
 });
 afterAll(() => vi.restoreAllMocks());
 

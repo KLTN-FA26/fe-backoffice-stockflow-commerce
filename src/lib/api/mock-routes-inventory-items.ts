@@ -1,21 +1,12 @@
 /**
- * Mock routes — hồ sơ hàng tồn (BE PR #119 `InventoryItemController`): danh sách, chi tiết,
- * `PUT .../logistics` và `PUT .../policy`. Response đúng `InventoryItemResponse`
- * `{id, sku, version, logistics, policy, evaluation}`; version là của item, dùng chung cho cả hai
- * PUT. Logistics lưu chung kho `logistics` của mock biến thể (`mock-routes-variants.ts`, khoá theo
- * id biến thể) — item và biến thể 1-1 theo SKU, id item = `item-<variantId>`; chính sách ở
- * `mock-routes-inventory-policy.ts`.
+ * Mock routes — hồ sơ hàng tồn (BE `InventoryItemController`): danh sách, chi tiết và
+ * `PUT .../logistics`. Response đúng `InventoryItemResponse` `{id, sku, version, logistics}`; không còn
+ * chính sách tồn (docs 01 BR-17, 20 BR-13 — BE đã bỏ `PUT .../policy`). Logistics lưu chung kho
+ * `logistics` của mock biến thể (`mock-routes-variants.ts`, khoá theo id biến thể) — item và biến thể
+ * 1-1 theo SKU, id item = `item-<variantId>`.
  */
 import { registerMockRoute } from "./mock-adapter";
 import { bodyOf, fail, ok, pageOf, pathParams, queryOf } from "./mock-route-utils";
-import {
-  evaluationOf,
-  isConfigured,
-  savePolicy,
-  policyOf,
-  readPolicy,
-  validatePolicy,
-} from "./mock-routes-inventory-policy";
 import { mockInventoryItemRows, mockSkuRetired, saveMockLogistics } from "./mock-routes-variants";
 
 import type { AxiosRequestConfig } from "axios";
@@ -41,8 +32,7 @@ async function findItem(config: AxiosRequestConfig) {
 function toItem(id: string, row: MockLogistics) {
   const { skuId: _skuId, sku, version, ...rest } = row;
   void _skuId;
-  const policy = policyOf(id);
-  return { id, sku, version, logistics: rest, policy, evaluation: evaluationOf(id, policy) };
+  return { id, sku, version, logistics: rest };
 }
 
 async function listItems(config: AxiosRequestConfig) {
@@ -51,16 +41,13 @@ async function listItems(config: AxiosRequestConfig) {
   const size = Number(query.get("size")) || 20;
   const sku = query.get("sku");
   const q = query.get("q")?.trim().toLowerCase();
-  const storageClass = query.get("storageClass");
-  const configured = query.get("policyConfigured");
 
   const items = (await mockInventoryItemRows())
-    .filter(({ id, row }) => {
+    .filter(({ row }) => {
       if (sku && row.sku !== sku) return false;
-      if (q && !row.sku.toLowerCase().includes(q) && !(row.barcode ?? "").toLowerCase().includes(q))
-        return false;
-      if (storageClass && row.storageClass !== storageClass) return false;
-      return configured === null || isConfigured(id) === (configured === "true");
+      return (
+        !q || row.sku.toLowerCase().includes(q) || (row.barcode ?? "").toLowerCase().includes(q)
+      );
     })
     .sort((a, b) => (a.row.sku < b.row.sku ? -1 : a.row.sku > b.row.sku ? 1 : 0))
     .map(({ id, row }) => ({
@@ -68,9 +55,6 @@ async function listItems(config: AxiosRequestConfig) {
       sku: row.sku,
       unitOfMeasure: row.unitOfMeasure,
       barcode: row.barcode,
-      storageClass: row.storageClass,
-      trackingMode: policyOf(id).trackingMode,
-      policyConfigured: isConfigured(id),
     }));
   return ok(pageOf(items, page, size));
 }
@@ -108,22 +92,6 @@ export function registerInventoryItemMockRoutes(): void {
     };
     next.packageCount = next.packageCount ?? 1;
     next.packSize = next.packSize ?? 1;
-    saveMockLogistics(next);
-    return ok(toItem(id, next));
-  });
-
-  registerMockRoute("PUT", "/inventory/items/:id/policy", async (config) => {
-    const { id, row } = await findItem(config);
-    if (!row) return itemNotFound(id);
-    const b = bodyOf(config);
-    // BE `savePolicy`: kiểm chính sách → khoá hồ sơ (SKU đã ngừng → VARIANT_OBSOLETE) → version
-    const policy = readPolicy(b);
-    const invalid = validatePolicy(policy);
-    if (invalid) return invalid;
-    if (await mockSkuRetired(row.sku)) return retired(row.sku);
-    if (b.version !== row.version) return staleVersion();
-    savePolicy(id, policy);
-    const next: MockLogistics = { ...row, version: row.version + 1 };
     saveMockLogistics(next);
     return ok(toItem(id, next));
   });

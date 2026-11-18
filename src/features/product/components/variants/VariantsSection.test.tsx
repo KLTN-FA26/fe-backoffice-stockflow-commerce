@@ -436,7 +436,7 @@ describe("VariantPanel — tóm tắt hồ sơ hàng tồn (BE PR #119)", () => 
       expect(within(panel).getByText(label)).toBeInTheDocument();
     }
     // Không còn lớp lưu trữ (docs 06): panel không nêu điều kiện lưu kho
-    expect(within(panel).queryByText(F.storageClass)).toBeNull();
+    expect(within(panel).queryByText("Điều kiện lưu kho")).toBeNull();
     expect(within(panel).getByText(S.weightValue(0.02))).toBeInTheDocument();
     expect(within(panel).getByText(UI_LABELS.inventoryItem.notProvided)).toBeInTheDocument();
     expect(within(panel).queryByText(F.packSize)).not.toBeInTheDocument();
