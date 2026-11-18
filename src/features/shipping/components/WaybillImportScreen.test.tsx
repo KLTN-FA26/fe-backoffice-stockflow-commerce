@@ -260,6 +260,40 @@ describe("WaybillImportScreen — chọn file và xem trước", () => {
     expect(callsTo(post, PREVIEW_URL)).toHaveLength(1);
   });
 
+  it("nhận file Excel .xlsx như CSV: ô chọn file cho phép đuôi .xlsx, xem trước gửi đúng file", async () => {
+    const user = userEvent.setup();
+    const { post } = renderScreen();
+    const input = await screen.findByLabelText(I.fileLabel);
+    expect(input).toHaveAttribute("accept", expect.stringContaining(".xlsx"));
+    expect(input).toHaveAttribute("accept", expect.stringContaining(".csv"));
+    expect(screen.getByText(I.fileHint)).toHaveTextContent(".xlsx");
+
+    const workbook = new File([new Uint8Array([0x50, 0x4b, 3, 4])], "Van-Don.XLSX", {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    await user.upload(input, workbook);
+    expect(screen.queryByText(I.fileWrongType)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: I.preview }));
+    await screen.findByText(I.previewTitle, { selector: "h2" });
+    const [previewCall] = callsTo(post, PREVIEW_URL);
+    expect((previewCall?.[1] as FormData).get("file")).toBe(workbook);
+  });
+
+  it("file không phải CSV / .xlsx (.xls cũ, PDF…) bị từ chối ngay ở máy: báo tiếng Việt, 'Xem trước' khóa, không gọi API", async () => {
+    // `applyAccept: false` mô phỏng người dùng chọn "Tất cả file" trong hộp thoại của trình duyệt.
+    const user = userEvent.setup({ applyAccept: false });
+    const { post } = renderScreen();
+    for (const name of ["van-don.xls", "van-don.pdf", "van-don"]) {
+      await user.upload(
+        await screen.findByLabelText(I.fileLabel),
+        new File(["x"], name, { type: "application/octet-stream" }),
+      );
+      expect(await screen.findByRole("alert")).toHaveTextContent(I.fileWrongType);
+      expect(screen.getByRole("button", { name: I.preview })).toBeDisabled();
+    }
+    expect(callsTo(post, PREVIEW_URL)).toHaveLength(0);
+  });
+
   it("BE từ chối file (400 WAYBILL_IMPORT_INVALID_FILE) → câu lỗi tiếng Việt, không hiện bảng", async () => {
     const user = userEvent.setup();
     renderScreen(ACTORS.warehouseStaff, {

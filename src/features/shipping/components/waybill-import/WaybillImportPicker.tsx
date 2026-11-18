@@ -6,13 +6,14 @@ import { Download, FileUp } from "lucide-react";
 import { ADMIN_ROUTES, UI_LABELS } from "@/constants";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { WAYBILL_IMPORT_ACCEPT } from "@/features/shipping/waybill-import-file";
 
 import type { RefObject } from "react";
 
 const I = UI_LABELS.shipping.waybill.import;
 
 /**
- * Khối chọn file của màn nhập mã vận đơn: mô tả, tải file mẫu (`fulfillment-waybill-imports:READ`), chọn file CSV và "Xem
+ * Khối chọn file của màn nhập mã vận đơn: mô tả, tải file mẫu (`fulfillment-waybill-imports:READ`), chọn file CSV / Excel (.xlsx) và "Xem
  * trước" — hai thao tác sau cần `:CREATE` (`canCreate`), thiếu quyền thì chỉ có file mẫu và một dòng giải thích.
  */
 export function WaybillImportPicker({
@@ -58,7 +59,7 @@ export function WaybillImportPicker({
                 ref={input}
                 id="waybill-import-file"
                 type="file"
-                accept=".csv,text/csv"
+                accept={WAYBILL_IMPORT_ACCEPT}
                 className="text-ink-primary text-[0.8125rem]"
                 onChange={(event) => onChoose(event.target.files?.[0] ?? null)}
               />

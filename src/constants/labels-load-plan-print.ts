@@ -30,6 +30,11 @@ export const LOAD_PLAN_PRINT_LABELS = {
     carrier: "Hãng vận chuyển",
     plate: "Biển số",
     driver: "Tài xế",
+    /** Kho xuất của kế hoạch (docs 09 §3 Output của phiếu đặt xe). */
+    warehouse: "Kho xuất",
+    waybill: "Mã vận đơn",
+    /** Chuyến đã đặt xe nhưng hãng chưa có mã vận đơn. */
+    noWaybill: "Chưa có mã vận đơn",
     /** Chỉ khi chuyến của xe ở trạng thái PLANNED (chưa đặt xe với hãng). */
     notBooked: "Chưa đặt xe",
     booked: "Đã đặt xe",

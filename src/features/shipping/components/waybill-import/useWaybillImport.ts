@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { SHIPPING_LIMITS, UI_LABELS } from "@/constants";
 import { shippingErrorMessage } from "@/features/shipping/errors";
 import { downloadWaybillTemplate } from "@/features/shipping/waybill-api";
+import { isWaybillImportFile } from "@/features/shipping/waybill-import-file";
 import {
   useImportWaybillFile,
   usePreviewWaybillImport,
@@ -21,7 +22,7 @@ export function applicableCount(preview: WaybillImport, overwrite: ReadonlySet<n
 
 /**
  * State của màn nhập mã vận đơn từ file (docs 09 §4.4): file đã chọn → xem trước → tick ghi đè → nhập → kết quả. Đổi file thì
- * bỏ bản xem trước cũ; file > 1 MB bị từ chối ngay ở máy (BE cũng từ chối). Lỗi hiện inline (không toast).
+ * bỏ bản xem trước cũ; file không phải CSV / .xlsx hoặc > 1 MB bị từ chối ngay ở máy (BE cũng từ chối). Lỗi hiện inline (không toast).
  */
 export function useWaybillImport() {
   const preview = usePreviewWaybillImport();
@@ -51,6 +52,11 @@ export function useWaybillImport() {
     toApply: previewed ? applicableCount(previewed, overwrite) : 0,
     choose: (next: File | null) => {
       clear();
+      if (next && !isWaybillImportFile(next)) {
+        setFile(null);
+        setError(I.fileWrongType);
+        return;
+      }
       if (next && next.size > SHIPPING_LIMITS.waybillImportMaxBytes) {
         setFile(null);
         setError(I.fileTooLarge);
