@@ -101,6 +101,11 @@ export function findCustomerPrice(customerId: string, sku: string): MockCustomer
   return prices().get(keyOf(customerId, sku)) ?? null;
 }
 
+/** BE `CustomerPriceRepository.delete`. */
+export function deleteCustomerPrice(customerId: string, sku: string): void {
+  prices().delete(keyOf(customerId, sku));
+}
+
 /** Ghi bản đã kiểm (bậc sắp tăng dần như BE `CustomerPrice.validated`). */
 export function saveCustomerPrice(price: MockCustomerPrice): MockCustomerPrice {
   const saved = {

@@ -37,6 +37,7 @@ export function ProductWizardView({
   wizard,
   form,
   isEditing,
+  productId,
   brands,
   categories,
   productCode,
@@ -52,6 +53,8 @@ export function ProductWizardView({
   wizard: ProductWizard;
   form: UseFormReturn<ProductDraftFormValues>;
   isEditing: boolean;
+  /** Sửa: id sản phẩm (bỏ khỏi cảnh báo trùng). */
+  productId?: string;
   brands: readonly BrandDto[];
   categories: readonly Category[];
   /** Theo dõi (`useWatch`) ở trang — bước trục cần để xem trước SKU và điền sẵn trục của danh mục. */
@@ -98,6 +101,7 @@ export function ProductWizardView({
                 categories={categories}
                 form={form}
                 isEditing={isEditing}
+                productId={productId}
               />
             </div>
             <div hidden={step !== "description"}>

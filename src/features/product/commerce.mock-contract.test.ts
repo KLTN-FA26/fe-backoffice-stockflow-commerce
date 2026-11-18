@@ -1,6 +1,5 @@
 /**
- * Contract test: mock adapter nói đúng hợp đồng BE cho listing TMĐT / giá cơ sở
- * (`CatalogManagementController`) để `listing-api.ts` (parse zod) chạy y hệt trên mock và BE thật.
+ * Contract test: mock adapter nói đúng hợp đồng BE cho listing TMĐT (`CatalogManagementController`) để `listing-api.ts` (parse zod) chạy y hệt trên mock và BE thật.
  * Chính sách tồn kho theo SKU đã rời sản phẩm (BE PR #119) — xem `/inventory/items`.
  */
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -20,8 +19,7 @@ import {
   listCategories,
   transitionProduct,
 } from "./api";
-import { getListing, getSkuPrice, saveListing, saveSkuPrice } from "./listing-api";
-import { listVariants } from "./variant-api";
+import { getListing, saveListing } from "./listing-api";
 
 vi.setConfig({ testTimeout: 60_000 });
 
@@ -60,11 +58,8 @@ async function draft(name = "Sản phẩm bán") {
     description: "",
     descriptionEn: "",
     taxClass: "STANDARD",
-    kind: "STANDARD",
   });
-  const [variant] = await listVariants(product.productId);
-  if (!variant) throw new Error("no default variant");
-  return { product, variant };
+  return { product };
 }
 
 describe("listing TMĐT (BE GET/PUT /products/{id}/ecommerce)", () => {
@@ -157,8 +152,8 @@ describe("listing TMĐT (BE GET/PUT /products/{id}/ecommerce)", () => {
 });
 
 describe("revision của listing = version của sản phẩm (BE CatalogCommerceService.get)", () => {
-  it("lưu listing / đặt giá làm tăng version sản phẩm; thao tác sản phẩm làm đổi revision của listing", async () => {
-    const { product, variant } = await draft();
+  it("lưu listing làm tăng version sản phẩm; thao tác sản phẩm làm đổi revision của listing", async () => {
+    const { product } = await draft();
     expect(product.version).toBe(0);
     const listing = await saveListing({
       productId: product.productId,
@@ -168,128 +163,28 @@ describe("revision của listing = version của sản phẩm (BE CatalogCommerc
     expect(listing.revision).toBe(1);
     expect((await getProduct(product.productId)).version).toBe(1);
 
-    const priced = await saveSkuPrice({
-      productId: product.productId,
-      sku: variant.sku,
-      revision: 1,
-      price: 100000,
-    });
-    expect(priced.revision).toBe(2);
-    expect((await getProduct(product.productId)).version).toBe(2);
-
     // Gửi duyệt là thao tác sản phẩm → listing sang revision mới, revision cũ bị từ chối.
     const submitted = await transitionProduct({ id: product.productId, action: "submit" });
-    expect(submitted.version).toBe(3);
-    expect((await getListing(product.productId)).revision).toBe(3);
-    expect((await getSkuPrice(product.productId, variant.sku)).revision).toBe(3);
+    expect(submitted.version).toBe(2);
+    expect((await getListing(product.productId)).revision).toBe(2);
     const stale = await apiError(
-      saveSkuPrice({ productId: product.productId, sku: variant.sku, revision: 2, price: 120000 }),
-    );
-    expect(stale.code).toBe("CONFLICT");
-  });
-
-  it("chờ duyệt vẫn đặt giá và sửa listing được (BE chỉ từ chối DISCONTINUED)", async () => {
-    const { product, variant } = await draft();
-    await saveListing({
-      productId: product.productId,
-      revision: 0,
-      values: { slug: `w-${Date.now()}`, seoTitle: "", seoDescription: "" },
-    });
-    const submitted = await transitionProduct({ id: product.productId, action: "submit" });
-    const priced = await saveSkuPrice({
-      productId: product.productId,
-      sku: variant.sku,
-      revision: submitted.version,
-      price: 90000,
-    });
-    expect(priced.revision).toBe(submitted.version + 1);
-  });
-});
-
-describe("giá bán cơ sở (BE GET/PUT /products/{id}/skus/{sku}/base-price — theo MÃ SKU)", () => {
-  it("phải lưu listing trước (409 CATALOG_LISTING_REQUIRED); sau đó đặt giá, revision tăng và dùng chung với listing", async () => {
-    const { product, variant } = await draft();
-    const empty = await getSkuPrice(product.productId, variant.sku);
-    expect(empty).toMatchObject({ sku: variant.sku, revision: 0 });
-    // BE `non_null`: SKU chưa có giá → các trường giá vắng mặt.
-    expect(empty.basePrice).toBeUndefined();
-    expect(empty.effectivePrice).toBeUndefined();
-    expect(empty.baseCurrency).toBeUndefined();
-
-    const early = await apiError(
-      saveSkuPrice({ productId: product.productId, sku: variant.sku, revision: 0, price: 149000 }),
-    );
-    expect(early.code).toBe("CATALOG_LISTING_REQUIRED");
-
-    const listing = await saveListing({
-      productId: product.productId,
-      revision: 0,
-      values: { slug: `p-${Date.now()}`, seoTitle: "", seoDescription: "" },
-    });
-    const priced = await saveSkuPrice({
-      productId: product.productId,
-      sku: variant.sku,
-      revision: listing.revision,
-      price: 149000,
-    });
-    expect(priced.revision).toBe(listing.revision + 1);
-    expect(await getSkuPrice(product.productId, variant.sku)).toMatchObject({
-      basePrice: 149000,
-      baseCurrency: "VND",
-      revision: priced.revision,
-    });
-    // Revision của lần đọc trước nay đã cũ.
-    const stale = await apiError(
-      saveSkuPrice({
+      saveListing({
         productId: product.productId,
-        sku: variant.sku,
-        revision: listing.revision,
-        price: 150000,
+        revision: 1,
+        values: { slug: `v2-${Date.now()}`, seoTitle: "", seoDescription: "" },
       }),
     );
     expect(stale.code).toBe("CONFLICT");
   });
 
-  it("giá là số nguyên VND > 0; SKU không thuộc sản phẩm (kể cả variantId) → 404 NOT_FOUND", async () => {
-    const { product, variant } = await draft();
-    const listing = await saveListing({
+  it("chờ duyệt vẫn sửa listing được (BE chỉ từ chối DISCONTINUED)", async () => {
+    const { product } = await draft();
+    const submitted = await transitionProduct({ id: product.productId, action: "submit" });
+    const saved = await saveListing({
       productId: product.productId,
-      revision: 0,
-      values: { slug: `q-${Date.now()}`, seoTitle: "", seoDescription: "" },
+      revision: submitted.version,
+      values: { slug: `w-${Date.now()}`, seoTitle: "", seoDescription: "" },
     });
-    const put = (price: number) =>
-      saveSkuPrice({
-        productId: product.productId,
-        sku: variant.sku,
-        revision: listing.revision,
-        price,
-      });
-    expect((await apiError(put(0))).code).toBe("VALIDATION_FAILED");
-    expect((await apiError(put(-5))).code).toBe("VALIDATION_FAILED");
-    expect((await apiError(put(12.5))).code).toBe("VALIDATION_FAILED");
-    // `{sku}` là mã SKU: variantId (UUID) không phải mã SKU.
-    expect((await apiError(getSkuPrice(product.productId, variant.variantId))).code).toBe(
-      "NOT_FOUND",
-    );
-    expect(
-      (
-        await apiError(
-          saveSkuPrice({
-            productId: product.productId,
-            sku: "KHONG-CO",
-            revision: listing.revision,
-            price: 1000,
-          }),
-        )
-      ).code,
-    ).toBe("NOT_FOUND");
-    expect(await getProduct(product.productId)).toBeTruthy();
-  });
-
-  it("SKU mẫu của sản phẩm đang bán có sẵn giá cơ sở từ dữ liệu mẫu", async () => {
-    const variants = await listVariants("PRD-001");
-    const price = await getSkuPrice("PRD-001", variants[0]?.sku ?? "");
-    expect(price.basePrice).toBeGreaterThan(0);
-    expect(price.baseCurrency).toBe("VND");
+    expect(saved.revision).toBe(submitted.version + 1);
   });
 });

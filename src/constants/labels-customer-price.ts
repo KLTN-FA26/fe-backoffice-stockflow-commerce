@@ -1,16 +1,16 @@
 /**
- * Bảng giá riêng của khách hàng (BE `CustomerPriceController`, `CustomerPrice`, `SellingPrice`;
- * docs/handoffs/SPRINT2-PRICING-PLAN.md P3). Giá áp dụng tới khi sửa — KHÔNG có ngày hiệu lực;
- * MOQ là `minQuantity` nhỏ nhất, không nhập riêng; tiền tệ luôn VND.
+ * Bảng giá riêng của khách hàng (BE `CustomerPriceController`, `CustomerPrice`, `SellingPrice`; kltn-docs 13
+ * BR-02, BR-04, BR-05, BR-06, D14). Nguồn giá duy nhất, chỉ cho SKU riêng của khách; bậc theo số thùng, đơn
+ * giá theo cái; áp dụng tới khi sửa — KHÔNG có ngày hiệu lực; MOQ là bậc nhỏ nhất; tiền tệ luôn VND.
  */
 
 import { CUSTOMER_PRICE_LIMITS as L } from "./numbers";
 
 export const CUSTOMER_PRICE_FIELD_MESSAGES = {
   tiersCount: `Cần từ 1 đến ${L.tiersMax} bậc giá`,
-  minQuantity: `Số lượng từ là số nguyên từ ${L.minQuantityMin} trở lên`,
+  minQuantity: `Số thùng từ là số nguyên từ ${L.minQuantityMin} trở lên`,
   // BE `CustomerPrice`: "Two price tiers start at N"
-  minQuantityDuplicate: "Hai bậc giá không được bắt đầu cùng một số lượng",
+  minQuantityDuplicate: "Hai bậc giá không được bắt đầu cùng một số thùng",
   // BE `SellingPrice`: > 0, VND số nguyên, tối đa 16 chữ số phần nguyên
   unitPrice: `Đơn giá là số tiền VND nguyên lớn hơn 0, tối đa ${L.priceIntegerDigitsMax} chữ số`,
   // Giá JSON đi qua số thực IEEE-754 của trình duyệt — quá nhiều chữ số thì không gửi nguyên vẹn được
@@ -25,6 +25,9 @@ export const CUSTOMER_PRICE_ERROR_MESSAGES = {
   CUSTOMER_NOT_FOUND: "Không tìm thấy khách hàng này.",
   CUSTOMER_PRICE_NOT_FOUND: "Khách hàng chưa có giá riêng cho SKU này (có thể vừa bị xoá).",
   VARIANT_NOT_FOUND: "Không tìm thấy SKU này trong danh mục sản phẩm.",
+  // BE `CustomerPriceService.requireOwnSku` (13 BR-02): chỉ SKU riêng của chính khách; giá cũ theo cái không sửa được
+  CUSTOMER_SKU_REQUIRED:
+    "Chỉ đặt giá cho SKU riêng của chính khách này. Giá cũ tính theo cái chỉ còn xem, không sửa được.",
   // POST khi khách đã có giá cho SKU (BE `CustomerPriceService.create`)
   CONFLICT: "Khách hàng đã có giá riêng cho SKU này — mở để sửa thay vì tạo mới.",
   OPTIMISTIC_LOCK:
@@ -41,13 +44,20 @@ export const CUSTOMER_PRICE_UI_LABELS = {
     sku: "SKU",
     moq: "SL đặt tối thiểu (MOQ)",
     tiers: "Bậc giá",
-    minQuantity: "Từ số lượng",
-    unitPrice: "Đơn giá (VND)",
+    minQuantity: "Từ số thùng",
+    unitPrice: "Đơn giá / cái (VND)",
     note: "Ghi chú",
   },
-  // MOQ suy từ bậc giá thấp nhất; dưới MOQ khách không có giá (BE `CustomerPrice.priceFor`)
+  // MOQ suy từ bậc giá thấp nhất; dưới MOQ khách không có giá (BE `CustomerPrice.priceFor`, 13 BR-06)
   moqHint:
-    "MOQ là số lượng của bậc giá thấp nhất — dưới mức này khách không đặt được theo giá riêng.",
+    "MOQ là số thùng của bậc giá thấp nhất — dưới mức này khách không đặt được theo giá riêng.",
+  measure: {
+    CARTON: "Theo thùng",
+    UNIT: "Theo cái (giá cũ)",
+  },
+  // Giá đặt trên biến thể kho trước khi có SKU riêng (BE `measure = UNIT`): chỉ còn đọc / xoá
+  legacyUnitHint:
+    "Giá cũ đặt theo cái trên biến thể kho — chỉ còn xem; giá mới đặt cho SKU riêng của khách, tính theo thùng.",
   noValidity: "Giá riêng áp dụng tới khi được sửa, không có ngày hiệu lực.",
   // Giá BE trả về vượt độ chính xác số của trình duyệt (> 9.007.199.254.740.991)
   priceInexact: "Đơn giá vượt độ chính xác hiển thị của trình duyệt — không sửa bậc này ở đây.",
@@ -89,7 +99,8 @@ export const CUSTOMER_PRICE_UI_LABELS = {
     inexactCell: "Không chính xác",
     loading: "Đang tải bảng giá…",
     noPrices: "Khách hàng này chưa có giá riêng nào.",
-    noPricesHint: "Khách đang mua theo giá nhóm hoặc giá cơ sở của sản phẩm.",
+    // 13 §4.2 bước 5, D14: không còn giá nhóm / giá gốc — Sale tự nhập bậc giá trên báo giá
+    noPricesHint: "Chưa có giá riêng thì Sale nhập bậc giá trực tiếp trên báo giá.",
     noMatch: "Không có SKU nào khớp bộ lọc.",
     clearFilter: "Bỏ lọc",
     readDenied: "Bạn không có quyền xem bảng giá khách hàng.",
@@ -104,17 +115,18 @@ export const CUSTOMER_PRICE_UI_LABELS = {
     createTitle: "Thêm bảng giá cho khách",
     editTitle: (sku: string) => `Sửa bảng giá ${sku}`,
     description:
-      "Mỗi bậc là đơn giá áp dụng khi đặt từ số lượng đó trở lên. Giá áp dụng tới khi sửa.",
+      "Mỗi bậc là đơn giá một cái áp dụng khi đặt từ số thùng đó trở lên. Giá áp dụng tới khi sửa.",
     customerLine: (customer: string) => `Khách hàng: ${customer}`,
     save: "Lưu bảng giá",
     saving: "Đang lưu…",
     saved: "Đã lưu bảng giá khách hàng",
     sku: "SKU",
-    skuHint: "Nhập mã SKU (không phân biệt hoa thường) — SKU phải có trong danh mục sản phẩm.",
+    skuHint:
+      "Chỉ SKU riêng của khách này (sinh khi thiết kế của khách được duyệt) — không phân biệt hoa thường.",
     skuInvalid: "Mã SKU không đúng định dạng (chữ, số, dấu . _ -; tối đa 64 ký tự)",
     skuLocked: "SKU là định danh của bảng giá — không đổi được khi sửa.",
-    moqHint: "MOQ được xác định bởi mức số lượng nhỏ nhất.",
-    tierOrderHint: "Có thể nhập các bậc theo thứ tự bất kỳ — hệ thống tự sắp theo số lượng.",
+    moqHint: "MOQ được xác định bởi số thùng nhỏ nhất.",
+    tierOrderHint: "Có thể nhập các bậc theo thứ tự bất kỳ — hệ thống tự sắp theo số thùng.",
     addTier: "Thêm bậc giá",
     removeTier: (index: number) => `Xoá bậc giá ${index}`,
     tierLabel: (index: number) => `Bậc ${index}`,
@@ -151,12 +163,25 @@ export const CUSTOMER_PRICE_UI_LABELS = {
       `Khách đang chọn đã đổi. Bản nháp này thuộc khách ${customer} nên không lưu được ở đây.`,
     returnToCustomer: "Quay lại khách đó",
   },
+  remove: {
+    action: "Xoá giá",
+    title: (sku: string) => `Xoá giá riêng của ${sku}?`,
+    description:
+      "Khách sẽ không còn giá riêng cho SKU này; báo giá sau đó Sale nhập bậc giá trực tiếp. Không hoàn tác được.",
+    confirm: "Xoá giá",
+    deleted: "Đã xoá giá riêng",
+  },
   detail: {
-    tierHeading: "Bậc giá theo số lượng",
-    // Mỗi bậc: đơn giá áp dụng từ số lượng tối thiểu đó (không phải lịch theo ngày)
-    tierHint: "Mỗi dòng là đơn giá áp dụng khi đặt từ số lượng đó trở lên.",
-    tierLine: (minQuantity: string) => `Từ ${minQuantity} đơn vị`,
-    perUnit: "/ đơn vị",
+    unitsPerCarton: "Số cái / thùng",
+    unitsPerCartonValue: (count: string) => `${count} cái`,
+    noCarton: "Chưa có quy cách thùng",
+    tierHeading: "Bậc giá",
+    // Mỗi bậc: đơn giá một cái áp dụng từ số thùng (giá cũ: số cái) tối thiểu đó — không phải lịch theo ngày
+    tierHint: "Mỗi dòng là đơn giá một cái áp dụng khi đặt từ mức đó trở lên.",
+    tierLine: (minQuantity: string, measure: "CARTON" | "UNIT") =>
+      `Từ ${minQuantity} ${measure === "CARTON" ? "thùng" : "cái"}`,
+    perUnit: "/ cái",
+    measure: "Bậc tính",
     noNote: "Không có ghi chú",
     version: "Phiên bản",
   },

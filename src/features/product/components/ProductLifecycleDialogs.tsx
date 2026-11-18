@@ -65,7 +65,7 @@ export function ProductLifecycleDialogs({ product, dialog, onClose, onDeleted }:
         open={dialog === "suspend"}
         onOpenChange={change}
         title="Tạm ngưng sản phẩm?"
-        description={`${name} sẽ bị ẩn khỏi cửa hàng và không nhận dòng đơn mua mới. Đơn mua, đơn bán và phiếu nhận đang chạy vẫn được xử lý. Có thể tiếp tục kinh doanh sau.`}
+        description={`${name} sẽ bị ẩn khỏi cửa hàng và không nhận báo giá, đơn hàng hay Đơn sản xuất mới. Chứng từ đang chạy vẫn được xử lý. Có thể tiếp tục kinh doanh sau.`}
         confirmLabel="Tạm ngưng"
         requireReason
         reasonLabel="Lý do tạm ngưng"
@@ -166,7 +166,7 @@ function DiscontinueReferences({ query }: { query: ReturnType<typeof useOpenRefe
   if (query.data.references.length === 0) {
     return (
       <p className="text-ink-tertiary text-xs">
-        Hiện không có đơn mua hoặc đơn bán đang mở tham chiếu SKU của sản phẩm.
+        Hiện không có Đơn sản xuất hoặc đơn bán đang mở tham chiếu SKU của sản phẩm.
       </p>
     );
   }

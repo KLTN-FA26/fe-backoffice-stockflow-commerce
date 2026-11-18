@@ -16,7 +16,7 @@ import type { InventoryItem } from "../../types";
 interface Options<T extends FieldValues> {
   item: InventoryItem;
   form: UseFormReturn<T>;
-  context: "logistics" | "policy";
+  context: "logistics";
   onDone: () => void;
   /** Item (đã tải lại) → giá trị form; phải ổn định (khai báo ở module) vì nằm trong deps. */
   toValues: (item: InventoryItem) => T;
@@ -25,7 +25,7 @@ interface Options<T extends FieldValues> {
 }
 
 /**
- * Xử lý kết quả PUT chung cho hai form: thành công → ghi item mới (version mới) vào cache rồi
+ * Xử lý kết quả PUT của form logistics: thành công → ghi item mới (version mới) vào cache rồi
  * đóng form; version cũ / item biến mất → tải lại item, nạp lại form theo dữ liệu mới (không để
  * giá trị cũ ghi đè người sửa trước) và báo; lỗi theo ô đang hiện → `setError`; còn lại → alert.
  *

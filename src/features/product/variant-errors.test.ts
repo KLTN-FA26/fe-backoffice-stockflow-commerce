@@ -4,6 +4,17 @@ import { ApiError } from "@/lib/api/error";
 
 import { isStaleVariantError, variantErrorMessage } from "./variant-errors";
 
+describe("variantErrorMessage — mã BE mới có câu tiếng Việt", () => {
+  it.each([
+    [409, "INVALID_PRODUCT_STATUS_TRANSITION"],
+    [409, "IDEMPOTENCY_KEY_REUSED"],
+  ] as const)("%s %s", (status, code) => {
+    expect(variantErrorMessage(new ApiError(status, code, "English"), "save")).not.toBe(
+      "Không thực hiện được thao tác. Vui lòng thử lại.",
+    );
+  });
+});
+
 describe("isStaleVariantError — mã có câu 'Đã tải lại' phải làm mutation biến thể / ảnh tải lại thật", () => {
   it.each([
     [409, "OPTIMISTIC_LOCK", "save"],

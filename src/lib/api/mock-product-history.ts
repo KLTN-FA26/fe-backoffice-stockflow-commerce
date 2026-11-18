@@ -21,10 +21,19 @@ type ChangeType =
   | "MEDIA"
   | "LOGISTICS"
   | "INVENTORY_CONTROL"
-  // BE #121: thông tin mua hàng của một SKU (`SkuPurchasingService.describe`)
-  | "PURCHASING";
+  // BE #121: thông tin mua hàng của một SKU — BE đã bỏ route ghi, chỉ còn dòng cũ
+  | "PURCHASING"
+  // BE `SkuUnitService`: khai báo / sửa đơn vị tính (kể cả thùng) của SKU
+  | "UOM_CONVERSION";
 
-type Subject = "PRODUCT" | "VARIANT" | "MEDIA" | "LOGISTICS" | "INVENTORY_CONTROL" | "PURCHASING";
+type Subject =
+  | "PRODUCT"
+  | "VARIANT"
+  | "MEDIA"
+  | "LOGISTICS"
+  | "INVENTORY_CONTROL"
+  | "PURCHASING"
+  | "UOM_CONVERSION";
 
 const SUBJECT: Record<ChangeType, Subject> = {
   CREATED: "PRODUCT",
@@ -42,6 +51,7 @@ const SUBJECT: Record<ChangeType, Subject> = {
   LOGISTICS: "LOGISTICS",
   INVENTORY_CONTROL: "INVENTORY_CONTROL",
   PURCHASING: "PURCHASING",
+  UOM_CONVERSION: "UOM_CONVERSION",
 };
 
 /** BE `ProductWebMapper#auditActionOf`. */

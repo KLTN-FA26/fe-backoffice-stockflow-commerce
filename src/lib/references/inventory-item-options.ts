@@ -1,9 +1,9 @@
 /**
- * Gợi ý hồ sơ hàng tồn cho ô chọn SKU (BE PR #119 `GET /inventory/items?q=`, `InventoryItemSummary`).
+ * Gợi ý hồ sơ hàng tồn cho ô chọn SKU (BE `GET /inventory/items?q=`, `InventoryItemSummary`:
+ * `id`, `sku`, `unitOfMeasure`, `barcode`).
  *
  * Đặt ở `lib/` để màn danh mục hàng NCC dùng mà không import `features/inventory-item`
- * (feature-architecture). Schema chỉ giữ các trường ô chọn cần — BE còn trả `storageClass`,
- * `trackingMode`, `policyConfigured`. BE không có tên sản phẩm hay cờ "được phép mua", nên
+ * (feature-architecture). BE không có tên sản phẩm hay cờ "được phép mua", nên
  * `SKU_NOT_PURCHASABLE` vẫn chỉ biết sau khi lưu.
  */
 

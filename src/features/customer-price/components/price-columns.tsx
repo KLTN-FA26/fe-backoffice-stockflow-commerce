@@ -39,7 +39,11 @@ export const CUSTOMER_PRICE_COLUMNS: ColumnDef<CustomerPrice>[] = [
     align: "right",
     sortable: true,
     compare: (a, b) => a.moq - b.moq,
-    cell: (p) => <span className="tabular-nums">{formatNumber(p.moq)}</span>,
+    cell: (p) => (
+      <span className="tabular-nums">
+        {formatNumber(p.moq)} {p.measure === "CARTON" ? "thùng" : "cái"}
+      </span>
+    ),
   },
   {
     key: "tiers",
@@ -58,26 +62,28 @@ export const CUSTOMER_PRICE_COLUMNS: ColumnDef<CustomerPrice>[] = [
 
 /**
  * Cột "Sửa bảng giá" — chỉ thêm khi có `catalog-customer-prices:UPDATE` (UI-only, BE re-check). Nút
- * không kích hoạt bấm dòng (mở chi tiết).
+ * không kích hoạt bấm dòng (mở chi tiết). Giá cũ theo cái (`measure = UNIT`) không có nút: BE chỉ cho
+ * đọc / xoá, PUT luôn 409 CUSTOMER_SKU_REQUIRED.
  */
 export function editColumn(onEdit: (sku: string) => void): ColumnDef<CustomerPrice> {
   return {
     key: "edit",
     header: "",
     align: "right",
-    cell: (p) => (
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        aria-label={L.form.editRow(p.sku)}
-        onClick={(e) => {
-          e.stopPropagation();
-          onEdit(p.sku);
-        }}
-      >
-        <Pencil className="size-3.5" />
-      </Button>
-    ),
+    cell: (p) =>
+      p.measure === "UNIT" ? null : (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          aria-label={L.form.editRow(p.sku)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit(p.sku);
+          }}
+        >
+          <Pencil className="size-3.5" />
+        </Button>
+      ),
   };
 }

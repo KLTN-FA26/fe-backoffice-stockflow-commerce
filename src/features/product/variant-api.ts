@@ -1,9 +1,10 @@
 /**
  * API biến thể / ảnh theo biến thể (BE PR #71). Parse zod tại biên; mock adapter trả đúng hình
- * response BE nên một luồng xử lý chạy cho cả mock lẫn BE thật. Logistics của SKU đọc qua
- * `inventoryItemId` ở `lib/references/inventory-item-lookup.ts` (BE PR #119).
+ * response BE nên một luồng xử lý chạy cho cả mock lẫn BE thật. Đơn vị tính / quy cách thùng của SKU ở
+ * `carton-api.ts`; logistics của hồ sơ hàng tồn mở qua `inventoryItemId` (trang Hồ sơ hàng tồn).
  */
 import { api } from "@/lib/api/client";
+import { idempotencyRequestConfig, newIdempotencyKey } from "@/lib/api/idempotency";
 
 import { beDownloadUrlSchema, beMediaSchema, beVariantSchema } from "./variant-schemas";
 
@@ -15,21 +16,29 @@ const variantPath = (productId: string, variantId: string) =>
 const mediaPath = (productId: string, variantId: string) =>
   `${variantPath(productId, variantId)}/media`;
 
-/** BE giới hạn trang 200 (`Pages.MAX_PAGE_SIZE`); một sản phẩm không có nhiều biến thể hơn thế. */
+/** BE giới hạn trang 200 (`Pages.MAX_PAGE_SIZE`). */
 const VARIANT_PAGE_SIZE = 200;
+/**
+ * Mỗi thiết kế được duyệt sinh thêm một SKU riêng vào cùng sản phẩm (docs 01 §4.8) nên có thể vượt một trang —
+ * đọc hết các trang; chặn trên 25 trang (5000 biến thể) để không lặp vô hạn nếu BE trả sai `hasNext`.
+ */
+const VARIANT_MAX_PAGES = 25;
 
 /* ── Biến thể ────────────────────────────────────────────────────────── */
 
 export async function listVariants(productId: string, signal?: AbortSignal): Promise<Variant[]> {
-  const { data } = await api.get<unknown>(variantsPath(productId), {
-    params: { page: 0, size: VARIANT_PAGE_SIZE },
-    signal,
-  });
-  const items = (data as { items?: unknown }).items;
-  if (!Array.isArray(items)) throw new Error("Variant page response is malformed");
-  return items
-    .map((row) => beVariantSchema.parse(row))
-    .sort((a, b) => a.position - b.position || a.sku.localeCompare(b.sku));
+  const rows: Variant[] = [];
+  for (let page = 0; page < VARIANT_MAX_PAGES; page += 1) {
+    const { data } = await api.get<unknown>(variantsPath(productId), {
+      params: { page, size: VARIANT_PAGE_SIZE },
+      signal,
+    });
+    const { items, hasNext } = data as { items?: unknown; hasNext?: unknown };
+    if (!Array.isArray(items)) throw new Error("Variant page response is malformed");
+    rows.push(...items.map((row) => beVariantSchema.parse(row)));
+    if (hasNext !== true) break;
+  }
+  return rows.sort((a, b) => a.position - b.position || a.sku.localeCompare(b.sku));
 }
 
 /**
@@ -94,17 +103,37 @@ export async function listVariantMedia(
     .sort((a, b) => Number(b.primary) - Number(a.primary) || a.sortOrder - b.sortOrder);
 }
 
-/** Multipart `file`; BE quét virus, tạo bản hiển thị, giữ riêng tư tới khi xuất bản. */
+/**
+ * Multipart `file`; BE quét virus, tạo bản hiển thị, giữ riêng tư tới khi xuất bản. Gửi `Idempotency-Key` (BE
+ * nhận ở `upload`) để mạng chập chờn gửi lại không tạo ảnh trùng; mỗi lần chọn file một khoá.
+ */
 export async function uploadVariantMedia(input: {
   productId: string;
   variantId: string;
   file: File;
+  idempotencyKey?: string;
 }): Promise<VariantMedia> {
   const form = new FormData();
   form.append("file", input.file);
+  const key = idempotencyRequestConfig(input.idempotencyKey ?? newIdempotencyKey());
   const { data } = await api.post<unknown>(mediaPath(input.productId, input.variantId), form, {
-    headers: { "Content-Type": "multipart/form-data" },
+    headers: { "Content-Type": "multipart/form-data", ...key?.headers },
   });
+  return beMediaSchema.parse(data);
+}
+
+/** BE `DescribeMediaRequest`: sửa mô tả (alt) và thứ tự, giữ nguyên cờ ảnh bìa. */
+export async function describeVariantMedia(input: {
+  productId: string;
+  variantId: string;
+  media: VariantMedia;
+  altText: string | null;
+  sortOrder: number;
+}): Promise<VariantMedia> {
+  const { data } = await api.put<unknown>(
+    `${mediaPath(input.productId, input.variantId)}/${encodeURIComponent(input.media.mediaId)}`,
+    { altText: input.altText, sortOrder: input.sortOrder, primary: input.media.primary },
+  );
   return beMediaSchema.parse(data);
 }
 
@@ -169,6 +198,8 @@ export async function mediaViewUrl(
 ): Promise<string> {
   if (media.url) return media.url;
   const rendition = media.renditions.find((r) => r.edge === edge) ?? media.renditions[0];
+  // Danh sách đã kèm link có hạn của bản hiển thị — không cần gọi thêm `download-url`
+  if (rendition?.url) return rendition.url;
   const base = `${mediaPath(productId, variantId)}/${encodeURIComponent(media.mediaId)}`;
   const path = rendition
     ? `${base}/renditions/${rendition.edge}/download-url`

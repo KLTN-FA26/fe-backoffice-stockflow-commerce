@@ -195,13 +195,6 @@ export const TAXONOMY_LIMITS = {
   maxLookupPages: 25,
 } as const;
 
-/** Giới hạn chính sách tồn — BE PR #119. */
-export const INVENTORY_POLICY_LIMITS = {
-  /** `UpdateItemPolicyRequest.maxShelfLifeDays` @Min(1) @Max(36500). */
-  maxShelfLifeDaysMin: 1,
-  maxShelfLifeDaysMax: 36500,
-} as const;
-
 /** Ô quét mã vạch dùng chung (`use-scan-tone`). */
 export const SCAN_LIMITS = {
   /** Chờ trình duyệt mở AudioContext tối đa — quá thì bỏ tiếng báo đang chờ. */
@@ -256,22 +249,6 @@ export const SUPPLIER_ITEM_LIMITS = {
   // BE `moq` / `packSize` là `Integer` Java — quá int32 thì Jackson không bind được (400 chung)
   intMax: 2_147_483_647,
   catalogPageSize: 200,
-} as const;
-
-/**
- * Thông tin mua hàng của SKU — BE `SkuPurchasingRequest` + `ItemPurchasingRules` (docs 01 §3
- * "Thông tin mua hàng"). Cùng giới hạn với danh mục NCC (`SupplierItemTerms`).
- */
-export const SKU_PURCHASING_LIMITS = {
-  // `referencePurchasePrice` @Digits(integer = 16, fraction = 2); `MAX_PRICE` 9999999999999999.99
-  priceIntegerDigitsMax: 16,
-  // `stripTrailingZeros().scale() > 2` bị từ chối → "1.500" hợp lệ, "1.005" không
-  priceMaxScale: 2,
-  // `ItemPurchasingRules.MAX_LEAD_TIME_DAYS`
-  leadTimeDaysMax: 365,
-  moqMin: 1,
-  // `leadTimeDays` / `moq` là `Integer` Java — quá int32 thì Jackson không bind được (400 chung)
-  intMax: 2_147_483_647,
 } as const;
 
 /**

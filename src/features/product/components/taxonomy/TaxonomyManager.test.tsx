@@ -266,7 +266,7 @@ describe("TaxonomyManager — tab Danh mục", () => {
     expect(await screen.findByRole("treeitem", { name: /Thời trang/ })).toBeInTheDocument();
   });
 
-  it("sửa danh mục: mã và cha khoá, PUT không gửi mã / cha", async () => {
+  it("sửa danh mục: mã khoá; giữ nguyên cha → chỉ PUT chi tiết (không gửi mã / cha), không gọi /parent", async () => {
     const user = userEvent.setup();
     const { put } = setup(PRODUCT_ROLES.ecommerceAdmin, "?tab=categories", {
       put: { "/categories/c-tshirt": () => tshirt },
@@ -274,14 +274,14 @@ describe("TaxonomyManager — tab Danh mục", () => {
     await user.click(await screen.findByRole("button", { name: "Mở tất cả" }));
     await user.click(await screen.findByText("TSHIRT"));
     const dialog = await screen.findByRole("dialog", { name: /Sửa danh mục TSHIRT/ });
-    expect(within(dialog).getByLabelText(/Danh mục cha/)).toHaveValue("APPAREL");
-    expect(within(dialog).getByLabelText(/Danh mục cha/)).toBeDisabled();
+    expect(within(dialog).getByLabelText(/Mã/)).toBeDisabled();
     await user.click(within(dialog).getByRole("button", { name: "Lưu" }));
     await waitFor(() => expect(put).toHaveBeenCalled());
     const [, body] = put.mock.calls[0] ?? [];
     expect(body).not.toHaveProperty("code");
     expect(body).not.toHaveProperty("parentId");
     expect(body).toMatchObject({ name: "Áo thun", sortOrder: 5, active: true });
+    expect(put.mock.calls.some(([url]) => String(url).endsWith("/parent"))).toBe(false);
   });
 
   it("thứ tự cây: mã trùng tiền tố có '-' không chen giữa cha và con", async () => {

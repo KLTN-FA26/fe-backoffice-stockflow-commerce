@@ -107,6 +107,7 @@ describe("beCustomerPriceSchema (BE CustomerPriceResponse)", () => {
   const dto = {
     customerId: "c-1",
     sku: "CUP-12OZ",
+    measure: "CARTON",
     moq: 10,
     tiers: [
       { minQuantity: 10, unitPrice: 95000 },
@@ -132,7 +133,7 @@ describe("beCustomerPriceSchema (BE CustomerPriceResponse)", () => {
     const parsed = beCustomerPriceSchema.parse(withoutNote);
     expect(parsed.note).toBeNull();
     expect(Object.keys(parsed).sort()).toEqual(
-      ["customerId", "moq", "note", "sku", "tiers", "version"].sort(),
+      ["customerId", "measure", "moq", "note", "sku", "tiers", "version"].sort(),
     );
   });
 
