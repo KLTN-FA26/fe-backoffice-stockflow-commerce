@@ -11,10 +11,12 @@ import {
   FTL_ID,
   dispatchedLoad,
   ftlLoad,
+  ftlParcel,
   loadingFtl,
   pendingUnload,
   plannedLoad,
 } from "../__fixtures__/ftl-load";
+import { loadShipment } from "../__fixtures__/load";
 import {
   SHIPPING_ACTORS as ACTORS,
   mockShippingApi,
@@ -167,6 +169,49 @@ describe("Huỷ có kiểm soát một xe (SCRUM-474 UNLOAD-DESIGN)", () => {
     );
     expect(screen.getByRole("heading", { name: `${U.controlledTitle} (2)` })).toBeInTheDocument();
     expect(push).not.toHaveBeenCalled();
+  });
+
+  it("docs 09 §4.2 bước 9 (G5): chọn lô gỡ khỏi xe → POST kèm removedShipmentIds; biểu ngữ có liên kết in lại sơ đồ xếp của xe", async () => {
+    const user = userEvent.setup();
+    const A = L.afterHandover;
+    const cancelled = controlledCancelled({
+      replacementLoadId: REPLACEMENT_ID,
+      replacementLoadCode: `${FTL_ID}-R`,
+    });
+    const replacement = plannedLoad({ loadId: REPLACEMENT_ID, code: `${FTL_ID}-R` });
+    const twoOrders = loadingFtl({
+      shipments: [
+        loadShipment("SO-1-S1", [ftlParcel("PKG-SO-1-1", true)]),
+        loadShipment("SO-2-S1", [ftlParcel("PKG-SO-2-1", true)]),
+      ],
+    });
+    const { post } = render(ACTORS.warehouseManager, twoOrders, {
+      "/controlled-cancellation": () => ({ cancelled, replacement }),
+    });
+    await user.click(await screen.findByRole("button", { name: C.cancelButton }));
+    const dialog = await screen.findByRole("dialog");
+    await user.type(within(dialog).getByRole("textbox"), "Đơn chưa thu đợt trước giao");
+    await user.click(within(dialog).getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: C.reasonCode.KHAC }));
+    // Chọn cả hai lô → báo xe không còn gì để chở; bỏ chọn một lô thì hết báo
+    await user.click(within(dialog).getByRole("checkbox", { name: `${A.removal.label}: SO-1-S1` }));
+    await user.click(within(dialog).getByRole("checkbox", { name: `${A.removal.label}: SO-2-S1` }));
+    expect(within(dialog).getByText(A.removal.allRemoved)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("checkbox", { name: `${A.removal.label}: SO-1-S1` }));
+    expect(within(dialog).queryByText(A.removal.allRemoved)).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: C.vehicle.confirm }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(`${PATH}/controlled-cancellation`, {
+        reasonCode: "KHAC",
+        note: "Đơn chưa thu đợt trước giao",
+        removedShipmentIds: ["shp-SO-2-S1"],
+      }),
+    );
+    const banner = (await screen.findByText(C.cancelledBanner.title)).parentElement as HTMLElement;
+    expect(within(banner).getByRole("link", { name: A.reprintLayout })).toHaveAttribute(
+      "href",
+      "/admin/load-plans/lp-1/vehicles/1/print",
+    );
   });
 
   it("409 INVALID_LOAD_TRANSITION (xe vừa đổi trạng thái ở nơi khác): lỗi trong hộp thoại và tải lại chuyến", async () => {

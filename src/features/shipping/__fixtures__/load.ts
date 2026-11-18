@@ -104,6 +104,7 @@ export function apiShipment(patch: Partial<ShipmentRow> = {}): Shipment {
     timeline: [
       { status: "READY_TO_DISPATCH", occurredAt: "2026-10-20T02:00:00Z", recordedByName: "Packer" },
     ],
+    reasonCorrections: [],
   };
 }
 

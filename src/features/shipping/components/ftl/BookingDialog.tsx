@@ -149,9 +149,16 @@ export function BookingDialog({ load, onClose }: { load: Load; onClose: () => vo
                 value={field.value || null}
                 onChange={(next) => field.onChange(next ?? "")}
                 currentName={load.carrierName}
+                // Docs 09 BR-16: đổi hãng chỉ bằng huỷ đặt xe rồi đặt lại — UI-only, BE re-check (409)
+                disabled={load.status === LOAD_STATUS.VEHICLE_BOOKED}
               />
             )}
           />
+          {load.status === LOAD_STATUS.VEHICLE_BOOKED && (
+            <p className="text-ink-tertiary mt-1 text-xs">
+              {UI_LABELS.shipping.afterHandover.carrierLocked}
+            </p>
+          )}
           <FieldError>{errors.carrierId?.message}</FieldError>
         </div>
         {api ? (

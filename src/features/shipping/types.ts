@@ -175,6 +175,8 @@ export interface ControlledCancelLoadInput {
   loadId: string;
   reasonCode: UnloadReasonCode;
   note: string;
+  /** Lô giao gỡ khỏi xe cùng lần huỷ (docs 09 §4.2 bước 9, BR-14 — `REMOVED_FROM_VEHICLE`); trống = giữ nguyên sơ đồ. */
+  removedShipmentIds?: readonly string[];
 }
 
 /** Xác nhận dỡ một kiện không cần quét vì nhãn hỏng (quản lý kho): chọn theo `packageId`, ghi chú không bắt buộc. */
