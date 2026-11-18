@@ -372,6 +372,21 @@ export const LOAD_PLAN_LIMITS = {
 } as const;
 
 /**
+ * Bảng sức chứa kho (docs 06 §4.6, open-questions C43): hệ số sử dụng của kho nhận giá trị trong (0%, 100%], mặc
+ * định 100%. BE `UpdateWarehouseRequest.utilizationFactor` lưu dạng (0, 1] tối đa 4 số lẻ → phần trăm tối đa 2 số lẻ.
+ */
+export const WAREHOUSE_CAPACITY_LIMITS = {
+  factorPercentMax: 100,
+  factorPercentDecimals: 2,
+  /** Sức chứa / chiếm theo m³ — BE làm tròn 3 số lẻ (`CapacityBoard.SCALE`). */
+  volumeDecimals: 3,
+  /** Phần trăm BE trả 0–100, 2 số lẻ; hiện 1 số lẻ cho gọn. */
+  percentDecimals: 1,
+  /** Từ ngưỡng này thanh % đang chiếm chuyển sang cảnh báo (cam) — chỉ là tín hiệu hiển thị, không phải BR. */
+  warnPercent: 85,
+} as const;
+
+/**
  * Giới hạn bản đồ kho — BE `RegisterWarehouseRequest`, `ShelfRequests`, `BinGrid` (docs 06 §3, §6).
  * Số đo tính bằng mét (`MapUnit.M`), tối đa 3 số lẻ (`@Digits(integer = 7, fraction = 3)`).
  */

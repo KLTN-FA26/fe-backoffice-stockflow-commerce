@@ -47,6 +47,12 @@ export {
 } from "./labels-warehouse-map";
 export { WAREHOUSE_MAP_SHORTCUTS, type MapShortcut } from "./labels-warehouse-map-edit";
 export {
+  CAPACITY_GROUP_KIND_LABELS,
+  CAPACITY_GROUP_TABS,
+  WAREHOUSE_CAPACITY_ERROR_MESSAGES,
+} from "./labels-warehouse-capacity";
+export type { CapacityGroupTab } from "./labels-warehouse-capacity";
+export {
   DATA_SCOPE_LABELS,
   IDENTITY_ERROR_MESSAGES,
   IDENTITY_FIELD_ERROR_CODES,
@@ -238,6 +244,7 @@ export {
   TRANSFER_LIMITS,
   VEHICLE_TYPE_LIMITS,
   WAREHOUSE_MAP_3D,
+  WAREHOUSE_CAPACITY_LIMITS,
   WAREHOUSE_MAP_LIMITS,
 } from "./numbers";
 export {
@@ -319,6 +326,7 @@ export {
   VARIANT_PERMISSIONS,
   VEHICLE_TYPE_PERMISSIONS,
   WAREHOUSE_LOCATION_PERMISSIONS,
+  WAREHOUSE_CAPACITY_PERMISSIONS,
   WAREHOUSE_PERMISSIONS,
 } from "./permissions";
 export { SHARED_QUERY_ROOTS } from "./query-roots";
@@ -341,6 +349,8 @@ export {
   TRANSFER_COLUMNS,
   VARIANT_COLUMNS,
   VEHICLE_TYPE_COLUMNS,
+  CAPACITY_GROUP_COLUMNS,
+  WAREHOUSE_CAPACITY_COLUMNS,
   WAREHOUSE_COLUMNS,
 } from "./table";
 export {
@@ -464,6 +474,7 @@ export {
   MAP_UNITS,
   STORAGE_CLASSES,
   WAREHOUSE_STATUS,
+  CAPACITY_GROUP_KINDS,
   WAREHOUSE_STATUSES,
 } from "./statuses";
 export type {
