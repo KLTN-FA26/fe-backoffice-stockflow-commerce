@@ -42,7 +42,8 @@ function WarehouseMapContent({ warehouse }: { warehouse: Warehouse }) {
   const canRead = useCan(WAREHOUSE_LOCATION_PERMISSIONS.read);
   const actions = warehouseMapActions({ can });
   const [editing, setEditing] = useState(false);
-  const [printing, setPrinting] = useState(false);
+  // In nhãn: `{}` = cấp kho (thanh công cụ), `{ shelfId }` = từ chi tiết kệ
+  const [printing, setPrinting] = useState<{ shelfId?: string } | null>(null);
   // 3D: bấm kệ chỉ bay camera tới + thẻ hàng; modal chi tiết mở bằng nút trên thẻ
   const in3d = url.view === "3d";
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -52,6 +53,7 @@ function WarehouseMapContent({ warehouse }: { warehouse: Warehouse }) {
   const status = place ? (place.kind === "shelf" ? place.shelf : place.area) : null;
   const targets = status ? placeStatusTargets(status.status, { can }) : [];
   const canEdit = actions.editLayout && Boolean(data);
+  const closeDetail = () => (in3d ? setDetailId(null) : url.select(null));
   const startEditing = () => {
     url.select(null);
     setEditing(true);
@@ -71,7 +73,7 @@ function WarehouseMapContent({ warehouse }: { warehouse: Warehouse }) {
       url={url}
       canEdit={canEdit}
       onEdit={startEditing}
-      onPrintLabels={data ? () => setPrinting(true) : undefined}
+      onPrintLabels={data ? () => setPrinting({}) : undefined}
       inactive={data ? inactiveCount(data) : 0}
     />
   );
@@ -118,13 +120,28 @@ function WarehouseMapContent({ warehouse }: { warehouse: Warehouse }) {
             )
           }
         </MapFrame>
-        {printing && <LocationLabelsDialog layout={data} onClose={() => setPrinting(false)} />}
+        {printing && (
+          <LocationLabelsDialog
+            layout={data}
+            shelfId={printing.shelfId}
+            onClose={() => setPrinting(null)}
+          />
+        )}
         {place && (!in3d || detailId === url.selectedId) && (
           <PlaceDetailDialog
             key={url.selectedId}
             place={place}
             zones={data.zones}
-            onClose={() => (in3d ? setDetailId(null) : url.select(null))}
+            onClose={closeDetail}
+            onPrintLabels={
+              place.kind === "shelf"
+                ? () => {
+                    // Đóng chi tiết rồi mở dialog in — không chồng hai modal
+                    closeDetail();
+                    setPrinting({ shelfId: place.shelf.id });
+                  }
+                : undefined
+            }
             statusAction={
               targets.length > 0 && status ? (
                 <PlaceStatusControl kind={place.kind} id={status.id} targets={targets} />

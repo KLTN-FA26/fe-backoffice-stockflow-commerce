@@ -12,6 +12,8 @@ export type LocationLabelScope = (typeof LOCATION_LABEL_SCOPES)[number];
 
 export const LOCATION_LABEL_PRINT_LABELS = {
   open: "In nhãn",
+  /** Nút trong chi tiết kệ — mở dialog với phạm vi "Một kệ" đã chọn sẵn kệ đó. */
+  openShelf: "In nhãn kệ",
   title: "In nhãn vị trí",
   description:
     "Nhãn mang mã vị trí (chữ, QR, Code 128), in theo thứ tự đi: bin theo kệ → tầng → bin, rồi các khu chứa hàng. Vị trí ngừng dùng được bỏ qua.",

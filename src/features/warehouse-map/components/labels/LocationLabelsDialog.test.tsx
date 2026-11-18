@@ -74,4 +74,19 @@ describe("dialog in nhãn vị trí (docs 06 §4.3, BR-17)", () => {
     await userEvent.click(screen.getByRole("radio", { name: P.scopes.ZONE }));
     expect(screen.queryByTitle(P.preview)).not.toBeInTheDocument();
   });
+
+  it("mở từ chi tiết kệ: chọn sẵn phạm vi Một kệ với kệ đó, gửi shelfId", async () => {
+    renderWithProviders(
+      <LocationLabelsDialog layout={LAYOUT} shelfId="shelf-a01" onClose={() => {}} />,
+    );
+    expect(screen.getByRole("radio", { name: P.scopes.SHELF })).toBeChecked();
+    // Kệ A01: 2 bin tầng 1 + 1 bin tầng 2 — không gồm khu RCV01
+    expect(screen.getByText(P.count(3))).toBeInTheDocument();
+    await waitFor(() => expect(submitButton()).toBeEnabled());
+    await userEvent.click(submitButton());
+    expect(mutate).toHaveBeenCalledWith(
+      { warehouseId: "wh-hcm", body: { format: "A4_SHEET", shelfId: "shelf-a01" } },
+      expect.anything(),
+    );
+  });
 });

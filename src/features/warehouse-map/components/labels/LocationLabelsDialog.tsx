@@ -30,23 +30,34 @@ const P = UI_LABELS.warehouseMap.print;
 /**
  * In nhãn vị trí (docs 06 §4.3, BR-17 — FE SCRUM-667): chọn cả kho / một kệ (tuỳ tầng) / một zone / danh sách mã + khổ
  * nhãn → BE trả PDF theo thứ tự đi → xem trước ngay trong dialog, In (hộp thoại in của trình duyệt) hoặc Tải xuống.
- * Mở từ thanh công cụ bản đồ; ai xem được bản đồ (`warehouse-locations:READ`) đều in được — Backend phải re-check.
+ * Mở từ thanh công cụ bản đồ (cấp kho) hoặc chi tiết kệ (`shelfId` — chọn sẵn phạm vi "Một kệ"); ai xem được bản đồ
+ * (`warehouse-locations:READ`) đều in được — Backend phải re-check.
  */
 export function LocationLabelsDialog({
   layout,
+  shelfId,
   onClose,
 }: {
   layout: WarehouseLayout;
+  shelfId?: string;
   onClose: () => void;
 }) {
   return (
     <FormDialog open onOpenChange={(next) => !next && onClose()} className="sm:max-w-[640px]">
-      <LocationLabelsForm layout={layout} onClose={onClose} />
+      <LocationLabelsForm layout={layout} shelfId={shelfId} onClose={onClose} />
     </FormDialog>
   );
 }
 
-function LocationLabelsForm({ layout, onClose }: { layout: WarehouseLayout; onClose: () => void }) {
+function LocationLabelsForm({
+  layout,
+  shelfId,
+  onClose,
+}: {
+  layout: WarehouseLayout;
+  shelfId?: string;
+  onClose: () => void;
+}) {
   const print = usePrintLocationLabels();
   const [serverError, setServerError] = useState<string | null>(null);
   const [file, setFile] = useState<{ url: string; fileName: string; request: string } | null>(null);
@@ -56,7 +67,9 @@ function LocationLabelsForm({ layout, onClose }: { layout: WarehouseLayout; onCl
   const form = useForm<LocationLabelInput, unknown, LocationLabelBody>({
     resolver: zodResolver(schema),
     mode: "onChange",
-    defaultValues: EMPTY_LOCATION_LABEL_FORM,
+    defaultValues: shelfId
+      ? { ...EMPTY_LOCATION_LABEL_FORM, scope: "SHELF", shelfId }
+      : EMPTY_LOCATION_LABEL_FORM,
   });
 
   // Một blob URL cho mỗi file; thu hồi khi tạo lại hoặc đóng
