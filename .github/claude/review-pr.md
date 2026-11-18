@@ -2,10 +2,8 @@
 Quy trình review PR — theo CLAUDE.md, .claude/rules, docs nghiệp vụ và contract BE, chỉ báo lỗi chắc
 chắn. Đối số: [--comment] [--requested] <owner/repo/pull/N | số PR>.
 
-Trên CI, claude-review.yml đọc file này từ nhánh develop, điền đối số rồi truyền thẳng vào `prompt`
-của claude-code-action. File KHÔNG nằm trong .claude/ vì action khôi phục .claude/ (cùng CLAUDE.md,
-.husky…) từ nhánh base của PR trước khi chạy: PR có base chưa có lệnh (PR xếp chồng) sẽ mất lệnh và
-Claude chỉ review một lượt. Chạy local: /review-pr (.claude/commands/review-pr.md trỏ về đây).
+Chỉ chạy local: /review-pr (.claude/commands/review-pr.md trỏ về đây). Workflow review tự động
+trên CI (claude-review.yml) đã bỏ.
 -->
 
 Review pull request: $ARGUMENTS
