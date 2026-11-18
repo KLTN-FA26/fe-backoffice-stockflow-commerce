@@ -123,7 +123,7 @@ describe("trialErrorMessage — lỗi BE → tiếng Việt", () => {
       "lines[2].widthMm": "must be at most 100000",
     });
     expect(trialErrorMessage(withField)).toBe(
-      "Dòng thứ 3 trong danh sách không hợp lệ (kích thước hoặc số kiện không đúng giới hạn).",
+      "Dòng thứ 3 trong danh sách không hợp lệ (kích thước, số kiện hoặc khối lượng không đúng giới hạn).",
     );
     expect(
       trialErrorMessage(
