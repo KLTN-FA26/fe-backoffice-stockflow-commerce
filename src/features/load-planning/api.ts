@@ -1,8 +1,7 @@
 /**
  * Kế hoạch xếp xe (docs 09 §4.2, §5; BE PR #161 `LoadPlanController`), base `/api/v1/fulfillment`:
  *
- *   GET  /fulfillment/load-plan-candidates?warehouseId[&loadPlanId]  → lô giao nguyên xe chờ xuất
- *        (hoặc lệnh chuyển kho đã đóng gói, BE PR #164)                                                    (…:READ)
+ *   GET  /fulfillment/load-plan-candidates?warehouseId[&loadPlanId]  → lô giao nguyên xe chờ xuất   (…:READ)
  *   POST /fulfillment/load-plans {requestId, warehouseId, shipmentIds, vehicleTypeIds,
  *        selectionMode, note}                                                                              (…:CREATE)
  *   GET  /fulfillment/load-plans?warehouseId&status&search&page&size  → PageResponse<PlanRow>

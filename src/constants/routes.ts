@@ -88,8 +88,6 @@ export const ADMIN_ROUTES = {
   packing: {
     detail: (id: string) => `${ADMIN_BASE}/packing/${id}`,
     list: `${ADMIN_BASE}/packing`,
-    /** Trạm đóng gói của một lệnh chuyển kho nguyên chuyến (SCRUM-287 PR F9, BE `TransferPackController`). */
-    transfer: (transferId: string) => `${ADMIN_BASE}/packing/transfers/${transferId}`,
   },
   picking: {
     detail: (id: string) => `${ADMIN_BASE}/picking/${id}`,
@@ -110,9 +108,6 @@ export const ADMIN_ROUTES = {
     createWithoutPo: `${ADMIN_BASE}/receipts/create?mode=without-po`,
     detail: (id: string) => `${ADMIN_BASE}/receipts/${id}`,
     list: `${ADMIN_BASE}/receipts`,
-  },
-  replenishment: {
-    list: `${ADMIN_BASE}/replenishment`,
   },
   /** Từ điển thuộc tính (BE PR #113) — thay màn "Thuộc tính biến thể" dựng từ dữ liệu mẫu. */
   attributes: `${ADMIN_BASE}/attributes`,
