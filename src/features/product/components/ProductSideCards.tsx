@@ -2,7 +2,8 @@
 
 import { cn } from "cn";
 
-import { countVariantsByStatus } from "@/features/product";
+import { UI_LABELS } from "@/constants";
+import { countVariantsByStatus, isCustomerOwnedSku } from "@/features/product";
 
 import { PRODUCT_CARD_CLASS } from "./ProductSection";
 import { VariantMediaGallery } from "./variants/VariantMediaGallery";
@@ -51,6 +52,10 @@ export function ProductSideCards({
         <h2 className="text-ink-primary mb-3 text-[0.9375rem] font-semibold">Tổng quan biến thể</h2>
         <div className="space-y-2">
           <StatRow label="Tổng biến thể" value={variants.length} />
+          <StatRow
+            label={UI_LABELS.product.variants.customerSkuCount}
+            value={variants.filter(isCustomerOwnedSku).length}
+          />
           <StatRow label="Nháp" value={variantCounts.DRAFT} />
           <StatRow label="Đang dùng" value={variantCounts.ACTIVE} tone="text-positive" />
           <StatRow label="Tạm chặn" value={variantCounts.BLOCKED} tone="text-warning" />

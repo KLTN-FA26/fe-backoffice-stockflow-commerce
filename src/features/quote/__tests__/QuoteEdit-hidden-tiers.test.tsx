@@ -60,8 +60,8 @@ describe("QuoteEdit — PR #70 review: hidden price tiers never block saving", (
         [`/design-snapshots/${SNAPSHOT}/preview`]: () => {
           throw apiError(404, "NOT_FOUND");
         },
-        [`/catalog/customer-prices/${CUSTOMER}/CUP-PAPER-12OZ/schedule`]: () => {
-          throw apiError(404, "PRICE_NOT_AVAILABLE");
+        [`/catalog/customer-prices/${CUSTOMER}/CUP-PAPER-12OZ`]: () => {
+          throw apiError(404, "CUSTOMER_PRICE_NOT_FOUND");
         },
       },
       put: { "/quotes/q-1": () => DRAFT },

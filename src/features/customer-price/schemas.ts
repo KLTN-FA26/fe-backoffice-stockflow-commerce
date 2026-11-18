@@ -1,9 +1,10 @@
 /**
  * Bảng giá riêng của khách hàng — BE `CustomerPriceController` (`/api/v1/catalog/customer-prices`),
  * `CustomerPriceRequest` / `CustomerPriceResponse`, domain `CustomerPrice` + `SellingPrice`.
- * Luật nghiệp vụ: docs/handoffs/SPRINT2-PRICING-PLAN.md P3 — giá áp dụng tới khi sửa (KHÔNG có ngày
- * hiệu lực); bậc đầu không bắt buộc từ 1; giá không bắt buộc giảm dần; MOQ = `minQuantity` nhỏ nhất
- * (BE tính, không nhập riêng); BE tự sắp bậc tăng dần; tiền tệ luôn VND (không có trong DTO).
+ * Luật nghiệp vụ (kltn-docs 13 BR-02, BR-04, BR-05, BR-06; open-questions D14): giá riêng của khách là nguồn
+ * giá duy nhất, chỉ đặt cho SKU riêng của chính khách đó; bậc tính theo SỐ THÙNG, đơn giá theo CÁI; giá áp
+ * dụng tới khi sửa (KHÔNG có ngày hiệu lực); MOQ = `minQuantity` nhỏ nhất (BE tính); BE tự sắp bậc tăng dần;
+ * tiền tệ luôn VND (không có trong DTO).
  *
  * Tiền: BE `BigDecimal` qua JSON number → số thực của trình duyệt. FE giữ đơn giá là CHUỖI chữ số
  * (`lib/validation/decimal`) và chặn giá không đi qua JSON nguyên vẹn được, không làm tròn ngầm.
@@ -35,12 +36,20 @@ const beTierSchema = z
 export type CustomerPriceTier = z.infer<typeof beTierSchema>;
 
 /**
+ * `measure` — bậc đếm gì: `CARTON` = SKU riêng của khách, bậc theo số thùng (13 BR-05); `UNIT` = giá cũ đặt
+ * trên biến thể kho trước đây, bậc theo số cái — BE chỉ cho đọc và xoá, PUT luôn 409 CUSTOMER_SKU_REQUIRED.
+ */
+export const PRICE_MEASURES = ["CARTON", "UNIT"] as const;
+export type PriceMeasure = (typeof PRICE_MEASURES)[number];
+
+/**
  * BE `CustomerPriceResponse`. Không có id, tên sản phẩm, tiền tệ, ngày hiệu lực hay loại khách.
  * `customerId` là id mờ (BE thật: UUID). Jackson `non_null` bỏ `note` khi trống.
  */
 export const beCustomerPriceSchema = z.object({
   customerId: z.string().min(1),
   sku: z.string().min(1),
+  measure: z.enum(PRICE_MEASURES),
   moq: z.number().int().min(L.minQuantityMin),
   tiers: z.array(beTierSchema).min(1),
   note: omittedOrNull(z.string()),

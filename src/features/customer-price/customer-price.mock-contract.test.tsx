@@ -22,6 +22,7 @@ import { resetVariantMockStore } from "@/lib/api/mock-routes-variants";
 
 import {
   createCustomerPrice,
+  deleteCustomerPrice,
   getCustomerPrice,
   listCustomerPrices,
   updateCustomerPrice,
@@ -115,6 +116,7 @@ describe("GET danh sách (mock)", () => {
     const first = data[0] ?? {};
     expect(Object.keys(first).sort()).toEqual([
       "customerId",
+      "measure",
       "moq",
       "note",
       "sku",
@@ -432,5 +434,20 @@ describe("tích hợp query (mock)", () => {
     expect(stale(queryClient, customerPriceKeys.detail(A, SKU_SHARED))).toBe(true);
     expect(stale(queryClient, customerPriceKeys.list(B))).toBe(false);
     expect((await getCustomerPrice(A, SKU_SHARED)).tiers[0]?.unitPrice).toBe("95000");
+  });
+});
+
+describe("DELETE giá riêng (BE CustomerPriceService.delete, 13 §4.2 bước 5)", () => {
+  it("version cũ → 409 OPTIMISTIC_LOCK, không xoá; đúng version → xoá, đọc lại 404", async () => {
+    const price = await getCustomerPrice(A, SKU_SHARED);
+    const stale = await apiError(
+      deleteCustomerPrice({ customerId: A, sku: SKU_SHARED, version: price.version + 5 }),
+    );
+    expect(stale).toMatchObject({ status: 409, code: "OPTIMISTIC_LOCK" });
+    expect((await getCustomerPrice(A, SKU_SHARED)).version).toBe(price.version);
+
+    await deleteCustomerPrice({ customerId: A, sku: SKU_SHARED, version: price.version });
+    const gone = await apiError(getCustomerPrice(A, SKU_SHARED));
+    expect(gone).toMatchObject({ status: 404, code: "CUSTOMER_PRICE_NOT_FOUND" });
   });
 });

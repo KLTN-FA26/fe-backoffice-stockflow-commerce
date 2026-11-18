@@ -85,9 +85,6 @@ export const INVENTORY_ITEM_COLUMNS = {
   SKU: "sku",
   UOM: "unitOfMeasure",
   BARCODE: "barcode",
-  STORAGE: "storageClass",
-  TRACKING: "trackingMode",
-  POLICY: "policyConfigured",
 } as const;
 
 /** Cột danh sách chuyến xe (BE `LoadRowResponse`). */

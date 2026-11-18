@@ -10,10 +10,10 @@ import {
 } from "./labels-inventory-item";
 import { LOAD_PLAN_TOAST_MESSAGES, LOAD_PLAN_UI_LABELS } from "./labels-load-plan";
 import { CARTON_CHECK_TOAST_MESSAGES, CARTON_CHECK_UI_LABELS } from "./labels-carton-check";
+import { CARTON_SPEC_UI_LABELS } from "./labels-carton-spec";
 import { PRODUCT_UI_LABELS } from "./labels-product";
 import { RECEIPT_CARTON_ERROR_MESSAGES } from "./labels-receipt-carton";
 import { SHIPPING_TOAST_MESSAGES, SHIPPING_UI_LABELS } from "./labels-shipping";
-import { SKU_PURCHASING_UI_LABELS } from "./labels-sku-purchasing";
 import { TAXONOMY_TOAST_MESSAGES, TAXONOMY_UI_LABELS } from "./labels-taxonomy";
 import { VEHICLE_TYPE_TOAST_MESSAGES, VEHICLE_TYPE_UI_LABELS } from "./labels-vehicle-type";
 import { WAREHOUSE_MAP_TOAST_MESSAGES, WAREHOUSE_MAP_UI_LABELS } from "./labels-warehouse-map";
@@ -513,7 +513,7 @@ export const UI_LABELS = {
   loadPlan: LOAD_PLAN_UI_LABELS,
   taxonomy: TAXONOMY_UI_LABELS,
   inventoryItem: INVENTORY_ITEM_UI_LABELS,
-  skuPurchasing: SKU_PURCHASING_UI_LABELS,
+  cartonSpec: CARTON_SPEC_UI_LABELS,
   product: PRODUCT_UI_LABELS,
   cartonCheck: CARTON_CHECK_UI_LABELS,
   fulfillment: {

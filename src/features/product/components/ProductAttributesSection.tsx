@@ -32,18 +32,28 @@ function descriptiveValue(d: ProductDescriptive): string {
 export function ProductAttributesSection({
   productId,
   status,
+  canRead = true,
 }: {
   productId: string;
   status: ProductStatus;
+  /** `product-variants:READ` — BE gate `GET /products/{id}/attributes`; thiếu thì không gọi. */
+  canRead?: boolean;
 }) {
   const can = usePermissionChecker();
-  const query = useProductAttributes(productId);
+  const query = useProductAttributes(productId, canRead);
   const [editing, setEditing] = useState<"axes" | "descriptives" | null>(null);
   const acceptsChanges =
     status !== PRODUCT_STATUS.PENDING_APPROVAL && status !== PRODUCT_STATUS.DISCONTINUED;
   const canEditAxes = acceptsChanges && can(VARIANT_PERMISSIONS.update);
   const canEditDescriptives = acceptsChanges && can(PRODUCT_PERMISSIONS.update);
 
+  if (!canRead) {
+    return (
+      <p className="text-ink-tertiary text-[0.8125rem]">
+        Bạn không có quyền xem trục và thuộc tính của sản phẩm.
+      </p>
+    );
+  }
   if (query.isLoading)
     return <p className="text-ink-tertiary text-[0.8125rem]">Đang tải thuộc tính…</p>;
   if (query.isError || !query.data) {

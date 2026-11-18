@@ -49,8 +49,8 @@ export function CategoryFormFields({
           />
         </Field>
         <Field label={F.parent} id="category-parent" error={errors.parentId?.message}>
-          {category ? (
-            // Cha bất biến (`parent_id` updatable=false) — chỉ hiện mã đọc từ path
+          {category && readOnly ? (
+            // Chỉ xem — hiện mã cha đọc từ path
             <Input
               id="category-parent"
               value={parentCodeOf(category) ?? L.rootCategory}
@@ -59,7 +59,8 @@ export function CategoryFormFields({
               className={`${FORM_INPUT_CLASS} font-[family-name:var(--font-mono)]`}
             />
           ) : (
-            <CategoryParentSelect form={form} />
+            // Sửa: đổi cha = chuyển cả nhánh (`PUT /categories/{id}/parent`)
+            <CategoryParentSelect form={form} movingId={category?.categoryId} />
           )}
         </Field>
       </div>

@@ -1,13 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { toListingRequest } from "./listing-api";
-import {
-  basePriceFormSchema,
-  beListingSchema,
-  beSkuPriceSchema,
-  listingFormSchema,
-  normalizeSlug,
-} from "./listing-schemas";
+import { beListingSchema, listingFormSchema, normalizeSlug } from "./listing-schemas";
 
 describe("normalizeSlug (BE Listing.normalizeSlug)", () => {
   it.each([
@@ -56,18 +50,7 @@ describe("listing form (BE EditListingRequest)", () => {
   });
 });
 
-describe("base price form (BE SetBasePriceRequest / SellingPrice)", () => {
-  it("is a positive whole VND amount of at most 16 digits", () => {
-    for (const ok of ["1", "149000", "9".repeat(16)]) {
-      expect(basePriceFormSchema.safeParse({ price: ok }).success).toBe(true);
-    }
-    for (const bad of ["", "0", "-5", "12.5", "1e3", "abc", "9".repeat(17), "012"]) {
-      expect(basePriceFormSchema.safeParse({ price: bad }).success).toBe(false);
-    }
-  });
-});
-
-describe("listing / price DTOs", () => {
+describe("listing DTO", () => {
   it("parses ListingResponse including the -1 projected revision of a listing never projected", () => {
     const listing = beListingSchema.parse({
       productId: "p",
@@ -80,28 +63,5 @@ describe("listing / price DTOs", () => {
       projectionPending: true,
     });
     expect(listing.projectedRevision).toBe(-1);
-  });
-
-  it("parses SkuPriceResponse BigDecimal as number or string, null when no price", () => {
-    expect(
-      beSkuPriceSchema.parse({
-        sku: "A",
-        revision: 1,
-        basePrice: "149000.00",
-        baseCurrency: "VND",
-        effectivePrice: 149000,
-        effectiveCurrency: "VND",
-      }),
-    ).toMatchObject({ basePrice: 149000, effectivePrice: 149000 });
-    expect(
-      beSkuPriceSchema.parse({
-        sku: "A",
-        revision: 1,
-        basePrice: null,
-        baseCurrency: null,
-        effectivePrice: null,
-        effectiveCurrency: null,
-      }).basePrice,
-    ).toBeNull();
   });
 });

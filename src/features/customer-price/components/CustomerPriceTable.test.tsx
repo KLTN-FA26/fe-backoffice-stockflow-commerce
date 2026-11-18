@@ -191,7 +191,7 @@ describe("bảng giá của khách", () => {
 });
 
 describe("chi tiết bậc giá", () => {
-  it("23 + 24 bấm dòng → đúng SKU, bậc tăng dần theo số lượng, mỗi bậc 'Từ N đơn vị'", async () => {
+  it("23 + 24 bấm dòng → đúng SKU, bậc tăng dần theo số thùng, mỗi bậc 'Từ N thùng'", async () => {
     stubPermissions(ALL);
     render(`customerId=${A}`);
     await userEvent.setup().click(await rowOf("SKU-001-BLK-L"));
@@ -201,8 +201,8 @@ describe("chi tiết bậc giá", () => {
       .getAllByRole("listitem")
       .map((li) => li.textContent ?? "");
     expect(steps).toHaveLength(2);
-    expect(steps[0]).toMatch(/^Từ 10 đơn vị.*95\.000/);
-    expect(steps[1]).toMatch(/^Từ 100 đơn vị.*90\.000/);
+    expect(steps[0]).toMatch(/^Từ 10 thùng.*95\.000/);
+    expect(steps[1]).toMatch(/^Từ 100 thùng.*90\.000/);
     expect(within(dialog).getByText("Giá đại lý cấp 1")).toBeInTheDocument();
   });
 

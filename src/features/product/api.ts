@@ -1,8 +1,10 @@
+import { z } from "zod";
+
 import { api } from "@/lib/api/client";
 
 import { parseDiscontinuationExtras } from "./lifecycle-api";
 import { parseProduct, parseProductPage } from "./product-parse";
-import { discontinueProductSchema } from "./schemas";
+import { discontinueProductSchema, productMatchSchema } from "./schemas";
 import { listAllBrands, listAllCategoryNodes } from "./taxonomy-api";
 
 import type { LegacyPaginatedResponse, PaginatedResponse } from "@/lib/api/query-factory";
@@ -12,6 +14,7 @@ import type {
   BrandDto,
   CreateProductInput,
   ProductMasterDto,
+  ProductMatch,
   UpdateProductInput,
 } from "./schemas";
 import type { Category, Product } from "./types";
@@ -44,6 +47,9 @@ export interface ListProductsParams {
   size?: number;
   q?: string;
   status?: ProductListFilterStatus[];
+  /** BE `ListProductsQuery.categoryId` / `brandId` (UUID, một giá trị). */
+  categoryId?: string;
+  brandId?: string;
   sort?: string;
   [key: string]: unknown;
 }
@@ -62,8 +68,8 @@ export interface DiscontinueProductInput {
 }
 
 /**
- * Cảnh báo BE trả kèm (không phải lỗi — sản phẩm đã ngừng): PO / đơn hàng mở còn tham chiếu SKU của
- * nó (`warnings` là mã `OPEN_PURCHASE_ORDER_LINES` / `UNSHIPPED_ORDER_LINES`) và chính các chứng từ đó.
+ * Cảnh báo BE trả kèm (không phải lỗi — sản phẩm đã ngừng): Đơn sản xuất / đơn hàng mở còn tham chiếu SKU của
+ * nó (`warnings` là mã `OPEN_PRODUCTION_ORDER_LINES` / `UNSHIPPED_ORDER_LINES`) và chính các chứng từ đó.
  */
 export interface DiscontinueProductResult {
   product: Product;
@@ -76,13 +82,15 @@ export async function listProducts(
   params: ListProductsParams,
   signal?: AbortSignal,
 ): Promise<PaginatedResponse<Product>> {
-  const { page = 0, size = 15, q, status, sort } = params;
+  const { page = 0, size = 15, q, status, categoryId, brandId, sort } = params;
   const query = new URLSearchParams({
     page: String(Math.max(0, page)),
     size: String(size),
   });
   if (q?.trim()) query.set("q", q.trim());
   for (const value of status ?? []) query.append("status", PRODUCT_LIST_API_STATUS[value]);
+  if (categoryId) query.set("categoryId", categoryId);
+  if (brandId) query.set("brandId", brandId);
   if (sort?.trim()) query.set("sort", sort.trim());
 
   const { data } = await api.get<unknown>("/products", {
@@ -90,6 +98,30 @@ export async function listProducts(
     signal,
   });
   return parseProductPage(data);
+}
+
+export interface ProductDuplicateParams {
+  name: string;
+  brandId?: string;
+  categoryId?: string;
+  /** Sửa: bỏ chính sản phẩm đang sửa. */
+  excludeProductId?: string;
+}
+
+/**
+ * `GET /products/duplicates` — sản phẩm có thể trùng khi đang gõ tên (docs 01 §4.3, BR-16). BE trả rỗng khi
+ * thiếu thương hiệu hoặc danh mục. Cảnh báo, không chặn lưu.
+ */
+export async function findProductDuplicates(
+  params: ProductDuplicateParams,
+  signal?: AbortSignal,
+): Promise<ProductMatch[]> {
+  const query = new URLSearchParams({ name: params.name });
+  if (params.brandId) query.set("brandId", params.brandId);
+  if (params.categoryId) query.set("categoryId", params.categoryId);
+  if (params.excludeProductId) query.set("excludeProductId", params.excludeProductId);
+  const { data } = await api.get<unknown>("/products/duplicates", { params: query, signal });
+  return z.array(productMatchSchema).parse(data);
 }
 
 export async function getProduct(id: string, signal?: AbortSignal): Promise<Product> {

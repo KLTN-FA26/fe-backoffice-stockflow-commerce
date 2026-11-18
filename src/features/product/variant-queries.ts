@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { SHARED_QUERY_ROOTS } from "@/constants";
 import { createMutation } from "@/lib/api/query-factory";
 import { withStaleRefetch } from "@/lib/api/stale-refetch";
 import { inventoryItemKeys } from "@/lib/references/inventory-item-keys";
@@ -16,6 +15,7 @@ import {
 import {
   addVariant,
   deleteVariantMedia,
+  describeVariantMedia,
   listVariantMedia,
   listVariants,
   makePrimaryMedia,
@@ -43,13 +43,17 @@ export const variantKeys = {
     ["variants", productId, variantId, "media"] as const,
   mediaUrl: (productId: string, variantId: string, mediaId: string, edge: number) =>
     ["variants", productId, variantId, "media", mediaId, edge] as const,
+  /** Đơn vị tính / quy cách thùng của SKU (`carton-queries.ts`). */
+  units: (productId: string, variantId: string) =>
+    ["variants", productId, variantId, "units"] as const,
 };
 
-export function useVariants(productId: string | undefined) {
+/** `enabled = false` khi thiếu `product-variants:READ` (BE gate GET biến thể) — không gọi để khỏi 403. */
+export function useVariants(productId: string | undefined, enabled = true) {
   return useQuery({
     queryKey: variantKeys.list(productId ?? ""),
     queryFn: ({ signal }) => listVariants(productId ?? "", signal),
-    enabled: Boolean(productId),
+    enabled: Boolean(productId) && enabled,
   });
 }
 
@@ -102,9 +106,9 @@ const all = [variantKeys.all, PRODUCT_HISTORY_ROOT];
 /**
  * Thêm / sửa biến thể có thể ĐỔI SKU của biến thể nháp (BE `ProductVariantService.update`, biến thể mặc
  * định khi thêm): hồ sơ hàng tồn đi theo SKU mới và tăng `version` (BE `inventory.guard_item_sku_rename`),
- * nên thông tin mua hàng (khoá theo biến thể, chứa SKU + version) và hồ sơ hàng tồn phải tải lại.
+ * nên hồ sơ hàng tồn phải tải lại (đơn vị tính nằm dưới `variantKeys.all`, đã có trong `all`).
  */
-const withSkuRename = [...all, [SHARED_QUERY_ROOTS.skuPurchasing], inventoryItemKeys.all];
+const withSkuRename = [...all, inventoryItemKeys.all];
 
 /**
  * Mutation biến thể / ảnh: thành công làm mới biến thể + lịch sử; lỗi dữ liệu cũ
@@ -133,6 +137,10 @@ export const useTransitionVariant = variantMutation(
 );
 export const useUploadVariantMedia = variantMutation(uploadVariantMedia, "Đã tải ảnh lên");
 export const useMakePrimaryMedia = variantMutation(makePrimaryMedia, "Đã đặt ảnh bìa");
+export const useDescribeVariantMedia = variantMutation(
+  describeVariantMedia,
+  "Đã lưu thông tin ảnh",
+);
 export const usePublishVariantMedia = variantMutation(publishVariantMedia, "Đã xuất bản ảnh");
 export const useWithdrawVariantMedia = variantMutation(
   withdrawVariantMedia,

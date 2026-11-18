@@ -39,7 +39,6 @@ const FIELD_STEP: Record<Field, ProductStepKey> = {
   brandId: "info",
   categoryId: "info",
   taxClass: "info",
-  customizable: "info",
   shortDescription: "description",
   description: "description",
   descriptionEn: "description",
