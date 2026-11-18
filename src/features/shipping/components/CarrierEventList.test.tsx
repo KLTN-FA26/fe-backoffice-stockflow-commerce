@@ -220,6 +220,24 @@ describe("CarrierEventList — danh sách", () => {
     expect(lastParams(get)).toMatchObject({ page: 0 });
   });
 
+  it("mở từ một chuyến (?load=) mặc định xem mọi sự kiện, không phải danh sách lỗi; bỏ lọc chuyến giữ 'Tất cả'", async () => {
+    const user = userEvent.setup();
+    const { get } = renderList(ACTORS.manager, { search: "?load=ld-1" });
+    await screen.findByText(E.result.APPLIED);
+    expect(lastParams(get)).toMatchObject({ result: undefined, loadId: "ld-1" });
+    expect(screen.getByRole("combobox", { name: E.filter.result })).toHaveTextContent(E.filter.all);
+    await user.click(screen.getByRole("button", { name: E.filter.clearLoad }));
+    await waitFor(() => expect(lastParams(get)?.loadId).toBeUndefined());
+    expect(lastParams(get)?.result).toBeUndefined();
+    expect(screen.getByRole("combobox", { name: E.filter.result })).toHaveTextContent(E.filter.all);
+  });
+
+  it("?load= kèm ?result=ERRORS vẫn tôn trọng kết quả được chọn", async () => {
+    const { get } = renderList(ACTORS.manager, { search: "?load=ld-1&result=ERRORS" });
+    await screen.findByText(E.result.UNMATCHED);
+    expect(lastParams(get)).toMatchObject({ result: "ERRORS", loadId: "ld-1" });
+  });
+
   it("'Xoá bộ lọc' trả về danh sách lỗi mặc định", async () => {
     const user = userEvent.setup();
     const { get } = renderList(ACTORS.manager, { search: "?result=ALL&load=ld-1" });

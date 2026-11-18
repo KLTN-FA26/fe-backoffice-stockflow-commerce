@@ -28,10 +28,7 @@ export type CarrierEventEmptyState =
  */
 export function useCarrierEventListState(canRead: boolean) {
   const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
-  const [result, setResult] = useQueryState(
-    "result",
-    parseAsStringLiteral(RESULT_FILTERS).withDefault(CARRIER_EVENT_ERRORS_FILTER),
-  );
+  const [explicitResult, setResult] = useQueryState("result", parseAsStringLiteral(RESULT_FILTERS));
   const [handling, setHandling] = useQueryState(
     "handling",
     parseAsStringLiteral(HANDLING_FILTERS).withDefault("all"),
@@ -40,6 +37,10 @@ export function useCarrierEventListState(canRead: boolean) {
   const [loadId, setLoadId] = useQueryState("load", parseAsString.withDefault(""));
   const [eventId, setEventId] = useQueryState("event", parseAsString.withDefault(""));
 
+  // Mở từ một chuyến (`?load=`) thì mặc định xem MỌI sự kiện của chuyến đó; chuyến khoẻ không có lỗi nào, danh sách lỗi
+  // sẽ trống và trông như hỏng. Không có `?load=` thì mặc định là danh sách lỗi.
+  const defaultResult = loadId ? CARRIER_EVENT_ALL_FILTER : CARRIER_EVENT_ERRORS_FILTER;
+  const result = explicitResult ?? defaultResult;
   const errorView = isErrorFilter(result);
   const effectiveHandling = errorView ? handling : "all";
   const query = useCarrierEvents(
@@ -58,7 +59,7 @@ export function useCarrierEventListState(canRead: boolean) {
     carrierId !== "" ||
     loadId !== "" ||
     (result !== CARRIER_EVENT_ERRORS_FILTER && result !== CARRIER_EVENT_ALL_FILTER);
-  const hasFilters = filtered || result !== CARRIER_EVENT_ERRORS_FILTER;
+  const hasFilters = filtered || result !== defaultResult;
   const data = query.data;
   let emptyState: CarrierEventEmptyState = "none";
   if (data && data.totalElements === 0) {
@@ -80,7 +81,7 @@ export function useCarrierEventListState(canRead: boolean) {
     setPage: (value: number) => void setPage(value),
     setResult: (value: string) => {
       const next = RESULT_FILTERS.find((known) => known === value) ?? CARRIER_EVENT_ERRORS_FILTER;
-      void setResult(next);
+      void setResult(next === defaultResult ? null : next);
       if (!isErrorFilter(next)) void setHandling(null);
       void setPage(1);
     },
@@ -93,6 +94,8 @@ export function useCarrierEventListState(canRead: boolean) {
       void setPage(1);
     },
     clearLoad: () => {
+      // Giữ nguyên kết quả đang xem (mặc định ngầm của `?load=` là "Tất cả") khi bỏ lọc chuyến
+      void setResult(result === CARRIER_EVENT_ERRORS_FILTER ? null : result);
       void setLoadId(null);
       void setPage(1);
     },
