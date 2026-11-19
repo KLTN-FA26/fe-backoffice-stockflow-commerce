@@ -109,14 +109,31 @@ export type ManualCorrectionBasis = (typeof MANUAL_CORRECTION_BASES)[number];
  */
 export const SYSTEM_CORRECTION_BASES: readonly string[] = ["DELIVERY_FAILED"];
 
-/** BE `EInvoice.Warning` + `EARLIER_INVOICE_PENDING` (chi tiết). */
+/**
+ * BE `EInvoice.Warning` + `EARLIER_INVOICE_PENDING` (chi tiết, `InvoicingWebMapper`). DTO đọc `warnings`
+ * là chuỗi mở — giá trị ngoài danh sách hiện câu chung (`EINVOICE_LABELS.warnings.unknown`).
+ */
 export const EINVOICE_WARNINGS = [
   "BUYER_PROFILE_INCOMPLETE",
+  "BUYER_EMAIL_MISSING",
   "TAX_RATE_DIFFERS_FROM_CONTRACT",
   "TAX_RATE_NOT_ON_CONTRACT",
+  "TAX_RATE_OUT_OF_DATE",
+  "TAX_EXEMPT_NOT_SUPPORTED",
   "UNKNOWN_TO_PROVIDER",
+  "SIGNATURE_INVALID",
   "EARLIER_INVOICE_PENDING",
 ] as const;
+
+/**
+ * `rejectionCode` do chính hệ thống ghi (BE `EInvoice.UNKNOWN_TO_PROVIDER_CODE`, `WITHDRAWN_CODE`) — không
+ * phải NCC từ chối; mã khác là mã lỗi của NCC, hiện nguyên văn.
+ */
+export const EINVOICE_SYSTEM_REJECTION_CODES = [
+  "UNKNOWN_TO_PROVIDER",
+  "WITHDRAWN_NO_PROVIDER_RECORD",
+] as const;
+export type EInvoiceSystemRejectionCode = (typeof EINVOICE_SYSTEM_REJECTION_CODES)[number];
 export type EInvoiceWarning = (typeof EINVOICE_WARNINGS)[number];
 
 /** Tệp của hoá đơn đã phát hành: XML (giá trị pháp lý) và PDF (bản xem, in) — docs 21 §1. */

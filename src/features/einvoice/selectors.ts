@@ -1,6 +1,6 @@
 /** Selector thuần của hoá đơn điện tử (docs 21). */
 
-import { EINVOICE_STATUS_BY_API } from "@/constants/einvoice";
+import { EINVOICE_STATUS_BY_API, EINVOICE_SYSTEM_REJECTION_CODES } from "@/constants/einvoice";
 import { EINVOICE_LABELS } from "@/constants/labels-einvoice";
 import { statusLabelVi } from "@/lib/status-map";
 
@@ -32,6 +32,21 @@ export function warningMessages(
       EINVOICE_LABELS.warnings.unknown
     );
   });
+}
+
+/**
+ * Câu giải thích hoá đơn REJECTED: mã hệ thống tự ghi (rút khỏi NCC, NCC không giữ hoá đơn) có câu riêng;
+ * mã của NCC → "Nhà cung cấp từ chối (mã)". Kèm `rejectionMessage` (với mã rút: điều Kế toán đã kiểm tra).
+ */
+export function rejectionText(
+  invoice: Pick<EInvoice, "rejectionCode" | "rejectionMessage">,
+): string {
+  const code = invoice.rejectionCode;
+  const system = EINVOICE_SYSTEM_REJECTION_CODES.find((value) => value === code);
+  const head = system
+    ? EINVOICE_LABELS.rejections[system]
+    : `Nhà cung cấp từ chối${code ? ` (${code})` : ""}`;
+  return `${head}: ${invoice.rejectionMessage ?? "không nêu lý do"}.`;
 }
 
 /** Chờ Kế toán xử lý: nháp, bị từ chối, hoặc đang gửi mà NCC báo không biết giao dịch (docs 21 §4.1–4.2). */

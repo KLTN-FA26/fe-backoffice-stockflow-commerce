@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { EINVOICE_PERMISSIONS, EINVOICE_STATUSES, EINVOICE_UNKNOWN } from "@/constants/einvoice";
+import {
+  EINVOICE_PERMISSIONS,
+  EINVOICE_STATUSES,
+  EINVOICE_UNKNOWN,
+  EINVOICE_WARNINGS,
+} from "@/constants/einvoice";
 
 import type { PermissionCode } from "@/lib/auth";
 
@@ -10,6 +15,7 @@ import {
   invoiceReference,
   lastSentAt,
   needsAttention,
+  rejectionText,
   warningMessages,
 } from "../selectors";
 
@@ -185,6 +191,41 @@ describe("selectors", () => {
     expect(lines[0]).toContain("BR-06");
     expect(lines[1]).toContain("HDDT-0007");
     expect(lines[2]).toContain("cảnh báo mới");
+  });
+
+  it("every BE warning has its own line (BE PR #369 warnings included)", () => {
+    const lines = warningMessages({
+      warnings: [...EINVOICE_WARNINGS],
+      earlierPendingInvoice: null,
+    });
+    expect(lines.some((line) => line.includes("cảnh báo mới"))).toBe(false);
+    const [email, outOfDate, exempt, signature] = warningMessages({
+      warnings: [
+        "BUYER_EMAIL_MISSING",
+        "TAX_RATE_OUT_OF_DATE",
+        "TAX_EXEMPT_NOT_SUPPORTED",
+        "SIGNATURE_INVALID",
+      ],
+      earlierPendingInvoice: null,
+    });
+    expect(email).toContain("email");
+    expect(outOfDate).toContain("Thuế suất trên nháp không còn đúng");
+    expect(exempt).toContain("không chịu thuế");
+    expect(signature).toContain("Chữ ký số");
+  });
+
+  it("explains a withdrawal apart from a provider's refusal", () => {
+    expect(
+      rejectionText({
+        rejectionCode: "WITHDRAWN_NO_PROVIDER_RECORD",
+        rejectionMessage: "Cổng SePay không có hoá đơn",
+      }),
+    ).toBe(
+      "Đã rút khỏi nhà cung cấp (nhà cung cấp không có bản ghi): Cổng SePay không có hoá đơn.",
+    );
+    expect(rejectionText({ rejectionCode: "INVALID_SERIES", rejectionMessage: null })).toBe(
+      "Nhà cung cấp từ chối (INVALID_SERIES): không nêu lý do.",
+    );
   });
 
   it("the last send is the latest SUBMIT call, else submittedAt", () => {
