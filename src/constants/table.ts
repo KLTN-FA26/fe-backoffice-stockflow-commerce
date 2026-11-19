@@ -158,6 +158,54 @@ export const VEHICLE_TYPE_COLUMNS = {
   STATUS: "status",
 } as const;
 
+/** Cột danh mục đơn vị sản xuất (BE `ProducerResponse`, docs 17 §4.3). */
+export const PRODUCER_COLUMNS = {
+  ACTIONS: "actions",
+  CHANNEL: "channel",
+  CODE: "code",
+  CONTACT: "contact",
+  LEAD_DAYS: "leadDays",
+  NAME: "name",
+  STATUS: "status",
+} as const;
+
+/** Cột danh sách Đơn sản xuất (BE `ProductionOrderResponse`, docs 17 §4.3). */
+export const PRODUCTION_ORDER_COLUMNS = {
+  CARTONS: "cartons",
+  CODE: "code",
+  EXPECTED: "expected",
+  NEED_BY: "needBy",
+  PRODUCER: "producer",
+  SAMPLE: "sample",
+  STATUS: "status",
+  WAREHOUSE: "warehouse",
+} as const;
+
+/** Cột lịch sản xuất (BE `ScheduledProductionOrder`, docs 17 §4.12 bước 47). */
+export const PRODUCTION_SCHEDULE_COLUMNS = {
+  ALERTS: "alerts",
+  CARTONS: "cartons",
+  CODE: "code",
+  EXPECTED: "expected",
+  NEED_BY: "needBy",
+  ORDER: "order",
+  PRODUCER: "producer",
+  STATUS: "status",
+  WAREHOUSE: "warehouse",
+  WINDOW: "window",
+} as const;
+
+/** Cột đợt giao còn thiếu (BE `ShortDeliveryBatch`, docs 17 §4.12 bước 47). */
+export const SHORT_BATCH_COLUMNS = {
+  ACTION: "action",
+  ALERTS: "alerts",
+  LINES: "lines",
+  ORDER: "order",
+  SHORT: "short",
+  WAREHOUSE: "warehouse",
+  WINDOW: "window",
+} as const;
+
 /** Cột danh sách kế hoạch xếp xe (BE `LoadPlans.PlanRow`). */
 export const LOAD_PLAN_COLUMNS = {
   CODE: "code",

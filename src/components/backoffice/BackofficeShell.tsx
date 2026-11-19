@@ -9,6 +9,7 @@ import {
   CalendarClock,
   ClipboardCheck,
   ClipboardList,
+  Factory,
   Database,
   FileBox,
   FileSignature,
@@ -84,6 +85,9 @@ import {
   UI_LABELS,
   VEHICLE_TYPE_PERMISSIONS,
   WAREHOUSE_CAPACITY_PERMISSIONS,
+  PRODUCER_PERMISSIONS,
+  PRODUCTION_LABELS,
+  PRODUCTION_ORDER_PERMISSIONS,
   WAREHOUSE_LOCATION_PERMISSIONS,
   WAREHOUSE_PERMISSIONS,
 } from "@/constants";
@@ -348,6 +352,27 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    // Sản xuất theo đơn bán (docs 17 §4.3, §4.12): lịch → lập Đơn sản xuất từ đợt còn thiếu → theo dõi tới nhập kho
+    title: PRODUCTION_LABELS.navGroup,
+    icon: Factory,
+    items: [
+      {
+        label: PRODUCTION_LABELS.order.pageTitle,
+        href: ADMIN_ROUTES.productionOrders.list,
+        icon: ClipboardList,
+        // BE ProductionOrderController route `/production/orders`
+        permission: PRODUCTION_ORDER_PERMISSIONS.viewPage,
+      },
+      {
+        label: PRODUCTION_LABELS.producer.pageTitle,
+        href: ADMIN_ROUTES.producers,
+        icon: Handshake,
+        // BE ProducerController route `/production/producers`
+        permission: PRODUCER_PERMISSIONS.viewPage,
+      },
+    ],
+  },
+  {
     // Luồng B2B: khách → báo giá → khách chấp nhận → đơn / mẫu (SCRUM-449/451/404)
     title: "Bán hàng",
     icon: Building2,
@@ -552,6 +577,7 @@ const DETAIL_LABEL_BY_ROUTE: Record<string, string> = {
   "/admin/products/create": "Tạo sản phẩm",
   [ADMIN_ROUTES.customers.create]: "Tạo khách hàng",
   [ADMIN_ROUTES.quotes.create]: "Tạo báo giá",
+  [ADMIN_ROUTES.productionOrders.create]: PRODUCTION_LABELS.order.createPageTitle,
   [INVENTORY_ROUTES.createAdjustment]: INVENTORY_LABELS.createAdjustment,
   [ADMIN_ROUTES.loadPlans.create]: UI_LABELS.loadPlan.create,
   [ADMIN_ROUTES.loads.waybillImport]: UI_LABELS.shipping.waybill.import.title,

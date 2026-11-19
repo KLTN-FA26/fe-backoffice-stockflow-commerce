@@ -25,4 +25,18 @@ export const SHARED_QUERY_ROOTS = {
   vehicleTypes: "fulfillment-vehicle-types",
   /** Chuyến xe giao hãng vận chuyển — thêm lô vào chuyến / bàn giao phụ thuộc cờ giao một phần của đơn. */
   fulfillmentLoads: "fulfillment-loads",
+  /**
+   * Danh mục đơn vị sản xuất — feature `producer` sở hữu; ô chọn / tra tên đơn vị của Đơn sản xuất
+   * (`lib/references/producer-options`) build key dưới root này nên thêm / sửa / ngừng dùng làm mới cả hai.
+   */
+  producers: "sales-producers",
+  /**
+   * Đơn bán — feature `order` sở hữu (`orderKeys.all`). Đơn sản xuất được duyệt / nhận đổi trạng thái đơn bán (Awaiting
+   * Stock) và phần "đơn sản xuất" trên trang đơn, nên feature `production-order` invalidate qua root này.
+   */
+  salesOrders: "orders",
+  /** Lịch sản xuất + đợt giao còn thiếu — lập / gửi / huỷ Đơn sản xuất đổi cả hai danh sách (docs 17 §4.12). */
+  productionSchedule: "production-schedule",
+  /** Cảnh báo trễ của đơn (`GET /delay-alerts`) — tự đóng / mở khi Đơn sản xuất đổi ngày hoặc trạng thái. */
+  delayAlerts: "delay-alerts",
 } as const;

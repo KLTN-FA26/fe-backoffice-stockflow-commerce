@@ -8,6 +8,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 
+import { SHARED_QUERY_ROOTS } from "@/constants";
+
 import { ApiError } from "@/lib/api/error";
 import { QUERY_TIMES } from "@/lib/api/query-client";
 import { createDetailQuery, createListQuery, createQueryKeys } from "@/lib/api/query-factory";
@@ -36,7 +38,7 @@ import type { CreditHold, Order, OrderHistoryEntry } from "./types";
 
 /* ── Query keys ──────────────────────────────────────────────────────── */
 
-const baseOrderKeys = createQueryKeys<ListOrderParams>("orders");
+const baseOrderKeys = createQueryKeys<ListOrderParams>(SHARED_QUERY_ROOTS.salesOrders);
 
 export const orderKeys = {
   ...baseOrderKeys,

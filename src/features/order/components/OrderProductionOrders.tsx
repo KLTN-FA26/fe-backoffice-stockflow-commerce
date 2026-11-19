@@ -1,8 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { Factory } from "lucide-react";
 
-import { PRODUCTION_ORDER_STATUS_DISPLAY, PRODUCTION_ORDER_STATUS_LABELS } from "@/constants";
+import {
+  ADMIN_ROUTES,
+  PRODUCTION_ORDER_STATUS_DISPLAY,
+  PRODUCTION_ORDER_STATUS_LABELS,
+} from "@/constants";
 import { ApiError } from "@/lib/api/error";
 import { formatDate } from "@/lib/format/date";
 import { Alert } from "@/components/shared/Alert";
@@ -64,9 +69,12 @@ function ProductionRow({ po }: { po: ProductionOrder }) {
       className="flex flex-wrap items-center gap-x-3 gap-y-1 py-1.5 text-xs"
     >
       <Factory className="text-ink-tertiary size-3.5" aria-hidden="true" />
-      <span className="text-ink-primary font-[family-name:var(--font-mono)] font-medium">
+      <Link
+        href={ADMIN_ROUTES.productionOrders.detail(po.productionOrderId)}
+        className="text-accent font-[family-name:var(--font-mono)] font-medium hover:underline"
+      >
         {po.code}
-      </span>
+      </Link>
       <StatusDot
         domain="order"
         status={PRODUCTION_ORDER_STATUS_DISPLAY[po.status]}
