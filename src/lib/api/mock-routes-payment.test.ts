@@ -93,7 +93,7 @@ describe("GET /installments", () => {
     expect(all.totalElements).toBeGreaterThan(8);
     const overdue = await listInstallments({ overdue: true });
     expect(overdue.items.map((i) => i.orderNumber)).toEqual(["ORD-2026-0016"]);
-    expect(overdue.items.every((i) => i.overdue && i.status !== "OVERDUE")).toBe(true);
+    expect(overdue.items.every((i) => i.overdue && (i.status as string) !== "OVERDUE")).toBe(true);
     const receivables = await listInstallments({ milestone: "AFTER_DELIVERY", reached: true });
     expect(receivables.items.every((i) => i.milestone === "AFTER_DELIVERY" && !!i.reachedAt)).toBe(
       true,

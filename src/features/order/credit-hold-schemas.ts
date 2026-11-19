@@ -8,12 +8,8 @@
 
 import { z } from "zod";
 
-import { ORDER_PAYMENT_TERMS } from "@/constants/orders";
-
 import { orderSchema } from "./model-schemas";
 import { orderDtoSchema } from "./schemas";
-
-import type { OrderPaymentTerm } from "@/constants/orders";
 
 export const creditHoldDtoSchema = z.object({
   order: orderDtoSchema,
@@ -43,49 +39,39 @@ export const creditHoldSchema = z.object({
   orderAmount: z.number(),
 });
 
-/* ── Credit position (SCRUM-427/193) ─────────────────────────────────── */
-
-const isPaymentTerm = (value: string): value is OrderPaymentTerm =>
-  (ORDER_PAYMENT_TERMS as readonly string[]).includes(value);
+/* ── Credit position (BE CreditPositionResponse, origin/develop 438fe6fb) ── */
 
 /**
- * BE `CreditPositionResponse` — `GET /orders/credit-position/{customerId}`: phương thức thanh toán
- * khách được dùng và công nợ HIỆN TẠI (không phải lý do một đơn cũ bị giữ). Tiền là BigDecimal →
- * số JSON, theo `currency` của hồ sơ khách. `depositPercent` là PHẦN TRĂM (30 = 30%, 0 < x < 100 —
- * ràng buộc DB `ck_credit_profile_deposit`). Field null bị BỎ khỏi JSON (Jackson non_null).
- * Khách chưa có hồ sơ: chỉ PREPAID, không cọc / hạn mức (BE `CreditTerms.prepaidOnly`).
+ * BE `CreditPositionResponse` — `GET /orders/credit-position/{customerId}`: hạn mức, dư nợ phần trả sau giao
+ * và khoản quá hạn HIỆN TẠI (15 BR-10). Không còn điều khoản thanh toán (`allowedTerms`, `defaultTerm` đã bỏ ở
+ * BE). Field null bị BỎ khỏi JSON (Jackson non_null): `creditLimit`, `creditTermDays`, `availableCredit` vắng
+ * khi khách không được bán trả sau; `oldestOverdueDueDate` vắng khi không có quá hạn.
  */
 export const creditPositionDtoSchema = z.object({
   customerId: z.string(),
-  // BE `List<String>` từ enum CommercialTerm. Mã FE chưa biết bị bỏ — không bao giờ thành lựa chọn
-  // hay được gửi lên (chỉ dùng để bật cách xử lý FE đã hiểu).
-  allowedTerms: z.array(z.string()).transform((terms) => terms.filter(isPaymentTerm)),
-  defaultTerm: z
-    .string()
-    .nullish()
-    .transform((term) => (term && isPaymentTerm(term) ? term : null)),
-  depositPercent: z.number().nullish(),
   creditLimit: z.number().nullish(),
   creditTermDays: z.number().int().nullish(),
-  /** Đang nợ trên đơn công nợ chưa giao + phải thu còn mở. */
+  /** Phần trả sau giao của hợp đồng đã ký còn nợ + phí huỷ chưa trả. */
   exposure: z.number(),
-  /** Hạn mức − dư nợ (không âm); null khi khách không được bán công nợ. */
+  /** Hạn mức − dư nợ (không âm); null khi khách không được bán trả sau. */
   availableCredit: z.number().nullish(),
   currency: z.string().regex(/^[A-Z]{3}$/, "Mã tiền tệ không hợp lệ"),
-  /** Khách đang có khoản phải thu quá hạn — tình trạng HIỆN TẠI. */
+  /** Đang có đợt thanh toán quá hạn — ký hợp đồng lúc này sẽ treo chờ Kế toán duyệt. */
   hasOverdue: z.boolean(),
+  /** Số còn phải trả trên các đợt quá hạn; 0 khi không có. */
+  overdueAmount: z.number().nullish(),
+  oldestOverdueDueDate: z.string().nullish(),
 });
 
 /** Model FE: field vắng → null. */
 export const creditPositionSchema = z.object({
   customerId: z.string(),
-  allowedTerms: z.array(z.enum(ORDER_PAYMENT_TERMS)),
-  defaultTerm: z.enum(ORDER_PAYMENT_TERMS).nullable(),
-  depositPercent: z.number().nullable(),
   creditLimit: z.number().nullable(),
   creditTermDays: z.number().nullable(),
   exposure: z.number(),
   availableCredit: z.number().nullable(),
   currency: z.string(),
   hasOverdue: z.boolean(),
+  overdueAmount: z.number(),
+  oldestOverdueDueDate: z.string().nullable(),
 });

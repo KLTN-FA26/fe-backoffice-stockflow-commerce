@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  availableRefusalActions,
   cancelConsequence,
   formatCancellationReason,
   formatRemainderClosedStatusReason,
@@ -102,6 +101,8 @@ describe("dòng đơn & lệnh sản xuất", () => {
     shippedQuantity: null,
     deliveredQuantity: null,
     cancelledQuantity: null,
+    cartons: null,
+    unitsPerCarton: null,
   };
   it("customLineCount đếm dòng in", () => {
     expect(
@@ -175,22 +176,6 @@ describe("cancelConsequence — hệ quả huỷ theo trạng thái (19 trạng 
   it("chưa giao kho / sản xuất, UNKNOWN → không có cảnh báo thêm", () => {
     expect(cancelConsequence("Pending Payment")).toBeNull();
     expect(cancelConsequence("UNKNOWN")).toBeNull();
-  });
-});
-
-describe("availableRefusalActions — theo allowedTerms HIỆN TẠI (docs 14 BR-05)", () => {
-  it("huỷ luôn được; chuyển trả trước / đặt cọc chỉ khi BE cho phép", () => {
-    expect(availableRefusalActions(["PREPAID", "DEPOSIT", "CREDIT"])).toEqual([
-      "CANCEL",
-      "SWITCH_TO_PREPAID",
-      "SWITCH_TO_DEPOSIT",
-    ]);
-    expect(availableRefusalActions(["PREPAID", "CREDIT"])).toEqual(["CANCEL", "SWITCH_TO_PREPAID"]);
-    expect(availableRefusalActions(["CREDIT"])).toEqual(["CANCEL"]);
-    expect(availableRefusalActions([])).toEqual(["CANCEL"]);
-  });
-  it("chưa có credit position (đang tải / lỗi / thiếu quyền) → chỉ huỷ, không đoán", () => {
-    expect(availableRefusalActions(null)).toEqual(["CANCEL"]);
   });
 });
 

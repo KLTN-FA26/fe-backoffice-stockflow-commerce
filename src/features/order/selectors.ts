@@ -10,11 +10,7 @@ import {
 } from "@/constants";
 import { currencyFractionDigits } from "@/lib/format";
 
-import type {
-  CreditRejectionAction,
-  OrderCancellationReasonCode,
-  OrderPaymentTerm,
-} from "@/constants";
+import type { OrderCancellationReasonCode } from "@/constants";
 import type { CreditHold, Order, OrderReadStatus, ProductionOrder } from "./types";
 
 /**
@@ -82,21 +78,6 @@ export function creditHoldSummary(
   const excess = creditOverage(hold);
   const minorUnits = Math.round(excess * 10 ** currencyFractionDigits(hold.order.currency));
   return minorUnits > 0 ? { kind: "over-limit", excess } : { kind: "overdue" };
-}
-
-/**
- * Cách xử lý từ chối chọn được với công nợ HIỆN TẠI của khách. Huỷ luôn được; chuyển sang trả
- * trước / đặt cọc chỉ khi `allowedTerms` của BE có phương thức đó (BE trả 409
- * PAYMENT_TERM_NOT_ALLOWED nếu không — docs 14 BR-05). Chưa có credit position (đang tải / lỗi /
- * thiếu quyền) → chỉ huỷ, không đoán phương thức. BE vẫn là nơi quyết định cuối.
- */
-export function availableRefusalActions(
-  allowedTerms: readonly OrderPaymentTerm[] | null,
-): CreditRejectionAction[] {
-  const actions: CreditRejectionAction[] = ["CANCEL"];
-  if (allowedTerms?.includes("PREPAID")) actions.push("SWITCH_TO_PREPAID");
-  if (allowedTerms?.includes("DEPOSIT")) actions.push("SWITCH_TO_DEPOSIT");
-  return actions;
 }
 
 /* ── Lý do huỷ ───────────────────────────────────────────────────────── */

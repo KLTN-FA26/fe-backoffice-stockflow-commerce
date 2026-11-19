@@ -19,9 +19,8 @@ export const INSTALLMENT_TRANSITIONS: Readonly<
   Record<InstallmentApiStatus, readonly InstallmentApiStatus[]>
 > = {
   NOT_DUE: ["DUE", "PARTIALLY_PAID", "PAID", "CANCELLED"],
-  DUE: ["PARTIALLY_PAID", "PAID", "OVERDUE", "CANCELLED"],
-  PARTIALLY_PAID: ["PAID", "OVERDUE", "CANCELLED"],
-  OVERDUE: ["PAID", "CANCELLED"],
+  DUE: ["PARTIALLY_PAID", "PAID", "CANCELLED"],
+  PARTIALLY_PAID: ["PAID", "CANCELLED"],
   PAID: [],
   CANCELLED: [],
 };

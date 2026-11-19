@@ -76,7 +76,7 @@ export function buildCreditHoldColumns(
     },
     {
       key: "orderAmount",
-      header: "Giá trị đơn",
+      header: "Phần trả sau giao",
       align: "right",
       cell: (r) => money(r, r.orderAmount),
     },
